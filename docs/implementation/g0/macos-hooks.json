@@ -1,0 +1,41 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "'/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/g0-hook-darwin-arm64' --output-dir '/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/hook-events' --nonce 'g0-macos-20260910'",
+            "timeout": 3,
+            "async": false
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "'/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/g0-hook-darwin-arm64' --output-dir '/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/hook-events' --nonce 'g0-macos-20260910'",
+            "timeout": 3,
+            "async": false
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "'/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/g0-hook-darwin-arm64' --output-dir '/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/hook-events' --nonce 'g0-macos-20260910'",
+            "timeout": 3,
+            "async": false
+          }
+        ]
+      }
+    ]
+  }
+}

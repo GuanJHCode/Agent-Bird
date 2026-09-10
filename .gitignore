@@ -1,3 +1,8 @@
 /tasks/g0/tmp/
 /tasks/g0/data/g0-probe-darwin-arm64
 /tasks/g0/data/g0-probe-windows-amd64.exe
+/tasks/g0-macos/tmp/
+/tasks/g0-macos/data/test-repo/
+/tasks/g0-macos/data/go/
+/tasks/g0-macos/data/g0-hook-darwin-arm64
+/tasks/g0-macos/data/hook-events/

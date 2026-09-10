@@ -1,0 +1,12 @@
+{
+  "code_commit": "5435a4b",
+  "windows_status": "deferred_not_verified",
+  "native_hook_executions": 0,
+  "original_docs_matching": 7,
+  "missing_links": [],
+  "hook_binary_sha256": "62e41afd87e1408854490bf6a716cfe846fff0021179a39d163d6e02254ba779",
+  "hook_definition_sha256": "666243bf0789d012c7035ff7ef7203735df95fd79eafe763fa5013277f58b917",
+  "temporary_root_absent": true,
+  "reviewed_source_unchanged": true,
+  "worktrees": "worktree /Users/guanjunhui/code/ai/codex-cli-orchestration-design\nHEAD 5435a4b49df0bcfe5c2688c7c88f587139c3b421\nbranch refs/heads/main\n\n"
+}

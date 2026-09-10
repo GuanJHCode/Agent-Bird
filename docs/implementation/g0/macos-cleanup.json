@@ -1,0 +1,37 @@
+{
+  "entries": [
+    {
+      "path": "tasks/g0-macos/tmp/go1.26.8.darwin-arm64.tar.gz",
+      "device": 16777234,
+      "inode": 159805494,
+      "files": 1,
+      "bytes": 64626620,
+      "state": "removed",
+      "absence_verified": true
+    },
+    {
+      "path": "tasks/g0-macos/tmp/worktrees/hook/tasks/g0/tmp/gocache",
+      "device": 16777234,
+      "inode": 159839188,
+      "files": 2518,
+      "bytes": 192904609,
+      "state": "removed",
+      "absence_verified": true
+    }
+  ],
+  "unexpected_worker_paths": [],
+  "worker_worktree": "tasks/g0-macos/tmp/worktrees/hook",
+  "kept": {
+    "tasks/g0-macos/data/go": "active macOS G0 toolchain for continued development/review",
+    "tasks/g0-macos/data/test-repo": "prepared native trust fixture",
+    "tasks/g0-macos/data/hook-events": "precreated empty native Hook output root",
+    "tasks/g0-macos/data/g0-hook-darwin-arm64": "review candidate tool",
+    "docs/implementation/g0/macos-*": "evidence and trust materials"
+  },
+  "state": "complete_with_active_G0_fixtures_and_toolchain_retained",
+  "worker_red_log_copy": "removed_after_preserving_matching_evidence",
+  "worker_worktree_state": "removed_after_clean_inventory",
+  "worker_ref_state": "removed_with_expected_oid",
+  "task_tmp_absent": true,
+  "native_event_count": 0
+}

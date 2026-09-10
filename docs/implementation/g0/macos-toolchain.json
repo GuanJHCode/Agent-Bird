@@ -1,0 +1,9 @@
+{
+  "version": "go1.26.8",
+  "artifact_url": "https://go.dev/dl/go1.26.8.darwin-arm64.tar.gz",
+  "sha256": "a012b25b571bd0138a03dcd25375ceba866fe5ca822f426d2c66a4de56fd3f4b",
+  "matches_previously_verified_official_digest": true,
+  "path": "tasks/g0-macos/data/go",
+  "purpose": "active_macOS_G0_development_and_review",
+  "state": "retained_while_G0_tooling_work_requires_compiler"
+}

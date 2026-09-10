@@ -1,0 +1,81 @@
+--- FAIL: TestAllowedEventsRecordOnlyIdentity (0.00s)
+    --- FAIL: TestAllowedEventsRecordOnlyIdentity/start (0.00s)
+        main_test.go:56: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+    --- FAIL: TestAllowedEventsRecordOnlyIdentity/submit (0.00s)
+        main_test.go:56: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+    --- FAIL: TestAllowedEventsRecordOnlyIdentity/end (0.00s)
+        main_test.go:56: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+--- FAIL: TestRejectsUnsafeOrIncompleteInput (0.01s)
+    --- FAIL: TestRejectsUnsafeOrIncompleteInput/malformed (0.00s)
+        main_test.go:118: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+    --- FAIL: TestRejectsUnsafeOrIncompleteInput/multiple_json (0.00s)
+        main_test.go:118: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+    --- FAIL: TestRejectsUnsafeOrIncompleteInput/not_object (0.00s)
+        main_test.go:118: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+    --- FAIL: TestRejectsUnsafeOrIncompleteInput/too_large (0.00s)
+        main_test.go:118: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+    --- FAIL: TestRejectsUnsafeOrIncompleteInput/missing_session (0.00s)
+        main_test.go:118: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+    --- FAIL: TestRejectsUnsafeOrIncompleteInput/missing_event (0.00s)
+        main_test.go:118: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+    --- FAIL: TestRejectsUnsafeOrIncompleteInput/missing_turn (0.00s)
+        main_test.go:118: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+    --- FAIL: TestRejectsUnsafeOrIncompleteInput/wrong_type (0.00s)
+        main_test.go:118: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+    --- FAIL: TestRejectsUnsafeOrIncompleteInput/unsafe_id (0.00s)
+        main_test.go:118: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+    --- FAIL: TestRejectsUnsafeOrIncompleteInput/long_id (0.00s)
+        main_test.go:118: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+    --- FAIL: TestRejectsUnsafeOrIncompleteInput/duplicate (0.00s)
+        main_test.go:118: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+    --- FAIL: TestRejectsUnsafeOrIncompleteInput/unknown_source (0.00s)
+        main_test.go:118: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+    --- FAIL: TestRejectsUnsafeOrIncompleteInput/stop_not_supported (0.00s)
+        main_test.go:118: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+    --- FAIL: TestRejectsUnsafeOrIncompleteInput/subagent_not_supported (0.00s)
+        main_test.go:118: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+--- FAIL: TestConcurrentEventsNeverOverwrite (0.00s)
+    main_test.go:146: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+    main_test.go:146: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+    main_test.go:146: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+    main_test.go:146: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+    main_test.go:146: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+    main_test.go:146: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+    main_test.go:146: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+    main_test.go:146: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+    main_test.go:146: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+    main_test.go:146: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+    main_test.go:146: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+    main_test.go:146: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+    main_test.go:146: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+    main_test.go:146: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+    main_test.go:146: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+    main_test.go:146: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+    main_test.go:150: expected 16 independent events; count=0 err=<nil>
+--- FAIL: TestDirectoryMissingAndSymlinksCannotEscape (0.01s)
+    --- FAIL: TestDirectoryMissingAndSymlinksCannotEscape/missing (0.00s)
+        main_test.go:198: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+    --- FAIL: TestDirectoryMissingAndSymlinksCannotEscape/final_link (0.00s)
+        main_test.go:198: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+    --- FAIL: TestDirectoryMissingAndSymlinksCannotEscape/parent_link (0.00s)
+        main_test.go:198: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+    --- FAIL: TestDirectoryMissingAndSymlinksCannotEscape/not_directory (0.00s)
+        main_test.go:198: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+    --- FAIL: TestDirectoryMissingAndSymlinksCannotEscape/not_writable (0.00s)
+        main_test.go:198: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+--- FAIL: TestArgumentsNeverReflected (0.00s)
+    main_test.go:226: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+    main_test.go:226: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+    main_test.go:226: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+    main_test.go:226: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+    main_test.go:226: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+    main_test.go:226: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+    main_test.go:226: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+--- FAIL: TestBlockedInputHasTwoSecondBudget (0.00s)
+    main_test.go:241: code=1 stdout="" stderr="g0-hook: not_implemented\n"
+    main_test.go:244: expected 2s input budget, got 375ns
+--- FAIL: TestWriteFailureDoesNotSucceed (0.01s)
+    main_test.go:265: child error=exit status 1 stdout="" stderr="g0-hook: not_implemented\n"
+FAIL
+FAIL	codex-cli-orchestration-design/tools/g0-probe/cmd/g0-hook	0.720s
+FAIL

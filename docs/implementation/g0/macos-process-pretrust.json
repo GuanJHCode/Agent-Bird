@@ -1,0 +1,23 @@
+{
+  "evidence_class": "native_tui_pretrust_os_metadata",
+  "native_argv": [
+    "codex"
+  ],
+  "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo",
+  "processes": [
+    {
+      "pid": 78426,
+      "process_identity": "78426 67491 Thu Sep 10 17:29:37 2026     node",
+      "unix_socket_output": "",
+      "unix_socket_exit_code": 0
+    },
+    {
+      "pid": 78435,
+      "process_identity": "78435 78426 Thu Sep 10 17:29:37 2026     /Users/guanjunhui/.nvm/versions/node/v24.13.0/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex",
+      "unix_socket_output": "p78435\nf7\nn->0x28699f5d5cc7c128\nf8\nn->0xeb932a922865e150\nf9\nn->0x28699f5d5cc7c128\nf13\nn->0xf8760c0e71582507\nf14\nn->0x2d760b2ad11b050a\nf18\nn->0x28699f5d5cc7c128\nf40\nn->0xa96d6808389a0ed7\n",
+      "unix_socket_exit_code": 0
+    }
+  ],
+  "state": "waiting_for_native_directory_trust",
+  "daemon_socket_present": false
+}

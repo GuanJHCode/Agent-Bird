@@ -2,6 +2,8 @@
 
 日期：2026-09-10。当前结论：**G0.1 原生身份实验受阻，G0 未通过，G1–G4 未实施。** 探针实现、模拟协议测试和真实原生验收分别记录。
 
+续作更新：用户随后明确允许先不做Windows。本页下文保留首轮结束时的历史证据；当前macOS原生启动、正常信任及Hook工具进展见 [macos-current-environment.md](macos-current-environment.md)。Windows已延期，不再作为本轮macOS推进阻塞。
+
 ## 环境、范围与原文件
 
 - 工作目录初始只有七份设计文件，无 Git、源码或测试。初始化 `main` 并提交原始设计基线 `53221d4`；原文件摘要见 [original-sha256.txt](original-sha256.txt)。未改写原设计评审结论。

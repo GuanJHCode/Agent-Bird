@@ -1,0 +1,102 @@
+{
+  "source_commit": "5435a4b",
+  "evidence_class": "synthetic_stdin_and_real_files_only_not_native_hook",
+  "checks": [
+    {
+      "event": "SessionStart",
+      "argv": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/g0-hook-darwin-arm64",
+        "--output-dir",
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/tmp/binary-case/events",
+        "--nonce",
+        "g0-synthetic-only"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "",
+      "seconds": 1.2015862090047449,
+      "record_fields": [
+        "hook_event_name",
+        "nonce",
+        "pid",
+        "ppid",
+        "recorded_at",
+        "session_id",
+        "source"
+      ],
+      "mode": "0600",
+      "canary_absent": true
+    },
+    {
+      "event": "UserPromptSubmit",
+      "argv": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/g0-hook-darwin-arm64",
+        "--output-dir",
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/tmp/binary-case/events",
+        "--nonce",
+        "g0-synthetic-only"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "",
+      "seconds": 0.01369804097339511,
+      "record_fields": [
+        "hook_event_name",
+        "nonce",
+        "pid",
+        "ppid",
+        "recorded_at",
+        "session_id",
+        "turn_id"
+      ],
+      "mode": "0600",
+      "canary_absent": true
+    },
+    {
+      "event": "SessionEnd",
+      "argv": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/g0-hook-darwin-arm64",
+        "--output-dir",
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/tmp/binary-case/events",
+        "--nonce",
+        "g0-synthetic-only"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "",
+      "seconds": 0.01793529186397791,
+      "record_fields": [
+        "hook_event_name",
+        "nonce",
+        "pid",
+        "ppid",
+        "recorded_at",
+        "session_id"
+      ],
+      "mode": "0600",
+      "canary_absent": true
+    },
+    {
+      "event": "blocked_stdin",
+      "argv": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/g0-hook-darwin-arm64",
+        "--output-dir",
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/tmp/binary-case/events",
+        "--nonce",
+        "g0-synthetic-only"
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "g0-hook: timeout\n",
+      "seconds": 2.043343500001356
+    }
+  ],
+  "binary": {
+    "path": "tasks/g0-macos/data/g0-hook-darwin-arm64",
+    "sha256": "62e41afd87e1408854490bf6a716cfe846fff0021179a39d163d6e02254ba779",
+    "bytes": 3433442
+  },
+  "synthetic_files_removed": true,
+  "native_hook_executions": 0,
+  "windows_runtime_executions": 0
+}

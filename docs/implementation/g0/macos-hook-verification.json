@@ -1,0 +1,65 @@
+{
+  "source_commit": "5435a4b",
+  "evidence_class": "hook_tool_tests_and_build_only",
+  "native_hook_executions": 0,
+  "windows_status": "deferred_not_verified",
+  "worktree_checks": [
+    {
+      "name": "hook-race-worktree",
+      "cmd": "GOTOOLCHAIN=local GOCACHE=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/tmp/worktrees/hook/tasks/g0/tmp/gocache GOMODCACHE=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/tmp/worktrees/hook/tasks/g0/tmp/gomodcache /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go test -race -count=1 ./cmd/g0-hook",
+      "result": {
+        "chunk_id": "728e26",
+        "wall_time_seconds": 0.000001667,
+        "exit_code": 0,
+        "original_token_count": 18,
+        "output": "ok  \tcodex-cli-orchestration-design/tools/g0-probe/cmd/g0-hook\t4.224s\n"
+      }
+    },
+    {
+      "name": "hook-vet-worktree",
+      "cmd": "GOTOOLCHAIN=local GOCACHE=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/tmp/worktrees/hook/tasks/g0/tmp/gocache GOMODCACHE=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/tmp/worktrees/hook/tasks/g0/tmp/gomodcache /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go vet ./cmd/g0-hook",
+      "result": {
+        "chunk_id": "e5d641",
+        "wall_time_seconds": 1.25e-7,
+        "exit_code": 0,
+        "original_token_count": 0,
+        "output": ""
+      }
+    }
+  ],
+  "integrated_checks": [
+    {
+      "name": "hook-race-integrated",
+      "cmd": "GOTOOLCHAIN=local GOCACHE=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/tmp/worktrees/hook/tasks/g0/tmp/gocache GOMODCACHE=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/tmp/worktrees/hook/tasks/g0/tmp/gomodcache /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go test -race -count=1 ./cmd/g0-hook",
+      "result": {
+        "chunk_id": "1b7846",
+        "wall_time_seconds": 0.000001083,
+        "exit_code": 0,
+        "original_token_count": 18,
+        "output": "ok  \tcodex-cli-orchestration-design/tools/g0-probe/cmd/g0-hook\t4.404s\n"
+      }
+    },
+    {
+      "name": "hook-vet-integrated",
+      "cmd": "GOTOOLCHAIN=local GOCACHE=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/tmp/worktrees/hook/tasks/g0/tmp/gocache GOMODCACHE=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/tmp/worktrees/hook/tasks/g0/tmp/gomodcache /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go vet ./cmd/g0-hook",
+      "result": {
+        "chunk_id": "db7328",
+        "wall_time_seconds": 0.50659875,
+        "exit_code": 0,
+        "original_token_count": 0,
+        "output": ""
+      }
+    },
+    {
+      "name": "hook-build-darwin-arm64",
+      "cmd": "GOTOOLCHAIN=local GOCACHE=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/tmp/worktrees/hook/tasks/g0/tmp/gocache GOMODCACHE=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/tmp/worktrees/hook/tasks/g0/tmp/gomodcache /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go build -trimpath -o /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/g0-hook-darwin-arm64 ./cmd/g0-hook",
+      "result": {
+        "chunk_id": "52b6ab",
+        "wall_time_seconds": 0.00000225,
+        "exit_code": 0,
+        "original_token_count": 0,
+        "output": ""
+      }
+    }
+  ]
+}

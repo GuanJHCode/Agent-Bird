@@ -1,0 +1,24 @@
+{
+  "native_exit_action": "No, quit at native directory trust prompt",
+  "pty_exit_code": 0,
+  "processes": [
+    {
+      "pid": 78426,
+      "original_identity": "78426 67491 Thu Sep 10 17:29:37 2026     node",
+      "currently_visible": false,
+      "observed_identity": ""
+    },
+    {
+      "pid": 78435,
+      "original_identity": "78435 78426 Thu Sep 10 17:29:37 2026     /Users/guanjunhui/.nvm/versions/node/v24.13.0/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex",
+      "currently_visible": false,
+      "observed_identity": ""
+    }
+  ],
+  "model_turns": 0,
+  "directory_trust_confirmed": false,
+  "hook_trust_confirmed": false,
+  "hook_definition_path": "tasks/g0-macos/data/test-repo/.codex/hooks.json",
+  "hook_definition_sha256": "666243bf0789d012c7035ff7ef7203735df95fd79eafe763fa5013277f58b917",
+  "hook_events_created": 0
+}
