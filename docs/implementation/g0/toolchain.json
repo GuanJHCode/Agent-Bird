@@ -1,0 +1,13 @@
+{
+  "evidence_class": "toolchain_integrity",
+  "source": "https://go.dev/dl/?mode=json",
+  "artifact_url": "https://go.dev/dl/go1.26.8.darwin-arm64.tar.gz",
+  "filename": "go1.26.8.darwin-arm64.tar.gz",
+  "os": "darwin",
+  "arch": "arm64",
+  "version": "go1.26.8",
+  "sha256": "a012b25b571bd0138a03dcd25375ceba866fe5ca822f426d2c66a4de56fd3f4b",
+  "size": 64626620,
+  "kind": "archive",
+  "verified_sha256": "a012b25b571bd0138a03dcd25375ceba866fe5ca822f426d2c66a4de56fd3f4b"
+}

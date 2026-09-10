@@ -1,0 +1,77 @@
+{
+  "evidence_class": "local_preflight_not_g0_acceptance",
+  "os": "Darwin",
+  "architecture": "arm64",
+  "filesystem": {
+    "FilesystemName": "APFS",
+    "FilesystemType": "apfs"
+  },
+  "tool_paths": {
+    "codex": "/Users/guanjunhui/.nvm/versions/node/v24.13.0/bin/codex",
+    "go": null,
+    "git": "/usr/bin/git",
+    "claude": "/Users/guanjunhui/.local/bin/claude",
+    "gemini": null,
+    "pwsh": null,
+    "prlctl": null,
+    "vmrun": null,
+    "qemu-system-aarch64": null
+  },
+  "commands": [
+    {
+      "argv": [
+        "codex",
+        "--version"
+      ],
+      "started_at": "2026-09-10T08:37:01.535509+00:00",
+      "exit_code": 0,
+      "stdout": "codex-cli 0.153.4\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "--version"
+      ],
+      "started_at": "2026-09-10T08:37:01.600005+00:00",
+      "exit_code": 0,
+      "stdout": "git version 2.39.3 (Apple Git-146)\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "sw_vers"
+      ],
+      "started_at": "2026-09-10T08:37:01.623494+00:00",
+      "exit_code": 0,
+      "stdout": "ProductName:\t\tmacOS\nProductVersion:\t\t26.3.1\nBuildVersion:\t\t25D2128\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "codex",
+        "app-server",
+        "proxy",
+        "--help"
+      ],
+      "started_at": "2026-09-10T08:37:01.635529+00:00",
+      "exit_code": 0,
+      "stdout": "Proxy stdio bytes to the running app-server control socket\n\nUsage: codex app-server proxy [OPTIONS]\n\nOptions:\n  -c, --config <key=value>\n          Override a configuration value that would otherwise be loaded from `~/.codex/config.toml`.\n          Use a dotted path (`foo.bar.baz`) to override nested values. The `value` portion is parsed\n          as TOML. If it fails to parse as TOML, the raw string is used as a literal.\n          \n          Examples: - `-c model=\"o3\"` - `-c 'sandbox_permissions=[\"disk-full-read-access\"]'` - `-c\n          shell_environment_policy.inherit=all`\n\n      --sock <SOCKET_PATH>\n          Path to the app-server Unix domain socket to connect to\n\n      --enable <FEATURE>\n          Enable a feature (repeatable). Equivalent to `-c features.<name>=true`\n\n      --disable <FEATURE>\n          Disable a feature (repeatable). Equivalent to `-c features.<name>=false`\n\n  -h, --help\n          Print help (see a summary with '-h')\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "codex",
+        "app-server",
+        "daemon",
+        "version"
+      ],
+      "started_at": "2026-09-10T08:37:01.692232+00:00",
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "Error: failed to connect to /Users/guanjunhui/.codex/app-server-control/app-server-control.sock\n\nCaused by:\n    No such file or directory (os error 2)\n"
+    }
+  ],
+  "native_session_experiments_executed": 0,
+  "windows_runtime_experiments_executed": 0
+}
