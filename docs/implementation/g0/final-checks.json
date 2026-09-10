@@ -1,0 +1,52 @@
+{
+  "source_commit": "050af97",
+  "original_documents": [
+    {
+      "path": "docs/design-v0.1.md",
+      "sha256_matches": true
+    },
+    {
+      "path": "docs/acceptance-v0.1.md",
+      "sha256_matches": true
+    },
+    {
+      "path": "docs/evidence.md",
+      "sha256_matches": true
+    },
+    {
+      "path": "docs/g0-validation-plan.md",
+      "sha256_matches": true
+    },
+    {
+      "path": "docs/runtime-protocols.md",
+      "sha256_matches": true
+    },
+    {
+      "path": "docs/git-cleanup-protocol.md",
+      "sha256_matches": true
+    },
+    {
+      "path": "docs/review-report.md",
+      "sha256_matches": true
+    }
+  ],
+  "missing_local_links": [],
+  "json_files_checked": 8,
+  "artifacts": [
+    {
+      "path": "tasks/g0/data/g0-probe-darwin-arm64",
+      "sha256_matches": true
+    },
+    {
+      "path": "tasks/g0/data/g0-probe-windows-amd64.exe",
+      "sha256_matches": true
+    }
+  ],
+  "temporary_root_absent": true,
+  "remaining_test_socket_roots": [],
+  "worktrees": "worktree /Users/guanjunhui/code/ai/codex-cli-orchestration-design\nHEAD 050af974c6633673cf8802a484d0d80ed00afae9\nbranch refs/heads/main\n\n",
+  "source_unchanged_since_review": true,
+  "g0_status": "blocked_not_passed",
+  "native_codex_scenarios": 0,
+  "windows_runtime_scenarios": 0
+}

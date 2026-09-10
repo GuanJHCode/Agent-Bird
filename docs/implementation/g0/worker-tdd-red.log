@@ -1,0 +1,29 @@
+--- FAIL: TestReadOnlyTranscriptAndSanitizedEvidence (1.00s)
+    main_test.go:159: code=1; got sanitized evidence=""; stderr="g0-probe: not_implemented\n"
+    main_test.go:86: fixture connection did not close
+--- FAIL: TestInvalidArgumentsAreBoundedAndNeverReflected (0.00s)
+    --- FAIL: TestInvalidArgumentsAreBoundedAndNeverReflected/0 (0.00s)
+        main_test.go:309: code=1; output=""; stderr="g0-probe: not_implemented\n"
+    --- FAIL: TestInvalidArgumentsAreBoundedAndNeverReflected/1 (0.00s)
+        main_test.go:309: code=1; output=""; stderr="g0-probe: not_implemented\n"
+    --- FAIL: TestInvalidArgumentsAreBoundedAndNeverReflected/2 (0.00s)
+        main_test.go:309: code=1; output=""; stderr="g0-probe: not_implemented\n"
+    --- FAIL: TestInvalidArgumentsAreBoundedAndNeverReflected/3 (0.00s)
+        main_test.go:309: code=1; output=""; stderr="g0-probe: not_implemented\n"
+    --- FAIL: TestInvalidArgumentsAreBoundedAndNeverReflected/4 (0.00s)
+        main_test.go:309: code=1; output=""; stderr="g0-probe: not_implemented\n"
+    --- FAIL: TestInvalidArgumentsAreBoundedAndNeverReflected/5 (0.00s)
+        main_test.go:309: code=1; output=""; stderr="g0-probe: not_implemented\n"
+    --- FAIL: TestInvalidArgumentsAreBoundedAndNeverReflected/6 (0.00s)
+        main_test.go:309: code=1; output=""; stderr="g0-probe: not_implemented\n"
+    --- FAIL: TestInvalidArgumentsAreBoundedAndNeverReflected/7 (0.00s)
+        main_test.go:309: code=1; output=""; stderr="g0-probe: not_implemented\n"
+    --- FAIL: TestInvalidArgumentsAreBoundedAndNeverReflected/8 (0.00s)
+        main_test.go:309: code=1; output=""; stderr="g0-probe: not_implemented\n"
+    --- FAIL: TestInvalidArgumentsAreBoundedAndNeverReflected/9 (0.00s)
+        main_test.go:309: code=1; output=""; stderr="g0-probe: not_implemented\n"
+    --- FAIL: TestInvalidArgumentsAreBoundedAndNeverReflected/10 (0.00s)
+        main_test.go:309: code=1; output=""; stderr="g0-probe: not_implemented\n"
+FAIL
+FAIL	codex-cli-orchestration-design/tools/g0-probe	3.156s
+FAIL

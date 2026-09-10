@@ -1,0 +1,74 @@
+{
+  "source_commit": "050af97",
+  "evidence_class": "probe_binary_negative_paths_and_artifacts",
+  "checks": [
+    {
+      "argv": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0/data/g0-probe-darwin-arm64"
+      ],
+      "exit_code": 2,
+      "stdout": "",
+      "stderr": "g0-probe: invalid_arguments\n",
+      "duration_seconds": 0.28926699981093407,
+      "expected_exit_code": 2,
+      "expected_category": "invalid_arguments"
+    },
+    {
+      "argv": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0/data/g0-probe-darwin-arm64",
+        "--socket",
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0/tmp/nonexistent.sock",
+        "--thread",
+        "g0-negative-control"
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "g0-probe: connect_failed\n",
+      "duration_seconds": 0.008437542011961341,
+      "expected_exit_code": 1,
+      "expected_category": "connect_failed"
+    },
+    {
+      "case": "G0R01_invalid_upgrade_at_9.3_seconds",
+      "argv": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0/data/g0-probe-darwin-arm64",
+        "--socket",
+        "/tmp/g0-probe-final-ser0hlle/tmp/s",
+        "--thread",
+        "g0-negative-control"
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "g0-probe: timeout\n",
+      "duration_seconds": 10.009058541152626,
+      "request_to_exit_seconds": 10.002645833184943,
+      "invalid_upgrade_to_exit_seconds": 0.7014225411694497,
+      "fixture": {
+        "transport": "synthetic Unix HTTP101 with invalid Sec-WebSocket-Accept",
+        "delay_seconds": 9.3,
+        "client_closed": true,
+        "server_stopped": true
+      },
+      "evidence_class": "synthetic_binary_regression_not_native_codex"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "tasks/g0/data/g0-probe-darwin-arm64",
+      "bytes": 8730066,
+      "sha256": "fad262393cf593b8de160d800c26fbf7f1a38967e88ae66d7c8171470512dcf5",
+      "probe_negative_cli_cases_verified": true,
+      "runtime_scope": "synthetic probe checks only; no native Codex connection"
+    },
+    {
+      "path": "tasks/g0/data/g0-probe-windows-amd64.exe",
+      "bytes": 9225216,
+      "sha256": "59b28824dde67d872abd2e59edf02c05bb7710fbf7139d92c5b80798c83c083f",
+      "probe_negative_cli_cases_verified": false,
+      "runtime_scope": "cross_compile_only"
+    }
+  ],
+  "native_codex_scenarios": 0,
+  "windows_runtime_scenarios": 0,
+  "temporary_fixture_removed": true
+}

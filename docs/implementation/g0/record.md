@@ -16,10 +16,10 @@
 
 | 负责人 | 范围 | 状态 |
 |---|---|---|
-| 主 Agent | 计划、环境、证据、整合及最后判定 | 进行中 |
+| 主 Agent | 计划、环境、证据、整合及最后判定 | 当前可推进范围已完成；原生实验受阻 |
 | g0_interface_research | 本机帮助/schema及官方接口，只读 | 完成；未连接真实会话 |
-| g0_probe_impl | 独立 worktree 内 `tools/g0-probe/` 的最小只读 Go 探针与测试 | 进行中 |
-| 独立复核者 | 未参与实现，复核最终实际代码及证据 | 待派 GPT-6 Astra / max |
+| g0_probe_impl | 独立 worktree 内 `tools/g0-probe/` 的最小只读 Go 探针与测试 | 已提交并整合；未实施回调 |
+| g0_independent_review | 未参与实现，GPT-6 Astra / max | 三轮复核完成；1项有效问题已修复关闭，最新无未解决问题 |
 
 写入隔离：主 Agent 编辑计划及记录；代码执行者在 `tasks/g0/tmp/worktrees/probe`、分支 `g0-readonly-probe` 工作，只提交指定模块。主 Agent 审核后整合，其他 Agent 不写主 worktree。
 
@@ -51,6 +51,30 @@ schema 精选原字段及方法枚举见 [schema-excerpts.json](schema-excerpts.
 
 当前已执行原生模型回调场景：**0次**。Windows运行场景：**0次**。没有启动替代app-server，没有向个人会话发送测试消息，没有代批Hook，没有安装项目集成条目。
 
+已实现最小工具：[tools/g0-probe](../../../tools/g0-probe/README.md)，独立Go模块，仅支持明确socket/thread的串行白名单读取。首次整合 `46c64df`，最终修复代码 `050af97`（执行者分别为 `a438f61`、`1a0fa3e`）。工具不会发送轮次、注册Hook或派发执行者；成功也只报告 `metadata_only / attached=unknown / g0=not_verified`。
+
+下列全部属于**探针工具的模拟协议或构建验证，不是 C01–C13 原生验收**：
+
+| 验证 | 最新实际结果 | 证据 |
+|---|---|---|
+| 失败先行 | 执行者先运行行为测试，stub导致exit 1；保留成功/参数场景红灯选集，非编译失败 | [worker-tdd-red.log](worker-tdd-red.log) |
+| 首次全套绿灯 | `go test -count=1 ./...` exit 0，10.832s | [worker-tdd-green.log](worker-tdd-green.log) |
+| 修复后整合测试 | `go test -race -count=1 ./...` exit 0，15.814s | [verification.json](verification.json) |
+| 整合后静态检查 | `go vet ./...` exit 0 | 同上 |
+| macOS arm64构建 | `go build -trimpath ...` exit 0 | 同上 |
+| Windows amd64交叉编译 | `GOOS=windows GOARCH=amd64 go build -trimpath ...` exit 0；**原生运行未验证** | 同上 |
+| 实际macOS二进制拒绝路径 | 无参exit 2；本任务不存在的socket exit 1；stdout空，stderr固定类别 | [binary-checks.json](binary-checks.json) |
+| G0R01失败先行回归 | 无效101后保持连接，修前deadline/cancel均约3秒而失败；修后0.40/0.10秒通过 | [红灯](worker-review-fix-red.log)、[绿灯](worker-review-fix-green.log)、[完整命令](worker-review-fix-commands.log) |
+| G0R01原始二进制复现复测 | 第9.3秒发送错误101；修后约10.009秒退出timeout，连接/服务已关闭，临时根删除 | [binary-checks.json](binary-checks.json) |
+
+`verification.json` 保留精确命令、Go路径、任务内缓存路径及输出。测试使用真正的Unix WebSocket合成服务，覆盖请求白名单、敏感canary过滤、协议异常、消息/JSON有界、整体deadline及连接关闭；没有调用模型。Go依赖固定为 `github.com/coder/websocket v1.8.15`。
+
+保留的红灯选集命令为 `go test -count=1 -run 'TestReadOnlyTranscriptAndSanitizedEvidence|TestInvalidArgumentsAreBoundedAndNeverReflected' ./...`，在执行者worktree模块目录、与verification记录相同的Go及缓存环境中执行，exit 1，3.156s。该日志对应实现前的stub，不是对当前已实现代码运行的结果。首次全套红灯25.736s来自执行者实时报告；未保留其原始完整输出，不能把选集日志标成全套原始日志。
+
+本地探针产物保留在 `tasks/g0/data/`，hash见binary-checks。它们不是产品v0.1发布包，Windows产物仅为下一次原生验证准备。
+
+首次整合的测试/产物报告另存为 `verification-46c64df.json`、`binary-checks-46c64df.json`，仅作历史证据，不替代上述最后一次代码修改后的验证。
+
 | 验收项 | 状态 | 未验证/阻塞原因 |
 |---|---|---|
 | C01/C02 | 受阻 | 缺合格隔离测试环境及原生TUI/Hook/thread交叉链；默认daemon不存在 |
@@ -62,9 +86,9 @@ schema 精选原字段及方法枚举见 [schema-excerpts.json](schema-excerpts.
 
 ## 复核与主 Agent 判定
 
-代码复核待最小探针整合及最新测试后执行。审查将分别判定工具是否可交付、G0是否可放行，不允许把合成服务测试通过写成原生回调通过。
+计划及证据初审0项有效问题；代码复核发现G0R01后，已按失败测试→最小修复→最新验证→原独立审查者复核关闭。最终复核新增有效问题0项，最小只读探针可交付；详见 [review.md](review.md)。探针交付与G0放行分别判定。
 
-目前主 Agent 判定：**不放行 G0.1 / G0**。仍可推进的工作是当前范围内探针测试、证据记录与独立代码复核；完成后需要现成隔离macOS和原生Windows已登录测试环境以继续。
+主 Agent 最终判定：**探针工具通过本次验证与独立复核；G0.1受阻，G0不放行。** 当前范围内无需测试环境即可完成的工作已完成。继续需要独立macOS测试用户/干净VM及原生Windows已登录Codex测试环境的位置或现成连接方式；无需提供认证内容。拿到环境后仍须证明原服务身份链与可失效的TUI附着正证据，再按原规格进入后续实验。G0.2及G1–G4均未实施。
 
 ## 文件归属与清理
 
@@ -74,8 +98,9 @@ schema 精选原字段及方法枚举见 [schema-excerpts.json](schema-excerpts.
 | `plans/implementation-v0.1.md` | 实施顺序和功能合同 | 交付保留 |
 | `docs/implementation/g0/` | 运行/复核证据 | 保留 |
 | `tools/g0-probe/` | 可复用Go探针及测试 | 整合后保留 |
-| `tasks/g0/tmp/schema/` | 原生schema生成 | 摘要保存后删除 |
-| `tasks/g0/tmp/go*` | 本任务工具链下载与校验 | 最新验证完成后删除无用下载和工具链；不安装全局 |
-| `tasks/g0/tmp/worktrees/probe` | 唯一代码执行者工作区 | 整合且停止后盘点tracked/untracked/ignored再定点回收 |
+| `tasks/g0/data/` | macOS探针和Windows交叉构建产物 | 交付保留，hash及证据范围见binary-checks |
+| `tasks/g0/tmp/schema/` | 原生schema生成 | 摘要保存后已删除 |
+| `tasks/g0/tmp/go*` | 本任务工具链下载与校验 | 最新验证后已删除下载包、元数据和临时工具链；未安装全局 |
+| `tasks/g0/tmp/worktrees/probe` | 唯一代码执行者工作区 | 日志复制保留、缓存删除后，确认tracked/untracked/ignored清洁，普通worktree remove已回收 |
 
-实际删除清单、最终验证及复核记录在收尾补齐，尚未完成的清理不宣称完成。
+清理已完成，详见 [cleanup.json](cleanup.json)：6类登记材料、9份工作区日志副本已删除；原工作tree和带expected OID的本任务分支引用已定点回收。`tasks/g0/tmp/` 已不存在，`/tmp/g0-probe-*` 遗留0项。源码、可复用测试、两份探针产物、原始文档和所有必要报告保留。没有全仓clean/prune/GC、没有删除共享Git objects、没有push或发布。

@@ -1,0 +1,13 @@
+Working directory: /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0/tmp/worktrees/probe/tools/g0-probe
+
+red (actual exit code 1):
+env GOTOOLCHAIN=local GOMODCACHE=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0/tmp/worktrees/probe/tasks/g0/tmp/gomodcache GOCACHE=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0/tmp/worktrees/probe/tasks/g0/tmp/gocache /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0/tmp/go/bin/go test -count=1 -run '^TestInvalidUpgradeCleanupHonorsCancellation$' ./... > ../../tasks/g0/tmp/review-fix-red.log 2>&1
+
+green (actual exit code 0):
+env GOTOOLCHAIN=local GOMODCACHE=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0/tmp/worktrees/probe/tasks/g0/tmp/gomodcache GOCACHE=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0/tmp/worktrees/probe/tasks/g0/tmp/gocache /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0/tmp/go/bin/go test -count=1 -run '^TestInvalidUpgradeCleanupHonorsCancellation$' ./... > ../../tasks/g0/tmp/review-fix-green.log 2>&1
+
+race (actual exit code 0):
+env GOTOOLCHAIN=local GOMODCACHE=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0/tmp/worktrees/probe/tasks/g0/tmp/gomodcache GOCACHE=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0/tmp/worktrees/probe/tasks/g0/tmp/gocache /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0/tmp/go/bin/go test -race -count=1 -v ./... > ../../tasks/g0/tmp/review-fix-race.log 2>&1
+
+vet (actual exit code 0):
+env GOTOOLCHAIN=local GOMODCACHE=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0/tmp/worktrees/probe/tasks/g0/tmp/gomodcache GOCACHE=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0/tmp/worktrees/probe/tasks/g0/tmp/gocache /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0/tmp/go/bin/go vet ./... > ../../tasks/g0/tmp/review-fix-vet.log 2>&1

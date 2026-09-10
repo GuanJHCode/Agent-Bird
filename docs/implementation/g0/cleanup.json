@@ -1,0 +1,110 @@
+{
+  "entries": [
+    {
+      "path": "tasks/g0/tmp/go1.26.8.darwin-arm64.tar.gz",
+      "device": 16777234,
+      "inode": 159707651,
+      "type": "file",
+      "regular_files": 1,
+      "bytes": 64626620,
+      "symlinks": 0,
+      "owner": "current_g0_task",
+      "purpose": "download/schema/toolchain/cache used by completed probe verification",
+      "state": "removed",
+      "absence_verified": true
+    },
+    {
+      "path": "tasks/g0/tmp/go-downloads.json",
+      "device": 16777234,
+      "inode": 159703683,
+      "type": "file",
+      "regular_files": 1,
+      "bytes": 22807,
+      "symlinks": 0,
+      "owner": "current_g0_task",
+      "purpose": "download/schema/toolchain/cache used by completed probe verification",
+      "state": "removed",
+      "absence_verified": true
+    },
+    {
+      "path": "tasks/g0/tmp/schema",
+      "device": 16777234,
+      "inode": 159703229,
+      "type": "directory",
+      "regular_files": 416,
+      "bytes": 4137012,
+      "symlinks": 0,
+      "owner": "current_g0_task",
+      "purpose": "download/schema/toolchain/cache used by completed probe verification",
+      "state": "removed",
+      "absence_verified": true
+    },
+    {
+      "path": "tasks/g0/tmp/go",
+      "device": 16777234,
+      "inode": 159723581,
+      "type": "directory",
+      "regular_files": 15036,
+      "bytes": 228753105,
+      "symlinks": 0,
+      "owner": "current_g0_task",
+      "purpose": "download/schema/toolchain/cache used by completed probe verification",
+      "state": "removed",
+      "absence_verified": true
+    },
+    {
+      "path": "tasks/g0/tmp/worktrees/probe/tasks/g0/tmp/gocache",
+      "device": 16777234,
+      "inode": 159753729,
+      "type": "directory",
+      "regular_files": 5364,
+      "bytes": 451297137,
+      "symlinks": 0,
+      "owner": "current_g0_task",
+      "purpose": "download/schema/toolchain/cache used by completed probe verification",
+      "state": "removed",
+      "absence_verified": true
+    },
+    {
+      "path": "tasks/g0/tmp/worktrees/probe/tasks/g0/tmp/gomodcache",
+      "device": 16777234,
+      "inode": 159747379,
+      "type": "directory",
+      "regular_files": 78,
+      "bytes": 330133,
+      "symlinks": 0,
+      "owner": "current_g0_task",
+      "purpose": "download/schema/toolchain/cache used by completed probe verification",
+      "state": "removed",
+      "absence_verified": true
+    }
+  ],
+  "worker_worktree": "tasks/g0/tmp/worktrees/probe",
+  "worker_untracked_file_count": 5450,
+  "worker_untracked_outside_owned_tmp": [],
+  "worker_ignored_file_count": 1,
+  "worker_ignored_outside_owned_tmp": [],
+  "kept": [
+    "original docs",
+    "plans",
+    "docs/implementation/g0 evidence/review/test logs",
+    "tools/g0-probe source/test/module",
+    "tasks/g0/data built probe artifacts"
+  ],
+  "state": "complete",
+  "copied_logs_removed_from_worker": [
+    "tdd-red.log",
+    "tdd-green.log",
+    "race.log",
+    "vet.log",
+    "review-fix-red.log",
+    "review-fix-green.log",
+    "review-fix-race.log",
+    "review-fix-vet.log",
+    "review-fix-commands.log"
+  ],
+  "worker_worktree_state": "removed_after_clean_status_and_empty_ignored_inventory",
+  "worker_ref_state": "removed_with_expected_oid",
+  "task_tmp_absence_verified": true,
+  "remaining_matching_socket_roots": []
+}

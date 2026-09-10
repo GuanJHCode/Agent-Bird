@@ -31,7 +31,7 @@
 
 验证：Go 单元/真实本地 I/O 测试、race、vet、macOS 运行；Windows 交叉编译单独标注。原生步骤严格按 `docs/g0-validation-plan.md` §1–2；本地窗口 10 秒，模型窗口 120 秒。无隔离环境或正常信任即受阻，不以当前个人会话代测。
 
-状态：**进行中，原生实验受环境条件阻塞**。macOS 当前用户可读静态接口；初查无 Go、无现成 Windows/VM 命令。默认 daemon version 连接失败。已下载并校验任务内 Go 1.26.8，正在准备最小探针，详情见 `docs/implementation/g0/record.md`。
+状态：**G0.1受阻，G0未通过；最小探针工具已交付，后续功能未实施**。已用校验过的Go 1.26.8完成探针，独立复核发现的G0R01已先建失败测试、修复并复核关闭；最终代码050af97，race/vet、macOS build与Windows交叉编译通过。临时工具链/缓存/worktree已回收，源码和产物保留。缺少独立macOS及原生Windows已登录测试环境；原服务身份/TUI附着/回调均未实测，详情见 `docs/implementation/g0/record.md`。
 
 ## 后续功能清单（全部未实施）
 

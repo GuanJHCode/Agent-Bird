@@ -1,0 +1,8 @@
+--- FAIL: TestInvalidUpgradeCleanupHonorsCancellation (6.01s)
+    --- FAIL: TestInvalidUpgradeCleanupHonorsCancellation/deadline (3.00s)
+        main_test.go:354: invalid-upgrade cleanup exceeded cancellation bound: 3.002319458s
+    --- FAIL: TestInvalidUpgradeCleanupHonorsCancellation/early_cancel (3.00s)
+        main_test.go:354: invalid-upgrade cleanup exceeded cancellation bound: 3.001628625s
+FAIL
+FAIL	codex-cli-orchestration-design/tools/g0-probe	9.235s
+FAIL

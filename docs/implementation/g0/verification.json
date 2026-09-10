@@ -1,0 +1,51 @@
+{
+  "source_commit": "050af97",
+  "evidence_class": "probe_synthetic_tests_and_builds_only",
+  "g0_status": "not_verified",
+  "checks": [
+    {
+      "name": "test-race",
+      "cmd": "GOTOOLCHAIN=local GOMODCACHE=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0/tmp/worktrees/probe/tasks/g0/tmp/gomodcache GOCACHE=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0/tmp/worktrees/probe/tasks/g0/tmp/gocache /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0/tmp/go/bin/go test -race -count=1 ./...",
+      "result": {
+        "chunk_id": "67d771",
+        "wall_time_seconds": 0.000001834,
+        "exit_code": 0,
+        "original_token_count": 15,
+        "output": "ok  \tcodex-cli-orchestration-design/tools/g0-probe\t15.814s\n"
+      }
+    },
+    {
+      "name": "vet",
+      "cmd": "GOTOOLCHAIN=local GOMODCACHE=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0/tmp/worktrees/probe/tasks/g0/tmp/gomodcache GOCACHE=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0/tmp/worktrees/probe/tasks/g0/tmp/gocache /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0/tmp/go/bin/go vet ./...",
+      "result": {
+        "chunk_id": "857710",
+        "wall_time_seconds": 0.404146875,
+        "exit_code": 0,
+        "original_token_count": 0,
+        "output": ""
+      }
+    },
+    {
+      "name": "build-darwin-arm64",
+      "cmd": "GOTOOLCHAIN=local GOMODCACHE=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0/tmp/worktrees/probe/tasks/g0/tmp/gomodcache GOCACHE=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0/tmp/worktrees/probe/tasks/g0/tmp/gocache /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0/tmp/go/bin/go build -trimpath -o /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0/data/g0-probe-darwin-arm64 .",
+      "result": {
+        "chunk_id": "41a49e",
+        "wall_time_seconds": 6.67e-7,
+        "exit_code": 0,
+        "original_token_count": 0,
+        "output": ""
+      }
+    },
+    {
+      "name": "build-windows-amd64",
+      "cmd": "GOTOOLCHAIN=local GOMODCACHE=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0/tmp/worktrees/probe/tasks/g0/tmp/gomodcache GOCACHE=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0/tmp/worktrees/probe/tasks/g0/tmp/gocache GOOS=windows GOARCH=amd64 /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0/tmp/go/bin/go build -trimpath -o /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0/data/g0-probe-windows-amd64.exe .",
+      "result": {
+        "chunk_id": "f45065",
+        "wall_time_seconds": 5.41e-7,
+        "exit_code": 0,
+        "original_token_count": 0,
+        "output": ""
+      }
+    }
+  ]
+}

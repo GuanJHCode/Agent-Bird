@@ -1,0 +1,49 @@
+{
+  "evidence_class": "probe_binary_negative_paths_and_artifacts",
+  "checks": [
+    {
+      "argv": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0/data/g0-probe-darwin-arm64"
+      ],
+      "exit_code": 2,
+      "stdout": "",
+      "stderr": "g0-probe: invalid_arguments\n",
+      "duration_seconds": 3.7194035830907524,
+      "expected_exit_code": 2,
+      "expected_category": "invalid_arguments"
+    },
+    {
+      "argv": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0/data/g0-probe-darwin-arm64",
+        "--socket",
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0/tmp/nonexistent.sock",
+        "--thread",
+        "g0-negative-control"
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "g0-probe: connect_failed\n",
+      "duration_seconds": 0.011782583082094789,
+      "expected_exit_code": 1,
+      "expected_category": "connect_failed"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "tasks/g0/data/g0-probe-darwin-arm64",
+      "bytes": 8729986,
+      "sha256": "4439830bea29ec4ffe4941d6725a35fbef052a31645b9842c5984fda468a07cb",
+      "runtime_scope": "negative CLI paths only; no native Codex connection",
+      "probe_negative_cli_cases_verified": true
+    },
+    {
+      "path": "tasks/g0/data/g0-probe-windows-amd64.exe",
+      "bytes": 9223168,
+      "sha256": "5c2401de219ee79ab845a7b5cc4e6920d53c9fbc5a9b8883cbf5814ab6517b73",
+      "runtime_scope": "cross_compile_only",
+      "probe_negative_cli_cases_verified": false
+    }
+  ],
+  "native_codex_scenarios": 0,
+  "windows_runtime_scenarios": 0
+}
