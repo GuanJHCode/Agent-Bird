@@ -112,11 +112,27 @@ func validID(id string) bool {
 
 func probe(ctx context.Context, socket, threadID string) (evidence, string) {
 	var result evidence
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	// No environment proxy, redirect, TCP fallback, cookie jar, or default
 	// transport: every dial targets exactly the supplied Unix socket.
 	transport := &http.Transport{
-		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-			return (&net.Dialer{}).DialContext(ctx, "unix", socket)
+		DialContext: func(_ context.Context, _, _ string) (net.Conn, error) {
+			conn, err := (&net.Dialer{}).DialContext(ctx, "unix", socket)
+			if err != nil {
+				return nil, err
+			}
+			// An invalid HTTP 101 makes websocket.Dial read the upgraded body
+			// during error cleanup. Bind the raw connection to the probe's
+			// context; net/http's dial context may outlive request cancellation.
+			if cutoff, ok := ctx.Deadline(); ok {
+				if err := conn.SetDeadline(cutoff); err != nil {
+					conn.Close()
+					return nil, err
+				}
+			}
+			context.AfterFunc(ctx, func() { conn.Close() })
+			return conn, nil
 		},
 		DisableKeepAlives:      true,
 		MaxResponseHeaderBytes: 16 * 1024,
@@ -181,6 +197,10 @@ func probe(ctx context.Context, socket, threadID string) (evidence, string) {
 
 func failure(ctx context.Context, err error, fallback string) string {
 	if ctx.Err() != nil {
+		return "timeout"
+	}
+	// A socket deadline can fire just before the context timer publishes Err.
+	if cutoff, ok := ctx.Deadline(); ok && !time.Now().Before(cutoff) {
 		return "timeout"
 	}
 	if errors.Is(err, websocket.ErrMessageTooBig) {

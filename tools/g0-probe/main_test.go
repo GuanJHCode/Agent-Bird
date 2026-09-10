@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -278,6 +279,89 @@ func TestDeadlineIncludesHandshake(t *testing.T) {
 	case <-done:
 	case <-time.After(time.Second):
 		t.Error("handshake connection not closed")
+	}
+}
+
+// A malformed 101 reaches the WebSocket library's upgrade-validation failure
+// and body cleanup path. Context cancellation must also close that raw socket.
+func TestInvalidUpgradeCleanupHonorsCancellation(t *testing.T) {
+	for _, mode := range []string{"deadline", "early_cancel"} {
+		t.Run(mode, func(t *testing.T) {
+			base := ""
+			if runtime.GOOS == "darwin" {
+				base = "/tmp"
+			}
+			root, err := os.MkdirTemp(base, "g0-probe-")
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { os.RemoveAll(root) })
+			path := filepath.Join(root, "s")
+			listener, err := net.Listen("unix", path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { listener.Close() })
+			ctx, cancel := context.WithTimeout(context.Background(), 400*time.Millisecond)
+			if mode == "early_cancel" {
+				cancel()
+				ctx, cancel = context.WithCancel(context.Background())
+			}
+			defer cancel()
+			done := make(chan error, 1)
+			go func() {
+				c, err := listener.Accept()
+				if err != nil {
+					done <- err
+					return
+				}
+				defer c.Close()
+				_ = c.SetDeadline(time.Now().Add(5 * time.Second))
+				request, err := http.ReadRequest(bufio.NewReader(c))
+				if err != nil || request.Header.Get("Upgrade") != "websocket" {
+					done <- errors.New("fixture did not receive WebSocket upgrade")
+					return
+				}
+				_, err = fmt.Fprintf(c, "HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Accept: %s\r\n\r\n", canary)
+				if err != nil {
+					done <- err
+					return
+				}
+				if mode == "early_cancel" {
+					// Let Dial validate the received 101 and enter its body read.
+					timer := time.AfterFunc(100*time.Millisecond, cancel)
+					defer timer.Stop()
+				}
+				var one [1]byte
+				n, err := c.Read(one[:])
+				if n != 0 || err == nil {
+					done <- errors.New("client sent data after invalid upgrade")
+					return
+				}
+				if timeout, ok := err.(net.Error); ok && timeout.Timeout() {
+					done <- errors.New("client did not release invalid-upgrade socket")
+					return
+				}
+				done <- nil
+			}()
+			start := time.Now()
+			code, stdout, stderr := invoke(ctx, path)
+			elapsed := time.Since(start)
+			if code != 1 || stdout != "" || stderr != "g0-probe: timeout\n" {
+				t.Errorf("code=%d; output=%q; stderr=%q", code, stdout, stderr)
+			}
+			if elapsed > time.Second {
+				t.Errorf("invalid-upgrade cleanup exceeded cancellation bound: %s", elapsed)
+			}
+			select {
+			case err := <-done:
+				if err != nil {
+					t.Error(err)
+				}
+			case <-time.After(time.Second):
+				t.Error("invalid-upgrade connection did not close")
+			}
+		})
 	}
 }
 
