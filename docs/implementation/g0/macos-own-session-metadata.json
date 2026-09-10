@@ -1,0 +1,59 @@
+{
+  "evidence_class": "own_test_session_history_metadata_only_not_service_binding",
+  "session_metadata": {
+    "id": "01a08ac7-adb1-7450-8553-21bc2963b1a8",
+    "source": "cli",
+    "originator": "codex-tui",
+    "cli_version": "0.153.4",
+    "session_id": "01a08ac7-adb1-7450-8553-21bc2963b1a8"
+  },
+  "record_types": [
+    {
+      "type": "session_meta",
+      "payload_type": "",
+      "count": 1
+    },
+    {
+      "type": "event_msg",
+      "payload_type": "task_started",
+      "count": 1
+    },
+    {
+      "type": "response_item",
+      "payload_type": "message",
+      "count": 6
+    },
+    {
+      "type": "world_state",
+      "payload_type": "",
+      "count": 1
+    },
+    {
+      "type": "turn_context",
+      "payload_type": "",
+      "count": 1
+    },
+    {
+      "type": "event_msg",
+      "payload_type": "item_completed",
+      "count": 2
+    },
+    {
+      "type": "token_usage_record",
+      "payload_type": "",
+      "count": 1
+    },
+    {
+      "type": "event_msg",
+      "payload_type": "token_count",
+      "count": 1
+    },
+    {
+      "type": "event_msg",
+      "payload_type": "task_complete",
+      "count": 1
+    }
+  ],
+  "hook_records": [],
+  "history_text_not_copied": true
+}

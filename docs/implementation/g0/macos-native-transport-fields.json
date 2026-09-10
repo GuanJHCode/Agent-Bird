@@ -1,0 +1,86 @@
+{
+  "process_uuid": "pid:88713:39ec1d2c-e2c7-4246-b757-e1489f53966a",
+  "evidence_class": "same_test_process_public_protocol_metadata",
+  "records": [
+    {
+      "ts": 1789034737,
+      "target": "codex_config::loader::layer_io",
+      "public_protocol_fields": {
+        "transport": "in-process",
+        "client_name": "codex-tui",
+        "client_version": "0.153.4",
+        "method": "hooks/list",
+        "connection_id": "0",
+        "api_version": "v2"
+      }
+    },
+    {
+      "ts": 1789034737,
+      "target": "codex_config::loader::layer_io",
+      "public_protocol_fields": {
+        "transport": "in-process",
+        "client_name": "codex-tui",
+        "client_version": "0.153.4",
+        "method": "thread/start",
+        "connection_id": "0",
+        "api_version": "v2"
+      }
+    },
+    {
+      "ts": 1789034737,
+      "target": "codex_app_server::outgoing_message",
+      "public_protocol_fields": {
+        "transport": "in-process",
+        "client_name": "codex-tui",
+        "client_version": "0.153.4",
+        "method": "thread/start",
+        "connection_id": "0",
+        "api_version": "v2"
+      }
+    },
+    {
+      "ts": 1789034744,
+      "target": "codex_config::loader::layer_io",
+      "public_protocol_fields": {
+        "transport": "in-process",
+        "client_name": "codex-tui",
+        "client_version": "0.153.4",
+        "method": "hooks/list",
+        "connection_id": "0",
+        "api_version": "v2"
+      }
+    },
+    {
+      "ts": 1789034863,
+      "target": "codex_config::loader::layer_io",
+      "public_protocol_fields": {
+        "transport": "in-process",
+        "client_name": "codex-tui",
+        "client_version": "0.153.4",
+        "method": "thread/start",
+        "connection_id": "0",
+        "api_version": "v2"
+      }
+    },
+    {
+      "ts": 1789034864,
+      "target": "codex_app_server::outgoing_message",
+      "public_protocol_fields": {
+        "transport": "in-process",
+        "client_name": "codex-tui",
+        "client_version": "0.153.4",
+        "method": "thread/start",
+        "connection_id": "0",
+        "api_version": "v2"
+      }
+    }
+  ],
+  "selection": {
+    "source_record_count": 22,
+    "retained_methods": [
+      "hooks/list",
+      "thread/start"
+    ],
+    "reason": "Retain only protocol fields relevant to the tested native connection; no raw log bodies."
+  }
+}

@@ -1,0 +1,176 @@
+{
+  "recorded_at": "2026-09-10T10:36:49.342509+00:00",
+  "scope": "Documentation and retained native evidence verification only; no new source edits or runtime acceptance claims",
+  "source_baseline": "2da7af8",
+  "checks": [
+    {
+      "command": [
+        "shasum",
+        "-a",
+        "256",
+        "-c",
+        "docs/implementation/g0/original-sha256.txt"
+      ],
+      "exit_code": 0,
+      "stdout": "docs/design-v0.1.md: OK\ndocs/acceptance-v0.1.md: OK\ndocs/evidence.md: OK\ndocs/g0-validation-plan.md: OK\ndocs/runtime-protocols.md: OK\ndocs/git-cleanup-protocol.md: OK\ndocs/review-report.md: OK\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--exit-code",
+        "2da7af8",
+        "--",
+        "tools/g0-probe"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "cmp",
+        "docs/implementation/g0/macos-hooks.json",
+        "tasks/g0-macos/data/test-repo/.codex/hooks.json"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "git",
+        "worktree",
+        "list",
+        "--porcelain"
+      ],
+      "exit_code": 0,
+      "stdout": "worktree /Users/guanjunhui/code/ai/codex-cli-orchestration-design\nHEAD 2da7af8a874b96ac9448145fec4717b0de81fc84\nbranch refs/heads/main\n\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "ps",
+        "-p",
+        "88704",
+        "-o",
+        "pid=,ppid=,lstart=,comm="
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "ps",
+        "-p",
+        "88713",
+        "-o",
+        "pid=,ppid=,lstart=,comm="
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "ps",
+        "-p",
+        "88779",
+        "-o",
+        "pid=,ppid=,lstart=,comm="
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "ps",
+        "-p",
+        "88780",
+        "-o",
+        "pid=,ppid=,lstart=,comm="
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "ps",
+        "-p",
+        "88793",
+        "-o",
+        "pid=,ppid=,lstart=,comm="
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "check": "sha256 unchanged",
+      "path": "tasks/g0-macos/data/g0-hook-darwin-arm64",
+      "sha256": "62e41afd87e1408854490bf6a716cfe846fff0021179a39d163d6e02254ba779",
+      "passed": true
+    },
+    {
+      "check": "sha256 unchanged",
+      "path": "docs/implementation/g0/macos-hooks.json",
+      "sha256": "666243bf0789d012c7035ff7ef7203735df95fd79eafe763fa5013277f58b917",
+      "passed": true
+    },
+    {
+      "check": "sha256 unchanged",
+      "path": "/Users/guanjunhui/.codex/app-server-daemon/settings.json",
+      "sha256": "922e9ed2521a417109eae8429696e6f7c95e06e7a2acd1cf5b2c0326b73d9b40",
+      "passed": true
+    },
+    {
+      "check": "Exact native Hook file contents, session identity, parent PID and record count match saved evidence",
+      "record_count": 3,
+      "passed": true
+    },
+    {
+      "check": "All G0 JSON evidence parses",
+      "files": 25,
+      "passed": true
+    },
+    {
+      "check": "Local links in updated status documents resolve",
+      "files": 4,
+      "passed": true
+    }
+  ],
+  "g0_1": "blocked",
+  "g0_passed": false,
+  "windows": "deferred_unverified",
+  "post_review_document_verification": {
+    "recorded_at": "2026-09-10T10:38:10.405436+00:00",
+    "reviewer": "GPT-6 Astra / max",
+    "N01": "closed",
+    "unresolved_review_findings": 0,
+    "JSON_files_parsed": 26,
+    "local_links_checked_in_documents": 4,
+    "command": [
+      "git",
+      "diff",
+      "--check"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "",
+    "g0_1": "blocked"
+  }
+}

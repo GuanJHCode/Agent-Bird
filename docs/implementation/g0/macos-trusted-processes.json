@@ -1,0 +1,37 @@
+{
+  "evidence_class": "native_tui_os_metadata_after_directory_trust",
+  "argv": [
+    "codex"
+  ],
+  "terminal_only_env_override": {
+    "TERM": "xterm-256color"
+  },
+  "processes": [
+    {
+      "pid": 88704,
+      "identity": "88704 84881 Thu Sep 10 18:05:36 2026     ttys000  node",
+      "unix_socket_metadata": ""
+    },
+    {
+      "pid": 88713,
+      "identity": "88713 88704 Thu Sep 10 18:05:36 2026     ttys000  /Users/guanjunhui/.nvm/versions/node/v24.13.0/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex",
+      "unix_socket_metadata": "p88713\nf7\nn->0x3f78bec1a3fc6015\nf8\nn->0x7e58d2fa99796bdf\nf9\nn->0x3f78bec1a3fc6015\nf13\nn->0x321a174c88265d93\nf14\nn->0xfc2861e9476a723\nf18\nn->0x3f78bec1a3fc6015\nf38\nn->0x6b92b9ec73cd695f\n"
+    },
+    {
+      "pid": 88779,
+      "identity": "88779 88713 Thu Sep 10 18:05:37 2026     ttys000  /Applications/ChatGPT.app/Contents/Resources/cua_node/bin/node",
+      "unix_socket_metadata": ""
+    },
+    {
+      "pid": 88780,
+      "identity": "88780 88713 Thu Sep 10 18:05:37 2026     ttys000  /Applications/ChatGPT.app/Contents/Resources/cua_node/bin/node_repl",
+      "unix_socket_metadata": "p88780\nf6\nn->0x56446193ea2c746a\nf7\nn->0x62afd88942012ea\nf8\nn->0x56446193ea2c746a\nf13\nn->0x56446193ea2c746a\n"
+    },
+    {
+      "pid": 88793,
+      "identity": "88793 88779 Thu Sep 10 18:05:37 2026     ttys000  /Applications/ChatGPT.app/Contents/Resources/cua_node/bin/node_repl",
+      "unix_socket_metadata": "p88793\nf6\nn->0x9f0fe615a121d9a6\nf7\nn->0xcf6c2416a540f168\nf8\nn->0x9f0fe615a121d9a6\nf12\nn->0x9f0fe615a121d9a6\n"
+    }
+  ],
+  "default_socket_exists": false
+}

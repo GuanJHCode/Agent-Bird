@@ -1,5 +1,7 @@
 # macOS G0 正常信任步骤
 
+2026-09-10更新：用户已完成此步骤，原生界面确认三项Trusted并产生3条真实Hook记录。以下保留为操作记录，**无需重复信任**。当前进展见 [原生G0结果](macos-native-g0-result.md)。
+
 此步骤仅用于当前G0专用测试仓库。Windows已延期；原生回调尚未验收通过。最小Hook工具的最终验证/复核状态以 [本轮记录](macos-current-environment.md) 为准。
 
 在普通macOS终端中进入本任务测试仓库并正常启动Codex：

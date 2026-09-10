@@ -9,7 +9,7 @@
 - 初始目录仅七份设计文档，无程序、测试或 Git 元数据。已原样建立 Git 基线，未修改全局 AGENTS.md、CLI 认证或权限。
 - 每个功能独立执行：合同 → 有意义的失败测试 → 最小实现 → 集成验证 → 未参与实现者独立复核 → 核实并修复 → 最新复核 → 主 Agent 判定。未通过不开始下一功能。
 - 当前用户要求收紧设计 §11 中“G0 不成立仍可开发通用调度”的许可：本次禁止提前开发 G1–G4。保持既定产品需求不变。
-- 主 Agent 负责计划、证据与代码整合；`g0_probe_impl` 是当前唯一实现写入者，在独立 worktree `tasks/g0/tmp/worktrees/probe` 负责 `tools/g0-probe/`。并行接口核验由 `g0_interface_research` 只读完成；独立复核另派未参与实现的 GPT-6 Astra / max。以后若并行写代码，先创建不同 Git worktree，逐项指定模块归属，由主 Agent整合；不得撤销他人修改。
+- 主 Agent 负责计划、证据与代码整合；探针实现曾由 `g0_probe_impl` 在独立 worktree 负责 `tools/g0-probe/`，已整合并清理实现 worktree，目前无并行代码写入者。接口核验由 `g0_interface_research` 只读完成；最新原生证据由未参与实现的 GPT-6 Astra / max 复核。以后若并行写代码，先创建不同 Git worktree，逐项指定模块归属，由主 Agent整合；不得撤销他人修改。
 - 表中后续负责人是角色分配，进入该功能时再绑定实际 Agent、worktree、基线 OID 和具体文件；表内的验证不代表已经执行。
 - 所有通过条件均包含最新测试与独立复核无未解决有效问题。跨平台放行条目必须有真实平台证据，交叉编译和模拟服务只能证明其自身范围。
 
@@ -27,16 +27,18 @@
 | 原生接口、schema、官方文档核验 | g0_interface_research（只读） | 给出可复现候选和不足，不把 schema 算实测 |
 | 最小 Go 探针及失败先行测试 | g0_probe_impl（独立 worktree，唯一实现写入者） | 显式指定输入；不猜会话、不保存原始历史/配置；超限/失败不报成功 |
 | 原生身份与 Hook 实验 | 主 Agent，依赖合格测试环境 | 每平台基础场景 3 次，形成端点→服务→TUI→thread 证据链 |
-| 整合后独立复核 | 待派 GPT-6 Astra / max | 实际代码、测试有效性和证据等级分别判定 |
+| 整合后独立复核 | GPT-6 Astra / max；Hook工具复核时因额度限制回退Terra / max | 实际代码、测试有效性和证据等级分别判定 |
 | 放行判定 | 主 Agent | 本轮macOS必要身份/在线证据成立；工具测试通过不替代G0.1通过；Windows记延期未验证 |
 
 验证：Go单元/真实本地I/O测试、race、vet、macOS运行。原生步骤按 `docs/g0-validation-plan.md` §1–2并应用上述本轮范围更新；本地窗口10秒、模型窗口120秒和正常信任条件不变；Windows延期且不声称通过。
 
-状态：**G0.1受阻，G0未通过；最小探针工具已交付，后续功能未实施**。已用校验过的Go 1.26.8完成探针，独立复核发现的G0R01已先建失败测试、修复并复核关闭；最终代码050af97，race/vet、macOS build与Windows交叉编译通过。临时工具链/缓存/worktree已回收，源码和产物保留。缺少独立macOS及原生Windows已登录测试环境；原服务身份/TUI附着/回调均未实测，详情见 `docs/implementation/g0/record.md`。
+最初收尾记录（历史）：**G0.1受阻，G0未通过；最小探针工具已交付，后续功能未实施**。已用校验过的Go 1.26.8完成探针，独立复核发现的G0R01已先建失败测试、修复并复核关闭；最终代码050af97，race/vet、macOS build与Windows交叉编译通过。临时工具链/缓存/worktree已回收，源码和产物保留。缺少独立macOS及原生Windows已登录测试环境；原服务身份/TUI附着/回调均未实测，详情见 `docs/implementation/g0/record.md`。
 
-续作状态：**macOS G0.1恢复进行中**。以上段落为上轮收尾状态；本轮记录见 `docs/implementation/g0/macos-current-environment.md`。Windows延期，尚不满足完整两平台支持声明。
+历史续作：用户授权macOS G0.1恢复实验；以上段落为最初收尾状态。本轮记录见 `docs/implementation/g0/macos-current-environment.md`。Windows延期，尚不满足完整两平台支持声明。
 
-最新进展：当前环境的新建原生TUI确实进入目录信任提示，未代批，已选择退出且确认进程停止。最小Hook身份记录器5435a4b已整合并通过macOS模拟测试/race/vet/build及独立复核，0项有效问题。Astra审查请求受usage limit阻止，实际使用可用的GPT-5.6 Terra / max独立审查者。当前只待正常目录/Hook信任及后续原生身份证据；可直接按 `docs/implementation/g0/macos-trust-step.md` 审阅已准备的内容，Windows延期不阻挡当前macOS推进。
+上一轮准备记录：新建原生TUI进入目录信任提示，未代批，已选择退出且确认进程停止。最小Hook身份记录器5435a4b已整合并通过macOS模拟测试/race/vet/build及独立复核，0项有效问题。当时Astra审查请求受usage limit阻止，实际使用GPT-5.6 Terra / max独立审查者；正常目录/Hook信任尚待用户完成。
+
+以上为上一轮准备状态。**当前更新：正常信任已由用户完成，原生标记轮次及3条Hook执行已实测；当前服务transport=in-process，未得到可供桥接的原服务外部端点和附着正证据，G0.1不放行。** 不再等待用户重复信任，也不以Windows延期作为阻塞。最新 [原生结果记录](../docs/implementation/g0/macos-native-g0-result.md) 经已恢复可用的GPT-6 Astra / max独立复核；不将一次标记或根会话映射当完整G0通过。
 
 ## 后续功能清单（全部未实施）
 

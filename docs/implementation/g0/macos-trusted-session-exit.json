@@ -1,0 +1,60 @@
+{
+  "evidence_class": "normal_exit_of_owned_native_test_session",
+  "session_id": "01a08ac7-adb1-7450-8553-21bc2963b1a8",
+  "exit_action": "/quit",
+  "processes": [
+    {
+      "pid": 88704,
+      "observed_identity": "",
+      "visible": false
+    },
+    {
+      "pid": 88713,
+      "observed_identity": "",
+      "visible": false
+    },
+    {
+      "pid": 88779,
+      "observed_identity": "",
+      "visible": false
+    },
+    {
+      "pid": 88780,
+      "observed_identity": "",
+      "visible": false
+    },
+    {
+      "pid": 88793,
+      "observed_identity": "",
+      "visible": false
+    }
+  ],
+  "hook_records_after_exit": [
+    {
+      "session_id": "01a08ac7-adb1-7450-8553-21bc2963b1a8",
+      "hook_event_name": "SessionStart",
+      "source": "startup",
+      "nonce": "g0-macos-20260910",
+      "pid": 89455,
+      "ppid": 88713,
+      "recorded_at": "2026-09-10T10:07:43.903935Z"
+    },
+    {
+      "session_id": "01a08ac7-adb1-7450-8553-21bc2963b1a8",
+      "hook_event_name": "UserPromptSubmit",
+      "turn_id": "01a08ac9-97ef-7b93-a492-3b634dca6647",
+      "nonce": "g0-macos-20260910",
+      "pid": 89456,
+      "ppid": 88713,
+      "recorded_at": "2026-09-10T10:07:43.918278Z"
+    },
+    {
+      "session_id": "01a08ac7-adb1-7450-8553-21bc2963b1a8",
+      "hook_event_name": "SessionEnd",
+      "nonce": "g0-macos-20260910",
+      "pid": 90390,
+      "ppid": 88713,
+      "recorded_at": "2026-09-10T10:18:28.607975Z"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "current_path": "/Users/guanjunhui/.codex/packages/standalone/current",
+  "is_symlink": true,
+  "target": "/Users/guanjunhui/.codex/packages/standalone/releases/0.136.0-aarch64-apple-darwin",
+  "resolved_path": "/Users/guanjunhui/.codex/packages/standalone/releases/0.136.0-aarch64-apple-darwin",
+  "target_exists": false,
+  "is_file": false,
+  "is_directory": false,
+  "existing_daemon_settings": {
+    "remoteControlEnabled": true,
+    "mtime_utc": "2026-06-02T04:06:58.294529+00:00",
+    "sha256": "922e9ed2521a417109eae8429696e6f7c95e06e7a2acd1cf5b2c0326b73d9b40"
+  },
+  "daemon_started_or_bootstrapped_by_this_task": false
+}

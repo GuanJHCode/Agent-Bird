@@ -1,0 +1,35 @@
+{
+  "recorded_at": "2026-09-10T10:36:11.919671+00:00",
+  "removed": [
+    {
+      "path": "docs/implementation/g0/macos-native-message-categories.json",
+      "sha256": "42e57b2a23b65f8802e3076a5388f156a659e2b4538c3cff1e10b438549e6695",
+      "bytes": 28589,
+      "reason": "Task-owned intermediate metadata queries, superseded by retained exact Hook records and selected protocol fields.",
+      "removed": true
+    },
+    {
+      "path": "docs/implementation/g0/macos-own-hook-log-categories.json",
+      "sha256": "113bc750d1ee598aff49c112adcffc56908fb6b53e84d185ea498d8e2fe1b9b6",
+      "bytes": 183,
+      "reason": "Task-owned intermediate metadata queries, superseded by retained exact Hook records and selected protocol fields.",
+      "removed": true
+    },
+    {
+      "path": "docs/implementation/g0/macos-own-process-hook-log-categories.json",
+      "sha256": "371f626ba7cd23530984431c07201ced5b98ed93d1efe0923c9299f47e4fb82b",
+      "bytes": 906,
+      "reason": "Task-owned intermediate metadata queries, superseded by retained exact Hook records and selected protocol fields.",
+      "removed": true
+    }
+  ],
+  "retained": {
+    "tasks/g0-macos/data/go/": "Reusable Go SDK for the gated implementation",
+    "tasks/g0-macos/data/g0-hook-darwin-arm64": "Frozen reviewed binary already trusted by user",
+    "tasks/g0-macos/data/test-repo/": "Dedicated native test repository and trusted Hook definition",
+    "tasks/g0-macos/data/hook-events/": "Three actual native Hook records; necessary identity evidence",
+    "docs/implementation/g0/": "Plans, source-test reports, selected native evidence and review history"
+  },
+  "native_test_session": "Previously exited normally; no daemon started by this task",
+  "user_installation_and_global_configuration": "Not altered or removed"
+}

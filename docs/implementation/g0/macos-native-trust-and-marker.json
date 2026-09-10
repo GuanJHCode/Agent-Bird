@@ -1,0 +1,47 @@
+{
+  "evidence_class": "native_TUI_observations_not_service_binding",
+  "native_version": "0.153.4",
+  "native_pid": 88713,
+  "native_argv": [
+    "codex"
+  ],
+  "terminal_only_env": {
+    "TERM": "xterm-256color"
+  },
+  "directory_trust_prompt_shown": false,
+  "hooks": {
+    "SessionStart": {
+      "installed": 1,
+      "active": 1,
+      "enabled": true,
+      "trust": "Trusted",
+      "source": "Project config .codex/hooks.json"
+    },
+    "SessionEnd": {
+      "installed": 1,
+      "active": 1,
+      "enabled": true,
+      "trust": "Trusted",
+      "source": "Project config .codex/hooks.json"
+    },
+    "UserPromptSubmit": {
+      "installed": 1,
+      "active": 1,
+      "enabled": true,
+      "trust": "Trusted",
+      "source": "Project config .codex/hooks.json"
+    }
+  },
+  "marker_prompt": "This is the G0 identity experiment g0-macos-20260910-a. Reply with exactly G0_ACK_A; do not use any tools or change files.",
+  "marker_response": "G0_ACK_A",
+  "observed_model_tool_calls": 0,
+  "native_status_session_id": "01a08ac7-adb1-7450-8553-21bc2963b1a8",
+  "status_noncredential_settings": {
+    "model": "gpt-6-astra",
+    "reasoning": "xhigh",
+    "permissions": "Full Access"
+  },
+  "hook_event_files": 2,
+  "default_control_socket_exists": false,
+  "transport_note": "Earlier PTY session 84435 became unknown after an environment update; OS inspection found no surviving processes in the test cwd. New session 39132 uses TERM=xterm-256color solely for terminal display."
+}

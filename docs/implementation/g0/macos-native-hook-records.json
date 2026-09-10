@@ -1,0 +1,40 @@
+{
+  "evidence_class": "actual_native_hook_identity_records",
+  "controller_session_observed_by_native_TUI": "01a08ac7-adb1-7450-8553-21bc2963b1a8",
+  "native_pid": 88713,
+  "records": [
+    {
+      "file": "27b409cc4ada9154f10798a54fb5cf00.json",
+      "session_id": "01a08ac7-adb1-7450-8553-21bc2963b1a8",
+      "hook_event_name": "SessionStart",
+      "source": "startup",
+      "nonce": "g0-macos-20260910",
+      "pid": 89455,
+      "ppid": 88713,
+      "recorded_at": "2026-09-10T10:07:43.903935Z"
+    },
+    {
+      "file": "94c0dbc25ffa9d07737311a46237a6ce.json",
+      "session_id": "01a08ac7-adb1-7450-8553-21bc2963b1a8",
+      "hook_event_name": "UserPromptSubmit",
+      "turn_id": "01a08ac9-97ef-7b93-a492-3b634dca6647",
+      "nonce": "g0-macos-20260910",
+      "pid": 89456,
+      "ppid": 88713,
+      "recorded_at": "2026-09-10T10:07:43.918278Z"
+    },
+    {
+      "file": "fb1d183bb95d8ac909932230ab0b2ef4.json",
+      "session_id": "01a08ac7-adb1-7450-8553-21bc2963b1a8",
+      "hook_event_name": "SessionEnd",
+      "nonce": "g0-macos-20260910",
+      "pid": 90390,
+      "ppid": 88713,
+      "recorded_at": "2026-09-10T10:18:28.607975Z"
+    }
+  ],
+  "identity_matches": true,
+  "service_endpoint_proven": false,
+  "attached_signal_proven": false,
+  "g0_passed": false
+}
