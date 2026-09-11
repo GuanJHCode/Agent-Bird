@@ -1,0 +1,24 @@
+{
+  "recorded_at": "2026-09-11T09:44:52.659265+00:00",
+  "scope": "local guard/typed native event fixtures only; no live Codex",
+  "red": {
+    "baseline": "0ebff5f1ee562c9089e7cd01a9f49bdca5aa942c",
+    "test": "both current and original missing started_at_local",
+    "exit_code": 1,
+    "observed": "ValueError not raised"
+  },
+  "fix": "Validate both complete native identity schemas and both complete socket schemas before comparison; reparent remains the same birth identity",
+  "green": {
+    "command": "python3 -m unittest native_sd_collect_test native_sd_pty_test native_sd_control_test -v",
+    "tests": 16,
+    "exit_code": 0,
+    "seconds": 0.273
+  },
+  "typed_ready_fixture": {
+    "source": "exact root/cwd/cli metadata and event_msg.task_complete",
+    "export": "timestamp, exact turn_id, fixed READY marker only",
+    "wrong_turn_and_after_window_rejected": true,
+    "reasoning_canary_not_exported": true
+  },
+  "remaining": "full fixed-case runtime controller and helper independent review"
+}
