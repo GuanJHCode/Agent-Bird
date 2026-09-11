@@ -1,16 +1,39 @@
 """Bounded native retained experiment evidence; no raw model or tool bodies."""
 import argparse
 import datetime
+import hashlib
 import json
 import pathlib
 import re
 import shlex
 import sqlite3
 import uuid
-from native_retained_data import safe_output, text_summary
+from native_retained_data import safe_output, stamp_nanos, text_summary
 
 
 REPO = pathlib.Path('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo')
+APPROVED_BINARY = '/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-retained-resume/data/g0-return-lab-retained-darwin-arm64'
+APPROVED_SHA256 = 'feb9b9ad969abca5ff35db28c0f0d8d920dc0778d7aac68a90952900e989a285'
+
+
+def valid_binary(binary):
+    if binary != APPROVED_BINARY:
+        return False
+    path = pathlib.Path(binary)
+    return path.is_file() and not path.is_symlink() and hashlib.sha256(path.read_bytes()).hexdigest() == APPROVED_SHA256
+
+
+def valid_window(since, through, now):
+    pattern = r'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]{1,9})?(?:Z|\+00:00)'
+    if not re.fullmatch(pattern, since) or not re.fullmatch(pattern, through):
+        raise ValueError('explicit UTC observation window required')
+    lower = datetime.datetime.fromisoformat(since.replace('Z','+00:00'))
+    upper = datetime.datetime.fromisoformat(through.replace('Z','+00:00'))
+    begin_ns = stamp_nanos(since.replace('+00:00','Z')); end_ns = stamp_nanos(through.replace('+00:00','Z'))
+    now_ns = stamp_nanos(now.astimezone(datetime.timezone.utc).isoformat(timespec='microseconds').replace('+00:00','Z'))
+    if not 0 < end_ns - begin_ns <= 120000000000 or end_ns > now_ns:
+        raise ValueError('elapsed observation window must be at most 120 seconds')
+    return lower, upper
 
 
 def literal_call(text):
@@ -44,6 +67,8 @@ def literal_call(text):
 def safe_input(text, root, nonce, binary, directory):
     result = text_summary(text)
     result['goal_operation_mentioned'] = bool(re.search(r'tools\.(?:create_goal|update_goal|get_goal)\s*\(', text))
+    if binary != APPROVED_BINARY:
+        return result
     operation, options = literal_call(text)
     if operation == 'write_stdin':
         sid = options.get('session_id')
@@ -164,9 +189,8 @@ def main():
     assert str(uuid.UUID(args.root)) == args.root
     match = re.fullmatch(r'rr-retained-(quit|kill)-([0-9]{2})', args.nonce); assert match
     expected = REPO / ('tasks/retained-resume/data/native-retained-' + match[1] + '-' + match[2])
-    assert pathlib.Path(args.dir).resolve() == expected and pathlib.Path(args.binary).is_absolute()
-    lower = datetime.datetime.fromisoformat(args.since.replace('Z','+00:00'))
-    upper = datetime.datetime.fromisoformat(args.through.replace('Z','+00:00')); assert lower <= upper
+    assert pathlib.Path(args.dir).resolve() == expected and valid_binary(args.binary)
+    lower, upper = valid_window(args.since, args.through, datetime.datetime.now(datetime.timezone.utc))
     db = sqlite3.connect('file:/Users/guanjunhui/.codex/state_5.sqlite?mode=ro', uri=True)
     row = db.execute('SELECT source,cwd,rollout_path,cli_version FROM threads WHERE id=?', (args.root,)).fetchone(); db.close()
     assert row and row[0] == 'cli' and pathlib.Path(row[1]) == REPO
@@ -179,7 +203,7 @@ def main():
                 yield event
     result = {'captured_at':datetime.datetime.now(datetime.timezone.utc).isoformat(), 'root_thread':args.root,
               'nonce':args.nonce, 'native_source':'cli', 'expected_experiment_cwd_matches':True, 'cli_version':row[3],
-              'window':{'since':args.since,'through':args.through},
+              'window':{'since':args.since,'through':args.through}, 'collector_entry_binary_sha256':APPROVED_SHA256,
               'privacy':'exact owned root; no reasoning/raw text; typed retained outputs require matching literal command or known process join',
               'events':filter_events(selected(), args.root, args.nonce, args.binary, args.dir)}
     pathlib.Path(args.output).write_text(json.dumps(result,ensure_ascii=False,indent=2)+'\n')

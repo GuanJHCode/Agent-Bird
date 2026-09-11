@@ -1,15 +1,31 @@
 #!/usr/bin/env python3
 import json
+import datetime
 import unittest
-from native_retained_collect import filter_events, safe_input
+from native_retained_collect import APPROVED_BINARY, filter_events, safe_input, valid_binary, valid_window
 from native_retained_data_test import ROOT, NONCE, SNAPSHOT
 
-BINARY = "/fixed/approved/g0-return-lab-retained"
+BINARY = APPROVED_BINARY
 DIRECTORY = "/fixed/private/retained-task"
 COMMAND = f'exec {BINARY} retained-start --dir {DIRECTORY} --nonce {NONCE} --controller-thread "$CODEX_THREAD_ID" --steps 12 --interval 4s'
 
 
 class RetainedCollectTest(unittest.TestCase):
+    def test_reviewed_binary_only(self):
+        self.assertFalse(valid_binary('/tmp/CANARY_PRIVATE_TEXT'))
+        source = self.source(COMMAND.replace(BINARY, '/tmp/CANARY_PRIVATE_TEXT'))
+        self.assertNotIn('commands', safe_input(source, ROOT, NONCE, '/tmp/CANARY_PRIVATE_TEXT', DIRECTORY))
+
+    def test_window_is_explicit_utc_elapsed_and_at_most_120_seconds(self):
+        now = datetime.datetime(2026, 9, 11, 1, tzinfo=datetime.timezone.utc)
+        valid_window('2026-09-11T00:00:00Z', '2026-09-11T00:02:00Z', now)
+        for since, through in [('2026-09-11T00:00:00Z','2026-09-11T00:02:01Z'),
+                               ('2026-09-11T00:00:00','2026-09-11T00:01:00'),
+                               ('2026-09-11T00:00:00+08:00','2026-09-11T00:01:00+08:00'),
+                               ('2026-09-11T01:00:00Z','2026-09-11T01:01:00Z')]:
+            with self.subTest(since=since, through=through):
+                with self.assertRaises(ValueError): valid_window(since, through, now)
+
     def source(self, command):
         return 'text(await tools.exec_command({cmd:' + json.dumps(command) + ',yield_time_ms:1000,max_output_tokens:5000}));'
 

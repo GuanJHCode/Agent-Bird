@@ -3,6 +3,7 @@ import datetime
 import hashlib
 import json
 import re
+import time
 
 
 KEYS = {"version", "status", "nonce", "controller_thread", "revision", "segment",
@@ -24,6 +25,13 @@ def valid_time(value):
         return False
 
 
+def stamp_nanos(value):
+    base = datetime.datetime.fromisoformat(value[:19]).replace(tzinfo=datetime.timezone.utc)
+    delta = base - datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
+    fraction = value[20:-1] if value[19] == '.' else ''
+    return (delta.days * 86400 + delta.seconds) * 1000000000 + int(fraction.ljust(9, '0') or '0')
+
+
 def valid_snapshot(value, root, nonce):
     if type(value) is not dict or set(value) != KEYS:
         return False
@@ -42,7 +50,9 @@ def valid_snapshot(value, root, nonce):
         return False
     if (value["status"] == "completed") != (value["completed_steps"] == value["total_steps"]):
         return False
-    return valid_time(value["segment_started_at"]) and valid_time(value["updated_at"])
+    if not valid_time(value["segment_started_at"]) or not valid_time(value["updated_at"]):
+        return False
+    return stamp_nanos(value["segment_started_at"]) <= stamp_nanos(value["updated_at"]) <= time.time_ns()
 
 
 def json_objects(text):

@@ -8,5 +8,11 @@
   "collector_green": "3 tests passed; recognized command and process join preserve typed snapshots, unrelated tool lookalike has no snapshot, reasoning/private bodies omitted",
   "goal_parsing": "none",
   "native_model_calls_for_this_validation": 0,
-  "known_limits": "Only one text(await tools.exec_command|write_stdin({literal options})) wrapper is supported; unknown code produces hashes only. PID creation identity separately uses bounded ps second-resolution timestamps. This fixture does not claim a general JavaScript parser or process-tree guard."
+  "known_limits": "Only one text(await tools.exec_command|write_stdin({literal options})) wrapper is supported; unknown code produces hashes only. PID creation identity separately uses bounded ps second-resolution timestamps. This fixture does not claim a general JavaScript parser or process-tree guard.",
+  "review_fix_verified_at": "2026-09-11T06:25:45.569035+00:00",
+  "review_red": "3 bad snapshot time subcases plus 5 binary/window subcases reproduced before fixes",
+  "review_green": "4 snapshot tests and 5 collector tests pass; approved persistent binary path/SHA positive verified once",
+  "snapshot_times": "exact nanosecond ordering and no future values; historical segment timestamps remain permitted",
+  "observation_window": "each phase separately: explicit UTC, elapsed, duration >0 and <=120 seconds",
+  "binary_binding": "fixed reviewed persistent path and SHA256 at collector entry; safe_input rejects any other expected path; live execution version still requires separate observer evidence"
 }

@@ -31,7 +31,10 @@ class RetainedDataTest(unittest.TestCase):
         bad_values = [{"version": True}, {"worker_pid": True}, {"liveness_checked": 0},
                       {"liveness_checked": True}, {"controller_thread": "CANARY_PRIVATE_TEXT"},
                       {"nonce": "wrong_nonce"}, {"effect_count": 3}, {"total_steps": 33},
-                      {"interval_ms": 10001}, {"status": "completed"}, {"segment": 0}]
+                      {"interval_ms": 10001}, {"status": "completed"}, {"segment": 0},
+                      {"segment_started_at": "2026-09-11T00:00:08.123456789Z", "updated_at": "2026-09-11T00:00:08.123456788Z"},
+                      {"segment_started_at": "2030-09-11T00:00:00Z", "updated_at": "2020-09-11T00:00:00Z"},
+                      {"segment_started_at": "9999-09-11T00:00:00Z", "updated_at": "9999-09-11T00:00:01Z"}]
         for change in bad_values:
             with self.subTest(change=change):
                 self.assertFalse(valid_snapshot(dict(SNAPSHOT, **change), ROOT, NONCE))
