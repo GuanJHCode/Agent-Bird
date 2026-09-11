@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -253,7 +254,32 @@ func TestInvalidArgumentsDoNotStartWork(t *testing.T) {
 	invoke(t, 2, "start", "--dir", link, "--nonce", "x", "--delay", "1s")
 }
 
-// Catches overwrites and treating unsafe or unrelated file contents as execution results.
+func writeFixtureExclusive(t *testing.T, path, data string, mode os.FileMode) {
+	t.Helper()
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, mode)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	if _, err := f.WriteString(data); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func prepareReadFixture(t *testing.T, dir string) *os.Root {
+	t.Helper()
+	// No worker runs in these cases: the destination exists before publish begins.
+	writeFixtureExclusive(t, filepath.Join(dir, "job.json"), `{"version":1,"status":"started","nonce":"safe","worker_pid":123,"created_at":"2026-09-11T00:00:00Z","job_file":"job.json","result_file":"result.json"}`, 0600)
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { root.Close() })
+	return root
+}
+
+// Catches overwriting an already-present destination; fixtures cannot truncate a
+// worker's output, and there is no timing window that can turn the check green.
 func TestExistingResultIsNeverOverwrittenAndUnsafeResultsAreRejected(t *testing.T) {
 	cases := []struct {
 		name string
@@ -269,32 +295,57 @@ func TestExistingResultIsNeverOverwrittenAndUnsafeResultsAreRejected(t *testing.
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := privateDir(t)
-			startJob(t, dir, "safe", "200ms")
+			root := prepareReadFixture(t, dir)
 			path := filepath.Join(dir, "result.json")
-			if err := os.WriteFile(path, []byte(tc.data), tc.mode); err != nil {
+			writeFixtureExclusive(t, path, tc.data, tc.mode)
+			before, err := os.Lstat(path)
+			if err != nil {
 				t.Fatal(err)
+			}
+			publishErr := publish(root, "result.json", result{1, "completed", "safe", 1})
+			got, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			after, err := os.Lstat(path)
+			if err != nil || !os.SameFile(before, after) || string(got) != tc.data {
+				t.Fatal("publisher overwrote an existing result")
+			}
+			if !errors.Is(publishErr, os.ErrExist) {
+				t.Fatalf("publish did not reject the existing destination: %v", publishErr)
 			}
 			out, errOut := invoke(t, 2, "read", "--dir", dir, "--nonce", "safe")
 			if out != "" || strings.Contains(errOut, "never_print") {
 				t.Fatal("untrusted file contents leaked to output")
 			}
-			time.Sleep(250 * time.Millisecond)
-			got, _ := os.ReadFile(path)
-			if string(got) != tc.data {
-				t.Fatal("worker overwrote an existing result")
-			}
 		})
 	}
 	t.Run("symlink", func(t *testing.T) {
 		dir := privateDir(t)
-		startJob(t, dir, "safe", "200ms")
+		root := prepareReadFixture(t, dir)
 		target := filepath.Join(privateDir(t), "foreign.json")
-		os.WriteFile(target, []byte(`{"version":1,"status":"completed","nonce":"safe","count":1}`), 0600)
-		os.Symlink(target, filepath.Join(dir, "result.json"))
-		invoke(t, 2, "read", "--dir", dir, "--nonce", "safe")
-		time.Sleep(250 * time.Millisecond)
-		if info, _ := os.Lstat(filepath.Join(dir, "result.json")); info.Mode()&os.ModeSymlink == 0 {
-			t.Fatal("worker replaced an existing symlink")
+		data := `{"version":1,"status":"completed","nonce":"safe","count":1}`
+		writeFixtureExclusive(t, target, data, 0600)
+		path := filepath.Join(dir, "result.json")
+		if err := os.Symlink(target, path); err != nil {
+			t.Fatal(err)
 		}
+		before, err := os.Lstat(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		publishErr := publish(root, "result.json", result{1, "completed", "safe", 1})
+		after, err := os.Lstat(path)
+		if err != nil || after.Mode()&os.ModeSymlink == 0 || !os.SameFile(before, after) {
+			t.Fatal("publisher replaced an existing symlink")
+		}
+		got, err := os.ReadFile(target)
+		if err != nil || string(got) != data {
+			t.Fatal("publisher changed the symlink target")
+		}
+		if !errors.Is(publishErr, os.ErrExist) {
+			t.Fatalf("publish did not reject the existing symlink: %v", publishErr)
+		}
+		invoke(t, 2, "read", "--dir", dir, "--nonce", "safe")
 	})
 }
