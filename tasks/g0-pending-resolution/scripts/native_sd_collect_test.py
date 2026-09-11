@@ -1,7 +1,11 @@
 """Privacy and identity failures that would invalidate the fixed native sample."""
 import datetime as dt
 import json
+from pathlib import Path
+import sqlite3
+import tempfile
 import unittest
+from unittest.mock import patch
 import native_sd_collect as c
 
 ROOT = '01a08e0b-bd0d-7400-b069-d50978939cdd'
@@ -14,7 +18,7 @@ CANARY = 'CANARY_PRIVATE_TEXT'
 
 class EvidenceTests(unittest.TestCase):
     def test_window_cannot_hide_a_timeout_or_use_local_or_future_time(self):
-        self.assertEqual(c.window(START, END, NOW), (1789120800.0, 1789120920.0))
+        self.assertEqual(c.window(START, END, NOW), (1789120800000000000, 1789120920000000000))
         for begin, end in [(START, '2026-09-11T10:02:01Z'),
                            (START, '2026-09-11T10:02:00.000000001Z'),
                            (END, START), (START[:-1], END),
@@ -38,6 +42,12 @@ class EvidenceTests(unittest.TestCase):
         self.assertFalse(c.same_process(dict(first,started_at_local='Fri Sep 11 18:00:01 2026'),first))
         self.assertFalse(c.same_process(None, first))
 
+    def test_snapshot_identity_rejects_missing_service_or_tui(self):
+        service = {'pid':101,'started_at_local':'Fri Sep 11 18:00:00 2026'}
+        tui = {'pid':102,'started_at_local':'Fri Sep 11 18:00:01 2026'}
+        for left,right in ((None,tui),(service,None),(None,None)):
+            with self.assertRaises(ValueError): c.require_live_processes(left,right)
+
     def test_only_exact_owned_thread_metadata_is_accepted(self):
         row = (ROOT,'cli',str(c.REPO),'0.153.4')
         self.assertEqual(c.thread_fields(row,ROOT),{'id':ROOT,'source':'cli','experiment_cwd_matches':True,'cli_version':'0.153.4'})
@@ -49,18 +59,44 @@ class EvidenceTests(unittest.TestCase):
         value = {'session_id':ROOT,'hook_event_name':'UserPromptSubmit','turn_id':OTHER,
                  'pid':124,'ppid':123,'recorded_at':'2026-09-11T10:00:01Z',
                  'source':CANARY,'extension':CANARY,'nonce':CANARY}
-        got = c.hook_fields(value,ROOT,123,1789120800,1789120920)
+        got = c.hook_fields(value,ROOT,123,1789120800000000000,1789120920000000000)
         self.assertEqual(got,{'session_id':ROOT,'hook_event_name':'UserPromptSubmit','turn_id':OTHER,
                               'pid':124,'ppid':123,'recorded_at':'2026-09-11T10:00:01Z'})
         self.assertNotIn(CANARY,json.dumps(got))
         for changes in ({'session_id':OTHER},{'ppid':456},{'recorded_at':'2026-09-11T09:59:59Z'},
                         {'hook_event_name':CANARY},{'pid':True}):
-            self.assertIsNone(c.hook_fields(dict(value,**changes),ROOT,123,1789120800,1789120920))
+            self.assertIsNone(c.hook_fields(dict(value,**changes),ROOT,123,1789120800000000000,1789120920000000000))
+
+    def test_hook_one_nanosecond_after_original_window_is_rejected(self):
+        lo,hi = c.window(START,END,NOW)
+        value = {'session_id':ROOT,'hook_event_name':'UserPromptSubmit','turn_id':OTHER,
+                 'pid':124,'ppid':123,'recorded_at':'2026-09-11T10:02:00.000000001Z'}
+        self.assertIsNone(c.hook_fields(value,ROOT,123,lo,hi))
+
+    def test_real_log_query_keeps_exact_end_but_rejects_end_plus_one_nanosecond(self):
+        with tempfile.TemporaryDirectory() as name:
+            home = Path(name); hooks = home/'hooks'; hooks.mkdir()
+            state = sqlite3.connect(home/'state_5.sqlite')
+            state.execute('CREATE TABLE threads(id,source,cwd,cli_version)')
+            state.execute('INSERT INTO threads VALUES(?,?,?,?)',(ROOT,'cli',str(c.REPO),'0.153.4'))
+            state.commit(); state.close()
+            logs = sqlite3.connect(home/'logs_2.sqlite')
+            logs.execute('CREATE TABLE logs(id INTEGER PRIMARY KEY,ts,ts_nanos,target,thread_id,process_uuid,feedback_log_body)')
+            for index,nanos in enumerate((0,1),1):
+                logs.execute('INSERT INTO logs VALUES(?,?,?,?,?,?,?)',
+                    (index,1789120920,nanos,'codex_app_server::outgoing_message',ROOT,'pid:123:'+OTHER,
+                     'transport="unix_socket" client_name="codex-tui" method="thread/start" connection_id=0'))
+            logs.commit(); logs.close()
+            lo,hi = c.window(START,END,NOW)
+            with patch.object(c,'CODEX_HOME',home),patch.object(c,'HOOKS',hooks):
+                result = c.local_evidence(ROOT,123,lo,hi)
+            self.assertEqual([row['ts_nanos'] for row in result['native_protocol']],[0])
 
     def test_ui_status_does_not_guess_from_other_uuid_or_echo_raw(self):
         got = c.ui_status('\x1b[32mSession: '+ROOT+'\x1b[0m\nPrivate: '+CANARY)
         self.assertEqual(got, {'status_root':ROOT})
         self.assertIsNone(c.ui_status('model said '+ROOT+' '+CANARY))
+        self.assertIsNone(c.ui_status('model transcript: Session:'+ROOT))
         self.assertIsNone(c.ui_status('Session: '+ROOT+'\nSession: '+OTHER))
 
     def test_native_log_only_keeps_fixed_protocol_fields(self):

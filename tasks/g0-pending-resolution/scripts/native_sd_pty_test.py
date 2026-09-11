@@ -19,9 +19,10 @@ class PTYTests(unittest.TestCase):
         with self.assertRaises(ValueError): sequence.take('quit')
 
     def test_real_pty_keeps_only_session_identity_and_digest(self):
-        command = "import sys; print('Session: "+ROOT+"'); print('"+CANARY+"'); sys.stdout.flush()"
+        command = "import sys; sys.stdin.readline(); print('Session: "+ROOT+"'); print('"+CANARY+"'); sys.stdout.flush()"
         pty = NativePTY([sys.executable,'-c',command],'.')
         try:
+            pty.send(InputSequence('fixed synthetic input'),'status')
             summary = pty.read(2)
             self.assertEqual(summary.get('status_root'),ROOT)
             self.assertGreater(summary.get('bytes',0),36)
@@ -29,6 +30,24 @@ class PTYTests(unittest.TestCase):
             self.assertNotIn(CANARY,json.dumps(pty.evidence()))
             self.assertEqual(pty.wait(2),0)
         finally: pty.close()
+
+    def test_status_ignores_old_buffer_and_transcript_with_embedded_label(self):
+        command = "import sys; print('Session: "+ROOT+"',flush=True); sys.stdin.readline(); print('model transcript: Session:"+ROOT+"',flush=True)"
+        pty = NativePTY([sys.executable,'-c',command],'.')
+        try:
+            before = pty.read(.2)
+            self.assertNotIn('status_root',before)
+            pty.send(InputSequence('fixed synthetic input'),'status')
+            after = pty.read(2)
+            self.assertNotIn('status_root',after)
+            self.assertGreater(after['status_capture_start_byte'],0)
+            self.assertEqual(pty.wait(2),0)
+        finally:
+            # The fixture may still await its single input when a RED assertion fails.
+            if pty.exit_code is None:
+                import os
+                os.write(pty.fd,b'\r'); pty.wait(2)
+            pty.close()
 
 
 if __name__ == '__main__': unittest.main()

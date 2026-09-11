@@ -1,0 +1,42 @@
+{
+  "recorded_at": "2026-09-11T09:36:40.237909+00:00",
+  "scope": "local fixture and collector regressions only; no Codex service/TUI/model started",
+  "original_commits": [
+    "9dc0fa527661da03dbe2ddda78beeb5d86a65157",
+    "e0bbcc68b766f72c11d126db80571e5b81dbb079"
+  ],
+  "red": [
+    {
+      "tests": [
+        "hook_one_nanosecond_after_original_window",
+        "real_log_query_end_plus_one_nanosecond"
+      ],
+      "exit_code": 1,
+      "observed": "Hook beyond through accepted; real SQLite filter returned nanoseconds [0,1] instead of [0]"
+    },
+    {
+      "tests": [
+        "snapshot_missing_process",
+        "status_embedded_label",
+        "status_old_buffer"
+      ],
+      "exit_code": 1,
+      "observed": "missing process did not reject; embedded label accepted; pre-status buffer supplied root"
+    },
+    {
+      "tests": [
+        "pair_guard"
+      ],
+      "exit_code": 1,
+      "observed": "missing ownership guard"
+    }
+  ],
+  "green": {
+    "command": "python3 -m unittest native_sd_collect_test native_sd_pty_test native_sd_control_test -v",
+    "exit_code": 0,
+    "tests": 14,
+    "seconds": 0.265,
+    "real_local_pty_fixture_children_exited": true
+  },
+  "remaining": "independent review and complete fixed-case controller/helper integration"
+}

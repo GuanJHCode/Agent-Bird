@@ -48,6 +48,9 @@ class NativePTY:
         self.byte_count = 0
         self.buffer = b''
         self.status_roots = set()
+        self.status_capture = False
+        self.status_buffer = b''
+        self.status_capture_start_byte = None
         self.cursor_replies = 0
         self.inputs = []
         self.exit_code = None
@@ -79,8 +82,10 @@ class NativePTY:
                     for _ in range(count): os.write(self.fd,b'\x1b[1;1R')
                     self.cursor_replies += count
                     self.buffer = self.buffer.replace(b'\x1b[6n',b'')
-                status = ui_status(self.buffer.decode('utf-8','replace'))
-                if status: self.status_roots.add(status['status_root'])
+                if self.status_capture:
+                    self.status_buffer = (self.status_buffer+chunk)[-262144:]
+                    status = ui_status(self.status_buffer.decode('utf-8','replace'))
+                    if status: self.status_roots.add(status['status_root'])
             self._poll()
         self._poll()
         return self.evidence()
@@ -88,7 +93,18 @@ class NativePTY:
     def send(self,sequence,action):
         if self._poll() is not None: raise ValueError('TUI already exited')
         data = sequence.take(action)
-        os.write(self.fd,data)
+        if action == 'status':
+            self.read(.02)
+            self.status_buffer = b''
+            self.status_roots.clear()
+            self.status_capture_start_byte = self.byte_count
+            self.status_capture = True
+        else:
+            self.status_capture = False
+            self.status_buffer = b''
+        position = 0
+        while position < len(data):
+            position += os.write(self.fd,data[position:])
         self.inputs.append({'at':stamp(),'monotonic':time.monotonic(),'action':action,
                             'bytes':len(data),'sha256':hashlib.sha256(data).hexdigest()})
 
@@ -105,6 +121,8 @@ class NativePTY:
                'inputs':list(self.inputs),'exit_code':self.exit_code}
         if len(self.status_roots)==1: out['status_root'] = next(iter(self.status_roots))
         elif len(self.status_roots)>1: out['ambiguous_status_root'] = True
+        if self.status_capture_start_byte is not None:
+            out['status_capture_start_byte'] = self.status_capture_start_byte
         return out
 
     def close(self):

@@ -46,6 +46,8 @@
 
 ## 采集器
 
-[native_sd_collect.py](../scripts/native_sd_collect.py) 只采集固定 case 的本地进程、socket、有限 Hook 与 native 协议字段；不执行 RPC、不读取模型 history、不落 raw UI/log/配置。`/status` 只解析带明确 Session 标签的唯一 UUID。metadata 查询要求 exact root、source=cli、固定专用 cwd、固定 CLI 版本。Hook 要求 exact root、服务 PPID 和原始时窗，其他字段严格丢弃。
+[native_sd_collect.py](../scripts/native_sd_collect.py) 只采集固定 case 的本地进程、socket、有限 Hook 与 native 协议字段；不执行 RPC、不读取模型 history、不落 raw UI/log/配置。`/status` 仅支持独立 Session 状态行；[PTY 采集](../scripts/native_sd_pty.py) 在唯一初始提示之前发出 `/status`，清除旧缓冲并记录命令之后的新字节区间，发送初始提示即关闭该解析窗口。嵌在 model transcript 等文本中的标签不能作为状态行。metadata 查询要求 exact root、source=cli、固定专用 cwd、固定 CLI 版本。Hook 要求 exact root、服务 PPID 和原始时窗，其他字段严格丢弃。
 
-7 项回归先 RED 后 GREEN，额外在同一窗口测试中加入 `120s + 1ns` 后再次 RED，改用纳秒比较后 GREEN；验证真实边界而非通过浮点截断。当前 CLI preflight 实际只读执行成功，默认 socket absent。原生模型运行仍等待 helper 与 controller 冻结复审。
+9dc 初版的时窗长度检查正确，但过滤时退回浮点秒，独立审查发现会接受截止后 1ns 的 Hook/log。新增两条红例分别通过真实 Hook 筛选及临时真实 SQLite 查询复现；修后窗口、Hook 时间、mtime 粗筛、日志逐行筛选都用整数 epoch 纳秒，SQL 只负责粗筛秒范围。旧结论不据此倒推为正确。
+
+原生 snapshot 现在拒绝缺失的服务/TUI；控制器的发送前守卫额外比对两者的原创建身份和 socket dev/ino/uid/mode/服务持有路径。身份键不含 PPID，reparent 不冒充进程退出。输入/身份/隐私回归共 14 项新鲜通过，包含上述独立审查的 RED→GREEN。当前 CLI preflight 实际只读执行成功，默认 socket absent。原生模型运行仍等待 helper 与完整 controller 冻结复审。

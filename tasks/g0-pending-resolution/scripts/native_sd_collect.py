@@ -28,23 +28,21 @@ UUID_RE = r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
 STAMP_RE = r'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]{1,9})?(?:Z|\+00:00)'
 
 
-def utc(value):
+def epoch_ns(value):
     if type(value) is not str or not re.fullmatch(STAMP_RE,value):
         raise ValueError('explicit UTC timestamp required')
-    return dt.datetime.fromisoformat(value.replace('Z','+00:00')).timestamp()
+    seconds = int(dt.datetime.fromisoformat(value[:19]+'+00:00').timestamp())
+    fraction = re.match(r'\.([0-9]+)',value[19:])
+    return seconds*1000000000 + (int(fraction[1].ljust(9,'0')) if fraction else 0)
 
 
 def window(since, through, now):
-    lo, hi = utc(since), utc(through)
-    def nanos(value):
-        seconds = int(dt.datetime.fromisoformat(value[:19]+'+00:00').timestamp())
-        fraction = re.match(r'\.([0-9]+)',value[19:])
-        return seconds*1000000000 + (int(fraction[1].ljust(9,'0')) if fraction else 0)
+    lo, hi = epoch_ns(since), epoch_ns(through)
     if now.tzinfo is None:
         raise ValueError('invalid original observation window')
-    delta = nanos(through)-nanos(since)
-    current = nanos(now.astimezone(dt.timezone.utc).isoformat(timespec='microseconds'))
-    if not 0 < delta <= 120000000000 or nanos(through) > current:
+    delta = hi-lo
+    current = epoch_ns(now.astimezone(dt.timezone.utc).isoformat(timespec='microseconds'))
+    if not 0 < delta <= 120000000000 or hi > current:
         raise ValueError('invalid original observation window')
     return lo, hi
 
@@ -72,6 +70,12 @@ def same_process(current, original):
     return current is not None and all(current.get(k) == original.get(k) for k in ('pid','started_at_local'))
 
 
+def require_live_processes(service,tui):
+    if service is None or tui is None or service['pid'] == tui['pid']:
+        raise ValueError('both distinct native processes must be live')
+    return True
+
+
 def thread_fields(row, root):
     if not valid_id(root) or not row or tuple(row) != (root,'cli',str(REPO),'0.153.4'):
         raise ValueError('not the fixed native experiment thread')
@@ -87,7 +91,7 @@ def hook_fields(value, root, service, lo, hi):
     if not integer(value.get('pid')) or not integer(value.get('ppid')):
         return None
     try:
-        if not lo <= utc(value.get('recorded_at')) <= hi: return None
+        if not lo <= epoch_ns(value.get('recorded_at')) <= hi: return None
     except (ValueError,TypeError): return None
     turn = value.get('turn_id')
     if (turn is not None and not valid_id(turn)) or (event == 'UserPromptSubmit' and turn is None):
@@ -100,8 +104,10 @@ def hook_fields(value, root, service, lo, hi):
 
 def ui_status(text):
     # This parser reports observed /status identity, never general displayed-thread liveness.
+    # The caller supplies only the fresh pre-prompt /status response range.
+    text = re.sub(r'\x1b\[[0-9;]*[Hf]','\n',text)
     text = re.sub(r'\x1b\[[0-?]*[ -/]*[@-~]','',text)
-    ids = set(re.findall(r'\bSession:\s*('+UUID_RE+r')\b',text))
+    ids = set(re.findall(r'(?m)^[ \t│|]*Session:[ \t]*('+UUID_RE+r')[ \t│|]*\r?$',text))
     return {'status_root':next(iter(ids))} if len(ids) == 1 else None
 
 
@@ -171,7 +177,7 @@ def local_evidence(root,service,lo,hi):
     for path in HOOKS.glob('*.json'):
         if path.is_symlink() or not path.is_file() or path.stat().st_size > 8192: continue
         # Skip old/unrelated files before decoding; retained records still require exact root/service.
-        if not lo-2 <= path.stat().st_mtime <= hi+2: continue
+        if not lo-2000000000 <= path.stat().st_mtime_ns <= hi+2000000000: continue
         try: item = hook_fields(json.loads(path.read_text()),root,service,lo,hi)
         except (ValueError,OSError): continue
         if item is not None: result['hooks'].append(item)
@@ -181,11 +187,12 @@ def local_evidence(root,service,lo,hi):
         rows = db.execute('SELECT ts,ts_nanos,target,thread_id,process_uuid,feedback_log_body FROM logs '
                           'WHERE process_uuid LIKE ? AND ts>=? AND ts<=? '
                           'AND target IN (?,?) ORDER BY id LIMIT 5001',
-                          (f'pid:{service}:%',int(lo),int(hi),'codex_config::loader::layer_io','codex_app_server::outgoing_message')).fetchall()
+                          (f'pid:{service}:%',lo//1000000000,hi//1000000000,'codex_config::loader::layer_io','codex_app_server::outgoing_message')).fetchall()
     finally: db.close()
     if len(rows) > 5000: raise ValueError('native log row bound exceeded')
     for sec,nanos,target,thread,process_uuid,body in rows:
-        if not lo <= sec+nanos/1e9 <= hi or not re.fullmatch('pid:'+str(service)+':'+UUID_RE,process_uuid): continue
+        if not integer(sec,0,2**63-1) or not integer(nanos,0,999999999): continue
+        if not lo <= sec*1000000000+nanos <= hi or not re.fullmatch('pid:'+str(service)+':'+UUID_RE,process_uuid): continue
         if type(body) is not str or len(body) > 65536: continue
         fields = log_fields(body)
         if not fields: continue
@@ -229,6 +236,7 @@ def main():
             lo,hi = window(args.since,args.through,dt.datetime.now(dt.timezone.utc))
             out.update(root=args.root,window={'since':args.since,'through':args.through},
                        service=process(args.service_pid),tui=process(args.tui_pid),socket=snapshot_socket(args.service_pid))
+            require_live_processes(out['service'],out['tui'])
             out.update(local_evidence(args.root,args.service_pid,lo,hi))
     out['local_elapsed_seconds'] = time.monotonic()-started
     if out['local_elapsed_seconds'] > 10: raise ValueError('local observation exceeded ten seconds')
