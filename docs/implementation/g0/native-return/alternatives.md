@@ -2,13 +2,13 @@
 
 日期：2026-09-11。研究基线为已安装的 `codex-cli 0.153.4`；公开源码固定到官方 `rust-v0.153.4` 对应提交 [`3d2ee51ca2d5db578f328aa75e20aa22c0197c9a`](https://github.com/openai/codex/commit/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a)。本报告区分源码推导、原生实测和未知，不把公开源码等同于本机二进制的全部扩展。
 
-**当前最有依据的路线是原生持久 Goal 配合独立 Host。** 首个样本已观察到普通 `codex resume <原 thread ID>` 不附 prompt 自动发起 Goal 新轮次，再由真实工具读取离线完成的任务并完成 Goal。它解决的是恢复后的重新协调；普通 final→idle 的子 Agent 完成消息仍没有因此获得自动续轮能力。样本总数和最新结论以 runner 报告为准，本报告不宣称 G0 通过。
+**原生持久 Goal 配合独立 Host 已有恢复证据，但后续 Goal 编辑反例使其仍未满足原合同。** 首个样本已观察到普通 `codex resume <原 thread ID>` 不附 prompt 自动发起 Goal 新轮次，再由真实工具读取离线完成的任务并完成 Goal；随后 identity runner 复现旧排队调用完成新 Goal。普通 final→idle 的子 Agent 完成消息也没有因此获得自动续轮能力。样本总数和最新结论以 runner 报告为准，本报告不宣称 G0 通过；0.154.0 的针对性源码比较见下文。
 
 ## 候选取舍
 
 | 候选 | 证据与最小下一步 | 当前边界 |
 |---|---|---|
-| 原生 Goal + 独立 Host + 原生等待 | 优先。`nr-g0-goal-01` 已有正常退出、Host 独立完成、普通冷恢复、真实 read、Goal complete、ACK 后停止的完整单样本；继续既定独立样本、强杀和 steer 屏障。 | 依赖明确创建的 active Goal；原生 Goal 控制消息与业务结果必须分别记录。不能推广为旧 child/future 得到恢复。 |
+| 原生 Goal + 独立 Host + 原生等待 | `nr-g0-goal-01` 已有正常退出、Host 独立完成、普通冷恢复、真实 read、Goal complete、ACK 后停止的完整单样本；后续旧调用完成新 Goal 的反例仍需解决。 | 依赖明确创建的 active Goal；业务 revision 不能自动保护原生 Goal 状态。不能推广为旧 child/future 得到恢复。 |
 | 原生 child + 单次 `clock.sleep` | `nr-g0-active-sleep-01` 中 sleep 被消息提前打断，随后收到独立 `agent_message`。可验证用户新输入也能中断，及主控真实读取结果。 | 是活动 turn 的阻塞等待，区别于 C05 的真正 idle。sleep 回执不是 child 的工具执行结果。 |
 | 原生 child 完成后唤醒 final→idle 主控 | `nr-g0-idle-01` 的 120 秒窗口内没有新 turn；后续用户 turn 才接到排队消息。v2 completion 路径使用 `trigger_turn=false`。 | 本机样本不成立。主动 `send_message` 是排队路径，`followup_task` 不允许 root 目标，不能用普通 CLI queue 冒充原生回调。 |
 | 后台 exec / 原 child 的旧等待任务直接跨 TUI 退出恢复 | 无 Goal 样本正常 resume 后没有自动补交；现有正向样本由 Goal 开新轮次读取 Host。 | 未取得恢复旧进程工具 future/旧 child watcher 的正向证据，不把离线 result 落盘等同于父会话已消费。 |
@@ -33,7 +33,20 @@ Goal 只负责在符合条件时续轮。要证明没有模型忙轮询，应观
 
 外部 Goal API 的 `goal_state_permit` 负责串行协调 Goal 状态与 idle 续轮；更新时内部读取 expected goal ID 能防一类数据库替换竞争，但不是模型旧动作携带的业务版本。暂停或清除 Goal 也不自动撤销已发出的 Host 工作。[api.rs:176](https://github.com/openai/codex/blob/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/ext/goal/src/api.rs#L176)、[runtime.rs:181](https://github.com/openai/codex/blob/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/ext/goal/src/runtime.rs#L181)
 
-因此，旧结果读取与后续 Goal 更新之间发生用户取消/改目标时，不能仅凭同一个 active Goal 接受旧 ACK 或派发。应按原合同验证 Host 的具体 controller thread、workflow revision、delivery revision；并以屏障实验检验旧动作是否被拒绝。这是源码揭示的待测竞争窗口，尚未宣称本机已复现误完成新 Goal。
+因此，旧结果读取与后续 Goal 更新之间发生用户取消/改目标时，不能仅凭同一个 active Goal 接受旧 ACK 或派发。应按原合同验证 Host 的具体 controller thread、workflow revision、delivery revision；并以屏障实验检验旧动作是否被拒绝。此处最初只是源码揭示的窗口；后续 identity runner 已复现原生新 Goal 被旧调用完成，见下节。
+
+## 0.154.0 针对 Goal 编辑反例的复核
+
+identity runner 的 `nr-g0-identity-race2-old` / `nr-g0-identity-race2-new` 样本把旧 complete 排在同一个 60 秒 exec cell 后半段；中途通过普通 `/goal edit` 要求新目标从编辑后重新等待 60 秒。旧 cell 的真实工具输出在编辑确认约 22 秒后即出现新 Goal active→complete。这是原生状态反例，不是仅凭模型最终文字判断失败；初次 race1 的主动 terminate 样本不能作为 CAS 证据。详细范围以 [identity-race-results.md](identity-race-results.md) 和 [race2 类型化事件](identity-race2-events.json) 为准，本节没有另跑模型或宣称完整实验 PASS。
+
+官方稳定 [0.154.0](https://github.com/openai/codex/releases/tag/rust-v0.154.0) 的 tag 经 API 解引用为 `6b9826e3aa83b1a5947db50f4332cb9c65f1b340`。将它与本报告的 0.153.4 固定提交逐文件比较，`ext/goal/src/{tool,api,runtime}.rs`、`state/src/runtime/goals.rs`、`app-server/src/request_processors/thread_goal_processor.rs` 五文件字节相同；`core/src/tools/code_mode/{delegate,execute_handler,wait_handler}.rs` 与 `app-server/src/code_mode_host.rs` 四文件也字节相同。以下结论来自实际源码字段和调用链，不只是 release 标题没有提到修复。
+
+- **已证实的接口缺失：** 0.154.0 的 `UpdateGoalArgs` 仍只有 status，`handle_update` 仍以 `expected_goal_id: None` 更新当前 thread 的 Goal。数据库虽支持可选 expected ID，但该调用不启用它；公开 `ThreadGoalSetParams` 仍只有 threadId/objective/status/tokenBudget，`ThreadGoal` 没有可提交的 revision。普通 edit 也不产生一个可供模型 CAS 的新版本。[tool.rs:58](https://github.com/openai/codex/blob/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/ext/goal/src/tool.rs#L58)、[tool.rs:265](https://github.com/openai/codex/blob/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/ext/goal/src/tool.rs#L265)、[数据库条件:321](https://github.com/openai/codex/blob/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/state/src/runtime/goals.rs#L321)、[公开请求类型](https://github.com/openai/codex/blob/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-protocol/schema/typescript/v2/ThreadGoalSetParams.ts#L6)、[公开 Goal 类型](https://github.com/openai/codex/blob/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-protocol/schema/typescript/v2/ThreadGoal.ts#L6)
+- **所核查链中没有新增编辑时取消旧 cell：** active Goal objective 变化仍只是 `inject_active_turn_steering`→`inject_if_running`→追加 pending ResponseItem 并发送 `InputQueueActivity::Steer`，没有在这个 Goal mutation 调用链调用 turn interrupt 或使旧工具的 Goal 版本失效。`inject.rs` 的版本差异仅为新增 test module 声明；input_queue 虽增加 UserInput 的 acceptance_order，Goal 注入使用的是 ResponseItem 分支，且上述追加方法不变。不能把普通输入排序变更当成 Goal CAS 修复。[runtime.rs:211](https://github.com/openai/codex/blob/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/ext/goal/src/runtime.rs#L211)、[runtime.rs:495](https://github.com/openai/codex/blob/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/ext/goal/src/runtime.rs#L495)、[inject.rs:15](https://github.com/openai/codex/blob/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/core/src/session/inject.rs#L15)、[input_queue.rs:259](https://github.com/openai/codex/blob/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/core/src/session/input_queue.rs#L259)
+
+保持一个固定的编排 Goal、把业务版本放入 Go，可以拒绝旧业务 ACK/派发，却不能让原生 `update_goal` 自动带上该版本；原生 Goal 提前 complete 后，后续自动续轮也可能失去入口。每次 complete 前再 get_goal、缩短排队时间或单独调用 complete 只能减少部分窗口，读取与状态修改之间仍非原子操作。额外要求用户先中断再编辑、禁止编辑固定 Goal，均改变了本次普通用户 Goal 编辑合同。当前已核查的原生工具/Goal RPC 中没有同时校验预期 Goal revision 并提交 complete 的受支持接口，也没有找到把普通 `/goal edit` 原子绑定到旧 cell 取消的接口，不能将这些办法计为已满足原合同的替代路线。
+
+本轮确认的是公开 0.154.0 的具体字段和相关生产调用链没有这项保护；没有运行该版本二进制，也不据此断言所有未公开扩展或未来版本必然相同。没有具体修复证据支持为这个反例升级或盲试版本矩阵；受控服务、改启动器或修改原生实现仍需新的合同与验证，不能替代现有普通 CLI 路线的通过证据。
 
 ## fork、新会话、子 Agent 与 compact
 
