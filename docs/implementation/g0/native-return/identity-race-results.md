@@ -42,7 +42,7 @@ root 为 `01a08e75-cae3-7043-832e-20ebf886aef7`。旧 objective 精确为 `nr-g0
 
 这些快照的 thread 都是新 root；旧/新 objective 必须与脚本内的两项已知值完全相等才导出。完整 native output 为 2185 UTF-8 字节，SHA-256 为 `32d82040b6475dd40a549edd841fbccc24465f3a1cfb3255614807be7a49d12d`。同一输出内字段顺序与真正的 exit 0/旧 marker 都保留在 [第二样本过滤证据](identity-race2-events.json)。原请求源码和其 hash 比对保存在 [专用采集器](../../../../tasks/g0-native-return/scripts/identity_race_collect.py)。
 
-新 Goal 在旧动作执行前已经存在且 active，排除了“编辑直到工具结束后才应用”的解释。窗口内没有第二工具单元或模型 `terminate` 调用；不能用第一样本的模型主动取消来解释此反例。原生 writer lock 只限制同 thread 的另一个写入客户端，也不限制同一个线程里已经排队的 Goal 完成动作。
+新 Goal 在旧动作执行前已经存在且 active，排除了“编辑直到工具结束后才应用”的解释。反例输出 03:29:25.336Z 之前，没有第二个匹配旧 cell 的调用或 `terminate`；后续调用在反例之后，不能解释此前新 Goal 的 active→complete。不能用第一样本的模型主动取消来解释此反例。原生 writer lock 只限制同 thread 的另一个写入客户端，也不限制同一个线程里已经排队的 Goal 完成动作。
 
 ## 时限、过滤与剩余边界
 
