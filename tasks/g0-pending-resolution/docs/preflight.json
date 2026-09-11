@@ -1,0 +1,44 @@
+{
+  "started_at": "2026-09-11T08:30:29.356366+00:00",
+  "base": "cd3d0547c807b36e403aca5a85ac34221ab247dc",
+  "original_documents": {
+    "docs/design-v0.1.md": {
+      "sha256": "2c8ebf2227639b556bab23e4efc01153ea7eb32addfa0cd1ccbf87f7a44e60fd",
+      "matches_baseline": true
+    },
+    "docs/acceptance-v0.1.md": {
+      "sha256": "06842467e56d2e111fc7f8ab12711e91d88af27d3fae29dafccbca2742d3884d",
+      "matches_baseline": true
+    },
+    "docs/evidence.md": {
+      "sha256": "b5f2f5b1998fd2a365dd85f328c69541cb557db7df7abf9938b61f44dc50b665",
+      "matches_baseline": true
+    },
+    "docs/g0-validation-plan.md": {
+      "sha256": "b81303e9bd79e9fed947d8b44d4361d21c2f146c3a3c1189855ab408603ae654",
+      "matches_baseline": true
+    },
+    "docs/runtime-protocols.md": {
+      "sha256": "2b66179a673102a2e8f6c79cc44b77a31803faab9dde59104ddc19347e06dd66",
+      "matches_baseline": true
+    },
+    "docs/git-cleanup-protocol.md": {
+      "sha256": "8b1783d3f5570b449b75ee6669f10a4ac3449f84455e6b83065eefb6e1b073d9",
+      "matches_baseline": true
+    },
+    "docs/review-report.md": {
+      "sha256": "f0cf78525dcb20564c6c891340fd89b847900b45b48b28a1ffc2099e154d11cb",
+      "matches_baseline": true
+    }
+  },
+  "preserved_retained_binary": {
+    "path": "tasks/g0-retained-resume/data/g0-return-lab-retained-darwin-arm64",
+    "sha256": "feb9b9ad969abca5ff35db28c0f0d8d920dc0778d7aac68a90952900e989a285"
+  },
+  "worktrees": {
+    "idle": "exp/g0-pending-idle",
+    "attachment": "exp/g0-pending-attachment",
+    "delivery": "exp/g0-pending-delivery"
+  },
+  "scope": "Only new pending-resolution work; no native session started by root"
+}

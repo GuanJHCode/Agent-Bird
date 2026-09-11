@@ -1,5 +1,7 @@
 # v0.1 实施计划
 
+当前续作（2026-09-11）：用户要求解决剩余在线 idle 回传、当前会话附着和完整交付对账。主 Agent 编排，三个 subagent 在独立 worktree 核对及落地各条候选，另一 reviewer 独立复核；约束和完成判据见 [本轮合同](../tasks/g0-pending-resolution/plans/contract.md)。上轮退出保留与明确续接结论保持，完整 G0 尚未放行。
+
 最新结果（2026-09-11）：已按“退出停止、保留现场、原会话明确继续”完成有限 Go 合成实现和原生验证。subagent 落地的三次正常退出及一次带父守卫强杀均通过独立复核：停止 ≤10 秒、恢复静默 ≥10 秒，明确继续后在 120 秒内完成，旧步骤保留。普通 `codex` 入口保持，新的 C06/C07/C08 生命周期以 [本轮合同](../tasks/g0-retained-resume/plans/contract.md) 为准。详见 [本轮实施结果](../tasks/g0-retained-resume/docs/result.md)。在线 idle 自动回传、当前会话附着和完整交付对账仍未满足，完整 G0 未放行，G1–G4 未启动；下面保留此前原生返回实验的历史结果。
 
 此前结果（2026-09-11）：已按用户授权由主 Agent 编排、subagent 实现和实测，并自动尝试原生子 Agent、等待工具、持久 Goal 与独立 Host。正常退出／恢复等窄路径成立，Go 合成宿主与 ACK 夹具已交付；原生 Goal 编辑竞争出现真实反例，当前 UI 附着、真正 idle 回调与完整交付对账仍未满足。**G0 不放行，G1–G4 未实施。** 账号权限边界、原产品目标与 macOS 优先范围保持；下文旧路径状态为历史证据。见 [完整实验结果](../docs/implementation/g0/native-return/result.md) 和 [实验分工与记录](g0-native-return-experiments.md)。
