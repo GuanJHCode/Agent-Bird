@@ -1,0 +1,27 @@
+........F.......
+======================================================================
+FAIL: test_paginated_thread_read_full_compatibility_is_accepted_but_partial_is_rejected (native_standalone_test.NativeStandaloneTests.test_paginated_thread_read_full_compatibility_is_accepted_but_partial_is_rejected)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 76, in test_paginated_thread_read_full_compatibility_is_accepted_but_partial_is_rejected
+    filtered, facts = probe.filter_thread(data, binding(), None, require_ready=True)
+                      ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone.py", line 254, in filter_thread
+    check(thread.get("historyMode") == "legacy" and thread.get("ephemeral") is False, "unsupported_history")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone.py", line 38, in check
+    raise ProbeError(code)
+native_standalone.ProbeError: unsupported_history
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 78, in test_paginated_thread_read_full_compatibility_is_accepted_but_partial_is_rejected
+    self.fail("native full compatibility response rejected: " + error.code)
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: native full compatibility response rejected: unsupported_history
+
+----------------------------------------------------------------------
+Ran 16 tests in 0.007s
+
+FAILED (failures=1)

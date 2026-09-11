@@ -23,7 +23,9 @@ go_binary, go_binary_sha256, job_dir, controller_evidence_sha256
 
 `boot_id` 为本次 `kern.bootsessionuuid` 小写 UUID；`birth` 为 `/bin/ps -p PID -o pid=,uid=,lstart=,comm=` 中 lstart 的五词，用单空格连接；`comm` 为实际可执行路径。服务与 TUI 必须不同 PID、同当前 UID；原生二进制 SHA 固定为 `b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3`，Go 为 `feb9b9ad969abca5ff35db28c0f0d8d920dc0778d7aac68a90952900e989a285`。controller 独立证明 socket 与服务、TUI/root/当前显示的关联；helper 只机验登记项和诊断 PID。
 
-`prepare` 要求 Go 已完成。它验证原生 `thread/read` 的 root/source=cli/cliVersion/cwd、显式 legacy/full、exact prior completed/READY final/root idle/所有观察工具终态，再实际执行白名单 Go `read` 和 `inspect`，只接受固定 count=1、owner/revision/hash 和未 ACK 结果。写入 0600 的 `producer.json`、`intent.json`、`prepare-meta.json`。Go event hash 绑定 envelope 的单事件 payload_hash；客户端不新增业务 ACK。
+`prepare` 要求 Go 已完成。它验证原生 `thread/read` 的 root/source=cli/cliVersion/cwd、显式 historyMode 为 legacy 或 paginated 且各 turn 的 itemsView 为 full、exact prior completed/READY final/root idle/所有观察工具终态，再实际执行白名单 Go `read` 和 `inspect`，只接受固定 count=1、owner/revision/hash 和未 ACK 结果。写入 0600 的 `producer.json`、`intent.json`、`prepare-meta.json`。Go event hash 绑定 envelope 的单事件 payload_hash；客户端不新增业务 ACK。
+
+固定 0.153.4 普通 TUI 默认请求 paginated 历史，旧 helper 的 legacy-only 限制会误拒真实新 root。原生 `thread/read(includeTurns:true)` 在此模式仍有[完整历史兼容路径](https://github.com/openai/codex/blob/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/app-server/src/request_processors/thread_processor.rs#L3281)：服务端以 Asc/Full 遍历到 cursor 结束，loaded 路径先 persist 再物化，并发送 deprecation 通知。因此本 helper 仅接受该有界完整响应，不新增 RPC 或客户端分页；summary、notLoaded、缺失 itemsView、超出原有大小限制仍拒绝。原始 historyMode 在 audit 投影中保留，不翻译成 legacy，也不将离线检查器的完整分页标志提升为 absence proof。
 
 `send-once` 再核机验身份、原生 idle 屏障与 Go 结果。先 O_EXCL+fsync 写 `send-attempt.json`（version/status=send_intent/nonce/controller_thread_id/binding_sha256/payload_sha256/boot_id/clock_impl/mono_ns/wall_ns），随后重新核服务和 TUI 的实际身份才发送。即使意图写完但实际发送前失败，同 case 也不重发；`send_intent` 不宣称已发出。只允许一次 `turn/start{threadId,input:[],toolOutput:{name:"g0_delivery",namespace:"orchestration",output:固定canonical envelope}}`。
 
@@ -35,6 +37,6 @@ RPC 仅 initialize、initialized 通知、server/diagnostics、remoteControl/sta
 
 `prior_started_at`、`prior_completed_at` 来自原生 Turn.startedAt/completedAt，仅 nullable Unix 秒。初始 root 已完成且 Go 尚 pending 的先后屏障由 controller 的固定 root task_complete 及两侧实际 Go read pending 独立采集，不用 UI prompt 回显或同秒时间戳推断。
 
-验证：368d146 的历史基线为 14 项通过，0.006s；审查后最新 15 项通过，0.005s（`standalone-helper-review-green.log`）。新增单份历史的重复 turn ID 拒绝有明确 assertion RED；集合只在一次读取内，不阻止下次读取同 ID 正常更新。非目标 namespace 必须 nullable/有界安全 ID，恶意对象泄出也已有独立 RED→GREEN。相关日志同目录 `standalone-helper-*.log`。RPC response ID 与 root active 边界同样先 RED 再修复。CLI 缺参实际 exit 2，仅固定错误 JSON；两个文件 compile 成功。发送与观察测试保留真实 Case/O_EXCL/fsync/过滤路径，仅替换不可在单元测试中启动的原生网络、机器身份与 Go 接口；不把这些 fixture 当原生证据。
+验证：368d146 的历史基线为 14 项通过，0.006s；5f2bd86 审查后为 15 项通过，0.005s。本次 paginated 完整响应先因 unsupported_history 出现 assertion RED，最小修改后最新 16 项通过，0.007s（`standalone-helper-paginated-green.log`），并保留三种不完整视图的拒绝。单份历史的重复 turn ID 拒绝也有明确 assertion RED；集合只在一次读取内，不阻止下次读取同 ID 正常更新。非目标 namespace 必须 nullable/有界安全 ID，恶意对象泄出也已有独立 RED→GREEN。相关日志同目录 `standalone-helper-*.log`。RPC response ID 与 root active 边界同样先 RED 再修复。CLI 缺参实际 exit 2，仅固定错误 JSON；两个文件 compile 成功。发送与观察测试保留真实 Case/O_EXCL/fsync/过滤路径，仅替换不可在单元测试中启动的原生网络、机器身份与 Go 接口；不把这些 fixture 当原生证据。
 
 原生 shape 来源为本机 0.153.4 生成的实验 schema；[固定官方 thread_data.rs](https://github.com/openai/codex/blob/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/app-server-protocol/src/protocol/v2/thread_data.rs) 中 history_mode/items_view 的 serde(default) 无 skip_serializing_if，故要求显式字段。[websockets 16.0 官方接口](https://websockets.readthedocs.io/en/16.0/reference/asyncio/client.html)及已安装源码用于核验 unix_connect 参数。

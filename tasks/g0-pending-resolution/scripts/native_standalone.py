@@ -251,7 +251,7 @@ def filter_thread(result, binding, intent, require_ready=False):
     check(type(result) is dict and type(result.get("thread")) is dict, "invalid_thread")
     thread = result["thread"]
     check(thread.get("id") == binding["controller_thread_id"] and thread.get("source") == "cli" and thread.get("cliVersion") == CLI_VERSION and thread.get("cwd") == binding["expected_cwd"], "thread_binding_mismatch")
-    check(thread.get("historyMode") == "legacy" and thread.get("ephemeral") is False, "unsupported_history")
+    check(thread.get("historyMode") in ("legacy", "paginated") and thread.get("ephemeral") is False, "unsupported_history")
     check(type(thread.get("status")) is dict and thread["status"].get("type") in ("idle", "active", "notLoaded", "systemError"), "invalid_thread_status")
     check(type(thread.get("turns")) is list and 0 < len(thread["turns"]) <= 32, "history_limit")
     ready_marker = binding["nonce"].upper().replace("-", "_") + "_READY"

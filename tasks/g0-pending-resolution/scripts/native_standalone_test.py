@@ -69,6 +69,21 @@ class NativeStandaloneTests(unittest.TestCase):
         with self.assertRaises(probe.ProbeError):
             probe.filter_thread(data, binding(), intent)
 
+    def test_paginated_thread_read_full_compatibility_is_accepted_but_partial_is_rejected(self):
+        data = thread_result()
+        data["thread"]["historyMode"] = "paginated"
+        try:
+            filtered, facts = probe.filter_thread(data, binding(), None, require_ready=True)
+        except probe.ProbeError as error:
+            self.fail("native full compatibility response rejected: " + error.code)
+        self.assertEqual(filtered["thread"]["historyMode"], "paginated")
+        self.assertTrue(facts["root_idle"])
+        for view in ("summary", "notLoaded", None):
+            partial = copy.deepcopy(data)
+            partial["thread"]["turns"][0]["itemsView"] = view
+            with self.subTest(view=view), self.assertRaises(probe.ProbeError):
+                probe.filter_thread(partial, binding(), None, require_ready=True)
+
     def test_send_intent_precedes_one_wire_write_and_receipt_is_not_history(self):
         class Wire:
             async def call(self, method, params, **_):
