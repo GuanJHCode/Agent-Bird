@@ -1,0 +1,386 @@
+{
+  "checked_at": "2026-09-11T07:50:48.086447+00:00",
+  "scope": "only original PIDs recorded for this retained-resume task; no signals sent during cleanup",
+  "original_processes_checked": [
+    {
+      "case": "quit-02",
+      "phase": "initial",
+      "role": "native",
+      "original_identity": {
+        "pid": 22223,
+        "ppid": 38821,
+        "pgid": 22223,
+        "started_at_local": "Fri Sep 11 14:58:36 2026",
+        "executable": "codex"
+      },
+      "original_creation_still_alive": false,
+      "current_identity": null
+    },
+    {
+      "case": "quit-02",
+      "phase": "initial",
+      "role": "worker",
+      "original_identity": {
+        "pid": 22700,
+        "ppid": 22223,
+        "pgid": 22700,
+        "started_at_local": "Fri Sep 11 14:58:49 2026",
+        "executable": "retained_binary"
+      },
+      "original_creation_still_alive": false,
+      "current_identity": null
+    },
+    {
+      "case": "quit-02",
+      "phase": "continued",
+      "role": "native",
+      "original_identity": {
+        "pid": 23523,
+        "ppid": 38821,
+        "pgid": 23523,
+        "started_at_local": "Fri Sep 11 15:02:23 2026",
+        "executable": "codex"
+      },
+      "original_creation_still_alive": false,
+      "current_identity": null
+    },
+    {
+      "case": "quit-02",
+      "phase": "continued",
+      "role": "worker",
+      "original_identity": {
+        "pid": 25231,
+        "ppid": 23523,
+        "pgid": 25231,
+        "started_at_local": "Fri Sep 11 15:07:01 2026",
+        "executable": "retained_binary"
+      },
+      "original_creation_still_alive": false,
+      "current_identity": null
+    },
+    {
+      "case": "quit-03",
+      "phase": "initial",
+      "role": "native",
+      "original_identity": {
+        "pid": 26630,
+        "ppid": 38821,
+        "pgid": 26630,
+        "started_at_local": "Fri Sep 11 15:21:32 2026",
+        "executable": "codex"
+      },
+      "original_creation_still_alive": false,
+      "current_identity": null
+    },
+    {
+      "case": "quit-03",
+      "phase": "initial",
+      "role": "worker",
+      "original_identity": {
+        "pid": 27142,
+        "ppid": 26630,
+        "pgid": 27142,
+        "started_at_local": "Fri Sep 11 15:21:47 2026",
+        "executable": "retained_binary"
+      },
+      "original_creation_still_alive": false,
+      "current_identity": null
+    },
+    {
+      "case": "quit-03",
+      "phase": "continued",
+      "role": "native",
+      "original_identity": {
+        "pid": 27494,
+        "ppid": 38821,
+        "pgid": 27494,
+        "started_at_local": "Fri Sep 11 15:21:57 2026",
+        "executable": "codex"
+      },
+      "original_creation_still_alive": false,
+      "current_identity": null
+    },
+    {
+      "case": "quit-03",
+      "phase": "continued",
+      "role": "worker",
+      "original_identity": {
+        "pid": 28735,
+        "ppid": 27494,
+        "pgid": 28735,
+        "started_at_local": "Fri Sep 11 15:22:30 2026",
+        "executable": "retained_binary"
+      },
+      "original_creation_still_alive": false,
+      "current_identity": null
+    },
+    {
+      "case": "quit-04",
+      "phase": "initial",
+      "role": "native",
+      "original_identity": {
+        "pid": 29778,
+        "ppid": 38821,
+        "pgid": 29778,
+        "started_at_local": "Fri Sep 11 15:33:59 2026",
+        "executable": "codex"
+      },
+      "original_creation_still_alive": false,
+      "current_identity": null
+    },
+    {
+      "case": "quit-04",
+      "phase": "initial",
+      "role": "worker",
+      "original_identity": {
+        "pid": 30287,
+        "ppid": 29778,
+        "pgid": 30287,
+        "started_at_local": "Fri Sep 11 15:34:13 2026",
+        "executable": "retained_binary"
+      },
+      "original_creation_still_alive": false,
+      "current_identity": null
+    },
+    {
+      "case": "quit-04",
+      "phase": "continued",
+      "role": "native",
+      "original_identity": {
+        "pid": 30718,
+        "ppid": 38821,
+        "pgid": 30718,
+        "started_at_local": "Fri Sep 11 15:34:25 2026",
+        "executable": "codex"
+      },
+      "original_creation_still_alive": false,
+      "current_identity": null
+    },
+    {
+      "case": "quit-04",
+      "phase": "continued",
+      "role": "worker",
+      "original_identity": {
+        "pid": 31981,
+        "ppid": 30718,
+        "pgid": 31981,
+        "started_at_local": "Fri Sep 11 15:34:58 2026",
+        "executable": "retained_binary"
+      },
+      "original_creation_still_alive": false,
+      "current_identity": null
+    },
+    {
+      "case": "kill-01",
+      "phase": "initial",
+      "role": "native",
+      "original_identity": {
+        "pid": 32230,
+        "ppid": 38821,
+        "pgid": 32230,
+        "started_at_local": "Fri Sep 11 15:35:58 2026",
+        "executable": "codex"
+      },
+      "original_creation_still_alive": false,
+      "current_identity": null
+    },
+    {
+      "case": "kill-01",
+      "phase": "initial",
+      "role": "worker",
+      "original_identity": {
+        "pid": 32743,
+        "ppid": 32230,
+        "pgid": 32743,
+        "started_at_local": "Fri Sep 11 15:36:11 2026",
+        "executable": "retained_binary"
+      },
+      "original_creation_still_alive": false,
+      "current_identity": null
+    },
+    {
+      "case": "kill-01",
+      "phase": "continued",
+      "role": "native",
+      "original_identity": {
+        "pid": 32922,
+        "ppid": 38821,
+        "pgid": 32922,
+        "started_at_local": "Fri Sep 11 15:36:17 2026",
+        "executable": "codex"
+      },
+      "original_creation_still_alive": false,
+      "current_identity": null
+    },
+    {
+      "case": "kill-01",
+      "phase": "continued",
+      "role": "worker",
+      "original_identity": {
+        "pid": 34167,
+        "ppid": 32922,
+        "pgid": 34167,
+        "started_at_local": "Fri Sep 11 15:36:48 2026",
+        "executable": "retained_binary"
+      },
+      "original_creation_still_alive": false,
+      "current_identity": null
+    },
+    {
+      "case": "probe-quit-01",
+      "phase": "initial",
+      "role": "native",
+      "original_identity": {
+        "pid": 5026,
+        "ppid": 38821,
+        "pgid": 5026,
+        "started_at_local": "Fri Sep 11 13:50:37 2026",
+        "executable_basename": "codex"
+      },
+      "original_creation_still_alive": false,
+      "current_identity": null
+    },
+    {
+      "case": "probe-quit-01",
+      "phase": "initial",
+      "role": "worker",
+      "original_identity": {
+        "pid": 6010,
+        "ppid": 5026,
+        "pgid": 6010,
+        "started_at_local": "Fri Sep 11 13:53:41 2026",
+        "executable_basename": "Python"
+      },
+      "original_creation_still_alive": false,
+      "current_identity": null
+    },
+    {
+      "case": "probe-kill-01",
+      "phase": "initial",
+      "role": "native",
+      "original_identity": {
+        "pid": 7238,
+        "ppid": 38821,
+        "pgid": 7238,
+        "started_at_local": "Fri Sep 11 13:57:58 2026",
+        "executable_basename": "codex"
+      },
+      "original_creation_still_alive": false,
+      "current_identity": null
+    },
+    {
+      "case": "probe-kill-01",
+      "phase": "initial",
+      "role": "worker",
+      "original_identity": {
+        "pid": 8198,
+        "ppid": 7238,
+        "pgid": 8198,
+        "started_at_local": "Fri Sep 11 13:59:16 2026",
+        "executable_basename": "Python"
+      },
+      "original_creation_still_alive": false,
+      "current_identity": null
+    },
+    {
+      "case": "excluded-quit-01",
+      "phase": "initial",
+      "role": "native",
+      "original_pid": 18580,
+      "current_identity": null,
+      "pid_absent": true
+    },
+    {
+      "case": "excluded-quit-01",
+      "phase": "initial",
+      "role": "worker",
+      "original_pid": 21037,
+      "current_identity": null,
+      "pid_absent": true
+    }
+  ],
+  "all_own_original_creations_gone": true,
+  "temporary_files_removed": [],
+  "runtime_directories_retained": [
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/tasks/retained-resume/data/native-probe-quit-01",
+      "purpose": "retained synthetic task/checkpoint/effect and lifecycle evidence",
+      "mode": "0o700",
+      "file_count": 2,
+      "bytes": 277
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/tasks/retained-resume/data/native-probe-kill-01",
+      "purpose": "retained synthetic task/checkpoint/effect and lifecycle evidence",
+      "mode": "0o700",
+      "file_count": 2,
+      "bytes": 386
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/tasks/retained-resume/data/native-retained-quit-01",
+      "purpose": "retained synthetic task/checkpoint/effect and lifecycle evidence",
+      "mode": "0o700",
+      "file_count": 15,
+      "bytes": 4213,
+      "lock": {
+        "available": true,
+        "device": 16777234,
+        "inode": 160616359
+      }
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/tasks/retained-resume/data/native-retained-quit-02",
+      "purpose": "retained synthetic task/checkpoint/effect and lifecycle evidence",
+      "mode": "0o700",
+      "file_count": 23,
+      "bytes": 6675,
+      "lock": {
+        "available": true,
+        "device": 16777234,
+        "inode": 160641208
+      }
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/tasks/retained-resume/data/native-retained-quit-03",
+      "purpose": "retained synthetic task/checkpoint/effect and lifecycle evidence",
+      "mode": "0o700",
+      "file_count": 15,
+      "bytes": 4213,
+      "lock": {
+        "available": true,
+        "device": 16777234,
+        "inode": 160658824
+      }
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/tasks/retained-resume/data/native-retained-quit-04",
+      "purpose": "retained synthetic task/checkpoint/effect and lifecycle evidence",
+      "mode": "0o700",
+      "file_count": 15,
+      "bytes": 4214,
+      "lock": {
+        "available": true,
+        "device": 16777234,
+        "inode": 160669885
+      }
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/tasks/retained-resume/data/native-retained-kill-01",
+      "purpose": "retained synthetic task/checkpoint/effect and lifecycle evidence",
+      "mode": "0o700",
+      "file_count": 15,
+      "bytes": 4214,
+      "lock": {
+        "available": true,
+        "device": 16777234,
+        "inode": 160670699
+      }
+    }
+  ],
+  "preserved": [
+    "approved persistent binary",
+    "native evidence and scripts",
+    "original CLI history/config/auth/hooks and other tasks"
+  ],
+  "worktree_cleanup_owner": "parent after final integration"
+}
