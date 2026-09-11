@@ -170,6 +170,48 @@ class NativeStandaloneTests(unittest.TestCase):
                 probe.decode(raw)
             self.assertNotIn("__import__", str(caught.exception))
 
+    def test_rpc_reader_rejects_wrong_response_id_without_exporting_raw_error(self):
+        class Wire:
+            async def send(self, _message):
+                pass
+            async def recv(self):
+                return '{"id":99,"result":{"text":"PRIVATE_DO_NOT_EXPORT"}}'
+        rpc = probe.Rpc(binding(), probe.time.monotonic() + 10)
+        rpc.ws = Wire()
+        with self.assertRaises(probe.ProbeError) as caught:
+            asyncio.run(rpc.call("thread/read", {"threadId": ROOT, "includeTurns": True}))
+        self.assertNotIn("PRIVATE_DO_NOT_EXPORT", str(caught.exception))
+
+    def test_unknown_function_output_namespace_never_escapes_projection(self):
+        data = thread_result()
+        data["thread"]["turns"][0]["items"].append({"id": "other_output", "type": "functionCallOutput", "name": "other_tool",
+            "namespace": {"secret": "PRIVATE_DO_NOT_EXPORT"}, "output": "PRIVATE_DO_NOT_EXPORT"})
+        with self.assertRaises(probe.ProbeError):
+            probe.filter_thread(data, binding(), None, require_ready=True)
+
+    def test_completed_ack_does_not_qualify_while_owned_root_is_still_active(self):
+        intent, inspection, data = probe.make_intent(binding(), go_inspection()), go_inspection(), thread_result()
+        inspection["ack"] = {"version": 1, "status": "acknowledged", "nonce": NONCE, "controller_thread": ROOT,
+            "revision": 1, "event_hash": inspection["event_hash"], "command_id": "00000000-0000-4000-8000-000000000001",
+            "decision": "handled", "decision_count": 1, "effect_count": 1}
+        data["thread"]["status"] = {"type": "active"}
+        data["thread"]["turns"].append({"id": "new_turn", "status": "completed", "itemsView": "full", "items": [
+            {"id": "standalone_01", "type": "functionCallOutput", "name": "g0_delivery", "namespace": "orchestration", "output": probe.canonical(intent)},
+            {"id": "ack_final", "type": "agentMessage", "phase": "final_answer", "text": "SD_QUAL_01_ACK"}]})
+        class Reader:
+            checks, frames, bytes, server_requests, last_hash = {}, 1, 100, 0, None
+            last_request = {"id": 4, "method": "thread/read", "params": {"threadId": ROOT, "includeTurns": True}}
+            async def call(self, *_args):
+                return data
+            async def wake(self):
+                raise probe.ProbeError("sample_ended")
+        now = {"boot_id": BOOT, "clock_impl": "mach_absolute_time()", "mono_ns": 1_000_000_000, "wall_ns": 10_000_000_000}
+        with tempfile.TemporaryDirectory(prefix="g0-standalone-case-") as directory:
+            os.chmod(directory, 0o700)
+            with probe.Case(directory) as case, patch.object(probe, "verify_machine"), patch.object(probe, "current_clock", return_value=now), patch.object(probe, "go_read", return_value=inspection):
+                result = asyncio.run(probe.observe(Reader(), case, binding(), intent, now))
+                self.assertEqual(result["status"], "uncertain")
+
     def test_send_claim_is_durable_intent_and_cannot_be_reused(self):
         with tempfile.TemporaryDirectory(prefix="g0-standalone-case-") as directory:
             os.chmod(directory, 0o700)

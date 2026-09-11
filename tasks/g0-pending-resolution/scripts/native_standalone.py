@@ -6,7 +6,6 @@ import importlib.metadata
 import json
 import logging
 import os
-import pathlib
 import re
 import socket
 import stat
@@ -258,12 +257,13 @@ def filter_thread(result, binding, intent, require_ready=False):
     ready_marker = binding["nonce"].upper().replace("-", "_") + "_READY"
     ack_marker = binding["nonce"].upper().replace("-", "_") + "_ACK"
     facts = {"history_match": False, "new_turn_completed": False, "ack_final_marker": False, "prior_tools_terminal": False,
-             "prior_started_at": None, "prior_completed_at": None}
+             "prior_started_at": None, "prior_completed_at": None, "root_idle": thread["status"]["type"] == "idle",
+             "all_tools_and_turns_terminal": True, "matching_turn_is_last": False}
     filtered = {"thread": {"id": thread["id"], "historyMode": thread["historyMode"], "turns": []}}
     identities = {}
     for turn in thread["turns"]:
         check(type(turn) is dict and safe(turn.get("id")) and turn.get("status") in ("inProgress", "completed", "failed", "interrupted"), "invalid_turn")
-        check(turn.get("itemsView") == "full" and type(turn.get("items")) is list and len(turn["items"]) <= 128, "incomplete_history")
+        check(turn.get("itemsView") == "full" and type(turn.get("items")) is list and len(turn["items"]) <= 64, "incomplete_history")
         output_turn = {"id": turn["id"], "status": turn["status"], "itemsView": "full", "items": []}
         terminal, ready_final, ack_final, match, user_input = True, False, False, False, False
         for item in turn["items"]:
@@ -284,6 +284,7 @@ def filter_thread(result, binding, intent, require_ready=False):
                 ack_final |= item.get("phase") == "final_answer" and item["text"].strip() == ack_marker
             if kind == "functionCallOutput":
                 check(type(item.get("name")) is str and safe(item["name"]), "invalid_tool_name")
+                check(item.get("namespace") is None or safe(item["namespace"]), "invalid_tool_namespace")
                 output_item.update(name=item["name"], namespace=item.get("namespace"))
                 if item["name"] == "g0_delivery":
                     check(intent is not None and item.get("namespace") == "orchestration" and type(item.get("output")) is str, "unexpected_tool_output")
@@ -301,9 +302,11 @@ def filter_thread(result, binding, intent, require_ready=False):
         if match:
             check(turn["id"] != binding["prior_turn_id"] and not user_input, "not_a_new_standalone_turn")
             facts.update(history_match=True, matching_turn_id=turn["id"], new_turn_completed=terminal and turn["status"] == "completed", ack_final_marker=ack_final)
+        facts["all_tools_and_turns_terminal"] &= terminal and turn["status"] != "inProgress"
         filtered["thread"]["turns"].append(output_turn)
+    facts["matching_turn_is_last"] = facts.get("matching_turn_id") == thread["turns"][-1]["id"]
     if require_ready:
-        check(thread["status"]["type"] == "idle" and thread["turns"][-1]["id"] == binding["prior_turn_id"] and facts["prior_tools_terminal"], "thread_not_idle")
+        check(facts["root_idle"] and facts["all_tools_and_turns_terminal"] and thread["turns"][-1]["id"] == binding["prior_turn_id"] and facts["prior_tools_terminal"], "thread_not_idle")
     return filtered, facts
 
 
@@ -324,3 +327,257 @@ async def issue_once(rpc, case, binding, intent, binding_hash):
     receipt = {"version": 1, "turn_id": turn["id"], "status": turn["status"], "history_delivery_proven": False}
     case.write_new("receipt.json", receipt)
     return attempt, receipt
+
+
+class Rpc:
+    def __init__(self, binding, deadline):
+        self.binding, self.deadline = binding, deadline
+        self.next_id, self.frames, self.bytes, self.server_requests = 1, 0, 0, 0
+        self.last_hash, self.last_request = None, None
+
+    def timeout(self, maximum=READ_SECONDS):
+        remaining = self.deadline - time.monotonic()
+        check(remaining > 0, "read_window_expired")
+        return min(maximum, remaining)
+
+    async def __aenter__(self):
+        from websockets.asyncio.client import unix_connect
+        logger = logging.Logger("g0-private-websocket", level=logging.CRITICAL + 1)
+        logger.addHandler(logging.NullHandler())
+        logger.propagate = False
+        raw = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        raw.setblocking(False)
+        try:
+            await asyncio.wait_for(asyncio.get_running_loop().sock_connect(raw, self.binding["service"]["socket_path"]), self.timeout(3))
+            # A preconnected socket disables websocket redirect reconnection.
+            self.ws = await unix_connect(uri="ws://localhost/", sock=raw, compression=None, proxy=None, ping_interval=None,
+                                         open_timeout=self.timeout(3), close_timeout=1, max_size=MAX_BYTES, max_queue=4, logger=logger)
+        except BaseException:
+            raw.close()
+            raise
+        return self
+
+    async def __aexit__(self, *_):
+        try:
+            await asyncio.wait_for(self.ws.close(), 2)
+        except Exception:
+            pass
+
+    async def receive(self, timeout):
+        raw = await asyncio.wait_for(self.ws.recv(), timeout)
+        check(type(raw) is str, "non_text_frame")
+        encoded = raw.encode()
+        self.frames += 1
+        self.bytes += len(encoded)
+        self.last_hash = digest(encoded)
+        check(self.frames <= MAX_FRAMES and self.bytes <= 4 * 1024 * 1024, "frame_budget_exceeded")
+        packet = decode(encoded)
+        check(type(packet) is dict, "invalid_rpc_packet")
+        return packet
+
+    def notification(self, packet):
+        if "method" not in packet:
+            return False
+        check(type(packet["method"]) is str and len(packet["method"]) <= 128, "invalid_rpc_packet")
+        # Approval/user-input requests are left to the native TUI; never answered.
+        if "id" in packet:
+            self.server_requests += 1
+        return True
+
+    async def call(self, method, params, intent=None):
+        request = make_request(self.next_id, method, params, self.binding, intent)
+        self.next_id += 1
+        self.last_request = request
+        deadline = min(self.deadline, time.monotonic() + READ_SECONDS)
+        await asyncio.wait_for(self.ws.send(canonical(request)), self.timeout())
+        while True:
+            timeout = deadline - time.monotonic()
+            check(timeout > 0, "read_window_expired")
+            packet = await self.receive(timeout)
+            if self.notification(packet):
+                continue
+            check(type(packet.get("id")) is int and packet["id"] == request["id"], "rpc_response_id_mismatch")
+            check(set(packet) in ({"id", "result"}, {"id", "error"}), "invalid_rpc_response")
+            check("error" not in packet, "native_rpc_error")
+            return packet["result"]
+
+    async def wake(self):
+        # thread/read doesn't subscribe. A bounded read fallback needs no resume.
+        deadline = time.monotonic() + self.timeout(2)
+        while time.monotonic() < deadline:
+            try:
+                packet = await self.receive(deadline - time.monotonic())
+            except TimeoutError:
+                return
+            check(self.notification(packet), "unexpected_rpc_response")
+            params = packet.get("params")
+            if type(params) is dict and params.get("threadId") == self.binding["controller_thread_id"]:
+                return
+
+    async def initialize(self):
+        params = {"clientInfo": {"name": "g0-native-standalone", "version": "0.1.0"}, "capabilities": {"experimentalApi": True}}
+        result = await self.call("initialize", params)
+        check(type(result) is dict and result.get("platformOs") == "macos" and result.get("platformFamily") == "unix"
+              and type(result.get("userAgent")) is str and type(result.get("codexHome")) is str, "initialize_mismatch")
+        await asyncio.wait_for(self.ws.send('{"method":"initialized"}'), self.timeout())
+        result = await self.call("server/diagnostics", {})
+        check(type(result) is dict and type(result.get("process")) is dict and type(result["process"].get("id")) is int
+              and result["process"]["id"] == self.binding["service"]["pid"], "diagnostics_pid_mismatch")
+        result = await self.call("remoteControl/status/read", {})
+        check(type(result) is dict and result.get("status") in ("disabled", "connecting", "connected", "errored"), "invalid_remote_status")
+        self.checks = {"diagnostics_pid": self.binding["service"]["pid"], "remote_control_status": result["status"],
+                       "native_binary_pinned": True, "machine_binding_checked": True,
+                       "source_service_verified": False, "current_display_verified": False}
+
+
+def go_read(binding, verb, deadline, allow_ack=False):
+    check(verb in ("read", "inspect"), "local_command_not_allowed")
+    remaining = deadline - time.monotonic()
+    check(remaining > 0, "read_window_expired")
+    value = decode(command_output([binding["go_binary"], verb, "--dir", binding["job_dir"], "--nonce", binding["nonce"]], min(READ_SECONDS, remaining)))
+    if verb == "inspect":
+        return validate_go(value, binding, allow_ack)
+    expected = {"version": 1, "status": "completed", "nonce": binding["nonce"], "count": 1}
+    check(canonical(value) == canonical(expected), "producer_not_completed")
+    return value
+
+
+def load_prepared(case, binding, binding_hash):
+    producer, intent, meta = case.read("producer.json"), case.read("intent.json"), case.read("prepare-meta.json")
+    exact(producer, ("read", "inspection"))
+    check(canonical(producer["read"]) == canonical(producer["inspection"]["result"]), "producer_record_mismatch")
+    check(canonical(intent) == canonical(make_intent(binding, producer["inspection"])), "intent_binding_mismatch")
+    check(type(meta) is dict and meta.get("binding_sha256") == binding_hash and meta.get("payload_sha256") == digest(canonical(intent).encode()), "prepared_binding_mismatch")
+    return intent
+
+
+def load_attempt(case, binding, intent, binding_hash):
+    value = case.read("send-attempt.json")
+    exact(value, ("version", "status", "nonce", "controller_thread_id", "binding_sha256", "payload_sha256", "boot_id", "clock_impl", "mono_ns", "wall_ns"))
+    check(type(value["version"]) is int and value["version"] == 1 and value["status"] == "send_intent", "invalid_send_intent")
+    check(value["nonce"] == binding["nonce"] and value["controller_thread_id"] == binding["controller_thread_id"] and value["binding_sha256"] == binding_hash
+          and value["payload_sha256"] == digest(canonical(intent).encode()) and value["boot_id"] == binding["boot_id"], "send_intent_binding_mismatch")
+    remaining_window(value, current_clock())
+    return value
+
+
+def exists(case, name):
+    check(name in FILES, "invalid_file")
+    try:
+        os.stat(name, dir_fd=case.fd, follow_symlinks=False)
+        return True
+    except FileNotFoundError:
+        return False
+
+
+async def observe(rpc, case, binding, intent, attempt):
+    last_read, facts, inspection = None, {}, None
+    reason = "model_window_expired"
+    try:
+        for _ in range(64):
+            remaining = remaining_window(attempt, current_clock())
+            rpc.deadline = time.monotonic() + remaining
+            verify_machine(binding, hashes=False)
+            raw = await rpc.call("thread/read", {"threadId": binding["controller_thread_id"], "includeTurns": True})
+            filtered, facts = filter_thread(raw, binding, intent)
+            last_read = {"request": rpc.last_request, "response": {"id": rpc.last_request["id"], "result": filtered}}
+            inspection = go_read(binding, "inspect", rpc.deadline, allow_ack=True)
+            check(inspection["event_hash"] == intent["events"][0]["payload_hash"], "producer_changed")
+            ack = inspection["ack"]
+            if all(facts[key] for key in ("history_match", "new_turn_completed", "ack_final_marker", "root_idle", "all_tools_and_turns_terminal", "matching_turn_is_last")) and ack is not None and ack["decision"] == "handled" and ack["effect_count"] == 1:
+                remaining_window(attempt, current_clock())
+                verify_machine(binding, hashes=False)
+                reason = None
+                break
+            await rpc.wake()
+        else:
+            reason = "read_count_exceeded"
+    except asyncio.CancelledError:
+        reason = "interrupted"
+    except Exception as error:
+        reason = error.code if isinstance(error, ProbeError) else "observation_io_failed"
+    output = {"version": 1, "scope": "one_bound_native_root", "status": "observed" if reason is None else "uncertain", "reason": reason,
+              "source_service_verified": False, "current_display_verified": False, "controller_evidence_sha256": binding["controller_evidence_sha256"],
+              "facts": facts, "go_inspection": inspection, "rpc_checks": rpc.checks,
+              "frames": rpc.frames, "bytes": rpc.bytes, "server_requests_seen": rpc.server_requests, "last_frame_sha256": rpc.last_hash,
+              "absence_proof": False, "resend_authorized": False}
+    if last_read is not None and not exists(case, "audit-input.json"):
+        case.write_new("audit-input.json", {"version": 1, "intent": intent, "reads": [last_read], "acks": []})
+    return output
+
+
+async def run(verb, case, binding, binding_hash):
+    check(sys.platform == "darwin" and importlib.metadata.version("websockets") == "16.0", "unsupported_runtime")
+    if verb == "send-once":
+        check(not exists(case, "send-attempt.json"), "send_intent_exists")
+    verify_machine(binding)
+    deadline = time.monotonic() + READ_SECONDS
+    intent, attempt = None, None
+    if verb != "prepare":
+        intent = load_prepared(case, binding, binding_hash)
+    if verb == "observe":
+        attempt = load_attempt(case, binding, intent, binding_hash)
+        deadline = min(deadline, time.monotonic() + remaining_window(attempt, current_clock()))
+    async with Rpc(binding, deadline) as rpc:
+        await rpc.initialize()
+        if verb == "observe":
+            result = await observe(rpc, case, binding, intent, attempt)
+            case.write_new("read-observation.json", result)
+            return result
+        result = await rpc.call("thread/read", {"threadId": binding["controller_thread_id"], "includeTurns": True})
+        _, facts = filter_thread(result, binding, None, require_ready=True)
+        if verb == "prepare":
+            read = go_read(binding, "read", deadline)
+            inspection = go_read(binding, "inspect", deadline)
+            check(canonical(read) == canonical(inspection["result"]), "producer_record_mismatch")
+            intent = make_intent(binding, inspection)
+            case.write_new("producer.json", {"read": read, "inspection": inspection})
+            case.write_new("intent.json", intent)
+            result = {"version": 1, "status": "prepared", "binding_sha256": binding_hash, "payload_sha256": digest(canonical(intent).encode()),
+                      "prior_facts": facts, "rpc_checks": rpc.checks, **current_clock()}
+            case.write_new("prepare-meta.json", result)
+            return result
+        inspection = go_read(binding, "inspect", deadline)
+        check(canonical(intent) == canonical(make_intent(binding, inspection)), "producer_changed")
+        attempt, _ = await issue_once(rpc, case, binding, intent, binding_hash)
+        result = await observe(rpc, case, binding, intent, attempt)
+        case.write_new("send-observation.json", result)
+        return result
+
+
+def main(args):
+    check(len(args) == 7 and args[0] in ("prepare", "send-once", "observe") and args[1::2] == ["--case", "--root", "--nonce"], "usage")
+    verb, directory, root, nonce = args[0], args[2], args[4], args[6]
+    with Case(directory) as case:
+        binding = validate_binding(case.read("binding.json"), root, nonce)
+        check(digest(case.read_raw("controller-evidence.json")) == binding["controller_evidence_sha256"], "controller_evidence_changed")
+        try:
+            return asyncio.run(run(verb, case, binding, digest(canonical(binding).encode())))
+        except (Exception, KeyboardInterrupt) as error:
+            result = {"version": 1, "status": "uncertain" if exists(case, "send-attempt.json") else "rejected",
+                      "reason": error.code if isinstance(error, ProbeError) else "operation_io_failed",
+                      "source_service_verified": False, "resend_authorized": False, "absence_proof": False}
+            name = "read-observation.json" if verb == "observe" else "send-observation.json"
+            if exists(case, "send-attempt.json") and not exists(case, name):
+                case.write_new(name, result)
+            return result
+
+
+if __name__ == "__main__":
+    try:
+        output = main(sys.argv[1:])
+    except (Exception, KeyboardInterrupt) as error:
+        output = {"version": 1, "status": "rejected", "reason": error.code if isinstance(error, ProbeError) else "invalid_local_input",
+                  "source_service_verified": False, "resend_authorized": False}
+    code = 0 if output["status"] in ("prepared", "observed") else 3 if output["status"] == "uncertain" else 2
+    payload = (canonical(output) + "\n").encode()
+    # Durable artifacts are authoritative even if the caller stops reading stdio.
+    def emit():
+        try:
+            os.write(1, payload)
+        except OSError:
+            pass
+    writer = threading.Thread(target=emit, daemon=True)
+    writer.start()
+    writer.join(0.25)
+    os._exit(code)

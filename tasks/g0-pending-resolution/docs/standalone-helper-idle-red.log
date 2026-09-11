@@ -1,0 +1,17 @@
+.F............
+======================================================================
+FAIL: test_completed_ack_does_not_qualify_while_owned_root_is_still_active (native_standalone_test.NativeStandaloneTests.test_completed_ack_does_not_qualify_while_owned_root_is_still_active)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 213, in test_completed_ack_does_not_qualify_while_owned_root_is_still_active
+    self.assertEqual(result["status"], "uncertain")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'observed' != 'uncertain'
+- observed
++ uncertain
+
+
+----------------------------------------------------------------------
+Ran 14 tests in 0.006s
+
+FAILED (failures=1)

@@ -1,0 +1,23 @@
+.......F...F.
+======================================================================
+FAIL: test_rpc_reader_rejects_wrong_response_id_without_exporting_raw_error (native_standalone_test.NativeStandaloneTests.test_rpc_reader_rejects_wrong_response_id_without_exporting_raw_error)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 181, in test_rpc_reader_rejects_wrong_response_id_without_exporting_raw_error
+    with self.assertRaises(probe.ProbeError) as caught:
+         ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: ProbeError not raised
+
+======================================================================
+FAIL: test_unknown_function_output_namespace_never_escapes_projection (native_standalone_test.NativeStandaloneTests.test_unknown_function_output_namespace_never_escapes_projection)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 189, in test_unknown_function_output_namespace_never_escapes_projection
+    with self.assertRaises(probe.ProbeError):
+         ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: ProbeError not raised
+
+----------------------------------------------------------------------
+Ran 13 tests in 0.006s
+
+FAILED (failures=2)
