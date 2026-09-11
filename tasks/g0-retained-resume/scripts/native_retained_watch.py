@@ -92,6 +92,17 @@ def action_deadline(action, root, nonce, pid, begin, now):
     return end
 
 
+def pre_action_live(origin, view):
+    if view is None:
+        return False
+    native=view['native_identity']; worker=view['worker_identity']
+    return bool(same_process(native,origin['native']) and native['executable']=='codex'
+                and same_process(worker,origin['worker']) and worker['executable']=='retained_binary'
+                and worker['ppid']==native['pid'] and view['lock']['available'] is False
+                and view['snapshot']['worker_pid']==origin['worker']['pid']
+                and view['snapshot']['completed_steps']<view['snapshot']['total_steps'])
+
+
 def inspect_view(directory, root, nonce, native_pid):
     if not (directory/'retained-state.json').exists():
         return None
@@ -167,10 +178,39 @@ def main():
     initial_native = identity(pid)
     if args.mode in ('ready','idle'):
         assert initial_native and initial_native['executable']=='codex'
+    armed_path=None; armed_sha=None
+    if args.mode=='stop':
+        first=inspect_view(directory,args.root,args.nonce,pid)
+        if (not pre_action_live(origin,first)
+                or first['snapshot']['segment']!=reference['view']['snapshot']['segment']
+                or first['lock']!=reference['view']['lock']):
+            raise ValueError('stop pre-action native/worker/lock no longer match the live ready proof')
+        proof={'at':now().isoformat(),'root_thread':args.root,'nonce':args.nonce,'origin':origin,'view':first,
+               'binary_sha256':APPROVED_SHA256,'observer_began_at':begin.isoformat()}
+        armed_path=output.with_name(output.stem+'-armed.json'); assert not armed_path.exists()
+        raw=(json.dumps(proof,indent=2)+'\n').encode(); armed_sha=hashlib.sha256(raw).hexdigest()
+        with armed_path.open('xb') as file: file.write(raw)
+        print(json.dumps({'armed':True,'armed_file':str(armed_path),'pre_action_sha256':armed_sha,
+                          'root_thread':args.root,'nonce':args.nonce}),flush=True)
     observations=[]; previous=None; view=None; success=False; stable=True
     while now()<deadline:
         if args.mode=='stop' and action is None and action_path.exists():
-            action=json.loads(action_path.read_text()); deadline=action_deadline(action,args.root,args.nonce,pid,begin,now())
+            action=json.loads(action_path.read_text())
+            control_keys={'root_thread','nonce','native_pid','action','at'}
+            assert set(action)==control_keys|{'precheck','pre_action_sha256','result'}
+            deadline=action_deadline({k:action[k] for k in control_keys},args.root,args.nonce,pid,begin,now())
+            assert action['pre_action_sha256']==armed_sha and action['result']=={'quit':'stdin_submitted','SIGKILL':'signal_sent'}[action['action']]
+            check=action['precheck']; assert type(check)is dict and set(check)=={'at','native','worker','lock','snapshot'}
+            _,checked_at=valid_window(begin.isoformat(),check['at'],now())
+            acted_at=datetime.datetime.fromisoformat(action['at'].replace('Z','+00:00'))
+            assert 0<=(acted_at-checked_at).total_seconds()<=2
+            assert valid_identity(check['native']) and valid_identity(check['worker']) and valid_snapshot(check['snapshot'],args.root,args.nonce)
+            assert type(check['lock'])is dict and set(check['lock'])=={'available','device','inode'}
+            assert check['lock']==first['lock'] and type(check['lock']['available'])is bool
+            assert all(type(check['lock'][key])is int for key in ('device','inode'))
+            assert check['snapshot']['segment']==first['snapshot']['segment']
+            assert pre_action_live(origin,{'native_identity':check['native'],'worker_identity':check['worker'],
+                                          'lock':check['lock'],'snapshot':check['snapshot']})
         view=inspect_view(directory,args.root,args.nonce,pid)
         if view is None:
             time.sleep(0.1); continue
@@ -205,6 +245,7 @@ def main():
     result={'root_thread':args.root,'nonce':args.nonce,'mode':args.mode,'began_at':begin.isoformat(),'ended_at':now().isoformat(),
             'elapsed_seconds':round(time.monotonic()-start_mono,6),'deadline':deadline.isoformat(),'success':success,
             'origin':origin,'action':action,'view':view,'observations':observations,'root_activity':activity,'binary_checks':checks,
+            'pre_action_file':str(armed_path) if armed_path else None,'pre_action_sha256':armed_sha,
             'scope':'single approved foreground fixture; process creation identity plus stable flock; no process-tree claim'}
     output.write_text(json.dumps(result,indent=2)+'\n'); print(json.dumps({'output':str(output),'success':success,'mode':args.mode,'view':view}))
 

@@ -8,5 +8,11 @@
   "effects": "Retained-inspect validates authoritative records; observer retains only ordered step numbers, byte lengths and SHA256, never raw effect payloads.",
   "limits": "Synthetic single foreground Go process only; no process tree or arbitrary CLI guarantee. Runtime system calls have OS timing limits. Tests do not impersonate native CODEX_THREAD_ID or count as model evidence.",
   "model_calls": 0,
-  "temporary_fixture_cleanup": "TemporaryDirectory lock fixture removed after tests"
+  "temporary_fixture_cleanup": "TemporaryDirectory lock fixture removed after tests",
+  "stop_review_fix_verified_at": "2026-09-11T06:44:24.615559+00:00",
+  "stop_precheck_red": "6 missing/reused/reparented/unlocked subcases failed before gate implementation",
+  "stop_precheck_green": "3 observer tests pass; live pair positive retained and all 6 bad states rejected",
+  "armed_gate": "Before emitting armed file/stdout, observer obtains a fresh inspect and requires same native+worker creation identities, direct parent, incomplete task and same held lock. Controller must read this exact proof/hash and recheck both processes plus task/lock immediately before actual action.",
+  "action_contract": "Original 5 fields plus pre_action_sha256, precheck (at/native/worker/lock/snapshot) and result=stdin_submitted|signal_sent. Publish only after successful actual action; precheck must match armed identity/lock and be at most 2s before action. Observer does not demand target remain live after signal.",
+  "acceptance": "Requires controller precheck evidence + successful action result + observer stop evidence; stop.success alone is insufficient."
 }
