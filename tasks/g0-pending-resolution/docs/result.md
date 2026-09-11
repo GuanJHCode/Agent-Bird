@@ -10,6 +10,7 @@
 2. **实现最小离线对账检查器。** 对给定历史读取核对固定 delivery、controller、epoch、事件版本和摘要；区分历史匹配、逐事件 ACK 和等待用户的事件。查不到标记保持 uncertain，完整 ACK 不补造运输确认。工具明确不认证原服务或业务事务，也不授权自动重发。
 3. **追查两个可落地的替代方向。** SDK `ExternalMessage` 提供工具级输入入口，但仍需原服务连接。launchd socket activation 可研究保持普通命令的按需连接，实际需要额外前端和原生私有 UDS；它没有自动补齐当前显示身份和退出终止关联。未安装、未改配置，也未以静态结果冒充原生运行通过。[按需连接机制](idle-socket-activation-mechanism.md)
 4. **修正附着研究中的过强结论。** 缓存 side thread 切换后仍会产生 skills 请求；开启 Apps 时还存在带 thread 的异步请求。独立复核因此否定了“没有任何外部事件”的初版反例，后继报告已撤回它，保留信号组合的验证价值。最近一次 Apps 请求也不能独自证明当前显示，因为旧请求可能迟到。[修正后的证据与边界](attachment-current-tui-thread.md)、[复核闭环](attachment-review-corrections.json)
+5. **完成资格工具的第一批实现与复核。** 固定当前 TUI 的身份采集、专用 PTY 和进程/socket 守卫已整合；独立复核与主分支各 16 项测试通过。审查发现的时窗精度、状态来源和缺失身份被误判相等均已修复。完整串行 controller 与限定 RPC helper 仍在实施、复核，尚未启动本轮原生样本。[固定提交与验证](native-main-verification.json)
 
 ## 仍待解决的边界
 

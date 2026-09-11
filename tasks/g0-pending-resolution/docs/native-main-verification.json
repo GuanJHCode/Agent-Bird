@@ -1,0 +1,33 @@
+{
+  "scope": "Fixed collector, PTY and ownership guard only; no native runtime admission",
+  "source_commit": "472d2288f750b9d096dc5a2d84f7e885cf44b101",
+  "integrated_commit": "2aa8e3c",
+  "independent_review": {
+    "agent": "native_identity_review",
+    "verdict": "PASS",
+    "materialization": "git-show fixed OID loaded in memory, not the concurrently changing worktree",
+    "tests_passed": 16,
+    "duration_seconds": 0.275,
+    "closed_findings": [
+      "Hook and native log filters now retain integer nanoseconds through the original deadline",
+      "status UUID extraction is limited to the causally bracketed initial status response",
+      "snapshot rejects missing processes",
+      "both sides require complete typed process and socket identities before equality"
+    ]
+  },
+  "main_verification": {
+    "command": "python3 -B -m unittest discover -s tasks/g0-pending-resolution/scripts -p 'native_sd_*_test.py' -v",
+    "exit_code": 0,
+    "tests_passed": 16,
+    "duration_seconds": 0.280,
+    "diff_check": "git diff --check 0459861..HEAD",
+    "diff_check_exit_code": 0
+  },
+  "native_service_started": false,
+  "native_model_started": false,
+  "pending": [
+    "complete serial controller implementation and fixed-commit review",
+    "complete standalone helper implementation and fixed-commit review",
+    "sd-qual-01 native runtime sample"
+  ]
+}
