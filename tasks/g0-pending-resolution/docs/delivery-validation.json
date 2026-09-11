@@ -1,7 +1,7 @@
 {
-  "captured_at": "2026-09-11T08:47:52.617036+00:00",
+  "captured_at": "2026-09-11T08:50:25.467783+00:00",
   "base_commit": "cd3d0547c807b36e403aca5a85ac34221ab247dc",
-  "implementation_commit": "c0a0fe3",
+  "implementation_commit": "f928e87",
   "scope": "G0 offline evidence checker only; no native positive, no service authentication, no business ACK provenance authentication, no Go production change",
   "tests": [
     {
@@ -88,6 +88,16 @@
       "removed": true
     }
   ],
-  "independent_review": "c0a0fe3 reviewed with two findings; local fixes awaiting independent re-review",
-  "original_docs_or_go_changes": []
+  "independent_review": "PASS on fixed f928e87; offline checker only, not native delivery, real transactions, or full G0",
+  "original_docs_or_go_changes": [],
+  "initial_implementation_commit": "c0a0fe3",
+  "independent_review_details": {
+    "agent": "retained_lifecycle_review",
+    "fixed_archive_tests": 15,
+    "exit_code": 0,
+    "duration_seconds": 1.599,
+    "original_reproductions_passed": 3,
+    "example_output_unchanged": true,
+    "remaining_source_findings": 0
+  }
 }
