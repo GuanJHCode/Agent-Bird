@@ -1,12 +1,12 @@
 {
-  "captured_at": "2026-09-11T09:07:19.746866+00:00",
+  "captured_at": "2026-09-11T09:15:08.460344+00:00",
   "document_fix_base": "8a390b5fc9a79459fd9f859f9f6c960bac4c1028",
   "fixed_source_commit": "3d2ee51ca2d5db578f328aa75e20aa22c0197c9a",
   "scope": "documentation correction only; fixed-source analysis, no native TUI experiment or environment/code changes",
   "withdrawn_claims": [
     "cached live side selection emits no RPC or external event",
     "a decisive identical-observation counterexample was already established",
-    "no candidate is worth native validation merely because dedicated attach RPC is missing"
+    "no currently investigated candidate warrants further native validation, based on the disproven no-event premise"
   ],
   "retained_unknowns": [
     "full combined signal distinguishability",
@@ -35,6 +35,14 @@
     "tui/src/app/side.rs": "2747113ea13b11b4cb4ac1bacdcd246865546d11fbd7f54d085394ab1ec94666",
     "tui/src/app/startup.rs": "4e08c0c29a32650c43d8e1cfe3f081e15b078cfc349ff504b44c0d160e8f1d8d"
   },
-  "independent_document_review": "pending",
+  "independent_document_review": {
+    "verdict": "PASS",
+    "reviewer": "native_return_runner",
+    "fixed_commit": "28a21bf2c9d04f5523ff34d55a488add2454b8cc",
+    "source_sha256_matches": 12,
+    "document_sha256_matches": true,
+    "remaining_document_findings": 0,
+    "native_attachment_or_fsm_admitted": false
+  },
   "document_sha256": "5e4308d139ac23bfa8287ef39eb6bc0b7a65249c3ea9536a940ee69becc350a0"
 }
