@@ -1,0 +1,494 @@
+{
+  "captured_at": "2026-09-11T03:16:44.217215+00:00",
+  "root_thread": "01a08e72-bb0a-7942-bd3b-8cb1793e8d58",
+  "nonce": "nr-g0-goal-05",
+  "window": {
+    "since": "2026-09-11T03:11:22Z",
+    "through": "2026-09-11T03:15:11Z"
+  },
+  "selection": "Exact root UUID and native source.parent_thread_id direct children only",
+  "privacy": "Reasoning omitted; text limited to fixed nonce messages and native wrappers; tool data is typed fields, fixed responses or hashes; explicit Hook keys only",
+  "process_observation": {
+    "requested_pid": 72170,
+    "exit_code": 0,
+    "stdout": "  PID  PPID STARTED                      ELAPSED COMM\n72170 38821 Fri Sep 11 11:13:11 2026       03:33 codex\n"
+  },
+  "hooks": [
+    {
+      "file": "2f3e0a834c3a7643e203afba5270b971.json",
+      "hook_event_name": "SessionStart",
+      "nonce": "g0-macos-20260910",
+      "pid": 69649,
+      "ppid": 67153,
+      "recorded_at": "2026-09-11T03:11:24.443188Z",
+      "session_id": "01a08e72-bb0a-7942-bd3b-8cb1793e8d58",
+      "source": "startup"
+    },
+    {
+      "file": "90c4588169e0acdee08da13a38406faa.json",
+      "hook_event_name": "UserPromptSubmit",
+      "nonce": "g0-macos-20260910",
+      "pid": 69650,
+      "ppid": 67153,
+      "recorded_at": "2026-09-11T03:11:24.460364Z",
+      "session_id": "01a08e72-bb0a-7942-bd3b-8cb1793e8d58",
+      "turn_id": "01a08e72-cc36-7092-8766-3a0a53aadc8d"
+    },
+    {
+      "file": "bcc13f41edf31d71bbce539dfd1a3027.json",
+      "hook_event_name": "SessionStart",
+      "nonce": "g0-macos-20260910",
+      "pid": 72546,
+      "ppid": 72170,
+      "recorded_at": "2026-09-11T03:13:16.207858Z",
+      "session_id": "01a08e72-bb0a-7942-bd3b-8cb1793e8d58",
+      "source": "resume"
+    }
+  ],
+  "threads": [
+    {
+      "id": "01a08e72-bb0a-7942-bd3b-8cb1793e8d58",
+      "created_at_ms": 1789096278844,
+      "cli_version": "0.153.4",
+      "agent_path": null,
+      "experiment_cwd_matches": true,
+      "source_kind": "cli",
+      "events": [
+        {
+          "timestamp": "2026-09-11T03:11:23.243Z",
+          "record_type": "event_msg",
+          "type": "task_started",
+          "turn_id": "01a08e72-cc36-7092-8766-3a0a53aadc8d",
+          "started_at": 1789096283
+        },
+        {
+          "timestamp": "2026-09-11T03:11:24.409Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "developer"
+        },
+        {
+          "timestamp": "2026-09-11T03:11:24.409Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "developer"
+        },
+        {
+          "timestamp": "2026-09-11T03:11:24.409Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "developer"
+        },
+        {
+          "timestamp": "2026-09-11T03:11:24.409Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "user"
+        },
+        {
+          "timestamp": "2026-09-11T03:11:24.410Z",
+          "record_type": "turn_context",
+          "turn_id": "01a08e72-cc36-7092-8766-3a0a53aadc8d",
+          "model": "gpt-6-astra",
+          "approval_policy": "never",
+          "sandbox_policy": {
+            "type": "danger-full-access"
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:11:24.464Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "user",
+          "message_summary": {
+            "utf8_bytes": 1735,
+            "sha256": "92d35f24f049cc9f895168882a35f2ffa57a0ae08551b9f1ed1af117d7a700db",
+            "markers": [
+              "nr-g0-goal-05-ACK"
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:11:29.198Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "assistant",
+          "phase": "commentary"
+        },
+        {
+          "timestamp": "2026-09-11T03:11:43.001Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call",
+          "name": "exec",
+          "call_id": "call_0kyJ5GYyqEr8AX2KgVAayKyq",
+          "status": "completed",
+          "input_summary": {
+            "utf8_bytes": 1658,
+            "sha256": "b536a23d546227b197fb093f7a0ee93f0bf89471af0820c771a0e60327ee9060",
+            "markers": [
+              "nr-g0-goal-05-ACK"
+            ],
+            "operations": [
+              "create_goal",
+              "exec_command"
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:11:43.117Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call_output",
+          "call_id": "call_0kyJ5GYyqEr8AX2KgVAayKyq",
+          "output_summary": {
+            "utf8_bytes": 1579,
+            "sha256": "d7c0cfeebcc3238221efecabbc9b4931a23e3d59bfce16e8c9bfe7cf9e07f070",
+            "markers": [
+              "nr-g0-goal-05-ACK"
+            ],
+            "native_goal": {
+              "thread_id": "01a08e72-bb0a-7942-bd3b-8cb1793e8d58",
+              "status": "active",
+              "tokensUsed": 0,
+              "timeUsedSeconds": 0,
+              "createdAt": 1789096303,
+              "updatedAt": 1789096303
+            },
+            "runtime": [
+              {
+                "exit_code": 0,
+                "wall_time_seconds": 1.959e-06
+              }
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:11:56.156Z",
+          "record_type": "response_item",
+          "type": "function_call",
+          "name": "spawn_agent",
+          "namespace": "collaboration",
+          "call_id": "call_K3QNLg1xeaFUya3CBtmUNgWh",
+          "arguments_metadata": {
+            "task_name": "nr_g0_goal_05_forwarder",
+            "agent_type": "default"
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:11:56.269Z",
+          "record_type": "response_item",
+          "type": "function_call_output",
+          "call_id": "call_K3QNLg1xeaFUya3CBtmUNgWh",
+          "output_summary": {
+            "utf8_bytes": 45,
+            "sha256": "b388765f4214c7b7d791dad119fb357f366a7e44a073e4ebd6cf70ee5375482a",
+            "markers": [],
+            "native_spawn_response": {
+              "task_name": "/root/nr_g0_goal_05_forwarder"
+            }
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:12:01.783Z",
+          "record_type": "response_item",
+          "type": "function_call",
+          "name": "sleep",
+          "namespace": "clock",
+          "call_id": "call_JjV9R32ETheVJXBeXYY4UJAU",
+          "arguments_metadata": {
+            "duration_ms": 60000
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:13:12.195Z",
+          "record_type": "event_msg",
+          "type": "task_started",
+          "turn_id": "01a08e74-75ff-7820-9ba2-991554f83e6b",
+          "started_at": 1789096392
+        },
+        {
+          "timestamp": "2026-09-11T03:13:16.185Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "developer"
+        },
+        {
+          "timestamp": "2026-09-11T03:13:16.187Z",
+          "record_type": "turn_context",
+          "turn_id": "01a08e74-75ff-7820-9ba2-991554f83e6b",
+          "model": "gpt-6-astra",
+          "approval_policy": "never",
+          "sandbox_policy": {
+            "type": "danger-full-access"
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:13:16.216Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "user",
+          "control_kind": "native_goal_continuation",
+          "message_summary": {
+            "utf8_bytes": 7150,
+            "sha256": "29747e4df17e2596ef482eb590a2af26b34ea43dfc41f63dbda78be786c2609e",
+            "markers": [
+              "nr-g0-goal-05-ACK"
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:13:22.324Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "assistant",
+          "phase": "commentary"
+        },
+        {
+          "timestamp": "2026-09-11T03:13:27.012Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call",
+          "name": "exec",
+          "call_id": "call_WVyjxyW34ZzrjVJKwLKN3b26",
+          "status": "completed",
+          "input_summary": {
+            "utf8_bytes": 504,
+            "sha256": "d6c34c941d73f85e86ab431f441fb147b9ddf3395aa397c6c32542235a823867",
+            "markers": [],
+            "operations": [
+              "exec_command"
+            ],
+            "host_commands": [
+              {
+                "verb": "read",
+                "nonce": "nr-g0-goal-05",
+                "experiment_dir_matches": true
+              }
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:13:27.157Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call_output",
+          "call_id": "call_WVyjxyW34ZzrjVJKwLKN3b26",
+          "output_summary": {
+            "utf8_bytes": 233,
+            "sha256": "b4cc8ecdef4da799e3bc0e942b9e77e6cba8a18ea800226d61779b7302915d00",
+            "markers": [],
+            "synthetic_host_result": {
+              "version": 1,
+              "status": "completed",
+              "nonce": "nr-g0-goal-05",
+              "count": 1
+            },
+            "runtime": [
+              {
+                "exit_code": 0,
+                "wall_time_seconds": 3.25e-06
+              }
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:13:35.526Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call",
+          "name": "exec",
+          "call_id": "call_qZ3i3XPzeeBOjpyVbgLmN2HW",
+          "status": "completed",
+          "input_summary": {
+            "utf8_bytes": 52,
+            "sha256": "0f5b2f67f59e052e2528ac7991c167589f261d724e11022937d977d418eab772",
+            "markers": [],
+            "operations": [
+              "update_goal"
+            ],
+            "goal_status_argument": "complete"
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:13:35.648Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call_output",
+          "call_id": "call_qZ3i3XPzeeBOjpyVbgLmN2HW",
+          "output_summary": {
+            "utf8_bytes": 1789,
+            "sha256": "5d216072221473e5012167d054dca67a350fe99512213ee2e72452125df89be9",
+            "markers": [
+              "nr-g0-goal-05-ACK"
+            ],
+            "native_goal": {
+              "thread_id": "01a08e72-bb0a-7942-bd3b-8cb1793e8d58",
+              "status": "complete",
+              "tokensUsed": 8041,
+              "timeUsedSeconds": 36,
+              "createdAt": 1789096303,
+              "updatedAt": 1789096415
+            }
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:13:40.512Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "assistant",
+          "phase": "final_answer",
+          "message_summary": {
+            "utf8_bytes": 17,
+            "sha256": "e97d019d5bea8b30a9e310ac3cda772ef5cb6641a19178670bffd270ea7ea543",
+            "markers": [
+              "nr-g0-goal-05-ACK"
+            ]
+          },
+          "text": "nr-g0-goal-05-ACK"
+        },
+        {
+          "timestamp": "2026-09-11T03:13:40.571Z",
+          "record_type": "event_msg",
+          "type": "task_complete",
+          "turn_id": "01a08e74-75ff-7820-9ba2-991554f83e6b",
+          "started_at": 1789096392,
+          "completed_at": 1789096420,
+          "duration_ms": 28376,
+          "last_agent_message": "nr-g0-goal-05-ACK"
+        }
+      ]
+    },
+    {
+      "id": "01a08e73-4d13-7771-a387-7d00225ca5e4",
+      "created_at_ms": 1789096316180,
+      "cli_version": "0.153.4",
+      "agent_path": "/root/nr_g0_goal_05_forwarder",
+      "experiment_cwd_matches": true,
+      "source_kind": "subagent",
+      "parent_thread_id": "01a08e72-bb0a-7942-bd3b-8cb1793e8d58",
+      "events": [
+        {
+          "timestamp": "2026-09-11T03:11:56.252Z",
+          "record_type": "event_msg",
+          "type": "task_started",
+          "turn_id": "01a08e72-cc36-7092-8766-3a0a53aadc8d",
+          "started_at": 1789096283
+        },
+        {
+          "timestamp": "2026-09-11T03:11:56.252Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "developer"
+        },
+        {
+          "timestamp": "2026-09-11T03:11:56.252Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "user"
+        },
+        {
+          "timestamp": "2026-09-11T03:11:56.252Z",
+          "record_type": "turn_context",
+          "turn_id": "01a08e72-cc36-7092-8766-3a0a53aadc8d",
+          "model": "gpt-6-astra",
+          "approval_policy": "never",
+          "sandbox_policy": {
+            "type": "danger-full-access"
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:11:56.252Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "user",
+          "message_summary": {
+            "utf8_bytes": 1735,
+            "sha256": "92d35f24f049cc9f895168882a35f2ffa57a0ae08551b9f1ed1af117d7a700db",
+            "markers": [
+              "nr-g0-goal-05-ACK"
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:11:56.252Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "developer"
+        },
+        {
+          "timestamp": "2026-09-11T03:11:56.271Z",
+          "record_type": "event_msg",
+          "type": "task_started",
+          "turn_id": "01a08e73-4d6a-7f61-9491-3ef0b2fa6f9c",
+          "started_at": 1789096316
+        },
+        {
+          "timestamp": "2026-09-11T03:11:59.867Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "developer"
+        },
+        {
+          "timestamp": "2026-09-11T03:11:59.871Z",
+          "record_type": "turn_context",
+          "turn_id": "01a08e73-4d6a-7f61-9491-3ef0b2fa6f9c",
+          "model": "gpt-6-astra",
+          "approval_policy": "never",
+          "sandbox_policy": {
+            "type": "danger-full-access"
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:11:59.879Z",
+          "record_type": "response_item",
+          "type": "agent_message",
+          "author": "/root",
+          "recipient": "/root/nr_g0_goal_05_forwarder"
+        },
+        {
+          "timestamp": "2026-09-11T03:12:06.577Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "assistant",
+          "phase": "commentary"
+        },
+        {
+          "timestamp": "2026-09-11T03:12:11.677Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call",
+          "name": "exec",
+          "call_id": "call_TTa6ySdzjajYso8hgwQicWwZ",
+          "status": "completed",
+          "input_summary": {
+            "utf8_bytes": 560,
+            "sha256": "21e55c9ef8de5487a603aea77cdd54dd9b60f71b000ae29bab2a14aff86846f6",
+            "markers": [],
+            "operations": [
+              "exec_command"
+            ],
+            "host_commands": [
+              {
+                "verb": "start",
+                "nonce": "nr-g0-goal-05",
+                "experiment_dir_matches": true,
+                "duration": "60s"
+              }
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:12:11.761Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call_output",
+          "call_id": "call_TTa6ySdzjajYso8hgwQicWwZ",
+          "output_summary": {
+            "utf8_bytes": 346,
+            "sha256": "12e51a0c6e497c989c382316edd2b241d0e8864bf3425091f2bb77db35cb3f97",
+            "markers": [],
+            "runtime": [
+              {
+                "exit_code": 0,
+                "wall_time_seconds": 2.834e-06
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "root_thread": "01a08e63-a68a-7ba2-a5f9-397ba2b169c5",
+  "nonce": "nr-g0-goal-03",
+  "classification": "late observer shutdown; completed-before-exit variant; excluded from three in-flight-exit baseline samples",
+  "initial_model_window": [
+    "2026-09-11T02:54:54Z",
+    "2026-09-11T02:56:54Z"
+  ],
+  "quit_requested_at": "2026-09-11T02:57:05Z",
+  "normal_quit_exit_code": 0,
+  "monitor_attempt": {
+    "exit_code": 1,
+    "reason": "owned worker must be live before monitoring",
+    "output_file_created": false
+  },
+  "job": {
+    "version": 1,
+    "status": "started",
+    "nonce": "nr-g0-goal-03",
+    "worker_pid": 62186,
+    "created_at": "2026-09-11T02:55:52.448217Z",
+    "job_file": "job.json",
+    "result_file": "result.json"
+  },
+  "result": {
+    "version": 1,
+    "status": "completed",
+    "nonce": "nr-g0-goal-03",
+    "count": 1
+  },
+  "resume_requested_at": "2026-09-11T02:59:40Z",
+  "resume_window_end": "2026-09-11T03:01:40Z",
+  "latest_goal": {
+    "recorded_at": "2026-09-11T02:59:59.742Z",
+    "thread_id": "01a08e63-a68a-7ba2-a5f9-397ba2b169c5",
+    "status": "complete",
+    "createdAt": 1789095315,
+    "updatedAt": 1789095599
+  },
+  "new_user_prompt_after_resume": false
+}

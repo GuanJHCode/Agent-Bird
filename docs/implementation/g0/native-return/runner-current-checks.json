@@ -1,14 +1,65 @@
 {
-  "verified_at": "2026-09-11T02:47:12.984186+00:00",
+  "verified_at": "2026-09-11T03:29:14.032985+00:00",
   "syntax": "PASS",
-  "native_idle": "single failed 120-second sample; child completed but root did not start another turn",
-  "native_busy": "single controlled agent_message sample; no role field",
-  "active_sleep": "single 60-second sleep interrupted after 24.5716 seconds; separate agent_message followed",
-  "no_goal_resume": "no root turn in 120-second window",
-  "goal_resume": "one automatic goal control turn, one real root Host read, complete goal and ACK; no later turn in fixed window",
-  "host_survival": "direct native-gone/worker-live/result-absent interval observed before completed result",
-  "model_repeats_for_recollection": 0,
-  "goal_baseline_sample_count": 1,
-  "three_sample_gate": "NOT MET",
-  "temporary_fixture_cleanup": "verified by runner_collect_regression.py"
+  "normal_goal_exit_resume_count": 3,
+  "normal_goal_baselines": [
+    {
+      "sample": "nr-g0-goal-01",
+      "root": "01a08e4f-c44d-7cc0-a07c-8a212d739ecf",
+      "kind": "normal-exit",
+      "automatic_resume_turn": "01a08e53-64e9-7813-a33f-f358f5cee298",
+      "window_end": "2026-09-11T02:39:04Z",
+      "result": {
+        "version": 1,
+        "status": "completed",
+        "nonce": "nr-g0-goal-01",
+        "count": 1
+      }
+    },
+    {
+      "sample": "nr-g0-goal-02",
+      "root": "01a08e5e-11ab-7252-abac-278f81c0ddcd",
+      "kind": "normal-exit",
+      "automatic_resume_turn": "01a08e60-20b8-7f42-b6f7-8f8cd2e4a936",
+      "window_end": "2026-09-11T02:52:59Z",
+      "result": {
+        "version": 1,
+        "status": "completed",
+        "nonce": "nr-g0-goal-02",
+        "count": 1
+      }
+    },
+    {
+      "sample": "nr-g0-goal-04",
+      "root": "01a08e6c-e6fc-76b1-a19a-3d3b98cb3ca2",
+      "kind": "normal-exit",
+      "automatic_resume_turn": "01a08e6e-ab89-7e62-bf4f-5b5e5393c4da",
+      "window_end": "2026-09-11T03:08:52Z",
+      "result": {
+        "version": 1,
+        "status": "completed",
+        "nonce": "nr-g0-goal-04",
+        "count": 1
+      }
+    }
+  ],
+  "forced_kill": {
+    "sample": "nr-g0-goal-05",
+    "root": "01a08e72-bb0a-7942-bd3b-8cb1793e8d58",
+    "kind": "forced-kill",
+    "automatic_resume_turn": "01a08e74-75ff-7820-9ba2-991554f83e6b",
+    "window_end": "2026-09-11T03:15:11Z",
+    "result": {
+      "version": 1,
+      "status": "completed",
+      "nonce": "nr-g0-goal-05",
+      "count": 1
+    }
+  },
+  "real_user_steer": "same native turn; pending sleep interrupted; STEERED; one real root result; goal complete",
+  "goal03": "excluded due late observer; subsequently completed through ordinary resume",
+  "ready_whitelist": "nested unrelated/canary fields omitted; wrong root ignored",
+  "native_model_calls_for_checks": 0,
+  "full_G0": "NOT PROVEN; online goal, pending resume, identities, ACK/revision and remaining barriers require independent evidence",
+  "temporary_fixture_cleanup": "privacy regression temporary directory removed; result/identity directories retained as evidence"
 }

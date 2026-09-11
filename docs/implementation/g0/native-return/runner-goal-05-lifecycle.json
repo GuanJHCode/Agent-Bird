@@ -1,0 +1,40 @@
+{
+  "nonce": "nr-g0-goal-05",
+  "root_thread": "01a08e72-bb0a-7942-bd3b-8cb1793e8d58",
+  "classification": "forced SIGKILL of owned TUI; separate from normal baseline",
+  "submitted_at": "2026-09-11 03:11:23 UTC",
+  "native_pid": 67153,
+  "native_session": 71599,
+  "signal": {
+    "signal": "SIGKILL",
+    "pid": 67153,
+    "verified_identity": "67153 38821 67153 Fri Sep 11 11:06:52 2026     codex",
+    "at": "2026-09-11T03:12:13.074642+00:00"
+  },
+  "native_exit_code": 1,
+  "readiness": {
+    "ready_at": "2026-09-11T03:12:11.814369+00:00",
+    "root_thread": "01a08e72-bb0a-7942-bd3b-8cb1793e8d58",
+    "nonce": "nr-g0-goal-05",
+    "goal": {
+      "recorded_at": "2026-09-11T03:11:43.117Z",
+      "thread_id": "01a08e72-bb0a-7942-bd3b-8cb1793e8d58",
+      "status": "active",
+      "createdAt": 1789096303,
+      "updatedAt": 1789096303
+    },
+    "native_identity": "67153 38821 67153 Fri Sep 11 11:06:52 2026     codex",
+    "worker_identity": "70688     1 70688 Fri Sep 11 11:12:11 2026     /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-native-return/tmp/host-impl/tools/g0-return-lab/data/g0-return-lab",
+    "job": {
+      "version": 1,
+      "status": "started",
+      "nonce": "nr-g0-goal-05",
+      "worker_pid": 70688,
+      "created_at": "2026-09-11T03:12:11.725911Z"
+    },
+    "result_present": false
+  },
+  "monitor_exit_code": 0,
+  "resume_requested_at": "2026-09-11 03:13:11 UTC",
+  "resume_session": 56940
+}
