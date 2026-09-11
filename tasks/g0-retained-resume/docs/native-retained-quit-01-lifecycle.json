@@ -1,0 +1,125 @@
+{
+  "root_thread": "01a08f2e-acf4-7572-9232-a99710828fbf",
+  "nonce": "rr-retained-quit-01",
+  "initial_native_pid": 18580,
+  "initial_native_session": 51422,
+  "preflight": {
+    "native_identity": {
+      "pid": 18580,
+      "ppid": 38821,
+      "pgid": 18580,
+      "started_at_local": "Fri Sep 11 14:36:35 2026",
+      "executable": "codex"
+    },
+    "binary": {
+      "phase": "dispatch_preflight",
+      "at": "2026-09-11T06:50:59.796178+00:00",
+      "sha256": "feb9b9ad969abca5ff35db28c0f0d8d920dc0778d7aac68a90952900e989a285",
+      "inode": 160558786,
+      "size": 4227346
+    }
+  },
+  "initial_model_window": {
+    "since": "2026-09-11T06:51:01.085Z",
+    "through": "2026-09-11T06:53:01.085Z"
+  },
+  "classification": "EXCLUDED_INTERRUPTED_BASELINE: observer started before first thread persistence; task completed before an in-flight stop could be qualified",
+  "initial_observer_failure": "Exact root was not yet present in SQLite; entry rejected before any ready/action evidence",
+  "model_start_count": 1,
+  "cleanup_quit_at": "2026-09-11T06:54:36.694Z",
+  "cleanup_tui_exit": 0,
+  "completed_view": {
+    "snapshot": {
+      "version": 1,
+      "status": "completed",
+      "nonce": "rr-retained-quit-01",
+      "controller_thread": "01a08f2e-acf4-7572-9232-a99710828fbf",
+      "revision": 1,
+      "segment": 1,
+      "completed_steps": 12,
+      "total_steps": 12,
+      "interval_ms": 4000,
+      "worker_pid": 21037,
+      "segment_started_at": "2026-09-11T06:51:12.507746Z",
+      "updated_at": "2026-09-11T06:52:00.752727Z",
+      "effect_count": 12,
+      "liveness_checked": false
+    },
+    "native_identity": {
+      "pid": 18580,
+      "ppid": 38821,
+      "pgid": 18580,
+      "started_at_local": "Fri Sep 11 14:36:35 2026",
+      "executable": "codex"
+    },
+    "worker_identity": null,
+    "lock": {
+      "available": true,
+      "device": 16777234,
+      "inode": 160616359
+    },
+    "effects": [
+      {
+        "step": 1,
+        "sha256": "bcf2222fa5fb3d6e2d8d3c459959d85c6c861d64da0636ef133c86b6eaa986d2",
+        "bytes": 307
+      },
+      {
+        "step": 2,
+        "sha256": "8c450e1f4539ae521ec519ed92915748b61148de08c50d7f197d80f4436ddf2e",
+        "bytes": 306
+      },
+      {
+        "step": 3,
+        "sha256": "f3b22a287a14cb0caf568c8217814c287e19510323c53d09885c86cc12dcf697",
+        "bytes": 307
+      },
+      {
+        "step": 4,
+        "sha256": "816aa09012f643f2652d30b250aee8f59e5a83652160225dfd11779b3eaff653",
+        "bytes": 307
+      },
+      {
+        "step": 5,
+        "sha256": "9a10b32401ddc0ca81ab40f872c29438c100a97c034d030df78b4a4db462b054",
+        "bytes": 307
+      },
+      {
+        "step": 6,
+        "sha256": "a3856e09aac1f8055f2265e6804dc4617be104a55384f6516ee8aafe77b79806",
+        "bytes": 307
+      },
+      {
+        "step": 7,
+        "sha256": "1866a0725cd892a4508e73f10cd25a9f4a04ebf3b29736b60f66271afe1ba952",
+        "bytes": 307
+      },
+      {
+        "step": 8,
+        "sha256": "dccee3e73d7c0c8b87e149cede816410259a1c7dd74e0e0613b11825cbd0b69b",
+        "bytes": 307
+      },
+      {
+        "step": 9,
+        "sha256": "c7aab7c510ace7e26bd41656be6a7db18525c99b212a9e47c917bd6656d758b0",
+        "bytes": 307
+      },
+      {
+        "step": 10,
+        "sha256": "79f5d9054698c46fe2aeebdcb5d2d5284948384873b5992fd1d05dda34dacd76",
+        "bytes": 308
+      },
+      {
+        "step": 11,
+        "sha256": "916ae71f419d9fb018ebfb1592bff6d20e4d36be968d56dba95b631e3ec21dfd",
+        "bytes": 307
+      },
+      {
+        "step": 12,
+        "sha256": "5f0ab413f5978571a285cab413063a184b7f076d206220b4fc2f4836421cdc1e",
+        "bytes": 308
+      }
+    ]
+  },
+  "first_ready_or_stop_pass": false
+}

@@ -2,7 +2,7 @@
 import json
 import datetime
 import unittest
-from native_retained_collect import APPROVED_BINARY, filter_events, safe_input, valid_binary, valid_window
+from native_retained_collect import APPROVED_BINARY, APPROVED_NONCES, filter_events, safe_input, valid_binary, valid_window
 from native_retained_data_test import ROOT, NONCE, SNAPSHOT
 
 BINARY = APPROVED_BINARY
@@ -11,6 +11,13 @@ COMMAND = f'exec {BINARY} retained-start --dir {DIRECTORY} --nonce {NONCE} --con
 
 
 class RetainedCollectTest(unittest.TestCase):
+    def test_only_fixed_authorized_replacement_nonce_is_added(self):
+        for nonce, allowed in [('rr-retained-quit-04',True),('rr-retained-quit-99',False)]:
+            with self.subTest(nonce=nonce):
+                self.assertEqual(nonce in APPROVED_NONCES,allowed)
+                source=self.source(COMMAND.replace(NONCE,nonce))
+                self.assertEqual('commands' in safe_input(source,ROOT,nonce,BINARY,DIRECTORY),allowed)
+
     def test_reviewed_binary_only(self):
         self.assertFalse(valid_binary('/tmp/CANARY_PRIVATE_TEXT'))
         source = self.source(COMMAND.replace(BINARY, '/tmp/CANARY_PRIVATE_TEXT'))

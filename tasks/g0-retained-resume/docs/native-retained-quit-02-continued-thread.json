@@ -1,0 +1,289 @@
+{
+  "captured_at": "2026-09-11T07:08:25.079401+00:00",
+  "root_thread": "01a08f42-d580-7211-b526-28a87969d42d",
+  "nonce": "rr-retained-quit-02",
+  "native_source": "cli",
+  "expected_experiment_cwd_matches": true,
+  "cli_version": "0.153.4",
+  "window": {
+    "since": "2026-09-11T07:06:39.244Z",
+    "through": "2026-09-11T07:08:24.825Z"
+  },
+  "collector_entry_binary_sha256": "feb9b9ad969abca5ff35db28c0f0d8d920dc0778d7aac68a90952900e989a285",
+  "privacy": "exact owned root; no reasoning/raw text; typed retained outputs require matching literal command or known process join",
+  "events": [
+    {
+      "timestamp": "2026-09-11T07:06:39.279Z",
+      "record_type": "event_msg",
+      "type": "task_started",
+      "turn_id": "01a08f4a-3114-7931-97f0-bcf564b144b5"
+    },
+    {
+      "timestamp": "2026-09-11T07:06:40.693Z",
+      "record_type": "response_item",
+      "type": "message",
+      "role": "user",
+      "message_summary": {
+        "utf8_bytes": 1593,
+        "sha256": "2153372033e685909042a96e6e1eb7d0b2c0e9564a1b7f1520258bd17cbf3468"
+      },
+      "explicit_continue_input": true,
+      "native_goal_control": false
+    },
+    {
+      "timestamp": "2026-09-11T07:06:44.162Z",
+      "record_type": "response_item",
+      "type": "message",
+      "role": "assistant",
+      "phase": "commentary",
+      "message_summary": {
+        "utf8_bytes": 121,
+        "sha256": "eb97c376c71b41ce3dc7bc545642c9417ab3d7f850746efc49a32f5b9bdc068c"
+      }
+    },
+    {
+      "timestamp": "2026-09-11T07:06:47.703Z",
+      "record_type": "response_item",
+      "type": "custom_tool_call",
+      "name": "exec",
+      "call_id": "call_L6IlAfdGxhohnc066nuxEU5i",
+      "input_summary": {
+        "utf8_bytes": 396,
+        "sha256": "a32eb9b352bbaa96535243104161cc72ae757bb73e5ddef06579d8e5d8a282b7",
+        "goal_operation_mentioned": false,
+        "commands": [
+          {
+            "verb": "retained-inspect",
+            "nonce": "rr-retained-quit-02",
+            "expected_binary_and_dir": true,
+            "shell_exec": false
+          }
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-09-11T07:06:47.995Z",
+      "record_type": "response_item",
+      "type": "custom_tool_call_output",
+      "call_id": "call_L6IlAfdGxhohnc066nuxEU5i",
+      "retained_source": "literal_retained_command",
+      "output_summary": {
+        "utf8_bytes": 549,
+        "sha256": "c7147f548e77b8495e27a2bf433a0e960987c0e53df3f89e9dc6e44626af163a",
+        "runtime": [
+          {
+            "exit_code": 0
+          }
+        ],
+        "snapshots": [
+          {
+            "version": 1,
+            "status": "running",
+            "nonce": "rr-retained-quit-02",
+            "controller_thread": "01a08f42-d580-7211-b526-28a87969d42d",
+            "revision": 1,
+            "segment": 1,
+            "completed_steps": 1,
+            "total_steps": 20,
+            "interval_ms": 4000,
+            "worker_pid": 22700,
+            "segment_started_at": "2026-09-11T06:58:49.468546Z",
+            "updated_at": "2026-09-11T06:58:53.476179Z",
+            "effect_count": 1,
+            "liveness_checked": false
+          }
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-09-11T07:07:01.117Z",
+      "record_type": "response_item",
+      "type": "custom_tool_call",
+      "name": "exec",
+      "call_id": "call_5fzOTKEkQ3fQYJqHa8063JYj",
+      "input_summary": {
+        "utf8_bytes": 466,
+        "sha256": "7c9766bf221fa0d4c85119cc6b161ac40e4f1833eea0784c9d2baaf6ebdba1ba",
+        "goal_operation_mentioned": false,
+        "commands": [
+          {
+            "verb": "retained-resume",
+            "nonce": "rr-retained-quit-02",
+            "expected_binary_and_dir": true,
+            "shell_exec": true,
+            "controller_from_native_env": true,
+            "revision": 1,
+            "expected_segment": 1
+          }
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-09-11T07:07:02.286Z",
+      "record_type": "response_item",
+      "type": "custom_tool_call_output",
+      "call_id": "call_5fzOTKEkQ3fQYJqHa8063JYj",
+      "retained_source": "literal_retained_command",
+      "output_summary": {
+        "utf8_bytes": 554,
+        "sha256": "6f0516da1290f4bbb4ec17a92c38e04c7fbc639adf08b0e2a405a14c979efd41",
+        "runtime": [
+          {
+            "session_id": 13358
+          }
+        ],
+        "snapshots": [
+          {
+            "version": 1,
+            "status": "running",
+            "nonce": "rr-retained-quit-02",
+            "controller_thread": "01a08f42-d580-7211-b526-28a87969d42d",
+            "revision": 1,
+            "segment": 2,
+            "completed_steps": 1,
+            "total_steps": 20,
+            "interval_ms": 4000,
+            "worker_pid": 25231,
+            "segment_started_at": "2026-09-11T07:07:01.175767Z",
+            "updated_at": "2026-09-11T07:07:01.175767Z",
+            "effect_count": 1,
+            "liveness_checked": false
+          }
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-09-11T07:07:16.653Z",
+      "record_type": "response_item",
+      "type": "custom_tool_call",
+      "name": "exec",
+      "call_id": "call_C0AG7LkS4AjvuR6PjVE4UDca",
+      "input_summary": {
+        "utf8_bytes": 104,
+        "sha256": "3e2ba1f7cf491ffd6ce484994389399317e4d7090fd906cad6bbbc7bd3cbbbfa",
+        "goal_operation_mentioned": false,
+        "stdin_session_id": 13358
+      }
+    },
+    {
+      "timestamp": "2026-09-11T07:07:47.660Z",
+      "record_type": "response_item",
+      "type": "custom_tool_call_output",
+      "call_id": "call_C0AG7LkS4AjvuR6PjVE4UDca",
+      "retained_source": "known_retained_process_join",
+      "output_summary": {
+        "utf8_bytes": 61,
+        "sha256": "fbf59f936ddc3a7d2ad569f2bd0dfacdefadd6be47045233ca55a68db193b50e"
+      }
+    },
+    {
+      "timestamp": "2026-09-11T07:07:54.548Z",
+      "record_type": "response_item",
+      "type": "message",
+      "role": "assistant",
+      "phase": "commentary",
+      "message_summary": {
+        "utf8_bytes": 101,
+        "sha256": "26aff7f0fc64c5184ed7b44ac0d4d3b3c6b96c4dc28202d1626d53e15f04da4a"
+      }
+    },
+    {
+      "timestamp": "2026-09-11T07:07:55.135Z",
+      "record_type": "response_item",
+      "type": "function_call",
+      "call_id": "call_FWfEkSsx3gXTXLyxCW8erkPd",
+      "arguments_summary": {
+        "utf8_bytes": 56,
+        "sha256": "81e8e95de556bf006a1f92b023ebce5a86d7215428578aaed1f3d2403372d5dd"
+      }
+    },
+    {
+      "timestamp": "2026-09-11T07:08:17.513Z",
+      "record_type": "response_item",
+      "type": "function_call_output",
+      "call_id": "call_FWfEkSsx3gXTXLyxCW8erkPd",
+      "output_summary": {
+        "utf8_bytes": 7720,
+        "sha256": "6408fb35e31b8b44c254ef41417e36621daf3620059ea5ce5f5511f087eac2a7",
+        "runtime": [
+          {
+            "exit_code": 0
+          }
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-09-11T07:08:22.776Z",
+      "record_type": "response_item",
+      "type": "custom_tool_call",
+      "name": "exec",
+      "call_id": "call_iJ4OeJNzw8fhAtlxe171GwUy",
+      "input_summary": {
+        "utf8_bytes": 396,
+        "sha256": "a32eb9b352bbaa96535243104161cc72ae757bb73e5ddef06579d8e5d8a282b7",
+        "goal_operation_mentioned": false,
+        "commands": [
+          {
+            "verb": "retained-inspect",
+            "nonce": "rr-retained-quit-02",
+            "expected_binary_and_dir": true,
+            "shell_exec": false
+          }
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-09-11T07:08:22.847Z",
+      "record_type": "response_item",
+      "type": "custom_tool_call_output",
+      "call_id": "call_iJ4OeJNzw8fhAtlxe171GwUy",
+      "retained_source": "literal_retained_command",
+      "output_summary": {
+        "utf8_bytes": 552,
+        "sha256": "7c313c9b84b5deaefd42d9f8902e2508803f209ebe5a4d8597dbbe22ffe3945a",
+        "runtime": [
+          {
+            "exit_code": 0
+          }
+        ],
+        "snapshots": [
+          {
+            "version": 1,
+            "status": "completed",
+            "nonce": "rr-retained-quit-02",
+            "controller_thread": "01a08f42-d580-7211-b526-28a87969d42d",
+            "revision": 1,
+            "segment": 2,
+            "completed_steps": 20,
+            "total_steps": 20,
+            "interval_ms": 4000,
+            "worker_pid": 25231,
+            "segment_started_at": "2026-09-11T07:07:01.175767Z",
+            "updated_at": "2026-09-11T07:08:17.48578Z",
+            "effect_count": 20,
+            "liveness_checked": false
+          }
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-09-11T07:08:24.694Z",
+      "record_type": "response_item",
+      "type": "message",
+      "role": "assistant",
+      "phase": "final_answer",
+      "message_summary": {
+        "utf8_bytes": 23,
+        "sha256": "c366ee370fd435abb503d51cfc6d31665ed619a5482d260cb8f3b2046456f0eb"
+      },
+      "text": "rr-retained-quit-02-ACK"
+    },
+    {
+      "timestamp": "2026-09-11T07:08:24.779Z",
+      "record_type": "event_msg",
+      "type": "task_complete",
+      "turn_id": "01a08f4a-3114-7931-97f0-bcf564b144b5",
+      "last_agent_message": "rr-retained-quit-02-ACK"
+    }
+  ]
+}

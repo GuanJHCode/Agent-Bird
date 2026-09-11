@@ -13,11 +13,11 @@ import subprocess
 import time
 import uuid
 from native_process_identity import same_process
-from native_retained_collect import APPROVED_BINARY, APPROVED_SHA256, REPO, valid_binary, valid_window
+from native_retained_collect import APPROVED_BINARY, APPROVED_SHA256, APPROVED_NONCES, REPO, valid_binary, valid_window
 from native_retained_data import valid_snapshot
 
 TASK = pathlib.Path(__file__).resolve().parents[1]
-NONCES = {'rr-retained-quit-01','rr-retained-quit-02','rr-retained-quit-03','rr-retained-kill-01'}
+NONCES = APPROVED_NONCES
 
 
 def now():

@@ -14,6 +14,7 @@ from native_retained_data import safe_output, stamp_nanos, text_summary
 REPO = pathlib.Path('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo')
 APPROVED_BINARY = '/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-retained-resume/data/g0-return-lab-retained-darwin-arm64'
 APPROVED_SHA256 = 'feb9b9ad969abca5ff35db28c0f0d8d920dc0778d7aac68a90952900e989a285'
+APPROVED_NONCES = {'rr-retained-quit-01','rr-retained-quit-02','rr-retained-quit-03','rr-retained-quit-04','rr-retained-kill-01'}
 
 
 def valid_binary(binary):
@@ -67,7 +68,7 @@ def literal_call(text):
 def safe_input(text, root, nonce, binary, directory):
     result = text_summary(text)
     result['goal_operation_mentioned'] = bool(re.search(r'tools\.(?:create_goal|update_goal|get_goal)\s*\(', text))
-    if binary != APPROVED_BINARY:
+    if binary != APPROVED_BINARY or nonce not in APPROVED_NONCES:
         return result
     operation, options = literal_call(text)
     if operation == 'write_stdin':
@@ -187,7 +188,7 @@ def main():
         parser.add_argument('--' + name, required=True)
     args = parser.parse_args()
     assert str(uuid.UUID(args.root)) == args.root
-    match = re.fullmatch(r'rr-retained-(quit|kill)-([0-9]{2})', args.nonce); assert match
+    match = re.fullmatch(r'rr-retained-(quit|kill)-([0-9]{2})', args.nonce); assert match and args.nonce in APPROVED_NONCES
     expected = REPO / ('tasks/retained-resume/data/native-retained-' + match[1] + '-' + match[2])
     assert pathlib.Path(args.dir).resolve() == expected and valid_binary(args.binary)
     lower, upper = valid_window(args.since, args.through, datetime.datetime.now(datetime.timezone.utc))

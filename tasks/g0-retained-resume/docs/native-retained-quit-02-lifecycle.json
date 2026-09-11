@@ -1,0 +1,47 @@
+{
+  "root_thread": "01a08f42-d580-7211-b526-28a87969d42d",
+  "nonce": "rr-retained-quit-02",
+  "initial_native_pid": 22223,
+  "initial_native_session": 99711,
+  "preflight": {
+    "native_identity": {
+      "pid": 22223,
+      "ppid": 38821,
+      "pgid": 22223,
+      "started_at_local": "Fri Sep 11 14:58:36 2026",
+      "executable": "codex"
+    },
+    "binary": {
+      "phase": "dispatch_preflight",
+      "at": "2026-09-11T06:58:40.221989+00:00",
+      "sha256": "feb9b9ad969abca5ff35db28c0f0d8d920dc0778d7aac68a90952900e989a285",
+      "inode": 160558786,
+      "size": 4227346
+    }
+  },
+  "registration": {
+    "registered_at": "2026-09-11T06:58:42.526936+00:00",
+    "root_thread": "01a08f42-d580-7211-b526-28a87969d42d"
+  },
+  "initial_model_window": {
+    "since": "2026-09-11T06:58:41.358Z",
+    "through": "2026-09-11T07:00:41.358Z"
+  },
+  "initial_observation_through": "2026-09-11T06:59:01.293Z",
+  "action_at": "2026-09-11T06:58:55.959Z",
+  "initial_tui_exit": 0,
+  "stop_observer_exit": 0,
+  "stop_observer_success": true,
+  "resume_at": "2026-09-11T07:02:23.463Z",
+  "resume_native_pid": 23523,
+  "resume_native_session": 99047,
+  "resume_root_confirmed": "01a08f42-d580-7211-b526-28a87969d42d",
+  "resume_has_prompt": false,
+  "idle_observation_through": "2026-09-11T07:02:37.116Z",
+  "explicit_continue_at": "2026-09-11T07:06:39.244Z",
+  "explicit_continue_deadline": "2026-09-11T07:08:39.244Z",
+  "continue_observation_through": "2026-09-11T07:08:24.825Z",
+  "continued_ack_within_window": true,
+  "cleanup_quit_at": "2026-09-11T07:08:26.219Z",
+  "cleanup_tui_exit": 0
+}
