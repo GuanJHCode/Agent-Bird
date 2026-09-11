@@ -10,3 +10,5 @@
 /tasks/g0-daemon/data/
 /tasks/g0-native-return/tmp/
 /tasks/g0-native-return/data/
+/tasks/g0-retained-resume/tmp/
+/tasks/g0-retained-resume/data/
