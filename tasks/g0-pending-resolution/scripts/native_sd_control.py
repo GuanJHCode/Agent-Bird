@@ -6,7 +6,6 @@ import json
 import os
 from pathlib import Path
 import re
-import signal
 import sqlite3
 import subprocess
 import sys
@@ -17,9 +16,38 @@ from native_sd_pty import NativePTY, InputSequence, stamp
 
 CASE = c.BASE/'tasks/g0-pending-resolution/data/sd-qual-01'
 JOB = c.REPO/'tasks/pending-resolution/data/sd-qual-01'
-HELPER = c.BASE/'tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone.py'
+HELPER = c.BASE/'tasks/g0-pending-resolution/scripts/native_standalone.py'
 AUDIT = HELPER.with_name('delivery_audit.py')
 DOCS = Path(__file__).resolve().parents[1]/'docs'
+
+
+def read_send_attempt(root,boot_id,binding_sha,begin_ns):
+    path=CASE/'send-attempt.json'
+    if (not c.valid_id(root) or not c.valid_id(boot_id) or type(binding_sha) is not str
+            or not re.fullmatch(r'[0-9a-f]{64}',binding_sha) or not c.integer(begin_ns,0,2**63-1)
+            or not path.is_file() or path.is_symlink() or path.stat().st_size>4096 or path.stat().st_mode&0o777!=0o600):
+        raise ValueError('missing or invalid same-case send attempt')
+    raw=path.read_bytes(); attempt=json.loads(raw)
+    expected={'version','status','nonce','controller_thread_id','binding_sha256','payload_sha256',
+              'boot_id','clock_impl','mono_ns','wall_ns'}
+    if (type(attempt) is not dict or set(attempt)!=expected or type(attempt['version']) is not int or attempt['version']!=1
+            or attempt['status']!='send_intent' or attempt['nonce']!=c.NONCE or attempt['controller_thread_id']!=root
+            or attempt['binding_sha256']!=binding_sha or type(attempt['payload_sha256']) is not str
+            or not re.fullmatch(r'[0-9a-f]{64}',attempt['payload_sha256']) or attempt['boot_id']!=boot_id
+            or attempt['clock_impl']!=time.get_clock_info('monotonic').implementation
+            or type(attempt['mono_ns']) is not int or not begin_ns<=attempt['mono_ns']<=time.monotonic_ns()
+            or type(attempt['wall_ns']) is not int or not 0<attempt['wall_ns']<=time.time_ns()):
+        raise ValueError('invalid original helper attempt clock/binding')
+    deadline=attempt['mono_ns']+120000000000
+    if time.monotonic_ns()>deadline: raise TimeoutError('original attempt model window ended')
+    return {'attempt_mono_ns':attempt['mono_ns'],'attempt_wall_ns':attempt['wall_ns'],
+            'deadline_mono_ns':deadline,'attempt_sha256':hashlib.sha256(raw).hexdigest()}
+
+
+def require_helper_success(mode,exit_code,root,boot_id,binding_sha,begin_ns):
+    if exit_code!=0: raise ValueError('helper qualification rejected or uncertain')
+    if mode=='send-once': return read_send_attempt(root,boot_id,binding_sha,begin_ns)
+    return None
 
 
 class OwnedService:
@@ -217,6 +245,7 @@ def run(helper_sha,audit_sha):
     def helper(mode,timeout):
         nonlocal helper_proc
         note(mode); begin=time.monotonic(); begin_ns=time.monotonic_ns(); wall=stamp()
+        binding_sha=c.sha(CASE/'binding.json')
         deadline_ns=begin_ns+int(timeout*1000000000); attempt_seen=False
         helper_proc=subprocess.Popen([sys.executable,str(HELPER),mode,'--case',str(CASE),'--root',record['root'],
                                       '--nonce',c.NONCE],stdout=subprocess.PIPE,stderr=subprocess.PIPE)
@@ -225,20 +254,10 @@ def run(helper_sha,audit_sha):
             pump(.1)
             attempt_path=CASE/'send-attempt.json'
             if mode=='send-once' and not attempt_seen and attempt_path.exists():
-                try: attempt=json.loads(attempt_path.read_text())
+                try: model_window=read_send_attempt(record['root'],boot_id,binding_sha,begin_ns)
                 except json.JSONDecodeError: continue  # O_EXCL publication can still be writing; original local deadline remains.
-                expected={'version','status','nonce','controller_thread_id','binding_sha256','payload_sha256',
-                          'boot_id','clock_impl','mono_ns','wall_ns'}
-                if (type(attempt) is not dict or set(attempt)!=expected or type(attempt['version']) is not int or attempt['version']!=1
-                        or attempt['status']!='send_intent' or attempt['nonce']!=c.NONCE or attempt['controller_thread_id']!=record['root']
-                        or attempt['binding_sha256']!=c.sha(CASE/'binding.json') or not re.fullmatch(r'[0-9a-f]{64}',attempt['payload_sha256'])
-                        or attempt['boot_id']!=boot_id or attempt['clock_impl']!=time.get_clock_info('monotonic').implementation
-                        or type(attempt['mono_ns']) is not int or not begin_ns<=attempt['mono_ns']<=time.monotonic_ns()
-                        or type(attempt['wall_ns']) is not int or not 0<attempt['wall_ns']<=time.time_ns()):
-                    raise ValueError('invalid original helper attempt clock/binding')
-                deadline_ns=attempt['mono_ns']+120000000000; attempt_seen=True
-                record['callback_window']={'attempt_mono_ns':attempt['mono_ns'],'attempt_wall_ns':attempt['wall_ns'],
-                                           'deadline_mono_ns':deadline_ns}
+                deadline_ns=model_window['deadline_mono_ns']; attempt_seen=True
+                record['callback_window']=model_window
         if helper_proc.poll() is None:
             helper_proc.terminate(); helper_proc.wait(timeout=2)
             raise TimeoutError('helper original observation window ended')
@@ -247,7 +266,10 @@ def run(helper_sha,audit_sha):
             'elapsed_seconds':time.monotonic()-begin,'exit_code':helper_proc.returncode,
             'stdout_bytes':len(stdout),'stdout_sha256':hashlib.sha256(stdout).hexdigest(),
             'stderr_bytes':len(stderr),'stderr_sha256':hashlib.sha256(stderr).hexdigest()})
-        if helper_proc.returncode!=0: raise ValueError('helper qualification rejected or uncertain')
+        completed_window=require_helper_success(mode,helper_proc.returncode,record['root'],boot_id,binding_sha,begin_ns)
+        if mode=='send-once':
+            if attempt_seen and record['callback_window']!=completed_window: raise ValueError('send attempt changed during observation')
+            record['callback_window']=completed_window
 
     try:
         service=OwnedService()
@@ -337,9 +359,10 @@ def run(helper_sha,audit_sha):
                 except (ValueError,subprocess.SubprocessError): pass
                 pump(.1)
         record['job_completed_at_cleanup']=job_completed
-        # Only actually observed connection metadata is used. Missing or unfamiliar evidence
-        # leaves this headless service running for the main agent; no general client manager.
-        connection_safe=False
+        # The helper does not expose its server connection IDs. Client names or row counts
+        # cannot authorize killing the shared listener; this controller never stops it.
+        record['cleanup_connection_observation']={'automatic_service_stop':False,
+            'reason':'helper_server_connection_ids_not_registered','listener_retained_for_main_agent':True}
         if service and record.get('root') and record.get('initial_window'):
             try:
                 now=dt.datetime.now(dt.timezone.utc)
@@ -350,26 +373,18 @@ def run(helper_sha,audit_sha):
                 clients=[row['fields'] for row in rows]
                 tui_connections={v['connection_id'] for v in clients if v.get('client_name')=='codex-tui' and 'connection_id' in v}
                 unknown=any(v.get('unrecognized_client_name') is True for v in clients)
-                connection_safe=len(tui_connections)==1 and not unknown
                 record['cleanup_connection_observation']={'known_tui_connection_count':len(tui_connections),
-                    'unrecognized_client_observed':unknown,'sufficient_to_stop_owned_service':connection_safe,
-                    'scope':'only the collected request-span fields; absent evidence retains service'}
+                    'unrecognized_client_observed':unknown,'automatic_service_stop':False,
+                    'reason':'helper_server_connection_ids_not_registered','listener_retained_for_main_agent':True,
+                    'scope':'request-span metadata does not establish complete client ownership'}
             except (ValueError,OSError,sqlite3.Error):
-                record['cleanup_connection_observation']={'sufficient_to_stop_owned_service':False}
-        if not helper_ok and connection_safe and service and service._poll() is None:
-            current=c.process(service.pid)
-            if current and (original is None or c.same_process(current,original['service'])):
-                os.kill(service.pid,signal.SIGINT); service.wait(10)
-                record['failure_service_stop_before_tui_quit']=stamp()
+                record['cleanup_connection_observation'].update(reason='connection_evidence_unavailable')
         if tui and tui._poll() is None:
             current=c.process(tui.pid)
             if current and (original is None or c.same_process(current,original['tui'])):
                 tui.send(sequence,'quit'); tui.wait(10)
-        if connection_safe and service and service._poll() is None:
-            current=c.process(service.pid)
-            if current and original and c.same_process(current,original['service']):
-                os.kill(service.pid,signal.SIGINT); service.wait(10)
         record['service_process']=service.evidence() if service else None
+        record['retained_service_pid']=service.pid if service and service._poll() is None else None
         record['tui_pty']=tui.evidence() if tui else None
         record['protected_after']=c.protected_files()
         record['protected_unchanged']=record['protected_after']==protected_before
@@ -382,8 +397,9 @@ def run(helper_sha,audit_sha):
             if p and p._poll() is not None: p.close()
         print(json.dumps({'nonce':c.NONCE,'stage':'finished','helper_ok':helper_ok,
                           'all_owned_native_exited':record['all_owned_native_exited'],
+                          'retained_service_pid':record['retained_service_pid'],
                           'evidence':str(CASE/'controller-result.json')}),flush=True)
-    return 0 if helper_ok and record['all_owned_native_exited'] else 2
+    return 0 if helper_ok and (tui is None or tui._poll() is not None) else 2
 
 
 def main():

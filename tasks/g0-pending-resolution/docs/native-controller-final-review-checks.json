@@ -1,0 +1,18 @@
+{
+  "recorded_at": "2026-09-11T10:03:52.220748+00:00",
+  "baseline": "5a3a1e589ac7f96660a1984af182bdb7ccb8004e",
+  "scope": "local controller review regression only; no native service/TUI/model started",
+  "red": {
+    "test": "real local process exits zero without same-case send-attempt artifact",
+    "exit_code": 1,
+    "observed": "success gate failed to reject missing artifact"
+  },
+  "green": {
+    "command": "python3 -m unittest native_sd_collect_test native_sd_pty_test native_sd_control_test -v",
+    "tests": 18,
+    "exit_code": 0,
+    "seconds": 0.294
+  },
+  "service_cleanup": "automatic service stop removed; helper server connection IDs are not exposed, so listener remains for parent-directed fact-based cleanup",
+  "helper_path": "main repository tasks/g0-pending-resolution/scripts/native_standalone.py"
+}

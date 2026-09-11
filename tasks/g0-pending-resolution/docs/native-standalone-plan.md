@@ -40,7 +40,7 @@
 4. helper `send-once` 在验证同服务、remote disabled、native cli source、精确 prior completed/READY/idle 后，先用 O_EXCL 记录 send-attempt，再唯一发送原生 standalone toolOutput。从原 attempt 时间固定新的最多 120 秒模型观察窗口，任何补查仍使用该原窗口。
 5. root 实际 inspect → ack，使用原生 `$CODEX_THREAD_ID`、revision=1、inspect 返回的 event hash；`ack-r1.json` 的 decision/effect_count=1 独立证明业务动作。native history 的角色/类型及 body hash 单独证明交付，不把 RPC success 当落盘或业务 ACK。
 6. 没有符合条件的 completed/idle、发生审批请求、未知来源、未知客户端或超窗时保留未通过事实；不代答权限、不延长或换起点凑通过、不重派 job、不自动重发 uncertain 事件。
-7. helper exit0 已要求历史中的 exact functionCallOutput、匹配新轮 completed/ACK final、真实业务 ACK 且 idle；随后才正常 `/quit`。只根据已采集的白名单 connection 记录作有限收尾判断：出现未识别 client、第二个 TUI connection 或证据不足时保留 headless listener 给主会话核对，不用猜测关闭服务；该判断不是通用客户端管理。失败时先确保单一 job 完成；只在服务归属证据足够时停止本任务服务并退出自己的 TUI。记录所有保留 PID、退出、业务最终状态、socket 与配置比对。
+7. helper exit0 已要求历史中的 exact functionCallOutput、匹配新轮 completed/ACK final、真实业务 ACK 且 idle；controller 仍强制读取同 case、root、binding、boot 的原始 send-attempt 并验证原 mono 截止，返回码不能代替产物。随后才正常 `/quit`。**本 controller 不自动停止 listener**：helper 未暴露服务端 connection ID，名字/时间线/数量不足以登记其连接归属。白名单 connection 元数据仅作为观察，listener 留给主会话根据当前 Unix 连接和存活 PID 有据清理，不阻塞接口样本本身。失败时先等待唯一已启动 job 的有界完成，再退出自己的 TUI并记录未完成/保留状态；不重派或重发。
 
 所有本地身份/采集操作窗口至多 10 秒。两个模型阶段各有自己的实际开始时间和 120 秒上限；准备空档不能改变已开始阶段的截止。
 
@@ -52,4 +52,4 @@
 
 原生 snapshot 现在拒绝缺失的服务/TUI；控制器的发送前守卫额外比对两者的原创建身份和 socket dev/ino/uid/mode/服务持有路径。身份键不含 PPID，reparent 不冒充进程退出。输入/身份/隐私回归共 14 项新鲜通过，包含上述独立审查的 RED→GREEN。当前 CLI preflight 实际只读执行成功，默认 socket absent。原生模型运行仍等待 helper 与完整 controller 冻结复审。
 
-[固定运行器](../scripts/native_sd_control.py) 已补全串行路径；最新本地 suite 为 17 项，均通过，未启动 Codex。运行器只接受固定路径 helper 和 import 的审查 SHA，`send-once` 外层先用 10 秒本地预检期限，读到该 helper 的同次 immutable `send-attempt.mono_ns` 后使用 `mono_ns + 120s` 原模型截止，任何补读不会改起点。命令为 `python3 tasks/g0-pending-resolution/scripts/native_sd_control.py --helper-sha REVIEWED_SHA --audit-sha REVIEWED_IMPORT_SHA`；真实运行必须等固定代码独立审查通过及最终 SHA。
+[固定运行器](../scripts/native_sd_control.py) 已补全串行路径；最新本地 suite 为 18 项，均通过，未启动 Codex。新增红例是真实本地进程 exit0，但同 case 没有 send-attempt，成功门槛仍拒绝。运行器只接受主仓库 `tasks/g0-pending-resolution/scripts/native_standalone.py` 和同目录 import 的审查 SHA，`send-once` 外层先用 10 秒本地预检期限，读到该 helper 的同次 immutable `send-attempt.mono_ns` 后使用 `mono_ns + 120s` 原模型截止，任何补读不会改起点；即使 helper 在观察循环前已经 exit0，也会在返回成功前重新验证该实际产物。命令为 `python3 tasks/g0-pending-resolution/scripts/native_sd_control.py --helper-sha REVIEWED_SHA --audit-sha REVIEWED_IMPORT_SHA`；真实运行必须等固定代码独立审查通过及最终 SHA。

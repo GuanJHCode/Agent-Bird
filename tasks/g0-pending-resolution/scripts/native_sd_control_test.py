@@ -7,13 +7,24 @@ import functools
 import os
 from pathlib import Path
 import sqlite3
+import subprocess
+import sys
 import tempfile
+import time
 from unittest.mock import patch
 import native_sd_control as control
 from native_sd_control import require_owned_pair
 
 
 class ControlTests(unittest.TestCase):
+    def test_zero_exit_without_same_case_send_attempt_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory,patch.object(control,'CASE',Path(directory)):
+            completed=subprocess.run([sys.executable,'-c','pass'],capture_output=True)
+            self.assertEqual(completed.returncode,0)
+            with self.assertRaises(ValueError):
+                control.require_helper_success('send-once',completed.returncode,
+                    '01a08e0b-bd0d-7400-b069-d50978939cdd','01a08e0b-bd0d-7400-b069-d50978939cde','0'*64,time.monotonic_ns())
+
     def test_lab_read_envelope_is_fixed_nonce_and_does_not_export_extensions(self):
         expected={'version':1,'status':'pending','nonce':'sd-qual-01','count':0}
         self.assertEqual(control.lab_read_fields(json.dumps(expected)),expected)
