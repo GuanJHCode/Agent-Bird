@@ -1,5 +1,5 @@
 {
-  "scope": "Fixed collector, PTY and ownership guard only; no native runtime admission",
+  "scope": "Fixed offline tests and implementation reviews; sd-qual-01 admitted after current-state preflight, native outcome still untested",
   "source_commit": "472d2288f750b9d096dc5a2d84f7e885cf44b101",
   "integrated_commit": "2aa8e3c",
   "independent_review": {
@@ -23,11 +23,65 @@
     "diff_check": "git diff --check 0459861..HEAD",
     "diff_check_exit_code": 0
   },
+  "helper_verification": {
+    "source_commit": "5f2bd86667b0e352e2c170fe5af36e9e9f0b482a",
+    "integrated_commit": "163c776",
+    "independent_reviewer": "retained_lifecycle_review",
+    "independent_verdict": "PASS",
+    "native_admission": "withdrawn_pending_paginated_history_compatibility",
+    "new_source_finding": "Ordinary 0.153.4 TUI requests ThreadHistoryMode::Paginated; 5f2 helper accepts only legacy. No native sample has run.",
+    "independent_tests_passed": 15,
+    "independent_duration_seconds": 0.009,
+    "main_command": "python3 -B -m unittest discover -s tasks/g0-pending-resolution/scripts -p 'native_standalone_test.py' -v",
+    "main_exit_code": 0,
+    "main_tests_passed": 15,
+    "main_duration_seconds": 0.007,
+    "source_and_document_diff_check_exit_code": 0,
+    "script_sha256": "7a975ef560bb078077d5607acd559683ae84bf0901bd059dae05c7060f41c535",
+    "delivery_audit_sha256": "59d8129d5409fb7fb5687a5107c81f9d85a63b8f718e4dd22cab660517af87c6",
+    "closed_findings": [
+      "namespace object is rejected by bounded projection",
+      "duplicate turn ID within a single history read is rejected"
+    ]
+  },
+  "controller_verification": {
+    "source_commit": "02aa787fb50309393ebf2e3c7374b95faaaa9274",
+    "integrated_commit": "17d98a7",
+    "independent_reviewer": "native_identity_review",
+    "independent_verdict": "PASS",
+    "independent_tests_passed": 18,
+    "main_command": "python3 -B -m unittest discover -s tasks/g0-pending-resolution/scripts -p 'native_sd_*_test.py' -v",
+    "main_exit_code": 0,
+    "main_tests_passed": 18,
+    "main_duration_seconds": 0.311,
+    "diff_check_exit_code": 0,
+    "controller_sha256": "83d6aa5709ebcf3f7c2f3930c86239e526cc60f5ac009ae83860369351ecdc58",
+    "collector_sha256": "e0f2f1b2eeb741e2398cc12d9bdc6212f2b2b0261b2fa8981da4e5ea3ddbb3ae",
+    "pty_sha256": "1dd736dde34b55a56c5f9b8884df5a392d1ed9d46c831994dd52bbd7551933f3",
+    "closed_findings": [
+      "zero helper exit requires the actual same-case send-attempt and original deadline",
+      "controller no longer terminates a listener based on client names alone"
+    ],
+    "runtime_freeze": "Main orchestrates serial integration and does not change the five Python source files or pinned binaries during this sample; the runner verifies every SHA before exec. Workers use separate worktrees.",
+    "cleanup": "Listener is retained with its recorded identity for subsequent evidence-based cleanup."
+  },
+  "paginated_helper_delta": {
+    "source_commit": "c3f35d37506f0681e8b02005ac28a3d04b52a85d",
+    "integrated_commit": "c4b75eb",
+    "independent_reviewer": "retained_lifecycle_review",
+    "independent_verdict": "PASS",
+    "independent_tests_passed": 16,
+    "independent_duration_seconds": 0.006,
+    "main_tests_passed": 16,
+    "main_duration_seconds": 0.006,
+    "main_exit_code": 0,
+    "script_sha256": "a830233c4f57456d9007a8416f7253a00a76c0f32c5c3f68a7187e59790924f5",
+    "native_admission": "restored_for_single_fixed_TUI_sample_only",
+    "actual_native_contract": "thread/read(includeTurns=true) materializes paginated history as full turns; canonical JSONL still persists task_complete. No added RPC or TUI setting changes."
+  },
   "native_service_started": false,
   "native_model_started": false,
   "pending": [
-    "complete serial controller implementation and fixed-commit review",
-    "complete standalone helper implementation and fixed-commit review",
     "sd-qual-01 native runtime sample"
   ]
 }

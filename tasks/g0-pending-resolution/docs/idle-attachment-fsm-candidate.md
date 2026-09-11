@@ -43,6 +43,14 @@
 
 因此这份候选可先实现纯观察、集合状态及负例的夹具/TDD；在 bare-read→重放匹配可区分之前，不应把它升级为覆盖切回活性的原生资格。具体可试子集和是否进入模型实验由主会话决定。这里没有建立一个否定所有完整流组合的不可区分反例。
 
+### 追加：quiet direct-toggle 的窄匹配
+
+后续只读复核给出一个可继续原生验证的子集：同一已确认连接 epoch 中，当前候选为唯一已登记 side S，primary P 与 S 均 live，且没有未决或未知消息。观察到 `thread/read(P, includeTurns=false)`，按 request id 收到 P 的成功元数据后，下一条相关客户端请求必须是 `skills/list([P.cwd], true)`；两者之间任何其它客户端请求或服务通知均使该窄规则保持 PENDING。这里不输入 caller 自报的 selected 标签。
+
+依据是 [direct toggle](https://github.com/openai/codex/blob/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/app/side.rs#L391) 直接调用选择流程，缓存 primary 在 [liveness read 后进入本地选择和重放](https://github.com/openai/codex/blob/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/app/session_lifecycle.rs#L501)。复核在这个限定前置状态下检查了 picker、overview、approval/dynamic、fork、history/export/preview 等其它 read 来源：它们具有不兼容的状态前提、可识别的 request id 或额外 RPC 上下文；不能在采集时删掉这些上下文再套用规则。
+
+`native_identity_review` 对固定 `0.153.4` 源码给出的是上述窄规则的 source mapping 结论，未建立同轨迹反例；未写文件或运行 Codex。它尚未经过同一原生 TUI 的完整双向 RPC 采集验证，不证明像素提交、其它切回方式、断连恢复或通用 C05/C09。完整流的实际获取前提也仍未补齐，本轮固定 PTY 资格样本不依赖这条规则。
+
 ## 顺序、Apps 与日志
 
 LocalDaemon/Remote 路径存在 pending AppEvent 时会阻止新 terminal input，且 skills 请求在主事件处理中 await；这可用于识别有序的 UI 重放工作。[事件队列门槛](https://github.com/openai/codex/blob/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/app/startup.rs#L733)。它不把所有后台网络任务排序到 UI 切换顺序中。
