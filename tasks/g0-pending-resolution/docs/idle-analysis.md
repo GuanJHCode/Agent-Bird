@@ -46,3 +46,5 @@ Hooks：英文官方页明确后台完成不会启动新轮，且 session 结束
 若附着路线找到受支持入口，最小模型实验才有可执行性：普通 `codex` 新建本任务 root，记录 PID/出生身份/thread/原服务和有效设置；主控执行合成任务并真正 final，确认没有活动工具后保持 idle；执行方把其真实、已持久化的固定 nonce JSON 通过原服务的 standalone `toolOutput` 提交。固定 120 秒内核对新 turn、真实 functionCallOutput、唯一 ACK、无新用户消息及未改设置。先做一个资格样本；通过后再按主会话排期扩基础重复和 busy/input 竞争。无可达入口时不启动新模型、不用另起服务替代、不修改历史。
 
 本轮只新增报告/元数据，并纠正两处旧报告把合法结果限于 pending-tool 的过严表述；原失败事实不变。原始公开源码下载仅在本任务 tmp，供两路 Agent 共享只读核查后清理；无自有 native TUI、后台任务或认证变更。
+
+追加的唯一按需启动候选见 [launchd socket activation 机制](idle-socket-activation-mechanism.md)。该页仅核查 50 毫秒探测、监听 FD、多连接及冷启动边界；不表示当前合同已允许安装 LaunchAgent 或必经代理，也不把机制推导当作实际通过。

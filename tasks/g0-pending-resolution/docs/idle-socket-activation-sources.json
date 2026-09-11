@@ -1,0 +1,244 @@
+{
+  "scope": "read-only socket-activation mechanism; no launchctl/plist/config/socket changes",
+  "source_commits": {
+    "0.153.4": "3d2ee51ca2d5db578f328aa75e20aa22c0197c9a",
+    "0.154.0": "6b9826e3aa83b1a5947db50f4332cb9c65f1b340"
+  },
+  "native_files": [
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/app-server/src/transport.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/app-server/src/transport.rs",
+      "bytes": 8721,
+      "sha256": "0245a0e377833def981d77767b5f269eb43c96ff47400f15d964a982d7b56019"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/app-server/src/lib.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/app-server/src/lib.rs",
+      "bytes": 57562,
+      "sha256": "13f10bc2b5f08b24c27cbb77db205d1a35bc8900938112724328298467732665"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/app-server/src/main.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/app-server/src/main.rs",
+      "bytes": 4959,
+      "sha256": "e7f7128eba53906ebf9da2bf0d9a48ddd51198a0d213620510d8ccdeb5749765"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/app-server-client/src/lib.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/app-server-client/src/lib.rs",
+      "bytes": 79961,
+      "sha256": "301ade7bee1e327fd5922fd5905893588ad3c43e1c645760ec691b3ddc91fc4f"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/lib.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/lib.rs",
+      "bytes": 127072,
+      "sha256": "dacd2ea2756a3af956803ae3dbc1c5d4fd2c22fbdeeab02f0bca57856285d6cf"
+    },
+    {
+      "version": "0.154.0",
+      "path": "codex-rs/app-server/src/transport.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server/src/transport.rs",
+      "bytes": 8786,
+      "sha256": "b869fab855d1538ac97f56515d5f0d820dc066ab0374ca04d44f170ec65793d8"
+    },
+    {
+      "version": "0.154.0",
+      "path": "codex-rs/app-server/src/lib.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server/src/lib.rs",
+      "bytes": 59006,
+      "sha256": "1fd6eb562471c498e9b90374412867c5e341bac926070059350cce63cc16cf44"
+    },
+    {
+      "version": "0.154.0",
+      "path": "codex-rs/app-server/src/main.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server/src/main.rs",
+      "bytes": 5208,
+      "sha256": "191f1283e77fe4aea2c1eb4901c7297ceba07c8b52c5abf1f6299ccea6da9008"
+    },
+    {
+      "version": "0.154.0",
+      "path": "codex-rs/app-server-client/src/lib.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-client/src/lib.rs",
+      "bytes": 82688,
+      "sha256": "04967fc01fa9e24013e47a0d5fc07c5943e678d489d7be12c645bd94b1692ef4"
+    },
+    {
+      "version": "0.154.0",
+      "path": "codex-rs/tui/src/lib.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/lib.rs",
+      "bytes": 139275,
+      "sha256": "fd85e541df5affb811f7133d967dcb294292c77bbce1e2cffc16eb670d3c34ec"
+    },
+    {
+      "version": "0.154.0",
+      "path": "codex-rs/tui/src/app_server_connection.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/app_server_connection.rs",
+      "bytes": 2114,
+      "sha256": "fb6274d63f73f3a76a0c127e1171a743cc7012b4ed9e6b6951b7281d164820cb"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/app-server-transport/src/transport/mod.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/app-server-transport/src/transport/mod.rs",
+      "bytes": 21005,
+      "sha256": "62a3acdb675a7d36625d40665e25ada29052900eac6265a6616ac526355eb503"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/app-server-transport/src/transport/unix_socket.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/app-server-transport/src/transport/unix_socket.rs",
+      "bytes": 5994,
+      "sha256": "b5638af41a4bcf31a643df52533287d471225aca9dce1bf3df3c4da09d1bc2d4"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/app-server-transport/src/transport/stdio.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/app-server-transport/src/transport/stdio.rs",
+      "bytes": 4021,
+      "sha256": "ffb372ec8a369b307ad3c0fb3d7af19982098360df12ed4158fe5180beb0a91b"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/app_server_session.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/app_server_session.rs",
+      "bytes": 147139,
+      "sha256": "dc3e6c1eb30d3d82c9d2ca383049323988b3442d86d49c2f021f276b45c0fd10"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/startup_orchestration.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/startup_orchestration.rs",
+      "bytes": 21614,
+      "sha256": "0f32a18cf18fe7194a352abb72e3888a3aef81e661c47b42edf6471a8cc805b4"
+    },
+    {
+      "version": "0.154.0",
+      "path": "codex-rs/app-server-transport/src/transport/mod.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-transport/src/transport/mod.rs",
+      "bytes": 21140,
+      "sha256": "537d15b8d6927e36922351137ce52fcc687564d8228ea02dce16e5ee4de37ab5"
+    },
+    {
+      "version": "0.154.0",
+      "path": "codex-rs/app-server-transport/src/transport/unix_socket.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-transport/src/transport/unix_socket.rs",
+      "bytes": 8940,
+      "sha256": "08b3f6d88895567645e152d122ff70e96eaf80e82dbcf00fd9c8e7b11bb19c88"
+    },
+    {
+      "version": "0.154.0",
+      "path": "codex-rs/app-server-transport/src/transport/stdio.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-transport/src/transport/stdio.rs",
+      "bytes": 4021,
+      "sha256": "ffb372ec8a369b307ad3c0fb3d7af19982098360df12ed4158fe5180beb0a91b"
+    },
+    {
+      "version": "0.154.0",
+      "path": "codex-rs/tui/src/app_server_session.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/app_server_session.rs",
+      "bytes": 154134,
+      "sha256": "8641a4942b1e0f8e39c4c316400b052eaeb5934a19de3164576ad11595d373d4"
+    },
+    {
+      "version": "0.154.0",
+      "path": "codex-rs/tui/src/startup_orchestration.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/startup_orchestration.rs",
+      "bytes": 23934,
+      "sha256": "ba8db963d8c180fa3428a6e9b0f233adf65339a730c15a288dabb0a7cff9d4be"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/app-server-client/src/remote.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/app-server-client/src/remote.rs",
+      "bytes": 42504,
+      "sha256": "d8810f499d43424883e8a1cd8868f061de814bebe6235858d0f1e9df8ed7d307"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/uds/src/lib.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/uds/src/lib.rs",
+      "bytes": 10538,
+      "sha256": "4e655cbadc4a488c5c28c788eb81f11c49c1a284ee4f53cee671420361ccd33f"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/app-server-transport/src/transport/websocket.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/app-server-transport/src/transport/websocket.rs",
+      "bytes": 13986,
+      "sha256": "f6fa7047f1f75304c96c56d204df98b134e2fe4a7fd8271b55902d9eb6d4194c"
+    },
+    {
+      "version": "0.154.0",
+      "path": "codex-rs/app-server-client/src/remote.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-client/src/remote.rs",
+      "bytes": 44296,
+      "sha256": "6d61d61ba5132e25ccd16a413bad5ab2e7059c4798d2ee3b08e93a9c33bb0986"
+    },
+    {
+      "version": "0.154.0",
+      "path": "codex-rs/uds/src/lib.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/uds/src/lib.rs",
+      "bytes": 11584,
+      "sha256": "93db2d37dae50f53028bef3d0af9d0179b2346856497aa1edc9ef1f000a5f7e6"
+    },
+    {
+      "version": "0.154.0",
+      "path": "codex-rs/app-server-transport/src/transport/websocket.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-transport/src/transport/websocket.rs",
+      "bytes": 13986,
+      "sha256": "f6fa7047f1f75304c96c56d204df98b134e2fe4a7fd8271b55902d9eb6d4194c"
+    }
+  ],
+  "apple_man_files": [
+    {
+      "path": "/usr/share/man/man5/launchd.plist.5",
+      "bytes": 33172,
+      "sha256": "1c5f5041c1d3492988bfa6f9dc6d969dfd072d20af2703c28d9a8f6ed6aaadcb"
+    },
+    {
+      "path": "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/share/man/man3/launch_activate_socket.3",
+      "bytes": 4123,
+      "sha256": "97d722a9a0c6ad40bd822165d34dd4f8d7ceb150d17c9d1242c09453132f5cce"
+    },
+    {
+      "path": "/usr/share/man/man8/launchd.8",
+      "bytes": 3077,
+      "sha256": "05a8aa5e6cc7353c0b8aacd1747ee99c2b60c6f88e4189b217ef60cb7fe3786f"
+    }
+  ],
+  "absent_paths": [
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/app_server_connection.rs",
+      "confirmed_by": "GitHub contents API at fixed commit",
+      "reason": "path exists in0.154.0;0.153.4 uses app_server_session.rs",
+      "download_attempts": 2,
+      "directory_query": "https://api.github.com/repos/openai/codex/contents/codex-rs/tui/src?ref=3d2ee51ca2d5db578f328aa75e20aa22c0197c9a",
+      "directory_response_sha256": "4e05ee42135409d4bed001c0b8f70981e72aa8794bc90b83e36e23dca575a48c",
+      "directory_entry_count": 166,
+      "missing_name": "app_server_connection.rs",
+      "alternate_present_name": "app_server_session.rs",
+      "current_local_file_exists": false,
+      "failed_download_argv": [
+        "curl",
+        "--fail",
+        "--silent",
+        "--show-error",
+        "--max-time",
+        "30",
+        "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/app_server_connection.rs"
+      ],
+      "attempt_exit_codes": [
+        56,
+        56
+      ],
+      "interpretation": "download errors alone did not establish absence; a successful fixed-ref directory query confirmed it; switched to the present module, no third retry"
+    }
+  ]
+}
