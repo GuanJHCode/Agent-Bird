@@ -39,7 +39,7 @@
 
 goal02 的直接进程证据见 [监视记录](runner-goal-02-process-monitor.jsonl)。goal04 把 ready 检查、监视器启动、正常 `/quit` 串在同一个有界工具编排中，避免观察者决策消耗 60 秒执行窗口；03:05:52.298 确认 active / worker live / result absent，03:05:54 即提交 `/quit`。[ready](runner-goal-04-ready.json)、[生命周期](runner-goal-04-lifecycle.json)、[进程监视](runner-goal-04-process-monitor.jsonl)。
 
-`runner_ready.py` 只读取明确 root 的原生元数据和工具返回，确认 active goal、匹配的专用目录/nonce、存活 worker 与 result absent；输出限定为本任务身份和枚举字段。其退出成功后，编排直接操作已经确认的本任务 PTY，不重新经过模型决策，也不制造结果消息。
+上述样本使用的旧 `runner_ready.py` 将 Goal 与 Host 资格放在一起。后续独立审查发现来源验证缺口，当前脚本已收窄为 **Host/进程就绪检查**：不读取任何 Codex DB 或 rollout，不解释 Goal，对输出显式标记 `goal_checked=false`。其调用者提供的 root ID 只是声明；owned job 需与该声明一致，但真正的原生 thread/Goal 资格仍须独立验证。编排只把这个检查用于本任务操作顺序，不把 Host-ready 当成 active Goal 的证明。
 
 ## goal03 操作失配：排除于三个基础样本之外
 
@@ -59,8 +59,6 @@ goal03 的 worker 于 02:55:52.448 启动，02:56:52 已完成；观察者在 02
 
 03:19:37.533，sleep 在 13.8574 秒后返回 `Sleep interrupted by new input.`；03:19:41.024，主控在同一 turn 的 commentary 中输出 `STEERED`。它继续已有目标，之后只调用一次 root Host read，03:20:24.941 得到真实 completed/count 1，03:20:27.311 complete goal，03:20:32.606 ACK。没有重派 start、没有新建模型 turn，也没有反复读取 pending。新用户输入后的固定观察窗口到 03:21:37，没有再续轮。[原生记录](runner-goal-06.json)、[输入及未完成 sleep 证据](runner-goal-06-lifecycle.json)、[ready](runner-goal-06-ready.json)。
 
-## 当前边界与资源
-
 ## goal07：Host 仍运行时提前恢复
 
 本组沿用 60 秒 Host，但确认旧 TUI 正常退出后即恢复，没有先等 Host 完成。03:27:13.722，worker 79582 的创建身份仍匹配且 result 不存在；随后直接 `codex resume 01a08e80-5b64-7282-b2c4-acb0776fa362`，不附 prompt。
@@ -79,6 +77,6 @@ goal03 的 worker 于 02:55:52.448 启动，02:56:52 已完成；观察者在 02
 
 上述结果不修复普通无 goal 的 final→idle 自动唤醒缺口，而是验证原生持久 goal 的替代编排条件。身份隔离、ACK 与撤销竞争及原方案剩余交付屏障仍需各自实测，不能从这里外推。
 
-独立审查进一步指出旧 `runner_ready.py` 对任意工具输出中的 goal 相似对象接受过宽，且未严格校验 job.created_at。实际已列样本的 Goal 调用与结果可由独立采集器比对；通用 readiness 判断缺口需要单独红绿回归和修复，不能将这些正向样本当作该工具已具完整来源验证的证明。
+独立审查指出旧 `runner_ready.py` 对任意工具输出中的 Goal 相似对象接受过宽，且未严格校验 job.created_at。现在已直接删除 Goal 解析，所有 job/进程导出字段严格验证，created_at 校验为 UTC RFC3339 后也不导出。最终 8 项 CLI 回归在旧实现产生 7 项失败，修后全部通过；进程查询在这些单元 fixture 中被隔离替代，因此不能算真实原生就绪正例。下一个新的 owned 任务将提供该正例，Goal 资格另取原生工具证据。[修复验证](runner-ready-fix-checks.json)。此前已列样本的实际 Goal 调用与结果仍由独立采集器比对，不为迁就新脚本而改写旧实验结果。
 
 goal01–08 的 Host worker 均已结束，goal03 已正常收束；未删除保存必要身份/恢复证据的专用 job/result 目录。所有隐私回归 fixture 和误建的空运行目录已清理。已确认的本任务 TUI 按后续实验继续使用；不操作其他 Agent 的 TUI 或旧服务进程。

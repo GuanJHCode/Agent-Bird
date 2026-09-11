@@ -1,0 +1,16 @@
+{
+  "verified_at": "2026-09-11T04:00:08.913051+00:00",
+  "old_implementation_commit": "944df4c",
+  "scope_change": "Host/process readiness only; no Goal qualification, no Codex DB or rollout reads",
+  "red": "shipped 8-case CLI regression produced 7 assertion failures on old code, including unrelated Goal claim and unsafe created_at export",
+  "green": "8 tests PASS on new implementation",
+  "export_contract": "strict job keys/types/owner/producer revision; UTC RFC3339 created_at validated but not exported; known process executable and numeric/date identity fields",
+  "fixture_boundary": "real isolated job/SQLite/rollout/output I/O; process-query boundary substituted in unit cases; zero native model calls",
+  "native_positive": "pending next newly started owned native sample; historical replay is not used as proof",
+  "cleanup": {
+    "temporary_fixture_directories_remaining": 0,
+    "removed_task_bytecode": [
+      "tasks/g0-native-return/scripts/__pycache__/runner_ready.cpython-313.pyc"
+    ]
+  }
+}
