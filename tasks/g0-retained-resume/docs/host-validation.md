@@ -64,7 +64,8 @@ There are now 14 retained top-level tests, in addition to unchanged baseline and
 ACK suites. After these full runs, the concurrent-resume test gained one extra
 assertion that reuses the winning completed task: its old expected segment must
 still fail after the winner has exited. The production source and binary did not
-change; that test was rerun with and without the race detector.
+change; that test was rerun with and without the race detector (2.915 s and
+4.343 s respectively, both exit 0).
 
 Build SHA-256:
 `feb9b9ad969abca5ff35db28c0f0d8d920dc0778d7aac68a90952900e989a285`.
@@ -75,8 +76,17 @@ Reviewed production candidates:
 - `retained.go`: `144c199e3dc863b30517500e57428f689c09a8bbbb13d19c58ee11ff5776650d`
 - `ack.go` remains `20767515b37be6ab23c3bb3d5d62f079b99f81ce26d68f671a54c11be1dbf2da`.
 
-Independent re-review is pending at this checkpoint. Native Codex integration
-results remain separate from these fixture tests. TestMain and testing.TempDir
+Independent re-review of fixed commit `5b96919` passed. The reviewer reran its
+original I1 filesystem-barrier and I2 merged-full-pipe reproductions; both turned
+green. In a fixed archive copy,
+`go test -count=1 -timeout=90s -run 'TestRetained|TestReview' ./...` exited 0
+(17.508 s), and independent build / `git diff --check` exited 0. The run includes
+the three real direct-parent death boundaries and the completed-task old-CAS
+assertion. There are no remaining source findings. This allows the coordinator
+to proceed to native experiments; it does not constitute native or full G0 PASS.
+
+Native Codex integration results remain separate from these fixture tests.
+TestMain and testing.TempDir
 remove their own binaries/files; only the task-owned build binary, cache, and
 verification logs remain under the coordinator's task build directory until the
 native runner has copied the reviewed binary and the coordinator cleans caches.
