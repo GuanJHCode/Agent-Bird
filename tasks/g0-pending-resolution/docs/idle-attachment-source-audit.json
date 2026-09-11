@@ -1,0 +1,538 @@
+{
+  "checked_at": "2026-09-11T09:05:36.041912+00:00",
+  "kind": "read-only fixed-source production-path scan; inline test matches require manual classification",
+  "commit": "3d2ee51ca2d5db578f328aa75e20aa22c0197c9a",
+  "archive_url": "https://codeload.github.com/openai/codex/tar.gz/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a",
+  "archive_bytes": 13330433,
+  "archive_sha256": "bbbf66ffa30846f1e9bc3ae8a87a5aa0bb768efee8dbb94759dc9eb64bb4aa3a",
+  "matched_files": [
+    {
+      "path": "codex-rs/tui/src/app/thread_routing.rs",
+      "bytes": 81985,
+      "sha256": "93af9728b626ed0440db7b4b9e6c3a8d64e47b39f5f0c16fdc0377b7adab5f14",
+      "matches": [
+        {
+          "line": 778,
+          "tokens": [
+            "ListSkills"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "codex-rs/tui/src/app_command.rs",
+      "bytes": 7719,
+      "sha256": "243c2c1acd16580e39095ae2f0f54109ee62d52b5caeaff8e0e8bc5e0678f57b",
+      "matches": [
+        {
+          "line": 85,
+          "tokens": [
+            "ListSkills"
+          ]
+        },
+        {
+          "line": 222,
+          "tokens": [
+            "list_skills"
+          ]
+        },
+        {
+          "line": 223,
+          "tokens": [
+            "ListSkills"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "codex-rs/tui/src/app_event_sender.rs",
+      "bytes": 3937,
+      "sha256": "1dd8f9f70c0512d4a7c3214db4fd38a41fa3e9e00ac553696d33b5df8cb7a2b4",
+      "matches": [
+        {
+          "line": 61,
+          "tokens": [
+            "list_skills"
+          ]
+        },
+        {
+          "line": 62,
+          "tokens": [
+            "list_skills"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "codex-rs/tui/src/bottom_pane/skills_toggle_view.rs",
+      "bytes": 20378,
+      "sha256": "1ad2c24dc71f6b3839f9641e356a3cf1e7e8b758992bd76bd21948c444146144",
+      "matches": [
+        {
+          "line": 223,
+          "tokens": [
+            "list_skills"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "codex-rs/tui/src/chatwidget.rs",
+      "bytes": 83901,
+      "sha256": "7f5016750028144f1cfaeaf73889ab96e88606225d1852912dfb487dbecb15ef",
+      "matches": [
+        {
+          "line": 1772,
+          "tokens": [
+            "refresh_skills_for_current_cwd"
+          ]
+        },
+        {
+          "line": 1773,
+          "tokens": [
+            "list_skills"
+          ]
+        },
+        {
+          "line": 1846,
+          "tokens": [
+            "list_skills"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "codex-rs/tui/src/chatwidget/misalignment_policy.rs",
+      "bytes": 3053,
+      "sha256": "0e6d829d4383f89fe0d21f224b5f9e63d68167f642303d111e5419024c83d94b",
+      "matches": [
+        {
+          "line": 21,
+          "tokens": [
+            "ListSkills"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "codex-rs/tui/src/chatwidget/protocol.rs",
+      "bytes": 18967,
+      "sha256": "60a10ccafc8abdf5a4cb63b539248a43fb9d01ec949ec4fd3fe949def05c90a0",
+      "matches": [
+        {
+          "line": 146,
+          "tokens": [
+            "refresh_skills_for_current_cwd"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "codex-rs/tui/src/chatwidget/protocol_requests.rs",
+      "bytes": 7425,
+      "sha256": "d28bc2b57db1561cfccc923c9ec1cbe8da17c12de75e57959f3617d5bee054a9",
+      "matches": [
+        {
+          "line": 65,
+          "tokens": [
+            "list_skills"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "codex-rs/tui/src/chatwidget/session_flow.rs",
+      "bytes": 11893,
+      "sha256": "c3d3b84e3cd3281a80cf1a193e31e1cdfaeca3f65dffdf538772d1a90ab4bf9a",
+      "matches": [
+        {
+          "line": 150,
+          "tokens": [
+            "refresh_skills_for_current_cwd"
+          ]
+        }
+      ]
+    },
+    {
+      "path": "codex-rs/tui/src/chatwidget/settings.rs",
+      "bytes": 27841,
+      "sha256": "a1a2348148cee36808cea5f1b335896fe5e1fb94e6f5533f2b771fae92c8637a",
+      "matches": [
+        {
+          "line": 501,
+          "tokens": [
+            "refresh_skills_for_current_cwd"
+          ]
+        }
+      ]
+    }
+  ],
+  "rs_paths_scanned_with_declared_exclusions": 416,
+  "scan_excludes": [
+    "subdirectories named tests",
+    "suffix _tests.rs",
+    "top-level tests/"
+  ],
+  "scan_note": "May include inline test blocks and app/tests.rs; actual ListSkills production contexts were manually classified.",
+  "manual_producer_contexts": [
+    {
+      "file": "tui/src/chatwidget/session_flow.rs",
+      "line": 150,
+      "cause": "session configuration/replay",
+      "cwds": "current singleton",
+      "force_reload": true
+    },
+    {
+      "file": "tui/src/chatwidget/protocol.rs",
+      "line": 145,
+      "cause": "SkillsChanged notification",
+      "cwds": "current singleton",
+      "force_reload": true
+    },
+    {
+      "file": "tui/src/chatwidget/settings.rs",
+      "line": 499,
+      "cause": "settings cwd changed",
+      "cwds": "new singleton",
+      "force_reload": true
+    },
+    {
+      "file": "tui/src/bottom_pane/skills_toggle_view.rs",
+      "line": 216,
+      "cause": "toggle view close, including no changes",
+      "cwds": "empty",
+      "force_reload": true
+    }
+  ],
+  "additional_review_source_receipts": [
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/app-server/src/message_processor.rs",
+      "bytes": 71198,
+      "sha256": "e060124c3cec98dfccc02e73e0622212ffee2989c36e470043393adb966fcdb6",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/app-server/src/message_processor.rs"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/app-server-protocol/schema/typescript/v2/AppsInstalledParams.ts",
+      "bytes": 511,
+      "sha256": "a0bb17b43e3694724bdeea1b5c41a18d381951ddc4a47227eb0aff657ea38624",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/app-server-protocol/schema/typescript/v2/AppsInstalledParams.ts"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/app-server-protocol/schema/typescript/v2/AppsInstalledResponse.ts",
+      "bytes": 344,
+      "sha256": "22b7a90f0d3e2419455484c6f017cecc411fb429b972851274a76b7c9a57bfbc",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/app-server-protocol/schema/typescript/v2/AppsInstalledResponse.ts"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/app-server-protocol/schema/typescript/v2/AppsReadParams.ts",
+      "bytes": 644,
+      "sha256": "38637cb46e3528da2c043bbcff1a1894ad15d733c6c8529ba4414aa7f2fc4d18",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/app-server-protocol/schema/typescript/v2/AppsReadParams.ts"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/app-server-protocol/schema/typescript/v2/AppsReadResponse.ts",
+      "bytes": 358,
+      "sha256": "2e9967dd4d786feaf821f302fab2be76a4c75cf00197959951df88beef6b31b3",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/app-server-protocol/schema/typescript/v2/AppsReadResponse.ts"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/app/agents_overview.rs",
+      "bytes": 32280,
+      "sha256": "b5cb9308664966cd41271198064981f661731dccc16b0181cb9531d758089160",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/app/agents_overview.rs"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/app/agents_overview_threads.rs",
+      "bytes": 16190,
+      "sha256": "7a99b55a3993cad524a7e128ad7c643b1f119e7ff4eb95f405ed8dd8ae51d65a",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/app/agents_overview_threads.rs"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/app/app_server_events.rs",
+      "bytes": 24477,
+      "sha256": "d20f5e82168aba7c6d98f8cc420528a1cc4b292eea3cbe35e5213d21adbe6381",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/app/app_server_events.rs"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/app/connector_mentions.rs",
+      "bytes": 5992,
+      "sha256": "e41f517e80422aaed288c3228b64653dbd8c7e6a74f4d4889973ba06d945ed18",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/app/connector_mentions.rs"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/app/event_dispatch.rs",
+      "bytes": 150151,
+      "sha256": "b6d811f5f16978c72e2b961e54f62410a50bc4c3ec819b16e63c4d292ac2ed1a",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/app/event_dispatch.rs"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/app/input.rs",
+      "bytes": 20231,
+      "sha256": "a424cf1b8bfaae41e7e8dde0aec01a979a099dba473d41a8cc5614233b1a4d05",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/app/input.rs"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/app/recap.rs",
+      "bytes": 21681,
+      "sha256": "bdb6d2f59bd135519ba80eb62644fe4e709c538696e91e120c71534b4f1271e6",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/app/recap.rs"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/app/safety_buffering.rs",
+      "bytes": 9929,
+      "sha256": "630a00853a0a042c4cc9af0f2b43e03d73eb707a0f716a547abc061444964abb",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/app/safety_buffering.rs"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/app/session_lifecycle.rs",
+      "bytes": 51929,
+      "sha256": "17a2c54df66a29753471a4792fd66d6f42fa094d5546cf42452fdf1fb5bceb08",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/app/session_lifecycle.rs"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/app/side.rs",
+      "bytes": 33159,
+      "sha256": "2747113ea13b11b4cb4ac1bacdcd246865546d11fbd7f54d085394ab1ec94666",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/app/side.rs"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/app/startup.rs",
+      "bytes": 44204,
+      "sha256": "4e08c0c29a32650c43d8e1cfe3f081e15b078cfc349ff504b44c0d160e8f1d8d",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/app/startup.rs"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/app/tests.rs",
+      "bytes": 313687,
+      "sha256": "e83760ace81e1e563e863f8ef5d4d231d0711d36182f342044416ffc99921008",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/app/tests.rs"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/app/thread_routing.rs",
+      "bytes": 81985,
+      "sha256": "93af9728b626ed0440db7b4b9e6c3a8d64e47b39f5f0c16fdc0377b7adab5f14",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/app/thread_routing.rs"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/app/thread_session_state.rs",
+      "bytes": 18389,
+      "sha256": "580b73a848034c897bb07bb48a8271aa253899efbf3026a8363c4440c83970f0",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/app/thread_session_state.rs"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/app/transcript_export.rs",
+      "bytes": 11734,
+      "sha256": "30ba5ad78f665d34f3a762c6ecabef0775a4b3a1ae0573b6b935f981c47180f5",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/app/transcript_export.rs"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/app.rs",
+      "bytes": 40383,
+      "sha256": "d39daf88af08db7da630f5e163e68993b040adf2434bda6550dcdcfafc010567",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/app.rs"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/app_command.rs",
+      "bytes": 7719,
+      "sha256": "243c2c1acd16580e39095ae2f0f54109ee62d52b5caeaff8e0e8bc5e0678f57b",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/app_command.rs"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/app_event_sender.rs",
+      "bytes": 3937,
+      "sha256": "1dd8f9f70c0512d4a7c3214db4fd38a41fa3e9e00ac553696d33b5df8cb7a2b4",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/app_event_sender.rs"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/app_server_session/history.rs",
+      "bytes": 11534,
+      "sha256": "b219a3dc223699efe638f4f2ac607be89304d1f584937691c5736fc86bcce1f7",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/app_server_session/history.rs"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/app_server_session/rollout_history.rs",
+      "bytes": 6374,
+      "sha256": "7c7336fd417887960d2d4c4b7f3052c8af1944f63d91ac569e6faa4bbbdaec08",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/app_server_session/rollout_history.rs"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/bottom_pane/skills_toggle_view.rs",
+      "bytes": 20378,
+      "sha256": "1ad2c24dc71f6b3839f9641e356a3cf1e7e8b758992bd76bd21948c444146144",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/bottom_pane/skills_toggle_view.rs"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/chatwidget/connector_mentions.rs",
+      "bytes": 2446,
+      "sha256": "3090c51104597b68a4595f97cd6b9ed5d93e5fc287eb3c58749a3759ee64d11b",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/chatwidget/connector_mentions.rs"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/chatwidget/connectors.rs",
+      "bytes": 19530,
+      "sha256": "8c22761fa4d29d269b82a381b9f0b0e09281f8e7565a585e700735387e773f07",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/chatwidget/connectors.rs"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/chatwidget/constructor.rs",
+      "bytes": 13287,
+      "sha256": "acbf235cb948ee789d3f77f39967f31c1dcf2a0b95669e378d5e1f7d41917ed9",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/chatwidget/constructor.rs"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/chatwidget/misalignment_policy.rs",
+      "bytes": 3053,
+      "sha256": "0e6d829d4383f89fe0d21f224b5f9e63d68167f642303d111e5419024c83d94b",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/chatwidget/misalignment_policy.rs"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/chatwidget/protocol.rs",
+      "bytes": 18967,
+      "sha256": "60a10ccafc8abdf5a4cb63b539248a43fb9d01ec949ec4fd3fe949def05c90a0",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/chatwidget/protocol.rs"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/chatwidget/protocol_requests.rs",
+      "bytes": 7425,
+      "sha256": "d28bc2b57db1561cfccc923c9ec1cbe8da17c12de75e57959f3617d5bee054a9",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/chatwidget/protocol_requests.rs"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/chatwidget/session_flow.rs",
+      "bytes": 11893,
+      "sha256": "c3d3b84e3cd3281a80cf1a193e31e1cdfaeca3f65dffdf538772d1a90ab4bf9a",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/chatwidget/session_flow.rs"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/chatwidget/settings.rs",
+      "bytes": 27841,
+      "sha256": "a1a2348148cee36808cea5f1b335896fe5e1fb94e6f5533f2b771fae92c8637a",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/chatwidget/settings.rs"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/chatwidget/skills.rs",
+      "bytes": 13791,
+      "sha256": "e50c521ff310415da01191dd13baa66f37786edfa954ee3b81d1bcc6215775eb",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/chatwidget/skills.rs"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/chatwidget/slash_dispatch.rs",
+      "bytes": 50846,
+      "sha256": "6eb49102c64885b4d1a7457b906b8ffcaac4bdd8a6311aead234ec51ff9877d8",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/chatwidget/slash_dispatch.rs"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/chatwidget/status_state.rs",
+      "bytes": 5946,
+      "sha256": "cc9c81d5201517f4fa63bfedf4e7ccde09aa473ccd3f8af6eb90c9e1cab1447f",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/chatwidget/status_state.rs"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/chatwidget/status_surfaces.rs",
+      "bytes": 50060,
+      "sha256": "ed0d34e3a8da0047128f99e2768c8881cbf3b1722a351a973e7ca4f3d7550bc9",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/chatwidget/status_surfaces.rs"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/chatwidget.rs",
+      "bytes": 83901,
+      "sha256": "7f5016750028144f1cfaeaf73889ab96e88606225d1852912dfb487dbecb15ef",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/chatwidget.rs"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/dynamic_tools.rs",
+      "bytes": 69093,
+      "sha256": "1a2a3e153e65ca635c284ca027ff0ece59f4be7f1896d818624c7573ceb3d419",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/dynamic_tools.rs"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/named_session_lookup.rs",
+      "bytes": 11208,
+      "sha256": "90b4e1d382864e018de269fa050d43019bc5abdfb92b69fb639d0fb5921f5d63",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/named_session_lookup.rs"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/resume_picker_transcript_preview.rs",
+      "bytes": 11565,
+      "sha256": "5ec4c7cd39b8390d1ebd17810089fa28f29ec7fe6a03cbfb6faa0506545534a3",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/resume_picker_transcript_preview.rs"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/session_archive_commands.rs",
+      "bytes": 16899,
+      "sha256": "92cbc6934a4c6205ce701d680095d3bcf98e56f4c9f0783458d8f6c9c668d53d",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/session_archive_commands.rs"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/session_log.rs",
+      "bytes": 7368,
+      "sha256": "129a25c4c492b23f96de09d24829e63a7de6d2f56ff42c83303c0900604a59fb",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/session_log.rs"
+    },
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/tui/src/thread_transcript.rs",
+      "bytes": 10876,
+      "sha256": "bf77cf85d1f96ecc061dc4e3a1d73bbeab6a64dcda07e3463d52f1a5667474d6",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/thread_transcript.rs"
+    },
+    {
+      "version": "0.154.0",
+      "path": "codex-rs/tui/src/app/session_lifecycle.rs",
+      "bytes": 57943,
+      "sha256": "7ba29896f5bfef12133ecba607b7104811975b1a103c964204aebc79dda3712e",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/app/session_lifecycle.rs"
+    },
+    {
+      "version": "0.154.0",
+      "path": "codex-rs/tui/src/app/thread_routing.rs",
+      "bytes": 86626,
+      "sha256": "2ed1a55060be20c10bad33ce3fc5fa178c6923bb3823c62538ca39d0449ae48c",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/app/thread_routing.rs"
+    }
+  ]
+}
