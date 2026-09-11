@@ -21,6 +21,8 @@
 | 交付对账 | retained_host_impl / exp/g0-pending-delivery | 真实工具输出与三态、分页、compact、部分 ACK、六个故障屏障的可实现接口及缺口；适配与测试候选 |
 | 计划、组合、最终验收 | 主 Agent / main | 固定输入、接入前提、实际验证和清理；不代替 subagent 实现 |
 
+上述初轮研究与离线实现已冻结整合。原生资格实验阶段，`retained_host_impl` 在 `exp/g0-pending-standalone` 实现限定 RPC helper，`native_return_runner` 在 `exp/g0-pending-native` 实现采集器、专用 PTY 和串行 controller；两者不共用写入 worktree。`retained_lifecycle_review` 与 `native_identity_review` 分别只读复核固定 helper 和 controller 提交，主会话在两项完整实现通过复核后才编排原生运行。
+
 每条路线先复用已存证据，核查具体新增能力或遗漏调用链；没有新前提时不盲跑旧版本矩阵或重复失败的模型实验。候选不成立即转下一个仍符合合同的通道；静态证据不能标为原生通过。
 
 主 Agent 已准许交付路线先实现一个只读、有界的离线 G0 对账检查器：核对给定历史中的精确标记、分页信息和逐事件 ACK，缺少可靠否定证据时保持 uncertain。该工具不发送网络、不验证原服务身份、不写业务事务，不计作完整 C11 或 G0 通过。
@@ -33,7 +35,7 @@
 - 通过确切原生 `/status`、已知 PTY、进程创建身份、真实 Hook 及原生连接元数据交叉核对同一服务、TUI 和 root。实验期间 controller 独占自己的输入端，固定显示 root，不执行切屏；该受控事实不作为产品通用附着算法。
 - root 真正 final 后，客户端完成固定无业务副作用的合成工具，先持久保存意图与结果，再仅提交一次 `turn/start` 的真实 `toolOutput`，`input=[]`。不用 Goal、MCP、任意 history 注入或用户文本承载结果。
 - 再以原服务的实际历史接口读取精确 `functionCallOutput` 及 envelope，区分新轮、模型文字、持久历史与逐事件业务 ACK。不因请求响应返回成功就声称已进入历史；uncertain 不自动重试发送。
-- 不代理 TUI 通信，不修改账号、权限、全局配置或 Apps 开关。只读 helper 与原生 controller 分属独立 worktree，工具冻结并复核后才运行。
+- 不代理 TUI 通信，不修改账号、权限、全局配置或 Apps 开关。限定 RPC helper 与原生 controller 分属独立 worktree；`send-once` 会启动模型轮次并写入历史，工具冻结并复核后才运行。
 - 先做一个资格样本；通过后再安排独立基础重复或必要故障窗口，沿用 10 秒本地、120 秒模型窗口。预建 listener 不计作冷启动自动接入；固定当前 UI 的样本不计作一般切换身份或完整 G0 通过。G1–G4 保持未启动。
 
 ## 接口解释与判据
@@ -53,4 +55,4 @@
 
 新建材料按本任务 `plans/`、`docs/`、`scripts/`、`data/`、`tmp/` 分开；`tmp/` 只放可回收 worktree、下载和测试缓存。源码、必要运行记录和可审查证据保留。收尾列清单，核对归属后清理；不删除原有任务材料或配置。
 
-状态：正在核对候选与实施前提，三项均未新增通过声明。
+状态：已完成离线对账检查器及修正后研究报告的独立复核；固定当前会话的原生资格工具正在实施和复核。原生准入尚未放行，三项均未新增完整通过声明。

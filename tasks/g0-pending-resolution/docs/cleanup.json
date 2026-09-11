@@ -1,11 +1,32 @@
 {
-  "checked_at": "2026-09-11T09:11:16.200363+00:00",
+  "checked_at": "2026-09-11T09:30:02.835218+00:00",
   "scope": "Only temporary resources created for this pending-resolution task",
   "removed_worktrees": [
     {
       "path": "tasks/g0-pending-resolution/tmp/delivery",
       "branch": "exp/g0-pending-delivery",
       "head": "e989410b474ad380ed0fa1b7905c6e939e31616e",
+      "clean_including_ignored": true,
+      "method": "git worktree remove without force"
+    },
+    {
+      "path": "tasks/g0-pending-resolution/tmp/attachment",
+      "branch": "exp/g0-pending-attachment",
+      "head": "8a390b5fc9a79459fd9f859f9f6c960bac4c1028",
+      "clean_including_ignored": true,
+      "method": "git worktree remove without force"
+    },
+    {
+      "path": "tasks/g0-pending-resolution/tmp/attachment-fix",
+      "branch": "exp/g0-pending-attachment-fix",
+      "head": "4aea7581cd0b37e34ad7dfd4d82d2de0f6a51257",
+      "clean_including_ignored": true,
+      "method": "git worktree remove without force"
+    },
+    {
+      "path": "tasks/g0-pending-resolution/tmp/idle",
+      "branch": "exp/g0-pending-idle",
+      "head": "576c82c8b715943116662b7c1bba27c343b7ab9c",
       "clean_including_ignored": true,
       "method": "git worktree remove without force"
     }
@@ -19,6 +40,14 @@
       "archived_files": 7,
       "archive": "tasks/g0-pending-resolution/docs/review-evidence",
       "source_absent": true
+    },
+    {
+      "path": "tasks/g0-pending-resolution/tmp/idle/tasks/g0-pending-resolution/tmp/idle-source",
+      "files": 126,
+      "bytes": 19652582,
+      "owner": "native_return_runner",
+      "source_absent": true,
+      "preserved": "committed manifests, checksums, reports and branch refs"
     }
   ],
   "worker_cleanup_record": "delivery-validation.json",
@@ -26,10 +55,10 @@
     "all delivery source, tests, reports and original RED evidence",
     "seven independent review evidence files",
     "exp/g0-pending-delivery branch and original source commits",
-    "all prior retained runtime records, binary and design files"
+    "all prior retained runtime records, binary and design files",
+    "attachment original/correction branches and source commits"
   ],
   "pending": [
-    "idle shared public source cache and worktree while attachment review continues",
-    "attachment and attachment-fix worktrees"
+    "standalone helper and native runner worktrees in active use"
   ]
 }
