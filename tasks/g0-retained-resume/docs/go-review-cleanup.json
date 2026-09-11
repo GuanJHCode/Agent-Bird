@@ -1,0 +1,29 @@
+{
+  "removed": [
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-retained-resume/tmp/reviewer-retained/tmp",
+      "entries": [
+        "g0-return-lab-5b96919",
+        "g0-return-lab-ba4d19e",
+        "go-cache",
+        "merged-stdio-task",
+        "merged-stdio-task-5b96919",
+        "snapshot-5b96919",
+        "snapshot-ba4d19e"
+      ]
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-retained-resume/tmp/reviewer-retained/scripts",
+      "entries": [
+        "merged-stdio-fixed.py",
+        "merged-stdio-repro.py"
+      ]
+    }
+  ],
+  "preserved": [
+    "docs/5b96919-final-review.md",
+    "docs/ba4d19e-review.md"
+  ],
+  "remaining_tmp": false,
+  "remaining_scripts": false
+}

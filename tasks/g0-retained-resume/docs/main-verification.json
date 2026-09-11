@@ -1,0 +1,103 @@
+{
+  "scope": "Integrated bounded macOS retained lifecycle fixture; not native or complete G0 acceptance",
+  "checked_at": {
+    "current_time": "2026-09-11 06:18:32 UTC"
+  },
+  "race": {
+    "name": "race",
+    "cmd": "PATH=\"/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin:$PATH\" GOCACHE=\"/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-retained-resume/tmp/main-verify/cache\" GOMODCACHE=\"/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-retained-resume/tmp/main-verify/modcache\" TMPDIR=\"/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-retained-resume/tmp/main-verify/tests\" G0_LAB_TEST_RACE=1 /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go test -race -count=1 -timeout=90s ./...",
+    "result": {
+      "chunk_id": "ef7622",
+      "wall_time_seconds": 1.005430959,
+      "session_id": 4234,
+      "original_token_count": 0,
+      "output": ""
+    },
+    "completion": {
+      "chunk_id": "189663",
+      "wall_time_seconds": 0.000001041,
+      "exit_code": 0,
+      "original_token_count": 7,
+      "output": "ok  \tg0-return-lab\t32.527s\n"
+    }
+  },
+  "vet": {
+    "name": "vet",
+    "cmd": "PATH=\"/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin:$PATH\" GOCACHE=\"/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-retained-resume/tmp/main-verify/cache\" GOMODCACHE=\"/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-retained-resume/tmp/main-verify/modcache\" TMPDIR=\"/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-retained-resume/tmp/main-verify/tests\" /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go vet ./...",
+    "result": {
+      "chunk_id": "57bd43",
+      "wall_time_seconds": 1.000888417,
+      "session_id": 19384,
+      "original_token_count": 0,
+      "output": ""
+    },
+    "completion": {
+      "chunk_id": "9affbe",
+      "wall_time_seconds": 2.5e-7,
+      "exit_code": 0,
+      "original_token_count": 0,
+      "output": ""
+    }
+  },
+  "head": "748e5429d10f47e0acdc3c3a35abdaf5222a0f27",
+  "source_sha256": {
+    "main.go": "fd3a7699abdd7b963ea6f70bd5823f9b350980561dc9925245a4469f881b7544",
+    "ack.go": "20767515b37be6ab23c3bb3d5d62f079b99f81ce26d68f671a54c11be1dbf2da",
+    "retained.go": "144c199e3dc863b30517500e57428f689c09a8bbbb13d19c58ee11ff5776650d",
+    "main_test.go": "0345d46d81d1775fafd03fd9f3a94de8cb84a79c45822c81725237ee48db0497",
+    "ack_test.go": "96854c8eaad1bd084a63eafce6b21ed6598526f2ca11601e5bcf773012eb9ed8",
+    "retained_test.go": "62698666a6c5b80b72e48037047266b97007cec4a4ac963745c20088609dd8d0",
+    "retained_parent_test.go": "bf891029a883a81ea90a3c4ff77a65cf90e34c01d1e1b6e52965415a488a077c",
+    "retained_review_test.go": "bcb86f300e6d700568c9fd1fa7fdbb6e658a133f9b6479cad5de093b4dc61839",
+    "go.mod": "8f495c7873750be32ae232e67f3296d40cc0fd18f9c92c790cf5a896d0865979"
+  },
+  "original_documents": [
+    {
+      "path": "docs/design-v0.1.md",
+      "expected": "2c8ebf2227639b556bab23e4efc01153ea7eb32addfa0cd1ccbf87f7a44e60fd",
+      "actual": "2c8ebf2227639b556bab23e4efc01153ea7eb32addfa0cd1ccbf87f7a44e60fd",
+      "unchanged": true
+    },
+    {
+      "path": "docs/acceptance-v0.1.md",
+      "expected": "06842467e56d2e111fc7f8ab12711e91d88af27d3fae29dafccbca2742d3884d",
+      "actual": "06842467e56d2e111fc7f8ab12711e91d88af27d3fae29dafccbca2742d3884d",
+      "unchanged": true
+    },
+    {
+      "path": "docs/evidence.md",
+      "expected": "b5f2f5b1998fd2a365dd85f328c69541cb557db7df7abf9938b61f44dc50b665",
+      "actual": "b5f2f5b1998fd2a365dd85f328c69541cb557db7df7abf9938b61f44dc50b665",
+      "unchanged": true
+    },
+    {
+      "path": "docs/g0-validation-plan.md",
+      "expected": "b81303e9bd79e9fed947d8b44d4361d21c2f146c3a3c1189855ab408603ae654",
+      "actual": "b81303e9bd79e9fed947d8b44d4361d21c2f146c3a3c1189855ab408603ae654",
+      "unchanged": true
+    },
+    {
+      "path": "docs/runtime-protocols.md",
+      "expected": "2b66179a673102a2e8f6c79cc44b77a31803faab9dde59104ddc19347e06dd66",
+      "actual": "2b66179a673102a2e8f6c79cc44b77a31803faab9dde59104ddc19347e06dd66",
+      "unchanged": true
+    },
+    {
+      "path": "docs/git-cleanup-protocol.md",
+      "expected": "8b1783d3f5570b449b75ee6669f10a4ac3449f84455e6b83065eefb6e1b073d9",
+      "actual": "8b1783d3f5570b449b75ee6669f10a4ac3449f84455e6b83065eefb6e1b073d9",
+      "unchanged": true
+    },
+    {
+      "path": "docs/review-report.md",
+      "expected": "f0cf78525dcb20564c6c891340fd89b847900b45b48b28a1ffc2099e154d11cb",
+      "actual": "f0cf78525dcb20564c6c891340fd89b847900b45b48b28a1ffc2099e154d11cb",
+      "unchanged": true
+    }
+  ],
+  "binary": {
+    "path": "tasks/g0-retained-resume/data/g0-return-lab-retained-darwin-arm64",
+    "sha256": "feb9b9ad969abca5ff35db28c0f0d8d920dc0778d7aac68a90952900e989a285",
+    "executable": true
+  }
+}
