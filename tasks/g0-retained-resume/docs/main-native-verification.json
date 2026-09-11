@@ -1,0 +1,45 @@
+{
+  "reviewed_source_candidate": "6277c96affd6c508b117bc6fcdb3441b6bc1f827",
+  "scope": "Independent root checks of fixed native data; complete lineage and final cleanup independently reviewed PASS",
+  "checks": [
+    {
+      "case": "quit-03",
+      "old_steps": 1,
+      "final_steps": 12,
+      "prefix_unchanged": true,
+      "quiet_seconds": 10.0509,
+      "ack_seconds": 70.083,
+      "literal_completed_tool_output": true
+    },
+    {
+      "case": "quit-04",
+      "old_steps": 1,
+      "final_steps": 12,
+      "prefix_unchanged": true,
+      "quiet_seconds": 10.096726,
+      "ack_seconds": 70.78,
+      "literal_completed_tool_output": true
+    },
+    {
+      "case": "kill-01",
+      "old_steps": 1,
+      "final_steps": 12,
+      "prefix_unchanged": true,
+      "quiet_seconds": 10.037441,
+      "ack_seconds": 67.672,
+      "literal_completed_tool_output": true
+    }
+  ],
+  "independent_review": {
+    "agent": "native_identity_review",
+    "range": "f265790..d29741d",
+    "verdict": "PASS",
+    "blockers": [],
+    "non_blocking_findings": [],
+    "full_G0_accepted": false
+  },
+  "integrated_commits": [
+    "908e2e8",
+    "8490166"
+  ]
+}

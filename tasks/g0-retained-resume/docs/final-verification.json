@@ -1,0 +1,118 @@
+{
+  "checked_at": "2026-09-11T08:02:15.194751+00:00",
+  "scope": "Final integrated retained task; full G0 remains unaccepted",
+  "prior_fresh_Go_checks": {
+    "file": "main-verification.json",
+    "race_exit": 0,
+    "race_seconds": 32.527,
+    "vet_exit": 0,
+    "all_source_hashes_still_match": true
+  },
+  "original_seven_documents_unchanged": {
+    "docs/design-v0.1.md": true,
+    "docs/acceptance-v0.1.md": true,
+    "docs/evidence.md": true,
+    "docs/g0-validation-plan.md": true,
+    "docs/runtime-protocols.md": true,
+    "docs/git-cleanup-protocol.md": true,
+    "docs/review-report.md": true
+  },
+  "binary": {
+    "path": "tasks/g0-retained-resume/data/g0-return-lab-retained-darwin-arm64",
+    "sha256": "feb9b9ad969abca5ff35db28c0f0d8d920dc0778d7aac68a90952900e989a285",
+    "executable": true
+  },
+  "python": {
+    "command": "python3 -m unittest discover -s tasks/g0-retained-resume/scripts -p native_*_test.py",
+    "env": {
+      "PYTHONDONTWRITEBYTECODE": "1"
+    },
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "...............\n----------------------------------------------------------------------\nRan 15 tests in 0.003s\n\nOK\n",
+    "ast_parsed_files": 10,
+    "source_matches_final_review_candidate": true
+  },
+  "cleanup": {
+    "recorded_pids_checked": [
+      22223,
+      22700,
+      23523,
+      25231,
+      26630,
+      27142,
+      27494,
+      28735,
+      29778,
+      30287,
+      30718,
+      31981,
+      32230,
+      32743,
+      32922,
+      34167,
+      5026,
+      6010,
+      7238,
+      8198,
+      18580,
+      21037
+    ],
+    "all_recorded_pids_absent": true,
+    "no_signals_sent": true,
+    "retained_locks": [
+      {
+        "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/tasks/retained-resume/data/native-retained-quit-01",
+        "same_device_inode": true,
+        "available": true
+      },
+      {
+        "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/tasks/retained-resume/data/native-retained-quit-02",
+        "same_device_inode": true,
+        "available": true
+      },
+      {
+        "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/tasks/retained-resume/data/native-retained-quit-03",
+        "same_device_inode": true,
+        "available": true
+      },
+      {
+        "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/tasks/retained-resume/data/native-retained-quit-04",
+        "same_device_inode": true,
+        "available": true
+      },
+      {
+        "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/tasks/retained-resume/data/native-retained-kill-01",
+        "same_device_inode": true,
+        "available": true
+      }
+    ],
+    "preserved_runtime_directories": 7,
+    "empty_test_tmp_parent_removed_after_tests": true,
+    "task_tmp_absent": true,
+    "only_main_worktree_remains": true
+  },
+  "verification_correction": "Initial final-check attempt stopped because unit fixtures recreated the empty tmp parent; final attempt removes that empty parent after the successful tests. No runtime data was removed.",
+  "documentation": {
+    "json_parsed_files": 72,
+    "markdown_files_checked": 11,
+    "local_links_checked": 57,
+    "missing_links": []
+  },
+  "diff_check_exit_code": 0,
+  "final_document_review": {
+    "agent": "native_identity_review",
+    "verdict": "PASS",
+    "blockers": [],
+    "scope": "Final plan, contract, result, review, verification and cleanup consistency"
+  },
+  "final_document_sha256": {
+    "plans/implementation-v0.1.md": "1266a1b8173b6c1a29fb16fe7239fe064956c8c94bd13626c18384c01db4f8db",
+    "tasks/g0-retained-resume/plans/contract.md": "ece29c87821bb59d7127e2ce2fe4a2041f794638bf96c699e006250a9973379f",
+    "tasks/g0-retained-resume/docs/result.md": "920088d0c4cdb1900eae665d2504fe1d5149e78f9cd391709943dc4070ad141e",
+    "tasks/g0-retained-resume/docs/review.md": "b91b0988d33096c7925ab8bf0369d24ca5821264f3232ca8511f323f25af0254",
+    "tasks/g0-retained-resume/docs/cleanup.json": "021396988b67ef71154e24a51db3c1a839ea2a0a44069a0bf877134b401de9d9",
+    "tasks/g0-retained-resume/docs/main-native-verification.json": "bf6963d3aede55f114172b43989703b5f59087b61c7d30ce390fcc0b71f5c909"
+  },
+  "final_document_check_at": "2026-09-11T08:20:22.003545+00:00"
+}

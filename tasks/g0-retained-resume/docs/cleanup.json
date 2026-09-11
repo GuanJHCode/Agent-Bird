@@ -1,0 +1,57 @@
+{
+  "checked_at": "2026-09-11T07:41:59.111737+00:00",
+  "scope": "Only owned retained-lifecycle temporary resources",
+  "removed": [
+    {
+      "path": "tasks/g0-retained-resume/tmp/host-build",
+      "files": 2188,
+      "bytes": 164213203
+    },
+    {
+      "path": "tasks/g0-retained-resume/tmp/main-verify",
+      "files": 1758,
+      "bytes": 126902500
+    },
+    {
+      "path": "tasks/g0-retained-resume/tmp/reviewer-retained",
+      "files": 3,
+      "bytes": 7598
+    }
+  ],
+  "host_worktree_removed": true,
+  "native_worktree_pending": false,
+  "preserved": [
+    "tools/g0-return-lab source and tests",
+    "tasks/g0-retained-resume/docs reports and filtered evidence",
+    "tasks/g0-retained-resume/data/g0-return-lab-retained-darwin-arm64",
+    "exp/g0-retained-host branch and source commits",
+    "native runtime task records under the existing dedicated test repository",
+    "preexisting Go toolchain and all earlier experiment artifacts",
+    "exp/g0-retained-native branch and source commits"
+  ],
+  "finalized_at": "2026-09-11T08:00:04.455882+00:00",
+  "native_worktree_removed": true,
+  "empty_task_tmp_removed": true,
+  "worktree_cleanup": {
+    "host": {
+      "branch": "exp/g0-retained-host",
+      "source_head": "81da67d",
+      "removed": true
+    },
+    "native": {
+      "branch": "exp/g0-retained-native",
+      "source_head": "d29741d",
+      "tracked_untracked_ignored_status_empty_before_removal": true,
+      "removed": true
+    },
+    "method": "git worktree remove, without force; rmdir of empty task tmp",
+    "remaining_worktrees": [
+      "main"
+    ]
+  },
+  "temporary_file_bytes_removed_excluding_worktree_copies": 291123301,
+  "final_test_cleanup": {
+    "empty_tmp_parent_recreated_by_tests": true,
+    "removed_after_last_test_run": true
+  }
+}
