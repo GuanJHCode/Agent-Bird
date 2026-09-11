@@ -1,0 +1,59 @@
+{
+  "recorded_at": "2026-09-11T01:20:35.111490+00:00",
+  "TUI_ps_exit_code": 1,
+  "TUI_ps_output": "",
+  "probe": {
+    "argv": [
+      "tasks/g0/data/g0-probe-darwin-arm64",
+      "--socket",
+      "/Users/guanjunhui/.codex/app-server-control/app-server-control.sock",
+      "--thread",
+      "01a08e0b-bd0d-7400-b069-d50978939cdd"
+    ],
+    "duration_seconds": 0.013046958018094301,
+    "exit_code": 0,
+    "result": {
+      "evidence": "metadata_only",
+      "attached": "unknown",
+      "g0": "not_verified",
+      "process": {
+        "id": 35791
+      },
+      "thread": {
+        "id": "01a08e0b-bd0d-7400-b069-d50978939cdd",
+        "sessionId": "01a08e0b-bd0d-7400-b069-d50978939cdd",
+        "parentThreadId": null,
+        "forkedFromId": null,
+        "canAcceptDirectInput": true,
+        "status": {
+          "type": "idle"
+        }
+      }
+    },
+    "stderr": ""
+  },
+  "new_hook_records": [
+    {
+      "file": "10e109e1889af03bb5909aa5c6656131.json",
+      "hook_event_name": "UserPromptSubmit",
+      "nonce": "g0-macos-20260910",
+      "pid": 36389,
+      "ppid": 35791,
+      "recorded_at": "2026-09-11T01:19:17.025009Z",
+      "session_id": "01a08e0b-bd0d-7400-b069-d50978939cdd",
+      "turn_id": "01a08e0c-248a-7071-9e88-18a1b48063e2"
+    },
+    {
+      "file": "f9b883bc27652608e34bb975cf5fc99f.json",
+      "hook_event_name": "SessionStart",
+      "nonce": "g0-macos-20260910",
+      "pid": 36388,
+      "ppid": 35791,
+      "recorded_at": "2026-09-11T01:19:16.993944Z",
+      "session_id": "01a08e0b-bd0d-7400-b069-d50978939cdd",
+      "source": "startup"
+    }
+  ],
+  "attached_signal_proven": false,
+  "g0_passed": false
+}

@@ -1,0 +1,26 @@
+{
+  "recorded_at": "2026-09-11T01:18:48.683506+00:00",
+  "argv": [
+    "codex",
+    "app-server",
+    "--listen",
+    "unix://"
+  ],
+  "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo",
+  "processes": [
+    {
+      "pid": 35791,
+      "identity": "35791 84881 Fri Sep 11 09:18:32 2026     ttys000  codex app-server --listen unix://",
+      "cwd_command_exit_code": 0,
+      "socket_command_exit_code": 0,
+      "socket_metadata": "p35791\nf7\ntunix\nn->0xda243c603f33763f\nf8\ntunix\nn->0x4a7dceb611e1d3a5\nf9\ntunix\nn->0xda243c603f33763f\nf28\ntunix\nn/Users/guanjunhui/.codex/app-server-control/app-server-control.sock\nf33\ntunix\nn->0x126bb07368808500\n"
+    }
+  ],
+  "socket": {
+    "path": "/Users/guanjunhui/.codex/app-server-control/app-server-control.sock",
+    "device": 16777234,
+    "inode": 160272220,
+    "mode": "0o140600"
+  },
+  "scope": "Owned native candidate listener, not proof of managed-daemon lifecycle or absence of outgoing remote-control behavior"
+}

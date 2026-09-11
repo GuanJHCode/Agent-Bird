@@ -1,0 +1,68 @@
+{
+  "recorded_at": "2026-09-11T01:20:33.673976+00:00",
+  "TUI_status_session_id": "01a08e0b-bd0d-7400-b069-d50978939cdd",
+  "marker_response": "G0_DAEMON_ACK_A",
+  "marker_kind": "ordinary user prompt, not callback",
+  "model_tools_observed": 0,
+  "argv": [
+    "codex"
+  ],
+  "TERM": "xterm-256color (display only)",
+  "owned_processes": [
+    {
+      "pid": 35791,
+      "ppid": 84881,
+      "identity": "35791 84881 Fri Sep 11 09:18:32 2026     codex"
+    },
+    {
+      "pid": 35988,
+      "ppid": 35791,
+      "identity": "35988 35791 Fri Sep 11 09:18:49 2026     /Applications/ChatGPT.app/Contents/Resources/cua_node/bin/node_repl"
+    },
+    {
+      "pid": 35989,
+      "ppid": 35791,
+      "identity": "35989 35791 Fri Sep 11 09:18:49 2026     /Applications/ChatGPT.app/Contents/Resources/cua_node/bin/node"
+    },
+    {
+      "pid": 36000,
+      "ppid": 35989,
+      "identity": "36000 35989 Fri Sep 11 09:18:49 2026     /Applications/ChatGPT.app/Contents/Resources/cua_node/bin/node_repl"
+    },
+    {
+      "pid": 35918,
+      "ppid": 84881,
+      "identity": "35918 84881 Fri Sep 11 09:18:48 2026     codex"
+    }
+  ],
+  "probe": {
+    "argv": [
+      "tasks/g0/data/g0-probe-darwin-arm64",
+      "--socket",
+      "/Users/guanjunhui/.codex/app-server-control/app-server-control.sock",
+      "--thread",
+      "01a08e0b-bd0d-7400-b069-d50978939cdd"
+    ],
+    "duration_seconds": 0.022983666975051165,
+    "exit_code": 0,
+    "result": {
+      "evidence": "metadata_only",
+      "attached": "unknown",
+      "g0": "not_verified",
+      "process": {
+        "id": 35791
+      },
+      "thread": {
+        "id": "01a08e0b-bd0d-7400-b069-d50978939cdd",
+        "sessionId": "01a08e0b-bd0d-7400-b069-d50978939cdd",
+        "parentThreadId": null,
+        "forkedFromId": null,
+        "canAcceptDirectInput": true,
+        "status": {
+          "type": "idle"
+        }
+      }
+    },
+    "stderr": ""
+  }
+}

@@ -1,0 +1,111 @@
+{
+  "recorded_at": "2026-09-11T01:12:50.216962+00:00",
+  "baseline": "3e42c0d",
+  "observations": [
+    {
+      "path": "/Users/guanjunhui/.codex/packages/standalone/current",
+      "exists": false,
+      "is_symlink": true,
+      "link_target": "/Users/guanjunhui/.codex/packages/standalone/releases/0.136.0-aarch64-apple-darwin"
+    },
+    {
+      "path": "/Users/guanjunhui/.codex/packages/standalone/releases/0.153.4-aarch64-apple-darwin",
+      "exists": false,
+      "is_symlink": false
+    },
+    {
+      "path": "/Users/guanjunhui/.local/bin/codex",
+      "exists": false,
+      "is_symlink": false
+    },
+    {
+      "path": "/Users/guanjunhui/.local/bin/codex-code-mode-host",
+      "exists": false,
+      "is_symlink": false
+    },
+    {
+      "path": "/Users/guanjunhui/.codex/app-server-control/app-server-control.sock",
+      "exists": false,
+      "is_symlink": false
+    },
+    {
+      "path": "/Users/guanjunhui/.codex/app-server-daemon/app-server.pid",
+      "exists": true,
+      "is_symlink": false,
+      "device": 16777234,
+      "inode": 117107794,
+      "mtime_ns": 1780377669493233613,
+      "size": 59
+    },
+    {
+      "path": "/Users/guanjunhui/.codex/app-server-daemon/app-server-updater.pid",
+      "exists": true,
+      "is_symlink": false,
+      "device": 16777234,
+      "inode": 117095998,
+      "mtime_ns": 1780373218302610091,
+      "size": 59
+    },
+    {
+      "path": "/Users/guanjunhui/.zprofile",
+      "exists": true,
+      "is_symlink": false,
+      "device": 16777234,
+      "inode": 24289927,
+      "mtime_ns": 1780372646293799452,
+      "size": 593,
+      "sha256": "9182af26fc3d20697ba0db018bc666dcb326686392db102422e72a4f5b12f549",
+      "codex_installer_marker_count": 1
+    },
+    {
+      "path": "/Users/guanjunhui/.codex/config.toml",
+      "sha256": "54337a37264b0eefadf30888cf1e5a34623e3e544eef3e7246ea5c7e6c5bfb1e",
+      "mtime_ns": 1789035120239019051
+    },
+    {
+      "path": "/Users/guanjunhui/.codex/app-server-daemon/settings.json",
+      "sha256": "922e9ed2521a417109eae8429696e6f7c95e06e7a2acd1cf5b2c0326b73d9b40",
+      "mtime_ns": 1780373218294528799,
+      "remoteControlEnabled": true
+    }
+  ],
+  "commands": [
+    {
+      "argv": [
+        "codex",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stdout": "codex-cli 0.153.4\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "codex",
+        "app-server",
+        "daemon",
+        "version"
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "Error: failed to connect to /Users/guanjunhui/.codex/app-server-control/app-server-control.sock\n\nCaused by:\n    No such file or directory (os error 2)\n"
+    },
+    {
+      "argv": [
+        "sh",
+        "-n",
+        "tasks/g0-daemon/tmp/install.sh"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "installer_download": {
+    "url": "https://chatgpt.com/codex/install.sh",
+    "sha256": "ba92dd27e5c06f0d3bbc58bfa4b9cfb6599cd2742fbb1f92a2765e6c07dedb5a",
+    "bytes": 30285,
+    "executed": false
+  },
+  "g0_passed": false
+}

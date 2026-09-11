@@ -1,0 +1,260 @@
+{
+  "recorded_at": "2026-09-11T01:30:11.226327+00:00",
+  "scope": "Evidence consistency and cleanup, not product acceptance",
+  "source_baseline": "3e42c0d",
+  "checks": [
+    {
+      "argv": [
+        "shasum",
+        "-a",
+        "256",
+        "-c",
+        "docs/implementation/g0/original-sha256.txt"
+      ],
+      "exit_code": 0,
+      "stdout": "docs/design-v0.1.md: OK\ndocs/acceptance-v0.1.md: OK\ndocs/evidence.md: OK\ndocs/g0-validation-plan.md: OK\ndocs/runtime-protocols.md: OK\ndocs/git-cleanup-protocol.md: OK\ndocs/review-report.md: OK\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "diff",
+        "--exit-code",
+        "3e42c0d",
+        "--",
+        "tools/g0-probe"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "cmp",
+        "docs/implementation/g0/macos-hooks.json",
+        "tasks/g0-macos/data/test-repo/.codex/hooks.json"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "zsh",
+        "-lc",
+        "command -v codex && codex --version"
+      ],
+      "exit_code": 0,
+      "stdout": "/Users/guanjunhui/.local/bin/codex\ncodex-cli 0.153.4\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "ps",
+        "-p",
+        "35791",
+        "-o",
+        "pid=,ppid=,lstart=,comm="
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "ps",
+        "-p",
+        "35918",
+        "-o",
+        "pid=,ppid=,lstart=,comm="
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "ps",
+        "-p",
+        "35988",
+        "-o",
+        "pid=,ppid=,lstart=,comm="
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "ps",
+        "-p",
+        "35989",
+        "-o",
+        "pid=,ppid=,lstart=,comm="
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "ps",
+        "-p",
+        "36000",
+        "-o",
+        "pid=,ppid=,lstart=,comm="
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "ps",
+        "-p",
+        "36854",
+        "-o",
+        "pid=,ppid=,lstart=,comm="
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "lsof",
+        "-n",
+        "-P",
+        "-a",
+        "-d",
+        "cwd",
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo"
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "check": "default native socket absent after test exit",
+      "passed": true
+    },
+    {
+      "check": "old daemon PID file identity unchanged",
+      "path": "/Users/guanjunhui/.codex/app-server-daemon/app-server.pid",
+      "passed": true
+    },
+    {
+      "check": "old daemon PID file identity unchanged",
+      "path": "/Users/guanjunhui/.codex/app-server-daemon/app-server-updater.pid",
+      "passed": true
+    },
+    {
+      "check": "preexisting file hash unchanged",
+      "path": "/Users/guanjunhui/.zprofile",
+      "sha256": "9182af26fc3d20697ba0db018bc666dcb326686392db102422e72a4f5b12f549"
+    },
+    {
+      "check": "preexisting file hash unchanged",
+      "path": "/Users/guanjunhui/.codex/config.toml",
+      "sha256": "54337a37264b0eefadf30888cf1e5a34623e3e544eef3e7246ea5c7e6c5bfb1e"
+    },
+    {
+      "check": "preexisting file hash unchanged",
+      "path": "/Users/guanjunhui/.codex/app-server-daemon/settings.json",
+      "sha256": "922e9ed2521a417109eae8429696e6f7c95e06e7a2acd1cf5b2c0326b73d9b40"
+    },
+    {
+      "check": "trusted Hook binary hash unchanged",
+      "passed": true
+    },
+    {
+      "check": "original and new Hook evidence matches exact files",
+      "original_records": 3,
+      "new_records": 4
+    },
+    {
+      "check": "JSON parses and local Markdown links resolve",
+      "json_files": 13,
+      "markdown_files": 6,
+      "passed": true
+    },
+    {
+      "check": "task download/schema temporary directories removed",
+      "passed": true
+    }
+  ],
+  "new_native_hook_records": [
+    {
+      "file": "10e109e1889af03bb5909aa5c6656131.json",
+      "hook_event_name": "UserPromptSubmit",
+      "nonce": "g0-macos-20260910",
+      "pid": 36389,
+      "ppid": 35791,
+      "recorded_at": "2026-09-11T01:19:17.025009Z",
+      "session_id": "01a08e0b-bd0d-7400-b069-d50978939cdd",
+      "turn_id": "01a08e0c-248a-7071-9e88-18a1b48063e2"
+    },
+    {
+      "file": "5e1be6c58abc62015e2351b216d3c3fe.json",
+      "hook_event_name": "SessionEnd",
+      "nonce": "g0-macos-20260910",
+      "pid": 37358,
+      "ppid": 36854,
+      "recorded_at": "2026-09-11T01:26:12.151467Z",
+      "session_id": "01a08e12-0886-76a2-bf0d-d8b2d3f3e836"
+    },
+    {
+      "file": "f712789951539798206575f79f79e391.json",
+      "hook_event_name": "SessionEnd",
+      "nonce": "g0-macos-20260910",
+      "pid": 36828,
+      "ppid": 35791,
+      "recorded_at": "2026-09-11T01:25:27.690003Z",
+      "session_id": "01a08e0b-bd0d-7400-b069-d50978939cdd"
+    },
+    {
+      "file": "f9b883bc27652608e34bb975cf5fc99f.json",
+      "hook_event_name": "SessionStart",
+      "nonce": "g0-macos-20260910",
+      "pid": 36388,
+      "ppid": 35791,
+      "recorded_at": "2026-09-11T01:19:16.993944Z",
+      "session_id": "01a08e0b-bd0d-7400-b069-d50978939cdd",
+      "source": "startup"
+    }
+  ],
+  "g0_1": "blocked",
+  "g0_passed": false,
+  "windows": "deferred_unverified",
+  "post_review_verification": {
+    "recorded_at": "2026-09-11T01:31:56.469408+00:00",
+    "reviewer": "GPT-6 Astra / max",
+    "valid_findings": 0,
+    "unresolved_findings": 0,
+    "JSON_parse_and_local_links": "passed",
+    "git_diff_check_exit_code": 0,
+    "main_verdict": "G0.1 blocked; do not enter next feature",
+    "staged_diff_check": {
+      "argv": [
+        "git",
+        "diff",
+        "--cached",
+        "--check"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "",
+      "note": "Removed one extra blank EOF line in installer output log found by the first staged check."
+    }
+  }
+}

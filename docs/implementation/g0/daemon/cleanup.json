@@ -1,0 +1,24 @@
+{
+  "recorded_at": "2026-09-11T01:29:15.529106+00:00",
+  "removed": [
+    {
+      "path": "tasks/g0-daemon/tmp/install.sh",
+      "sha256": "ba92dd27e5c06f0d3bbc58bfa4b9cfb6599cd2742fbb1f92a2765e6c07dedb5a",
+      "bytes": 30285
+    },
+    {
+      "path": "tasks/g0-daemon/tmp/release-0.153.4.json",
+      "sha256": "0430ae26602f594b724c1cf9af78f8c8d112b30c38456732ef0d1123dc74bb87",
+      "bytes": 47504
+    }
+  ],
+  "researcher_cleanup": "416 generated schema JSON files and their owned attachment-research directory removed by g0_interface_research",
+  "installer_cleanup": "Installer-owned temporary download directory removed by installer after exit 0",
+  "retained": {
+    "official_standalone_0.153.4": "Repaired native installation, same binary hash as npm; retained for reuse",
+    "existing_npm_Codex": "Preserved",
+    "tasks/g0-macos/data/": "Reusable Go SDK, trusted binary, dedicated repo and original/new Hook evidence",
+    "docs/implementation/g0/daemon/": "Runtime evidence, review and bounded metadata only"
+  },
+  "unknown_or_user_owned_material_removed": false
+}

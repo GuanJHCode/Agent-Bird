@@ -1,0 +1,113 @@
+{
+  "recorded_at": "2026-09-11T01:17:37.120239+00:00",
+  "installer_exit_code": 0,
+  "observations": [
+    {
+      "path": "/Users/guanjunhui/.local/bin/codex",
+      "exists": true,
+      "is_symlink": true,
+      "link_target": "/Users/guanjunhui/.codex/packages/standalone/current/bin/codex",
+      "device": 16777234,
+      "inode": 160268480,
+      "mtime_ns": 1789089400785909140
+    },
+    {
+      "path": "/Users/guanjunhui/.local/bin/codex-code-mode-host",
+      "exists": true,
+      "is_symlink": true,
+      "link_target": "/Users/guanjunhui/.codex/packages/standalone/current/bin/codex-code-mode-host",
+      "device": 16777234,
+      "inode": 160268481,
+      "mtime_ns": 1789089400804570843
+    },
+    {
+      "path": "/Users/guanjunhui/.codex/packages/standalone/current",
+      "exists": true,
+      "is_symlink": true,
+      "link_target": "/Users/guanjunhui/.codex/packages/standalone/releases/0.153.4-aarch64-apple-darwin",
+      "device": 16777234,
+      "inode": 160268479,
+      "mtime_ns": 1789089400770349520
+    },
+    {
+      "path": "/Users/guanjunhui/.nvm/versions/node/v24.13.0/bin/codex",
+      "exists": true,
+      "is_symlink": true,
+      "link_target": "../lib/node_modules/@openai/codex/bin/codex.js",
+      "device": 16777234,
+      "inode": 157767726,
+      "mtime_ns": 1788753038402018020
+    }
+  ],
+  "commands": [
+    {
+      "argv": [
+        "/Users/guanjunhui/.local/bin/codex",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stdout": "codex-cli 0.153.4\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "/Users/guanjunhui/.nvm/versions/node/v24.13.0/bin/codex",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stdout": "codex-cli 0.153.4\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "zsh",
+        "-lc",
+        "command -v codex"
+      ],
+      "exit_code": 0,
+      "stdout": "/Users/guanjunhui/.local/bin/codex\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "diff",
+        "--exit-code",
+        "3e42c0d",
+        "--",
+        "tools/g0-probe"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "checks": [
+    {
+      "path": "/Users/guanjunhui/.zprofile",
+      "sha256": "9182af26fc3d20697ba0db018bc666dcb326686392db102422e72a4f5b12f549",
+      "unchanged": true
+    },
+    {
+      "path": "/Users/guanjunhui/.codex/config.toml",
+      "sha256": "54337a37264b0eefadf30888cf1e5a34623e3e544eef3e7246ea5c7e6c5bfb1e",
+      "unchanged": true
+    },
+    {
+      "path": "/Users/guanjunhui/.codex/app-server-daemon/settings.json",
+      "sha256": "922e9ed2521a417109eae8429696e6f7c95e06e7a2acd1cf5b2c0326b73d9b40",
+      "unchanged": true
+    },
+    {
+      "path": "/Users/guanjunhui/.codex/packages/standalone/current/bin/codex",
+      "sha256": "b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3"
+    },
+    {
+      "path": "/Users/guanjunhui/.nvm/versions/node/v24.13.0/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex",
+      "sha256": "b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3"
+    }
+  ],
+  "installer_owned_temporary_directory_removed": true,
+  "daemon_started": false,
+  "g0_passed": false
+}

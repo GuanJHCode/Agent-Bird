@@ -1,0 +1,72 @@
+{
+  "recorded_at": "2026-09-11T01:23:41.557509+00:00",
+  "scope": "Bounded one-off read-only runtime audit, not a production connector or attachment proof",
+  "python_websockets_version": "16.0",
+  "compression": null,
+  "preliminary_attempts": [
+    {
+      "default_compression": "HTTP handshake closed, no RPC sent"
+    },
+    {
+      "compression_disabled": "HTTP handshake and initialize succeeded"
+    }
+  ],
+  "requests": [
+    {
+      "id": 1,
+      "method": "initialize",
+      "params": {
+        "clientInfo": {
+          "name": "g0-listener-audit",
+          "version": "0.1.0"
+        },
+        "capabilities": {
+          "experimentalApi": true
+        }
+      }
+    },
+    {
+      "id": 2,
+      "method": "server/diagnostics",
+      "params": {}
+    },
+    {
+      "id": 3,
+      "method": "thread/loaded/list",
+      "params": {}
+    },
+    {
+      "id": 4,
+      "method": "remoteControl/status/read",
+      "params": {}
+    }
+  ],
+  "client_notification": {
+    "method": "initialized"
+  },
+  "duration_seconds": 0.01037841709330678,
+  "frames": 5,
+  "diagnostics": {
+    "process_id": 35791,
+    "gauges": [
+      {
+        "name": "core.threads.live",
+        "value": 2
+      },
+      {
+        "name": "mcp.connections.live",
+        "value": 3
+      }
+    ]
+  },
+  "loaded_thread_count": 2,
+  "loaded_contains_known_test_thread": true,
+  "loaded_unknown_thread_count": 1,
+  "remote_control_public_status_shape": {
+    "status": "disabled",
+    "serverName": "<value omitted>",
+    "installationId": "<value omitted>",
+    "environmentId": null
+  },
+  "credentials_or_full_messages_saved": false
+}

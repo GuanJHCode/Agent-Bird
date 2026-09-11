@@ -1,0 +1,57 @@
+{
+  "recorded_at": "2026-09-11T01:26:10.924710+00:00",
+  "native_argv": [
+    "codex"
+  ],
+  "terminal_only_env": {
+    "TERM": "xterm-256color"
+  },
+  "tui_pid": 36854,
+  "identity": "36854 84881 Fri Sep 11 09:25:41 2026     codex",
+  "session_id_from_native_status": "01a08e12-0886-76a2-bf0d-d8b2d3f3e836",
+  "protocol_process_uuids": [
+    "pid:36854:937962f8-72e5-4df0-95d0-00c5d4d14c52"
+  ],
+  "records": [
+    {
+      "ts": 1789089941,
+      "target": "codex_app_server::outgoing_message",
+      "fields": {
+        "transport": "in-process",
+        "client_name": "codex-tui",
+        "client_version": "0.153.4",
+        "method": "thread/start",
+        "connection_id": "0",
+        "api_version": "v2"
+      }
+    },
+    {
+      "ts": 1789089941,
+      "target": "codex_config::loader::layer_io",
+      "fields": {
+        "transport": "in-process",
+        "client_name": "codex-tui",
+        "client_version": "0.153.4",
+        "method": "thread/start",
+        "connection_id": "0",
+        "api_version": "v2"
+      }
+    },
+    {
+      "ts": 1789089941,
+      "target": "codex_config::loader::layer_io",
+      "fields": {
+        "transport": "in-process",
+        "client_name": "codex-tui",
+        "client_version": "0.153.4",
+        "method": "hooks/list",
+        "connection_id": "0",
+        "api_version": "v2"
+      }
+    }
+  ],
+  "socket_exists_after_more_than_10_seconds": false,
+  "ordinary_model_prompts_sent": 0,
+  "daemon_auto_start_proven": false,
+  "g0_passed": false
+}

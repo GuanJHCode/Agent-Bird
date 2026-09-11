@@ -1,0 +1,82 @@
+{
+  "recorded_at": "2026-09-11T01:25:27.812388+00:00",
+  "action": "Ctrl-C to the current owned listener PTY after identity validation; no old daemon PID command",
+  "processes": [
+    {
+      "pid": 35791,
+      "exit_code": 1,
+      "output": ""
+    },
+    {
+      "pid": 35918,
+      "exit_code": 1,
+      "output": ""
+    },
+    {
+      "pid": 35988,
+      "exit_code": 1,
+      "output": ""
+    },
+    {
+      "pid": 35989,
+      "exit_code": 1,
+      "output": ""
+    },
+    {
+      "pid": 36000,
+      "exit_code": 1,
+      "output": ""
+    }
+  ],
+  "socket_exists": false,
+  "new_hook_records": [
+    {
+      "file": "f712789951539798206575f79f79e391.json",
+      "hook_event_name": "SessionEnd",
+      "nonce": "g0-macos-20260910",
+      "pid": 36828,
+      "ppid": 35791,
+      "recorded_at": "2026-09-11T01:25:27.690003Z",
+      "session_id": "01a08e0b-bd0d-7400-b069-d50978939cdd"
+    },
+    {
+      "file": "10e109e1889af03bb5909aa5c6656131.json",
+      "hook_event_name": "UserPromptSubmit",
+      "nonce": "g0-macos-20260910",
+      "pid": 36389,
+      "ppid": 35791,
+      "recorded_at": "2026-09-11T01:19:17.025009Z",
+      "session_id": "01a08e0b-bd0d-7400-b069-d50978939cdd",
+      "turn_id": "01a08e0c-248a-7071-9e88-18a1b48063e2"
+    },
+    {
+      "file": "f9b883bc27652608e34bb975cf5fc99f.json",
+      "hook_event_name": "SessionStart",
+      "nonce": "g0-macos-20260910",
+      "pid": 36388,
+      "ppid": 35791,
+      "recorded_at": "2026-09-11T01:19:16.993944Z",
+      "session_id": "01a08e0b-bd0d-7400-b069-d50978939cdd",
+      "source": "startup"
+    }
+  ],
+  "configuration_checks": [
+    {
+      "path": "/Users/guanjunhui/.zprofile",
+      "unchanged": true,
+      "sha256": "9182af26fc3d20697ba0db018bc666dcb326686392db102422e72a4f5b12f549"
+    },
+    {
+      "path": "/Users/guanjunhui/.codex/config.toml",
+      "unchanged": true,
+      "sha256": "54337a37264b0eefadf30888cf1e5a34623e3e544eef3e7246ea5c7e6c5bfb1e"
+    },
+    {
+      "path": "/Users/guanjunhui/.codex/app-server-daemon/settings.json",
+      "unchanged": true,
+      "sha256": "922e9ed2521a417109eae8429696e6f7c95e06e7a2acd1cf5b2c0326b73d9b40"
+    }
+  ],
+  "listener_exit_code": 0,
+  "native_shutdown_error_category": "Internal MCP session deletion request failed; all tracked owned processes and socket subsequently absent."
+}

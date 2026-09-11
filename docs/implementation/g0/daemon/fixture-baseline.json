@@ -1,0 +1,12 @@
+{
+  "recorded_at": "2026-09-11T01:16:44.997160+00:00",
+  "test_repository": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo",
+  "hook_definition_sha256": "666243bf0789d012c7035ff7ef7203735df95fd79eafe763fa5013277f58b917",
+  "hook_binary_sha256": "62e41afd87e1408854490bf6a716cfe846fff0021179a39d163d6e02254ba779",
+  "existing_events": [
+    "27b409cc4ada9154f10798a54fb5cf00.json",
+    "94c0dbc25ffa9d07737311a46237a6ce.json",
+    "fb1d183bb95d8ac909932230ab0b2ef4.json"
+  ],
+  "note": "Trusted fixture retained unchanged. New evidence will be distinguished by new exact filenames/session IDs, not by the reused static nonce."
+}

@@ -1,0 +1,36 @@
+{
+  "recorded_at": "2026-09-11T01:14:11.719557+00:00",
+  "action": "official standalone repair at pinned version for native implicit-daemon reuse experiment",
+  "argv": [
+    "sh",
+    "tasks/g0-daemon/tmp/install.sh",
+    "--release",
+    "0.153.4"
+  ],
+  "environment_overrides": {
+    "CODEX_NON_INTERACTIVE": "1"
+  },
+  "installer_sha256": "ba92dd27e5c06f0d3bbc58bfa4b9cfb6599cd2742fbb1f92a2765e6c07dedb5a",
+  "expected_changes": [
+    "Create standalone release 0.153.4-aarch64-apple-darwin",
+    "Replace dangling current symlink with that release",
+    "Create .local/bin/codex and codex-code-mode-host symlinks"
+  ],
+  "existing_shell_installer_block": "Already points to .local/bin; no profile change expected",
+  "installer_cleanup_globs_existing_matches": 0,
+  "npm_uninstall_and_auto_launch": "Non-interactive prompts default No",
+  "release_metadata_url": "https://releases.openai.com/codex/releases/0.153.4/release.json",
+  "release_assets": [
+    {
+      "name": "codex-package-aarch64-apple-darwin.tar.gz",
+      "digest": "sha256:35438da1fbf7a6db7ddb3bcec84448fa6015ba188461472a97d9d1da7d9c4353",
+      "size": null
+    },
+    {
+      "name": "codex-package_SHA256SUMS",
+      "digest": "sha256:645fb8d4a1f821357a7160f04a6d15bf54ff97ab6946a79239c551ebed734d23",
+      "size": null
+    }
+  ],
+  "rollback": "Before any later cleanup, verify created file identities; restore prior symlink target from preflight only if still task-owned. Preserve preexisting files and concurrent changes."
+}

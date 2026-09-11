@@ -1,0 +1,11 @@
+==> Installing Codex CLI
+==> Detected platform: macOS (Apple Silicon)
+==> Resolved version: 0.153.4
+==> Detected existing npm-managed Codex at /Users/guanjunhui/.nvm/versions/node/v24.13.0/bin/codex
+WARNING: Multiple managed Codex installs can be ambiguous because PATH order decides which one runs.
+==> Downloading Codex CLI
+==> Installing standalone package to /Users/guanjunhui/.codex/packages/standalone/releases/0.153.4-aarch64-apple-darwin
+==> Current terminal: export PATH="/Users/guanjunhui/.local/bin:$PATH" && codex
+==> Future terminals: open a new terminal and run: codex
+==> PATH is already configured in /Users/guanjunhui/.zprofile
+Codex CLI 0.153.4 installed successfully.

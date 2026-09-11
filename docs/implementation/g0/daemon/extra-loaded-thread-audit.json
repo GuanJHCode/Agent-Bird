@@ -1,0 +1,100 @@
+{
+  "recorded_at": "2026-09-11T01:24:13.553734+00:00",
+  "reason": "Classify extra loaded thread before stopping the owned candidate service",
+  "requests": [
+    {
+      "id": 1,
+      "method": "initialize",
+      "params": {
+        "clientInfo": {
+          "name": "g0-listener-audit",
+          "version": "0.1.0"
+        },
+        "capabilities": {
+          "experimentalApi": true
+        }
+      }
+    },
+    {
+      "id": 2,
+      "method": "thread/loaded/list",
+      "params": {}
+    },
+    {
+      "id": 4,
+      "method": "thread/read",
+      "params": {
+        "threadId": "01a08e0c-2a45-77c2-a2bf-e1ca67224d35",
+        "includeTurns": false
+      }
+    }
+  ],
+  "metadata": [
+    {
+      "id": "01a08e0c-2a45-77c2-a2bf-e1ca67224d35",
+      "source": "vscode",
+      "createdAt": 1789089853,
+      "cwd_matches_test_fixture": true,
+      "parentThreadId": null,
+      "sessionId": "01a08e0c-2a45-77c2-a2bf-e1ca67224d35",
+      "forkedFromId": null,
+      "ephemeral": true,
+      "status": {
+        "type": "idle"
+      }
+    }
+  ],
+  "exact_extra_thread_log_targets": [
+    {
+      "target": "codex_core::client",
+      "count": 1,
+      "first_ts": 1789089560,
+      "last_ts": 1789089560
+    },
+    {
+      "target": "codex_core::session::handlers",
+      "count": 1,
+      "first_ts": 1789089557,
+      "last_ts": 1789089557
+    },
+    {
+      "target": "codex_core::session::turn",
+      "count": 1,
+      "first_ts": 1789089562,
+      "last_ts": 1789089562
+    },
+    {
+      "target": "codex_core::session::world_state",
+      "count": 2,
+      "first_ts": 1789089558,
+      "last_ts": 1789089560
+    },
+    {
+      "target": "codex_core::stream_events_utils",
+      "count": 4,
+      "first_ts": 1789089561,
+      "last_ts": 1789089562
+    },
+    {
+      "target": "codex_http_client::custom_ca",
+      "count": 1,
+      "first_ts": 1789089558,
+      "last_ts": 1789089558
+    },
+    {
+      "target": "codex_skills_extension::shadow_selection_experiment",
+      "count": 12,
+      "first_ts": 1789089560,
+      "last_ts": 1789089560
+    },
+    {
+      "target": "feedback_tags",
+      "count": 2,
+      "first_ts": 1789089560,
+      "last_ts": 1789089560
+    }
+  ],
+  "ownership_assessment": "Same fixture, ephemeral thread generated during the native marker, and shadow_selection_experiment logs support a native internal auxiliary task. This is an evidence-based inference, not a TUI attachment signal.",
+  "full_history_requested": false,
+  "preview_or_raw_messages_saved": false
+}

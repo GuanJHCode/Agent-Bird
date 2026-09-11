@@ -1,0 +1,83 @@
+{
+  "recorded_at": "2026-09-11T01:20:07.298325+00:00",
+  "scope": "Exact test thread/process protocol metadata only; raw bodies omitted",
+  "thread_id": "01a08e0b-bd0d-7400-b069-d50978939cdd",
+  "thread_process_uuids": [
+    "pid:35791:3c54714b-823c-4c28-90bc-21ab370b2093"
+  ],
+  "records": [
+    {
+      "ts": 1789089528,
+      "process_uuid": "pid:35791:3c54714b-823c-4c28-90bc-21ab370b2093",
+      "target": "codex_config::loader::layer_io",
+      "public_fields": {
+        "transport": "unix_socket",
+        "client_name": "codex-tui",
+        "client_version": "0.153.4",
+        "method": "hooks/list",
+        "connection_id": "0",
+        "api_version": "v2"
+      }
+    },
+    {
+      "ts": 1789089529,
+      "process_uuid": "pid:35791:3c54714b-823c-4c28-90bc-21ab370b2093",
+      "target": "codex_config::loader::layer_io",
+      "public_fields": {
+        "transport": "unix_socket",
+        "client_name": "codex-tui",
+        "client_version": "0.153.4",
+        "method": "thread/start",
+        "connection_id": "0",
+        "api_version": "v2"
+      }
+    },
+    {
+      "ts": 1789089529,
+      "process_uuid": "pid:35791:3c54714b-823c-4c28-90bc-21ab370b2093",
+      "target": "codex_app_server::outgoing_message",
+      "public_fields": {
+        "transport": "unix_socket",
+        "client_name": "codex-tui",
+        "client_version": "0.153.4",
+        "method": "thread/start",
+        "connection_id": "0",
+        "api_version": "v2"
+      }
+    },
+    {
+      "ts": 1789089557,
+      "process_uuid": "pid:35791:3c54714b-823c-4c28-90bc-21ab370b2093",
+      "target": "codex_config::loader::layer_io",
+      "public_fields": {
+        "transport": "unix_socket",
+        "client_name": "codex-tui",
+        "client_version": "0.153.4",
+        "method": "thread/start",
+        "connection_id": "0",
+        "api_version": "v2"
+      }
+    },
+    {
+      "ts": 1789089557,
+      "process_uuid": "pid:35791:3c54714b-823c-4c28-90bc-21ab370b2093",
+      "target": "codex_app_server::outgoing_message",
+      "public_fields": {
+        "transport": "unix_socket",
+        "client_name": "codex-tui",
+        "client_version": "0.153.4",
+        "method": "thread/start",
+        "connection_id": "0",
+        "api_version": "v2"
+      }
+    }
+  ],
+  "selection": {
+    "original_matched_rows": 22,
+    "retained_targets": [
+      "codex_config::loader::layer_io",
+      "codex_app_server::outgoing_message"
+    ],
+    "reason": "Keep direct protocol evidence; omit repeated inherited spans from unrelated subsystems."
+  }
+}
