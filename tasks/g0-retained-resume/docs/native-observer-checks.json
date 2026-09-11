@@ -1,0 +1,12 @@
+{
+  "scope": "Read-only runtime observer for exactly rr-retained-quit-01/02/03 and rr-retained-kill-01; no native sample run yet",
+  "red": "2 helper tests failed before implementation",
+  "green": "2 helper tests passed: actual nonblocking flock contention/release and fresh typed action -> exactly 10-second deadline; stale/canary/bool actions rejected",
+  "ready": "Approved binary SHA at observer start, ready and end; actual retained-inspect schema/root/nonce; at least one durable step; live expected Codex creation identity; retained worker direct parent is that PID; stable flock is held. Does not wait for model final; records actual last native turn state.",
+  "stop": "Observer starts before controller action; only a fresh matching action file establishes 10-second stop deadline. Success requires original native/worker creation identities gone, same lock device/inode available, same segment/worker record. PPID is not process creation identity.",
+  "idle": "After ordinary resume, observe 10 seconds with new native PID live, old worker gone, lock available, identical checkpoint/prefix hashes, and no task_started since the declared resume timestamp. No explicit user continuation is sent by this observer.",
+  "effects": "Retained-inspect validates authoritative records; observer retains only ordered step numbers, byte lengths and SHA256, never raw effect payloads.",
+  "limits": "Synthetic single foreground Go process only; no process tree or arbitrary CLI guarantee. Runtime system calls have OS timing limits. Tests do not impersonate native CODEX_THREAD_ID or count as model evidence.",
+  "model_calls": 0,
+  "temporary_fixture_cleanup": "TemporaryDirectory lock fixture removed after tests"
+}
