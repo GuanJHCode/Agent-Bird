@@ -1,0 +1,86 @@
+{
+  "checked_at": "2026-09-11T08:51:27.259273+00:00",
+  "reviewed": {
+    "base": "cd3d0547c807b36e403aca5a85ac34221ab247dc",
+    "idle_initial": "9c473665fda3b98416230cb336c0861714459e4c",
+    "idle_final": "497972ee2eeeb46252297c3bcdefd9655fe2b404",
+    "delivery_initial": "c0a0fe39635508317f19c52b22350b602d3c3b22",
+    "delivery_report": "d7c5e33f851ceff3aaaa1a73ebf09ed08e1f9436",
+    "delivery_final": "f928e87f668de62f964844b6dabd6260481800a7"
+  },
+  "environment": {
+    "python": "3.13.7",
+    "system": "Darwin",
+    "machine": "arm64"
+  },
+  "source_worktree_modified": false,
+  "native_service_or_model_called": false,
+  "launchd_installed_or_executed": false,
+  "go_tests_run_by_this_reviewer": false,
+  "delivery_final_tests": {
+    "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tasks/g0-pending-resolution/scripts -p delivery_audit_test.py",
+    "fixed_archive": "f928e87f668de62f964844b6dabd6260481800a7",
+    "TMPDIR": "reviewer-owned tmp directory",
+    "tests": 15,
+    "duration_seconds": 1.599,
+    "exit_code": 0
+  },
+  "historical_first_review_tests": {
+    "fixed_archive": "c0a0fe39635508317f19c52b22350b602d3c3b22",
+    "tests": 13,
+    "duration_seconds": 1.064,
+    "exit_code": 0,
+    "not_final_source_evidence": true
+  },
+  "original_reproduction_inputs": [
+    {
+      "path": "data/same_native_id_changes_tool_name.json",
+      "sha256": "b636c4a6e56d8d88ef62a0c14fd8b21ed5fc14a508aa7807d12c91b237369824",
+      "bytes": 2356
+    },
+    {
+      "path": "data/same_native_id_changes_type.json",
+      "sha256": "6c2d15b6b2fa23b24dd8ce763e30719379fd26727e01d92ed115e0bd277e4a67",
+      "bytes": 1720
+    },
+    {
+      "path": "data/two_completed_traversals.json",
+      "sha256": "e1d1e1666d530ef45799f8266aa07a309d592c338959e77926332d5ba0e26253",
+      "bytes": 1081
+    }
+  ],
+  "red_result": "docs/c0a0fe3-reproductions.json",
+  "green_result": "docs/f928e87-reproductions.json",
+  "final_source_sha256": {
+    "tasks/g0-pending-resolution/scripts/delivery_audit.py": "59d8129d5409fb7fb5687a5107c81f9d85a63b8f718e4dd22cab660517af87c6",
+    "tasks/g0-pending-resolution/scripts/delivery_audit_test.py": "c137491c5d8d251e4667d4456134f88feae22a49ff8bbe0e4aead2caab7cbf93"
+  },
+  "idle_validation": {
+    "source_files_verified": 50,
+    "whole_file_pairs_verified": 25,
+    "identical_pairs": 13,
+    "focused_regions_verified": 8,
+    "focused_region_encoding": "UTF-8, LF joined lines without terminal LF",
+    "mechanism_source_files_verified": 27,
+    "apple_man_files_verified": 3,
+    "initial_local_links_verified": 26,
+    "followup_local_links_verified": 15,
+    "issues": []
+  },
+  "findings": {
+    "idle_minor_inprocess_generalization": "fixed in 497972e",
+    "delivery_important_item_identity_conflict": "fixed and independently reproduced green in f928e87",
+    "delivery_minor_page_chain_restart": "fixed and independently reproduced green in f928e87",
+    "unresolved": []
+  },
+  "diff_check": {
+    "python_markdown_json": "passed",
+    "raw_red_test_logs": "original unittest trailing spaces preserved; full diff not claimed all-green"
+  },
+  "assessment": "PASS for reviewed research artifacts and offline checker; not native or full G0 approval",
+  "archive_directories": [
+    "docs",
+    "data"
+  ],
+  "temporary_cleanup": "pending coordinator copy confirmation"
+}

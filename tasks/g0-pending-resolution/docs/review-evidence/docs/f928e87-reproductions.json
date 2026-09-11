@@ -1,0 +1,54 @@
+[
+  {
+    "case": "same_native_id_changes_tool_name",
+    "exit": 2,
+    "pass": true,
+    "output": {
+      "version": 1,
+      "status": "error",
+      "error": "invalid_capture"
+    }
+  },
+  {
+    "case": "same_native_id_changes_type",
+    "exit": 2,
+    "pass": true,
+    "output": {
+      "version": 1,
+      "status": "error",
+      "error": "invalid_capture"
+    }
+  },
+  {
+    "case": "two_completed_traversals",
+    "exit": 0,
+    "pass": true,
+    "output": {
+      "absence_proof": false,
+      "acknowledged_event_ids": [],
+      "business_ack_complete": false,
+      "captured_page_chain_complete": false,
+      "compaction_seen": false,
+      "delivery_id": "delivery_01",
+      "duplicate_displays": 0,
+      "matched_history_items": 0,
+      "pending_event_ids": [
+        "progress_01",
+        "question_01"
+      ],
+      "resend_authorized": false,
+      "scope": "offline_captured_data_only",
+      "source_service_verified": false,
+      "transport_evidence": "uncertain",
+      "transport_gate": "blocked_uncertain",
+      "unique_ack_slots": 0,
+      "version": 1,
+      "waiting_user_event_ids": []
+    }
+  },
+  {
+    "case": "committed_synthetic_example",
+    "pass": true,
+    "exit": 0
+  }
+]

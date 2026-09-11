@@ -23,6 +23,19 @@
 
 每条路线先复用已存证据，核查具体新增能力或遗漏调用链；没有新前提时不盲跑旧版本矩阵或重复失败的模型实验。候选不成立即转下一个仍符合合同的通道；静态证据不能标为原生通过。
 
+主 Agent 已准许交付路线先实现一个只读、有界的离线 G0 对账检查器：核对给定历史中的精确标记、分页信息和逐事件 ACK，缺少可靠否定证据时保持 uncertain。该工具不发送网络、不验证原服务身份、不写业务事务，不计作完整 C11 或 G0 通过。
+
+## 固定当前会话的 standalone 原生资格实验
+
+沿用此前已授权并已实测的本任务共享 listener 环境，验证原接口本身，不等待通用 UI 观察器实现：
+
+- controller 仅创建和操作自己的服务、TUI 与专用 PTY；普通 `codex` 连接该已存在服务。默认 socket 已被占用时拒绝启动或替换。出现其他客户端时不停止其服务或进程。
+- 通过确切原生 `/status`、已知 PTY、进程创建身份、真实 Hook 及原生连接元数据交叉核对同一服务、TUI 和 root。实验期间 controller 独占自己的输入端，固定显示 root，不执行切屏；该受控事实不作为产品通用附着算法。
+- root 真正 final 后，客户端完成固定无业务副作用的合成工具，先持久保存意图与结果，再仅提交一次 `turn/start` 的真实 `toolOutput`，`input=[]`。不用 Goal、MCP、任意 history 注入或用户文本承载结果。
+- 再以原服务的实际历史接口读取精确 `functionCallOutput` 及 envelope，区分新轮、模型文字、持久历史与逐事件业务 ACK。不因请求响应返回成功就声称已进入历史；uncertain 不自动重试发送。
+- 不代理 TUI 通信，不修改账号、权限、全局配置或 Apps 开关。只读 helper 与原生 controller 分属独立 worktree，工具冻结并复核后才运行。
+- 先做一个资格样本；通过后再安排独立基础重复或必要故障窗口，沿用 10 秒本地、120 秒模型窗口。预建 listener 不计作冷启动自动接入；固定当前 UI 的样本不计作一般切换身份或完整 G0 通过。G1–G4 保持未启动。
+
 ## 接口解释与判据
 
 官方 `turn/start.toolOutput` 接受客户端实际执行的独立工具输出，`input=[]`，以 `functionCallOutput` 持久化；不要求存在旧的 pending tool call。旧研究对“必须补回旧 pending call”的概括不作为本轮排除此接口的依据。[官方 App Server 说明](https://learn.chatgpt.com/docs/app-server#start-a-turn)

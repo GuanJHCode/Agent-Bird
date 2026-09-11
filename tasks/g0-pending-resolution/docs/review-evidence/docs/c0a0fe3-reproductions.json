@@ -1,0 +1,26 @@
+[
+  {
+    "case": "same_native_id_changes_type",
+    "exit": 0,
+    "transport_evidence": "exact_history_marker",
+    "captured_page_chain_complete": true,
+    "absence_proof": false,
+    "resend_authorized": false
+  },
+  {
+    "case": "same_native_id_changes_tool_name",
+    "exit": 0,
+    "transport_evidence": "exact_history_marker",
+    "captured_page_chain_complete": true,
+    "absence_proof": false,
+    "resend_authorized": false
+  },
+  {
+    "case": "two_completed_traversals",
+    "exit": 0,
+    "transport_evidence": "uncertain",
+    "captured_page_chain_complete": true,
+    "absence_proof": false,
+    "resend_authorized": false
+  }
+]

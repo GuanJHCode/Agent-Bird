@@ -1,0 +1,35 @@
+{
+  "checked_at": "2026-09-11T09:11:16.200363+00:00",
+  "scope": "Only temporary resources created for this pending-resolution task",
+  "removed_worktrees": [
+    {
+      "path": "tasks/g0-pending-resolution/tmp/delivery",
+      "branch": "exp/g0-pending-delivery",
+      "head": "e989410b474ad380ed0fa1b7905c6e939e31616e",
+      "clean_including_ignored": true,
+      "method": "git worktree remove without force"
+    }
+  ],
+  "removed_owned_temporary_directories": [
+    {
+      "path": "tasks/g0-pending-resolution/tmp/reviewer-delivery",
+      "files": 34,
+      "bytes": 156028,
+      "owner": "retained_lifecycle_review",
+      "archived_files": 7,
+      "archive": "tasks/g0-pending-resolution/docs/review-evidence",
+      "source_absent": true
+    }
+  ],
+  "worker_cleanup_record": "delivery-validation.json",
+  "preserved": [
+    "all delivery source, tests, reports and original RED evidence",
+    "seven independent review evidence files",
+    "exp/g0-pending-delivery branch and original source commits",
+    "all prior retained runtime records, binary and design files"
+  ],
+  "pending": [
+    "idle shared public source cache and worktree while attachment review continues",
+    "attachment and attachment-fix worktrees"
+  ]
+}
