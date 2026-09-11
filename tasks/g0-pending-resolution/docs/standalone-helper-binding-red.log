@@ -1,0 +1,33 @@
+E.F.....
+======================================================================
+ERROR: test_binding_rejects_wrong_owner_root_version_and_unknown_fields (native_standalone_test.NativeStandaloneTests.test_binding_rejects_wrong_owner_root_version_and_unknown_fields)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 49, in test_binding_rejects_wrong_owner_root_version_and_unknown_fields
+    self.assertEqual(probe.validate_binding(good, ROOT, NONCE), good)
+                     ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone.py", line 72, in validate_binding
+    exact(value, ("version", "nonce", "controller_thread_id", "controller_epoch", "expected_cwd", "prior_turn_id",
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                  "native_cli_version", "boot_id", "service", "go_binary", "go_binary_sha256", "job_dir", "controller_evidence_sha256"))
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone.py", line 43, in exact
+    check(type(value) is dict and set(value) == set(keys), "invalid_schema")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone.py", line 39, in check
+    raise ProbeError(code)
+native_standalone.ProbeError: invalid_schema
+
+======================================================================
+FAIL: test_history_preserves_exact_standalone_and_never_exports_raw_text (native_standalone_test.NativeStandaloneTests.test_history_preserves_exact_standalone_and_never_exports_raw_text)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 121, in test_history_preserves_exact_standalone_and_never_exports_raw_text
+    with self.assertRaises(probe.ProbeError):
+         ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: ProbeError not raised
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.002s
+
+FAILED (failures=1, errors=1)

@@ -1,0 +1,32 @@
+......F.FF.
+======================================================================
+FAIL: test_prior_timestamp_is_exact_native_field_not_ready_text_time (native_standalone_test.NativeStandaloneTests.test_prior_timestamp_is_exact_native_field_not_ready_text_time)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 53, in test_prior_timestamp_is_exact_native_field_not_ready_text_time
+    self.assertEqual(facts.get("prior_completed_at"), 1790000000)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: None != 1790000000
+
+======================================================================
+FAIL: test_send_intent_precedes_one_wire_write_and_receipt_is_not_history (native_standalone_test.NativeStandaloneTests.test_send_intent_precedes_one_wire_write_and_receipt_is_not_history)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 70, in test_send_intent_precedes_one_wire_write_and_receipt_is_not_history
+    self.assertTrue(pathlib.Path(directory, "send-attempt.json").exists())
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true
+
+======================================================================
+FAIL: test_tui_dies_after_claim_no_send_and_intent_stays_non_retryable (native_standalone_test.NativeStandaloneTests.test_tui_dies_after_claim_no_send_and_intent_stays_non_retryable)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 86, in test_tui_dies_after_claim_no_send_and_intent_stays_non_retryable
+    with self.assertRaises(probe.ProbeError):
+         ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: ProbeError not raised
+
+----------------------------------------------------------------------
+Ran 11 tests in 0.005s
+
+FAILED (failures=3)

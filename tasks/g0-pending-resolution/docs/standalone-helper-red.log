@@ -1,0 +1,79 @@
+EEEEEEE.
+======================================================================
+ERROR: test_binding_rejects_wrong_owner_root_version_and_unknown_fields (native_standalone_test.NativeStandaloneTests.test_binding_rejects_wrong_owner_root_version_and_unknown_fields)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 47, in test_binding_rejects_wrong_owner_root_version_and_unknown_fields
+    self.assertEqual(probe.validate_binding(good, ROOT, NONCE), good)
+                     ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone.py", line 9, in missing
+    raise ProbeError("not_implemented")
+native_standalone.ProbeError: not_implemented
+
+======================================================================
+ERROR: test_go_result_envelope_is_bound_to_real_fixed_schema_and_hash (native_standalone_test.NativeStandaloneTests.test_go_result_envelope_is_bound_to_real_fixed_schema_and_hash)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 74, in test_go_result_envelope_is_bound_to_real_fixed_schema_and_hash
+    got = probe.make_intent(binding(), go_inspection())
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone.py", line 9, in missing
+    raise ProbeError("not_implemented")
+native_standalone.ProbeError: not_implemented
+
+======================================================================
+ERROR: test_history_preserves_exact_standalone_and_never_exports_raw_text (native_standalone_test.NativeStandaloneTests.test_history_preserves_exact_standalone_and_never_exports_raw_text)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 99, in test_history_preserves_exact_standalone_and_never_exports_raw_text
+    intent = probe.make_intent(binding(), go_inspection())
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone.py", line 9, in missing
+    raise ProbeError("not_implemented")
+native_standalone.ProbeError: not_implemented
+
+======================================================================
+ERROR: test_idle_requires_completed_prior_turn_and_terminal_tools (native_standalone_test.NativeStandaloneTests.test_idle_requires_completed_prior_turn_and_terminal_tools)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 84, in test_idle_requires_completed_prior_turn_and_terminal_tools
+    probe.filter_thread(thread_result(), binding(), None, require_ready=True)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone.py", line 9, in missing
+    raise ProbeError("not_implemented")
+native_standalone.ProbeError: not_implemented
+
+======================================================================
+ERROR: test_only_fixed_rpc_methods_and_minimal_turn_start_are_allowed (native_standalone_test.NativeStandaloneTests.test_only_fixed_rpc_methods_and_minimal_turn_start_are_allowed)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 59, in test_only_fixed_rpc_methods_and_minimal_turn_start_are_allowed
+    intent = probe.make_intent(binding(), go_inspection())
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone.py", line 9, in missing
+    raise ProbeError("not_implemented")
+native_standalone.ProbeError: not_implemented
+
+======================================================================
+ERROR: test_original_model_window_rejects_boot_or_clock_change_and_never_extends (native_standalone_test.NativeStandaloneTests.test_original_model_window_rejects_boot_or_clock_change_and_never_extends)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 132, in test_original_model_window_rejects_boot_or_clock_change_and_never_extends
+    self.assertEqual(probe.remaining_window(attempt, now), 119.0)
+                     ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone.py", line 9, in missing
+    raise ProbeError("not_implemented")
+native_standalone.ProbeError: not_implemented
+
+======================================================================
+ERROR: test_send_claim_is_durable_intent_and_cannot_be_reused (native_standalone_test.NativeStandaloneTests.test_send_claim_is_durable_intent_and_cannot_be_reused)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 121, in test_send_claim_is_durable_intent_and_cannot_be_reused
+    with probe.Case(directory) as case:
+         ~~~~~~~~~~^^^^^^^^^^^
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone.py", line 9, in missing
+    raise ProbeError("not_implemented")
+native_standalone.ProbeError: not_implemented
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.002s
+
+FAILED (errors=7)
