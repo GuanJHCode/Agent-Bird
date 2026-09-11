@@ -1,0 +1,9 @@
+{
+  "verified_at": "2026-09-11T02:17:18.599578+00:00",
+  "syntax": "PASS",
+  "idle_window": "one root turn; child completed; no root receipt or ACK",
+  "busy_return": "one native agent_message with author/recipient and no role; RECEIVED final",
+  "deferred_idle_return": "native agent_message only during later explicit user turn",
+  "reasoning_saved": false,
+  "temporary_files_created": []
+}
