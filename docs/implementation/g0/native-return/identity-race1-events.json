@@ -1,0 +1,430 @@
+{
+  "captured_at": "2026-09-11T03:34:28.569462+00:00",
+  "sample": "race1",
+  "root_thread": "01a08e75-cae3-7043-832e-20ebf886aef7",
+  "window": {
+    "since": "2026-09-11T03:23:37.756Z",
+    "through": "2026-09-11T03:25:37.756Z",
+    "seconds": 120
+  },
+  "objectives": {
+    "old": "nr-g0-identity-race-old",
+    "new": "nr-g0-identity-race-new：请重新启动一次 60 秒等待后才完成；旧目标已经发起的等待不满足新目标。"
+  },
+  "requested_cell_sha256": "17e278ab541b2b2b63191218c29e05113bc2ebd15ba0abda299d93d0e6f8a111",
+  "matched_original_call_id": "call_jwVHXrI3Fa0wB8gb99NovViX",
+  "privacy": "Exact synthetic objective map; native types, call identity, bounded runtime fields and hashes only. Reasoning and arbitrary text omitted.",
+  "events": [
+    {
+      "timestamp": "2026-09-11T03:23:37.756Z",
+      "record_type": "event_msg",
+      "type": "task_started",
+      "turn_id": "01a08e7e-0183-7da3-9beb-320c1b634a1a"
+    },
+    {
+      "timestamp": "2026-09-11T03:23:39.080Z",
+      "record_type": "response_item",
+      "type": "message",
+      "role": "user"
+    },
+    {
+      "timestamp": "2026-09-11T03:23:44.117Z",
+      "record_type": "response_item",
+      "type": "message",
+      "role": "assistant",
+      "phase": "commentary"
+    },
+    {
+      "timestamp": "2026-09-11T03:23:49.466Z",
+      "record_type": "response_item",
+      "type": "custom_tool_call",
+      "call_id": "call_jwVHXrI3Fa0wB8gb99NovViX",
+      "name": "exec",
+      "status": "completed",
+      "input_summary": {
+        "utf8_bytes": 641,
+        "sha256": "43ef46b60889f73905e36891ab3000e64f439788c7ed81de18332da75d43844d",
+        "markers": [
+          "nr-g0-identity-race-old-DONE",
+          "nr-g0-identity-race-old-WAITING"
+        ],
+        "operations": [
+          "create_goal",
+          "exec_command",
+          "get_goal",
+          "update_goal",
+          "write_stdin"
+        ],
+        "goal_status_argument": "complete",
+        "synthetic_commands": [
+          "sleep 60; printf '%s\\n' nr-g0-identity-race-old-DONE"
+        ]
+      },
+      "matches_requested_cell": true
+    },
+    {
+      "timestamp": "2026-09-11T03:23:50.527Z",
+      "record_type": "response_item",
+      "type": "custom_tool_call_output",
+      "call_id": "call_jwVHXrI3Fa0wB8gb99NovViX",
+      "output_summary": {
+        "utf8_bytes": 657,
+        "sha256": "17b77944977b8efe7594e42e682ba05f35865efa6b9b489173cb7641470ca30b",
+        "markers": [
+          "nr-g0-identity-race-old-WAITING"
+        ]
+      },
+      "script_cell_id": "1",
+      "goal_snapshots_in_output_order": [
+        {
+          "present": false
+        },
+        {
+          "present": true,
+          "objective_label": "old",
+          "objective_exact_match": true,
+          "thread_id": "01a08e75-cae3-7043-832e-20ebf886aef7",
+          "status": "active",
+          "createdAt": 1789097029,
+          "updatedAt": 1789097029
+        },
+        {
+          "present": true,
+          "objective_label": "old",
+          "objective_exact_match": true,
+          "thread_id": "01a08e75-cae3-7043-832e-20ebf886aef7",
+          "status": "active",
+          "createdAt": 1789097029,
+          "updatedAt": 1789097029
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-09-11T03:23:54.657Z",
+      "record_type": "response_item",
+      "type": "function_call",
+      "call_id": "call_iGECMzI4P6madnc3F5A9AX5u",
+      "name": "wait",
+      "wait_arguments": {
+        "cell_id": "1",
+        "terminate": false,
+        "yield_time_ms": 1000
+      }
+    },
+    {
+      "timestamp": "2026-09-11T03:23:55.661Z",
+      "record_type": "response_item",
+      "type": "function_call_output",
+      "call_id": "call_iGECMzI4P6madnc3F5A9AX5u",
+      "output_summary": {
+        "utf8_bytes": 60,
+        "sha256": "9e4475ea3b71871478a7799346becffdf00399c5f48da92cbf25516160d3afe3",
+        "markers": []
+      },
+      "script_cell_id": "1"
+    },
+    {
+      "timestamp": "2026-09-11T03:24:02.402Z",
+      "record_type": "response_item",
+      "type": "function_call",
+      "call_id": "call_fQkPqiNi5sHgXNaDPah4d0GO",
+      "name": "wait",
+      "wait_arguments": {
+        "cell_id": "1",
+        "terminate": false,
+        "yield_time_ms": 1000
+      }
+    },
+    {
+      "timestamp": "2026-09-11T03:24:03.406Z",
+      "record_type": "response_item",
+      "type": "function_call_output",
+      "call_id": "call_fQkPqiNi5sHgXNaDPah4d0GO",
+      "output_summary": {
+        "utf8_bytes": 60,
+        "sha256": "9e4475ea3b71871478a7799346becffdf00399c5f48da92cbf25516160d3afe3",
+        "markers": []
+      },
+      "script_cell_id": "1"
+    },
+    {
+      "timestamp": "2026-09-11T03:24:07.893Z",
+      "record_type": "response_item",
+      "type": "function_call",
+      "call_id": "call_hl7w8AGTrTfjnsbbHrYlcOdx",
+      "name": "wait",
+      "wait_arguments": {
+        "cell_id": "1",
+        "terminate": false,
+        "yield_time_ms": 1000
+      }
+    },
+    {
+      "timestamp": "2026-09-11T03:24:08.899Z",
+      "record_type": "response_item",
+      "type": "function_call_output",
+      "call_id": "call_hl7w8AGTrTfjnsbbHrYlcOdx",
+      "output_summary": {
+        "utf8_bytes": 60,
+        "sha256": "9e4475ea3b71871478a7799346becffdf00399c5f48da92cbf25516160d3afe3",
+        "markers": []
+      },
+      "script_cell_id": "1"
+    },
+    {
+      "timestamp": "2026-09-11T03:24:12.126Z",
+      "record_type": "response_item",
+      "type": "function_call",
+      "call_id": "call_oCqsSbbxh5JgbcrGZ6N8axm8",
+      "name": "wait",
+      "wait_arguments": {
+        "cell_id": "1",
+        "terminate": false,
+        "yield_time_ms": 1000
+      }
+    },
+    {
+      "timestamp": "2026-09-11T03:24:13.130Z",
+      "record_type": "response_item",
+      "type": "function_call_output",
+      "call_id": "call_oCqsSbbxh5JgbcrGZ6N8axm8",
+      "output_summary": {
+        "utf8_bytes": 60,
+        "sha256": "9e4475ea3b71871478a7799346becffdf00399c5f48da92cbf25516160d3afe3",
+        "markers": []
+      },
+      "script_cell_id": "1"
+    },
+    {
+      "timestamp": "2026-09-11T03:24:16.553Z",
+      "record_type": "response_item",
+      "type": "function_call",
+      "call_id": "call_G9VuRW6wmXr0ZXNT61UY8sN9",
+      "name": "wait",
+      "wait_arguments": {
+        "cell_id": "1",
+        "terminate": false,
+        "yield_time_ms": 1000
+      }
+    },
+    {
+      "timestamp": "2026-09-11T03:24:17.560Z",
+      "record_type": "response_item",
+      "type": "function_call_output",
+      "call_id": "call_G9VuRW6wmXr0ZXNT61UY8sN9",
+      "output_summary": {
+        "utf8_bytes": 60,
+        "sha256": "9e4475ea3b71871478a7799346becffdf00399c5f48da92cbf25516160d3afe3",
+        "markers": []
+      },
+      "script_cell_id": "1"
+    },
+    {
+      "timestamp": "2026-09-11T03:24:20.611Z",
+      "record_type": "response_item",
+      "type": "function_call",
+      "call_id": "call_HSWJALCvm7PRH2vmJRhlVj44",
+      "name": "wait",
+      "wait_arguments": {
+        "cell_id": "1",
+        "terminate": false,
+        "yield_time_ms": 1000
+      }
+    },
+    {
+      "timestamp": "2026-09-11T03:24:21.616Z",
+      "record_type": "response_item",
+      "type": "function_call_output",
+      "call_id": "call_HSWJALCvm7PRH2vmJRhlVj44",
+      "output_summary": {
+        "utf8_bytes": 60,
+        "sha256": "9e4475ea3b71871478a7799346becffdf00399c5f48da92cbf25516160d3afe3",
+        "markers": []
+      },
+      "script_cell_id": "1"
+    },
+    {
+      "timestamp": "2026-09-11T03:24:28.104Z",
+      "record_type": "response_item",
+      "type": "function_call",
+      "call_id": "call_EPH6JdPITcEXbTBe9TduDSHr",
+      "name": "wait",
+      "wait_arguments": {
+        "cell_id": "1",
+        "terminate": false,
+        "yield_time_ms": 1000
+      }
+    },
+    {
+      "timestamp": "2026-09-11T03:24:29.108Z",
+      "record_type": "response_item",
+      "type": "function_call_output",
+      "call_id": "call_EPH6JdPITcEXbTBe9TduDSHr",
+      "output_summary": {
+        "utf8_bytes": 60,
+        "sha256": "9e4475ea3b71871478a7799346becffdf00399c5f48da92cbf25516160d3afe3",
+        "markers": []
+      },
+      "script_cell_id": "1"
+    },
+    {
+      "timestamp": "2026-09-11T03:24:29.112Z",
+      "record_type": "response_item",
+      "type": "message",
+      "role": "user"
+    },
+    {
+      "timestamp": "2026-09-11T03:24:35.611Z",
+      "record_type": "response_item",
+      "type": "message",
+      "role": "assistant",
+      "phase": "commentary"
+    },
+    {
+      "timestamp": "2026-09-11T03:24:36.175Z",
+      "record_type": "response_item",
+      "type": "function_call",
+      "call_id": "call_gegK0uvWMrqLbCHfB0t8Jua8",
+      "name": "wait",
+      "wait_arguments": {
+        "cell_id": "1",
+        "terminate": true
+      }
+    },
+    {
+      "timestamp": "2026-09-11T03:24:36.299Z",
+      "record_type": "response_item",
+      "type": "function_call_output",
+      "call_id": "call_gegK0uvWMrqLbCHfB0t8Jua8",
+      "output_summary": {
+        "utf8_bytes": 48,
+        "sha256": "d7199de392dc6534dfec40b9f38108b1601938d27d4253603ab06d9ed187d9e8",
+        "markers": []
+      },
+      "native_runtime_kind": "script_terminated"
+    },
+    {
+      "timestamp": "2026-09-11T03:24:53.555Z",
+      "record_type": "response_item",
+      "type": "custom_tool_call",
+      "call_id": "call_lXJbY3bLugqUeEadlPkkTlVl",
+      "name": "exec",
+      "status": "completed",
+      "input_summary": {
+        "utf8_bytes": 404,
+        "sha256": "19bd21fa03dd4174a865138658a65d97840c54b1d59a5c44592285cb657715e7",
+        "markers": [],
+        "operations": [
+          "exec_command",
+          "get_goal",
+          "write_stdin"
+        ]
+      },
+      "matches_requested_cell": false
+    },
+    {
+      "timestamp": "2026-09-11T03:24:54.563Z",
+      "record_type": "response_item",
+      "type": "custom_tool_call_output",
+      "call_id": "call_lXJbY3bLugqUeEadlPkkTlVl",
+      "output_summary": {
+        "utf8_bytes": 448,
+        "sha256": "4be5f803e6ccb3b95a73fb90d4f2691d19c368ae4bd6b4064f3437d977e3f309",
+        "markers": []
+      },
+      "script_cell_id": "2",
+      "goal_snapshots_in_output_order": [
+        {
+          "present": true,
+          "objective_label": "new",
+          "objective_exact_match": true,
+          "thread_id": "01a08e75-cae3-7043-832e-20ebf886aef7",
+          "status": "active",
+          "createdAt": 1789097029,
+          "updatedAt": 1789097076
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-09-11T03:24:57.612Z",
+      "record_type": "response_item",
+      "type": "function_call",
+      "call_id": "call_Ez5ftS6TX5vgAwZk0NHEUDMQ",
+      "name": "wait",
+      "wait_arguments": {
+        "cell_id": "2",
+        "terminate": false,
+        "yield_time_ms": 1000
+      }
+    },
+    {
+      "timestamp": "2026-09-11T03:24:58.617Z",
+      "record_type": "response_item",
+      "type": "function_call_output",
+      "call_id": "call_Ez5ftS6TX5vgAwZk0NHEUDMQ",
+      "output_summary": {
+        "utf8_bytes": 60,
+        "sha256": "460aedeac812972fea383ea3f199f5e89f81180b749114a8527d7319f6876c56",
+        "markers": []
+      },
+      "script_cell_id": "2"
+    },
+    {
+      "timestamp": "2026-09-11T03:25:02.677Z",
+      "record_type": "response_item",
+      "type": "function_call",
+      "call_id": "call_ZLUoR4FEKnGjNvEqpUHU7YXP",
+      "name": "wait",
+      "wait_arguments": {
+        "cell_id": "2",
+        "terminate": false
+      }
+    },
+    {
+      "timestamp": "2026-09-11T03:25:13.684Z",
+      "record_type": "response_item",
+      "type": "function_call_output",
+      "call_id": "call_ZLUoR4FEKnGjNvEqpUHU7YXP",
+      "output_summary": {
+        "utf8_bytes": 61,
+        "sha256": "e1305cfb5a6648cb9c2353cb862bdf77e4cc4f4095f10b90723af9c7bc1b638f",
+        "markers": []
+      },
+      "script_cell_id": "2"
+    },
+    {
+      "timestamp": "2026-09-11T03:25:18.429Z",
+      "record_type": "response_item",
+      "type": "function_call",
+      "call_id": "call_qy9alloYJIw3wR9Cd3KmV4Ue",
+      "name": "wait",
+      "wait_arguments": {
+        "cell_id": "2",
+        "terminate": false
+      }
+    },
+    {
+      "timestamp": "2026-09-11T03:25:29.437Z",
+      "record_type": "response_item",
+      "type": "function_call_output",
+      "call_id": "call_qy9alloYJIw3wR9Cd3KmV4Ue",
+      "output_summary": {
+        "utf8_bytes": 61,
+        "sha256": "e1305cfb5a6648cb9c2353cb862bdf77e4cc4f4095f10b90723af9c7bc1b638f",
+        "markers": []
+      },
+      "script_cell_id": "2"
+    },
+    {
+      "timestamp": "2026-09-11T03:25:34.849Z",
+      "record_type": "response_item",
+      "type": "function_call",
+      "call_id": "call_ynq4bk9BhKFBKBzgVRWfaimJ",
+      "name": "wait",
+      "wait_arguments": {
+        "cell_id": "2",
+        "terminate": false
+      }
+    }
+  ]
+}

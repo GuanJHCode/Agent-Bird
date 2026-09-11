@@ -1,0 +1,191 @@
+{
+  "captured_at": "2026-09-11T03:34:28.618646+00:00",
+  "sample": "race2",
+  "root_thread": "01a08e81-d7c6-7fa3-bfcd-7e8b80ef4d2e",
+  "window": {
+    "since": "2026-09-11T03:28:15.176Z",
+    "through": "2026-09-11T03:30:15.176Z",
+    "seconds": 120
+  },
+  "objectives": {
+    "old": "nr-g0-identity-race2-old",
+    "new": "nr-g0-identity-race2-new：请重新启动一次 60 秒等待后才完成；旧目标已经发起的等待不满足新目标。"
+  },
+  "requested_cell_sha256": "ffe3e0a0ccf3683e6d03c634f6879bbfab0a9a56d3d698f692215a7a6d03f4bb",
+  "matched_original_call_id": "call_f9RxB9Serb4Wd5hdogszLCBQ",
+  "privacy": "Exact synthetic objective map; native types, call identity, bounded runtime fields and hashes only. Reasoning and arbitrary text omitted.",
+  "events": [
+    {
+      "timestamp": "2026-09-11T03:28:15.176Z",
+      "record_type": "event_msg",
+      "type": "task_started",
+      "turn_id": "01a08e82-3d0b-7e82-b642-974905211d02"
+    },
+    {
+      "timestamp": "2026-09-11T03:28:16.788Z",
+      "record_type": "response_item",
+      "type": "message",
+      "role": "developer"
+    },
+    {
+      "timestamp": "2026-09-11T03:28:16.788Z",
+      "record_type": "response_item",
+      "type": "message",
+      "role": "developer"
+    },
+    {
+      "timestamp": "2026-09-11T03:28:16.788Z",
+      "record_type": "response_item",
+      "type": "message",
+      "role": "developer"
+    },
+    {
+      "timestamp": "2026-09-11T03:28:16.788Z",
+      "record_type": "response_item",
+      "type": "message",
+      "role": "user"
+    },
+    {
+      "timestamp": "2026-09-11T03:28:16.848Z",
+      "record_type": "response_item",
+      "type": "message",
+      "role": "user"
+    },
+    {
+      "timestamp": "2026-09-11T03:28:19.820Z",
+      "record_type": "response_item",
+      "type": "message",
+      "role": "assistant",
+      "phase": "commentary"
+    },
+    {
+      "timestamp": "2026-09-11T03:28:25.285Z",
+      "record_type": "response_item",
+      "type": "custom_tool_call",
+      "call_id": "call_f9RxB9Serb4Wd5hdogszLCBQ",
+      "name": "exec",
+      "status": "completed",
+      "input_summary": {
+        "utf8_bytes": 646,
+        "sha256": "b1752ac6a6c231328860fb40093950689c1239f7b9951080c3a2396a049b1f31",
+        "markers": [
+          "nr-g0-identity-race2-old-DONE",
+          "nr-g0-identity-race2-old-WAITING"
+        ],
+        "operations": [
+          "create_goal",
+          "exec_command",
+          "get_goal",
+          "update_goal",
+          "write_stdin"
+        ],
+        "goal_status_argument": "complete",
+        "synthetic_commands": [
+          "sleep 60; printf '%s\\n' nr-g0-identity-race2-old-DONE"
+        ]
+      },
+      "matches_requested_cell": true
+    },
+    {
+      "timestamp": "2026-09-11T03:29:25.336Z",
+      "record_type": "response_item",
+      "type": "custom_tool_call_output",
+      "call_id": "call_f9RxB9Serb4Wd5hdogszLCBQ",
+      "output_summary": {
+        "utf8_bytes": 2185,
+        "sha256": "32d82040b6475dd40a549edd841fbccc24465f3a1cfb3255614807be7a49d12d",
+        "markers": [
+          "nr-g0-identity-race2-old-DONE",
+          "nr-g0-identity-race2-old-WAITING"
+        ]
+      },
+      "tool_exit_codes": [
+        0
+      ],
+      "synthetic_wait_result": "nr-g0-identity-race2-old-DONE",
+      "goal_snapshots_in_output_order": [
+        {
+          "present": false
+        },
+        {
+          "present": true,
+          "objective_label": "old",
+          "objective_exact_match": true,
+          "thread_id": "01a08e81-d7c6-7fa3-bfcd-7e8b80ef4d2e",
+          "status": "active",
+          "createdAt": 1789097305,
+          "updatedAt": 1789097305
+        },
+        {
+          "present": true,
+          "objective_label": "old",
+          "objective_exact_match": true,
+          "thread_id": "01a08e81-d7c6-7fa3-bfcd-7e8b80ef4d2e",
+          "status": "active",
+          "createdAt": 1789097305,
+          "updatedAt": 1789097305
+        },
+        {
+          "present": true,
+          "objective_label": "new",
+          "objective_exact_match": true,
+          "thread_id": "01a08e81-d7c6-7fa3-bfcd-7e8b80ef4d2e",
+          "status": "active",
+          "createdAt": 1789097305,
+          "updatedAt": 1789097365
+        },
+        {
+          "present": true,
+          "objective_label": "new",
+          "objective_exact_match": true,
+          "thread_id": "01a08e81-d7c6-7fa3-bfcd-7e8b80ef4d2e",
+          "status": "complete",
+          "createdAt": 1789097305,
+          "updatedAt": 1789097365
+        },
+        {
+          "present": true,
+          "objective_label": "new",
+          "objective_exact_match": true,
+          "thread_id": "01a08e81-d7c6-7fa3-bfcd-7e8b80ef4d2e",
+          "status": "complete",
+          "createdAt": 1789097305,
+          "updatedAt": 1789097365
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-09-11T03:29:25.341Z",
+      "record_type": "response_item",
+      "type": "message",
+      "role": "user"
+    },
+    {
+      "timestamp": "2026-09-11T03:29:59.514Z",
+      "record_type": "response_item",
+      "type": "message",
+      "role": "assistant",
+      "phase": "commentary"
+    },
+    {
+      "timestamp": "2026-09-11T03:30:05.568Z",
+      "record_type": "response_item",
+      "type": "custom_tool_call",
+      "call_id": "call_anjuPVRqw7vGwjyoYkImv7u9",
+      "name": "exec",
+      "status": "completed",
+      "input_summary": {
+        "utf8_bytes": 755,
+        "sha256": "c8af97dde76824efbc97ebe3dd4688538305b76aa8e34b028852033d9f9810a8",
+        "markers": [],
+        "operations": [
+          "create_goal",
+          "exec_command",
+          "get_goal",
+          "write_stdin"
+        ]
+      },
+      "matches_requested_cell": false
+    }
+  ]
+}
