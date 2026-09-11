@@ -1,0 +1,12 @@
+{
+  "scope": "Retained 14-field snapshot and native response_item collector only; no live readiness/stop claim",
+  "snapshot_contract": "tools/g0-return-lab/RETAINED.md at host 5b96919; unchanged 14-field envelope",
+  "expected_source": "literal normal exec of the supplied approved binary, exact directory and nonce; mutations use shell exec and inherited CODEX_THREAD_ID; yielded output must join a previously observed retained session",
+  "schema_red": "2 failures/errors before implementation",
+  "schema_green": "4 tests passed; exact keys/types, expected owner/nonce, bounded steps/timestamps and liveness_checked=false; private unknown fields and error codes rejected",
+  "collector_red": "3 failures/errors before implementation",
+  "collector_green": "3 tests passed; recognized command and process join preserve typed snapshots, unrelated tool lookalike has no snapshot, reasoning/private bodies omitted",
+  "goal_parsing": "none",
+  "native_model_calls_for_this_validation": 0,
+  "known_limits": "Only one text(await tools.exec_command|write_stdin({literal options})) wrapper is supported; unknown code produces hashes only. PID creation identity separately uses bounded ps second-resolution timestamps. This fixture does not claim a general JavaScript parser or process-tree guard."
+}

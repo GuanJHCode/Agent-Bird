@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+import json
+import unittest
+from native_retained_collect import filter_events, safe_input
+from native_retained_data_test import ROOT, NONCE, SNAPSHOT
+
+BINARY = "/fixed/approved/g0-return-lab-retained"
+DIRECTORY = "/fixed/private/retained-task"
+COMMAND = f'exec {BINARY} retained-start --dir {DIRECTORY} --nonce {NONCE} --controller-thread "$CODEX_THREAD_ID" --steps 12 --interval 4s'
+
+
+class RetainedCollectTest(unittest.TestCase):
+    def source(self, command):
+        return 'text(await tools.exec_command({cmd:' + json.dumps(command) + ',yield_time_ms:1000,max_output_tokens:5000}));'
+
+    def test_expected_literal_exec_and_environment_binding(self):
+        parsed = safe_input(self.source(COMMAND), ROOT, NONCE, BINARY, DIRECTORY)
+        self.assertEqual(parsed["commands"][0]["verb"], "retained-start")
+        self.assertTrue(parsed["commands"][0]["controller_from_native_env"])
+        for wrong in ("CODEX_THREAD_ID=fake " + COMMAND, COMMAND.replace(DIRECTORY, "/CANARY_PRIVATE_TEXT")):
+            result = safe_input(self.source(wrong), ROOT, NONCE, BINARY, DIRECTORY)
+            self.assertNotIn("commands", result)
+            self.assertNotIn("CANARY_PRIVATE_TEXT", json.dumps(result))
+
+    def test_snapshot_requires_associated_retained_tool_call(self):
+        output = {"timestamp": "2026-09-11T00:00:01Z", "type": "response_item", "payload": {
+            "type": "custom_tool_call_output", "call_id": "call_test", "output": json.dumps({"output": json.dumps(SNAPSHOT), "session_id": 99})}}
+        unknown = filter_events([output], ROOT, NONCE, BINARY, DIRECTORY)
+        self.assertNotIn("snapshots", unknown[0]["output_summary"])
+        call = {"timestamp": "2026-09-11T00:00:00Z", "type": "response_item", "payload": {
+            "type": "custom_tool_call", "name": "exec", "call_id": "call_test", "input": self.source(COMMAND)}}
+        known = filter_events([call, output], ROOT, NONCE, BINARY, DIRECTORY)
+        self.assertEqual(known[1]["output_summary"]["snapshots"], [SNAPSHOT])
+        join = {"timestamp": "2026-09-11T00:00:02Z", "type": "response_item", "payload": {
+            "type": "custom_tool_call", "name": "exec", "call_id": "call_join",
+            "input": 'text(await tools.write_stdin({session_id:99,chars:"",yield_time_ms:1000,max_output_tokens:5000}));'}}
+        joined_output = dict(output, timestamp="2026-09-11T00:00:03Z", payload=dict(output['payload'], call_id="call_join"))
+        joined = filter_events([call, output, join, joined_output], ROOT, NONCE, BINARY, DIRECTORY)
+        self.assertEqual(joined[-1]["retained_source"], "known_retained_process_join")
+        self.assertEqual(joined[-1]["output_summary"]["snapshots"], [SNAPSHOT])
+
+    def test_unknown_reasoning_message_and_tool_text_never_export(self):
+        text = "CANARY_PRIVATE_TEXT"
+        values = [{"timestamp": "2026-09-11T00:00:00Z", "type": "response_item", "payload": p} for p in (
+            {"type": "reasoning", "text": text},
+            {"type": "message", "role": "user", "content": [{"type": "input_text", "text": text}]},
+            {"type": "custom_tool_call", "name": "exec", "call_id": "call_private", "input": text})]
+        result = filter_events(values, ROOT, NONCE, BINARY, DIRECTORY)
+        self.assertEqual(len(result), 2)
+        self.assertNotIn(text, json.dumps(result))
+
+
+if __name__ == "__main__":
+    unittest.main()
