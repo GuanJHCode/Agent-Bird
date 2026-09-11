@@ -1,0 +1,15 @@
+{
+  "recorded_at": "2026-09-11T06:03:40.715046+00:00",
+  "invalidated_file": "native-probe-kill-01-stopped-invalidated.json",
+  "original_bytes_sha256": "694d74b1c64b5986743967c124e3cbf9ceeb4acc77fd0577cbbb1496a51a494c",
+  "invalid_claim": "both_original_processes_gone=true",
+  "cause": "worker PPID changed to 1; comparison incorrectly included PPID",
+  "authoritative_outcome": "FAIL: original worker survived parent SIGKILL and wrote completed later",
+  "corrected_identity_key": [
+    "pid",
+    "started_at_local"
+  ],
+  "identity_precision": "ps creation timestamp is second precision in a bounded controlled sample",
+  "regression_red": "reparented_process_is_still_alive failed against the old whole-dictionary comparison",
+  "regression_green": "two process identity tests pass after excluding parent/group/executable from creation identity"
+}

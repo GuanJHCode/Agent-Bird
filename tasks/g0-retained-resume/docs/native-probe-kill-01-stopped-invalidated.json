@@ -1,0 +1,41 @@
+{
+  "at": "2026-09-11T05:59:21.118212+00:00",
+  "root_thread": "01a08f0b-5109-7c82-85ea-1d9bbce890dd",
+  "nonce": "rr-probe-kill-01",
+  "action": {
+    "root_thread": "01a08f0b-5109-7c82-85ea-1d9bbce890dd",
+    "nonce": "rr-probe-kill-01",
+    "native_pid": 7238,
+    "action": "SIGKILL",
+    "at": "2026-09-11T05:59:21.026297+00:00"
+  },
+  "observations": [
+    {
+      "at": "2026-09-11T05:59:19.853811+00:00",
+      "native_same_identity_alive": true,
+      "worker_same_identity_alive": true,
+      "probe_events": [
+        {
+          "version": 1,
+          "nonce": "rr-probe-kill-01",
+          "status": "running",
+          "at": "2026-09-11T05:59:16.434563+00:00"
+        }
+      ]
+    },
+    {
+      "at": "2026-09-11T05:59:21.118188+00:00",
+      "native_same_identity_alive": false,
+      "worker_same_identity_alive": false,
+      "probe_events": [
+        {
+          "version": 1,
+          "nonce": "rr-probe-kill-01",
+          "status": "running",
+          "at": "2026-09-11T05:59:16.434563+00:00"
+        }
+      ]
+    }
+  ],
+  "both_original_processes_gone": true
+}

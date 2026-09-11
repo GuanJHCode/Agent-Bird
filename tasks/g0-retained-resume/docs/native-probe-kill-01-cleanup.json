@@ -1,0 +1,27 @@
+{
+  "at": "2026-09-11T06:01:39.830985+00:00",
+  "root_thread": "01a08f0b-5109-7c82-85ea-1d9bbce890dd",
+  "nonce": "rr-probe-kill-01",
+  "cleanup_only": true,
+  "sample_outcome": "FAIL_ORPHAN_CONTINUED_AFTER_NATIVE_SIGKILL",
+  "current_identity": null,
+  "sigterm_sent": false,
+  "worker_absent_after_cleanup": true,
+  "raw_stopped_observation_invalidated": "PPID change was incorrectly treated as process exit; not accepted as PASS",
+  "late_direct_ps_witness_at_utc": "2026-09-11T05:59:49Z",
+  "late_direct_ps_witness_ppid": 1,
+  "probe_events": [
+    {
+      "version": 1,
+      "nonce": "rr-probe-kill-01",
+      "status": "running",
+      "at": "2026-09-11T05:59:16.434563+00:00"
+    },
+    {
+      "version": 1,
+      "nonce": "rr-probe-kill-01",
+      "status": "completed",
+      "at": "2026-09-11T06:00:46.435843+00:00"
+    }
+  ]
+}

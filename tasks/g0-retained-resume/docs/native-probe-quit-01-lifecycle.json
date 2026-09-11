@@ -1,0 +1,18 @@
+{
+  "root_thread": "01a08f04-99db-72b2-a0e4-31fce854ccff",
+  "nonce": "rr-probe-quit-01",
+  "native_pid": 5026,
+  "worker_pid": 6010,
+  "initial_window": {
+    "since": "2026-09-11T05:53:33Z",
+    "through": "2026-09-11T05:55:33Z"
+  },
+  "quit_submitted_at": "2026-09-11T05:55:01Z",
+  "native_tui_exit_code": 0,
+  "late_process_absence_observed_at": "2026-09-11T05:55:30.100504Z",
+  "native_and_worker_absent": true,
+  "ten_second_monitor": "started after 05:55:11 deadline and rejected; not a ten-second PASS",
+  "signal_evidence": "no handled TERM/HUP/INT or completed event; actual signal not established",
+  "classification": "limited lifecycle observation, not formal retained acceptance",
+  "goal_used": false
+}

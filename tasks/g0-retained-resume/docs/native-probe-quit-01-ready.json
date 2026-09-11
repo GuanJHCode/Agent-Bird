@@ -1,0 +1,37 @@
+{
+  "at": "2026-09-11T05:55:00.445209+00:00",
+  "root_thread": "01a08f04-99db-72b2-a0e4-31fce854ccff",
+  "nonce": "rr-probe-quit-01",
+  "native_identity": {
+    "pid": 5026,
+    "ppid": 38821,
+    "pgid": 5026,
+    "started_at_local": "Fri Sep 11 13:50:37 2026",
+    "executable_basename": "codex"
+  },
+  "worker_identity": {
+    "pid": 6010,
+    "ppid": 5026,
+    "pgid": 6010,
+    "started_at_local": "Fri Sep 11 13:53:41 2026",
+    "executable_basename": "Python"
+  },
+  "metadata": {
+    "version": 1,
+    "nonce": "rr-probe-quit-01",
+    "controller_thread": "01a08f04-99db-72b2-a0e4-31fce854ccff",
+    "pid": 6010,
+    "ppid": 5026,
+    "pgid": 6010,
+    "duration_seconds": 90
+  },
+  "final_waiting_seen": true,
+  "probe_events": [
+    {
+      "version": 1,
+      "nonce": "rr-probe-quit-01",
+      "status": "running",
+      "at": "2026-09-11T05:53:41.161374+00:00"
+    }
+  ]
+}

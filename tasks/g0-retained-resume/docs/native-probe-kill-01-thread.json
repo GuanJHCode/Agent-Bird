@@ -1,0 +1,134 @@
+{
+  "observed_at": "2026-09-11T06:05:39.195638+00:00",
+  "root_thread": "01a08f0b-5109-7c82-85ea-1d9bbce890dd",
+  "nonce": "rr-probe-kill-01",
+  "cli_version": "0.153.4",
+  "native_source": "cli",
+  "expected_experiment_cwd_matches": true,
+  "window": {
+    "since": "2026-09-11T05:59:08Z",
+    "through": "2026-09-11T06:01:08Z"
+  },
+  "selection": "exact new probe root only; no children or unrelated history",
+  "privacy": "no reasoning or raw tool/user bodies; fixed marker and operation metadata only",
+  "events": [
+    {
+      "timestamp": "2026-09-11T05:59:08.465Z",
+      "record_type": "event_msg",
+      "type": "task_started",
+      "turn_id": "01a08f0c-6175-7c20-8aaf-aee83857dd8f"
+    },
+    {
+      "timestamp": "2026-09-11T05:59:09.705Z",
+      "record_type": "response_item",
+      "type": "message",
+      "role": "developer",
+      "body_summary": {
+        "utf8_bytes": 11074,
+        "sha256": "2ce0638ea30f09ac3ca45d40e8a8a38faac5d9ae12515a293bd54950b21df3e8",
+        "fixed_waiting_marker_present": false
+      }
+    },
+    {
+      "timestamp": "2026-09-11T05:59:09.705Z",
+      "record_type": "response_item",
+      "type": "message",
+      "role": "developer",
+      "body_summary": {
+        "utf8_bytes": 2429,
+        "sha256": "2a9df9db8c89ecb8b44c695a5fba7b6b4f9c18a160286fd9fbc2381fdc6a6552",
+        "fixed_waiting_marker_present": false
+      }
+    },
+    {
+      "timestamp": "2026-09-11T05:59:09.705Z",
+      "record_type": "response_item",
+      "type": "message",
+      "role": "developer",
+      "body_summary": {
+        "utf8_bytes": 271,
+        "sha256": "6ded806e3cdbb35599ecaf8742574bc5274908472b1729090010c404c2151e8e",
+        "fixed_waiting_marker_present": false
+      }
+    },
+    {
+      "timestamp": "2026-09-11T05:59:09.705Z",
+      "record_type": "response_item",
+      "type": "message",
+      "role": "user",
+      "body_summary": {
+        "utf8_bytes": 3614,
+        "sha256": "4422ceb452a71fdce500738a4b48b7ffc96d558a893228c6fd1b03244a459c58",
+        "fixed_waiting_marker_present": false
+      }
+    },
+    {
+      "timestamp": "2026-09-11T05:59:09.766Z",
+      "record_type": "response_item",
+      "type": "message",
+      "role": "user",
+      "body_summary": {
+        "utf8_bytes": 716,
+        "sha256": "a79d3c3567f0c9f481506c191a4958d65fbb6a3b01171a8ef72e0fed254fed7a",
+        "fixed_waiting_marker_present": true
+      }
+    },
+    {
+      "timestamp": "2026-09-11T05:59:12.584Z",
+      "record_type": "response_item",
+      "type": "message",
+      "role": "assistant",
+      "phase": "commentary",
+      "body_summary": {
+        "utf8_bytes": 82,
+        "sha256": "2d641653465038e5beafd508598e4c85a95a40f91f2e48a4ae72c3f2aee63322",
+        "fixed_waiting_marker_present": false
+      }
+    },
+    {
+      "timestamp": "2026-09-11T05:59:16.134Z",
+      "record_type": "response_item",
+      "type": "custom_tool_call",
+      "name": "exec",
+      "call_id": "call_eNYUkA6QVf5IFAgyIR0rGTKV",
+      "known_probe_command_present": true,
+      "goal_tool_mentioned": false,
+      "body_summary": {
+        "utf8_bytes": 413,
+        "sha256": "b10f4db55c745a096bfb3d74aa9c11e94981bdaf05f4c64dcd41c5e3feb1dcfd",
+        "fixed_waiting_marker_present": false
+      }
+    },
+    {
+      "timestamp": "2026-09-11T05:59:17.542Z",
+      "record_type": "response_item",
+      "type": "custom_tool_call_output",
+      "call_id": "call_eNYUkA6QVf5IFAgyIR0rGTKV",
+      "body_summary": {
+        "utf8_bytes": 279,
+        "sha256": "b295503756ccf33cb0bb67624462fd2bbfa3d9ac87d6cc13ca868252aa1f6adf",
+        "fixed_waiting_marker_present": false
+      }
+    },
+    {
+      "timestamp": "2026-09-11T05:59:19.600Z",
+      "record_type": "response_item",
+      "type": "message",
+      "role": "assistant",
+      "phase": "final_answer",
+      "body_summary": {
+        "utf8_bytes": 24,
+        "sha256": "37b721b7d83085c3dda931d9820dbf6159d0440d2034df31b1ab08f094b54e7d",
+        "fixed_waiting_marker_present": true
+      },
+      "text": "rr-probe-kill-01-WAITING"
+    },
+    {
+      "timestamp": "2026-09-11T05:59:19.662Z",
+      "record_type": "event_msg",
+      "type": "task_complete",
+      "turn_id": "01a08f0c-6175-7c20-8aaf-aee83857dd8f",
+      "last_agent_message": "rr-probe-kill-01-WAITING"
+    }
+  ]
+}
