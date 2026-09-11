@@ -17,6 +17,79 @@ import sqlite3
 import subprocess
 
 
+# Deliberately fixed to the last approved sample; this is not a general ACK API.
+ACK09_NONCE = "nr-g0-goal-09"
+ACK09_ROOT = "01a08ea6-b1fb-79b1-a146-1158e247b8e4"
+ACK09_PREFIX = "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/"
+ACK09_BINARY = ACK09_PREFIX + "tasks/g0-native-return/tmp/host-impl/tools/g0-return-lab/data/g0-return-lab-ack"
+ACK09_DIR = ACK09_PREFIX + "tasks/g0-macos/data/test-repo/tasks/native-return/data/runner-host-goal-09"
+ACK09_FIRST = "10000000-0000-4000-8000-000000000001"
+ACK09_SECOND = "10000000-0000-4000-8000-000000000002"
+ACK09_RESULT = {"version": 1, "status": "completed", "nonce": ACK09_NONCE, "count": 1}
+ACK09_HASH = hashlib.sha256(json.dumps({"version": 1, "nonce": ACK09_NONCE,
+    "controller_thread": ACK09_ROOT, "task_revision": 1, "result": ACK09_RESULT},
+    separators=(",", ":")).encode()).hexdigest()
+ACK09_RECORD = {"version": 1, "status": "acknowledged", "nonce": ACK09_NONCE,
+    "controller_thread": ACK09_ROOT, "revision": 1, "event_hash": ACK09_HASH,
+    "command_id": ACK09_FIRST, "decision": "handled", "decision_count": 1, "effect_count": 1}
+
+
+def strict_equal(value, expected):
+    """Exact keys and exact primitive types, including rejecting bool as int."""
+    if type(value) is not type(expected):
+        return False
+    if isinstance(expected, dict):
+        return value.keys() == expected.keys() and all(strict_equal(value[k], v) for k, v in expected.items())
+    return value == expected
+
+
+def ack09_output(value):
+    if strict_equal(value, ACK09_RECORD):
+        return True
+    envelope = {"version": 1, "status": "completed", "nonce": ACK09_NONCE,
+        "controller_thread": ACK09_ROOT, "revision": 1, "task_revision": 1,
+        "cancelled": False, "event_hash": ACK09_HASH, "result": ACK09_RESULT, "ack": None}
+    if strict_equal(value, envelope):
+        return True
+    envelope["ack"] = ACK09_RECORD
+    return strict_equal(value, envelope)
+
+
+def ack09_commands(text):
+    # Only the observed, single literal exec wrapper. Unknown code/segments fail
+    # closed; in particular no environment assignments or arbitrary JS parsing.
+    match = re.fullmatch(r"text\(await tools\.exec_command\(\{cmd:'([^'\\\r\n]*)',"
+                         r"max_output_tokens:[1-9][0-9]{0,4},yield_time_ms:1000\}\)\);\n?", text)
+    if not match:
+        return []
+    records = []
+    prefix = f"{ACK09_BINARY} "
+    suffix = f" --dir {ACK09_DIR} --nonce {ACK09_NONCE}"
+    for segment in match[1].split(" && "):
+        if segment in (f"mkdir -m 0700 -- {ACK09_DIR}", f"rmdir -- {ACK09_DIR}"):
+            records.append({"verb": "mkdir" if segment.startswith("mkdir ") else "rmdir",
+                            "experiment_dir_matches": True})
+            continue
+        if segment == prefix + "inspect" + suffix:
+            records.append({"verb": "inspect", "nonce": ACK09_NONCE, "experiment_dir_matches": True})
+        elif segment == prefix + "start" + suffix + ' --delay 60s --controller-thread "$CODEX_THREAD_ID"':
+            records.append({"verb": "start", "nonce": ACK09_NONCE, "duration": "60s",
+                            "controller_from_native_env": True, "experiment_dir_matches": True})
+        else:
+            base = prefix + "ack" + suffix + ' --controller-thread "$CODEX_THREAD_ID" --revision 1 --event-hash ' + ACK09_HASH + " --command-id "
+            found = None
+            for command_id in (ACK09_FIRST, ACK09_SECOND):
+                for discarded in (False, True):
+                    if segment == base + command_id + " --decision handled" + (" > /dev/null" if discarded else ""):
+                        found = {"verb": "ack", "nonce": ACK09_NONCE, "controller_from_native_env": True,
+                                 "experiment_dir_matches": True, "revision": 1, "event_hash": ACK09_HASH,
+                                 "command_id": command_id, "decision": "handled", "stdout_discarded": discarded}
+            if found is None:
+                return []
+            records.append(found)
+    return records
+
+
 def extract_text(content):
     if isinstance(content, str):
         return content
@@ -38,6 +111,13 @@ def summarize_text(text, nonce):
 
 def safe_input(text, nonce):
     result = summarize_text(text, nonce)
+    if nonce == ACK09_NONCE:
+        ack_commands = ack09_commands(text)
+        if ack_commands:
+            result["ack09_commands"] = ack_commands
+            result["ack09_chain_operator"] = "&&"
+        if text.endswith("text(await tools.exec_command({cmd:'printenv CODEX_THREAD_ID CODEX_SESSION_ID',max_output_tokens:1000}));\n"):
+            result["ack09_identity_command"] = "printenv CODEX_THREAD_ID CODEX_SESSION_ID"
     result["operations"] = sorted(set(re.findall(
         r"tools\.(exec_command|write_stdin|clock__curr_time|get_goal|create_goal|update_goal)\s*\(", text)))
     update = re.search(r'tools\.update_goal\(\s*\{\s*(?:"status"|status)\s*:\s*"(complete|blocked)"\s*\}\s*\)', text)
@@ -131,8 +211,14 @@ def safe_output(text, nonce):
             result["synthetic_host_result"] = value
         nested = value.get("output")
         if isinstance(nested, str):
+            if nonce == ACK09_NONCE and nested == ACK09_ROOT + "\n":
+                result["ack09_native_identity_value"] = ACK09_ROOT
+            if nonce == ACK09_NONCE and nested == f"mkdir: {ACK09_DIR}: File exists\n":
+                result["ack09_directory_already_exists"] = True
             result["markers"] = sorted(set(result["markers"] + markers(nested, nonce)))
             for obj in json_objects(nested):
+                if nonce == ACK09_NONCE and ack09_output(obj):
+                    result.setdefault("ack09_outputs", []).append(obj)
                 if (isinstance(obj, dict) and set(obj) == {"version", "status", "nonce", "count"}
                         and obj["version"] == 1 and obj["nonce"] == nonce
                         and obj["status"] in ("pending", "completed") and obj["count"] in (0, 1)):

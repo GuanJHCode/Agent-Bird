@@ -1,0 +1,788 @@
+{
+  "captured_at": "2026-09-11T04:22:17.025749+00:00",
+  "root_thread": "01a08ea6-b1fb-79b1-a146-1158e247b8e4",
+  "nonce": "nr-g0-goal-09",
+  "window": {
+    "since": "2026-09-11T04:08:08Z",
+    "through": "2026-09-11T04:12:08Z"
+  },
+  "selection": "Exact root UUID and native source.parent_thread_id direct children only",
+  "privacy": "Reasoning omitted; text limited to fixed nonce messages and native wrappers; tool data is typed fields, fixed responses or hashes; explicit Hook keys only",
+  "process_observation": {
+    "requested_pid": 79894,
+    "exit_code": 1,
+    "stdout": "  PID  PPID STARTED                      ELAPSED COMM\n"
+  },
+  "hooks": [
+    {
+      "file": "c1db878b078e52cd4cee75a5f5840047.json",
+      "hook_event_name": "SessionStart",
+      "nonce": "g0-macos-20260910",
+      "pid": 91530,
+      "ppid": 79894,
+      "recorded_at": "2026-09-11T04:08:09.971551Z",
+      "session_id": "01a08ea6-b1fb-79b1-a146-1158e247b8e4",
+      "source": "startup"
+    },
+    {
+      "file": "bb7ab06f3c58b38a68720ef124bab6dd.json",
+      "hook_event_name": "UserPromptSubmit",
+      "nonce": "g0-macos-20260910",
+      "pid": 91531,
+      "ppid": 79894,
+      "recorded_at": "2026-09-11T04:08:09.981339Z",
+      "session_id": "01a08ea6-b1fb-79b1-a146-1158e247b8e4",
+      "turn_id": "01a08ea6-c2f6-7c80-8a2e-994962c7d17e"
+    }
+  ],
+  "threads": [
+    {
+      "id": "01a08ea6-b1fb-79b1-a146-1158e247b8e4",
+      "created_at_ms": 1789099684347,
+      "cli_version": "0.153.4",
+      "agent_path": null,
+      "experiment_cwd_matches": true,
+      "source_kind": "cli",
+      "events": [
+        {
+          "timestamp": "2026-09-11T04:08:08.765Z",
+          "record_type": "event_msg",
+          "type": "task_started",
+          "turn_id": "01a08ea6-c2f6-7c80-8a2e-994962c7d17e",
+          "started_at": 1789099688
+        },
+        {
+          "timestamp": "2026-09-11T04:08:09.934Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "developer"
+        },
+        {
+          "timestamp": "2026-09-11T04:08:09.934Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "developer"
+        },
+        {
+          "timestamp": "2026-09-11T04:08:09.934Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "developer"
+        },
+        {
+          "timestamp": "2026-09-11T04:08:09.934Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "user"
+        },
+        {
+          "timestamp": "2026-09-11T04:08:09.935Z",
+          "record_type": "turn_context",
+          "turn_id": "01a08ea6-c2f6-7c80-8a2e-994962c7d17e",
+          "model": "gpt-6-astra",
+          "approval_policy": "never",
+          "sandbox_policy": {
+            "type": "danger-full-access"
+          }
+        },
+        {
+          "timestamp": "2026-09-11T04:08:09.983Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "user",
+          "message_summary": {
+            "utf8_bytes": 2360,
+            "sha256": "cea0ea748c7be94d0d0d755ef7e240ad58628442c2dc68832207845dd9b52800",
+            "markers": [
+              "nr-g0-goal-09-ACK"
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T04:08:13.363Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "assistant",
+          "phase": "commentary"
+        },
+        {
+          "timestamp": "2026-09-11T04:08:18.578Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call",
+          "name": "exec",
+          "call_id": "call_O5TYSEFR3cxpwZL1uXtJvs2M",
+          "status": "completed",
+          "input_summary": {
+            "utf8_bytes": 651,
+            "sha256": "c28da3387285857d8f2d6c4474db64c40c4872340b4f111f492107ce54924e60",
+            "markers": [],
+            "ack09_identity_command": "printenv CODEX_THREAD_ID CODEX_SESSION_ID",
+            "operations": [
+              "create_goal",
+              "exec_command"
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T04:08:18.673Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call_output",
+          "call_id": "call_O5TYSEFR3cxpwZL1uXtJvs2M",
+          "output_summary": {
+            "utf8_bytes": 915,
+            "sha256": "c0899ce6ad5e790b2f93ceac74949c77b5ceb057a2cbc65d4b468eb1ce0a197b",
+            "markers": [],
+            "native_goal": {
+              "thread_id": "01a08ea6-b1fb-79b1-a146-1158e247b8e4",
+              "status": "active",
+              "tokensUsed": 0,
+              "timeUsedSeconds": 0,
+              "createdAt": 1789099698,
+              "updatedAt": 1789099698
+            },
+            "ack09_native_identity_value": "01a08ea6-b1fb-79b1-a146-1158e247b8e4",
+            "runtime": [
+              {
+                "exit_code": 0,
+                "wall_time_seconds": 2.792e-06
+              }
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T04:08:37.142Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call",
+          "name": "exec",
+          "call_id": "call_OXnkoiqq7iJw9fOZDJgMelIt",
+          "status": "completed",
+          "input_summary": {
+            "utf8_bytes": 589,
+            "sha256": "340161480d7b0ec144bef4345d0d5b2ce58a39cdaed687a1100ff3a67600b6f2",
+            "markers": [],
+            "ack09_commands": [
+              {
+                "verb": "mkdir",
+                "experiment_dir_matches": true
+              },
+              {
+                "verb": "start",
+                "nonce": "nr-g0-goal-09",
+                "duration": "60s",
+                "controller_from_native_env": true,
+                "experiment_dir_matches": true
+              }
+            ],
+            "ack09_chain_operator": "&&",
+            "operations": [
+              "exec_command"
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T04:08:37.219Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call_output",
+          "call_id": "call_OXnkoiqq7iJw9fOZDJgMelIt",
+          "output_summary": {
+            "utf8_bytes": 305,
+            "sha256": "768307231668e3c9a33a65f2662136eead8c49f047dbca3bc4c558d509d9dba3",
+            "markers": [],
+            "ack09_directory_already_exists": true,
+            "runtime": [
+              {
+                "exit_code": 1,
+                "wall_time_seconds": 4.875e-06
+              }
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T04:08:59.772Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "assistant",
+          "phase": "commentary"
+        },
+        {
+          "timestamp": "2026-09-11T04:09:06.342Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call",
+          "name": "exec",
+          "call_id": "call_rxU9f3O7jlkdZRMRP85770Q7",
+          "status": "completed",
+          "input_summary": {
+            "utf8_bytes": 733,
+            "sha256": "762bbe08717b8bc99b588920e28eff2eb346ee90ece044039801502d7f0847d1",
+            "markers": [],
+            "ack09_commands": [
+              {
+                "verb": "rmdir",
+                "experiment_dir_matches": true
+              },
+              {
+                "verb": "mkdir",
+                "experiment_dir_matches": true
+              },
+              {
+                "verb": "start",
+                "nonce": "nr-g0-goal-09",
+                "duration": "60s",
+                "controller_from_native_env": true,
+                "experiment_dir_matches": true
+              }
+            ],
+            "ack09_chain_operator": "&&",
+            "operations": [
+              "exec_command"
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T04:09:06.497Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call_output",
+          "call_id": "call_rxU9f3O7jlkdZRMRP85770Q7",
+          "output_summary": {
+            "utf8_bytes": 429,
+            "sha256": "fd153916744c99035053edfa3c1a75b1a5ac1ddcab7ec8041cad9208e17bb597",
+            "markers": [],
+            "runtime": [
+              {
+                "exit_code": 0,
+                "wall_time_seconds": 4.083e-06
+              }
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T04:09:15.365Z",
+          "record_type": "response_item",
+          "type": "function_call",
+          "name": "spawn_agent",
+          "namespace": "collaboration",
+          "call_id": "call_Otniv9qQAUXckbbEuQVOclwC",
+          "arguments_metadata": {
+            "task_name": "observe_nr_g0_goal_09",
+            "agent_type": "default",
+            "fork_turns": "none"
+          }
+        },
+        {
+          "timestamp": "2026-09-11T04:09:15.518Z",
+          "record_type": "response_item",
+          "type": "function_call_output",
+          "call_id": "call_Otniv9qQAUXckbbEuQVOclwC",
+          "output_summary": {
+            "utf8_bytes": 43,
+            "sha256": "3de616c601cea5be5b02b415d131a4dff615ae2e531952988ac67f427db0d6f7",
+            "markers": [],
+            "native_spawn_response": {
+              "task_name": "/root/observe_nr_g0_goal_09"
+            }
+          }
+        },
+        {
+          "timestamp": "2026-09-11T04:09:26.897Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "assistant",
+          "phase": "commentary"
+        },
+        {
+          "timestamp": "2026-09-11T04:09:27.187Z",
+          "record_type": "response_item",
+          "type": "function_call",
+          "name": "sleep",
+          "namespace": "clock",
+          "call_id": "call_H9f1FtHBKwt4EblWgyrE2zyC",
+          "arguments_metadata": {
+            "duration_ms": 60000
+          }
+        },
+        {
+          "timestamp": "2026-09-11T04:10:13.569Z",
+          "record_type": "response_item",
+          "type": "function_call_output",
+          "call_id": "call_H9f1FtHBKwt4EblWgyrE2zyC",
+          "output_summary": {
+            "utf8_bytes": 58,
+            "sha256": "295966aec1dc8bcb9b8a001f6ad59680b5c1087e234fcf471e2a9f9ccb985090",
+            "markers": [],
+            "native_sleep_response": "Wall time: 46.3746 seconds\nSleep interrupted by new input."
+          }
+        },
+        {
+          "timestamp": "2026-09-11T04:10:13.598Z",
+          "record_type": "response_item",
+          "type": "agent_message",
+          "author": "/root/observe_nr_g0_goal_09",
+          "recipient": "/root",
+          "message_summary": {
+            "utf8_bytes": 651,
+            "sha256": "1c7027d623eb1df244f50e3ce715a88a31fb7a9fbdecd649d9217f9a3271d5d1",
+            "markers": []
+          }
+        },
+        {
+          "timestamp": "2026-09-11T04:10:21.222Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call",
+          "name": "exec",
+          "call_id": "call_1hU271G4hcAmuDt1vi7GsECf",
+          "status": "completed",
+          "input_summary": {
+            "utf8_bytes": 388,
+            "sha256": "3f60ff8ffdd0c541fd80c6653ddf5f5818de92bd5babfb318c336c50fc849b6a",
+            "markers": [],
+            "ack09_commands": [
+              {
+                "verb": "inspect",
+                "nonce": "nr-g0-goal-09",
+                "experiment_dir_matches": true
+              }
+            ],
+            "ack09_chain_operator": "&&",
+            "operations": [
+              "exec_command"
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T04:10:21.312Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call_output",
+          "call_id": "call_1hU271G4hcAmuDt1vi7GsECf",
+          "output_summary": {
+            "utf8_bytes": 529,
+            "sha256": "9c8513c2f3a93b600a3d175187d3c233717d96dfece90cb56448885b43bf788d",
+            "markers": [],
+            "ack09_outputs": [
+              {
+                "version": 1,
+                "status": "completed",
+                "nonce": "nr-g0-goal-09",
+                "controller_thread": "01a08ea6-b1fb-79b1-a146-1158e247b8e4",
+                "revision": 1,
+                "task_revision": 1,
+                "cancelled": false,
+                "event_hash": "13f3cef9f354a68d870b53b825c6c3ea7e6be91ae899e13ecb8957ddd4879c51",
+                "result": {
+                  "version": 1,
+                  "status": "completed",
+                  "nonce": "nr-g0-goal-09",
+                  "count": 1
+                },
+                "ack": null
+              }
+            ],
+            "runtime": [
+              {
+                "exit_code": 0,
+                "wall_time_seconds": 6.709e-06
+              }
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T04:10:29.412Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "assistant",
+          "phase": "commentary"
+        },
+        {
+          "timestamp": "2026-09-11T04:10:46.235Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call",
+          "name": "exec",
+          "call_id": "call_Y4BpOP4gnxhATRaJzc7bs3xZ",
+          "status": "completed",
+          "input_summary": {
+            "utf8_bytes": 1714,
+            "sha256": "35393dc945cc050ec404f34c2823805da94cf19bf66a71966c888b4bcfd9ec85",
+            "markers": [],
+            "ack09_commands": [
+              {
+                "verb": "ack",
+                "nonce": "nr-g0-goal-09",
+                "controller_from_native_env": true,
+                "experiment_dir_matches": true,
+                "revision": 1,
+                "event_hash": "13f3cef9f354a68d870b53b825c6c3ea7e6be91ae899e13ecb8957ddd4879c51",
+                "command_id": "10000000-0000-4000-8000-000000000001",
+                "decision": "handled",
+                "stdout_discarded": true
+              },
+              {
+                "verb": "ack",
+                "nonce": "nr-g0-goal-09",
+                "controller_from_native_env": true,
+                "experiment_dir_matches": true,
+                "revision": 1,
+                "event_hash": "13f3cef9f354a68d870b53b825c6c3ea7e6be91ae899e13ecb8957ddd4879c51",
+                "command_id": "10000000-0000-4000-8000-000000000002",
+                "decision": "handled",
+                "stdout_discarded": false
+              },
+              {
+                "verb": "inspect",
+                "nonce": "nr-g0-goal-09",
+                "experiment_dir_matches": true
+              },
+              {
+                "verb": "inspect",
+                "nonce": "nr-g0-goal-09",
+                "experiment_dir_matches": true
+              }
+            ],
+            "ack09_chain_operator": "&&",
+            "operations": [
+              "exec_command"
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T04:10:46.357Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call_output",
+          "call_id": "call_Y4BpOP4gnxhATRaJzc7bs3xZ",
+          "output_summary": {
+            "utf8_bytes": 1963,
+            "sha256": "d6062179e8c9f8459fe0de24248693ba8b9e8a949400272f35072074313b3c4b",
+            "markers": [],
+            "ack09_outputs": [
+              {
+                "version": 1,
+                "status": "acknowledged",
+                "nonce": "nr-g0-goal-09",
+                "controller_thread": "01a08ea6-b1fb-79b1-a146-1158e247b8e4",
+                "revision": 1,
+                "event_hash": "13f3cef9f354a68d870b53b825c6c3ea7e6be91ae899e13ecb8957ddd4879c51",
+                "command_id": "10000000-0000-4000-8000-000000000001",
+                "decision": "handled",
+                "decision_count": 1,
+                "effect_count": 1
+              },
+              {
+                "version": 1,
+                "status": "completed",
+                "nonce": "nr-g0-goal-09",
+                "controller_thread": "01a08ea6-b1fb-79b1-a146-1158e247b8e4",
+                "revision": 1,
+                "task_revision": 1,
+                "cancelled": false,
+                "event_hash": "13f3cef9f354a68d870b53b825c6c3ea7e6be91ae899e13ecb8957ddd4879c51",
+                "result": {
+                  "version": 1,
+                  "status": "completed",
+                  "nonce": "nr-g0-goal-09",
+                  "count": 1
+                },
+                "ack": {
+                  "version": 1,
+                  "status": "acknowledged",
+                  "nonce": "nr-g0-goal-09",
+                  "controller_thread": "01a08ea6-b1fb-79b1-a146-1158e247b8e4",
+                  "revision": 1,
+                  "event_hash": "13f3cef9f354a68d870b53b825c6c3ea7e6be91ae899e13ecb8957ddd4879c51",
+                  "command_id": "10000000-0000-4000-8000-000000000001",
+                  "decision": "handled",
+                  "decision_count": 1,
+                  "effect_count": 1
+                }
+              },
+              {
+                "version": 1,
+                "status": "completed",
+                "nonce": "nr-g0-goal-09",
+                "controller_thread": "01a08ea6-b1fb-79b1-a146-1158e247b8e4",
+                "revision": 1,
+                "task_revision": 1,
+                "cancelled": false,
+                "event_hash": "13f3cef9f354a68d870b53b825c6c3ea7e6be91ae899e13ecb8957ddd4879c51",
+                "result": {
+                  "version": 1,
+                  "status": "completed",
+                  "nonce": "nr-g0-goal-09",
+                  "count": 1
+                },
+                "ack": {
+                  "version": 1,
+                  "status": "acknowledged",
+                  "nonce": "nr-g0-goal-09",
+                  "controller_thread": "01a08ea6-b1fb-79b1-a146-1158e247b8e4",
+                  "revision": 1,
+                  "event_hash": "13f3cef9f354a68d870b53b825c6c3ea7e6be91ae899e13ecb8957ddd4879c51",
+                  "command_id": "10000000-0000-4000-8000-000000000001",
+                  "decision": "handled",
+                  "decision_count": 1,
+                  "effect_count": 1
+                }
+              }
+            ],
+            "runtime": [
+              {
+                "exit_code": 0,
+                "wall_time_seconds": 7.417e-06
+              }
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T04:10:49.588Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call",
+          "name": "exec",
+          "call_id": "call_1PczeCzvTiVbU2BtxHbvfZ7p",
+          "status": "completed",
+          "input_summary": {
+            "utf8_bytes": 52,
+            "sha256": "0f5b2f67f59e052e2528ac7991c167589f261d724e11022937d977d418eab772",
+            "markers": [],
+            "operations": [
+              "update_goal"
+            ],
+            "goal_status_argument": "complete"
+          }
+        },
+        {
+          "timestamp": "2026-09-11T04:10:49.761Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call_output",
+          "call_id": "call_1PczeCzvTiVbU2BtxHbvfZ7p",
+          "output_summary": {
+            "utf8_bytes": 1100,
+            "sha256": "b6bd290aa9760aeb8a5caeadd882e22c6e06dc61a64164bf89a15cf421653572",
+            "markers": [],
+            "native_goal": {
+              "thread_id": "01a08ea6-b1fb-79b1-a146-1158e247b8e4",
+              "status": "complete",
+              "tokensUsed": 59692,
+              "timeUsedSeconds": 151,
+              "createdAt": 1789099698,
+              "updatedAt": 1789099849
+            }
+          }
+        },
+        {
+          "timestamp": "2026-09-11T04:10:51.746Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "assistant",
+          "phase": "final_answer",
+          "message_summary": {
+            "utf8_bytes": 17,
+            "sha256": "b94cceb28307b4388281432d764eb1e328a6b67c0007fc8d37f850a93d7f70b0",
+            "markers": [
+              "nr-g0-goal-09-ACK"
+            ]
+          },
+          "text": "nr-g0-goal-09-ACK"
+        },
+        {
+          "timestamp": "2026-09-11T04:10:51.836Z",
+          "record_type": "event_msg",
+          "type": "task_complete",
+          "turn_id": "01a08ea6-c2f6-7c80-8a2e-994962c7d17e",
+          "started_at": 1789099688,
+          "completed_at": 1789099851,
+          "duration_ms": 163134,
+          "last_agent_message": "nr-g0-goal-09-ACK"
+        }
+      ]
+    },
+    {
+      "id": "01a08ea7-c770-7283-a268-6ccd7461bdcf",
+      "created_at_ms": 1789099755376,
+      "cli_version": "0.153.4",
+      "agent_path": "/root/observe_nr_g0_goal_09",
+      "experiment_cwd_matches": true,
+      "source_kind": "subagent",
+      "parent_thread_id": "01a08ea6-b1fb-79b1-a146-1158e247b8e4",
+      "events": [
+        {
+          "timestamp": "2026-09-11T04:09:15.548Z",
+          "record_type": "event_msg",
+          "type": "task_started",
+          "turn_id": "01a08ea7-c7f3-7590-b883-ac0b61293cb4",
+          "started_at": 1789099755
+        },
+        {
+          "timestamp": "2026-09-11T04:09:18.734Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "developer"
+        },
+        {
+          "timestamp": "2026-09-11T04:09:18.734Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "developer"
+        },
+        {
+          "timestamp": "2026-09-11T04:09:18.734Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "developer"
+        },
+        {
+          "timestamp": "2026-09-11T04:09:18.734Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "user"
+        },
+        {
+          "timestamp": "2026-09-11T04:09:18.736Z",
+          "record_type": "turn_context",
+          "turn_id": "01a08ea7-c7f3-7590-b883-ac0b61293cb4",
+          "model": "gpt-6-astra",
+          "approval_policy": "never",
+          "sandbox_policy": {
+            "type": "danger-full-access"
+          }
+        },
+        {
+          "timestamp": "2026-09-11T04:09:18.739Z",
+          "record_type": "response_item",
+          "type": "agent_message",
+          "author": "/root",
+          "recipient": "/root/observe_nr_g0_goal_09"
+        },
+        {
+          "timestamp": "2026-09-11T04:09:25.083Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "assistant",
+          "phase": "commentary"
+        },
+        {
+          "timestamp": "2026-09-11T04:09:28.734Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call",
+          "name": "exec",
+          "call_id": "call_kxyQPjSk5kyequ62yZ3MhJnR",
+          "status": "completed",
+          "input_summary": {
+            "utf8_bytes": 400,
+            "sha256": "482d6b236db4e05ee4c8497c838ea0ba115202cb24db589e0b1f838135ced97e",
+            "markers": [],
+            "operations": [
+              "exec_command"
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T04:09:29.912Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call_output",
+          "call_id": "call_kxyQPjSk5kyequ62yZ3MhJnR",
+          "output_summary": {
+            "utf8_bytes": 156,
+            "sha256": "db871eb95f307dacfa492df6ed4d21b350e2f4bd8aad657e9466a9562b29c658",
+            "markers": [],
+            "runtime": [
+              {
+                "session_id": 78575,
+                "wall_time_seconds": 1.003845708
+              }
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T04:09:33.410Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call",
+          "name": "exec",
+          "call_id": "call_IUvXYeZHr4uCqiMYTcbs8wW0",
+          "status": "completed",
+          "input_summary": {
+            "utf8_bytes": 103,
+            "sha256": "286ebb4d3ea865e90d11c137f998a811096673727726822beb30e993c33048f9",
+            "markers": [],
+            "operations": [
+              "write_stdin"
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T04:09:38.419Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call_output",
+          "call_id": "call_IUvXYeZHr4uCqiMYTcbs8wW0",
+          "output_summary": {
+            "utf8_bytes": 156,
+            "sha256": "4f6b77fd52b89df0e7a0bdfe24476bc6f44ff13cb2cabb8b7b787874f335c2d7",
+            "markers": [],
+            "runtime": [
+              {
+                "session_id": 78575,
+                "wall_time_seconds": 5.001698584
+              }
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T04:09:41.821Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call",
+          "name": "exec",
+          "call_id": "call_na0roUSUyuLeC0aK0ruj0vG1",
+          "status": "completed",
+          "input_summary": {
+            "utf8_bytes": 104,
+            "sha256": "c680645d180230cb61bc58c90b0f6ca3ca2b5c018bfd4c832486b522efbc99e6",
+            "markers": [],
+            "operations": [
+              "write_stdin"
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T04:10:06.575Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call_output",
+          "call_id": "call_na0roUSUyuLeC0aK0ruj0vG1",
+          "output_summary": {
+            "utf8_bytes": 236,
+            "sha256": "3360762f33e329d812b8f961ac1a2dd91b6beade08858b756fac56a320f50cd8",
+            "markers": [],
+            "synthetic_host_result": {
+              "version": 1,
+              "status": "completed",
+              "nonce": "nr-g0-goal-09",
+              "count": 1
+            },
+            "runtime": [
+              {
+                "exit_code": 0,
+                "wall_time_seconds": 24.743575625
+              }
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T04:10:13.520Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "assistant",
+          "phase": "final_answer",
+          "message_summary": {
+            "utf8_bytes": 562,
+            "sha256": "f211690b8c98b2b1297b3536fe6135f839b4c4608c9e7d52ec3a7de47f2729ee",
+            "markers": []
+          }
+        },
+        {
+          "timestamp": "2026-09-11T04:10:13.562Z",
+          "record_type": "event_msg",
+          "type": "task_complete",
+          "turn_id": "01a08ea7-c7f3-7590-b883-ac0b61293cb4",
+          "started_at": 1789099755,
+          "completed_at": 1789099813,
+          "duration_ms": 58049
+        }
+      ]
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 {
-  "verified_at": "2026-09-11T02:46:16.392647+00:00",
+  "verified_at": "2026-09-11T04:22:51.875266+00:00",
   "old_commit": "153a4ff",
   "red": "old collector actually exported fixture plaintext canary",
   "green": "current collector omitted canary from unknown tool input/output/arguments, message, source and Hook fields",

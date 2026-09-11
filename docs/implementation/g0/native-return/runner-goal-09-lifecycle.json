@@ -1,0 +1,43 @@
+{
+  "nonce": "nr-g0-goal-09",
+  "root_thread": "01a08ea6-b1fb-79b1-a146-1158e247b8e4",
+  "native_pid": 79894,
+  "native_session": 11106,
+  "submitted_at": "2026-09-11 04:08:08 UTC",
+  "classification": "native root owned start; controlled first ACK stdout discard; new-command-id retry; repeated inspect",
+  "first_command_id": "10000000-0000-4000-8000-000000000001",
+  "retry_command_id": "10000000-0000-4000-8000-000000000002",
+  "binary_sha256": "8ed9567aaf95867204f448aa5bd498a7ce5895790a0f24149419d9b460c962db",
+  "model_window_seconds": 120,
+  "controller_env_override": false,
+  "initial_window": {
+    "since": "2026-09-11T04:08:08Z",
+    "through": "2026-09-11T04:10:08Z",
+    "full_ack_flow": "NOT_PASSED_WITHIN_FIXED_WINDOW"
+  },
+  "bounded_cleanup_window": {
+    "through": "2026-09-11T04:12:08Z",
+    "natural_task_complete": "2026-09-11T04:10:51.836Z",
+    "no_additional_model_input": true
+  },
+  "native_goal_active_at": "2026-09-11T04:08:18.673Z",
+  "native_goal_complete_at": "2026-09-11T04:10:49.761Z",
+  "first_inspect_at": "2026-09-11T04:10:21.312Z",
+  "ack_retry_and_two_inspects_at": "2026-09-11T04:10:46.357Z",
+  "setup_failure": {
+    "at": "2026-09-11T04:08:37.219Z",
+    "reason": "precreated empty directory already existed; mkdir exited 1 before && start",
+    "start_executed": false
+  },
+  "successful_host_start_at": "2026-09-11T04:09:06.497Z",
+  "successful_host_start_count": 1,
+  "observer_child": {
+    "thread_id": "01a08ea7-c770-7283-a268-6ccd7461bdcf",
+    "wait_commands": 1,
+    "write_stdin_calls": 2,
+    "other_tool_calls": 0
+  },
+  "quit_submitted_at": "2026-09-11T04:16:29Z",
+  "tui_exit_code": 0,
+  "timing_note": "Natural completion occurred inside the bounded cleanup window; TUI shutdown was later after observation/context recovery, not a reset of the initial model deadline."
+}

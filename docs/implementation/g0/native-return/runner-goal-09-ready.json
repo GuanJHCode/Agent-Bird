@@ -1,0 +1,19 @@
+{
+  "ready_at": "2026-09-11T04:09:06.581368+00:00",
+  "scope": "host_process_and_pending_result",
+  "goal_checked": false,
+  "root_thread": "01a08ea6-b1fb-79b1-a146-1158e247b8e4",
+  "root_thread_source": "caller_supplied",
+  "nonce": "nr-g0-goal-09",
+  "native_identity": "79894 38821 79894 Fri Sep 11 11:27:13 2026     codex",
+  "worker_identity": "92122     1 92122 Fri Sep 11 12:09:06 2026     /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-native-return/tmp/host-impl/tools/g0-return-lab/data/g0-return-lab-ack",
+  "job": {
+    "version": 1,
+    "status": "started",
+    "nonce": "nr-g0-goal-09",
+    "worker_pid": 92122,
+    "controller_thread": "01a08ea6-b1fb-79b1-a146-1158e247b8e4",
+    "task_revision": 1
+  },
+  "result_present": false
+}

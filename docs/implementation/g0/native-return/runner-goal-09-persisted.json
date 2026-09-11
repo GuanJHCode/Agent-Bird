@@ -1,0 +1,27 @@
+{
+  "observed_at": "2026-09-11T04:24:51.183849+00:00",
+  "nonce": "nr-g0-goal-09",
+  "controller_thread": "01a08ea6-b1fb-79b1-a146-1158e247b8e4",
+  "result": {
+    "version": 1,
+    "status": "completed",
+    "nonce": "nr-g0-goal-09",
+    "count": 1
+  },
+  "ack": {
+    "version": 1,
+    "status": "acknowledged",
+    "nonce": "nr-g0-goal-09",
+    "controller_thread": "01a08ea6-b1fb-79b1-a146-1158e247b8e4",
+    "revision": 1,
+    "event_hash": "13f3cef9f354a68d870b53b825c6c3ea7e6be91ae899e13ecb8957ddd4879c51",
+    "command_id": "10000000-0000-4000-8000-000000000001",
+    "decision": "handled",
+    "decision_count": 1,
+    "effect_count": 1
+  },
+  "event_hash_recomputed_from_exact_contract": "13f3cef9f354a68d870b53b825c6c3ea7e6be91ae899e13ecb8957ddd4879c51",
+  "inspection_before_ack_had_no_ack": true,
+  "native_retry_output_and_two_inspects_match_persisted_record": true,
+  "read_only_observation": true
+}

@@ -1,0 +1,113 @@
+{
+  "observed_at": "2026-09-11T04:24:51.183849+00:00",
+  "native_tuis": [
+    {
+      "pid": 46093,
+      "process_absent": true
+    },
+    {
+      "pid": 53524,
+      "process_absent": true
+    },
+    {
+      "pid": 55425,
+      "process_absent": true
+    },
+    {
+      "pid": 59933,
+      "process_absent": true
+    },
+    {
+      "pid": 62637,
+      "process_absent": true
+    },
+    {
+      "pid": 67153,
+      "process_absent": true
+    },
+    {
+      "pid": 72170,
+      "process_absent": true
+    },
+    {
+      "pid": 79894,
+      "process_absent": true
+    }
+  ],
+  "workers": [
+    {
+      "directory": "runner-host-offline-01",
+      "worker_pid": 53297,
+      "process_absent": true
+    },
+    {
+      "directory": "runner-host-goal-01",
+      "worker_pid": 54879,
+      "process_absent": true
+    },
+    {
+      "directory": "runner-host-goal-02",
+      "worker_pid": 59146,
+      "process_absent": true
+    },
+    {
+      "directory": "runner-host-goal-03",
+      "worker_pid": 62186,
+      "process_absent": true
+    },
+    {
+      "directory": "runner-host-goal-04",
+      "worker_pid": 65835,
+      "process_absent": true
+    },
+    {
+      "directory": "runner-host-goal-05",
+      "worker_pid": 70688,
+      "process_absent": true
+    },
+    {
+      "directory": "runner-host-goal-06",
+      "worker_pid": 75707,
+      "process_absent": true
+    },
+    {
+      "directory": "runner-host-goal-07",
+      "worker_pid": 79582,
+      "process_absent": true
+    },
+    {
+      "directory": "runner-host-goal-08",
+      "worker_pid": 83971,
+      "process_absent": true
+    },
+    {
+      "directory": "runner-host-goal-09",
+      "worker_pid": 92122,
+      "process_absent": true
+    }
+  ],
+  "last_tui": {
+    "session": 11106,
+    "pid": 79894,
+    "quit_submitted_at": "2026-09-11T04:16:29Z",
+    "normal_exit_code": 0,
+    "goal_already_complete_before_quit": true
+  },
+  "removed_in_final_pass": [],
+  "regression_temporary_fixtures": "self-cleaned; no private fixture retained",
+  "retained_runtime_root": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/tasks/native-return/data",
+  "retained_runtime_directories": [
+    "runner-host-offline-01",
+    "runner-host-goal-01",
+    "runner-host-goal-02",
+    "runner-host-goal-03",
+    "runner-host-goal-04",
+    "runner-host-goal-05",
+    "runner-host-goal-06",
+    "runner-host-goal-07",
+    "runner-host-goal-08",
+    "runner-host-goal-09"
+  ],
+  "retention_reason": "immutable synthetic job/result and final ACK records support the experiment evidence",
+  "other_agents_and_preexisting_config_hooks_history": "preserved; no global configuration or native history deletion"
+}

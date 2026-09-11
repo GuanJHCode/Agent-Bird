@@ -1,0 +1,41 @@
+{
+  "verified_at": "2026-09-11T04:24:51.183849+00:00",
+  "root_thread": "01a08ea6-b1fb-79b1-a146-1158e247b8e4",
+  "nonce": "nr-g0-goal-09",
+  "original_window_seconds": 120,
+  "full_ack_flow_within_original_window": false,
+  "host_ready_within_original_window": true,
+  "host_ready_goal_checked": false,
+  "independent_native_goal_active": {
+    "call_id": "call_O5TYSEFR3cxpwZL1uXtJvs2M",
+    "timestamp": "2026-09-11T04:08:18.673Z",
+    "thread_matches": true
+  },
+  "native_thread_env_matches_owned_job": true,
+  "codex_session_id": "not established; printenv returned one UUID only",
+  "successful_host_start_count": 1,
+  "observer_wait_count": 1,
+  "observer_write_stdin_count": 2,
+  "root_ack_count": 2,
+  "first_ack_stdout_discarded": true,
+  "retry_supplies_different_command_id": true,
+  "retry_returns_first_command_id": true,
+  "repeated_inspect_count": 2,
+  "decision_count": 1,
+  "effect_count": 1,
+  "event_hash_verified": true,
+  "actual_result_item_type": "custom_tool_call_output",
+  "child_notification_item_type": "agent_message",
+  "child_notification_has_role": false,
+  "native_goal_complete_at": "2026-09-11T04:10:49.761Z",
+  "ack_task_complete_at": "2026-09-11T04:10:51.836Z",
+  "task_started_count": 1,
+  "post_ack_no_new_turn_observation_seconds_in_cleanup_window": 76.164,
+  "no_new_task_started_through_normal_quit": true,
+  "tests": {
+    "ack_whitelist": "4 passed after 3 initial red failures; unknown-key/type/owner/hash canaries rejected",
+    "ready_cli": "8 passed",
+    "collector_privacy": "old disclosure reproduced; current canary omitted; wrong parent/cwd/non-CLI rejected; fixture cleaned"
+  },
+  "scope": "one late native ACK observation plus an in-window Host-ready positive; controlled stdout discard, not a killed ACK process or full G0 pass"
+}
