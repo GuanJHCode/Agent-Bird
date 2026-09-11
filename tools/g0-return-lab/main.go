@@ -23,16 +23,24 @@ func (f failure) Error() string { return string(f) }
 type options struct {
 	sub, dir, nonce string
 	duration        time.Duration
+	controller      string
+	revision        int
+	eventHash       string
+	commandID       string
+	decision        string
+	cancel          bool
 }
 
 type job struct {
-	Version    int    `json:"version"`
-	Status     string `json:"status"`
-	Nonce      string `json:"nonce"`
-	WorkerPID  int    `json:"worker_pid"`
-	CreatedAt  string `json:"created_at"`
-	JobFile    string `json:"job_file"`
-	ResultFile string `json:"result_file"`
+	Version          int    `json:"version"`
+	Status           string `json:"status"`
+	Nonce            string `json:"nonce"`
+	WorkerPID        int    `json:"worker_pid"`
+	CreatedAt        string `json:"created_at"`
+	JobFile          string `json:"job_file"`
+	ResultFile       string `json:"result_file"`
+	ControllerThread string `json:"controller_thread,omitempty"`
+	TaskRevision     int    `json:"task_revision,omitempty"`
 }
 
 type result struct {
@@ -81,11 +89,24 @@ func parse(args []string) (options, error) {
 	fs.StringVar(&o.nonce, "nonce", "", "task identifier")
 	var duration string
 	switch o.sub {
-	case "start", "_worker":
+	case "start":
+		fs.StringVar(&o.controller, "controller-thread", "", "native controller thread")
+		fs.StringVar(&duration, "delay", "", "100ms to 60s")
+	case "_worker":
 		fs.StringVar(&duration, "delay", "", "100ms to 60s")
 	case "wait":
 		fs.StringVar(&duration, "timeout", "", "100ms to 120s")
-	case "read":
+	case "ack", "revise":
+		fs.StringVar(&o.controller, "controller-thread", "", "native controller thread")
+		fs.IntVar(&o.revision, "revision", 0, "expected current revision")
+		if o.sub == "ack" {
+			fs.StringVar(&o.eventHash, "event-hash", "", "SHA-256 of the bound result envelope")
+			fs.StringVar(&o.commandID, "command-id", "", "request identity")
+			fs.StringVar(&o.decision, "decision", "", "handled, waiting_user, stale, or rejected")
+		} else {
+			fs.BoolVar(&o.cancel, "cancel", false, "terminal cancellation of future ACKs")
+		}
+	case "read", "inspect":
 	default:
 		return o, failure("invalid_args")
 	}
@@ -93,7 +114,22 @@ func parse(args []string) (options, error) {
 		return o, failure("invalid_args")
 	}
 	o.dir = filepath.Clean(o.dir)
-	if o.sub != "read" {
+	ownerProvided := false
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == "controller-thread" {
+			ownerProvided = true
+		}
+	})
+	if (ownerProvided || o.sub == "ack" || o.sub == "revise") && !safeNonce.MatchString(o.controller) {
+		return o, failure("invalid_args")
+	}
+	if (o.sub == "ack" || o.sub == "revise") && !validRevision(o.revision) {
+		return o, failure("invalid_args")
+	}
+	if o.sub == "ack" && (!safeHash.MatchString(o.eventHash) || !safeNonce.MatchString(o.commandID) || !validDecision(o.decision)) {
+		return o, failure("invalid_args")
+	}
+	if o.sub == "start" || o.sub == "_worker" || o.sub == "wait" {
 		var err error
 		o.duration, err = time.ParseDuration(duration)
 		max := 60 * time.Second
@@ -115,6 +151,9 @@ func run(args []string) error {
 	if err != nil {
 		return err
 	}
+	if o.controller != "" && os.Getenv("CODEX_THREAD_ID") != o.controller {
+		return failure("thread_mismatch")
+	}
 	root, err := openPrivateDir(o.dir)
 	if err != nil {
 		return err
@@ -129,6 +168,12 @@ func run(args []string) error {
 		return json.NewEncoder(os.Stdout).Encode(j)
 	case "_worker":
 		return work(root, o)
+	case "inspect", "ack", "revise":
+		value, err := controlCommand(root, o)
+		if err != nil {
+			return err
+		}
+		return json.NewEncoder(os.Stdout).Encode(value)
 	default:
 		deadline := time.Now().Add(o.duration)
 		for {
@@ -260,6 +305,11 @@ func start(root *os.Root, o options) (job, error) {
 	if err := syncDir(root); err != nil {
 		return zero, failure("start_failed")
 	}
+	if o.controller != "" {
+		if err := initializeControl(root, o); err != nil {
+			return zero, failure("start_failed")
+		}
+	}
 	executable, err := os.Executable()
 	if err != nil {
 		return zero, failure("start_failed")
@@ -289,7 +339,7 @@ func start(root *os.Root, o options) (job, error) {
 		return zero, failure("start_uncertain")
 	}
 	onDisk, err := readJob(root, o.nonce)
-	if err != nil || onDisk != ready || ready.WorkerPID != cmd.Process.Pid {
+	if err != nil || onDisk != ready || ready.WorkerPID != cmd.Process.Pid || ready.ControllerThread != o.controller {
 		return zero, failure("start_uncertain")
 	}
 	return ready, nil
@@ -308,6 +358,9 @@ func readJob(root *os.Root, nonce string) (job, error) {
 	}
 	_, timeErr := time.Parse(time.RFC3339Nano, j.CreatedAt)
 	if j.Version != 1 || j.Status != "started" || j.WorkerPID <= 0 || timeErr != nil || j.JobFile != "job.json" || j.ResultFile != "result.json" {
+		return j, failure("invalid_artifact")
+	}
+	if (j.ControllerThread == "" && j.TaskRevision != 0) || (j.ControllerThread != "" && (!safeNonce.MatchString(j.ControllerThread) || j.TaskRevision != 1)) {
 		return j, failure("invalid_artifact")
 	}
 	return j, nil
@@ -344,7 +397,16 @@ func work(root *os.Root, o options) error {
 	if err := readJSON(root, "claim.json", &c); err != nil || c.Version != 1 || c.Nonce != o.nonce {
 		return failure("invalid_claim")
 	}
-	j := job{1, "started", o.nonce, os.Getpid(), time.Now().UTC().Format(time.RFC3339Nano), "job.json", "result.json"}
+	j := job{Version: 1, Status: "started", Nonce: o.nonce, WorkerPID: os.Getpid(), CreatedAt: time.Now().UTC().Format(time.RFC3339Nano), JobFile: "job.json", ResultFile: "result.json"}
+	if _, err := root.Lstat("control.json"); err == nil {
+		c, err := readControl(root, o.nonce)
+		if err != nil || c.Revision != 1 || c.Cancelled || c.ControllerThread != os.Getenv("CODEX_THREAD_ID") {
+			return failure("invalid_artifact")
+		}
+		j.ControllerThread, j.TaskRevision = c.ControllerThread, c.Revision
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return failure("invalid_artifact")
+	}
 	if err := publish(root, "job.json", j); err != nil {
 		return failure("start_failed")
 	}
