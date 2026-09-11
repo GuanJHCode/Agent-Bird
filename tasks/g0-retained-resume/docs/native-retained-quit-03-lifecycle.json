@@ -1,0 +1,50 @@
+{
+  "root_thread": "01a08f57-d3a8-7e72-8683-0058c9b9c667",
+  "nonce": "rr-retained-quit-03",
+  "initial_native_pid": 26630,
+  "initial_native_session": 27184,
+  "preflight": {
+    "native_identity": {
+      "pid": 26630,
+      "ppid": 38821,
+      "pgid": 26630,
+      "started_at_local": "Fri Sep 11 15:21:32 2026",
+      "executable": "codex"
+    },
+    "binary": {
+      "phase": "dispatch_preflight",
+      "at": "2026-09-11T07:21:36.000994+00:00",
+      "sha256": "feb9b9ad969abca5ff35db28c0f0d8d920dc0778d7aac68a90952900e989a285",
+      "inode": 160558786,
+      "size": 4227346
+    }
+  },
+  "registration": {
+    "registered_at": "2026-09-11T07:21:38.324194+00:00"
+  },
+  "initial_model_window": {
+    "since": "2026-09-11T07:21:37.136Z",
+    "through": "2026-09-11T07:23:37.137Z"
+  },
+  "initial_observation_through": "2026-09-11T07:21:57.840Z",
+  "action_at": "2026-09-11T07:21:54.286Z",
+  "initial_tui_exit": 0,
+  "resume_at": "2026-09-11T07:21:57.942Z",
+  "resume_native_pid": 27494,
+  "resume_native_session": 44069,
+  "resume_has_prompt": false,
+  "resume_root_confirmed": "01a08f57-d3a8-7e72-8683-0058c9b9c667",
+  "idle_observation_through": "2026-09-11T07:22:11.467Z",
+  "explicit_continue_at": "2026-09-11T07:22:13.857Z",
+  "explicit_continue_deadline": "2026-09-11T07:24:13.857Z",
+  "continue_observation_through": "2026-09-11T07:23:24.016Z",
+  "continued_ack_within_window": true,
+  "ack": {
+    "ack_at": "2026-09-11T07:23:23.940Z",
+    "turn_id": "01a08f58-73e4-7aa1-b6a0-e3843cbbfce7",
+    "within_original_continue_window": true
+  },
+  "cleanup_quit_at": "2026-09-11T07:23:25.403Z",
+  "cleanup_tui_exit": 0,
+  "whole_controller_continuous": true
+}

@@ -1,0 +1,31 @@
+{
+  "root_thread": "01a08f63-3899-75d3-a0ea-00fc3323ddc0",
+  "nonce": "rr-retained-quit-04",
+  "scope": "own continued phase only; structural metadata and hashes, not new trusted snapshot source",
+  "events": [
+    {
+      "timestamp": "2026-09-11T07:35:00.023Z",
+      "type": "custom_tool_call_output",
+      "call_id": "call_BmISX7ATCH8SBE74xDt8lLpA",
+      "numeric_process_sessions": [
+        86406
+      ]
+    },
+    {
+      "timestamp": "2026-09-11T07:35:08.699Z",
+      "type": "custom_tool_call",
+      "call_id": "call_ySBJV6KwEqCxsnhqXA54qcwG",
+      "operation_token": "write_stdin",
+      "single_literal_session_id": 86406,
+      "literal_parser_recognized": false,
+      "leading_exec_pragma": true,
+      "empty_chars_literal_present": true,
+      "yield_time_ms_literals": [
+        60000,
+        60000
+      ],
+      "source_sha256": "09f64c7b85df0a27c5d1aed95023b591a743626d7ec32c03ee4779797bdb3ee4"
+    }
+  ],
+  "collector_source_policy_changed": false
+}

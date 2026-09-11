@@ -1,0 +1,226 @@
+{
+  "root_thread": "01a08f57-d3a8-7e72-8683-0058c9b9c667",
+  "nonce": "rr-retained-quit-03",
+  "mode": "snapshot",
+  "began_at": "2026-09-11T07:23:24.131034+00:00",
+  "ended_at": "2026-09-11T07:23:24.152584+00:00",
+  "elapsed_seconds": 0.021551,
+  "deadline": "2026-09-11T07:23:34.131034+00:00",
+  "success": true,
+  "origin": null,
+  "action": null,
+  "view": {
+    "snapshot": {
+      "version": 1,
+      "status": "completed",
+      "nonce": "rr-retained-quit-03",
+      "controller_thread": "01a08f57-d3a8-7e72-8683-0058c9b9c667",
+      "revision": 1,
+      "segment": 2,
+      "completed_steps": 12,
+      "total_steps": 12,
+      "interval_ms": 4000,
+      "worker_pid": 28735,
+      "segment_started_at": "2026-09-11T07:22:30.664937Z",
+      "updated_at": "2026-09-11T07:23:14.828383Z",
+      "effect_count": 12,
+      "liveness_checked": false
+    },
+    "native_identity": {
+      "pid": 27494,
+      "ppid": 38821,
+      "pgid": 27494,
+      "started_at_local": "Fri Sep 11 15:21:57 2026",
+      "executable": "codex"
+    },
+    "worker_identity": null,
+    "lock": {
+      "available": true,
+      "device": 16777234,
+      "inode": 160658824
+    },
+    "effects": [
+      {
+        "step": 1,
+        "sha256": "f36bd8b7a0f444a3f88a00fcced288113125aa969de9f866d0b4f8e0697d5859",
+        "bytes": 307
+      },
+      {
+        "step": 2,
+        "sha256": "b81e69aea00bb8a1133b0de02b0d0150e30e1a0ad41a9e5d1efaef501eeebb4d",
+        "bytes": 307
+      },
+      {
+        "step": 3,
+        "sha256": "5b09275cadb5425e7d7e9c046a2b85177d678de5787d93219dc027aad83cd533",
+        "bytes": 307
+      },
+      {
+        "step": 4,
+        "sha256": "eda6c510e863a7a593ba3ca416735846300574df7ec5a704c8671454d971cfde",
+        "bytes": 307
+      },
+      {
+        "step": 5,
+        "sha256": "faa12e309de91c845fe5fec358e43b0e0bfd5db18706f4bc93a462e8396bc2d0",
+        "bytes": 307
+      },
+      {
+        "step": 6,
+        "sha256": "d511d44dfb066a36d6239b00a5296579520dab665073aeb5656aa709b12c71bb",
+        "bytes": 307
+      },
+      {
+        "step": 7,
+        "sha256": "e09e94cb48a65c8cbdb31d88dd205443b4007692fbc2b613fc63f10ad8eb2d89",
+        "bytes": 307
+      },
+      {
+        "step": 8,
+        "sha256": "e24c255e18ae0a7a94d4fb10a3c3601ff33f39e1581398c5a0faab80750ff2a1",
+        "bytes": 307
+      },
+      {
+        "step": 9,
+        "sha256": "6d1b686129d7bc0feb9d651a54e910ae7df2dad51b70d621cab7c709b96e9f62",
+        "bytes": 307
+      },
+      {
+        "step": 10,
+        "sha256": "768632a9d5649ff7dad2d93c7ef6861a328d8423dda6e6563ad4db529706b55c",
+        "bytes": 308
+      },
+      {
+        "step": 11,
+        "sha256": "cae50a0e3e12457f8823edb76e33b9ffc325246fd00fb2030e95b952c9dae075",
+        "bytes": 306
+      },
+      {
+        "step": 12,
+        "sha256": "e73f8521e1c82737bec3b89474d5c47c581bac3b2b179b0fe00e2d43ee203646",
+        "bytes": 308
+      }
+    ]
+  },
+  "observations": [
+    {
+      "at": "2026-09-11T07:23:24.149606+00:00",
+      "view": {
+        "snapshot": {
+          "version": 1,
+          "status": "completed",
+          "nonce": "rr-retained-quit-03",
+          "controller_thread": "01a08f57-d3a8-7e72-8683-0058c9b9c667",
+          "revision": 1,
+          "segment": 2,
+          "completed_steps": 12,
+          "total_steps": 12,
+          "interval_ms": 4000,
+          "worker_pid": 28735,
+          "segment_started_at": "2026-09-11T07:22:30.664937Z",
+          "updated_at": "2026-09-11T07:23:14.828383Z",
+          "effect_count": 12,
+          "liveness_checked": false
+        },
+        "native_identity": {
+          "pid": 27494,
+          "ppid": 38821,
+          "pgid": 27494,
+          "started_at_local": "Fri Sep 11 15:21:57 2026",
+          "executable": "codex"
+        },
+        "worker_identity": null,
+        "lock": {
+          "available": true,
+          "device": 16777234,
+          "inode": 160658824
+        },
+        "effects": [
+          {
+            "step": 1,
+            "sha256": "f36bd8b7a0f444a3f88a00fcced288113125aa969de9f866d0b4f8e0697d5859",
+            "bytes": 307
+          },
+          {
+            "step": 2,
+            "sha256": "b81e69aea00bb8a1133b0de02b0d0150e30e1a0ad41a9e5d1efaef501eeebb4d",
+            "bytes": 307
+          },
+          {
+            "step": 3,
+            "sha256": "5b09275cadb5425e7d7e9c046a2b85177d678de5787d93219dc027aad83cd533",
+            "bytes": 307
+          },
+          {
+            "step": 4,
+            "sha256": "eda6c510e863a7a593ba3ca416735846300574df7ec5a704c8671454d971cfde",
+            "bytes": 307
+          },
+          {
+            "step": 5,
+            "sha256": "faa12e309de91c845fe5fec358e43b0e0bfd5db18706f4bc93a462e8396bc2d0",
+            "bytes": 307
+          },
+          {
+            "step": 6,
+            "sha256": "d511d44dfb066a36d6239b00a5296579520dab665073aeb5656aa709b12c71bb",
+            "bytes": 307
+          },
+          {
+            "step": 7,
+            "sha256": "e09e94cb48a65c8cbdb31d88dd205443b4007692fbc2b613fc63f10ad8eb2d89",
+            "bytes": 307
+          },
+          {
+            "step": 8,
+            "sha256": "e24c255e18ae0a7a94d4fb10a3c3601ff33f39e1581398c5a0faab80750ff2a1",
+            "bytes": 307
+          },
+          {
+            "step": 9,
+            "sha256": "6d1b686129d7bc0feb9d651a54e910ae7df2dad51b70d621cab7c709b96e9f62",
+            "bytes": 307
+          },
+          {
+            "step": 10,
+            "sha256": "768632a9d5649ff7dad2d93c7ef6861a328d8423dda6e6563ad4db529706b55c",
+            "bytes": 308
+          },
+          {
+            "step": 11,
+            "sha256": "cae50a0e3e12457f8823edb76e33b9ffc325246fd00fb2030e95b952c9dae075",
+            "bytes": 306
+          },
+          {
+            "step": 12,
+            "sha256": "e73f8521e1c82737bec3b89474d5c47c581bac3b2b179b0fe00e2d43ee203646",
+            "bytes": 308
+          }
+        ]
+      }
+    }
+  ],
+  "root_activity": {
+    "last_turn_state": "idle",
+    "task_started_since": []
+  },
+  "binary_checks": [
+    {
+      "phase": "observer_start",
+      "at": "2026-09-11T07:23:24.130821+00:00",
+      "sha256": "feb9b9ad969abca5ff35db28c0f0d8d920dc0778d7aac68a90952900e989a285",
+      "inode": 160558786,
+      "size": 4227346
+    },
+    {
+      "phase": "observer_end",
+      "at": "2026-09-11T07:23:24.152576+00:00",
+      "sha256": "feb9b9ad969abca5ff35db28c0f0d8d920dc0778d7aac68a90952900e989a285",
+      "inode": 160558786,
+      "size": 4227346
+    }
+  ],
+  "pre_action_file": null,
+  "pre_action_sha256": null,
+  "scope": "single approved foreground fixture; process creation identity plus stable flock; no process-tree claim"
+}

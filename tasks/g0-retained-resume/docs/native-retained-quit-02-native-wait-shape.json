@@ -1,0 +1,37 @@
+{
+  "root_thread": "01a08f42-d580-7211-b526-28a87969d42d",
+  "nonce": "rr-retained-quit-02",
+  "scope": "own continued phase only; structural metadata and hashes, not new trusted snapshot source",
+  "events": [
+    {
+      "timestamp": "2026-09-11T07:07:02.286Z",
+      "type": "custom_tool_call_output",
+      "call_id": "call_5fzOTKEkQ3fQYJqHa8063JYj",
+      "numeric_process_sessions": [
+        13358
+      ]
+    },
+    {
+      "timestamp": "2026-09-11T07:07:16.653Z",
+      "type": "custom_tool_call",
+      "call_id": "call_C0AG7LkS4AjvuR6PjVE4UDca",
+      "operation_token": "write_stdin",
+      "single_literal_session_id": 13358,
+      "literal_parser_recognized": true,
+      "leading_exec_pragma": false,
+      "empty_chars_literal_present": true,
+      "yield_time_ms_literals": [
+        90000
+      ],
+      "source_sha256": "3e2ba1f7cf491ffd6ce484994389399317e4d7090fd906cad6bbbc7bd3cbbbfa"
+    },
+    {
+      "timestamp": "2026-09-11T07:07:55.135Z",
+      "type": "function_call",
+      "call_id": "call_FWfEkSsx3gXTXLyxCW8erkPd",
+      "name": "wait",
+      "classification": "native code-mode wait; not Goal, child-agent or MCP"
+    }
+  ],
+  "collector_source_policy_changed": false
+}

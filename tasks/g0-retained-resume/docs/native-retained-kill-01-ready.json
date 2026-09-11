@@ -1,0 +1,191 @@
+{
+  "root_thread": "01a08f65-0a8d-7b53-aab2-7714c0f59720",
+  "nonce": "rr-retained-kill-01",
+  "mode": "ready",
+  "began_at": "2026-09-11T07:36:04.530470+00:00",
+  "ended_at": "2026-09-11T07:36:15.816650+00:00",
+  "elapsed_seconds": 11.286141,
+  "deadline": "2026-09-11T07:38:03.227000+00:00",
+  "success": true,
+  "origin": {
+    "native": {
+      "pid": 32230,
+      "ppid": 38821,
+      "pgid": 32230,
+      "started_at_local": "Fri Sep 11 15:35:58 2026",
+      "executable": "codex"
+    },
+    "worker": {
+      "pid": 32743,
+      "ppid": 32230,
+      "pgid": 32743,
+      "started_at_local": "Fri Sep 11 15:36:11 2026",
+      "executable": "retained_binary"
+    }
+  },
+  "action": null,
+  "view": {
+    "snapshot": {
+      "version": 1,
+      "status": "running",
+      "nonce": "rr-retained-kill-01",
+      "controller_thread": "01a08f65-0a8d-7b53-aab2-7714c0f59720",
+      "revision": 1,
+      "segment": 1,
+      "completed_steps": 1,
+      "total_steps": 12,
+      "interval_ms": 4000,
+      "worker_pid": 32743,
+      "segment_started_at": "2026-09-11T07:36:11.773858Z",
+      "updated_at": "2026-09-11T07:36:15.779928Z",
+      "effect_count": 1,
+      "liveness_checked": false
+    },
+    "native_identity": {
+      "pid": 32230,
+      "ppid": 38821,
+      "pgid": 32230,
+      "started_at_local": "Fri Sep 11 15:35:58 2026",
+      "executable": "codex"
+    },
+    "worker_identity": {
+      "pid": 32743,
+      "ppid": 32230,
+      "pgid": 32743,
+      "started_at_local": "Fri Sep 11 15:36:11 2026",
+      "executable": "retained_binary"
+    },
+    "lock": {
+      "available": false,
+      "device": 16777234,
+      "inode": 160670699
+    },
+    "effects": [
+      {
+        "step": 1,
+        "sha256": "9cc2a0a66464f2e7da60830ad8af31c25ffef9da06615960391a0b72008b940f",
+        "bytes": 307
+      }
+    ]
+  },
+  "observations": [
+    {
+      "at": "2026-09-11T07:36:11.883425+00:00",
+      "view": {
+        "snapshot": {
+          "version": 1,
+          "status": "running",
+          "nonce": "rr-retained-kill-01",
+          "controller_thread": "01a08f65-0a8d-7b53-aab2-7714c0f59720",
+          "revision": 1,
+          "segment": 1,
+          "completed_steps": 0,
+          "total_steps": 12,
+          "interval_ms": 4000,
+          "worker_pid": 32743,
+          "segment_started_at": "2026-09-11T07:36:11.773858Z",
+          "updated_at": "2026-09-11T07:36:11.773858Z",
+          "effect_count": 0,
+          "liveness_checked": false
+        },
+        "native_identity": {
+          "pid": 32230,
+          "ppid": 38821,
+          "pgid": 32230,
+          "started_at_local": "Fri Sep 11 15:35:58 2026",
+          "executable": "codex"
+        },
+        "worker_identity": {
+          "pid": 32743,
+          "ppid": 32230,
+          "pgid": 32743,
+          "started_at_local": "Fri Sep 11 15:36:11 2026",
+          "executable": "retained_binary"
+        },
+        "lock": {
+          "available": false,
+          "device": 16777234,
+          "inode": 160670699
+        },
+        "effects": []
+      }
+    },
+    {
+      "at": "2026-09-11T07:36:15.808813+00:00",
+      "view": {
+        "snapshot": {
+          "version": 1,
+          "status": "running",
+          "nonce": "rr-retained-kill-01",
+          "controller_thread": "01a08f65-0a8d-7b53-aab2-7714c0f59720",
+          "revision": 1,
+          "segment": 1,
+          "completed_steps": 1,
+          "total_steps": 12,
+          "interval_ms": 4000,
+          "worker_pid": 32743,
+          "segment_started_at": "2026-09-11T07:36:11.773858Z",
+          "updated_at": "2026-09-11T07:36:15.779928Z",
+          "effect_count": 1,
+          "liveness_checked": false
+        },
+        "native_identity": {
+          "pid": 32230,
+          "ppid": 38821,
+          "pgid": 32230,
+          "started_at_local": "Fri Sep 11 15:35:58 2026",
+          "executable": "codex"
+        },
+        "worker_identity": {
+          "pid": 32743,
+          "ppid": 32230,
+          "pgid": 32743,
+          "started_at_local": "Fri Sep 11 15:36:11 2026",
+          "executable": "retained_binary"
+        },
+        "lock": {
+          "available": false,
+          "device": 16777234,
+          "inode": 160670699
+        },
+        "effects": [
+          {
+            "step": 1,
+            "sha256": "9cc2a0a66464f2e7da60830ad8af31c25ffef9da06615960391a0b72008b940f",
+            "bytes": 307
+          }
+        ]
+      }
+    }
+  ],
+  "root_activity": {
+    "last_turn_state": "idle",
+    "task_started_since": []
+  },
+  "binary_checks": [
+    {
+      "phase": "observer_start",
+      "at": "2026-09-11T07:36:04.530316+00:00",
+      "sha256": "feb9b9ad969abca5ff35db28c0f0d8d920dc0778d7aac68a90952900e989a285",
+      "inode": 160558786,
+      "size": 4227346
+    },
+    {
+      "phase": "ready",
+      "at": "2026-09-11T07:36:15.812712+00:00",
+      "sha256": "feb9b9ad969abca5ff35db28c0f0d8d920dc0778d7aac68a90952900e989a285",
+      "inode": 160558786,
+      "size": 4227346
+    },
+    {
+      "phase": "observer_end",
+      "at": "2026-09-11T07:36:15.816638+00:00",
+      "sha256": "feb9b9ad969abca5ff35db28c0f0d8d920dc0778d7aac68a90952900e989a285",
+      "inode": 160558786,
+      "size": 4227346
+    }
+  ],
+  "pre_action_file": null,
+  "pre_action_sha256": null,
+  "scope": "single approved foreground fixture; process creation identity plus stable flock; no process-tree claim"
+}
