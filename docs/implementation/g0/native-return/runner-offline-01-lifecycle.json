@@ -1,0 +1,59 @@
+{
+  "root_thread": "01a08e38-508a-76b2-bc17-09fd5dbe80ae",
+  "child_thread": "01a08e4a-b131-7ad3-bab6-83a1af1a5d96",
+  "runtime_dir": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/tasks/native-return/data/runner-host-offline-01",
+  "binary_sha256": "cf7bfc0acf6f3348210c50c75f9a0ea85b6a56e1abafbbcec85156580dc40cec",
+  "job": {
+    "version": 1,
+    "status": "started",
+    "nonce": "nr-g0-offline-01",
+    "worker_pid": 53297,
+    "created_at": "2026-09-11T02:27:54.760887Z",
+    "job_file": "job.json",
+    "result_file": "result.json"
+  },
+  "observations": [
+    {
+      "label": "before_normal_quit",
+      "at": "2026-09-11T02:28:40.838783+00:00",
+      "read_exit": 0,
+      "read_json": {
+        "version": 1,
+        "status": "pending",
+        "nonce": "nr-g0-offline-01",
+        "count": 0
+      },
+      "processes": "  PID  PPID  PGID STARTED                      ELAPSED COMM\n53297     1 53297 Fri Sep 11 10:27:54 2026       00:46 /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-native-return/tmp/host-impl/tools/g0-return-lab/data/g0-return-lab\n46093 38821 46093 Fri Sep 11 10:07:29 2026       21:11 codex\n"
+    },
+    {
+      "label": "after_quit_poll",
+      "at": "2026-09-11T02:28:59.973123+00:00",
+      "native_pid_query": "  PID  PPID STARTED                      ELAPSED COMM\n",
+      "worker_pid_query": "  PID  PPID  PGID STARTED                      ELAPSED COMM\n",
+      "result_present": true
+    },
+    {
+      "label": "resume_started",
+      "at": "2026-09-11T02:29:22Z",
+      "old_native_exit_code": 0,
+      "resume_command": "TERM=xterm-256color codex resume 01a08e38-508a-76b2-bc17-09fd5dbe80ae",
+      "resume_session_handle": 35709,
+      "expected_no_user_input_deadline": "2026-09-11T02:31:22Z",
+      "result": {
+        "version": 1,
+        "status": "completed",
+        "nonce": "nr-g0-offline-01",
+        "count": 1
+      },
+      "result_mtime": "2026-09-11T02:28:54.771341+00:00",
+      "owned_hooks": [
+        {
+          "hook_event_name": "SessionEnd",
+          "ppid": 46093,
+          "recorded_at": "2026-09-11T02:28:42.038255Z",
+          "session_id": "01a08e38-508a-76b2-bc17-09fd5dbe80ae"
+        }
+      ]
+    }
+  ]
+}

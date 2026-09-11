@@ -1,0 +1,14 @@
+{
+  "verified_at": "2026-09-11T02:47:12.984186+00:00",
+  "syntax": "PASS",
+  "native_idle": "single failed 120-second sample; child completed but root did not start another turn",
+  "native_busy": "single controlled agent_message sample; no role field",
+  "active_sleep": "single 60-second sleep interrupted after 24.5716 seconds; separate agent_message followed",
+  "no_goal_resume": "no root turn in 120-second window",
+  "goal_resume": "one automatic goal control turn, one real root Host read, complete goal and ACK; no later turn in fixed window",
+  "host_survival": "direct native-gone/worker-live/result-absent interval observed before completed result",
+  "model_repeats_for_recollection": 0,
+  "goal_baseline_sample_count": 1,
+  "three_sample_gate": "NOT MET",
+  "temporary_fixture_cleanup": "verified by runner_collect_regression.py"
+}

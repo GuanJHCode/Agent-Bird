@@ -1,0 +1,347 @@
+{
+  "captured_at": "2026-09-11T02:46:16.179220+00:00",
+  "root_thread": "01a08e38-508a-76b2-bc17-09fd5dbe80ae",
+  "nonce": "nr-g0-active-sleep-01",
+  "window": {
+    "since": "2026-09-11T02:21:59Z",
+    "through": "2026-09-11T02:22:37.497Z"
+  },
+  "selection": "Exact root UUID and native source.parent_thread_id direct children only",
+  "privacy": "Reasoning omitted; text limited to fixed nonce messages and native wrappers; tool data is typed fields, fixed responses or hashes; explicit Hook keys only",
+  "process_observation": {
+    "requested_pid": 46093,
+    "exit_code": 1,
+    "stdout": "  PID  PPID STARTED                      ELAPSED COMM\n"
+  },
+  "hooks": [
+    {
+      "file": "007ea087ff7858286b26b39403e9ed97.json",
+      "hook_event_name": "UserPromptSubmit",
+      "nonce": "g0-macos-20260910",
+      "pid": 52383,
+      "ppid": 46093,
+      "recorded_at": "2026-09-11T02:22:00.959791Z",
+      "session_id": "01a08e38-508a-76b2-bc17-09fd5dbe80ae",
+      "turn_id": "01a08e45-9894-7d91-8e6b-a50621fa128e"
+    }
+  ],
+  "threads": [
+    {
+      "id": "01a08e38-508a-76b2-bc17-09fd5dbe80ae",
+      "created_at_ms": 1789092450507,
+      "cli_version": "0.153.4",
+      "agent_path": null,
+      "experiment_cwd_matches": true,
+      "source_kind": "cli",
+      "events": [
+        {
+          "timestamp": "2026-09-11T02:22:00.874Z",
+          "record_type": "event_msg",
+          "type": "task_started",
+          "turn_id": "01a08e45-9894-7d91-8e6b-a50621fa128e",
+          "started_at": 1789093320
+        },
+        {
+          "timestamp": "2026-09-11T02:22:00.896Z",
+          "record_type": "turn_context",
+          "turn_id": "01a08e45-9894-7d91-8e6b-a50621fa128e",
+          "model": "gpt-6-astra",
+          "approval_policy": "never",
+          "sandbox_policy": {
+            "type": "danger-full-access"
+          }
+        },
+        {
+          "timestamp": "2026-09-11T02:22:00.967Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "user",
+          "message_summary": {
+            "utf8_bytes": 787,
+            "sha256": "663412d4a141e44a30deecd00e632923e78c139e729f87dbcb7c96ea2b12a903",
+            "markers": [
+              "nr-g0-active-sleep-01-ACK",
+              "nr-g0-active-sleep-01-DONE",
+              "nr-g0-active-sleep-01-NO-MESSAGE",
+              "nr-g0-active-sleep-01-UNAVAILABLE"
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T02:22:05.409Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "assistant",
+          "phase": "commentary"
+        },
+        {
+          "timestamp": "2026-09-11T02:22:08.047Z",
+          "record_type": "response_item",
+          "type": "function_call",
+          "name": "spawn_agent",
+          "namespace": "collaboration",
+          "call_id": "call_qZak11PGAG8EAx1xXjc62TwX",
+          "arguments_metadata": {
+            "task_name": "nr_g0_active_sleep_01",
+            "agent_type": "default",
+            "fork_turns": "none"
+          }
+        },
+        {
+          "timestamp": "2026-09-11T02:22:08.168Z",
+          "record_type": "response_item",
+          "type": "function_call_output",
+          "call_id": "call_qZak11PGAG8EAx1xXjc62TwX",
+          "output_summary": {
+            "utf8_bytes": 43,
+            "sha256": "55267b6c2c9818d69917a268dba85bf37a01e9a40f9c6d3f38d6c4155a63eca2",
+            "markers": [],
+            "native_spawn_response": {
+              "task_name": "/root/nr_g0_active_sleep_01"
+            }
+          }
+        },
+        {
+          "timestamp": "2026-09-11T02:22:10.964Z",
+          "record_type": "response_item",
+          "type": "function_call",
+          "name": "sleep",
+          "namespace": "clock",
+          "call_id": "call_Wy0EtSJh2NNLqqt9CBmEo8Ks",
+          "arguments_metadata": {
+            "duration_ms": 60000
+          }
+        },
+        {
+          "timestamp": "2026-09-11T02:22:35.539Z",
+          "record_type": "response_item",
+          "type": "function_call_output",
+          "call_id": "call_Wy0EtSJh2NNLqqt9CBmEo8Ks",
+          "output_summary": {
+            "utf8_bytes": 58,
+            "sha256": "17605109e3910648282825221f8cadc3024796286264db8bc0b978327d248cf6",
+            "markers": [],
+            "native_sleep_response": "Wall time: 24.5716 seconds\nSleep interrupted by new input."
+          }
+        },
+        {
+          "timestamp": "2026-09-11T02:22:35.541Z",
+          "record_type": "response_item",
+          "type": "agent_message",
+          "author": "/root/nr_g0_active_sleep_01",
+          "recipient": "/root",
+          "message_summary": {
+            "utf8_bytes": 115,
+            "sha256": "762af64208f82c4da402f25f81dcea3d56304d05cb9060a220f22570e3a54527",
+            "markers": [
+              "nr-g0-active-sleep-01-DONE"
+            ]
+          },
+          "text": "Message Type: FINAL_ANSWER\nTask name: /root\nSender: /root/nr_g0_active_sleep_01\nPayload:\nnr-g0-active-sleep-01-DONE"
+        },
+        {
+          "timestamp": "2026-09-11T02:22:37.408Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "assistant",
+          "phase": "final_answer",
+          "message_summary": {
+            "utf8_bytes": 25,
+            "sha256": "a00baad7c847498f70b00db1e012d0e044ba587c17bae001f0912ce890624cdc",
+            "markers": [
+              "nr-g0-active-sleep-01-ACK"
+            ]
+          },
+          "text": "nr-g0-active-sleep-01-ACK"
+        },
+        {
+          "timestamp": "2026-09-11T02:22:37.497Z",
+          "record_type": "event_msg",
+          "type": "task_complete",
+          "turn_id": "01a08e45-9894-7d91-8e6b-a50621fa128e",
+          "started_at": 1789093320,
+          "completed_at": 1789093357,
+          "duration_ms": 36626,
+          "last_agent_message": "nr-g0-active-sleep-01-ACK"
+        }
+      ]
+    },
+    {
+      "id": "01a08e3a-18bc-7a33-8007-adaba1807d4f",
+      "created_at_ms": 1789092567228,
+      "cli_version": "0.153.4",
+      "agent_path": "/root/nr_g0_idle_01",
+      "experiment_cwd_matches": true,
+      "source_kind": "subagent",
+      "parent_thread_id": "01a08e38-508a-76b2-bc17-09fd5dbe80ae",
+      "events": []
+    },
+    {
+      "id": "01a08e3e-2793-7e71-b671-50921b58cab0",
+      "created_at_ms": 1789092833171,
+      "cli_version": "0.153.4",
+      "agent_path": "/root/nr_g0_busy_01",
+      "experiment_cwd_matches": true,
+      "source_kind": "subagent",
+      "parent_thread_id": "01a08e38-508a-76b2-bc17-09fd5dbe80ae",
+      "events": []
+    },
+    {
+      "id": "01a08e45-b4b2-7db1-87df-37c8a309b324",
+      "created_at_ms": 1789093328050,
+      "cli_version": "0.153.4",
+      "agent_path": "/root/nr_g0_active_sleep_01",
+      "experiment_cwd_matches": true,
+      "source_kind": "subagent",
+      "parent_thread_id": "01a08e38-508a-76b2-bc17-09fd5dbe80ae",
+      "events": [
+        {
+          "timestamp": "2026-09-11T02:22:08.200Z",
+          "record_type": "event_msg",
+          "type": "task_started",
+          "turn_id": "01a08e45-b524-76e0-a3c7-39b9d9f24f37",
+          "started_at": 1789093328
+        },
+        {
+          "timestamp": "2026-09-11T02:22:17.808Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "developer"
+        },
+        {
+          "timestamp": "2026-09-11T02:22:17.808Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "developer"
+        },
+        {
+          "timestamp": "2026-09-11T02:22:17.808Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "developer"
+        },
+        {
+          "timestamp": "2026-09-11T02:22:17.808Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "user"
+        },
+        {
+          "timestamp": "2026-09-11T02:22:17.814Z",
+          "record_type": "turn_context",
+          "turn_id": "01a08e45-b524-76e0-a3c7-39b9d9f24f37",
+          "model": "gpt-6-astra",
+          "approval_policy": "never",
+          "sandbox_policy": {
+            "type": "danger-full-access"
+          }
+        },
+        {
+          "timestamp": "2026-09-11T02:22:17.818Z",
+          "record_type": "response_item",
+          "type": "agent_message",
+          "author": "/root",
+          "recipient": "/root/nr_g0_active_sleep_01"
+        },
+        {
+          "timestamp": "2026-09-11T02:22:21.227Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call",
+          "name": "exec",
+          "call_id": "call_9kFZE9xcfCzx2aPIrY65BKx3",
+          "status": "completed",
+          "input_summary": {
+            "utf8_bytes": 125,
+            "sha256": "391f73462cb0a7d9db5e60a0dd0feae65092489dfa69b94e091446f0e43b90bd",
+            "markers": [
+              "nr-g0-active-sleep-01-DONE"
+            ],
+            "operations": [
+              "exec_command"
+            ],
+            "synthetic_commands": [
+              "sleep 10; echo nr-g0-active-sleep-01-DONE"
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T02:22:22.396Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call_output",
+          "call_id": "call_9kFZE9xcfCzx2aPIrY65BKx3",
+          "output_summary": {
+            "utf8_bytes": 156,
+            "sha256": "8f408667f78f06a915a925c9706bf99036141c9d1a808546657aad926556ccae",
+            "markers": [],
+            "runtime": [
+              {
+                "session_id": 91655,
+                "wall_time_seconds": 1.001601083
+              }
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T02:22:26.625Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call",
+          "name": "exec",
+          "call_id": "call_AJ2m9AUaBPtBVtI225GV58Az",
+          "status": "completed",
+          "input_summary": {
+            "utf8_bytes": 103,
+            "sha256": "10ab08da6567f72f15385930eb7483b82ab9b2c821a9f8b8c28fdd614c9fa0df",
+            "markers": [],
+            "operations": [
+              "write_stdin"
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T02:22:31.287Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call_output",
+          "call_id": "call_AJ2m9AUaBPtBVtI225GV58Az",
+          "output_summary": {
+            "utf8_bytes": 179,
+            "sha256": "af9937a0e261049bdb8c11ff169394dad0cf99b24e54ebdf1947364a5e7d2ee0",
+            "markers": [
+              "nr-g0-active-sleep-01-DONE"
+            ],
+            "runtime": [
+              {
+                "exit_code": 0,
+                "wall_time_seconds": 4.654842084
+              }
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T02:22:34.797Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "assistant",
+          "phase": "final_answer",
+          "message_summary": {
+            "utf8_bytes": 26,
+            "sha256": "deccefb29a648f040d440612cbe58d61ee9a1597bf4af7f90d880b1bad0c0491",
+            "markers": [
+              "nr-g0-active-sleep-01-DONE"
+            ]
+          },
+          "text": "nr-g0-active-sleep-01-DONE"
+        },
+        {
+          "timestamp": "2026-09-11T02:22:35.532Z",
+          "record_type": "event_msg",
+          "type": "task_complete",
+          "turn_id": "01a08e45-b524-76e0-a3c7-39b9d9f24f37",
+          "started_at": 1789093328,
+          "completed_at": 1789093355,
+          "duration_ms": 27363,
+          "last_agent_message": "nr-g0-active-sleep-01-DONE"
+        }
+      ]
+    }
+  ]
+}

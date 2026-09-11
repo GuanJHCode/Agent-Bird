@@ -1,5 +1,5 @@
 {
-  "captured_at": "2026-09-11T02:16:08.401999+00:00",
+  "captured_at": "2026-09-11T02:46:15.990114+00:00",
   "root_thread": "01a08e38-508a-76b2-bc17-09fd5dbe80ae",
   "nonce": "nr-g0-idle-01",
   "window": {
@@ -7,10 +7,11 @@
     "through": "2026-09-11T02:14:31.605Z"
   },
   "selection": "Exact root UUID and native source.parent_thread_id direct children only",
-  "privacy": "Reasoning omitted; message text only contains this synthetic nonce; no account/config/environment reads",
+  "privacy": "Reasoning omitted; text limited to fixed nonce messages and native wrappers; tool data is typed fields, fixed responses or hashes; explicit Hook keys only",
   "process_observation": {
-    "exit_code": 0,
-    "stdout": "  PID  PPID STARTED                      ELAPSED COMM\n46093 38821 Fri Sep 11 10:07:29 2026       08:39 codex\n"
+    "requested_pid": 46093,
+    "exit_code": 1,
+    "stdout": "  PID  PPID STARTED                      ELAPSED COMM\n"
   },
   "hooks": [
     {
@@ -27,11 +28,11 @@
   "threads": [
     {
       "id": "01a08e38-508a-76b2-bc17-09fd5dbe80ae",
-      "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo",
-      "created_at_ms": 1789092450442,
-      "source": "cli",
+      "created_at_ms": 1789092450507,
       "cli_version": "0.153.4",
       "agent_path": null,
+      "experiment_cwd_matches": true,
+      "source_kind": "cli",
       "events": [
         {
           "timestamp": "2026-09-11T02:13:46.256Z",
@@ -55,7 +56,11 @@
           "record_type": "response_item",
           "type": "message",
           "role": "user",
-          "text": "这是新的独立 busy 诊断 nr-g0-busy-01，之前 nr-g0-idle-01 已结束观察，不要补 ACK。请用原生 spawn_agent 创建一个 default 薄转发子Agent，完整任务为：只运行一次命令 sleep 10; echo nr-g0-busy-01-DONE，等待自己的命令完成后最终只回复 nr-g0-busy-01-DONE；不写文件、不调用其他Agent。主控你在 spawn 返回后只运行一次自己的有限前台命令 sleep 30; echo nr-g0-busy-01-LOCAL，yield_time_ms设30000；如果它返回运行session，只等待这条自己的命令结束，不等子Agent、不读取Agent状态或文件。这30秒是独立的合成主控工作。待自己的命令完成后，若原生系统已向你发送该子Agent完成结果则最终只回复 nr-g0-busy-01-RECEIVED；若没有则只回复 nr-g0-busy-01-NO-MESSAGE。不要根据子Agent任务里预先知道的文字推测完成，不要主动查询或轮询子Agent。"
+          "message_summary": {
+            "utf8_bytes": 920,
+            "sha256": "87ea056ae1f346e377514525179aa9b763d7d7e8a6282f37d1cc25a41fc51fb2",
+            "markers": []
+          }
         },
         {
           "timestamp": "2026-09-11T02:13:50.248Z",
@@ -69,6 +74,7 @@
           "record_type": "response_item",
           "type": "function_call",
           "name": "spawn_agent",
+          "namespace": "collaboration",
           "call_id": "call_MPZSQEUzOhljQlXj4UOh2IOk",
           "arguments_metadata": {
             "task_name": "nr_g0_busy_01",
@@ -81,7 +87,14 @@
           "record_type": "response_item",
           "type": "function_call_output",
           "call_id": "call_MPZSQEUzOhljQlXj4UOh2IOk",
-          "output": "{\"task_name\":\"/root/nr_g0_busy_01\"}"
+          "output_summary": {
+            "utf8_bytes": 35,
+            "sha256": "0831f350bef3c5265caff383371e16193354ef3205e34ce23d93ed248b322921",
+            "markers": [],
+            "native_spawn_response": {
+              "task_name": "/root/nr_g0_busy_01"
+            }
+          }
         },
         {
           "timestamp": "2026-09-11T02:13:53.313Z",
@@ -89,6 +102,13 @@
           "type": "agent_message",
           "author": "/root/nr_g0_idle_01",
           "recipient": "/root",
+          "message_summary": {
+            "utf8_bytes": 99,
+            "sha256": "d0a67ceabdbd0148f42201685b914624e047be7084fbe0f7b6fcc1343c12bf53",
+            "markers": [
+              "nr-g0-idle-01-DONE"
+            ]
+          },
           "text": "Message Type: FINAL_ANSWER\nTask name: /root\nSender: /root/nr_g0_idle_01\nPayload:\nnr-g0-idle-01-DONE"
         },
         {
@@ -98,14 +118,31 @@
           "name": "exec",
           "call_id": "call_eMZuAX8Uma4inQqZ4ajTQpsF",
           "status": "completed",
-          "input": "const result = await tools.exec_command({cmd:\"sleep 30; echo nr-g0-busy-01-LOCAL\",yield_time_ms:30000}); text(result);\n"
+          "input_summary": {
+            "utf8_bytes": 119,
+            "sha256": "4d612f8496d766eacbdc0bc1daf662e9ffae380b4f126ff6fc5e5cce58e75a7c",
+            "markers": [],
+            "operations": [
+              "exec_command"
+            ]
+          }
         },
         {
           "timestamp": "2026-09-11T02:14:28.695Z",
           "record_type": "response_item",
           "type": "custom_tool_call_output",
           "call_id": "call_eMZuAX8Uma4inQqZ4ajTQpsF",
-          "output": "Script completed\nWall time 30.1 seconds\nOutput:\n{\"chunk_id\":\"49a58a\",\"wall_time_seconds\":29.891263125000002,\"exit_code\":0,\"original_token_count\":5,\"output\":\"nr-g0-busy-01-LOCAL\\n\"}"
+          "output_summary": {
+            "utf8_bytes": 180,
+            "sha256": "234771b0bb7548560b5e189a5359bc0837565ca40e2b58971b0916efeb1ce354",
+            "markers": [],
+            "runtime": [
+              {
+                "exit_code": 0,
+                "wall_time_seconds": 29.891263125000002
+              }
+            ]
+          }
         },
         {
           "timestamp": "2026-09-11T02:14:28.699Z",
@@ -134,20 +171,22 @@
     },
     {
       "id": "01a08e3a-18bc-7a33-8007-adaba1807d4f",
-      "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo",
       "created_at_ms": 1789092567228,
-      "source": "{\"subagent\":{\"thread_spawn\":{\"parent_thread_id\":\"01a08e38-508a-76b2-bc17-09fd5dbe80ae\",\"depth\":1,\"agent_path\":\"/root/nr_g0_idle_01\",\"agent_nickname\":\"Descartes\",\"agent_role\":\"default\"}}}",
       "cli_version": "0.153.4",
       "agent_path": "/root/nr_g0_idle_01",
+      "experiment_cwd_matches": true,
+      "source_kind": "subagent",
+      "parent_thread_id": "01a08e38-508a-76b2-bc17-09fd5dbe80ae",
       "events": []
     },
     {
       "id": "01a08e3e-2793-7e71-b671-50921b58cab0",
-      "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo",
       "created_at_ms": 1789092833171,
-      "source": "{\"subagent\":{\"thread_spawn\":{\"parent_thread_id\":\"01a08e38-508a-76b2-bc17-09fd5dbe80ae\",\"depth\":1,\"agent_path\":\"/root/nr_g0_busy_01\",\"agent_nickname\":\"Banach\",\"agent_role\":\"default\"}}}",
       "cli_version": "0.153.4",
       "agent_path": "/root/nr_g0_busy_01",
+      "experiment_cwd_matches": true,
+      "source_kind": "subagent",
+      "parent_thread_id": "01a08e38-508a-76b2-bc17-09fd5dbe80ae",
       "events": [
         {
           "timestamp": "2026-09-11T02:13:53.364Z",
@@ -204,14 +243,31 @@
           "name": "exec",
           "call_id": "call_oFDpgVaWUj6PGMECAJn7ZvPI",
           "status": "completed",
-          "input": "text(await tools.exec_command({cmd:\"sleep 10; echo nr-g0-busy-01-DONE\",yield_time_ms:1000,max_output_tokens:1000}));\n"
+          "input_summary": {
+            "utf8_bytes": 117,
+            "sha256": "7639b4998d26d05fafb99edb8d17a28330795b3f0893f6a754ec36c072c6ba9d",
+            "markers": [],
+            "operations": [
+              "exec_command"
+            ]
+          }
         },
         {
           "timestamp": "2026-09-11T02:14:00.869Z",
           "record_type": "response_item",
           "type": "custom_tool_call_output",
           "call_id": "call_oFDpgVaWUj6PGMECAJn7ZvPI",
-          "output": "Script completed\nWall time 1.2 seconds\nOutput:\n{\"chunk_id\":\"ece269\",\"wall_time_seconds\":1.002257792,\"session_id\":80192,\"original_token_count\":0,\"output\":\"\"}"
+          "output_summary": {
+            "utf8_bytes": 156,
+            "sha256": "d7213bdedc5afa5c53355e9d92aceb5c90196d9750a7b4561fab5ec4ac2369ff",
+            "markers": [],
+            "runtime": [
+              {
+                "session_id": 80192,
+                "wall_time_seconds": 1.002257792
+              }
+            ]
+          }
         },
         {
           "timestamp": "2026-09-11T02:14:05.980Z",
@@ -220,14 +276,31 @@
           "name": "exec",
           "call_id": "call_NfMOHUzg4XRkfjgsdvkI2g1d",
           "status": "completed",
-          "input": "text(await tools.write_stdin({session_id:80192,chars:\"\",yield_time_ms:20000,max_output_tokens:1000}));\n"
+          "input_summary": {
+            "utf8_bytes": 103,
+            "sha256": "38e43283a049266dc64e4b34d1431912899eca6caac3149428f2a215b627f87b",
+            "markers": [],
+            "operations": [
+              "write_stdin"
+            ]
+          }
         },
         {
           "timestamp": "2026-09-11T02:14:09.752Z",
           "record_type": "response_item",
           "type": "custom_tool_call_output",
           "call_id": "call_NfMOHUzg4XRkfjgsdvkI2g1d",
-          "output": "Script completed\nWall time 3.8 seconds\nOutput:\n{\"chunk_id\":\"1680ff\",\"wall_time_seconds\":3.761025167,\"exit_code\":0,\"original_token_count\":5,\"output\":\"nr-g0-busy-01-DONE\\n\"}"
+          "output_summary": {
+            "utf8_bytes": 171,
+            "sha256": "eaefd5ba07a4c8f0b256c5f380cc222bb87aabce366be2434c85c116fca5c907",
+            "markers": [],
+            "runtime": [
+              {
+                "exit_code": 0,
+                "wall_time_seconds": 3.761025167
+              }
+            ]
+          }
         },
         {
           "timestamp": "2026-09-11T02:14:11.661Z",

@@ -1,0 +1,343 @@
+{
+  "captured_at": "2026-09-11T02:46:16.089125+00:00",
+  "root_thread": "01a08e38-508a-76b2-bc17-09fd5dbe80ae",
+  "nonce": "nr-g0-offline-01",
+  "window": {
+    "since": "2026-09-11T02:27:21Z",
+    "through": "2026-09-11T02:31:22Z"
+  },
+  "selection": "Exact root UUID and native source.parent_thread_id direct children only",
+  "privacy": "Reasoning omitted; text limited to fixed nonce messages and native wrappers; tool data is typed fields, fixed responses or hashes; explicit Hook keys only",
+  "process_observation": {
+    "requested_pid": 46093,
+    "exit_code": 1,
+    "stdout": "  PID  PPID STARTED                      ELAPSED COMM\n"
+  },
+  "hooks": [
+    {
+      "file": "4e598e6f8d95c3514f00269fc22cdbd3.json",
+      "hook_event_name": "UserPromptSubmit",
+      "nonce": "g0-macos-20260910",
+      "pid": 53133,
+      "ppid": 46093,
+      "recorded_at": "2026-09-11T02:27:22.392008Z",
+      "session_id": "01a08e38-508a-76b2-bc17-09fd5dbe80ae",
+      "turn_id": "01a08e4a-8051-7a33-8cea-e81400b8820f"
+    },
+    {
+      "file": "78d713168752046309fdbe225c3c90b8.json",
+      "hook_event_name": "SessionEnd",
+      "nonce": "g0-macos-20260910",
+      "pid": 53450,
+      "ppid": 46093,
+      "recorded_at": "2026-09-11T02:28:42.038255Z",
+      "session_id": "01a08e38-508a-76b2-bc17-09fd5dbe80ae"
+    }
+  ],
+  "threads": [
+    {
+      "id": "01a08e38-508a-76b2-bc17-09fd5dbe80ae",
+      "created_at_ms": 1789092450507,
+      "cli_version": "0.153.4",
+      "agent_path": null,
+      "experiment_cwd_matches": true,
+      "source_kind": "cli",
+      "events": [
+        {
+          "timestamp": "2026-09-11T02:27:22.337Z",
+          "record_type": "event_msg",
+          "type": "task_started",
+          "turn_id": "01a08e4a-8051-7a33-8cea-e81400b8820f",
+          "started_at": 1789093642
+        },
+        {
+          "timestamp": "2026-09-11T02:27:22.347Z",
+          "record_type": "turn_context",
+          "turn_id": "01a08e4a-8051-7a33-8cea-e81400b8820f",
+          "model": "gpt-6-astra",
+          "approval_policy": "never",
+          "sandbox_policy": {
+            "type": "danger-full-access"
+          }
+        },
+        {
+          "timestamp": "2026-09-11T02:27:22.398Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "user",
+          "message_summary": {
+            "utf8_bytes": 1279,
+            "sha256": "09f9ec8a0600594dc20881d0d72e27acdbfd273d84da4d13a826e10862c5dd4b",
+            "markers": [
+              "nr-g0-offline-01-ACK",
+              "nr-g0-offline-01-WAITING"
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T02:27:26.354Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "assistant",
+          "phase": "commentary"
+        },
+        {
+          "timestamp": "2026-09-11T02:27:34.823Z",
+          "record_type": "response_item",
+          "type": "function_call",
+          "name": "spawn_agent",
+          "namespace": "collaboration",
+          "call_id": "call_04lrqN3JFvYEoYG4tOoG2SUR",
+          "arguments_metadata": {
+            "task_name": "nr_g0_offline_01",
+            "agent_type": "default",
+            "fork_turns": "none"
+          }
+        },
+        {
+          "timestamp": "2026-09-11T02:27:34.991Z",
+          "record_type": "response_item",
+          "type": "function_call_output",
+          "call_id": "call_04lrqN3JFvYEoYG4tOoG2SUR",
+          "output_summary": {
+            "utf8_bytes": 38,
+            "sha256": "2b8789e6ba2ed545641e2bf750dc069f7e10649f397077e1fedfbd469ff0673e",
+            "markers": [],
+            "native_spawn_response": {
+              "task_name": "/root/nr_g0_offline_01"
+            }
+          }
+        },
+        {
+          "timestamp": "2026-09-11T02:27:37.091Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "assistant",
+          "phase": "final_answer",
+          "message_summary": {
+            "utf8_bytes": 24,
+            "sha256": "31e53071ac0961ee7b6f077eb42f7953e97f335a5049ef8f9a44956d4e43f3f0",
+            "markers": [
+              "nr-g0-offline-01-WAITING"
+            ]
+          },
+          "text": "nr-g0-offline-01-WAITING"
+        },
+        {
+          "timestamp": "2026-09-11T02:27:37.301Z",
+          "record_type": "event_msg",
+          "type": "task_complete",
+          "turn_id": "01a08e4a-8051-7a33-8cea-e81400b8820f",
+          "started_at": 1789093642,
+          "completed_at": 1789093657,
+          "duration_ms": 14963,
+          "last_agent_message": "nr-g0-offline-01-WAITING"
+        }
+      ]
+    },
+    {
+      "id": "01a08e3a-18bc-7a33-8007-adaba1807d4f",
+      "created_at_ms": 1789092567228,
+      "cli_version": "0.153.4",
+      "agent_path": "/root/nr_g0_idle_01",
+      "experiment_cwd_matches": true,
+      "source_kind": "subagent",
+      "parent_thread_id": "01a08e38-508a-76b2-bc17-09fd5dbe80ae",
+      "events": []
+    },
+    {
+      "id": "01a08e3e-2793-7e71-b671-50921b58cab0",
+      "created_at_ms": 1789092833171,
+      "cli_version": "0.153.4",
+      "agent_path": "/root/nr_g0_busy_01",
+      "experiment_cwd_matches": true,
+      "source_kind": "subagent",
+      "parent_thread_id": "01a08e38-508a-76b2-bc17-09fd5dbe80ae",
+      "events": []
+    },
+    {
+      "id": "01a08e45-b4b2-7db1-87df-37c8a309b324",
+      "created_at_ms": 1789093328050,
+      "cli_version": "0.153.4",
+      "agent_path": "/root/nr_g0_active_sleep_01",
+      "experiment_cwd_matches": true,
+      "source_kind": "subagent",
+      "parent_thread_id": "01a08e38-508a-76b2-bc17-09fd5dbe80ae",
+      "events": []
+    },
+    {
+      "id": "01a08e4a-b131-7ad3-bab6-83a1af1a5d96",
+      "created_at_ms": 1789093654833,
+      "cli_version": "0.153.4",
+      "agent_path": "/root/nr_g0_offline_01",
+      "experiment_cwd_matches": true,
+      "source_kind": "subagent",
+      "parent_thread_id": "01a08e38-508a-76b2-bc17-09fd5dbe80ae",
+      "events": [
+        {
+          "timestamp": "2026-09-11T02:27:35.007Z",
+          "record_type": "event_msg",
+          "type": "task_started",
+          "turn_id": "01a08e4a-b1b7-7e72-b978-4bae568bc617",
+          "started_at": 1789093654
+        },
+        {
+          "timestamp": "2026-09-11T02:27:38.860Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "developer"
+        },
+        {
+          "timestamp": "2026-09-11T02:27:38.860Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "developer"
+        },
+        {
+          "timestamp": "2026-09-11T02:27:38.860Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "developer"
+        },
+        {
+          "timestamp": "2026-09-11T02:27:38.860Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "user"
+        },
+        {
+          "timestamp": "2026-09-11T02:27:38.866Z",
+          "record_type": "turn_context",
+          "turn_id": "01a08e4a-b1b7-7e72-b978-4bae568bc617",
+          "model": "gpt-6-astra",
+          "approval_policy": "never",
+          "sandbox_policy": {
+            "type": "danger-full-access"
+          }
+        },
+        {
+          "timestamp": "2026-09-11T02:27:38.870Z",
+          "record_type": "response_item",
+          "type": "agent_message",
+          "author": "/root",
+          "recipient": "/root/nr_g0_offline_01"
+        },
+        {
+          "timestamp": "2026-09-11T02:27:47.064Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "assistant",
+          "phase": "commentary"
+        },
+        {
+          "timestamp": "2026-09-11T02:27:53.525Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call",
+          "name": "exec",
+          "call_id": "call_D2wTv4EJzA8zCU9G8CC45OTh",
+          "status": "completed",
+          "input_summary": {
+            "utf8_bytes": 721,
+            "sha256": "cb64bb897c579016414f03ba9dbb51b9bae693ddabf2628bc80eb63bcd966225",
+            "markers": [],
+            "operations": [
+              "exec_command"
+            ],
+            "host_commands": [
+              {
+                "verb": "start",
+                "nonce": "nr-g0-offline-01",
+                "experiment_dir_matches": true,
+                "duration": "60s"
+              },
+              {
+                "verb": "wait",
+                "nonce": "nr-g0-offline-01",
+                "experiment_dir_matches": true,
+                "duration": "90s"
+              }
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T02:27:54.703Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call_output",
+          "call_id": "call_D2wTv4EJzA8zCU9G8CC45OTh",
+          "output_summary": {
+            "utf8_bytes": 156,
+            "sha256": "a9dae4c8bdee7fce4421c2d60407fc20d84d397e074d272d907d848ce648c13e",
+            "markers": [],
+            "runtime": [
+              {
+                "session_id": 15884,
+                "wall_time_seconds": 1.001589042
+              }
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T02:27:57.163Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call",
+          "name": "exec",
+          "call_id": "call_jTP5uzzyt33jfdijunl8sQay",
+          "status": "completed",
+          "input_summary": {
+            "utf8_bytes": 103,
+            "sha256": "1b3d6031ab56e25b73fff7180cc74452c153f89ac85eff1110459a55ab22cf1e",
+            "markers": [],
+            "operations": [
+              "write_stdin"
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T02:28:28.172Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call_output",
+          "call_id": "call_jTP5uzzyt33jfdijunl8sQay",
+          "output_summary": {
+            "utf8_bytes": 61,
+            "sha256": "d1ec6de1e94f35609c19d0fd127dfb51bf0455e5851588c4a0011c63f8f052cf",
+            "markers": []
+          }
+        },
+        {
+          "timestamp": "2026-09-11T02:28:30.818Z",
+          "record_type": "response_item",
+          "type": "function_call",
+          "name": "wait",
+          "call_id": "call_cnsfl13Nfw8gHy9vVWcKtR8U",
+          "arguments_metadata": {}
+        },
+        {
+          "timestamp": "2026-09-11T02:28:42.004Z",
+          "record_type": "response_item",
+          "type": "function_call_output",
+          "call_id": "call_cnsfl13Nfw8gHy9vVWcKtR8U",
+          "output_summary": {
+            "utf8_bytes": 27,
+            "sha256": "12b64dce62f43aaae803c806a7e8b199d346ecbf53e1072c6550cbf2b13e38d2",
+            "markers": []
+          }
+        },
+        {
+          "timestamp": "2026-09-11T02:28:42.013Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "developer"
+        },
+        {
+          "timestamp": "2026-09-11T02:28:42.015Z",
+          "record_type": "event_msg",
+          "type": "turn_aborted",
+          "turn_id": "01a08e4a-b1b7-7e72-b978-4bae568bc617",
+          "started_at": 1789093654,
+          "completed_at": 1789093722,
+          "duration_ms": 67042
+        }
+      ]
+    }
+  ]
+}

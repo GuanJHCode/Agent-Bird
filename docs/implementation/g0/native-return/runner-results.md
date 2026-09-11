@@ -36,7 +36,7 @@ python3 tasks/g0-native-return/scripts/runner_collect.py \
 
 ## nr-g0-busy-01：忙碌主控能接收原生 Agent 消息
 
-**忙碌时投递成立，但返回类型是 `agent_message`，没有 `role` 字段。** 该诊断不证明 idle 自动唤醒，不等同 `function_call_output`。
+**单次受控样本观察到忙碌时投递，返回类型是 `agent_message`，没有 `role` 字段。** 此处仅 1 个 busy 样本，未达方案要求的 3 次基础样本门槛；该诊断不证明 idle 自动唤醒，不等同 `function_call_output`。
 
 使用同一精确 root，于 02:13:46Z 主动提交一条明确标识的新实验请求，固定模型预算 120 秒，45.349 秒即完成。新 child 只运行 `sleep 10; echo nr-g0-busy-01-DONE`；root 在派发后运行自己唯一的有限合成工作 `sleep 30; echo nr-g0-busy-01-LOCAL`，不调用 Agent 等待或状态查询。
 
@@ -48,8 +48,24 @@ python3 tasks/g0-native-return/scripts/runner_collect.py \
 | 02:14:28.699 | 新 child 的 DONE 进入 root；同为 `agent_message`、`author=/root/nr_g0_busy_01`、`recipient=/root`，没有 `role` 字段 |
 | 02:14:31.518 / 31.605 | root 输出 `nr-g0-busy-01-RECEIVED`，随后 `task_complete` |
 
-这证明原生 child 完成可以排队，并在主控仍处于活动 turn 的工具边界消费。前一个 idle 消息在新实验用户输入后才写入父 rollout，不能倒算为此前自动唤醒。证据分别为 [busy 原生消息](runner-busy-01.json) 和 [idle 通知之后才交付](runner-idle-01-later-delivery.json)。
+本样本观察到原生 child 完成先排队，在主控仍处于活动 turn 的工具边界消费。前一个 idle 消息在新实验用户输入后才写入父 rollout，不能倒算为此前自动唤醒。证据分别为 [busy 原生消息](runner-busy-01.json) 和 [idle 通知之后才交付](runner-idle-01-later-delivery.json)。
 
-## 进程与后续范围
+## nr-g0-active-sleep-01：单次活动等待可被完成通知提前打断
 
-目前原生 TUI 句柄 `87693` / PID `46093` 保持存活，供同一精确 root 的独立 Host 退出与恢复实验使用。正常关闭和本任务资源清理将在该实验后记录。尚未调用合成 Host；等待其独立审查，避免将本报告的在线实验当作离线交付证据。
+这是一条单独的 active-sleep 候选，仍未达 3 次基础样本门槛。与 busy 样本固定执行 30 秒本地命令不同，主控在同一活动 turn 中调用原生 `clock.sleep(duration_ms:60000)`；没有先结束响应。child 只执行短延迟合成命令。
+
+02:22:10.964Z 原生 sleep 开始；02:22:35.539Z 在 24.5716 秒后返回 `function_call_output`：`Sleep interrupted by new input.`。紧接着 35.541Z，原生 `agent_message` 送入 child 的 DONE，37.497Z 主控 ACK 并结束本轮。观察者没有在这期间输入新用户消息。sleep 回执是等待被打断的信息，child 内容仍由独立 `agent_message` 提供；不能将二者混称为同一个执行结果工具回调，更不能将 active sleep 称为 idle 自动唤醒。[原始白名单证据](runner-active-sleep-01.json)。
+
+## nr-g0-offline-01：无 goal 的原会话恢复未自动补交
+
+独立 Host 经审查后接入，二进制 SHA256 为 `cf7bfc0acf6f3348210c50c75f9a0ea85b6a56e1abafbbcec85156580dc40cec`。数据目录在已信任专用 test-repo 内，为新建 0700 空目录。02:27:22Z 提交新实验，root 派发后输出 WAITING；child 启动唯一 60 秒任务并执行只读 wait。
+
+02:28:40.839Z，观察者读取到 pending/count 0，worker 53297 的 PPID 已为 1、PGID 为 53297。只用正常 `/quit`，SessionEnd Hook 时间为 02:28:42.038Z，原 TUI 最终 exit 0。02:28:54.771Z Host completed/count 1 落盘。02:29:22Z 使用 `codex resume 01a08e38-508a-76b2-bc17-09fd5dbe80ae`，不带 prompt；完整观察到 02:31:22Z，主控没有新的 turn、没有自动 ACK。窗口结束后的 `/status` 再次确认同一个 root ID。
+
+本样本在 TUI 真正消失后、结果生成前没有直接采到中间 PID 状态，因此只记录已有的前后事实，不单凭 Hook 结束时间证明独立生存。下一 goal 样本的有限进程监视器补上了这段直接证据。[原生事件](runner-offline-01.json)、[进程与 Host 生命周期](runner-offline-01-lifecycle.json)。
+
+## 后续候选与采集器复核
+
+正常原生 goal 冷恢复的首个正向样本单独记录在 [runner-goal-results.md](runner-goal-results.md)，其中明确区分原生 goal 的控制上下文与真正的 Host 工具结果。
+
+独立审查指出，初版采集器对工具正文、Hook 扩展和 source 原文的保存过宽。现已限定为固定 nonce 消息/原生包装、类型化工具字段及摘要、固定 Hook 键/枚举，断言专用 cwd，并过滤非直接 parent 的线程。旧原生样本只重新采集，没有重跑模型。[隔离红绿回归](runner-privacy-regression.json) 在 `153a4ff` 的真实旧脚本上重现秘密 canary 落盘，修订版不落盘；错误 cwd / 非 CLI root 被拒绝，错误 parent 的不存在 rollout 未被打开，临时 fixture 已删除。

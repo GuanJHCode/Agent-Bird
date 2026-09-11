@@ -1,0 +1,11 @@
+{
+  "verified_at": "2026-09-11T02:46:16.392647+00:00",
+  "old_commit": "153a4ff",
+  "red": "old collector actually exported fixture plaintext canary",
+  "green": "current collector omitted canary from unknown tool input/output/arguments, message, source and Hook fields",
+  "wrong_parent": "not selected; absent private rollout was never opened",
+  "wrong_cwd": "rejected without producing output",
+  "non_cli_root": "rejected without producing output",
+  "fixture_cleanup": "temporary isolated SQLite/rollout/Hook/source fixtures removed",
+  "native_model_calls": 0
+}
