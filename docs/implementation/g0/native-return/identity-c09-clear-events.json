@@ -1,0 +1,190 @@
+{
+  "captured_at": "2026-09-11T03:15:43.851821+00:00",
+  "root_thread": "01a08e75-cae3-7043-832e-20ebf886aef7",
+  "nonce": "nr-g0-identity-c09-clear",
+  "window": {
+    "since": "2026-09-11T03:14:40Z",
+    "through": "2026-09-11T03:15:43.702Z"
+  },
+  "selection": "Exact root UUID and native source.parent_thread_id direct children only",
+  "privacy": "Reasoning omitted; text limited to fixed nonce messages and native wrappers; tool data is typed fields, fixed responses or hashes; explicit Hook keys only",
+  "process_observation": {
+    "requested_pid": 73211,
+    "exit_code": 0,
+    "stdout": "  PID  PPID STARTED                      ELAPSED COMM\n73211 38821 Fri Sep 11 11:14:12 2026       01:31 codex\n"
+  },
+  "hooks": [
+    {
+      "file": "e149df3cf4d7ca540f8c5ac94255e708.json",
+      "hook_event_name": "SessionStart",
+      "nonce": "g0-macos-20260910",
+      "pid": 74045,
+      "ppid": 73211,
+      "recorded_at": "2026-09-11T03:15:02.042433Z",
+      "session_id": "01a08e75-cae3-7043-832e-20ebf886aef7",
+      "source": "clear"
+    },
+    {
+      "file": "ba662664b2b82abd74a0796347661366.json",
+      "hook_event_name": "UserPromptSubmit",
+      "nonce": "g0-macos-20260910",
+      "pid": 74046,
+      "ppid": 73211,
+      "recorded_at": "2026-09-11T03:15:02.058656Z",
+      "session_id": "01a08e75-cae3-7043-832e-20ebf886aef7",
+      "turn_id": "01a08e76-1a12-7fe2-b22e-67f30f94d6fd"
+    }
+  ],
+  "threads": [
+    {
+      "id": "01a08e75-cae3-7043-832e-20ebf886aef7",
+      "created_at_ms": 1789096479459,
+      "cli_version": "0.153.4",
+      "agent_path": null,
+      "experiment_cwd_matches": true,
+      "source_kind": "cli",
+      "events": [
+        {
+          "timestamp": "2026-09-11T03:14:59.782Z",
+          "record_type": "event_msg",
+          "type": "task_started",
+          "turn_id": "01a08e76-1a12-7fe2-b22e-67f30f94d6fd",
+          "started_at": 1789096499
+        },
+        {
+          "timestamp": "2026-09-11T03:15:01.996Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "developer"
+        },
+        {
+          "timestamp": "2026-09-11T03:15:01.996Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "developer"
+        },
+        {
+          "timestamp": "2026-09-11T03:15:01.996Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "developer"
+        },
+        {
+          "timestamp": "2026-09-11T03:15:01.996Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "user"
+        },
+        {
+          "timestamp": "2026-09-11T03:15:01.999Z",
+          "record_type": "turn_context",
+          "turn_id": "01a08e76-1a12-7fe2-b22e-67f30f94d6fd",
+          "model": "gpt-6-astra",
+          "approval_policy": "never",
+          "sandbox_policy": {
+            "type": "danger-full-access"
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:15:02.067Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "user",
+          "message_summary": {
+            "utf8_bytes": 322,
+            "sha256": "6e135808170a2ee8292b72633bfb7ce9b2afc3c0a39c542e4390bb71e66f1864",
+            "markers": [
+              "nr-g0-identity-c09-clear-ACK"
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:15:06.777Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "assistant",
+          "phase": "commentary"
+        },
+        {
+          "timestamp": "2026-09-11T03:15:07.066Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call",
+          "name": "exec",
+          "call_id": "call_rw7ExzLeW0S4SZY3EbqFSASu",
+          "status": "completed",
+          "input_summary": {
+            "utf8_bytes": 32,
+            "sha256": "c9ecdbd25359dfc13ce2592808efde54e55fe76796a4b08f2e83d38a54be1fad",
+            "markers": [],
+            "operations": [
+              "get_goal"
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:15:07.201Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call_output",
+          "call_id": "call_rw7ExzLeW0S4SZY3EbqFSASu",
+          "output_summary": {
+            "utf8_bytes": 113,
+            "sha256": "e92cdde6543b1e3f7f6d7915cafae92225cc3b12f1c7006eca228d01182f4af9",
+            "markers": []
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:15:13.233Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call",
+          "name": "exec",
+          "call_id": "call_YKhzppiuXFgpV34hobHkoJx1",
+          "status": "completed",
+          "input_summary": {
+            "utf8_bytes": 279,
+            "sha256": "49ff16ee9a341d4fb7c936edbff042ae2e6c29d937cd6a0e15da8991077adfae",
+            "markers": [],
+            "operations": [
+              "exec_command"
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:15:13.353Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call_output",
+          "call_id": "call_YKhzppiuXFgpV34hobHkoJx1",
+          "output_summary": {
+            "utf8_bytes": 167,
+            "sha256": "971840403509451b13bfd1f4a3aa2c4032a748dad697e357248b93b92bdb0abd",
+            "markers": []
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:15:15.641Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "assistant",
+          "phase": "final_answer",
+          "message_summary": {
+            "utf8_bytes": 28,
+            "sha256": "9dfb9626372eae0094377d33d00d848df8f11bc873fdc07631a0aba6fd05ad45",
+            "markers": [
+              "nr-g0-identity-c09-clear-ACK"
+            ]
+          },
+          "text": "nr-g0-identity-c09-clear-ACK"
+        },
+        {
+          "timestamp": "2026-09-11T03:15:15.697Z",
+          "record_type": "event_msg",
+          "type": "task_complete",
+          "turn_id": "01a08e76-1a12-7fe2-b22e-67f30f94d6fd",
+          "started_at": 1789096499,
+          "completed_at": 1789096515,
+          "duration_ms": 15959,
+          "last_agent_message": "nr-g0-identity-c09-clear-ACK"
+        }
+      ]
+    }
+  ]
+}

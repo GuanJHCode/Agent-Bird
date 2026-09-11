@@ -1,0 +1,157 @@
+{
+  "captured_at": "2026-09-11T03:17:23.486Z",
+  "experiment": "nr-g0-identity",
+  "cli_version": "0.153.4",
+  "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo",
+  "timestamp_semantics": "PTY observations use the tool receive time. Native model/tool/Hook events retain original timestamps in separate filtered files. Process birth is ps lstart in Asia/Shanghai.",
+  "authorization_boundary": "Normal native codex entry point; only TERM display override; no config/auth/permission/Hook edits, no Host actions, no signals.",
+  "owned_tuis": [
+    {
+      "pid": 63401,
+      "ppid": 38821,
+      "birth_local": "2026-09-11 11:00:46 +08:00",
+      "native_comm": "codex",
+      "pty": 4830,
+      "thread": "01a08e69-17ab-74e0-94bb-7e83065a90b3",
+      "quit_observed_at": "2026-09-11T03:04:08.211Z",
+      "exit_confirmed_at": "2026-09-11T03:04:16.760Z",
+      "exit_code": 0
+    },
+    {
+      "pid": 64122,
+      "ppid": 38821,
+      "birth_local": "2026-09-11 11:03:14 +08:00",
+      "identity_method": "ps recorded shell PID and birth; shell exec replaced itself with ordinary codex resume",
+      "native_resume_root": "01a08e69-17ab-74e0-94bb-7e83065a90b3",
+      "finished_at": "2026-09-11T03:03:15.592Z",
+      "exit_code": 1
+    },
+    {
+      "pid": 64316,
+      "ppid": 38821,
+      "birth_local": "2026-09-11 11:04:27 +08:00",
+      "native_comm": "codex",
+      "pty": 50568,
+      "threads": [
+        "01a08e69-17ab-74e0-94bb-7e83065a90b3",
+        "01a08e6f-8466-7c40-8897-47aa5e30a0cb"
+      ],
+      "quit_sent_at": "2026-09-11T03:09:37.640Z",
+      "exit_confirmed_at": "2026-09-11T03:10:10.256Z",
+      "exit_code": 0
+    },
+    {
+      "pid": 68693,
+      "ppid": 38821,
+      "birth_local": "2026-09-11 11:10:10 +08:00",
+      "native_comm": "codex",
+      "pty": 67887,
+      "threads": [
+        "01a08e69-17ab-74e0-94bb-7e83065a90b3",
+        "01a08e72-ea1f-7e30-904e-b6ac3d4ce427"
+      ],
+      "quit_sent_at": "2026-09-11T03:13:35.823Z",
+      "exit_confirmed_at": "2026-09-11T03:14:12.144Z",
+      "exit_code": 0
+    },
+    {
+      "pid": 73211,
+      "ppid": 38821,
+      "birth_local": "2026-09-11 11:14:12 +08:00",
+      "native_comm": "codex",
+      "pty": 66592,
+      "threads": [
+        "01a08e69-17ab-74e0-94bb-7e83065a90b3",
+        "01a08e75-cae3-7043-832e-20ebf886aef7"
+      ],
+      "quit_sent_at": "2026-09-11T03:15:46.137Z",
+      "exit_confirmed_at": "2026-09-11T03:16:03.137Z",
+      "exit_code": 0
+    }
+  ],
+  "c03": {
+    "unqualified_early_rejection": {
+      "observed_at": "2026-09-11T03:02:26.790Z",
+      "exit_code": 1,
+      "pid_captured": false,
+      "note": "Same active-writer error, excluded from the fully identified sample."
+    },
+    "identified_rejection": {
+      "observed_at": "2026-09-11T03:03:15.592Z",
+      "pid": 64122,
+      "original_pid": 63401,
+      "root": "01a08e69-17ab-74e0-94bb-7e83065a90b3",
+      "exit_code": 1,
+      "native_error": "thread 01a08e69-17ab-74e0-94bb-7e83065a90b3 already has an active writer (code -32600)"
+    },
+    "original_state": "Idle after its sole model turn completed; no Goal was set.",
+    "normal_resume": {
+      "invocation": "TERM=xterm-256color codex resume 01a08e69-17ab-74e0-94bb-7e83065a90b3",
+      "pid": 64316,
+      "observed_at": "2026-09-11T03:04:29.091Z",
+      "status_thread_id": "01a08e69-17ab-74e0-94bb-7e83065a90b3",
+      "observation_through": "2026-09-11T03:04:53.362Z",
+      "additional_model_turns": 0
+    }
+  },
+  "c09": {
+    "pause": {
+      "observed_at": "2026-09-11T03:06:03.411Z",
+      "command": "/goal pause",
+      "native_ui": "Goal paused",
+      "turn_still_running": true
+    },
+    "busy_fork": {
+      "observed_at": "2026-09-11T03:06:17.932Z",
+      "command": "/fork",
+      "native_ui": "'/fork' is disabled while a task is in progress.",
+      "esc_or_signal_used": false
+    },
+    "idle_fork": {
+      "observed_at": "2026-09-11T03:07:49.273Z",
+      "command": "/fork",
+      "new_status_thread": "01a08e6f-8466-7c40-8897-47aa5e30a0cb"
+    },
+    "paused_resume": [
+      {
+        "observed_at": "2026-09-11T03:10:11.418Z",
+        "native_ui": "Resume paused goal?",
+        "choices": [
+          "Resume goal",
+          "Leave paused"
+        ],
+        "selected": "Leave paused",
+        "selection_at": "2026-09-11T03:10:28.841Z"
+      },
+      {
+        "observed_at": "2026-09-11T03:14:13.304Z",
+        "native_ui": "Resume paused goal?",
+        "choices": [
+          "Resume goal",
+          "Leave paused"
+        ],
+        "selected": "Leave paused",
+        "selection_at": "2026-09-11T03:14:38.243Z"
+      }
+    ],
+    "new": {
+      "observed_at": "2026-09-11T03:11:31.926Z",
+      "command": "/new",
+      "new_status_thread": "01a08e72-ea1f-7e30-904e-b6ac3d4ce427"
+    },
+    "clear": {
+      "observed_at": "2026-09-11T03:14:40.541Z",
+      "command": "/clear",
+      "new_status_thread": "01a08e75-cae3-7043-832e-20ebf886aef7"
+    }
+  },
+  "cleanup": {
+    "observed_at": "2026-09-11T03:16:03Z",
+    "ps_arguments": "-p 63401,64122,64316,68693,73211 -o pid,ppid,lstart,etime,comm",
+    "ps_exit_code": 1,
+    "remaining_selected_pids": [],
+    "native_history_preserved": true,
+    "old_goal": "paused, retained as experiment evidence",
+    "fork_goal": "complete"
+  }
+}

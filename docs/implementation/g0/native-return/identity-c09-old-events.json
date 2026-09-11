@@ -1,0 +1,325 @@
+{
+  "captured_at": "2026-09-11T03:11:29.679890+00:00",
+  "root_thread": "01a08e69-17ab-74e0-94bb-7e83065a90b3",
+  "nonce": "nr-g0-identity-c09-old",
+  "window": {
+    "since": "2026-09-11T03:05:21Z",
+    "through": "2026-09-11T03:11:29.466Z"
+  },
+  "selection": "Exact root UUID and native source.parent_thread_id direct children only",
+  "privacy": "Reasoning omitted; text limited to fixed nonce messages and native wrappers; tool data is typed fields, fixed responses or hashes; explicit Hook keys only",
+  "process_observation": {
+    "requested_pid": 68693,
+    "exit_code": 0,
+    "stdout": "  PID  PPID STARTED                      ELAPSED COMM\n68693 38821 Fri Sep 11 11:10:10 2026       01:19 codex\n"
+  },
+  "hooks": [
+    {
+      "file": "edbc4ae3efc4f1e2d67cf8f15576dce5.json",
+      "hook_event_name": "SessionStart",
+      "nonce": "g0-macos-20260910",
+      "pid": 65401,
+      "ppid": 64316,
+      "recorded_at": "2026-09-11T03:05:23.576841Z",
+      "session_id": "01a08e69-17ab-74e0-94bb-7e83065a90b3",
+      "source": "resume"
+    },
+    {
+      "file": "3763966e3e3d2882a03f331d8493f295.json",
+      "hook_event_name": "SessionEnd",
+      "nonce": "g0-macos-20260910",
+      "pid": 68626,
+      "ppid": 64316,
+      "recorded_at": "2026-09-11T03:09:36.585601Z",
+      "session_id": "01a08e69-17ab-74e0-94bb-7e83065a90b3"
+    },
+    {
+      "file": "484cce01e4c0971b19938ac639a4611e.json",
+      "hook_event_name": "SessionStart",
+      "nonce": "g0-macos-20260910",
+      "pid": 69191,
+      "ppid": 68693,
+      "recorded_at": "2026-09-11T03:10:49.643842Z",
+      "session_id": "01a08e69-17ab-74e0-94bb-7e83065a90b3",
+      "source": "resume"
+    },
+    {
+      "file": "44179ee9f2f447fad1c2bc1649e87ed0.json",
+      "hook_event_name": "UserPromptSubmit",
+      "nonce": "g0-macos-20260910",
+      "pid": 69192,
+      "ppid": 68693,
+      "recorded_at": "2026-09-11T03:10:49.656958Z",
+      "session_id": "01a08e69-17ab-74e0-94bb-7e83065a90b3",
+      "turn_id": "01a08e72-4403-7f21-a628-792c361c66a5"
+    }
+  ],
+  "threads": [
+    {
+      "id": "01a08e69-17ab-74e0-94bb-7e83065a90b3",
+      "created_at_ms": 1789095647191,
+      "cli_version": "0.153.4",
+      "agent_path": null,
+      "experiment_cwd_matches": true,
+      "source_kind": "cli",
+      "events": [
+        {
+          "timestamp": "2026-09-11T03:05:22.329Z",
+          "record_type": "event_msg",
+          "type": "task_started",
+          "turn_id": "01a08e6d-4a8b-77d0-b986-3258900203a5",
+          "started_at": 1789095922
+        },
+        {
+          "timestamp": "2026-09-11T03:05:23.558Z",
+          "record_type": "turn_context",
+          "turn_id": "01a08e6d-4a8b-77d0-b986-3258900203a5",
+          "model": "gpt-6-astra",
+          "approval_policy": "never",
+          "sandbox_policy": {
+            "type": "danger-full-access"
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:05:23.580Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "user",
+          "control_kind": "native_goal_continuation",
+          "message_summary": {
+            "utf8_bytes": 6322,
+            "sha256": "fbd6826951a6a50cc07123bd10528d02be4a88d94515ae9924eee5501d8cab39",
+            "markers": [
+              "nr-g0-identity-c09-old-ACK"
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:05:26.780Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "assistant",
+          "phase": "commentary"
+        },
+        {
+          "timestamp": "2026-09-11T03:05:27.022Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call",
+          "name": "exec",
+          "call_id": "call_Xq68Z4RMQ9vkWkoTbu9hfgzg",
+          "status": "completed",
+          "input_summary": {
+            "utf8_bytes": 32,
+            "sha256": "c9ecdbd25359dfc13ce2592808efde54e55fe76796a4b08f2e83d38a54be1fad",
+            "markers": [],
+            "operations": [
+              "get_goal"
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:05:27.116Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call_output",
+          "call_id": "call_Xq68Z4RMQ9vkWkoTbu9hfgzg",
+          "output_summary": {
+            "utf8_bytes": 638,
+            "sha256": "6236895e1e206f4fb19f8e982af106ffdbcc4be178039222fdae1aeab8be0470",
+            "markers": [
+              "nr-g0-identity-c09-old-ACK"
+            ],
+            "native_goal": {
+              "thread_id": "01a08e69-17ab-74e0-94bb-7e83065a90b3",
+              "status": "active",
+              "tokensUsed": 0,
+              "timeUsedSeconds": 0,
+              "createdAt": 1789095922,
+              "updatedAt": 1789095922
+            }
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:05:29.843Z",
+          "record_type": "response_item",
+          "type": "function_call",
+          "name": "sleep",
+          "namespace": "clock",
+          "call_id": "call_Xp8bDzI1wmKBtgtOwhvisKb5",
+          "arguments_metadata": {
+            "duration_ms": 60000
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:06:29.873Z",
+          "record_type": "response_item",
+          "type": "function_call_output",
+          "call_id": "call_Xp8bDzI1wmKBtgtOwhvisKb5",
+          "output_summary": {
+            "utf8_bytes": 43,
+            "sha256": "8650883813bf90f307b2c20854fc77f19d4221320cdea275f9348644b9e686e0",
+            "markers": []
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:06:32.511Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call",
+          "name": "exec",
+          "call_id": "call_fmGneT7O1u6K0f8CCUVcWq9i",
+          "status": "completed",
+          "input_summary": {
+            "utf8_bytes": 32,
+            "sha256": "c9ecdbd25359dfc13ce2592808efde54e55fe76796a4b08f2e83d38a54be1fad",
+            "markers": [],
+            "operations": [
+              "get_goal"
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:06:32.603Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call_output",
+          "call_id": "call_fmGneT7O1u6K0f8CCUVcWq9i",
+          "output_summary": {
+            "utf8_bytes": 642,
+            "sha256": "020356b70618ca7b21a0aa9cb4ad42155618b9155f8008ff12051c61e975685f",
+            "markers": [
+              "nr-g0-identity-c09-old-ACK"
+            ],
+            "native_goal": {
+              "thread_id": "01a08e69-17ab-74e0-94bb-7e83065a90b3",
+              "status": "paused",
+              "tokensUsed": 2250,
+              "timeUsedSeconds": 39,
+              "createdAt": 1789095922,
+              "updatedAt": 1789095962
+            }
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:06:39.399Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "assistant",
+          "phase": "final_answer"
+        },
+        {
+          "timestamp": "2026-09-11T03:06:39.459Z",
+          "record_type": "event_msg",
+          "type": "task_complete",
+          "turn_id": "01a08e6d-4a8b-77d0-b986-3258900203a5",
+          "started_at": 1789095922,
+          "completed_at": 1789095999,
+          "duration_ms": 77129
+        },
+        {
+          "timestamp": "2026-09-11T03:10:48.356Z",
+          "record_type": "event_msg",
+          "type": "task_started",
+          "turn_id": "01a08e72-4403-7f21-a628-792c361c66a5",
+          "started_at": 1789096248
+        },
+        {
+          "timestamp": "2026-09-11T03:10:49.590Z",
+          "record_type": "turn_context",
+          "turn_id": "01a08e72-4403-7f21-a628-792c361c66a5",
+          "model": "gpt-6-astra",
+          "approval_policy": "never",
+          "sandbox_policy": {
+            "type": "danger-full-access"
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:10:49.664Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "user",
+          "message_summary": {
+            "utf8_bytes": 320,
+            "sha256": "dd36e5deae95b3e36481b3840eb710ebed11ede364aaa8aeb7f6cbf68fc1995f",
+            "markers": [
+              "nr-g0-identity-c09-old-ACK"
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:10:53.277Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "assistant",
+          "phase": "commentary"
+        },
+        {
+          "timestamp": "2026-09-11T03:10:55.636Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call",
+          "name": "exec",
+          "call_id": "call_Z6DvaT0CwkYsZu5onnwm8YES",
+          "status": "completed",
+          "input_summary": {
+            "utf8_bytes": 281,
+            "sha256": "8cf7c9eb42e318ac11d1a319849005d936bb9404672972ce5953c23f54fd5f68",
+            "markers": [],
+            "operations": [
+              "exec_command",
+              "get_goal"
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:10:55.777Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call_output",
+          "call_id": "call_Z6DvaT0CwkYsZu5onnwm8YES",
+          "output_summary": {
+            "utf8_bytes": 875,
+            "sha256": "f25fdcae8e66445c4f3d1457b6737a806ca2fd42aeef5b2ad998e15bfc52dbf0",
+            "markers": [
+              "nr-g0-identity-c09-old-ACK"
+            ],
+            "native_goal": {
+              "thread_id": "01a08e69-17ab-74e0-94bb-7e83065a90b3",
+              "status": "paused",
+              "tokensUsed": 2250,
+              "timeUsedSeconds": 39,
+              "createdAt": 1789095922,
+              "updatedAt": 1789095962
+            },
+            "runtime": [
+              {
+                "exit_code": 0,
+                "wall_time_seconds": 3.25e-06
+              }
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:10:57.661Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "assistant",
+          "phase": "final_answer",
+          "message_summary": {
+            "utf8_bytes": 26,
+            "sha256": "4846870d563cd188b94fee8e4d2d68092ca83eeaabb02f5fed381003cb7c29dd",
+            "markers": [
+              "nr-g0-identity-c09-old-ACK"
+            ]
+          },
+          "text": "nr-g0-identity-c09-old-ACK"
+        },
+        {
+          "timestamp": "2026-09-11T03:10:57.724Z",
+          "record_type": "event_msg",
+          "type": "task_complete",
+          "turn_id": "01a08e72-4403-7f21-a628-792c361c66a5",
+          "started_at": 1789096248,
+          "completed_at": 1789096257,
+          "duration_ms": 9368,
+          "last_agent_message": "nr-g0-identity-c09-old-ACK"
+        }
+      ]
+    }
+  ]
+}

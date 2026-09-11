@@ -1,0 +1,170 @@
+{
+  "captured_at": "2026-09-11T03:04:05.970911+00:00",
+  "root_thread": "01a08e69-17ab-74e0-94bb-7e83065a90b3",
+  "nonce": "nr-g0-identity-c03",
+  "window": {
+    "since": "2026-09-11T03:00:46Z",
+    "through": "2026-09-11T03:04:05.836Z"
+  },
+  "selection": "Exact root UUID and native source.parent_thread_id direct children only",
+  "privacy": "Reasoning omitted; text limited to fixed nonce messages and native wrappers; tool data is typed fields, fixed responses or hashes; explicit Hook keys only",
+  "process_observation": {
+    "requested_pid": 63401,
+    "exit_code": 0,
+    "stdout": "  PID  PPID STARTED                      ELAPSED COMM\n63401 38821 Fri Sep 11 11:00:46 2026       03:19 codex\n"
+  },
+  "hooks": [
+    {
+      "file": "cddb474cdda4309d83e4d2ba6d32e60c.json",
+      "hook_event_name": "SessionStart",
+      "nonce": "g0-macos-20260910",
+      "pid": 63985,
+      "ppid": 63401,
+      "recorded_at": "2026-09-11T03:02:03.834152Z",
+      "session_id": "01a08e69-17ab-74e0-94bb-7e83065a90b3",
+      "source": "startup"
+    },
+    {
+      "file": "25af4bf89ec8cf434a0f95d2018d1c07.json",
+      "hook_event_name": "UserPromptSubmit",
+      "nonce": "g0-macos-20260910",
+      "pid": 63986,
+      "ppid": 63401,
+      "recorded_at": "2026-09-11T03:02:03.855406Z",
+      "session_id": "01a08e69-17ab-74e0-94bb-7e83065a90b3",
+      "turn_id": "01a08e6a-3deb-70f1-8977-3732c81e7269"
+    }
+  ],
+  "threads": [
+    {
+      "id": "01a08e69-17ab-74e0-94bb-7e83065a90b3",
+      "created_at_ms": 1789095647147,
+      "cli_version": "0.153.4",
+      "agent_path": null,
+      "experiment_cwd_matches": true,
+      "source_kind": "cli",
+      "events": [
+        {
+          "timestamp": "2026-09-11T03:02:02.573Z",
+          "record_type": "event_msg",
+          "type": "task_started",
+          "turn_id": "01a08e6a-3deb-70f1-8977-3732c81e7269",
+          "started_at": 1789095722
+        },
+        {
+          "timestamp": "2026-09-11T03:02:03.784Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "developer"
+        },
+        {
+          "timestamp": "2026-09-11T03:02:03.784Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "developer"
+        },
+        {
+          "timestamp": "2026-09-11T03:02:03.784Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "developer"
+        },
+        {
+          "timestamp": "2026-09-11T03:02:03.784Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "user"
+        },
+        {
+          "timestamp": "2026-09-11T03:02:03.787Z",
+          "record_type": "turn_context",
+          "turn_id": "01a08e6a-3deb-70f1-8977-3732c81e7269",
+          "model": "gpt-6-astra",
+          "approval_policy": "never",
+          "sandbox_policy": {
+            "type": "danger-full-access"
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:02:03.865Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "user",
+          "message_summary": {
+            "utf8_bytes": 322,
+            "sha256": "7e6e56533f7f9892542d74d0350d038c51577a3d45804ba14a542e973a0fce4b",
+            "markers": [
+              "nr-g0-identity-c03-ACK"
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:02:06.305Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "assistant",
+          "phase": "commentary"
+        },
+        {
+          "timestamp": "2026-09-11T03:02:08.525Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call",
+          "name": "exec",
+          "call_id": "call_mfGW4KPiohhJ7PjOjqVL6jsV",
+          "status": "completed",
+          "input_summary": {
+            "utf8_bytes": 267,
+            "sha256": "1283b6a1680739fce4660bec8afeb3b7b3846ddbc79ee49d4bb934bc05a1b1dd",
+            "markers": [],
+            "operations": [
+              "exec_command",
+              "get_goal"
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:02:08.704Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call_output",
+          "call_id": "call_mfGW4KPiohhJ7PjOjqVL6jsV",
+          "output_summary": {
+            "utf8_bytes": 347,
+            "sha256": "95b8e99ef8645d74c25b00772c66ebab290c8623dbda3d3c3c13c3fe20d30cc8",
+            "markers": [],
+            "runtime": [
+              {
+                "exit_code": 0,
+                "wall_time_seconds": 3.625e-06
+              }
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:02:11.414Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "assistant",
+          "phase": "final_answer",
+          "message_summary": {
+            "utf8_bytes": 22,
+            "sha256": "76ccce5032e30968d78c8f9784e8ce54cd22ca201a2ff2e5e3003ec7a63ae8f0",
+            "markers": [
+              "nr-g0-identity-c03-ACK"
+            ]
+          },
+          "text": "nr-g0-identity-c03-ACK"
+        },
+        {
+          "timestamp": "2026-09-11T03:02:11.462Z",
+          "record_type": "event_msg",
+          "type": "task_complete",
+          "turn_id": "01a08e6a-3deb-70f1-8977-3732c81e7269",
+          "started_at": 1789095722,
+          "completed_at": 1789095731,
+          "duration_ms": 8961,
+          "last_agent_message": "nr-g0-identity-c03-ACK"
+        }
+      ]
+    }
+  ]
+}

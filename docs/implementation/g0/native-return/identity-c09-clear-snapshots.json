@@ -1,0 +1,38 @@
+{
+  "captured_at": "2026-09-11T03:18:42.228830+00:00",
+  "root_thread": "01a08e75-cae3-7043-832e-20ebf886aef7",
+  "selected_thread": "01a08e75-cae3-7043-832e-20ebf886aef7",
+  "nonce": "nr-g0-identity-c09",
+  "window": {
+    "since": "2026-09-11T03:14:40Z",
+    "through": "2026-09-11T03:18:41.940690+00:00"
+  },
+  "privacy": "Only typed Goal presence/status/identity/timestamps and exactly two UUID environment fields from paired native tool output; no reasoning or arbitrary text.",
+  "observations": [
+    {
+      "timestamp": "2026-09-11T03:15:07.201Z",
+      "call_id": "call_rw7ExzLeW0S4SZY3EbqFSASu",
+      "operations": [
+        "get_goal"
+      ],
+      "goal_snapshots": [
+        {
+          "present": false
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-09-11T03:15:13.353Z",
+      "call_id": "call_YKhzppiuXFgpV34hobHkoJx1",
+      "operations": [
+        "exec_command"
+      ],
+      "native_environment_ids": [
+        {
+          "CODEX_THREAD_ID": "01a08e75-cae3-7043-832e-20ebf886aef7",
+          "CODEX_SESSION_ID": "01a08e75-cae3-7043-832e-20ebf886aef7"
+        }
+      ]
+    }
+  ]
+}

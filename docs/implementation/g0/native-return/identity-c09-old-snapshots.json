@@ -1,0 +1,90 @@
+{
+  "captured_at": "2026-09-11T03:18:42.028141+00:00",
+  "root_thread": "01a08e69-17ab-74e0-94bb-7e83065a90b3",
+  "selected_thread": "01a08e69-17ab-74e0-94bb-7e83065a90b3",
+  "nonce": "nr-g0-identity-c09",
+  "window": {
+    "since": "2026-09-11T03:00:46Z",
+    "through": "2026-09-11T03:18:41.940690+00:00"
+  },
+  "privacy": "Only typed Goal presence/status/identity/timestamps and exactly two UUID environment fields from paired native tool output; no reasoning or arbitrary text.",
+  "observations": [
+    {
+      "timestamp": "2026-09-11T03:02:08.704Z",
+      "call_id": "call_mfGW4KPiohhJ7PjOjqVL6jsV",
+      "operations": [
+        "exec_command",
+        "get_goal"
+      ],
+      "goal_snapshots": [
+        {
+          "present": false
+        }
+      ],
+      "native_environment_ids": [
+        {
+          "CODEX_THREAD_ID": "01a08e69-17ab-74e0-94bb-7e83065a90b3",
+          "CODEX_SESSION_ID": "01a08e69-17ab-74e0-94bb-7e83065a90b3"
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-09-11T03:05:27.116Z",
+      "call_id": "call_Xq68Z4RMQ9vkWkoTbu9hfgzg",
+      "operations": [
+        "get_goal"
+      ],
+      "goal_snapshots": [
+        {
+          "present": true,
+          "objective_matches_nonce": true,
+          "thread_id": "01a08e69-17ab-74e0-94bb-7e83065a90b3",
+          "status": "active",
+          "createdAt": 1789095922,
+          "updatedAt": 1789095922
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-09-11T03:06:32.603Z",
+      "call_id": "call_fmGneT7O1u6K0f8CCUVcWq9i",
+      "operations": [
+        "get_goal"
+      ],
+      "goal_snapshots": [
+        {
+          "present": true,
+          "objective_matches_nonce": true,
+          "thread_id": "01a08e69-17ab-74e0-94bb-7e83065a90b3",
+          "status": "paused",
+          "createdAt": 1789095922,
+          "updatedAt": 1789095962
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-09-11T03:10:55.777Z",
+      "call_id": "call_Z6DvaT0CwkYsZu5onnwm8YES",
+      "operations": [
+        "exec_command",
+        "get_goal"
+      ],
+      "goal_snapshots": [
+        {
+          "present": true,
+          "objective_matches_nonce": true,
+          "thread_id": "01a08e69-17ab-74e0-94bb-7e83065a90b3",
+          "status": "paused",
+          "createdAt": 1789095922,
+          "updatedAt": 1789095962
+        }
+      ],
+      "native_environment_ids": [
+        {
+          "CODEX_THREAD_ID": "01a08e69-17ab-74e0-94bb-7e83065a90b3",
+          "CODEX_SESSION_ID": "01a08e69-17ab-74e0-94bb-7e83065a90b3"
+        }
+      ]
+    }
+  ]
+}

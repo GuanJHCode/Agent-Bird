@@ -1,0 +1,81 @@
+{
+  "captured_at": "2026-09-11T03:18:42.084260+00:00",
+  "root_thread": "01a08e6f-8466-7c40-8897-47aa5e30a0cb",
+  "selected_thread": "01a08e6f-8466-7c40-8897-47aa5e30a0cb",
+  "nonce": "nr-g0-identity-c09",
+  "window": {
+    "since": "2026-09-11T03:07:49Z",
+    "through": "2026-09-11T03:18:41.940690+00:00"
+  },
+  "privacy": "Only typed Goal presence/status/identity/timestamps and exactly two UUID environment fields from paired native tool output; no reasoning or arbitrary text.",
+  "observations": [
+    {
+      "timestamp": "2026-09-11T03:08:21.141Z",
+      "call_id": "call_VHeSovcjnuj9P8tgBamuc947",
+      "operations": [
+        "get_goal"
+      ],
+      "goal_snapshots": [
+        {
+          "present": false
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-09-11T03:08:32.983Z",
+      "call_id": "call_TE4rwkZjXruOLfbWNo2fzELh",
+      "operations": [
+        "exec_command"
+      ],
+      "native_environment_ids": [
+        {
+          "CODEX_THREAD_ID": "01a08e6f-8466-7c40-8897-47aa5e30a0cb",
+          "CODEX_SESSION_ID": "01a08e6f-8466-7c40-8897-47aa5e30a0cb"
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-09-11T03:08:36.686Z",
+      "call_id": "call_o78b0PiMYpcw0QMvX5LglF0D",
+      "operations": [
+        "create_goal",
+        "get_goal"
+      ],
+      "goal_snapshots": [
+        {
+          "present": true,
+          "objective_matches_nonce": true,
+          "thread_id": "01a08e6f-8466-7c40-8897-47aa5e30a0cb",
+          "status": "active",
+          "createdAt": 1789096116,
+          "updatedAt": 1789096116
+        },
+        {
+          "present": true,
+          "objective_matches_nonce": true,
+          "thread_id": "01a08e6f-8466-7c40-8897-47aa5e30a0cb",
+          "status": "active",
+          "createdAt": 1789096116,
+          "updatedAt": 1789096116
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-09-11T03:08:39.664Z",
+      "call_id": "call_ujMyj65cYuwpZmy6ZvSJbsIb",
+      "operations": [
+        "update_goal"
+      ],
+      "goal_snapshots": [
+        {
+          "present": true,
+          "objective_matches_nonce": true,
+          "thread_id": "01a08e6f-8466-7c40-8897-47aa5e30a0cb",
+          "status": "complete",
+          "createdAt": 1789096116,
+          "updatedAt": 1789096119
+        }
+      ]
+    }
+  ]
+}

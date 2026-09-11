@@ -1,0 +1,385 @@
+{
+  "captured_at": "2026-09-11T03:13:15.571865+00:00",
+  "root_thread": "01a08e72-ea1f-7e30-904e-b6ac3d4ce427",
+  "nonce": "nr-g0-identity-c09-new",
+  "window": {
+    "since": "2026-09-11T03:11:31Z",
+    "through": "2026-09-11T03:13:15.433Z"
+  },
+  "selection": "Exact root UUID and native source.parent_thread_id direct children only",
+  "privacy": "Reasoning omitted; text limited to fixed nonce messages and native wrappers; tool data is typed fields, fixed responses or hashes; explicit Hook keys only",
+  "process_observation": {
+    "requested_pid": 68693,
+    "exit_code": 0,
+    "stdout": "  PID  PPID STARTED                      ELAPSED COMM\n68693 38821 Fri Sep 11 11:10:10 2026       03:05 codex\n"
+  },
+  "hooks": [
+    {
+      "file": "101bdaf4ce67ceb7f6542d1ddc5148f2.json",
+      "hook_event_name": "SessionStart",
+      "nonce": "g0-macos-20260910",
+      "pid": 70672,
+      "ppid": 68693,
+      "recorded_at": "2026-09-11T03:12:10.422177Z",
+      "session_id": "01a08e72-ea1f-7e30-904e-b6ac3d4ce427",
+      "source": "startup"
+    },
+    {
+      "file": "28d4f7477b56b041b5d21917a66f00e8.json",
+      "hook_event_name": "UserPromptSubmit",
+      "nonce": "g0-macos-20260910",
+      "pid": 70673,
+      "ppid": 68693,
+      "recorded_at": "2026-09-11T03:12:10.439456Z",
+      "session_id": "01a08e72-ea1f-7e30-904e-b6ac3d4ce427",
+      "turn_id": "01a08e73-7f4f-74e0-8743-45f324779fbe"
+    }
+  ],
+  "threads": [
+    {
+      "id": "01a08e72-ea1f-7e30-904e-b6ac3d4ce427",
+      "created_at_ms": 1789096290847,
+      "cli_version": "0.153.4",
+      "agent_path": null,
+      "experiment_cwd_matches": true,
+      "source_kind": "cli",
+      "events": [
+        {
+          "timestamp": "2026-09-11T03:12:09.099Z",
+          "record_type": "event_msg",
+          "type": "task_started",
+          "turn_id": "01a08e73-7f4f-74e0-8743-45f324779fbe",
+          "started_at": 1789096329
+        },
+        {
+          "timestamp": "2026-09-11T03:12:10.373Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "developer"
+        },
+        {
+          "timestamp": "2026-09-11T03:12:10.374Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "developer"
+        },
+        {
+          "timestamp": "2026-09-11T03:12:10.374Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "developer"
+        },
+        {
+          "timestamp": "2026-09-11T03:12:10.374Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "user"
+        },
+        {
+          "timestamp": "2026-09-11T03:12:10.377Z",
+          "record_type": "turn_context",
+          "turn_id": "01a08e73-7f4f-74e0-8743-45f324779fbe",
+          "model": "gpt-6-astra",
+          "approval_policy": "never",
+          "sandbox_policy": {
+            "type": "danger-full-access"
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:12:10.443Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "user",
+          "message_summary": {
+            "utf8_bytes": 626,
+            "sha256": "714229ca768ddc671ee82a6e25a399c95e0414c52595e0b557e65db46d6357d3",
+            "markers": [
+              "nr-g0-identity-c09-new-ACK"
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:12:13.155Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "assistant",
+          "phase": "commentary"
+        },
+        {
+          "timestamp": "2026-09-11T03:12:13.439Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call",
+          "name": "exec",
+          "call_id": "call_QlgUq6svwohos86PEpM5yQ0W",
+          "status": "completed",
+          "input_summary": {
+            "utf8_bytes": 32,
+            "sha256": "c9ecdbd25359dfc13ce2592808efde54e55fe76796a4b08f2e83d38a54be1fad",
+            "markers": [],
+            "operations": [
+              "get_goal"
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:12:13.534Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call_output",
+          "call_id": "call_QlgUq6svwohos86PEpM5yQ0W",
+          "output_summary": {
+            "utf8_bytes": 113,
+            "sha256": "e92cdde6543b1e3f7f6d7915cafae92225cc3b12f1c7006eca228d01182f4af9",
+            "markers": []
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:12:17.099Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call",
+          "name": "exec",
+          "call_id": "call_q8WrNXnWFI0CuO4tWh3TeJBb",
+          "status": "completed",
+          "input_summary": {
+            "utf8_bytes": 234,
+            "sha256": "0e4b3982ffc62cb870f59640ea6ee546d6c1d13329858371bc78211d4031b92b",
+            "markers": [],
+            "operations": [
+              "exec_command"
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:12:17.196Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call_output",
+          "call_id": "call_q8WrNXnWFI0CuO4tWh3TeJBb",
+          "output_summary": {
+            "utf8_bytes": 278,
+            "sha256": "3ce6f86d569adde3121f0f283e9441464f704038c2aa53cb8a9dd68d089a8dee",
+            "markers": [],
+            "runtime": [
+              {
+                "exit_code": 0,
+                "wall_time_seconds": 3e-06
+              }
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:12:24.780Z",
+          "record_type": "response_item",
+          "type": "function_call",
+          "name": "spawn_agent",
+          "namespace": "collaboration",
+          "call_id": "call_Ha9X1cPRbETtQr8DodhGqIQ5",
+          "arguments_metadata": {
+            "task_name": "identity_child",
+            "agent_type": "default",
+            "fork_turns": "none"
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:12:24.879Z",
+          "record_type": "response_item",
+          "type": "function_call_output",
+          "call_id": "call_Ha9X1cPRbETtQr8DodhGqIQ5",
+          "output_summary": {
+            "utf8_bytes": 36,
+            "sha256": "c1572757f48fac7657fa925ca83453740a8ea20b99c0b5a893c2ac180bf0b652",
+            "markers": [],
+            "native_spawn_response": {
+              "task_name": "/root/identity_child"
+            }
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:12:28.380Z",
+          "record_type": "response_item",
+          "type": "function_call",
+          "name": "wait_agent",
+          "namespace": "collaboration",
+          "call_id": "call_0mBqdFohiXsSXZGMJDAxnHyv",
+          "arguments_metadata": {}
+        },
+        {
+          "timestamp": "2026-09-11T03:12:37.347Z",
+          "record_type": "response_item",
+          "type": "function_call_output",
+          "call_id": "call_0mBqdFohiXsSXZGMJDAxnHyv",
+          "output_summary": {
+            "utf8_bytes": 47,
+            "sha256": "c5036fa363edd4e81ed171ea55d46d3f9a341014c27a26814313b4c5c1ffaf82",
+            "markers": []
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:12:37.350Z",
+          "record_type": "response_item",
+          "type": "agent_message",
+          "author": "/root/identity_child",
+          "recipient": "/root"
+        },
+        {
+          "timestamp": "2026-09-11T03:12:40.375Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "assistant",
+          "phase": "final_answer",
+          "message_summary": {
+            "utf8_bytes": 26,
+            "sha256": "913bb4110a4da14c1ab77f56f07f16e94f0ab8e3676c833c1f0f9a6bf525c825",
+            "markers": [
+              "nr-g0-identity-c09-new-ACK"
+            ]
+          },
+          "text": "nr-g0-identity-c09-new-ACK"
+        },
+        {
+          "timestamp": "2026-09-11T03:12:40.438Z",
+          "record_type": "event_msg",
+          "type": "task_complete",
+          "turn_id": "01a08e73-7f4f-74e0-8743-45f324779fbe",
+          "started_at": 1789096329,
+          "completed_at": 1789096360,
+          "duration_ms": 31386,
+          "last_agent_message": "nr-g0-identity-c09-new-ACK"
+        }
+      ]
+    },
+    {
+      "id": "01a08e73-bcd0-7313-9921-618e3d860dbf",
+      "created_at_ms": 1789096344784,
+      "cli_version": "0.153.4",
+      "agent_path": "/root/identity_child",
+      "experiment_cwd_matches": true,
+      "source_kind": "subagent",
+      "parent_thread_id": "01a08e72-ea1f-7e30-904e-b6ac3d4ce427",
+      "events": [
+        {
+          "timestamp": "2026-09-11T03:12:24.914Z",
+          "record_type": "event_msg",
+          "type": "task_started",
+          "turn_id": "01a08e73-bd2d-7760-979e-2ad216fe2c93",
+          "started_at": 1789096344
+        },
+        {
+          "timestamp": "2026-09-11T03:12:28.563Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "developer"
+        },
+        {
+          "timestamp": "2026-09-11T03:12:28.563Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "developer"
+        },
+        {
+          "timestamp": "2026-09-11T03:12:28.563Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "developer"
+        },
+        {
+          "timestamp": "2026-09-11T03:12:28.563Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "user"
+        },
+        {
+          "timestamp": "2026-09-11T03:12:28.565Z",
+          "record_type": "turn_context",
+          "turn_id": "01a08e73-bd2d-7760-979e-2ad216fe2c93",
+          "model": "gpt-6-astra",
+          "approval_policy": "never",
+          "sandbox_policy": {
+            "type": "danger-full-access"
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:12:28.569Z",
+          "record_type": "response_item",
+          "type": "agent_message",
+          "author": "/root",
+          "recipient": "/root/identity_child"
+        },
+        {
+          "timestamp": "2026-09-11T03:12:31.438Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call",
+          "name": "exec",
+          "call_id": "call_Fl0NUS1TSTtkM2PmUiec5unH",
+          "status": "completed",
+          "input_summary": {
+            "utf8_bytes": 32,
+            "sha256": "c9ecdbd25359dfc13ce2592808efde54e55fe76796a4b08f2e83d38a54be1fad",
+            "markers": [],
+            "operations": [
+              "get_goal"
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:12:31.531Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call_output",
+          "call_id": "call_Fl0NUS1TSTtkM2PmUiec5unH",
+          "output_summary": {
+            "utf8_bytes": 113,
+            "sha256": "e92cdde6543b1e3f7f6d7915cafae92225cc3b12f1c7006eca228d01182f4af9",
+            "markers": []
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:12:35.447Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call",
+          "name": "exec",
+          "call_id": "call_deixYGBIHlvhr4NdW5hpEqCq",
+          "status": "completed",
+          "input_summary": {
+            "utf8_bytes": 232,
+            "sha256": "fc1ba21a639ce75fe33e35c061ebedb0ad09a4b801c9271c4a187091f20cfbc0",
+            "markers": [],
+            "operations": [
+              "exec_command"
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:12:35.544Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call_output",
+          "call_id": "call_deixYGBIHlvhr4NdW5hpEqCq",
+          "output_summary": {
+            "utf8_bytes": 280,
+            "sha256": "217e2e82bbc8aece2ec2fbcd24a20cdc466b49283fd3237edc1919d037b56622",
+            "markers": [],
+            "runtime": [
+              {
+                "exit_code": 0,
+                "wall_time_seconds": 5.75e-06
+              }
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:12:37.258Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "assistant",
+          "phase": "final_answer"
+        },
+        {
+          "timestamp": "2026-09-11T03:12:37.340Z",
+          "record_type": "event_msg",
+          "type": "task_complete",
+          "turn_id": "01a08e73-bd2d-7760-979e-2ad216fe2c93",
+          "started_at": 1789096344,
+          "completed_at": 1789096357,
+          "duration_ms": 12458
+        }
+      ]
+    }
+  ]
+}
