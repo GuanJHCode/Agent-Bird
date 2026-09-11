@@ -112,8 +112,8 @@ def ui_status(text):
 
 
 def log_fields(body):
-    choices = {'transport':{'unix_socket','in-process'},'client_name':{'codex-tui','g0-standalone'},
-               'client_version':{'0.153.4'},'api_version':{'v2'},
+    choices = {'transport':{'unix_socket','in-process'},'client_name':{'codex-tui','g0-native-standalone'},
+               'client_version':{'0.153.4','0.1.0'},'api_version':{'v2'},
                'method':{'initialize','thread/start','thread/read','turn/start','skills/list','hooks/list',
                          'remoteControl/status/read','server/diagnostics','thread/loaded/list'}}
     out = {}
@@ -121,6 +121,7 @@ def log_fields(body):
         values = set(re.findall(r'\b'+key+r'=(?:"([^"\s]{1,80})"|([^\s{}"]{1,80}))',body))
         values = {a or b for a,b in values}
         if len(values) == 1 and next(iter(values)) in allowed: out[key] = next(iter(values))
+        elif key=='client_name' and values: out['unrecognized_client_name'] = True
     connections = set(re.findall(r'\bconnection_id="?([0-9]{1,10})"?(?=[\s}]|$)',body))
     if len(connections) == 1 and integer(int(next(iter(connections))),0):
         out['connection_id'] = int(next(iter(connections)))

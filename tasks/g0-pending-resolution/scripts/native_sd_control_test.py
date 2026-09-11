@@ -14,6 +14,13 @@ from native_sd_control import require_owned_pair
 
 
 class ControlTests(unittest.TestCase):
+    def test_lab_read_envelope_is_fixed_nonce_and_does_not_export_extensions(self):
+        expected={'version':1,'status':'pending','nonce':'sd-qual-01','count':0}
+        self.assertEqual(control.lab_read_fields(json.dumps(expected)),expected)
+        for value in [dict(expected,nonce='other'),dict(expected,extra='CANARY_PRIVATE_TEXT'),
+                      dict(expected,count=True),dict(expected,status='completed'),dict(expected,version=True)]:
+            with self.assertRaises(ValueError): control.lab_read_fields(json.dumps(value))
+
     def test_pair_guard_rejects_dead_reused_or_replaced_ownership(self):
         service = {'pid':101,'ppid':100,'uid':os.getuid(),'comm':'codex','native_executable_matches':True,
                    'started_at_local':'Fri Sep 11 18:00:00 2026'}

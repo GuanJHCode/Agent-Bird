@@ -1,12 +1,55 @@
 """One fixed sd-qual-01 qualification controller; not a product launcher."""
 import datetime as dt
+import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
 import re
+import signal
 import sqlite3
+import subprocess
+import sys
+import time
 import native_sd_collect as c
 from native_sd_collect import require_live_processes, same_process
+from native_sd_pty import NativePTY, InputSequence, stamp
+
+CASE = c.BASE/'tasks/g0-pending-resolution/data/sd-qual-01'
+JOB = c.REPO/'tasks/pending-resolution/data/sd-qual-01'
+HELPER = c.BASE/'tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone.py'
+AUDIT = HELPER.with_name('delivery_audit.py')
+DOCS = Path(__file__).resolve().parents[1]/'docs'
+
+
+class OwnedService:
+    """Ordinary native listener, with no terminal whose close could stop other clients."""
+    def __init__(self):
+        self.started_at=stamp()
+        self.child=subprocess.Popen(['codex','app-server','--listen','unix://'],cwd=c.REPO,
+                                    stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,
+                                    start_new_session=True)
+        self.pid=self.child.pid
+    def _poll(self): return self.child.poll()
+    def read(self,seconds): time.sleep(seconds)
+    def wait(self,seconds):
+        try: return self.child.wait(timeout=seconds)
+        except subprocess.TimeoutExpired: return None
+    def evidence(self):
+        return {'pid':self.pid,'started_at':self.started_at,'exit_code':self._poll(),'stdio':'devnull'}
+    def close(self):
+        if self._poll() is None: raise ValueError('refuse implicit live service shutdown')
+
+
+def lab_read_fields(raw):
+    if type(raw) is not str or len(raw)>2048: raise ValueError('invalid lab read size')
+    value=json.loads(raw)
+    if (type(value) is not dict or set(value)!={'version','status','nonce','count'}
+            or type(value['version']) is not int or value['version']!=1 or value['nonce']!=c.NONCE
+            or type(value['count']) is not int or value['status'] not in ('pending','completed')
+            or value['count']!={'pending':0,'completed':1}[value['status']]):
+        raise ValueError('invalid fixed lab read envelope')
+    return value
 
 
 def native_ready(root,turn,since,through,now=None):
@@ -78,3 +121,276 @@ def require_owned_pair(service,tui,socket,original):
     if any(socket.get(k)!=original['socket'].get(k) for k in ('dev','ino','uid','mode')):
         raise ValueError('native socket identity changed')
     return True
+
+
+def private_json(path,value):
+    data=(json.dumps(value,ensure_ascii=False,indent=2)+'\n').encode()
+    fd=os.open(path,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
+    with os.fdopen(fd,'wb') as stream:
+        stream.write(data); stream.flush(); os.fsync(stream.fileno())
+
+
+def read_job():
+    began=stamp(); start=time.monotonic()
+    proc=subprocess.run([str(c.GO),'read','--dir',str(JOB),'--nonce',c.NONCE],
+                        capture_output=True,text=True,timeout=2)
+    if proc.returncode!=0: raise ValueError('fixed lab read failed')
+    return {'before':began,'after':stamp(),'elapsed_seconds':time.monotonic()-start,
+            'binary_sha256':c.GO_SHA,'output':lab_read_fields(proc.stdout),
+            'stdout_sha256':hashlib.sha256(proc.stdout.encode()).hexdigest(),'exit_code':0}
+
+
+def fixed_prompt():
+    start=f'{c.GO} start --dir {JOB} --nonce {c.NONCE} --delay 40s --controller-thread "$CODEX_THREAD_ID"'
+    inspect=f'{c.GO} inspect --dir {JOB} --nonce {c.NONCE}'
+    ack=f'{c.GO} ack --dir {JOB} --nonce {c.NONCE} --controller-thread "$CODEX_THREAD_ID" --revision 1 --event-hash ACTUAL_EVENT_HASH --command-id sd-qual-01-ack-1 --decision handled'
+    return ('这是用户已授权的固定原生资格实验，仅有一个合成任务 sd-qual-01，目录已预建且工具已审查。'
+            '现在用原生 exec_command 实际执行且仅执行一次以下命令：`'+start+'`。'
+            '该命令快速返回 started 后，你必须立刻结束当前响应，final 只写 SD_QUAL_01_READY。'
+            '当前轮不要等待结果、不要读/轮询作业、不要调用 sleep/wait、不要创建 Goal 或子Agent，不要改文件/配置/权限，也不要使用MCP。'
+            '之后只有当本线程收到代表 sd-qual-01 完成的原生 standalone toolOutput 时才执行下一步：'
+            '用真实工具执行 `'+inspect+'`，核对 nonce、controller_thread、revision=1、completed result和未取消，取得实际 event_hash；'
+            '把 ACTUAL_EVENT_HASH 替换为该真实返回字段，再执行 `'+ack+'`。'
+            '必须使用真实原生 CODEX_THREAD_ID，不得伪造身份或再次start。'
+            '看到真实 acknowledged 且 effect_count=1 后，final 只写 SD_QUAL_01_ACK。'
+            '现在只做首次start与READY final，后续外部工具结果由合法原生通道送达，无需你主动继续。')
+
+
+def binding_process(identity):
+    validate_process_identity(identity)
+    proc=subprocess.run(['ps','-p',str(identity['pid']),'-o','comm='],text=True,capture_output=True,timeout=2)
+    comm=proc.stdout.strip()
+    if proc.returncode or comm not in ('codex',str(c.CLI),str(c.CLI.resolve())):
+        raise ValueError('unrecognized fixed native comm')
+    return {'pid':identity['pid'],'uid':identity['uid'],'birth':identity['started_at_local'],
+            'comm':comm,'native_binary_sha256':c.CLI_SHA}
+
+
+def matching_prompt_hook(root,service,since,through):
+    lo,hi=c.window(since,through,dt.datetime.now(dt.timezone.utc)); found=[]
+    for path in c.HOOKS.glob('*.json'):
+        if path.is_symlink() or not path.is_file() or path.stat().st_size>8192: continue
+        if not lo-2000000000<=path.stat().st_mtime_ns<=hi+2000000000: continue
+        try: item=c.hook_fields(json.loads(path.read_text()),root,service,lo,hi)
+        except (ValueError,OSError): continue
+        if item and item['hook_event_name']=='UserPromptSubmit': found.append(item)
+    if len(found)>1: raise ValueError('more than one root user prompt in initial window')
+    return found[0] if found else None
+
+
+def run(helper_sha,audit_sha):
+    # Hashes are explicit values from the independent review; paths are fixed here.
+    for path,expected in ((HELPER,helper_sha),(AUDIT,audit_sha),(c.CLI.resolve(),c.CLI_SHA),(c.GO,c.GO_SHA)):
+        if not re.fullmatch(r'[0-9a-f]{64}',expected) or path.is_symlink() or not path.is_file() or c.sha(path)!=expected:
+            raise ValueError('reviewed executable/source SHA mismatch')
+    if c.snapshot_socket()['exists']: raise ValueError('default socket occupied')
+    for path in (CASE,JOB):
+        if path.exists() or path.is_symlink(): raise ValueError('fixed case directory already occupied')
+        path.parent.mkdir(parents=True,exist_ok=True)
+        path.mkdir(mode=0o700)
+        if path.stat().st_mode&0o777!=0o700: raise ValueError('private case mode required')
+    protected_before=c.protected_files()
+    boot=subprocess.run(['sysctl','-n','kern.bootsessionuuid'],text=True,capture_output=True,timeout=2)
+    boot_id=boot.stdout.strip().lower()
+    if boot.returncode or not c.valid_id(boot_id): raise ValueError('boot identity unavailable')
+    record={'version':1,'nonce':c.NONCE,'started_at':stamp(),'stage':'start_service',
+            'helper_sha256':helper_sha,'audit_sha256':audit_sha,'protected_before':protected_before,
+            'service_argv':['codex','app-server','--listen','unix://'],'tui_argv':['codex'],
+            'scope':'one fixed owned PTY; not generic current-UI attachment or full G0'}
+    service=tui=None; original=None; sequence=InputSequence(fixed_prompt()); helper_proc=None
+    helper_ok=False; job_completed=False
+
+    def note(stage):
+        record['stage']=stage
+        print(json.dumps({'nonce':c.NONCE,'stage':stage,'at':stamp(),
+                          'service_pid':service.pid if service else None,'tui_pid':tui.pid if tui else None}),flush=True)
+
+    def pump(seconds=.1):
+        if service: service.read(seconds)
+        if tui: tui.read(seconds)
+
+    def pair():
+        result={'service':c.process(service.pid),'tui':c.process(tui.pid),'socket':c.snapshot_socket(service.pid)}
+        require_owned_pair(result['service'],result['tui'],result['socket'],original)
+        return result
+
+    def helper(mode,timeout):
+        nonlocal helper_proc
+        note(mode); begin=time.monotonic(); begin_ns=time.monotonic_ns(); wall=stamp()
+        deadline_ns=begin_ns+int(timeout*1000000000); attempt_seen=False
+        helper_proc=subprocess.Popen([sys.executable,str(HELPER),mode,'--case',str(CASE),'--root',record['root'],
+                                      '--nonce',c.NONCE],stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+        if mode=='send-once': deadline_ns=begin_ns+10000000000  # The preflight has its own local bound.
+        while helper_proc.poll() is None and time.monotonic_ns()<deadline_ns:
+            pump(.1)
+            attempt_path=CASE/'send-attempt.json'
+            if mode=='send-once' and not attempt_seen and attempt_path.exists():
+                try: attempt=json.loads(attempt_path.read_text())
+                except json.JSONDecodeError: continue  # O_EXCL publication can still be writing; original local deadline remains.
+                expected={'version','status','nonce','controller_thread_id','binding_sha256','payload_sha256',
+                          'boot_id','clock_impl','mono_ns','wall_ns'}
+                if (type(attempt) is not dict or set(attempt)!=expected or type(attempt['version']) is not int or attempt['version']!=1
+                        or attempt['status']!='send_intent' or attempt['nonce']!=c.NONCE or attempt['controller_thread_id']!=record['root']
+                        or attempt['binding_sha256']!=c.sha(CASE/'binding.json') or not re.fullmatch(r'[0-9a-f]{64}',attempt['payload_sha256'])
+                        or attempt['boot_id']!=boot_id or attempt['clock_impl']!=time.get_clock_info('monotonic').implementation
+                        or type(attempt['mono_ns']) is not int or not begin_ns<=attempt['mono_ns']<=time.monotonic_ns()
+                        or type(attempt['wall_ns']) is not int or not 0<attempt['wall_ns']<=time.time_ns()):
+                    raise ValueError('invalid original helper attempt clock/binding')
+                deadline_ns=attempt['mono_ns']+120000000000; attempt_seen=True
+                record['callback_window']={'attempt_mono_ns':attempt['mono_ns'],'attempt_wall_ns':attempt['wall_ns'],
+                                           'deadline_mono_ns':deadline_ns}
+        if helper_proc.poll() is None:
+            helper_proc.terminate(); helper_proc.wait(timeout=2)
+            raise TimeoutError('helper original observation window ended')
+        stdout,stderr=helper_proc.communicate(timeout=2)
+        record.setdefault('helper_calls',[]).append({'mode':mode,'started_at':wall,'ended_at':stamp(),
+            'elapsed_seconds':time.monotonic()-begin,'exit_code':helper_proc.returncode,
+            'stdout_bytes':len(stdout),'stdout_sha256':hashlib.sha256(stdout).hexdigest(),
+            'stderr_bytes':len(stderr),'stderr_sha256':hashlib.sha256(stderr).hexdigest()})
+        if helper_proc.returncode!=0: raise ValueError('helper qualification rejected or uncertain')
+
+    try:
+        service=OwnedService()
+        deadline=time.monotonic()+10; service_identity=None
+        while time.monotonic()<deadline:
+            service.read(.1)
+            try:
+                current=c.process(service.pid); sock=c.snapshot_socket(service.pid)
+                if current and sock.get('service_holds_path') is True:
+                    validate_process_identity(current); validate_socket_identity(sock)
+                    service_identity=current; break
+            except ValueError: pass  # Only the new child can still be between fork and exec.
+        if service_identity is None: raise TimeoutError('native service did not become ready in ten seconds')
+        note('start_tui'); tui=NativePTY(['codex'],str(c.REPO)); deadline=time.monotonic()+10
+        while time.monotonic()<deadline:
+            pump(.1)
+            try:
+                if c.process(tui.pid) and tui.byte_count: break
+            except ValueError: pass
+        else: raise TimeoutError('native TUI startup exceeded ten seconds')
+        tui.send(sequence,'status')
+        while time.monotonic()<deadline and 'status_root' not in tui.evidence(): pump(.1)
+        status=tui.evidence()
+        if 'status_root' not in status or status.get('ambiguous_status_root'): raise ValueError('unsupported initial native status shape')
+        record['root']=status['status_root']; record['initial_status']=status
+        original={'service':c.process(service.pid),'tui':c.process(tui.pid),'socket':c.snapshot_socket(service.pid)}
+        require_owned_pair(original['service'],original['tui'],original['socket'],original)
+        record['origin']=original
+        note('initial'); since=stamp(); initial_mono=time.monotonic(); tui.send(sequence,'initial')
+        record['initial_window']={'since':since,'deadline':(dt.datetime.fromisoformat(since)+dt.timedelta(seconds=120)).isoformat()}
+        private_json(CASE/'initial-submit.json',{'nonce':c.NONCE,'root':record['root'],'window':record['initial_window'],'inputs':tui.evidence()['inputs']})
+        pending_barrier=None; prompt_hook=None
+        while time.monotonic()-initial_mono<120:
+            pump(.1)
+            prompt_hook=matching_prompt_hook(record['root'],service.pid,since,stamp())
+            if prompt_hook is None or not (JOB/'job.json').exists(): continue
+            ready=native_ready(record['root'],prompt_hook['turn_id'],since,stamp())
+            if ready is None: continue
+            before=read_job()
+            observed_before=stamp()
+            exact=native_ready(record['root'],prompt_hook['turn_id'],since,stamp())
+            observed_after=stamp(); after=read_job()
+            if before['output']['status']!='pending' or after['output']['status']!='pending' or exact is None:
+                raise ValueError('no native-final-before-job-completion barrier within fixed sample')
+            pending_barrier={'go_before':before,'native_task_complete':exact,'native_observed_before':observed_before,
+                             'native_observed_after':observed_after,'go_after':after}
+            break
+        if pending_barrier is None: raise TimeoutError('initial native READY did not qualify within original window')
+        record['pending_barrier']=pending_barrier; note('await_job_result')
+        while time.monotonic()-initial_mono<120:
+            pump(.1)
+            if (JOB/'result.json').exists():
+                final_read=read_job()
+                if final_read['output']['status']=='completed': job_completed=True; record['client_completed_read']=final_read; break
+        if not job_completed: raise TimeoutError('job result missing within initial window')
+        before_send=pair(); through=stamp()
+        local=c.local_evidence(record['root'],service.pid,*c.window(since,through,dt.datetime.now(dt.timezone.utc)))
+        evidence={'version':1,'nonce':c.NONCE,'root':record['root'],'initial_window':{'since':since,'through':through},
+                  'origin':original,'before_send':before_send,'pty':tui.evidence(),'pending_barrier':pending_barrier,
+                  'completed_read':record['client_completed_read'],'local':local}
+        private_json(CASE/'controller-evidence.json',evidence)
+        service_binding=binding_process(before_send['service'])
+        service_binding.update(socket_path=str(c.SOCKET),socket_dev=before_send['socket']['dev'],socket_ino=before_send['socket']['ino'])
+        binding={'version':1,'nonce':c.NONCE,'controller_thread_id':record['root'],'controller_epoch':1,
+                 'expected_cwd':str(c.REPO),'prior_turn_id':prompt_hook['turn_id'],'native_cli_version':'0.153.4',
+                 'boot_id':boot_id,'service':service_binding,'tui':binding_process(before_send['tui']),
+                 'go_binary':str(c.GO),'go_binary_sha256':c.GO_SHA,'job_dir':str(JOB),
+                 'controller_evidence_sha256':c.sha(CASE/'controller-evidence.json')}
+        private_json(CASE/'binding.json',binding)
+        pair(); helper('prepare',10)
+        pair(); helper('send-once',120)  # Outer deadline is replaced only by the immutable attempt's original mono_ns.
+        helper_ok=True; note('helper_finished')
+    except (ValueError,OSError,sqlite3.Error,subprocess.SubprocessError,TimeoutError) as exc:
+        record['failure']={'stage':record['stage'],'type':type(exc).__name__,'at':stamp()}
+    finally:
+        # This fixture never starts a second job or resends a delivery during cleanup.
+        record['helper_completed_without_error']=helper_ok
+        record['job_completed_before_cleanup']=job_completed
+        if helper_proc and helper_proc.poll() is None:
+            helper_proc.terminate(); helper_proc.wait(timeout=2)
+        # A failed initial phase can still have the single <=40s owned job in flight.
+        cleanup_start=time.monotonic()
+        if not job_completed and (JOB/'job.json').exists():
+            while time.monotonic()-cleanup_start<45:
+                try:
+                    if read_job()['output']['status']=='completed': job_completed=True; break
+                except (ValueError,subprocess.SubprocessError): pass
+                pump(.1)
+        record['job_completed_at_cleanup']=job_completed
+        # Only actually observed connection metadata is used. Missing or unfamiliar evidence
+        # leaves this headless service running for the main agent; no general client manager.
+        connection_safe=False
+        if service and record.get('root') and record.get('initial_window'):
+            try:
+                now=dt.datetime.now(dt.timezone.utc)
+                start=max(dt.datetime.fromisoformat(record['initial_window']['since']),now-dt.timedelta(seconds=120))
+                recent=c.local_evidence(record['root'],service.pid,*c.window(start.isoformat(),now.isoformat(),now))
+                rows=recent['native_protocol']
+                if 'evidence' in locals(): rows=evidence['local']['native_protocol']+rows
+                clients=[row['fields'] for row in rows]
+                tui_connections={v['connection_id'] for v in clients if v.get('client_name')=='codex-tui' and 'connection_id' in v}
+                unknown=any(v.get('unrecognized_client_name') is True for v in clients)
+                connection_safe=len(tui_connections)==1 and not unknown
+                record['cleanup_connection_observation']={'known_tui_connection_count':len(tui_connections),
+                    'unrecognized_client_observed':unknown,'sufficient_to_stop_owned_service':connection_safe,
+                    'scope':'only the collected request-span fields; absent evidence retains service'}
+            except (ValueError,OSError,sqlite3.Error):
+                record['cleanup_connection_observation']={'sufficient_to_stop_owned_service':False}
+        if not helper_ok and connection_safe and service and service._poll() is None:
+            current=c.process(service.pid)
+            if current and (original is None or c.same_process(current,original['service'])):
+                os.kill(service.pid,signal.SIGINT); service.wait(10)
+                record['failure_service_stop_before_tui_quit']=stamp()
+        if tui and tui._poll() is None:
+            current=c.process(tui.pid)
+            if current and (original is None or c.same_process(current,original['tui'])):
+                tui.send(sequence,'quit'); tui.wait(10)
+        if connection_safe and service and service._poll() is None:
+            current=c.process(service.pid)
+            if current and original and c.same_process(current,original['service']):
+                os.kill(service.pid,signal.SIGINT); service.wait(10)
+        record['service_process']=service.evidence() if service else None
+        record['tui_pty']=tui.evidence() if tui else None
+        record['protected_after']=c.protected_files()
+        record['protected_unchanged']=record['protected_after']==protected_before
+        record['socket_after']=c.snapshot_socket()
+        record['ended_at']=stamp()
+        record['all_owned_native_exited']=all(p is None or p._poll() is not None for p in (service,tui))
+        private_json(CASE/'controller-result.json',record)
+        private_json(DOCS/'native-sd-qual-01-controller.json',record)
+        for p in (service,tui):
+            if p and p._poll() is not None: p.close()
+        print(json.dumps({'nonce':c.NONCE,'stage':'finished','helper_ok':helper_ok,
+                          'all_owned_native_exited':record['all_owned_native_exited'],
+                          'evidence':str(CASE/'controller-result.json')}),flush=True)
+    return 0 if helper_ok and record['all_owned_native_exited'] else 2
+
+
+def main():
+    p=argparse.ArgumentParser(description=__doc__)
+    p.add_argument('--helper-sha',required=True); p.add_argument('--audit-sha',required=True)
+    args=p.parse_args()
+    return run(args.helper_sha,args.audit_sha)
+
+
+if __name__=='__main__': sys.exit(main())
