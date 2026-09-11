@@ -1,0 +1,122 @@
+F.FF..FFFFFF
+======================================================================
+FAIL: test_absence_and_all_acks_still_leave_transport_uncertain (delivery_audit_test.DeliveryAuditTests.test_absence_and_all_acks_still_leave_transport_uncertain)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/delivery/tasks/g0-pending-resolution/scripts/delivery_audit_test.py", line 67, in test_absence_and_all_acks_still_leave_transport_uncertain
+    value, _ = self.run_bundle(data)
+               ~~~~~~~~~~~~~~~^^^^^^
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/delivery/tasks/g0-pending-resolution/scripts/delivery_audit_test.py", line 45, in run_bundle
+    self.assertEqual(run.returncode, code, run.stderr.decode(errors="replace"))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 2 != 0 : {"version": 1, "status": "error", "error": "not_implemented"}
+
+
+======================================================================
+FAIL: test_duplicate_displays_are_counted_without_multiplying_ack_slots (delivery_audit_test.DeliveryAuditTests.test_duplicate_displays_are_counted_without_multiplying_ack_slots)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/delivery/tasks/g0-pending-resolution/scripts/delivery_audit_test.py", line 175, in test_duplicate_displays_are_counted_without_multiplying_ack_slots
+    value, _ = self.run_bundle(data)
+               ~~~~~~~~~~~~~~~^^^^^^
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/delivery/tasks/g0-pending-resolution/scripts/delivery_audit_test.py", line 45, in run_bundle
+    self.assertEqual(run.returncode, code, run.stderr.decode(errors="replace"))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 2 != 0 : {"version": 1, "status": "error", "error": "not_implemented"}
+
+
+======================================================================
+FAIL: test_exact_history_match_is_separate_from_business_ack (delivery_audit_test.DeliveryAuditTests.test_exact_history_match_is_separate_from_business_ack)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/delivery/tasks/g0-pending-resolution/scripts/delivery_audit_test.py", line 55, in test_exact_history_match_is_separate_from_business_ack
+    value, _ = self.run_bundle(fixture())
+               ~~~~~~~~~~~~~~~^^^^^^^^^^^
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/delivery/tasks/g0-pending-resolution/scripts/delivery_audit_test.py", line 45, in run_bundle
+    self.assertEqual(run.returncode, code, run.stderr.decode(errors="replace"))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 2 != 0 : {"version": 1, "status": "error", "error": "not_implemented"}
+
+
+======================================================================
+FAIL: test_only_history_read_methods_and_typed_tool_items_can_match (delivery_audit_test.DeliveryAuditTests.test_only_history_read_methods_and_typed_tool_items_can_match)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/delivery/tasks/g0-pending-resolution/scripts/delivery_audit_test.py", line 91, in test_only_history_read_methods_and_typed_tool_items_can_match
+    value, _ = self.run_bundle(data)
+               ~~~~~~~~~~~~~~~^^^^^^
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/delivery/tasks/g0-pending-resolution/scripts/delivery_audit_test.py", line 45, in run_bundle
+    self.assertEqual(run.returncode, code, run.stderr.decode(errors="replace"))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 2 != 0 : {"version": 1, "status": "error", "error": "not_implemented"}
+
+
+======================================================================
+FAIL: test_partial_acks_and_changed_command_uuid_use_one_declared_slot (delivery_audit_test.DeliveryAuditTests.test_partial_acks_and_changed_command_uuid_use_one_declared_slot)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/delivery/tasks/g0-pending-resolution/scripts/delivery_audit_test.py", line 76, in test_partial_acks_and_changed_command_uuid_use_one_declared_slot
+    value, _ = self.run_bundle(data)
+               ~~~~~~~~~~~~~~~^^^^^^
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/delivery/tasks/g0-pending-resolution/scripts/delivery_audit_test.py", line 45, in run_bundle
+    self.assertEqual(run.returncode, code, run.stderr.decode(errors="replace"))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 2 != 0 : {"version": 1, "status": "error", "error": "not_implemented"}
+
+
+======================================================================
+FAIL: test_second_page_matches_and_missing_page_never_proves_absence (delivery_audit_test.DeliveryAuditTests.test_second_page_matches_and_missing_page_never_proves_absence)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/delivery/tasks/g0-pending-resolution/scripts/delivery_audit_test.py", line 103, in test_second_page_matches_and_missing_page_never_proves_absence
+    value, _ = self.run_bundle(data)
+               ~~~~~~~~~~~~~~~^^^^^^
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/delivery/tasks/g0-pending-resolution/scripts/delivery_audit_test.py", line 45, in run_bundle
+    self.assertEqual(run.returncode, code, run.stderr.decode(errors="replace"))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 2 != 0 : {"version": 1, "status": "error", "error": "not_implemented"}
+
+
+======================================================================
+FAIL: test_summary_compact_and_broken_cursors_remain_visible (delivery_audit_test.DeliveryAuditTests.test_summary_compact_and_broken_cursors_remain_visible)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/delivery/tasks/g0-pending-resolution/scripts/delivery_audit_test.py", line 114, in test_summary_compact_and_broken_cursors_remain_visible
+    value, _ = self.run_bundle(data)
+               ~~~~~~~~~~~~~~~^^^^^^
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/delivery/tasks/g0-pending-resolution/scripts/delivery_audit_test.py", line 45, in run_bundle
+    self.assertEqual(run.returncode, code, run.stderr.decode(errors="replace"))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 2 != 0 : {"version": 1, "status": "error", "error": "not_implemented"}
+
+
+======================================================================
+FAIL: test_thread_read_and_item_pages_keep_original_rpc_binding (delivery_audit_test.DeliveryAuditTests.test_thread_read_and_item_pages_keep_original_rpc_binding) (method='thread/read')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/delivery/tasks/g0-pending-resolution/scripts/delivery_audit_test.py", line 135, in test_thread_read_and_item_pages_keep_original_rpc_binding
+    value, _ = self.run_bundle(data)
+               ~~~~~~~~~~~~~~~^^^^^^
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/delivery/tasks/g0-pending-resolution/scripts/delivery_audit_test.py", line 45, in run_bundle
+    self.assertEqual(run.returncode, code, run.stderr.decode(errors="replace"))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 2 != 0 : {"version": 1, "status": "error", "error": "not_implemented"}
+
+
+======================================================================
+FAIL: test_thread_read_and_item_pages_keep_original_rpc_binding (delivery_audit_test.DeliveryAuditTests.test_thread_read_and_item_pages_keep_original_rpc_binding) (method='thread/items/list')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/delivery/tasks/g0-pending-resolution/scripts/delivery_audit_test.py", line 135, in test_thread_read_and_item_pages_keep_original_rpc_binding
+    value, _ = self.run_bundle(data)
+               ~~~~~~~~~~~~~~~^^^^^^
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/delivery/tasks/g0-pending-resolution/scripts/delivery_audit_test.py", line 45, in run_bundle
+    self.assertEqual(run.returncode, code, run.stderr.decode(errors="replace"))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 2 != 0 : {"version": 1, "status": "error", "error": "not_implemented"}
+
+
+----------------------------------------------------------------------
+Ran 11 tests in 0.772s
+
+FAILED (failures=9)

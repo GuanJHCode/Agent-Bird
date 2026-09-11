@@ -1,0 +1,26 @@
+..........F.F
+======================================================================
+FAIL: test_summary_compact_and_broken_cursors_remain_visible (delivery_audit_test.DeliveryAuditTests.test_summary_compact_and_broken_cursors_remain_visible)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/delivery/tasks/g0-pending-resolution/scripts/delivery_audit_test.py", line 119, in test_summary_compact_and_broken_cursors_remain_visible
+    self.assertFalse(value["captured_page_chain_complete"])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_valid_other_delivery_is_ignored_but_reused_item_id_conflict_is_rejected (delivery_audit_test.DeliveryAuditTests.test_valid_other_delivery_is_ignored_but_reused_item_id_conflict_is_rejected)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/delivery/tasks/g0-pending-resolution/scripts/delivery_audit_test.py", line 211, in test_valid_other_delivery_is_ignored_but_reused_item_id_conflict_is_rejected
+    self.run_bundle(data, 2)
+    ~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/delivery/tasks/g0-pending-resolution/scripts/delivery_audit_test.py", line 45, in run_bundle
+    self.assertEqual(run.returncode, code, run.stderr.decode(errors="replace"))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 2 : 
+
+----------------------------------------------------------------------
+Ran 13 tests in 1.082s
+
+FAILED (failures=2)

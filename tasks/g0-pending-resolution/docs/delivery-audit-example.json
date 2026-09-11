@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "intent": {
+    "version": 1,
+    "delivery_id": "delivery_01",
+    "controller_thread_id": "root_01",
+    "controller_epoch": 1,
+    "events": [
+      {
+        "event_id": "progress_01",
+        "event_revision": 1,
+        "kind": "progress",
+        "payload_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "action_slot": "slot_progress_01"
+      },
+      {
+        "event_id": "question_01",
+        "event_revision": 2,
+        "kind": "question",
+        "payload_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "action_slot": "slot_question_01"
+      }
+    ],
+    "payload_hash": "56a4b82629bf440ede408ff764f3845953f978d92ff4ec608de76374534feaaa"
+  },
+  "reads": [
+    {
+      "request": {
+        "id": 10,
+        "method": "thread/turns/list",
+        "params": {
+          "threadId": "root_01",
+          "itemsView": "full",
+          "cursor": null
+        }
+      },
+      "response": {
+        "id": 10,
+        "result": {
+          "data": [
+            {
+              "id": "turn_01",
+              "status": "completed",
+              "itemsView": "full",
+              "items": [
+                {
+                  "type": "functionCallOutput",
+                  "id": "item_01",
+                  "name": "g0_delivery",
+                  "namespace": "orchestration",
+                  "output": "{\"controller_epoch\":1,\"controller_thread_id\":\"root_01\",\"delivery_id\":\"delivery_01\",\"events\":[{\"action_slot\":\"slot_progress_01\",\"event_id\":\"progress_01\",\"event_revision\":1,\"kind\":\"progress\",\"payload_hash\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},{\"action_slot\":\"slot_question_01\",\"event_id\":\"question_01\",\"event_revision\":2,\"kind\":\"question\",\"payload_hash\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"}],\"payload_hash\":\"56a4b82629bf440ede408ff764f3845953f978d92ff4ec608de76374534feaaa\",\"version\":1}"
+                }
+              ]
+            }
+          ],
+          "nextCursor": null,
+          "backwardsCursor": "anchor_01"
+        }
+      }
+    }
+  ],
+  "acks": []
+}
