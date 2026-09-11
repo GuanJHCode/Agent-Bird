@@ -1,0 +1,14 @@
+..F............
+======================================================================
+FAIL: test_duplicate_turn_id_in_one_read_is_rejected_but_next_read_can_update (native_standalone_test.NativeStandaloneTests.test_duplicate_turn_id_in_one_read_is_rejected_but_next_read_can_update)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 69, in test_duplicate_turn_id_in_one_read_is_rejected_but_next_read_can_update
+    with self.assertRaises(probe.ProbeError):
+         ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: ProbeError not raised
+
+----------------------------------------------------------------------
+Ran 15 tests in 0.006s
+
+FAILED (failures=1)

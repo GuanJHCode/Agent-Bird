@@ -260,9 +260,11 @@ def filter_thread(result, binding, intent, require_ready=False):
              "prior_started_at": None, "prior_completed_at": None, "root_idle": thread["status"]["type"] == "idle",
              "all_tools_and_turns_terminal": True, "matching_turn_is_last": False}
     filtered = {"thread": {"id": thread["id"], "historyMode": thread["historyMode"], "turns": []}}
-    identities = {}
+    identities, turn_ids = {}, set()
     for turn in thread["turns"]:
         check(type(turn) is dict and safe(turn.get("id")) and turn.get("status") in ("inProgress", "completed", "failed", "interrupted"), "invalid_turn")
+        check(turn["id"] not in turn_ids, "duplicate_turn_id")
+        turn_ids.add(turn["id"])
         check(turn.get("itemsView") == "full" and type(turn.get("items")) is list and len(turn["items"]) <= 64, "incomplete_history")
         output_turn = {"id": turn["id"], "status": turn["status"], "itemsView": "full", "items": []}
         terminal, ready_final, ack_final, match, user_input = True, False, False, False, False

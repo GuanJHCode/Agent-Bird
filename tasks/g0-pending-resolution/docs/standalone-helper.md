@@ -35,6 +35,6 @@ RPC 仅 initialize、initialized 通知、server/diagnostics、remoteControl/sta
 
 `prior_started_at`、`prior_completed_at` 来自原生 Turn.startedAt/completedAt，仅 nullable Unix 秒。初始 root 已完成且 Go 尚 pending 的先后屏障由 controller 的固定 root task_complete 及两侧实际 Go read pending 独立采集，不用 UI prompt 回显或同秒时间戳推断。
 
-验证：最终 14 项离线测试通过，0.006s；相关 RED/GREEN 日志同目录 `standalone-helper-*.log`。新增 RPC response ID/恶意 namespace 及 root active 边界均先 assertion RED 再修复。CLI 缺参实际 exit 2，仅固定错误 JSON；两个文件 compile 成功。发送与观察测试保留真实 Case/O_EXCL/fsync/过滤路径，仅替换不可在单元测试中启动的原生网络、机器身份与 Go 接口；不把这些 fixture 当原生证据。
+验证：368d146 的历史基线为 14 项通过，0.006s；审查后最新 15 项通过，0.005s（`standalone-helper-review-green.log`）。新增单份历史的重复 turn ID 拒绝有明确 assertion RED；集合只在一次读取内，不阻止下次读取同 ID 正常更新。非目标 namespace 必须 nullable/有界安全 ID，恶意对象泄出也已有独立 RED→GREEN。相关日志同目录 `standalone-helper-*.log`。RPC response ID 与 root active 边界同样先 RED 再修复。CLI 缺参实际 exit 2，仅固定错误 JSON；两个文件 compile 成功。发送与观察测试保留真实 Case/O_EXCL/fsync/过滤路径，仅替换不可在单元测试中启动的原生网络、机器身份与 Go 接口；不把这些 fixture 当原生证据。
 
 原生 shape 来源为本机 0.153.4 生成的实验 schema；[固定官方 thread_data.rs](https://github.com/openai/codex/blob/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/app-server-protocol/src/protocol/v2/thread_data.rs) 中 history_mode/items_view 的 serde(default) 无 skip_serializing_if，故要求显式字段。[websockets 16.0 官方接口](https://websockets.readthedocs.io/en/16.0/reference/asyncio/client.html)及已安装源码用于核验 unix_connect 参数。

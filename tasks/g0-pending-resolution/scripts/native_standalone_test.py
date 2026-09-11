@@ -55,6 +55,20 @@ class NativeStandaloneTests(unittest.TestCase):
         with self.assertRaises(probe.ProbeError):
             probe.filter_thread(data, binding(), None, require_ready=True)
 
+    def test_duplicate_turn_id_in_one_read_is_rejected_but_next_read_can_update(self):
+        intent, data = probe.make_intent(binding(), go_inspection()), thread_result()
+        data["thread"]["turns"].append({"id": "new_turn", "status": "completed", "itemsView": "full", "items": [
+            {"id": "standalone_01", "type": "functionCallOutput", "name": "g0_delivery", "namespace": "orchestration", "output": probe.canonical(intent)},
+            {"id": "ack_final", "type": "agentMessage", "phase": "final_answer", "text": "SD_QUAL_01_ACK"}]})
+        probe.filter_thread(data, binding(), intent)
+        changed = copy.deepcopy(data)
+        changed["thread"]["turns"][-1]["status"] = "inProgress"
+        probe.filter_thread(changed, binding(), intent)
+        data["thread"]["turns"].append({"id": "new_turn", "status": "inProgress", "itemsView": "full", "items": [
+            {"id": "new_input", "type": "userMessage", "content": []}]})
+        with self.assertRaises(probe.ProbeError):
+            probe.filter_thread(data, binding(), intent)
+
     def test_send_intent_precedes_one_wire_write_and_receipt_is_not_history(self):
         class Wire:
             async def call(self, method, params, **_):
