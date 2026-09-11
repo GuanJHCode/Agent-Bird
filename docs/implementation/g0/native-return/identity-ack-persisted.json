@@ -1,0 +1,34 @@
+{
+  "captured_at": "2026-09-11T03:51:17.647776+00:00",
+  "task_directory": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/tasks/native-return/data/identity-ack-root-01",
+  "job": {
+    "version": 1,
+    "status": "started",
+    "nonce": "nr-g0-identity-ack-root-01",
+    "worker_pid": 86064,
+    "created_at": "2026-09-11T03:41:31.124607Z",
+    "job_file": "job.json",
+    "result_file": "result.json",
+    "controller_thread": "01a08e8d-97cd-7f01-adb7-5a51990d8d81",
+    "task_revision": 1
+  },
+  "result": {
+    "version": 1,
+    "status": "completed",
+    "nonce": "nr-g0-identity-ack-root-01",
+    "count": 1
+  },
+  "ack": {
+    "version": 1,
+    "status": "acknowledged",
+    "nonce": "nr-g0-identity-ack-root-01",
+    "controller_thread": "01a08e8d-97cd-7f01-adb7-5a51990d8d81",
+    "revision": 1,
+    "event_hash": "addcdfda9e28799b4bf5e02a4ace5693d7a067c6e12234b7f8f42b2f4bbb4814",
+    "command_id": "nr-g0-identity-ack-root-01-cmd01",
+    "decision": "handled",
+    "decision_count": 1,
+    "effect_count": 1
+  },
+  "all_records_match_native_fixed_envelopes": true
+}

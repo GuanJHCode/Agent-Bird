@@ -1,0 +1,45 @@
+{
+  "observations": [
+    {
+      "at": "2026-09-11T03:41:44.835604+00:00",
+      "kind": "owned_root_worker_birth",
+      "job": {
+        "version": 1,
+        "status": "started",
+        "nonce": "nr-g0-identity-ack-root-01",
+        "worker_pid": 86064,
+        "created_at": "2026-09-11T03:41:31.124607Z",
+        "controller_thread": "01a08e8d-97cd-7f01-adb7-5a51990d8d81",
+        "task_revision": 1
+      },
+      "ps_exit_code": 0,
+      "ps": "  PID  PPID STARTED                      ELAPSED COMM\n86064     1 Fri Sep 11 11:41:31 2026       00:13 /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-native-return/tmp/host-impl/tools/g0-return-lab/data/g0-return-lab-ack\n"
+    },
+    {
+      "at": "2026-09-11T03:51:17.647776+00:00",
+      "kind": "final_selected_process_check",
+      "pids": [
+        85391,
+        86064
+      ],
+      "ps_exit_code": 1,
+      "ps": "  PID  PPID STARTED                      ELAPSED COMM\n"
+    }
+  ],
+  "tui": {
+    "pid": 85391,
+    "ppid": 38821,
+    "birth_local": "2026-09-11 11:40:38 +08:00",
+    "comm": "codex",
+    "pty": 82298,
+    "root_thread": "01a08e8d-97cd-7f01-adb7-5a51990d8d81",
+    "normal_quit_exit_code": 0
+  },
+  "cleanup": {
+    "at": "2026-09-11T03:51:17.647776+00:00",
+    "removed_owned_empty_directory": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/tasks/native-return/data/identity-ack-fork-01",
+    "retained_task_directory": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/tasks/native-return/data/identity-ack-root-01",
+    "signals_sent": false,
+    "negative_child_or_fork_ack_attempts": 0
+  }
+}

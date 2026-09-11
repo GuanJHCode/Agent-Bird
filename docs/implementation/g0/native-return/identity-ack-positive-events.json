@@ -1,0 +1,595 @@
+{
+  "captured_at": "2026-09-11T03:50:23.122155+00:00",
+  "root_thread": "01a08e8d-97cd-7f01-adb7-5a51990d8d81",
+  "nonce": "nr-g0-identity-ack-root-01",
+  "native_metadata": {
+    "source_kind": "cli",
+    "experiment_cwd_matches": true,
+    "created_at_ms": 1789098039245,
+    "cli_version": "0.153.4"
+  },
+  "windows": [
+    {
+      "name": "produce",
+      "since": "2026-09-11T03:41:20.483Z",
+      "through": "2026-09-11T03:42:56.826Z",
+      "maximum_model_seconds": 120
+    },
+    {
+      "name": "ack",
+      "since": "2026-09-11T03:45:36.138Z",
+      "through": "2026-09-11T03:46:18.151Z",
+      "maximum_model_seconds": 120
+    }
+  ],
+  "canonical_event_hash": "addcdfda9e28799b4bf5e02a4ace5693d7a067c6e12234b7f8f42b2f4bbb4814",
+  "privacy": "Exact owned root only; strict fixed envelope keys/types/values, two matching UUID environment fields, native event metadata and hashes; no reasoning or arbitrary tool text.",
+  "events": [
+    {
+      "timestamp": "2026-09-11T03:41:20.483Z",
+      "window": "produce",
+      "record_type": "event_msg",
+      "type": "task_started",
+      "turn_id": "01a08e8e-38a8-7ac0-9b31-cc75408a7189"
+    },
+    {
+      "timestamp": "2026-09-11T03:41:21.740Z",
+      "window": "produce",
+      "record_type": "response_item",
+      "type": "message",
+      "role": "developer"
+    },
+    {
+      "timestamp": "2026-09-11T03:41:21.740Z",
+      "window": "produce",
+      "record_type": "response_item",
+      "type": "message",
+      "role": "developer"
+    },
+    {
+      "timestamp": "2026-09-11T03:41:21.740Z",
+      "window": "produce",
+      "record_type": "response_item",
+      "type": "message",
+      "role": "developer"
+    },
+    {
+      "timestamp": "2026-09-11T03:41:21.740Z",
+      "window": "produce",
+      "record_type": "response_item",
+      "type": "message",
+      "role": "user"
+    },
+    {
+      "timestamp": "2026-09-11T03:41:21.802Z",
+      "window": "produce",
+      "record_type": "response_item",
+      "type": "message",
+      "role": "user"
+    },
+    {
+      "timestamp": "2026-09-11T03:41:25.900Z",
+      "window": "produce",
+      "record_type": "response_item",
+      "type": "message",
+      "role": "assistant",
+      "phase": "commentary"
+    },
+    {
+      "timestamp": "2026-09-11T03:41:29.861Z",
+      "window": "produce",
+      "record_type": "response_item",
+      "type": "custom_tool_call",
+      "call_id": "call_EKRwvQGEWgJPVzFm3NRezgNr",
+      "name": "exec",
+      "status": "completed",
+      "input_summary": {
+        "utf8_bytes": 455,
+        "sha256": "54f0ac9d5fe5542c30babc92719aca2ef5602d7c695bf281267fbe684b4defeb",
+        "markers": [],
+        "operations": [
+          "exec_command"
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-09-11T03:41:31.136Z",
+      "window": "produce",
+      "record_type": "response_item",
+      "type": "custom_tool_call_output",
+      "call_id": "call_EKRwvQGEWgJPVzFm3NRezgNr",
+      "output_summary": {
+        "utf8_bytes": 442,
+        "sha256": "87e1745728ac2c79d2cafb390e3f757df5ed1dd366fb52f6fa8d5b8a3fcbcd84",
+        "markers": []
+      },
+      "fixed_envelopes": [
+        {
+          "kind": "owned_start",
+          "value": {
+            "version": 1,
+            "status": "started",
+            "nonce": "nr-g0-identity-ack-root-01",
+            "worker_pid": 86064,
+            "created_at": "2026-09-11T03:41:31.124607Z",
+            "job_file": "job.json",
+            "result_file": "result.json",
+            "controller_thread": "01a08e8d-97cd-7f01-adb7-5a51990d8d81",
+            "task_revision": 1
+          }
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-09-11T03:41:40.940Z",
+      "window": "produce",
+      "record_type": "response_item",
+      "type": "custom_tool_call",
+      "call_id": "call_aaEUeKKANPSN4VvmNxedc1z3",
+      "name": "exec",
+      "status": "completed",
+      "input_summary": {
+        "utf8_bytes": 436,
+        "sha256": "b3ec138df01eab851d31b9fb69ca396cc1b80a36ba12b4694f314e78c3bb964d",
+        "markers": [],
+        "operations": [
+          "exec_command"
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-09-11T03:41:42.112Z",
+      "window": "produce",
+      "record_type": "response_item",
+      "type": "custom_tool_call_output",
+      "call_id": "call_aaEUeKKANPSN4VvmNxedc1z3",
+      "output_summary": {
+        "utf8_bytes": 156,
+        "sha256": "b5a852f72120c7dd3611ace56255d950244d7ffc3a9d5bc603dce72d05207f59",
+        "markers": []
+      }
+    },
+    {
+      "timestamp": "2026-09-11T03:41:45.156Z",
+      "window": "produce",
+      "record_type": "response_item",
+      "type": "custom_tool_call",
+      "call_id": "call_U6pVMLjQpZoBuCt9j2Git4OK",
+      "name": "exec",
+      "status": "completed",
+      "input_summary": {
+        "utf8_bytes": 102,
+        "sha256": "308105878d0048487c4613c32abec978fb408063d30e472d4563d7b17cf0b999",
+        "markers": [],
+        "operations": [
+          "write_stdin"
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-09-11T03:41:50.162Z",
+      "window": "produce",
+      "record_type": "response_item",
+      "type": "custom_tool_call_output",
+      "call_id": "call_U6pVMLjQpZoBuCt9j2Git4OK",
+      "output_summary": {
+        "utf8_bytes": 156,
+        "sha256": "850a38486a9269e8d321960fcd61369c436ba7441b9390eb8f7bcc477aa579eb",
+        "markers": []
+      }
+    },
+    {
+      "timestamp": "2026-09-11T03:41:53.215Z",
+      "window": "produce",
+      "record_type": "response_item",
+      "type": "custom_tool_call",
+      "call_id": "call_p4eaItn44t3LmYBpFscdnGNK",
+      "name": "exec",
+      "status": "completed",
+      "input_summary": {
+        "utf8_bytes": 103,
+        "sha256": "9eafa7d1cb244fb56de5bbc29f63b622f8afa17d1b7337f05d7e1f9f3c082f34",
+        "markers": [],
+        "operations": [
+          "write_stdin"
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-09-11T03:42:23.223Z",
+      "window": "produce",
+      "record_type": "response_item",
+      "type": "custom_tool_call_output",
+      "call_id": "call_p4eaItn44t3LmYBpFscdnGNK",
+      "output_summary": {
+        "utf8_bytes": 158,
+        "sha256": "3fcfd12a415ff1fb79f7be30ac0fbcca7f563e8171b8d0323293848702d9b939",
+        "markers": []
+      }
+    },
+    {
+      "timestamp": "2026-09-11T03:42:28.198Z",
+      "window": "produce",
+      "record_type": "response_item",
+      "type": "message",
+      "role": "assistant",
+      "phase": "commentary"
+    },
+    {
+      "timestamp": "2026-09-11T03:42:29.456Z",
+      "window": "produce",
+      "record_type": "response_item",
+      "type": "custom_tool_call",
+      "call_id": "call_zZJ6jnzf87IC6EYXtc3R8Q6E",
+      "name": "exec",
+      "status": "completed",
+      "input_summary": {
+        "utf8_bytes": 103,
+        "sha256": "9eafa7d1cb244fb56de5bbc29f63b622f8afa17d1b7337f05d7e1f9f3c082f34",
+        "markers": [],
+        "operations": [
+          "write_stdin"
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-09-11T03:42:31.180Z",
+      "window": "produce",
+      "record_type": "response_item",
+      "type": "custom_tool_call_output",
+      "call_id": "call_zZJ6jnzf87IC6EYXtc3R8Q6E",
+      "output_summary": {
+        "utf8_bytes": 254,
+        "sha256": "dd724aa5dedf4969e2bb1a5ccded5e083be207a64ecb2fc8ceea27d4fe62c7b7",
+        "markers": []
+      },
+      "fixed_envelopes": [
+        {
+          "kind": "result",
+          "value": {
+            "version": 1,
+            "status": "completed",
+            "nonce": "nr-g0-identity-ack-root-01",
+            "count": 1
+          }
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-09-11T03:42:37.006Z",
+      "window": "produce",
+      "record_type": "response_item",
+      "type": "custom_tool_call",
+      "call_id": "call_cWqD6T3WPoFUUs43jNAtRgiB",
+      "name": "exec",
+      "status": "completed",
+      "input_summary": {
+        "utf8_bytes": 383,
+        "sha256": "3228374eff5da459d96859d57b0f7abfa212f4672fd014f77480e49ccf91600e",
+        "markers": [],
+        "operations": [
+          "exec_command"
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-09-11T03:42:37.177Z",
+      "window": "produce",
+      "record_type": "response_item",
+      "type": "custom_tool_call_output",
+      "call_id": "call_cWqD6T3WPoFUUs43jNAtRgiB",
+      "output_summary": {
+        "utf8_bytes": 555,
+        "sha256": "9aeccaef88e36d2ecc9af6d89fd520ab209f86c0578e300a8456a8b9f718c886",
+        "markers": []
+      },
+      "fixed_envelopes": [
+        {
+          "kind": "inspect",
+          "value": {
+            "version": 1,
+            "status": "completed",
+            "nonce": "nr-g0-identity-ack-root-01",
+            "controller_thread": "01a08e8d-97cd-7f01-adb7-5a51990d8d81",
+            "revision": 1,
+            "task_revision": 1,
+            "cancelled": false,
+            "event_hash": "addcdfda9e28799b4bf5e02a4ace5693d7a067c6e12234b7f8f42b2f4bbb4814",
+            "result": {
+              "version": 1,
+              "status": "completed",
+              "nonce": "nr-g0-identity-ack-root-01",
+              "count": 1
+            },
+            "ack": null
+          }
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-09-11T03:42:42.007Z",
+      "window": "produce",
+      "record_type": "response_item",
+      "type": "custom_tool_call",
+      "call_id": "call_M9GJhfF56s6oklPJ6l2zAxtT",
+      "name": "exec",
+      "status": "completed",
+      "input_summary": {
+        "utf8_bytes": 193,
+        "sha256": "d5c697d5472a3fcd4efc63d1a7e02e713d7e9ce4e3bfe6e6fc1fa9f1eca59ba2",
+        "markers": [],
+        "operations": [
+          "exec_command"
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-09-11T03:42:42.207Z",
+      "window": "produce",
+      "record_type": "response_item",
+      "type": "custom_tool_call_output",
+      "call_id": "call_M9GJhfF56s6oklPJ6l2zAxtT",
+      "output_summary": {
+        "utf8_bytes": 280,
+        "sha256": "15e832ca7830bba291285ec37c55cdb7dbababfc96a75b3ba7df8fd76ecaf876",
+        "markers": []
+      },
+      "native_environment_ids": [
+        {
+          "CODEX_THREAD_ID": "01a08e8d-97cd-7f01-adb7-5a51990d8d81",
+          "CODEX_SESSION_ID": "01a08e8d-97cd-7f01-adb7-5a51990d8d81"
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-09-11T03:42:46.741Z",
+      "window": "produce",
+      "record_type": "response_item",
+      "type": "message",
+      "role": "assistant",
+      "phase": "final_answer",
+      "fixed_marker": "nr-g0-identity-ack-root-01-ACK"
+    },
+    {
+      "timestamp": "2026-09-11T03:42:46.826Z",
+      "window": "produce",
+      "record_type": "event_msg",
+      "type": "task_complete",
+      "turn_id": "01a08e8e-38a8-7ac0-9b31-cc75408a7189",
+      "duration_ms": 86383
+    },
+    {
+      "timestamp": "2026-09-11T03:45:36.138Z",
+      "window": "ack",
+      "record_type": "event_msg",
+      "type": "task_started",
+      "turn_id": "01a08e92-1f75-7753-a39f-479f327193a3"
+    },
+    {
+      "timestamp": "2026-09-11T03:45:36.195Z",
+      "window": "ack",
+      "record_type": "response_item",
+      "type": "message",
+      "role": "user"
+    },
+    {
+      "timestamp": "2026-09-11T03:45:40.374Z",
+      "window": "ack",
+      "record_type": "response_item",
+      "type": "message",
+      "role": "assistant",
+      "phase": "commentary"
+    },
+    {
+      "timestamp": "2026-09-11T03:45:43.895Z",
+      "window": "ack",
+      "record_type": "response_item",
+      "type": "custom_tool_call",
+      "call_id": "call_9ahxTmCgV2kbJUxwOhbzSrgz",
+      "name": "exec",
+      "status": "completed",
+      "input_summary": {
+        "utf8_bytes": 395,
+        "sha256": "e5de7535b720577da7b5dd0367782758274e9b34e4b5bb753ed32df347df27f1",
+        "markers": [],
+        "operations": [
+          "exec_command"
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-09-11T03:45:44.016Z",
+      "window": "ack",
+      "record_type": "response_item",
+      "type": "custom_tool_call_output",
+      "call_id": "call_9ahxTmCgV2kbJUxwOhbzSrgz",
+      "output_summary": {
+        "utf8_bytes": 555,
+        "sha256": "5064bfdc0d433e55391b247eeb9f714ae3e42aa2e3486d11f5932255130e6bca",
+        "markers": []
+      },
+      "fixed_envelopes": [
+        {
+          "kind": "inspect",
+          "value": {
+            "version": 1,
+            "status": "completed",
+            "nonce": "nr-g0-identity-ack-root-01",
+            "controller_thread": "01a08e8d-97cd-7f01-adb7-5a51990d8d81",
+            "revision": 1,
+            "task_revision": 1,
+            "cancelled": false,
+            "event_hash": "addcdfda9e28799b4bf5e02a4ace5693d7a067c6e12234b7f8f42b2f4bbb4814",
+            "result": {
+              "version": 1,
+              "status": "completed",
+              "nonce": "nr-g0-identity-ack-root-01",
+              "count": 1
+            },
+            "ack": null
+          }
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-09-11T03:45:53.192Z",
+      "window": "ack",
+      "record_type": "response_item",
+      "type": "custom_tool_call",
+      "call_id": "call_NFsqgglz9mLfZXCKTIQCNTF1",
+      "name": "exec",
+      "status": "completed",
+      "input_summary": {
+        "utf8_bytes": 586,
+        "sha256": "894ba73aa7f32c3711ec04d8c0c51eb08399a5bef0f82cbe6bce14dfdc6b6770",
+        "markers": [],
+        "operations": [
+          "exec_command"
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-09-11T03:45:53.305Z",
+      "window": "ack",
+      "record_type": "response_item",
+      "type": "custom_tool_call_output",
+      "call_id": "call_NFsqgglz9mLfZXCKTIQCNTF1",
+      "output_summary": {
+        "utf8_bytes": 517,
+        "sha256": "2ca0c2a8abc844803a8da30bbf355109cc8d84f5bc0fc8a461fdd574aa60f42c",
+        "markers": []
+      },
+      "fixed_envelopes": [
+        {
+          "kind": "ack",
+          "value": {
+            "version": 1,
+            "status": "acknowledged",
+            "nonce": "nr-g0-identity-ack-root-01",
+            "controller_thread": "01a08e8d-97cd-7f01-adb7-5a51990d8d81",
+            "revision": 1,
+            "event_hash": "addcdfda9e28799b4bf5e02a4ace5693d7a067c6e12234b7f8f42b2f4bbb4814",
+            "command_id": "nr-g0-identity-ack-root-01-cmd01",
+            "decision": "handled",
+            "decision_count": 1,
+            "effect_count": 1
+          }
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-09-11T03:45:59.911Z",
+      "window": "ack",
+      "record_type": "response_item",
+      "type": "custom_tool_call",
+      "call_id": "call_nW0gerIGZriT4OJpix0PQuQJ",
+      "name": "exec",
+      "status": "completed",
+      "input_summary": {
+        "utf8_bytes": 395,
+        "sha256": "c6ef2c1f25560515dd724b16e368fb75d8bc735b0428f44eba10c9008215b219",
+        "markers": [],
+        "operations": [
+          "exec_command"
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-09-11T03:45:59.981Z",
+      "window": "ack",
+      "record_type": "response_item",
+      "type": "custom_tool_call_output",
+      "call_id": "call_nW0gerIGZriT4OJpix0PQuQJ",
+      "output_summary": {
+        "utf8_bytes": 915,
+        "sha256": "1a1eb8103c2baf0358eceaca3acb49d88f36be9f8ae54016c28793ab3731f421",
+        "markers": []
+      },
+      "fixed_envelopes": [
+        {
+          "kind": "inspect",
+          "value": {
+            "version": 1,
+            "status": "completed",
+            "nonce": "nr-g0-identity-ack-root-01",
+            "controller_thread": "01a08e8d-97cd-7f01-adb7-5a51990d8d81",
+            "revision": 1,
+            "task_revision": 1,
+            "cancelled": false,
+            "event_hash": "addcdfda9e28799b4bf5e02a4ace5693d7a067c6e12234b7f8f42b2f4bbb4814",
+            "result": {
+              "version": 1,
+              "status": "completed",
+              "nonce": "nr-g0-identity-ack-root-01",
+              "count": 1
+            },
+            "ack": {
+              "version": 1,
+              "status": "acknowledged",
+              "nonce": "nr-g0-identity-ack-root-01",
+              "controller_thread": "01a08e8d-97cd-7f01-adb7-5a51990d8d81",
+              "revision": 1,
+              "event_hash": "addcdfda9e28799b4bf5e02a4ace5693d7a067c6e12234b7f8f42b2f4bbb4814",
+              "command_id": "nr-g0-identity-ack-root-01-cmd01",
+              "decision": "handled",
+              "decision_count": 1,
+              "effect_count": 1
+            }
+          }
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-09-11T03:46:03.882Z",
+      "window": "ack",
+      "record_type": "response_item",
+      "type": "custom_tool_call",
+      "call_id": "call_7FsHsn1AbdB1kpMsqe6twQOT",
+      "name": "exec",
+      "status": "completed",
+      "input_summary": {
+        "utf8_bytes": 205,
+        "sha256": "65cde7cf980923bbbd5aac971544b4cce6b4ddc674cb261c1527e34ed9a0e8d2",
+        "markers": [],
+        "operations": [
+          "exec_command"
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-09-11T03:46:03.989Z",
+      "window": "ack",
+      "record_type": "response_item",
+      "type": "custom_tool_call_output",
+      "call_id": "call_7FsHsn1AbdB1kpMsqe6twQOT",
+      "output_summary": {
+        "utf8_bytes": 278,
+        "sha256": "e0c0661395802a13fa14759f851ca87fb166a4622d8eee677ba5433d4749111e",
+        "markers": []
+      },
+      "native_environment_ids": [
+        {
+          "CODEX_THREAD_ID": "01a08e8d-97cd-7f01-adb7-5a51990d8d81",
+          "CODEX_SESSION_ID": "01a08e8d-97cd-7f01-adb7-5a51990d8d81"
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-09-11T03:46:07.954Z",
+      "window": "ack",
+      "record_type": "response_item",
+      "type": "message",
+      "role": "assistant",
+      "phase": "final_answer",
+      "fixed_marker": "nr-g0-identity-ack-positive-ACK"
+    },
+    {
+      "timestamp": "2026-09-11T03:46:08.151Z",
+      "window": "ack",
+      "record_type": "event_msg",
+      "type": "task_complete",
+      "turn_id": "01a08e92-1f75-7753-a39f-479f327193a3",
+      "duration_ms": 32013
+    }
+  ]
+}
