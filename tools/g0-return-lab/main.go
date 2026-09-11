@@ -147,6 +147,9 @@ func run(args []string) error {
 	if runtime.GOOS != "darwin" {
 		return failure("unsupported_platform")
 	}
+	if len(args) > 0 && (args[0] == "retained-start" || args[0] == "retained-inspect" || args[0] == "retained-resume") {
+		return runRetained(args)
+	}
 	o, err := parse(args)
 	if err != nil {
 		return err
