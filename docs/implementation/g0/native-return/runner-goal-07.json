@@ -1,0 +1,625 @@
+{
+  "captured_at": "2026-09-11T03:30:37.950619+00:00",
+  "root_thread": "01a08e80-5b64-7282-b2c4-acb0776fa362",
+  "nonce": "nr-g0-goal-07",
+  "window": {
+    "since": "2026-09-11T03:26:15Z",
+    "through": "2026-09-11T03:29:13Z"
+  },
+  "selection": "Exact root UUID and native source.parent_thread_id direct children only",
+  "privacy": "Reasoning omitted; text limited to fixed nonce messages and native wrappers; tool data is typed fields, fixed responses or hashes; explicit Hook keys only",
+  "process_observation": {
+    "requested_pid": 72170,
+    "exit_code": 1,
+    "stdout": "  PID  PPID STARTED                      ELAPSED COMM\n"
+  },
+  "hooks": [
+    {
+      "file": "45993b3d0d28b0c793b3e1f4da339081.json",
+      "hook_event_name": "SessionStart",
+      "nonce": "g0-macos-20260910",
+      "pid": 78757,
+      "ppid": 72170,
+      "recorded_at": "2026-09-11T03:26:17.678198Z",
+      "session_id": "01a08e80-5b64-7282-b2c4-acb0776fa362",
+      "source": "startup"
+    },
+    {
+      "file": "9f82f30d9c5ac6899343d3b5030dd713.json",
+      "hook_event_name": "UserPromptSubmit",
+      "nonce": "g0-macos-20260910",
+      "pid": 78758,
+      "ppid": 72170,
+      "recorded_at": "2026-09-11T03:26:17.700301Z",
+      "session_id": "01a08e80-5b64-7282-b2c4-acb0776fa362",
+      "turn_id": "01a08e80-6c87-7263-935d-da9eba7bec59"
+    },
+    {
+      "file": "010566fab039da3822d058f77cbdd879.json",
+      "hook_event_name": "SessionEnd",
+      "nonce": "g0-macos-20260910",
+      "pid": 79721,
+      "ppid": 72170,
+      "recorded_at": "2026-09-11T03:27:07.125585Z",
+      "session_id": "01a08e80-5b64-7282-b2c4-acb0776fa362"
+    },
+    {
+      "file": "035d0452d1ce7105fdfa5c71fe1cd3d3.json",
+      "hook_event_name": "SessionStart",
+      "nonce": "g0-macos-20260910",
+      "pid": 80612,
+      "ppid": 79894,
+      "recorded_at": "2026-09-11T03:27:17.635448Z",
+      "session_id": "01a08e80-5b64-7282-b2c4-acb0776fa362",
+      "source": "resume"
+    }
+  ],
+  "threads": [
+    {
+      "id": "01a08e80-5b64-7282-b2c4-acb0776fa362",
+      "created_at_ms": 1789097171869,
+      "cli_version": "0.153.4",
+      "agent_path": null,
+      "experiment_cwd_matches": true,
+      "source_kind": "cli",
+      "events": [
+        {
+          "timestamp": "2026-09-11T03:26:16.247Z",
+          "record_type": "event_msg",
+          "type": "task_started",
+          "turn_id": "01a08e80-6c87-7263-935d-da9eba7bec59",
+          "started_at": 1789097176
+        },
+        {
+          "timestamp": "2026-09-11T03:26:17.637Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "developer"
+        },
+        {
+          "timestamp": "2026-09-11T03:26:17.637Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "developer"
+        },
+        {
+          "timestamp": "2026-09-11T03:26:17.637Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "developer"
+        },
+        {
+          "timestamp": "2026-09-11T03:26:17.637Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "user"
+        },
+        {
+          "timestamp": "2026-09-11T03:26:17.639Z",
+          "record_type": "turn_context",
+          "turn_id": "01a08e80-6c87-7263-935d-da9eba7bec59",
+          "model": "gpt-6-astra",
+          "approval_policy": "never",
+          "sandbox_policy": {
+            "type": "danger-full-access"
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:26:17.703Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "user",
+          "message_summary": {
+            "utf8_bytes": 2026,
+            "sha256": "97d5e80b3731619d205753c085e77541bdbb47340dd98ae2cb3e33de85ef40aa",
+            "markers": [
+              "nr-g0-goal-07-ACK"
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:26:22.059Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "assistant",
+          "phase": "commentary"
+        },
+        {
+          "timestamp": "2026-09-11T03:26:37.105Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call",
+          "name": "exec",
+          "call_id": "call_dtQC8XF8GC52Mivy15gj8oqw",
+          "status": "completed",
+          "input_summary": {
+            "utf8_bytes": 1826,
+            "sha256": "dcdf1247e494c28e6ec0d8bb773f38988f1bdfbb904c07b63cc7709ca3719522",
+            "markers": [
+              "nr-g0-goal-07-ACK"
+            ],
+            "operations": [
+              "create_goal",
+              "exec_command"
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:26:37.204Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call_output",
+          "call_id": "call_dtQC8XF8GC52Mivy15gj8oqw",
+          "output_summary": {
+            "utf8_bytes": 1746,
+            "sha256": "f180b862f8727d358bd0932e9cdf3dc5e27c48045f83f04db37effb5861e8885",
+            "markers": [
+              "nr-g0-goal-07-ACK"
+            ],
+            "native_goal": {
+              "thread_id": "01a08e80-5b64-7282-b2c4-acb0776fa362",
+              "status": "active",
+              "tokensUsed": 0,
+              "timeUsedSeconds": 0,
+              "createdAt": 1789097197,
+              "updatedAt": 1789097197
+            },
+            "runtime": [
+              {
+                "exit_code": 0,
+                "wall_time_seconds": 3.042e-06
+              }
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:26:51.638Z",
+          "record_type": "response_item",
+          "type": "function_call",
+          "name": "spawn_agent",
+          "namespace": "collaboration",
+          "call_id": "call_NrrOLqkc6oRTDCtKIFh0VSIF",
+          "arguments_metadata": {
+            "task_name": "host_goal_07",
+            "agent_type": "default",
+            "fork_turns": "all"
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:26:51.742Z",
+          "record_type": "response_item",
+          "type": "function_call_output",
+          "call_id": "call_NrrOLqkc6oRTDCtKIFh0VSIF",
+          "output_summary": {
+            "utf8_bytes": 34,
+            "sha256": "2c91dc3df9e95ea62e4e7b13107731191236cc52fed90a0613daf2d66d1ea208",
+            "markers": [],
+            "native_spawn_response": {
+              "task_name": "/root/host_goal_07"
+            }
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:26:53.806Z",
+          "record_type": "response_item",
+          "type": "function_call",
+          "name": "sleep",
+          "namespace": "clock",
+          "call_id": "call_ysYad8deWvPN2Oi3wYn7rBBb",
+          "arguments_metadata": {
+            "duration_ms": 60000
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:27:07.085Z",
+          "record_type": "response_item",
+          "type": "function_call_output",
+          "call_id": "call_ysYad8deWvPN2Oi3wYn7rBBb",
+          "output_summary": {
+            "utf8_bytes": 27,
+            "sha256": "fe6388a9f355b0bd004caee7de27da698e5e2aa5d8f15d73c6296db7157fd283",
+            "markers": []
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:27:07.093Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "developer"
+        },
+        {
+          "timestamp": "2026-09-11T03:27:07.095Z",
+          "record_type": "event_msg",
+          "type": "turn_aborted",
+          "turn_id": "01a08e80-6c87-7263-935d-da9eba7bec59",
+          "started_at": 1789097176,
+          "completed_at": 1789097227,
+          "duration_ms": 50891
+        },
+        {
+          "timestamp": "2026-09-11T03:27:14.108Z",
+          "record_type": "event_msg",
+          "type": "task_started",
+          "turn_id": "01a08e81-4eb6-7fc3-8986-53cf1d7777d6",
+          "started_at": 1789097234
+        },
+        {
+          "timestamp": "2026-09-11T03:27:17.619Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "developer"
+        },
+        {
+          "timestamp": "2026-09-11T03:27:17.621Z",
+          "record_type": "turn_context",
+          "turn_id": "01a08e81-4eb6-7fc3-8986-53cf1d7777d6",
+          "model": "gpt-6-astra",
+          "approval_policy": "never",
+          "sandbox_policy": {
+            "type": "danger-full-access"
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:27:17.641Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "user",
+          "control_kind": "native_goal_continuation",
+          "message_summary": {
+            "utf8_bytes": 7318,
+            "sha256": "f3a5c3d5fe8c56ae998270e9bcb9ffad770328e5393df4444a30153ca7f0551a",
+            "markers": [
+              "nr-g0-goal-07-ACK"
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:27:29.722Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "assistant",
+          "phase": "commentary"
+        },
+        {
+          "timestamp": "2026-09-11T03:27:33.644Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call",
+          "name": "exec",
+          "call_id": "call_5kldFLhSCYkt4kinoqBD84J5",
+          "status": "completed",
+          "input_summary": {
+            "utf8_bytes": 508,
+            "sha256": "b3d30130dbd1507aed6f2d9452410889624aa2ab105907817b904a26ca48759d",
+            "markers": [],
+            "operations": [
+              "exec_command"
+            ],
+            "host_commands": [
+              {
+                "verb": "read",
+                "nonce": "nr-g0-goal-07",
+                "experiment_dir_matches": true
+              }
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:27:33.766Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call_output",
+          "call_id": "call_5kldFLhSCYkt4kinoqBD84J5",
+          "output_summary": {
+            "utf8_bytes": 231,
+            "sha256": "3cf7f12a6c73b942ca039d2434d25f13ac20b193fca25287a484f567f1eaeef0",
+            "markers": [],
+            "synthetic_host_result": {
+              "version": 1,
+              "status": "pending",
+              "nonce": "nr-g0-goal-07",
+              "count": 0
+            },
+            "runtime": [
+              {
+                "exit_code": 0,
+                "wall_time_seconds": 1.75e-06
+              }
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:27:44.602Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call",
+          "name": "exec",
+          "call_id": "call_chW7kOrRcRNDG4md7J5KbYdQ",
+          "status": "completed",
+          "input_summary": {
+            "utf8_bytes": 543,
+            "sha256": "e6c33cd0c3002eb3136d0341712007c9782d1c356881e2024065f1be6b4aff08",
+            "markers": [],
+            "operations": [
+              "exec_command"
+            ],
+            "host_commands": [
+              {
+                "verb": "wait",
+                "nonce": "nr-g0-goal-07",
+                "experiment_dir_matches": true,
+                "duration": "90s"
+              }
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:27:45.784Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call_output",
+          "call_id": "call_chW7kOrRcRNDG4md7J5KbYdQ",
+          "output_summary": {
+            "utf8_bytes": 156,
+            "sha256": "995152401bb6f9072b6f6b482fdd4c9f10a35dddb9786270e8cb6f9cd541c8b0",
+            "markers": [],
+            "runtime": [
+              {
+                "session_id": 15849,
+                "wall_time_seconds": 1.001017292
+              }
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:27:56.241Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call",
+          "name": "exec",
+          "call_id": "call_tCVXusw4Ojh28qcGcomKATwj",
+          "status": "completed",
+          "input_summary": {
+            "utf8_bytes": 107,
+            "sha256": "506b91c6d8c568c540dc2c5a873b5a78ff5e869a6ea1893b09ea95b0fa7ffe55",
+            "markers": [],
+            "operations": [
+              "write_stdin"
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:28:04.796Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call_output",
+          "call_id": "call_tCVXusw4Ojh28qcGcomKATwj",
+          "output_summary": {
+            "utf8_bytes": 234,
+            "sha256": "8e7b131b0603853f3b4578a100b81451d45e2a5cfbbbb58c655fdc5e84b275d5",
+            "markers": [],
+            "synthetic_host_result": {
+              "version": 1,
+              "status": "completed",
+              "nonce": "nr-g0-goal-07",
+              "count": 1
+            },
+            "runtime": [
+              {
+                "exit_code": 0,
+                "wall_time_seconds": 8.545014542
+              }
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:28:07.496Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call",
+          "name": "exec",
+          "call_id": "call_37G6KkyL1HxT2sRaL0MCA67x",
+          "status": "completed",
+          "input_summary": {
+            "utf8_bytes": 52,
+            "sha256": "0f5b2f67f59e052e2528ac7991c167589f261d724e11022937d977d418eab772",
+            "markers": [],
+            "operations": [
+              "update_goal"
+            ],
+            "goal_status_argument": "complete"
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:28:07.783Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call_output",
+          "call_id": "call_37G6KkyL1HxT2sRaL0MCA67x",
+          "output_summary": {
+            "utf8_bytes": 1957,
+            "sha256": "9980075435db9186165460640da6516cb06289637aee0c351091b71e233d9d05",
+            "markers": [
+              "nr-g0-goal-07-ACK"
+            ],
+            "native_goal": {
+              "thread_id": "01a08e80-5b64-7282-b2c4-acb0776fa362",
+              "status": "complete",
+              "tokensUsed": 27888,
+              "timeUsedSeconds": 82,
+              "createdAt": 1789097197,
+              "updatedAt": 1789097287
+            }
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:28:11.235Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "assistant",
+          "phase": "final_answer",
+          "message_summary": {
+            "utf8_bytes": 17,
+            "sha256": "52661e3bf5a55a088b262b8b5dd0ee7348eb1e9029d030e934157ae32c84ae2e",
+            "markers": [
+              "nr-g0-goal-07-ACK"
+            ]
+          },
+          "text": "nr-g0-goal-07-ACK"
+        },
+        {
+          "timestamp": "2026-09-11T03:28:11.306Z",
+          "record_type": "event_msg",
+          "type": "task_complete",
+          "turn_id": "01a08e81-4eb6-7fc3-8986-53cf1d7777d6",
+          "started_at": 1789097234,
+          "completed_at": 1789097291,
+          "duration_ms": 57198,
+          "last_agent_message": "nr-g0-goal-07-ACK"
+        }
+      ]
+    },
+    {
+      "id": "01a08e80-f70a-7500-8a9a-f9a08359bfed",
+      "created_at_ms": 1789097211658,
+      "cli_version": "0.153.4",
+      "agent_path": "/root/host_goal_07",
+      "experiment_cwd_matches": true,
+      "source_kind": "subagent",
+      "parent_thread_id": "01a08e80-5b64-7282-b2c4-acb0776fa362",
+      "events": [
+        {
+          "timestamp": "2026-09-11T03:26:51.727Z",
+          "record_type": "event_msg",
+          "type": "task_started",
+          "turn_id": "01a08e80-6c87-7263-935d-da9eba7bec59",
+          "started_at": 1789097176
+        },
+        {
+          "timestamp": "2026-09-11T03:26:51.727Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "developer"
+        },
+        {
+          "timestamp": "2026-09-11T03:26:51.727Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "user"
+        },
+        {
+          "timestamp": "2026-09-11T03:26:51.727Z",
+          "record_type": "turn_context",
+          "turn_id": "01a08e80-6c87-7263-935d-da9eba7bec59",
+          "model": "gpt-6-astra",
+          "approval_policy": "never",
+          "sandbox_policy": {
+            "type": "danger-full-access"
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:26:51.727Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "user",
+          "message_summary": {
+            "utf8_bytes": 2026,
+            "sha256": "97d5e80b3731619d205753c085e77541bdbb47340dd98ae2cb3e33de85ef40aa",
+            "markers": [
+              "nr-g0-goal-07-ACK"
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:26:51.727Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "developer"
+        },
+        {
+          "timestamp": "2026-09-11T03:26:51.743Z",
+          "record_type": "event_msg",
+          "type": "task_started",
+          "turn_id": "01a08e80-f75c-7c43-80a0-0c49c8394d80",
+          "started_at": 1789097211
+        },
+        {
+          "timestamp": "2026-09-11T03:26:55.129Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "developer"
+        },
+        {
+          "timestamp": "2026-09-11T03:26:55.131Z",
+          "record_type": "turn_context",
+          "turn_id": "01a08e80-f75c-7c43-80a0-0c49c8394d80",
+          "model": "gpt-6-astra",
+          "approval_policy": "never",
+          "sandbox_policy": {
+            "type": "danger-full-access"
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:26:55.133Z",
+          "record_type": "response_item",
+          "type": "agent_message",
+          "author": "/root",
+          "recipient": "/root/host_goal_07"
+        },
+        {
+          "timestamp": "2026-09-11T03:26:59.692Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "assistant",
+          "phase": "commentary"
+        },
+        {
+          "timestamp": "2026-09-11T03:27:04.671Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call",
+          "name": "exec",
+          "call_id": "call_DOVUGanXsavbx25AxMPaanlr",
+          "status": "completed",
+          "input_summary": {
+            "utf8_bytes": 560,
+            "sha256": "079688510cf5a067c3d139ba9a34f9dce84468c6adc0e26cee1156d2a6100b09",
+            "markers": [],
+            "operations": [
+              "exec_command"
+            ],
+            "host_commands": [
+              {
+                "verb": "start",
+                "nonce": "nr-g0-goal-07",
+                "experiment_dir_matches": true,
+                "duration": "60s"
+              }
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:27:04.764Z",
+          "record_type": "response_item",
+          "type": "custom_tool_call_output",
+          "call_id": "call_DOVUGanXsavbx25AxMPaanlr",
+          "output_summary": {
+            "utf8_bytes": 346,
+            "sha256": "bb0a3a8fd2d090254aece960e6d34fb5cda67b800d49bb66a4d74c8b9ba98afd",
+            "markers": [],
+            "runtime": [
+              {
+                "exit_code": 0,
+                "wall_time_seconds": 4.375e-06
+              }
+            ]
+          }
+        },
+        {
+          "timestamp": "2026-09-11T03:27:07.092Z",
+          "record_type": "response_item",
+          "type": "message",
+          "role": "developer"
+        },
+        {
+          "timestamp": "2026-09-11T03:27:07.096Z",
+          "record_type": "event_msg",
+          "type": "turn_aborted",
+          "turn_id": "01a08e80-f75c-7c43-80a0-0c49c8394d80",
+          "started_at": 1789097211,
+          "completed_at": 1789097227,
+          "duration_ms": 15352
+        }
+      ]
+    }
+  ]
+}

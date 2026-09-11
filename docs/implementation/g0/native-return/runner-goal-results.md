@@ -61,6 +61,24 @@ goal03 的 worker 于 02:55:52.448 启动，02:56:52 已完成；观察者在 02
 
 ## 当前边界与资源
 
-上述结果不修复普通无 goal 的 final→idle 自动唤醒缺口，而是验证原生持久 goal 的替代编排条件。提前恢复到仍在运行的 Host、保持 TUI 在线并 final 后的 goal 行为、身份隔离、ACK 与撤销竞争及原方案剩余交付屏障仍需各自实测，不能从这里外推。
+## goal07：Host 仍运行时提前恢复
 
-goal01–06 的 Host worker 均已结束，goal03 已正常收束；未删除保存必要身份/恢复证据的专用 job/result 目录。所有隐私回归 fixture 和误建的空运行目录已清理。已确认的本任务 TUI 按后续实验继续使用；不操作其他 Agent 的 TUI 或旧服务进程。
+本组沿用 60 秒 Host，但确认旧 TUI 正常退出后即恢复，没有先等 Host 完成。03:27:13.722，worker 79582 的创建身份仍匹配且 result 不存在；随后直接 `codex resume 01a08e80-5b64-7282-b2c4-acb0776fa362`，不附 prompt。
+
+自动 goal turn 于 03:27:14.108 启动。03:27:33.766，一次真实 root read 返回 pending/count 0；03:27:44.602 启动一次 Host wait，返回运行 session 15849；之后仅一次 `write_stdin` 等待该命令，03:28:04.796 得到 completed/count 1。03:28:07.783 complete goal，03:28:11.306 ACK，固定恢复窗口到 03:29:13 没有再续轮。没有再次 start，也没有反复用模型读取 pending。[原生记录](runner-goal-07.json)、[提前恢复时的存活证据](runner-goal-07-lifecycle.json)、[进程监视](runner-goal-07-process-monitor.jsonl)。
+
+## goal08：在线 active goal 在 final 后继续编排
+
+这是一个无 child 的对照样本：root 直接调用合成 Host start 作为任务派发，确保 Host 已启动后才 final。整个窗口不调用 clock.sleep、不退出或 resume TUI、不再输入人工 prompt，也不存在 child completion 消息。
+
+03:33:28.193，root `01a08e86-6a18-7be0-b5b9-ea03b1eca9bc` 输出 WAITING 并 `task_complete`。仅 **23 毫秒**后，原生 active goal 自动启动第二个 turn；控制项仍是带 goal 标记的 `message/role=user`。03:33:34.556 一次 read 返回 pending/count 0，之后一次 Host wait 和一次既有 session 等待，03:34:26.258 得到真实 `custom_tool_call_output` completed/count 1。原生 goal 被 complete，03:34:29.913 ACK。固定窗口为 03:32:53–03:34:53，其中 ACK 后观察 23.087 秒，没有额外 turn。[原生记录](runner-goal-08.json)、[唯一初始输入与 TUI 操作](runner-goal-08-lifecycle.json)、[已启动 Host 身份](runner-goal-08-ready.json)。
+
+这说明 active goal 会在结果产生前就继续编排，并在一个活动 turn 内阻塞等结果。本样本没有重复 `pending→final→goal续轮` 的模型忙轮询；它也不证明“仅在结果事件到达时才唤醒主控”的原 C05 语义。
+
+## 当前边界与资源
+
+上述结果不修复普通无 goal 的 final→idle 自动唤醒缺口，而是验证原生持久 goal 的替代编排条件。身份隔离、ACK 与撤销竞争及原方案剩余交付屏障仍需各自实测，不能从这里外推。
+
+独立审查进一步指出旧 `runner_ready.py` 对任意工具输出中的 goal 相似对象接受过宽，且未严格校验 job.created_at。实际已列样本的 Goal 调用与结果可由独立采集器比对；通用 readiness 判断缺口需要单独红绿回归和修复，不能将这些正向样本当作该工具已具完整来源验证的证明。
+
+goal01–08 的 Host worker 均已结束，goal03 已正常收束；未删除保存必要身份/恢复证据的专用 job/result 目录。所有隐私回归 fixture 和误建的空运行目录已清理。已确认的本任务 TUI 按后续实验继续使用；不操作其他 Agent 的 TUI 或旧服务进程。

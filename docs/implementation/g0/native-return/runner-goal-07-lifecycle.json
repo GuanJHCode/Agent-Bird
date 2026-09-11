@@ -1,0 +1,40 @@
+{
+  "nonce": "nr-g0-goal-07",
+  "root_thread": "01a08e80-5b64-7282-b2c4-acb0776fa362",
+  "classification": "normal quit and early resume while same Host is still pending",
+  "submitted_at": "2026-09-11 03:26:16 UTC",
+  "native_pid": 72170,
+  "native_session": 56940,
+  "quit_requested_at": "2026-09-11 03:27:07 UTC",
+  "native_exit_code": 0,
+  "readiness": {
+    "ready_at": "2026-09-11T03:27:04.808056+00:00",
+    "root_thread": "01a08e80-5b64-7282-b2c4-acb0776fa362",
+    "nonce": "nr-g0-goal-07",
+    "goal": {
+      "recorded_at": "2026-09-11T03:26:37.204Z",
+      "thread_id": "01a08e80-5b64-7282-b2c4-acb0776fa362",
+      "status": "active",
+      "createdAt": 1789097197,
+      "updatedAt": 1789097197
+    },
+    "native_identity": "72170 38821 72170 Fri Sep 11 11:13:11 2026     codex",
+    "worker_identity": "79582     1 79582 Fri Sep 11 11:27:04 2026     /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-native-return/tmp/host-impl/tools/g0-return-lab/data/g0-return-lab",
+    "job": {
+      "version": 1,
+      "status": "started",
+      "nonce": "nr-g0-goal-07",
+      "worker_pid": 79582,
+      "created_at": "2026-09-11T03:27:04.729839Z"
+    },
+    "result_present": false
+  },
+  "pending_before_resume": {
+    "at": "2026-09-11T03:27:13.722095+00:00",
+    "worker_identity": "79582     1 79582 Fri Sep 11 11:27:04 2026     /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-native-return/tmp/host-impl/tools/g0-return-lab/data/g0-return-lab",
+    "result_present": false
+  },
+  "monitor_session": 61581,
+  "resume_requested_at": "2026-09-11 03:27:13 UTC",
+  "resume_session": 11106
+}

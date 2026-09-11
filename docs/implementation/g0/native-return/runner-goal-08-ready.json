@@ -1,0 +1,22 @@
+{
+  "ready_at": "2026-09-11T03:33:47.451583+00:00",
+  "root_thread": "01a08e86-6a18-7be0-b5b9-ea03b1eca9bc",
+  "nonce": "nr-g0-goal-08",
+  "goal": {
+    "recorded_at": "2026-09-11T03:33:20.950Z",
+    "thread_id": "01a08e86-6a18-7be0-b5b9-ea03b1eca9bc",
+    "status": "active",
+    "createdAt": 1789097600,
+    "updatedAt": 1789097600
+  },
+  "native_identity": "79894 38821 79894 Fri Sep 11 11:27:13 2026     codex",
+  "worker_identity": "83971     1 83971 Fri Sep 11 11:33:26 2026     /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-native-return/tmp/host-impl/tools/g0-return-lab/data/g0-return-lab",
+  "job": {
+    "version": 1,
+    "status": "started",
+    "nonce": "nr-g0-goal-08",
+    "worker_pid": 83971,
+    "created_at": "2026-09-11T03:33:26.179605Z"
+  },
+  "result_present": false
+}

@@ -1,0 +1,25 @@
+{
+  "verified_at": "2026-09-11T03:40:45.906322+00:00",
+  "samples": [
+    {
+      "nonce": "nr-g0-goal-07",
+      "root": "01a08e80-5b64-7282-b2c4-acb0776fa362",
+      "window_end": "2026-09-11T03:29:13Z",
+      "pending_once": true,
+      "wait_command_once": true,
+      "running_session_join_once": true,
+      "goal_complete": true
+    },
+    {
+      "nonce": "nr-g0-goal-08",
+      "root": "01a08e86-6a18-7be0-b5b9-ea03b1eca9bc",
+      "window_end": "2026-09-11T03:34:53Z",
+      "pending_once": true,
+      "wait_command_once": true,
+      "running_session_join_once": true,
+      "goal_complete": true
+    }
+  ],
+  "scope": "single controlled pending-resume and online-goal samples; no claim that result event triggers original C05",
+  "readiness_P1": "known; repair must be a separate commit with negative regression tests"
+}

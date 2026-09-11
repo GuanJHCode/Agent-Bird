@@ -1,0 +1,10 @@
+{
+  "nonce": "nr-g0-goal-08",
+  "root_thread": "01a08e86-6a18-7be0-b5b9-ea03b1eca9bc",
+  "classification": "online active goal deliberately final after real Host start; no child, no sleep, no resume, no further user input",
+  "native_pid": 79894,
+  "native_session": 11106,
+  "submitted_at": "2026-09-11 03:32:53 UTC",
+  "host_delay": "60s",
+  "user_input_count_after_initial_goal": 0
+}
