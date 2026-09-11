@@ -1,0 +1,16 @@
+{
+  "checked_at": "2026-09-11T08:30:34.460348+00:00",
+  "installed_version": "0.153.4",
+  "latest_release": {
+    "tag_name": "rust-v0.154.0",
+    "published_at": "2026-09-09T22:35:38Z",
+    "html_url": "https://github.com/openai/codex/releases/tag/rust-v0.154.0",
+    "prerelease": false
+  },
+  "source_commits": {
+    "0.153.4": "3d2ee51ca2d5db578f328aa75e20aa22c0197c9a",
+    "0.154.0": "6b9826e3aa83b1a5947db50f4332cb9c65f1b340"
+  },
+  "scope": "read-only official source and CLI version; no native model experiment",
+  "download_note": "Python TLS trust store rejected certificate; system curl used with normal verification"
+}

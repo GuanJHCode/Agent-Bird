@@ -1,0 +1,192 @@
+{
+  "checked_at": "2026-09-11T08:33:27.894846+00:00",
+  "kind": "static pinned-source comparisons, not runtime tests",
+  "whole_files": [
+    {
+      "path": "codex-rs/app-server-protocol/schema/typescript/v2/TurnStartParams.ts",
+      "identical": true
+    },
+    {
+      "path": "codex-rs/app-server-protocol/schema/typescript/v2/TurnToolOutput.ts",
+      "identical": true
+    },
+    {
+      "path": "codex-rs/app-server/src/extensions.rs",
+      "identical": true
+    },
+    {
+      "path": "codex-rs/app-server/src/in_process.rs",
+      "identical": false
+    },
+    {
+      "path": "codex-rs/app-server/src/request_processors/turn_processor.rs",
+      "identical": false
+    },
+    {
+      "path": "codex-rs/core-plugins/src/agent_plugin_manifest.rs",
+      "identical": true
+    },
+    {
+      "path": "codex-rs/core-plugins/src/manifest.rs",
+      "identical": true
+    },
+    {
+      "path": "codex-rs/core/src/agent/control.rs",
+      "identical": false
+    },
+    {
+      "path": "codex-rs/core/src/hook_runtime.rs",
+      "identical": false
+    },
+    {
+      "path": "codex-rs/core/src/session/inject.rs",
+      "identical": false
+    },
+    {
+      "path": "codex-rs/core/src/session/input_queue.rs",
+      "identical": false
+    },
+    {
+      "path": "codex-rs/core/src/session/mod.rs",
+      "identical": false
+    },
+    {
+      "path": "codex-rs/core/src/session/turn_input.rs",
+      "identical": false
+    },
+    {
+      "path": "codex-rs/core/src/tasks/mod.rs",
+      "identical": false
+    },
+    {
+      "path": "codex-rs/core/src/tools/events.rs",
+      "identical": true
+    },
+    {
+      "path": "codex-rs/core/src/tools/handlers/multi_agents_v2/followup_task.rs",
+      "identical": true
+    },
+    {
+      "path": "codex-rs/core/src/tools/handlers/multi_agents_v2/message_tool.rs",
+      "identical": true
+    },
+    {
+      "path": "codex-rs/core/src/tools/handlers/multi_agents_v2/send_message.rs",
+      "identical": true
+    },
+    {
+      "path": "codex-rs/core/src/unified_exec/async_watcher.rs",
+      "identical": true
+    },
+    {
+      "path": "codex-rs/core/src/unified_exec/async_watcher_tests.rs",
+      "identical": true
+    },
+    {
+      "path": "codex-rs/core/src/unified_exec/process_manager.rs",
+      "identical": false
+    },
+    {
+      "path": "codex-rs/ext/extension-api/src/contributors/thread_lifecycle.rs",
+      "identical": true
+    },
+    {
+      "path": "codex-rs/ext/extension-api/src/contributors/turn_lifecycle.rs",
+      "identical": true
+    },
+    {
+      "path": "codex-rs/ext/extension-api/src/lib.rs",
+      "identical": false
+    },
+    {
+      "path": "codex-rs/ext/extension-api/src/registry.rs",
+      "identical": false
+    }
+  ],
+  "focused_regions": [
+    {
+      "path": "codex-rs/core/src/agent/control.rs",
+      "start_anchor": "fn maybe_start_completion_watcher(",
+      "versions": [
+        {
+          "version": "0.153.4",
+          "line_start": 573,
+          "line_end": 663,
+          "sha256": "6dbb9a721f3691276052e29462d41b0adcdfd0b4e8ebb74fb6d7fb101de2dcff",
+          "bytes": 3466
+        },
+        {
+          "version": "0.154.0",
+          "line_start": 624,
+          "line_end": 714,
+          "sha256": "6dbb9a721f3691276052e29462d41b0adcdfd0b4e8ebb74fb6d7fb101de2dcff",
+          "bytes": 3466
+        }
+      ],
+      "identical": true
+    },
+    {
+      "path": "codex-rs/core/src/hook_runtime.rs",
+      "start_anchor": "pub(crate) async fn drain_async_hook_results(",
+      "versions": [
+        {
+          "version": "0.153.4",
+          "line_start": 758,
+          "line_end": 794,
+          "sha256": "2ed010afddd5ba17f0c9ddc46c085a50670b4192afa4f67804bf016037a57d34",
+          "bytes": 1236
+        },
+        {
+          "version": "0.154.0",
+          "line_start": 763,
+          "line_end": 799,
+          "sha256": "2ed010afddd5ba17f0c9ddc46c085a50670b4192afa4f67804bf016037a57d34",
+          "bytes": 1236
+        }
+      ],
+      "identical": true
+    },
+    {
+      "path": "codex-rs/core/src/tasks/mod.rs",
+      "start_anchor": "pub(crate) fn has_outstanding_durable_sleep(",
+      "versions": [
+        {
+          "version": "0.153.4",
+          "line_start": 415,
+          "line_end": 428,
+          "sha256": "6742059e7e313f625fe2a114194985d16832765765bd4d324b1c83ac2aac707c",
+          "bytes": 600
+        },
+        {
+          "version": "0.154.0",
+          "line_start": 413,
+          "line_end": 426,
+          "sha256": "6742059e7e313f625fe2a114194985d16832765765bd4d324b1c83ac2aac707c",
+          "bytes": 600
+        }
+      ],
+      "identical": true
+    },
+    {
+      "path": "codex-rs/core/src/tasks/mod.rs",
+      "start_anchor": "pub(crate) async fn maybe_start_turn_for_pending_work_with_sub_id(",
+      "versions": [
+        {
+          "version": "0.153.4",
+          "line_start": 443,
+          "line_end": 509,
+          "sha256": "fabdb8baf356257f1300de5f34dc037965a949e3f9fe45767f23d6b4bb10a50f",
+          "bytes": 2746
+        },
+        {
+          "version": "0.154.0",
+          "line_start": 441,
+          "line_end": 507,
+          "sha256": "fabdb8baf356257f1300de5f34dc037965a949e3f9fe45767f23d6b4bb10a50f",
+          "bytes": 2746
+        }
+      ],
+      "identical": true
+    }
+  ]
+}

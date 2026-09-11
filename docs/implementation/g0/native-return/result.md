@@ -50,7 +50,7 @@ flowchart LR
 
 对较新稳定版 0.154.0 已做精确源码对比：Goal 与 code-mode 的 9 个相关生产文件与 0.153.4 相同，公开更新字段仍无 revision，相关编辑链没有新增取消旧 cell 的保护。新版二进制没有运行，未升级全局安装；这个结论来自对应源码，而非把旧版样本冒充新版实测。[固定版本、字段和候选排除依据](alternatives.md)
 
-普通队列／history 注入没有形成合法 pending-tool 回调证明；显式远程服务、改启动入口或修改原生实现会改变现有合同，也没有因此自动解决 UI 附着与 Goal 竞争。官方 Claude 插件的 SessionEnd 会终止相应任务并清理记录，其生命周期不能直接照搬。[插件实现核查](../../../../tasks/cc-plugin-review/docs/findings.md)
+普通队列／history 注入没有形成原工具结果交付证明。补充核查已明确：官方 `turn/start.toolOutput` 支持客户端真实执行的 standalone 工具输出，不要求旧 pending request；`input=[]` 时保持 `functionCallOutput` 身份。真正未证的是普通原 TUI 的原服务可达、当前附着与交付对账，不能再用“必须存在 pending-tool”排除该接口。确需最小 `thread/resume` 时仍按原验证计划核验设置连续性；显式远程服务、改启动入口或修改本体不能自动满足这些条件。[官方接口](https://learn.chatgpt.com/docs/app-server#start-a-turn)、[本轮候选复核](../../../../tasks/g0-pending-resolution/docs/idle-analysis.md)。官方 Claude 插件的 SessionEnd 会终止相应任务并清理记录，其生命周期不能直接照搬。[插件实现核查](../../../../tasks/cc-plugin-review/docs/findings.md)
 
 因此，没有为凑次数重复尚缺核心前提的 20 次屏障，未把未测试的 compact、Hook 异常／审批等待、当前 UI 切换、完整交付对账或 Windows 标为通过。跨 thread 原生负向 ACK 分支曾被平台内容检查中断；现场恢复后只完成自身任务的正向闭环，该负向项保留未验证。
 
