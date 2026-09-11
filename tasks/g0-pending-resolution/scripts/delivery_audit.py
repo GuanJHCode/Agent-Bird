@@ -73,12 +73,19 @@ def audit(data):
     require(type(data["reads"]) is list and len(data["reads"]) <= 16)
     require(type(data["acks"]) is list and len(data["acks"]) <= 32)
     matches, observed_ids, request_ids = set(), {}, set()
+    item_identities = {}
     complete, compaction = bool(data["reads"]), False
     previous_next, previous_query = None, None
 
     def scan_item(item, turn_id):
         nonlocal compaction
         require(type(item) is dict and safe(item.get("id")) and type(item.get("type")) is str)
+        key = (turn_id, item["id"])
+        identity = (item["type"], item.get("name"), item.get("namespace"))
+        # Check stable identity before filtering unrelated content. Assistant
+        # text can grow legitimately, so its body is not frozen by this check.
+        require(key not in item_identities or item_identities[key] == identity)
+        item_identities[key] = identity
         if item["type"] == "contextCompaction":
             compaction = True
         if item["type"] != "functionCallOutput" or item.get("name") != "g0_delivery":
@@ -86,7 +93,6 @@ def audit(data):
         shape(item, ("id", "type", "name", "output"), ("namespace",))
         require(item.get("namespace") == "orchestration" and type(item["output"]) is str)
         found = envelope(parse(item["output"]))
-        key = (turn_id, item["id"])
         encoded = canonical(found)
         require(key not in observed_ids or observed_ids[key] == encoded)
         observed_ids[key] = encoded
@@ -142,7 +148,7 @@ def audit(data):
         if "turnId" in params:
             require(safe(params["turnId"]))
         query = (method, params.get("sortDirection"), params.get("turnId"), params.get("itemsView"))
-        if params.get("cursor") != previous_next or previous_query is not None and query != previous_query:
+        if params.get("cursor") != previous_next or previous_query is not None and (query != previous_query or previous_next is None):
             complete = False
         previous_query, previous_next = query, result.get("nextCursor")
         if method == "thread/turns/list":

@@ -51,7 +51,9 @@
 
 它输出 `exact_history_marker` 或 `uncertain`，且恒输出 `source_service_verified=false / absence_proof=false / resend_authorized=false`。前者是**采样内容匹配**，还需外部采集器证明来源后才能作为原生运输阳性。分页信息、重复展示计数和逐事件业务 ACK 单独列出：缺少 ACK 不抹去已经匹配的历史项，ACK 完整也不补造历史阳性。UUID 换新但语义 slot/决定相同按一个输入槽计数；这不是证明外部副作用恰好执行一次。
 
-13 项测试已通过；初始未实现 CLI 的 9 个行为断言失败，随后通过。追加的真实旧样本负例、同原生 item id 冲突和空 summary 页核对中，后两项先失败再修复。接口与限制见[使用说明](delivery-audit.md)，证据见[验证记录](delivery-validation.json)。
+初版 13 项测试曾通过；初始未实现 CLI 的 9 个行为断言失败，随后通过。追加的真实旧样本负例、同原生 item id 内容冲突和空 summary 页核对中，后两项先失败再修复。
+
+独立 review 又复现两处精度问题：过滤无关项前未记录 item 身份，导致同一原生 ID 改成其他类型/工具时仍可能保留阳性；遍历结束后再次读取首页，被错误算作同一完整页链。已增加稳定 type/name/namespace 检查与结束页判断；不会冻结无关 agentMessage 的正常文本增长。新增测试先出现 6 个失败子情形，最小修复后最新 **15 项测试全部通过**。该修复待独立复核，尚未宣称已审。接口与限制见[使用说明](delivery-audit.md)，证据见[验证记录](delivery-validation.json)。
 
 ## 下一步可直接执行的六屏障采样方案
 

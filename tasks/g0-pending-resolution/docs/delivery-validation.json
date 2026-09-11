@@ -1,5 +1,5 @@
 {
-  "captured_at": "2026-09-11T08:42:52.752241+00:00",
+  "captured_at": "2026-09-11T08:47:52.617036+00:00",
   "base_commit": "cd3d0547c807b36e403aca5a85ac34221ab247dc",
   "implementation_commit": "c0a0fe3",
   "scope": "G0 offline evidence checker only; no native positive, no service authentication, no business ACK provenance authentication, no Go production change",
@@ -42,6 +42,23 @@
       "exit_code": 0,
       "scope": "synthetic fixture only",
       "result": "delivery-audit-example-result.json"
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tasks/g0-pending-resolution/scripts -p delivery_audit_test.py",
+      "phase": "independent review regression RED",
+      "exit_code": 1,
+      "test_cases": 15,
+      "assertion_failures": 6,
+      "duration_seconds": 1.253,
+      "log": "delivery-review-red.log"
+    },
+    {
+      "command": "same unittest command",
+      "phase": "review fixes final source GREEN",
+      "exit_code": 0,
+      "test_cases": 15,
+      "log": "delivery-review-green.log",
+      "duration_seconds": 1.314
     }
   ],
   "source_commit": "3d2ee51ca2d5db578f328aa75e20aa22c0197c9a",
@@ -52,8 +69,8 @@
     "core/src/hook_runtime.rs": "87b678af0f9ea87e0de6041fe82f9f90315b0b18c10524731deba9b7f9841f1e"
   },
   "files": {
-    "tasks/g0-pending-resolution/scripts/delivery_audit.py": "3ca4df69fa70549b5b46234a971e36d98250f0dec03d2a8996b8aad26ef27638",
-    "tasks/g0-pending-resolution/scripts/delivery_audit_test.py": "ee1127e595c0c69d160e528bbd7e5b41bd0deede552f6ac150d7120b2b45734a"
+    "tasks/g0-pending-resolution/scripts/delivery_audit.py": "59d8129d5409fb7fb5687a5107c81f9d85a63b8f718e4dd22cab660517af87c6",
+    "tasks/g0-pending-resolution/scripts/delivery_audit_test.py": "c137491c5d8d251e4667d4456134f88feae22a49ff8bbe0e4aead2caab7cbf93"
   },
   "cleanup": [
     {
@@ -71,6 +88,6 @@
       "removed": true
     }
   ],
-  "independent_review": "pending",
+  "independent_review": "c0a0fe3 reviewed with two findings; local fixes awaiting independent re-review",
   "original_docs_or_go_changes": []
 }

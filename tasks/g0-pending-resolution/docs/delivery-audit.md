@@ -27,9 +27,9 @@ payload_hash
 - `thread/read` 必须 `includeTurns:true`，目标 thread id 匹配；读取 `result.thread.turns`。
 - `thread/turns/list` 为完整匹配需 `itemsView:full`；保留 cursor/nextCursor/backwardsCursor 与排序参数。summary/notLoaded 只提示不完整，不提供标记阳性。
 - `thread/items/list` 读取 `result.data[].{turnId,item}`。该方法能否用于实际 store，仍由原服务实验确定。
-- 仅 `type:functionCallOutput`、`name:g0_delivery`、`namespace:orchestration` 的完整字符串 envelope 可匹配；其他类型从不转译。合法其他 delivery 的项可忽略，同 turn/item id 的内容冲突拒绝。
+- 仅 `type:functionCallOutput`、`name:g0_delivery`、`namespace:orchestration` 的完整字符串 envelope 可匹配；其他类型从不转译。过滤前按 turn/item id 校验稳定的 type/name/namespace；合法其他 delivery 的项可忽略，但 G0 envelope 内容冲突仍拒绝。无关 agentMessage 的正常文本增长不算身份冲突。
 
-本脚本只解释有限读取投影，不是完整 app-server schema validator；无关 item 的正文不解析、不回显。`captured_page_chain_complete` 只描述给定读取页及 itemsView，**不证明发送窗口覆盖、并发落盘结束或 compact 数据完整**。有 compaction 项时单列 `compaction_seen`；不能从没有观察到该项推导未压缩。
+本脚本只解释有限读取投影，不是完整 app-server schema validator；无关 item 的正文不解析、不回显。`captured_page_chain_complete` 只描述给定读取页及 itemsView；一个遍历已经返回 nextCursor=null 后再出现页，会标为 false。此字段**不证明发送窗口覆盖、并发落盘结束或 compact 数据完整**。有 compaction 项时单列 `compaction_seen`；不能从没有观察到该项推导未压缩。
 
 `acks[]` 是已由外部采集器来源核验的逐事件记录输入，字段为：
 

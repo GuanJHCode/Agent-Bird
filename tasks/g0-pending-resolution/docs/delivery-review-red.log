@@ -1,0 +1,71 @@
+......FFFF.FF......
+======================================================================
+FAIL: test_native_item_identity_is_stable_before_filtering_unrelated_content (delivery_audit_test.DeliveryAuditTests.test_native_item_identity_is_stable_before_filtering_unrelated_content) (kind='agentMessage', reverse=False)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/delivery/tasks/g0-pending-resolution/scripts/delivery_audit_test.py", line 222, in test_native_item_identity_is_stable_before_filtering_unrelated_content
+    self.run_bundle(data, 2)
+    ~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/delivery/tasks/g0-pending-resolution/scripts/delivery_audit_test.py", line 45, in run_bundle
+    self.assertEqual(run.returncode, code, run.stderr.decode(errors="replace"))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 2 : 
+
+======================================================================
+FAIL: test_native_item_identity_is_stable_before_filtering_unrelated_content (delivery_audit_test.DeliveryAuditTests.test_native_item_identity_is_stable_before_filtering_unrelated_content) (kind='agentMessage', reverse=True)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/delivery/tasks/g0-pending-resolution/scripts/delivery_audit_test.py", line 222, in test_native_item_identity_is_stable_before_filtering_unrelated_content
+    self.run_bundle(data, 2)
+    ~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/delivery/tasks/g0-pending-resolution/scripts/delivery_audit_test.py", line 45, in run_bundle
+    self.assertEqual(run.returncode, code, run.stderr.decode(errors="replace"))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 2 : 
+
+======================================================================
+FAIL: test_native_item_identity_is_stable_before_filtering_unrelated_content (delivery_audit_test.DeliveryAuditTests.test_native_item_identity_is_stable_before_filtering_unrelated_content) (kind='other_tool', reverse=False)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/delivery/tasks/g0-pending-resolution/scripts/delivery_audit_test.py", line 222, in test_native_item_identity_is_stable_before_filtering_unrelated_content
+    self.run_bundle(data, 2)
+    ~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/delivery/tasks/g0-pending-resolution/scripts/delivery_audit_test.py", line 45, in run_bundle
+    self.assertEqual(run.returncode, code, run.stderr.decode(errors="replace"))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 2 : 
+
+======================================================================
+FAIL: test_native_item_identity_is_stable_before_filtering_unrelated_content (delivery_audit_test.DeliveryAuditTests.test_native_item_identity_is_stable_before_filtering_unrelated_content) (kind='other_tool', reverse=True)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/delivery/tasks/g0-pending-resolution/scripts/delivery_audit_test.py", line 222, in test_native_item_identity_is_stable_before_filtering_unrelated_content
+    self.run_bundle(data, 2)
+    ~~~~~~~~~~~~~~~^^^^^^^^^
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/delivery/tasks/g0-pending-resolution/scripts/delivery_audit_test.py", line 45, in run_bundle
+    self.assertEqual(run.returncode, code, run.stderr.decode(errors="replace"))
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 2 : 
+
+======================================================================
+FAIL: test_pages_after_a_terminated_traversal_are_not_one_complete_chain (delivery_audit_test.DeliveryAuditTests.test_pages_after_a_terminated_traversal_are_not_one_complete_chain) (marker_present=False)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/delivery/tasks/g0-pending-resolution/scripts/delivery_audit_test.py", line 242, in test_pages_after_a_terminated_traversal_are_not_one_complete_chain
+    self.assertFalse(value["captured_page_chain_complete"])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: True is not false
+
+======================================================================
+FAIL: test_pages_after_a_terminated_traversal_are_not_one_complete_chain (delivery_audit_test.DeliveryAuditTests.test_pages_after_a_terminated_traversal_are_not_one_complete_chain) (marker_present=True)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/delivery/tasks/g0-pending-resolution/scripts/delivery_audit_test.py", line 242, in test_pages_after_a_terminated_traversal_are_not_one_complete_chain
+    self.assertFalse(value["captured_page_chain_complete"])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: True is not false
+
+----------------------------------------------------------------------
+Ran 15 tests in 1.253s
+
+FAILED (failures=6)

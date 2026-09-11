@@ -210,6 +210,40 @@ class DeliveryAuditTests(unittest.TestCase):
         data["reads"][0]["response"]["result"]["data"][0]["items"] = [item, replacement]
         self.run_bundle(data, 2)
 
+    def test_native_item_identity_is_stable_before_filtering_unrelated_content(self):
+        for kind in ("agentMessage", "other_tool"):
+            for reverse in (False, True):
+                with self.subTest(kind=kind, reverse=reverse):
+                    data = fixture()
+                    item = data["reads"][0]["response"]["result"]["data"][0]["items"][0]
+                    changed = {"id": "item_01", "type": "agentMessage", "text": "unrelated"} if kind == "agentMessage" else {**item, "name": "other_tool"}
+                    items = [changed, item] if reverse else [item, changed]
+                    data["reads"][0]["response"]["result"]["data"][0]["items"] = items
+                    self.run_bundle(data, 2)
+        # Unrelated assistant items legitimately gain text between reads. Only
+        # stable item identity is required; this is not a full-body freeze.
+        data = fixture()
+        items = data["reads"][0]["response"]["result"]["data"][0]["items"]
+        items.extend([{"id": "agent_01", "type": "agentMessage", "text": "first"},
+                      {"id": "agent_01", "type": "agentMessage", "text": "first, then more"}])
+        value, _ = self.run_bundle(data)
+        self.assertEqual(value["transport_evidence"], "exact_history_marker")
+
+    def test_pages_after_a_terminated_traversal_are_not_one_complete_chain(self):
+        for present in (False, True):
+            with self.subTest(marker_present=present):
+                data = fixture()
+                if not present:
+                    data["reads"][0]["response"]["result"]["data"] = []
+                another = copy.deepcopy(data["reads"][0])
+                another["request"]["id"] = another["response"]["id"] = 11
+                data["reads"].append(another)
+                value, _ = self.run_bundle(data)
+                self.assertFalse(value["captured_page_chain_complete"])
+                self.assertEqual(value["transport_evidence"], "exact_history_marker" if present else "uncertain")
+                self.assertFalse(value["absence_proof"])
+                self.assertFalse(value["resend_authorized"])
+
 
 if __name__ == "__main__":
     unittest.main()
