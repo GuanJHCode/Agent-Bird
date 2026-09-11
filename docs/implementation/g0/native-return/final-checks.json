@@ -1,0 +1,49 @@
+{
+  "at": "2026-09-11T04:41:32.141336+00:00",
+  "source_head": "e2893349567e642c096474bed22cfb4c6b4fac22",
+  "original_documents_unchanged": {
+    "docs/design-v0.1.md": true,
+    "docs/acceptance-v0.1.md": true,
+    "docs/evidence.md": true,
+    "docs/g0-validation-plan.md": true,
+    "docs/runtime-protocols.md": true,
+    "docs/git-cleanup-protocol.md": true,
+    "docs/review-report.md": true
+  },
+  "host_sources_match_tested_sha256": {
+    "main.go": true,
+    "main_test.go": true,
+    "ack.go": true,
+    "ack_test.go": true,
+    "go.mod": true
+  },
+  "json_parsed": 57,
+  "jsonl_parsed": 5,
+  "python_syntax_checked": 9,
+  "local_markdown_links_checked": 96,
+  "broken_links": [],
+  "binaries": [
+    {
+      "path": "tasks/g0-native-return/data/g0-return-lab-baseline-darwin-arm64",
+      "sha256": "cf7bfc0acf6f3348210c50c75f9a0ea85b6a56e1abafbbcec85156580dc40cec",
+      "matches_reviewed": true,
+      "executable": true
+    },
+    {
+      "path": "tasks/g0-native-return/data/g0-return-lab-ack-darwin-arm64",
+      "sha256": "8ed9567aaf95867204f448aa5bd498a7ce5895790a0f24149419d9b460c962db",
+      "matches_reviewed": true,
+      "executable": true
+    }
+  ],
+  "temporary_root_absent": true,
+  "remaining_worktree_count": 1,
+  "python_test_command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tasks/g0-native-return/scripts -p 'runner_*_test.py'",
+  "python_tests": {
+    "run": 12,
+    "exit_code": 0,
+    "seconds": 0.026
+  },
+  "g0_acceptance": "NOT_PASSED",
+  "artifact_checks_passed": true
+}

@@ -8,3 +8,5 @@
 /tasks/g0-macos/data/hook-events/
 /tasks/g0-daemon/tmp/
 /tasks/g0-daemon/data/
+/tasks/g0-native-return/tmp/
+/tasks/g0-native-return/data/

@@ -1,0 +1,77 @@
+{
+  "checked_at": {
+    "current_time": "2026-09-11 04:38:46 UTC"
+  },
+  "native_process_evidence": [
+    "runner-cleanup-final.json",
+    "identity-ack-processes.json",
+    "identity-lifecycle.json"
+  ],
+  "native_process_status": "All recorded test TUI/Host process instances ended; no signal sent to unrelated processes.",
+  "removed": [
+    {
+      "path": "tasks/g0-native-return/tmp/main-verify",
+      "purpose": "completed main Go test/vet cache",
+      "files": 1742,
+      "bytes": 125214761,
+      "removed": true
+    },
+    {
+      "path": "tasks/g0-native-return/tmp/schema-alternatives",
+      "purpose": "generated schema already summarized in alternatives report",
+      "file_count": 416,
+      "bytes": 4137012,
+      "removed": true
+    },
+    {
+      "path": "tasks/g0-native-return/tmp/alternatives",
+      "method": "git worktree remove",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "tasks/g0-native-return/tmp/identity-runner",
+      "method": "git worktree remove",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "tasks/g0-native-return/tmp/native-runner",
+      "method": "git worktree remove",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "tasks/g0-native-return/tmp/host-impl",
+      "method": "git worktree remove",
+      "exit_code": 0,
+      "removed": true
+    }
+  ],
+  "retained": {
+    "binaries": [
+      {
+        "path": "tasks/g0-native-return/data/g0-return-lab-baseline-darwin-arm64",
+        "sha256": "cf7bfc0acf6f3348210c50c75f9a0ea85b6a56e1abafbbcec85156580dc40cec",
+        "exact_reviewed_bytes": true
+      },
+      {
+        "path": "tasks/g0-native-return/data/g0-return-lab-ack-darwin-arm64",
+        "sha256": "8ed9567aaf95867204f448aa5bd498a7ce5895790a0f24149419d9b460c962db",
+        "exact_reviewed_bytes": true
+      }
+    ],
+    "task_data": "tasks/g0-macos/data/test-repo/tasks/native-return/data",
+    "evidence": "docs/implementation/g0/native-return",
+    "source_refs": [
+      "exp/g0-native-return",
+      "exp/g0-native-identity",
+      "exp/g0-native-goal-research",
+      "exp/g0-synthetic-host"
+    ],
+    "existing_toolchain": "tasks/g0-macos/data/go",
+    "original_hook_and_configuration": "Preserved; not deleted or rewritten by this cleanup."
+  },
+  "replay_scope": "Experiment scripts deliberately bind recorded UUIDs and temporary executable paths. Replaying them requires recreating the documented dedicated environment and paths. The Go module is the reusable tool.",
+  "unknown_files_deleted": false
+}
