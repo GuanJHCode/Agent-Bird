@@ -1,0 +1,80 @@
+{
+  "recorded_at": "2026-09-11T01:42:09.527579+00:00",
+  "scope": "Documentation/evidence checks only; no product acceptance or new Go test run",
+  "checks": [
+    {
+      "argv": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "diff",
+        "--exit-code",
+        "88528c0",
+        "--",
+        "tools/g0-probe"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "shasum",
+        "-a",
+        "256",
+        "-c",
+        "docs/implementation/g0/original-sha256.txt"
+      ],
+      "exit_code": 0,
+      "stdout": "docs/design-v0.1.md: OK\ndocs/acceptance-v0.1.md: OK\ndocs/evidence.md: OK\ndocs/g0-validation-plan.md: OK\ndocs/runtime-protocols.md: OK\ndocs/git-cleanup-protocol.md: OK\ndocs/review-report.md: OK\n",
+      "stderr": ""
+    },
+    {
+      "check": "JSON parses",
+      "count": 3,
+      "passed": true
+    },
+    {
+      "check": "Local Markdown links resolve",
+      "files": 3,
+      "missing": [],
+      "passed": true
+    },
+    {
+      "check": "Preserved file hash",
+      "path": "/Users/guanjunhui/.zprofile",
+      "passed": true
+    },
+    {
+      "check": "Preserved file hash",
+      "path": "/Users/guanjunhui/.codex/config.toml",
+      "passed": false
+    },
+    {
+      "check": "Preserved file hash",
+      "path": "/Users/guanjunhui/.codex/app-server-daemon/settings.json",
+      "passed": true
+    },
+    {
+      "check": "native_binary_same_sha256",
+      "passed": true
+    },
+    {
+      "check": "default_socket_absent",
+      "passed": true
+    },
+    {
+      "check": "owned_temporary_directory_absent",
+      "passed": true
+    }
+  ],
+  "passed": false
+}

@@ -1,0 +1,131 @@
+{
+  "recorded_at": "2026-09-11T01:45:10.729060+00:00",
+  "scope": "Evidence artifact consistency; G0.1 remains blocked and config preservation failure remains unresolved",
+  "source_baseline": "88528c04157e7b5e781673379fd86b2ba71ae9b4",
+  "checks": [
+    {
+      "argv": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "git",
+        "diff",
+        "--exit-code",
+        "88528c0",
+        "--",
+        "tools/g0-probe"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "shasum",
+        "-a",
+        "256",
+        "-c",
+        "docs/implementation/g0/original-sha256.txt"
+      ],
+      "exit_code": 0,
+      "stdout": "docs/design-v0.1.md: OK\ndocs/acceptance-v0.1.md: OK\ndocs/evidence.md: OK\ndocs/g0-validation-plan.md: OK\ndocs/runtime-protocols.md: OK\ndocs/git-cleanup-protocol.md: OK\ndocs/review-report.md: OK\n",
+      "stderr": ""
+    },
+    {
+      "check": "JSON and local Markdown links",
+      "json_count": 5,
+      "markdown_count": 3,
+      "passed": true
+    },
+    {
+      "check": "prior test process",
+      "pid": 35791,
+      "exit_code": 1,
+      "stdout": ""
+    },
+    {
+      "check": "prior test process",
+      "pid": 35918,
+      "exit_code": 1,
+      "stdout": ""
+    },
+    {
+      "check": "prior test process",
+      "pid": 35988,
+      "exit_code": 1,
+      "stdout": ""
+    },
+    {
+      "check": "prior test process",
+      "pid": 35989,
+      "exit_code": 1,
+      "stdout": ""
+    },
+    {
+      "check": "prior test process",
+      "pid": 36000,
+      "exit_code": 1,
+      "stdout": ""
+    },
+    {
+      "check": "prior test process",
+      "pid": 36854,
+      "exit_code": 1,
+      "stdout": ""
+    },
+    {
+      "check": "default socket absent",
+      "passed": true
+    },
+    {
+      "check": "owned task temporary directory absent",
+      "passed": true
+    }
+  ],
+  "preservation_checks": [
+    {
+      "path": "/Users/guanjunhui/.zprofile",
+      "sha256": "9182af26fc3d20697ba0db018bc666dcb326686392db102422e72a4f5b12f549",
+      "same_as_start": true
+    },
+    {
+      "path": "/Users/guanjunhui/.codex/config.toml",
+      "sha256": "1720f8205c19434110cf38be9dd851e9e2f13887407ddff3322010a9d38723f1",
+      "same_as_start": false
+    },
+    {
+      "path": "/Users/guanjunhui/.codex/app-server-daemon/settings.json",
+      "sha256": "922e9ed2521a417109eae8429696e6f7c95e06e7a2acd1cf5b2c0326b73d9b40",
+      "same_as_start": true
+    }
+  ],
+  "configuration_drift": {
+    "same_as_recorded_drift": true,
+    "same_as_start": false,
+    "source": "unknown",
+    "restored": false
+  },
+  "artifact_validation_passed": true,
+  "all_preservation_checks_passed": false,
+  "g0_passed": false,
+  "native_experiments_this_turn": 0,
+  "go_tests_rerun": false,
+  "post_review": {
+    "recorded_at": "2026-09-11T01:47:04.090565+00:00",
+    "reviewer": "g0_completion_audit",
+    "valid_artifact_findings": 0,
+    "artifact_files_checked": 10,
+    "json_files_checked": 6,
+    "local_links_and_whitespace": "passed",
+    "git_diff_check_exit_code": 0,
+    "g0_passed": false,
+    "configuration_preservation_failure_resolved": false
+  }
+}

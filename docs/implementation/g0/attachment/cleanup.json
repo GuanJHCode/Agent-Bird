@@ -1,0 +1,2119 @@
+{
+  "recorded_at": "2026-09-11T01:41:51.864370+00:00",
+  "scope": "Only this turn owned generated schema, local symbol excerpts and downloaded documentation",
+  "files_count": 420,
+  "files": [
+    {
+      "path": "tasks/g0-attachment/tmp/daemon-symbols.txt",
+      "bytes": 1574,
+      "sha256": "c1b6c269932ef39c1125483b9e0fed80e343204d7dc809c28fa6e2ad56139aa5"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/developer-commands.md",
+      "bytes": 54982,
+      "sha256": "fe6a8aa49238235a8741b8fa950d850075bbe2703860701438d1afa1efaefe1b"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/ApplyPatchApprovalParams.json",
+      "bytes": 2657,
+      "sha256": "179d91081c3c84d0f79fc544a3d6d423f280c0f9d93512cdd0344c80e09b99a3"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/ApplyPatchApprovalResponse.json",
+      "bytes": 4278,
+      "sha256": "a5e145b4794ea91da6eb478626fac96bbbd4485c3399fabd1c9972d53d2d9010"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/AttestationGenerateParams.json",
+      "bytes": 118,
+      "sha256": "b85df8f169cfbca98724df3a5f7550fc4649fa69b23f5160aafdb52e027133a8"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/AttestationGenerateResponse.json",
+      "bytes": 277,
+      "sha256": "2eb86b2a37bca01a8cb5d0822f28cf13d46dd106c8b1d38e7ba097e436b5ab30"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/ChatgptAuthTokensRefreshParams.json",
+      "bytes": 971,
+      "sha256": "03b7a734b8b3180d9cb477b33564385d29b22a2528165a614891f13849060503"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/ChatgptAuthTokensRefreshResponse.json",
+      "bytes": 406,
+      "sha256": "06d6b30436fc962d80b5d7920f8f323de12a052214d9148c5f0dfbaedd5eec6c"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/ClientNotification.json",
+      "bytes": 431,
+      "sha256": "706cf248d75027c84a3c63348d0ed507182e8eba40069dd17541793de029145a"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/ClientRequest.json",
+      "bytes": 275861,
+      "sha256": "05c82ead1a820c765c23d3a1d262e4ae54889785276ee1acf7c494141fd94d70"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/CommandExecutionRequestApprovalParams.json",
+      "bytes": 16106,
+      "sha256": "c9728280b8f3204fd729d0fb3d1ca7bb05b1150de26b3653f7163e6a9bd941e7"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/CommandExecutionRequestApprovalResponse.json",
+      "bytes": 3202,
+      "sha256": "6d0767113e22f311381809b6b236b0dde2b99b01992879c26bf7b1ea0e003cb7"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/CurrentTimeReadParams.json",
+      "bytes": 220,
+      "sha256": "2e1a0e6b766f9a31fa937c957cf0b3c0505e8b01503d559b41022a4d523d4c95"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/CurrentTimeReadResponse.json",
+      "bytes": 318,
+      "sha256": "9a858fdc278ba457ff86f1408a7a99b008f3d8364b33bd95b45ea79906f57896"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/DynamicToolCallParams.json",
+      "bytes": 519,
+      "sha256": "401bba20cfbd95762bef0467d840430c46be53369093ad9f26425ba757e34efc"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/DynamicToolCallResponse.json",
+      "bytes": 2010,
+      "sha256": "abb082cad67f11fcc98ba75f2eff75d7d1723af0c657655329b83ff160451a02"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/ExecCommandApprovalParams.json",
+      "bytes": 3768,
+      "sha256": "653116614df1aa5011c3cc399cf79bae6b9eb28c1d527df27275abf61ceb1365"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/ExecCommandApprovalResponse.json",
+      "bytes": 4279,
+      "sha256": "80dba6d9f28d19c57960db72340554c193624f014cd496714a0c7aabe1120046"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/FileChangeRequestApprovalParams.json",
+      "bytes": 968,
+      "sha256": "13848b26814c286ad6425a20d01c1691c86790e1f9e2529399677a8a22fe0d18"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/FileChangeRequestApprovalResponse.json",
+      "bytes": 1158,
+      "sha256": "b95b03ee6be674e25cee2e863cc135a28620e1070addd2f34685aadee27cde08"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/FuzzyFileSearchParams.json",
+      "bytes": 413,
+      "sha256": "0291dbb87a7c3d8ef7f7cdf8d5d61f929deabab8c0ea79f064da95984d7d5f4f"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/FuzzyFileSearchResponse.json",
+      "bytes": 1332,
+      "sha256": "4984c3dba591e240407c39531d41c6b499c4816017de70a3371c7d6fa2d0951f"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/FuzzyFileSearchSessionCompletedNotification.json",
+      "bytes": 244,
+      "sha256": "d3af2e301142ac0cb2462d95b052162ff4f25d83f9c1b21e319d5ce9c860d401"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/FuzzyFileSearchSessionStartParams.json",
+      "bytes": 342,
+      "sha256": "5478b30d07638eae3befbf8ced3a0413ca984785b665d7aefff92c5bcb0c6ebe"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/FuzzyFileSearchSessionStartResponse.json",
+      "bytes": 128,
+      "sha256": "396bc50ae21f418bdded994321b54ca184c718521c2de0698b939adf75961670"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/FuzzyFileSearchSessionStopParams.json",
+      "bytes": 233,
+      "sha256": "f9bb71dd45717a673bc6dd682ed04335a960433badaca1ed70aedbafdaf31b6c"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/FuzzyFileSearchSessionStopResponse.json",
+      "bytes": 127,
+      "sha256": "808dd79e9bb5e0463abc18d34c4a3c4ee2341199ba5ee924dd96e602988b7130"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/FuzzyFileSearchSessionUpdateParams.json",
+      "bytes": 293,
+      "sha256": "492893ca73a4979f92feea2b659af3d7577472514f70fa0204e71140e8efbae8"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/FuzzyFileSearchSessionUpdateResponse.json",
+      "bytes": 129,
+      "sha256": "c3032906065fd9d513926088a685da71a645d104c0157887297f1db2ff166d46"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/FuzzyFileSearchSessionUpdatedNotification.json",
+      "bytes": 1474,
+      "sha256": "b8626521028e0c68611c57d458f27dbc9bf8be542e804865ae0d14acd78cf2e6"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/JSONRPCError.json",
+      "bytes": 893,
+      "sha256": "d7ea353d4875ae204625da5a00a1ecb5afc69101d5778b9acc253a49f8932992"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/JSONRPCErrorError.json",
+      "bytes": 314,
+      "sha256": "12cc5cd5d9df9246defa609c472375020fe5250f3aeabd7d529076cecd9f541e"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/JSONRPCMessage.json",
+      "bytes": 2888,
+      "sha256": "6da4cc373a7ccd01f5608ad4496eeb4d44b6a9b0d3158e85ed66b59f3c0b5114"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/JSONRPCNotification.json",
+      "bytes": 303,
+      "sha256": "c2b43f26880db331393fe09f34bdd76dfeb4dc30d8418d1c26e18db166d6c8c8"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/JSONRPCRequest.json",
+      "bytes": 1093,
+      "sha256": "31bd6f360b2dd8a7ceaf682708105d40d38cb0b9d0821357a04da67028438f73"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/JSONRPCResponse.json",
+      "bytes": 520,
+      "sha256": "4796738c04c74288213a08fb8d820c7b4df19e0977cdcd35b65ffcb43cfc93ab"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/McpServerElicitationRequestParams.json",
+      "bytes": 13636,
+      "sha256": "5cbeb6bc702d2efa076da4c1dfb00672c970c1bad747031eb880b9ab907815c0"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/McpServerElicitationRequestResponse.json",
+      "bytes": 741,
+      "sha256": "792a012fdfe53ac211575a6c37ffbd492be848d15cb313d1bb4b534ade1f54ac"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/PermissionsRequestApprovalParams.json",
+      "bytes": 7719,
+      "sha256": "c6d165e1b0c65d5dcf1e099b4c226c7e4dad79fe2b88b03621a1fc6c1d3c86c2"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/PermissionsRequestApprovalResponse.json",
+      "bytes": 7068,
+      "sha256": "23f3f24e9dbf35db3e0b85703f0d934da5a1cff3cbb611fba8bcd41f3b4a04b0"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/RequestId.json",
+      "bytes": 197,
+      "sha256": "9c72d59a306d827113020c6d31a14c326d55210d9bd6954f825196a52009f1c7"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/ServerNotification.json",
+      "bytes": 201174,
+      "sha256": "1a59e2cecb8e7930c4358f7a92245d9d52c96adb0e02b210fc39772ed10610fc"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/ServerRequest.json",
+      "bytes": 51758,
+      "sha256": "38bb1c9dbb1dda2a688a7c8712b04319fe6ee2ed28b54acd2f5fd341d25567ff"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/ToolRequestUserInputParams.json",
+      "bytes": 2143,
+      "sha256": "fda15b62e7446105b59c8ed85c908abed2a47db70653e57c92c47a2f204fa77a"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/ToolRequestUserInputResponse.json",
+      "bytes": 793,
+      "sha256": "5073b245f741fa8ce62ec52e4dd1809b7831f9c4284c279a78abc9b171f8e3f2"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/codex_app_server_protocol.schemas.json",
+      "bytes": 815279,
+      "sha256": "b06f77062369d481a59cc70720c12b89cb9dd49c385863923262102d3ad6c978"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/codex_app_server_protocol.v2.schemas.json",
+      "bytes": 706653,
+      "sha256": "e5f798fd1343c539f01fedea0e8a84a43c080fcca4615c80eb04a5edab4f7d0a"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v1/InitializeParams.json",
+      "bytes": 2143,
+      "sha256": "6f0094be9a65242ec779a40794cbd4fdfa32fca1e45084a16adfb50501d33ea2"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v1/InitializeResponse.json",
+      "bytes": 1286,
+      "sha256": "62ad689c2cb6379913c1d72749cfd8de5089d35760214123518eb92eef11acc9"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/AccountLoginCompletedNotification.json",
+      "bytes": 720,
+      "sha256": "d81e8821fd5a4a9ad118dfc3506ea156d32dcb18da388b336501bbc6a5ccb4a6"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/AccountRateLimitsUpdatedNotification.json",
+      "bytes": 4532,
+      "sha256": "c50daa6abb4723ca1edffdae9d0d6ca452770669ed045fae48d0fe9b20c6ea81"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/AccountUpdatedNotification.json",
+      "bytes": 2745,
+      "sha256": "9bf450d9d9ea23a2bac9c9cb0a68c2de8f89a97bdeb4485c91762bb4d43295b8"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/AgentMessageDeltaNotification.json",
+      "bytes": 406,
+      "sha256": "996e6c0ea65e57bed5a00f410b94381fe5ebf804333e5d00c2b6e6d47e5c55f6"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/AppListUpdatedNotification.json",
+      "bytes": 5703,
+      "sha256": "2c67a3bc676309afdd0d6952ad454c2a040a3d4c09d38c8f63ca7fb632034cce"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/AppsInstalledParams.json",
+      "bytes": 570,
+      "sha256": "c2027510d5d041c2205349036f9c2bea10b20df309de5330beab9de8a9e50bdb"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/AppsInstalledResponse.json",
+      "bytes": 1343,
+      "sha256": "d8ef8dd14dcba8aaaaaf2b0b80db90d66edf8f4ff422589b844ae2b0edcb46d4"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/AppsListParams.json",
+      "bytes": 904,
+      "sha256": "e880d0c24811118a2d3c2c7f0569a14aae5b12a31b0efe56809ccca8bbd85802"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/AppsListResponse.json",
+      "bytes": 5888,
+      "sha256": "5811fda68d6274decfc11744ad72bbe93e601d8514549e94f361ba3131d1adeb"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/AppsReadParams.json",
+      "bytes": 823,
+      "sha256": "61e6a9d35515f3164a7f7e7a5b0c5ac92817c5a3b5d7fb27e9a704fe2935ddf7"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/AppsReadResponse.json",
+      "bytes": 2443,
+      "sha256": "f3b73c2c31f16a2cff013c9682dfea48f26571f94002195c93ce10722a288791"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/AuthRecoveryNotification.json",
+      "bytes": 409,
+      "sha256": "c19238d43cf8bf610ea346afefc390b9ffa4f01e98ec6b42af0addf29d6cb7d5"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/BedrockDiscoverParams.json",
+      "bytes": 114,
+      "sha256": "ef0eb4b2393219944e5df3a0cda9970b19487e734de7cd45df8ff26dee02c321"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/BedrockDiscoverResponse.json",
+      "bytes": 1244,
+      "sha256": "621a651585d1d1f89e18f9ba337f4c84e34f811a7189cfb7597fd191d1d29bcc"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/BedrockSetupParams.json",
+      "bytes": 1000,
+      "sha256": "079c1d038c57eb40a6ca5453a4042691bf65c42b4f2301c0f5ec109d6866e828"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/BedrockSetupResponse.json",
+      "bytes": 113,
+      "sha256": "245ac1cc67ba7d7b89477c46bb19e7c95411113b50604f365c2ec3705a16d03b"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/CancelLoginAccountParams.json",
+      "bytes": 221,
+      "sha256": "a4570a7542b82b918f69199f1e214ef747151c678473a5af58c58b088fdf58b6"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/CancelLoginAccountResponse.json",
+      "bytes": 404,
+      "sha256": "06bc17624df01600fdc399d3c0f222f875c010d2d952c1d1191cb84de9b59014"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/CollaborationModeListParams.json",
+      "bytes": 188,
+      "sha256": "20991b8d69722b301ef860307a4df89f20c475e4a4f1cd5212d6b71ab1507655"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/CollaborationModeListResponse.json",
+      "bytes": 1682,
+      "sha256": "d51cd5bd1b7cdf93a1a665adc333867ee12fa85ee811a873cb0131bf5d49d3e6"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/CommandExecOutputDeltaNotification.json",
+      "bytes": 1585,
+      "sha256": "28e74454b211ab677a256129e623fc5a2a29ce5394da1c69d3bc5136f7e37c57"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/CommandExecParams.json",
+      "bytes": 7673,
+      "sha256": "fd034b4c85d7b6f466e30a3cbb73db86be1263aca3f81b89b547f14817dfb62e"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/CommandExecResizeParams.json",
+      "bytes": 1216,
+      "sha256": "b748fee19979d2c32ac17a460ccfdc761e125cc2939bc551945e1e2c2af34197"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/CommandExecResizeResponse.json",
+      "bytes": 188,
+      "sha256": "01da20d70957fa5b43cf41365c5fee4fb3a69927947a45f92866f9bcf0895d0f"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/CommandExecResponse.json",
+      "bytes": 699,
+      "sha256": "dec52d187121e8dd48124b47a4a8d8428ef3717b98b9200345bb404f73b62c9d"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/CommandExecTerminateParams.json",
+      "bytes": 404,
+      "sha256": "979ece7059c6713d0909ab1690daec27149510f4ea2ec10014600bfb1d631c97"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/CommandExecTerminateResponse.json",
+      "bytes": 194,
+      "sha256": "d46aa76d952bb3ac95d0bd64de609fb8a82efd98d9ee38264fe3673fd184ce5d"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/CommandExecWriteParams.json",
+      "bytes": 716,
+      "sha256": "3e8e849ce321c85987bbe96ce1f913df0047696a5207bc97dfa1409b0142eda8"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/CommandExecWriteResponse.json",
+      "bytes": 186,
+      "sha256": "22887250f84443b2a6f5fc6f9c46cf9e2af072ff631574340018c48771411571"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/CommandExecutionOutputDeltaNotification.json",
+      "bytes": 416,
+      "sha256": "841fa94098ddb63a71acf1bf5f9e3fac1b0491f4ed3fa8ef86f9a6ca1260b539"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ConfigBatchWriteParams.json",
+      "bytes": 1325,
+      "sha256": "d11e244258ffaf8a37a0ca4afdbe589d07cb7881b72f06b7f730fddbab9ad613"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ConfigReadParams.json",
+      "bytes": 495,
+      "sha256": "257c54a423b47c1d209ff1076765a1564d82322fd5161670fd489a2874de1bac"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ConfigReadResponse.json",
+      "bytes": 27697,
+      "sha256": "96a04a3f7fff2dc7fafc9f831e8bcd422e021d697dd2c14c801f098a9f21396d"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ConfigRequirementsReadResponse.json",
+      "bytes": 24193,
+      "sha256": "14ae1953f5077a5d37399aa467f6e08c74601af5fa0c4ffc703b8a2858b0cc81"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ConfigValueWriteParams.json",
+      "bytes": 763,
+      "sha256": "b9032e35bf64d4628bfc72e22b58b71bbcf754aeb720a86eacb091e0137547c9"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ConfigWarningNotification.json",
+      "bytes": 1640,
+      "sha256": "533e713405b582cce4d772d0b4ebbc75e840f0fe71cedbb17c2c83da285a21d4"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ConfigWriteResponse.json",
+      "bytes": 8685,
+      "sha256": "1d690287d9e8a0c552f664038d3810dfc3903ec8042eb2c0f772856414f59954"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ConsumeAccountRateLimitResetCreditParams.json",
+      "bytes": 594,
+      "sha256": "ce36a9f59ce3b8138fccdca042538f723e93d0e34d08441e6846d3153ee0b291"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ConsumeAccountRateLimitResetCreditResponse.json",
+      "bytes": 1177,
+      "sha256": "6d4144c00dcb7f73be6ad24693ff7e539bad56064e4432f7f2bf8d20b3bab724"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ContextCompactedNotification.json",
+      "bytes": 362,
+      "sha256": "c9f9a58ef680e09d568cff5f24b45895841e1cf138b650bae64dcf6c85f177af"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/DeprecationNoticeNotification.json",
+      "bytes": 457,
+      "sha256": "29fdb44fc0a09bfdc5c4924ff34e33679acc9201730fa4fe9be7ed1978af0b72"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/EnvironmentAddParams.json",
+      "bytes": 546,
+      "sha256": "0019c91a9d4952d37ab14f33daa54b2be5bde5b86787fa85ebe66ec480e2eefc"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/EnvironmentAddResponse.json",
+      "bytes": 115,
+      "sha256": "d3cc7b30fa2505d2e75322ce904574984c63bb0b809b691b6b075509b1c8c300"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/EnvironmentConnectionNotification.json",
+      "bytes": 306,
+      "sha256": "007e9a6ccae0003a56476bb7cdc9a097141e964c168e7ae43d213a763c93fb56"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/EnvironmentInfoParams.json",
+      "bytes": 230,
+      "sha256": "1d9c3b2fcfbdf3a4952e825a2fd084cf8bd87189126e1b339efaa33803fdf320"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/EnvironmentInfoResponse.json",
+      "bytes": 1018,
+      "sha256": "9b3fdf205daedad7ce230c8b8b2423b325a087b9b960ea3f82289667ecc2e7d4"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/EnvironmentStatusParams.json",
+      "bytes": 376,
+      "sha256": "27fd22e3c478b3fe1a53e7adadbd9647f0f86d78abfde8c63be5b0cd1799e008"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/EnvironmentStatusResponse.json",
+      "bytes": 2178,
+      "sha256": "43798149b75ee5c6fb8e3113019f9b0db9860102ec87be4f17fb84d8f10068b6"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ErrorNotification.json",
+      "bytes": 6895,
+      "sha256": "d77732536ef8864799e4fbb5bf6965a9f1970a6195e523f144252a82287c08e7"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ExperimentalFeatureEnablementSetParams.json",
+      "bytes": 509,
+      "sha256": "00aaf2ef719cc336e4d20eb26dd6158be1eb26161fb7647372804b80a02e3131"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ExperimentalFeatureEnablementSetResponse.json",
+      "bytes": 386,
+      "sha256": "5ecd92ee95380d7cadc4c109091530aa71245e41b9f1b530a5e9d5c5c9eda95b"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ExperimentalFeatureListParams.json",
+      "bytes": 827,
+      "sha256": "4db92977e59fea4125710babb4cd2128dc2cebef8292e3619d0844089e7fc1f5"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ExperimentalFeatureListResponse.json",
+      "bytes": 3066,
+      "sha256": "4084a25f32333b3f58eb5e9803a5983739b57f945c4e7e4002e85851622ce597"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ExternalAgentConfigDetectParams.json",
+      "bytes": 1414,
+      "sha256": "db6c6ea654efb4095dc745a1e65bee76d0d063b03f2bc3202b9077a1569211f8"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ExternalAgentConfigDetectResponse.json",
+      "bytes": 5240,
+      "sha256": "36c4173d5f30ebd04be3d40389c904bc4ecadfbb8e5d1dd46b9b589254f7e1d9"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ExternalAgentConfigImportCompletedNotification.json",
+      "bytes": 3025,
+      "sha256": "c54702d40c3a40bcb3e3e835d99860473831725acbd3576fc26d2d4fa3a7617a"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ExternalAgentConfigImportHistoriesReadResponse.json",
+      "bytes": 3890,
+      "sha256": "1c09641e957333a2f602a350532acd99cf538a73ea45f39a2294289907a0bd96"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ExternalAgentConfigImportHistoryRecordParams.json",
+      "bytes": 3237,
+      "sha256": "6a3e8071854771b0f34c6623fb7dcfbeaa7518a90779cc4a40c97fe92ac6f3ed"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ExternalAgentConfigImportHistoryRecordResponse.json",
+      "bytes": 245,
+      "sha256": "a252a2c2a03b4460bf3635d517c0735fa487a2f8a97de1aa0637f930419ae656"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ExternalAgentConfigImportParams.json",
+      "bytes": 5152,
+      "sha256": "6b8d0a8fbd5a7ddd455ec0dea6d1b578f56841480c8a5fffbfcd045db79458ee"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ExternalAgentConfigImportProgressNotification.json",
+      "bytes": 3024,
+      "sha256": "dae7bfc12026811ba24cc6f32dc01ae9ffaee7d9340d7768f9afce94575c23d2"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ExternalAgentConfigImportResponse.json",
+      "bytes": 232,
+      "sha256": "0ad2fc7dff7b1bdc471cc365985f559490f253ea127263417f0a0a1edcb33cef"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/FeedbackUploadParams.json",
+      "bytes": 726,
+      "sha256": "aa958cd74b37fb28cc49ce22345a1efcda9d4cf5fa47e7cce6949e5366ff8b2e"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/FeedbackUploadResponse.json",
+      "bytes": 221,
+      "sha256": "604390e864944eed2c4268675978dd8082f0884909d73cc79fda59dbe03a2d58"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/FileChangeOutputDeltaNotification.json",
+      "bytes": 544,
+      "sha256": "04c3df83d46725ffc048577e7a5aa25de9a6c8ea9eff713bbae2b408672481c5"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/FileChangePatchUpdatedNotification.json",
+      "bytes": 2159,
+      "sha256": "cfb69d18658610a0510f213e09c6847f70517410ed91cf99cc4713c15a795213"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/FsChangedNotification.json",
+      "bytes": 1061,
+      "sha256": "197693fcb852a85fedfbcf1cd00c9a3cc74dddfa09bdf6b11fdafebbcd12ea2d"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/FsCopyParams.json",
+      "bytes": 1198,
+      "sha256": "bc1135070827681e4d9a14f79b5b06a4f5652e538ae6a89642d27dbc8b2a2af1"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/FsCopyResponse.json",
+      "bytes": 162,
+      "sha256": "c88392d6c3ff394441231cdf5614794ba0c2b4ba683811f6033a01fe65528a59"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/FsCreateDirectoryParams.json",
+      "bytes": 1047,
+      "sha256": "405fd718ebafe7f47ffd82c86540ab4af663659c737ea2b25acd3e04a1bc94ea"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/FsCreateDirectoryResponse.json",
+      "bytes": 184,
+      "sha256": "a658fbd34d5e3d6300bcb7015f10fc1764aa8aca3088abc79af9caa2e848e527"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/FsGetMetadataParams.json",
+      "bytes": 851,
+      "sha256": "382bbf3a8b5c7e8cb16a1a29f853ce49c2904e563325e33a9e41dcbf632dab5e"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/FsGetMetadataResponse.json",
+      "bytes": 1005,
+      "sha256": "b8355f112eda37d7ff25ad0eda7dae912dba695961855c5cb8444a7f867d66c2"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/FsReadDirectoryParams.json",
+      "bytes": 862,
+      "sha256": "c4ca6cdc129d70375fe638c723c1b1bb07a9716101525970cf77bf7560fec657"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/FsReadDirectoryResponse.json",
+      "bytes": 1139,
+      "sha256": "2cfb28c3c1ab1487f6b778f4d76871e3a9f590597bdf0da502cc41b202269dbc"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/FsReadFileParams.json",
+      "bytes": 844,
+      "sha256": "74b325108195fe955e6ffcb6032e9380d3bfdee8aed7d115f5f1e4b127c5d706"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/FsReadFileResponse.json",
+      "bytes": 354,
+      "sha256": "fd67dd725b5bf5c7f27e78cc3d66fe24314f08913fc00ace9dbb663bf2f487e1"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/FsRemoveParams.json",
+      "bytes": 1199,
+      "sha256": "c453f8ae4b3311f5da88f67f743fdabbcdc323dc3d9eaa40d750ceae147bb630"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/FsRemoveResponse.json",
+      "bytes": 166,
+      "sha256": "6371aba2cae2f92be487be05c1ce531ca4139da5004b740a0010ccfdba548100"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/FsUnwatchParams.json",
+      "bytes": 368,
+      "sha256": "3134d42c231f40769a4d1ac4adcf051be5205e7a1b70bb32c4a8655fea730175"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/FsUnwatchResponse.json",
+      "bytes": 168,
+      "sha256": "9c59c3473df1f1873ee0d87ed33cecec0766b24c8357ee7dc8b29a57ca21e104"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/FsWatchParams.json",
+      "bytes": 1042,
+      "sha256": "10bd9c01b3819db1ed8e2487a277f20b35e3a9f74ae77214654f1a529fc1444d"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/FsWatchResponse.json",
+      "bytes": 864,
+      "sha256": "d32e77e7d6f619c5f4183c335ecddd3c4ffb95a51761198985c47838ae891a6c"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/FsWriteFileParams.json",
+      "bytes": 970,
+      "sha256": "2167e05c7f3eb26d475f9c1ce71697ba3b635efd8761a00b22abfd6af175bd2f"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/FsWriteFileResponse.json",
+      "bytes": 172,
+      "sha256": "0e4153ee7baa5c1203c2c573504baaa40e1dd8738d78e4c1e3a179fb49df6b16"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/GetAccountParams.json",
+      "bytes": 485,
+      "sha256": "30b545275f60975b55bd6fbaafd70f15505801d14168ee82d3931b6e93c78aab"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/GetAccountRateLimitsResponse.json",
+      "bytes": 7670,
+      "sha256": "a28d4d0e9181a498c58d4ae3b6b49aaa6ee7a33c0c9f81c1ad0bff223bfbbe3b"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/GetAccountResponse.json",
+      "bytes": 2399,
+      "sha256": "08a7dd8c570c905b0bb6998d43ed133e72e2445f08125f86dfc96887e288701a"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/GetAccountTokenUsageResponse.json",
+      "bytes": 3838,
+      "sha256": "a58e58c852c888e5de925d99a66688d55ebb2fff038e795aadf04f8a8426dff8"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/GetWorkspaceMessagesResponse.json",
+      "bytes": 1565,
+      "sha256": "3ebd00f0acca088e5ee0309ec09b9a571e7f2eea5b63a32cda67be01c6886d67"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/GuardianWarningNotification.json",
+      "bytes": 423,
+      "sha256": "5325551d2efb47d578665e3deb846f6369e05f98fbc5bfbffc5d9fe0cb0bd167"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/HookCompletedNotification.json",
+      "bytes": 4287,
+      "sha256": "1f146d70303cea6e59752191179e36a273650d63a74d4f9338f9a399da6597d2"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/HookStartedNotification.json",
+      "bytes": 4285,
+      "sha256": "913ca61da2ab299d5f3318f6ea4d842d22708fc9308a9b10cdfad5e757098f2f"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/HooksListParams.json",
+      "bytes": 311,
+      "sha256": "07638c3a8a3690cf368fa92c7ff697fdd0132865e8c59d53f6e5789e5a260053"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/HooksListResponse.json",
+      "bytes": 5850,
+      "sha256": "891dd10ef7f78e59631fce05fff2becddb8004b3c0338dbbbd6b4f17ef1fa64f"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ItemCompletedNotification.json",
+      "bytes": 45968,
+      "sha256": "69aba3fe5f72f38bf5c541e7e2c09de40778abe65ff969d9fc73372037812091"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ItemGuardianApprovalReviewCompletedNotification.json",
+      "bytes": 16903,
+      "sha256": "bcf94662d3589c36ac3a13c0d919fa33c2b85f452d5098a8093360884d768a02"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ItemGuardianApprovalReviewStartedNotification.json",
+      "bytes": 16405,
+      "sha256": "baf4e17938f94e2cf4d86d31f02f66d69d394b00594e3e04ed03dfe901014543"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ItemStartedNotification.json",
+      "bytes": 45960,
+      "sha256": "c4c34f47db6326cd4841bae428f23d08eb285077ffad35be9772b928c65bb912"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ListMcpServerStatusParams.json",
+      "bytes": 1030,
+      "sha256": "33b1933595d844c61f76bdcfbc874c8456b65079877fed6e86e2710ea3d49f1b"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ListMcpServerStatusResponse.json",
+      "bytes": 5588,
+      "sha256": "d581e9ba17f6da0d686d0e730cddd51fda091f361a8c119317b2138a3ecdb612"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/LoginAccountParams.json",
+      "bytes": 4353,
+      "sha256": "48fb9bea54d7e0890052653ac06737efb3200ba2261515b2c4014027f36bea3d"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/LoginAccountResponse.json",
+      "bytes": 2521,
+      "sha256": "72e6d77f49bc5809c3af50f183e2a0862dd8f7836816d4796ff69bb13eae0e89"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/LogoutAccountResponse.json",
+      "bytes": 114,
+      "sha256": "ac14ddfca2ec6092b0039be8720262d5a9930484d23e62544d2ef0b7e1db7926"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/MarketplaceAddParams.json",
+      "bytes": 431,
+      "sha256": "e6c92ca2a3889641ca2281cca7684569b1187653b25b57f9beabf85519d638a2"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/MarketplaceAddResponse.json",
+      "bytes": 865,
+      "sha256": "a37633e9ecc2fdd87ea582861bcdcbf7963a8fab6db9fbc1bc8eac7d2f7f9a8b"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/MarketplaceRemoveParams.json",
+      "bytes": 236,
+      "sha256": "220c2475a96f32ca095f80f3ecbad427477b4ba37dfad7fb48a0acabdeb1f4eb"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/MarketplaceRemoveResponse.json",
+      "bytes": 869,
+      "sha256": "98deb2f721d57ed727f7cc7b4f478db5f604b6b6d40e6261928dfd5f586405e3"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/MarketplaceUpgradeParams.json",
+      "bytes": 228,
+      "sha256": "93fc5d331d353b1b89262625c38eed54c6c16b2fb8aa0eac718245c7bdcbe4dc"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/MarketplaceUpgradeResponse.json",
+      "bytes": 1348,
+      "sha256": "2402379cb0ed1168a7dc327c412fd61bafdea2ad13ea7a3b3ebaee3b43c45963"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/McpResourceReadParams.json",
+      "bytes": 608,
+      "sha256": "a8241b056a65473b2b9bf0a14c1a49146de52dbc1cfc276549f52f4db13f3be6"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/McpResourceReadResponse.json",
+      "bytes": 1664,
+      "sha256": "a48af749203ed3307414750d5070facb5ae6ef8b00253f1cfd9a8124bdfcfe41"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/McpServerEventStreamNotification.json",
+      "bytes": 614,
+      "sha256": "44b04b6cc079ec0b99b4d29af1a69d99037505c19a2a07cff955aa298d7c181b"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/McpServerEventStreamStartParams.json",
+      "bytes": 481,
+      "sha256": "cb138f1f98b619f887efd692067af6f3c9c03041887daa928c3362e1f8c22e54"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/McpServerEventStreamStartResponse.json",
+      "bytes": 126,
+      "sha256": "6a5ed2ae51b16912331a249d4c71c88bcd259d135adc6fd2e04a5a17b74d1b90"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/McpServerEventStreamStopParams.json",
+      "bytes": 241,
+      "sha256": "90fc3c3bdb33ae0dab0e9c17ccbb73ab2fe85fa6ebd6cdb8767cdb278487bc5f"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/McpServerEventStreamStopResponse.json",
+      "bytes": 125,
+      "sha256": "71af082ca05d2d7af9671d28e9ee53df0d9f484f54ef1afebdd0455107bec2d2"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/McpServerOauthLoginCompletedNotification.json",
+      "bytes": 455,
+      "sha256": "d3b7ca4f2626a623b4b5a97eeedc711cc27d41b3ee56fed8b0304857c5c9b13c"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/McpServerOauthLoginParams.json",
+      "bytes": 1003,
+      "sha256": "83446fb61e04a361691f84fe236a51fff2ee4fb12a8f58e2e828a32cf6f6cc75"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/McpServerOauthLoginResponse.json",
+      "bytes": 242,
+      "sha256": "95d7d00622866ac49dbe459164b8be665b2c9ad7b26772eadfc610a0537aa6d4"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/McpServerRefreshResponse.json",
+      "bytes": 117,
+      "sha256": "54a77812db02175dc69053870e582d3b314af6f161f0c76846f3563b0f9487c4"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/McpServerStatusUpdatedNotification.json",
+      "bytes": 973,
+      "sha256": "d6f4cb120b2363d321247592f03b9afbbf2762ad6d8af31b88c1b1bf39c4c7aa"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/McpServerToolCallParams.json",
+      "bytes": 380,
+      "sha256": "7039a7583a1cbf38e9e0f5fe6398ff3711acd4d654b81b0be562514087fce6ba"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/McpServerToolCallResponse.json",
+      "bytes": 374,
+      "sha256": "04a59b2064922c37b0c49bdb2470b8fff08d943e56dba4f7280a6b34bfa52c68"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/McpToolCallProgressNotification.json",
+      "bytes": 412,
+      "sha256": "64a32b8282226876e749bc107a81db89d20d5ce5cb86ee6a043b960763214b1d"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/MemoryResetResponse.json",
+      "bytes": 112,
+      "sha256": "e73baacf6ef4858e859079d060e405c3ee5a58881db6e4e9cb46a7ea439404b3"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/MockExperimentalMethodParams.json",
+      "bytes": 271,
+      "sha256": "e78079b0190db35f07b927bae64f8c4e5a17de7f02d17395df0b7e2ffaa197c3"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/MockExperimentalMethodResponse.json",
+      "bytes": 275,
+      "sha256": "7d6b4770b687f0a2a6fb2ab78cba71429c24e8f693fd4688cf39e088e9388a43"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ModelListParams.json",
+      "bytes": 688,
+      "sha256": "de29a536c00a5b8f46f34dba417dabd93365305571a8ed200e33bea85db68b5a"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ModelListResponse.json",
+      "bytes": 6002,
+      "sha256": "c7b58b332f6cf18fd64235409a6daf27bb9e6c09d12dcd0daa2f3dc628b55f6f"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ModelProviderCapabilitiesReadParams.json",
+      "bytes": 128,
+      "sha256": "9db732188a15476cabb42cf05e495ae0803a1ada993fca7348c21c30a998388d"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ModelProviderCapabilitiesReadResponse.json",
+      "bytes": 395,
+      "sha256": "5c42590f728289daaa441b947617398a0ca3aa17479013b3c564a5d314a3c9cf"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ModelReroutedNotification.json",
+      "bytes": 636,
+      "sha256": "37cd3c1b3a3560b85b01d4061a07d830fc9ed93b80e4663f975f9197cdb501ef"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ModelSafetyBufferingUpdatedNotification.json",
+      "bytes": 746,
+      "sha256": "4cf853e3a2f968fdfde75206fd497d3d530b26769026bee343c3ef09ce438cfd"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ModelVerificationNotification.json",
+      "bytes": 574,
+      "sha256": "4f27a99d0c8664c29abb4d65384ab16853bbc29b61de5e749111cefdc6994655"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/NullableGetAccountTokenUsageParams.json",
+      "bytes": 573,
+      "sha256": "a992c6ea0fe02b0e9f46b18afb51b8ee2635e7f0c7d546f71e7f95e2a98bebba"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/NullableRemoteControlDisableParams.json",
+      "bytes": 410,
+      "sha256": "13ebf6bd89cb651240be24aa648613acc29115a0a037b69508474a9dc0312202"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/NullableRemoteControlEnableParams.json",
+      "bytes": 407,
+      "sha256": "44c7965add2bc02d9d28b770b6178c386cd737fe63405bb2d4c48156b0fe3d1f"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/PermissionProfileListParams.json",
+      "bytes": 667,
+      "sha256": "576d405f6c94cbde982a9f65c9301717043683b83ca35d564247907feb16b1b4"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/PermissionProfileListResponse.json",
+      "bytes": 1174,
+      "sha256": "4a290b5b9d47c2fc671033e22754671161bc563027ba387e861bd935398f0def"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/PlanDeltaNotification.json",
+      "bytes": 565,
+      "sha256": "a5cf42ccfc6cf905ede0fa9041e9c951ea7870aba4e3a7c7f68d85f01416d3af"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/PluginInstallParams.json",
+      "bytes": 1136,
+      "sha256": "d6a8ff6356aed22c916cfd5a791ecce34ee2ac509750f690e7d0ef483fec7472"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/PluginInstallResponse.json",
+      "bytes": 1190,
+      "sha256": "ae283e1ecb9f454f7614c6a4348fda5a7aba5af99e9ab9177b9a0cd3e1cd7db7"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/PluginInstalledParams.json",
+      "bytes": 1174,
+      "sha256": "0b56f55a817b6e82ea104496281cd43714ee96800f9b984412a3a858f444f68c"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/PluginInstalledResponse.json",
+      "bytes": 15679,
+      "sha256": "8afc8a16fa5c21d67f66d1855bf29890bad10a6229bafc960b3503281fc878e2"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/PluginListParams.json",
+      "bytes": 1629,
+      "sha256": "bc6b499161306df7082c5a8cc51fd793cd6d28dda93555b12ae299445132270a"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/PluginListResponse.json",
+      "bytes": 15802,
+      "sha256": "a405d2514d6236df75130c87c749e0e070b946a889f143a0448bbcd27d1d8501"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/PluginReadParams.json",
+      "bytes": 947,
+      "sha256": "f15952a2828c90501cc32f347c1e1691ea65cd2d97f503ab40e7be08757de74d"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/PluginReadResponse.json",
+      "bytes": 23636,
+      "sha256": "1651d8136fbbbb00878c4c1f8adbf279d050bf25b4454e6db4fa46f192f953d2"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/PluginReconcileParams.json",
+      "bytes": 314,
+      "sha256": "91dfe0967326b876e50ddf8d896c6c516440c43a36b08efd4746c0bd770882dc"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/PluginReconcileResponse.json",
+      "bytes": 2424,
+      "sha256": "ba2a8e317c9098beed39d4decc433d9dc29ba0c8164e8d4c229481b9243c5ec8"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/PluginSearchParams.json",
+      "bytes": 1345,
+      "sha256": "9a531ed727cf716302e611d98153f4ed09598b7b27a5629074648c0e57f24e09"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/PluginSearchResponse.json",
+      "bytes": 14650,
+      "sha256": "d98f7926f5bf62c228f8c39e83214e2140e80ea7a1db3c221eb1babe26ff8fed"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/PluginShareCheckoutParams.json",
+      "bytes": 236,
+      "sha256": "25fd868fff9500ff244150a4ecd36322c0d31b339a4709649594b79aa1349185"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/PluginShareCheckoutResponse.json",
+      "bytes": 1187,
+      "sha256": "d6271afa9bba5531574ba255d22b03f70fe10b8ef159185355625d92b6f9fac6"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/PluginShareDeleteParams.json",
+      "bytes": 234,
+      "sha256": "d422a3fdecf91612bdf839d4fea6f1cddccb794869dc03ad3b8998bcb8e27fff"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/PluginShareDeleteResponse.json",
+      "bytes": 118,
+      "sha256": "ae881a7f898f5287354de5adf6f42094cef9029a9b9376bfd12aa1b0fe0b3106"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/PluginShareListParams.json",
+      "bytes": 114,
+      "sha256": "0d71280d2a655ffc26375044ec1693203848614f99fdb4563e0cb5a4ee40122b"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/PluginShareListResponse.json",
+      "bytes": 14477,
+      "sha256": "d349a496947956fd5f4d125b8348faa2ef0c91daf7f3cd74ae0616f55c8e328b"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/PluginShareSaveParams.json",
+      "bytes": 1974,
+      "sha256": "ec937521a40437506ceb2dcfe79cedd03812dd1b8233c651b89c2ddd76e148fe"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/PluginShareSaveResponse.json",
+      "bytes": 417,
+      "sha256": "3eb7c0ed6e6c72126c7bb3d845e73d5de98ad0d4ea8639d2f227fecd16c15411"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/PluginShareUpdateTargetsParams.json",
+      "bytes": 1369,
+      "sha256": "0ecf16212022bca115211cbf13a1302f8995d7be5664ca268b926b7d00add7b0"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/PluginShareUpdateTargetsResponse.json",
+      "bytes": 1380,
+      "sha256": "caf42dec67940f9e686ac7b4e77484921d62fee400b3af73fc85e6f46eaa03f4"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/PluginSkillReadParams.json",
+      "bytes": 388,
+      "sha256": "8850a9a45b9cf6e8b016f014c7c65f7062937be896d4fa0eafdaccc816909a56"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/PluginSkillReadResponse.json",
+      "bytes": 220,
+      "sha256": "dedaf95c4a8f70c022f5cac6fe3882603ed2b27d5efef710b52ae370869956cc"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/PluginUninstallParams.json",
+      "bytes": 220,
+      "sha256": "4c9e1da7048fc99ef5269d4c3f4c6c3297dac01992c2756340fa210ae8f800cc"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/PluginUninstallResponse.json",
+      "bytes": 116,
+      "sha256": "f6a0c9c8dfd9e3fc4a535ecfa606f12922c09e469a37d6b1c6e189f45cacb89e"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ProcessExitedNotification.json",
+      "bytes": 1419,
+      "sha256": "06cb5f39c67f84c227063d7f40e5e78fb62afdb76778c3d603687181896e8440"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ProcessKillParams.json",
+      "bytes": 388,
+      "sha256": "b4b86a505dc6013c3379deab0f55eeb312f0b104c7b1c1fa011bcc66ebea62d9"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ProcessKillResponse.json",
+      "bytes": 175,
+      "sha256": "e61f339de76aec9c17ce83113bff71fbc30e3de6d535efc05da4bb75cd48e2aa"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ProcessOutputDeltaNotification.json",
+      "bytes": 1436,
+      "sha256": "c31714aa83297b83fd69dee98db877be7d4a3f98551dbeb517750efba0ecd79d"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ProcessResizePtyParams.json",
+      "bytes": 1201,
+      "sha256": "0abb0b6c6b37859e8eed9ed9ab7bb8cf6e932de6c43cc8ccda47934cf28c7234"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ProcessResizePtyResponse.json",
+      "bytes": 185,
+      "sha256": "4c8a640c34225bfd6f9a677f3498fda1d05a5fecd0a208c79e46a7b6b0e422b3"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ProcessSpawnParams.json",
+      "bytes": 3904,
+      "sha256": "eee34185e44cde6355516d9347e6bde6801efd19f06887406c0b10823003fa28"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ProcessSpawnResponse.json",
+      "bytes": 174,
+      "sha256": "d74557d195c802651fdb55815a40851f7c146800c2773a32eaede3fe57f18c92"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ProcessWriteStdinParams.json",
+      "bytes": 710,
+      "sha256": "e9c640afc816330019daf79bff5bed4a71d166a5669394b5588319ffea5fb277"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ProcessWriteStdinResponse.json",
+      "bytes": 187,
+      "sha256": "80acb093e2877783ac59e1292f50a44c98d4c6a737bd616ffe196f2123aaa31e"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ProjectChangedNotification.json",
+      "bytes": 481,
+      "sha256": "b32151fcb7ef78fc5c969db44255756e5e6e1754398a5b6b09244dcff0c1eab9"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ProjectCreateParams.json",
+      "bytes": 1225,
+      "sha256": "4fb1b90646d4af61d486b3616d09ff98909e446d14b5e6f3c5c6567341de9188"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ProjectCreateResponse.json",
+      "bytes": 2038,
+      "sha256": "c78d0b2412d3a3778955a037ba2521460a54fb5f49752c958056b9a2934455d5"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ProjectDeleteParams.json",
+      "bytes": 220,
+      "sha256": "8c4c0f12d3605e9c2dc61d773d52a7e4ed3d72bcd86012e5541f4e79b245ba19"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ProjectDeleteResponse.json",
+      "bytes": 114,
+      "sha256": "aade653dd65fdacd246b1a312e20e0de9a3dc76e11f15f9c4362b13931ceac78"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ProjectImportParams.json",
+      "bytes": 1356,
+      "sha256": "1f52ce36a40b6e09ff4a002cb322cbd6bea86946e79ac4624655a8ebc1706ee8"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ProjectImportResponse.json",
+      "bytes": 2038,
+      "sha256": "338fe248907b392f296324b9a7a54ffc0350a7c0c58231e85ab32656c33e4b99"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ProjectListParams.json",
+      "bytes": 1115,
+      "sha256": "852330150c7e62724842b5fe39cc880ccd98f89179d34ba51cb95699b60e8656"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ProjectListResponse.json",
+      "bytes": 2164,
+      "sha256": "ce2b78869a985bb7bdbc910fae2509a1799bd0d30956a886b7d10858cda6e64e"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ProjectMoveParams.json",
+      "bytes": 307,
+      "sha256": "fa0975a08c1a5dc65faf346f98d611c121104163c9df5d5a6253bd1f27674f26"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ProjectMoveResponse.json",
+      "bytes": 112,
+      "sha256": "767cb254e71f4be818896fb4331091fafcf793b913afdb16219c53d8a1835ad8"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ProjectReadParams.json",
+      "bytes": 218,
+      "sha256": "e999c102295041ea24c1b0b9e80a9d9897e6661c8daa4cf38658d93841046e60"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ProjectReadResponse.json",
+      "bytes": 2036,
+      "sha256": "69e7ffd4075ea8f01649aab9d2370c31fe68eda7febdf6ee9ec92faa769b9ac0"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ProjectUpdateParams.json",
+      "bytes": 1258,
+      "sha256": "f1a0ad152dc8a3bee8ad6f4d0955154914fc24df3bf44f73199413bcac487acf"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ProjectUpdateResponse.json",
+      "bytes": 2038,
+      "sha256": "9551485fecc461d28801665965b4ff9b357dc9a05852fa41d5f2179dea6771f0"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/RawResponseCompletedNotification.json",
+      "bytes": 1998,
+      "sha256": "aba140e87952c900f96e0308a8849d3e313d985de1f1aa2b77f193884a76357c"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/RawResponseItemCompletedNotification.json",
+      "bytes": 31359,
+      "sha256": "cbcffe7b3f2dffb607f7e20ac1f1196509ff42e7d0cd9e6961d7c19b25506899"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ReasoningSummaryPartAddedNotification.json",
+      "bytes": 454,
+      "sha256": "c8dfcb82d773d0f5d297ae1a47749e2b719013e82030a3af5d4550f9feb8eed6"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ReasoningSummaryTextDeltaNotification.json",
+      "bytes": 512,
+      "sha256": "895bdca00b4674634c25a5c4d1f82e55e65767d81ddcac4bb7b00aa3d438e62f"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ReasoningTextDeltaNotification.json",
+      "bytes": 505,
+      "sha256": "16cdc13080a7523b44f00fb6fdb660c56a7c4c8cda96b2f9b87b7e72264170fb"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/RemoteControlClientsListParams.json",
+      "bytes": 771,
+      "sha256": "1fd48133e06991ca7507a0a313ac91f2b58951809ce1c1454a6f38807134fa94"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/RemoteControlClientsListResponse.json",
+      "bytes": 1389,
+      "sha256": "f8b283a238c8b5ef6eb543af2f659cfa4ed42ec0ad696eabbcba8c8cae74c8ea"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/RemoteControlClientsRevokeParams.json",
+      "bytes": 305,
+      "sha256": "9de7576f92d72ec179e1cd760988beca64a95eefd7a9e57e9218610906eeceac"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/RemoteControlClientsRevokeResponse.json",
+      "bytes": 127,
+      "sha256": "66968cc1d1a9e2ec01168b459bac90ebe8e58f14755d3b14fb2dc5ab02e3ed65"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/RemoteControlDisableResponse.json",
+      "bytes": 689,
+      "sha256": "a8a61df25583fa0a32f0ab90efa56ab256c712adc461174eaf8ad01781cefd7b"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/RemoteControlEnableResponse.json",
+      "bytes": 688,
+      "sha256": "955555c2bd534d6e404eb86b52a23af91ec8af0af9f32ca79d0a3eb903703750"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/RemoteControlPairingStartParams.json",
+      "bytes": 197,
+      "sha256": "d5c2ad19e70385d16e0238e75376d4c3bd216640505f5895b18ac20d223689ef"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/RemoteControlPairingStartResponse.json",
+      "bytes": 495,
+      "sha256": "9a1adbbed53d369cfc95e285ba8f1db9f64a1308aef5c92b79d63b5d7a77a435"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/RemoteControlPairingStatusParams.json",
+      "bytes": 323,
+      "sha256": "336a75c4cada29be925cb3d5dafa715bcb6d8051e57051c49bb1ed51be01ea36"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/RemoteControlPairingStatusResponse.json",
+      "bytes": 232,
+      "sha256": "298061860624a52b245c824e9f7fda08fddecb0e7fdb1c2dd0736854d2950759"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/RemoteControlStatusChangedNotification.json",
+      "bytes": 800,
+      "sha256": "56aa1d58294238557cd8b16199909c2c157a7542b9259ef2deddf40fe4c02c91"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/RemoteControlStatusReadResponse.json",
+      "bytes": 692,
+      "sha256": "6504a09081b79fc0c222ff72be6a983bd553bf4712151e37a77daf106e04be90"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ReviewStartParams.json",
+      "bytes": 3200,
+      "sha256": "c55c510988a34d2e95752aeb95e5d165f7083724a0945d7fccd1c568ad85dbb0"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ReviewStartResponse.json",
+      "bytes": 54982,
+      "sha256": "d6d5c99473b695fff0f58a896bee11ddcddca23304523fba878860324b7f07df"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/SendAddCreditsNudgeEmailParams.json",
+      "bytes": 420,
+      "sha256": "91b380293f5685573f8dcdf46c99eba6f8a2adb7a206df9ac987f7fe6cb282a1"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/SendAddCreditsNudgeEmailResponse.json",
+      "bytes": 417,
+      "sha256": "389978f741476c7cbcaec716b11a5bfb7f17581a28013e18cbf7a73ec8a45ae6"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ServerDiagnosticsParams.json",
+      "bytes": 116,
+      "sha256": "5a4235de371d1a58a45300e14fbfbc9ab0a3ecef3078ae35d60f1470b6e4e4f1"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ServerDiagnosticsResponse.json",
+      "bytes": 1338,
+      "sha256": "0b3b35e623761a05bcd4a20085be8395986d2b98037c8ebda4dcda2204689d1d"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ServerRequestResolvedNotification.json",
+      "bytes": 514,
+      "sha256": "4f03d586a5af04edd912cad08cc97eceb658e7e06744565e6d41a93e04a55966"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/SkillsChangedNotification.json",
+      "bytes": 341,
+      "sha256": "84f7f1d327c5c774899992f32c98e9e95ee3e010a410d233ec0c33221e4ccbfb"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/SkillsConfigWriteParams.json",
+      "bytes": 1011,
+      "sha256": "6e7dea83b649bfd118828b60446eb2eab2f5ce3cafe287c933b830c9cae9b170"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/SkillsConfigWriteResponse.json",
+      "bytes": 241,
+      "sha256": "628bc112ca64f5475eb02a0eda718e82d670c40299444494e02a8dc278a772c7"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/SkillsExtraRootsSetParams.json",
+      "bytes": 761,
+      "sha256": "bb60389a0c7d4b73f625b9a40965e5e67b56b6503989f2d732cae12e9ca9698a"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/SkillsExtraRootsSetResponse.json",
+      "bytes": 120,
+      "sha256": "b659ec17a196eaa3a23273a3e2d5596460ea329bc3ade249971576bc723d9e96"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/SkillsListParams.json",
+      "bytes": 453,
+      "sha256": "1d245374e64c5acc9739dfc68a4fe5114c6c9147af04c480886f1846d2ca6239"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/SkillsListResponse.json",
+      "bytes": 5295,
+      "sha256": "230f125d6c36ec1b1514018a0bb6d0627f7308ea82f1ef04cad85490de482bae"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/StrictReviewRequiredNotification.json",
+      "bytes": 470,
+      "sha256": "16b50621c0982d84bd83b6e85586c1038ff309337e4253219895be7c118df470"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/TerminalInteractionNotification.json",
+      "bytes": 474,
+      "sha256": "5383b3d9681d3c071c9845fd4f043afd60fbe1bcc3650939356cb03848a7d627"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadApproveGuardianDeniedActionParams.json",
+      "bytes": 360,
+      "sha256": "082e5278ed4fb1fc23eafbe658e95ec21d81c446bb6daf2b57e25e8cd3aebd5e"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadApproveGuardianDeniedActionResponse.json",
+      "bytes": 134,
+      "sha256": "628336c7cdabd508d5202695502bb0f9ce42fdde380f5efdd4b033cf215d93e5"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadArchiveParams.json",
+      "bytes": 218,
+      "sha256": "dc2c0b133b814a5d9d543cc37afdb3f4f22feca35b7cea4272834b20a1e47705"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadArchiveResponse.json",
+      "bytes": 114,
+      "sha256": "2e021dabd0930ae3e2beb68cd0ddbafc40fc20cfbf8dbcb5e2f9c0493d06a08c"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadArchivedNotification.json",
+      "bytes": 225,
+      "sha256": "54ca94956719ade8682c766f31419ee9953dee8f4587b5b30efd0927de6ca26e"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadBackgroundTerminalsCleanParams.json",
+      "bytes": 235,
+      "sha256": "e07820971c6e4ef8ee1ca5565a6eb78b04a96e001a5828e136b8aca927096a51"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadBackgroundTerminalsCleanResponse.json",
+      "bytes": 131,
+      "sha256": "a594a65b4eb1ddf4613e868e382d7cda24daaa09b86de919fbece99e75b55478"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadBackgroundTerminalsListParams.json",
+      "bytes": 564,
+      "sha256": "7ac232410d59afd308dca04f8c0b08f20fa6e87f00bd0d3b5892b7ce8b31d2ee"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadBackgroundTerminalsListResponse.json",
+      "bytes": 1529,
+      "sha256": "b56b1cbcb1d60079ee9f9caaeef29cad869a25b4a6d356566f7c9f672faa7bf4"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadBackgroundTerminalsTerminateParams.json",
+      "bytes": 305,
+      "sha256": "4af4973b4e965228e7c6ffdff341c22c227c26bc48d4b44a8696993869b64103"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadBackgroundTerminalsTerminateResponse.json",
+      "bytes": 246,
+      "sha256": "1f5dfb3fdd3c1fef2ef9b9b2c26eb2f2c7346cdf695d4ca291ede076050d1bc7"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadClosedNotification.json",
+      "bytes": 223,
+      "sha256": "d504cceb70e3397ad684924b08d3bff328a927be02ef4e3d482a18e27bab73de"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadCompactStartParams.json",
+      "bytes": 223,
+      "sha256": "684b20adf20213a9fcbca31b59108feadcd5a8b693c16431c20d701049df3737"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadCompactStartResponse.json",
+      "bytes": 119,
+      "sha256": "74674e47f33e37d7d97d144eac1789ef0580a1fc12d45a5675bb97caa08d803a"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadDecrementElicitationParams.json",
+      "bytes": 390,
+      "sha256": "52e26befe05ab05767107f9f43724505b889016de3ea663be08d561d199a2e41"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadDecrementElicitationResponse.json",
+      "bytes": 558,
+      "sha256": "202c2995634aef062ce9d1195808f4d2f59011af064646f4ae5fe2463fd41a4b"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadDeleteParams.json",
+      "bytes": 217,
+      "sha256": "0d5425d94af95e3dd20971cee052b2cb8c7d0d23195db1d17fde4e59cfbdec4a"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadDeleteResponse.json",
+      "bytes": 113,
+      "sha256": "333c0c5df96d78d1bcbdb19b57ddfa941de9a02bdae1c29d13c5311c2cdf6527"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadDeletedNotification.json",
+      "bytes": 224,
+      "sha256": "6f8d6fa96700ec6fff4b8c2bddf6768539b7ec7ba5dc05483aba53f5183386f9"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadForkParams.json",
+      "bytes": 6584,
+      "sha256": "674134467796c011068b9dd5efc912de4560fa31f65c0fb2163f14e352be7a61"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadForkResponse.json",
+      "bytes": 76252,
+      "sha256": "80a8ccc6ea9614d01c1e69efa30c6b5228a064acac6be9efb691cbf0bf22afc4"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadGoalClearParams.json",
+      "bytes": 220,
+      "sha256": "896c8b1997edf913382393f7d0f20ced4344714b9f0e8ce1f6564a11403e1675"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadGoalClearResponse.json",
+      "bytes": 221,
+      "sha256": "2652c2d0072be8ccb71c8dcaaa054aa74f974e68156a73451baf72c8597669c2"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadGoalClearedNotification.json",
+      "bytes": 228,
+      "sha256": "ad6c2cf53970e45cae55d36dbddd84ecc7b34837846616493efa7b132a35a051"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadGoalGetParams.json",
+      "bytes": 218,
+      "sha256": "1a5de89b3c5c49528af404a65411a73ef05dc7c9c49c3f00c90d9926dfe34137"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadGoalGetResponse.json",
+      "bytes": 1491,
+      "sha256": "f610000963194731c96ce2b45e46722ca700f1b6ccc1fc55a2fd95e526018fd9"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadGoalSetParams.json",
+      "bytes": 804,
+      "sha256": "93162f095e9b3b5a051ceb24318b8922c663edefc1f8c67bd378085c0d6c01d2"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadGoalSetResponse.json",
+      "bytes": 1428,
+      "sha256": "b1c61b6068b3b73dd3d97b38f8a269593f8f7added4643bfdb2016315b71ad8e"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadGoalUpdatedNotification.json",
+      "bytes": 1580,
+      "sha256": "52010479c7efcc6dc749e2d9bf1e27c134453d92a1f0b367193d8125eec1fedc"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadIncrementElicitationParams.json",
+      "bytes": 390,
+      "sha256": "1fa0353a274885581bc242eb7a00a4f4e26ce99a24a89184381f0cccbcca73a0"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadIncrementElicitationResponse.json",
+      "bytes": 553,
+      "sha256": "b6f12f99d3a99fd48e66aa3a1c062941b5dd7db3160fa2cc6aec640c0b12013d"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadInjectItemsParams.json",
+      "bytes": 397,
+      "sha256": "8d7e754402a2bb71bd817882076d2f8ac4cd75d4573306db082a83b841aa3532"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadInjectItemsResponse.json",
+      "bytes": 118,
+      "sha256": "93d909e5b49b44da02072d340f8ad0ecd417d448ccf27fe50be7e369c7864159"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadItemsListParams.json",
+      "bytes": 1138,
+      "sha256": "ff56040c327ecdd30ef02affac9bc71fab64031e8980f2b4fea9fd8a888160b4"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadItemsListResponse.json",
+      "bytes": 46506,
+      "sha256": "886369490fec07067597460301b3d5c1dc9aedc41ea42522cae397d8babe6156"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadListParams.json",
+      "bytes": 4322,
+      "sha256": "e321f00bbc81b7e65e8596b8c286deaf2f5c48e76fa179db3abc4ff337d85199"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadListResponse.json",
+      "bytes": 69001,
+      "sha256": "13d1130dcf015695391879c8000ee9e8aa35b8fab49c45b3f80a94ca37e739ee"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadLoadedListParams.json",
+      "bytes": 489,
+      "sha256": "42c2d124ab2b2998d84f0126daae2d32b0bf9c5a7ea7266e3a0814e5e37cf00d"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadLoadedListResponse.json",
+      "bytes": 565,
+      "sha256": "1ea02c4710083e552b2a3a89b931b9049d5bf05b7db46278b8352cf9fd80cd52"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadMemoryModeSetParams.json",
+      "bytes": 446,
+      "sha256": "12d62f765492ef7fdbdbd5ea9cbb3b3d3ff2ca5ef6a52fca9a82379eb4dadb79"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadMemoryModeSetResponse.json",
+      "bytes": 120,
+      "sha256": "908b6eadcd2909936ff1a44152721baee9400f8bebd4ea99dc613551824236d9"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadMetadataUpdateParams.json",
+      "bytes": 1690,
+      "sha256": "4698633f92f107083311d0924cf730bc31cdd56ba4c2950a30f06ce30ba7fab8"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadMetadataUpdateResponse.json",
+      "bytes": 68347,
+      "sha256": "e0617c85dc4c0c4919719afbd7e99b7971eb56d5b0607e19c07889ed4bc12cb1"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadNameUpdatedNotification.json",
+      "bytes": 312,
+      "sha256": "06d5e6b0e1eaf03eb88891af58eff14368a76e300a40a9bed71bacce2093b960"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadProjectUpdatedNotification.json",
+      "bytes": 331,
+      "sha256": "ad31b029957a9259f26352ce879219cbe25f0314ae883d02ab811a0c6427a1e5"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadQueueAddParams.json",
+      "bytes": 5753,
+      "sha256": "39bda9d790b315eea17fc04298afb0135a8b43e7d375b54eaa4a2e88ad0d4aff"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadQueueAddResponse.json",
+      "bytes": 6021,
+      "sha256": "c42b0adfa32874c341a2012216a5f5b9949b50f840ffc666e606fa65b117bd22"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadQueueChangedNotification.json",
+      "bytes": 229,
+      "sha256": "0a960da43fb14f69dae2550ac4f8517760464eedbf95a9977718548739fdcf21"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadQueueDeleteParams.json",
+      "bytes": 306,
+      "sha256": "35d17cc17897a7f560250d0148ec9df0482ba3d33bdcca039dde8391d3b4edbe"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadQueueDeleteResponse.json",
+      "bytes": 223,
+      "sha256": "5983c0a94e89f93340caecfe96e16d8f535edca39142920bc0ba60ec90a52919"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadQueueListParams.json",
+      "bytes": 598,
+      "sha256": "b4c889089eee8a0f785ff85e0128a4d3f347353870fa848221096a472223773b"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadQueueListResponse.json",
+      "bytes": 6227,
+      "sha256": "fe3251d1d4099a1642ff9df36f92a15cb5d4e8187d7f012a11c73cda16627fbd"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadQueueReorderParams.json",
+      "bytes": 359,
+      "sha256": "524bc69a166160f234c7f7de9f6386ace09ce8165b1409504c5164fbaf9267a6"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadQueueReorderResponse.json",
+      "bytes": 119,
+      "sha256": "161491f6310bcdeac60cd7cb0594cebc51857e9caccb592b7f96cefaa5f4a061"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadQueueStartParams.json",
+      "bytes": 313,
+      "sha256": "d92f1e985c183fa3f261bbfa004416f0f572a225a53e5de1744682e154cce936"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadQueueStartResponse.json",
+      "bytes": 54724,
+      "sha256": "4df331d0b5484294d028ea09a2645c8c9e1c959d0748de38dab9040e9dd38f41"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadQueueUpdateParams.json",
+      "bytes": 5754,
+      "sha256": "55899d99d56f089bcf82b8d55d5328d2479f46efd2669c9bfad4e5de3cc6b60c"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadQueueUpdateResponse.json",
+      "bytes": 6024,
+      "sha256": "da62310ccda19d279b9acd20fdbe177727e6cbd607e047cba3a9966cc55efb64"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadReadParams.json",
+      "bytes": 502,
+      "sha256": "dfe040c6ac71d30795b8be3f3ff232e66f362a37f883b491e5d1ea367f470db4"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadReadResponse.json",
+      "bytes": 68337,
+      "sha256": "de0ec065bbe9c6288d76517cbab64949b544074ed782a314ccea872b70bbfa48"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadRealtimeAppendAudioParams.json",
+      "bytes": 1239,
+      "sha256": "10e3a38def5978afe7417d5754f28fda86863126ba7ae2746e77d56520c84130"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadRealtimeAppendAudioResponse.json",
+      "bytes": 206,
+      "sha256": "e1e020945423a35d6feb7d529f6d75462bb220c4ec42fa54fbda07b62445b602"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadRealtimeAppendSpeechParams.json",
+      "bytes": 364,
+      "sha256": "864db8a10d2a390e257db29eb0530e80f4e3e569b0d29011b1893083deeab926"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadRealtimeAppendSpeechResponse.json",
+      "bytes": 202,
+      "sha256": "deceb9fdcc69931ed293c977976ceaa7734297bcb1f68dae3eb7e671bf518096"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadRealtimeAppendTextParams.json",
+      "bytes": 669,
+      "sha256": "27f2531b0b441253ad3adfc03fa3c75e4063005aeabddbf0ca2eac1e56d19b46"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadRealtimeAppendTextResponse.json",
+      "bytes": 204,
+      "sha256": "b160a533fc2dbe9ac987413b0b142d4c4b8041b66e3054bcda2c085f4e8c565b"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadRealtimeClosedNotification.json",
+      "bytes": 393,
+      "sha256": "5290a73f8d4652b59d2f82d89c7bd289003fe2981fb0c628a61e801fa2123364"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadRealtimeErrorNotification.json",
+      "bytes": 377,
+      "sha256": "aeba7e4b477b4825b41990a4da69b0f3cb3a00f44cf9e2e42e275b944b7cb040"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadRealtimeItemAddedNotification.json",
+      "bytes": 358,
+      "sha256": "48aabfcbfd2361b5830a93257bc9eb31a6933f6e390694e188bfb287acbad9b4"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadRealtimeItemCompletedNotification.json",
+      "bytes": 5063,
+      "sha256": "b2a5e38840b8afc2111620c332801603e832b91ad4c95dd1f13c926923b760ef"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadRealtimeItemStartedNotification.json",
+      "bytes": 5063,
+      "sha256": "ef1a68a635ce680b321e276fd9144ef614b37bab16942368bdc16bb8ee217f46"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadRealtimeItemTranscriptDeltaNotification.json",
+      "bytes": 450,
+      "sha256": "42f2456726367b90a2626a32f3f88495de87032243beecd9bfbad28734f4b62d"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadRealtimeListVoicesParams.json",
+      "bytes": 200,
+      "sha256": "ef4d55618412bfb2c95179e0a8441996b48d7b1311d395996517be1abeb85d53"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadRealtimeListVoicesResponse.json",
+      "bytes": 1382,
+      "sha256": "8fff8adbc97b4d6d38eca88c2edf71ad3fcf1ecf6f78939d5347b568c4a58124"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadRealtimeOutputAudioDeltaNotification.json",
+      "bytes": 1261,
+      "sha256": "4f73a5c606fda4984da4fc14e4cd98f62c8f9aa75b2db17cff76562c2d176ec0"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadRealtimeSdpNotification.json",
+      "bytes": 376,
+      "sha256": "1e276f48d346e6cace65551f84ef9b0bc8daba2a3ce93499f3a902551de239fc"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadRealtimeStartParams.json",
+      "bytes": 7810,
+      "sha256": "361860050b1f6d301b3b8d951cefff16f9e9fd62999f95038ef670ae36447d23"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadRealtimeStartResponse.json",
+      "bytes": 194,
+      "sha256": "2133c6226dbd546189da197a30f60df910b5b5e197f61b1bbfc5679a92377d65"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadRealtimeStartedNotification.json",
+      "bytes": 661,
+      "sha256": "483d324381a8ced04c8ab158c825bca2b64c06a4e85b350a086730050fe8f188"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadRealtimeStopParams.json",
+      "bytes": 280,
+      "sha256": "da0e765e71d37c3c0b331e7666ad5c32483e2b0775e8439b642ec63602c974cb"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadRealtimeStopResponse.json",
+      "bytes": 193,
+      "sha256": "0a138fb932680fd38add3e74473ff998266fb7c79e1dcec1d8762b42a29b9562"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadRealtimeTranscriptDeltaNotification.json",
+      "bytes": 533,
+      "sha256": "1a6add677534de891026eb56aac815b2585fbd4a6d6475f679a722c52b778703"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadRealtimeTranscriptDoneNotification.json",
+      "bytes": 528,
+      "sha256": "0000453425e300fd19ac2bc5fba4ebf3fbce48ac9a9b62ceb8bc5db8b6c77fff"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadResumeParams.json",
+      "bytes": 39470,
+      "sha256": "324e96004c49de35935cade3386958431c93a4fd3997a839f9796772ea4c8072"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadResumeResponse.json",
+      "bytes": 77685,
+      "sha256": "1d40932ee38f92f363424542d7581985cc627ea0ab2beff89663772c5f9f29c7"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadRevertParams.json",
+      "bytes": 579,
+      "sha256": "3a5e85a67906c8ea3ad9f5065559d263d968a28a957739e7a1d9e4e1981e4eb8"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadRevertResponse.json",
+      "bytes": 69147,
+      "sha256": "33bde802b47a12391edafc02f0e59d7cf94138559b3ced3326d70e116b54e172"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadRevertedNotification.json",
+      "bytes": 225,
+      "sha256": "570995a91a4436d403bafbf9a4c34ead666b137ecd5406803e14826a6d84cf22"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadRollbackParams.json",
+      "bytes": 667,
+      "sha256": "27002ceab514bcbab10ad2e0a7b9b842f9ae51bd5e8c084ed14960889b422ebd"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadRollbackResponse.json",
+      "bytes": 68668,
+      "sha256": "ebe224a2882bda742234207d4c1b6b88eb7e706f86ed79a9935d47d00de36b9c"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadSearchOccurrencesParams.json",
+      "bytes": 886,
+      "sha256": "ea50391f431b2a4361635e9f62cf9cb70fcf162a217a4b79d6f8c53394f7acb9"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadSearchOccurrencesResponse.json",
+      "bytes": 2040,
+      "sha256": "193e1f78e427a93f5a6471b7b69ea3f6d980c924ca26e20845992bc5b33d9dd9"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadSearchParams.json",
+      "bytes": 2314,
+      "sha256": "5c3bbb9d37d7d83f3f7747423427ff9c8b0f1154ac8cd7c832995a763dfa8e61"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadSearchResponse.json",
+      "bytes": 69299,
+      "sha256": "cc97c283199c4d39f2939448f996cf5c7a7ffd14424f87b709a0a7221a10b80a"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadSectionCreateParams.json",
+      "bytes": 969,
+      "sha256": "e3bf941ceab7a4dd39ce1b4063168621d60162aa97f7171cef59819c999c501e"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadSectionCreateResponse.json",
+      "bytes": 1548,
+      "sha256": "2b0b0e7a2651354aac35aa5d1a423b9f207ee8d46b2de077df747f4ed4f4c8de"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadSectionDeleteParams.json",
+      "bytes": 401,
+      "sha256": "93cc3d12bd5580966b59bbab8f2ccddd31b3b4bce56f76d49cfe41f1916b5deb"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadSectionDeleteResponse.json",
+      "bytes": 201,
+      "sha256": "9bbee5cca1fca02e4a65c2481dc3b24f090bca7afb786923ee481017b133b091"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadSectionListParams.json",
+      "bytes": 570,
+      "sha256": "6aea71b3fba46351fcaf648eab0da564080ba424599a012648abd9fd44464cf8"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadSectionListResponse.json",
+      "bytes": 1760,
+      "sha256": "dc3b5e5501a56ea2a1a83cb97c5221b355629f8c9468793d94e22673424140bc"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadSectionMoveParams.json",
+      "bytes": 768,
+      "sha256": "48bc921055838df25c5595c96be7bd25beef3accb8bd1d28026fcaa7d81487b1"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadSectionMoveResponse.json",
+      "bytes": 118,
+      "sha256": "243299d7eebd4fb264d4e75efeb5058982681202371c2b83ff1a63b3369ddbb6"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadSectionUpdateParams.json",
+      "bytes": 1211,
+      "sha256": "6cc7b7e486026a59d6fcc0701407d9293c0fe8b96e41894630c3a39fee967980"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadSectionUpdateResponse.json",
+      "bytes": 1552,
+      "sha256": "4588cbf0374204c17f02f15eecb5390cd5346bc551675e07e541bbfd28d020bf"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadSetNameParams.json",
+      "bytes": 274,
+      "sha256": "8e334c816bbaeb80f807aca61bf659246f3f60c245c21b5cb7e3ca4ee3ce4820"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadSetNameResponse.json",
+      "bytes": 114,
+      "sha256": "f8763716433feea94f7c1ebd59b6cea4c261432e83240c13a8d49ba8185aa567"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadSettingsUpdateParams.json",
+      "bytes": 10691,
+      "sha256": "a3abd34e80b3e9473fc1ed68d1e3738001733898405da816d7494be0e307c789"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadSettingsUpdateResponse.json",
+      "bytes": 121,
+      "sha256": "adb6c5232ff2474b61ac1811c9fe0faf8beae7f629c9bb2182190679d82bf0b1"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadSettingsUpdatedNotification.json",
+      "bytes": 10618,
+      "sha256": "f7865eabaa34c7895a1ae345e51c1ba181a63c649237d36583b80f9d759b0f53"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadShellCommandParams.json",
+      "bytes": 917,
+      "sha256": "dc646457ca36be601c8c3d15c44d14907d9a165ccf2b9635a8e9a878f0ca0727"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadShellCommandResponse.json",
+      "bytes": 119,
+      "sha256": "fd4911613f6a6da2ca13b75342501d4d61f64e00a1083c6d60038369b8caeefe"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadStartParams.json",
+      "bytes": 12971,
+      "sha256": "25f490368ec6df52a2a3b82a5469d2413307eb93439121b309f415b5648eee7a"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadStartResponse.json",
+      "bytes": 76253,
+      "sha256": "a338467af5fc271ace917f9d1262405642c3df3b66116aa105343db86cc9a76d"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadStartedNotification.json",
+      "bytes": 68344,
+      "sha256": "0ef98c391c7f43aeda056ad2bf326864c0e2626f477630cf8444bea1dcd2cfcb"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadStatusChangedNotification.json",
+      "bytes": 2207,
+      "sha256": "26f3c60c1b73f7fa2d31c74429cdc36f8746c76c33e3d314b3fb61d3661f05f6"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadTimelineListParams.json",
+      "bytes": 526,
+      "sha256": "c585f0e23ed65406dd80f0e0b2956f3f87e7a7aa03627e5e002c61bfc4e1f6c5"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadTimelineListResponse.json",
+      "bytes": 61104,
+      "sha256": "bc801f0c5a0b0f2426caf7e4941c846a719855eee7ec2d7e0b93414b1c5c92f7"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadTokenUsageUpdatedNotification.json",
+      "bytes": 1727,
+      "sha256": "aba4f6c7e4a19b2b842c08ee793b57000c07dafd57b922ad0d8e7c76609108c2"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadTurnsListParams.json",
+      "bytes": 1889,
+      "sha256": "2a8b93d7d4437cc25e16a1dde16d8db3c338d39e16c5eece2a56e943a21577d7"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadTurnsListResponse.json",
+      "bytes": 55347,
+      "sha256": "45bffd91efc358859a1a54b8165c0a8b1c21ebc2a312da9f25d05ff27af798ee"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadUnarchiveParams.json",
+      "bytes": 220,
+      "sha256": "a1d5d847b61ea16ab09d5b9d1c1461134a7829292aae02a7e11b0a69b00c76ca"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadUnarchiveResponse.json",
+      "bytes": 68342,
+      "sha256": "80ec101740ee1b39db25be005d52e9feb23db36e9c4c38b69e4bca954284c14f"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadUnarchivedNotification.json",
+      "bytes": 227,
+      "sha256": "fc00949cdc588b84800a26403647eda0e22d6f28663dc032a90db9c20dfa822d"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadUnsubscribeParams.json",
+      "bytes": 222,
+      "sha256": "77c67e0dc0a729af2d4612f30ed63f1297160232e96cd32b7cb9cc3e7fff0233"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/ThreadUnsubscribeResponse.json",
+      "bytes": 431,
+      "sha256": "9cad5e71a589c3c20e0980ce34a894a29e2898a075b10b1493bc87f32500081a"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/TurnCompletedNotification.json",
+      "bytes": 54789,
+      "sha256": "78af2a37391e8e669a4020cb58593e4d3e378756ced79d5fec72374fa69fb94b"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/TurnDiffUpdatedNotification.json",
+      "bytes": 494,
+      "sha256": "59a02535094b591b926cdc11a8e5f5babf73b442323a02cace1661c62f0c2918"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/TurnInterruptParams.json",
+      "bytes": 278,
+      "sha256": "6dff382dae73d1dbc58406ed045605f647e7a49660e2540fbd2c6c24d60c5f2b"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/TurnInterruptResponse.json",
+      "bytes": 114,
+      "sha256": "531de6be06fe979b5963f249bab82498a175e614bf65ac12fb2e849dfe60bcf1"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/TurnModerationMetadataNotification.json",
+      "bytes": 331,
+      "sha256": "90fe9ade83c46fd42af9d023737a9990595dac71e059158744950f538e802876"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/TurnPlanUpdatedNotification.json",
+      "bytes": 948,
+      "sha256": "2522f743be0a1e9666dec5ad4f18d8ecba3c4f16e66d510b1491d4117d1dd0ba"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/TurnSettingsUpdateParams.json",
+      "bytes": 3130,
+      "sha256": "3c0198540df66802752daa59680733221e0bc2deaf3cd0ab2c5b9daa6332ef7a"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/TurnSettingsUpdateResponse.json",
+      "bytes": 816,
+      "sha256": "504e2ef2c3d06b13a107bf94a74791ff7f61c4a234f0beff78dca406ae2d1181"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/TurnStartParams.json",
+      "bytes": 23746,
+      "sha256": "b36fb37326b1cf69f75c8b306f1f886d53a57c4b1b985e08e298e2407ea2ad02"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/TurnStartResponse.json",
+      "bytes": 54717,
+      "sha256": "6fc49c3e5d0ce11a3a109ae194619b04d6e3ff98fa29bac683fdb754608958be"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/TurnStartedNotification.json",
+      "bytes": 54787,
+      "sha256": "d4b59fd396cadfc2377f60c9f9f4c9367dca95362baadf7817c74e1b9c910c4d"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/TurnSteerParams.json",
+      "bytes": 7248,
+      "sha256": "2e0cdcea6a90d6c8bc584fdc2ff838e824754b1eef0d2d16aa71bec4276fef44"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/TurnSteerResponse.json",
+      "bytes": 212,
+      "sha256": "866ba9a77c12b5d570c837d58f73bf40b24e50fa93404bdf792dd984d313b1aa"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/WarningNotification.json",
+      "bytes": 454,
+      "sha256": "f83c400591b923400ca0beaaaab1341c712d5ac0dee4ce6868a8e590f46490f9"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/WindowsSandboxReadinessResponse.json",
+      "bytes": 435,
+      "sha256": "077f60a3d6d1fc226c45059472b29caf675fdc3fdebb29569eaab94bd05ceb00"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/WindowsSandboxSetupCompletedNotification.json",
+      "bytes": 556,
+      "sha256": "dc5383ae8fc2a46badbc2dab3ccd0447fed97729c2d5a177e28c4a7e2a60c329"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/WindowsSandboxSetupStartParams.json",
+      "bytes": 1002,
+      "sha256": "8610d077fff4fc5811f2e33dea82617a15ffb82f08e55e1540aef877133f5b4f"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/WindowsSandboxSetupStartResponse.json",
+      "bytes": 230,
+      "sha256": "830bf89deac3e73e36b7d9799ceed32ee25e782c30b1d25266374aa020d3bc7e"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/schema/v2/WindowsWorldWritableWarningNotification.json",
+      "bytes": 478,
+      "sha256": "bfa34d4890c8121a04412b8d53314a13adf98289fdd948857fd97b808dcbe79e"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/startup-strings.json",
+      "bytes": 6615,
+      "sha256": "3bf5a4e4535d99d66c24dd07554f531d38c6343ead3da0d54d59a6d86b11350f"
+    },
+    {
+      "path": "tasks/g0-attachment/tmp/startup-symbols.txt",
+      "bytes": 1115,
+      "sha256": "b4d4625cd729bda59fd3fc11e19f81082c998e07167420152ea0e7f13efc39e8"
+    }
+  ],
+  "retained": [
+    "docs/implementation/g0/attachment/",
+    "plans/implementation-v0.1.md"
+  ],
+  "preexisting_material_removed": false,
+  "task_directory_removed": true,
+  "second_generation": {
+    "recorded_at": "2026-09-11T01:43:16.915806+00:00",
+    "files_count": 416,
+    "same_paths_and_hashes_as_first_generation": true,
+    "task_directory_removed": true
+  }
+}

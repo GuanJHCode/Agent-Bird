@@ -1,0 +1,15 @@
+{
+  "recorded_at": "2026-09-11T01:42:24.169069+00:00",
+  "path": "/Users/guanjunhui/.codex/config.toml",
+  "start_sha256": "54337a37264b0eefadf30888cf1e5a34623e3e544eef3e7246ea5c7e6c5bfb1e",
+  "current_sha256": "1720f8205c19434110cf38be9dd851e9e2f13887407ddff3322010a9d38723f1",
+  "device": 16777234,
+  "inode": 160288764,
+  "bytes": 21360,
+  "mtime": "2026-09-11T01:41:56.114706+00:00",
+  "ctime": "2026-09-11T01:41:56.115108+00:00",
+  "configuration_contents_recorded": false,
+  "source_of_change": "unknown",
+  "task_configuration_write_commands_executed": false,
+  "restoration_attempted": false
+}

@@ -2,6 +2,8 @@
 
 更新：2026-09-11。主 Agent 负责计划、整合、最终验收；原始设计基线 `53221d4`。当前只允许推进 **G0.1 原生端点与身份准入**，G0 尚未通过，G1–G4 未实施。
 
+本次自动续作：按原功能边界委派 `g0_attachment_research` 只读核查遗漏接口，`g0_completion_audit` 独立核对要求与证据，主 Agent 复验环境并保存新鲜 schema 摘要。额外的远控客户端、执行环境通知、Hook 通知及内部连接状态均未建立当前 TUI 附着正证据；没有形成可启动新原生实验的候选。完整目标仍未完成，G0.1 不放行。见 [本次核查与恢复条件](../docs/implementation/g0/attachment/result.md)。
+
 2026-09-11最新：用户授权后已修复同版本官方managed安装，实测普通codex能够隐式复用预先建立的原生服务；服务停止后再次启动仍为in-process。当前TUI附着正证据缺失，**G0.1仍受阻**，Windows延期。见 [续验计划](g0-daemon-experiment.md) 和 [实际结果](../docs/implementation/g0/daemon/result.md)。下文9月10日状态保留为历史。
 
 ## 规则与基线

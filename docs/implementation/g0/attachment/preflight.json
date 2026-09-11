@@ -1,0 +1,59 @@
+{
+  "recorded_at": "2026-09-11T01:38:48.117229+00:00",
+  "base": "88528c04157e7b5e781673379fd86b2ba71ae9b4",
+  "version": "codex-cli 0.153.4",
+  "git_status_before": "",
+  "ancestor_instructions": [],
+  "socket_path": "/Users/guanjunhui/.codex/app-server-control/app-server-control.sock",
+  "socket_exists": false,
+  "preserved_files": [
+    {
+      "path": "/Users/guanjunhui/.zprofile",
+      "sha256": "9182af26fc3d20697ba0db018bc666dcb326686392db102422e72a4f5b12f549",
+      "same_as_previous": true
+    },
+    {
+      "path": "/Users/guanjunhui/.codex/config.toml",
+      "sha256": "54337a37264b0eefadf30888cf1e5a34623e3e544eef3e7246ea5c7e6c5bfb1e",
+      "same_as_previous": true
+    },
+    {
+      "path": "/Users/guanjunhui/.codex/app-server-daemon/settings.json",
+      "sha256": "922e9ed2521a417109eae8429696e6f7c95e06e7a2acd1cf5b2c0326b73d9b40",
+      "same_as_previous": true
+    }
+  ],
+  "prior_processes": [
+    {
+      "pid": 35791,
+      "exit_code": 1,
+      "stdout": ""
+    },
+    {
+      "pid": 35918,
+      "exit_code": 1,
+      "stdout": ""
+    },
+    {
+      "pid": 35988,
+      "exit_code": 1,
+      "stdout": ""
+    },
+    {
+      "pid": 35989,
+      "exit_code": 1,
+      "stdout": ""
+    },
+    {
+      "pid": 36000,
+      "exit_code": 1,
+      "stdout": ""
+    },
+    {
+      "pid": 36854,
+      "exit_code": 1,
+      "stdout": ""
+    }
+  ],
+  "native_binary_sha256": "b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3"
+}
