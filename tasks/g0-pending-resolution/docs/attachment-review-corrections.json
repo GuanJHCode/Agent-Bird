@@ -1,0 +1,40 @@
+{
+  "captured_at": "2026-09-11T09:07:19.746866+00:00",
+  "document_fix_base": "8a390b5fc9a79459fd9f859f9f6c960bac4c1028",
+  "fixed_source_commit": "3d2ee51ca2d5db578f328aa75e20aa22c0197c9a",
+  "scope": "documentation correction only; fixed-source analysis, no native TUI experiment or environment/code changes",
+  "withdrawn_claims": [
+    "cached live side selection emits no RPC or external event",
+    "a decisive identical-observation counterexample was already established",
+    "no candidate is worth native validation merely because dedicated attach RPC is missing"
+  ],
+  "retained_unknowns": [
+    "full combined signal distinguishability",
+    "request timing versus displayed-thread changes and old async work",
+    "coverage of all required UI/lifecycle paths",
+    "ordinary-entry original-service access for the proposed observer"
+  ],
+  "reviewer_read_only_environment_observation": {
+    "source": "native_return_runner/root read-only check; not repeated by document author",
+    "apps_feature_enabled": false,
+    "chatgpt_login_boolean": true,
+    "new_tui_experiment": false
+  },
+  "bc_counterexample": "not established; normal single-side flow, non-side liveness read and pending-AppEvent input gates cannot be ignored",
+  "source_sha256": {
+    "tui/src/app/session_lifecycle.rs": "17a2c54df66a29753471a4792fd66d6f42fa094d5546cf42452fdf1fb5bceb08",
+    "tui/src/app/thread_routing.rs": "93af9728b626ed0440db7b4b9e6c3a8d64e47b39f5f0c16fdc0377b7adab5f14",
+    "tui/src/chatwidget/session_flow.rs": "c3d3b84e3cd3281a80cf1a193e31e1cdfaeca3f65dffdf538772d1a90ab4bf9a",
+    "tui/src/chatwidget/connectors.rs": "8c22761fa4d29d269b82a381b9f0b0e09281f8e7565a585e700735387e773f07",
+    "tui/src/chatwidget/connector_mentions.rs": "3090c51104597b68a4595f97cd6b9ed5d93e5fc287eb3c58749a3759ee64d11b",
+    "tui/src/app/connector_mentions.rs": "e41f517e80422aaed288c3228b64653dbd8c7e6a74f4d4889973ba06d945ed18",
+    "tui/src/app/event_dispatch.rs": "b6d811f5f16978c72e2b961e54f62410a50bc4c3ec819b16e63c4d292ac2ed1a",
+    "tui/src/session_log.rs": "129a25c4c492b23f96de09d24829e63a7de6d2f56ff42c83303c0900604a59fb",
+    "tui/src/app_event_sender.rs": "1dd8f9f70c0512d4a7c3214db4fd38a41fa3e9e00ac553696d33b5df8cb7a2b4",
+    "tui/src/app/input.rs": "a424cf1b8bfaae41e7e8dde0aec01a979a099dba473d41a8cc5614233b1a4d05",
+    "tui/src/app/side.rs": "2747113ea13b11b4cb4ac1bacdcd246865546d11fbd7f54d085394ab1ec94666",
+    "tui/src/app/startup.rs": "4e08c0c29a32650c43d8e1cfe3f081e15b078cfc349ff504b44c0d160e8f1d8d"
+  },
+  "independent_document_review": "pending",
+  "document_sha256": "5e4308d139ac23bfa8287ef39eb6bc0b7a65249c3ea9536a940ee69becc350a0"
+}
