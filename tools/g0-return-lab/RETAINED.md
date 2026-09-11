@@ -5,6 +5,15 @@ existing detached `start`, `read`, `wait`, or ACK commands. It runs fixed synthe
 steps in the foreground; it has no shell adapter, child execution process,
 business retry, scheduler, credentials, or native Codex integration code.
 
+Build from this module with Go 1.26 or newer and the standard library:
+
+```sh
+go build -o /absolute/task/data/g0-return-lab-retained .
+go test -count=1 -timeout=90s ./...
+G0_LAB_TEST_RACE=1 go test -race -count=1 -timeout=90s ./...
+go vet ./...
+```
+
 ```text
 g0-return-lab retained-start --dir ABS_PRIVATE_EMPTY_DIR --nonce ID \
   --controller-thread ACTUAL_CODEX_THREAD_ID --steps N --interval D
@@ -42,6 +51,15 @@ false. SIGTERM/SIGINT and deadline cancellation save an interrupted checkpoint
 unless all effects have already committed. A termination may have no final
 stdout snapshot; use inspect. SIGKILL can leave the cached status `running`.
 
+Each start/resume binds its initial direct parent PID, refuses an already orphaned
+start (`PPID <= 1`), and cancels if that parent changes. A 20 ms monitor interrupts
+waiting/output; the sole business writer also checks the parent before each step
+and publication. Parent loss can race one atomic effect publication; a committed
+effect remains part of the task. The monitor has no business writes. This is a
+direct-caller lifetime guard, not proof that a non-1 parent is Codex or that a
+specific thread is displayed in the TUI. Native experiments must separately
+establish that the caller is the intended native Codex process.
+
 Only a successful nonblocking exclusive `flock` on the stable `retained.lock`
 allows start/resume to write. Contention fails immediately with `busy`. Resume
 checks owner/revision/expected segment before even the completed replay branch;
@@ -71,7 +89,12 @@ Errors retain the existing stderr envelope
 `{"version":1,"status":"error","error":"fixed_code"}`. Timeout exits 3;
 other errors, including interruption and contention, exit 2. Completed execution
 exits 0. Stderr never includes arbitrary file data, paths, OS errors, or env values.
+Direct-parent loss reports `parent_exited`; an already orphaned start/resume reports
+`orphaned_parent`. The final retained error write has a 250 ms limit so even merged
+full stdout/stderr cannot keep the stopped command alive. It can therefore have no
+error line on a blocked stream; the process exit and preserved record remain the
+evidence. The work deadline does not assert real-time bounds on filesystem sync.
 
 This fixture preserves file checkpoints, not process memory, old native tool
 futures, general command idempotency, power-loss guarantees, or a production
-process tree. Native caller exit behavior requires separate evidence.
+process tree. Native caller identity and exit behavior require separate evidence.

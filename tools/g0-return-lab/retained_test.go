@@ -238,6 +238,9 @@ func TestRetainedConcurrentResumeStartsOnlyOneNewSegment(t *testing.T) {
 	if success != 1 {
 		t.Fatalf("%d resumes succeeded: %+v", success, outputs)
 	}
+	// The winning resume has now finished; an old CAS must still fail rather
+	// than bypassing the segment check through the completed replay branch.
+	assertError(t, invokeAs(t, testController, 2, retainedResumeArgs(dir, "concurrent_resume", "1", "1")...), "stale_segment")
 	if final := retainedInspect(t, dir, "concurrent_resume"); final["segment"] != float64(2) || final["effect_count"] != float64(2) {
 		t.Fatalf("multiple execution segments: %+v", final)
 	}

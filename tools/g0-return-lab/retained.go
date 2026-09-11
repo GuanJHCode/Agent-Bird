@@ -74,6 +74,27 @@ type retainedSnapshot struct {
 	LivenessChecked  bool   `json:"liveness_checked"`
 }
 
+func isRetainedCommand(sub string) bool {
+	return sub == "retained-start" || sub == "retained-inspect" || sub == "retained-resume"
+}
+
+// A stopped retained process must not hang on its final diagnostic when a native
+// exec/PTY merges stderr into the same full stream as stdout. This affects only
+// retained commands; the caller still exits with its original fixed error code.
+func writeRetainedError(value any) {
+	done := make(chan struct{}, 1)
+	go func() {
+		json.NewEncoder(os.Stderr).Encode(value)
+		done <- struct{}{}
+	}()
+	timer := time.NewTimer(250 * time.Millisecond)
+	defer timer.Stop()
+	select {
+	case <-done:
+	case <-timer.C:
+	}
+}
+
 func parseRetained(args []string) (retainedOptions, error) {
 	o := retainedOptions{sub: args[0]}
 	fs := flag.NewFlagSet(o.sub, flag.ContinueOnError)
@@ -159,7 +180,17 @@ func retainedTrustedFile(root *os.Root, name string, info os.FileInfo, stage boo
 		other = name[1 : len(name)-4]
 	}
 	paired, err := root.Lstat(other)
-	return err == nil && owned(paired, 0600) && os.SameFile(info, paired)
+	if err == nil && owned(paired, 0600) && os.SameFile(info, paired) {
+		return true
+	}
+	// The publisher may have removed its staging link after our initial Stat.
+	// Recheck the same inode at the original path before calling it foreign.
+	current, err := root.Lstat(name)
+	if err != nil || !owned(current, 0600) || current.Size() > 4096 || !os.SameFile(info, current) {
+		return false
+	}
+	currentStat, ok := current.Sys().(*syscall.Stat_t)
+	return ok && currentStat.Nlink == 1
 }
 
 func retainedReadJSON(root *os.Root, name string, value any) error {
@@ -401,7 +432,7 @@ func writeRetainedState(root *os.Root, state retainedState) error {
 // Only this goroutine writes task state/effects. The cancellable output goroutine
 // writes stdout bytes only, so signal/deadline handling cannot release the lease
 // while another business writer remains active.
-func runRetainedSegment(ctx context.Context, root *os.Root, task retainedTask, state retainedState) error {
+func runRetainedSegment(ctx context.Context, root *os.Root, task retainedTask, state retainedState, parent int) error {
 	emit := func() error {
 		value := retainedSnapshotOf(task, state)
 		done := make(chan error, 1)
@@ -423,6 +454,9 @@ func runRetainedSegment(ctx context.Context, root *os.Root, task retainedTask, s
 		if err := writeRetainedState(root, state); err != nil {
 			return failure("checkpoint_uncertain")
 		}
+		if errors.Is(cause, context.Canceled) && context.Cause(ctx) == failure("parent_exited") {
+			return failure("parent_exited")
+		}
 		if errors.Is(cause, context.DeadlineExceeded) {
 			return failure("timeout")
 		}
@@ -431,10 +465,16 @@ func runRetainedSegment(ctx context.Context, root *os.Root, task retainedTask, s
 		}
 		return cause
 	}
+	if os.Getppid() != parent {
+		return stop(failure("parent_exited"))
+	}
 	if err := emit(); err != nil {
 		return stop(err)
 	}
 	for state.CompletedSteps < task.TotalSteps {
+		if os.Getppid() != parent {
+			return stop(failure("parent_exited"))
+		}
 		timer := time.NewTimer(time.Duration(task.IntervalMS) * time.Millisecond)
 		select {
 		case <-ctx.Done():
@@ -444,6 +484,9 @@ func runRetainedSegment(ctx context.Context, root *os.Root, task retainedTask, s
 		}
 		if err := ctx.Err(); err != nil {
 			return stop(err)
+		}
+		if os.Getppid() != parent {
+			return stop(failure("parent_exited"))
 		}
 		next := state.CompletedSteps + 1
 		now := time.Now().UTC().Format(time.RFC3339Nano)
@@ -474,6 +517,10 @@ func runRetained(args []string) error {
 	}
 	if o.sub != "retained-inspect" && os.Getenv("CODEX_THREAD_ID") != o.controller {
 		return failure("thread_mismatch")
+	}
+	parent := os.Getppid()
+	if o.sub != "retained-inspect" && parent <= 1 {
+		return failure("orphaned_parent")
 	}
 	root, err := openPrivateDir(o.dir)
 	if err != nil {
@@ -517,8 +564,27 @@ func runRetained(args []string) error {
 	}
 	interrupted, stopSignals := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer stopSignals()
-	ctx, cancel := context.WithTimeout(interrupted, 120*time.Second)
+	parentContext, parentExited := context.WithCancelCause(interrupted)
+	defer parentExited(nil)
+	ctx, cancel := context.WithTimeout(parentContext, 120*time.Second)
 	defer cancel()
+	// This observes only our direct launch parent, not an inferred TUI identity.
+	// It owns no task writes. Parent loss also interrupts blocked stdout output.
+	go func() {
+		ticker := time.NewTicker(20 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			if os.Getppid() != parent {
+				parentExited(failure("parent_exited"))
+				return
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+			}
+		}
+	}()
 	var task retainedTask
 	var state retainedState
 	if o.sub == "retained-start" {
@@ -559,7 +625,7 @@ func runRetained(args []string) error {
 					return failure("checkpoint_uncertain")
 				}
 			}
-			return runRetainedSegment(ctx, root, task, state)
+			return runRetainedSegment(ctx, root, task, state, parent)
 		}
 		if !validRevision(state.Segment + 1) {
 			return failure("segment_limit")
@@ -572,5 +638,5 @@ func runRetained(args []string) error {
 	if err := writeRetainedState(root, state); err != nil {
 		return failure("checkpoint_uncertain")
 	}
-	return runRetainedSegment(ctx, root, task, state)
+	return runRetainedSegment(ctx, root, task, state, parent)
 }

@@ -65,11 +65,16 @@ func main() {
 			code = string(f)
 		}
 		// Do not print paths, arbitrary file data, environment, or OS error strings.
-		json.NewEncoder(os.Stderr).Encode(struct {
+		output := struct {
 			Version int    `json:"version"`
 			Status  string `json:"status"`
 			Error   string `json:"error"`
-		}{1, "error", code})
+		}{1, "error", code}
+		if len(os.Args) > 1 && isRetainedCommand(os.Args[1]) {
+			writeRetainedError(output)
+		} else {
+			json.NewEncoder(os.Stderr).Encode(output)
+		}
 		if code == "timeout" {
 			os.Exit(3)
 		}
@@ -147,7 +152,7 @@ func run(args []string) error {
 	if runtime.GOOS != "darwin" {
 		return failure("unsupported_platform")
 	}
-	if len(args) > 0 && (args[0] == "retained-start" || args[0] == "retained-inspect" || args[0] == "retained-resume") {
+	if len(args) > 0 && isRetainedCommand(args[0]) {
 		return runRetained(args)
 	}
 	o, err := parse(args)

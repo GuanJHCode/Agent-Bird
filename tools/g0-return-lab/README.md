@@ -4,6 +4,8 @@
 
 The optional owner/revision/ACK experiment is documented in [ACK.md](ACK.md). Build that variant as `data/g0-return-lab-ack`; keep a running baseline binary unchanged. Without `--controller-thread`, the original start metadata and four-field read/wait output remain unchanged.
 
+The separate foreground `retained-start`, `retained-inspect`, and `retained-resume` lifecycle is documented in [RETAINED.md](RETAINED.md). It stops when its direct caller exits, preserves fixed step artifacts, and continues only after an explicit matching resume. The detached command behavior described below is unchanged.
+
 Build with Go 1.26 or newer; the module uses only the standard library:
 
 ```sh
