@@ -1,0 +1,28 @@
+=== RUN   TestInspectBindsActualResultAndProducerRevision
+--- PASS: TestInspectBindsActualResultAndProducerRevision (0.76s)
+=== RUN   TestACKDuplicateCommandsUseOneDecisionAndEffectRecord
+=== RUN   TestACKDuplicateCommandsUseOneDecisionAndEffectRecord/handled
+=== RUN   TestACKDuplicateCommandsUseOneDecisionAndEffectRecord/waiting_user
+=== RUN   TestACKDuplicateCommandsUseOneDecisionAndEffectRecord/stale
+=== RUN   TestACKDuplicateCommandsUseOneDecisionAndEffectRecord/rejected
+--- PASS: TestACKDuplicateCommandsUseOneDecisionAndEffectRecord (1.09s)
+    --- PASS: TestACKDuplicateCommandsUseOneDecisionAndEffectRecord/handled (0.29s)
+    --- PASS: TestACKDuplicateCommandsUseOneDecisionAndEffectRecord/waiting_user (0.30s)
+    --- PASS: TestACKDuplicateCommandsUseOneDecisionAndEffectRecord/stale (0.32s)
+    --- PASS: TestACKDuplicateCommandsUseOneDecisionAndEffectRecord/rejected (0.18s)
+=== RUN   TestACKRejectsOtherThreadHashAndInvalidArguments
+--- PASS: TestACKRejectsOtherThreadHashAndInvalidArguments (0.18s)
+=== RUN   TestRevisionBeforeCompletionAndCancellationRejectOldWork
+--- PASS: TestRevisionBeforeCompletionAndCancellationRejectOldWork (0.89s)
+=== RUN   TestACKRecoversAfterCommittedProcessDiesBeforeResponse
+--- PASS: TestACKRecoversAfterCommittedProcessDiesBeforeResponse (0.27s)
+=== RUN   TestACKAndReviseSerializeAndLateRetryFails
+--- PASS: TestACKAndReviseSerializeAndLateRetryFails (0.21s)
+=== RUN   TestACKRecoversUnpublishedStageAndRejectsUnsafeLock
+--- PASS: TestACKRecoversUnpublishedStageAndRejectsUnsafeLock (0.16s)
+=== RUN   TestRetainedCompletedResumeDoesNotRepeatEffects
+--- PASS: TestRetainedCompletedResumeDoesNotRepeatEffects (0.27s)
+=== RUN   TestRetainedReconcilesCompletedArtifactWithOlderRunningState
+--- PASS: TestRetainedReconcilesCompletedArtifactWithOlderRunningState (0.30s)
+PASS
+ok  	g0-return-lab	5.602s

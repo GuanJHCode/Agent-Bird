@@ -1,0 +1,430 @@
+{
+  "captured_at": "2026-09-11T08:39:38.729038+00:00",
+  "binary_version": "codex-cli 0.153.4",
+  "binary_sha256": "b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3",
+  "command": "codex app-server generate-json-schema --experimental --out <owned-temp-schema>",
+  "generated_json_files": 416,
+  "scope": "schema only; no connection, server start, model call, configuration override, or native delivery",
+  "schemas": {
+    "TurnStartParams": {
+      "sha256": "b36fb37326b1cf69f75c8b306f1f886d53a57c4b1b985e08e298e2407ea2ad02",
+      "root_fields": [
+        "additionalContext",
+        "approvalPolicy",
+        "approvalsReviewer",
+        "clientUserMessageId",
+        "collaborationMode",
+        "cwd",
+        "cyberAccessProgram",
+        "effort",
+        "environments",
+        "input",
+        "model",
+        "multiAgentMode",
+        "outputSchema",
+        "permissions",
+        "personality",
+        "responsesapiClientMetadata",
+        "runtimeWorkspaceRoots",
+        "sandboxPolicy",
+        "serviceTier",
+        "serviceTierForTurn",
+        "summary",
+        "threadId",
+        "toolOutput",
+        "turnTrigger"
+      ],
+      "required": [
+        "input",
+        "threadId"
+      ],
+      "TurnToolOutput": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "namespace": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "output": {
+            "$ref": "#/definitions/FunctionCallOutputBody"
+          }
+        },
+        "required": [
+          "name",
+          "output"
+        ],
+        "type": "object"
+      }
+    },
+    "TurnStartResponse": {
+      "sha256": "6fc49c3e5d0ce11a3a109ae194619b04d6e3ff98fa29bac683fdb754608958be",
+      "root_fields": [
+        "turn"
+      ],
+      "required": [
+        "turn"
+      ],
+      "Turn": {
+        "fields": [
+          "completedAt",
+          "durationMs",
+          "error",
+          "id",
+          "items",
+          "itemsView",
+          "startedAt",
+          "status"
+        ],
+        "required": [
+          "id",
+          "items",
+          "status"
+        ]
+      },
+      "functionCallOutput": [
+        {
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "namespace": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "output": {
+              "$ref": "#/definitions/FunctionCallOutputBody"
+            },
+            "type": {
+              "enum": [
+                "functionCallOutput"
+              ],
+              "title": "FunctionCallOutputThreadItemType",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "name",
+            "output",
+            "type"
+          ],
+          "title": "FunctionCallOutputThreadItem",
+          "type": "object"
+        }
+      ]
+    },
+    "ThreadReadParams": {
+      "sha256": "dfe040c6ac71d30795b8be3f3ff232e66f362a37f883b491e5d1ea367f470db4",
+      "root_fields": [
+        "includeTurns",
+        "threadId"
+      ],
+      "required": [
+        "threadId"
+      ]
+    },
+    "ThreadReadResponse": {
+      "sha256": "de0ec065bbe9c6288d76517cbab64949b544074ed782a314ccea872b70bbfa48",
+      "root_fields": [
+        "thread"
+      ],
+      "required": [
+        "thread"
+      ],
+      "Turn": {
+        "fields": [
+          "completedAt",
+          "durationMs",
+          "error",
+          "id",
+          "items",
+          "itemsView",
+          "startedAt",
+          "status"
+        ],
+        "required": [
+          "id",
+          "items",
+          "status"
+        ]
+      },
+      "ThreadHistoryMode": {
+        "enum": [
+          "legacy",
+          "paginated"
+        ],
+        "type": "string"
+      },
+      "functionCallOutput": [
+        {
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "namespace": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "output": {
+              "$ref": "#/definitions/FunctionCallOutputBody"
+            },
+            "type": {
+              "enum": [
+                "functionCallOutput"
+              ],
+              "title": "FunctionCallOutputThreadItemType",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "name",
+            "output",
+            "type"
+          ],
+          "title": "FunctionCallOutputThreadItem",
+          "type": "object"
+        }
+      ]
+    },
+    "ThreadTurnsListParams": {
+      "sha256": "2a8b93d7d4437cc25e16a1dde16d8db3c338d39e16c5eece2a56e943a21577d7",
+      "root_fields": [
+        "cursor",
+        "itemsView",
+        "limit",
+        "sortDirection",
+        "threadId"
+      ],
+      "required": [
+        "threadId"
+      ]
+    },
+    "ThreadTurnsListResponse": {
+      "sha256": "45bffd91efc358859a1a54b8165c0a8b1c21ebc2a312da9f25d05ff27af798ee",
+      "root_fields": [
+        "backwardsCursor",
+        "data",
+        "nextCursor"
+      ],
+      "required": [
+        "data"
+      ],
+      "Turn": {
+        "fields": [
+          "completedAt",
+          "durationMs",
+          "error",
+          "id",
+          "items",
+          "itemsView",
+          "startedAt",
+          "status"
+        ],
+        "required": [
+          "id",
+          "items",
+          "status"
+        ]
+      },
+      "functionCallOutput": [
+        {
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "namespace": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "output": {
+              "$ref": "#/definitions/FunctionCallOutputBody"
+            },
+            "type": {
+              "enum": [
+                "functionCallOutput"
+              ],
+              "title": "FunctionCallOutputThreadItemType",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "name",
+            "output",
+            "type"
+          ],
+          "title": "FunctionCallOutputThreadItem",
+          "type": "object"
+        }
+      ]
+    },
+    "ThreadItemsListParams": {
+      "sha256": "ff56040c327ecdd30ef02affac9bc71fab64031e8980f2b4fea9fd8a888160b4",
+      "root_fields": [
+        "cursor",
+        "limit",
+        "sortDirection",
+        "threadId",
+        "turnId"
+      ],
+      "required": [
+        "threadId"
+      ]
+    },
+    "ThreadItemsListResponse": {
+      "sha256": "886369490fec07067597460301b3d5c1dc9aedc41ea42522cae397d8babe6156",
+      "root_fields": [
+        "backwardsCursor",
+        "data",
+        "nextCursor"
+      ],
+      "required": [
+        "data"
+      ],
+      "ThreadItemEntry": {
+        "properties": {
+          "item": {
+            "$ref": "#/definitions/ThreadItem"
+          },
+          "turnId": {
+            "description": "Turn containing this item.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "item",
+          "turnId"
+        ],
+        "type": "object"
+      },
+      "functionCallOutput": [
+        {
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "namespace": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "output": {
+              "$ref": "#/definitions/FunctionCallOutputBody"
+            },
+            "type": {
+              "enum": [
+                "functionCallOutput"
+              ],
+              "title": "FunctionCallOutputThreadItemType",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "name",
+            "output",
+            "type"
+          ],
+          "title": "FunctionCallOutputThreadItem",
+          "type": "object"
+        }
+      ]
+    },
+    "ThreadQueueAddParams": {
+      "sha256": "39bda9d790b315eea17fc04298afb0135a8b43e7d375b54eaa4a2e88ad0d4aff",
+      "root_fields": [
+        "clientUserMessageId",
+        "input",
+        "threadId"
+      ],
+      "required": [
+        "clientUserMessageId",
+        "input",
+        "threadId"
+      ]
+    },
+    "ThreadQueueListParams": {
+      "sha256": "b4c889089eee8a0f785ff85e0128a4d3f347353870fa848221096a472223773b",
+      "root_fields": [
+        "cursor",
+        "limit",
+        "threadId"
+      ],
+      "required": [
+        "threadId"
+      ]
+    },
+    "ThreadQueueListResponse": {
+      "sha256": "fe3251d1d4099a1642ff9df36f92a15cb5d4e8187d7f012a11c73cda16627fbd",
+      "root_fields": [
+        "data",
+        "nextCursor"
+      ],
+      "required": [
+        "data"
+      ],
+      "QueuedSubmission": {
+        "properties": {
+          "clientUserMessageId": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "input": {
+            "items": {
+              "$ref": "#/definitions/UserInput"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "clientUserMessageId",
+          "id",
+          "input"
+        ],
+        "type": "object"
+      }
+    }
+  },
+  "request_method_count": 155,
+  "relevant_method_names": [
+    "thread/queue/add",
+    "thread/queue/list",
+    "thread/queue/update",
+    "thread/queue/delete",
+    "thread/queue/reorder",
+    "thread/queue/start",
+    "thread/compact/start",
+    "thread/read",
+    "thread/turns/list",
+    "thread/items/list"
+  ],
+  "public_negative_receipt_or_queue_fence_found": false,
+  "negative_field_claim_scope": "No such field found in the inspected schemas; not proof no internal capability exists.",
+  "queue_scope": "thread/queue/list is QueuedSubmission with input:UserInput[]; it is not evidence that standalone FunctionCallOutput pending input is drained."
+}

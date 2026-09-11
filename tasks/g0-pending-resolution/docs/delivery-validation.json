@@ -1,0 +1,76 @@
+{
+  "captured_at": "2026-09-11T08:42:52.752241+00:00",
+  "base_commit": "cd3d0547c807b36e403aca5a85ac34221ab247dc",
+  "implementation_commit": "c0a0fe3",
+  "scope": "G0 offline evidence checker only; no native positive, no service authentication, no business ACK provenance authentication, no Go production change",
+  "tests": [
+    {
+      "command": "go test -v -count=1 -timeout=90s -run <nine selected ACK/retained tests> ./...",
+      "exit_code": 0,
+      "test_cases": 9,
+      "duration_seconds": 5.602,
+      "log": "delivery-existing-tests.log"
+    },
+    {
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tasks/g0-pending-resolution/scripts -p delivery_audit_test.py",
+      "phase": "interface RED before implementation",
+      "exit_code": 1,
+      "test_cases": 11,
+      "assertion_failures": 9,
+      "duration_seconds": 0.772,
+      "log": "delivery-audit-red.log"
+    },
+    {
+      "command": "same unittest command",
+      "phase": "new conflict/summary regressions RED",
+      "exit_code": 1,
+      "test_cases": 13,
+      "assertion_failures": 2,
+      "duration_seconds": 1.082,
+      "log": "delivery-audit-conflict-red.log"
+    },
+    {
+      "command": "same unittest command",
+      "phase": "final source GREEN",
+      "exit_code": 0,
+      "test_cases": 13,
+      "duration_seconds": 1.076,
+      "log": "delivery-audit-green.log"
+    },
+    {
+      "command": "python3 tasks/g0-pending-resolution/scripts/delivery_audit.py --input tasks/g0-pending-resolution/docs/delivery-audit-example.json",
+      "exit_code": 0,
+      "scope": "synthetic fixture only",
+      "result": "delivery-audit-example-result.json"
+    }
+  ],
+  "source_commit": "3d2ee51ca2d5db578f328aa75e20aa22c0197c9a",
+  "fixed_source_sha256": {
+    "app-server/src/request_processors/turn_processor.rs": "272560df374f40afd142f058445a051701b4b658a365c0542085903d3a8cc7b9",
+    "core/src/session/turn_input.rs": "3fea6964c72551bae84e2082f9abc6ba2c8381991e09fdd4ca30a6b0354224ed",
+    "core/src/session/input_queue.rs": "449287b2cefa2577fb17275e0bc39d804c79bb7685ff7cfd83dc8ffd2dc1724c",
+    "core/src/hook_runtime.rs": "87b678af0f9ea87e0de6041fe82f9f90315b0b18c10524731deba9b7f9841f1e"
+  },
+  "files": {
+    "tasks/g0-pending-resolution/scripts/delivery_audit.py": "3ca4df69fa70549b5b46234a971e36d98250f0dec03d2a8996b8aad26ef27638",
+    "tasks/g0-pending-resolution/scripts/delivery_audit_test.py": "ee1127e595c0c69d160e528bbd7e5b41bd0deede552f6ac150d7120b2b45734a"
+  },
+  "cleanup": [
+    {
+      "path": "tasks/g0-pending-resolution/docs/delivery-schema",
+      "owned_by_this_task": true,
+      "files": 416,
+      "bytes": 4137012,
+      "removed": true
+    },
+    {
+      "path": "tasks/g0-pending-resolution/docs/delivery-test-cache",
+      "owned_by_this_task": true,
+      "files": 1098,
+      "bytes": 68366639,
+      "removed": true
+    }
+  ],
+  "independent_review": "pending",
+  "original_docs_or_go_changes": []
+}
