@@ -1,0 +1,83 @@
+{
+  "scope": "synthetic offline actual c2 main returns, no native evidence",
+  "helper_commit": "c2b30e0cf98a3c9bb501822bb81f44294fdb6c70",
+  "outputs": [
+    {
+      "version": 1,
+      "status": "rejected",
+      "reason": "native_rpc_error",
+      "source_service_verified": false,
+      "resend_authorized": false,
+      "absence_proof": false,
+      "rpc_error": {
+        "method": "initialize",
+        "request_id": 1,
+        "code": -32601,
+        "message_bytes": 23,
+        "message_sha256": "60757d460a948bf7b2085be40d8967453d75f1a0f87e12d351e5f89d2561dabd"
+      }
+    },
+    {
+      "version": 1,
+      "status": "rejected",
+      "reason": "native_rpc_error",
+      "source_service_verified": false,
+      "resend_authorized": false,
+      "absence_proof": false,
+      "rpc_error": {
+        "method": "thread/read",
+        "request_id": 4,
+        "code": -32601,
+        "message_bytes": 23,
+        "message_sha256": "60757d460a948bf7b2085be40d8967453d75f1a0f87e12d351e5f89d2561dabd"
+      }
+    },
+    {
+      "version": 1,
+      "status": "uncertain",
+      "reason": "native_rpc_error",
+      "source_service_verified": false,
+      "resend_authorized": false,
+      "absence_proof": false,
+      "rpc_error": {
+        "method": "turn/start",
+        "request_id": 5,
+        "code": -32601,
+        "message_bytes": 23,
+        "message_sha256": "60757d460a948bf7b2085be40d8967453d75f1a0f87e12d351e5f89d2561dabd"
+      }
+    },
+    {
+      "version": 1,
+      "scope": "one_bound_native_root",
+      "status": "uncertain",
+      "reason": "native_rpc_error",
+      "source_service_verified": false,
+      "current_display_verified": false,
+      "controller_evidence_sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+      "facts": {},
+      "go_inspection": null,
+      "rpc_checks": {
+        "diagnostics_pid": 1234,
+        "remote_control_status": "disabled",
+        "native_binary_pinned": true,
+        "machine_binding_checked": true,
+        "source_service_verified": false,
+        "current_display_verified": false
+      },
+      "frames": 6,
+      "bytes": 1087,
+      "server_requests_seen": 0,
+      "last_frame_sha256": "ff91bfd3d355b1d9622886435d8c779d9391a5e77adc3d49c20961d07cc037c7",
+      "absence_proof": false,
+      "resend_authorized": false,
+      "rpc_error": {
+        "method": "thread/read",
+        "request_id": 6,
+        "code": -32601,
+        "message_bytes": 23,
+        "message_sha256": "60757d460a948bf7b2085be40d8967453d75f1a0f87e12d351e5f89d2561dabd"
+      }
+    }
+  ]
+}

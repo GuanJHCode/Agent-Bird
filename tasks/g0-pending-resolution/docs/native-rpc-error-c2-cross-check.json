@@ -1,0 +1,113 @@
+{
+  "version": 1,
+  "scope": "offline actual c2 main returns only; no native or model calls",
+  "producer_commit": "c2b30e0cf98a3c9bb501822bb81f44294fdb6c70",
+  "producer_sha256": "7ac746213b306c3c0e0b7a3b784c79fad51cb7cbca488e22be668d621c0a89dc",
+  "fixture_sha256": "091de1d59a3d7599a0205f9df1622e9585ecf6df25fc478559de6a3cb360d3ed",
+  "red": {
+    "consumer_commit": "e6b02bd9a814532031f5c6c586b037b98cfa31c2",
+    "consumer_sha256": "73d2df8e1b8bca428e866ae42f094f5fb57a884490c4a6abae4e05d38efd7ac1",
+    "producer_reproduction_exit_code": 1,
+    "exact_preservation": [
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "green": {
+    "consumer_sha256": "a9c4bc203ed2d4e704aa03613f67a1101d1c00ebae7d449acf4f1e348ef7d80a",
+    "producer_reproduction_exit_code": 0,
+    "exact_preservation": [
+      true,
+      true,
+      true,
+      true
+    ],
+    "local_tests": 35,
+    "local_tests_seconds": 0.759
+  },
+  "stages": [
+    {
+      "status": "rejected",
+      "method": "initialize",
+      "request_id": 1
+    },
+    {
+      "status": "rejected",
+      "method": "thread/read",
+      "request_id": 4
+    },
+    {
+      "status": "uncertain",
+      "method": "turn/start",
+      "request_id": 5
+    },
+    {
+      "status": "uncertain",
+      "method": "thread/read",
+      "request_id": 6
+    }
+  ],
+  "cleanup": {
+    "owned_copied_directory": "tasks/g0-pending-resolution/tmp/rpc-cross-c2",
+    "files": [
+      {
+        "path": "rpc-main-outputs.json",
+        "bytes": 2569
+      },
+      {
+        "path": "rpc-summary-red.json",
+        "bytes": 724
+      },
+      {
+        "path": "runtime03-interface.json",
+        "bytes": 1626
+      },
+      {
+        "path": "chain.log",
+        "bytes": 98
+      },
+      {
+        "path": "reproduce-rpc-summary.py",
+        "bytes": 1992
+      },
+      {
+        "path": "rpc-summary-cross.json",
+        "bytes": 675
+      },
+      {
+        "path": "controller/native_sd_pty.py",
+        "bytes": 5859
+      },
+      {
+        "path": "controller/native_sd_control.py",
+        "bytes": 38937
+      },
+      {
+        "path": "controller/native_sd_clock.py",
+        "bytes": 328
+      },
+      {
+        "path": "controller/native_sd_collect.py",
+        "bytes": 14010
+      },
+      {
+        "path": "helper/native_standalone.py",
+        "bytes": 37890
+      },
+      {
+        "path": "helper/delivery_audit.py",
+        "bytes": 10755
+      },
+      {
+        "path": "helper/native_standalone_test.py",
+        "bytes": 39407
+      }
+    ],
+    "file_count": 13,
+    "bytes": 154870,
+    "reason": "fixed producer replay completed; fixture and source refs retained",
+    "directory_removed": true
+  }
+}

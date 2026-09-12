@@ -63,11 +63,16 @@ def helper_rpc_error_fields(raw):
         value=json.loads(raw.decode('utf-8'),object_pairs_hook=unique,parse_constant=reject_constant)
     except (ValueError,UnicodeError,RecursionError): return None
     keys={'version','status','reason','source_service_verified','resend_authorized','rpc_error'}
-    if (type(value) is not dict or set(value) not in (keys,keys|{'absence_proof'})
+    observation_keys=keys|{'scope','current_display_verified','controller_evidence_sha256','facts','go_inspection',
+                           'rpc_checks','frames','bytes','server_requests_seen','last_frame_sha256','absence_proof'}
+    if (type(value) is not dict or set(value) not in (keys,keys|{'absence_proof'},observation_keys)
             or type(value['version']) is not int or value['version']!=1
             or value['status'] not in ('rejected','uncertain') or value['reason']!='native_rpc_error'
             or value['source_service_verified'] is not False or value['resend_authorized'] is not False
             or ('absence_proof' in value and value['absence_proof'] is not False)): return None
+    if set(value)==observation_keys and (value['scope']!='one_bound_native_root' or value['status']!='uncertain'
+                                        or value['current_display_verified'] is not False): return None
+    # Observation context does not authorize this diagnostic and is never exported here.
     error=value['rpc_error']; fields={'method','request_id','code','message_bytes','message_sha256'}
     if (type(error) is not dict or set(error)!=fields
             or error['method'] not in ('initialize','server/diagnostics','remoteControl/status/read','thread/read','turn/start')

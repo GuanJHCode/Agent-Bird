@@ -19,6 +19,30 @@ from native_sd_control import require_owned_pair
 
 
 class ControlTests(unittest.TestCase):
+    def test_all_four_actual_c2_main_error_returns_keep_exact_summary(self):
+        path=Path(__file__).with_name('fixtures')/'native-rpc-error-c2-outputs.json'
+        captured=json.loads(path.read_text())
+        self.assertEqual(captured['helper_commit'],'c2b30e0cf98a3c9bb501822bb81f44294fdb6c70')
+        self.assertEqual(len(captured['outputs']),4)
+        for value in captured['outputs']:
+            with self.subTest(method=value['rpc_error']['method'],request_id=value['rpc_error']['request_id']):
+                got=control.helper_rpc_error_fields(json.dumps(value).encode())
+                self.assertEqual(got,value['rpc_error'])
+
+    def test_observe_summary_checks_outer_flags_and_discards_context_without_export(self):
+        path=Path(__file__).with_name('fixtures')/'native-rpc-error-c2-outputs.json'
+        original=json.loads(path.read_text())['outputs'][-1]
+        for change in ({'scope':'CANARY_PRIVATE_TEXT'},{'current_display_verified':True},
+                       {'absence_proof':True},{'status':'observed'},{'extra':'CANARY_PRIVATE_TEXT'}):
+            projected=control.helper_rpc_error_fields(json.dumps(dict(original,**change)).encode())
+            self.assertIsNone(projected)
+            self.assertNotIn('CANARY_PRIVATE_TEXT',json.dumps(projected))
+        for field in ('facts','go_inspection','rpc_checks','controller_evidence_sha256'):
+            value=dict(original,**{field:{'raw':'CANARY_PRIVATE_TEXT'}})
+            projected=control.helper_rpc_error_fields(json.dumps(value).encode())
+            self.assertEqual(projected,original['rpc_error'])
+            self.assertNotIn('CANARY_PRIVATE_TEXT',json.dumps(projected))
+
     def test_only_sd03_is_registered_for_the_new_model_case(self):
         self.assertEqual(control.c.NONCE,'sd-qual-03')
         self.assertEqual(control.CASE.name,'sd-qual-03')
