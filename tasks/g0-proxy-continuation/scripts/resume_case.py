@@ -264,6 +264,12 @@ def verify_preflight(
     actual = _source_hashes(config, spec)
     if dict(expected_hashes) != actual:
         raise RuntimeInvariantError("resume source/config changed after preflight")
+    expected_endpoints = [
+        _endpoint_probe(spec.frontend_socket),
+        _endpoint_probe(spec.backend_socket),
+    ]
+    if record.get("endpoints") != expected_endpoints:
+        raise RuntimeInvariantError("resume endpoint preflight changed")
     if not case_created and os.path.lexists(spec.case_dir):
         raise RuntimeInvariantError("resume case directory appeared before execution")
     if os.path.lexists(spec.frontend_socket) or os.path.lexists(spec.backend_socket):
