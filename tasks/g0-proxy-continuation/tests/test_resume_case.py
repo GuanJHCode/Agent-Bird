@@ -134,6 +134,16 @@ def test_silent_resume_rejects_model_or_thread_start():
         validate_silent_resume(bridge)
 
 
+def test_silent_resume_rejects_unknown_server_turn_started():
+    bridge = SimpleNamespace(
+        trace=[{"event": "rpc_unknown", "direction": "server", "method": "turn/started"}],
+        trace_complete=True,
+        model_turns=0,
+    )
+    with pytest.raises(Exception, match="not silent"):
+        validate_silent_resume(bridge)
+
+
 def test_retained_resume_trace_readonly_projection_is_replayed_only_synthetically():
     import json
 
