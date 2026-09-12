@@ -142,5 +142,16 @@
     "original_case_job_files_retained": 19,
     "duplicate_generated_controller_doc_removed_only_after_byte_match_and_restored_from_commit": true,
     "preexisting_untracked_coverage_and_pycache_left_untouched": true
+  },
+  "luna_and_ack_capture_cleanup": {
+    "luna_probe_service_pid": 76523,
+    "luna_probe_service_absent": true,
+    "luna_probe_socket_and_runtime_directory_absent": true,
+    "new_worktrees_removed_without_force": [
+      "tasks/g0-test-model/tmp/worktree",
+      "tasks/g0-ack-capture/tmp/worktree"
+    ],
+    "source_branches_and_evidence_retained": true,
+    "preexisting_coverage_and_pycache_left_untouched": true
   }
 }

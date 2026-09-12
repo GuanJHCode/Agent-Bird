@@ -1,6 +1,6 @@
 # 剩余 G0 能力：实施与候选验证
 
-日期：2026-09-12；基线 `cd3d054`。状态：sd08 已通过单个受控原生样本：真正 idle 后，真实工具输出进入同一 root 的新轮并完成一次业务 ACK，`effect_count=1`；正常退出和自有资源清理已验证，事实经独立复核整合。后续测试按用户要求改为低价 Luna，项目配置已落地，实际生效读取待完成。通用当前 TUI 附着、完整交付对账与完整 G0 仍未通过。
+日期：2026-09-12；基线 `cd3d054`。状态：sd08 已通过单个受控原生样本：真正 idle 后，真实工具输出进入同一 root 的新轮并完成一次业务 ACK，`effect_count=1`；正常退出和自有资源清理已验证，事实经独立复核整合。后续测试按用户要求改为低价 Luna，项目配置已落地，并通过原生只读接口确认实际生效。通用当前 TUI 附着、完整交付对账与完整 G0 仍未通过。
 
 本轮将 idle 回传、当前 TUI 附着、完整交付对账交给三个 subagent，使用独立 worktree；主会话编排、核对边界和整合，另一 reviewer 审查。上轮退出停止、记录保留、原会话明确续接的结果保持。
 
@@ -33,7 +33,7 @@ sd08 的 native 51 项、helper 35 项独立验证通过；固定新版组件的
 
 sd08 的 19 个原 case/job 文件及 6 个冻结脚本摘要已重新核对，独立 reviewer 对事实提交 `5cc30b2` 判定 PASS，主树整合为 `ca2c4e6`。唯一原生 `functionCallOutput` 的历史阳性、新轮结束与 Go ACK 相互对应；收据本身仍不等于历史交付。原离线捕获的 ACK 数组为空、分页链完整性未证明，这两项限制保留。[sd08 实测](native-sd-qual-08-result.md)、[原始摘要](native-sd-qual-08-artifacts.json)
 
-后续模型测试配置为 `gpt-5.6-luna`、`medium`，不使用或回退到 Astra。静态 TOML 校验通过，尚未启动新的模型样本；原生实际生效模型须先经零模型读取确认。sd08 原样本保留，新模型组合单独计数。重复同类受控样本不能补齐当前附着和故障恢复的缺失前提，不为凑次数启动矩阵。[模型约束](../plans/contract.md)、[测试配置](../../g0-macos/data/test-repo/.codex/config.toml)
+后续模型测试配置为 `gpt-5.6-luna`、`medium`，不使用或回退到 Astra。静态 TOML 校验及一次原生零模型读取通过：实际 model/effort 均来自 active 的测试项目层，requirements=null。读取阶段 12.734917 ms，正常退出并清理自有 socket；5 项保护摘要保持一致，尚未启动新的模型样本。[实际读取](../../g0-test-model/docs/effective-config-read-01.json)、[运行收据](../../g0-test-model/docs/runtime-receipt-01.json)。sd08 原样本保留，新模型组合单独计数。重复同类受控样本不能补齐当前附着和故障恢复的缺失前提，不为凑次数启动矩阵。[模型约束](../plans/contract.md)、[测试配置](../../g0-macos/data/test-repo/.codex/config.toml)
 
 已修复后续采集固定导出 `acks: []` 的遗漏：`observe()` 将经过 Go 记录校验且匹配本次事件的 ACK 投影进新生成的审计输入。主树 88 项原生工具测试、15 项对账测试通过；整链回归经过实际 `observe`、文件写入、`validate_go` 与审计器，使用真实 sd08 ACK 副本及合成 RPC 历史。它不改写已存在的历史捕获，也不补算分页完整性、来源认证或完整 C11。[验证与清理](../../g0-ack-capture/docs/verification.json)
 

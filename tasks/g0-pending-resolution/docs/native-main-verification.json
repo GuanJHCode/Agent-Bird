@@ -360,7 +360,7 @@
     "superseded_by": "sd08_result",
     "runtime_sources_ready": false,
     "native_runtime_currently_running": false,
-    "next_model_run_blocked_until": "Luna effective-config verification and fresh registered case"
+    "next_model_run_blocked_until": "fresh case registration and runtime freeze; Luna project model verified, generic attachment still incomplete"
   },
   "sd07_admission": {
     "version": 1,
@@ -549,9 +549,14 @@
     "config_integrated_commit": "bf46cc5",
     "scope": "test_repo_only",
     "static_validation_exit_code": 0,
-    "live_effective_model_verified": false,
+    "live_effective_model_verified": true,
     "new_model_cases_started": 0,
-    "astra_fallback_allowed": false
+    "astra_fallback_allowed": false,
+    "read_fact_source_commit": "fda6ce4",
+    "read_integrated_commit": "a7a02b8",
+    "live_report": "../../g0-test-model/docs/effective-config-read-01.json",
+    "native_read_count": 1,
+    "owned_resources_released": true
   },
   "future_ack_capture": {
     "source_commit": "2254481",

@@ -6,16 +6,41 @@
     "path": "/Users/guanjunhui/.codex/tmp/agent-model-routing-20260805/app-server-schema/codex_app_server_protocol.v2.schemas.json",
     "sha256": "632b1201e888aaa77e7b5d0deb12ca6003f160ae09b3213c31803d19c0f5be2a",
     "fields": {
-      "ConfigReadParams": ["cwd", "includeLayers"],
-      "ConfigReadResponse_required": ["config", "origins"],
-      "ConfigLayerMetadata_required": ["name", "version"],
-      "ConfigLayer": ["config", "disabledReason", "name", "version"],
-      "ConfigLayerSource_project_required": ["dotCodexFolder", "type"],
+      "ConfigReadParams": [
+        "cwd",
+        "includeLayers"
+      ],
+      "ConfigReadResponse_required": [
+        "config",
+        "origins"
+      ],
+      "ConfigLayerMetadata_required": [
+        "name",
+        "version"
+      ],
+      "ConfigLayer": [
+        "config",
+        "disabledReason",
+        "name",
+        "version"
+      ],
+      "ConfigLayerSource_project_required": [
+        "dotCodexFolder",
+        "type"
+      ],
       "ConfigLayerSource_project_type": "project",
-      "ConfigRequirementsReadResponse_properties": ["requirements"],
+      "ConfigRequirementsReadResponse_properties": [
+        "requirements"
+      ],
       "ConfigRequirementsReadResponse_required": [],
-      "ModelsRequirements": ["newThread"],
-      "NewThreadModelDefaults": ["model", "modelReasoningEffort", "serviceTier"]
+      "ModelsRequirements": [
+        "newThread"
+      ],
+      "NewThreadModelDefaults": [
+        "model",
+        "modelReasoningEffort",
+        "serviceTier"
+      ]
     }
   },
   "config_path": "tasks/g0-macos/data/test-repo/.codex/config.toml",
@@ -55,7 +80,10 @@
     "status": "pending_live_read_only_check",
     "method": "fixed 0.154 app-server config/read over the existing private UDS",
     "cwd": "tasks/g0-macos/data/test-repo",
-    "request_fields": ["cwd", "includeLayers"],
+    "request_fields": [
+      "cwd",
+      "includeLayers"
+    ],
     "required_assertions": [
       "effective model equals gpt-5.6-luna",
       "effective model source is the project layer or its resolved project config layer",
@@ -76,5 +104,18 @@
     "global_profile": null,
     "testrepo_trust": "trusted",
     "verification_scope": "read-only allowlisted fields in the main session"
+  },
+  "live_effective_config": {
+    "status": "read_complete",
+    "report": "effective-config-read-01.json",
+    "receipt": "runtime-receipt-01.json",
+    "model": "gpt-5.6-luna",
+    "effort": "medium",
+    "origins": "active test-repo project layer",
+    "requirements": null,
+    "model_calls": 0,
+    "owned_resources_released": true,
+    "main_review": "5 protection hashes, raw stdout reconstruction hash, PID absence and socket/runtime absence independently checked",
+    "preparation_worktree_removed_without_force": true
   }
 }
