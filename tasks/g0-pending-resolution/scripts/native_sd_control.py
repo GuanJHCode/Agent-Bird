@@ -316,6 +316,7 @@ def run(helper_sha,audit_sha):
                     validate_process_identity(current); validate_socket_identity(sock)
                     service_identity=current; break
             except ValueError: pass  # Only the new child can still be between fork and exec.
+        if continuous_ns()>=deadline: raise TimeoutError('native service startup exceeded ten seconds')
         if service_identity is None: raise TimeoutError('native service did not become ready in ten seconds')
         note('start_tui'); tui=NativePTY(['codex'],str(c.REPO)); deadline=continuous_ns()+10000000000
         record['substage']='tui_wait_native'

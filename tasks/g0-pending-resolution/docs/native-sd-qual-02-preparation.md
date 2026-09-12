@@ -11,3 +11,5 @@
 针对 RAW artifact 被旧时钟代码拒绝、以及缺少固定错误诊断的两条检查先 RED，修后 20 项测试 GREEN。另保留源/输入此前各自 RED→GREEN；清理了本 worktree 的 6 个旧 `native_sd_*.pyc`，后续测试和 helper 调用使用 `-B`。helper clock 需与该协议独立复核通过，再由主会话统一现场 preflight 后下发执行。
 
 主会话另已授权一次仅供本实验的 `/usr/bin/caffeinate -i -t 300 -w <controller_pid>`，用于降低自动 idle sleep 干扰；它属于外层运行准备，未加入 native argv、系统睡眠配置或产品代码，不改变任何期限，也不能阻止手动 sleep。运行后仍须核对其退出。
+
+对冻结版 `5f2eed8` 的服务就绪尾部期限缺口补了定点回归：分别让 `process`、`snapshot_socket` 查询返回时 RAW 达到原 10 秒截止，直接调用控制器完整 `run`（服务/TUI/系统探针均替换为本地测试对象，没有启动原生实例）。原实现两个子例均 RED：`NativePTY` 仍被调用一次。生产修复只在身份与 socket 校验完成后、进入 `start_tui` 前加原 deadline 检查；新实现拒绝启动 TUI，并记录 `continuous_deadline_exceeded` / `service_wait_socket`。命令 `python3 -B -m unittest native_sd_collect_test native_sd_pty_test native_sd_control_test -v` 最新输出 `Ran 21 tests in 0.328s / OK`；未改变预算或注册其他样本。

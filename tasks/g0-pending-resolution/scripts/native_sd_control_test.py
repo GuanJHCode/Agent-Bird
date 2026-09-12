@@ -2,6 +2,7 @@
 import unittest
 import json
 import copy
+from contextlib import ExitStack
 import datetime as dt
 import functools
 import os
@@ -12,11 +13,51 @@ import sys
 import tempfile
 import time
 from unittest.mock import patch
+from types import SimpleNamespace
 import native_sd_control as control
 from native_sd_control import require_owned_pair
 
 
 class ControlTests(unittest.TestCase):
+    def test_service_probe_crossing_original_deadline_cannot_start_tui(self):
+        identity={'pid':101,'ppid':100,'uid':os.getuid(),'comm':'codex','native_executable_matches':True,
+                  'started_at_local':'Fri Sep 11 18:00:00 2026'}
+        socket={'path':str(control.c.SOCKET),'exists':True,'dev':1,'ino':2,'uid':os.getuid(),
+                'mode':'0600','service_holds_path':True}
+        service=SimpleNamespace(pid=101,read=lambda seconds:None,_poll=lambda:None,
+                                evidence=lambda:{'pid':101,'exit_code':None})
+        for delayed_probe in ('process','socket'):
+            with self.subTest(delayed_probe=delayed_probe),tempfile.TemporaryDirectory() as name,ExitStack() as patches:
+                base=Path(name); executable=base/'fixture'; executable.write_text('fixture')
+                docs=base/'docs'; docs.mkdir(); raw=[0]
+                def process(pid):
+                    if delayed_probe=='process': raw[0]=10000000000
+                    return identity
+                def snapshot(pid=None):
+                    if pid is None: return {'exists':False}
+                    if delayed_probe=='socket': raw[0]=10000000000
+                    return socket
+                for attr,value in (('CASE',base/'case'),('JOB',base/'job'),('DOCS',docs),
+                                   ('HELPER',executable),('AUDIT',executable)):
+                    patches.enter_context(patch.object(control,attr,value))
+                for attr,value in (('CLI',executable),('GO',executable),('CLI_SHA','0'*64),('GO_SHA','0'*64)):
+                    patches.enter_context(patch.object(control.c,attr,value))
+                patches.enter_context(patch.object(control.c,'sha',return_value='0'*64))
+                patches.enter_context(patch.object(control.c,'protected_files',return_value={}))
+                patches.enter_context(patch.object(control.c,'process',side_effect=process))
+                patches.enter_context(patch.object(control.c,'snapshot_socket',side_effect=snapshot))
+                patches.enter_context(patch.object(control,'continuous_ns',side_effect=lambda:raw[0]))
+                patches.enter_context(patch.object(control,'OwnedService',return_value=service))
+                tui=patches.enter_context(patch.object(control,'NativePTY',side_effect=ValueError('unexpected TUI start')))
+                patches.enter_context(patch.object(control.subprocess,'run',return_value=subprocess.CompletedProcess(
+                    [],0,stdout='01a08e0b-bd0d-7400-b069-d50978939cde\n')))
+                patches.enter_context(patch('builtins.print'))
+                self.assertEqual(control.run('0'*64,'0'*64),2)
+                tui.assert_not_called()
+                result=json.loads((base/'case/controller-result.json').read_text())
+                self.assertEqual(result['failure']['code'],'continuous_deadline_exceeded')
+                self.assertEqual(result['failure']['substage'],'service_wait_socket')
+
     def test_failure_record_keeps_fixed_code_and_clock_without_exception_text(self):
         try:
             control.c.window('2026-09-11T10:00:00Z','2026-09-11T10:02:01Z',dt.datetime(2026,9,11,10,3,tzinfo=dt.timezone.utc))
