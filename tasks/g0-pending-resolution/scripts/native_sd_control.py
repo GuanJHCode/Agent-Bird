@@ -44,6 +44,33 @@ def failure_fields(error,substage):
             'at':stamp(),'clock':clock_pair(),'source_frames':frames}
 
 
+def helper_rpc_error_fields(raw):
+    if type(raw) is not bytes or not 0<len(raw)<=65536: return None
+    def unique(pairs):
+        result={}
+        for key,value in pairs:
+            if key in result: raise ValueError('duplicate JSON key')
+            result[key]=value
+        return result
+    def reject_constant(value): raise ValueError('non-JSON constant')
+    try:
+        value=json.loads(raw.decode('utf-8'),object_pairs_hook=unique,parse_constant=reject_constant)
+    except (ValueError,UnicodeError,RecursionError): return None
+    keys={'version','status','reason','source_service_verified','resend_authorized','rpc_error'}
+    if (type(value) is not dict or set(value) not in (keys,keys|{'absence_proof'})
+            or type(value['version']) is not int or value['version']!=1
+            or value['status'] not in ('rejected','uncertain') or value['reason']!='native_rpc_error'
+            or value['source_service_verified'] is not False or value['resend_authorized'] is not False
+            or ('absence_proof' in value and value['absence_proof'] is not False)): return None
+    error=value['rpc_error']; fields={'method','request_id','code','message_bytes','message_sha256'}
+    if (type(error) is not dict or set(error)!=fields
+            or error['method'] not in ('initialize','server/diagnostics','remoteControl/status/read','thread/read','turn/start')
+            or not c.integer(error['request_id'],1,10000) or not c.integer(error['code'],-2**63,2**63-1)
+            or not c.integer(error['message_bytes'],0,65536) or type(error['message_sha256']) is not str
+            or re.fullmatch(r'[0-9a-f]{64}',error['message_sha256']) is None): return None
+    return {key:error[key] for key in ('method','request_id','code','message_bytes','message_sha256')}
+
+
 def read_send_attempt(root,boot_id,binding_sha,begin_ns):
     path=CASE/'send-attempt.json'
     if (not c.valid_id(root) or not c.valid_id(boot_id) or type(binding_sha) is not str
@@ -314,10 +341,14 @@ def run(helper_sha,audit_sha):
         stdout,stderr=helper_proc.communicate(timeout=2)
         if (mode!='send-once' or attempt_seen) and continuous_ns()>deadline_ns:
             raise TimeoutError('helper returned beyond original continuous deadline')
-        record.setdefault('helper_calls',[]).append({'mode':mode,'started_at':wall,'ended_at':stamp(),
+        helper_call={'mode':mode,'started_at':wall,'ended_at':stamp(),
             'elapsed_seconds':(continuous_ns()-begin_ns)/1000000000,'exit_code':helper_proc.returncode,
             'stdout_bytes':len(stdout),'stdout_sha256':hashlib.sha256(stdout).hexdigest(),
-            'stderr_bytes':len(stderr),'stderr_sha256':hashlib.sha256(stderr).hexdigest()})
+            'stderr_bytes':len(stderr),'stderr_sha256':hashlib.sha256(stderr).hexdigest()}
+        rpc_error=helper_rpc_error_fields(stdout)
+        if rpc_error is not None: helper_call['rpc_error']=rpc_error
+        elif helper_proc.returncode!=0: helper_call['rpc_error_unavailable']=True
+        record.setdefault('helper_calls',[]).append(helper_call)
         completed_window=require_helper_success(mode,helper_proc.returncode,record['root'],boot_id,binding_sha,begin_ns)
         if mode=='send-once':
             if attempt_seen and record['callback_window']!=completed_window: raise ValueError('send attempt changed during observation')

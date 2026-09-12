@@ -19,6 +19,33 @@ from native_sd_control import require_owned_pair
 
 
 class ControlTests(unittest.TestCase):
+    def test_helper_rpc_error_projection_is_typed_and_drops_raw_content(self):
+        error={'method':'thread/read','request_id':4,'code':-32601,'message_bytes':31,'message_sha256':'a'*64}
+        envelope={'version':1,'status':'rejected','reason':'native_rpc_error','source_service_verified':False,
+                  'resend_authorized':False,'absence_proof':False,'rpc_error':error}
+        self.assertEqual(control.helper_rpc_error_fields(json.dumps(envelope).encode()),error)
+        envelope['status']='uncertain'
+        self.assertEqual(control.helper_rpc_error_fields(json.dumps(envelope).encode()),error)
+        for change in ({'method':'CANARY_PRIVATE_TEXT'},{'request_id':True},{'request_id':10001},
+                       {'code':True},{'code':2**63},{'message_bytes':True},{'message_bytes':65537},
+                       {'message_sha256':'CANARY_PRIVATE_TEXT'},{'message':'CANARY_PRIVATE_TEXT'}):
+            raw=json.dumps(dict(envelope,rpc_error=dict(error,**change))).encode()
+            self.assertIsNone(control.helper_rpc_error_fields(raw))
+        self.assertNotIn('CANARY_PRIVATE_TEXT',json.dumps(control.helper_rpc_error_fields(raw)))
+
+    def test_helper_rpc_error_projection_rejects_ambiguous_or_unbound_envelopes(self):
+        error={'method':'thread/read','request_id':4,'code':-32601,'message_bytes':31,'message_sha256':'a'*64}
+        envelope={'version':1,'status':'rejected','reason':'native_rpc_error','source_service_verified':False,
+                  'resend_authorized':False,'rpc_error':error}
+        for change in ({'version':True},{'status':'prepared'},{'reason':'invalid_data'},
+                       {'source_service_verified':True},{'resend_authorized':True},{'absence_proof':True},
+                       {'extra':'CANARY_PRIVATE_TEXT'}):
+            self.assertIsNone(control.helper_rpc_error_fields(json.dumps(dict(envelope,**change)).encode()))
+        raw=json.dumps(envelope).encode().replace(b'"code": -32601',b'"code": 1, "code": -32601')
+        self.assertIsNone(control.helper_rpc_error_fields(raw))
+        self.assertIsNone(control.helper_rpc_error_fields(b'{"CANARY_PRIVATE_TEXT":'))
+        self.assertIsNone(control.helper_rpc_error_fields(b' '*65537))
+
     def test_quit_actions_and_io_share_original_ten_second_window(self):
         for costs,read_cost,normal,actions in (([6000000000,3000000000],500000000,True,['quit-paste','quit-submit']),
                                               ([10000000001,0],0,False,['quit-paste']),
