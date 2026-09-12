@@ -40,14 +40,15 @@ class NativeActivationProbeTests(unittest.TestCase):
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-static void put(const char *path, const char *body) { FILE *f=fopen(path,"w"); if (!f) _exit(20); fputs(body,f); fclose(f); }
-static void birth(char *out, size_t n) { char cmd[64]; snprintf(cmd,sizeof(cmd),"/bin/ps -p %d -o lstart=",getpid()); FILE *p=popen(cmd,"r"); if (!p || !fgets(out,n,p)) _exit(21); pclose(p); out[strcspn(out,"\r\n")]=0; }
+#include <sys/stat.h>
+static void put(const char *path, const char *body) { FILE *f=fopen(path,"w"); if (!f) _exit(20); fchmod(fileno(f),0600); fputs(body,f); fclose(f); }
+static void birth(char *out, size_t n) { char cmd[64]; snprintf(cmd,sizeof(cmd),"/bin/ps -p %d -o lstart=",getpid()); FILE *p=popen(cmd,"r"); if (!p || !fgets(out,n,p)) _exit(21); pclose(p); out[strcspn(out,"\r\n")]=0; size_t z=strlen(out); while (z && out[z-1]==' ') out[--z]=0; }
 int main(int argc, char **argv) {
   if (argc == 2 && strcmp(argv[1],"--version")==0) { puts("fake-native 1"); return 0; }
-  char b[256], body[2048], *ready=getenv("PROBE_READY_RECEIPT_PATH"), *final=getenv("PROBE_FINAL_RECEIPT_PATH"), *profile=getenv("PROBE_PROFILE_ID"), *exe=getenv("PROBE_EXPECTED_EXECUTABLE");
+  char b[256], body[4096], *ready=getenv("PROBE_READY_RECEIPT_PATH"), *final=getenv("PROBE_FINAL_RECEIPT_PATH"), *profile=getenv("PROBE_PROFILE_ID"), *exe=getenv("PROBE_EXPECTED_EXECUTABLE"), *home=getenv("PROBE_EXPECTED_HOME_SHA256"), *manifest=getenv("PROBE_MANIFEST_SHA256");
   if (!ready || !final || !profile || !exe) return 22; birth(b,sizeof(b));
-  snprintf(body,sizeof(body),"{\"version\":1,\"milestone_only\":true,\"protocol_valid\":true,\"zero_turns\":true,\"profile_id\":\"%s\",\"frontend\":{\"pid\":%d,\"birth\":\"%s\",\"uid\":%d,\"exe\":\"%s\"},\"initialize\":{\"home_match\":true},\"thread\":{\"id\":\"synthetic-thread\",\"started_id\":\"synthetic-thread\"},\"turn_counts\":{\"start\":0,\"steer\":0}}",profile,getpid(),b,getuid(),exe);
-  put(ready,body); char input[256]; ssize_t n; while ((n=read(0,input,sizeof(input)-1))>0) { input[n]=0; if (strstr(input,"/status")) put(getenv("PROBE_STATUS_PATH"),"status"); if (strstr(input,"/quit")) { put(final,"{\"process_stopped\":true,\"socket_removed\":true,\"turn_counts\":{\"start\":0,\"steer\":0}}"); return 0; } } return 23;
+  snprintf(body,sizeof(body),"{\"version\":1,\"ready_published\":true,\"milestone_only\":true,\"protocol_valid\":true,\"zero_turns\":true,\"closed\":false,\"initialized\":true,\"manifest_sha256\":\"%s\",\"profile_id\":\"%s\",\"frontend\":{\"pid\":%d,\"birth\":\"%s\",\"uid\":%d,\"executable\":\"%s\"},\"initialize\":{\"home_match\":true,\"home_sha256\":\"%s\"},\"thread\":{\"id\":\"00000000-0000-4000-8000-000000000001\",\"started_id\":\"00000000-0000-4000-8000-000000000001\"},\"turn_counts\":{\"start\":0,\"steer\":0}}",manifest,profile,getpid(),b,getuid(),exe,home);
+  put(ready,body); char input[256]; ssize_t n; while ((n=read(0,input,sizeof(input)-1))>0) { input[n]=0; if (strstr(input,"/status")) { printf("Session: 00000000-0000-4000-8000-000000000001\n"); fflush(stdout); put(getenv("PROBE_STATUS_PATH"),"status"); } if (strstr(input,"/quit")) { put(final,"{\"backend_records\":[{\"process_stopped\":true,\"socket_removed\":true}],\"transport\":{\"protocol\":[{\"protocol_valid\":true,\"zero_turns\":true,\"closed\":true,\"turn_counts\":{\"start\":0,\"steer\":0}}]}}"); return 0; } } return 23;
 }
 ''',
             encoding="utf-8",
@@ -55,6 +56,9 @@ int main(int argc, char **argv) {
         self.fake_executable = self.fake_build / "fake-native"
         subprocess.run(["/usr/bin/cc", "-O0", str(fake_source), "-o", str(self.fake_executable)], check=True, timeout=10)
         self.fake_executable.chmod(0o700)
+        self.sandbox_shim = self.fake_build / "sandbox-shim"
+        self.sandbox_shim.write_text("#!/bin/sh\nshift 2\nexec \"$@\"\n", encoding="utf-8")
+        self.sandbox_shim.chmod(0o700)
         self.public = self.root / "public.sock"
         self.backend = self.root / "backend" / "b.sock"
         spec = IsolationSpec(
@@ -100,6 +104,7 @@ int main(int argc, char **argv) {
                 mode=mode,
                 credential_manifest=self.credential_manifest,
                 use_sandbox=use_sandbox,
+                allow_test_spawn=True,
                 **kwargs,
             )
         )
@@ -152,8 +157,28 @@ int main(int argc, char **argv) {
                 ready_receipt_path=ready,
                 final_receipt_path=final,
                 status_path=status,
-                use_sandbox=False,
+                use_sandbox=True,
             )
+
+    def test_fake_activation_success_consumes_service_receipts_and_matches_status_uuid(self) -> None:
+        state = self.supervisor / "state"
+        state.mkdir(mode=0o700)
+        ready = state / "ready-random-lease.json"
+        final = state / "activation.json"
+        probe = self._probe(
+            mode="activation",
+            manifest_sha256="a" * 64,
+            ready_receipt_path=ready,
+            final_receipt_path=final,
+            status_path=self.context.spec.home / "status",
+            use_sandbox=True,
+            sandbox_executable=self.sandbox_shim,
+        )
+        result = probe.run(target_args=(), wait_for_ready=False, send_status=True, send_quit=True)
+        self.assertEqual(result["child_exit"], 0)
+        self.assertEqual(result["status_session_ids"], ["00000000-0000-4000-8000-000000000001"])
+        self.assertTrue(result["ready"]["home_match"])
+        self.assertEqual(Path(result["final_receipt_path"]), final)
 
 
 if __name__ == "__main__":

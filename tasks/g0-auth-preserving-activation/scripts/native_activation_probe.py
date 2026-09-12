@@ -72,10 +72,13 @@ class ProbeSpec:
     credential_manifest: Path | None = None
     ready_path: Path | None = None
     ready_receipt_path: Path | None = None
+    ready_receipt_dir: Path | None = None
     final_receipt_path: Path | None = None
+    receipt_dir: Path | None = None
     status_path: Path | None = None
     report_path: Path | None = None
     use_sandbox: bool = True
+    allow_test_spawn: bool = False
     sandbox_executable: Path = Path("/usr/bin/sandbox-exec")
     timeout: float = 10.0
 
@@ -270,6 +273,10 @@ def build_probe_from_manifest(
     manifest_sha256: str | None = None,
     credential_manifest: Path | None = None,
     ready_path: Path | None = None,
+    ready_receipt_path: Path | None = None,
+    ready_receipt_dir: Path | None = None,
+    final_receipt_path: Path | None = None,
+    receipt_dir: Path | None = None,
     status_path: Path | None = None,
     use_sandbox: bool = True,
     timeout: float = MAX_LOCAL_SECONDS,
@@ -288,6 +295,10 @@ def build_probe_from_manifest(
             manifest_sha256=manifest_sha256,
             credential_manifest=credential_manifest,
             ready_path=ready_path,
+            ready_receipt_path=ready_receipt_path,
+            ready_receipt_dir=ready_receipt_dir,
+            final_receipt_path=final_receipt_path,
+            receipt_dir=receipt_dir,
             status_path=status_path,
             use_sandbox=use_sandbox,
             timeout=timeout,
@@ -352,6 +363,7 @@ def _spawn_pty_gate(argv: Sequence[str], env: dict[str, str], cwd: Path) -> tupl
 
 
 def _read_private_json(path: Path) -> dict[str, Any]:
+    _reject_symlink_components(path)
     info = path.lstat()
     if stat.S_ISLNK(info.st_mode) or not stat.S_ISREG(info.st_mode):
         raise ProbeError("receipt must be a regular file")
@@ -390,7 +402,8 @@ def _ready_receipt_matches(
         return False
     if frontend.get("pid") != pid or frontend.get("birth") != birth or frontend.get("uid") != os.getuid():
         return False
-    if os.path.realpath(str(frontend.get("exe", ""))) != os.path.realpath(str(context.expected_executable)):
+    frontend_executable = frontend.get("executable", frontend.get("exe", ""))
+    if os.path.realpath(str(frontend_executable)) != os.path.realpath(str(context.expected_executable)):
         return False
     if initialize.get("home_match") is not True:
         return False
@@ -408,14 +421,25 @@ def _ready_receipt_matches(
 
 
 def _final_receipt_complete(raw: dict[str, Any]) -> bool:
-    protocol = raw.get("transport", {}).get("protocol") if isinstance(raw.get("transport"), dict) else None
-    protocol = protocol if isinstance(protocol, dict) else raw
-    if protocol.get("protocol_valid") is not True or protocol.get("zero_turns") is not True:
-        return False
+    transport = raw.get("transport") if isinstance(raw.get("transport"), dict) else {}
+    protocols = transport.get("protocol")
+    if isinstance(protocols, list):
+        if not protocols or any(
+            not isinstance(row, dict)
+            or row.get("protocol_valid") is not True
+            or row.get("zero_turns") is not True
+            or any(row.get("turn_counts", {}).get(name) != 0 for name in ("start", "steer"))
+            for row in protocols
+        ):
+            return False
+    else:
+        protocol = protocols if isinstance(protocols, dict) else raw
+        if protocol.get("protocol_valid") is not True or protocol.get("zero_turns") is not True:
+            return False
+        counts = protocol.get("turn_counts")
+        if isinstance(counts, dict) and any(counts.get(name) != 0 for name in ("start", "steer")):
+            return False
     if raw.get("closed") is not True and "closed" in raw:
-        return False
-    counts = protocol.get("turn_counts")
-    if isinstance(counts, dict) and any(counts.get(name) != 0 for name in ("start", "steer")):
         return False
     records = raw.get("backend_records")
     if isinstance(records, list):
@@ -424,6 +448,19 @@ def _final_receipt_complete(raw: dict[str, Any]) -> bool:
             for row in records
         )
     return raw.get("process_stopped") is True and raw.get("socket_removed") is True
+
+
+def _receipt_candidates(path: Path | None, directory: Path | None, pattern: str) -> list[Path]:
+    if path is not None:
+        return [path]
+    if directory is None:
+        return []
+    try:
+        direct = list(directory.glob(pattern))
+        nested = [] if "/" in pattern else list(directory.glob(f"*/{pattern}"))
+        return sorted(direct + nested)
+    except OSError:
+        return []
 
 
 class NativeActivationProbe:
@@ -449,8 +486,11 @@ class NativeActivationProbe:
             raise ProbeError("probe timeout exceeds local bound")
         if self.spec.mode not in {"version", "activation"}:
             raise ProbeError("probe mode must be version or activation")
-        if self.spec.mode == "activation" and not self.spec.use_sandbox:
-            raise ProbeError("activation mode requires sandbox-exec")
+        if self.spec.credential_manifest is None:
+            raise ProbeError("probe requires the fixed credential path inventory")
+        load_credential_path_manifest(self.spec.credential_manifest)
+        if not self.spec.use_sandbox and not self.spec.allow_test_spawn:
+            raise ProbeError("native probe requires sandbox-exec")
         for supervisor_path in (self.spec.supervisor_root, self.spec.grants_dir):
             if not supervisor_path.is_absolute():
                 raise ProbeError("supervisor paths must be absolute")
@@ -473,10 +513,10 @@ class NativeActivationProbe:
         supervisor_root = self.spec.supervisor_root.resolve()
         if any(supervisor_root == root or root in supervisor_root.parents or supervisor_root in root.parents for root in profile_roots):
             raise ProbeError("supervisor root overlaps profile writable roots")
-        if self.spec.mode == "activation" and self.spec.ready_receipt_path is None:
-            raise ProbeError("activation mode requires a ready receipt")
-        if self.spec.mode == "activation" and self.spec.final_receipt_path is None:
-            raise ProbeError("activation mode requires a final cleanup receipt")
+        if self.spec.mode == "activation" and self.spec.ready_receipt_path is None and self.spec.ready_receipt_dir is None:
+            raise ProbeError("activation mode requires a ready receipt path or directory")
+        if self.spec.mode == "activation" and self.spec.final_receipt_path is None and self.spec.receipt_dir is None:
+            raise ProbeError("activation mode requires a final cleanup receipt path or directory")
         if self.spec.mode == "activation" and (
             not isinstance(self.spec.manifest_sha256, str) or len(self.spec.manifest_sha256) != 64
         ):
@@ -495,7 +535,7 @@ class NativeActivationProbe:
             roots = (context.spec.home.resolve(), context.spec.workspace.resolve(), (context.spec.task_root / "tmp").resolve())
             if not any(resolved == root or root in resolved.parents for root in roots):
                 raise ProbeError("probe evidence path must be below isolated roots")
-        for receipt_path in (self.spec.ready_receipt_path, self.spec.final_receipt_path):
+        for receipt_path in (self.spec.ready_receipt_path, self.spec.ready_receipt_dir, self.spec.final_receipt_path, self.spec.receipt_dir):
             if receipt_path is None:
                 continue
             if not receipt_path.is_absolute():
@@ -607,6 +647,11 @@ class NativeActivationProbe:
                 env["PROBE_READY_RECEIPT_PATH"] = str(self.spec.ready_receipt_path)
             if self.spec.final_receipt_path is not None:
                 env["PROBE_FINAL_RECEIPT_PATH"] = str(self.spec.final_receipt_path)
+            if self.spec.manifest_sha256 is not None:
+                env["PROBE_MANIFEST_SHA256"] = self.spec.manifest_sha256
+            env["PROBE_EXPECTED_HOME_SHA256"] = hashlib.sha256(str(context.spec.codex_home).encode("utf-8")).hexdigest()
+            env["PROBE_EXPECTED_EXECUTABLE"] = str(context.expected_executable)
+            env["PROBE_PROFILE_ID"] = self.spec.profile_id
             report["env_names"] = sorted(env)
             read_fd, write_fd = os.pipe()
             os.set_inheritable(read_fd, True)
@@ -646,17 +691,22 @@ class NativeActivationProbe:
             if self.spec.mode == "activation":
                 deadline = time.monotonic() + self.spec.timeout
                 while time.monotonic() < deadline:
+                    driver.read(min(0.05, max(0.01, deadline - time.monotonic())))
                     try:
-                        ready = _read_private_json(self.spec.ready_receipt_path)  # type: ignore[arg-type]
-                        if _ready_receipt_matches(ready, context, child_pid, child_birth, self.spec.manifest_sha256):
-                            report["ready"] = {
-                                "connection_id": ready.get("connection_id"),
-                                "epoch": ready.get("epoch"),
-                                "thread_id": ready.get("thread", {}).get("id"),
-                                "home_match": True,
-                            }
+                        for ready_path in _receipt_candidates(self.spec.ready_receipt_path, self.spec.ready_receipt_dir, "ready-*.json"):
+                            ready = _read_private_json(ready_path)
+                            if _ready_receipt_matches(ready, context, child_pid, child_birth, self.spec.manifest_sha256):
+                                report["ready"] = {
+                                    "path": str(ready_path),
+                                    "connection_id": ready.get("connection_id"),
+                                    "epoch": ready.get("epoch"),
+                                    "thread_id": ready.get("thread", {}).get("id"),
+                                    "home_match": True,
+                                }
+                                break
+                        if "ready" in report:
                             break
-                    except (FileNotFoundError, ProbeError, json.JSONDecodeError):
+                    except (FileNotFoundError, ProbeError, json.JSONDecodeError, OSError):
                         pass
                     time.sleep(0.01)
                 else:
@@ -666,16 +716,15 @@ class NativeActivationProbe:
                     time.sleep(0.01)
                 if not self.spec.ready_path.exists():
                     raise ProbeError("probe ready timeout")
-                driver.read(min(0.2, max(0.01, deadline - time.monotonic())))
-                if send_status:
-                    driver.command("/status")
-                    status_sent = True
-                    status_ids = sorted(driver.status_checkpoint(min(0.5, max(0.01, deadline - time.monotonic()))))
-                    report["status_session_ids"] = status_ids
-                    if self.spec.mode == "activation":
-                        expected_thread = report.get("ready", {}).get("thread_id")
-                        if status_ids != [expected_thread]:
-                            raise ProbeError("PTY status session does not match ready thread")
+            if send_status:
+                driver.command("/status")
+                status_sent = True
+                status_ids = sorted(driver.status_checkpoint(min(0.5, max(0.01, deadline - time.monotonic()))))
+                report["status_session_ids"] = status_ids
+                if self.spec.mode == "activation":
+                    expected_thread = report.get("ready", {}).get("thread_id")
+                    if status_ids != [expected_thread]:
+                        raise ProbeError("PTY status session does not match ready thread")
             if send_quit:
                 driver.command("/quit")
                 quit_sent = True
@@ -730,15 +779,25 @@ class NativeActivationProbe:
                 remove_default_socket_alias(context, self.spec.approved_public_socket, alias_identity)
             except (ProbeError, OSError) as exc:
                 cleanup_failures.append(type(exc).__name__)
-            if self.spec.mode == "activation" and self.spec.final_receipt_path is not None:
+            if self.spec.mode == "activation" and (
+                self.spec.final_receipt_path is not None or self.spec.receipt_dir is not None
+            ):
                 final_deadline = time.monotonic() + self.spec.timeout
                 final_ok = False
                 while time.monotonic() < final_deadline:
                     try:
-                        if _final_receipt_complete(_read_private_json(self.spec.final_receipt_path)):
-                            final_ok = True
+                        for final_path in _receipt_candidates(
+                            self.spec.final_receipt_path,
+                            self.spec.receipt_dir,
+                            "*/activation.json",
+                        ):
+                            if _final_receipt_complete(_read_private_json(final_path)):
+                                report["final_receipt_path"] = str(final_path)
+                                final_ok = True
+                                break
+                        if final_ok:
                             break
-                    except (FileNotFoundError, ProbeError, json.JSONDecodeError):
+                    except (FileNotFoundError, ProbeError, json.JSONDecodeError, OSError):
                         pass
                     time.sleep(0.01)
                 if not final_ok:
