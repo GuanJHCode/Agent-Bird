@@ -1,0 +1,42 @@
+{
+  "purpose": "Socket-only startup probe versus formal WebSocket epoch",
+  "retrieval": "All bodies reused from already verified fixed source archives; no new network/native/RPC request",
+  "files": [
+    {
+      "repository": "openai/codex",
+      "commit": "6b9826e3aa83b1a5947db50f4332cb9c65f1b340",
+      "upstream_path": "codex-rs/tui/src/lib.rs",
+      "url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/lib.rs",
+      "path": "codex-rs_tui_src_lib.rs",
+      "bytes": 139275,
+      "sha256": "fd85e541df5affb811f7133d967dcb294292c77bbce1e2cffc16eb670d3c34ec"
+    },
+    {
+      "repository": "openai/codex",
+      "commit": "6b9826e3aa83b1a5947db50f4332cb9c65f1b340",
+      "upstream_path": "codex-rs/tui/src/startup_orchestration.rs",
+      "url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/startup_orchestration.rs",
+      "path": "codex-rs_tui_src_startup_orchestration.rs",
+      "bytes": 23934,
+      "sha256": "ba8db963d8c180fa3428a6e9b0f233adf65339a730c15a288dabb0a7cff9d4be"
+    },
+    {
+      "repository": "openai/codex",
+      "commit": "6b9826e3aa83b1a5947db50f4332cb9c65f1b340",
+      "upstream_path": "codex-rs/tui/src/app_server_connection.rs",
+      "url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/app_server_connection.rs",
+      "path": "codex-rs_tui_src_app_server_connection.rs",
+      "bytes": 2114,
+      "sha256": "fb6274d63f73f3a76a0c127e1171a743cc7012b4ed9e6b6951b7281d164820cb"
+    },
+    {
+      "repository": "openai/codex",
+      "commit": "6b9826e3aa83b1a5947db50f4332cb9c65f1b340",
+      "upstream_path": "codex-rs/app-server-client/src/remote.rs",
+      "url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-client/src/remote.rs",
+      "path": "codex-rs_app-server-client_src_remote.rs",
+      "bytes": 44296,
+      "sha256": "6d61d61ba5132e25ccd16a413bad5ab2e7059c4798d2ee3b08e93a9c33bb0986"
+    }
+  ]
+}

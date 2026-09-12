@@ -1,0 +1,196 @@
+............................FFFFFFFFF                                    [100%]
+=================================== FAILURES ===================================
+________ test_real_cached02_closed_socket_probe_can_precede_live_anchor ________
+
+    def test_real_cached02_closed_socket_probe_can_precede_live_anchor():
+        p = module()
+        bridge = projected_startup_bridge()
+>       anchor = p.freeze_startup_anchor(bridge, 2)
+                 ^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'cached_switch_case' has no attribute 'freeze_startup_anchor'
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:503: AttributeError
+_____ test_startup_anchor_rejects_nonempty_unclosed_or_foreign_prefix[rpc] _____
+
+fault = 'rpc'
+
+    @pytest.mark.parametrize('fault', ['rpc', 'upgrade', 'gap', 'missing_close', 'foreign_peer', 'concurrent_live'])
+    def test_startup_anchor_rejects_nonempty_unclosed_or_foreign_prefix(fault):
+        p = module()
+        bridge = projected_startup_bridge()
+        if fault in {'rpc', 'upgrade', 'gap'}:
+            bridge.trace.insert(1, {'event': {'rpc':'rpc_unknown', 'upgrade':'websocket_upgrade', 'gap':'gap'}[fault], 'conn_epoch':1})
+        elif fault == 'missing_close':
+            bridge.trace[:] = [row for row in bridge.trace if row['event'] != 'connection_close']
+            for index, row in enumerate((row for row in bridge.trace if 'local_seq' in row), 1): row['local_seq'] = index
+        elif fault == 'foreign_peer':
+            next(record for record in bridge.connection_records.values() if record.epoch == 1).frontend_peer.pid += 1
+        else:
+            bridge.epoch_invalid.clear()
+        with pytest.raises(runtime.RuntimeInvariantError):
+>           p.freeze_startup_anchor(bridge, 2)
+            ^^^^^^^^^^^^^^^^^^^^^^^
+E           AttributeError: module 'cached_switch_case' has no attribute 'freeze_startup_anchor'
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:522: AttributeError
+___ test_startup_anchor_rejects_nonempty_unclosed_or_foreign_prefix[upgrade] ___
+
+fault = 'upgrade'
+
+    @pytest.mark.parametrize('fault', ['rpc', 'upgrade', 'gap', 'missing_close', 'foreign_peer', 'concurrent_live'])
+    def test_startup_anchor_rejects_nonempty_unclosed_or_foreign_prefix(fault):
+        p = module()
+        bridge = projected_startup_bridge()
+        if fault in {'rpc', 'upgrade', 'gap'}:
+            bridge.trace.insert(1, {'event': {'rpc':'rpc_unknown', 'upgrade':'websocket_upgrade', 'gap':'gap'}[fault], 'conn_epoch':1})
+        elif fault == 'missing_close':
+            bridge.trace[:] = [row for row in bridge.trace if row['event'] != 'connection_close']
+            for index, row in enumerate((row for row in bridge.trace if 'local_seq' in row), 1): row['local_seq'] = index
+        elif fault == 'foreign_peer':
+            next(record for record in bridge.connection_records.values() if record.epoch == 1).frontend_peer.pid += 1
+        else:
+            bridge.epoch_invalid.clear()
+        with pytest.raises(runtime.RuntimeInvariantError):
+>           p.freeze_startup_anchor(bridge, 2)
+            ^^^^^^^^^^^^^^^^^^^^^^^
+E           AttributeError: module 'cached_switch_case' has no attribute 'freeze_startup_anchor'
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:522: AttributeError
+_____ test_startup_anchor_rejects_nonempty_unclosed_or_foreign_prefix[gap] _____
+
+fault = 'gap'
+
+    @pytest.mark.parametrize('fault', ['rpc', 'upgrade', 'gap', 'missing_close', 'foreign_peer', 'concurrent_live'])
+    def test_startup_anchor_rejects_nonempty_unclosed_or_foreign_prefix(fault):
+        p = module()
+        bridge = projected_startup_bridge()
+        if fault in {'rpc', 'upgrade', 'gap'}:
+            bridge.trace.insert(1, {'event': {'rpc':'rpc_unknown', 'upgrade':'websocket_upgrade', 'gap':'gap'}[fault], 'conn_epoch':1})
+        elif fault == 'missing_close':
+            bridge.trace[:] = [row for row in bridge.trace if row['event'] != 'connection_close']
+            for index, row in enumerate((row for row in bridge.trace if 'local_seq' in row), 1): row['local_seq'] = index
+        elif fault == 'foreign_peer':
+            next(record for record in bridge.connection_records.values() if record.epoch == 1).frontend_peer.pid += 1
+        else:
+            bridge.epoch_invalid.clear()
+        with pytest.raises(runtime.RuntimeInvariantError):
+>           p.freeze_startup_anchor(bridge, 2)
+            ^^^^^^^^^^^^^^^^^^^^^^^
+E           AttributeError: module 'cached_switch_case' has no attribute 'freeze_startup_anchor'
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:522: AttributeError
+_ test_startup_anchor_rejects_nonempty_unclosed_or_foreign_prefix[missing_close] _
+
+fault = 'missing_close'
+
+    @pytest.mark.parametrize('fault', ['rpc', 'upgrade', 'gap', 'missing_close', 'foreign_peer', 'concurrent_live'])
+    def test_startup_anchor_rejects_nonempty_unclosed_or_foreign_prefix(fault):
+        p = module()
+        bridge = projected_startup_bridge()
+        if fault in {'rpc', 'upgrade', 'gap'}:
+            bridge.trace.insert(1, {'event': {'rpc':'rpc_unknown', 'upgrade':'websocket_upgrade', 'gap':'gap'}[fault], 'conn_epoch':1})
+        elif fault == 'missing_close':
+            bridge.trace[:] = [row for row in bridge.trace if row['event'] != 'connection_close']
+            for index, row in enumerate((row for row in bridge.trace if 'local_seq' in row), 1): row['local_seq'] = index
+        elif fault == 'foreign_peer':
+            next(record for record in bridge.connection_records.values() if record.epoch == 1).frontend_peer.pid += 1
+        else:
+            bridge.epoch_invalid.clear()
+        with pytest.raises(runtime.RuntimeInvariantError):
+>           p.freeze_startup_anchor(bridge, 2)
+            ^^^^^^^^^^^^^^^^^^^^^^^
+E           AttributeError: module 'cached_switch_case' has no attribute 'freeze_startup_anchor'
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:522: AttributeError
+_ test_startup_anchor_rejects_nonempty_unclosed_or_foreign_prefix[foreign_peer] _
+
+fault = 'foreign_peer'
+
+    @pytest.mark.parametrize('fault', ['rpc', 'upgrade', 'gap', 'missing_close', 'foreign_peer', 'concurrent_live'])
+    def test_startup_anchor_rejects_nonempty_unclosed_or_foreign_prefix(fault):
+        p = module()
+        bridge = projected_startup_bridge()
+        if fault in {'rpc', 'upgrade', 'gap'}:
+            bridge.trace.insert(1, {'event': {'rpc':'rpc_unknown', 'upgrade':'websocket_upgrade', 'gap':'gap'}[fault], 'conn_epoch':1})
+        elif fault == 'missing_close':
+            bridge.trace[:] = [row for row in bridge.trace if row['event'] != 'connection_close']
+            for index, row in enumerate((row for row in bridge.trace if 'local_seq' in row), 1): row['local_seq'] = index
+        elif fault == 'foreign_peer':
+            next(record for record in bridge.connection_records.values() if record.epoch == 1).frontend_peer.pid += 1
+        else:
+            bridge.epoch_invalid.clear()
+        with pytest.raises(runtime.RuntimeInvariantError):
+>           p.freeze_startup_anchor(bridge, 2)
+            ^^^^^^^^^^^^^^^^^^^^^^^
+E           AttributeError: module 'cached_switch_case' has no attribute 'freeze_startup_anchor'
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:522: AttributeError
+_ test_startup_anchor_rejects_nonempty_unclosed_or_foreign_prefix[concurrent_live] _
+
+fault = 'concurrent_live'
+
+    @pytest.mark.parametrize('fault', ['rpc', 'upgrade', 'gap', 'missing_close', 'foreign_peer', 'concurrent_live'])
+    def test_startup_anchor_rejects_nonempty_unclosed_or_foreign_prefix(fault):
+        p = module()
+        bridge = projected_startup_bridge()
+        if fault in {'rpc', 'upgrade', 'gap'}:
+            bridge.trace.insert(1, {'event': {'rpc':'rpc_unknown', 'upgrade':'websocket_upgrade', 'gap':'gap'}[fault], 'conn_epoch':1})
+        elif fault == 'missing_close':
+            bridge.trace[:] = [row for row in bridge.trace if row['event'] != 'connection_close']
+            for index, row in enumerate((row for row in bridge.trace if 'local_seq' in row), 1): row['local_seq'] = index
+        elif fault == 'foreign_peer':
+            next(record for record in bridge.connection_records.values() if record.epoch == 1).frontend_peer.pid += 1
+        else:
+            bridge.epoch_invalid.clear()
+        with pytest.raises(runtime.RuntimeInvariantError):
+>           p.freeze_startup_anchor(bridge, 2)
+            ^^^^^^^^^^^^^^^^^^^^^^^
+E           AttributeError: module 'cached_switch_case' has no attribute 'freeze_startup_anchor'
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:522: AttributeError
+________ test_closed_probe_full_journey_keeps_only_new_epoch_candidate _________
+
+tmp_path = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/tmp/probe-harness/tasks/g0-cached-switch-boundary/tmp/pytest-anchor-red/test_closed_probe_full_journey0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x108a543d0>
+
+    def test_closed_probe_full_journey_keeps_only_new_epoch_candidate(tmp_path, monkeypatch):
+        p = module()
+        spec = make_spec(tmp_path)
+        factory, instances = fake_runtime(monkeypatch, startup_probe=True)
+        result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
+>       assert result['status'] == 'observed', result
+E       AssertionError: {'case': 'case', 'status': 'unknown', 'source_commit': '6b9826e3aa83b1a5947db50f4332cb9c65f1b340', 'crossterm_commit': '45fecb9508105988f42fe6ff0441783ed3717f92', ...}
+E       assert 'unknown' == 'observed'
+E
+E         - observed
+E         + unknown
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:530: AssertionError
+______ test_new_even_closed_probe_after_first_status_cannot_change_anchor ______
+
+tmp_path = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/tmp/probe-harness/tasks/g0-cached-switch-boundary/tmp/pytest-anchor-red/test_new_even_closed_probe_aft0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x108a56970>
+
+    def test_new_even_closed_probe_after_first_status_cannot_change_anchor(tmp_path, monkeypatch):
+        p = module()
+        spec = make_spec(tmp_path)
+        factory, instances = fake_runtime(monkeypatch, startup_probe=True, late_probe=True)
+        result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
+        assert result['status'] == 'unknown'
+        assert instances[0].tui_driver.side_starts == 0
+>       assert result['startup_anchor']['epoch'] == 2
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'startup_anchor'
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:544: KeyError
+=========================== short test summary info ============================
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_real_cached02_closed_socket_probe_can_precede_live_anchor
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_startup_anchor_rejects_nonempty_unclosed_or_foreign_prefix[rpc]
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_startup_anchor_rejects_nonempty_unclosed_or_foreign_prefix[upgrade]
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_startup_anchor_rejects_nonempty_unclosed_or_foreign_prefix[gap]
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_startup_anchor_rejects_nonempty_unclosed_or_foreign_prefix[missing_close]
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_startup_anchor_rejects_nonempty_unclosed_or_foreign_prefix[foreign_peer]
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_startup_anchor_rejects_nonempty_unclosed_or_foreign_prefix[concurrent_live]
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_closed_probe_full_journey_keeps_only_new_epoch_candidate
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_new_even_closed_probe_after_first_status_cannot_change_anchor
+9 failed, 28 passed in 0.22s

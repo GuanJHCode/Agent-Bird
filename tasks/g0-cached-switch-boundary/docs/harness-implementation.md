@@ -29,3 +29,5 @@ PYTHONDONTWRITEBYTECODE=1 python3 -B -m pytest -q tasks/g0-tui-proxy/tests tasks
 首次入口更正的固定源码、配置与 termios 证据见 `side-entry-diagnostic.md`。旧 cached01 原案不变。将测试替身改为固定源码的“无 side 时 toggle no-op”后，旧实现出现 `12 failed / 16 passed`；最小入口修复后新套件 `28 passed in 0.14s`。
 
 本次首次入口修复后的新鲜同进程组合：旧 162 + cached 28，`190 passed in 1.61s`，见 `side-entry-combined-tests.log`。随后仅归档来源/文档，未再改源码。
+
+启动探活边界修复：以既有 inferer 的 P candidate 冻结 live anchor，允许同 owned 双 peer、无协议且已在 anchor open 前双 EOF/close 的启动探活前缀。首 status 后不允许新连接/epoch，不复用旧证据。详见 `startup-anchor-boundary.md`；实案 safe projection 与负例 TDD 由 `9 failed / 28 passed` 转为通过，最终旧 162 + cached 38 在同进程 `200 passed in 1.64s`，日志 `startup-anchor-combined-tests.log`。

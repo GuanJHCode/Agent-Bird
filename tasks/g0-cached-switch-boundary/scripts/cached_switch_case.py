@@ -25,7 +25,7 @@ if str(_RESUME_SCRIPTS) not in sys.path:
 import resume_case as resume  # noqa: E402
 from proxy_native_runtime import (  # noqa: E402
     AttachmentCandidate, CaseDirectory, DEFAULT_CLI, NativeRuntime,
-    RuntimeInvariantError, _connection_summary, canonical_resume_thread_id, raw_seconds,
+    RuntimeInvariantError, _connection_summary, _peer_matches, canonical_resume_thread_id, raw_seconds,
 )
 
 SOURCE_COMMIT = '6b9826e3aa83b1a5947db50f4332cb9c65f1b340'
@@ -164,13 +164,61 @@ def fork_summary(rows: list[dict[str, Any]], epoch: int, primary: str) -> dict[s
     return result
 
 
-def _live(runtime: Any, bridge: Any, tui: Any, epoch: int) -> None:
+@dataclass(frozen=True)
+class StartupAnchor:
+    epoch: int
+    closed_probe_epochs: tuple[int, ...]
+    connection_sha256: str
+    trace_count: int
+    trace_sha256: str
+
+
+def _digest(value: Any) -> str:
+    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+
+
+def _connection_digest(bridge: Any) -> str:
+    return _digest([_connection_summary(record) for _, record in sorted(bridge.connection_records.items())])
+
+
+def freeze_startup_anchor(bridge: Any, epoch: int) -> StartupAnchor:
+    """Keep only closed, owned, socket-only startup probes before the live anchor."""
     validate_zero_model(bridge)
-    if (tui.poll() is not None or bridge.epoch_invalid.get(epoch) is not None
-            or len(bridge.connection_records) != 1
-            or not any(record.epoch == epoch for record in bridge.connection_records.values())
+    records = list(bridge.connection_records.values())
+    epochs = {record.epoch for record in records}
+    if (len(epochs) != len(records) or epoch not in epochs or getattr(bridge, 'identity_errors', {})
+            or any(not _peer_matches(record.frontend_peer, bridge.frontend_identity)
+                   or not _peer_matches(record.backend_peer, bridge.backend_identity) for record in records)
+            or {record.epoch for record in records if record.epoch not in bridge.epoch_invalid} != {epoch}):
+        raise RuntimeInvariantError('startup anchor must have one live owned peer pair')
+    opens = [i for i, row in enumerate(bridge.trace)
+             if row.get('conn_epoch') == epoch and row.get('event') == 'connection_open']
+    if len(opens) != 1 or any(row.get('conn_epoch') not in epochs for row in bridge.trace):
+        raise RuntimeInvariantError('startup anchor connection boundary missing')
+    old_epochs = tuple(sorted(epochs - {epoch}))
+    for old in old_epochs:
+        indexed = [(i, row) for i, row in enumerate(bridge.trace) if row.get('conn_epoch') == old]
+        rows = [row for _, row in indexed]
+        if (old >= epoch or not rows or max(i for i, _ in indexed) >= opens[0]
+                or bridge.epoch_invalid.get(old) not in {'eof', 'connection_close'}
+                or rows[0].get('event') != 'connection_open' or rows[-1].get('event') != 'connection_close'
+                or sum(row.get('event') == 'connection_open' for row in rows) != 1
+                or sum(row.get('event') == 'connection_close' for row in rows) != 1
+                or {row.get('direction') for row in rows if row.get('event') == 'eof'}
+                    != {'frontend_to_backend', 'backend_to_frontend'}
+                or any(row.get('event') not in {'connection_open', 'eof', 'connection_close'} for row in rows)):
+            raise RuntimeInvariantError('old startup epoch was not a closed socket-only probe')
+    return StartupAnchor(epoch, old_epochs, _connection_digest(bridge), len(bridge.trace), _digest(bridge.trace))
+
+
+def _live(runtime: Any, bridge: Any, tui: Any, anchor: StartupAnchor) -> None:
+    validate_zero_model(bridge)
+    if (tui.poll() is not None or bridge.epoch_invalid.get(anchor.epoch) is not None
+            or _connection_digest(bridge) != anchor.connection_sha256
+            or _digest(bridge.trace[:anchor.trace_count]) != anchor.trace_sha256
+            or any(row.get('conn_epoch') != anchor.epoch for row in bridge.trace[anchor.trace_count:])
             or getattr(bridge, 'identity_errors', {})):
-        raise RuntimeInvariantError('cached probe lost its one live owned epoch')
+        raise RuntimeInvariantError('cached probe lost its frozen live owned epoch')
 
 
 def _deadline(spec: CachedSwitchCaseSpec, overall: float) -> float:
@@ -181,16 +229,17 @@ def _deadline(spec: CachedSwitchCaseSpec, overall: float) -> float:
 
 
 async def _wait_switch(spec: CachedSwitchCaseSpec, runtime: Any, bridge: Any, tui: Any,
-                       epoch: int, *, index: int, start: int, deadline: float,
+                       anchor: StartupAnchor, *, index: int, start: int, deadline: float,
                        prior_screen: tuple[Any, Any]) -> dict[str, Any]:
     """Wait inside one frozen toggle window; elapsed time alone is not readiness."""
+    epoch = anchor.epoch
     last_screen = prior_screen
     changed_at = None
     settle = min(0.1, spec.local_window_seconds / 4)
     result: dict[str, Any] = {'wait_gate': False, 'deadline_raw': deadline,
                              'render_after_toggle': False}
     while True:
-        _live(runtime, bridge, tui, epoch)
+        _live(runtime, bridge, tui, anchor)
         now = raw_seconds()
         result['completed_at_raw'] = now
         if index == 1:
@@ -213,8 +262,8 @@ async def _wait_switch(spec: CachedSwitchCaseSpec, runtime: Any, bridge: Any, tu
 
 
 async def _status(spec: CachedSwitchCaseSpec, runtime: Any, bridge: Any, tui: Any,
-                  epoch: int, overall: float, expected: str | None) -> dict[str, Any]:
-    _live(runtime, bridge, tui, epoch)
+                  anchor: StartupAnchor, overall: float, expected: str | None) -> dict[str, Any]:
+    _live(runtime, bridge, tui, anchor)
     begin = raw_seconds()
     deadline = _deadline(spec, overall)
     start_seq = len(bridge.trace)
@@ -228,7 +277,7 @@ async def _status(spec: CachedSwitchCaseSpec, runtime: Any, bridge: Any, tui: An
     ids = await tui.async_status_checkpoint(raw_seconds())
     if raw_seconds() > deadline:
         raise TimeoutError('fresh status exceeded its original local window')
-    _live(runtime, bridge, tui, epoch)
+    _live(runtime, bridge, tui, anchor)
     capture = getattr(tui, '_status_buffer', None)
     if len(ids) != 1 or any(_uuid(value) is None for value in ids) or not isinstance(capture, bytes) or not capture:
         raise RuntimeInvariantError('fresh status does not contain one canonical ID and captured bytes')
@@ -283,16 +332,18 @@ async def run_cached_switch_case(spec: CachedSwitchCaseSpec, *, preflight: Mappi
         if candidate is None or candidate.thread_id != spec.expected_resume_thread_id:
             raise RuntimeInvariantError('known primary resume candidate missing')
         epoch = candidate.connection_epoch
-        _live(runtime, bridge, tui, epoch)
+        anchor = freeze_startup_anchor(bridge, epoch)
+        result['startup_anchor'] = asdict(anchor)
+        _live(runtime, bridge, tui, anchor)
         result['initial_candidate'] = _candidate(candidate)
         stage = 'status-primary'
-        check = await _status(spec, runtime, bridge, tui, epoch, overall, spec.expected_resume_thread_id)
+        check = await _status(spec, runtime, bridge, tui, anchor, overall, spec.expected_resume_thread_id)
         result['status_checks'].append(check)
         if not check['exact'] or runtime.candidate != candidate:
             raise RuntimeInvariantError('initial primary status or candidate mismatch')
         for index, label in enumerate(('first-side', 'cached-primary', 'cached-side'), 1):
             stage = label
-            _live(runtime, bridge, tui, epoch)
+            _live(runtime, bridge, tui, anchor)
             if tui.evidence.get('ui_state') != 'session':
                 raise RuntimeInvariantError('side toggle requires a command-ready TUI')
             start = len(bridge.trace)
@@ -306,7 +357,7 @@ async def run_cached_switch_case(spec: CachedSwitchCaseSpec, *, preflight: Mappi
                 tui.write(TOGGLE_BYTES, action=f'side-toggle-{index - 1}')
             if raw_seconds() > deadline:
                 raise TimeoutError('side toggle exceeded its original local window')
-            wait = await _wait_switch(spec, runtime, bridge, tui, epoch, index=index,
+            wait = await _wait_switch(spec, runtime, bridge, tui, anchor, index=index,
                                       start=start, deadline=deadline, prior_screen=prior_screen)
             if index == 1:
                 result['fork'] = wait.pop('fork')
@@ -317,7 +368,7 @@ async def run_cached_switch_case(spec: CachedSwitchCaseSpec, *, preflight: Mappi
             if wait['wait_gate']:
                 status_start = len(bridge.trace)
                 expected = spec.expected_resume_thread_id if index == 2 else result['s_thread_id']
-                check = await _status(spec, runtime, bridge, tui, epoch, overall, expected)
+                check = await _status(spec, runtime, bridge, tui, anchor, overall, expected)
                 result['status_checks'].append(check)
                 if index == 1:
                     # A later optional inject request must still have its matching response.
@@ -338,7 +389,7 @@ async def run_cached_switch_case(spec: CachedSwitchCaseSpec, *, preflight: Mappi
             if not check['exact']:
                 raise RuntimeInvariantError('independent status does not corroborate the expected P/S boundary')
         stage = 'quit'
-        _live(runtime, bridge, tui, epoch)
+        _live(runtime, bridge, tui, anchor)
         terminal_before = resume._terminal_event_count(bridge, epoch)
         deadline = _deadline(spec, overall)
         tui.command('/quit')

@@ -1,0 +1,81 @@
+{
+  "anchor_epoch": 2,
+  "connections": [
+    {
+      "backend_fd": 10,
+      "backend_peer": {
+        "birth": "Sun Sep 13 01:30:28 2026",
+        "complete": true,
+        "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+        "pid": 67218,
+        "source": "darwin-local",
+        "uid": 501
+      },
+      "connection_id": "conn-1-c796dd9ea2d2",
+      "epoch": 1,
+      "frontend_fd": 9,
+      "frontend_peer": {
+        "birth": "Sun Sep 13 01:30:28 2026",
+        "complete": true,
+        "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+        "pid": 67244,
+        "source": "darwin-local",
+        "uid": 501
+      }
+    },
+    {
+      "backend_fd": 10,
+      "backend_peer": {
+        "birth": "Sun Sep 13 01:30:28 2026",
+        "complete": true,
+        "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+        "pid": 67218,
+        "source": "darwin-local",
+        "uid": 501
+      },
+      "connection_id": "conn-2-a74e0d79fcd5",
+      "epoch": 2,
+      "frontend_fd": 9,
+      "frontend_peer": {
+        "birth": "Sun Sep 13 01:30:28 2026",
+        "complete": true,
+        "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+        "pid": 67244,
+        "source": "darwin-local",
+        "uid": 501
+      }
+    }
+  ],
+  "source_case": "proxy-cached-02",
+  "source_result_sha256": "494e9188df67adb0558be5affb138560e1f0e08dd6af233fd47b8e6f57140fef",
+  "source_trace_sha256": "e0462d005292f91b0515a79c40e1cbbea7832b76f33be6e4386548d8d1f3f98c",
+  "startup_events": [
+    {
+      "conn_epoch": 1,
+      "event": "connection_open",
+      "local_seq": 1
+    },
+    {
+      "conn_epoch": 1,
+      "direction": "frontend_to_backend",
+      "event": "eof",
+      "reason": "eof"
+    },
+    {
+      "conn_epoch": 1,
+      "direction": "backend_to_frontend",
+      "event": "eof",
+      "reason": "eof"
+    },
+    {
+      "conn_epoch": 1,
+      "event": "connection_close",
+      "local_seq": 2
+    },
+    {
+      "conn_epoch": 2,
+      "event": "connection_open",
+      "local_seq": 3
+    }
+  ]
+}

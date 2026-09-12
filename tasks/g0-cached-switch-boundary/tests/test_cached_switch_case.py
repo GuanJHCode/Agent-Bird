@@ -43,17 +43,33 @@ def frame(value, client=False):
 
 
 class Feed:
-    def __init__(self):
+    def __init__(self, *, startup_probe=False):
         self.inferer = runtime.ResumeAttachmentInferer(P)
-        self.bridge = runtime._CaptureBridge(Observer(), self.inferer)
-        self.bridge.on_connect(SimpleNamespace(connection_id='owned', epoch=1, frontend_fd=3, backend_fd=4))
+        self.front = SimpleNamespace(pid=22, birth='owned-tui-birth', executable='/fixture/codex', uid=501, complete=True, source='fixture')
+        self.back = SimpleNamespace(pid=21, birth='owned-backend-birth', executable='/fixture/codex', uid=501, complete=True, source='fixture')
+        self.bridge = runtime._CaptureBridge(Observer(), self.inferer, strict_identity=True,
+            frontend_identity=runtime.OwnedProcess(22, self.front.birth, self.front.executable),
+            backend_identity=runtime.OwnedProcess(21, self.back.birth, self.back.executable))
+        if startup_probe:
+            self.open(1)
+            self.close(1)
+        self.epoch = 2 if startup_probe else 1
+        self.connection_id = f'owned-{self.epoch}'
+        self.open(self.epoch)
         key = 'dGhlIHNhbXBsZSBub25jZQ=='
         accept = base64.b64encode(hashlib.sha1((key + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11').encode()).digest()).decode()
         self.bytes('client', ('GET / HTTP/1.1\r\nHost: localhost\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: ' + key + '\r\nSec-WebSocket-Version: 13\r\n\r\n').encode())
         self.bytes('server', ('HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ' + accept + '\r\n\r\n').encode())
 
+    def open(self, epoch):
+        self.bridge.on_connect(SimpleNamespace(connection_id=f'owned-{epoch}', epoch=epoch, frontend_fd=3, backend_fd=4, frontend_peer=self.front, backend_peer=self.back))
+
+    def close(self, epoch):
+        for direction in ('frontend_to_backend', 'backend_to_frontend'):
+            self.bridge.on_lifecycle(SimpleNamespace(connection_id=f'owned-{epoch}', epoch=epoch, kind='eof', direction=direction))
+
     def bytes(self, direction, data):
-        self.bridge.on_data(SimpleNamespace(connection_id='owned', epoch=1,
+        self.bridge.on_data(SimpleNamespace(connection_id=self.connection_id, epoch=self.epoch,
             direction='frontend_to_backend' if direction == 'client' else 'backend_to_frontend', data=data))
 
     def rpc(self, direction, value):
@@ -97,7 +113,8 @@ def make_spec(tmp_path, *, model='gpt-5.6-luna', local_window=0.01):
 
 def fake_runtime(monkeypatch, *, lineage=True, gap=False, model_turn=False, wrong_status=False,
                  refresh=False, early_eof=False, quit_code=0, protection=None, ui_state='session',
-                 missing_started=False, status_cost=0, toggle_cost=0, fork_delay=0, cached_delay=0):
+                 missing_started=False, status_cost=0, toggle_cost=0, fork_delay=0, cached_delay=0,
+                 startup_probe=False, late_probe=False):
     p = module()
     clock = [1.0]
     monkeypatch.setattr(p, 'raw_seconds', lambda: clock[0])
@@ -172,6 +189,9 @@ def fake_runtime(monkeypatch, *, lineage=True, gap=False, model_turn=False, wron
             assert text in {'/status', '/side', '/quit'}, 'no prompt, picker, or programmatic resume allowed'
             self.inputs.append({'action': text})
             if text == '/status':
+                if late_probe and not self.status_queries:
+                    self.owner.feed.open(self.owner.feed.epoch + 1)
+                    self.owner.feed.close(self.owner.feed.epoch + 1)
                 self.status_displayed = self.displayed
                 self.status_queries.append((clock[0], self.displayed))
                 self.status_ids = set()
@@ -192,13 +212,13 @@ def fake_runtime(monkeypatch, *, lineage=True, gap=False, model_turn=False, wron
             self._status_buffer = ('Session: ' + actual + '\n').encode()
             self.status_pending = False
             if early_eof and self.side_starts:
-                self.owner.bridge.on_lifecycle(SimpleNamespace(connection_id='owned', epoch=1, kind='eof'))
+                self.owner.bridge.on_lifecycle(SimpleNamespace(connection_id=self.owner.feed.connection_id, epoch=self.owner.feed.epoch, kind='eof'))
             return set(self.status_ids)
 
         async def await_exit(self, deadline):
             clock[0] = max(clock[0], deadline)
             self.exit_code = quit_code
-            self.owner.bridge.on_lifecycle(SimpleNamespace(connection_id='owned', epoch=1, kind='eof'))
+            self.owner.bridge.on_lifecycle(SimpleNamespace(connection_id=self.owner.feed.connection_id, epoch=self.owner.feed.epoch, kind='eof'))
             return self.exit_code
 
         def poll(self):
@@ -207,7 +227,7 @@ def fake_runtime(monkeypatch, *, lineage=True, gap=False, model_turn=False, wron
     class FakeRuntime:
         def __init__(self, config):
             self.config = config
-            self.feed = Feed()
+            self.feed = Feed(startup_probe=startup_probe)
             self.inferer = self.feed.inferer
             self.bridge = self.feed.bridge
             self.tui_driver = Tui(self)
@@ -463,3 +483,63 @@ def test_real_pty_empty_side_command_contains_no_model_prompt(monkeypatch):
     monkeypatch.setattr(driver, 'write', lambda data, *, action: writes.append((action, data)))
     driver.command('/side')
     assert writes == [('/side-paste', b'\x1b[200~/side\x1b[201~'), ('/side-submit', b'\r')]
+
+
+def projected_startup_bridge():
+    fixture = json.loads((Path(__file__).parent / 'fixtures/cached02-startup-projection.json').read_text())
+    records = {row['connection_id']: runtime.ConnectionIdentity(**{
+        **row, 'frontend_peer': SimpleNamespace(**row['frontend_peer']),
+        'backend_peer': SimpleNamespace(**row['backend_peer'])}) for row in fixture['connections']}
+    current = next(record for record in records.values() if record.epoch == fixture['anchor_epoch'])
+    own = lambda peer: runtime.OwnedProcess(peer.pid, peer.birth, peer.executable)
+    return SimpleNamespace(trace=fixture['startup_events'], trace_complete=True, model_turns=0,
+        connection_records=records, identity_errors={}, epoch_invalid={1: 'eof'}, strict_identity=True,
+        frontend_identity=own(current.frontend_peer), backend_identity=own(current.backend_peer))
+
+
+def test_real_cached02_closed_socket_probe_can_precede_live_anchor():
+    p = module()
+    bridge = projected_startup_bridge()
+    anchor = p.freeze_startup_anchor(bridge, 2)
+    assert anchor.epoch == 2 and anchor.closed_probe_epochs == (1,)
+    p._live(None, bridge, SimpleNamespace(poll=lambda: None), anchor)
+
+
+@pytest.mark.parametrize('fault', ['rpc', 'upgrade', 'gap', 'missing_close', 'foreign_frontend', 'foreign_backend', 'concurrent_live'])
+def test_startup_anchor_rejects_nonempty_unclosed_or_foreign_prefix(fault):
+    p = module()
+    bridge = projected_startup_bridge()
+    if fault in {'rpc', 'upgrade', 'gap'}:
+        bridge.trace.insert(1, {'event': {'rpc':'rpc_unknown', 'upgrade':'websocket_upgrade', 'gap':'gap'}[fault], 'conn_epoch':1})
+    elif fault == 'missing_close':
+        bridge.trace[:] = [row for row in bridge.trace if row['event'] != 'connection_close']
+        for index, row in enumerate((row for row in bridge.trace if 'local_seq' in row), 1): row['local_seq'] = index
+    elif fault.startswith('foreign_'):
+        record = next(record for record in bridge.connection_records.values() if record.epoch == 1)
+        getattr(record, fault.removeprefix('foreign_') + '_peer').pid += 1
+    else:
+        bridge.epoch_invalid.clear()
+    with pytest.raises(runtime.RuntimeInvariantError):
+        p.freeze_startup_anchor(bridge, 2)
+
+
+def test_closed_probe_full_journey_keeps_only_new_epoch_candidate(tmp_path, monkeypatch):
+    p = module()
+    spec = make_spec(tmp_path)
+    factory, instances = fake_runtime(monkeypatch, startup_probe=True)
+    result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
+    assert result['status'] == 'observed', result
+    assert result['initial_candidate']['connection_epoch'] == 2
+    assert result['startup_anchor']['closed_probe_epochs'] == (1,)
+    assert all(event['conn_epoch'] == 2 for event in json.loads((spec.case_dir/'trace.json').read_text())['events'] if event.get('method') == 'thread/fork')
+    assert instances[0].tui_driver.side_starts == 1 and instances[0].tui_driver.toggles == 2
+
+
+def test_new_even_closed_probe_after_first_status_cannot_change_anchor(tmp_path, monkeypatch):
+    p = module()
+    spec = make_spec(tmp_path)
+    factory, instances = fake_runtime(monkeypatch, startup_probe=True, late_probe=True)
+    result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
+    assert result['status'] == 'unknown'
+    assert instances[0].tui_driver.side_starts == 0
+    assert result['startup_anchor']['epoch'] == 2

@@ -66,7 +66,7 @@ primary 在 snapshot session 缺 model、rollout path 或需要权限 profile re
 
 目标是验证“相同 wire 形状不足以确定当前显示”的受控反例，保持零模型、无 picker/thread-list、无 raw history。
 
-1. 使用已验收的 resume07 产物恢复原持久 P；核验 `thread/resume` response 的 `thread.id=P`、epoch、connection identity 和独立 status(P)。
+1. 使用已验收的 resume07 产物恢复原持久 P；核验 `thread/resume` response 的 `thread.id=P`、epoch、connection identity，并在首次 status 前冻结该 anchor。允许正式 anchor 之前同一 owned 双 peer 的 connect-only 探活 epoch，但必须无 RPC/upgrade/gap 且已双 EOF/close；当前 anchor 必须唯一 live。旧记录保留，不参与 candidate；冻结后不得出现任何新 epoch 或旧 epoch 的新事件。再独立查询 status(P)。
 2. 在 composer 为空、无 modal、无 turn 的窗口中只提交一次空参数 `/side`。这是首次创建 S 的入口，不是 cached toggle；不得附加 user prompt。
 3. 等待首次 S 建立，不提交 user prompt；记录并核验 P→S fork lineage、必需的 `thread/started(S)`、实际存在时的 `thread/inject_items(S)`，以及所有同 epoch 的 `skills/list`。
 4. 发一次独立 `/status` 查询，记录显示 S。status 只作 corroboration。
@@ -107,3 +107,7 @@ primary 在 snapshot session 缺 model、rollout path 或需要权限 profile re
 - 后继 runtime/observer 仅记录上述白名单和 stale barrier；不得增加“最近 skills”或 status-only candidate 路径。
 - transport 只负责 relay、epoch、顺序和 peer identity，不解释选择。
 - native case 记录真实操作键、实际生效 keymap、RPC 轨迹和独立 status；不修改全局配置、不安装常驻服务、不执行 picker 采集。
+
+## 启动 socket 探活边界更正
+
+cached02 的 epoch1 仅连接后关闭，epoch2 才有正常 resume(P)/skills。原 `len(connection_records)==1` 把全部历史连接误算成唯一 live 连接，因此在零输入时停止。固定源码 `tui/src/lib.rs:459-485` 明确存在 connect-only 默认 socket 探活；`startup-anchor-boundary.md` 和 `data/source/startup-probe-source-receipt.json` 记录证据。后继 runner 仅接受上述受限启动前缀，随后冻结 current anchor；不更改旧 cached02 unknown 事实，不放宽为任意多 epoch，也不复用旧 epoch 的 candidate。
