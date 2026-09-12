@@ -371,6 +371,44 @@ def test_remote_control_notification_wrong_direction_or_id_invalidates(direction
     assert inferer.invalid_reason == "unknown_event"
 
 
+def test_mcp_startup_notification_is_opaque_server_event():
+    inferer = AttachmentInferer()
+    inferer.accept(connected_event())
+    inferer.accept(
+        {
+            "event": "rpc_unknown",
+            "conn_epoch": 1,
+            "direction": "server",
+            "method": "mcpServer/startupStatus/updated",
+            "local_seq": 2,
+        }
+    )
+    assert inferer.invalid_reason is None
+    assert inferer.candidate is None
+
+
+@pytest.mark.parametrize(
+    "direction,request_id,response",
+    [("client", None, False), ("server", 7, False), ("server", None, True)],
+)
+def test_mcp_startup_notification_wrong_shape_invalidates(direction, request_id, response):
+    inferer = AttachmentInferer()
+    inferer.accept(connected_event())
+    inferer.accept(
+        {
+            "event": "rpc_unknown",
+            "conn_epoch": 1,
+            "direction": direction,
+            "method": "mcpServer/startupStatus/updated",
+            "request_id": request_id,
+            "response": response,
+            "local_seq": 2,
+        }
+    )
+    assert inferer.candidate is None
+    assert inferer.invalid_reason == "unknown_event"
+
+
 def test_real_http_ws_bytes_flow_through_observer_bridge_and_reconnect_epochs():
     from proxy_observer import Observer
 

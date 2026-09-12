@@ -577,7 +577,10 @@ class AttachmentInferer:
         "thread/loaded/list",
         "thread/turns/list",
     }
-    _OPAQUE_SERVER_NOTIFICATIONS = {"remoteControl/status/changed"}
+    _OPAQUE_SERVER_NOTIFICATIONS = {
+        "remoteControl/status/changed",
+        "mcpServer/startupStatus/updated",
+    }
 
     def __init__(self) -> None:
         self._epoch: int | None = None

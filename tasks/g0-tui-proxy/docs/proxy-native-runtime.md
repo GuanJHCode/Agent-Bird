@@ -20,7 +20,7 @@ runtime 保存二进制/配置摘要以及自有进程的 birth/executable。关
 的 socket 或无法确认身份的进程保留。窗口基于 `CLOCK_MONOTONIC_RAW`，本地操作 10 秒，必要模型轮次 120 秒，
 但本实现没有启动模型轮次。
 
-当前离线验证覆盖 runtime、transport、observer 共 93 项。尚未执行 native、TUI
+当前离线验证覆盖 runtime、transport、observer 共 97 项。尚未执行 native、TUI
 或模型，也不把离线通过当作原生附着证据。
 
 显式运行入口为：
@@ -47,8 +47,8 @@ status 对照、clear 后新 thread、disconnect/EOF 和正常 quit 在最终清
 
 受控 native 实例显式把 observer 的 WebSocket frame/message 上限设为 16 MiB/64 MiB，
 与固定 0.154 实现一致；observer 的通用默认上限保持不变。只读 bootstrap 事件仅在
-严格的 client 请求/server 同 ID 响应配对后继续，`remoteControl/status/changed` 只作为
-无 ID 的 server 通知保留，均不会单独产生 candidate。
+严格的 client 请求/server 同 ID 响应配对后继续，`remoteControl/status/changed` 与
+`mcpServer/startupStatus/updated` 只作为无 ID 的 server 通知保留，均不会单独产生 candidate。
 gap trace 仅保留 observer 提供的非负整数 `payload_bytes`、`message_bytes`、`limit_bytes`；
 无效值被丢弃，gap 本身仍使 trace fail-closed。
 
