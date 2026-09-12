@@ -1,5 +1,5 @@
 {
-  "scope": "sd03 implementation and cross-interface checks independently passed; final main 68 tests passed; one native run admitted after fresh outer preflight. No standalone native result yet.",
+  "scope": "Historical verification entries retain their original observation time. Current state is recorded in latest_checkpoint; full G0 is not passed.",
   "source_commit": "472d2288f750b9d096dc5a2d84f7e885cf44b101",
   "integrated_commit": "2aa8e3c",
   "independent_review": {
@@ -167,8 +167,8 @@
   "native_service_started": true,
   "native_model_started": true,
   "pending": [
-    "Fresh outer preflight and one sd03 native run",
-    "Reconcile its actual native history, ACK and owned resource cleanup",
+    "Qualify current native 0.154.0 contracts and align pinned helper/controller",
+    "Freeze reviewed sd07 sources, perform fresh outer preflight and one native run",
     "General current-TUI attachment and full delivery reconciliation"
   ],
   "second_native_result": {
@@ -296,5 +296,66 @@
     "runtime_requires_fresh_outer_preflight": true,
     "native_runtime_started": false,
     "generic_attachment_or_full_g0_passed": false
+  },
+  "latest_checkpoint": {
+    "main_commit": "29b72dc",
+    "registered_unconsumed_case": "sd-qual-07",
+    "native_runtime_started": false,
+    "generic_attachment_or_full_g0_passed": false,
+    "observed_ordinary_cli_version": "0.154.0",
+    "observed_ordinary_cli_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+    "runtime_pins_still_require_version_alignment": true,
+    "sd03": {
+      "report": "native-sd-qual-03-result.md",
+      "real_prepare_passed": true,
+      "send_attempt_written": true,
+      "wire_delivery": "uncertain",
+      "resend_authorized": false,
+      "owned_cleanup_record": "native-sd-qual-03-post-window.json"
+    },
+    "sd04": {
+      "report": "native-sd-qual-04-result.md",
+      "initial_binding_confirmed": false,
+      "helper_called": false,
+      "send_attempt_written": false
+    },
+    "sd05": {
+      "report": "native-sd-qual-05-result.md",
+      "owned_session_start_observed": false,
+      "initial_paste_sent": false,
+      "helper_called": false
+    },
+    "sd06": {
+      "report": "native-sd-qual-06-result.md",
+      "owned_session_start_observed": false,
+      "initial_window_seconds": 120,
+      "initial_paste_sent": false,
+      "helper_called": false
+    },
+    "deadline_fix": {
+      "source_commit": "f27cec2a1b0b8d9e837636ee93ba4afedd57d69b",
+      "integrated_commit": "d55dfa3",
+      "reviewer": "sd07_native_gate",
+      "verdict": "PASS",
+      "independent_tests_passed": 43,
+      "report": "native-sd-qual-07-deadline-fix.md"
+    },
+    "historical_fixture_isolation": {
+      "source_commit": "ae267f8d82d540015e9f5d805b9ec72c8ad1114c",
+      "integrated_commit": "29b72dc",
+      "reviewer": "root",
+      "verdict": "PASS",
+      "runtime_source_unchanged": true
+    },
+    "main_verification": {
+      "command": "G0_SD_CONTROLLER_SCRIPTS=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/scripts python3 -B -m unittest discover -s tasks/g0-pending-resolution/scripts -p 'native*_test.py'",
+      "tests_passed": 77,
+      "duration_seconds": 1.257,
+      "exit_code": 0,
+      "scope": "offline integration only; historical CLI and native facts explicitly simulated inside tests"
+    },
+    "original_seven_design_checksums_match": true,
+    "source_document_json_diff_check_passed": true,
+    "historical_raw_red_logs_preserved_with_unittest_trailing_whitespace": true
   }
 }
