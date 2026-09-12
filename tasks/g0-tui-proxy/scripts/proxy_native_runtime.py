@@ -484,13 +484,30 @@ class NativeRuntime:
     def record_status_reference(self, status: Mapping[str, Any]) -> None:
         self.inferer.record_status_reference(status)
 
+    async def disconnect(
+        self,
+        connection_id: str,
+        *,
+        leg: str = "both",
+    ) -> bool:
+        """Close a selected owned relay leg while keeping the listener alive."""
+
+        if self._relay is None:
+            raise RuntimeInvariantError("proxy is not running")
+        if leg not in {"frontend", "backend", "both"}:
+            raise ValueError("leg must be frontend, backend, or both")
+        return bool(await self._relay.disconnect(connection_id, leg=leg))
+
     def _authorize_tui(self, peer: Any) -> bool:
         owned = self.tui_identity
         if owned is None or getattr(peer, "pid", None) != owned.pid:
             return False
+        executable = getattr(peer, "executable", None)
+        if not isinstance(executable, (str, bytes, os.PathLike)):
+            return False
         return (
             getattr(peer, "birth", None) == owned.birth
-            and os.path.realpath(getattr(peer, "executable", "")) == owned.executable
+            and os.path.realpath(executable) == owned.executable
             and bool(getattr(peer, "complete", False))
         )
 

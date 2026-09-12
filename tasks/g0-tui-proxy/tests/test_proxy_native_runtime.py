@@ -248,3 +248,41 @@ def test_hash_failure_during_close_still_finishes_owned_cleanup(tmp_path):
     with pytest.raises(RuntimeInvariantError):
         __import__("asyncio").run(runtime.close())
     assert runtime.phase is RuntimePhase.CLOSED
+
+
+def test_runtime_can_disconnect_one_owned_proxy_leg_without_stopping_listener(tmp_path):
+    import asyncio
+
+    class Relay:
+        def __init__(self):
+            self.calls = []
+
+        async def disconnect(self, connection_id, *, leg):
+            self.calls.append((connection_id, leg))
+            return True
+
+    config = NativeRuntimeConfig(
+        frontend_socket=tmp_path / "frontend.sock",
+        backend_socket=tmp_path / "backend.sock",
+        cli=tmp_path / "codex",
+    )
+    runtime = NativeRuntime(config)
+    runtime._relay = Relay()
+    assert asyncio.run(runtime.disconnect("conn-1", leg="frontend")) is True
+    assert runtime._relay.calls == [("conn-1", "frontend")]
+
+
+def test_unknown_peer_is_rejected_without_reading_or_capturing_as_tui(tmp_path):
+    from types import SimpleNamespace
+
+    config = NativeRuntimeConfig(
+        frontend_socket=tmp_path / "frontend.sock",
+        backend_socket=tmp_path / "backend.sock",
+        cli=tmp_path / "codex",
+    )
+    runtime = NativeRuntime(config)
+    runtime._tui = object()
+    runtime._owned_processes = [OwnedProcess(1234, "birth", "/bin/codex")]
+    assert runtime._authorize_tui(
+        SimpleNamespace(pid=1234, birth="birth", executable=None, complete=False)
+    ) is False
