@@ -180,6 +180,38 @@ def _deadline(spec: CachedSwitchCaseSpec, overall: float) -> float:
     return min(now + spec.local_window_seconds, overall)
 
 
+async def _wait_switch(spec: CachedSwitchCaseSpec, runtime: Any, bridge: Any, tui: Any,
+                       epoch: int, *, index: int, start: int, deadline: float,
+                       prior_screen: tuple[Any, Any]) -> dict[str, Any]:
+    """Wait inside one frozen toggle window; elapsed time alone is not readiness."""
+    last_screen = prior_screen
+    changed_at = None
+    settle = min(0.1, spec.local_window_seconds / 4)
+    result: dict[str, Any] = {'wait_gate': False, 'deadline_raw': deadline,
+                             'render_after_toggle': False}
+    while True:
+        _live(runtime, bridge, tui, epoch)
+        now = raw_seconds()
+        result['completed_at_raw'] = now
+        if index == 1:
+            result['fork'] = fork_summary(bridge.trace[start:], epoch, spec.expected_resume_thread_id)
+            ready = result['fork']['status'] == 'observed'
+        else:
+            evidence = tui.evidence
+            screen = (evidence.get('bytes'), evidence.get('sha256'))
+            if screen != last_screen:
+                last_screen, changed_at = screen, now
+                result['render_after_toggle'] = screen != prior_screen
+            ready = (result['render_after_toggle'] and changed_at is not None
+                     and now - changed_at >= settle and evidence.get('ui_state') == 'session')
+        if now <= deadline and ready:
+            result['wait_gate'] = True
+            return result
+        if now >= deadline:
+            return result
+        await tui.aread_until(min(deadline, now + settle))
+
+
 async def _status(spec: CachedSwitchCaseSpec, runtime: Any, bridge: Any, tui: Any,
                   epoch: int, overall: float, expected: str | None) -> dict[str, Any]:
     _live(runtime, bridge, tui, epoch)
@@ -265,36 +297,41 @@ async def run_cached_switch_case(spec: CachedSwitchCaseSpec, *, preflight: Mappi
                 raise RuntimeInvariantError('side toggle requires a command-ready TUI')
             start = len(bridge.trace)
             before = runtime.candidate
+            began = raw_seconds()
             deadline = _deadline(spec, overall)
+            prior_screen = (tui.evidence.get('bytes'), tui.evidence.get('sha256'))
             tui.write(TOGGLE_BYTES, action=f'side-toggle-{index}')
-            await tui.aread_until(min(deadline, raw_seconds() + 0.1))
             if raw_seconds() > deadline:
                 raise TimeoutError('side toggle exceeded its original local window')
-            _live(runtime, bridge, tui, epoch)
-            status_start = len(bridge.trace)
+            wait = await _wait_switch(spec, runtime, bridge, tui, epoch, index=index,
+                                      start=start, deadline=deadline, prior_screen=prior_screen)
             if index == 1:
-                result['fork'] = fork_summary(bridge.trace[start:], epoch, spec.expected_resume_thread_id)
+                result['fork'] = wait.pop('fork')
                 result['s_thread_id'] = result['fork']['s_thread_id']
-            expected = spec.expected_resume_thread_id if index == 2 else result['s_thread_id']
-            check = await _status(spec, runtime, bridge, tui, epoch, overall, expected)
-            if index == 1:
-                # Fork RPCs can complete while this independent status is captured.
-                # Derive S only from wire metadata; the displayed ID never supplies it.
-                result['fork'] = fork_summary(bridge.trace[start:], epoch, spec.expected_resume_thread_id)
-                result['s_thread_id'] = expected = result['fork']['s_thread_id']
-                check['expected_id'] = expected
-                check['exact'] = expected is not None and check['ids'] == [expected]
-            result['status_checks'].append(check)
+            previous_active = result['status_checks'][-1]['ids'][0]
+            status_start = None
+            check = None
+            if wait['wait_gate']:
+                status_start = len(bridge.trace)
+                expected = spec.expected_resume_thread_id if index == 2 else result['s_thread_id']
+                check = await _status(spec, runtime, bridge, tui, epoch, overall, expected)
+                result['status_checks'].append(check)
+                if index == 1:
+                    # A later optional inject request must still have its matching response.
+                    result['fork'] = fork_summary(bridge.trace[start:], epoch, spec.expected_resume_thread_id)
             summary = boundary_summary(bridge.trace[start:], epoch, before, runtime.candidate)
-            summary.update(label=label, toggle_index=index, trace_start_index=start,
+            summary.update(wait, label=label, toggle_index=index, trace_start_index=start,
                            status_trace_start_index=status_start, trace_end_index=len(bridge.trace),
-                           active_thread_before=result['status_checks'][-2]['ids'][0],
-                           active_thread_after=check['ids'][0], observed_only=True)
+                           started_at_raw=began, active_thread_before=previous_active,
+                           active_thread_after=check['ids'][0] if check else None, observed_only=True)
             result['switches'].append(summary)
+            if not wait['wait_gate']:
+                result['stop_reason'] = 'first_side_local_deadline' if index == 1 else 'cached_render_local_deadline'
+                break
             if index == 1 and result['fork']['status'] != 'observed':
                 result['stop_reason'] = 'first_side_lineage_or_started_unknown'
                 break
-            if expected is not None and not check['exact']:
+            if not check['exact']:
                 raise RuntimeInvariantError('independent status does not corroborate the expected P/S boundary')
         stage = 'quit'
         _live(runtime, bridge, tui, epoch)
@@ -347,7 +384,8 @@ async def run_cached_switch_case(spec: CachedSwitchCaseSpec, *, preflight: Mappi
         if failure is not None:
             result['failure'] = failure
         complete = (failure is None and result.get('fork', {}).get('status') == 'observed'
-                    and len(result['switches']) == 3 and all(row['exact'] for row in result['status_checks'])
+                    and len(result['switches']) == 3 and all(row['wait_gate'] for row in result['switches'])
+                    and len(result['status_checks']) == 4 and all(row['exact'] for row in result['status_checks'])
                     and result.get('trace_complete') is True and result.get('model_turns') == 0
                     and result.get('termination', {}).get('status') == 'observed'
                     and not any(key in result for key in ('cleanup_failure', 'protection_failure', 'trace_failure')))

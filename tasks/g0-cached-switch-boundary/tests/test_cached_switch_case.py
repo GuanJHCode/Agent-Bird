@@ -83,7 +83,7 @@ class Feed:
         self.rpc('server', {'id': 5, 'result': {}})
 
 
-def make_spec(tmp_path, *, model='gpt-5.6-luna'):
+def make_spec(tmp_path, *, model='gpt-5.6-luna', local_window=0.01):
     p = module()
     cli = tmp_path / 'codex'
     cli.write_bytes(b'native-fixture')
@@ -92,12 +92,12 @@ def make_spec(tmp_path, *, model='gpt-5.6-luna'):
     config.write_text(f'model = "{model}"\n')
     return p.CachedSwitchCaseSpec(case_dir=tmp_path / 'case', frontend_socket=tmp_path / 'front.sock',
         backend_socket=tmp_path / 'back.sock', cli=cli, cwd=tmp_path, config_path=config,
-        expected_resume_thread_id=P, test_config_paths=(config,), local_window_seconds=0.01)
+        expected_resume_thread_id=P, test_config_paths=(config,), local_window_seconds=local_window)
 
 
 def fake_runtime(monkeypatch, *, lineage=True, gap=False, model_turn=False, wrong_status=False,
                  refresh=False, early_eof=False, quit_code=0, protection=None, ui_state='session',
-                 missing_started=False, status_cost=0, toggle_cost=0):
+                 missing_started=False, status_cost=0, toggle_cost=0, fork_delay=0, cached_delay=0):
     p = module()
     clock = [1.0]
     monkeypatch.setattr(p, 'raw_seconds', lambda: clock[0])
@@ -113,16 +113,34 @@ def fake_runtime(monkeypatch, *, lineage=True, gap=False, model_turn=False, wron
             self.status_ids = set()
             self.toggles = 0
             self.status_pending = False
+            self.switch_due = None
+            self.output_bytes = 100
+            self.status_queries = []
+            self.status_displayed = P
+
+        def complete_switch(self):
+            if self.switch_due is None or clock[0] < self.switch_due:
+                return
+            self.switch_due = None
+            self.displayed = S if self.toggles in (1, 3) else P
+            self.output_bytes += 100
+            if self.toggles == 1:
+                self.owner.feed.fork(lineage=lineage, started=not missing_started)
+            elif refresh:
+                number = 10 + self.toggles
+                self.owner.feed.rpc('client', {'id': number, 'method': 'thread/resume', 'params': {'threadId': self.displayed}})
+                self.owner.feed.rpc('server', {'id': number, 'result': {'thread': {'id': self.displayed}}})
 
         @property
         def evidence(self):
-            return {'pid': 22, 'bytes': 100, 'sha256': 'a' * 64, 'exit_code': self.exit_code,
+            return {'pid': 22, 'bytes': self.output_bytes, 'sha256': str(self.output_bytes), 'exit_code': self.exit_code,
                     'ui_state': ui_state, 'inputs': list(self.inputs)}
 
         async def aread_until(self, deadline):
             clock[0] = max(clock[0], deadline)
+            self.complete_switch()
             if self.status_pending:
-                actual = OTHER if wrong_status and self.toggles else self.displayed
+                actual = OTHER if wrong_status and self.toggles else self.status_displayed
                 self.status_ids = {actual}
                 self._status_buffer = ('Session: ' + actual + '\n').encode()
             return self.evidence
@@ -132,13 +150,8 @@ def fake_runtime(monkeypatch, *, lineage=True, gap=False, model_turn=False, wron
             assert action.startswith('side-toggle-')
             self.inputs.append({'action': action, 'bytes': 1, 'sha256': hashlib.sha256(data).hexdigest()})
             self.toggles += 1
-            self.displayed = S if self.toggles in (1, 3) else P
-            if self.toggles == 1:
-                self.owner.feed.fork(lineage=lineage, started=not missing_started)
-            elif refresh:
-                number = 10 + self.toggles
-                self.owner.feed.rpc('client', {'id': number, 'method': 'thread/resume', 'params': {'threadId': self.displayed}})
-                self.owner.feed.rpc('server', {'id': number, 'result': {'thread': {'id': self.displayed}}})
+            self.switch_due = clock[0] + (fork_delay if self.toggles == 1 else cached_delay)
+            self.complete_switch()
             if gap:
                 self.owner.bridge.on_gap(SimpleNamespace(epoch=1, reason='synthetic_gap'))
             if model_turn:
@@ -149,6 +162,8 @@ def fake_runtime(monkeypatch, *, lineage=True, gap=False, model_turn=False, wron
             assert text in {'/status', '/quit'}, 'no prompt, picker, or programmatic resume allowed'
             self.inputs.append({'action': text})
             if text == '/status':
+                self.status_displayed = self.displayed
+                self.status_queries.append((clock[0], self.displayed))
                 self.status_ids = set()
                 self._status_buffer = b''
                 self.status_pending = True
@@ -158,7 +173,7 @@ def fake_runtime(monkeypatch, *, lineage=True, gap=False, model_turn=False, wron
         async def async_status_checkpoint(self, deadline):
             await self.aread_until(deadline)
             clock[0] += status_cost
-            actual = OTHER if wrong_status and self.toggles else self.displayed
+            actual = OTHER if wrong_status and self.toggles else self.status_displayed
             self.status_ids = {actual}
             self._status_buffer = ('Session: ' + actual + '\n').encode()
             self.status_pending = False
@@ -268,7 +283,7 @@ def test_missing_lineage_cannot_be_repaired_by_matching_status(tmp_path, monkeyp
     result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
     assert result['status'] == 'unknown'
     assert result['fork']['status'] == 'unknown'
-    assert result['status_checks'][1]['ids'] == [S]
+    assert len(result['status_checks']) == 1  # No query before a qualified first fork.
     assert result['generic_attachment_verified'] is False
     assert len(result['switches']) == 1
     assert result['quit_sent'] is True
@@ -385,3 +400,39 @@ def test_local_status_or_toggle_overrun_cannot_be_accepted(tmp_path, monkeypatch
     result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
     assert result['status'] == 'unknown'
     assert result['failure']['code'] == 'deadline_exceeded'
+
+
+def test_delayed_first_fork_waits_for_wire_before_status(tmp_path, monkeypatch):
+    p = module()
+    spec = make_spec(tmp_path, local_window=10)
+    factory, instances = fake_runtime(monkeypatch, fork_delay=0.6)
+    result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
+    assert result['status'] == 'observed', result
+    queries = instances[0].tui_driver.status_queries
+    assert [target for _, target in queries] == [P, S, P, S]
+    assert queries[1][0] - queries[0][0] >= 0.6
+    assert result['switches'][0]['completed_at_raw'] <= result['switches'][0]['deadline_raw']
+
+
+def test_fork_after_original_local_deadline_does_not_get_status_or_second_toggle(tmp_path, monkeypatch):
+    p = module()
+    spec = make_spec(tmp_path, local_window=10)
+    factory, instances = fake_runtime(monkeypatch, fork_delay=10.2)
+    result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
+    assert result['status'] == 'unknown'
+    assert len(instances[0].tui_driver.status_queries) == 1
+    assert instances[0].tui_driver.toggles == 1
+    assert result['quit_sent'] is True
+    assert result['stop_reason'] == 'first_side_local_deadline'
+    switch = result['switches'][0]
+    assert switch['deadline_raw'] - switch['started_at_raw'] == pytest.approx(10)
+
+
+def test_delayed_cached_render_precedes_independent_status(tmp_path, monkeypatch):
+    p = module()
+    spec = make_spec(tmp_path, local_window=10)
+    factory, instances = fake_runtime(monkeypatch, cached_delay=0.6)
+    result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
+    assert result['status'] == 'observed', result
+    assert [target for _, target in instances[0].tui_driver.status_queries] == [P, S, P, S]
+    assert all(step['render_after_toggle'] is True for step in result['switches'][1:])
