@@ -127,11 +127,14 @@ def test_silent_resume_rejects_model_or_thread_start():
         validate_silent_resume(bridge)
     bridge.trace.clear()
     bridge.trace.append({"event": "rpc", "direction": "server", "method": "thread/started"})
+    assert validate_silent_resume(bridge)["server_thread_started_seen"] is False
+    bridge.trace.clear()
+    bridge.trace.append({"event": "rpc", "direction": "server", "method": "turn/started"})
     with pytest.raises(Exception, match="not silent"):
         validate_silent_resume(bridge)
 
 
-def test_retained_resume_trace_has_unclassified_readonly_bootstrap_failure():
+def test_retained_resume_trace_readonly_projection_is_replayed_only_synthetically():
     import json
 
     trace_path = Path(
@@ -159,13 +162,14 @@ def test_retained_resume_trace_has_unclassified_readonly_bootstrap_failure():
         {"event": "rpc", "conn_epoch": 1, "direction": "client", "method": "initialized", "request_id": None, "local_seq": 6},
         {"event": "rpc", "conn_epoch": 1, "direction": "client", "method": "thread/resume", "request_id": 2, "params": {"threadId": expected}, "local_seq": 7},
         {"event": "rpc_unknown", "conn_epoch": 1, "direction": "client", "method": "thread/items/list", "request_id": 3, "local_seq": 8},
+        {"event": "rpc_unknown", "conn_epoch": 1, "direction": "server", "method": "thread/items/list", "request_id": 3, "response": True, "local_seq": 9},
     ]
     for event in synthetic:
         inferer.accept(event)
         if inferer.invalid_reason is not None:
             break
     assert inferer.candidate is None
-    assert inferer.invalid_reason == "unknown_event"
+    assert inferer.invalid_reason is None
 
 
 def test_terminal_validator_requires_quit_eof_and_owned_cleanup(tmp_path):

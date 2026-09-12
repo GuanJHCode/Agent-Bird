@@ -949,7 +949,17 @@ class ResumeAttachmentInferer:
     """
 
     _OPAQUE_BOOTSTRAP_METHODS = AttachmentInferer._OPAQUE_BOOTSTRAP_METHODS
+    _OPAQUE_BOOTSTRAP_METHODS = _OPAQUE_BOOTSTRAP_METHODS | {
+        "thread/items/list",
+        "thread/goal/get",
+    }
     _OPAQUE_SERVER_NOTIFICATIONS = AttachmentInferer._OPAQUE_SERVER_NOTIFICATIONS
+    _OPAQUE_SERVER_NOTIFICATIONS = _OPAQUE_SERVER_NOTIFICATIONS | {
+        "thread/status/changed",
+        "thread/tokenUsage/updated",
+        "thread/goal/cleared",
+    }
+    _QUALIFIED_COMMAND_METHOD = AttachmentInferer._QUALIFIED_COMMAND_METHOD
 
     def __init__(self, expected_resume_thread_id: str) -> None:
         self.expected_resume_thread_id = canonical_resume_thread_id(expected_resume_thread_id)
@@ -1174,6 +1184,32 @@ class ResumeAttachmentInferer:
         method = event.get("method")
         direction = event.get("direction")
         request_id = event.get("request_id")
+        if method == self._QUALIFIED_COMMAND_METHOD:
+            qualified_request = (
+                direction == "client"
+                and request_id is not None
+                and event.get("response") is not True
+                and event.get("workspace_probe_qualified") is True
+            )
+            qualified_response = (
+                direction == "server"
+                and event.get("response") is True
+                and "workspace_probe_qualified" not in event
+            )
+            if qualified_response:
+                key = ("client", request_id)
+                if self._bootstrap_pending.pop(key, None) != method:
+                    self._invalidate("bootstrap_response_mismatch")
+                return
+            if qualified_request:
+                key = ("client", request_id)
+                if key in self._bootstrap_pending:
+                    self._invalidate("duplicate_bootstrap_request")
+                else:
+                    self._bootstrap_pending[key] = method
+                return
+            self._invalidate("unknown_event")
+            return
         if method in self._OPAQUE_SERVER_NOTIFICATIONS:
             if direction != "server" or request_id is not None or event.get("response") is True:
                 self._invalidate("unknown_event")

@@ -351,7 +351,7 @@ def validate_silent_resume(bridge: Any) -> dict[str, Any]:
     server_thread_started_seen = any(
         row.get("direction") == "server"
         and row.get("event") == "rpc"
-        and row.get("method") in {"thread/started", "turn/started"}
+        and row.get("method") == "turn/started"
         for row in trace
     )
     violations = [

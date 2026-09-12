@@ -1,4 +1,5 @@
 import json
+import struct
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -211,6 +212,57 @@ def test_bridge_late_pre_resume_skills_response_cannot_satisfy_fresh_request():
     assert inferer.candidate.thread_id == THREAD_ID
 
 
+def test_observer_bridge_resume_accepts_audited_readonly_bootstrap_and_command_probe():
+    observer = Observer(expected_workspace_cwd="/repo")
+    inferer = ResumeAttachmentInferer(THREAD_ID)
+    bridge = _CaptureBridge(observer, inferer)
+    bridge.on_connect(SimpleNamespace(connection_id="c1", epoch=1, frontend_fd=1, backend_fd=2, frontend_peer=None, backend_peer=None))
+    bridge.on_data(SimpleNamespace(connection_id="c1", epoch=1, direction="frontend_to_backend", data=raw_upgrade_request()))
+    bridge.on_data(SimpleNamespace(connection_id="c1", epoch=1, direction="backend_to_frontend", data=raw_upgrade_response()))
+    command_params = {
+        "command": ["git", "-c", "safe.bareRepository=explicit", "branch", "--show-current"],
+        "cwd": "/repo",
+        "env": {"GIT_OPTIONAL_LOCKS": "0"},
+        "timeoutMs": 5000,
+        "outputBytesCap": 65536,
+        "tty": False,
+        "streamStdin": False,
+        "streamStdoutStderr": False,
+        "disableOutputCap": False,
+        "disableTimeout": False,
+        "processId": None,
+        "size": None,
+        "sandboxPolicy": None,
+        "permissionProfile": None,
+    }
+    messages = [
+        {"id": 1, "method": "initialize", "params": {}},
+        {"id": 1, "result": {}},
+        {"method": "initialized"},
+        {"id": 7, "method": "command/exec", "params": command_params},
+        {"id": 7, "result": {"exitCode": 0}},
+        {"id": 8, "method": "thread/items/list", "params": {"threadId": THREAD_ID}},
+        {"id": 8, "result": {"data": []}},
+        {"id": 9, "method": "thread/goal/get", "params": {"threadId": THREAD_ID}},
+        {"id": 9, "result": {"goal": None}},
+        {"method": "thread/status/changed", "params": {"threadId": THREAD_ID}},
+        {"id": 2, "method": "thread/resume", "params": {"threadId": THREAD_ID}},
+        {"id": 2, "result": {"thread": {"id": THREAD_ID, "sessionId": "session-1"}}},
+        {"id": 3, "method": "skills/list", "params": {}},
+        {"id": 3, "result": {}},
+    ]
+    directions = ("client", "server", "client", "client", "server", "client", "server", "client", "server", "server", "client", "server", "client", "server")
+    for message, direction in zip(messages, directions):
+        bridge.on_data(SimpleNamespace(
+            connection_id="c1", epoch=1,
+            direction="frontend_to_backend" if direction == "client" else "backend_to_frontend",
+            data=raw_ws_frame(message, client=direction == "client"),
+        ))
+    assert inferer.candidate is not None
+    assert inferer.candidate.thread_id == THREAD_ID
+    assert not any("params" in row for row in bridge.trace)
+
+
 def resume_wire_messages():
     return [
         {"id": 1, "method": "initialize", "params": {}},
@@ -247,11 +299,21 @@ def raw_upgrade_response():
 
 def raw_ws_frame(value, *, client):
     payload = json.dumps(value, separators=(",", ":")).encode()
+    size = len(payload)
+    if size < 126:
+        plain_header = bytes((0x81, size))
+        client_header = bytes((0x81, 0x80 | size))
+    elif size <= 0xFFFF:
+        plain_header = bytes((0x81, 126)) + struct.pack(">H", size)
+        client_header = bytes((0x81, 0x80 | 126)) + struct.pack(">H", size)
+    else:
+        plain_header = bytes((0x81, 127)) + struct.pack(">Q", size)
+        client_header = bytes((0x81, 0x80 | 127)) + struct.pack(">Q", size)
     if client:
         mask = b"\x01\x02\x03\x04"
         encoded = bytes(byte ^ mask[index % 4] for index, byte in enumerate(payload))
-        return bytes((0x81, 0x80 | len(payload))) + mask + encoded
-    return bytes((0x81, len(payload))) + payload
+        return client_header + mask + encoded
+    return plain_header + payload
 
 
 def test_resume_argv_is_exact_and_config_wires_inferer(tmp_path):
