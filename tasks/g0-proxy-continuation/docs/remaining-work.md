@@ -5,9 +5,9 @@
 | 工作 | 当前证据与下一步 |
 | --- | --- |
 | 原持久任务重新打开且不自动执行 | proxy-resume-02 已通过主会话和独立验收，见 `proxy-resume-02-acceptance.md`。 |
-| 部分任务退出停止、记录保留、明确继续后续跑 | 旧链路已有样本；新代理链路尚未通过。b968b81 仅为离线方案/映射校验器，复审发现缺少实际进程、前后 prefix、有效配置及执行证据，不准入原生实验。正在补真实 driver。 |
-| cached side/primary 切换 | 固定 crossterm fork 的 `0x1f` → Ctrl-7 解析与 Codex 兼容键已核实；独立 worktree 准备 zero-model probe。status 仍只用于验收，不生成候选。 |
-| 强制断连后重新获得附着资格 | 尚未完成实际原生验收。正常退出结果不能替代。 |
+| 部分任务退出停止、记录保留、明确继续后续跑 | proxy-partial-02 已通过主会话和独立验收：quiet 0 turn、前缀不变，明确继续后 segment 2 完成 12/12。初次 backend cleanup 约 10.155 秒，不是立即停止。 |
+| cached side/primary 切换 | 01 无 side 时 toggle 为 no-op；02 因前置空连接被旧护栏拒绝，尚未执行 side。已明确首次应为空 `/side`，正在修正已关闭前置探活连接的门禁。status 仍只用于验收，不生成候选。 |
+| 强制断连后重新获得附着资格 | proxy-reconnect-01 已通过：旧 epoch 失效，新 epoch 独立 initialize/resume/skills，status 同 P，零模型正常退出。 |
 | 用户级按需冷启动 | 只有 plist/离线方案；真实入口适配未完成，安装注册未获授权，保持暂停。 |
 | 控制器崩溃后的任务清理 | 当前 runtime 没有 parent-death guard，只拥有直接 TUI/backend；未验证，不沿用旧 Go fixture 的直接父进程保证。 |
 | 完整 G0 与 G1–G4 | G0 尚未全部通过；不启动 G1–G4 正式功能。 |

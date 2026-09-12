@@ -1,16 +1,16 @@
-# partial task → stop → quiet resume → explicit continue
+# 部分任务停止与续跑实验
 
-本地阶段只准备证据门禁和新 case/job 方案，不创建目录、不启动 native、不发送 prompt。
+实际执行入口是 `../scripts/partial_case.py`。`--prepare` 仅冻结新 case/job、绝对参数、实现与二进制、配置/Hook/种子文件摘要；`--run` 才执行一个经主会话核验的新样本。`partial_resume_plan.py` 中早期纯数据校验函数不能独立证明系统事实，也不作为原生运行的成功判据。
 
-建议使用全新的 `proxy-partial-01` nonce、case `tasks/g0-proxy-continuation/data/proxy-partial-01`、job `tasks/g0-proxy-continuation/data/proxy-partial-01-job` 和独立 preflight。它不能引用 `sd-qual-08` 的 case、job、nonce 或 thread。模型阶段必须在实际动作前保存有效配置证据，确认 effective model 为 `gpt-5.6-luna`、reasoning effort 为 `medium`；静态 TOML 或默认值不能替代这项确认。
+已完成样本 01（停止阶段 unknown）与 02（受控全流程 observed）。它们的 case、job、nonce、thread 和结果不可复用或改写，详见 `proxy-partial-01-result.md`、`proxy-partial-02-acceptance.md`。
 
-操作链固定为：
+实际操作与门禁：
 
-1. 创建 O_EXCL preflight，记录完整绝对 argv、源码/binary/config/hook/seed hash、空 case/job/endpoint、10 秒本地窗口和 120 秒模型窗口。新 task 的初始交互仍通过普通 `codex` 入口完成；本 runner 不注入 prompt。
-2. 在获得有效 Luna/medium 配置证据后，执行一个固定最小任务，持久化一个未完成 partial checkpoint。checkpoint 绑定新 thread、task revision、segment、完成步数、effect count 和 prefix hash；完成步数必须小于总步数。
-3. 停止前记录 Go worker 与其直接 parent 的 PID、出生身份和 executable，并验证 direct parent 仍是登记的 TUI/controller。同步记录 NativeRuntime 登记的 backend/TUI `OwnedProcess`、两个 `OwnedEndpoint` inode，以及 checkpoint hash。parent 变化、reparent 到 PID 1、PID/executable/birth 不匹配、endpoint 替换或 checkpoint 改变都拒绝 stop 证据。
-4. TUI quit 后只验证本任务登记的 backend/TUI 退出和 endpoint 清理；不按 uid、exe 或 ancestry 泛认领 descendants。若中间存在 shell，必须以 `exec` 消除或在实际证据中确认它的 direct parent 关系；controller 被 SIGKILL 的场景另行登记，当前最小样本不宣称覆盖。
-5. 用同一 thread 的新 NativeRuntime 连接恢复，观察 10 秒静默窗口。`ResumeAttachmentInferer` candidate 必须来自成功的 `thread/resume` response；status 只做精确 ID 对照。trace 必须完整，client `turn/start`、client `thread/start`、server `turn/started` 都为零，模型 turn 计数为零；允许已核验同 ID 的 optional server `thread/started`。
-6. 只有收到独立、明确的继续输入且 effective Luna/medium 证据仍有效，才进入新 segment 和 120 秒模型窗口。新 segment 继续旧 prefix，不能重做已提交 effect；继续前后的 checkpoint、segment、effect count 和输出 hash 独立对账。
+1. 普通 `codex` 创建新 thread；从完整 bootstrap 的 observer candidate 获取真实 ID。通过同一自有 backend 的新鲜 config/read 与 requirements 核实项目 Luna/medium 后，才提交固定合成任务提示。
+2. Go fixture 使用固定二进制、全新 0700 job 与继承的 `CODEX_THREAD_ID`。通过只读 inspect 与实际 PID/birth/executable 核实 worker 的直接父进程是自有 backend。
+3. 捕获至少一步未完成进度后发送 `/quit`。要求此前 TUI 仍活着、目标 epoch 未失效、终止事件计数为 0；在原本地窗口内取得新 EOF/close 后才清理 backend。阶段时间、退出码、双 peer、进度和清理信息在失败时也保留。
+4. 停止期间允许 Go 合同规定的合法已提交尾部；已有步骤必须原样保留。以实际停止后的完整连续前缀作为恢复基线，不把新提交的合法步骤当成旧文件改写。
+5. 用真实 thread ID 创建新 resume runtime，观察 10 秒静默；客户端/服务端均不得开始新轮次，inspect 与前缀不得变化。`/status` 仅作独立核对，不能制造候选。
+6. 再次核实 Luna/medium 后，发送固定明确继续输入。segment 2 必须完成剩余步骤，保留 segment 1 文件并达到精确总 effect count，最后核对 worker、TUI/backend、端点清理和全部保护摘要。
 
-`partial_resume_plan.py` 提供不启动 native 的 plan preflight，以及实际系统证据采样/校验函数：`capture_parent_guard` 读取 `/bin/ps` 和 process birth/executable，`validate_owned_runtime_stop` 只接受 NativeRuntime 已登记的 exact `OwnedProcess`/`OwnedEndpoint`，`capture_prefix` 使用 lstat+inode+SHA 做 durable prefix 对账；`validate_partial_stop`、`validate_resume_quiet` 和 `validate_continue_gate` 只消费这些证据。它不把用户填入的 PID、退出码、endpoint 或 prefix 字符串当作事实，也不由其中任何一项推导通用 process tree ownership。实际 Go fixture 需使用固定绝对 binary 和 `CODEX_THREAD_ID` 继承环境，初始/续跑各自 120 秒；实际模型运行仍需主会话单独准入和新鲜 Luna/medium 配置核验。
+本地窗口为 10 秒，初始和明确继续模型阶段各为 120 秒。样本 02 的初次 backend cleanup 约 10.155 秒；不能表述为立即停止。实验只覆盖已登记的固定 Go 任务，不证明任意第三方进程树、控制器 SIGKILL 或实际账号登出后的行为。没有安装用户级服务或修改 Codex 本体。
