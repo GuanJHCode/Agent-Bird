@@ -9,6 +9,8 @@ ordinary probe uses an empty argument list, while a separate version smoke
 may explicitly pass `--version`.
 
 The probe always builds the child environment through `build_clean_environment`.
+Grant files live below a separate owner-only supervisor root, outside every
+profile writable root; the native child cannot rewrite its own admission.
 It creates and removes only the new fake-home default socket alias pointing to
 the approved public socket. Backend admission is checked with
 `build_backend_launch` against the profile's private backend directory; this
@@ -21,7 +23,11 @@ only hashed by `snapshot_auth_paths`. The report contains opaque changed path
 IDs, auth unchanged state, bounded PTY byte count/digest, and a redacted
 diagnostic excerpt. It contains no credential body or environment values.
 
-The fake test uses a Python executable and a PTY to prove grant-before-release,
-`/status` and `/quit` writes, default socket alias cleanup, private backend
-plan construction, and unchanged synthetic auth metadata. Real native and
+The probe has two explicit modes: `version` accepts only `--version` and no
+PTY commands; `activation` accepts an empty argv, requires `sandbox-exec`, an
+immutable service readiness receipt, matching PTY `/status` thread UUID,
+`/quit`, zero exit, and a final service cleanup receipt before transaction
+revoke. The fake test uses the version mode and a PTY to prove
+grant-before-release, default socket alias cleanup, private backend plan
+construction, and unchanged synthetic auth metadata. Real native and
 launchctl execution is intentionally left to the top-level transaction owner.

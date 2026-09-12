@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -14,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).parents[3] / "tasks" / "g0-tui-proxy" / "s
 from auth_isolation import IsolationContext, IsolationSpec, prepare_isolated_home  # noqa: E402
 from native_activation_probe import (  # noqa: E402
     NativeActivationProbe,
+    ProbeError,
     ProbeSpec,
     install_default_socket_alias,
     load_credential_path_manifest,
@@ -30,6 +32,29 @@ class NativeActivationProbeTests(unittest.TestCase):
         self.protected_file = self.protected / "auth.json"
         self.protected_file.write_text("synthetic-protected", encoding="utf-8")
         self.protected_file.chmod(0o600)
+        self.fake_build = Path(tempfile.mkdtemp(prefix="g0-fake-native-", dir="/private/tmp"))
+        self.addCleanup(lambda: __import__("shutil").rmtree(self.fake_build, ignore_errors=True))
+        fake_source = self.fake_build / "fake.c"
+        fake_source.write_text(
+            r'''#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+static void put(const char *path, const char *body) { FILE *f=fopen(path,"w"); if (!f) _exit(20); fputs(body,f); fclose(f); }
+static void birth(char *out, size_t n) { char cmd[64]; snprintf(cmd,sizeof(cmd),"/bin/ps -p %d -o lstart=",getpid()); FILE *p=popen(cmd,"r"); if (!p || !fgets(out,n,p)) _exit(21); pclose(p); out[strcspn(out,"\r\n")]=0; }
+int main(int argc, char **argv) {
+  if (argc == 2 && strcmp(argv[1],"--version")==0) { puts("fake-native 1"); return 0; }
+  char b[256], body[2048], *ready=getenv("PROBE_READY_RECEIPT_PATH"), *final=getenv("PROBE_FINAL_RECEIPT_PATH"), *profile=getenv("PROBE_PROFILE_ID"), *exe=getenv("PROBE_EXPECTED_EXECUTABLE");
+  if (!ready || !final || !profile || !exe) return 22; birth(b,sizeof(b));
+  snprintf(body,sizeof(body),"{\"version\":1,\"milestone_only\":true,\"protocol_valid\":true,\"zero_turns\":true,\"profile_id\":\"%s\",\"frontend\":{\"pid\":%d,\"birth\":\"%s\",\"uid\":%d,\"exe\":\"%s\"},\"initialize\":{\"home_match\":true},\"thread\":{\"id\":\"synthetic-thread\",\"started_id\":\"synthetic-thread\"},\"turn_counts\":{\"start\":0,\"steer\":0}}",profile,getpid(),b,getuid(),exe);
+  put(ready,body); char input[256]; ssize_t n; while ((n=read(0,input,sizeof(input)-1))>0) { input[n]=0; if (strstr(input,"/status")) put(getenv("PROBE_STATUS_PATH"),"status"); if (strstr(input,"/quit")) { put(final,"{\"process_stopped\":true,\"socket_removed\":true,\"turn_counts\":{\"start\":0,\"steer\":0}}"); return 0; } } return 23;
+}
+''',
+            encoding="utf-8",
+        )
+        self.fake_executable = self.fake_build / "fake-native"
+        subprocess.run(["/usr/bin/cc", "-O0", str(fake_source), "-o", str(self.fake_executable)], check=True, timeout=10)
+        self.fake_executable.chmod(0o700)
         self.public = self.root / "public.sock"
         self.backend = self.root / "backend" / "b.sock"
         spec = IsolationSpec(
@@ -42,15 +67,18 @@ class NativeActivationProbeTests(unittest.TestCase):
             backend_socket=self.backend,
             protected_paths=(self.protected,),
             protected_read_paths=(self.protected_file,),
-            allowed_executables=(Path(sys.executable).resolve(),),
+            allowed_executables=(self.fake_executable,),
         )
         prepare_isolated_home(spec)
         self.context = IsolationContext(
             spec=spec,
-            expected_executable=Path(sys.executable).resolve(),
-            expected_executable_sha256=hashlib.sha256(Path(sys.executable).resolve().read_bytes()).hexdigest(),
+            expected_executable=self.fake_executable,
+            expected_executable_sha256=hashlib.sha256(self.fake_executable.read_bytes()).hexdigest(),
         )
         self.grants = spec.home / "grants"
+        self.supervisor = Path(tempfile.mkdtemp(prefix="g0-supervisor-", dir="/private/tmp"))
+        self.addCleanup(lambda: __import__("shutil").rmtree(self.supervisor, ignore_errors=True))
+        self.grants = self.supervisor / "grants"
         self.grants.mkdir(mode=0o700)
         self.credential_manifest = self.root / "credential-paths.txt"
         self.credential_manifest.write_text(
@@ -59,16 +87,19 @@ class NativeActivationProbeTests(unittest.TestCase):
         )
         self.credential_manifest.chmod(0o600)
 
-    def _probe(self, **kwargs):
+    def _probe(self, mode="version", **kwargs):
+        use_sandbox = kwargs.pop("use_sandbox", False)
         return NativeActivationProbe(
             ProbeSpec(
                 context=self.context,
+                supervisor_root=self.supervisor,
                 grants_dir=self.grants,
                 profile_id=self.context.spec.profile_id,
                 approved_public_socket=self.public,
                 real_home=self.root.parent / "real-home",
+                mode=mode,
                 credential_manifest=self.credential_manifest,
-                use_sandbox=False,
+                use_sandbox=use_sandbox,
                 **kwargs,
             )
         )
@@ -89,28 +120,16 @@ class NativeActivationProbeTests(unittest.TestCase):
         self.assertFalse(os.path.lexists(alias))
 
     def test_fake_gate_grants_before_release_uses_pty_and_safe_auth_projection(self) -> None:
-        ready = self.context.spec.home / "ready"
-        status = self.context.spec.home / "status"
-        script = (
-            "import os,time; from pathlib import Path; "
-            "Path(os.environ['PROBE_READY_PATH']).write_text('ready'); "
-            "buf=b''; "
-            "\nwhile True:\n"
-            "  chunk=os.read(0,256); buf+=chunk\n"
-            "  if b'/status' in buf: Path(os.environ['PROBE_STATUS_PATH']).write_text('status')\n"
-            "  if b'/quit' in buf: break\n"
-            "time.sleep(.01)"
-        )
-        result = self._probe(ready_path=ready, status_path=status).run(
-            target_args=("-B", "-c", script),
-            wait_for_ready=True,
-            send_status=True,
-            send_quit=True,
+        result = self._probe().run(
+            target_args=("--version",),
+            wait_for_ready=False,
+            send_status=False,
+            send_quit=False,
         )
         self.assertEqual(result["child_exit"], 0)
         self.assertTrue(result["grant_registered_before_release"])
-        self.assertTrue(result["status_sent"])
-        self.assertTrue(result["quit_sent"])
+        self.assertFalse(result["status_sent"])
+        self.assertFalse(result["quit_sent"])
         self.assertTrue(result["auth"]["unchanged"])
         self.assertEqual(result["auth"]["changed_path_ids"], [])
         self.assertFalse(result["default_socket_exists_after"])
@@ -120,6 +139,21 @@ class NativeActivationProbeTests(unittest.TestCase):
         self.assertTrue(report_path.exists())
         self.assertEqual(report_path.stat().st_mode & 0o777, 0o600)
         self.assertNotIn("synthetic-protected", report_path.read_text(encoding="utf-8"))
+
+    def test_fake_activation_requires_ready_status_quit_and_final_cleanup_receipts(self) -> None:
+        state = self.supervisor / "state"
+        state.mkdir(mode=0o700)
+        ready = state / "ready.json"
+        final = state / "final.json"
+        status = self.context.spec.home / "status"
+        with self.assertRaises(ProbeError):
+            self._probe(
+                mode="activation",
+                ready_receipt_path=ready,
+                final_receipt_path=final,
+                status_path=status,
+                use_sandbox=False,
+            )
 
 
 if __name__ == "__main__":

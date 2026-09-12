@@ -21,8 +21,11 @@ import signal
 import stat
 import subprocess
 import sys
+import termios
+import fcntl
+import struct
 import time
-from typing import Any, Iterable, Sequence
+from typing import Any, Iterable, Literal, Sequence
 import uuid
 
 from auth_isolation import (
@@ -40,6 +43,11 @@ try:
 except ImportError:  # pragma: no cover - the fixed repo path is used in tests.
     _process_metadata = None
 
+try:
+    from proxy_native_runtime import PTYDriver
+except ImportError:  # pragma: no cover - fixed repo path is supplied by caller.
+    PTYDriver = None
+
 
 MAX_PATH_MANIFEST_BYTES = 64 * 1024
 MAX_PTY_BYTES = 256 * 1024
@@ -54,12 +62,17 @@ class ProbeError(RuntimeError):
 @dataclass(frozen=True)
 class ProbeSpec:
     context: IsolationContext
+    supervisor_root: Path
     grants_dir: Path
     profile_id: str
     approved_public_socket: Path
     real_home: Path
+    manifest_sha256: str | None = None
+    mode: Literal["version", "activation"] = "activation"
     credential_manifest: Path | None = None
     ready_path: Path | None = None
+    ready_receipt_path: Path | None = None
+    final_receipt_path: Path | None = None
     status_path: Path | None = None
     report_path: Path | None = None
     use_sandbox: bool = True
@@ -152,6 +165,7 @@ def _write_exclusive(path: Path, data: bytes, mode: int = 0o600) -> tuple[int, i
         os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0),
         mode,
     )
+    created = os.fstat(fd)
     try:
         view = memoryview(data)
         while view:
@@ -164,7 +178,9 @@ def _write_exclusive(path: Path, data: bytes, mode: int = 0o600) -> tuple[int, i
     except BaseException:
         os.close(fd)
         try:
-            path.unlink()
+            current = path.lstat()
+            if (current.st_dev, current.st_ino) == (created.st_dev, created.st_ino):
+                path.unlink()
         except FileNotFoundError:
             pass
         raise
@@ -224,10 +240,17 @@ def install_default_socket_alias(context: IsolationContext, approved_public_sock
     return alias
 
 
-def remove_default_socket_alias(context: IsolationContext, approved_public_socket: Path) -> None:
+def remove_default_socket_alias(
+    context: IsolationContext,
+    approved_public_socket: Path,
+    expected_identity: tuple[int, int] | None = None,
+) -> None:
     alias = default_control_socket(context.spec.codex_home)
     if not os.path.lexists(alias):
         return
+    info = alias.lstat()
+    if expected_identity is not None and (info.st_dev, info.st_ino) != expected_identity:
+        raise ProbeError("default socket alias identity changed")
     if not alias.is_symlink() or Path(os.readlink(alias)) != Path(approved_public_socket):
         raise ProbeError("default socket alias was replaced")
     alias.unlink()
@@ -243,6 +266,8 @@ def build_probe_from_manifest(
     grants_dir: Path,
     real_home: Path,
     *,
+    supervisor_root: Path | None = None,
+    manifest_sha256: str | None = None,
     credential_manifest: Path | None = None,
     ready_path: Path | None = None,
     status_path: Path | None = None,
@@ -255,10 +280,12 @@ def build_probe_from_manifest(
     return NativeActivationProbe(
         ProbeSpec(
             context=context,
+            supervisor_root=Path(supervisor_root or Path(grants_dir).parent),
             grants_dir=Path(grants_dir),
             profile_id=profile_id,
             approved_public_socket=context.spec.public_socket,
             real_home=Path(real_home),
+            manifest_sha256=manifest_sha256,
             credential_manifest=credential_manifest,
             ready_path=ready_path,
             status_path=status_path,
@@ -303,6 +330,102 @@ def _process_identity(pid: int) -> tuple[str, str | None]:
     return birth, executable
 
 
+def _spawn_pty_gate(argv: Sequence[str], env: dict[str, str], cwd: Path) -> tuple[int, int]:
+    """Spawn through a real controlling PTY with bounded terminal geometry."""
+
+    if PTYDriver is None:
+        raise ProbeError("proxy_native_runtime.PTYDriver unavailable")
+    pid, master = pty.fork()
+    if pid == 0:
+        try:
+            os.chdir(cwd)
+            os.environ.clear()
+            os.environ.update(env)
+            os.environ["TERM"] = "xterm-256color"
+            fcntl.ioctl(0, termios.TIOCSWINSZ, struct.pack("HHHH", 60, 200, 0, 0))
+            os.execve(argv[0], list(argv), env)
+        finally:
+            os._exit(127)
+    os.set_blocking(master, False)
+    fcntl.ioctl(master, termios.TIOCSWINSZ, struct.pack("HHHH", 60, 200, 0, 0))
+    return pid, master
+
+
+def _read_private_json(path: Path) -> dict[str, Any]:
+    info = path.lstat()
+    if stat.S_ISLNK(info.st_mode) or not stat.S_ISREG(info.st_mode):
+        raise ProbeError("receipt must be a regular file")
+    if info.st_uid != os.getuid() or stat.S_IMODE(info.st_mode) != 0o600 or info.st_size > MAX_PATH_MANIFEST_BYTES:
+        raise ProbeError("receipt owner/mode/size invalid")
+    fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0))
+    try:
+        first = os.fstat(fd)
+        data = os.read(fd, MAX_PATH_MANIFEST_BYTES + 1)
+        second = os.fstat(fd)
+    finally:
+        os.close(fd)
+    fields = ("st_dev", "st_ino", "st_uid", "st_mode", "st_size", "st_nlink", "st_mtime_ns")
+    if any(getattr(first, field) != getattr(second, field) for field in fields) or len(data) > MAX_PATH_MANIFEST_BYTES:
+        raise ProbeError("receipt changed while reading")
+    raw = json.loads(data)
+    if not isinstance(raw, dict):
+        raise ProbeError("receipt must be an object")
+    return raw
+
+
+def _ready_receipt_matches(
+    raw: dict[str, Any], context: IsolationContext, pid: int, birth: str, manifest_sha256: str | None
+) -> bool:
+    frontend = raw.get("frontend")
+    initialize = raw.get("initialize")
+    thread = raw.get("thread")
+    counts = raw.get("turn_counts")
+    if not isinstance(frontend, dict) or not isinstance(initialize, dict) or not isinstance(thread, dict) or not isinstance(counts, dict):
+        return False
+    if raw.get("version") != 1 or raw.get("ready_published") is not True or raw.get("milestone_only") is not True or raw.get("protocol_valid") is not True:
+        return False
+    if raw.get("profile_id") != context.spec.profile_id or raw.get("zero_turns") is not True or raw.get("closed") is not False or raw.get("initialized") is not True:
+        return False
+    if manifest_sha256 is not None and raw.get("manifest_sha256") != manifest_sha256:
+        return False
+    if frontend.get("pid") != pid or frontend.get("birth") != birth or frontend.get("uid") != os.getuid():
+        return False
+    if os.path.realpath(str(frontend.get("exe", ""))) != os.path.realpath(str(context.expected_executable)):
+        return False
+    if initialize.get("home_match") is not True:
+        return False
+    expected_home_sha = hashlib.sha256(str(context.spec.codex_home).encode("utf-8")).hexdigest()
+    if initialize.get("home_sha256") != expected_home_sha:
+        return False
+    if initialize.get("manifest_sha256") is not None and initialize.get("manifest_sha256") != raw.get("manifest_sha256"):
+        return False
+    thread_id = thread.get("id")
+    if not isinstance(thread_id, str) or not thread_id or thread.get("started_id") != thread_id:
+        return False
+    if counts.get("start") != 0 or counts.get("steer") != 0:
+        return False
+    return True
+
+
+def _final_receipt_complete(raw: dict[str, Any]) -> bool:
+    protocol = raw.get("transport", {}).get("protocol") if isinstance(raw.get("transport"), dict) else None
+    protocol = protocol if isinstance(protocol, dict) else raw
+    if protocol.get("protocol_valid") is not True or protocol.get("zero_turns") is not True:
+        return False
+    if raw.get("closed") is not True and "closed" in raw:
+        return False
+    counts = protocol.get("turn_counts")
+    if isinstance(counts, dict) and any(counts.get(name) != 0 for name in ("start", "steer")):
+        return False
+    records = raw.get("backend_records")
+    if isinstance(records, list):
+        return bool(records) and all(
+            isinstance(row, dict) and row.get("process_stopped") is True and row.get("socket_removed") is True
+            for row in records
+        )
+    return raw.get("process_stopped") is True and raw.get("socket_removed") is True
+
+
 class NativeActivationProbe:
     def __init__(self, spec: ProbeSpec, *, transaction: Any | None = None) -> None:
         self.spec = spec
@@ -324,17 +447,42 @@ class NativeActivationProbe:
             raise ProbeError("isolated home overlaps real home")
         if self.spec.timeout <= 0 or self.spec.timeout > MAX_LOCAL_SECONDS:
             raise ProbeError("probe timeout exceeds local bound")
-        if not self.spec.grants_dir.is_absolute():
-            raise ProbeError("grant directory must be absolute")
+        if self.spec.mode not in {"version", "activation"}:
+            raise ProbeError("probe mode must be version or activation")
+        if self.spec.mode == "activation" and not self.spec.use_sandbox:
+            raise ProbeError("activation mode requires sandbox-exec")
+        for supervisor_path in (self.spec.supervisor_root, self.spec.grants_dir):
+            if not supervisor_path.is_absolute():
+                raise ProbeError("supervisor paths must be absolute")
+        _private_directory(self.spec.supervisor_root)
+        _private_directory(self.spec.grants_dir)
+        if self.spec.grants_dir.parent != self.spec.supervisor_root:
+            raise ProbeError("grant directory must be a direct supervisor child")
         context.spec.validate()
         _private_directory(context.spec.task_root)
         _private_directory(context.spec.home)
         _private_directory(context.spec.codex_home)
         _private_directory(context.spec.workspace)
-        if self.spec.grants_dir.exists():
-            _private_directory(self.spec.grants_dir)
-            if self.spec.grants_dir.resolve() != context.spec.home.resolve() and context.spec.home.resolve() not in self.spec.grants_dir.resolve().parents:
-                raise ProbeError("grant directory must be below isolated home")
+        profile_roots = (
+            context.spec.task_root.resolve(),
+            context.spec.home.resolve(),
+            context.spec.codex_home.resolve(),
+            context.spec.workspace.resolve(),
+            context.spec.backend_socket.parent.resolve(),
+        )
+        supervisor_root = self.spec.supervisor_root.resolve()
+        if any(supervisor_root == root or root in supervisor_root.parents or supervisor_root in root.parents for root in profile_roots):
+            raise ProbeError("supervisor root overlaps profile writable roots")
+        if self.spec.mode == "activation" and self.spec.ready_receipt_path is None:
+            raise ProbeError("activation mode requires a ready receipt")
+        if self.spec.mode == "activation" and (
+            not isinstance(self.spec.manifest_sha256, str) or len(self.spec.manifest_sha256) != 64
+        ):
+            raise ProbeError("activation mode requires the frozen manifest digest")
+        if self.spec.mode == "version" and any(
+            path is not None for path in (self.spec.ready_receipt_path, self.spec.final_receipt_path)
+        ):
+            raise ProbeError("version mode cannot use activation receipts")
         for child_path in (self.spec.ready_path, self.spec.status_path):
             if child_path is None:
                 continue
@@ -345,6 +493,15 @@ class NativeActivationProbe:
             roots = (context.spec.home.resolve(), context.spec.workspace.resolve(), (context.spec.task_root / "tmp").resolve())
             if not any(resolved == root or root in resolved.parents for root in roots):
                 raise ProbeError("probe evidence path must be below isolated roots")
+        for receipt_path in (self.spec.ready_receipt_path, self.spec.final_receipt_path):
+            if receipt_path is None:
+                continue
+            if not receipt_path.is_absolute():
+                raise ProbeError("activation receipt path must be absolute")
+            _reject_symlink_components(receipt_path)
+            resolved = receipt_path.resolve()
+            if resolved != supervisor_root and supervisor_root not in resolved.parents:
+                raise ProbeError("activation receipt must be below supervisor root")
         if self.spec.report_path is not None:
             if not self.spec.report_path.is_absolute():
                 raise ProbeError("probe report path must be absolute")
@@ -379,18 +536,26 @@ class NativeActivationProbe:
         """Run one bounded gate-to-exec probe and return safe metadata only."""
 
         context = self.spec.context
+        if self.spec.mode == "version":
+            if tuple(target_args) != ("--version",) or send_status or send_quit:
+                raise ProbeError("version mode requires exactly --version and no PTY commands")
+        else:
+            if tuple(target_args) or not send_status or not send_quit:
+                raise ProbeError("activation mode requires empty argv and bounded status/quit")
         auth_paths = self._auth_paths()
         before = snapshot_auth_paths(auth_paths)
         alias = install_default_socket_alias(context, self.spec.approved_public_socket)
+        alias_info = alias.lstat()
+        alias_identity = (alias_info.st_dev, alias_info.st_ino)
         profile_path = context.spec.task_root / f"probe-{uuid.uuid4().hex[:12]}.sbpl"
         profile_identity: tuple[int, int] | None = None
         grant_path: Path | None = None
         grant_identity: tuple[int, int] | None = None
         master: int | None = None
-        slave: int | None = None
         read_fd: int | None = None
         write_fd: int | None = None
-        process: subprocess.Popen[bytes] | None = None
+        process: Any | None = None
+        driver: Any | None = None
         child_pid: int | None = None
         child_birth: str | None = None
         digest = hashlib.sha256()
@@ -417,7 +582,10 @@ class NativeActivationProbe:
         }
         report_path = self.spec.report_path or context.spec.task_root / f"probe-report-{uuid.uuid4().hex[:12]}.json"
         scope = self.transaction.managed() if self.transaction is not None else nullcontext(None)
+        scope_entered = False
         try:
+            scope.__enter__()
+            scope_entered = True
             backend_plan = self._backend_plan()
             report["backend_plan"] = {
                 "private_socket": backend_plan["private_socket"],
@@ -428,13 +596,18 @@ class NativeActivationProbe:
             if self.spec.status_path is not None and os.path.lexists(self.spec.status_path):
                 raise ProbeError("status path already exists")
             env = build_clean_environment(context.spec)
+            env["TERM"] = "xterm-256color"
             if self.spec.ready_path is not None:
                 env["PROBE_READY_PATH"] = str(self.spec.ready_path)
             if self.spec.status_path is not None:
                 env["PROBE_STATUS_PATH"] = str(self.spec.status_path)
+            if self.spec.ready_receipt_path is not None:
+                env["PROBE_READY_RECEIPT_PATH"] = str(self.spec.ready_receipt_path)
+            if self.spec.final_receipt_path is not None:
+                env["PROBE_FINAL_RECEIPT_PATH"] = str(self.spec.final_receipt_path)
             report["env_names"] = sorted(env)
-            master, slave = pty.openpty()
             read_fd, write_fd = os.pipe()
+            os.set_inheritable(read_fd, True)
             gate = [sys.executable, "-B", str(Path(__file__).resolve()), "--gate-child", str(read_fd), str(context.expected_executable), "--", *target_args]
             if self.spec.use_sandbox:
                 if not self.spec.sandbox_executable.is_file():
@@ -442,61 +615,73 @@ class NativeActivationProbe:
                 profile_data = render_sandbox_profile(context.spec).encode("utf-8")
                 profile_identity = _write_exclusive(profile_path, profile_data)
                 gate = [str(self.spec.sandbox_executable), "-f", str(profile_path), *gate]
-            with scope:
-                process = subprocess.Popen(
-                    gate,
-                    stdin=slave,
-                    stdout=slave,
-                    stderr=slave,
-                    pass_fds=(read_fd,),
-                    close_fds=True,
-                    env=env,
-                    cwd=context.spec.workspace,
-                    start_new_session=True,
-                )
-                child_pid = process.pid
-                child_birth, gate_executable = _process_identity(child_pid)
-                grant_path = self.spec.grants_dir / f"{child_pid}.json"
-                grant = {
-                    "version": 1,
-                    "profile_id": self.spec.profile_id,
-                    "pid": child_pid,
-                    "uid": os.getuid(),
-                    "birth": child_birth,
-                    "expected_executable": str(context.expected_executable),
-                    "executable_sha256": context.expected_executable_sha256,
-                    "home": str(context.spec.home),
-                    "codex_home": str(context.spec.codex_home),
-                    "workspace": str(context.spec.workspace),
-                    "public_socket": str(context.spec.public_socket),
-                    "backend_socket": str(context.spec.backend_socket),
-                    "phase": "pre_exec_gate",
-                }
-                grant_identity = _write_exclusive(grant_path, json.dumps(grant, sort_keys=True).encode("utf-8"))
-                report["grant_registered_before_release"] = True
-                report["gate_executable"] = gate_executable
-                os.write(write_fd, b"1")
-                os.close(write_fd)
-                write_fd = None
+            child_pid, master = _spawn_pty_gate(gate, env, context.spec.workspace)
+            driver = PTYDriver(child_pid, master)
+            child_birth, gate_executable = _process_identity(child_pid)
+            grant_path = self.spec.grants_dir / f"{child_pid}.json"
+            grant = {
+                "version": 1,
+                "profile_id": self.spec.profile_id,
+                "pid": child_pid,
+                "uid": os.getuid(),
+                "birth": child_birth,
+                "expected_executable": str(context.expected_executable),
+                "executable_sha256": context.expected_executable_sha256,
+                "home": str(context.spec.home),
+                "codex_home": str(context.spec.codex_home),
+                "workspace": str(context.spec.workspace),
+                "public_socket": str(context.spec.public_socket),
+                "backend_socket": str(context.spec.backend_socket),
+                "phase": "pre_exec_gate",
+            }
+            grant_identity = _write_exclusive(grant_path, json.dumps(grant, sort_keys=True).encode("utf-8"))
+            report["grant_registered_before_release"] = True
+            report["gate_executable"] = gate_executable
+            os.write(write_fd, b"1")
+            os.close(write_fd)
+            write_fd = None
+            deadline = time.monotonic() + self.spec.timeout
+            if self.spec.mode == "activation":
                 deadline = time.monotonic() + self.spec.timeout
-                if wait_for_ready and self.spec.ready_path is not None:
-                    while not self.spec.ready_path.exists() and time.monotonic() < deadline:
-                        time.sleep(0.01)
-                    if not self.spec.ready_path.exists():
-                        raise ProbeError("probe ready timeout")
-                pty_bytes, pty_excerpt = _drain_pty(master, digest, pty_bytes, min(deadline, time.monotonic() + 0.2))
+                while time.monotonic() < deadline:
+                    try:
+                        ready = _read_private_json(self.spec.ready_receipt_path)  # type: ignore[arg-type]
+                        if _ready_receipt_matches(ready, context, child_pid, child_birth, self.spec.manifest_sha256):
+                            report["ready"] = {
+                                "connection_id": ready.get("connection_id"),
+                                "epoch": ready.get("epoch"),
+                                "thread_id": ready.get("thread", {}).get("id"),
+                                "home_match": True,
+                            }
+                            break
+                    except (FileNotFoundError, ProbeError, json.JSONDecodeError):
+                        pass
+                    time.sleep(0.01)
+                else:
+                    raise ProbeError("activation readiness receipt timeout")
+            elif wait_for_ready and self.spec.ready_path is not None:
+                while not self.spec.ready_path.exists() and time.monotonic() < deadline:
+                    time.sleep(0.01)
+                if not self.spec.ready_path.exists():
+                    raise ProbeError("probe ready timeout")
+                driver.read(min(0.2, max(0.01, deadline - time.monotonic())))
                 if send_status:
-                    os.write(master, b"/status\n")
+                    driver.command("/status")
                     status_sent = True
-                    pty_bytes, pty_excerpt = _drain_pty(master, digest, pty_bytes, min(deadline, time.monotonic() + 0.5))
-                if send_quit:
-                    os.write(master, b"/quit\n")
-                    quit_sent = True
-                while process.poll() is None and time.monotonic() < deadline:
-                    pty_bytes, pty_excerpt = _drain_pty(master, digest, pty_bytes, min(deadline, time.monotonic() + 0.05))
-                if process.poll() is None:
-                    raise ProbeError("probe child exceeded bounded timeout")
-                report["child_exit"] = process.returncode
+                    status_ids = sorted(driver.status_checkpoint(min(0.5, max(0.01, deadline - time.monotonic()))))
+                    report["status_session_ids"] = status_ids
+                    if self.spec.mode == "activation":
+                        expected_thread = report.get("ready", {}).get("thread_id")
+                        if status_ids != [expected_thread]:
+                            raise ProbeError("PTY status session does not match ready thread")
+            if send_quit:
+                driver.command("/quit")
+                quit_sent = True
+            if driver.wait(max(0.01, deadline - time.monotonic())) is None:
+                raise ProbeError("probe child exceeded bounded timeout")
+            report["child_exit"] = driver.exit_code
+            if self.spec.mode == "activation" and driver.exit_code != 0:
+                raise ProbeError("activation child exit was not zero")
         except BaseException as exc:
             error = exc
         finally:
@@ -506,34 +691,28 @@ class NativeActivationProbe:
                         os.close(fd)
                     except OSError as exc:
                         cleanup_failures.append(type(exc).__name__)
-            if process is not None and process.poll() is None and child_pid is not None and child_birth is not None:
+            if driver is not None and driver.poll() is None and child_pid is not None and child_birth is not None:
                 try:
                     current_birth, _ = _process_identity(child_pid)
                     if current_birth == child_birth:
-                        process.send_signal(signal.SIGTERM)
-                        try:
-                            process.wait(timeout=1)
-                        except subprocess.TimeoutExpired:
-                            process.kill()
-                            process.wait(timeout=1)
+                        os.kill(child_pid, signal.SIGTERM)
+                        if driver.wait(1) is None:
+                            os.kill(child_pid, signal.SIGKILL)
+                            driver.wait(1)
                     else:
                         cleanup_failures.append("child_identity_changed")
                 except (ProbeError, OSError, subprocess.TimeoutExpired) as exc:
                     cleanup_failures.append(type(exc).__name__)
-            if process is not None and report["child_exit"] is None:
-                report["child_exit"] = process.poll()
-            if master is not None:
+            if driver is not None:
+                if report["child_exit"] is None:
+                    report["child_exit"] = driver.poll()
+                evidence = driver.evidence
+                pty_bytes = int(evidence.get("bytes", 0))
+                digest = driver.digest
+                pty_excerpt = getattr(driver, "screen_tail", b"")[:MAX_DIAGNOSTIC_BYTES]
                 try:
-                    pty_bytes, pty_excerpt = _drain_pty(master, digest, pty_bytes, time.monotonic() + 0.1)
-                finally:
-                    try:
-                        os.close(master)
-                    except OSError as exc:
-                        cleanup_failures.append(type(exc).__name__)
-            if slave is not None:
-                try:
-                    os.close(slave)
-                except OSError as exc:
+                    driver.close()
+                except (OSError, RuntimeError) as exc:
                     cleanup_failures.append(type(exc).__name__)
             if grant_path is not None and grant_identity is not None:
                 try:
@@ -546,9 +725,36 @@ class NativeActivationProbe:
                 except (ProbeError, OSError) as exc:
                     cleanup_failures.append(type(exc).__name__)
             try:
-                remove_default_socket_alias(context, self.spec.approved_public_socket)
+                remove_default_socket_alias(context, self.spec.approved_public_socket, alias_identity)
             except (ProbeError, OSError) as exc:
                 cleanup_failures.append(type(exc).__name__)
+            if self.spec.mode == "activation" and self.spec.final_receipt_path is not None:
+                final_deadline = time.monotonic() + self.spec.timeout
+                final_ok = False
+                while time.monotonic() < final_deadline:
+                    try:
+                        if _final_receipt_complete(_read_private_json(self.spec.final_receipt_path)):
+                            final_ok = True
+                            break
+                    except (FileNotFoundError, ProbeError, json.JSONDecodeError):
+                        pass
+                    time.sleep(0.01)
+                if not final_ok:
+                    cleanup_failures.append("final_receipt_timeout")
+                    if error is None:
+                        error = ProbeError("activation cleanup receipt timeout")
+            if scope_entered:
+                try:
+                    scope.__exit__(
+                        type(error) if error is not None else None,
+                        error,
+                        error.__traceback__ if error is not None else None,
+                    )
+                except BaseException as exc:
+                    cleanup_failures.append(type(exc).__name__)
+                    if error is None:
+                        error = exc
+                scope_entered = False
             try:
                 after = snapshot_auth_paths(auth_paths)
                 report["auth"] = before.compare(after)
