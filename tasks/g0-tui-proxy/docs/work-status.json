@@ -1,16 +1,16 @@
 {
   "scope": "authorized controlled TUI proxy experiment",
   "baseline": "bb5c7ff",
-  "native_runs": 3,
+  "native_runs": 5,
   "model_runs": null,
   "components": {
     "observer": {
       "initial": "689fc34",
       "first_fix": "93154a0",
       "state": "independent review passed",
-      "final": "70ed6a1",
-      "main": "76f6ea3",
-      "tests": 22
+      "final": "534c21b",
+      "main": "c132fdb",
+      "tests": 36
     },
     "transport": {
       "initial": "67dc97d",
@@ -22,24 +22,26 @@
     "runtime": {
       "initial": "4c2787e",
       "input_chain": "74dcb82",
-      "state": "wire/PTY fixes reviewed; native bootstrap classification, frame capacity and terminal readiness remain",
-      "latest_reviewed": "349d2d3",
-      "main": "984e097"
+      "state": "initial attachment native proof obtained; clear order/status window/epoch-specific invalidation remain",
+      "latest_reviewed": "92c5ac6",
+      "main": "06d29cf"
     }
   },
   "native_admission": false,
   "original_scope_preserved": true,
   "formal_global_installation_authorized": false,
   "main_component_tests": {
-    "passed": 80,
-    "seconds": 1.31,
+    "passed": 121,
+    "seconds": 1.36,
     "native_or_model_calls": 0
   },
-  "model_observation": "No deliberate prompt or model invocation; complete trace unavailable in both attempts, so model_turns is not proven zero.",
+  "model_observation": "05 complete trace proves zero client turn/start; no deliberate prompt/model invocation in any case; earlier incomplete traces retain null counts.",
   "native_cases": {
     "proxy-attach-01": "unknown: backend --listen received bare path; fixed afterward",
     "proxy-attach-02": "unknown: invalid_json_rpc gap, no candidates/status ID, post-disconnect epoch and failed normal quit; owned cleanup reported complete",
-    "proxy-attach-03": "unknown: real initialize/thread-start/replay captured; unclassified bootstrap traffic, frame_too_large, no status ID or normal quit; owned cleanup independently verified"
+    "proxy-attach-03": "unknown: real initialize/thread-start/replay captured; unclassified bootstrap traffic, frame_too_large, no status ID or normal quit; owned cleanup independently verified",
+    "proxy-attach-04": "unknown: relative backend URI resolved under child cwd; no TUI. Absolute-path guard added afterward.",
+    "proxy-attach-05": "initial observer candidate equals independent status Session ID; trace complete; model_turns=0. Overall unknown: clear order/status capture/per-epoch invalidation and normal quit after reconnect not passed."
   },
-  "next": "Pinned-source diagnostics of bootstrap semantics, bounded frame capacity, and PTY action readiness; no new native window until reviewed."
+  "next": "Fix status capture and epoch evidence; verify pinned /clear commit sequence; no new native window until reviewed."
 }
