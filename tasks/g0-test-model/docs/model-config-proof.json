@@ -1,0 +1,53 @@
+{
+  "scope": "offline project configuration preparation",
+  "native_version": "0.154.0",
+  "config_path": "tasks/g0-macos/data/test-repo/.codex/config.toml",
+  "configured_model": "gpt-5.6-luna",
+  "configured_reasoning_effort": "medium",
+  "model_selection_basis": "local models_cache description: Fast and affordable agentic coding model; supported_in_api=true; default medium",
+  "prohibited_model": "gpt-6-astra",
+  "invocation_contract": "codex <initial task>",
+  "routing_constraints": [
+    "reuse existing default UDS automatically",
+    "do not add -m, --remote, or -c overrides",
+    "do not start a service, TUI, RPC, or model in this preparation"
+  ],
+  "source_findings": [
+    {
+      "path": "tasks/g0-sessionstart-mcp-diagnostic/data/source/codex-rs/tui/src/app/startup.rs",
+      "lines": "73-90,255-256,288-289",
+      "finding": "startup_model uses config.model when present; model/list default is only used when config.model is absent"
+    },
+    {
+      "path": "tasks/g0-sessionstart-mcp-diagnostic/data/source/codex-rs/tui/src/app_server_session.rs",
+      "lines": "622-634,1850-1860",
+      "finding": "bootstrap reads configured model and exports model_reasoning_effort in session config"
+    },
+    {
+      "path": "tasks/g0-sessionstart-mcp-diagnostic/data/source/codex-rs/tui/src/lib.rs",
+      "lines": "2022-2050",
+      "finding": "TUI loads the layered config using cwd context before startup"
+    },
+    {
+      "path": "tasks/g0-sessionstart-mcp-diagnostic/data/source/codex-rs/tui/src/cli.rs",
+      "lines": "1-18",
+      "finding": "ordinary positional PROMPT is the supported initial task input"
+    }
+  ],
+  "effective_config_verification": {
+    "status": "pending_live_read_only_check",
+    "method": "fixed 0.154 app-server config/read over the existing private UDS",
+    "cwd": "tasks/g0-macos/data/test-repo",
+    "request_fields": ["cwd", "include_layers"],
+    "required_assertions": [
+      "effective model equals gpt-5.6-luna",
+      "effective model source is the project layer or its resolved project config layer",
+      "effective reasoning effort equals medium",
+      "no profile, managed requirement, or fallback layer replaces Luna",
+      "the selected service remains the ordinary default UDS/Embedded service"
+    ],
+    "model_calls": 0,
+    "service_started": false
+  },
+  "standalone_callback_note": "A future standalone turn/start may explicitly carry model=gpt-5.6-luna as a callback safeguard, but the existing helper has no model parameter and must not be changed in this preparation."
+}

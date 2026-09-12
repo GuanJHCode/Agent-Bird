@@ -1,0 +1,14 @@
+{
+  "config_path": "tasks/g0-macos/data/test-repo/.codex/config.toml",
+  "config_sha256": "298a250c45c9585c695e427c830c20100ecadc8a612445703b2a8b5878a3aa2b",
+  "model": "gpt-5.6-luna",
+  "reasoning_effort": "medium",
+  "cache_fields_used": [
+    "description",
+    "supported_in_api",
+    "default_reasoning_effort"
+  ],
+  "cache_fields_omitted": ["account", "token", "quota", "pricing"],
+  "live_effective_model": "unverified_until_config_read",
+  "native_or_model_started": false
+}
