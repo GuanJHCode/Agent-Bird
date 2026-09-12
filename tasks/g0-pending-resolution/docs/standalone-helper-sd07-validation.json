@@ -1,0 +1,37 @@
+{
+  "scope": "offline_sd07_active_nonce_freeze_and_historical_sd02_sd03_clones_not_native_qualification",
+  "active_runtime_nonce": "sd-qual-07",
+  "no_env_or_cli_override": true,
+  "rejected_runtime_nonces": [
+    "sd-qual-01",
+    "sd-qual-02",
+    "sd-qual-03",
+    "sd-qual-04",
+    "sd-qual-05",
+    "sd-qual-06"
+  ],
+  "historical_fixture_test_only_nonces": {
+    "native_standalone_binding_test.py": "sd-qual-02",
+    "native_standalone_hash_test.py": "sd-qual-03"
+  },
+  "sd03_prepared_fixture_sha256": "0e33f2ccc013addbd23c7c9df91238b778caab2c7ade8d3ea3b6bb88642afbf1",
+  "sd03_original_files_unchanged": true,
+  "green_controller_commit": "59a2d67f94f4998985e9ca4da788a7628650685a",
+  "source_sha256": {
+    "native_standalone.py": "9ae5186a95c093f0612a4e04567929c7b06b919e9c87aad49a17e07e5916278d",
+    "native_standalone_test.py": "bed2de2a05dfc20f6a2f16941f7277fa8da67e4fb253fb6e66f03c45d7a4a382",
+    "native_standalone_binding_test.py": "8b7c1d14e0ee20153a7a52e7ba3a2f9fb0c9fe6080b0e9a6241216d48fb876e7",
+    "native_standalone_hash_test.py": "6a494aa09a7f13e983ba39b7869723ddfe9edcf2968fc25754a7a663ba9c4b1b"
+  },
+  "tests": {
+    "unit_and_binding_count": 33,
+    "unit_and_binding_elapsed_seconds": 0.179,
+    "hash_count": 1,
+    "hash_elapsed_seconds": 0.020
+  },
+  "test_log": "standalone-helper-sd07-green.log",
+  "hash_test_log": "standalone-helper-sd07-hash-green.log",
+  "red_log": "standalone-helper-sd07-nonce-red.log",
+  "compile_pass": true,
+  "native_or_model_run": false
+}
