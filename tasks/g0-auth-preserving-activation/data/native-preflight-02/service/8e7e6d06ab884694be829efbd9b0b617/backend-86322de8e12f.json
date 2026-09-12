@@ -1,0 +1,321 @@
+{
+  "birth": "Sun Sep 13 07:42:09 2026",
+  "creation_birth": "Sun Sep 13 07:42:09 2026",
+  "creation_executable": "/usr/bin/sandbox-exec",
+  "elapsed_seconds": 1.0987367911729962,
+  "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+  "frontend": {
+    "birth": "Sun Sep 13 07:42:09 2026",
+    "complete": true,
+    "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+    "pid": 44335,
+    "source": "darwin-local",
+    "uid": 501
+  },
+  "grant_sha256": "f3099989f5ebda0a30913e31a6fd7fa23bf04c2941f6e1f4bfb996c780102294",
+  "lease_id": "86322de8e12f",
+  "pid": 44352,
+  "private_socket": "/private/tmp/g0-auth-9cygy53y/backend/b-86322de8e12f.sock",
+  "process_stopped": true,
+  "profile_id": "native-preflight-02",
+  "protocol": [
+    {
+      "backend": {
+        "birth": "Sun Sep 13 07:42:09 2026",
+        "complete": true,
+        "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+        "pid": 44352,
+        "source": "darwin-local",
+        "uid": 501
+      },
+      "closed": true,
+      "connection_id": "conn-1-76ec518b5310",
+      "epoch": 1,
+      "frontend": {
+        "birth": "Sun Sep 13 07:42:09 2026",
+        "complete": true,
+        "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+        "pid": 44335,
+        "source": "darwin-local",
+        "uid": 501
+      },
+      "initialize": {
+        "home_match": true,
+        "home_sha256": "b884509a7fcee188b26e4face5f88baae1e576ee76516a8000f24a2668e92e11",
+        "request_id": "initialize"
+      },
+      "initialized": true,
+      "lease_id": "86322de8e12f",
+      "profile_id": "native-preflight-02",
+      "protocol_valid": true,
+      "ready_published": true,
+      "rpc": [
+        {
+          "direction": "client",
+          "event": "rpc",
+          "method": "initialize",
+          "request_id": "initialize"
+        },
+        {
+          "direction": "server",
+          "event": "rpc_response",
+          "method": "initialize",
+          "ok": true,
+          "request_direction": "client",
+          "request_id": "initialize"
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "remoteControl/status/changed",
+          "request_id": null
+        },
+        {
+          "direction": "client",
+          "event": "rpc",
+          "method": "initialized",
+          "request_id": null
+        },
+        {
+          "direction": "client",
+          "event": "rpc_unknown",
+          "method": "account/read",
+          "request_id": 1
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "account/read",
+          "request_id": 1,
+          "response": true
+        },
+        {
+          "direction": "client",
+          "event": "rpc_unknown",
+          "method": "model/list",
+          "request_id": 2
+        },
+        {
+          "direction": "client",
+          "event": "rpc_unknown",
+          "method": "configRequirements/read",
+          "request_id": 3
+        },
+        {
+          "direction": "client",
+          "event": "rpc_unknown",
+          "method": "collaborationMode/list",
+          "request_id": "collaboration-mode-list-a7f05209-5f46-4fff-bd11-8432a6f10a39"
+        },
+        {
+          "direction": "client",
+          "event": "rpc_unknown",
+          "method": "hooks/list",
+          "request_id": "hooks-list-888b896b-0b71-4c5b-a733-4b0ea431b3e0"
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "collaborationMode/list",
+          "request_id": "collaboration-mode-list-a7f05209-5f46-4fff-bd11-8432a6f10a39",
+          "response": true
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "model/list",
+          "request_id": 2,
+          "response": true
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "configRequirements/read",
+          "request_id": 3,
+          "response": true
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "hooks/list",
+          "request_id": "hooks-list-888b896b-0b71-4c5b-a733-4b0ea431b3e0",
+          "response": true
+        },
+        {
+          "direction": "client",
+          "event": "rpc_unknown",
+          "method": "config/read",
+          "request_id": "tui-config-read-5acacf9b-448d-4d27-8a24-73e266b88dc2"
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "config/read",
+          "request_id": "tui-config-read-5acacf9b-448d-4d27-8a24-73e266b88dc2",
+          "response": true
+        },
+        {
+          "direction": "client",
+          "event": "rpc",
+          "method": "thread/start",
+          "request_id": "startup-thread-start-547d5ff5-4fbc-4799-a476-c9f4a8f98c3d"
+        },
+        {
+          "direction": "client",
+          "event": "rpc_unknown",
+          "method": "thread/loaded/list",
+          "request_id": "3369c1b0-3bf6-4367-85f1-e6b642dd5c1e"
+        },
+        {
+          "direction": "client",
+          "event": "rpc_unknown",
+          "method": "thread/list",
+          "request_id": "a905e1a4-d833-4e93-ad11-71f48da575fd"
+        },
+        {
+          "direction": "client",
+          "event": "rpc_unknown",
+          "method": "thread/list",
+          "request_id": "f9dc3205-6161-408e-bac9-135748244312"
+        },
+        {
+          "direction": "client",
+          "event": "rpc",
+          "method": "skills/list",
+          "request_id": "startup-skills-list-b8d4ff13-5234-4e44-9682-66ddbf71d693"
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "thread/loaded/list",
+          "request_id": "3369c1b0-3bf6-4367-85f1-e6b642dd5c1e",
+          "response": true
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "thread/list",
+          "request_id": "a905e1a4-d833-4e93-ad11-71f48da575fd",
+          "response": true
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "thread/list",
+          "request_id": "f9dc3205-6161-408e-bac9-135748244312",
+          "response": true
+        },
+        {
+          "direction": "server",
+          "event": "rpc_response",
+          "method": "thread/start",
+          "ok": true,
+          "request_direction": "client",
+          "request_id": "startup-thread-start-547d5ff5-4fbc-4799-a476-c9f4a8f98c3d"
+        },
+        {
+          "direction": "server",
+          "event": "rpc",
+          "method": "thread/started",
+          "request_id": null
+        },
+        {
+          "direction": "server",
+          "event": "rpc_response",
+          "method": "skills/list",
+          "ok": true,
+          "request_direction": "client",
+          "request_id": "startup-skills-list-b8d4ff13-5234-4e44-9682-66ddbf71d693"
+        },
+        {
+          "direction": "client",
+          "event": "rpc_unknown",
+          "method": "plugin/list",
+          "request_id": "plugin-list-14ea360d-9ce0-40b0-b52c-4800e31b90af"
+        },
+        {
+          "direction": "client",
+          "event": "rpc_unknown",
+          "method": "plugin/list",
+          "request_id": "plugin-list-58d75747-eadc-4736-a922-e6f6357a4916"
+        },
+        {
+          "direction": "client",
+          "event": "rpc",
+          "method": "skills/list",
+          "request_id": 4
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "plugin/list",
+          "request_id": "plugin-list-14ea360d-9ce0-40b0-b52c-4800e31b90af",
+          "response": true
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "plugin/list",
+          "request_id": "plugin-list-58d75747-eadc-4736-a922-e6f6357a4916",
+          "response": true
+        },
+        {
+          "direction": "server",
+          "event": "rpc_response",
+          "method": "skills/list",
+          "ok": true,
+          "request_direction": "client",
+          "request_id": 4
+        },
+        {
+          "direction": "client",
+          "event": "rpc_unknown",
+          "method": "plugin/list",
+          "request_id": "plugin-list-9d111645-f8b9-42b2-8384-2144d319c06c"
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "plugin/list",
+          "request_id": "plugin-list-9d111645-f8b9-42b2-8384-2144d319c06c",
+          "response": true
+        },
+        {
+          "direction": "client",
+          "event": "rpc",
+          "method": "thread/unsubscribe",
+          "request_id": 5
+        },
+        {
+          "direction": "server",
+          "event": "rpc_response",
+          "method": "thread/unsubscribe",
+          "ok": true,
+          "request_direction": "client",
+          "request_id": 5
+        }
+      ],
+      "thread": {
+        "id": "01a097ff-f802-7b02-9159-4b2bd0552626",
+        "start_request_id": "startup-thread-start-547d5ff5-4fbc-4799-a476-c9f4a8f98c3d",
+        "started_id": "01a097ff-f802-7b02-9159-4b2bd0552626"
+      },
+      "turn_counts": {
+        "start": 0,
+        "steer": 0
+      },
+      "zero_turns": true
+    }
+  ],
+  "returncode": 0,
+  "socket_removed": true,
+  "state": "closed",
+  "stderr": {
+    "bytes": 1876,
+    "sha256": "9e41a12f59a90efd9fb1d98bdb2b76e9c2d3a8988e00d17cee79148b8680db19"
+  },
+  "stdout": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}
