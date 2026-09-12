@@ -55,16 +55,17 @@ def test_dummy_activation_success_and_failures_use_real_service_receipts(monkeyp
             context=context,supervisor_root=supervisor,grants_dir=grants,profile_id='a',
             approved_public_socket=public,real_home=protected,manifest_sha256=digest(manifest),
             mode='activation',credential_manifest=inventory,ready_receipt_dir=supervisor/'state',
-            receipt_dir=supervisor/'state',report_path=report_path,use_sandbox=True,timeout=2.5))
+            receipt_dir=supervisor/'state',report_path=report_path,use_sandbox=True,
+            sandbox_executable_sha256=digest('/usr/bin/sandbox-exec'),timeout=2.5))
         original_spawn=probe_module._spawn_pty_gate
         launches=[]
-        def dummy_cli_after_real_gate(argv,env,cwd):
+        def dummy_cli_after_real_gate(argv,env,cwd,master,slave):
             assert argv[0]=='/usr/bin/sandbox-exec'
             assert '--gate-child' in argv and argv[-1]=='--'
             assert env['HOME']==str(context.spec.home) and env['CODEX_HOME']==str(context.spec.codex_home)
             assert not any(key in env for key in ('OPENAI_API_KEY','CODEX_API_KEY','PYTHONPATH'))
             launches.append(tuple(argv))
-            return original_spawn([*argv,str(FIXTURES/'probe_dummy_tui.py'),mode],env,cwd)
+            return original_spawn([*argv,str(FIXTURES/'probe_dummy_tui.py'),mode],env,cwd,master,slave)
         monkeypatch.setattr(probe_module,'_spawn_pty_gate',dummy_cli_after_real_gate)
         listener=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM)
         listener.bind(str(public)); public.chmod(0o600); listener.listen(8)
@@ -122,3 +123,33 @@ def test_dummy_activation_success_and_failures_use_real_service_receipts(monkeyp
             assert len(ready_files)==1 and report['status_sent'] and report['quit_sent']
             assert any(row['turn_counts']['start']==1 for row in final['transport']['protocol'])
             assert 'final_receipt_timeout' in report['cleanup_failures']
+
+
+@pytest.mark.parametrize('policy_variant',['current','without-ptmx','owned-only'])
+def test_owned_pty_raw_and_restore_do_not_authorize_another_pty(policy_variant):
+    import pty
+    with tempfile.TemporaryDirectory(prefix='g0-auth-',dir='/private/tmp') as raw, ExitStack() as roots:
+        supervisor=Path(raw); public=supervisor/'p.sock'
+        binary=proxy_transport._process_metadata(os.getpid())[1]
+        manifest,profiles,grants=policy(supervisor,public,binary,roots)
+        context=auth_isolation.load_isolation_context(supervisor/'isolation.json','a')
+        own_master,own_slave=pty.openpty(); other_master,other_slave=pty.openpty()
+        try:
+            policy_text=auth_isolation.render_sandbox_profile(context.spec,pty_slave=Path(os.ttyname(own_slave)))
+            if policy_variant in ('without-ptmx','owned-only'):
+                policy_text='\n'.join(line for line in policy_text.splitlines() if '(literal "/dev/ptmx")' not in line)+'\n'
+            if policy_variant=='owned-only':
+                policy_text=policy_text.replace('(allow pseudo-tty)\n','')
+            sandbox=supervisor/'tty-policy.sbpl'; sandbox.write_text(policy_text); sandbox.chmod(0o600)
+            child=subprocess.run(['/usr/bin/sandbox-exec','-f',str(sandbox),binary,'-B',
+                str(FIXTURES/'probe_tty_policy.py'),str(own_slave),str(other_slave)],
+                pass_fds=(own_slave,other_slave),env=auth_isolation.build_clean_environment(context.spec),
+                cwd=context.spec.workspace,capture_output=True,text=True,timeout=3)
+            assert child.returncode==0, child.stderr
+            result=json.loads(child.stdout)
+            assert result['own']==0, result
+            assert result['other'] in (1,13), result
+            if policy_variant=='owned-only':
+                assert result['open_new_ptmx'] in (1,13), result
+        finally:
+            for descriptor in (own_master,own_slave,other_master,other_slave): os.close(descriptor)
