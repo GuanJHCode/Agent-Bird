@@ -58,18 +58,18 @@ def owner_context_sha256(value: Mapping[str, Any]) -> str:
     return hashlib.sha256(_canonical(body).encode()).hexdigest()
 
 
-def _read_auth_store(path: Path) -> tuple[os.stat_result, bytes]:
-    """Read auth.json through one no-follow descriptor with bounded identity checks."""
+def _read_bounded_file(path: Path, label: str) -> tuple[os.stat_result, bytes]:
+    """Read one private file through one no-follow descriptor with bounded identity checks."""
     try:
         fd = os.open(str(path), os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
     except OSError as exc:
-        raise ValueError("canonical auth store is not safely readable") from exc
+        raise ValueError(f"{label} is not safely readable") from exc
     try:
         before = os.fstat(fd)
         if (not stat.S_ISREG(before.st_mode) or stat.S_IMODE(before.st_mode) != 0o600
                 or before.st_uid != os.getuid() or before.st_nlink != 1
                 or not 0 < before.st_size <= MAX_STORE_BYTES):
-            raise ValueError("canonical auth store is not private and bounded")
+            raise ValueError(f"{label} is not private and bounded")
         raw = os.read(fd, MAX_STORE_BYTES + 1)
         after = os.fstat(fd)
         stable = (before.st_dev, before.st_ino, before.st_mode, before.st_uid,
@@ -77,10 +77,38 @@ def _read_auth_store(path: Path) -> tuple[os.stat_result, bytes]:
                       after.st_dev, after.st_ino, after.st_mode, after.st_uid,
                       after.st_nlink, after.st_size, after.st_mtime_ns)
         if not stable or len(raw) != before.st_size or not 0 < len(raw) <= MAX_STORE_BYTES:
-            raise ValueError("canonical auth store changed during bounded read")
+            raise ValueError(f"{label} changed during bounded read")
         return before, raw
     finally:
         os.close(fd)
+
+
+def _read_auth_store(path: Path) -> tuple[os.stat_result, bytes]:
+    return _read_bounded_file(path, "canonical auth store")
+
+
+def _config_projection(home: Path) -> dict[str, Any]:
+    path = home / "config.toml"
+    try:
+        info = os.lstat(path)
+    except FileNotFoundError:
+        return {"path": str(path), "present": False}
+    except OSError as exc:
+        raise ValueError("canonical config cannot be inspected") from exc
+    if stat.S_ISLNK(info.st_mode):
+        raise ValueError("canonical config symlink is not allowed")
+    canonical, _ = _absolute_no_symlink(path, directory=False)
+    checked, raw = _read_bounded_file(canonical, "canonical config")
+    return {
+        "path": str(canonical),
+        "present": True,
+        "st_dev": checked.st_dev,
+        "st_ino": checked.st_ino,
+        "mode": stat.S_IMODE(checked.st_mode),
+        "uid": checked.st_uid,
+        "bytes": len(raw),
+        "sha256": hashlib.sha256(raw).hexdigest(),
+    }
 
 
 def _auth_projection(home: Path, *, requires_openai_auth: bool) -> dict[str, Any]:
@@ -133,6 +161,8 @@ def capture_owner_context(
         raise ValueError("requires_openai_auth must be boolean")
     if config_storage_mode not in CONFIG_STORAGE_MODES:
         raise ValueError("unsupported config storage mode")
+    if not requires_openai_auth and config_storage_mode != "project":
+        raise ValueError("no-auth context requires project storage mode")
     home, home_info = _absolute_no_symlink(codex_home, directory=True)
     if stat.S_IMODE(home_info.st_mode) != 0o700:
         raise ValueError("owner home must be private")
@@ -154,6 +184,9 @@ def capture_owner_context(
             "uid": home_info.st_uid,
         },
         "credential_store": auth,
+        # Freeze config existence and a bounded metadata/digest projection;
+        # storage/provider changes cannot be silently introduced at send time.
+        "config_file": _config_projection(home),
     }
     value["fingerprint_sha256"] = owner_context_sha256(value)
     return value

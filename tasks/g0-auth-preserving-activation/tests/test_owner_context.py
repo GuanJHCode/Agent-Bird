@@ -187,3 +187,40 @@ def test_v1_prepare_and_send_are_rejected_while_legacy_binding_stays_audit_reada
 def test_canonical_controller_prepare_path_requires_context_before_starting_anything():
     with pytest.raises(ValueError, match="owner_context_required"):
         controller.run("0" * 64, "0" * 64)
+
+
+def test_owner_context_freezes_canonical_config_presence_metadata_and_digest(tmp_path):
+    home, _, _ = synthetic_context(tmp_path)
+    config = home / "config.toml"
+    config.write_text("provider = 'synthetic'\n")
+    config.chmod(0o600)
+    context = capture_owner_context(home, requires_openai_auth=True, config_storage_mode="codex_home")
+    assert context["config_file"]["present"] is True
+    config.write_text("provider = 'other'\n")
+    with pytest.raises(ValueError, match="owner context"):
+        validate_owner_context(context, context)
+
+
+def test_live_entry_defaults_cannot_bypass_owner_context():
+    legacy = old_binding()
+    rpc = standalone.Rpc(legacy, standalone.continuous_ns() + 10_000_000_000)
+    with pytest.raises(Exception, match="owner_context"):
+        asyncio.run(rpc.call("thread/read", {"threadId": ROOT_THREAD, "includeTurns": True}))
+    with pytest.raises(Exception, match="owner_context"):
+        standalone.go_read(legacy, "inspect", standalone.continuous_ns() + 10_000_000_000)
+
+
+def test_controller_refuses_to_start_when_runtime_home_differs_from_bound_context(tmp_path, monkeypatch):
+    home, _, context = synthetic_context(tmp_path)
+    other = tmp_path / "other-home"
+    other.mkdir(mode=0o700)
+    monkeypatch.setattr(controller.c, "CODEX_HOME", other)
+    with pytest.raises(ValueError, match="runtime_home"):
+        controller.run("0" * 64, "0" * 64, owner_context=context)
+
+
+def test_no_auth_context_requires_project_storage_scope(tmp_path):
+    home = tmp_path / "codex-home"
+    home.mkdir(mode=0o700)
+    with pytest.raises(ValueError, match="no-auth"):
+        capture_owner_context(home, requires_openai_auth=False, config_storage_mode="codex_home")

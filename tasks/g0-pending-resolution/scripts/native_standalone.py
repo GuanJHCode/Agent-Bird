@@ -411,9 +411,8 @@ def filter_thread(result, binding, intent, require_ready=False, expected_session
     return filtered, facts
 
 
-async def issue_once(rpc, case, binding, intent, binding_hash, *, owner_context_required=False):
-    if owner_context_required:
-        require_owner_context(binding)
+async def issue_once(rpc, case, binding, intent, binding_hash, *, owner_context_required=True):
+    require_owner_context(binding)
     attempt = {"version": 1, "status": "send_intent", "nonce": binding["nonce"], "controller_thread_id": binding["controller_thread_id"],
                "binding_sha256": binding_hash, "payload_sha256": digest(canonical(intent).encode()), **current_clock()}
     check(attempt["boot_id"] == binding["boot_id"], "boot_changed")
@@ -434,9 +433,9 @@ async def issue_once(rpc, case, binding, intent, binding_hash, *, owner_context_
 
 
 class Rpc:
-    def __init__(self, binding, deadline_ns, *, owner_context_required=False):
+    def __init__(self, binding, deadline_ns, *, owner_context_required=True):
         self.binding, self.deadline_ns = binding, deadline_ns
-        self.owner_context_required = owner_context_required
+        self.owner_context_required = True
         self.next_id, self.frames, self.bytes, self.server_requests = 1, 0, 0, 0
         self.last_hash, self.last_request = None, None
 
@@ -496,8 +495,7 @@ class Rpc:
         return True
 
     async def call(self, method, params, intent=None):
-        if self.owner_context_required:
-            require_owner_context(self.binding)
+        require_owner_context(self.binding)
         request = make_request(self.next_id, method, params, self.binding, intent)
         self.next_id += 1
         self.last_request = request
@@ -549,8 +547,7 @@ class Rpc:
         result = await self.call("initialize", params)
         check(type(result) is dict and result.get("platformOs") == "macos" and result.get("platformFamily") == "unix"
               and type(result.get("userAgent")) is str and type(result.get("codexHome")) is str, "initialize_mismatch")
-        if self.owner_context_required:
-            validate_initialize_codex_home(result, self.binding["owner_context"])
+        validate_initialize_codex_home(result, self.binding["owner_context"])
         timeout = self.timeout()
         await asyncio.wait_for(self.ws.send('{"method":"initialized"}'), timeout)
         self.timeout()
@@ -564,9 +561,8 @@ class Rpc:
                        "source_service_verified": False, "current_display_verified": False}
 
 
-def go_read(binding, verb, deadline_ns, allow_ack=False, *, owner_context_required=False):
-    if owner_context_required:
-        require_owner_context(binding)
+def go_read(binding, verb, deadline_ns, allow_ack=False, *, owner_context_required=True):
+    require_owner_context(binding)
     check(verb in ("read", "inspect"), "local_command_not_allowed")
     remaining = time_left(deadline_ns)
     value = decode(command_output([binding["go_binary"], verb, "--dir", binding["job_dir"], "--nonce", binding["nonce"]], min(READ_SECONDS, remaining)))
@@ -608,9 +604,8 @@ def exists(case, name):
         return False
 
 
-async def observe(rpc, case, binding, intent, attempt, expected_session_id, *, owner_context_required=False):
-    if owner_context_required:
-        require_owner_context(binding)
+async def observe(rpc, case, binding, intent, attempt, expected_session_id, *, owner_context_required=True):
+    require_owner_context(binding)
     last_read, facts, inspection, captured_ack = None, {}, None, None
     rpc_error = None
     reason = "model_window_expired"
@@ -656,12 +651,11 @@ async def observe(rpc, case, binding, intent, attempt, expected_session_id, *, o
     return output
 
 
-async def run(verb, case, binding, binding_hash, *, owner_context_required=False):
+async def run(verb, case, binding, binding_hash, *, owner_context_required=True):
     check(sys.platform == "darwin" and importlib.metadata.version("websockets") == "16.0", "unsupported_runtime")
     if verb == "send-once":
         check(not exists(case, "send-attempt.json"), "send_intent_exists")
-    if owner_context_required and verb in ("prepare", "send-once"):
-        require_owner_context(binding)
+    require_owner_context(binding)
     deadline_ns = continuous_ns() + READ_SECONDS * NS
     verify_machine(binding)
     intent, attempt, session_id = None, None, None
@@ -670,7 +664,7 @@ async def run(verb, case, binding, binding_hash, *, owner_context_required=False
     if verb == "observe":
         attempt = load_attempt(case, binding, intent, binding_hash)
         deadline_ns = min(deadline_ns, attempt["mono_ns"] + MODEL_SECONDS * NS)
-    rpc = Rpc(binding, deadline_ns, owner_context_required=True) if owner_context_required else Rpc(binding, deadline_ns)
+    rpc = Rpc(binding, deadline_ns, owner_context_required=True)
     async with rpc as rpc:
         await rpc.initialize()
         if verb == "observe":
@@ -706,7 +700,7 @@ def main(args):
         binding = validate_binding(case.read("binding.json"), root, nonce)
         check(digest(case.read_raw("controller-evidence.json")) == binding["controller_evidence_sha256"], "controller_evidence_changed")
         try:
-            return asyncio.run(run(verb, case, binding, digest(canonical(binding).encode()), owner_context_required=verb in ("prepare", "send-once")))
+            return asyncio.run(run(verb, case, binding, digest(canonical(binding).encode()), owner_context_required=True))
         except (Exception, KeyboardInterrupt) as error:
             result = {"version": 1, "status": "uncertain" if exists(case, "send-attempt.json") else "rejected",
                       "reason": error.code if isinstance(error, ProbeError) else "operation_io_failed",

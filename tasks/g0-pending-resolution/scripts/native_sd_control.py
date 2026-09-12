@@ -45,6 +45,25 @@ def bind_owner_context(binding, context):
     return result
 
 
+def require_runtime_owner_home(context):
+    """Refuse to start the historical controller against a different home.
+
+    The controller still uses its fixed sd-qual-08 process/case constants.  It
+    is therefore safer to fail before service/TUI startup unless the actual
+    process home is exactly the bound canonical home.
+    """
+    expected = context.get('expected_codex_home') if isinstance(context, dict) else None
+    configured = os.environ.get('CODEX_HOME')
+    runtime = Path(configured) if configured else c.CODEX_HOME
+    if not isinstance(expected, str) or str(runtime) != expected:
+        raise ValueError('owner_context_runtime_home_mismatch')
+    try:
+        if runtime.resolve(strict=True) != Path(expected):
+            raise ValueError('owner_context_runtime_home_mismatch')
+    except OSError as exc:
+        raise ValueError('owner_context_runtime_home_mismatch') from exc
+
+
 def failure_fields(error,substage):
     stages={'start_service','service_wait_socket','start_tui','tui_wait_native','launch_intent','tui_launch','launch_link',
             'origin_capture','await_session_start','initial_paste','initial_submit','initial_hook_scan','job_owner','ready_lookup',
@@ -427,6 +446,7 @@ def run(helper_sha,audit_sha, *, owner_context=None):
     if owner_context is None:
         raise ValueError('owner_context_required')
     validate_owner_context(owner_context, owner_context)
+    require_runtime_owner_home(owner_context)
     # Hashes are explicit values from the independent review; paths are fixed here.
     for path,expected in ((HELPER,helper_sha),(AUDIT,audit_sha),(c.CLI.resolve(),c.CLI_SHA),(c.GO,c.GO_SHA)):
         if not re.fullmatch(r'[0-9a-f]{64}',expected) or path.is_symlink() or not path.is_file() or c.sha(path)!=expected:

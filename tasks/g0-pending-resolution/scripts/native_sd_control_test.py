@@ -119,6 +119,7 @@ class ControlTests(unittest.TestCase):
                 def sha(path): return binary_sha if path==cli.resolve() else '0'*64
                 for attr,value in (('CASE',base/'case'),('JOB',base/'job'),('DOCS',docs),('HELPER',helper),('AUDIT',helper)):
                     patches.enter_context(patch.object(control,attr,value))
+                patches.enter_context(patch.object(control.c,'CODEX_HOME',_SYNTHETIC_HOME))
                 patches.enter_context(patch.object(control.c,'CLI',cli))
                 patches.enter_context(patch.object(control.c,'GO',helper))
                 patches.enter_context(patch.object(control.c,'GO_SHA','0'*64))
@@ -316,6 +317,7 @@ class ControlTests(unittest.TestCase):
                 for attr,value in (('CASE',base/'case'),('JOB',base/'job'),('DOCS',docs),
                                    ('HELPER',executable),('AUDIT',executable)):
                     patches.enter_context(patch.object(control,attr,value))
+                patches.enter_context(patch.object(control.c,'CODEX_HOME',_SYNTHETIC_HOME))
                 for attr,value in (('CLI',executable),('GO',executable),('CLI_SHA','0'*64),('GO_SHA','0'*64)):
                     patches.enter_context(patch.object(control.c,attr,value))
                 patches.enter_context(patch.object(control.c,'sha',return_value='0'*64))
