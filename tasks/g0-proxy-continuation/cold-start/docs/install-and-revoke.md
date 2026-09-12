@@ -1,14 +1,14 @@
 # 安装、撤销与批准边界
 
-本页只记录在实现和离线审查完成后可供用户执行的命令。当前不执行其中任何命令。
+2026-09-13 用户已批准一次注册与对称撤销，并要求保护所有现有 CLI 账号的 auth。主会话在实现、隔离测试和离线复审完成后执行；当前尚未注册。认证边界见 `../../../g0-auth-preserving-activation/plans/contract.md`。
 
 ## 一次性用户级注册实验
 
 这项注册绑定当前用户的 GUI launchd domain，并接管该用户普通 Codex 新连接使用的默认 UDS；它不是某一个 project 的私有服务，也不是系统级 daemon。影响范围是当前用户的 `gui/$(id -u)` domain、`~/Library/LaunchAgents/org.codex.orchestration.proxy.plist` 和 `~/.codex/app-server-control/app-server-control.sock`。不写 `/Library`，不要求 root，不修改账号凭据、Codex binary 或全局配置。
 
-批准问题只有一个：**是否允许把这个用户级 LaunchAgent 注册到当前用户的 GUI launchd domain，以便按需接管该用户默认 Codex UDS？** 该批准若给出，同时覆盖这次实验完成后的对称撤销；撤销不另行索权。批准本身不能跳过下面的实现、静态预检和验收门槛。
+批准已覆盖一次实验及对称撤销，不重复索权。授权不允许借用或修改真实账号凭据，不能跳过实现、认证隔离、静态预检和下列验收门槛。
 
-在用户批准、`projectproxy` activationFD/runtime 接线完成、未实现项经离线审查、预检报告为 ready 且默认 socket 未被占用之后，建议由用户在 checkout 根目录执行：
+在用户批准、`projectproxy` activationFD/runtime 接线完成、未实现项经离线审查、预检报告为 ready 且默认 socket 未被占用之后，由主会话在 checkout 根目录执行：
 
 ```sh
 PLIST="$HOME/Library/LaunchAgents/org.codex.orchestration.proxy.plist"
