@@ -1,0 +1,113 @@
+{
+  "version": 1,
+  "kind": "new_private_service_readonly_persisted_history",
+  "root": "01a0932d-1998-7221-8897-5822328be877",
+  "started_at": "2026-09-12T01:23:06.910672+00:00",
+  "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+  "native_binary_sha256": "b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3",
+  "service_argv": [
+    "codex",
+    "app-server",
+    "--listen",
+    "unix:///tmp/g0-sd02-history-80lmh58p/s.sock"
+  ],
+  "new_model_calls": 0,
+  "new_tui": false,
+  "resume_sent": false,
+  "same_original_service": false,
+  "requests": [
+    {
+      "method": "thread/read",
+      "params": {
+        "threadId": "01a0932d-1998-7221-8897-5822328be877",
+        "includeTurns": true
+      },
+      "result": {
+        "thread_id": "01a0932d-1998-7221-8897-5822328be877",
+        "source": "vscode",
+        "cwd_matches": true,
+        "cli_version_matches": true,
+        "history_mode": "paginated",
+        "status": "notLoaded",
+        "ephemeral": false,
+        "turn_count": 1,
+        "turns": [
+          {
+            "id": "01a0932d-1b16-71c3-b4ef-5982a8510db8",
+            "status": "completed",
+            "items_view": "full",
+            "items": [
+              {
+                "id": "01a0932d-29ad-78b0-8a82-a133232d528d",
+                "type": "userMessage"
+              },
+              {
+                "id": "msg_0ead4af650352619016aa4a73701e087d09d736d05caca217a",
+                "type": "agentMessage",
+                "phase": "commentary",
+                "ready_exact": false
+              },
+              {
+                "id": "exec-98508cf1-49e6-4a01-bf69-4ce8c76e0139",
+                "type": "commandExecution",
+                "status": "completed",
+                "exit_code": 0
+              },
+              {
+                "id": "msg_0ead4af650352619016aa4a73dcfb087d0bbc4577519414def",
+                "type": "agentMessage",
+                "phase": "final_answer",
+                "ready_exact": true
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "service_identity": {
+    "pid": 79293,
+    "ppid": 79284,
+    "uid": 501,
+    "started_at_local": "Sat Sep 12 09:23:06 2026",
+    "comm": "codex",
+    "native_executable_matches": true
+  },
+  "socket": {
+    "path": "/tmp/g0-sd02-history-80lmh58p/s.sock",
+    "dev": 16777234,
+    "ino": 160966891,
+    "uid": 501,
+    "mode": "0600"
+  },
+  "rpc_window": {
+    "mono_ns": 4098754722719541,
+    "deadline_mono_ns": 4098764722719541
+  },
+  "initialize": {
+    "clientInfo": {
+      "name": "g0-native-standalone",
+      "version": "0.1.0"
+    },
+    "capabilities": {
+      "experimentalApi": true
+    }
+  },
+  "diagnostics_pid": 79293,
+  "remote_control_status": "disabled",
+  "rpc_elapsed_ns": 30998792,
+  "status": "read_diagnostic_completed",
+  "cleanup": {
+    "probe_closed": true,
+    "signal": {
+      "pid": 79293,
+      "name": "SIGINT",
+      "mono_ns": 4098754758106000,
+      "at": "2026-09-12T01:23:07.063941+00:00"
+    },
+    "elapsed_ns": 55100666,
+    "service_exit_code": 0,
+    "private_dir_removed": true
+  },
+  "ended_at": "2026-09-12T01:23:07.119190+00:00"
+}
