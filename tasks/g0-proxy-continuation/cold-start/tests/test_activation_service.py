@@ -341,3 +341,63 @@ def test_shutdown_during_pre_ready_child_exec_transition_keeps_creation_ownershi
                 if child.returncode is None: child.terminate(); await child.wait()
                 await proxy.close(); listener.close()
     run(scenario())
+
+
+def test_invalid_inherited_fd_records_safe_startup_errno_without_raw_exception():
+    async def scenario():
+        with tempfile.TemporaryDirectory(prefix='g0-auth-',dir='/private/tmp') as raw, ExitStack() as roots:
+            root=Path(raw); public=root/'p.sock'; binary=transport._process_metadata(os.getpid())[1]
+            manifest,profiles,grants=policy(root,public,binary,roots)
+            entry=ROOT/'tasks/g0-proxy-continuation/cold-start/scripts/projectproxy_launchd_entrypoint.py'
+            child=await asyncio.create_subprocess_exec(binary,'-I','-B',str(entry),'--manifest',str(manifest),
+                '--listener-fd','-1',env={'PATH':'/usr/bin:/bin','HOME':str(root)},
+                stdout=asyncio.subprocess.PIPE,stderr=asyncio.subprocess.PIPE)
+            stdout,stderr=await asyncio.wait_for(child.communicate(),3)
+            assert child.returncode==1
+            receipts=list((root/'state').glob('*/startup-failure.json'))
+            assert len(receipts)==1
+            failure=json.loads(receipts[0].read_text())
+            assert failure['stage']=='activate_listener' and failure['errno']==9
+            assert failure['failure_type']=='OSError'
+            assert 'message' not in failure and 'raw' not in failure
+            assert receipts[0].stat().st_mode&0o777==0o600
+            assert not public.exists()
+    run(scenario())
+
+
+def test_service_publishes_owner_only_ready_receipt_before_shutdown():
+    from types import SimpleNamespace as NS
+    from test_activation_protocol import CLIENT,SERVER,THREAD,frame
+    p=module()
+    with tempfile.TemporaryDirectory(prefix='g0-auth-',dir='/private/tmp') as raw, ExitStack() as roots:
+        root=Path(raw); public=root/'p.sock'; binary=transport._process_metadata(os.getpid())[1]
+        manifest,profiles,grants=policy(root,public,binary,roots)
+        proxy=p.ActivationService.from_manifest(manifest)
+        birth,executable=transport._process_metadata(os.getpid())
+        peer=transport.PeerIdentity(pid=os.getpid(),uid=os.getuid(),birth=birth,executable=executable,
+            pid_available=True,uid_available=True,birth_available=True,executable_available=True,source='offline-owned')
+        proxy.backend_records.append({'state':'connected','pid':peer.pid,'birth':peer.birth,
+            'frontend':p._peer(peer),'profile_id':'a','lease_id':'fixture-lease'})
+        sink=proxy.sink
+        sink.on_connect(NS(connection_id='fixture-c',epoch=1,frontend_peer=peer,backend_peer=peer))
+        def send(data,client=False):
+            sink.on_data(NS(connection_id='fixture-c',epoch=1,direction='frontend_to_backend' if client else 'backend_to_frontend',data=data))
+        send(CLIENT,True); send(SERVER)
+        send(frame({'id':1,'method':'initialize'},True),True)
+        send(frame({'id':1,'result':{'codexHome':profiles['a']['codex_home'],'auth':CANARY.decode('utf-8','replace')}}))
+        send(frame({'method':'initialized'},True),True)
+        cwd=profiles['a']['workspace']
+        send(frame({'id':2,'method':'thread/start','params':{'cwd':cwd}},True),True)
+        send(frame({'id':2,'result':{'thread':{'id':THREAD,'cwd':cwd}}}))
+        assert not list(proxy.receipt_dir.glob('ready-*.json'))
+        send(frame({'method':'thread/started','params':{'thread':{'id':THREAD,'cwd':cwd}}}))
+        ready=proxy.receipt_dir/'ready-fixture-lease.json'
+        row=json.loads(ready.read_text())
+        assert row['activation_id']==proxy.activation_id and row['version']==1
+        assert row['manifest_sha256']==digest(manifest)
+        assert row['profile_id']=='a' and row['initialize']['home_match'] is True
+        assert ready.stat().st_mode&0o777==0o600
+        assert not list(proxy.receipt_dir.glob('.ready-*'))
+        assert not (proxy.receipt_dir/'activation.json').exists()
+        assert profiles['a']['codex_home'] not in ready.read_text()
+        assert CANARY.decode('utf-8','replace') not in ready.read_text()

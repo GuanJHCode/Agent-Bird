@@ -31,6 +31,7 @@ async def run(args):
     for signum in (signal.SIGTERM,signal.SIGINT):
         loop.add_signal_handler(signum,request_stop,signum)
     serving=None; stop_wait=None
+    stage='activate_listener'
     try:
         if args.listener_fd is None:
             listener=activate_listener('Listener')
@@ -38,10 +39,14 @@ async def run(args):
             # Offline parent-owned FD path; the LaunchAgent argv never supplies it.
             listener=socket.socket(fileno=os.dup(args.listener_fd))
             os.set_inheritable(listener.fileno(),False)
+        stage='serve'
         serving=asyncio.create_task(service.serve_until_idle(listener))
         stop_wait=asyncio.create_task(stopped.wait())
         await asyncio.wait((serving,stop_wait),return_when=asyncio.FIRST_COMPLETED)
         if serving.done(): await serving
+    except BaseException as exc:
+        service.record_startup_failure(stage,exc)
+        raise
     finally:
         service.stop_signals=received
         await asyncio.wait_for(service.close(),10.0)
@@ -66,7 +71,7 @@ def main(argv=None):
     try:
         return asyncio.run(run(args))
     except Exception as exc:
-        print(json.dumps({'status':'failed','failure_type':type(exc).__name__,
+        print(json.dumps({'status':'failed','failure_type':type(exc).__name__,'errno':exc.errno if isinstance(exc,OSError) else None,
             'message_sha256':hashlib.sha256((type(exc).__name__+':'+str(exc)).encode()).hexdigest()}))
         return 1
 

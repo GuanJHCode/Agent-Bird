@@ -22,6 +22,7 @@ for _directory in (_REPO/'tasks/g0-tui-proxy/scripts', _REPO/'tasks/g0-auth-pres
     if str(_directory) not in sys.path:
         sys.path.insert(0,str(_directory))
 from proxy_transport import BackendConnection, CaptureSink, ProxyServer, _process_metadata
+from proxy_observer import Observer
 
 LOCAL_SECONDS = 10.0
 
@@ -91,30 +92,159 @@ def _same_process(peer,pid,birth,executable) -> bool:
                 and peer.executable and os.path.realpath(peer.executable)==os.path.realpath(executable))
 
 
+class _ActivationObserver(Observer):
+    """Reuse the fixed bounded decoder; add only initialize home equality/digest."""
+    def __init__(self,expected_home,**kwargs):
+        self.expected_home=expected_home
+        super().__init__(**kwargs)
+
+    def _process_response(self,connection,direction,value):
+        request_id=value.get('id')
+        matched=(direction=='server' and self._valid_id(request_id)
+                 and connection.pending.get(('client',request_id))=='initialize')
+        super()._process_response(connection,direction,value)
+        if matched and connection.valid and 'error' not in value:
+            result=value.get('result')
+            home=self._safe_string(result.get('codexHome')) if isinstance(result,dict) else None
+            self._emit('initialize_home',connection,direction,request_id=request_id,
+                home_match=home is not None and home==self.expected_home(connection.epoch),
+                home_sha256=hashlib.sha256(home.encode()).hexdigest() if home is not None else None)
+
+    def complete_boundary(self,connection_id):
+        connection=self._connections.get(connection_id)
+        return bool(connection and connection.valid and not connection.closed
+            and all(parser.handshake_done and not parser.buffer and parser.fragment_opcode is None
+                    for parser in connection.directions.values()))
+
+
 class MetadataSink(CaptureSink):
-    def __init__(self):
+    def __init__(self,*,lease_for_connection=None,publish_ready=None,observer_limits=None):
         self.events=[]
         self.streams={}
+        self._leases=lease_for_connection
+        self._publish_ready=publish_ready
+        self._protocol={}
+        self._observer=_ActivationObserver(self._expected_home,emit=self._protocol_event,**(observer_limits or {}))
+
+    def _expected_home(self,epoch):
+        return self._protocol.get(epoch,{}).get('lease',{}).get('expected_home')
 
     def on_connect(self,event):
         self.events.append({'kind':'connect','connection_id':event.connection_id,'epoch':event.epoch,
             'frontend':_peer(event.frontend_peer),'backend':_peer(event.backend_peer)})
+        lease=self._leases(event) if self._leases is not None else None
+        self._protocol[event.epoch]={'connection_id':event.connection_id,'epoch':event.epoch,
+            'lease':lease or {},'frontend':_peer(event.frontend_peer),'backend':_peer(event.backend_peer),
+            'protocol_valid':lease is not None,'closed':False,'upgrades':set(),'initialize':{},
+            'initialized':False,'thread':{},'turn_counts':{'start':0,'steer':0},'rpc':[],
+            'ready_published':False}
+        self._observer.open(event.connection_id,conn_epoch=event.epoch)
 
     def on_data(self,event):
         key=(event.connection_id,event.direction)
         count,digest=self.streams.setdefault(key,[0,hashlib.sha256()])
         digest.update(event.data)
         self.streams[key][0]=count+len(event.data)
+        state=self._protocol.get(event.epoch)
+        if state is None or state['connection_id']!=event.connection_id:
+            return
+        direction={'frontend_to_backend':'client','backend_to_frontend':'server'}.get(event.direction)
+        self._observer.feed(event.connection_id,direction,event.data)
+        # Inspect only after the whole chunk parsed, so trailing invalid/partial
+        # frames in the same callback cannot publish an early ready receipt.
+        if self._ready(state) and self._observer.complete_boundary(event.connection_id):
+            if self._publish_ready is not None:
+                self._publish_ready(dict(self._public_protocol(state),ready_published=True,milestone_only=True))
+            state['ready_published']=True
+
+    def _protocol_event(self,row):
+        state=self._protocol.get(row.get('conn_epoch'))
+        if state is None: return
+        event=row.get('event'); method=row.get('method'); request_id=row.get('request_id')
+        if event=='gap':
+            state['protocol_valid']=False
+            state['failure_reason']=row.get('reason','decoder_gap')
+        elif event=='connection_close': state['closed']=True
+        elif event=='websocket_upgrade': state['upgrades'].add(row.get('direction'))
+        elif event=='initialize_home':
+            state['initialize'].update(request_id=request_id,home_match=row['home_match'],home_sha256=row['home_sha256'])
+            if not row['home_match']: state['protocol_valid']=False
+        elif event in ('rpc','rpc_response','rpc_unknown'):
+            if len(state['rpc'])>=4096:
+                state['protocol_valid']=False
+                return
+            state['rpc'].append({key:row[key] for key in ('event','direction','method','request_id','request_direction','ok','response') if key in row})
+            if method in ('turn/start','turn/steer') and not row.get('response') and event!='rpc_response':
+                state['turn_counts'][method.split('/')[1]]+=1
+            if event=='rpc_unknown' and row.get('response') and method is None:
+                state['protocol_valid']=False
+            if event=='rpc' and row.get('direction')=='client':
+                if method=='initialize':
+                    if 'request_id' in state['initialize']: state['protocol_valid']=False
+                    state['initialize']['request_id']=request_id
+                elif method=='initialized':
+                    if state['initialized'] or state['initialize'].get('home_match') is not True:
+                        state['protocol_valid']=False
+                    state['initialized']=True
+                elif method=='thread/start':
+                    if not state['initialized'] or state['thread'].get('id') is not None:
+                        state['protocol_valid']=False
+                    if row.get('params',{}).get('cwd')!=state['lease'].get('expected_cwd'):
+                        state['protocol_valid']=False
+                    state['thread']['start_request_id']=request_id
+            elif event=='rpc_response' and method=='thread/start' and row.get('ok') is True:
+                thread=row.get('thread',{}); identifier=thread.get('id')
+                if (row.get('direction')!='server' or row.get('request_direction')!='client'
+                    or state['thread'].get('start_request_id')!=request_id
+                    or not self._thread_id(identifier) or thread.get('cwd')!=state['lease'].get('expected_cwd')
+                    or state['thread'].get('id') is not None):
+                    state['protocol_valid']=False
+                else: state['thread']['id']=identifier
+            elif event=='rpc' and method=='thread/started':
+                identifier=row.get('thread',{}).get('id')
+                if (row.get('direction')!='server' or not self._thread_id(identifier)
+                    or state['thread'].get('id')!=identifier or 'started_id' in state['thread']):
+                    state['protocol_valid']=False
+                else: state['thread']['started_id']=identifier
+
+    @staticmethod
+    def _thread_id(value):
+        try: return isinstance(value,str) and str(uuid.UUID(value))==value
+        except ValueError: return False
+
+    @staticmethod
+    def _ready(state):
+        return (state['protocol_valid'] and not state['closed'] and not state['ready_published']
+            and state['upgrades']=={'client','server'} and state['initialized']
+            and state['initialize'].get('home_match') is True and state['thread'].get('id') is not None
+            and state['thread'].get('id')==state['thread'].get('started_id')
+            and not any(state['turn_counts'].values()))
+
+    @staticmethod
+    def _public_protocol(state):
+        return {**{key:state[key] for key in ('connection_id','epoch','frontend','backend','protocol_valid','closed','initialized','ready_published')},
+            'lease_id':state['lease'].get('lease_id'),'profile_id':state['lease'].get('profile_id'),
+            'initialize':dict(state['initialize']),'thread':dict(state['thread']),
+            'turn_counts':dict(state['turn_counts']),'zero_turns':not any(state['turn_counts'].values()),
+            'rpc':list(state['rpc']),**({'failure_reason':state['failure_reason']} if 'failure_reason' in state else {})}
+
+    def protocol_for_lease(self,lease_id):
+        return [self._public_protocol(state) for state in self._protocol.values() if state['lease'].get('lease_id')==lease_id]
 
     def on_lifecycle(self,event):
         self.events.append({'kind':event.kind,'connection_id':event.connection_id,'epoch':event.epoch,'direction':event.direction})
+        if event.kind in ('eof','disconnect'):
+            self._observer.close(event.connection_id)
 
     def on_gap(self,event):
         self.events.append({'kind':'gap','connection_id':event.connection_id,'epoch':event.epoch,'reason':event.reason,'fatal':event.fatal})
+        state=self._protocol.get(event.epoch)
+        if state is not None: state['protocol_valid']=False
 
     def snapshot(self):
         return {'events':list(self.events),'streams':[{'connection_id':key[0],'direction':key[1],
-            'bytes':value[0],'sha256':value[1].hexdigest()} for key,value in sorted(self.streams.items())]}
+            'bytes':value[0],'sha256':value[1].hexdigest()} for key,value in sorted(self.streams.items())],
+            'protocol':[self._public_protocol(state) for state in self._protocol.values()]}
 
 
 class ActivationService:
@@ -160,7 +290,7 @@ class ActivationService:
         self.receipt_dir=self.state_dir/self.activation_id
         self.receipt_dir.mkdir(mode=0o700)
         self._directory_pins[self.receipt_dir]=_private_directory(self.receipt_dir)
-        self.sink=MetadataSink()
+        self.sink=MetadataSink(lease_for_connection=self._protocol_lease,publish_ready=self._publish_ready)
         self.backend_records=[]
         self._admissions={}
         self._profile_locks={name:asyncio.Lock() for name in self.contexts}
@@ -168,6 +298,35 @@ class ActivationService:
         self._close_task=None
         self.proxy=ProxyServer(self.public_socket,None,self.sink,authorize_peer=self._admit,
             backend_factory=self._backend,stop_on_frontend_eof=True,callback_timeout=LOCAL_SECONDS)
+
+    def _protocol_lease(self,event):
+        for record in self.backend_records:
+            if (record.get('state')=='connected' and record.get('pid')==event.backend_peer.pid
+                and record.get('birth')==event.backend_peer.birth
+                and record['frontend']==_peer(event.frontend_peer)):
+                context=self.contexts[record['profile_id']]
+                return {'lease_id':record['lease_id'],'profile_id':record['profile_id'],
+                    'expected_home':str(context.spec.codex_home),'expected_cwd':str(context.spec.workspace)}
+        return None
+
+    def record_startup_failure(self,stage,exc):
+        self._check_roots()
+        _write_json(self.receipt_dir/'startup-failure.json',{
+            'version':1,'activation_id':self.activation_id,'manifest_sha256':self.manifest_sha256,
+            'stage':stage,'failure_type':type(exc).__name__,
+            'errno':exc.errno if isinstance(exc,OSError) else None})
+
+    def _publish_ready(self,protocol):
+        self._check_runtime_policy()
+        row=dict(protocol,version=1,activation_id=self.activation_id,manifest_sha256=self.manifest_sha256)
+        path=self.receipt_dir/f"ready-{protocol['lease_id']}.json"
+        stage=self.receipt_dir/f".ready-{uuid.uuid4().hex}.json"
+        try:
+            _write_json(stage,row)
+            with stage.open('rb') as stream: os.fsync(stream.fileno())
+            os.link(stage,path,follow_symlinks=False)
+        finally:
+            if stage.exists(): stage.unlink()
 
     @classmethod
     def from_manifest(cls,path: Path):
@@ -332,6 +491,7 @@ class ActivationService:
                 except FileNotFoundError: record['socket_removed']=True
             elif not os.path.lexists(private_socket): record['socket_removed']=True
             if record['state']!='failed': record['state']='closed'
+            record['protocol']=self.sink.protocol_for_lease(lease_id)
             record['elapsed_seconds']=time.monotonic()-start
             self._check_roots()
             _write_json(self.receipt_dir/f'backend-{lease_id}.json',record)

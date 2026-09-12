@@ -1,0 +1,317 @@
+FFFFFFFFFFF                                                              [100%]
+=================================== FAILURES ===================================
+____ test_ready_receipt_precedes_shutdown_and_only_safe_fields_are_retained ____
+
+tmp_path = PosixPath('/private/var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/pytest-of-guanjunhui/pytest-2496/test_ready_receipt_precedes_sh0')
+
+    def test_ready_receipt_precedes_shutdown_and_only_safe_fields_are_retained(tmp_path):
+>       sink,paths=setup(tmp_path); connect(sink); initialize(sink)
+                   ^^^^^^^^^^^^^^^
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_protocol.py:72: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tmp_path = PosixPath('/private/var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/pytest-of-guanjunhui/pytest-2496/test_ready_receipt_precedes_sh0')
+limits = None
+
+    def setup(tmp_path,*,limits=None):
+        published=[]
+        def lease(connect):
+            return {'lease_id':f'lease{connect.epoch}','profile_id':'synthetic','expected_home':HOME,'expected_cwd':WORKSPACE}
+        def publish(row):
+            path=tmp_path/f"ready-{row['lease_id']}.json"
+            service._write_json(path,row); published.append(path)
+>       sink=service.MetadataSink(lease_for_connection=lease,publish_ready=publish,observer_limits=limits)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       TypeError: MetadataSink.__init__() got an unexpected keyword argument 'lease_for_connection'
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_protocol.py:47: TypeError
+____________ test_epochs_cannot_share_initialize_or_thread_evidence ____________
+
+tmp_path = PosixPath('/private/var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/pytest-of-guanjunhui/pytest-2496/test_epochs_cannot_share_initi0')
+
+    def test_epochs_cannot_share_initialize_or_thread_evidence(tmp_path):
+>       sink,paths=setup(tmp_path); connect(sink,1); initialize(sink,1); connect(sink,2); start(sink,2)
+                   ^^^^^^^^^^^^^^^
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_protocol.py:88: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tmp_path = PosixPath('/private/var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/pytest-of-guanjunhui/pytest-2496/test_epochs_cannot_share_initi0')
+limits = None
+
+    def setup(tmp_path,*,limits=None):
+        published=[]
+        def lease(connect):
+            return {'lease_id':f'lease{connect.epoch}','profile_id':'synthetic','expected_home':HOME,'expected_cwd':WORKSPACE}
+        def publish(row):
+            path=tmp_path/f"ready-{row['lease_id']}.json"
+            service._write_json(path,row); published.append(path)
+>       sink=service.MetadataSink(lease_for_connection=lease,publish_ready=publish,observer_limits=limits)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       TypeError: MetadataSink.__init__() got an unexpected keyword argument 'lease_for_connection'
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_protocol.py:47: TypeError
+_____ test_initialize_requires_exact_scalar_registered_backend_home[None] ______
+
+tmp_path = PosixPath('/private/var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/pytest-of-guanjunhui/pytest-2496/test_initialize_requires_exact0')
+home = None
+
+    @pytest.mark.parametrize('home',[None,'',HOME+'-other',{'path':HOME}])
+    def test_initialize_requires_exact_scalar_registered_backend_home(tmp_path,home):
+>       sink,paths=setup(tmp_path); connect(sink); initialize(sink,home=home); start(sink)
+                   ^^^^^^^^^^^^^^^
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_protocol.py:94: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tmp_path = PosixPath('/private/var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/pytest-of-guanjunhui/pytest-2496/test_initialize_requires_exact0')
+limits = None
+
+    def setup(tmp_path,*,limits=None):
+        published=[]
+        def lease(connect):
+            return {'lease_id':f'lease{connect.epoch}','profile_id':'synthetic','expected_home':HOME,'expected_cwd':WORKSPACE}
+        def publish(row):
+            path=tmp_path/f"ready-{row['lease_id']}.json"
+            service._write_json(path,row); published.append(path)
+>       sink=service.MetadataSink(lease_for_connection=lease,publish_ready=publish,observer_limits=limits)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       TypeError: MetadataSink.__init__() got an unexpected keyword argument 'lease_for_connection'
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_protocol.py:47: TypeError
+_______ test_initialize_requires_exact_scalar_registered_backend_home[] ________
+
+tmp_path = PosixPath('/private/var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/pytest-of-guanjunhui/pytest-2496/test_initialize_requires_exact1')
+home = ''
+
+    @pytest.mark.parametrize('home',[None,'',HOME+'-other',{'path':HOME}])
+    def test_initialize_requires_exact_scalar_registered_backend_home(tmp_path,home):
+>       sink,paths=setup(tmp_path); connect(sink); initialize(sink,home=home); start(sink)
+                   ^^^^^^^^^^^^^^^
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_protocol.py:94: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tmp_path = PosixPath('/private/var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/pytest-of-guanjunhui/pytest-2496/test_initialize_requires_exact1')
+limits = None
+
+    def setup(tmp_path,*,limits=None):
+        published=[]
+        def lease(connect):
+            return {'lease_id':f'lease{connect.epoch}','profile_id':'synthetic','expected_home':HOME,'expected_cwd':WORKSPACE}
+        def publish(row):
+            path=tmp_path/f"ready-{row['lease_id']}.json"
+            service._write_json(path,row); published.append(path)
+>       sink=service.MetadataSink(lease_for_connection=lease,publish_ready=publish,observer_limits=limits)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       TypeError: MetadataSink.__init__() got an unexpected keyword argument 'lease_for_connection'
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_protocol.py:47: TypeError
+_ test_initialize_requires_exact_scalar_registered_backend_home[/private/tmp/g0-auth-protocol/c-other] _
+
+tmp_path = PosixPath('/private/var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/pytest-of-guanjunhui/pytest-2496/test_initialize_requires_exact2')
+home = '/private/tmp/g0-auth-protocol/c-other'
+
+    @pytest.mark.parametrize('home',[None,'',HOME+'-other',{'path':HOME}])
+    def test_initialize_requires_exact_scalar_registered_backend_home(tmp_path,home):
+>       sink,paths=setup(tmp_path); connect(sink); initialize(sink,home=home); start(sink)
+                   ^^^^^^^^^^^^^^^
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_protocol.py:94: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tmp_path = PosixPath('/private/var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/pytest-of-guanjunhui/pytest-2496/test_initialize_requires_exact2')
+limits = None
+
+    def setup(tmp_path,*,limits=None):
+        published=[]
+        def lease(connect):
+            return {'lease_id':f'lease{connect.epoch}','profile_id':'synthetic','expected_home':HOME,'expected_cwd':WORKSPACE}
+        def publish(row):
+            path=tmp_path/f"ready-{row['lease_id']}.json"
+            service._write_json(path,row); published.append(path)
+>       sink=service.MetadataSink(lease_for_connection=lease,publish_ready=publish,observer_limits=limits)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       TypeError: MetadataSink.__init__() got an unexpected keyword argument 'lease_for_connection'
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_protocol.py:47: TypeError
+_____ test_initialize_requires_exact_scalar_registered_backend_home[home3] _____
+
+tmp_path = PosixPath('/private/var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/pytest-of-guanjunhui/pytest-2496/test_initialize_requires_exact3')
+home = {'path': '/private/tmp/g0-auth-protocol/c'}
+
+    @pytest.mark.parametrize('home',[None,'',HOME+'-other',{'path':HOME}])
+    def test_initialize_requires_exact_scalar_registered_backend_home(tmp_path,home):
+>       sink,paths=setup(tmp_path); connect(sink); initialize(sink,home=home); start(sink)
+                   ^^^^^^^^^^^^^^^
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_protocol.py:94: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tmp_path = PosixPath('/private/var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/pytest-of-guanjunhui/pytest-2496/test_initialize_requires_exact3')
+limits = None
+
+    def setup(tmp_path,*,limits=None):
+        published=[]
+        def lease(connect):
+            return {'lease_id':f'lease{connect.epoch}','profile_id':'synthetic','expected_home':HOME,'expected_cwd':WORKSPACE}
+        def publish(row):
+            path=tmp_path/f"ready-{row['lease_id']}.json"
+            service._write_json(path,row); published.append(path)
+>       sink=service.MetadataSink(lease_for_connection=lease,publish_ready=publish,observer_limits=limits)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       TypeError: MetadataSink.__init__() got an unexpected keyword argument 'lease_for_connection'
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_protocol.py:47: TypeError
+__ test_malformed_or_overlarge_trailing_frame_cannot_publish_ready[\x81\x01{] __
+
+tmp_path = PosixPath('/private/var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/pytest-of-guanjunhui/pytest-2496/test_malformed_or_overlarge_tr0')
+suffix = b'\x81\x01{'
+
+    @pytest.mark.parametrize('suffix',[b'\x81\x01{',b'\x81\x7e\xff\xff'])
+    def test_malformed_or_overlarge_trailing_frame_cannot_publish_ready(tmp_path,suffix):
+>       sink,paths=setup(tmp_path,limits={'max_frame_bytes':4096}); connect(sink); initialize(sink); start(sink,suffix=suffix)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_protocol.py:100: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tmp_path = PosixPath('/private/var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/pytest-of-guanjunhui/pytest-2496/test_malformed_or_overlarge_tr0')
+limits = {'max_frame_bytes': 4096}
+
+    def setup(tmp_path,*,limits=None):
+        published=[]
+        def lease(connect):
+            return {'lease_id':f'lease{connect.epoch}','profile_id':'synthetic','expected_home':HOME,'expected_cwd':WORKSPACE}
+        def publish(row):
+            path=tmp_path/f"ready-{row['lease_id']}.json"
+            service._write_json(path,row); published.append(path)
+>       sink=service.MetadataSink(lease_for_connection=lease,publish_ready=publish,observer_limits=limits)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       TypeError: MetadataSink.__init__() got an unexpected keyword argument 'lease_for_connection'
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_protocol.py:47: TypeError
+_ test_malformed_or_overlarge_trailing_frame_cannot_publish_ready[\x81~\xff\xff] _
+
+tmp_path = PosixPath('/private/var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/pytest-of-guanjunhui/pytest-2496/test_malformed_or_overlarge_tr1')
+suffix = b'\x81~\xff\xff'
+
+    @pytest.mark.parametrize('suffix',[b'\x81\x01{',b'\x81\x7e\xff\xff'])
+    def test_malformed_or_overlarge_trailing_frame_cannot_publish_ready(tmp_path,suffix):
+>       sink,paths=setup(tmp_path,limits={'max_frame_bytes':4096}); connect(sink); initialize(sink); start(sink,suffix=suffix)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_protocol.py:100: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tmp_path = PosixPath('/private/var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/pytest-of-guanjunhui/pytest-2496/test_malformed_or_overlarge_tr1')
+limits = {'max_frame_bytes': 4096}
+
+    def setup(tmp_path,*,limits=None):
+        published=[]
+        def lease(connect):
+            return {'lease_id':f'lease{connect.epoch}','profile_id':'synthetic','expected_home':HOME,'expected_cwd':WORKSPACE}
+        def publish(row):
+            path=tmp_path/f"ready-{row['lease_id']}.json"
+            service._write_json(path,row); published.append(path)
+>       sink=service.MetadataSink(lease_for_connection=lease,publish_ready=publish,observer_limits=limits)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       TypeError: MetadataSink.__init__() got an unexpected keyword argument 'lease_for_connection'
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_protocol.py:47: TypeError
+_ test_turn_request_prevents_ready_and_is_counted_even_when_opaque[turn/start] _
+
+tmp_path = PosixPath('/private/var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/pytest-of-guanjunhui/pytest-2496/test_turn_request_prevents_rea0')
+method = 'turn/start'
+
+    @pytest.mark.parametrize('method',['turn/start','turn/steer'])
+    def test_turn_request_prevents_ready_and_is_counted_even_when_opaque(tmp_path,method):
+>       sink,paths=setup(tmp_path); connect(sink); initialize(sink)
+                   ^^^^^^^^^^^^^^^
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_protocol.py:107: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tmp_path = PosixPath('/private/var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/pytest-of-guanjunhui/pytest-2496/test_turn_request_prevents_rea0')
+limits = None
+
+    def setup(tmp_path,*,limits=None):
+        published=[]
+        def lease(connect):
+            return {'lease_id':f'lease{connect.epoch}','profile_id':'synthetic','expected_home':HOME,'expected_cwd':WORKSPACE}
+        def publish(row):
+            path=tmp_path/f"ready-{row['lease_id']}.json"
+            service._write_json(path,row); published.append(path)
+>       sink=service.MetadataSink(lease_for_connection=lease,publish_ready=publish,observer_limits=limits)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       TypeError: MetadataSink.__init__() got an unexpected keyword argument 'lease_for_connection'
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_protocol.py:47: TypeError
+_ test_turn_request_prevents_ready_and_is_counted_even_when_opaque[turn/steer] _
+
+tmp_path = PosixPath('/private/var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/pytest-of-guanjunhui/pytest-2496/test_turn_request_prevents_rea1')
+method = 'turn/steer'
+
+    @pytest.mark.parametrize('method',['turn/start','turn/steer'])
+    def test_turn_request_prevents_ready_and_is_counted_even_when_opaque(tmp_path,method):
+>       sink,paths=setup(tmp_path); connect(sink); initialize(sink)
+                   ^^^^^^^^^^^^^^^
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_protocol.py:107: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tmp_path = PosixPath('/private/var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/pytest-of-guanjunhui/pytest-2496/test_turn_request_prevents_rea1')
+limits = None
+
+    def setup(tmp_path,*,limits=None):
+        published=[]
+        def lease(connect):
+            return {'lease_id':f'lease{connect.epoch}','profile_id':'synthetic','expected_home':HOME,'expected_cwd':WORKSPACE}
+        def publish(row):
+            path=tmp_path/f"ready-{row['lease_id']}.json"
+            service._write_json(path,row); published.append(path)
+>       sink=service.MetadataSink(lease_for_connection=lease,publish_ready=publish,observer_limits=limits)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       TypeError: MetadataSink.__init__() got an unexpected keyword argument 'lease_for_connection'
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_protocol.py:47: TypeError
+_____ test_ready_is_historical_and_later_turn_is_visible_in_final_protocol _____
+
+tmp_path = PosixPath('/private/var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/pytest-of-guanjunhui/pytest-2496/test_ready_is_historical_and_l0')
+
+    def test_ready_is_historical_and_later_turn_is_visible_in_final_protocol(tmp_path):
+>       sink,paths=setup(tmp_path); connect(sink); initialize(sink); start(sink)
+                   ^^^^^^^^^^^^^^^
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_protocol.py:115: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tmp_path = PosixPath('/private/var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/pytest-of-guanjunhui/pytest-2496/test_ready_is_historical_and_l0')
+limits = None
+
+    def setup(tmp_path,*,limits=None):
+        published=[]
+        def lease(connect):
+            return {'lease_id':f'lease{connect.epoch}','profile_id':'synthetic','expected_home':HOME,'expected_cwd':WORKSPACE}
+        def publish(row):
+            path=tmp_path/f"ready-{row['lease_id']}.json"
+            service._write_json(path,row); published.append(path)
+>       sink=service.MetadataSink(lease_for_connection=lease,publish_ready=publish,observer_limits=limits)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       TypeError: MetadataSink.__init__() got an unexpected keyword argument 'lease_for_connection'
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_protocol.py:47: TypeError
+=========================== short test summary info ============================
+FAILED tasks/g0-proxy-continuation/cold-start/tests/test_activation_protocol.py::test_ready_receipt_precedes_shutdown_and_only_safe_fields_are_retained
+FAILED tasks/g0-proxy-continuation/cold-start/tests/test_activation_protocol.py::test_epochs_cannot_share_initialize_or_thread_evidence
+FAILED tasks/g0-proxy-continuation/cold-start/tests/test_activation_protocol.py::test_initialize_requires_exact_scalar_registered_backend_home[None]
+FAILED tasks/g0-proxy-continuation/cold-start/tests/test_activation_protocol.py::test_initialize_requires_exact_scalar_registered_backend_home[]
+FAILED tasks/g0-proxy-continuation/cold-start/tests/test_activation_protocol.py::test_initialize_requires_exact_scalar_registered_backend_home[/private/tmp/g0-auth-protocol/c-other]
+FAILED tasks/g0-proxy-continuation/cold-start/tests/test_activation_protocol.py::test_initialize_requires_exact_scalar_registered_backend_home[home3]
+FAILED tasks/g0-proxy-continuation/cold-start/tests/test_activation_protocol.py::test_malformed_or_overlarge_trailing_frame_cannot_publish_ready[\x81\x01{]
+FAILED tasks/g0-proxy-continuation/cold-start/tests/test_activation_protocol.py::test_malformed_or_overlarge_trailing_frame_cannot_publish_ready[\x81~\xff\xff]
+FAILED tasks/g0-proxy-continuation/cold-start/tests/test_activation_protocol.py::test_turn_request_prevents_ready_and_is_counted_even_when_opaque[turn/start]
+FAILED tasks/g0-proxy-continuation/cold-start/tests/test_activation_protocol.py::test_turn_request_prevents_ready_and_is_counted_even_when_opaque[turn/steer]
+FAILED tasks/g0-proxy-continuation/cold-start/tests/test_activation_protocol.py::test_ready_is_historical_and_later_turn_is_visible_in_final_protocol
+11 failed in 0.07s
