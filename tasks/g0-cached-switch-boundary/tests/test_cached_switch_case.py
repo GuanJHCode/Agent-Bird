@@ -68,7 +68,7 @@ class Feed:
         self.rpc('client', {'id': 3, 'method': 'skills/list', 'params': {}})
         self.rpc('server', {'id': 3, 'result': {}})
 
-    def fork(self, *, lineage=True, response_ok=True):
+    def fork(self, *, lineage=True, response_ok=True, started=True):
         self.rpc('client', {'id': 4, 'method': 'thread/fork', 'params': {'threadId': P, 'items': CANARY}})
         if not response_ok:
             self.rpc('server', {'id': 4, 'error': {'code': -1, 'message': CANARY}})
@@ -77,7 +77,8 @@ class Feed:
         if lineage:
             thread['forkedFromId'] = P
         self.rpc('server', {'id': 4, 'result': {'thread': thread, 'private': CANARY}})
-        self.rpc('server', {'method': 'thread/started', 'params': {'thread': thread}})
+        if started:
+            self.rpc('server', {'method': 'thread/started', 'params': {'thread': thread}})
         self.rpc('client', {'id': 5, 'method': 'thread/inject_items', 'params': {'threadId': S, 'items': [CANARY]}})
         self.rpc('server', {'id': 5, 'result': {}})
 
@@ -95,7 +96,8 @@ def make_spec(tmp_path, *, model='gpt-5.6-luna'):
 
 
 def fake_runtime(monkeypatch, *, lineage=True, gap=False, model_turn=False, wrong_status=False,
-                 refresh=False, early_eof=False, quit_code=0, protection=None):
+                 refresh=False, early_eof=False, quit_code=0, protection=None, ui_state='session',
+                 missing_started=False, status_cost=0, toggle_cost=0):
     p = module()
     clock = [1.0]
     monkeypatch.setattr(p, 'raw_seconds', lambda: clock[0])
@@ -110,14 +112,19 @@ def fake_runtime(monkeypatch, *, lineage=True, gap=False, model_turn=False, wron
             self._status_buffer = b''
             self.status_ids = set()
             self.toggles = 0
+            self.status_pending = False
 
         @property
         def evidence(self):
             return {'pid': 22, 'bytes': 100, 'sha256': 'a' * 64, 'exit_code': self.exit_code,
-                    'ui_state': 'session', 'inputs': list(self.inputs)}
+                    'ui_state': ui_state, 'inputs': list(self.inputs)}
 
         async def aread_until(self, deadline):
-            clock[0] = deadline
+            clock[0] = max(clock[0], deadline)
+            if self.status_pending:
+                actual = OTHER if wrong_status and self.toggles else self.displayed
+                self.status_ids = {actual}
+                self._status_buffer = ('Session: ' + actual + '\n').encode()
             return self.evidence
 
         def write(self, data, *, action):
@@ -127,7 +134,7 @@ def fake_runtime(monkeypatch, *, lineage=True, gap=False, model_turn=False, wron
             self.toggles += 1
             self.displayed = S if self.toggles in (1, 3) else P
             if self.toggles == 1:
-                self.owner.feed.fork(lineage=lineage)
+                self.owner.feed.fork(lineage=lineage, started=not missing_started)
             elif refresh:
                 number = 10 + self.toggles
                 self.owner.feed.rpc('client', {'id': number, 'method': 'thread/resume', 'params': {'threadId': self.displayed}})
@@ -136,6 +143,7 @@ def fake_runtime(monkeypatch, *, lineage=True, gap=False, model_turn=False, wron
                 self.owner.bridge.on_gap(SimpleNamespace(epoch=1, reason='synthetic_gap'))
             if model_turn:
                 self.owner.feed.rpc('client', {'id': 99, 'method': 'turn/start', 'params': {'input': [CANARY]}})
+            clock[0] += toggle_cost
 
         def command(self, text):
             assert text in {'/status', '/quit'}, 'no prompt, picker, or programmatic resume allowed'
@@ -143,20 +151,23 @@ def fake_runtime(monkeypatch, *, lineage=True, gap=False, model_turn=False, wron
             if text == '/status':
                 self.status_ids = set()
                 self._status_buffer = b''
+                self.status_pending = True
             elif early_eof:
                 pytest.fail('must not claim normal quit after prior EOF')
 
         async def async_status_checkpoint(self, deadline):
-            clock[0] = deadline
+            await self.aread_until(deadline)
+            clock[0] += status_cost
             actual = OTHER if wrong_status and self.toggles else self.displayed
             self.status_ids = {actual}
             self._status_buffer = ('Session: ' + actual + '\n').encode()
+            self.status_pending = False
             if early_eof and self.toggles:
                 self.owner.bridge.on_lifecycle(SimpleNamespace(connection_id='owned', epoch=1, kind='eof'))
             return set(self.status_ids)
 
         async def await_exit(self, deadline):
-            clock[0] = deadline
+            clock[0] = max(clock[0], deadline)
             self.exit_code = quit_code
             self.owner.bridge.on_lifecycle(SimpleNamespace(connection_id='owned', epoch=1, kind='eof'))
             return self.exit_code
@@ -259,6 +270,8 @@ def test_missing_lineage_cannot_be_repaired_by_matching_status(tmp_path, monkeyp
     assert result['fork']['status'] == 'unknown'
     assert result['status_checks'][1]['ids'] == [S]
     assert result['generic_attachment_verified'] is False
+    assert len(result['switches']) == 1
+    assert result['quit_sent'] is True
 
 
 @pytest.mark.parametrize('fault', ['gap', 'model_turn', 'wrong_status', 'early_eof'])
@@ -310,3 +323,65 @@ def test_nonzero_quit_and_post_run_protection_drift_stay_unknown(tmp_path, monke
     result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
     assert result['status'] == 'unknown'
     assert 'protection_failure' in result
+
+
+@pytest.mark.parametrize('fault', ['gap', 'model_turn'])
+def test_failed_probe_preserves_whitelisted_trace_for_diagnosis(tmp_path, monkeypatch, fault):
+    p = module()
+    spec = make_spec(tmp_path)
+    factory, _ = fake_runtime(monkeypatch, **{fault: True})
+    result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
+    assert result['status'] == 'unknown'
+    trace_file = spec.case_dir / 'trace.json'
+    assert trace_file.exists(), 'a failed evidence gate must not discard its captured protocol facts'
+    trace = json.loads(trace_file.read_text())
+    assert trace['events']
+    assert CANARY not in trace_file.read_text()
+    assert any(row.get('event') == 'gap' for row in trace['events']) if fault == 'gap' else result['model_turns'] == 1
+
+
+def test_failed_or_multiple_forks_never_establish_side_lineage():
+    p = module()
+    feed = Feed()
+    feed.resume()
+    begin = len(feed.bridge.trace)
+    feed.fork(response_ok=False)
+    assert p.fork_summary(feed.bridge.trace[begin:], 1, P)['status'] == 'unknown'
+    feed = Feed()
+    feed.resume()
+    begin = len(feed.bridge.trace)
+    feed.fork()
+    feed.rpc('client', {'id': 6, 'method': 'thread/fork', 'params': {'threadId': P}})
+    feed.rpc('server', {'id': 6, 'result': {'thread': {'id': OTHER, 'forkedFromId': P}}})
+    assert p.fork_summary(feed.bridge.trace[begin:], 1, P)['status'] == 'unknown'
+
+
+@pytest.mark.parametrize('state', ['unknown', 'empty', 'picker', 'onboarding', 'error'])
+def test_unready_ui_cannot_receive_toggle(tmp_path, monkeypatch, state):
+    p = module()
+    spec = make_spec(tmp_path)
+    factory, instances = fake_runtime(monkeypatch, ui_state=state)
+    result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
+    assert result['status'] == 'unknown'
+    assert instances[0].tui_driver.toggles == 0
+
+
+def test_missing_side_started_stops_after_one_toggle_and_normal_quit(tmp_path, monkeypatch):
+    p = module()
+    spec = make_spec(tmp_path)
+    factory, instances = fake_runtime(monkeypatch, missing_started=True)
+    result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
+    assert result['status'] == 'unknown'
+    assert result['fork']['thread_started_seen'] is False
+    assert instances[0].tui_driver.toggles == 1
+    assert result['quit_sent'] is True
+
+
+@pytest.mark.parametrize('fault', [{'status_cost': 1.0}, {'toggle_cost': 1.0}])
+def test_local_status_or_toggle_overrun_cannot_be_accepted(tmp_path, monkeypatch, fault):
+    p = module()
+    spec = make_spec(tmp_path)
+    factory, _ = fake_runtime(monkeypatch, **fault)
+    result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
+    assert result['status'] == 'unknown'
+    assert result['failure']['code'] == 'deadline_exceeded'

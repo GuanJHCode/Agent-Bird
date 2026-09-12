@@ -1,0 +1,122 @@
+....F...........FF...FFF                                                 [100%]
+=================================== FAILURES ===================================
+__________ test_missing_lineage_cannot_be_repaired_by_matching_status __________
+
+tmp_path = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/tmp/probe-harness/tasks/g0-cached-switch-boundary/tmp/pytest/test_missing_lineage_cannot_be0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10a6e7ce0>
+
+    def test_missing_lineage_cannot_be_repaired_by_matching_status(tmp_path, monkeypatch):
+        p = module()
+        spec = make_spec(tmp_path)
+        factory, _ = fake_runtime(monkeypatch, lineage=False)
+        result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
+        assert result['status'] == 'unknown'
+        assert result['fork']['status'] == 'unknown'
+        assert result['status_checks'][1]['ids'] == [S]
+        assert result['generic_attachment_verified'] is False
+>       assert len(result['switches']) == 1
+E       AssertionError: assert 3 == 1
+E        +  where 3 = len([{'classification': 'fork_rpc', 'zero_rpc': False, 'methods_in_order': ['thread/fork', 'thread/fork', 'thread/started'...rpc_events': [], ...}, {'classification': 'zero_rpc', 'zero_rpc': True, 'methods_in_order': [], 'rpc_events': [], ...}])
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:273: AssertionError
+________________ test_unready_ui_cannot_receive_toggle[unknown] ________________
+
+tmp_path = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/tmp/probe-harness/tasks/g0-cached-switch-boundary/tmp/pytest/test_unready_ui_cannot_receive0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10a81d810>
+state = 'unknown'
+
+    @pytest.mark.parametrize('state', ['unknown', 'empty', 'picker', 'onboarding', 'error'])
+    def test_unready_ui_cannot_receive_toggle(tmp_path, monkeypatch, state):
+        p = module()
+        spec = make_spec(tmp_path)
+        factory, instances = fake_runtime(monkeypatch, ui_state=state)
+        result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
+>       assert result['status'] == 'unknown'
+E       AssertionError: assert 'observed' == 'unknown'
+E
+E         - unknown
+E         + observed
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:365: AssertionError
+_________________ test_unready_ui_cannot_receive_toggle[empty] _________________
+
+tmp_path = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/tmp/probe-harness/tasks/g0-cached-switch-boundary/tmp/pytest/test_unready_ui_cannot_receive1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10a81efd0>
+state = 'empty'
+
+    @pytest.mark.parametrize('state', ['unknown', 'empty', 'picker', 'onboarding', 'error'])
+    def test_unready_ui_cannot_receive_toggle(tmp_path, monkeypatch, state):
+        p = module()
+        spec = make_spec(tmp_path)
+        factory, instances = fake_runtime(monkeypatch, ui_state=state)
+        result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
+>       assert result['status'] == 'unknown'
+E       AssertionError: assert 'observed' == 'unknown'
+E
+E         - unknown
+E         + observed
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:365: AssertionError
+_______ test_missing_side_started_stops_after_one_toggle_and_normal_quit _______
+
+tmp_path = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/tmp/probe-harness/tasks/g0-cached-switch-boundary/tmp/pytest/test_missing_side_started_stop0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10a7e9240>
+
+    def test_missing_side_started_stops_after_one_toggle_and_normal_quit(tmp_path, monkeypatch):
+        p = module()
+        spec = make_spec(tmp_path)
+        factory, instances = fake_runtime(monkeypatch, missing_started=True)
+        result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
+>       assert result['status'] == 'unknown'
+E       AssertionError: assert 'observed' == 'unknown'
+E
+E         - unknown
+E         + observed
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:374: AssertionError
+________ test_local_status_or_toggle_overrun_cannot_be_accepted[fault0] ________
+
+tmp_path = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/tmp/probe-harness/tasks/g0-cached-switch-boundary/tmp/pytest/test_local_status_or_toggle_ov0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10a7eaf90>
+fault = {'status_cost': 1.0}
+
+    @pytest.mark.parametrize('fault', [{'status_cost': 1.0}, {'toggle_cost': 1.0}])
+    def test_local_status_or_toggle_overrun_cannot_be_accepted(tmp_path, monkeypatch, fault):
+        p = module()
+        spec = make_spec(tmp_path)
+        factory, _ = fake_runtime(monkeypatch, **fault)
+        result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
+>       assert result['status'] == 'unknown'
+E       AssertionError: assert 'observed' == 'unknown'
+E
+E         - unknown
+E         + observed
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:386: AssertionError
+________ test_local_status_or_toggle_overrun_cannot_be_accepted[fault1] ________
+
+tmp_path = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/tmp/probe-harness/tasks/g0-cached-switch-boundary/tmp/pytest/test_local_status_or_toggle_ov1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10a7ebaf0>
+fault = {'toggle_cost': 1.0}
+
+    @pytest.mark.parametrize('fault', [{'status_cost': 1.0}, {'toggle_cost': 1.0}])
+    def test_local_status_or_toggle_overrun_cannot_be_accepted(tmp_path, monkeypatch, fault):
+        p = module()
+        spec = make_spec(tmp_path)
+        factory, _ = fake_runtime(monkeypatch, **fault)
+        result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
+>       assert result['status'] == 'unknown'
+E       AssertionError: assert 'observed' == 'unknown'
+E
+E         - unknown
+E         + observed
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:386: AssertionError
+=========================== short test summary info ============================
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_missing_lineage_cannot_be_repaired_by_matching_status
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_unready_ui_cannot_receive_toggle[unknown]
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_unready_ui_cannot_receive_toggle[empty]
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_missing_side_started_stops_after_one_toggle_and_normal_quit
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_local_status_or_toggle_overrun_cannot_be_accepted[fault0]
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_local_status_or_toggle_overrun_cannot_be_accepted[fault1]
+6 failed, 18 passed in 0.16s

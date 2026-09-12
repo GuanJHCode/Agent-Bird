@@ -1,0 +1,48 @@
+FF.                                                                      [100%]
+=================================== FAILURES ===================================
+_______ test_failed_probe_preserves_whitelisted_trace_for_diagnosis[gap] _______
+
+tmp_path = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/tmp/probe-harness/tasks/g0-cached-switch-boundary/tmp/pytest/test_failed_probe_preserves_wh0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x106b816e0>
+fault = 'gap'
+
+    @pytest.mark.parametrize('fault', ['gap', 'model_turn'])
+    def test_failed_probe_preserves_whitelisted_trace_for_diagnosis(tmp_path, monkeypatch, fault):
+        p = module()
+        spec = make_spec(tmp_path)
+        factory, _ = fake_runtime(monkeypatch, **{fault: True})
+        result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
+        assert result['status'] == 'unknown'
+        trace_file = spec.case_dir / 'trace.json'
+>       assert trace_file.exists(), 'a failed evidence gate must not discard its captured protocol facts'
+E       AssertionError: a failed evidence gate must not discard its captured protocol facts
+E       assert False
+E        +  where False = exists()
+E        +    where exists = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/tmp/probe-harness/tasks/g0-cached-switch-boundary/tmp/pytest/test_failed_probe_preserves_wh0/case/trace.json').exists
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:323: AssertionError
+___ test_failed_probe_preserves_whitelisted_trace_for_diagnosis[model_turn] ____
+
+tmp_path = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/tmp/probe-harness/tasks/g0-cached-switch-boundary/tmp/pytest/test_failed_probe_preserves_wh1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x106970770>
+fault = 'model_turn'
+
+    @pytest.mark.parametrize('fault', ['gap', 'model_turn'])
+    def test_failed_probe_preserves_whitelisted_trace_for_diagnosis(tmp_path, monkeypatch, fault):
+        p = module()
+        spec = make_spec(tmp_path)
+        factory, _ = fake_runtime(monkeypatch, **{fault: True})
+        result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
+        assert result['status'] == 'unknown'
+        trace_file = spec.case_dir / 'trace.json'
+>       assert trace_file.exists(), 'a failed evidence gate must not discard its captured protocol facts'
+E       AssertionError: a failed evidence gate must not discard its captured protocol facts
+E       assert False
+E        +  where False = exists()
+E        +    where exists = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/tmp/probe-harness/tasks/g0-cached-switch-boundary/tmp/pytest/test_failed_probe_preserves_wh1/case/trace.json').exists
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:323: AssertionError
+=========================== short test summary info ============================
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_failed_probe_preserves_whitelisted_trace_for_diagnosis[gap]
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_failed_probe_preserves_whitelisted_trace_for_diagnosis[model_turn]
+2 failed, 1 passed, 13 deselected in 0.08s

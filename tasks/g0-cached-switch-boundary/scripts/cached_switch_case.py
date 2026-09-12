@@ -145,6 +145,8 @@ def fork_summary(rows: list[dict[str, Any]], epoch: int, primary: str) -> dict[s
         and row.get('method') == 'thread/started' and row.get('conn_epoch') == epoch
         and isinstance(row.get('thread'), Mapping) and row['thread'].get('id') == side
         for row in rows)
+    if not result['thread_started_seen']:
+        result['status'] = 'unknown'
     for item in rows:
         if not (item.get('event') == 'rpc' and item.get('direction') == 'client'
                 and item.get('method') == 'thread/inject_items' and item.get('conn_epoch') == epoch):
@@ -187,7 +189,13 @@ async def _status(spec: CachedSwitchCaseSpec, runtime: Any, bridge: Any, tui: An
     query_id = str(uuid.uuid4())
     candidate_before = runtime.candidate
     tui.command('/status')
-    ids = await tui.async_status_checkpoint(deadline)
+    while not tui.status_ids and raw_seconds() < deadline:
+        await tui.aread_until(min(deadline, raw_seconds() + 0.1))
+    # Finish the same fresh capture as soon as its structured ID arrives.
+    # Waiting until the entire deadline would always return after that deadline.
+    ids = await tui.async_status_checkpoint(raw_seconds())
+    if raw_seconds() > deadline:
+        raise TimeoutError('fresh status exceeded its original local window')
     _live(runtime, bridge, tui, epoch)
     capture = getattr(tui, '_status_buffer', None)
     if len(ids) != 1 or any(_uuid(value) is None for value in ids) or not isinstance(capture, bytes) or not capture:
@@ -224,6 +232,7 @@ async def run_cached_switch_case(spec: CachedSwitchCaseSpec, *, preflight: Mappi
         'configured_model': MODEL, 'argv': list(spec.argv()), 'backend_argv': list(config.backend_argv),
         'p_thread_id': spec.expected_resume_thread_id, 's_thread_id': None, 'status_checks': [], 'switches': [],
         'generic_attachment_verified': False, 'cached_zero_rpc_observed': False,
+        'status_meaning': 'controlled_trajectory_only_not_current_attachment',
         'protected_hashes': prepared['hashes'], 'quit_sent': False}
     overall = raw_seconds() + spec.model_window_seconds
     result['overall_deadline_raw'] = overall
@@ -252,13 +261,15 @@ async def run_cached_switch_case(spec: CachedSwitchCaseSpec, *, preflight: Mappi
         for index, label in enumerate(('first-side', 'cached-primary', 'cached-side'), 1):
             stage = label
             _live(runtime, bridge, tui, epoch)
-            if tui.evidence.get('ui_state') in {'onboarding', 'picker', 'error'}:
+            if tui.evidence.get('ui_state') != 'session':
                 raise RuntimeInvariantError('side toggle requires a command-ready TUI')
             start = len(bridge.trace)
             before = runtime.candidate
             deadline = _deadline(spec, overall)
             tui.write(TOGGLE_BYTES, action=f'side-toggle-{index}')
-            await tui.aread_until(deadline)
+            await tui.aread_until(min(deadline, raw_seconds() + 0.1))
+            if raw_seconds() > deadline:
+                raise TimeoutError('side toggle exceeded its original local window')
             _live(runtime, bridge, tui, epoch)
             status_start = len(bridge.trace)
             if index == 1:
@@ -266,6 +277,13 @@ async def run_cached_switch_case(spec: CachedSwitchCaseSpec, *, preflight: Mappi
                 result['s_thread_id'] = result['fork']['s_thread_id']
             expected = spec.expected_resume_thread_id if index == 2 else result['s_thread_id']
             check = await _status(spec, runtime, bridge, tui, epoch, overall, expected)
+            if index == 1:
+                # Fork RPCs can complete while this independent status is captured.
+                # Derive S only from wire metadata; the displayed ID never supplies it.
+                result['fork'] = fork_summary(bridge.trace[start:], epoch, spec.expected_resume_thread_id)
+                result['s_thread_id'] = expected = result['fork']['s_thread_id']
+                check['expected_id'] = expected
+                check['exact'] = expected is not None and check['ids'] == [expected]
             result['status_checks'].append(check)
             summary = boundary_summary(bridge.trace[start:], epoch, before, runtime.candidate)
             summary.update(label=label, toggle_index=index, trace_start_index=start,
@@ -273,6 +291,9 @@ async def run_cached_switch_case(spec: CachedSwitchCaseSpec, *, preflight: Mappi
                            active_thread_before=result['status_checks'][-2]['ids'][0],
                            active_thread_after=check['ids'][0], observed_only=True)
             result['switches'].append(summary)
+            if index == 1 and result['fork']['status'] != 'observed':
+                result['stop_reason'] = 'first_side_lineage_or_started_unknown'
+                break
             if expected is not None and not check['exact']:
                 raise RuntimeInvariantError('independent status does not corroborate the expected P/S boundary')
         stage = 'quit'
@@ -316,8 +337,9 @@ async def run_cached_switch_case(spec: CachedSwitchCaseSpec, *, preflight: Mappi
             result['connections'] = [_connection_summary(record) for record in bridge.connection_records.values()]
             result['epoch_invalid'] = dict(bridge.epoch_invalid)
             try:
-                validate_zero_model(bridge)
                 case.write_json('trace.json', {'complete': bridge.trace_complete, 'events': bridge.trace})
+                result['trace_artifact'] = 'trace.json'
+                validate_zero_model(bridge)
             except BaseException as exc:
                 result['trace_failure'] = resume._failure_record(exc, 'trace')
         if tui is not None:

@@ -1,0 +1,147 @@
+{
+  "purpose": "Fixed-source evidence for crossterm parser and keyboard-enhancement protocol",
+  "provenance": {
+    "repository": "https://github.com/openai-oss-forks/crossterm",
+    "commit": "45fecb9508105988f42fe6ff0441783ed3717f92",
+    "commit_url": "https://github.com/openai-oss-forks/crossterm/commit/45fecb9508105988f42fe6ff0441783ed3717f92",
+    "tree_url": "https://api.github.com/repos/openai-oss-forks/crossterm/git/trees/45fecb9508105988f42fe6ff0441783ed3717f92?recursive=1",
+    "retrieved_at_utc": "2026-09-13",
+    "retrieval": "curl -fsSL official GitHub API/raw URLs; no native/model launched"
+  },
+  "files": [
+    {
+      "path": "crossterm_src_event.rs",
+      "upstream_path": "src/event.rs",
+      "url": "https://github.com/openai-oss-forks/crossterm/blob/45fecb9508105988f42fe6ff0441783ed3717f92/src/event.rs",
+      "raw_url": "https://raw.githubusercontent.com/openai-oss-forks/crossterm/45fecb9508105988f42fe6ff0441783ed3717f92/src/event.rs",
+      "sha256": "69d2f7a394a1a7a27989a6ca94693358c10e7cc81bf150c8057c53f54b651469",
+      "bytes": 63073
+    },
+    {
+      "path": "crossterm_src_event_read.rs",
+      "upstream_path": "src/event/read.rs",
+      "url": "https://github.com/openai-oss-forks/crossterm/blob/45fecb9508105988f42fe6ff0441783ed3717f92/src/event/read.rs",
+      "raw_url": "https://raw.githubusercontent.com/openai-oss-forks/crossterm/45fecb9508105988f42fe6ff0441783ed3717f92/src/event/read.rs",
+      "sha256": "f1b04bd7bd16d390584f6d21db6438b91f7f3aef7fa4a465c4d64bb2387410ff",
+      "bytes": 17159
+    },
+    {
+      "path": "crossterm_src_event_source_unix_tty.rs",
+      "upstream_path": "src/event/source/unix/tty.rs",
+      "url": "https://github.com/openai-oss-forks/crossterm/blob/45fecb9508105988f42fe6ff0441783ed3717f92/src/event/source/unix/tty.rs",
+      "raw_url": "https://raw.githubusercontent.com/openai-oss-forks/crossterm/45fecb9508105988f42fe6ff0441783ed3717f92/src/event/source/unix/tty.rs",
+      "sha256": "b1533abc2cd2aa2e3dc7bab4cec17a558927d53a0172d8e9fab1c22f42dff36a",
+      "bytes": 35564
+    },
+    {
+      "path": "crossterm_src_event_sys_unix.rs",
+      "upstream_path": "src/event/sys/unix.rs",
+      "url": "https://github.com/openai-oss-forks/crossterm/blob/45fecb9508105988f42fe6ff0441783ed3717f92/src/event/sys/unix.rs",
+      "raw_url": "https://raw.githubusercontent.com/openai-oss-forks/crossterm/45fecb9508105988f42fe6ff0441783ed3717f92/src/event/sys/unix.rs",
+      "sha256": "d59069208030bf35a8c49868f0afaef619b65f761abd7249c267f97226cc9d4a",
+      "bytes": 105
+    },
+    {
+      "path": "crossterm_src_event_sys_unix_parse.rs",
+      "upstream_path": "src/event/sys/unix/parse.rs",
+      "url": "https://github.com/openai-oss-forks/crossterm/blob/45fecb9508105988f42fe6ff0441783ed3717f92/src/event/sys/unix/parse.rs",
+      "raw_url": "https://raw.githubusercontent.com/openai-oss-forks/crossterm/45fecb9508105988f42fe6ff0441783ed3717f92/src/event/sys/unix/parse.rs",
+      "sha256": "d6396978384f4e9bb72002578f185e3c71c9a3b516af2afd0bd321d14ca0f614",
+      "bytes": 56493
+    }
+  ],
+  "relevant_lines": {
+    "unix_ctrl_bytes": "src/event/sys/unix/parse.rs:143-168",
+    "ctrl_1_to_26": "src/event/sys/unix/parse.rs:157-160",
+    "ctrl_28_to_31": "src/event/sys/unix/parse.rs:161-164",
+    "keyboard_enhancement_response": "src/event/sys/unix/parse.rs:310-340",
+    "keyboard_enhancement_command": "src/event.rs:500-543"
+  },
+  "interpretation": {
+    "0x1f": "The fixed parser maps byte 0x1f to KeyCode::Char('7') with CONTROL (c - 0x1c + b'4'), not to a printable character.",
+    "0x1f_not_ctrl_slash": "0x1f is the legacy control-byte path; Ctrl-/ is handled by Codex compatibility logic when the terminal reports Ctrl-7, while enhanced CSI-u can report explicit codepoint/modifier.",
+    "pty_driver": "The repository PTYDriver responds only to cursor-position query ESC[6n with ESC[1;1R. It has no keyboard-enhancement response handler; therefore the fixed parser cannot establish that this PTY enabled keyboard enhancement."
+  },
+  "workspace_dependency_sources": [
+    {
+      "path": "codex-rs_Cargo.toml",
+      "upstream_path": "codex-rs/Cargo.toml",
+      "url": "https://github.com/openai/codex/blob/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/Cargo.toml",
+      "raw_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/Cargo.toml",
+      "sha256": "be81959425540d70c4735936293a8e119e498573d5b57121849eee0539c127d1",
+      "bytes": 19181
+    },
+    {
+      "path": "codex-rs_tui_Cargo.toml",
+      "upstream_path": "codex-rs/tui/Cargo.toml",
+      "url": "https://github.com/openai/codex/blob/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/Cargo.toml",
+      "raw_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/Cargo.toml",
+      "sha256": "41ad17495e28ff9f5a2da2ffe8b766e5c1cfb3a9f0f65574a1b728da9de84c9d",
+      "bytes": 5741
+    },
+    {
+      "path": "codex-rs_Cargo.lock",
+      "upstream_path": "codex-rs/Cargo.lock",
+      "url": "https://github.com/openai/codex/blob/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/Cargo.lock",
+      "raw_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/Cargo.lock",
+      "sha256": "29b37678141ef79e8548a8f135161e5360cd5c2c775cf497589bcfdfe9efc1a0",
+      "bytes": 406516
+    }
+  ],
+  "workspace_dependency_provenance": {
+    "repository": "https://github.com/openai/codex",
+    "commit": "6b9826e3aa83b1a5947db50f4332cb9c65f1b340",
+    "commit_url": "https://github.com/openai/codex/commit/6b9826e3aa83b1a5947db50f4332cb9c65f1b340",
+    "tree_url": "https://api.github.com/repos/openai/codex/git/trees/6b9826e3aa83b1a5947db50f4332cb9c65f1b340?recursive=1",
+    "relevant_lines": {
+      "workspace_version": "codex-rs/Cargo.toml:151-152",
+      "crossterm_version": "codex-rs/Cargo.toml:342",
+      "patch_rev": "codex-rs/Cargo.toml:609-613",
+      "tui_features": "codex-rs/tui/Cargo.toml:77",
+      "lock_package": "codex-rs/Cargo.lock:5593-5596"
+    }
+  },
+  "key_injection_contract": {
+    "legacy_bytes": {
+      "bytes_hex": "1f",
+      "parser_result": "KeyCode::Char('7') + CONTROL",
+      "parser_lines": "src/event/sys/unix/parse.rs:161-164"
+    },
+    "codex_compatibility": "Fixed Codex source app/input.rs:485-490 accepts Ctrl-7 as compatibility input when toggle_side_conversation contains Ctrl-/; default binding is keymap.rs:1497-1498. This is source behavior, not a claim about terminal-generated bytes."
+  },
+  "additional_codex_sources": [
+    {
+      "path": "codex-rs_tui_src_startup_orchestration.rs",
+      "upstream_path": "codex-rs/tui/src/startup_orchestration.rs",
+      "url": "https://github.com/openai/codex/blob/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/startup_orchestration.rs",
+      "raw_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/startup_orchestration.rs",
+      "sha256": "ba8db963d8c180fa3428a6e9b0f233adf65339a730c15a288dabb0a7cff9d4be",
+      "bytes": 23934
+    },
+    {
+      "path": "codex-rs_tui_src_app_server_connection.rs",
+      "upstream_path": "codex-rs/tui/src/app_server_connection.rs",
+      "url": "https://github.com/openai/codex/blob/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/app_server_connection.rs",
+      "raw_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/app_server_connection.rs",
+      "sha256": "fb6274d63f73f3a76a0c127e1171a743cc7012b4ed9e6b6951b7281d164820cb",
+      "bytes": 2114
+    },
+    {
+      "path": "codex-rs_app-server-client_src_remote.rs",
+      "upstream_path": "codex-rs/app-server-client/src/remote.rs",
+      "url": "https://github.com/openai/codex/blob/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-client/src/remote.rs",
+      "raw_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-client/src/remote.rs",
+      "sha256": "6d61d61ba5132e25ccd16a413bad5ab2e7059c4798d2ee3b08e93a9c33bb0986",
+      "bytes": 44296
+    },
+    {
+      "path": "codex-rs_app-server-client_src_lib.rs",
+      "upstream_path": "codex-rs/app-server-client/src/lib.rs",
+      "url": "https://github.com/openai/codex/blob/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-client/src/lib.rs",
+      "raw_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-client/src/lib.rs",
+      "sha256": "04967fc01fa9e24013e47a0d5fc07c5943e678d489d7be12c645bd94b1692ef4",
+      "bytes": 82688
+    }
+  ],
+  "reconnect_boundary_document": "tasks/g0-cached-switch-boundary/docs/reconnect-boundary.md"
+}
