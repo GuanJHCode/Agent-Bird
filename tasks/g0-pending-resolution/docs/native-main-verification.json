@@ -1,5 +1,5 @@
 {
-  "scope": "Process identity schema and complete offline prepare chain fixed; command-input-01 status remained inconclusive; fresh sd03 post-input identity route registered for implementation, not yet run.",
+  "scope": "sd03 implementation and cross-interface checks independently passed; final main 68 tests passed; one native run admitted after fresh outer preflight. No standalone native result yet.",
   "source_commit": "472d2288f750b9d096dc5a2d84f7e885cf44b101",
   "integrated_commit": "2aa8e3c",
   "independent_review": {
@@ -167,9 +167,8 @@
   "native_service_started": true,
   "native_model_started": true,
   "pending": [
-    "Bounded RPC rejection diagnostics",
-    "Implement and review sd03 unique-initial identity and owner contract",
-    "Fresh sd03 native standalone qualification",
+    "Fresh outer preflight and one sd03 native run",
+    "Reconcile its actual native history, ACK and owned resource cleanup",
     "General current-TUI attachment and full delivery reconciliation"
   ],
   "second_native_result": {
@@ -265,5 +264,37 @@
     "active_for_implementation": true,
     "native_runtime_started": false,
     "strategy": "single initial + unique real Hook + explicit native family + SQLite spawn-edge absence + actual Go owner, controlled fresh TUI only"
+  },
+  "sd03_admission": {
+    "case": "sd-qual-03",
+    "main_code_commit": "c2aca6c",
+    "controller_source_commits": [
+      "e6b02bd9a814532031f5c6c586b037b98cfa31c2",
+      "39e1d36d1ae65d29cc0589d5821ded3170bfdd0e"
+    ],
+    "helper_source_commit": "c2b30e0cf98a3c9bb501822bb81f44294fdb6c70",
+    "controller_reviewer": "native_identity_review",
+    "controller_verdict": "PASS for fixed sd03 implementation and four-stage diagnostic compatibility",
+    "helper_reviewer": "retained_lifecycle_review",
+    "helper_verdict": "PASS for sd03 family/session and unchanged send fences",
+    "independent_controller_tests_passed": 35,
+    "independent_controller_duration_seconds": 0.793,
+    "main_command": "python3 -B -m unittest discover -s tasks/g0-pending-resolution/scripts -p 'native*_test.py' -v",
+    "main_tests_passed": 68,
+    "main_duration_seconds": 0.962,
+    "main_exit_code": 0,
+    "source_sha256": {
+      "native_sd_control.py": "a9c4bc203ed2d4e704aa03613f67a1101d1c00ebae7d449acf4f1e348ef7d80a",
+      "native_sd_collect.py": "9770a53904febd21e20ef42b55a3cf12140455313837a11f1d3eeb883b7afe09",
+      "native_sd_pty.py": "0ec348a89cfe1d5b41e23885f20a4323d2631af300ad577fa2e8726e16d8d5c5",
+      "native_sd_clock.py": "c16c8d0d0d9b1652d18606230351493f3cea33211f8b4d3323bb5b6bf2466087",
+      "native_standalone.py": "7ac746213b306c3c0e0b7a3b784c79fad51cb7cbca488e22be668d621c0a89dc",
+      "delivery_audit.py": "59d8129d5409fb7fb5687a5107c81f9d85a63b8f718e4dd22cab660517af87c6"
+    },
+    "original_seven_design_checksums_match": true,
+    "runtime_sources_frozen": true,
+    "runtime_requires_fresh_outer_preflight": true,
+    "native_runtime_started": false,
+    "generic_attachment_or_full_g0_passed": false
   }
 }
