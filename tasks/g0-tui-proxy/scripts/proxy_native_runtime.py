@@ -754,6 +754,8 @@ class _CaptureBridge:
         for row in rows:
             if not self._record_trace(row):
                 return
+            if row.get("event") == "gap":
+                self.trace_complete = False
             if (
                 row.get("direction") == "client"
                 and row.get("method") == "turn/start"
@@ -809,6 +811,11 @@ class _CaptureBridge:
         if event.kind == "eof":
             self._record_trace({"event": "eof", "conn_epoch": event.epoch, "reason": "eof"})
             self.inferer.invalidate("eof")
+            # Let the observer inspect buffered handshake/frame bytes before
+            # invalidating its connection.  A truncated stream therefore
+            # emits a gap into the bounded trace instead of being hidden by
+            # set_pending().
+            self._accept_rows(self.observer.close(event.connection_id))
             self.observer.set_pending(event.connection_id)
         if event.kind == "disconnect":
             self._accept_rows(self.observer.close(event.connection_id))
@@ -1110,6 +1117,8 @@ async def run_case(
     clear_status_match = False
     quit_success = False
     initial_thread: str | None = None
+    disconnect_epoch: int | None = None
+    new_epoch_observed = False
     current_stage = "prepare"
 
     def step(name: str, **fields: Any) -> None:
@@ -1173,6 +1182,7 @@ async def run_case(
 
         connection_id = next(reversed(runtime._bridge.connection_records), None) if runtime._bridge else None
         if connection_id is not None:
+            disconnect_epoch = runtime._bridge.connection_records[connection_id].epoch
             disconnect_window = RuntimeWindow.start(local_seconds=config.local_window_seconds, model_seconds=config.model_window_seconds)
             disconnected = await runtime.disconnect(connection_id, leg="frontend")
             await tui.aread_until(min(disconnect_window.local_deadline, raw_seconds() + 2.0))
@@ -1204,6 +1214,17 @@ async def run_case(
             result["protection_failure"] = _failure_record(exc, "protection")
         bridge = runtime._bridge
         if bridge is not None:
+            epochs = {record.epoch for record in bridge.connection_records.values()}
+            new_epoch_observed = disconnect_epoch is not None and any(epoch != disconnect_epoch for epoch in epochs)
+            result["disconnect_barrier"] = {
+                "connection_id": connection_id if "connection_id" in locals() else None,
+                "old_epoch": disconnect_epoch,
+                "old_epoch_invalid": disconnect_invalid,
+            }
+            result["reconnect"] = {
+                "observed": new_epoch_observed,
+                "status": "unknown" if new_epoch_observed else "not_run",
+            }
             result["model_turns"] = bridge.model_turns if bridge.trace_complete else None
             result["trace_complete"] = bridge.trace_complete
             try:
@@ -1218,6 +1239,7 @@ async def run_case(
             initial_candidate_ok
             and clear_candidate_ok
             and disconnect_invalid
+            and not new_epoch_observed
             and initial_status_match
             and clear_status_match
             and initial_target is not None

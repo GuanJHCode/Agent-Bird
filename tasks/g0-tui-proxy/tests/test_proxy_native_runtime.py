@@ -262,6 +262,33 @@ def test_complete_eof_invalidates_attachment_but_keeps_complete_trace():
     assert bridge.trace_complete is True
 
 
+def test_observer_truncated_http_eof_propagates_gap_before_pending():
+    from proxy_observer import Observer
+
+    inferer = AttachmentInferer()
+    bridge = _CaptureBridge(Observer(), inferer)
+    bridge.on_connect(SimpleNamespace(connection_id="c1", epoch=1, frontend_fd=1, backend_fd=2, frontend_peer=None, backend_peer=None))
+    relay_bytes(bridge, "c1", 1, "frontend_to_backend", b"GET / HTTP/1.1\r\n")
+    bridge.on_lifecycle(SimpleNamespace(connection_id="c1", epoch=1, kind="eof"))
+    assert any(row.get("event") == "gap" for row in bridge.trace)
+    assert bridge.trace_complete is False
+    assert inferer.candidate is None
+
+
+def test_observer_complete_handshake_eof_stays_trace_complete():
+    from proxy_observer import Observer
+
+    inferer = AttachmentInferer()
+    bridge = _CaptureBridge(Observer(), inferer)
+    bridge.on_connect(SimpleNamespace(connection_id="c1", epoch=1, frontend_fd=1, backend_fd=2, frontend_peer=None, backend_peer=None))
+    relay_bytes(bridge, "c1", 1, "frontend_to_backend", raw_upgrade_request())
+    relay_bytes(bridge, "c1", 1, "backend_to_frontend", raw_upgrade_response())
+    bridge.on_lifecycle(SimpleNamespace(connection_id="c1", epoch=1, kind="eof"))
+    assert any(row.get("event") == "connection_close" for row in bridge.trace)
+    assert bridge.trace_complete is True
+    assert inferer.invalid_reason == "eof"
+
+
 def test_bootstrap_opaque_requires_client_request_and_matching_server_response():
     inferer = AttachmentInferer()
     for event in (
