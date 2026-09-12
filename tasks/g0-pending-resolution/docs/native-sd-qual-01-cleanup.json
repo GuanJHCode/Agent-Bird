@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "nonce": "sd-qual-01",
+  "root": "01a091af-7695-71b1-a3b1-a0251fed78d0",
+  "started_at": "2026-09-12T00:36:55.185969+00:00",
+  "pre_signal_identity": {
+    "pid": 64731,
+    "ppid": 1,
+    "uid": 501,
+    "started_at_local": "Sat Sep 12 02:16:30 2026",
+    "comm": "codex",
+    "native_executable_matches": true
+  },
+  "pre_signal_socket": {
+    "path": "/Users/guanjunhui/.codex/app-server-control/app-server-control.sock",
+    "exists": true,
+    "dev": 16777234,
+    "ino": 160853028,
+    "uid": 501,
+    "mode": "0600",
+    "service_holds_path": true
+  },
+  "scope": "parent-authorized cleanup of this owned listener only; no peer process signalled",
+  "signals": [
+    {
+      "signal": "SIGINT",
+      "at": "2026-09-12T00:36:55.243514+00:00",
+      "continuous_ns": 4095982947689041
+    }
+  ],
+  "diagnostics_confirmed_pid": 64731,
+  "remote_control_status": "disabled",
+  "diagnostic_top_fields": [
+    "process",
+    "gauges"
+  ],
+  "connection_table_present": false,
+  "known_gauges": [
+    {
+      "name": "core.threads.live",
+      "value": 0
+    },
+    {
+      "name": "mcp.connections.live",
+      "value": 0
+    }
+  ],
+  "unix_rows_sha256": "3527c2f5c7d7a99cab940e6365d41d823061b96d7a63488fb53267bd9022087d",
+  "unix_row_count": 5,
+  "tui_absent": true,
+  "cleanup_clock": "CLOCK_MONOTONIC_RAW",
+  "service_not_running": true,
+  "continuous_elapsed_ns": 67426459,
+  "socket_exists_after": false,
+  "job_files_after": [],
+  "ended_at": "2026-09-12T00:36:55.311098+00:00"
+}

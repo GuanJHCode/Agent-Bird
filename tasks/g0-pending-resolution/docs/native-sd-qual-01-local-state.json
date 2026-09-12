@@ -1,0 +1,64 @@
+{
+  "recorded_at": "2026-09-11T23:13:03.782314+00:00",
+  "wall_ns": 1789168383782615000,
+  "mono_ns": 1700714914844666,
+  "monotonic_implementation": "mach_absolute_time()",
+  "nonce": "sd-qual-01",
+  "root": "01a091af-7695-71b1-a3b1-a0251fed78d0",
+  "service": {
+    "pid": 64731,
+    "ppid": 1,
+    "uid": 501,
+    "started_at_local": "Sat Sep 12 02:16:30 2026",
+    "comm": "codex",
+    "native_executable_matches": true
+  },
+  "tui": null,
+  "socket": {
+    "path": "/Users/guanjunhui/.codex/app-server-control/app-server-control.sock",
+    "exists": true,
+    "dev": 16777234,
+    "ino": 160853028,
+    "uid": 501,
+    "mode": "0600",
+    "service_holds_path": true
+  },
+  "service_same_birth": true,
+  "tui_same_birth": false,
+  "service_unix_fds": {
+    "lsof_exit": 0,
+    "records": [
+      {
+        "fd": "7",
+        "type": "unix",
+        "peer_pointer": "->0x69ae522a615e6dce"
+      },
+      {
+        "fd": "8",
+        "type": "unix",
+        "peer_pointer": "->0xa051e9baab7a91bc"
+      },
+      {
+        "fd": "9",
+        "type": "unix",
+        "peer_pointer": "->0x69ae522a615e6dce"
+      },
+      {
+        "fd": "28",
+        "type": "unix",
+        "name": "/Users/guanjunhui/.codex/app-server-control/app-server-control.sock"
+      },
+      {
+        "fd": "32",
+        "type": "unix",
+        "peer_pointer": "->0x1fdfa5aca6c4b2ef"
+      }
+    ]
+  },
+  "native_thread_metadata_present": false,
+  "hook_counts": {},
+  "hooks": [],
+  "replayed_window_boundary": "rejected_invalid_original_observation_window",
+  "go_job_files": [],
+  "currently_matching_go_pids": []
+}

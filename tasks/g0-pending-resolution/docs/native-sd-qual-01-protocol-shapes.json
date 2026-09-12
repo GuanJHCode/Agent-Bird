@@ -1,0 +1,106 @@
+{
+  "version": 1,
+  "nonce": "sd-qual-01",
+  "root": "01a091af-7695-71b1-a3b1-a0251fed78d0",
+  "at": "2026-09-12T00:28:19.362235+00:00",
+  "service": {
+    "pid": 64731,
+    "ppid": 1,
+    "uid": 501,
+    "started_at_local": "Sat Sep 12 02:16:30 2026",
+    "comm": "codex",
+    "native_executable_matches": true
+  },
+  "native_binary_sha256": "b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3",
+  "audit_pid": 67940,
+  "initialize": {
+    "clientInfo": {
+      "name": "g0-native-standalone",
+      "version": "0.1.0"
+    },
+    "capabilities": {
+      "experimentalApi": true
+    }
+  },
+  "requests": [
+    {
+      "method": "thread/read",
+      "params": {
+        "threadId": "01a091af-7695-71b1-a3b1-a0251fed78d0",
+        "includeTurns": false
+      },
+      "thread": {
+        "id": "01a091af-7695-71b1-a3b1-a0251fed78d0",
+        "source": {
+          "json_type": "str",
+          "known_value": "vscode"
+        },
+        "status": "idle",
+        "history_mode": "paginated",
+        "turn_count": 0,
+        "cwd_matches": true,
+        "cli_version_matches": true
+      }
+    },
+    {
+      "method": "thread/read",
+      "params": {
+        "threadId": "01a091af-7695-71b1-a3b1-a0251fed78d0",
+        "includeTurns": true
+      },
+      "error": {
+        "message_sha256": "c82d1cc7cb99800445758cc2a93c5fbcc676b14afac6373faaa32040cf2d3493",
+        "bytes": 31,
+        "known_mentions": {
+          "includeTurns": false,
+          "thread/turns/list": false,
+          "paginated": false,
+          "not supported": true,
+          "removed": false,
+          "unimplemented": false,
+          "not found": false,
+          "unknown method": false,
+          "thread/read": false
+        },
+        "code": -32601
+      }
+    },
+    {
+      "method": "thread/turns/list",
+      "params": {
+        "threadId": "01a091af-7695-71b1-a3b1-a0251fed78d0",
+        "limit": 4,
+        "itemsView": "full"
+      },
+      "error": {
+        "message_sha256": "c82d1cc7cb99800445758cc2a93c5fbcc676b14afac6373faaa32040cf2d3493",
+        "bytes": 31,
+        "known_mentions": {
+          "includeTurns": false,
+          "thread/turns/list": false,
+          "paginated": false,
+          "not supported": true,
+          "removed": false,
+          "unimplemented": false,
+          "not found": false,
+          "unknown method": false,
+          "thread/read": false
+        },
+        "code": -32601
+      }
+    }
+  ],
+  "scope": "bounded readonly source/history diagnosis; no turn/start or resume",
+  "checks": {
+    "diagnostics_pid": 64731,
+    "remote_control_status": "disabled",
+    "native_binary_pinned": true,
+    "machine_binding_checked": true,
+    "source_service_verified": false,
+    "current_display_verified": false
+  },
+  "frames": 7,
+  "wall_elapsed_ns": 28427000,
+  "mono_elapsed_ns": 28428583,
+  "ended_at": "2026-09-12T00:28:19.392339+00:00"
+}

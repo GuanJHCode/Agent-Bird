@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "nonce": "sd-qual-01",
+  "root": "01a091af-7695-71b1-a3b1-a0251fed78d0",
+  "at": "2026-09-12T00:25:03.758743+00:00",
+  "audit_pid": 67469,
+  "service": {
+    "pid": 64731,
+    "ppid": 1,
+    "uid": 501,
+    "started_at_local": "Sat Sep 12 02:16:30 2026",
+    "comm": "codex",
+    "native_executable_matches": true
+  },
+  "scope": "same-service read-only cleanup diagnosis; no turn/start",
+  "prior_audit_error": "native_rpc_error occurred; wrong exception class in local wrapper prevented artifact; websocket context closed",
+  "runtime_checks": {
+    "diagnostics_pid": 64731,
+    "remote_control_status": "disabled",
+    "native_binary_pinned": true,
+    "machine_binding_checked": true,
+    "source_service_verified": false,
+    "current_display_verified": false
+  },
+  "reads": [
+    {
+      "include_turns": false,
+      "id": "01a091af-7695-71b1-a3b1-a0251fed78d0",
+      "status": "idle",
+      "source_cli": false,
+      "cwd_matches": true,
+      "cli_version_matches": true,
+      "history_mode": "paginated"
+    },
+    {
+      "include_turns": true,
+      "native_error": true,
+      "error_message_sha256": "c82d1cc7cb99800445758cc2a93c5fbcc676b14afac6373faaa32040cf2d3493",
+      "error_code": -32601,
+      "error_classifiers": {
+        "not found": false,
+        "not loaded": false,
+        "not materialized": false,
+        "no rollout": false,
+        "has not": false,
+        "empty": false,
+        "history": false,
+        "first turn": false,
+        "initialized": false
+      },
+      "mentions_exact_root": false
+    }
+  ],
+  "rpc_frames": 6,
+  "rpc_requests": 5,
+  "wall_elapsed_ns": 31403000,
+  "mono_elapsed_ns": 31403333,
+  "ended_at": "2026-09-12T00:25:03.791047+00:00"
+}

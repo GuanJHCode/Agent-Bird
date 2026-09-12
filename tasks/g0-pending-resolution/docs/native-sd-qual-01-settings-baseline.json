@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "nonce": "sd-qual-01",
+  "root": "01a091af-7695-71b1-a3b1-a0251fed78d0",
+  "at": "2026-09-12T00:34:03.532951+00:00",
+  "service": {
+    "pid": 64731,
+    "ppid": 1,
+    "uid": 501,
+    "started_at_local": "Sat Sep 12 02:16:30 2026",
+    "comm": "codex",
+    "native_executable_matches": true
+  },
+  "scope": "exact root metadata settings-presence read; no resume or turn/start",
+  "prior_wrapper_failure": "helper.make_request only permits includeTurns=true; prior false read was refused locally, not a server observation",
+  "diagnostics_pid": 64731,
+  "remote_control_status": "disabled",
+  "settings_presence": {
+    "model": {
+      "in_thread": true,
+      "in_result": false
+    },
+    "modelProvider": {
+      "in_thread": true,
+      "in_result": false
+    },
+    "approvalPolicy": {
+      "in_thread": false,
+      "in_result": false
+    },
+    "approvalsReviewer": {
+      "in_thread": false,
+      "in_result": false
+    },
+    "sandboxPolicy": {
+      "in_thread": false,
+      "in_result": false
+    },
+    "serviceTier": {
+      "in_thread": false,
+      "in_result": false
+    },
+    "collaborationMode": {
+      "in_thread": false,
+      "in_result": false
+    },
+    "cwd": {
+      "in_thread": true,
+      "in_result": false
+    }
+  },
+  "settings_fingerprints": {
+    "model": {
+      "type": "str",
+      "sha256": "c1ffe835cdc1eb3263891bbc4bcc609803f1e0c563f8903ea64d7c5145748b54"
+    },
+    "modelProvider": {
+      "type": "str",
+      "sha256": "396e987d95cb396ce2bdf21afd91f3b0aa16556afe48812e3822f3fd8e8aff21"
+    },
+    "cwd": {
+      "type": "str",
+      "sha256": "bb469ecd77db7988ce6738659d39f6f1ce607f6f8aeece3d26779d90dd87f5d6"
+    }
+  },
+  "effective_settings_baseline_sufficient": false,
+  "resume_sent": false,
+  "wall_elapsed_ns": 24979000,
+  "mono_elapsed_ns": 24981417,
+  "ended_at": "2026-09-12T00:34:03.558567+00:00"
+}

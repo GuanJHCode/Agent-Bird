@@ -1,0 +1,49 @@
+{
+  "recorded_at": "2026-09-12T00:40:33.799336+00:00",
+  "nonce": "sd-qual-01",
+  "qualification": "infrastructure_inconclusive",
+  "receipts": [
+    {
+      "source": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/data/sd-qual-01/postrun-local-state.json",
+      "doc": "native-sd-qual-01-local-state.json",
+      "bytes": 1596,
+      "sha256": "f5fe7216d7c37bf4c9cefca8c1d4413a23e2acb0277c557242bc5018d67898b3"
+    },
+    {
+      "source": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/data/sd-qual-01/postrun-native-state.json",
+      "doc": "native-sd-qual-01-native-state.json",
+      "bytes": 1727,
+      "sha256": "d8466564ea60ff8be50331293551e86045d35452aa5e385673d6a15affd34ce7"
+    },
+    {
+      "source": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/data/sd-qual-01/postrun-protocol-shapes.json",
+      "doc": "native-sd-qual-01-protocol-shapes.json",
+      "bytes": 2892,
+      "sha256": "d27c0fa6ec5cdad0f42f4d10f6e4805d25e41ebca9f87bf6b89db9ad03142657"
+    },
+    {
+      "source": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/data/sd-qual-01/postrun-settings-baseline.json",
+      "doc": "native-sd-qual-01-settings-baseline.json",
+      "bytes": 1879,
+      "sha256": "68621acdfb54c49e5a9ae6ec236455cb5ad239edde9d6d557f57da8b404bc821"
+    },
+    {
+      "source": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/data/sd-qual-01/cleanup-service.json",
+      "doc": "native-sd-qual-01-cleanup.json",
+      "bytes": 1507,
+      "sha256": "f437c664315464e6edc9ac693b17e10275da3d93ee36023bbb13f1070cea4fb1"
+    },
+    {
+      "source": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/docs/native-sd-qual-01-controller.json",
+      "doc": "main already contains native-sd-qual-01-controller.json; not overwritten",
+      "bytes": 5693,
+      "sha256": "21969b545f322fcbf6a2c5ebd3016725be863eb996643cdc7cf314c15f78ad00"
+    }
+  ],
+  "notes": [
+    "The immutable main data artifacts are retained.",
+    "helper.Rpc.initialize boilerplate machine_binding_checked/native_binary_pinned flags in postrun records are not independent machine validation; use the separate OS identity/hash checks.",
+    "Controller caught ValueError without traceback; the exact runtime stack was not retained.",
+    "No turn/start, resume or synthetic callback was sent by postrun probes."
+  ]
+}
