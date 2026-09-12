@@ -1030,6 +1030,10 @@ class NativeRuntime:
 class CaseDirectory:
     path: Path
 
+    @property
+    def name(self) -> str:
+        return self.path.name
+
     @classmethod
     def create(cls, path: str | os.PathLike[str]) -> "CaseDirectory":
         target = Path(path)
@@ -1111,7 +1115,7 @@ async def run_case(
     case = CaseDirectory.create(case_dir)
     runtime = runtime_factory(config)
     result: dict[str, Any] = {
-        "case": "proxy-attach-01",
+        "case": case.name,
         "status": "unknown",
         "model_turns": None,
         "steps": [],

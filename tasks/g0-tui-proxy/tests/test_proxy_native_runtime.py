@@ -716,3 +716,10 @@ def test_case_directory_and_artifacts_are_exclusive(tmp_path):
         case.write_json("result.json", {"case": "replacement"})
     with pytest.raises(FileExistsError):
         CaseDirectory.create(tmp_path / "proxy-attach-01")
+
+
+def test_case_label_comes_from_actual_case_directory(tmp_path):
+    from proxy_native_runtime import CaseDirectory
+
+    case = CaseDirectory.create(tmp_path / "proxy-attach-02")
+    assert case.name == "proxy-attach-02"
