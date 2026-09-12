@@ -473,6 +473,7 @@ class PTYDriver:
             "sha256": self.digest.hexdigest(),
             "exit_code": self.exit_code,
             "cursor_position_replies": self.cursor_replies,
+            "ui_state": classify_screen(self.screen_tail),
             "inputs": list(self.inputs),
         }
         if len(self.status_ids) == 1:
@@ -494,6 +495,23 @@ class PTYDriver:
 def _strip_terminal_controls(text: str) -> str:
     text = re.sub(r"\x1b\[[0-9;]*[Hf]", "\n", text)
     return re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", text)
+
+
+def classify_screen(screen_tail: bytes) -> str:
+    """Return a bounded UI state label without retaining terminal text."""
+
+    text = _strip_terminal_controls(screen_tail.decode("utf-8", "replace")).lower()
+    if "session:" in text:
+        return "session"
+    if any(token in text for token in ("error", "failed", "panic")):
+        return "error"
+    if any(token in text for token in ("picker", "select a", "choose")):
+        return "picker"
+    if any(token in text for token in ("trust", "onboarding", "sign in", "login", "welcome")):
+        return "onboarding"
+    if text.strip():
+        return "unknown"
+    return "empty"
 
 
 @dataclass(frozen=True)
@@ -1198,6 +1216,18 @@ async def run_case(
         initial_candidate_ok = runtime.candidate is not None
         initial_thread = runtime.candidate.thread_id if runtime.candidate else None
         initial_target = runtime.candidate.session_id if runtime.candidate and runtime.candidate.session_id else runtime.candidate.thread_id if runtime.candidate else None
+
+        if not initial_candidate_ok:
+            result["diagnostic_status"] = tui.evidence.get("ui_state", "unknown")
+            failfast_window = RuntimeWindow.start(
+                local_seconds=config.local_window_seconds,
+                model_seconds=config.model_window_seconds,
+            )
+            if tui.poll() is None:
+                tui.command("/quit")
+                await tui.await_exit(failfast_window.local_deadline)
+            step("initial-fail-fast", quit_exit_code=tui.poll(), tui=tui.evidence)
+            raise RuntimeInvariantError("initial_replay_or_candidate_missing")
 
         status_window = RuntimeWindow.start(local_seconds=config.local_window_seconds, model_seconds=config.model_window_seconds)
         tui.command("/status")

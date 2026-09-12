@@ -23,6 +23,7 @@ from proxy_native_runtime import (  # noqa: E402
     RuntimeWindow,
     _CaptureBridge,
     build_ordinary_tui_argv,
+    classify_screen,
     new_epoch_after_disconnect,
     raw_seconds,
 )
@@ -114,6 +115,14 @@ def test_ordinary_entry_has_no_remote_model_config_or_prompt_overrides():
     assert build_ordinary_tui_argv("/Users/guanjunhui/.local/bin/codex") == (
         "/Users/guanjunhui/.local/bin/codex",
     )
+
+
+def test_screen_diagnostic_is_a_bounded_label_without_terminal_text():
+    assert classify_screen(b"Welcome; sign in to continue") == "onboarding"
+    assert classify_screen(b"Select a model") == "picker"
+    assert classify_screen(b"Session: 01234567-89ab-cdef-0123-456789abcdef") == "session"
+    assert classify_screen(b"internal error") == "error"
+    assert classify_screen(b"opaque text") == "unknown"
 
 
 @pytest.mark.parametrize("bad", [("--remote",), ("-m", "luna"), ("-c", "x=y"), ("hello",)])
