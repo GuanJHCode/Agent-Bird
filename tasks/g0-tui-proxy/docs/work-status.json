@@ -7,19 +7,31 @@
     "observer": {
       "initial": "689fc34",
       "first_fix": "93154a0",
-      "state": "further handshake and bound fixes in progress"
+      "state": "independent review passed",
+      "final": "b1590ce",
+      "main": "ba6953d",
+      "tests": 18
     },
     "transport": {
       "initial": "67dc97d",
-      "state": "shutdown, peer completeness and failed-start cleanup fixes in progress"
+      "state": "independent review passed; runtime backend validator required",
+      "final": "72d8220",
+      "main": "0a88ad8",
+      "tests": 12
     },
     "runtime": {
       "initial": "4c2787e",
       "input_chain": "74dcb82",
-      "state": "implementing actual PTY workflow and addressing identity/opaque/cleanup findings"
+      "state": "fixing async PTY scheduling, complete result barriers and trace evidence; native admission denied",
+      "latest_reviewed": "ef3b1f7"
     }
   },
   "native_admission": false,
   "original_scope_preserved": true,
-  "formal_global_installation_authorized": false
+  "formal_global_installation_authorized": false,
+  "main_component_tests": {
+    "passed": 30,
+    "seconds": 0.97,
+    "native_or_model_calls": 0
+  }
 }
