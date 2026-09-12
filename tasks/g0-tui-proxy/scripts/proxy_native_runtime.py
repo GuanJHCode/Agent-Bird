@@ -1339,6 +1339,7 @@ async def run_case(
     case_dir: str | os.PathLike[str],
     *,
     runtime_factory: Callable[[NativeRuntimeConfig], NativeRuntime] = NativeRuntime,
+    termination_mode: str = "forced_disconnect",
 ) -> dict[str, Any]:
     """Run the bounded zero-model static operation sequence.
 
@@ -1346,6 +1347,8 @@ async def run_case(
     directory with O_EXCL artifacts and never writes PTY screen text.
     """
 
+    if termination_mode not in {"forced_disconnect", "normal_quit"}:
+        raise ValueError("termination_mode must be forced_disconnect or normal_quit")
     case = CaseDirectory.create(case_dir)
     runtime = runtime_factory(config)
     result: dict[str, Any] = {
@@ -1355,6 +1358,8 @@ async def run_case(
         "steps": [],
         "protected_hashes": None,
         "connections": [],
+        "termination_mode": termination_mode,
+        "termination_trigger": None,
     }
     initial_candidate_ok = False
     clear_candidate_ok = False
@@ -1365,6 +1370,10 @@ async def run_case(
     initial_thread: str | None = None
     disconnect_epoch: int | None = None
     old_epoch_reason: str | None = None
+    connection_id: str | None = None
+    termination_epoch: int | None = None
+    termination_epoch_reason: str | None = None
+    termination_epoch_invalid = False
     new_epoch_observed = False
     epochs_before_disconnect: set[int] = set()
     current_stage = "prepare"
@@ -1442,16 +1451,37 @@ async def run_case(
 
         connection_id = next(reversed(runtime._bridge.connection_records), None) if runtime._bridge else None
         if connection_id is not None:
-            disconnect_epoch = runtime._bridge.connection_records[connection_id].epoch
+            termination_epoch = runtime._bridge.connection_records[connection_id].epoch
             epochs_before_disconnect = {record.epoch for record in runtime._bridge.connection_records.values()}
-            disconnect_window = RuntimeWindow.start(local_seconds=config.local_window_seconds, model_seconds=config.model_window_seconds)
-            disconnected = await runtime.disconnect(connection_id, leg="frontend")
-            await tui.aread_until(min(disconnect_window.local_deadline, raw_seconds() + 2.0))
-            while runtime.candidate is not None and raw_seconds() < disconnect_window.local_deadline:
-                await asyncio.sleep(0.01)
-            old_epoch_reason = runtime._bridge.epoch_invalid.get(disconnect_epoch) if runtime._bridge else None
-            disconnect_invalid = disconnected and old_epoch_reason is not None
-            step("disconnect", connection_id=connection_id, disconnected=disconnected, candidate=asdict(runtime.candidate) if runtime.candidate else None)
+            if termination_mode == "forced_disconnect":
+                disconnect_epoch = termination_epoch
+                result["termination_trigger"] = "frontend_disconnect"
+                disconnect_window = RuntimeWindow.start(local_seconds=config.local_window_seconds, model_seconds=config.model_window_seconds)
+                disconnected = await runtime.disconnect(connection_id, leg="frontend")
+                await tui.aread_until(min(disconnect_window.local_deadline, raw_seconds() + 2.0))
+                while runtime.candidate is not None and raw_seconds() < disconnect_window.local_deadline:
+                    await asyncio.sleep(0.01)
+                old_epoch_reason = runtime._bridge.epoch_invalid.get(disconnect_epoch) if runtime._bridge else None
+                disconnect_invalid = disconnected and old_epoch_reason is not None
+                step("disconnect", connection_id=connection_id, disconnected=disconnected, candidate=asdict(runtime.candidate) if runtime.candidate else None)
+            else:
+                gate_ok = (
+                    initial_candidate_ok
+                    and initial_status_match
+                    and clear_candidate_ok
+                    and clear_status_match
+                    and initial_target is not None
+                    and clear_target is not None
+                    and clear_thread != initial_thread
+                )
+                step("normal-quit-gate", passed=gate_ok)
+                if not gate_ok:
+                    result["termination_trigger"] = "normal_quit_gate"
+                    raise RuntimeInvariantError("normal_quit_gate_failed")
+                result["termination_trigger"] = "normal_quit"
+        elif termination_mode == "normal_quit":
+            result["termination_trigger"] = "normal_quit_gate"
+            raise RuntimeInvariantError("normal_quit_connection_missing")
 
         quit_window = RuntimeWindow.start(local_seconds=config.local_window_seconds, model_seconds=config.model_window_seconds)
         if tui.poll() is None:
@@ -1460,9 +1490,14 @@ async def run_case(
         else:
             exit_code = tui.poll()
         quit_success = exit_code == 0
-        step("quit", exit_code=exit_code, quit_success=quit_success, tui=tui.evidence)
+        if exit_code == 0 and runtime._bridge and termination_epoch is not None:
+            await tui.aread_until(min(quit_window.local_deadline, raw_seconds() + 2.0))
+        if runtime._bridge and termination_epoch is not None:
+            termination_epoch_reason = runtime._bridge.epoch_invalid.get(termination_epoch)
+            termination_epoch_invalid = termination_epoch_reason is not None
+        step("quit", exit_code=exit_code, quit_success=quit_success, termination_epoch_invalid=termination_epoch_invalid, tui=tui.evidence)
         result["connections"] = [_connection_summary(record) for record in runtime._bridge.connection_records.values()] if runtime._bridge else []
-        result["status"] = "observed" if initial_candidate_ok and clear_candidate_ok and disconnect_invalid else "unknown"
+        result["status"] = "unknown"
     except BaseException as exc:
         result["failure"] = _failure_record(exc, current_stage)
     finally:
@@ -1476,14 +1511,16 @@ async def run_case(
             result["protection_failure"] = _failure_record(exc, "protection")
         bridge = runtime._bridge
         if bridge is not None:
-            new_epoch_observed = disconnect_epoch is not None and new_epoch_after_disconnect(
+            new_epoch_observed = termination_epoch is not None and new_epoch_after_disconnect(
                 epochs_before_disconnect, bridge.connection_records.values()
             )
             result["disconnect_barrier"] = {
-                "connection_id": connection_id if "connection_id" in locals() else None,
-                "old_epoch": disconnect_epoch,
-                "old_epoch_invalid": disconnect_invalid,
-                "old_epoch_invalid_reason": old_epoch_reason if "old_epoch_reason" in locals() else None,
+                "connection_id": connection_id,
+                "old_epoch": termination_epoch,
+                "old_epoch_invalid": termination_epoch_invalid,
+                "old_epoch_invalid_reason": termination_epoch_reason,
+                "termination_mode": termination_mode,
+                "termination_trigger": result.get("termination_trigger"),
             }
             result["reconnect"] = {
                 "observed": new_epoch_observed,
@@ -1502,7 +1539,8 @@ async def run_case(
         result["status"] = "observed" if (
             initial_candidate_ok
             and clear_candidate_ok
-            and disconnect_invalid
+            and (termination_mode == "normal_quit" or disconnect_invalid)
+            and termination_epoch_invalid
             and not new_epoch_observed
             and initial_status_match
             and clear_status_match

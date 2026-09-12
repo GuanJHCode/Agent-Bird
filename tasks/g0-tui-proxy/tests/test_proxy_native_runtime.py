@@ -13,6 +13,7 @@ sys.path.insert(0, str(SCRIPT_DIR))
 
 from proxy_native_runtime import (  # noqa: E402
     AttachmentInferer,
+    AttachmentCandidate,
     ConnectionIdentity,
     NativeRuntimeConfig,
     NativeRuntime,
@@ -27,6 +28,7 @@ from proxy_native_runtime import (  # noqa: E402
     build_native_observer,
     new_epoch_after_disconnect,
     raw_seconds,
+    run_case,
 )
 
 
@@ -1367,3 +1369,133 @@ def test_case_label_comes_from_actual_case_directory(tmp_path):
 
     case = CaseDirectory.create(tmp_path / "proxy-attach-02")
     assert case.name == "proxy-attach-02"
+
+
+@pytest.mark.parametrize(
+    "normal_exit,emit_eof",
+    [(0, True), (1, True), (0, False)],
+)
+def test_run_case_normal_quit_does_not_disconnect_and_requires_eof(
+    tmp_path, monkeypatch, normal_exit, emit_eof
+):
+    import asyncio
+
+    binary = tmp_path / "codex"
+    binary.write_bytes(b"native")
+    config = NativeRuntimeConfig(
+        frontend_socket=tmp_path / "frontend.sock",
+        backend_socket=tmp_path / "backend.sock",
+        cli=binary,
+        cwd=tmp_path,
+        local_window_seconds=0.1,
+        model_window_seconds=0.1,
+    )
+    monkeypatch.setattr(
+        "proxy_native_runtime.FIXED_NATIVE_SHA256",
+        hashlib.sha256(b"native").hexdigest(),
+    )
+
+    class FakeInferer:
+        replay_ready = True
+        invalid_reason = None
+
+        def __init__(self):
+            self.candidate = AttachmentCandidate(1, "thread-1", "session-1")
+
+        def clear(self):
+            self.candidate = AttachmentCandidate(1, "thread-2", "session-2")
+
+        def record_status_reference(self, _value):
+            pass
+
+    class FakeTui:
+        def __init__(self, bridge, inferer):
+            self.bridge = bridge
+            self.inferer = inferer
+            self.exit_code = None
+            self.status_ids = set()
+            self.status_calls = 0
+            self.inputs = []
+
+        def poll(self):
+            return self.exit_code
+
+        def command(self, command):
+            self.inputs.append(command)
+            if command == "/status":
+                self.status_calls += 1
+            elif command == "/quit":
+                if emit_eof:
+                    self.bridge.epoch_invalid[1] = "eof"
+                self.exit_code = normal_exit
+
+        async def aread_until(self, _deadline):
+            return self.evidence
+
+        async def async_status_checkpoint(self, _deadline):
+            self.status_ids = {"session-1" if self.status_calls == 1 else "session-2"}
+            return self.status_ids
+
+        async def await_exit(self, _deadline):
+            return self.exit_code
+
+        @property
+        def evidence(self):
+            return {
+                "pid": 123,
+                "exit_code": self.exit_code,
+                "inputs": [{"action": command} for command in self.inputs],
+                "status_session_id": next(iter(self.status_ids)) if len(self.status_ids) == 1 else None,
+            }
+
+    class FakeBackend:
+        def poll(self):
+            return 0
+
+    class FakeRuntime:
+        def __init__(self):
+            self.inferer = FakeInferer()
+            self._bridge = SimpleNamespace(
+                connection_records={"c1": ConnectionIdentity("c1", 1, 3, 4, None, None)},
+                epoch_invalid={},
+                model_turns=0,
+                trace_complete=True,
+                trace=[],
+            )
+            self._tui_driver = FakeTui(self._bridge, self.inferer)
+            self._backend = FakeBackend()
+            self.disconnect_calls = 0
+
+        async def start(self):
+            pass
+
+        def record_status_reference(self, value):
+            self.inferer.record_status_reference(value)
+
+        @property
+        def candidate(self):
+            return self.inferer.candidate
+
+        async def disconnect(self, *_args, **_kwargs):
+            self.disconnect_calls += 1
+            return True
+
+        async def close(self):
+            pass
+
+    runtime = FakeRuntime()
+    result = asyncio.run(
+        run_case(
+            config,
+            tmp_path / "proxy-attach-normal-quit",
+            runtime_factory=lambda _config: runtime,
+            termination_mode="normal_quit",
+        )
+    )
+    assert result.get("failure") is None, result.get("failure")
+    expected_status = "observed" if normal_exit == 0 and emit_eof else "unknown"
+    assert result["status"] == expected_status, result
+    assert result["termination_mode"] == "normal_quit"
+    assert result["termination_trigger"] == "normal_quit"
+    assert runtime.disconnect_calls == 0
+    assert "/quit" in runtime._tui_driver.inputs
