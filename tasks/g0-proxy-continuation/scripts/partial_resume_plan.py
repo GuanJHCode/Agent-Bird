@@ -41,7 +41,7 @@ class PartialResumePlan:
     case_dir: Path
     preflight_path: Path
     job_dir: Path
-    thread_id: str
+    thread_id: str | None
     nonce: str
     cwd: Path
     cli: Path
@@ -64,7 +64,8 @@ class PartialResumePlan:
         ):
             value = Path(os.path.abspath(os.fspath(getattr(self, name))))
             object.__setattr__(self, name, value)
-        object.__setattr__(self, "thread_id", canonical_resume_thread_id(self.thread_id))
+        if self.thread_id is not None:
+            object.__setattr__(self, "thread_id", canonical_resume_thread_id(self.thread_id))
         if not _NONCE_RE.fullmatch(self.nonce) or self.nonce.startswith("sd-"):
             raise ValueError("partial case nonce must be new and must not reuse sd08")
         if self.case_dir == self.job_dir or self.frontend_socket == self.backend_socket:

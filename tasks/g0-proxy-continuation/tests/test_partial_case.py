@@ -1,6 +1,7 @@
 import asyncio
 import hashlib
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -18,6 +19,7 @@ from partial_case import (  # noqa: E402
     run_partial_case,
 )
 from partial_resume_plan import PartialResumePlan  # noqa: E402
+from proxy_native_runtime import OwnedEndpoint, OwnedProcess, _process_birth, _process_path  # noqa: E402
 
 
 THREAD = "01a094db-aaaf-7dc3-8308-8077d4f778b3"
@@ -58,6 +60,14 @@ def test_prompt_freezes_inherited_controller_and_no_goal_or_subagent(tmp_path):
         f"--nonce {value.plan.nonce} --controller-thread $CODEX_THREAD_ID "
         "--revision 1 --segment 1"
     )
+
+
+def test_initial_runtime_is_plain_and_resume_runtime_binds_observed_thread(tmp_path):
+    value = spec(tmp_path)
+    initial = value.runtime_config(resume_thread_id=None)
+    resumed = value.runtime_config(resume_thread_id=THREAD)
+    assert initial.tui_argv == (str(value.plan.cli),)
+    assert resumed.tui_argv == (str(value.plan.cli), "resume", THREAD)
 
 
 def test_inspect_retained_requires_frozen_binary_and_absolute_job(tmp_path, monkeypatch):
@@ -127,8 +137,31 @@ def test_retained_worker_without_identity_is_unknown_not_stopped():
     assert partial_case._retained_worker_stopped({"status": "running"}, {"status": "stopped"}) is False
 
 
-def test_prepare_cli_freezes_fixture_and_does_not_create_case(tmp_path):
+def test_owned_runtime_snapshot_uses_real_process_and_endpoint_identities(tmp_path):
+    import partial_case
+
+    process = subprocess.Popen(["/bin/sleep", "10"])
+    endpoint = tmp_path / "owned.sock"
+    endpoint.write_bytes(b"")
+    try:
+        owned = OwnedProcess(process.pid, _process_birth(process.pid), _process_path(process.pid))
+        runtime = type("Runtime", (), {"_owned_processes": [owned], "_owned_endpoints": [OwnedEndpoint.capture(endpoint)]})()
+        snapshot = partial_case._runtime_ownership(runtime)
+        assert snapshot["processes"][0]["pid"] == process.pid
+        process.terminate()
+        process.wait(timeout=2)
+        endpoint.unlink()
+        assert partial_case._owned_runtime_stopped(runtime, snapshot)
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait()
+
+
+def test_prepare_cli_freezes_fixture_and_does_not_create_case(tmp_path, monkeypatch):
     value = spec(tmp_path)
+    hashes = {"binary_sha256": GO_SHA, "protected": {"global_config": [], "test_config": [], "hooks": [], "seed_artifacts": []}}
+    monkeypatch.setattr("partial_case._source_hashes", lambda *args, **kwargs: hashes)
     result = main([
         "--prepare", "--case-dir", str(value.plan.case_dir), "--preflight", str(value.plan.preflight_path),
         "--job-dir", str(value.plan.job_dir), "--thread-id", THREAD, "--nonce", value.plan.nonce,
@@ -146,7 +179,9 @@ def test_prepare_cli_freezes_fixture_and_does_not_create_case(tmp_path):
 def test_run_partial_case_is_four_phase_and_writes_exclusive_result(tmp_path, monkeypatch):
     value = spec(tmp_path)
     value.retained_binary.write_bytes(b"go-fixture")
-    value.plan.preflight_path.write_text(json.dumps(value.document()) + "\n")
+    hashes = {"binary_sha256": GO_SHA, "protected": {"global_config": [], "test_config": [], "hooks": [], "seed_artifacts": []}}
+    monkeypatch.setattr("partial_case._source_hashes", lambda *args, **kwargs: hashes)
+    value.plan.preflight_path.write_text(json.dumps(value.document(hashes=hashes)) + "\n")
 
     class FakeTUI:
         pid = 20
@@ -185,6 +220,7 @@ def test_run_partial_case_is_four_phase_and_writes_exclusive_result(tmp_path, mo
             self.tui_driver = FakeTUI()
             self.bridge = FakeBridge()
             self.candidate = {"thread_id": THREAD, "connection_epoch": 1}
+            self.tui_identity = type("Identity", (), {"pid": 99})()
             self.phase = "new"
 
         async def start(self):
@@ -201,9 +237,10 @@ def test_run_partial_case_is_four_phase_and_writes_exclusive_result(tmp_path, mo
     monkeypatch.setattr("partial_case._owned_runtime_stopped", lambda runtime, ownership: True)
     monkeypatch.setattr("partial_case._retained_worker_stopped", lambda before, after: True)
     monkeypatch.setattr("partial_case._prefix_snapshot", lambda spec, view: ({"sha256": "stable"},))
+    monkeypatch.setattr("partial_case.capture_parent_guard", lambda child_pid, parent: type("Evidence", (), {"direct_parent": True, "parent_pid": parent.pid})())
 
     states = iter([
-        {"status": "running", "revision": 1, "segment": 1, "completed_steps": 1, "total_steps": 12},
+        {"status": "running", "revision": 1, "segment": 1, "completed_steps": 1, "total_steps": 12, "worker_pid": 123},
         {"status": "stopped", "revision": 1, "segment": 1, "completed_steps": 1, "total_steps": 12},
         {"status": "stopped", "revision": 1, "segment": 1, "completed_steps": 1, "total_steps": 12},
         {"status": "completed", "revision": 1, "segment": 2, "completed_steps": 12, "total_steps": 12},

@@ -11,13 +11,15 @@ from __future__ import annotations
 import argparse
 import asyncio
 import hashlib
+import inspect
 import json
 import os
+import socket
 import subprocess
 import sys
 import time
 import re
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
@@ -37,6 +39,8 @@ from proxy_native_runtime import (  # noqa: E402
     raw_seconds,
 )
 from partial_resume_plan import PartialResumePlan  # noqa: E402
+from resume_case import ResumeCaseSpec, _source_hashes  # noqa: E402
+from partial_resume_plan import capture_parent_guard  # noqa: E402
 
 
 @dataclass(frozen=True)
@@ -46,10 +50,20 @@ class PartialCaseSpec:
     retained_binary_sha256: str
     steps: int = 12
     interval: str = "8s"
+    config_path: Path | None = None
+    implementation_paths: tuple[Path, ...] = ()
+    global_config_paths: tuple[Path, ...] = ()
+    test_config_paths: tuple[Path, ...] = ()
+    hook_paths: tuple[Path, ...] = ()
+    seed_protection_paths: tuple[Path, ...] = ()
 
     def __post_init__(self) -> None:
         binary = Path(os.path.abspath(os.fspath(self.retained_binary)))
         object.__setattr__(self, "retained_binary", binary)
+        if self.config_path is not None:
+            object.__setattr__(self, "config_path", Path(os.path.abspath(os.fspath(self.config_path))))
+        for name in ("implementation_paths", "global_config_paths", "test_config_paths", "hook_paths", "seed_protection_paths"):
+            object.__setattr__(self, name, tuple(Path(os.path.abspath(os.fspath(item))) for item in getattr(self, name)))
         if not binary.is_absolute() or not self.plan.job_dir.is_absolute():
             raise ValueError("retained fixture paths must be absolute")
         if len(self.retained_binary_sha256) != 64 or any(c not in "0123456789abcdef" for c in self.retained_binary_sha256):
@@ -63,7 +77,28 @@ class PartialCaseSpec:
         if self.steps * interval_ms > 120000:
             raise ValueError("retained duration exceeds the 120 second model window")
 
-    def document(self) -> dict[str, Any]:
+    def _protection_spec(self) -> ResumeCaseSpec:
+        expected = self.plan.thread_id or "00000000-0000-4000-8000-000000000000"
+        return ResumeCaseSpec(
+            case_dir=self.plan.case_dir,
+            frontend_socket=self.plan.frontend_socket,
+            backend_socket=self.plan.backend_socket,
+            cli=self.plan.cli,
+            cwd=self.plan.cwd,
+            config_path=self.config_path,
+            expected_resume_thread_id=expected,
+            preflight_path=self.plan.preflight_path,
+            implementation_paths=(Path(__file__),) + self.implementation_paths,
+            global_config_paths=self.global_config_paths,
+            test_config_paths=self.test_config_paths,
+            hook_paths=self.hook_paths,
+            seed_protection_paths=self.seed_protection_paths,
+        )
+
+    def protection_hashes(self) -> dict[str, Any]:
+        return _source_hashes(self.runtime_config(), self._protection_spec())
+
+    def document(self, *, hashes: Mapping[str, Any] | None = None) -> dict[str, Any]:
         value = self.plan.document()
         value["schema"] = 2
         value["retained_fixture"] = {
@@ -76,15 +111,17 @@ class PartialCaseSpec:
         }
         value["prompt_sha256"] = hashlib.sha256(build_start_prompt(self).encode()).hexdigest()
         value["continue_sha256"] = hashlib.sha256(build_continue_prompt(self).encode()).hexdigest()
+        value["hashes"] = dict(hashes) if hashes is not None else None
         return value
 
-    def runtime_config(self) -> NativeRuntimeConfig:
+    def runtime_config(self, *, resume_thread_id: str | None = None) -> NativeRuntimeConfig:
         return NativeRuntimeConfig(
             frontend_socket=self.plan.frontend_socket,
             backend_socket=self.plan.backend_socket,
             cli=self.plan.cli,
             cwd=self.plan.cwd,
-            resume_thread_id=self.plan.thread_id,
+            config_path=self.config_path,
+            resume_thread_id=resume_thread_id,
             local_window_seconds=self.plan.local_window_seconds,
             model_window_seconds=self.plan.model_window_seconds,
         )
@@ -144,22 +181,68 @@ def _check_binary(spec: PartialCaseSpec) -> None:
         raise RuntimeInvariantError("retained binary SHA256 mismatch")
 
 
-def read_effective_model() -> dict[str, str]:
-    """Read the pinned Luna/medium config without sending a model turn."""
+def _create_job_dir(spec: PartialCaseSpec) -> None:
+    path = spec.plan.job_dir
+    if os.path.lexists(path):
+        raise FileExistsError(path)
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    os.mkdir(path, 0o700)
+    metadata = path.lstat()
+    if not path.is_dir() or path.is_symlink() or metadata.st_mode & 0o777 != 0o700:
+        raise RuntimeInvariantError("retained job directory identity is invalid")
 
-    script = _ROOT / "tasks" / "g0-test-model" / "scripts" / "read_effective_model_preconnected.py"
-    result = subprocess.run([sys.executable, "-B", str(script), "--run"], capture_output=True, text=True, timeout=20, check=False)
-    if result.returncode != 0:
-        raise RuntimeInvariantError("effective model read failed")
+
+async def read_effective_model(config: NativeRuntimeConfig) -> dict[str, str]:
+    """Read model config over the currently owned backend UDS, no model turn."""
+
     try:
-        report = json.loads(result.stdout.strip().splitlines()[-1])
-        config = report["config"]
-        model, effort = config["model"], config["model_reasoning_effort"]
-    except (IndexError, KeyError, TypeError, json.JSONDecodeError) as exc:
-        raise RuntimeInvariantError("effective model evidence is malformed") from exc
-    if model != "gpt-5.6-luna" or effort != "medium":
-        raise RuntimeInvariantError("effective model is not Luna/medium")
-    return {"model": model, "reasoning_effort": effort}
+        from websockets.asyncio.client import unix_connect
+    except ImportError as exc:  # pragma: no cover - runtime dependency is pinned by native tests
+        raise RuntimeInvariantError("websocket client unavailable") from exc
+    raw = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    raw.setblocking(False)
+    try:
+        await asyncio.get_running_loop().sock_connect(raw, str(config.backend_socket))
+        ws = await unix_connect(uri="ws://localhost/", sock=raw, compression=None, proxy=None, ping_interval=None, open_timeout=2, close_timeout=1, max_size=262144, max_queue=8)
+    except Exception as exc:
+        raw.close()
+        raise RuntimeInvariantError("effective model backend connection failed") from exc
+
+    async def rpc(request_id: int, method: str, params: Mapping[str, Any]) -> Mapping[str, Any]:
+        await ws.send(json.dumps({"id": request_id, "method": method, "params": dict(params)}))
+        while True:
+            packet = json.loads(await ws.recv())
+            if packet.get("method") is not None:
+                continue
+            if packet.get("id") != request_id or not isinstance(packet.get("result"), Mapping):
+                raise RuntimeInvariantError("effective model response identity mismatch")
+            return packet["result"]
+
+    try:
+        await rpc(1, "initialize", {"clientInfo": {"name": "g0-partial-resume", "version": "0.1.0"}})
+        await ws.send('{"method":"initialized"}')
+        response = await rpc(2, "config/read", {"cwd": str(config.cwd), "includeLayers": True})
+        model = response.get("config", {}).get("model") if isinstance(response.get("config"), Mapping) else None
+        effort = response.get("config", {}).get("model_reasoning_effort") if isinstance(response.get("config"), Mapping) else None
+        if model != "gpt-5.6-luna" or effort != "medium":
+            raise RuntimeInvariantError("effective model is not Luna/medium")
+        return {"model": model, "reasoning_effort": effort}
+    finally:
+        await ws.close()
+
+
+async def _read_effective_model(reader: Callable[..., Any] | None, config: NativeRuntimeConfig) -> dict[str, str]:
+    if reader is None:
+        return await read_effective_model(config)
+    try:
+        value = reader(config)
+    except TypeError:
+        value = reader()
+    if inspect.isawaitable(value):
+        value = await value
+    if not isinstance(value, Mapping):
+        raise RuntimeInvariantError("effective model evidence is malformed")
+    return dict(value)
 
 
 def inspect_retained(spec: PartialCaseSpec) -> dict[str, Any]:
@@ -285,6 +368,11 @@ def _manifest_stable(spec: PartialCaseSpec, before: Mapping[str, Any], after: Ma
     return all(before.get(field) == after.get(field) for field in fields) and _prefix_snapshot(spec, before) == _prefix_snapshot(spec, after)
 
 
+def _manifest_fingerprint(spec: PartialCaseSpec, view: Mapping[str, Any]) -> tuple[Any, ...]:
+    fields = ("status", "revision", "segment", "completed_steps", "total_steps", "effect_count")
+    return tuple(view.get(field) for field in fields) + (_prefix_snapshot(spec, view),)
+
+
 def _validate_quiet(bridge: Any, expected_thread_id: str) -> dict[str, Any]:
     trace = getattr(bridge, "trace", None)
     if not isinstance(trace, list) or getattr(bridge, "trace_complete", None) is not True:
@@ -310,6 +398,23 @@ def _candidate_id(candidate: Any) -> tuple[str | None, int | None]:
     if isinstance(candidate, Mapping):
         return candidate.get("thread_id"), candidate.get("connection_epoch")
     return getattr(candidate, "thread_id", None), getattr(candidate, "connection_epoch", None)
+
+
+async def _wait_candidate(runtime: Any, *, expected: str | None, seconds: float) -> tuple[str, int]:
+    tui = runtime.tui_driver
+    if tui is None:
+        raise RuntimeInvariantError("runtime did not expose PTY")
+    deadline = raw_seconds() + seconds
+    while raw_seconds() < deadline:
+        candidate = runtime.candidate
+        thread_id, epoch = _candidate_id(candidate)
+        if thread_id is not None and type(epoch) is int and (expected is None or thread_id == expected):
+            bridge = runtime.bridge
+            if bridge is None or getattr(bridge, "trace_complete", None) is not True:
+                raise RuntimeInvariantError("bootstrap trace is incomplete")
+            return thread_id, epoch
+        await tui.aread_until(min(deadline, raw_seconds() + 0.5))
+    raise TimeoutError("bootstrap candidate was not qualified within the local window")
 
 
 def _failure_record(exc: BaseException, stage: str) -> dict[str, str]:
@@ -342,33 +447,48 @@ async def run_partial_case(
         if not spec.plan.preflight_path.exists():
             raise FileNotFoundError(spec.plan.preflight_path)
         preflight = json.loads(spec.plan.preflight_path.read_text())
-    if preflight != spec.document():
+    expected_preflight = spec.document(hashes=preflight.get("hashes")) if isinstance(preflight, Mapping) else None
+    if preflight != expected_preflight or not isinstance(preflight.get("hashes"), Mapping):
         raise RuntimeInvariantError("partial preflight does not freeze the complete execution spec")
+    if dict(spec.protection_hashes()) != dict(preflight["hashes"]):
+        raise RuntimeInvariantError("partial source/config/hooks/seed hashes changed before execution")
     _check_binary(spec)
-    effective = await asyncio.to_thread(effective_model_reader or read_effective_model)
-    if effective.get("model") != "gpt-5.6-luna" or effective.get("reasoning_effort") != "medium":
-        raise RuntimeInvariantError("effective model is not Luna/medium")
     case = CaseDirectory.create(spec.plan.case_dir)
-    result: dict[str, Any] = {"status": "unknown", "phases": [], "nonce": spec.plan.nonce, "thread_id": spec.plan.thread_id, "effective_model": dict(effective)}
-    first = runtime_factory(spec.runtime_config())
+    _create_job_dir(spec)
+    result: dict[str, Any] = {"status": "unknown", "phases": [], "nonce": spec.plan.nonce, "thread_id": None}
+    first = runtime_factory(spec.runtime_config(resume_thread_id=None))
     second = None
     ownership = None
     stage = "initial"
     try:
         result["phases"].append("initial")
         await first.start()
+        effective = await _read_effective_model(effective_model_reader, first.config)
+        if effective.get("model") != "gpt-5.6-luna" or effective.get("reasoning_effort") != "medium":
+            raise RuntimeInvariantError("effective model is not Luna/medium")
+        result["effective_model"] = dict(effective)
         tui = first.tui_driver
         if tui is None:
             raise RuntimeInvariantError("initial runtime did not expose PTY")
+        initial_thread_id, initial_epoch = await _wait_candidate(first, expected=None, seconds=spec.plan.local_window_seconds)
+        result["thread_id"] = initial_thread_id
         tui.command(build_start_prompt(spec))
         initial = await _inspect_until(
             spec,
-            lambda view: view.get("status") == "running" and view.get("segment") == 1 and view.get("completed_steps", 0) < view.get("total_steps", 1),
+            lambda view: view.get("status") == "running" and view.get("segment") == 1 and view.get("completed_steps", 0) >= 1 and view.get("completed_steps", 0) < view.get("total_steps", 1),
             RuntimeWindow.start(local_seconds=spec.plan.local_window_seconds, model_seconds=spec.plan.model_window_seconds).model_deadline,
             inspect_runner,
         )
         ownership = _runtime_ownership(first)
+        worker_pid = initial.get("worker_pid")
+        if type(worker_pid) is not int or first.tui_identity is None:
+            raise RuntimeInvariantError("retained worker direct-parent evidence is missing")
+        parent_evidence = capture_parent_guard(worker_pid, first.tui_identity)
+        if not parent_evidence.direct_parent or parent_evidence.parent_pid != first.tui_identity.pid:
+            raise RuntimeInvariantError("retained worker is not directly owned by initial TUI")
         result["initial_inspect"] = initial
+        result["initial_candidate"] = {"thread_id": initial_thread_id, "connection_epoch": initial_epoch}
+        result["parent_guard"] = asdict(parent_evidence) if hasattr(parent_evidence, "__dataclass_fields__") else dict(vars(parent_evidence))
         initial_prefix = _prefix_snapshot(spec, initial)
         stage = "stop"
         tui.command("/quit")
@@ -376,13 +496,14 @@ async def run_partial_case(
         first_cleanup = await first.close()
         stopped = await _inspect_until(
             spec,
-            lambda view: view.get("status") in {"stopped", "running"} and view.get("segment") == 1 and _retained_worker_stopped(initial, view),
-            raw_seconds() + spec.plan.model_window_seconds,
+            lambda view: view.get("status") in {"interrupted", "stopped", "running"} and view.get("segment") == 1 and _retained_worker_stopped(initial, view),
+            raw_seconds() + spec.plan.local_window_seconds,
             inspect_runner,
         )
+        stopped_fingerprint = _manifest_fingerprint(spec, stopped)
         stable = await _inspect_until(
             spec,
-            lambda view: _manifest_stable(spec, stopped, view),
+            lambda view: _manifest_fingerprint(spec, view) == stopped_fingerprint,
             raw_seconds() + spec.plan.local_window_seconds,
             inspect_runner,
         )
@@ -402,35 +523,50 @@ async def run_partial_case(
         result["phases"].append("stopped")
 
         stage = "resume_quiet"
-        second = runtime_factory(spec.runtime_config())
+        dynamic_plan = replace(spec.plan, thread_id=initial_thread_id)
+        dynamic_spec = replace(spec, plan=dynamic_plan)
+        second = runtime_factory(dynamic_spec.runtime_config(resume_thread_id=initial_thread_id))
         await second.start()
         tui = second.tui_driver
         bridge = second.bridge
         if tui is None or bridge is None:
             raise RuntimeInvariantError("resume runtime did not expose PTY and bridge")
+        await _wait_candidate(second, expected=initial_thread_id, seconds=spec.plan.local_window_seconds)
         candidate = second.candidate
         candidate_id, epoch = _candidate_id(candidate)
-        if candidate_id != spec.plan.thread_id or type(epoch) is not int:
+        if candidate_id != initial_thread_id or type(epoch) is not int:
             raise RuntimeInvariantError("resume candidate identity is invalid")
         resume_ownership = _runtime_ownership(second)
         result["candidate"] = {"thread_id": candidate_id, "connection_epoch": epoch}
         result["phases"].append("resume_quiet")
         await tui.aread_until(raw_seconds() + spec.plan.local_window_seconds)
-        result["silent"] = _validate_quiet(bridge, spec.plan.thread_id)
+        result["silent"] = _validate_quiet(bridge, initial_thread_id)
         tui.command("/status")
         status_ids = await tui.async_status_checkpoint(raw_seconds() + spec.plan.local_window_seconds)
-        if status_ids != {spec.plan.thread_id}:
+        if status_ids != {initial_thread_id}:
             raise RuntimeInvariantError("resume status did not identify exactly one thread")
+        if _candidate_id(second.candidate) != (initial_thread_id, epoch) or tui.poll() is not None:
+            raise RuntimeInvariantError("resume candidate changed after status")
+        result["silent_after_status"] = _validate_quiet(bridge, initial_thread_id)
+        effective_after_status = await _read_effective_model(effective_model_reader, second.config)
+        if effective_after_status.get("model") != "gpt-5.6-luna" or effective_after_status.get("reasoning_effort") != "medium":
+            raise RuntimeInvariantError("effective model changed before continue")
+        result["effective_model_after_status"] = dict(effective_after_status)
         stage = "continue"
-        tui.command(build_continue_prompt(spec))
-        result["continue_input"] = build_continue_prompt(spec)
+        tui.command(build_continue_prompt(dynamic_spec))
+        continue_input = build_continue_prompt(dynamic_spec).encode()
+        result["continue_input_sha256"] = hashlib.sha256(continue_input).hexdigest()
+        result["continue_input_bytes"] = len(continue_input)
         continued = await _inspect_until(
-            spec,
+            dynamic_spec,
             lambda view: view.get("status") == "completed" and view.get("segment") == 2,
             raw_seconds() + spec.plan.model_window_seconds,
             inspect_runner,
         )
-        result.update({"continued": continued, "status_ids": sorted(status_ids)})
+        final_prefix = _prefix_snapshot(dynamic_spec, continued)
+        if len(final_prefix) < len(initial_prefix) or final_prefix[:len(initial_prefix)] != initial_prefix:
+            raise RuntimeInvariantError("retained prefix changed after continue")
+        result.update({"continued": continued, "final_prefix": final_prefix, "status_ids": sorted(status_ids)})
         result["phases"].append("continued")
         tui.command("/quit")
         final_exit = await tui.await_exit(raw_seconds() + spec.plan.local_window_seconds)
@@ -470,8 +606,11 @@ def prepare_partial_case(spec: PartialCaseSpec) -> Path:
     target = spec.plan.preflight_path
     if target.exists() or os.path.lexists(target):
         raise FileExistsError(target)
+    for path in (spec.plan.case_dir, spec.plan.job_dir, spec.plan.frontend_socket, spec.plan.backend_socket):
+        if os.path.lexists(path):
+            raise FileExistsError(path)
     target.parent.mkdir(parents=True, exist_ok=True)
-    payload = (json.dumps(spec.document(), sort_keys=True, indent=2) + "\n").encode()
+    payload = (json.dumps(spec.document(hashes=spec.protection_hashes()), sort_keys=True, indent=2) + "\n").encode()
     fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(fd, "wb") as stream:
         stream.write(payload)
@@ -487,7 +626,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--case-dir", required=True)
     parser.add_argument("--preflight", required=True)
     parser.add_argument("--job-dir", required=True)
-    parser.add_argument("--thread-id", required=True)
+    parser.add_argument("--thread-id")
     parser.add_argument("--nonce", required=True)
     parser.add_argument("--cwd", required=True)
     parser.add_argument("--cli", required=True)
@@ -495,6 +634,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--backend-socket", required=True)
     parser.add_argument("--retained-binary", required=True)
     parser.add_argument("--retained-sha256", required=True)
+    parser.add_argument("--config-path")
+    for name in ("implementation", "global-config", "test-config", "hook", "seed"):
+        parser.add_argument("--" + name, action="append", default=[])
     args = parser.parse_args(argv)
     if args.prepare == args.run:
         parser.error("pass exactly one of --prepare or --run")
@@ -503,7 +645,17 @@ def main(argv: list[str] | None = None) -> int:
         thread_id=args.thread_id, nonce=args.nonce, cwd=Path(args.cwd), cli=Path(args.cli),
         frontend_socket=Path(args.frontend_socket), backend_socket=Path(args.backend_socket),
     )
-    spec = PartialCaseSpec(plan=plan, retained_binary=Path(args.retained_binary), retained_binary_sha256=args.retained_sha256)
+    spec = PartialCaseSpec(
+        plan=plan,
+        retained_binary=Path(args.retained_binary),
+        retained_binary_sha256=args.retained_sha256,
+        config_path=Path(args.config_path) if args.config_path else None,
+        implementation_paths=tuple(Path(item) for item in args.implementation),
+        global_config_paths=tuple(Path(item) for item in args.global_config),
+        test_config_paths=tuple(Path(item) for item in args.test_config),
+        hook_paths=tuple(Path(item) for item in args.hook),
+        seed_protection_paths=tuple(Path(item) for item in args.seed),
+    )
     if args.prepare:
         print(json.dumps({"status": "planned", "preflight": str(prepare_partial_case(spec))}, sort_keys=True))
         return 0
