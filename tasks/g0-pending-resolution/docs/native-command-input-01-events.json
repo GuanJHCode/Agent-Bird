@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "case": "native-command-input-01",
+  "original_result_sha256": "78833b483cdd10a244b0504013a984cbf34335c7e5263acf2c751a6f72731b8a",
+  "scope": {
+    "service_pid": 84543,
+    "since": "2026-09-12T01:55:03.226080+00:00",
+    "through": "2026-09-12T01:55:14.175651+00:00",
+    "exact_epoch_ns": [
+      1789178103226080000,
+      1789178114175651000
+    ],
+    "other_service_or_window_read": false
+  },
+  "hooks": [
+    {
+      "session_id": "01a09353-4718-73c1-8933-5d4498801d94",
+      "hook_event_name": "SessionEnd",
+      "pid": 85247,
+      "ppid": 84543,
+      "recorded_at": "2026-09-12T01:55:14.095409Z"
+    }
+  ],
+  "native_protocol": [
+    {
+      "ts": 1789178103,
+      "ts_nanos": 676114000,
+      "target": "codex_app_server::outgoing_message",
+      "fields": {
+        "transport": "unix_socket",
+        "client_name": "codex-tui",
+        "client_version": "0.153.4",
+        "api_version": "v2",
+        "method": "thread/start",
+        "connection_id": 0
+      }
+    }
+  ],
+  "root_candidates_from_owned_service_metadata": [
+    "01a09353-4718-73c1-8933-5d4498801d94"
+  ],
+  "thread_metadata": [
+    {
+      "root": "01a09353-4718-73c1-8933-5d4498801d94",
+      "row_present": true,
+      "metadata": {
+        "id": "01a09353-4718-73c1-8933-5d4498801d94",
+        "source": "vscode",
+        "experiment_cwd_matches": true,
+        "cli_version": "0.153.4"
+      }
+    }
+  ],
+  "native_events": [],
+  "user_prompt_submit_count": 0,
+  "turn_start_method_count": 0,
+  "limitations": [
+    "Only recorded own-service events were inspected; absence does not reconstruct lost UI or prove all model activity absent.",
+    "Original PTY raw buffer was not saved; terminal mode, native Paste event receipt and unmatched status text cannot be recovered from digest.",
+    "Original cleanup.model_input_sent=false described intended fixed input actions; it was not a native submission measurement."
+  ]
+}

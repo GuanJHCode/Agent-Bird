@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "case": "native-command-input-01",
+  "original_result": "tasks/g0-pending-resolution/data/native-command-input-01/result.json",
+  "archived_result": "tasks/g0-pending-resolution/docs/native-command-input-01-result.json",
+  "bytes": 7545,
+  "sha256": "78833b483cdd10a244b0504013a984cbf34335c7e5263acf2c751a6f72731b8a",
+  "byte_identical": true,
+  "diagnosis_sha256": "b99bdd170dd6b75596e554b3b3a910bf4a591931780e4f18339801171e8b3125",
+  "source_cache_cleanup": {
+    "reviewers_finished": true,
+    "removed_files": [
+      {
+        "path": "tasks/g0-pending-resolution/tmp/quit-source/chat_composer.rs",
+        "bytes": 509122,
+        "sha256": "b9c2c054d5b0cfc896449f880ae7c1d554bcc253387e69cfcd12d8cd58f7862d"
+      },
+      {
+        "path": "tasks/g0-pending-resolution/tmp/quit-source/paste_burst.rs",
+        "bytes": 25134,
+        "sha256": "ad2874a17d65d0c27df646836206d61d718dcba6b5aca44b2b81176033c4bb0e"
+      },
+      {
+        "path": "tasks/g0-pending-resolution/tmp/quit-source/slash_input.rs",
+        "bytes": 24743,
+        "sha256": "bccb18e632573c9227f86fefffdac675a9c525399a11ff61e80018141899fcbc"
+      }
+    ],
+    "total_bytes": 558999,
+    "directory_removed": true
+  },
+  "native_processes_started_by_archive": 0
+}
