@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "nonce": "sd-qual-08",
+  "contract_commit": "a39d7df",
+  "base_commit": "1c9224b446b9bc975325ba8b44cc85f1098590c9",
+  "scope": "native_positional_initial_prompt_and_post_launch_double_hook_implementation_only",
+  "created_at": "2026-09-12T08:48:03.370449+00:00",
+  "source_sha256": {
+    "native_sd_control.py": "520a914b4a19957649a5bf3eb584d1217d11d1d90fbf2f9df63f74717f54e571",
+    "native_sd_collect.py": "4ef678b4d6f3d3cffcaaeba8fc22c5aae7fe85b1646d0b6a1c4cd11a8d15b760",
+    "native_sd_pty.py": "b5a6f74ced04b287f5699e7c6003ef4895f2f94cc9a2f6e0752c2648aeee058a",
+    "native_sd_clock.py": "c16c8d0d0d9b1652d18606230351493f3cea33211f8b4d3323bb5b6bf2466087",
+    "native_sd_control_test.py": "93f96286d657abc6eaa09de9834c0dbd0704dc64fd42fcd62a37c4dbd337469a",
+    "native_sd_collect_test.py": "74a1fd16f31326d3dc11e5b6be8f6512e863551fa70efbd32b774faec43a3b4c",
+    "native_sd_initial_test.py": "c39b27a6d8641487f3859aab1097f4b8d7bc051b4071af92643846d886a1d105",
+    "native_sd_pty_test.py": "1f6e27b9d6a2040ede06452b451df43268605ab3f00a996c678603f17ea27162"
+  },
+  "native_version": "0.154.0",
+  "native_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+  "runtime_started": false,
+  "helper_modified": false,
+  "config_modified": false,
+  "original_case_records_modified": false,
+  "tests": {
+    "command": "python3 -B -m unittest native_sd_control_test native_sd_collect_test native_sd_initial_test native_sd_pty_test -v",
+    "passed": 50,
+    "elapsed_seconds": 1.166,
+    "exit_code": 0
+  },
+  "cross_component_validation_pending": true,
+  "independent_review_pending": true
+}

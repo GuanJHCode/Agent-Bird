@@ -1,0 +1,22 @@
+test_session_start_changed_after_evidence_read_cannot_prepare (native_sd_initial_test.InitialTests.test_session_start_changed_after_evidence_read_cannot_prepare) ... FAIL
+
+======================================================================
+FAIL: test_session_start_changed_after_evidence_read_cannot_prepare (native_sd_initial_test.InitialTests.test_session_start_changed_after_evidence_read_cannot_prepare)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/native/tasks/g0-pending-resolution/scripts/native_sd_initial_test.py", line 206, in test_session_start_changed_after_evidence_read_cannot_prepare
+    self.assertEqual(got['helper_attempts'],[])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: Lists differ: ['prepare'] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+'prepare'
+
+- ['prepare']
++ []
+
+----------------------------------------------------------------------
+Ran 1 test in 0.010s
+
+FAILED (failures=1)

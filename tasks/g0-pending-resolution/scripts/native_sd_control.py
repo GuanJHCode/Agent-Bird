@@ -1,4 +1,4 @@
-"""One fixed sd-qual-07 qualification controller; not a product launcher."""
+"""One fixed sd-qual-08 qualification controller; not a product launcher."""
 import datetime as dt
 import argparse
 import hashlib
@@ -17,8 +17,8 @@ from native_sd_pty import NativePTY, InputSequence, stamp
 from native_sd_clock import CLOCK_IMPL, continuous_ns, clock_pair
 from delivery_audit import canonical, parse
 
-CASE = c.BASE/'tasks/g0-pending-resolution/data/sd-qual-07'
-JOB = c.REPO/'tasks/pending-resolution/data/sd-qual-07'
+CASE = c.BASE/'tasks/g0-pending-resolution/data/sd-qual-08'
+JOB = c.REPO/'tasks/pending-resolution/data/sd-qual-08'
 HELPER = c.BASE/'tasks/g0-pending-resolution/scripts/native_standalone.py'
 AUDIT = HELPER.with_name('delivery_audit.py')
 DOCS = Path(__file__).resolve().parents[1]/'docs'
@@ -34,7 +34,7 @@ class OwnedSessionStartMissing(ValueError):
 
 
 def failure_fields(error,substage):
-    stages={'start_service','service_wait_socket','start_tui','tui_wait_native','status_paste','status_submit','status_wait',
+    stages={'start_service','service_wait_socket','start_tui','tui_wait_native','launch_intent','tui_launch','launch_link',
             'origin_capture','await_session_start','initial_paste','initial_submit','initial_hook_scan','job_owner','ready_lookup',
             'pending_before','ready_reread','pending_after','await_job_result','job_read','identity_before_prepare',
             'controller_evidence','binding','prepare','send-once','helper_finished'}
@@ -187,11 +187,11 @@ def native_ready(root,turn,since,through,now=None):
             if event.get('type')!='event_msg': continue
             payload=event.get('payload',{})
             if (type(payload) is not dict or payload.get('type')!='task_complete'
-                    or payload.get('turn_id')!=turn or payload.get('last_agent_message')!='SD_QUAL_07_READY'):
+                    or payload.get('turn_id')!=turn or payload.get('last_agent_message')!='SD_QUAL_08_READY'):
                 continue
             if lo<=c.epoch_ns(event.get('timestamp'))<=hi:
                 found.append({'at':event['timestamp'],'turn_id':turn,'type':'task_complete',
-                              'last_agent_message':'SD_QUAL_07_READY'})
+                              'last_agent_message':'SD_QUAL_08_READY'})
     if len(found)>1: raise ValueError('ambiguous native completion event')
     return found[0] if found else None
 
@@ -243,6 +243,18 @@ def private_json(path,value):
         stream.write(data); stream.flush(); os.fsync(stream.fileno())
 
 
+def require_archive_sha(path,expected):
+    fd=os.open(path,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK)
+    with os.fdopen(fd,'rb') as stream:
+        info=os.fstat(stream.fileno())
+        if (not stat.S_ISREG(info.st_mode) or stat.S_IMODE(info.st_mode)!=0o600
+                or info.st_uid!=os.getuid() or info.st_nlink!=1 or not 0<info.st_size<=65536):
+            raise ValueError('untrusted launch archive')
+        raw=stream.read(65537)
+    if not 0<len(raw)<=65536 or hashlib.sha256(raw).hexdigest()!=expected:
+        raise ValueError('original launch archive changed')
+
+
 def read_job():
     began=stamp(); start=continuous_ns()
     proc=subprocess.run([str(c.GO),'read','--dir',str(JOB),'--nonce',c.NONCE],
@@ -258,16 +270,16 @@ def read_job():
 def fixed_prompt():
     start=f'{c.GO} start --dir {JOB} --nonce {c.NONCE} --delay 40s --controller-thread "$CODEX_THREAD_ID"'
     inspect=f'{c.GO} inspect --dir {JOB} --nonce {c.NONCE}'
-    ack=f'{c.GO} ack --dir {JOB} --nonce {c.NONCE} --controller-thread "$CODEX_THREAD_ID" --revision 1 --event-hash ACTUAL_EVENT_HASH --command-id sd-qual-07-ack-1 --decision handled'
-    return ('这是用户已授权的固定原生资格实验，仅有一个合成任务 sd-qual-07，目录已预建且工具已审查。'
+    ack=f'{c.GO} ack --dir {JOB} --nonce {c.NONCE} --controller-thread "$CODEX_THREAD_ID" --revision 1 --event-hash ACTUAL_EVENT_HASH --command-id sd-qual-08-ack-1 --decision handled'
+    return ('这是用户已授权的固定原生资格实验，仅有一个合成任务 sd-qual-08，目录已预建且工具已审查。'
             '现在用原生 exec_command 实际执行且仅执行一次以下命令：`'+start+'`。'
-            '该命令快速返回 started 后，你必须立刻结束当前响应，final 只写 SD_QUAL_07_READY。'
+            '该命令快速返回 started 后，你必须立刻结束当前响应，final 只写 SD_QUAL_08_READY。'
             '当前轮不要等待结果、不要读/轮询作业、不要调用 sleep/wait、不要创建 Goal 或子Agent，不要改文件/配置/权限，也不要使用MCP。'
-            '之后只有当本线程收到代表 sd-qual-07 完成的原生 standalone toolOutput 时才执行下一步：'
+            '之后只有当本线程收到代表 sd-qual-08 完成的原生 standalone toolOutput 时才执行下一步：'
             '用真实工具执行 `'+inspect+'`，核对 nonce、controller_thread、revision=1、completed result和未取消，取得实际 event_hash；'
             '把 ACTUAL_EVENT_HASH 替换为该真实返回字段，再执行 `'+ack+'`。'
             '必须使用真实原生 CODEX_THREAD_ID，不得伪造身份或再次start。'
-            '看到真实 acknowledged 且 effect_count=1 后，final 只写 SD_QUAL_07_ACK。'
+            '看到真实 acknowledged 且 effect_count=1 后，final 只写 SD_QUAL_08_ACK。'
             '现在只做首次start与READY final，后续外部工具结果由合法原生通道送达，无需你主动继续。')
 
 
@@ -413,7 +425,8 @@ def run(helper_sha,audit_sha):
     if boot.returncode or not c.valid_id(boot_id): raise ValueError('boot identity unavailable')
     record={'version':1,'nonce':c.NONCE,'started_at':stamp(),'stage':'start_service','substage':'start_service','started_clock':clock_pair(),
             'helper_sha256':helper_sha,'audit_sha256':audit_sha,'protected_before':protected_before,
-            'service_argv':['codex','app-server','--listen','unix://'],'tui_argv':['codex'],
+            'service_argv':['codex','app-server','--listen','unix://'],
+            'tui_argv':['codex','<fixed-initial-task>'],'tui_argv_prompt_redacted':True,
             'scope':'one fixed owned PTY; not generic current-UI attachment or full G0'}
     service=tui=None; original=None; sequence=InputSequence(fixed_prompt()); helper_proc=None
     helper_ok=False; job_completed=False
@@ -430,8 +443,18 @@ def run(helper_sha,audit_sha):
         if tui: tui.read(seconds)
 
     def pair():
+        began=continuous_ns()
         result={'service':c.process(service.pid),'tui':c.process(tui.pid),'socket':c.snapshot_socket(service.pid)}
         require_owned_pair(result['service'],result['tui'],result['socket'],original)
+        require_archive_sha(CASE/'launch-intent.json',record['launch_intent_sha256'])
+        require_archive_sha(CASE/'native-origin.json',record['origin_sha256'])
+        through=stamp(); end=record['initial_window']['epoch_correlation_end']
+        if c.epoch_ns(through)>c.epoch_ns(end): through=end
+        if discover_session_start(service.pid,record['initial_window']['since'],through)!=record['session_start']:
+            raise ValueError('SessionStart changed before helper')
+        if discover_prompt_hook(service.pid,record['initial_window']['since'],through)!=record['candidate_hook']:
+            raise ValueError('UserPromptSubmit changed before helper')
+        if continuous_ns()-began>=10000000000: raise TimeoutError('owned identity refresh exceeded original local window')
         return result
 
     def helper(mode,timeout):
@@ -487,56 +510,70 @@ def run(helper_sha,audit_sha):
             except ValueError: pass  # Only the new child can still be between fork and exec.
         if continuous_ns()>=deadline: raise TimeoutError('native service startup exceeded ten seconds')
         if service_identity is None: raise TimeoutError('native service did not become ready in ten seconds')
-        note('start_tui'); tui_begin=continuous_ns(); deadline=tui_begin+10000000000
-        tui=NativePTY(['codex'],str(c.REPO)); scheduling_floor=tui_begin+1000000000
+        note('start_tui'); since=stamp(); tui_begin=continuous_ns(); deadline=tui_begin+10000000000
+        initial_deadline=tui_begin+120000000000
+        record['initial_window']={'since':since,'clock_impl':CLOCK_IMPL,'mono_ns':tui_begin,'deadline_mono_ns':initial_deadline,
+                                  'epoch_correlation_end':(dt.datetime.fromisoformat(since)+dt.timedelta(seconds=120)).isoformat()}
+        record['session_start_window']=dict(record['initial_window'])
+        record['substage']='launch_intent'
+        launch_service=c.process(service.pid); launch_socket=c.snapshot_socket(service.pid)
+        validate_process_identity(launch_service); validate_socket_identity(launch_socket)
+        if not c.same_process(launch_service,service_identity) or c.sha(c.CLI.resolve())!=c.CLI_SHA:
+            raise ValueError('owned service changed before initial argv launch')
+        argv=sequence.take_argv()
+        initial_input={'at':since,'clock':{'clock_impl':CLOCK_IMPL,'mono_ns':tui_begin,'wall_ns':c.epoch_ns(since)},
+                       'action':'initial-argv','bytes':len(argv[1].encode()),'sha256':hashlib.sha256(argv[1].encode()).hexdigest()}
+        launch_intent={'version':1,'nonce':c.NONCE,'boot_id':boot_id,'case':str(CASE),'job':str(JOB),
+                       'service':launch_service,'socket':launch_socket,'native_binary_sha256':c.CLI_SHA,
+                       'initial_input':initial_input,'initial_window':record['initial_window'],
+                       'scope':'immutable fixed initial argv intent before TUI spawn; not native submission proof'}
+        private_json(CASE/'launch-intent.json',launch_intent)
+        record['launch_intent_sha256']=c.sha(CASE/'launch-intent.json')
+        record['substage']='tui_launch'
+        if continuous_ns()>=min(deadline,initial_deadline): raise TimeoutError('original TUI launch window ended before spawn')
+        tui=NativePTY(argv,str(c.REPO),initial_input=initial_input,launch_deadline_ns=min(deadline,initial_deadline))
         record['substage']='tui_wait_native'
         while continuous_ns()<deadline:
             pump(.1)
             if continuous_ns()>=deadline: break
             try:
-                if c.process(tui.pid) and tui.byte_count and continuous_ns()>=scheduling_floor: break
+                if c.process(tui.pid): break
             except ValueError: pass
         else: raise TimeoutError('native TUI startup exceeded ten seconds')
         if continuous_ns()>=deadline: raise TimeoutError('native TUI startup exceeded ten seconds')
-        record['startup_scheduling']={'mono_ns':tui_begin,'deadline_mono_ns':deadline,'minimum_pump_until_mono_ns':scheduling_floor,
-                                      'observed_mono_ns':continuous_ns(),'input_ready_proven':False}
+        record['startup_scheduling']={'mono_ns':tui_begin,'deadline_mono_ns':deadline,
+                                      'observed_mono_ns':continuous_ns(),'input_ready_proven':False,'post_launch_identity_only':True}
         record['substage']='origin_capture'
         original={'service':c.process(service.pid),'tui':c.process(tui.pid),'socket':c.snapshot_socket(service.pid)}
         require_owned_pair(original['service'],original['tui'],original['socket'],original)
+        if (not c.same_process(original['service'],launch_service)
+                or any(original['socket'][key]!=launch_socket[key] for key in ('path','dev','ino','uid','mode'))):
+            raise ValueError('owned launch identity changed before post-launch origin')
+        if continuous_ns()>=min(deadline,initial_deadline): raise TimeoutError('post-launch identity exceeded original startup window')
         record['origin']=original
         private_json(CASE/'native-origin.json',{'version':1,'nonce':c.NONCE,'origin':original,'pty':tui.evidence(),
-                                              'scope':'exclusive fresh owned PTY, before any input; not general UI attachment'})
+                                              'launch_intent_sha256':record['launch_intent_sha256'],
+                                              'captured_at':stamp(),'clock':clock_pair(),
+                                              'scope':'post-launch owned PTY identity; may follow initial argv submission; not general UI attachment'})
+        record['origin_sha256']=c.sha(CASE/'native-origin.json')
+        require_archive_sha(CASE/'launch-intent.json',record['launch_intent_sha256'])
         if continuous_ns()>=deadline: raise TimeoutError('native startup evidence exceeded original ten seconds')
-        since=stamp(); origin_mono=continuous_ns()
-        initial_deadline=origin_mono+120000000000
-        record['initial_window']={'since':since,'clock_impl':CLOCK_IMPL,'mono_ns':origin_mono,'deadline_mono_ns':initial_deadline,
-                                  'epoch_correlation_end':(dt.datetime.fromisoformat(since)+dt.timedelta(seconds=120)).isoformat()}
-        record['session_start_window']={'since':since,'clock_impl':CLOCK_IMPL,'mono_ns':origin_mono,
-                                        'deadline_mono_ns':initial_deadline}
-        note('await_session_start'); record['substage']='await_session_start'
-        session_hook=None
+        note('initial'); pending_barrier=None; prompt_hook=None; session_hook=None
         while continuous_ns()<initial_deadline:
             pump(.1)
             if continuous_ns()>=initial_deadline: break
-            session_hook=discover_session_start(service.pid,since,stamp())
-            if session_hook is not None: break
-        if session_hook is None:
-            record['startup_pty_capture']=archive_bounded_pty(tui,CASE/'startup-pty-capture.bin')
-            raise OwnedSessionStartMissing('owned SessionStart missing before initial paste')
-        record['session_start']=session_hook
-        note('initial_paste')
-        if continuous_ns()>=initial_deadline: raise InitialBindingUnconfirmed('initial window ended before paste')
-        tui.send(sequence,'initial-paste')
-        if continuous_ns()>=initial_deadline: raise InitialBindingUnconfirmed('initial paste exceeded original window')
-        note('initial'); record['substage']='initial_submit'; tui.send(sequence,'initial-submit')
-        private_json(CASE/'initial-submit.json',{'nonce':c.NONCE,'origin_sha256':c.sha(CASE/'native-origin.json'),
-                                               'window':record['initial_window'],'inputs':tui.evidence()['inputs']})
-        pending_barrier=None; prompt_hook=None
-        while continuous_ns()<initial_deadline:
-            pump(.1)
-            if continuous_ns()>=initial_deadline: break
-            record['substage']='initial_hook_scan'; prompt_hook=discover_prompt_hook(service.pid,since,stamp())
-            if prompt_hook is None: continue
+            record['substage']='initial_hook_scan'; through=stamp()
+            session_hook=discover_session_start(service.pid,since,through)
+            if continuous_ns()>=initial_deadline: raise TimeoutError('SessionStart scan exceeded original initial window')
+            prompt_hook=discover_prompt_hook(service.pid,since,through)
+            if continuous_ns()>=initial_deadline: raise TimeoutError('UserPromptSubmit scan exceeded original initial window')
+            if session_hook is not None:
+                if 'session_start' in record and record['session_start']!=session_hook: raise ValueError('SessionStart identity changed')
+                record['session_start']=session_hook
+            if session_hook is None or prompt_hook is None: continue
+            if (session_hook['session_id']!=prompt_hook['session_id']
+                    or c.epoch_ns(session_hook['recorded_at'])>c.epoch_ns(prompt_hook['recorded_at'])):
+                raise ValueError('post-launch hooks do not bind the same ordered root')
             if 'candidate_hook' in record and record['candidate_hook']!=prompt_hook: raise ValueError('initial hook identity changed')
             record['candidate_hook']=prompt_hook
             record['substage']='job_owner'; owner=read_job_owner(prompt_hook['session_id'])
@@ -557,6 +594,7 @@ def run(helper_sha,audit_sha):
                              'native_observed_after':observed_after,'go_after':after}
             break
         if pending_barrier is None:
+            if session_hook is None: raise OwnedSessionStartMissing('post-launch owned SessionStart missing in original window')
             if 'root' not in record: raise InitialBindingUnconfirmed('initial hook and job owner did not bind in original window')
             raise TimeoutError('initial native READY did not qualify within original window')
         record['pending_barrier']=pending_barrier; note('await_job_result')
@@ -570,14 +608,17 @@ def run(helper_sha,audit_sha):
         if not job_completed: raise TimeoutError('job result missing within initial window')
         record['substage']='identity_before_prepare'; before_send=pair(); through=stamp()
         record['substage']='controller_evidence'
+        if discover_session_start(service.pid,since,through)!=record['session_start']: raise ValueError('SessionStart changed before helper')
         if discover_prompt_hook(service.pid,since,through)!=record['candidate_hook']: raise ValueError('initial hook changed before helper')
         if read_job_owner(record['root'])!=record['job_owner']: raise ValueError('job owner changed before helper')
         local=c.local_evidence(record['root'],service.pid,*c.window(since,through,dt.datetime.now(dt.timezone.utc)))
         observed_connection=require_single_tui_connection(local['native_protocol'])
+        record['substage']='launch_link'; pair()
         evidence={'version':1,'nonce':c.NONCE,'root':record['root'],'initial_window':{'since':since,'through':through},
                   'origin':original,'before_send':before_send,'pty':tui.evidence(),'pending_barrier':pending_barrier,
+                  'session_start':record['session_start'],'launch_intent_sha256':record['launch_intent_sha256'],
                   'candidate_hook':record['candidate_hook'],'job_owner':record['job_owner'],'observed_tui_connection':observed_connection,
-                  'origin_sha256':c.sha(CASE/'native-origin.json'),'completed_read':record['client_completed_read'],'local':local,
+                  'origin_sha256':record['origin_sha256'],'completed_read':record['client_completed_read'],'local':local,
                   'task_owned_rpc_clients_to_start':[{'mode':'prepare','client_name':'g0-native-standalone'},
                                                     {'mode':'send-once','client_name':'g0-native-standalone'}]}
         if continuous_ns()>=initial_deadline: raise TimeoutError('initial evidence exceeded original window')
@@ -595,6 +636,9 @@ def run(helper_sha,audit_sha):
         helper_ok=True; note('helper_finished')
     except (ValueError,OSError,sqlite3.Error,subprocess.SubprocessError,TimeoutError) as exc:
         record['failure']=failure_fields(exc,record['substage'])
+        if tui and 'startup_pty_capture' not in record:
+            try: record['startup_pty_capture']=archive_bounded_pty(tui,CASE/'startup-pty-capture.bin')
+            except (ValueError,OSError): record['startup_pty_capture_unavailable']=True
     finally:
         # This fixture never starts a second job or resends a delivery during cleanup.
         record['helper_completed_without_error']=helper_ok
@@ -647,7 +691,7 @@ def run(helper_sha,audit_sha):
         record['ended_clock']=clock_pair()
         record['all_owned_native_exited']=all(p is None or p._poll() is not None for p in (service,tui))
         private_json(CASE/'controller-result.json',record)
-        private_json(DOCS/'native-sd-qual-07-controller.json',record)
+        private_json(DOCS/'native-sd-qual-08-controller.json',record)
         for p in (service,tui):
             if p and p._poll() is not None: p.close()
         print(json.dumps({'nonce':c.NONCE,'stage':'finished','helper_ok':helper_ok,

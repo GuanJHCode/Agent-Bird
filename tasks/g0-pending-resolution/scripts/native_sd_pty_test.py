@@ -4,38 +4,52 @@ import os
 import signal
 import sys
 import unittest
+from unittest.mock import patch
 from native_sd_pty import NativePTY, InputSequence
 
 ROOT = '01a08e0b-bd0d-7400-b069-d50978939cdd'
 CANARY = 'CANARY_PRIVATE_TEXT'
 
 
+class HistoricalStatusSequence:
+    """Explicit transport-only fixture; unavailable to the current controller."""
+    def __init__(self,prompt): self.used=[]
+    def take(self,action):
+        expected=('status-paste','status-submit','quit-paste','quit-submit')[len(self.used)]
+        if action!=expected: raise ValueError('historical status fixture order')
+        self.used.append(action)
+        return {'status-paste':b'\x1b[200~/status\x1b[201~','status-submit':b'\r',
+                'quit-paste':b'\x1b[200~/quit\x1b[201~','quit-submit':b'\r'}[action]
+
+
 class PTYTests(unittest.TestCase):
-    def test_direct_initial_is_once_without_status_or_followup_enter(self):
+    def test_argv_initial_is_once_without_any_pty_initial_input(self):
         sequence=InputSequence('fixed synthetic input')
-        self.assertEqual(sequence.take('initial-paste'),b'\x1b[200~fixed synthetic input\x1b[201~')
-        with self.assertRaises(ValueError): sequence.take('quit-paste')
-        self.assertEqual(sequence.take('initial-submit'),b'\r')
-        for extra in ('initial-paste','initial-submit','status-paste','status-submit','continue'):
+        for extra in ('initial-paste','initial-submit','initial-argv','status-paste','status-submit','quit-paste'):
+            with self.assertRaises(ValueError): sequence.take(extra)
+        self.assertEqual(sequence.take_argv(),['codex','fixed synthetic input'])
+        with self.assertRaises(ValueError): sequence.take_argv()
+        for extra in ('initial-paste','initial-submit','initial-argv','status-paste','status-submit','continue'):
             with self.assertRaises(ValueError): sequence.take(extra)
 
     def test_input_sequence_rejects_extra_prompt_or_navigation(self):
         sequence = InputSequence('fixed synthetic input')
-        for invalid in ('status','status-submit','quit','quit-submit'):
+        for invalid in ('status','status-paste','status-submit','quit','quit-submit'):
             with self.assertRaises(ValueError): sequence.take(invalid)
-        self.assertEqual(sequence.take('status-paste'), b'\x1b[200~/status\x1b[201~')
-        with self.assertRaises(ValueError): sequence.take('quit-paste')
-        self.assertEqual(sequence.take('status-submit'), b'\r')
-        try: framed=sequence.take('initial-paste')
-        except ValueError: framed=None
-        self.assertEqual(framed,b'\x1b[200~fixed synthetic input\x1b[201~')
-        self.assertEqual(sequence.take('initial-submit'), b'\r')
+        self.assertEqual(sequence.take_argv(),['codex','fixed synthetic input'])
         for extra in ('initial','initial-paste','initial-submit','status','status-paste','status-submit','new','resume','continue'):
             with self.assertRaises(ValueError): sequence.take(extra)
         self.assertEqual(sequence.take('quit-paste'), b'\x1b[200~/quit\x1b[201~')
         self.assertEqual(sequence.take('quit-submit'), b'\r')
         for extra in ('quit','quit-paste','quit-submit','status-paste'):
             with self.assertRaises(ValueError): sequence.take(extra)
+
+    def test_expired_launch_deadline_cannot_fork(self):
+        with patch('native_sd_pty.continuous_ns',return_value=121000000000),patch('native_sd_pty.pty.fork') as fork:
+            for deadline in (120000000000,121000000000):
+                with self.subTest(deadline=deadline),self.assertRaises(TimeoutError):
+                    NativePTY(['codex','fixed'],'.',launch_deadline_ns=deadline)
+            fork.assert_not_called()
 
     def test_real_pty_keeps_only_session_identity_and_digest(self):
         command = ("import os,sys,tty\ntty.setraw(0)\nprint('FIXTURE_READY',flush=True)\n"
@@ -45,7 +59,7 @@ class PTYTests(unittest.TestCase):
                    "assert read_exact(17)==b'\\x1b[200~/quit\\x1b[201~'\nassert read_exact(1)==b'\\r'\n")
         pty = NativePTY([sys.executable,'-c',command],'.')
         try:
-            pty.read(.2); sequence=InputSequence('fixed synthetic input')
+            pty.read(.2); sequence=HistoricalStatusSequence('fixed synthetic input')
             pty.send(sequence,'status-paste')
             self.assertNotIn('status_root',pty.read(.02))
             pty.send(sequence,'status-submit')
@@ -66,7 +80,7 @@ class PTYTests(unittest.TestCase):
         try:
             before = pty.read(.2)
             self.assertNotIn('status_root',before)
-            sequence=InputSequence('fixed synthetic input')
+            sequence=HistoricalStatusSequence('fixed synthetic input')
             pty.send(sequence,'status-paste'); pty.send(sequence,'status-submit')
             after = pty.read(2)
             self.assertNotIn('status_root',after)

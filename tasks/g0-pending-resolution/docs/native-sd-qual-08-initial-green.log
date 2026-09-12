@@ -1,0 +1,17 @@
+test_changed_launch_records_or_service_identity_cannot_prepare (native_sd_initial_test.InitialTests.test_changed_launch_records_or_service_identity_cannot_prepare) ... ok
+test_early_double_hooks_survive_post_launch_origin_and_prepare_once (native_sd_initial_test.InitialTests.test_early_double_hooks_survive_post_launch_origin_and_prepare_once) ... ok
+test_expired_intent_persistence_cannot_launch_tui (native_sd_initial_test.InitialTests.test_expired_intent_persistence_cannot_launch_tui) ... ok
+test_hook_scan_returning_valid_evidence_after_original_window_cannot_prepare (native_sd_initial_test.InitialTests.test_hook_scan_returning_valid_evidence_after_original_window_cannot_prepare) ... ok
+test_missing_or_conflicting_post_launch_hooks_never_prepare (native_sd_initial_test.InitialTests.test_missing_or_conflicting_post_launch_hooks_never_prepare) ... ok
+test_missing_session_start_allows_the_one_argv_launch_but_never_helper (native_sd_initial_test.InitialTests.test_missing_session_start_allows_the_one_argv_launch_but_never_helper) ... ok
+test_spawn_or_identity_crossing_deadline_cannot_reset_window_or_prepare (native_sd_initial_test.InitialTests.test_spawn_or_identity_crossing_deadline_cannot_reset_window_or_prepare) ... ok
+test_argv_initial_is_once_without_any_pty_initial_input (native_sd_pty_test.PTYTests.test_argv_initial_is_once_without_any_pty_initial_input) ... ok
+test_expired_launch_deadline_cannot_fork (native_sd_pty_test.PTYTests.test_expired_launch_deadline_cannot_fork) ... ok
+test_input_sequence_rejects_extra_prompt_or_navigation (native_sd_pty_test.PTYTests.test_input_sequence_rejects_extra_prompt_or_navigation) ... ok
+test_real_pty_keeps_only_session_identity_and_digest (native_sd_pty_test.PTYTests.test_real_pty_keeps_only_session_identity_and_digest) ... ok
+test_status_ignores_old_buffer_and_transcript_with_embedded_label (native_sd_pty_test.PTYTests.test_status_ignores_old_buffer_and_transcript_with_embedded_label) ... ok
+
+----------------------------------------------------------------------
+Ran 12 tests in 0.829s
+
+OK

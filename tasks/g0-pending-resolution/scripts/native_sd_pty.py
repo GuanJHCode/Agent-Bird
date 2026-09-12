@@ -9,7 +9,7 @@ import struct
 import termios
 import time
 from native_sd_collect import ui_status
-from native_sd_clock import continuous_ns, clock_pair
+from native_sd_clock import CLOCK_IMPL, continuous_ns, clock_pair
 
 
 def stamp():
@@ -24,28 +24,43 @@ class InputSequence:
         self.used = []
 
     def take(self,action):
-        if action == 'status-paste' and not self.used:
-            data = b'\x1b[200~/status\x1b[201~'
-        elif action == 'status-submit' and self.used == ['status-paste']:
-            data = b'\r'
-        elif action == 'initial-paste' and self.used in ([],['status-paste','status-submit']):
-            data = b'\x1b[200~'+self.prompt.encode()+b'\x1b[201~'
-        elif action == 'initial-submit' and self.used in (['initial-paste'],['status-paste','status-submit','initial-paste']):
-            data = b'\r'
-        elif (action == 'quit-paste' and 'quit-paste' not in self.used
-              and (not self.used or self.used[-1] in ('status-submit','initial-submit'))):
+        if action == 'quit-paste' and self.used == ['initial-argv']:
             data = b'\x1b[200~/quit\x1b[201~'
-        elif action == 'quit-submit' and self.used and self.used[-1]=='quit-paste':
+        elif action == 'quit-submit' and self.used == ['initial-argv','quit-paste']:
             data = b'\r'
         else:
             raise ValueError('unregistered or repeated TUI input')
         self.used.append(action)
         return data
 
+    def take_argv(self):
+        if self.used: raise ValueError('initial argv already registered or input sequence changed')
+        self.used.append('initial-argv')
+        return ['codex',self.prompt]
+
 
 class NativePTY:
-    def __init__(self,argv,cwd):
+    def __init__(self,argv,cwd,*,initial_input=None,launch_deadline_ns=None):
+        if initial_input is not None:
+            if (type(argv) is not list or len(argv)!=2 or argv[0]!='codex' or type(argv[1]) is not str
+                    or type(initial_input) is not dict
+                    or set(initial_input)!={'action','at','clock','bytes','sha256'}
+                    or initial_input['action']!='initial-argv'
+                    or initial_input['bytes']!=len(argv[1].encode())
+                    or initial_input['sha256']!=hashlib.sha256(argv[1].encode()).hexdigest()
+                    or type(initial_input['clock']) is not dict
+                    or set(initial_input['clock'])!={'clock_impl','mono_ns','wall_ns'}
+                    or initial_input['clock']['clock_impl']!=CLOCK_IMPL
+                    or type(initial_input['clock']['mono_ns']) is not int
+                    or type(initial_input['clock']['wall_ns']) is not int
+                    or type(launch_deadline_ns) is not int
+                    or not 0<=initial_input['clock']['mono_ns']<launch_deadline_ns):
+                raise ValueError('fixed argv input metadata required before launch')
+        if launch_deadline_ns is not None and (type(launch_deadline_ns) is not int or continuous_ns()>=launch_deadline_ns):
+            raise TimeoutError('original native launch deadline ended')
         self.started_at = stamp()
+        if launch_deadline_ns is not None and continuous_ns()>=launch_deadline_ns:
+            raise TimeoutError('original native launch deadline ended before fork')
         self.pid,self.fd = pty.fork()
         if self.pid == 0:
             os.chdir(cwd)
@@ -60,7 +75,7 @@ class NativePTY:
         self.status_buffer = b''
         self.status_capture_start_byte = None
         self.cursor_replies = 0
-        self.inputs = []
+        self.inputs = [dict(initial_input,clock=dict(initial_input['clock']))] if initial_input is not None else []
         self.exit_code = None
         self.eof = False
 

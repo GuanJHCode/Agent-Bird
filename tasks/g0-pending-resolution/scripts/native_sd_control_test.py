@@ -78,20 +78,20 @@ class ControlTests(unittest.TestCase):
             self.assertEqual(projected,original['rpc_error'])
             self.assertNotIn('CANARY_PRIVATE_TEXT',json.dumps(projected))
 
-    def test_only_sd07_is_registered_for_the_new_model_case(self):
-        self.assertEqual(control.c.NONCE,'sd-qual-07')
-        self.assertEqual(control.CASE,control.c.BASE/'tasks/g0-pending-resolution/data/sd-qual-07')
-        self.assertEqual(control.JOB,control.c.REPO/'tasks/pending-resolution/data/sd-qual-07')
+    def test_only_sd08_is_registered_for_the_new_model_case(self):
+        self.assertEqual(control.c.NONCE,'sd-qual-08')
+        self.assertEqual(control.CASE,control.c.BASE/'tasks/g0-pending-resolution/data/sd-qual-08')
+        self.assertEqual(control.JOB,control.c.REPO/'tasks/pending-resolution/data/sd-qual-08')
         prompt=control.fixed_prompt()
-        for marker in ('SD_QUAL_07_READY','SD_QUAL_07_ACK','sd-qual-07-ack-1'):
+        for marker in ('SD_QUAL_08_READY','SD_QUAL_08_ACK','sd-qual-08-ack-1'):
             self.assertIn(marker,prompt)
-        for old in ('sd-qual-01','sd-qual-02','sd-qual-03','sd-qual-04','sd-qual-05','sd-qual-06'):
+        for old in ('sd-qual-01','sd-qual-02','sd-qual-03','sd-qual-04','sd-qual-05','sd-qual-06','sd-qual-07'):
             self.assertNotIn(old,prompt)
 
     def test_collector_runtime_rejects_all_prior_case_nonces(self):
         with tempfile.TemporaryDirectory() as directory:
-            output=Path(directory)/'native-sd-qual-07-preflight.json'
-            for old in ('sd-qual-01','sd-qual-02','sd-qual-03','sd-qual-04','sd-qual-05','sd-qual-06'):
+            output=Path(directory)/'native-sd-qual-08-preflight.json'
+            for old in ('sd-qual-01','sd-qual-02','sd-qual-03','sd-qual-04','sd-qual-05','sd-qual-06','sd-qual-07'):
                 with self.subTest(old=old):
                     result=subprocess.run([sys.executable,'-B',str(Path(control.c.__file__)),
                                            'preflight','--nonce',old,'--output',str(output)],capture_output=True)
@@ -190,187 +190,17 @@ class ControlTests(unittest.TestCase):
             self.assertEqual(trimmed.read_bytes(),b'y'*65536)
             with self.assertRaises(ValueError): control.archive_bounded_pty(SimpleNamespace(buffer='not-bytes'),Path(directory)/'bad.bin')
 
-    def test_missing_owned_session_start_fails_before_paste_with_explicit_code(self):
-        identity={'pid':101,'ppid':100,'uid':os.getuid(),'comm':'codex','native_executable_matches':True,
-                  'started_at_local':'Fri Sep 11 18:00:00 2026'}
-        socket={'path':str(control.c.SOCKET),'exists':True,'dev':1,'ino':2,'uid':os.getuid(),
-                'mode':'0600','service_holds_path':True}
-        raw=[0]
-        def continuous(): return raw[0]
-        def tui_read(seconds):
-            if raw[0] < 1000000000: raw[0]=1000000000
-            else: raw[0]+=2000000000
-        service=SimpleNamespace(pid=101,read=lambda seconds:None,_poll=lambda:None,
-                                evidence=lambda:{'pid':101,'exit_code':None},close=lambda:None)
-        sent=[]
-        def send(sequence,action): sent.append(action); raise AssertionError('initial paste must wait for SessionStart')
-        tui=SimpleNamespace(pid=102,byte_count=64,buffer=b'FIXTURE_PTY_BYTES',read=tui_read,
-                            send=send,_poll=lambda:None,evidence=lambda:{'pid':102,'bytes':64,'sha256':'0'*64,'inputs':[]},
-                            close=lambda:None)
-        with tempfile.TemporaryDirectory() as name,ExitStack() as patches:
-            base=Path(name); executable=base/'fixture'; executable.write_text('fixture')
-            docs=base/'docs'; docs.mkdir(); hooks=base/'hooks'; hooks.mkdir()
-            def process(pid):
-                role=identity if pid==101 else dict(identity,pid=102,started_at_local='Fri Sep 11 18:00:01 2026')
-                return dict(role,executable_path=str(executable.resolve()))
-            def snapshot(pid=None):
-                return {'exists':False} if pid is None else socket
-            for attr,value in (('CASE',base/'case'),('JOB',base/'job'),('DOCS',docs),
-                               ('HELPER',executable),('AUDIT',executable)):
-                patches.enter_context(patch.object(control,attr,value))
-            for attr,value in (('CLI',executable),('GO',executable),('CLI_SHA','0'*64),('GO_SHA','0'*64),
-                               ('HOOKS',hooks)):
-                patches.enter_context(patch.object(control.c,attr,value))
-            patches.enter_context(patch.object(control.c,'sha',return_value='0'*64))
-            patches.enter_context(patch.object(control.c,'protected_files',return_value={}))
-            patches.enter_context(patch.object(control.c,'process',side_effect=process))
-            patches.enter_context(patch.object(control.c,'snapshot_socket',side_effect=snapshot))
-            patches.enter_context(patch.object(control,'continuous_ns',side_effect=continuous))
-            patches.enter_context(patch.object(control,'discover_session_start',return_value=None))
-            patches.enter_context(patch.object(control,'OwnedService',return_value=service))
-            patches.enter_context(patch.object(control,'NativePTY',return_value=tui))
-            patches.enter_context(patch.object(control.subprocess,'run',return_value=subprocess.CompletedProcess(
-                [],0,stdout='01a08e0b-bd0d-7400-b069-d50978939cde\n')))
-            patches.enter_context(patch('builtins.print'))
-            self.assertEqual(control.run('0'*64,'0'*64),2)
-            self.assertEqual(sent,[])
-            result=json.loads((base/'case/controller-result.json').read_text())
-            self.assertEqual(result['failure']['code'],'owned_session_start_missing')
-            self.assertEqual(result['failure']['substage'],'await_session_start')
-            self.assertNotEqual(result['failure']['code'],'initial_binding_inconclusive')
-            window=result['initial_window']
-            self.assertEqual(window['deadline_mono_ns']-window['mono_ns'],120000000000)
-            self.assertEqual(result['session_start_window']['deadline_mono_ns'],window['deadline_mono_ns'])
-            self.assertEqual(result['session_start_window']['deadline_mono_ns']-result['session_start_window']['mono_ns'],
-                             120000000000)
-            capture=result['startup_pty_capture']
-            self.assertEqual(capture.keys(),{'path','bytes','sha256'})
-            self.assertTrue(Path(capture['path']).is_file())
-            self.assertEqual(Path(capture['path']).read_bytes(),b'FIXTURE_PTY_BYTES')
-            self.assertNotIn('FIXTURE_PTY_BYTES',json.dumps(result))
-
-    def test_session_start_after_old_ten_second_budget_still_pastes_once(self):
-        identity={'pid':101,'ppid':100,'uid':os.getuid(),'comm':'codex','native_executable_matches':True,
-                  'started_at_local':'Fri Sep 11 18:00:00 2026'}
-        socket={'path':str(control.c.SOCKET),'exists':True,'dev':1,'ino':2,'uid':os.getuid(),
-                'mode':'0600','service_holds_path':True}
-        raw=[0]
-        hook={'session_id':'01a08e0b-bd0d-7400-b069-d50978939cdd','hook_event_name':'SessionStart',
-              'source':'startup','pid':124,'ppid':101,'recorded_at':'2026-09-11T10:00:12Z'}
-        def continuous(): return raw[0]
-        def tui_read(seconds):
-            if raw[0] < 1000000000: raw[0]=1000000000
-            else: raw[0]+=2000000000
-        def discover(service_pid,since,through):
-            return hook if continuous()>=12000000000 else None
-        service=SimpleNamespace(pid=101,read=lambda seconds:None,_poll=lambda:None,
-                                evidence=lambda:{'pid':101,'exit_code':None},close=lambda:None)
-        sent=[]
-        def send(sequence,action): sent.append(action)
-        tui=SimpleNamespace(pid=102,byte_count=64,buffer=b'FIXTURE_PTY_BYTES',read=tui_read,
-                            send=send,_poll=lambda:None,evidence=lambda:{'pid':102,'bytes':64,'sha256':'0'*64,'inputs':[]},
-                            close=lambda:None)
-        with tempfile.TemporaryDirectory() as name,ExitStack() as patches:
-            base=Path(name); executable=base/'fixture'; executable.write_text('fixture')
-            docs=base/'docs'; docs.mkdir(); hooks=base/'hooks'; hooks.mkdir()
-            def process(pid):
-                role=identity if pid==101 else dict(identity,pid=102,started_at_local='Fri Sep 11 18:00:01 2026')
-                return dict(role,executable_path=str(executable.resolve()))
-            def snapshot(pid=None):
-                return {'exists':False} if pid is None else socket
-            for attr,value in (('CASE',base/'case'),('JOB',base/'job'),('DOCS',docs),
-                               ('HELPER',executable),('AUDIT',executable)):
-                patches.enter_context(patch.object(control,attr,value))
-            for attr,value in (('CLI',executable),('GO',executable),('CLI_SHA','0'*64),('GO_SHA','0'*64),
-                               ('HOOKS',hooks)):
-                patches.enter_context(patch.object(control.c,attr,value))
-            patches.enter_context(patch.object(control.c,'sha',return_value='0'*64))
-            patches.enter_context(patch.object(control.c,'protected_files',return_value={}))
-            patches.enter_context(patch.object(control.c,'process',side_effect=process))
-            patches.enter_context(patch.object(control.c,'snapshot_socket',side_effect=snapshot))
-            patches.enter_context(patch.object(control,'continuous_ns',side_effect=continuous))
-            patches.enter_context(patch.object(control,'discover_session_start',side_effect=discover))
-            patches.enter_context(patch.object(control,'OwnedService',return_value=service))
-            patches.enter_context(patch.object(control,'NativePTY',return_value=tui))
-            patches.enter_context(patch.object(control.subprocess,'run',return_value=subprocess.CompletedProcess(
-                [],0,stdout='01a08e0b-bd0d-7400-b069-d50978939cde\n')))
-            patches.enter_context(patch('builtins.print'))
-            self.assertEqual(control.run('0'*64,'0'*64),2)
-            self.assertEqual(sent,['initial-paste','initial-submit'])
-            result=json.loads((base/'case/controller-result.json').read_text())
-            self.assertNotEqual(result['failure']['code'],'owned_session_start_missing')
-            self.assertEqual(result['session_start'],hook)
-            window=result['initial_window']
-            self.assertEqual(window['deadline_mono_ns']-window['mono_ns'],120000000000)
-            self.assertEqual(result['session_start_window']['deadline_mono_ns'],window['deadline_mono_ns'])
-            self.assertEqual(result['session_start_window']['deadline_mono_ns']-result['session_start_window']['mono_ns'],
-                             120000000000)
-
-    def test_session_start_discovery_at_or_after_initial_deadline_never_pastes(self):
-        for returned_at in (121000000000,122000000000):
-            with self.subTest(returned_at=returned_at),tempfile.TemporaryDirectory() as name,ExitStack() as patches:
-                base=Path(name); executable=base/'fixture'; executable.write_text('fixture')
-                docs=base/'docs'; docs.mkdir()
-                raw=[0]; sent=[]; discovery_started=[]
-                hook={'session_id':'01a08e0b-bd0d-7400-b069-d50978939cdd','hook_event_name':'SessionStart',
-                      'source':'startup','pid':124,'ppid':101,'recorded_at':'2026-09-11T10:00:02Z'}
-                identity={'pid':101,'ppid':100,'uid':os.getuid(),'comm':'codex','native_executable_matches':True,
-                          'executable_path':str(executable.resolve()),'started_at_local':'Fri Sep 11 18:00:00 2026'}
-                socket={'path':str(control.c.SOCKET),'exists':True,'dev':1,'ino':2,'uid':os.getuid(),
-                        'mode':'0600','service_holds_path':True}
-                def tui_read(seconds): raw[0]+=1000000000
-                def discover(service_pid,since,through):
-                    discovery_started.append(raw[0]); raw[0]=returned_at
-                    return hook
-                service=SimpleNamespace(pid=101,read=lambda seconds:None,_poll=lambda:None,
-                                        evidence=lambda:{'pid':101,'exit_code':None},close=lambda:None)
-                def send(sequence,action): sequence.take(action); sent.append(action)
-                tui=SimpleNamespace(pid=102,byte_count=64,buffer=b'FIXTURE_PTY_BYTES',read=tui_read,
-                                    send=send,_poll=lambda:None,
-                                    evidence=lambda:{'pid':102,'bytes':64,'sha256':'0'*64,'inputs':list(sent)},
-                                    close=lambda:None)
-                def process(pid):
-                    return identity if pid==101 else dict(identity,pid=102,started_at_local='Fri Sep 11 18:00:01 2026')
-                def snapshot(pid=None): return {'exists':False} if pid is None else socket
-                for attr,value in (('CASE',base/'case'),('JOB',base/'job'),('DOCS',docs),
-                                   ('HELPER',executable),('AUDIT',executable)):
-                    patches.enter_context(patch.object(control,attr,value))
-                for attr,value in (('CLI',executable),('GO',executable),('CLI_SHA','0'*64),('GO_SHA','0'*64)):
-                    patches.enter_context(patch.object(control.c,attr,value))
-                patches.enter_context(patch.object(control.c,'sha',return_value='0'*64))
-                patches.enter_context(patch.object(control.c,'protected_files',return_value={}))
-                patches.enter_context(patch.object(control.c,'process',side_effect=process))
-                patches.enter_context(patch.object(control.c,'snapshot_socket',side_effect=snapshot))
-                patches.enter_context(patch.object(control,'continuous_ns',side_effect=lambda:raw[0]))
-                patches.enter_context(patch.object(control,'discover_session_start',side_effect=discover))
-                patches.enter_context(patch.object(control,'OwnedService',return_value=service))
-                patches.enter_context(patch.object(control,'NativePTY',return_value=tui))
-                patches.enter_context(patch.object(control.subprocess,'run',return_value=subprocess.CompletedProcess(
-                    [],0,stdout='01a08e0b-bd0d-7400-b069-d50978939cde\n')))
-                patches.enter_context(patch('builtins.print'))
-                self.assertEqual(control.run('0'*64,'0'*64),2)
-                result=json.loads((base/'case/controller-result.json').read_text())
-                self.assertEqual(result['initial_window']['mono_ns'],1000000000)
-                self.assertEqual(result['initial_window']['deadline_mono_ns'],121000000000)
-                self.assertEqual(discovery_started,[2000000000])
-                self.assertEqual(result['session_start'],hook)
-                self.assertEqual(sent,[])
-                self.assertEqual(result['failure']['code'],'initial_binding_inconclusive')
-                self.assertEqual(result['failure']['substage'],'initial_paste')
-                self.assertFalse((base/'case/initial-submit.json').exists())
-                self.assertFalse((base/'case/send-attempt.json').exists())
-
     def test_candidate_waits_for_job_then_requires_exact_owner_nonce_revision(self):
         root='01a08e0b-bd0d-7400-b069-d50978939cdd'
         with tempfile.TemporaryDirectory() as name,patch.object(control,'JOB',Path(name)):
             self.assertIsNone(control.read_job_owner(root))
-            value={'version':1,'status':'started','nonce':'sd-qual-07','controller_thread':root,'task_revision':1,
+            value={'version':1,'status':'started','nonce':'sd-qual-08','controller_thread':root,'task_revision':1,
                    'worker_pid':123,'created_at':'2026-09-11T10:00:01Z','job_file':'job.json','result_file':'result.json'}
             path=Path(name)/'job.json';path.write_text(json.dumps(value));path.chmod(0o600)
             got=control.read_job_owner(root)
             self.assertEqual(got['controller_thread'],root);self.assertEqual(got['task_revision'],1)
             for change in ({'controller_thread':'01a08e0b-bd0d-7400-b069-d50978939cde'},
-                           *({'nonce':old} for old in ('sd-qual-01','sd-qual-02','sd-qual-03','sd-qual-04','sd-qual-05','sd-qual-06')),
+                           *({'nonce':old} for old in ('sd-qual-01','sd-qual-02','sd-qual-03','sd-qual-04','sd-qual-05','sd-qual-06','sd-qual-07')),
                            {'task_revision':2},{'worker_pid':True},{'created_at':'CANARY_PRIVATE_TEXT'},
                            {'extra':'CANARY_PRIVATE_TEXT'}):
                 path.write_text(json.dumps(dict(value,**change)))
@@ -423,7 +253,8 @@ class ControlTests(unittest.TestCase):
                 def read(seconds): raw[0]+=read_cost;exit_code[0]=0
                 tui=SimpleNamespace(send=send,read=read,_poll=lambda:exit_code[0])
                 with patch.object(control,'continuous_ns',side_effect=lambda:raw[0]):
-                    result=control.quit_with_deadline(tui,control.InputSequence('fixed'))
+                    sequence=control.InputSequence('fixed'); sequence.take_argv()
+                    result=control.quit_with_deadline(tui,sequence)
                 self.assertEqual(sent,actions)
                 self.assertEqual(result['deadline_mono_ns'],10000000000)
                 self.assertEqual(result['normal_exit_within_window'],normal)
@@ -533,7 +364,7 @@ class ControlTests(unittest.TestCase):
                     '01a08e0b-bd0d-7400-b069-d50978939cdd','01a08e0b-bd0d-7400-b069-d50978939cde','0'*64,time.monotonic_ns())
 
     def test_lab_read_envelope_is_fixed_nonce_and_does_not_export_extensions(self):
-        expected={'version':1,'status':'pending','nonce':'sd-qual-07','count':0}
+        expected={'version':1,'status':'pending','nonce':'sd-qual-08','count':0}
         self.assertEqual(control.lab_read_fields(json.dumps(expected)),expected)
         for value in [dict(expected,nonce='other'),dict(expected,extra='CANARY_PRIVATE_TEXT'),
                       dict(expected,count=True),dict(expected,status='completed'),dict(expected,version=True)]:
@@ -587,7 +418,7 @@ class ControlTests(unittest.TestCase):
             secret={'timestamp':'2026-09-11T10:00:01Z','type':'response_item',
                     'payload':{'type':'reasoning','summary':'CANARY_PRIVATE_TEXT'}}
             complete={'timestamp':'2026-09-11T10:00:02Z','type':'event_msg',
-                      'payload':{'type':'task_complete','turn_id':turn,'last_agent_message':'SD_QUAL_07_READY',
+                      'payload':{'type':'task_complete','turn_id':turn,'last_agent_message':'SD_QUAL_08_READY',
                                  'unknown':'CANARY_PRIVATE_TEXT'}}
             rollout.write_text(json.dumps(secret)+'\n'+json.dumps(complete)+'\n')
             db=sqlite3.connect(home/'state_5.sqlite')
@@ -600,7 +431,7 @@ class ControlTests(unittest.TestCase):
                 read=functools.partial(control.native_ready,now=dt.datetime(2026,9,11,10,2,tzinfo=dt.timezone.utc))
                 result=read(root,turn,'2026-09-11T10:00:00Z','2026-09-11T10:02:00Z')
                 self.assertEqual(result,{'at':'2026-09-11T10:00:02Z','turn_id':turn,'type':'task_complete',
-                                         'last_agent_message':'SD_QUAL_07_READY'})
+                                         'last_agent_message':'SD_QUAL_08_READY'})
                 self.assertNotIn('CANARY_PRIVATE_TEXT',json.dumps(result))
                 self.assertIsNone(read(root,root,'2026-09-11T10:00:00Z','2026-09-11T10:02:00Z'))
                 complete['timestamp']='2026-09-11T10:02:00.000000001Z'

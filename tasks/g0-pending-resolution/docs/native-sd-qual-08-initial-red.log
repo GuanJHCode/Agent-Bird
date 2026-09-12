@@ -1,0 +1,77 @@
+test_missing_session_start_allows_the_one_argv_launch_but_never_helper (native_sd_initial_test.InitialTests.test_missing_session_start_allows_the_one_argv_launch_but_never_helper) ... FAIL
+test_expired_intent_persistence_cannot_launch_tui (native_sd_initial_test.InitialTests.test_expired_intent_persistence_cannot_launch_tui) ... 
+  test_expired_intent_persistence_cannot_launch_tui (native_sd_initial_test.InitialTests.test_expired_intent_persistence_cannot_launch_tui) (cost=10000000000) ... FAIL
+  test_expired_intent_persistence_cannot_launch_tui (native_sd_initial_test.InitialTests.test_expired_intent_persistence_cannot_launch_tui) (cost=120000000000) ... FAIL
+  test_expired_intent_persistence_cannot_launch_tui (native_sd_initial_test.InitialTests.test_expired_intent_persistence_cannot_launch_tui) (cost=121000000000) ... FAIL
+test_argv_initial_is_once_without_any_pty_initial_input (native_sd_pty_test.PTYTests.test_argv_initial_is_once_without_any_pty_initial_input) ... FAIL
+
+======================================================================
+FAIL: test_missing_session_start_allows_the_one_argv_launch_but_never_helper (native_sd_initial_test.InitialTests.test_missing_session_start_allows_the_one_argv_launch_but_never_helper)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/native/tasks/g0-pending-resolution/scripts/native_sd_initial_test.py", line 151, in test_missing_session_start_allows_the_one_argv_launch_but_never_helper
+    self.assertEqual(len(got['launches'][0]['argv']),2)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 1 != 2
+
+======================================================================
+FAIL: test_expired_intent_persistence_cannot_launch_tui (native_sd_initial_test.InitialTests.test_expired_intent_persistence_cannot_launch_tui) (cost=10000000000)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/native/tasks/g0-pending-resolution/scripts/native_sd_initial_test.py", line 170, in test_expired_intent_persistence_cannot_launch_tui
+    self.assertEqual(got['launches'],[])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+AssertionError: Lists differ: [{'argv': ['codex'], 'mono_ns': 0, 'kwargs': {}}] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+{'argv': ['codex'], 'mono_ns': 0, 'kwargs': {}}
+
+- [{'argv': ['codex'], 'kwargs': {}, 'mono_ns': 0}]
++ []
+
+======================================================================
+FAIL: test_expired_intent_persistence_cannot_launch_tui (native_sd_initial_test.InitialTests.test_expired_intent_persistence_cannot_launch_tui) (cost=120000000000)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/native/tasks/g0-pending-resolution/scripts/native_sd_initial_test.py", line 170, in test_expired_intent_persistence_cannot_launch_tui
+    self.assertEqual(got['launches'],[])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+AssertionError: Lists differ: [{'argv': ['codex'], 'mono_ns': 0, 'kwargs': {}}] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+{'argv': ['codex'], 'mono_ns': 0, 'kwargs': {}}
+
+- [{'argv': ['codex'], 'kwargs': {}, 'mono_ns': 0}]
++ []
+
+======================================================================
+FAIL: test_expired_intent_persistence_cannot_launch_tui (native_sd_initial_test.InitialTests.test_expired_intent_persistence_cannot_launch_tui) (cost=121000000000)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/native/tasks/g0-pending-resolution/scripts/native_sd_initial_test.py", line 170, in test_expired_intent_persistence_cannot_launch_tui
+    self.assertEqual(got['launches'],[])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+AssertionError: Lists differ: [{'argv': ['codex'], 'mono_ns': 0, 'kwargs': {}}] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+{'argv': ['codex'], 'mono_ns': 0, 'kwargs': {}}
+
+- [{'argv': ['codex'], 'kwargs': {}, 'mono_ns': 0}]
++ []
+
+======================================================================
+FAIL: test_argv_initial_is_once_without_any_pty_initial_input (native_sd_pty_test.PTYTests.test_argv_initial_is_once_without_any_pty_initial_input)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/native/tasks/g0-pending-resolution/scripts/native_sd_pty_test.py", line 29, in test_argv_initial_is_once_without_any_pty_initial_input
+    with self.assertRaises(ValueError): sequence.take(extra)
+         ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.043s
+
+FAILED (failures=5)
