@@ -2,6 +2,7 @@
   "scope": "offline project configuration preparation",
   "native_version": "0.154.0",
   "schema_receipt": {
+    "scope": "structural field reference only; this unversioned local cache does not establish native 0.154.0 provenance",
     "path": "/Users/guanjunhui/.codex/tmp/agent-model-routing-20260805/app-server-schema/codex_app_server_protocol.v2.schemas.json",
     "sha256": "632b1201e888aaa77e7b5d0deb12ca6003f160ae09b3213c31803d19c0f5be2a",
     "fields": {
