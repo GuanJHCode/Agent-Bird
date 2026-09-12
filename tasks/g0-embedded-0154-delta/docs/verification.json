@@ -1,0 +1,22 @@
+{
+  "status": "PASS_LIMITED_VERSION_CONTINUATION",
+  "byte_delta": 78,
+  "changed_calls": 3,
+  "entire_delta_is_connection_id_arguments": true,
+  "current_callers": [
+    {
+      "path": "tasks/g0-native-0154-contract/data/source/codex-rs/tui/src/lib.rs",
+      "source_commit": "6b9826e3aa83b1a5947db50f4332cb9c65f1b340",
+      "sha256": "fd85e541df5affb811f7133d967dcb294292c77bbce1e2cffc16eb670d3c34ec",
+      "saved_receipt_match": true
+    },
+    {
+      "path": "tasks/g0-native-0154-contract/data/source/codex-rs/app-server-client/src/lib.rs",
+      "source_commit": "6b9826e3aa83b1a5947db50f4332cb9c65f1b340",
+      "sha256": "04967fc01fa9e24013e47a0d5fc07c5943e678d489d7be12c645bd94b1692ef4",
+      "saved_receipt_match": true
+    }
+  ],
+  "main_HEAD_unchanged": "6c0a80531140b004b200a347b026d315499a6783",
+  "native_commands_or_rpc_run": false
+}

@@ -1,0 +1,26 @@
+{
+  "source_commits": {
+    "0.153.4": "3d2ee51ca2d5db578f328aa75e20aa22c0197c9a",
+    "0.154.0": "6b9826e3aa83b1a5947db50f4332cb9c65f1b340"
+  },
+  "files": [
+    {
+      "version": "0.153.4",
+      "path": "codex-rs/app-server/src/in_process.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/app-server/src/in_process.rs",
+      "bytes": 45627,
+      "sha256": "5dd5f615be26b7fc961c73ac42ebaeb24871eb895aaa4b3035d4cdafd054ebf8",
+      "manifest_hash_verified": true,
+      "exit_code": 0
+    },
+    {
+      "version": "0.154.0",
+      "path": "codex-rs/app-server/src/in_process.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server/src/in_process.rs",
+      "bytes": 45705,
+      "sha256": "7abb2569238e738caff88235a6f884a1f2b60a8dd7074c56dbb2e2fc2ee0d1b5",
+      "manifest_hash_verified": true,
+      "exit_code": 0
+    }
+  ]
+}

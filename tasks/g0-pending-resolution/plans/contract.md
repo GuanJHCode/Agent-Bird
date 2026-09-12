@@ -107,6 +107,12 @@ sd07 已执行一次，输入为零，原 120 秒窗口后以 `owned_session_sta
 - 限定输入状态须拒绝第二次 argv prompt 或混用 initial paste/Enter。原生额度、权限或启动错误正常生效；没有后验双 Hook 就不进入 prepare/send。仅发送一次真实 `toolOutput`，`input=[]`，uncertain 不重发。退出与外层清理分别判定。
 - 运行入口只接受 sd08；sd01–sd07 的目录、记录和窗口均不复用。历史回归仅在隔离测试内显式选择旧 nonce/版本。源码实现、真实输入路径证据和跨组件回归经独立复核及主树验证后才下发；有界 caffeinate、普通用户配置、固定二进制摘要均沿用 sd07。
 
+### 2026-09-12：后续测试使用低价模型
+
+用户明确要求：“测试时，codex 模型使用低价模型来处理，不要用 Astra”。后续模型测试选择本机目录已列出、标注为低价且 supported_in_api=true 的 `gpt-5.6-luna`；不得继续使用或回退到 Astra。允许仅在本任务测试 repo 中设置模型与推理强度，沿用正常账号、权限、Hooks、Apps 和普通原生入口。已有“配置不变”的保护要求从这一授权变更后的新基线继续核对，不把旧配置摘要用于新样本。
+
+配置准备与原生生效验证分开：启动首轮采样之前须确认实际生效模型，无法确认就不发模型请求。不因模型选择添加导致默认 UDS 复用失效的 CLI 覆盖；历史 sd08 原记录与结果保留，新模型组合的基础样本单独计数。模型切换不放宽一次发送、uncertain 不重发、原 10/120 秒窗口及完整 G0 判据。
+
 ## 接口解释与判据
 
 官方 `turn/start.toolOutput` 接受客户端实际执行的独立工具输出，`input=[]`，以 `functionCallOutput` 持久化；不要求存在旧的 pending tool call。旧研究对“必须补回旧 pending call”的概括不作为本轮排除此接口的依据。[官方 App Server 说明](https://learn.chatgpt.com/docs/app-server#start-a-turn)
