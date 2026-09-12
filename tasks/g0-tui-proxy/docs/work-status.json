@@ -1,16 +1,16 @@
 {
   "scope": "authorized controlled TUI proxy experiment",
   "baseline": "bb5c7ff",
-  "native_runs": 2,
+  "native_runs": 3,
   "model_runs": null,
   "components": {
     "observer": {
       "initial": "689fc34",
       "first_fix": "93154a0",
       "state": "independent review passed",
-      "final": "b1590ce",
-      "main": "ba6953d",
-      "tests": 18
+      "final": "70ed6a1",
+      "main": "76f6ea3",
+      "tests": 22
     },
     "transport": {
       "initial": "67dc97d",
@@ -22,23 +22,24 @@
     "runtime": {
       "initial": "4c2787e",
       "input_chain": "74dcb82",
-      "state": "approved offline; actual sample requires wire and PTY diagnostics",
-      "latest_reviewed": "56fc33e",
-      "main": "92696a5"
+      "state": "wire/PTY fixes reviewed; native bootstrap classification, frame capacity and terminal readiness remain",
+      "latest_reviewed": "349d2d3",
+      "main": "984e097"
     }
   },
   "native_admission": false,
   "original_scope_preserved": true,
   "formal_global_installation_authorized": false,
   "main_component_tests": {
-    "passed": 72,
-    "seconds": 1.29,
+    "passed": 80,
+    "seconds": 1.31,
     "native_or_model_calls": 0
   },
   "model_observation": "No deliberate prompt or model invocation; complete trace unavailable in both attempts, so model_turns is not proven zero.",
   "native_cases": {
     "proxy-attach-01": "unknown: backend --listen received bare path; fixed afterward",
-    "proxy-attach-02": "unknown: invalid_json_rpc gap, no candidates/status ID, post-disconnect epoch and failed normal quit; owned cleanup reported complete"
+    "proxy-attach-02": "unknown: invalid_json_rpc gap, no candidates/status ID, post-disconnect epoch and failed normal quit; owned cleanup reported complete",
+    "proxy-attach-03": "unknown: real initialize/thread-start/replay captured; unclassified bootstrap traffic, frame_too_large, no status ID or normal quit; owned cleanup independently verified"
   },
-  "next": "Fix wire parsing against pinned native serialization and diagnose PTY/duplicate trace in separate worktrees before any new window."
+  "next": "Pinned-source diagnostics of bootstrap semantics, bounded frame capacity, and PTY action readiness; no new native window until reviewed."
 }

@@ -1,0 +1,73 @@
+{
+  "case": "proxy-attach-03",
+  "status": "unknown",
+  "reason": "natural_reconnect_epoch_2_after_old_epoch_1_disconnect; initialize/start/replay observed, but bootstrap opaque plus remoteControl/status/changed remained unresolved and plugin/list vicinity produced frame_too_large gap; no candidate or status Session ID; quit did not exit",
+  "run_artifact": "tasks/g0-tui-proxy/data/proxy-attach-03/result.json",
+  "trace_artifact": "tasks/g0-tui-proxy/data/proxy-attach-03/trace.json",
+  "source_head": "7839d9e8aa688b078e5da632a678b009ea167064",
+  "observed_processes": {
+    "backend": {
+      "pid": 99874,
+      "birth": "Sat Sep 12 19:20:40 2026",
+      "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex"
+    },
+    "tui": {
+      "pid": 99899,
+      "birth": "Sat Sep 12 19:20:40 2026",
+      "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex"
+    }
+  },
+  "connections": [
+    {"connection_id": "conn-1-5d11e547c867", "epoch": 1, "frontend_fd": 9, "backend_fd": 10, "kind": "target_disconnect"},
+    {"connection_id": "conn-2-f9ae61ac2aa3", "epoch": 2, "frontend_fd": 9, "backend_fd": 10, "kind": "natural_reconnect"}
+  ],
+  "barrier": {
+    "old_epoch": 1,
+    "old_epoch_invalid": true,
+    "reconnect_observed": true,
+    "reconnect_status": "unknown",
+    "model_turns": null,
+    "initial_candidate": false,
+    "clear_candidate": false,
+    "status_ids": [],
+    "quit_exit_code": null,
+    "cursor_position_replies": 1
+  },
+  "trace": {
+    "complete": false,
+    "event_count": 162,
+    "event_kinds": ["connection_close", "connection_open", "eof", "gap", "rpc", "rpc_response", "rpc_unknown", "websocket_upgrade"],
+    "observed_protocol_methods": ["initialize", "thread/start", "thread/started", "skills/list"],
+    "gap_reasons": ["frame_too_large"]
+  },
+  "protected_post_sha256": {
+    "tasks/g0-tui-proxy/scripts/proxy_native_runtime.py": "81a34fec9dc89459058079226469ee7c0b3e4161b305749ca80d46e58ca33696",
+    "tasks/g0-tui-proxy/scripts/proxy_transport.py": "41c6bd527ae2f108da538811e3b629a861bf2e2ec72a67efd94e23a793cdb704",
+    "tasks/g0-tui-proxy/scripts/proxy_observer.py": "cbbc6d12717730145fc9acdf972d2464835e47af873c8159f5455e31d691ef7e",
+    "/Users/guanjunhui/.local/bin/codex": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+    "/Users/guanjunhui/.codex/config.toml": "53b1aa3016356f244170c6b5bc84773767672c852b59f9594f9ae694ebb8eca3",
+    "tasks/g0-macos/data/test-repo/.codex/config.toml": "298a250c45c9585c695e427c830c20100ecadc8a612445703b2a8b5878a3aa2b",
+    "tasks/g0-macos/data/test-repo/.codex/hooks.json": "666243bf0789d012c7035ff7ef7203735df95fd79eafe763fa5013277f58b917",
+    "tasks/g0-macos/data/g0-hook-darwin-arm64": "62e41afd87e1408854490bf6a716cfe846fff0021179a39d163d6e02254ba779"
+  },
+  "hook_events_after": {
+    "file_count": 130,
+    "names_sha256": "0dc4b1c83ded55dcef6bbf293ef416a7554a2947b958afeb13fe5034176c0a1a",
+    "content_manifest_sha256": "f4a6a261281ff228d3853164f5fbd7d3e5aca9b8c996a2ee1df0aeea84f9d8d8",
+    "new_files": {
+      "tasks/g0-macos/data/hook-events/7475465c6e36fb41f2403a43af29f01c.json": "aa0b7c77ceac9f73e973581e0f3ab4c1ae974f1049c89e8a6beeebc2d89b4c6a",
+      "tasks/g0-macos/data/hook-events/7bdac27c86da7c1bd17169c535b59c9c.json": "7a42d4b1d83116557bc1be3dd99ea244c209a51e461c726a00ff3bf2cf68ec84"
+    }
+  },
+  "cleanup": {
+    "frontend_socket": "absent",
+    "backend_socket": "absent",
+    "backend_parent_mode": "0700",
+    "backend_pid_after": "absent",
+    "tui_pid_after": "absent",
+    "raw_screen_persisted": false,
+    "prompt_sent": false,
+    "model_turn": false
+  },
+  "scope": "One authorized zero-model proxy-attach-03 attempt. No retry and no fourth case. Unknown is retained as the final result; no native pass is claimed."
+}

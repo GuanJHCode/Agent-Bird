@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "case": "proxy-attach-03",
+  "status": "registered_preflight_only",
+  "main_head": "7839d9e8aa688b078e5da632a678b009ea167064",
+  "source_sha256": {
+    "tasks/g0-tui-proxy/scripts/proxy_native_runtime.py": "81a34fec9dc89459058079226469ee7c0b3e4161b305749ca80d46e58ca33696",
+    "tasks/g0-tui-proxy/scripts/proxy_transport.py": "41c6bd527ae2f108da538811e3b629a861bf2e2ec72a67efd94e23a793cdb704",
+    "tasks/g0-tui-proxy/scripts/proxy_observer.py": "cbbc6d12717730145fc9acdf972d2464835e47af873c8159f5455e31d691ef7e"
+  },
+  "cli": {
+    "path": "/Users/guanjunhui/.local/bin/codex",
+    "sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+    "fixed_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc"
+  },
+  "protected_files_pre_sha256": {
+    "/Users/guanjunhui/.codex/config.toml": "53b1aa3016356f244170c6b5bc84773767672c852b59f9594f9ae694ebb8eca3",
+    "tasks/g0-macos/data/test-repo/.codex/config.toml": "298a250c45c9585c695e427c830c20100ecadc8a612445703b2a8b5878a3aa2b",
+    "tasks/g0-macos/data/test-repo/.codex/hooks.json": "666243bf0789d012c7035ff7ef7203735df95fd79eafe763fa5013277f58b917",
+    "tasks/g0-macos/data/g0-hook-darwin-arm64": "62e41afd87e1408854490bf6a716cfe846fff0021179a39d163d6e02254ba779"
+  },
+  "endpoints_preflight": {
+    "/Users/guanjunhui/.codex/app-server-control/app-server-control.sock": "absent",
+    "tasks/g0-tui-proxy/tmp/b/a.sock": "absent",
+    "tasks/g0-tui-proxy/data/proxy-attach-03": "absent"
+  },
+  "hook_events_before": {
+    "directory": "tasks/g0-macos/data/hook-events",
+    "file_count": 128,
+    "names_sha256": "e182fb7bf28c8fc17954bc14e98e927183c629a1b5a32c6d841546afb05b21cb",
+    "content_manifest_sha256": "8aa9a83c36f7bd48ad7311781ab05a19b9288f7a1e5b29abac7b53e1eebbaf0e",
+    "manifest_definition": "sorted filename + SHA256 + byte size, one record per line"
+  },
+  "scope": "Pre-run registration only. No case directory, native process, TUI, prompt, model turn, or retry has been started."
+}
