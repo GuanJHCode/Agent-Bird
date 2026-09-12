@@ -172,6 +172,9 @@ def test_handshake_pairs_request_ids_and_orders_fresh_skills_after_resume():
     assert partial_state["initialize_response"] is False
     rows[-1] = {**rows[-1], "request_id": 31}
     assert _handshake_state(rows, 2, THREAD_ID)["valid"] is False
+    rows[-1] = {**rows[-1], "request_id": 30}
+    rows[7], rows[5] = rows[5], rows[7]
+    assert _handshake_state(rows, 2, THREAD_ID)["valid"] is False
 
 
 def test_handshake_accepts_real_resume02_safe_metadata_projection():
