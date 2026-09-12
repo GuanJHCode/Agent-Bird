@@ -1,0 +1,27 @@
+.............F...
+======================================================================
+FAIL: test_shared_service_requires_exact_vscode_origin_and_rejects_other_sources (native_standalone_test.NativeStandaloneTests.test_shared_service_requires_exact_vscode_origin_and_rejects_other_sources)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 51, in test_shared_service_requires_exact_vscode_origin_and_rejects_other_sources
+    probe.filter_thread(thread_result("vscode"), binding(), None, require_ready=True)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone.py", line 253, in filter_thread
+    check(thread.get("id") == binding["controller_thread_id"] and thread.get("source") == "cli" and thread.get("cliVersion") == CLI_VERSION and thread.get("cwd") == binding["expected_cwd"], "thread_binding_mismatch")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone.py", line 38, in check
+    raise ProbeError(code)
+native_standalone.ProbeError: thread_binding_mismatch
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 53, in test_shared_service_requires_exact_vscode_origin_and_rejects_other_sources
+    self.fail("fixed shared-service origin rejected: " + error.code)
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: fixed shared-service origin rejected: thread_binding_mismatch
+
+----------------------------------------------------------------------
+Ran 17 tests in 0.022s
+
+FAILED (failures=1)

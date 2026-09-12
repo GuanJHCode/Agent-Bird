@@ -37,8 +37,8 @@ def go_inspection():
             "revision": 1, "task_revision": 1, "cancelled": False, "event_hash": digest, "result": result, "ack": None}
 
 
-def thread_result():
-    return {"thread": {"id": ROOT, "sessionId": ROOT, "source": "cli", "cliVersion": "0.153.4",
+def thread_result(source="vscode"):
+    return {"thread": {"id": ROOT, "sessionId": ROOT, "source": source, "cliVersion": "0.153.4",
             "cwd": "/private/g0/repo", "historyMode": "legacy", "ephemeral": False, "status": {"type": "idle"},
             "turns": [{"id": TURN, "status": "completed", "itemsView": "full", "items": [
                 {"id": "exec_01", "type": "commandExecution", "status": "completed", "exitCode": 0, "command": "PRIVATE_DO_NOT_EXPORT", "aggregatedOutput": "PRIVATE_DO_NOT_EXPORT"},
@@ -46,6 +46,15 @@ def thread_result():
 
 
 class NativeStandaloneTests(unittest.TestCase):
+    def test_shared_service_requires_exact_vscode_origin_and_rejects_other_sources(self):
+        try:
+            probe.filter_thread(thread_result("vscode"), binding(), None, require_ready=True)
+        except probe.ProbeError as error:
+            self.fail("fixed shared-service origin rejected: " + error.code)
+        for source in ("cli", "appServer", "unknown", {"subAgent": {}}, None):
+            with self.subTest(source=source), self.assertRaises(probe.ProbeError):
+                probe.filter_thread(thread_result(source), binding(), None, require_ready=True)
+
     def test_prior_timestamp_is_exact_native_field_not_ready_text_time(self):
         data = thread_result()
         data["thread"]["turns"][0]["completedAt"] = 1790000000
