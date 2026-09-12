@@ -15,6 +15,7 @@ import native_sd_collect as c
 from native_sd_collect import require_live_processes, same_process
 from native_sd_pty import NativePTY, InputSequence, stamp
 from native_sd_clock import CLOCK_IMPL, continuous_ns, clock_pair
+from owner_context import owner_context_sha256, validate_owner_context
 from delivery_audit import canonical, parse
 
 CASE = c.BASE/'tasks/g0-pending-resolution/data/sd-qual-08'
@@ -31,6 +32,17 @@ class InitialBindingUnconfirmed(ValueError):
 
 class OwnedSessionStartMissing(ValueError):
     pass
+
+
+def bind_owner_context(binding, context):
+    """Return the v2 owner binding projection used by new prepare/send gates."""
+
+    validate_owner_context(context, context)
+    result = dict(binding)
+    result['version'] = 2
+    result['owner_context'] = dict(context)
+    result['owner_context_sha256'] = owner_context_sha256(context)
+    return result
 
 
 def failure_fields(error,substage):

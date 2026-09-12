@@ -17,6 +17,7 @@ import time
 import uuid
 
 from delivery_audit import canonical, envelope, parse
+from owner_context import owner_context_sha256, validate_initialize_codex_home, validate_owner_context
 
 CLI_VERSION = "0.154.0"
 ACTIVE_NONCE = "sd-qual-08"
@@ -82,9 +83,15 @@ def decode(data):
 
 
 def validate_binding(value, root, nonce):
-    exact(value, ("version", "nonce", "controller_thread_id", "controller_epoch", "expected_cwd", "prior_turn_id",
-                  "native_cli_version", "boot_id", "service", "tui", "go_binary", "go_binary_sha256", "job_dir", "controller_evidence_sha256"))
-    check(type(value["version"]) is int and value["version"] == 1)
+    base_keys = ("version", "nonce", "controller_thread_id", "controller_epoch", "expected_cwd", "prior_turn_id",
+                 "native_cli_version", "boot_id", "service", "tui", "go_binary", "go_binary_sha256", "job_dir", "controller_evidence_sha256")
+    v2_keys = base_keys + ("owner_context", "owner_context_sha256")
+    check(type(value) is dict and set(value) in (set(base_keys), set(v2_keys)), "invalid_binding_schema")
+    check(type(value["version"]) is int and value["version"] in (1, 2))
+    if value["version"] == 1:
+        check(set(value) == set(base_keys), "invalid_binding_schema")
+    else:
+        check(set(value) == set(v2_keys), "invalid_binding_schema")
     check(safe(root) and nonce == ACTIVE_NONCE and value["nonce"] == nonce and value["controller_thread_id"] == root, "root_nonce_mismatch")
     check(type(value["controller_epoch"]) is int and value["controller_epoch"] == 1)
     check(value["native_cli_version"] == CLI_VERSION and value["go_binary_sha256"] == GO_SHA, "version_mismatch")
@@ -111,6 +118,30 @@ def validate_binding(value, root, nonce):
         check(number(process["pid"], 1, 2**31 - 1), "invalid_pid")
         check(type(process["comm"]) is str and 0 < len(process["comm"]) <= 4096 and not any(c in process["comm"] for c in "\0\r\n"), "invalid_comm")
     return value
+
+
+def require_owner_context(binding):
+    """Require the v2 owner context before any new prepare/send operation."""
+
+    check(type(binding) is dict and binding.get("version") == 2, "owner_context_required")
+    context = binding.get("owner_context")
+    check(type(binding.get("owner_context_sha256")) is str and binding["owner_context_sha256"] == owner_context_sha256(context), "owner_context_invalid")
+    try:
+        validate_owner_context(context, context)
+    except (TypeError, ValueError, KeyError):
+        raise ProbeError("owner_context_invalid") from None
+    return context
+
+
+def attach_owner_context(binding, context):
+    """Create a v2 binding projection without changing the legacy schema."""
+
+    validate_owner_context(context, context)
+    result = dict(binding)
+    result["version"] = 2
+    result["owner_context"] = dict(context)
+    result["owner_context_sha256"] = owner_context_sha256(context)
+    return result
 
 
 class Case:
@@ -380,7 +411,9 @@ def filter_thread(result, binding, intent, require_ready=False, expected_session
     return filtered, facts
 
 
-async def issue_once(rpc, case, binding, intent, binding_hash):
+async def issue_once(rpc, case, binding, intent, binding_hash, *, owner_context_required=False):
+    if owner_context_required:
+        require_owner_context(binding)
     attempt = {"version": 1, "status": "send_intent", "nonce": binding["nonce"], "controller_thread_id": binding["controller_thread_id"],
                "binding_sha256": binding_hash, "payload_sha256": digest(canonical(intent).encode()), **current_clock()}
     check(attempt["boot_id"] == binding["boot_id"], "boot_changed")
@@ -401,8 +434,9 @@ async def issue_once(rpc, case, binding, intent, binding_hash):
 
 
 class Rpc:
-    def __init__(self, binding, deadline_ns):
+    def __init__(self, binding, deadline_ns, *, owner_context_required=False):
         self.binding, self.deadline_ns = binding, deadline_ns
+        self.owner_context_required = owner_context_required
         self.next_id, self.frames, self.bytes, self.server_requests = 1, 0, 0, 0
         self.last_hash, self.last_request = None, None
 
@@ -462,6 +496,8 @@ class Rpc:
         return True
 
     async def call(self, method, params, intent=None):
+        if self.owner_context_required:
+            require_owner_context(self.binding)
         request = make_request(self.next_id, method, params, self.binding, intent)
         self.next_id += 1
         self.last_request = request
@@ -513,6 +549,8 @@ class Rpc:
         result = await self.call("initialize", params)
         check(type(result) is dict and result.get("platformOs") == "macos" and result.get("platformFamily") == "unix"
               and type(result.get("userAgent")) is str and type(result.get("codexHome")) is str, "initialize_mismatch")
+        if self.owner_context_required:
+            validate_initialize_codex_home(result, self.binding["owner_context"])
         timeout = self.timeout()
         await asyncio.wait_for(self.ws.send('{"method":"initialized"}'), timeout)
         self.timeout()
@@ -526,7 +564,9 @@ class Rpc:
                        "source_service_verified": False, "current_display_verified": False}
 
 
-def go_read(binding, verb, deadline_ns, allow_ack=False):
+def go_read(binding, verb, deadline_ns, allow_ack=False, *, owner_context_required=False):
+    if owner_context_required:
+        require_owner_context(binding)
     check(verb in ("read", "inspect"), "local_command_not_allowed")
     remaining = time_left(deadline_ns)
     value = decode(command_output([binding["go_binary"], verb, "--dir", binding["job_dir"], "--nonce", binding["nonce"]], min(READ_SECONDS, remaining)))
@@ -568,7 +608,9 @@ def exists(case, name):
         return False
 
 
-async def observe(rpc, case, binding, intent, attempt, expected_session_id):
+async def observe(rpc, case, binding, intent, attempt, expected_session_id, *, owner_context_required=False):
+    if owner_context_required:
+        require_owner_context(binding)
     last_read, facts, inspection, captured_ack = None, {}, None, None
     rpc_error = None
     reason = "model_window_expired"
@@ -580,7 +622,7 @@ async def observe(rpc, case, binding, intent, attempt, expected_session_id):
             raw = await rpc.call("thread/read", {"threadId": binding["controller_thread_id"], "includeTurns": True})
             filtered, facts = filter_thread(raw, binding, intent, expected_session_id=expected_session_id)
             last_read = {"request": rpc.last_request, "response": {"id": rpc.last_request["id"], "result": filtered}}
-            inspection = go_read(binding, "inspect", rpc.deadline_ns, allow_ack=True)
+            inspection = go_read(binding, "inspect", rpc.deadline_ns, allow_ack=True, owner_context_required=owner_context_required)
             check(inspection["event_hash"] == intent["events"][0]["payload_hash"], "producer_changed")
             ack = inspection["ack"]
             if ack is not None:
@@ -614,10 +656,12 @@ async def observe(rpc, case, binding, intent, attempt, expected_session_id):
     return output
 
 
-async def run(verb, case, binding, binding_hash):
+async def run(verb, case, binding, binding_hash, *, owner_context_required=False):
     check(sys.platform == "darwin" and importlib.metadata.version("websockets") == "16.0", "unsupported_runtime")
     if verb == "send-once":
         check(not exists(case, "send-attempt.json"), "send_intent_exists")
+    if owner_context_required and verb in ("prepare", "send-once"):
+        require_owner_context(binding)
     deadline_ns = continuous_ns() + READ_SECONDS * NS
     verify_machine(binding)
     intent, attempt, session_id = None, None, None
@@ -626,17 +670,18 @@ async def run(verb, case, binding, binding_hash):
     if verb == "observe":
         attempt = load_attempt(case, binding, intent, binding_hash)
         deadline_ns = min(deadline_ns, attempt["mono_ns"] + MODEL_SECONDS * NS)
-    async with Rpc(binding, deadline_ns) as rpc:
+    rpc = Rpc(binding, deadline_ns, owner_context_required=True) if owner_context_required else Rpc(binding, deadline_ns)
+    async with rpc as rpc:
         await rpc.initialize()
         if verb == "observe":
-            result = await observe(rpc, case, binding, intent, attempt, session_id)
+            result = await observe(rpc, case, binding, intent, attempt, session_id, owner_context_required=owner_context_required)
             case.write_new("read-observation.json", result)
             return result
         result = await rpc.call("thread/read", {"threadId": binding["controller_thread_id"], "includeTurns": True})
         _, facts = filter_thread(result, binding, None, require_ready=True, expected_session_id=session_id)
         if verb == "prepare":
-            read = go_read(binding, "read", deadline_ns)
-            inspection = go_read(binding, "inspect", deadline_ns)
+            read = go_read(binding, "read", deadline_ns, owner_context_required=owner_context_required)
+            inspection = go_read(binding, "inspect", deadline_ns, owner_context_required=owner_context_required)
             check(canonical(read) == canonical(inspection["result"]), "producer_record_mismatch")
             intent = make_intent(binding, inspection)
             case.write_new("producer.json", {"read": read, "inspection": inspection})
@@ -646,10 +691,10 @@ async def run(verb, case, binding, binding_hash):
             case.write_new("prepare-meta.json", result)
             time_left(deadline_ns)
             return result
-        inspection = go_read(binding, "inspect", deadline_ns)
+        inspection = go_read(binding, "inspect", deadline_ns, owner_context_required=owner_context_required)
         check(canonical(intent) == canonical(make_intent(binding, inspection)), "producer_changed")
-        attempt, _ = await issue_once(rpc, case, binding, intent, binding_hash)
-        result = await observe(rpc, case, binding, intent, attempt, session_id)
+        attempt, _ = await issue_once(rpc, case, binding, intent, binding_hash, owner_context_required=owner_context_required)
+        result = await observe(rpc, case, binding, intent, attempt, session_id, owner_context_required=owner_context_required)
         case.write_new("send-observation.json", result)
         return result
 
@@ -661,7 +706,7 @@ def main(args):
         binding = validate_binding(case.read("binding.json"), root, nonce)
         check(digest(case.read_raw("controller-evidence.json")) == binding["controller_evidence_sha256"], "controller_evidence_changed")
         try:
-            return asyncio.run(run(verb, case, binding, digest(canonical(binding).encode())))
+            return asyncio.run(run(verb, case, binding, digest(canonical(binding).encode()), owner_context_required=True))
         except (Exception, KeyboardInterrupt) as error:
             result = {"version": 1, "status": "uncertain" if exists(case, "send-attempt.json") else "rejected",
                       "reason": error.code if isinstance(error, ProbeError) else "operation_io_failed",
