@@ -499,6 +499,44 @@ class SandboxExecTests(unittest.TestCase):
             self.assertIn('(deny mach-lookup (global-name "com.apple.SecurityServer"))', profile)
             self.assertIn('(deny mach-lookup (global-name "com.apple.securityd.systemkeychain"))', profile)
 
+    def test_real_sandbox_allows_only_page_size_sysctl_needed_by_runtime(self) -> None:
+        if sys.platform != "darwin":
+            self.skipTest("sandbox-exec is macOS-only")
+        with tempfile.TemporaryDirectory(prefix="g0-auth-", dir="/private/tmp") as directory:
+            root = Path(directory)
+            spec = IsolationSpec(
+                task_root=root,
+                home=root / "home",
+                codex_home=root / "codex-home",
+                workspace=root / "workspace",
+                profile_id="dummy-profile-sysctl",
+                public_socket=root / "launchd.sock",
+                backend_socket=root / "backend" / "backend.sock",
+                protected_paths=(root.parent / f"protected-{root.name}",),
+                protected_read_paths=(),
+            )
+            prepare_isolated_home(spec)
+            profile_path = root / "profile.sb"
+            profile_path.write_text(render_sandbox_profile(spec))
+            script = "import os; print(os.sysconf('SC_PAGE_SIZE'))"
+            baseline = subprocess.run(
+                ["/usr/bin/python3", "-c", script],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            sandboxed = subprocess.run(
+                ["/usr/bin/sandbox-exec", "-f", str(profile_path), "/usr/bin/python3", "-c", script],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            self.assertEqual(baseline.returncode, 0, baseline.stderr)
+            self.assertEqual(sandboxed.returncode, 0, sandboxed.stderr)
+            self.assertTrue(baseline.stdout.strip().isdigit())
+            self.assertEqual(sandboxed.stdout.strip(), baseline.stdout.strip())
+            self.assertIn('(allow sysctl-read (sysctl-name "hw.pagesize_compat"))', profile_path.read_text())
+
 
 if __name__ == "__main__":
     unittest.main()

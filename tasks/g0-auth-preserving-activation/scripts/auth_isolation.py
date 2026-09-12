@@ -579,6 +579,7 @@ def render_sandbox_profile(spec: IsolationSpec) -> str:
     lines.extend(
         [
             "(deny network-outbound)",
+            '(allow sysctl-read (sysctl-name "hw.pagesize_compat"))',
             f'(allow network-outbound (literal "{_sbpl_path(spec.backend_socket)}"))',
             f'(allow network-outbound (literal "{_sbpl_path(spec.public_socket)}"))',
             f'(allow network-bind (literal "{_sbpl_path(spec.backend_socket)}"))',
