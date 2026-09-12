@@ -1,0 +1,100 @@
+{
+  "assertions": {
+    "effective_model_luna": true,
+    "effective_reasoning_effort_medium": true
+  },
+  "binary_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+  "cleanup": {
+    "complete": true,
+    "owned_service_exited": true,
+    "process_exit_code": 0,
+    "runtime_dir_removed": true,
+    "socket_absent": true,
+    "socket_removed": false,
+    "started_at": "2026-09-12T09:41:34.458738+00:00",
+    "term_sent_to_owned_group": true
+  },
+  "clock": "CLOCK_MONOTONIC_RAW",
+  "config": {
+    "layers": [
+      {
+        "disabledReason": null,
+        "model": "gpt-5.6-luna",
+        "model_reasoning_effort": "medium",
+        "name": {
+          "dotCodexFolder": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/.codex",
+          "type": "project"
+        },
+        "version": "sha256:7dcf82a74a5d22b8a69e17cd707b9aeccee107e2203b62eb43a0560948320133"
+      },
+      {
+        "disabledReason": null,
+        "model": "gpt-6-astra",
+        "model_reasoning_effort": "max",
+        "name": {
+          "file": "/Users/guanjunhui/.codex/config.toml",
+          "profile": null,
+          "type": "user"
+        },
+        "version": "sha256:3d8d5bc74bc041a337875bea9a192e9e2bd9aff03f325ac6263e03f543da7df7"
+      },
+      {
+        "disabledReason": null,
+        "model": null,
+        "model_reasoning_effort": null,
+        "name": {
+          "file": "/etc/codex/config.toml",
+          "type": "system"
+        },
+        "version": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+      }
+    ],
+    "model": "gpt-5.6-luna",
+    "model_reasoning_effort": "medium",
+    "origins": {
+      "model": {
+        "name": {
+          "dotCodexFolder": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/.codex",
+          "type": "project"
+        },
+        "version": "sha256:7dcf82a74a5d22b8a69e17cd707b9aeccee107e2203b62eb43a0560948320133"
+      },
+      "model_reasoning_effort": {
+        "name": {
+          "dotCodexFolder": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/.codex",
+          "type": "project"
+        },
+        "version": "sha256:7dcf82a74a5d22b8a69e17cd707b9aeccee107e2203b62eb43a0560948320133"
+      }
+    }
+  },
+  "config_response_sha256": "4f26cfa9bc5223ec35eb30a5c38b1b41a66167017e332107424e7b6a2c5a4a69",
+  "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo",
+  "initialize": {
+    "platformOs": "macos"
+  },
+  "raw_budget_seconds": 10,
+  "read_elapsed_ns": 12734917,
+  "requirements": {
+    "requirements": null
+  },
+  "requirements_response_sha256": "25b86fa3671a4ee1ea904a1f5777c164347763d01dda591fcac3022b64235e10",
+  "schema_sha256": "632b1201e888aaa77e7b5d0deb12ca6003f160ae09b3213c31803d19c0f5be2a",
+  "scope": "zero-model effective config read",
+  "service": {
+    "birth": "Sat Sep 12 17:41:34 2026",
+    "executable_path": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+    "pid": 76523,
+    "uid": 501
+  },
+  "socket": {
+    "dev": 16777234,
+    "held_by_owned_service": true,
+    "ino": 161703444,
+    "mode": "0600",
+    "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-test-model/tmp/e/a.sock",
+    "uid": 501
+  },
+  "started_at": "2026-09-12T09:41:34.227708+00:00",
+  "status": "read_complete"
+}

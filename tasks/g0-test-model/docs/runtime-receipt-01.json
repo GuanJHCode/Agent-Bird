@@ -1,0 +1,80 @@
+{
+  "case": "effective-config-read-01",
+  "command": "python3 -B /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-test-model/scripts/read_effective_model_preconnected.py --run",
+  "effective_output_sha256": "1968108f02b265311454834d7ea8a21dfc1ab4fa6d57e020de0f61def67f1bc3",
+  "effective_output_sha256_semantics": "SHA-256 of the original single-line probe stdout bytes, including its trailing newline, before pretty formatting",
+  "exit_code": 0,
+  "protection": {
+    "cli": {
+      "path": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+      "sha256_after": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+      "sha256_before": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+      "unchanged": true
+    },
+    "global_config": {
+      "path": "/Users/guanjunhui/.codex/config.toml",
+      "sha256_after": "53b1aa3016356f244170c6b5bc84773767672c852b59f9594f9ae694ebb8eca3",
+      "sha256_before": "53b1aa3016356f244170c6b5bc84773767672c852b59f9594f9ae694ebb8eca3",
+      "unchanged": true
+    },
+    "script": {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-test-model/scripts/read_effective_model_preconnected.py",
+      "sha256_after": "4d03227514fbae0c60f39b060e01c86a8c66dcceb72b60beb78d1b3882770c5b",
+      "sha256_before": "4d03227514fbae0c60f39b060e01c86a8c66dcceb72b60beb78d1b3882770c5b",
+      "unchanged": true
+    },
+    "test_config": {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/.codex/config.toml",
+      "sha256_after": "298a250c45c9585c695e427c830c20100ecadc8a612445703b2a8b5878a3aa2b",
+      "sha256_before": "298a250c45c9585c695e427c830c20100ecadc8a612445703b2a8b5878a3aa2b",
+      "unchanged": true
+    },
+    "test_hooks": {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/.codex/hooks.json",
+      "sha256_after": "666243bf0789d012c7035ff7ef7203735df95fd79eafe763fa5013277f58b917",
+      "sha256_before": "666243bf0789d012c7035ff7ef7203735df95fd79eafe763fa5013277f58b917",
+      "unchanged": true
+    }
+  },
+  "run_count": 1,
+  "runtime": {
+    "cleanup": {
+      "complete": true,
+      "owned_service_exited": true,
+      "process_exit_code": 0,
+      "runtime_dir_removed": true,
+      "socket_absent": true,
+      "socket_removed": false,
+      "started_at": "2026-09-12T09:41:34.458738+00:00",
+      "term_sent_to_owned_group": true
+    },
+    "e_present_after": false,
+    "e_present_before": false,
+    "parent": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-test-model/tmp",
+    "parent_mode": "0755",
+    "service": {
+      "birth": "Sat Sep 12 17:41:34 2026",
+      "executable_path": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+      "pid": 76523,
+      "uid": 501
+    },
+    "socket": {
+      "dev": 16777234,
+      "held_by_owned_service": true,
+      "ino": 161703444,
+      "mode": "0600",
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-test-model/tmp/e/a.sock",
+      "uid": 501
+    }
+  },
+  "schema_reference": {
+    "scope": "structural field reference only; does not establish native 0.154.0 provenance",
+    "sha256": "632b1201e888aaa77e7b5d0deb12ca6003f160ae09b3213c31803d19c0f5be2a"
+  },
+  "status": "read_complete",
+  "stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "working_directory": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design"
+}
