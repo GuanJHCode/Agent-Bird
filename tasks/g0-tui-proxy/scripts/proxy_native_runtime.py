@@ -1360,6 +1360,8 @@ async def run_case(
         "connections": [],
         "termination_mode": termination_mode,
         "termination_trigger": None,
+        "termination_requested": False,
+        "quit_sent": False,
     }
     initial_candidate_ok = False
     clear_candidate_ok = False
@@ -1478,7 +1480,14 @@ async def run_case(
                 if not gate_ok:
                     result["termination_trigger"] = "normal_quit_gate"
                     raise RuntimeInvariantError("normal_quit_gate_failed")
+                if tui.poll() is not None:
+                    result["termination_trigger"] = "normal_quit_precondition_failed"
+                    raise RuntimeInvariantError("normal_quit_tui_not_alive")
+                if runtime._bridge.epoch_invalid.get(termination_epoch) is not None:
+                    result["termination_trigger"] = "normal_quit_precondition_failed"
+                    raise RuntimeInvariantError("normal_quit_epoch_already_invalid")
                 result["termination_trigger"] = "normal_quit"
+                result["termination_requested"] = True
         elif termination_mode == "normal_quit":
             result["termination_trigger"] = "normal_quit_gate"
             raise RuntimeInvariantError("normal_quit_connection_missing")
@@ -1486,6 +1495,7 @@ async def run_case(
         quit_window = RuntimeWindow.start(local_seconds=config.local_window_seconds, model_seconds=config.model_window_seconds)
         if tui.poll() is None:
             tui.command("/quit")
+            result["quit_sent"] = True
             exit_code = await tui.await_exit(quit_window.local_deadline)
         else:
             exit_code = tui.poll()
@@ -1499,7 +1509,7 @@ async def run_case(
                 if termination_mode == "normal_quit"
                 else termination_epoch_reason is not None
             )
-        step("quit", exit_code=exit_code, quit_success=quit_success, termination_epoch_invalid=termination_epoch_invalid, tui=tui.evidence)
+        step("quit", exit_code=exit_code, quit_success=quit_success, termination_epoch_invalid=termination_epoch_invalid, quit_sent=result["quit_sent"], tui=tui.evidence)
         result["connections"] = [_connection_summary(record) for record in runtime._bridge.connection_records.values()] if runtime._bridge else []
         result["status"] = "unknown"
     except BaseException as exc:
@@ -1552,6 +1562,7 @@ async def run_case(
             and clear_target is not None
             and clear_thread != initial_thread
             and quit_success
+            and (termination_mode != "normal_quit" or (result["termination_requested"] and result["quit_sent"]))
             and result.get("model_turns") == 0
             and result.get("trace_complete") is True
             and cleanup_ok

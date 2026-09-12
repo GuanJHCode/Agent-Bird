@@ -1373,11 +1373,18 @@ def test_case_label_comes_from_actual_case_directory(tmp_path):
 
 
 @pytest.mark.parametrize(
-    "normal_exit,termination_reason",
-    [(0, "eof"), (1, "eof"), (0, "disconnect"), (0, None)],
+    "normal_exit,termination_reason,pre_exit,initial_epoch_reason",
+    [
+        (0, "eof", None, None),
+        (1, "eof", None, None),
+        (0, "disconnect", None, None),
+        (0, None, None, None),
+        (0, "eof", 0, "eof"),
+        (0, "eof", None, "eof"),
+    ],
 )
 def test_run_case_normal_quit_does_not_disconnect_and_requires_eof(
-    tmp_path, monkeypatch, normal_exit, termination_reason
+    tmp_path, monkeypatch, normal_exit, termination_reason, pre_exit, initial_epoch_reason
 ):
     import asyncio
 
@@ -1413,7 +1420,7 @@ def test_run_case_normal_quit_does_not_disconnect_and_requires_eof(
         def __init__(self, bridge, inferer):
             self.bridge = bridge
             self.inferer = inferer
-            self.exit_code = None
+            self.exit_code = pre_exit
             self.status_ids = set()
             self.status_calls = 0
             self.inputs = []
@@ -1458,7 +1465,7 @@ def test_run_case_normal_quit_does_not_disconnect_and_requires_eof(
             self.inferer = FakeInferer()
             self._bridge = SimpleNamespace(
                 connection_records={"c1": ConnectionIdentity("c1", 1, 3, 4, None, None)},
-                epoch_invalid={},
+                epoch_invalid={1: initial_epoch_reason} if initial_epoch_reason else {},
                 model_turns=0,
                 trace_complete=True,
                 trace=[],
@@ -1493,13 +1500,28 @@ def test_run_case_normal_quit_does_not_disconnect_and_requires_eof(
             termination_mode="normal_quit",
         )
     )
-    assert result.get("failure") is None, result.get("failure")
-    expected_status = "observed" if normal_exit == 0 and termination_reason == "eof" else "unknown"
+    if pre_exit is None and initial_epoch_reason is None:
+        assert result.get("failure") is None, result.get("failure")
+    else:
+        assert result.get("failure", {}).get("type") == "RuntimeInvariantError"
+    expected_status = "observed" if (
+        normal_exit == 0
+        and termination_reason == "eof"
+        and pre_exit is None
+        and initial_epoch_reason is None
+    ) else "unknown"
     assert result["status"] == expected_status, result
     assert result["termination_mode"] == "normal_quit"
-    assert result["termination_trigger"] == "normal_quit"
+    expected_trigger = "normal_quit" if pre_exit is None and initial_epoch_reason is None else "normal_quit_precondition_failed"
+    assert result["termination_trigger"] == expected_trigger
+    assert isinstance(result["termination_requested"], bool)
+    assert isinstance(result["quit_sent"], bool)
+    if expected_trigger == "normal_quit":
+        assert result["termination_requested"] is True
+        assert result["quit_sent"] is True
     assert runtime.disconnect_calls == 0
-    assert "/quit" in runtime._tui_driver.inputs
+    if pre_exit is None and initial_epoch_reason is None:
+        assert "/quit" in runtime._tui_driver.inputs
 
 
 def test_main_parses_normal_quit_and_passes_it_to_run_case(tmp_path, monkeypatch):
