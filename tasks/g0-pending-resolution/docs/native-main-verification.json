@@ -552,5 +552,15 @@
     "live_effective_model_verified": false,
     "new_model_cases_started": 0,
     "astra_fallback_allowed": false
+  },
+  "future_ack_capture": {
+    "source_commit": "2254481",
+    "integrated_commit": "77ea1ab",
+    "main_native_tests_passed": 88,
+    "main_delivery_tests_passed": 15,
+    "native_model_calls": 0,
+    "report": "../../g0-ack-capture/docs/verification.json",
+    "historical_sd08_capture_unchanged": true,
+    "full_c11_or_g0_passed": false
   }
 }

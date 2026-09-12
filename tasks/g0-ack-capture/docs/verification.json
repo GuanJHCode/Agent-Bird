@@ -1,0 +1,32 @@
+{
+  "source_commit": "2254481",
+  "integrated_commit": "77ea1ab",
+  "reviewer": "root",
+  "scope": "future standalone capture of validated Go ACK; historical sd08 capture retained",
+  "model_or_native_calls": 0,
+  "main_native_tests": {
+    "passed": 88,
+    "seconds": 1.386,
+    "exit_code": 0
+  },
+  "main_delivery_tests": {
+    "passed": 15,
+    "seconds": 1.242,
+    "exit_code": 0
+  },
+  "diff_check_exit_code": 0,
+  "regression": "actual observe -> Case write -> delivery_audit.audit, actual validate_go; real sd08 intent and ACK fixtures, synthetic RPC history",
+  "preserved_false_flags": [
+    "source_service_verified",
+    "captured_page_chain_complete",
+    "absence_proof",
+    "resend_authorized"
+  ],
+  "full_c11_or_g0_passed": false,
+  "cleanup": {
+    "worker_removed_empty_test_tmp": true,
+    "worktree_removed_without_force": true,
+    "branch_retained": "codex/g0-ack-capture",
+    "historical_files_modified": false
+  }
+}
