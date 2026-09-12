@@ -475,6 +475,8 @@ class NativeActivationProbe:
             raise ProbeError("supervisor root overlaps profile writable roots")
         if self.spec.mode == "activation" and self.spec.ready_receipt_path is None:
             raise ProbeError("activation mode requires a ready receipt")
+        if self.spec.mode == "activation" and self.spec.final_receipt_path is None:
+            raise ProbeError("activation mode requires a final cleanup receipt")
         if self.spec.mode == "activation" and (
             not isinstance(self.spec.manifest_sha256, str) or len(self.spec.manifest_sha256) != 64
         ):
