@@ -21,6 +21,8 @@ CLI_VERSION = "0.153.4"
 CLI_SHA = "b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3"
 GO_SHA = "feb9b9ad969abca5ff35db28c0f0d8d920dc0778d7aac68a90952900e989a285"
 READ_SECONDS, MODEL_SECONDS, MAX_BYTES, MAX_FRAMES = 10, 120, 65536, 256
+NS = 1_000_000_000
+CLOCK_IMPL = "clock_gettime_ns(CLOCK_MONOTONIC_RAW)"
 SAFE = re.compile(r"[A-Za-z0-9_-]{1,64}\Z")
 HASH = re.compile(r"[0-9a-f]{64}\Z")
 FILES = {"binding.json", "controller-evidence.json", "producer.json", "intent.json", "prepare-meta.json", "send-attempt.json",
@@ -71,7 +73,7 @@ def validate_binding(value, root, nonce):
     exact(value, ("version", "nonce", "controller_thread_id", "controller_epoch", "expected_cwd", "prior_turn_id",
                   "native_cli_version", "boot_id", "service", "tui", "go_binary", "go_binary_sha256", "job_dir", "controller_evidence_sha256"))
     check(type(value["version"]) is int and value["version"] == 1)
-    check(safe(root) and safe(nonce) and len(nonce) <= 40 and value["nonce"] == nonce and value["controller_thread_id"] == root, "root_nonce_mismatch")
+    check(safe(root) and nonce == "sd-qual-02" and value["nonce"] == nonce and value["controller_thread_id"] == root, "root_nonce_mismatch")
     check(type(value["controller_epoch"]) is int and value["controller_epoch"] == 1)
     check(value["native_cli_version"] == CLI_VERSION and value["go_binary_sha256"] == GO_SHA, "version_mismatch")
     check(safe(value["prior_turn_id"]) and type(value["boot_id"]) is str)
@@ -150,29 +152,39 @@ class Case:
 
 
 def command_output(args, timeout=READ_SECONDS):
+    deadline_ns = continuous_ns() + int(timeout * NS)
     try:
         result = subprocess.run(args, capture_output=True, timeout=timeout)
     except subprocess.TimeoutExpired:
         raise ProbeError("local_read_timeout") from None
+    time_left(deadline_ns)
     check(len(result.stdout) <= MAX_BYTES and len(result.stderr) <= MAX_BYTES, "local_output_limit")
     check(result.returncode == 0, "local_command_failed")
     return result.stdout
 
 
+def continuous_ns():
+    return time.clock_gettime_ns(time.CLOCK_MONOTONIC_RAW)
+
+
+def time_left(deadline_ns):
+    remaining_ns = deadline_ns - continuous_ns()
+    check(remaining_ns > 0, "read_window_expired")
+    return remaining_ns / NS
+
+
 def current_clock():
     boot = command_output(["/usr/sbin/sysctl", "-n", "kern.bootsessionuuid"], 2).decode("ascii").strip().lower()
-    return {"boot_id": boot, "clock_impl": time.get_clock_info("monotonic").implementation,
-            "mono_ns": time.monotonic_ns(), "wall_ns": time.time_ns()}
+    return {"boot_id": boot, "clock_impl": CLOCK_IMPL, "mono_ns": continuous_ns(), "wall_ns": time.time_ns()}
 
 
 def remaining_window(attempt, now):
-    check(attempt["boot_id"] == now["boot_id"] and attempt["clock_impl"] == now["clock_impl"], "clock_context_changed")
-    check(all(number(value[key], 0) for value in (attempt, now) for key in ("mono_ns", "wall_ns")), "invalid_clock")
+    check(attempt["boot_id"] == now["boot_id"] and attempt["clock_impl"] == now["clock_impl"] == CLOCK_IMPL, "clock_context_changed")
+    check(all(number(value["mono_ns"], 0) and type(value["wall_ns"]) is int for value in (attempt, now)), "invalid_clock")
     elapsed = now["mono_ns"] - attempt["mono_ns"]
-    wall_elapsed = now["wall_ns"] - attempt["wall_ns"]
-    check(elapsed >= 0 and abs(elapsed - wall_elapsed) <= 2_000_000_000, "clock_inconsistent")
-    check(elapsed < MODEL_SECONDS * 1_000_000_000, "model_window_expired")
-    return MODEL_SECONDS - elapsed / 1_000_000_000
+    check(elapsed >= 0, "clock_inconsistent")
+    check(elapsed < MODEL_SECONDS * NS, "model_window_expired")
+    return (MODEL_SECONDS * NS - elapsed) / NS
 
 
 def verify_machine(binding, hashes=True):
@@ -323,6 +335,7 @@ async def issue_once(rpc, case, binding, intent, binding_hash):
     params = {"threadId": binding["controller_thread_id"], "input": [],
               "toolOutput": {"name": "g0_delivery", "namespace": "orchestration", "output": canonical(intent)}}
     result = await rpc.call("turn/start", params, intent=intent)
+    remaining_window(attempt, current_clock())
     check(type(result) is dict and type(result.get("turn")) is dict, "invalid_receipt")
     turn = result["turn"]
     check(safe(turn.get("id")) and turn["id"] != binding["prior_turn_id"] and turn.get("status") in ("inProgress", "completed", "failed", "interrupted"), "invalid_receipt")
@@ -332,15 +345,13 @@ async def issue_once(rpc, case, binding, intent, binding_hash):
 
 
 class Rpc:
-    def __init__(self, binding, deadline):
-        self.binding, self.deadline = binding, deadline
+    def __init__(self, binding, deadline_ns):
+        self.binding, self.deadline_ns = binding, deadline_ns
         self.next_id, self.frames, self.bytes, self.server_requests = 1, 0, 0, 0
         self.last_hash, self.last_request = None, None
 
     def timeout(self, maximum=READ_SECONDS):
-        remaining = self.deadline - time.monotonic()
-        check(remaining > 0, "read_window_expired")
-        return min(maximum, remaining)
+        return min(maximum, time_left(self.deadline_ns))
 
     async def __aenter__(self):
         from websockets.asyncio.client import unix_connect
@@ -350,10 +361,15 @@ class Rpc:
         raw = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         raw.setblocking(False)
         try:
-            await asyncio.wait_for(asyncio.get_running_loop().sock_connect(raw, self.binding["service"]["socket_path"]), self.timeout(3))
+            connect_deadline_ns = min(self.deadline_ns, continuous_ns() + 3 * NS)
+            timeout = time_left(connect_deadline_ns)
+            await asyncio.wait_for(asyncio.get_running_loop().sock_connect(raw, self.binding["service"]["socket_path"]), timeout)
+            time_left(connect_deadline_ns)
             # A preconnected socket disables websocket redirect reconnection.
+            upgrade_deadline_ns = min(self.deadline_ns, continuous_ns() + 3 * NS)
             self.ws = await unix_connect(uri="ws://localhost/", sock=raw, compression=None, proxy=None, ping_interval=None,
-                                         open_timeout=self.timeout(3), close_timeout=1, max_size=MAX_BYTES, max_queue=4, logger=logger)
+                                         open_timeout=time_left(upgrade_deadline_ns), close_timeout=1, max_size=MAX_BYTES, max_queue=4, logger=logger)
+            time_left(upgrade_deadline_ns)
         except BaseException:
             raw.close()
             raise
@@ -365,13 +381,16 @@ class Rpc:
         except Exception:
             pass
 
-    async def receive(self, timeout):
+    async def receive(self, deadline_ns):
+        timeout = time_left(deadline_ns)
         raw = await asyncio.wait_for(self.ws.recv(), timeout)
         check(type(raw) is str, "non_text_frame")
         encoded = raw.encode()
         self.frames += 1
         self.bytes += len(encoded)
         self.last_hash = digest(encoded)
+        # asyncio's timer may pause during system sleep; late frames never qualify.
+        time_left(deadline_ns)
         check(self.frames <= MAX_FRAMES and self.bytes <= 4 * 1024 * 1024, "frame_budget_exceeded")
         packet = decode(encoded)
         check(type(packet) is dict, "invalid_rpc_packet")
@@ -390,27 +409,32 @@ class Rpc:
         request = make_request(self.next_id, method, params, self.binding, intent)
         self.next_id += 1
         self.last_request = request
-        deadline = min(self.deadline, time.monotonic() + READ_SECONDS)
-        await asyncio.wait_for(self.ws.send(canonical(request)), self.timeout())
+        deadline_ns = min(self.deadline_ns, continuous_ns() + READ_SECONDS * NS)
+        timeout = time_left(deadline_ns)
+        await asyncio.wait_for(self.ws.send(canonical(request)), timeout)
+        time_left(deadline_ns)
         while True:
-            timeout = deadline - time.monotonic()
-            check(timeout > 0, "read_window_expired")
-            packet = await self.receive(timeout)
+            packet = await self.receive(deadline_ns)
             if self.notification(packet):
                 continue
             check(type(packet.get("id")) is int and packet["id"] == request["id"], "rpc_response_id_mismatch")
             check(set(packet) in ({"id", "result"}, {"id", "error"}), "invalid_rpc_response")
             check("error" not in packet, "native_rpc_error")
+            time_left(deadline_ns)
             return packet["result"]
 
     async def wake(self):
         # thread/read doesn't subscribe. A bounded read fallback needs no resume.
-        deadline = time.monotonic() + self.timeout(2)
-        while time.monotonic() < deadline:
+        deadline_ns = min(self.deadline_ns, continuous_ns() + 2 * NS)
+        while continuous_ns() < deadline_ns:
             try:
-                packet = await self.receive(deadline - time.monotonic())
+                packet = await self.receive(deadline_ns)
             except TimeoutError:
                 return
+            except ProbeError as error:
+                if error.code == "read_window_expired":
+                    return
+                raise
             check(self.notification(packet), "unexpected_rpc_response")
             params = packet.get("params")
             if type(params) is dict and params.get("threadId") == self.binding["controller_thread_id"]:
@@ -421,7 +445,9 @@ class Rpc:
         result = await self.call("initialize", params)
         check(type(result) is dict and result.get("platformOs") == "macos" and result.get("platformFamily") == "unix"
               and type(result.get("userAgent")) is str and type(result.get("codexHome")) is str, "initialize_mismatch")
-        await asyncio.wait_for(self.ws.send('{"method":"initialized"}'), self.timeout())
+        timeout = self.timeout()
+        await asyncio.wait_for(self.ws.send('{"method":"initialized"}'), timeout)
+        self.timeout()
         result = await self.call("server/diagnostics", {})
         check(type(result) is dict and type(result.get("process")) is dict and type(result["process"].get("id")) is int
               and result["process"]["id"] == self.binding["service"]["pid"], "diagnostics_pid_mismatch")
@@ -432,11 +458,11 @@ class Rpc:
                        "source_service_verified": False, "current_display_verified": False}
 
 
-def go_read(binding, verb, deadline, allow_ack=False):
+def go_read(binding, verb, deadline_ns, allow_ack=False):
     check(verb in ("read", "inspect"), "local_command_not_allowed")
-    remaining = deadline - time.monotonic()
-    check(remaining > 0, "read_window_expired")
+    remaining = time_left(deadline_ns)
     value = decode(command_output([binding["go_binary"], verb, "--dir", binding["job_dir"], "--nonce", binding["nonce"]], min(READ_SECONDS, remaining)))
+    time_left(deadline_ns)
     if verb == "inspect":
         return validate_go(value, binding, allow_ack)
     expected = {"version": 1, "status": "completed", "nonce": binding["nonce"], "count": 1}
@@ -450,6 +476,7 @@ def load_prepared(case, binding, binding_hash):
     check(canonical(producer["read"]) == canonical(producer["inspection"]["result"]), "producer_record_mismatch")
     check(canonical(intent) == canonical(make_intent(binding, producer["inspection"])), "intent_binding_mismatch")
     check(type(meta) is dict and meta.get("binding_sha256") == binding_hash and meta.get("payload_sha256") == digest(canonical(intent).encode()), "prepared_binding_mismatch")
+    check(meta.get("clock_impl") == CLOCK_IMPL and meta.get("boot_id") == binding["boot_id"], "clock_context_changed")
     return intent
 
 
@@ -477,18 +504,18 @@ async def observe(rpc, case, binding, intent, attempt):
     reason = "model_window_expired"
     try:
         for _ in range(64):
-            remaining = remaining_window(attempt, current_clock())
-            rpc.deadline = time.monotonic() + remaining
+            remaining_window(attempt, current_clock())
+            rpc.deadline_ns = attempt["mono_ns"] + MODEL_SECONDS * NS
             verify_machine(binding, hashes=False)
             raw = await rpc.call("thread/read", {"threadId": binding["controller_thread_id"], "includeTurns": True})
             filtered, facts = filter_thread(raw, binding, intent)
             last_read = {"request": rpc.last_request, "response": {"id": rpc.last_request["id"], "result": filtered}}
-            inspection = go_read(binding, "inspect", rpc.deadline, allow_ack=True)
+            inspection = go_read(binding, "inspect", rpc.deadline_ns, allow_ack=True)
             check(inspection["event_hash"] == intent["events"][0]["payload_hash"], "producer_changed")
             ack = inspection["ack"]
             if all(facts[key] for key in ("history_match", "new_turn_completed", "ack_final_marker", "root_idle", "all_tools_and_turns_terminal", "matching_turn_is_last")) and ack is not None and ack["decision"] == "handled" and ack["effect_count"] == 1:
-                remaining_window(attempt, current_clock())
                 verify_machine(binding, hashes=False)
+                remaining_window(attempt, current_clock())
                 reason = None
                 break
             await rpc.wake()
@@ -512,15 +539,15 @@ async def run(verb, case, binding, binding_hash):
     check(sys.platform == "darwin" and importlib.metadata.version("websockets") == "16.0", "unsupported_runtime")
     if verb == "send-once":
         check(not exists(case, "send-attempt.json"), "send_intent_exists")
+    deadline_ns = continuous_ns() + READ_SECONDS * NS
     verify_machine(binding)
-    deadline = time.monotonic() + READ_SECONDS
     intent, attempt = None, None
     if verb != "prepare":
         intent = load_prepared(case, binding, binding_hash)
     if verb == "observe":
         attempt = load_attempt(case, binding, intent, binding_hash)
-        deadline = min(deadline, time.monotonic() + remaining_window(attempt, current_clock()))
-    async with Rpc(binding, deadline) as rpc:
+        deadline_ns = min(deadline_ns, attempt["mono_ns"] + MODEL_SECONDS * NS)
+    async with Rpc(binding, deadline_ns) as rpc:
         await rpc.initialize()
         if verb == "observe":
             result = await observe(rpc, case, binding, intent, attempt)
@@ -529,8 +556,8 @@ async def run(verb, case, binding, binding_hash):
         result = await rpc.call("thread/read", {"threadId": binding["controller_thread_id"], "includeTurns": True})
         _, facts = filter_thread(result, binding, None, require_ready=True)
         if verb == "prepare":
-            read = go_read(binding, "read", deadline)
-            inspection = go_read(binding, "inspect", deadline)
+            read = go_read(binding, "read", deadline_ns)
+            inspection = go_read(binding, "inspect", deadline_ns)
             check(canonical(read) == canonical(inspection["result"]), "producer_record_mismatch")
             intent = make_intent(binding, inspection)
             case.write_new("producer.json", {"read": read, "inspection": inspection})
@@ -539,7 +566,7 @@ async def run(verb, case, binding, binding_hash):
                       "prior_facts": facts, "rpc_checks": rpc.checks, **current_clock()}
             case.write_new("prepare-meta.json", result)
             return result
-        inspection = go_read(binding, "inspect", deadline)
+        inspection = go_read(binding, "inspect", deadline_ns)
         check(canonical(intent) == canonical(make_intent(binding, inspection)), "producer_changed")
         attempt, _ = await issue_once(rpc, case, binding, intent, binding_hash)
         result = await observe(rpc, case, binding, intent, attempt)

@@ -1,0 +1,62 @@
+.F.....F....F....F...F
+======================================================================
+FAIL: test_clock_record_uses_continuous_raw_time_instead_of_uptime (native_standalone_test.NativeStandaloneTests.test_clock_record_uses_continuous_raw_time_instead_of_uptime)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 52, in test_clock_record_uses_continuous_raw_time_instead_of_uptime
+    self.assertEqual(record["mono_ns"], 100_000_000_000)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 7000000000 != 100000000000
+
+======================================================================
+FAIL: test_old_uptime_clock_records_are_rejected_without_conversion (native_standalone_test.NativeStandaloneTests.test_old_uptime_clock_records_are_rejected_without_conversion)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 70, in test_old_uptime_clock_records_are_rejected_without_conversion
+    with self.assertRaises(probe.ProbeError):
+         ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: ProbeError not raised
+
+======================================================================
+FAIL: test_response_received_after_continuous_deadline_cannot_be_success (native_standalone_test.NativeStandaloneTests.test_response_received_after_continuous_deadline_cannot_be_success)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 101, in test_response_received_after_continuous_deadline_cannot_be_success
+    with self.assertRaises(probe.ProbeError):
+         ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: ProbeError not raised
+
+======================================================================
+FAIL: test_system_sleep_elapsed_before_rpc_send_prevents_the_wire_write (native_standalone_test.NativeStandaloneTests.test_system_sleep_elapsed_before_rpc_send_prevents_the_wire_write)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 86, in test_system_sleep_elapsed_before_rpc_send_prevents_the_wire_write
+    with self.assertRaises(probe.ProbeError):
+         ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: ProbeError not raised
+
+======================================================================
+FAIL: test_wall_jumps_do_not_change_the_original_continuous_120_second_budget (native_standalone_test.NativeStandaloneTests.test_wall_jumps_do_not_change_the_original_continuous_120_second_budget)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 61, in test_wall_jumps_do_not_change_the_original_continuous_120_second_budget
+    remaining = probe.remaining_window(attempt, now)
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone.py", line 170, in remaining_window
+    check(all(number(value[key], 0) for value in (attempt, now) for key in ("mono_ns", "wall_ns")), "invalid_clock")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone.py", line 38, in check
+    raise ProbeError(code)
+native_standalone.ProbeError: invalid_clock
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 63, in test_wall_jumps_do_not_change_the_original_continuous_120_second_budget
+    self.fail("wall-only adjustment affected elapsed budget: " + error.code)
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: wall-only adjustment affected elapsed budget: invalid_clock
+
+----------------------------------------------------------------------
+Ran 22 tests in 0.009s
+
+FAILED (failures=5)

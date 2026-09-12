@@ -7,6 +7,7 @@ import os
 import pathlib
 import tempfile
 import unittest
+import warnings
 from unittest.mock import patch
 
 import native_standalone as probe
@@ -14,7 +15,7 @@ import native_standalone as probe
 ROOT = "01900000-0000-7000-8000-000000000001"
 TURN = "01900000-0000-7000-8000-000000000002"
 BOOT = "01900000-0000-4000-8000-000000000003"
-NONCE = "sd-qual-01"
+NONCE = "sd-qual-02"
 
 
 def binding():
@@ -42,10 +43,73 @@ def thread_result(source="vscode"):
             "cwd": "/private/g0/repo", "historyMode": "legacy", "ephemeral": False, "status": {"type": "idle"},
             "turns": [{"id": TURN, "status": "completed", "itemsView": "full", "items": [
                 {"id": "exec_01", "type": "commandExecution", "status": "completed", "exitCode": 0, "command": "PRIVATE_DO_NOT_EXPORT", "aggregatedOutput": "PRIVATE_DO_NOT_EXPORT"},
-                {"id": "ready_01", "type": "agentMessage", "phase": "final_answer", "text": "SD_QUAL_01_READY"}]}]}}
+                {"id": "ready_01", "type": "agentMessage", "phase": "final_answer", "text": "SD_QUAL_02_READY"}]}]}}
 
 
 class NativeStandaloneTests(unittest.TestCase):
+    def test_new_helper_does_not_admit_the_old_case_even_with_matching_arguments(self):
+        old = binding()
+        old["nonce"] = "sd-qual-01"
+        with self.assertRaises(probe.ProbeError):
+            probe.validate_binding(old, ROOT, "sd-qual-01")
+
+    def test_clock_record_uses_continuous_raw_time_instead_of_uptime(self):
+        with patch.object(probe, "command_output", return_value=(BOOT + "\n").encode()), patch.object(probe.time, "clock_gettime_ns", return_value=100_000_000_000), patch.object(probe.time, "monotonic_ns", return_value=7_000_000_000), patch.object(probe.time, "time_ns", return_value=500_000_000_000):
+            record = probe.current_clock()
+        self.assertEqual(record["mono_ns"], 100_000_000_000)
+        self.assertEqual(record["clock_impl"], "clock_gettime_ns(CLOCK_MONOTONIC_RAW)")
+        self.assertEqual(record["wall_ns"], 500_000_000_000)
+
+    def test_wall_jumps_do_not_change_the_original_continuous_120_second_budget(self):
+        attempt = {"boot_id": BOOT, "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)", "mono_ns": 100_000_000_000, "wall_ns": 1_000_000_000_000}
+        for wall in (-86_400_000_000_000, 86_400_000_000_000):
+            now = {**attempt, "mono_ns": 160_000_000_000, "wall_ns": wall}
+            try:
+                remaining = probe.remaining_window(attempt, now)
+            except probe.ProbeError as error:
+                self.fail("wall-only adjustment affected elapsed budget: " + error.code)
+            self.assertEqual(remaining, 60.0)
+            with self.assertRaises(probe.ProbeError):
+                probe.remaining_window(attempt, {**now, "mono_ns": 220_000_000_000})
+
+    def test_old_uptime_clock_records_are_rejected_without_conversion(self):
+        old = {"boot_id": BOOT, "clock_impl": "mach_absolute_time()", "mono_ns": 100_000_000_000, "wall_ns": 1_000_000_000_000}
+        with self.assertRaises(probe.ProbeError):
+            probe.remaining_window(old, {**old, "mono_ns": 101_000_000_000, "wall_ns": 1_001_000_000_000})
+
+    def test_system_sleep_elapsed_before_rpc_send_prevents_the_wire_write(self):
+        class Wire:
+            sent = False
+            async def send(self, _message):
+                self.sent = True
+            async def recv(self):
+                return '{"id":1,"result":{}}'
+        wire = Wire()
+        rpc = probe.Rpc(binding(), 220_000_000_000)
+        rpc.ws = wire
+        intent = probe.make_intent(binding(), go_inspection())
+        params = {"threadId": ROOT, "input": [], "toolOutput": {"name": "g0_delivery", "namespace": "orchestration", "output": probe.canonical(intent)}}
+        with warnings.catch_warnings(record=True) as caught, patch.object(probe.time, "monotonic", return_value=100.0), patch.object(probe.time, "clock_gettime_ns", return_value=221_000_000_000):
+            warnings.simplefilter("always")
+            with self.assertRaises(probe.ProbeError):
+                asyncio.run(rpc.call("turn/start", params, intent=intent))
+        self.assertEqual(caught, [])
+        self.assertFalse(wire.sent)
+
+    def test_response_received_after_continuous_deadline_cannot_be_success(self):
+        clock = [100_000_000_000]
+        class Wire:
+            async def send(self, _message):
+                pass
+            async def recv(self):
+                clock[0] = 111_000_000_000
+                return '{"id":1,"result":{"accepted":true}}'
+        rpc = probe.Rpc(binding(), 110_000_000_000)
+        rpc.ws = Wire()
+        with patch.object(probe.time, "monotonic", return_value=100.0), patch.object(probe.time, "clock_gettime_ns", side_effect=lambda _: clock[0]):
+            with self.assertRaises(probe.ProbeError):
+                asyncio.run(rpc.call("thread/read", {"threadId": ROOT, "includeTurns": True}))
+
     def test_shared_service_requires_exact_vscode_origin_and_rejects_other_sources(self):
         try:
             probe.filter_thread(thread_result("vscode"), binding(), None, require_ready=True)
@@ -68,7 +132,7 @@ class NativeStandaloneTests(unittest.TestCase):
         intent, data = probe.make_intent(binding(), go_inspection()), thread_result()
         data["thread"]["turns"].append({"id": "new_turn", "status": "completed", "itemsView": "full", "items": [
             {"id": "standalone_01", "type": "functionCallOutput", "name": "g0_delivery", "namespace": "orchestration", "output": probe.canonical(intent)},
-            {"id": "ack_final", "type": "agentMessage", "phase": "final_answer", "text": "SD_QUAL_01_ACK"}]})
+            {"id": "ack_final", "type": "agentMessage", "phase": "final_answer", "text": "SD_QUAL_02_ACK"}]})
         probe.filter_thread(data, binding(), intent)
         changed = copy.deepcopy(data)
         changed["thread"]["turns"][-1]["status"] = "inProgress"
@@ -100,7 +164,7 @@ class NativeStandaloneTests(unittest.TestCase):
                 self.params = params
                 return {"turn": {"id": "new_turn", "status": "inProgress", "items": [{"text": "PRIVATE_DO_NOT_EXPORT"}], "itemsView": "notLoaded"}}
         wire = Wire()
-        now = {"boot_id": BOOT, "clock_impl": "mach_absolute_time()", "mono_ns": 1_000_000_000, "wall_ns": 10_000_000_000}
+        now = {"boot_id": BOOT, "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)", "mono_ns": 1_000_000_000, "wall_ns": 10_000_000_000}
         with tempfile.TemporaryDirectory(prefix="g0-standalone-case-") as directory:
             os.chmod(directory, 0o700)
             with probe.Case(directory) as case, patch.object(probe, "verify_machine"), patch.object(probe, "current_clock", return_value=now):
@@ -117,7 +181,7 @@ class NativeStandaloneTests(unittest.TestCase):
         class Wire:
             async def call(self, *_args, **_kwargs):
                 raise AssertionError("no wire request is allowed after identity loss")
-        now = {"boot_id": BOOT, "clock_impl": "mach_absolute_time()", "mono_ns": 1_000_000_000, "wall_ns": 10_000_000_000}
+        now = {"boot_id": BOOT, "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)", "mono_ns": 1_000_000_000, "wall_ns": 10_000_000_000}
         with tempfile.TemporaryDirectory(prefix="g0-standalone-case-") as directory:
             os.chmod(directory, 0o700)
             with probe.Case(directory) as case, patch.object(probe, "verify_machine", side_effect=probe.ProbeError("tui_identity_changed")), patch.object(probe, "current_clock", return_value=now):
@@ -214,7 +278,7 @@ class NativeStandaloneTests(unittest.TestCase):
                 pass
             async def recv(self):
                 return '{"id":99,"result":{"text":"PRIVATE_DO_NOT_EXPORT"}}'
-        rpc = probe.Rpc(binding(), probe.time.monotonic() + 10)
+        rpc = probe.Rpc(binding(), probe.time.clock_gettime_ns(probe.time.CLOCK_MONOTONIC_RAW) + 10_000_000_000)
         rpc.ws = Wire()
         with self.assertRaises(probe.ProbeError) as caught:
             asyncio.run(rpc.call("thread/read", {"threadId": ROOT, "includeTurns": True}))
@@ -235,7 +299,7 @@ class NativeStandaloneTests(unittest.TestCase):
         data["thread"]["status"] = {"type": "active"}
         data["thread"]["turns"].append({"id": "new_turn", "status": "completed", "itemsView": "full", "items": [
             {"id": "standalone_01", "type": "functionCallOutput", "name": "g0_delivery", "namespace": "orchestration", "output": probe.canonical(intent)},
-            {"id": "ack_final", "type": "agentMessage", "phase": "final_answer", "text": "SD_QUAL_01_ACK"}]})
+            {"id": "ack_final", "type": "agentMessage", "phase": "final_answer", "text": "SD_QUAL_02_ACK"}]})
         class Reader:
             checks, frames, bytes, server_requests, last_hash = {}, 1, 100, 0, None
             last_request = {"id": 4, "method": "thread/read", "params": {"threadId": ROOT, "includeTurns": True}}
@@ -243,7 +307,7 @@ class NativeStandaloneTests(unittest.TestCase):
                 return data
             async def wake(self):
                 raise probe.ProbeError("sample_ended")
-        now = {"boot_id": BOOT, "clock_impl": "mach_absolute_time()", "mono_ns": 1_000_000_000, "wall_ns": 10_000_000_000}
+        now = {"boot_id": BOOT, "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)", "mono_ns": 1_000_000_000, "wall_ns": 10_000_000_000}
         with tempfile.TemporaryDirectory(prefix="g0-standalone-case-") as directory:
             os.chmod(directory, 0o700)
             with probe.Case(directory) as case, patch.object(probe, "verify_machine"), patch.object(probe, "current_clock", return_value=now), patch.object(probe, "go_read", return_value=inspection):
@@ -262,10 +326,10 @@ class NativeStandaloneTests(unittest.TestCase):
                 self.assertEqual(case.read("send-attempt.json")["status"], "send_intent")
 
     def test_original_model_window_rejects_boot_or_clock_change_and_never_extends(self):
-        attempt = {"boot_id": BOOT, "clock_impl": "mach_absolute_time()", "mono_ns": 1_000_000_000, "wall_ns": 10_000_000_000}
-        now = {"boot_id": BOOT, "clock_impl": "mach_absolute_time()", "mono_ns": 2_000_000_000, "wall_ns": 11_000_000_000}
+        attempt = {"boot_id": BOOT, "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)", "mono_ns": 1_000_000_000, "wall_ns": 10_000_000_000}
+        now = {"boot_id": BOOT, "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)", "mono_ns": 2_000_000_000, "wall_ns": 11_000_000_000}
         self.assertEqual(probe.remaining_window(attempt, now), 119.0)
-        for field, value in [("boot_id", ROOT), ("clock_impl", "different"), ("wall_ns", 20_000_000_000), ("mono_ns", 121_000_000_001)]:
+        for field, value in [("boot_id", ROOT), ("clock_impl", "different"), ("mono_ns", 121_000_000_001)]:
             changed = dict(now)
             changed[field] = value
             with self.subTest(field=field), self.assertRaises(probe.ProbeError):

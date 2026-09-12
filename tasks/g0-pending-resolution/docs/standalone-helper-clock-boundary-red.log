@@ -1,0 +1,30 @@
+.......F..........F....
+======================================================================
+FAIL: test_new_helper_does_not_admit_the_old_case_even_with_matching_arguments (native_standalone_test.NativeStandaloneTests.test_new_helper_does_not_admit_the_old_case_even_with_matching_arguments)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 53, in test_new_helper_does_not_admit_the_old_case_even_with_matching_arguments
+    with self.assertRaises(probe.ProbeError):
+         ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: ProbeError not raised
+
+======================================================================
+FAIL: test_system_sleep_elapsed_before_rpc_send_prevents_the_wire_write (native_standalone_test.NativeStandaloneTests.test_system_sleep_elapsed_before_rpc_send_prevents_the_wire_write)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 96, in test_system_sleep_elapsed_before_rpc_send_prevents_the_wire_write
+    self.assertEqual(caught, [])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+AssertionError: Lists differ: [<warnings.WarningMessage object at 0x10a7d27b0>] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+<warnings.WarningMessage object at 0x10a7d27b0>
+
+- [<warnings.WarningMessage object at 0x10a7d27b0>]
++ []
+
+----------------------------------------------------------------------
+Ran 23 tests in 0.008s
+
+FAILED (failures=2)
