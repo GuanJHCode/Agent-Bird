@@ -1,0 +1,276 @@
+{
+  "case": "proxy-attach-05",
+  "status": "unknown",
+  "recorded_at_utc": "2026-09-12T12:00:04.057593+00:00",
+  "main_head": "06d29cf9a73a32bb69d64419285c23c7d2e499f6",
+  "pre_registration": "tasks/g0-tui-proxy/docs/native-registration-05.json",
+  "run_artifact": "tasks/g0-tui-proxy/data/proxy-attach-05/result.json",
+  "trace_artifact": "tasks/g0-tui-proxy/data/proxy-attach-05/trace.json",
+  "observed": {
+    "connections": [
+      {
+        "backend_fd": 10,
+        "backend_peer": {
+          "birth": "Sat Sep 12 19:58:02 2026",
+          "complete": true,
+          "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+          "pid": 10537,
+          "source": "darwin-local",
+          "uid": 501
+        },
+        "connection_id": "conn-1-c62b31cabe38",
+        "epoch": 1,
+        "frontend_fd": 9,
+        "frontend_peer": {
+          "birth": "Sat Sep 12 19:58:02 2026",
+          "complete": true,
+          "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+          "pid": 10562,
+          "source": "darwin-local",
+          "uid": 501
+        }
+      },
+      {
+        "backend_fd": 10,
+        "backend_peer": {
+          "birth": "Sat Sep 12 19:58:02 2026",
+          "complete": true,
+          "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+          "pid": 10537,
+          "source": "darwin-local",
+          "uid": 501
+        },
+        "connection_id": "conn-2-ccbf7547420f",
+        "epoch": 2,
+        "frontend_fd": 9,
+        "frontend_peer": {
+          "birth": "Sat Sep 12 19:58:02 2026",
+          "complete": true,
+          "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+          "pid": 10562,
+          "source": "darwin-local",
+          "uid": 501
+        }
+      },
+      {
+        "backend_fd": 10,
+        "backend_peer": {
+          "birth": "Sat Sep 12 19:58:02 2026",
+          "complete": true,
+          "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+          "pid": 10537,
+          "source": "darwin-local",
+          "uid": 501
+        },
+        "connection_id": "conn-3-e465dd953c4f",
+        "epoch": 3,
+        "frontend_fd": 9,
+        "frontend_peer": {
+          "birth": "Sat Sep 12 19:58:02 2026",
+          "complete": true,
+          "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+          "pid": 10562,
+          "source": "darwin-local",
+          "uid": 501
+        }
+      }
+    ],
+    "initial_candidate": {
+      "connection_epoch": 2,
+      "session_id": "01a0957b-556b-7a30-8a23-0a72a17b2186",
+      "source": "observer",
+      "thread_id": "01a0957b-556b-7a30-8a23-0a72a17b2186"
+    },
+    "initial_status": {
+      "name": "status-initial",
+      "screen_match": true,
+      "session_ids": [
+        "01a0957b-556b-7a30-8a23-0a72a17b2186"
+      ]
+    },
+    "clear_replay": {
+      "candidate": null,
+      "name": "clear-replay",
+      "replay_ready": false,
+      "tui": {
+        "bytes": 13350,
+        "cursor_position_replies": 1,
+        "exit_code": null,
+        "inputs": [
+          {
+            "action": "/status-paste",
+            "at_monotonic_raw": 4136854.757926958,
+            "bytes": 19,
+            "sha256": "81918d19f2ada4f83cfd67169cef6e4159726ae6fc4d9d3ed334c537a3431204"
+          },
+          {
+            "action": "/status-submit",
+            "at_monotonic_raw": 4136854.75794225,
+            "bytes": 1,
+            "sha256": "9d1e0e2d9459d06523ad13e28a4093c2316baafe7aec5b25f30eba2e113599c4"
+          },
+          {
+            "action": "/clear-paste",
+            "at_monotonic_raw": 4136864.766636916,
+            "bytes": 18,
+            "sha256": "f6d7f232bea6b3fb1a91ae414a71d56675e7eda1a73119b1dc0ae2abb87f56f0"
+          },
+          {
+            "action": "/clear-submit",
+            "at_monotonic_raw": 4136864.766650083,
+            "bytes": 1,
+            "sha256": "9d1e0e2d9459d06523ad13e28a4093c2316baafe7aec5b25f30eba2e113599c4"
+          }
+        ],
+        "pid": 10562,
+        "sha256": "7e62dc1267665602337822913dc22f7ebe984c77a13315d03d40129a14b45de2",
+        "status_session_id": "01a0957b-556b-7a30-8a23-0a72a17b2186",
+        "ui_state": "session"
+      }
+    },
+    "status_after_clear": {
+      "name": "status-after-clear",
+      "screen_match": false,
+      "session_ids": [
+        "01a0957b-556b-7a30-8a23-0a72a17b2186",
+        "01a0957b-8b80-7a53-be14-e57b48e6210b"
+      ]
+    },
+    "disconnect": {
+      "connection_id": "conn-2-ccbf7547420f",
+      "old_epoch": 2,
+      "old_epoch_invalid": false
+    },
+    "reconnect": {
+      "observed": true,
+      "status": "unknown"
+    },
+    "model_turns": 0,
+    "trace_complete": true,
+    "quit": {
+      "exit_code": null,
+      "name": "quit",
+      "quit_success": false,
+      "tui": {
+        "ambiguous_status_session": true,
+        "bytes": 21567,
+        "cursor_position_replies": 1,
+        "exit_code": null,
+        "inputs": [
+          {
+            "action": "/status-paste",
+            "at_monotonic_raw": 4136854.757926958,
+            "bytes": 19,
+            "sha256": "81918d19f2ada4f83cfd67169cef6e4159726ae6fc4d9d3ed334c537a3431204"
+          },
+          {
+            "action": "/status-submit",
+            "at_monotonic_raw": 4136854.75794225,
+            "bytes": 1,
+            "sha256": "9d1e0e2d9459d06523ad13e28a4093c2316baafe7aec5b25f30eba2e113599c4"
+          },
+          {
+            "action": "/clear-paste",
+            "at_monotonic_raw": 4136864.766636916,
+            "bytes": 18,
+            "sha256": "f6d7f232bea6b3fb1a91ae414a71d56675e7eda1a73119b1dc0ae2abb87f56f0"
+          },
+          {
+            "action": "/clear-submit",
+            "at_monotonic_raw": 4136864.766650083,
+            "bytes": 1,
+            "sha256": "9d1e0e2d9459d06523ad13e28a4093c2316baafe7aec5b25f30eba2e113599c4"
+          },
+          {
+            "action": "/status-paste",
+            "at_monotonic_raw": 4136874.773240666,
+            "bytes": 19,
+            "sha256": "81918d19f2ada4f83cfd67169cef6e4159726ae6fc4d9d3ed334c537a3431204"
+          },
+          {
+            "action": "/status-submit",
+            "at_monotonic_raw": 4136874.77326175,
+            "bytes": 1,
+            "sha256": "9d1e0e2d9459d06523ad13e28a4093c2316baafe7aec5b25f30eba2e113599c4"
+          },
+          {
+            "action": "/quit-paste",
+            "at_monotonic_raw": 4136886.793658208,
+            "bytes": 17,
+            "sha256": "690a3443b2c9824c2f314c35f61d6306e95f433d7fa4b796972d9023ad23bd93"
+          },
+          {
+            "action": "/quit-submit",
+            "at_monotonic_raw": 4136886.793670291,
+            "bytes": 1,
+            "sha256": "9d1e0e2d9459d06523ad13e28a4093c2316baafe7aec5b25f30eba2e113599c4"
+          }
+        ],
+        "pid": 10562,
+        "sha256": "cc0e59a06d883e9b5cdee0dd5edc32e30d1ff50f59e7d973f0fb035ca0c9ccc6",
+        "ui_state": "session"
+      }
+    }
+  },
+  "post_hashes": {
+    "source_sha256": {
+      "tasks/g0-tui-proxy/scripts/proxy_native_runtime.py": "e7434a2754c3189710b1b8c4a1c53e5994c463f295869a21b9421461cf5a3105",
+      "tasks/g0-tui-proxy/scripts/proxy_transport.py": "41c6bd527ae2f108da538811e3b629a861bf2e2ec72a67efd94e23a793cdb704",
+      "tasks/g0-tui-proxy/scripts/proxy_observer.py": "6e1e16f37707bd8c88fd8717058afe1a4920bd406aec3b907cf7fc50e9066587"
+    },
+    "cli_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+    "protected_files_sha256": {
+      "/Users/guanjunhui/.codex/config.toml": "53b1aa3016356f244170c6b5bc84773767672c852b59f9594f9ae694ebb8eca3",
+      "tasks/g0-macos/data/test-repo/.codex/config.toml": "298a250c45c9585c695e427c830c20100ecadc8a612445703b2a8b5878a3aa2b",
+      "tasks/g0-macos/data/test-repo/.codex/hooks.json": "666243bf0789d012c7035ff7ef7203735df95fd79eafe763fa5013277f58b917",
+      "tasks/g0-macos/data/g0-hook-darwin-arm64": "62e41afd87e1408854490bf6a716cfe846fff0021179a39d163d6e02254ba779"
+    }
+  },
+  "hook_events_after": {
+    "file_count": 132,
+    "names_sha256": "8d8cefb9947d3cdf48a47e00cd277a11cf68ed28b1c4ca269f56a86b6f708ff9",
+    "content_manifest_sha256": "ea9a9bddb9f33f18f94bd1aa92714ddce63f9c3851b6155a6d9da23d7b56b66c",
+    "manifest_definition": "sorted filename + SHA256 + byte size, one record per line"
+  },
+  "cleanup": {
+    "frontend_socket": "absent",
+    "backend_socket": "absent",
+    "backend_parent_mode": "0o700",
+    "backend_process_identity": [
+      {
+        "birth": "Sat Sep 12 19:58:02 2026",
+        "complete": true,
+        "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+        "pid": 10537,
+        "source": "darwin-local",
+        "uid": 501
+      }
+    ],
+    "tui_process_identity": [
+      {
+        "birth": "Sat Sep 12 19:58:02 2026",
+        "complete": true,
+        "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+        "pid": 10562,
+        "source": "darwin-local",
+        "uid": 501
+      }
+    ],
+    "backend_pids_after": "absent",
+    "tui_pids_after": "absent",
+    "case_artifacts": {
+      "result.json": {
+        "sha256": "c38e1e19c551b40b2ffc41ebed4fce5c015f3747ab5e271855f2071894285f84",
+        "bytes": 5177
+      },
+      "trace.json": {
+        "sha256": "e41bef2d5e7571f582f847c7bac81e5193fb5a10f406503274af3fff63604915",
+        "bytes": 35300
+      }
+    },
+    "prompt_sent": false,
+    "model_turn": false,
+    "raw_screen_persisted": false
+  },
+  "scope": "One authorized proxy-attach-05 attempt. Unknown retained as final result; no retry, no proxy-attach-06, and proxy-attach-04 untouched."
+}
