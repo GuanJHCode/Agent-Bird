@@ -122,6 +122,7 @@ def test_manifests_pin_executable_and_profile_roots(fake_native: Path, tmp_path:
         assert activation["backend_argv"][:3] == [str(fake_native), "app-server", "--listen"]
         assert sum(argument.count("{socket_path}") for argument in activation["backend_argv"]) == 1
         assert activation["backend_executable_sha256"] == fixture.pins[str(fake_native)]
+        assert activation["idle_seconds"] == 2.0
     finally:
         fixture.cleanup_ephemeral()
         fixture.cleanup_profile()
@@ -163,3 +164,17 @@ def test_guard_rejects_changed_source_manifest_and_after_uses_one_snapshot(fake_
     finally:
         fixture.cleanup_ephemeral()
         fixture.cleanup_profile()
+
+
+@pytest.mark.parametrize("idle_seconds", [0, -1, 10.1])
+def test_idle_seconds_is_bounded(fake_native: Path, tmp_path: Path, idle_seconds: float):
+    with pytest.raises(ValueError, match="idle_seconds"):
+        build_fixture(
+            fake_native,
+            options=FixtureOptions(
+                mode="preflight",
+                profile_id="p-idle",
+                idle_seconds=idle_seconds,
+                credential_manifest=credential_manifest(tmp_path),
+            ),
+        )

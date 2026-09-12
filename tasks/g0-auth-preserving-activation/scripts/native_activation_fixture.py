@@ -173,6 +173,7 @@ class FixtureAuthGuard:
 class FixtureOptions:
     mode: Literal["real", "preflight"] = "preflight"
     profile_id: str = "synthetic-primary"
+    idle_seconds: float = 2.0
     supervisor_root: Path | None = None
     profile_root: Path | None = None
     credential_manifest: Path | None = None
@@ -259,6 +260,8 @@ def build_fixture(native_executable: Path, *, options: FixtureOptions | None = N
     options = options or FixtureOptions()
     if options.mode not in {"real", "preflight"}:
         raise ValueError("mode must be real or preflight")
+    if not 0 < options.idle_seconds <= 10.0:
+        raise ValueError("idle_seconds must be in (0, 10]")
     native_executable = Path(native_executable)
     native_hash = _hash(native_executable)
     if options.credential_manifest is None:
@@ -377,7 +380,7 @@ def build_fixture(native_executable: Path, *, options: FixtureOptions | None = N
             "trusted_workspace": str(workspace),
             "auth_guard": baseline,
             "credential_manifest_sha256": credential_manifest_sha256,
-            "idle_seconds": 10.0,
+            "idle_seconds": options.idle_seconds,
         }
         _write_private(activation_manifest, activation_payload)
         txn_id = "activation-" + hashlib.sha256((options.profile_id + str(profile_root)).encode()).hexdigest()[:16]
