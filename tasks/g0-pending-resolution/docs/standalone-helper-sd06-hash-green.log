@@ -1,0 +1,6 @@
+test_real_writer_helper_attempt_and_controller_reader_share_one_binding_digest (native_standalone_hash_test.BindingHashBoundaryTest.test_real_writer_helper_attempt_and_controller_reader_share_one_binding_digest) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 0.020s
+
+OK

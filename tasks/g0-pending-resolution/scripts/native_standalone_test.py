@@ -18,7 +18,7 @@ ROOT = "01900000-0000-7000-8000-000000000001"
 TURN = "01900000-0000-7000-8000-000000000002"
 BOOT = "01900000-0000-4000-8000-000000000003"
 SESSION = "01900000-aaaa-7000-8000-000000000006"
-NONCE = "sd-qual-05"
+NONCE = "sd-qual-06"
 
 
 def binding():
@@ -46,18 +46,18 @@ def thread_result(source="vscode"):
             "cwd": "/private/g0/repo", "historyMode": "legacy", "ephemeral": False, "status": {"type": "idle"},
             "turns": [{"id": TURN, "status": "completed", "itemsView": "full", "items": [
                 {"id": "exec_01", "type": "commandExecution", "status": "completed", "exitCode": 0, "command": "PRIVATE_DO_NOT_EXPORT", "aggregatedOutput": "PRIVATE_DO_NOT_EXPORT"},
-                {"id": "ready_01", "type": "agentMessage", "phase": "final_answer", "text": "SD_QUAL_05_READY"}]}]}}
+                {"id": "ready_01", "type": "agentMessage", "phase": "final_answer", "text": "SD_QUAL_06_READY"}]}]}}
 
 
 class NativeStandaloneTests(unittest.TestCase):
-    def test_active_case_is_05_and_earlier_cases_are_rejected(self):
+    def test_active_case_is_06_and_earlier_cases_are_rejected(self):
         value = binding()
-        value["nonce"] = "sd-qual-05"
+        value["nonce"] = "sd-qual-06"
         try:
-            probe.validate_binding(value, ROOT, "sd-qual-05")
+            probe.validate_binding(value, ROOT, "sd-qual-06")
         except probe.ProbeError as error:
             self.fail("registered new case rejected: " + error.code)
-        for nonce in ("sd-qual-01", "sd-qual-02", "sd-qual-03", "sd-qual-04"):
+        for nonce in ("sd-qual-01", "sd-qual-02", "sd-qual-03", "sd-qual-04", "sd-qual-05"):
             value["nonce"] = nonce
             with self.subTest(nonce=nonce), self.assertRaises(probe.ProbeError):
                 probe.validate_binding(value, ROOT, nonce)
@@ -404,7 +404,7 @@ class NativeStandaloneTests(unittest.TestCase):
         intent, data = probe.make_intent(binding(), go_inspection()), thread_result()
         data["thread"]["turns"].append({"id": "new_turn", "status": "completed", "itemsView": "full", "items": [
             {"id": "standalone_01", "type": "functionCallOutput", "name": "g0_delivery", "namespace": "orchestration", "output": probe.canonical(intent)},
-            {"id": "ack_final", "type": "agentMessage", "phase": "final_answer", "text": "SD_QUAL_05_ACK"}]})
+            {"id": "ack_final", "type": "agentMessage", "phase": "final_answer", "text": "SD_QUAL_06_ACK"}]})
         probe.filter_thread(data, binding(), intent)
         changed = copy.deepcopy(data)
         changed["thread"]["turns"][-1]["status"] = "inProgress"
@@ -571,7 +571,7 @@ class NativeStandaloneTests(unittest.TestCase):
         data["thread"]["status"] = {"type": "active"}
         data["thread"]["turns"].append({"id": "new_turn", "status": "completed", "itemsView": "full", "items": [
             {"id": "standalone_01", "type": "functionCallOutput", "name": "g0_delivery", "namespace": "orchestration", "output": probe.canonical(intent)},
-            {"id": "ack_final", "type": "agentMessage", "phase": "final_answer", "text": "SD_QUAL_05_ACK"}]})
+            {"id": "ack_final", "type": "agentMessage", "phase": "final_answer", "text": "SD_QUAL_06_ACK"}]})
         class Reader:
             checks, frames, bytes, server_requests, last_hash = {}, 1, 100, 0, None
             last_request = {"id": 4, "method": "thread/read", "params": {"threadId": ROOT, "includeTurns": True}}
