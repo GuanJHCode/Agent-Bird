@@ -17,6 +17,32 @@ from native_sd_control import require_owned_pair
 
 
 class ControlTests(unittest.TestCase):
+    def test_failure_record_keeps_fixed_code_and_clock_without_exception_text(self):
+        try:
+            control.c.window('2026-09-11T10:00:00Z','2026-09-11T10:02:01Z',dt.datetime(2026,9,11,10,3,tzinfo=dt.timezone.utc))
+        except ValueError as error:
+            got=control.failure_fields(error,'initial_hook_scan')
+        self.assertEqual(got.get('code'),'epoch_correlation_inconclusive')
+        self.assertEqual(got.get('substage'),'initial_hook_scan')
+        other=control.failure_fields(ValueError('CANARY_PRIVATE_TEXT'),'CANARY_PRIVATE_TEXT')
+        self.assertNotIn('CANARY_PRIVATE_TEXT',json.dumps(other))
+
+    def test_continuous_attempt_ignores_wall_jump_but_rejects_legacy_clock(self):
+        root='01a08e0b-bd0d-7400-b069-d50978939cdd'; boot='01a08e0b-bd0d-7400-b069-d50978939cde'
+        raw=time.clock_gettime_ns(time.CLOCK_MONOTONIC_RAW)
+        value={'version':1,'status':'send_intent','nonce':control.c.NONCE,'controller_thread_id':root,
+               'binding_sha256':'0'*64,'payload_sha256':'1'*64,'boot_id':boot,
+               'clock_impl':'clock_gettime_ns(CLOCK_MONOTONIC_RAW)','mono_ns':raw-1000000000,
+               'wall_ns':time.time_ns()+1000000000000000}
+        with tempfile.TemporaryDirectory() as directory,patch.object(control,'CASE',Path(directory)):
+            path=Path(directory)/'send-attempt.json'; path.write_text(json.dumps(value)); path.chmod(0o600)
+            try: result=control.read_send_attempt(root,boot,'0'*64,raw-2000000000)
+            except ValueError: result=None
+            self.assertIsNotNone(result)
+            self.assertEqual(result['deadline_mono_ns'],raw+119000000000)
+            value['clock_impl']='mach_absolute_time()'; path.write_text(json.dumps(value))
+            with self.assertRaises(ValueError): control.read_send_attempt(root,boot,'0'*64,raw-2000000000)
+
     def test_zero_exit_without_same_case_send_attempt_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory,patch.object(control,'CASE',Path(directory)):
             completed=subprocess.run([sys.executable,'-c','pass'],capture_output=True)
@@ -26,7 +52,7 @@ class ControlTests(unittest.TestCase):
                     '01a08e0b-bd0d-7400-b069-d50978939cdd','01a08e0b-bd0d-7400-b069-d50978939cde','0'*64,time.monotonic_ns())
 
     def test_lab_read_envelope_is_fixed_nonce_and_does_not_export_extensions(self):
-        expected={'version':1,'status':'pending','nonce':'sd-qual-01','count':0}
+        expected={'version':1,'status':'pending','nonce':'sd-qual-02','count':0}
         self.assertEqual(control.lab_read_fields(json.dumps(expected)),expected)
         for value in [dict(expected,nonce='other'),dict(expected,extra='CANARY_PRIVATE_TEXT'),
                       dict(expected,count=True),dict(expected,status='completed'),dict(expected,version=True)]:
@@ -80,7 +106,7 @@ class ControlTests(unittest.TestCase):
             secret={'timestamp':'2026-09-11T10:00:01Z','type':'response_item',
                     'payload':{'type':'reasoning','summary':'CANARY_PRIVATE_TEXT'}}
             complete={'timestamp':'2026-09-11T10:00:02Z','type':'event_msg',
-                      'payload':{'type':'task_complete','turn_id':turn,'last_agent_message':'SD_QUAL_01_READY',
+                      'payload':{'type':'task_complete','turn_id':turn,'last_agent_message':'SD_QUAL_02_READY',
                                  'unknown':'CANARY_PRIVATE_TEXT'}}
             rollout.write_text(json.dumps(secret)+'\n'+json.dumps(complete)+'\n')
             db=sqlite3.connect(home/'state_5.sqlite')
@@ -92,7 +118,7 @@ class ControlTests(unittest.TestCase):
                 read=functools.partial(control.native_ready,now=dt.datetime(2026,9,11,10,2,tzinfo=dt.timezone.utc))
                 result=read(root,turn,'2026-09-11T10:00:00Z','2026-09-11T10:02:00Z')
                 self.assertEqual(result,{'at':'2026-09-11T10:00:02Z','turn_id':turn,'type':'task_complete',
-                                         'last_agent_message':'SD_QUAL_01_READY'})
+                                         'last_agent_message':'SD_QUAL_02_READY'})
                 self.assertNotIn('CANARY_PRIVATE_TEXT',json.dumps(result))
                 self.assertIsNone(read(root,root,'2026-09-11T10:00:00Z','2026-09-11T10:02:00Z'))
                 complete['timestamp']='2026-09-11T10:02:00.000000001Z'

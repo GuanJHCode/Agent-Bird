@@ -1,4 +1,4 @@
-"""One fixed sd-qual-01 qualification controller; not a product launcher."""
+"""One fixed sd-qual-02 qualification controller; not a product launcher."""
 import datetime as dt
 import argparse
 import hashlib
@@ -13,12 +13,35 @@ import time
 import native_sd_collect as c
 from native_sd_collect import require_live_processes, same_process
 from native_sd_pty import NativePTY, InputSequence, stamp
+from native_sd_clock import CLOCK_IMPL, continuous_ns, clock_pair
 
-CASE = c.BASE/'tasks/g0-pending-resolution/data/sd-qual-01'
-JOB = c.REPO/'tasks/pending-resolution/data/sd-qual-01'
+CASE = c.BASE/'tasks/g0-pending-resolution/data/sd-qual-02'
+JOB = c.REPO/'tasks/pending-resolution/data/sd-qual-02'
 HELPER = c.BASE/'tasks/g0-pending-resolution/scripts/native_standalone.py'
 AUDIT = HELPER.with_name('delivery_audit.py')
 DOCS = Path(__file__).resolve().parents[1]/'docs'
+
+
+def failure_fields(error,substage):
+    stages={'start_service','service_wait_socket','start_tui','tui_wait_native','status_send','status_wait',
+            'origin_capture','initial_paste','initial_submit','initial_hook_scan','ready_lookup','pending_before',
+            'ready_reread','pending_after','await_job_result','job_read','identity_before_prepare','controller_evidence',
+            'binding','prepare','send-once','helper_finished'}
+    if isinstance(error,c.EpochWindowError): code='epoch_correlation_inconclusive'
+    elif isinstance(error,TimeoutError): code='continuous_deadline_exceeded'
+    elif isinstance(error,sqlite3.Error): code='sqlite_read_failed'
+    elif isinstance(error,subprocess.SubprocessError): code='local_child_failed'
+    elif isinstance(error,OSError): code='local_os_error'
+    else: code='evidence_validation_rejected'
+    frames=[]; cursor=error.__traceback__
+    allowed={'native_sd_control.py','native_sd_collect.py','native_sd_pty.py','native_sd_clock.py'}
+    while cursor:
+        name=Path(cursor.tb_frame.f_code.co_filename).name
+        if name in allowed:
+            frames.append({'file':name,'line':cursor.tb_lineno,'function':cursor.tb_frame.f_code.co_name})
+        cursor=cursor.tb_next
+    return {'code':code,'substage':substage if substage in stages else 'unclassified',
+            'at':stamp(),'clock':clock_pair(),'source_frames':frames}
 
 
 def read_send_attempt(root,boot_id,binding_sha,begin_ns):
@@ -34,12 +57,12 @@ def read_send_attempt(root,boot_id,binding_sha,begin_ns):
             or attempt['status']!='send_intent' or attempt['nonce']!=c.NONCE or attempt['controller_thread_id']!=root
             or attempt['binding_sha256']!=binding_sha or type(attempt['payload_sha256']) is not str
             or not re.fullmatch(r'[0-9a-f]{64}',attempt['payload_sha256']) or attempt['boot_id']!=boot_id
-            or attempt['clock_impl']!=time.get_clock_info('monotonic').implementation
-            or type(attempt['mono_ns']) is not int or not begin_ns<=attempt['mono_ns']<=time.monotonic_ns()
-            or type(attempt['wall_ns']) is not int or not 0<attempt['wall_ns']<=time.time_ns()):
+            or attempt['clock_impl']!=CLOCK_IMPL
+            or type(attempt['mono_ns']) is not int or not begin_ns<=attempt['mono_ns']<=min(continuous_ns(),begin_ns+10000000000)
+            or type(attempt['wall_ns']) is not int or attempt['wall_ns']<0):
         raise ValueError('invalid original helper attempt clock/binding')
     deadline=attempt['mono_ns']+120000000000
-    if time.monotonic_ns()>deadline: raise TimeoutError('original attempt model window ended')
+    if continuous_ns()>deadline: raise TimeoutError('original attempt model window ended')
     return {'attempt_mono_ns':attempt['mono_ns'],'attempt_wall_ns':attempt['wall_ns'],
             'deadline_mono_ns':deadline,'attempt_sha256':hashlib.sha256(raw).hexdigest()}
 
@@ -104,11 +127,11 @@ def native_ready(root,turn,since,through,now=None):
             if event.get('type')!='event_msg': continue
             payload=event.get('payload',{})
             if (type(payload) is not dict or payload.get('type')!='task_complete'
-                    or payload.get('turn_id')!=turn or payload.get('last_agent_message')!='SD_QUAL_01_READY'):
+                    or payload.get('turn_id')!=turn or payload.get('last_agent_message')!='SD_QUAL_02_READY'):
                 continue
             if lo<=c.epoch_ns(event.get('timestamp'))<=hi:
                 found.append({'at':event['timestamp'],'turn_id':turn,'type':'task_complete',
-                              'last_agent_message':'SD_QUAL_01_READY'})
+                              'last_agent_message':'SD_QUAL_02_READY'})
     if len(found)>1: raise ValueError('ambiguous native completion event')
     return found[0] if found else None
 
@@ -159,11 +182,13 @@ def private_json(path,value):
 
 
 def read_job():
-    began=stamp(); start=time.monotonic()
+    began=stamp(); start=continuous_ns()
     proc=subprocess.run([str(c.GO),'read','--dir',str(JOB),'--nonce',c.NONCE],
                         capture_output=True,text=True,timeout=2)
     if proc.returncode!=0: raise ValueError('fixed lab read failed')
-    return {'before':began,'after':stamp(),'elapsed_seconds':time.monotonic()-start,
+    elapsed=continuous_ns()-start
+    if elapsed>10000000000: raise TimeoutError('local lab read exceeded continuous ten seconds')
+    return {'before':began,'after':stamp(),'elapsed_seconds':elapsed/1000000000,
             'binary_sha256':c.GO_SHA,'output':lab_read_fields(proc.stdout),
             'stdout_sha256':hashlib.sha256(proc.stdout.encode()).hexdigest(),'exit_code':0}
 
@@ -171,16 +196,16 @@ def read_job():
 def fixed_prompt():
     start=f'{c.GO} start --dir {JOB} --nonce {c.NONCE} --delay 40s --controller-thread "$CODEX_THREAD_ID"'
     inspect=f'{c.GO} inspect --dir {JOB} --nonce {c.NONCE}'
-    ack=f'{c.GO} ack --dir {JOB} --nonce {c.NONCE} --controller-thread "$CODEX_THREAD_ID" --revision 1 --event-hash ACTUAL_EVENT_HASH --command-id sd-qual-01-ack-1 --decision handled'
-    return ('这是用户已授权的固定原生资格实验，仅有一个合成任务 sd-qual-01，目录已预建且工具已审查。'
+    ack=f'{c.GO} ack --dir {JOB} --nonce {c.NONCE} --controller-thread "$CODEX_THREAD_ID" --revision 1 --event-hash ACTUAL_EVENT_HASH --command-id sd-qual-02-ack-1 --decision handled'
+    return ('这是用户已授权的固定原生资格实验，仅有一个合成任务 sd-qual-02，目录已预建且工具已审查。'
             '现在用原生 exec_command 实际执行且仅执行一次以下命令：`'+start+'`。'
-            '该命令快速返回 started 后，你必须立刻结束当前响应，final 只写 SD_QUAL_01_READY。'
+            '该命令快速返回 started 后，你必须立刻结束当前响应，final 只写 SD_QUAL_02_READY。'
             '当前轮不要等待结果、不要读/轮询作业、不要调用 sleep/wait、不要创建 Goal 或子Agent，不要改文件/配置/权限，也不要使用MCP。'
-            '之后只有当本线程收到代表 sd-qual-01 完成的原生 standalone toolOutput 时才执行下一步：'
+            '之后只有当本线程收到代表 sd-qual-02 完成的原生 standalone toolOutput 时才执行下一步：'
             '用真实工具执行 `'+inspect+'`，核对 nonce、controller_thread、revision=1、completed result和未取消，取得实际 event_hash；'
             '把 ACTUAL_EVENT_HASH 替换为该真实返回字段，再执行 `'+ack+'`。'
             '必须使用真实原生 CODEX_THREAD_ID，不得伪造身份或再次start。'
-            '看到真实 acknowledged 且 effect_count=1 后，final 只写 SD_QUAL_01_ACK。'
+            '看到真实 acknowledged 且 effect_count=1 后，final 只写 SD_QUAL_02_ACK。'
             '现在只做首次start与READY final，后续外部工具结果由合法原生通道送达，无需你主动继续。')
 
 
@@ -221,7 +246,7 @@ def run(helper_sha,audit_sha):
     boot=subprocess.run(['sysctl','-n','kern.bootsessionuuid'],text=True,capture_output=True,timeout=2)
     boot_id=boot.stdout.strip().lower()
     if boot.returncode or not c.valid_id(boot_id): raise ValueError('boot identity unavailable')
-    record={'version':1,'nonce':c.NONCE,'started_at':stamp(),'stage':'start_service',
+    record={'version':1,'nonce':c.NONCE,'started_at':stamp(),'stage':'start_service','substage':'start_service','started_clock':clock_pair(),
             'helper_sha256':helper_sha,'audit_sha256':audit_sha,'protected_before':protected_before,
             'service_argv':['codex','app-server','--listen','unix://'],'tui_argv':['codex'],
             'scope':'one fixed owned PTY; not generic current-UI attachment or full G0'}
@@ -230,7 +255,9 @@ def run(helper_sha,audit_sha):
 
     def note(stage):
         record['stage']=stage
+        record['substage']=stage
         print(json.dumps({'nonce':c.NONCE,'stage':stage,'at':stamp(),
+                          'clock':clock_pair(),
                           'service_pid':service.pid if service else None,'tui_pid':tui.pid if tui else None}),flush=True)
 
     def pump(seconds=.1):
@@ -244,13 +271,13 @@ def run(helper_sha,audit_sha):
 
     def helper(mode,timeout):
         nonlocal helper_proc
-        note(mode); begin=time.monotonic(); begin_ns=time.monotonic_ns(); wall=stamp()
+        note(mode); begin_ns=continuous_ns(); wall=stamp()
         binding_sha=c.sha(CASE/'binding.json')
         deadline_ns=begin_ns+int(timeout*1000000000); attempt_seen=False
-        helper_proc=subprocess.Popen([sys.executable,str(HELPER),mode,'--case',str(CASE),'--root',record['root'],
+        helper_proc=subprocess.Popen([sys.executable,'-B',str(HELPER),mode,'--case',str(CASE),'--root',record['root'],
                                       '--nonce',c.NONCE],stdout=subprocess.PIPE,stderr=subprocess.PIPE)
         if mode=='send-once': deadline_ns=begin_ns+10000000000  # The preflight has its own local bound.
-        while helper_proc.poll() is None and time.monotonic_ns()<deadline_ns:
+        while helper_proc.poll() is None and continuous_ns()<deadline_ns:
             pump(.1)
             attempt_path=CASE/'send-attempt.json'
             if mode=='send-once' and not attempt_seen and attempt_path.exists():
@@ -262,20 +289,27 @@ def run(helper_sha,audit_sha):
             helper_proc.terminate(); helper_proc.wait(timeout=2)
             raise TimeoutError('helper original observation window ended')
         stdout,stderr=helper_proc.communicate(timeout=2)
+        if (mode!='send-once' or attempt_seen) and continuous_ns()>deadline_ns:
+            raise TimeoutError('helper returned beyond original continuous deadline')
         record.setdefault('helper_calls',[]).append({'mode':mode,'started_at':wall,'ended_at':stamp(),
-            'elapsed_seconds':time.monotonic()-begin,'exit_code':helper_proc.returncode,
+            'elapsed_seconds':(continuous_ns()-begin_ns)/1000000000,'exit_code':helper_proc.returncode,
             'stdout_bytes':len(stdout),'stdout_sha256':hashlib.sha256(stdout).hexdigest(),
             'stderr_bytes':len(stderr),'stderr_sha256':hashlib.sha256(stderr).hexdigest()})
         completed_window=require_helper_success(mode,helper_proc.returncode,record['root'],boot_id,binding_sha,begin_ns)
         if mode=='send-once':
             if attempt_seen and record['callback_window']!=completed_window: raise ValueError('send attempt changed during observation')
             record['callback_window']=completed_window
+            deadline_ns=completed_window['deadline_mono_ns']
+        if continuous_ns()>deadline_ns:
+            raise TimeoutError('helper success validation exceeded original continuous deadline')
 
     try:
         service=OwnedService()
-        deadline=time.monotonic()+10; service_identity=None
-        while time.monotonic()<deadline:
+        record['substage']='service_wait_socket'
+        deadline=continuous_ns()+10000000000; service_identity=None
+        while continuous_ns()<deadline:
             service.read(.1)
+            if continuous_ns()>=deadline: break
             try:
                 current=c.process(service.pid); sock=c.snapshot_socket(service.pid)
                 if current and sock.get('service_holds_path') is True:
@@ -283,36 +317,46 @@ def run(helper_sha,audit_sha):
                     service_identity=current; break
             except ValueError: pass  # Only the new child can still be between fork and exec.
         if service_identity is None: raise TimeoutError('native service did not become ready in ten seconds')
-        note('start_tui'); tui=NativePTY(['codex'],str(c.REPO)); deadline=time.monotonic()+10
-        while time.monotonic()<deadline:
+        note('start_tui'); tui=NativePTY(['codex'],str(c.REPO)); deadline=continuous_ns()+10000000000
+        record['substage']='tui_wait_native'
+        while continuous_ns()<deadline:
             pump(.1)
+            if continuous_ns()>=deadline: break
             try:
                 if c.process(tui.pid) and tui.byte_count: break
             except ValueError: pass
         else: raise TimeoutError('native TUI startup exceeded ten seconds')
-        tui.send(sequence,'status')
-        while time.monotonic()<deadline and 'status_root' not in tui.evidence(): pump(.1)
+        if continuous_ns()>=deadline: raise TimeoutError('native TUI startup exceeded ten seconds')
+        record['substage']='status_send'; tui.send(sequence,'status'); record['substage']='status_wait'
+        while continuous_ns()<deadline and 'status_root' not in tui.evidence(): pump(.1)
+        if continuous_ns()>=deadline: raise TimeoutError('native status exceeded ten seconds')
         status=tui.evidence()
         if 'status_root' not in status or status.get('ambiguous_status_root'): raise ValueError('unsupported initial native status shape')
         record['root']=status['status_root']; record['initial_status']=status
+        record['substage']='origin_capture'
         original={'service':c.process(service.pid),'tui':c.process(tui.pid),'socket':c.snapshot_socket(service.pid)}
         require_owned_pair(original['service'],original['tui'],original['socket'],original)
         record['origin']=original
         note('initial_paste'); tui.send(sequence,'initial-paste')
-        note('initial'); since=stamp(); initial_mono=time.monotonic(); tui.send(sequence,'initial-submit')
-        record['initial_window']={'since':since,'deadline':(dt.datetime.fromisoformat(since)+dt.timedelta(seconds=120)).isoformat()}
+        note('initial'); record['substage']='initial_submit'; since=stamp(); initial_mono=continuous_ns(); tui.send(sequence,'initial-submit')
+        initial_deadline=initial_mono+120000000000
+        record['initial_window']={'since':since,'clock_impl':CLOCK_IMPL,'mono_ns':initial_mono,'deadline_mono_ns':initial_deadline,
+                                  'epoch_correlation_end':(dt.datetime.fromisoformat(since)+dt.timedelta(seconds=120)).isoformat()}
         private_json(CASE/'initial-submit.json',{'nonce':c.NONCE,'root':record['root'],'window':record['initial_window'],'inputs':tui.evidence()['inputs']})
         pending_barrier=None; prompt_hook=None
-        while time.monotonic()-initial_mono<120:
+        while continuous_ns()<initial_deadline:
             pump(.1)
-            prompt_hook=matching_prompt_hook(record['root'],service.pid,since,stamp())
+            if continuous_ns()>=initial_deadline: break
+            record['substage']='initial_hook_scan'; prompt_hook=matching_prompt_hook(record['root'],service.pid,since,stamp())
             if prompt_hook is None or not (JOB/'job.json').exists(): continue
-            ready=native_ready(record['root'],prompt_hook['turn_id'],since,stamp())
+            record['substage']='ready_lookup'; ready=native_ready(record['root'],prompt_hook['turn_id'],since,stamp())
             if ready is None: continue
-            before=read_job()
+            record['substage']='pending_before'; before=read_job()
             observed_before=stamp()
+            record['substage']='ready_reread'
             exact=native_ready(record['root'],prompt_hook['turn_id'],since,stamp())
-            observed_after=stamp(); after=read_job()
+            observed_after=stamp(); record['substage']='pending_after'; after=read_job()
+            if continuous_ns()>=initial_deadline: raise TimeoutError('pending barrier exceeded original continuous window')
             if before['output']['status']!='pending' or after['output']['status']!='pending' or exact is None:
                 raise ValueError('no native-final-before-job-completion barrier within fixed sample')
             pending_barrier={'go_before':before,'native_task_complete':exact,'native_observed_before':observed_before,
@@ -320,19 +364,22 @@ def run(helper_sha,audit_sha):
             break
         if pending_barrier is None: raise TimeoutError('initial native READY did not qualify within original window')
         record['pending_barrier']=pending_barrier; note('await_job_result')
-        while time.monotonic()-initial_mono<120:
+        while continuous_ns()<initial_deadline:
             pump(.1)
+            if continuous_ns()>=initial_deadline: break
             if (JOB/'result.json').exists():
-                final_read=read_job()
+                record['substage']='job_read'; final_read=read_job()
+                if continuous_ns()>=initial_deadline: break
                 if final_read['output']['status']=='completed': job_completed=True; record['client_completed_read']=final_read; break
         if not job_completed: raise TimeoutError('job result missing within initial window')
-        before_send=pair(); through=stamp()
+        record['substage']='identity_before_prepare'; before_send=pair(); through=stamp()
+        record['substage']='controller_evidence'
         local=c.local_evidence(record['root'],service.pid,*c.window(since,through,dt.datetime.now(dt.timezone.utc)))
         evidence={'version':1,'nonce':c.NONCE,'root':record['root'],'initial_window':{'since':since,'through':through},
                   'origin':original,'before_send':before_send,'pty':tui.evidence(),'pending_barrier':pending_barrier,
                   'completed_read':record['client_completed_read'],'local':local}
         private_json(CASE/'controller-evidence.json',evidence)
-        service_binding=binding_process(before_send['service'])
+        record['substage']='binding'; service_binding=binding_process(before_send['service'])
         service_binding.update(socket_path=str(c.SOCKET),socket_dev=before_send['socket']['dev'],socket_ino=before_send['socket']['ino'])
         binding={'version':1,'nonce':c.NONCE,'controller_thread_id':record['root'],'controller_epoch':1,
                  'expected_cwd':str(c.REPO),'prior_turn_id':prompt_hook['turn_id'],'native_cli_version':'0.153.4',
@@ -344,7 +391,7 @@ def run(helper_sha,audit_sha):
         pair(); helper('send-once',120)  # Outer deadline is replaced only by the immutable attempt's original mono_ns.
         helper_ok=True; note('helper_finished')
     except (ValueError,OSError,sqlite3.Error,subprocess.SubprocessError,TimeoutError) as exc:
-        record['failure']={'stage':record['stage'],'type':type(exc).__name__,'at':stamp()}
+        record['failure']=failure_fields(exc,record['substage'])
     finally:
         # This fixture never starts a second job or resends a delivery during cleanup.
         record['helper_completed_without_error']=helper_ok
@@ -352,9 +399,9 @@ def run(helper_sha,audit_sha):
         if helper_proc and helper_proc.poll() is None:
             helper_proc.terminate(); helper_proc.wait(timeout=2)
         # A failed initial phase can still have the single <=40s owned job in flight.
-        cleanup_start=time.monotonic()
+        cleanup_start=continuous_ns()
         if not job_completed and (JOB/'job.json').exists():
-            while time.monotonic()-cleanup_start<45:
+            while continuous_ns()-cleanup_start<45000000000:
                 try:
                     if read_job()['output']['status']=='completed': job_completed=True; break
                 except (ValueError,subprocess.SubprocessError): pass
@@ -391,9 +438,10 @@ def run(helper_sha,audit_sha):
         record['protected_unchanged']=record['protected_after']==protected_before
         record['socket_after']=c.snapshot_socket()
         record['ended_at']=stamp()
+        record['ended_clock']=clock_pair()
         record['all_owned_native_exited']=all(p is None or p._poll() is not None for p in (service,tui))
         private_json(CASE/'controller-result.json',record)
-        private_json(DOCS/'native-sd-qual-01-controller.json',record)
+        private_json(DOCS/'native-sd-qual-02-controller.json',record)
         for p in (service,tui):
             if p and p._poll() is not None: p.close()
         print(json.dumps({'nonce':c.NONCE,'stage':'finished','helper_ok':helper_ok,

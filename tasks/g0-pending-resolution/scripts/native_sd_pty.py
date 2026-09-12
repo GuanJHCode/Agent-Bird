@@ -9,6 +9,7 @@ import struct
 import termios
 import time
 from native_sd_collect import ui_status
+from native_sd_clock import continuous_ns, clock_pair
 
 
 def stamp():
@@ -67,9 +68,9 @@ class NativePTY:
 
     def read(self,seconds):
         if not 0 < seconds <= 5: raise ValueError('PTY read must be bounded to five seconds')
-        end = time.monotonic()+seconds
-        while time.monotonic() < end and not self.eof:
-            ready,_,_ = select.select([self.fd],[],[],min(0.1,max(0,end-time.monotonic())))
+        end = continuous_ns()+int(seconds*1000000000)
+        while continuous_ns() < end and not self.eof:
+            ready,_,_ = select.select([self.fd],[],[],min(0.1,max(0,end-continuous_ns())/1000000000))
             if ready:
                 try: chunk = os.read(self.fd,16384)
                 except OSError:
@@ -107,14 +108,14 @@ class NativePTY:
         position = 0
         while position < len(data):
             position += os.write(self.fd,data[position:])
-        self.inputs.append({'at':stamp(),'monotonic':time.monotonic(),'action':action,
+        self.inputs.append({'at':stamp(),'clock':clock_pair(),'action':action,
                             'bytes':len(data),'sha256':hashlib.sha256(data).hexdigest()})
 
     def wait(self,seconds):
         if not 0 < seconds <= 10: raise ValueError('bounded local exit observation required')
-        end = time.monotonic()+seconds
-        while self._poll() is None and time.monotonic()<end:
-            self.read(min(0.2,max(0.001,end-time.monotonic())))
+        end = continuous_ns()+int(seconds*1000000000)
+        while self._poll() is None and continuous_ns()<end:
+            self.read(min(0.2,max(0.001,(end-continuous_ns())/1000000000)))
         return self._poll()
 
     def evidence(self):

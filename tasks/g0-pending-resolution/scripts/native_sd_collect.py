@@ -1,4 +1,4 @@
-"""Fixed sd-qual-01 local evidence. No RPC, raw log, or model history export."""
+"""Fixed sd-qual-02 local evidence. No RPC, raw log, or model history export."""
 import argparse
 import ctypes
 import datetime as dt
@@ -13,6 +13,7 @@ import sys
 import time
 import uuid
 from pathlib import Path
+from native_sd_clock import continuous_ns
 
 BASE = Path('/Users/guanjunhui/code/ai/codex-cli-orchestration-design')
 REPO = Path('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo')
@@ -23,7 +24,7 @@ GO = BASE / 'tasks/g0-retained-resume/data/g0-return-lab-retained-darwin-arm64'
 GO_SHA = 'feb9b9ad969abca5ff35db28c0f0d8d920dc0778d7aac68a90952900e989a285'
 SOCKET = CODEX_HOME / 'app-server-control/app-server-control.sock'
 HOOKS = BASE / 'tasks/g0-macos/data/hook-events'
-NONCE = 'sd-qual-01'
+NONCE = 'sd-qual-02'
 UUID_RE = r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
 STAMP_RE = r'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]{1,9})?(?:Z|\+00:00)'
 
@@ -39,12 +40,16 @@ def epoch_ns(value):
 def window(since, through, now):
     lo, hi = epoch_ns(since), epoch_ns(through)
     if now.tzinfo is None:
-        raise ValueError('invalid original observation window')
+        raise EpochWindowError('invalid original observation window')
     delta = hi-lo
     current = epoch_ns(now.astimezone(dt.timezone.utc).isoformat(timespec='microseconds'))
     if not 0 < delta <= 120000000000 or hi > current:
-        raise ValueError('invalid original observation window')
+        raise EpochWindowError('invalid original observation window')
     return lo, hi
+
+
+class EpochWindowError(ValueError):
+    code = 'epoch_correlation_inconclusive'
 
 
 def valid_id(value):
@@ -204,7 +209,7 @@ def local_evidence(root,service,lo,hi):
 
 
 def main():
-    started = time.monotonic()
+    started = continuous_ns()
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('mode',choices=('preflight','status','snapshot'))
     p.add_argument('--nonce',required=True,choices=(NONCE,))
@@ -212,7 +217,7 @@ def main():
     p.add_argument('--since'); p.add_argument('--through'); p.add_argument('--output',type=Path,required=True)
     args = p.parse_args()
     docs = Path(__file__).resolve().parents[1]/'docs'
-    if args.output.parent.resolve() != docs or not re.fullmatch(r'native-sd-qual-01-[a-z-]+\.json',args.output.name):
+    if args.output.parent.resolve() != docs or not re.fullmatch(r'native-sd-qual-02-[a-z-]+\.json',args.output.name):
         raise ValueError('output must be the fixed native evidence location')
     out = {'version':1,'nonce':NONCE,'captured_at':dt.datetime.now(dt.timezone.utc).isoformat(),
            'scope':'fixed controller-owned TUI sample; not automatic attachment or complete G0'}
@@ -240,8 +245,9 @@ def main():
                        service=process(args.service_pid),tui=process(args.tui_pid),socket=snapshot_socket(args.service_pid))
             require_live_processes(out['service'],out['tui'])
             out.update(local_evidence(args.root,args.service_pid,lo,hi))
-    out['local_elapsed_seconds'] = time.monotonic()-started
-    if out['local_elapsed_seconds'] > 10: raise ValueError('local observation exceeded ten seconds')
+    elapsed=continuous_ns()-started
+    out['local_elapsed_seconds'] = elapsed/1000000000
+    if elapsed > 10000000000: raise TimeoutError('local observation exceeded ten seconds')
     with args.output.open('x') as f: json.dump(out,f,ensure_ascii=False,indent=2); f.write('\n')
     print(json.dumps({'status':'recorded','mode':args.mode,'nonce':NONCE,'file':str(args.output)}))
 
