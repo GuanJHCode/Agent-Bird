@@ -20,7 +20,7 @@ runtime 保存二进制/配置摘要以及自有进程的 birth/executable。关
 的 socket 或无法确认身份的进程保留。窗口基于 `CLOCK_MONOTONIC_RAW`，本地操作 10 秒，必要模型轮次 120 秒，
 但本实现没有启动模型轮次。
 
-当前离线验证覆盖 runtime、transport、observer 共 81 项。尚未执行 native、TUI
+当前离线验证覆盖 runtime、transport、observer 共 88 项。尚未执行 native、TUI
 或模型，也不把离线通过当作原生附着证据。
 
 显式运行入口为：
@@ -44,6 +44,11 @@ runner 的 PTY 读取使用非阻塞 fd、`read_available()` 和短 `await`，�
 status 对照、clear 后新 thread、disconnect/EOF 和正常 quit 在最终清理及 hash 保护
 完成后共同决定结果。trace 是有界的白名单事件摘要，超限或不完整会使结果保持
 `unknown`。
+
+受控 native 实例显式把 observer 的 WebSocket frame/message 上限设为 16 MiB/64 MiB，
+与固定 0.154 实现一致；observer 的通用默认上限保持不变。只读 bootstrap 事件仅在
+严格的 client 请求/server 同 ID 响应配对后继续，`remoteControl/status/changed` 只作为
+无 ID 的 server 通知保留，均不会单独产生 candidate。
 
 若 initial replay 或 candidate 在其窗口内未成立，runner 只记录内存态界面枚举并
 执行 bounded quit/cleanup，跳过无意义的 `/clear` 和 disconnect；不会把诊断状态当作

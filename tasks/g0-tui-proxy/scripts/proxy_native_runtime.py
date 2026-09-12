@@ -40,6 +40,8 @@ FIXED_NATIVE_SHA256 = "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318
 DEFAULT_CLI = Path("/Users/guanjunhui/.local/bin/codex")
 LOCAL_WINDOW_SECONDS = 10.0
 MODEL_WINDOW_SECONDS = 120.0
+NATIVE_OBSERVER_MAX_FRAME_BYTES = 16 * 1024 * 1024
+NATIVE_OBSERVER_MAX_MESSAGE_BYTES = 64 * 1024 * 1024
 
 
 def raw_seconds() -> float:
@@ -66,6 +68,17 @@ def build_ordinary_tui_argv(cli: str | os.PathLike[str], *extra: str) -> tuple[s
     if not value or value.startswith("-"):
         raise ValueError("CLI executable must be a non-empty ordinary entry")
     return (value,)
+
+
+def build_native_observer() -> Any:
+    """Construct the bounded observer limits used by the native experiment."""
+
+    from proxy_observer import Observer
+
+    return Observer(
+        max_frame_bytes=NATIVE_OBSERVER_MAX_FRAME_BYTES,
+        max_message_bytes=NATIVE_OBSERVER_MAX_MESSAGE_BYTES,
+    )
 
 
 def sha256_file(path: str | os.PathLike[str]) -> str:
@@ -551,10 +564,20 @@ class AttachmentInferer:
     _REQUIRED_METHODS = {"initialize", "thread/start", "skills/list"}
     _OPAQUE_BOOTSTRAP_METHODS = {
         "account/read",
+        "getAuthStatus",
         "account/rateLimits/read",
+        "config/read",
+        "configRequirements/read",
         "model/list",
         "modelProvider/capabilities/read",
+        "collaborationMode/list",
+        "hooks/list",
+        "plugin/list",
+        "thread/list",
+        "thread/loaded/list",
+        "thread/turns/list",
     }
+    _OPAQUE_SERVER_NOTIFICATIONS = {"remoteControl/status/changed"}
 
     def __init__(self) -> None:
         self._epoch: int | None = None
@@ -662,9 +685,15 @@ class AttachmentInferer:
         if kind == "rpc_unknown":
             method = event.get("method")
             request_id = event.get("request_id")
-            if method not in self._OPAQUE_BOOTSTRAP_METHODS:
+            if method in self._OPAQUE_SERVER_NOTIFICATIONS:
+                if event.get("direction") != "server" or request_id is not None or event.get("response") is True:
+                    self._invalidate("unknown_event")
+            elif method not in self._OPAQUE_BOOTSTRAP_METHODS:
                 self._invalidate("unknown_event")
             elif event.get("response") is True:
+                if event.get("direction") != "server":
+                    self._invalidate("unknown_event")
+                    return
                 key = ("client", request_id)
                 if key not in self._bootstrap_pending or self._bootstrap_pending.pop(key) != method:
                     self._invalidate("unknown_event")
@@ -1002,9 +1031,7 @@ class NativeRuntime:
 
                 self._relay_factory = ProxyServer
             if self.observer is None:
-                from proxy_observer import Observer
-
-                self.observer = Observer()
+                self.observer = build_native_observer()
             bridge = _CaptureBridge(
                 self.observer,
                 self.inferer,

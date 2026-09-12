@@ -24,6 +24,7 @@ from proxy_native_runtime import (  # noqa: E402
     _CaptureBridge,
     build_ordinary_tui_argv,
     classify_screen,
+    build_native_observer,
     new_epoch_after_disconnect,
     raw_seconds,
 )
@@ -111,6 +112,12 @@ def rpc(bridge, connection_id, epoch, direction, value):
     )
 
 
+def test_native_observer_uses_protocol_frame_limits():
+    observer = build_native_observer()
+    assert observer.max_frame_bytes == 16 * 1024 * 1024
+    assert observer.max_message_bytes == 64 * 1024 * 1024
+
+
 def test_ordinary_entry_has_no_remote_model_config_or_prompt_overrides():
     assert build_ordinary_tui_argv("/Users/guanjunhui/.local/bin/codex") == (
         "/Users/guanjunhui/.local/bin/codex",
@@ -182,6 +189,125 @@ def test_allowlisted_account_model_bootstrap_is_opaque_and_never_counts_as_ready
     for event in upgrade_events(start=6):
         inferer.accept(event)
     assert inferer.candidate is not None
+
+
+def test_readonly_bootstrap_requires_server_response_with_matching_request_id():
+    methods = (
+        "account/read",
+        "getAuthStatus",
+        "account/rateLimits/read",
+        "config/read",
+        "configRequirements/read",
+        "model/list",
+        "collaborationMode/list",
+        "hooks/list",
+        "plugin/list",
+        "thread/list",
+        "thread/loaded/list",
+        "thread/turns/list",
+        "modelProvider/capabilities/read",
+    )
+    inferer = AttachmentInferer()
+    inferer.accept(connected_event())
+    sequence = 2
+    for method in methods:
+        inferer.accept(
+            {
+                "event": "rpc_unknown",
+                "conn_epoch": 1,
+                "direction": "client",
+                "method": method,
+                "request_id": sequence,
+                "local_seq": sequence,
+            }
+        )
+        assert inferer.candidate is None
+        inferer.accept(
+            {
+                "event": "rpc_unknown",
+                "conn_epoch": 1,
+                "direction": "server",
+                "method": method,
+                "request_id": sequence,
+                "response": True,
+                "local_seq": sequence + 1,
+            }
+        )
+        sequence += 2
+    for event in upgrade_events(start=sequence):
+        inferer.accept(event)
+    assert inferer.candidate is not None
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        {"direction": "client", "request_id": 2},
+        {"direction": "server", "request_id": 999},
+    ],
+)
+def test_bootstrap_orphan_or_wrong_direction_response_invalidates(response):
+    inferer = AttachmentInferer()
+    inferer.accept(connected_event())
+    inferer.accept(
+        {
+            "event": "rpc_unknown",
+            "conn_epoch": 1,
+            "direction": "client",
+            "method": "plugin/list",
+            "request_id": 2,
+            "local_seq": 2,
+        }
+    )
+    inferer.accept(
+        {
+            "event": "rpc_unknown",
+            "conn_epoch": 1,
+            "method": "plugin/list",
+            "response": True,
+            "local_seq": 3,
+            **response,
+        }
+    )
+    assert inferer.candidate is None
+    assert inferer.invalid_reason == "unknown_event"
+
+
+def test_remote_control_notifications_are_opaque_server_events():
+    inferer = AttachmentInferer()
+    inferer.accept(connected_event())
+    inferer.accept(
+        {
+            "event": "rpc_unknown",
+            "conn_epoch": 1,
+            "direction": "server",
+            "method": "remoteControl/status/changed",
+            "local_seq": 2,
+        }
+    )
+    assert inferer.invalid_reason is None
+    assert inferer.candidate is None
+
+
+@pytest.mark.parametrize(
+    "direction,request_id",
+    [("client", None), ("server", 7)],
+)
+def test_remote_control_notification_wrong_direction_or_id_invalidates(direction, request_id):
+    inferer = AttachmentInferer()
+    inferer.accept(connected_event())
+    inferer.accept(
+        {
+            "event": "rpc_unknown",
+            "conn_epoch": 1,
+            "direction": direction,
+            "method": "remoteControl/status/changed",
+            "request_id": request_id,
+            "local_seq": 2,
+        }
+    )
+    assert inferer.candidate is None
+    assert inferer.invalid_reason == "unknown_event"
 
 
 def test_real_http_ws_bytes_flow_through_observer_bridge_and_reconnect_epochs():
