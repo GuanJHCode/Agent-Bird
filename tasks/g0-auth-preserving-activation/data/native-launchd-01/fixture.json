@@ -1,0 +1,19 @@
+{
+  "mode": "real",
+  "profile_root": "/private/tmp/g0-auth-zsy7elh7",
+  "supervisor_root": "/private/tmp/g0-auth-da8h6kpq",
+  "public_socket": "/Users/guanjunhui/.codex/app-server-control/app-server-control.sock",
+  "manifest_sha256": "37a9799acffabb45585e3f1bcc901ce5f137729d5bb19425e34c2c8218f5c0e2",
+  "credential_manifest_sha256": "897f84c3a67016746b5d31395d990ae148c1d28873681f764cf8e82c2ece48cc",
+  "native_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+  "program_arguments": [
+    "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3.13",
+    "-I",
+    "-B",
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-proxy-continuation/cold-start/scripts/projectproxy_launchd_entrypoint.py",
+    "--manifest",
+    "/private/tmp/g0-auth-da8h6kpq/activation.json"
+  ],
+  "idle_seconds": 5.0,
+  "source_commit": "5225c54"
+}

@@ -1,0 +1,40 @@
+{
+  "case": "native-launchd-01",
+  "source_commit": "5225c54",
+  "registration_requested": true,
+  "model_calls_requested": 0,
+  "error_type": "ProbeError",
+  "error": "directory_mode:/Users/guanjunhui/.codex",
+  "transaction": {
+    "schema_version": 1,
+    "txn_id": "activation-4f83a810572480b6",
+    "label": "org.codex.orchestration.proxy",
+    "domain": "gui/501",
+    "state": "NEW",
+    "plist_path": "/Users/guanjunhui/Library/LaunchAgents/org.codex.orchestration.proxy.plist",
+    "socket_path": "/Users/guanjunhui/.codex/app-server-control/app-server-control.sock",
+    "program_arguments": [
+      "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3.13",
+      "-I",
+      "-B",
+      "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-proxy-continuation/cold-start/scripts/projectproxy_launchd_entrypoint.py",
+      "--manifest",
+      "/private/tmp/g0-auth-da8h6kpq/activation.json"
+    ],
+    "startup_sha256": "4816b3d092496117d20fb24431908a32ac3de684404305908dee06a0ba6d9836",
+    "launchctl": {
+      "calls": []
+    }
+  },
+  "auth_comparison": {
+    "unchanged": true,
+    "changed_path_ids": []
+  },
+  "job_absent": true,
+  "job_query_exit": 113,
+  "plist_absent": true,
+  "public_socket_absent": true,
+  "synthetic_auth_absent": true,
+  "backend_kernel_checks": [],
+  "status": "failed"
+}
