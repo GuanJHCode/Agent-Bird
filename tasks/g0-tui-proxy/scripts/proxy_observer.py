@@ -8,6 +8,9 @@ stream invalidates attachment evidence for that connection epoch.
 
 from __future__ import annotations
 
+import base64
+import hashlib
+import hmac
 import json
 from collections import deque
 from dataclasses import dataclass, field
@@ -16,6 +19,11 @@ from typing import Any, Callable, Deque, Dict, Iterable, List, Optional, Tuple
 _DIRECTIONS = ("client", "server")
 _MAX_SAFE_ID = 256
 _MAX_SAFE_STRING = 4096
+_MAX_PENDING_REQUESTS = 256
+_MAX_CWDS = 64
+_MIN_JSONRPC_INTEGER = -(1 << 63)
+_MAX_JSONRPC_INTEGER = (1 << 63) - 1
+_WS_GUID = b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 _KNOWN_METHODS = {
     "initialize", "initialized", "thread/start", "thread/resume", "thread/fork",
     "thread/read", "thread/inject_items", "thread/subscribe", "thread/unsubscribe", "thread/started",
@@ -29,6 +37,10 @@ _THREAD_KEYS = ("id", "sessionId", "parentThreadId", "forkedFromId", "ephemeral"
 
 
 class _DuplicateKey(ValueError):
+    pass
+
+
+class _ParamLimit(ValueError):
     pass
 
 
@@ -60,6 +72,7 @@ class _Connection:
     valid: bool = True
     closed: bool = False
     overflowed: bool = False
+    client_key: Optional[bytes] = None
     directions: Dict[str, _Direction] = field(
         default_factory=lambda: {direction: _Direction() for direction in _DIRECTIONS}
     )
@@ -278,20 +291,40 @@ class Observer:
             self._gap(connection, "unsupported_extension", direction)
             return False
         first = lines[0]
-        upgrade = ",".join(fields.get("upgrade", [])).lower()
-        connection_header = ",".join(fields.get("connection", [])).lower()
+        upgrade_tokens = self._header_tokens(fields.get("upgrade", []))
+        connection_tokens = self._header_tokens(fields.get("connection", []))
         if direction == "client":
             required = ("host", "sec-websocket-key", "sec-websocket-version")
-            if not first.startswith("GET ") or " HTTP/1.1" not in first or any(not fields.get(name) for name in required) or "websocket" not in upgrade or "upgrade" not in connection_header:
+            versions = fields.get("sec-websocket-version", [])
+            keys = fields.get("sec-websocket-key", [])
+            request_parts = first.split(" ")
+            if len(request_parts) != 3 or request_parts[0] != "GET" or request_parts[2] != "HTTP/1.1" or any(not fields.get(name) for name in required) or versions != ["13"] or len(keys) != 1 or "websocket" not in upgrade_tokens or "upgrade" not in connection_tokens:
                 self._gap(connection, "invalid_upgrade_request", direction)
                 return False
+            try:
+                key = base64.b64decode(keys[0], validate=True)
+            except (ValueError, TypeError):
+                self._gap(connection, "invalid_upgrade_request", direction)
+                return False
+            if len(key) != 16 or base64.b64encode(key).decode("ascii") != keys[0]:
+                self._gap(connection, "invalid_upgrade_request", direction)
+                return False
+            # RFC 6455 hashes the ASCII Sec-WebSocket-Key header value plus
+            # the GUID; the decoded 16-byte nonce is only a validity check.
+            connection.client_key = keys[0].encode("ascii")
         else:
-            if not first.startswith("HTTP/1.1 101 ") or "websocket" not in upgrade or "upgrade" not in connection_header or not fields.get("sec-websocket-accept"):
+            accepts = fields.get("sec-websocket-accept", [])
+            expected = base64.b64encode(hashlib.sha1((connection.client_key or b"") + _WS_GUID).digest()).decode("ascii")
+            if not first.startswith("HTTP/1.1 101 ") or "websocket" not in upgrade_tokens or "upgrade" not in connection_tokens or len(accepts) != 1 or connection.client_key is None or not hmac.compare_digest(accepts[0], expected):
                 self._gap(connection, "invalid_upgrade_response", direction)
                 return False
         parser.handshake_done = True
         self._emit("websocket_upgrade", connection, direction)
         return True
+
+    @staticmethod
+    def _header_tokens(values: Iterable[str]) -> set:
+        return {token.strip().lower() for value in values for token in value.split(",") if token.strip()}
 
     def _parse_frames(self, connection: _Connection, direction: str) -> None:
         parser = connection.directions[direction]
@@ -402,7 +435,7 @@ class Observer:
         if len(payload) == 1:
             return False
         code = int.from_bytes(payload[:2], "big")
-        valid_codes = {1000, 1001, 1002, 1003, 1007, 1008, 1009, 1010, 1011}
+        valid_codes = {1000, 1001, 1002, 1003, 1007, 1008, 1009, 1010, 1011, 1012, 1013, 1014}
         if code not in valid_codes and not 3000 <= code <= 4999:
             return False
         try:
@@ -413,7 +446,11 @@ class Observer:
 
     @staticmethod
     def _valid_id(value: Any) -> bool:
-        return (isinstance(value, str) and 0 < len(value) <= _MAX_SAFE_ID) or (isinstance(value, int) and not isinstance(value, bool))
+        return (isinstance(value, str) and 0 < len(value) <= _MAX_SAFE_ID) or (
+            isinstance(value, int)
+            and not isinstance(value, bool)
+            and _MIN_JSONRPC_INTEGER <= value <= _MAX_JSONRPC_INTEGER
+        )
 
     @staticmethod
     def _safe_string(value: Any) -> Optional[str]:
@@ -443,9 +480,20 @@ class Observer:
             return
         request_id = value.get("id")
         if "id" in value and not self._valid_id(request_id):
-            self._gap(connection, "invalid_request_id", direction)
+            reason = "request_id_too_large" if isinstance(request_id, int) and not isinstance(request_id, bool) else "invalid_request_id"
+            self._gap(connection, reason, direction)
             return
+        safe_params: Optional[Dict[str, Any]] = None
+        if method in _KNOWN_METHODS:
+            try:
+                safe_params = self._safe_request_params(method, value.get("params"))
+            except _ParamLimit:
+                self._gap(connection, "cwds_too_many", direction)
+                return
         if "id" in value:
+            if len(connection.pending) >= _MAX_PENDING_REQUESTS:
+                self._gap(connection, "pending_requests_too_many", direction)
+                return
             if (direction, request_id) in connection.pending:
                 self._gap(connection, "duplicate_request_id", direction)
                 return
@@ -456,7 +504,7 @@ class Observer:
             fields: Dict[str, Any] = {
                 "request_id": request_id if "id" in value else None,
                 "method": method,
-                "params": self._safe_request_params(method, value.get("params")),
+                "params": safe_params if safe_params is not None else {},
             }
             if method == "thread/started":
                 thread = self._thread_metadata(value.get("params"))
@@ -480,6 +528,8 @@ class Observer:
                         safe[key] = string
         elif method == "skills/list":
             cwds = params.get("cwds")
+            if isinstance(cwds, list) and len(cwds) > _MAX_CWDS:
+                raise _ParamLimit
             if isinstance(cwds, list) and all(self._safe_string(value) is not None for value in cwds):
                 safe["cwds"] = list(cwds)
             if isinstance(params.get("forceReload"), bool):
@@ -489,7 +539,8 @@ class Observer:
     def _process_response(self, connection: _Connection, direction: str, value: Dict[str, Any]) -> None:
         request_id = value.get("id")
         if not self._valid_id(request_id):
-            self._gap(connection, "invalid_response_id", direction)
+            reason = "response_id_too_large" if isinstance(request_id, int) and not isinstance(request_id, bool) else "invalid_response_id"
+            self._gap(connection, reason, direction)
             return
         expected_request_direction = "client" if direction == "server" else "server"
         method = connection.pending.pop((expected_request_direction, request_id), None)

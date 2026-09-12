@@ -1,4 +1,6 @@
 import json
+import base64
+import hashlib
 import struct
 
 import pytest
@@ -270,3 +272,67 @@ def test_connection_epoch_cannot_be_reused_across_connections_or_after_close():
         observer.open("c2", conn_epoch=19)
     with pytest.raises(ValueError):
         observer.open("c1", conn_epoch=19)
+
+
+def test_upgrade_requires_websocket_version_key_and_matching_accept():
+    observer = Observer()
+    observer.open("bad-version")
+    observer.feed("bad-version", "client", upgrade_request().replace(b"Sec-WebSocket-Version: 13", b"Sec-WebSocket-Version: 12"))
+    assert any(row.get("reason") == "invalid_upgrade_request" for row in events(observer))
+
+    observer = Observer()
+    observer.open("bad-key")
+    observer.feed("bad-key", "client", upgrade_request().replace(b"dGhlIHNhbXBsZSBub25jZQ==", b"not-base64"))
+    assert any(row.get("reason") == "invalid_upgrade_request" for row in events(observer))
+
+    observer = Observer()
+    observer.open("bad-accept")
+    observer.feed("bad-accept", "client", upgrade_request())
+    observer.feed("bad-accept", "server", upgrade_response().replace(b"s3pPLMBiTxaQ9kYGzzhZRbK+xOo=", b"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="))
+    rows = events(observer)
+    assert any(row.get("reason") == "invalid_upgrade_response" for row in rows)
+    assert not any(row.get("event") == "websocket_upgrade" and row.get("direction") == "server" for row in rows)
+
+    key = b"dGhlIHNhbXBsZSBub25jZQ=="
+    accept = base64.b64encode(hashlib.sha1(key + b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11").digest())
+    observer = Observer()
+    observer.open("good")
+    observer.feed("good", "client", upgrade_request())
+    observer.feed("good", "server", upgrade_response().replace(b"s3pPLMBiTxaQ9kYGzzhZRbK+xOo=", accept))
+    assert not any(row.get("event") == "gap" for row in events(observer))
+
+
+def test_upgrade_tokens_are_exact_and_close_1012_to_1014_are_valid():
+    observer = Observer()
+    observer.open("bad-token")
+    observer.feed("bad-token", "client", upgrade_request().replace(b"Upgrade: websocket", b"Upgrade: websocket-other"))
+    assert any(row.get("reason") == "invalid_upgrade_request" for row in events(observer))
+
+    for code in (1012, 1013, 1014):
+        observer = connected_observer()
+        observer.feed("c1", "client", frame(code.to_bytes(2, "big"), opcode=8, masked=True))
+        rows = events(observer)
+        assert not any(row.get("event") == "gap" for row in rows)
+        assert any(row.get("event") == "ws_control" and row.get("opcode") == "close" for row in rows)
+
+
+def test_pending_request_cwd_items_and_integer_ids_have_explicit_limits():
+    observer = Observer(max_events=1024)
+    observer.open("pending")
+    observer.feed("pending", "client", upgrade_request())
+    observer.feed("pending", "server", upgrade_response())
+    requests = b"".join(
+        rpc_frame({"jsonrpc": "2.0", "id": index, "method": "thread/read", "params": {"threadId": "t"}}, direction="client")
+        for index in range(256 + 1)
+    )
+    observer.feed("pending", "client", requests)
+    assert any(row.get("reason") == "pending_requests_too_many" for row in events(observer))
+
+    observer = connected_observer()
+    observer.feed("c1", "client", rpc_frame({"jsonrpc": "2.0", "id": 2**63, "method": "thread/read", "params": {}}, direction="client"))
+    assert any(row.get("reason") == "request_id_too_large" for row in events(observer))
+
+    observer = connected_observer()
+    cwds = [f"/repo/{index}" for index in range(65)]
+    observer.feed("c1", "client", rpc_frame({"jsonrpc": "2.0", "id": 1, "method": "skills/list", "params": {"cwds": cwds}}, direction="client"))
+    assert any(row.get("reason") == "cwds_too_many" for row in events(observer))
