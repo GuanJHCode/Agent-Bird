@@ -97,6 +97,10 @@ def relay_bytes(bridge, connection_id, epoch, direction, data):
 
 
 def rpc(bridge, connection_id, epoch, direction, value):
+    # Native 0.154 JSONRPCMessage omits a jsonrpc envelope field on the wire.
+    # Keep older fixture call sites readable while emitting the real shape.
+    value = dict(value)
+    value.pop("jsonrpc", None)
     relay_bytes(
         bridge,
         connection_id,
