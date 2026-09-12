@@ -4,7 +4,7 @@
 
 [runtime03-interface](standalone-helper-cross-runtime03-interface.json) 与历史02测试分开：不 patch ACTIVE_NONCE，实际 controller 常量和 helper 唯一入口均为 sd-qual-03；CASE 为主任务 data/sd-qual-03，JOB 为 test-repo/tasks/pending-resolution/data/sd-qual-03。fixed_prompt 的 READY/ACK 均与 helper 派生的 SD_QUAL_03_READY/SD_QUAL_03_ACK 一致，native/Go SHA 与 RAW clock identity 也一致。
 
-字段核验实际执行 e6 run 内 L520、521、522 的三条 binding 产出语句（后者跨至 L526），不是另写一份预期 schema。服务和 TUI 经过真实 collect.process → binding_process；ps/libproc/root/boot/证据 hash 是明确的离线输入替身，未启动或探测这些 synthetic PID。产出的15个顶层键、9个 service 键、6个 tui 键直接通过 c2.validate_binding；comm 保留 codex，executable_path 独立存在。无 nonce patch 时旧01/02仍拒绝。这只证明生产字段产出与消费兼容，不证明其来源已经通过现场资格。
+字段核验实际执行 e6 run 内 L520、521、522 的三条 binding 产出语句（后者跨至 L526），不是另写一份预期 schema。服务和 TUI 经过真实 collect.process → binding_process；ps/libproc/root/boot/证据 hash 是明确的离线输入替身，未启动或探测这些 synthetic PID。产出的14个顶层键、9个 service 键、6个 tui 键直接通过 c2.validate_binding；comm 保留 codex，executable_path 独立存在。无 nonce patch 时旧01/02仍拒绝。这只证明生产字段产出与消费兼容，不证明其来源已经通过现场资格。
 
 [Go 链日志](standalone-helper-cross-go-chain.log) 是同一固定组合的独立历史02回归：1 项，0.145s。它使用 c2 已提交的 native_standalone_binding_test.py，测试内部明确 patch ACTIVE_NONCE=02，并补 synthetic family/session、idle 与内核/RPC替身；原七份输入字节不改，固定 Go 只 read/inspect 私有副本。不能用这条历史测试替代上面的03入口检查。
 
