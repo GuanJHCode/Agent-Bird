@@ -117,6 +117,8 @@ sd08 已完成一次受控资格并经独立事实复核：原 initial final 后
 
 ## 接口解释与判据
 
+2026-09-12 后继授权：用户明确“允许”一次受控 TUI 通信代理实验。仅在该实验范围内解除此前“不代理 TUI 通信”的限制，允许观察并原样转发本任务测试实例的真实双向通信；普通入口、Codex 本体、Luna 测试、无全局常驻安装及其余边界保持。该授权解除旧阻塞的“缺少允许的完整通信采集路径”前提，但不预判附着状态机或完整 G0 已通过。具体范围见 [受控代理合同](../../g0-tui-proxy/plans/contract.md)。
+
 官方 `turn/start.toolOutput` 接受客户端实际执行的独立工具输出，`input=[]`，以 `functionCallOutput` 持久化；不要求存在旧的 pending tool call。旧研究对“必须补回旧 pending call”的概括不作为本轮排除此接口的依据。[官方 App Server 说明](https://learn.chatgpt.com/docs/app-server#start-a-turn)
 
 该接口仍须实际触达普通 TUI 所使用的原服务；新建执行者服务或相同历史不是原服务接入证据。`loaded`、父进程存活、SessionStart 或订阅计数也不能单独代表当前显示 thread。
