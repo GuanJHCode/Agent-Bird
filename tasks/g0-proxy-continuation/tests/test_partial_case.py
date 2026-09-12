@@ -169,12 +169,13 @@ def test_stopped_tail_is_valid_only_when_old_prefix_bytes_and_identity_stay_fixe
     value.plan.job_dir.mkdir(mode=0o700)
     (value.plan.job_dir / "step-001.json").write_text(json.dumps({"step": 1, "nonce": value.plan.nonce, "controller_thread": THREAD, "revision": 1, "segment": 1}))
     initial = partial_case._prefix_snapshot(value, {"completed_steps": 1, "revision": 1, "segment": 1})
-    (value.plan.job_dir / "step-002.json").write_text(json.dumps({"step": 2, "nonce": value.plan.nonce, "controller_thread": THREAD, "revision": 1, "segment": 1}))
-    stopped = partial_case._prefix_snapshot(value, {"completed_steps": 2, "revision": 1, "segment": 1})
+    (value.plan.job_dir / "step-002.json").write_text(json.dumps({"step": 2, "nonce": value.plan.nonce, "controller_thread": THREAD, "revision": 1, "segment": 2}))
+    stopped = partial_case._prefix_snapshot(value, {"completed_steps": 2, "revision": 1, "segment": 2})
     assert stopped[:1] == initial
+    assert [row["segment"] for row in stopped] == [1, 2]
     (value.plan.job_dir / "step-001.json").write_text("rewritten")
     with pytest.raises(Exception, match="prefix"):
-        partial_case._prefix_snapshot(value, {"completed_steps": 2, "revision": 1, "segment": 1})
+        partial_case._prefix_snapshot(value, {"completed_steps": 2, "revision": 1, "segment": 2})
 
 
 def test_owned_runtime_snapshot_uses_real_process_and_endpoint_identities(tmp_path):

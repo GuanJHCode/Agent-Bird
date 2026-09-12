@@ -422,6 +422,8 @@ def _prefix_snapshot(spec: PartialCaseSpec, view: Mapping[str, Any]) -> tuple[di
         raise RuntimeInvariantError("retained prefix count is missing")
     expected_revision = view.get("revision")
     expected_segment = view.get("segment")
+    if type(expected_revision) is not int or type(expected_segment) is not int or expected_revision < 1 or expected_segment < 1:
+        raise RuntimeInvariantError("retained prefix revision/segment is missing")
     paths = sorted(spec.plan.job_dir.glob("step-*.json"))
     indexes = []
     for path in paths:
@@ -432,30 +434,41 @@ def _prefix_snapshot(spec: PartialCaseSpec, view: Mapping[str, Any]) -> tuple[di
     if indexes != list(range(1, completed + 1)):
         raise RuntimeInvariantError("retained prefix is missing or contains extra steps")
     rows = []
+    segments = []
     for step in range(1, completed + 1):
         path = spec.plan.job_dir / (f"step-{step:03d}.json")
         metadata = os.lstat(path)
         if not os.path.isfile(path) or os.path.islink(path):
             raise RuntimeInvariantError("retained prefix contains a non-regular file")
         try:
-            record = json.loads(path.read_text())
+            raw = path.read_bytes()
+            record = json.loads(raw)
         except (OSError, json.JSONDecodeError) as exc:
             raise RuntimeInvariantError("retained prefix record is unreadable") from exc
+        after = os.lstat(path)
+        if (metadata.st_dev, metadata.st_ino, metadata.st_size) != (after.st_dev, after.st_ino, after.st_size):
+            raise RuntimeInvariantError("retained prefix record changed during read")
+        record_segment = record.get("segment") if isinstance(record, Mapping) else None
         if (
             not isinstance(record, Mapping)
             or record.get("step") != step
             or record.get("nonce") != spec.plan.nonce
             or record.get("controller_thread") != spec.plan.thread_id
             or record.get("revision") != expected_revision
-            or record.get("segment") != expected_segment
+            or type(record_segment) is not int
+            or not 1 <= record_segment <= expected_segment
         ):
             raise RuntimeInvariantError("retained prefix record identity mismatch")
+        segments.append(record_segment)
+        if len(segments) > 1 and segments[-1] < segments[-2]:
+            raise RuntimeInvariantError("retained prefix segments are out of order")
         rows.append({
             "path": str(path),
             "st_dev": metadata.st_dev,
             "st_ino": metadata.st_ino,
             "bytes": metadata.st_size,
-            "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+            "sha256": hashlib.sha256(raw).hexdigest(),
+            "segment": record_segment,
         })
     return tuple(rows)
 
