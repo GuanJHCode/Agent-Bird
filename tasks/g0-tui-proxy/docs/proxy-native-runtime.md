@@ -1,11 +1,11 @@
 # 受控代理 runtime/controller
 
-`scripts/proxy_native_runtime.py` 只提供受控实验的准备代码。导入模块不会启动
+`scripts/proxy_native_runtime.py` 用于执行受控实验。导入模块不会启动
 Codex、app-server 或模型；原生边界是显式调用 `NativeRuntime.start()`。
 
 runtime 固定普通 TUI 入口为单一 `codex` argv，拒绝 `--remote`、模型参数、配置
 覆盖和 prompt。backend argv 固定为同一冻结二进制的
-`app-server --listen <private-UDS>`。默认前端 socket 或私有 backend socket 已存在
+`app-server --listen unix://<absolute-private-UDS>`。默认前端 socket 或私有 backend socket 已存在
 时，在创建任何子进程前拒绝启动。
 
 `AttachmentInferer` 只接收 observer 的白名单事件。候选要求同一连接 epoch 的双向
@@ -20,17 +20,20 @@ runtime 保存二进制/配置摘要以及自有进程的 birth/executable。关
 的 socket 或无法确认身份的进程保留。窗口基于 `CLOCK_MONOTONIC_RAW`，本地操作 10 秒，必要模型轮次 120 秒，
 但本实现没有启动模型轮次。
 
-当前离线验证覆盖 runtime、transport、observer 共 134 项。尚未执行 native、TUI
-或模型，也不把离线通过当作原生附着证据。
+当前离线验证覆盖 runtime、transport、observer 共 134 项。原生 case `proxy-attach-06`
+revision-02 已通过初始身份、clear 后身份、正常退出与 EOF 验收，完整 trace 的 model_turns 为 0。
+详细范围见 `controlled-validation.md`；这不代表通用 G0 或强制断连恢复通过。
 
 显式运行入口为：
 
 ```text
 python3 tasks/g0-tui-proxy/scripts/proxy_native_runtime.py --run \
-  --case-dir <new-proxy-attach-01-dir> \
+  --case-dir <absolute-new-case-dir> \
   --frontend-socket <empty-default-socket> \
-  --backend-socket <private-backend-socket> \
-  --cwd <test-repo>
+  --backend-socket <absolute-private-backend-socket> \
+  --cwd <absolute-test-repo> \
+  --config <absolute-test-config> \
+  --termination-mode normal_quit
 ```
 
 不带 `--run` 只打印准备提示。`--run` 使用专用 PTY 驱动 TUI，按每阶段 10 秒

@@ -1,7 +1,7 @@
 {
   "scope": "authorized controlled TUI proxy experiment",
   "baseline": "bb5c7ff",
-  "native_runs": 5,
+  "native_runs": 6,
   "model_runs": null,
   "components": {
     "observer": {
@@ -22,26 +22,30 @@
     "runtime": {
       "initial": "4c2787e",
       "input_chain": "74dcb82",
-      "state": "initial attachment native proof obtained; clear order/status window/epoch-specific invalidation remain",
-      "latest_reviewed": "92c5ac6",
-      "main": "06d29cf"
+      "state": "controlled initial/clear/normal_quit native validation passed",
+      "latest_reviewed": "e9398ce",
+      "main": "39791f3"
     }
   },
-  "native_admission": false,
+  "native_admission": true,
   "original_scope_preserved": true,
   "formal_global_installation_authorized": false,
   "main_component_tests": {
-    "passed": 121,
-    "seconds": 1.36,
+    "passed": 134,
+    "seconds": 1.4,
     "native_or_model_calls": 0
   },
-  "model_observation": "05 complete trace proves zero client turn/start; no deliberate prompt/model invocation in any case; earlier incomplete traces retain null counts.",
+  "model_observation": "Complete traces for05/06 prove zero client turn/start; no deliberate prompt/model invocation in any case; earlier incomplete traces retain null counts.",
   "native_cases": {
     "proxy-attach-01": "unknown: backend --listen received bare path; fixed afterward",
     "proxy-attach-02": "unknown: invalid_json_rpc gap, no candidates/status ID, post-disconnect epoch and failed normal quit; owned cleanup reported complete",
     "proxy-attach-03": "unknown: real initialize/thread-start/replay captured; unclassified bootstrap traffic, frame_too_large, no status ID or normal quit; owned cleanup independently verified",
     "proxy-attach-04": "unknown: relative backend URI resolved under child cwd; no TUI. Absolute-path guard added afterward.",
-    "proxy-attach-05": "initial observer candidate equals independent status Session ID; trace complete; model_turns=0. Overall unknown: clear order/status capture/per-epoch invalidation and normal quit after reconnect not passed."
+    "proxy-attach-05": "initial observer candidate equals independent status Session ID; trace complete; model_turns=0. Overall unknown: clear order/status capture/per-epoch invalidation and normal quit after reconnect not passed.",
+    "proxy-attach-06": "PASS revision-02: initial and clear status identities match, different threads, exact old-thread unsubscribe/replay, normal /quit exit0 then EOF, trace complete/model0, no reconnect, protected hashes unchanged, owned cleanup verified."
   },
-  "next": "Fix status capture and epoch evidence; verify pinned /clear commit sequence; no new native window until reviewed."
+  "next": "Full G0 remains: forced-disconnect reacquisition, reopen/login resume of durable task, cached side/primary transitions and ordinary cold-start lifecycle. Formal global installation is not authorized by this controlled experiment.",
+  "controlled_experiment_complete": true,
+  "native_admission_scope": "Completed controlled normal_quit case only; no blanket permission for further runs or global installation.",
+  "independent_native_review": "PASS /root/proxy_review, 169 trace events, local_seq 1..167 contiguous plus two direction EOF events."
 }

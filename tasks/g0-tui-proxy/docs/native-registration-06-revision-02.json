@@ -1,0 +1,81 @@
+{
+  "version": 2,
+  "case": "proxy-attach-06",
+  "status": "registered_preflight_only",
+  "registered_at_utc": "2026-09-12T12:28:16.151381+00:00",
+  "supersedes": {
+    "path": "tasks/g0-tui-proxy/docs/native-registration-06.json",
+    "reason": "old pre-registration was never run and did not freeze the final CLI/termination mode or complete dirty-source description"
+  },
+  "main_head": "39791f3089c3a08205e84675dd68ddffb5e163b1",
+  "argv": [
+    "python3",
+    "-B",
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-tui-proxy/scripts/proxy_native_runtime.py",
+    "--run",
+    "--case-dir",
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-tui-proxy/data/proxy-attach-06",
+    "--frontend-socket",
+    "/Users/guanjunhui/.codex/app-server-control/app-server-control.sock",
+    "--backend-socket",
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-tui-proxy/tmp/b/a.sock",
+    "--cwd",
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo",
+    "--config",
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/.codex/config.toml",
+    "--termination-mode",
+    "normal_quit"
+  ],
+  "source_sha256": {
+    "tasks/g0-tui-proxy/scripts/proxy_native_runtime.py": "210c73d1ab51398ca0d5026b8206ce6638e0f34f664d20d0f2c8b9719604344d",
+    "tasks/g0-tui-proxy/scripts/proxy_transport.py": "41c6bd527ae2f108da538811e3b629a861bf2e2ec72a67efd94e23a793cdb704",
+    "tasks/g0-tui-proxy/scripts/proxy_observer.py": "6e1e16f37707bd8c88fd8717058afe1a4920bd406aec3b907cf7fc50e9066587"
+  },
+  "source_worktree_state": {
+    "dirty_paths": [
+      " M tasks/g0-tui-proxy/scripts/proxy_native_runtime.py"
+    ],
+    "dirty_change_exact": "one added __all__ export line: classify_screen",
+    "dirty_diff_sha256": "b1143080f9faf457420e3fffea83858f1309602c35b0da2c7000aeb9fe5f3d5e",
+    "dirty_diff_bytes": 447,
+    "dirty_diff_expected_lines": 1
+  },
+  "cli": {
+    "path": "/Users/guanjunhui/.local/bin/codex",
+    "sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+    "fixed_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc"
+  },
+  "protected_files_pre_sha256": {
+    "/Users/guanjunhui/.codex/config.toml": "53b1aa3016356f244170c6b5bc84773767672c852b59f9594f9ae694ebb8eca3",
+    "tasks/g0-macos/data/test-repo/.codex/config.toml": "298a250c45c9585c695e427c830c20100ecadc8a612445703b2a8b5878a3aa2b",
+    "tasks/g0-macos/data/test-repo/.codex/hooks.json": "666243bf0789d012c7035ff7ef7203735df95fd79eafe763fa5013277f58b917",
+    "tasks/g0-macos/data/g0-hook-darwin-arm64": "62e41afd87e1408854490bf6a716cfe846fff0021179a39d163d6e02254ba779"
+  },
+  "endpoints_preflight": {
+    "/Users/guanjunhui/.codex/app-server-control/app-server-control.sock": "absent",
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-tui-proxy/tmp/b/a.sock": "absent",
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-tui-proxy/data/proxy-attach-06": "absent"
+  },
+  "backend_parent_preflight": {
+    "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-tui-proxy/tmp/b",
+    "status": "present",
+    "mode": "0o700"
+  },
+  "hook_events_before": {
+    "directory": "tasks/g0-macos/data/hook-events",
+    "file_count": 132,
+    "names_sha256": "8d8cefb9947d3cdf48a47e00cd277a11cf68ed28b1c4ca269f56a86b6f708ff9",
+    "content_manifest_sha256": "ea9a9bddb9f33f18f94bd1aa92714ddce63f9c3851b6155a6d9da23d7b56b66c",
+    "manifest_definition": "sorted filename + SHA256 + byte size, one record per line"
+  },
+  "run_parameters": {
+    "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo",
+    "config": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/.codex/config.toml",
+    "termination_mode": "normal_quit",
+    "prompt": false,
+    "model_turn_requested": false,
+    "local_window_seconds": 10.0,
+    "model_window_seconds": 120.0
+  },
+  "scope": "Pre-run registration only. No case directory, native process, TUI, prompt, model turn, or retry has been started."
+}

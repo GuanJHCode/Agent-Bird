@@ -1,0 +1,245 @@
+{
+  "case": "proxy-attach-06",
+  "revision": "02",
+  "status": "observed",
+  "recorded_at_utc": "2026-09-12T12:29:31.678266+00:00",
+  "pre_registration": "tasks/g0-tui-proxy/docs/native-registration-06-revision-02.json",
+  "superseded_registration": "tasks/g0-tui-proxy/docs/native-registration-06.json",
+  "run_artifact": "tasks/g0-tui-proxy/data/proxy-attach-06/result.json",
+  "trace_artifact": "tasks/g0-tui-proxy/data/proxy-attach-06/trace.json",
+  "main_head": "39791f3089c3a08205e84675dd68ddffb5e163b1",
+  "observed": {
+    "connections": [
+      {
+        "backend_fd": 10,
+        "backend_peer": {
+          "birth": "Sat Sep 12 20:28:24 2026",
+          "complete": true,
+          "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+          "pid": 17128,
+          "source": "darwin-local",
+          "uid": 501
+        },
+        "connection_id": "conn-1-f4affe9a5cff",
+        "epoch": 1,
+        "frontend_fd": 9,
+        "frontend_peer": {
+          "birth": "Sat Sep 12 20:28:24 2026",
+          "complete": true,
+          "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+          "pid": 17153,
+          "source": "darwin-local",
+          "uid": 501
+        }
+      }
+    ],
+    "initial_candidate": {
+      "connection_epoch": 1,
+      "session_id": "01a09597-2300-71d3-8944-fa2e1522d8ba",
+      "source": "observer",
+      "thread_id": "01a09597-2300-71d3-8944-fa2e1522d8ba"
+    },
+    "initial_status": {
+      "name": "status-initial",
+      "screen_match": true,
+      "session_ids": [
+        "01a09597-2300-71d3-8944-fa2e1522d8ba"
+      ]
+    },
+    "clear_replay": {
+      "candidate": {
+        "connection_epoch": 1,
+        "session_id": "01a09597-5919-7ce2-b8df-de139302c06c",
+        "source": "observer",
+        "thread_id": "01a09597-5919-7ce2-b8df-de139302c06c"
+      },
+      "name": "clear-replay",
+      "replay_ready": true,
+      "tui": {
+        "bytes": 13212,
+        "cursor_position_replies": 1,
+        "exit_code": null,
+        "inputs": [
+          {
+            "action": "/status-paste",
+            "at_monotonic_raw": 4138676.840743416,
+            "bytes": 19,
+            "sha256": "81918d19f2ada4f83cfd67169cef6e4159726ae6fc4d9d3ed334c537a3431204"
+          },
+          {
+            "action": "/status-submit",
+            "at_monotonic_raw": 4138676.840822708,
+            "bytes": 1,
+            "sha256": "9d1e0e2d9459d06523ad13e28a4093c2316baafe7aec5b25f30eba2e113599c4"
+          },
+          {
+            "action": "/clear-paste",
+            "at_monotonic_raw": 4138686.853044125,
+            "bytes": 18,
+            "sha256": "f6d7f232bea6b3fb1a91ae414a71d56675e7eda1a73119b1dc0ae2abb87f56f0"
+          },
+          {
+            "action": "/clear-submit",
+            "at_monotonic_raw": 4138686.853084333,
+            "bytes": 1,
+            "sha256": "9d1e0e2d9459d06523ad13e28a4093c2316baafe7aec5b25f30eba2e113599c4"
+          }
+        ],
+        "pid": 17153,
+        "sha256": "c7a8544fae3c391b82e9d0941aef28c9d138b6cb85e5032b179781abeb1e9f93",
+        "status_session_id": "01a09597-2300-71d3-8944-fa2e1522d8ba",
+        "ui_state": "session"
+      }
+    },
+    "status_after_clear": {
+      "name": "status-after-clear",
+      "screen_match": true,
+      "session_ids": [
+        "01a09597-5919-7ce2-b8df-de139302c06c"
+      ]
+    },
+    "termination_gate": {
+      "name": "normal-quit-gate",
+      "passed": true
+    },
+    "quit": {
+      "exit_code": 0,
+      "name": "quit",
+      "quit_sent": true,
+      "quit_success": true,
+      "termination_epoch_invalid": true,
+      "tui": {
+        "bytes": 18337,
+        "cursor_position_replies": 1,
+        "exit_code": 0,
+        "inputs": [
+          {
+            "action": "/status-paste",
+            "at_monotonic_raw": 4138676.840743416,
+            "bytes": 19,
+            "sha256": "81918d19f2ada4f83cfd67169cef6e4159726ae6fc4d9d3ed334c537a3431204"
+          },
+          {
+            "action": "/status-submit",
+            "at_monotonic_raw": 4138676.840822708,
+            "bytes": 1,
+            "sha256": "9d1e0e2d9459d06523ad13e28a4093c2316baafe7aec5b25f30eba2e113599c4"
+          },
+          {
+            "action": "/clear-paste",
+            "at_monotonic_raw": 4138686.853044125,
+            "bytes": 18,
+            "sha256": "f6d7f232bea6b3fb1a91ae414a71d56675e7eda1a73119b1dc0ae2abb87f56f0"
+          },
+          {
+            "action": "/clear-submit",
+            "at_monotonic_raw": 4138686.853084333,
+            "bytes": 1,
+            "sha256": "9d1e0e2d9459d06523ad13e28a4093c2316baafe7aec5b25f30eba2e113599c4"
+          },
+          {
+            "action": "/status-paste",
+            "at_monotonic_raw": 4138691.8971015,
+            "bytes": 19,
+            "sha256": "81918d19f2ada4f83cfd67169cef6e4159726ae6fc4d9d3ed334c537a3431204"
+          },
+          {
+            "action": "/status-submit",
+            "at_monotonic_raw": 4138691.897118791,
+            "bytes": 1,
+            "sha256": "9d1e0e2d9459d06523ad13e28a4093c2316baafe7aec5b25f30eba2e113599c4"
+          },
+          {
+            "action": "/quit-paste",
+            "at_monotonic_raw": 4138701.901885416,
+            "bytes": 17,
+            "sha256": "690a3443b2c9824c2f314c35f61d6306e95f433d7fa4b796972d9023ad23bd93"
+          },
+          {
+            "action": "/quit-submit",
+            "at_monotonic_raw": 4138701.901929041,
+            "bytes": 1,
+            "sha256": "9d1e0e2d9459d06523ad13e28a4093c2316baafe7aec5b25f30eba2e113599c4"
+          }
+        ],
+        "pid": 17153,
+        "sha256": "464f8944907228b094d55367f9efa4536b4d8bd491de3ddc727ea290b8f1e4b5",
+        "status_session_id": "01a09597-5919-7ce2-b8df-de139302c06c",
+        "ui_state": "session"
+      }
+    },
+    "termination_mode": "normal_quit",
+    "termination_requested": true,
+    "quit_sent": true,
+    "termination_trigger": "normal_quit",
+    "termination_epoch_invalid": true,
+    "termination_epoch_reason": "eof",
+    "model_turns": 0,
+    "trace_complete": true,
+    "reconnect": {
+      "observed": false,
+      "status": "not_run"
+    }
+  },
+  "post_hashes": {
+    "source_sha256": {
+      "tasks/g0-tui-proxy/scripts/proxy_native_runtime.py": "210c73d1ab51398ca0d5026b8206ce6638e0f34f664d20d0f2c8b9719604344d",
+      "tasks/g0-tui-proxy/scripts/proxy_transport.py": "41c6bd527ae2f108da538811e3b629a861bf2e2ec72a67efd94e23a793cdb704",
+      "tasks/g0-tui-proxy/scripts/proxy_observer.py": "6e1e16f37707bd8c88fd8717058afe1a4920bd406aec3b907cf7fc50e9066587"
+    },
+    "cli_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+    "protected_files_sha256": {
+      "/Users/guanjunhui/.codex/config.toml": "53b1aa3016356f244170c6b5bc84773767672c852b59f9594f9ae694ebb8eca3",
+      "tasks/g0-macos/data/test-repo/.codex/config.toml": "298a250c45c9585c695e427c830c20100ecadc8a612445703b2a8b5878a3aa2b",
+      "tasks/g0-macos/data/test-repo/.codex/hooks.json": "666243bf0789d012c7035ff7ef7203735df95fd79eafe763fa5013277f58b917",
+      "tasks/g0-macos/data/g0-hook-darwin-arm64": "62e41afd87e1408854490bf6a716cfe846fff0021179a39d163d6e02254ba779"
+    }
+  },
+  "hook_events_after": {
+    "file_count": 134,
+    "names_sha256": "1f65655c3221446a9e020341d21d4d3e8d84c70a7bd3c7ef7609a1b5bf1d9f37",
+    "content_manifest_sha256": "358f3feadd058600aaac7c9e89177d906c8e4c22703238358dee64f8cd061a7f",
+    "manifest_definition": "sorted filename + SHA256 + byte size, one record per line"
+  },
+  "cleanup": {
+    "frontend_socket": "absent",
+    "backend_socket": "absent",
+    "backend_parent_mode": "0o700",
+    "backend_pid_after": "absent",
+    "tui_pid_after": "absent",
+    "backend_identity": [
+      {
+        "birth": "Sat Sep 12 20:28:24 2026",
+        "complete": true,
+        "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+        "pid": 17128,
+        "source": "darwin-local",
+        "uid": 501
+      }
+    ],
+    "tui_identity": [
+      {
+        "birth": "Sat Sep 12 20:28:24 2026",
+        "complete": true,
+        "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+        "pid": 17153,
+        "source": "darwin-local",
+        "uid": 501
+      }
+    ],
+    "case_artifacts": {
+      "result.json": {
+        "sha256": "65397e9715fa261be18d5a0bf6bb8e17e01d22ad26843f7b778bdaf45ca781c6",
+        "bytes": 4457
+      },
+      "trace.json": {
+        "sha256": "c0ba8fe26d16a1717b14d54491de448591f20cdca1d7c304bbd7f61cce99fa4b",
+        "bytes": 31713
+      }
+    },
+    "prompt_sent": false,
+    "model_turn": false,
+    "raw_screen_persisted": false
+  },
+  "scope": "One authorized proxy-attach-06 revision-02 attempt. Normal quit observed; no retry, no proxy-attach-07, old case/registration untouched."
+}

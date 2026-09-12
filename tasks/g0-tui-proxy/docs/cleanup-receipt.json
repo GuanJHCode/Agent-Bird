@@ -1,0 +1,22 @@
+{
+  "removed_clean_worktrees": [
+    "tasks/g0-tui-proxy/tmp/observer",
+    "tasks/g0-tui-proxy/tmp/runtime",
+    "tasks/g0-tui-proxy/tmp/transport"
+  ],
+  "branches_retained": true,
+  "removed_task_only_files_and_empty_directories": [
+    "tasks/g0-tui-proxy/scripts/__pycache__/proxy_transport.cpython-313.pyc",
+    "tasks/g0-tui-proxy/scripts/__pycache__/proxy_observer.cpython-313.pyc",
+    "tasks/g0-tui-proxy/scripts/__pycache__/proxy_native_runtime.cpython-313.pyc",
+    "tasks/g0-tui-proxy/scripts/__pycache__",
+    "tasks/g0-tui-proxy/tmp/b",
+    "tasks/g0-tui-proxy/tmp"
+  ],
+  "preserved": [
+    "all case01-06 evidence and registrations",
+    "pinned-source retrieval evidence with immutable URL/hash receipts",
+    "original pending-resolution worktrees/caches",
+    "unattributed existing classify_screen export modification"
+  ]
+}
