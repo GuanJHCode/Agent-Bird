@@ -21,7 +21,7 @@ from resume_case import (  # noqa: E402
     _failure_code,
 )
 import proxy_native_runtime as runtime_module  # noqa: E402
-from proxy_native_runtime import AttachmentCandidate  # noqa: E402
+from proxy_native_runtime import AttachmentCandidate, ResumeAttachmentInferer  # noqa: E402
 
 
 THREAD_ID = "01234567-89ab-cdef-0123-456789abcdef"
@@ -125,6 +125,47 @@ def test_silent_resume_rejects_model_or_thread_start():
     bridge.trace.append({"event": "rpc", "method": "thread/start"})
     with pytest.raises(Exception, match="not silent"):
         validate_silent_resume(bridge)
+    bridge.trace.clear()
+    bridge.trace.append({"event": "rpc", "direction": "server", "method": "thread/started"})
+    with pytest.raises(Exception, match="not silent"):
+        validate_silent_resume(bridge)
+
+
+def test_retained_resume_trace_has_unclassified_readonly_bootstrap_failure():
+    import json
+
+    trace_path = Path(
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/"
+        "tasks/g0-proxy-continuation/data/proxy-resume-01/trace.json"
+    )
+    if not trace_path.exists():
+        pytest.skip("retained proxy-resume-01 trace is unavailable")
+    events = json.loads(trace_path.read_text(encoding="utf-8"))["events"]
+    methods = {
+        row.get("method")
+        for row in events
+        if row.get("event") == "rpc_unknown" and row.get("direction") == "client"
+    }
+    assert {"thread/items/list", "thread/goal/get"} <= methods
+    assert not any("params" in row for row in events)
+    expected = "01a094db-aaaf-7dc3-8308-8077d4f778b3"
+    inferer = ResumeAttachmentInferer(expected)
+    synthetic = [
+        {"event": "connection_open", "conn_epoch": 1, "local_seq": 1},
+        {"event": "websocket_upgrade", "conn_epoch": 1, "direction": "client", "local_seq": 2},
+        {"event": "websocket_upgrade", "conn_epoch": 1, "direction": "server", "local_seq": 3},
+        {"event": "rpc", "conn_epoch": 1, "direction": "client", "method": "initialize", "request_id": 1, "local_seq": 4},
+        {"event": "rpc_response", "conn_epoch": 1, "direction": "server", "method": "initialize", "request_id": 1, "ok": True, "local_seq": 5},
+        {"event": "rpc", "conn_epoch": 1, "direction": "client", "method": "initialized", "request_id": None, "local_seq": 6},
+        {"event": "rpc", "conn_epoch": 1, "direction": "client", "method": "thread/resume", "request_id": 2, "params": {"threadId": expected}, "local_seq": 7},
+        {"event": "rpc_unknown", "conn_epoch": 1, "direction": "client", "method": "thread/items/list", "request_id": 3, "local_seq": 8},
+    ]
+    for event in synthetic:
+        inferer.accept(event)
+        if inferer.invalid_reason is not None:
+            break
+    assert inferer.candidate is None
+    assert inferer.invalid_reason == "unknown_event"
 
 
 def test_terminal_validator_requires_quit_eof_and_owned_cleanup(tmp_path):

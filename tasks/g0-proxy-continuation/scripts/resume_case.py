@@ -348,16 +348,23 @@ def validate_silent_resume(bridge: Any) -> dict[str, Any]:
         ("rpc_unknown", "thread/start"),
         ("rpc_unknown", "turn/start"),
     }
+    server_thread_started_seen = any(
+        row.get("direction") == "server"
+        and row.get("event") == "rpc"
+        and row.get("method") in {"thread/started", "turn/started"}
+        for row in trace
+    )
     violations = [
         row for row in trace
         if (row.get("event"), row.get("method")) in forbidden
     ]
     turns = model_turns
-    if turns or violations:
+    if turns or violations or server_thread_started_seen:
         raise RuntimeInvariantError("resume was not silent: turn/start or thread/start observed")
     return {
         "turns_started": turns,
         "thread_start_seen": False,
+        "server_thread_started_seen": server_thread_started_seen,
         "status": "silent",
     }
 
