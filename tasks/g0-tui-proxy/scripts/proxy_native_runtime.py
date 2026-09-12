@@ -626,6 +626,8 @@ class AttachmentInferer:
         self._clear_started = False
         self._clear_unsubscribe_pending: dict[Any, str] = {}
         self._clear_unsubscribe_completed: set[Any] = set()
+        self._clear_needs_fresh_skills = False
+        self._clear_fresh_skills_requested = False
         self._bootstrap_pending: dict[tuple[str, Any], str] = {}
 
     @property
@@ -674,6 +676,8 @@ class AttachmentInferer:
         self._clear_started = False
         self._clear_unsubscribe_pending.clear()
         self._clear_unsubscribe_completed.clear()
+        self._clear_needs_fresh_skills = False
+        self._clear_fresh_skills_requested = False
         self._requests.intersection_update({"initialize"})
         self._responses.intersection_update({"initialize"})
         self._thread_id = None
@@ -794,6 +798,8 @@ class AttachmentInferer:
                 self._maybe_finish_clear()
             if event.get("direction") == "client" and method in self._REQUIRED_METHODS:
                 self._requests.add(method)
+                if method == "skills/list" and self._clear_needs_fresh_skills:
+                    self._clear_fresh_skills_requested = True
         elif kind == "rpc_response":
             method = event.get("method")
             if event.get("direction") != "server" or event.get("ok") is not True:
@@ -830,6 +836,10 @@ class AttachmentInferer:
             return
         self._invalid_reason = None
         self._clear_pending = False
+        self._requests.discard("skills/list")
+        self._responses.discard("skills/list")
+        self._clear_needs_fresh_skills = True
+        self._clear_fresh_skills_requested = False
 
     def _start_epoch(self, epoch: Any, sequence: Any) -> None:
         if not isinstance(epoch, int) or isinstance(epoch, bool) or epoch <= 0:
@@ -849,6 +859,8 @@ class AttachmentInferer:
         self._clear_started = False
         self._clear_unsubscribe_pending.clear()
         self._clear_unsubscribe_completed.clear()
+        self._clear_needs_fresh_skills = False
+        self._clear_fresh_skills_requested = False
         self._candidate = None
         self._upgrades.clear()
         self._requests.clear()
@@ -861,6 +873,10 @@ class AttachmentInferer:
         if self._invalid_reason not in {None, "clear"} or self._thread_id is None or self._bootstrap_pending:
             return
         if self._clear_pending:
+            return
+        if self._clear_needs_fresh_skills and (
+            not self._clear_fresh_skills_requested or "skills/list" not in self._responses
+        ):
             return
         if self._clear_requested and not self._saw_unsubscribe_after_clear:
             return

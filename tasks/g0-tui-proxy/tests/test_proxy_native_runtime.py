@@ -818,6 +818,28 @@ def test_clear_does_not_count_unsubscribe_for_new_thread_as_old_cleanup():
     assert inferer.invalid_reason == "clear_unsubscribe_target_mismatch"
 
 
+def test_clear_does_not_reuse_skills_seen_before_old_cleanup_completed():
+    inferer = AttachmentInferer()
+    inferer.accept(connected_event())
+    for event in upgrade_events():
+        inferer.accept(event)
+    inferer.clear()
+    for event in [
+        {"event": "rpc", "conn_epoch": 1, "direction": "client", "method": "thread/start", "request_id": 10, "local_seq": 10},
+        {"event": "rpc_response", "conn_epoch": 1, "direction": "server", "method": "thread/start", "request_id": 10, "ok": True, "thread": {"id": "thread-2", "sessionId": "session-2"}, "local_seq": 11},
+        {"event": "rpc", "conn_epoch": 1, "direction": "server", "method": "thread/started", "request_id": None, "thread": {"id": "thread-2"}, "local_seq": 12},
+        {"event": "rpc", "conn_epoch": 1, "direction": "client", "method": "skills/list", "request_id": 11, "local_seq": 13},
+        {"event": "rpc_response", "conn_epoch": 1, "direction": "server", "method": "skills/list", "request_id": 11, "ok": True, "local_seq": 14},
+        {"event": "rpc", "conn_epoch": 1, "direction": "client", "method": "thread/unsubscribe", "request_id": 12, "params": {"threadId": "thread-1"}, "local_seq": 15},
+        {"event": "rpc_response", "conn_epoch": 1, "direction": "server", "method": "thread/unsubscribe", "request_id": 12, "ok": True, "local_seq": 16},
+        {"event": "rpc", "conn_epoch": 1, "direction": "client", "method": "thread/unsubscribe", "request_id": 13, "params": {"threadId": "thread-1"}, "local_seq": 17},
+        {"event": "rpc_response", "conn_epoch": 1, "direction": "server", "method": "thread/unsubscribe", "request_id": 13, "ok": True, "local_seq": 18},
+    ]:
+        inferer.accept(event)
+    assert inferer.candidate is None
+    assert inferer.invalid_reason is None
+
+
 def test_unknown_observer_event_invalidates_current_epoch():
     inferer = AttachmentInferer()
     inferer.accept(connected_event())
