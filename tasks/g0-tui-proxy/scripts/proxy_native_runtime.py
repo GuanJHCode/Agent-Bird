@@ -760,8 +760,9 @@ class _CaptureBridge:
         self.trace: list[dict[str, Any]] = []
         self.trace_complete = True
         self.model_turns = 0
-        self._trace_keys: set[tuple[Any, ...]] = set()
-        self._eof_seen: set[str] = set()
+        self._trace_keys: set[tuple[Any, Any]] = set()
+        self._eof_seen: set[tuple[str, Any]] = set()
+        self._observer_closed: set[str] = set()
 
     def _accept_rows(self, rows: Iterable[Mapping[str, Any]]) -> None:
         for row in rows:
@@ -779,10 +780,7 @@ class _CaptureBridge:
 
     def _record_trace(self, row: Mapping[str, Any]) -> bool:
         if "local_seq" in row:
-            key = (
-                row.get("conn_epoch"), row.get("local_seq"), row.get("event"),
-                row.get("direction"), row.get("reason"),
-            )
+            key = (row.get("conn_epoch"), row.get("local_seq"))
             if key in self._trace_keys:
                 self.trace_complete = False
                 self.inferer.invalidate("trace_duplicate_sequence")
@@ -837,23 +835,29 @@ class _CaptureBridge:
 
     def on_lifecycle(self, event: Any) -> None:
         if event.kind == "eof":
-            if event.connection_id in self._eof_seen:
+            direction = getattr(event, "direction", None)
+            eof_key = (event.connection_id, direction or "unknown")
+            if eof_key in self._eof_seen:
                 self.trace_complete = False
                 self.inferer.invalidate("trace_duplicate_eof")
                 return
-            self._eof_seen.add(event.connection_id)
-            self._record_trace({"event": "eof", "conn_epoch": event.epoch, "reason": "eof"})
+            self._eof_seen.add(eof_key)
+            self._record_trace({"event": "eof", "conn_epoch": event.epoch, "direction": direction, "reason": "eof"})
             self.inferer.invalidate("eof")
-            # Let the observer inspect buffered handshake/frame bytes before
-            # invalidating its connection.  A truncated stream therefore
-            # emits a gap into the bounded trace instead of being hidden by
-            # set_pending().
-            self._accept_rows(self.observer.close(event.connection_id))
-            self.observer.drain_events()
-            self.observer.set_pending(event.connection_id)
+            # Wait for both transport legs before asking the observer to
+            # validate buffered bytes. A first normal EOF is not a duplicate;
+            # close performs the incomplete-frame/upgrade check once.
+            legs = {item[1] for item in self._eof_seen if item[0] == event.connection_id}
+            if direction is None or {"frontend_to_backend", "backend_to_frontend"} <= legs:
+                self._accept_rows(self.observer.close(event.connection_id))
+                self.observer.drain_events()
+                self._observer_closed.add(event.connection_id)
+                self.observer.set_pending(event.connection_id)
         if event.kind == "disconnect":
-            self._accept_rows(self.observer.close(event.connection_id))
-            self.observer.drain_events()
+            if event.connection_id not in self._observer_closed:
+                self._accept_rows(self.observer.close(event.connection_id))
+                self.observer.drain_events()
+                self._observer_closed.add(event.connection_id)
 
     def on_gap(self, event: Any) -> None:
         self.trace_complete = False

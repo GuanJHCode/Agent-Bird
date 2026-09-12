@@ -270,7 +270,8 @@ def test_observer_truncated_http_eof_propagates_gap_before_pending():
     bridge = _CaptureBridge(Observer(), inferer)
     bridge.on_connect(SimpleNamespace(connection_id="c1", epoch=1, frontend_fd=1, backend_fd=2, frontend_peer=None, backend_peer=None))
     relay_bytes(bridge, "c1", 1, "frontend_to_backend", b"GET / HTTP/1.1\r\n")
-    bridge.on_lifecycle(SimpleNamespace(connection_id="c1", epoch=1, kind="eof"))
+    bridge.on_lifecycle(SimpleNamespace(connection_id="c1", epoch=1, kind="eof", direction="frontend_to_backend"))
+    bridge.on_lifecycle(SimpleNamespace(connection_id="c1", epoch=1, kind="eof", direction="backend_to_frontend"))
     assert any(row.get("event") == "gap" for row in bridge.trace)
     assert bridge.trace_complete is False
     assert inferer.candidate is None
@@ -288,6 +289,17 @@ def test_observer_complete_handshake_eof_stays_trace_complete():
     assert any(row.get("event") == "connection_close" for row in bridge.trace)
     assert bridge.trace_complete is True
     assert inferer.invalid_reason == "eof"
+
+
+def test_two_transport_eofs_are_both_valid_before_single_observer_close():
+    from proxy_observer import Observer
+
+    bridge = _CaptureBridge(Observer(), AttachmentInferer())
+    bridge.on_connect(SimpleNamespace(connection_id="c1", epoch=1, frontend_fd=1, backend_fd=2, frontend_peer=None, backend_peer=None))
+    bridge.on_lifecycle(SimpleNamespace(connection_id="c1", epoch=1, kind="eof", direction="frontend_to_backend"))
+    bridge.on_lifecycle(SimpleNamespace(connection_id="c1", epoch=1, kind="eof", direction="backend_to_frontend"))
+    assert bridge.trace_complete is True
+    assert [row["event"] for row in bridge.trace].count("eof") == 2
 
 
 def test_bootstrap_opaque_requires_client_request_and_matching_server_response():
