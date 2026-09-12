@@ -697,6 +697,8 @@ class AttachmentInferer:
                 key = ("client", request_id)
                 if key not in self._bootstrap_pending or self._bootstrap_pending.pop(key) != method:
                     self._invalidate("unknown_event")
+                else:
+                    self._maybe_candidate()
             elif event.get("direction") == "client" and request_id is not None:
                 key = ("client", request_id)
                 if key in self._bootstrap_pending:
@@ -837,16 +839,19 @@ class _CaptureBridge:
             self.trace_complete = False
             self.inferer.invalidate("trace_overflow")
             return False
-        self.trace.append(
-            {
-                key: row[key]
-                for key in (
-                    "event", "local_seq", "conn_epoch", "direction", "method",
-                    "request_id", "request_direction", "response", "ok", "thread", "reason",
-                )
-                if key in row
-            }
-        )
+        trace_row = {
+            key: row[key]
+            for key in (
+                "event", "local_seq", "conn_epoch", "direction", "method",
+                "request_id", "request_direction", "response", "ok", "thread", "reason",
+            )
+            if key in row
+        }
+        for key in ("payload_bytes", "message_bytes", "limit_bytes"):
+            value = row.get(key)
+            if type(value) is int and value >= 0:
+                trace_row[key] = value
+        self.trace.append(trace_row)
         return True
 
     def on_connect(self, event: Any) -> None:

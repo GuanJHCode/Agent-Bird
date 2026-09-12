@@ -239,6 +239,67 @@ def test_readonly_bootstrap_requires_server_response_with_matching_request_id():
     assert inferer.candidate is not None
 
 
+def test_last_matching_bootstrap_response_restores_existing_candidate():
+    inferer = AttachmentInferer()
+    inferer.accept(connected_event())
+    for event in upgrade_events():
+        inferer.accept(event)
+    candidate = inferer.candidate
+    assert candidate is not None
+
+    inferer.accept(
+        {
+            "event": "rpc_unknown",
+            "conn_epoch": 1,
+            "direction": "client",
+            "method": "plugin/list",
+            "request_id": 10,
+            "local_seq": 10,
+        }
+    )
+    assert inferer.candidate is None
+    inferer.accept(
+        {
+            "event": "rpc_unknown",
+            "conn_epoch": 1,
+            "direction": "server",
+            "method": "plugin/list",
+            "request_id": 10,
+            "response": True,
+            "local_seq": 11,
+        }
+    )
+    assert inferer.candidate == candidate
+
+
+def test_matching_bootstrap_response_without_required_evidence_stays_incomplete():
+    inferer = AttachmentInferer()
+    inferer.accept(connected_event())
+    inferer.accept(
+        {
+            "event": "rpc_unknown",
+            "conn_epoch": 1,
+            "direction": "client",
+            "method": "plugin/list",
+            "request_id": 2,
+            "local_seq": 2,
+        }
+    )
+    inferer.accept(
+        {
+            "event": "rpc_unknown",
+            "conn_epoch": 1,
+            "direction": "server",
+            "method": "plugin/list",
+            "request_id": 2,
+            "response": True,
+            "local_seq": 3,
+        }
+    )
+    assert inferer.candidate is None
+    assert inferer.invalid_reason is None
+
+
 @pytest.mark.parametrize(
     "response",
     [
@@ -837,6 +898,50 @@ def test_capture_bridge_trace_overflow_invalidates_and_preserves_only_whitelist(
     assert bridge.trace_complete is False
     assert inferer.invalid_reason == "trace_overflow"
     assert all(set(row) <= {"event", "local_seq", "conn_epoch", "direction", "method", "request_id", "request_direction", "response", "ok", "thread", "reason"} for row in bridge.trace)
+
+
+def test_observer_gap_sizes_are_preserved_through_capture_bridge():
+    from proxy_observer import Observer
+
+    observer = Observer(max_frame_bytes=4)
+    bridge = _CaptureBridge(observer, AttachmentInferer())
+    connection_id = "gap-size-c1"
+    bridge.on_connect(SimpleNamespace(connection_id=connection_id, epoch=1))
+    relay_bytes(bridge, connection_id, 1, "frontend_to_backend", raw_upgrade_request())
+    relay_bytes(bridge, connection_id, 1, "backend_to_frontend", raw_upgrade_response())
+    relay_bytes(
+        bridge,
+        connection_id,
+        1,
+        "frontend_to_backend",
+        raw_ws_frame({"oversized": "payload"}, client=True),
+    )
+    gap = next(row for row in bridge.trace if row.get("event") == "gap")
+    assert gap["payload_bytes"] > gap["limit_bytes"] == 4
+    assert bridge.trace_complete is False
+
+
+def test_capture_bridge_drops_invalid_gap_size_metadata():
+    from proxy_observer import Observer
+
+    bridge = _CaptureBridge(Observer(), AttachmentInferer())
+    bridge.on_connect(SimpleNamespace(connection_id="invalid-gap-c1", epoch=1))
+    bridge._accept_rows(
+        [
+            {
+                "event": "gap",
+                "conn_epoch": 1,
+                "local_seq": 2,
+                "payload_bytes": True,
+                "message_bytes": -1,
+                "limit_bytes": "4096",
+                "reason": "frame_too_large",
+            }
+        ]
+    )
+    gap = bridge.trace[-1]
+    assert all(key not in gap for key in ("payload_bytes", "message_bytes", "limit_bytes"))
+    assert bridge.trace_complete is False
 
 
 def test_duplicate_eof_close_rows_make_trace_incomplete():
