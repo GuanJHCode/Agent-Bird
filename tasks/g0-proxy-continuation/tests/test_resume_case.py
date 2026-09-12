@@ -10,6 +10,8 @@ sys.path.insert(0, str(ROOT / "tasks" / "g0-proxy-continuation" / "scripts"))
 from resume_case import (  # noqa: E402
     ResumeCaseSpec,
     prepare_resume_case,
+    record_resume_result,
+    validate_resume_terminal,
     validate_silent_resume,
     verify_preflight,
 )
@@ -62,3 +64,33 @@ def test_silent_resume_rejects_model_or_thread_start():
     bridge.trace.append({"event": "rpc", "method": "thread/start"})
     with pytest.raises(Exception, match="not silent"):
         validate_silent_resume(bridge)
+
+
+def test_terminal_validator_requires_quit_eof_and_owned_cleanup(tmp_path):
+    spec = make_spec(tmp_path)
+    prepare_resume_case(spec)
+    result = validate_resume_terminal(
+        termination_mode="normal_quit",
+        quit_sent=True,
+        eof_seen=True,
+        cleanup_result={"pids": [], "endpoints": []},
+    )
+    assert result["status"] == "observed"
+    path = record_resume_result(spec, result)
+    assert path.exists()
+    with pytest.raises(FileExistsError):
+        record_resume_result(spec, result)
+    with pytest.raises(Exception, match="EOF"):
+        validate_resume_terminal(
+            termination_mode="normal_quit",
+            quit_sent=True,
+            eof_seen=False,
+            cleanup_result={},
+        )
+    with pytest.raises(Exception, match="cleanup"):
+        validate_resume_terminal(
+            termination_mode="forced_disconnect",
+            quit_sent=False,
+            eof_seen=True,
+            cleanup_result={"failed_pids": [123]},
+        )

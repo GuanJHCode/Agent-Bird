@@ -167,9 +167,47 @@ def validate_silent_resume(bridge: Any) -> dict[str, Any]:
     }
 
 
+def validate_resume_terminal(
+    *,
+    termination_mode: str,
+    quit_sent: bool,
+    eof_seen: bool,
+    cleanup_result: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Validate a recorded quit/EOF/cleanup boundary without performing it."""
+
+    if termination_mode not in {"normal_quit", "forced_disconnect"}:
+        raise ValueError("unknown resume termination mode")
+    if termination_mode == "normal_quit" and not quit_sent:
+        raise RuntimeInvariantError("normal resume quit was not requested")
+    if not eof_seen:
+        raise RuntimeInvariantError("resume endpoint did not produce EOF")
+    failed_pids = cleanup_result.get("failed_pids", [])
+    failed_endpoints = cleanup_result.get("failed_endpoints", [])
+    if failed_pids or failed_endpoints:
+        raise RuntimeInvariantError("resume owned cleanup was incomplete")
+    return {
+        "status": "observed",
+        "termination_mode": termination_mode,
+        "quit_sent": bool(quit_sent),
+        "eof_seen": True,
+        "cleanup": dict(cleanup_result),
+    }
+
+
+def record_resume_result(spec: ResumeCaseSpec, result: Mapping[str, Any]) -> Path:
+    """Write one exclusive final record after the caller's reviewed run."""
+
+    target = spec.case_dir / "result.json"
+    _exclusive_json(target, result)
+    return target
+
+
 __all__ = [
     "ResumeCaseSpec",
     "prepare_resume_case",
     "verify_preflight",
     "validate_silent_resume",
+    "validate_resume_terminal",
+    "record_resume_result",
 ]
