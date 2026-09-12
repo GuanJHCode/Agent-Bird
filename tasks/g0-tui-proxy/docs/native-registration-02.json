@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "case": "proxy-attach-02",
+  "status": "registered_preflight_only",
+  "captured_at": "2026-09-12",
+  "main_head": "92696a5581937c047f492f57e225561bacc8185f",
+  "source_sha256": {
+    "tasks/g0-tui-proxy/scripts/proxy_native_runtime.py": "a85633c029aa2f44201026ba20cde445cbe2199aea23ca26ee741a4cfc78a0b0",
+    "tasks/g0-tui-proxy/scripts/proxy_transport.py": "41c6bd527ae2f108da538811e3b629a861bf2e2ec72a67efd94e23a793cdb704",
+    "tasks/g0-tui-proxy/scripts/proxy_observer.py": "fa036db29196f6b5901fe4ea04a6cc9eb3f104f8acd1b76f65cb2b9e7c0272f9"
+  },
+  "cli": {
+    "path": "/Users/guanjunhui/.local/bin/codex",
+    "sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+    "fixed_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc"
+  },
+  "protected_files_pre_sha256": {
+    "/Users/guanjunhui/.codex/config.toml": "53b1aa3016356f244170c6b5bc84773767672c852b59f9594f9ae694ebb8eca3",
+    "tasks/g0-macos/data/test-repo/.codex/config.toml": "298a250c45c9585c695e427c830c20100ecadc8a612445703b2a8b5878a3aa2b",
+    "tasks/g0-macos/data/test-repo/.codex/hooks.json": "666243bf0789d012c7035ff7ef7203735df95fd79eafe763fa5013277f58b917",
+    "tasks/g0-macos/data/g0-hook-darwin-arm64": "62e41afd87e1408854490bf6a716cfe846fff0021179a39d163d6e02254ba779"
+  },
+  "endpoints_preflight": {
+    "/Users/guanjunhui/.codex/app-server-control/app-server-control.sock": "absent",
+    "tasks/g0-tui-proxy/tmp/b/a.sock": "absent",
+    "tasks/g0-tui-proxy/data/proxy-attach-02": "absent"
+  },
+  "hook_events_before": {
+    "directory": "tasks/g0-macos/data/hook-events",
+    "file_count": 126,
+    "names_sha256": "3b1119dc0cd1b393a52dca778addbde20b2cf05703bfa1aaab8647ca4beeb167",
+    "content_manifest_sha256": "7afd62049a8df4459bab8d5d0a6dd60cf95d262527f42a831e29738af8103ef6",
+    "manifest_definition": "sorted filename + SHA256 + byte size, one record per line"
+  },
+  "scope": "Pre-run registration only. No case directory, native process, TUI, prompt, model turn, or retry has been started."
+}

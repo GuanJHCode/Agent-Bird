@@ -1,0 +1,71 @@
+{
+  "case": "proxy-attach-02",
+  "status": "unknown",
+  "reason": "disconnect_after_epoch_2_observed_epoch_3; no candidate or status Session ID; quit did not exit",
+  "run_artifact": "tasks/g0-tui-proxy/data/proxy-attach-02/result.json",
+  "trace_artifact": "tasks/g0-tui-proxy/data/proxy-attach-02/trace.json",
+  "source_head": "92696a5581937c047f492f57e225561bacc8185f",
+  "observed_processes": {
+    "backend": {
+      "pid": 96094,
+      "birth": "Sat Sep 12 19:09:29 2026",
+      "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex"
+    },
+    "tui": {
+      "pid": 96119,
+      "birth": "Sat Sep 12 19:09:29 2026",
+      "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex"
+    }
+  },
+  "connections": [
+    {"connection_id": "conn-1-c0043db516c3", "epoch": 1, "frontend_fd": 9, "backend_fd": 10, "kind": "probe"},
+    {"connection_id": "conn-2-2199443bb278", "epoch": 2, "frontend_fd": 9, "backend_fd": 10, "kind": "ws_target"},
+    {"connection_id": "conn-3-f1c2a2c2d880", "epoch": 3, "frontend_fd": 9, "backend_fd": 10, "kind": "post_disconnect_reconnect"}
+  ],
+  "barrier": {
+    "old_epoch": 2,
+    "old_epoch_invalid": false,
+    "reconnect_observed": true,
+    "reconnect_status": "unknown",
+    "model_turns": null,
+    "initial_candidate": false,
+    "clear_candidate": false,
+    "status_ids": [],
+    "quit_exit_code": null
+  },
+  "trace": {
+    "complete": false,
+    "event_count": 23,
+    "event_kinds": ["connection_close", "connection_open", "eof", "gap", "websocket_upgrade"]
+  },
+  "protected_post_sha256": {
+    "tasks/g0-tui-proxy/scripts/proxy_native_runtime.py": "a85633c029aa2f44201026ba20cde445cbe2199aea23ca26ee741a4cfc78a0b0",
+    "tasks/g0-tui-proxy/scripts/proxy_transport.py": "41c6bd527ae2f108da538811e3b629a861bf2e2ec72a67efd94e23a793cdb704",
+    "tasks/g0-tui-proxy/scripts/proxy_observer.py": "fa036db29196f6b5901fe4ea04a6cc9eb3f104f8acd1b76f65cb2b9e7c0272f9",
+    "/Users/guanjunhui/.local/bin/codex": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+    "/Users/guanjunhui/.codex/config.toml": "53b1aa3016356f244170c6b5bc84773767672c852b59f9594f9ae694ebb8eca3",
+    "tasks/g0-macos/data/test-repo/.codex/config.toml": "298a250c45c9585c695e427c830c20100ecadc8a612445703b2a8b5878a3aa2b",
+    "tasks/g0-macos/data/test-repo/.codex/hooks.json": "666243bf0789d012c7035ff7ef7203735df95fd79eafe763fa5013277f58b917",
+    "tasks/g0-macos/data/g0-hook-darwin-arm64": "62e41afd87e1408854490bf6a716cfe846fff0021179a39d163d6e02254ba779"
+  },
+  "hook_events_after": {
+    "file_count": 128,
+    "names_sha256": "e182fb7bf28c8fc17954bc14e98e927183c629a1b5a32c6d841546afb05b21cb",
+    "content_manifest_sha256": "8aa9a83c36f7bd48ad7311781ab05a19b9288f7a1e5b29abac7b53e1eebbaf0e",
+    "new_files": {
+      "tasks/g0-macos/data/hook-events/442c8a9d5fbebda9d451acd7b1fac880.json": "e8968cea61f9a8f8479eac5977b7a37abde26602137eae7850fa46f78791144e",
+      "tasks/g0-macos/data/hook-events/a11a17a7c3debe156a113eaee6a7be81.json": "bf398bc7f1c268ab11df8048cd608f340451b966a3ea9ca7bda20f51092f2702"
+    }
+  },
+  "cleanup": {
+    "frontend_socket": "absent",
+    "backend_socket": "absent",
+    "backend_parent_mode": "0700",
+    "backend_pid_after": "absent",
+    "tui_pid_after": "absent",
+    "raw_screen_persisted": false,
+    "prompt_sent": false,
+    "model_turn": false
+  },
+  "scope": "One authorized zero-model proxy-attach-02 attempt. No retry and no second case. Unknown is retained as the final result; no native pass is claimed."
+}

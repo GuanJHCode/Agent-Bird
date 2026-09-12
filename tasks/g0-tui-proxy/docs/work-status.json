@@ -1,8 +1,8 @@
 {
   "scope": "authorized controlled TUI proxy experiment",
   "baseline": "bb5c7ff",
-  "native_runs": 0,
-  "model_runs": 0,
+  "native_runs": 2,
+  "model_runs": null,
   "components": {
     "observer": {
       "initial": "689fc34",
@@ -22,16 +22,23 @@
     "runtime": {
       "initial": "4c2787e",
       "input_chain": "74dcb82",
-      "state": "fixing async PTY scheduling, complete result barriers and trace evidence; native admission denied",
-      "latest_reviewed": "ef3b1f7"
+      "state": "approved offline; actual sample requires wire and PTY diagnostics",
+      "latest_reviewed": "56fc33e",
+      "main": "92696a5"
     }
   },
   "native_admission": false,
   "original_scope_preserved": true,
   "formal_global_installation_authorized": false,
   "main_component_tests": {
-    "passed": 30,
-    "seconds": 0.97,
+    "passed": 72,
+    "seconds": 1.29,
     "native_or_model_calls": 0
-  }
+  },
+  "model_observation": "No deliberate prompt or model invocation; complete trace unavailable in both attempts, so model_turns is not proven zero.",
+  "native_cases": {
+    "proxy-attach-01": "unknown: backend --listen received bare path; fixed afterward",
+    "proxy-attach-02": "unknown: invalid_json_rpc gap, no candidates/status ID, post-disconnect epoch and failed normal quit; owned cleanup reported complete"
+  },
+  "next": "Fix wire parsing against pinned native serialization and diagnose PTY/duplicate trace in separate worktrees before any new window."
 }
