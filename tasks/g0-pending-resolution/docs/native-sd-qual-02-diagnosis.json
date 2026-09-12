@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "nonce": "sd-qual-02",
+  "classification": "local_binding_contract_mismatch",
+  "native_interface_verdict": "not_exercised_by_helper",
+  "root": "01a0932d-1998-7221-8897-5822328be877",
+  "binding_sha256": "62e7dccf2b868bc6bfb81f07222a91f7722d122b1321a3b0bfb8099233f76235",
+  "helper_sha256": "b3677fa6ee27d929436f6c73d1610879a488daad2ea7959f2fd48367bb605c3a",
+  "runtime_stdout_digest_match": {
+    "known_canonical_envelope": {
+      "version": 1,
+      "status": "rejected",
+      "reason": "invalid_data",
+      "source_service_verified": false,
+      "resend_authorized": false
+    },
+    "bytes": 116,
+    "sha256": "ac7535dcbaa359c67809d3030735b5dd58a8ed1eaaa6878babf3cbd08bc8c0cd",
+    "method": "enumerate fixed source error literals; exact canonical length and SHA match; original stdout was retained only as digest"
+  },
+  "offline_original_binding_validation": {
+    "code": "invalid_data",
+    "frames": [
+      {
+        "file": "native_standalone.py",
+        "line": 91,
+        "function": "validate_binding"
+      },
+      {
+        "file": "native_standalone.py",
+        "line": 40,
+        "function": "check"
+      }
+    ],
+    "service_comm": "codex",
+    "tui_comm": "codex",
+    "service_comm_absolute": false,
+    "tui_comm_absolute": false,
+    "native_calls_added": 0
+  },
+  "source_order_inference": {
+    "main_validation_precedes_async_run": true,
+    "this_helper_call_did_not_reach_rpc_run": true
+  },
+  "original_binding_changed": false,
+  "prepare_retried": false,
+  "send_attempt_exists": false,
+  "synthetic_ack": null
+}

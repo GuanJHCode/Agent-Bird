@@ -1,0 +1,46 @@
+{
+  "nonce": "sd-qual-02",
+  "root": "01a0932d-1998-7221-8897-5822328be877",
+  "window": {
+    "since": "2026-09-12T01:13:21.835540+00:00",
+    "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+    "mono_ns": 4098169531827916,
+    "deadline_mono_ns": 4098289531827916,
+    "epoch_correlation_end": "2026-09-12T01:15:21.835540+00:00"
+  },
+  "inputs": [
+    {
+      "at": "2026-09-12T01:13:21.605898+00:00",
+      "clock": {
+        "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+        "mono_ns": 4098169302458875,
+        "wall_ns": 1789175601606173000
+      },
+      "action": "status",
+      "bytes": 8,
+      "sha256": "6dc5d1b0bdd8792c20c4cddc37f35ed6d3d2256f134dbc98a54ffa3b1bbb52ee"
+    },
+    {
+      "at": "2026-09-12T01:13:21.835400+00:00",
+      "clock": {
+        "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+        "mono_ns": 4098169531705583,
+        "wall_ns": 1789175601835420000
+      },
+      "action": "initial-paste",
+      "bytes": 2101,
+      "sha256": "eba51e1935f2cecdd7957e1d41e352e6b331667c411233776dba00757661cfbc"
+    },
+    {
+      "at": "2026-09-12T01:13:21.835550+00:00",
+      "clock": {
+        "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+        "mono_ns": 4098169531837083,
+        "wall_ns": 1789175601835551000
+      },
+      "action": "initial-submit",
+      "bytes": 1,
+      "sha256": "9d1e0e2d9459d06523ad13e28a4093c2316baafe7aec5b25f30eba2e113599c4"
+    }
+  ]
+}

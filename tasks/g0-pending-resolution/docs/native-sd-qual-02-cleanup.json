@@ -1,0 +1,104 @@
+{
+  "version": 1,
+  "nonce": "sd-qual-02",
+  "root": "01a0932d-1998-7221-8897-5822328be877",
+  "observed_at": "2026-09-12T01:17:57.452883+00:00",
+  "pre_signal_identity": {
+    "pid": 75573,
+    "ppid": 1,
+    "uid": 501,
+    "started_at_local": "Sat Sep 12 09:13:21 2026",
+    "comm": "codex",
+    "native_executable_matches": true
+  },
+  "pre_signal_socket": {
+    "path": "/Users/guanjunhui/.codex/app-server-control/app-server-control.sock",
+    "exists": true,
+    "dev": 16777234,
+    "ino": 160949842,
+    "uid": 501,
+    "mode": "0600",
+    "service_holds_path": true
+  },
+  "owned_unix_rows": [
+    {
+      "pid": 75573,
+      "fd": "7u",
+      "kernel_addresses": [
+        "0x2d760b2ad11b050a",
+        "0x913a663dd6db48f3"
+      ],
+      "default_socket": false
+    },
+    {
+      "pid": 75573,
+      "fd": "8u",
+      "kernel_addresses": [
+        "0x2d760b2ad11b050a",
+        "0x913a663dd6db48f3"
+      ],
+      "default_socket": false
+    },
+    {
+      "pid": 75573,
+      "fd": "9u",
+      "kernel_addresses": [
+        "0x2d760b2ad11b050a",
+        "0x913a663dd6db48f3"
+      ],
+      "default_socket": false
+    },
+    {
+      "pid": 75573,
+      "fd": "28u",
+      "kernel_addresses": [
+        "0xc64abb77bffaf439"
+      ],
+      "default_socket": true
+    },
+    {
+      "pid": 75573,
+      "fd": "31u",
+      "kernel_addresses": [
+        "0x69ae522a615e6dce",
+        "0xa051e9baab7a91bc"
+      ],
+      "default_socket": false
+    }
+  ],
+  "other_matching_peer_rows": [],
+  "controller_absent": true,
+  "tui_absent": true,
+  "caffeinate_absent": true,
+  "go_worker_pid": 76288,
+  "go_worker_absent": true,
+  "go_inspection": {
+    "version": 1,
+    "status": "completed",
+    "nonce": "sd-qual-02",
+    "controller_thread": "01a0932d-1998-7221-8897-5822328be877",
+    "revision": 1,
+    "task_revision": 1,
+    "cancelled": false,
+    "event_hash": "4cb1bbf0d272df151b585d2e0fa8a16edea792058a628a558cc4525b915b0ac8",
+    "result": {
+      "version": 1,
+      "status": "completed",
+      "nonce": "sd-qual-02",
+      "count": 1
+    },
+    "ack": null
+  },
+  "probe_connections_open": 0,
+  "signal": {
+    "pid": 75573,
+    "name": "SIGINT",
+    "at": "2026-09-12T01:17:57.472321+00:00",
+    "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+    "mono_ns": 4098445167604166
+  },
+  "stop_elapsed_ns": 126590750,
+  "service_absent": true,
+  "socket_absent": true,
+  "status": "cleaned"
+}

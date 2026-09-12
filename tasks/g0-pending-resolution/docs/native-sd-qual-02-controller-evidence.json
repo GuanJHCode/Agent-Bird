@@ -1,0 +1,344 @@
+{
+  "version": 1,
+  "nonce": "sd-qual-02",
+  "root": "01a0932d-1998-7221-8897-5822328be877",
+  "initial_window": {
+    "since": "2026-09-12T01:13:21.835540+00:00",
+    "through": "2026-09-12T01:14:12.289927+00:00"
+  },
+  "origin": {
+    "service": {
+      "pid": 75573,
+      "ppid": 75568,
+      "uid": 501,
+      "started_at_local": "Sat Sep 12 09:13:21 2026",
+      "comm": "codex",
+      "native_executable_matches": true
+    },
+    "tui": {
+      "pid": 75599,
+      "ppid": 75568,
+      "uid": 501,
+      "started_at_local": "Sat Sep 12 09:13:21 2026",
+      "comm": "codex",
+      "native_executable_matches": true
+    },
+    "socket": {
+      "path": "/Users/guanjunhui/.codex/app-server-control/app-server-control.sock",
+      "exists": true,
+      "dev": 16777234,
+      "ino": 160949842,
+      "uid": 501,
+      "mode": "0600",
+      "service_holds_path": true
+    }
+  },
+  "before_send": {
+    "service": {
+      "pid": 75573,
+      "ppid": 75568,
+      "uid": 501,
+      "started_at_local": "Sat Sep 12 09:13:21 2026",
+      "comm": "codex",
+      "native_executable_matches": true
+    },
+    "tui": {
+      "pid": 75599,
+      "ppid": 75568,
+      "uid": 501,
+      "started_at_local": "Sat Sep 12 09:13:21 2026",
+      "comm": "codex",
+      "native_executable_matches": true
+    },
+    "socket": {
+      "path": "/Users/guanjunhui/.codex/app-server-control/app-server-control.sock",
+      "exists": true,
+      "dev": 16777234,
+      "ino": 160949842,
+      "uid": 501,
+      "mode": "0600",
+      "service_holds_path": true
+    }
+  },
+  "pty": {
+    "pid": 75599,
+    "started_at": "2026-09-12T01:13:21.367067+00:00",
+    "bytes": 48226,
+    "sha256": "6b2e0fdac0d8fd12fedc3f2c1aece9f05eac249dad212d67732f19292a0c8a81",
+    "cursor_position_replies": 1,
+    "inputs": [
+      {
+        "at": "2026-09-12T01:13:21.605898+00:00",
+        "clock": {
+          "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+          "mono_ns": 4098169302458875,
+          "wall_ns": 1789175601606173000
+        },
+        "action": "status",
+        "bytes": 8,
+        "sha256": "6dc5d1b0bdd8792c20c4cddc37f35ed6d3d2256f134dbc98a54ffa3b1bbb52ee"
+      },
+      {
+        "at": "2026-09-12T01:13:21.835400+00:00",
+        "clock": {
+          "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+          "mono_ns": 4098169531705583,
+          "wall_ns": 1789175601835420000
+        },
+        "action": "initial-paste",
+        "bytes": 2101,
+        "sha256": "eba51e1935f2cecdd7957e1d41e352e6b331667c411233776dba00757661cfbc"
+      },
+      {
+        "at": "2026-09-12T01:13:21.835550+00:00",
+        "clock": {
+          "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+          "mono_ns": 4098169531837083,
+          "wall_ns": 1789175601835551000
+        },
+        "action": "initial-submit",
+        "bytes": 1,
+        "sha256": "9d1e0e2d9459d06523ad13e28a4093c2316baafe7aec5b25f30eba2e113599c4"
+      }
+    ],
+    "exit_code": null,
+    "status_root": "01a0932d-1998-7221-8897-5822328be877",
+    "status_capture_start_byte": 3857
+  },
+  "pending_barrier": {
+    "go_before": {
+      "before": "2026-09-12T01:13:34.541150+00:00",
+      "after": "2026-09-12T01:13:34.547635+00:00",
+      "elapsed_seconds": 0.006473291,
+      "binary_sha256": "feb9b9ad969abca5ff35db28c0f0d8d920dc0778d7aac68a90952900e989a285",
+      "output": {
+        "version": 1,
+        "status": "pending",
+        "nonce": "sd-qual-02",
+        "count": 0
+      },
+      "stdout_sha256": "ce8095e6f5bb051599d763c15ac6da919754da9320fcfa48e55169ef5c050fc4",
+      "exit_code": 0
+    },
+    "native_task_complete": {
+      "at": "2026-09-12T01:13:34.385Z",
+      "turn_id": "01a0932d-1b16-71c3-b4ef-5982a8510db8",
+      "type": "task_complete",
+      "last_agent_message": "SD_QUAL_02_READY"
+    },
+    "native_observed_before": "2026-09-12T01:13:34.547745+00:00",
+    "native_observed_after": "2026-09-12T01:13:34.548934+00:00",
+    "go_after": {
+      "before": "2026-09-12T01:13:34.548938+00:00",
+      "after": "2026-09-12T01:13:34.554183+00:00",
+      "elapsed_seconds": 0.005236833,
+      "binary_sha256": "feb9b9ad969abca5ff35db28c0f0d8d920dc0778d7aac68a90952900e989a285",
+      "output": {
+        "version": 1,
+        "status": "pending",
+        "nonce": "sd-qual-02",
+        "count": 0
+      },
+      "stdout_sha256": "ce8095e6f5bb051599d763c15ac6da919754da9320fcfa48e55169ef5c050fc4",
+      "exit_code": 0
+    }
+  },
+  "completed_read": {
+    "before": "2026-09-12T01:14:12.247923+00:00",
+    "after": "2026-09-12T01:14:12.263010+00:00",
+    "elapsed_seconds": 0.015030958,
+    "binary_sha256": "feb9b9ad969abca5ff35db28c0f0d8d920dc0778d7aac68a90952900e989a285",
+    "output": {
+      "version": 1,
+      "status": "completed",
+      "nonce": "sd-qual-02",
+      "count": 1
+    },
+    "stdout_sha256": "90adce526a29317016f3e419f2dffc84a93a64762e6a12bfe19c8c05a69f3988",
+    "exit_code": 0
+  },
+  "local": {
+    "thread": {
+      "id": "01a0932d-1998-7221-8897-5822328be877",
+      "source": "vscode",
+      "experiment_cwd_matches": true,
+      "cli_version": "0.153.4"
+    },
+    "hooks": [
+      {
+        "session_id": "01a0932d-1998-7221-8897-5822328be877",
+        "hook_event_name": "SessionStart",
+        "pid": 76202,
+        "ppid": 75573,
+        "recorded_at": "2026-09-12T01:13:25.647743Z",
+        "source": "startup"
+      },
+      {
+        "session_id": "01a0932d-1998-7221-8897-5822328be877",
+        "hook_event_name": "UserPromptSubmit",
+        "pid": 76203,
+        "ppid": 75573,
+        "recorded_at": "2026-09-12T01:13:25.669137Z",
+        "turn_id": "01a0932d-1b16-71c3-b4ef-5982a8510db8"
+      }
+    ],
+    "native_protocol": [
+      {
+        "ts": 1789175601,
+        "ts_nanos": 955343000,
+        "target": "codex_config::loader::layer_io",
+        "process_uuid": "pid:75573:5cd8708f-775a-46a5-9e91-32084f964978",
+        "exact_root": false,
+        "fields": {
+          "transport": "unix_socket",
+          "client_name": "codex-tui",
+          "client_version": "0.153.4",
+          "api_version": "v2",
+          "connection_id": 0
+        }
+      },
+      {
+        "ts": 1789175603,
+        "ts_nanos": 102871000,
+        "target": "codex_config::loader::layer_io",
+        "process_uuid": "pid:75573:5cd8708f-775a-46a5-9e91-32084f964978",
+        "exact_root": false,
+        "fields": {
+          "transport": "unix_socket",
+          "client_name": "codex-tui",
+          "client_version": "0.153.4",
+          "api_version": "v2",
+          "connection_id": 0
+        }
+      },
+      {
+        "ts": 1789175603,
+        "ts_nanos": 162772000,
+        "target": "codex_config::loader::layer_io",
+        "process_uuid": "pid:75573:5cd8708f-775a-46a5-9e91-32084f964978",
+        "exact_root": false,
+        "fields": {
+          "transport": "unix_socket",
+          "client_name": "codex-tui",
+          "client_version": "0.153.4",
+          "api_version": "v2",
+          "connection_id": 0
+        }
+      },
+      {
+        "ts": 1789175603,
+        "ts_nanos": 400936000,
+        "target": "codex_config::loader::layer_io",
+        "process_uuid": "pid:75573:5cd8708f-775a-46a5-9e91-32084f964978",
+        "exact_root": false,
+        "fields": {
+          "transport": "unix_socket",
+          "client_name": "codex-tui",
+          "client_version": "0.153.4",
+          "api_version": "v2",
+          "connection_id": 0
+        }
+      },
+      {
+        "ts": 1789175603,
+        "ts_nanos": 469553000,
+        "target": "codex_config::loader::layer_io",
+        "process_uuid": "pid:75573:5cd8708f-775a-46a5-9e91-32084f964978",
+        "exact_root": false,
+        "fields": {
+          "transport": "unix_socket",
+          "client_name": "codex-tui",
+          "client_version": "0.153.4",
+          "api_version": "v2",
+          "connection_id": 0
+        }
+      },
+      {
+        "ts": 1789175605,
+        "ts_nanos": 682586000,
+        "target": "codex_app_server::outgoing_message",
+        "process_uuid": "pid:75573:5cd8708f-775a-46a5-9e91-32084f964978",
+        "exact_root": false,
+        "fields": {
+          "transport": "unix_socket",
+          "client_name": "codex-tui",
+          "client_version": "0.153.4",
+          "api_version": "v2",
+          "connection_id": 0
+        }
+      },
+      {
+        "ts": 1789175605,
+        "ts_nanos": 683071000,
+        "target": "codex_config::loader::layer_io",
+        "process_uuid": "pid:75573:5cd8708f-775a-46a5-9e91-32084f964978",
+        "exact_root": false,
+        "fields": {
+          "transport": "unix_socket",
+          "client_name": "codex-tui",
+          "client_version": "0.153.4",
+          "api_version": "v2",
+          "connection_id": 0
+        }
+      },
+      {
+        "ts": 1789175605,
+        "ts_nanos": 686432000,
+        "target": "codex_config::loader::layer_io",
+        "process_uuid": "pid:75573:5cd8708f-775a-46a5-9e91-32084f964978",
+        "exact_root": false,
+        "fields": {
+          "transport": "unix_socket",
+          "client_name": "codex-tui",
+          "client_version": "0.153.4",
+          "api_version": "v2",
+          "connection_id": 0
+        }
+      },
+      {
+        "ts": 1789175605,
+        "ts_nanos": 691987000,
+        "target": "codex_config::loader::layer_io",
+        "process_uuid": "pid:75573:5cd8708f-775a-46a5-9e91-32084f964978",
+        "exact_root": false,
+        "fields": {
+          "transport": "unix_socket",
+          "client_name": "codex-tui",
+          "client_version": "0.153.4",
+          "api_version": "v2",
+          "method": "thread/start",
+          "connection_id": 0
+        }
+      },
+      {
+        "ts": 1789175605,
+        "ts_nanos": 751395000,
+        "target": "codex_app_server::outgoing_message",
+        "process_uuid": "pid:75573:5cd8708f-775a-46a5-9e91-32084f964978",
+        "exact_root": false,
+        "fields": {
+          "transport": "unix_socket",
+          "client_name": "codex-tui",
+          "client_version": "0.153.4",
+          "api_version": "v2",
+          "method": "thread/start",
+          "connection_id": 0
+        }
+      },
+      {
+        "ts": 1789175611,
+        "ts_nanos": 573243000,
+        "target": "codex_app_server::outgoing_message",
+        "process_uuid": "pid:75573:5cd8708f-775a-46a5-9e91-32084f964978",
+        "exact_root": false,
+        "fields": {
+          "transport": "unix_socket",
+          "client_name": "codex-tui",
+          "client_version": "0.153.4",
+          "api_version": "v2",
+          "connection_id": 0
+        }
+      }
+    ]
+  }
+}

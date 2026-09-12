@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "nonce": "sd-qual-02",
+  "provenance": "restricted projection of actual preflight stdout; main was frozen at 8eeb456",
+  "controller_pid": 75568,
+  "caffeinate_pid": 75570,
+  "caffeinate_argv": [
+    "/usr/bin/caffeinate",
+    "-i",
+    "-t",
+    "300",
+    "-w",
+    "75568"
+  ],
+  "controller_caffeinate_observed_birth": {
+    "controller": "Sat Sep 12 09:13:20 2026",
+    "caffeinate": "Sat Sep 12 09:13:21 2026",
+    "uid": 501
+  },
+  "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+  "mono_ns": 4098168738192541,
+  "wall_ns": 1789175601041905000,
+  "python_version": "3.13.7",
+  "websockets_version": "16.0",
+  "native_version": "codex-cli 0.153.4",
+  "source_sha256": {
+    "native_sd_control.py": "1fe75addb456461309620e0cbadbbd1e15f91f0a7f9f03345b9a78b69526e86f",
+    "native_sd_collect.py": "852f2449e4e1125aced1eb447d3a9596928daa51f90b8de828d66b6317085053",
+    "native_sd_pty.py": "c142326e31c2541dbb901c71fa84a96fe0a66bafb46c1344b14c89c94a344190",
+    "native_sd_clock.py": "c16c8d0d0d9b1652d18606230351493f3cea33211f8b4d3323bb5b6bf2466087",
+    "native_standalone.py": "b3677fa6ee27d929436f6c73d1610879a488daad2ea7959f2fd48367bb605c3a",
+    "delivery_audit.py": "59d8129d5409fb7fb5687a5107c81f9d85a63b8f718e4dd22cab660517af87c6"
+  },
+  "native_sha256": "b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3",
+  "go_sha256": "feb9b9ad969abca5ff35db28c0f0d8d920dc0778d7aac68a90952900e989a285",
+  "preflight_passed": [
+    "source_sha256",
+    "native_go_sha256",
+    "ordinary_PATH_codex",
+    "python_websockets_versions",
+    "no_task_pyc",
+    "default_socket_absent",
+    "case_absent",
+    "job_absent"
+  ],
+  "native_argv_unchanged": true,
+  "same_pid_exec": true
+}

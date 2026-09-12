@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "nonce": "sd-qual-02",
+  "kind": "byte_identical_case_archive",
+  "files": [
+    {
+      "source": "tasks/g0-pending-resolution/data/sd-qual-02/controller-result.json",
+      "archived_as": "tasks/g0-pending-resolution/docs/native-sd-qual-02-controller.json",
+      "bytes": 10127,
+      "sha256": "107bb97c72a7bf5cb6a894e0810a97dd44202daa6fc7ebc188130ed218d41c92",
+      "byte_identical": true
+    },
+    {
+      "source": "tasks/g0-pending-resolution/data/sd-qual-02/controller-evidence.json",
+      "archived_as": "tasks/g0-pending-resolution/docs/native-sd-qual-02-controller-evidence.json",
+      "bytes": 10533,
+      "sha256": "1b053e372a7a433e4f2621423e835741c8054ee64779e367a9d3913253479265",
+      "byte_identical": true
+    },
+    {
+      "source": "tasks/g0-pending-resolution/data/sd-qual-02/binding.json",
+      "archived_as": "tasks/g0-pending-resolution/docs/native-sd-qual-02-binding.json",
+      "bytes": 1430,
+      "sha256": "62e7dccf2b868bc6bfb81f07222a91f7722d122b1321a3b0bfb8099233f76235",
+      "byte_identical": true
+    },
+    {
+      "source": "tasks/g0-pending-resolution/data/sd-qual-02/initial-submit.json",
+      "archived_as": "tasks/g0-pending-resolution/docs/native-sd-qual-02-initial-submit.json",
+      "bytes": 1439,
+      "sha256": "3848c16e99a7c324b40bc11c4241803171edc4a3213569e82c34a6e47cc9a481",
+      "byte_identical": true
+    },
+    {
+      "source": "tasks/g0-pending-resolution/data/sd-qual-02/cleanup.json",
+      "archived_as": "tasks/g0-pending-resolution/docs/native-sd-qual-02-cleanup.json",
+      "bytes": 2416,
+      "sha256": "74ba40a3787cbbbf6de0398f92a1d347e37a87e3eaf7f4c11fed0a0709b33aac",
+      "byte_identical": true
+    }
+  ],
+  "omitted": [
+    "case.lock (empty local lock; retained in original case)"
+  ],
+  "native_calls_added_by_archive": 0
+}

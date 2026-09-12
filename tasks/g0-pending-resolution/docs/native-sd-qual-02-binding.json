@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "nonce": "sd-qual-02",
+  "controller_thread_id": "01a0932d-1998-7221-8897-5822328be877",
+  "controller_epoch": 1,
+  "expected_cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo",
+  "prior_turn_id": "01a0932d-1b16-71c3-b4ef-5982a8510db8",
+  "native_cli_version": "0.153.4",
+  "boot_id": "d9bf3f35-fa82-48be-b5df-c428eb69f42f",
+  "service": {
+    "pid": 75573,
+    "uid": 501,
+    "birth": "Sat Sep 12 09:13:21 2026",
+    "comm": "codex",
+    "native_binary_sha256": "b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3",
+    "socket_path": "/Users/guanjunhui/.codex/app-server-control/app-server-control.sock",
+    "socket_dev": 16777234,
+    "socket_ino": 160949842
+  },
+  "tui": {
+    "pid": 75599,
+    "uid": 501,
+    "birth": "Sat Sep 12 09:13:21 2026",
+    "comm": "codex",
+    "native_binary_sha256": "b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3"
+  },
+  "go_binary": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-retained-resume/data/g0-return-lab-retained-darwin-arm64",
+  "go_binary_sha256": "feb9b9ad969abca5ff35db28c0f0d8d920dc0778d7aac68a90952900e989a285",
+  "job_dir": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/tasks/pending-resolution/data/sd-qual-02",
+  "controller_evidence_sha256": "1b053e372a7a433e4f2621423e835741c8054ee64779e367a9d3913253479265"
+}
