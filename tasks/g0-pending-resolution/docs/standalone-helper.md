@@ -1,12 +1,12 @@
 # 单次 standalone 原生资格 helper
 
-本工具当前只准入已登记服务、TUI、root、prior turn 和唯一 `sd-qual-05` 合成样本。原 `sd-qual-01`、`sd-qual-02`、`sd-qual-03`、`sd-qual-04` 记录保留，不能用此版本作运行入口重跑；helper 尚未取得原生资格阳性。需要独立源码审查及 controller 的同次身份/PTY/时间线证据。`source_service_verified:false`、`current_display_verified:false` 始终保留，不把本地检查器或 caller 提供的字段升级成通用附着证明。
+本工具当前只准入已登记服务、TUI、root、prior turn 和唯一 `sd-qual-06` 合成样本。原 `sd-qual-01`、`sd-qual-02`、`sd-qual-03`、`sd-qual-04`、`sd-qual-05` 记录保留，不能用此版本作运行入口重跑；helper 尚未取得原生资格阳性。需要独立源码审查及 controller 的同次身份/PTY/时间线证据。`source_service_verified:false`、`current_display_verified:false` 始终保留，不把本地检查器或 caller 提供的字段升级成通用附着证明。
 
 ```sh
-python3 tasks/g0-pending-resolution/scripts/native_standalone.py prepare --case ABS0700DIR --root ROOT_UUID --nonce sd-qual-05
-python3 tasks/g0-pending-resolution/scripts/native_standalone.py send-once --case ABS0700DIR --root ROOT_UUID --nonce sd-qual-05
+python3 tasks/g0-pending-resolution/scripts/native_standalone.py prepare --case ABS0700DIR --root ROOT_UUID --nonce sd-qual-06
+python3 tasks/g0-pending-resolution/scripts/native_standalone.py send-once --case ABS0700DIR --root ROOT_UUID --nonce sd-qual-06
 # 仅已有 send-attempt 且同 boot/原 120 秒尚未结束时，显式只读补证：
-python3 tasks/g0-pending-resolution/scripts/native_standalone.py observe --case ABS0700DIR --root ROOT_UUID --nonce sd-qual-05
+python3 tasks/g0-pending-resolution/scripts/native_standalone.py observe --case ABS0700DIR --root ROOT_UUID --nonce sd-qual-06
 ```
 
 参数顺序固定。macOS、现有 Python 3.13/websockets 16.0；不安装依赖。脚本同目录需要既有 `delivery_audit.py`（仅复用严格 JSON/envelope 函数，不修改它）。普通原生入口及受控服务由 controller 创建；helper 不创建 listener、不改任何配置/权限/账号，也不调用模型提供商。
@@ -57,4 +57,6 @@ RPC 仅 initialize、initialized 通知、server/diagnostics、remoteControl/sta
 
 当时唯一运行 nonce 曾冻结为 ACTIVE_NONCE=sd-qual-04；仍无环境或 CLI 绕过，sd01/02/03 不作为运行入口。历史 sd03 摘要交叉链仅在测试内 patch 为 sd-qual-03，fixture 原字节保留。该提交不是原生阳性。见 [sd04 nonce 冻结](standalone-helper-sd04-nonce.md)。
 
-当前唯一运行 nonce 已冻结为 ACTIVE_NONCE=sd-qual-05；仍无环境或 CLI 绕过，sd01/02/03/04 不作为运行入口。历史 sd02/sd03 仅在测试内 patch，fixture 与 sd03/sd04 历史收据原字节不改。本提交不是原生阳性。见 [sd05 nonce 冻结](standalone-helper-sd05-nonce.md)。
+当时唯一运行 nonce 曾冻结为 ACTIVE_NONCE=sd-qual-05；仍无环境或 CLI 绕过，sd01/02/03/04 不作为运行入口。历史 sd02/sd03 仅在测试内 patch，fixture 与 sd03/sd04 历史收据原字节不改。该提交不是原生阳性。见 [sd05 nonce 冻结](standalone-helper-sd05-nonce.md)。
+
+当前唯一运行 nonce 已冻结为 ACTIVE_NONCE=sd-qual-06；仍无环境或 CLI 绕过，sd01/02/03/04/05 不作为运行入口。历史 sd02/sd03 仅在测试内 patch，fixture 与 sd03/sd04/sd05 历史收据原字节不改。本提交不是原生阳性。见 [sd06 nonce 冻结](standalone-helper-sd06-nonce.md)。

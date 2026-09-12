@@ -104,4 +104,4 @@ sd05 已下发：10 秒本地启动预算内无 SessionStart，PTY 停在 MCP �
 
 新建材料按本任务 `plans/`、`docs/`、`scripts/`、`data/`、`tmp/` 分开；`tmp/` 只放可回收 worktree、下载和测试缓存。源码、必要运行记录和可审查证据保留。收尾列清单，核对归属后清理；不删除原有任务材料或配置。
 
-状态：sd04/sd05 原生样本均未通过初始身份门禁并已归档清理。sd05 的有界 PTY 显示 TUI 停在 MCP 启动（cua_repl/node_repl 1/3），10 秒内无 SessionStart。已前瞻登记 `sd-qual-06`（SessionStart 等待放入初始 120 秒窗口），尚未冻结或下发。摘要修复仍成立，send-once 未触达。完整 G0 仍未通过。
+状态：sd04/sd05 原生样本均未通过初始身份门禁并已归档清理。sd05 的有界 PTY 显示 TUI 停在 MCP 启动（cua_repl/node_repl 1/3），10 秒内无 SessionStart。`sd-qual-06` 已离线冻结（SessionStart 等待放入初始 120 秒窗口；controller `ac4788e`、helper `f7807c4`；四份未参与实现的交叉复核有效问题 0），尚未下发原生。摘要修复仍成立，send-once 未触达。完整 G0 仍未通过。

@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "scope": "offline_sd06_session_start_in_initial_120s_window_registration_only",
+  "contract_commit": "ffd670640f951145f1ce7f567338fe0a2ff65f4b",
+  "controller_commit": "ac4788e4f0135b308779b5fc94525b67cc43b288",
+  "helper_commit": "f7807c4c6d896077b659cfeaa131fa36ef9b2c9b",
+  "active_nonce": "sd-qual-06",
+  "case": "tasks/g0-pending-resolution/data/sd-qual-06",
+  "job": "tasks/g0-macos/data/test-repo/tasks/pending-resolution/data/sd-qual-06",
+  "markers": {
+    "ready": "SD_QUAL_06_READY",
+    "ack": "SD_QUAL_06_ACK",
+    "command_id": "sd-qual-06-ack-1"
+  },
+  "session_start_gate": {
+    "required_before": "initial-paste",
+    "event": "SessionStart",
+    "source": "startup",
+    "owned_by": "service_pid",
+    "budget_seconds": 120,
+    "window": "initial",
+    "starts_at": "origin_capture",
+    "covers": ["session_start_wait", "initial-paste", "initial-submit", "posterior_identity"],
+    "stacked_extra_10s_session_wait": false,
+    "missing_failure_code": "owned_session_start_missing",
+    "missing_substage": "await_session_start",
+    "ambiguous": "reject",
+    "pty_capture_on_missing": {
+      "file": "startup-pty-capture.bin",
+      "mode": "0600",
+      "flags": "O_EXCL",
+      "limit_bytes": 65536,
+      "controller_json_fields": ["path", "bytes", "sha256"]
+    }
+  },
+  "rejected_runtime_nonces": [
+    "sd-qual-01",
+    "sd-qual-02",
+    "sd-qual-03",
+    "sd-qual-04",
+    "sd-qual-05"
+  ],
+  "no_env_or_cli_override": true,
+  "reviews": {
+    "task1_spec": "Approved",
+    "task1_reliability": "放行",
+    "task2_spec": "Approved",
+    "task2_quality": "Approved",
+    "open_valid_issues": 0
+  },
+  "green_controller": {
+    "command": "python3 -B -m unittest native_sd_collect_test native_sd_pty_test native_sd_control_test",
+    "count": 42,
+    "exit_code": 0,
+    "runs": 2
+  },
+  "green_helper": {
+    "command": "python3 -B -m unittest native_standalone_test native_standalone_binding_test",
+    "count": 33,
+    "exit_code": 0,
+    "runs": 2,
+    "hash_command": "G0_SD_CONTROLLER_SCRIPTS=tmp/controller-59a2d67 python3 -B -m unittest native_standalone_hash_test",
+    "hash_count": 1,
+    "hash_exit_code": 0
+  },
+  "native_or_model_started": false,
+  "mcp_disabled": false,
+  "global_config_modified": false,
+  "sd02_sd03_sd04_sd05_original_files_modified": false,
+  "source_sha256": {
+    "native_sd_control.py": "987ed420c940edae69848df13c538542bb4ae14c403007fffaa3cd1d3d1b797a",
+    "native_sd_collect.py": "d7d123e4f3ed83edd7135a1e87203d1b99bf163bf743b72edf057c85c9ea0b3b",
+    "native_sd_pty.py": "0ec348a89cfe1d5b41e23885f20a4323d2631af300ad577fa2e8726e16d8d5c5",
+    "native_sd_clock.py": "c16c8d0d0d9b1652d18606230351493f3cea33211f8b4d3323bb5b6bf2466087",
+    "native_standalone.py": "6f2e84bc5a89cec63f3dea01fc8a0d8af7f1ee57105bca64421a5ccbd2b6395a",
+    "delivery_audit.py": "59d8129d5409fb7fb5687a5107c81f9d85a63b8f718e4dd22cab660517af87c6"
+  }
+}
