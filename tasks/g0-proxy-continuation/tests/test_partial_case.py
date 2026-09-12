@@ -137,6 +137,31 @@ def test_retained_worker_without_identity_is_unknown_not_stopped():
     assert partial_case._retained_worker_stopped({"status": "running"}, {"status": "stopped"}) is False
 
 
+def test_requirements_projection_rejects_malformed_nonnull_shapes_and_accepts_null():
+    import partial_case
+
+    assert partial_case._requirements_projection({"requirements": None})["new_thread"] is None
+    assert partial_case._requirements_projection({"requirements": {"models": None}})["new_thread"] is None
+    with pytest.raises(Exception, match="requirements"):
+        partial_case._requirements_projection({"requirements": []})
+    with pytest.raises(Exception, match="models"):
+        partial_case._requirements_projection({"requirements": {"models": []}})
+    with pytest.raises(Exception, match="newThread"):
+        partial_case._requirements_projection({"requirements": {"models": {"newThread": []}}})
+
+
+def test_retained_binary_is_in_protection_hashes(tmp_path, monkeypatch):
+    import partial_case
+
+    value = spec(tmp_path)
+    value.retained_binary.write_bytes(b"go-fixture")
+    monkeypatch.setattr("partial_case._source_hashes", lambda *args, **kwargs: {"binary_sha256": "native", "protected": {}})
+    before = value.protection_hashes()
+    value.retained_binary.write_bytes(b"changed")
+    after = value.protection_hashes()
+    assert before["retained_binary"]["sha256"] != after["retained_binary"]["sha256"]
+
+
 def test_owned_runtime_snapshot_uses_real_process_and_endpoint_identities(tmp_path):
     import partial_case
 
@@ -152,6 +177,9 @@ def test_owned_runtime_snapshot_uses_real_process_and_endpoint_identities(tmp_pa
         process.wait(timeout=2)
         endpoint.unlink()
         assert partial_case._owned_runtime_stopped(runtime, snapshot)
+        endpoint.symlink_to(tmp_path / "replacement")
+        assert partial_case._owned_runtime_stopped(runtime, snapshot) is False
+        endpoint.unlink()
     finally:
         if process.poll() is None:
             process.kill()
@@ -160,7 +188,8 @@ def test_owned_runtime_snapshot_uses_real_process_and_endpoint_identities(tmp_pa
 
 def test_prepare_cli_freezes_fixture_and_does_not_create_case(tmp_path, monkeypatch):
     value = spec(tmp_path)
-    hashes = {"binary_sha256": GO_SHA, "protected": {"global_config": [], "test_config": [], "hooks": [], "seed_artifacts": []}}
+    value.retained_binary.write_bytes(b"go-fixture")
+    hashes = {"binary_sha256": GO_SHA, "protected": {"global_config": [], "test_config": [], "hooks": [], "seed_artifacts": []}, "retained_binary": {"path": str(value.retained_binary), "st_dev": value.retained_binary.stat().st_dev, "st_ino": value.retained_binary.stat().st_ino, "bytes": value.retained_binary.stat().st_size, "sha256": GO_SHA}}
     monkeypatch.setattr("partial_case._source_hashes", lambda *args, **kwargs: hashes)
     result = main([
         "--prepare", "--case-dir", str(value.plan.case_dir), "--preflight", str(value.plan.preflight_path),
@@ -179,7 +208,7 @@ def test_prepare_cli_freezes_fixture_and_does_not_create_case(tmp_path, monkeypa
 def test_run_partial_case_is_four_phase_and_writes_exclusive_result(tmp_path, monkeypatch):
     value = spec(tmp_path)
     value.retained_binary.write_bytes(b"go-fixture")
-    hashes = {"binary_sha256": GO_SHA, "protected": {"global_config": [], "test_config": [], "hooks": [], "seed_artifacts": []}}
+    hashes = {"binary_sha256": GO_SHA, "protected": {"global_config": [], "test_config": [], "hooks": [], "seed_artifacts": []}, "retained_binary": {"path": str(value.retained_binary), "st_dev": value.retained_binary.stat().st_dev, "st_ino": value.retained_binary.stat().st_ino, "bytes": value.retained_binary.stat().st_size, "sha256": GO_SHA}}
     monkeypatch.setattr("partial_case._source_hashes", lambda *args, **kwargs: hashes)
     value.plan.preflight_path.write_text(json.dumps(value.document(hashes=hashes)) + "\n")
 

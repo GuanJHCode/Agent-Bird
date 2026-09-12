@@ -38,6 +38,7 @@ from proxy_native_runtime import (  # noqa: E402
     _process_path,
     raw_seconds,
 )
+import partial_resume_plan as _partial_resume_plan  # noqa: E402
 from partial_resume_plan import PartialResumePlan  # noqa: E402
 from resume_case import ResumeCaseSpec, _source_hashes  # noqa: E402
 from partial_resume_plan import capture_parent_guard  # noqa: E402
@@ -88,7 +89,7 @@ class PartialCaseSpec:
             config_path=self.config_path,
             expected_resume_thread_id=expected,
             preflight_path=self.plan.preflight_path,
-            implementation_paths=(Path(__file__),) + self.implementation_paths,
+            implementation_paths=(Path(__file__), Path(_partial_resume_plan.__file__)) + self.implementation_paths,
             global_config_paths=self.global_config_paths,
             test_config_paths=self.test_config_paths,
             hook_paths=self.hook_paths,
@@ -96,7 +97,21 @@ class PartialCaseSpec:
         )
 
     def protection_hashes(self) -> dict[str, Any]:
-        return _source_hashes(self.runtime_config(), self._protection_spec())
+        result = _source_hashes(self.runtime_config(), self._protection_spec())
+        path = self.retained_binary
+        if os.path.lexists(path) and path.is_symlink():
+            raise RuntimeInvariantError("retained binary symlink is not allowed")
+        if not path.is_file():
+            raise FileNotFoundError(path)
+        metadata = path.lstat()
+        result["retained_binary"] = {
+            "path": str(path),
+            "st_dev": metadata.st_dev,
+            "st_ino": metadata.st_ino,
+            "bytes": metadata.st_size,
+            "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        }
+        return result
 
     def document(self, *, hashes: Mapping[str, Any] | None = None) -> dict[str, Any]:
         value = self.plan.document()
@@ -168,6 +183,19 @@ def build_continue_prompt(spec: PartialCaseSpec) -> str:
         f"retained-resume --dir {_quoted(spec.plan.job_dir)} --nonce {spec.plan.nonce} "
         "--controller-thread $CODEX_THREAD_ID --revision 1 --segment 1"
     )
+
+
+def _requirements_projection(response: Mapping[str, Any]) -> dict[str, Any]:
+    requirements = response.get("requirements") if isinstance(response, Mapping) else None
+    if requirements is not None and not isinstance(requirements, Mapping):
+        raise RuntimeInvariantError("effective model requirements are malformed")
+    models = requirements.get("models") if isinstance(requirements, Mapping) else None
+    if models is not None and not isinstance(models, Mapping):
+        raise RuntimeInvariantError("effective model requirements models are malformed")
+    new_thread = models.get("newThread") if isinstance(models, Mapping) else None
+    if new_thread is not None and not isinstance(new_thread, Mapping):
+        raise RuntimeInvariantError("effective model newThread requirements are malformed")
+    return {"requirements": requirements, "new_thread": new_thread}
 
 
 def _check_binary(spec: PartialCaseSpec) -> None:
@@ -247,8 +275,9 @@ async def _read_effective_model_live(config: NativeRuntimeConfig, expected_backe
             origin = {k: metadata["name"].get(k) for k in ("type", "dotCodexFolder")}
             if origin != expected_origin or not isinstance(metadata.get("version"), str):
                 raise RuntimeInvariantError("effective model origin is not project scoped")
-        requirements = requirements_response.get("requirements") if isinstance(requirements_response, Mapping) else None
-        new_thread = requirements.get("models", {}).get("newThread") if isinstance(requirements, Mapping) and isinstance(requirements.get("models"), Mapping) else None
+        requirements_projection = _requirements_projection(requirements_response)
+        requirements = requirements_projection["requirements"]
+        new_thread = requirements_projection["new_thread"]
         if new_thread is not None:
             if not isinstance(new_thread, Mapping) or new_thread.get("model") not in (None, "gpt-5.6-luna") or new_thread.get("modelReasoningEffort") not in (None, "medium"):
                 raise RuntimeInvariantError("effective model requirements conflict with Luna/medium")
@@ -359,10 +388,10 @@ def _owned_runtime_stopped(runtime: Any, ownership: Mapping[str, Any]) -> bool:
             return False
     for row in ownership.get("endpoints", ()):
         path = Path(row["path"])
-        if not path.exists():
-            continue
-        metadata = path.stat()
-        if (metadata.st_dev, metadata.st_ino) == (row["st_dev"], row["st_ino"]):
+        if os.path.lexists(path):
+            # A replacement, regular file, or dangling symlink is residual
+            # endpoint state and cannot be treated as cleanup success.
+            path.lstat()
             return False
     return True
 
@@ -541,12 +570,14 @@ async def run_partial_case(
         initial_prefix = _prefix_snapshot(spec, initial)
         stage = "stop"
         initial_terminal_before = _terminal_event_count(first.bridge, initial_epoch)
+        initial_quit_deadline = raw_seconds() + spec.plan.local_window_seconds
         tui.command("/quit")
-        quit_exit = await tui.await_exit(RuntimeWindow.start(local_seconds=spec.plan.local_window_seconds, model_seconds=spec.plan.model_window_seconds).local_deadline)
-        first_cleanup = await first.close()
+        quit_exit = await tui.await_exit(initial_quit_deadline)
+        await tui.aread_until(initial_quit_deadline)
         initial_terminal_after = _terminal_event_count(first.bridge, initial_epoch)
         if initial_terminal_after <= initial_terminal_before:
             raise RuntimeInvariantError("initial quit did not produce a new EOF/close")
+        first_cleanup = await first.close()
         stopped = await _inspect_until(
             initial_spec,
             lambda view: view.get("status") in {"interrupted", "stopped", "running"} and view.get("segment") == 1 and _retained_worker_stopped(initial, view),
@@ -631,14 +662,16 @@ async def run_partial_case(
         result.update({"continued": continued, "final_prefix": final_prefix, "status_ids": sorted(status_ids)})
         result["phases"].append("continued")
         resume_terminal_before = _terminal_event_count(bridge, epoch)
+        resume_quit_deadline = raw_seconds() + spec.plan.local_window_seconds
         tui.command("/quit")
-        final_exit = await tui.await_exit(raw_seconds() + spec.plan.local_window_seconds)
+        final_exit = await tui.await_exit(resume_quit_deadline)
+        await tui.aread_until(resume_quit_deadline)
+        resume_terminal_after = _terminal_event_count(bridge, epoch)
         if final_exit != 0:
             raise RuntimeInvariantError("continued TUI did not exit cleanly")
-        second_cleanup = await second.close()
-        resume_terminal_after = _terminal_event_count(bridge, epoch)
         if resume_terminal_after <= resume_terminal_before:
             raise RuntimeInvariantError("resume quit did not produce a new EOF/close")
+        second_cleanup = await second.close()
         if second_cleanup.get("failed_pids") or second_cleanup.get("failed_endpoints") or not _owned_runtime_stopped(second, resume_ownership):
             raise RuntimeInvariantError("continued owned runtime cleanup is incomplete")
         result["resume_tui"] = tui.evidence
@@ -690,6 +723,7 @@ async def run_partial_case(
 
 
 def prepare_partial_case(spec: PartialCaseSpec) -> Path:
+    _check_binary(spec)
     target = spec.plan.preflight_path
     if target.exists() or os.path.lexists(target):
         raise FileExistsError(target)
