@@ -8,7 +8,7 @@
 
 1. `launch-intent.json` 在 spawn 前以 0600/O_EXCL/fsync 写入，含 nonce/case/job/boot、本 service PID/birth/actual executable、固定 native SHA、socket 身份、初始任务 bytes/SHA 与原窗口。仅存摘要，不导出任务正文，不声明 native 已接收。
 2. `native-origin.json` 在 native TUI 进程身份可观察后写入，含独立实际 service/TUI/socket、捕获时间/时钟、PTY 元数据和原 intent 字节 SHA；scope 明确它可能晚于原生自动提交。
-3. `controller-evidence.json` 同时引用两份原始文件 SHA，并绑定后验 root、双 Hook、Go owner、READY 屏障与完成读数。每次 helper 前按原窗口复查双 Hook、原生身份与两份受限原始文件；不回写 launch-intent。
+3. `controller-evidence.json` 同时引用两份原始文件 SHA，并绑定后验 root、双 Hook、Go owner、READY 屏障与完成读数。每次 helper 前按已冻结的初始 since/through 复查双 Hook、原生身份与两份受限原始文件；不回写 launch-intent。prepare 可在自身原 10 秒内结束后进入独立发送窗口，复查不要求此时仍处于初始 120 秒内，也不扩大初始证据范围。
 
 原窗口内的本服务唯一 startup SessionStart 与唯一 UserPromptSubmit 必须同 session/root，且顺序成立。Hook 可早于 post-launch origin；缺失、重复、异 root、超期或发送前变化均不准入 helper。原生 source/cwd/version、显式 family/session、SQLite parent edge、Go owner 与发送一次/uncertain 不重发判据延续。
 
@@ -17,7 +17,8 @@ TDD 证据：
 - [初始 RED](native-sd-qual-08-initial-red.log)：原实现没有 argv 初始任务，且没有意图持久化跨期门禁；旧 PTY 初始输入仍被允许。
 - [初始 GREEN](native-sd-qual-08-initial-green.log)：argv、早到 Hook、原窗口、身份/摘要变化等 12 项相关检查通过。
 - [Hook 复查 RED](native-sd-qual-08-hook-recheck-red.log)：本地证据读取后 SessionStart 改变仍到达 prepare；已把原双 Hook 复查放入每次 helper 前的身份检查。
-- [最终 native 检查](native-sd-qual-08-native-suite.log)：50 tests PASS，1.166 秒。`git diff --check` 退出 0。源码 SHA 见 [冻结清单](native-sd-qual-08-native-freeze.json)。
+- [冻结范围 RED](native-sd-qual-08-frozen-window-red.log)：初始证据在 115 秒冻结、prepare 用时 8 秒后仍能到达 send-once，但原复查上界移动到 120 秒；现已固定为原 evidence 的 through。
+- [最终 native 检查](native-sd-qual-08-final-native-suite.log)：51 tests PASS，1.204 秒。`git diff --check` 退出 0。源码 SHA 见 [冻结清单](native-sd-qual-08-native-freeze.json)。
 
 sd07 的前置 Hook/paste 测试已按新合同替换为 sd08 后验路径；已归档 sd01–sd07 文件及 sd03 canonical digest fixture 未改。历史 `/status` 的低层 PTY 测试使用显式 test-only 输入序列，不给当前运行入口恢复旧输入能力。临时测试目录由测试释放，未新建待清理脚本；原有 untracked pycache 保留。
 

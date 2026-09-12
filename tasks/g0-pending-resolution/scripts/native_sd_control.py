@@ -448,8 +448,10 @@ def run(helper_sha,audit_sha):
         require_owned_pair(result['service'],result['tui'],result['socket'],original)
         require_archive_sha(CASE/'launch-intent.json',record['launch_intent_sha256'])
         require_archive_sha(CASE/'native-origin.json',record['origin_sha256'])
-        through=stamp(); end=record['initial_window']['epoch_correlation_end']
-        if c.epoch_ns(through)>c.epoch_ns(end): through=end
+        through=record.get('initial_evidence_through')
+        if through is None:
+            through=stamp(); end=record['initial_window']['epoch_correlation_end']
+            if c.epoch_ns(through)>c.epoch_ns(end): through=end
         if discover_session_start(service.pid,record['initial_window']['since'],through)!=record['session_start']:
             raise ValueError('SessionStart changed before helper')
         if discover_prompt_hook(service.pid,record['initial_window']['since'],through)!=record['candidate_hook']:
@@ -613,6 +615,7 @@ def run(helper_sha,audit_sha):
         if read_job_owner(record['root'])!=record['job_owner']: raise ValueError('job owner changed before helper')
         local=c.local_evidence(record['root'],service.pid,*c.window(since,through,dt.datetime.now(dt.timezone.utc)))
         observed_connection=require_single_tui_connection(local['native_protocol'])
+        record['initial_evidence_through']=through
         record['substage']='launch_link'; pair()
         evidence={'version':1,'nonce':c.NONCE,'root':record['root'],'initial_window':{'since':since,'through':through},
                   'origin':original,'before_send':before_send,'pty':tui.evidence(),'pending_barrier':pending_barrier,

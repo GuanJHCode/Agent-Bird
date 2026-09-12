@@ -1,0 +1,15 @@
+test_send_preflight_after_initial_window_uses_frozen_evidence_range (native_sd_initial_test.InitialTests.test_send_preflight_after_initial_window_uses_frozen_evidence_range) ... FAIL
+
+======================================================================
+FAIL: test_send_preflight_after_initial_window_uses_frozen_evidence_range (native_sd_initial_test.InitialTests.test_send_preflight_after_initial_window_uses_frozen_evidence_range)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/native/tasks/g0-pending-resolution/scripts/native_sd_initial_test.py", line 224, in test_send_preflight_after_initial_window_uses_frozen_evidence_range
+    self.assertTrue(all(scan['since']==window['since'] and scan['through']==window['through'] for scan in later))
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False is not true
+
+----------------------------------------------------------------------
+Ran 1 test in 0.012s
+
+FAILED (failures=1)

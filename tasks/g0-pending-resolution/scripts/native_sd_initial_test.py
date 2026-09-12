@@ -21,8 +21,10 @@ BASE_TIME=dt.datetime(2026,9,11,10,tzinfo=dt.timezone.utc)
 
 class InitialTests(unittest.TestCase):
     def run_initial(self,*,missing=None,wrong_root=False,duplicate=None,intent_cost=0,
-                    spawn_cost=2000000000,identity_cost=0,scan_cost=0,tamper=None,service_changed=False):
+                    spawn_cost=2000000000,identity_cost=0,scan_cost=0,tamper=None,service_changed=False,
+                    result_at=0,prepare_cost=None):
         raw=[0];launches=[];sent=[];helper_attempts=[];lab_reads=[];exit_code=[None];inputs=[]
+        session_scans=[]
         with tempfile.TemporaryDirectory() as directory,ExitStack() as patches:
             base=Path(directory);executable=base/'fixture';executable.write_text('fixture')
             case=base/'case';job=base/'job';docs=base/'docs';docs.mkdir();hooks=base/'hooks';hooks.mkdir()
@@ -40,7 +42,7 @@ class InitialTests(unittest.TestCase):
             def snapshot(pid=None): return {'exists':False} if pid is None else socket
             def tui_read(seconds):
                 raw[0]+=1000000000
-                if len(lab_reads)>=2: (job/'result.json').write_text('{}')
+                if len(lab_reads)>=2 and raw[0]>=result_at: (job/'result.json').write_text('{}')
             def send(sequence,action):
                 data=sequence.take(action);sent.append(action)
                 inputs.append({'action':action,'at':stamp(),'clock':clock(),'bytes':len(data),
@@ -75,6 +77,7 @@ class InitialTests(unittest.TestCase):
                     with (case/'launch-intent.json').open('a') as stream: stream.write(' ')
             real_discover=control.discover_session_start
             def discover(service,since,through):
+                session_scans.append({'mono_ns':raw[0],'since':since,'through':through})
                 value=real_discover(service,since,through);raw[0]+=scan_cost
                 return value
             def read_job():
@@ -95,7 +98,12 @@ class InitialTests(unittest.TestCase):
                 return {'thread':{'id':ROOT},'family':{'spawn_edges_query_succeeded':True,'parent_edge_count':0},
                         'hooks':[],'native_protocol':[{'fields':{'transport':'unix_socket','client_name':'codex-tui',
                                                               'client_version':'0.154.0','connection_id':0}}]}
-            def helper(argv,**kwargs): helper_attempts.append(argv[3]);raise OSError('offline helper boundary')
+            def helper(argv,**kwargs):
+                helper_attempts.append(argv[3])
+                if argv[3]=='prepare' and prepare_cost is not None:
+                    raw[0]+=prepare_cost
+                    return SimpleNamespace(returncode=0,poll=lambda:0,communicate=lambda timeout:(b'{}',b''))
+                raise OSError('offline helper boundary')
             service=SimpleNamespace(pid=101,read=lambda seconds:None,_poll=lambda:None,
                                     evidence=lambda:{'pid':101,'exit_code':None},close=lambda:None)
             for key,value in (('CASE',case),('JOB',job),('DOCS',docs),('HELPER',executable),('AUDIT',executable)):
@@ -126,7 +134,8 @@ class InitialTests(unittest.TestCase):
             code=control.run('0'*64,'0'*64)
             files={path.name:path.read_bytes() for path in case.iterdir()}
             record=json.loads(files['controller-result.json'])
-            return {'code':code,'record':record,'files':files,'launches':launches,'sent':sent,'helper_attempts':helper_attempts}
+            return {'code':code,'record':record,'files':files,'launches':launches,'sent':sent,
+                    'helper_attempts':helper_attempts,'session_scans':session_scans}
 
     def test_early_double_hooks_survive_post_launch_origin_and_prepare_once(self):
         got=self.run_initial()
@@ -205,6 +214,16 @@ class InitialTests(unittest.TestCase):
         got=self.run_initial(tamper='session_before_prepare')
         self.assertEqual(got['helper_attempts'],[])
         self.assertEqual(got['record']['failure']['code'],'evidence_validation_rejected')
+
+    def test_send_preflight_after_initial_window_uses_frozen_evidence_range(self):
+        got=self.run_initial(result_at=115000000000,prepare_cost=8000000000)
+        self.assertEqual(got['helper_attempts'],['prepare','send-once'])
+        window=json.loads(got['files']['controller-evidence.json'])['initial_window']
+        later=[scan for scan in got['session_scans'] if scan['mono_ns']>=120000000000]
+        self.assertTrue(later)
+        self.assertTrue(all(scan['since']==window['since'] and scan['through']==window['through'] for scan in later))
+        self.assertEqual(got['record']['initial_window']['deadline_mono_ns'],120000000000)
+        self.assertEqual(got['record']['helper_calls'][0]['elapsed_seconds'],8)
 
 
 if __name__=='__main__': unittest.main()
