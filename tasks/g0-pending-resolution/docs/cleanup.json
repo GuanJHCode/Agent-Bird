@@ -1,6 +1,6 @@
 {
   "initial_checked_at": "2026-09-11T09:30:02.835218+00:00",
-  "latest_observation_phase": "after sd07 owned cleanup; native/helper worktrees remain active for sd08",
+  "latest_observation_phase": "after sd08 owned cleanup and facts integration; Luna preparation worktree in use",
   "scope": "Only temporary resources created for this pending-resolution task",
   "removed_worktrees": [
     {
@@ -130,6 +130,16 @@
     "cleanup_latency_claimed": false,
     "case_and_empty_job_directory_retained": true,
     "pty_retained_in_private_case": true,
+    "duplicate_generated_controller_doc_removed_only_after_byte_match_and_restored_from_commit": true,
+    "preexisting_untracked_coverage_and_pycache_left_untouched": true
+  },
+  "sd08_runtime_cleanup": {
+    "record": "native-sd-qual-08-post-window.json",
+    "ownership_record": "native-sd-qual-08-cleanup-ownership.json",
+    "controller_tui_service_child_caffeinate_absent": true,
+    "default_socket_absent": true,
+    "normal_quit_proven": true,
+    "original_case_job_files_retained": 19,
     "duplicate_generated_controller_doc_removed_only_after_byte_match_and_restored_from_commit": true,
     "preexisting_untracked_coverage_and_pycache_left_untouched": true
   }

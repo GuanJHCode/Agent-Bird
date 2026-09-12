@@ -298,9 +298,9 @@
     "generic_attachment_or_full_g0_passed": false
   },
   "latest_checkpoint": {
-    "main_commit": "9bd967c",
-    "registered_unconsumed_case": "sd-qual-08",
-    "native_runtime_started": false,
+    "main_commit": "ca2c4e6",
+    "registered_unconsumed_case": null,
+    "native_runtime_started": true,
     "generic_attachment_or_full_g0_passed": false,
     "observed_ordinary_cli_version": "0.154.0",
     "observed_ordinary_cli_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
@@ -357,8 +357,10 @@
     "original_seven_design_checksums_match": true,
     "source_document_json_diff_check_passed": true,
     "historical_raw_red_logs_preserved_with_unittest_trailing_whitespace": true,
-    "superseded_by": "sd08_admission",
-    "runtime_sources_ready": true
+    "superseded_by": "sd08_result",
+    "runtime_sources_ready": false,
+    "native_runtime_currently_running": false,
+    "next_model_run_blocked_until": "Luna effective-config verification and fresh registered case"
   },
   "sd07_admission": {
     "version": 1,
@@ -515,5 +517,40 @@
     "read_only_account_probe": "../../g0-cli-account-preflight/docs/result.md",
     "initial_evidence_rechecks_use_frozen_since_through": true,
     "callback_window_not_replaced_by_initial_deadline": true
+  },
+  "sd08_result": {
+    "fact_source_commit": "5cc30b20b0c06dec62fac504dc11a428d6d4f455",
+    "integrated_commit": "ca2c4e6",
+    "independent_reviewer": "sd07_native_gate",
+    "verdict": "PASS_CONTROLLED_NATIVE_SAMPLE",
+    "original_files_verified": 19,
+    "frozen_source_files_verified": 6,
+    "root": "01a094db-aaaf-7dc3-8308-8077d4f778b3",
+    "callback_turn": "01a094dc-770d-7261-a1f7-9bec93a140ae",
+    "history_tool_output_match": true,
+    "new_turn_completed": true,
+    "go_ack_effect_count": 1,
+    "initial_argv_count": 1,
+    "initial_pty_input_count": 0,
+    "normal_quit_elapsed_ns": 227902500,
+    "outer_owned_cleanup_elapsed_ns": 155372125,
+    "owned_resources_released": true,
+    "helper_alone_verifies_current_display": false,
+    "offline_capture_ack_entries": 0,
+    "offline_capture_page_chain_complete": false,
+    "generic_attachment_or_full_g0_passed": false,
+    "report": "native-sd-qual-08-result.md",
+    "resend_authorized": false
+  },
+  "test_model_change": {
+    "authorization": "用户要求测试使用低价模型，不用 Astra",
+    "model": "gpt-5.6-luna",
+    "reasoning_effort": "medium",
+    "config_integrated_commit": "bf46cc5",
+    "scope": "test_repo_only",
+    "static_validation_exit_code": 0,
+    "live_effective_model_verified": false,
+    "new_model_cases_started": 0,
+    "astra_fallback_allowed": false
   }
 }
