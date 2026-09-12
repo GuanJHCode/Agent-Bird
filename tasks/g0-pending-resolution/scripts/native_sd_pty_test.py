@@ -12,8 +12,11 @@ class PTYTests(unittest.TestCase):
     def test_input_sequence_rejects_extra_prompt_or_navigation(self):
         sequence = InputSequence('fixed synthetic input')
         self.assertEqual(sequence.take('status'), b'/status\r')
-        self.assertEqual(sequence.take('initial'), b'fixed synthetic input\r')
-        for extra in ('initial','status','new','resume','continue'):
+        try: framed=sequence.take('initial-paste')
+        except ValueError: framed=None
+        self.assertEqual(framed,b'\x1b[200~fixed synthetic input\x1b[201~')
+        self.assertEqual(sequence.take('initial-submit'), b'\r')
+        for extra in ('initial','initial-paste','initial-submit','status','new','resume','continue'):
             with self.assertRaises(ValueError): sequence.take(extra)
         self.assertEqual(sequence.take('quit'), b'/quit\r')
         with self.assertRaises(ValueError): sequence.take('quit')

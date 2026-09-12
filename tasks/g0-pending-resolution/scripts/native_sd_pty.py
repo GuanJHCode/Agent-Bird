@@ -25,8 +25,10 @@ class InputSequence:
     def take(self,action):
         if action == 'status' and not self.used:
             data = b'/status\r'
-        elif action == 'initial' and self.used == ['status']:
-            data = self.prompt.encode()+b'\r'
+        elif action == 'initial-paste' and self.used == ['status']:
+            data = b'\x1b[200~'+self.prompt.encode()+b'\x1b[201~'
+        elif action == 'initial-submit' and self.used == ['status','initial-paste']:
+            data = b'\r'
         elif action == 'quit' and 'quit' not in self.used:
             data = b'/quit\r'
         else:

@@ -298,7 +298,8 @@ def run(helper_sha,audit_sha):
         original={'service':c.process(service.pid),'tui':c.process(tui.pid),'socket':c.snapshot_socket(service.pid)}
         require_owned_pair(original['service'],original['tui'],original['socket'],original)
         record['origin']=original
-        note('initial'); since=stamp(); initial_mono=time.monotonic(); tui.send(sequence,'initial')
+        note('initial_paste'); tui.send(sequence,'initial-paste')
+        note('initial'); since=stamp(); initial_mono=time.monotonic(); tui.send(sequence,'initial-submit')
         record['initial_window']={'since':since,'deadline':(dt.datetime.fromisoformat(since)+dt.timedelta(seconds=120)).isoformat()}
         private_json(CASE/'initial-submit.json',{'nonce':c.NONCE,'root':record['root'],'window':record['initial_window'],'inputs':tui.evidence()['inputs']})
         pending_barrier=None; prompt_hook=None
