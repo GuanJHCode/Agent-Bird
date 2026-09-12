@@ -95,6 +95,18 @@ sd06 已下发：初始 120 秒窗口内无 SessionStart，PTY 停在 MCP 启动
 
 sd07 下发前的新鲜检查发现普通入口已经指向 `0.154.0`，实际二进制 SHA 为 `4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc`；用户当前配置摘要也已变化，本任务没有修改它。sd07 尚未创建 case、启动原生进程或发送输入，因此继续使用该未消费登记，按实际安装版本核验官方固定源码及本地 schema 后，统一 helper/controller 的版本与二进制摘要。普通入口和用户当前配置保留，不切回旧二进制、不改链接或全局配置；运行前重新捕获保护基线，不能套用 sd06 的旧基线。历史 0.153.4 回归只在测试内固定旧路径和快照，原记录不变。独立复核同时发现 SessionStart 扫描可能跨过截止点，必须在首次 paste 前复查同一原始 deadline；该修复不延长窗口或增加输入。版本适配与该边界修复均通过复核和主树验证后才准入。
 
+sd07 已执行一次，输入为零，原 120 秒窗口后以 `owned_session_start_missing` 结束；自有进程及 socket 已清理。其 PTY 未出现 MCP 启动标记，usage/weekly 字样不能用于量化额度或确定原因。随后固定 0.154.0 全源码调用点核验发现：启动只排入 pending SessionStart，真正执行点在 `run_turn` 内，先于该轮 UserPromptSubmit。因此将 SessionStart 作为首次输入的前置条件是实验门禁错误；schema/字段兼容并不证明触发时机兼容。保留 sd07 原始失败记录，不重试；不由此否定尚未执行的回传接口。
+
+### 2026-09-12：第八个独立 case，原生初始提示与后验双 Hook
+
+前瞻登记唯一新 case `sd-qual-08`。固定 0.154.0 支持原生 positional `PROMPT`，默认 UDS 复用条件不排除它；原生 StartFresh 将初始消息保存到新 thread，再通过 `Option::take` 和正常 UserTurn 路径提交。以这一已有原生输入路径驱动受控实验：`codex <固定初始用户任务>`，不增加专用启动器、`--remote`、设置或权限覆盖。参数只承载原初始任务，不承载工具结果；产品普通入口要求保持。
+
+- 初始 120 秒窗口必须在启动携带 prompt 的 TUI **之前**开始，覆盖原生启动、首轮 Hook、READY/pending 屏障及作业完成；不在 post-launch origin 捕获时重新开始。服务/TUI/本地读取及 quit 仍用原 10 秒上限，窗口不能叠加延长。
+- TUI 启动前持久保存本服务身份、socket、唯一 case 与初始 prompt 的摘要/字节数及原窗口。启动后尽快独立读取实际 TUI PID/birth/executable 与 socket，保存 origin；不得再称其发生于初始输入之前。两份记录通过摘要关联，初始任务仅经 argv 提供一次，不补 PTY paste 或 Enter，也不重启 TUI。
+- SessionStart 改为**后验**证据：原窗内必须出现本 service 唯一 `source=startup` 的 SessionStart，以及同 session/root 的唯一 UserPromptSubmit。保留实际 Go owner、原服务 source/cwd/version、显式 family/session、SQLite parent edge、原 READY/pending 屏障及发送前复查。
+- 限定输入状态须拒绝第二次 argv prompt 或混用 initial paste/Enter。原生额度、权限或启动错误正常生效；没有后验双 Hook 就不进入 prepare/send。仅发送一次真实 `toolOutput`，`input=[]`，uncertain 不重发。退出与外层清理分别判定。
+- 运行入口只接受 sd08；sd01–sd07 的目录、记录和窗口均不复用。历史回归仅在隔离测试内显式选择旧 nonce/版本。源码实现、真实输入路径证据和跨组件回归经独立复核及主树验证后才下发；有界 caffeinate、普通用户配置、固定二进制摘要均沿用 sd07。
+
 ## 接口解释与判据
 
 官方 `turn/start.toolOutput` 接受客户端实际执行的独立工具输出，`input=[]`，以 `functionCallOutput` 持久化；不要求存在旧的 pending tool call。旧研究对“必须补回旧 pending call”的概括不作为本轮排除此接口的依据。[官方 App Server 说明](https://learn.chatgpt.com/docs/app-server#start-a-turn)
@@ -112,4 +124,4 @@ sd07 下发前的新鲜检查发现普通入口已经指向 `0.154.0`，实际�
 
 新建材料按本任务 `plans/`、`docs/`、`scripts/`、`data/`、`tmp/` 分开；`tmp/` 只放可回收 worktree、下载和测试缓存。源码、必要运行记录和可审查证据保留。收尾列清单，核对归属后清理；不删除原有任务材料或配置。
 
-状态：sd04/sd05/sd06 原生样本均未通过初始身份门禁并已归档清理。sd06 为 `owned_session_start_missing`。已用官方 `account/rateLimitResetCredit/consume` 兑换一次 banked reset（weekly usedPercent 100→0，credits 2→1），socket 已释放。sd07 尚未下发；正在修复输入截止边界并适配当前普通入口的 0.154.0。完整 G0 仍未通过。
+状态：sd04–sd07 均已保留原始失败记录并完成自有资源清理。sd07 的前置 SessionStart 检查已被源码证据否定；当前前瞻登记 sd08 的原生初始提示路径与后验双 Hook，尚未实现冻结或下发。完整 G0 仍未通过。
