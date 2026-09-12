@@ -185,7 +185,7 @@ def test_v1_prepare_and_send_are_rejected_while_legacy_binding_stays_audit_reada
 
 
 def test_canonical_controller_prepare_path_requires_context_before_starting_anything():
-    with pytest.raises(ValueError, match="owner_context_required"):
+    with pytest.raises(ValueError, match="historical_controller_not_auth_isolated"):
         controller.run("0" * 64, "0" * 64)
 
 
@@ -215,7 +215,7 @@ def test_controller_refuses_to_start_when_runtime_home_differs_from_bound_contex
     other = tmp_path / "other-home"
     other.mkdir(mode=0o700)
     monkeypatch.setattr(controller.c, "CODEX_HOME", other)
-    with pytest.raises(ValueError, match="runtime_home"):
+    with pytest.raises(ValueError, match="historical_controller_not_auth_isolated"):
         controller.run("0" * 64, "0" * 64, owner_context=context)
 
 

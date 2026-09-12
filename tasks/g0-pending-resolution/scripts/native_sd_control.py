@@ -1,4 +1,8 @@
-"""One fixed sd-qual-08 qualification controller; not a product launcher."""
+"""Historical sd-qual-08 controller; offline helpers only.
+
+The process-starting run() entry is permanently disabled because this legacy
+controller is not auth/profile isolated.  It must not be used as a launcher.
+"""
 import datetime as dt
 import argparse
 import hashlib
@@ -440,6 +444,8 @@ def require_single_tui_connection(protocol):
 
 
 def run(helper_sha,audit_sha, *, owner_context=None):
+    raise ValueError('historical_controller_not_auth_isolated')
+    # Retained below for offline source/history review only; unreachable.
     # New prepare/send work is bound to a validated synthetic/controlled owner
     # context before it can create a case or start an owned process.  Historical
     # v1 records remain readable through the offline helpers above.

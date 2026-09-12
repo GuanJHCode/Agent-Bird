@@ -107,35 +107,18 @@ class ControlTests(unittest.TestCase):
                     self.assertIn(b'invalid choice',result.stderr)
                     self.assertFalse(output.exists())
 
-    def test_controller_rejects_old_or_unrecognized_native_hash_before_creating_case(self):
-        current_sha='4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc'
-        old_sha='b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3'
-        for binary_sha,accepted in ((current_sha,True),(old_sha,False),('f'*64,False)):
-            with self.subTest(binary_sha=binary_sha),tempfile.TemporaryDirectory() as name,ExitStack() as patches:
-                base=Path(name); cli=base/'codex'; cli.write_text('fixture')
-                helper=base/'helper'; helper.write_text('fixture'); docs=base/'docs'; docs.mkdir()
-                service_attempts=[]
-                def service(): service_attempts.append(True); raise OSError('offline service boundary')
-                def sha(path): return binary_sha if path==cli.resolve() else '0'*64
-                for attr,value in (('CASE',base/'case'),('JOB',base/'job'),('DOCS',docs),('HELPER',helper),('AUDIT',helper)):
-                    patches.enter_context(patch.object(control,attr,value))
-                patches.enter_context(patch.object(control.c,'CODEX_HOME',_SYNTHETIC_HOME))
-                patches.enter_context(patch.object(control.c,'CLI',cli))
-                patches.enter_context(patch.object(control.c,'GO',helper))
-                patches.enter_context(patch.object(control.c,'GO_SHA','0'*64))
-                patches.enter_context(patch.object(control.c,'sha',side_effect=sha))
-                patches.enter_context(patch.object(control.c,'protected_files',return_value={}))
-                patches.enter_context(patch.object(control.c,'snapshot_socket',return_value={'exists':False}))
-                patches.enter_context(patch.object(control,'OwnedService',side_effect=service))
-                patches.enter_context(patch.object(control.subprocess,'run',return_value=subprocess.CompletedProcess(
-                    [],0,stdout='01a08e0b-bd0d-7400-b069-d50978939cde\n')))
-                patches.enter_context(patch('builtins.print'))
-                rejected=False
-                try: control.run('0'*64,'0'*64, owner_context=_OWNER_CONTEXT)
-                except ValueError: rejected=True
-                self.assertEqual(not rejected,accepted)
-                self.assertEqual(service_attempts,[True] if accepted else [])
-                self.assertEqual((base/'case').exists(),accepted)
+    def test_historical_controller_entry_is_disabled_before_process_start(self):
+        for binary_sha in ('4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc',
+                           'b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3', 'f' * 64):
+            with self.subTest(binary_sha=binary_sha), tempfile.TemporaryDirectory() as name, ExitStack() as patches:
+                base=Path(name); service_attempts=[]
+                def service(): service_attempts.append(True); raise OSError('must not start')
+                patches.enter_context(patch.object(control, 'CASE', base/'case'))
+                patches.enter_context(patch.object(control, 'OwnedService', side_effect=service))
+                with self.assertRaisesRegex(ValueError, '^historical_controller_not_auth_isolated$'):
+                    control.run(binary_sha, '0' * 64, owner_context=_OWNER_CONTEXT)
+                self.assertEqual(service_attempts, [])
+                self.assertFalse((base/'case').exists())
 
     def test_discovery_waits_for_one_owned_service_hook_and_rejects_ambiguity(self):
         root='01a08e0b-bd0d-7400-b069-d50978939cdd';turn='01a08e0b-bd0d-7400-b069-d50978939cde'
@@ -330,11 +313,10 @@ class ControlTests(unittest.TestCase):
                 patches.enter_context(patch.object(control.subprocess,'run',return_value=subprocess.CompletedProcess(
                     [],0,stdout='01a08e0b-bd0d-7400-b069-d50978939cde\n')))
                 patches.enter_context(patch('builtins.print'))
-                self.assertEqual(control.run('0'*64,'0'*64, owner_context=_OWNER_CONTEXT),2)
+                with self.assertRaisesRegex(ValueError, '^historical_controller_not_auth_isolated$'):
+                    control.run('0'*64,'0'*64, owner_context=_OWNER_CONTEXT)
                 tui.assert_not_called()
-                result=json.loads((base/'case/controller-result.json').read_text())
-                self.assertEqual(result['failure']['code'],'continuous_deadline_exceeded')
-                self.assertEqual(result['failure']['substage'],'service_wait_socket')
+                self.assertFalse((base/'case').exists())
 
     def test_failure_record_keeps_fixed_code_and_clock_without_exception_text(self):
         try:
