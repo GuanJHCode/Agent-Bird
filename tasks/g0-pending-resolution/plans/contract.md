@@ -81,6 +81,12 @@ sd04 的 paste+Enter 落在 TUI 启动后约 1 秒，当时插件缓存仍在写
 
 sd05 已下发：10 秒内无 SessionStart，PTY 停在 MCP 启动。不重试。下一独立 case 若继续，须把 SessionStart 等待放到初始 120 秒窗口（仍只 paste 一次），不能改全局配置或关掉 MCP 来凑通过。
 
+### 2026-09-12：第六个独立 case，SessionStart 等待放入初始 120 秒窗口
+
+sd05 已下发：10 秒本地启动预算内无 SessionStart，PTY 停在 MCP 启动（cua_repl/node_repl 1/3）。不重试。不能据此否定 send-once 接口，也不能关 MCP 或改全局配置来凑通过。
+
+前瞻登记唯一新 case `sd-qual-06`。沿用普通 `codex` 入口、单次 bracketed-paste + 独立 Enter、后验 `UserPromptSubmit` 身份、canonical binding 摘要、一次发送、uncertain 不重发、原 10 秒本地窗口（服务/TUI/quit/lab read）、唯一发送 120 秒窗口和有界 `caffeinate -i -t 300 -w <controller_pid>`。仅把 paste 前必须出现的、属于本 service PID 的唯一真实 `SessionStart(source=startup)` 等待从额外 10 秒启动预算改到初始 120 秒窗口：该窗口从 origin 捕获后开始，覆盖 SessionStart 等待与随后仅一次 paste+Enter 及后验身份；没有本服务 SessionStart 则记录 `owned_session_start_missing` 并中止，不补第二次 Enter。失败时把有界 PTY 字节归档到本 case，供诊断，不把 PTY 文本当作 current-UI 附着证明。历史 sd02/sd03/sd04/sd05 原文件不改、不重跑。运行入口只接受 sd06，不增加环境或 CLI 绕过参数；历史回归只可在隔离测试内显式 patch 对应 nonce。须冻结、独立复核和新鲜前检后才下发。
+
 ## 接口解释与判据
 
 官方 `turn/start.toolOutput` 接受客户端实际执行的独立工具输出，`input=[]`，以 `functionCallOutput` 持久化；不要求存在旧的 pending tool call。旧研究对“必须补回旧 pending call”的概括不作为本轮排除此接口的依据。[官方 App Server 说明](https://learn.chatgpt.com/docs/app-server#start-a-turn)
@@ -98,4 +104,4 @@ sd05 已下发：10 秒内无 SessionStart，PTY 停在 MCP 启动。不重试�
 
 新建材料按本任务 `plans/`、`docs/`、`scripts/`、`data/`、`tmp/` 分开；`tmp/` 只放可回收 worktree、下载和测试缓存。源码、必要运行记录和可审查证据保留。收尾列清单，核对归属后清理；不删除原有任务材料或配置。
 
-状态：sd04/sd05 原生样本均未通过初始身份门禁并已归档清理。sd05 的有界 PTY 显示 TUI 停在 MCP 启动（cua_repl/node_repl 1/3），10 秒内无 SessionStart。摘要修复仍成立，send-once 未触达。完整 G0 仍未通过。
+状态：sd04/sd05 原生样本均未通过初始身份门禁并已归档清理。sd05 的有界 PTY 显示 TUI 停在 MCP 启动（cua_repl/node_repl 1/3），10 秒内无 SessionStart。已前瞻登记 `sd-qual-06`（SessionStart 等待放入初始 120 秒窗口），尚未冻结或下发。摘要修复仍成立，send-once 未触达。完整 G0 仍未通过。
