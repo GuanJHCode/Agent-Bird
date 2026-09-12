@@ -1,0 +1,61 @@
+{
+  "case": "proxy-attach-01",
+  "run": {
+    "status": "blocked_prepare",
+    "native_executed": true,
+    "model_turns": null,
+    "prompt_sent": false,
+    "connections": 0,
+    "tui_started": false,
+    "failure": {
+      "stage": "prepare",
+      "type": "RuntimeInvariantError",
+      "code": "native_backend_exit_2",
+      "message_sha256": "36de60bbf25d562773e73829aed1050fe69a3ced5c6f94875a0a6dfe0144bb71"
+    },
+    "result_artifact": "tasks/g0-tui-proxy/data/proxy-attach-01/result.json"
+  },
+  "source": {
+    "git_head": "d44bc9513ccac52c3d74a063e95d22a388c6ac23",
+    "proxy_native_runtime_sha256": "5dfc7009392267c08404ebba6c29ac487140c73d515f94135e268e78de27501d",
+    "proxy_transport_sha256": "41c6bd527ae2f108da538811e3b629a861bf2e2ec72a67efd94e23a793cdb704",
+    "proxy_observer_sha256": "fa036db29196f6b5901fe4ea04a6cc9eb3f104f8acd1b76f65cb2b9e7c0272f9",
+    "cli_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+    "fixed_cli_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc"
+  },
+  "paths": {
+    "frontend_socket": "/Users/guanjunhui/.codex/app-server-control/app-server-control.sock",
+    "backend_socket": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-tui-proxy/tmp/b/a.sock",
+    "case_dir": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-tui-proxy/data/proxy-attach-01",
+    "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo"
+  },
+  "ownership_and_cleanup": {
+    "frontend_socket_after": "absent",
+    "backend_socket_after": "absent",
+    "backend_parent_mode_after": "0700",
+    "residual_owned_processes_observed": false,
+    "foreign_objects_touched": false
+  },
+  "protection": {
+    "global_config": {
+      "path": "/Users/guanjunhui/.codex/config.toml",
+      "post_sha256": "53b1aa3016356f244170c6b5bc84773767672c852b59f9594f9ae694ebb8eca3",
+      "post_bytes": 21358,
+      "pre_hash_capture": "missing; preflight recorded stat only"
+    },
+    "test_config": {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/.codex/config.toml",
+      "pre_sha256": "298a250c45c9585c695e427c830c20100ecadc8a612445703b2a8b5878a3aa2b",
+      "post_sha256": "298a250c45c9585c695e427c830c20100ecadc8a612445703b2a8b5878a3aa2b",
+      "bytes": 200
+    },
+    "hooks": {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/hook-events",
+      "file_count": 126,
+      "post_manifest_sha256": "6ea43edeef239c0f43f5a294cf18962cb5e995594fba164e6dba6913f03491c6",
+      "pre_manifest_capture": "individual preflight file hashes were listed; aggregate was not computed before run"
+    },
+    "source_and_cli_post_match_frozen": true
+  },
+  "scope_note": "Single explicitly authorized zero-model proxy-attach-01 attempt. No retry, no second case, no prompt, no model turn. Failure evidence is retained; no native pass is claimed."
+}
