@@ -18,7 +18,7 @@ _MAX_SAFE_ID = 256
 _MAX_SAFE_STRING = 4096
 _KNOWN_METHODS = {
     "initialize", "initialized", "thread/start", "thread/resume", "thread/fork",
-    "thread/read", "thread/inject_items", "thread/subscribe", "thread/unsubscribe",
+    "thread/read", "thread/inject_items", "thread/subscribe", "thread/unsubscribe", "thread/started",
     "skills/list",
 }
 _THREAD_PARAM_METHODS = {
@@ -41,6 +41,10 @@ def _reject_duplicate_keys(pairs: Iterable[Tuple[str, Any]]) -> Dict[str, Any]:
     return result
 
 
+def _reject_nonfinite(value: str) -> None:
+    raise ValueError(value)
+
+
 @dataclass
 class _Direction:
     buffer: bytearray = field(default_factory=bytearray)
@@ -55,6 +59,7 @@ class _Connection:
     state: str = "UNBOUND"
     valid: bool = True
     closed: bool = False
+    overflowed: bool = False
     directions: Dict[str, _Direction] = field(
         default_factory=lambda: {direction: _Direction() for direction in _DIRECTIONS}
     )
@@ -81,23 +86,29 @@ class Observer:
         self.max_events = max_events
         self._emit_callback = emit
         self._connections: Dict[Any, _Connection] = {}
+        self._max_epoch_seen = 0
         self._next_epoch = 1
         self._next_sequence = 1
         self._events: Deque[Dict[str, Any]] = deque()
+        if max_events < 2:
+            raise ValueError("max_events must reserve one slot for an overflow gap")
 
     def open(self, conn_id: Any, *, conn_epoch: Optional[int] = None, **_: Any) -> int:
         """Start a fresh connection epoch and return its epoch number."""
-        old = self._connections.get(conn_id)
-        if old is not None and not old.closed:
-            self._gap(old, "connection_reopened", None)
-            old.closed = True
-            self._emit("connection_close", old, None)
         if conn_epoch is None:
             epoch = self._next_epoch
         elif isinstance(conn_epoch, int) and not isinstance(conn_epoch, bool) and conn_epoch > 0:
             epoch = conn_epoch
         else:
             raise ValueError("conn_epoch must be a positive integer")
+        if epoch <= self._max_epoch_seen:
+            raise ValueError("conn_epoch has already been used or is stale")
+        self._max_epoch_seen = epoch
+        old = self._connections.get(conn_id)
+        if old is not None and not old.closed:
+            self._gap(old, "connection_reopened", None)
+            old.closed = True
+            self._emit("connection_close", old, None)
         self._next_epoch = max(self._next_epoch, epoch + 1)
         connection = _Connection(epoch=epoch)
         self._connections[conn_id] = connection
@@ -149,9 +160,13 @@ class Observer:
         if connection.closed:
             return []
         if connection.valid:
+            any_upgrade = any(parser.handshake_done for parser in connection.directions.values())
             for direction, parser in connection.directions.items():
                 if parser.fragment_opcode is not None:
                     self._gap(connection, "incomplete_message", direction)
+                    break
+                if not parser.handshake_done and (parser.buffer or any_upgrade):
+                    self._gap(connection, "incomplete_upgrade", direction)
                     break
                 if parser.buffer:
                     self._gap(connection, "incomplete_frame", direction)
@@ -177,6 +192,8 @@ class Observer:
         return self.max_message_bytes + self.max_header_bytes + 32
 
     def _emit(self, event: str, connection: Optional[_Connection], direction: Optional[str], **fields: Any) -> None:
+        if connection is not None and connection.overflowed:
+            return
         record: Dict[str, Any] = {"event": event}
         if connection is not None:
             record["conn_epoch"] = connection.epoch
@@ -185,27 +202,44 @@ class Observer:
         if direction in _DIRECTIONS:
             record["direction"] = direction
         record.update(fields)
-        if len(self._events) >= self.max_events:
-            self._events.clear()
-            self._events.append({"event": "gap", "local_seq": self._next_sequence, "reason": "event_queue_overflow"})
+        if len(self._events) >= self.max_events - 1:
+            if connection is not None:
+                self._invalidate(connection)
+                connection.overflowed = True
+            overflow = {
+                "event": "gap",
+                **({"conn_epoch": connection.epoch} if connection is not None else {}),
+                "local_seq": self._next_sequence,
+                **({"direction": direction} if direction in _DIRECTIONS else {}),
+                "reason": "event_queue_overflow",
+            }
             self._next_sequence += 1
-        else:
-            self._events.append(record)
+            self._events.append(overflow)
+            if self._emit_callback is not None:
+                try:
+                    self._emit_callback(dict(overflow))
+                except Exception:
+                    pass
+            return
+        self._events.append(record)
         if self._emit_callback is not None:
             try:
                 self._emit_callback(dict(record))
             except Exception:
                 pass
 
+    def _invalidate(self, connection: _Connection) -> None:
+        connection.valid = False
+        connection.state = "PENDING"
+        for parser in connection.directions.values():
+            parser.buffer.clear()
+            parser.fragment_payload.clear()
+            parser.fragment_opcode = None
+        connection.pending.clear()
+
     def _gap(self, connection: _Connection, reason: str, direction: Optional[str]) -> None:
         if connection.valid:
-            connection.valid = False
-            connection.state = "PENDING"
-            for parser in connection.directions.values():
-                parser.buffer.clear()
-                parser.fragment_payload.clear()
-                parser.fragment_opcode = None
-            connection.pending.clear()
+            self._invalidate(connection)
             self._emit("gap", connection, direction, reason=reason)
 
     def _parse_upgrade(self, connection: _Connection, direction: str) -> bool:
@@ -216,6 +250,9 @@ class Observer:
                 self._gap(connection, "header_too_large", direction)
             return False
         end = marker + 4
+        if end > self.max_header_bytes:
+            self._gap(connection, "header_too_large", direction)
+            return False
         header = bytes(parser.buffer[:end])
         del parser.buffer[:end]
         try:
@@ -302,6 +339,9 @@ class Observer:
             if masked:
                 payload = bytes(value ^ mask[index % 4] for index, value in enumerate(payload))
             if opcode >= 8:
+                if opcode == 8 and not self._valid_close_payload(payload):
+                    self._gap(connection, "invalid_close_payload", direction)
+                    return
                 self._emit("ws_control", connection, direction, opcode={8: "close", 9: "ping", 10: "pong"}.get(opcode, "unknown"))
                 continue
             if opcode == 0:
@@ -346,7 +386,7 @@ class Observer:
             self._gap(connection, "invalid_utf8", direction)
             return
         try:
-            value = json.loads(text, object_pairs_hook=_reject_duplicate_keys)
+            value = json.loads(text, object_pairs_hook=_reject_duplicate_keys, parse_constant=_reject_nonfinite)
         except _DuplicateKey:
             self._gap(connection, "duplicate_json_key", direction)
             return
@@ -354,6 +394,22 @@ class Observer:
             self._gap(connection, "invalid_json", direction)
             return
         self._process_rpc(connection, direction, value)
+
+    @staticmethod
+    def _valid_close_payload(payload: bytes) -> bool:
+        if len(payload) == 0:
+            return True
+        if len(payload) == 1:
+            return False
+        code = int.from_bytes(payload[:2], "big")
+        valid_codes = {1000, 1001, 1002, 1003, 1007, 1008, 1009, 1010, 1011}
+        if code not in valid_codes and not 3000 <= code <= 4999:
+            return False
+        try:
+            payload[2:].decode("utf-8")
+        except UnicodeDecodeError:
+            return False
+        return True
 
     @staticmethod
     def _valid_id(value: Any) -> bool:
@@ -397,7 +453,16 @@ class Observer:
         if method not in _KNOWN_METHODS:
             self._emit("rpc_unknown", connection, direction, request_id=request_id if "id" in value else None, method=method, opaque=True)
         else:
-            self._emit("rpc", connection, direction, request_id=request_id if "id" in value else None, method=method, params=self._safe_request_params(method, value.get("params")))
+            fields: Dict[str, Any] = {
+                "request_id": request_id if "id" in value else None,
+                "method": method,
+                "params": self._safe_request_params(method, value.get("params")),
+            }
+            if method == "thread/started":
+                thread = self._thread_metadata(value.get("params"))
+                if thread is not None:
+                    fields["thread"] = thread
+            self._emit("rpc", connection, direction, **fields)
 
     def _safe_request_params(self, method: str, params: Any) -> Dict[str, Any]:
         if not isinstance(params, dict):
@@ -429,7 +494,7 @@ class Observer:
         expected_request_direction = "client" if direction == "server" else "server"
         method = connection.pending.pop((expected_request_direction, request_id), None)
         if method is None:
-            self._emit("rpc_unknown", connection, direction, request_id=request_id, opaque=True, response=True)
+            self._emit("rpc_unknown", connection, direction, request_id=request_id, method=None, opaque=True, response=True)
             return
         if method not in _KNOWN_METHODS:
             self._emit("rpc_unknown", connection, direction, request_id=request_id, method=method, opaque=True, response=True)

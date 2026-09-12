@@ -166,7 +166,7 @@ def test_close_unknown_connection_is_safe_and_new_epoch_does_not_reuse_pending_i
     observer.feed("c1", "server", upgrade_response())
     observer.feed("c1", "server", rpc_frame({"jsonrpc": "2.0", "id": 1, "result": {}}, direction="server"))
     rows = events(observer)
-    assert any(row.get("event") == "rpc_unknown" and row.get("request_id") == 1 for row in rows)
+    assert any(row.get("event") == "rpc_unknown" and row.get("request_id") == 1 and row.get("method") is None for row in rows)
     assert len({row["conn_epoch"] for row in rows if "conn_epoch" in row}) >= 2
 
 
@@ -190,3 +190,83 @@ def test_unknown_thread_list_response_is_opaque_and_does_not_retain_history():
     rows = events(observer)
     assert any(row.get("event") == "rpc_unknown" and row.get("method") == "thread/list" and row.get("response") for row in rows)
     assert "CANARY" not in json.dumps(rows)
+
+
+def test_thread_started_keeps_only_safe_thread_metadata():
+    observer = connected_observer()
+    observer.feed("c1", "server", rpc_frame({"jsonrpc": "2.0", "method": "thread/started", "params": {"thread": {"id": "t1", "sessionId": "s1", "cwd": "/repo", "text": "CANARY"}}}, direction="server"))
+    rows = events(observer)
+    started = [row for row in rows if row.get("event") == "rpc" and row.get("method") == "thread/started"][-1]
+    assert started["thread"] == {"id": "t1", "sessionId": "s1", "cwd": "/repo"}
+    assert "CANARY" not in json.dumps(rows)
+
+
+def test_event_overflow_invalidates_epoch_and_callback_matches_drain():
+    callback_rows = []
+    observer = Observer(max_events=2, emit=callback_rows.append)
+    observer.open("c1")
+    observer.feed("c1", "client", upgrade_request())
+    observer.feed("c1", "server", upgrade_response())
+    drained = observer.drain_events()
+    assert callback_rows == drained
+    assert drained[-1]["event"] == "gap"
+    assert drained[-1]["reason"] == "event_queue_overflow"
+    assert drained[-1]["conn_epoch"] == 1
+    assert observer.attachment_state("c1") == "PENDING"
+
+
+def test_eof_mid_upgrade_is_a_gap_but_empty_probe_is_only_unupgraded_close():
+    observer = Observer()
+    observer.open("partial")
+    observer.feed("partial", "client", b"GET / HTTP/1.1\r\nHost: local")
+    observer.close("partial")
+    rows = events(observer)
+    assert any(row.get("event") == "gap" and row.get("reason") == "incomplete_upgrade" for row in rows)
+    assert rows[-1]["event"] == "connection_close"
+
+    observer = Observer()
+    observer.open("probe")
+    observer.close("probe")
+    rows = events(observer)
+    assert not any(row.get("event") == "gap" for row in rows)
+    assert rows[-1]["event"] == "connection_close"
+    assert observer.attachment_state("probe") == "DISCONNECTED"
+
+    observer = Observer()
+    observer.open("one-sided")
+    observer.feed("one-sided", "client", upgrade_request())
+    observer.close("one-sided")
+    rows = events(observer)
+    assert any(row.get("event") == "gap" and row.get("reason") == "incomplete_upgrade" for row in rows)
+
+
+def test_upgrade_header_limit_applies_when_terminator_is_in_same_chunk():
+    observer = Observer(max_header_bytes=32)
+    observer.open("c1")
+    observer.feed("c1", "client", b"x" * 40 + b"\r\n\r\n")
+    rows = events(observer)
+    assert any(row.get("event") == "gap" and row.get("reason") == "header_too_large" for row in rows)
+    assert observer.attachment_state("c1") == "PENDING"
+
+
+def test_nonfinite_json_and_invalid_close_payloads_make_gaps():
+    observer = connected_observer()
+    payload = b'{"jsonrpc":"2.0","id":1,"method":"thread/read","params":{"threadId":NaN}}'
+    observer.feed("c1", "client", frame(payload, masked=True))
+    assert any(row.get("reason") == "invalid_json" for row in events(observer))
+
+    for payload in (b"\x03", b"\x03\xed", b"\x03\xee", b"\x03\xf7", b"\x03\xe8\xff"):
+        observer = connected_observer()
+        observer.feed("c1", "client", frame(payload, opcode=8, masked=True))
+        rows = events(observer)
+        assert any(row.get("event") == "gap" and row.get("reason") == "invalid_close_payload" for row in rows)
+
+
+def test_connection_epoch_cannot_be_reused_across_connections_or_after_close():
+    observer = Observer()
+    observer.open("c1", conn_epoch=19)
+    observer.close("c1")
+    with pytest.raises(ValueError):
+        observer.open("c2", conn_epoch=19)
+    with pytest.raises(ValueError):
+        observer.open("c1", conn_epoch=19)
