@@ -1,0 +1,240 @@
+...F.FFF.F...FF......F.FFFF.                                             [100%]
+=================================== FAILURES ===================================
+_ test_empty_side_creation_and_two_cached_toggles_never_create_candidate_from_status _
+
+tmp_path = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/tmp/probe-harness/tasks/g0-cached-switch-boundary/tmp/pytest-side-red/test_empty_side_creation_and_t0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10853bf00>
+
+    def test_empty_side_creation_and_two_cached_toggles_never_create_candidate_from_status(tmp_path, monkeypatch):
+        p = module()
+        spec = make_spec(tmp_path)
+        pre = p.prepare_cached_switch_case(spec)
+        factory, instances = fake_runtime(monkeypatch)
+        result = asyncio.run(p.run_cached_switch_case(spec, preflight=pre, runtime_factory=factory))
+>       assert result['status'] == 'observed', result
+E       AssertionError: {'case': 'case', 'status': 'unknown', 'source_commit': '6b9826e3aa83b1a5947db50f4332cb9c65f1b340', 'crossterm_commit': '45fecb9508105988f42fe6ff0441783ed3717f92', ...}
+E       assert 'unknown' == 'observed'
+E
+E         - observed
+E         + unknown
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:277: AssertionError
+__________ test_gap_model_wrong_status_or_early_eof_never_passes[gap] __________
+
+tmp_path = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/tmp/probe-harness/tasks/g0-cached-switch-boundary/tmp/pytest-side-red/test_gap_model_wrong_status_or0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1087cde50>
+fault = 'gap'
+
+    @pytest.mark.parametrize('fault', ['gap', 'model_turn', 'wrong_status', 'early_eof'])
+    def test_gap_model_wrong_status_or_early_eof_never_passes(tmp_path, monkeypatch, fault):
+        p = module()
+        spec = make_spec(tmp_path)
+        factory, instances = fake_runtime(monkeypatch, **{fault: True})
+        result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
+        assert result['status'] == 'unknown'
+        assert instances[0].closed
+>       assert 'failure' in result
+E       AssertionError: assert 'failure' in {'case': 'case', 'status': 'unknown', 'source_commit': '6b9826e3aa83b1a5947db50f4332cb9c65f1b340', 'crossterm_commit': '45fecb9508105988f42fe6ff0441783ed3717f92', ...}
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:317: AssertionError
+______ test_gap_model_wrong_status_or_early_eof_never_passes[model_turn] _______
+
+tmp_path = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/tmp/probe-harness/tasks/g0-cached-switch-boundary/tmp/pytest-side-red/test_gap_model_wrong_status_or1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1087cdd50>
+fault = 'model_turn'
+
+    @pytest.mark.parametrize('fault', ['gap', 'model_turn', 'wrong_status', 'early_eof'])
+    def test_gap_model_wrong_status_or_early_eof_never_passes(tmp_path, monkeypatch, fault):
+        p = module()
+        spec = make_spec(tmp_path)
+        factory, instances = fake_runtime(monkeypatch, **{fault: True})
+        result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
+        assert result['status'] == 'unknown'
+        assert instances[0].closed
+>       assert 'failure' in result
+E       AssertionError: assert 'failure' in {'case': 'case', 'status': 'unknown', 'source_commit': '6b9826e3aa83b1a5947db50f4332cb9c65f1b340', 'crossterm_commit': '45fecb9508105988f42fe6ff0441783ed3717f92', ...}
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:317: AssertionError
+_____ test_gap_model_wrong_status_or_early_eof_never_passes[wrong_status] ______
+
+tmp_path = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/tmp/probe-harness/tasks/g0-cached-switch-boundary/tmp/pytest-side-red/test_gap_model_wrong_status_or2')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1087017c0>
+fault = 'wrong_status'
+
+    @pytest.mark.parametrize('fault', ['gap', 'model_turn', 'wrong_status', 'early_eof'])
+    def test_gap_model_wrong_status_or_early_eof_never_passes(tmp_path, monkeypatch, fault):
+        p = module()
+        spec = make_spec(tmp_path)
+        factory, instances = fake_runtime(monkeypatch, **{fault: True})
+        result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
+        assert result['status'] == 'unknown'
+        assert instances[0].closed
+>       assert 'failure' in result
+E       AssertionError: assert 'failure' in {'case': 'case', 'status': 'unknown', 'source_commit': '6b9826e3aa83b1a5947db50f4332cb9c65f1b340', 'crossterm_commit': '45fecb9508105988f42fe6ff0441783ed3717f92', ...}
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:317: AssertionError
+____________ test_refresh_rpcs_are_reclassified_not_called_zero_rpc ____________
+
+tmp_path = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/tmp/probe-harness/tasks/g0-cached-switch-boundary/tmp/pytest-side-red/test_refresh_rpcs_are_reclassi0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10878e350>
+
+    def test_refresh_rpcs_are_reclassified_not_called_zero_rpc(tmp_path, monkeypatch):
+        p = module()
+        spec = make_spec(tmp_path)
+        factory, _ = fake_runtime(monkeypatch, refresh=True)
+        result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
+>       assert result['status'] == 'observed'
+E       AssertionError: assert 'unknown' == 'observed'
+E
+E         - observed
+E         + unknown
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:325: AssertionError
+_______ test_failed_probe_preserves_whitelisted_trace_for_diagnosis[gap] _______
+
+tmp_path = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/tmp/probe-harness/tasks/g0-cached-switch-boundary/tmp/pytest-side-red/test_failed_probe_preserves_wh0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1085cfdd0>
+fault = 'gap'
+
+    @pytest.mark.parametrize('fault', ['gap', 'model_turn'])
+    def test_failed_probe_preserves_whitelisted_trace_for_diagnosis(tmp_path, monkeypatch, fault):
+        p = module()
+        spec = make_spec(tmp_path)
+        factory, _ = fake_runtime(monkeypatch, **{fault: True})
+        result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
+        assert result['status'] == 'unknown'
+        trace_file = spec.case_dir / 'trace.json'
+        assert trace_file.exists(), 'a failed evidence gate must not discard its captured protocol facts'
+        trace = json.loads(trace_file.read_text())
+        assert trace['events']
+        assert CANARY not in trace_file.read_text()
+>       assert any(row.get('event') == 'gap' for row in trace['events']) if fault == 'gap' else result['model_turns'] == 1
+E       assert False
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:372: AssertionError
+___ test_failed_probe_preserves_whitelisted_trace_for_diagnosis[model_turn] ____
+
+tmp_path = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/tmp/probe-harness/tasks/g0-cached-switch-boundary/tmp/pytest-side-red/test_failed_probe_preserves_wh1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1086ced00>
+fault = 'model_turn'
+
+    @pytest.mark.parametrize('fault', ['gap', 'model_turn'])
+    def test_failed_probe_preserves_whitelisted_trace_for_diagnosis(tmp_path, monkeypatch, fault):
+        p = module()
+        spec = make_spec(tmp_path)
+        factory, _ = fake_runtime(monkeypatch, **{fault: True})
+        result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
+        assert result['status'] == 'unknown'
+        trace_file = spec.case_dir / 'trace.json'
+        assert trace_file.exists(), 'a failed evidence gate must not discard its captured protocol facts'
+        trace = json.loads(trace_file.read_text())
+        assert trace['events']
+        assert CANARY not in trace_file.read_text()
+>       assert any(row.get('event') == 'gap' for row in trace['events']) if fault == 'gap' else result['model_turns'] == 1
+E       assert False
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:372: AssertionError
+________ test_missing_side_started_stops_after_creation_and_normal_quit ________
+
+tmp_path = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/tmp/probe-harness/tasks/g0-cached-switch-boundary/tmp/pytest-side-red/test_missing_side_started_stop0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10877d2b0>
+
+    def test_missing_side_started_stops_after_creation_and_normal_quit(tmp_path, monkeypatch):
+        p = module()
+        spec = make_spec(tmp_path)
+        factory, instances = fake_runtime(monkeypatch, missing_started=True)
+        result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
+        assert result['status'] == 'unknown'
+        assert result['fork']['thread_started_seen'] is False
+>       assert instances[0].tui_driver.side_starts == 1
+E       assert 0 == 1
+E        +  where 0 = <test_cached_switch_case.fake_runtime.<locals>.Tui object at 0x108826a50>.side_starts
+E        +    where <test_cached_switch_case.fake_runtime.<locals>.Tui object at 0x108826a50> = <test_cached_switch_case.fake_runtime.<locals>.FakeRuntime object at 0x108826900>.tui_driver
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:408: AssertionError
+________ test_local_status_or_toggle_overrun_cannot_be_accepted[fault1] ________
+
+tmp_path = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/tmp/probe-harness/tasks/g0-cached-switch-boundary/tmp/pytest-side-red/test_local_status_or_toggle_ov1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10870ac10>
+fault = {'toggle_cost': 1.0}
+
+    @pytest.mark.parametrize('fault', [{'status_cost': 1.0}, {'toggle_cost': 1.0}])
+    def test_local_status_or_toggle_overrun_cannot_be_accepted(tmp_path, monkeypatch, fault):
+        p = module()
+        spec = make_spec(tmp_path)
+        factory, _ = fake_runtime(monkeypatch, **fault)
+        result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
+        assert result['status'] == 'unknown'
+>       assert result['failure']['code'] == 'deadline_exceeded'
+               ^^^^^^^^^^^^^^^^^
+E       KeyError: 'failure'
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:420: KeyError
+_____________ test_delayed_first_fork_waits_for_wire_before_status _____________
+
+tmp_path = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/tmp/probe-harness/tasks/g0-cached-switch-boundary/tmp/pytest-side-red/test_delayed_first_fork_waits_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10877e820>
+
+    def test_delayed_first_fork_waits_for_wire_before_status(tmp_path, monkeypatch):
+        p = module()
+        spec = make_spec(tmp_path, local_window=10)
+        factory, instances = fake_runtime(monkeypatch, fork_delay=0.6)
+        result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
+>       assert result['status'] == 'observed', result
+E       AssertionError: {'case': 'case', 'status': 'unknown', 'source_commit': '6b9826e3aa83b1a5947db50f4332cb9c65f1b340', 'crossterm_commit': '45fecb9508105988f42fe6ff0441783ed3717f92', ...}
+E       assert 'unknown' == 'observed'
+E
+E         - observed
+E         + unknown
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:428: AssertionError
+_ test_fork_after_original_local_deadline_does_not_get_status_or_cached_toggle _
+
+tmp_path = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/tmp/probe-harness/tasks/g0-cached-switch-boundary/tmp/pytest-side-red/test_fork_after_original_local0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10870a4a0>
+
+    def test_fork_after_original_local_deadline_does_not_get_status_or_cached_toggle(tmp_path, monkeypatch):
+        p = module()
+        spec = make_spec(tmp_path, local_window=10)
+        factory, instances = fake_runtime(monkeypatch, fork_delay=10.2)
+        result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
+        assert result['status'] == 'unknown'
+        assert len(instances[0].tui_driver.status_queries) == 1
+>       assert instances[0].tui_driver.side_starts == 1
+E       assert 0 == 1
+E        +  where 0 = <test_cached_switch_case.fake_runtime.<locals>.Tui object at 0x108825940>.side_starts
+E        +    where <test_cached_switch_case.fake_runtime.<locals>.Tui object at 0x108825940> = <test_cached_switch_case.fake_runtime.<locals>.FakeRuntime object at 0x1088252b0>.tui_driver
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:442: AssertionError
+____________ test_delayed_cached_render_precedes_independent_status ____________
+
+tmp_path = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/tmp/probe-harness/tasks/g0-cached-switch-boundary/tmp/pytest-side-red/test_delayed_cached_render_pre0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10877f3f0>
+
+    def test_delayed_cached_render_precedes_independent_status(tmp_path, monkeypatch):
+        p = module()
+        spec = make_spec(tmp_path, local_window=10)
+        factory, instances = fake_runtime(monkeypatch, cached_delay=0.6)
+        result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
+>       assert result['status'] == 'observed', result
+E       AssertionError: {'case': 'case', 'status': 'unknown', 'source_commit': '6b9826e3aa83b1a5947db50f4332cb9c65f1b340', 'crossterm_commit': '45fecb9508105988f42fe6ff0441783ed3717f92', ...}
+E       assert 'unknown' == 'observed'
+E
+E         - observed
+E         + unknown
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:455: AssertionError
+=========================== short test summary info ============================
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_empty_side_creation_and_two_cached_toggles_never_create_candidate_from_status
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_gap_model_wrong_status_or_early_eof_never_passes[gap]
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_gap_model_wrong_status_or_early_eof_never_passes[model_turn]
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_gap_model_wrong_status_or_early_eof_never_passes[wrong_status]
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_refresh_rpcs_are_reclassified_not_called_zero_rpc
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_failed_probe_preserves_whitelisted_trace_for_diagnosis[gap]
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_failed_probe_preserves_whitelisted_trace_for_diagnosis[model_turn]
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_missing_side_started_stops_after_creation_and_normal_quit
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_local_status_or_toggle_overrun_cannot_be_accepted[fault1]
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_delayed_first_fork_waits_for_wire_before_status
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_fork_after_original_local_deadline_does_not_get_status_or_cached_toggle
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_delayed_cached_render_precedes_independent_status
+12 failed, 16 passed in 0.22s

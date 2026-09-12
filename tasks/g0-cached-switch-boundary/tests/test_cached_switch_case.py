@@ -112,6 +112,9 @@ def fake_runtime(monkeypatch, *, lineage=True, gap=False, model_turn=False, wron
             self._status_buffer = b''
             self.status_ids = set()
             self.toggles = 0
+            self.side_starts = 0
+            self.side_open = False
+            self.pending_creation = False
             self.status_pending = False
             self.switch_due = None
             self.output_bytes = 100
@@ -122,9 +125,10 @@ def fake_runtime(monkeypatch, *, lineage=True, gap=False, model_turn=False, wron
             if self.switch_due is None or clock[0] < self.switch_due:
                 return
             self.switch_due = None
-            self.displayed = S if self.toggles in (1, 3) else P
+            self.displayed = S if self.pending_creation or self.toggles % 2 == 0 else P
             self.output_bytes += 100
-            if self.toggles == 1:
+            if self.pending_creation:
+                self.side_open = True
                 self.owner.feed.fork(lineage=lineage, started=not missing_started)
             elif refresh:
                 number = 10 + self.toggles
@@ -140,17 +144,14 @@ def fake_runtime(monkeypatch, *, lineage=True, gap=False, model_turn=False, wron
             clock[0] = max(clock[0], deadline)
             self.complete_switch()
             if self.status_pending:
-                actual = OTHER if wrong_status and self.toggles else self.status_displayed
+                actual = OTHER if wrong_status and self.side_starts else self.status_displayed
                 self.status_ids = {actual}
                 self._status_buffer = ('Session: ' + actual + '\n').encode()
             return self.evidence
 
-        def write(self, data, *, action):
-            assert data == b'\x1f', 'only the verified native Ctrl-7 byte may be injected'
-            assert action.startswith('side-toggle-')
-            self.inputs.append({'action': action, 'bytes': 1, 'sha256': hashlib.sha256(data).hexdigest()})
-            self.toggles += 1
-            self.switch_due = clock[0] + (fork_delay if self.toggles == 1 else cached_delay)
+        def begin_switch(self, *, creation):
+            self.pending_creation = creation
+            self.switch_due = clock[0] + (fork_delay if creation else cached_delay)
             self.complete_switch()
             if gap:
                 self.owner.bridge.on_gap(SimpleNamespace(epoch=1, reason='synthetic_gap'))
@@ -158,8 +159,17 @@ def fake_runtime(monkeypatch, *, lineage=True, gap=False, model_turn=False, wron
                 self.owner.feed.rpc('client', {'id': 99, 'method': 'turn/start', 'params': {'input': [CANARY]}})
             clock[0] += toggle_cost
 
+        def write(self, data, *, action):
+            assert data == b'\x1f', 'only the verified native Ctrl-7 byte may be injected'
+            assert action.startswith('side-toggle-')
+            self.inputs.append({'action': action, 'bytes': 1, 'sha256': hashlib.sha256(data).hexdigest()})
+            self.toggles += 1
+            # Fixed native side.rs: no side exists -> toggle returns without a fork.
+            if self.side_open:
+                self.begin_switch(creation=False)
+
         def command(self, text):
-            assert text in {'/status', '/quit'}, 'no prompt, picker, or programmatic resume allowed'
+            assert text in {'/status', '/side', '/quit'}, 'no prompt, picker, or programmatic resume allowed'
             self.inputs.append({'action': text})
             if text == '/status':
                 self.status_displayed = self.displayed
@@ -167,17 +177,21 @@ def fake_runtime(monkeypatch, *, lineage=True, gap=False, model_turn=False, wron
                 self.status_ids = set()
                 self._status_buffer = b''
                 self.status_pending = True
+            elif text == '/side':
+                assert not self.side_open and self.side_starts == 0, 'only one empty side creation is allowed'
+                self.side_starts += 1
+                self.begin_switch(creation=True)
             elif early_eof:
                 pytest.fail('must not claim normal quit after prior EOF')
 
         async def async_status_checkpoint(self, deadline):
             await self.aread_until(deadline)
             clock[0] += status_cost
-            actual = OTHER if wrong_status and self.toggles else self.status_displayed
+            actual = OTHER if wrong_status and self.side_starts else self.status_displayed
             self.status_ids = {actual}
             self._status_buffer = ('Session: ' + actual + '\n').encode()
             self.status_pending = False
-            if early_eof and self.toggles:
+            if early_eof and self.side_starts:
                 self.owner.bridge.on_lifecycle(SimpleNamespace(connection_id='owned', epoch=1, kind='eof'))
             return set(self.status_ids)
 
@@ -254,7 +268,7 @@ def test_non_luna_configuration_never_prepares(tmp_path):
     assert not spec.preflight_record_path.exists()
 
 
-def test_four_statuses_and_three_toggles_never_create_candidate_from_status(tmp_path, monkeypatch):
+def test_empty_side_creation_and_two_cached_toggles_never_create_candidate_from_status(tmp_path, monkeypatch):
     p = module()
     spec = make_spec(tmp_path)
     pre = p.prepare_cached_switch_case(spec)
@@ -271,7 +285,10 @@ def test_four_statuses_and_three_toggles_never_create_candidate_from_status(tmp_
     assert all(step['candidate_after'] is None for step in result['switches'])
     assert result['generic_attachment_verified'] is False
     assert instances[0].inferer.status_reference is None
-    assert instances[0].tui_driver.toggles == 3 and instances[0].closed
+    assert instances[0].tui_driver.side_starts == 1
+    assert instances[0].tui_driver.toggles == 2 and instances[0].closed
+    assert [item['action'] for item in instances[0].tui_driver.inputs] == [
+        '/status', '/side', '/status', 'side-toggle-1', '/status', 'side-toggle-2', '/status', '/quit']
     assert result['termination']['exit_code'] == 0
     assert CANARY not in ''.join(path.read_text() for path in spec.case_dir.glob('*.json'))
 
@@ -381,14 +398,15 @@ def test_unready_ui_cannot_receive_toggle(tmp_path, monkeypatch, state):
     assert instances[0].tui_driver.toggles == 0
 
 
-def test_missing_side_started_stops_after_one_toggle_and_normal_quit(tmp_path, monkeypatch):
+def test_missing_side_started_stops_after_creation_and_normal_quit(tmp_path, monkeypatch):
     p = module()
     spec = make_spec(tmp_path)
     factory, instances = fake_runtime(monkeypatch, missing_started=True)
     result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
     assert result['status'] == 'unknown'
     assert result['fork']['thread_started_seen'] is False
-    assert instances[0].tui_driver.toggles == 1
+    assert instances[0].tui_driver.side_starts == 1
+    assert instances[0].tui_driver.toggles == 0
     assert result['quit_sent'] is True
 
 
@@ -414,14 +432,15 @@ def test_delayed_first_fork_waits_for_wire_before_status(tmp_path, monkeypatch):
     assert result['switches'][0]['completed_at_raw'] <= result['switches'][0]['deadline_raw']
 
 
-def test_fork_after_original_local_deadline_does_not_get_status_or_second_toggle(tmp_path, monkeypatch):
+def test_fork_after_original_local_deadline_does_not_get_status_or_cached_toggle(tmp_path, monkeypatch):
     p = module()
     spec = make_spec(tmp_path, local_window=10)
     factory, instances = fake_runtime(monkeypatch, fork_delay=10.2)
     result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
     assert result['status'] == 'unknown'
     assert len(instances[0].tui_driver.status_queries) == 1
-    assert instances[0].tui_driver.toggles == 1
+    assert instances[0].tui_driver.side_starts == 1
+    assert instances[0].tui_driver.toggles == 0
     assert result['quit_sent'] is True
     assert result['stop_reason'] == 'first_side_local_deadline'
     switch = result['switches'][0]
@@ -436,3 +455,11 @@ def test_delayed_cached_render_precedes_independent_status(tmp_path, monkeypatch
     assert result['status'] == 'observed', result
     assert [target for _, target in instances[0].tui_driver.status_queries] == [P, S, P, S]
     assert all(step['render_after_toggle'] is True for step in result['switches'][1:])
+
+
+def test_real_pty_empty_side_command_contains_no_model_prompt(monkeypatch):
+    writes = []
+    driver = object.__new__(runtime.PTYDriver)
+    monkeypatch.setattr(driver, 'write', lambda data, *, action: writes.append((action, data)))
+    driver.command('/side')
+    assert writes == [('/side-paste', b'\x1b[200~/side\x1b[201~'), ('/side-submit', b'\r')]

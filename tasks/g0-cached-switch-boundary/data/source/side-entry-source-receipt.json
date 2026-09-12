@@ -1,0 +1,87 @@
+{
+  "purpose": "Correct cached01 first-side entry assumption without modifying its facts",
+  "files": [
+    {
+      "repository": "openai/codex",
+      "commit": "6b9826e3aa83b1a5947db50f4332cb9c65f1b340",
+      "upstream_path": "codex-rs/tui/src/app/side.rs",
+      "url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/app/side.rs",
+      "path": "codex-rs_tui_src_app_side.rs",
+      "bytes": 33655,
+      "sha256": "0ed693f0916d6f52aa5f5af4a0f6cf33e5d9ad3ccfef75e6df295fb7aeec6926"
+    },
+    {
+      "repository": "openai/codex",
+      "commit": "6b9826e3aa83b1a5947db50f4332cb9c65f1b340",
+      "upstream_path": "codex-rs/tui/src/bottom_pane/slash_commands.rs",
+      "url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/bottom_pane/slash_commands.rs",
+      "path": "codex-rs_tui_src_bottom_pane_slash_commands.rs",
+      "bytes": 12117,
+      "sha256": "0647734d6de96ef8338dadd814ba819a7e9def4ee89db1b15422735172385bc5"
+    },
+    {
+      "repository": "openai-oss-forks/crossterm",
+      "commit": "45fecb9508105988f42fe6ff0441783ed3717f92",
+      "upstream_path": "src/terminal/sys/unix.rs",
+      "url": "https://raw.githubusercontent.com/openai-oss-forks/crossterm/45fecb9508105988f42fe6ff0441783ed3717f92/src/terminal/sys/unix.rs",
+      "path": "crossterm_terminal_sys_unix.rs",
+      "bytes": 10358,
+      "sha256": "2afd2359fd2d047a682a3cb664fb656cd4b6a0c39567ddb8dd49dca6779d45f3"
+    },
+    {
+      "repository": "openai/codex",
+      "commit": "6b9826e3aa83b1a5947db50f4332cb9c65f1b340",
+      "upstream_path": "codex-rs/tui/src/app/input.rs",
+      "url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/app/input.rs",
+      "path": "codex-rs_tui_src_app_input.rs",
+      "bytes": 24889,
+      "sha256": "362fc8a86ae4d2ff4e140ac0a345958bb53e2780c55a6f743fca16d4f5096f00",
+      "git_blob_sha1": "fbf1d980321b7d736bca43fef8f2fbd5224fae9c",
+      "git_tree_api_url": "https://api.github.com/repos/openai/codex/git/trees/6b9826e3aa83b1a5947db50f4332cb9c65f1b340?recursive=1"
+    },
+    {
+      "repository": "openai/codex",
+      "commit": "6b9826e3aa83b1a5947db50f4332cb9c65f1b340",
+      "upstream_path": "codex-rs/tui/src/chatwidget/slash_dispatch.rs",
+      "url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/chatwidget/slash_dispatch.rs",
+      "path": "codex-rs_tui_src_chatwidget_slash_dispatch.rs",
+      "bytes": 52523,
+      "sha256": "795f6fe86162088914de82a139331330369bc2670f1477f89322d1d7d2edfee0",
+      "git_blob_sha1": "b8db07ee74123aba2691a17e19915b31bd8a03a4",
+      "git_tree_api_url": "https://api.github.com/repos/openai/codex/git/trees/6b9826e3aa83b1a5947db50f4332cb9c65f1b340?recursive=1"
+    },
+    {
+      "repository": "openai/codex",
+      "commit": "6b9826e3aa83b1a5947db50f4332cb9c65f1b340",
+      "upstream_path": "codex-rs/tui/src/keymap.rs",
+      "url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/keymap.rs",
+      "path": "codex-rs_tui_src_keymap.rs",
+      "bytes": 155346,
+      "sha256": "6da918f5db77cdb007a255e26d3f96c0db4d7e6291104e617ffc902e7f89ee89",
+      "git_blob_sha1": "4591732c189bed50626ee25d7d026a0b222851ae",
+      "git_tree_api_url": "https://api.github.com/repos/openai/codex/git/trees/6b9826e3aa83b1a5947db50f4332cb9c65f1b340?recursive=1"
+    },
+    {
+      "repository": "openai/codex",
+      "commit": "6b9826e3aa83b1a5947db50f4332cb9c65f1b340",
+      "upstream_path": "codex-rs/tui/src/tui.rs",
+      "url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/tui.rs",
+      "path": "codex-rs_tui_src_tui.rs",
+      "bytes": 45088,
+      "sha256": "1c7a8338c2641a214fb024723d993035c0e17d3765e9990943df2227cd45f527",
+      "git_blob_sha1": "96b3fbcbb96809a193583d39d0af2fe9dc52b29e",
+      "git_tree_api_url": "https://api.github.com/repos/openai/codex/git/trees/6b9826e3aa83b1a5947db50f4332cb9c65f1b340?recursive=1"
+    },
+    {
+      "repository": "openai/codex",
+      "commit": "6b9826e3aa83b1a5947db50f4332cb9c65f1b340",
+      "upstream_path": "codex-rs/tui/src/app/startup.rs",
+      "url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/app/startup.rs",
+      "path": "codex-rs_tui_src_app_startup.rs",
+      "bytes": 55817,
+      "sha256": "720dd167f67d989606a7d3661f11f9f5d0b15c76df5e3a71c9fd25fc9e2bf0e0",
+      "git_blob_sha1": "2bb22a51dfa1cf758937b08f21455345fd14c803",
+      "git_tree_api_url": "https://api.github.com/repos/openai/codex/git/trees/6b9826e3aa83b1a5947db50f4332cb9c65f1b340?recursive=1"
+    }
+  ]
+}

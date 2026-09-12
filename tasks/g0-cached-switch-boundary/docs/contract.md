@@ -1,6 +1,6 @@
 # Cached side/primary switch: read-only evidence contract
 
-状态：只读方案；未启动 native/model，未改全局配置、Codex 本体或 `main` 工作区。该文件服务于后继 sd08 受控 case，等待 resume07 先验收后再执行。
+状态：cached01 已留下 unknown 事实；本合同更正首次入口，后继新 case 执行前仍须固定代码与预检。cached01 的原结果、原 trace 和 receipt 保持不变。
 
 固定源码 provenance：`openai/codex` commit `6b9826e3aa83b1a5947db50f4332cb9c65f1b340`，由 `tasks/g0-tui-proxy/docs/native-source-receipt.json` 与 `clear-source-receipt.json` 固定并核验。固定 binary 仍是既有 0.154 SHA，不在本方案中重新取源或启动。
 
@@ -12,7 +12,11 @@
 
 `skills/list` 没有 `threadId`，且可由启动、resume、fork 后刷新或全局 skills 配置触发；即使带 `forceReload=true`，也仍不能唯一标识当前 P/S 选择。
 
-## 首次 P → side S 的必要前置
+## 首次 P → side S 的入口与必要前置
+
+固定 0.154 的 `toggle_side_conversation` 在没有 `side_threads` 时直接返回（`app/side.rs:391-412`），Ctrl-/ 与其 Ctrl-7 兼容键只负责切换已存在的 side。首次创建必须用空参数 `/side`：`slash_dispatch.rs:119-128,336-338` 发出 `StartSide(user_message=None)`，`app/side.rs:712-715` 调用 fork。源码仅在存在 `Some(user_message)` 时才提交模型 turn（`:769-773`），因此本 case 严禁为 `/side` 附加文本。
+
+此前“第一次 toggle 创建 S”的假设错误。cached01 的一次 Ctrl-7 后无 fork 符合无 side 时的 no-op 路径，不是 cached zero-RPC 反例，也不能被解释为通用 attachment 资格。准确源码及收据见 `side-entry-diagnostic.md` 与 `data/source/side-entry-source-receipt.json`。
 
 首次 side 创建至少要在同一完整 epoch 观察到：
 
@@ -27,7 +31,7 @@ server response(thread/inject_items, ok=true)
 
 `thread/fork` response 的 `forkedFromId=P` 是 lineage 证据；`thread/started(S)` 只能确认 S 的建立，不能说明 S 后来是否仍是当前显示。`thread/inject_items(S)` 若出现，只能作为 side 初始化的附加证据，payload 保持 opaque，不能用注入本身代替 lineage 或当前选择。
 
-固定 source 中 `fork_side_thread` 使用 `ForkPresentation::SideConversation`，side fork 对分页历史设置 `excludeTurns`，并返回 `ThreadForkResponse`；server fork path 将 `forked_from_id` 写为源 P 并发 `ThreadStarted`。生产 TUI 对 `thread/inject_items` 的完整调用位置不在保存 source receipt 中，因此后继 case 必须记录“出现/未出现”，不能预先把它写成必然步骤。
+固定 source 中 `fork_side_thread` 使用 `ForkPresentation::SideConversation`，side fork 对分页历史设置 `excludeTurns`，并返回 `ThreadForkResponse`；server fork path 将 `forked_from_id` 写为源 P 并发 `ThreadStarted`。本次补存的 `app/side.rs:734-736` 明确调用 `thread/inject_items(S)` 初始化边界；出现时必须匹配目标和成功 response。其 body 保持 opaque，不用于 current-thread 推断。
 
 ## 缓存切换的可观察边界
 
@@ -37,7 +41,7 @@ server response(thread/inject_items, ok=true)
 
 ```text
 P active
-  → explicit side toggle
+  → empty /side command (no user message)
   → first S setup (fork lineage above)
   → explicit side toggle
   → cached P local replay; zero RPC is allowed
@@ -58,17 +62,17 @@ P active
 
 primary 在 snapshot session 缺 model、rollout path 或需要权限 profile refresh 时，固定 source 允许额外 `thread/resume(P, PreserveExistingThread)`；因此“看到 resume”不能自动说明用户执行了显式 resume，也不能反向证明 side toggle。
 
-## 后继 sd08 case（等待 resume07 后执行）
+## 后继新 case（独立预检后执行）
 
 目标是验证“相同 wire 形状不足以确定当前显示”的受控反例，保持零模型、无 picker/thread-list、无 raw history。
 
 1. 使用已验收的 resume07 产物恢复原持久 P；核验 `thread/resume` response 的 `thread.id=P`、epoch、connection identity 和独立 status(P)。
-2. 在 composer 为空、无 modal、无 turn 的窗口中触发 side toggle。默认键为 `Ctrl-/`，旧终端兼容 `Ctrl-7`；若 keymap 冲突，记录实际已生效的显式键。
-3. 等待首次 S 建立，不提交 user prompt；记录并核验 P→S fork lineage、可选 `thread/started(S)`、实际存在时的 `thread/inject_items(S)`，以及所有同 epoch 的 `skills/list`。
+2. 在 composer 为空、无 modal、无 turn 的窗口中只提交一次空参数 `/side`。这是首次创建 S 的入口，不是 cached toggle；不得附加 user prompt。
+3. 等待首次 S 建立，不提交 user prompt；记录并核验 P→S fork lineage、必需的 `thread/started(S)`、实际存在时的 `thread/inject_items(S)`，以及所有同 epoch 的 `skills/list`。
 4. 发一次独立 `/status` 查询，记录显示 S。status 只作 corroboration。
-5. 再次 side toggle 回 P；不主动发送任何会产生 RPC 的 resume/read 操作。记录从上一个稳定边界到下一个稳定边界的完整 wire：应允许 zero RPC；若有 RPC，按上表重新分类。
+5. 发第一次 cached side toggle 回 P（固定 `0x1f`，即默认 Ctrl-/ 的 Ctrl-7 兼容输入）；不主动发送任何会产生 RPC 的 resume/read 操作。记录从上一个稳定边界到下一个稳定边界的完整 wire：应允许 zero RPC；若有 RPC，按上表重新分类。
 6. 发独立 `/status` 查询，记录显示 P；不得据此新建 candidate。
-7. 再次 side toggle 回缓存 S；同样不补发 resume/read。发独立 `/status` 查询，记录显示 S。
+7. 发第二次且最后一次 cached side toggle 回缓存 S；同样不补发 resume/read。发独立 `/status` 查询，记录显示 S。
 8. 最后安全退出，记录旧 candidate 是否仍被 runtime 保留、清除或标为 stale；若 runtime 当前实现仍保留旧 candidate，必须把它作为实现缺口记录，不能解释成当前显示已被证明。
 
 每次 status 查询前应有可审计的屏幕边界（明确提交 `/status`、唯一 ID、完成时间），避免把旧屏幕残留当成新选择。driver 的 selected label、picker 个人列表和名称不得作为选择来源。
@@ -80,7 +84,7 @@ primary 在 snapshot session 缺 model、rollout path 或需要权限 profile re
 - binary SHA、source commit、case nonce、workspace/cwd、model 固定为 Luna、connection/epoch、两端 peer identity；
 - `p_thread_id=P`、`s_thread_id=S`、首次 fork request/response 的 request ID、local sequence、`forkedFromId`、`thread/started` 是否出现；
 - `thread/inject_items` 是否出现、目标 ID、request/response ID、成功/失败、local sequence；不保存 items body；
-- 每次切换前后 `active_thread_before/after`（仅作为独立观测字段）、status query 的唯一 ID、status 时间窗和 screen hash；status 不写入 candidate；
+- 首次 `/side` 与后两次 `0x1f` 的独立操作记录；每次切换前后 `active_thread_before/after`（仅作为独立观测字段）、status query 的唯一 ID、status 时间窗和 screen hash；status 不写入 candidate；
 - 每个切换边界的 RPC 方法集合和顺序摘要、是否 zero-RPC、observer gap/eof/sequence 状态；
 - candidate 的 `(epoch, thread_id, session_id, source)` 及其产生/失效事件。若 zero-RPC 后仍显示旧 candidate，写 `candidate_stale=true`，禁止改写为当前选择；
 - model turn/start 计数必须为 0；cleanup、hash protection、退出码及是否有未完成 native worker。

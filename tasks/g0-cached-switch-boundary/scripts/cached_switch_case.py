@@ -1,4 +1,4 @@
-"""One guarded resume P -> side S -> cached P -> cached S observation.
+"""One guarded resume P -> empty /side S -> cached P -> cached S observation.
 
 Only --prepare is read-only. --run is an explicit native execution boundary.
 Status observations never feed the attachment inferer. No model input is sent.
@@ -260,7 +260,7 @@ async def run_cached_switch_case(spec: CachedSwitchCaseSpec, *, preflight: Mappi
     epoch_reason = None
     stage = 'preflight'
     result: dict[str, Any] = {'case': case.name, 'status': 'unknown', 'source_commit': SOURCE_COMMIT,
-        'crossterm_commit': CROSSTERM_COMMIT, 'toggle_hex': TOGGLE_BYTES.hex(),
+        'crossterm_commit': CROSSTERM_COMMIT, 'first_side_command': '/side', 'toggle_hex': TOGGLE_BYTES.hex(),
         'configured_model': MODEL, 'argv': list(spec.argv()), 'backend_argv': list(config.backend_argv),
         'p_thread_id': spec.expected_resume_thread_id, 's_thread_id': None, 'status_checks': [], 'switches': [],
         'generic_attachment_verified': False, 'cached_zero_rpc_observed': False,
@@ -300,7 +300,10 @@ async def run_cached_switch_case(spec: CachedSwitchCaseSpec, *, preflight: Mappi
             began = raw_seconds()
             deadline = _deadline(spec, overall)
             prior_screen = (tui.evidence.get('bytes'), tui.evidence.get('sha256'))
-            tui.write(TOGGLE_BYTES, action=f'side-toggle-{index}')
+            if index == 1:
+                tui.command('/side')  # Empty slash command creates S without a user message.
+            else:
+                tui.write(TOGGLE_BYTES, action=f'side-toggle-{index - 1}')
             if raw_seconds() > deadline:
                 raise TimeoutError('side toggle exceeded its original local window')
             wait = await _wait_switch(spec, runtime, bridge, tui, epoch, index=index,
@@ -320,7 +323,8 @@ async def run_cached_switch_case(spec: CachedSwitchCaseSpec, *, preflight: Mappi
                     # A later optional inject request must still have its matching response.
                     result['fork'] = fork_summary(bridge.trace[start:], epoch, spec.expected_resume_thread_id)
             summary = boundary_summary(bridge.trace[start:], epoch, before, runtime.candidate)
-            summary.update(wait, label=label, toggle_index=index, trace_start_index=start,
+            summary.update(wait, label=label, step_index=index,
+                           toggle_index=index - 1 if index > 1 else None, trace_start_index=start,
                            status_trace_start_index=status_start, trace_end_index=len(bridge.trace),
                            started_at_raw=began, active_thread_before=previous_active,
                            active_thread_after=check['ids'][0] if check else None, observed_only=True)
