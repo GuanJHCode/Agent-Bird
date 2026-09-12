@@ -1,0 +1,338 @@
+{
+  "version": 1,
+  "nonce": "sd-qual-08",
+  "started_at": "2026-09-12T09:03:38.725197+00:00",
+  "stage": "helper_finished",
+  "substage": "helper_finished",
+  "started_clock": {
+    "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+    "mono_ns": 4126386590152041,
+    "wall_ns": 1789203818725346000
+  },
+  "helper_sha256": "346ea054176d54fa2f8198e2e57039f029dc575cd97999788002395bae153cc3",
+  "audit_sha256": "59d8129d5409fb7fb5687a5107c81f9d85a63b8f718e4dd22cab660517af87c6",
+  "protected_before": {
+    "global_config": {
+      "exists": true,
+      "sha256": "53b1aa3016356f244170c6b5bc84773767672c852b59f9594f9ae694ebb8eca3",
+      "bytes": 21358
+    },
+    "login_profile": {
+      "exists": true,
+      "sha256": "9182af26fc3d20697ba0db018bc666dcb326686392db102422e72a4f5b12f549",
+      "bytes": 593
+    },
+    "test_config": {
+      "exists": false
+    },
+    "test_hooks": {
+      "exists": true,
+      "sha256": "666243bf0789d012c7035ff7ef7203735df95fd79eafe763fa5013277f58b917",
+      "bytes": 1393
+    },
+    "trusted_hook_binary": {
+      "exists": true,
+      "sha256": "62e41afd87e1408854490bf6a716cfe846fff0021179a39d163d6e02254ba779",
+      "bytes": 3433442
+    },
+    "existing_daemon_settings": {
+      "exists": true,
+      "sha256": "922e9ed2521a417109eae8429696e6f7c95e06e7a2acd1cf5b2c0326b73d9b40",
+      "bytes": 34
+    }
+  },
+  "service_argv": [
+    "codex",
+    "app-server",
+    "--listen",
+    "unix://"
+  ],
+  "tui_argv": [
+    "codex",
+    "<fixed-initial-task>"
+  ],
+  "tui_argv_prompt_redacted": true,
+  "scope": "one fixed owned PTY; not generic current-UI attachment or full G0",
+  "initial_window": {
+    "since": "2026-09-12T09:03:38.857154+00:00",
+    "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+    "mono_ns": 4126386721962500,
+    "deadline_mono_ns": 4126506721962500,
+    "epoch_correlation_end": "2026-09-12T09:05:38.857154+00:00"
+  },
+  "session_start_window": {
+    "since": "2026-09-12T09:03:38.857154+00:00",
+    "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+    "mono_ns": 4126386721962500,
+    "deadline_mono_ns": 4126506721962500,
+    "epoch_correlation_end": "2026-09-12T09:05:38.857154+00:00"
+  },
+  "launch_intent_sha256": "c2c128e98f89b20ebc3ae6a8bf10918732515849fd0d8bd78722e08ab80286ae",
+  "startup_scheduling": {
+    "mono_ns": 4126386721962500,
+    "deadline_mono_ns": 4126396721962500,
+    "observed_mono_ns": 4126387056588958,
+    "input_ready_proven": false,
+    "post_launch_identity_only": true
+  },
+  "origin": {
+    "service": {
+      "pid": 67418,
+      "ppid": 67411,
+      "uid": 501,
+      "started_at_local": "Sat Sep 12 17:03:38 2026",
+      "comm": "codex",
+      "executable_path": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+      "native_executable_matches": true
+    },
+    "tui": {
+      "pid": 67446,
+      "ppid": 67411,
+      "uid": 501,
+      "started_at_local": "Sat Sep 12 17:03:38 2026",
+      "comm": "codex",
+      "executable_path": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+      "native_executable_matches": true
+    },
+    "socket": {
+      "path": "/Users/guanjunhui/.codex/app-server-control/app-server-control.sock",
+      "exists": true,
+      "dev": 16777234,
+      "ino": 161671308,
+      "uid": 501,
+      "mode": "0600",
+      "service_holds_path": true
+    }
+  },
+  "origin_sha256": "bf7389e7db1141c70cb72e42971469826a558d90421ff6ae2c5f636acee9da99",
+  "session_start": {
+    "session_id": "01a094db-aaaf-7dc3-8308-8077d4f778b3",
+    "hook_event_name": "SessionStart",
+    "pid": 68051,
+    "ppid": 67418,
+    "recorded_at": "2026-09-12T09:03:41.717289Z",
+    "source": "startup"
+  },
+  "candidate_hook": {
+    "session_id": "01a094db-aaaf-7dc3-8308-8077d4f778b3",
+    "hook_event_name": "UserPromptSubmit",
+    "pid": 68052,
+    "ppid": 67418,
+    "recorded_at": "2026-09-12T09:03:41.728387Z",
+    "turn_id": "01a094db-ab4b-7ef3-835d-8e157704bd6a"
+  },
+  "root": "01a094db-aaaf-7dc3-8308-8077d4f778b3",
+  "job_owner": {
+    "version": 1,
+    "status": "started",
+    "nonce": "sd-qual-08",
+    "controller_thread": "01a094db-aaaf-7dc3-8308-8077d4f778b3",
+    "task_revision": 1,
+    "worker_pid": 68156,
+    "job_sha256": "8ca9ce845f50e82c657c19d2a5df40fa6ffac5353327d921616a3082a319cc57"
+  },
+  "pending_barrier": {
+    "go_before": {
+      "before": "2026-09-12T09:03:52.847348+00:00",
+      "after": "2026-09-12T09:03:52.853084+00:00",
+      "elapsed_seconds": 0.005727959,
+      "binary_sha256": "feb9b9ad969abca5ff35db28c0f0d8d920dc0778d7aac68a90952900e989a285",
+      "output": {
+        "version": 1,
+        "status": "pending",
+        "nonce": "sd-qual-08",
+        "count": 0
+      },
+      "stdout_sha256": "7c5a1f6f37c27d115967ed2af1ca5dac3678117f179f406203da78c59b62b510",
+      "exit_code": 0
+    },
+    "native_task_complete": {
+      "at": "2026-09-12T09:03:52.727Z",
+      "turn_id": "01a094db-ab4b-7ef3-835d-8e157704bd6a",
+      "type": "task_complete",
+      "last_agent_message": "SD_QUAL_08_READY"
+    },
+    "native_observed_before": "2026-09-12T09:03:52.853166+00:00",
+    "native_observed_after": "2026-09-12T09:03:52.854117+00:00",
+    "go_after": {
+      "before": "2026-09-12T09:03:52.854119+00:00",
+      "after": "2026-09-12T09:03:52.858425+00:00",
+      "elapsed_seconds": 0.004300083,
+      "binary_sha256": "feb9b9ad969abca5ff35db28c0f0d8d920dc0778d7aac68a90952900e989a285",
+      "output": {
+        "version": 1,
+        "status": "pending",
+        "nonce": "sd-qual-08",
+        "count": 0
+      },
+      "stdout_sha256": "7c5a1f6f37c27d115967ed2af1ca5dac3678117f179f406203da78c59b62b510",
+      "exit_code": 0
+    }
+  },
+  "client_completed_read": {
+    "before": "2026-09-12T09:04:30.590096+00:00",
+    "after": "2026-09-12T09:04:30.605361+00:00",
+    "elapsed_seconds": 0.015195042,
+    "binary_sha256": "feb9b9ad969abca5ff35db28c0f0d8d920dc0778d7aac68a90952900e989a285",
+    "output": {
+      "version": 1,
+      "status": "completed",
+      "nonce": "sd-qual-08",
+      "count": 1
+    },
+    "stdout_sha256": "d7ae6dd48968e1ff59dc91bfe21ae69c3814b6e174d193e4a783f88b780ad17c",
+    "exit_code": 0
+  },
+  "initial_evidence_through": "2026-09-12T09:04:30.654617+00:00",
+  "helper_calls": [
+    {
+      "mode": "prepare",
+      "started_at": "2026-09-12T09:04:30.731973+00:00",
+      "ended_at": "2026-09-12T09:04:31.165392+00:00",
+      "elapsed_seconds": 0.433460333,
+      "exit_code": 0,
+      "stdout_bytes": 951,
+      "stdout_sha256": "7be92790020e1ac598dda2a3e1673103f6af00d1ac5c6979dfde6b9abc4a9d93",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "mode": "send-once",
+      "started_at": "2026-09-12T09:04:31.222950+00:00",
+      "ended_at": "2026-09-12T09:04:56.834876+00:00",
+      "elapsed_seconds": 25.610699041,
+      "exit_code": 0,
+      "stdout_bytes": 1655,
+      "stdout_sha256": "2f5b1f1d310877a111d0d392ed43b381585880a821e52d428eb9eed33d808920",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "callback_window": {
+    "attempt_mono_ns": 4126439268205666,
+    "attempt_wall_ns": 1789203871403517000,
+    "deadline_mono_ns": 4126559268205666,
+    "attempt_sha256": "68c93ab3fbb0fa1f45f064ee1114d622609bd946e5db224b67edb893d3f430ad"
+  },
+  "helper_completed_without_error": true,
+  "job_completed_before_cleanup": true,
+  "job_completed_at_cleanup": true,
+  "cleanup_connection_observation": {
+    "known_tui_connection_count": 1,
+    "unrecognized_client_observed": false,
+    "automatic_service_stop": false,
+    "reason": "helper_server_connection_ids_not_registered",
+    "listener_retained_for_main_agent": true,
+    "scope": "request-span metadata does not establish complete client ownership"
+  },
+  "quit_observation": {
+    "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+    "mono_ns": 4126464713455500,
+    "deadline_mono_ns": 4126474713455500,
+    "started_at": "2026-09-12T09:04:56.850028+00:00",
+    "actions": [
+      "quit-paste",
+      "quit-submit"
+    ],
+    "observed_mono_ns": 4126464941358000,
+    "elapsed_ns": 227902500,
+    "exit_code": 0,
+    "normal_exit_within_window": true
+  },
+  "service_process": {
+    "pid": 67418,
+    "started_at": "2026-09-12T09:03:38.725384+00:00",
+    "exit_code": null,
+    "stdio": "devnull"
+  },
+  "retained_service_pid": 67418,
+  "tui_pty": {
+    "pid": 67446,
+    "started_at": "2026-09-12T09:03:38.978754+00:00",
+    "bytes": 120055,
+    "sha256": "12dd13c19bf37117a84ceee8d8650df981a519d0f2cff82a9e69496c0063d07a",
+    "cursor_position_replies": 1,
+    "inputs": [
+      {
+        "at": "2026-09-12T09:03:38.857154+00:00",
+        "clock": {
+          "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+          "mono_ns": 4126386721962500,
+          "wall_ns": 1789203818857154000
+        },
+        "action": "initial-argv",
+        "bytes": 2089,
+        "sha256": "226783adc62bd86a6329e6d400b48d5ac65c7cfa60305bca3cc71148db977795"
+      },
+      {
+        "at": "2026-09-12T09:04:56.850067+00:00",
+        "clock": {
+          "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+          "mono_ns": 4126464713499666,
+          "wall_ns": 1789203896850069000
+        },
+        "action": "quit-paste",
+        "bytes": 17,
+        "sha256": "690a3443b2c9824c2f314c35f61d6306e95f433d7fa4b796972d9023ad23bd93"
+      },
+      {
+        "at": "2026-09-12T09:04:56.850093+00:00",
+        "clock": {
+          "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+          "mono_ns": 4126464713524958,
+          "wall_ns": 1789203896850095000
+        },
+        "action": "quit-submit",
+        "bytes": 1,
+        "sha256": "9d1e0e2d9459d06523ad13e28a4093c2316baafe7aec5b25f30eba2e113599c4"
+      }
+    ],
+    "exit_code": 0
+  },
+  "protected_after": {
+    "global_config": {
+      "exists": true,
+      "sha256": "53b1aa3016356f244170c6b5bc84773767672c852b59f9594f9ae694ebb8eca3",
+      "bytes": 21358
+    },
+    "login_profile": {
+      "exists": true,
+      "sha256": "9182af26fc3d20697ba0db018bc666dcb326686392db102422e72a4f5b12f549",
+      "bytes": 593
+    },
+    "test_config": {
+      "exists": false
+    },
+    "test_hooks": {
+      "exists": true,
+      "sha256": "666243bf0789d012c7035ff7ef7203735df95fd79eafe763fa5013277f58b917",
+      "bytes": 1393
+    },
+    "trusted_hook_binary": {
+      "exists": true,
+      "sha256": "62e41afd87e1408854490bf6a716cfe846fff0021179a39d163d6e02254ba779",
+      "bytes": 3433442
+    },
+    "existing_daemon_settings": {
+      "exists": true,
+      "sha256": "922e9ed2521a417109eae8429696e6f7c95e06e7a2acd1cf5b2c0326b73d9b40",
+      "bytes": 34
+    }
+  },
+  "protected_unchanged": true,
+  "socket_after": {
+    "path": "/Users/guanjunhui/.codex/app-server-control/app-server-control.sock",
+    "exists": true,
+    "dev": 16777234,
+    "ino": 161671308,
+    "uid": 501,
+    "mode": "0600"
+  },
+  "ended_at": "2026-09-12T09:04:57.083593+00:00",
+  "ended_clock": {
+    "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+    "mono_ns": 4126464947026708,
+    "wall_ns": 1789203897083614000
+  },
+  "all_owned_native_exited": false
+}

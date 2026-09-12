@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "nonce": "sd-qual-08",
+  "controller_exit_code": 0,
+  "controller_identity_after": null,
+  "caffeinate_exit_code": 0,
+  "caffeinate_identity_after": null,
+  "completed_at": "2026-09-12T09:04:57.149656+00:00",
+  "stdout": {
+    "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/native/tasks/g0-pending-resolution/docs/native-sd-qual-08-controller-stdout.log",
+    "bytes": 1806,
+    "sha256": "40f72da5715652e1c761b9f213e903b2bad535ec048c023d65fbc0e4e8f0393c"
+  },
+  "stderr": {
+    "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/native/tasks/g0-pending-resolution/docs/native-sd-qual-08-controller-stderr.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

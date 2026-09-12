@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "nonce": "sd-qual-08",
+  "scope": "post_collection_of_exact_owned_hook_metadata_no_new_window",
+  "original_window": {
+    "since": "2026-09-12T09:03:38.857154+00:00",
+    "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+    "mono_ns": 4126386721962500,
+    "deadline_mono_ns": 4126506721962500,
+    "epoch_correlation_end": "2026-09-12T09:05:38.857154+00:00"
+  },
+  "counts": {
+    "SessionStart": 1,
+    "UserPromptSubmit": 1,
+    "SessionEnd": 0
+  },
+  "in_original_window": [
+    {
+      "file_name": "ccac47e3f5d02ed0244adab4fd9377a0.json",
+      "sha256": "6d83f4a5dc1d7dc62645ff00037da7183e311bb0fc9069af31209229285061f2",
+      "fields": {
+        "session_id": "01a094db-aaaf-7dc3-8308-8077d4f778b3",
+        "hook_event_name": "UserPromptSubmit",
+        "pid": 68052,
+        "ppid": 67418,
+        "recorded_at": "2026-09-12T09:03:41.728387Z",
+        "turn_id": "01a094db-ab4b-7ef3-835d-8e157704bd6a"
+      }
+    },
+    {
+      "file_name": "8ec43bb5d6034bb664dce34a5283574a.json",
+      "sha256": "a99baf60a130840fdfb37e4a96fd211c7b5ac25b649c6afe17e1b43046a0f3b7",
+      "fields": {
+        "session_id": "01a094db-aaaf-7dc3-8308-8077d4f778b3",
+        "hook_event_name": "SessionStart",
+        "pid": 68051,
+        "ppid": 67418,
+        "recorded_at": "2026-09-12T09:03:41.717289Z",
+        "source": "startup"
+      }
+    }
+  ],
+  "after_original_window": [
+    {
+      "file_name": "46f1aedcb99f6665ad594c7979d45344.json",
+      "sha256": "60ae64fd2b35c7c1151f692ecf98b537008c37c09a6697c7c6d8eee6d1a9b9e8",
+      "fields": {
+        "session_id": "01a094db-aaaf-7dc3-8308-8077d4f778b3",
+        "hook_event_name": "SessionEnd",
+        "pid": 68603,
+        "ppid": 67418,
+        "recorded_at": "2026-09-12T09:05:56.875126Z"
+      }
+    }
+  ]
+}

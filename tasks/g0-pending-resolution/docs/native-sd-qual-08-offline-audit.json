@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "nonce": "sd-qual-08",
+  "scope": "independent_offline_audit_of_immutable_native_capture_no_RPC_or_model",
+  "input_sha256": "4b36ced335e366298a0e51d5a6abb8fd60dfe421b5d7e0f5bec152e46d2c37a9",
+  "audit_script_sha256": "59d8129d5409fb7fb5687a5107c81f9d85a63b8f718e4dd22cab660517af87c6",
+  "elapsed_ns": 31159417,
+  "exit_code": 0,
+  "audit": {
+    "absence_proof": false,
+    "acknowledged_event_ids": [],
+    "business_ack_complete": false,
+    "captured_page_chain_complete": false,
+    "compaction_seen": false,
+    "delivery_id": "sd-qual-08_delivery",
+    "duplicate_displays": 0,
+    "matched_history_items": 1,
+    "pending_event_ids": [
+      "sd-qual-08_result"
+    ],
+    "resend_authorized": false,
+    "scope": "offline_captured_data_only",
+    "source_service_verified": false,
+    "transport_evidence": "exact_history_marker",
+    "transport_gate": "history_match_observed",
+    "unique_ack_slots": 0,
+    "version": 1,
+    "waiting_user_event_ids": []
+  }
+}

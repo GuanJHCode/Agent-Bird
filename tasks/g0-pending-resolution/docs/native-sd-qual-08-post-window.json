@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "nonce": "sd-qual-08",
+  "scope": "owned_outer_cleanup_after_normal_tui_quit_no_history_rpc",
+  "signal": "SIGINT",
+  "service_before": {
+    "pid": 67418,
+    "ppid": 1,
+    "uid": 501,
+    "started_at_local": "Sat Sep 12 17:03:38 2026",
+    "comm": "codex",
+    "executable_path": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+    "native_executable_matches": true
+  },
+  "socket_before": {
+    "path": "/Users/guanjunhui/.codex/app-server-control/app-server-control.sock",
+    "exists": true,
+    "dev": 16777234,
+    "ino": 161671308,
+    "uid": 501,
+    "mode": "0600",
+    "service_holds_path": true
+  },
+  "socket_holders_before": [
+    67418
+  ],
+  "original_owned_descendant_pids": [
+    68154
+  ],
+  "elapsed_ns": 155372125,
+  "all_owned_service_tree_exited": true,
+  "remaining_process_metadata": [],
+  "service_exited": true,
+  "tui_exited": true,
+  "socket_after": {
+    "path": "/Users/guanjunhui/.codex/app-server-control/app-server-control.sock",
+    "exists": false
+  },
+  "normal_quit_claimed": true,
+  "normal_quit_evidence": "original controller-result.json quit_observation",
+  "protected_files": {
+    "global_config": {
+      "exists": true,
+      "sha256": "53b1aa3016356f244170c6b5bc84773767672c852b59f9594f9ae694ebb8eca3",
+      "bytes": 21358
+    },
+    "login_profile": {
+      "exists": true,
+      "sha256": "9182af26fc3d20697ba0db018bc666dcb326686392db102422e72a4f5b12f549",
+      "bytes": 593
+    },
+    "test_config": {
+      "exists": false
+    },
+    "test_hooks": {
+      "exists": true,
+      "sha256": "666243bf0789d012c7035ff7ef7203735df95fd79eafe763fa5013277f58b917",
+      "bytes": 1393
+    },
+    "trusted_hook_binary": {
+      "exists": true,
+      "sha256": "62e41afd87e1408854490bf6a716cfe846fff0021179a39d163d6e02254ba779",
+      "bytes": 3433442
+    },
+    "existing_daemon_settings": {
+      "exists": true,
+      "sha256": "922e9ed2521a417109eae8429696e6f7c95e06e7a2acd1cf5b2c0326b73d9b40",
+      "bytes": 34
+    }
+  },
+  "cleaned_at": "2026-09-12T09:07:19.759341+00:00",
+  "protected_unchanged_from_preflight": true
+}

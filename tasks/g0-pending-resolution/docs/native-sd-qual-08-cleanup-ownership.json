@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "nonce": "sd-qual-08",
+  "scope": "owned_service_and_descendants_after_normal_tui_quit_before_outer_cleanup",
+  "captured_at": "2026-09-12T09:07:19.598164+00:00",
+  "service": {
+    "pid": 67418,
+    "ppid": 1,
+    "uid": 501,
+    "started_at_local": "Sat Sep 12 17:03:38 2026",
+    "comm": "codex",
+    "executable_path": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+    "native_executable_matches": true
+  },
+  "service_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+  "socket": {
+    "path": "/Users/guanjunhui/.codex/app-server-control/app-server-control.sock",
+    "exists": true,
+    "dev": 16777234,
+    "ino": 161671308,
+    "uid": 501,
+    "mode": "0600",
+    "service_holds_path": true
+  },
+  "socket_holders": [
+    67418
+  ],
+  "service_unix_descriptors": [
+    {
+      "pid": 67418,
+      "command": "codex",
+      "fd": "7u",
+      "type": "unix",
+      "device": "0x37ae861464087028",
+      "name": "->0x41a425e3de13730"
+    },
+    {
+      "pid": 67418,
+      "command": "codex",
+      "fd": "8u",
+      "type": "unix",
+      "device": "0x41a425e3de13730",
+      "name": "->0x37ae861464087028"
+    },
+    {
+      "pid": 67418,
+      "command": "codex",
+      "fd": "9u",
+      "type": "unix",
+      "device": "0x37ae861464087028",
+      "name": "->0x41a425e3de13730"
+    },
+    {
+      "pid": 67418,
+      "command": "codex",
+      "fd": "28u",
+      "type": "unix",
+      "device": "0xde770362b7dd2483",
+      "name": "/Users/guanjunhui/.codex/app-server-control/app-server-control.sock"
+    },
+    {
+      "pid": 67418,
+      "command": "codex",
+      "fd": "32u",
+      "type": "unix",
+      "device": "0x39b1df3865b3ae77",
+      "name": "->0x94a54c00cda5df82"
+    }
+  ],
+  "unix_peer_candidates": [],
+  "owned_descendants": [
+    {
+      "pid": 68154,
+      "ppid": 67418,
+      "uid": 501,
+      "started_at_local": "Sat Sep 12 17:03:50 2026",
+      "comm": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex-code-mode-host",
+      "executable_path": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex-code-mode-host",
+      "executable_sha256": "426d73aaeb2aeef45e98b5add99e8ef9594a31673d281489bb2cb06b38c27423"
+    }
+  ],
+  "tui_already_exited": true
+}

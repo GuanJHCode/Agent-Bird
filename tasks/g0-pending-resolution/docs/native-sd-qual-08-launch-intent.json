@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "nonce": "sd-qual-08",
+  "boot_id": "d9bf3f35-fa82-48be-b5df-c428eb69f42f",
+  "case": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/data/sd-qual-08",
+  "job": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/tasks/pending-resolution/data/sd-qual-08",
+  "service": {
+    "pid": 67418,
+    "ppid": 67411,
+    "uid": 501,
+    "started_at_local": "Sat Sep 12 17:03:38 2026",
+    "comm": "codex",
+    "executable_path": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+    "native_executable_matches": true
+  },
+  "socket": {
+    "path": "/Users/guanjunhui/.codex/app-server-control/app-server-control.sock",
+    "exists": true,
+    "dev": 16777234,
+    "ino": 161671308,
+    "uid": 501,
+    "mode": "0600",
+    "service_holds_path": true
+  },
+  "native_binary_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+  "initial_input": {
+    "at": "2026-09-12T09:03:38.857154+00:00",
+    "clock": {
+      "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+      "mono_ns": 4126386721962500,
+      "wall_ns": 1789203818857154000
+    },
+    "action": "initial-argv",
+    "bytes": 2089,
+    "sha256": "226783adc62bd86a6329e6d400b48d5ac65c7cfa60305bca3cc71148db977795"
+  },
+  "initial_window": {
+    "since": "2026-09-12T09:03:38.857154+00:00",
+    "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+    "mono_ns": 4126386721962500,
+    "deadline_mono_ns": 4126506721962500,
+    "epoch_correlation_end": "2026-09-12T09:05:38.857154+00:00"
+  },
+  "scope": "immutable fixed initial argv intent before TUI spawn; not native submission proof"
+}

@@ -1,0 +1,176 @@
+{
+  "version": 1,
+  "nonce": "sd-qual-08",
+  "captured_at": "2026-09-12T09:09:46.642444+00:00",
+  "scope": "original_native_case_job_bytes_retained_after_one_qualified_sample",
+  "case": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/data/sd-qual-08",
+  "job": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/tasks/pending-resolution/data/sd-qual-08",
+  "artifacts": [
+    {
+      "scope": "case",
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/data/sd-qual-08/audit-input.json",
+      "bytes": 2344,
+      "sha256": "4b36ced335e366298a0e51d5a6abb8fd60dfe421b5d7e0f5bec152e46d2c37a9",
+      "mode": "0o600",
+      "uid": 501
+    },
+    {
+      "scope": "case",
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/data/sd-qual-08/binding.json",
+      "bytes": 1668,
+      "sha256": "da022fec1a529e464cdaad689cd606f272098d5718f08239254abc56bdc63f89",
+      "mode": "0o600",
+      "uid": 501
+    },
+    {
+      "scope": "case",
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/data/sd-qual-08/case.lock",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "mode": "0o600",
+      "uid": 501
+    },
+    {
+      "scope": "case",
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/data/sd-qual-08/controller-evidence.json",
+      "bytes": 16981,
+      "sha256": "a6b29580f5a7ce7825eb84d7e14c16119ae6acd701ec0ae5323b8c90192ea6cc",
+      "mode": "0o600",
+      "uid": 501
+    },
+    {
+      "scope": "case",
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/data/sd-qual-08/controller-result.json",
+      "bytes": 11210,
+      "sha256": "1d95d9aad5a00d68a517c3ec1fd8442cea8779caefdf16d5ff1fd5c1ac499ee6",
+      "mode": "0o600",
+      "uid": 501
+    },
+    {
+      "scope": "case",
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/data/sd-qual-08/intent.json",
+      "bytes": 399,
+      "sha256": "46d125bbe38928ca876281e98ae24e027b19d3f0f076769c01953b9f5754bffc",
+      "mode": "0o600",
+      "uid": 501
+    },
+    {
+      "scope": "case",
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/data/sd-qual-08/launch-intent.json",
+      "bytes": 1707,
+      "sha256": "c2c128e98f89b20ebc3ae6a8bf10918732515849fd0d8bd78722e08ab80286ae",
+      "mode": "0o600",
+      "uid": 501
+    },
+    {
+      "scope": "case",
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/data/sd-qual-08/native-origin.json",
+      "bytes": 2001,
+      "sha256": "bf7389e7db1141c70cb72e42971469826a558d90421ff6ae2c5f636acee9da99",
+      "mode": "0o600",
+      "uid": 501
+    },
+    {
+      "scope": "case",
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/data/sd-qual-08/prepare-meta.json",
+      "bytes": 951,
+      "sha256": "7be92790020e1ac598dda2a3e1673103f6af00d1ac5c6979dfde6b9abc4a9d93",
+      "mode": "0o600",
+      "uid": 501
+    },
+    {
+      "scope": "case",
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/data/sd-qual-08/producer.json",
+      "bytes": 418,
+      "sha256": "d74543e3fdb8fbe528e67ff7cd98b6934cfc99548df19b73d16e5bde439b3665",
+      "mode": "0o600",
+      "uid": 501
+    },
+    {
+      "scope": "case",
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/data/sd-qual-08/receipt.json",
+      "bytes": 117,
+      "sha256": "7df49df1f561e3fdde4f697e1327847abebbd78f0d726fb01479adf51219c96b",
+      "mode": "0o600",
+      "uid": 501
+    },
+    {
+      "scope": "case",
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/data/sd-qual-08/send-attempt.json",
+      "bytes": 447,
+      "sha256": "68c93ab3fbb0fa1f45f064ee1114d622609bd946e5db224b67edb893d3f430ad",
+      "mode": "0o600",
+      "uid": 501
+    },
+    {
+      "scope": "case",
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/data/sd-qual-08/send-observation.json",
+      "bytes": 1655,
+      "sha256": "2f5b1f1d310877a111d0d392ed43b381585880a821e52d428eb9eed33d808920",
+      "mode": "0o600",
+      "uid": 501
+    },
+    {
+      "scope": "job",
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/tasks/pending-resolution/data/sd-qual-08/ack-r1.json",
+      "bytes": 300,
+      "sha256": "f4095da11dec953d3e83f58ef1423cf5cd636b06cbc265eda24bc80e050e4a3e",
+      "mode": "0o600",
+      "uid": 501
+    },
+    {
+      "scope": "job",
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/tasks/pending-resolution/data/sd-qual-08/claim.json",
+      "bytes": 35,
+      "sha256": "df103bd44241a12ec2f4452a7330c3f31def45a186e217851f1eed0ad431d29a",
+      "mode": "0o600",
+      "uid": 501
+    },
+    {
+      "scope": "job",
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/tasks/pending-resolution/data/sd-qual-08/control.json",
+      "bytes": 125,
+      "sha256": "2b0fb860873833a7f5421713f836943f79e9ee8d49de2c57db5952994ace2aa1",
+      "mode": "0o600",
+      "uid": 501
+    },
+    {
+      "scope": "job",
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/tasks/pending-resolution/data/sd-qual-08/control.lock",
+      "bytes": 14,
+      "sha256": "50208d78350a7a160dec59a82df1499b6ca7da33e54c5eb11c97e342118e68bb",
+      "mode": "0o600",
+      "uid": 501
+    },
+    {
+      "scope": "job",
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/tasks/pending-resolution/data/sd-qual-08/job.json",
+      "bytes": 243,
+      "sha256": "8ca9ce845f50e82c657c19d2a5df40fa6ffac5353327d921616a3082a319cc57",
+      "mode": "0o600",
+      "uid": 501
+    },
+    {
+      "scope": "job",
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/tasks/pending-resolution/data/sd-qual-08/result.json",
+      "bytes": 66,
+      "sha256": "d7ae6dd48968e1ff59dc91bfe21ae69c3814b6e174d193e4a783f88b780ad17c",
+      "mode": "0o600",
+      "uid": 501
+    }
+  ],
+  "source_sha256_after": {
+    "native_sd_control.py": "d5b5c00abf45cf5f4c018b085e4b9d756109ad22f450a3e31ca3f73f20f7c862",
+    "native_sd_collect.py": "4ef678b4d6f3d3cffcaaeba8fc22c5aae7fe85b1646d0b6a1c4cd11a8d15b760",
+    "native_sd_pty.py": "b5a6f74ced04b287f5699e7c6003ef4895f2f94cc9a2f6e0752c2648aeee058a",
+    "native_sd_clock.py": "c16c8d0d0d9b1652d18606230351493f3cea33211f8b4d3323bb5b6bf2466087",
+    "native_standalone.py": "346ea054176d54fa2f8198e2e57039f029dc575cd97999788002395bae153cc3",
+    "delivery_audit.py": "59d8129d5409fb7fb5687a5107c81f9d85a63b8f718e4dd22cab660517af87c6"
+  },
+  "sources_unchanged_from_registration": true,
+  "protected_unchanged": true,
+  "original_attempt_sha256": "68c93ab3fbb0fa1f45f064ee1114d622609bd946e5db224b67edb893d3f430ad",
+  "canonical_binding_sha256": "b025eaac9f491f9ffdf18e3542f6844e880a62c325756bbb7295e944de8bc0d5",
+  "controller_result_copy_matches_original": true,
+  "launch_intent_origin_and_evidence_sha_links_match": true
+}

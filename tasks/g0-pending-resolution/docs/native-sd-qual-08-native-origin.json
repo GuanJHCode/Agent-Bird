@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "nonce": "sd-qual-08",
+  "origin": {
+    "service": {
+      "pid": 67418,
+      "ppid": 67411,
+      "uid": 501,
+      "started_at_local": "Sat Sep 12 17:03:38 2026",
+      "comm": "codex",
+      "executable_path": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+      "native_executable_matches": true
+    },
+    "tui": {
+      "pid": 67446,
+      "ppid": 67411,
+      "uid": 501,
+      "started_at_local": "Sat Sep 12 17:03:38 2026",
+      "comm": "codex",
+      "executable_path": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+      "native_executable_matches": true
+    },
+    "socket": {
+      "path": "/Users/guanjunhui/.codex/app-server-control/app-server-control.sock",
+      "exists": true,
+      "dev": 16777234,
+      "ino": 161671308,
+      "uid": 501,
+      "mode": "0600",
+      "service_holds_path": true
+    }
+  },
+  "pty": {
+    "pid": 67446,
+    "started_at": "2026-09-12T09:03:38.978754+00:00",
+    "bytes": 3851,
+    "sha256": "5da2943768955c91c4a56422a754d649ff5bf7db18c16330224541abff694045",
+    "cursor_position_replies": 1,
+    "inputs": [
+      {
+        "at": "2026-09-12T09:03:38.857154+00:00",
+        "clock": {
+          "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+          "mono_ns": 4126386721962500,
+          "wall_ns": 1789203818857154000
+        },
+        "action": "initial-argv",
+        "bytes": 2089,
+        "sha256": "226783adc62bd86a6329e6d400b48d5ac65c7cfa60305bca3cc71148db977795"
+      }
+    ],
+    "exit_code": null
+  },
+  "launch_intent_sha256": "c2c128e98f89b20ebc3ae6a8bf10918732515849fd0d8bd78722e08ab80286ae",
+  "captured_at": "2026-09-12T09:03:39.222661+00:00",
+  "clock": {
+    "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+    "mono_ns": 4126387087489500,
+    "wall_ns": 1789203819222685000
+  },
+  "scope": "post-launch owned PTY identity; may follow initial argv submission; not general UI attachment"
+}
