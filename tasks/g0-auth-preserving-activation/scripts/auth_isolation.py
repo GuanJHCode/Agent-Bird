@@ -583,6 +583,8 @@ def render_sandbox_profile(spec: IsolationSpec) -> str:
             f'(allow network-outbound (literal "{_sbpl_path(spec.public_socket)}"))',
             f'(allow network-bind (literal "{_sbpl_path(spec.backend_socket)}"))',
             f'(allow network-inbound (literal "{_sbpl_path(spec.backend_socket)}"))',
+            '(deny mach-lookup (global-name "com.apple.SecurityServer"))',
+            '(deny mach-lookup (global-name "com.apple.securityd.systemkeychain"))',
             '(deny mach-lookup (global-name "com.apple.securityd"))',
             '(deny mach-lookup (global-name "com.apple.securityd.system"))',
         ]

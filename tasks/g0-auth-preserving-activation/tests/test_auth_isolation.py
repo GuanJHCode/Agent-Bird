@@ -475,8 +475,8 @@ class SandboxExecTests(unittest.TestCase):
                 "lib.bootstrap_look_up.restype=ctypes.c_int; "
                 "port=ctypes.c_uint32(); "
                 "bootstrap=ctypes.c_uint32.in_dll(lib,'bootstrap_port').value; "
-                "print(lib.bootstrap_look_up(bootstrap,b'com.apple.dnssd.service',ctypes.byref(port)), "
-                "lib.bootstrap_look_up(bootstrap,b'com.apple.securityd',ctypes.byref(port)))"
+                "print(lib.bootstrap_look_up(bootstrap,b'com.apple.SecurityServer',ctypes.byref(port)), "
+                "lib.bootstrap_look_up(bootstrap,b'com.apple.securityd.systemkeychain',ctypes.byref(port)))"
             )
             baseline = subprocess.run(
                 ["/usr/bin/python3", "-c", bootstrap_script],
@@ -492,9 +492,12 @@ class SandboxExecTests(unittest.TestCase):
             )
             self.assertEqual(baseline.returncode, 0, baseline.stderr)
             self.assertEqual(sandboxed.returncode, 0, sandboxed.stderr)
-            self.assertEqual(baseline.stdout.split()[0], "0")
+            self.assertEqual(baseline.stdout.split(), ["0", "0"])
             self.assertNotEqual(sandboxed.stdout.split()[0], "0")
-            self.assertIn('(deny mach-lookup (global-name "com.apple.securityd"))', profile_path.read_text())
+            self.assertNotEqual(sandboxed.stdout.split()[1], "0")
+            profile = profile_path.read_text()
+            self.assertIn('(deny mach-lookup (global-name "com.apple.SecurityServer"))', profile)
+            self.assertIn('(deny mach-lookup (global-name "com.apple.securityd.systemkeychain"))', profile)
 
 
 if __name__ == "__main__":
