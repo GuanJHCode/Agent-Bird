@@ -1,0 +1,12 @@
+{
+  "case": "native-version-02",
+  "same_policy_as": "native-version-01",
+  "returncode": -6,
+  "auth_comparison": {
+    "unchanged": true,
+    "changed_path_ids": []
+  },
+  "registration_performed": false,
+  "stderr": "\nthread 'main' (52769465) panicked at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library/std/src/sys/pal/unix/stack_overflow.rs:526:13:\nfailed to allocate a guard page: Invalid argument (os error 22)\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\nfatal runtime error: initialization or cleanup bug, aborting\n",
+  "stdout": ""
+}

@@ -1,0 +1,21 @@
+{
+  "case": "native-version-03",
+  "argv": [
+    "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+    "--version"
+  ],
+  "cli_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+  "minimal_policy_addition": "allow sysctl-read hw.pagesize_compat",
+  "policy_sha256": "f8fab5eea1e13c64aa8ae30acd7ee6ffcf89e3901f30cf7f19fd7ae005725176",
+  "returncode": 0,
+  "auth_comparison": {
+    "unchanged": true,
+    "changed_path_ids": []
+  },
+  "registration_performed": false,
+  "model_calls_requested": 0,
+  "stderr": "",
+  "stdout": "codex-cli 0.154.0\n",
+  "synthetic_auth_absent": true,
+  "status": "pass"
+}

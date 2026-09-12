@@ -1,0 +1,25 @@
+{
+  "case": "native-version-01",
+  "argv": [
+    "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+    "--version"
+  ],
+  "cli_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+  "runtime_root": "/private/tmp/g0-auth-v1-95av4jdy",
+  "credential_list_sha256": "897f84c3a67016746b5d31395d990ae148c1d28873681f764cf8e82c2ece48cc",
+  "credential_path_count": 14,
+  "sandbox_sha256": "ade7ad9fd704d4b9666c9c21cc783f6f358eeb399db678ee15218f91375ca5fd",
+  "model_calls_requested": 0,
+  "registration_performed": false,
+  "returncode": -6,
+  "version": null,
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderr_sha256": "6c19710e9b3826e076e05518b5ea54d284476d8cd92a8070969be33a61cbe943",
+  "stderr_bytes": 344,
+  "auth_comparison": {
+    "unchanged": true,
+    "changed_path_ids": []
+  },
+  "synthetic_auth_absent": true,
+  "status": "failed"
+}
