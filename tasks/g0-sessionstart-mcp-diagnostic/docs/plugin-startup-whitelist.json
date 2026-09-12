@@ -1,0 +1,85 @@
+{
+  "scope": "Only declared server names/command paths/startup_timeout_sec/env key names or path existence; no env values, credentials or arbitrary config exported. Declaration is not proof of effective config or handshake success.",
+  "servers": [
+    {
+      "server_name": "node_repl",
+      "declaration_file": "/Users/guanjunhui/.codex/config.toml",
+      "command_path": "/Applications/ChatGPT.app/Contents/Resources/cua_node/bin/node_repl",
+      "command_exists": true,
+      "command_executable": true,
+      "startup_timeout_sec": 120,
+      "env_key_names": [
+        "BROWSER_USE_AVAILABLE_BACKENDS",
+        "BROWSER_USE_CODEX_APP_BUILD_FLAVOR",
+        "BROWSER_USE_CODEX_APP_VERSION",
+        "BROWSER_USE_TINYSKY_ENABLED",
+        "CODEX_CLI_PATH",
+        "CODEX_HOME",
+        "NODE_REPL_INSTRUCTIONS_USE_CASE_BROWSER",
+        "NODE_REPL_INSTRUCTIONS_USE_CASE_CHROME",
+        "NODE_REPL_INSTRUCTIONS_USE_CASE_COMPUTER_USE",
+        "NODE_REPL_NATIVE_PIPE_CONNECT_TIMEOUT_MS",
+        "NODE_REPL_NODE_MODULE_DIRS",
+        "NODE_REPL_NODE_PATH",
+        "NODE_REPL_TRUSTED_CODE_PATHS",
+        "NODE_REPL_TRUSTED_SERVICES",
+        "SKY_CUA_SERVICE_PATH"
+      ],
+      "path_dependency_exists": {
+        "NODE_REPL_NODE_PATH": true,
+        "CODEX_HOME": true,
+        "SKY_CUA_SERVICE_PATH": true,
+        "CODEX_CLI_PATH": true
+      }
+    },
+    {
+      "server_name": "cua_repl",
+      "declaration_file": "/Users/guanjunhui/.codex/plugins/cache/openai-bundled/unified-computer-use/26.908.40834/.mcp.json",
+      "command_path": "/Applications/ChatGPT.app/Contents/Resources/cua_node/bin/node",
+      "command_exists": true,
+      "command_executable": true,
+      "startup_timeout_sec": 120,
+      "env_key_names": [
+        "BROWSER_USE_AVAILABLE_BACKENDS",
+        "BROWSER_USE_CODEX_APP_BUILD_FLAVOR",
+        "BROWSER_USE_CODEX_APP_VERSION",
+        "BROWSER_USE_TINYSKY_ENABLED",
+        "CODEX_CLI_PATH",
+        "CODEX_HOME",
+        "CUA_REPL_ENABLED_SURFACES",
+        "CUA_REPL_NODE_REPL_PATH",
+        "NODE_REPL_INSTRUCTIONS_USE_CASE_BROWSER",
+        "NODE_REPL_INSTRUCTIONS_USE_CASE_CHROME",
+        "NODE_REPL_INSTRUCTIONS_USE_CASE_COMPUTER_USE",
+        "NODE_REPL_NATIVE_PIPE_CONNECT_TIMEOUT_MS",
+        "NODE_REPL_NODE_MODULE_DIRS",
+        "NODE_REPL_NODE_PATH",
+        "NODE_REPL_TRUSTED_CODE_PATHS",
+        "NODE_REPL_TRUSTED_SERVICES",
+        "SKY_CUA_SERVICE_PATH"
+      ],
+      "path_dependency_exists": {
+        "NODE_REPL_NODE_PATH": true,
+        "CODEX_HOME": true,
+        "SKY_CUA_SERVICE_PATH": true,
+        "CODEX_CLI_PATH": true,
+        "CUA_REPL_NODE_REPL_PATH": true
+      },
+      "launcher_script_path": "/Applications/ChatGPT.app/Contents/Resources/cua_node/lib/node_modules/@oai/cua-repl/bin/cua-repl.mjs",
+      "launcher_script_exists": true,
+      "launcher_script_sha256": "992174a5e637645aeb444adfdb1bae688e997bb84d7db07532f68e358e60f278"
+    }
+  ],
+  "local_launcher": {
+    "source_path": "/Applications/ChatGPT.app/Contents/Resources/cua_node/lib/node_modules/@oai/cua-repl/dist/lib/js/oai_js_cua_repl/src/launch.js",
+    "sha256": "7459ff4bc5cdbae99cc41f8ab316eeabcceb6aa8a239d9809b4a60349ae30823",
+    "bytes": 2047,
+    "observed_static_contract": {
+      "requires_absolute_CUA_REPL_NODE_REPL_PATH": true,
+      "requires_CUA_REPL_ENABLED_SURFACES": true,
+      "spawns_node_repl_child": true,
+      "stdio_inherit": true,
+      "waits_child_close": true
+    }
+  }
+}

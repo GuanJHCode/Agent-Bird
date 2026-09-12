@@ -1,6 +1,6 @@
 # 剩余 G0 能力：实施与候选验证
 
-日期：2026-09-12；基线 `cd3d054`。状态：sd03 已通过真实初始轮次、线程关系及原服务 prepare，随后因 binding 摘要约定不一致中止，发送状态仍不确定。摘要修复和真实记录副本的跨组件回归已通过；sd04–sd06 停在初始身份门禁，未进入发送。sd07 已完成当前 0.154.0 的契约核验、版本适配及输入前截止修复，独立复核和主树 79 项测试通过；等待新鲜现场前检后执行唯一原生样本。完整 G0 未放行。
+日期：2026-09-12；基线 `cd3d054`。状态：sd03 已通过真实初始轮次、线程关系及原服务 prepare，随后因 binding 摘要约定不一致中止，发送状态仍不确定。摘要修复和跨组件回归已通过；sd04–sd07 未进入发送。sd07 暴露了实验门禁错误：原生 SessionStart 在首轮执行中触发，不能作为首次输入前置条件。当前正在实施 sd08 的原生初始提示与后验双 Hook，尚未下发。完整 G0 未放行。
 
 本轮将 idle 回传、当前 TUI 附着、完整交付对账交给三个 subagent，使用独立 worktree；主会话编排、核对边界和整合，另一 reviewer 审查。上轮退出停止、记录保留、原会话明确续接的结果保持。
 
@@ -20,6 +20,12 @@
 12. **下一步使用新样本继续验证。** 一次既有 reset 已通过官方接口兑换并单独记录；sd07 沿用普通入口与用户当前配置，SessionStart 等待、单次初始输入和后验身份共用原初始 120 秒窗口。新鲜检查发现普通 CLI 现为 0.154.0，旧 0.153.4 固定摘要会拒绝；另一个独立探针复现了 SessionStart 扫描跨过截止点后仍可能写入 paste 的问题。版本契约核验与输入前截止检查正在落实，通过后才冻结下发，不复用 sd01–sd06。[额度恢复记录](native-quota-restore-sd07.json)、[sd07 合同](../plans/contract.md)
 
 当前 sd07 的最小适配及截止修复已经独立复核：native 44 项、helper 35 项通过，主树组合 79 项通过，原七份设计文档摘要保持。实际使用的 0.154.0 schema、27 份固定源码及本地平台收据已归档；它们未证明原生回传成功。默认 app-server 日志路线另经限定核验，缺少完整双向请求/响应及缺项检测输入，不能仅加投影器就实现可靠附着。[sd07 冻结与准入](native-sd-qual-07-registration.json)、[版本核验](../../g0-native-0154-contract/docs/compatibility.md)、[日志输入核验](../../g0-attachment-log-availability/docs/result.md)
+
+sd07 随后执行一次，在原 120 秒窗口内以 `owned_session_start_missing` 结束，输入及 helper 调用均为零。独立复核确认原始档案、保护基线和自有资源清理一致；PTY 的 usage/weekly 字样不证明额度耗尽，也没有 MCP 启动标记。[sd07 实测](native-sd-qual-07-result.md)
+
+后续全源码调用点核验纠正了准入前提：启动只排入 pending SessionStart，实际执行在 `run_turn` 内，所以零输入等待它构成循环。先前 schema 审查未覆盖这一触发时机，sd05/sd06 报告用界面文字解释原因的表述也证据不足。sd08 改为原生 `codex <固定初始任务>`，从 TUI 启动前开始计时，提交后再核对两个真实 Hook、family/session 和 Go owner；工具结果仍只通过原 helper 的 `toolOutput` 发送。[诊断](../../g0-sessionstart-mcp-diagnostic/docs/diagnosis.md)、[原生初始消息调用链](../../g0-sessionstart-mcp-diagnostic/docs/positional-prompt-candidate.md)、[sd08 合同](../plans/contract.md)
+
+另确认 0.154 提供内建 daemon start/bootstrap，可在目标 TUI 打开前启动原生 listener；普通无参数入口自身不保证拉起它，已有 embedded TUI 也不会因此迁移。它补充了安装前准备候选，尚未解决后续冷启动、当前附着或退出停止。[内建 daemon 核验](../../g0-native-daemon-bootstrap-review/docs/result.md)
 
 ## 仍待解决的边界
 
@@ -41,4 +47,4 @@
 
 `sd-qual-01` 与 `sd-qual-02` 的本任务 TUI、服务及 socket 均已清理；sd02 的 Go worker 和 caffeinate 也已退出，原 case/job 及未 ACK 结果保留。sd02 在控制器 10 秒窗口内未证实 TUI 正常 `/quit` 退出，后续 PID 缺失不补算正常退出通过。主分支重新核对 sd02 五份归档共 25,945 字节与原记录一致，六份启动源码摘要与固定 `8eeb456` 一致；独立复核通过的范围是这些事实及分类。下一独立 case 遵循 [本轮合同](../plans/contract.md)，原 case 和期限不复用。此前报告、离线测试及原生样本分别判定，G1–G4 保持未启动。
 
-sd03–sd06 的后续执行与清理见各自原生事实记录；sd03 的唯一发送意图保持 uncertain，sd04–sd06 没有进入发送。正常 quit 与外层清理分别判定。较早验证记录中的准入字段描述其冻结时点；当前状态以本页、本轮合同及最新独立 case 记录为准。
+sd03–sd07 的后续执行与清理见各自原生事实记录；sd03 的唯一发送意图保持 uncertain，sd04–sd07 没有进入发送。正常 quit 与外层清理分别判定。较早验证记录中的准入字段描述其冻结时点；当前状态以本页、本轮合同及最新独立 case 记录为准。

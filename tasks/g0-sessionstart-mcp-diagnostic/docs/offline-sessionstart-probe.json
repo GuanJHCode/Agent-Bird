@@ -1,0 +1,52 @@
+{
+  "scope": "Offline exact official source call-site scan; no compile/process/CLI launch/RPC",
+  "commit": "6b9826e3aa83b1a5947db50f4332cb9c65f1b340",
+  "source_url": "https://codeload.github.com/openai/codex/tar.gz/6b9826e3aa83b1a5947db50f4332cb9c65f1b340",
+  "archive_sha256": "848c7ffac62e21b14edc2048d2e5b7c82b31c556afa4b0d305da0f7d5aa794f4",
+  "scanned_rust_files": 3792,
+  "call_sites": [
+    {
+      "path": "codex-rs/core/src/hook_runtime.rs",
+      "line": 124,
+      "text": "pub(crate) async fn run_pending_session_start_hooks(",
+      "sha256": "4666dab9737fcfd75a6036a1e46df0698571b81d925688b169de7dd9c70b307e"
+    },
+    {
+      "path": "codex-rs/core/src/session/mod.rs",
+      "line": 3846,
+      "text": "state.queue_pending_session_start_source(codex_hooks::SessionStartSource::Compact);",
+      "sha256": "41fb07e8f5841e54dc5deed55d4573a7f56ff451b1bda24a5cb665c74711a13a"
+    },
+    {
+      "path": "codex-rs/core/src/session/session.rs",
+      "line": 1639,
+      "text": "state.queue_pending_session_start_source(session_start_source);",
+      "sha256": "8baee944befc7896a19d8d59327c3566498c5cc8e8d497eb8085c60f27ccaa05"
+    },
+    {
+      "path": "codex-rs/core/src/session/turn.rs",
+      "line": 24,
+      "text": "use crate::hook_runtime::run_pending_session_start_hooks;",
+      "sha256": "1be73d98dc1cdb03d3edbf405291cc717abea8fee57cb5c9ea8eaafe479cabdf"
+    },
+    {
+      "path": "codex-rs/core/src/session/turn.rs",
+      "line": 287,
+      "text": "if run_pending_session_start_hooks(&sess, &turn_context).await {",
+      "sha256": "1be73d98dc1cdb03d3edbf405291cc717abea8fee57cb5c9ea8eaafe479cabdf"
+    },
+    {
+      "path": "codex-rs/core/src/session/turn.rs",
+      "line": 545,
+      "text": "if run_pending_session_start_hooks(&sess, &turn_context).await {",
+      "sha256": "1be73d98dc1cdb03d3edbf405291cc717abea8fee57cb5c9ea8eaafe479cabdf"
+    },
+    {
+      "path": "codex-rs/core/src/state/session.rs",
+      "line": 349,
+      "text": "pub(crate) fn queue_pending_session_start_source(",
+      "sha256": "5eb7ab68ae26da1591b6d6870f8cdb8befde4381e3480c3c6c3dca4e5bad47e1"
+    }
+  ],
+  "additional_mcp_source_files": []
+}

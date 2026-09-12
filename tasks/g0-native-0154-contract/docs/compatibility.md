@@ -43,3 +43,9 @@ Hook 的 `session_id` 语义是共享 session 树身份，core 明确区分 `thr
 - 输出：[toolOutput 检查与转换](https://github.com/openai/codex/blob/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server/src/request_processors/turn_processor.rs#L529)、[独立 item 身份](https://github.com/openai/codex/blob/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/core/src/session/turn_input.rs#L621)、[API 历史映射](https://github.com/openai/codex/blob/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-protocol/src/protocol/v2/item.rs#L890)。
 - Hook：[SessionStart 构造](https://github.com/openai/codex/blob/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/core/src/hook_runtime.rs#L151)、[UserPromptSubmit 构造](https://github.com/openai/codex/blob/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/core/src/hook_runtime.rs#L668)、[全新 root session 身份](https://github.com/openai/codex/blob/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/core/src/session/session.rs#L776)。
 - 错误：[实际 RPC serializer](https://github.com/openai/codex/blob/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-protocol/src/rpc.rs#L70)。
+
+## sd07 后追加：SessionStart 的触发时机更正
+
+以上静态版本核验确认了接口形状和 pin 适配，未核对“SessionStart 能否先于首次输入”这一已有实验前提，因而不足以批准该启动门禁。sd07 在初始 120 秒内没有提交输入，也没有观察到 SessionStart。进一步扫描固定 0.154.0 官方源码的全部 3792 个 Rust 文件后确认：`Session::new` 只排队 pending SessionStart，实际执行调用仅在 `run_turn` 内。普通全新 root 尚未收到 turn input 时，单纯等待 SessionStart 不会触发它；“先等 SessionStart，再给首输入”形成循环前置条件。
+
+此更正不改写 sd05–sd07 原始事实，也不否定此前 schema/pin 验证。PTY 曾出现 MCP 启动或额度提示，不能据此把它们认定为缺失 SessionStart 的根因。详见 [独立诊断](../../g0-sessionstart-mcp-diagnostic/docs/diagnosis.md)、[完整固定源码调用点探针](../../g0-sessionstart-mcp-diagnostic/docs/offline-sessionstart-probe.json) 和 [原生 positional prompt 候选](../../g0-sessionstart-mcp-diagnostic/docs/positional-prompt-candidate.md)。

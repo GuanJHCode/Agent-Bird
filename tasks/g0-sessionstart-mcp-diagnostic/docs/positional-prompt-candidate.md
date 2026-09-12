@@ -1,0 +1,14 @@
+# 原生 positional initial prompt：源码成立的替代候选
+
+固定 0.154.0 源码支持以普通 `codex "<同一固定初始用户任务>"` 启动新会话，并继续自动复用默认 UDS。无需 `--remote`、配置/权限参数、专用启动器或 Codex 本体修改。这里只传初始用户任务；后续结果仍须由原 helper 的唯一真实 toolOutput 回传。此结论为源码候选，未执行新样本。
+
+1. [tui/cli.rs:11](https://github.com/openai/codex/blob/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/cli.rs#L11) 声明 positional `PROMPT: Option<String>`。默认 UDS 复用资格检查 worktree、oss、workload identity、CLI config overrides、loader overrides、strict-config、bypass_hook_trust；没有检查或拒绝 prompt。`can_reuse_implicit_local_daemon` 的 non-replayable 参数在此来自 bypass_hook_trust，单独的 prompt 不产生该标志。[复用判断](https://github.com/openai/codex/blob/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/startup_orchestration.rs#L151)
+2. `lib.rs:1695` 解构 CLI prompt，`:1824` 将它传给 `App::run`。全新会话 [StartFresh 分支](https://github.com/openai/codex/blob/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/app/startup.rs#L363) 通过原 `AppServerSession` 发起 thread/start，同时把 prompt 存成 ChatWidget 的 `initial_user_message`，并在 SessionConfigured 前开启 queue_submissions。这个消息不经过 StartupDraft 的键盘 Enter 处理。
+3. thread/start 成功后，`handle_startup_thread_started` 取返回的 thread ID，将其设为 primary/active thread，装入该 thread session，再解除初始消息抑制；额度恢复检查等原生保护仍可能暂停提交。[成功回调](https://github.com/openai/codex/blob/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/app/session_lifecycle.rs#L768)、[附着后解除抑制](https://github.com/openai/codex/blob/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/app/thread_routing.rs#L1463)
+4. [submit_initial_user_message_if_pending](https://github.com/openai/codex/blob/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/chatwidget/input_restore.rs#L124) 用 `Option::take()` 消费一次初始消息；后续重复触发同方法不会再次取得该消息。它进入正常 submit_user_message → AppCommand::UserTurn → 同一 active thread 的 turn_start。fresh root 没有 active turn，正常分支不走 steer。[正常用户消息路径](https://github.com/openai/codex/blob/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/chatwidget/input_submission.rs#L367)、[原服务 turn/start](https://github.com/openai/codex/blob/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/app_server_session.rs#L1306)
+
+该 `turn/start` 使用正常 user input，`tool_output:None`，保留原生当前模型/权限/配置处理；不是修改回传结果的类型。普通独立 app-server 的 `source=vscode` 没变；StartFresh 的 thread/start 不带 parent/fork 关系，`ephemeral` 等仍来自现有配置。不能以启动参数代替后验 root/source/cwd/version、显式 parent/fork null、ephemeral false、稳定 sessionId 和 SQLite 无父 edge 校验；Go `controller_thread` 仍必须绑定后验确切 root。
+
+“一次”在此是正常新会话中一次消费初始消息、发出一次用户 turn 提交的源码路径，不是网络交付 exactly-once 承诺。原生错误、断连、额度恢复或保护请求仍可能拒绝/暂停；实际采集仍应要求同一服务的唯一真实 SessionStart/UserPromptSubmit，未出现或冲突即不准入，不能补 Enter 或第二次提示。原生 thread/start 自带旧服务字段兼容 fallback，也不能从单一成功回调推定没有其他原始请求。
+
+若进入下一独立样本，controller 不再等待首输入前 SessionStart，也不再进行 initial paste/Enter；应在 **启动携带 prompt 的 TUI 之前** 固定初始 120 秒的连续时钟起点与墙钟关联下界。当前“先启动 TUI、后捕获 origin”的顺序可能让原生自动提交先于采集窗口，不能原样沿用。保持同一原始 120 秒、一次启动和后验身份门禁，不通过重新取 origin 延长预算。SessionStart 的正确位置是提交后的证据链，而非提交前的就绪事件。

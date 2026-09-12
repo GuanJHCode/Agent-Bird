@@ -1,0 +1,62 @@
+{
+  "scope": "Task-owned case artifacts only; PTY body not copied or exported; token absence is not proof of UI readiness",
+  "cases": [
+    {
+      "case": "sd-qual-05",
+      "controller_path": "tasks/g0-pending-resolution/data/sd-qual-05/controller-result.json",
+      "controller_sha256": "14745c1c7d9b18952c3b04ff64ac368282659d685bd9b9cefae8ab562c790639",
+      "failure_code": "owned_session_start_missing",
+      "failure_substage": "await_session_start",
+      "capture_bytes": 11047,
+      "capture_sha256": "5e43a53dc571441bbbdb93ef2ad071ec3555cc90dafd762196cbe8af1294afb8",
+      "capture_contains_tokens": {
+        "cua_repl": true,
+        "node_repl": true,
+        "Starting MCP servers": true
+      },
+      "input_actions": [],
+      "initial_submit_file_exists": false,
+      "binding_file_exists": false,
+      "send_attempt_file_exists": false,
+      "initial_window_ns": 10000000000
+    },
+    {
+      "case": "sd-qual-06",
+      "controller_path": "tasks/g0-pending-resolution/data/sd-qual-06/controller-result.json",
+      "controller_sha256": "5c26e9a680514e1c2bc8685dfddeafd30f6e935099bf3321110a4453fe22ad0a",
+      "failure_code": "owned_session_start_missing",
+      "failure_substage": "await_session_start",
+      "capture_bytes": 9156,
+      "capture_sha256": "45b4c4159aa9d331ddb3a6e7f5cd116bf548d276e2e315585b5a79f75b18dd04",
+      "capture_contains_tokens": {
+        "cua_repl": true,
+        "node_repl": true,
+        "Starting MCP servers": true
+      },
+      "input_actions": [],
+      "initial_submit_file_exists": false,
+      "binding_file_exists": false,
+      "send_attempt_file_exists": false,
+      "initial_window_ns": 120000000000
+    },
+    {
+      "case": "sd-qual-07",
+      "controller_path": "tasks/g0-pending-resolution/data/sd-qual-07/controller-result.json",
+      "controller_sha256": "9b8480d86771e837b97cc69fc02d2ca12934d87a1f5e5b0db33054d5fb8bdfbf",
+      "failure_code": "owned_session_start_missing",
+      "failure_substage": "await_session_start",
+      "capture_bytes": 6602,
+      "capture_sha256": "17d2a2a9523b52465f3357da196206962ee679cbc295ad55f109d39315e5c437",
+      "capture_contains_tokens": {
+        "cua_repl": false,
+        "node_repl": false,
+        "Starting MCP servers": false
+      },
+      "input_actions": [],
+      "initial_submit_file_exists": false,
+      "binding_file_exists": false,
+      "send_attempt_file_exists": false,
+      "initial_window_ns": 120000000000
+    }
+  ]
+}

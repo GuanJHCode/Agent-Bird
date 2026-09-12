@@ -1,0 +1,38 @@
+{
+  "scope": "Fresh static evidence verification only; no native launch/RPC/model",
+  "verified_source_body_count_before_pruning": 51,
+  "retained_source_body_count": 33,
+  "ordinary_first_input_gate_verdict": "SessionStart-before-first-turn is circular in fixed 0.154; full Rust caller scan confirms only run_turn executes pending SessionStart",
+  "positional_prompt_verdict": "Accepted by ordinary default-UDS reuse predicates; consumed once via native initial_user_message after new-root session attachment; delivery still needs posterior native Hook/family/owner proof",
+  "case_input_actions_empty_verified": [
+    "sd-qual-05",
+    "sd-qual-06",
+    "sd-qual-07"
+  ],
+  "cleanup": {
+    "archive_path": "tasks/g0-sessionstart-mcp-diagnostic/tmp/codex-fixed.tar.gz",
+    "archive_bytes_removed": 13872873,
+    "archive_exists_after": false,
+    "unused_exact_archive_extractions_removed": [
+      "tasks/g0-sessionstart-mcp-diagnostic/data/source/codex-rs/app-server/tests/suite/v2/executor_mcp.rs",
+      "tasks/g0-sessionstart-mcp-diagnostic/data/source/codex-rs/app-server/tests/suite/v2/mcp_server_status.rs",
+      "tasks/g0-sessionstart-mcp-diagnostic/data/source/codex-rs/cli/src/mcp_cmd.rs",
+      "tasks/g0-sessionstart-mcp-diagnostic/data/source/codex-rs/cli/tests/mcp_list.rs",
+      "tasks/g0-sessionstart-mcp-diagnostic/data/source/codex-rs/codex-mcp/src/connection_manager_tests.rs",
+      "tasks/g0-sessionstart-mcp-diagnostic/data/source/codex-rs/codex-mcp/src/event_stream.rs",
+      "tasks/g0-sessionstart-mcp-diagnostic/data/source/codex-rs/core/src/mcp_skill_dependencies.rs",
+      "tasks/g0-sessionstart-mcp-diagnostic/data/source/codex-rs/core/tests/suite/hooks_mcp.rs",
+      "tasks/g0-sessionstart-mcp-diagnostic/data/source/codex-rs/core/tests/suite/mcp_optional_startup_grace.rs",
+      "tasks/g0-sessionstart-mcp-diagnostic/data/source/codex-rs/core/tests/suite/mcp_startup_refresh_http_proxy.rs",
+      "tasks/g0-sessionstart-mcp-diagnostic/data/source/codex-rs/core/tests/suite/mcp_tool_cache.rs",
+      "tasks/g0-sessionstart-mcp-diagnostic/data/source/codex-rs/core/tests/suite/mcp_tool_exposure.rs",
+      "tasks/g0-sessionstart-mcp-diagnostic/data/source/codex-rs/core/tests/suite/rmcp_client.rs",
+      "tasks/g0-sessionstart-mcp-diagnostic/data/source/codex-rs/ext/mcp/src/executor_plugin/provider_tests.rs",
+      "tasks/g0-sessionstart-mcp-diagnostic/data/source/codex-rs/tui/src/app/config_persistence.rs",
+      "tasks/g0-sessionstart-mcp-diagnostic/data/source/codex-rs/tui/src/chatwidget/rate_limits.rs",
+      "tasks/g0-sessionstart-mcp-diagnostic/data/source/codex-rs/tui/src/app/safety_buffering.rs",
+      "tasks/g0-sessionstart-mcp-diagnostic/data/source/codex-rs/tui/src/chatwidget/backend_banners.rs"
+    ]
+  },
+  "compatibility_addendum_path": "tasks/g0-native-0154-contract/docs/compatibility.md"
+}

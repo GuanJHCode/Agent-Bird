@@ -1,0 +1,371 @@
+{
+  "commit": "6b9826e3aa83b1a5947db50f4332cb9c65f1b340",
+  "files": [
+    {
+      "path": "codex-rs/core/src/session/turn.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/core/src/session/turn.rs",
+      "exit_code": 0,
+      "bytes": 113582,
+      "sha256": "1be73d98dc1cdb03d3edbf405291cc717abea8fee57cb5c9ea8eaafe479cabdf",
+      "retained_body": true
+    },
+    {
+      "path": "codex-rs/core/src/session/mcp_runtime.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/core/src/session/mcp_runtime.rs",
+      "exit_code": 0,
+      "bytes": 16950,
+      "sha256": "98a343bfc2c209ce526dd001e9e88f39588e7534ade5f17c4395a8ac24342e0d",
+      "retained_body": true
+    },
+    {
+      "path": "codex-rs/core/src/session/mcp.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/core/src/session/mcp.rs",
+      "exit_code": 0,
+      "bytes": 47331,
+      "sha256": "3550c47b82dc68533c24b3de27593a164f3f4c4e3842c5e94bbffb8cfa6e1ab6",
+      "retained_body": true
+    },
+    {
+      "path": "codex-rs/core/src/tasks/regular.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/core/src/tasks/regular.rs",
+      "exit_code": 0,
+      "bytes": 3651,
+      "sha256": "d1a989d36be677b726a42097254d6a99e9b071247def4f9fc08bda88213b920c",
+      "retained_body": true
+    },
+    {
+      "path": "codex-rs/core/src/session/handlers.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/core/src/session/handlers.rs",
+      "exit_code": 0,
+      "bytes": 28466,
+      "sha256": "fb252526f2db7eb579390c5614191a99202bff132c087c73b51b749be483321c",
+      "retained_body": true
+    },
+    {
+      "path": "codex-rs/core/src/session_startup_prewarm.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/core/src/session_startup_prewarm.rs",
+      "exit_code": 0,
+      "bytes": 12569,
+      "sha256": "8c84127251f4f9692a021186c22e627b4ff7603ed5700c366f8c3bfbc1519ce5",
+      "retained_body": true
+    },
+    {
+      "path": "codex-rs/core/src/session/mcp_prewarm.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/core/src/session/mcp_prewarm.rs",
+      "exit_code": 0,
+      "bytes": 2455,
+      "sha256": "1e58238fe3e28f609de991f65bf506c367b9e01202a23cf6813f46bcb821e4bd",
+      "retained_body": true
+    }
+  ],
+  "archive_extracted_files": [
+    {
+      "path": "codex-rs/app-server/tests/suite/v2/executor_mcp.rs",
+      "bytes": 47314,
+      "sha256": "fd38f04b282a86474fed6538c8aedd390fed62c112c407ad835d90eea7f75f69",
+      "source": "fixed archive",
+      "retained_body": false
+    },
+    {
+      "path": "codex-rs/app-server/tests/suite/v2/mcp_server_status.rs",
+      "bytes": 41114,
+      "sha256": "1062d6d7c7043835475ed237a7f7257fd67076392fdcee85332d68dcc47fb8b8",
+      "source": "fixed archive",
+      "retained_body": false
+    },
+    {
+      "path": "codex-rs/cli/src/mcp_cmd.rs",
+      "bytes": 39537,
+      "sha256": "395b8650e1ffa3c7cdc5e81b9bcc7f81eadd8650f91a80479c684a510c054e0b",
+      "source": "fixed archive",
+      "retained_body": false
+    },
+    {
+      "path": "codex-rs/cli/tests/mcp_list.rs",
+      "bytes": 17508,
+      "sha256": "95d7bb5b083d34836ae7cc78b5d773ed40f470cd05898fb9fd2e4a76c47215e5",
+      "source": "fixed archive",
+      "retained_body": false
+    },
+    {
+      "path": "codex-rs/codex-mcp/src/connection_manager.rs",
+      "bytes": 41862,
+      "sha256": "8eb09840d4759bfd9b39900cc1810ae5ca483cd0a6a139cd0dd1198337ecd5e0",
+      "source": "fixed archive",
+      "retained_body": true
+    },
+    {
+      "path": "codex-rs/codex-mcp/src/connection_manager/required.rs",
+      "bytes": 2411,
+      "sha256": "da98eb1a24893ea6bf360b3cc04a71491781812f0aee0a67a3e1ef0f0ede56ad",
+      "source": "fixed archive",
+      "retained_body": true
+    },
+    {
+      "path": "codex-rs/codex-mcp/src/connection_manager/startup.rs",
+      "bytes": 4818,
+      "sha256": "1fbd2cc3ba7cf3fc4cb5131cbc98289a0e865fe7883434a83dae4678c8f7ed1c",
+      "source": "fixed archive",
+      "retained_body": true
+    },
+    {
+      "path": "codex-rs/codex-mcp/src/connection_manager_tests.rs",
+      "bytes": 215275,
+      "sha256": "9b4b2fc7266f7ee02f5cb616a8b70adf2d106a37ab478c54b02174dea92b729d",
+      "source": "fixed archive",
+      "retained_body": false
+    },
+    {
+      "path": "codex-rs/codex-mcp/src/event_stream.rs",
+      "bytes": 6363,
+      "sha256": "2593d6396be455084baa4552fb8a28ea0257900ee619ae0d057b5ac01464c345",
+      "source": "fixed archive",
+      "retained_body": false
+    },
+    {
+      "path": "codex-rs/codex-mcp/src/mcp/mod.rs",
+      "bytes": 30680,
+      "sha256": "a5ca4ebf1fdc28e4113ba219d978e14430d64a805d265170babaa8610d83020c",
+      "source": "fixed archive",
+      "retained_body": true
+    },
+    {
+      "path": "codex-rs/codex-mcp/src/rmcp_client.rs",
+      "bytes": 52930,
+      "sha256": "1ebf5c5425d808ded8177825b26deba2d09a6fd017716ed38bbb104debf8e402",
+      "source": "fixed archive",
+      "retained_body": true
+    },
+    {
+      "path": "codex-rs/codex-mcp/src/runtime.rs",
+      "bytes": 47985,
+      "sha256": "c872065872331d7aa3e9b216c2c75f8204b58a557d5a40657780411bec01bd14",
+      "source": "fixed archive",
+      "retained_body": true
+    },
+    {
+      "path": "codex-rs/config/src/mcp_types.rs",
+      "bytes": 21619,
+      "sha256": "b9939666f02b5c818053f3127412204be0190d6d66cf395a896ff01a851e3aba",
+      "source": "fixed archive",
+      "retained_body": true
+    },
+    {
+      "path": "codex-rs/core/src/mcp_skill_dependencies.rs",
+      "bytes": 19229,
+      "sha256": "0dea8cea9acc247e351ecd4e4cf7af8deaa28e7943d3deefd7a368a61923753e",
+      "source": "fixed archive",
+      "retained_body": false
+    },
+    {
+      "path": "codex-rs/core/tests/suite/hooks_mcp.rs",
+      "bytes": 35591,
+      "sha256": "52fb60e309c6a94742e4bb6530f9fa1bae100fba40924587707988a667c10a53",
+      "source": "fixed archive",
+      "retained_body": false
+    },
+    {
+      "path": "codex-rs/core/tests/suite/mcp_optional_startup_grace.rs",
+      "bytes": 12219,
+      "sha256": "5ac300df771e1362614608e7761bb4f7bae855b26d92718b03d9fdba690c397a",
+      "source": "fixed archive",
+      "retained_body": false
+    },
+    {
+      "path": "codex-rs/core/tests/suite/mcp_startup_refresh_http_proxy.rs",
+      "bytes": 18019,
+      "sha256": "073f6571e948625a9cc9aa0a56579dd91db14a1171683717cc305d0468939f41",
+      "source": "fixed archive",
+      "retained_body": false
+    },
+    {
+      "path": "codex-rs/core/tests/suite/mcp_tool_cache.rs",
+      "bytes": 38562,
+      "sha256": "5593c6288e814bd6c58367130da56166574776e3c262f188edbf9ad0d82dbf0e",
+      "source": "fixed archive",
+      "retained_body": false
+    },
+    {
+      "path": "codex-rs/core/tests/suite/mcp_tool_exposure.rs",
+      "bytes": 51207,
+      "sha256": "bcb583b3381fde87cd3ae46c729e4afeb969b356224f0a4d61fd1c2b03ddd31d",
+      "source": "fixed archive",
+      "retained_body": false
+    },
+    {
+      "path": "codex-rs/core/tests/suite/rmcp_client.rs",
+      "bytes": 161584,
+      "sha256": "08773f7255a66dd8e33fb7f75ffd3299eea8029d1b1d6268dd984f7b9f26e8bc",
+      "source": "fixed archive",
+      "retained_body": false
+    },
+    {
+      "path": "codex-rs/ext/mcp/src/executor_plugin/provider_tests.rs",
+      "bytes": 15348,
+      "sha256": "2cb67cabfa10c52a91d906909a0ec91a800ef698d1694e41667baeb1cdc2455c",
+      "source": "fixed archive",
+      "retained_body": false
+    },
+    {
+      "path": "codex-rs/tui/src/cli.rs",
+      "sha256": "742c86c920c0df679c46542918c9661cff36d68d8fc78c5398263872e2c454f6",
+      "bytes": 4433,
+      "source": "fixed archive",
+      "retained_body": true
+    },
+    {
+      "path": "codex-rs/tui/src/startup_preflight.rs",
+      "sha256": "053b0b2418a51132bc39de1aea840d3636c822c7a6f8f399602229a5e1401182",
+      "bytes": 2670,
+      "source": "fixed archive",
+      "retained_body": true
+    },
+    {
+      "path": "codex-rs/tui/src/startup_draft.rs",
+      "sha256": "016df2e537c9642d18ea608262364186aa283729f73c3a06018230c38d25a6fc",
+      "bytes": 20243,
+      "source": "fixed archive",
+      "retained_body": true
+    },
+    {
+      "path": "codex-rs/tui/src/app_server_connection.rs",
+      "sha256": "fb6274d63f73f3a76a0c127e1171a743cc7012b4ed9e6b6951b7281d164820cb",
+      "bytes": 2114,
+      "source": "fixed archive",
+      "retained_body": true
+    },
+    {
+      "path": "codex-rs/tui/src/app_server_session.rs",
+      "sha256": "8641a4942b1e0f8e39c4c316400b052eaeb5934a19de3164576ad11595d373d4",
+      "bytes": 154134,
+      "source": "fixed archive",
+      "retained_body": true
+    },
+    {
+      "path": "codex-rs/tui/src/app.rs",
+      "sha256": "44550f918c415442d964ea2842676b34b3c3f860670ffcdac29b118cc1118565",
+      "bytes": 43118,
+      "source": "fixed archive",
+      "retained_body": true
+    },
+    {
+      "path": "codex-rs/tui/src/chatwidget.rs",
+      "sha256": "c1e51f9cda0d2dbd7ceb863aaf6b533e79ddf257f196efe189dde9672a4fdb19",
+      "bytes": 84116,
+      "source": "fixed archive",
+      "retained_body": true
+    },
+    {
+      "path": "codex-rs/tui/src/app/thread_routing.rs",
+      "sha256": "2ed1a55060be20c10bad33ce3fc5fa178c6923bb3823c62538ca39d0449ae48c",
+      "bytes": 86626,
+      "source": "fixed archive",
+      "retained_body": true
+    },
+    {
+      "path": "codex-rs/tui/src/app/config_persistence.rs",
+      "sha256": "cdbff9d92752b179d9d4bd3122832d76cbeeb6c9f83dfc56878cb6e1689f6bec",
+      "bytes": 78123,
+      "source": "fixed archive",
+      "retained_body": false
+    },
+    {
+      "path": "codex-rs/tui/src/app/event_dispatch.rs",
+      "sha256": "a5c99ed4eeddfaefeb888842cfb45a79fa4aa3fa8d142b78949bff688f3d5f69",
+      "bytes": 158197,
+      "source": "fixed archive",
+      "retained_body": true
+    },
+    {
+      "path": "codex-rs/tui/src/app/startup.rs",
+      "sha256": "720dd167f67d989606a7d3661f11f9f5d0b15c76df5e3a71c9fd25fc9e2bf0e0",
+      "bytes": 55817,
+      "source": "fixed archive",
+      "retained_body": true
+    },
+    {
+      "path": "codex-rs/tui/src/chatwidget/input_restore.rs",
+      "sha256": "9bfba8aa220fecca48b328d3d4ce485bf53c0c88926820b5fa7f636e9e5cd518",
+      "bytes": 24043,
+      "source": "fixed archive",
+      "retained_body": true
+    },
+    {
+      "path": "codex-rs/tui/src/chatwidget/rate_limits.rs",
+      "sha256": "819bf98e7173bcf4ad7aeb06cc2e4c99e6c941cd8e86e6276230794cb5e412ca",
+      "bytes": 24896,
+      "source": "fixed archive",
+      "retained_body": false
+    },
+    {
+      "path": "codex-rs/tui/src/chatwidget/session_flow.rs",
+      "sha256": "3bc0966c77fb302556a110c5b2b2bc780f59e6157fc3df1f3f74a7bea499e224",
+      "bytes": 12279,
+      "source": "fixed archive",
+      "retained_body": true
+    },
+    {
+      "path": "codex-rs/tui/src/chatwidget/user_messages.rs",
+      "sha256": "39b36d2a6aac129e522fd8ef9c61d90c676f82c0a8fe4c0868ecbd3849f81fd9",
+      "bytes": 26813,
+      "source": "fixed archive",
+      "retained_body": true
+    },
+    {
+      "path": "codex-rs/tui/src/lib.rs",
+      "sha256": "fd85e541df5affb811f7133d967dcb294292c77bbce1e2cffc16eb670d3c34ec",
+      "bytes": 139275,
+      "source": "fixed archive",
+      "retained_body": true
+    },
+    {
+      "path": "codex-rs/codex-mcp/src/connection_manager/tool_catalog.rs",
+      "sha256": "c404260ef2e201f901a0245855822469d69d989d169cf8494e55d91d773f590c",
+      "bytes": 20848,
+      "source": "fixed archive",
+      "retained_body": true
+    },
+    {
+      "path": "codex-rs/tui/src/chatwidget/input_submission.rs",
+      "sha256": "05a752d68c7a0290b38df87a3567fb326823098283169304137d8ada80a0c8ca",
+      "bytes": 18874,
+      "source": "fixed archive",
+      "retained_body": true
+    },
+    {
+      "path": "codex-rs/core/src/config/mod.rs",
+      "sha256": "4967b9f719ac886d5c6dd923f4d07263fe4eef2a7070078c5a291f57973c76a1",
+      "bytes": 193140,
+      "source": "fixed archive",
+      "retained_body": true
+    },
+    {
+      "path": "codex-rs/tui/src/app/safety_buffering.rs",
+      "sha256": "365904a9eda4e7bb6526f7871ad0f3e51702a4aa0078b83c2c9cf47444709b87",
+      "bytes": 10234,
+      "source": "fixed archive",
+      "retained_body": false
+    },
+    {
+      "path": "codex-rs/tui/src/app/session_lifecycle.rs",
+      "sha256": "7ba29896f5bfef12133ecba607b7104811975b1a103c964204aebc79dda3712e",
+      "bytes": 57943,
+      "source": "fixed archive",
+      "retained_body": true
+    },
+    {
+      "path": "codex-rs/tui/src/chatwidget/backend_banners.rs",
+      "sha256": "8800d93329bc39361d754bae7bacfb342be4c2916ba21517c7c5af3f4728f04d",
+      "bytes": 22789,
+      "source": "fixed archive",
+      "retained_body": false
+    },
+    {
+      "path": "codex-rs/codex-mcp/src/lib.rs",
+      "sha256": "77943f41231e41a87fd604f53dc14cda3876460c6f5b315004f25f5f60c30357",
+      "bytes": 4705,
+      "source": "fixed archive",
+      "retained_body": true
+    }
+  ]
+}

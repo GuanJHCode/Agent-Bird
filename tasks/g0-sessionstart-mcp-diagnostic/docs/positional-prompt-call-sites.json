@@ -1,0 +1,82 @@
+[
+  {
+    "path": "codex-rs/tui/src/app/config_persistence.rs",
+    "line": 290,
+    "text": "self.chat_widget.submit_initial_user_message_if_pending();"
+  },
+  {
+    "path": "codex-rs/tui/src/app/config_persistence.rs",
+    "line": 342,
+    "text": "self.chat_widget.submit_initial_user_message_if_pending();"
+  },
+  {
+    "path": "codex-rs/tui/src/app/event_dispatch.rs",
+    "line": 277,
+    "text": "crate::chatwidget::create_initial_user_message("
+  },
+  {
+    "path": "codex-rs/tui/src/app/event_dispatch.rs",
+    "line": 2215,
+    "text": "self.chat_widget.submit_initial_user_message_if_pending();"
+  },
+  {
+    "path": "codex-rs/tui/src/app/event_dispatch.rs",
+    "line": 2460,
+    "text": "self.chat_widget.submit_initial_user_message_if_pending();"
+  },
+  {
+    "path": "codex-rs/tui/src/app/startup.rs",
+    "line": 400,
+    "text": "initial_user_message: crate::chatwidget::create_initial_user_message("
+  },
+  {
+    "path": "codex-rs/tui/src/app/startup.rs",
+    "line": 514,
+    "text": "initial_user_message: crate::chatwidget::create_initial_user_message("
+  },
+  {
+    "path": "codex-rs/tui/src/app/startup.rs",
+    "line": 611,
+    "text": "initial_user_message: crate::chatwidget::create_initial_user_message("
+  },
+  {
+    "path": "codex-rs/tui/src/app/thread_routing.rs",
+    "line": 1465,
+    "text": "self.chat_widget.submit_initial_user_message_if_pending();"
+  },
+  {
+    "path": "codex-rs/tui/src/app/thread_routing.rs",
+    "line": 1735,
+    "text": "self.chat_widget.submit_initial_user_message_if_pending();"
+  },
+  {
+    "path": "codex-rs/tui/src/chatwidget.rs",
+    "line": 462,
+    "text": "pub(crate) use self::user_messages::create_initial_user_message;"
+  },
+  {
+    "path": "codex-rs/tui/src/chatwidget/input_restore.rs",
+    "line": 124,
+    "text": "pub(crate) fn submit_initial_user_message_if_pending(&mut self) {"
+  },
+  {
+    "path": "codex-rs/tui/src/chatwidget/rate_limits.rs",
+    "line": 227,
+    "text": "self.submit_initial_user_message_if_pending();"
+  },
+  {
+    "path": "codex-rs/tui/src/chatwidget/session_flow.rs",
+    "line": 172,
+    "text": "self.submit_initial_user_message_if_pending();"
+  },
+  {
+    "path": "codex-rs/tui/src/chatwidget/user_messages.rs",
+    "line": 182,
+    "text": "pub(crate) fn create_initial_user_message("
+  },
+  {
+    "path": "codex-rs/tui/src/lib.rs",
+    "line": 1076,
+    "text": "let skip_update_prompt = cli.prompt.as_ref().is_some_and(|prompt| !prompt.is_empty());"
+  }
+]
