@@ -1,0 +1,47 @@
+{
+  "status": "unknown_retained",
+  "inspect": {
+    "version": 1,
+    "status": "interrupted",
+    "nonce": "proxy-partial-01",
+    "controller_thread": "01a096a1-a611-7373-bf34-681dad9d3fd2",
+    "revision": 1,
+    "segment": 1,
+    "completed_steps": 2,
+    "total_steps": 12,
+    "interval_ms": 8000,
+    "worker_pid": 64505,
+    "segment_started_at": "2026-09-12T17:19:40.936919Z",
+    "updated_at": "2026-09-12T17:19:59.552579Z",
+    "effect_count": 2,
+    "liveness_checked": false
+  },
+  "known_pids_absent": [
+    63768,
+    64505
+  ],
+  "tui_identity": "not_retained_in_failure_artifacts",
+  "manifest": [
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-proxy-continuation/data/proxy-partial-01-job/retained-state.json",
+      "sha256": "4155a83639b29d455dd63d2e4f10b266af5557a5d3302566f1ca5104e05c0c85"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-proxy-continuation/data/proxy-partial-01-job/retained-task.json",
+      "sha256": "2e84491fab6200e43ca8430979246ab556def2b4bc33aceecddf01b8058f9b88"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-proxy-continuation/data/proxy-partial-01-job/retained.lock",
+      "sha256": "50208d78350a7a160dec59a82df1499b6ca7da33e54c5eb11c97e342118e68bb"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-proxy-continuation/data/proxy-partial-01-job/step-001.json",
+      "sha256": "f96506863b4286c2482b7576b7acd88797bc039e15aadf9bfb7481f4fae82d59"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-proxy-continuation/data/proxy-partial-01-job/step-002.json",
+      "sha256": "55f1ca433d401780ffb3b4b12c0a22e5a06131d8faa8d5127f5d322f5bf53b28"
+    }
+  ],
+  "raw_model_or_prompt_saved": false
+}
