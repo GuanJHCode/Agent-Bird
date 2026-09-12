@@ -28,9 +28,9 @@ class InputSequence:
             data = b'\x1b[200~/status\x1b[201~'
         elif action == 'status-submit' and self.used == ['status-paste']:
             data = b'\r'
-        elif action == 'initial-paste' and self.used == ['status-paste','status-submit']:
+        elif action == 'initial-paste' and self.used in ([],['status-paste','status-submit']):
             data = b'\x1b[200~'+self.prompt.encode()+b'\x1b[201~'
-        elif action == 'initial-submit' and self.used == ['status-paste','status-submit','initial-paste']:
+        elif action == 'initial-submit' and self.used in (['initial-paste'],['status-paste','status-submit','initial-paste']):
             data = b'\r'
         elif (action == 'quit-paste' and 'quit-paste' not in self.used
               and (not self.used or self.used[-1] in ('status-submit','initial-submit'))):

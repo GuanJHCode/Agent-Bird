@@ -1,4 +1,4 @@
-"""Fixed sd-qual-02 local evidence. No RPC, raw log, or model history export."""
+"""Fixed sd-qual-03 local evidence. No RPC, raw log, or model history export."""
 import argparse
 import ctypes
 import datetime as dt
@@ -24,7 +24,7 @@ GO = BASE / 'tasks/g0-retained-resume/data/g0-return-lab-retained-darwin-arm64'
 GO_SHA = 'feb9b9ad969abca5ff35db28c0f0d8d920dc0778d7aac68a90952900e989a285'
 SOCKET = CODEX_HOME / 'app-server-control/app-server-control.sock'
 HOOKS = BASE / 'tasks/g0-macos/data/hook-events'
-NONCE = 'sd-qual-02'
+NONCE = 'sd-qual-03'
 UUID_RE = r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
 STAMP_RE = r'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]{1,9})?(?:Z|\+00:00)'
 
@@ -87,6 +87,13 @@ def thread_fields(row, root):
     if not valid_id(root) or not row or tuple(row) != (root,'vscode',str(REPO),'0.153.4'):
         raise ValueError('not the fixed native experiment thread')
     return {'id':root,'source':'vscode','experiment_cwd_matches':True,'cli_version':'0.153.4'}
+
+
+def require_root_family(db,root):
+    if not valid_id(root): raise ValueError('exact native root required')
+    row=db.execute('SELECT parent_thread_id FROM thread_spawn_edges WHERE child_thread_id=? LIMIT 1',(root,)).fetchone()
+    if row is not None: raise ValueError('native root has a recorded spawn parent')
+    return {'spawn_edges_query_succeeded':True,'parent_edge_count':0}
 
 
 def hook_fields(value, root, service, lo, hi):
@@ -186,9 +193,11 @@ def protected_files():
 
 def local_evidence(root,service,lo,hi):
     db = sqlite3.connect('file:'+str(CODEX_HOME/'state_5.sqlite')+'?mode=ro',uri=True)
-    try: row = db.execute('SELECT id,source,cwd,cli_version FROM threads WHERE id=?',(root,)).fetchone()
+    try:
+        row = db.execute('SELECT id,source,cwd,cli_version FROM threads WHERE id=?',(root,)).fetchone()
+        thread=thread_fields(row,root); family=require_root_family(db,root)
     finally: db.close()
-    result = {'thread':thread_fields(row,root),'hooks':[],'native_protocol':[]}
+    result = {'thread':thread,'family':family,'hooks':[],'native_protocol':[]}
     for path in HOOKS.glob('*.json'):
         if path.is_symlink() or not path.is_file() or path.stat().st_size > 8192: continue
         # Skip old/unrelated files before decoding; retained records still require exact root/service.
@@ -225,7 +234,7 @@ def main():
     p.add_argument('--since'); p.add_argument('--through'); p.add_argument('--output',type=Path,required=True)
     args = p.parse_args()
     docs = Path(__file__).resolve().parents[1]/'docs'
-    if args.output.parent.resolve() != docs or not re.fullmatch(r'native-sd-qual-02-[a-z-]+\.json',args.output.name):
+    if args.output.parent.resolve() != docs or not re.fullmatch(r'native-sd-qual-03-[a-z-]+\.json',args.output.name):
         raise ValueError('output must be the fixed native evidence location')
     out = {'version':1,'nonce':NONCE,'captured_at':dt.datetime.now(dt.timezone.utc).isoformat(),
            'scope':'fixed controller-owned TUI sample; not automatic attachment or complete G0'}

@@ -19,6 +19,17 @@ CANARY = 'CANARY_PRIVATE_TEXT'
 
 
 class EvidenceTests(unittest.TestCase):
+    def test_root_family_requires_successful_exact_child_edge_query(self):
+        db=sqlite3.connect(':memory:')
+        try:
+            with self.assertRaises(sqlite3.OperationalError): c.require_root_family(db,ROOT)
+            db.execute('CREATE TABLE thread_spawn_edges(parent_thread_id,child_thread_id,status)')
+            db.execute('INSERT INTO thread_spawn_edges VALUES(?,?,?)',(CANARY,OTHER,'completed'))
+            self.assertEqual(c.require_root_family(db,ROOT),{'spawn_edges_query_succeeded':True,'parent_edge_count':0})
+            db.execute('INSERT INTO thread_spawn_edges VALUES(?,?,?)',(CANARY,ROOT,'completed'))
+            with self.assertRaises(ValueError): c.require_root_family(db,ROOT)
+        finally: db.close()
+
     def test_process_preserves_ps_comm_and_reads_executable_path_from_libproc(self):
         executable='/trusted/bin/codex'
         observed=[executable]; calls=[]
@@ -102,6 +113,7 @@ class EvidenceTests(unittest.TestCase):
             home = Path(name); hooks = home/'hooks'; hooks.mkdir()
             state = sqlite3.connect(home/'state_5.sqlite')
             state.execute('CREATE TABLE threads(id,source,cwd,cli_version)')
+            state.execute('CREATE TABLE thread_spawn_edges(parent_thread_id,child_thread_id,status)')
             state.execute('INSERT INTO threads VALUES(?,?,?,?)',(ROOT,'vscode',str(c.REPO),'0.153.4'))
             state.commit(); state.close()
             logs = sqlite3.connect(home/'logs_2.sqlite')

@@ -19,6 +19,56 @@ from native_sd_control import require_owned_pair
 
 
 class ControlTests(unittest.TestCase):
+    def test_only_sd03_is_registered_for_the_new_model_case(self):
+        self.assertEqual(control.c.NONCE,'sd-qual-03')
+        self.assertEqual(control.CASE.name,'sd-qual-03')
+        self.assertEqual(control.JOB.name,'sd-qual-03')
+        self.assertIn('SD_QUAL_03_READY',control.fixed_prompt())
+        self.assertNotIn('sd-qual-02',control.fixed_prompt())
+
+    def test_discovery_waits_for_one_owned_service_hook_and_rejects_ambiguity(self):
+        root='01a08e0b-bd0d-7400-b069-d50978939cdd';turn='01a08e0b-bd0d-7400-b069-d50978939cde'
+        since='2026-09-11T10:00:00Z';through='2026-09-11T10:02:00Z'
+        with tempfile.TemporaryDirectory() as name,patch.object(control.c,'HOOKS',Path(name)):
+            self.assertIsNone(control.discover_prompt_hook(123,since,through))
+            value={'session_id':root,'turn_id':turn,'hook_event_name':'UserPromptSubmit','pid':124,'ppid':123,
+                   'recorded_at':'2026-09-11T10:00:01Z','extra':'CANARY_PRIVATE_TEXT'}
+            for filename,item in [('owned.json',value),('other.json',dict(value,ppid=999))]:
+                path=Path(name)/filename;path.write_text(json.dumps(item));os.utime(path,ns=(1789120801000000000,1789120801000000000))
+            got=control.discover_prompt_hook(123,since,through)
+            self.assertEqual(got['session_id'],root);self.assertEqual(got['turn_id'],turn)
+            self.assertNotIn('CANARY_PRIVATE_TEXT',json.dumps(got))
+            path=Path(name)/'owned.json';missing=dict(value);missing.pop('turn_id')
+            path.write_text(json.dumps(missing));os.utime(path,ns=(1789120801000000000,1789120801000000000))
+            self.assertIsNone(control.discover_prompt_hook(123,since,through))
+            path.write_text(json.dumps(value));os.utime(path,ns=(1789120801000000000,1789120801000000000))
+            path=Path(name)/'second.json';path.write_text(json.dumps(dict(value,session_id=turn)))
+            os.utime(path,ns=(1789120801000000000,1789120801000000000))
+            with self.assertRaises(ValueError): control.discover_prompt_hook(123,since,through)
+
+    def test_candidate_waits_for_job_then_requires_exact_owner_nonce_revision(self):
+        root='01a08e0b-bd0d-7400-b069-d50978939cdd'
+        with tempfile.TemporaryDirectory() as name,patch.object(control,'JOB',Path(name)):
+            self.assertIsNone(control.read_job_owner(root))
+            value={'version':1,'status':'started','nonce':'sd-qual-03','controller_thread':root,'task_revision':1,
+                   'worker_pid':123,'created_at':'2026-09-11T10:00:01Z','job_file':'job.json','result_file':'result.json'}
+            path=Path(name)/'job.json';path.write_text(json.dumps(value));path.chmod(0o600)
+            got=control.read_job_owner(root)
+            self.assertEqual(got['controller_thread'],root);self.assertEqual(got['task_revision'],1)
+            for change in ({'controller_thread':'01a08e0b-bd0d-7400-b069-d50978939cde'},{'nonce':'sd-qual-02'},
+                           {'task_revision':2},{'worker_pid':True},{'created_at':'CANARY_PRIVATE_TEXT'},
+                           {'extra':'CANARY_PRIVATE_TEXT'}):
+                path.write_text(json.dumps(dict(value,**change)))
+                with self.assertRaises(ValueError): control.read_job_owner(root)
+
+    def test_before_helper_refuses_extra_or_unclassified_recorded_clients(self):
+        row={'fields':{'transport':'unix_socket','client_name':'codex-tui','client_version':'0.153.4','connection_id':0}}
+        got=control.require_single_tui_connection([row])
+        self.assertEqual(got['tui_connection_id'],0)
+        for extra in ({'client_name':'codex-tui','connection_id':1},{'client_name':'g0-native-standalone','connection_id':1},
+                      {'unrecognized_client_name':True,'connection_id':1},{'connection_id':1,'method':'thread/start'}):
+            with self.assertRaises(ValueError): control.require_single_tui_connection([row,{'fields':extra}])
+
     def test_helper_rpc_error_projection_is_typed_and_drops_raw_content(self):
         error={'method':'thread/read','request_id':4,'code':-32601,'message_bytes':31,'message_sha256':'a'*64}
         envelope={'version':1,'status':'rejected','reason':'native_rpc_error','source_service_verified':False,
@@ -164,7 +214,7 @@ class ControlTests(unittest.TestCase):
                     '01a08e0b-bd0d-7400-b069-d50978939cdd','01a08e0b-bd0d-7400-b069-d50978939cde','0'*64,time.monotonic_ns())
 
     def test_lab_read_envelope_is_fixed_nonce_and_does_not_export_extensions(self):
-        expected={'version':1,'status':'pending','nonce':'sd-qual-02','count':0}
+        expected={'version':1,'status':'pending','nonce':'sd-qual-03','count':0}
         self.assertEqual(control.lab_read_fields(json.dumps(expected)),expected)
         for value in [dict(expected,nonce='other'),dict(expected,extra='CANARY_PRIVATE_TEXT'),
                       dict(expected,count=True),dict(expected,status='completed'),dict(expected,version=True)]:
@@ -218,11 +268,12 @@ class ControlTests(unittest.TestCase):
             secret={'timestamp':'2026-09-11T10:00:01Z','type':'response_item',
                     'payload':{'type':'reasoning','summary':'CANARY_PRIVATE_TEXT'}}
             complete={'timestamp':'2026-09-11T10:00:02Z','type':'event_msg',
-                      'payload':{'type':'task_complete','turn_id':turn,'last_agent_message':'SD_QUAL_02_READY',
+                      'payload':{'type':'task_complete','turn_id':turn,'last_agent_message':'SD_QUAL_03_READY',
                                  'unknown':'CANARY_PRIVATE_TEXT'}}
             rollout.write_text(json.dumps(secret)+'\n'+json.dumps(complete)+'\n')
             db=sqlite3.connect(home/'state_5.sqlite')
             db.execute('CREATE TABLE threads(id,source,cwd,cli_version,rollout_path)')
+            db.execute('CREATE TABLE thread_spawn_edges(parent_thread_id,child_thread_id,status)')
             db.execute('INSERT INTO threads VALUES(?,?,?,?,?)',
                        (root,'vscode',str(control.c.REPO),'0.153.4',str(rollout)))
             db.commit(); db.close()
@@ -230,7 +281,7 @@ class ControlTests(unittest.TestCase):
                 read=functools.partial(control.native_ready,now=dt.datetime(2026,9,11,10,2,tzinfo=dt.timezone.utc))
                 result=read(root,turn,'2026-09-11T10:00:00Z','2026-09-11T10:02:00Z')
                 self.assertEqual(result,{'at':'2026-09-11T10:00:02Z','turn_id':turn,'type':'task_complete',
-                                         'last_agent_message':'SD_QUAL_02_READY'})
+                                         'last_agent_message':'SD_QUAL_03_READY'})
                 self.assertNotIn('CANARY_PRIVATE_TEXT',json.dumps(result))
                 self.assertIsNone(read(root,root,'2026-09-11T10:00:00Z','2026-09-11T10:02:00Z'))
                 complete['timestamp']='2026-09-11T10:02:00.000000001Z'

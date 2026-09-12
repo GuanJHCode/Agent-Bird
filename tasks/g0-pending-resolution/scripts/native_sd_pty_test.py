@@ -11,6 +11,14 @@ CANARY = 'CANARY_PRIVATE_TEXT'
 
 
 class PTYTests(unittest.TestCase):
+    def test_direct_initial_is_once_without_status_or_followup_enter(self):
+        sequence=InputSequence('fixed synthetic input')
+        self.assertEqual(sequence.take('initial-paste'),b'\x1b[200~fixed synthetic input\x1b[201~')
+        with self.assertRaises(ValueError): sequence.take('quit-paste')
+        self.assertEqual(sequence.take('initial-submit'),b'\r')
+        for extra in ('initial-paste','initial-submit','status-paste','status-submit','continue'):
+            with self.assertRaises(ValueError): sequence.take(extra)
+
     def test_input_sequence_rejects_extra_prompt_or_navigation(self):
         sequence = InputSequence('fixed synthetic input')
         for invalid in ('status','status-submit','quit','quit-submit'):
