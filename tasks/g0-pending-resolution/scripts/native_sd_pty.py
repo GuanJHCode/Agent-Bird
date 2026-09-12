@@ -24,14 +24,19 @@ class InputSequence:
         self.used = []
 
     def take(self,action):
-        if action == 'status' and not self.used:
-            data = b'/status\r'
-        elif action == 'initial-paste' and self.used == ['status']:
-            data = b'\x1b[200~'+self.prompt.encode()+b'\x1b[201~'
-        elif action == 'initial-submit' and self.used == ['status','initial-paste']:
+        if action == 'status-paste' and not self.used:
+            data = b'\x1b[200~/status\x1b[201~'
+        elif action == 'status-submit' and self.used == ['status-paste']:
             data = b'\r'
-        elif action == 'quit' and 'quit' not in self.used:
-            data = b'/quit\r'
+        elif action == 'initial-paste' and self.used == ['status-paste','status-submit']:
+            data = b'\x1b[200~'+self.prompt.encode()+b'\x1b[201~'
+        elif action == 'initial-submit' and self.used == ['status-paste','status-submit','initial-paste']:
+            data = b'\r'
+        elif (action == 'quit-paste' and 'quit-paste' not in self.used
+              and (not self.used or self.used[-1] in ('status-submit','initial-submit'))):
+            data = b'\x1b[200~/quit\x1b[201~'
+        elif action == 'quit-submit' and self.used and self.used[-1]=='quit-paste':
+            data = b'\r'
         else:
             raise ValueError('unregistered or repeated TUI input')
         self.used.append(action)
@@ -96,13 +101,13 @@ class NativePTY:
     def send(self,sequence,action):
         if self._poll() is not None: raise ValueError('TUI already exited')
         data = sequence.take(action)
-        if action == 'status':
+        if action == 'status-paste':
             self.read(.02)
             self.status_buffer = b''
             self.status_roots.clear()
             self.status_capture_start_byte = self.byte_count
             self.status_capture = True
-        else:
+        elif action != 'status-submit':
             self.status_capture = False
             self.status_buffer = b''
         position = 0

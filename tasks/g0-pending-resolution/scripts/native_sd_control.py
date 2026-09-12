@@ -23,7 +23,7 @@ DOCS = Path(__file__).resolve().parents[1]/'docs'
 
 
 def failure_fields(error,substage):
-    stages={'start_service','service_wait_socket','start_tui','tui_wait_native','status_send','status_wait',
+    stages={'start_service','service_wait_socket','start_tui','tui_wait_native','status_paste','status_submit','status_wait',
             'origin_capture','initial_paste','initial_submit','initial_hook_scan','ready_lookup','pending_before',
             'ready_reread','pending_after','await_job_result','job_read','identity_before_prepare','controller_evidence',
             'binding','prepare','send-once','helper_finished'}
@@ -220,6 +220,28 @@ def binding_process(identity):
             'comm':current['comm'],'executable_path':current['executable_path'],'native_binary_sha256':c.CLI_SHA}
 
 
+def quit_with_deadline(tui,sequence):
+    began=continuous_ns(); deadline=began+10000000000
+    result={'clock_impl':CLOCK_IMPL,'mono_ns':began,'deadline_mono_ns':deadline,'started_at':stamp(),'actions':[]}
+    exit_code=None
+    try:
+        for action in ('quit-paste','quit-submit'):
+            if continuous_ns()>=deadline: break
+            tui.send(sequence,action); result['actions'].append(action)
+        while continuous_ns()<deadline and tui._poll() is None:
+            remaining=deadline-continuous_ns()
+            if remaining<=0: break
+            tui.read(min(.2,remaining/1000000000))
+        exit_code=tui._poll()
+    except (ValueError,OSError):
+        result['failure_code']='quit_input_or_observation_rejected'
+    observed=continuous_ns()
+    result.update(observed_mono_ns=observed,elapsed_ns=observed-began,exit_code=exit_code,
+                  normal_exit_within_window=('failure_code' not in result and exit_code==0
+                                            and result['actions']==['quit-paste','quit-submit'] and observed<deadline))
+    return result
+
+
 def matching_prompt_hook(root,service,since,through):
     lo,hi=c.window(since,through,dt.datetime.now(dt.timezone.utc)); found=[]
     for path in c.HOOKS.glob('*.json'):
@@ -329,11 +351,17 @@ def run(helper_sha,audit_sha):
             except ValueError: pass
         else: raise TimeoutError('native TUI startup exceeded ten seconds')
         if continuous_ns()>=deadline: raise TimeoutError('native TUI startup exceeded ten seconds')
-        record['substage']='status_send'; tui.send(sequence,'status'); record['substage']='status_wait'
+        status_begin=continuous_ns(); deadline=status_begin+10000000000
+        record['status_window']={'clock_impl':CLOCK_IMPL,'mono_ns':status_begin,'deadline_mono_ns':deadline}
+        record['substage']='status_paste'; tui.send(sequence,'status-paste')
+        if continuous_ns()>=deadline: raise TimeoutError('native status exceeded ten seconds')
+        record['substage']='status_submit'; tui.send(sequence,'status-submit'); record['substage']='status_wait'
         while continuous_ns()<deadline and 'status_root' not in tui.evidence(): pump(.1)
         if continuous_ns()>=deadline: raise TimeoutError('native status exceeded ten seconds')
         status=tui.evidence()
         if 'status_root' not in status or status.get('ambiguous_status_root'): raise ValueError('unsupported initial native status shape')
+        record['status_window']['observed_mono_ns']=continuous_ns()
+        if record['status_window']['observed_mono_ns']>=deadline: raise TimeoutError('native status exceeded ten seconds')
         record['root']=status['status_root']; record['initial_status']=status
         record['substage']='origin_capture'
         original={'service':c.process(service.pid),'tui':c.process(tui.pid),'socket':c.snapshot_socket(service.pid)}
@@ -432,7 +460,7 @@ def run(helper_sha,audit_sha):
         if tui and tui._poll() is None:
             current=c.process(tui.pid)
             if current and (original is None or c.same_process(current,original['tui'])):
-                tui.send(sequence,'quit'); tui.wait(10)
+                record['quit_observation']=quit_with_deadline(tui,sequence)
         record['service_process']=service.evidence() if service else None
         record['retained_service_pid']=service.pid if service and service._poll() is None else None
         record['tui_pty']=tui.evidence() if tui else None
@@ -450,7 +478,7 @@ def run(helper_sha,audit_sha):
                           'all_owned_native_exited':record['all_owned_native_exited'],
                           'retained_service_pid':record['retained_service_pid'],
                           'evidence':str(CASE/'controller-result.json')}),flush=True)
-    return 0 if helper_ok and (tui is None or tui._poll() is not None) else 2
+    return 0 if helper_ok and record.get('quit_observation',{}).get('normal_exit_within_window') is True else 2
 
 
 def main():

@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "native_cli_version": "0.153.4",
+  "upstream_commit": "3d2ee51ca2d5db578f328aa75e20aa22c0197c9a",
+  "scope": "read-only source diagnosis, no native execution",
+  "files": [
+    {
+      "upstream_path": "codex-rs/tui/src/bottom_pane/chat_composer.rs",
+      "url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/bottom_pane/chat_composer.rs",
+      "bytes": 509122,
+      "sha256": "b9c2c054d5b0cfc896449f880ae7c1d554bcc253387e69cfcd12d8cd58f7862d",
+      "download_exit_code": 0
+    },
+    {
+      "upstream_path": "codex-rs/tui/src/bottom_pane/paste_burst.rs",
+      "url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/bottom_pane/paste_burst.rs",
+      "bytes": 25134,
+      "sha256": "ad2874a17d65d0c27df646836206d61d718dcba6b5aca44b2b81176033c4bb0e",
+      "download_exit_code": 0
+    },
+    {
+      "upstream_path": "codex-rs/tui/src/bottom_pane/chat_composer/slash_input.rs",
+      "url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/bottom_pane/chat_composer/slash_input.rs",
+      "bytes": 24743,
+      "sha256": "bccb18e632573c9227f86fefffdac675a9c525399a11ff61e80018141899fcbc",
+      "download_exit_code": 0
+    }
+  ],
+  "temporary_source_dir": "tasks/g0-pending-resolution/tmp/quit-source",
+  "temporary_files": 3,
+  "temporary_bytes": 558999,
+  "cleanup": "retained only until independent source review finishes"
+}

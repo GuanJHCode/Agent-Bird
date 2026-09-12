@@ -19,6 +19,22 @@ from native_sd_control import require_owned_pair
 
 
 class ControlTests(unittest.TestCase):
+    def test_quit_actions_and_io_share_original_ten_second_window(self):
+        for costs,read_cost,normal,actions in (([6000000000,3000000000],500000000,True,['quit-paste','quit-submit']),
+                                              ([10000000001,0],0,False,['quit-paste']),
+                                              ([4000000000,4000000000],3000000000,False,['quit-paste','quit-submit'])):
+            with self.subTest(costs=costs,read_cost=read_cost):
+                raw=[0]; sent=[]; exit_code=[None]
+                def send(sequence,action):
+                    sequence.take(action);raw[0]+=costs[len(sent)];sent.append(action)
+                def read(seconds): raw[0]+=read_cost;exit_code[0]=0
+                tui=SimpleNamespace(send=send,read=read,_poll=lambda:exit_code[0])
+                with patch.object(control,'continuous_ns',side_effect=lambda:raw[0]):
+                    result=control.quit_with_deadline(tui,control.InputSequence('fixed'))
+                self.assertEqual(sent,actions)
+                self.assertEqual(result['deadline_mono_ns'],10000000000)
+                self.assertEqual(result['normal_exit_within_window'],normal)
+
     def test_guard_requires_executable_path_for_each_native_role(self):
         original=json.loads((control.DOCS/'native-sd-qual-02-controller.json').read_text())['origin']
         for role in ('service','tui'):
