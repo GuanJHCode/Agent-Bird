@@ -1,0 +1,13 @@
+{
+  "activation_id": "5680d15843294c32852714dd11bfee93",
+  "backend_records": [],
+  "manifest_sha256": "3da9d343ee283a8b3dfd1a5f816d90023141424e88605ed8fcdf65df439a9ec8",
+  "native_registration_verified": false,
+  "public_socket_owned": false,
+  "stop_signals": [],
+  "transport": {
+    "events": [],
+    "protocol": [],
+    "streams": []
+  }
+}

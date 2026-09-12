@@ -1,0 +1,31 @@
+{
+  "case": "native-preflight-01",
+  "source_commit": "d251c43",
+  "registration_performed": false,
+  "model_calls_requested": 0,
+  "service_pid": 42139,
+  "service_birth": "Sun Sep 13 07:29:43 2026",
+  "service_argv": [
+    "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3.13",
+    "-I",
+    "-B",
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-proxy-continuation/cold-start/scripts/projectproxy_launchd_entrypoint.py",
+    "--manifest",
+    "/private/tmp/g0-auth-24wyxl3t/activation.json",
+    "--listener-fd",
+    "3"
+  ],
+  "error_type": "ProbeError",
+  "error": "activation readiness receipt timeout",
+  "service_exit": 0,
+  "service_stdout": "{\"activation_id\": \"5680d15843294c32852714dd11bfee93\", \"all_backends_stopped\": true, \"backend_count\": 0, \"public_socket_owned\": false, \"status\": \"closed\"}\n",
+  "service_stderr": "",
+  "auth_comparison": {
+    "unchanged": true,
+    "changed_path_ids": []
+  },
+  "owned_private_listener_removed": true,
+  "synthetic_auth_absent": true,
+  "retained_profile_exists": true,
+  "status": "failed"
+}

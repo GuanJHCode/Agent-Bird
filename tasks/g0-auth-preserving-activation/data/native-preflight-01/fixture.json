@@ -1,0 +1,10 @@
+{
+  "mode": "preflight",
+  "profile_root": "/private/tmp/g0-auth-aiy2ely9",
+  "supervisor_root": "/private/tmp/g0-auth-24wyxl3t",
+  "public_socket": "/private/tmp/g0-auth-24wyxl3t/home/.codex/app-server-control/app-server-control.sock",
+  "manifest_sha256": "3da9d343ee283a8b3dfd1a5f816d90023141424e88605ed8fcdf65df439a9ec8",
+  "native_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+  "registration_performed": false,
+  "credential_manifest_sha256": "897f84c3a67016746b5d31395d990ae148c1d28873681f764cf8e82c2ece48cc"
+}
