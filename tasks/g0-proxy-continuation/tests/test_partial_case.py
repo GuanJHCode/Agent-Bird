@@ -77,7 +77,7 @@ def test_inspect_retained_requires_frozen_binary_and_absolute_job(tmp_path, monk
 
     class Result:
         returncode = 0
-        stdout = json.dumps({"nonce": value.plan.nonce, "status": "running", "revision": 1, "segment": 1})
+        stdout = json.dumps({"nonce": value.plan.nonce, "controller_thread": THREAD, "status": "running", "revision": 1, "segment": 1, "completed_steps": 1, "effect_count": 1})
         stderr = ""
 
     def run(argv, **kwargs):
@@ -103,7 +103,7 @@ def test_inspect_retained_rejects_wrong_nonce(tmp_path, monkeypatch):
 
     class Result:
         returncode = 0
-        stdout = json.dumps({"nonce": "other", "status": "running", "revision": 1, "segment": 1})
+        stdout = json.dumps({"nonce": "other", "controller_thread": THREAD, "status": "running", "revision": 1, "segment": 1, "completed_steps": 1, "effect_count": 1})
         stderr = ""
 
     monkeypatch.setattr("partial_case.subprocess.run", lambda *args, **kwargs: Result())
@@ -221,6 +221,7 @@ def test_run_partial_case_is_four_phase_and_writes_exclusive_result(tmp_path, mo
             self.bridge = FakeBridge()
             self.candidate = {"thread_id": THREAD, "connection_epoch": 1}
             self.tui_identity = type("Identity", (), {"pid": 99})()
+            self.backend_identity = type("Identity", (), {"pid": 98})()
             self.phase = "new"
 
         async def start(self):
@@ -237,16 +238,25 @@ def test_run_partial_case_is_four_phase_and_writes_exclusive_result(tmp_path, mo
     monkeypatch.setattr("partial_case._owned_runtime_stopped", lambda runtime, ownership: True)
     monkeypatch.setattr("partial_case._retained_worker_stopped", lambda before, after: True)
     monkeypatch.setattr("partial_case._prefix_snapshot", lambda spec, view: ({"sha256": "stable"},))
-    monkeypatch.setattr("partial_case.capture_parent_guard", lambda child_pid, parent: type("Evidence", (), {"direct_parent": True, "parent_pid": parent.pid})())
+    parent_pids = []
+    def capture_parent(child_pid, parent):
+        parent_pids.append(parent.pid)
+        return type("Evidence", (), {"direct_parent": True, "parent_pid": parent.pid})()
+    monkeypatch.setattr("partial_case.capture_parent_guard", capture_parent)
+    terminal_counts = iter([0, 1, 0, 1])
+    monkeypatch.setattr("partial_case._terminal_event_count", lambda bridge, epoch: next(terminal_counts))
 
     states = iter([
-        {"status": "running", "revision": 1, "segment": 1, "completed_steps": 1, "total_steps": 12, "worker_pid": 123},
-        {"status": "stopped", "revision": 1, "segment": 1, "completed_steps": 1, "total_steps": 12},
-        {"status": "stopped", "revision": 1, "segment": 1, "completed_steps": 1, "total_steps": 12},
-        {"status": "completed", "revision": 1, "segment": 2, "completed_steps": 12, "total_steps": 12},
+            {"nonce": value.plan.nonce, "controller_thread": THREAD, "status": "running", "revision": 1, "segment": 1, "completed_steps": 1, "effect_count": 1, "total_steps": 12, "worker_pid": 123},
+            {"nonce": value.plan.nonce, "controller_thread": THREAD, "status": "interrupted", "revision": 1, "segment": 1, "completed_steps": 1, "effect_count": 1, "total_steps": 12},
+            {"nonce": value.plan.nonce, "controller_thread": THREAD, "status": "interrupted", "revision": 1, "segment": 1, "completed_steps": 1, "effect_count": 1, "total_steps": 12},
+            {"nonce": value.plan.nonce, "controller_thread": THREAD, "status": "interrupted", "revision": 1, "segment": 1, "completed_steps": 1, "effect_count": 1, "total_steps": 12},
+            {"nonce": value.plan.nonce, "controller_thread": THREAD, "status": "interrupted", "revision": 1, "segment": 1, "completed_steps": 1, "effect_count": 1, "total_steps": 12},
+            {"nonce": value.plan.nonce, "controller_thread": THREAD, "status": "completed", "revision": 1, "segment": 2, "completed_steps": 12, "effect_count": 12, "total_steps": 12},
     ])
     result = asyncio.run(run_partial_case(value, runtime_factory=FakeRuntime, inspect_runner=lambda _: next(states), effective_model_reader=lambda: {"model": "gpt-5.6-luna", "reasoning_effort": "medium"}))
     assert result["status"] == "observed"
+    assert parent_pids == [98]
     assert result["phases"] == ["initial", "stopped", "resume_quiet", "continued"]
     assert result["trace"] == "trace.json"
     assert (value.plan.case_dir / "trace.json").exists()

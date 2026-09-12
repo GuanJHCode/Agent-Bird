@@ -192,13 +192,19 @@ def _create_job_dir(spec: PartialCaseSpec) -> None:
         raise RuntimeInvariantError("retained job directory identity is invalid")
 
 
-async def read_effective_model(config: NativeRuntimeConfig) -> dict[str, str]:
+async def _read_effective_model_live(config: NativeRuntimeConfig, expected_backend: Any | None = None) -> dict[str, Any]:
     """Read model config over the currently owned backend UDS, no model turn."""
 
     try:
         from websockets.asyncio.client import unix_connect
     except ImportError as exc:  # pragma: no cover - runtime dependency is pinned by native tests
         raise RuntimeInvariantError("websocket client unavailable") from exc
+    if expected_backend is not None:
+        if _process_birth(expected_backend.pid) != expected_backend.birth or _process_path(expected_backend.pid) != expected_backend.executable:
+            raise RuntimeInvariantError("effective model backend identity changed")
+        from proxy_native_runtime import _process_holds_socket
+        if not _process_holds_socket(expected_backend.pid, config.backend_socket):
+            raise RuntimeInvariantError("effective model backend does not hold its private socket")
     raw = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     raw.setblocking(False)
     try:
@@ -219,21 +225,48 @@ async def read_effective_model(config: NativeRuntimeConfig) -> dict[str, str]:
             return packet["result"]
 
     try:
+        requests = [{"id": 1, "method": "initialize"}]
         await rpc(1, "initialize", {"clientInfo": {"name": "g0-partial-resume", "version": "0.1.0"}})
         await ws.send('{"method":"initialized"}')
+        requests.append({"id": 2, "method": "config/read", "cwd": str(config.cwd)})
         response = await rpc(2, "config/read", {"cwd": str(config.cwd), "includeLayers": True})
+        requests.append({"id": 3, "method": "configRequirements/read"})
+        requirements_response = await rpc(3, "configRequirements/read", {})
         model = response.get("config", {}).get("model") if isinstance(response.get("config"), Mapping) else None
         effort = response.get("config", {}).get("model_reasoning_effort") if isinstance(response.get("config"), Mapping) else None
         if model != "gpt-5.6-luna" or effort != "medium":
             raise RuntimeInvariantError("effective model is not Luna/medium")
-        return {"model": model, "reasoning_effort": effort}
+        origins = response.get("origins")
+        if not isinstance(origins, Mapping):
+            raise RuntimeInvariantError("effective model origins are missing")
+        expected_origin = {"type": "project", "dotCodexFolder": str(config.cwd / ".codex")}
+        for key in ("model", "model_reasoning_effort"):
+            metadata = origins.get(key)
+            if not isinstance(metadata, Mapping) or not isinstance(metadata.get("name"), Mapping):
+                raise RuntimeInvariantError("effective model origin is malformed")
+            origin = {k: metadata["name"].get(k) for k in ("type", "dotCodexFolder")}
+            if origin != expected_origin or not isinstance(metadata.get("version"), str):
+                raise RuntimeInvariantError("effective model origin is not project scoped")
+        requirements = requirements_response.get("requirements") if isinstance(requirements_response, Mapping) else None
+        new_thread = requirements.get("models", {}).get("newThread") if isinstance(requirements, Mapping) and isinstance(requirements.get("models"), Mapping) else None
+        if new_thread is not None:
+            if not isinstance(new_thread, Mapping) or new_thread.get("model") not in (None, "gpt-5.6-luna") or new_thread.get("modelReasoningEffort") not in (None, "medium"):
+                raise RuntimeInvariantError("effective model requirements conflict with Luna/medium")
+        return {"model": model, "reasoning_effort": effort, "requests": requests, "responses": [{"id": 1, "method": "initialize"}, {"id": 2, "method": "config/read"}, {"id": 3, "method": "configRequirements/read"}], "cwd": str(config.cwd), "config_response_sha256": hashlib.sha256(json.dumps(response, sort_keys=True, separators=(",", ":")).encode()).hexdigest(), "requirements_response_sha256": hashlib.sha256(json.dumps(requirements_response, sort_keys=True, separators=(",", ":")).encode()).hexdigest(), "requirements": {"newThread": {"model": new_thread.get("model"), "modelReasoningEffort": new_thread.get("modelReasoningEffort")} if isinstance(new_thread, Mapping) else None}, "source": "owned_backend_config_read"}
     finally:
         await ws.close()
 
 
-async def _read_effective_model(reader: Callable[..., Any] | None, config: NativeRuntimeConfig) -> dict[str, str]:
+async def read_effective_model(config: NativeRuntimeConfig, expected_backend: Any | None = None) -> dict[str, Any]:
+    """Read effective configuration with one bounded ten-second deadline."""
+
+    async with asyncio.timeout(10):
+        return await _read_effective_model_live(config, expected_backend)
+
+
+async def _read_effective_model(reader: Callable[..., Any] | None, config: NativeRuntimeConfig, expected_backend: Any | None = None) -> dict[str, Any]:
     if reader is None:
-        return await read_effective_model(config)
+        return await read_effective_model(config, expected_backend)
     try:
         value = reader(config)
     except TypeError:
@@ -261,8 +294,16 @@ def inspect_retained(spec: PartialCaseSpec) -> dict[str, Any]:
         value = json.loads(result.stdout)
     except json.JSONDecodeError as exc:
         raise RuntimeInvariantError("retained inspect output is not JSON") from exc
-    if not isinstance(value, dict) or value.get("nonce") not in (None, spec.plan.nonce):
+    if not isinstance(value, dict) or value.get("nonce") != spec.plan.nonce:
         raise RuntimeInvariantError("retained inspect identity mismatch")
+    if value.get("controller_thread") != spec.plan.thread_id:
+        raise RuntimeInvariantError("retained inspect controller thread mismatch")
+    if value.get("revision") != 1 or type(value.get("segment")) is not int:
+        raise RuntimeInvariantError("retained inspect revision/segment mismatch")
+    if type(value.get("effect_count")) is not int or type(value.get("completed_steps")) is not int:
+        raise RuntimeInvariantError("retained inspect effect evidence is missing")
+    if value["effect_count"] != value["completed_steps"]:
+        raise RuntimeInvariantError("retained inspect effect count mismatch")
     worker_pid = value.get("worker_pid")
     if type(worker_pid) is int and worker_pid > 0:
         value["worker_identity"] = {
@@ -273,9 +314,11 @@ def inspect_retained(spec: PartialCaseSpec) -> dict[str, Any]:
     return value
 
 
-async def _inspect_until(spec: PartialCaseSpec, predicate: Callable[[Mapping[str, Any]], bool], deadline: float, inspect_runner: Callable[[PartialCaseSpec], Mapping[str, Any]]) -> dict[str, Any]:
+async def _inspect_until(spec: PartialCaseSpec, predicate: Callable[[Mapping[str, Any]], bool], deadline: float, inspect_runner: Callable[[PartialCaseSpec], Mapping[str, Any]], runtime: Any | None = None) -> dict[str, Any]:
     latest: Mapping[str, Any] | None = None
     while raw_seconds() < deadline:
+        if runtime is not None and getattr(runtime, "tui_driver", None) is not None and hasattr(runtime.tui_driver, "read_available"):
+            runtime.tui_driver.read_available()
         try:
             latest = await asyncio.to_thread(inspect_runner, spec)
         except (FileNotFoundError, subprocess.TimeoutExpired):
@@ -373,6 +416,10 @@ def _manifest_fingerprint(spec: PartialCaseSpec, view: Mapping[str, Any]) -> tup
     return tuple(view.get(field) for field in fields) + (_prefix_snapshot(spec, view),)
 
 
+def _terminal_event_count(bridge: Any, epoch: int) -> int:
+    return sum(1 for row in getattr(bridge, "trace", ()) if row.get("conn_epoch") == epoch and row.get("event") in {"eof", "connection_close"})
+
+
 def _validate_quiet(bridge: Any, expected_thread_id: str) -> dict[str, Any]:
     trace = getattr(bridge, "trace", None)
     if not isinstance(trace, list) or getattr(bridge, "trace_complete", None) is not True:
@@ -439,7 +486,7 @@ async def run_partial_case(
     preflight: Mapping[str, Any] | None = None,
     runtime_factory: Any = NativeRuntime,
     inspect_runner: Callable[[PartialCaseSpec], Mapping[str, Any]] = inspect_retained,
-    effective_model_reader: Callable[[], Mapping[str, str]] | None = None,
+    effective_model_reader: Callable[..., Mapping[str, str]] | None = None,
 ) -> dict[str, Any]:
     """Run initial partial task, stop, reopen quietly, then explicitly continue."""
 
@@ -463,7 +510,7 @@ async def run_partial_case(
     try:
         result["phases"].append("initial")
         await first.start()
-        effective = await _read_effective_model(effective_model_reader, first.config)
+        effective = await _read_effective_model(effective_model_reader, first.config, getattr(first, "backend_identity", None))
         if effective.get("model") != "gpt-5.6-luna" or effective.get("reasoning_effort") != "medium":
             raise RuntimeInvariantError("effective model is not Luna/medium")
         result["effective_model"] = dict(effective)
@@ -472,40 +519,48 @@ async def run_partial_case(
             raise RuntimeInvariantError("initial runtime did not expose PTY")
         initial_thread_id, initial_epoch = await _wait_candidate(first, expected=None, seconds=spec.plan.local_window_seconds)
         result["thread_id"] = initial_thread_id
+        initial_spec = replace(spec, plan=replace(spec.plan, thread_id=initial_thread_id))
         tui.command(build_start_prompt(spec))
         initial = await _inspect_until(
-            spec,
+            initial_spec,
             lambda view: view.get("status") == "running" and view.get("segment") == 1 and view.get("completed_steps", 0) >= 1 and view.get("completed_steps", 0) < view.get("total_steps", 1),
             RuntimeWindow.start(local_seconds=spec.plan.local_window_seconds, model_seconds=spec.plan.model_window_seconds).model_deadline,
             inspect_runner,
+            first,
         )
         ownership = _runtime_ownership(first)
         worker_pid = initial.get("worker_pid")
-        if type(worker_pid) is not int or first.tui_identity is None:
+        if type(worker_pid) is not int or first.backend_identity is None:
             raise RuntimeInvariantError("retained worker direct-parent evidence is missing")
-        parent_evidence = capture_parent_guard(worker_pid, first.tui_identity)
-        if not parent_evidence.direct_parent or parent_evidence.parent_pid != first.tui_identity.pid:
-            raise RuntimeInvariantError("retained worker is not directly owned by initial TUI")
+        parent_evidence = capture_parent_guard(worker_pid, first.backend_identity)
+        if not parent_evidence.direct_parent or parent_evidence.parent_pid != first.backend_identity.pid:
+            raise RuntimeInvariantError("retained worker is not directly owned by initial backend")
         result["initial_inspect"] = initial
         result["initial_candidate"] = {"thread_id": initial_thread_id, "connection_epoch": initial_epoch}
         result["parent_guard"] = asdict(parent_evidence) if hasattr(parent_evidence, "__dataclass_fields__") else dict(vars(parent_evidence))
         initial_prefix = _prefix_snapshot(spec, initial)
         stage = "stop"
+        initial_terminal_before = _terminal_event_count(first.bridge, initial_epoch)
         tui.command("/quit")
         quit_exit = await tui.await_exit(RuntimeWindow.start(local_seconds=spec.plan.local_window_seconds, model_seconds=spec.plan.model_window_seconds).local_deadline)
         first_cleanup = await first.close()
+        initial_terminal_after = _terminal_event_count(first.bridge, initial_epoch)
+        if initial_terminal_after <= initial_terminal_before:
+            raise RuntimeInvariantError("initial quit did not produce a new EOF/close")
         stopped = await _inspect_until(
-            spec,
+            initial_spec,
             lambda view: view.get("status") in {"interrupted", "stopped", "running"} and view.get("segment") == 1 and _retained_worker_stopped(initial, view),
             raw_seconds() + spec.plan.local_window_seconds,
             inspect_runner,
+            first,
         )
         stopped_fingerprint = _manifest_fingerprint(spec, stopped)
         stable = await _inspect_until(
-            spec,
+            initial_spec,
             lambda view: _manifest_fingerprint(spec, view) == stopped_fingerprint,
             raw_seconds() + spec.plan.local_window_seconds,
             inspect_runner,
+            first,
         )
         stopped = stable
         if quit_exit != 0 or not _owned_runtime_stopped(first, ownership) or not _retained_worker_stopped(initial, stopped):
@@ -518,6 +573,7 @@ async def run_partial_case(
             "initial_exit_code": quit_exit,
             "initial_tui": tui.evidence,
             "initial_cleanup": first_cleanup,
+            "initial_terminal_events": {"before": initial_terminal_before, "after": initial_terminal_after},
             "ownership": ownership,
         })
         result["phases"].append("stopped")
@@ -539,8 +595,14 @@ async def run_partial_case(
         resume_ownership = _runtime_ownership(second)
         result["candidate"] = {"thread_id": candidate_id, "connection_epoch": epoch}
         result["phases"].append("resume_quiet")
+        quiet_before = await asyncio.to_thread(inspect_runner, dynamic_spec)
+        quiet_fingerprint = _manifest_fingerprint(dynamic_spec, quiet_before)
         await tui.aread_until(raw_seconds() + spec.plan.local_window_seconds)
         result["silent"] = _validate_quiet(bridge, initial_thread_id)
+        quiet_after = await asyncio.to_thread(inspect_runner, dynamic_spec)
+        if _manifest_fingerprint(dynamic_spec, quiet_after) != quiet_fingerprint:
+            raise RuntimeInvariantError("retained task changed during resume quiet window")
+        result["quiet_inspect"] = {"before": quiet_before, "after": quiet_after}
         tui.command("/status")
         status_ids = await tui.async_status_checkpoint(raw_seconds() + spec.plan.local_window_seconds)
         if status_ids != {initial_thread_id}:
@@ -548,7 +610,7 @@ async def run_partial_case(
         if _candidate_id(second.candidate) != (initial_thread_id, epoch) or tui.poll() is not None:
             raise RuntimeInvariantError("resume candidate changed after status")
         result["silent_after_status"] = _validate_quiet(bridge, initial_thread_id)
-        effective_after_status = await _read_effective_model(effective_model_reader, second.config)
+        effective_after_status = await _read_effective_model(effective_model_reader, second.config, getattr(second, "backend_identity", None))
         if effective_after_status.get("model") != "gpt-5.6-luna" or effective_after_status.get("reasoning_effort") != "medium":
             raise RuntimeInvariantError("effective model changed before continue")
         result["effective_model_after_status"] = dict(effective_after_status)
@@ -559,7 +621,7 @@ async def run_partial_case(
         result["continue_input_bytes"] = len(continue_input)
         continued = await _inspect_until(
             dynamic_spec,
-            lambda view: view.get("status") == "completed" and view.get("segment") == 2,
+            lambda view: view.get("status") == "completed" and view.get("segment") == 2 and view.get("effect_count") == view.get("total_steps") and _retained_worker_stopped(view, view),
             raw_seconds() + spec.plan.model_window_seconds,
             inspect_runner,
         )
@@ -568,16 +630,21 @@ async def run_partial_case(
             raise RuntimeInvariantError("retained prefix changed after continue")
         result.update({"continued": continued, "final_prefix": final_prefix, "status_ids": sorted(status_ids)})
         result["phases"].append("continued")
+        resume_terminal_before = _terminal_event_count(bridge, epoch)
         tui.command("/quit")
         final_exit = await tui.await_exit(raw_seconds() + spec.plan.local_window_seconds)
         if final_exit != 0:
             raise RuntimeInvariantError("continued TUI did not exit cleanly")
         second_cleanup = await second.close()
+        resume_terminal_after = _terminal_event_count(bridge, epoch)
+        if resume_terminal_after <= resume_terminal_before:
+            raise RuntimeInvariantError("resume quit did not produce a new EOF/close")
         if second_cleanup.get("failed_pids") or second_cleanup.get("failed_endpoints") or not _owned_runtime_stopped(second, resume_ownership):
             raise RuntimeInvariantError("continued owned runtime cleanup is incomplete")
         result["resume_tui"] = tui.evidence
         result["resume_cleanup"] = second_cleanup
         result["resume_ownership"] = resume_ownership
+        result["resume_terminal_events"] = {"before": resume_terminal_before, "after": resume_terminal_after}
         result["status"] = "observed"
     except BaseException as exc:
         result["failure"] = _failure_record(exc, stage)
@@ -598,6 +665,26 @@ async def run_partial_case(
             }
         case.write_json("trace.json", traces)
         result["trace"] = "trace.json"
+        if result.get("status") == "observed":
+            try:
+                if result.get("cleanup_errors"):
+                    raise RuntimeInvariantError("cleanup errors were recorded")
+                if any(row.get("complete") is not True for row in traces.values()):
+                    raise RuntimeInvariantError("partial trace is incomplete")
+                if result.get("initial_cleanup", {}).get("failed_pids") or result.get("initial_cleanup", {}).get("failed_endpoints"):
+                    raise RuntimeInvariantError("initial cleanup is incomplete")
+                if result.get("resume_cleanup", {}).get("failed_pids") or result.get("resume_cleanup", {}).get("failed_endpoints"):
+                    raise RuntimeInvariantError("resume cleanup is incomplete")
+                if not result.get("resume_terminal_events", {}).get("after", 0) > result.get("resume_terminal_events", {}).get("before", 0):
+                    raise RuntimeInvariantError("resume terminal EOF/close evidence is missing")
+                continued = result.get("continued", {})
+                if continued.get("effect_count") != continued.get("total_steps"):
+                    raise RuntimeInvariantError("continued effect count is incomplete")
+                if dict(spec.protection_hashes()) != dict(preflight["hashes"]):
+                    raise RuntimeInvariantError("partial protection hash changed after execution")
+            except BaseException as exc:
+                result["status"] = "unknown"
+                result["failure"] = _failure_record(exc, "final_gate")
         case.write_json("result.json", result)
     return result
 
