@@ -519,6 +519,15 @@ def test_runtime_config_normalizes_path_inputs(tmp_path):
     assert isinstance(config.cli, Path)
 
 
+def test_backend_argv_uses_native_unix_uri_for_private_socket(tmp_path):
+    config = NativeRuntimeConfig(
+        frontend_socket=tmp_path / "frontend.sock",
+        backend_socket=tmp_path / "backend.sock",
+        cli=tmp_path / "codex",
+    )
+    assert config.backend_argv[-1] == f"unix://{tmp_path / 'backend.sock'}"
+
+
 def test_native_binary_must_match_frozen_sha_before_start(tmp_path):
     binary = tmp_path / "codex"
     binary.write_bytes(b"native")

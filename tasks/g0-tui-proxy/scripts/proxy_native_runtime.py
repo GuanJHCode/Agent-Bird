@@ -200,7 +200,7 @@ class NativeRuntimeConfig:
 
     @property
     def backend_argv(self) -> tuple[str, ...]:
-        return (os.fspath(self.cli), "app-server", "--listen", os.fspath(self.backend_socket))
+        return (os.fspath(self.cli), "app-server", "--listen", f"unix://{self.backend_socket}")
 
     def snapshot_hashes(self) -> HashSnapshot:
         config_hash = sha256_file(self.config_path) if self.config_path is not None else None
