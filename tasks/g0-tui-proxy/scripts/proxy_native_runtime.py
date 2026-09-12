@@ -262,6 +262,12 @@ class AttachmentInferer:
     """Infer one candidate from a complete, contiguous observer event epoch."""
 
     _REQUIRED_METHODS = {"initialize", "thread/start", "skills/list"}
+    _OPAQUE_BOOTSTRAP_METHODS = {
+        "account/read",
+        "account/rateLimits/read",
+        "model/list",
+        "modelProvider/capabilities/read",
+    }
 
     def __init__(self) -> None:
         self._epoch: int | None = None
@@ -344,7 +350,8 @@ class AttachmentInferer:
             self._invalidate("connection_close")
             return
         if kind == "rpc_unknown":
-            self._invalidate("unknown_event")
+            if event.get("method") not in self._OPAQUE_BOOTSTRAP_METHODS:
+                self._invalidate("unknown_event")
             return
         if kind == "websocket_upgrade":
             direction = event.get("direction")

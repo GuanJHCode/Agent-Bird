@@ -1,6 +1,8 @@
 import hashlib
-import os
+import json
+import struct
 import sys
+from types import SimpleNamespace
 from pathlib import Path
 
 import pytest
@@ -16,6 +18,7 @@ from proxy_native_runtime import (  # noqa: E402
     OwnedProcess,
     RuntimeInvariantError,
     RuntimeWindow,
+    _CaptureBridge,
     build_ordinary_tui_argv,
 )
 
@@ -35,6 +38,67 @@ def upgrade_events(epoch=1, start=2):
         {"event": "rpc", "conn_epoch": epoch, "direction": "client", "method": "skills/list", "request_id": 3, "local_seq": start + 6},
         {"event": "rpc_response", "conn_epoch": epoch, "direction": "server", "method": "skills/list", "request_id": 3, "ok": True, "local_seq": start + 7},
     ]
+
+
+def raw_upgrade_request():
+    return (
+        b"GET / HTTP/1.1\r\n"
+        b"Host: localhost\r\n"
+        b"Upgrade: websocket\r\n"
+        b"Connection: Upgrade\r\n"
+        b"Sec-WebSocket-Version: 13\r\n"
+        b"Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n"
+    )
+
+
+def raw_upgrade_response():
+    return (
+        b"HTTP/1.1 101 Switching Protocols\r\n"
+        b"Upgrade: websocket\r\n"
+        b"Connection: Upgrade\r\n"
+        b"Sec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=\r\n\r\n"
+    )
+
+
+def raw_ws_frame(value, *, client):
+    payload = json.dumps(value, separators=(",", ":")).encode()
+    first = 0x81
+    if client:
+        mask = b"\x01\x02\x03\x04"
+        if len(payload) < 126:
+            header = bytes((first, 0x80 | len(payload)))
+        elif len(payload) <= 0xFFFF:
+            header = bytes((first, 0x80 | 126)) + struct.pack(">H", len(payload))
+        else:
+            header = bytes((first, 0x80 | 127)) + struct.pack(">Q", len(payload))
+        encoded = bytes(byte ^ mask[index % 4] for index, byte in enumerate(payload))
+        return header + mask + encoded
+    if len(payload) < 126:
+        return bytes((first, len(payload))) + payload
+    if len(payload) <= 0xFFFF:
+        return bytes((first, 126)) + struct.pack(">H", len(payload)) + payload
+    return bytes((first, 127)) + struct.pack(">Q", len(payload)) + payload
+
+
+def relay_bytes(bridge, connection_id, epoch, direction, data):
+    bridge.on_data(
+        SimpleNamespace(
+            connection_id=connection_id,
+            epoch=epoch,
+            direction=direction,
+            data=data,
+        )
+    )
+
+
+def rpc(bridge, connection_id, epoch, direction, value):
+    relay_bytes(
+        bridge,
+        connection_id,
+        epoch,
+        "frontend_to_backend" if direction == "client" else "backend_to_frontend",
+        raw_ws_frame(value, client=direction == "client"),
+    )
 
 
 def test_ordinary_entry_has_no_remote_model_config_or_prompt_overrides():
@@ -62,6 +126,88 @@ def test_candidate_is_derived_from_observer_events_and_status_is_only_reference(
     assert candidate.session_id == "session-1"
     assert candidate.source == "observer"
     assert "driver-forged" not in repr(candidate)
+
+
+def test_allowlisted_account_model_bootstrap_is_opaque_and_never_counts_as_ready():
+    inferer = AttachmentInferer()
+    inferer.accept(connected_event())
+    for sequence, method in ((2, "account/read"), (3, "model/list")):
+        inferer.accept(
+            {
+                "event": "rpc_unknown",
+                "conn_epoch": 1,
+                "direction": "client",
+                "method": method,
+                "opaque": True,
+                "local_seq": sequence,
+            }
+        )
+    assert inferer.candidate is None
+    for event in upgrade_events(start=4):
+        inferer.accept(event)
+    assert inferer.candidate is not None
+
+
+def test_real_http_ws_bytes_flow_through_observer_bridge_and_reconnect_epochs():
+    from proxy_observer import Observer
+
+    observed = []
+    observer = Observer(emit=observed.append)
+    inferer = AttachmentInferer()
+    bridge = _CaptureBridge(observer, inferer)
+    connection_id = "native-c1"
+    bridge.on_connect(SimpleNamespace(connection_id=connection_id, epoch=1))
+    relay_bytes(bridge, connection_id, 1, "frontend_to_backend", raw_upgrade_request())
+    relay_bytes(bridge, connection_id, 1, "backend_to_frontend", raw_upgrade_response())
+
+    # These native startup calls are intentionally opaque to the allowlist;
+    # they must never themselves make an attachment candidate complete.
+    rpc(bridge, connection_id, 1, "client", {"jsonrpc": "2.0", "id": 1, "method": "account/read", "params": {"private": "redacted"}})
+    rpc(bridge, connection_id, 1, "server", {"jsonrpc": "2.0", "id": 1, "result": {"account": "redacted"}})
+    rpc(bridge, connection_id, 1, "client", {"jsonrpc": "2.0", "id": 2, "method": "model/list", "params": {}})
+    rpc(bridge, connection_id, 1, "server", {"jsonrpc": "2.0", "id": 2, "result": {"models": ["redacted"]}})
+    assert inferer.candidate is None
+
+    rpc(bridge, connection_id, 1, "client", {"jsonrpc": "2.0", "id": 3, "method": "initialize", "params": {}})
+    rpc(bridge, connection_id, 1, "server", {"jsonrpc": "2.0", "id": 3, "result": {}})
+    rpc(bridge, connection_id, 1, "server", {"jsonrpc": "2.0", "method": "thread/started", "params": {"thread": {"id": "thread-1", "sessionId": "session-1", "private": "redacted"}}})
+    rpc(bridge, connection_id, 1, "client", {"jsonrpc": "2.0", "id": 4, "method": "thread/start", "params": {"cwd": "/repo"}})
+    rpc(bridge, connection_id, 1, "server", {"jsonrpc": "2.0", "id": 4, "result": {"thread": {"id": "thread-1", "sessionId": "session-1", "cwd": "/repo", "private": "redacted"}}})
+    rpc(bridge, connection_id, 1, "client", {"jsonrpc": "2.0", "id": 5, "method": "skills/list", "params": {"cwds": ["/repo"], "forceReload": True}})
+    rpc(bridge, connection_id, 1, "server", {"jsonrpc": "2.0", "id": 5, "result": {"skills": ["redacted"]}})
+    assert inferer.candidate is not None
+    assert inferer.candidate.thread_id == "thread-1"
+    assert inferer.status_reference is None
+    assert any(row.get("event") == "rpc_unknown" and row.get("method") == "account/read" for row in observed)
+    assert any(row.get("event") == "rpc_unknown" and row.get("method") == "model/list" for row in observed)
+    assert any(row.get("event") == "rpc" and row.get("method") == "thread/started" for row in observed)
+    assert any(row.get("event") == "rpc_response" and row.get("method") == "thread/start" and row.get("thread", {}).get("id") == "thread-1" for row in observed)
+
+    inferer.clear()
+    assert inferer.candidate is None
+    rpc(bridge, connection_id, 1, "client", {"jsonrpc": "2.0", "id": 6, "method": "thread/unsubscribe", "params": {"threadId": "thread-1"}})
+    rpc(bridge, connection_id, 1, "server", {"jsonrpc": "2.0", "id": 6, "result": {}})
+    rpc(bridge, connection_id, 1, "client", {"jsonrpc": "2.0", "id": 7, "method": "thread/start", "params": {"cwd": "/repo"}})
+    rpc(bridge, connection_id, 1, "server", {"jsonrpc": "2.0", "id": 7, "result": {"thread": {"id": "thread-2", "sessionId": "session-1", "cwd": "/repo"}}})
+    rpc(bridge, connection_id, 1, "client", {"jsonrpc": "2.0", "id": 8, "method": "skills/list", "params": {"cwds": ["/repo"], "forceReload": True}})
+    rpc(bridge, connection_id, 1, "server", {"jsonrpc": "2.0", "id": 8, "result": {"skills": []}})
+    assert inferer.candidate is not None
+    assert inferer.candidate.thread_id == "thread-2"
+
+    rpc(bridge, connection_id, 1, "server", {"jsonrpc": "2.0", "method": "VendorAsyncEvent", "params": {"opaque": "redacted"}})
+    assert inferer.candidate is None
+    assert inferer.invalid_reason == "unknown_event"
+
+    bridge.on_lifecycle(SimpleNamespace(connection_id=connection_id, epoch=1, kind="eof"))
+    assert inferer.candidate is None
+    assert inferer.invalid_reason == "unknown_event"
+
+    bridge.on_connect(SimpleNamespace(connection_id=connection_id, epoch=2))
+    assert inferer.candidate is None
+    assert inferer.invalid_reason is None
+    # A new epoch cannot inherit the old thread or qualify from a partial replay.
+    rpc(bridge, connection_id, 2, "client", {"jsonrpc": "2.0", "id": 1, "method": "skills/list", "params": {"cwds": ["/repo"]}})
+    assert inferer.candidate is None
 
 
 def test_status_reference_alone_never_creates_candidate():
