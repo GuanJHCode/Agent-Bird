@@ -115,6 +115,7 @@ def _handshake_state(
     if initialize_request is None:
         return state
     initialize_index, initialize_id = initialize_request
+    state.update({"initialize_request": True, "initialize_request_id": initialize_id})
     initialize_response = next(
         (
             (index, row)
@@ -131,6 +132,7 @@ def _handshake_state(
     if initialize_response is None:
         return state
     initialize_response_index, _ = initialize_response
+    state["initialize_response"] = True
     initialized_index = next(
         (
             index
@@ -144,6 +146,7 @@ def _handshake_state(
     )
     if initialized_index is None:
         return state
+    state["initialized"] = True
     resume_request = next(
         (
             (index, row.get("request_id"))
@@ -153,14 +156,14 @@ def _handshake_state(
             and row.get("direction") == "client"
             and row.get("method") == "thread/resume"
             and row.get("request_id") is not None
-            and isinstance(row.get("params"), Mapping)
-            and row["params"].get("threadId") == expected_thread_id
+            and row.get("thread_id") == expected_thread_id
         ),
         None,
     )
     if resume_request is None:
         return state
     resume_index, resume_id = resume_request
+    state.update({"resume_request": True, "resume_request_id": resume_id})
     resume_response = next(
         (
             (index, row)
@@ -179,6 +182,7 @@ def _handshake_state(
     if resume_response is None:
         return state
     resume_response_index, _ = resume_response
+    state["resume_response"] = True
     skills_request = next(
         (
             (index, row.get("request_id"))
@@ -194,6 +198,7 @@ def _handshake_state(
     if skills_request is None:
         return state
     skills_index, skills_id = skills_request
+    state.update({"fresh_skills_request": True, "skills_request_id": skills_id})
     skills_response = any(
         index > skills_index
         and row.get("event") == "rpc_response"
@@ -205,21 +210,18 @@ def _handshake_state(
     )
     state.update(
         {
-            "initialize_request": True,
-            "initialize_response": True,
-            "initialized": True,
-            "resume_request": True,
-            "resume_response": True,
-            "fresh_skills_request": True,
             "fresh_skills_response": skills_response,
-            "initialize_request_id": initialize_id,
-            "resume_request_id": resume_id,
-            "skills_request_id": skills_id,
         }
     )
     state["valid"] = bool(
         state["upgrade_client"]
         and state["upgrade_server"]
+        and state["initialize_request"]
+        and state["initialize_response"]
+        and state["initialized"]
+        and state["resume_request"]
+        and state["resume_response"]
+        and state["fresh_skills_request"]
         and state["fresh_skills_response"]
     )
     return state

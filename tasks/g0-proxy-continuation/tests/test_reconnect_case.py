@@ -93,6 +93,18 @@ def test_classify_reconnect_requires_new_epoch_and_fresh_resume():
         old_epoch_invalid=True,
         new_epoch=2,
         handshake=True,
+        candidate=AttachmentCandidate(2, THREAD_ID, "new"),
+        status_exact=True,
+        expected_thread_id=THREAD_ID,
+        model_turns=None,
+        trace_complete=True,
+        identities_ok=True,
+    ) == "unknown"
+    assert classify_reconnect(
+        old_epoch=1,
+        old_epoch_invalid=True,
+        new_epoch=2,
+        handshake=True,
         candidate=None,
         status_exact=False,
         expected_thread_id=THREAD_ID,
@@ -148,17 +160,40 @@ def test_handshake_pairs_request_ids_and_orders_fresh_skills_after_resume():
         {"event": "rpc", "conn_epoch": 2, "direction": "client", "method": "initialize", "request_id": 10},
         {"event": "rpc_response", "conn_epoch": 2, "direction": "server", "method": "initialize", "request_id": 10, "ok": True},
         {"event": "rpc", "conn_epoch": 2, "direction": "client", "method": "initialized", "request_id": None},
-        {"event": "rpc", "conn_epoch": 2, "direction": "client", "method": "thread/resume", "request_id": 20, "params": {"threadId": THREAD_ID}},
+        {"event": "rpc", "conn_epoch": 2, "direction": "client", "method": "thread/resume", "request_id": 20, "thread_id": THREAD_ID},
         {"event": "rpc_response", "conn_epoch": 2, "direction": "server", "method": "thread/resume", "request_id": 20, "ok": True, "thread": {"id": THREAD_ID}},
         {"event": "rpc", "conn_epoch": 2, "direction": "client", "method": "skills/list", "request_id": 30},
         {"event": "rpc_response", "conn_epoch": 2, "direction": "server", "method": "skills/list", "request_id": 30, "ok": True},
     ]
     assert _handshake_state(rows, 2, THREAD_ID)["valid"] is True
+    partial = rows[:3]
+    partial_state = _handshake_state(partial, 2, THREAD_ID)
+    assert partial_state["initialize_request"] is True
+    assert partial_state["initialize_response"] is False
     rows[-1] = {**rows[-1], "request_id": 31}
     assert _handshake_state(rows, 2, THREAD_ID)["valid"] is False
-    rows[-1] = {**rows[-1], "request_id": 30}
-    rows[7], rows[5] = rows[5], rows[7]
-    assert _handshake_state(rows, 2, THREAD_ID)["valid"] is False
+
+
+def test_handshake_accepts_real_resume02_safe_metadata_projection():
+    trace_path = ROOT / "tasks" / "g0-proxy-continuation" / "data" / "proxy-resume-02" / "trace.json"
+    if not trace_path.exists():
+        pytest.skip("retained resume02 trace is unavailable")
+    import json
+
+    events = json.loads(trace_path.read_text(encoding="utf-8"))["events"]
+    methods = {"initialize", "initialized", "thread/resume", "skills/list"}
+    safe_keys = {
+        "event", "conn_epoch", "direction", "method", "request_id", "ok",
+        "thread", "thread_id",
+    }
+    projected = [
+        {key: row[key] for key in safe_keys if key in row}
+        for row in events
+        if row.get("method") in methods or row.get("event") == "websocket_upgrade"
+    ]
+    expected = next(row["thread_id"] for row in projected if row.get("method") == "thread/resume")
+    assert all("params" not in row for row in projected)
+    assert _handshake_state(projected, 1, expected)["valid"] is True
 
 
 def test_live_candidate_gate_rejects_stale_status_snapshot():
@@ -187,20 +222,6 @@ def test_quit_boundary_requires_zero_before_and_new_eof_after_quit():
         count_before_quit=0, count_after_quit=1,
         quit_sent=True, exit_code=0, epoch_reason="eof",
     )["status"] == "observed"
-    assert classify_reconnect(
-        old_epoch=1,
-        old_epoch_invalid=True,
-        new_epoch=2,
-        handshake=True,
-        candidate=AttachmentCandidate(2, THREAD_ID, "new"),
-        status_exact=True,
-        expected_thread_id=THREAD_ID,
-        model_turns=None,
-        trace_complete=True,
-        identities_ok=True,
-    ) == "unknown"
-
-
 def test_run_reconnect_case_disconnects_once_and_qualifies_new_epoch(tmp_path):
     spec = make_spec(tmp_path)
     preflight = prepare_resume_case(spec)
@@ -236,7 +257,7 @@ def test_run_reconnect_case_disconnects_once_and_qualifies_new_epoch(tmp_path):
                         {"event": "rpc", "conn_epoch": 2, "direction": "client", "method": "initialize", "request_id": 10},
                         {"event": "rpc_response", "conn_epoch": 2, "direction": "server", "method": "initialize", "request_id": 10, "ok": True},
                         {"event": "rpc", "conn_epoch": 2, "direction": "client", "method": "initialized", "request_id": None},
-                        {"event": "rpc", "conn_epoch": 2, "direction": "client", "method": "thread/resume", "request_id": 20, "params": {"threadId": THREAD_ID}},
+                        {"event": "rpc", "conn_epoch": 2, "direction": "client", "method": "thread/resume", "request_id": 20, "thread_id": THREAD_ID},
                         {"event": "rpc_response", "conn_epoch": 2, "direction": "server", "method": "thread/resume", "request_id": 20, "ok": True, "thread": {"id": THREAD_ID}},
                         {"event": "rpc", "conn_epoch": 2, "direction": "client", "method": "skills/list", "request_id": 30},
                         {"event": "rpc_response", "conn_epoch": 2, "direction": "server", "method": "skills/list", "request_id": 30, "ok": True},
