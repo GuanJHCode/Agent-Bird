@@ -1,7 +1,9 @@
 import hashlib
 import json
+import os
 import struct
 import sys
+import time
 from types import SimpleNamespace
 from pathlib import Path
 
@@ -12,10 +14,12 @@ sys.path.insert(0, str(SCRIPT_DIR))
 
 from proxy_native_runtime import (  # noqa: E402
     AttachmentInferer,
+    ConnectionIdentity,
     NativeRuntimeConfig,
     NativeRuntime,
     OwnedEndpoint,
     OwnedProcess,
+    PTYDriver,
     RuntimeInvariantError,
     RuntimeWindow,
     _CaptureBridge,
@@ -131,19 +135,37 @@ def test_candidate_is_derived_from_observer_events_and_status_is_only_reference(
 def test_allowlisted_account_model_bootstrap_is_opaque_and_never_counts_as_ready():
     inferer = AttachmentInferer()
     inferer.accept(connected_event())
-    for sequence, method in ((2, "account/read"), (3, "model/list")):
+    for sequence, method in ((2, "account/read"),):
         inferer.accept(
             {
                 "event": "rpc_unknown",
                 "conn_epoch": 1,
-                "direction": "client",
-                "method": method,
-                "opaque": True,
+                    "direction": "client",
+                    "method": method,
+                    "request_id": sequence,
+                    "opaque": True,
                 "local_seq": sequence,
             }
         )
+        inferer.accept(
+            {
+                "event": "rpc_unknown",
+                "conn_epoch": 1,
+                "direction": "server",
+                "method": method,
+                "request_id": sequence,
+                "response": True,
+                "opaque": True,
+                "local_seq": sequence + 1,
+            }
+        )
+    for event in (
+        {"event": "rpc_unknown", "conn_epoch": 1, "direction": "client", "method": "model/list", "request_id": 4, "opaque": True, "local_seq": 4},
+        {"event": "rpc_unknown", "conn_epoch": 1, "direction": "server", "method": "model/list", "request_id": 4, "response": True, "opaque": True, "local_seq": 5},
+    ):
+        inferer.accept(event)
     assert inferer.candidate is None
-    for event in upgrade_events(start=4):
+    for event in upgrade_events(start=6):
         inferer.accept(event)
     assert inferer.candidate is not None
 
@@ -214,6 +236,17 @@ def test_status_reference_alone_never_creates_candidate():
     inferer = AttachmentInferer()
     inferer.record_status_reference({"thread_id": "driver-forged", "selected": "root"})
     assert inferer.candidate is None
+
+
+def test_bootstrap_opaque_requires_client_request_and_matching_server_response():
+    inferer = AttachmentInferer()
+    for event in (
+        {"event": "connection_open", "conn_epoch": 1, "local_seq": 1},
+        {"event": "rpc_unknown", "conn_epoch": 1, "direction": "server", "method": "account/read", "response": True, "request_id": 1, "local_seq": 2},
+    ):
+        inferer.accept(event)
+    assert inferer.candidate is None
+    assert inferer.invalid_reason == "unknown_event"
 
 
 def test_gap_and_eof_invalidate_candidate_immediately():
@@ -317,6 +350,29 @@ def test_owned_cleanup_only_removes_exact_socket_identity_and_owned_pid(monkeypa
     assert not socket_path.exists()
 
 
+def test_permission_denied_process_cleanup_is_not_reported_successful(tmp_path):
+    process = OwnedProcess(pid=1234, birth="birth", executable="/bin/codex")
+    result = NativeRuntimeConfig.cleanup_owned(
+        [process], [], kill=lambda _pid: (_ for _ in ()).throw(PermissionError("denied"))
+    )
+    assert result["pids"] == []
+
+
+def test_real_pty_driver_round_trips_dummy_input_and_waits_for_exit(tmp_path):
+    driver = PTYDriver.spawn(
+        [sys.executable, "-c", "import sys; data=sys.stdin.readline(); print('reply:'+data, end='', flush=True)"],
+        cwd=tmp_path,
+    )
+    try:
+        driver.write(b"ping\n", action="dummy-input")
+        driver.read(1.0)
+        assert b"reply:ping" in driver.screen_tail
+        assert driver.wait(2.0) == 0
+        assert driver.evidence["inputs"][0]["action"] == "dummy-input"
+    finally:
+        driver.close()
+
+
 def test_owned_cleanup_does_not_remove_replaced_endpoint(tmp_path):
     socket_path = tmp_path / "frontend.sock"
     socket_path.write_bytes(b"old")
@@ -376,19 +432,19 @@ def test_native_binary_must_match_frozen_sha_before_start(tmp_path):
         config.require_frozen_binary()
 
 
-def test_hash_failure_during_close_still_finishes_owned_cleanup(tmp_path):
+def test_hash_failure_during_close_still_finishes_owned_cleanup(tmp_path, monkeypatch):
     binary = tmp_path / "codex"
     binary.write_bytes(b"native")
     config = NativeRuntimeConfig(
         frontend_socket=tmp_path / "frontend.sock",
         backend_socket=tmp_path / "backend.sock",
         cli=binary,
-        expected_binary_sha256=hashlib.sha256(b"native").hexdigest(),
     )
     from proxy_native_runtime import RuntimePhase
 
     runtime = NativeRuntime(config)
     runtime.phase = RuntimePhase.BACKEND_RUNNING
+    monkeypatch.setattr("proxy_native_runtime.FIXED_NATIVE_SHA256", hashlib.sha256(b"native").hexdigest())
     runtime._expected_hashes = config.snapshot_hashes()
     binary.write_bytes(b"changed")
     with pytest.raises(RuntimeInvariantError):
@@ -418,6 +474,41 @@ def test_runtime_can_disconnect_one_owned_proxy_leg_without_stopping_listener(tm
     assert runtime._relay.calls == [("conn-1", "frontend")]
 
 
+def test_relay_close_failure_still_runs_owned_process_cleanup(tmp_path):
+    import asyncio
+
+    class Relay:
+        async def close(self):
+            raise RuntimeError("relay close failed")
+
+    class Process:
+        def __init__(self):
+            self.calls = []
+
+        def poll(self):
+            return None
+
+        def terminate(self):
+            self.calls.append("terminate")
+
+        def wait(self, timeout=None):
+            self.calls.append(("wait", timeout))
+            return 0
+
+    config = NativeRuntimeConfig(
+        frontend_socket=tmp_path / "frontend.sock",
+        backend_socket=tmp_path / "backend.sock",
+        cli=tmp_path / "codex",
+    )
+    runtime = NativeRuntime(config)
+    runtime._relay = Relay()
+    runtime._backend = Process()
+    runtime._owned_processes = []
+    with pytest.raises(RuntimeError, match="relay close failed"):
+        asyncio.run(runtime.close())
+    assert runtime.phase.value == "closed"
+
+
 def test_unknown_peer_is_rejected_without_reading_or_capturing_as_tui(tmp_path):
     from types import SimpleNamespace
 
@@ -432,3 +523,56 @@ def test_unknown_peer_is_rejected_without_reading_or_capturing_as_tui(tmp_path):
     assert runtime._authorize_tui(
         SimpleNamespace(pid=1234, birth="birth", executable=None, complete=False)
     ) is False
+
+
+def test_capture_bridge_retains_both_os_peer_identities_and_fds():
+    from proxy_observer import Observer
+
+    frontend = SimpleNamespace(pid=11, birth="tui-birth", executable="/bin/codex", complete=True)
+    backend = SimpleNamespace(pid=22, birth="server-birth", executable="/bin/codex", complete=True)
+    bridge = _CaptureBridge(
+        Observer(),
+        AttachmentInferer(),
+        frontend_identity=OwnedProcess(11, "tui-birth", "/bin/codex"),
+        backend_identity=OwnedProcess(22, "server-birth", "/bin/codex"),
+        strict_identity=True,
+    )
+    bridge.on_connect(
+        SimpleNamespace(
+            connection_id="c1",
+            epoch=1,
+            frontend_fd=31,
+            backend_fd=32,
+            frontend_peer=frontend,
+            backend_peer=backend,
+        )
+    )
+    record = bridge.connection_records["c1"]
+    assert (record.frontend_fd, record.backend_fd, record.epoch) == (31, 32, 1)
+    assert record.frontend_peer.pid == 11
+    assert record.backend_peer.pid == 22
+
+
+def test_runtime_backend_authorizer_requires_the_registered_native_identity(tmp_path):
+    config = NativeRuntimeConfig(
+        frontend_socket=tmp_path / "frontend.sock",
+        backend_socket=tmp_path / "backend.sock",
+        cli=tmp_path / "codex",
+    )
+    runtime = NativeRuntime(config)
+    runtime._backend_identity = OwnedProcess(22, "server-birth", "/bin/codex")
+    good = SimpleNamespace(pid=22, birth="server-birth", executable="/bin/codex", complete=True)
+    foreign = SimpleNamespace(pid=23, birth="server-birth", executable="/bin/codex", complete=True)
+    assert runtime._authorize_backend(good) is True
+    assert runtime._authorize_backend(foreign) is False
+
+
+def test_case_directory_and_artifacts_are_exclusive(tmp_path):
+    from proxy_native_runtime import CaseDirectory
+
+    case = CaseDirectory.create(tmp_path / "proxy-attach-01")
+    case.write_json("result.json", {"case": "proxy-attach-01"})
+    with pytest.raises(FileExistsError):
+        case.write_json("result.json", {"case": "replacement"})
+    with pytest.raises(FileExistsError):
+        CaseDirectory.create(tmp_path / "proxy-attach-01")

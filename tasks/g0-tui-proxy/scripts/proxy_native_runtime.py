@@ -14,16 +14,26 @@ by a later, reviewed experiment.
 
 from __future__ import annotations
 
+import asyncio
+import argparse
+import errno
 import hashlib
+import json
 import os
 import platform
+import pty
+import re
+import select
 import signal
+import shutil
 import subprocess
+import struct
+import termios
 import time
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Iterable, Mapping
+from typing import Any, Callable, Iterable, Mapping, Sequence
 
 
 FIXED_NATIVE_SHA256 = "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc"
@@ -99,6 +109,25 @@ def _capture_process(process: Any, fallback: Path) -> OwnedProcess:
     return OwnedProcess(pid, birth, os.path.realpath(os.fspath(executable)))
 
 
+def _process_holds_socket(pid: int, path: Path) -> bool:
+    lsof = shutil.which("lsof")
+    if lsof is None:
+        return False
+    try:
+        result = subprocess.run(
+            (lsof, "-a", "-U", "-Fn", "-p", str(pid)),
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    wanted = os.fspath(path)
+    names = {line[1:] for line in result.stdout.splitlines() if line.startswith("n")}
+    return wanted in names
+
+
 @dataclass(frozen=True)
 class OwnedProcess:
     pid: int
@@ -137,15 +166,16 @@ class NativeRuntimeConfig:
     frontend_socket: Path
     backend_socket: Path
     cli: Path = DEFAULT_CLI
+    cwd: Path = field(default_factory=Path.cwd)
     config_path: Path | None = None
     local_window_seconds: float = LOCAL_WINDOW_SECONDS
     model_window_seconds: float = MODEL_WINDOW_SECONDS
-    expected_binary_sha256: str = FIXED_NATIVE_SHA256
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "frontend_socket", Path(self.frontend_socket))
         object.__setattr__(self, "backend_socket", Path(self.backend_socket))
         object.__setattr__(self, "cli", Path(self.cli))
+        object.__setattr__(self, "cwd", Path(self.cwd))
         if self.config_path is not None:
             object.__setattr__(self, "config_path", Path(self.config_path))
         if self.frontend_socket == self.backend_socket:
@@ -170,9 +200,9 @@ class NativeRuntimeConfig:
         return HashSnapshot(self.binary_sha256, config_hash)
 
     def require_frozen_binary(self) -> None:
-        if self.binary_sha256 != self.expected_binary_sha256:
+        if self.binary_sha256 != FIXED_NATIVE_SHA256:
             raise RuntimeInvariantError(
-                f"native binary SHA256 mismatch: expected {self.expected_binary_sha256}"
+                f"native binary SHA256 mismatch: expected {FIXED_NATIVE_SHA256}"
             )
 
     def verify_hashes(self, expected: HashSnapshot) -> None:
@@ -210,7 +240,10 @@ class NativeRuntimeConfig:
                     continue
             try:
                 killer(process.pid)
-            except (ProcessLookupError, PermissionError):
+            except PermissionError:
+                continue
+            except ProcessLookupError:
+                # Already absent is a completed stop observation.
                 pass
             cleaned_pids.append(process.pid)
         for endpoint in endpoints:
@@ -250,12 +283,177 @@ class RuntimeWindow:
         return (time.monotonic() if now is None else float(now)) >= self.model_deadline
 
 
+_SESSION_RE = re.compile(r"(?m)^[ \t│|]*Session:[ \t]*([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})[ \t│|]*$")
+
+
+class PTYDriver:
+    """Bounded, real PTY driver with an in-memory screen tail only."""
+
+    def __init__(self, pid: int, fd: int) -> None:
+        self.pid = pid
+        self.fd = fd
+        self.started_at = time.monotonic()
+        self.digest = hashlib.sha256()
+        self.byte_count = 0
+        self.screen_tail = b""
+        self.exit_code: int | None = None
+        self.eof = False
+        self.inputs: list[dict[str, Any]] = []
+        self.status_ids: set[str] = set()
+
+    @classmethod
+    def spawn(cls, argv: Sequence[str], *, cwd: str | os.PathLike[str]) -> "PTYDriver":
+        if not argv or any(not isinstance(item, str) or not item for item in argv):
+            raise ValueError("PTY argv must be non-empty strings")
+        pid, fd = pty.fork()
+        if pid == 0:
+            os.chdir(cwd)
+            os.environ["TERM"] = "xterm-256color"
+            os.execvp(argv[0], list(argv))
+            raise AssertionError("execvp returned")
+        driver = cls(pid, fd)
+        fcntl = __import__("fcntl")
+        fcntl.ioctl(fd, termios.TIOCSWINSZ, struct.pack("HHHH", 60, 200, 0, 0))
+        return driver
+
+    def poll(self) -> int | None:
+        if self.exit_code is not None:
+            return self.exit_code
+        pid, status = os.waitpid(self.pid, os.WNOHANG)
+        if pid:
+            self.exit_code = os.waitstatus_to_exitcode(status)
+        return self.exit_code
+
+    def _capture(self, chunk: bytes) -> None:
+        self.digest.update(chunk)
+        self.byte_count += len(chunk)
+        self.screen_tail = (self.screen_tail + chunk)[-262144:]
+        text = self.screen_tail.decode("utf-8", "replace")
+        self.status_ids.update(_SESSION_RE.findall(_strip_terminal_controls(text)))
+
+    def read(self, seconds: float) -> dict[str, Any]:
+        if not 0 < seconds <= 5:
+            raise ValueError("PTY read must be bounded to five seconds")
+        deadline = time.monotonic() + seconds
+        while not self.eof and time.monotonic() < deadline:
+            remaining = max(0.001, min(0.1, deadline - time.monotonic()))
+            ready, _, _ = select.select([self.fd], [], [], remaining)
+            if ready:
+                try:
+                    chunk = os.read(self.fd, 16384)
+                except OSError as exc:
+                    if exc.errno not in {errno.EIO, errno.EBADF}:
+                        raise
+                    self.eof = True
+                    break
+                if not chunk:
+                    self.eof = True
+                    break
+                self._capture(chunk)
+            self.poll()
+        self.poll()
+        return self.evidence
+
+    def write(self, data: bytes, *, action: str) -> None:
+        if self.poll() is not None:
+            raise RuntimeInvariantError("TUI PTY already exited")
+        if not isinstance(data, bytes) or not data:
+            raise ValueError("PTY input must be non-empty bytes")
+        position = 0
+        while position < len(data):
+            written = os.write(self.fd, data[position:])
+            if written <= 0:
+                raise OSError("PTY write made no progress")
+            position += written
+        self.inputs.append({"at_monotonic": time.monotonic(), "action": action, "bytes": len(data), "sha256": hashlib.sha256(data).hexdigest()})
+
+    def command(self, command: str) -> None:
+        if not isinstance(command, str) or not command or any(char in command for char in "\r\n\x1b"):
+            raise ValueError("TUI command must be one fixed line")
+        self.write(b"\x1b[200~" + command.encode() + b"\x1b[201~", action=command + "-paste")
+        self.write(b"\r", action=command + "-submit")
+
+    def status_checkpoint(self, seconds: float) -> set[str]:
+        self.status_ids.clear()
+        self.read(seconds)
+        return set(self.status_ids)
+
+    def wait(self, seconds: float) -> int | None:
+        if not 0 < seconds <= 10:
+            raise ValueError("bounded PTY wait required")
+        deadline = time.monotonic() + seconds
+        while self.poll() is None and time.monotonic() < deadline:
+            self.read(min(0.2, max(0.001, deadline - time.monotonic())))
+        return self.poll()
+
+    def terminate(self, seconds: float = 10.0) -> bool:
+        if self.poll() is not None:
+            return True
+        os.kill(self.pid, signal.SIGTERM)
+        if self.wait(seconds) is not None:
+            return True
+        os.kill(self.pid, signal.SIGKILL)
+        return self.wait(seconds) is not None
+
+    @property
+    def evidence(self) -> dict[str, Any]:
+        result: dict[str, Any] = {
+            "pid": self.pid,
+            "bytes": self.byte_count,
+            "sha256": self.digest.hexdigest(),
+            "exit_code": self.exit_code,
+            "inputs": list(self.inputs),
+        }
+        if len(self.status_ids) == 1:
+            result["status_session_id"] = next(iter(self.status_ids))
+        elif len(self.status_ids) > 1:
+            result["ambiguous_status_session"] = True
+        return result
+
+    def close(self) -> None:
+        if self.poll() is None:
+            raise RuntimeInvariantError("refuse implicit shutdown of a live PTY")
+        try:
+            os.close(self.fd)
+        except OSError as exc:
+            if exc.errno != errno.EBADF:
+                raise
+
+
+def _strip_terminal_controls(text: str) -> str:
+    text = re.sub(r"\x1b\[[0-9;]*[Hf]", "\n", text)
+    return re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", text)
+
+
 @dataclass(frozen=True)
 class AttachmentCandidate:
     connection_epoch: int
     thread_id: str
     session_id: str | None
     source: str = "observer"
+
+
+@dataclass(frozen=True)
+class ConnectionIdentity:
+    connection_id: str
+    epoch: int
+    frontend_fd: int
+    backend_fd: int
+    frontend_peer: Any
+    backend_peer: Any
+
+
+def _peer_matches(peer: Any, expected: OwnedProcess | None) -> bool:
+    if expected is None:
+        return False
+    executable = getattr(peer, "executable", None)
+    return bool(
+        getattr(peer, "complete", False)
+        and getattr(peer, "pid", None) == expected.pid
+        and getattr(peer, "birth", None) == expected.birth
+        and isinstance(executable, (str, bytes, os.PathLike))
+        and os.path.realpath(executable) == expected.executable
+    )
 
 
 class AttachmentInferer:
@@ -281,6 +479,7 @@ class AttachmentInferer:
         self._candidate: AttachmentCandidate | None = None
         self._status_reference: Mapping[str, Any] | None = None
         self._clear_pending = False
+        self._bootstrap_pending: dict[tuple[str, Any], str] = {}
 
     @property
     def candidate(self) -> AttachmentCandidate | None:
@@ -350,7 +549,21 @@ class AttachmentInferer:
             self._invalidate("connection_close")
             return
         if kind == "rpc_unknown":
-            if event.get("method") not in self._OPAQUE_BOOTSTRAP_METHODS:
+            method = event.get("method")
+            request_id = event.get("request_id")
+            if method not in self._OPAQUE_BOOTSTRAP_METHODS:
+                self._invalidate("unknown_event")
+            elif event.get("response") is True:
+                key = ("client", request_id)
+                if key not in self._bootstrap_pending or self._bootstrap_pending.pop(key) != method:
+                    self._invalidate("unknown_event")
+            elif event.get("direction") == "client" and request_id is not None:
+                key = ("client", request_id)
+                if key in self._bootstrap_pending:
+                    self._invalidate("duplicate_bootstrap_request")
+                else:
+                    self._bootstrap_pending[key] = method
+            else:
                 self._invalidate("unknown_event")
             return
         if kind == "websocket_upgrade":
@@ -392,9 +605,10 @@ class AttachmentInferer:
         self._responses.clear()
         self._thread_id = None
         self._session_id = None
+        self._bootstrap_pending.clear()
 
     def _maybe_candidate(self) -> None:
-        if self._invalid_reason is not None or self._thread_id is None:
+        if self._invalid_reason is not None or self._thread_id is None or self._bootstrap_pending:
             return
         if self._upgrades == {"client", "server"} and self._REQUIRED_METHODS <= self._requests and self._REQUIRED_METHODS <= self._responses:
             assert self._epoch is not None
@@ -425,15 +639,44 @@ class RuntimePhase(str, Enum):
 class _CaptureBridge:
     """Adapt transport capture callbacks to the side-channel observer."""
 
-    def __init__(self, observer: Any, inferer: AttachmentInferer) -> None:
+    def __init__(
+        self,
+        observer: Any,
+        inferer: AttachmentInferer,
+        *,
+        frontend_identity: OwnedProcess | None = None,
+        backend_identity: OwnedProcess | None = None,
+        strict_identity: bool = False,
+    ) -> None:
         self.observer = observer
         self.inferer = inferer
+        self.frontend_identity = frontend_identity
+        self.backend_identity = backend_identity
+        self.strict_identity = strict_identity
+        self.connection_records: dict[str, ConnectionIdentity] = {}
+        self.identity_errors: dict[str, str] = {}
 
     def _accept_rows(self, rows: Iterable[Mapping[str, Any]]) -> None:
         for row in rows:
             self.inferer.accept(row)
 
     def on_connect(self, event: Any) -> None:
+        record = ConnectionIdentity(
+            event.connection_id,
+            event.epoch,
+            int(getattr(event, "frontend_fd", -1)),
+            int(getattr(event, "backend_fd", -1)),
+            getattr(event, "frontend_peer", None),
+            getattr(event, "backend_peer", None),
+        )
+        self.connection_records[event.connection_id] = record
+        if self.strict_identity and (
+            not _peer_matches(record.frontend_peer, self.frontend_identity)
+            or not _peer_matches(record.backend_peer, self.backend_identity)
+        ):
+            self.identity_errors[event.connection_id] = "connection_identity_mismatch"
+            self.inferer.invalidate("connection_identity_mismatch")
+            return
         epoch = self.observer.open(event.connection_id, conn_epoch=event.epoch)
         self._accept_rows(self.observer.drain_events())
         if epoch != event.epoch:
@@ -473,7 +716,11 @@ class NativeRuntime:
         self._spawn_process = spawn_process or subprocess.Popen
         self._backend: Any | None = None
         self._tui: Any | None = None
+        self._tui_driver: PTYDriver | None = None
         self._relay: Any | None = None
+        self._bridge: _CaptureBridge | None = None
+        self._backend_identity: OwnedProcess | None = None
+        self._tui_identity: OwnedProcess | None = None
         self._owned_processes: list[OwnedProcess] = []
         self._owned_endpoints: list[OwnedEndpoint] = []
         self._expected_hashes: HashSnapshot | None = None
@@ -482,7 +729,11 @@ class NativeRuntime:
 
     @property
     def tui_identity(self) -> OwnedProcess | None:
-        return self._owned_processes[-1] if self._tui is not None and self._owned_processes else None
+        return self._tui_identity
+
+    @property
+    def backend_identity(self) -> OwnedProcess | None:
+        return self._backend_identity
 
     @property
     def candidate(self) -> AttachmentCandidate | None:
@@ -518,6 +769,23 @@ class NativeRuntime:
             and bool(getattr(peer, "complete", False))
         )
 
+    def _authorize_backend(self, peer: Any) -> bool:
+        return _peer_matches(peer, self._backend_identity)
+
+    async def _wait_backend_ready(self) -> None:
+        if self._backend is None or self.window is None or self._backend_identity is None:
+            raise RuntimeInvariantError("backend readiness checked before spawn")
+        while time.monotonic() < self.window.local_deadline:
+            poll = self._backend.poll()
+            if poll is not None:
+                raise RuntimeInvariantError(f"native backend exited before ready: {poll}")
+            if self.config.backend_socket.exists() and _process_holds_socket(
+                self._backend_identity.pid, self.config.backend_socket
+            ):
+                return
+            await asyncio.sleep(min(0.05, max(0.001, self.window.local_deadline - time.monotonic())))
+        raise TimeoutError("native backend did not expose its owned private socket within 10 seconds")
+
     async def start(self) -> None:
         if self.phase is not RuntimePhase.NEW:
             raise RuntimeInvariantError(f"runtime cannot start from {self.phase.value}")
@@ -532,11 +800,17 @@ class NativeRuntime:
             model_seconds=self.config.model_window_seconds,
         )
         self._backend = self._spawn_process(
-            list(self.config.backend_argv), stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+            list(self.config.backend_argv),
+            cwd=self.config.cwd,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
         )
-        self._owned_processes.append(_capture_process(self._backend, self.config.cli))
+        self._backend_identity = _capture_process(self._backend, self.config.cli)
+        self._owned_processes.append(self._backend_identity)
         self.phase = RuntimePhase.BACKEND_RUNNING
         try:
+            await self._wait_backend_ready()
             if self._relay_factory is None:
                 from proxy_transport import ProxyServer
 
@@ -545,12 +819,19 @@ class NativeRuntime:
                 from proxy_observer import Observer
 
                 self.observer = Observer()
-            bridge = _CaptureBridge(self.observer, self.inferer)
+            bridge = _CaptureBridge(
+                self.observer,
+                self.inferer,
+                backend_identity=self._backend_identity,
+                strict_identity=True,
+            )
+            self._bridge = bridge
             self._relay = self._relay_factory(
                 self.config.frontend_socket,
                 self.config.backend_socket,
                 bridge,
                 authorize_peer=self._authorize_tui,
+                authorize_backend_peer=self._authorize_backend,
             )
             await self._relay.start()
             if self.config.backend_socket.exists():
@@ -559,10 +840,11 @@ class NativeRuntime:
             self.phase = RuntimePhase.PROXY_RUNNING
             # This is deliberately synchronous after await relay.start: spawn
             # and registration happen in one loop turn before peer callbacks.
-            self._tui = self._spawn_process(
-                list(self.config.tui_argv), stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-            )
-            self._owned_processes.append(_capture_process(self._tui, self.config.cli))
+            self._tui_driver = PTYDriver.spawn(list(self.config.tui_argv), cwd=self.config.cwd)
+            self._tui = self._tui_driver
+            self._tui_identity = _capture_process(self._tui_driver, self.config.cli)
+            self._owned_processes.append(self._tui_identity)
+            bridge.frontend_identity = self._tui_identity
             self.phase = RuntimePhase.TUI_RUNNING
         except BaseException:
             await self.close()
@@ -571,21 +853,241 @@ class NativeRuntime:
     async def close(self) -> dict[str, list[Any]]:
         if self.phase is RuntimePhase.CLOSED:
             return {"pids": [], "endpoints": []}
+        relay_error: BaseException | None = None
         if self._relay is not None:
-            await self._relay.close()
+            try:
+                await self._relay.close()
+            except BaseException as exc:
+                relay_error = exc
             self._relay = None
-        result = NativeRuntimeConfig.cleanup_owned(self._owned_processes, self._owned_endpoints)
+        failed_pids: list[int] = []
+        if self._tui_driver is not None:
+            try:
+                if not self._tui_driver.terminate():
+                    failed_pids.append(self._tui_driver.pid)
+                self._tui_driver.close()
+            except (OSError, RuntimeError, RuntimeInvariantError):
+                failed_pids.append(self._tui_driver.pid)
+        if self._backend is not None:
+            try:
+                if self._backend.poll() is None:
+                    self._backend.terminate()
+                    try:
+                        self._backend.wait(timeout=10)
+                    except subprocess.TimeoutExpired:
+                        self._backend.kill()
+                        self._backend.wait(timeout=10)
+                if self._backend.poll() is None and self._backend_identity is not None:
+                    failed_pids.append(self._backend_identity.pid)
+            except (OSError, PermissionError, subprocess.SubprocessError):
+                if self._backend_identity is not None:
+                    failed_pids.append(self._backend_identity.pid)
+        result = NativeRuntimeConfig.cleanup_owned([], self._owned_endpoints)
         self._owned_processes.clear()
         self._owned_endpoints.clear()
         self.phase = RuntimePhase.CLOSED
         if self._expected_hashes is not None:
             self.config.verify_hashes(self._expected_hashes)
+        if failed_pids:
+            result["failed_pids"] = failed_pids
+        if relay_error is not None:
+            raise relay_error
+        if failed_pids:
+            raise RuntimeInvariantError("owned process did not exit after bounded cleanup")
         return result
+
+
+@dataclass(frozen=True)
+class CaseDirectory:
+    path: Path
+
+    @classmethod
+    def create(cls, path: str | os.PathLike[str]) -> "CaseDirectory":
+        target = Path(path)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.mkdir(mode=0o700)
+        return cls(target)
+
+    def write_json(self, name: str, value: Mapping[str, Any]) -> Path:
+        if Path(name).name != name or not name.endswith(".json"):
+            raise ValueError("case artifact name must be a single JSON filename")
+        target = self.path / name
+        payload = (json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n").encode()
+        fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        try:
+            with os.fdopen(fd, "wb") as stream:
+                stream.write(payload)
+                stream.flush()
+                os.fsync(stream.fileno())
+        except BaseException:
+            try:
+                os.unlink(target)
+            except FileNotFoundError:
+                pass
+            raise
+        return target
+
+
+def _peer_summary(peer: Any) -> dict[str, Any] | None:
+    if peer is None:
+        return None
+    return {
+        key: getattr(peer, key, None)
+        for key in ("pid", "uid", "birth", "executable", "complete", "source")
+    }
+
+
+def _connection_summary(record: ConnectionIdentity) -> dict[str, Any]:
+    return {
+        "connection_id": record.connection_id,
+        "epoch": record.epoch,
+        "frontend_fd": record.frontend_fd,
+        "backend_fd": record.backend_fd,
+        "frontend_peer": _peer_summary(record.frontend_peer),
+        "backend_peer": _peer_summary(record.backend_peer),
+    }
+
+
+async def run_case(
+    config: NativeRuntimeConfig,
+    case_dir: str | os.PathLike[str],
+    *,
+    runtime_factory: Callable[[NativeRuntimeConfig], NativeRuntime] = NativeRuntime,
+) -> dict[str, Any]:
+    """Run the bounded zero-model static operation sequence.
+
+    This is the only executable experiment entry.  It writes a new case
+    directory with O_EXCL artifacts and never writes PTY screen text.
+    """
+
+    case = CaseDirectory.create(case_dir)
+    runtime = runtime_factory(config)
+    result: dict[str, Any] = {
+        "case": "proxy-attach-01",
+        "status": "unknown",
+        "model_turns": 0,
+        "steps": [],
+        "protected_hashes": None,
+        "connections": [],
+    }
+
+    def step(name: str, **fields: Any) -> None:
+        result["steps"].append({"name": name, **fields})
+
+    def check_window(name: str, window: RuntimeWindow) -> float:
+        remaining = window.local_deadline - time.monotonic()
+        if remaining <= 0:
+            raise TimeoutError(f"{name} exceeded its local 10 second window")
+        return remaining
+
+    try:
+        result["protected_hashes"] = asdict(config.snapshot_hashes())
+        await runtime.start()
+        tui = runtime._tui_driver
+        if tui is None:
+            raise RuntimeInvariantError("runtime did not register its PTY TUI")
+        initial_window = RuntimeWindow.start(local_seconds=config.local_window_seconds, model_seconds=config.model_window_seconds)
+        while runtime.candidate is None and not initial_window.local_expired():
+            tui.read(min(1.0, check_window("initial-readiness", initial_window)))
+        step(
+            "initial-readiness",
+            candidate=asdict(runtime.candidate) if runtime.candidate is not None else None,
+            tui=tui.evidence,
+        )
+
+        status_window = RuntimeWindow.start(local_seconds=config.local_window_seconds, model_seconds=config.model_window_seconds)
+        tui.command("/status")
+        tui.status_checkpoint(min(5.0, check_window("status-initial", status_window)))
+        status_ids = sorted(tui.status_ids)
+        runtime.record_status_reference({"session_id": status_ids[0]} if len(status_ids) == 1 else {"screen_match": False})
+        step("status-initial", session_ids=status_ids, screen_match=len(status_ids) == 1)
+
+        clear_window = RuntimeWindow.start(local_seconds=config.local_window_seconds, model_seconds=config.model_window_seconds)
+        runtime.inferer.clear()
+        tui.command("/clear")
+        while runtime.candidate is None and not clear_window.local_expired():
+            tui.read(min(1.0, check_window("clear-replay", clear_window)))
+        step(
+            "clear-replay",
+            candidate=asdict(runtime.candidate) if runtime.candidate is not None else None,
+            tui=tui.evidence,
+        )
+
+        status_window = RuntimeWindow.start(local_seconds=config.local_window_seconds, model_seconds=config.model_window_seconds)
+        tui.command("/status")
+        tui.status_checkpoint(min(5.0, check_window("status-after-clear", status_window)))
+        status_ids = sorted(tui.status_ids)
+        runtime.record_status_reference({"session_id": status_ids[0]} if len(status_ids) == 1 else {"screen_match": False})
+        step("status-after-clear", session_ids=status_ids, screen_match=len(status_ids) == 1)
+
+        connection_id = next(reversed(runtime._bridge.connection_records), None) if runtime._bridge else None
+        if connection_id is not None:
+            disconnect_window = RuntimeWindow.start(local_seconds=config.local_window_seconds, model_seconds=config.model_window_seconds)
+            disconnected = await runtime.disconnect(connection_id, leg="frontend")
+            tui.read(min(2.0, check_window("disconnect", disconnect_window)))
+            await asyncio.sleep(0)
+            step("disconnect", connection_id=connection_id, disconnected=disconnected, candidate=asdict(runtime.candidate) if runtime.candidate else None)
+
+        quit_window = RuntimeWindow.start(local_seconds=config.local_window_seconds, model_seconds=config.model_window_seconds)
+        if tui.poll() is None:
+            tui.command("/quit")
+            exit_code = tui.wait(min(10.0, check_window("quit", quit_window)))
+        else:
+            exit_code = tui.poll()
+        step("quit", exit_code=exit_code, tui=tui.evidence)
+        result["connections"] = [_connection_summary(record) for record in runtime._bridge.connection_records.values()] if runtime._bridge else []
+        result["status"] = "observed" if runtime.candidate is None else "unknown"
+    except BaseException as exc:
+        result["error"] = {"type": type(exc).__name__, "message": str(exc)}
+    finally:
+        try:
+            await runtime.close()
+        except BaseException as exc:
+            result["cleanup_error"] = {"type": type(exc).__name__, "message": str(exc)}
+        try:
+            config.verify_hashes(HashSnapshot(**result["protected_hashes"]))
+        except BaseException as exc:
+            result["protection_error"] = {"type": type(exc).__name__, "message": str(exc)}
+        case.write_json("result.json", result)
+    return result
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="controlled zero-model native proxy case")
+    parser.add_argument("--run", action="store_true", help="execute the explicitly requested native case")
+    parser.add_argument("--case-dir", type=Path)
+    parser.add_argument("--frontend-socket", type=Path)
+    parser.add_argument("--backend-socket", type=Path)
+    parser.add_argument("--cwd", type=Path, default=Path.cwd())
+    parser.add_argument("--config", type=Path)
+    parser.add_argument("--cli", type=Path, default=DEFAULT_CLI)
+    args = parser.parse_args(argv)
+    if not args.run:
+        print("prepared; pass --run with explicit case and private socket paths")
+        return 0
+    if args.case_dir is None or args.frontend_socket is None or args.backend_socket is None:
+        parser.error("--run requires --case-dir, --frontend-socket, and --backend-socket")
+    result = asyncio.run(
+        run_case(
+            NativeRuntimeConfig(
+                frontend_socket=args.frontend_socket,
+                backend_socket=args.backend_socket,
+                cwd=args.cwd,
+                config_path=args.config,
+                cli=args.cli,
+            ),
+            args.case_dir,
+        )
+    )
+    print(json.dumps(result, sort_keys=True))
+    return 0 if "error" not in result and "cleanup_error" not in result else 1
 
 
 __all__ = [
     "AttachmentCandidate",
     "AttachmentInferer",
+    "CaseDirectory",
+    "ConnectionIdentity",
     "DEFAULT_CLI",
     "FIXED_NATIVE_SHA256",
     "HashSnapshot",
@@ -593,9 +1095,16 @@ __all__ = [
     "NativeRuntimeConfig",
     "OwnedEndpoint",
     "OwnedProcess",
+    "PTYDriver",
     "RuntimeInvariantError",
     "RuntimePhase",
     "RuntimeWindow",
     "build_ordinary_tui_argv",
     "sha256_file",
+    "main",
+    "run_case",
 ]
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

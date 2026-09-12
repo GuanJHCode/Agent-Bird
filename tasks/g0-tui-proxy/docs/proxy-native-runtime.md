@@ -20,5 +20,21 @@ runtime 保存二进制/配置摘要以及自有进程的 birth/executable。关
 的 socket 或无法确认身份的进程保留。窗口为本地操作 10 秒，必要模型轮次 120 秒，
 但本实现没有启动模型轮次。
 
-当前离线验证覆盖 runtime、transport、observer 共 39 项。尚未执行 native、TUI
+当前离线验证覆盖 runtime、transport、observer 共 61 项。尚未执行 native、TUI
 或模型，也不把离线通过当作原生附着证据。
+
+显式运行入口为：
+
+```text
+python3 tasks/g0-tui-proxy/scripts/proxy_native_runtime.py --run \
+  --case-dir <new-proxy-attach-01-dir> \
+  --frontend-socket <empty-default-socket> \
+  --backend-socket <private-backend-socket> \
+  --cwd <test-repo>
+```
+
+不带 `--run` 只打印准备提示。`--run` 使用专用 PTY 驱动 TUI，按每阶段 10 秒
+窗口执行 initial readiness、`/status`、`/clear`、再次 `/status`、前端 leg
+disconnect 和 quit；模型轮次没有入口。case 目录及 `result.json` 均以 O_EXCL
+创建，PTY 屏幕正文只保留内存尾部，结果只写白名单 Session ID、RPC/连接身份、
+摘要和步骤事实。
