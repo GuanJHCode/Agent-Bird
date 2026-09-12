@@ -5,10 +5,12 @@ import hashlib
 import json
 import os
 import pathlib
+import stat
 import tempfile
 import unittest
 import warnings
 from unittest.mock import patch
+from types import SimpleNamespace
 
 import native_standalone as probe
 
@@ -22,9 +24,9 @@ def binding():
     return {"version": 1, "nonce": NONCE, "controller_thread_id": ROOT, "controller_epoch": 1,
             "expected_cwd": "/private/g0/repo", "prior_turn_id": TURN, "native_cli_version": "0.153.4",
             "boot_id": BOOT, "service": {"pid": 1234, "uid": os.getuid(), "birth": "Fri Sep 11 10:00:00 2026",
-            "comm": "/private/g0/codex", "socket_path": "/private/g0/native.sock", "socket_dev": 1,
+            "comm": "codex", "executable_path": "/private/g0/codex", "socket_path": "/private/g0/native.sock", "socket_dev": 1,
             "socket_ino": 2, "native_binary_sha256": "b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3"},
-            "tui": {"pid": 1235, "uid": os.getuid(), "birth": "Fri Sep 11 10:00:01 2026", "comm": "/private/g0/codex",
+            "tui": {"pid": 1235, "uid": os.getuid(), "birth": "Fri Sep 11 10:00:01 2026", "comm": "codex", "executable_path": "/private/g0/codex",
                     "native_binary_sha256": "b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3"},
             "go_binary": "/private/g0/lab", "go_binary_sha256": "feb9b9ad969abca5ff35db28c0f0d8d920dc0778d7aac68a90952900e989a285",
             "job_dir": "/private/g0/job", "controller_evidence_sha256": "a" * 64}
@@ -47,6 +49,39 @@ def thread_result(source="vscode"):
 
 
 class NativeStandaloneTests(unittest.TestCase):
+    def test_live_kernel_executable_must_match_for_each_role_even_without_rehash(self):
+        value = binding()
+        for role in ("service", "tui"):
+            value[role].update(comm="codex", executable_path="/private/g0/codex")
+        def ps(args, _timeout):
+            process = next(value[role] for role in ("service", "tui") if str(value[role]["pid"]) == args[2])
+            return f'{process["pid"]} {process["uid"]} {process["birth"]} {process["comm"]}\n'.encode()
+        info = SimpleNamespace(st_mode=stat.S_IFSOCK | 0o600, st_uid=os.getuid(), st_dev=1, st_ino=2)
+        for changed_role in ("service", "tui"):
+            def kernel_path(pid):
+                return "/unexpected/native" if pid == value[changed_role]["pid"] else "/private/g0/codex"
+            with self.subTest(role=changed_role), patch.object(probe, "command_output", side_effect=ps), patch.object(probe, "current_clock", return_value={"boot_id": BOOT}), patch.object(probe.os, "lstat", return_value=info), patch.object(probe, "process_executable_path", side_effect=kernel_path, create=True):
+                with self.assertRaises(probe.ProbeError):
+                    probe.verify_machine(value, hashes=False)
+
+    def test_comm_and_executable_path_are_separate_required_observations(self):
+        value = binding()
+        for role in ("service", "tui"):
+            value[role]["comm"] = "codex"
+            value[role]["executable_path"] = "/private/g0/codex"
+        try:
+            probe.validate_binding(value, ROOT, NONCE)
+        except probe.ProbeError as error:
+            self.fail("observed basename comm with separate executable rejected: " + error.code)
+        for role in ("service", "tui"):
+            for change in ("missing_executable", "relative_executable", "bad_comm"):
+                changed = copy.deepcopy(value)
+                if change == "missing_executable": del changed[role]["executable_path"]
+                elif change == "relative_executable": changed[role]["executable_path"] = "codex"
+                else: changed[role]["comm"] = "codex\nother"
+                with self.subTest(role=role, change=change), self.assertRaises(probe.ProbeError):
+                    probe.validate_binding(changed, ROOT, NONCE)
+
     def test_prepare_rechecks_deadline_after_final_publication_and_cannot_be_rerun(self):
         class Reader:
             checks = {}

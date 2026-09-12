@@ -1,0 +1,23 @@
+FF
+======================================================================
+FAIL: test_live_kernel_executable_must_match_for_each_role_even_without_rehash (native_standalone_test.NativeStandaloneTests.test_live_kernel_executable_must_match_for_each_role_even_without_rehash) (role='service')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 64, in test_live_kernel_executable_must_match_for_each_role_even_without_rehash
+    with self.assertRaises(probe.ProbeError):
+         ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: ProbeError not raised
+
+======================================================================
+FAIL: test_live_kernel_executable_must_match_for_each_role_even_without_rehash (native_standalone_test.NativeStandaloneTests.test_live_kernel_executable_must_match_for_each_role_even_without_rehash) (role='tui')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 64, in test_live_kernel_executable_must_match_for_each_role_even_without_rehash
+    with self.assertRaises(probe.ProbeError):
+         ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: ProbeError not raised
+
+----------------------------------------------------------------------
+Ran 1 test in 0.001s
+
+FAILED (failures=2)

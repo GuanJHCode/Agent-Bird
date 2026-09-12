@@ -1,5 +1,6 @@
 """One bounded native standalone-output sample; no generic attachment authority."""
 import asyncio
+import ctypes
 import fcntl
 import hashlib
 import importlib.metadata
@@ -84,17 +85,20 @@ def validate_binding(value, root, nonce):
     check(type(value["controller_evidence_sha256"]) is str and HASH.fullmatch(value["controller_evidence_sha256"]))
     check(all(absolute(value[key]) for key in ("expected_cwd", "go_binary", "job_dir")))
     service = value["service"]
-    exact(service, ("pid", "uid", "birth", "comm", "socket_path", "socket_dev", "socket_ino", "native_binary_sha256"))
+    exact(service, ("pid", "uid", "birth", "comm", "executable_path", "socket_path", "socket_dev", "socket_ino", "native_binary_sha256"))
     check(number(service["uid"], 0) and service["uid"] == os.getuid(), "owner_mismatch")
     check(all(number(service[key]) for key in ("pid", "socket_dev", "socket_ino")))
     check(type(service["birth"]) is str and 0 < len(service["birth"]) <= 64)
-    check(absolute(service["comm"]) and absolute(service["socket_path"]))
+    check(absolute(service["executable_path"]) and absolute(service["socket_path"]))
     check(service["native_binary_sha256"] == CLI_SHA, "version_mismatch")
     tui = value["tui"]
-    exact(tui, ("pid", "uid", "birth", "comm", "native_binary_sha256"))
+    exact(tui, ("pid", "uid", "birth", "comm", "executable_path", "native_binary_sha256"))
     check(number(tui["pid"]) and tui["pid"] != service["pid"] and number(tui["uid"], 0) and tui["uid"] == os.getuid(), "owner_mismatch")
-    check(type(tui["birth"]) is str and 0 < len(tui["birth"]) <= 64 and absolute(tui["comm"]))
+    check(type(tui["birth"]) is str and 0 < len(tui["birth"]) <= 64 and absolute(tui["executable_path"]))
     check(tui["native_binary_sha256"] == CLI_SHA, "version_mismatch")
+    for process in (service, tui):
+        check(number(process["pid"], 1, 2**31 - 1), "invalid_pid")
+        check(type(process["comm"]) is str and 0 < len(process["comm"]) <= 4096 and not any(c in process["comm"] for c in "\0\r\n"), "invalid_comm")
     return value
 
 
@@ -187,17 +191,31 @@ def remaining_window(attempt, now):
     return (MODEL_SECONDS * NS - elapsed) / NS
 
 
+def process_executable_path(pid):
+    check(number(pid, 1, 2**31 - 1), "invalid_pid")
+    lib = ctypes.CDLL("/usr/lib/libproc.dylib")
+    lib.proc_pidpath.argtypes = [ctypes.c_int, ctypes.c_void_p, ctypes.c_uint32]
+    lib.proc_pidpath.restype = ctypes.c_int
+    buffer = ctypes.create_string_buffer(4096)
+    count = lib.proc_pidpath(pid, buffer, len(buffer))
+    check(0 < count < len(buffer), "process_executable_unavailable")
+    path = os.fsdecode(buffer.value)
+    check(absolute(path), "invalid_executable_path")
+    return path
+
+
 def verify_machine(binding, hashes=True):
     service = binding["service"]
     for role in ("service", "tui"):
         process = binding[role]
         row = command_output(["/bin/ps", "-p", str(process["pid"]), "-o", "pid=,uid=,lstart=,comm="], 2).decode().strip().split(None, 7)
         check(len(row) == 8 and row[0] == str(process["pid"]) and row[1] == str(process["uid"]) and " ".join(row[2:7]) == process["birth"] and row[7] == process["comm"], role + "_identity_changed")
+        check(process_executable_path(process["pid"]) == process["executable_path"], role + "_executable_changed")
     info = os.lstat(service["socket_path"])
     check(stat.S_ISSOCK(info.st_mode) and info.st_uid == os.getuid() and (info.st_dev, info.st_ino) == (service["socket_dev"], service["socket_ino"]), "socket_identity_changed")
     check(current_clock()["boot_id"] == binding["boot_id"], "boot_changed")
     if hashes:
-        for path, expected in {(service["comm"], CLI_SHA), (binding["tui"]["comm"], CLI_SHA), (binding["go_binary"], GO_SHA)}:
+        for path, expected in {(service["executable_path"], CLI_SHA), (binding["tui"]["executable_path"], CLI_SHA), (binding["go_binary"], GO_SHA)}:
             fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
             with os.fdopen(fd, "rb") as stream:
                 info = os.fstat(stream.fileno())

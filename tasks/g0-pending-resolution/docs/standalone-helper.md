@@ -16,12 +16,12 @@ case 必须为当前 UID 所有的 0700 目录。controller 先写 0600 的 `bin
 ```text
 version:1, nonce, controller_thread_id, controller_epoch:1,
 expected_cwd, prior_turn_id, native_cli_version:"0.153.4", boot_id,
-service:{pid,uid,birth,comm,socket_path,socket_dev,socket_ino,native_binary_sha256},
-tui:{pid,uid,birth,comm,native_binary_sha256},
+service:{pid,uid,birth,comm,executable_path,socket_path,socket_dev,socket_ino,native_binary_sha256},
+tui:{pid,uid,birth,comm,executable_path,native_binary_sha256},
 go_binary, go_binary_sha256, job_dir, controller_evidence_sha256
 ```
 
-`boot_id` 为本次 `kern.bootsessionuuid` 小写 UUID；`birth` 为 `/bin/ps -p PID -o pid=,uid=,lstart=,comm=` 中 lstart 的五词，用单空格连接；`comm` 为实际可执行路径。服务与 TUI 必须不同 PID、同当前 UID；原生二进制 SHA 固定为 `b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3`，Go 为 `feb9b9ad969abca5ff35db28c0f0d8d920dc0778d7aac68a90952900e989a285`。controller 独立证明 socket 与服务、TUI/root/当前显示的关联；helper 只机验登记项和诊断 PID。
+`boot_id` 为本次 `kern.bootsessionuuid` 小写 UUID；`birth` 为 `/bin/ps -p PID -o pid=,uid=,lstart=,comm=` 中 lstart 的五词，用单空格连接；`comm` 保留真实 ps 输出（本次为 `codex`），只作有界字符串与实时 ps 精确比较；必需的 `executable_path` 另由 libproc.proc_pidpath 实读并在服务/TUI两端实时精确核验，固定 SHA 核验使用该独立路径。旧缺字段记录拒绝，不把 comm 改写成路径，也不迁移旧 binding。服务与 TUI 必须不同 PID、同当前 UID；原生二进制 SHA 固定为 `b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3`，Go 为 `feb9b9ad969abca5ff35db28c0f0d8d920dc0778d7aac68a90952900e989a285`。controller 独立证明 socket 与服务、TUI/root/当前显示的关联；helper 只机验登记项和诊断 PID。
 
 `prepare` 要求 Go 已完成。它验证原生 `thread/read` 的 root/source=vscode/cliVersion/cwd、显式 historyMode 为 legacy 或 paginated 且各 turn 的 itemsView 为 full、exact prior completed/READY final/root idle/所有观察工具终态，再实际执行白名单 Go `read` 和 `inspect`，只接受固定 count=1、owner/revision/hash 和未 ACK 结果。写入 0600 的 `producer.json`、`intent.json`、`prepare-meta.json`。Go event hash 绑定 envelope 的单事件 payload_hash；客户端不新增业务 ACK。
 
@@ -48,3 +48,5 @@ RPC 仅 initialize、initialized 通知、server/diagnostics、remoteControl/sta
 此次 source 后继独立通过 17 项；连续时钟的 5 条行为先 assertion RED，覆盖原始 raw 记录、墙钟前后跳、旧 uptime 记录、睡眠后发出请求、超窗响应。另两个边界 RED 覆盖旧 case 拒绝和超时前不创建未等待协程。最新 23 项通过，0.007s，无 warning，见 `standalone-helper-clock-boundary-green.log`；模拟时钟测试未修改系统时间或请求机器休眠。时钟依据为本机 SDK `clock_gettime(3)` 与 [Apple 官方说明](https://github.com/apple-oss-distributions/Libc/blob/main/gen/clock_gettime.3)：RAW 连续时钟含系统 sleep，不受墙钟/频率调整影响。
 
 审查返工：prepare 现在于 `prepare-meta.json` 写入/fsync 完成后再次检查原 10 秒绝对期限，跨窗不能返回 prepared。新增一个定点回归包含 producer 与最后 prepare-meta 两个真实文件提交屏障，均先 RED 后 GREEN（1 项、2 个子场景，0.016s）；同 case 重跑因 O_EXCL 拒绝，已写字节保持不变。审查者原复现脚本也已由实现者重跑转绿（1 项，0.002s）。上述 23 项为上一固定版本已审历史基线，本次未重跑无关测试；最新证据为 `standalone-helper-prepare-{final,review}-{red,green}.log`。
+
+进程字段后继：实际 sd02 原 binding 在 RPC 之前因 comm=codex 被原 absolute(comm) 拒绝，原 SHA/错误已离线复现保留。新字段合同和两端实时 executable 不匹配的检查均先 RED，最小实现后 26 项通过（0.025s）。服务/TUI在 hashes=false 的观察阶段也会重新核实际 exe 路径；仅重哈希省略。真实当前 Python 进程的只读 proc_pidpath 返回绝对普通文件路径，证明本机调用可用，不是原生服务身份证据。完整 collector/controller→helper prepare 的 sd02 离线克隆回归仍在后继交付，尚不准入新原生样本。
