@@ -86,7 +86,7 @@ class ControlTests(unittest.TestCase):
             db=sqlite3.connect(home/'state_5.sqlite')
             db.execute('CREATE TABLE threads(id,source,cwd,cli_version,rollout_path)')
             db.execute('INSERT INTO threads VALUES(?,?,?,?,?)',
-                       (root,'cli',str(control.c.REPO),'0.153.4',str(rollout)))
+                       (root,'vscode',str(control.c.REPO),'0.153.4',str(rollout)))
             db.commit(); db.close()
             with patch.object(control.c,'CODEX_HOME',home):
                 read=functools.partial(control.native_ready,now=dt.datetime(2026,9,11,10,2,tzinfo=dt.timezone.utc))

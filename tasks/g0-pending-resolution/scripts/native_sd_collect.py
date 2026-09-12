@@ -77,9 +77,10 @@ def require_live_processes(service,tui):
 
 
 def thread_fields(row, root):
-    if not valid_id(root) or not row or tuple(row) != (root,'cli',str(REPO),'0.153.4'):
+    # Ordinary `codex app-server` uses SessionSource::VSCode; this is not a client identity.
+    if not valid_id(root) or not row or tuple(row) != (root,'vscode',str(REPO),'0.153.4'):
         raise ValueError('not the fixed native experiment thread')
-    return {'id':root,'source':'cli','experiment_cwd_matches':True,'cli_version':'0.153.4'}
+    return {'id':root,'source':'vscode','experiment_cwd_matches':True,'cli_version':'0.153.4'}
 
 
 def hook_fields(value, root, service, lo, hi):
