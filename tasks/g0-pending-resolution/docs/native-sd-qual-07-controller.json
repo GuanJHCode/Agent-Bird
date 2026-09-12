@@ -1,0 +1,196 @@
+{
+  "version": 1,
+  "nonce": "sd-qual-07",
+  "started_at": "2026-09-12T08:17:38.471111+00:00",
+  "stage": "await_session_start",
+  "substage": "await_session_start",
+  "started_clock": {
+    "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+    "mono_ns": 4123626344758000,
+    "wall_ns": 1789201058471265000
+  },
+  "helper_sha256": "c219e539b5b620e4701cd2441f7b59a3f78f25920755ec0882a68456f97b7597",
+  "audit_sha256": "59d8129d5409fb7fb5687a5107c81f9d85a63b8f718e4dd22cab660517af87c6",
+  "protected_before": {
+    "global_config": {
+      "exists": true,
+      "sha256": "b873621003556e583990002659e1d3984b2a0479294171e4efee7865774137db",
+      "bytes": 21355
+    },
+    "login_profile": {
+      "exists": true,
+      "sha256": "9182af26fc3d20697ba0db018bc666dcb326686392db102422e72a4f5b12f549",
+      "bytes": 593
+    },
+    "test_config": {
+      "exists": false
+    },
+    "test_hooks": {
+      "exists": true,
+      "sha256": "666243bf0789d012c7035ff7ef7203735df95fd79eafe763fa5013277f58b917",
+      "bytes": 1393
+    },
+    "trusted_hook_binary": {
+      "exists": true,
+      "sha256": "62e41afd87e1408854490bf6a716cfe846fff0021179a39d163d6e02254ba779",
+      "bytes": 3433442
+    },
+    "existing_daemon_settings": {
+      "exists": true,
+      "sha256": "922e9ed2521a417109eae8429696e6f7c95e06e7a2acd1cf5b2c0326b73d9b40",
+      "bytes": 34
+    }
+  },
+  "service_argv": [
+    "codex",
+    "app-server",
+    "--listen",
+    "unix://"
+  ],
+  "tui_argv": [
+    "codex"
+  ],
+  "scope": "one fixed owned PTY; not generic current-UI attachment or full G0",
+  "startup_scheduling": {
+    "mono_ns": 4123626477480625,
+    "deadline_mono_ns": 4123636477480625,
+    "minimum_pump_until_mono_ns": 4123627477480625,
+    "observed_mono_ns": 4123627535033625,
+    "input_ready_proven": false
+  },
+  "origin": {
+    "service": {
+      "pid": 55676,
+      "ppid": 55669,
+      "uid": 501,
+      "started_at_local": "Sat Sep 12 16:17:38 2026",
+      "comm": "codex",
+      "executable_path": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+      "native_executable_matches": true
+    },
+    "tui": {
+      "pid": 55701,
+      "ppid": 55669,
+      "uid": 501,
+      "started_at_local": "Sat Sep 12 16:17:38 2026",
+      "comm": "codex",
+      "executable_path": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+      "native_executable_matches": true
+    },
+    "socket": {
+      "path": "/Users/guanjunhui/.codex/app-server-control/app-server-control.sock",
+      "exists": true,
+      "dev": 16777234,
+      "ino": 161597635,
+      "uid": 501,
+      "mode": "0600",
+      "service_holds_path": true
+    }
+  },
+  "initial_window": {
+    "since": "2026-09-12T08:17:39.689277+00:00",
+    "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+    "mono_ns": 4123627562768041,
+    "deadline_mono_ns": 4123747562768041,
+    "epoch_correlation_end": "2026-09-12T08:19:39.689277+00:00"
+  },
+  "session_start_window": {
+    "since": "2026-09-12T08:17:39.689277+00:00",
+    "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+    "mono_ns": 4123627562768041,
+    "deadline_mono_ns": 4123747562768041
+  },
+  "startup_pty_capture": {
+    "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/data/sd-qual-07/startup-pty-capture.bin",
+    "bytes": 6602,
+    "sha256": "17d2a2a9523b52465f3357da196206962ee679cbc295ad55f109d39315e5c437"
+  },
+  "failure": {
+    "code": "owned_session_start_missing",
+    "substage": "await_session_start",
+    "at": "2026-09-12T08:19:39.763332+00:00",
+    "clock": {
+      "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+      "mono_ns": 4123747636577750,
+      "wall_ns": 1789201179763429000
+    },
+    "source_frames": [
+      {
+        "file": "native_sd_control.py",
+        "line": 525,
+        "function": "run"
+      }
+    ]
+  },
+  "helper_completed_without_error": false,
+  "job_completed_before_cleanup": false,
+  "job_completed_at_cleanup": false,
+  "cleanup_connection_observation": {
+    "automatic_service_stop": false,
+    "reason": "helper_server_connection_ids_not_registered",
+    "listener_retained_for_main_agent": true
+  },
+  "normal_quit_skipped": "native_current_turn_completion_not_confirmed; owned outer cleanup required",
+  "service_process": {
+    "pid": 55676,
+    "started_at": "2026-09-12T08:17:38.471304+00:00",
+    "exit_code": null,
+    "stdio": "devnull"
+  },
+  "retained_service_pid": 55676,
+  "tui_pty": {
+    "pid": 55701,
+    "started_at": "2026-09-12T08:17:38.603996+00:00",
+    "bytes": 6606,
+    "sha256": "ae14b24d3989a650a8ae2cba5b8ef5865aa9e3920103aa7535b997cb7cec8bfd",
+    "cursor_position_replies": 1,
+    "inputs": [],
+    "exit_code": null
+  },
+  "protected_after": {
+    "global_config": {
+      "exists": true,
+      "sha256": "b873621003556e583990002659e1d3984b2a0479294171e4efee7865774137db",
+      "bytes": 21355
+    },
+    "login_profile": {
+      "exists": true,
+      "sha256": "9182af26fc3d20697ba0db018bc666dcb326686392db102422e72a4f5b12f549",
+      "bytes": 593
+    },
+    "test_config": {
+      "exists": false
+    },
+    "test_hooks": {
+      "exists": true,
+      "sha256": "666243bf0789d012c7035ff7ef7203735df95fd79eafe763fa5013277f58b917",
+      "bytes": 1393
+    },
+    "trusted_hook_binary": {
+      "exists": true,
+      "sha256": "62e41afd87e1408854490bf6a716cfe846fff0021179a39d163d6e02254ba779",
+      "bytes": 3433442
+    },
+    "existing_daemon_settings": {
+      "exists": true,
+      "sha256": "922e9ed2521a417109eae8429696e6f7c95e06e7a2acd1cf5b2c0326b73d9b40",
+      "bytes": 34
+    }
+  },
+  "protected_unchanged": true,
+  "socket_after": {
+    "path": "/Users/guanjunhui/.codex/app-server-control/app-server-control.sock",
+    "exists": true,
+    "dev": 16777234,
+    "ino": 161597635,
+    "uid": 501,
+    "mode": "0600"
+  },
+  "ended_at": "2026-09-12T08:19:39.780803+00:00",
+  "ended_clock": {
+    "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+    "mono_ns": 4123747653972458,
+    "wall_ns": 1789201179780823000
+  },
+  "all_owned_native_exited": false
+}

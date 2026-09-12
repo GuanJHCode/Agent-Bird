@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "nonce": "sd-qual-07",
+  "scope": "corrected_unix_descriptor_columns_and_ownership_before_outer_cleanup",
+  "captured_at": "2026-09-12T08:21:27.710854+00:00",
+  "service": {
+    "pid": 55676,
+    "ppid": 1,
+    "uid": 501,
+    "started_at_local": "Sat Sep 12 16:17:38 2026",
+    "comm": "codex",
+    "executable_path": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+    "native_executable_matches": true
+  },
+  "service_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+  "socket": {
+    "path": "/Users/guanjunhui/.codex/app-server-control/app-server-control.sock",
+    "exists": true,
+    "dev": 16777234,
+    "ino": 161597635,
+    "uid": 501,
+    "mode": "0600",
+    "service_holds_path": true
+  },
+  "socket_holders": [
+    55676
+  ],
+  "service_unix_descriptors": [
+    {
+      "pid": 55676,
+      "command": "codex",
+      "fd": "7u",
+      "type": "unix",
+      "device": "0x534e07d08dc089b4",
+      "name": "->0x73dfaf188e7b5809"
+    },
+    {
+      "pid": 55676,
+      "command": "codex",
+      "fd": "8u",
+      "type": "unix",
+      "device": "0x73dfaf188e7b5809",
+      "name": "->0x534e07d08dc089b4"
+    },
+    {
+      "pid": 55676,
+      "command": "codex",
+      "fd": "9u",
+      "type": "unix",
+      "device": "0x534e07d08dc089b4",
+      "name": "->0x73dfaf188e7b5809"
+    },
+    {
+      "pid": 55676,
+      "command": "codex",
+      "fd": "28u",
+      "type": "unix",
+      "device": "0xcf6c2416a540f168",
+      "name": "/Users/guanjunhui/.codex/app-server-control/app-server-control.sock"
+    },
+    {
+      "pid": 55676,
+      "command": "codex",
+      "fd": "33u",
+      "type": "unix",
+      "device": "0x49a68df4b156aa63",
+      "name": "->0x703c3aabfaa55d3"
+    }
+  ],
+  "unix_peer_candidates": [],
+  "tui_already_exited": true,
+  "supersedes_unix_fields_in": "native-sd-qual-07-startup-diagnostic.json"
+}

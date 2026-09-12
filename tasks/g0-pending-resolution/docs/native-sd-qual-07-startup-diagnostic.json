@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "nonce": "sd-qual-07",
+  "scope": "independent_post_window_read_only_startup_diagnosis_not_native_pass_evidence",
+  "captured_at": "2026-09-12T08:20:53.312286+00:00",
+  "service_pid": 55676,
+  "descendants": [],
+  "pty_allowlist": {
+    "Starting MCP servers": false,
+    "cua_repl": false,
+    "node_repl": false,
+    "MCP startup": false,
+    "OpenAI Codex": true,
+    "0.154.0": true,
+    "weekly": true,
+    "usage limit": true
+  },
+  "service_unix_descriptor_rows": [
+    {
+      "pid": 55676,
+      "fd": "7u",
+      "type": "unix",
+      "device": "0x534e07d08dc089b4",
+      "name": ""
+    },
+    {
+      "pid": 55676,
+      "fd": "8u",
+      "type": "unix",
+      "device": "0x73dfaf188e7b5809",
+      "name": ""
+    },
+    {
+      "pid": 55676,
+      "fd": "9u",
+      "type": "unix",
+      "device": "0x534e07d08dc089b4",
+      "name": ""
+    },
+    {
+      "pid": 55676,
+      "fd": "28u",
+      "type": "unix",
+      "device": "0xcf6c2416a540f168",
+      "name": ""
+    },
+    {
+      "pid": 55676,
+      "fd": "33u",
+      "type": "unix",
+      "device": "0x49a68df4b156aa63",
+      "name": ""
+    }
+  ],
+  "unix_peer_candidates": []
+}

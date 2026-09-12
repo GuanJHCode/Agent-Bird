@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "nonce": "sd-qual-07",
+  "captured_at": "2026-09-12T08:22:40.188406+00:00",
+  "scope": "retained_original_case_job_and_source_bytes_after_one_run",
+  "case": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/data/sd-qual-07",
+  "job": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/tasks/pending-resolution/data/sd-qual-07",
+  "job_directory_empty": true,
+  "artifacts": [
+    {
+      "scope": "case",
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/data/sd-qual-07/controller-result.json",
+      "bytes": 6101,
+      "sha256": "9b8480d86771e837b97cc69fc02d2ca12934d87a1f5e5b0db33054d5fb8bdfbf",
+      "mode": "0o600",
+      "uid": 501
+    },
+    {
+      "scope": "case",
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/data/sd-qual-07/native-origin.json",
+      "bytes": 1298,
+      "sha256": "2203fab1e0ce2f2a075e0e5d03b8d966abe43353cf72b0ec5ea7914e53d1c022",
+      "mode": "0o600",
+      "uid": 501
+    },
+    {
+      "scope": "case",
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/data/sd-qual-07/startup-pty-capture.bin",
+      "bytes": 6602,
+      "sha256": "17d2a2a9523b52465f3357da196206962ee679cbc295ad55f109d39315e5c437",
+      "mode": "0o600",
+      "uid": 501
+    }
+  ],
+  "source_sha256_after": {
+    "native_sd_control.py": "224e28f2b3ec99b7d424fe7f8490b3a769f11793eb71518a3a1cc37539a5aab5",
+    "native_sd_collect.py": "485e2b569cba0bdc8f5a78f408508cb07e75ef9073e8dc6efe6c39645ecb012c",
+    "native_sd_pty.py": "0ec348a89cfe1d5b41e23885f20a4323d2631af300ad577fa2e8726e16d8d5c5",
+    "native_sd_clock.py": "c16c8d0d0d9b1652d18606230351493f3cea33211f8b4d3323bb5b6bf2466087",
+    "native_standalone.py": "c219e539b5b620e4701cd2441f7b59a3f78f25920755ec0882a68456f97b7597",
+    "delivery_audit.py": "59d8129d5409fb7fb5687a5107c81f9d85a63b8f718e4dd22cab660517af87c6"
+  },
+  "sources_unchanged_from_registration": true,
+  "original_initial_window": {
+    "since": "2026-09-12T08:17:39.689277+00:00",
+    "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+    "mono_ns": 4123627562768041,
+    "deadline_mono_ns": 4123747562768041,
+    "epoch_correlation_end": "2026-09-12T08:19:39.689277+00:00"
+  },
+  "in_original_window_hook_events": [],
+  "after_original_window_hook_events": [
+    {
+      "file_name": "467d3ee057eb779ae57daf456f914322.json",
+      "sha256": "94a80863831949a750ae098717810da4c1d823b208d168fc2a48f3573cbbe468",
+      "fields": {
+        "session_id": "01a094b1-8bfd-7970-b96b-4677ee7f0a32",
+        "hook_event_name": "SessionEnd",
+        "pid": 56824,
+        "ppid": 55676,
+        "recorded_at": "2026-09-12T08:20:39.881841Z"
+      }
+    }
+  ],
+  "after_window_scope": "independent_diagnosis_only_not_requalified",
+  "no_initial_submit_file": true,
+  "no_send_attempt_file": true,
+  "inputs": [],
+  "caffeinate_released": true,
+  "protected_unchanged": true
+}

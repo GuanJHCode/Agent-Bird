@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "nonce": "sd-qual-07",
+  "scope": "one_authorized_native_run",
+  "main_commit": "80fe5d6b7ab43872b2a5ede2e7996c5a8e64df0b",
+  "started_at": "2026-09-12T08:17:38.274974+00:00",
+  "preflight_file": "native-sd-qual-07-preflight.json",
+  "preflight_passed": true,
+  "controller_pid": 55669,
+  "controller_argv": [
+    "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
+    "-B",
+    "native_sd_control.py",
+    "--helper-sha",
+    "c219e539b5b620e4701cd2441f7b59a3f78f25920755ec0882a68456f97b7597",
+    "--audit-sha",
+    "59d8129d5409fb7fb5687a5107c81f9d85a63b8f718e4dd22cab660517af87c6"
+  ],
+  "controller_identity": {
+    "pid": 55669,
+    "ppid": 55664,
+    "uid": 501,
+    "started_at_local": "Sat Sep 12 16:17:38 2026",
+    "comm": "/Library/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python",
+    "executable_path": "/Library/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python"
+  },
+  "outer_pid": 55664,
+  "caffeinate": {
+    "pid": 55670,
+    "argv": [
+      "/usr/bin/caffeinate",
+      "-i",
+      "-t",
+      "300",
+      "-w",
+      "55669"
+    ],
+    "identity": {
+      "pid": 55670,
+      "ppid": 55664,
+      "uid": 501,
+      "started_at_local": "Sat Sep 12 16:17:38 2026",
+      "comm": "/usr/bin/caffeinate",
+      "executable_path": "/usr/bin/caffeinate"
+    }
+  },
+  "source_sha256": {
+    "native_sd_control.py": "224e28f2b3ec99b7d424fe7f8490b3a769f11793eb71518a3a1cc37539a5aab5",
+    "native_sd_collect.py": "485e2b569cba0bdc8f5a78f408508cb07e75ef9073e8dc6efe6c39645ecb012c",
+    "native_sd_pty.py": "0ec348a89cfe1d5b41e23885f20a4323d2631af300ad577fa2e8726e16d8d5c5",
+    "native_sd_clock.py": "c16c8d0d0d9b1652d18606230351493f3cea33211f8b4d3323bb5b6bf2466087",
+    "native_standalone.py": "c219e539b5b620e4701cd2441f7b59a3f78f25920755ec0882a68456f97b7597",
+    "delivery_audit.py": "59d8129d5409fb7fb5687a5107c81f9d85a63b8f718e4dd22cab660517af87c6"
+  },
+  "python_version": "3.13.7",
+  "native_cli_version": "codex-cli 0.154.0",
+  "bytecode_disabled": true,
+  "ordinary_native_argv": {
+    "service": [
+      "codex",
+      "app-server",
+      "--listen",
+      "unix://"
+    ],
+    "tui": [
+      "codex"
+    ]
+  },
+  "protected_baseline_sha256": "90dbf08ca269d71c8d5f009e64494a4a9391e5c954fa4da9dc475f98f4e7d017"
+}

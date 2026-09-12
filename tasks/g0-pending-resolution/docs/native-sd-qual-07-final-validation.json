@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "nonce": "sd-qual-07",
+  "verified_at": "2026-09-12T08:23:14.965469+00:00",
+  "status": "runtime_failed_before_initial_input_facts_verified",
+  "controller_exit_code": 2,
+  "caffeinate_exit_code": 0,
+  "inputs_count": 0,
+  "initial_window_ns": 120000000000,
+  "failure_elapsed_raw_seconds": 120.073809709,
+  "original_window_hooks_count": 0,
+  "case_files_count": 3,
+  "job_empty": true,
+  "no_initial_submit": true,
+  "no_send_attempt": true,
+  "sources_unchanged": true,
+  "protected_unchanged": true,
+  "owned_processes_exited": true,
+  "socket_released": true,
+  "cleanup_latency_claimed": false,
+  "original_case_retained": true,
+  "resend_authorized": false
+}

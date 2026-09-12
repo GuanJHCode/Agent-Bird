@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "nonce": "sd-qual-07",
+  "exec_session_id": 64674,
+  "outer_pid": 55664,
+  "controller_pid": 55669,
+  "caffeinate_pid": 55670,
+  "initial_service_pid": 55676,
+  "source_commit": "80fe5d6b7ab43872b2a5ede2e7996c5a8e64df0b",
+  "scope": "continuation_handle_no_restart_authorized"
+}
