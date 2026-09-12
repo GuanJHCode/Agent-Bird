@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "nonce": "sd-qual-04",
+  "scope": "archive original bytes after initial_binding_inconclusive; no rewrite of case",
+  "main_commit_at_run": "6c15326",
+  "files": [
+    {
+      "name": "native-origin.json",
+      "bytes": 1298,
+      "sha256": "034e10c9841aaebdb5d645eaea93a7ad79d0cee79956868f5997838efaf5e2f8"
+    },
+    {
+      "name": "initial-submit.json",
+      "bytes": 1123,
+      "sha256": "c6dce8e601284e178acc06425868d61f23823f17cae38c3c4d0b220b3761a95b"
+    },
+    {
+      "name": "controller-result.json",
+      "bytes": 6372,
+      "sha256": "3e413f6ce5d73253dfad4c2b08e0c6f960489e4a2747fcedc959509806e071f8"
+    }
+  ],
+  "docs_copies": [
+    {
+      "name": "native-sd-qual-04-preflight.json",
+      "bytes": 1443,
+      "sha256": "e78449f6943aa621d03dd763b63741061fd5c5646a029d166643c1d5b27cb3e8"
+    },
+    {
+      "name": "native-sd-qual-04-launch.json",
+      "bytes": 1910,
+      "sha256": "cd9b845975a78eeb2e3783eaec9294a0f392a9a1f111ff57d89c46c1f9c4e3f8"
+    },
+    {
+      "name": "native-sd-qual-04-controller.json",
+      "bytes": 6372,
+      "sha256": "3e413f6ce5d73253dfad4c2b08e0c6f960489e4a2747fcedc959509806e071f8"
+    },
+    {
+      "name": "native-sd-qual-04-native-origin.json",
+      "bytes": 1298,
+      "sha256": "034e10c9841aaebdb5d645eaea93a7ad79d0cee79956868f5997838efaf5e2f8"
+    },
+    {
+      "name": "native-sd-qual-04-initial-submit.json",
+      "bytes": 1123,
+      "sha256": "c6dce8e601284e178acc06425868d61f23823f17cae38c3c4d0b220b3761a95b"
+    },
+    {
+      "name": "native-sd-qual-04-controller-result.json",
+      "bytes": 6372,
+      "sha256": "3e413f6ce5d73253dfad4c2b08e0c6f960489e4a2747fcedc959509806e071f8"
+    }
+  ]
+}

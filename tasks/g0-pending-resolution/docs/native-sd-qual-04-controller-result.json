@@ -1,0 +1,208 @@
+{
+  "version": 1,
+  "nonce": "sd-qual-04",
+  "started_at": "2026-09-12T06:31:48.694681+00:00",
+  "stage": "initial",
+  "substage": "initial_hook_scan",
+  "started_clock": {
+    "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+    "mono_ns": 4117276590549875,
+    "wall_ns": 1789194708694822000
+  },
+  "helper_sha256": "53713ee810792153bf843854aabcd572310abc87334895473ee81313d53551d7",
+  "audit_sha256": "59d8129d5409fb7fb5687a5107c81f9d85a63b8f718e4dd22cab660517af87c6",
+  "protected_before": {
+    "global_config": {
+      "exists": true,
+      "sha256": "81f17c8213836b666fcbf970737301e38ddc80856a1c81c958a81c35c19360ef",
+      "bytes": 21358
+    },
+    "login_profile": {
+      "exists": true,
+      "sha256": "9182af26fc3d20697ba0db018bc666dcb326686392db102422e72a4f5b12f549",
+      "bytes": 593
+    },
+    "test_config": {
+      "exists": false
+    },
+    "test_hooks": {
+      "exists": true,
+      "sha256": "666243bf0789d012c7035ff7ef7203735df95fd79eafe763fa5013277f58b917",
+      "bytes": 1393
+    },
+    "trusted_hook_binary": {
+      "exists": true,
+      "sha256": "62e41afd87e1408854490bf6a716cfe846fff0021179a39d163d6e02254ba779",
+      "bytes": 3433442
+    },
+    "existing_daemon_settings": {
+      "exists": true,
+      "sha256": "922e9ed2521a417109eae8429696e6f7c95e06e7a2acd1cf5b2c0326b73d9b40",
+      "bytes": 34
+    }
+  },
+  "service_argv": [
+    "codex",
+    "app-server",
+    "--listen",
+    "unix://"
+  ],
+  "tui_argv": [
+    "codex"
+  ],
+  "scope": "one fixed owned PTY; not generic current-UI attachment or full G0",
+  "startup_scheduling": {
+    "mono_ns": 4117277033162666,
+    "deadline_mono_ns": 4117287033162666,
+    "minimum_pump_until_mono_ns": 4117278033162666,
+    "observed_mono_ns": 4117278113469208,
+    "input_ready_proven": false
+  },
+  "origin": {
+    "service": {
+      "pid": 26212,
+      "ppid": 26203,
+      "uid": 501,
+      "started_at_local": "Sat Sep 12 14:31:48 2026",
+      "comm": "codex",
+      "executable_path": "/Users/guanjunhui/.codex/packages/standalone/releases/0.153.4-aarch64-apple-darwin/bin/codex",
+      "native_executable_matches": true
+    },
+    "tui": {
+      "pid": 26236,
+      "ppid": 26203,
+      "uid": 501,
+      "started_at_local": "Sat Sep 12 14:31:49 2026",
+      "comm": "codex",
+      "executable_path": "/Users/guanjunhui/.codex/packages/standalone/releases/0.153.4-aarch64-apple-darwin/bin/codex",
+      "native_executable_matches": true
+    },
+    "socket": {
+      "path": "/Users/guanjunhui/.codex/app-server-control/app-server-control.sock",
+      "exists": true,
+      "dev": 16777234,
+      "ino": 161419783,
+      "uid": 501,
+      "mode": "0600",
+      "service_holds_path": true
+    }
+  },
+  "initial_window": {
+    "since": "2026-09-12T06:31:50.240536+00:00",
+    "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+    "mono_ns": 4117278136282958,
+    "deadline_mono_ns": 4117398136282958,
+    "epoch_correlation_end": "2026-09-12T06:33:50.240536+00:00"
+  },
+  "failure": {
+    "code": "initial_binding_inconclusive",
+    "substage": "initial_hook_scan",
+    "at": "2026-09-12T06:33:50.422767+00:00",
+    "clock": {
+      "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+      "mono_ns": 4117398318643458,
+      "wall_ns": 1789194830422809000
+    },
+    "source_frames": [
+      {
+        "file": "native_sd_control.py",
+        "line": 515,
+        "function": "run"
+      }
+    ]
+  },
+  "helper_completed_without_error": false,
+  "job_completed_before_cleanup": false,
+  "job_completed_at_cleanup": false,
+  "cleanup_connection_observation": {
+    "automatic_service_stop": false,
+    "reason": "helper_server_connection_ids_not_registered",
+    "listener_retained_for_main_agent": true
+  },
+  "normal_quit_skipped": "native_current_turn_completion_not_confirmed; owned outer cleanup required",
+  "service_process": {
+    "pid": 26212,
+    "started_at": "2026-09-12T06:31:48.694858+00:00",
+    "exit_code": null,
+    "stdio": "devnull"
+  },
+  "retained_service_pid": 26212,
+  "tui_pty": {
+    "pid": 26236,
+    "started_at": "2026-09-12T06:31:49.137440+00:00",
+    "bytes": 11133,
+    "sha256": "e1b3c556e1b00f69437d7752446cd3338157db5ff16cec3c0e6e199758527b5f",
+    "cursor_position_replies": 1,
+    "inputs": [
+      {
+        "at": "2026-09-12T06:31:50.240813+00:00",
+        "clock": {
+          "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+          "mono_ns": 4117278136549625,
+          "wall_ns": 1789194710240820000
+        },
+        "action": "initial-paste",
+        "bytes": 2101,
+        "sha256": "b60e43fe65dc108e3865f611652fa112d1c5329c895a5a9b538bfa89ff95aa33"
+      },
+      {
+        "at": "2026-09-12T06:31:50.240884+00:00",
+        "clock": {
+          "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+          "mono_ns": 4117278136616750,
+          "wall_ns": 1789194710240887000
+        },
+        "action": "initial-submit",
+        "bytes": 1,
+        "sha256": "9d1e0e2d9459d06523ad13e28a4093c2316baafe7aec5b25f30eba2e113599c4"
+      }
+    ],
+    "exit_code": null
+  },
+  "protected_after": {
+    "global_config": {
+      "exists": true,
+      "sha256": "81f17c8213836b666fcbf970737301e38ddc80856a1c81c958a81c35c19360ef",
+      "bytes": 21358
+    },
+    "login_profile": {
+      "exists": true,
+      "sha256": "9182af26fc3d20697ba0db018bc666dcb326686392db102422e72a4f5b12f549",
+      "bytes": 593
+    },
+    "test_config": {
+      "exists": false
+    },
+    "test_hooks": {
+      "exists": true,
+      "sha256": "666243bf0789d012c7035ff7ef7203735df95fd79eafe763fa5013277f58b917",
+      "bytes": 1393
+    },
+    "trusted_hook_binary": {
+      "exists": true,
+      "sha256": "62e41afd87e1408854490bf6a716cfe846fff0021179a39d163d6e02254ba779",
+      "bytes": 3433442
+    },
+    "existing_daemon_settings": {
+      "exists": true,
+      "sha256": "922e9ed2521a417109eae8429696e6f7c95e06e7a2acd1cf5b2c0326b73d9b40",
+      "bytes": 34
+    }
+  },
+  "protected_unchanged": true,
+  "socket_after": {
+    "path": "/Users/guanjunhui/.codex/app-server-control/app-server-control.sock",
+    "exists": true,
+    "dev": 16777234,
+    "ino": 161419783,
+    "uid": 501,
+    "mode": "0600"
+  },
+  "ended_at": "2026-09-12T06:33:50.442122+00:00",
+  "ended_clock": {
+    "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+    "mono_ns": 4117398337985208,
+    "wall_ns": 1789194830442151000
+  },
+  "all_owned_native_exited": false
+}

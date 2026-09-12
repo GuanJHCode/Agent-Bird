@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "nonce": "sd-qual-04",
+  "scope": "owned_outer_cleanup_after_initial_binding_inconclusive; no history rpc; no second send",
+  "failure_code": "initial_binding_inconclusive",
+  "substage": "initial_hook_scan",
+  "candidate_hook": null,
+  "hook_events_in_window": 0,
+  "latest_hook_events_dir_mtime": "2026-09-12T02:55:32Z sd03 SessionEnd only",
+  "thread_lock_name_observed": "01a09450-ae84-7442-bafe-52c5bb914cff",
+  "thread_lock_is_not_userpromptsubmit_proof": true,
+  "plugin_cache_writes_during_initial_second": true,
+  "service_before": {
+    "pid": 26212,
+    "ppid": 1,
+    "uid": 501,
+    "started_at_local": "Sat Sep 12 14:31:48 2026",
+    "comm": "codex",
+    "executable_path": "/Users/guanjunhui/.codex/packages/standalone/releases/0.153.4-aarch64-apple-darwin/bin/codex",
+    "socket_ino": 161419783,
+    "native_executable_matches": true
+  },
+  "socket_holders_before": [
+    26212
+  ],
+  "tui_at_cleanup_record_alive": true,
+  "tui_after_controller_exit": "absent; PTY master closed",
+  "signal": "SIGINT",
+  "new_rpc_or_tui": false,
+  "service_exited": true,
+  "socket_after_exists": false,
+  "normal_quit_claimed": false,
+  "cleaned_at": "2026-09-12T06:38:06.737661+00:00"
+}
