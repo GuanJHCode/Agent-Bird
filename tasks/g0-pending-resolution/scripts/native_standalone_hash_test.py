@@ -29,7 +29,7 @@ class BindingHashBoundaryTest(unittest.TestCase):
         binding = json.loads(original["binding.json"])
         prepared = json.loads(original["prepare-meta.json"])
         producer = json.loads(original["producer.json"])
-        self.assertEqual(helper.ACTIVE_NONCE, "sd-qual-07")
+        self.assertEqual(helper.ACTIVE_NONCE, "sd-qual-08")
         self.assertEqual(binding["nonce"], "sd-qual-03")
         self.assertEqual(prepared["binding_sha256"], "dab2c091901e473b5783ea1a43c5a11600f9541a2d308d95dedc18deeb73d15c")
 

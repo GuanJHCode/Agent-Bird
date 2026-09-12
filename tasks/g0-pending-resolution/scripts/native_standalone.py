@@ -19,7 +19,7 @@ import uuid
 from delivery_audit import canonical, envelope, parse
 
 CLI_VERSION = "0.154.0"
-ACTIVE_NONCE = "sd-qual-07"
+ACTIVE_NONCE = "sd-qual-08"
 CLI_SHA = "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc"
 GO_SHA = "feb9b9ad969abca5ff35db28c0f0d8d920dc0778d7aac68a90952900e989a285"
 READ_SECONDS, MODEL_SECONDS, MAX_BYTES, MAX_FRAMES = 10, 120, 65536, 256
