@@ -1,0 +1,340 @@
+{
+  "repository": "openai/codex",
+  "commit": "6b9826e3aa83b1a5947db50f4332cb9c65f1b340",
+  "tree_sha": "6b9826e3aa83b1a5947db50f4332cb9c65f1b340",
+  "tree_api_url": "https://api.github.com/repos/openai/codex/git/trees/6b9826e3aa83b1a5947db50f4332cb9c65f1b340?recursive=1",
+  "raw_base": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/",
+  "files": [
+    {
+      "path": "codex-rs/tui/src/workspace_command.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/workspace_command.rs",
+      "bytes": 8556,
+      "sha256": "fdf5540822d08498ffc5c6d27918f01164161ae067882053df85e233ec1540b1",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__tui__src__workspace_command.rs"
+    },
+    {
+      "path": "codex-rs/app-server-protocol/src/protocol/v2/mcp.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-protocol/src/protocol/v2/mcp.rs",
+      "bytes": 30301,
+      "sha256": "ae6dde792099d0df8bfc78fcf6d30e596b93f28f6af12f693fa87aeca84212ae",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__app-server-protocol__src__protocol__v2__mcp.rs"
+    },
+    {
+      "path": "codex-rs/app-server-protocol/src/protocol/v2/notification.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-protocol/src/protocol/v2/notification.rs",
+      "bytes": 2473,
+      "sha256": "c51b00e47732fe19e68110c42c4fe4212cc9bbbe20f252d6417e78a62b34afa7",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__app-server-protocol__src__protocol__v2__notification.rs"
+    },
+    {
+      "path": "codex-rs/app-server-protocol/src/protocol/v2/mod.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-protocol/src/protocol/v2/mod.rs",
+      "bytes": 1407,
+      "sha256": "ba5356e5c7213725dbee7fcae042a2334a6af682a25fa4e8a608ae507a485f9e",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__app-server-protocol__src__protocol__v2__mod.rs"
+    },
+    {
+      "path": "codex-rs/app-server/src/lib.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server/src/lib.rs",
+      "bytes": 59006,
+      "sha256": "1fd6eb562471c498e9b90374412867c5e341bac926070059350cce63cc16cf44",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__app-server__src__lib.rs"
+    },
+    {
+      "path": "codex-rs/app-server/src/mcp_refresh.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server/src/mcp_refresh.rs",
+      "bytes": 15999,
+      "sha256": "7705b4d661f80ab8cffa3f9dccad67722a470103fc6d8abd67ce2d8abb33a66a",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__app-server__src__mcp_refresh.rs"
+    },
+    {
+      "path": "codex-rs/app-server/src/request_processors/mcp_processor.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server/src/request_processors/mcp_processor.rs",
+      "bytes": 21803,
+      "sha256": "96920a11a9679fea5623164d18c12d0ec791da67381b3af0cca96515092b8445",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__app-server__src__request_processors__mcp_processor.rs"
+    },
+    {
+      "path": "codex-rs/app-server/src/request_processors/mcp_event_stream.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server/src/request_processors/mcp_event_stream.rs",
+      "bytes": 12441,
+      "sha256": "289a72f7fba07bcf5e36830ac86625d97fee5c7dd28a81dc0a84fa3744c99e42",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__app-server__src__request_processors__mcp_event_stream.rs"
+    },
+    {
+      "path": "codex-rs/app-server-protocol/src/protocol/v2/command_exec.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-protocol/src/protocol/v2/command_exec.rs",
+      "bytes": 8395,
+      "sha256": "e655da7da2984ad6ea198b55829b21db01e05993725dea0f11e9e3de7fb66784",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__app-server-protocol__src__protocol__v2__command_exec.rs"
+    },
+    {
+      "path": "codex-rs/app-server-protocol/src/protocol/v1.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-protocol/src/protocol/v1.rs",
+      "bytes": 8639,
+      "sha256": "6177fc28441f759181feee0eb983d46fc2b8864a7ede6686503b1f8b74cd12af",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__app-server-protocol__src__protocol__v1.rs"
+    },
+    {
+      "path": "codex-rs/app-server-protocol/src/protocol/mod.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-protocol/src/protocol/mod.rs",
+      "bytes": 320,
+      "sha256": "42f66558c2656808cd59e8aa58c5979314bf5897f349cf15f92811cdacdb47fd",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__app-server-protocol__src__protocol__mod.rs"
+    },
+    {
+      "path": "codex-rs/app-server/tests/suite/v2/mcp_server_status.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server/tests/suite/v2/mcp_server_status.rs",
+      "bytes": 41114,
+      "sha256": "1062d6d7c7043835475ed237a7f7257fd67076392fdcee85332d68dcc47fb8b8",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__app-server__tests__suite__v2__mcp_server_status.rs"
+    },
+    {
+      "path": "codex-rs/codex-mcp/src/connection_manager/startup.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/codex-mcp/src/connection_manager/startup.rs",
+      "bytes": 4818,
+      "sha256": "1fbd2cc3ba7cf3fc4cb5131cbc98289a0e865fe7883434a83dae4678c8f7ed1c",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__codex-mcp__src__connection_manager__startup.rs"
+    },
+    {
+      "path": "codex-rs/codex-mcp/src/connection_manager/status.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/codex-mcp/src/connection_manager/status.rs",
+      "bytes": 983,
+      "sha256": "3d689f4cdb1f45a83cab0e23073fbd96d4a6253a091ee132bf1fa82d10a33c4a",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__codex-mcp__src__connection_manager__status.rs"
+    },
+    {
+      "path": "codex-rs/codex-mcp/src/connection_manager.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/codex-mcp/src/connection_manager.rs",
+      "bytes": 41862,
+      "sha256": "8eb09840d4759bfd9b39900cc1810ae5ca483cd0a6a139cd0dd1198337ecd5e0",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__codex-mcp__src__connection_manager.rs"
+    },
+    {
+      "path": "codex-rs/codex-mcp/src/lib.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/codex-mcp/src/lib.rs",
+      "bytes": 4705,
+      "sha256": "77943f41231e41a87fd604f53dc14cda3876460c6f5b315004f25f5f60c30357",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__codex-mcp__src__lib.rs"
+    },
+    {
+      "path": "codex-rs/core/src/mcp.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/core/src/mcp.rs",
+      "bytes": 14385,
+      "sha256": "a36c5fc575dcd32f8035a26550ad6540301aa927b51ecdf7f58a604e721f13b9",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__core__src__mcp.rs"
+    },
+    {
+      "path": "codex-rs/app-server/src/bespoke_event_handling.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server/src/bespoke_event_handling.rs",
+      "bytes": 163004,
+      "sha256": "c633d68e02ac0a366f296edacd347d1bbc193716b7bb6a3ffbebae843c9ffba5",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__app-server__src__bespoke_event_handling.rs"
+    },
+    {
+      "path": "codex-rs/app-server/src/message_processor.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server/src/message_processor.rs",
+      "bytes": 71936,
+      "sha256": "2186e5e1ec407c66ff8627008c7f319d22aa76f68bccb6c04ed454b0b8f22fa8",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__app-server__src__message_processor.rs"
+    },
+    {
+      "path": "codex-rs/app-server/src/outgoing_message.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server/src/outgoing_message.rs",
+      "bytes": 56353,
+      "sha256": "033eb1b47d0a21a6001d8e865458e27681120a9cb05768193e86c9306b39d595",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__app-server__src__outgoing_message.rs"
+    },
+    {
+      "path": "codex-rs/app-server/src/request_serialization.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server/src/request_serialization.rs",
+      "bytes": 33294,
+      "sha256": "afad58b53d6a8ce410efc85c26551ffd7ed3475448265bef9ecaa39454388fac",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__app-server__src__request_serialization.rs"
+    },
+    {
+      "path": "codex-rs/tui/src/lib.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/lib.rs",
+      "bytes": 139275,
+      "sha256": "fd85e541df5affb811f7133d967dcb294292c77bbce1e2cffc16eb670d3c34ec",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__tui__src__lib.rs"
+    },
+    {
+      "path": "codex-rs/tui/src/chatwidget/mcp_startup.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/chatwidget/mcp_startup.rs",
+      "bytes": 13299,
+      "sha256": "46df694c087f7985a0ca9e47c52d52ffd436a2a17aae129e9dcc0ab045a01f5c",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__tui__src__chatwidget__mcp_startup.rs"
+    },
+    {
+      "path": "codex-rs/tui/src/app/tests/mcp_startup.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/app/tests/mcp_startup.rs",
+      "bytes": 5565,
+      "sha256": "2e552a5bfa3b0e9ca3a93693e23160fafc4c236638629d8d57b1e7a801175ccb",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__tui__src__app__tests__mcp_startup.rs"
+    },
+    {
+      "path": "codex-rs/app-server/src/request_processors.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server/src/request_processors.rs",
+      "bytes": 34649,
+      "sha256": "6b7957a7e0b0535bffe300d917a410e866f2744b4f586fb1be824d7197f87bcc",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__app-server__src__request_processors.rs"
+    },
+    {
+      "path": "codex-rs/app-server/src/command_exec.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server/src/command_exec.rs",
+      "bytes": 38489,
+      "sha256": "f305f03fdeac1a6b41cc153ead06577ba14dbac2d788f298cb93efee12212b6e",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__app-server__src__command_exec.rs"
+    },
+    {
+      "path": "codex-rs/app-server/src/request_processors/command_exec_processor.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server/src/request_processors/command_exec_processor.rs",
+      "bytes": 12108,
+      "sha256": "48588860d8a3de8c5a05206c2725fab4065321fd56aa046ace820cfcdf756e4c",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__app-server__src__request_processors__command_exec_processor.rs"
+    },
+    {
+      "path": "codex-rs/tui/src/app/app_server_events.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/app/app_server_events.rs",
+      "bytes": 27099,
+      "sha256": "0d25e5e99915b3aa68165bba0bcd8be68ba00eeb055967845d5e6c7f80e4f976",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__tui__src__app__app_server_events.rs"
+    },
+    {
+      "path": "codex-rs/tui/src/app/app_server_event_targets.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/app/app_server_event_targets.rs",
+      "bytes": 15808,
+      "sha256": "bffc36618aca421652eb0ceed4f485d58afee08c920b27c1b94b1f97cb3f0a2a",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__tui__src__app__app_server_event_targets.rs"
+    },
+    {
+      "path": "codex-rs/tui/src/app/thread_routing.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/app/thread_routing.rs",
+      "bytes": 86626,
+      "sha256": "2ed1a55060be20c10bad33ce3fc5fa178c6923bb3823c62538ca39d0449ae48c",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__tui__src__app__thread_routing.rs"
+    },
+    {
+      "path": "codex-rs/tui/src/chatwidget/protocol.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/chatwidget/protocol.rs",
+      "bytes": 21522,
+      "sha256": "27dd6e12c25a50757f859f5e8ec2cbe6b072324b1947f142cfcfac53f040974a",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__tui__src__chatwidget__protocol.rs"
+    },
+    {
+      "path": "codex-rs/tui/src/get_git_diff.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/get_git_diff.rs",
+      "bytes": 31940,
+      "sha256": "ae5fbf00c2fd56dd5de228f650b87395d2a31088d18a5310755d15ce23c69ed1",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__tui__src__get_git_diff.rs"
+    },
+    {
+      "path": "codex-rs/tui/src/branch_summary.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/branch_summary.rs",
+      "bytes": 25237,
+      "sha256": "915c870274d4d801dd57eccd60bf4868a2636d65d4257413c95e61a1ed497be3",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__tui__src__branch_summary.rs"
+    },
+    {
+      "path": "codex-rs/tui/src/app.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/app.rs",
+      "bytes": 43118,
+      "sha256": "44550f918c415442d964ea2842676b34b3c3f860670ffcdac29b118cc1118565",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__tui__src__app.rs"
+    },
+    {
+      "path": "codex-rs/tui/src/app/startup.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/app/startup.rs",
+      "bytes": 55817,
+      "sha256": "720dd167f67d989606a7d3661f11f9f5d0b15c76df5e3a71c9fd25fc9e2bf0e0",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__tui__src__app__startup.rs"
+    },
+    {
+      "path": "codex-rs/tui/src/app/reconnect.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/app/reconnect.rs",
+      "bytes": 19223,
+      "sha256": "88ca7373c70ca0b0f0cd832b1a6c82922fe711ef86eb931b2b189ea62cc957f6",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__tui__src__app__reconnect.rs"
+    },
+    {
+      "path": "codex-rs/tui/src/chatwidget/slash_dispatch.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/chatwidget/slash_dispatch.rs",
+      "bytes": 52523,
+      "sha256": "795f6fe86162088914de82a139331330369bc2670f1477f89322d1d7d2edfee0",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__tui__src__chatwidget__slash_dispatch.rs"
+    },
+    {
+      "path": "codex-rs/tui/src/chatwidget/status_surfaces.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/chatwidget/status_surfaces.rs",
+      "bytes": 51742,
+      "sha256": "f8e32fa54e3634597806ce8c4d89d089ea8a1e7b69897ce9777ff43e0163343f",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__tui__src__chatwidget__status_surfaces.rs"
+    },
+    {
+      "path": "codex-rs/tui/src/chatwidget/streaming.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/chatwidget/streaming.rs",
+      "bytes": 24563,
+      "sha256": "e5d9d7bb761a12a61c7f008ee9930056ddd7069c685927190d84aa52fefaf700",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__tui__src__chatwidget__streaming.rs"
+    },
+    {
+      "path": "codex-rs/tui/src/chatwidget/constructor.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/chatwidget/constructor.rs",
+      "bytes": 13997,
+      "sha256": "dee851cb84d4560d93d41104573e83cd81878b914c27d8cb9c55eb0af5b73283",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__tui__src__chatwidget__constructor.rs"
+    },
+    {
+      "path": "codex-rs/git-utils/src/lib.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/git-utils/src/lib.rs",
+      "bytes": 1900,
+      "sha256": "bfb387f75fe235032d996bb9bc7d5c4568605366e56def06dfb109ff03e6f27a",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__git-utils__src__lib.rs"
+    },
+    {
+      "path": "codex-rs/git-utils/src/fsmonitor.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/git-utils/src/fsmonitor.rs",
+      "bytes": 5175,
+      "sha256": "b2330c703d7e81f284a739e851be1114f4511a703eee343fc165cd6107ab03c0",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__git-utils__src__fsmonitor.rs"
+    },
+    {
+      "path": "codex-rs/app-server-protocol/src/protocol/common.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-protocol/src/protocol/common.rs",
+      "bytes": 170816,
+      "sha256": "6aa47ec984c9198ea797bf63b784cf6a88cc0ab85efb0a4ac75e01aabffc2cfa",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__app-server-protocol__src__protocol__common.rs"
+    },
+    {
+      "path": "codex-rs/app-server-protocol/src/protocol/event_mapping.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-protocol/src/protocol/event_mapping.rs",
+      "bytes": 25483,
+      "sha256": "16cbca2e29c6b396e4a2e6d7ff4f5c7860a63d98b3e6859822adce5422298c27",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__app-server-protocol__src__protocol__event_mapping.rs"
+    },
+    {
+      "path": "codex-rs/app-server-protocol/src/rpc.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-protocol/src/rpc.rs",
+      "bytes": 2656,
+      "sha256": "78c516097c55b665e375807be6dcdceba232805c9ae9fa48420b0a537f0df705",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__app-server-protocol__src__rpc.rs"
+    },
+    {
+      "path": "codex-rs/app-server-protocol/src/lib.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-protocol/src/lib.rs",
+      "bytes": 2447,
+      "sha256": "60ccfaa6e8f3319966fb86150f51722ed9160e1fcf92aced3a8a326d287efd5f",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__app-server-protocol__src__lib.rs"
+    }
+  ],
+  "search_receipts": [
+    {
+      "kind": "sourcegraph_static_search",
+      "url": "https://sourcegraph.com/search/stream?q=context%3Aglobal%20repo%3A%5Egithub.com%2Fopenai%2Fcodex%24%406b9826e3aa83b1a5947db50f4332cb9c65f1b340%20workspace_command&v=V3",
+      "saved_path": "sourcegraph-workspace-calls.txt",
+      "sha256": "6791da7c7867ca6c5fe2d7449f3af9aed135a47bb93fccc5d718752649a09331"
+    }
+  ],
+  "verification": "All retrieved source files independently matched bytes and SHA-256; immutable source URLs identify the fixed commit. Temporary retrieval paths are not repository deliverables."
+}
