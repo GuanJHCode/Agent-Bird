@@ -22,6 +22,6 @@
 
 这也不回答 sd01 的 `-32601` 历史接口疑问：sd02 的真实 turn 已执行并持久化，但 helper 尚未越过本地 binding。后续若修复，应分别保留实际 `ps comm` 与独立核验的可执行文件路径，不可把旧字段静默改成绝对路径后声称一致；本报告没有实施该后继变更。
 
-本次发出 `/quit` 后，控制器 10 秒窗口内仍记录 TUI exit_code=null；随后 OS 已无 TUI PID，不能称已证明正常 `/quit` 退出。controller 75568 与 caffeinate 75570 也已退出。Go worker 76288 不再存活，真实 inspect 为 completed / count 1 / ack=null。仅保留的本任务服务经出生身份、native SHA、socket inode 再核验；自身 Unix FD 的内部闭合 pair 与剩余 peer 地址分开记录，global lsof 仅筛本服务 kernel 端点，未发现具体其他 peer 进程。01:17:57.472321Z 仅向 owned service 75573 发 SIGINT，RAW 126,590,750 ns 内服务及 socket 消失，没有停止任何 peer 进程。[收尾记录](native-sd-qual-02-cleanup.json)保留实际字段和动作。
+本次发出 `/quit` 后，控制器 10 秒窗口内仍记录 TUI exit_code=null；随后 OS 已无 TUI PID，不能称已证明正常 `/quit` 退出。controller 75568 与 caffeinate 75570 也已退出。Go worker 76288 不再存活，真实 inspect 为 completed / count 1 / ack=null。仅保留的本任务服务经出生身份、native 可执行路径、socket inode 再核验；自身 Unix FD 的内部闭合 pair 与剩余 peer 地址分开记录，global lsof 仅筛本服务 kernel 端点，未发现具体其他 peer 进程。01:17:57.472321Z 仅向 owned service 75573 发 SIGINT，RAW 126,590,750 ns 内服务及 socket 消失，没有停止任何 peer 进程。[收尾记录](native-sd-qual-02-cleanup.json)保留实际字段和动作。
 
 原 case/job 保留为证据，均不复用；没有本任务存活 TUI、服务、Go worker 或 caffeinate。归档保留五份核心 JSON 的原字节与 SHA，见[清单](native-sd-qual-02-artifacts.json)；空 case.lock 留在原目录。本次使用 `-B`，没有生成待清理的任务 pyc。未保存模型推理、任意 UI 原文、其他会话历史或凭据。
