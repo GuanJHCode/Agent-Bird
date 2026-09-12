@@ -69,3 +69,11 @@
 | 6 决定/逐事件 ACK 已提交、响应丢失 | 固定最多三事件（进展、问题、结果），事务只 ACK 一部分；丢响应，再用新 UUID 提交相同语义槽；另提交冲突/旧 revision | 持久决定和 outbox 槽不增加；其余事件仍待处理；冲突、取消和旧版本不能创建新副作用 |
 
 每个支持组合仍按原规格运行屏障 20 次，并另测分页、compact、服务崩溃、部分 ACK 和 waiting_user 后新问题。本轮仅锁定有意义的检查逻辑与后续采样合同；没有把 Go 本地幂等、离线 fixture 或只读 schema 计为这些原生验收通过。
+
+### 2026-09-12：断连与原请求终结的固定源码边界
+
+`retained_lifecycle_review` 对 `0.153.4 / 3d2ee51` 的追加只读复核确认：关闭 connection gate 只挡住尚未开始的 handler；已取得 token 的 future 仍会继续。断连清理最多等待 30 秒 drain，超时只记录警告，不取消旧请求。standalone 输入交给 Core 的 `start_or_steer` 后才构造 RPC 回执，因此发送连接消失不撤销已进入 Core 的 pending 输入。[gate 语义](https://github.com/openai/codex/blob/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/app-server/src/connection_rpc_gate.rs#L25)、[断连清理](https://github.com/openai/codex/blob/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/app-server/src/message_processor.rs#L800)、[先提交后回应](https://github.com/openai/codex/blob/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/app-server/src/request_processors/turn_processor.rs#L626)
+
+现有 `thread/read` 与 `turn/start` 按 thread ID 共用串行 scope，键不含 connection ID。**若另有可靠证据证明 read 排在旧请求之后**，read 完成可成为旧 RPC handler 已结束或被丢弃的局部屏障；它仍不证明 Core pending 已处理或落盘。跨连接“本地先断开，再发送 read”本身没有证明服务器入队顺序；分页接口与 diagnostics 没有同样的串行保证。[方法 scope](https://github.com/openai/codex/blob/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/app-server-protocol/src/protocol/common.rs#L786)、[队列顺序](https://github.com/openai/codex/blob/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/app-server/src/request_serialization.rs#L215)
+
+30 秒 drain 超时警告带 connection ID，可在精确关联服务及自身旧连接时提供 gate 已关闭的条件性证据；它只在超时时出现，不是通用关闭凭据。普通 outbound disconnected 日志也可能先由满队列触发，不能替代 gate-close。当前未据此实现或声称 `absent → not_delivered`，未运行新 RPC、模型或故障屏障。

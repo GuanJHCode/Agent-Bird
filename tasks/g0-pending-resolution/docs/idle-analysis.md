@@ -48,3 +48,9 @@ Hooks：英文官方页明确后台完成不会启动新轮，且 session 结束
 本轮只新增报告/元数据，并纠正两处旧报告把合法结果限于 pending-tool 的过严表述；原失败事实不变。原始公开源码下载仅在本任务 tmp，供两路 Agent 共享只读核查后清理；无自有 native TUI、后台任务或认证变更。
 
 追加的唯一按需启动候选见 [launchd socket activation 机制](idle-socket-activation-mechanism.md)。该页仅核查 50 毫秒探测、监听 FD、多连接及冷启动边界；不表示当前合同已允许安装 LaunchAgent 或必经代理，也不把机制推导当作实际通过。
+
+### 2026-09-12：embedded runtime 的剩余入口复核
+
+`native_identity_review` 对固定 `0.153.4 / 3d2ee51` 追加只读核查：`InProcessStartArgs` 没有 listener/endpoint 参数；启动时创建的是有界 `tokio::mpsc` 通道，输入 handle 要求宿主持有 Rust sender。已审普通 TUI 调用只位于启动路径，没有由 Hook 或配置在已运行 TUI 中开启外部 listener 的分支。[进程内启动参数与通道](https://github.com/openai/codex/blob/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/app-server/src/in_process.rs#L133)
+
+embedded 处理器还明确收到 `remote_control_handle: None`；相应请求会返回 unavailable，remote-control websocket runtime 由 standalone app-server 启动路径创建。这没有补出普通 embedded TUI 的本地连接入口。结论只覆盖这些固定调用链，未修改配置、未启动额外实验，也不声称未审二进制能力绝对不存在。[embedded 的 processor 参数](https://github.com/openai/codex/blob/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/app-server/src/in_process.rs#L473)
