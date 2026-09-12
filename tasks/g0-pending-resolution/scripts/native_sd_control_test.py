@@ -78,20 +78,20 @@ class ControlTests(unittest.TestCase):
             self.assertEqual(projected,original['rpc_error'])
             self.assertNotIn('CANARY_PRIVATE_TEXT',json.dumps(projected))
 
-    def test_only_sd06_is_registered_for_the_new_model_case(self):
-        self.assertEqual(control.c.NONCE,'sd-qual-06')
-        self.assertEqual(control.CASE,control.c.BASE/'tasks/g0-pending-resolution/data/sd-qual-06')
-        self.assertEqual(control.JOB,control.c.REPO/'tasks/pending-resolution/data/sd-qual-06')
+    def test_only_sd07_is_registered_for_the_new_model_case(self):
+        self.assertEqual(control.c.NONCE,'sd-qual-07')
+        self.assertEqual(control.CASE,control.c.BASE/'tasks/g0-pending-resolution/data/sd-qual-07')
+        self.assertEqual(control.JOB,control.c.REPO/'tasks/pending-resolution/data/sd-qual-07')
         prompt=control.fixed_prompt()
-        for marker in ('SD_QUAL_06_READY','SD_QUAL_06_ACK','sd-qual-06-ack-1'):
+        for marker in ('SD_QUAL_07_READY','SD_QUAL_07_ACK','sd-qual-07-ack-1'):
             self.assertIn(marker,prompt)
-        for old in ('sd-qual-01','sd-qual-02','sd-qual-03','sd-qual-04','sd-qual-05'):
+        for old in ('sd-qual-01','sd-qual-02','sd-qual-03','sd-qual-04','sd-qual-05','sd-qual-06'):
             self.assertNotIn(old,prompt)
 
     def test_collector_runtime_rejects_all_prior_case_nonces(self):
         with tempfile.TemporaryDirectory() as directory:
-            output=Path(directory)/'native-sd-qual-06-preflight.json'
-            for old in ('sd-qual-01','sd-qual-02','sd-qual-03','sd-qual-04','sd-qual-05'):
+            output=Path(directory)/'native-sd-qual-07-preflight.json'
+            for old in ('sd-qual-01','sd-qual-02','sd-qual-03','sd-qual-04','sd-qual-05','sd-qual-06'):
                 with self.subTest(old=old):
                     result=subprocess.run([sys.executable,'-B',str(Path(control.c.__file__)),
                                            'preflight','--nonce',old,'--output',str(output)],capture_output=True)
@@ -281,13 +281,13 @@ class ControlTests(unittest.TestCase):
         root='01a08e0b-bd0d-7400-b069-d50978939cdd'
         with tempfile.TemporaryDirectory() as name,patch.object(control,'JOB',Path(name)):
             self.assertIsNone(control.read_job_owner(root))
-            value={'version':1,'status':'started','nonce':'sd-qual-06','controller_thread':root,'task_revision':1,
+            value={'version':1,'status':'started','nonce':'sd-qual-07','controller_thread':root,'task_revision':1,
                    'worker_pid':123,'created_at':'2026-09-11T10:00:01Z','job_file':'job.json','result_file':'result.json'}
             path=Path(name)/'job.json';path.write_text(json.dumps(value));path.chmod(0o600)
             got=control.read_job_owner(root)
             self.assertEqual(got['controller_thread'],root);self.assertEqual(got['task_revision'],1)
             for change in ({'controller_thread':'01a08e0b-bd0d-7400-b069-d50978939cde'},
-                           *({'nonce':old} for old in ('sd-qual-01','sd-qual-02','sd-qual-03','sd-qual-04','sd-qual-05')),
+                           *({'nonce':old} for old in ('sd-qual-01','sd-qual-02','sd-qual-03','sd-qual-04','sd-qual-05','sd-qual-06')),
                            {'task_revision':2},{'worker_pid':True},{'created_at':'CANARY_PRIVATE_TEXT'},
                            {'extra':'CANARY_PRIVATE_TEXT'}):
                 path.write_text(json.dumps(dict(value,**change)))
@@ -449,7 +449,7 @@ class ControlTests(unittest.TestCase):
                     '01a08e0b-bd0d-7400-b069-d50978939cdd','01a08e0b-bd0d-7400-b069-d50978939cde','0'*64,time.monotonic_ns())
 
     def test_lab_read_envelope_is_fixed_nonce_and_does_not_export_extensions(self):
-        expected={'version':1,'status':'pending','nonce':'sd-qual-06','count':0}
+        expected={'version':1,'status':'pending','nonce':'sd-qual-07','count':0}
         self.assertEqual(control.lab_read_fields(json.dumps(expected)),expected)
         for value in [dict(expected,nonce='other'),dict(expected,extra='CANARY_PRIVATE_TEXT'),
                       dict(expected,count=True),dict(expected,status='completed'),dict(expected,version=True)]:
@@ -503,7 +503,7 @@ class ControlTests(unittest.TestCase):
             secret={'timestamp':'2026-09-11T10:00:01Z','type':'response_item',
                     'payload':{'type':'reasoning','summary':'CANARY_PRIVATE_TEXT'}}
             complete={'timestamp':'2026-09-11T10:00:02Z','type':'event_msg',
-                      'payload':{'type':'task_complete','turn_id':turn,'last_agent_message':'SD_QUAL_06_READY',
+                      'payload':{'type':'task_complete','turn_id':turn,'last_agent_message':'SD_QUAL_07_READY',
                                  'unknown':'CANARY_PRIVATE_TEXT'}}
             rollout.write_text(json.dumps(secret)+'\n'+json.dumps(complete)+'\n')
             db=sqlite3.connect(home/'state_5.sqlite')
@@ -516,7 +516,7 @@ class ControlTests(unittest.TestCase):
                 read=functools.partial(control.native_ready,now=dt.datetime(2026,9,11,10,2,tzinfo=dt.timezone.utc))
                 result=read(root,turn,'2026-09-11T10:00:00Z','2026-09-11T10:02:00Z')
                 self.assertEqual(result,{'at':'2026-09-11T10:00:02Z','turn_id':turn,'type':'task_complete',
-                                         'last_agent_message':'SD_QUAL_06_READY'})
+                                         'last_agent_message':'SD_QUAL_07_READY'})
                 self.assertNotIn('CANARY_PRIVATE_TEXT',json.dumps(result))
                 self.assertIsNone(read(root,root,'2026-09-11T10:00:00Z','2026-09-11T10:02:00Z'))
                 complete['timestamp']='2026-09-11T10:02:00.000000001Z'
