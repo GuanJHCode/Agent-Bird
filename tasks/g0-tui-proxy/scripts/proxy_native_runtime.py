@@ -303,6 +303,8 @@ class PTYDriver:
         self.digest = hashlib.sha256()
         self.byte_count = 0
         self.screen_tail = b""
+        self._screen_buffer = b""
+        self.cursor_replies = 0
         self.exit_code: int | None = None
         self.eof = False
         self.inputs: list[dict[str, Any]] = []
@@ -337,6 +339,14 @@ class PTYDriver:
         self.digest.update(chunk)
         self.byte_count += len(chunk)
         self.screen_tail = (self.screen_tail + chunk)[-262144:]
+        self._screen_buffer = (self._screen_buffer + chunk)[-262144:]
+        query = b"\x1b[6n"
+        count = self._screen_buffer.count(query)
+        if count:
+            for _ in range(count):
+                os.write(self.fd, b"\x1b[1;1R")
+            self.cursor_replies += count
+            self._screen_buffer = self._screen_buffer.replace(query, b"")
         text = self.screen_tail.decode("utf-8", "replace")
         self.status_ids.update(_SESSION_RE.findall(_strip_terminal_controls(text)))
 
@@ -462,6 +472,7 @@ class PTYDriver:
             "bytes": self.byte_count,
             "sha256": self.digest.hexdigest(),
             "exit_code": self.exit_code,
+            "cursor_position_replies": self.cursor_replies,
             "inputs": list(self.inputs),
         }
         if len(self.status_ids) == 1:
@@ -749,6 +760,8 @@ class _CaptureBridge:
         self.trace: list[dict[str, Any]] = []
         self.trace_complete = True
         self.model_turns = 0
+        self._trace_keys: set[tuple[Any, ...]] = set()
+        self._eof_seen: set[str] = set()
 
     def _accept_rows(self, rows: Iterable[Mapping[str, Any]]) -> None:
         for row in rows:
@@ -765,6 +778,16 @@ class _CaptureBridge:
             self.inferer.accept(row)
 
     def _record_trace(self, row: Mapping[str, Any]) -> bool:
+        if "local_seq" in row:
+            key = (
+                row.get("conn_epoch"), row.get("local_seq"), row.get("event"),
+                row.get("direction"), row.get("reason"),
+            )
+            if key in self._trace_keys:
+                self.trace_complete = False
+                self.inferer.invalidate("trace_duplicate_sequence")
+                return False
+            self._trace_keys.add(key)
         if len(self.trace) >= self.max_trace_events:
             self.trace_complete = False
             self.inferer.invalidate("trace_overflow")
@@ -798,6 +821,10 @@ class _CaptureBridge:
             self.identity_errors[event.connection_id] = "connection_identity_mismatch"
             self.inferer.invalidate("connection_identity_mismatch")
             return
+        # Observer returns bounded rows from feed/close but retains them in its
+        # queue until drained.  Clear already-consumed rows before a new epoch
+        # so a probe cannot replay old local_seq values into the new epoch.
+        self.observer.drain_events()
         epoch = self.observer.open(event.connection_id, conn_epoch=event.epoch)
         self._accept_rows(self.observer.drain_events())
         if epoch != event.epoch:
@@ -806,9 +833,15 @@ class _CaptureBridge:
     def on_data(self, event: Any) -> None:
         direction = "client" if event.direction == "frontend_to_backend" else "server"
         self._accept_rows(self.observer.feed(event.connection_id, direction, event.data))
+        self.observer.drain_events()
 
     def on_lifecycle(self, event: Any) -> None:
         if event.kind == "eof":
+            if event.connection_id in self._eof_seen:
+                self.trace_complete = False
+                self.inferer.invalidate("trace_duplicate_eof")
+                return
+            self._eof_seen.add(event.connection_id)
             self._record_trace({"event": "eof", "conn_epoch": event.epoch, "reason": "eof"})
             self.inferer.invalidate("eof")
             # Let the observer inspect buffered handshake/frame bytes before
@@ -816,9 +849,11 @@ class _CaptureBridge:
             # emits a gap into the bounded trace instead of being hidden by
             # set_pending().
             self._accept_rows(self.observer.close(event.connection_id))
+            self.observer.drain_events()
             self.observer.set_pending(event.connection_id)
         if event.kind == "disconnect":
             self._accept_rows(self.observer.close(event.connection_id))
+            self.observer.drain_events()
 
     def on_gap(self, event: Any) -> None:
         self.trace_complete = False

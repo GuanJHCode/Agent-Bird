@@ -472,6 +472,21 @@ def test_status_and_clear_commands_use_exact_bracketed_paste_then_cr(tmp_path):
         driver.close()
 
 
+def test_real_pty_driver_answers_cursor_position_query(tmp_path):
+    driver = PTYDriver.spawn(
+        [sys.executable, "-c", "import os,tty; tty.setraw(0); os.write(1,b'\\x1b[6n'); os.read(0,6); os.write(1,b'cursor-ok')"],
+        cwd=tmp_path,
+    )
+    try:
+        driver.read(1.0)
+        assert driver.evidence["cursor_position_replies"] == 1
+        assert b"cursor-ok" in driver.screen_tail
+    finally:
+        if driver.poll() is None:
+            driver.terminate()
+        driver.close()
+
+
 def test_owned_cleanup_does_not_remove_replaced_endpoint(tmp_path):
     socket_path = tmp_path / "frontend.sock"
     socket_path.write_bytes(b"old")
@@ -671,6 +686,28 @@ def test_capture_bridge_trace_overflow_invalidates_and_preserves_only_whitelist(
     assert bridge.trace_complete is False
     assert inferer.invalid_reason == "trace_overflow"
     assert all(set(row) <= {"event", "local_seq", "conn_epoch", "direction", "method", "request_id", "request_direction", "response", "ok", "thread", "reason"} for row in bridge.trace)
+
+
+def test_duplicate_eof_close_rows_make_trace_incomplete():
+    from proxy_observer import Observer
+
+    bridge = _CaptureBridge(Observer(), AttachmentInferer())
+    bridge.on_connect(SimpleNamespace(connection_id="c1", epoch=1, frontend_fd=1, backend_fd=2, frontend_peer=None, backend_peer=None))
+    event = SimpleNamespace(connection_id="c1", epoch=1, kind="eof")
+    bridge.on_lifecycle(event)
+    bridge.on_lifecycle(event)
+    assert bridge.trace_complete is False
+
+
+def test_duplicate_observer_local_sequence_makes_trace_incomplete():
+    from proxy_observer import Observer
+
+    bridge = _CaptureBridge(Observer(), AttachmentInferer())
+    bridge.on_connect(SimpleNamespace(connection_id="c1", epoch=1, frontend_fd=1, backend_fd=2, frontend_peer=None, backend_peer=None))
+    row = {"event": "websocket_upgrade", "conn_epoch": 1, "local_seq": 2, "direction": "client"}
+    bridge._accept_rows([row, row])
+    assert bridge.trace_complete is False
+    assert bridge.inferer.invalid_reason == "trace_duplicate_sequence"
 
 
 def test_model_turn_count_comes_from_observed_client_turn_start():
