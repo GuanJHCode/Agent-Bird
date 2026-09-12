@@ -460,7 +460,7 @@ class Observer:
         if not isinstance(value, dict):
             self._gap(connection, "unsupported_json_rpc", direction)
             return
-        if value.get("jsonrpc") != "2.0":
+        if "jsonrpc" in value and value["jsonrpc"] != "2.0":
             self._gap(connection, "invalid_json_rpc", direction)
             return
         has_method, has_result, has_error = "method" in value, "result" in value, "error" in value
@@ -537,6 +537,9 @@ class Observer:
         return safe
 
     def _process_response(self, connection: _Connection, direction: str, value: Dict[str, Any]) -> None:
+        if "error" in value and not self._valid_error(value["error"]):
+            self._gap(connection, "invalid_json_rpc", direction)
+            return
         request_id = value.get("id")
         if not self._valid_id(request_id):
             reason = "response_id_too_large" if isinstance(request_id, int) and not isinstance(request_id, bool) else "invalid_response_id"
@@ -558,6 +561,18 @@ class Observer:
         if thread is not None:
             fields["thread"] = thread
         self._emit("rpc_response", connection, direction, **fields)
+
+    @staticmethod
+    def _valid_error(value: Any) -> bool:
+        if not isinstance(value, dict):
+            return False
+        code = value.get("code")
+        return (
+            isinstance(code, int)
+            and not isinstance(code, bool)
+            and _MIN_JSONRPC_INTEGER <= code <= _MAX_JSONRPC_INTEGER
+            and isinstance(value.get("message"), str)
+        )
 
     def _thread_metadata(self, result: Any) -> Optional[Dict[str, Any]]:
         candidate = result.get("thread") if isinstance(result, dict) and isinstance(result.get("thread"), dict) else result if isinstance(result, dict) and any(key in result for key in _THREAD_KEYS) else None

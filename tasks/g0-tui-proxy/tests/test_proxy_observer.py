@@ -68,7 +68,7 @@ def events(observer):
 
 def test_fragmented_masked_client_json_is_reassembled_and_whitelisted():
     observer = connected_observer()
-    message = {"jsonrpc": "2.0", "id": "r1", "method": "skills/list", "params": {"cwds": ["/repo"], "forceReload": True, "secret": "CANARY"}}
+    message = {"id": "r1", "method": "skills/list", "params": {"cwds": ["/repo"], "forceReload": True, "secret": "CANARY"}}
     payload = json.dumps(message, separators=(",", ":")).encode()
     first = frame(payload[:7], fin=False, masked=True)
     second = frame(payload[7:], opcode=0, fin=True, masked=True)
@@ -84,12 +84,80 @@ def test_fragmented_masked_client_json_is_reassembled_and_whitelisted():
     assert "CANARY" not in json.dumps(rows)
 
 
+def test_native_codex_wire_omits_jsonrpc_version_field():
+    observer = connected_observer()
+    request = {
+        "id": 1,
+        "method": "initialize",
+        "params": {"clientInfo": {"name": "fixture", "version": "0"}},
+    }
+    response = {"id": 1, "result": {"serverInfo": {"name": "fixture"}}}
+
+    observer.feed("c1", "client", rpc_frame(request, direction="client"))
+    observer.feed("c1", "server", rpc_frame(response, direction="server"))
+    rows = events(observer)
+
+    request_row = [row for row in rows if row.get("event") == "rpc"][-1]
+    assert request_row["direction"] == "client"
+    assert request_row["request_id"] == 1
+    assert request_row["method"] == "initialize"
+    response_row = [row for row in rows if row.get("event") == "rpc_response"][-1]
+    assert response_row["direction"] == "server"
+    assert response_row["request_id"] == 1
+    assert response_row["ok"] is True
+    assert not any(row.get("event") == "gap" for row in rows)
+
+
+def test_native_notification_and_error_response_shapes_omit_jsonrpc_version_field():
+    observer = connected_observer()
+    request = {"id": 2, "method": "thread/read", "params": {"threadId": "t1"}}
+    notification = {"method": "initialized"}
+    error = {"id": 2, "error": {"code": -32601, "message": "method not found"}}
+
+    observer.feed("c1", "client", rpc_frame(request, direction="client"))
+    observer.feed("c1", "server", rpc_frame(notification, direction="server"))
+    observer.feed("c1", "server", rpc_frame(error, direction="server"))
+    rows = events(observer)
+
+    notification_row = [row for row in rows if row.get("event") == "rpc" and row.get("method") == "initialized"][-1]
+    assert notification_row["request_id"] is None
+    error_row = [row for row in rows if row.get("event") == "rpc_response"][-1]
+    assert error_row["request_id"] == 2
+    assert error_row["ok"] is False
+    assert not any(row.get("event") == "gap" for row in rows)
+
+
+def test_native_error_response_missing_required_error_fields_is_fail_closed():
+    observer = connected_observer()
+    request = {"id": 3, "method": "thread/read", "params": {"threadId": "t1"}}
+    malformed_error = {"id": 3, "error": {"message": "method not found"}}
+
+    observer.feed("c1", "client", rpc_frame(request, direction="client"))
+    observer.feed("c1", "server", rpc_frame(malformed_error, direction="server"))
+    rows = events(observer)
+
+    assert any(row.get("event") == "gap" and row.get("reason") == "invalid_json_rpc" for row in rows)
+    assert not any(row.get("event") == "rpc_response" for row in rows)
+    assert observer.attachment_state("c1") == "PENDING"
+
+
+def test_explicit_jsonrpc_version_is_accepted_only_for_2_0():
+    observer = connected_observer()
+    observer.feed("c1", "client", rpc_frame({"jsonrpc": "2.0", "id": 4, "method": "initialize"}, direction="client"))
+    assert any(row.get("event") == "rpc" and row.get("request_id") == 4 for row in events(observer))
+
+    for version in ("1.0", None, 2):
+        observer = connected_observer()
+        observer.feed("c1", "client", rpc_frame({"jsonrpc": version, "id": 4, "method": "initialize"}, direction="client"))
+        assert any(row.get("event") == "gap" and row.get("reason") == "invalid_json_rpc" for row in events(observer))
+
+
 def test_coalesced_server_response_correlates_only_client_request():
     observer = connected_observer()
-    request = {"jsonrpc": "2.0", "id": 7, "method": "thread/read", "params": {"threadId": "t1", "includeTurns": False}}
-    response = {"jsonrpc": "2.0", "id": 7, "result": {"thread": {"id": "t1", "sessionId": "s1", "parentThreadId": "p1", "forkedFromId": "p1", "ephemeral": True, "cwd": "/repo", "secret": "CANARY"}}}
+    request = {"id": 7, "method": "thread/read", "params": {"threadId": "t1", "includeTurns": False}}
+    response = {"id": 7, "result": {"thread": {"id": "t1", "sessionId": "s1", "parentThreadId": "p1", "forkedFromId": "p1", "ephemeral": True, "cwd": "/repo", "secret": "CANARY"}}}
     observer.feed("c1", "client", rpc_frame(request, direction="client"))
-    observer.feed("c1", "server", rpc_frame({"jsonrpc": "2.0", "id": "same", "method": "item/requestUserInput", "params": {"question": "CANARY"}}, direction="server") + rpc_frame(response, direction="server"))
+    observer.feed("c1", "server", rpc_frame({"id": "same", "method": "item/requestUserInput", "params": {"question": "CANARY"}}, direction="server") + rpc_frame(response, direction="server"))
     rows = events(observer)
     response_row = [row for row in rows if row.get("event") == "rpc_response"][-1]
     assert response_row["direction"] == "server"
@@ -105,7 +173,7 @@ def test_coalesced_server_response_correlates_only_client_request():
 
 def test_duplicate_json_keys_make_gap_and_never_emit_partial_rpc():
     observer = connected_observer()
-    payload = b'{"jsonrpc":"2.0","id":1,"method":"thread/read","method":"skills/list"}'
+    payload = b'{"id":1,"method":"thread/read","method":"skills/list"}'
     observer.feed("c1", "client", frame(payload, masked=True))
     rows = events(observer)
     assert any(row.get("event") == "gap" and row.get("reason") == "duplicate_json_key" for row in rows)
@@ -135,7 +203,7 @@ def test_limits_and_eof_emit_gap_without_retaining_payload():
     assert "x" * 33 not in json.dumps(observer.drain_events())
 
     observer = connected_observer()
-    observer.feed("c1", "client", frame(b'{"jsonrpc":"2.0"', fin=False, masked=True))
+    observer.feed("c1", "client", frame(b'{"id":1,"method":"thread/read"', fin=False, masked=True))
     observer.close("c1")
     rows = events(observer)
     assert any(row.get("event") == "gap" and row.get("reason") == "incomplete_message" for row in rows)
@@ -145,8 +213,8 @@ def test_limits_and_eof_emit_gap_without_retaining_payload():
 
 def test_unknown_method_and_unknown_notification_are_preserved_as_opaque():
     observer = connected_observer()
-    observer.feed("c1", "client", rpc_frame({"jsonrpc": "2.0", "id": "u", "method": "vendor/secret", "params": {"text": "CANARY"}}, direction="client"))
-    observer.feed("c1", "server", rpc_frame({"jsonrpc": "2.0", "method": "VendorEvent", "params": {"text": "CANARY"}}, direction="server"))
+    observer.feed("c1", "client", rpc_frame({"id": "u", "method": "vendor/secret", "params": {"text": "CANARY"}}, direction="client"))
+    observer.feed("c1", "server", rpc_frame({"method": "VendorEvent", "params": {"text": "CANARY"}}, direction="server"))
     rows = events(observer)
     unknown = [row for row in rows if row.get("event") == "rpc_unknown"]
     assert [(row["direction"], row.get("request_id"), row["method"]) for row in unknown] == [("client", "u", "vendor/secret"), ("server", None, "VendorEvent")]
@@ -161,12 +229,12 @@ def test_close_unknown_connection_is_safe_and_new_epoch_does_not_reuse_pending_i
     observer.open("c1")
     observer.feed("c1", "client", upgrade_request())
     observer.feed("c1", "server", upgrade_response())
-    observer.feed("c1", "client", rpc_frame({"jsonrpc": "2.0", "id": 1, "method": "thread/read", "params": {"threadId": "old"}}, direction="client"))
+    observer.feed("c1", "client", rpc_frame({"id": 1, "method": "thread/read", "params": {"threadId": "old"}}, direction="client"))
     observer.close("c1")
     observer.open("c1")
     observer.feed("c1", "client", upgrade_request())
     observer.feed("c1", "server", upgrade_response())
-    observer.feed("c1", "server", rpc_frame({"jsonrpc": "2.0", "id": 1, "result": {}}, direction="server"))
+    observer.feed("c1", "server", rpc_frame({"id": 1, "result": {}}, direction="server"))
     rows = events(observer)
     assert any(row.get("event") == "rpc_unknown" and row.get("request_id") == 1 and row.get("method") is None for row in rows)
     assert len({row["conn_epoch"] for row in rows if "conn_epoch" in row}) >= 2
@@ -175,7 +243,7 @@ def test_close_unknown_connection_is_safe_and_new_epoch_does_not_reuse_pending_i
 def test_upgrade_and_first_frame_can_share_one_chunk_and_control_frame_can_interleave():
     observer = Observer()
     observer.open("c1")
-    payload = {"jsonrpc": "2.0", "id": "r1", "method": "thread/start", "params": {"cwd": "/repo"}}
+    payload = {"id": "r1", "method": "thread/start", "params": {"cwd": "/repo"}}
     observer.feed("c1", "client", upgrade_request() + frame(json.dumps(payload).encode(), masked=True))
     observer.feed("c1", "server", upgrade_response())
     observer.feed("c1", "client", frame(b"x", opcode=9, masked=True) + frame(b"", opcode=10, masked=True))
@@ -187,8 +255,8 @@ def test_upgrade_and_first_frame_can_share_one_chunk_and_control_frame_can_inter
 
 def test_unknown_thread_list_response_is_opaque_and_does_not_retain_history():
     observer = connected_observer()
-    observer.feed("c1", "client", rpc_frame({"jsonrpc": "2.0", "id": "list", "method": "thread/list", "params": {}}, direction="client"))
-    observer.feed("c1", "server", rpc_frame({"jsonrpc": "2.0", "id": "list", "result": {"data": [{"text": "CANARY"}]}}, direction="server"))
+    observer.feed("c1", "client", rpc_frame({"id": "list", "method": "thread/list", "params": {}}, direction="client"))
+    observer.feed("c1", "server", rpc_frame({"id": "list", "result": {"data": [{"text": "CANARY"}]}}, direction="server"))
     rows = events(observer)
     assert any(row.get("event") == "rpc_unknown" and row.get("method") == "thread/list" and row.get("response") for row in rows)
     assert "CANARY" not in json.dumps(rows)
@@ -196,7 +264,7 @@ def test_unknown_thread_list_response_is_opaque_and_does_not_retain_history():
 
 def test_thread_started_keeps_only_safe_thread_metadata():
     observer = connected_observer()
-    observer.feed("c1", "server", rpc_frame({"jsonrpc": "2.0", "method": "thread/started", "params": {"thread": {"id": "t1", "sessionId": "s1", "cwd": "/repo", "text": "CANARY"}}}, direction="server"))
+    observer.feed("c1", "server", rpc_frame({"method": "thread/started", "params": {"thread": {"id": "t1", "sessionId": "s1", "cwd": "/repo", "text": "CANARY"}}}, direction="server"))
     rows = events(observer)
     started = [row for row in rows if row.get("event") == "rpc" and row.get("method") == "thread/started"][-1]
     assert started["thread"] == {"id": "t1", "sessionId": "s1", "cwd": "/repo"}
@@ -253,7 +321,7 @@ def test_upgrade_header_limit_applies_when_terminator_is_in_same_chunk():
 
 def test_nonfinite_json_and_invalid_close_payloads_make_gaps():
     observer = connected_observer()
-    payload = b'{"jsonrpc":"2.0","id":1,"method":"thread/read","params":{"threadId":NaN}}'
+    payload = b'{"id":1,"method":"thread/read","params":{"threadId":NaN}}'
     observer.feed("c1", "client", frame(payload, masked=True))
     assert any(row.get("reason") == "invalid_json" for row in events(observer))
 
@@ -322,17 +390,17 @@ def test_pending_request_cwd_items_and_integer_ids_have_explicit_limits():
     observer.feed("pending", "client", upgrade_request())
     observer.feed("pending", "server", upgrade_response())
     requests = b"".join(
-        rpc_frame({"jsonrpc": "2.0", "id": index, "method": "thread/read", "params": {"threadId": "t"}}, direction="client")
+        rpc_frame({"id": index, "method": "thread/read", "params": {"threadId": "t"}}, direction="client")
         for index in range(256 + 1)
     )
     observer.feed("pending", "client", requests)
     assert any(row.get("reason") == "pending_requests_too_many" for row in events(observer))
 
     observer = connected_observer()
-    observer.feed("c1", "client", rpc_frame({"jsonrpc": "2.0", "id": 2**63, "method": "thread/read", "params": {}}, direction="client"))
+    observer.feed("c1", "client", rpc_frame({"id": 2**63, "method": "thread/read", "params": {}}, direction="client"))
     assert any(row.get("reason") == "request_id_too_large" for row in events(observer))
 
     observer = connected_observer()
     cwds = [f"/repo/{index}" for index in range(65)]
-    observer.feed("c1", "client", rpc_frame({"jsonrpc": "2.0", "id": 1, "method": "skills/list", "params": {"cwds": cwds}}, direction="client"))
+    observer.feed("c1", "client", rpc_frame({"id": 1, "method": "skills/list", "params": {"cwds": cwds}}, direction="client"))
     assert any(row.get("reason") == "cwds_too_many" for row in events(observer))
