@@ -1,0 +1,47 @@
+{
+  "scope": "offline_input_chain_only_not_native_delivery",
+  "helper_commit": "3763a8c1fda44b7a19530b54daf8548894bd6cf5",
+  "controller_commit": "08bdd56be86055bd842507bb21ac1c9e016fe91c",
+  "red_helper_commit": "06c0cfe8ab0f974702df30fb5df92333e9c0f811",
+  "python": "3.13.7",
+  "websockets": "16.0",
+  "sha256": {
+    "tasks/g0-pending-resolution/scripts/native_standalone.py": "be50eb9874d3b37ef7753e91641487cfed5d4e8340fe08ff9fa36223deecc7d3",
+    "tasks/g0-pending-resolution/scripts/delivery_audit.py": "59d8129d5409fb7fb5687a5107c81f9d85a63b8f718e4dd22cab660517af87c6",
+    "tasks/g0-pending-resolution/scripts/native_standalone_binding_test.py": "0133e43cd5a6b9714b9b037332692e1fc71deb84f4a58286ba9ee6fd3186b9fd",
+    "tasks/g0-pending-resolution/docs/standalone-helper-sd02-fixture.json": "dc8a3394333df77d002512a6db9ccae5550677e729e1037b6748a4f343cea6ca",
+    "tasks/g0-pending-resolution/tmp/standalone-fixture-src/controller08/native_sd_collect.py": "f4390c6d7c3b7a595e54c600850c586e0dec34ff44d03022b5c27e0a0c4659ee",
+    "tasks/g0-pending-resolution/tmp/standalone-fixture-src/controller08/native_sd_control.py": "1606fbbed02298c0455ebca71aebe39b56dbc24bcf29bb451200bd4d30a405cb",
+    "tasks/g0-pending-resolution/tmp/standalone-fixture-src/controller08/native_sd_clock.py": "c16c8d0d0d9b1652d18606230351493f3cea33211f8b4d3323bb5b6bf2466087",
+    "tasks/g0-pending-resolution/tmp/standalone-fixture-src/controller08/native_sd_pty.py": "c142326e31c2541dbb901c71fa84a96fe0a66bafb46c1344b14c89c94a344190"
+  },
+  "original_binding_evidence_and_five_go_files_unchanged": true,
+  "compile_pass": true,
+  "rpc_transport": "synthetic in-memory; no network",
+  "real_go_commands": [
+    "read",
+    "inspect"
+  ],
+  "go_commands_target": "private temporary clone only",
+  "send_attempt_created": false,
+  "model_started": false,
+  "intermediate_failure": {
+    "helper_reason": "local_command_failed",
+    "go_verb": "inspect",
+    "go_exit": 2,
+    "go_error": "control_missing",
+    "cause": "clone omitted required existing control.lock"
+  },
+  "final_validation": {
+    "tests": 1,
+    "status": "PASS",
+    "elapsed_seconds": 0.125,
+    "log": "standalone-helper-sd02-chain-green.log"
+  },
+  "red_validation": {
+    "tests": 1,
+    "status": "expected assertion FAIL",
+    "reason": "old helper rejects executable_path schema from real updated controller builder",
+    "log": "standalone-helper-sd02-chain-red.log"
+  }
+}

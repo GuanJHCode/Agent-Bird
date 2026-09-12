@@ -1,0 +1,17 @@
+F
+======================================================================
+FAIL: test_actual_controller_binding_through_complete_prepare_with_cloned_go (native_standalone_binding_test.Sd02OfflineInputChain.test_actual_controller_binding_through_complete_prepare_with_cloned_go)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_binding_test.py", line 147, in test_actual_controller_binding_through_complete_prepare_with_cloned_go
+    self.assertEqual(result.get("status"), "prepared", {"reason": result.get("reason"), "go_failures": go_failures})
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'rejected' != 'prepared'
+- rejected
++ prepared
+ : {'reason': 'local_command_failed', 'go_failures': [{'verb': 'inspect', 'exit': 2, 'stderr': '{"version":1,"status":"error","error":"control_missing"}\n'}]}
+
+----------------------------------------------------------------------
+Ran 1 test in 0.127s
+
+FAILED (failures=1)

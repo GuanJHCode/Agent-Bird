@@ -1,0 +1,31 @@
+F
+======================================================================
+FAIL: test_actual_controller_binding_through_complete_prepare_with_cloned_go (native_standalone_binding_test.Sd02OfflineInputChain.test_actual_controller_binding_through_complete_prepare_with_cloned_go)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_binding_test.py", line 144, in test_actual_controller_binding_through_complete_prepare_with_cloned_go
+    result = probe.main(["prepare", "--case", str(case_dir), "--root", original["controller_thread_id"], "--nonce", original["nonce"]])
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/tmp/standalone-fixture-src/helper06c/native_standalone.py", line 582, in main
+    binding = validate_binding(case.read("binding.json"), root, nonce)
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/tmp/standalone-fixture-src/helper06c/native_standalone.py", line 87, in validate_binding
+    exact(service, ("pid", "uid", "birth", "comm", "socket_path", "socket_dev", "socket_ino", "native_binary_sha256"))
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/tmp/standalone-fixture-src/helper06c/native_standalone.py", line 44, in exact
+    check(type(value) is dict and set(value) == set(keys), "invalid_schema")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/tmp/standalone-fixture-src/helper06c/native_standalone.py", line 40, in check
+    raise ProbeError(code)
+native_standalone.ProbeError: invalid_schema
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_binding_test.py", line 146, in test_actual_controller_binding_through_complete_prepare_with_cloned_go
+    self.fail("prepare input rejected: " + error.code)
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: prepare input rejected: invalid_schema
+
+----------------------------------------------------------------------
+Ran 1 test in 0.007s
+
+FAILED (failures=1)
