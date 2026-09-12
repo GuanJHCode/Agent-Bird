@@ -1,0 +1,193 @@
+{
+  "version": 1,
+  "nonce": "sd-qual-01",
+  "started_at": "2026-09-11T18:16:30.076016+00:00",
+  "stage": "initial",
+  "helper_sha256": "a830233c4f57456d9007a8416f7253a00a76c0f32c5c3f68a7187e59790924f5",
+  "audit_sha256": "59d8129d5409fb7fb5687a5107c81f9d85a63b8f718e4dd22cab660517af87c6",
+  "protected_before": {
+    "global_config": {
+      "exists": true,
+      "sha256": "81f17c8213836b666fcbf970737301e38ddc80856a1c81c958a81c35c19360ef",
+      "bytes": 21358
+    },
+    "login_profile": {
+      "exists": true,
+      "sha256": "9182af26fc3d20697ba0db018bc666dcb326686392db102422e72a4f5b12f549",
+      "bytes": 593
+    },
+    "test_config": {
+      "exists": false
+    },
+    "test_hooks": {
+      "exists": true,
+      "sha256": "666243bf0789d012c7035ff7ef7203735df95fd79eafe763fa5013277f58b917",
+      "bytes": 1393
+    },
+    "trusted_hook_binary": {
+      "exists": true,
+      "sha256": "62e41afd87e1408854490bf6a716cfe846fff0021179a39d163d6e02254ba779",
+      "bytes": 3433442
+    },
+    "existing_daemon_settings": {
+      "exists": true,
+      "sha256": "922e9ed2521a417109eae8429696e6f7c95e06e7a2acd1cf5b2c0326b73d9b40",
+      "bytes": 34
+    }
+  },
+  "service_argv": [
+    "codex",
+    "app-server",
+    "--listen",
+    "unix://"
+  ],
+  "tui_argv": [
+    "codex"
+  ],
+  "scope": "one fixed owned PTY; not generic current-UI attachment or full G0",
+  "root": "01a091af-7695-71b1-a3b1-a0251fed78d0",
+  "initial_status": {
+    "pid": 64759,
+    "started_at": "2026-09-11T18:16:30.428221+00:00",
+    "bytes": 11308,
+    "sha256": "35fbe21387d69435c4412e7e66f1757ee621477e16c6c3a0388dfe5ec86284a6",
+    "cursor_position_replies": 1,
+    "inputs": [
+      {
+        "at": "2026-09-11T18:16:30.669309+00:00",
+        "monotonic": 1699890.6645895,
+        "action": "status",
+        "bytes": 8,
+        "sha256": "6dc5d1b0bdd8792c20c4cddc37f35ed6d3d2256f134dbc98a54ffa3b1bbb52ee"
+      }
+    ],
+    "exit_code": null,
+    "status_root": "01a091af-7695-71b1-a3b1-a0251fed78d0",
+    "status_capture_start_byte": 3930
+  },
+  "origin": {
+    "service": {
+      "pid": 64731,
+      "ppid": 64729,
+      "uid": 501,
+      "started_at_local": "Sat Sep 12 02:16:30 2026",
+      "comm": "codex",
+      "native_executable_matches": true
+    },
+    "tui": {
+      "pid": 64759,
+      "ppid": 64729,
+      "uid": 501,
+      "started_at_local": "Sat Sep 12 02:16:30 2026",
+      "comm": "codex",
+      "native_executable_matches": true
+    },
+    "socket": {
+      "path": "/Users/guanjunhui/.codex/app-server-control/app-server-control.sock",
+      "exists": true,
+      "dev": 16777234,
+      "ino": 160853028,
+      "uid": 501,
+      "mode": "0600",
+      "service_holds_path": true
+    }
+  },
+  "initial_window": {
+    "since": "2026-09-11T18:16:30.898340+00:00",
+    "deadline": "2026-09-11T18:18:30.898340+00:00"
+  },
+  "failure": {
+    "stage": "initial",
+    "type": "ValueError",
+    "at": "2026-09-11T18:33:46.725390+00:00"
+  },
+  "helper_completed_without_error": false,
+  "job_completed_before_cleanup": false,
+  "job_completed_at_cleanup": false,
+  "cleanup_connection_observation": {
+    "automatic_service_stop": false,
+    "reason": "connection_evidence_unavailable",
+    "listener_retained_for_main_agent": true
+  },
+  "service_process": {
+    "pid": 64731,
+    "started_at": "2026-09-11T18:16:30.076201+00:00",
+    "exit_code": null,
+    "stdio": "devnull"
+  },
+  "retained_service_pid": 64731,
+  "tui_pty": {
+    "pid": 64759,
+    "started_at": "2026-09-11T18:16:30.428221+00:00",
+    "bytes": 13552,
+    "sha256": "e2944ece2a3bbb11670b9c4706d64aae568e9fa26d1b839542f8f0c5a489e115",
+    "cursor_position_replies": 1,
+    "inputs": [
+      {
+        "at": "2026-09-11T18:16:30.669309+00:00",
+        "monotonic": 1699890.6645895,
+        "action": "status",
+        "bytes": 8,
+        "sha256": "6dc5d1b0bdd8792c20c4cddc37f35ed6d3d2256f134dbc98a54ffa3b1bbb52ee"
+      },
+      {
+        "at": "2026-09-11T18:16:30.900382+00:00",
+        "monotonic": 1699890.895647333,
+        "action": "initial",
+        "bytes": 2090,
+        "sha256": "7bd02d892b50a5afa27cba27a442ea9070473bf87bfc5c4594e53e2f7a00bc90"
+      },
+      {
+        "at": "2026-09-11T18:33:46.950849+00:00",
+        "monotonic": 1699904.955699166,
+        "action": "quit",
+        "bytes": 6,
+        "sha256": "af550994bb9dd00047c7fc76bedd48c7e5ffb38d5d9934d2be6c451f1aee6d2f"
+      }
+    ],
+    "exit_code": null,
+    "status_root": "01a091af-7695-71b1-a3b1-a0251fed78d0",
+    "status_capture_start_byte": 3930
+  },
+  "protected_after": {
+    "global_config": {
+      "exists": true,
+      "sha256": "81f17c8213836b666fcbf970737301e38ddc80856a1c81c958a81c35c19360ef",
+      "bytes": 21358
+    },
+    "login_profile": {
+      "exists": true,
+      "sha256": "9182af26fc3d20697ba0db018bc666dcb326686392db102422e72a4f5b12f549",
+      "bytes": 593
+    },
+    "test_config": {
+      "exists": false
+    },
+    "test_hooks": {
+      "exists": true,
+      "sha256": "666243bf0789d012c7035ff7ef7203735df95fd79eafe763fa5013277f58b917",
+      "bytes": 1393
+    },
+    "trusted_hook_binary": {
+      "exists": true,
+      "sha256": "62e41afd87e1408854490bf6a716cfe846fff0021179a39d163d6e02254ba779",
+      "bytes": 3433442
+    },
+    "existing_daemon_settings": {
+      "exists": true,
+      "sha256": "922e9ed2521a417109eae8429696e6f7c95e06e7a2acd1cf5b2c0326b73d9b40",
+      "bytes": 34
+    }
+  },
+  "protected_unchanged": true,
+  "socket_after": {
+    "path": "/Users/guanjunhui/.codex/app-server-control/app-server-control.sock",
+    "exists": true,
+    "dev": 16777234,
+    "ino": 160853028,
+    "uid": 501,
+    "mode": "0600"
+  },
+  "ended_at": "2026-09-11T18:49:14.640959+00:00",
+  "all_owned_native_exited": false
+}

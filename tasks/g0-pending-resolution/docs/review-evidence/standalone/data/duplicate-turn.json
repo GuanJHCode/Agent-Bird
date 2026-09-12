@@ -1,0 +1,123 @@
+{
+  "binding": {
+    "version": 1,
+    "nonce": "sd-qual-01",
+    "controller_thread_id": "01900000-0000-7000-8000-000000000001",
+    "controller_epoch": 1,
+    "expected_cwd": "/private/g0/repo",
+    "prior_turn_id": "01900000-0000-7000-8000-000000000002",
+    "native_cli_version": "0.153.4",
+    "boot_id": "01900000-0000-4000-8000-000000000003",
+    "service": {
+      "pid": 1234,
+      "uid": 501,
+      "birth": "Fri Sep 11 10:00:00 2026",
+      "comm": "/private/g0/codex",
+      "socket_path": "/private/g0/native.sock",
+      "socket_dev": 1,
+      "socket_ino": 2,
+      "native_binary_sha256": "b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3"
+    },
+    "tui": {
+      "pid": 1235,
+      "uid": 501,
+      "birth": "Fri Sep 11 10:00:01 2026",
+      "comm": "/private/g0/codex",
+      "native_binary_sha256": "b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3"
+    },
+    "go_binary": "/private/g0/lab",
+    "go_binary_sha256": "feb9b9ad969abca5ff35db28c0f0d8d920dc0778d7aac68a90952900e989a285",
+    "job_dir": "/private/g0/job",
+    "controller_evidence_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "intent": {
+    "version": 1,
+    "delivery_id": "sd-qual-01_delivery",
+    "controller_thread_id": "01900000-0000-7000-8000-000000000001",
+    "controller_epoch": 1,
+    "events": [
+      {
+        "event_id": "sd-qual-01_result",
+        "event_revision": 1,
+        "kind": "result",
+        "payload_hash": "756f65ebdb13cd670eb6b78976806442de2514631a425e37e53d5181e9f73176",
+        "action_slot": "ack_r1"
+      }
+    ],
+    "payload_hash": "91b92b4f8160063b584ad96872aa403a03e4234ea7f4c708148cd4b188fef391"
+  },
+  "response": {
+    "thread": {
+      "id": "01900000-0000-7000-8000-000000000001",
+      "sessionId": "01900000-0000-7000-8000-000000000001",
+      "source": "cli",
+      "cliVersion": "0.153.4",
+      "cwd": "/private/g0/repo",
+      "historyMode": "legacy",
+      "ephemeral": false,
+      "status": {
+        "type": "idle"
+      },
+      "turns": [
+        {
+          "id": "01900000-0000-7000-8000-000000000002",
+          "status": "completed",
+          "itemsView": "full",
+          "items": [
+            {
+              "id": "exec_01",
+              "type": "commandExecution",
+              "status": "completed",
+              "exitCode": 0,
+              "command": "PRIVATE_DO_NOT_EXPORT",
+              "aggregatedOutput": "PRIVATE_DO_NOT_EXPORT"
+            },
+            {
+              "id": "ready_01",
+              "type": "agentMessage",
+              "phase": "final_answer",
+              "text": "SD_QUAL_01_READY"
+            }
+          ]
+        },
+        {
+          "id": "new_turn",
+          "status": "completed",
+          "itemsView": "full",
+          "items": [
+            {
+              "id": "delivery_item",
+              "type": "functionCallOutput",
+              "name": "g0_delivery",
+              "namespace": "orchestration",
+              "output": "{\"controller_epoch\":1,\"controller_thread_id\":\"01900000-0000-7000-8000-000000000001\",\"delivery_id\":\"sd-qual-01_delivery\",\"events\":[{\"action_slot\":\"ack_r1\",\"event_id\":\"sd-qual-01_result\",\"event_revision\":1,\"kind\":\"result\",\"payload_hash\":\"756f65ebdb13cd670eb6b78976806442de2514631a425e37e53d5181e9f73176\"}],\"payload_hash\":\"91b92b4f8160063b584ad96872aa403a03e4234ea7f4c708148cd4b188fef391\",\"version\":1}"
+            },
+            {
+              "id": "ack_message",
+              "type": "agentMessage",
+              "phase": "final_answer",
+              "text": "SD_QUAL_01_ACK"
+            }
+          ]
+        },
+        {
+          "id": "new_turn",
+          "status": "inProgress",
+          "itemsView": "full",
+          "items": [
+            {
+              "id": "user_item",
+              "type": "userMessage",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "synthetic new input"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

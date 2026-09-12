@@ -1,0 +1,29 @@
+[
+  {
+    "case": "unrelated_namespace_str",
+    "accepted": true,
+    "namespace_exported": "CANARY_NAMESPACE_DO_NOT_EXPORT",
+    "canary_exported": true
+  },
+  {
+    "case": "unrelated_namespace_dict",
+    "accepted": true,
+    "namespace_exported": {
+      "body": "CANARY_NAMESPACE_DO_NOT_EXPORT"
+    },
+    "canary_exported": true
+  },
+  {
+    "case": "conflicting_duplicate_turn_id",
+    "accepted": true,
+    "facts": {
+      "history_match": true,
+      "new_turn_completed": true,
+      "ack_final_marker": true,
+      "prior_tools_terminal": true,
+      "prior_started_at": null,
+      "prior_completed_at": null,
+      "matching_turn_id": "new_turn"
+    }
+  }
+]

@@ -1,0 +1,119 @@
+{
+  "version": 1,
+  "reviewer": "retained_lifecycle_review",
+  "updated_at": "2026-09-11T20:33:38.494325+00:00",
+  "commits": {
+    "core": "0c46f7563ba6692f355daa0b55b951c0d27af204",
+    "rpc": "368d1468e0db8963286a28b5a5aeeaaf6a7f080c",
+    "fix": "5f2bd86667b0e352e2c170fe5af36e9e9f0b482a",
+    "paginated_fix": "c3f35d37506f0681e8b02005ac28a3d04b52a85d"
+  },
+  "status": "helper_admitted_for_fixed_single_sample_native_results_pending",
+  "scope": {
+    "native_service_connections": 0,
+    "native_model_calls": 0,
+    "native_services_started": 0,
+    "go_full_tests_run": false,
+    "implementation_worktree_modified": false,
+    "source_network_access": "fixed official public sources only"
+  },
+  "verification": {
+    "unittest": {
+      "tests": 16,
+      "seconds": 0.006,
+      "exit_code": 0,
+      "fresh_fixed_copy": true,
+      "evidence": "c3f35d37-delta-validation.json"
+    },
+    "cli_missing_arguments": {
+      "exit_code": 2,
+      "stderr_empty": true
+    },
+    "in_memory_compile": true,
+    "source_document_json_diff_check_exit_code": 0,
+    "previous_unittest": {
+      "tests": 15,
+      "seconds": 0.009,
+      "exit_code": 0,
+      "fresh_fixed_archive": true
+    }
+  },
+  "original_findings": {
+    "invalid_namespace_projection": "closed",
+    "duplicate_turn_id_in_one_read": "closed"
+  },
+  "new_protocol_finding": {
+    "status": "closed_in_c3f35d37",
+    "behavior": "fresh non-ephemeral TUI uses paginated; helper only accepts legacy",
+    "minimum_fix": "accept explicit paginated while retaining per-turn full and existing bounds",
+    "native_admission_withdrawn": false,
+    "prior_5f2_native_admission_was_withdrawn": true,
+    "final_delta": "one line: explicit legacy/paginated; full/native identity/ACK/all limits unchanged"
+  },
+  "fixed_files": [
+    {
+      "path": "tmp/c3f35d37/native_standalone.py",
+      "bytes": 33709,
+      "sha256": "a830233c4f57456d9007a8416f7253a00a76c0f32c5c3f68a7187e59790924f5"
+    },
+    {
+      "path": "tmp/c3f35d37/native_standalone_test.py",
+      "bytes": 17323,
+      "sha256": "0f43d3a3f0ee19871e6717a1f193d22259c865ad2d8fbe96096d712716eb9676"
+    },
+    {
+      "path": "tmp/c3f35d37/delivery_audit.py",
+      "bytes": 10755,
+      "sha256": "59d8129d5409fb7fb5687a5107c81f9d85a63b8f718e4dd22cab660517af87c6"
+    }
+  ],
+  "reproduction_inputs": [
+    {
+      "path": "data/duplicate-turn.json",
+      "bytes": 4084,
+      "sha256": "e039a5395f5a0d8c7e86a5ed85f43f7a13e86b788b76b43e0030e27478b0c12e"
+    },
+    {
+      "path": "data/namespace-dict.json",
+      "bytes": 1177,
+      "sha256": "02ff3becec9ef9ace45d7c01bcc00a2c7fa410221134eda498b08671b0f76e83"
+    },
+    {
+      "path": "data/namespace-str.json",
+      "bytes": 1139,
+      "sha256": "d8a4c70b2d1bd5fbd6bf17b615ce28eba5d54042b1232db5f3a3a4dbfd3c35cb"
+    }
+  ],
+  "official_protocol_sources": [
+    {
+      "path": "codex-rs/tui/src/app_server_session.rs",
+      "url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/app_server_session.rs",
+      "sha256": "dc3e6c1eb30d3d82c9d2ca383049323988b3442d86d49c2f021f276b45c0fd10",
+      "bytes": 147139
+    },
+    {
+      "path": "codex-rs/app-server/src/request_processors/thread_processor.rs",
+      "url": "https://raw.githubusercontent.com/openai/codex/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/app-server/src/request_processors/thread_processor.rs",
+      "sha256": "b7257eb4e93317d6162bba17462abb4607b9083621d11ddfe7bbc04777cc930c",
+      "bytes": 240965
+    }
+  ],
+  "archive_then_cleanup": "Evidence frozen; retain reviewer temporary materials until parent explicitly requests cleanup after native evidence review.",
+  "previous_fixed_files": [
+    {
+      "path": "tmp/5f2bd866/tasks/g0-pending-resolution/scripts/native_standalone.py",
+      "bytes": 33694,
+      "sha256": "7a975ef560bb078077d5607acd559683ae84bf0901bd059dae05c7060f41c535"
+    },
+    {
+      "path": "tmp/5f2bd866/tasks/g0-pending-resolution/scripts/native_standalone_test.py",
+      "bytes": 16476,
+      "sha256": "b1674a736f7cdab5d9fe2291a7b6a41529fd4f4fa3365182bf0b0d6acb7b493a"
+    },
+    {
+      "path": "tmp/5f2bd866/tasks/g0-pending-resolution/scripts/delivery_audit.py",
+      "bytes": 10755,
+      "sha256": "59d8129d5409fb7fb5687a5107c81f9d85a63b8f718e4dd22cab660517af87c6"
+    }
+  ]
+}

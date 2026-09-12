@@ -1,0 +1,47 @@
+{
+  "source": "tasks/g0-pending-resolution/tmp/reviewer-standalone-core",
+  "destination": "tasks/g0-pending-resolution/docs/review-evidence/standalone",
+  "files": [
+    {
+      "path": "docs/standalone-helper-review.md",
+      "bytes": 6368,
+      "sha256": "067cabc88f41a7165766df0593709f6dce7a4aac2336a10883c762dc80f31565"
+    },
+    {
+      "path": "docs/standalone-helper-review-validation.json",
+      "bytes": 4341,
+      "sha256": "215d0935503b6504e0449e3bdeda60aa0fabbeb4ba6b5c3a3af8591efcbe97f9"
+    },
+    {
+      "path": "docs/0c46f756-core-reproductions.json",
+      "bytes": 673,
+      "sha256": "59d0bf1a7db3739dc31a1c35cb08f67a006e53fb57975003595b478439e8f0ac"
+    },
+    {
+      "path": "docs/5f2bd866-reproductions.json",
+      "bytes": 868,
+      "sha256": "1f0135e3000ebb9c697f2f709a024f947b07ceae67ae0019d945d825dc9fd052"
+    },
+    {
+      "path": "docs/c3f35d37-delta-validation.json",
+      "bytes": 535,
+      "sha256": "2e5746b2a8b65a33c34579a8a2902cc19b431d7e7d6f3b8c7a4d86ee0a5ec116"
+    },
+    {
+      "path": "data/namespace-dict.json",
+      "bytes": 1177,
+      "sha256": "02ff3becec9ef9ace45d7c01bcc00a2c7fa410221134eda498b08671b0f76e83"
+    },
+    {
+      "path": "data/namespace-str.json",
+      "bytes": 1139,
+      "sha256": "d8a4c70b2d1bd5fbd6bf17b615ce28eba5d54042b1232db5f3a3a4dbfd3c35cb"
+    },
+    {
+      "path": "data/duplicate-turn.json",
+      "bytes": 4084,
+      "sha256": "e039a5395f5a0d8c7e86a5ed85f43f7a13e86b788b76b43e0030e27478b0c12e"
+    }
+  ],
+  "total_bytes": 19185
+}

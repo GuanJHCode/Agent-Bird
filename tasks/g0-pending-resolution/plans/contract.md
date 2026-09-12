@@ -38,6 +38,14 @@
 - 不代理 TUI 通信，不修改账号、权限、全局配置或 Apps 开关。限定 RPC helper 与原生 controller 分属独立 worktree；`send-once` 会启动模型轮次并写入历史，工具冻结并复核后才运行。
 - 先做一个资格样本；通过后再安排独立基础重复或必要故障窗口，沿用 10 秒本地、120 秒模型窗口。预建 listener 不计作冷启动自动接入；固定当前 UI 的样本不计作一般切换身份或完整 G0 通过。G1–G4 保持未启动。
 
+### 2026-09-12：首样本与下一次前瞻性测时
+
+`sd-qual-01` 在 initial 阶段结束为未通过，未进入 helper/standalone。输入至退出的墙钟增量为 1036.050467 秒，Python monotonic 增量为 14.060052 秒；异常记录仅有 `ValueError`，无法唯一定位分支。保留 `infrastructure_inconclusive` 及诊断不足，不据此否定回传接口，也不从 PTY 写入成功推定模型已接收提示。原记录、原时间窗口和 case 目录均不复用。
+
+准许准备唯一新 case `sd-qual-02`，仍须修改冻结、独立复核及新鲜现场检查后才运行。使用本机已核实包含休眠的 `CLOCK_MONOTONIC_RAW`，helper/controller 采用同一 clock identity、同一 boot 和各阶段原始起点；本地仍为 10 秒，初始输入和唯一发送分别仍为 120 秒。旧 clock identity 的记录不得换算成新期限，超窗响应不能标成功，不能因此重发旧事件。墙钟仅提供日期及异常诊断，不重置运行预算。
+
+新增固定异常子阶段、错误码和时钟读数，以区分预算到期与其他验证失败。原生日志的时间关联仍须独立成立；跨墙钟不连续无法证明关联或先后时保持不确定，不修改日志时间、不扩大原查询窗口。初始长提示的实际接收也需核对原生行为，不以输入字节数替代 Hook/turn 证据。没有新增系统时间设置、账号权限、TUI 代理或产品安装授权。
+
 ## 接口解释与判据
 
 官方 `turn/start.toolOutput` 接受客户端实际执行的独立工具输出，`input=[]`，以 `functionCallOutput` 持久化；不要求存在旧的 pending tool call。旧研究对“必须补回旧 pending call”的概括不作为本轮排除此接口的依据。[官方 App Server 说明](https://learn.chatgpt.com/docs/app-server#start-a-turn)

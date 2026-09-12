@@ -1,0 +1,16 @@
+{
+  "head": "c3f35d37506f0681e8b02005ac28a3d04b52a85d",
+  "base": "5f2bd86667b0e352e2c170fe5af36e9e9f0b482a",
+  "helper_sha256": "a830233c4f57456d9007a8416f7253a00a76c0f32c5c3f68a7187e59790924f5",
+  "tests": {
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "................\n----------------------------------------------------------------------\nRan 16 tests in 0.006s\n\nOK\n"
+  },
+  "diff_check": {
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  "scope": "offline delta; no native connections or model calls"
+}

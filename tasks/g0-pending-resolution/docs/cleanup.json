@@ -1,5 +1,6 @@
 {
-  "checked_at": "2026-09-11T09:30:02.835218+00:00",
+  "initial_checked_at": "2026-09-11T09:30:02.835218+00:00",
+  "latest_observation_phase": "after sd-qual-01; subsequent runtime and reviewer removals recorded below",
   "scope": "Only temporary resources created for this pending-resolution task",
   "removed_worktrees": [
     {
@@ -48,6 +49,35 @@
       "owner": "native_return_runner",
       "source_absent": true,
       "preserved": "committed manifests, checksums, reports and branch refs"
+    },
+    {
+      "path": "tasks/g0-pending-resolution/tmp/reviewer-standalone-core",
+      "files": 22,
+      "bytes": 582020,
+      "owner": "retained_lifecycle_review",
+      "archived_files": 8,
+      "archived_bytes": 19185,
+      "archive": "tasks/g0-pending-resolution/docs/review-evidence/standalone",
+      "all_archive_hashes_rechecked": true,
+      "source_absent": true
+    },
+    {
+      "path": "tasks/g0-pending-resolution/scripts/__pycache__",
+      "files": 4,
+      "bytes": 105262,
+      "owner": "sd-qual-01 runtime imports",
+      "source_absent_after_cleanup": true,
+      "preserved": "all reviewed Python source files"
+    },
+    {
+      "paths": [
+        "tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/tmp/standalone-schema-02",
+        "tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/tmp/standalone-schema-02-public"
+      ],
+      "files": 720,
+      "owner": "retained_host_impl",
+      "source_absent": true,
+      "preserved": "standalone-helper-local-schema-shapes.json and fixed binary/source references"
     }
   ],
   "worker_cleanup_record": "delivery-validation.json",

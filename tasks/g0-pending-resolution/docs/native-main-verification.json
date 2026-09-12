@@ -1,5 +1,5 @@
 {
-  "scope": "Fixed offline tests and implementation reviews; sd-qual-01 admitted after current-state preflight, native outcome still untested",
+  "scope": "Offline checks retained; sd-qual-01 infrastructure_inconclusive before standalone. Subsequent source/input/clock corrections require fresh review.",
   "source_commit": "472d2288f750b9d096dc5a2d84f7e885cf44b101",
   "integrated_commit": "2aa8e3c",
   "independent_review": {
@@ -79,9 +79,33 @@
     "native_admission": "restored_for_single_fixed_TUI_sample_only",
     "actual_native_contract": "thread/read(includeTurns=true) materializes paginated history as full turns; canonical JSONL still persists task_complete. No added RPC or TUI setting changes."
   },
-  "native_service_started": false,
-  "native_model_started": false,
+  "first_native_result": {
+    "case": "sd-qual-01",
+    "classification": "infrastructure_inconclusive",
+    "stage": "initial",
+    "error_type": "ValueError",
+    "exact_abort_reason_recorded": false,
+    "input_to_quit_wall_seconds": 1036.050467,
+    "input_to_quit_python_monotonic_seconds": 14.060051833,
+    "initial_bytes_written_to_pty": true,
+    "native_user_turn_acceptance_confirmed": false,
+    "standalone_helper_called": false,
+    "go_job_directory_empty": true,
+    "owned_tui_exited": true,
+    "owned_service_exited": true,
+    "socket_removed": true,
+    "controller_record": "native-sd-qual-01-controller.json",
+    "runtime_evidence_directory": "../data/sd-qual-01",
+    "new_findings": [
+      "Raw prompt plus Enter in one burst does not guarantee native submission; bracketed paste and separate submit are required for the next case",
+      "The fixed shared app-server path assigns source=vscode; literal cli was the wrong expectation for this topology",
+      "Metadata-only read works, while includeTurns and turns/list returned -32601 on the unconfirmed bootstrap root; no conclusion about delivery on a persisted user thread"
+    ]
+  },
+  "native_service_started": true,
+  "native_model_started": null,
   "pending": [
-    "sd-qual-01 native runtime sample"
+    "sd-qual-02 source, input and continuous-clock corrections and independent review",
+    "genuine submitted turn, persistent history read and standalone native evidence"
   ]
 }

@@ -1,0 +1,41 @@
+[
+  {
+    "input": "namespace-dict.json",
+    "expected": "invalid_tool_namespace",
+    "actual": "invalid_tool_namespace",
+    "pass": true
+  },
+  {
+    "input": "duplicate-turn.json",
+    "expected": "duplicate_turn_id",
+    "actual": "duplicate_turn_id",
+    "pass": true
+  },
+  {
+    "input": "namespace-str.json",
+    "expected": "valid bounded identifier remains allowed",
+    "pass": true
+  },
+  {
+    "case": "CLI missing arguments",
+    "exit": 2,
+    "output": {
+      "reason": "usage",
+      "resend_authorized": false,
+      "source_service_verified": false,
+      "status": "rejected",
+      "version": 1
+    },
+    "stderr_empty": true,
+    "pass": true
+  },
+  {
+    "case": "source compile",
+    "pass": true
+  },
+  {
+    "case": "helper_sha256",
+    "sha256": "7a975ef560bb078077d5607acd559683ae84bf0901bd059dae05c7060f41c535",
+    "pass": true
+  }
+]

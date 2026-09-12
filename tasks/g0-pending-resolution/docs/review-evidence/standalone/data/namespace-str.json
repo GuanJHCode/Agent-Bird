@@ -1,0 +1,44 @@
+{
+  "thread": {
+    "id": "01900000-0000-7000-8000-000000000001",
+    "sessionId": "01900000-0000-7000-8000-000000000001",
+    "source": "cli",
+    "cliVersion": "0.153.4",
+    "cwd": "/private/g0/repo",
+    "historyMode": "legacy",
+    "ephemeral": false,
+    "status": {
+      "type": "idle"
+    },
+    "turns": [
+      {
+        "id": "01900000-0000-7000-8000-000000000002",
+        "status": "completed",
+        "itemsView": "full",
+        "items": [
+          {
+            "id": "exec_01",
+            "type": "commandExecution",
+            "status": "completed",
+            "exitCode": 0,
+            "command": "PRIVATE_DO_NOT_EXPORT",
+            "aggregatedOutput": "PRIVATE_DO_NOT_EXPORT"
+          },
+          {
+            "id": "ready_01",
+            "type": "agentMessage",
+            "phase": "final_answer",
+            "text": "SD_QUAL_01_READY"
+          },
+          {
+            "id": "other_output",
+            "type": "functionCallOutput",
+            "name": "other_tool",
+            "namespace": "CANARY_NAMESPACE_DO_NOT_EXPORT",
+            "output": "ignored"
+          }
+        ]
+      }
+    ]
+  }
+}
