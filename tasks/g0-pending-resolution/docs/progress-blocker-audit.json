@@ -1,0 +1,31 @@
+{
+  "checked_at": "2026-09-12T09:48:00.388877+00:00",
+  "previous_goal_turn_classification": "progress: ACK capture repair and verified Luna effective configuration",
+  "current_turn_classification": "no implementation progress; existing attachment prerequisite remains unavailable",
+  "consecutive_blocked_goal_turns": 1,
+  "goal_status": "active",
+  "blocker": "No available permitted external input proves current TUI/thread attachment and switch/disconnect invalidation; generic G0 cannot proceed",
+  "native_version": "0.154.0",
+  "native_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+  "native_unchanged_since_sd08": true,
+  "independent_reviewer": "g0_remaining_routes",
+  "status_bar_candidate": "native visible value exists, but no demonstrated permitted external capture with ordering and invalidation",
+  "constraints": [
+    "ordinary codex entry",
+    "Skill and command Hook integration",
+    "no Codex body changes",
+    "no proxying native TUI communication"
+  ],
+  "evidence": [
+    "../../../docs/g0-validation-plan.md",
+    "attachment-current-tui-thread.md",
+    "idle-attachment-fsm-candidate.md",
+    "../../g0-attachment-log-availability/docs/result.md",
+    "../../g0-native-daemon-bootstrap-review/docs/result.md",
+    "../../g0-embedded-0154-delta/docs/result.md"
+  ],
+  "unblocking_condition": "New verified native attachment/observation capability, or an explicitly revised integration contract admitting a concrete alternative",
+  "repeat_controlled_model_tests_would_resolve_blocker": false,
+  "native_or_model_runs_this_turn": 0,
+  "full_G0_passed": false
+}
