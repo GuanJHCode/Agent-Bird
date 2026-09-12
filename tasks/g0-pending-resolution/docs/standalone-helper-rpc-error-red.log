@@ -1,0 +1,68 @@
+FFFFFF
+======================================================================
+FAIL: test_native_rpc_error_keeps_only_matched_method_code_and_message_digest (native_standalone_test.NativeStandaloneTests.test_native_rpc_error_keeps_only_matched_method_code_and_message_digest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 64, in test_native_rpc_error_keeps_only_matched_method_code_and_message_digest
+    self.assertEqual(getattr(caught.exception, "rpc_error", None), {
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        "method": "thread/read", "request_id": 1, "code": -32601,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        "message_bytes": len(message.encode()), "message_sha256": hashlib.sha256(message.encode()).hexdigest()})
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: None != {'method': 'thread/read', 'request_id': 1[119 chars]1ef'}
+
+======================================================================
+FAIL: test_native_rpc_error_rejects_untyped_details_and_unmatched_ids (native_standalone_test.NativeStandaloneTests.test_native_rpc_error_rejects_untyped_details_and_unmatched_ids)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 85, in test_native_rpc_error_rejects_untyped_details_and_unmatched_ids
+    self.assertEqual(caught.exception.code, reason)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'native_rpc_error' != 'invalid_rpc_error'
+- native_rpc_error
+?   ^ ^^
++ invalid_rpc_error
+? + + ^ ^
+
+
+======================================================================
+FAIL: test_rpc_error_survives_prepare_send_and_observe_without_authorizing_resend (native_standalone_test.NativeStandaloneTests.test_rpc_error_survives_prepare_send_and_observe_without_authorizing_resend) (stage='initialize')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 141, in test_rpc_error_survives_prepare_send_and_observe_without_authorizing_resend
+    self.assertEqual(result.get("rpc_error"), expected)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: None != {'method': 'initialize', 'request_id': 1,[118 chars]abd'}
+
+======================================================================
+FAIL: test_rpc_error_survives_prepare_send_and_observe_without_authorizing_resend (native_standalone_test.NativeStandaloneTests.test_rpc_error_survives_prepare_send_and_observe_without_authorizing_resend) (stage='prepare')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 141, in test_rpc_error_survives_prepare_send_and_observe_without_authorizing_resend
+    self.assertEqual(result.get("rpc_error"), expected)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: None != {'method': 'thread/read', 'request_id': 4[119 chars]abd'}
+
+======================================================================
+FAIL: test_rpc_error_survives_prepare_send_and_observe_without_authorizing_resend (native_standalone_test.NativeStandaloneTests.test_rpc_error_survives_prepare_send_and_observe_without_authorizing_resend) (stage='send')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 141, in test_rpc_error_survives_prepare_send_and_observe_without_authorizing_resend
+    self.assertEqual(result.get("rpc_error"), expected)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: None != {'method': 'turn/start', 'request_id': 5,[118 chars]abd'}
+
+======================================================================
+FAIL: test_rpc_error_survives_prepare_send_and_observe_without_authorizing_resend (native_standalone_test.NativeStandaloneTests.test_rpc_error_survives_prepare_send_and_observe_without_authorizing_resend) (stage='observe')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 141, in test_rpc_error_survives_prepare_send_and_observe_without_authorizing_resend
+    self.assertEqual(result.get("rpc_error"), expected)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: None != {'method': 'thread/read', 'request_id': 6[119 chars]abd'}
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.020s
+
+FAILED (failures=6)

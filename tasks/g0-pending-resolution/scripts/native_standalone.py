@@ -31,8 +31,9 @@ FILES = {"binding.json", "controller-evidence.json", "producer.json", "intent.js
 
 
 class ProbeError(Exception):
-    def __init__(self, code):
+    def __init__(self, code, rpc_error=None):
         self.code = code
+        self.rpc_error = rpc_error
         super().__init__(code)
 
 
@@ -437,7 +438,19 @@ class Rpc:
                 continue
             check(type(packet.get("id")) is int and packet["id"] == request["id"], "rpc_response_id_mismatch")
             check(set(packet) in ({"id", "result"}, {"id", "error"}), "invalid_rpc_response")
-            check("error" not in packet, "native_rpc_error")
+            if "error" in packet:
+                error = packet["error"]
+                check(type(error) is dict and set(error) in ({"code", "message"}, {"code", "message", "data"}), "invalid_rpc_error")
+                check(number(error["code"], -(2**63), 2**63 - 1) and type(error["message"]) is str, "invalid_rpc_error")
+                try:
+                    message = error["message"].encode("utf-8")
+                except UnicodeEncodeError:
+                    raise ProbeError("invalid_rpc_error") from None
+                check(len(message) <= MAX_BYTES, "invalid_rpc_error")
+                summary = {"method": request["method"], "request_id": request["id"], "code": error["code"],
+                           "message_bytes": len(message), "message_sha256": digest(message)}
+                time_left(deadline_ns)
+                raise ProbeError("native_rpc_error", summary)
             time_left(deadline_ns)
             return packet["result"]
 
@@ -519,6 +532,7 @@ def exists(case, name):
 
 async def observe(rpc, case, binding, intent, attempt):
     last_read, facts, inspection = None, {}, None
+    rpc_error = None
     reason = "model_window_expired"
     try:
         for _ in range(64):
@@ -543,11 +557,15 @@ async def observe(rpc, case, binding, intent, attempt):
         reason = "interrupted"
     except Exception as error:
         reason = error.code if isinstance(error, ProbeError) else "observation_io_failed"
+        if isinstance(error, ProbeError) and error.code == "native_rpc_error":
+            rpc_error = error.rpc_error
     output = {"version": 1, "scope": "one_bound_native_root", "status": "observed" if reason is None else "uncertain", "reason": reason,
               "source_service_verified": False, "current_display_verified": False, "controller_evidence_sha256": binding["controller_evidence_sha256"],
               "facts": facts, "go_inspection": inspection, "rpc_checks": rpc.checks,
               "frames": rpc.frames, "bytes": rpc.bytes, "server_requests_seen": rpc.server_requests, "last_frame_sha256": rpc.last_hash,
               "absence_proof": False, "resend_authorized": False}
+    if rpc_error is not None:
+        output["rpc_error"] = rpc_error
     if last_read is not None and not exists(case, "audit-input.json"):
         case.write_new("audit-input.json", {"version": 1, "intent": intent, "reads": [last_read], "acks": []})
     return output
@@ -605,6 +623,8 @@ def main(args):
             result = {"version": 1, "status": "uncertain" if exists(case, "send-attempt.json") else "rejected",
                       "reason": error.code if isinstance(error, ProbeError) else "operation_io_failed",
                       "source_service_verified": False, "resend_authorized": False, "absence_proof": False}
+            if isinstance(error, ProbeError) and error.code == "native_rpc_error" and error.rpc_error is not None:
+                result["rpc_error"] = error.rpc_error
             name = "read-observation.json" if verb == "observe" else "send-observation.json"
             if exists(case, "send-attempt.json") and not exists(case, name):
                 case.write_new(name, result)

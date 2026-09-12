@@ -49,6 +49,108 @@ def thread_result(source="vscode"):
 
 
 class NativeStandaloneTests(unittest.TestCase):
+    def test_native_rpc_error_keeps_only_matched_method_code_and_message_digest(self):
+        message = "CANARY_RPC_MESSAGE_错误"
+        class Wire:
+            async def send(self, _raw):
+                pass
+            async def recv(self):
+                return json.dumps({"id": 1, "error": {"code": -32601, "message": message, "data": {"body": "CANARY_RPC_DATA"}}})
+        rpc = probe.Rpc(binding(), probe.continuous_ns() + 10_000_000_000)
+        rpc.ws = Wire()
+        with self.assertRaises(probe.ProbeError) as caught:
+            asyncio.run(rpc.call("thread/read", {"threadId": ROOT, "includeTurns": True}))
+        self.assertEqual(caught.exception.code, "native_rpc_error")
+        self.assertEqual(getattr(caught.exception, "rpc_error", None), {
+            "method": "thread/read", "request_id": 1, "code": -32601,
+            "message_bytes": len(message.encode()), "message_sha256": hashlib.sha256(message.encode()).hexdigest()})
+        self.assertNotIn("CANARY", probe.canonical(vars(caught.exception)))
+
+    def test_native_rpc_error_rejects_untyped_details_and_unmatched_ids(self):
+        bad = [{"code": True, "message": "CANARY"}, {"code": "-32601", "message": "CANARY"},
+               {"code": 2**63, "message": "CANARY"}, {"code": -32601, "message": {"body": "CANARY"}},
+               {"code": -32601, "message": "\ud800"}, {"code": -32601},
+               {"code": -32601, "message": "CANARY", "unknown": "CANARY"}]
+        for response_id, error, reason in [(1, value, "invalid_rpc_error") for value in bad] + [
+                (99, {"code": -32601, "message": "CANARY"}, "rpc_response_id_mismatch")]:
+            class Wire:
+                async def send(self, _raw):
+                    pass
+                async def recv(self):
+                    return json.dumps({"id": response_id, "error": error})
+            rpc = probe.Rpc(binding(), probe.continuous_ns() + 10_000_000_000)
+            rpc.ws = Wire()
+            with self.subTest(reason=reason, response_id=response_id), self.assertRaises(probe.ProbeError) as caught:
+                asyncio.run(rpc.call("thread/read", {"threadId": ROOT, "includeTurns": True}))
+            self.assertEqual(caught.exception.code, reason)
+            self.assertIsNone(getattr(caught.exception, "rpc_error", None))
+            self.assertNotIn("CANARY", probe.canonical(vars(caught.exception)))
+
+    def test_rpc_error_survives_prepare_send_and_observe_without_authorizing_resend(self):
+        message = "CANARY_NATIVE_REJECTION"
+        task_tmp = pathlib.Path(__file__).resolve().parent.parent / "tmp"
+        task_tmp.mkdir(mode=0o700, exist_ok=True)
+        for stage, method, request_id in (("initialize", "initialize", 1), ("prepare", "thread/read", 4),
+                                          ("send", "turn/start", 5), ("observe", "thread/read", 6)):
+            calls, active = [], [stage in ("initialize", "prepare")]
+            class Wire:
+                async def send(self, raw):
+                    request = json.loads(raw)
+                    calls.append(request["method"])
+                    if request["method"] == "initialized":
+                        return
+                    reject = active[0] and request["method"] == method and request["id"] == request_id
+                    if reject:
+                        self.reply = {"id": request["id"], "error": {"code": -32601, "message": message, "data": {"body": "CANARY_DATA"}}}
+                        return
+                    results = {"initialize": {"platformOs": "macos", "platformFamily": "unix", "userAgent": "fixture", "codexHome": "fixture"},
+                               "server/diagnostics": {"process": {"id": 1234}}, "remoteControl/status/read": {"status": "disabled"},
+                               "thread/read": thread_result(), "turn/start": {"turn": {"id": "new_turn", "status": "inProgress"}}}
+                    self.reply = {"id": request["id"], "result": results[request["method"]]}
+                async def recv(self):
+                    return json.dumps(self.reply)
+                async def close(self):
+                    pass
+            async def connect(rpc):
+                rpc.ws = Wire()
+                return rpc
+            def clock():
+                return {"boot_id": BOOT, "clock_impl": probe.CLOCK_IMPL, "mono_ns": probe.continuous_ns(), "wall_ns": 0}
+            def go(_binding, verb, _deadline, allow_ack=False):
+                value = go_inspection()
+                return value["result"] if verb == "read" else value
+            with self.subTest(stage=stage), tempfile.TemporaryDirectory(prefix="rpc-error-", dir=task_tmp) as directory:
+                value = binding()
+                evidence = b"{}\n"
+                value["controller_evidence_sha256"] = hashlib.sha256(evidence).hexdigest()
+                with probe.Case(directory) as case:
+                    case.write_new("binding.json", value)
+                    case.write_new("controller-evidence.json", {})
+                with patch.object(probe.Rpc, "__aenter__", connect), patch.object(probe, "verify_machine"), patch.object(probe, "current_clock", side_effect=clock), patch.object(probe, "go_read", side_effect=go):
+                    args = ["prepare", "--case", directory, "--root", ROOT, "--nonce", NONCE]
+                    result = probe.main(args)
+                    if stage in ("send", "observe"):
+                        self.assertEqual(result["status"], "prepared")
+                        active[0] = True
+                        args[0] = "send-once"
+                        result = probe.main(args)
+                    expected = {"method": method, "request_id": request_id, "code": -32601,
+                                "message_bytes": len(message.encode()), "message_sha256": hashlib.sha256(message.encode()).hexdigest()}
+                    self.assertEqual(result["status"], "rejected" if stage in ("initialize", "prepare") else "uncertain")
+                    self.assertEqual(result["reason"], "native_rpc_error")
+                    self.assertEqual(result.get("rpc_error"), expected)
+                    self.assertFalse(result["resend_authorized"])
+                    self.assertNotIn("CANARY", probe.canonical(result))
+                    if stage in ("send", "observe"):
+                        recorded = json.loads((pathlib.Path(directory) / "send-observation.json").read_bytes())
+                        self.assertEqual(recorded["rpc_error"], expected)
+                        attempt = (pathlib.Path(directory) / "send-attempt.json").read_bytes()
+                        self.assertEqual(probe.main(args)["reason"], "send_intent_exists")
+                        self.assertEqual((pathlib.Path(directory) / "send-attempt.json").read_bytes(), attempt)
+                        self.assertEqual(calls.count("turn/start"), 1)
+                    else:
+                        self.assertFalse((pathlib.Path(directory) / "send-attempt.json").exists())
+
     def test_live_kernel_executable_must_match_for_each_role_even_without_rehash(self):
         value = binding()
         for role in ("service", "tui"):

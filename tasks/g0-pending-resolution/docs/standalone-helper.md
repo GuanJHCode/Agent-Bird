@@ -50,3 +50,5 @@ RPC 仅 initialize、initialized 通知、server/diagnostics、remoteControl/sta
 审查返工：prepare 现在于 `prepare-meta.json` 写入/fsync 完成后再次检查原 10 秒绝对期限，跨窗不能返回 prepared。新增一个定点回归包含 producer 与最后 prepare-meta 两个真实文件提交屏障，均先 RED 后 GREEN（1 项、2 个子场景，0.016s）；同 case 重跑因 O_EXCL 拒绝，已写字节保持不变。审查者原复现脚本也已由实现者重跑转绿（1 项，0.002s）。上述 23 项为上一固定版本已审历史基线，本次未重跑无关测试；最新证据为 `standalone-helper-prepare-{final,review}-{red,green}.log`。
 
 进程字段后继：实际 sd02 原 binding 在 RPC 之前因 comm=codex 被原 absolute(comm) 拒绝，原 SHA/错误已离线复现保留。新字段合同和两端实时 executable 不匹配的检查均先 RED，最小实现后 26 项通过（0.025s）。服务/TUI在 hashes=false 的观察阶段也会重新核实际 exe 路径；仅重哈希省略。真实当前 Python 进程的只读 proc_pidpath 返回绝对普通文件路径，证明本机调用可用，不是原生服务身份证据。完整 collector/controller→helper prepare 的 sd02 离线克隆回归已通过（1 项，0.125s），实际 Go read/inspect 只读取五份文件的私有副本；进程、socket 和原生 RPC 为明确替身，notLoaded→idle 也是测试投影，不授予原生准入。固定依赖、原失败和重放方式见 [sd02-chain](standalone-helper-sd02-chain.md)。
+
+原生匹配 RPC error 现在保留可选的五字段 `rpc_error` 摘要（method/request_id/code/message_bytes/message_sha256），覆盖 main 与已有观察记录；原始 message/data 不导出，不改变失败后的不确定与不重发语义。字段边界、controller 独立重验和 30 项最新验证见 [RPC 错误诊断](standalone-helper-rpc-error.md)。
