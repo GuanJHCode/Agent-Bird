@@ -114,7 +114,8 @@ def make_spec(tmp_path, *, model='gpt-5.6-luna', local_window=0.01):
 def fake_runtime(monkeypatch, *, lineage=True, gap=False, model_turn=False, wrong_status=False,
                  refresh=False, early_eof=False, quit_code=0, protection=None, ui_state='session',
                  missing_started=False, status_cost=0, toggle_cost=0, fork_delay=0, cached_delay=0,
-                 startup_probe=False, late_probe=False):
+                 startup_probe=False, late_probe=False, cleanup_rpc=False,
+                 wrong_cleanup_status=False, cleanup_delay=0):
     p = module()
     clock = [1.0]
     monkeypatch.setattr(p, 'raw_seconds', lambda: clock[0])
@@ -129,6 +130,8 @@ def fake_runtime(monkeypatch, *, lineage=True, gap=False, model_turn=False, wron
             self._status_buffer = b''
             self.status_ids = set()
             self.toggles = 0
+            self.cleanup_returns = 0
+            self.quit_accepted = False
             self.side_starts = 0
             self.side_open = False
             self.pending_creation = False
@@ -142,13 +145,16 @@ def fake_runtime(monkeypatch, *, lineage=True, gap=False, model_turn=False, wron
             if self.switch_due is None or clock[0] < self.switch_due:
                 return
             self.switch_due = None
-            self.displayed = S if self.pending_creation or self.toggles % 2 == 0 else P
+            self.displayed = S if self.pending_creation or (self.toggles + self.cleanup_returns) % 2 == 0 else P
             self.output_bytes += 100
             if self.pending_creation:
                 self.side_open = True
                 self.owner.feed.fork(lineage=lineage, started=not missing_started)
+            elif self.cleanup_returns and cleanup_rpc:
+                self.owner.feed.rpc('client', {'id': 20, 'method': 'thread/read', 'params': {'threadId': P}})
+                self.owner.feed.rpc('server', {'id': 20, 'result': {'thread': {'id': P}}})
             elif refresh:
-                number = 10 + self.toggles
+                number = 10 + self.toggles + self.cleanup_returns
                 self.owner.feed.rpc('client', {'id': number, 'method': 'thread/resume', 'params': {'threadId': self.displayed}})
                 self.owner.feed.rpc('server', {'id': number, 'result': {'thread': {'id': self.displayed}}})
 
@@ -168,7 +174,8 @@ def fake_runtime(monkeypatch, *, lineage=True, gap=False, model_turn=False, wron
 
         def begin_switch(self, *, creation):
             self.pending_creation = creation
-            self.switch_due = clock[0] + (fork_delay if creation else cached_delay)
+            delay = fork_delay if creation else cleanup_delay if self.cleanup_returns else cached_delay
+            self.switch_due = clock[0] + delay
             self.complete_switch()
             if gap:
                 self.owner.bridge.on_gap(SimpleNamespace(epoch=1, reason='synthetic_gap'))
@@ -178,9 +185,13 @@ def fake_runtime(monkeypatch, *, lineage=True, gap=False, model_turn=False, wron
 
         def write(self, data, *, action):
             assert data == b'\x1f', 'only the verified native Ctrl-7 byte may be injected'
-            assert action.startswith('side-toggle-')
+            assert action.startswith('side-toggle-') or action == 'cleanup-return-primary'
             self.inputs.append({'action': action, 'bytes': 1, 'sha256': hashlib.sha256(data).hexdigest()})
-            self.toggles += 1
+            if action == 'cleanup-return-primary':
+                assert self.toggles == 2 and self.cleanup_returns == 0
+                self.cleanup_returns += 1
+            else:
+                self.toggles += 1
             # Fixed native side.rs: no side exists -> toggle returns without a fork.
             if self.side_open:
                 self.begin_switch(creation=False)
@@ -192,7 +203,7 @@ def fake_runtime(monkeypatch, *, lineage=True, gap=False, model_turn=False, wron
                 if late_probe and not self.status_queries:
                     self.owner.feed.open(self.owner.feed.epoch + 1)
                     self.owner.feed.close(self.owner.feed.epoch + 1)
-                self.status_displayed = self.displayed
+                self.status_displayed = OTHER if wrong_cleanup_status and self.cleanup_returns else self.displayed
                 self.status_queries.append((clock[0], self.displayed))
                 self.status_ids = set()
                 self._status_buffer = b''
@@ -203,6 +214,9 @@ def fake_runtime(monkeypatch, *, lineage=True, gap=False, model_turn=False, wron
                 self.begin_switch(creation=True)
             elif early_eof:
                 pytest.fail('must not claim normal quit after prior EOF')
+            else:
+                # Fixed side command whitelist excludes Quit/Exit.
+                self.quit_accepted = self.displayed == P
 
         async def async_status_checkpoint(self, deadline):
             await self.aread_until(deadline)
@@ -217,6 +231,8 @@ def fake_runtime(monkeypatch, *, lineage=True, gap=False, model_turn=False, wron
 
         async def await_exit(self, deadline):
             clock[0] = max(clock[0], deadline)
+            if not self.quit_accepted:
+                return None
             self.exit_code = quit_code
             self.owner.bridge.on_lifecycle(SimpleNamespace(connection_id=self.owner.feed.connection_id, epoch=self.owner.feed.epoch, kind='eof'))
             return self.exit_code
@@ -308,7 +324,8 @@ def test_empty_side_creation_and_two_cached_toggles_never_create_candidate_from_
     assert instances[0].tui_driver.side_starts == 1
     assert instances[0].tui_driver.toggles == 2 and instances[0].closed
     assert [item['action'] for item in instances[0].tui_driver.inputs] == [
-        '/status', '/side', '/status', 'side-toggle-1', '/status', 'side-toggle-2', '/status', '/quit']
+        '/status', '/side', '/status', 'side-toggle-1', '/status', 'side-toggle-2', '/status',
+        'cleanup-return-primary', '/status', '/quit']
     assert result['termination']['exit_code'] == 0
     assert CANARY not in ''.join(path.read_text() for path in spec.case_dir.glob('*.json'))
 
@@ -447,7 +464,7 @@ def test_delayed_first_fork_waits_for_wire_before_status(tmp_path, monkeypatch):
     result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
     assert result['status'] == 'observed', result
     queries = instances[0].tui_driver.status_queries
-    assert [target for _, target in queries] == [P, S, P, S]
+    assert [target for _, target in queries[:4]] == [P, S, P, S]
     assert queries[1][0] - queries[0][0] >= 0.6
     assert result['switches'][0]['completed_at_raw'] <= result['switches'][0]['deadline_raw']
 
@@ -473,7 +490,7 @@ def test_delayed_cached_render_precedes_independent_status(tmp_path, monkeypatch
     factory, instances = fake_runtime(monkeypatch, cached_delay=0.6)
     result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
     assert result['status'] == 'observed', result
-    assert [target for _, target in instances[0].tui_driver.status_queries] == [P, S, P, S]
+    assert [target for _, target in instances[0].tui_driver.status_queries[:4]] == [P, S, P, S]
     assert all(step['render_after_toggle'] is True for step in result['switches'][1:])
 
 
@@ -543,3 +560,33 @@ def test_new_even_closed_probe_after_first_status_cannot_change_anchor(tmp_path,
     assert result['status'] == 'unknown'
     assert instances[0].tui_driver.side_starts == 0
     assert result['startup_anchor']['epoch'] == 2
+
+
+def test_cleanup_returns_to_primary_before_quit_without_changing_measurement(tmp_path, monkeypatch):
+    p = module()
+    spec = make_spec(tmp_path)
+    factory, instances = fake_runtime(monkeypatch, cleanup_rpc=True)
+    result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
+    assert result['status'] == 'observed', result
+    assert len(result['switches']) == 3 and len(result['status_checks']) == 4
+    assert result['cached_zero_rpc_observed'] is True
+    cleanup = result['cleanup_return_primary']
+    assert cleanup['part_of_measurement'] is False and cleanup['parent_confirmed'] is True
+    assert cleanup['status_check']['ids'] == [P]
+    assert cleanup['classification'] == 'refresh_rpc' and cleanup['zero_rpc'] is False
+    assert cleanup['status_check']['deadline_raw'] == cleanup['deadline_raw']
+    assert instances[0].tui_driver.toggles == 2 and instances[0].tui_driver.cleanup_returns == 1
+    assert instances[0].tui_driver.displayed == P and result['termination']['exit_code'] == 0
+
+
+@pytest.mark.parametrize('fault', [{'wrong_cleanup_status':True}, {'cleanup_delay':1}])
+def test_cleanup_return_failure_cannot_send_quit_or_change_measurement(tmp_path, monkeypatch, fault):
+    p = module()
+    spec = make_spec(tmp_path)
+    factory, instances = fake_runtime(monkeypatch, **fault)
+    result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
+    assert result['status'] == 'unknown'
+    assert len(result['switches']) == 3 and len(result['status_checks']) == 4
+    assert result['quit_sent'] is False
+    assert result['failure']['stage'] == 'cleanup-return-primary'
+    assert instances[0].tui_driver.cleanup_returns == 1

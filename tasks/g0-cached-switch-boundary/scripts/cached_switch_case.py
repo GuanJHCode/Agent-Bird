@@ -262,10 +262,14 @@ async def _wait_switch(spec: CachedSwitchCaseSpec, runtime: Any, bridge: Any, tu
 
 
 async def _status(spec: CachedSwitchCaseSpec, runtime: Any, bridge: Any, tui: Any,
-                  anchor: StartupAnchor, overall: float, expected: str | None) -> dict[str, Any]:
+                  anchor: StartupAnchor, overall: float, expected: str | None,
+                  *, deadline: float | None = None) -> dict[str, Any]:
     _live(runtime, bridge, tui, anchor)
     begin = raw_seconds()
-    deadline = _deadline(spec, overall)
+    local_deadline = _deadline(spec, overall)
+    deadline = local_deadline if deadline is None else min(deadline, local_deadline)
+    if raw_seconds() >= deadline:
+        raise TimeoutError('fresh status original local window already ended')
     start_seq = len(bridge.trace)
     query_id = str(uuid.uuid4())
     candidate_before = runtime.candidate
@@ -388,6 +392,41 @@ async def run_cached_switch_case(spec: CachedSwitchCaseSpec, *, preflight: Mappi
                 break
             if not check['exact']:
                 raise RuntimeInvariantError('independent status does not corroborate the expected P/S boundary')
+        if (len(result['switches']) == 3 and len(result['status_checks']) == 4
+                and all(check['exact'] for check in result['status_checks'])):
+            # Quit/Exit are not available inside side conversations. This navigation
+            # happens after measurement and never contributes to its RPC classification.
+            stage = 'cleanup-return-primary'
+            _live(runtime, bridge, tui, anchor)
+            if tui.evidence.get('ui_state') != 'session':
+                raise RuntimeInvariantError('cleanup return requires a command-ready TUI')
+            start = len(bridge.trace)
+            before = runtime.candidate
+            began = raw_seconds()
+            deadline = _deadline(spec, overall)
+            phase = {'part_of_measurement': False, 'parent_confirmed': False,
+                     'started_at_raw': began, 'deadline_raw': deadline,
+                     'trace_start_index': start}
+            result['cleanup_return_primary'] = phase
+            prior_screen = (tui.evidence.get('bytes'), tui.evidence.get('sha256'))
+            try:
+                tui.write(TOGGLE_BYTES, action='cleanup-return-primary')
+                wait = await _wait_switch(spec, runtime, bridge, tui, anchor, index=2,
+                    start=start, deadline=deadline, prior_screen=prior_screen)
+                phase.update(wait)
+                if not wait['wait_gate']:
+                    raise TimeoutError('cleanup return exceeded its original local window')
+                check = await _status(spec, runtime, bridge, tui, anchor, overall,
+                                      spec.expected_resume_thread_id, deadline=deadline)
+                phase['status_check'] = check
+                phase['parent_confirmed'] = check['exact']
+                if not check['exact']:
+                    raise RuntimeInvariantError('cleanup status does not corroborate the original primary')
+            finally:
+                phase.update(boundary_summary(bridge.trace[start:], epoch, before, runtime.candidate))
+                phase.update(trace_end_index=len(bridge.trace), completed_at_raw=raw_seconds(),
+                             active_thread_before=result['status_checks'][-1]['ids'][0],
+                             active_thread_after=phase.get('status_check', {}).get('ids', [None])[0])
         stage = 'quit'
         _live(runtime, bridge, tui, anchor)
         terminal_before = resume._terminal_event_count(bridge, epoch)
@@ -442,6 +481,7 @@ async def run_cached_switch_case(spec: CachedSwitchCaseSpec, *, preflight: Mappi
                     and len(result['switches']) == 3 and all(row['wait_gate'] for row in result['switches'])
                     and len(result['status_checks']) == 4 and all(row['exact'] for row in result['status_checks'])
                     and result.get('trace_complete') is True and result.get('model_turns') == 0
+                    and result.get('cleanup_return_primary', {}).get('parent_confirmed') is True
                     and result.get('termination', {}).get('status') == 'observed'
                     and not any(key in result for key in ('cleanup_failure', 'protection_failure', 'trace_failure')))
         result['status'] = 'observed' if complete else 'unknown'

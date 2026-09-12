@@ -16,7 +16,7 @@ cached02 的失败发生在任何输入之前：同一 owned TUI/backend 双 pee
 2. 所有 connection record 必须分别匹配本次 `OwnedProcess` 的 pid/birth/executable 与 complete 双 peer；epoch 不重复、无 identity error，当前 anchor 唯一 live。
 3. 较早 epoch 的事件只能为单 open、双向 EOF、单 close，完整结束在正式 anchor open 之前；禁止 RPC、upgrade、control、gap 或其他事件。关闭状态必须已记录。较早候选或协议证据不允许进入该例外。
 4. 冻结记录 metadata SHA、已有 trace 前缀 SHA/count，以及仅允许的 closed probe epochs。首 status 及后续每段都复核；任何新增/替换连接、旧前缀变更、旧 epoch 新事件、anchor EOF，均停止。不会重新选择 anchor。
-5. 本次正常运行仍只有空 `/side` 和两个 cached Ctrl-7 输入，所有 10/120 秒窗口不变。unknown 不重发，也不延长窗口。
+5. 原测量仍只有空 `/side` 和两个 cached Ctrl-7 输入，所有 10/120 秒窗口不变；测量后的独立清理返回见 `side-cleanup-boundary.md`。unknown 不重发，也不延长窗口。
 
 `tests/fixtures/cached02-startup-projection.json` 只保存原案的双 peer、startup open/EOF/close/下一 open，附原 result/trace SHA；没有 params、result body 或历史内容。离线测试用独立 fake OwnedProcess 匹配这些元数据，并经真实 Observer/bridge 的双 epoch synthetic wire 验证新 epoch 才能创建 candidate。
 

@@ -1,0 +1,24 @@
+{
+  "purpose": "Quit/Exit are unavailable in active side conversations; return to primary after measurement",
+  "files": [
+    {
+      "repository": "openai/codex",
+      "commit": "6b9826e3aa83b1a5947db50f4332cb9c65f1b340",
+      "upstream_path": "codex-rs/tui/src/slash_command.rs",
+      "url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/slash_command.rs",
+      "path": "codex-rs_tui_src_slash_command.rs",
+      "bytes": 12532,
+      "sha256": "fb451b239e2b426498665491cc46fe0406553310c6cbf3e790689866959078e1",
+      "git_blob_sha1": "ca83861bdb7ca643ba83b171921ef7d85c2fc2d5"
+    },
+    {
+      "repository": "openai/codex",
+      "commit": "6b9826e3aa83b1a5947db50f4332cb9c65f1b340",
+      "upstream_path": "codex-rs/tui/src/chatwidget/slash_dispatch.rs",
+      "url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/chatwidget/slash_dispatch.rs",
+      "path": "codex-rs_tui_src_chatwidget_slash_dispatch.rs",
+      "bytes": 52523,
+      "sha256": "795f6fe86162088914de82a139331330369bc2670f1477f89322d1d7d2edfee0"
+    }
+  ]
+}

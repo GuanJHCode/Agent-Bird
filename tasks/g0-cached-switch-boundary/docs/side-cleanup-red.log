@@ -1,0 +1,156 @@
+...F.....F..............F.F.........F.FFF                                [100%]
+=================================== FAILURES ===================================
+_ test_empty_side_creation_and_two_cached_toggles_never_create_candidate_from_status _
+
+tmp_path = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/tmp/probe-harness/tasks/g0-cached-switch-boundary/tmp/pytest-cleanup-red/test_empty_side_creation_and_t0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10acb0380>
+
+    def test_empty_side_creation_and_two_cached_toggles_never_create_candidate_from_status(tmp_path, monkeypatch):
+        p = module()
+        spec = make_spec(tmp_path)
+        pre = p.prepare_cached_switch_case(spec)
+        factory, instances = fake_runtime(monkeypatch)
+        result = asyncio.run(p.run_cached_switch_case(spec, preflight=pre, runtime_factory=factory))
+>       assert result['status'] == 'observed', result
+E       AssertionError: {'case': 'case', 'status': 'unknown', 'source_commit': '6b9826e3aa83b1a5947db50f4332cb9c65f1b340', 'crossterm_commit': '45fecb9508105988f42fe6ff0441783ed3717f92', ...}
+E       assert 'unknown' == 'observed'
+E
+E         - observed
+E         + unknown
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:313: AssertionError
+____________ test_refresh_rpcs_are_reclassified_not_called_zero_rpc ____________
+
+tmp_path = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/tmp/probe-harness/tasks/g0-cached-switch-boundary/tmp/pytest-cleanup-red/test_refresh_rpcs_are_reclassi0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10ada5470>
+
+    def test_refresh_rpcs_are_reclassified_not_called_zero_rpc(tmp_path, monkeypatch):
+        p = module()
+        spec = make_spec(tmp_path)
+        factory, _ = fake_runtime(monkeypatch, refresh=True)
+        result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
+>       assert result['status'] == 'observed'
+E       AssertionError: assert 'unknown' == 'observed'
+E
+E         - observed
+E         + unknown
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:362: AssertionError
+_____________ test_delayed_first_fork_waits_for_wire_before_status _____________
+
+tmp_path = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/tmp/probe-harness/tasks/g0-cached-switch-boundary/tmp/pytest-cleanup-red/test_delayed_first_fork_waits_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10ae3bf50>
+
+    def test_delayed_first_fork_waits_for_wire_before_status(tmp_path, monkeypatch):
+        p = module()
+        spec = make_spec(tmp_path, local_window=10)
+        factory, instances = fake_runtime(monkeypatch, fork_delay=0.6)
+        result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
+>       assert result['status'] == 'observed', result
+E       AssertionError: {'case': 'case', 'status': 'unknown', 'source_commit': '6b9826e3aa83b1a5947db50f4332cb9c65f1b340', 'crossterm_commit': '45fecb9508105988f42fe6ff0441783ed3717f92', ...}
+E       assert 'unknown' == 'observed'
+E
+E         - observed
+E         + unknown
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:465: AssertionError
+____________ test_delayed_cached_render_precedes_independent_status ____________
+
+tmp_path = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/tmp/probe-harness/tasks/g0-cached-switch-boundary/tmp/pytest-cleanup-red/test_delayed_cached_render_pre0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10ad54750>
+
+    def test_delayed_cached_render_precedes_independent_status(tmp_path, monkeypatch):
+        p = module()
+        spec = make_spec(tmp_path, local_window=10)
+        factory, instances = fake_runtime(monkeypatch, cached_delay=0.6)
+        result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
+>       assert result['status'] == 'observed', result
+E       AssertionError: {'case': 'case', 'status': 'unknown', 'source_commit': '6b9826e3aa83b1a5947db50f4332cb9c65f1b340', 'crossterm_commit': '45fecb9508105988f42fe6ff0441783ed3717f92', ...}
+E       assert 'unknown' == 'observed'
+E
+E         - observed
+E         + unknown
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:492: AssertionError
+________ test_closed_probe_full_journey_keeps_only_new_epoch_candidate _________
+
+tmp_path = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/tmp/probe-harness/tasks/g0-cached-switch-boundary/tmp/pytest-cleanup-red/test_closed_probe_full_journey0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10ae3ba10>
+
+    def test_closed_probe_full_journey_keeps_only_new_epoch_candidate(tmp_path, monkeypatch):
+        p = module()
+        spec = make_spec(tmp_path)
+        factory, instances = fake_runtime(monkeypatch, startup_probe=True)
+        result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
+>       assert result['status'] == 'observed', result
+E       AssertionError: {'case': 'case', 'status': 'unknown', 'source_commit': '6b9826e3aa83b1a5947db50f4332cb9c65f1b340', 'crossterm_commit': '45fecb9508105988f42fe6ff0441783ed3717f92', ...}
+E       assert 'unknown' == 'observed'
+E
+E         - observed
+E         + unknown
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:548: AssertionError
+___ test_cleanup_returns_to_primary_before_quit_without_changing_measurement ___
+
+tmp_path = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/tmp/probe-harness/tasks/g0-cached-switch-boundary/tmp/pytest-cleanup-red/test_cleanup_returns_to_primar0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10ae3b3f0>
+
+    def test_cleanup_returns_to_primary_before_quit_without_changing_measurement(tmp_path, monkeypatch):
+        p = module()
+        spec = make_spec(tmp_path)
+        factory, instances = fake_runtime(monkeypatch, cleanup_rpc=True)
+        result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
+>       assert result['status'] == 'observed', result
+E       AssertionError: {'case': 'case', 'status': 'unknown', 'source_commit': '6b9826e3aa83b1a5947db50f4332cb9c65f1b340', 'crossterm_commit': '45fecb9508105988f42fe6ff0441783ed3717f92', ...}
+E       assert 'unknown' == 'observed'
+E
+E         - observed
+E         + unknown
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:570: AssertionError
+__ test_cleanup_return_failure_cannot_send_quit_or_change_measurement[fault0] __
+
+tmp_path = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/tmp/probe-harness/tasks/g0-cached-switch-boundary/tmp/pytest-cleanup-red/test_cleanup_return_failure_ca0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10ae3a270>
+fault = {'wrong_cleanup_status': True}
+
+    @pytest.mark.parametrize('fault', [{'wrong_cleanup_status':True}, {'cleanup_delay':1}])
+    def test_cleanup_return_failure_cannot_send_quit_or_change_measurement(tmp_path, monkeypatch, fault):
+        p = module()
+        spec = make_spec(tmp_path)
+        factory, instances = fake_runtime(monkeypatch, **fault)
+        result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
+        assert result['status'] == 'unknown'
+        assert len(result['switches']) == 3 and len(result['status_checks']) == 4
+>       assert result['quit_sent'] is False
+E       assert True is False
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:590: AssertionError
+__ test_cleanup_return_failure_cannot_send_quit_or_change_measurement[fault1] __
+
+tmp_path = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/tmp/probe-harness/tasks/g0-cached-switch-boundary/tmp/pytest-cleanup-red/test_cleanup_return_failure_ca1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10ae39a20>
+fault = {'cleanup_delay': 1}
+
+    @pytest.mark.parametrize('fault', [{'wrong_cleanup_status':True}, {'cleanup_delay':1}])
+    def test_cleanup_return_failure_cannot_send_quit_or_change_measurement(tmp_path, monkeypatch, fault):
+        p = module()
+        spec = make_spec(tmp_path)
+        factory, instances = fake_runtime(monkeypatch, **fault)
+        result = asyncio.run(p.run_cached_switch_case(spec, preflight=p.prepare_cached_switch_case(spec), runtime_factory=factory))
+        assert result['status'] == 'unknown'
+        assert len(result['switches']) == 3 and len(result['status_checks']) == 4
+>       assert result['quit_sent'] is False
+E       assert True is False
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:590: AssertionError
+=========================== short test summary info ============================
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_empty_side_creation_and_two_cached_toggles_never_create_candidate_from_status
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_refresh_rpcs_are_reclassified_not_called_zero_rpc
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_delayed_first_fork_waits_for_wire_before_status
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_delayed_cached_render_precedes_independent_status
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_closed_probe_full_journey_keeps_only_new_epoch_candidate
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_cleanup_returns_to_primary_before_quit_without_changing_measurement
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_cleanup_return_failure_cannot_send_quit_or_change_measurement[fault0]
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_cleanup_return_failure_cannot_send_quit_or_change_measurement[fault1]
+8 failed, 33 passed in 0.24s

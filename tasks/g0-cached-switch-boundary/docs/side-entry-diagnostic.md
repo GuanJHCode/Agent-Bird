@@ -37,6 +37,6 @@ cached01 无 fork 的直接源码解释是：新 TUI 没有 side 状态时，Ctr
 
 ## 下一最小样本
 
-独立新 case 预检后：普通 resume P → fresh status(P) → 精确空 `/side` 一次 → 在原 local 10 秒 deadline 内等待同 epoch fork(P→S)、started(S)、已知 inject 配对 → fresh status(S) → 第一次 0x1f 回 P → fresh status(P) → 第二次 0x1f 回 S → fresh status(S) → 正常 quit/owned cleanup。
+独立新 case 预检后：普通 resume P → fresh status(P) → 精确空 `/side` 一次 → 在原 local 10 秒 deadline 内等待同 epoch fork(P→S)、started(S)、已知 inject 配对 → fresh status(S) → 第一次 0x1f 回 P → fresh status(P) → 第二次 0x1f 回 S → fresh status(S) → 测量结束。随后独立 cleanup-return-primary（一次 0x1f + fresh status(P)，共享原 10 秒）→ 正常 quit/owned cleanup；退出边界更正见 `side-cleanup-boundary.md`。
 
 整体原 120 秒和每段 10 秒上限不变；trace/model=0、peer、hash、unknown 早停及 candidate/stale 边界不变。首次创建与后续两个 cached toggle 分开记录。只修改独立 worktree 的 runner/测试/合同/来源文档，main 与旧 case 不写；真实 cached02 仍待主会话的独立预检和准入。

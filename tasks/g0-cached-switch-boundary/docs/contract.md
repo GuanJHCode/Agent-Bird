@@ -73,7 +73,7 @@ primary 在 snapshot session 缺 model、rollout path 或需要权限 profile re
 5. 发第一次 cached side toggle 回 P（固定 `0x1f`，即默认 Ctrl-/ 的 Ctrl-7 兼容输入）；不主动发送任何会产生 RPC 的 resume/read 操作。记录从上一个稳定边界到下一个稳定边界的完整 wire：应允许 zero RPC；若有 RPC，按上表重新分类。
 6. 发独立 `/status` 查询，记录显示 P；不得据此新建 candidate。
 7. 发第二次且最后一次 cached side toggle 回缓存 S；同样不补发 resume/read。发独立 `/status` 查询，记录显示 S。
-8. 最后安全退出，记录旧 candidate 是否仍被 runtime 保留、清除或标为 stale；若 runtime 当前实现仍保留旧 candidate，必须把它作为实现缺口记录，不能解释成当前显示已被证明。
+8. 以上三段测量与四次 status 完成后，单独执行 cleanup-return-primary：一次额外 `0x1f` 回 P，在同一个冻结 10 秒 local window 内 fresh status(P) 确认，再进入正常 `/quit` 的原 10 秒退出窗口。此清理导航的 RPC/status 独立记录，不加入原三段测量或其 zero-RPC 分类。任一步失败保留 unknown、执行 owned cleanup，不补发输入。记录旧 candidate 是否被清除或标为 stale；禁止解释成当前显示已被证明。
 
 每次 status 查询前应有可审计的屏幕边界（明确提交 `/status`、唯一 ID、完成时间），避免把旧屏幕残留当成新选择。driver 的 selected label、picker 个人列表和名称不得作为选择来源。
 
@@ -111,3 +111,7 @@ primary 在 snapshot session 缺 model、rollout path 或需要权限 profile re
 ## 启动 socket 探活边界更正
 
 cached02 的 epoch1 仅连接后关闭，epoch2 才有正常 resume(P)/skills。原 `len(connection_records)==1` 把全部历史连接误算成唯一 live 连接，因此在零输入时停止。固定源码 `tui/src/lib.rs:459-485` 明确存在 connect-only 默认 socket 探活；`startup-anchor-boundary.md` 和 `data/source/startup-probe-source-receipt.json` 记录证据。后继 runner 仅接受上述受限启动前缀，随后冻结 current anchor；不更改旧 cached02 unknown 事实，不放宽为任意多 epoch，也不复用旧 epoch 的 candidate。
+
+## Side 内退出命令边界更正
+
+cached03 已观察 P/S/P/S，cached-primary 为 refresh_rpc、cached-side 为 other_rpc；这些原分类不变。退出失败的固定源码原因是 active side 中 Quit/Exit 不在命令白名单（`slash_command.rs:191-206`），dispatch 在执行退出分支之前拒绝（`slash_dispatch.rs:149-168,1264-1274`）。后继只增加测量完成后的清理返回 P，不改 cached03 原 unknown，也不把清理导航冒充新增测量。见 `side-cleanup-boundary.md` 与 `data/source/side-quit-source-receipt.json`。
