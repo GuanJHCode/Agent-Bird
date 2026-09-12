@@ -412,6 +412,7 @@ async def run_partial_case(
         candidate_id, epoch = _candidate_id(candidate)
         if candidate_id != spec.plan.thread_id or type(epoch) is not int:
             raise RuntimeInvariantError("resume candidate identity is invalid")
+        resume_ownership = _runtime_ownership(second)
         result["candidate"] = {"thread_id": candidate_id, "connection_epoch": epoch}
         result["phases"].append("resume_quiet")
         await tui.aread_until(raw_seconds() + spec.plan.local_window_seconds)
@@ -436,8 +437,11 @@ async def run_partial_case(
         if final_exit != 0:
             raise RuntimeInvariantError("continued TUI did not exit cleanly")
         second_cleanup = await second.close()
+        if second_cleanup.get("failed_pids") or second_cleanup.get("failed_endpoints") or not _owned_runtime_stopped(second, resume_ownership):
+            raise RuntimeInvariantError("continued owned runtime cleanup is incomplete")
         result["resume_tui"] = tui.evidence
         result["resume_cleanup"] = second_cleanup
+        result["resume_ownership"] = resume_ownership
         result["status"] = "observed"
     except BaseException as exc:
         result["failure"] = _failure_record(exc, stage)
