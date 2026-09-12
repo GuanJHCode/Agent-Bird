@@ -1,0 +1,8 @@
+test_session_start_discovery_at_or_after_initial_deadline_never_pastes (native_sd_control_test.ControlTests.test_session_start_discovery_at_or_after_initial_deadline_never_pastes) ... ok
+test_session_start_after_old_ten_second_budget_still_pastes_once (native_sd_control_test.ControlTests.test_session_start_after_old_ten_second_budget_still_pastes_once) ... ok
+test_missing_owned_session_start_fails_before_paste_with_explicit_code (native_sd_control_test.ControlTests.test_missing_owned_session_start_fails_before_paste_with_explicit_code) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.018s
+
+OK

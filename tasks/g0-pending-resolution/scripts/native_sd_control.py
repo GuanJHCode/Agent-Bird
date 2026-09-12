@@ -524,7 +524,9 @@ def run(helper_sha,audit_sha):
             record['startup_pty_capture']=archive_bounded_pty(tui,CASE/'startup-pty-capture.bin')
             raise OwnedSessionStartMissing('owned SessionStart missing before initial paste')
         record['session_start']=session_hook
-        note('initial_paste'); tui.send(sequence,'initial-paste')
+        note('initial_paste')
+        if continuous_ns()>=initial_deadline: raise InitialBindingUnconfirmed('initial window ended before paste')
+        tui.send(sequence,'initial-paste')
         if continuous_ns()>=initial_deadline: raise InitialBindingUnconfirmed('initial paste exceeded original window')
         note('initial'); record['substage']='initial_submit'; tui.send(sequence,'initial-submit')
         private_json(CASE/'initial-submit.json',{'nonce':c.NONCE,'origin_sha256':c.sha(CASE/'native-origin.json'),

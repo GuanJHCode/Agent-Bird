@@ -1,0 +1,40 @@
+test_session_start_discovery_at_or_after_initial_deadline_never_pastes (native_sd_control_test.ControlTests.test_session_start_discovery_at_or_after_initial_deadline_never_pastes) ... 
+  test_session_start_discovery_at_or_after_initial_deadline_never_pastes (native_sd_control_test.ControlTests.test_session_start_discovery_at_or_after_initial_deadline_never_pastes) (returned_at=121000000000) ... FAIL
+  test_session_start_discovery_at_or_after_initial_deadline_never_pastes (native_sd_control_test.ControlTests.test_session_start_discovery_at_or_after_initial_deadline_never_pastes) (returned_at=122000000000) ... FAIL
+
+======================================================================
+FAIL: test_session_start_discovery_at_or_after_initial_deadline_never_pastes (native_sd_control_test.ControlTests.test_session_start_discovery_at_or_after_initial_deadline_never_pastes) (returned_at=121000000000)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/native/tasks/g0-pending-resolution/scripts/native_sd_control_test.py", line 328, in test_session_start_discovery_at_or_after_initial_deadline_never_pastes
+    self.assertEqual(sent,[])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^
+AssertionError: Lists differ: ['initial-paste'] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+'initial-paste'
+
+- ['initial-paste']
++ []
+
+======================================================================
+FAIL: test_session_start_discovery_at_or_after_initial_deadline_never_pastes (native_sd_control_test.ControlTests.test_session_start_discovery_at_or_after_initial_deadline_never_pastes) (returned_at=122000000000)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/native/tasks/g0-pending-resolution/scripts/native_sd_control_test.py", line 328, in test_session_start_discovery_at_or_after_initial_deadline_never_pastes
+    self.assertEqual(sent,[])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^
+AssertionError: Lists differ: ['initial-paste'] != []
+
+First list contains 1 additional elements.
+First extra element 0:
+'initial-paste'
+
+- ['initial-paste']
++ []
+
+----------------------------------------------------------------------
+Ran 1 test in 0.008s
+
+FAILED (failures=2)
