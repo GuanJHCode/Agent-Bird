@@ -1,0 +1,731 @@
+{
+  "artifacts": [
+    {
+      "bytes": 13999,
+      "path": "tasks/g0-cached-switch-boundary/docs/proxy-cached-01-controller-argv.json",
+      "sha256": "dc6f418ef39ea0dbd3394362cd45e42cda15b5534a0316ee54398f5189e49584"
+    },
+    {
+      "bytes": 13289,
+      "path": "tasks/g0-cached-switch-boundary/docs/proxy-cached-01-preflight.json",
+      "sha256": "f676df0884ed72bedb88b1602096c04fc51c3ba41deeb6dab5a9eef4ad8a3a6a"
+    },
+    {
+      "bytes": 13706,
+      "path": "tasks/g0-cached-switch-boundary/data/proxy-cached-01/result.json",
+      "sha256": "634e833424cf42de0e2c7c5d8dab7e1d3f4156df4deae0dbac19b0aea98aedfa"
+    },
+    {
+      "bytes": 28248,
+      "path": "tasks/g0-cached-switch-boundary/data/proxy-cached-01/trace.json",
+      "sha256": "ed079247ac51e6ff5ed506467a82ed7028ec5081baff7753ec486cd04fa6de0a"
+    }
+  ],
+  "cached_zero_rpc_observed": false,
+  "case": "proxy-cached-01",
+  "cleanup": {
+    "endpoints": [],
+    "pids": []
+  },
+  "connections": [
+    {
+      "backend_fd": 10,
+      "backend_peer": {
+        "birth": "Sun Sep 13 01:15:53 2026",
+        "complete": true,
+        "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+        "pid": 62075,
+        "source": "darwin-local",
+        "uid": 501
+      },
+      "connection_id": "conn-1-a83d1d8446a0",
+      "epoch": 1,
+      "frontend_fd": 9,
+      "frontend_peer": {
+        "birth": "Sun Sep 13 01:15:54 2026",
+        "complete": true,
+        "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+        "pid": 62100,
+        "source": "darwin-local",
+        "uid": 501
+      }
+    }
+  ],
+  "controller_argv_reference": "tasks/g0-cached-switch-boundary/docs/proxy-cached-01-controller-argv.json",
+  "elapsed_raw_seconds": 14.892980416771024,
+  "ended_at_raw": 4155936.094788375,
+  "ended_at_utc": "2026-09-12T17:16:08.303547+00:00",
+  "endpoints_after": [
+    {
+      "exists": false,
+      "path": "/Users/guanjunhui/.codex/app-server-control/app-server-control.sock"
+    },
+    {
+      "exists": false,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-proxy-continuation/tmp/b/a.sock"
+    }
+  ],
+  "failure": null,
+  "generic_attachment_verified": false,
+  "head_at_run": "b130df5060c4df474000da5e7188cf5648575829",
+  "model_turns": 0,
+  "owned_pid_post_checks": [
+    {
+      "gone": true,
+      "pid": 62075,
+      "post_birth": null,
+      "post_executable": null,
+      "recorded_births": [
+        "Sun Sep 13 01:15:53 2026"
+      ]
+    },
+    {
+      "gone": true,
+      "pid": 62100,
+      "post_birth": null,
+      "post_executable": null,
+      "recorded_births": [
+        "Sun Sep 13 01:15:54 2026"
+      ]
+    }
+  ],
+  "post_hashes": {
+    "binary_alias": {
+      "alias_readlink": "/Users/guanjunhui/.codex/packages/standalone/current/bin/codex",
+      "exists": true,
+      "path": "/Users/guanjunhui/.local/bin/codex",
+      "resolved_path": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+      "sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+      "size": 62,
+      "st_dev": 16777234,
+      "st_ino": 161577207,
+      "target_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+      "target_size": 222655232,
+      "target_st_dev": 16777234,
+      "target_st_ino": 161577187
+    },
+    "binary_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+    "config_sha256": "298a250c45c9585c695e427c830c20100ecadc8a612445703b2a8b5878a3aa2b",
+    "implementation": {
+      "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/scripts/cached_switch_case.py": "b37fdd7fb63f04d818e7854c5ceeb073a82621ae5bd19eaa820c55db27ee2cf1",
+      "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-proxy-continuation/scripts/resume_case.py": "da1f5457988a49a349ba4b8df4b48931f1fe8b37068801524235f601b3bf1f36",
+      "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-tui-proxy/scripts/proxy_native_runtime.py": "803b1eb84583a47ee980a8197108279643664103cd5c15f67f8b44fdc860df2a",
+      "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-tui-proxy/scripts/proxy_observer.py": "6e1e16f37707bd8c88fd8717058afe1a4920bd406aec3b907cf7fc50e9066587",
+      "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-tui-proxy/scripts/proxy_transport.py": "41c6bd527ae2f108da538811e3b629a861bf2e2ec72a67efd94e23a793cdb704"
+    },
+    "protected": {
+      "global_config": [
+        {
+          "exists": true,
+          "path": "/Users/guanjunhui/.codex/config.toml",
+          "sha256": "53b1aa3016356f244170c6b5bc84773767672c852b59f9594f9ae694ebb8eca3",
+          "size": 21358,
+          "st_dev": 16777234,
+          "st_ino": 161617523
+        },
+        {
+          "exists": true,
+          "path": "/Users/guanjunhui/.zprofile",
+          "sha256": "9182af26fc3d20697ba0db018bc666dcb326686392db102422e72a4f5b12f549",
+          "size": 593,
+          "st_dev": 16777234,
+          "st_ino": 24289927
+        },
+        {
+          "exists": true,
+          "path": "/Users/guanjunhui/.codex/app-server-daemon/settings.json",
+          "sha256": "922e9ed2521a417109eae8429696e6f7c95e06e7a2acd1cf5b2c0326b73d9b40",
+          "size": 34,
+          "st_dev": 16777234,
+          "st_ino": 117095991
+        }
+      ],
+      "hooks": [
+        {
+          "exists": true,
+          "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/.codex/hooks.json",
+          "sha256": "666243bf0789d012c7035ff7ef7203735df95fd79eafe763fa5013277f58b917",
+          "size": 1393,
+          "st_dev": 16777234,
+          "st_ino": 159836938
+        },
+        {
+          "exists": true,
+          "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/g0-hook-darwin-arm64",
+          "sha256": "62e41afd87e1408854490bf6a716cfe846fff0021179a39d163d6e02254ba779",
+          "size": 3433442,
+          "st_dev": 16777234,
+          "st_ino": 159858403
+        }
+      ],
+      "seed_artifacts": [
+        {
+          "exists": true,
+          "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/data/sd-qual-08/audit-input.json",
+          "sha256": "4b36ced335e366298a0e51d5a6abb8fd60dfe421b5d7e0f5bec152e46d2c37a9",
+          "size": 2344,
+          "st_dev": 16777234,
+          "st_ino": 161673142
+        },
+        {
+          "exists": true,
+          "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/data/sd-qual-08/binding.json",
+          "sha256": "da022fec1a529e464cdaad689cd606f272098d5718f08239254abc56bdc63f89",
+          "size": 1668,
+          "st_dev": 16777234,
+          "st_ino": 161671675
+        },
+        {
+          "exists": true,
+          "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/data/sd-qual-08/case.lock",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 0,
+          "st_dev": 16777234,
+          "st_ino": 161671676
+        },
+        {
+          "exists": true,
+          "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/data/sd-qual-08/controller-evidence.json",
+          "sha256": "a6b29580f5a7ce7825eb84d7e14c16119ae6acd701ec0ae5323b8c90192ea6cc",
+          "size": 16981,
+          "st_dev": 16777234,
+          "st_ino": 161671674
+        },
+        {
+          "exists": true,
+          "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/data/sd-qual-08/controller-result.json",
+          "sha256": "1d95d9aad5a00d68a517c3ec1fd8442cea8779caefdf16d5ff1fd5c1ac499ee6",
+          "size": 11210,
+          "st_dev": 16777234,
+          "st_ino": 161673144
+        },
+        {
+          "exists": true,
+          "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/data/sd-qual-08/intent.json",
+          "sha256": "46d125bbe38928ca876281e98ae24e027b19d3f0f076769c01953b9f5754bffc",
+          "size": 399,
+          "st_dev": 16777234,
+          "st_ino": 161671678
+        },
+        {
+          "exists": true,
+          "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/data/sd-qual-08/launch-intent.json",
+          "sha256": "c2c128e98f89b20ebc3ae6a8bf10918732515849fd0d8bd78722e08ab80286ae",
+          "size": 1707,
+          "st_dev": 16777234,
+          "st_ino": 161671313
+        },
+        {
+          "exists": true,
+          "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/data/sd-qual-08/native-origin.json",
+          "sha256": "bf7389e7db1141c70cb72e42971469826a558d90421ff6ae2c5f636acee9da99",
+          "size": 2001,
+          "st_dev": 16777234,
+          "st_ino": 161671322
+        },
+        {
+          "exists": true,
+          "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/data/sd-qual-08/prepare-meta.json",
+          "sha256": "7be92790020e1ac598dda2a3e1673103f6af00d1ac5c6979dfde6b9abc4a9d93",
+          "size": 951,
+          "st_dev": 16777234,
+          "st_ino": 161671679
+        },
+        {
+          "exists": true,
+          "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/data/sd-qual-08/producer.json",
+          "sha256": "d74543e3fdb8fbe528e67ff7cd98b6934cfc99548df19b73d16e5bde439b3665",
+          "size": 418,
+          "st_dev": 16777234,
+          "st_ino": 161671677
+        },
+        {
+          "exists": true,
+          "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/data/sd-qual-08/receipt.json",
+          "sha256": "7df49df1f561e3fdde4f697e1327847abebbd78f0d726fb01479adf51219c96b",
+          "size": 117,
+          "st_dev": 16777234,
+          "st_ino": 161671681
+        },
+        {
+          "exists": true,
+          "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/data/sd-qual-08/send-attempt.json",
+          "sha256": "68c93ab3fbb0fa1f45f064ee1114d622609bd946e5db224b67edb893d3f430ad",
+          "size": 447,
+          "st_dev": 16777234,
+          "st_ino": 161671680
+        },
+        {
+          "exists": true,
+          "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/data/sd-qual-08/send-observation.json",
+          "sha256": "2f5b1f1d310877a111d0d392ed43b381585880a821e52d428eb9eed33d808920",
+          "size": 1655,
+          "st_dev": 16777234,
+          "st_ino": 161673143
+        },
+        {
+          "exists": true,
+          "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/tasks/pending-resolution/data/sd-qual-08/ack-r1.json",
+          "sha256": "f4095da11dec953d3e83f58ef1423cf5cd636b06cbc265eda24bc80e050e4a3e",
+          "size": 300,
+          "st_dev": 16777234,
+          "st_ino": 161673137
+        },
+        {
+          "exists": true,
+          "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/tasks/pending-resolution/data/sd-qual-08/claim.json",
+          "sha256": "df103bd44241a12ec2f4452a7330c3f31def45a186e217851f1eed0ad431d29a",
+          "size": 35,
+          "st_dev": 16777234,
+          "st_ino": 161671557
+        },
+        {
+          "exists": true,
+          "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/tasks/pending-resolution/data/sd-qual-08/control.json",
+          "sha256": "2b0fb860873833a7f5421713f836943f79e9ee8d49de2c57db5952994ace2aa1",
+          "size": 125,
+          "st_dev": 16777234,
+          "st_ino": 161671559
+        },
+        {
+          "exists": true,
+          "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/tasks/pending-resolution/data/sd-qual-08/control.lock",
+          "sha256": "50208d78350a7a160dec59a82df1499b6ca7da33e54c5eb11c97e342118e68bb",
+          "size": 14,
+          "st_dev": 16777234,
+          "st_ino": 161671558
+        },
+        {
+          "exists": true,
+          "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/tasks/pending-resolution/data/sd-qual-08/job.json",
+          "sha256": "8ca9ce845f50e82c657c19d2a5df40fa6ffac5353327d921616a3082a319cc57",
+          "size": 243,
+          "st_dev": 16777234,
+          "st_ino": 161671562
+        },
+        {
+          "exists": true,
+          "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/tasks/pending-resolution/data/sd-qual-08/result.json",
+          "sha256": "d7ae6dd48968e1ff59dc91bfe21ae69c3814b6e174d193e4a783f88b780ad17c",
+          "size": 66,
+          "st_dev": 16777234,
+          "st_ino": 161671671
+        }
+      ],
+      "test_config": [
+        {
+          "exists": true,
+          "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/.codex/config.toml",
+          "sha256": "298a250c45c9585c695e427c830c20100ecadc8a612445703b2a8b5878a3aa2b",
+          "size": 200,
+          "st_dev": 16777234,
+          "st_ino": 161681434
+        }
+      ]
+    }
+  },
+  "post_hashes_match_preflight": true,
+  "preflight_verified_before_run": true,
+  "prelaunch_note": "An earlier read-only wrapper stopped at a HEAD-only check before any invocation; source/preflight hashes stayed unchanged after reconnect01 facts commit.",
+  "result_status": "unknown",
+  "returncode": 1,
+  "run_count": 1,
+  "started_at_raw": 4155921.201807958,
+  "started_at_utc": "2026-09-12T17:15:53.410296+00:00",
+  "status_checks": [
+    {
+      "candidate_after": {
+        "connection_epoch": 1,
+        "session_id": "01a094db-aaaf-7dc3-8308-8077d4f778b3",
+        "source": "observer",
+        "thread_id": "01a094db-aaaf-7dc3-8308-8077d4f778b3"
+      },
+      "candidate_before": {
+        "connection_epoch": 1,
+        "session_id": "01a094db-aaaf-7dc3-8308-8077d4f778b3",
+        "source": "observer",
+        "thread_id": "01a094db-aaaf-7dc3-8308-8077d4f778b3"
+      },
+      "captured_at": "2026-09-12T17:15:57.464436+00:00",
+      "command": "/status",
+      "completed_at_raw": 4155925.255697791,
+      "deadline_raw": 4155935.142752458,
+      "exact": true,
+      "expected_id": "01a094db-aaaf-7dc3-8308-8077d4f778b3",
+      "ids": [
+        "01a094db-aaaf-7dc3-8308-8077d4f778b3"
+      ],
+      "query_id": "3adb24bf-d0c7-4085-b663-69391578a7f1",
+      "screen_bytes": 4721,
+      "screen_sha256": "dcfd8eba1d8bb0c23334397c605ef115be84cba431cf55be76413cdc0b37388e",
+      "started_at_raw": 4155925.142752041,
+      "status_used_for_candidate": false,
+      "trace_end_index": 142,
+      "trace_start_index": 141
+    }
+  ],
+  "stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "stdout": {
+    "bytes": 14386,
+    "matches_result_json": true,
+    "sha256": "ca951d45d90b55ac528e36a424689d8c6c8064fa42821c19ca01b615abaea783"
+  },
+  "stop_reason": "first_side_local_deadline",
+  "switch_count": 1,
+  "termination": {
+    "cleanup": {
+      "endpoints": [],
+      "pids": []
+    },
+    "eof_seen": true,
+    "epoch_reason": "eof",
+    "exit_code": 0,
+    "quit_sent": true,
+    "status": "observed",
+    "termination_mode": "normal_quit"
+  },
+  "trace_complete": true,
+  "tui_inputs": [
+    {
+      "action": "/status-paste",
+      "at_monotonic_raw": 4155925.142793583,
+      "bytes": 19,
+      "sha256": "81918d19f2ada4f83cfd67169cef6e4159726ae6fc4d9d3ed334c537a3431204"
+    },
+    {
+      "action": "/status-submit",
+      "at_monotonic_raw": 4155925.142802875,
+      "bytes": 1,
+      "sha256": "9d1e0e2d9459d06523ad13e28a4093c2316baafe7aec5b25f30eba2e113599c4"
+    },
+    {
+      "action": "side-toggle-1",
+      "at_monotonic_raw": 4155925.257265708,
+      "bytes": 1,
+      "sha256": "ffe679bb831c95b67dc17819c63c5090d221aac6f4c7bf530f594ab43d21fa1e"
+    },
+    {
+      "action": "/quit-paste",
+      "at_monotonic_raw": 4155935.262831041,
+      "bytes": 17,
+      "sha256": "690a3443b2c9824c2f314c35f61d6306e95f433d7fa4b796972d9023ad23bd93"
+    },
+    {
+      "action": "/quit-submit",
+      "at_monotonic_raw": 4155935.262895583,
+      "bytes": 1,
+      "sha256": "9d1e0e2d9459d06523ad13e28a4093c2316baafe7aec5b25f30eba2e113599c4"
+    }
+  ],
+  "wire_counters": [
+    {
+      "count": 1,
+      "direction": null,
+      "event": "connection_close",
+      "method": null
+    },
+    {
+      "count": 1,
+      "direction": null,
+      "event": "connection_open",
+      "method": null
+    },
+    {
+      "count": 1,
+      "direction": "backend_to_frontend",
+      "event": "eof",
+      "method": null
+    },
+    {
+      "count": 1,
+      "direction": "frontend_to_backend",
+      "event": "eof",
+      "method": null
+    },
+    {
+      "count": 1,
+      "direction": "client",
+      "event": "rpc",
+      "method": "initialize"
+    },
+    {
+      "count": 1,
+      "direction": "client",
+      "event": "rpc",
+      "method": "initialized"
+    },
+    {
+      "count": 2,
+      "direction": "client",
+      "event": "rpc",
+      "method": "skills/list"
+    },
+    {
+      "count": 21,
+      "direction": "client",
+      "event": "rpc",
+      "method": "thread/read"
+    },
+    {
+      "count": 1,
+      "direction": "client",
+      "event": "rpc",
+      "method": "thread/resume"
+    },
+    {
+      "count": 1,
+      "direction": "client",
+      "event": "rpc",
+      "method": "thread/unsubscribe"
+    },
+    {
+      "count": 1,
+      "direction": "server",
+      "event": "rpc_response",
+      "method": "initialize"
+    },
+    {
+      "count": 2,
+      "direction": "server",
+      "event": "rpc_response",
+      "method": "skills/list"
+    },
+    {
+      "count": 21,
+      "direction": "server",
+      "event": "rpc_response",
+      "method": "thread/read"
+    },
+    {
+      "count": 1,
+      "direction": "server",
+      "event": "rpc_response",
+      "method": "thread/resume"
+    },
+    {
+      "count": 1,
+      "direction": "server",
+      "event": "rpc_response",
+      "method": "thread/unsubscribe"
+    },
+    {
+      "count": 2,
+      "direction": "client",
+      "event": "rpc_unknown",
+      "method": "account/rateLimits/read"
+    },
+    {
+      "count": 1,
+      "direction": "client",
+      "event": "rpc_unknown",
+      "method": "account/read"
+    },
+    {
+      "count": 1,
+      "direction": "client",
+      "event": "rpc_unknown",
+      "method": "collaborationMode/list"
+    },
+    {
+      "count": 1,
+      "direction": "client",
+      "event": "rpc_unknown",
+      "method": "command/exec"
+    },
+    {
+      "count": 1,
+      "direction": "client",
+      "event": "rpc_unknown",
+      "method": "configRequirements/read"
+    },
+    {
+      "count": 1,
+      "direction": "client",
+      "event": "rpc_unknown",
+      "method": "getAuthStatus"
+    },
+    {
+      "count": 1,
+      "direction": "client",
+      "event": "rpc_unknown",
+      "method": "hooks/list"
+    },
+    {
+      "count": 1,
+      "direction": "client",
+      "event": "rpc_unknown",
+      "method": "model/list"
+    },
+    {
+      "count": 3,
+      "direction": "client",
+      "event": "rpc_unknown",
+      "method": "plugin/list"
+    },
+    {
+      "count": 1,
+      "direction": "client",
+      "event": "rpc_unknown",
+      "method": "thread/goal/get"
+    },
+    {
+      "count": 1,
+      "direction": "client",
+      "event": "rpc_unknown",
+      "method": "thread/items/list"
+    },
+    {
+      "count": 2,
+      "direction": "client",
+      "event": "rpc_unknown",
+      "method": "thread/list"
+    },
+    {
+      "count": 1,
+      "direction": "client",
+      "event": "rpc_unknown",
+      "method": "thread/loaded/list"
+    },
+    {
+      "count": 21,
+      "direction": "client",
+      "event": "rpc_unknown",
+      "method": "thread/turns/list"
+    },
+    {
+      "count": 2,
+      "direction": "server",
+      "event": "rpc_unknown",
+      "method": "account/rateLimits/read"
+    },
+    {
+      "count": 1,
+      "direction": "server",
+      "event": "rpc_unknown",
+      "method": "account/read"
+    },
+    {
+      "count": 1,
+      "direction": "server",
+      "event": "rpc_unknown",
+      "method": "collaborationMode/list"
+    },
+    {
+      "count": 1,
+      "direction": "server",
+      "event": "rpc_unknown",
+      "method": "command/exec"
+    },
+    {
+      "count": 1,
+      "direction": "server",
+      "event": "rpc_unknown",
+      "method": "configRequirements/read"
+    },
+    {
+      "count": 1,
+      "direction": "server",
+      "event": "rpc_unknown",
+      "method": "getAuthStatus"
+    },
+    {
+      "count": 1,
+      "direction": "server",
+      "event": "rpc_unknown",
+      "method": "hooks/list"
+    },
+    {
+      "count": 12,
+      "direction": "server",
+      "event": "rpc_unknown",
+      "method": "mcpServer/startupStatus/updated"
+    },
+    {
+      "count": 1,
+      "direction": "server",
+      "event": "rpc_unknown",
+      "method": "model/list"
+    },
+    {
+      "count": 3,
+      "direction": "server",
+      "event": "rpc_unknown",
+      "method": "plugin/list"
+    },
+    {
+      "count": 1,
+      "direction": "server",
+      "event": "rpc_unknown",
+      "method": "remoteControl/status/changed"
+    },
+    {
+      "count": 1,
+      "direction": "server",
+      "event": "rpc_unknown",
+      "method": "thread/goal/cleared"
+    },
+    {
+      "count": 1,
+      "direction": "server",
+      "event": "rpc_unknown",
+      "method": "thread/goal/get"
+    },
+    {
+      "count": 1,
+      "direction": "server",
+      "event": "rpc_unknown",
+      "method": "thread/items/list"
+    },
+    {
+      "count": 2,
+      "direction": "server",
+      "event": "rpc_unknown",
+      "method": "thread/list"
+    },
+    {
+      "count": 1,
+      "direction": "server",
+      "event": "rpc_unknown",
+      "method": "thread/loaded/list"
+    },
+    {
+      "count": 1,
+      "direction": "server",
+      "event": "rpc_unknown",
+      "method": "thread/status/changed"
+    },
+    {
+      "count": 1,
+      "direction": "server",
+      "event": "rpc_unknown",
+      "method": "thread/tokenUsage/updated"
+    },
+    {
+      "count": 21,
+      "direction": "server",
+      "event": "rpc_unknown",
+      "method": "thread/turns/list"
+    },
+    {
+      "count": 1,
+      "direction": "client",
+      "event": "websocket_upgrade",
+      "method": null
+    },
+    {
+      "count": 1,
+      "direction": "server",
+      "event": "websocket_upgrade",
+      "method": null
+    },
+    {
+      "count": 1,
+      "direction": "client",
+      "event": "ws_control",
+      "method": null
+    }
+  ]
+}
