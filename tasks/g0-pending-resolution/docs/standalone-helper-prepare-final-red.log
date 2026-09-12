@@ -1,0 +1,23 @@
+FF
+======================================================================
+FAIL: test_prepare_rechecks_deadline_after_final_publication_and_cannot_be_rerun (native_standalone_test.NativeStandaloneTests.test_prepare_rechecks_deadline_after_final_publication_and_cannot_be_rerun) (delayed_file='producer.json')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 83, in test_prepare_rechecks_deadline_after_final_publication_and_cannot_be_rerun
+    with self.assertRaises(probe.ProbeError) as caught:
+         ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: ProbeError not raised
+
+======================================================================
+FAIL: test_prepare_rechecks_deadline_after_final_publication_and_cannot_be_rerun (native_standalone_test.NativeStandaloneTests.test_prepare_rechecks_deadline_after_final_publication_and_cannot_be_rerun) (delayed_file='prepare-meta.json')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 83, in test_prepare_rechecks_deadline_after_final_publication_and_cannot_be_rerun
+    with self.assertRaises(probe.ProbeError) as caught:
+         ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: ProbeError not raised
+
+----------------------------------------------------------------------
+Ran 1 test in 0.014s
+
+FAILED (failures=2)

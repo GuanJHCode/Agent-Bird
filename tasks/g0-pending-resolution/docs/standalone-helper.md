@@ -46,3 +46,5 @@ RPC 仅 initialize、initialized 通知、server/diagnostics、remoteControl/sta
 原生 shape 来源为本机 0.153.4 生成的实验 schema；[固定官方 thread_data.rs](https://github.com/openai/codex/blob/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/app-server-protocol/src/protocol/v2/thread_data.rs) 中 history_mode/items_view 的 serde(default) 无 skip_serializing_if，故要求显式字段。[websockets 16.0 官方接口](https://websockets.readthedocs.io/en/16.0/reference/asyncio/client.html)及已安装源码用于核验 unix_connect 参数。
 
 此次 source 后继独立通过 17 项；连续时钟的 5 条行为先 assertion RED，覆盖原始 raw 记录、墙钟前后跳、旧 uptime 记录、睡眠后发出请求、超窗响应。另两个边界 RED 覆盖旧 case 拒绝和超时前不创建未等待协程。最新 23 项通过，0.007s，无 warning，见 `standalone-helper-clock-boundary-green.log`；模拟时钟测试未修改系统时间或请求机器休眠。时钟依据为本机 SDK `clock_gettime(3)` 与 [Apple 官方说明](https://github.com/apple-oss-distributions/Libc/blob/main/gen/clock_gettime.3)：RAW 连续时钟含系统 sleep，不受墙钟/频率调整影响。
+
+审查返工：prepare 现在于 `prepare-meta.json` 写入/fsync 完成后再次检查原 10 秒绝对期限，跨窗不能返回 prepared。新增一个定点回归包含 producer 与最后 prepare-meta 两个真实文件提交屏障，均先 RED 后 GREEN（1 项、2 个子场景，0.006s）；同 case 重跑因 O_EXCL 拒绝，已写字节保持不变。审查者原复现也已独立重跑转绿（1 项，0.003s）。上述 23 项为上一固定版本已审历史基线，本次未重跑无关测试；最新证据为 `standalone-helper-prepare-{final,review}-{red,green}.log`。

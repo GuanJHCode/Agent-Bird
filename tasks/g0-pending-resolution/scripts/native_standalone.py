@@ -565,6 +565,7 @@ async def run(verb, case, binding, binding_hash):
             result = {"version": 1, "status": "prepared", "binding_sha256": binding_hash, "payload_sha256": digest(canonical(intent).encode()),
                       "prior_facts": facts, "rpc_checks": rpc.checks, **current_clock()}
             case.write_new("prepare-meta.json", result)
+            time_left(deadline_ns)
             return result
         inspection = go_read(binding, "inspect", deadline_ns)
         check(canonical(intent) == canonical(make_intent(binding, inspection)), "producer_changed")

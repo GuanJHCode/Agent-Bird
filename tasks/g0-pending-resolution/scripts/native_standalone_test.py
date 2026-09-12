@@ -47,6 +47,48 @@ def thread_result(source="vscode"):
 
 
 class NativeStandaloneTests(unittest.TestCase):
+    def test_prepare_rechecks_deadline_after_final_publication_and_cannot_be_rerun(self):
+        class Reader:
+            checks = {}
+            def __init__(self, *_args):
+                pass
+            async def __aenter__(self):
+                return self
+            async def __aexit__(self, *_args):
+                pass
+            async def initialize(self):
+                pass
+            async def call(_reader, method, params):
+                self.assertEqual(method, "thread/read")
+                self.assertEqual(params, {"threadId": ROOT, "includeTurns": True})
+                return thread_result()
+
+        def output(args, timeout=probe.READ_SECONDS):
+            if args == ["/usr/sbin/sysctl", "-n", "kern.bootsessionuuid"]:
+                return (BOOT + "\n").encode()
+            self.assertIn(args, [[binding()["go_binary"], verb, "--dir", binding()["job_dir"], "--nonce", NONCE] for verb in ("read", "inspect")])
+            inspection = go_inspection()
+            return json.dumps(inspection["result"] if args[1] == "read" else inspection).encode()
+
+        for delayed_file in ("producer.json", "prepare-meta.json"):
+            clock = [100_000_000_000]
+            class SlowPublication(probe.Case):
+                def write_new(self, name, value):
+                    super().write_new(name, value)
+                    if name == delayed_file:
+                        clock[0] = 111_000_000_000
+            with self.subTest(delayed_file=delayed_file), tempfile.TemporaryDirectory(prefix="g0-prepare-deadline-") as directory:
+                os.chmod(directory, 0o700)
+                with SlowPublication(directory) as case, patch.object(probe, "continuous_ns", side_effect=lambda: clock[0]), patch.object(probe, "verify_machine"), patch.object(probe, "Rpc", Reader), patch.object(probe, "command_output", side_effect=output):
+                    with self.assertRaises(probe.ProbeError) as caught:
+                        asyncio.run(probe.run("prepare", case, binding(), "a" * 64))
+                    self.assertEqual(caught.exception.code, "read_window_expired")
+                    saved = {name: case.read_raw(name) for name in ("producer.json", "intent.json", "prepare-meta.json")}
+                    with self.assertRaises(probe.ProbeError) as repeated:
+                        asyncio.run(probe.run("prepare", case, binding(), "a" * 64))
+                    self.assertEqual(repeated.exception.code, "artifact_exists")
+                    self.assertEqual(saved, {name: case.read_raw(name) for name in saved})
+
     def test_new_helper_does_not_admit_the_old_case_even_with_matching_arguments(self):
         old = binding()
         old["nonce"] = "sd-qual-01"

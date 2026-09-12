@@ -1,0 +1,14 @@
+F
+======================================================================
+FAIL: test_prepare_must_not_succeed_after_its_original_local_deadline (__main__.ClockBoundaryReview.test_prepare_must_not_succeed_after_its_original_local_deadline)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/reviewer-standalone-shape/scripts/clock_boundary_repro.py", line 91, in test_prepare_must_not_succeed_after_its_original_local_deadline
+    self.assertIsNone(result, "prepared was accepted after original local deadline")
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'version': 1, 'status': 'prepared', 'binding_sha256': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'payload_sha256': '331d95e8fc52a4adbe0c713c81c8bbe1cd185a797c12b9c0c0948c4840b627d0', 'prior_facts': {'history_match': False, 'new_turn_completed': False, 'ack_final_marker': False, 'prior_tools_terminal': True, 'prior_started_at': None, 'prior_completed_at': None, 'root_idle': True, 'all_tools_and_turns_terminal': True, 'matching_turn_is_last': False}, 'rpc_checks': {}, 'boot_id': '01900000-0000-4000-8000-000000000003', 'clock_impl': 'clock_gettime_ns(CLOCK_MONOTONIC_RAW)', 'mono_ns': 111000000000, 'wall_ns': 1789175095924616000} is not None : prepared was accepted after original local deadline
+
+----------------------------------------------------------------------
+Ran 1 test in 0.003s
+
+FAILED (failures=1)
