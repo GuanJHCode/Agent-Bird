@@ -1,6 +1,6 @@
 {
   "initial_checked_at": "2026-09-11T09:30:02.835218+00:00",
-  "latest_observation_phase": "after sd-qual-01; subsequent runtime and reviewer removals recorded below",
+  "latest_observation_phase": "after sd-qual-02 and private persisted-history read; native/helper worktrees remain active",
   "scope": "Only temporary resources created for this pending-resolution task",
   "removed_worktrees": [
     {
@@ -90,5 +90,15 @@
   ],
   "pending": [
     "standalone helper and native runner worktrees in active use"
-  ]
+  ],
+  "sd02_runtime_cleanup": {
+    "record": "native-sd-qual-02-cleanup.json",
+    "controller_tui_worker_caffeinate_service_absent": true,
+    "default_socket_absent": true,
+    "case_job_and_unacked_result_retained": true,
+    "private_history_diagnostic_record": "native-sd-qual-02-history-diagnostic.json",
+    "private_service_exited": true,
+    "private_socket_directory_removed": true,
+    "integration_backup_created_and_removed": true
+  }
 }

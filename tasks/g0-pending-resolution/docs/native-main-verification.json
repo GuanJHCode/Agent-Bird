@@ -1,5 +1,5 @@
 {
-  "scope": "sd-qual-01 remains inconclusive. Corrected sd-qual-02 helper/controller independently reviewed and freshly tested; runtime admission requires fresh preflight.",
+  "scope": "sd-qual-01 remains inconclusive; sd-qual-02 initial native turn confirmed, helper rejected locally before RPC. Process identity contract fix and whole-prepare offline validation pending.",
   "source_commit": "472d2288f750b9d096dc5a2d84f7e885cf44b101",
   "integrated_commit": "2aa8e3c",
   "independent_review": {
@@ -19,7 +19,7 @@
     "command": "python3 -B -m unittest discover -s tasks/g0-pending-resolution/scripts -p 'native_sd_*_test.py' -v",
     "exit_code": 0,
     "tests_passed": 16,
-    "duration_seconds": 0.280,
+    "duration_seconds": 0.28,
     "diff_check": "git diff --check 0459861..HEAD",
     "diff_check_exit_code": 0
   },
@@ -95,7 +95,10 @@
     "minor_pending": "Replace an overstrong sentence about an unobserved user turn with absence of positive evidence in the subsequent documentation delta"
   },
   "input_and_source_controller_delta": {
-    "source_commits": ["64e18c944ce9244351c7666c941ba63861de6776", "e0f2c0df20f514f733d4ecb5b7df48d2a37e958b"],
+    "source_commits": [
+      "64e18c944ce9244351c7666c941ba63861de6776",
+      "e0f2c0df20f514f733d4ecb5b7df48d2a37e958b"
+    ],
     "integrated_commit": "ba2d8a4",
     "independent_reviewer": "native_identity_review",
     "independent_verdict": "PASS",
@@ -129,7 +132,7 @@
     "clock_sha256": "c16c8d0d0d9b1652d18606230351493f3cea33211f8b4d3323bb5b6bf2466087",
     "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
     "main_sources_frozen_during_runtime": true,
-    "native_runtime_started": false
+    "native_runtime_started": true
   },
   "first_native_result": {
     "case": "sd-qual-01",
@@ -162,9 +165,52 @@
     ]
   },
   "native_service_started": true,
-  "native_model_started": null,
+  "native_model_started": true,
   "pending": [
-    "sd-qual-02 fresh preflight and native runtime",
-    "genuine submitted turn, persistent history read and standalone native evidence"
-  ]
+    "Align real ps comm and independently verified executable_path in controller/helper",
+    "Replay the entire prepare path using unchanged sd02 evidence clones and real Go reads; mark all substitutes",
+    "Register a fresh case only after frozen-code review and final-main verification",
+    "Genuine standalone consumption, general current-TUI attachment and full delivery reconciliation"
+  ],
+  "second_native_result": {
+    "case": "sd-qual-02",
+    "classification": "local_binding_contract_mismatch",
+    "native_user_turn_acceptance_confirmed": true,
+    "native_initial_completed_while_go_pending": true,
+    "go_completed_count": 1,
+    "go_owner_matches_root": true,
+    "go_ack": null,
+    "helper_stage": "prepare",
+    "helper_elapsed_seconds": 0.210742125,
+    "helper_reached_rpc": false,
+    "standalone_sent": false,
+    "normal_tui_quit_within_window_confirmed": false,
+    "owned_tui_service_worker_caffeinate_exited": true,
+    "socket_removed": true,
+    "facts_source_commit": "d20a42834095a82d983483b4c3237a1c6d3f628d",
+    "facts_integrated_commit": "19afa0cc9de800c868bd7321988a2a04b1d37cb3",
+    "independent_reviewer": "retained_lifecycle_review",
+    "review_verdict": "PASS for facts and classification; cleanup path wording minor corrected separately",
+    "main_doc_copies_matched": 5,
+    "main_doc_bytes_matched": 25945,
+    "main_launch_source_receipts_matched": 6,
+    "result_report": "native-sd-qual-02-result.md",
+    "diagnosis": "native-sd-qual-02-diagnosis.json",
+    "original_case_reused": false
+  },
+  "sd02_persisted_history_diagnostic": {
+    "source_commit": "761fbf228ebf644cb845c7fe714bda039334125e",
+    "independent_reviewer": "retained_lifecycle_review",
+    "verdict": "PASS for bounded execution projection only",
+    "sha256": "4be6f599531006ee30910223b4c9b90ffbf32003886856aa00812631eba4ecac",
+    "full_history_read_succeeded": true,
+    "same_original_service": false,
+    "thread_status": "notLoaded",
+    "turn_items_view": "full",
+    "elapsed_ns": 30998792,
+    "native_model_calls": 0,
+    "owned_service_exited": true,
+    "private_socket_directory_removed": true,
+    "report": "native-sd-qual-02-history-diagnostic.md"
+  }
 }
