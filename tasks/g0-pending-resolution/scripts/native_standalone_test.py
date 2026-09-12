@@ -17,7 +17,8 @@ import native_standalone as probe
 ROOT = "01900000-0000-7000-8000-000000000001"
 TURN = "01900000-0000-7000-8000-000000000002"
 BOOT = "01900000-0000-4000-8000-000000000003"
-NONCE = "sd-qual-02"
+SESSION = "01900000-aaaa-7000-8000-000000000006"
+NONCE = "sd-qual-03"
 
 
 def binding():
@@ -41,14 +42,106 @@ def go_inspection():
 
 
 def thread_result(source="vscode"):
-    return {"thread": {"id": ROOT, "sessionId": ROOT, "source": source, "cliVersion": "0.153.4",
+    return {"thread": {"id": ROOT, "sessionId": SESSION, "parentThreadId": None, "forkedFromId": None, "source": source, "cliVersion": "0.153.4",
             "cwd": "/private/g0/repo", "historyMode": "legacy", "ephemeral": False, "status": {"type": "idle"},
             "turns": [{"id": TURN, "status": "completed", "itemsView": "full", "items": [
                 {"id": "exec_01", "type": "commandExecution", "status": "completed", "exitCode": 0, "command": "PRIVATE_DO_NOT_EXPORT", "aggregatedOutput": "PRIVATE_DO_NOT_EXPORT"},
-                {"id": "ready_01", "type": "agentMessage", "phase": "final_answer", "text": "SD_QUAL_02_READY"}]}]}}
+                {"id": "ready_01", "type": "agentMessage", "phase": "final_answer", "text": "SD_QUAL_03_READY"}]}]}}
 
 
 class NativeStandaloneTests(unittest.TestCase):
+    def test_active_case_is_03_and_earlier_cases_are_rejected(self):
+        value = binding()
+        value["nonce"] = "sd-qual-03"
+        try:
+            probe.validate_binding(value, ROOT, "sd-qual-03")
+        except probe.ProbeError as error:
+            self.fail("registered new case rejected: " + error.code)
+        for nonce in ("sd-qual-01", "sd-qual-02"):
+            value["nonce"] = nonce
+            with self.subTest(nonce=nonce), self.assertRaises(probe.ProbeError):
+                probe.validate_binding(value, ROOT, nonce)
+
+    def test_fresh_family_requires_explicit_null_ancestry_and_uuid_session(self):
+        changes = [("parentThreadId", "missing"), ("parentThreadId", ROOT), ("parentThreadId", False),
+                   ("forkedFromId", "missing"), ("forkedFromId", ROOT),
+                   ("ephemeral", "missing"), ("ephemeral", True),
+                   ("sessionId", "missing"), ("sessionId", None), ("sessionId", "not-a-uuid"),
+                   ("sessionId", SESSION.upper()), ("sessionId", {"body": "CANARY"})]
+        for key, value in changes:
+            data = thread_result()
+            if value == "missing": del data["thread"][key]
+            else: data["thread"][key] = value
+            with self.subTest(key=key, value=value), self.assertRaises(probe.ProbeError):
+                probe.filter_thread(data, binding(), None, require_ready=True)
+
+    def test_prepare_pins_distinct_session_and_rechecks_it_before_send_and_during_observe(self):
+        task_tmp = pathlib.Path(__file__).resolve().parent.parent / "tmp"
+        task_tmp.mkdir(mode=0o700, exist_ok=True)
+        for stage in ("missing_meta", "before_send", "observe"):
+            calls, current_session = [], [SESSION]
+            class Reader:
+                checks, frames, bytes, server_requests, last_hash = {}, 0, 0, 0, None
+                def __init__(self, *_):
+                    pass
+                async def __aenter__(self):
+                    return self
+                async def __aexit__(self, *_):
+                    pass
+                async def initialize(self):
+                    pass
+                async def call(self, method, params, intent=None):
+                    calls.append(method)
+                    if method == "thread/read":
+                        self.last_request = {"id": len(calls), "method": method, "params": params}
+                        result = thread_result()
+                        result["thread"]["sessionId"] = current_session[0]
+                        return result
+                    if method == "turn/start":
+                        current_session[0] = BOOT  # Explicit synthetic session change after sending.
+                        return {"turn": {"id": "new_turn", "status": "inProgress"}}
+                    raise AssertionError("unexpected RPC in session fixture")
+                async def wake(self):
+                    raise probe.ProbeError("fixture_observation_end")
+            def clock():
+                return {"boot_id": BOOT, "clock_impl": probe.CLOCK_IMPL, "mono_ns": probe.continuous_ns(), "wall_ns": 0}
+            def go(_binding, verb, _deadline, allow_ack=False):
+                value = go_inspection()
+                return value["result"] if verb == "read" else value
+            with self.subTest(stage=stage), tempfile.TemporaryDirectory(prefix="session-check-", dir=task_tmp) as directory:
+                value = binding()
+                value["controller_evidence_sha256"] = hashlib.sha256(b"{}\n").hexdigest()
+                with probe.Case(directory) as case:
+                    case.write_new("binding.json", value)
+                    case.write_new("controller-evidence.json", {})
+                with patch.object(probe, "Rpc", Reader), patch.object(probe, "verify_machine"), patch.object(probe, "current_clock", side_effect=clock), patch.object(probe, "go_read", side_effect=go):
+                    args = ["prepare", "--case", directory, "--root", ROOT, "--nonce", NONCE]
+                    result = probe.main(args)
+                    self.assertEqual(result["status"], "prepared")
+                    meta_path = pathlib.Path(directory) / "prepare-meta.json"
+                    meta = json.loads(meta_path.read_bytes())
+                    self.assertEqual(meta.get("session_id"), SESSION)
+                    self.assertNotEqual(meta["session_id"], ROOT)
+                    self.assertTrue(meta["prior_facts"]["fresh_root_family"])
+                    if stage == "missing_meta":
+                        del meta["session_id"]
+                        meta_path.write_text(json.dumps(meta))
+                    elif stage == "before_send":
+                        current_session[0] = BOOT
+                    args[0] = "send-once"
+                    result = probe.main(args)
+                    self.assertEqual(result["reason"], "invalid_session_id" if stage == "missing_meta" else "session_changed")
+                    self.assertFalse(result["resend_authorized"])
+                    if stage == "observe":
+                        self.assertEqual(result["status"], "uncertain")
+                        args[0] = "observe"
+                        self.assertEqual(probe.main(args)["reason"], "session_changed")
+                        self.assertEqual(calls.count("turn/start"), 1)
+                    else:
+                        self.assertEqual(result["status"], "rejected")
+                        self.assertNotIn("turn/start", calls)
+                        self.assertFalse((pathlib.Path(directory) / "send-attempt.json").exists())
+
     def test_native_rpc_error_keeps_only_matched_method_code_and_message_digest(self):
         message = "CANARY_RPC_MESSAGE_错误"
         class Wire:
@@ -311,7 +404,7 @@ class NativeStandaloneTests(unittest.TestCase):
         intent, data = probe.make_intent(binding(), go_inspection()), thread_result()
         data["thread"]["turns"].append({"id": "new_turn", "status": "completed", "itemsView": "full", "items": [
             {"id": "standalone_01", "type": "functionCallOutput", "name": "g0_delivery", "namespace": "orchestration", "output": probe.canonical(intent)},
-            {"id": "ack_final", "type": "agentMessage", "phase": "final_answer", "text": "SD_QUAL_02_ACK"}]})
+            {"id": "ack_final", "type": "agentMessage", "phase": "final_answer", "text": "SD_QUAL_03_ACK"}]})
         probe.filter_thread(data, binding(), intent)
         changed = copy.deepcopy(data)
         changed["thread"]["turns"][-1]["status"] = "inProgress"
@@ -478,7 +571,7 @@ class NativeStandaloneTests(unittest.TestCase):
         data["thread"]["status"] = {"type": "active"}
         data["thread"]["turns"].append({"id": "new_turn", "status": "completed", "itemsView": "full", "items": [
             {"id": "standalone_01", "type": "functionCallOutput", "name": "g0_delivery", "namespace": "orchestration", "output": probe.canonical(intent)},
-            {"id": "ack_final", "type": "agentMessage", "phase": "final_answer", "text": "SD_QUAL_02_ACK"}]})
+            {"id": "ack_final", "type": "agentMessage", "phase": "final_answer", "text": "SD_QUAL_03_ACK"}]})
         class Reader:
             checks, frames, bytes, server_requests, last_hash = {}, 1, 100, 0, None
             last_request = {"id": 4, "method": "thread/read", "params": {"threadId": ROOT, "includeTurns": True}}
@@ -490,7 +583,7 @@ class NativeStandaloneTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="g0-standalone-case-") as directory:
             os.chmod(directory, 0o700)
             with probe.Case(directory) as case, patch.object(probe, "verify_machine"), patch.object(probe, "current_clock", return_value=now), patch.object(probe, "go_read", return_value=inspection):
-                result = asyncio.run(probe.observe(Reader(), case, binding(), intent, now))
+                result = asyncio.run(probe.observe(Reader(), case, binding(), intent, now, SESSION))
                 self.assertEqual(result["status"], "uncertain")
 
     def test_send_claim_is_durable_intent_and_cannot_be_reused(self):

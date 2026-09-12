@@ -1,0 +1,95 @@
+FFFFFFFFFF
+======================================================================
+FAIL: test_fresh_family_requires_explicit_null_ancestry_and_uuid_session (native_standalone_test.NativeStandaloneTests.test_fresh_family_requires_explicit_null_ancestry_and_uuid_session) (key='parentThreadId', value='missing')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 75, in test_fresh_family_requires_explicit_null_ancestry_and_uuid_session
+    with self.subTest(key=key, value=value), self.assertRaises(probe.ProbeError):
+                                             ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: ProbeError not raised
+
+======================================================================
+FAIL: test_fresh_family_requires_explicit_null_ancestry_and_uuid_session (native_standalone_test.NativeStandaloneTests.test_fresh_family_requires_explicit_null_ancestry_and_uuid_session) (key='parentThreadId', value='01900000-0000-7000-8000-000000000001')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 75, in test_fresh_family_requires_explicit_null_ancestry_and_uuid_session
+    with self.subTest(key=key, value=value), self.assertRaises(probe.ProbeError):
+                                             ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: ProbeError not raised
+
+======================================================================
+FAIL: test_fresh_family_requires_explicit_null_ancestry_and_uuid_session (native_standalone_test.NativeStandaloneTests.test_fresh_family_requires_explicit_null_ancestry_and_uuid_session) (key='parentThreadId', value=False)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 75, in test_fresh_family_requires_explicit_null_ancestry_and_uuid_session
+    with self.subTest(key=key, value=value), self.assertRaises(probe.ProbeError):
+                                             ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: ProbeError not raised
+
+======================================================================
+FAIL: test_fresh_family_requires_explicit_null_ancestry_and_uuid_session (native_standalone_test.NativeStandaloneTests.test_fresh_family_requires_explicit_null_ancestry_and_uuid_session) (key='forkedFromId', value='missing')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 75, in test_fresh_family_requires_explicit_null_ancestry_and_uuid_session
+    with self.subTest(key=key, value=value), self.assertRaises(probe.ProbeError):
+                                             ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: ProbeError not raised
+
+======================================================================
+FAIL: test_fresh_family_requires_explicit_null_ancestry_and_uuid_session (native_standalone_test.NativeStandaloneTests.test_fresh_family_requires_explicit_null_ancestry_and_uuid_session) (key='forkedFromId', value='01900000-0000-7000-8000-000000000001')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 75, in test_fresh_family_requires_explicit_null_ancestry_and_uuid_session
+    with self.subTest(key=key, value=value), self.assertRaises(probe.ProbeError):
+                                             ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: ProbeError not raised
+
+======================================================================
+FAIL: test_fresh_family_requires_explicit_null_ancestry_and_uuid_session (native_standalone_test.NativeStandaloneTests.test_fresh_family_requires_explicit_null_ancestry_and_uuid_session) (key='sessionId', value='missing')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 75, in test_fresh_family_requires_explicit_null_ancestry_and_uuid_session
+    with self.subTest(key=key, value=value), self.assertRaises(probe.ProbeError):
+                                             ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: ProbeError not raised
+
+======================================================================
+FAIL: test_fresh_family_requires_explicit_null_ancestry_and_uuid_session (native_standalone_test.NativeStandaloneTests.test_fresh_family_requires_explicit_null_ancestry_and_uuid_session) (key='sessionId', value=None)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 75, in test_fresh_family_requires_explicit_null_ancestry_and_uuid_session
+    with self.subTest(key=key, value=value), self.assertRaises(probe.ProbeError):
+                                             ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: ProbeError not raised
+
+======================================================================
+FAIL: test_fresh_family_requires_explicit_null_ancestry_and_uuid_session (native_standalone_test.NativeStandaloneTests.test_fresh_family_requires_explicit_null_ancestry_and_uuid_session) (key='sessionId', value='not-a-uuid')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 75, in test_fresh_family_requires_explicit_null_ancestry_and_uuid_session
+    with self.subTest(key=key, value=value), self.assertRaises(probe.ProbeError):
+                                             ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: ProbeError not raised
+
+======================================================================
+FAIL: test_fresh_family_requires_explicit_null_ancestry_and_uuid_session (native_standalone_test.NativeStandaloneTests.test_fresh_family_requires_explicit_null_ancestry_and_uuid_session) (key='sessionId', value='01900000-AAAA-7000-8000-000000000006')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 75, in test_fresh_family_requires_explicit_null_ancestry_and_uuid_session
+    with self.subTest(key=key, value=value), self.assertRaises(probe.ProbeError):
+                                             ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: ProbeError not raised
+
+======================================================================
+FAIL: test_fresh_family_requires_explicit_null_ancestry_and_uuid_session (native_standalone_test.NativeStandaloneTests.test_fresh_family_requires_explicit_null_ancestry_and_uuid_session) (key='sessionId', value={'body': 'CANARY'})
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 75, in test_fresh_family_requires_explicit_null_ancestry_and_uuid_session
+    with self.subTest(key=key, value=value), self.assertRaises(probe.ProbeError):
+                                             ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+AssertionError: ProbeError not raised
+
+----------------------------------------------------------------------
+Ran 1 test in 0.001s
+
+FAILED (failures=10)

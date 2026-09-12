@@ -50,6 +50,9 @@ class Sd02OfflineInputChain(unittest.TestCase):
         thread = {"id": projection["thread_id"], "source": projection["source"], "cliVersion": original["native_cli_version"],
                   "cwd": original["expected_cwd"], "historyMode": projection["history_mode"], "ephemeral": projection["ephemeral"],
                   "status": {"type": "idle"}, "turns": []}  # Explicit synthetic idle overlay.
+        # sd02 never captured these fields: supplementation is test-only, not native evidence.
+        self.assertNotIn("session_id", projection)
+        thread.update(sessionId="01900000-aaaa-7000-8000-000000000006", parentThreadId=None, forkedFromId=None)
         for turn in projection["turns"]:
             items = []
             for source in turn["items"]:
@@ -128,7 +131,8 @@ class Sd02OfflineInputChain(unittest.TestCase):
                 if os.fspath(path) == original["service"]["socket_path"]:
                     return socket_info
                 return real_lstat(path, *args, **kwargs)
-            with patch.object(subprocess, "run", side_effect=run), patch.object(probe.os, "lstat", side_effect=lstat), patch.object(ctypes, "CDLL", return_value=libproc), patch.object(probe.Rpc, "__aenter__", connect), patch.object(os, "environ", {}):
+            with patch.object(subprocess, "run", side_effect=run), patch.object(probe.os, "lstat", side_effect=lstat), patch.object(ctypes, "CDLL", return_value=libproc), patch.object(probe.Rpc, "__aenter__", connect), patch.object(os, "environ", {}), patch.object(probe, "ACTIVE_NONCE", "sd-qual-02"):
+                # Only this offline historical test permits the original nonce; runtime accepts 03.
                 # These are the actual frozen collector and controller entry points.
                 binding = dict(original)
                 for role in ("service", "tui"):
@@ -145,6 +149,7 @@ class Sd02OfflineInputChain(unittest.TestCase):
                 except probe.ProbeError as error:
                     self.fail("prepare input rejected: " + error.code)
                 self.assertEqual(result.get("status"), "prepared", {"reason": result.get("reason"), "go_failures": go_failures})
+                self.assertEqual(json.loads((case_dir / "prepare-meta.json").read_bytes())["session_id"], thread["sessionId"])
                 producer = json.loads((case_dir / "producer.json").read_bytes())
                 self.assertEqual(producer["read"], evidence["completed_read"]["output"])
                 self.assertEqual(producer["inspection"]["result"], producer["read"])

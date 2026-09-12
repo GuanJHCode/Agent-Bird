@@ -1,0 +1,23 @@
+{
+  "scope": "offline_sd03_contract_and_historical_sd02_clone_not_native_qualification",
+  "active_runtime_nonce": "sd-qual-03",
+  "historical_fixture_test_only_nonce": "sd-qual-02",
+  "synthetic_history_fields_added_in_test": [
+    "parentThreadId",
+    "forkedFromId",
+    "sessionId"
+  ],
+  "original_seven_sd02_files_unchanged": true,
+  "fixture_json_sha256": "dc8a3394333df77d002512a6db9ccae5550677e729e1037b6748a4f343cea6ca",
+  "controller_test_dependency_commit": "08bdd56be86055bd842507bb21ac1c9e016fe91c",
+  "source_sha256": {
+    "native_standalone.py": "7ac746213b306c3c0e0b7a3b784c79fad51cb7cbca488e22be668d621c0a89dc",
+    "native_standalone_test.py": "38c73b4a066bc4cfc008374edd7113718e04d89a30d8de5c39ffbfb339bc8a09",
+    "native_standalone_binding_test.py": "363fb6f12d2b7390f387a851224dc819fc30041c872b48d78a7e75c42cff5a44"
+  },
+  "tests": 33,
+  "elapsed_seconds": 0.157,
+  "test_log": "standalone-helper-sd03-green.log",
+  "compile_pass": true,
+  "native_or_model_run": false
+}

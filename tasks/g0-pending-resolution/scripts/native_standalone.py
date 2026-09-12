@@ -19,6 +19,7 @@ import uuid
 from delivery_audit import canonical, envelope, parse
 
 CLI_VERSION = "0.153.4"
+ACTIVE_NONCE = "sd-qual-03"
 CLI_SHA = "b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3"
 GO_SHA = "feb9b9ad969abca5ff35db28c0f0d8d920dc0778d7aac68a90952900e989a285"
 READ_SECONDS, MODEL_SECONDS, MAX_BYTES, MAX_FRAMES = 10, 120, 65536, 256
@@ -58,6 +59,15 @@ def absolute(value):
     return type(value) is str and len(value) <= 4096 and os.path.isabs(value) and not any(c in value for c in "\0\r\n")
 
 
+def is_uuid(value):
+    if type(value) is not str or len(value) != 36:
+        return False
+    try:
+        return str(uuid.UUID(value)) == value
+    except ValueError:
+        return False
+
+
 def digest(data):
     return hashlib.sha256(data).hexdigest()
 
@@ -75,7 +85,7 @@ def validate_binding(value, root, nonce):
     exact(value, ("version", "nonce", "controller_thread_id", "controller_epoch", "expected_cwd", "prior_turn_id",
                   "native_cli_version", "boot_id", "service", "tui", "go_binary", "go_binary_sha256", "job_dir", "controller_evidence_sha256"))
     check(type(value["version"]) is int and value["version"] == 1)
-    check(safe(root) and nonce == "sd-qual-02" and value["nonce"] == nonce and value["controller_thread_id"] == root, "root_nonce_mismatch")
+    check(safe(root) and nonce == ACTIVE_NONCE and value["nonce"] == nonce and value["controller_thread_id"] == root, "root_nonce_mismatch")
     check(type(value["controller_epoch"]) is int and value["controller_epoch"] == 1)
     check(value["native_cli_version"] == CLI_VERSION and value["go_binary_sha256"] == GO_SHA, "version_mismatch")
     check(safe(value["prior_turn_id"]) and type(value["boot_id"]) is str)
@@ -278,16 +288,21 @@ def make_request(request_id, method, params, binding, intent=None):
     return {"id": request_id, "method": method, "params": expected}
 
 
-def filter_thread(result, binding, intent, require_ready=False):
+def filter_thread(result, binding, intent, require_ready=False, expected_session_id=None):
     check(type(result) is dict and type(result.get("thread")) is dict, "invalid_thread")
     thread = result["thread"]
     check(thread.get("id") == binding["controller_thread_id"] and thread.get("source") == "vscode" and thread.get("cliVersion") == CLI_VERSION and thread.get("cwd") == binding["expected_cwd"], "thread_binding_mismatch")
     check(thread.get("historyMode") in ("legacy", "paginated") and thread.get("ephemeral") is False, "unsupported_history")
+    check(all(key in thread and thread[key] is None for key in ("parentThreadId", "forkedFromId")), "thread_family_mismatch")
+    check(is_uuid(thread.get("sessionId")), "invalid_session_id")
+    if expected_session_id is not None:
+        check(thread["sessionId"] == expected_session_id, "session_changed")
     check(type(thread.get("status")) is dict and thread["status"].get("type") in ("idle", "active", "notLoaded", "systemError"), "invalid_thread_status")
     check(type(thread.get("turns")) is list and 0 < len(thread["turns"]) <= 32, "history_limit")
     ready_marker = binding["nonce"].upper().replace("-", "_") + "_READY"
     ack_marker = binding["nonce"].upper().replace("-", "_") + "_ACK"
     facts = {"history_match": False, "new_turn_completed": False, "ack_final_marker": False, "prior_tools_terminal": False,
+             "session_id": thread["sessionId"], "fresh_root_family": True,
              "prior_started_at": None, "prior_completed_at": None, "root_idle": thread["status"]["type"] == "idle",
              "all_tools_and_turns_terminal": True, "matching_turn_is_last": False}
     filtered = {"thread": {"id": thread["id"], "historyMode": thread["historyMode"], "turns": []}}
@@ -508,7 +523,8 @@ def load_prepared(case, binding, binding_hash):
     check(canonical(intent) == canonical(make_intent(binding, producer["inspection"])), "intent_binding_mismatch")
     check(type(meta) is dict and meta.get("binding_sha256") == binding_hash and meta.get("payload_sha256") == digest(canonical(intent).encode()), "prepared_binding_mismatch")
     check(meta.get("clock_impl") == CLOCK_IMPL and meta.get("boot_id") == binding["boot_id"], "clock_context_changed")
-    return intent
+    check(is_uuid(meta.get("session_id")), "invalid_session_id")
+    return intent, meta["session_id"]
 
 
 def load_attempt(case, binding, intent, binding_hash):
@@ -530,7 +546,7 @@ def exists(case, name):
         return False
 
 
-async def observe(rpc, case, binding, intent, attempt):
+async def observe(rpc, case, binding, intent, attempt, expected_session_id):
     last_read, facts, inspection = None, {}, None
     rpc_error = None
     reason = "model_window_expired"
@@ -540,7 +556,7 @@ async def observe(rpc, case, binding, intent, attempt):
             rpc.deadline_ns = attempt["mono_ns"] + MODEL_SECONDS * NS
             verify_machine(binding, hashes=False)
             raw = await rpc.call("thread/read", {"threadId": binding["controller_thread_id"], "includeTurns": True})
-            filtered, facts = filter_thread(raw, binding, intent)
+            filtered, facts = filter_thread(raw, binding, intent, expected_session_id=expected_session_id)
             last_read = {"request": rpc.last_request, "response": {"id": rpc.last_request["id"], "result": filtered}}
             inspection = go_read(binding, "inspect", rpc.deadline_ns, allow_ack=True)
             check(inspection["event_hash"] == intent["events"][0]["payload_hash"], "producer_changed")
@@ -577,20 +593,20 @@ async def run(verb, case, binding, binding_hash):
         check(not exists(case, "send-attempt.json"), "send_intent_exists")
     deadline_ns = continuous_ns() + READ_SECONDS * NS
     verify_machine(binding)
-    intent, attempt = None, None
+    intent, attempt, session_id = None, None, None
     if verb != "prepare":
-        intent = load_prepared(case, binding, binding_hash)
+        intent, session_id = load_prepared(case, binding, binding_hash)
     if verb == "observe":
         attempt = load_attempt(case, binding, intent, binding_hash)
         deadline_ns = min(deadline_ns, attempt["mono_ns"] + MODEL_SECONDS * NS)
     async with Rpc(binding, deadline_ns) as rpc:
         await rpc.initialize()
         if verb == "observe":
-            result = await observe(rpc, case, binding, intent, attempt)
+            result = await observe(rpc, case, binding, intent, attempt, session_id)
             case.write_new("read-observation.json", result)
             return result
         result = await rpc.call("thread/read", {"threadId": binding["controller_thread_id"], "includeTurns": True})
-        _, facts = filter_thread(result, binding, None, require_ready=True)
+        _, facts = filter_thread(result, binding, None, require_ready=True, expected_session_id=session_id)
         if verb == "prepare":
             read = go_read(binding, "read", deadline_ns)
             inspection = go_read(binding, "inspect", deadline_ns)
@@ -599,14 +615,14 @@ async def run(verb, case, binding, binding_hash):
             case.write_new("producer.json", {"read": read, "inspection": inspection})
             case.write_new("intent.json", intent)
             result = {"version": 1, "status": "prepared", "binding_sha256": binding_hash, "payload_sha256": digest(canonical(intent).encode()),
-                      "prior_facts": facts, "rpc_checks": rpc.checks, **current_clock()}
+                      "session_id": facts["session_id"], "prior_facts": facts, "rpc_checks": rpc.checks, **current_clock()}
             case.write_new("prepare-meta.json", result)
             time_left(deadline_ns)
             return result
         inspection = go_read(binding, "inspect", deadline_ns)
         check(canonical(intent) == canonical(make_intent(binding, inspection)), "producer_changed")
         attempt, _ = await issue_once(rpc, case, binding, intent, binding_hash)
-        result = await observe(rpc, case, binding, intent, attempt)
+        result = await observe(rpc, case, binding, intent, attempt, session_id)
         case.write_new("send-observation.json", result)
         return result
 

@@ -1,12 +1,12 @@
 # 单次 standalone 原生资格 helper
 
-本工具当前只准入已登记服务、TUI、root、prior turn 和新的 `sd-qual-02` 合成样本。原 `sd-qual-01` 失败记录保留，不能用此版本重跑；helper 尚未取得原生资格阳性。需要独立源码审查及 controller 的同次身份/PTY/时间线证据。`source_service_verified:false`、`current_display_verified:false` 始终保留，不把本地检查器或 caller 提供的字段升级成通用附着证明。
+本工具当前只准入已登记服务、TUI、root、prior turn 和唯一 `sd-qual-03` 合成样本。原 `sd-qual-01`、`sd-qual-02` 失败记录保留，不能用此版本重跑；helper 尚未取得原生资格阳性。需要独立源码审查及 controller 的同次身份/PTY/时间线证据。`source_service_verified:false`、`current_display_verified:false` 始终保留，不把本地检查器或 caller 提供的字段升级成通用附着证明。
 
 ```sh
-python3 tasks/g0-pending-resolution/scripts/native_standalone.py prepare --case ABS0700DIR --root ROOT_UUID --nonce sd-qual-02
-python3 tasks/g0-pending-resolution/scripts/native_standalone.py send-once --case ABS0700DIR --root ROOT_UUID --nonce sd-qual-02
+python3 tasks/g0-pending-resolution/scripts/native_standalone.py prepare --case ABS0700DIR --root ROOT_UUID --nonce sd-qual-03
+python3 tasks/g0-pending-resolution/scripts/native_standalone.py send-once --case ABS0700DIR --root ROOT_UUID --nonce sd-qual-03
 # 仅已有 send-attempt 且同 boot/原 120 秒尚未结束时，显式只读补证：
-python3 tasks/g0-pending-resolution/scripts/native_standalone.py observe --case ABS0700DIR --root ROOT_UUID --nonce sd-qual-02
+python3 tasks/g0-pending-resolution/scripts/native_standalone.py observe --case ABS0700DIR --root ROOT_UUID --nonce sd-qual-03
 ```
 
 参数顺序固定。macOS、现有 Python 3.13/websockets 16.0；不安装依赖。脚本同目录需要既有 `delivery_audit.py`（仅复用严格 JSON/envelope 函数，不修改它）。普通原生入口及受控服务由 controller 创建；helper 不创建 listener、不改任何配置/权限/账号，也不调用模型提供商。
@@ -23,7 +23,7 @@ go_binary, go_binary_sha256, job_dir, controller_evidence_sha256
 
 `boot_id` 为本次 `kern.bootsessionuuid` 小写 UUID；`birth` 为 `/bin/ps -p PID -o pid=,uid=,lstart=,comm=` 中 lstart 的五词，用单空格连接；`comm` 保留真实 ps 输出（本次为 `codex`），只作有界字符串与实时 ps 精确比较；必需的 `executable_path` 另由 libproc.proc_pidpath 实读并在服务/TUI两端实时精确核验，固定 SHA 核验使用该独立路径。旧缺字段记录拒绝，不把 comm 改写成路径，也不迁移旧 binding。服务与 TUI 必须不同 PID、同当前 UID；原生二进制 SHA 固定为 `b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3`，Go 为 `feb9b9ad969abca5ff35db28c0f0d8d920dc0778d7aac68a90952900e989a285`。controller 独立证明 socket 与服务、TUI/root/当前显示的关联；helper 只机验登记项和诊断 PID。
 
-`prepare` 要求 Go 已完成。它验证原生 `thread/read` 的 root/source=vscode/cliVersion/cwd、显式 historyMode 为 legacy 或 paginated 且各 turn 的 itemsView 为 full、exact prior completed/READY final/root idle/所有观察工具终态，再实际执行白名单 Go `read` 和 `inspect`，只接受固定 count=1、owner/revision/hash 和未 ACK 结果。写入 0600 的 `producer.json`、`intent.json`、`prepare-meta.json`。Go event hash 绑定 envelope 的单事件 payload_hash；客户端不新增业务 ACK。
+`prepare` 要求 Go 已完成。每次完整读取必须显式 parentThreadId=null、forkedFromId=null、ephemeral=false，sessionId 为规范 UUID。首次读取的 sessionId 保存为 prepare-meta.json.session_id；send-once 和 observe 的后续读取必须与其一致，不假定 sessionId 等于 root。缺字段和旧缺 session 的准备记录均拒绝。它验证原生 `thread/read` 的 root/source=vscode/cliVersion/cwd、显式 historyMode 为 legacy 或 paginated 且各 turn 的 itemsView 为 full、exact prior completed/READY final/root idle/所有观察工具终态，再实际执行白名单 Go `read` 和 `inspect`，只接受固定 count=1、owner/revision/hash 和未 ACK 结果。写入 0600 的 `producer.json`、`intent.json`、`prepare-meta.json`。Go event hash 绑定 envelope 的单事件 payload_hash；客户端不新增业务 ACK。
 
 此后继精确要求 `source:vscode`：固定版本的普通 [`codex app-server` 启动分支](https://github.com/openai/codex/blob/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/cli/src/main.rs#L1287)将 SessionSource::VSCode 传给共享 ThreadManager，远程 TUI 创建新 thread 不覆盖它。该值不证明用户运行了 VSCode，也不等于当前 TUI 附着；仍依靠 controller 独立证据。cli、appServer、unknown、subAgent 与缺失来源全部拒绝，不改原生来源设置，不宣称与 embedded 或完整 C13 等价。这个条件的 17 项回归已先 RED 后 GREEN（0.007s），见 source-red/source-green 日志。原 sd-qual-01 未取得真实持久化 user turn 的阳性证据，其失败及当时的 -32601 只读事实保留；本修正不假定后续历史读取一定可用。
 
@@ -52,3 +52,5 @@ RPC 仅 initialize、initialized 通知、server/diagnostics、remoteControl/sta
 进程字段后继：实际 sd02 原 binding 在 RPC 之前因 comm=codex 被原 absolute(comm) 拒绝，原 SHA/错误已离线复现保留。新字段合同和两端实时 executable 不匹配的检查均先 RED，最小实现后 26 项通过（0.025s）。服务/TUI在 hashes=false 的观察阶段也会重新核实际 exe 路径；仅重哈希省略。真实当前 Python 进程的只读 proc_pidpath 返回绝对普通文件路径，证明本机调用可用，不是原生服务身份证据。完整 collector/controller→helper prepare 的 sd02 离线克隆回归已通过（1 项，0.125s），实际 Go read/inspect 只读取五份文件的私有副本；进程、socket 和原生 RPC 为明确替身，notLoaded→idle 也是测试投影，不授予原生准入。固定依赖、原失败和重放方式见 [sd02-chain](standalone-helper-sd02-chain.md)。
 
 原生匹配 RPC error 现在保留可选的五字段 `rpc_error` 摘要（method/request_id/code/message_bytes/message_sha256），覆盖 main 与已有观察记录；原始 message/data 不导出，不改变失败后的不确定与不重发语义。字段边界、controller 独立重验和 30 项最新验证见 [RPC 错误诊断](standalone-helper-rpc-error.md)。
+
+已登记 sd03 后验资格后，唯一运行 nonce 为代码常量 ACTIVE_NONCE=sd-qual-03；无环境或 CLI 绕过。历史 sd02 整链仅在测试内部替换该常量，并明确补充未曾采集的 synthetic family/session 字段，不修改原七份输入。新增 nonce/family/session 回归先 RED 后 GREEN，最新 33 项通过（0.157s）。见 [sd03 关系与 session](standalone-helper-sd03-family-session.md)。

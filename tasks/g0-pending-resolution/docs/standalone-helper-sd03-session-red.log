@@ -1,0 +1,32 @@
+FFF
+======================================================================
+FAIL: test_prepare_pins_distinct_session_and_rechecks_it_before_send_and_during_observe (native_standalone_test.NativeStandaloneTests.test_prepare_pins_distinct_session_and_rechecks_it_before_send_and_during_observe) (stage='missing_meta')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 123, in test_prepare_pins_distinct_session_and_rechecks_it_before_send_and_during_observe
+    self.assertEqual(meta.get("session_id"), SESSION)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: None != '01900000-aaaa-7000-8000-000000000006'
+
+======================================================================
+FAIL: test_prepare_pins_distinct_session_and_rechecks_it_before_send_and_during_observe (native_standalone_test.NativeStandaloneTests.test_prepare_pins_distinct_session_and_rechecks_it_before_send_and_during_observe) (stage='before_send')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 123, in test_prepare_pins_distinct_session_and_rechecks_it_before_send_and_during_observe
+    self.assertEqual(meta.get("session_id"), SESSION)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: None != '01900000-aaaa-7000-8000-000000000006'
+
+======================================================================
+FAIL: test_prepare_pins_distinct_session_and_rechecks_it_before_send_and_during_observe (native_standalone_test.NativeStandaloneTests.test_prepare_pins_distinct_session_and_rechecks_it_before_send_and_during_observe) (stage='observe')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 123, in test_prepare_pins_distinct_session_and_rechecks_it_before_send_and_during_observe
+    self.assertEqual(meta.get("session_id"), SESSION)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: None != '01900000-aaaa-7000-8000-000000000006'
+
+----------------------------------------------------------------------
+Ran 1 test in 0.017s
+
+FAILED (failures=3)
