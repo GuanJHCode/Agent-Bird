@@ -116,6 +116,10 @@ class NativeActivationProbeTests(unittest.TestCase):
         self.assertFalse(result["default_socket_exists_after"])
         self.assertLessEqual(result["pty"]["bytes_captured"], 262144)
         self.assertNotIn("OPENAI_API_KEY", result["env_names"])
+        report_path = Path(result["report_path"])
+        self.assertTrue(report_path.exists())
+        self.assertEqual(report_path.stat().st_mode & 0o777, 0o600)
+        self.assertNotIn("synthetic-protected", report_path.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

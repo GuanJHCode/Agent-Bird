@@ -61,6 +61,7 @@ class ProbeSpec:
     credential_manifest: Path | None = None
     ready_path: Path | None = None
     status_path: Path | None = None
+    report_path: Path | None = None
     use_sandbox: bool = True
     sandbox_executable: Path = Path("/usr/bin/sandbox-exec")
     timeout: float = 10.0
@@ -344,6 +345,13 @@ class NativeActivationProbe:
             roots = (context.spec.home.resolve(), context.spec.workspace.resolve(), (context.spec.task_root / "tmp").resolve())
             if not any(resolved == root or root in resolved.parents for root in roots):
                 raise ProbeError("probe evidence path must be below isolated roots")
+        if self.spec.report_path is not None:
+            if not self.spec.report_path.is_absolute():
+                raise ProbeError("probe report path must be absolute")
+            _reject_symlink_components(self.spec.report_path)
+            report_parent = self.spec.report_path.parent.resolve()
+            if report_parent != context.spec.task_root.resolve() and context.spec.task_root.resolve() not in report_parent.parents:
+                raise ProbeError("probe report path must be below task root")
 
     def _auth_paths(self) -> tuple[Path, ...]:
         if self.spec.credential_manifest is None:
@@ -407,6 +415,7 @@ class NativeActivationProbe:
             "child_exit": None,
             "auth": {"unchanged": False, "changed_path_ids": []},
         }
+        report_path = self.spec.report_path or context.spec.task_root / f"probe-report-{uuid.uuid4().hex[:12]}.json"
         scope = self.transaction.managed() if self.transaction is not None else nullcontext(None)
         try:
             backend_plan = self._backend_plan()
@@ -556,6 +565,11 @@ class NativeActivationProbe:
                 "sha256": digest.hexdigest(),
                 "excerpt": _safe_excerpt(pty_excerpt),
             }
+            report["report_path"] = str(report_path)
+            try:
+                write_probe_report(report, report_path)
+            except (OSError, ProbeError) as exc:
+                report["cleanup_failures"].append(type(exc).__name__)
         if error is not None:
             raise ProbeError(str(error)) from error
         return report
