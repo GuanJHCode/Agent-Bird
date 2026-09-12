@@ -555,7 +555,9 @@ class ActivationTransaction:
         self._validate_spec()
         self._directory_is_safe(self.spec.home, owner_only=False)
         self._directory_is_safe(self.spec.home / "Library", owner_only=False)
-        self._directory_is_safe(self.spec.home / ".codex", owner_only=True)
+        # Existing real homes may expose .codex as 0755; reject writes by
+        # group/other without requiring an unrelated chmod of that ancestor.
+        self._directory_is_safe(self.spec.home / ".codex", owner_only=False)
         self._directory_is_safe(self.spec.socket_parent, owner_only=True)
         self._directory_is_safe(self.spec.plist_path.parent, owner_only=False)
         self._freeze_parents()

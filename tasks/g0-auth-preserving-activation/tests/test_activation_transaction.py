@@ -478,6 +478,28 @@ def test_publish_revalidates_entrypoint_hash_before_bootstrap(fake_env):
     assert json.loads(fake_env[3].read_text(encoding="utf-8")).get("job") is None
 
 
+def test_real_home_codex_0755_leaf_0700_is_accepted_without_chmod(fake_env):
+    tx = make_controller(fake_env)
+    codex_dir = tx.spec.home / ".codex"
+    codex_dir.chmod(0o755)
+    tx.prepare()
+    tx.register()
+    tx.revoke()
+    assert stat.S_IMODE(codex_dir.stat().st_mode) == 0o755
+    assert stat.S_IMODE(tx.spec.socket_parent.stat().st_mode) == 0o700
+
+
+def test_real_home_codex_group_writable_is_rejected_without_chmod(fake_env):
+    tx = make_controller(fake_env)
+    codex_dir = tx.spec.home / ".codex"
+    codex_dir.chmod(0o775)
+
+    with pytest.raises(ActivationError, match="directory_mode"):
+        tx.prepare()
+
+    assert stat.S_IMODE(codex_dir.stat().st_mode) == 0o775
+
+
 def test_publish_rejects_replaced_parent_and_keeps_old_stage(fake_env):
     tx = make_controller(fake_env)
     tx.prepare()
