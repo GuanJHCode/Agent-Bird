@@ -1,3 +1,5 @@
+import asyncio
+import hashlib
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -14,13 +16,16 @@ from resume_case import (  # noqa: E402
     validate_resume_terminal,
     validate_silent_resume,
     verify_preflight,
+    run_resume_case,
 )
+import proxy_native_runtime as runtime_module  # noqa: E402
+from proxy_native_runtime import AttachmentCandidate  # noqa: E402
 
 
 THREAD_ID = "01234567-89ab-cdef-0123-456789abcdef"
 
 
-def make_spec(tmp_path):
+def make_spec(tmp_path, *, local_window_seconds=10.0):
     cli = tmp_path / "codex"
     cli.write_bytes(b"native")
     config = tmp_path / "config.toml"
@@ -33,6 +38,7 @@ def make_spec(tmp_path):
         cwd=tmp_path,
         config_path=config,
         expected_resume_thread_id=THREAD_ID,
+        local_window_seconds=local_window_seconds,
     )
 
 
@@ -59,7 +65,7 @@ def test_preflight_fails_if_source_or_endpoint_changes(tmp_path):
 
 
 def test_silent_resume_rejects_model_or_thread_start():
-    bridge = SimpleNamespace(trace=[], model_turns=0)
+    bridge = SimpleNamespace(trace=[], trace_complete=True, model_turns=0)
     assert validate_silent_resume(bridge)["turns_started"] == 0
     bridge.trace.append({"event": "rpc", "method": "thread/start"})
     with pytest.raises(Exception, match="not silent"):
@@ -73,9 +79,12 @@ def test_terminal_validator_requires_quit_eof_and_owned_cleanup(tmp_path):
         termination_mode="normal_quit",
         quit_sent=True,
         eof_seen=True,
+        exit_code=0,
+        epoch_reason="eof",
         cleanup_result={"pids": [], "endpoints": []},
     )
-    assert result["status"] == "observed"
+    assert result["status"] == "observed", result
+    spec.case_dir.mkdir(mode=0o700)
     path = record_resume_result(spec, result)
     assert path.exists()
     with pytest.raises(FileExistsError):
@@ -85,6 +94,8 @@ def test_terminal_validator_requires_quit_eof_and_owned_cleanup(tmp_path):
             termination_mode="normal_quit",
             quit_sent=True,
             eof_seen=False,
+            exit_code=0,
+            epoch_reason="eof",
             cleanup_result={},
         )
     with pytest.raises(Exception, match="cleanup"):
@@ -92,5 +103,85 @@ def test_terminal_validator_requires_quit_eof_and_owned_cleanup(tmp_path):
             termination_mode="forced_disconnect",
             quit_sent=False,
             eof_seen=True,
+            exit_code=0,
+            epoch_reason="eof",
             cleanup_result={"failed_pids": [123]},
         )
+
+
+def test_run_resume_case_uses_real_evidence_contract_with_fake_owned_runtime(tmp_path, monkeypatch):
+    spec = make_spec(tmp_path, local_window_seconds=0.01)
+    preflight = prepare_resume_case(spec)
+    monkeypatch.setattr(runtime_module, "FIXED_NATIVE_SHA256", hashlib.sha256(b"native").hexdigest())
+
+    class FakeTui:
+        def __init__(self):
+            self.status_ids = set()
+            self.commands = []
+            self.exit_code = None
+            self.evidence = {"pid": 10, "exit_code": 0, "inputs": []}
+
+        async def aread_until(self, _deadline):
+            return self.evidence
+
+        def command(self, command):
+            self.commands.append(command)
+
+        async def async_status_checkpoint(self, _deadline):
+            self.status_ids = {THREAD_ID}
+            return self.status_ids
+
+        async def await_exit(self, _deadline):
+            self.exit_code = 0
+            self.evidence["exit_code"] = 0
+            return 0
+
+        def poll(self):
+            return self.exit_code
+
+    class FakeRuntime:
+        def __init__(self, config):
+            self.config = config
+            self.tui_driver = FakeTui()
+            self.bridge = SimpleNamespace(
+                trace=[{"event": "eof", "conn_epoch": 1}],
+                trace_complete=True,
+                model_turns=0,
+                epoch_invalid={1: "eof"},
+                connection_records={},
+            )
+            self.candidate = AttachmentCandidate(1, THREAD_ID, "session")
+
+        async def start(self):
+            return None
+
+        def record_status_reference(self, _value):
+            return None
+
+        async def close(self):
+            return {"pids": [], "endpoints": []}
+
+    result = asyncio.run(run_resume_case(spec, preflight=preflight, runtime_factory=FakeRuntime))
+    assert result["status"] == "observed", result
+    assert result["tui"]["exit_code"] == 0
+    assert (spec.case_dir / "trace.json").exists()
+    assert (spec.case_dir / "result.json").exists()
+
+
+def test_resume_case_main_prepare_is_explicit_and_does_not_create_case(tmp_path, capsys):
+    from resume_case import main
+
+    spec = make_spec(tmp_path)
+    assert main([
+        "--prepare",
+        "--case-dir", str(spec.case_dir),
+        "--frontend-socket", str(spec.frontend_socket),
+        "--backend-socket", str(spec.backend_socket),
+        "--cwd", str(spec.cwd),
+        "--config", str(spec.config_path),
+        "--cli", str(spec.cli),
+        "--resume-thread-id", THREAD_ID,
+    ]) == 0
+    assert not spec.case_dir.exists()
+    assert spec.preflight_record_path.exists()
+    assert '"status": "prepared"' in capsys.readouterr().out

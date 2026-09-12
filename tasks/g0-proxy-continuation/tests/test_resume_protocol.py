@@ -118,6 +118,56 @@ def test_new_epoch_without_old_epoch_invalidation_is_rejected():
     assert inferer.invalid_reason == "new_epoch_before_invalidation"
 
 
+def test_readonly_thread_read_is_paired_but_does_not_supply_resume_identity():
+    inferer = ResumeAttachmentInferer(THREAD_ID)
+    inferer.accept(open_event())
+    events = resume_events()
+    events[5:5] = [
+        {"event": "rpc", "conn_epoch": 1, "direction": "client", "method": "thread/read", "request_id": 7, "local_seq": 7},
+        {"event": "rpc_response", "conn_epoch": 1, "direction": "server", "method": "thread/read", "request_id": 7, "ok": True, "thread": {"id": "other"}, "local_seq": 8},
+    ]
+    for index, event in enumerate(events, start=2):
+        event["local_seq"] = index
+    feed(inferer, events)
+    assert inferer.candidate is not None
+    assert inferer.candidate.thread_id == THREAD_ID
+
+
+def test_non_case_known_method_fails_closed():
+    inferer = ResumeAttachmentInferer(THREAD_ID)
+    inferer.accept(open_event())
+    inferer.accept({"event": "rpc", "conn_epoch": 1, "direction": "client", "method": "thread/start", "request_id": 1, "local_seq": 2})
+    assert inferer.candidate is None
+    assert inferer.invalid_reason == "unexpected_start_in_resume"
+
+
+def test_resume_response_method_mismatch_is_sticky_invalid():
+    inferer = ResumeAttachmentInferer(THREAD_ID)
+    inferer.accept(open_event())
+    events = resume_events()
+    events[6] = {**events[6], "method": "thread/read"}
+    feed(inferer, events)
+    assert inferer.candidate is None
+    assert inferer.invalid_reason == "response_method_mismatch"
+
+
+def test_two_concurrent_resume_requests_are_rejected():
+    inferer = ResumeAttachmentInferer(THREAD_ID)
+    inferer.accept(open_event())
+    feed(inferer, resume_events()[:6])
+    inferer.accept({
+        "event": "rpc",
+        "conn_epoch": 1,
+        "direction": "client",
+        "method": "thread/resume",
+        "request_id": 9,
+        "params": {"threadId": THREAD_ID},
+        "local_seq": 8,
+    })
+    assert inferer.candidate is None
+    assert inferer.invalid_reason == "resume_request_identity_mismatch"
+
+
 def test_bridge_records_only_safe_resume_thread_id_and_wires_observer():
     observer = Observer()
     inferer = ResumeAttachmentInferer(THREAD_ID)
@@ -140,6 +190,27 @@ def test_bridge_records_only_safe_resume_thread_id_and_wires_observer():
     assert all("params" not in row for row in bridge.trace)
 
 
+def test_bridge_late_pre_resume_skills_response_cannot_satisfy_fresh_request():
+    observer = Observer()
+    inferer = ResumeAttachmentInferer(THREAD_ID)
+    bridge = _CaptureBridge(observer, inferer)
+    bridge.on_connect(SimpleNamespace(connection_id="c1", epoch=1, frontend_fd=1, backend_fd=2, frontend_peer=None, backend_peer=None))
+    bridge.on_data(SimpleNamespace(connection_id="c1", epoch=1, direction="frontend_to_backend", data=raw_upgrade_request()))
+    bridge.on_data(SimpleNamespace(connection_id="c1", epoch=1, direction="backend_to_frontend", data=raw_upgrade_response()))
+    messages = late_skills_wire_messages()
+    directions = ("client", "server", "client", "client", "client", "server", "client", "server", "server")
+    for index, (message, direction) in enumerate(zip(messages, directions)):
+        bridge.on_data(SimpleNamespace(
+            connection_id="c1", epoch=1,
+            direction="frontend_to_backend" if direction == "client" else "backend_to_frontend",
+            data=raw_ws_frame(message, client=direction == "client"),
+        ))
+        if index == 7:
+            assert inferer.candidate is None
+    assert inferer.candidate is not None
+    assert inferer.candidate.thread_id == THREAD_ID
+
+
 def resume_wire_messages():
     return [
         {"id": 1, "method": "initialize", "params": {}},
@@ -149,6 +220,20 @@ def resume_wire_messages():
         {"id": 2, "result": {"thread": {"id": THREAD_ID, "sessionId": "session-1"}}},
         {"id": 3, "method": "skills/list", "params": {"secret": "redacted"}},
         {"id": 3, "result": {}},
+    ]
+
+
+def late_skills_wire_messages():
+    return [
+        {"id": 1, "method": "initialize", "params": {}},
+        {"id": 1, "result": {}},
+        {"method": "initialized"},
+        {"id": 4, "method": "skills/list", "params": {}},
+        {"id": 2, "method": "thread/resume", "params": {"threadId": THREAD_ID}},
+        {"id": 2, "result": {"thread": {"id": THREAD_ID, "sessionId": "session-1"}}},
+        {"id": 5, "method": "skills/list", "params": {}},
+        {"id": 4, "result": {}},
+        {"id": 5, "result": {}},
     ]
 
 

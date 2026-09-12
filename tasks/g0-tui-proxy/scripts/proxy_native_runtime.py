@@ -962,6 +962,7 @@ class ResumeAttachmentInferer:
         self._initialize_response = False
         self._initialized = False
         self._resume_response = False
+        self._resume_request_id: Any | None = None
         self._resume_response_thread: AttachmentCandidate | None = None
         self._skills_after_request: set[Any] = set()
         self._skills_after_response: set[Any] = set()
@@ -1063,6 +1064,7 @@ class ResumeAttachmentInferer:
         self._initialize_response = False
         self._initialized = False
         self._resume_response = False
+        self._resume_request_id = None
         self._resume_response_thread = None
         self._skills_after_request.clear()
         self._skills_after_response.clear()
@@ -1114,12 +1116,20 @@ class ResumeAttachmentInferer:
         if key in self._pending:
             self._invalidate("duplicate_request_id")
             return
+        if method not in {"initialize", "thread/read", "thread/resume", "skills/list"}:
+            self._invalidate("unsupported_resume_method")
+            return
         if method == "thread/resume":
             params = event.get("params")
             thread_id = params.get("threadId") if isinstance(params, Mapping) else None
-            if thread_id != self.expected_resume_thread_id or self._resume_response:
+            if (
+                thread_id != self.expected_resume_thread_id
+                or self._resume_response
+                or self._resume_request_id is not None
+            ):
                 self._invalidate("resume_request_identity_mismatch")
                 return
+            self._resume_request_id = request_id
         if method == "skills/list" and self._resume_response:
             self._skills_after_request.add(request_id)
         self._pending[key] = method
@@ -1133,6 +1143,9 @@ class ResumeAttachmentInferer:
         method = self._pending.pop(key, None) if key is not None else None
         if method is None:
             self._invalidate("orphan_response")
+            return
+        if event.get("method") != method:
+            self._invalidate("response_method_mismatch")
             return
         if event.get("ok") is not True:
             self._invalidate(f"{method}_failed")
@@ -1417,6 +1430,14 @@ class NativeRuntime:
     def candidate(self) -> AttachmentCandidate | None:
         return self.inferer.candidate
 
+    @property
+    def bridge(self) -> _CaptureBridge | None:
+        return self._bridge
+
+    @property
+    def tui_driver(self) -> PTYDriver | None:
+        return self._tui_driver
+
     def record_status_reference(self, status: Mapping[str, Any]) -> None:
         self.inferer.record_status_reference(status)
 
@@ -1467,9 +1488,9 @@ class NativeRuntime:
     async def start(self) -> None:
         if self.phase is not RuntimePhase.NEW:
             raise RuntimeInvariantError(f"runtime cannot start from {self.phase.value}")
-        if self.config.frontend_socket.exists():
+        if os.path.lexists(self.config.frontend_socket):
             raise FileExistsError(f"default frontend socket is occupied: {self.config.frontend_socket}")
-        if self.config.backend_socket.exists():
+        if os.path.lexists(self.config.backend_socket):
             raise FileExistsError(f"private backend socket is occupied: {self.config.backend_socket}")
         self.config.require_frozen_binary()
         self._expected_hashes = self.config.snapshot_hashes()
