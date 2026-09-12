@@ -521,10 +521,20 @@ def test_real_http_ws_bytes_flow_through_observer_bridge_and_reconnect_epochs():
 
     inferer.clear()
     assert inferer.candidate is None
-    rpc(bridge, connection_id, 1, "client", {"jsonrpc": "2.0", "id": 6, "method": "thread/unsubscribe", "params": {"threadId": "thread-1"}})
-    rpc(bridge, connection_id, 1, "server", {"jsonrpc": "2.0", "id": 6, "result": {}})
     rpc(bridge, connection_id, 1, "client", {"jsonrpc": "2.0", "id": 7, "method": "thread/start", "params": {"cwd": "/repo"}})
     rpc(bridge, connection_id, 1, "server", {"jsonrpc": "2.0", "id": 7, "result": {"thread": {"id": "thread-2", "sessionId": "session-1", "cwd": "/repo"}}})
+    rpc(bridge, connection_id, 1, "server", {"jsonrpc": "2.0", "method": "thread/started", "params": {"thread": {"id": "thread-2", "sessionId": "session-1"}}})
+    rpc(bridge, connection_id, 1, "client", {"jsonrpc": "2.0", "id": 6, "method": "thread/unsubscribe", "params": {"threadId": "thread-1"}})
+    rpc(bridge, connection_id, 1, "server", {"jsonrpc": "2.0", "id": 6, "result": {}})
+    rpc(bridge, connection_id, 1, "client", {"jsonrpc": "2.0", "id": 9, "method": "thread/unsubscribe", "params": {"threadId": "thread-1"}})
+    rpc(bridge, connection_id, 1, "server", {"jsonrpc": "2.0", "id": 9, "result": {}})
+    unsubscribe_rows = [
+        row for row in bridge.trace
+        if row.get("method") == "thread/unsubscribe" and row.get("direction") == "client"
+    ]
+    assert len(unsubscribe_rows) == 2
+    assert {row["thread_id"] for row in unsubscribe_rows} == {"thread-1"}
+    assert all("params" not in row for row in unsubscribe_rows)
     rpc(bridge, connection_id, 1, "client", {"jsonrpc": "2.0", "id": 8, "method": "skills/list", "params": {"cwds": ["/repo"], "forceReload": True}})
     rpc(bridge, connection_id, 1, "server", {"jsonrpc": "2.0", "id": 8, "result": {"skills": []}})
     assert inferer.candidate is not None
@@ -614,6 +624,41 @@ def test_complete_eof_invalidates_attachment_but_keeps_complete_trace():
     assert inferer.candidate is None
     assert inferer.invalid_reason == "eof"
     assert bridge.trace_complete is True
+
+
+def test_epoch_invalidity_is_retained_when_a_new_epoch_starts():
+    from proxy_observer import Observer
+
+    inferer = AttachmentInferer()
+    bridge = _CaptureBridge(Observer(), inferer)
+    bridge.on_connect(SimpleNamespace(connection_id="epoch-c1", epoch=1))
+    bridge.on_lifecycle(SimpleNamespace(connection_id="epoch-c1", epoch=1, kind="eof"))
+    bridge.on_connect(SimpleNamespace(connection_id="epoch-c1", epoch=2))
+    assert bridge.epoch_invalid[1] == "eof"
+    assert 2 not in bridge.epoch_invalid
+
+
+def test_capture_bridge_keeps_only_unsubscribe_thread_id():
+    from proxy_observer import Observer
+
+    bridge = _CaptureBridge(Observer(), AttachmentInferer())
+    bridge.on_connect(SimpleNamespace(connection_id="unsubscribe-trace-c1", epoch=1))
+    bridge._accept_rows(
+        [
+            {
+                "event": "rpc",
+                "conn_epoch": 1,
+                "local_seq": 2,
+                "direction": "client",
+                "method": "thread/unsubscribe",
+                "request_id": 1,
+                "params": {"threadId": "thread-old", "private": "discard"},
+            }
+        ]
+    )
+    row = bridge.trace[-1]
+    assert row["thread_id"] == "thread-old"
+    assert "params" not in row
 
 
 def test_observer_truncated_http_eof_propagates_gap_before_pending():
@@ -713,15 +758,64 @@ def test_clear_allows_only_a_new_observed_thread_start_on_same_connection():
     assert inferer.candidate is None
     sequence = 10
     for event in [
-        {"event": "rpc", "conn_epoch": 1, "direction": "client", "method": "thread/unsubscribe", "request_id": 4, "local_seq": sequence},
-        {"event": "rpc", "conn_epoch": 1, "direction": "client", "method": "thread/start", "request_id": 5, "local_seq": sequence + 1},
-        {"event": "rpc_response", "conn_epoch": 1, "direction": "server", "method": "thread/start", "request_id": 5, "ok": True, "thread": {"id": "thread-2", "sessionId": "session-1"}, "local_seq": sequence + 2},
-        {"event": "rpc", "conn_epoch": 1, "direction": "client", "method": "skills/list", "request_id": 6, "local_seq": sequence + 3},
-        {"event": "rpc_response", "conn_epoch": 1, "direction": "server", "method": "skills/list", "request_id": 6, "ok": True, "local_seq": sequence + 4},
+        {"event": "rpc", "conn_epoch": 1, "direction": "client", "method": "thread/start", "request_id": 5, "local_seq": sequence},
+        {"event": "rpc_response", "conn_epoch": 1, "direction": "server", "method": "thread/start", "request_id": 5, "ok": True, "thread": {"id": "thread-2", "sessionId": "session-1"}, "local_seq": sequence + 1},
+        {"event": "rpc", "conn_epoch": 1, "direction": "server", "method": "thread/started", "request_id": None, "thread": {"id": "thread-2"}, "local_seq": sequence + 2},
+        {"event": "rpc", "conn_epoch": 1, "direction": "client", "method": "thread/unsubscribe", "request_id": 4, "params": {"threadId": "thread-1"}, "local_seq": sequence + 3},
+        {"event": "rpc_response", "conn_epoch": 1, "direction": "server", "method": "thread/unsubscribe", "request_id": 4, "ok": True, "local_seq": sequence + 4},
+        {"event": "rpc", "conn_epoch": 1, "direction": "client", "method": "thread/unsubscribe", "request_id": 5, "params": {"threadId": "thread-1"}, "local_seq": sequence + 5},
+        {"event": "rpc_response", "conn_epoch": 1, "direction": "server", "method": "thread/unsubscribe", "request_id": 5, "ok": True, "local_seq": sequence + 6},
+        {"event": "rpc", "conn_epoch": 1, "direction": "client", "method": "skills/list", "request_id": 6, "local_seq": sequence + 7},
+        {"event": "rpc_response", "conn_epoch": 1, "direction": "server", "method": "skills/list", "request_id": 6, "ok": True, "local_seq": sequence + 8},
     ]:
         inferer.accept(event)
     assert inferer.candidate is not None
     assert inferer.candidate.thread_id == "thread-2"
+
+
+def test_clear_accepts_new_thread_before_old_thread_unsubscribe_when_ids_match():
+    inferer = AttachmentInferer()
+    inferer.accept(connected_event())
+    for event in upgrade_events():
+        inferer.accept(event)
+    assert inferer.candidate is not None
+
+    inferer.clear()
+    for event in [
+        {"event": "rpc", "conn_epoch": 1, "direction": "client", "method": "thread/start", "request_id": 10, "local_seq": 10},
+        {"event": "rpc_response", "conn_epoch": 1, "direction": "server", "method": "thread/start", "request_id": 10, "ok": True, "thread": {"id": "thread-2", "sessionId": "session-2"}, "local_seq": 11},
+        {"event": "rpc", "conn_epoch": 1, "direction": "server", "method": "thread/started", "request_id": None, "thread": {"id": "thread-2"}, "local_seq": 12},
+        {"event": "rpc", "conn_epoch": 1, "direction": "client", "method": "thread/unsubscribe", "request_id": 12, "params": {"threadId": "thread-1"}, "local_seq": 13},
+        {"event": "rpc_response", "conn_epoch": 1, "direction": "server", "method": "thread/unsubscribe", "request_id": 12, "ok": True, "local_seq": 14},
+        {"event": "rpc", "conn_epoch": 1, "direction": "client", "method": "thread/unsubscribe", "request_id": 13, "params": {"threadId": "thread-1"}, "local_seq": 15},
+        {"event": "rpc_response", "conn_epoch": 1, "direction": "server", "method": "thread/unsubscribe", "request_id": 13, "ok": True, "local_seq": 16},
+        {"event": "rpc", "conn_epoch": 1, "direction": "client", "method": "skills/list", "request_id": 14, "local_seq": 17},
+        {"event": "rpc_response", "conn_epoch": 1, "direction": "server", "method": "skills/list", "request_id": 14, "ok": True, "local_seq": 18},
+    ]:
+        inferer.accept(event)
+    assert inferer.invalid_reason is None
+    assert inferer.candidate is not None
+    assert inferer.candidate.thread_id == "thread-2"
+
+
+def test_clear_does_not_count_unsubscribe_for_new_thread_as_old_cleanup():
+    inferer = AttachmentInferer()
+    inferer.accept(connected_event())
+    for event in upgrade_events():
+        inferer.accept(event)
+    inferer.clear()
+    for event in [
+        {"event": "rpc", "conn_epoch": 1, "direction": "client", "method": "thread/start", "request_id": 10, "local_seq": 10},
+        {"event": "rpc_response", "conn_epoch": 1, "direction": "server", "method": "thread/start", "request_id": 10, "ok": True, "thread": {"id": "thread-2", "sessionId": "session-2"}, "local_seq": 11},
+        {"event": "rpc", "conn_epoch": 1, "direction": "server", "method": "thread/started", "request_id": None, "thread": {"id": "thread-2"}, "local_seq": 12},
+        {"event": "rpc", "conn_epoch": 1, "direction": "client", "method": "thread/unsubscribe", "request_id": 12, "params": {"threadId": "thread-2"}, "local_seq": 13},
+        {"event": "rpc_response", "conn_epoch": 1, "direction": "server", "method": "thread/unsubscribe", "request_id": 12, "ok": True, "local_seq": 14},
+        {"event": "rpc", "conn_epoch": 1, "direction": "client", "method": "skills/list", "request_id": 13, "local_seq": 15},
+        {"event": "rpc_response", "conn_epoch": 1, "direction": "server", "method": "skills/list", "request_id": 13, "ok": True, "local_seq": 16},
+    ]:
+        inferer.accept(event)
+    assert inferer.candidate is None
+    assert inferer.invalid_reason == "clear_unsubscribe_target_mismatch"
 
 
 def test_unknown_observer_event_invalidates_current_epoch():
@@ -863,8 +957,25 @@ def test_real_pty_driver_parses_status_session_with_crlf(tmp_path):
         cwd=tmp_path,
     )
     try:
+        driver._begin_status_capture()
         driver.read(1.0)
         assert driver.evidence["status_session_id"].encode() == session_id
+    finally:
+        if driver.poll() is None:
+            driver.terminate()
+        driver.close()
+
+
+def test_status_capture_ignores_session_ids_from_prior_screen_output(tmp_path):
+    driver = PTYDriver.spawn(
+        [sys.executable, "-c", "import time; time.sleep(1)"],
+        cwd=tmp_path,
+    )
+    try:
+        driver._capture(b"Session: 01234567-89ab-cdef-0123-456789abcdef\r\n")
+        driver._begin_status_capture()
+        driver._capture(b"Session: 11234567-89ab-cdef-0123-456789abcdef\r\n")
+        assert driver.status_ids == {"11234567-89ab-cdef-0123-456789abcdef"}
     finally:
         if driver.poll() is None:
             driver.terminate()

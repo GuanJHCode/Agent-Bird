@@ -20,7 +20,7 @@ runtime 保存二进制/配置摘要以及自有进程的 birth/executable。关
 的 socket 或无法确认身份的进程保留。窗口基于 `CLOCK_MONOTONIC_RAW`，本地操作 10 秒，必要模型轮次 120 秒，
 但本实现没有启动模型轮次。
 
-当前离线验证覆盖 runtime、transport、observer 共 121 项。尚未执行 native、TUI
+当前离线验证覆盖 runtime、transport、observer 共 126 项。尚未执行 native、TUI
 或模型，也不把离线通过当作原生附着证据。
 
 显式运行入口为：
@@ -57,6 +57,10 @@ gap trace 仅保留 observer 提供的非负整数 `payload_bytes`、`message_by
 它不构成全局 command/exec 白名单。PTY status parser 保持严格 UUID 行匹配并接受 CRLF。
 受控 runtime 要求 backend socket 与 child cwd 都是绝对路径，避免 `unix://` URI 在 child cwd
 下被重新解释到未登记的 endpoint。
+每次 `/status` 只在独立的当前窗口 buffer 中收集 Session ID，不重新扫描历史 screen tail。
+clear FSM 要求新 thread B 及 `thread/started(B)`、两个不同 request ID 的旧 thread A
+unsubscribe 成功响应，以及随后 fresh `skills/list` replay；Bridge 只保留 bounded `thread_id`。
+disconnect barrier 按目标 epoch 独立记录，后续新 epoch 不会覆盖旧 epoch 的 EOF/close 失效事实。
 
 若 initial replay 或 candidate 在其窗口内未成立，runner 只记录内存态界面枚举并
 执行 bounded quit/cleanup，跳过无意义的 `/clear` 和 disconnect；不会把诊断状态当作

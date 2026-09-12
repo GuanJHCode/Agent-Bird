@@ -330,6 +330,8 @@ class PTYDriver:
         self.inputs: list[dict[str, Any]] = []
         self._input_bytes: list[bytes] = []
         self.status_ids: set[str] = set()
+        self._status_capture = False
+        self._status_buffer = b""
 
     @classmethod
     def spawn(cls, argv: Sequence[str], *, cwd: str | os.PathLike[str]) -> "PTYDriver":
@@ -367,8 +369,10 @@ class PTYDriver:
                 os.write(self.fd, b"\x1b[1;1R")
             self.cursor_replies += count
             self._screen_buffer = self._screen_buffer.replace(query, b"")
-        text = self.screen_tail.decode("utf-8", "replace")
-        self.status_ids.update(_SESSION_RE.findall(_strip_terminal_controls(text)))
+        if self._status_capture:
+            self._status_buffer = (self._status_buffer + chunk)[-262144:]
+            text = self._status_buffer.decode("utf-8", "replace")
+            self.status_ids.update(_SESSION_RE.findall(_strip_terminal_controls(text)))
 
     def read(self, seconds: float) -> dict[str, Any]:
         if not 0 < seconds <= 5:
@@ -444,17 +448,30 @@ class PTYDriver:
     def command(self, command: str) -> None:
         if not isinstance(command, str) or not command or any(char in command for char in "\r\n\x1b"):
             raise ValueError("TUI command must be one fixed line")
+        if command == "/status":
+            self._begin_status_capture()
+        else:
+            self._status_capture = False
         self.write(b"\x1b[200~" + command.encode() + b"\x1b[201~", action=command + "-paste")
         self.write(b"\r", action=command + "-submit")
 
-    def status_checkpoint(self, seconds: float) -> set[str]:
+    def _begin_status_capture(self) -> None:
         self.status_ids.clear()
+        self._status_buffer = b""
+        self._status_capture = True
+
+    def status_checkpoint(self, seconds: float) -> set[str]:
+        if not self._status_capture:
+            self._begin_status_capture()
         self.read(seconds)
+        self._status_capture = False
         return set(self.status_ids)
 
     async def async_status_checkpoint(self, deadline: float) -> set[str]:
-        self.status_ids.clear()
+        if not self._status_capture:
+            self._begin_status_capture()
         await self.aread_until(deadline)
+        self._status_capture = False
         return set(self.status_ids)
 
     @property
@@ -604,6 +621,11 @@ class AttachmentInferer:
         self._clear_pending = False
         self._clear_requested = False
         self._saw_unsubscribe_after_clear = False
+        self._clear_old_thread_id: str | None = None
+        self._clear_new_thread_id: str | None = None
+        self._clear_started = False
+        self._clear_unsubscribe_pending: dict[Any, str] = {}
+        self._clear_unsubscribe_completed: set[Any] = set()
         self._bootstrap_pending: dict[tuple[str, Any], str] = {}
 
     @property
@@ -620,6 +642,7 @@ class AttachmentInferer:
 
         return (
             self._invalid_reason is None
+            and not self._clear_pending
             and self._upgrades == {"client", "server"}
             and "initialize" in self._responses
             and "thread/start" in self._responses
@@ -646,6 +669,11 @@ class AttachmentInferer:
         self._clear_pending = True
         self._clear_requested = True
         self._saw_unsubscribe_after_clear = False
+        self._clear_old_thread_id = self._thread_id
+        self._clear_new_thread_id = None
+        self._clear_started = False
+        self._clear_unsubscribe_pending.clear()
+        self._clear_unsubscribe_completed.clear()
         self._requests.intersection_update({"initialize"})
         self._responses.intersection_update({"initialize"})
         self._thread_id = None
@@ -671,19 +699,23 @@ class AttachmentInferer:
             self._invalidate("event_sequence_gap")
             return
         self._next_sequence += 1
-        if kind == "rpc" and event.get("direction") == "client" and event.get("method") == "thread/unsubscribe" and self._clear_pending:
-            self._saw_unsubscribe_after_clear = True
         if (
             self._clear_pending
             and kind == "rpc"
             and event.get("direction") == "client"
-            and event.get("method") == "thread/start"
+            and event.get("method") == "thread/unsubscribe"
         ):
-            if not self._saw_unsubscribe_after_clear:
-                self._invalidate("clear_without_unsubscribe")
+            params = event.get("params")
+            target = params.get("threadId") if isinstance(params, Mapping) else None
+            request_id = event.get("request_id")
+            if target != self._clear_old_thread_id or request_id is None:
+                self._invalidate("clear_unsubscribe_target_mismatch")
                 return
-            self._invalid_reason = None
-            self._clear_pending = False
+            if request_id in self._clear_unsubscribe_pending:
+                self._invalidate("duplicate_clear_unsubscribe")
+                return
+            self._saw_unsubscribe_after_clear = True
+            self._clear_unsubscribe_pending[request_id] = self._clear_old_thread_id
         if kind == "gap":
             self._invalidate(str(event.get("reason") or "gap"))
             return
@@ -745,12 +777,33 @@ class AttachmentInferer:
                 self._upgrades.add(direction)
         elif kind == "rpc":
             method = event.get("method")
+            if (
+                self._clear_pending
+                and event.get("direction") == "server"
+                and method == "thread/started"
+            ):
+                thread = event.get("thread")
+                if (
+                    self._clear_new_thread_id is None
+                    or not isinstance(thread, Mapping)
+                    or thread.get("id") != self._clear_new_thread_id
+                ):
+                    self._invalidate("clear_started_thread_mismatch")
+                    return
+                self._clear_started = True
+                self._maybe_finish_clear()
             if event.get("direction") == "client" and method in self._REQUIRED_METHODS:
                 self._requests.add(method)
         elif kind == "rpc_response":
             method = event.get("method")
             if event.get("direction") != "server" or event.get("ok") is not True:
                 return
+            if method == "thread/unsubscribe":
+                request_id = event.get("request_id")
+                if request_id in self._clear_unsubscribe_pending:
+                    self._clear_unsubscribe_pending.pop(request_id, None)
+                    self._clear_unsubscribe_completed.add(request_id)
+                    self._maybe_finish_clear()
             if method in self._REQUIRED_METHODS:
                 self._responses.add(method)
             if method == "thread/start":
@@ -759,7 +812,24 @@ class AttachmentInferer:
                     self._thread_id = thread["id"]
                     session_id = thread.get("sessionId")
                     self._session_id = session_id if isinstance(session_id, str) else None
+                    if self._clear_pending:
+                        if self._clear_old_thread_id is None:
+                            self._invalidate("clear_without_new_thread")
+                            return
+                        if self._clear_new_thread_id is not None and self._thread_id != self._clear_new_thread_id:
+                            self._invalidate("clear_multiple_new_threads")
+                            return
+                        self._clear_new_thread_id = self._thread_id
+                        self._maybe_finish_clear()
         self._maybe_candidate()
+
+    def _maybe_finish_clear(self) -> None:
+        if not self._clear_pending:
+            return
+        if self._clear_new_thread_id is None or not self._clear_started or len(self._clear_unsubscribe_completed) < 2:
+            return
+        self._invalid_reason = None
+        self._clear_pending = False
 
     def _start_epoch(self, epoch: Any, sequence: Any) -> None:
         if not isinstance(epoch, int) or isinstance(epoch, bool) or epoch <= 0:
@@ -774,6 +844,11 @@ class AttachmentInferer:
         self._clear_pending = False
         self._clear_requested = False
         self._saw_unsubscribe_after_clear = False
+        self._clear_old_thread_id = None
+        self._clear_new_thread_id = None
+        self._clear_started = False
+        self._clear_unsubscribe_pending.clear()
+        self._clear_unsubscribe_completed.clear()
         self._candidate = None
         self._upgrades.clear()
         self._requests.clear()
@@ -783,7 +858,9 @@ class AttachmentInferer:
         self._bootstrap_pending.clear()
 
     def _maybe_candidate(self) -> None:
-        if self._invalid_reason is not None or self._thread_id is None or self._bootstrap_pending:
+        if self._invalid_reason not in {None, "clear"} or self._thread_id is None or self._bootstrap_pending:
+            return
+        if self._clear_pending:
             return
         if self._clear_requested and not self._saw_unsubscribe_after_clear:
             return
@@ -799,7 +876,7 @@ class AttachmentInferer:
         self._invalidate(reason)
 
     def _invalidate(self, reason: str) -> None:
-        if self._invalid_reason is None:
+        if self._invalid_reason in {None, "clear"}:
             self._invalid_reason = reason
         self._clear_pending = False
         self._candidate = None
@@ -839,6 +916,7 @@ class _CaptureBridge:
         self.trace: list[dict[str, Any]] = []
         self.trace_complete = True
         self.model_turns = 0
+        self.epoch_invalid: dict[int, str] = {}
         self._trace_keys: set[tuple[Any, Any]] = set()
         self._eof_seen: set[tuple[str, Any]] = set()
         self._observer_closed: set[str] = set()
@@ -849,6 +927,9 @@ class _CaptureBridge:
                 return
             if row.get("event") == "gap":
                 self.trace_complete = False
+                self._mark_epoch_invalid(row.get("conn_epoch"), str(row.get("reason") or "gap"))
+            elif row.get("event") in {"eof", "connection_close"}:
+                self._mark_epoch_invalid(row.get("conn_epoch"), str(row.get("event")))
             if (
                 row.get("direction") == "client"
                 and row.get("method") == "turn/start"
@@ -883,8 +964,21 @@ class _CaptureBridge:
                 trace_row[key] = value
         if type(row.get("workspace_probe_qualified")) is bool:
             trace_row["workspace_probe_qualified"] = row["workspace_probe_qualified"]
+        if (
+            row.get("event") == "rpc"
+            and row.get("direction") == "client"
+            and row.get("method") == "thread/unsubscribe"
+        ):
+            params = row.get("params")
+            thread_id = params.get("threadId") if isinstance(params, Mapping) else None
+            if isinstance(thread_id, str) and 0 < len(thread_id) <= 256:
+                trace_row["thread_id"] = thread_id
         self.trace.append(trace_row)
         return True
+
+    def _mark_epoch_invalid(self, epoch: Any, reason: str) -> None:
+        if isinstance(epoch, int) and not isinstance(epoch, bool) and epoch > 0:
+            self.epoch_invalid.setdefault(epoch, reason)
 
     def on_connect(self, event: Any) -> None:
         record = ConnectionIdentity(
@@ -919,6 +1013,7 @@ class _CaptureBridge:
 
     def on_lifecycle(self, event: Any) -> None:
         if event.kind == "eof":
+            self._mark_epoch_invalid(event.epoch, "eof")
             direction = getattr(event, "direction", None)
             eof_key = (event.connection_id, direction or "unknown")
             if eof_key in self._eof_seen:
@@ -938,12 +1033,14 @@ class _CaptureBridge:
                 self._observer_closed.add(event.connection_id)
                 self.observer.set_pending(event.connection_id)
         if event.kind == "disconnect":
+            self._mark_epoch_invalid(event.epoch, "disconnect")
             if event.connection_id not in self._observer_closed:
                 self._accept_rows(self.observer.close(event.connection_id))
                 self.observer.drain_events()
                 self._observer_closed.add(event.connection_id)
 
     def on_gap(self, event: Any) -> None:
+        self._mark_epoch_invalid(event.epoch, event.reason or "gap")
         self.trace_complete = False
         self._record_trace({"event": "gap", "conn_epoch": event.epoch, "reason": event.reason})
         self.inferer.invalidate(event.reason or "gap")
@@ -1251,6 +1348,7 @@ async def run_case(
     quit_success = False
     initial_thread: str | None = None
     disconnect_epoch: int | None = None
+    old_epoch_reason: str | None = None
     new_epoch_observed = False
     epochs_before_disconnect: set[int] = set()
     current_stage = "prepare"
@@ -1335,7 +1433,8 @@ async def run_case(
             await tui.aread_until(min(disconnect_window.local_deadline, raw_seconds() + 2.0))
             while runtime.candidate is not None and raw_seconds() < disconnect_window.local_deadline:
                 await asyncio.sleep(0.01)
-            disconnect_invalid = disconnected and runtime.candidate is None and runtime.inferer.invalid_reason in {"eof", "connection_close", "unknown_event", "identity_mismatch"}
+            old_epoch_reason = runtime._bridge.epoch_invalid.get(disconnect_epoch) if runtime._bridge else None
+            disconnect_invalid = disconnected and old_epoch_reason is not None
             step("disconnect", connection_id=connection_id, disconnected=disconnected, candidate=asdict(runtime.candidate) if runtime.candidate else None)
 
         quit_window = RuntimeWindow.start(local_seconds=config.local_window_seconds, model_seconds=config.model_window_seconds)
@@ -1368,6 +1467,7 @@ async def run_case(
                 "connection_id": connection_id if "connection_id" in locals() else None,
                 "old_epoch": disconnect_epoch,
                 "old_epoch_invalid": disconnect_invalid,
+                "old_epoch_invalid_reason": old_epoch_reason if "old_epoch_reason" in locals() else None,
             }
             result["reconnect"] = {
                 "observed": new_epoch_observed,
