@@ -1,0 +1,118 @@
+{
+  "scope": "same installed binary generated schema; no live RPC, service start, or model; does not override observed runtime rejection",
+  "binary_version": "codex-cli 0.153.4",
+  "binary_sha256": "b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3",
+  "commands": [
+    "/Users/guanjunhui/.local/bin/codex --version",
+    "/Users/guanjunhui/.local/bin/codex app-server generate-json-schema --experimental --out <owned-task-tmp>/standalone-schema-02",
+    "/Users/guanjunhui/.local/bin/codex app-server generate-json-schema --out <owned-task-tmp>/standalone-schema-02-public"
+  ],
+  "generated_files": {
+    "experimental": 416,
+    "public": 304
+  },
+  "Thread_source": {
+    "schema_ref": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/SessionSource"
+        }
+      ],
+      "description": "Origin of the thread (CLI, VSCode, codex exec, codex app-server, etc.)."
+    },
+    "same_public_and_experimental": true,
+    "definition": {
+      "oneOf": [
+        {
+          "enum": [
+            "cli",
+            "vscode",
+            "exec",
+            "appServer",
+            "unknown"
+          ],
+          "type": "string"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "custom": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "custom"
+          ],
+          "title": "CustomSessionSource",
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "subAgent": {
+              "$ref": "#/definitions/SubAgentSource"
+            }
+          },
+          "required": [
+            "subAgent"
+          ],
+          "title": "SubAgentSessionSource",
+          "type": "object"
+        }
+      ]
+    }
+  },
+  "ThreadReadParams": {
+    "sha256_experimental": "dfe040c6ac71d30795b8be3f3ff232e66f362a37f883b491e5d1ea367f470db4",
+    "sha256_public": "dfe040c6ac71d30795b8be3f3ff232e66f362a37f883b491e5d1ea367f470db4",
+    "properties": {
+      "includeTurns": {
+        "description": "When true, include turns and their items from rollout history. Full-history hydration is deprecated for paginated threads; prefer a metadata-only read and page with `thread/turns/list` and `thread/items/list`.",
+        "type": "boolean"
+      },
+      "threadId": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "threadId"
+    ],
+    "includeTurns_public": true
+  },
+  "ThreadReadResponse_sha256": {
+    "experimental": "de0ec065bbe9c6288d76517cbab64949b544074ed782a314ccea872b70bbfa48",
+    "public": "a76583d07f6096fee33045da2dc9caed84d858f8f2d39b37bb38528dbaf32511"
+  },
+  "ThreadHistoryMode": {
+    "enum": [
+      "legacy",
+      "paginated"
+    ],
+    "type": "string"
+  },
+  "ThreadTurnsListParams": {
+    "sha256_experimental": "2a8b93d7d4437cc25e16a1dde16d8db3c338d39e16c5eece2a56e943a21577d7",
+    "sha256_public": "2a8b93d7d4437cc25e16a1dde16d8db3c338d39e16c5eece2a56e943a21577d7",
+    "public_fields": [
+      "cursor",
+      "itemsView",
+      "limit",
+      "sortDirection",
+      "threadId"
+    ],
+    "required": [
+      "threadId"
+    ]
+  },
+  "public_read_methods": [
+    "thread/read",
+    "thread/turns/list",
+    "thread/items/list"
+  ],
+  "interpretation": [
+    "includeTurns exists in public schema; it is not an experimental-only field.",
+    "vscode is a valid origin enum, not evidence that this TUI was launched from VSCode or that CLI-source qualification is satisfied.",
+    "The same live root returning -32601 is retained as runtime evidence; schema availability alone does not prove a method works for that root."
+  ],
+  "cleanup": "Both complete generated schema caches removed after this bounded summary; helper source unchanged."
+}
