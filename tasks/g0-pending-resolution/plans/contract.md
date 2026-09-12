@@ -46,6 +46,8 @@
 
 新增固定异常子阶段、错误码和时钟读数，以区分预算到期与其他验证失败。原生日志的时间关联仍须独立成立；跨墙钟不连续无法证明关联或先后时保持不确定，不修改日志时间、不扩大原查询窗口。初始长提示的实际接收也需核对原生行为，不以输入字节数替代 Hook/turn 证据。没有新增系统时间设置、账号权限、TUI 代理或产品安装授权。
 
+仅在 `sd-qual-02` 的外层运行进程中，可使用系统 `/usr/bin/caffeinate -i -t 300 -w <controller_pid>`，降低自动 idle sleep 对实验的干扰；这不是对首样本时钟差异的根因断言。该断言最多持续 300 秒，或随受测 controller 退出而释放，须记录本任务 PID 并验证释放。原生服务与 TUI 的 argv、10/120 秒窗口均不变；不使用 utility 包装模式或 `-u/-d/-s`，不修改持久电源设置。手动休眠仍按原连续时钟窗口判定，不延时补算通过。依据为本机 `/usr/share/man/man8/caffeinate.8` 的 `-i/-t/-w` 语义。
+
 ## 接口解释与判据
 
 官方 `turn/start.toolOutput` 接受客户端实际执行的独立工具输出，`input=[]`，以 `functionCallOutput` 持久化；不要求存在旧的 pending tool call。旧研究对“必须补回旧 pending call”的概括不作为本轮排除此接口的依据。[官方 App Server 说明](https://learn.chatgpt.com/docs/app-server#start-a-turn)

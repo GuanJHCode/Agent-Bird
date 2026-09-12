@@ -1,5 +1,5 @@
 {
-  "scope": "Offline checks retained; sd-qual-01 infrastructure_inconclusive before standalone. Subsequent source/input/clock corrections require fresh review.",
+  "scope": "sd-qual-01 remains inconclusive. Corrected sd-qual-02 helper/controller independently reviewed and freshly tested; runtime admission requires fresh preflight.",
   "source_commit": "472d2288f750b9d096dc5a2d84f7e885cf44b101",
   "integrated_commit": "2aa8e3c",
   "independent_review": {
@@ -79,6 +79,58 @@
     "native_admission": "restored_for_single_fixed_TUI_sample_only",
     "actual_native_contract": "thread/read(includeTurns=true) materializes paginated history as full turns; canonical JSONL still persists task_complete. No added RPC or TUI setting changes."
   },
+  "shared_source_helper_delta": {
+    "source_commit": "0cf6de1d1113b866f0e4d69f675fb7c250f71a72",
+    "integrated_commit": "0497514",
+    "independent_reviewer": "retained_lifecycle_review",
+    "independent_verdict": "PASS",
+    "independent_tests_passed": 17,
+    "independent_duration_seconds": 0.005,
+    "main_tests_passed": 17,
+    "main_duration_seconds": 0.006,
+    "main_exit_code": 0,
+    "script_sha256": "c698960b46ae29f260c2c928acaf1e42b97ad92811122071a79169d1e9126e29",
+    "expected_source": "vscode",
+    "scope": "Exact backend SessionSource for codex app-server; does not replace service/TUI/root provenance or certify C13",
+    "minor_pending": "Replace an overstrong sentence about an unobserved user turn with absence of positive evidence in the subsequent documentation delta"
+  },
+  "input_and_source_controller_delta": {
+    "source_commits": ["64e18c944ce9244351c7666c941ba63861de6776", "e0f2c0df20f514f733d4ecb5b7df48d2a37e958b"],
+    "integrated_commit": "ba2d8a4",
+    "independent_reviewer": "native_identity_review",
+    "independent_verdict": "PASS",
+    "main_tests_passed": 18,
+    "main_duration_seconds": 0.293,
+    "main_exit_code": 0,
+    "diff_check_exit_code": 0,
+    "behavior": "One bracketed paste frame followed by independent Enter; exact shared-backend source=vscode; real UserPromptSubmit confirmation remains required",
+    "native_admission": "still pending continuous-clock and sd-qual-02 registration delta"
+  },
+  "sd02_admission": {
+    "case": "sd-qual-02",
+    "helper_source_commit": "06c0cfe8ab0f974702df30fb5df92333e9c0f811",
+    "helper_integrated_commit": "201c44d",
+    "helper_independent_reviewer": "retained_lifecycle_review",
+    "helper_review_verdict": "PASS; final prepare persistence deadline finding closed",
+    "helper_main_tests_passed": 24,
+    "helper_main_duration_seconds": 0.025,
+    "helper_main_exit_code": 0,
+    "helper_sha256": "b3677fa6ee27d929436f6c73d1610879a488daad2ea7959f2fd48367bb605c3a",
+    "controller_source_commit": "168051accfce9dfb341bce105a961818b6d76b57",
+    "controller_integrated_commit": "f9806c5",
+    "controller_independent_reviewer": "native_identity_review",
+    "controller_review_verdict": "PASS; service readiness after deadline finding closed",
+    "controller_main_tests_passed": 21,
+    "controller_main_duration_seconds": 0.313,
+    "controller_main_exit_code": 0,
+    "controller_sha256": "1fe75addb456461309620e0cbadbbd1e15f91f0a7f9f03345b9a78b69526e86f",
+    "collector_sha256": "852f2449e4e1125aced1eb447d3a9596928daa51f90b8de828d66b6317085053",
+    "pty_sha256": "c142326e31c2541dbb901c71fa84a96fe0a66bafb46c1344b14c89c94a344190",
+    "clock_sha256": "c16c8d0d0d9b1652d18606230351493f3cea33211f8b4d3323bb5b6bf2466087",
+    "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+    "main_sources_frozen_during_runtime": true,
+    "native_runtime_started": false
+  },
   "first_native_result": {
     "case": "sd-qual-01",
     "classification": "infrastructure_inconclusive",
@@ -95,6 +147,13 @@
     "owned_service_exited": true,
     "socket_removed": true,
     "controller_record": "native-sd-qual-01-controller.json",
+    "result_report": "native-sd-qual-01-result.md",
+    "facts_source_commit": "10d434470301bd321b86493ed26798b137128f14",
+    "facts_integrated_commit": "1bcf6ab",
+    "facts_independent_reviewer": "native_identity_review",
+    "facts_review_verdict": "PASS for faithful inconclusive reporting only",
+    "main_source_receipts_matched": 6,
+    "main_doc_copies_matched": 5,
     "runtime_evidence_directory": "../data/sd-qual-01",
     "new_findings": [
       "Raw prompt plus Enter in one burst does not guarantee native submission; bracketed paste and separate submit are required for the next case",
@@ -105,7 +164,7 @@
   "native_service_started": true,
   "native_model_started": null,
   "pending": [
-    "sd-qual-02 source, input and continuous-clock corrections and independent review",
+    "sd-qual-02 fresh preflight and native runtime",
     "genuine submitted turn, persistent history read and standalone native evidence"
   ]
 }
