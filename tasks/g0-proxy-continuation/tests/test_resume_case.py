@@ -25,6 +25,7 @@ from proxy_native_runtime import AttachmentCandidate  # noqa: E402
 
 
 THREAD_ID = "01234567-89ab-cdef-0123-456789abcdef"
+runtime_module.FIXED_NATIVE_SHA256 = hashlib.sha256(b"native").hexdigest()
 
 
 def make_spec(tmp_path, *, local_window_seconds=10.0):
@@ -62,8 +63,38 @@ def test_preflight_fails_if_source_or_endpoint_changes(tmp_path):
     spec = make_spec(tmp_path)
     record = prepare_resume_case(spec)
     spec.cli.write_bytes(b"changed")
+    with pytest.raises(Exception, match="native binary SHA256 mismatch|source/config changed"):
+        verify_preflight(spec, record)
+
+
+def test_valid_cli_symlink_is_allowed_and_alias_is_frozen(tmp_path, monkeypatch):
+    target = tmp_path / "codex-target"
+    target.write_bytes(b"native")
+    spec = make_spec(tmp_path)
+    spec.cli.unlink()
+    spec.cli.symlink_to(target)
+    monkeypatch.setattr(runtime_module, "FIXED_NATIVE_SHA256", hashlib.sha256(b"native").hexdigest())
+    record = prepare_resume_case(spec)
+    alias_record = record["hashes"]["binary_alias"]
+    assert alias_record["alias_readlink"] == str(target)
+    assert alias_record["resolved_path"] == str(target)
+    assert alias_record["target_sha256"] == hashlib.sha256(b"native").hexdigest()
+    verify_preflight(spec, record)
+    replacement = tmp_path / "codex-target-replacement"
+    replacement.write_bytes(b"native")
+    spec.cli.unlink()
+    spec.cli.symlink_to(replacement)
     with pytest.raises(Exception, match="source/config changed"):
         verify_preflight(spec, record)
+
+
+def test_dangling_cli_symlink_is_rejected(tmp_path, monkeypatch):
+    spec = make_spec(tmp_path)
+    spec.cli.unlink()
+    spec.cli.symlink_to(tmp_path / "missing-codex")
+    monkeypatch.setattr(runtime_module, "FIXED_NATIVE_SHA256", hashlib.sha256(b"native").hexdigest())
+    with pytest.raises(Exception, match="dangling"):
+        prepare_resume_case(spec)
 
 
 def test_preflight_freezes_complete_execution_spec(tmp_path):

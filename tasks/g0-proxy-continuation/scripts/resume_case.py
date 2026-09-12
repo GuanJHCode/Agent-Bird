@@ -36,6 +36,7 @@ from proxy_native_runtime import (  # noqa: E402
     raw_seconds,
     sha256_file,
 )
+import proxy_native_runtime as _runtime_module  # noqa: E402
 
 
 @dataclass(frozen=True)
@@ -154,24 +155,36 @@ def _exclusive_json(path: Path, value: Mapping[str, Any]) -> None:
         raise
 
 
-def _lstat(path: Path, *, required: bool = False) -> os.stat_result | None:
+def _lstat(
+    path: Path,
+    *,
+    required: bool = False,
+    allow_symlink: bool = False,
+) -> os.stat_result | None:
     if not os.path.lexists(path):
         if required:
             raise FileNotFoundError(path)
         return None
     metadata = os.lstat(path)
-    if os.path.islink(path):
+    if os.path.islink(path) and not allow_symlink:
         raise RuntimeInvariantError(f"symlink path is not allowed: {path}")
     return metadata
 
 
-def _file_snapshot(path: Path, *, required: bool = False) -> dict[str, Any]:
-    metadata = _lstat(path, required=required)
+def _file_snapshot(
+    path: Path,
+    *,
+    required: bool = False,
+    allow_symlink: bool = False,
+) -> dict[str, Any]:
+    metadata = _lstat(path, required=required, allow_symlink=allow_symlink)
     if metadata is None:
         return {"path": str(path), "exists": False}
+    if os.path.islink(path) and not os.path.exists(path):
+        raise RuntimeInvariantError(f"CLI symlink target is dangling: {path}")
     if not os.path.isfile(path):
         raise RuntimeInvariantError(f"protected path is not a regular file: {path}")
-    return {
+    snapshot = {
         "path": str(path),
         "exists": True,
         "st_dev": metadata.st_dev,
@@ -179,6 +192,20 @@ def _file_snapshot(path: Path, *, required: bool = False) -> dict[str, Any]:
         "size": metadata.st_size,
         "sha256": sha256_file(path),
     }
+    if os.path.islink(path):
+        target = os.path.realpath(path)
+        if not os.path.exists(target):
+            raise RuntimeInvariantError(f"CLI symlink target is dangling: {path}")
+        target_metadata = os.stat(path)
+        if not os.path.isfile(target):
+            raise RuntimeInvariantError(f"CLI symlink target is not a regular file: {path}")
+        snapshot["alias_readlink"] = os.readlink(path)
+        snapshot["resolved_path"] = target
+        snapshot["target_st_dev"] = target_metadata.st_dev
+        snapshot["target_st_ino"] = target_metadata.st_ino
+        snapshot["target_size"] = target_metadata.st_size
+        snapshot["target_sha256"] = snapshot["sha256"]
+    return snapshot
 
 
 def _endpoint_probe(path: Path) -> dict[str, Any]:
@@ -190,10 +217,13 @@ def _endpoint_probe(path: Path) -> dict[str, Any]:
 
 
 def _source_hashes(config: NativeRuntimeConfig, spec: ResumeCaseSpec) -> dict[str, Any]:
-    binary = _file_snapshot(config.cli, required=True)
+    binary = _file_snapshot(config.cli, required=True, allow_symlink=True)
+    if binary["sha256"] != _runtime_module.FIXED_NATIVE_SHA256:
+        raise RuntimeInvariantError("native binary SHA256 mismatch")
     config_snapshot = _file_snapshot(config.config_path, required=True) if config.config_path is not None else None
     hashes: dict[str, Any] = {
         "binary_sha256": binary["sha256"],
+        "binary_alias": binary,
         "config_sha256": config_snapshot["sha256"] if config_snapshot is not None else None,
         "implementation": {
             str(path): _file_snapshot(path, required=True)["sha256"]
