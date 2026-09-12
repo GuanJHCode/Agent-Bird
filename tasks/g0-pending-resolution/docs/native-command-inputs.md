@@ -11,3 +11,5 @@ sd02 的短命令同批输入存在可达的 PasteBurst 风险，但没有采到
 固定 action/原预算用例先 RED，再完成实现。最新 `python3 -B -m unittest native_sd_collect_test native_sd_pty_test native_sd_control_test -v` 为 `Ran 25 tests in 0.751s / OK`。本地 Python PTY fixture 核验完整 status/quit 帧、独立 CR 与新鲜 status 捕获；预算用例覆盖发送耗尽期限、读操作跨期限以及期限内退出。它们不是 native 语义通过；无模型 fresh TUI 的 status/exit 资格尚未运行。nonce 仍是 02，旧 case 原字节不改。
 
 三份固定公开源码的实际字节数与 SHA 见[来源清单](native-command-input-source-manifest.json)。临时公开下载只为独立复核保留，没有修改 native 源码或配置。
+
+后续 `native-command-input-01` 已执行，status 原 10 秒内未取得 root，未进入正常 quit 资格；所以上文“尚未运行”仅描述该实现冻结时的状态。[失败事实](native-command-input-01.md)保留独立结论。追加源码复核确认 StartupDraft 阶段可接收 paste 但忽略 Enter，不能以 PID 与首个终端字节判定最终输入循环就绪；该条件不是对本次唯一根因的断言。三份临时源码共 558,999 字节已在独立 review 后清理，来源清单保留。

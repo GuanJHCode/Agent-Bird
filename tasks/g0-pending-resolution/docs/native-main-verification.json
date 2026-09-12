@@ -1,5 +1,5 @@
 {
-  "scope": "sd-qual-01 remains inconclusive; sd-qual-02 initial native turn confirmed, helper rejected locally before RPC. Process identity contract fix and whole-prepare offline validation pending.",
+  "scope": "Process identity schema and complete offline prepare chain fixed; command-input-01 status remained inconclusive; fresh sd03 post-input identity route registered for implementation, not yet run.",
   "source_commit": "472d2288f750b9d096dc5a2d84f7e885cf44b101",
   "integrated_commit": "2aa8e3c",
   "independent_review": {
@@ -167,10 +167,10 @@
   "native_service_started": true,
   "native_model_started": true,
   "pending": [
-    "Align real ps comm and independently verified executable_path in controller/helper",
-    "Replay the entire prepare path using unchanged sd02 evidence clones and real Go reads; mark all substitutes",
-    "Register a fresh case only after frozen-code review and final-main verification",
-    "Genuine standalone consumption, general current-TUI attachment and full delivery reconciliation"
+    "Bounded RPC rejection diagnostics",
+    "Implement and review sd03 unique-initial identity and owner contract",
+    "Fresh sd03 native standalone qualification",
+    "General current-TUI attachment and full delivery reconciliation"
   ],
   "second_native_result": {
     "case": "sd-qual-02",
@@ -212,5 +212,58 @@
     "owned_service_exited": true,
     "private_socket_directory_removed": true,
     "report": "native-sd-qual-02-history-diagnostic.md"
+  },
+  "executable_path_delta": {
+    "controller_source_commit": "08bdd56be86055bd842507bb21ac1c9e016fe91c",
+    "controller_integrated_commit": "f18e2df",
+    "controller_reviewer": "native_identity_review",
+    "controller_review": "PASS",
+    "helper_source_commit": "3763a8c1fda44b7a19530b54daf8548894bd6cf5",
+    "helper_integrated_commit": "c14c687",
+    "helper_reviewer": "retained_lifecycle_review",
+    "helper_review": "PASS",
+    "helper_sha256": "be50eb9874d3b37ef7753e91641487cfed5d4e8340fe08ff9fa36223deecc7d3"
+  },
+  "whole_prepare_delta": {
+    "source_commit": "b1a12a19e751776c952e2b57b0923f4645ca7c5c",
+    "integrated_commit": "db1530e",
+    "reviewer": "retained_lifecycle_review",
+    "review": "PASS for offline clones and real Go reads only",
+    "independent_tests_passed": 1,
+    "independent_duration_seconds": 0.137,
+    "main_helper_and_chain_tests_passed": 27,
+    "main_duration_seconds": 0.215,
+    "original_binding_evidence_go_files_unchanged": true,
+    "report": "standalone-helper-sd02-chain.md"
+  },
+  "command_input_delta": {
+    "source_commit": "3f1f36d9db30cc22d185ea72d1c27de9380c62ca",
+    "integrated_commit": "e62056b",
+    "reviewer": "native_identity_review",
+    "review": "PASS for fixed inputs and original budgets; startup readiness subsequently found insufficient",
+    "main_command": "python3 -B -m unittest discover -s tasks/g0-pending-resolution/scripts -p 'native*_test.py' -v",
+    "main_tests_passed": 52,
+    "main_duration_seconds": 0.965,
+    "main_exit_code": 0,
+    "native_status_qualified": false
+  },
+  "command_input_01_result": {
+    "facts_source_commit": "84ffb27056019150e179cf5a67037b3117b84829",
+    "facts_integrated_commit": "92b5b1c",
+    "reviewer": "retained_lifecycle_review",
+    "review": "PASS for faithful inconclusive facts only",
+    "status_root_observed": false,
+    "normal_quit_exercised": false,
+    "native_user_turn_observed_in_scoped_events": false,
+    "root_cause_known": false,
+    "owned_tui_service_exited": true,
+    "socket_removed": true,
+    "report": "native-command-input-01.md"
+  },
+  "sd03_registration": {
+    "contract_commit": "2bdd04e",
+    "active_for_implementation": true,
+    "native_runtime_started": false,
+    "strategy": "single initial + unique real Hook + explicit native family + SQLite spawn-edge absence + actual Go owner, controlled fresh TUI only"
   }
 }

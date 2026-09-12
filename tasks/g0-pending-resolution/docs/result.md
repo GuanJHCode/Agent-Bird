@@ -1,6 +1,6 @@
 # 剩余 G0 能力：实施与候选验证
 
-日期：2026-09-12；基线 `cd3d054`。状态：第二个固定会话样本已证实真实初始轮次结束早于作业完成，但 helper 因进程身份字段不一致在本地拒绝，尚未发送 standalone 回传。正在修复该字段并用实际记录验证完整准备流程。完整 G0 未放行。
+日期：2026-09-12；基线 `cd3d054`。状态：进程字段不一致已修复，实际记录克隆的完整 prepare 链通过。新原生短命令样本未取得 `/status` root，正在改为单次真实 initial 输入之后核验 Hook、线程关系与作业 owner 的独立 sd03 资格；尚未发送 standalone 回传。完整 G0 未放行。
 
 本轮将 idle 回传、当前 TUI 附着、完整交付对账交给三个 subagent，使用独立 worktree；主会话编排、核对边界和整合，另一 reviewer 审查。上轮退出停止、记录保留、原会话明确续接的结果保持。
 
@@ -12,14 +12,15 @@
 4. **修正附着研究中的过强结论。** 缓存 side thread 切换后仍会产生 skills 请求；开启 Apps 时还存在带 thread 的异步请求。独立复核因此否定了“没有任何外部事件”的初版反例，后继报告已撤回它，保留信号组合的验证价值。最近一次 Apps 请求也不能独自证明当前显示，因为旧请求可能迟到。[修正后的证据与边界](attachment-current-tui-thread.md)、[复核闭环](attachment-review-corrections.json)
 5. **完成首版资格工具并进入实测。** 控制器 18 项、helper 16 项离线测试及独立复核通过后，执行了 `sd-qual-01`。样本在 initial 阶段结束，记录到明显双时钟差异，但异常仅保存 `ValueError`，不能唯一归因。初始字节已写入 PTY，未证实原生 user turn 接收；helper 未执行，任务目录为空。[原记录](native-sd-qual-01-controller.json)、[固定提交与验证](native-main-verification.json)
 6. **以实测修正后续准入。** 固定 TUI 源码表明同批裸文本与 Enter 存在 paste-burst 不提交分支，后继改用原生粘贴帧与独立提交。普通 `codex app-server` 又会明确使用 `SessionSource::VSCode`，因此本共享服务样本应精确核验 `vscode`；这不改变原生设置，也不证明完整 C13。现场两个历史读取方法返回 `-32601`，当时尚无已证实的持久 user turn，仍需真实运行证据，不能由 schema 覆盖该拒绝。[下一 case 约束](../plans/contract.md)
-7. **第二次实测推进到回传准备。** `sd-qual-02` 具有唯一真实输入 Hook、精确 root/turn 的 READY 完成事件，以及事件两侧的 Go pending 读数。作业随后 completed/count=1，owner 与 root 一致、ACK=null。helper 在 0.211 秒内因把真实 `ps comm=codex` 当作绝对路径而拒绝，源码顺序和原 binding 复现共同证明未到 RPC。后继实现将保留 `comm` 并独立增加实际可执行路径，旧 case 不修改或重试。[样本与诊断](native-sd-qual-02-result.md)
+7. **第二次实测推进到回传准备。** `sd-qual-02` 具有唯一真实输入 Hook、精确 root/turn 的 READY 完成事件，以及事件两侧的 Go pending 读数。作业随后 completed/count=1，owner 与 root 一致、ACK=null。helper 在 0.211 秒内因把真实 `ps comm=codex` 当作绝对路径而拒绝，源码顺序和原 binding 复现共同证明未到 RPC。现已保留真实 `comm` 并增加独立实读的 `executable_path`；完整 collector→controller→helper.main→真实 Go read/inspect 的副本回归及独立复核通过。旧 case 未修改或重试。[样本与诊断](native-sd-qual-02-result.md)、[整链回归](standalone-helper-sd02-chain.md)
 8. **持久历史读取得到实际阳性。** 另一新私有服务在 0.031 秒内读到 sd02 精确 root 的完整首次轮次，`historyMode=paginated`、`itemsView=full`，包含完成的命令项和精确 READY final。thread 为 `notLoaded`；该诊断没有新 TUI、resume、turn/start 或模型请求，不能补算原服务、当前附着或回传成功。独立复核确认受限记录与这些结论一致。[诊断与范围](native-sd-qual-02-history-diagnostic.md)
+9. **短命令检查暴露启动资格不足。** status/quit 已改为固定 paste 帧与独立 Enter，并共享各自原 10 秒窗口，但 `native-command-input-01` 的 status 仍未采到 root，未进入正常 quit 验证。原窗只观测到 SessionEnd，没有 UserPromptSubmit/turn 事件；原始界面数据未保存，无法确认唯一原因。固定源码的 StartupDraft 会接收文本而忽略 Enter，说明 PID/首字节不足以代表可交互就绪。该样本已清理，sd03 改用受控 initial 的后验身份资格；不重复旧输入或放宽状态解析。[失败记录](native-command-input-01.md)、[sd03 合同](../plans/contract.md)
 
 ## 仍待解决的边界
 
 | 项目 | 已有能力 | 完整验收尚缺 |
 |---|---|---|
-| 在线 idle 自动回传 | standalone toolOutput 的文档及固定源码支持；真实首轮结束与作业完成的顺序证据 | 修复本地准备流程后，取得真正 idle 原会话自动消费的完整样本；通用接入与当前附着仍待解 |
+| 在线 idle 自动回传 | standalone toolOutput 的文档及固定源码支持；真实首轮结束与作业完成的顺序证据；prepare 整链离线通过 | sd03 严格身份资格及真正 idle 原会话自动消费；通用接入与当前附着仍待解 |
 | 当前 TUI 附着 | 普通入口可复用已存在的原生 listener；真实 thread/服务身份有旧样本；skills/切换请求可继续研究组合 | 全部显示切换的可区分性、刷新与失效，非唯一 read 的消歧及异步请求迟到处理 |
 | 完整交付对账 | 有界离线历史标记核对、分页信息与部分 ACK 分离；既有本地语义槽 | 来源已核验的原生运输阳性/否定、旧发送者隔离、compact/分页和六类故障屏障；逐事件真实事务 |
 
