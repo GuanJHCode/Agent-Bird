@@ -350,6 +350,8 @@ class PTYDriver:
             if ready:
                 try:
                     chunk = os.read(self.fd, 16384)
+                except BlockingIOError:
+                    continue
                 except OSError as exc:
                     if exc.errno not in {errno.EIO, errno.EBADF}:
                         raise
@@ -1171,7 +1173,8 @@ async def run_case(
             disconnect_window = RuntimeWindow.start(local_seconds=config.local_window_seconds, model_seconds=config.model_window_seconds)
             disconnected = await runtime.disconnect(connection_id, leg="frontend")
             await tui.aread_until(min(disconnect_window.local_deadline, raw_seconds() + 2.0))
-            await asyncio.sleep(0)
+            while runtime.candidate is not None and raw_seconds() < disconnect_window.local_deadline:
+                await asyncio.sleep(0.01)
             disconnect_invalid = disconnected and runtime.candidate is None and runtime.inferer.invalid_reason in {"eof", "connection_close", "unknown_event", "identity_mismatch"}
             step("disconnect", connection_id=connection_id, disconnected=disconnected, candidate=asdict(runtime.candidate) if runtime.candidate else None)
 
@@ -1255,7 +1258,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
     )
     print(json.dumps(result, sort_keys=True))
-    return 0 if "error" not in result and "cleanup_error" not in result else 1
+    return 0 if result.get("status") == "observed" else 1
 
 
 __all__ = [
