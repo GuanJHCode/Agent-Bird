@@ -1,0 +1,7 @@
+{
+  "source_path": "tasks/g0-proxy-continuation/tests/test_resume_protocol.py",
+  "preserved_path": "tasks/g0-proxy-continuation/data/preserved-main-test/test_resume_protocol.py.original",
+  "sha256": "f32c466e13f733634c08743adf799b15400bcd9fd338b49d6f6bb7f134c4eed9",
+  "bytes": 8531,
+  "reason": "Unattributed untracked main-workspace draft conflicts with incoming feature test path. Preserved verbatim before integration; original function names all remain in incoming final tests."
+}

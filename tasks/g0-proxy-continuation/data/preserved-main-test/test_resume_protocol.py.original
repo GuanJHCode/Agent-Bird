@@ -1,0 +1,186 @@
+import json
+import struct
+import sys
+from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
+
+ROOT = Path(__file__).parents[3]
+OLD_SCRIPTS = ROOT / "tasks" / "g0-tui-proxy" / "scripts"
+CONT_SCRIPTS = ROOT / "tasks" / "g0-proxy-continuation" / "scripts"
+sys.path.insert(0, str(OLD_SCRIPTS))
+sys.path.insert(0, str(CONT_SCRIPTS))
+
+from proxy_native_runtime import (  # noqa: E402
+    AttachmentCandidate,
+    NativeRuntimeConfig,
+    ResumeAttachmentInferer,
+    _CaptureBridge,
+    build_resume_tui_argv,
+)
+from proxy_observer import Observer  # noqa: E402
+
+
+THREAD_ID = "01234567-89ab-cdef-0123-456789abcdef"
+
+
+def open_event(epoch=1, sequence=1):
+    return {"event": "connection_open", "conn_epoch": epoch, "local_seq": sequence}
+
+
+def resume_events(epoch=1, start=2, *, thread_id=THREAD_ID):
+    return [
+        {"event": "websocket_upgrade", "conn_epoch": epoch, "direction": "client", "local_seq": start},
+        {"event": "websocket_upgrade", "conn_epoch": epoch, "direction": "server", "local_seq": start + 1},
+        {"event": "rpc", "conn_epoch": epoch, "direction": "client", "method": "initialize", "request_id": 1, "local_seq": start + 2},
+        {"event": "rpc_response", "conn_epoch": epoch, "direction": "server", "method": "initialize", "request_id": 1, "ok": True, "local_seq": start + 3},
+        {"event": "rpc", "conn_epoch": epoch, "direction": "client", "method": "initialized", "request_id": None, "local_seq": start + 4},
+        {"event": "rpc", "conn_epoch": epoch, "direction": "client", "method": "thread/resume", "request_id": 2, "params": {"threadId": thread_id}, "local_seq": start + 5},
+        {"event": "rpc_response", "conn_epoch": epoch, "direction": "server", "method": "thread/resume", "request_id": 2, "ok": True, "thread": {"id": thread_id, "sessionId": "session-1"}, "local_seq": start + 6},
+        {"event": "rpc", "conn_epoch": epoch, "direction": "client", "method": "skills/list", "request_id": 3, "local_seq": start + 7},
+        {"event": "rpc_response", "conn_epoch": epoch, "direction": "server", "method": "skills/list", "request_id": 3, "ok": True, "local_seq": start + 8},
+    ]
+
+
+def feed(inferer, events):
+    for event in events:
+        inferer.accept(event)
+
+
+def test_resume_requires_successful_resume_response_and_fresh_skills_barrier():
+    inferer = ResumeAttachmentInferer(THREAD_ID)
+    inferer.accept(open_event())
+    early = resume_events()[:-2]
+    # An early skills response is complete protocol traffic but cannot be reused.
+    early += [
+        {"event": "rpc", "conn_epoch": 1, "direction": "client", "method": "skills/list", "request_id": 8, "local_seq": 10},
+        {"event": "rpc_response", "conn_epoch": 1, "direction": "server", "method": "skills/list", "request_id": 8, "ok": True, "local_seq": 11},
+    ]
+    feed(inferer, early)
+    assert inferer.candidate is None
+    # The required post-response request/response is the only barrier that qualifies.
+    feed(inferer, resume_events(start=12)[-2:])
+    assert inferer.candidate is not None
+    assert inferer.candidate.thread_id == THREAD_ID
+
+
+@pytest.mark.parametrize(
+    "mutation, reason",
+    [
+        (lambda event: event.update(thread={"id": "11111111-1111-4111-8111-111111111111"}), "resume_response_identity_mismatch"),
+        (lambda event: event.update(ok=False), "thread/resume_failed"),
+    ],
+)
+def test_resume_response_identity_and_success_are_required(mutation, reason):
+    inferer = ResumeAttachmentInferer(THREAD_ID)
+    inferer.accept(open_event())
+    events = resume_events()
+    mutation(events[6])
+    feed(inferer, events)
+    assert inferer.candidate is None
+    assert inferer.invalid_reason == reason
+
+
+def test_thread_started_is_optional_but_cannot_supply_or_change_identity():
+    inferer = ResumeAttachmentInferer(THREAD_ID)
+    inferer.accept(open_event())
+    events = resume_events()
+    events.insert(7, {"event": "rpc", "conn_epoch": 1, "direction": "server", "method": "thread/started", "request_id": None, "thread": {"id": "wrong"}, "local_seq": 8})
+    # Shift local sequence values after insertion to keep the transport stream contiguous.
+    for index, event in enumerate(events[1:], start=2):
+        event["local_seq"] = index
+    feed(inferer, events)
+    assert inferer.candidate is None
+    assert inferer.invalid_reason == "thread_started_identity_mismatch"
+
+
+def test_old_epoch_is_invalidated_and_new_epoch_starts_blank():
+    inferer = ResumeAttachmentInferer(THREAD_ID)
+    inferer.accept(open_event())
+    feed(inferer, resume_events())
+    assert inferer.candidate == AttachmentCandidate(1, THREAD_ID, "session-1")
+    inferer.accept({"event": "eof", "conn_epoch": 1, "local_seq": 11, "direction": "client"})
+    assert inferer.candidate is None
+    inferer.accept(open_event(epoch=2))
+    assert inferer.candidate is None
+    # Old completion rows are not admissible in the blank epoch.
+    feed(inferer, resume_events(epoch=2, start=2)[:3])
+    assert inferer.candidate is None
+
+
+def test_new_epoch_without_old_epoch_invalidation_is_rejected():
+    inferer = ResumeAttachmentInferer(THREAD_ID)
+    inferer.accept(open_event())
+    inferer.accept(open_event(epoch=2))
+    assert inferer.candidate is None
+    assert inferer.invalid_reason == "new_epoch_before_invalidation"
+
+
+def test_bridge_records_only_safe_resume_thread_id_and_wires_observer():
+    observer = Observer()
+    inferer = ResumeAttachmentInferer(THREAD_ID)
+    bridge = _CaptureBridge(observer, inferer)
+    bridge.on_connect(SimpleNamespace(
+        connection_id="c1", epoch=1, frontend_fd=1, backend_fd=2,
+        frontend_peer=None, backend_peer=None,
+    ))
+    bridge.on_data(SimpleNamespace(connection_id="c1", epoch=1, direction="frontend_to_backend", data=raw_upgrade_request()))
+    bridge.on_data(SimpleNamespace(connection_id="c1", epoch=1, direction="backend_to_frontend", data=raw_upgrade_response()))
+    for event, direction in zip(resume_wire_messages(), ("client", "server", "client", "server", "client", "client", "server", "client", "server")):
+        bridge.on_data(SimpleNamespace(
+            connection_id="c1", epoch=1,
+            direction="frontend_to_backend" if direction == "client" else "backend_to_frontend",
+            data=raw_ws_frame(event, client=direction == "client"),
+        ))
+    assert inferer.candidate is not None
+    assert inferer.candidate.thread_id == THREAD_ID
+    resume_rows = [row for row in bridge.trace if row.get("method") == "thread/resume"]
+    assert resume_rows == [{"event": "rpc", "local_seq": resume_rows[0]["local_seq"], "conn_epoch": 1, "direction": "client", "method": "thread/resume", "request_id": 2, "thread_id": THREAD_ID}]
+    assert all("params" not in row for row in bridge.trace)
+
+
+def resume_wire_messages():
+    return [
+        {"id": 1, "method": "initialize", "params": {}},
+        {"id": 1, "result": {}},
+        {"method": "initialized"},
+        {"id": 2, "method": "thread/resume", "params": {"threadId": THREAD_ID, "secret": "redacted"}},
+        {"id": 2, "result": {"thread": {"id": THREAD_ID, "sessionId": "session-1"}}},
+        {"id": 3, "method": "skills/list", "params": {"secret": "redacted"}},
+        {"id": 3, "result": {}},
+    ]
+
+
+def raw_upgrade_request():
+    return b"GET / HTTP/1.1\r\nHost: localhost\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n"
+
+
+def raw_upgrade_response():
+    return b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=\r\n\r\n"
+
+
+def raw_ws_frame(value, *, client):
+    payload = json.dumps(value, separators=(",", ":")).encode()
+    if client:
+        mask = b"\x01\x02\x03\x04"
+        encoded = bytes(byte ^ mask[index % 4] for index, byte in enumerate(payload))
+        return bytes((0x81, 0x80 | len(payload))) + mask + encoded
+    return bytes((0x81, len(payload))) + payload
+
+
+def test_resume_argv_is_exact_and_config_wires_inferer(tmp_path):
+    cli = tmp_path / "codex"
+    cli.write_bytes(b"codex")
+    assert build_resume_tui_argv(cli, THREAD_ID) == (str(cli), "resume", THREAD_ID)
+    with pytest.raises(ValueError):
+        build_resume_tui_argv(cli, THREAD_ID, "prompt")
+    config = NativeRuntimeConfig(
+        frontend_socket=tmp_path / "front.sock",
+        backend_socket=tmp_path / "back.sock",
+        cli=cli,
+        cwd=tmp_path,
+        resume_thread_id=THREAD_ID,
+    )
+    assert config.tui_argv == (str(cli), "resume", THREAD_ID)
+
