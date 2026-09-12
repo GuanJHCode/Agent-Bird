@@ -205,6 +205,8 @@ class NativeRuntimeConfig:
             object.__setattr__(self, "config_path", Path(self.config_path))
         if self.frontend_socket == self.backend_socket:
             raise ValueError("frontend and backend sockets must be distinct")
+        if not self.backend_socket.is_absolute() or not self.cwd.is_absolute():
+            raise ValueError("backend_socket and cwd must be absolute paths")
         if self.local_window_seconds <= 0 or self.model_window_seconds <= 0:
             raise ValueError("runtime windows must be positive")
 

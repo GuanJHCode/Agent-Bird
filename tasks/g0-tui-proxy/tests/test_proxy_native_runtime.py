@@ -918,6 +918,19 @@ def test_runtime_config_normalizes_path_inputs(tmp_path):
     assert isinstance(config.cli, Path)
 
 
+@pytest.mark.parametrize("field", ["backend_socket", "cwd"])
+def test_runtime_rejects_relative_backend_or_cwd(tmp_path, field):
+    values = {
+        "frontend_socket": tmp_path / "frontend.sock",
+        "backend_socket": tmp_path / "backend.sock",
+        "cli": tmp_path / "codex",
+        "cwd": tmp_path,
+    }
+    values[field] = Path("relative.sock") if field == "backend_socket" else Path("relative-cwd")
+    with pytest.raises(ValueError, match="absolute"):
+        NativeRuntimeConfig(**values)
+
+
 def test_backend_argv_uses_native_unix_uri_for_private_socket(tmp_path):
     config = NativeRuntimeConfig(
         frontend_socket=tmp_path / "frontend.sock",
