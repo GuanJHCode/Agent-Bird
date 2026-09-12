@@ -1,6 +1,6 @@
 # 剩余 G0 能力：实施与候选验证
 
-日期：2026-09-12；基线 `cd3d054`。状态：进程字段不一致已修复，实际记录克隆的完整 prepare 链通过。新原生短命令样本未取得 `/status` root，正在改为单次真实 initial 输入之后核验 Hook、线程关系与作业 owner 的独立 sd03 资格；尚未发送 standalone 回传。完整 G0 未放行。
+日期：2026-09-12；基线 `cd3d054`。状态：sd03 已通过真实初始轮次、线程关系及原服务 prepare，随后因 binding 摘要约定不一致中止，发送状态仍不确定。摘要修复和真实记录副本的跨组件回归已通过；sd04–sd06 停在初始身份门禁，未进入发送。sd07 尚未下发：新鲜前检发现普通 CLI 已升级为 0.154.0，正在核验版本契约，并修复复核发现的超时后仍可能粘贴的边界。完整 G0 未放行。
 
 本轮将 idle 回传、当前 TUI 附着、完整交付对账交给三个 subagent，使用独立 worktree；主会话编排、核对边界和整合，另一 reviewer 审查。上轮退出停止、记录保留、原会话明确续接的结果保持。
 
@@ -15,12 +15,15 @@
 7. **第二次实测推进到回传准备。** `sd-qual-02` 具有唯一真实输入 Hook、精确 root/turn 的 READY 完成事件，以及事件两侧的 Go pending 读数。作业随后 completed/count=1，owner 与 root 一致、ACK=null。helper 在 0.211 秒内因把真实 `ps comm=codex` 当作绝对路径而拒绝，源码顺序和原 binding 复现共同证明未到 RPC。现已保留真实 `comm` 并增加独立实读的 `executable_path`；完整 collector→controller→helper.main→真实 Go read/inspect 的副本回归及独立复核通过。旧 case 未修改或重试。[样本与诊断](native-sd-qual-02-result.md)、[整链回归](standalone-helper-sd02-chain.md)
 8. **持久历史读取得到实际阳性。** 另一新私有服务在 0.031 秒内读到 sd02 精确 root 的完整首次轮次，`historyMode=paginated`、`itemsView=full`，包含完成的命令项和精确 READY final。thread 为 `notLoaded`；该诊断没有新 TUI、resume、turn/start 或模型请求，不能补算原服务、当前附着或回传成功。独立复核确认受限记录与这些结论一致。[诊断与范围](native-sd-qual-02-history-diagnostic.md)
 9. **短命令检查暴露启动资格不足。** status/quit 已改为固定 paste 帧与独立 Enter，并共享各自原 10 秒窗口，但 `native-command-input-01` 的 status 仍未采到 root，未进入正常 quit 验证。原窗只观测到 SessionEnd，没有 UserPromptSubmit/turn 事件；原始界面数据未保存，无法确认唯一原因。固定源码的 StartupDraft 会接收文本而忽略 Enter，说明 PID/首字节不足以代表可交互就绪。该样本已清理，sd03 改用受控 initial 的后验身份资格；不重复旧输入或放宽状态解析。[失败记录](native-command-input-01.md)、[sd03 合同](../plans/contract.md)
+10. **sd03 取得真实 prepare 阳性，并暴露跨组件摘要错误。** 唯一初始输入、READY/pending 屏障、原服务 full history、family/session 和 Go owner 检查均通过。helper 生成发送意图后，controller 用原始文件 SHA 比较 canonical JSON SHA 而拒绝。没有发送收据，超窗只读历史未观察到结果，仍不能证明未发送。现已统一 binding 的 canonical 摘要，并用原始 prepared 记录副本执行真实文件序列化、`issue_once` 和 receiver 回归；重复发送保持拒绝。[sd03 原生事实](native-sd-qual-03-result.md)、[整链回归](standalone-helper-sd03-binding-hash.md)、[整合验证](native-sd-qual-04-main-verification.json)
+11. **sd04–sd06 将启动问题与回传接口区分开。** sd04 的一次初始提交没有获得本服务 Hook；sd05 增加 paste 前 SessionStart 门禁，10 秒内未出现；sd06 将这段等待纳入首次 120 秒原窗口，仍未出现，PTY 同时显示 MCP 启动和额度耗尽提示。这些样本均未进入 prepare/send-once，原数据保留，自有服务及 socket 已清理。它们不构成回传接口失败证据。[sd04](native-sd-qual-04-result.md)、[sd05](native-sd-qual-05-result.md)、[sd06](native-sd-qual-06-result.md)
+12. **下一步使用新样本继续验证。** 一次既有 reset 已通过官方接口兑换并单独记录；sd07 沿用普通入口与用户当前配置，SessionStart 等待、单次初始输入和后验身份共用原初始 120 秒窗口。新鲜检查发现普通 CLI 现为 0.154.0，旧 0.153.4 固定摘要会拒绝；另一个独立探针复现了 SessionStart 扫描跨过截止点后仍可能写入 paste 的问题。版本契约核验与输入前截止检查正在落实，通过后才冻结下发，不复用 sd01–sd06。[额度恢复记录](native-quota-restore-sd07.json)、[sd07 合同](../plans/contract.md)
 
 ## 仍待解决的边界
 
 | 项目 | 已有能力 | 完整验收尚缺 |
 |---|---|---|
-| 在线 idle 自动回传 | standalone toolOutput 的文档及固定源码支持；真实首轮结束与作业完成的顺序证据；prepare 整链离线通过 | sd03 严格身份资格及真正 idle 原会话自动消费；通用接入与当前附着仍待解 |
+| 在线 idle 自动回传 | standalone toolOutput 的文档及固定源码支持；sd03 真实首轮结束、作业完成与原服务 prepare；摘要跨组件回归通过 | 新样本的真正 idle 原会话自动消费、原历史项与 ACK；通用接入与当前附着仍待解 |
 | 当前 TUI 附着 | 普通入口可复用已存在的原生 listener；真实 thread/服务身份有旧样本；skills/切换请求可继续研究组合 | 全部显示切换的可区分性、刷新与失效，非唯一 read 的消歧及异步请求迟到处理 |
 | 完整交付对账 | 有界离线历史标记核对、分页信息与部分 ACK 分离；既有本地语义槽 | 来源已核验的原生运输阳性/否定、旧发送者隔离、compact/分页和六类故障屏障；逐事件真实事务 |
 
@@ -35,3 +38,5 @@
 已整合的 delivery worktree、其 schema/Go 缓存和独立 reviewer 临时副本已清理；源码、分支和必要证据保留。其他源码缓存及原生实验工作区仍在使用。[清理记录](cleanup.json)
 
 `sd-qual-01` 与 `sd-qual-02` 的本任务 TUI、服务及 socket 均已清理；sd02 的 Go worker 和 caffeinate 也已退出，原 case/job 及未 ACK 结果保留。sd02 在控制器 10 秒窗口内未证实 TUI 正常 `/quit` 退出，后续 PID 缺失不补算正常退出通过。主分支重新核对 sd02 五份归档共 25,945 字节与原记录一致，六份启动源码摘要与固定 `8eeb456` 一致；独立复核通过的范围是这些事实及分类。下一独立 case 遵循 [本轮合同](../plans/contract.md)，原 case 和期限不复用。此前报告、离线测试及原生样本分别判定，G1–G4 保持未启动。
+
+sd03–sd06 的后续执行与清理见各自原生事实记录；sd03 的唯一发送意图保持 uncertain，sd04–sd06 没有进入发送。正常 quit 与外层清理分别判定。较早验证记录中的准入字段描述其冻结时点；当前状态以本页、本轮合同及最新独立 case 记录为准。
