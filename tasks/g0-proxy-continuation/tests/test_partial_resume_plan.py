@@ -16,7 +16,12 @@ from partial_resume_plan import (  # noqa: E402
     validate_partial_stop,
     validate_resume_quiet,
     write_plan_preflight,
+    capture_prefix,
+    validate_prefix_stable,
+    validate_owned_runtime_stop,
+    build_retained_fixture_argv,
 )
+from proxy_native_runtime import OwnedEndpoint, OwnedProcess  # noqa: E402
 
 
 THREAD_ID = "01a094db-aaaf-7dc3-8308-8077d4f778b3"
@@ -140,3 +145,47 @@ def test_plan_rejects_sd08_reuse_and_non_luna_model(tmp_path):
         PartialResumePlan(**{**spec.__dict__, "nonce": "sd-qual-08"})
     with pytest.raises(ValueError, match="Luna"):
         PartialResumePlan(**{**spec.__dict__, "model": "gpt-5.6-astra"})
+
+
+def test_owned_runtime_stop_and_prefix_are_system_observations(tmp_path):
+    prefix = tmp_path / "step-001.json"
+    prefix.write_text("committed", encoding="utf-8")
+    before = capture_prefix([prefix])
+    assert validate_prefix_stable(before, capture_prefix([prefix]))["status"] == "prefix_stable"
+    endpoint = tmp_path / "owned.sock"
+    endpoint.write_bytes(b"endpoint")
+    owned_endpoint = OwnedEndpoint.capture(endpoint)
+    processes = [
+        OwnedProcess(20, "backend-born", "/bin/codex"),
+        OwnedProcess(21, "tui-born", "/bin/codex"),
+    ]
+    evidence = ownership()
+    endpoint.unlink()
+    assert validate_owned_runtime_stop(
+        evidence,
+        processes,
+        [owned_endpoint],
+        process_exit_codes={20: 0, 21: 0},
+    )["status"] == "owned_runtime_stopped"
+    assert not owned_endpoint.still_owned()
+    with pytest.raises(ValueError, match="prefix changed"):
+        prefix.write_text("changed", encoding="utf-8")
+        validate_prefix_stable(before, capture_prefix([prefix]))
+
+
+def test_retained_fixture_argv_is_absolute_direct_and_hash_pinned(tmp_path):
+    binary = tmp_path / "retained-fixture"
+    binary.write_bytes(b"fixture")
+    digest = hashlib.sha256(b"fixture").hexdigest()
+    spec = plan(tmp_path)
+    argv = build_retained_fixture_argv(
+        spec,
+        binary,
+        controller_thread=THREAD_ID,
+        operation="retained-start",
+        expected_sha256=digest,
+    )
+    assert argv[:8] == (str(binary), "retained-start", "--dir", str(spec.job_dir), "--nonce", NONCE, "--controller-thread", THREAD_ID)
+    assert argv[-4:] == ("--steps", "3", "--interval", "1000ms")
+    with pytest.raises(ValueError, match="controller"):
+        build_retained_fixture_argv(spec, binary, controller_thread="wrong", operation="retained-start", expected_sha256=digest)

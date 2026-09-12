@@ -11,6 +11,8 @@ import hashlib
 import json
 import os
 import re
+import stat
+import subprocess
 import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -20,7 +22,13 @@ _OLD_SCRIPTS = Path(__file__).resolve().parents[2] / "g0-tui-proxy" / "scripts"
 if str(_OLD_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_OLD_SCRIPTS))
 
-from proxy_native_runtime import canonical_resume_thread_id
+from proxy_native_runtime import (
+    OwnedEndpoint,
+    OwnedProcess,
+    _process_birth,
+    _process_path,
+    canonical_resume_thread_id,
+)
 
 
 _NONCE_RE = re.compile(r"[a-z][a-z0-9-]{2,63}")
@@ -268,6 +276,135 @@ def validate_continue_gate(
     }
 
 
+def capture_parent_guard(child_pid: int, expected_parent: OwnedProcess) -> ParentGuardEvidence:
+    """Capture the direct parent relation for a task worker/controller pair."""
+
+    if type(child_pid) is not int or child_pid <= 0 or expected_parent.pid <= 1:
+        raise ValueError("parent guard PID is invalid")
+    result = subprocess.run(
+        ("/bin/ps", "-p", str(child_pid), "-o", "ppid="),
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=1,
+    )
+    try:
+        parent_pid = int(result.stdout.strip())
+    except ValueError:
+        raise ValueError("worker parent is unavailable") from None
+    child_birth = _process_birth(child_pid)
+    child_executable = _process_path(child_pid)
+    parent_birth = _process_birth(parent_pid)
+    parent_executable = _process_path(parent_pid)
+    if None in (child_birth, child_executable, parent_birth, parent_executable):
+        raise ValueError("worker parent creation identity is incomplete")
+    return ParentGuardEvidence(
+        child_pid=child_pid,
+        parent_pid=parent_pid,
+        parent_birth=parent_birth,
+        parent_executable=parent_executable,
+        child_birth=child_birth,
+        child_executable=child_executable,
+        direct_parent=(
+            parent_pid == expected_parent.pid
+            and parent_birth == expected_parent.birth
+            and os.path.realpath(parent_executable) == expected_parent.executable
+        ),
+    )
+
+
+def validate_owned_runtime_stop(
+    ownership: RuntimeOwnershipEvidence,
+    owned_processes: Sequence[OwnedProcess],
+    owned_endpoints: Sequence[OwnedEndpoint],
+    *,
+    process_exit_codes: Mapping[int, int | None],
+) -> dict[str, Any]:
+    """Verify exact runtime-owned process exits and endpoint disappearance."""
+
+    _require_owned_runtime(ownership)
+    expected = {ownership.backend_pid, ownership.tui_pid}
+    actual = {process.pid for process in owned_processes}
+    if actual != expected:
+        raise ValueError("runtime-owned process registration is incomplete")
+    if any(process_exit_codes.get(pid) != 0 for pid in expected):
+        raise ValueError("runtime-owned process did not exit cleanly")
+    if any(endpoint.still_owned() for endpoint in owned_endpoints):
+        raise ValueError("runtime-owned endpoint remains present")
+    return {
+        "status": "owned_runtime_stopped",
+        "pids": sorted(expected),
+        "endpoints": [str(endpoint.path) for endpoint in owned_endpoints],
+    }
+
+
+def capture_prefix(paths: Sequence[str | os.PathLike[str]]) -> tuple[dict[str, Any], ...]:
+    """Capture immutable regular-file prefix facts without following symlinks."""
+
+    rows: list[dict[str, Any]] = []
+    for raw_path in paths:
+        path = Path(raw_path)
+        metadata = os.lstat(path)
+        if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISREG(metadata.st_mode):
+            raise ValueError(f"checkpoint prefix path is not a regular file: {path}")
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        rows.append({
+            "path": str(path),
+            "st_dev": metadata.st_dev,
+            "st_ino": metadata.st_ino,
+            "bytes": metadata.st_size,
+            "sha256": digest,
+        })
+    return tuple(rows)
+
+
+def validate_prefix_stable(
+    before: Sequence[Mapping[str, Any]],
+    after: Sequence[Mapping[str, Any]],
+) -> dict[str, Any]:
+    if tuple(dict(row) for row in before) != tuple(dict(row) for row in after):
+        raise ValueError("partial checkpoint prefix changed")
+    return {"status": "prefix_stable", "files": len(before)}
+
+
+def build_retained_fixture_argv(
+    plan: PartialResumePlan,
+    binary: str | os.PathLike[str],
+    *,
+    controller_thread: str,
+    operation: str,
+    steps: int = 3,
+    interval_ms: int = 1000,
+    expected_sha256: str,
+) -> tuple[str, ...]:
+    """Build the fixed Go fixture argv without invoking a shell or process."""
+
+    path = Path(binary)
+    if operation not in {"retained-start", "retained-resume"}:
+        raise ValueError("unsupported retained fixture operation")
+    if controller_thread != plan.thread_id:
+        raise ValueError("fixture controller thread must equal the planned thread")
+    if not path.is_absolute() or path.is_symlink() or not path.is_file():
+        raise ValueError("fixture binary must be an absolute regular file")
+    if hashlib.sha256(path.read_bytes()).hexdigest() != expected_sha256:
+        raise ValueError("fixture binary SHA256 mismatch")
+    base = (
+        str(path),
+        operation,
+        "--dir",
+        str(plan.job_dir),
+        "--nonce",
+        plan.nonce,
+        "--controller-thread",
+        controller_thread,
+    )
+    if operation == "retained-start":
+        if type(steps) is not int or not 1 <= steps <= 32 or type(interval_ms) is not int or interval_ms < 100 or steps * interval_ms > 120000:
+            raise ValueError("fixture step window is invalid")
+        return base + ("--steps", str(steps), "--interval", f"{interval_ms}ms")
+    return base + ("--revision", "1", "--segment", "1")
+
+
 def write_plan_preflight(plan: PartialResumePlan) -> Path:
     """Create one exclusive plan record; never create case/job or endpoints."""
 
@@ -292,5 +429,10 @@ __all__ = [
     "validate_continue_gate",
     "validate_partial_stop",
     "validate_resume_quiet",
+    "capture_parent_guard",
+    "validate_owned_runtime_stop",
+    "capture_prefix",
+    "validate_prefix_stable",
+    "build_retained_fixture_argv",
     "write_plan_preflight",
 ]
