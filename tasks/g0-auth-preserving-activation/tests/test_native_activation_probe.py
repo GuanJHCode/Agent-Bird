@@ -47,8 +47,8 @@ int main(int argc, char **argv) {
   if (argc == 2 && strcmp(argv[1],"--version")==0) { puts("fake-native 1"); return 0; }
   char b[256], body[4096], *ready=getenv("PROBE_READY_RECEIPT_PATH"), *final=getenv("PROBE_FINAL_RECEIPT_PATH"), *profile=getenv("PROBE_PROFILE_ID"), *exe=getenv("PROBE_EXPECTED_EXECUTABLE"), *home=getenv("PROBE_EXPECTED_HOME_SHA256"), *manifest=getenv("PROBE_MANIFEST_SHA256");
   if (!ready || !final || !profile || !exe) return 22; birth(b,sizeof(b));
-  snprintf(body,sizeof(body),"{\"version\":1,\"ready_published\":true,\"milestone_only\":true,\"protocol_valid\":true,\"zero_turns\":true,\"closed\":false,\"initialized\":true,\"manifest_sha256\":\"%s\",\"profile_id\":\"%s\",\"frontend\":{\"pid\":%d,\"birth\":\"%s\",\"uid\":%d,\"executable\":\"%s\"},\"initialize\":{\"home_match\":true,\"home_sha256\":\"%s\"},\"thread\":{\"id\":\"00000000-0000-4000-8000-000000000001\",\"started_id\":\"00000000-0000-4000-8000-000000000001\"},\"turn_counts\":{\"start\":0,\"steer\":0}}",manifest,profile,getpid(),b,getuid(),exe,home);
-  put(ready,body); char input[256]; ssize_t n; while ((n=read(0,input,sizeof(input)-1))>0) { input[n]=0; if (strstr(input,"/status")) { printf("Session: 00000000-0000-4000-8000-000000000001\n"); fflush(stdout); put(getenv("PROBE_STATUS_PATH"),"status"); } if (strstr(input,"/quit")) { put(final,"{\"backend_records\":[{\"process_stopped\":true,\"socket_removed\":true}],\"transport\":{\"protocol\":[{\"protocol_valid\":true,\"zero_turns\":true,\"closed\":true,\"turn_counts\":{\"start\":0,\"steer\":0}}]}}"); return 0; } } return 23;
+  snprintf(body,sizeof(body),"{\"version\":1,\"ready_published\":true,\"milestone_only\":true,\"protocol_valid\":true,\"zero_turns\":true,\"closed\":false,\"initialized\":true,\"activation_id\":\"synthetic-activation\",\"lease_id\":\"synthetic-lease\",\"connection_id\":\"synthetic-connection\",\"epoch\":1,\"manifest_sha256\":\"%s\",\"profile_id\":\"%s\",\"frontend\":{\"pid\":%d,\"birth\":\"%s\",\"uid\":%d,\"executable\":\"%s\"},\"backend\":{\"pid\":1,\"birth\":\"synthetic-backend\",\"uid\":%d,\"executable\":\"%s\"},\"initialize\":{\"home_match\":true,\"home_sha256\":\"%s\"},\"thread\":{\"id\":\"00000000-0000-4000-8000-000000000001\",\"started_id\":\"00000000-0000-4000-8000-000000000001\"},\"turn_counts\":{\"start\":0,\"steer\":0}}",manifest,profile,getpid(),b,getuid(),exe,getuid(),exe,home);
+  put(ready,body); char input[256]; ssize_t n; while ((n=read(0,input,sizeof(input)-1))>0) { input[n]=0; if (strstr(input,"/status")) { printf("Session: 00000000-0000-4000-8000-000000000001\n"); fflush(stdout); put(getenv("PROBE_STATUS_PATH"),"status"); } if (strstr(input,"/quit")) { put(final,"{\"activation_id\":\"synthetic-activation\",\"manifest_sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"backend_records\":[{\"lease_id\":\"synthetic-lease\",\"process_stopped\":true,\"socket_removed\":true}],\"transport\":{\"protocol\":[{\"connection_id\":\"synthetic-connection\",\"epoch\":1,\"protocol_valid\":true,\"zero_turns\":true,\"closed\":true,\"turn_counts\":{\"start\":0,\"steer\":0}}]}}"); return 0; } } return 23;
 }
 ''',
             encoding="utf-8",
@@ -92,7 +92,8 @@ int main(int argc, char **argv) {
         self.credential_manifest.chmod(0o600)
 
     def _probe(self, mode="version", **kwargs):
-        use_sandbox = kwargs.pop("use_sandbox", False)
+        use_sandbox = kwargs.pop("use_sandbox", True)
+        sandbox_executable = kwargs.pop("sandbox_executable", self.sandbox_shim)
         return NativeActivationProbe(
             ProbeSpec(
                 context=self.context,
@@ -105,6 +106,7 @@ int main(int argc, char **argv) {
                 credential_manifest=self.credential_manifest,
                 use_sandbox=use_sandbox,
                 allow_test_spawn=True,
+                sandbox_executable=sandbox_executable,
                 **kwargs,
             )
         )

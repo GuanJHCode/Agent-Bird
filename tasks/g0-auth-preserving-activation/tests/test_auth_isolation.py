@@ -435,8 +435,17 @@ class SandboxExecTests(unittest.TestCase):
 
             master, slave = pty.openpty()
             try:
+                pty_profile_path = root / "pty-profile.sb"
+                pty_profile_path.write_text(render_sandbox_profile(spec, Path(os.ttyname(slave))))
                 pty_run = subprocess.run(
-                    ["/usr/bin/sandbox-exec", "-f", str(profile_path), sys.executable, "-c", "print('pty-ok')"],
+                    [
+                        "/usr/bin/sandbox-exec",
+                        "-f",
+                        str(pty_profile_path),
+                        sys.executable,
+                        "-c",
+                        "import termios; a=termios.tcgetattr(0); termios.tcsetattr(0, termios.TCSANOW, a); print('pty-ok')",
+                    ],
                     stdin=slave,
                     stdout=slave,
                     stderr=subprocess.PIPE,

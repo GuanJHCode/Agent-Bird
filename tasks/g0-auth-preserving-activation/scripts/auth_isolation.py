@@ -542,7 +542,7 @@ def _sbpl_path(path: Path) -> str:
     return value.replace("\\", "\\\\").replace('"', '\\"')
 
 
-def render_sandbox_profile(spec: IsolationSpec) -> str:
+def render_sandbox_profile(spec: IsolationSpec, pty_slave: Path | None = None) -> str:
     """Render a deny-by-default SBPL profile for a task-owned process.
 
     The profile allows reads needed by a native executable, writes only below
@@ -554,6 +554,8 @@ def render_sandbox_profile(spec: IsolationSpec) -> str:
     """
 
     spec.validate()
+    if pty_slave is not None and not Path(pty_slave).is_absolute():
+        raise ValueError("PTY slave path must be absolute")
     write_paths = (spec.home, spec.codex_home, spec.workspace, spec.task_root / "tmp", spec.backend_socket.parent)
     lines = [
         "(version 1)",
@@ -590,6 +592,15 @@ def render_sandbox_profile(spec: IsolationSpec) -> str:
             '(deny mach-lookup (global-name "com.apple.securityd.system"))',
         ]
     )
+    if pty_slave is not None:
+        rendered_pty = _sbpl_path(Path(pty_slave))
+        lines.extend(
+            [
+                "(allow pseudo-tty)",
+                '(allow file-read* file-write* file-ioctl (literal "/dev/ptmx"))',
+                f'(allow file-read* file-write* file-ioctl (literal "{rendered_pty}"))',
+            ]
+        )
     return "\n".join(lines) + "\n"
 
 

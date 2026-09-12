@@ -80,6 +80,7 @@ class ProbeSpec:
     use_sandbox: bool = True
     allow_test_spawn: bool = False
     sandbox_executable: Path = Path("/usr/bin/sandbox-exec")
+    sandbox_executable_sha256: str | None = None
     timeout: float = 10.0
 
 
@@ -341,14 +342,31 @@ def _process_identity(pid: int) -> tuple[str, str | None]:
     return birth, executable
 
 
-def _spawn_pty_gate(argv: Sequence[str], env: dict[str, str], cwd: Path) -> tuple[int, int]:
+def _open_controlling_pty() -> tuple[int, int, Path]:
+    master, slave = pty.openpty()
+    slave_path = Path(os.ttyname(slave))
+    os.set_blocking(master, False)
+    fcntl.ioctl(master, termios.TIOCSWINSZ, struct.pack("HHHH", 60, 200, 0, 0))
+    return master, slave, slave_path
+
+
+def _spawn_pty_gate(
+    argv: Sequence[str], env: dict[str, str], cwd: Path, master: int, slave: int
+) -> tuple[int, int]:
     """Spawn through a real controlling PTY with bounded terminal geometry."""
 
     if PTYDriver is None:
         raise ProbeError("proxy_native_runtime.PTYDriver unavailable")
-    pid, master = pty.fork()
+    pid = os.fork()
     if pid == 0:
         try:
+            os.setsid()
+            fcntl.ioctl(slave, termios.TIOCSCTTY, 0)
+            for fd in (0, 1, 2):
+                os.dup2(slave, fd)
+            os.close(master)
+            if slave > 2:
+                os.close(slave)
             os.chdir(cwd)
             os.environ.clear()
             os.environ.update(env)
@@ -357,8 +375,7 @@ def _spawn_pty_gate(argv: Sequence[str], env: dict[str, str], cwd: Path) -> tupl
             os.execve(argv[0], list(argv), env)
         finally:
             os._exit(127)
-    os.set_blocking(master, False)
-    fcntl.ioctl(master, termios.TIOCSWINSZ, struct.pack("HHHH", 60, 200, 0, 0))
+    os.close(slave)
     return pid, master
 
 
@@ -398,6 +415,11 @@ def _ready_receipt_matches(
         return False
     if raw.get("profile_id") != context.spec.profile_id or raw.get("zero_turns") is not True or raw.get("closed") is not False or raw.get("initialized") is not True:
         return False
+    if not all(isinstance(raw.get(name), (str, int)) for name in ("activation_id", "lease_id", "connection_id", "epoch")):
+        return False
+    backend = raw.get("backend")
+    if not isinstance(backend, dict) or not backend.get("pid") or not backend.get("birth"):
+        return False
     if manifest_sha256 is not None and raw.get("manifest_sha256") != manifest_sha256:
         return False
     if frontend.get("pid") != pid or frontend.get("birth") != birth or frontend.get("uid") != os.getuid():
@@ -420,7 +442,26 @@ def _ready_receipt_matches(
     return True
 
 
-def _final_receipt_complete(raw: dict[str, Any]) -> bool:
+def _final_receipt_complete(raw: dict[str, Any], established: dict[str, Any] | None = None) -> bool:
+    if established is not None:
+        for name in ("activation_id", "manifest_sha256"):
+            if raw.get(name) != established.get(name):
+                return False
+        records = raw.get("backend_records")
+        if not isinstance(records, list) or not any(
+            isinstance(row, dict) and row.get("lease_id") == established.get("lease_id")
+            for row in records
+        ):
+            return False
+        transport = raw.get("transport") if isinstance(raw.get("transport"), dict) else {}
+        protocol_rows = transport.get("protocol")
+        if not isinstance(protocol_rows, list) or not any(
+            isinstance(row, dict)
+            and row.get("connection_id") == established.get("connection_id")
+            and row.get("epoch") == established.get("epoch")
+            for row in protocol_rows
+        ):
+            return False
     transport = raw.get("transport") if isinstance(raw.get("transport"), dict) else {}
     protocols = transport.get("protocol")
     if isinstance(protocols, list):
@@ -489,8 +530,17 @@ class NativeActivationProbe:
         if self.spec.credential_manifest is None:
             raise ProbeError("probe requires the fixed credential path inventory")
         load_credential_path_manifest(self.spec.credential_manifest)
-        if not self.spec.use_sandbox and not self.spec.allow_test_spawn:
+        if not self.spec.use_sandbox:
             raise ProbeError("native probe requires sandbox-exec")
+        if not self.spec.sandbox_executable.is_file():
+            raise ProbeError("sandbox-exec is unavailable")
+        if not self.spec.allow_test_spawn and self.spec.sandbox_executable != Path("/usr/bin/sandbox-exec"):
+            raise ProbeError("production probe requires canonical sandbox-exec")
+        if not self.spec.allow_test_spawn and (
+            not isinstance(self.spec.sandbox_executable_sha256, str)
+            or len(self.spec.sandbox_executable_sha256) != 64
+        ):
+            raise ProbeError("production probe requires sandbox-exec digest")
         for supervisor_path in (self.spec.supervisor_root, self.spec.grants_dir):
             if not supervisor_path.is_absolute():
                 raise ProbeError("supervisor paths must be absolute")
@@ -522,7 +572,12 @@ class NativeActivationProbe:
         ):
             raise ProbeError("activation mode requires the frozen manifest digest")
         if self.spec.mode == "version" and any(
-            path is not None for path in (self.spec.ready_receipt_path, self.spec.final_receipt_path)
+            path is not None for path in (
+                self.spec.ready_receipt_path,
+                self.spec.ready_receipt_dir,
+                self.spec.final_receipt_path,
+                self.spec.receipt_dir,
+            )
         ):
             raise ProbeError("version mode cannot use activation receipts")
         for child_path in (self.spec.ready_path, self.spec.status_path):
@@ -594,6 +649,8 @@ class NativeActivationProbe:
         grant_path: Path | None = None
         grant_identity: tuple[int, int] | None = None
         master: int | None = None
+        slave: int | None = None
+        pty_slave_path: Path | None = None
         read_fd: int | None = None
         write_fd: int | None = None
         process: Any | None = None
@@ -626,6 +683,11 @@ class NativeActivationProbe:
         scope = self.transaction.managed() if self.transaction is not None else nullcontext(None)
         scope_entered = False
         try:
+            sandbox_digest = hashlib.sha256(self.spec.sandbox_executable.read_bytes()).hexdigest()
+            if self.spec.sandbox_executable_sha256 is not None and sandbox_digest != self.spec.sandbox_executable_sha256:
+                raise ProbeError("sandbox-exec digest mismatch")
+            report["sandbox_executable"] = str(self.spec.sandbox_executable)
+            report["sandbox_executable_sha256"] = sandbox_digest
             scope.__enter__()
             scope_entered = True
             backend_plan = self._backend_plan()
@@ -655,14 +717,16 @@ class NativeActivationProbe:
             report["env_names"] = sorted(env)
             read_fd, write_fd = os.pipe()
             os.set_inheritable(read_fd, True)
+            master, slave, pty_slave_path = _open_controlling_pty()
             gate = [sys.executable, "-B", str(Path(__file__).resolve()), "--gate-child", str(read_fd), str(context.expected_executable), "--", *target_args]
             if self.spec.use_sandbox:
                 if not self.spec.sandbox_executable.is_file():
                     raise ProbeError("sandbox-exec is unavailable")
-                profile_data = render_sandbox_profile(context.spec).encode("utf-8")
+                profile_data = render_sandbox_profile(context.spec, pty_slave_path).encode("utf-8")
                 profile_identity = _write_exclusive(profile_path, profile_data)
                 gate = [str(self.spec.sandbox_executable), "-f", str(profile_path), *gate]
-            child_pid, master = _spawn_pty_gate(gate, env, context.spec.workspace)
+            child_pid, master = _spawn_pty_gate(gate, env, context.spec.workspace, master, slave)
+            slave = None
             driver = PTYDriver(child_pid, master)
             child_birth, gate_executable = _process_identity(child_pid)
             grant_path = self.spec.grants_dir / f"{child_pid}.json"
@@ -703,6 +767,15 @@ class NativeActivationProbe:
                                     "thread_id": ready.get("thread", {}).get("id"),
                                     "home_match": True,
                                 }
+                                report["established"] = {
+                                    "activation_id": ready.get("activation_id"),
+                                    "lease_id": ready.get("lease_id"),
+                                    "connection_id": ready.get("connection_id"),
+                                    "epoch": ready.get("epoch"),
+                                    "manifest_sha256": ready.get("manifest_sha256"),
+                                    "frontend": ready.get("frontend"),
+                                    "backend": ready.get("backend"),
+                                }
                                 break
                         if "ready" in report:
                             break
@@ -742,6 +815,11 @@ class NativeActivationProbe:
                         os.close(fd)
                     except OSError as exc:
                         cleanup_failures.append(type(exc).__name__)
+            if slave is not None:
+                try:
+                    os.close(slave)
+                except OSError as exc:
+                    cleanup_failures.append(type(exc).__name__)
             if driver is not None and driver.poll() is None and child_pid is not None and child_birth is not None:
                 try:
                     current_birth, _ = _process_identity(child_pid)
@@ -791,7 +869,9 @@ class NativeActivationProbe:
                             self.spec.receipt_dir,
                             "*/activation.json",
                         ):
-                            if _final_receipt_complete(_read_private_json(final_path)):
+                            if _final_receipt_complete(
+                                _read_private_json(final_path), report.get("established")
+                            ):
                                 report["final_receipt_path"] = str(final_path)
                                 final_ok = True
                                 break
@@ -821,6 +901,10 @@ class NativeActivationProbe:
                 report["auth"] = before.compare(after)
             except (OSError, ValueError) as exc:
                 report["auth"] = {"unchanged": False, "changed_path_ids": [], "comparison_error": type(exc).__name__}
+            if report["auth"].get("unchanged") is not True and error is None:
+                error = ProbeError("auth snapshot changed")
+            if cleanup_failures and error is None:
+                error = ProbeError("cleanup failed")
             report["status_sent"] = status_sent
             report["quit_sent"] = quit_sent
             report["default_socket_exists_after"] = os.path.lexists(alias)
@@ -832,11 +916,15 @@ class NativeActivationProbe:
                 "sha256": digest.hexdigest(),
                 "excerpt": _safe_excerpt(pty_excerpt),
             }
+            report["status"] = "passed" if error is None else "failed"
             report["report_path"] = str(report_path)
             try:
                 write_probe_report(report, report_path)
             except (OSError, ProbeError) as exc:
                 report["cleanup_failures"].append(type(exc).__name__)
+                report["status"] = "failed"
+                if error is None:
+                    error = ProbeError("probe report write failed")
         if error is not None:
             raise ProbeError(str(error)) from error
         return report
