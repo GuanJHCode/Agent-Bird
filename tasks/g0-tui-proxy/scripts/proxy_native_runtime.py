@@ -1341,7 +1341,7 @@ class _CaptureBridge:
         if (
             row.get("event") == "rpc"
             and row.get("direction") == "client"
-            and row.get("method") in {"thread/unsubscribe", "thread/resume"}
+            and row.get("method") in {"thread/unsubscribe", "thread/resume", "thread/fork", "thread/inject_items"}
         ):
             params = row.get("params")
             thread_id = params.get("threadId") if isinstance(params, Mapping) else None

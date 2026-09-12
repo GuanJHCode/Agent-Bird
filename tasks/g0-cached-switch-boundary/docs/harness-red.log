@@ -1,0 +1,253 @@
+FFFFFFFFFFFFF                                                            [100%]
+=================================== FAILURES ===================================
+____ test_real_wire_fork_and_inject_targets_survive_without_private_bodies _____
+
+    def test_real_wire_fork_and_inject_targets_survive_without_private_bodies():
+        feed = Feed()
+        feed.resume()
+        assert feed.inferer.candidate.thread_id == P
+        feed.fork()
+        targets = {row['method']: row.get('thread_id') for row in feed.bridge.trace
+                   if row.get('direction') == 'client' and row.get('method') in {'thread/fork', 'thread/inject_items'}}
+>       assert targets == {'thread/fork': P, 'thread/inject_items': S}
+E       AssertionError: assert {'thread/fork..._items': None} == {'thread/fork...456789abcdef'}
+E         
+E         Differing items:
+E         {'thread/fork': None} != {'thread/fork': '01234567-89ab-4def-8123-456789abcdef'}
+E         {'thread/inject_items': None} != {'thread/inject_items': '12345678-9abc-4def-8123-456789abcdef'}
+E         Use -v to get more diff
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:205: AssertionError
+_________ test_preflight_has_no_execution_and_freezes_harness_and_luna _________
+
+tmp_path = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/tmp/probe-harness/tasks/g0-cached-switch-boundary/tmp/pytest/test_preflight_has_no_executio0')
+
+    def test_preflight_has_no_execution_and_freezes_harness_and_luna(tmp_path):
+>       p = module()
+            ^^^^^^^^
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:212: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def module():
+>       assert probe is not None, 'guarded cached switch harness is not implemented'
+E       AssertionError: guarded cached switch harness is not implemented
+E       assert None is not None
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:31: AssertionError
+__________________ test_non_luna_configuration_never_prepares __________________
+
+tmp_path = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/tmp/probe-harness/tasks/g0-cached-switch-boundary/tmp/pytest/test_non_luna_configuration_ne0')
+
+    def test_non_luna_configuration_never_prepares(tmp_path):
+>       p = module()
+            ^^^^^^^^
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:224: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def module():
+>       assert probe is not None, 'guarded cached switch harness is not implemented'
+E       AssertionError: guarded cached switch harness is not implemented
+E       assert None is not None
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:31: AssertionError
+___ test_four_statuses_and_three_toggles_never_create_candidate_from_status ____
+
+tmp_path = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/tmp/probe-harness/tasks/g0-cached-switch-boundary/tmp/pytest/test_four_statuses_and_three_t0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10afff240>
+
+    def test_four_statuses_and_three_toggles_never_create_candidate_from_status(tmp_path, monkeypatch):
+>       p = module()
+            ^^^^^^^^
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:232: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def module():
+>       assert probe is not None, 'guarded cached switch harness is not implemented'
+E       AssertionError: guarded cached switch harness is not implemented
+E       assert None is not None
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:31: AssertionError
+__________ test_missing_lineage_cannot_be_repaired_by_matching_status __________
+
+tmp_path = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/tmp/probe-harness/tasks/g0-cached-switch-boundary/tmp/pytest/test_missing_lineage_cannot_be0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10afff680>
+
+    def test_missing_lineage_cannot_be_repaired_by_matching_status(tmp_path, monkeypatch):
+>       p = module()
+            ^^^^^^^^
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:254: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def module():
+>       assert probe is not None, 'guarded cached switch harness is not implemented'
+E       AssertionError: guarded cached switch harness is not implemented
+E       assert None is not None
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:31: AssertionError
+__________ test_gap_model_wrong_status_or_early_eof_never_passes[gap] __________
+
+tmp_path = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/tmp/probe-harness/tasks/g0-cached-switch-boundary/tmp/pytest/test_gap_model_wrong_status_or0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10b27b750>
+fault = 'gap'
+
+    @pytest.mark.parametrize('fault', ['gap', 'model_turn', 'wrong_status', 'early_eof'])
+    def test_gap_model_wrong_status_or_early_eof_never_passes(tmp_path, monkeypatch, fault):
+>       p = module()
+            ^^^^^^^^
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:266: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def module():
+>       assert probe is not None, 'guarded cached switch harness is not implemented'
+E       AssertionError: guarded cached switch harness is not implemented
+E       assert None is not None
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:31: AssertionError
+______ test_gap_model_wrong_status_or_early_eof_never_passes[model_turn] _______
+
+tmp_path = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/tmp/probe-harness/tasks/g0-cached-switch-boundary/tmp/pytest/test_gap_model_wrong_status_or1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10b27bc50>
+fault = 'model_turn'
+
+    @pytest.mark.parametrize('fault', ['gap', 'model_turn', 'wrong_status', 'early_eof'])
+    def test_gap_model_wrong_status_or_early_eof_never_passes(tmp_path, monkeypatch, fault):
+>       p = module()
+            ^^^^^^^^
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:266: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def module():
+>       assert probe is not None, 'guarded cached switch harness is not implemented'
+E       AssertionError: guarded cached switch harness is not implemented
+E       assert None is not None
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:31: AssertionError
+_____ test_gap_model_wrong_status_or_early_eof_never_passes[wrong_status] ______
+
+tmp_path = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/tmp/probe-harness/tasks/g0-cached-switch-boundary/tmp/pytest/test_gap_model_wrong_status_or2')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10b104410>
+fault = 'wrong_status'
+
+    @pytest.mark.parametrize('fault', ['gap', 'model_turn', 'wrong_status', 'early_eof'])
+    def test_gap_model_wrong_status_or_early_eof_never_passes(tmp_path, monkeypatch, fault):
+>       p = module()
+            ^^^^^^^^
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:266: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def module():
+>       assert probe is not None, 'guarded cached switch harness is not implemented'
+E       AssertionError: guarded cached switch harness is not implemented
+E       assert None is not None
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:31: AssertionError
+_______ test_gap_model_wrong_status_or_early_eof_never_passes[early_eof] _______
+
+tmp_path = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/tmp/probe-harness/tasks/g0-cached-switch-boundary/tmp/pytest/test_gap_model_wrong_status_or3')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10b1049b0>
+fault = 'early_eof'
+
+    @pytest.mark.parametrize('fault', ['gap', 'model_turn', 'wrong_status', 'early_eof'])
+    def test_gap_model_wrong_status_or_early_eof_never_passes(tmp_path, monkeypatch, fault):
+>       p = module()
+            ^^^^^^^^
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:266: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def module():
+>       assert probe is not None, 'guarded cached switch harness is not implemented'
+E       AssertionError: guarded cached switch harness is not implemented
+E       assert None is not None
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:31: AssertionError
+____________ test_refresh_rpcs_are_reclassified_not_called_zero_rpc ____________
+
+tmp_path = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/tmp/probe-harness/tasks/g0-cached-switch-boundary/tmp/pytest/test_refresh_rpcs_are_reclassi0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10b0fa0b0>
+
+    def test_refresh_rpcs_are_reclassified_not_called_zero_rpc(tmp_path, monkeypatch):
+>       p = module()
+            ^^^^^^^^
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:276: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def module():
+>       assert probe is not None, 'guarded cached switch harness is not implemented'
+E       AssertionError: guarded cached switch harness is not implemented
+E       assert None is not None
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:31: AssertionError
+____ test_retained_candidate_after_toggle_is_stale_even_when_status_matches ____
+
+    def test_retained_candidate_after_toggle_is_stale_even_when_status_matches():
+>       p = module()
+            ^^^^^^^^
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:286: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def module():
+>       assert probe is not None, 'guarded cached switch harness is not implemented'
+E       AssertionError: guarded cached switch harness is not implemented
+E       assert None is not None
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:31: AssertionError
+__________ test_config_drift_before_start_does_not_construct_runtime ___________
+
+tmp_path = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/tmp/probe-harness/tasks/g0-cached-switch-boundary/tmp/pytest/test_config_drift_before_start0')
+
+    def test_config_drift_before_start_does_not_construct_runtime(tmp_path):
+>       p = module()
+            ^^^^^^^^
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:295: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def module():
+>       assert probe is not None, 'guarded cached switch harness is not implemented'
+E       AssertionError: guarded cached switch harness is not implemented
+E       assert None is not None
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:31: AssertionError
+_________ test_nonzero_quit_and_post_run_protection_drift_stay_unknown _________
+
+tmp_path = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cached-switch-boundary/tmp/probe-harness/tasks/g0-cached-switch-boundary/tmp/pytest/test_nonzero_quit_and_post_run0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10b093650>
+
+    def test_nonzero_quit_and_post_run_protection_drift_stay_unknown(tmp_path, monkeypatch):
+>       p = module()
+            ^^^^^^^^
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:307: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def module():
+>       assert probe is not None, 'guarded cached switch harness is not implemented'
+E       AssertionError: guarded cached switch harness is not implemented
+E       assert None is not None
+
+tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py:31: AssertionError
+=========================== short test summary info ============================
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_real_wire_fork_and_inject_targets_survive_without_private_bodies
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_preflight_has_no_execution_and_freezes_harness_and_luna
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_non_luna_configuration_never_prepares
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_four_statuses_and_three_toggles_never_create_candidate_from_status
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_missing_lineage_cannot_be_repaired_by_matching_status
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_gap_model_wrong_status_or_early_eof_never_passes[gap]
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_gap_model_wrong_status_or_early_eof_never_passes[model_turn]
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_gap_model_wrong_status_or_early_eof_never_passes[wrong_status]
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_gap_model_wrong_status_or_early_eof_never_passes[early_eof]
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_refresh_rpcs_are_reclassified_not_called_zero_rpc
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_retained_candidate_after_toggle_is_stale_even_when_status_matches
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_config_drift_before_start_does_not_construct_runtime
+FAILED tasks/g0-cached-switch-boundary/tests/test_cached_switch_case.py::test_nonzero_quit_and_post_run_protection_drift_stay_unknown
+13 failed in 0.11s
