@@ -1,8 +1,8 @@
 {
-  "checked_at": "2026-09-12T09:48:00.388877+00:00",
-  "previous_goal_turn_classification": "progress: ACK capture repair and verified Luna effective configuration",
-  "current_turn_classification": "no implementation progress; existing attachment prerequisite remains unavailable",
-  "consecutive_blocked_goal_turns": 1,
+  "checked_at": "2026-09-12T09:48:31.262444+00:00",
+  "previous_goal_turn_classification": "no progress: attachment prerequisite audit only",
+  "current_turn_classification": "no progress: native binary and authorized integration scope unchanged; no available implementation action",
+  "consecutive_blocked_goal_turns": 2,
   "goal_status": "active",
   "blocker": "No available permitted external input proves current TUI/thread attachment and switch/disconnect invalidation; generic G0 cannot proceed",
   "native_version": "0.154.0",
