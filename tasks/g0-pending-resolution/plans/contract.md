@@ -48,6 +48,21 @@
 
 仅在 `sd-qual-02` 的外层运行进程中，可使用系统 `/usr/bin/caffeinate -i -t 300 -w <controller_pid>`，降低自动 idle sleep 对实验的干扰；这不是对首样本时钟差异的根因断言。该断言最多持续 300 秒，或随受测 controller 退出而释放，须记录本任务 PID 并验证释放。原生服务与 TUI 的 argv、10/120 秒窗口均不变；不使用 utility 包装模式或 `-u/-d/-s`，不修改持久电源设置。手动休眠仍按原连续时钟窗口判定，不延时补算通过。依据为本机 `/usr/share/man/man8/caffeinate.8` 的 `-i/-t/-w` 语义。
 
+### 2026-09-12：第三个独立 case 的后验身份资格
+
+sd02 的进程字段不一致已修复，实际记录克隆的完整 prepare 链已通过。另一个短命令样本 `native-command-input-01` 在原 10 秒内未取得 `/status` root；启动阶段的 plain-text draft 可以接收 paste 而忽略 Enter，但原样本没有记录足够的界面状态，不能认定唯一原因。PID 与首字节不再被称为可交互就绪证据，旧样本不重试或改写。
+
+前瞻登记唯一新模型 case `sd-qual-03`，允许按下列范围实现；须冻结修改、独立复核及新鲜前检后才下发实际运行：
+
+- 仍是全新、归属本任务的共享服务与普通 `codex` TUI，记录创建身份、实际可执行路径、固定二进制摘要和 socket；默认 socket 被占用则拒绝。主会话控制唯一 TUI 的输入，不切屏；额外 task-owned 探针必须明确登记，不能声称完全没有其他连接。
+- 不把 `/status` 作为提交前置。仅提交一次固定 initial paste 与独立 Enter，再于原 120 秒窗口接受同一服务的唯一真实 `UserPromptSubmit(root, turn)`。没有该证据即不准入，不补第二次 Enter 或提示，也不以等待时间认定 UI 已就绪。
+- 对该精确 root 检查固定版本的线程关系：现有 prepare 的原服务 `thread/read(includeTurns:true)` 必须显式返回 `parentThreadId:null`、`forkedFromId:null`、`ephemeral:false`，并匹配 root、cwd、版本与 `source=vscode`。记录 UUID `sessionId`，后续读取保持一致；不假定它等于 root。SQLite 对 `thread_spawn_edges WHERE child_thread_id=root` 的读取必须成功且为零行。
+- 真实 Go 任务的 `controller_thread` 必须等于该 root；首次 READY、pending 两侧屏障、完成结果、后续 standalone 历史项及 ACK 继续精确绑定同一 root/turn/nonce。上述身份与关系检查必须在第一次发送前完成。
+- 仍只发送一次真实 `toolOutput`，`input=[]`；uncertain 不重发。本地 10 秒、首次输入和唯一发送各自原 120 秒窗口不变；旧 case、旧期限和旧 binding 均不复用。
+- 允许 sd03 外层沿用同样有界的 `caffeinate -i -t 300 -w <controller_pid>`，记录并核实释放；不改变 native argv、持久配置、账号或权限。正常退出与外层清理分别记录。
+
+这一后验资格只用于固定新 TUI 的接口实验，不能替代通用当前会话附着、冷启动安装或完整 G0。历史 sd02 的离线回归可在测试内部显式替换唯一 active nonce 常量，不改原输入；运行入口只接受 sd03，不增加环境或 CLI 绕过参数。
+
 ## 接口解释与判据
 
 官方 `turn/start.toolOutput` 接受客户端实际执行的独立工具输出，`input=[]`，以 `functionCallOutput` 持久化；不要求存在旧的 pending tool call。旧研究对“必须补回旧 pending call”的概括不作为本轮排除此接口的依据。[官方 App Server 说明](https://learn.chatgpt.com/docs/app-server#start-a-turn)
