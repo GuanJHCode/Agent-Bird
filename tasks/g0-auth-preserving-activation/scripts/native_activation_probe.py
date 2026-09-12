@@ -418,7 +418,13 @@ def _ready_receipt_matches(
     if not all(isinstance(raw.get(name), (str, int)) for name in ("activation_id", "lease_id", "connection_id", "epoch")):
         return False
     backend = raw.get("backend")
-    if not isinstance(backend, dict) or not backend.get("pid") or not backend.get("birth"):
+    if (
+        not isinstance(backend, dict)
+        or not backend.get("pid")
+        or not backend.get("birth")
+        or backend.get("uid") is None
+        or not backend.get("executable", backend.get("exe"))
+    ):
         return False
     if manifest_sha256 is not None and raw.get("manifest_sha256") != manifest_sha256:
         return False
@@ -529,6 +535,10 @@ def _backend_identity_matches(
         record_uid = peer.get("uid")
     else:
         record_uid = record.get("uid")
+    if record_uid is None:
+        peers = [row.get("backend") for row in protocol_rows if isinstance(row.get("backend"), dict)]
+        if peers:
+            record_uid = peers[0].get("uid")
     if (record_pid, record_birth, os.path.realpath(str(record_executable))) != (
         expected_pid,
         expected_birth,
@@ -536,7 +546,7 @@ def _backend_identity_matches(
     ):
         return False
     expected_uid = expected.get("uid")
-    return expected_uid is None or record_uid is None or record_uid == expected_uid
+    return expected_uid is not None and record_uid == expected_uid
 
 
 def _receipt_candidates(path: Path | None, directory: Path | None, pattern: str) -> list[Path]:

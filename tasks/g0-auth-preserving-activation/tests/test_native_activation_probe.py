@@ -16,6 +16,7 @@ from auth_isolation import IsolationContext, IsolationSpec, prepare_isolated_hom
 from native_activation_probe import (  # noqa: E402
     NativeActivationProbe,
     ProbeError,
+    _backend_identity_matches,
     ProbeSpec,
     install_default_socket_alias,
     load_credential_path_manifest,
@@ -118,6 +119,13 @@ int main(int argc, char **argv) {
         bad.chmod(0o600)
         with self.assertRaises(ValueError):
             load_credential_path_manifest(bad)
+
+    def test_final_backend_identity_requires_uid_from_record_or_same_protocol_peer(self) -> None:
+        expected = {"pid": 7, "birth": "b", "uid": os.getuid(), "executable": "/bin/true"}
+        protocol = [{"backend": {"pid": 7, "birth": "b", "uid": os.getuid(), "executable": "/bin/true"}}]
+        self.assertTrue(_backend_identity_matches({"pid": 7, "creation_birth": "b", "creation_executable": "/bin/true"}, protocol, expected))
+        wrong = [{"backend": {"pid": 7, "birth": "b", "uid": os.getuid() + 1, "executable": "/bin/true"}}]
+        self.assertFalse(_backend_identity_matches({"pid": 7, "creation_birth": "b", "creation_executable": "/bin/true"}, wrong, expected))
 
     def test_default_socket_alias_is_new_and_reversible(self) -> None:
         alias = install_default_socket_alias(self.context, self.public)
