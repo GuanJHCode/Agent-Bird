@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "nonce": "sd-qual-06",
+  "scope": "restricted_execution_stdout_metadata_transcription",
+  "main_commit": "9d2fdc9",
+  "preflight_passed": true,
+  "preflight_file": "native-sd-qual-06-preflight.json",
+  "python_version": "3.13.7",
+  "native_cli_version": "codex-cli 0.153.4",
+  "controller_pid": 39163,
+  "caffeinate": {
+    "pid": 39164,
+    "argv": [
+      "/usr/bin/caffeinate",
+      "-i",
+      "-t",
+      "300",
+      "-w",
+      "39163"
+    ],
+    "ps": "39164   501 Sat Sep 12 15:45:10 2026     /usr/bin/caffeinate -i -t 300 -w 39163"
+  },
+  "controller_ps": "39163   501 Sat Sep 12 15:45:10 2026     /Library/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python -B native_sd_control.py --helper-sha 6f2e84bc5a89cec63f3dea01fc8a0d8af7f1ee57105bca64421a5ccbd2b6395a --audit-sha 59d8129d5409fb7fb5687a5107c81f9d85a63b8f718e4dd22cab660517af87c6",
+  "started_at": "2026-09-12T07:45:10.863572+00:00",
+  "source_sha256": {
+    "native_sd_control.py": "987ed420c940edae69848df13c538542bb4ae14c403007fffaa3cd1d3d1b797a",
+    "native_sd_collect.py": "d7d123e4f3ed83edd7135a1e87203d1b99bf163bf743b72edf057c85c9ea0b3b",
+    "native_sd_pty.py": "0ec348a89cfe1d5b41e23885f20a4323d2631af300ad577fa2e8726e16d8d5c5",
+    "native_sd_clock.py": "c16c8d0d0d9b1652d18606230351493f3cea33211f8b4d3323bb5b6bf2466087",
+    "native_standalone.py": "6f2e84bc5a89cec63f3dea01fc8a0d8af7f1ee57105bca64421a5ccbd2b6395a",
+    "delivery_audit.py": "59d8129d5409fb7fb5687a5107c81f9d85a63b8f718e4dd22cab660517af87c6"
+  },
+  "helper_sha256": "6f2e84bc5a89cec63f3dea01fc8a0d8af7f1ee57105bca64421a5ccbd2b6395a",
+  "audit_sha256": "59d8129d5409fb7fb5687a5107c81f9d85a63b8f718e4dd22cab660517af87c6",
+  "bytecode_disabled": true,
+  "ordinary_native_argv": {
+    "service": [
+      "codex",
+      "app-server",
+      "--listen",
+      "unix://"
+    ],
+    "tui": [
+      "codex"
+    ]
+  }
+}

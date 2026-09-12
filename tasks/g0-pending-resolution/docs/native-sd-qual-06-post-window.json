@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "nonce": "sd-qual-06",
+  "scope": "owned_outer_cleanup after owned_session_start_missing; no history rpc",
+  "failure_code": "owned_session_start_missing",
+  "substage": "await_session_start",
+  "session_start": null,
+  "initial_window_seconds": 120,
+  "pty_capture_bytes": 9156,
+  "pty_capture_sha256": "45b4c4159aa9d331ddb3a6e7f5cd116bf548d276e2e315585b5a79f75b18dd04",
+  "pty_visible_startup": "OpenAI Codex v0.153.4 YOLO gpt-6-astra max; Starting MCP servers (1/3): cua_repl, node_repl; weekly 0% left",
+  "tui_inputs": [],
+  "service_before": {
+    "pid": 39172,
+    "ppid": 1,
+    "uid": 501,
+    "started_at_local": "Sat Sep 12 15:45:10 2026",
+    "executable_path": "/Users/guanjunhui/.codex/packages/standalone/releases/0.153.4-aarch64-apple-darwin/bin/codex",
+    "socket_ino": 161532108
+  },
+  "socket_holders_before": [
+    39172
+  ],
+  "signal": "SIGINT",
+  "elapsed_ns": 115760500,
+  "service_exited": true,
+  "socket_after_exists": false,
+  "normal_quit_claimed": false,
+  "cleaned_at": "2026-09-12T07:48:23.318589+00:00"
+}
