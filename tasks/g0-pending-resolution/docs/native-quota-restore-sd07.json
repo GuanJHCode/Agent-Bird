@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "scope": "official account/rateLimitResetCredit/consume via owned app-server; not a G0 sample and not sd-qual-06",
+  "method": "account/rateLimitResetCredit/consume",
+  "clientInfoName": "g0-quota-restore",
+  "config_modified": false,
+  "mcp_disabled": false,
+  "before": {
+    "primary": {"usedPercent": 100, "windowDurationMins": 10080},
+    "availableCount": 2
+  },
+  "consume": {"outcome": "reset"},
+  "after": {
+    "primary": {"usedPercent": 0, "windowDurationMins": 10080},
+    "availableCount": 1
+  },
+  "socket_after_exists": false
+}

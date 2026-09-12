@@ -87,6 +87,12 @@ sd05 已下发：10 秒本地启动预算内无 SessionStart，PTY 停在 MCP �
 
 前瞻登记唯一新 case `sd-qual-06`。沿用普通 `codex` 入口、单次 bracketed-paste + 独立 Enter、后验 `UserPromptSubmit` 身份、canonical binding 摘要、一次发送、uncertain 不重发、原 10 秒本地窗口（服务/TUI/quit/lab read）、唯一发送 120 秒窗口和有界 `caffeinate -i -t 300 -w <controller_pid>`。仅把 paste 前必须出现的、属于本 service PID 的唯一真实 `SessionStart(source=startup)` 等待从额外 10 秒启动预算改到初始 120 秒窗口：该窗口从 origin 捕获后开始，覆盖 SessionStart 等待与随后仅一次 paste+Enter 及后验身份；没有本服务 SessionStart 则记录 `owned_session_start_missing` 并中止，不补第二次 Enter。失败时把有界 PTY 字节归档到本 case，供诊断，不把 PTY 文本当作 current-UI 附着证明。历史 sd02/sd03/sd04/sd05 原文件不改、不重跑。运行入口只接受 sd06，不增加环境或 CLI 绕过参数；历史回归只可在隔离测试内显式 patch 对应 nonce。须冻结、独立复核和新鲜前检后才下发。
 
+sd06 已下发：初始 120 秒窗口内无 SessionStart，PTY 停在 MCP 启动且 weekly usedPercent=100。不重试。不能关 MCP 或改全局配置。准许用官方 app-server `account/rateLimitResetCredit/consume`（与 TUI `/usage` 同源）兑换一次已有 banked reset，不改配置文件、不关 MCP；兑换后 weekly usedPercent 从 100 到 0。该兑换不是 G0 样本，不占用 sd06 nonce。
+
+### 2026-09-12：第七个独立 case，额度恢复后仍走普通入口
+
+前瞻登记唯一新 case `sd-qual-07`。沿用 sd06 的普通 `codex` 入口、单次 paste+独立 Enter、paste 前本服务唯一 `SessionStart` 放在初始 120 秒窗口、后验 `UserPromptSubmit`、canonical binding 摘要、一次发送、uncertain 不重发、原 10/120 秒窗口和有界 caffeinate。不重跑 sd-qual-01..06。运行入口只接受 sd07，无环境或 CLI 绕过；历史回归只可在隔离测试内显式 patch。须冻结、独立复核和新鲜前检后才下发。
+
 ## 接口解释与判据
 
 官方 `turn/start.toolOutput` 接受客户端实际执行的独立工具输出，`input=[]`，以 `functionCallOutput` 持久化；不要求存在旧的 pending tool call。旧研究对“必须补回旧 pending call”的概括不作为本轮排除此接口的依据。[官方 App Server 说明](https://learn.chatgpt.com/docs/app-server#start-a-turn)
@@ -104,4 +110,4 @@ sd05 已下发：10 秒本地启动预算内无 SessionStart，PTY 停在 MCP �
 
 新建材料按本任务 `plans/`、`docs/`、`scripts/`、`data/`、`tmp/` 分开；`tmp/` 只放可回收 worktree、下载和测试缓存。源码、必要运行记录和可审查证据保留。收尾列清单，核对归属后清理；不删除原有任务材料或配置。
 
-状态：sd04/sd05/sd06 原生样本均未通过初始身份门禁并已归档清理。sd06 已在初始 120 秒窗口等待本服务 SessionStart，仍为 `owned_session_start_missing`，PTY 停在 MCP 启动（cua_repl/node_repl 1/3）并可见 weekly 0% left；未 paste、未 send-once。不重试。不能关 MCP、改全局配置或动账号额度来凑通过。摘要修复仍成立。完整 G0 仍未通过；G0.2–G0.4 与 F01–F26 未开始。
+状态：sd04/sd05/sd06 原生样本均未通过初始身份门禁并已归档清理。sd06 为 `owned_session_start_missing`。已用官方 `account/rateLimitResetCredit/consume` 兑换一次 banked reset（weekly usedPercent 100→0，credits 2→1），socket 已释放。已前瞻登记 `sd-qual-07`，尚未冻结或下发。完整 G0 仍未通过。
