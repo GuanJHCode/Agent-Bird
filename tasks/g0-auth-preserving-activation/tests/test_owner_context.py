@@ -25,25 +25,28 @@ ROOT_THREAD = "01a00000-0000-7000-8000-000000000001"
 BOOT = "01a00000-0000-7000-8000-000000000002"
 
 
-def synthetic_context(tmp_path: Path):
+def synthetic_context(tmp_path: Path, *, requires_openai_auth=True, config_storage_mode="codex_home"):
     home = tmp_path / "codex-home"
-    home.mkdir(mode=0o700)
-    store = home / "credential-store.json"
-    store.write_text('{"profile":"synthetic-a"}\n')
-    store.chmod(0o600)
-    return home, store, capture_owner_context(home, store)
+    home.mkdir(mode=0o700, parents=True)
+    store = home / "auth.json"
+    if requires_openai_auth:
+        store.write_text('{"profile":"synthetic-a"}\n')
+        store.chmod(0o600)
+    return home, store, capture_owner_context(
+        home, requires_openai_auth=requires_openai_auth, config_storage_mode=config_storage_mode
+    )
 
 
 def test_capture_owner_context_is_derived_from_synthetic_path_identity_and_store(tmp_path):
     home, store, context = synthetic_context(tmp_path)
-    assert context["version"] == 1
+    assert context["version"] == 2
     assert context["expected_codex_home"] == str(home)
     assert context["credential_store"]["path"] == str(store)
     assert len(context["fingerprint_sha256"]) == 64
     assert validate_owner_context(context, context) == context
 
     store.write_text('{"profile":"synthetic-b"}\n')
-    changed = capture_owner_context(home, store)
+    changed = capture_owner_context(home, requires_openai_auth=True, config_storage_mode="codex_home")
     assert changed["fingerprint_sha256"] != context["fingerprint_sha256"]
     with pytest.raises(ValueError, match="owner context"):
         validate_owner_context(changed, context)
@@ -54,11 +57,44 @@ def test_owner_context_rejects_home_or_store_symlink(tmp_path):
     alias = tmp_path / "home-alias"
     alias.symlink_to(home, target_is_directory=True)
     with pytest.raises(ValueError, match="symlink"):
-        capture_owner_context(alias, store)
+        capture_owner_context(alias, requires_openai_auth=True)
     store_alias = tmp_path / "store-alias"
     store_alias.symlink_to(store)
+    with pytest.raises(ValueError, match="canonical"):
+        capture_owner_context(home, credential_store=store_alias, requires_openai_auth=True)
+    nested = tmp_path / "nested"
+    nested.mkdir()
+    parent_alias = tmp_path / "parent-alias"
+    parent_alias.symlink_to(tmp_path, target_is_directory=True)
     with pytest.raises(ValueError, match="symlink"):
-        capture_owner_context(home, store_alias)
+        capture_owner_context(parent_alias / "codex-home", requires_openai_auth=True)
+
+
+def test_owner_context_uses_only_canonical_auth_store_and_freezes_no_auth_absence(tmp_path):
+    home, store, _ = synthetic_context(tmp_path)
+    other = home / "credential-store.json"
+    other.write_text("synthetic")
+    other.chmod(0o600)
+    with pytest.raises(ValueError, match="canonical auth"):
+        capture_owner_context(home, credential_store=other, requires_openai_auth=True)
+
+    noauth_home, noauth_store, context = synthetic_context(
+        tmp_path / "noauth", requires_openai_auth=False, config_storage_mode="project"
+    )
+    assert context["requires_openai_auth"] is False
+    assert context["config_storage_mode"] == "project"
+    assert context["credential_store"]["present"] is False
+    noauth_store.write_text("must not become an auth store")
+    noauth_store.chmod(0o600)
+    with pytest.raises(ValueError, match="owner context"):
+        validate_owner_context(context, context)
+
+
+def test_owner_context_rejects_invalid_config_mode(tmp_path):
+    home = tmp_path / "codex-home"
+    home.mkdir(mode=0o700, parents=True)
+    with pytest.raises(ValueError, match="config storage"):
+        capture_owner_context(home, requires_openai_auth=False, config_storage_mode="sentinel")
 
 
 def test_initialize_codex_home_requires_exact_owner_context(tmp_path):
@@ -129,3 +165,25 @@ def test_canonical_controller_binding_projection_is_v2_and_context_bound(tmp_pat
     assert projected["version"] == 2
     assert projected["owner_context"] == context
     assert standalone.require_owner_context(projected)["expected_codex_home"] == context["expected_codex_home"]
+
+
+def test_v1_prepare_and_send_are_rejected_while_legacy_binding_stays_audit_readable(tmp_path):
+    evidence = b"{}\n"
+    for verb in ("prepare", "send-once"):
+        case_dir = tmp_path / verb
+        case_dir.mkdir(mode=0o700)
+        legacy = old_binding()
+        legacy["controller_evidence_sha256"] = hashlib.sha256(evidence).hexdigest()
+        with standalone.Case(str(case_dir)) as case:
+            case.write_new("binding.json", legacy)
+            case.write_new("controller-evidence.json", {})
+        result = standalone.main([verb, "--case", str(case_dir), "--root", ROOT_THREAD, "--nonce", "sd-qual-08"])
+        assert result["status"] == "rejected"
+        assert result["reason"] == "owner_context_required"
+        assert not (case_dir / "send-attempt.json").exists()
+    assert standalone.validate_binding(old_binding(), ROOT_THREAD, "sd-qual-08")["version"] == 1
+
+
+def test_canonical_controller_prepare_path_requires_context_before_starting_anything():
+    with pytest.raises(ValueError, match="owner_context_required"):
+        controller.run("0" * 64, "0" * 64)

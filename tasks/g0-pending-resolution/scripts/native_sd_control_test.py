@@ -16,6 +16,14 @@ from unittest.mock import patch
 from types import SimpleNamespace
 import native_sd_control as control
 from native_sd_control import require_owned_pair
+from owner_context import capture_owner_context
+
+_SYNTHETIC_HOME = Path(tempfile.mkdtemp(prefix="g0-control-owner-")).resolve()
+_SYNTHETIC_HOME.chmod(0o700)
+_SYNTHETIC_AUTH = _SYNTHETIC_HOME / "auth.json"
+_SYNTHETIC_AUTH.write_text("{\"profile\":\"control-test\"}\n")
+_SYNTHETIC_AUTH.chmod(0o600)
+_OWNER_CONTEXT = capture_owner_context(_SYNTHETIC_HOME, requires_openai_auth=True, config_storage_mode="codex_home")
 
 
 class ControlTests(unittest.TestCase):
@@ -122,7 +130,7 @@ class ControlTests(unittest.TestCase):
                     [],0,stdout='01a08e0b-bd0d-7400-b069-d50978939cde\n')))
                 patches.enter_context(patch('builtins.print'))
                 rejected=False
-                try: control.run('0'*64,'0'*64)
+                try: control.run('0'*64,'0'*64, owner_context=_OWNER_CONTEXT)
                 except ValueError: rejected=True
                 self.assertEqual(not rejected,accepted)
                 self.assertEqual(service_attempts,[True] if accepted else [])
@@ -320,7 +328,7 @@ class ControlTests(unittest.TestCase):
                 patches.enter_context(patch.object(control.subprocess,'run',return_value=subprocess.CompletedProcess(
                     [],0,stdout='01a08e0b-bd0d-7400-b069-d50978939cde\n')))
                 patches.enter_context(patch('builtins.print'))
-                self.assertEqual(control.run('0'*64,'0'*64),2)
+                self.assertEqual(control.run('0'*64,'0'*64, owner_context=_OWNER_CONTEXT),2)
                 tui.assert_not_called()
                 result=json.loads((base/'case/controller-result.json').read_text())
                 self.assertEqual(result['failure']['code'],'continuous_deadline_exceeded')

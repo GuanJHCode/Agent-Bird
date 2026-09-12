@@ -420,7 +420,13 @@ def require_single_tui_connection(protocol):
     return {'tui_connection_id':next(iter(connections)),'scope':'observed owned-service spans before task helper; not a complete client inventory'}
 
 
-def run(helper_sha,audit_sha):
+def run(helper_sha,audit_sha, *, owner_context=None):
+    # New prepare/send work is bound to a validated synthetic/controlled owner
+    # context before it can create a case or start an owned process.  Historical
+    # v1 records remain readable through the offline helpers above.
+    if owner_context is None:
+        raise ValueError('owner_context_required')
+    validate_owner_context(owner_context, owner_context)
     # Hashes are explicit values from the independent review; paths are fixed here.
     for path,expected in ((HELPER,helper_sha),(AUDIT,audit_sha),(c.CLI.resolve(),c.CLI_SHA),(c.GO,c.GO_SHA)):
         if not re.fullmatch(r'[0-9a-f]{64}',expected) or path.is_symlink() or not path.is_file() or c.sha(path)!=expected:
@@ -640,11 +646,11 @@ def run(helper_sha,audit_sha):
         private_json(CASE/'controller-evidence.json',evidence)
         record['substage']='binding'; service_binding=binding_process(before_send['service'])
         service_binding.update(socket_path=str(c.SOCKET),socket_dev=before_send['socket']['dev'],socket_ino=before_send['socket']['ino'])
-        binding={'version':1,'nonce':c.NONCE,'controller_thread_id':record['root'],'controller_epoch':1,
+        binding=bind_owner_context({'version':1,'nonce':c.NONCE,'controller_thread_id':record['root'],'controller_epoch':1,
                  'expected_cwd':str(c.REPO),'prior_turn_id':prompt_hook['turn_id'],'native_cli_version':c.CLI_VERSION,
                  'boot_id':boot_id,'service':service_binding,'tui':binding_process(before_send['tui']),
                  'go_binary':str(c.GO),'go_binary_sha256':c.GO_SHA,'job_dir':str(JOB),
-                 'controller_evidence_sha256':c.sha(CASE/'controller-evidence.json')}
+                 'controller_evidence_sha256':c.sha(CASE/'controller-evidence.json')}, owner_context)
         private_json(CASE/'binding.json',binding)
         pair(); helper('prepare',10)
         pair(); helper('send-once',120)  # Outer deadline is replaced only by the immutable attempt's original mono_ns.
@@ -719,8 +725,13 @@ def run(helper_sha,audit_sha):
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--helper-sha',required=True); p.add_argument('--audit-sha',required=True)
+    p.add_argument('--owner-context',required=True, help='validated owner-context JSON projection')
     args=p.parse_args()
-    return run(args.helper_sha,args.audit_sha)
+    try:
+        owner_context=json.loads(Path(args.owner_context).read_bytes())
+    except (OSError,ValueError,TypeError):
+        raise SystemExit('owner_context_invalid')
+    return run(args.helper_sha,args.audit_sha,owner_context=owner_context)
 
 
 if __name__=='__main__': sys.exit(main())

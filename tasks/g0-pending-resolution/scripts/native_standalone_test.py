@@ -14,6 +14,7 @@ from types import SimpleNamespace
 
 import native_standalone as probe
 import delivery_audit
+from owner_context import capture_owner_context
 
 ROOT = "01900000-0000-7000-8000-000000000001"
 TURN = "01900000-0000-7000-8000-000000000002"
@@ -22,7 +23,15 @@ SESSION = "01900000-aaaa-7000-8000-000000000006"
 NONCE = "sd-qual-08"
 
 
-def binding():
+_SYNTHETIC_HOME = pathlib.Path(tempfile.mkdtemp(prefix="g0-owner-home-")).resolve()
+_SYNTHETIC_HOME.chmod(0o700)
+_SYNTHETIC_AUTH = _SYNTHETIC_HOME / "auth.json"
+_SYNTHETIC_AUTH.write_text("{\"profile\":\"standalone-test\"}\n")
+_SYNTHETIC_AUTH.chmod(0o600)
+_SYNTHETIC_OWNER_CONTEXT = capture_owner_context(_SYNTHETIC_HOME, requires_openai_auth=True, config_storage_mode="codex_home")
+
+
+def legacy_binding():
     return {"version": 1, "nonce": NONCE, "controller_thread_id": ROOT, "controller_epoch": 1,
             "expected_cwd": "/private/g0/repo", "prior_turn_id": TURN, "native_cli_version": "0.154.0",
             "boot_id": BOOT, "service": {"pid": 1234, "uid": os.getuid(), "birth": "Fri Sep 11 10:00:00 2026",
@@ -32,6 +41,10 @@ def binding():
                     "native_binary_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc"},
             "go_binary": "/private/g0/lab", "go_binary_sha256": "feb9b9ad969abca5ff35db28c0f0d8d920dc0778d7aac68a90952900e989a285",
             "job_dir": "/private/g0/job", "controller_evidence_sha256": "a" * 64}
+
+
+def binding():
+    return probe.attach_owner_context(legacy_binding(), _SYNTHETIC_OWNER_CONTEXT)
 
 
 def go_inspection():
@@ -92,7 +105,7 @@ class NativeStandaloneTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="sd08-ack-capture-", dir=task_tmp) as directory:
             with probe.Case(directory) as case, patch.object(probe, "verify_machine"), \
                  patch.object(probe, "current_clock", return_value=now), \
-                 patch.object(probe, "go_read", side_effect=lambda _binding, _verb, _deadline, allow_ack=False:
+                 patch.object(probe, "go_read", side_effect=lambda _binding, _verb, _deadline, allow_ack=False, **_kwargs:
                               probe.validate_go(next(go_values), value, allow_ack=allow_ack)):
                 result = asyncio.run(probe.observe(reader, case, value, intent, attempt, SESSION))
                 self.assertEqual(result["status"], "observed")
@@ -187,7 +200,7 @@ class NativeStandaloneTests(unittest.TestCase):
             calls, current_session = [], [SESSION]
             class Reader:
                 checks, frames, bytes, server_requests, last_hash = {}, 0, 0, 0, None
-                def __init__(self, *_):
+                def __init__(self, *_, **__):
                     pass
                 async def __aenter__(self):
                     return self
@@ -210,7 +223,7 @@ class NativeStandaloneTests(unittest.TestCase):
                     raise probe.ProbeError("fixture_observation_end")
             def clock():
                 return {"boot_id": BOOT, "clock_impl": probe.CLOCK_IMPL, "mono_ns": probe.continuous_ns(), "wall_ns": 0}
-            def go(_binding, verb, _deadline, allow_ack=False):
+            def go(_binding, verb, _deadline, allow_ack=False, **_kwargs):
                 value = go_inspection()
                 return value["result"] if verb == "read" else value
             with self.subTest(stage=stage), tempfile.TemporaryDirectory(prefix="session-check-", dir=task_tmp) as directory:
@@ -301,7 +314,7 @@ class NativeStandaloneTests(unittest.TestCase):
                     if reject:
                         self.reply = {"id": request["id"], "error": {"code": -32601, "message": message, "data": {"body": "CANARY_DATA"}}}
                         return
-                    results = {"initialize": {"platformOs": "macos", "platformFamily": "unix", "userAgent": "fixture", "codexHome": "fixture"},
+                    results = {"initialize": {"platformOs": "macos", "platformFamily": "unix", "userAgent": "fixture", "codexHome": str(_SYNTHETIC_HOME)},
                                "server/diagnostics": {"process": {"id": 1234}}, "remoteControl/status/read": {"status": "disabled"},
                                "thread/read": thread_result(), "turn/start": {"turn": {"id": "new_turn", "status": "inProgress"}}}
                     self.reply = {"id": request["id"], "result": results[request["method"]]}
@@ -314,7 +327,7 @@ class NativeStandaloneTests(unittest.TestCase):
                 return rpc
             def clock():
                 return {"boot_id": BOOT, "clock_impl": probe.CLOCK_IMPL, "mono_ns": probe.continuous_ns(), "wall_ns": 0}
-            def go(_binding, verb, _deadline, allow_ack=False):
+            def go(_binding, verb, _deadline, allow_ack=False, **_kwargs):
                 value = go_inspection()
                 return value["result"] if verb == "read" else value
             with self.subTest(stage=stage), tempfile.TemporaryDirectory(prefix="rpc-error-", dir=task_tmp) as directory:
@@ -385,7 +398,7 @@ class NativeStandaloneTests(unittest.TestCase):
     def test_prepare_rechecks_deadline_after_final_publication_and_cannot_be_rerun(self):
         class Reader:
             checks = {}
-            def __init__(self, *_args):
+            def __init__(self, *_, **__):
                 pass
             async def __aenter__(self):
                 return self
