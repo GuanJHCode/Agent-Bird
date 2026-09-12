@@ -970,6 +970,9 @@ async def run_case(
         "protected_hashes": None,
         "connections": [],
     }
+    initial_candidate_ok = False
+    clear_candidate_ok = False
+    disconnect_invalid = False
 
     def step(name: str, **fields: Any) -> None:
         result["steps"].append({"name": name, **fields})
@@ -994,6 +997,7 @@ async def run_case(
             candidate=asdict(runtime.candidate) if runtime.candidate is not None else None,
             tui=tui.evidence,
         )
+        initial_candidate_ok = runtime.candidate is not None
 
         status_window = RuntimeWindow.start(local_seconds=config.local_window_seconds, model_seconds=config.model_window_seconds)
         tui.command("/status")
@@ -1012,6 +1016,7 @@ async def run_case(
             candidate=asdict(runtime.candidate) if runtime.candidate is not None else None,
             tui=tui.evidence,
         )
+        clear_candidate_ok = runtime.candidate is not None
 
         status_window = RuntimeWindow.start(local_seconds=config.local_window_seconds, model_seconds=config.model_window_seconds)
         tui.command("/status")
@@ -1026,6 +1031,7 @@ async def run_case(
             disconnected = await runtime.disconnect(connection_id, leg="frontend")
             tui.read(min(2.0, check_window("disconnect", disconnect_window)))
             await asyncio.sleep(0)
+            disconnect_invalid = runtime.candidate is None and runtime.inferer.invalid_reason in {"eof", "connection_close", "unknown_event", "identity_mismatch"}
             step("disconnect", connection_id=connection_id, disconnected=disconnected, candidate=asdict(runtime.candidate) if runtime.candidate else None)
 
         quit_window = RuntimeWindow.start(local_seconds=config.local_window_seconds, model_seconds=config.model_window_seconds)
@@ -1036,7 +1042,7 @@ async def run_case(
             exit_code = tui.poll()
         step("quit", exit_code=exit_code, tui=tui.evidence)
         result["connections"] = [_connection_summary(record) for record in runtime._bridge.connection_records.values()] if runtime._bridge else []
-        result["status"] = "observed" if runtime.candidate is None else "unknown"
+        result["status"] = "observed" if initial_candidate_ok and clear_candidate_ok and disconnect_invalid else "unknown"
     except BaseException as exc:
         result["error"] = {"type": type(exc).__name__, "message": str(exc)}
     finally:
