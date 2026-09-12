@@ -9,14 +9,12 @@ from __future__ import annotations
 
 import asyncio
 import ctypes
-import ctypes.util
 import inspect
 import os
 import platform
 import socket
 import struct
 import subprocess
-import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -212,6 +210,7 @@ def peer_identity(sock: Any) -> PeerIdentity:
 
 
 AuthorizePeer = Callable[[PeerIdentity], bool | Awaitable[bool]]
+BackendPeerValidator = Callable[[PeerIdentity], bool | Awaitable[bool]]
 
 
 class ProxyServer:
@@ -224,20 +223,32 @@ class ProxyServer:
         capture_sink: CaptureSink,
         *,
         authorize_peer: AuthorizePeer | None = None,
+        authorize_backend_peer: BackendPeerValidator | None = None,
         chunk_size: int = 64 * 1024,
+        max_connections: int = 64,
+        callback_timeout: float = 5.0,
     ) -> None:
         if chunk_size <= 0:
             raise ValueError("chunk_size must be positive")
+        if max_connections <= 0:
+            raise ValueError("max_connections must be positive")
+        if callback_timeout <= 0:
+            raise ValueError("callback_timeout must be positive")
         self.frontend_path = Path(frontend_path)
         self.backend_path = Path(backend_path)
         self.capture_sink = capture_sink
         self.authorize_peer = authorize_peer
+        self.authorize_backend_peer = authorize_backend_peer
         self.chunk_size = chunk_size
+        self.max_connections = max_connections
+        self.callback_timeout = callback_timeout
         self._server: asyncio.AbstractServer | None = None
         self._accept_tasks: set[asyncio.Task[None]] = set()
         self._connection_tasks: set[asyncio.Task[None]] = set()
         self._connections: dict[str, tuple[asyncio.StreamWriter, asyncio.StreamWriter]] = {}
         self._socket_stat: os.stat_result | None = None
+        self._bind_stat: os.stat_result | None = None
+        self._parent_fd: int | None = None
         self._observation_seq = 0
         self._epoch = 0
         self._capture_failed = False
@@ -253,40 +264,70 @@ class ProxyServer:
         if self.frontend_path.exists():
             raise FileExistsError(f"frontend socket already exists: {self.frontend_path}")
         self.frontend_path.parent.mkdir(parents=True, exist_ok=True)
+        self._parent_fd = os.open(self.frontend_path.parent, os.O_RDONLY)
         listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         try:
             listener.bind(str(self.frontend_path))
+            self._bind_stat = os.stat(
+                self.frontend_path.name,
+                dir_fd=self._parent_fd,
+                follow_symlinks=False,
+            )
+            self._socket_stat = self._bind_stat
             listener.listen(socket.SOMAXCONN)
             os.chmod(self.frontend_path, 0o600)
+            self._socket_stat = os.stat(
+                self.frontend_path.name,
+                dir_fd=self._parent_fd,
+                follow_symlinks=False,
+            )
             listener.setblocking(False)
             self._server = await asyncio.start_unix_server(
                 self._accept,
                 sock=listener,
                 start_serving=False,
+                cleanup_socket=False,
             )
         except BaseException:
             listener.close()
+            self._unlink_owned_socket()
+            self._close_parent_fd()
             raise
-        self._socket_stat = self.frontend_path.lstat()
-        await self._server.start_serving()
+        try:
+            await self._server.start_serving()
+        except BaseException:
+            self._server.close()
+            await self._server.wait_closed()
+            self._server = None
+            self._unlink_owned_socket()
+            self._close_parent_fd()
+            raise
         self._closed = False
         return self
 
     async def close(self) -> None:
         self._closed = True
-        if self._server is not None:
-            self._server.close()
-            await self._server.wait_closed()
-            self._server = None
+        server = self._server
+        self._server = None
+        if server is not None:
+            server.close()
+
+        writers = [writer for pair in self._connections.values() for writer in pair]
+        if writers:
+            await _close_writers(*writers)
+
         tasks = list(self._accept_tasks | self._connection_tasks)
         for task in tasks:
             task.cancel()
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
+        if server is not None:
+            await server.wait_closed()
         self._accept_tasks.clear()
         self._connection_tasks.clear()
         self._connections.clear()
         self._unlink_owned_socket()
+        self._close_parent_fd()
 
     async def disconnect(
         self,
@@ -309,11 +350,15 @@ class ProxyServer:
         return True
 
     def _unlink_owned_socket(self) -> None:
-        if self._socket_stat is None:
+        if self._socket_stat is None or self._parent_fd is None:
             return
         try:
-            current = self.frontend_path.stat()
-        except FileNotFoundError:
+            current = os.stat(
+                self.frontend_path.name,
+                dir_fd=self._parent_fd,
+                follow_symlinks=False,
+            )
+        except (FileNotFoundError, OSError):
             return
         if (current.st_dev, current.st_ino) != (
             self._socket_stat.st_dev,
@@ -322,14 +367,24 @@ class ProxyServer:
             return
         if current.st_uid != self._socket_stat.st_uid:
             return
+        if (current.st_mode & 0o777) != (self._socket_stat.st_mode & 0o777):
+            return
         if not stat_is_socket(current):
             return
         try:
-            self.frontend_path.unlink()
-        except FileNotFoundError:
+            os.unlink(self.frontend_path.name, dir_fd=self._parent_fd)
+        except (FileNotFoundError, OSError):
             pass
 
+    def _close_parent_fd(self) -> None:
+        if self._parent_fd is not None:
+            os.close(self._parent_fd)
+            self._parent_fd = None
+
     def _accept(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        if len(self._accept_tasks) >= self.max_connections:
+            writer.close()
+            return
         task = asyncio.create_task(self._handle_client(reader, writer))
         self._accept_tasks.add(task)
         task.add_done_callback(self._accept_tasks.discard)
@@ -337,74 +392,67 @@ class ProxyServer:
     async def _handle_client(
         self, reader: asyncio.StreamReader, frontend_writer: asyncio.StreamWriter
     ) -> None:
-        frontend_socket = frontend_writer.get_extra_info("socket")
-        frontend_peer = peer_identity(frontend_socket)
-        authorized = await self._is_authorized(frontend_peer)
-        if not authorized:
-            frontend_writer.close()
-            await _wait_closed(frontend_writer)
-            return
-
+        backend_writer: asyncio.StreamWriter | None = None
+        connection_id: str | None = None
+        epoch = 0
+        pumps: list[asyncio.Task[None]] = []
         try:
-            backend_reader, backend_writer = await asyncio.open_unix_connection(
-                self.backend_path
+            frontend_socket = frontend_writer.get_extra_info("socket")
+            frontend_peer = peer_identity(frontend_socket)
+            if not await self._is_authorized(frontend_peer):
+                return
+
+            backend_reader, backend_writer = await asyncio.wait_for(
+                asyncio.open_unix_connection(self.backend_path), self.callback_timeout
             )
-        except (OSError, asyncio.CancelledError):
-            frontend_writer.close()
-            await _wait_closed(frontend_writer)
-            raise
+            backend_socket = backend_writer.get_extra_info("socket")
+            backend_peer = peer_identity(backend_socket)
+            if not backend_peer.complete or not await self._is_backend_authorized(backend_peer):
+                return
 
-        self._epoch += 1
-        epoch = self._epoch
-        connection_id = f"conn-{epoch}-{uuid.uuid4().hex[:12]}"
-        backend_socket = backend_writer.get_extra_info("socket")
-        backend_peer = peer_identity(backend_socket)
-        event = ConnectionEvent(
-            observation_seq=self._next_seq(),
-            connection_id=connection_id,
-            epoch=epoch,
-            frontend_fd=_fd(frontend_socket),
-            backend_fd=_fd(backend_socket),
-            frontend_peer=frontend_peer,
-            backend_peer=backend_peer,
-            authenticated=True,
-        )
-        try:
+            self._epoch += 1
+            epoch = self._epoch
+            connection_id = f"conn-{epoch}-{uuid.uuid4().hex[:12]}"
+            event = ConnectionEvent(
+                observation_seq=self._next_seq(),
+                connection_id=connection_id,
+                epoch=epoch,
+                frontend_fd=_fd(frontend_socket),
+                backend_fd=_fd(backend_socket),
+                frontend_peer=frontend_peer,
+                backend_peer=backend_peer,
+                authenticated=True,
+            )
             await self._emit("on_connect", event, connection_id, epoch)
-        except _CaptureFailure:
-            await _close_writers(frontend_writer, backend_writer)
-            return
+            self._connections[connection_id] = (frontend_writer, backend_writer)
 
-        self._connections[connection_id] = (frontend_writer, backend_writer)
-
-        direction_seq: dict[Direction, int] = {
-            "frontend_to_backend": 0,
-            "backend_to_frontend": 0,
-        }
-        pumps = [
-            asyncio.create_task(
-                self._pump(
-                    reader,
-                    backend_writer,
-                    connection_id,
-                    epoch,
-                    "frontend_to_backend",
-                    direction_seq,
-                )
-            ),
-            asyncio.create_task(
-                self._pump(
-                    backend_reader,
-                    frontend_writer,
-                    connection_id,
-                    epoch,
-                    "backend_to_frontend",
-                    direction_seq,
-                )
-            ),
-        ]
-        self._connection_tasks.update(pumps)
-        try:
+            direction_seq: dict[Direction, int] = {
+                "frontend_to_backend": 0,
+                "backend_to_frontend": 0,
+            }
+            pumps = [
+                asyncio.create_task(
+                    self._pump(
+                        reader,
+                        backend_writer,
+                        connection_id,
+                        epoch,
+                        "frontend_to_backend",
+                        direction_seq,
+                    )
+                ),
+                asyncio.create_task(
+                    self._pump(
+                        backend_reader,
+                        frontend_writer,
+                        connection_id,
+                        epoch,
+                        "backend_to_frontend",
+                        direction_seq,
+                    )
+                ),
+            ]
+            self._connection_tasks.update(pumps)
             done, pending = await asyncio.wait(
                 pumps, return_when=asyncio.FIRST_EXCEPTION
             )
@@ -415,14 +463,6 @@ class ProxyServer:
                 await asyncio.gather(*pending, return_exceptions=True)
             else:
                 await asyncio.gather(*pending, return_exceptions=True)
-            if any(
-                isinstance(result, Exception)
-                and not isinstance(result, (_CaptureFailure, asyncio.CancelledError))
-                for result in failures
-            ):
-                # Socket errors are represented by the final disconnect event;
-                # they do not turn into an observed data event.
-                pass
             if not self._capture_failed:
                 await self._emit(
                     "on_lifecycle",
@@ -437,11 +477,19 @@ class ProxyServer:
                     connection_id,
                     epoch,
                 )
+        except _CaptureFailure:
+            pass
         finally:
-            await _close_writers(frontend_writer, backend_writer)
-            self._connections.pop(connection_id, None)
+            for task in pumps:
+                if not task.done():
+                    task.cancel()
+            if pumps:
+                await asyncio.gather(*pumps, return_exceptions=True)
+            if connection_id is not None:
+                self._connections.pop(connection_id, None)
             for task in pumps:
                 self._connection_tasks.discard(task)
+            await _close_writers(frontend_writer, backend_writer)
 
     async def _pump(
         self,
@@ -507,13 +555,21 @@ class ProxyServer:
             return
 
     async def _is_authorized(self, peer: PeerIdentity) -> bool:
-        if peer.pid is None:
+        if not peer.complete:
             return False
         if self.authorize_peer is None:
             return False
         result = self.authorize_peer(peer)
         if inspect.isawaitable(result):
-            result = await result
+            result = await asyncio.wait_for(result, self.callback_timeout)
+        return bool(result)
+
+    async def _is_backend_authorized(self, peer: PeerIdentity) -> bool:
+        if self.authorize_backend_peer is None:
+            return True
+        result = self.authorize_backend_peer(peer)
+        if inspect.isawaitable(result):
+            result = await asyncio.wait_for(result, self.callback_timeout)
         return bool(result)
 
     async def _emit(
@@ -525,7 +581,7 @@ class ProxyServer:
         try:
             result = callback(event)
             if inspect.isawaitable(result):
-                await result
+                await asyncio.wait_for(result, self.callback_timeout)
         except Exception as exc:
             self._capture_failed = True
             gap = GapEvent(
@@ -566,10 +622,11 @@ async def _wait_closed(writer: asyncio.StreamWriter) -> None:
         pass
 
 
-async def _close_writers(*writers: asyncio.StreamWriter) -> None:
-    for writer in writers:
+async def _close_writers(*writers: asyncio.StreamWriter | None) -> None:
+    present = [writer for writer in writers if writer is not None]
+    for writer in present:
         writer.close()
-    await asyncio.gather(*(_wait_closed(writer) for writer in writers))
+    await asyncio.gather(*(_wait_closed(writer) for writer in present), return_exceptions=True)
 
 
 __all__ = [

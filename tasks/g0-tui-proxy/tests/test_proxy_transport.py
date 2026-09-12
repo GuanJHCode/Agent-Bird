@@ -11,6 +11,7 @@ import pytest
 SCRIPT_DIR = Path(__file__).parents[1] / "scripts"
 sys.path.insert(0, str(SCRIPT_DIR))
 
+import proxy_transport as transport_module  # noqa: E402
 from proxy_transport import (  # noqa: E402
     CaptureSink,
     DataEvent,
@@ -345,3 +346,102 @@ async def test_owned_socket_is_private_and_disconnect_keeps_listener(tmp_path):
         await proxy.close()
         backend.close()
         await backend.wait_closed()
+
+
+@async_test
+async def test_close_cancels_hanging_connect_capture_and_closes_client(tmp_path):
+    frontend_path, backend_path = socket_pair()
+    backend = await asyncio.start_unix_server(
+        lambda reader, writer: asyncio.sleep(30), path=str(backend_path)
+    )
+
+    class HangingSink(RecordingSink):
+        async def on_connect(self, event):
+            await asyncio.sleep(30)
+
+    proxy = ProxyServer(
+        frontend_path,
+        backend_path,
+        HangingSink(),
+        authorize_peer=lambda _: True,
+        callback_timeout=0.05,
+    )
+    await proxy.start()
+    reader, writer = await asyncio.open_unix_connection(frontend_path)
+    await asyncio.sleep(0.1)
+    await asyncio.wait_for(proxy.close(), timeout=1)
+    writer.close()
+    await writer.wait_closed()
+    assert await reader.read() == b""
+    backend.close()
+    await backend.wait_closed()
+
+
+@async_test
+async def test_incomplete_frontend_identity_never_connects_backend(tmp_path, monkeypatch):
+    frontend_path, backend_path = socket_pair()
+    recorder = BackendRecorder()
+    backend = await _serve_backend(backend_path, recorder)
+    sink = RecordingSink()
+    incomplete = PeerIdentity(
+        pid=os.getpid(), uid=os.getuid(), birth=None, executable=None,
+        pid_available=True, uid_available=True,
+        birth_available=False, executable_available=False, source="test",
+    )
+    monkeypatch.setattr(transport_module, "peer_identity", lambda _: incomplete)
+    proxy = ProxyServer(frontend_path, backend_path, sink, authorize_peer=lambda _: True)
+    await proxy.start()
+    try:
+        reader, writer = await asyncio.open_unix_connection(frontend_path)
+        writer.write(b"must-not-forward")
+        await writer.drain()
+        assert await reader.read() == b""
+        writer.close()
+        await writer.wait_closed()
+        await asyncio.sleep(0.05)
+    finally:
+        await proxy.close()
+        backend.close()
+        await backend.wait_closed()
+    assert recorder.received == []
+    assert sink.connects == []
+
+
+@async_test
+async def test_backend_identity_validator_controls_admission(tmp_path):
+    frontend_path, backend_path = socket_pair()
+    recorder = BackendRecorder()
+    backend = await _serve_backend(backend_path, recorder)
+    sink = RecordingSink()
+    proxy = ProxyServer(
+        frontend_path,
+        backend_path,
+        sink,
+        authorize_peer=lambda _: True,
+        authorize_backend_peer=lambda _: False,
+    )
+    await proxy.start()
+    try:
+        reader, writer = await asyncio.open_unix_connection(frontend_path)
+        await asyncio.sleep(0.1)
+        assert await reader.read() == b""
+        writer.close()
+        await writer.wait_closed()
+        await asyncio.sleep(0.05)
+    finally:
+        await proxy.close()
+        backend.close()
+        await backend.wait_closed()
+    assert sink.connects == []
+    assert all(body == b"" for _, body in recorder.received)
+
+
+@async_test
+async def test_external_mode_change_prevents_owned_socket_cleanup(tmp_path):
+    frontend_path, backend_path = socket_pair()
+    proxy = ProxyServer(frontend_path, backend_path, RecordingSink(), authorize_peer=lambda _: True)
+    await proxy.start()
+    os.chmod(frontend_path, 0o666)
+    await proxy.close()
+    assert frontend_path.exists()
+    frontend_path.unlink()
