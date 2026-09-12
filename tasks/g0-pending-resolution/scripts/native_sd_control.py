@@ -388,7 +388,7 @@ def require_single_tui_connection(protocol):
     for row in protocol:
         fields=row.get('fields') if type(row) is dict else None
         if (type(fields) is not dict or fields.get('unrecognized_client_name')
-                or fields.get('client_name')!='codex-tui' or fields.get('client_version')!='0.153.4'
+                or fields.get('client_name')!='codex-tui' or fields.get('client_version')!=c.CLI_VERSION
                 or fields.get('transport')!='unix_socket' or not c.integer(fields.get('connection_id'),0)):
             raise ValueError('extra or unclassified client before helper')
         connections.add(fields['connection_id'])
@@ -585,7 +585,7 @@ def run(helper_sha,audit_sha):
         record['substage']='binding'; service_binding=binding_process(before_send['service'])
         service_binding.update(socket_path=str(c.SOCKET),socket_dev=before_send['socket']['dev'],socket_ino=before_send['socket']['ino'])
         binding={'version':1,'nonce':c.NONCE,'controller_thread_id':record['root'],'controller_epoch':1,
-                 'expected_cwd':str(c.REPO),'prior_turn_id':prompt_hook['turn_id'],'native_cli_version':'0.153.4',
+                 'expected_cwd':str(c.REPO),'prior_turn_id':prompt_hook['turn_id'],'native_cli_version':c.CLI_VERSION,
                  'boot_id':boot_id,'service':service_binding,'tui':binding_process(before_send['tui']),
                  'go_binary':str(c.GO),'go_binary_sha256':c.GO_SHA,'job_dir':str(JOB),
                  'controller_evidence_sha256':c.sha(CASE/'controller-evidence.json')}

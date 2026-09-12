@@ -1,0 +1,54 @@
+test_controller_rejects_old_or_unrecognized_native_hash_before_creating_case (native_sd_control_test.ControlTests.test_controller_rejects_old_or_unrecognized_native_hash_before_creating_case) ... 
+  test_controller_rejects_old_or_unrecognized_native_hash_before_creating_case (native_sd_control_test.ControlTests.test_controller_rejects_old_or_unrecognized_native_hash_before_creating_case) (binary_sha='4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc') ... FAIL
+  test_controller_rejects_old_or_unrecognized_native_hash_before_creating_case (native_sd_control_test.ControlTests.test_controller_rejects_old_or_unrecognized_native_hash_before_creating_case) (binary_sha='b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3') ... FAIL
+test_only_exact_owned_thread_metadata_is_accepted (native_sd_collect_test.EvidenceTests.test_only_exact_owned_thread_metadata_is_accepted) ... FAIL
+test_native_log_only_keeps_fixed_protocol_fields (native_sd_collect_test.EvidenceTests.test_native_log_only_keeps_fixed_protocol_fields) ... FAIL
+
+======================================================================
+FAIL: test_controller_rejects_old_or_unrecognized_native_hash_before_creating_case (native_sd_control_test.ControlTests.test_controller_rejects_old_or_unrecognized_native_hash_before_creating_case) (binary_sha='4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/native/tasks/g0-pending-resolution/scripts/native_sd_control_test.py", line 127, in test_controller_rejects_old_or_unrecognized_native_hash_before_creating_case
+    self.assertEqual(not rejected,accepted)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: False != True
+
+======================================================================
+FAIL: test_controller_rejects_old_or_unrecognized_native_hash_before_creating_case (native_sd_control_test.ControlTests.test_controller_rejects_old_or_unrecognized_native_hash_before_creating_case) (binary_sha='b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3')
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/native/tasks/g0-pending-resolution/scripts/native_sd_control_test.py", line 127, in test_controller_rejects_old_or_unrecognized_native_hash_before_creating_case
+    self.assertEqual(not rejected,accepted)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: True != False
+
+======================================================================
+FAIL: test_only_exact_owned_thread_metadata_is_accepted (native_sd_collect_test.EvidenceTests.test_only_exact_owned_thread_metadata_is_accepted)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/native/tasks/g0-pending-resolution/scripts/native_sd_collect_test.py", line 87, in test_only_exact_owned_thread_metadata_is_accepted
+    self.assertEqual(actual,{'id':ROOT,'source':'vscode','experiment_cwd_matches':True,'cli_version':'0.154.0'})
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: None != {'id': '01a08e0b-bd0d-7400-b069-d50978939[78 chars]4.0'}
+
+======================================================================
+FAIL: test_native_log_only_keeps_fixed_protocol_fields (native_sd_collect_test.EvidenceTests.test_native_log_only_keeps_fixed_protocol_fields)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/native/tasks/g0-pending-resolution/scripts/native_sd_collect_test.py", line 142, in test_native_log_only_keeps_fixed_protocol_fields
+    self.assertEqual(got, {'transport':'unix_socket','client_name':'codex-tui','client_version':'0.154.0',
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                           'method':'thread/start','connection_id':0,'api_version':'v2'})
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: {'tra[48 chars]i', 'api_version': 'v2', 'method': 'thread/sta[19 chars]': 0} != {'tra[48 chars]i', 'client_version': '0.154.0', 'method': 'th[48 chars]'v2'}
+  {'api_version': 'v2',
+   'client_name': 'codex-tui',
++  'client_version': '0.154.0',
+   'connection_id': 0,
+   'method': 'thread/start',
+   'transport': 'unix_socket'}
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.006s
+
+FAILED (failures=4)

@@ -19,7 +19,8 @@ BASE = Path('/Users/guanjunhui/code/ai/codex-cli-orchestration-design')
 REPO = Path('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo')
 CODEX_HOME = Path('/Users/guanjunhui/.codex')
 CLI = Path('/Users/guanjunhui/.local/bin/codex')
-CLI_SHA = 'b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3'
+CLI_VERSION = '0.154.0'
+CLI_SHA = '4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc'
 GO = BASE / 'tasks/g0-retained-resume/data/g0-return-lab-retained-darwin-arm64'
 GO_SHA = 'feb9b9ad969abca5ff35db28c0f0d8d920dc0778d7aac68a90952900e989a285'
 SOCKET = CODEX_HOME / 'app-server-control/app-server-control.sock'
@@ -84,9 +85,9 @@ def require_live_processes(service,tui):
 
 def thread_fields(row, root):
     # Ordinary `codex app-server` uses SessionSource::VSCode; this is not a client identity.
-    if not valid_id(root) or not row or tuple(row) != (root,'vscode',str(REPO),'0.153.4'):
+    if not valid_id(root) or not row or tuple(row) != (root,'vscode',str(REPO),CLI_VERSION):
         raise ValueError('not the fixed native experiment thread')
-    return {'id':root,'source':'vscode','experiment_cwd_matches':True,'cli_version':'0.153.4'}
+    return {'id':root,'source':'vscode','experiment_cwd_matches':True,'cli_version':CLI_VERSION}
 
 
 def require_root_family(db,root):
@@ -127,7 +128,7 @@ def ui_status(text):
 
 def log_fields(body):
     choices = {'transport':{'unix_socket','in-process'},'client_name':{'codex-tui','g0-native-standalone'},
-               'client_version':{'0.153.4','0.1.0'},'api_version':{'v2'},
+               'client_version':{CLI_VERSION,'0.1.0'},'api_version':{'v2'},
                'method':{'initialize','thread/start','thread/read','turn/start','skills/list','hooks/list',
                          'remoteControl/status/read','server/diagnostics','thread/loaded/list'}}
     out = {}

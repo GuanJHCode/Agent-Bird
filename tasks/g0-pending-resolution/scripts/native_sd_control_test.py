@@ -99,6 +99,35 @@ class ControlTests(unittest.TestCase):
                     self.assertIn(b'invalid choice',result.stderr)
                     self.assertFalse(output.exists())
 
+    def test_controller_rejects_old_or_unrecognized_native_hash_before_creating_case(self):
+        current_sha='4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc'
+        old_sha='b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3'
+        for binary_sha,accepted in ((current_sha,True),(old_sha,False),('f'*64,False)):
+            with self.subTest(binary_sha=binary_sha),tempfile.TemporaryDirectory() as name,ExitStack() as patches:
+                base=Path(name); cli=base/'codex'; cli.write_text('fixture')
+                helper=base/'helper'; helper.write_text('fixture'); docs=base/'docs'; docs.mkdir()
+                service_attempts=[]
+                def service(): service_attempts.append(True); raise OSError('offline service boundary')
+                def sha(path): return binary_sha if path==cli.resolve() else '0'*64
+                for attr,value in (('CASE',base/'case'),('JOB',base/'job'),('DOCS',docs),('HELPER',helper),('AUDIT',helper)):
+                    patches.enter_context(patch.object(control,attr,value))
+                patches.enter_context(patch.object(control.c,'CLI',cli))
+                patches.enter_context(patch.object(control.c,'GO',helper))
+                patches.enter_context(patch.object(control.c,'GO_SHA','0'*64))
+                patches.enter_context(patch.object(control.c,'sha',side_effect=sha))
+                patches.enter_context(patch.object(control.c,'protected_files',return_value={}))
+                patches.enter_context(patch.object(control.c,'snapshot_socket',return_value={'exists':False}))
+                patches.enter_context(patch.object(control,'OwnedService',side_effect=service))
+                patches.enter_context(patch.object(control.subprocess,'run',return_value=subprocess.CompletedProcess(
+                    [],0,stdout='01a08e0b-bd0d-7400-b069-d50978939cde\n')))
+                patches.enter_context(patch('builtins.print'))
+                rejected=False
+                try: control.run('0'*64,'0'*64)
+                except ValueError: rejected=True
+                self.assertEqual(not rejected,accepted)
+                self.assertEqual(service_attempts,[True] if accepted else [])
+                self.assertEqual((base/'case').exists(),accepted)
+
     def test_discovery_waits_for_one_owned_service_hook_and_rejects_ambiguity(self):
         root='01a08e0b-bd0d-7400-b069-d50978939cdd';turn='01a08e0b-bd0d-7400-b069-d50978939cde'
         since='2026-09-11T10:00:00Z';through='2026-09-11T10:02:00Z'
@@ -348,11 +377,12 @@ class ControlTests(unittest.TestCase):
                 with self.assertRaises(ValueError): control.read_job_owner(root)
 
     def test_before_helper_refuses_extra_or_unclassified_recorded_clients(self):
-        row={'fields':{'transport':'unix_socket','client_name':'codex-tui','client_version':'0.153.4','connection_id':0}}
+        row={'fields':{'transport':'unix_socket','client_name':'codex-tui','client_version':'0.154.0','connection_id':0}}
         got=control.require_single_tui_connection([row])
         self.assertEqual(got['tui_connection_id'],0)
         for extra in ({'client_name':'codex-tui','connection_id':1},{'client_name':'g0-native-standalone','connection_id':1},
-                      {'unrecognized_client_name':True,'connection_id':1},{'connection_id':1,'method':'thread/start'}):
+                      {'unrecognized_client_name':True,'connection_id':1},{'connection_id':1,'method':'thread/start'},
+                      {'client_name':'codex-tui','client_version':'0.153.4','connection_id':0}):
             with self.assertRaises(ValueError): control.require_single_tui_connection([row,{'fields':extra}])
 
     def test_helper_rpc_error_projection_is_typed_and_drops_raw_content(self):
@@ -564,7 +594,7 @@ class ControlTests(unittest.TestCase):
             db.execute('CREATE TABLE threads(id,source,cwd,cli_version,rollout_path)')
             db.execute('CREATE TABLE thread_spawn_edges(parent_thread_id,child_thread_id,status)')
             db.execute('INSERT INTO threads VALUES(?,?,?,?,?)',
-                       (root,'vscode',str(control.c.REPO),'0.153.4',str(rollout)))
+                       (root,'vscode',str(control.c.REPO),'0.154.0',str(rollout)))
             db.commit(); db.close()
             with patch.object(control.c,'CODEX_HOME',home):
                 read=functools.partial(control.native_ready,now=dt.datetime(2026,9,11,10,2,tzinfo=dt.timezone.utc))

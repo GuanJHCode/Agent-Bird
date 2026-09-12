@@ -81,13 +81,14 @@ class EvidenceTests(unittest.TestCase):
             with self.assertRaises(ValueError): c.require_live_processes(left,right)
 
     def test_only_exact_owned_thread_metadata_is_accepted(self):
-        row = (ROOT,'vscode',str(c.REPO),'0.153.4')
+        row = (ROOT,'vscode',str(c.REPO),'0.154.0')
         try: actual=c.thread_fields(row,ROOT)
         except ValueError: actual=None
-        self.assertEqual(actual,{'id':ROOT,'source':'vscode','experiment_cwd_matches':True,'cli_version':'0.153.4'})
+        self.assertEqual(actual,{'id':ROOT,'source':'vscode','experiment_cwd_matches':True,'cli_version':'0.154.0'})
         for bad in [(OTHER,*row[1:]),(ROOT,CANARY,*row[2:]),
                     (ROOT,'vscode','/unrelated',row[3]),(ROOT,'cli',*row[2:]),
-                    (ROOT,'subAgent',*row[2:]),(ROOT,'unknown',*row[2:])]:
+                    (ROOT,'subAgent',*row[2:]),(ROOT,'unknown',*row[2:]),
+                    (ROOT,'vscode',str(c.REPO),'0.153.4')]:
             with self.assertRaises(ValueError): c.thread_fields(bad,ROOT)
 
     def test_hooks_require_exact_root_service_time_and_drop_unknown_text(self):
@@ -114,7 +115,7 @@ class EvidenceTests(unittest.TestCase):
             state = sqlite3.connect(home/'state_5.sqlite')
             state.execute('CREATE TABLE threads(id,source,cwd,cli_version)')
             state.execute('CREATE TABLE thread_spawn_edges(parent_thread_id,child_thread_id,status)')
-            state.execute('INSERT INTO threads VALUES(?,?,?,?)',(ROOT,'vscode',str(c.REPO),'0.153.4'))
+            state.execute('INSERT INTO threads VALUES(?,?,?,?)',(ROOT,'vscode',str(c.REPO),'0.154.0'))
             state.commit(); state.close()
             logs = sqlite3.connect(home/'logs_2.sqlite')
             logs.execute('CREATE TABLE logs(id INTEGER PRIMARY KEY,ts,ts_nanos,target,thread_id,process_uuid,feedback_log_body)')
@@ -136,9 +137,9 @@ class EvidenceTests(unittest.TestCase):
         self.assertIsNone(c.ui_status('Session: '+ROOT+'\nSession: '+OTHER))
 
     def test_native_log_only_keeps_fixed_protocol_fields(self):
-        body = 'request{transport="unix_socket" client_name="codex-tui" client_version="0.153.4" method="thread/start" connection_id=0 api_version="v2"} '+CANARY
+        body = 'request{transport="unix_socket" client_name="codex-tui" client_version="0.154.0" method="thread/start" connection_id=0 api_version="v2"} '+CANARY
         got = c.log_fields(body)
-        self.assertEqual(got, {'transport':'unix_socket','client_name':'codex-tui','client_version':'0.153.4',
+        self.assertEqual(got, {'transport':'unix_socket','client_name':'codex-tui','client_version':'0.154.0',
                                'method':'thread/start','connection_id':0,'api_version':'v2'})
         self.assertNotIn(CANARY,json.dumps(got))
         self.assertNotIn('client_name',c.log_fields(body.replace('codex-tui',CANARY)))
