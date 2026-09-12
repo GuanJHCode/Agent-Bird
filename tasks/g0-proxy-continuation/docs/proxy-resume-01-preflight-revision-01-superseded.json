@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "status": "superseded",
+  "case_path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-proxy-continuation/data/proxy-resume-01",
+  "superseded_preflight": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-proxy-continuation/docs/proxy-resume-01-preflight.json",
+  "replacement_preflight": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-proxy-continuation/docs/proxy-resume-01-preflight-revision-02.json",
+  "reason": "frontend socket was a temporary task path; native default frontend is /Users/guanjunhui/.codex/app-server-control/app-server-control.sock",
+  "native_started": false,
+  "model_started": false,
+  "run_started": false
+}
