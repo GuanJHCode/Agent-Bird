@@ -26,20 +26,42 @@ from proxy_transport import BackendConnection, CaptureSink, ProxyServer, _proces
 LOCAL_SECONDS = 10.0
 
 
+def _canonical_path(path: Path) -> None:
+    if not path.is_absolute() or Path(os.path.abspath(path))!=path or path.resolve()!=path:
+        raise ValueError('policy path must be absolute without aliases or symlinks')
+    if any(part.is_symlink() for part in (path,*path.parents)):
+        raise ValueError('symlink policy component is forbidden')
+
+
 def _sha(path: Path) -> str:
-    digest=hashlib.sha256()
-    with path.open('rb') as stream:
-        for chunk in iter(lambda:stream.read(1024*1024),b''): digest.update(chunk)
+    _canonical_path(path)
+    descriptor=os.open(path,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK)
+    digest=hashlib.sha256(); size=0
+    with os.fdopen(descriptor,'rb') as stream:
+        before=os.fstat(stream.fileno())
+        if not stat.S_ISREG(before.st_mode): raise ValueError('pin is not a regular file')
+        for chunk in iter(lambda:stream.read(1024*1024),b''):
+            digest.update(chunk); size+=len(chunk)
+        after=os.fstat(stream.fileno())
+    if _file_identity(before)!=_file_identity(after) or size!=before.st_size:
+        raise ValueError('pinned file changed while hashing')
     return digest.hexdigest()
 
 
-def _private_directory(path: Path) -> None:
+def _file_identity(info):
+    return tuple(getattr(info,key) for key in ('st_dev','st_ino','st_uid','st_mode','st_size','st_mtime_ns','st_ctime_ns'))
+
+
+def _private_directory(path: Path):
+    _canonical_path(path)
     info=path.lstat()
     if not stat.S_ISDIR(info.st_mode) or info.st_uid!=os.getuid() or info.st_mode & 0o077:
         raise ValueError('expected an existing owner-only real directory')
+    return (info.st_dev,info.st_ino,info.st_uid,info.st_mode)
 
 
 def _private_json(path: Path) -> tuple[dict,str]:
+    _canonical_path(path)
     descriptor=os.open(path,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK)
     with os.fdopen(descriptor,'rb') as stream:
         info=os.fstat(stream.fileno())
@@ -47,8 +69,7 @@ def _private_json(path: Path) -> tuple[dict,str]:
             raise ValueError('expected a bounded owner-only policy file')
         data=stream.read(1024*1024+1)
         after=os.fstat(stream.fileno())
-        fields=('st_dev','st_ino','st_uid','st_mode','st_size','st_mtime_ns','st_ctime_ns')
-        if any(getattr(info,key)!=getattr(after,key) for key in fields) or len(data)!=info.st_size:
+        if _file_identity(info)!=_file_identity(after) or len(data)!=info.st_size:
             raise ValueError('policy changed while reading')
     result=json.loads(data)
     if not isinstance(result,dict): raise ValueError('policy must be an object')
@@ -128,14 +149,23 @@ class ActivationService:
             if context.spec.public_socket!=self.public_socket: raise ValueError('profile public endpoint mismatch')
             if context.expected_executable.resolve()!=self.executable: raise ValueError('profile backend executable mismatch')
             for path in (context.spec.task_root,context.spec.home,context.spec.codex_home,context.spec.workspace): _private_directory(path)
+        self._directory_pins={path:_private_directory(path) for path in (self.state_dir,self.grants_dir)}
+        self._config_pins={}
+        for context in self.contexts.values():
+            for path in (context.spec.task_root,context.spec.home,context.spec.codex_home,context.spec.workspace,context.spec.backend_socket.parent):
+                self._directory_pins[path]=_private_directory(path)
+            config=context.spec.codex_home/'config.toml'
+            self._config_pins[config]=_sha(config)
         self.activation_id=uuid.uuid4().hex
         self.receipt_dir=self.state_dir/self.activation_id
         self.receipt_dir.mkdir(mode=0o700)
+        self._directory_pins[self.receipt_dir]=_private_directory(self.receipt_dir)
         self.sink=MetadataSink()
         self.backend_records=[]
         self._admissions={}
         self._profile_locks={name:asyncio.Lock() for name in self.contexts}
         self._closed=False
+        self._close_task=None
         self.proxy=ProxyServer(self.public_socket,None,self.sink,authorize_peer=self._admit,
             backend_factory=self._backend,stop_on_frontend_eof=True,callback_timeout=LOCAL_SECONDS)
 
@@ -150,9 +180,24 @@ class ActivationService:
         if any(_sha(path)!=expected for path,expected in self.file_pins.items()):
             raise ValueError('backend implementation changed')
 
+    def _check_roots(self):
+        if any(_private_directory(path)!=identity for path,identity in self._directory_pins.items()):
+            raise ValueError('activation directory identity changed')
+
+    def _check_runtime_policy(self):
+        self._check_roots()
+        if _private_json(self.isolation_path)[1]!=self.manifest['isolation_manifest_sha256']:
+            raise ValueError('isolation manifest changed after admission')
+        if any(_sha(path)!=digest for path,digest in self._config_pins.items()):
+            raise ValueError('isolated profile configuration changed')
+        self._check_pins()
+
     def _admit(self,peer):
         if not peer.complete or peer.uid!=os.getuid(): return False
         try:
+            self._check_roots()
+            current_birth,current_executable=_process_metadata(peer.pid)
+            if current_birth!=peer.birth or current_executable!=peer.executable: return False
             grant,digest=_private_json(self.grants_dir/f'{peer.pid}.json')
             profile=grant.get('profile_id')
             allowed=(grant.get('version')==1 and grant.get('pid')==peer.pid and grant.get('uid')==peer.uid
@@ -180,6 +225,7 @@ class ActivationService:
         lock=self._profile_locks[profile]
         await asyncio.wait_for(lock.acquire(),max(0,deadline-time.monotonic()))
         try:
+            self._check_runtime_policy()
             if not self._admit(frontend) or self._admissions[key]!=(profile,grant_sha):
                 raise ValueError('frontend grant changed before backend start')
             async with self._leased_backend(frontend,profile,grant_sha,context,start,deadline) as lease:
@@ -242,10 +288,13 @@ class ActivationService:
             record.update(state='connected',birth=birth,executable=str(self.executable))
             yield BackendConnection(reader,writer,lambda peer:_same_process(peer,process.pid,birth,self.executable))
         except BaseException as exc:
-            record.update(state='failed',failure_type=type(exc).__name__)
+            if isinstance(exc,asyncio.CancelledError) and self._closed:
+                record['state']='closing'
+            else:
+                record.update(state='failed',failure_type=type(exc).__name__)
             raise
         finally:
-            cleanup_deadline=time.monotonic()+LOCAL_SECONDS
+            cleanup_deadline=getattr(self,'_cleanup_deadline',time.monotonic()+LOCAL_SECONDS)
             if writer is not None: writer.close()
             if process is not None:
                 if process.returncode is None:
@@ -284,6 +333,7 @@ class ActivationService:
             elif not os.path.lexists(private_socket): record['socket_removed']=True
             if record['state']!='failed': record['state']='closed'
             record['elapsed_seconds']=time.monotonic()-start
+            self._check_roots()
             _write_json(self.receipt_dir/f'backend-{lease_id}.json',record)
 
     async def start(self,listener: socket.socket):
@@ -302,10 +352,16 @@ class ActivationService:
     def snapshot(self):
         return {'activation_id':self.activation_id,'manifest_sha256':self.manifest_sha256,
             'backend_records':self.backend_records,'transport':self.sink.snapshot(),
-            'public_socket_owned':False,'native_registration_verified':False}
+            'public_socket_owned':False,'native_registration_verified':False,'stop_signals':getattr(self,'stop_signals',[])}
 
     async def close(self):
-        if self._closed: return
-        self._closed=True
+        if self._close_task is None:
+            self._closed=True
+            self._cleanup_deadline=time.monotonic()+LOCAL_SECONDS
+            self._close_task=asyncio.create_task(self._finish_close())
+        await asyncio.shield(self._close_task)
+
+    async def _finish_close(self):
         await self.proxy.close()
+        self._check_roots()
         _write_json(self.receipt_dir/'activation.json',self.snapshot())

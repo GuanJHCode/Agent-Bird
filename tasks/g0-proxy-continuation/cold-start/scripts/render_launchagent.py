@@ -20,6 +20,9 @@ import subprocess
 import sys
 from typing import Any
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from activation_service import _private_json, _sha
+
 
 LABEL = "org.codex.orchestration.proxy"
 SOCKET_RELATIVE = Path(".codex") / "app-server-control" / "app-server-control.sock"
@@ -99,10 +102,11 @@ def _startup_info(path: Path, blocking: list[str]) -> dict[str, Any]:
     return info
 
 
-def _plist_bytes(socket_path: Path, startup_path: Path) -> bytes:
+def _plist_bytes(socket_path: Path, startup_path: Path, python_path: Path, manifest_path: Path) -> bytes:
     payload = {
         "Label": LABEL,
-        "ProgramArguments": [str(startup_path)],
+        "ProgramArguments": [str(python_path), "-I", "-B", str(startup_path), "--manifest", str(manifest_path)],
+        "EnvironmentVariables": {"PATH":"/usr/bin:/bin", "LANG":"C"},
         "Sockets": {
             "Listener": {
                 "SockPathName": str(socket_path),
@@ -133,12 +137,14 @@ def _validate_with_plutil(plist_bytes: bytes) -> dict[str, Any]:
     }
 
 
-def build_report(home: Path, repo_root: Path) -> tuple[dict[str, Any], int]:
+def build_report(home: Path, repo_root: Path, python_path: Path | None = None, manifest_path: Path | None = None) -> tuple[dict[str, Any], int]:
     home = _absolute(home)
     repo_root = _absolute(repo_root)
     socket_path = home / SOCKET_RELATIVE
     install_path = home / INSTALL_RELATIVE
     startup_path = repo_root / PROJECT_RELATIVE / "scripts" / "projectproxy_launchd_entrypoint.py"
+    python_path = _absolute(python_path or Path(sys.executable))
+    manifest_path = (manifest_path or repo_root / "tasks/g0-auth-preserving-activation/data/service-manifest.json").absolute()
     blocking: list[str] = []
     checks: dict[str, Any] = {}
 
@@ -154,7 +160,22 @@ def build_report(home: Path, repo_root: Path) -> tuple[dict[str, Any], int]:
         blocking.append("install_path_conflict")
     startup = _startup_info(startup_path, blocking)
 
-    plist_bytes = _plist_bytes(socket_path, startup_path)
+    interpreter = _mode(python_path)
+    try:
+        interpreter["sha256"] = _sha(python_path)
+        if not os.access(python_path, os.X_OK):
+            blocking.append("python_not_safe_executable")
+    except (OSError, ValueError):
+        blocking.append("python_invalid")
+    manifest_info = {"path":str(manifest_path)}
+    try:
+        manifest, digest = _private_json(manifest_path)
+        manifest_info["sha256"] = digest
+        if manifest.get("version") != 1 or manifest.get("public_socket") != str(socket_path):
+            blocking.append("manifest_endpoint_mismatch")
+    except (OSError, ValueError, TypeError):
+        blocking.append("manifest_invalid_or_missing")
+    plist_bytes = _plist_bytes(socket_path, startup_path, python_path, manifest_path)
     plist_validation = _validate_with_plutil(plist_bytes)
     if plist_validation["status"] == "failed":
         blocking.append("plist_invalid")
@@ -171,6 +192,8 @@ def build_report(home: Path, repo_root: Path) -> tuple[dict[str, Any], int]:
         "socket_path": str(socket_path),
         "socket_mode_expected": format(SOCKET_MODE, "04o"),
         "startup_script": startup,
+        "python_interpreter": interpreter,
+        "service_manifest": manifest_info,
         "checks": checks,
         "plist_validation": plist_validation,
         "plist_xml": plist_bytes.decode("utf-8"),
@@ -195,12 +218,14 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         ),
         help="repository root containing tasks/g0-proxy-continuation/ (default: this checkout)",
     )
+    parser.add_argument("--python", type=Path, default=Path(sys.executable), help="absolute Python interpreter to freeze into ProgramArguments")
+    parser.add_argument("--manifest", type=Path, help="existing private service manifest; no installation without a frozen manifest")
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(sys.argv[1:] if argv is None else argv)
-    report, returncode = build_report(args.home, args.repo_root)
+    report, returncode = build_report(args.home, args.repo_root, args.python, args.manifest)
     print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=False))
     return returncode
 

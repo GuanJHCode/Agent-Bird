@@ -1,48 +1,21 @@
 # 安装、撤销与批准边界
 
-2026-09-13 用户已批准一次注册与对称撤销，并要求保护所有现有 CLI 账号的 auth。主会话在实现、隔离测试和离线复审完成后执行；当前尚未注册。认证边界见 `../../../g0-auth-preserving-activation/plans/contract.md`。
+2026-09-13 用户已批准一次用户级按需注册及对称撤销，并要求保护所有现有 CLI 账号的 auth。批准持续有效；主会话在隔离测试、固定代码复审和冻结预检完成后执行。当前未注册；隔离的原生版本检查已通过，认证文件比对一致。认证硬边界见 [contract.md](../../../g0-auth-preserving-activation/plans/contract.md)。
 
-## 一次性用户级注册实验
+影响范围仍是当前用户的 GUI launchd domain、`~/Library/LaunchAgents/org.codex.orchestration.proxy.plist` 和默认 UDS。新测试 frontend/backend 必须使用各自登记的全新 HOME/CODEX_HOME/workspace，clean environment、隔离 guard 和无真实凭据的配置。服务默认拒绝未登记 PID/UID/birth/executable/hash/profile；任何真实账号的 HOME/auth/token/keyring 都不作为 backend 默认值。用户仍使用普通 `codex`，固定 Python `-I -B` 仅是内部服务入口。
 
-这项注册绑定当前用户的 GUI launchd domain，并接管该用户普通 Codex 新连接使用的默认 UDS；它不是某一个 project 的私有服务，也不是系统级 daemon。影响范围是当前用户的 `gui/$(id -u)` domain、`~/Library/LaunchAgents/org.codex.orchestration.proxy.plist` 和 `~/.codex/app-server-control/app-server-control.sock`。不写 `/Library`，不要求 root，不修改账号凭据、Codex binary 或全局配置。
+## 唯一事务入口
 
 批准已覆盖一次实验及对称撤销，不重复索权。授权不允许借用或修改真实账号凭据，不能跳过实现、认证隔离、静态预检和下列验收门槛。
 
-在用户批准、`projectproxy` activationFD/runtime 接线完成、未实现项经离线审查、预检报告为 ready 且默认 socket 未被占用之后，由主会话在 checkout 根目录执行：
+安装和撤销由 [activation_transaction.py](../../../g0-auth-preserving-activation/scripts/activation_transaction.py) 的 `ActivationTransaction` 执行；接口与状态定义见 [activation-transaction.md](../../../g0-auth-preserving-activation/docs/activation-transaction.md)。控制器接收完整冻结的 `ActivationSpec` 和 auth guard，顺序调用 `prepare()`、`register()`，运行受控 fixture 后调用 `revoke()`；`managed()` 提供正常退出和异常退出的对称撤销。这里不提供绕开身份检查的手工文件复制、覆盖或删除命令。
 
-```sh
-PLIST="$HOME/Library/LaunchAgents/org.codex.orchestration.proxy.plist"
-DOMAIN="gui/$(id -u)"
+`ActivationSpec.program_arguments` 使用 renderer 的完整结果：绝对且有 hash 的 Python、`-I -B`、绝对 entrypoint、`--manifest` 和冻结 manifest。解释器、脚本和依赖通过 `artifact_hashes` 固定；manifest 单独固定 hash。Listener 名称固定，plist 不含 RunAtLoad/KeepAlive。真实注册 controller/case 仍由主会话单独准备与准入，本页不是可直接执行的注册命令。
 
-install -m 600 tasks/g0-proxy-continuation/cold-start/data/org.codex.orchestration.proxy.plist "$PLIST"
-launchctl bootstrap "$DOMAIN" "$PLIST"
-```
+`prepare()` 拒绝任何既有 job、plist、public socket 或外来 lease，使用 O_EXCL 形成自身 stage/lease；发布使用 no-replace link。注册后精确核对 job label、plist path 和完整 argv。撤销前重新核对自有 plist 的 dev/ino/uid/mode/size/hash 和 job 身份；不确定则保留 UNKNOWN 与证据，不自动重试、不接管外来对象。controller 与 service 都不 unlink 或 chmod launchd-owned public socket。
 
-这两条命令的写入/注册范围分别是一个 mode `0600` 的用户 LaunchAgent 文件和一个当前用户 GUI domain 的 job。plist 没有 `RunAtLoad`、`KeepAlive`，所以注册不应在登录时自动启动业务任务；前端应当只在 activation 请求到达时拉起按需 backend。`bootstrap` 前仍需再次运行只读预检并确认 `blocking_reasons` 为空；预检发现已有 socket 或 plist 时必须停止，不得覆盖或接管。
+## 退出与验收
 
-## 对称撤销
+正常步骤是 frontend 先退出、等待自身 backend 停止及安全 receipt，再执行事务撤销。entrypoint 已离线验证 SIGTERM/SIGINT 受控清理，不能据此声称 SIGKILL 或 controller 崩溃恢复已经覆盖。auth baseline 发生变化时只报事实，不恢复凭据备份。
 
-实验完成、失败或需要回退时，在同一用户 GUI domain 执行：
-
-```sh
-PLIST="$HOME/Library/LaunchAgents/org.codex.orchestration.proxy.plist"
-DOMAIN="gui/$(id -u)"
-
-launchctl bootout "$DOMAIN" "$PLIST"
-rm -- "$PLIST"
-```
-
-`bootout` 只卸载本次注册的用户 job；随后删除同一路径的 plist。若 job 已经产生 child，前端必须先按其归属合同停止自己的 child、保留记录并完成退出对账，再进行 `bootout`。不能用撤销命令代替业务停止，也不能删除不由本实验创建的 socket、plist 或其他进程。
-
-## 验收门槛
-
-安装前仍 blocked 的项目包括：activation FD 获取、projectproxy→private native 的逐连接转发、native runtime 接线、TUI/thread 附着与 epoch、最后前端退出后的停止/记录保留、多前端归属隔离以及新旧连接竞争。完成实现后，至少要在专用 checkout 中验证：
-
-1. 冷连接命中公开默认 UDS，且真实 WebSocket handshake/initialize 在预算内完成；
-2. backend 只绑定私有 UDS，公开入口不会被 native 的路径清理器删除；
-3. 每个客户端连接拥有独立 native ConnectionId、请求/反向请求/订阅和退出边界；
-4. 最后一个前端退出会停止本次后台执行并保留可对账记录，重新打开不会自动续跑，明确继续后才创建新 segment；
-5. 两个前端互不认领对方执行，旧 transport epoch 和旧任务所有权会被拒绝；
-6. 失败或完成后用上面的 `bootout` 回退，并留存命令、退出码、进程/套接字归属和 plist hash。
-
-在这些证据齐全前，不得把这个候选描述成生产服务、默认已启用机制或完整 G0 通过。
+当前离线证据涵盖真实 inherited listening FD、独立 fake backend process/UDS、双 frontend 隔离、同 profile 串行、probe 后 grant 可复用、未知 peer 拒绝、byte-exact relay、安全摘要、EOF/TERM/INT 清理和 public inode 保留。真实 `launch_activate_socket` 调用、实际 GUI 注册/撤销、普通 Codex 的 WebSocket 初始化和 native 生命周期仍待独立单次验收。TUI/thread attachment、旧 epoch 排除、固定 owner 回传及完整 G0 的其他门槛保持各自合同，不能由本次 fakeFD 测试替代。

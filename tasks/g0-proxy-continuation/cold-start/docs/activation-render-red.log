@@ -1,0 +1,34 @@
+..F                                                                      [100%]
+=================================== FAILURES ===================================
+_ RenderLaunchAgentTests.test_report_renders_fixed_arguments_and_static_plutil_validation _
+
+self = <test_render_launchagent.RenderLaunchAgentTests testMethod=test_report_renders_fixed_arguments_and_static_plutil_validation>
+
+    def test_report_renders_fixed_arguments_and_static_plutil_validation(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            home = root / "home"
+            launch_agents = home / "Library" / "LaunchAgents"
+            launch_agents.mkdir(mode=0o700, parents=True)
+            socket_parent = home / ".codex" / "app-server-control"
+            socket_parent.mkdir(mode=0o700, parents=True)
+            repo = root / "repo"
+            startup = repo / "tasks" / "g0-proxy-continuation" / "cold-start" / "scripts" / "projectproxy_launchd_entrypoint.py"
+            startup.parent.mkdir(mode=0o755, parents=True)
+            startup.write_text("#!/bin/sh\nexit 78\n", encoding="utf-8")
+            startup.chmod(0o755)
+    
+            manifest=root/'service.json'
+            manifest.write_text(json.dumps({'version':1,'public_socket':str((socket_parent/'app-server-control.sock').resolve())}))
+            manifest.chmod(0o600)
+            result = self.run_renderer("--home", str(home), "--repo-root", str(repo),
+                "--python", str(Path(sys.executable).resolve()), "--manifest", str(manifest))
+    
+>           self.assertEqual(result.returncode, 0, result.stderr)
+E           AssertionError: 2 != 0 : usage: render_launchagent.py [-h] [--home HOME] [--repo-root REPO_ROOT]
+E           render_launchagent.py: error: unrecognized arguments: --python /Library/Frameworks/Python.framework/Versions/3.13/bin/python3.13 --manifest /var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/tmp8ycqhtgp/service.json
+
+tasks/g0-proxy-continuation/cold-start/scripts/test_render_launchagent.py:49: AssertionError
+=========================== short test summary info ============================
+FAILED tasks/g0-proxy-continuation/cold-start/scripts/test_render_launchagent.py::RenderLaunchAgentTests::test_report_renders_fixed_arguments_and_static_plutil_validation
+1 failed, 2 passed in 0.15s

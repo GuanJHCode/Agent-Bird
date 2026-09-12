@@ -1,0 +1,253 @@
+.FF                                                                      [100%]
+=================================== FAILURES ===================================
+_ test_entrypoint_runs_inherited_listener_through_real_backend_and_idle_exit[SIGTERM] _
+
+ending = 'SIGTERM'
+
+    @pytest.mark.parametrize('ending',['idle','SIGTERM','SIGINT'])
+    def test_entrypoint_runs_inherited_listener_through_real_backend_and_idle_exit(ending):
+        p=module()
+        entry=ROOT/'tasks/g0-proxy-continuation/cold-start/scripts/projectproxy_launchd_entrypoint.py'
+        assert entry.exists(), 'a working offline entrypoint must connect activation FD to backend lifecycle'
+        async def scenario():
+            with tempfile.TemporaryDirectory(prefix='g0-auth-',dir='/private/tmp') as raw, ExitStack() as roots:
+                root=Path(raw); public=root/'p.sock'; binary=transport._process_metadata(os.getpid())[1]
+                manifest,profiles,grants=policy(root,public,binary,roots)
+                listener=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM); listener.bind(str(public)); listener.listen(4)
+                child=await client(binary,public,root/'f'); register(grants,child,'a',binary)
+                environment={'PATH':'/usr/bin:/bin','HOME':str(root),'PYTHONDONTWRITEBYTECODE':'1',
+                    'PYTHONPATH':str(root/'untrusted-python-modules'),'OPENAI_API_KEY':'synthetic-must-not-inherit'}
+                launch=await asyncio.create_subprocess_exec(binary,'-I','-B',str(entry),'--manifest',str(manifest),
+                    '--listener-fd',str(listener.fileno()),pass_fds=(listener.fileno(),),env=environment,
+                    stdout=asyncio.subprocess.PIPE,stderr=asyncio.subprocess.PIPE)
+                try:
+                    connection=asyncio.create_task(ask(child,'connect'))
+                    exit_wait=asyncio.create_task(launch.wait())
+                    done,_=await asyncio.wait((connection,exit_wait),return_when=asyncio.FIRST_COMPLETED)
+                    if exit_wait in done:
+                        raise AssertionError('entrypoint exited before frontend admission: '+(await launch.stdout.read()).decode())
+                    exit_wait.cancel(); await asyncio.gather(exit_wait,return_exceptions=True)
+                    header=json.loads(await connection)
+                    assert header['codex_home']==profiles['a']['codex_home']
+                    assert base64.b64decode(await ask(child,'send',data=base64.b64encode(CANARY).decode()))==CANARY
+                    if ending=='idle':
+                        child.stdin.write(b'{"action":"close"}\n'); await child.stdin.drain(); await child.wait()
+                    else:
+                        launch.send_signal(getattr(signal,ending))
+                    stdout,stderr=await asyncio.wait_for(launch.communicate(),3)
+                    assert launch.returncode==0, stderr.decode()
+                    summary=json.loads(stdout)
+                    assert summary['backend_count']==1 and summary['all_backends_stopped'] is True
+                    artifacts=list((root/'state').glob('*/activation.json'))
+                    assert len(artifacts)==1
+                    receipt=json.loads(artifacts[0].read_text())
+                    assert all(r['process_stopped'] and r['socket_removed'] for r in receipt['backend_records'])
+                    for row in receipt['backend_records']:
+                        assert transport._process_metadata(row['pid'])[0]!=row['creation_birth']
+                    assert CANARY.decode('utf-8','replace') not in artifacts[0].read_text()
+                finally:
+                    if 'header' in locals():
+                        owned_birth,_=transport._process_metadata(header['pid'])
+                        if owned_birth:
+                            try: os.kill(header['pid'],signal.SIGTERM)
+                            except ProcessLookupError: pass
+                    for process in (child,launch):
+                        if process.returncode is None: process.terminate(); await process.wait()
+                    listener.close()
+                assert public.exists()
+>       run(scenario())
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:217: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:91: in run
+    def run(coro): return asyncio.run(asyncio.wait_for(coro,10))
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/tasks.py:507: in wait_for
+    return await fut
+           ^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    async def scenario():
+        with tempfile.TemporaryDirectory(prefix='g0-auth-',dir='/private/tmp') as raw, ExitStack() as roots:
+            root=Path(raw); public=root/'p.sock'; binary=transport._process_metadata(os.getpid())[1]
+            manifest,profiles,grants=policy(root,public,binary,roots)
+            listener=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM); listener.bind(str(public)); listener.listen(4)
+            child=await client(binary,public,root/'f'); register(grants,child,'a',binary)
+            environment={'PATH':'/usr/bin:/bin','HOME':str(root),'PYTHONDONTWRITEBYTECODE':'1',
+                'PYTHONPATH':str(root/'untrusted-python-modules'),'OPENAI_API_KEY':'synthetic-must-not-inherit'}
+            launch=await asyncio.create_subprocess_exec(binary,'-I','-B',str(entry),'--manifest',str(manifest),
+                '--listener-fd',str(listener.fileno()),pass_fds=(listener.fileno(),),env=environment,
+                stdout=asyncio.subprocess.PIPE,stderr=asyncio.subprocess.PIPE)
+            try:
+                connection=asyncio.create_task(ask(child,'connect'))
+                exit_wait=asyncio.create_task(launch.wait())
+                done,_=await asyncio.wait((connection,exit_wait),return_when=asyncio.FIRST_COMPLETED)
+                if exit_wait in done:
+                    raise AssertionError('entrypoint exited before frontend admission: '+(await launch.stdout.read()).decode())
+                exit_wait.cancel(); await asyncio.gather(exit_wait,return_exceptions=True)
+                header=json.loads(await connection)
+                assert header['codex_home']==profiles['a']['codex_home']
+                assert base64.b64decode(await ask(child,'send',data=base64.b64encode(CANARY).decode()))==CANARY
+                if ending=='idle':
+                    child.stdin.write(b'{"action":"close"}\n'); await child.stdin.drain(); await child.wait()
+                else:
+                    launch.send_signal(getattr(signal,ending))
+                stdout,stderr=await asyncio.wait_for(launch.communicate(),3)
+>               assert launch.returncode==0, stderr.decode()
+E               AssertionError: 
+E               assert -15 == 0
+E                +  where -15 = <Process 26395>.returncode
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:197: AssertionError
+_ test_entrypoint_runs_inherited_listener_through_real_backend_and_idle_exit[SIGINT] _
+
+ending = 'SIGINT'
+
+    @pytest.mark.parametrize('ending',['idle','SIGTERM','SIGINT'])
+    def test_entrypoint_runs_inherited_listener_through_real_backend_and_idle_exit(ending):
+        p=module()
+        entry=ROOT/'tasks/g0-proxy-continuation/cold-start/scripts/projectproxy_launchd_entrypoint.py'
+        assert entry.exists(), 'a working offline entrypoint must connect activation FD to backend lifecycle'
+        async def scenario():
+            with tempfile.TemporaryDirectory(prefix='g0-auth-',dir='/private/tmp') as raw, ExitStack() as roots:
+                root=Path(raw); public=root/'p.sock'; binary=transport._process_metadata(os.getpid())[1]
+                manifest,profiles,grants=policy(root,public,binary,roots)
+                listener=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM); listener.bind(str(public)); listener.listen(4)
+                child=await client(binary,public,root/'f'); register(grants,child,'a',binary)
+                environment={'PATH':'/usr/bin:/bin','HOME':str(root),'PYTHONDONTWRITEBYTECODE':'1',
+                    'PYTHONPATH':str(root/'untrusted-python-modules'),'OPENAI_API_KEY':'synthetic-must-not-inherit'}
+                launch=await asyncio.create_subprocess_exec(binary,'-I','-B',str(entry),'--manifest',str(manifest),
+                    '--listener-fd',str(listener.fileno()),pass_fds=(listener.fileno(),),env=environment,
+                    stdout=asyncio.subprocess.PIPE,stderr=asyncio.subprocess.PIPE)
+                try:
+                    connection=asyncio.create_task(ask(child,'connect'))
+                    exit_wait=asyncio.create_task(launch.wait())
+                    done,_=await asyncio.wait((connection,exit_wait),return_when=asyncio.FIRST_COMPLETED)
+                    if exit_wait in done:
+                        raise AssertionError('entrypoint exited before frontend admission: '+(await launch.stdout.read()).decode())
+                    exit_wait.cancel(); await asyncio.gather(exit_wait,return_exceptions=True)
+                    header=json.loads(await connection)
+                    assert header['codex_home']==profiles['a']['codex_home']
+                    assert base64.b64decode(await ask(child,'send',data=base64.b64encode(CANARY).decode()))==CANARY
+                    if ending=='idle':
+                        child.stdin.write(b'{"action":"close"}\n'); await child.stdin.drain(); await child.wait()
+                    else:
+                        launch.send_signal(getattr(signal,ending))
+                    stdout,stderr=await asyncio.wait_for(launch.communicate(),3)
+                    assert launch.returncode==0, stderr.decode()
+                    summary=json.loads(stdout)
+                    assert summary['backend_count']==1 and summary['all_backends_stopped'] is True
+                    artifacts=list((root/'state').glob('*/activation.json'))
+                    assert len(artifacts)==1
+                    receipt=json.loads(artifacts[0].read_text())
+                    assert all(r['process_stopped'] and r['socket_removed'] for r in receipt['backend_records'])
+                    for row in receipt['backend_records']:
+                        assert transport._process_metadata(row['pid'])[0]!=row['creation_birth']
+                    assert CANARY.decode('utf-8','replace') not in artifacts[0].read_text()
+                finally:
+                    if 'header' in locals():
+                        owned_birth,_=transport._process_metadata(header['pid'])
+                        if owned_birth:
+                            try: os.kill(header['pid'],signal.SIGTERM)
+                            except ProcessLookupError: pass
+                    for process in (child,launch):
+                        if process.returncode is None: process.terminate(); await process.wait()
+                    listener.close()
+                assert public.exists()
+>       run(scenario())
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:217: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:91: in run
+    def run(coro): return asyncio.run(asyncio.wait_for(coro,10))
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/tasks.py:507: in wait_for
+    return await fut
+           ^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    async def scenario():
+        with tempfile.TemporaryDirectory(prefix='g0-auth-',dir='/private/tmp') as raw, ExitStack() as roots:
+            root=Path(raw); public=root/'p.sock'; binary=transport._process_metadata(os.getpid())[1]
+            manifest,profiles,grants=policy(root,public,binary,roots)
+            listener=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM); listener.bind(str(public)); listener.listen(4)
+            child=await client(binary,public,root/'f'); register(grants,child,'a',binary)
+            environment={'PATH':'/usr/bin:/bin','HOME':str(root),'PYTHONDONTWRITEBYTECODE':'1',
+                'PYTHONPATH':str(root/'untrusted-python-modules'),'OPENAI_API_KEY':'synthetic-must-not-inherit'}
+            launch=await asyncio.create_subprocess_exec(binary,'-I','-B',str(entry),'--manifest',str(manifest),
+                '--listener-fd',str(listener.fileno()),pass_fds=(listener.fileno(),),env=environment,
+                stdout=asyncio.subprocess.PIPE,stderr=asyncio.subprocess.PIPE)
+            try:
+                connection=asyncio.create_task(ask(child,'connect'))
+                exit_wait=asyncio.create_task(launch.wait())
+                done,_=await asyncio.wait((connection,exit_wait),return_when=asyncio.FIRST_COMPLETED)
+                if exit_wait in done:
+                    raise AssertionError('entrypoint exited before frontend admission: '+(await launch.stdout.read()).decode())
+                exit_wait.cancel(); await asyncio.gather(exit_wait,return_exceptions=True)
+                header=json.loads(await connection)
+                assert header['codex_home']==profiles['a']['codex_home']
+                assert base64.b64decode(await ask(child,'send',data=base64.b64encode(CANARY).decode()))==CANARY
+                if ending=='idle':
+                    child.stdin.write(b'{"action":"close"}\n'); await child.stdin.drain(); await child.wait()
+                else:
+                    launch.send_signal(getattr(signal,ending))
+                stdout,stderr=await asyncio.wait_for(launch.communicate(),3)
+>               assert launch.returncode==0, stderr.decode()
+E               AssertionError: Traceback (most recent call last):
+E                   File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py", line 118, in run
+E                     return self._loop.run_until_complete(task)
+E                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+E                   File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py", line 725, in run_until_complete
+E                     return future.result()
+E                            ~~~~~~~~~~~~~^^
+E                   File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-auth-preserving-activation/tmp/activation/tasks/g0-proxy-continuation/cold-start/scripts/projectproxy_launchd_entrypoint.py", line 32, in run
+E                     await service.serve_until_idle(listener)
+E                   File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-auth-preserving-activation/tmp/activation/tasks/g0-proxy-continuation/cold-start/scripts/activation_service.py", line 299, in serve_until_idle
+E                     await asyncio.sleep(.01)
+E                   File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/tasks.py", line 718, in sleep
+E                     return await future
+E                            ^^^^^^^^^^^^
+E                 asyncio.exceptions.CancelledError
+E                 
+E                 During handling of the above exception, another exception occurred:
+E                 
+E                 Traceback (most recent call last):
+E                   File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-auth-preserving-activation/tmp/activation/tasks/g0-proxy-continuation/cold-start/scripts/projectproxy_launchd_entrypoint.py", line 58, in <module>
+E                     raise SystemExit(main())
+E                                      ~~~~^^
+E                   File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-auth-preserving-activation/tmp/activation/tasks/g0-proxy-continuation/cold-start/scripts/projectproxy_launchd_entrypoint.py", line 50, in main
+E                     return asyncio.run(run(args))
+E                            ~~~~~~~~~~~^^^^^^^^^^^
+E                   File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py", line 195, in run
+E                     return runner.run(main)
+E                            ~~~~~~~~~~^^^^^^
+E                   File "/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py", line 123, in run
+E                     raise KeyboardInterrupt()
+E                 KeyboardInterrupt
+E                 
+E               assert -2 == 0
+E                +  where -2 = <Process 26409>.returncode
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:197: AssertionError
+=========================== short test summary info ============================
+FAILED tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py::test_entrypoint_runs_inherited_listener_through_real_backend_and_idle_exit[SIGTERM]
+FAILED tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py::test_entrypoint_runs_inherited_listener_through_real_backend_and_idle_exit[SIGINT]
+2 failed, 1 passed, 6 deselected in 0.85s

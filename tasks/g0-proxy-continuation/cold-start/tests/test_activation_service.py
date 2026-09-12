@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import socket
+import signal
 import sys
 import tempfile
 
@@ -162,7 +163,8 @@ def test_real_backend_start_failure_is_stopped_and_recorded_without_public_unlin
     run(scenario())
 
 
-def test_entrypoint_runs_inherited_listener_through_real_backend_and_idle_exit():
+@pytest.mark.parametrize('ending',['idle','SIGTERM','SIGINT'])
+def test_entrypoint_runs_inherited_listener_through_real_backend_and_idle_exit(ending):
     p=module()
     entry=ROOT/'tasks/g0-proxy-continuation/cold-start/scripts/projectproxy_launchd_entrypoint.py'
     assert entry.exists(), 'a working offline entrypoint must connect activation FD to backend lifecycle'
@@ -185,17 +187,30 @@ def test_entrypoint_runs_inherited_listener_through_real_backend_and_idle_exit()
                     raise AssertionError('entrypoint exited before frontend admission: '+(await launch.stdout.read()).decode())
                 exit_wait.cancel(); await asyncio.gather(exit_wait,return_exceptions=True)
                 header=json.loads(await connection)
+                header_birth,_=transport._process_metadata(header['pid'])
                 assert header['codex_home']==profiles['a']['codex_home']
                 assert base64.b64decode(await ask(child,'send',data=base64.b64encode(CANARY).decode()))==CANARY
-                child.stdin.write(b'{"action":"close"}\n'); await child.stdin.drain(); await child.wait()
+                if ending=='idle':
+                    child.stdin.write(b'{"action":"close"}\n'); await child.stdin.drain(); await child.wait()
+                else:
+                    launch.send_signal(getattr(signal,ending))
                 stdout,stderr=await asyncio.wait_for(launch.communicate(),3)
                 assert launch.returncode==0, stderr.decode()
                 summary=json.loads(stdout)
                 assert summary['backend_count']==1 and summary['all_backends_stopped'] is True
                 artifacts=list((root/'state').glob('*/activation.json'))
                 assert len(artifacts)==1
+                receipt=json.loads(artifacts[0].read_text())
+                assert all(r['process_stopped'] and r['socket_removed'] for r in receipt['backend_records'])
+                for row in receipt['backend_records']:
+                    assert transport._process_metadata(row['pid'])[0]!=row['creation_birth']
                 assert CANARY.decode('utf-8','replace') not in artifacts[0].read_text()
             finally:
+                if 'header' in locals():
+                    owned_birth,_=transport._process_metadata(header['pid'])
+                    if owned_birth and owned_birth==header_birth:
+                        try: os.kill(header['pid'],signal.SIGTERM)
+                        except ProcessLookupError: pass
                 for process in (child,launch):
                     if process.returncode is None: process.terminate(); await process.wait()
                 listener.close()
@@ -261,3 +276,68 @@ def test_policy_reader_does_not_block_on_fifo(tmp_path,monkeypatch):
         return original(name,flags,*args)
     monkeypatch.setattr(p.os,'open',checked_open)
     with pytest.raises(ValueError): p._private_json(path)
+
+
+@pytest.mark.parametrize('changed',['profile_home','backend_dir','state_root','grants_alias','manifest','config'])
+def test_runtime_policy_or_directory_drift_refuses_backend(changed):
+    p=module()
+    async def scenario():
+        with tempfile.TemporaryDirectory(prefix='g0-auth-',dir='/private/tmp') as raw, ExitStack() as roots:
+            root=Path(raw); public=root/'p.sock'; binary=transport._process_metadata(os.getpid())[1]
+            manifest,profiles,grants=policy(root,public,binary,roots)
+            listener=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM); listener.bind(str(public)); listener.listen(4)
+            proxy=p.ActivationService.from_manifest(manifest); child=await client(binary,public,root/'f'); register(grants,child,'a',binary)
+            moved=None; target=None
+            try:
+                if changed in ('profile_home','backend_dir','state_root','grants_alias'):
+                    target={'profile_home':Path(profiles['a']['home']),'backend_dir':Path(profiles['a']['backend_socket']).parent,
+                            'state_root':root/'state','grants_alias':grants}[changed]
+                    moved=target.with_name(target.name+'-original'); target.rename(moved)
+                    if changed=='grants_alias': target.symlink_to(moved,target_is_directory=True)
+                    else: target.mkdir(mode=0o700)
+                elif changed=='manifest':
+                    (root/'isolation.json').write_text((root/'isolation.json').read_text()+' ')
+                else:
+                    with (Path(profiles['a']['codex_home'])/'config.toml').open('a') as stream: stream.write('\n# drift\n')
+                await proxy.start(socket.socket(fileno=os.dup(listener.fileno())))
+                assert await ask(child,'connect')=='closed'
+                assert not any(row.get('pid') for row in proxy.backend_records)
+            finally:
+                child.terminate(); await child.wait()
+                if target is not None:
+                    if target.is_symlink(): target.unlink()
+                    else: target.rmdir()
+                    moved.rename(target)
+                await proxy.close(); listener.close()
+    run(scenario())
+
+
+def test_shutdown_during_pre_ready_child_exec_transition_keeps_creation_ownership(monkeypatch):
+    p=module()
+    async def scenario():
+        with tempfile.TemporaryDirectory(prefix='g0-auth-',dir='/private/tmp') as raw, ExitStack() as roots:
+            root=Path(raw); public=root/'p.sock'; binary=transport._process_metadata(os.getpid())[1]
+            manifest,profiles,grants=policy(root,public,binary,roots)
+            value=json.loads(manifest.read_text()); value['backend_argv'].append('--wait-before-listen'); private_json(manifest,value)
+            listener=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM); listener.bind(str(public)); listener.listen(4)
+            proxy=p.ActivationService.from_manifest(manifest); child=await client(binary,public,root/'f'); register(grants,child,'a',binary)
+            original=p._process_metadata
+            def before_exec(pid):
+                birth,executable=original(pid)
+                return birth,executable if pid==child.pid else '/synthetic-pre-exec-image'
+            monkeypatch.setattr(p,'_process_metadata',before_exec)
+            try:
+                await proxy.start(socket.socket(fileno=os.dup(listener.fileno())))
+                connection=asyncio.create_task(ask(child,'connect'))
+                await eventually(lambda: bool(proxy.backend_records) and proxy.backend_records[0].get('creation_birth'))
+                await asyncio.wait_for(proxy.close(),3)
+                assert await connection=='closed'
+                record=proxy.backend_records[0]
+                assert record['creation_executable']=='/synthetic-pre-exec-image'
+                assert record['process_stopped'] and record['socket_removed']
+                assert original(record['pid'])[0]!=record['creation_birth']
+                assert public.exists()
+            finally:
+                if child.returncode is None: child.terminate(); await child.wait()
+                await proxy.close(); listener.close()
+    run(scenario())

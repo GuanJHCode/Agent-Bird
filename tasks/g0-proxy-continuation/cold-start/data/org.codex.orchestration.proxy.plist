@@ -2,12 +2,17 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- DRAFT ONLY: the activationFD frontend is not implemented; do not bootstrap. -->
+	<!-- REVIEW TEMPLATE: regenerate against the frozen case manifest; not installed or launchd-tested. -->
 	<key>Label</key>
 	<string>org.codex.orchestration.proxy</string>
 	<key>ProgramArguments</key>
 	<array>
+		<string>/Library/Frameworks/Python.framework/Versions/3.13/bin/python3.13</string>
+		<string>-I</string>
+		<string>-B</string>
 		<string>/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-proxy-continuation/cold-start/scripts/projectproxy_launchd_entrypoint.py</string>
+		<string>--manifest</string>
+		<string>/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-auth-preserving-activation/data/service-manifest.json</string>
 	</array>
 	<key>Sockets</key>
 	<dict>
@@ -18,6 +23,13 @@
 			<key>SockPathName</key>
 			<string>/Users/guanjunhui/.codex/app-server-control/app-server-control.sock</string>
 		</dict>
+	</dict>
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>PATH</key>
+		<string>/usr/bin:/bin</string>
+		<key>LANG</key>
+		<string>C</string>
 	</dict>
 </dict>
 </plist>

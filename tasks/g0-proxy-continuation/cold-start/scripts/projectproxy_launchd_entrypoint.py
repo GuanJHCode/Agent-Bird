@@ -9,6 +9,7 @@ import json
 import os
 from pathlib import Path
 import socket
+import signal
 import sys
 
 # -I ignores environment/module injection; import only the pinned script directory.
@@ -22,6 +23,14 @@ from launch_activation import activate_listener
 
 async def run(args):
     service=ActivationService.from_manifest(args.manifest)
+    stopped=asyncio.Event()
+    loop=asyncio.get_running_loop()
+    received=[]
+    def request_stop(signum):
+        received.append(signum); stopped.set()
+    for signum in (signal.SIGTERM,signal.SIGINT):
+        loop.add_signal_handler(signum,request_stop,signum)
+    serving=None; stop_wait=None
     try:
         if args.listener_fd is None:
             listener=activate_listener('Listener')
@@ -29,9 +38,17 @@ async def run(args):
             # Offline parent-owned FD path; the LaunchAgent argv never supplies it.
             listener=socket.socket(fileno=os.dup(args.listener_fd))
             os.set_inheritable(listener.fileno(),False)
-        await service.serve_until_idle(listener)
+        serving=asyncio.create_task(service.serve_until_idle(listener))
+        stop_wait=asyncio.create_task(stopped.wait())
+        await asyncio.wait((serving,stop_wait),return_when=asyncio.FIRST_COMPLETED)
+        if serving.done(): await serving
     finally:
-        await service.close()
+        service.stop_signals=received
+        await asyncio.wait_for(service.close(),10.0)
+        for task in (serving,stop_wait):
+            if task is not None and not task.done(): task.cancel()
+        await asyncio.gather(*(task for task in (serving,stop_wait) if task is not None),return_exceptions=True)
+        for signum in (signal.SIGTERM,signal.SIGINT): loop.remove_signal_handler(signum)
     complete=all(record.get('process_stopped') and record.get('state')!='failed'
                  and not record.get('cleanup_failure') for record in service.backend_records)
     summary={'activation_id':service.activation_id,'backend_count':len(service.backend_records),

@@ -1,0 +1,435 @@
+FF.FFF                                                                   [100%]
+=================================== FAILURES ===================================
+_____ test_runtime_policy_or_directory_drift_refuses_backend[profile_home] _____
+
+changed = 'profile_home'
+
+    @pytest.mark.parametrize('changed',['profile_home','backend_dir','state_root','grants_alias','manifest','config'])
+    def test_runtime_policy_or_directory_drift_refuses_backend(changed):
+        p=module()
+        async def scenario():
+            with tempfile.TemporaryDirectory(prefix='g0-auth-',dir='/private/tmp') as raw, ExitStack() as roots:
+                root=Path(raw); public=root/'p.sock'; binary=transport._process_metadata(os.getpid())[1]
+                manifest,profiles,grants=policy(root,public,binary,roots)
+                listener=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM); listener.bind(str(public)); listener.listen(4)
+                proxy=p.ActivationService.from_manifest(manifest); child=await client(binary,public,root/'f'); register(grants,child,'a',binary)
+                moved=None; target=None
+                try:
+                    if changed in ('profile_home','backend_dir','state_root','grants_alias'):
+                        target={'profile_home':Path(profiles['a']['home']),'backend_dir':Path(profiles['a']['backend_socket']).parent,
+                                'state_root':root/'state','grants_alias':grants}[changed]
+                        moved=target.with_name(target.name+'-original'); target.rename(moved)
+                        if changed=='grants_alias': target.symlink_to(moved,target_is_directory=True)
+                        else: target.mkdir(mode=0o700)
+                    elif changed=='manifest':
+                        (root/'isolation.json').write_text((root/'isolation.json').read_text()+' ')
+                    else:
+                        with (Path(profiles['a']['codex_home'])/'config.toml').open('a') as stream: stream.write('\n# drift\n')
+                    await proxy.start(socket.socket(fileno=os.dup(listener.fileno())))
+                    assert await ask(child,'connect')=='closed'
+                    assert not any(row.get('pid') for row in proxy.backend_records)
+                finally:
+                    child.terminate(); await child.wait()
+                    if target is not None:
+                        if target.is_symlink(): target.unlink()
+                        else: target.rmdir()
+                        moved.rename(target)
+                    await proxy.close(); listener.close()
+>       run(scenario())
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:312: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:91: in run
+    def run(coro): return asyncio.run(asyncio.wait_for(coro,10))
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/tasks.py:507: in wait_for
+    return await fut
+           ^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    async def scenario():
+        with tempfile.TemporaryDirectory(prefix='g0-auth-',dir='/private/tmp') as raw, ExitStack() as roots:
+            root=Path(raw); public=root/'p.sock'; binary=transport._process_metadata(os.getpid())[1]
+            manifest,profiles,grants=policy(root,public,binary,roots)
+            listener=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM); listener.bind(str(public)); listener.listen(4)
+            proxy=p.ActivationService.from_manifest(manifest); child=await client(binary,public,root/'f'); register(grants,child,'a',binary)
+            moved=None; target=None
+            try:
+                if changed in ('profile_home','backend_dir','state_root','grants_alias'):
+                    target={'profile_home':Path(profiles['a']['home']),'backend_dir':Path(profiles['a']['backend_socket']).parent,
+                            'state_root':root/'state','grants_alias':grants}[changed]
+                    moved=target.with_name(target.name+'-original'); target.rename(moved)
+                    if changed=='grants_alias': target.symlink_to(moved,target_is_directory=True)
+                    else: target.mkdir(mode=0o700)
+                elif changed=='manifest':
+                    (root/'isolation.json').write_text((root/'isolation.json').read_text()+' ')
+                else:
+                    with (Path(profiles['a']['codex_home'])/'config.toml').open('a') as stream: stream.write('\n# drift\n')
+                await proxy.start(socket.socket(fileno=os.dup(listener.fileno())))
+>               assert await ask(child,'connect')=='closed'
+E               assert '{"pid": 2739...sent": false}' == 'closed'
+E                 
+E                 - closed
+E                 + {"pid": 27398, "home": "/private/tmp/g0-auth-ii195_wv/h", "codex_home": "/private/tmp/g0-auth-ii195_wv/c", "cwd": "/private/tmp/g0-auth-ii195_wv/w", "auth_env_present": false}
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:303: AssertionError
+_____ test_runtime_policy_or_directory_drift_refuses_backend[backend_dir] ______
+
+    async def scenario():
+        with tempfile.TemporaryDirectory(prefix='g0-auth-',dir='/private/tmp') as raw, ExitStack() as roots:
+            root=Path(raw); public=root/'p.sock'; binary=transport._process_metadata(os.getpid())[1]
+            manifest,profiles,grants=policy(root,public,binary,roots)
+            listener=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM); listener.bind(str(public)); listener.listen(4)
+            proxy=p.ActivationService.from_manifest(manifest); child=await client(binary,public,root/'f'); register(grants,child,'a',binary)
+            moved=None; target=None
+            try:
+                if changed in ('profile_home','backend_dir','state_root','grants_alias'):
+                    target={'profile_home':Path(profiles['a']['home']),'backend_dir':Path(profiles['a']['backend_socket']).parent,
+                            'state_root':root/'state','grants_alias':grants}[changed]
+                    moved=target.with_name(target.name+'-original'); target.rename(moved)
+                    if changed=='grants_alias': target.symlink_to(moved,target_is_directory=True)
+                    else: target.mkdir(mode=0o700)
+                elif changed=='manifest':
+                    (root/'isolation.json').write_text((root/'isolation.json').read_text()+' ')
+                else:
+                    with (Path(profiles['a']['codex_home'])/'config.toml').open('a') as stream: stream.write('\n# drift\n')
+                await proxy.start(socket.socket(fileno=os.dup(listener.fileno())))
+>               assert await ask(child,'connect')=='closed'
+E               assert '{"pid": 2741...sent": false}' == 'closed'
+E                 
+E                 - closed
+E                 + {"pid": 27410, "home": "/private/tmp/g0-auth-7deftt5p/h", "codex_home": "/private/tmp/g0-auth-7deftt5p/c", "cwd": "/private/tmp/g0-auth-7deftt5p/w", "auth_env_present": false}
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:303: AssertionError
+
+During handling of the above exception, another exception occurred:
+
+changed = 'backend_dir'
+
+    @pytest.mark.parametrize('changed',['profile_home','backend_dir','state_root','grants_alias','manifest','config'])
+    def test_runtime_policy_or_directory_drift_refuses_backend(changed):
+        p=module()
+        async def scenario():
+            with tempfile.TemporaryDirectory(prefix='g0-auth-',dir='/private/tmp') as raw, ExitStack() as roots:
+                root=Path(raw); public=root/'p.sock'; binary=transport._process_metadata(os.getpid())[1]
+                manifest,profiles,grants=policy(root,public,binary,roots)
+                listener=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM); listener.bind(str(public)); listener.listen(4)
+                proxy=p.ActivationService.from_manifest(manifest); child=await client(binary,public,root/'f'); register(grants,child,'a',binary)
+                moved=None; target=None
+                try:
+                    if changed in ('profile_home','backend_dir','state_root','grants_alias'):
+                        target={'profile_home':Path(profiles['a']['home']),'backend_dir':Path(profiles['a']['backend_socket']).parent,
+                                'state_root':root/'state','grants_alias':grants}[changed]
+                        moved=target.with_name(target.name+'-original'); target.rename(moved)
+                        if changed=='grants_alias': target.symlink_to(moved,target_is_directory=True)
+                        else: target.mkdir(mode=0o700)
+                    elif changed=='manifest':
+                        (root/'isolation.json').write_text((root/'isolation.json').read_text()+' ')
+                    else:
+                        with (Path(profiles['a']['codex_home'])/'config.toml').open('a') as stream: stream.write('\n# drift\n')
+                    await proxy.start(socket.socket(fileno=os.dup(listener.fileno())))
+                    assert await ask(child,'connect')=='closed'
+                    assert not any(row.get('pid') for row in proxy.backend_records)
+                finally:
+                    child.terminate(); await child.wait()
+                    if target is not None:
+                        if target.is_symlink(): target.unlink()
+                        else: target.rmdir()
+                        moved.rename(target)
+                    await proxy.close(); listener.close()
+>       run(scenario())
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:312: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:91: in run
+    def run(coro): return asyncio.run(asyncio.wait_for(coro,10))
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/tasks.py:507: in wait_for
+    return await fut
+           ^^^^^^^^^
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:309: in scenario
+    else: target.rmdir()
+          ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/private/tmp/g0-auth-7deftt5p/backend')
+
+    def rmdir(self):
+        """
+        Remove this directory.  The directory must be empty.
+        """
+>       os.rmdir(self)
+E       OSError: [Errno 66] Directory not empty: '/private/tmp/g0-auth-7deftt5p/backend'
+
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py:755: OSError
+_____ test_runtime_policy_or_directory_drift_refuses_backend[grants_alias] _____
+
+changed = 'grants_alias'
+
+    @pytest.mark.parametrize('changed',['profile_home','backend_dir','state_root','grants_alias','manifest','config'])
+    def test_runtime_policy_or_directory_drift_refuses_backend(changed):
+        p=module()
+        async def scenario():
+            with tempfile.TemporaryDirectory(prefix='g0-auth-',dir='/private/tmp') as raw, ExitStack() as roots:
+                root=Path(raw); public=root/'p.sock'; binary=transport._process_metadata(os.getpid())[1]
+                manifest,profiles,grants=policy(root,public,binary,roots)
+                listener=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM); listener.bind(str(public)); listener.listen(4)
+                proxy=p.ActivationService.from_manifest(manifest); child=await client(binary,public,root/'f'); register(grants,child,'a',binary)
+                moved=None; target=None
+                try:
+                    if changed in ('profile_home','backend_dir','state_root','grants_alias'):
+                        target={'profile_home':Path(profiles['a']['home']),'backend_dir':Path(profiles['a']['backend_socket']).parent,
+                                'state_root':root/'state','grants_alias':grants}[changed]
+                        moved=target.with_name(target.name+'-original'); target.rename(moved)
+                        if changed=='grants_alias': target.symlink_to(moved,target_is_directory=True)
+                        else: target.mkdir(mode=0o700)
+                    elif changed=='manifest':
+                        (root/'isolation.json').write_text((root/'isolation.json').read_text()+' ')
+                    else:
+                        with (Path(profiles['a']['codex_home'])/'config.toml').open('a') as stream: stream.write('\n# drift\n')
+                    await proxy.start(socket.socket(fileno=os.dup(listener.fileno())))
+                    assert await ask(child,'connect')=='closed'
+                    assert not any(row.get('pid') for row in proxy.backend_records)
+                finally:
+                    child.terminate(); await child.wait()
+                    if target is not None:
+                        if target.is_symlink(): target.unlink()
+                        else: target.rmdir()
+                        moved.rename(target)
+                    await proxy.close(); listener.close()
+>       run(scenario())
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:312: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:91: in run
+    def run(coro): return asyncio.run(asyncio.wait_for(coro,10))
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/tasks.py:507: in wait_for
+    return await fut
+           ^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    async def scenario():
+        with tempfile.TemporaryDirectory(prefix='g0-auth-',dir='/private/tmp') as raw, ExitStack() as roots:
+            root=Path(raw); public=root/'p.sock'; binary=transport._process_metadata(os.getpid())[1]
+            manifest,profiles,grants=policy(root,public,binary,roots)
+            listener=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM); listener.bind(str(public)); listener.listen(4)
+            proxy=p.ActivationService.from_manifest(manifest); child=await client(binary,public,root/'f'); register(grants,child,'a',binary)
+            moved=None; target=None
+            try:
+                if changed in ('profile_home','backend_dir','state_root','grants_alias'):
+                    target={'profile_home':Path(profiles['a']['home']),'backend_dir':Path(profiles['a']['backend_socket']).parent,
+                            'state_root':root/'state','grants_alias':grants}[changed]
+                    moved=target.with_name(target.name+'-original'); target.rename(moved)
+                    if changed=='grants_alias': target.symlink_to(moved,target_is_directory=True)
+                    else: target.mkdir(mode=0o700)
+                elif changed=='manifest':
+                    (root/'isolation.json').write_text((root/'isolation.json').read_text()+' ')
+                else:
+                    with (Path(profiles['a']['codex_home'])/'config.toml').open('a') as stream: stream.write('\n# drift\n')
+                await proxy.start(socket.socket(fileno=os.dup(listener.fileno())))
+>               assert await ask(child,'connect')=='closed'
+E               assert '{"pid": 2742...sent": false}' == 'closed'
+E                 
+E                 - closed
+E                 + {"pid": 27426, "home": "/private/tmp/g0-auth-fl0c2qwm/h", "codex_home": "/private/tmp/g0-auth-fl0c2qwm/c", "cwd": "/private/tmp/g0-auth-fl0c2qwm/w", "auth_env_present": false}
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:303: AssertionError
+_______ test_runtime_policy_or_directory_drift_refuses_backend[manifest] _______
+
+changed = 'manifest'
+
+    @pytest.mark.parametrize('changed',['profile_home','backend_dir','state_root','grants_alias','manifest','config'])
+    def test_runtime_policy_or_directory_drift_refuses_backend(changed):
+        p=module()
+        async def scenario():
+            with tempfile.TemporaryDirectory(prefix='g0-auth-',dir='/private/tmp') as raw, ExitStack() as roots:
+                root=Path(raw); public=root/'p.sock'; binary=transport._process_metadata(os.getpid())[1]
+                manifest,profiles,grants=policy(root,public,binary,roots)
+                listener=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM); listener.bind(str(public)); listener.listen(4)
+                proxy=p.ActivationService.from_manifest(manifest); child=await client(binary,public,root/'f'); register(grants,child,'a',binary)
+                moved=None; target=None
+                try:
+                    if changed in ('profile_home','backend_dir','state_root','grants_alias'):
+                        target={'profile_home':Path(profiles['a']['home']),'backend_dir':Path(profiles['a']['backend_socket']).parent,
+                                'state_root':root/'state','grants_alias':grants}[changed]
+                        moved=target.with_name(target.name+'-original'); target.rename(moved)
+                        if changed=='grants_alias': target.symlink_to(moved,target_is_directory=True)
+                        else: target.mkdir(mode=0o700)
+                    elif changed=='manifest':
+                        (root/'isolation.json').write_text((root/'isolation.json').read_text()+' ')
+                    else:
+                        with (Path(profiles['a']['codex_home'])/'config.toml').open('a') as stream: stream.write('\n# drift\n')
+                    await proxy.start(socket.socket(fileno=os.dup(listener.fileno())))
+                    assert await ask(child,'connect')=='closed'
+                    assert not any(row.get('pid') for row in proxy.backend_records)
+                finally:
+                    child.terminate(); await child.wait()
+                    if target is not None:
+                        if target.is_symlink(): target.unlink()
+                        else: target.rmdir()
+                        moved.rename(target)
+                    await proxy.close(); listener.close()
+>       run(scenario())
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:312: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:91: in run
+    def run(coro): return asyncio.run(asyncio.wait_for(coro,10))
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/tasks.py:507: in wait_for
+    return await fut
+           ^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    async def scenario():
+        with tempfile.TemporaryDirectory(prefix='g0-auth-',dir='/private/tmp') as raw, ExitStack() as roots:
+            root=Path(raw); public=root/'p.sock'; binary=transport._process_metadata(os.getpid())[1]
+            manifest,profiles,grants=policy(root,public,binary,roots)
+            listener=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM); listener.bind(str(public)); listener.listen(4)
+            proxy=p.ActivationService.from_manifest(manifest); child=await client(binary,public,root/'f'); register(grants,child,'a',binary)
+            moved=None; target=None
+            try:
+                if changed in ('profile_home','backend_dir','state_root','grants_alias'):
+                    target={'profile_home':Path(profiles['a']['home']),'backend_dir':Path(profiles['a']['backend_socket']).parent,
+                            'state_root':root/'state','grants_alias':grants}[changed]
+                    moved=target.with_name(target.name+'-original'); target.rename(moved)
+                    if changed=='grants_alias': target.symlink_to(moved,target_is_directory=True)
+                    else: target.mkdir(mode=0o700)
+                elif changed=='manifest':
+                    (root/'isolation.json').write_text((root/'isolation.json').read_text()+' ')
+                else:
+                    with (Path(profiles['a']['codex_home'])/'config.toml').open('a') as stream: stream.write('\n# drift\n')
+                await proxy.start(socket.socket(fileno=os.dup(listener.fileno())))
+>               assert await ask(child,'connect')=='closed'
+E               assert '{"pid": 2743...sent": false}' == 'closed'
+E                 
+E                 - closed
+E                 + {"pid": 27438, "home": "/private/tmp/g0-auth-vmcxl74_/h", "codex_home": "/private/tmp/g0-auth-vmcxl74_/c", "cwd": "/private/tmp/g0-auth-vmcxl74_/w", "auth_env_present": false}
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:303: AssertionError
+________ test_runtime_policy_or_directory_drift_refuses_backend[config] ________
+
+changed = 'config'
+
+    @pytest.mark.parametrize('changed',['profile_home','backend_dir','state_root','grants_alias','manifest','config'])
+    def test_runtime_policy_or_directory_drift_refuses_backend(changed):
+        p=module()
+        async def scenario():
+            with tempfile.TemporaryDirectory(prefix='g0-auth-',dir='/private/tmp') as raw, ExitStack() as roots:
+                root=Path(raw); public=root/'p.sock'; binary=transport._process_metadata(os.getpid())[1]
+                manifest,profiles,grants=policy(root,public,binary,roots)
+                listener=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM); listener.bind(str(public)); listener.listen(4)
+                proxy=p.ActivationService.from_manifest(manifest); child=await client(binary,public,root/'f'); register(grants,child,'a',binary)
+                moved=None; target=None
+                try:
+                    if changed in ('profile_home','backend_dir','state_root','grants_alias'):
+                        target={'profile_home':Path(profiles['a']['home']),'backend_dir':Path(profiles['a']['backend_socket']).parent,
+                                'state_root':root/'state','grants_alias':grants}[changed]
+                        moved=target.with_name(target.name+'-original'); target.rename(moved)
+                        if changed=='grants_alias': target.symlink_to(moved,target_is_directory=True)
+                        else: target.mkdir(mode=0o700)
+                    elif changed=='manifest':
+                        (root/'isolation.json').write_text((root/'isolation.json').read_text()+' ')
+                    else:
+                        with (Path(profiles['a']['codex_home'])/'config.toml').open('a') as stream: stream.write('\n# drift\n')
+                    await proxy.start(socket.socket(fileno=os.dup(listener.fileno())))
+                    assert await ask(child,'connect')=='closed'
+                    assert not any(row.get('pid') for row in proxy.backend_records)
+                finally:
+                    child.terminate(); await child.wait()
+                    if target is not None:
+                        if target.is_symlink(): target.unlink()
+                        else: target.rmdir()
+                        moved.rename(target)
+                    await proxy.close(); listener.close()
+>       run(scenario())
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:312: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:91: in run
+    def run(coro): return asyncio.run(asyncio.wait_for(coro,10))
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/tasks.py:507: in wait_for
+    return await fut
+           ^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    async def scenario():
+        with tempfile.TemporaryDirectory(prefix='g0-auth-',dir='/private/tmp') as raw, ExitStack() as roots:
+            root=Path(raw); public=root/'p.sock'; binary=transport._process_metadata(os.getpid())[1]
+            manifest,profiles,grants=policy(root,public,binary,roots)
+            listener=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM); listener.bind(str(public)); listener.listen(4)
+            proxy=p.ActivationService.from_manifest(manifest); child=await client(binary,public,root/'f'); register(grants,child,'a',binary)
+            moved=None; target=None
+            try:
+                if changed in ('profile_home','backend_dir','state_root','grants_alias'):
+                    target={'profile_home':Path(profiles['a']['home']),'backend_dir':Path(profiles['a']['backend_socket']).parent,
+                            'state_root':root/'state','grants_alias':grants}[changed]
+                    moved=target.with_name(target.name+'-original'); target.rename(moved)
+                    if changed=='grants_alias': target.symlink_to(moved,target_is_directory=True)
+                    else: target.mkdir(mode=0o700)
+                elif changed=='manifest':
+                    (root/'isolation.json').write_text((root/'isolation.json').read_text()+' ')
+                else:
+                    with (Path(profiles['a']['codex_home'])/'config.toml').open('a') as stream: stream.write('\n# drift\n')
+                await proxy.start(socket.socket(fileno=os.dup(listener.fileno())))
+>               assert await ask(child,'connect')=='closed'
+E               assert '{"pid": 2745...sent": false}' == 'closed'
+E                 
+E                 - closed
+E                 + {"pid": 27450, "home": "/private/tmp/g0-auth-4f51dvfw/h", "codex_home": "/private/tmp/g0-auth-4f51dvfw/c", "cwd": "/private/tmp/g0-auth-4f51dvfw/w", "auth_env_present": false}
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:303: AssertionError
+=========================== short test summary info ============================
+FAILED tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py::test_runtime_policy_or_directory_drift_refuses_backend[profile_home]
+FAILED tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py::test_runtime_policy_or_directory_drift_refuses_backend[backend_dir]
+FAILED tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py::test_runtime_policy_or_directory_drift_refuses_backend[grants_alias]
+FAILED tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py::test_runtime_policy_or_directory_drift_refuses_backend[manifest]
+FAILED tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py::test_runtime_policy_or_directory_drift_refuses_backend[config]
+5 failed, 1 passed, 9 deselected in 0.72s

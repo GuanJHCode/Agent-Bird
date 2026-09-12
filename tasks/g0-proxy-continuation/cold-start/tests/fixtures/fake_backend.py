@@ -11,6 +11,8 @@ async def main():
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()
     loop.add_signal_handler(signal.SIGTERM, stop.set)
+    if '--wait-before-listen' in sys.argv:
+        await stop.wait(); return
     clients = set()
     async def echo(reader, writer):
         clients.add(writer)

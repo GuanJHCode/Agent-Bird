@@ -1,43 +1,25 @@
-# 冷启动 LaunchAgent 草案
+# 冷启动 activation 前端
 
-状态：**仅供审查，当前阻塞，不可安装**。
+状态：**可运行离线入口与 fake-process 验证已实现；真实 launchd/native 尚未验收。** 用户已批准一次注册及对称撤销，auth 保护仍是执行硬边界，见 [安装与撤销](install-and-revoke.md)。
 
-本目录把已确认的 launchd socket activation 机制落成一个可检查的用户级草案。机制证据见 [`idle-socket-activation-mechanism.md`](../../../g0-pending-resolution/docs/idle-socket-activation-mechanism.md) 和 [`idle-socket-activation-sources.json`](../../../g0-pending-resolution/docs/idle-socket-activation-sources.json)。原生服务不接受 inherited activation FD，因此目标拓扑必须是 `projectproxy` 前端取得 activation FD，再把每一条客户端 WebSocket-over-UDS 连接一对一转发到 native 的私有 UDS；不能把多个客户端合并到 native stdio。
+`projectproxy_launchd_entrypoint.py` 用 `launch_activate_socket("Listener")` 的真实 Darwin ABI 接收 listener，并把自有 duplicate FD 交给 proxy。原生 backend 不接受 activation FD，所以每个获准 frontend 都有独立 backend process 和 private UDS；没有共享 stdio。相同 profile 的连接串行使用其隔离 home，不同 profile 的 frontend 互不清理对方 backend。未登记 peer 不触发 backend；startup 空探针不消耗后续 WebSocket 连接的准入登记。
 
-## 草案内容
+服务保留 PID/UID/birth/executable、连接生命周期、字节计数与 SHA256，丢弃 RPC 原文和进程 stdout/stderr 原文。每次 backend 启动前重验 isolation manifest、配置/执行文件 hash，以及 profile/state/grants 目录的 dev/ino/uid/mode。frontend EOF 停止本连接 backend；TERM/INT 请求关闭服务并等待自有清理。public socket 路径、权限和 inode 的生命周期属于 launchd，服务不会清理该路径。
 
-- Label：`org.codex.orchestration.proxy`
-- 安装草案路径：`~/Library/LaunchAgents/org.codex.orchestration.proxy.plist`
-- launchd 按需监听：`~/.codex/app-server-control/app-server-control.sock`，请求的 `SockPathMode` 是 `0600`
-- `ProgramArguments` 固定指向主仓稳定路径 `tasks/g0-proxy-continuation/cold-start/scripts/projectproxy_launchd_entrypoint.py`
-- plist 不含 `RunAtLoad` 或 `KeepAlive`。业务任务不能随登录自动续跑；打开会话也不能自动恢复任务。
+[实现和测试收据](activation-implementation.md) 区分 fake C ABI + 真实 FD 与真实 launchd 激活；后者没有执行。测试只使用新短路径隔离 HOME 和 Python fixture，无真实 Codex、model、auth 或用户配置读写。已有通用 attachment 与完整 G0 不因此变为通过。
 
-可审查的 XML 草案是 [`org.codex.orchestration.proxy.plist`](../data/org.codex.orchestration.proxy.plist)。其中引用的主仓稳定路径启动脚本尚不存在，这是刻意保留的阻塞信号，不是可安装成品。不能用占位脚本掩盖 activation FD、private native runtime、停止和归属语义尚未实现的事实。
+## 只读 renderer
 
-## 只读预检与渲染
+`render_launchagent.py` 读取现有路径和文件，向 stdout 输出 JSON/plist，不写 LaunchAgents、不注册、不启动 backend。可指定 `--python ABSOLUTE_PYTHON --manifest ABSOLUTE_PRIVATE_MANIFEST --repo-root ABSOLUTE_REPO --home ABSOLUTE_USER_HOME`。它冻结解释器、入口和 manifest hash，并生成以下内部 argv：
 
-[`render_launchagent.py`](../scripts/render_launchagent.py) 只读取 `stat` 元数据和启动脚本字节，向 stdout 输出 JSON 报告；它不会创建目录或 plist，不会写 `~/Library/LaunchAgents`，不会执行 `launchctl`，也不会启动 proxy/native。报告包含：
-
-- 安装路径、默认 socket 路径和绝对启动脚本路径；
-- socket 已存在时的路径冲突，以及已有 socket 的 mode；
-- socket 父目录（要求当前用户所有且 owner-only）和 `LaunchAgents` 目录（拒绝 group/world writable）的权限；
-- 启动脚本是否为普通文件、owner 是否可执行、group/other 是否可写及 SHA-256；
-- 由同一份绝对路径生成的 plist XML 和 `/usr/bin/plutil -lint -` 静态校验结果。
-
-在主仓根目录运行以下命令只会产生 stdout 报告；退出码 `0` 代表静态条件满足，退出码 `2` 代表阻塞。报告的 `status` 即使为 `preflight_only` 也不表示安装就绪；`installation_ready` 恒为 `false`，均不表示已经注册服务：
-
-```sh
-python3 tasks/g0-proxy-continuation/cold-start/scripts/render_launchagent.py --repo-root "$PWD" --home "$HOME"
+```text
+[absolute_python, "-I", "-B", absolute_entrypoint, "--manifest", absolute_manifest]
 ```
 
-已有默认 socket、安装路径已存在、启动脚本缺失/不可执行/可被 group 或 other 写入、目录缺失/不是实际目录/是 symlink、权限不合要求或 `plutil` 校验失败时，报告会列出 `blocking_reasons`。预检拒绝覆盖现有 socket 和 plist。
+plist 固定 safe `PATH=/usr/bin:/bin`、`LANG=C`；entrypoint 清空继承环境，backend 环境来自 isolation guard。Listener 为默认 UDS、mode 0600，无 RunAtLoad/KeepAlive。解释器不依赖 GUI PATH 的 python3 解析。解释器/依赖/manifest 的正式准入仍由事务 preflight 做完整 hash 核对。
 
-## 当前明确阻塞
+现有 socket/plist、目录不安全、入口缺失/不安全、manifest 缺失/不私有/endpoint 不一致时 renderer 拒绝。`installation_ready` 恒为 false，静态通过不是实际注册资格。[静态 XML](../data/org.codex.orchestration.proxy.plist) 只是路径模板，正式单次 case 必须用该 case 冻结 manifest 重新生成，并通过 `ActivationTransaction` 发布，不能直接安装模板。
 
-1. `projectproxy` 尚未实现：没有从 launchd 取得 activation FD、接受客户端、保持每客户端独立 backend 连接并转发 WebSocket 握手/字节的代码。
-2. native 继承 socket 的 runtime 接线尚未实现。native 必须绑定私有 backend UDS，不能直接把 `--listen unix://` 指向 launchd 公开入口。
-3. 当前没有证明 TUI 到 thread 的附着、transport epoch 失效、配置连续性、权限/问题请求路由和多前端归属隔离。
-4. 最后一个前端退出后的停止边界尚未实现和验收。目标行为是停止该用户本次后台执行、保留记录和可对账进度；不因 LaunchAgent 仍加载而继续执行，也不在重新打开时自动恢复。
-5. 多前端必须按前端/用户会话建立归属隔离；不能让一个前端退出清理另一个前端的执行或复用旧 transport epoch。
+## 剩余验收
 
-因此，本草案不能证明冷启动候选已生产可用，也不能替代 G0 的附着、退出停止和交付对账验收。
+主会话还需交叉核对 transaction、auth guard、service 和 pre-exec peer gate，再冻结实际 case。之后单次验证真实 GUI socket activation、普通无 prompt/model 的 Codex frontend、private native 的身份/生命周期、auth 前后保护值，以及精确撤销。所有 native/launchctl 实跑由主会话另行准入；当前代码实现不代替这些事实证据。

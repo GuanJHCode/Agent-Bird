@@ -40,7 +40,11 @@ class RenderLaunchAgentTests(unittest.TestCase):
             startup.write_text("#!/bin/sh\nexit 78\n", encoding="utf-8")
             startup.chmod(0o755)
 
-            result = self.run_renderer("--home", str(home), "--repo-root", str(repo))
+            manifest=root/'service.json'
+            manifest.write_text(json.dumps({'version':1,'public_socket':str((socket_parent/'app-server-control.sock').resolve())}))
+            manifest.chmod(0o600)
+            result = self.run_renderer("--home", str(home), "--repo-root", str(repo),
+                "--python", str(Path(sys.executable).resolve()), "--manifest", str(manifest.resolve()))
 
             self.assertEqual(result.returncode, 0, result.stderr)
             report = json.loads(result.stdout)
@@ -60,7 +64,10 @@ class RenderLaunchAgentTests(unittest.TestCase):
             )
             payload = plistlib.loads(report["plist_xml"].encode("utf-8"))
             self.assertEqual(payload["Label"], "org.codex.orchestration.proxy")
-            self.assertEqual(payload["ProgramArguments"], [str(startup.resolve())])
+            self.assertEqual(payload["ProgramArguments"], [str(Path(sys.executable).resolve()), "-I", "-B", str(startup.resolve()), "--manifest", str(manifest.resolve())])
+            self.assertEqual(payload["EnvironmentVariables"], {"PATH":"/usr/bin:/bin","LANG":"C"})
+            self.assertEqual(report["service_manifest"]["sha256"],hashlib.sha256(manifest.read_bytes()).hexdigest())
+            self.assertEqual(report["python_interpreter"]["sha256"],hashlib.sha256(Path(sys.executable).resolve().read_bytes()).hexdigest())
             self.assertNotIn("RunAtLoad", payload)
             self.assertNotIn("KeepAlive", payload)
             self.assertEqual(payload["Sockets"]["Listener"]["SockPathName"], str((socket_parent / "app-server-control.sock").resolve()))
