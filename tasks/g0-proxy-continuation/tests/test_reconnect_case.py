@@ -14,6 +14,10 @@ from proxy_native_runtime import AttachmentCandidate  # noqa: E402
 import proxy_native_runtime as runtime_module  # noqa: E402
 from reconnect_case import (  # noqa: E402
     classify_reconnect,
+    _handshake_state,
+    _terminal_event_count,
+    validate_live_candidate,
+    validate_quit_boundary,
     run_reconnect_case,
 )
 from resume_case import ResumeCaseSpec, prepare_resume_case  # noqa: E402
@@ -76,6 +80,18 @@ def test_classify_reconnect_requires_new_epoch_and_fresh_resume():
         old_epoch=1,
         old_epoch_invalid=True,
         new_epoch=2,
+        handshake=False,
+        candidate=None,
+        status_exact=False,
+        expected_thread_id=THREAD_ID,
+        model_turns=0,
+        trace_complete=True,
+        identities_ok=True,
+    ) == "unknown"
+    assert classify_reconnect(
+        old_epoch=1,
+        old_epoch_invalid=True,
+        new_epoch=2,
         handshake=True,
         candidate=None,
         status_exact=False,
@@ -84,6 +100,18 @@ def test_classify_reconnect_requires_new_epoch_and_fresh_resume():
         trace_complete=True,
         identities_ok=True,
     ) == "transport_reconnected"
+    assert classify_reconnect(
+        old_epoch=1,
+        old_epoch_invalid=True,
+        new_epoch=2,
+        handshake=True,
+        candidate=None,
+        status_exact=False,
+        expected_thread_id=THREAD_ID,
+        model_turns=0,
+        trace_complete=True,
+        identities_ok=False,
+    ) == "unknown"
     assert classify_reconnect(
         old_epoch=1,
         old_epoch_invalid=True,
@@ -111,6 +139,54 @@ def test_classify_reconnect_does_not_accept_old_candidate_or_unknown_evidence():
         trace_complete=True,
         identities_ok=True,
     ) == "unknown"
+
+
+def test_handshake_pairs_request_ids_and_orders_fresh_skills_after_resume():
+    rows = [
+        {"event": "websocket_upgrade", "conn_epoch": 2, "direction": "client"},
+        {"event": "websocket_upgrade", "conn_epoch": 2, "direction": "server"},
+        {"event": "rpc", "conn_epoch": 2, "direction": "client", "method": "initialize", "request_id": 10},
+        {"event": "rpc_response", "conn_epoch": 2, "direction": "server", "method": "initialize", "request_id": 10, "ok": True},
+        {"event": "rpc", "conn_epoch": 2, "direction": "client", "method": "initialized", "request_id": None},
+        {"event": "rpc", "conn_epoch": 2, "direction": "client", "method": "thread/resume", "request_id": 20, "params": {"threadId": THREAD_ID}},
+        {"event": "rpc_response", "conn_epoch": 2, "direction": "server", "method": "thread/resume", "request_id": 20, "ok": True, "thread": {"id": THREAD_ID}},
+        {"event": "rpc", "conn_epoch": 2, "direction": "client", "method": "skills/list", "request_id": 30},
+        {"event": "rpc_response", "conn_epoch": 2, "direction": "server", "method": "skills/list", "request_id": 30, "ok": True},
+    ]
+    assert _handshake_state(rows, 2, THREAD_ID)["valid"] is True
+    rows[-1] = {**rows[-1], "request_id": 31}
+    assert _handshake_state(rows, 2, THREAD_ID)["valid"] is False
+    rows[-1] = {**rows[-1], "request_id": 30}
+    rows[7], rows[5] = rows[5], rows[7]
+    assert _handshake_state(rows, 2, THREAD_ID)["valid"] is False
+
+
+def test_live_candidate_gate_rejects_stale_status_snapshot():
+    bridge = SimpleNamespace(epoch_invalid={}, connection_records={"new": record("new", 2)}, identity_errors={})
+    tui = SimpleNamespace(poll=lambda: None)
+    runtime = SimpleNamespace(candidate=AttachmentCandidate(1, THREAD_ID, "old"))
+    with pytest.raises(Exception, match="candidate"):
+        validate_live_candidate(runtime, bridge, tui, THREAD_ID, 2)
+
+
+def test_quit_boundary_requires_zero_before_and_new_eof_after_quit():
+    with pytest.raises(Exception, match="before quit"):
+        validate_quit_boundary(
+            trace=[{"event": "eof", "conn_epoch": 2}], epoch=2,
+            count_before_quit=1, count_after_quit=1,
+            quit_sent=True, exit_code=0, epoch_reason="eof",
+        )
+    with pytest.raises(Exception, match="after quit"):
+        validate_quit_boundary(
+            trace=[], epoch=2,
+            count_before_quit=0, count_after_quit=0,
+            quit_sent=True, exit_code=0, epoch_reason="eof",
+        )
+    assert validate_quit_boundary(
+        trace=[{"event": "eof", "conn_epoch": 2}], epoch=2,
+        count_before_quit=0, count_after_quit=1,
+        quit_sent=True, exit_code=0, epoch_reason="eof",
+    )["status"] == "observed"
     assert classify_reconnect(
         old_epoch=1,
         old_epoch_invalid=True,
@@ -157,13 +233,13 @@ def test_run_reconnect_case_disconnects_once_and_qualifies_new_epoch(tmp_path):
                     {"event": "connection_open", "conn_epoch": 2, "local_seq": 1},
                     {"event": "websocket_upgrade", "conn_epoch": 2, "direction": "client"},
                     {"event": "websocket_upgrade", "conn_epoch": 2, "direction": "server"},
-                    {"event": "rpc", "conn_epoch": 2, "direction": "client", "method": "initialize"},
-                    {"event": "rpc_response", "conn_epoch": 2, "direction": "server", "method": "initialize", "ok": True},
-                    {"event": "rpc", "conn_epoch": 2, "direction": "client", "method": "initialized"},
-                    {"event": "rpc", "conn_epoch": 2, "direction": "client", "method": "thread/resume"},
-                    {"event": "rpc_response", "conn_epoch": 2, "direction": "server", "method": "thread/resume", "ok": True, "thread": {"id": THREAD_ID}},
-                    {"event": "rpc", "conn_epoch": 2, "direction": "client", "method": "skills/list"},
-                    {"event": "rpc_response", "conn_epoch": 2, "direction": "server", "method": "skills/list", "ok": True},
+                        {"event": "rpc", "conn_epoch": 2, "direction": "client", "method": "initialize", "request_id": 10},
+                        {"event": "rpc_response", "conn_epoch": 2, "direction": "server", "method": "initialize", "request_id": 10, "ok": True},
+                        {"event": "rpc", "conn_epoch": 2, "direction": "client", "method": "initialized", "request_id": None},
+                        {"event": "rpc", "conn_epoch": 2, "direction": "client", "method": "thread/resume", "request_id": 20, "params": {"threadId": THREAD_ID}},
+                        {"event": "rpc_response", "conn_epoch": 2, "direction": "server", "method": "thread/resume", "request_id": 20, "ok": True, "thread": {"id": THREAD_ID}},
+                        {"event": "rpc", "conn_epoch": 2, "direction": "client", "method": "skills/list", "request_id": 30},
+                        {"event": "rpc_response", "conn_epoch": 2, "direction": "server", "method": "skills/list", "request_id": 30, "ok": True},
                 ])
                 fake_runtime.candidate = new_candidate
 

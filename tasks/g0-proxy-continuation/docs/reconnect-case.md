@@ -32,9 +32,18 @@ The case sequence is fixed:
    `initialized`, `thread/resume(P)` response, and fresh `skills/list`
    request/response. The candidate must be from the new epoch and have ID `P`.
 5. Run `/status` only after the new candidate exists. Its result must contain
-   exactly `P`; status is corroboration and never candidate evidence.
+   exactly `P`; then read the live candidate from the runtime again and verify
+   its ID, epoch, peer identities, epoch validity, and TUI liveness. Status is
+   corroboration and never candidate evidence.
 6. Request normal `/quit`, wait for exit, capture the complete trace, and run
    owned cleanup in `finally` even when qualification fails.
+
+The handshake proof pairs every response with the request ID that opened it and
+checks order: `initialize` response, `initialized`, `thread/resume(P)` response,
+then fresh `skills/list` request/response. A new epoch with missing handshake or
+bad identity is `unknown`, not transport success. Before `/quit`, the selected
+new epoch must have zero `eof`/`connection_close` rows; only a new such event
+after the quit request together with exit code 0 can satisfy normal cleanup.
 
 The native implementation may retry reconnect for a longer internal budget;
 this case does not extend its local 10 second probe. The cleanup wait is a

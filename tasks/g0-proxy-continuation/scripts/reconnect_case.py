@@ -74,31 +74,159 @@ def _identities_ok(bridge: Any, epoch: int | None) -> bool:
     return _complete_peer(record.frontend_peer) and _complete_peer(record.backend_peer)
 
 
-def _handshake_state(trace: list[Mapping[str, Any]], epoch: int | None) -> dict[str, bool]:
+def _handshake_state(
+    trace: list[Mapping[str, Any]],
+    epoch: int | None,
+    expected_thread_id: str,
+) -> dict[str, Any]:
     rows = [row for row in trace if row.get("conn_epoch") == epoch]
-
-    def has(**wanted: Any) -> bool:
-        return any(all(row.get(key) == value for key, value in wanted.items()) for row in rows)
-
-    return {
-        "initialize_request": has(event="rpc", direction="client", method="initialize"),
-        "initialize_response": has(
-            event="rpc_response", direction="server", method="initialize", ok=True
+    state: dict[str, Any] = {
+        "upgrade_client": any(
+            row.get("event") == "websocket_upgrade" and row.get("direction") == "client"
+            for row in rows
         ),
-        "initialized": has(event="rpc", direction="client", method="initialized"),
-        "resume_request": has(event="rpc", direction="client", method="thread/resume"),
-        "resume_response": has(
-            event="rpc_response", direction="server", method="thread/resume", ok=True
+        "upgrade_server": any(
+            row.get("event") == "websocket_upgrade" and row.get("direction") == "server"
+            for row in rows
         ),
-        "fresh_skills_request": has(event="rpc", direction="client", method="skills/list"),
-        "fresh_skills_response": has(
-            event="rpc_response", direction="server", method="skills/list", ok=True
-        ),
+        "initialize_request": False,
+        "initialize_response": False,
+        "initialized": False,
+        "resume_request": False,
+        "resume_response": False,
+        "fresh_skills_request": False,
+        "fresh_skills_response": False,
+        "initialize_request_id": None,
+        "resume_request_id": None,
+        "skills_request_id": None,
+        "valid": False,
     }
+    initialize_request = next(
+        (
+            (index, row.get("request_id"))
+            for index, row in enumerate(rows)
+            if row.get("event") == "rpc"
+            and row.get("direction") == "client"
+            and row.get("method") == "initialize"
+            and row.get("request_id") is not None
+        ),
+        None,
+    )
+    if initialize_request is None:
+        return state
+    initialize_index, initialize_id = initialize_request
+    initialize_response = next(
+        (
+            (index, row)
+            for index, row in enumerate(rows)
+            if index > initialize_index
+            and row.get("event") == "rpc_response"
+            and row.get("direction") == "server"
+            and row.get("method") == "initialize"
+            and row.get("request_id") == initialize_id
+            and row.get("ok") is True
+        ),
+        None,
+    )
+    if initialize_response is None:
+        return state
+    initialize_response_index, _ = initialize_response
+    initialized_index = next(
+        (
+            index
+            for index, row in enumerate(rows)
+            if index > initialize_response_index
+            and row.get("event") == "rpc"
+            and row.get("direction") == "client"
+            and row.get("method") == "initialized"
+        ),
+        None,
+    )
+    if initialized_index is None:
+        return state
+    resume_request = next(
+        (
+            (index, row.get("request_id"))
+            for index, row in enumerate(rows)
+            if index > initialized_index
+            and row.get("event") == "rpc"
+            and row.get("direction") == "client"
+            and row.get("method") == "thread/resume"
+            and row.get("request_id") is not None
+            and isinstance(row.get("params"), Mapping)
+            and row["params"].get("threadId") == expected_thread_id
+        ),
+        None,
+    )
+    if resume_request is None:
+        return state
+    resume_index, resume_id = resume_request
+    resume_response = next(
+        (
+            (index, row)
+            for index, row in enumerate(rows)
+            if index > resume_index
+            and row.get("event") == "rpc_response"
+            and row.get("direction") == "server"
+            and row.get("method") == "thread/resume"
+            and row.get("request_id") == resume_id
+            and row.get("ok") is True
+            and isinstance(row.get("thread"), Mapping)
+            and row["thread"].get("id") == expected_thread_id
+        ),
+        None,
+    )
+    if resume_response is None:
+        return state
+    resume_response_index, _ = resume_response
+    skills_request = next(
+        (
+            (index, row.get("request_id"))
+            for index, row in enumerate(rows)
+            if index > resume_response_index
+            and row.get("event") == "rpc"
+            and row.get("direction") == "client"
+            and row.get("method") == "skills/list"
+            and row.get("request_id") is not None
+        ),
+        None,
+    )
+    if skills_request is None:
+        return state
+    skills_index, skills_id = skills_request
+    skills_response = any(
+        index > skills_index
+        and row.get("event") == "rpc_response"
+        and row.get("direction") == "server"
+        and row.get("method") == "skills/list"
+        and row.get("request_id") == skills_id
+        and row.get("ok") is True
+        for index, row in enumerate(rows)
+    )
+    state.update(
+        {
+            "initialize_request": True,
+            "initialize_response": True,
+            "initialized": True,
+            "resume_request": True,
+            "resume_response": True,
+            "fresh_skills_request": True,
+            "fresh_skills_response": skills_response,
+            "initialize_request_id": initialize_id,
+            "resume_request_id": resume_id,
+            "skills_request_id": skills_id,
+        }
+    )
+    state["valid"] = bool(
+        state["upgrade_client"]
+        and state["upgrade_server"]
+        and state["fresh_skills_response"]
+    )
+    return state
 
 
 def _handshake_complete(state: Mapping[str, bool]) -> bool:
-    return all(state.values())
+    return state.get("valid") is True
 
 
 def _turn_zero(trace: list[Mapping[str, Any]], model_turns: Any) -> bool:
@@ -133,7 +261,7 @@ def classify_reconnect(
     if new_epoch == old_epoch:
         return "unknown"
     if not handshake or not identities_ok:
-        return "transport_reconnected"
+        return "unknown"
     if candidate is None or candidate.connection_epoch != new_epoch:
         return "transport_reconnected"
     if candidate.thread_id != expected_thread_id or not status_exact:
@@ -161,28 +289,57 @@ def _rpc_count_after(trace: list[Mapping[str, Any]], *, epoch: int, start: int) 
     )
 
 
-def _validate_reconnect_terminal(
+def _terminal_event_count(trace: list[Mapping[str, Any]], epoch: int) -> int:
+    return sum(
+        1
+        for row in trace
+        if row.get("conn_epoch") == epoch
+        and row.get("event") in {"eof", "connection_close"}
+    )
+
+
+def validate_live_candidate(
+    runtime: Any,
+    bridge: Any,
+    tui: Any,
+    expected_thread_id: str,
+    expected_epoch: int,
+) -> Any:
+    candidate = runtime.candidate
+    if candidate is None or candidate.thread_id != expected_thread_id:
+        raise RuntimeInvariantError("live reconnect candidate identity mismatch")
+    if candidate.connection_epoch != expected_epoch:
+        raise RuntimeInvariantError("live reconnect candidate epoch mismatch")
+    if bridge.epoch_invalid.get(expected_epoch) is not None:
+        raise RuntimeInvariantError("live reconnect candidate epoch is invalid")
+    if not _identities_ok(bridge, expected_epoch):
+        raise RuntimeInvariantError("live reconnect candidate peer identity is not proven")
+    if tui.poll() is not None:
+        raise RuntimeInvariantError("TUI exited before reconnect terminal gate")
+    return candidate
+
+
+def validate_quit_boundary(
     *,
+    trace: list[Mapping[str, Any]],
+    epoch: int,
+    count_before_quit: int,
+    count_after_quit: int,
     quit_sent: bool,
     exit_code: int | None,
     epoch_reason: str | None,
-    cleanup_result: Mapping[str, Any],
 ) -> dict[str, Any]:
-    if not quit_sent:
-        raise RuntimeInvariantError("reconnect normal quit was not requested")
-    if exit_code != 0:
-        raise RuntimeInvariantError("reconnect exit code is not zero")
-    if epoch_reason not in {"eof", "connection_close", "disconnect"}:
-        raise RuntimeInvariantError("reconnect epoch termination reason is unknown")
-    if cleanup_result.get("failed_pids") or cleanup_result.get("failed_endpoints"):
-        raise RuntimeInvariantError("reconnect owned cleanup was incomplete")
-    return {
-        "status": "observed",
-        "quit_sent": True,
-        "exit_code": exit_code,
-        "epoch_reason": epoch_reason,
-        "cleanup": dict(cleanup_result),
-    }
+    if count_before_quit != 0:
+        raise RuntimeInvariantError("terminal event existed before quit")
+    if count_after_quit <= count_before_quit:
+        raise RuntimeInvariantError("no new terminal event after quit")
+    if not quit_sent or exit_code != 0:
+        raise RuntimeInvariantError("normal quit did not exit successfully")
+    if epoch_reason not in {"eof", "connection_close"}:
+        raise RuntimeInvariantError("post-quit epoch termination was not EOF/close")
+    if count_after_quit != _terminal_event_count(trace, epoch):
+        raise RuntimeInvariantError("terminal event count changed after capture")
+    return {"status": "observed", "exit_code": exit_code, "epoch_reason": epoch_reason}
 
 
 async def run_reconnect_case(
@@ -211,10 +368,10 @@ async def run_reconnect_case(
     new_epoch: int | None = None
     new_candidate: Any | None = None
     status_exact = False
-    handshake: dict[str, bool] = {key: False for key in (
-        "initialize_request", "initialize_response", "initialized", "resume_request",
-        "resume_response", "fresh_skills_request", "fresh_skills_response",
-    )}
+    handshake: dict[str, Any] = {}
+    terminal_epoch: int | None = None
+    terminal_count_before = 0
+    terminal_count_after = 0
     result: dict[str, Any] = {
         "case": case.name,
         "status": "unknown",
@@ -275,7 +432,7 @@ async def run_reconnect_case(
             await tui.aread_until(min(probe.local_deadline, raw_seconds() + 0.25))
             old_invalid = bridge.epoch_invalid.get(old_epoch)
             new_epoch = _new_epoch(bridge, old_epoch)
-            handshake = _handshake_state(bridge.trace, new_epoch)
+            handshake = _handshake_state(bridge.trace, new_epoch, spec.expected_resume_thread_id)
             new_candidate = runtime.candidate
             if (
                 old_invalid is not None
@@ -287,7 +444,7 @@ async def run_reconnect_case(
                 break
         old_invalid = bridge.epoch_invalid.get(old_epoch)
         new_epoch = _new_epoch(bridge, old_epoch)
-        handshake = _handshake_state(bridge.trace, new_epoch)
+        handshake = _handshake_state(bridge.trace, new_epoch, spec.expected_resume_thread_id)
         new_candidate = runtime.candidate
         result["old_epoch"].update({
             "invalid": old_invalid is not None,
@@ -318,6 +475,13 @@ async def run_reconnect_case(
                 "ids": sorted(status_ids),
                 "exact": status_exact,
             }
+            new_candidate = validate_live_candidate(
+                runtime,
+                bridge,
+                tui,
+                spec.expected_resume_thread_id,
+                new_epoch,
+            )
 
         result["classification"] = classify_reconnect(
             old_epoch=old_epoch,
@@ -335,6 +499,17 @@ async def run_reconnect_case(
             validate_silent_resume(bridge)
             if not _turn_zero(bridge.trace, bridge.model_turns):
                 raise RuntimeInvariantError("client/server turn evidence is not zero")
+            live_candidate = validate_live_candidate(
+                runtime,
+                bridge,
+                tui,
+                spec.expected_resume_thread_id,
+                new_epoch,
+            )
+            terminal_epoch = live_candidate.connection_epoch
+            terminal_count_before = _terminal_event_count(bridge.trace, terminal_epoch)
+            if terminal_count_before != 0:
+                raise RuntimeInvariantError("terminal event existed before quit")
 
     except BaseException as exc:
         failure = _failure_record(exc, stage)
@@ -348,7 +523,7 @@ async def run_reconnect_case(
                 old_epoch=old_epoch,
                 old_epoch_invalid=bridge.epoch_invalid.get(old_epoch) is not None,
                 new_epoch=_new_epoch(bridge, old_epoch),
-                handshake=_handshake_complete(_handshake_state(bridge.trace, _new_epoch(bridge, old_epoch))),
+                handshake=_handshake_complete(_handshake_state(bridge.trace, _new_epoch(bridge, old_epoch), spec.expected_resume_thread_id)),
                 candidate=runtime.candidate,
                 status_exact=bool(result.get("status_observation", {}).get("exact")),
                 expected_thread_id=spec.expected_resume_thread_id,
@@ -357,7 +532,7 @@ async def run_reconnect_case(
                 identities_ok=_identities_ok(bridge, _new_epoch(bridge, old_epoch)),
             )
         try:
-            if tui is not None and tui.poll() is None:
+            if not quit_sent and tui is not None and tui.poll() is None:
                 tui.command("/quit")
                 quit_sent = True
                 exit_code = await tui.await_exit(
@@ -366,6 +541,8 @@ async def run_reconnect_case(
                 await tui.aread_until(raw_seconds() + spec.local_window_seconds)
             elif tui is not None:
                 exit_code = tui.poll()
+            if bridge is not None and terminal_epoch is not None:
+                terminal_count_after = _terminal_event_count(bridge.trace, terminal_epoch)
         except BaseException as exc:
             if failure is None:
                 failure = _failure_record(exc, "normal-quit")
@@ -398,16 +575,21 @@ async def run_reconnect_case(
                 exit_code = tui.poll()
         if failure is not None:
             result["failure"] = failure
-        if failure is None and bridge is not None and cleanup_result is not None:
+        if (
+            failure is None
+            and bridge is not None
+            and cleanup_result is not None
+            and terminal_epoch is not None
+        ):
             try:
-                result["termination"] = _validate_reconnect_terminal(
+                result["termination"] = validate_quit_boundary(
+                    trace=bridge.trace,
+                    epoch=terminal_epoch,
+                    count_before_quit=terminal_count_before,
+                    count_after_quit=terminal_count_after,
                     quit_sent=quit_sent,
                     exit_code=exit_code,
-                    epoch_reason=(
-                        bridge.epoch_invalid.get(new_epoch)
-                        if new_epoch is not None else bridge.epoch_invalid.get(old_epoch)
-                    ),
-                    cleanup_result=cleanup_result,
+                    epoch_reason=bridge.epoch_invalid.get(terminal_epoch),
                 )
             except BaseException as exc:
                 failure = _failure_record(exc, "terminal")
