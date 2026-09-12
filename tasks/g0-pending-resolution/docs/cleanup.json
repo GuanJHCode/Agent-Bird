@@ -78,6 +78,16 @@
       "owner": "retained_host_impl",
       "source_absent": true,
       "preserved": "standalone-helper-local-schema-shapes.json and fixed binary/source references"
+    },
+    {
+      "path": "tasks/g0-pending-resolution/tmp/native-identity-review-schema-hyci9jgz",
+      "owner": "native_identity_review",
+      "archived_files": 1,
+      "archived_bytes": 2294,
+      "archive": "tasks/g0-pending-resolution/docs/review-evidence/native-family/schema-receipt.json",
+      "all_archive_hashes_rechecked": true,
+      "source_absent": true,
+      "complete_schema_cache_removed_by_owner": true
     }
   ],
   "worker_cleanup_record": "delivery-validation.json",
@@ -100,5 +110,15 @@
     "private_service_exited": true,
     "private_socket_directory_removed": true,
     "integration_backup_created_and_removed": true
+  },
+  "command_input_01_cleanup": {
+    "record": "native-command-input-01-result.json",
+    "owned_tui_exited_via_sigterm": true,
+    "owned_service_exited_via_sigint": true,
+    "socket_absent": true,
+    "normal_quit_not_proven": true,
+    "quit_source_cache_files_removed_by_owner": 3,
+    "quit_source_cache_bytes_removed": 558999,
+    "quit_source_manifest_preserved": "native-command-input-source-manifest.json"
   }
 }

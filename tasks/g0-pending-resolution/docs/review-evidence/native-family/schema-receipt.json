@@ -1,0 +1,108 @@
+{
+  "binary_sha256": "b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3",
+  "binary_sha_match": true,
+  "expected_binary_sha256": "b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3",
+  "referenced_source_shapes": {
+    "SessionSource": {
+      "oneOf": [
+        {
+          "enum": [
+            "cli",
+            "vscode",
+            "exec",
+            "appServer",
+            "unknown"
+          ],
+          "type": "string"
+        },
+        {
+          "additional_properties": false,
+          "properties": [
+            "custom"
+          ],
+          "required_properties": [
+            "custom"
+          ],
+          "type": "object"
+        },
+        {
+          "additional_properties": false,
+          "properties": [
+            "subAgent"
+          ],
+          "required_properties": [
+            "subAgent"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "ThreadSource": {
+      "type": "string"
+    }
+  },
+  "scope": "fixed local binary schema field receipt; no service started",
+  "thread_fields": {
+    "ephemeral": {
+      "nullable": false,
+      "required": true,
+      "shape": {
+        "type": "boolean"
+      }
+    },
+    "forkedFromId": {
+      "nullable": true,
+      "required": false,
+      "shape": {
+        "type": [
+          "null",
+          "string"
+        ]
+      }
+    },
+    "parentThreadId": {
+      "nullable": true,
+      "required": false,
+      "shape": {
+        "type": [
+          "null",
+          "string"
+        ]
+      }
+    },
+    "sessionId": {
+      "nullable": false,
+      "required": true,
+      "shape": {
+        "type": "string"
+      }
+    },
+    "source": {
+      "nullable": false,
+      "required": true,
+      "shape": {
+        "allOf": [
+          {
+            "ref": "#/definitions/SessionSource"
+          }
+        ]
+      }
+    },
+    "threadSource": {
+      "nullable": true,
+      "required": false,
+      "shape": {
+        "anyOf": [
+          {
+            "ref": "#/definitions/ThreadSource"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    }
+  },
+  "thread_read_response_schema": "v2/ThreadReadResponse.json",
+  "thread_read_response_sha256": "de0ec065bbe9c6288d76517cbab64949b544074ed782a314ccea872b70bbfa48"
+}

@@ -1,0 +1,8 @@
+{
+  "source": "tasks/g0-pending-resolution/tmp/native-identity-review-schema-hyci9jgz/schema-receipt.json",
+  "archive": "tasks/g0-pending-resolution/docs/review-evidence/native-family/schema-receipt.json",
+  "bytes": 2294,
+  "sha256": "acfc81c616f0dc12ee2d021b270cba1a991a6c24aec8fbf446c93deb9c726ddc",
+  "archive_byte_identical": true,
+  "temporary_source_directory_removed": true
+}
