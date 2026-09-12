@@ -33,24 +33,6 @@ PRIVATE_ROOT = Path("/private/tmp")
 
 # The inventory is path-only.  AuthGuard returns only a count and opaque digest;
 # neither this tuple nor any snapshot is written to a fixture receipt.
-CREDENTIAL_INVENTORY = (
-    Path.home() / ".codex/auth.json",
-    Path.home() / ".codex/credentials.json",
-    Path.home() / ".codex/session.json",
-    Path.home() / ".claude/daemon/control.key",
-    Path.home() / ".claude/.credentials.json",
-    Path.home() / ".gemini/jetski-standalone-oauth-token",
-    Path.home() / ".gemini/oauth_creds.json",
-    Path.home() / ".kimi-code/server.token",
-    Path.home() / ".kimi-code/auth.json",
-    Path.home() / ".grok/auth.json",
-    Path.home() / ".config/openai/auth.json",
-    Path.home() / ".config/anthropic/auth.json",
-    Path.home() / ".aws/credentials",
-    Path.home() / ".aws/config",
-)
-
-
 def _hash(path: Path, limit: int = 512 * 1024 * 1024) -> str:
     if not path.is_absolute():
         raise ValueError("pin path must be absolute")
@@ -86,17 +68,18 @@ def _private_dir(path: Path) -> None:
         raise ValueError(f"directory is not owner-only: {path}")
 
 
-def _load_credential_inventory(path: Path) -> tuple[Path, ...]:
-    if path.is_symlink() or not path.is_file():
-        raise ValueError("credential manifest must be a regular file")
-    info = path.stat()
-    if info.st_uid != os.getuid() or stat.S_IMODE(info.st_mode) != 0o600:
-        raise ValueError("credential manifest must be owner-only mode 0600")
-    if info.st_size > 64 * 1024:
-        raise ValueError("credential manifest is too large")
+def _load_credential_inventory(path: Path) -> tuple[tuple[Path, ...], str]:
+    try:
+        raw = auth_isolation._read_stable_manifest(path)
+    except (OSError, ValueError) as exc:
+        raise ValueError("credential manifest must be a stable owner-only mode 0600 file") from exc
     entries: list[Path] = []
-    for raw in path.read_text(encoding="utf-8").splitlines():
-        line = raw.strip()
+    try:
+        lines = raw.decode("utf-8").splitlines()
+    except UnicodeDecodeError as exc:
+        raise ValueError("credential manifest must be UTF-8") from exc
+    for line in lines:
+        line = line.strip()
         if not line or line.startswith("#"):
             continue
         candidate = Path(line)
@@ -105,7 +88,7 @@ def _load_credential_inventory(path: Path) -> tuple[Path, ...]:
         entries.append(candidate)
     if len(entries) != 14:
         raise ValueError("credential inventory must contain exactly 14 paths")
-    return tuple(entries)
+    return tuple(entries), hashlib.sha256(raw).hexdigest()
 
 
 def _new_root(path: Path | None) -> tuple[Path, bool]:
@@ -145,14 +128,24 @@ def _write_private(path: Path, payload: Any) -> None:
 class FixtureAuthGuard:
     """Opaque before/check/after guard for the frozen credential inventory."""
 
-    def __init__(self, paths: tuple[Path, ...]) -> None:
+    def __init__(self, paths: tuple[Path, ...], manifest: Path, manifest_sha256: str) -> None:
         self.paths = paths
+        self.manifest = manifest
+        self.manifest_sha256 = manifest_sha256
         self.before_summary: dict[str, object] = {}
 
     def _summary(self) -> dict[str, object]:
         snapshot = auth_isolation.snapshot_auth_paths(self.paths)
         opaque = json.dumps(snapshot, sort_keys=True, separators=(",", ":")).encode("utf-8")
-        return {"count": len(self.paths), "digest": hashlib.sha256(opaque).hexdigest(), "unchanged": True}
+        current_manifest_sha256 = hashlib.sha256(auth_isolation._read_stable_manifest(self.manifest)).hexdigest()
+        if current_manifest_sha256 != self.manifest_sha256:
+            raise ValueError("credential manifest changed")
+        return {
+            "count": len(self.paths),
+            "digest": hashlib.sha256(opaque).hexdigest(),
+            "source_sha256": current_manifest_sha256,
+            "unchanged": True,
+        }
 
     def before(self) -> dict[str, object]:
         self.before_summary = self._summary()
@@ -160,11 +153,20 @@ class FixtureAuthGuard:
 
     def check(self, baseline: dict[str, object]) -> bool:
         current = self._summary()
-        return current["count"] == baseline.get("count") and current["digest"] == baseline.get("digest")
+        return (
+            current["count"] == baseline.get("count")
+            and current["digest"] == baseline.get("digest")
+            and current["source_sha256"] == baseline.get("source_sha256")
+        )
 
     def after(self, baseline: dict[str, object]) -> dict[str, object]:
-        unchanged = self.check(baseline)
-        return {"count": len(self.paths), "digest": self._summary()["digest"], "unchanged": unchanged}
+        current = self._summary()
+        current["unchanged"] = (
+            current["count"] == baseline.get("count")
+            and current["digest"] == baseline.get("digest")
+            and current["source_sha256"] == baseline.get("source_sha256")
+        )
+        return current
 
 
 @dataclass(frozen=True)
@@ -193,6 +195,7 @@ class NativeActivationFixture:
     isolation_manifest: Path
     activation_manifest: Path
     credential_manifest: Path
+    credential_manifest_sha256: str
     public_socket: Path
     backend_socket: Path
     entrypoint: Path
@@ -260,7 +263,7 @@ def build_fixture(native_executable: Path, *, options: FixtureOptions | None = N
     native_hash = _hash(native_executable)
     if options.credential_manifest is None:
         raise ValueError("credential_manifest is required")
-    credential_inventory = _load_credential_inventory(options.credential_manifest)
+    credential_inventory, credential_manifest_sha256 = _load_credential_inventory(options.credential_manifest)
     if not options.profile_id or any(char.isspace() for char in options.profile_id):
         raise ValueError("profile_id must be opaque and whitespace-free")
 
@@ -310,7 +313,7 @@ def build_fixture(native_executable: Path, *, options: FixtureOptions | None = N
             allowed_executables=(native_executable,),
         )
         profile_spec.validate()
-        guard = FixtureAuthGuard(protected)
+        guard = FixtureAuthGuard(protected, options.credential_manifest, credential_manifest_sha256)
         baseline = guard.before()
         auth_isolation.prepare_isolated_home(profile_spec, no_auth_provider=True)
         config = codex_home / "config.toml"
@@ -337,6 +340,7 @@ def build_fixture(native_executable: Path, *, options: FixtureOptions | None = N
             str(REPO_ROOT / "tasks/g0-tui-proxy/scripts/proxy_observer.py"): _hash(REPO_ROOT / "tasks/g0-tui-proxy/scripts/proxy_observer.py"),
             str(REPO_ROOT / "tasks/g0-auth-preserving-activation/scripts/auth_isolation.py"): _hash(REPO_ROOT / "tasks/g0-auth-preserving-activation/scripts/auth_isolation.py"),
             str(REPO_ROOT / "tasks/g0-auth-preserving-activation/scripts/activation_transaction.py"): _hash(REPO_ROOT / "tasks/g0-auth-preserving-activation/scripts/activation_transaction.py"),
+            str(options.credential_manifest): credential_manifest_sha256,
             str(config): _hash(config),
         }
         isolation_manifest = supervisor_root / "isolation.json"
@@ -372,7 +376,7 @@ def build_fixture(native_executable: Path, *, options: FixtureOptions | None = N
             "file_pins": {str(path): digest for path, digest in pins.items() if path not in {str(native_executable), str(python_executable)}},
             "trusted_workspace": str(workspace),
             "auth_guard": baseline,
-            "credential_manifest_sha256": _hash(options.credential_manifest),
+            "credential_manifest_sha256": credential_manifest_sha256,
             "idle_seconds": 10.0,
         }
         _write_private(activation_manifest, activation_payload)
@@ -416,6 +420,7 @@ def build_fixture(native_executable: Path, *, options: FixtureOptions | None = N
             isolation_manifest=isolation_manifest,
             activation_manifest=activation_manifest,
             credential_manifest=options.credential_manifest,
+            credential_manifest_sha256=credential_manifest_sha256,
             public_socket=public_socket,
             backend_socket=backend_socket,
             entrypoint=ENTRYPOINT,
@@ -436,7 +441,6 @@ def build_fixture(native_executable: Path, *, options: FixtureOptions | None = N
 
 
 __all__ = [
-    "CREDENTIAL_INVENTORY",
     "FixtureAuthGuard",
     "FixtureOptions",
     "NativeActivationFixture",

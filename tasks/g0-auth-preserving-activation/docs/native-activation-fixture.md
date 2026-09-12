@@ -15,7 +15,8 @@ supervisor、manifest、pins、`ActivationSpec` 和 opaque `FixtureAuthGuard`，
 
 profile root 与 supervisor root 始终是两个新建、owner-only 的短目录。credential
 inventory 必须由调用者提供一个新建、owner-only `0600` 的 14 行 path manifest；
-builder 只解析注释/空行后的实际路径，不凭空推断 provider 或 AWS 路径。profile
+builder 通过稳定 FD 读取同一份原始 bytes，解析注释/空行后的实际路径并固定
+source SHA，不凭空推断 provider 或 AWS 路径。profile
 只包含 synthetic Luna/medium/no-auth/file 配置与 trusted workspace；grants、
 state、isolation manifest 和 activation manifest 都在 supervisor root，不在
 native 可写 profile subtree 下。foreign、复用、symlink 或非 owner-only root

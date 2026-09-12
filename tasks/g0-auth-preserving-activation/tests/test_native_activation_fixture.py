@@ -12,7 +12,6 @@ SCRIPT_ROOT = Path(__file__).resolve().parents[1] / "scripts"
 sys.path.insert(0, str(SCRIPT_ROOT))
 
 from native_activation_fixture import (  # noqa: E402
-    CREDENTIAL_INVENTORY,
     FixtureOptions,
     NativeActivationFixture,
     build_fixture,
@@ -47,7 +46,7 @@ def test_prepare_builds_isolated_profile_and_supervisor_manifests(fake_native: P
         assert fixture.grants_dir.parent == fixture.supervisor_root
         assert fixture.state_dir.parent == fixture.supervisor_root
         assert len(fixture.credential_inventory) == 14
-        assert len(CREDENTIAL_INVENTORY) == 14
+        assert fixture.credential_manifest_sha256 == fixture.pins[str(fixture.credential_manifest)]
         assert fixture.public_socket.parent == fixture.supervisor_home / ".codex" / "app-server-control"
         assert fixture.activation_spec.socket_path == fixture.public_socket
         assert fixture.activation_spec.program_arguments[:3] == (
@@ -137,3 +136,30 @@ def test_success_cleanup_keeps_profile_until_explicit_profile_cleanup(fake_nativ
     assert not supervisor.exists()
     fixture.cleanup_profile()
     assert not profile.exists()
+
+
+def test_guard_rejects_changed_source_manifest_and_after_uses_one_snapshot(fake_native: Path, tmp_path: Path, monkeypatch):
+    manifest = credential_manifest(tmp_path)
+    fixture = build_fixture(fake_native, options=FixtureOptions(mode="preflight", profile_id="p-guard", credential_manifest=manifest))
+    try:
+        calls = {"count": 0}
+        import native_activation_fixture as module
+        original = module.auth_isolation.snapshot_auth_paths
+
+        def counted(paths):
+            calls["count"] += 1
+            return original(paths)
+
+        monkeypatch.setattr(module.auth_isolation, "snapshot_auth_paths", counted)
+        baseline = fixture.auth_guard.before()
+        assert calls["count"] == 1
+        result = fixture.auth_guard.after(baseline)
+        assert calls["count"] == 2
+        assert result["unchanged"] is True
+        manifest.write_text(manifest.read_text(encoding="utf-8") + "# changed\n", encoding="utf-8")
+        manifest.chmod(0o600)
+        with pytest.raises(ValueError, match="credential manifest changed"):
+            fixture.auth_guard.check(baseline)
+    finally:
+        fixture.cleanup_ephemeral()
+        fixture.cleanup_profile()
