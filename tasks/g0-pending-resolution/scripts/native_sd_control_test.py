@@ -78,20 +78,20 @@ class ControlTests(unittest.TestCase):
             self.assertEqual(projected,original['rpc_error'])
             self.assertNotIn('CANARY_PRIVATE_TEXT',json.dumps(projected))
 
-    def test_only_sd05_is_registered_for_the_new_model_case(self):
-        self.assertEqual(control.c.NONCE,'sd-qual-05')
-        self.assertEqual(control.CASE,control.c.BASE/'tasks/g0-pending-resolution/data/sd-qual-05')
-        self.assertEqual(control.JOB,control.c.REPO/'tasks/pending-resolution/data/sd-qual-05')
+    def test_only_sd06_is_registered_for_the_new_model_case(self):
+        self.assertEqual(control.c.NONCE,'sd-qual-06')
+        self.assertEqual(control.CASE,control.c.BASE/'tasks/g0-pending-resolution/data/sd-qual-06')
+        self.assertEqual(control.JOB,control.c.REPO/'tasks/pending-resolution/data/sd-qual-06')
         prompt=control.fixed_prompt()
-        for marker in ('SD_QUAL_05_READY','SD_QUAL_05_ACK','sd-qual-05-ack-1'):
+        for marker in ('SD_QUAL_06_READY','SD_QUAL_06_ACK','sd-qual-06-ack-1'):
             self.assertIn(marker,prompt)
-        for old in ('sd-qual-01','sd-qual-02','sd-qual-03','sd-qual-04'):
+        for old in ('sd-qual-01','sd-qual-02','sd-qual-03','sd-qual-04','sd-qual-05'):
             self.assertNotIn(old,prompt)
 
     def test_collector_runtime_rejects_all_prior_case_nonces(self):
         with tempfile.TemporaryDirectory() as directory:
-            output=Path(directory)/'native-sd-qual-05-preflight.json'
-            for old in ('sd-qual-01','sd-qual-02','sd-qual-03','sd-qual-04'):
+            output=Path(directory)/'native-sd-qual-06-preflight.json'
+            for old in ('sd-qual-01','sd-qual-02','sd-qual-03','sd-qual-04','sd-qual-05'):
                 with self.subTest(old=old):
                     result=subprocess.run([sys.executable,'-B',str(Path(control.c.__file__)),
                                            'preflight','--nonce',old,'--output',str(output)],capture_output=True)
@@ -209,23 +209,85 @@ class ControlTests(unittest.TestCase):
             self.assertEqual(result['failure']['code'],'owned_session_start_missing')
             self.assertEqual(result['failure']['substage'],'await_session_start')
             self.assertNotEqual(result['failure']['code'],'initial_binding_inconclusive')
+            window=result['initial_window']
+            self.assertEqual(window['deadline_mono_ns']-window['mono_ns'],120000000000)
+            self.assertEqual(result['session_start_window']['deadline_mono_ns'],window['deadline_mono_ns'])
+            self.assertEqual(result['session_start_window']['deadline_mono_ns']-result['session_start_window']['mono_ns'],
+                             120000000000)
             capture=result['startup_pty_capture']
             self.assertEqual(capture.keys(),{'path','bytes','sha256'})
             self.assertTrue(Path(capture['path']).is_file())
             self.assertEqual(Path(capture['path']).read_bytes(),b'FIXTURE_PTY_BYTES')
             self.assertNotIn('FIXTURE_PTY_BYTES',json.dumps(result))
 
+    def test_session_start_after_old_ten_second_budget_still_pastes_once(self):
+        identity={'pid':101,'ppid':100,'uid':os.getuid(),'comm':'codex','native_executable_matches':True,
+                  'started_at_local':'Fri Sep 11 18:00:00 2026'}
+        socket={'path':str(control.c.SOCKET),'exists':True,'dev':1,'ino':2,'uid':os.getuid(),
+                'mode':'0600','service_holds_path':True}
+        raw=[0]
+        hook={'session_id':'01a08e0b-bd0d-7400-b069-d50978939cdd','hook_event_name':'SessionStart',
+              'source':'startup','pid':124,'ppid':101,'recorded_at':'2026-09-11T10:00:12Z'}
+        def continuous(): return raw[0]
+        def tui_read(seconds):
+            if raw[0] < 1000000000: raw[0]=1000000000
+            else: raw[0]+=2000000000
+        def discover(service_pid,since,through):
+            return hook if continuous()>=12000000000 else None
+        service=SimpleNamespace(pid=101,read=lambda seconds:None,_poll=lambda:None,
+                                evidence=lambda:{'pid':101,'exit_code':None},close=lambda:None)
+        sent=[]
+        def send(sequence,action): sent.append(action)
+        tui=SimpleNamespace(pid=102,byte_count=64,buffer=b'FIXTURE_PTY_BYTES',read=tui_read,
+                            send=send,_poll=lambda:None,evidence=lambda:{'pid':102,'bytes':64,'sha256':'0'*64,'inputs':[]},
+                            close=lambda:None)
+        with tempfile.TemporaryDirectory() as name,ExitStack() as patches:
+            base=Path(name); executable=base/'fixture'; executable.write_text('fixture')
+            docs=base/'docs'; docs.mkdir(); hooks=base/'hooks'; hooks.mkdir()
+            def process(pid):
+                role=identity if pid==101 else dict(identity,pid=102,started_at_local='Fri Sep 11 18:00:01 2026')
+                return dict(role,executable_path=str(executable.resolve()))
+            def snapshot(pid=None):
+                return {'exists':False} if pid is None else socket
+            for attr,value in (('CASE',base/'case'),('JOB',base/'job'),('DOCS',docs),
+                               ('HELPER',executable),('AUDIT',executable)):
+                patches.enter_context(patch.object(control,attr,value))
+            for attr,value in (('CLI',executable),('GO',executable),('CLI_SHA','0'*64),('GO_SHA','0'*64),
+                               ('HOOKS',hooks)):
+                patches.enter_context(patch.object(control.c,attr,value))
+            patches.enter_context(patch.object(control.c,'sha',return_value='0'*64))
+            patches.enter_context(patch.object(control.c,'protected_files',return_value={}))
+            patches.enter_context(patch.object(control.c,'process',side_effect=process))
+            patches.enter_context(patch.object(control.c,'snapshot_socket',side_effect=snapshot))
+            patches.enter_context(patch.object(control,'continuous_ns',side_effect=continuous))
+            patches.enter_context(patch.object(control,'discover_session_start',side_effect=discover))
+            patches.enter_context(patch.object(control,'OwnedService',return_value=service))
+            patches.enter_context(patch.object(control,'NativePTY',return_value=tui))
+            patches.enter_context(patch.object(control.subprocess,'run',return_value=subprocess.CompletedProcess(
+                [],0,stdout='01a08e0b-bd0d-7400-b069-d50978939cde\n')))
+            patches.enter_context(patch('builtins.print'))
+            self.assertEqual(control.run('0'*64,'0'*64),2)
+            self.assertEqual(sent,['initial-paste','initial-submit'])
+            result=json.loads((base/'case/controller-result.json').read_text())
+            self.assertNotEqual(result['failure']['code'],'owned_session_start_missing')
+            self.assertEqual(result['session_start'],hook)
+            window=result['initial_window']
+            self.assertEqual(window['deadline_mono_ns']-window['mono_ns'],120000000000)
+            self.assertEqual(result['session_start_window']['deadline_mono_ns'],window['deadline_mono_ns'])
+            self.assertEqual(result['session_start_window']['deadline_mono_ns']-result['session_start_window']['mono_ns'],
+                             120000000000)
+
     def test_candidate_waits_for_job_then_requires_exact_owner_nonce_revision(self):
         root='01a08e0b-bd0d-7400-b069-d50978939cdd'
         with tempfile.TemporaryDirectory() as name,patch.object(control,'JOB',Path(name)):
             self.assertIsNone(control.read_job_owner(root))
-            value={'version':1,'status':'started','nonce':'sd-qual-05','controller_thread':root,'task_revision':1,
+            value={'version':1,'status':'started','nonce':'sd-qual-06','controller_thread':root,'task_revision':1,
                    'worker_pid':123,'created_at':'2026-09-11T10:00:01Z','job_file':'job.json','result_file':'result.json'}
             path=Path(name)/'job.json';path.write_text(json.dumps(value));path.chmod(0o600)
             got=control.read_job_owner(root)
             self.assertEqual(got['controller_thread'],root);self.assertEqual(got['task_revision'],1)
             for change in ({'controller_thread':'01a08e0b-bd0d-7400-b069-d50978939cde'},
-                           *({'nonce':old} for old in ('sd-qual-01','sd-qual-02','sd-qual-03','sd-qual-04')),
+                           *({'nonce':old} for old in ('sd-qual-01','sd-qual-02','sd-qual-03','sd-qual-04','sd-qual-05')),
                            {'task_revision':2},{'worker_pid':True},{'created_at':'CANARY_PRIVATE_TEXT'},
                            {'extra':'CANARY_PRIVATE_TEXT'}):
                 path.write_text(json.dumps(dict(value,**change)))
@@ -387,7 +449,7 @@ class ControlTests(unittest.TestCase):
                     '01a08e0b-bd0d-7400-b069-d50978939cdd','01a08e0b-bd0d-7400-b069-d50978939cde','0'*64,time.monotonic_ns())
 
     def test_lab_read_envelope_is_fixed_nonce_and_does_not_export_extensions(self):
-        expected={'version':1,'status':'pending','nonce':'sd-qual-05','count':0}
+        expected={'version':1,'status':'pending','nonce':'sd-qual-06','count':0}
         self.assertEqual(control.lab_read_fields(json.dumps(expected)),expected)
         for value in [dict(expected,nonce='other'),dict(expected,extra='CANARY_PRIVATE_TEXT'),
                       dict(expected,count=True),dict(expected,status='completed'),dict(expected,version=True)]:
@@ -441,7 +503,7 @@ class ControlTests(unittest.TestCase):
             secret={'timestamp':'2026-09-11T10:00:01Z','type':'response_item',
                     'payload':{'type':'reasoning','summary':'CANARY_PRIVATE_TEXT'}}
             complete={'timestamp':'2026-09-11T10:00:02Z','type':'event_msg',
-                      'payload':{'type':'task_complete','turn_id':turn,'last_agent_message':'SD_QUAL_05_READY',
+                      'payload':{'type':'task_complete','turn_id':turn,'last_agent_message':'SD_QUAL_06_READY',
                                  'unknown':'CANARY_PRIVATE_TEXT'}}
             rollout.write_text(json.dumps(secret)+'\n'+json.dumps(complete)+'\n')
             db=sqlite3.connect(home/'state_5.sqlite')
@@ -454,7 +516,7 @@ class ControlTests(unittest.TestCase):
                 read=functools.partial(control.native_ready,now=dt.datetime(2026,9,11,10,2,tzinfo=dt.timezone.utc))
                 result=read(root,turn,'2026-09-11T10:00:00Z','2026-09-11T10:02:00Z')
                 self.assertEqual(result,{'at':'2026-09-11T10:00:02Z','turn_id':turn,'type':'task_complete',
-                                         'last_agent_message':'SD_QUAL_05_READY'})
+                                         'last_agent_message':'SD_QUAL_06_READY'})
                 self.assertNotIn('CANARY_PRIVATE_TEXT',json.dumps(result))
                 self.assertIsNone(read(root,root,'2026-09-11T10:00:00Z','2026-09-11T10:02:00Z'))
                 complete['timestamp']='2026-09-11T10:02:00.000000001Z'

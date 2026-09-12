@@ -1,4 +1,4 @@
-"""One fixed sd-qual-05 qualification controller; not a product launcher."""
+"""One fixed sd-qual-06 qualification controller; not a product launcher."""
 import datetime as dt
 import argparse
 import hashlib
@@ -17,8 +17,8 @@ from native_sd_pty import NativePTY, InputSequence, stamp
 from native_sd_clock import CLOCK_IMPL, continuous_ns, clock_pair
 from delivery_audit import canonical, parse
 
-CASE = c.BASE/'tasks/g0-pending-resolution/data/sd-qual-05'
-JOB = c.REPO/'tasks/pending-resolution/data/sd-qual-05'
+CASE = c.BASE/'tasks/g0-pending-resolution/data/sd-qual-06'
+JOB = c.REPO/'tasks/pending-resolution/data/sd-qual-06'
 HELPER = c.BASE/'tasks/g0-pending-resolution/scripts/native_standalone.py'
 AUDIT = HELPER.with_name('delivery_audit.py')
 DOCS = Path(__file__).resolve().parents[1]/'docs'
@@ -187,11 +187,11 @@ def native_ready(root,turn,since,through,now=None):
             if event.get('type')!='event_msg': continue
             payload=event.get('payload',{})
             if (type(payload) is not dict or payload.get('type')!='task_complete'
-                    or payload.get('turn_id')!=turn or payload.get('last_agent_message')!='SD_QUAL_05_READY'):
+                    or payload.get('turn_id')!=turn or payload.get('last_agent_message')!='SD_QUAL_06_READY'):
                 continue
             if lo<=c.epoch_ns(event.get('timestamp'))<=hi:
                 found.append({'at':event['timestamp'],'turn_id':turn,'type':'task_complete',
-                              'last_agent_message':'SD_QUAL_05_READY'})
+                              'last_agent_message':'SD_QUAL_06_READY'})
     if len(found)>1: raise ValueError('ambiguous native completion event')
     return found[0] if found else None
 
@@ -258,16 +258,16 @@ def read_job():
 def fixed_prompt():
     start=f'{c.GO} start --dir {JOB} --nonce {c.NONCE} --delay 40s --controller-thread "$CODEX_THREAD_ID"'
     inspect=f'{c.GO} inspect --dir {JOB} --nonce {c.NONCE}'
-    ack=f'{c.GO} ack --dir {JOB} --nonce {c.NONCE} --controller-thread "$CODEX_THREAD_ID" --revision 1 --event-hash ACTUAL_EVENT_HASH --command-id sd-qual-05-ack-1 --decision handled'
-    return ('这是用户已授权的固定原生资格实验，仅有一个合成任务 sd-qual-05，目录已预建且工具已审查。'
+    ack=f'{c.GO} ack --dir {JOB} --nonce {c.NONCE} --controller-thread "$CODEX_THREAD_ID" --revision 1 --event-hash ACTUAL_EVENT_HASH --command-id sd-qual-06-ack-1 --decision handled'
+    return ('这是用户已授权的固定原生资格实验，仅有一个合成任务 sd-qual-06，目录已预建且工具已审查。'
             '现在用原生 exec_command 实际执行且仅执行一次以下命令：`'+start+'`。'
-            '该命令快速返回 started 后，你必须立刻结束当前响应，final 只写 SD_QUAL_05_READY。'
+            '该命令快速返回 started 后，你必须立刻结束当前响应，final 只写 SD_QUAL_06_READY。'
             '当前轮不要等待结果、不要读/轮询作业、不要调用 sleep/wait、不要创建 Goal 或子Agent，不要改文件/配置/权限，也不要使用MCP。'
-            '之后只有当本线程收到代表 sd-qual-05 完成的原生 standalone toolOutput 时才执行下一步：'
+            '之后只有当本线程收到代表 sd-qual-06 完成的原生 standalone toolOutput 时才执行下一步：'
             '用真实工具执行 `'+inspect+'`，核对 nonce、controller_thread、revision=1、completed result和未取消，取得实际 event_hash；'
             '把 ACTUAL_EVENT_HASH 替换为该真实返回字段，再执行 `'+ack+'`。'
             '必须使用真实原生 CODEX_THREAD_ID，不得伪造身份或再次start。'
-            '看到真实 acknowledged 且 effect_count=1 后，final 只写 SD_QUAL_05_ACK。'
+            '看到真实 acknowledged 且 effect_count=1 后，final 只写 SD_QUAL_06_ACK。'
             '现在只做首次start与READY final，后续外部工具结果由合法原生通道送达，无需你主动继续。')
 
 
@@ -507,25 +507,23 @@ def run(helper_sha,audit_sha):
         private_json(CASE/'native-origin.json',{'version':1,'nonce':c.NONCE,'origin':original,'pty':tui.evidence(),
                                               'scope':'exclusive fresh owned PTY, before any input; not general UI attachment'})
         if continuous_ns()>=deadline: raise TimeoutError('native startup evidence exceeded original ten seconds')
-        session_since=stamp(); session_mono=continuous_ns()
-        session_deadline=session_mono+10000000000
-        record['session_start_window']={'since':session_since,'clock_impl':CLOCK_IMPL,'mono_ns':session_mono,
-                                        'deadline_mono_ns':session_deadline}
+        since=stamp(); origin_mono=continuous_ns()
+        initial_deadline=origin_mono+120000000000
+        record['initial_window']={'since':since,'clock_impl':CLOCK_IMPL,'mono_ns':origin_mono,'deadline_mono_ns':initial_deadline,
+                                  'epoch_correlation_end':(dt.datetime.fromisoformat(since)+dt.timedelta(seconds=120)).isoformat()}
+        record['session_start_window']={'since':since,'clock_impl':CLOCK_IMPL,'mono_ns':origin_mono,
+                                        'deadline_mono_ns':initial_deadline}
         note('await_session_start'); record['substage']='await_session_start'
         session_hook=None
-        while continuous_ns()<session_deadline:
+        while continuous_ns()<initial_deadline:
             pump(.1)
-            if continuous_ns()>=session_deadline: break
-            session_hook=discover_session_start(service.pid,session_since,stamp())
+            if continuous_ns()>=initial_deadline: break
+            session_hook=discover_session_start(service.pid,since,stamp())
             if session_hook is not None: break
         if session_hook is None:
             record['startup_pty_capture']=archive_bounded_pty(tui,CASE/'startup-pty-capture.bin')
             raise OwnedSessionStartMissing('owned SessionStart missing before initial paste')
         record['session_start']=session_hook
-        since=stamp(); initial_mono=continuous_ns()
-        initial_deadline=initial_mono+120000000000
-        record['initial_window']={'since':since,'clock_impl':CLOCK_IMPL,'mono_ns':initial_mono,'deadline_mono_ns':initial_deadline,
-                                  'epoch_correlation_end':(dt.datetime.fromisoformat(since)+dt.timedelta(seconds=120)).isoformat()}
         note('initial_paste'); tui.send(sequence,'initial-paste')
         if continuous_ns()>=initial_deadline: raise InitialBindingUnconfirmed('initial paste exceeded original window')
         note('initial'); record['substage']='initial_submit'; tui.send(sequence,'initial-submit')
@@ -647,7 +645,7 @@ def run(helper_sha,audit_sha):
         record['ended_clock']=clock_pair()
         record['all_owned_native_exited']=all(p is None or p._poll() is not None for p in (service,tui))
         private_json(CASE/'controller-result.json',record)
-        private_json(DOCS/'native-sd-qual-05-controller.json',record)
+        private_json(DOCS/'native-sd-qual-06-controller.json',record)
         for p in (service,tui):
             if p and p._poll() is not None: p.close()
         print(json.dumps({'nonce':c.NONCE,'stage':'finished','helper_ok':helper_ok,
