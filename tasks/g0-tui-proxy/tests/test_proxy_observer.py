@@ -199,8 +199,24 @@ def test_limits_and_eof_emit_gap_without_retaining_payload():
     observer.feed("c1", "client", upgrade_request())
     observer.feed("c1", "server", upgrade_response())
     observer.feed("c1", "client", frame(b"x" * 33, masked=True))
-    assert any(row.get("reason") == "frame_too_large" for row in events(observer))
-    assert "x" * 33 not in json.dumps(observer.drain_events())
+    rows = events(observer)
+    gap = [row for row in rows if row.get("reason") == "frame_too_large"][-1]
+    assert gap["payload_bytes"] == 33
+    assert gap["limit_bytes"] == 32
+    assert "x" * 33 not in json.dumps(rows)
+
+    observer = Observer(max_frame_bytes=64, max_message_bytes=10)
+    observer.open("c1")
+    observer.feed("c1", "client", upgrade_request())
+    observer.feed("c1", "server", upgrade_response())
+    observer.feed("c1", "client", frame(b"x" * 8, fin=False, masked=True))
+    observer.feed("c1", "client", frame(b"y" * 3, opcode=0, masked=True))
+    rows = events(observer)
+    gap = [row for row in rows if row.get("reason") == "message_too_large"][-1]
+    assert gap["message_bytes"] == 11
+    assert gap["limit_bytes"] == 10
+    assert "x" * 8 not in json.dumps(rows)
+    assert "y" * 3 not in json.dumps(rows)
 
     observer = connected_observer()
     observer.feed("c1", "client", frame(b'{"id":1,"method":"thread/read"', fin=False, masked=True))
@@ -209,6 +225,15 @@ def test_limits_and_eof_emit_gap_without_retaining_payload():
     assert any(row.get("event") == "gap" and row.get("reason") == "incomplete_message" for row in rows)
     assert rows[-1]["event"] == "connection_close"
     assert observer.attachment_state("c1") == "DISCONNECTED"
+
+
+def test_deep_json_is_bounded_by_parser_failure_and_emits_no_payload():
+    observer = connected_observer()
+    payload = b"[" * 10000 + b"]" * 10000
+    observer.feed("c1", "client", frame(payload, masked=True))
+    rows = events(observer)
+    assert any(row.get("event") == "gap" and row.get("reason") == "invalid_json" for row in rows)
+    assert "[" * 10000 not in json.dumps(rows)
 
 
 def test_unknown_method_and_unknown_notification_are_preserved_as_opaque():

@@ -250,10 +250,16 @@ class Observer:
             parser.fragment_opcode = None
         connection.pending.clear()
 
-    def _gap(self, connection: _Connection, reason: str, direction: Optional[str]) -> None:
+    def _gap(
+        self,
+        connection: _Connection,
+        reason: str,
+        direction: Optional[str],
+        **fields: Any,
+    ) -> None:
         if connection.valid:
             self._invalidate(connection)
-            self._emit("gap", connection, direction, reason=reason)
+            self._emit("gap", connection, direction, reason=reason, **fields)
 
     def _parse_upgrade(self, connection: _Connection, direction: str) -> bool:
         parser = connection.directions[direction]
@@ -361,7 +367,13 @@ class Observer:
                 self._gap(connection, "invalid_control_frame", direction)
                 return
             if payload_length > self.max_frame_bytes:
-                self._gap(connection, "frame_too_large", direction)
+                self._gap(
+                    connection,
+                    "frame_too_large",
+                    direction,
+                    payload_bytes=payload_length,
+                    limit_bytes=self.max_frame_bytes,
+                )
                 return
             mask_size, total = (4 if masked else 0), offset + (4 if masked else 0) + payload_length
             if len(parser.buffer) < total:
@@ -382,7 +394,13 @@ class Observer:
                     self._gap(connection, "unexpected_continuation", direction)
                     return
                 if len(parser.fragment_payload) + len(payload) > self.max_message_bytes:
-                    self._gap(connection, "message_too_large", direction)
+                    self._gap(
+                        connection,
+                        "message_too_large",
+                        direction,
+                        message_bytes=len(parser.fragment_payload) + len(payload),
+                        limit_bytes=self.max_message_bytes,
+                    )
                     return
                 parser.fragment_payload.extend(payload)
                 if fin:
@@ -398,7 +416,13 @@ class Observer:
                     self._gap(connection, "new_data_during_fragment", direction)
                     return
                 if len(payload) > self.max_message_bytes:
-                    self._gap(connection, "message_too_large", direction)
+                    self._gap(
+                        connection,
+                        "message_too_large",
+                        direction,
+                        message_bytes=len(payload),
+                        limit_bytes=self.max_message_bytes,
+                    )
                     return
                 if fin:
                     if opcode == 1:
