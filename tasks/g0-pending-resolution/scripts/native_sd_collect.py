@@ -1,4 +1,4 @@
-"""Fixed sd-qual-04 local evidence. No RPC, raw log, or model history export."""
+"""Fixed sd-qual-05 local evidence. No RPC, raw log, or model history export."""
 import argparse
 import ctypes
 import datetime as dt
@@ -24,7 +24,7 @@ GO = BASE / 'tasks/g0-retained-resume/data/g0-return-lab-retained-darwin-arm64'
 GO_SHA = 'feb9b9ad969abca5ff35db28c0f0d8d920dc0778d7aac68a90952900e989a285'
 SOCKET = CODEX_HOME / 'app-server-control/app-server-control.sock'
 HOOKS = BASE / 'tasks/g0-macos/data/hook-events'
-NONCE = 'sd-qual-04'
+NONCE = 'sd-qual-05'
 UUID_RE = r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
 STAMP_RE = r'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]{1,9})?(?:Z|\+00:00)'
 
@@ -234,7 +234,7 @@ def main():
     p.add_argument('--since'); p.add_argument('--through'); p.add_argument('--output',type=Path,required=True)
     args = p.parse_args()
     docs = Path(__file__).resolve().parents[1]/'docs'
-    if args.output.parent.resolve() != docs or not re.fullmatch(r'native-sd-qual-04-[a-z-]+\.json',args.output.name):
+    if args.output.parent.resolve() != docs or not re.fullmatch(r'native-sd-qual-05-[a-z-]+\.json',args.output.name):
         raise ValueError('output must be the fixed native evidence location')
     out = {'version':1,'nonce':NONCE,'captured_at':dt.datetime.now(dt.timezone.utc).isoformat(),
            'scope':'fixed controller-owned TUI sample; not automatic attachment or complete G0'}

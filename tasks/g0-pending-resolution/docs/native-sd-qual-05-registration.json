@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "scope": "offline_sd05_session_start_before_paste_registration_only",
+  "contract_commit": "07e46fc877fee7948d0435d4915b90a6e65f5d63",
+  "parent_controller_commit": "ef949c3042f77548aa92da31a4c0fb7bfd80e3b6",
+  "active_nonce": "sd-qual-05",
+  "case": "tasks/g0-pending-resolution/data/sd-qual-05",
+  "job": "tasks/g0-macos/data/test-repo/tasks/pending-resolution/data/sd-qual-05",
+  "markers": {
+    "ready": "SD_QUAL_05_READY",
+    "ack": "SD_QUAL_05_ACK",
+    "command_id": "sd-qual-05-ack-1"
+  },
+  "session_start_gate": {
+    "required_before": "initial-paste",
+    "event": "SessionStart",
+    "source": "startup",
+    "owned_by": "service_pid",
+    "budget_seconds": 10,
+    "missing_failure_code": "owned_session_start_missing",
+    "missing_substage": "await_session_start",
+    "ambiguous": "reject",
+    "pty_capture_on_missing": {
+      "file": "startup-pty-capture.bin",
+      "mode": "0600",
+      "flags": "O_EXCL",
+      "limit_bytes": 65536,
+      "controller_json_fields": ["path", "bytes", "sha256"]
+    }
+  },
+  "rejected_runtime_nonces": [
+    "sd-qual-01",
+    "sd-qual-02",
+    "sd-qual-03",
+    "sd-qual-04"
+  ],
+  "historical_regression": "actual sd03 archived binding/attempt cloned in TemporaryDirectory, with explicit test-only c.NONCE=sd-qual-03; original sd03/sd04 files unchanged",
+  "red": {
+    "source_commit": "ef949c3042f77548aa92da31a4c0fb7bfd80e3b6",
+    "command": "python3 -B -m unittest native_sd_control_test.ControlTests.test_only_sd05_is_registered_for_the_new_model_case native_sd_control_test.ControlTests.test_session_start_discovery_requires_unique_owned_startup_hook native_sd_control_test.ControlTests.test_bounded_pty_archive_is_private_and_omits_body_from_metadata native_sd_control_test.ControlTests.test_missing_owned_session_start_fails_before_paste_with_explicit_code native_sd_control_test.ControlTests.test_failure_record_keeps_fixed_code_and_clock_without_exception_text native_sd_control_test.ControlTests.test_lab_read_envelope_is_fixed_nonce_and_does_not_export_extensions native_sd_control_test.ControlTests.test_completion_reads_only_exact_owned_native_marker_in_original_window native_sd_control_test.ControlTests.test_collector_runtime_rejects_all_prior_case_nonces",
+    "count": 8,
+    "exit_code": 1,
+    "failures": 4,
+    "errors": 4,
+    "elapsed_seconds": 0.191
+  },
+  "green_related": {
+    "command": "python3 -B -m unittest native_sd_collect_test native_sd_pty_test native_sd_control_test",
+    "count": 41,
+    "exit_code": 0,
+    "elapsed_seconds": 0.977
+  },
+  "native_or_model_started": false,
+  "helper_modified": false,
+  "pty_modified": false,
+  "raw_clock_windows_modified": false,
+  "sd03_sd04_original_files_modified": false,
+  "temporary_files_remaining": [],
+  "source_sha256": {
+    "native_sd_control.py": "a4edf0d2ff3520f7e94f7082359b064673d97676353c0d54ca5a6d6b09e8614d",
+    "native_sd_collect.py": "300d5e57436d21a60d0d50cc0f7816ece956b17b86063a6bd8ff438bbb5d652d",
+    "native_sd_pty.py": "0ec348a89cfe1d5b41e23885f20a4323d2631af300ad577fa2e8726e16d8d5c5",
+    "native_sd_clock.py": "c16c8d0d0d9b1652d18606230351493f3cea33211f8b4d3323bb5b6bf2466087",
+    "delivery_audit.py": "59d8129d5409fb7fb5687a5107c81f9d85a63b8f718e4dd22cab660517af87c6"
+  }
+}

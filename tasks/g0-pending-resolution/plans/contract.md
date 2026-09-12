@@ -96,4 +96,4 @@ sd04 的 paste+Enter 落在 TUI 启动后约 1 秒，当时插件缓存仍在写
 
 新建材料按本任务 `plans/`、`docs/`、`scripts/`、`data/`、`tmp/` 分开；`tmp/` 只放可回收 worktree、下载和测试缓存。源码、必要运行记录和可审查证据保留。收尾列清单，核对归属后清理；不删除原有任务材料或配置。
 
-状态：sd04 原生样本已下发，结果为 `initial_binding_inconclusive`（窗口内无本服务 `UserPromptSubmit`），已外层 SIGINT 清理自有 service。摘要修复仍成立，但未触达 send-once。sd04 不重试；完整 G0 仍未通过。
+状态：sd04 因初始 Hook 未绑定已归档。sd05 已登记：paste 前须本服务唯一 SessionStart；controller `d028c06` 与 helper `fbf2496` 已独立审查 PASS。原生 sd05 尚未下发，完整 G0 仍未通过。

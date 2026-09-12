@@ -132,7 +132,7 @@ class Sd02OfflineInputChain(unittest.TestCase):
                     return socket_info
                 return real_lstat(path, *args, **kwargs)
             with patch.object(subprocess, "run", side_effect=run), patch.object(probe.os, "lstat", side_effect=lstat), patch.object(ctypes, "CDLL", return_value=libproc), patch.object(probe.Rpc, "__aenter__", connect), patch.object(os, "environ", {}), patch.object(probe, "ACTIVE_NONCE", "sd-qual-02"):
-                # Only this offline historical test permits the original nonce; runtime accepts 04.
+                # Only this offline historical test permits the original nonce; runtime accepts 05.
                 # These are the actual frozen collector and controller entry points.
                 binding = dict(original)
                 for role in ("service", "tui"):

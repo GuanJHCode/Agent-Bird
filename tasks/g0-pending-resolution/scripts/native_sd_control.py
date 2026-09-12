@@ -1,4 +1,4 @@
-"""One fixed sd-qual-04 qualification controller; not a product launcher."""
+"""One fixed sd-qual-05 qualification controller; not a product launcher."""
 import datetime as dt
 import argparse
 import hashlib
@@ -17,23 +17,29 @@ from native_sd_pty import NativePTY, InputSequence, stamp
 from native_sd_clock import CLOCK_IMPL, continuous_ns, clock_pair
 from delivery_audit import canonical, parse
 
-CASE = c.BASE/'tasks/g0-pending-resolution/data/sd-qual-04'
-JOB = c.REPO/'tasks/pending-resolution/data/sd-qual-04'
+CASE = c.BASE/'tasks/g0-pending-resolution/data/sd-qual-05'
+JOB = c.REPO/'tasks/pending-resolution/data/sd-qual-05'
 HELPER = c.BASE/'tasks/g0-pending-resolution/scripts/native_standalone.py'
 AUDIT = HELPER.with_name('delivery_audit.py')
 DOCS = Path(__file__).resolve().parents[1]/'docs'
+PTY_CAPTURE_LIMIT = 65536
 
 
 class InitialBindingUnconfirmed(ValueError):
     pass
 
 
+class OwnedSessionStartMissing(ValueError):
+    pass
+
+
 def failure_fields(error,substage):
     stages={'start_service','service_wait_socket','start_tui','tui_wait_native','status_paste','status_submit','status_wait',
-            'origin_capture','initial_paste','initial_submit','initial_hook_scan','job_owner','ready_lookup','pending_before',
-            'ready_reread','pending_after','await_job_result','job_read','identity_before_prepare','controller_evidence',
-            'binding','prepare','send-once','helper_finished'}
-    if isinstance(error,InitialBindingUnconfirmed): code='initial_binding_inconclusive'
+            'origin_capture','await_session_start','initial_paste','initial_submit','initial_hook_scan','job_owner','ready_lookup',
+            'pending_before','ready_reread','pending_after','await_job_result','job_read','identity_before_prepare',
+            'controller_evidence','binding','prepare','send-once','helper_finished'}
+    if isinstance(error,OwnedSessionStartMissing): code='owned_session_start_missing'
+    elif isinstance(error,InitialBindingUnconfirmed): code='initial_binding_inconclusive'
     elif isinstance(error,c.EpochWindowError): code='epoch_correlation_inconclusive'
     elif isinstance(error,TimeoutError): code='continuous_deadline_exceeded'
     elif isinstance(error,sqlite3.Error): code='sqlite_read_failed'
@@ -181,11 +187,11 @@ def native_ready(root,turn,since,through,now=None):
             if event.get('type')!='event_msg': continue
             payload=event.get('payload',{})
             if (type(payload) is not dict or payload.get('type')!='task_complete'
-                    or payload.get('turn_id')!=turn or payload.get('last_agent_message')!='SD_QUAL_04_READY'):
+                    or payload.get('turn_id')!=turn or payload.get('last_agent_message')!='SD_QUAL_05_READY'):
                 continue
             if lo<=c.epoch_ns(event.get('timestamp'))<=hi:
                 found.append({'at':event['timestamp'],'turn_id':turn,'type':'task_complete',
-                              'last_agent_message':'SD_QUAL_04_READY'})
+                              'last_agent_message':'SD_QUAL_05_READY'})
     if len(found)>1: raise ValueError('ambiguous native completion event')
     return found[0] if found else None
 
@@ -252,16 +258,16 @@ def read_job():
 def fixed_prompt():
     start=f'{c.GO} start --dir {JOB} --nonce {c.NONCE} --delay 40s --controller-thread "$CODEX_THREAD_ID"'
     inspect=f'{c.GO} inspect --dir {JOB} --nonce {c.NONCE}'
-    ack=f'{c.GO} ack --dir {JOB} --nonce {c.NONCE} --controller-thread "$CODEX_THREAD_ID" --revision 1 --event-hash ACTUAL_EVENT_HASH --command-id sd-qual-04-ack-1 --decision handled'
-    return ('这是用户已授权的固定原生资格实验，仅有一个合成任务 sd-qual-04，目录已预建且工具已审查。'
+    ack=f'{c.GO} ack --dir {JOB} --nonce {c.NONCE} --controller-thread "$CODEX_THREAD_ID" --revision 1 --event-hash ACTUAL_EVENT_HASH --command-id sd-qual-05-ack-1 --decision handled'
+    return ('这是用户已授权的固定原生资格实验，仅有一个合成任务 sd-qual-05，目录已预建且工具已审查。'
             '现在用原生 exec_command 实际执行且仅执行一次以下命令：`'+start+'`。'
-            '该命令快速返回 started 后，你必须立刻结束当前响应，final 只写 SD_QUAL_04_READY。'
+            '该命令快速返回 started 后，你必须立刻结束当前响应，final 只写 SD_QUAL_05_READY。'
             '当前轮不要等待结果、不要读/轮询作业、不要调用 sleep/wait、不要创建 Goal 或子Agent，不要改文件/配置/权限，也不要使用MCP。'
-            '之后只有当本线程收到代表 sd-qual-04 完成的原生 standalone toolOutput 时才执行下一步：'
+            '之后只有当本线程收到代表 sd-qual-05 完成的原生 standalone toolOutput 时才执行下一步：'
             '用真实工具执行 `'+inspect+'`，核对 nonce、controller_thread、revision=1、completed result和未取消，取得实际 event_hash；'
             '把 ACTUAL_EVENT_HASH 替换为该真实返回字段，再执行 `'+ack+'`。'
             '必须使用真实原生 CODEX_THREAD_ID，不得伪造身份或再次start。'
-            '看到真实 acknowledged 且 effect_count=1 后，final 只写 SD_QUAL_04_ACK。'
+            '看到真实 acknowledged 且 effect_count=1 后，final 只写 SD_QUAL_05_ACK。'
             '现在只做首次start与READY final，后续外部工具结果由合法原生通道送达，无需你主动继续。')
 
 
@@ -308,7 +314,7 @@ def matching_prompt_hook(root,service,since,through):
     return found[0] if found else None
 
 
-def discover_prompt_hook(service,since,through):
+def _discover_owned_hook(service,since,through,event_name,require_source=None):
     if not c.integer(service): raise ValueError('exact owned service PID required')
     lo,hi=c.window(since,through,dt.datetime.now(dt.timezone.utc)); found=[]
     for path in c.HOOKS.glob('*.json'):
@@ -319,9 +325,33 @@ def discover_prompt_hook(service,since,through):
         if type(raw) is not dict or raw.get('ppid')!=service or not c.valid_id(raw.get('session_id')): continue
         try: item=c.hook_fields(raw,raw['session_id'],service,lo,hi)
         except ValueError: continue
-        if item and item['hook_event_name']=='UserPromptSubmit': found.append(item)
-    if len(found)>1: raise ValueError('ambiguous owned service user prompt')
+        if not item or item['hook_event_name']!=event_name: continue
+        if require_source is not None and item.get('source')!=require_source: continue
+        found.append(item)
+    if len(found)>1: raise ValueError('ambiguous owned service '+event_name)
     return found[0] if found else None
+
+
+def discover_prompt_hook(service,since,through):
+    return _discover_owned_hook(service,since,through,'UserPromptSubmit')
+
+
+def discover_session_start(service,since,through):
+    return _discover_owned_hook(service,since,through,'SessionStart',require_source='startup')
+
+
+def archive_bounded_pty(tui,path):
+    raw=getattr(tui,'buffer',None)
+    if type(raw) is not bytes: raise ValueError('bounded PTY capture unavailable')
+    payload=raw[-PTY_CAPTURE_LIMIT:]
+    if len(payload)>PTY_CAPTURE_LIMIT: raise ValueError('pty capture bound exceeded')
+    fd=os.open(path,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
+    with os.fdopen(fd,'wb') as stream:
+        stream.write(payload); stream.flush(); os.fsync(stream.fileno())
+    info=path.stat()
+    if not stat.S_ISREG(info.st_mode) or stat.S_IMODE(info.st_mode)!=0o600 or info.st_nlink!=1:
+        raise ValueError('pty capture file rejected')
+    return {'path':str(path),'bytes':len(payload),'sha256':hashlib.sha256(payload).hexdigest()}
 
 
 def read_job_owner(root):
@@ -477,6 +507,21 @@ def run(helper_sha,audit_sha):
         private_json(CASE/'native-origin.json',{'version':1,'nonce':c.NONCE,'origin':original,'pty':tui.evidence(),
                                               'scope':'exclusive fresh owned PTY, before any input; not general UI attachment'})
         if continuous_ns()>=deadline: raise TimeoutError('native startup evidence exceeded original ten seconds')
+        session_since=stamp(); session_mono=continuous_ns()
+        session_deadline=session_mono+10000000000
+        record['session_start_window']={'since':session_since,'clock_impl':CLOCK_IMPL,'mono_ns':session_mono,
+                                        'deadline_mono_ns':session_deadline}
+        note('await_session_start'); record['substage']='await_session_start'
+        session_hook=None
+        while continuous_ns()<session_deadline:
+            pump(.1)
+            if continuous_ns()>=session_deadline: break
+            session_hook=discover_session_start(service.pid,session_since,stamp())
+            if session_hook is not None: break
+        if session_hook is None:
+            record['startup_pty_capture']=archive_bounded_pty(tui,CASE/'startup-pty-capture.bin')
+            raise OwnedSessionStartMissing('owned SessionStart missing before initial paste')
+        record['session_start']=session_hook
         since=stamp(); initial_mono=continuous_ns()
         initial_deadline=initial_mono+120000000000
         record['initial_window']={'since':since,'clock_impl':CLOCK_IMPL,'mono_ns':initial_mono,'deadline_mono_ns':initial_deadline,
@@ -602,7 +647,7 @@ def run(helper_sha,audit_sha):
         record['ended_clock']=clock_pair()
         record['all_owned_native_exited']=all(p is None or p._poll() is not None for p in (service,tui))
         private_json(CASE/'controller-result.json',record)
-        private_json(DOCS/'native-sd-qual-04-controller.json',record)
+        private_json(DOCS/'native-sd-qual-05-controller.json',record)
         for p in (service,tui):
             if p and p._poll() is not None: p.close()
         print(json.dumps({'nonce':c.NONCE,'stage':'finished','helper_ok':helper_ok,
