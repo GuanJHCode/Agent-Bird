@@ -63,6 +63,14 @@ sd02 的进程字段不一致已修复，实际记录克隆的完整 prepare 链
 
 这一后验资格只用于固定新 TUI 的接口实验，不能替代通用当前会话附着、冷启动安装或完整 G0。历史 sd02 的离线回归可在测试内部显式替换唯一 active nonce 常量，不改原输入；运行入口只接受 sd03，不增加环境或 CLI 绕过参数。
 
+### 2026-09-12：第四个独立 case 与摘要合同修复
+
+sd03 已取得真实 initial、同 root 的 READY/pending 屏障及原服务 prepare 阳性。它生成唯一发送意图后，controller 把原始 binding 文件 SHA 与 helper 的 canonical JSON SHA 比较，导致本地拒绝。未取得发送收据，是否已写入原生连接仍不确定；超过原窗口的只读历史未观察到结果，不作为未发送证明。该 case 已停止并保留全部原记录，不重试。
+
+前瞻登记唯一新 case `sd-qual-04`。沿用 sd03 的普通入口、单次初始输入、后验身份资格、显式 family/session、真实 Go owner、原始 10/120 秒窗口和有界 caffeinate。仅统一 binding 的 canonical JSON 摘要约定；二进制与原始归档仍使用原始字节 SHA。新 case 的发送仍仅一次，uncertain 不重发，不增加 RPC 或配置变更。
+
+运行前须独立复核专用摘要修复，以及真实 controller 文件序列化→helper `issue_once`→控制器读取发送意图的离线整链回归；随后冻结 helper/controller 的唯一 active nonce 为 sd04 并完成主树新鲜验证。历史 sd02/sd03 回归只可在隔离测试内显式选择对应 nonce，不改变原文件、旧期限或运行入口，不增加可绕过资格的参数。准入仅限此受控原生样本，不计作通用附着或完整 G0。
+
 ## 接口解释与判据
 
 官方 `turn/start.toolOutput` 接受客户端实际执行的独立工具输出，`input=[]`，以 `functionCallOutput` 持久化；不要求存在旧的 pending tool call。旧研究对“必须补回旧 pending call”的概括不作为本轮排除此接口的依据。[官方 App Server 说明](https://learn.chatgpt.com/docs/app-server#start-a-turn)
