@@ -79,6 +79,8 @@ sd04 的 paste+Enter 落在 TUI 启动后约 1 秒，当时插件缓存仍在写
 
 前瞻登记唯一新 case `sd-qual-05`。沿用普通 `codex` 入口、单次 bracketed-paste + 独立 Enter、后验 `UserPromptSubmit` 身份、canonical binding 摘要、一次发送、uncertain 不重发、原 10/120 秒窗口和有界 caffeinate。仅增加：在那一次 paste 之前，必须在启动预算内观察到属于本 service PID 的唯一真实 `SessionStart`；没有则记录明确子阶段失败并中止，不补第二次 Enter。失败时把有界 PTY 字节归档到本 case，供诊断，不把 PTY 文本当作 current-UI 附着证明。历史 sd02/sd03/sd04 原文件不改、不重跑。须冻结、独立复核和新鲜前检后才下发。
 
+sd05 已下发：10 秒内无 SessionStart，PTY 停在 MCP 启动。不重试。下一独立 case 若继续，须把 SessionStart 等待放到初始 120 秒窗口（仍只 paste 一次），不能改全局配置或关掉 MCP 来凑通过。
+
 ## 接口解释与判据
 
 官方 `turn/start.toolOutput` 接受客户端实际执行的独立工具输出，`input=[]`，以 `functionCallOutput` 持久化；不要求存在旧的 pending tool call。旧研究对“必须补回旧 pending call”的概括不作为本轮排除此接口的依据。[官方 App Server 说明](https://learn.chatgpt.com/docs/app-server#start-a-turn)
@@ -96,4 +98,4 @@ sd04 的 paste+Enter 落在 TUI 启动后约 1 秒，当时插件缓存仍在写
 
 新建材料按本任务 `plans/`、`docs/`、`scripts/`、`data/`、`tmp/` 分开；`tmp/` 只放可回收 worktree、下载和测试缓存。源码、必要运行记录和可审查证据保留。收尾列清单，核对归属后清理；不删除原有任务材料或配置。
 
-状态：sd04 因初始 Hook 未绑定已归档。sd05 已登记：paste 前须本服务唯一 SessionStart；controller `d028c06` 与 helper `fbf2496` 已独立审查 PASS。原生 sd05 尚未下发，完整 G0 仍未通过。
+状态：sd04/sd05 原生样本均未通过初始身份门禁并已归档清理。sd05 的有界 PTY 显示 TUI 停在 MCP 启动（cua_repl/node_repl 1/3），10 秒内无 SessionStart。摘要修复仍成立，send-once 未触达。完整 G0 仍未通过。

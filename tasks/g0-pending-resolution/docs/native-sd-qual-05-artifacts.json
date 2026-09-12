@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "nonce": "sd-qual-05",
+  "scope": "archive after owned_session_start_missing; pty body remains in gitignored case",
+  "main_commit_at_run": "894cc38",
+  "files": [
+    {
+      "name": "native-origin.json",
+      "bytes": 1298,
+      "sha256": "c1000404fbf73ea9111cb87b38568cb45a18a52735fd62dff26d93b89b137681"
+    },
+    {
+      "name": "controller-result.json",
+      "bytes": 5829,
+      "sha256": "14745c1c7d9b18952c3b04ff64ac368282659d685bd9b9cefae8ab562c790639"
+    },
+    {
+      "name": "startup-pty-capture.bin",
+      "bytes": 11047,
+      "sha256": "5e43a53dc571441bbbdb93ef2ad071ec3555cc90dafd762196cbe8af1294afb8"
+    }
+  ]
+}
