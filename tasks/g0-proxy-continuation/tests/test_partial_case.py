@@ -216,6 +216,7 @@ def test_run_partial_case_is_four_phase_and_writes_exclusive_result(tmp_path, mo
         pid = 20
         eof = False
         inputs = []
+        reads = 0
 
         def command(self, command):
             self.inputs.append(command)
@@ -224,6 +225,9 @@ def test_run_partial_case_is_four_phase_and_writes_exclusive_result(tmp_path, mo
 
         async def aread_until(self, deadline):
             return {}
+
+        def read_available(self):
+            self.reads += 1
 
         async def async_status_checkpoint(self, deadline):
             return {THREAD}
@@ -236,7 +240,7 @@ def test_run_partial_case_is_four_phase_and_writes_exclusive_result(tmp_path, mo
 
         @property
         def evidence(self):
-            return {"pid": self.pid, "exit_code": self.poll(), "inputs": list(self.inputs)}
+            return {"pid": self.pid, "exit_code": self.poll(), "inputs": list(self.inputs), "reads": self.reads}
 
     class FakeBridge:
         trace_complete = True
@@ -286,9 +290,19 @@ def test_run_partial_case_is_four_phase_and_writes_exclusive_result(tmp_path, mo
     result = asyncio.run(run_partial_case(value, runtime_factory=FakeRuntime, inspect_runner=lambda _: next(states), effective_model_reader=lambda: {"model": "gpt-5.6-luna", "reasoning_effort": "medium"}))
     assert result["status"] == "observed"
     assert parent_pids == [98]
+    assert result["initial_tui"]["inputs"] and result["initial_tui"]["reads"] + result["resume_tui"]["reads"] > 0
     assert result["phases"] == ["initial", "stopped", "resume_quiet", "continued"]
     assert result["trace"] == "trace.json"
     assert (value.plan.case_dir / "trace.json").exists()
     assert (value.plan.case_dir / "result.json").exists()
     with pytest.raises(FileExistsError):
         asyncio.run(run_partial_case(value, runtime_factory=FakeRuntime, inspect_runner=lambda _: next(states), effective_model_reader=lambda: {"model": "gpt-5.6-luna", "reasoning_effort": "medium"}))
+
+
+def test_quit_boundary_rejects_old_terminal_event():
+    import partial_case
+
+    bridge = type("Bridge", (), {"epoch_invalid": {}})()
+    tui = type("TUI", (), {"poll": lambda self: None})()
+    with pytest.raises(Exception, match="baseline"):
+        partial_case._require_clean_quit_boundary(bridge, tui, 1, 1)

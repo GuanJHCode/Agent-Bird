@@ -449,6 +449,16 @@ def _terminal_event_count(bridge: Any, epoch: int) -> int:
     return sum(1 for row in getattr(bridge, "trace", ()) if row.get("conn_epoch") == epoch and row.get("event") in {"eof", "connection_close"})
 
 
+def _require_clean_quit_boundary(bridge: Any, tui: Any, epoch: int, terminal_before: int) -> None:
+    if terminal_before != 0:
+        raise RuntimeInvariantError("quit terminal baseline already contains EOF/close")
+    if tui.poll() is not None:
+        raise RuntimeInvariantError("TUI exited before quit was submitted")
+    invalid = getattr(bridge, "epoch_invalid", {})
+    if isinstance(invalid, Mapping) and invalid.get(epoch) is not None:
+        raise RuntimeInvariantError("quit epoch is already invalid")
+
+
 def _validate_quiet(bridge: Any, expected_thread_id: str) -> dict[str, Any]:
     trace = getattr(bridge, "trace", None)
     if not isinstance(trace, list) or getattr(bridge, "trace_complete", None) is not True:
@@ -570,6 +580,7 @@ async def run_partial_case(
         initial_prefix = _prefix_snapshot(spec, initial)
         stage = "stop"
         initial_terminal_before = _terminal_event_count(first.bridge, initial_epoch)
+        _require_clean_quit_boundary(first.bridge, tui, initial_epoch, initial_terminal_before)
         initial_quit_deadline = raw_seconds() + spec.plan.local_window_seconds
         tui.command("/quit")
         quit_exit = await tui.await_exit(initial_quit_deadline)
@@ -655,6 +666,7 @@ async def run_partial_case(
             lambda view: view.get("status") == "completed" and view.get("segment") == 2 and view.get("effect_count") == view.get("total_steps") and _retained_worker_stopped(view, view),
             raw_seconds() + spec.plan.model_window_seconds,
             inspect_runner,
+            second,
         )
         final_prefix = _prefix_snapshot(dynamic_spec, continued)
         if len(final_prefix) < len(initial_prefix) or final_prefix[:len(initial_prefix)] != initial_prefix:
@@ -662,6 +674,7 @@ async def run_partial_case(
         result.update({"continued": continued, "final_prefix": final_prefix, "status_ids": sorted(status_ids)})
         result["phases"].append("continued")
         resume_terminal_before = _terminal_event_count(bridge, epoch)
+        _require_clean_quit_boundary(bridge, tui, epoch, resume_terminal_before)
         resume_quit_deadline = raw_seconds() + spec.plan.local_window_seconds
         tui.command("/quit")
         final_exit = await tui.await_exit(resume_quit_deadline)
