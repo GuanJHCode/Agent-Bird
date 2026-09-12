@@ -20,7 +20,7 @@ runtime 保存二进制/配置摘要以及自有进程的 birth/executable。关
 的 socket 或无法确认身份的进程保留。窗口基于 `CLOCK_MONOTONIC_RAW`，本地操作 10 秒，必要模型轮次 120 秒，
 但本实现没有启动模型轮次。
 
-当前离线验证覆盖 runtime、transport、observer 共 69 项。尚未执行 native、TUI
+当前离线验证覆盖 runtime、transport、observer 共 70 项。尚未执行 native、TUI
 或模型，也不把离线通过当作原生附着证据。
 
 显式运行入口为：

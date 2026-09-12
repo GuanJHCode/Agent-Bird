@@ -1088,6 +1088,14 @@ def _failure_record(exc: BaseException, stage: str) -> dict[str, str]:
     return {"stage": stage, "type": type(exc).__name__, "code": code, "message_sha256": digest}
 
 
+def new_epoch_after_disconnect(
+    epochs_before_disconnect: set[int], records: Iterable[ConnectionIdentity]
+) -> bool:
+    """Recognize only epochs observed after the frozen disconnect marker."""
+
+    return any(record.epoch not in epochs_before_disconnect for record in records)
+
+
 async def run_case(
     config: NativeRuntimeConfig,
     case_dir: str | os.PathLike[str],
@@ -1119,6 +1127,7 @@ async def run_case(
     initial_thread: str | None = None
     disconnect_epoch: int | None = None
     new_epoch_observed = False
+    epochs_before_disconnect: set[int] = set()
     current_stage = "prepare"
 
     def step(name: str, **fields: Any) -> None:
@@ -1183,6 +1192,7 @@ async def run_case(
         connection_id = next(reversed(runtime._bridge.connection_records), None) if runtime._bridge else None
         if connection_id is not None:
             disconnect_epoch = runtime._bridge.connection_records[connection_id].epoch
+            epochs_before_disconnect = {record.epoch for record in runtime._bridge.connection_records.values()}
             disconnect_window = RuntimeWindow.start(local_seconds=config.local_window_seconds, model_seconds=config.model_window_seconds)
             disconnected = await runtime.disconnect(connection_id, leg="frontend")
             await tui.aread_until(min(disconnect_window.local_deadline, raw_seconds() + 2.0))
@@ -1214,8 +1224,9 @@ async def run_case(
             result["protection_failure"] = _failure_record(exc, "protection")
         bridge = runtime._bridge
         if bridge is not None:
-            epochs = {record.epoch for record in bridge.connection_records.values()}
-            new_epoch_observed = disconnect_epoch is not None and any(epoch != disconnect_epoch for epoch in epochs)
+            new_epoch_observed = disconnect_epoch is not None and new_epoch_after_disconnect(
+                epochs_before_disconnect, bridge.connection_records.values()
+            )
             result["disconnect_barrier"] = {
                 "connection_id": connection_id if "connection_id" in locals() else None,
                 "old_epoch": disconnect_epoch,
@@ -1306,6 +1317,7 @@ __all__ = [
     "raw_seconds",
     "sha256_file",
     "main",
+    "new_epoch_after_disconnect",
     "run_case",
 ]
 

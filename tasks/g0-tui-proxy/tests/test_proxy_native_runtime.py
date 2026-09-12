@@ -23,6 +23,7 @@ from proxy_native_runtime import (  # noqa: E402
     RuntimeWindow,
     _CaptureBridge,
     build_ordinary_tui_argv,
+    new_epoch_after_disconnect,
     raw_seconds,
 )
 
@@ -687,6 +688,14 @@ def test_runtime_backend_authorizer_requires_the_registered_native_identity(tmp_
     foreign = SimpleNamespace(pid=23, birth="server-birth", executable="/bin/codex", complete=True)
     assert runtime._authorize_backend(good) is True
     assert runtime._authorize_backend(foreign) is False
+
+
+def test_reconnect_epoch_ignores_history_before_disconnect_marker():
+    before = {1, 2}
+    records = [SimpleNamespace(epoch=1), SimpleNamespace(epoch=2)]
+    assert new_epoch_after_disconnect(before, records) is False
+    records.append(SimpleNamespace(epoch=3))
+    assert new_epoch_after_disconnect(before, records) is True
 
 
 def test_case_directory_and_artifacts_are_exclusive(tmp_path):
