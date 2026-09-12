@@ -25,7 +25,11 @@ from proxy_native_runtime import AttachmentCandidate  # noqa: E402
 
 
 THREAD_ID = "01234567-89ab-cdef-0123-456789abcdef"
-runtime_module.FIXED_NATIVE_SHA256 = hashlib.sha256(b"native").hexdigest()
+
+
+@pytest.fixture(autouse=True)
+def fixed_test_binary(monkeypatch):
+    monkeypatch.setattr(runtime_module, "FIXED_NATIVE_SHA256", hashlib.sha256(b"native").hexdigest())
 
 
 def make_spec(tmp_path, *, local_window_seconds=10.0):
