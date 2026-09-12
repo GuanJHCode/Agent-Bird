@@ -1,0 +1,391 @@
+FFFF                                                                     [100%]
+=================================== FAILURES ===================================
+_____ test_two_registered_frontends_get_distinct_processes_and_auth_homes ______
+
+    def test_two_registered_frontends_get_distinct_processes_and_auth_homes():
+        p=module()
+        async def scenario():
+            with tempfile.TemporaryDirectory(prefix='g0-auth-',dir='/private/tmp') as raw, ExitStack() as roots:
+                root=Path(raw); public=root/'p.sock'; binary=transport._process_metadata(os.getpid())[1]
+                manifest,profiles,grants=policy(root,public,binary,roots)
+                listener=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM); listener.bind(str(public)); listener.listen(8)
+                before=public.stat(); clients=[]; proxy=p.ActivationService.from_manifest(manifest)
+                try:
+                    for name in ('a','b'):
+                        child=await client(binary,public,root/f'frontend-{name}'); clients.append(child); register(grants,child,name,binary)
+                    await proxy.start(socket.socket(fileno=os.dup(listener.fileno())))
+                    headers=[json.loads(await ask(child,'connect')) for child in clients]
+                    assert len({row['pid'] for row in headers})==2
+                    for name,row in zip(('a','b'),headers):
+                        assert row['home']==profiles[name]['home'] and row['codex_home']==profiles[name]['codex_home']
+                        assert row['auth_env_present'] is False
+                    assert base64.b64decode(await ask(clients[0],'send',data=base64.b64encode(CANARY).decode()))==CANARY
+                    clients[0].stdin.write(b'{"action":"close"}\n'); await clients[0].stdin.drain(); await clients[0].wait()
+                    await eventually(lambda: len([r for r in proxy.backend_records if r.get('process_stopped')])==1)
+                    assert base64.b64decode(await ask(clients[1],'send',data=base64.b64encode(b'still-owned-b').decode()))==b'still-owned-b'
+                    clients[1].stdin.write(b'{"action":"close"}\n'); await clients[1].stdin.drain(); await clients[1].wait()
+                    await eventually(lambda: len([r for r in proxy.backend_records if r.get('process_stopped')])==2)
+                finally:
+                    for child in clients:
+                        if child.returncode is None: child.terminate(); await child.wait()
+                    await proxy.close(); listener.close()
+                assert public.exists() and (public.stat().st_dev,public.stat().st_ino)==(before.st_dev,before.st_ino)
+                assert all(r['process_stopped'] and r['socket_removed'] for r in proxy.backend_records)
+                serialized=json.dumps(proxy.snapshot())
+                assert CANARY.decode('utf-8','replace') not in serialized
+                assert len(proxy.backend_records)==2
+>       run(scenario())
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:125:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:90: in run
+    def run(coro): return asyncio.run(asyncio.wait_for(coro,10))
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/tasks.py:507: in wait_for
+    return await fut
+           ^^^^^^^^^
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:100: in scenario
+    before=public.stat(); clients=[]; proxy=p.ActivationService.from_manifest(manifest)
+                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tasks/g0-proxy-continuation/cold-start/scripts/activation_service.py:142: in from_manifest
+    return cls(manifest,digest)
+           ^^^^^^^^^^^^^^^^^^^^
+tasks/g0-proxy-continuation/cold-start/scripts/activation_service.py:114: in __init__
+    self.contexts={name:self.auth.load_isolation_context(self.isolation_path,name) for name in profiles['profiles']}
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+path = PosixPath('/private/tmp/g0-auth-jn4zos_n/isolation.json')
+profile_id = 'a'
+
+    def load_isolation_context(path: Path, profile_id: str) -> IsolationContext:
+        """Load one opaque profile from a task-private JSON plan receipt."""
+
+        document = json.loads(_read_stable_manifest(Path(path)))
+        profiles = document.get("profiles")
+        if document.get("version") != 1 or not isinstance(profiles, dict):
+            raise ValueError("unsupported isolation context manifest")
+        raw = profiles.get(profile_id)
+        if not isinstance(raw, dict):
+            raise ValueError("unknown isolation profile")
+        required = ("task_root", "home", "codex_home", "workspace", "public_socket", "backend_socket")
+        if any(not isinstance(raw.get(name), str) for name in required):
+            raise ValueError("incomplete isolation profile")
+        expected = raw.get("expected_executable")
+        if not isinstance(expected, str) or not Path(expected).is_absolute():
+            raise ValueError("profile executable must be absolute")
+        expected_sha256 = raw.get("expected_executable_sha256")
+        if not isinstance(expected_sha256, str) or len(expected_sha256) != 64 or any(
+            character not in "0123456789abcdef" for character in expected_sha256.lower()
+        ):
+>           raise ValueError("profile executable digest is required")
+E           ValueError: profile executable digest is required
+
+../auth/tasks/g0-auth-preserving-activation/scripts/auth_isolation.py:165: ValueError
+_______________ test_unregistered_process_cannot_spawn_a_backend _______________
+
+    def test_unregistered_process_cannot_spawn_a_backend():
+        p=module()
+        async def scenario():
+            with tempfile.TemporaryDirectory(prefix='g0-auth-',dir='/private/tmp') as raw, ExitStack() as roots:
+                root=Path(raw); public=root/'p.sock'; binary=transport._process_metadata(os.getpid())[1]
+                manifest,profiles,grants=policy(root,public,binary,roots)
+                listener=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM); listener.bind(str(public)); listener.listen(4)
+                proxy=p.ActivationService.from_manifest(manifest); child=await client(binary,public,root/'f')
+                try:
+                    await proxy.start(socket.socket(fileno=os.dup(listener.fileno())))
+                    assert await ask(child,'connect')=='closed'
+                    assert proxy.backend_records==[]
+                finally:
+                    child.terminate(); await child.wait(); await proxy.close(); listener.close()
+>       run(scenario())
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:142:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:90: in run
+    def run(coro): return asyncio.run(asyncio.wait_for(coro,10))
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/tasks.py:507: in wait_for
+    return await fut
+           ^^^^^^^^^
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:135: in scenario
+    proxy=p.ActivationService.from_manifest(manifest); child=await client(binary,public,root/'f')
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tasks/g0-proxy-continuation/cold-start/scripts/activation_service.py:142: in from_manifest
+    return cls(manifest,digest)
+           ^^^^^^^^^^^^^^^^^^^^
+tasks/g0-proxy-continuation/cold-start/scripts/activation_service.py:114: in __init__
+    self.contexts={name:self.auth.load_isolation_context(self.isolation_path,name) for name in profiles['profiles']}
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+path = PosixPath('/private/tmp/g0-auth-tdvkpjqu/isolation.json')
+profile_id = 'a'
+
+    def load_isolation_context(path: Path, profile_id: str) -> IsolationContext:
+        """Load one opaque profile from a task-private JSON plan receipt."""
+
+        document = json.loads(_read_stable_manifest(Path(path)))
+        profiles = document.get("profiles")
+        if document.get("version") != 1 or not isinstance(profiles, dict):
+            raise ValueError("unsupported isolation context manifest")
+        raw = profiles.get(profile_id)
+        if not isinstance(raw, dict):
+            raise ValueError("unknown isolation profile")
+        required = ("task_root", "home", "codex_home", "workspace", "public_socket", "backend_socket")
+        if any(not isinstance(raw.get(name), str) for name in required):
+            raise ValueError("incomplete isolation profile")
+        expected = raw.get("expected_executable")
+        if not isinstance(expected, str) or not Path(expected).is_absolute():
+            raise ValueError("profile executable must be absolute")
+        expected_sha256 = raw.get("expected_executable_sha256")
+        if not isinstance(expected_sha256, str) or len(expected_sha256) != 64 or any(
+            character not in "0123456789abcdef" for character in expected_sha256.lower()
+        ):
+>           raise ValueError("profile executable digest is required")
+E           ValueError: profile executable digest is required
+
+../auth/tasks/g0-auth-preserving-activation/scripts/auth_isolation.py:165: ValueError
+_ test_real_backend_start_failure_is_stopped_and_recorded_without_public_unlink _
+
+    def test_real_backend_start_failure_is_stopped_and_recorded_without_public_unlink():
+        p=module()
+        async def scenario():
+            with tempfile.TemporaryDirectory(prefix='g0-auth-',dir='/private/tmp') as raw, ExitStack() as roots:
+                root=Path(raw); public=root/'p.sock'; binary=transport._process_metadata(os.getpid())[1]
+                manifest,profiles,grants=policy(root,public,binary,roots,fail=True)
+                listener=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM); listener.bind(str(public)); listener.listen(4)
+                proxy=p.ActivationService.from_manifest(manifest); child=await client(binary,public,root/'f'); register(grants,child,'a',binary)
+                try:
+                    await proxy.start(socket.socket(fileno=os.dup(listener.fileno())))
+                    assert await ask(child,'connect')=='closed'
+                    await eventually(lambda: bool(proxy.backend_records) and proxy.backend_records[0].get('process_stopped'))
+                finally:
+                    child.terminate(); await child.wait(); await proxy.close(); listener.close()
+                assert proxy.backend_records[0]['state']=='failed'
+                assert proxy.backend_records[0]['returncode']==7
+                assert public.exists()
+>       run(scenario())
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:162:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:90: in run
+    def run(coro): return asyncio.run(asyncio.wait_for(coro,10))
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/tasks.py:507: in wait_for
+    return await fut
+           ^^^^^^^^^
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:152: in scenario
+    proxy=p.ActivationService.from_manifest(manifest); child=await client(binary,public,root/'f'); register(grants,child,'a',binary)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tasks/g0-proxy-continuation/cold-start/scripts/activation_service.py:142: in from_manifest
+    return cls(manifest,digest)
+           ^^^^^^^^^^^^^^^^^^^^
+tasks/g0-proxy-continuation/cold-start/scripts/activation_service.py:114: in __init__
+    self.contexts={name:self.auth.load_isolation_context(self.isolation_path,name) for name in profiles['profiles']}
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+path = PosixPath('/private/tmp/g0-auth-mn8g59zu/isolation.json')
+profile_id = 'a'
+
+    def load_isolation_context(path: Path, profile_id: str) -> IsolationContext:
+        """Load one opaque profile from a task-private JSON plan receipt."""
+
+        document = json.loads(_read_stable_manifest(Path(path)))
+        profiles = document.get("profiles")
+        if document.get("version") != 1 or not isinstance(profiles, dict):
+            raise ValueError("unsupported isolation context manifest")
+        raw = profiles.get(profile_id)
+        if not isinstance(raw, dict):
+            raise ValueError("unknown isolation profile")
+        required = ("task_root", "home", "codex_home", "workspace", "public_socket", "backend_socket")
+        if any(not isinstance(raw.get(name), str) for name in required):
+            raise ValueError("incomplete isolation profile")
+        expected = raw.get("expected_executable")
+        if not isinstance(expected, str) or not Path(expected).is_absolute():
+            raise ValueError("profile executable must be absolute")
+        expected_sha256 = raw.get("expected_executable_sha256")
+        if not isinstance(expected_sha256, str) or len(expected_sha256) != 64 or any(
+            character not in "0123456789abcdef" for character in expected_sha256.lower()
+        ):
+>           raise ValueError("profile executable digest is required")
+E           ValueError: profile executable digest is required
+
+../auth/tasks/g0-auth-preserving-activation/scripts/auth_isolation.py:165: ValueError
+__ test_entrypoint_runs_inherited_listener_through_real_backend_and_idle_exit __
+
+    async def scenario():
+        with tempfile.TemporaryDirectory(prefix='g0-auth-',dir='/private/tmp') as raw, ExitStack() as roots:
+            root=Path(raw); public=root/'p.sock'; binary=transport._process_metadata(os.getpid())[1]
+            manifest,profiles,grants=policy(root,public,binary,roots)
+            listener=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM); listener.bind(str(public)); listener.listen(4)
+            child=await client(binary,public,root/'f'); register(grants,child,'a',binary)
+            environment={'PATH':'/usr/bin:/bin','HOME':str(root),'PYTHONDONTWRITEBYTECODE':'1',
+                'PYTHONPATH':os.environ['AUTH_ISOLATION_SCRIPTS']}
+            launch=await asyncio.create_subprocess_exec(binary,'-B',str(entry),'--manifest',str(manifest),
+                '--listener-fd',str(listener.fileno()),pass_fds=(listener.fileno(),),env=environment,
+                stdout=asyncio.subprocess.PIPE,stderr=asyncio.subprocess.PIPE)
+            try:
+>               header=json.loads(await ask(child,'connect'))
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:181:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:56: in ask
+    return (await process.stdout.readline()).decode().strip()
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/streams.py:562: in readline
+    line = await self.readuntil(sep)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/streams.py:677: in readuntil
+    await self._wait_for_data('readuntil')
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <StreamReader eof transport=<_UnixReadPipeTransport closed fd=18 closed>>
+func_name = 'readuntil'
+
+    async def _wait_for_data(self, func_name):
+        """Wait until feed_data() or feed_eof() is called.
+
+        If stream was paused, automatically resume it.
+        """
+        # StreamReader uses a future to link the protocol feed_data() method
+        # to a read coroutine. Running two read coroutines at the same time
+        # would have an unexpected behaviour. It would not possible to know
+        # which coroutine would get the next data.
+        if self._waiter is not None:
+            raise RuntimeError(
+                f'{func_name}() called while another coroutine is '
+                f'already waiting for incoming data')
+
+        assert not self._eof, '_wait_for_data after EOF'
+
+        # Waiting for data while paused will make deadlock, so prevent it.
+        # This is essential for readexactly(n) for case when n > self._limit.
+        if self._paused:
+            self._paused = False
+            self._transport.resume_reading()
+
+        self._waiter = self._loop.create_future()
+        try:
+>           await self._waiter
+E           asyncio.exceptions.CancelledError
+
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/streams.py:539: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+    def test_entrypoint_runs_inherited_listener_through_real_backend_and_idle_exit():
+        p=module()
+        entry=ROOT/'tasks/g0-proxy-continuation/cold-start/scripts/projectproxy_launchd_entrypoint.py'
+        assert entry.exists(), 'a working offline entrypoint must connect activation FD to backend lifecycle'
+        async def scenario():
+            with tempfile.TemporaryDirectory(prefix='g0-auth-',dir='/private/tmp') as raw, ExitStack() as roots:
+                root=Path(raw); public=root/'p.sock'; binary=transport._process_metadata(os.getpid())[1]
+                manifest,profiles,grants=policy(root,public,binary,roots)
+                listener=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM); listener.bind(str(public)); listener.listen(4)
+                child=await client(binary,public,root/'f'); register(grants,child,'a',binary)
+                environment={'PATH':'/usr/bin:/bin','HOME':str(root),'PYTHONDONTWRITEBYTECODE':'1',
+                    'PYTHONPATH':os.environ['AUTH_ISOLATION_SCRIPTS']}
+                launch=await asyncio.create_subprocess_exec(binary,'-B',str(entry),'--manifest',str(manifest),
+                    '--listener-fd',str(listener.fileno()),pass_fds=(listener.fileno(),),env=environment,
+                    stdout=asyncio.subprocess.PIPE,stderr=asyncio.subprocess.PIPE)
+                try:
+                    header=json.loads(await ask(child,'connect'))
+                    assert header['codex_home']==profiles['a']['codex_home']
+                    assert base64.b64decode(await ask(child,'send',data=base64.b64encode(CANARY).decode()))==CANARY
+                    child.stdin.write(b'{"action":"close"}\n'); await child.stdin.drain(); await child.wait()
+                    stdout,stderr=await asyncio.wait_for(launch.communicate(),3)
+                    assert launch.returncode==0, stderr.decode()
+                    summary=json.loads(stdout)
+                    assert summary['backend_count']==1 and summary['all_backends_stopped'] is True
+                    artifacts=list((root/'state').glob('*/activation.json'))
+                    assert len(artifacts)==1
+                    assert CANARY.decode('utf-8','replace') not in artifacts[0].read_text()
+                finally:
+                    for process in (child,launch):
+                        if process.returncode is None: process.terminate(); await process.wait()
+                    listener.close()
+                assert public.exists()
+>       run(scenario())
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:197:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:90: in run
+    def run(coro): return asyncio.run(asyncio.wait_for(coro,10))
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/tasks.py:506: in wait_for
+    async with timeouts.timeout(timeout):
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x107f52f00>
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+
+            if self._task.uncancel() <= self._cancelling and exc_type is not None:
+                # Since there are no new cancel requests, we're
+                # handling this.
+                if issubclass(exc_type, exceptions.CancelledError):
+>                   raise TimeoutError from exc_val
+E                   TimeoutError
+
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/timeouts.py:116: TimeoutError
+=========================== short test summary info ============================
+FAILED tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py::test_two_registered_frontends_get_distinct_processes_and_auth_homes
+FAILED tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py::test_unregistered_process_cannot_spawn_a_backend
+FAILED tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py::test_real_backend_start_failure_is_stopped_and_recorded_without_public_unlink
+FAILED tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py::test_entrypoint_runs_inherited_listener_through_real_backend_and_idle_exit
+4 failed in 10.27s

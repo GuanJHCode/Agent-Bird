@@ -1,0 +1,139 @@
+FFF                                                                      [100%]
+=================================== FAILURES ===================================
+________ test_same_profile_serializes_and_probe_does_not_consume_grant _________
+
+    def test_same_profile_serializes_and_probe_does_not_consume_grant():
+        p=module()
+        async def scenario():
+            with tempfile.TemporaryDirectory(prefix='g0-auth-',dir='/private/tmp') as raw, ExitStack() as roots:
+                root=Path(raw); public=root/'p.sock'; binary=transport._process_metadata(os.getpid())[1]
+                manifest,profiles,grants=policy(root,public,binary,roots)
+                listener=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM); listener.bind(str(public)); listener.listen(8)
+                proxy=p.ActivationService.from_manifest(manifest); clients=[]
+                try:
+                    for index in range(2):
+                        child=await client(binary,public,root/f'f{index}'); clients.append(child); register(grants,child,'a',binary)
+                    await proxy.start(socket.socket(fileno=os.dup(listener.fileno())))
+                    assert await ask(clients[0],'probe')=='probed'
+                    first=json.loads(await ask(clients[0],'connect'))
+                    second=asyncio.create_task(ask(clients[1],'connect'))
+                    await asyncio.sleep(.1)
+                    assert not second.done(), 'same profile spawned concurrent writers to one home'
+                    await ask(clients[0],'disconnect')
+                    next_header=json.loads(await second)
+                    assert next_header['pid']!=first['pid']
+                    await ask(clients[1],'disconnect')
+                    await eventually(lambda: all(r.get('process_stopped') for r in proxy.backend_records))
+                finally:
+                    for child in clients:
+                        if child.returncode is None: child.terminate(); await child.wait()
+                    await proxy.close(); listener.close()
+                assert len(proxy.backend_records)==3
+                expected_parent=Path(profiles['a']['backend_socket']).parent
+                assert all(Path(r['private_socket']).parent==expected_parent for r in proxy.backend_records)
+                assert all(r['process_stopped'] and r['socket_removed'] for r in proxy.backend_records)
+>       run(scenario())
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:230: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:90: in run
+    def run(coro): return asyncio.run(asyncio.wait_for(coro,10))
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/tasks.py:507: in wait_for
+    return await fut
+           ^^^^^^^^^
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:213: in scenario
+    first=json.loads(await ask(clients[0],'connect'))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/json/__init__.py:346: in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/json/decoder.py:345: in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <json.decoder.JSONDecoder object at 0x101bcf620>, s = 'closed', idx = 0
+
+    def raw_decode(self, s, idx=0):
+        """Decode a JSON document from ``s`` (a ``str`` beginning with
+        a JSON document) and return a 2-tuple of the Python
+        representation and the index in ``s`` where the document ended.
+    
+        This can be used to decode a JSON document from a string that may
+        have extraneous data at the end.
+    
+        """
+        try:
+            obj, end = self.scan_once(s, idx)
+        except StopIteration as err:
+>           raise JSONDecodeError("Expecting value", s, err.value) from None
+E           json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/json/decoder.py:363: JSONDecodeError
+_____________ test_changed_grant_cannot_remap_an_admitted_process ______________
+
+    def test_changed_grant_cannot_remap_an_admitted_process():
+        p=module()
+        with tempfile.TemporaryDirectory(prefix='g0-auth-',dir='/private/tmp') as raw, ExitStack() as roots:
+            root=Path(raw); public=root/'p.sock'; binary=transport._process_metadata(os.getpid())[1]
+            manifest,profiles,grants=policy(root,public,binary,roots)
+            proxy=p.ActivationService.from_manifest(manifest)
+            birth,executable=transport._process_metadata(os.getpid())
+            peer=transport.PeerIdentity(pid=os.getpid(),uid=os.getuid(),birth=birth,executable=executable,pid_available=True,uid_available=True,birth_available=True,executable_available=True,source='test-owned')
+            class Current: pid=os.getpid()
+            register(grants,Current(),'a',binary)
+            assert proxy._admit(peer)
+            register(grants,Current(),'b',binary)
+>           assert not proxy._admit(peer)
+E           AssertionError: assert not True
+E            +  where True = _admit(PeerIdentity(pid=23982, uid=501, birth='Sun Sep 13 06:21:49 2026', executable='/Library/Frameworks/Python.framework/Ve.../Python', pid_available=True, uid_available=True, birth_available=True, executable_available=True, source='test-owned'))
+E            +    where _admit = <activation_service.ActivationService object at 0x10728fb10>._admit
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:245: AssertionError
+__________________ test_policy_reader_does_not_block_on_fifo ___________________
+
+tmp_path = PosixPath('/private/var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/pytest-of-guanjunhui/pytest-2485/test_policy_reader_does_not_bl0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1072375c0>
+
+    def test_policy_reader_does_not_block_on_fifo(tmp_path,monkeypatch):
+        p=module(); path=tmp_path/'fifo'; os.mkfifo(path,0o600)
+        original=p.os.open
+        def checked_open(name,flags,*args):
+            assert flags & os.O_NONBLOCK, 'policy file open can block before fstat rejects FIFO'
+            return original(name,flags,*args)
+        monkeypatch.setattr(p.os,'open',checked_open)
+>       with pytest.raises(ValueError): p._private_json(path)
+                                        ^^^^^^^^^^^^^^^^^^^^^
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:255: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tasks/g0-proxy-continuation/cold-start/scripts/activation_service.py:45: in _private_json
+    descriptor=os.open(path,os.O_RDONLY|os.O_NOFOLLOW)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = PosixPath('/private/var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/pytest-of-guanjunhui/pytest-2485/test_policy_reader_does_not_bl0/fifo')
+flags = 256, args = ()
+
+    def checked_open(name,flags,*args):
+>       assert flags & os.O_NONBLOCK, 'policy file open can block before fstat rejects FIFO'
+E       AssertionError: policy file open can block before fstat rejects FIFO
+E       assert (256 & 4)
+E        +  where 4 = os.O_NONBLOCK
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:252: AssertionError
+=========================== short test summary info ============================
+FAILED tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py::test_same_profile_serializes_and_probe_does_not_consume_grant
+FAILED tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py::test_changed_grant_cannot_remap_an_admitted_process
+FAILED tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py::test_policy_reader_does_not_block_on_fifo
+3 failed, 4 deselected in 0.17s

@@ -1,0 +1,54 @@
+FFF                                                                      [100%]
+=================================== FAILURES ===================================
+___ test_launch_activate_socket_abi_keeps_queued_connection_and_frees_array ____
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x10a5f8fc0>
+
+    def test_launch_activate_socket_abi_keeps_queued_connection_and_frees_array(monkeypatch):
+>       p = module()
+            ^^^^^^^^
+
+tasks/g0-proxy-continuation/cold-start/tests/test_launch_activation.py:53:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def module():
+>       assert activation is not None, 'launch_activate_socket adapter has not been implemented'
+E       AssertionError: launch_activate_socket adapter has not been implemented
+E       assert None is not None
+
+tasks/g0-proxy-continuation/cold-start/tests/test_launch_activation.py:21: AssertionError
+________ test_multiple_activation_fds_fail_closed_without_leaking_them _________
+
+    def test_multiple_activation_fds_fail_closed_without_leaking_them():
+>       p = module()
+            ^^^^^^^^
+
+tasks/g0-proxy-continuation/cold-start/tests/test_launch_activation.py:72:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def module():
+>       assert activation is not None, 'launch_activate_socket adapter has not been implemented'
+E       AssertionError: launch_activate_socket adapter has not been implemented
+E       assert None is not None
+
+tasks/g0-proxy-continuation/cold-start/tests/test_launch_activation.py:21: AssertionError
+_______________ test_launch_api_error_does_not_invent_a_listener _______________
+
+    def test_launch_api_error_does_not_invent_a_listener():
+>       p = module(); api = LaunchAPI([], errno.ESRCH)
+            ^^^^^^^^
+
+tasks/g0-proxy-continuation/cold-start/tests/test_launch_activation.py:86:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def module():
+>       assert activation is not None, 'launch_activate_socket adapter has not been implemented'
+E       AssertionError: launch_activate_socket adapter has not been implemented
+E       assert None is not None
+
+tasks/g0-proxy-continuation/cold-start/tests/test_launch_activation.py:21: AssertionError
+=========================== short test summary info ============================
+FAILED tasks/g0-proxy-continuation/cold-start/tests/test_launch_activation.py::test_launch_activate_socket_abi_keeps_queued_connection_and_frees_array
+FAILED tasks/g0-proxy-continuation/cold-start/tests/test_launch_activation.py::test_multiple_activation_fds_fail_closed_without_leaking_them
+FAILED tasks/g0-proxy-continuation/cold-start/tests/test_launch_activation.py::test_launch_api_error_does_not_invent_a_listener
+3 failed in 0.02s

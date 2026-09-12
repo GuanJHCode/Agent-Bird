@@ -8,7 +8,9 @@ exposes bounded, in-memory observations to a caller supplied sink.
 from __future__ import annotations
 
 import asyncio
+from contextlib import AsyncExitStack
 import ctypes
+import errno
 import inspect
 import os
 import platform
@@ -18,7 +20,7 @@ import subprocess
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Literal
+from typing import Any, AsyncContextManager, Awaitable, Callable, Literal
 
 
 Direction = Literal["frontend_to_backend", "backend_to_frontend"]
@@ -213,17 +215,33 @@ AuthorizePeer = Callable[[PeerIdentity], bool | Awaitable[bool]]
 BackendPeerValidator = Callable[[PeerIdentity], bool | Awaitable[bool]]
 
 
+@dataclass(frozen=True)
+class BackendConnection:
+    reader: asyncio.StreamReader
+    writer: asyncio.StreamWriter
+    authorize_peer: BackendPeerValidator
+
+    def __post_init__(self) -> None:
+        if not callable(self.authorize_peer):
+            raise ValueError("a factory backend requires its own peer validator")
+
+
+BackendFactory = Callable[[PeerIdentity], AsyncContextManager[BackendConnection]]
+
+
 class ProxyServer:
     """One frontend listener, with one private backend connection per client."""
 
     def __init__(
         self,
         frontend_path: str | os.PathLike[str],
-        backend_path: str | os.PathLike[str],
+        backend_path: str | os.PathLike[str] | None,
         capture_sink: CaptureSink,
         *,
         authorize_peer: AuthorizePeer | None = None,
         authorize_backend_peer: BackendPeerValidator | None = None,
+        backend_factory: BackendFactory | None = None,
+        stop_on_frontend_eof: bool = False,
         chunk_size: int = 64 * 1024,
         max_connections: int = 64,
         callback_timeout: float = 5.0,
@@ -235,7 +253,11 @@ class ProxyServer:
         if callback_timeout <= 0:
             raise ValueError("callback_timeout must be positive")
         self.frontend_path = Path(frontend_path)
-        self.backend_path = Path(backend_path)
+        if (backend_path is None) == (backend_factory is None):
+            raise ValueError("provide exactly one static backend path or backend factory")
+        self.backend_path = Path(backend_path) if backend_path is not None else None
+        self.backend_factory = backend_factory
+        self.stop_on_frontend_eof = stop_on_frontend_eof
         self.capture_sink = capture_sink
         self.authorize_peer = authorize_peer
         self.authorize_backend_peer = authorize_backend_peer
@@ -255,32 +277,51 @@ class ProxyServer:
         self._closed = False
 
     @property
+    def active_frontends(self) -> int:
+        return len(self._accept_tasks)
+
+    @property
     def capture_failed(self) -> bool:
         return self._capture_failed
 
-    async def start(self) -> "ProxyServer":
+    async def start(self, *, inherited_listener: socket.socket | None = None) -> "ProxyServer":
         if self._server is not None:
             return self
-        if self.frontend_path.exists():
-            raise FileExistsError(f"frontend socket already exists: {self.frontend_path}")
-        self.frontend_path.parent.mkdir(parents=True, exist_ok=True)
-        self._parent_fd = os.open(self.frontend_path.parent, os.O_RDONLY)
-        listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        if inherited_listener is not None:
+            listener = inherited_listener
+            try:
+                if (listener.family != socket.AF_UNIX
+                        or listener.getsockopt(socket.SOL_SOCKET, socket.SO_TYPE) != socket.SOCK_STREAM
+                        or Path(os.fsdecode(listener.getsockname())).absolute() != self.frontend_path.absolute()):
+                    raise ValueError("activation FD must be the expected bound Unix stream socket")
+                # Darwin rejects getsockopt(SO_ACCEPTCONN). launch_activate_socket's
+                # passive service supplies the listener; reject a connected endpoint.
+                try:
+                    listener.getpeername()
+                except OSError as exc:
+                    if exc.errno != errno.ENOTCONN:
+                        raise
+                else:
+                    raise ValueError("activation FD must not be an accepted connection")
+            except BaseException:
+                listener.close()
+                raise
+        else:
+            if self.frontend_path.exists():
+                raise FileExistsError(f"frontend socket already exists: {self.frontend_path}")
+            self.frontend_path.parent.mkdir(parents=True, exist_ok=True)
+            self._parent_fd = os.open(self.frontend_path.parent, os.O_RDONLY)
+            listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         try:
-            listener.bind(str(self.frontend_path))
-            self._bind_stat = os.stat(
-                self.frontend_path.name,
-                dir_fd=self._parent_fd,
-                follow_symlinks=False,
-            )
-            self._socket_stat = self._bind_stat
-            listener.listen(socket.SOMAXCONN)
-            os.chmod(self.frontend_path, 0o600)
-            self._socket_stat = os.stat(
-                self.frontend_path.name,
-                dir_fd=self._parent_fd,
-                follow_symlinks=False,
-            )
+            if inherited_listener is None:
+                listener.bind(str(self.frontend_path))
+                self._bind_stat = os.stat(
+                    self.frontend_path.name, dir_fd=self._parent_fd, follow_symlinks=False)
+                self._socket_stat = self._bind_stat
+                listener.listen(socket.SOMAXCONN)
+                os.chmod(self.frontend_path, 0o600)
+                self._socket_stat = os.stat(
+                    self.frontend_path.name, dir_fd=self._parent_fd, follow_symlinks=False)
             listener.setblocking(False)
             self._server = await asyncio.start_unix_server(
                 self._accept,
@@ -314,7 +355,7 @@ class ProxyServer:
 
         writers = [writer for pair in self._connections.values() for writer in pair]
         if writers:
-            await _close_writers(*writers)
+            await self._close_connection_writers(*writers)
 
         tasks = list(self._accept_tasks | self._connection_tasks)
         for task in tasks:
@@ -396,18 +437,27 @@ class ProxyServer:
         connection_id: str | None = None
         epoch = 0
         pumps: list[asyncio.Task[None]] = []
+        backend_scope = AsyncExitStack()
         try:
             frontend_socket = frontend_writer.get_extra_info("socket")
             frontend_peer = peer_identity(frontend_socket)
             if not await self._is_authorized(frontend_peer):
                 return
 
-            backend_reader, backend_writer = await asyncio.wait_for(
-                asyncio.open_unix_connection(self.backend_path), self.callback_timeout
-            )
+            backend_validator = self.authorize_backend_peer
+            if self.backend_factory is None:
+                backend_reader, backend_writer = await asyncio.wait_for(
+                    asyncio.open_unix_connection(self.backend_path), self.callback_timeout)
+            else:
+                lease = await asyncio.wait_for(
+                    backend_scope.enter_async_context(self.backend_factory(frontend_peer)), self.callback_timeout)
+                if not isinstance(lease, BackendConnection):
+                    raise TypeError("backend factory did not provide an isolated connection")
+                backend_reader, backend_writer = lease.reader, lease.writer
+                backend_validator = lease.authorize_peer
             backend_socket = backend_writer.get_extra_info("socket")
             backend_peer = peer_identity(backend_socket)
-            if not backend_peer.complete or not await self._is_backend_authorized(backend_peer):
+            if not backend_peer.complete or not await self._is_backend_authorized(backend_peer, backend_validator):
                 return
 
             self._epoch += 1
@@ -454,10 +504,10 @@ class ProxyServer:
             ]
             self._connection_tasks.update(pumps)
             done, pending = await asyncio.wait(
-                pumps, return_when=asyncio.FIRST_EXCEPTION
+                pumps, return_when=asyncio.FIRST_COMPLETED if self.stop_on_frontend_eof else asyncio.FIRST_EXCEPTION
             )
             failures = [task.exception() for task in done if not task.cancelled()]
-            if any(isinstance(result, _CaptureFailure) for result in failures):
+            if self.stop_on_frontend_eof or any(isinstance(result, _CaptureFailure) for result in failures):
                 for task in pending:
                     task.cancel()
                 await asyncio.gather(*pending, return_exceptions=True)
@@ -479,6 +529,11 @@ class ProxyServer:
                 )
         except _CaptureFailure:
             pass
+        except (OSError, TimeoutError, ValueError, TypeError):
+            if self.backend_factory is None:
+                raise
+            await self._emit("on_gap", GapEvent(self._next_seq(), connection_id or "pending", epoch,
+                "isolated_backend_or_relay_failed", False), connection_id or "pending", epoch)
         finally:
             for task in pumps:
                 if not task.done():
@@ -489,7 +544,19 @@ class ProxyServer:
                 self._connections.pop(connection_id, None)
             for task in pumps:
                 self._connection_tasks.discard(task)
-            await _close_writers(frontend_writer, backend_writer)
+            await self._close_connection_writers(frontend_writer, backend_writer)
+            await backend_scope.aclose()
+
+    async def _close_connection_writers(self, *writers):
+        if not self.stop_on_frontend_eof:
+            await _close_writers(*writers)
+            return
+        try:
+            await asyncio.wait_for(_close_writers(*writers), min(1.0, self.callback_timeout))
+        except TimeoutError:
+            for writer in writers:
+                if writer is not None:
+                    writer.transport.abort()
 
     async def _pump(
         self,
@@ -564,10 +631,11 @@ class ProxyServer:
             result = await asyncio.wait_for(result, self.callback_timeout)
         return bool(result)
 
-    async def _is_backend_authorized(self, peer: PeerIdentity) -> bool:
-        if self.authorize_backend_peer is None:
+    async def _is_backend_authorized(self, peer: PeerIdentity, validator: BackendPeerValidator | None = None) -> bool:
+        validator = validator if validator is not None else self.authorize_backend_peer
+        if validator is None:
             return True
-        result = self.authorize_backend_peer(peer)
+        result = validator(peer)
         if inspect.isawaitable(result):
             result = await asyncio.wait_for(result, self.callback_timeout)
         return bool(result)
@@ -630,6 +698,7 @@ async def _close_writers(*writers: asyncio.StreamWriter | None) -> None:
 
 
 __all__ = [
+    "BackendConnection",
     "CaptureSink",
     "ConnectionEvent",
     "DataEvent",

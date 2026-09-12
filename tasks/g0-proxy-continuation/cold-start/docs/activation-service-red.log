@@ -1,0 +1,52 @@
+FFF                                                                      [100%]
+=================================== FAILURES ===================================
+_____ test_two_registered_frontends_get_distinct_processes_and_auth_homes ______
+
+    def test_two_registered_frontends_get_distinct_processes_and_auth_homes():
+>       p=module()
+          ^^^^^^^^
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:91:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def module():
+>       assert service_module is not None, 'executable per-frontend activation service is missing'
+E       AssertionError: executable per-frontend activation service is missing
+E       assert None is not None
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:29: AssertionError
+_______________ test_unregistered_process_cannot_spawn_a_backend _______________
+
+    def test_unregistered_process_cannot_spawn_a_backend():
+>       p=module()
+          ^^^^^^^^
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:126:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def module():
+>       assert service_module is not None, 'executable per-frontend activation service is missing'
+E       AssertionError: executable per-frontend activation service is missing
+E       assert None is not None
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:29: AssertionError
+_ test_real_backend_start_failure_is_stopped_and_recorded_without_public_unlink _
+
+    def test_real_backend_start_failure_is_stopped_and_recorded_without_public_unlink():
+>       p=module()
+          ^^^^^^^^
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:143:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    def module():
+>       assert service_module is not None, 'executable per-frontend activation service is missing'
+E       AssertionError: executable per-frontend activation service is missing
+E       assert None is not None
+
+tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py:29: AssertionError
+=========================== short test summary info ============================
+FAILED tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py::test_two_registered_frontends_get_distinct_processes_and_auth_homes
+FAILED tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py::test_unregistered_process_cannot_spawn_a_backend
+FAILED tasks/g0-proxy-continuation/cold-start/tests/test_activation_service.py::test_real_backend_start_failure_is_stopped_and_recorded_without_public_unlink
+3 failed in 0.04s
