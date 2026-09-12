@@ -12,6 +12,7 @@ import base64
 import hashlib
 import hmac
 import json
+import os
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Any, Callable, Deque, Dict, Iterable, List, Optional, Tuple
@@ -33,6 +34,20 @@ _THREAD_PARAM_METHODS = {
     "thread/start", "thread/resume", "thread/fork", "thread/read",
     "thread/inject_items", "thread/subscribe", "thread/unsubscribe",
 }
+_WORKSPACE_PROBE_COMMAND = ["git", "-c", "safe.bareRepository=explicit", "branch", "--show-current"]
+_WORKSPACE_PROBE_FALSE_KEYS = (
+    "tty",
+    "streamStdin",
+    "streamStdoutStderr",
+    "disableOutputCap",
+    "disableTimeout",
+)
+_WORKSPACE_PROBE_NULL_KEYS = (
+    "processId",
+    "size",
+    "sandboxPolicy",
+    "permissionProfile",
+)
 _THREAD_KEYS = ("id", "sessionId", "parentThreadId", "forkedFromId", "ephemeral", "cwd")
 
 
@@ -90,6 +105,7 @@ class Observer:
         max_message_bytes: int = 2 * 1024 * 1024,
         max_events: int = 4096,
         emit: Optional[Callable[[Dict[str, Any]], None]] = None,
+        expected_workspace_cwd: Optional[str] = None,
     ) -> None:
         if min(max_header_bytes, max_frame_bytes, max_message_bytes, max_events) < 1:
             raise ValueError("observer limits must be positive")
@@ -97,6 +113,7 @@ class Observer:
         self.max_frame_bytes = max_frame_bytes
         self.max_message_bytes = max_message_bytes
         self.max_events = max_events
+        self.expected_workspace_cwd = expected_workspace_cwd
         self._emit_callback = emit
         self._connections: Dict[Any, _Connection] = {}
         self._max_epoch_seen = 0
@@ -523,7 +540,19 @@ class Observer:
                 return
             connection.pending[(direction, request_id)] = method
         if method not in _KNOWN_METHODS:
-            self._emit("rpc_unknown", connection, direction, request_id=request_id if "id" in value else None, method=method, opaque=True)
+            fields: Dict[str, Any] = {
+                "request_id": request_id if "id" in value else None,
+                "method": method,
+                "opaque": True,
+            }
+            if method == "command/exec":
+                fields["workspace_probe_qualified"] = self._workspace_probe_qualified(
+                    direction,
+                    value.get("id") if "id" in value else None,
+                    value.get("params"),
+                    has_id="id" in value,
+                )
+            self._emit("rpc_unknown", connection, direction, **fields)
         else:
             fields: Dict[str, Any] = {
                 "request_id": request_id if "id" in value else None,
@@ -559,6 +588,63 @@ class Observer:
             if isinstance(params.get("forceReload"), bool):
                 safe["forceReload"] = params["forceReload"]
         return safe
+
+    def _workspace_probe_qualified(
+        self,
+        direction: str,
+        request_id: Any,
+        params: Any,
+        *,
+        has_id: bool,
+    ) -> bool:
+        expected_cwd = self.expected_workspace_cwd
+        if (
+            direction != "client"
+            or not has_id
+            or not self._valid_id(request_id)
+            or not isinstance(expected_cwd, str)
+            or not os.path.isabs(expected_cwd)
+            or not isinstance(params, dict)
+        ):
+            return False
+        allowed = {
+            "command",
+            "cwd",
+            "env",
+            "timeoutMs",
+            "outputBytesCap",
+            *_WORKSPACE_PROBE_FALSE_KEYS,
+            *_WORKSPACE_PROBE_NULL_KEYS,
+        }
+        if set(params) - allowed:
+            return False
+        command = params.get("command")
+        env = params.get("env")
+        if not isinstance(command, list) or any(type(item) is not str for item in command):
+            return False
+        if not isinstance(env, dict) or any(
+            type(key) is not str or type(value) is not str for key, value in env.items()
+        ):
+            return False
+        if (
+            command != _WORKSPACE_PROBE_COMMAND
+            or not isinstance(params.get("cwd"), str)
+            or not os.path.isabs(params["cwd"])
+            or params["cwd"] != expected_cwd
+            or env != {"GIT_OPTIONAL_LOCKS": "0"}
+            or type(params.get("timeoutMs")) is not int
+            or params["timeoutMs"] != 5000
+            or type(params.get("outputBytesCap")) is not int
+            or params["outputBytesCap"] != 65536
+        ):
+            return False
+        for key in _WORKSPACE_PROBE_FALSE_KEYS:
+            if key in params and params[key] is not False:
+                return False
+        for key in _WORKSPACE_PROBE_NULL_KEYS:
+            if key in params and params[key] is not None:
+                return False
+        return True
 
     def _process_response(self, connection: _Connection, direction: str, value: Dict[str, Any]) -> None:
         if "error" in value and not self._valid_error(value["error"]):

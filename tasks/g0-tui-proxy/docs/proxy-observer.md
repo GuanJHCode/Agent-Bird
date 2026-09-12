@@ -25,6 +25,12 @@ observer 默认仍是单 frame 1 MiB、完整 message 2 MiB；runtime 若按 nat
 
 Upgrade 还严格校验 HTTP/1.1、WebSocket version `13`、16-byte canonical base64 key、精确 header token，以及基于 ASCII key 和 RFC GUID 计算的 `Sec-WebSocket-Accept`。pending request、`skills/list` 的 `cwds` 项数和整数 request id 均有固定上限，超限会 gap 并使 epoch 失效，不会静默截断。
 
+## 受控 workspace probe 分类
+
+`Observer(expected_workspace_cwd=...)` 默认参数为 `None`，未配置时不会把任何请求标记为 workspace probe。配置绝对路径后，仅对 `rpc_unknown` 中来自 client、带有效 id 的 `command/exec` request 计算 `workspace_probe_qualified`；必须精确匹配固定 0.154 状态栏查询 `git -c safe.bareRepository=explicit branch --show-current`、与 expected cwd 完全相同的绝对 `cwd`、唯一环境变量 `GIT_OPTIONAL_LOCKS=0`、`timeoutMs=5000` 和 `outputBytesCap=65536`。`tty`、`streamStdin`、`streamStdoutStderr`、`disableOutputCap`、`disableTimeout` 只能为 `false` 或省略；`processId`、`size`、`sandboxPolicy`、`permissionProfile` 只能为 `null` 或省略；未知字段、额外 argv 或 env、类型错误一律为 `false`，不扩展到其它 git、gh 或 diff 命令。
+
+固定源码 `tasks/g0-native-0154-contract/data/source/codex-rs/tui/src/branch_summary.rs:91-101` 只构造上述 git argv；`tasks/g0-native-0154-contract/data/source/codex-rs/tui/src/workspace_command.rs:48-61,175-204` 给出 5 秒、64 KiB、false serde 默认值及 `null` 可选字段。分类只输出纯布尔值，不保存 params、body、result 或 stderr；匹配 request 的 response 仍保持 `opaque`，不重复分类。unknown 方法仍是邻接屏障，未匹配的 `command/exec` 仍输出 `false`。
+
 所有输出事件带 `conn_epoch`（无连接上下文的未知连接 gap 除外）和单调 `local_seq`。RPC 白名单输出仅保留方法、方向、请求 id、`threadId`/线程元数据以及 `skills/list` 的 `cwds`、`forceReload`。响应只输出 `ok` 和有限线程元数据；error/result 正文、用户 text、instructions、env、auth、历史列表和 raw 字节都丢弃。未知方法、未知通知、孤儿响应和 `thread/list` 响应输出 `rpc_unknown`（含 method/id/方向和 `opaque=true`）作为邻接屏障，不把它们静默跳过。
 
 重复 JSON key、非法 JSON/UTF-8、错误 mask、非法 frame、超限、EOF 中断和未知连接都会发出 `gap`。gap 将该 epoch 置为 `PENDING`；`close` 最终置为 `DISCONNECTED`。观察器不把任何 read、skills 刷新或最近请求推断为当前显示线程，复杂附着判定留给独立 source/动作核验。

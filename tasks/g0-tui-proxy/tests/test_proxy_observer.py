@@ -54,6 +54,25 @@ def rpc_frame(value, *, direction="client", **kwargs):
     return frame(payload, masked=direction == "client", **kwargs)
 
 
+def workspace_probe_params(*, cwd="/repo"):
+    return {
+        "command": ["git", "-c", "safe.bareRepository=explicit", "branch", "--show-current"],
+        "cwd": cwd,
+        "env": {"GIT_OPTIONAL_LOCKS": "0"},
+        "timeoutMs": 5000,
+        "outputBytesCap": 65536,
+        "tty": False,
+        "streamStdin": False,
+        "streamStdoutStderr": False,
+        "disableOutputCap": False,
+        "disableTimeout": False,
+        "processId": None,
+        "size": None,
+        "sandboxPolicy": None,
+        "permissionProfile": None,
+    }
+
+
 def connected_observer():
     observer = Observer()
     observer.open("c1")
@@ -139,6 +158,123 @@ def test_native_error_response_missing_required_error_fields_is_fail_closed():
     assert any(row.get("event") == "gap" and row.get("reason") == "invalid_json_rpc" for row in rows)
     assert not any(row.get("event") == "rpc_response" for row in rows)
     assert observer.attachment_state("c1") == "PENDING"
+
+
+def test_command_exec_workspace_probe_qualification_does_not_retain_body():
+    observer = Observer(expected_workspace_cwd="/repo")
+    observer.open("c1")
+    observer.feed("c1", "client", upgrade_request())
+    observer.feed("c1", "server", upgrade_response())
+    request = {
+        "id": "probe-1",
+        "method": "command/exec",
+        "params": workspace_probe_params(),
+    }
+    response = {
+        "id": "probe-1",
+        "result": {"exitCode": 0, "stdout": "CANARY", "stderr": "SECRET"},
+    }
+
+    observer.feed("c1", "client", rpc_frame(request, direction="client"))
+    observer.feed("c1", "server", rpc_frame(response, direction="server"))
+    rows = events(observer)
+
+    request_row = [
+        row for row in rows
+        if row.get("event") == "rpc_unknown" and row.get("response") is not True
+    ][-1]
+    assert request_row["method"] == "command/exec"
+    assert request_row["request_id"] == "probe-1"
+    assert request_row["workspace_probe_qualified"] is True
+    response_row = [row for row in rows if row.get("event") == "rpc_unknown" and row.get("response") is True][-1]
+    assert response_row["request_id"] == "probe-1"
+    assert "workspace_probe_qualified" not in response_row
+    assert "CANARY" not in json.dumps(rows)
+    assert "SECRET" not in json.dumps(rows)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        lambda params: params["command"].append("--porcelain"),
+        lambda params: params.__setitem__("command", ["gh", "pr", "view"]),
+        lambda params: params.__setitem__("cwd", "/other"),
+        lambda params: params.__setitem__("env", {"GIT_OPTIONAL_LOCKS": "0", "EXTRA": "1"}),
+        lambda params: params.__setitem__("timeoutMs", 5001),
+        lambda params: params.__setitem__("timeoutMs", True),
+        lambda params: params.__setitem__("outputBytesCap", 65535),
+        lambda params: params.__setitem__("tty", True),
+        lambda params: params.__setitem__("processId", 7),
+        lambda params: params.__setitem__("unknownKey", "SENSITIVE_UNKNOWN"),
+    ],
+)
+def test_command_exec_workspace_probe_mutations_are_false(mutation):
+    observer = Observer(expected_workspace_cwd="/repo")
+    observer.open("c1")
+    observer.feed("c1", "client", upgrade_request())
+    observer.feed("c1", "server", upgrade_response())
+    params = workspace_probe_params()
+    mutation(params)
+    observer.feed("c1", "client", rpc_frame({"id": 1, "method": "command/exec", "params": params}, direction="client"))
+    rows = events(observer)
+    request_row = [row for row in rows if row.get("event") == "rpc_unknown"][-1]
+    assert request_row["workspace_probe_qualified"] is False
+    assert "SENSITIVE_UNKNOWN" not in json.dumps(rows)
+
+
+def test_command_exec_workspace_probe_requires_expected_cwd_and_client_id():
+    cases = (
+        ("server", {"id": 1}, "/repo"),
+        ("client", {}, "/repo"),
+        ("client", {"id": 1}, None),
+    )
+    for direction, identity, expected_cwd in cases:
+        observer = Observer(expected_workspace_cwd=expected_cwd)
+        observer.open("c1")
+        observer.feed("c1", "client", upgrade_request())
+        observer.feed("c1", "server", upgrade_response())
+        request = {**identity, "method": "command/exec", "params": workspace_probe_params()}
+        observer.feed(
+            "c1",
+            direction,
+            rpc_frame(request, direction=direction),
+        )
+        rows = events(observer)
+        request_row = [
+            row for row in rows
+            if row.get("event") == "rpc_unknown" and row.get("response") is not True
+        ][-1]
+        assert request_row["workspace_probe_qualified"] is False
+
+
+def test_command_exec_workspace_probe_accepts_serde_default_omissions():
+    observer = Observer(expected_workspace_cwd="/repo")
+    observer.open("c1")
+    observer.feed("c1", "client", upgrade_request())
+    observer.feed("c1", "server", upgrade_response())
+    params = workspace_probe_params()
+    for key in (
+        "tty",
+        "streamStdin",
+        "streamStdoutStderr",
+        "disableOutputCap",
+        "disableTimeout",
+        "processId",
+        "size",
+        "sandboxPolicy",
+        "permissionProfile",
+    ):
+        params.pop(key)
+    observer.feed(
+        "c1",
+        "client",
+        rpc_frame({"id": 1, "method": "command/exec", "params": params}, direction="client"),
+    )
+    request_row = [
+        row for row in events(observer)
+        if row.get("event") == "rpc_unknown" and row.get("response") is not True
+    ][-1]
+    assert request_row["workspace_probe_qualified"] is True
 
 
 def test_explicit_jsonrpc_version_is_accepted_only_for_2_0():
@@ -244,6 +380,7 @@ def test_unknown_method_and_unknown_notification_are_preserved_as_opaque():
     unknown = [row for row in rows if row.get("event") == "rpc_unknown"]
     assert [(row["direction"], row.get("request_id"), row["method"]) for row in unknown] == [("client", "u", "vendor/secret"), ("server", None, "VendorEvent")]
     assert all(row["opaque"] for row in unknown)
+    assert all("workspace_probe_qualified" not in row for row in unknown)
     assert "CANARY" not in json.dumps(rows)
 
 
