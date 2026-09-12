@@ -1,0 +1,25 @@
+{
+  "scope": "authorized controlled TUI proxy experiment",
+  "baseline": "bb5c7ff",
+  "native_runs": 0,
+  "model_runs": 0,
+  "components": {
+    "observer": {
+      "initial": "689fc34",
+      "first_fix": "93154a0",
+      "state": "further handshake and bound fixes in progress"
+    },
+    "transport": {
+      "initial": "67dc97d",
+      "state": "shutdown, peer completeness and failed-start cleanup fixes in progress"
+    },
+    "runtime": {
+      "initial": "4c2787e",
+      "input_chain": "74dcb82",
+      "state": "implementing actual PTY workflow and addressing identity/opaque/cleanup findings"
+    }
+  },
+  "native_admission": false,
+  "original_scope_preserved": true,
+  "formal_global_installation_authorized": false
+}

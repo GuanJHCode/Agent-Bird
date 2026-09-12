@@ -27,5 +27,15 @@
   "unblocking_condition": "New verified native attachment/observation capability, or an explicitly revised integration contract admitting a concrete alternative",
   "repeat_controlled_model_tests_would_resolve_blocker": false,
   "native_or_model_runs_this_turn": 0,
-  "full_G0_passed": false
+  "full_G0_passed": false,
+  "subsequent_authorization": {
+    "at": "2026-09-12T10:23:15.053266+00:00",
+    "user_decision": "允许",
+    "scope": "one controlled TUI communication proxy experiment; no global resident installation",
+    "contract": "../../g0-tui-proxy/plans/contract.md",
+    "previous_restriction_relaxed_for_this_experiment": true,
+    "new_implementation_under_review": true,
+    "resumed_blocked_audit_count": 0,
+    "generic_attachment_or_G0_proven": false
+  }
 }
