@@ -17,7 +17,7 @@ WebSocket upgrade、`initialize`、`thread/start` 及 `skills/list` 的请求/�
 
 runtime 保存二进制/配置摘要以及自有进程的 birth/executable。关闭时只清理仍与
 登记 inode 相同的 endpoint，并在默认清理路径再次核对 PID birth/executable；被替换
-的 socket 或无法确认身份的进程保留。窗口为本地操作 10 秒，必要模型轮次 120 秒，
+的 socket 或无法确认身份的进程保留。窗口基于 `CLOCK_MONOTONIC_RAW`，本地操作 10 秒，必要模型轮次 120 秒，
 但本实现没有启动模型轮次。
 
 当前离线验证覆盖 runtime、transport、observer 共 61 项。尚未执行 native、TUI

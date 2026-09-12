@@ -42,6 +42,13 @@ LOCAL_WINDOW_SECONDS = 10.0
 MODEL_WINDOW_SECONDS = 120.0
 
 
+def raw_seconds() -> float:
+    clock = getattr(time, "CLOCK_MONOTONIC_RAW", None)
+    if clock is None:
+        return time.monotonic()
+    return time.clock_gettime_ns(clock) / 1_000_000_000
+
+
 class RuntimeInvariantError(RuntimeError):
     """The controlled experiment cannot safely continue."""
 
@@ -271,16 +278,16 @@ class RuntimeWindow:
         local_seconds: float = LOCAL_WINDOW_SECONDS,
         model_seconds: float = MODEL_WINDOW_SECONDS,
     ) -> "RuntimeWindow":
-        value = time.monotonic() if now is None else float(now)
+        value = raw_seconds() if now is None else float(now)
         if local_seconds <= 0 or model_seconds <= 0:
             raise ValueError("runtime windows must be positive")
         return cls(value, value + local_seconds, value + model_seconds)
 
     def local_expired(self, now: float | None = None) -> bool:
-        return (time.monotonic() if now is None else float(now)) >= self.local_deadline
+        return (raw_seconds() if now is None else float(now)) >= self.local_deadline
 
     def model_expired(self, now: float | None = None) -> bool:
-        return (time.monotonic() if now is None else float(now)) >= self.model_deadline
+        return (raw_seconds() if now is None else float(now)) >= self.model_deadline
 
 
 _SESSION_RE = re.compile(r"(?m)^[ \t│|]*Session:[ \t]*([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})[ \t│|]*$")
@@ -292,7 +299,7 @@ class PTYDriver:
     def __init__(self, pid: int, fd: int) -> None:
         self.pid = pid
         self.fd = fd
-        self.started_at = time.monotonic()
+        self.started_at = raw_seconds()
         self.digest = hashlib.sha256()
         self.byte_count = 0
         self.screen_tail = b""
@@ -334,9 +341,9 @@ class PTYDriver:
     def read(self, seconds: float) -> dict[str, Any]:
         if not 0 < seconds <= 5:
             raise ValueError("PTY read must be bounded to five seconds")
-        deadline = time.monotonic() + seconds
-        while not self.eof and time.monotonic() < deadline:
-            remaining = max(0.001, min(0.1, deadline - time.monotonic()))
+        deadline = raw_seconds() + seconds
+        while not self.eof and raw_seconds() < deadline:
+            remaining = max(0.001, min(0.1, deadline - raw_seconds()))
             ready, _, _ = select.select([self.fd], [], [], remaining)
             if ready:
                 try:
@@ -365,7 +372,7 @@ class PTYDriver:
             if written <= 0:
                 raise OSError("PTY write made no progress")
             position += written
-        self.inputs.append({"at_monotonic": time.monotonic(), "action": action, "bytes": len(data), "sha256": hashlib.sha256(data).hexdigest()})
+        self.inputs.append({"at_monotonic_raw": raw_seconds(), "action": action, "bytes": len(data), "sha256": hashlib.sha256(data).hexdigest()})
 
     def command(self, command: str) -> None:
         if not isinstance(command, str) or not command or any(char in command for char in "\r\n\x1b"):
@@ -381,9 +388,9 @@ class PTYDriver:
     def wait(self, seconds: float) -> int | None:
         if not 0 < seconds <= 10:
             raise ValueError("bounded PTY wait required")
-        deadline = time.monotonic() + seconds
-        while self.poll() is None and time.monotonic() < deadline:
-            self.read(min(0.2, max(0.001, deadline - time.monotonic())))
+        deadline = raw_seconds() + seconds
+        while self.poll() is None and raw_seconds() < deadline:
+            self.read(min(0.2, max(0.001, deadline - raw_seconds())))
         return self.poll()
 
     def terminate(self, seconds: float = 10.0) -> bool:
@@ -775,7 +782,7 @@ class NativeRuntime:
     async def _wait_backend_ready(self) -> None:
         if self._backend is None or self.window is None or self._backend_identity is None:
             raise RuntimeInvariantError("backend readiness checked before spawn")
-        while time.monotonic() < self.window.local_deadline:
+        while raw_seconds() < self.window.local_deadline:
             poll = self._backend.poll()
             if poll is not None:
                 raise RuntimeInvariantError(f"native backend exited before ready: {poll}")
@@ -783,7 +790,7 @@ class NativeRuntime:
                 self._backend_identity.pid, self.config.backend_socket
             ):
                 return
-            await asyncio.sleep(min(0.05, max(0.001, self.window.local_deadline - time.monotonic())))
+            await asyncio.sleep(min(0.05, max(0.001, self.window.local_deadline - raw_seconds())))
         raise TimeoutError("native backend did not expose its owned private socket within 10 seconds")
 
     async def start(self) -> None:
@@ -978,7 +985,7 @@ async def run_case(
         result["steps"].append({"name": name, **fields})
 
     def check_window(name: str, window: RuntimeWindow) -> float:
-        remaining = window.local_deadline - time.monotonic()
+        remaining = window.local_deadline - raw_seconds()
         if remaining <= 0:
             raise TimeoutError(f"{name} exceeded its local 10 second window")
         return remaining
@@ -1106,6 +1113,7 @@ __all__ = [
     "RuntimePhase",
     "RuntimeWindow",
     "build_ordinary_tui_argv",
+    "raw_seconds",
     "sha256_file",
     "main",
     "run_case",
