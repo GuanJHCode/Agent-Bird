@@ -1,0 +1,28 @@
+{
+  "scope": "Only this subtask created reproducible caches removed; sibling sd07_native_gate confirmed tree/schema no longer needed",
+  "removed": [
+    {
+      "path": "tasks/g0-native-0154-contract/tmp/schema",
+      "existed_before": true,
+      "reason": "Reproducible offline generated schema or exact-commit directory discovery cache; selected shapes/source hashes preserved",
+      "files_removed": 426,
+      "exists_after": false
+    },
+    {
+      "path": "tasks/g0-native-0154-contract/tmp/source-tree.json",
+      "existed_before": true,
+      "reason": "Reproducible offline generated schema or exact-commit directory discovery cache; selected shapes/source hashes preserved",
+      "sha256": "e0bb2df8be0fa0c92121bb19a1087ffcdbeafedf9d9e10b61ed5a61f90b98f40",
+      "exists_after": false
+    }
+  ],
+  "retained": [
+    "tasks/g0-native-0154-contract/docs/compatibility.md",
+    "tasks/g0-native-0154-contract/docs/schema-receipt.json",
+    "tasks/g0-native-0154-contract/docs/source-receipt.json",
+    "tasks/g0-native-0154-contract/docs/platform-receipt.json",
+    "tasks/g0-native-0154-contract/docs/verification-receipt.json",
+    "tasks/g0-native-0154-contract/data/source/"
+  ],
+  "source_preservation": "27 exact-commit public source bodies, all hash verified; no user config, history, secrets, native output or binary copied"
+}

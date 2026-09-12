@@ -1,0 +1,20 @@
+{
+  "command": [
+    "python3",
+    "-B",
+    "-m",
+    "unittest",
+    "-v",
+    "native_standalone_test",
+    "native_standalone_binding_test",
+    "native_standalone_hash_test"
+  ],
+  "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-native-0154-contract/tmp/helper-pin-54ecefd/helper/scripts",
+  "controller_commit": "f27cec2a1b0b8d9e837636ee93ba4afedd57d69b",
+  "exit_code": 0,
+  "test_count": 35,
+  "log_sha256": "730a815a40970038c88cb3de92c71e39aa738c39c7339be6bd26e2abb6f7ac52",
+  "scope": "33 helper unit tests (including five old/mixed-pin subcases), sd02 cloned-Go prepare chain, sd03 serialization/single-send/uncertain-no-resend chain; fake RPC only",
+  "initial_run_diagnosis": "Independent review snapshot omitted native_sd_pty.py; restored exact f27cec2 object before full rerun; no production or test code edited",
+  "native_service_tui_model_rpc_started": false
+}

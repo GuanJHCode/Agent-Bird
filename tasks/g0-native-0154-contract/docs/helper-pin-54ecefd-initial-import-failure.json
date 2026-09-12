@@ -1,0 +1,17 @@
+{
+  "command": [
+    "python3",
+    "-B",
+    "-m",
+    "unittest",
+    "-v",
+    "native_standalone_test",
+    "native_standalone_binding_test",
+    "native_standalone_hash_test"
+  ],
+  "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-native-0154-contract/tmp/helper-pin-54ecefd/helper/scripts",
+  "controller_scripts": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-native-0154-contract/tmp/helper-pin-54ecefd/controller/scripts",
+  "exit_code": 1,
+  "log_sha256": "75fdd7f95c8ad97f6866777d93371cf3876df063b4f2d10f6b2ea56102da7bfc",
+  "native_service_tui_model_rpc_started": false
+}

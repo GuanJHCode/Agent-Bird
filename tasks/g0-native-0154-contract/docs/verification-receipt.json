@@ -1,0 +1,32 @@
+{
+  "scope": "Read-only final evidence verification, not native runtime acceptance",
+  "version_command": [
+    "/Users/guanjunhui/.local/bin/codex",
+    "--version"
+  ],
+  "version_exit_code": 0,
+  "version_stdout": "codex-cli 0.154.0",
+  "resolved_binary": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+  "binary_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+  "help_command": [
+    "/Users/guanjunhui/.local/bin/codex",
+    "app-server",
+    "generate-json-schema",
+    "--help"
+  ],
+  "help_exit_code": 0,
+  "help_stdout": "[experimental] Generate JSON Schema for the app server protocol\n\nUsage: codex app-server generate-json-schema [OPTIONS] --out <DIR>\n\nOptions:\n  -c, --config <key=value>\n          Override a configuration value that would otherwise be loaded from `~/.codex/config.toml`.\n          Use a dotted path (`foo.bar.baz`) to override nested values. The `value` portion is parsed\n          as TOML. If it fails to parse as TOML, the raw string is used as a literal.\n          \n          Examples: - `-c model=\"o3\"` - `-c 'sandbox_permissions=[\"disk-full-read-access\"]'` - `-c\n          shell_environment_policy.inherit=all`\n\n  -o, --out <DIR>\n          Output directory where the schema bundle will be written\n\n      --enable <FEATURE>\n          Enable a feature (repeatable). Equivalent to `-c features.<name>=true`\n\n      --experimental\n          Include experimental methods and fields in the generated output\n\n      --disable <FEATURE>\n          Disable a feature (repeatable). Equivalent to `-c features.<name>=false`\n\n  -h, --help\n          Print help (see a summary with '-h')\n",
+  "source_hashes_verified": 27,
+  "previous_source_hashes_matched": 10,
+  "schema_comparisons": {
+    "baseline": "0.153.4",
+    "TurnStartParams_entire_schema_bytes_sha256_equal": true,
+    "ThreadReadParams_entire_schema_bytes_sha256_equal": true,
+    "ThreadReadResponse_entire_schema_bytes_sha256_equal": false,
+    "prior_receipts": [
+      "tasks/g0-pending-resolution/docs/delivery-schema-summary.json",
+      "tasks/g0-pending-resolution/docs/standalone-helper-local-schema-shapes.json"
+    ]
+  },
+  "native_service_tui_model_rpc_started": false
+}

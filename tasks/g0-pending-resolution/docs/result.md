@@ -1,6 +1,6 @@
 # 剩余 G0 能力：实施与候选验证
 
-日期：2026-09-12；基线 `cd3d054`。状态：sd03 已通过真实初始轮次、线程关系及原服务 prepare，随后因 binding 摘要约定不一致中止，发送状态仍不确定。摘要修复和真实记录副本的跨组件回归已通过；sd04–sd06 停在初始身份门禁，未进入发送。sd07 尚未下发：新鲜前检发现普通 CLI 已升级为 0.154.0，正在核验版本契约，并修复复核发现的超时后仍可能粘贴的边界。完整 G0 未放行。
+日期：2026-09-12；基线 `cd3d054`。状态：sd03 已通过真实初始轮次、线程关系及原服务 prepare，随后因 binding 摘要约定不一致中止，发送状态仍不确定。摘要修复和真实记录副本的跨组件回归已通过；sd04–sd06 停在初始身份门禁，未进入发送。sd07 已完成当前 0.154.0 的契约核验、版本适配及输入前截止修复，独立复核和主树 79 项测试通过；等待新鲜现场前检后执行唯一原生样本。完整 G0 未放行。
 
 本轮将 idle 回传、当前 TUI 附着、完整交付对账交给三个 subagent，使用独立 worktree；主会话编排、核对边界和整合，另一 reviewer 审查。上轮退出停止、记录保留、原会话明确续接的结果保持。
 
@@ -18,6 +18,8 @@
 10. **sd03 取得真实 prepare 阳性，并暴露跨组件摘要错误。** 唯一初始输入、READY/pending 屏障、原服务 full history、family/session 和 Go owner 检查均通过。helper 生成发送意图后，controller 用原始文件 SHA 比较 canonical JSON SHA 而拒绝。没有发送收据，超窗只读历史未观察到结果，仍不能证明未发送。现已统一 binding 的 canonical 摘要，并用原始 prepared 记录副本执行真实文件序列化、`issue_once` 和 receiver 回归；重复发送保持拒绝。[sd03 原生事实](native-sd-qual-03-result.md)、[整链回归](standalone-helper-sd03-binding-hash.md)、[整合验证](native-sd-qual-04-main-verification.json)
 11. **sd04–sd06 将启动问题与回传接口区分开。** sd04 的一次初始提交没有获得本服务 Hook；sd05 增加 paste 前 SessionStart 门禁，10 秒内未出现；sd06 将这段等待纳入首次 120 秒原窗口，仍未出现，PTY 同时显示 MCP 启动和额度耗尽提示。这些样本均未进入 prepare/send-once，原数据保留，自有服务及 socket 已清理。它们不构成回传接口失败证据。[sd04](native-sd-qual-04-result.md)、[sd05](native-sd-qual-05-result.md)、[sd06](native-sd-qual-06-result.md)
 12. **下一步使用新样本继续验证。** 一次既有 reset 已通过官方接口兑换并单独记录；sd07 沿用普通入口与用户当前配置，SessionStart 等待、单次初始输入和后验身份共用原初始 120 秒窗口。新鲜检查发现普通 CLI 现为 0.154.0，旧 0.153.4 固定摘要会拒绝；另一个独立探针复现了 SessionStart 扫描跨过截止点后仍可能写入 paste 的问题。版本契约核验与输入前截止检查正在落实，通过后才冻结下发，不复用 sd01–sd06。[额度恢复记录](native-quota-restore-sd07.json)、[sd07 合同](../plans/contract.md)
+
+当前 sd07 的最小适配及截止修复已经独立复核：native 44 项、helper 35 项通过，主树组合 79 项通过，原七份设计文档摘要保持。实际使用的 0.154.0 schema、27 份固定源码及本地平台收据已归档；它们未证明原生回传成功。默认 app-server 日志路线另经限定核验，缺少完整双向请求/响应及缺项检测输入，不能仅加投影器就实现可靠附着。[sd07 冻结与准入](native-sd-qual-07-registration.json)、[版本核验](../../g0-native-0154-contract/docs/compatibility.md)、[日志输入核验](../../g0-attachment-log-availability/docs/result.md)
 
 ## 仍待解决的边界
 

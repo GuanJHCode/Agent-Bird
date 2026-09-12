@@ -1,0 +1,113 @@
+{
+  "source_commit": "6b9826e3aa83b1a5947db50f4332cb9c65f1b340",
+  "freshly_verified_source_files": [
+    {
+      "path": "tasks/g0-attachment-log-availability/data/source/codex-rs/app-server/src/message_processor.rs",
+      "sha256": "2186e5e1ec407c66ff8627008c7f319d22aa76f68bccb6c04ed454b0b8f22fa8"
+    },
+    {
+      "path": "tasks/g0-attachment-log-availability/data/source/codex-rs/app-server/src/outgoing_message.rs",
+      "sha256": "033eb1b47d0a21a6001d8e865458e27681120a9cb05768193e86c9306b39d595"
+    },
+    {
+      "path": "tasks/g0-attachment-log-availability/data/source/codex-rs/app-server/src/app_server_tracing.rs",
+      "sha256": "35e6de95585ecb6a6de59a34fc2d430db50cc9d7d94810c8ec0ca1979f9bd56e"
+    },
+    {
+      "path": "tasks/g0-attachment-log-availability/data/source/codex-rs/state/src/log_db.rs",
+      "sha256": "585ecd3e214df8b6015957ac1235dfaacd5d58674d0c7451a00fc65ad68564a1"
+    },
+    {
+      "path": "tasks/g0-attachment-log-availability/data/source/codex-rs/app-server/src/transport.rs",
+      "sha256": "b869fab855d1538ac97f56515d5f0d820dc066ab0374ca04d44f170ec65793d8"
+    },
+    {
+      "path": "tasks/g0-attachment-log-availability/data/source/codex-rs/app-server-transport/src/transport/unix_socket.rs",
+      "sha256": "08b3f6d88895567645e152d122ff70e96eaf80e82dbcf00fd9c8e7b11bb19c88"
+    },
+    {
+      "path": "tasks/g0-attachment-log-availability/data/source/codex-rs/app-server-transport/src/outgoing_message.rs",
+      "sha256": "bf66cbcd78a92152312d09270cd6cedfa52b935d825e47ac4f8f1ee584dccad3"
+    },
+    {
+      "path": "tasks/g0-attachment-log-availability/data/source/codex-rs/app-server-transport/src/transport/websocket.rs",
+      "sha256": "f6fa7047f1f75304c96c56d204df98b134e2fe4a7fd8271b55902d9eb6d4194c"
+    },
+    {
+      "path": "tasks/g0-attachment-log-availability/data/source/codex-rs/app-server-transport/src/transport/mod.rs",
+      "sha256": "537d15b8d6927e36922351137ce52fcc687564d8228ea02dce16e5ee4de37ab5"
+    }
+  ],
+  "borrowed_verified_source_files": [
+    {
+      "path": "tasks/g0-native-0154-contract/data/source/codex-rs/app-server/src/lib.rs",
+      "sha256": "1fd6eb562471c498e9b90374412867c5e341bac926070059350cce63cc16cf44"
+    },
+    {
+      "path": "tasks/g0-native-0154-contract/data/source/codex-rs/app-server/src/request_processors/thread_processor.rs",
+      "sha256": "37a4451e58673b3577c432207a510a7322fd10af5e1e535bb2be8317d5fcb1d9"
+    }
+  ],
+  "restricted_archive_projection": [
+    {
+      "path": "docs/implementation/g0/daemon/native-protocol-fields.json",
+      "sha256": "9dee38961e8751ab5b98ccadfb856456aa5565d18b90010eaeee70c906c598dc",
+      "restricted_rows": 5,
+      "field_counts": {
+        "transport": 5,
+        "client_name": 5,
+        "client_version": 5,
+        "method": 5,
+        "connection_id": 5,
+        "api_version": 5
+      },
+      "method_counts": {
+        "hooks/list": 1,
+        "thread/start": 4
+      }
+    },
+    {
+      "path": "tasks/g0-pending-resolution/docs/native-sd-qual-02-controller-evidence.json",
+      "sha256": "1b053e372a7a433e4f2621423e835741c8054ee64779e367a9d3913253479265",
+      "restricted_rows": 11,
+      "field_counts": {
+        "transport": 11,
+        "client_name": 11,
+        "client_version": 11,
+        "api_version": 11,
+        "connection_id": 11,
+        "method": 2
+      },
+      "method_counts": {
+        "<none>": 9,
+        "thread/start": 2
+      }
+    },
+    {
+      "path": "tasks/g0-pending-resolution/docs/native-sd-qual-03-controller-evidence.json",
+      "sha256": "bcb5a130fddf7fc68ba03e78e4296fcf2fad6852726c7b8eeac09991859fe6df",
+      "restricted_rows": 11,
+      "field_counts": {
+        "transport": 11,
+        "client_name": 11,
+        "client_version": 11,
+        "api_version": 11,
+        "connection_id": 11,
+        "method": 2
+      },
+      "method_counts": {
+        "<none>": 9,
+        "thread/start": 2
+      }
+    }
+  ],
+  "runtime_executed": false,
+  "private_log_db_read": false,
+  "generated_skills_schema": {
+    "observed_property_names": [
+      "cwds",
+      "forceReload"
+    ],
+    "source_note": "Read before owning agent cleaned temporary schema; no claim of retained schema bytes."
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "scope": "Offline current host platform/clock presence only; no fresh sleep or deadline experiment",
+  "platform": "darwin",
+  "machine": "arm64",
+  "python": "3.13.7",
+  "CLOCK_MONOTONIC_RAW": 4,
+  "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+  "sequential_reads_non_decreasing": true,
+  "controller_clock_sha256": "c16c8d0d0d9b1652d18606230351493f3cea33211f8b4d3323bb5b6bf2466087",
+  "helper_sha256": "9ae5186a95c093f0612a4e04567929c7b06b919e9c87aad49a17e07e5916278d",
+  "deadline_contract": "Unchanged 10-second local and 120-second model budgets; no reinterpretation of old origin"
+}

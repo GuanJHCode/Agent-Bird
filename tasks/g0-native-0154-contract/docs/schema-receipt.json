@@ -1,0 +1,555 @@
+{
+  "binary_version": "codex-cli 0.154.0",
+  "binary_path": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+  "binary_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+  "command": [
+    "/Users/guanjunhui/.local/bin/codex",
+    "app-server",
+    "generate-json-schema",
+    "--experimental",
+    "--out",
+    "tasks/g0-native-0154-contract/tmp/schema"
+  ],
+  "scope": "Offline schema; no service, TUI, model, or RPC",
+  "files": {
+    "v2/ThreadReadParams.json": {
+      "sha256": "dfe040c6ac71d30795b8be3f3ff232e66f362a37f883b491e5d1ea367f470db4",
+      "required": [
+        "threadId"
+      ],
+      "properties": {
+        "includeTurns": {
+          "description": "When true, include turns and their items from rollout history. Full-history hydration is deprecated for paginated threads; prefer a metadata-only read and page with `thread/turns/list` and `thread/items/list`.",
+          "type": "boolean"
+        },
+        "threadId": {
+          "type": "string"
+        }
+      }
+    },
+    "v2/ThreadReadResponse.json": {
+      "sha256": "59bf376d403bc3a696047147a1fdbbbaebd72518b3dda37f0e4709b8d61ad854",
+      "required": [
+        "thread"
+      ],
+      "properties": {
+        "thread": {
+          "$ref": "#/definitions/Thread"
+        }
+      },
+      "Thread": {
+        "required": [
+          "cliVersion",
+          "createdAt",
+          "cwd",
+          "ephemeral",
+          "id",
+          "modelProvider",
+          "preview",
+          "projectId",
+          "sessionId",
+          "source",
+          "status",
+          "turns",
+          "updatedAt"
+        ],
+        "properties": {
+          "parentThreadId": {
+            "description": "The ID of the parent thread. This will only be set if this thread is a subagent.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "forkedFromId": {
+            "description": "Source thread id when this thread was created by forking another thread.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sessionId": {
+            "description": "Session id shared by threads that belong to the same session tree.",
+            "type": "string"
+          },
+          "ephemeral": {
+            "description": "Whether the thread is ephemeral and should not be materialized on disk.",
+            "type": "boolean"
+          },
+          "cliVersion": {
+            "description": "Version of the CLI that created the thread.",
+            "type": "string"
+          },
+          "source": {
+            "allOf": [
+              {
+                "$ref": "#/definitions/SessionSource"
+              }
+            ],
+            "description": "Origin of the thread (CLI, VSCode, codex exec, codex app-server, etc.)."
+          },
+          "turns": {
+            "description": "Only populated on `thread/resume`, `thread/rollback`, `thread/fork`, and `thread/read` (when `includeTurns` is true) responses. For all other responses and notifications returning a Thread, the turns field will be an empty list.",
+            "items": {
+              "$ref": "#/definitions/Turn"
+            },
+            "type": "array"
+          },
+          "historyMode": {
+            "allOf": [
+              {
+                "$ref": "#/definitions/ThreadHistoryMode"
+              }
+            ],
+            "default": "legacy",
+            "description": "Persisted thread history contract selected when this thread was created."
+          }
+        }
+      },
+      "definitions": {
+        "SessionSource": {
+          "oneOf": [
+            {
+              "enum": [
+                "cli",
+                "vscode",
+                "exec",
+                "appServer",
+                "unknown"
+              ],
+              "type": "string"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "custom": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "custom"
+              ],
+              "title": "CustomSessionSource",
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "subAgent": {
+                  "$ref": "#/definitions/SubAgentSource"
+                }
+              },
+              "required": [
+                "subAgent"
+              ],
+              "title": "SubAgentSessionSource",
+              "type": "object"
+            }
+          ]
+        },
+        "Turn": {
+          "properties": {
+            "completedAt": {
+              "description": "Unix timestamp (in seconds) when the turn completed.",
+              "format": "int64",
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "durationMs": {
+              "description": "Duration between turn start and completion in milliseconds, if known.",
+              "format": "int64",
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "error": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/TurnError"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only populated when the Turn's status is failed."
+            },
+            "id": {
+              "description": "Identifier for this turn. Codex-generated turn IDs are UUIDv7.",
+              "type": "string"
+            },
+            "items": {
+              "description": "Thread items currently included in this turn payload.",
+              "items": {
+                "$ref": "#/definitions/ThreadItem"
+              },
+              "type": "array"
+            },
+            "itemsView": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/TurnItemsView"
+                }
+              ],
+              "default": "full",
+              "description": "Describes how much of `items` has been loaded for this turn."
+            },
+            "startedAt": {
+              "description": "Unix timestamp (in seconds) when the turn started.",
+              "format": "int64",
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "status": {
+              "$ref": "#/definitions/TurnStatus"
+            }
+          },
+          "required": [
+            "id",
+            "items",
+            "status"
+          ],
+          "type": "object"
+        },
+        "TurnError": {
+          "properties": {
+            "additionalDetails": {
+              "default": null,
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "codexErrorInfo": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/CodexErrorInfo"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "message": {
+              "type": "string"
+            },
+            "misalignment": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/MisalignmentErrorDetails"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "Optional public explanation and continuation instruction for a misalignment block."
+            }
+          },
+          "required": [
+            "message"
+          ],
+          "type": "object"
+        },
+        "CodexErrorInfo": {
+          "description": "This translation layer make sure that we expose codex error code in camel case.\n\nWhen an upstream HTTP status is available (for example, from the Responses API or a provider), it is forwarded in `httpStatusCode` on the relevant `codexErrorInfo` variant.",
+          "oneOf": [
+            {
+              "enum": [
+                "contextWindowExceeded",
+                "sessionBudgetExceeded",
+                "usageLimitExceeded",
+                "rateLimitExceeded",
+                "serverOverloaded",
+                "cyberPolicy",
+                "misalignmentPolicyViolation",
+                "internalServerError",
+                "unauthorized",
+                "badRequest",
+                "threadRollbackFailed",
+                "sandboxError",
+                "other"
+              ],
+              "type": "string"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "httpConnectionFailed": {
+                  "properties": {
+                    "httpStatusCode": {
+                      "format": "uint16",
+                      "minimum": 0.0,
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    }
+                  },
+                  "type": "object"
+                }
+              },
+              "required": [
+                "httpConnectionFailed"
+              ],
+              "title": "HttpConnectionFailedCodexErrorInfo",
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Failed to connect to the response SSE stream.",
+              "properties": {
+                "responseStreamConnectionFailed": {
+                  "properties": {
+                    "httpStatusCode": {
+                      "format": "uint16",
+                      "minimum": 0.0,
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    }
+                  },
+                  "type": "object"
+                }
+              },
+              "required": [
+                "responseStreamConnectionFailed"
+              ],
+              "title": "ResponseStreamConnectionFailedCodexErrorInfo",
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "The response SSE stream disconnected in the middle of a turn before completion.",
+              "properties": {
+                "responseStreamDisconnected": {
+                  "properties": {
+                    "httpStatusCode": {
+                      "format": "uint16",
+                      "minimum": 0.0,
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    }
+                  },
+                  "type": "object"
+                }
+              },
+              "required": [
+                "responseStreamDisconnected"
+              ],
+              "title": "ResponseStreamDisconnectedCodexErrorInfo",
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Reached the retry limit for responses.",
+              "properties": {
+                "responseTooManyFailedAttempts": {
+                  "properties": {
+                    "httpStatusCode": {
+                      "format": "uint16",
+                      "minimum": 0.0,
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    }
+                  },
+                  "type": "object"
+                }
+              },
+              "required": [
+                "responseTooManyFailedAttempts"
+              ],
+              "title": "ResponseTooManyFailedAttemptsCodexErrorInfo",
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "description": "Returned when `turn/start` or `turn/steer` is submitted while the current active turn cannot accept same-turn steering, for example `/review` or manual `/compact`.",
+              "properties": {
+                "activeTurnNotSteerable": {
+                  "properties": {
+                    "turnKind": {
+                      "$ref": "#/definitions/NonSteerableTurnKind"
+                    }
+                  },
+                  "required": [
+                    "turnKind"
+                  ],
+                  "type": "object"
+                }
+              },
+              "required": [
+                "activeTurnNotSteerable"
+              ],
+              "title": "ActiveTurnNotSteerableCodexErrorInfo",
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "functionCallOutput": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "namespace": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "output": {
+            "$ref": "#/definitions/FunctionCallOutputBody"
+          },
+          "type": {
+            "enum": [
+              "functionCallOutput"
+            ],
+            "title": "FunctionCallOutputThreadItemType",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "output",
+          "type"
+        ],
+        "title": "FunctionCallOutputThreadItem",
+        "type": "object"
+      }
+    },
+    "v2/TurnStartParams.json": {
+      "sha256": "b36fb37326b1cf69f75c8b306f1f886d53a57c4b1b985e08e298e2407ea2ad02",
+      "required": [
+        "input",
+        "threadId"
+      ],
+      "properties": {
+        "threadId": {
+          "type": "string"
+        },
+        "input": {
+          "items": {
+            "$ref": "#/definitions/UserInput"
+          },
+          "type": "array"
+        },
+        "toolOutput": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/TurnToolOutput"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "definitions": {
+        "TurnToolOutput": {
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "namespace": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "output": {
+              "$ref": "#/definitions/FunctionCallOutputBody"
+            }
+          },
+          "required": [
+            "name",
+            "output"
+          ],
+          "type": "object"
+        },
+        "FunctionCallOutputBody": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "items": {
+                "$ref": "#/definitions/FunctionCallOutputContentItem"
+              },
+              "type": "array"
+            }
+          ]
+        }
+      }
+    },
+    "JSONRPCError.json": {
+      "sha256": "d7ea353d4875ae204625da5a00a1ecb5afc69101d5778b9acc253a49f8932992",
+      "required": [
+        "error",
+        "id"
+      ],
+      "properties": {
+        "error": {
+          "$ref": "#/definitions/JSONRPCErrorError"
+        },
+        "id": {
+          "$ref": "#/definitions/RequestId"
+        }
+      },
+      "definitions": {
+        "JSONRPCErrorError": {
+          "properties": {
+            "code": {
+              "format": "int64",
+              "type": "integer"
+            },
+            "data": true,
+            "message": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "code",
+            "message"
+          ],
+          "type": "object"
+        },
+        "RequestId": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "format": "int64",
+              "type": "integer"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "generated_json_files": 426,
+  "prior_version_comparison": {
+    "baseline": "0.153.4",
+    "TurnStartParams_entire_schema_bytes_sha256_equal": true,
+    "ThreadReadParams_entire_schema_bytes_sha256_equal": true,
+    "ThreadReadResponse_entire_schema_bytes_sha256_equal": false,
+    "prior_receipts": [
+      "tasks/g0-pending-resolution/docs/delivery-schema-summary.json",
+      "tasks/g0-pending-resolution/docs/standalone-helper-local-schema-shapes.json"
+    ]
+  }
+}

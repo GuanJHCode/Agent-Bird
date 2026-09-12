@@ -1,0 +1,75 @@
+{
+  "scope": "Independent read-only helper pin review; all code and fixtures materialized from exact Git objects",
+  "helper_commit": "54ecefdcc0282775ba84ee1fb05c4a6bd90cac6f",
+  "parent_commit": "ae267f8d82d540015e9f5d805b9ec72c8ad1114c",
+  "controller_commit": "f27cec2a1b0b8d9e837636ee93ba4afedd57d69b",
+  "helper_production_change_exactly_two_pin_values": true,
+  "files": [
+    {
+      "commit": "54ecefdcc0282775ba84ee1fb05c4a6bd90cac6f",
+      "repository_path": "tasks/g0-pending-resolution/scripts/native_standalone.py",
+      "snapshot_path": "tasks/g0-native-0154-contract/tmp/helper-pin-54ecefd/helper/scripts/native_standalone.py",
+      "sha256": "c219e539b5b620e4701cd2441f7b59a3f78f25920755ec0882a68456f97b7597"
+    },
+    {
+      "commit": "54ecefdcc0282775ba84ee1fb05c4a6bd90cac6f",
+      "repository_path": "tasks/g0-pending-resolution/scripts/native_standalone_test.py",
+      "snapshot_path": "tasks/g0-native-0154-contract/tmp/helper-pin-54ecefd/helper/scripts/native_standalone_test.py",
+      "sha256": "99c5e43bd866ba325917414793bdefe50db49493042513f32ae9ee14a7034409"
+    },
+    {
+      "commit": "54ecefdcc0282775ba84ee1fb05c4a6bd90cac6f",
+      "repository_path": "tasks/g0-pending-resolution/scripts/native_standalone_binding_test.py",
+      "snapshot_path": "tasks/g0-native-0154-contract/tmp/helper-pin-54ecefd/helper/scripts/native_standalone_binding_test.py",
+      "sha256": "64a0fe172f1b13abf47c9cfc936e7d36afa036a8065a0302e9cb32e6b70e495c"
+    },
+    {
+      "commit": "54ecefdcc0282775ba84ee1fb05c4a6bd90cac6f",
+      "repository_path": "tasks/g0-pending-resolution/scripts/native_standalone_hash_test.py",
+      "snapshot_path": "tasks/g0-native-0154-contract/tmp/helper-pin-54ecefd/helper/scripts/native_standalone_hash_test.py",
+      "sha256": "3775de8d4e1c691abe5833bf1098d7dd8c098f2a92a5c5a967c89778d627d10b"
+    },
+    {
+      "commit": "54ecefdcc0282775ba84ee1fb05c4a6bd90cac6f",
+      "repository_path": "tasks/g0-pending-resolution/scripts/delivery_audit.py",
+      "snapshot_path": "tasks/g0-native-0154-contract/tmp/helper-pin-54ecefd/helper/scripts/delivery_audit.py",
+      "sha256": "59d8129d5409fb7fb5687a5107c81f9d85a63b8f718e4dd22cab660517af87c6"
+    },
+    {
+      "commit": "54ecefdcc0282775ba84ee1fb05c4a6bd90cac6f",
+      "repository_path": "tasks/g0-pending-resolution/docs/standalone-helper-sd02-fixture.json",
+      "snapshot_path": "tasks/g0-native-0154-contract/tmp/helper-pin-54ecefd/helper/docs/standalone-helper-sd02-fixture.json",
+      "sha256": "dc8a3394333df77d002512a6db9ccae5550677e729e1037b6748a4f343cea6ca"
+    },
+    {
+      "commit": "54ecefdcc0282775ba84ee1fb05c4a6bd90cac6f",
+      "repository_path": "tasks/g0-pending-resolution/docs/standalone-helper-sd03-prepared-fixture.json",
+      "snapshot_path": "tasks/g0-native-0154-contract/tmp/helper-pin-54ecefd/helper/docs/standalone-helper-sd03-prepared-fixture.json",
+      "sha256": "0e33f2ccc013addbd23c7c9df91238b778caab2c7ade8d3ea3b6bb88642afbf1"
+    },
+    {
+      "commit": "f27cec2a1b0b8d9e837636ee93ba4afedd57d69b",
+      "repository_path": "tasks/g0-pending-resolution/scripts/native_sd_control.py",
+      "snapshot_path": "tasks/g0-native-0154-contract/tmp/helper-pin-54ecefd/controller/scripts/native_sd_control.py",
+      "sha256": "2708d0823c1f3e0853fa91709ef2c1bdfa955c6f01f279d3877c8f48e4cab192"
+    },
+    {
+      "commit": "f27cec2a1b0b8d9e837636ee93ba4afedd57d69b",
+      "repository_path": "tasks/g0-pending-resolution/scripts/native_sd_collect.py",
+      "snapshot_path": "tasks/g0-native-0154-contract/tmp/helper-pin-54ecefd/controller/scripts/native_sd_collect.py",
+      "sha256": "9f03aa52a629e510a443c0488ef756b46f1bd5b01ebfe198755f96f96471fbf2"
+    },
+    {
+      "commit": "f27cec2a1b0b8d9e837636ee93ba4afedd57d69b",
+      "repository_path": "tasks/g0-pending-resolution/scripts/native_sd_clock.py",
+      "snapshot_path": "tasks/g0-native-0154-contract/tmp/helper-pin-54ecefd/controller/scripts/native_sd_clock.py",
+      "sha256": "c16c8d0d0d9b1652d18606230351493f3cea33211f8b4d3323bb5b6bf2466087"
+    },
+    {
+      "commit": "f27cec2a1b0b8d9e837636ee93ba4afedd57d69b",
+      "repository_path": "tasks/g0-pending-resolution/scripts/native_sd_pty.py",
+      "snapshot_path": "tasks/g0-native-0154-contract/tmp/helper-pin-54ecefd/controller/scripts/native_sd_pty.py",
+      "sha256": "0ec348a89cfe1d5b41e23885f20a4323d2631af300ad577fa2e8726e16d8d5c5"
+    }
+  ]
+}

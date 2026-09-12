@@ -1,0 +1,236 @@
+{
+  "commit": "6b9826e3aa83b1a5947db50f4332cb9c65f1b340",
+  "tag": "rust-v0.154.0",
+  "reason": "Prior repository source/hash receipts reused; source bodies not present in main working directory; restored from exact official commit.",
+  "files": [
+    {
+      "path": "codex-rs/tui/src/lib.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/lib.rs",
+      "exit_code": 0,
+      "bytes": 139275,
+      "sha256": "fd85e541df5affb811f7133d967dcb294292c77bbce1e2cffc16eb670d3c34ec",
+      "prior_manifest_sha256": "fd85e541df5affb811f7133d967dcb294292c77bbce1e2cffc16eb670d3c34ec",
+      "prior_manifest_match": true
+    },
+    {
+      "path": "codex-rs/app-server/src/main.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server/src/main.rs",
+      "exit_code": 0,
+      "bytes": 5208,
+      "sha256": "191f1283e77fe4aea2c1eb4901c7297ceba07c8b52c5abf1f6299ccea6da9008",
+      "prior_manifest_sha256": "191f1283e77fe4aea2c1eb4901c7297ceba07c8b52c5abf1f6299ccea6da9008",
+      "prior_manifest_match": true
+    },
+    {
+      "path": "codex-rs/app-server/src/lib.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server/src/lib.rs",
+      "exit_code": 0,
+      "bytes": 59006,
+      "sha256": "1fd6eb562471c498e9b90374412867c5e341bac926070059350cce63cc16cf44",
+      "prior_manifest_sha256": "1fd6eb562471c498e9b90374412867c5e341bac926070059350cce63cc16cf44",
+      "prior_manifest_match": true
+    },
+    {
+      "path": "codex-rs/app-server/src/request_processors/thread_processor.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server/src/request_processors/thread_processor.rs",
+      "exit_code": 0,
+      "bytes": 244999,
+      "sha256": "37a4451e58673b3577c432207a510a7322fd10af5e1e535bb2be8317d5fcb1d9"
+    },
+    {
+      "path": "codex-rs/app-server/src/request_processors/turn_processor.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server/src/request_processors/turn_processor.rs",
+      "exit_code": 0,
+      "bytes": 65870,
+      "sha256": "a220c6f21bd72d7135d772536b414b1d7fbd7c1c332b2103f0029a3b22c5f7f1",
+      "prior_manifest_sha256": "a220c6f21bd72d7135d772536b414b1d7fbd7c1c332b2103f0029a3b22c5f7f1",
+      "prior_manifest_match": true
+    },
+    {
+      "path": "codex-rs/app-server-protocol/src/protocol/v2.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-protocol/src/protocol/v2.rs",
+      "exit_code": 56,
+      "error": "curl: (56) The requested URL returned error: 404\n"
+    },
+    {
+      "path": "codex-rs/app-server-protocol/src/jsonrpc_lite.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-protocol/src/jsonrpc_lite.rs",
+      "exit_code": 56,
+      "error": "curl: (56) The requested URL returned error: 404\n"
+    },
+    {
+      "path": "codex-rs/core/src/hook_runtime.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/core/src/hook_runtime.rs",
+      "exit_code": 0,
+      "bytes": 48934,
+      "sha256": "4666dab9737fcfd75a6036a1e46df0698571b81d925688b169de7dd9c70b307e",
+      "prior_manifest_sha256": "4666dab9737fcfd75a6036a1e46df0698571b81d925688b169de7dd9c70b307e",
+      "prior_manifest_match": true
+    },
+    {
+      "path": "codex-rs/core/src/session/turn_input.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/core/src/session/turn_input.rs",
+      "exit_code": 0,
+      "bytes": 23559,
+      "sha256": "44c3b354a763fa150aeb0dab6b5636fc7c3ffde5bc4df7910935c63167fe1dae",
+      "prior_manifest_sha256": "44c3b354a763fa150aeb0dab6b5636fc7c3ffde5bc4df7910935c63167fe1dae",
+      "prior_manifest_match": true
+    },
+    {
+      "path": "codex-rs/protocol/src/models.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/protocol/src/models.rs",
+      "exit_code": 0,
+      "bytes": 153356,
+      "sha256": "9b816fc9fcb7a36a72b0a4dc8b68a5329ea27e2fd53b0530d22c6fe13e4f791c"
+    },
+    {
+      "path": "codex-rs/uds/src/lib.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/uds/src/lib.rs",
+      "exit_code": 0,
+      "bytes": 11584,
+      "sha256": "93db2d37dae50f53028bef3d0af9d0179b2346856497aa1edc9ef1f000a5f7e6",
+      "prior_manifest_sha256": "93db2d37dae50f53028bef3d0af9d0179b2346856497aa1edc9ef1f000a5f7e6",
+      "prior_manifest_match": true
+    },
+    {
+      "path": "codex-rs/app-server-protocol/src/protocol/v2/thread.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-protocol/src/protocol/v2/thread.rs",
+      "exit_code": 0,
+      "bytes": 76531,
+      "sha256": "ffc2f432bc7d0dadf9ae10db832035c8b75d7b709462bfed3c83d33ea89c526a"
+    },
+    {
+      "path": "codex-rs/app-server-protocol/src/protocol/v2/thread_data.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-protocol/src/protocol/v2/thread_data.rs",
+      "exit_code": 0,
+      "bytes": 18400,
+      "sha256": "c569abd0f1e3244a495a67da73a6b20ecd029a1184f8d6fd4c97a29c6fbc3ff4"
+    },
+    {
+      "path": "codex-rs/app-server-protocol/src/protocol/v2/turn.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-protocol/src/protocol/v2/turn.rs",
+      "exit_code": 0,
+      "bytes": 20462,
+      "sha256": "49098e1b594835e6376952c35a0b13cfacd1316eb68bd8a46553842534a86bb2"
+    },
+    {
+      "path": "codex-rs/app-server-protocol/src/protocol/v2/item.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-protocol/src/protocol/v2/item.rs",
+      "exit_code": 0,
+      "bytes": 64137,
+      "sha256": "4cb6190f253d18cafea1451a0b062fef891529757762a4ffe9ff3b0af25d00ff"
+    },
+    {
+      "path": "codex-rs/app-server-protocol/src/protocol/v2/shared.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-protocol/src/protocol/v2/shared.rs",
+      "exit_code": 0,
+      "bytes": 12180,
+      "sha256": "11c704b5674ab5092ea6255ff3c8bb06f97567f1ff32d1dc09ad33f66277bb86"
+    },
+    {
+      "path": "codex-rs/app-server-protocol/src/rpc.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-protocol/src/rpc.rs",
+      "exit_code": 0,
+      "bytes": 2656,
+      "sha256": "78c516097c55b665e375807be6dcdceba232805c9ae9fa48420b0a537f0df705"
+    },
+    {
+      "path": "codex-rs/app-server-protocol/src/protocol/thread_history.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-protocol/src/protocol/thread_history.rs",
+      "exit_code": 0,
+      "bytes": 191866,
+      "sha256": "995a8b4eb602671a9b88efe82b1a1630486e1fb06b9ec1669221f7483e0fc40a"
+    },
+    {
+      "path": "codex-rs/app-server-protocol/src/protocol/item_builders.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-protocol/src/protocol/item_builders.rs",
+      "exit_code": 0,
+      "bytes": 15179,
+      "sha256": "c787eed4bb8e90cf9d87ddf4ae5876d9b91f14977ea7dfb28f6a99d9da4a5ed2"
+    },
+    {
+      "path": "codex-rs/hooks/src/events/session_start.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/hooks/src/events/session_start.rs",
+      "exit_code": 0,
+      "bytes": 19819,
+      "sha256": "5bb5bff0a8b75f1e2c85c6b18f6b10d3972903676fb65f5aa64bc95190363d23"
+    },
+    {
+      "path": "codex-rs/hooks/src/events/user_prompt_submit.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/hooks/src/events/user_prompt_submit.rs",
+      "exit_code": 0,
+      "bytes": 17718,
+      "sha256": "53d90344c4cb8192446fd3238f265a52b1919b65c873db60c92920e008a73dd7"
+    },
+    {
+      "path": "codex-rs/hooks/src/engine/command_runner.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/hooks/src/engine/command_runner.rs",
+      "exit_code": 0,
+      "bytes": 14546,
+      "sha256": "c3913ff8ee6f449f07ce3c69bb2f194ad8aef2ce13b83e693165d74329ca3e14"
+    },
+    {
+      "path": "codex-rs/tui/src/startup_orchestration.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/startup_orchestration.rs",
+      "exit_code": 0,
+      "bytes": 23934,
+      "sha256": "ba8db963d8c180fa3428a6e9b0f233adf65339a730c15a288dabb0a7cff9d4be",
+      "prior_manifest_sha256": "ba8db963d8c180fa3428a6e9b0f233adf65339a730c15a288dabb0a7cff9d4be",
+      "prior_manifest_match": true
+    },
+    {
+      "path": "codex-rs/cli/src/main.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/cli/src/main.rs",
+      "exit_code": 0,
+      "bytes": 184508,
+      "sha256": "f0e8acde897400a65fd7904b15cf54088b0981a44126b05cb2a95b5700b2ab6b"
+    },
+    {
+      "path": "codex-rs/core/src/session/mod.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/core/src/session/mod.rs",
+      "exit_code": 0,
+      "bytes": 188924,
+      "sha256": "41fb07e8f5841e54dc5deed55d4573a7f56ff451b1bda24a5cb665c74711a13a",
+      "prior_manifest_sha256": "41fb07e8f5841e54dc5deed55d4573a7f56ff451b1bda24a5cb665c74711a13a",
+      "prior_manifest_match": true
+    },
+    {
+      "path": "codex-rs/core/src/session/session.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/core/src/session/session.rs",
+      "exit_code": 0,
+      "sha256": "8baee944befc7896a19d8d59327c3566498c5cc8e8d497eb8085c60f27ccaa05",
+      "bytes": 78799
+    },
+    {
+      "path": "codex-rs/hooks/src/schema.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/hooks/src/schema.rs",
+      "exit_code": 0,
+      "sha256": "7b5c817c279709bc5092f8b6e6147788ff369e90818ce5debee93eb25ce5de89",
+      "bytes": 46372
+    },
+    {
+      "path": "codex-rs/protocol/src/items.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/protocol/src/items.rs",
+      "exit_code": 0,
+      "sha256": "4afe2f1863f49d73065ddaec1caf481fa29f8c88d92b575ecdc67b8d26ef06b1",
+      "bytes": 26885
+    },
+    {
+      "path": "codex-rs/app-server-client/src/lib.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-client/src/lib.rs",
+      "exit_code": 0,
+      "sha256": "04967fc01fa9e24013e47a0d5fc07c5943e678d489d7be12c645bd94b1692ef4",
+      "bytes": 82688,
+      "prior_manifest_sha256": "04967fc01fa9e24013e47a0d5fc07c5943e678d489d7be12c645bd94b1692ef4",
+      "prior_manifest_match": true
+    }
+  ],
+  "fixed_tree": {
+    "source_url": "https://api.github.com/repos/openai/codex/git/trees/6b9826e3aa83b1a5947db50f4332cb9c65f1b340?recursive=1",
+    "sha256": "e0bb2df8be0fa0c92121bb19a1087ffcdbeafedf9d9e10b61ed5a61f90b98f40",
+    "truncated": false,
+    "purpose": "Resolve modular v2/thread_data.rs, v2/turn.rs and rpc.rs after two distinct legacy paths returned 404; no retry of missing path"
+  },
+  "successful_source_count": 27,
+  "failed_legacy_path_count": 2
+}

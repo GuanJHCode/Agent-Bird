@@ -1,0 +1,73 @@
+{
+  "commit": "6b9826e3aa83b1a5947db50f4332cb9c65f1b340",
+  "scope": "Only default-log availability; reused app-server lib.rs from g0-native-0154-contract",
+  "files": [
+    {
+      "path": "codex-rs/app-server/src/message_processor.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server/src/message_processor.rs",
+      "exit_code": 0,
+      "prior_fetch_error": "<urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1032)>",
+      "bytes": 71936,
+      "sha256": "2186e5e1ec407c66ff8627008c7f319d22aa76f68bccb6c04ed454b0b8f22fa8"
+    },
+    {
+      "path": "codex-rs/app-server/src/outgoing_message.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server/src/outgoing_message.rs",
+      "exit_code": 0,
+      "prior_fetch_error": "<urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1032)>",
+      "bytes": 56353,
+      "sha256": "033eb1b47d0a21a6001d8e865458e27681120a9cb05768193e86c9306b39d595"
+    },
+    {
+      "path": "codex-rs/app-server/src/app_server_tracing.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server/src/app_server_tracing.rs",
+      "exit_code": 0,
+      "prior_fetch_error": "<urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1032)>",
+      "bytes": 5964,
+      "sha256": "35e6de95585ecb6a6de59a34fc2d430db50cc9d7d94810c8ec0ca1979f9bd56e"
+    },
+    {
+      "path": "codex-rs/state/src/log_db.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/state/src/log_db.rs",
+      "exit_code": 0,
+      "prior_fetch_error": "<urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1032)>",
+      "bytes": 29077,
+      "sha256": "585ecd3e214df8b6015957ac1235dfaacd5d58674d0c7451a00fc65ad68564a1"
+    },
+    {
+      "path": "codex-rs/app-server/src/transport.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server/src/transport.rs",
+      "exit_code": 0,
+      "bytes": 8786,
+      "sha256": "b869fab855d1538ac97f56515d5f0d820dc066ab0374ca04d44f170ec65793d8"
+    },
+    {
+      "path": "codex-rs/app-server-transport/src/transport/unix_socket.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-transport/src/transport/unix_socket.rs",
+      "exit_code": 0,
+      "bytes": 8940,
+      "sha256": "08b3f6d88895567645e152d122ff70e96eaf80e82dbcf00fd9c8e7b11bb19c88"
+    },
+    {
+      "path": "codex-rs/app-server-transport/src/outgoing_message.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-transport/src/outgoing_message.rs",
+      "exit_code": 0,
+      "bytes": 1618,
+      "sha256": "bf66cbcd78a92152312d09270cd6cedfa52b935d825e47ac4f8f1ee584dccad3"
+    },
+    {
+      "path": "codex-rs/app-server-transport/src/transport/websocket.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-transport/src/transport/websocket.rs",
+      "exit_code": 0,
+      "bytes": 13986,
+      "sha256": "f6fa7047f1f75304c96c56d204df98b134e2fe4a7fd8271b55902d9eb6d4194c"
+    },
+    {
+      "path": "codex-rs/app-server-transport/src/transport/mod.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-transport/src/transport/mod.rs",
+      "exit_code": 0,
+      "bytes": 21140,
+      "sha256": "537d15b8d6927e36922351137ce52fcc687564d8228ea02dce16e5ee4de37ab5"
+    }
+  ]
+}

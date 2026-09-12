@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "scope": "one controlled fresh TUI qualification, not generic attachment or full G0",
+  "registered_at": "2026-09-12T08:16:12.762735+00:00",
+  "contract_commit": "263de78",
+  "main_code_commit": "37c3fd0",
+  "active_nonce": "sd-qual-07",
+  "case": "tasks/g0-pending-resolution/data/sd-qual-07",
+  "job": "tasks/g0-macos/data/test-repo/tasks/pending-resolution/data/sd-qual-07",
+  "markers": {
+    "ready": "SD_QUAL_07_READY",
+    "ack": "SD_QUAL_07_ACK",
+    "command_id": "sd-qual-07-ack-1"
+  },
+  "native_version": "0.154.0",
+  "native_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+  "go_sha256": "feb9b9ad969abca5ff35db28c0f0d8d920dc0778d7aac68a90952900e989a285",
+  "source_sha256": {
+    "native_sd_control.py": "224e28f2b3ec99b7d424fe7f8490b3a769f11793eb71518a3a1cc37539a5aab5",
+    "native_sd_collect.py": "485e2b569cba0bdc8f5a78f408508cb07e75ef9073e8dc6efe6c39645ecb012c",
+    "native_sd_pty.py": "0ec348a89cfe1d5b41e23885f20a4323d2631af300ad577fa2e8726e16d8d5c5",
+    "native_sd_clock.py": "c16c8d0d0d9b1652d18606230351493f3cea33211f8b4d3323bb5b6bf2466087",
+    "native_standalone.py": "c219e539b5b620e4701cd2441f7b59a3f78f25920755ec0882a68456f97b7597",
+    "delivery_audit.py": "59d8129d5409fb7fb5687a5107c81f9d85a63b8f718e4dd22cab660517af87c6"
+  },
+  "source_commits": {
+    "controller": "ece370ade567f4228a6e2fefead093a9adf8eedf",
+    "helper": "54ecefdcc0282775ba84ee1fb05c4a6bd90cac6f",
+    "deadline_fix": "f27cec2a1b0b8d9e837636ee93ba4afedd57d69b"
+  },
+  "independent_reviews": {
+    "native": {
+      "reviewer": "sd07_native_gate",
+      "verdict": "PASS",
+      "tests_passed": 44
+    },
+    "helper": {
+      "reviewer": "native_0154_contract",
+      "verdict": "PASS",
+      "tests_passed": 35
+    }
+  },
+  "main_tests": {
+    "command": "G0_SD_CONTROLLER_SCRIPTS=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/scripts python3 -B -m unittest discover -s tasks/g0-pending-resolution/scripts -p 'native*_test.py'",
+    "count": 79,
+    "duration_seconds": 1.265,
+    "exit_code": 0
+  },
+  "static_native_contract_report": "../../g0-native-0154-contract/docs/compatibility.md",
+  "runtime_sources_frozen": true,
+  "runtime_requires_fresh_outer_preflight": true,
+  "runtime_requires_current_protected_baseline": true,
+  "runtime_attempts_allowed": 1,
+  "native_runtime_started": false,
+  "old_cases_reused": false,
+  "uncertain_resend_authorized": false,
+  "global_config_or_cli_link_modified": false,
+  "original_seven_design_checksums_match": true
+}
