@@ -30,6 +30,7 @@ import subprocess
 import struct
 import termios
 import time
+import uuid
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
@@ -68,6 +69,32 @@ def build_ordinary_tui_argv(cli: str | os.PathLike[str], *extra: str) -> tuple[s
     if not value or value.startswith("-"):
         raise ValueError("CLI executable must be a non-empty ordinary entry")
     return (value,)
+
+
+def canonical_resume_thread_id(thread_id: str) -> str:
+    """Validate and return the one canonical UUID spelling accepted by resume."""
+
+    if not isinstance(thread_id, str):
+        raise ValueError("resume thread ID must be a canonical UUID")
+    try:
+        parsed = uuid.UUID(thread_id)
+    except (ValueError, AttributeError):
+        raise ValueError("resume thread ID must be a canonical UUID") from None
+    canonical = str(parsed)
+    if canonical != thread_id:
+        raise ValueError("resume thread ID must be a canonical UUID")
+    return canonical
+
+
+def build_resume_tui_argv(
+    cli: str | os.PathLike[str], thread_id: str, *extra: str
+) -> tuple[str, ...]:
+    """Return the controlled native resume entry, with no prompt or overrides."""
+
+    if extra:
+        raise ValueError("resume entry does not accept prompt/model/config arguments")
+    ordinary = build_ordinary_tui_argv(cli)
+    return ordinary + ("resume", canonical_resume_thread_id(thread_id))
 
 
 def build_native_observer(expected_workspace_cwd: str | os.PathLike[str] | None = None) -> Any:
@@ -193,6 +220,8 @@ class NativeRuntimeConfig:
     cli: Path = DEFAULT_CLI
     cwd: Path = field(default_factory=Path.cwd)
     config_path: Path | None = None
+    resume_thread_id: str | None = None
+    expected_resume_thread_id: str | None = None
     local_window_seconds: float = LOCAL_WINDOW_SECONDS
     model_window_seconds: float = MODEL_WINDOW_SECONDS
 
@@ -203,6 +232,16 @@ class NativeRuntimeConfig:
         object.__setattr__(self, "cwd", Path(self.cwd))
         if self.config_path is not None:
             object.__setattr__(self, "config_path", Path(self.config_path))
+        requested_resume_id = self.resume_thread_id
+        expected_resume_id = self.expected_resume_thread_id
+        if requested_resume_id is not None and expected_resume_id is not None:
+            if canonical_resume_thread_id(requested_resume_id) != canonical_resume_thread_id(expected_resume_id):
+                raise ValueError("resume thread ID and expected resume thread ID must match")
+        chosen_resume_id = requested_resume_id or expected_resume_id
+        if chosen_resume_id is not None:
+            chosen_resume_id = canonical_resume_thread_id(chosen_resume_id)
+            object.__setattr__(self, "resume_thread_id", chosen_resume_id)
+            object.__setattr__(self, "expected_resume_thread_id", chosen_resume_id)
         if self.frontend_socket == self.backend_socket:
             raise ValueError("frontend and backend sockets must be distinct")
         if not self.backend_socket.is_absolute() or not self.cwd.is_absolute():
@@ -216,6 +255,8 @@ class NativeRuntimeConfig:
 
     @property
     def tui_argv(self) -> tuple[str, ...]:
+        if self.resume_thread_id is not None:
+            return build_resume_tui_argv(self.cli, self.resume_thread_id)
         return build_ordinary_tui_argv(self.cli)
 
     @property
@@ -898,6 +939,274 @@ class AttachmentInferer:
         self._candidate = None
 
 
+class ResumeAttachmentInferer:
+    """Qualify one explicit ``thread/resume`` attachment from a fresh epoch.
+
+    A resume candidate is deliberately separate from ``AttachmentInferer``:
+    start/clear evidence must not be reused for a new connection.  The only
+    source of the candidate identity is the successful ``thread/resume``
+    response; the requested UUID is a constraint and never evidence by itself.
+    """
+
+    _OPAQUE_BOOTSTRAP_METHODS = AttachmentInferer._OPAQUE_BOOTSTRAP_METHODS
+    _OPAQUE_SERVER_NOTIFICATIONS = AttachmentInferer._OPAQUE_SERVER_NOTIFICATIONS
+
+    def __init__(self, expected_resume_thread_id: str) -> None:
+        self.expected_resume_thread_id = canonical_resume_thread_id(expected_resume_thread_id)
+        self._epoch: int | None = None
+        self._next_sequence: int | None = None
+        self._invalid_reason: str | None = None
+        self._upgrades: set[str] = set()
+        self._pending: dict[tuple[str, Any], str] = {}
+        self._bootstrap_pending: dict[tuple[str, Any], str] = {}
+        self._initialize_response = False
+        self._initialized = False
+        self._resume_response = False
+        self._resume_response_thread: AttachmentCandidate | None = None
+        self._skills_after_request: set[Any] = set()
+        self._skills_after_response: set[Any] = set()
+        self._candidate: AttachmentCandidate | None = None
+        self._status_reference: Mapping[str, Any] | None = None
+
+    @property
+    def candidate(self) -> AttachmentCandidate | None:
+        return self._candidate if self._invalid_reason is None else None
+
+    @property
+    def invalid_reason(self) -> str | None:
+        return self._invalid_reason
+
+    @property
+    def replay_ready(self) -> bool:
+        return self.candidate is not None
+
+    @property
+    def status_reference(self) -> Mapping[str, Any] | None:
+        return self._status_reference
+
+    def record_status_reference(self, reference: Mapping[str, Any]) -> None:
+        self._status_reference = {
+            key: value
+            for key, value in reference.items()
+            if key in {"session_id", "thread_id", "selected", "screen_match"}
+        }
+
+    def clear(self) -> None:
+        self._invalidate("clear")
+
+    def invalidate(self, reason: str) -> None:
+        self._invalidate(reason)
+
+    def accept(self, event: Mapping[str, Any]) -> None:
+        if not isinstance(event, Mapping):
+            self._invalidate("invalid_event")
+            return
+        kind = event.get("event")
+        epoch = event.get("conn_epoch")
+        sequence = event.get("local_seq")
+        if kind == "connection_open":
+            self._start_epoch(epoch, sequence)
+            return
+        if self._epoch is None:
+            self._invalidate("event_before_connection")
+            return
+        if epoch != self._epoch:
+            self._invalidate("epoch_mismatch")
+            return
+        if not isinstance(sequence, int) or isinstance(sequence, bool) or sequence != self._next_sequence:
+            self._invalidate("event_sequence_gap")
+            return
+        self._next_sequence += 1
+        if kind in {"gap", "eof", "connection_close"}:
+            self._invalidate(str(event.get("reason") or kind))
+            return
+        if kind == "websocket_upgrade":
+            direction = event.get("direction")
+            if direction in {"client", "server"}:
+                self._upgrades.add(direction)
+            else:
+                self._invalidate("invalid_upgrade_direction")
+            self._maybe_candidate()
+            return
+        if kind == "rpc_unknown":
+            self._accept_unknown(event)
+            self._maybe_candidate()
+            return
+        if kind == "rpc":
+            self._accept_request(event)
+            self._maybe_candidate()
+            return
+        if kind == "rpc_response":
+            self._accept_response(event)
+            self._maybe_candidate()
+            return
+        self._invalidate("unknown_event")
+
+    def _start_epoch(self, epoch: Any, sequence: Any) -> None:
+        if not isinstance(epoch, int) or isinstance(epoch, bool) or epoch <= 0:
+            self._invalidate("invalid_epoch")
+            return
+        if not isinstance(sequence, int) or isinstance(sequence, bool) or sequence <= 0:
+            self._invalidate("invalid_sequence")
+            return
+        # A second epoch is admissible only after an explicit transport
+        # invalidation.  This prevents a new open from inheriting old proof.
+        if self._epoch is not None and self._invalid_reason is None:
+            self._invalidate("new_epoch_before_invalidation")
+            return
+        self._epoch = epoch
+        self._next_sequence = sequence + 1
+        self._invalid_reason = None
+        self._upgrades.clear()
+        self._pending.clear()
+        self._bootstrap_pending.clear()
+        self._initialize_response = False
+        self._initialized = False
+        self._resume_response = False
+        self._resume_response_thread = None
+        self._skills_after_request.clear()
+        self._skills_after_response.clear()
+        self._candidate = None
+
+    @staticmethod
+    def _request_key(direction: Any, request_id: Any) -> tuple[str, Any] | None:
+        if direction not in {"client", "server"} or request_id is None:
+            return None
+        try:
+            hash(request_id)
+        except TypeError:
+            return None
+        return direction, request_id
+
+    def _accept_request(self, event: Mapping[str, Any]) -> None:
+        direction = event.get("direction")
+        method = event.get("method")
+        request_id = event.get("request_id")
+        if not isinstance(method, str):
+            self._invalidate("invalid_method")
+            return
+        # thread/started is an optional server notification.  It can check a
+        # response identity but can never establish one.
+        if method == "thread/started":
+            if direction != "server" or request_id is not None:
+                self._invalidate("invalid_thread_started")
+                return
+            thread = event.get("thread")
+            if isinstance(thread, Mapping) and "id" in thread and thread.get("id") != self.expected_resume_thread_id:
+                self._invalidate("thread_started_identity_mismatch")
+            return
+        if method == "initialized":
+            if direction != "client" or request_id is not None or not self._initialize_response:
+                self._invalidate("initialized_before_initialize")
+            else:
+                self._initialized = True
+            return
+        if method in {"thread/start", "turn/start"}:
+            self._invalidate("unexpected_start_in_resume")
+            return
+        if direction != "client":
+            self._invalidate("unexpected_server_request")
+            return
+        key = self._request_key(direction, request_id)
+        if key is None:
+            self._invalidate("missing_request_id")
+            return
+        if key in self._pending:
+            self._invalidate("duplicate_request_id")
+            return
+        if method == "thread/resume":
+            params = event.get("params")
+            thread_id = params.get("threadId") if isinstance(params, Mapping) else None
+            if thread_id != self.expected_resume_thread_id or self._resume_response:
+                self._invalidate("resume_request_identity_mismatch")
+                return
+        if method == "skills/list" and self._resume_response:
+            self._skills_after_request.add(request_id)
+        self._pending[key] = method
+
+    def _accept_response(self, event: Mapping[str, Any]) -> None:
+        if event.get("direction") != "server":
+            self._invalidate("unexpected_client_response")
+            return
+        request_id = event.get("request_id")
+        key = self._request_key("client", request_id)
+        method = self._pending.pop(key, None) if key is not None else None
+        if method is None:
+            self._invalidate("orphan_response")
+            return
+        if event.get("ok") is not True:
+            self._invalidate(f"{method}_failed")
+            return
+        if method == "initialize":
+            self._initialize_response = True
+            return
+        if method == "thread/resume":
+            thread = event.get("thread")
+            thread_id = thread.get("id") if isinstance(thread, Mapping) else None
+            if thread_id != self.expected_resume_thread_id:
+                self._invalidate("resume_response_identity_mismatch")
+                return
+            session_id = thread.get("sessionId") if isinstance(thread, Mapping) else None
+            session = session_id if isinstance(session_id, str) else None
+            self._resume_response = True
+            self._resume_response_thread = AttachmentCandidate(
+                self._epoch or 0, thread_id, session
+            )
+            return
+        if method == "skills/list" and request_id in self._skills_after_request:
+            self._skills_after_request.discard(request_id)
+            self._skills_after_response.add(request_id)
+
+    def _accept_unknown(self, event: Mapping[str, Any]) -> None:
+        method = event.get("method")
+        direction = event.get("direction")
+        request_id = event.get("request_id")
+        if method in self._OPAQUE_SERVER_NOTIFICATIONS:
+            if direction != "server" or request_id is not None or event.get("response") is True:
+                self._invalidate("unknown_event")
+            return
+        if method not in self._OPAQUE_BOOTSTRAP_METHODS:
+            self._invalidate("unknown_event")
+            return
+        if event.get("response") is True:
+            if direction != "server" or request_id is None:
+                self._invalidate("unknown_event")
+                return
+            key = ("client", request_id)
+            if self._bootstrap_pending.pop(key, None) != method:
+                self._invalidate("bootstrap_response_mismatch")
+            return
+        if direction != "client" or request_id is None:
+            self._invalidate("unknown_event")
+            return
+        key = ("client", request_id)
+        if key in self._bootstrap_pending:
+            self._invalidate("duplicate_bootstrap_request")
+            return
+        self._bootstrap_pending[key] = method
+
+    def _maybe_candidate(self) -> None:
+        if self._invalid_reason is not None or self._epoch is None:
+            return
+        if self._bootstrap_pending or self._pending:
+            return
+        if self._upgrades != {"client", "server"}:
+            return
+        if not (self._initialize_response and self._initialized and self._resume_response):
+            return
+        if not self._skills_after_response:
+            return
+        resume = self._resume_response_thread
+        if resume is None:
+            return
+        self._candidate = resume
+
+    def _invalidate(self, reason: str) -> None:
+        if self._invalid_reason is None:
+            self._invalid_reason = reason
+        self._candidate = None
+
+
 class RuntimePhase(str, Enum):
     NEW = "new"
     BACKEND_RUNNING = "backend_running"
@@ -983,7 +1292,7 @@ class _CaptureBridge:
         if (
             row.get("event") == "rpc"
             and row.get("direction") == "client"
-            and row.get("method") == "thread/unsubscribe"
+            and row.get("method") in {"thread/unsubscribe", "thread/resume"}
         ):
             params = row.get("params")
             thread_id = params.get("threadId") if isinstance(params, Mapping) else None
@@ -1075,7 +1384,11 @@ class NativeRuntime:
         spawn_process: Callable[..., Any] | None = None,
     ) -> None:
         self.config = config
-        self.inferer = inferer or AttachmentInferer()
+        self.inferer = inferer or (
+            ResumeAttachmentInferer(config.resume_thread_id)
+            if config.resume_thread_id is not None
+            else AttachmentInferer()
+        )
         self.observer = observer
         self._relay_factory = relay_factory
         self._spawn_process = spawn_process or subprocess.Popen
@@ -1582,6 +1895,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--config", type=Path)
     parser.add_argument("--cli", type=Path, default=DEFAULT_CLI)
     parser.add_argument(
+        "--resume-thread-id",
+        help="explicit canonical UUID for the controlled native resume entry",
+    )
+    parser.add_argument(
         "--termination-mode",
         choices=("forced_disconnect", "normal_quit"),
         default="forced_disconnect",
@@ -1600,6 +1917,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 cwd=args.cwd,
                 config_path=args.config,
                 cli=args.cli,
+                resume_thread_id=args.resume_thread_id,
             ),
             args.case_dir,
             termination_mode=args.termination_mode,
@@ -1612,6 +1930,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 __all__ = [
     "AttachmentCandidate",
     "AttachmentInferer",
+    "ResumeAttachmentInferer",
     "CaseDirectory",
     "ConnectionIdentity",
     "DEFAULT_CLI",
@@ -1626,6 +1945,8 @@ __all__ = [
     "RuntimePhase",
     "RuntimeWindow",
     "build_ordinary_tui_argv",
+    "build_resume_tui_argv",
+    "canonical_resume_thread_id",
     "raw_seconds",
     "sha256_file",
     "main",
