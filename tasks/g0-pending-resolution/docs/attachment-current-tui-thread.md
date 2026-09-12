@@ -104,3 +104,9 @@ Apps 路径要求 `Feature::Apps && has_chatgpt_account`。本轮已有只读观
 4. 先确定普通入口下可取得的最小观测及条件覆盖，再安排有边界的原生样本；本次文档修正没有启动 TUI、原生模型、daemon、proxy 或更改任何配置。
 
 当前这些条件尚未组合验证，状态保留为 unknown / 未通过。是否能用已有信号组合达标需要继续核验；不能从旧报告已撤回的“无事件”前提，或单凭没有专用接口，推导出整条路线没有实验价值。
+
+### 2026-09-12：原生状态栏的可见候选
+
+固定 `0.153.4` 提供 `thread-id`（兼容 `session-id`）状态栏项，由当前 widget 的 `thread_id.to_string()` 显示完整 UUID；尚无 session 时省略。cached side/primary 重放会更新 widget 的 thread ID 并刷新状态面板。这是可继续研究的原生可见信号。[状态栏项](https://github.com/openai/codex/blob/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/bottom_pane/status_line_setup.rs#L137)、[显示值](https://github.com/openai/codex/blob/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/chatwidget/status_surfaces.rs#L757)、[重放更新](https://github.com/openai/codex/blob/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/chatwidget/session_flow.rs#L21)
+
+独立只读检查仅输出相关布尔值：现有 global `tui.status_line` 没有这两个 ID，本任务 test-repo 配置不存在，因此当前没有已开启的该信号。没有更改配置、申请 UI/Automation 权限或实现终端采集器。widget 在切换期间还可滞后于本地选择状态，故单个可见文本快照不足以认定通用附着已解决。[切换期间的 widget 状态](https://github.com/openai/codex/blob/3d2ee51ca2d5db578f328aa75e20aa22c0197c9a/codex-rs/tui/src/app/thread_routing.rs#L164)
