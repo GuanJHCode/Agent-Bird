@@ -23,12 +23,12 @@ NONCE = "sd-qual-07"
 
 def binding():
     return {"version": 1, "nonce": NONCE, "controller_thread_id": ROOT, "controller_epoch": 1,
-            "expected_cwd": "/private/g0/repo", "prior_turn_id": TURN, "native_cli_version": "0.153.4",
+            "expected_cwd": "/private/g0/repo", "prior_turn_id": TURN, "native_cli_version": "0.154.0",
             "boot_id": BOOT, "service": {"pid": 1234, "uid": os.getuid(), "birth": "Fri Sep 11 10:00:00 2026",
             "comm": "codex", "executable_path": "/private/g0/codex", "socket_path": "/private/g0/native.sock", "socket_dev": 1,
-            "socket_ino": 2, "native_binary_sha256": "b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3"},
+            "socket_ino": 2, "native_binary_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc"},
             "tui": {"pid": 1235, "uid": os.getuid(), "birth": "Fri Sep 11 10:00:01 2026", "comm": "codex", "executable_path": "/private/g0/codex",
-                    "native_binary_sha256": "b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3"},
+                    "native_binary_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc"},
             "go_binary": "/private/g0/lab", "go_binary_sha256": "feb9b9ad969abca5ff35db28c0f0d8d920dc0778d7aac68a90952900e989a285",
             "job_dir": "/private/g0/job", "controller_evidence_sha256": "a" * 64}
 
@@ -42,7 +42,7 @@ def go_inspection():
 
 
 def thread_result(source="vscode"):
-    return {"thread": {"id": ROOT, "sessionId": SESSION, "parentThreadId": None, "forkedFromId": None, "source": source, "cliVersion": "0.153.4",
+    return {"thread": {"id": ROOT, "sessionId": SESSION, "parentThreadId": None, "forkedFromId": None, "source": source, "cliVersion": "0.154.0",
             "cwd": "/private/g0/repo", "historyMode": "legacy", "ephemeral": False, "status": {"type": "idle"},
             "turns": [{"id": TURN, "status": "completed", "itemsView": "full", "items": [
                 {"id": "exec_01", "type": "commandExecution", "status": "completed", "exitCode": 0, "command": "PRIVATE_DO_NOT_EXPORT", "aggregatedOutput": "PRIVATE_DO_NOT_EXPORT"},
@@ -50,6 +50,23 @@ def thread_result(source="vscode"):
 
 
 class NativeStandaloneTests(unittest.TestCase):
+    def test_current_cli_pin_rejects_old_or_mixed_bindings(self):
+        good = binding()
+        try:
+            probe.validate_binding(good, ROOT, NONCE)
+        except probe.ProbeError as error:
+            self.fail("current installed CLI rejected: " + error.code)
+        old_sha = "b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3"
+        for version, old_roles in [("0.153.4", ("service", "tui")), ("0.153.4", ()),
+                                   ("0.154.0", ("service",)), ("0.154.0", ("tui",)),
+                                   ("0.154.0", ("service", "tui"))]:
+            changed = copy.deepcopy(good)
+            changed["native_cli_version"] = version
+            for role in old_roles:
+                changed[role]["native_binary_sha256"] = old_sha
+            with self.subTest(version=version, old_roles=old_roles), self.assertRaisesRegex(probe.ProbeError, "^version_mismatch$"):
+                probe.validate_binding(changed, ROOT, NONCE)
+
     def test_active_case_is_07_and_earlier_cases_are_rejected(self):
         value = binding()
         value["nonce"] = "sd-qual-07"
@@ -464,7 +481,7 @@ class NativeStandaloneTests(unittest.TestCase):
     def test_binding_rejects_wrong_owner_root_version_and_unknown_fields(self):
         good = binding()
         self.assertEqual(probe.validate_binding(good, ROOT, NONCE), good)
-        for field, value in [("controller_thread_id", TURN), ("native_cli_version", "0.154.0"), ("nonce", "other"), ("attached", True)]:
+        for field, value in [("controller_thread_id", TURN), ("native_cli_version", "0.153.4"), ("nonce", "other"), ("attached", True)]:
             changed = copy.deepcopy(good)
             changed[field] = value
             with self.subTest(field=field), self.assertRaises(probe.ProbeError):
@@ -505,7 +522,7 @@ class NativeStandaloneTests(unittest.TestCase):
 
     def test_idle_requires_completed_prior_turn_and_terminal_tools(self):
         probe.filter_thread(thread_result(), binding(), None, require_ready=True)
-        for place, field, value in [("thread", "source", "appServer"), ("thread", "cliVersion", "0.154.0"),
+        for place, field, value in [("thread", "source", "appServer"), ("thread", "cliVersion", "0.153.4"),
                                    ("thread", "status", {"type": "active"}), ("turn", "status", "inProgress"),
                                    ("tool", "status", "inProgress"), ("ready", "phase", "commentary")]:
             changed = thread_result()
