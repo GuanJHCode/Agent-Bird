@@ -23,3 +23,5 @@ PYTHONDONTWRITEBYTECODE=1 python3 -B -m pytest -q tasks/g0-tui-proxy/tests tasks
 结果 `186 passed in 1.73s`，其中旧套件 162、新套件 24。具体 RED/GREEN 和组合输出保留在同目录日志。所有 fixture/pytest 临时文件均只在本任务目录；已删除执行后不再需要的临时树。
 
 后继异步等待修复：`async-wait-red.log` 复现 fork 延迟 0.6 秒、缓存渲染延迟 0.6 秒时提前查旧屏幕，以及超出原 10 秒后仍查询的问题（4 failed / 23 passed）。修复后新套件 `27 passed in 0.15s`；每步保留 started/deadline/completed RAW，等待循环不重新计算 deadline。此代码先固定供 review，完整组合测试随后针对该固定代码执行。
+
+固定代码 `214233a7febb2e1b74d62f80fc1c40a584563763` 的最新旧/新同进程组合结果：`189 passed in 1.63s`（旧 162、新 27），命令同上，日志为 `async-combined-tests.log`。代码未在验证后变动。
