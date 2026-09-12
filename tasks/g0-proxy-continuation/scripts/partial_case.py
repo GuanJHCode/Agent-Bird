@@ -16,6 +16,7 @@ import os
 import subprocess
 import sys
 import time
+import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Callable, Mapping
@@ -55,8 +56,12 @@ class PartialCaseSpec:
             raise ValueError("retained binary SHA256 is invalid")
         if type(self.steps) is not int or not 1 <= self.steps <= 32:
             raise ValueError("retained steps must be between 1 and 32")
-        if not isinstance(self.interval, str) or not self.interval.endswith(("ms", "s")):
+        match = re.fullmatch(r"([0-9]{1,6})(ms|s)", self.interval)
+        if match is None or int(match.group(1)) <= 0:
             raise ValueError("retained interval must be a fixed duration")
+        interval_ms = int(match.group(1)) * (1 if match.group(2) == "ms" else 1000)
+        if self.steps * interval_ms > 120000:
+            raise ValueError("retained duration exceeds the 120 second model window")
 
     def document(self) -> dict[str, Any]:
         value = self.plan.document()
@@ -275,6 +280,11 @@ def _prefix_snapshot(spec: PartialCaseSpec, view: Mapping[str, Any]) -> tuple[di
     return tuple(rows)
 
 
+def _manifest_stable(spec: PartialCaseSpec, before: Mapping[str, Any], after: Mapping[str, Any]) -> bool:
+    fields = ("status", "revision", "segment", "completed_steps", "total_steps", "effect_count")
+    return all(before.get(field) == after.get(field) for field in fields) and _prefix_snapshot(spec, before) == _prefix_snapshot(spec, after)
+
+
 def _validate_quiet(bridge: Any, expected_thread_id: str) -> dict[str, Any]:
     trace = getattr(bridge, "trace", None)
     if not isinstance(trace, list) or getattr(bridge, "trace_complete", None) is not True:
@@ -363,19 +373,32 @@ async def run_partial_case(
         stage = "stop"
         tui.command("/quit")
         quit_exit = await tui.await_exit(RuntimeWindow.start(local_seconds=spec.plan.local_window_seconds, model_seconds=spec.plan.model_window_seconds).local_deadline)
-        await first.close()
+        first_cleanup = await first.close()
         stopped = await _inspect_until(
             spec,
-            lambda view: view.get("status") in {"stopped", "running"} and view.get("segment") == 1,
+            lambda view: view.get("status") in {"stopped", "running"} and view.get("segment") == 1 and _retained_worker_stopped(initial, view),
             raw_seconds() + spec.plan.model_window_seconds,
             inspect_runner,
         )
+        stable = await _inspect_until(
+            spec,
+            lambda view: _manifest_stable(spec, stopped, view),
+            raw_seconds() + spec.plan.local_window_seconds,
+            inspect_runner,
+        )
+        stopped = stable
         if quit_exit != 0 or not _owned_runtime_stopped(first, ownership) or not _retained_worker_stopped(initial, stopped):
             raise RuntimeInvariantError("owned TUI/backend or endpoint did not stop")
         stopped_prefix = _prefix_snapshot(spec, stopped)
         if stopped_prefix != initial_prefix:
             raise RuntimeInvariantError("retained checkpoint prefix changed while stopping")
-        result.update({"stopped": stopped, "initial_exit_code": quit_exit, "ownership": ownership})
+        result.update({
+            "stopped": stopped,
+            "initial_exit_code": quit_exit,
+            "initial_tui": tui.evidence,
+            "initial_cleanup": first_cleanup,
+            "ownership": ownership,
+        })
         result["phases"].append("stopped")
 
         stage = "resume_quiet"
@@ -412,7 +435,9 @@ async def run_partial_case(
         final_exit = await tui.await_exit(raw_seconds() + spec.plan.local_window_seconds)
         if final_exit != 0:
             raise RuntimeInvariantError("continued TUI did not exit cleanly")
-        await second.close()
+        second_cleanup = await second.close()
+        result["resume_tui"] = tui.evidence
+        result["resume_cleanup"] = second_cleanup
         result["status"] = "observed"
     except BaseException as exc:
         result["failure"] = _failure_record(exc, stage)

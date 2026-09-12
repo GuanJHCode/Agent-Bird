@@ -67,7 +67,7 @@ def test_inspect_retained_requires_frozen_binary_and_absolute_job(tmp_path, monk
 
     class Result:
         returncode = 0
-        stdout = json.dumps({"status": "running", "revision": 1, "segment": 1})
+        stdout = json.dumps({"nonce": value.plan.nonce, "status": "running", "revision": 1, "segment": 1})
         stderr = ""
 
     def run(argv, **kwargs):
@@ -85,6 +85,26 @@ def test_inspect_retained_requires_frozen_binary_and_absolute_job(tmp_path, monk
         "--nonce",
         value.plan.nonce,
     ]
+
+
+def test_inspect_retained_rejects_wrong_nonce(tmp_path, monkeypatch):
+    value = spec(tmp_path)
+    value.retained_binary.write_bytes(b"go-fixture")
+
+    class Result:
+        returncode = 0
+        stdout = json.dumps({"nonce": "other", "status": "running", "revision": 1, "segment": 1})
+        stderr = ""
+
+    monkeypatch.setattr("partial_case.subprocess.run", lambda *args, **kwargs: Result())
+    with pytest.raises(Exception, match="identity"):
+        inspect_retained(value)
+
+
+def test_interval_is_bounded_to_the_model_window(tmp_path):
+    plan = spec(tmp_path).plan
+    with pytest.raises(ValueError, match="duration"):
+        PartialCaseSpec(plan=plan, retained_binary=tmp_path / "retained", retained_binary_sha256=GO_SHA, steps=32, interval="5m")
 
 
 def test_quiet_rejects_server_turn_but_allows_same_thread_started():
@@ -185,11 +205,14 @@ def test_run_partial_case_is_four_phase_and_writes_exclusive_result(tmp_path, mo
     states = iter([
         {"status": "running", "revision": 1, "segment": 1, "completed_steps": 1, "total_steps": 12},
         {"status": "stopped", "revision": 1, "segment": 1, "completed_steps": 1, "total_steps": 12},
+        {"status": "stopped", "revision": 1, "segment": 1, "completed_steps": 1, "total_steps": 12},
         {"status": "completed", "revision": 1, "segment": 2, "completed_steps": 12, "total_steps": 12},
     ])
     result = asyncio.run(run_partial_case(value, runtime_factory=FakeRuntime, inspect_runner=lambda _: next(states), effective_model_reader=lambda: {"model": "gpt-5.6-luna", "reasoning_effort": "medium"}))
     assert result["status"] == "observed"
     assert result["phases"] == ["initial", "stopped", "resume_quiet", "continued"]
+    assert result["trace"] == "trace.json"
+    assert (value.plan.case_dir / "trace.json").exists()
     assert (value.plan.case_dir / "result.json").exists()
     with pytest.raises(FileExistsError):
         asyncio.run(run_partial_case(value, runtime_factory=FakeRuntime, inspect_runner=lambda _: next(states), effective_model_reader=lambda: {"model": "gpt-5.6-luna", "reasoning_effort": "medium"}))
