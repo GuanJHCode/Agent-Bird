@@ -546,6 +546,8 @@ class NativeRuntime:
                 authorize_peer=self._authorize_tui,
             )
             await self._relay.start()
+            if self.config.backend_socket.exists():
+                self._owned_endpoints.append(OwnedEndpoint.capture(self.config.backend_socket))
             self._owned_endpoints.append(OwnedEndpoint.capture(self.config.frontend_socket))
             self.phase = RuntimePhase.PROXY_RUNNING
             # This is deliberately synchronous after await relay.start: spawn
