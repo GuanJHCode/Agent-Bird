@@ -17,6 +17,8 @@ from resume_case import (  # noqa: E402
     validate_silent_resume,
     verify_preflight,
     run_resume_case,
+    _failure_record,
+    _failure_code,
 )
 import proxy_native_runtime as runtime_module  # noqa: E402
 from proxy_native_runtime import AttachmentCandidate  # noqa: E402
@@ -62,6 +64,24 @@ def test_preflight_fails_if_source_or_endpoint_changes(tmp_path):
     spec.cli.write_bytes(b"changed")
     with pytest.raises(Exception, match="source/config changed"):
         verify_preflight(spec, record)
+
+
+def test_preflight_freezes_complete_execution_spec(tmp_path):
+    spec = make_spec(tmp_path)
+    record = prepare_resume_case(spec)
+    mutated = dict(record)
+    mutated["spec"] = dict(record["spec"])
+    mutated["spec"]["argv"] = [str(spec.cli), "resume", "wrong"]
+    with pytest.raises(Exception, match="execution spec changed"):
+        verify_preflight(spec, mutated)
+
+
+def test_failure_record_keeps_only_stable_code_and_hash():
+    record = _failure_record(RuntimeError("sensitive detail"), "stage")
+    assert record["type"] == "RuntimeError"
+    assert record["code"] == _failure_code(RuntimeError("different")) == "runtime_error"
+    assert "message" not in record
+    assert len(record["message_sha256"]) == 64
 
 
 def test_silent_resume_rejects_model_or_thread_start():
@@ -134,22 +154,29 @@ def test_run_resume_case_uses_real_evidence_contract_with_fake_owned_runtime(tmp
         async def await_exit(self, _deadline):
             self.exit_code = 0
             self.evidence["exit_code"] = 0
+            fake_bridge.trace.append({"event": "eof", "conn_epoch": 1})
+            fake_bridge.epoch_invalid[1] = "eof"
             return 0
 
         def poll(self):
             return self.exit_code
 
+    fake_bridge = SimpleNamespace(
+        trace=[],
+        trace_complete=True,
+        model_turns=0,
+        epoch_invalid={},
+        connection_records={"c1": SimpleNamespace(
+            connection_id="c1", epoch=1, frontend_fd=3, backend_fd=4,
+            frontend_peer=None, backend_peer=None,
+        )},
+    )
+
     class FakeRuntime:
         def __init__(self, config):
             self.config = config
             self.tui_driver = FakeTui()
-            self.bridge = SimpleNamespace(
-                trace=[{"event": "eof", "conn_epoch": 1}],
-                trace_complete=True,
-                model_turns=0,
-                epoch_invalid={1: "eof"},
-                connection_records={},
-            )
+            self.bridge = fake_bridge
             self.candidate = AttachmentCandidate(1, THREAD_ID, "session")
 
         async def start(self):
@@ -185,3 +212,59 @@ def test_resume_case_main_prepare_is_explicit_and_does_not_create_case(tmp_path,
     assert not spec.case_dir.exists()
     assert spec.preflight_record_path.exists()
     assert '"status": "prepared"' in capsys.readouterr().out
+
+
+def test_run_resume_case_rechecks_candidate_after_status(tmp_path, monkeypatch):
+    spec = make_spec(tmp_path, local_window_seconds=0.01)
+    preflight = prepare_resume_case(spec)
+    monkeypatch.setattr(runtime_module, "FIXED_NATIVE_SHA256", hashlib.sha256(b"native").hexdigest())
+    bridge = SimpleNamespace(
+        trace=[], trace_complete=True, model_turns=0, epoch_invalid={},
+        connection_records={"c1": SimpleNamespace(
+            connection_id="c1", epoch=1, frontend_fd=3, backend_fd=4,
+            frontend_peer=None, backend_peer=None,
+        )},
+    )
+    runtime_ref = {}
+
+    class FakeTui:
+        def __init__(self):
+            self.exit_code = None
+            self.evidence = {"pid": 10, "exit_code": None, "inputs": []}
+
+        async def aread_until(self, _deadline):
+            return self.evidence
+
+        def command(self, _command):
+            return None
+
+        async def async_status_checkpoint(self, _deadline):
+            runtime_ref["runtime"].candidate = None
+            return {THREAD_ID}
+
+        async def await_exit(self, _deadline):
+            return None
+
+        def poll(self):
+            return self.exit_code
+
+    class FakeRuntime:
+        def __init__(self, _config):
+            runtime_ref["runtime"] = self
+            self.bridge = bridge
+            self.tui_driver = FakeTui()
+            self.candidate = AttachmentCandidate(1, THREAD_ID, "session")
+
+        async def start(self):
+            return None
+
+        def record_status_reference(self, _value):
+            return None
+
+        async def close(self):
+            return {"pids": [], "endpoints": []}
+
+    result = asyncio.run(run_resume_case(spec, preflight=preflight, runtime_factory=FakeRuntime))
+    assert result["status"] == "unknown"
+    assert result["failure"]["stage"] == "status"
+    assert result["failure"]["code"] == "runtime_invariant"

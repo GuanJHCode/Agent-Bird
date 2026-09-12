@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import argparse
+import hashlib
 import json
 import os
 import sys
@@ -30,6 +31,7 @@ from proxy_native_runtime import (  # noqa: E402
     NativeRuntimeConfig,
     RuntimeInvariantError,
     RuntimeWindow,
+    _connection_summary,
     canonical_resume_thread_id,
     raw_seconds,
     sha256_file,
@@ -216,6 +218,7 @@ def prepare_resume_case(spec: ResumeCaseSpec) -> dict[str, Any]:
         raise FileExistsError("resume endpoint is occupied")
     spec.preflight_record_path.parent.mkdir(parents=True, exist_ok=True)
     config = spec.runtime_config()
+    frozen_spec = _frozen_spec(spec, config)
     record = {
         "status": "prepared",
         "execution": "not_started",
@@ -235,6 +238,7 @@ def prepare_resume_case(spec: ResumeCaseSpec) -> dict[str, Any]:
             "thread_start_seen": False,
             "termination": "not_started",
         },
+        "spec": frozen_spec,
     }
     _exclusive_json(spec.preflight_record_path, record)
     return record
@@ -249,6 +253,11 @@ def verify_preflight(
     """Fail closed if source hashes or endpoint preconditions changed."""
 
     config = spec.runtime_config()
+    if record.get("status") != "prepared" or record.get("execution") != "not_started":
+        raise RuntimeInvariantError("resume preflight is not an untouched prepared record")
+    expected_spec = _frozen_spec(spec, config)
+    if record.get("spec") != expected_spec:
+        raise RuntimeInvariantError("resume execution spec changed after preflight")
     expected_hashes = record.get("hashes")
     if not isinstance(expected_hashes, Mapping):
         raise RuntimeInvariantError("resume preflight has no source hashes")
@@ -259,6 +268,26 @@ def verify_preflight(
         raise RuntimeInvariantError("resume case directory appeared before execution")
     if os.path.lexists(spec.frontend_socket) or os.path.lexists(spec.backend_socket):
         raise RuntimeInvariantError("resume endpoint appeared after preflight")
+
+
+def _frozen_spec(spec: ResumeCaseSpec, config: NativeRuntimeConfig) -> dict[str, Any]:
+    return {
+        "case_path": str(spec.case_dir),
+        "preflight_path": str(spec.preflight_record_path),
+        "cwd": str(spec.cwd),
+        "cli": str(spec.cli),
+        "config_path": str(spec.config_path) if spec.config_path is not None else None,
+        "frontend_socket": str(spec.frontend_socket),
+        "backend_socket": str(spec.backend_socket),
+        "expected_resume_thread_id": spec.expected_resume_thread_id,
+        "argv": list(config.tui_argv),
+        "backend_argv": list(config.backend_argv),
+        "windows": {
+            "local_seconds": spec.local_window_seconds,
+            "model_seconds": spec.model_window_seconds,
+        },
+        "execution": "not_started",
+    }
 
 
 def _load_preflight(spec: ResumeCaseSpec) -> dict[str, Any]:
@@ -403,13 +432,58 @@ def main(argv: list[str] | None = None) -> int:
         else:
             result = asyncio.run(run_resume_case(spec))
     except (OSError, RuntimeInvariantError, ValueError) as exc:
-        parser.exit(1, f"resume case failed: {type(exc).__name__}: {exc}\n")
+        parser.exit(1, f"resume case failed: {_failure_code(exc)}\n")
     print(json.dumps(result, sort_keys=True))
     return 0 if args.prepare or result.get("status") == "observed" else 1
 
 
 def _failure_record(exc: BaseException, stage: str) -> dict[str, str]:
-    return {"stage": stage, "type": type(exc).__name__, "message": str(exc)}
+    return {
+        "stage": stage,
+        "type": type(exc).__name__,
+        "code": _failure_code(exc),
+        "message_sha256": hashlib.sha256(
+            f"{type(exc).__name__}:{exc}".encode()
+        ).hexdigest(),
+    }
+
+
+def _failure_code(exc: BaseException) -> str:
+    return {
+        "TimeoutError": "deadline_exceeded",
+        "FileExistsError": "owned_endpoint_occupied",
+        "RuntimeInvariantError": "runtime_invariant",
+        "PermissionError": "permission_denied",
+        "ValueError": "invalid_argument",
+        "OSError": "os_error",
+    }.get(type(exc).__name__, "runtime_error")
+
+
+def _require_current_candidate(
+    runtime: Any,
+    bridge: Any,
+    tui: Any,
+    expected: Any,
+    expected_thread_id: str,
+) -> None:
+    if runtime.candidate != expected or expected.thread_id != expected_thread_id:
+        raise RuntimeInvariantError("resume candidate changed after qualification")
+    if tui.poll() is not None:
+        raise RuntimeInvariantError("resume TUI exited before terminal gate")
+    epoch = expected.connection_epoch
+    if bridge.epoch_invalid.get(epoch) is not None:
+        raise RuntimeInvariantError("resume candidate epoch became invalid")
+    if not any(record.epoch == epoch for record in bridge.connection_records.values()):
+        raise RuntimeInvariantError("resume candidate epoch is not owned")
+
+
+def _terminal_event_count(bridge: Any, epoch: int) -> int:
+    return sum(
+        1
+        for row in bridge.trace
+        if row.get("conn_epoch") == epoch
+        and row.get("event") in {"eof", "connection_close"}
+    )
 
 
 async def run_resume_case(
@@ -433,6 +507,10 @@ async def run_resume_case(
     bridge: Any | None = None
     tui: Any | None = None
     exit_code: int | None = None
+    eof_seen = False
+    epoch_reason: str | None = None
+    terminal_count_before_quit = 0
+    terminal_count_after_quit = 0
     failure: dict[str, str] | None = None
     stage = "prepare"
     result: dict[str, Any] = {
@@ -470,6 +548,7 @@ async def run_resume_case(
             raise RuntimeInvariantError("resume candidate missing within local window")
         if candidate.thread_id != spec.expected_resume_thread_id:
             raise RuntimeInvariantError("resume candidate identity mismatch")
+        _require_current_candidate(runtime, bridge, tui, candidate, spec.expected_resume_thread_id)
         result["candidate"] = asdict(candidate)
 
         stage = "silent-observation"
@@ -480,6 +559,7 @@ async def run_resume_case(
         while not silent_window.local_expired():
             await tui.aread_until(min(silent_window.local_deadline, raw_seconds() + 1.0))
         result["silent_observation"] = validate_silent_resume(bridge)
+        _require_current_candidate(runtime, bridge, tui, candidate, spec.expected_resume_thread_id)
 
         stage = "status"
         tui.command("/status")
@@ -492,31 +572,24 @@ async def run_resume_case(
             raise RuntimeInvariantError("resume status did not contain one exact expected thread ID")
         runtime.record_status_reference({"thread_id": spec.expected_resume_thread_id})
         result["status_observation"] = {"ids": sorted(status_ids), "exact": True}
+        _require_current_candidate(runtime, bridge, tui, candidate, spec.expected_resume_thread_id)
 
         stage = "normal-quit"
+        terminal_count_before_quit = _terminal_event_count(bridge, candidate.connection_epoch)
         tui.command("/quit")
+        result["quit_sent"] = True
         quit_window = RuntimeWindow.start(
             local_seconds=spec.local_window_seconds,
             model_seconds=spec.model_window_seconds,
         )
         exit_code = await tui.await_exit(quit_window.local_deadline)
         await tui.aread_until(quit_window.local_deadline)
-        epoch = result["candidate"]["connection_epoch"]
-        eof_seen = any(
-            row.get("event") == "eof" and row.get("conn_epoch") == epoch
-            for row in bridge.trace
-        )
+        epoch = candidate.connection_epoch
+        terminal_count_after_quit = _terminal_event_count(bridge, epoch)
+        eof_seen = terminal_count_after_quit > terminal_count_before_quit
         epoch_reason = bridge.epoch_invalid.get(epoch)
         if bridge.trace_complete is not True:
             raise RuntimeInvariantError("resume trace is incomplete")
-        result["termination"] = validate_resume_terminal(
-            termination_mode=termination_mode,
-            quit_sent=True,
-            eof_seen=eof_seen,
-            exit_code=exit_code,
-            epoch_reason=epoch_reason,
-            cleanup_result={"pids": [], "endpoints": []},
-        )
     except BaseException as exc:
         failure = _failure_record(exc, stage)
     finally:
@@ -534,11 +607,27 @@ async def run_resume_case(
                 raise RuntimeInvariantError("resume source/config changed after execution")
         except BaseException as exc:
             result["protection_failure"] = _failure_record(exc, "protection")
+        if failure is None:
+            try:
+                result["termination"] = validate_resume_terminal(
+                    termination_mode=termination_mode,
+                    quit_sent=result.get("quit_sent") is True,
+                    eof_seen=eof_seen,
+                    exit_code=exit_code,
+                    epoch_reason=epoch_reason,
+                    cleanup_result=cleanup_result if cleanup_result is not None else {},
+                )
+                result["termination"].update({
+                    "terminal_events_before_quit": terminal_count_before_quit,
+                    "terminal_events_after_quit": terminal_count_after_quit,
+                })
+            except BaseException as exc:
+                failure = _failure_record(exc, "terminal")
         if bridge is not None:
             result["trace_complete"] = bridge.trace_complete
             result["model_turns"] = bridge.model_turns if type(bridge.model_turns) is int else None
             result["connections"] = [
-                {"connection_id": record.connection_id, "epoch": record.epoch}
+                _connection_summary(record)
                 for record in bridge.connection_records.values()
             ]
             try:
