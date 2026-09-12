@@ -70,14 +70,19 @@ def build_ordinary_tui_argv(cli: str | os.PathLike[str], *extra: str) -> tuple[s
     return (value,)
 
 
-def build_native_observer() -> Any:
+def build_native_observer(expected_workspace_cwd: str | os.PathLike[str] | None = None) -> Any:
     """Construct the bounded observer limits used by the native experiment."""
 
     from proxy_observer import Observer
 
+    options: dict[str, Any] = {
+        "max_frame_bytes": NATIVE_OBSERVER_MAX_FRAME_BYTES,
+        "max_message_bytes": NATIVE_OBSERVER_MAX_MESSAGE_BYTES,
+    }
+    if expected_workspace_cwd is not None:
+        options["expected_workspace_cwd"] = os.fspath(expected_workspace_cwd)
     return Observer(
-        max_frame_bytes=NATIVE_OBSERVER_MAX_FRAME_BYTES,
-        max_message_bytes=NATIVE_OBSERVER_MAX_MESSAGE_BYTES,
+        **options,
     )
 
 
@@ -303,7 +308,7 @@ class RuntimeWindow:
         return (raw_seconds() if now is None else float(now)) >= self.model_deadline
 
 
-_SESSION_RE = re.compile(r"(?m)^[ \t│|]*Session:[ \t]*([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})[ \t│|]*$")
+_SESSION_RE = re.compile(r"(?m)^[ \t│|]*Session:[ \t]*([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})[ \t│|]*\r?$")
 
 
 class PTYDriver:
@@ -581,6 +586,7 @@ class AttachmentInferer:
         "remoteControl/status/changed",
         "mcpServer/startupStatus/updated",
     }
+    _QUALIFIED_COMMAND_METHOD = "command/exec"
 
     def __init__(self) -> None:
         self._epoch: int | None = None
@@ -688,10 +694,29 @@ class AttachmentInferer:
         if kind == "rpc_unknown":
             method = event.get("method")
             request_id = event.get("request_id")
+            qualified_command_request = (
+                method == self._QUALIFIED_COMMAND_METHOD
+                and event.get("direction") == "client"
+                and request_id is not None
+                and "response" not in event
+                and event.get("workspace_probe_qualified") is True
+            )
+            qualified_command_response = (
+                method == self._QUALIFIED_COMMAND_METHOD
+                and event.get("direction") == "server"
+                and event.get("response") is True
+                and "workspace_probe_qualified" not in event
+            )
             if method in self._OPAQUE_SERVER_NOTIFICATIONS:
                 if event.get("direction") != "server" or request_id is not None or event.get("response") is True:
                     self._invalidate("unknown_event")
-            elif method not in self._OPAQUE_BOOTSTRAP_METHODS:
+            elif method == self._QUALIFIED_COMMAND_METHOD and not (
+                qualified_command_request or qualified_command_response
+            ):
+                self._invalidate("unknown_event")
+            elif method not in self._OPAQUE_BOOTSTRAP_METHODS and not (
+                qualified_command_request or qualified_command_response
+            ):
                 self._invalidate("unknown_event")
             elif event.get("response") is True:
                 if event.get("direction") != "server":
@@ -854,6 +879,8 @@ class _CaptureBridge:
             value = row.get(key)
             if type(value) is int and value >= 0:
                 trace_row[key] = value
+        if type(row.get("workspace_probe_qualified")) is bool:
+            trace_row["workspace_probe_qualified"] = row["workspace_probe_qualified"]
         self.trace.append(trace_row)
         return True
 
@@ -1039,7 +1066,7 @@ class NativeRuntime:
 
                 self._relay_factory = ProxyServer
             if self.observer is None:
-                self.observer = build_native_observer()
+                self.observer = build_native_observer(self.config.cwd)
             bridge = _CaptureBridge(
                 self.observer,
                 self.inferer,

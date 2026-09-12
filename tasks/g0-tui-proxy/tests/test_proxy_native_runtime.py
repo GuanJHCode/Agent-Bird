@@ -118,6 +118,18 @@ def test_native_observer_uses_protocol_frame_limits():
     assert observer.max_message_bytes == 64 * 1024 * 1024
 
 
+def test_native_observer_receives_expected_workspace_cwd(monkeypatch, tmp_path):
+    received = {}
+
+    class FakeObserver:
+        def __init__(self, **kwargs):
+            received.update(kwargs)
+
+    monkeypatch.setitem(sys.modules, "proxy_observer", SimpleNamespace(Observer=FakeObserver))
+    build_native_observer(tmp_path)
+    assert received["expected_workspace_cwd"] == str(tmp_path)
+
+
 def test_ordinary_entry_has_no_remote_model_config_or_prompt_overrides():
     assert build_ordinary_tui_argv("/Users/guanjunhui/.local/bin/codex") == (
         "/Users/guanjunhui/.local/bin/codex",
@@ -300,6 +312,69 @@ def test_matching_bootstrap_response_without_required_evidence_stays_incomplete(
     assert inferer.invalid_reason is None
 
 
+def test_qualified_statusline_command_response_restores_candidate():
+    inferer = AttachmentInferer()
+    inferer.accept(connected_event())
+    for event in upgrade_events():
+        inferer.accept(event)
+    candidate = inferer.candidate
+    assert candidate is not None
+    inferer.accept(
+        {
+            "event": "rpc_unknown",
+            "conn_epoch": 1,
+            "direction": "client",
+            "method": "command/exec",
+            "request_id": 10,
+            "workspace_probe_qualified": True,
+            "local_seq": 10,
+        }
+    )
+    assert inferer.candidate is None
+    inferer.accept(
+        {
+            "event": "rpc_unknown",
+            "conn_epoch": 1,
+            "direction": "server",
+            "method": "command/exec",
+            "request_id": 10,
+            "response": True,
+            "local_seq": 11,
+        }
+    )
+    assert inferer.candidate == candidate
+
+
+@pytest.mark.parametrize(
+    "direction,request_id,qualified,response",
+    [
+        ("client", 2, False, False),
+        ("client", 2, True, False),
+        ("server", 2, True, True),
+        ("client", None, True, False),
+    ],
+)
+def test_unqualified_or_malformed_statusline_command_is_unknown(
+    direction, request_id, qualified, response
+):
+    inferer = AttachmentInferer()
+    inferer.accept(connected_event())
+    inferer.accept(
+        {
+            "event": "rpc_unknown",
+            "conn_epoch": 1,
+            "direction": direction,
+            "method": "command/exec",
+            "request_id": request_id,
+            "workspace_probe_qualified": qualified,
+            "response": response,
+            "local_seq": 2,
+        }
+    )
+    assert inferer.candidate is None
+    assert inferer.invalid_reason == "unknown_event"
+
+
 @pytest.mark.parametrize(
     "response",
     [
@@ -469,6 +544,46 @@ def test_real_http_ws_bytes_flow_through_observer_bridge_and_reconnect_epochs():
     # A new epoch cannot inherit the old thread or qualify from a partial replay.
     rpc(bridge, connection_id, 2, "client", {"jsonrpc": "2.0", "id": 1, "method": "skills/list", "params": {"cwds": ["/repo"]}})
     assert inferer.candidate is None
+
+
+def test_real_observer_bridge_infers_qualified_workspace_probe(tmp_path):
+    from proxy_observer import Observer
+
+    observer = Observer(expected_workspace_cwd=str(tmp_path))
+    inferer = AttachmentInferer()
+    bridge = _CaptureBridge(observer, inferer)
+    connection_id = "workspace-probe-c1"
+    bridge.on_connect(SimpleNamespace(connection_id=connection_id, epoch=1))
+    relay_bytes(bridge, connection_id, 1, "frontend_to_backend", raw_upgrade_request())
+    relay_bytes(bridge, connection_id, 1, "backend_to_frontend", raw_upgrade_response())
+    rpc(bridge, connection_id, 1, "client", {"id": 1, "method": "initialize", "params": {}})
+    rpc(bridge, connection_id, 1, "server", {"id": 1, "result": {}})
+    rpc(bridge, connection_id, 1, "client", {"id": 2, "method": "thread/start", "params": {}})
+    rpc(
+        bridge,
+        connection_id,
+        1,
+        "server",
+        {"id": 2, "result": {"thread": {"id": "thread-probe", "sessionId": "session-probe"}}},
+    )
+    rpc(bridge, connection_id, 1, "client", {"id": 3, "method": "skills/list", "params": {}})
+    rpc(bridge, connection_id, 1, "server", {"id": 3, "result": {}})
+    assert inferer.candidate is not None
+
+    params = {
+        "command": ["git", "-c", "safe.bareRepository=explicit", "branch", "--show-current"],
+        "cwd": str(tmp_path),
+        "env": {"GIT_OPTIONAL_LOCKS": "0"},
+        "timeoutMs": 5000,
+        "outputBytesCap": 65536,
+    }
+    rpc(bridge, connection_id, 1, "client", {"id": 4, "method": "command/exec", "params": params})
+    assert inferer.candidate is None
+    rpc(bridge, connection_id, 1, "server", {"id": 4, "result": {"exitCode": 0}})
+    assert inferer.candidate is not None
+    probe = next(row for row in bridge.trace if row.get("method") == "command/exec")
+    assert probe["workspace_probe_qualified"] is True
+    assert bridge.trace_complete is True
 
 
 def test_status_reference_alone_never_creates_candidate():
@@ -737,6 +852,25 @@ def test_real_pty_driver_answers_cursor_position_query(tmp_path):
         driver.close()
 
 
+def test_real_pty_driver_parses_status_session_with_crlf(tmp_path):
+    session_id = b"01234567-89ab-cdef-0123-456789abcdef"
+    driver = PTYDriver.spawn(
+        [
+            sys.executable,
+            "-c",
+            "import os,tty; tty.setraw(1); os.write(1, b'noise Session: 01234567-89ab-cdef-0123-456789abcdef\\r\\nSession: 01234567-89ab-cdef-0123-456789abcdef\\r\\n')",
+        ],
+        cwd=tmp_path,
+    )
+    try:
+        driver.read(1.0)
+        assert driver.evidence["status_session_id"].encode() == session_id
+    finally:
+        if driver.poll() is None:
+            driver.terminate()
+        driver.close()
+
+
 def test_owned_cleanup_does_not_remove_replaced_endpoint(tmp_path):
     socket_path = tmp_path / "frontend.sock"
     socket_path.write_bytes(b"old")
@@ -980,6 +1114,39 @@ def test_capture_bridge_drops_invalid_gap_size_metadata():
     gap = bridge.trace[-1]
     assert all(key not in gap for key in ("payload_bytes", "message_bytes", "limit_bytes"))
     assert bridge.trace_complete is False
+
+
+def test_capture_bridge_preserves_only_boolean_workspace_probe_flag():
+    from proxy_observer import Observer
+
+    bridge = _CaptureBridge(Observer(), AttachmentInferer())
+    bridge.on_connect(SimpleNamespace(connection_id="probe-trace-c1", epoch=1))
+    bridge._accept_rows(
+        [
+            {
+                "event": "rpc_unknown",
+                "conn_epoch": 1,
+                "local_seq": 2,
+                "direction": "client",
+                "method": "command/exec",
+                "request_id": 1,
+                "workspace_probe_qualified": True,
+            },
+            {
+                "event": "rpc_unknown",
+                "conn_epoch": 1,
+                "local_seq": 3,
+                "direction": "server",
+                "method": "command/exec",
+                "request_id": 1,
+                "response": True,
+            },
+        ]
+    )
+    command_row = next(row for row in bridge.trace if row.get("method") == "command/exec")
+    response_row = bridge.trace[-1]
+    assert command_row["workspace_probe_qualified"] is True
+    assert "workspace_probe_qualified" not in response_row
 
 
 def test_duplicate_eof_close_rows_make_trace_incomplete():

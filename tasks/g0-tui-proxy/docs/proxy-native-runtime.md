@@ -20,7 +20,7 @@ runtime 保存二进制/配置摘要以及自有进程的 birth/executable。关
 的 socket 或无法确认身份的进程保留。窗口基于 `CLOCK_MONOTONIC_RAW`，本地操作 10 秒，必要模型轮次 120 秒，
 但本实现没有启动模型轮次。
 
-当前离线验证覆盖 runtime、transport、observer 共 97 项。尚未执行 native、TUI
+当前离线验证覆盖 runtime、transport、observer 共 119 项。尚未执行 native、TUI
 或模型，也不把离线通过当作原生附着证据。
 
 显式运行入口为：
@@ -51,6 +51,10 @@ status 对照、clear 后新 thread、disconnect/EOF 和正常 quit 在最终清
 `mcpServer/startupStatus/updated` 只作为无 ID 的 server 通知保留，均不会单独产生 candidate。
 gap trace 仅保留 observer 提供的非负整数 `payload_bytes`、`message_bytes`、`limit_bytes`；
 无效值被丢弃，gap 本身仍使 trace fail-closed。
+
+仅当 observer 对当前工作目录下精确的 `git -c safe.bareRepository=explicit branch --show-current`
+请求给出纯布尔 `workspace_probe_qualified=true` 时，`command/exec` 才进入严格 pending 配对；
+它不构成全局 command/exec 白名单。PTY status parser 保持严格 UUID 行匹配并接受 CRLF。
 
 若 initial replay 或 candidate 在其窗口内未成立，runner 只记录内存态界面枚举并
 执行 bounded quit/cleanup，跳过无意义的 `/clear` 和 disconnect；不会把诊断状态当作
