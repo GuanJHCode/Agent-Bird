@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "case": "proxy-attach-04",
+  "status": "registered_preflight_only",
+  "registered_at_utc": "2026-09-12T11:52:53.676702+00:00",
+  "main_head": "0edeead3387a6def1b415a5625ace3f5ad40037a",
+  "source_sha256": {
+    "tasks/g0-tui-proxy/scripts/proxy_native_runtime.py": "399f86df931e2c5b095271e1e9e8ada6154ca2dc635dab5775a6090498cd9947",
+    "tasks/g0-tui-proxy/scripts/proxy_transport.py": "41c6bd527ae2f108da538811e3b629a861bf2e2ec72a67efd94e23a793cdb704",
+    "tasks/g0-tui-proxy/scripts/proxy_observer.py": "6e1e16f37707bd8c88fd8717058afe1a4920bd406aec3b907cf7fc50e9066587"
+  },
+  "source_worktree_state": {
+    "dirty_paths": [
+      " M tasks/g0-tui-proxy/scripts/proxy_native_runtime.py"
+    ],
+    "known_dirty_change": "one added __all__ export line: classify_screen",
+    "dirty_diff_sha256": "16e4eade174895cc21474ccd130e5d52e6a6e5fde0efab91cd394774d6a7b1ae",
+    "dirty_diff_bytes": 447
+  },
+  "cli": {
+    "path": "/Users/guanjunhui/.local/bin/codex",
+    "sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+    "fixed_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc"
+  },
+  "protected_files_pre_sha256": {
+    "/Users/guanjunhui/.codex/config.toml": "53b1aa3016356f244170c6b5bc84773767672c852b59f9594f9ae694ebb8eca3",
+    "tasks/g0-macos/data/test-repo/.codex/config.toml": "298a250c45c9585c695e427c830c20100ecadc8a612445703b2a8b5878a3aa2b",
+    "tasks/g0-macos/data/test-repo/.codex/hooks.json": "666243bf0789d012c7035ff7ef7203735df95fd79eafe763fa5013277f58b917",
+    "tasks/g0-macos/data/g0-hook-darwin-arm64": "62e41afd87e1408854490bf6a716cfe846fff0021179a39d163d6e02254ba779"
+  },
+  "endpoints_preflight": {
+    "/Users/guanjunhui/.codex/app-server-control/app-server-control.sock": "absent",
+    "tasks/g0-tui-proxy/tmp/b/a.sock": "absent",
+    "tasks/g0-tui-proxy/data/proxy-attach-04": "absent"
+  },
+  "backend_parent_preflight": {
+    "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-tui-proxy/tmp/b",
+    "status": "present",
+    "mode": "0o700"
+  },
+  "hook_events_before": {
+    "directory": "tasks/g0-macos/data/hook-events",
+    "file_count": 130,
+    "names_sha256": "0dc4b1c83ded55dcef6bbf293ef416a7554a2947b958afeb13fe5034176c0a1a",
+    "content_manifest_sha256": "f4a6a261281ff228d3853164f5fbd7d3e5aca9b8c996a2ee1df0aeea84f9d8d8",
+    "manifest_definition": "sorted filename + SHA256 + byte size, one record per line"
+  },
+  "run_parameters": {
+    "frontend_socket": "/Users/guanjunhui/.codex/app-server-control/app-server-control.sock",
+    "backend_socket": "tasks/g0-tui-proxy/tmp/b/a.sock",
+    "cwd": "tasks/g0-macos/data/test-repo",
+    "config": "tasks/g0-macos/data/test-repo/.codex/config.toml",
+    "cli": "/Users/guanjunhui/.local/bin/codex",
+    "prompt": false,
+    "model_turn_requested": false,
+    "local_window_seconds": 10.0,
+    "model_window_seconds": 120.0
+  },
+  "scope": "Pre-run registration only. No case directory, native process, TUI, prompt, model turn, or retry has been started."
+}

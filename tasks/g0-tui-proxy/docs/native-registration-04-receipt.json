@@ -1,0 +1,55 @@
+{
+  "case": "proxy-attach-04",
+  "status": "unknown",
+  "recorded_at_utc": "2026-09-12T11:54:30.837226+00:00",
+  "main_head": "0edeead3387a6def1b415a5625ace3f5ad40037a",
+  "pre_registration": "tasks/g0-tui-proxy/docs/native-registration-04.json",
+  "run_artifact": "tasks/g0-tui-proxy/data/proxy-attach-04/result.json",
+  "failure": {
+    "stage": "prepare",
+    "type": "RuntimeInvariantError",
+    "code": "runtime_invariant",
+    "message_sha256": "3b6196eafef73eed16dc79bb1c660de5547c3cecd9eb78d7d563c31c75c0f50d",
+    "diagnosis_code": "backend_exit_before_ready_status_1",
+    "evidence": "failure hash matches RuntimeInvariantError native backend exited before ready: 1; no raw exception persisted"
+  },
+  "connections": [],
+  "post_hashes": {
+    "source_sha256": {
+      "tasks/g0-tui-proxy/scripts/proxy_native_runtime.py": "399f86df931e2c5b095271e1e9e8ada6154ca2dc635dab5775a6090498cd9947",
+      "tasks/g0-tui-proxy/scripts/proxy_transport.py": "41c6bd527ae2f108da538811e3b629a861bf2e2ec72a67efd94e23a793cdb704",
+      "tasks/g0-tui-proxy/scripts/proxy_observer.py": "6e1e16f37707bd8c88fd8717058afe1a4920bd406aec3b907cf7fc50e9066587"
+    },
+    "cli_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+    "protected_files_sha256": {
+      "/Users/guanjunhui/.codex/config.toml": "53b1aa3016356f244170c6b5bc84773767672c852b59f9594f9ae694ebb8eca3",
+      "tasks/g0-macos/data/test-repo/.codex/config.toml": "298a250c45c9585c695e427c830c20100ecadc8a612445703b2a8b5878a3aa2b",
+      "tasks/g0-macos/data/test-repo/.codex/hooks.json": "666243bf0789d012c7035ff7ef7203735df95fd79eafe763fa5013277f58b917",
+      "tasks/g0-macos/data/g0-hook-darwin-arm64": "62e41afd87e1408854490bf6a716cfe846fff0021179a39d163d6e02254ba779"
+    }
+  },
+  "hook_events_after": {
+    "file_count": 130,
+    "names_sha256": "0dc4b1c83ded55dcef6bbf293ef416a7554a2947b958afeb13fe5034176c0a1a",
+    "content_manifest_sha256": "f4a6a261281ff228d3853164f5fbd7d3e5aca9b8c996a2ee1df0aeea84f9d8d8",
+    "manifest_definition": "sorted filename + SHA256 + byte size, one record per line"
+  },
+  "resource_cleanup": {
+    "frontend_socket": "absent",
+    "backend_socket": "absent",
+    "backend_parent_mode": "0o700",
+    "case_artifacts": {
+      "result.json": {
+        "sha256": "b6e6bc5fabb83bd10957cbd12a9863cc31f5625590d37f65ec73ab95af523152",
+        "bytes": 452
+      }
+    },
+    "backend_pid": "exited before readiness; PID not retained in result",
+    "tui_pid": "not spawned (connections empty)",
+    "connections": [],
+    "prompt_sent": false,
+    "model_turn": false,
+    "raw_screen_persisted": false
+  },
+  "scope": "One authorized proxy-attach-04 attempt. Failure retained; no retry or additional native case started."
+}
