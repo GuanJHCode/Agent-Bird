@@ -30,7 +30,6 @@ class BindingHashBoundaryTest(unittest.TestCase):
         prepared = json.loads(original["prepare-meta.json"])
         producer = json.loads(original["producer.json"])
         self.assertEqual(helper.ACTIVE_NONCE, "sd-qual-07")
-        self.assertEqual(binding["nonce"], control.c.NONCE)
         self.assertEqual(binding["nonce"], "sd-qual-03")
         self.assertEqual(prepared["binding_sha256"], "dab2c091901e473b5783ea1a43c5a11600f9541a2d308d95dedc18deeb73d15c")
 
@@ -104,8 +103,14 @@ class BindingHashBoundaryTest(unittest.TestCase):
                     path.write_bytes(raw)
                     path.chmod(0o600)
             self.assertFalse((case / "send-attempt.json").exists())
-            # Historical sd03 chain only; production ACTIVE_NONCE remains sd-qual-07.
-            with patch.object(helper, "ACTIVE_NONCE", "sd-qual-03"), patch.object(control, "CASE", case), patch.object(helper.Rpc, "__aenter__", connect), patch.object(helper, "verify_machine"), patch.object(helper, "current_clock", side_effect=clock), patch.object(helper, "go_read", side_effect=go):
+            # Select sd03 and its CLI fixture only here; production pins remain unchanged.
+            with (patch.object(helper, "ACTIVE_NONCE", "sd-qual-03"), patch.object(control.c, "NONCE", "sd-qual-03"),
+                  patch.object(helper, "CLI_VERSION", binding["native_cli_version"]),
+                  patch.object(helper, "CLI_SHA", binding["service"]["native_binary_sha256"]),
+                  patch.object(control, "CASE", case), patch.object(helper.Rpc, "__aenter__", connect),
+                  patch.object(helper, "verify_machine"), patch.object(helper, "current_clock", side_effect=clock),
+                  patch.object(helper, "go_read", side_effect=go)):
+                self.assertEqual(binding["nonce"], control.c.NONCE)
                 args = ["send-once", "--case", directory, "--root", binding["controller_thread_id"], "--nonce", binding["nonce"]]
                 began = control.continuous_ns()
                 result = helper.main(args)

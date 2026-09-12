@@ -131,9 +131,15 @@ class Sd02OfflineInputChain(unittest.TestCase):
                 if os.fspath(path) == original["service"]["socket_path"]:
                     return socket_info
                 return real_lstat(path, *args, **kwargs)
-            with patch.object(subprocess, "run", side_effect=run), patch.object(probe.os, "lstat", side_effect=lstat), patch.object(ctypes, "CDLL", return_value=libproc), patch.object(probe.Rpc, "__aenter__", connect), patch.object(os, "environ", {}), patch.object(probe, "ACTIVE_NONCE", "sd-qual-02"):
-                # Only this offline historical test permits the original nonce; runtime accepts 05.
-                # These are the actual frozen collector and controller entry points.
+            # Select the historical binary and version only inside this offline fixture.
+            # The real collector, controller and helper still validate their input.
+            with (patch.object(subprocess, "run", side_effect=run), patch.object(probe.os, "lstat", side_effect=lstat),
+                  patch.object(ctypes, "CDLL", return_value=libproc), patch.object(probe.Rpc, "__aenter__", connect),
+                  patch.object(os, "environ", {}), patch.object(probe, "ACTIVE_NONCE", "sd-qual-02"),
+                  patch.object(collect, "CLI", Path(executable)),
+                  patch.object(collect, "CLI_SHA", original["service"]["native_binary_sha256"]),
+                  patch.object(probe, "CLI_VERSION", original["native_cli_version"]),
+                  patch.object(probe, "CLI_SHA", original["service"]["native_binary_sha256"])):
                 binding = dict(original)
                 for role in ("service", "tui"):
                     identity = collect.process(original[role]["pid"])
