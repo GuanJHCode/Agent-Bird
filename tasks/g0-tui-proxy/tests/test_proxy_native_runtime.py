@@ -26,6 +26,7 @@ from proxy_native_runtime import (  # noqa: E402
     build_ordinary_tui_argv,
     classify_screen,
     build_native_observer,
+    main,
     new_epoch_after_disconnect,
     raw_seconds,
     run_case,
@@ -1372,11 +1373,11 @@ def test_case_label_comes_from_actual_case_directory(tmp_path):
 
 
 @pytest.mark.parametrize(
-    "normal_exit,emit_eof",
-    [(0, True), (1, True), (0, False)],
+    "normal_exit,termination_reason",
+    [(0, "eof"), (1, "eof"), (0, "disconnect"), (0, None)],
 )
 def test_run_case_normal_quit_does_not_disconnect_and_requires_eof(
-    tmp_path, monkeypatch, normal_exit, emit_eof
+    tmp_path, monkeypatch, normal_exit, termination_reason
 ):
     import asyncio
 
@@ -1425,8 +1426,8 @@ def test_run_case_normal_quit_does_not_disconnect_and_requires_eof(
             if command == "/status":
                 self.status_calls += 1
             elif command == "/quit":
-                if emit_eof:
-                    self.bridge.epoch_invalid[1] = "eof"
+                if termination_reason is not None:
+                    self.bridge.epoch_invalid[1] = termination_reason
                 self.exit_code = normal_exit
 
         async def aread_until(self, _deadline):
@@ -1493,9 +1494,36 @@ def test_run_case_normal_quit_does_not_disconnect_and_requires_eof(
         )
     )
     assert result.get("failure") is None, result.get("failure")
-    expected_status = "observed" if normal_exit == 0 and emit_eof else "unknown"
+    expected_status = "observed" if normal_exit == 0 and termination_reason == "eof" else "unknown"
     assert result["status"] == expected_status, result
     assert result["termination_mode"] == "normal_quit"
     assert result["termination_trigger"] == "normal_quit"
     assert runtime.disconnect_calls == 0
     assert "/quit" in runtime._tui_driver.inputs
+
+
+def test_main_parses_normal_quit_and_passes_it_to_run_case(tmp_path, monkeypatch):
+    captured = {}
+
+    async def fake_run_case(config, case_dir, *, termination_mode):
+        captured["config"] = config
+        captured["case_dir"] = case_dir
+        captured["termination_mode"] = termination_mode
+        return {"status": "observed"}
+
+    monkeypatch.setattr("proxy_native_runtime.run_case", fake_run_case)
+    cli = tmp_path / "codex"
+    argv = [
+        "--run",
+        "--case-dir", str(tmp_path / "case"),
+        "--frontend-socket", str(tmp_path / "frontend.sock"),
+        "--backend-socket", str(tmp_path / "backend.sock"),
+        "--cwd", str(tmp_path),
+        "--config", str(tmp_path / "config.toml"),
+        "--cli", str(cli),
+        "--termination-mode", "normal_quit",
+    ]
+    assert main(argv) == 0
+    assert captured["termination_mode"] == "normal_quit"
+    assert captured["case_dir"] == Path(argv[argv.index("--case-dir") + 1])
+    assert captured["config"].backend_socket == Path(argv[argv.index("--backend-socket") + 1])

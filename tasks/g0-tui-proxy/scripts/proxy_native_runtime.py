@@ -1494,7 +1494,11 @@ async def run_case(
             await tui.aread_until(min(quit_window.local_deadline, raw_seconds() + 2.0))
         if runtime._bridge and termination_epoch is not None:
             termination_epoch_reason = runtime._bridge.epoch_invalid.get(termination_epoch)
-            termination_epoch_invalid = termination_epoch_reason is not None
+            termination_epoch_invalid = (
+                termination_epoch_reason in {"eof", "connection_close"}
+                if termination_mode == "normal_quit"
+                else termination_epoch_reason is not None
+            )
         step("quit", exit_code=exit_code, quit_success=quit_success, termination_epoch_invalid=termination_epoch_invalid, tui=tui.evidence)
         result["connections"] = [_connection_summary(record) for record in runtime._bridge.connection_records.values()] if runtime._bridge else []
         result["status"] = "unknown"
@@ -1566,6 +1570,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--cwd", type=Path, default=Path.cwd())
     parser.add_argument("--config", type=Path)
     parser.add_argument("--cli", type=Path, default=DEFAULT_CLI)
+    parser.add_argument(
+        "--termination-mode",
+        choices=("forced_disconnect", "normal_quit"),
+        default="forced_disconnect",
+    )
     args = parser.parse_args(argv)
     if not args.run:
         print("prepared; pass --run with explicit case and private socket paths")
@@ -1582,6 +1591,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 cli=args.cli,
             ),
             args.case_dir,
+            termination_mode=args.termination_mode,
         )
     )
     print(json.dumps(result, sort_keys=True))
