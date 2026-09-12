@@ -93,6 +93,8 @@ sd06 已下发：初始 120 秒窗口内无 SessionStart，PTY 停在 MCP 启动
 
 前瞻登记唯一新 case `sd-qual-07`。沿用 sd06 的普通 `codex` 入口、单次 paste+独立 Enter、paste 前本服务唯一 `SessionStart` 放在初始 120 秒窗口、后验 `UserPromptSubmit`、canonical binding 摘要、一次发送、uncertain 不重发、原 10/120 秒窗口和有界 caffeinate。不重跑 sd-qual-01..06。运行入口只接受 sd07，无环境或 CLI 绕过；历史回归只可在隔离测试内显式 patch。须冻结、独立复核和新鲜前检后才下发。
 
+sd07 下发前的新鲜检查发现普通入口已经指向 `0.154.0`，实际二进制 SHA 为 `4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc`；用户当前配置摘要也已变化，本任务没有修改它。sd07 尚未创建 case、启动原生进程或发送输入，因此继续使用该未消费登记，按实际安装版本核验官方固定源码及本地 schema 后，统一 helper/controller 的版本与二进制摘要。普通入口和用户当前配置保留，不切回旧二进制、不改链接或全局配置；运行前重新捕获保护基线，不能套用 sd06 的旧基线。历史 0.153.4 回归只在测试内固定旧路径和快照，原记录不变。独立复核同时发现 SessionStart 扫描可能跨过截止点，必须在首次 paste 前复查同一原始 deadline；该修复不延长窗口或增加输入。版本适配与该边界修复均通过复核和主树验证后才准入。
+
 ## 接口解释与判据
 
 官方 `turn/start.toolOutput` 接受客户端实际执行的独立工具输出，`input=[]`，以 `functionCallOutput` 持久化；不要求存在旧的 pending tool call。旧研究对“必须补回旧 pending call”的概括不作为本轮排除此接口的依据。[官方 App Server 说明](https://learn.chatgpt.com/docs/app-server#start-a-turn)
@@ -110,4 +112,4 @@ sd06 已下发：初始 120 秒窗口内无 SessionStart，PTY 停在 MCP 启动
 
 新建材料按本任务 `plans/`、`docs/`、`scripts/`、`data/`、`tmp/` 分开；`tmp/` 只放可回收 worktree、下载和测试缓存。源码、必要运行记录和可审查证据保留。收尾列清单，核对归属后清理；不删除原有任务材料或配置。
 
-状态：sd04/sd05/sd06 原生样本均未通过初始身份门禁并已归档清理。sd06 为 `owned_session_start_missing`。已用官方 `account/rateLimitResetCredit/consume` 兑换一次 banked reset（weekly usedPercent 100→0，credits 2→1），socket 已释放。已前瞻登记 `sd-qual-07`，尚未冻结或下发。完整 G0 仍未通过。
+状态：sd04/sd05/sd06 原生样本均未通过初始身份门禁并已归档清理。sd06 为 `owned_session_start_missing`。已用官方 `account/rateLimitResetCredit/consume` 兑换一次 banked reset（weekly usedPercent 100→0，credits 2→1），socket 已释放。sd07 尚未下发；正在修复输入截止边界并适配当前普通入口的 0.154.0。完整 G0 仍未通过。
