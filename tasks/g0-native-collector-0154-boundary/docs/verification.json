@@ -1,0 +1,14 @@
+{
+  "source_commit": "6b9826e3aa83b1a5947db50f4332cb9c65f1b340",
+  "scope": "Source-derived synthetic JSONL/span plus exact official SQL migrations; actual existing Python reader functions; no native/RPC/personal DB",
+  "checks": {
+    "jsonl_source_shape_accepted": true,
+    "wrong_turn_rejected": true,
+    "actual_sql_migrations_support_both_queries": true,
+    "fully_qualified_span_keys_projected": true,
+    "exact_connection_guard_accepts_projected_metadata": true,
+    "parent_edge_rejected": true
+  },
+  "checks_passed": 6,
+  "downloaded_source_hashes_verified": 18
+}

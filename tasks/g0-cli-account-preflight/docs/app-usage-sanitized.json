@@ -1,0 +1,35 @@
+{
+  "scope": "App get_usage_limits response sanitized entirely in memory; no raw account ID, email, token, headers, credits or arbitrary response body persisted",
+  "read_order": "Concurrent with private CLI service attempt",
+  "ordinaryUsageAllowed": true,
+  "accountIdSha256": "82157fe91b71606755623adc25c6fba0654c232f7fa457b4c0d3c17b455265d9",
+  "accountIdHashAlgorithm": "SHA256 of exact UTF-8 accountId, no normalization",
+  "accountKind": null,
+  "accountKindReason": "App usage tool does not return Account.type",
+  "rateLimits": {
+    "limitId": "codex",
+    "primary": {
+      "usedPercent": 10,
+      "windowDurationMins": 10080,
+      "resetsAt": 1789805388
+    },
+    "secondary": null
+  },
+  "rateLimitsByLimitId": {
+    "codex": {
+      "limitId": "codex",
+      "primary": {
+        "usedPercent": 10,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789805388
+      },
+      "secondary": null
+    }
+  },
+  "comparison": {
+    "cliAccountIdentity": "unknown",
+    "reason": "CLI WebSocket upgrade failed before initialize/account reads",
+    "sameAccount": null,
+    "perLimitId": null
+  }
+}

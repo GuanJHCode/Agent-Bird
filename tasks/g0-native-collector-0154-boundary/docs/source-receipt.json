@@ -1,0 +1,165 @@
+{
+  "commit": "6b9826e3aa83b1a5947db50f4332cb9c65f1b340",
+  "tree_sha256": "e0bb2df8be0fa0c92121bb19a1087ffcdbeafedf9d9e10b61ed5a61f90b98f40",
+  "tree_url": "https://api.github.com/repos/openai/codex/git/trees/6b9826e3aa83b1a5947db50f4332cb9c65f1b340?recursive=1",
+  "files": [
+    {
+      "path": "codex-rs/protocol/src/protocol.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/protocol/src/protocol.rs",
+      "bytes": 226739,
+      "sha256": "d11e4106083390591e326da783c03da942247adc50c1c0ffccd20f65af5522f2",
+      "git_blob_sha": "66e431551ddfda9e61b19ee6b8ae61ea046a2817"
+    },
+    {
+      "path": "codex-rs/history/src/lib.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/history/src/lib.rs",
+      "bytes": 16603,
+      "sha256": "9837efc7e9e02bfc706eb7066731e5ae9951f0be345e501c28bbabb457324e5b",
+      "git_blob_sha": "258c32291f862b9a2c5b7b91f576aa117c24271c"
+    },
+    {
+      "path": "codex-rs/history/src/rollout_payload.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/history/src/rollout_payload.rs",
+      "bytes": 11735,
+      "sha256": "86f7ae2afc5137387bffe6ae8874e60b45cb0923c1e0e89f2d13563c4413923a",
+      "git_blob_sha": "0a491fed6dd8736de776637fef7897e1fa2edbdb"
+    },
+    {
+      "path": "codex-rs/rollout/src/recorder.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/rollout/src/recorder.rs",
+      "bytes": 72863,
+      "sha256": "79e0e5d04fc13f3895c670ce0dbce0542ca1ac6538cdb8b50bb3d0b3c3d67e87",
+      "git_blob_sha": "0e41fc48da99505d9ced9278c9248b3dc813cd9e"
+    },
+    {
+      "path": "codex-rs/rollout/src/policy.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/rollout/src/policy.rs",
+      "bytes": 8423,
+      "sha256": "9963db1dad94a26dbddcfd9792624ff975615c795bb212c12d0f9441db1ad395",
+      "git_blob_sha": "c82b5ce958c81b10c57d829951bf8fdee7efef6e"
+    },
+    {
+      "path": "codex-rs/state/src/paths.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/state/src/paths.rs",
+      "bytes": 295,
+      "sha256": "86f495097074276daf5f7cd220deb2042a030b5a713e87bd8ce24ae22c038d44",
+      "git_blob_sha": "65458cb9e93fe96b42241f56f6d66f973558edf3"
+    },
+    {
+      "path": "codex-rs/state/src/model/thread_metadata.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/state/src/model/thread_metadata.rs",
+      "bytes": 30939,
+      "sha256": "7382c787889e6c44f27636e49bfb422fdfbecd0269829535806487b653a0b9ba",
+      "git_blob_sha": "418edb74a82a4b3157e1d44dc266afe2052b7ceb"
+    },
+    {
+      "path": "codex-rs/state/migrations/0001_threads.sql",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/state/migrations/0001_threads.sql",
+      "bytes": 863,
+      "sha256": "7a89ab37ba540b92781868aec12e7dc0a49eeb9a4b81125236e500534b012758",
+      "git_blob_sha": "7063ce11a45be508749bfe70de23bc64ac2a03d0"
+    },
+    {
+      "path": "codex-rs/state/migrations/0005_threads_cli_version.sql",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/state/migrations/0005_threads_cli_version.sql",
+      "bytes": 69,
+      "sha256": "faf7b05b3f20ef2e5bf2cc30367fc9c8aaa8031a259173e500d065677d08c606",
+      "git_blob_sha": "8891562d90075f58db69219bfd843415ef9c5780"
+    },
+    {
+      "path": "codex-rs/state/migrations/0021_thread_spawn_edges.sql",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/state/migrations/0021_thread_spawn_edges.sql",
+      "bytes": 249,
+      "sha256": "5c03fe4571b35f8d9181834327608bb4c2c7239cb9eeda2e4ee6dc0b57599f12",
+      "git_blob_sha": "d6514c46e3ad6d7ca2ae4c5827005d62804f6b83"
+    },
+    {
+      "path": "codex-rs/state/logs_migrations/0001_logs.sql",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/state/logs_migrations/0001_logs.sql",
+      "bytes": 730,
+      "sha256": "3ac717a6db0fc2d138f485ea4e5798f1367d5c2811db87a80ddd8b7bf8526ca0",
+      "git_blob_sha": "b5315dc82134f5348e949dd3b374f7a354e65756"
+    },
+    {
+      "path": "codex-rs/state/logs_migrations/0002_logs_feedback_log_body.sql",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/state/logs_migrations/0002_logs_feedback_log_body.sql",
+      "bytes": 1108,
+      "sha256": "1cdeb6c3cddcf2f4b81995fb4f227f8578c0624568d27407c2fa2bddb7f7ba77",
+      "git_blob_sha": "6cd38664ece155e69a337e37e0d2f9541ca2a1ce"
+    },
+    {
+      "path": "codex-rs/core/src/tasks/mod.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/core/src/tasks/mod.rs",
+      "bytes": 37801,
+      "sha256": "127e3f5293ce7cf389d0a3f8427b395e04b1f1d897589ab1e688a629f5f2c27b",
+      "git_blob_sha": "d976a0ea29d77c2d65373efd740e8cafa8a226cc"
+    },
+    {
+      "path": "codex-rs/state/src/lib.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/state/src/lib.rs",
+      "bytes": 5501,
+      "sha256": "6e7a0358c2980f666ef278cde79e6e01e6b4855ea4af7d6d641a23ff265ec784",
+      "git_blob_sha": "c9a82df965b1b1bc2ae58bdbd5a3e1293bcbba9f"
+    },
+    {
+      "path": "codex-rs/state/src/extract.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/state/src/extract.rs",
+      "bytes": 29792,
+      "sha256": "a19f64691975edf10153d0ea11c66f44e1e24111000e1607fba2d7983616bfcb",
+      "git_blob_sha": "5f20565531712c1ff542cbc09727de29f59c647f"
+    },
+    {
+      "path": "codex-rs/state/src/runtime.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/state/src/runtime.rs",
+      "bytes": 25841,
+      "sha256": "e18fb1c80aaf25e54ec8605004b6960c2e77467c45caf30df50bbdaa91dab228",
+      "git_blob_sha": "e7fa3cffefd43771c22c88b377fba868478e7295"
+    },
+    {
+      "path": "codex-rs/config/src/loader/layer_io.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/config/src/loader/layer_io.rs",
+      "bytes": 7307,
+      "sha256": "a090443bc10317e086cd552c29ec4558917bdade0b397abd5229f81f93042022",
+      "git_blob_sha": "1f6bf6b92d682e9fe3ff6d3b1be1bc560f0a121c"
+    },
+    {
+      "path": "codex-rs/state/src/sqlite.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/state/src/sqlite.rs",
+      "bytes": 9350,
+      "sha256": "f5c8a7705c1b064a398d04a1be08d2bf2550a47ee030583ccad06713d5e992e8",
+      "git_blob_sha": "536d56befab7291874a64228ab649e4e29edacdc"
+    }
+  ],
+  "borrowed_verified_files": [
+    {
+      "path": "tasks/g0-attachment-log-availability/data/source/codex-rs/state/src/log_db.rs",
+      "fixed_source_path": "codex-rs/state/src/log_db.rs",
+      "sha256": "585ecd3e214df8b6015957ac1235dfaacd5d58674d0c7451a00fc65ad68564a1",
+      "git_blob_sha": "06387efc4cc72beff7cb3c62c1b45b53c47ffab8"
+    },
+    {
+      "path": "tasks/g0-attachment-log-availability/data/source/codex-rs/app-server/src/app_server_tracing.rs",
+      "fixed_source_path": "codex-rs/app-server/src/app_server_tracing.rs",
+      "sha256": "35e6de95585ecb6a6de59a34fc2d430db50cc9d7d94810c8ec0ca1979f9bd56e",
+      "git_blob_sha": "764634d13f793ff63dc24848a79cd4fab7e3a020"
+    },
+    {
+      "path": "tasks/g0-attachment-log-availability/data/source/codex-rs/app-server/src/outgoing_message.rs",
+      "fixed_source_path": "codex-rs/app-server/src/outgoing_message.rs",
+      "sha256": "033eb1b47d0a21a6001d8e865458e27681120a9cb05768193e86c9306b39d595",
+      "git_blob_sha": "e6e0ae87a472ebe9f9ca52ba497f129eecd45178"
+    },
+    {
+      "path": "tasks/g0-native-0154-contract/data/source/codex-rs/app-server/src/request_processors/thread_processor.rs",
+      "fixed_source_path": "codex-rs/app-server/src/request_processors/thread_processor.rs",
+      "sha256": "37a4451e58673b3577c432207a510a7322fd10af5e1e535bb2be8317d5fcb1d9",
+      "git_blob_sha": "9e28aef7b22ab9e1caf650c64d8910bd2c0caec8"
+    },
+    {
+      "path": "tasks/g0-native-0154-contract/data/source/codex-rs/core/src/session/mod.rs",
+      "fixed_source_path": "codex-rs/core/src/session/mod.rs",
+      "sha256": "41fb07e8f5841e54dc5deed55d4573a7f56ff451b1bda24a5cb665c74711a13a",
+      "git_blob_sha": "8ffc144d028b4f339d0ff323bbc804659406bada"
+    }
+  ]
+}

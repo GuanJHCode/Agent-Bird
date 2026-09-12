@@ -1,0 +1,23 @@
+{
+  "scope": "Second private service successful read and fresh final ownership cleanup",
+  "status": "read_complete",
+  "owned_pid": 63500,
+  "owned_pid_absent": true,
+  "owned_process_group_members": [],
+  "private_socket_absent": true,
+  "request_methods_sent": [
+    "initialize",
+    "account/read",
+    "account/rateLimits/read"
+  ],
+  "standard_initialized_notification_sent": true,
+  "upgrade_identity_before": true,
+  "upgrade_identity_after": true,
+  "every_recorded_stage_under_10s": true,
+  "overall_elapsed_ns": 957563708,
+  "cleanup_elapsed_ns": 22321417,
+  "stderr_raw_retained": false,
+  "script_sha256": "b52d1fb214df28644cbbd77699c3928e41878c4e3571145686c812961ab9ba52",
+  "same_account_id_hash": true,
+  "no_additional_native_run_required": true
+}

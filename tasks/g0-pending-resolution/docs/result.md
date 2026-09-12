@@ -1,6 +1,6 @@
 # 剩余 G0 能力：实施与候选验证
 
-日期：2026-09-12；基线 `cd3d054`。状态：sd03 已通过真实初始轮次、线程关系及原服务 prepare，随后因 binding 摘要约定不一致中止，发送状态仍不确定。摘要修复和跨组件回归已通过；sd04–sd07 未进入发送。sd07 暴露了实验门禁错误：原生 SessionStart 在首轮执行中触发，不能作为首次输入前置条件。当前正在实施 sd08 的原生初始提示与后验双 Hook，尚未下发。完整 G0 未放行。
+日期：2026-09-12；基线 `cd3d054`。状态：sd03 已通过真实初始轮次、线程关系及原服务 prepare，随后因 binding 摘要约定不一致中止，发送状态仍不确定。摘要修复和跨组件回归已通过；sd04–sd07 未进入发送。sd07 暴露的前置 SessionStart 循环门禁已修正：sd08 使用原生初始提示与后验双 Hook，独立复核、跨组件检查及主树 86 项测试通过，等待现场前检后执行一次。完整 G0 未放行。
 
 本轮将 idle 回传、当前 TUI 附着、完整交付对账交给三个 subagent，使用独立 worktree；主会话编排、核对边界和整合，另一 reviewer 审查。上轮退出停止、记录保留、原会话明确续接的结果保持。
 
@@ -26,6 +26,8 @@ sd07 随后执行一次，在原 120 秒窗口内以 `owned_session_start_missin
 后续全源码调用点核验纠正了准入前提：启动只排入 pending SessionStart，实际执行在 `run_turn` 内，所以零输入等待它构成循环。先前 schema 审查未覆盖这一触发时机，sd05/sd06 报告用界面文字解释原因的表述也证据不足。sd08 改为原生 `codex <固定初始任务>`，从 TUI 启动前开始计时，提交后再核对两个真实 Hook、family/session 和 Go owner；工具结果仍只通过原 helper 的 `toolOutput` 发送。[诊断](../../g0-sessionstart-mcp-diagnostic/docs/diagnosis.md)、[原生初始消息调用链](../../g0-sessionstart-mcp-diagnostic/docs/positional-prompt-candidate.md)、[sd08 合同](../plans/contract.md)
 
 另确认 0.154 提供内建 daemon start/bootstrap，可在目标 TUI 打开前启动原生 listener；普通无参数入口自身不保证拉起它，已有 embedded TUI 也不会因此迁移。它补充了安装前准备候选，尚未解决后续冷启动、当前附着或退出停止。[内建 daemon 核验](../../g0-native-daemon-bootstrap-review/docs/result.md)
+
+sd08 的 native 51 项、helper 35 项独立验证通过；固定新版组件的跨链 44 项及当前 binding 到真实 helper main 的 1 项检查通过，主树 86 项通过。独立私有服务也实际验证了既有 helper 的连接方式及只读账户接口：CLI 与桌面 accountId 摘要一致，均返回正常使用许可 true，采样时 codex 周额度已用 11%；探针均已清理。这不是 sd07 的历史额度复原，也不是回传验收。[sd08 准入](native-sd-qual-08-registration.json)、[跨组件证据](../../g0-sd08-helper-cross-review/docs/result.md)、[账户读取](../../g0-cli-account-preflight/docs/result.md)、[collector 内部格式兼容](../../g0-native-collector-0154-boundary/docs/result.md)
 
 ## 仍待解决的边界
 

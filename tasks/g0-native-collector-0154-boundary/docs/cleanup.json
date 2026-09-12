@@ -1,0 +1,9 @@
+{
+  "deleted_task_owned_temporary_files": [
+    "tmp/source-tree.json"
+  ],
+  "retained": "data/source and docs evidence",
+  "source_files_verified": 18,
+  "borrowed_source_files_verified": 5,
+  "report_sha256": "e86828ab04098ded713ff35ee62939ea21f09a624666a3cff67f5c53ef33e13e"
+}

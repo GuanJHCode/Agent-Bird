@@ -1,0 +1,8 @@
+{
+  "status": "PASS",
+  "fixed_inputs_unchanged": 12,
+  "temporary_case_job_files_remaining": 0,
+  "report_sha256": "063ba617559ef8a2edd313b23ea078d835344ea0be13f583a873cf4a1887125b",
+  "verification_script_sha256": "f01d6f08f79009945f8e3d25864b33b02c35a286c463bc7a549b49880f84433f",
+  "native_commands_or_rpc_run": false
+}

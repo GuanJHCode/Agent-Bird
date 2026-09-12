@@ -1,0 +1,55 @@
+{
+  "scope": "Private service account reads only; not G0 qualification",
+  "started_at": "2026-09-12T08:39:39.990490+00:00",
+  "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+  "overall_budget_seconds": 50,
+  "per_stage_budget_seconds": 10,
+  "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo",
+  "binary_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+  "stages": [
+    {
+      "method": "owned_service_start",
+      "elapsed_ns": 110771542
+    }
+  ],
+  "ignored_notification_count": 0,
+  "implementation_boundary": "refreshToken=false; no explicit refresh/login/reset request. Native AuthManager may internally maintain existing login state.",
+  "service": {
+    "pid": 62910,
+    "ppid": 62908,
+    "uid": 501,
+    "pgid": 62910,
+    "birth": "Sat Sep 12 16:39:39 2026",
+    "comm": "/Users/guanjunhui/.local/bin/codex",
+    "executable_path": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex"
+  },
+  "socket": {
+    "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cli-account-preflight/tmp/a.sock",
+    "dev": 16777234,
+    "ino": 161635752,
+    "uid": 501,
+    "mode": "0600",
+    "held_by_owned_service": true,
+    "default_socket_used": false
+  },
+  "status": "inconclusive",
+  "error": {
+    "type": "InvalidMessage",
+    "message_sha256": "cac90a5b26c2ebaf91d8e84c5e7c6d9ec6ad5dd5be9291deb202f94f1e7eb963"
+  },
+  "cleanup": {
+    "started_at": "2026-09-12T08:39:40.103303+00:00",
+    "term_sent_to_owned_group": true,
+    "owned_service_exit_code": 0,
+    "owned_service_exited": true,
+    "private_socket_exists_after": false,
+    "elapsed_ns": 13713833
+  },
+  "stderr": {
+    "bytes": 290,
+    "sha256": "7bd84b693f92de8b311ca3314b5c49de7d5e5d5a238be834217a9e4939ea09f2",
+    "body_retained": false
+  },
+  "elapsed_ns": 126544417,
+  "ended_at": "2026-09-12T08:39:40.117026+00:00"
+}

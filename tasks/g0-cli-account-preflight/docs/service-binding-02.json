@@ -1,0 +1,21 @@
+{
+  "service": {
+    "pid": 63500,
+    "ppid": 63499,
+    "uid": 501,
+    "pgid": 63500,
+    "birth": "Sat Sep 12 16:44:35 2026",
+    "comm": "/Users/guanjunhui/.local/bin/codex",
+    "executable_path": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex"
+  },
+  "socket": {
+    "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cli-account-preflight/tmp/b/a.sock",
+    "dev": 16777234,
+    "ino": 161637560,
+    "uid": 501,
+    "mode": "0600",
+    "held_by_owned_service": true,
+    "default_socket_used": false
+  },
+  "binary_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc"
+}

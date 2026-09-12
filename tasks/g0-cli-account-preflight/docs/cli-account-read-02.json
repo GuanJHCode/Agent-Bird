@@ -1,0 +1,151 @@
+{
+  "scope": "Private service account reads only; not G0 qualification",
+  "started_at": "2026-09-12T08:44:35.241108+00:00",
+  "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+  "overall_budget_seconds": 50,
+  "per_stage_budget_seconds": 10,
+  "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo",
+  "binary_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+  "stages": [
+    {
+      "method": "owned_service_start",
+      "elapsed_ns": 97484458
+    },
+    {
+      "method": "preconnect_owned_uds",
+      "elapsed_ns": 187250
+    },
+    {
+      "method": "websocket_upgrade",
+      "elapsed_ns": 1129542
+    },
+    {
+      "method": "initialize",
+      "params": {
+        "clientInfo": {
+          "name": "g0-cli-account-preflight",
+          "version": "0.1.0"
+        }
+      },
+      "elapsed_ns": 1528375
+    },
+    {
+      "method": "account/read",
+      "params": {
+        "refreshToken": false
+      },
+      "elapsed_ns": 3756667
+    },
+    {
+      "method": "account/rateLimits/read",
+      "params": {
+        "supportsLunaReserve": false,
+        "excludeResetCreditDetails": true
+      },
+      "elapsed_ns": 822994500
+    }
+  ],
+  "ignored_notification_count": 1,
+  "implementation_boundary": "refreshToken=false; no explicit refresh/login/reset request. Native AuthManager may internally maintain existing login state.",
+  "service": {
+    "pid": 63500,
+    "ppid": 63499,
+    "uid": 501,
+    "pgid": 63500,
+    "birth": "Sat Sep 12 16:44:35 2026",
+    "comm": "/Users/guanjunhui/.local/bin/codex",
+    "executable_path": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex"
+  },
+  "socket": {
+    "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-cli-account-preflight/tmp/b/a.sock",
+    "dev": 16777234,
+    "ino": 161637560,
+    "uid": 501,
+    "mode": "0600",
+    "held_by_owned_service": true,
+    "default_socket_used": false
+  },
+  "upgrade_identity_before": true,
+  "upgrade_identity_after": true,
+  "initialize": {
+    "platformOs": "macos",
+    "codex_home_matches": true
+  },
+  "account": {
+    "kind": "chatgpt",
+    "requiresOpenaiAuth": true,
+    "emailSha256": "6f4ce0f59cbe6a98d4f8d5c187d96289a923a6063a961e787e5481bf33fae22b"
+  },
+  "usage": {
+    "accountIdSha256": "82157fe91b71606755623adc25c6fba0654c232f7fa457b4c0d3c17b455265d9",
+    "ordinaryUsageAllowed": true,
+    "rateLimits": {
+      "limitId": "codex",
+      "primary": {
+        "usedPercent": 11,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789805388
+      },
+      "secondary": null,
+      "spendControlReached": false,
+      "rateLimitReachedType": null
+    },
+    "rateLimitsByLimitId": {
+      "base_model_inference": {
+        "limitId": "base_model_inference",
+        "primary": {
+          "usedPercent": 0,
+          "windowDurationMins": 10080,
+          "resetsAt": 1789807476
+        },
+        "secondary": null,
+        "spendControlReached": null,
+        "rateLimitReachedType": null
+      },
+      "codex_bengalfox": {
+        "limitId": "codex_bengalfox",
+        "primary": {
+          "usedPercent": 0,
+          "windowDurationMins": 300,
+          "resetsAt": 1789220676
+        },
+        "secondary": {
+          "usedPercent": 0,
+          "windowDurationMins": 10080,
+          "resetsAt": 1789807476
+        },
+        "spendControlReached": null,
+        "rateLimitReachedType": null
+      },
+      "codex": {
+        "limitId": "codex",
+        "primary": {
+          "usedPercent": 11,
+          "windowDurationMins": 10080,
+          "resetsAt": 1789805388
+        },
+        "secondary": null,
+        "spendControlReached": false,
+        "rateLimitReachedType": null
+      }
+    }
+  },
+  "usage_read_at": "2026-09-12T08:44:36.175456+00:00",
+  "status": "read_complete",
+  "cleanup": {
+    "started_at": "2026-09-12T08:44:36.176284+00:00",
+    "term_sent_to_owned_group": true,
+    "owned_service_exit_code": 0,
+    "owned_service_exited": true,
+    "private_socket_exists_after": false,
+    "elapsed_ns": 22321417
+  },
+  "stderr": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "body_retained": false,
+    "classes": []
+  },
+  "elapsed_ns": 957563708,
+  "ended_at": "2026-09-12T08:44:36.198654+00:00"
+}

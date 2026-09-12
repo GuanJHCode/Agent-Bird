@@ -1,0 +1,21 @@
+{
+  "helper_commit": "60e13d4e8b47bd461607544f6aedfbfcf3283878",
+  "native_commit": "7bbc66b968bbf55041f7c74e587b7978fae14fe0",
+  "status": "PASS",
+  "scope": "actual controller writer and serialization to real helper.main local validation; stopped before transport",
+  "initial_phase": "actual control.run under its existing offline process/clock fixture",
+  "binding_writer": "actual production AST and binding_process; only synthetic dead-process CLI path selected",
+  "runtime_pins_unchanged": true,
+  "extended_controller_evidence_keys_accepted": [
+    "launch_intent_sha256",
+    "origin_sha256",
+    "session_start",
+    "candidate_hook"
+  ],
+  "binding_canonical_sha256": "70b55b0a1e877c4998fc10b451bec9c24bc28c1163ede47d65543a81b3201484",
+  "evidence_raw_sha256": "c094a4806b8ecd0c1b12ea395f021d41381b87ade831bb7d7279bdd149a373cc",
+  "modified_evidence_rejected": true,
+  "consumed_sd07_rejected": true,
+  "network_connections": 0,
+  "current_prepare_or_send_success_claimed": false
+}

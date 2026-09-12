@@ -1,0 +1,66 @@
+{
+  "helper_commit": "60e13d4e8b47bd461607544f6aedfbfcf3283878",
+  "native_commit": "7bbc66b968bbf55041f7c74e587b7978fae14fe0",
+  "files": [
+    {
+      "path": "scripts/native_standalone.py",
+      "commit": "60e13d4e8b47bd461607544f6aedfbfcf3283878",
+      "sha256": "346ea054176d54fa2f8198e2e57039f029dc575cd97999788002395bae153cc3"
+    },
+    {
+      "path": "scripts/native_standalone_test.py",
+      "commit": "60e13d4e8b47bd461607544f6aedfbfcf3283878",
+      "sha256": "12b8f1826012fdcffa74dd1f1d6d792a9c6f8c9f18b46ee3d1bea694c164773b"
+    },
+    {
+      "path": "scripts/native_standalone_binding_test.py",
+      "commit": "60e13d4e8b47bd461607544f6aedfbfcf3283878",
+      "sha256": "64a0fe172f1b13abf47c9cfc936e7d36afa036a8065a0302e9cb32e6b70e495c"
+    },
+    {
+      "path": "scripts/native_standalone_hash_test.py",
+      "commit": "60e13d4e8b47bd461607544f6aedfbfcf3283878",
+      "sha256": "6a6cc97f05b55f6b46d99c8945288c4730235946e677e4f1be251becc4038cc7"
+    },
+    {
+      "path": "scripts/delivery_audit.py",
+      "commit": "60e13d4e8b47bd461607544f6aedfbfcf3283878",
+      "sha256": "59d8129d5409fb7fb5687a5107c81f9d85a63b8f718e4dd22cab660517af87c6"
+    },
+    {
+      "path": "docs/standalone-helper-sd02-fixture.json",
+      "commit": "60e13d4e8b47bd461607544f6aedfbfcf3283878",
+      "sha256": "dc8a3394333df77d002512a6db9ccae5550677e729e1037b6748a4f343cea6ca"
+    },
+    {
+      "path": "docs/standalone-helper-sd03-prepared-fixture.json",
+      "commit": "60e13d4e8b47bd461607544f6aedfbfcf3283878",
+      "sha256": "0e33f2ccc013addbd23c7c9df91238b778caab2c7ade8d3ea3b6bb88642afbf1"
+    },
+    {
+      "path": "scripts/native_sd_control.py",
+      "commit": "7bbc66b968bbf55041f7c74e587b7978fae14fe0",
+      "sha256": "d5b5c00abf45cf5f4c018b085e4b9d756109ad22f450a3e31ca3f73f20f7c862"
+    },
+    {
+      "path": "scripts/native_sd_collect.py",
+      "commit": "7bbc66b968bbf55041f7c74e587b7978fae14fe0",
+      "sha256": "4ef678b4d6f3d3cffcaaeba8fc22c5aae7fe85b1646d0b6a1c4cd11a8d15b760"
+    },
+    {
+      "path": "scripts/native_sd_pty.py",
+      "commit": "7bbc66b968bbf55041f7c74e587b7978fae14fe0",
+      "sha256": "b5a6f74ced04b287f5699e7c6003ef4895f2f94cc9a2f6e0752c2648aeee058a"
+    },
+    {
+      "path": "scripts/native_sd_clock.py",
+      "commit": "7bbc66b968bbf55041f7c74e587b7978fae14fe0",
+      "sha256": "c16c8d0d0d9b1652d18606230351493f3cea33211f8b4d3323bb5b6bf2466087"
+    },
+    {
+      "path": "scripts/native_sd_initial_test.py",
+      "commit": "7bbc66b968bbf55041f7c74e587b7978fae14fe0",
+      "sha256": "98216c9ea8b4eb5a38f4348ad89b741bf1de297d19c689bf0173a66ffd64e5f7"
+    }
+  ]
+}

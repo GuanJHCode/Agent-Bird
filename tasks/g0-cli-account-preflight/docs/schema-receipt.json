@@ -1,0 +1,642 @@
+{
+  "binary_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+  "files": [
+    {
+      "path": "v2/GetAccountParams.json",
+      "sha256": "30b545275f60975b55bd6fbaafd70f15505801d14168ee82d3931b6e93c78aab",
+      "schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "refreshToken": {
+            "description": "When `true`, requests a proactive token refresh before returning.\n\nIn managed auth mode this triggers the normal refresh-token flow. In external auth mode this flag is ignored. Clients should refresh tokens themselves and call `account/login/start` with `chatgptAuthTokens`.",
+            "type": "boolean"
+          }
+        },
+        "title": "GetAccountParams",
+        "type": "object"
+      }
+    },
+    {
+      "path": "v2/GetAccountResponse.json",
+      "sha256": "08a7dd8c570c905b0bb6998d43ed133e72e2445f08125f86dfc96887e288701a",
+      "schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "definitions": {
+          "Account": {
+            "oneOf": [
+              {
+                "properties": {
+                  "type": {
+                    "enum": [
+                      "apiKey"
+                    ],
+                    "title": "ApiKeyAccountType",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "title": "ApiKeyAccount",
+                "type": "object"
+              },
+              {
+                "properties": {
+                  "email": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "planType": {
+                    "$ref": "#/definitions/PlanType"
+                  },
+                  "type": {
+                    "enum": [
+                      "chatgpt"
+                    ],
+                    "title": "ChatgptAccountType",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "email",
+                  "planType",
+                  "type"
+                ],
+                "title": "ChatgptAccount",
+                "type": "object"
+              },
+              {
+                "properties": {
+                  "type": {
+                    "enum": [
+                      "amazonBedrock"
+                    ],
+                    "title": "AmazonBedrockAccountType",
+                    "type": "string"
+                  },
+                  "usesCodexManagedCredentials": {
+                    "default": false,
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "type"
+                ],
+                "title": "AmazonBedrockAccount",
+                "type": "object"
+              }
+            ]
+          },
+          "PlanType": {
+            "enum": [
+              "free",
+              "go",
+              "plus",
+              "pro",
+              "prolite",
+              "team",
+              "self_serve_business_prolite",
+              "self_serve_business_usage_based",
+              "business",
+              "ent26",
+              "enterprise_cbp_automation",
+              "enterprise_cbp_usage_based",
+              "enterprise",
+              "edu",
+              "edu_plus",
+              "edu_pro",
+              "unknown"
+            ],
+            "type": "string"
+          }
+        },
+        "properties": {
+          "account": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/Account"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "requiresOpenaiAuth": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "requiresOpenaiAuth"
+        ],
+        "title": "GetAccountResponse",
+        "type": "object"
+      }
+    },
+    {
+      "path": "v2/GetAccountRateLimitsResponse.json",
+      "sha256": "76bc91758269a89f57cd16c618b91c1fba76aca3e9d2b6186205e6f107d6b28c",
+      "schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "definitions": {
+          "CreditsSnapshot": {
+            "properties": {
+              "balance": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "hasCredits": {
+                "type": "boolean"
+              },
+              "unlimited": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "hasCredits",
+              "unlimited"
+            ],
+            "type": "object"
+          },
+          "PlanType": {
+            "enum": [
+              "free",
+              "go",
+              "plus",
+              "pro",
+              "prolite",
+              "team",
+              "self_serve_business_prolite",
+              "self_serve_business_usage_based",
+              "business",
+              "ent26",
+              "enterprise_cbp_automation",
+              "enterprise_cbp_usage_based",
+              "enterprise",
+              "edu",
+              "edu_plus",
+              "edu_pro",
+              "unknown"
+            ],
+            "type": "string"
+          },
+          "RateLimitReachedType": {
+            "enum": [
+              "rate_limit_reached",
+              "workspace_owner_credits_depleted",
+              "workspace_member_credits_depleted",
+              "workspace_owner_usage_limit_reached",
+              "workspace_member_usage_limit_reached"
+            ],
+            "type": "string"
+          },
+          "RateLimitResetCredit": {
+            "properties": {
+              "description": {
+                "description": "Backend-provided display description for this credit, or `null` when unavailable.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "expiresAt": {
+                "description": "Unix timestamp in seconds when the credit expires, or `null` if it does not expire.",
+                "format": "int64",
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "grantedAt": {
+                "description": "Unix timestamp in seconds when the credit was granted.",
+                "format": "int64",
+                "type": "integer"
+              },
+              "id": {
+                "description": "Opaque backend identifier for this reset credit.",
+                "type": "string"
+              },
+              "resetType": {
+                "$ref": "#/definitions/RateLimitResetType"
+              },
+              "status": {
+                "$ref": "#/definitions/RateLimitResetCreditStatus"
+              },
+              "title": {
+                "description": "Backend-provided display title for this credit, or `null` when unavailable.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "grantedAt",
+              "id",
+              "resetType",
+              "status"
+            ],
+            "type": "object"
+          },
+          "RateLimitResetCreditStatus": {
+            "enum": [
+              "available",
+              "redeeming",
+              "redeemed",
+              "unknown"
+            ],
+            "type": "string"
+          },
+          "RateLimitResetCreditsSummary": {
+            "properties": {
+              "availableCount": {
+                "format": "int64",
+                "type": "integer"
+              },
+              "credits": {
+                "description": "Detail rows for available reset credits, when the backend provides them.\n\n`null` means only `availableCount` is known, while an empty array means details were fetched and no available credits were returned. The backend may cap this list, so its length can be less than `availableCount`.",
+                "items": {
+                  "$ref": "#/definitions/RateLimitResetCredit"
+                },
+                "type": [
+                  "array",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "availableCount"
+            ],
+            "type": "object"
+          },
+          "RateLimitResetType": {
+            "enum": [
+              "codexRateLimits",
+              "unknown"
+            ],
+            "type": "string"
+          },
+          "RateLimitSnapshot": {
+            "properties": {
+              "credits": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/CreditsSnapshot"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "individualLimit": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/SpendControlLimitSnapshot"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "limitId": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "limitName": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "normalModelSlug": {
+                "description": "Normal model whose display name and reasoning options describe this quota alias.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "planType": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/PlanType"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "primary": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/RateLimitWindow"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "rateLimitReachedType": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/RateLimitReachedType"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "secondary": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/RateLimitWindow"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "spendControlReached": {
+                "description": "Backend-reported spend-control state. `None` is unavailable, not a sparse-update recovery.",
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              }
+            },
+            "type": "object"
+          },
+          "RateLimitWindow": {
+            "properties": {
+              "resetsAt": {
+                "format": "int64",
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "usedPercent": {
+                "format": "int32",
+                "type": "integer"
+              },
+              "windowDurationMins": {
+                "format": "int64",
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "usedPercent"
+            ],
+            "type": "object"
+          },
+          "SpendControlLimitSnapshot": {
+            "properties": {
+              "limit": {
+                "type": "string"
+              },
+              "remainingPercent": {
+                "format": "int32",
+                "type": "integer"
+              },
+              "resetsAt": {
+                "format": "int64",
+                "type": "integer"
+              },
+              "used": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "limit",
+              "remainingPercent",
+              "resetsAt",
+              "used"
+            ],
+            "type": "object"
+          }
+        },
+        "properties": {
+          "accountId": {
+            "description": "Account associated with this usage snapshot, when supplied by the backend.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ordinaryUsageAllowed": {
+            "description": "Backend permission for ordinary included usage, validated against the active account. Null means unavailable; clients must not infer recovery from percentages or reset times.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "rateLimitResetCredits": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/RateLimitResetCreditsSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rateLimitUpsell": {
+            "description": "Optional backend-owned banner from the same usage read. Its nested keys retain the backend's snake_case contract; an absent banner leaves the client's existing UI unchanged."
+          },
+          "rateLimits": {
+            "allOf": [
+              {
+                "$ref": "#/definitions/RateLimitSnapshot"
+              }
+            ],
+            "description": "Backward-compatible single-bucket view; mirrors the historical payload."
+          },
+          "rateLimitsByLimitId": {
+            "additionalProperties": {
+              "$ref": "#/definitions/RateLimitSnapshot"
+            },
+            "description": "Multi-bucket view keyed by metered `limit_id` (for example, `codex`).",
+            "type": [
+              "object",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "rateLimits"
+        ],
+        "title": "GetAccountRateLimitsResponse",
+        "type": "object"
+      }
+    },
+    {
+      "path": "v1/InitializeParams.json",
+      "sha256": "6f0094be9a65242ec779a40794cbd4fdfa32fca1e45084a16adfb50501d33ea2",
+      "schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "definitions": {
+          "ClientInfo": {
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "title": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "version": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "version"
+            ],
+            "type": "object"
+          },
+          "InitializeCapabilities": {
+            "description": "Client-declared capabilities negotiated during initialize.",
+            "properties": {
+              "experimentalApi": {
+                "default": false,
+                "description": "Opt into receiving experimental API methods and fields.",
+                "type": "boolean"
+              },
+              "extensions": {
+                "additionalProperties": true,
+                "description": "MCP extension settings declared by the app-server client.",
+                "type": [
+                  "object",
+                  "null"
+                ]
+              },
+              "mcpServerOpenaiFormElicitation": {
+                "description": "Legacy opt-in for the `openai/form` MCP extension.\n\nNew clients should declare `openai/form` in [`Self::extensions`].",
+                "type": "boolean"
+              },
+              "optOutNotificationMethods": {
+                "description": "Exact notification method names that should be suppressed for this connection (for example `thread/started`).",
+                "items": {
+                  "type": "string"
+                },
+                "type": [
+                  "array",
+                  "null"
+                ]
+              },
+              "requestAttestation": {
+                "default": false,
+                "description": "Opt into `attestation/generate` requests for upstream `x-oai-attestation`.",
+                "type": "boolean"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "properties": {
+          "capabilities": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/InitializeCapabilities"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "clientInfo": {
+            "$ref": "#/definitions/ClientInfo"
+          }
+        },
+        "required": [
+          "clientInfo"
+        ],
+        "title": "InitializeParams",
+        "type": "object"
+      }
+    },
+    {
+      "path": "v1/InitializeResponse.json",
+      "sha256": "62ad689c2cb6379913c1d72749cfd8de5089d35760214123518eb92eef11acc9",
+      "schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "definitions": {
+          "AbsolutePathBuf": {
+            "description": "A path that is guaranteed to be absolute and normalized (though it is not guaranteed to be canonicalized or exist on the filesystem).\n\nIMPORTANT: When deserializing an `AbsolutePathBuf`, a base path must be set using [AbsolutePathBufGuard::new]. If no base path is set, the deserialization will fail unless the path being deserialized is already absolute.",
+            "type": "string"
+          }
+        },
+        "properties": {
+          "codexHome": {
+            "allOf": [
+              {
+                "$ref": "#/definitions/AbsolutePathBuf"
+              }
+            ],
+            "description": "Absolute path to the server's $CODEX_HOME directory."
+          },
+          "platformFamily": {
+            "description": "Platform family for the running app-server target, for example `\"unix\"` or `\"windows\"`.",
+            "type": "string"
+          },
+          "platformOs": {
+            "description": "Operating system for the running app-server target, for example `\"macos\"`, `\"linux\"`, or `\"windows\"`.",
+            "type": "string"
+          },
+          "userAgent": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "codexHome",
+          "platformFamily",
+          "platformOs",
+          "userAgent"
+        ],
+        "title": "InitializeResponse",
+        "type": "object"
+      }
+    },
+    {
+      "path": "v2/NullableGetAccountRateLimitsParams.json",
+      "sha256": "072f813ca1c696831a7f2fbd934feaa8cad228a6b3d44a4be8877547c796341b",
+      "schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "anyOf": [
+          {
+            "$ref": "#/definitions/GetAccountRateLimitsParams"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "definitions": {
+          "GetAccountRateLimitsParams": {
+            "description": "Usage-read capabilities of the requesting client, never inferred from its experiment arm.",
+            "properties": {
+              "excludeResetCreditDetails": {
+                "description": "Skip the separate reset-credit detail lookup for background usage polls. The usage response still includes the available count; omitted/false preserves detailed reads.",
+                "type": "boolean"
+              },
+              "supportsLunaReserve": {
+                "description": "The client supports automatic Luna Reserve fallback. For eligible ChatGPT CLI users, allow the backend to record experiment exposure after ordinary usage is blocked.",
+                "type": "boolean"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "title": "Nullable_GetAccountRateLimitsParams"
+      }
+    }
+  ]
+}

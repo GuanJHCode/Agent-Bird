@@ -1,0 +1,23 @@
+{
+  "scope": "Post-run ownership cleanup and artifact hash verification only",
+  "owned_pid": 62910,
+  "owned_pid_absent": true,
+  "owned_process_group_members": [],
+  "private_socket_absent": true,
+  "native_stage_count": 1,
+  "account_rpc_sent": false,
+  "overall_elapsed_ns": 126544417,
+  "cleanup_elapsed_ns": 13713833,
+  "removed_regenerable_caches": [
+    {
+      "path": "tasks/g0-cli-account-preflight/tmp/schema",
+      "files": 426
+    },
+    {
+      "path": "tasks/g0-cli-account-preflight/tmp/source",
+      "files": 6
+    }
+  ],
+  "executed_probe_sha256": "59ec7eb5bdd63a244e282fcd5d3c39ea9c85fe1f87821562305b9dba9f887662",
+  "script_current_sha256": "59ec7eb5bdd63a244e282fcd5d3c39ea9c85fe1f87821562305b9dba9f887662"
+}

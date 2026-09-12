@@ -1,0 +1,70 @@
+{
+  "sameAccountIdHash": true,
+  "cliAccountKind": "chatgpt",
+  "cliOrdinaryUsageAllowed": true,
+  "appOrdinaryUsageAllowed": true,
+  "cliUsageReadAt": "2026-09-12T08:44:36.175456+00:00",
+  "appReceivedAt": "2026-09-12T08:44:50.849Z",
+  "perLimitId": [
+    {
+      "limitId": "base_model_inference",
+      "cli": {
+        "limitId": "base_model_inference",
+        "primary": {
+          "usedPercent": 0,
+          "windowDurationMins": 10080,
+          "resetsAt": 1789807476
+        },
+        "secondary": null,
+        "spendControlReached": null,
+        "rateLimitReachedType": null
+      },
+      "app": null,
+      "missingSideMeaning": "unavailable, not zero"
+    },
+    {
+      "limitId": "codex",
+      "cli": {
+        "limitId": "codex",
+        "primary": {
+          "usedPercent": 11,
+          "windowDurationMins": 10080,
+          "resetsAt": 1789805388
+        },
+        "secondary": null,
+        "spendControlReached": false,
+        "rateLimitReachedType": null
+      },
+      "app": {
+        "limitId": "codex",
+        "primary": {
+          "usedPercent": 11,
+          "windowDurationMins": 10080,
+          "resetsAt": 1789805387
+        },
+        "secondary": null
+      },
+      "missingSideMeaning": "unavailable, not zero"
+    },
+    {
+      "limitId": "codex_bengalfox",
+      "cli": {
+        "limitId": "codex_bengalfox",
+        "primary": {
+          "usedPercent": 0,
+          "windowDurationMins": 300,
+          "resetsAt": 1789220676
+        },
+        "secondary": {
+          "usedPercent": 0,
+          "windowDurationMins": 10080,
+          "resetsAt": 1789807476
+        },
+        "spendControlReached": null,
+        "rateLimitReachedType": null
+      },
+      "app": null,
+      "missingSideMeaning": "unavailable, not zero"
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "commit": "6b9826e3aa83b1a5947db50f4332cb9c65f1b340",
+  "files": [
+    {
+      "path": "codex-rs/app-server-protocol/src/protocol/v2/account.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-protocol/src/protocol/v2/account.rs",
+      "exit_code": 0,
+      "bytes": 28322,
+      "sha256": "22d4ec67a5979d33cbe2e40b53c7afbdd1bbed935a54b2284e9b2de11f4b590c"
+    },
+    {
+      "path": "codex-rs/app-server-protocol/src/protocol/common.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-protocol/src/protocol/common.rs",
+      "exit_code": 0,
+      "bytes": 170816,
+      "sha256": "6aa47ec984c9198ea797bf63b784cf6a88cc0ab85efb0a4ac75e01aabffc2cfa"
+    },
+    {
+      "path": "codex-rs/app-server/src/request_processors/account_processor.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server/src/request_processors/account_processor.rs",
+      "exit_code": 0,
+      "bytes": 58262,
+      "sha256": "fb166a19016869376162a93e6b9a646e5537553aa3834f6c5c6521918f4a79e0"
+    },
+    {
+      "path": "codex-rs/login/src/auth.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/login/src/auth.rs",
+      "exit_code": 56,
+      "error": "curl: (56) The requested URL returned error: 404\n"
+    },
+    {
+      "path": "codex-rs/login/src/lib.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/login/src/lib.rs",
+      "exit_code": 0,
+      "bytes": 2375,
+      "sha256": "c456e392bdb79fa1416c8c75b26c1a6355609832abd4253a5e1af36b40c05008"
+    },
+    {
+      "path": "codex-rs/login/src/auth/mod.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/login/src/auth/mod.rs",
+      "exit_code": 0,
+      "bytes": 723,
+      "sha256": "5d72ae39f74e2ed944b13bab4dbaab03d5e0ae1a5ec908d14cf4513606fe7b83"
+    },
+    {
+      "path": "codex-rs/login/src/auth/manager.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/login/src/auth/manager.rs",
+      "exit_code": 0,
+      "bytes": 115625,
+      "sha256": "87926092db3a115b8269c6fdbc6958e2268d9750ddcb8baa1799f1ec7e3ba4d9"
+    }
+  ]
+}

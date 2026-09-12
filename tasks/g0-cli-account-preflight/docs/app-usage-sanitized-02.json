@@ -1,0 +1,25 @@
+{
+  "ordinaryUsageAllowed": true,
+  "accountIdSha256": "82157fe91b71606755623adc25c6fba0654c232f7fa457b4c0d3c17b455265d9",
+  "rateLimits": {
+    "limitId": "codex",
+    "primary": {
+      "usedPercent": 11,
+      "windowDurationMins": 10080,
+      "resetsAt": 1789805387
+    },
+    "secondary": null
+  },
+  "rateLimitsByLimitId": {
+    "codex": {
+      "limitId": "codex",
+      "primary": {
+        "usedPercent": 11,
+        "windowDurationMins": 10080,
+        "resetsAt": 1789805387
+      },
+      "secondary": null
+    }
+  },
+  "received_at": "2026-09-12T08:44:50.849Z"
+}
