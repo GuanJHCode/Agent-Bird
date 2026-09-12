@@ -807,7 +807,6 @@ class _CaptureBridge:
 
     def on_lifecycle(self, event: Any) -> None:
         if event.kind == "eof":
-            self.trace_complete = False
             self._record_trace({"event": "eof", "conn_epoch": event.epoch, "reason": "eof"})
             self.inferer.invalidate("eof")
             self.observer.set_pending(event.connection_id)
@@ -1127,6 +1126,8 @@ async def run_case(
         initial_window = RuntimeWindow.start(local_seconds=config.local_window_seconds, model_seconds=config.model_window_seconds)
         while not runtime.inferer.replay_ready and not initial_window.local_expired():
             await tui.aread_until(min(initial_window.local_deadline, raw_seconds() + 1.0))
+        while runtime.inferer.replay_ready and runtime.candidate is None and not initial_window.local_expired():
+            await tui.aread_until(min(initial_window.local_deadline, raw_seconds() + 1.0))
         step(
             "initial-readiness",
             replay_ready=runtime.inferer.replay_ready,
@@ -1149,6 +1150,8 @@ async def run_case(
         runtime.inferer.clear()
         tui.command("/clear")
         while not runtime.inferer.replay_ready and not clear_window.local_expired():
+            await tui.aread_until(min(clear_window.local_deadline, raw_seconds() + 1.0))
+        while runtime.inferer.replay_ready and runtime.candidate is None and not clear_window.local_expired():
             await tui.aread_until(min(clear_window.local_deadline, raw_seconds() + 1.0))
         step(
             "clear-replay",

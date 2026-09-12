@@ -245,6 +245,21 @@ def test_replay_readiness_does_not_wait_for_candidate_skills_barrier():
         inferer.accept(event)
     assert inferer.replay_ready is True
     assert inferer.candidate is None
+    for event in upgrade_events()[7:]:
+        inferer.accept(event)
+    assert inferer.candidate is not None
+
+
+def test_complete_eof_invalidates_attachment_but_keeps_complete_trace():
+    from proxy_observer import Observer
+
+    inferer = AttachmentInferer()
+    bridge = _CaptureBridge(Observer(), inferer)
+    bridge.on_connect(SimpleNamespace(connection_id="c1", epoch=1, frontend_fd=1, backend_fd=2, frontend_peer=None, backend_peer=None))
+    bridge.on_lifecycle(SimpleNamespace(connection_id="c1", epoch=1, kind="eof"))
+    assert inferer.candidate is None
+    assert inferer.invalid_reason == "eof"
+    assert bridge.trace_complete is True
 
 
 def test_bootstrap_opaque_requires_client_request_and_matching_server_response():
