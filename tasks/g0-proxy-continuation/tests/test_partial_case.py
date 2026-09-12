@@ -162,6 +162,21 @@ def test_retained_binary_is_in_protection_hashes(tmp_path, monkeypatch):
     assert before["retained_binary"]["sha256"] != after["retained_binary"]["sha256"]
 
 
+def test_stopped_tail_is_valid_only_when_old_prefix_bytes_and_identity_stay_fixed(tmp_path):
+    import partial_case
+
+    value = spec(tmp_path)
+    value.plan.job_dir.mkdir(mode=0o700)
+    (value.plan.job_dir / "step-001.json").write_text(json.dumps({"step": 1, "nonce": value.plan.nonce, "controller_thread": THREAD, "revision": 1, "segment": 1}))
+    initial = partial_case._prefix_snapshot(value, {"completed_steps": 1, "revision": 1, "segment": 1})
+    (value.plan.job_dir / "step-002.json").write_text(json.dumps({"step": 2, "nonce": value.plan.nonce, "controller_thread": THREAD, "revision": 1, "segment": 1}))
+    stopped = partial_case._prefix_snapshot(value, {"completed_steps": 2, "revision": 1, "segment": 1})
+    assert stopped[:1] == initial
+    (value.plan.job_dir / "step-001.json").write_text("rewritten")
+    with pytest.raises(Exception, match="prefix"):
+        partial_case._prefix_snapshot(value, {"completed_steps": 2, "revision": 1, "segment": 1})
+
+
 def test_owned_runtime_snapshot_uses_real_process_and_endpoint_identities(tmp_path):
     import partial_case
 

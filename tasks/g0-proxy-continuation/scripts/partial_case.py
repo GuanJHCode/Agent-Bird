@@ -36,6 +36,7 @@ from proxy_native_runtime import (  # noqa: E402
     RuntimeWindow,
     _process_birth,
     _process_path,
+    _connection_summary,
     raw_seconds,
 )
 import partial_resume_plan as _partial_resume_plan  # noqa: E402
@@ -419,12 +420,36 @@ def _prefix_snapshot(spec: PartialCaseSpec, view: Mapping[str, Any]) -> tuple[di
     completed = view.get("completed_steps")
     if type(completed) is not int or completed < 1:
         raise RuntimeInvariantError("retained prefix count is missing")
+    expected_revision = view.get("revision")
+    expected_segment = view.get("segment")
+    paths = sorted(spec.plan.job_dir.glob("step-*.json"))
+    indexes = []
+    for path in paths:
+        match = re.fullmatch(r"step-([0-9]{3})\.json", path.name)
+        if match is None:
+            raise RuntimeInvariantError("retained prefix contains an unrecognized step file")
+        indexes.append(int(match.group(1)))
+    if indexes != list(range(1, completed + 1)):
+        raise RuntimeInvariantError("retained prefix is missing or contains extra steps")
     rows = []
     for step in range(1, completed + 1):
         path = spec.plan.job_dir / (f"step-{step:03d}.json")
         metadata = os.lstat(path)
         if not os.path.isfile(path) or os.path.islink(path):
             raise RuntimeInvariantError("retained prefix contains a non-regular file")
+        try:
+            record = json.loads(path.read_text())
+        except (OSError, json.JSONDecodeError) as exc:
+            raise RuntimeInvariantError("retained prefix record is unreadable") from exc
+        if (
+            not isinstance(record, Mapping)
+            or record.get("step") != step
+            or record.get("nonce") != spec.plan.nonce
+            or record.get("controller_thread") != spec.plan.thread_id
+            or record.get("revision") != expected_revision
+            or record.get("segment") != expected_segment
+        ):
+            raise RuntimeInvariantError("retained prefix record identity mismatch")
         rows.append({
             "path": str(path),
             "st_dev": metadata.st_dev,
@@ -447,6 +472,19 @@ def _manifest_fingerprint(spec: PartialCaseSpec, view: Mapping[str, Any]) -> tup
 
 def _terminal_event_count(bridge: Any, epoch: int) -> int:
     return sum(1 for row in getattr(bridge, "trace", ()) if row.get("conn_epoch") == epoch and row.get("event") in {"eof", "connection_close"})
+
+
+async def _drain_until_terminal(bridge: Any, tui: Any, epoch: int, baseline: int, deadline: float) -> tuple[float, int] | None:
+    while raw_seconds() < deadline:
+        if hasattr(tui, "read_available"):
+            tui.read_available()
+        count = _terminal_event_count(bridge, epoch)
+        if count > baseline:
+            return raw_seconds(), count
+        await asyncio.sleep(0.01)
+    if _terminal_event_count(bridge, epoch) > baseline:
+        return raw_seconds(), _terminal_event_count(bridge, epoch)
+    return None
 
 
 def _require_clean_quit_boundary(bridge: Any, tui: Any, epoch: int, terminal_before: int) -> None:
@@ -545,6 +583,13 @@ async def run_partial_case(
     first = runtime_factory(spec.runtime_config(resume_thread_id=None))
     second = None
     ownership = None
+    resume_ownership = None
+    initial_prefix = None
+    stopped_prefix = None
+    timing = {
+        "initial": {key: None for key in ("quit_sent", "await_exit_done", "terminal_seen", "close_start", "close_done")},
+        "resume": {key: None for key in ("quit_sent", "await_exit_done", "terminal_seen", "close_start", "close_done")},
+    }
     stage = "initial"
     try:
         result["phases"].append("initial")
@@ -577,18 +622,29 @@ async def run_partial_case(
         result["initial_inspect"] = initial
         result["initial_candidate"] = {"thread_id": initial_thread_id, "connection_epoch": initial_epoch}
         result["parent_guard"] = asdict(parent_evidence) if hasattr(parent_evidence, "__dataclass_fields__") else dict(vars(parent_evidence))
-        initial_prefix = _prefix_snapshot(spec, initial)
+        result["initial_inspect"] = initial
+        initial_prefix = _prefix_snapshot(initial_spec, initial)
+        result["initial_prefix"] = initial_prefix
         stage = "stop"
         initial_terminal_before = _terminal_event_count(first.bridge, initial_epoch)
         _require_clean_quit_boundary(first.bridge, tui, initial_epoch, initial_terminal_before)
         initial_quit_deadline = raw_seconds() + spec.plan.local_window_seconds
         tui.command("/quit")
+        timing["initial"]["quit_sent"] = raw_seconds()
         quit_exit = await tui.await_exit(initial_quit_deadline)
-        await tui.aread_until(initial_quit_deadline)
-        initial_terminal_after = _terminal_event_count(first.bridge, initial_epoch)
-        if initial_terminal_after <= initial_terminal_before:
+        timing["initial"]["await_exit_done"] = raw_seconds()
+        terminal_seen = await _drain_until_terminal(first.bridge, tui, initial_epoch, initial_terminal_before, initial_quit_deadline)
+        if terminal_seen is None:
             raise RuntimeInvariantError("initial quit did not produce a new EOF/close")
+        timing["initial"]["terminal_seen"], initial_terminal_after = terminal_seen
+        timing["initial"]["close_start"] = raw_seconds()
         first_cleanup = await first.close()
+        timing["initial"]["close_done"] = raw_seconds()
+        result.update({
+            "initial_exit_code": quit_exit,
+            "initial_cleanup": first_cleanup,
+            "initial_terminal_events": {"before": initial_terminal_before, "after": initial_terminal_after},
+        })
         stopped = await _inspect_until(
             initial_spec,
             lambda view: view.get("status") in {"interrupted", "stopped", "running"} and view.get("segment") == 1 and _retained_worker_stopped(initial, view),
@@ -596,22 +652,23 @@ async def run_partial_case(
             inspect_runner,
             first,
         )
-        stopped_fingerprint = _manifest_fingerprint(spec, stopped)
+        stopped_fingerprint = _manifest_fingerprint(initial_spec, stopped)
         stable = await _inspect_until(
             initial_spec,
-            lambda view: _manifest_fingerprint(spec, view) == stopped_fingerprint,
+            lambda view: _manifest_fingerprint(initial_spec, view) == stopped_fingerprint,
             raw_seconds() + spec.plan.local_window_seconds,
             inspect_runner,
             first,
         )
         stopped = stable
+        stopped_prefix = _prefix_snapshot(initial_spec, stopped)
+        result["stopped"] = stopped
+        result["stopped_prefix"] = stopped_prefix
         if quit_exit != 0 or not _owned_runtime_stopped(first, ownership) or not _retained_worker_stopped(initial, stopped):
             raise RuntimeInvariantError("owned TUI/backend or endpoint did not stop")
-        stopped_prefix = _prefix_snapshot(spec, stopped)
-        if stopped_prefix != initial_prefix:
-            raise RuntimeInvariantError("retained checkpoint prefix changed while stopping")
+        if len(stopped_prefix) < len(initial_prefix) or stopped_prefix[:len(initial_prefix)] != initial_prefix:
+            raise RuntimeInvariantError("retained checkpoint prefix was rewritten or lost while stopping")
         result.update({
-            "stopped": stopped,
             "initial_exit_code": quit_exit,
             "initial_tui": tui.evidence,
             "initial_cleanup": first_cleanup,
@@ -639,11 +696,15 @@ async def run_partial_case(
         result["phases"].append("resume_quiet")
         quiet_before = await asyncio.to_thread(inspect_runner, dynamic_spec)
         quiet_fingerprint = _manifest_fingerprint(dynamic_spec, quiet_before)
+        if stopped_prefix is None or _prefix_snapshot(dynamic_spec, quiet_before) != stopped_prefix:
+            raise RuntimeInvariantError("retained prefix changed before resume quiet window")
         await tui.aread_until(raw_seconds() + spec.plan.local_window_seconds)
         result["silent"] = _validate_quiet(bridge, initial_thread_id)
         quiet_after = await asyncio.to_thread(inspect_runner, dynamic_spec)
         if _manifest_fingerprint(dynamic_spec, quiet_after) != quiet_fingerprint:
             raise RuntimeInvariantError("retained task changed during resume quiet window")
+        if _prefix_snapshot(dynamic_spec, quiet_after) != stopped_prefix:
+            raise RuntimeInvariantError("retained prefix changed during resume quiet window")
         result["quiet_inspect"] = {"before": quiet_before, "after": quiet_after}
         tui.command("/status")
         status_ids = await tui.async_status_checkpoint(raw_seconds() + spec.plan.local_window_seconds)
@@ -669,7 +730,7 @@ async def run_partial_case(
             second,
         )
         final_prefix = _prefix_snapshot(dynamic_spec, continued)
-        if len(final_prefix) < len(initial_prefix) or final_prefix[:len(initial_prefix)] != initial_prefix:
+        if stopped_prefix is None or len(final_prefix) < len(stopped_prefix) or final_prefix[:len(stopped_prefix)] != stopped_prefix:
             raise RuntimeInvariantError("retained prefix changed after continue")
         result.update({"continued": continued, "final_prefix": final_prefix, "status_ids": sorted(status_ids)})
         result["phases"].append("continued")
@@ -677,14 +738,20 @@ async def run_partial_case(
         _require_clean_quit_boundary(bridge, tui, epoch, resume_terminal_before)
         resume_quit_deadline = raw_seconds() + spec.plan.local_window_seconds
         tui.command("/quit")
+        timing["resume"]["quit_sent"] = raw_seconds()
         final_exit = await tui.await_exit(resume_quit_deadline)
-        await tui.aread_until(resume_quit_deadline)
-        resume_terminal_after = _terminal_event_count(bridge, epoch)
+        timing["resume"]["await_exit_done"] = raw_seconds()
+        terminal_seen = await _drain_until_terminal(bridge, tui, epoch, resume_terminal_before, resume_quit_deadline)
+        if terminal_seen is None:
+            raise RuntimeInvariantError("resume quit did not produce a new EOF/close")
+        timing["resume"]["terminal_seen"], resume_terminal_after = terminal_seen
         if final_exit != 0:
             raise RuntimeInvariantError("continued TUI did not exit cleanly")
         if resume_terminal_after <= resume_terminal_before:
             raise RuntimeInvariantError("resume quit did not produce a new EOF/close")
+        timing["resume"]["close_start"] = raw_seconds()
         second_cleanup = await second.close()
+        timing["resume"]["close_done"] = raw_seconds()
         if second_cleanup.get("failed_pids") or second_cleanup.get("failed_endpoints") or not _owned_runtime_stopped(second, resume_ownership):
             raise RuntimeInvariantError("continued owned runtime cleanup is incomplete")
         result["resume_tui"] = tui.evidence
@@ -702,6 +769,33 @@ async def run_partial_case(
                 except Exception as exc:  # evidence is retained below
                     result.setdefault("cleanup_errors", []).append(type(exc).__name__)
         result["case"] = case.name
+        result["timing"] = timing
+        result["argv"] = {
+            "initial": list(getattr(getattr(first, "config", None), "tui_argv", ())),
+            "initial_backend": list(getattr(getattr(first, "config", None), "backend_argv", ())),
+            "resume": list(getattr(getattr(second, "config", None), "tui_argv", ())),
+            "resume_backend": list(getattr(getattr(second, "config", None), "backend_argv", ())),
+        }
+        result["owned_runtime"] = {"initial": ownership, "resume": resume_ownership}
+        result["tui_evidence"] = {}
+        result["exit_codes"] = {}
+        result["connections"] = {}
+        for name, runtime in (("initial", first), ("resume", second)):
+            if runtime is None:
+                result["tui_evidence"][name] = None
+                result["exit_codes"][name] = None
+                result["connections"][name] = None
+                continue
+            tui_evidence = None
+            try:
+                tui_evidence = runtime.tui_driver.evidence if runtime.tui_driver is not None else None
+            except BaseException:
+                tui_evidence = None
+            result["tui_evidence"][name] = tui_evidence
+            result["exit_codes"][name] = tui_evidence.get("exit_code") if isinstance(tui_evidence, Mapping) else None
+            bridge = getattr(runtime, "bridge", None)
+            records = getattr(bridge, "connection_records", None) if bridge is not None else None
+            result["connections"][name] = [_connection_summary(row) for row in records.values()] if isinstance(records, Mapping) else None
         traces = {}
         for name, runtime in (("initial", first), ("resume", second)):
             bridge = getattr(runtime, "bridge", None) if runtime is not None else None
