@@ -706,7 +706,7 @@ def main(args):
         binding = validate_binding(case.read("binding.json"), root, nonce)
         check(digest(case.read_raw("controller-evidence.json")) == binding["controller_evidence_sha256"], "controller_evidence_changed")
         try:
-            return asyncio.run(run(verb, case, binding, digest(canonical(binding).encode()), owner_context_required=True))
+            return asyncio.run(run(verb, case, binding, digest(canonical(binding).encode()), owner_context_required=verb in ("prepare", "send-once")))
         except (Exception, KeyboardInterrupt) as error:
             result = {"version": 1, "status": "uncertain" if exists(case, "send-attempt.json") else "rejected",
                       "reason": error.code if isinstance(error, ProbeError) else "operation_io_failed",
