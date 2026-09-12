@@ -15,6 +15,7 @@ import os
 from pathlib import Path
 import shutil
 import stat
+import subprocess
 import sys
 import tempfile
 from typing import Any, Literal
@@ -85,6 +86,28 @@ def _private_dir(path: Path) -> None:
         raise ValueError(f"directory is not owner-only: {path}")
 
 
+def _load_credential_inventory(path: Path) -> tuple[Path, ...]:
+    if path.is_symlink() or not path.is_file():
+        raise ValueError("credential manifest must be a regular file")
+    info = path.stat()
+    if info.st_uid != os.getuid() or stat.S_IMODE(info.st_mode) != 0o600:
+        raise ValueError("credential manifest must be owner-only mode 0600")
+    if info.st_size > 64 * 1024:
+        raise ValueError("credential manifest is too large")
+    entries: list[Path] = []
+    for raw in path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        candidate = Path(line)
+        if not candidate.is_absolute() or candidate in entries:
+            raise ValueError("credential inventory entries must be unique absolute paths")
+        entries.append(candidate)
+    if len(entries) != 14:
+        raise ValueError("credential inventory must contain exactly 14 paths")
+    return tuple(entries)
+
+
 def _new_root(path: Path | None) -> tuple[Path, bool]:
     if path is None:
         return Path(tempfile.mkdtemp(prefix="g0-auth-", dir=str(PRIVATE_ROOT))), True
@@ -150,6 +173,7 @@ class FixtureOptions:
     profile_id: str = "synthetic-primary"
     supervisor_root: Path | None = None
     profile_root: Path | None = None
+    credential_manifest: Path | None = None
 
 
 @dataclass
@@ -168,6 +192,7 @@ class NativeActivationFixture:
     state_dir: Path
     isolation_manifest: Path
     activation_manifest: Path
+    credential_manifest: Path
     public_socket: Path
     backend_socket: Path
     entrypoint: Path
@@ -178,15 +203,53 @@ class NativeActivationFixture:
     credential_inventory: tuple[Path, ...]
     pins: dict[str, str]
     _owned_roots: tuple[Path, ...]
+    _root_identities: dict[Path, tuple[int, int, int, int]]
 
     @property
     def context(self) -> auth_isolation.IsolationContext:
         return self.profile
 
+    def _remove_root(self, root: Path) -> None:
+        if root not in self._root_identities:
+            return
+        info = root.lstat()
+        expected = self._root_identities[root]
+        actual = (info.st_dev, info.st_ino, info.st_uid, stat.S_IMODE(info.st_mode))
+        if actual != expected or root.is_symlink():
+            raise ValueError("fixture root identity changed; refusing cleanup")
+        shutil.rmtree(root)
+
     def cleanup(self) -> None:
-        for root in self._owned_roots:
-            if root.exists() and root.parent == PRIVATE_ROOT and root.name.startswith("g0-auth-"):
-                shutil.rmtree(root)
+        raise RuntimeError("use cleanup_ephemeral() explicitly or retain_session()")
+
+    def cleanup_ephemeral(self) -> None:
+        # Supervisor receipts/grants are ephemeral; keep the profile root so a
+        # successful case cannot silently erase retained session records.
+        if self.supervisor_root in self._owned_roots and self.supervisor_root.exists():
+            self._remove_root(self.supervisor_root)
+
+    def cleanup_profile(self) -> None:
+        """Explicitly remove the synthetic profile after the caller is done."""
+
+        if self.profile_root in self._owned_roots and self.profile_root.exists():
+            self._remove_root(self.profile_root)
+
+    def export_retained_session(self, destination: Path) -> Path:
+        payload = {
+            "version": 1,
+            "profile_id": self.profile_id,
+            "profile_root": str(self.profile_root),
+            "supervisor_root": str(self.supervisor_root),
+            "isolation_manifest": str(self.isolation_manifest),
+            "activation_manifest": str(self.activation_manifest),
+            "isolation_manifest_sha256": _hash(self.isolation_manifest),
+            "activation_manifest_sha256": _hash(self.activation_manifest),
+        }
+        _write_private(destination, payload)
+        return destination
+
+    def retain_session(self) -> tuple[Path, Path]:
+        return self.supervisor_root, self.profile_root
 
 
 def build_fixture(native_executable: Path, *, options: FixtureOptions | None = None) -> NativeActivationFixture:
@@ -195,6 +258,9 @@ def build_fixture(native_executable: Path, *, options: FixtureOptions | None = N
         raise ValueError("mode must be real or preflight")
     native_executable = Path(native_executable)
     native_hash = _hash(native_executable)
+    if options.credential_manifest is None:
+        raise ValueError("credential_manifest is required")
+    credential_inventory = _load_credential_inventory(options.credential_manifest)
     if not options.profile_id or any(char.isspace() for char in options.profile_id):
         raise ValueError("profile_id must be opaque and whitespace-free")
 
@@ -230,7 +296,7 @@ def build_fixture(native_executable: Path, *, options: FixtureOptions | None = N
         codex_home = profile_root / "codex-home"
         workspace = profile_root / "workspace"
         backend_socket = profile_root / "backend/backend.sock"
-        protected = tuple(CREDENTIAL_INVENTORY)
+        protected = credential_inventory
         profile_spec = auth_isolation.IsolationSpec(
             task_root=profile_root,
             home=home,
@@ -239,7 +305,7 @@ def build_fixture(native_executable: Path, *, options: FixtureOptions | None = N
             profile_id=options.profile_id,
             public_socket=public_socket,
             backend_socket=backend_socket,
-            protected_paths=protected,
+            protected_paths=(Path.home(),),
             protected_read_paths=protected,
             allowed_executables=(native_executable,),
         )
@@ -247,15 +313,31 @@ def build_fixture(native_executable: Path, *, options: FixtureOptions | None = N
         guard = FixtureAuthGuard(protected)
         baseline = guard.before()
         auth_isolation.prepare_isolated_home(profile_spec, no_auth_provider=True)
-        python_executable = Path("/usr/bin/python3")
-        if not python_executable.exists():
-            python_executable = Path(sys.executable).resolve()
+        config = codex_home / "config.toml"
+        with config.open("a", encoding="utf-8") as stream:
+            stream.write(f'\n[projects.{json.dumps(str(workspace))}]\ntrust_level = "trusted"\n')
+        python_executable = Path(sys.executable).resolve()
+        help_run = subprocess.run(
+            [str(python_executable), "-I", "-B", str(ENTRYPOINT), "--help"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+            env={"PATH": "/usr/bin:/bin", "LANG": "C"},
+        )
+        if help_run.returncode != 0:
+            raise ValueError("pinned interpreter cannot load entrypoint dependencies")
         pins = {
             str(native_executable): native_hash,
             str(python_executable): _hash(python_executable),
             str(ENTRYPOINT): _hash(ENTRYPOINT),
             str(ACTIVATION_SERVICE): _hash(ACTIVATION_SERVICE),
             str(LAUNCH_ACTIVATION): _hash(LAUNCH_ACTIVATION),
+            str(REPO_ROOT / "tasks/g0-tui-proxy/scripts/proxy_transport.py"): _hash(REPO_ROOT / "tasks/g0-tui-proxy/scripts/proxy_transport.py"),
+            str(REPO_ROOT / "tasks/g0-tui-proxy/scripts/proxy_observer.py"): _hash(REPO_ROOT / "tasks/g0-tui-proxy/scripts/proxy_observer.py"),
+            str(REPO_ROOT / "tasks/g0-auth-preserving-activation/scripts/auth_isolation.py"): _hash(REPO_ROOT / "tasks/g0-auth-preserving-activation/scripts/auth_isolation.py"),
+            str(REPO_ROOT / "tasks/g0-auth-preserving-activation/scripts/activation_transaction.py"): _hash(REPO_ROOT / "tasks/g0-auth-preserving-activation/scripts/activation_transaction.py"),
+            str(config): _hash(config),
         }
         isolation_manifest = supervisor_root / "isolation.json"
         isolation_payload = {
@@ -268,7 +350,7 @@ def build_fixture(native_executable: Path, *, options: FixtureOptions | None = N
                     "workspace": str(workspace),
                     "public_socket": str(public_socket),
                     "backend_socket": str(backend_socket),
-                    "protected_paths": [str(path) for path in protected],
+                    "protected_paths": [str(Path.home())],
                     "protected_read_paths": [str(path) for path in protected],
                     "expected_executable": str(native_executable),
                     "expected_executable_sha256": native_hash,
@@ -277,7 +359,7 @@ def build_fixture(native_executable: Path, *, options: FixtureOptions | None = N
         }
         _write_private(isolation_manifest, isolation_payload)
         activation_manifest = supervisor_root / "activation.json"
-        backend_argv = (str(native_executable), "--listen", "unix://{socket_path}")
+        backend_argv = (str(native_executable), "app-server", "--listen", "unix://{socket_path}")
         activation_payload = {
             "version": 1,
             "public_socket": str(public_socket),
@@ -290,6 +372,7 @@ def build_fixture(native_executable: Path, *, options: FixtureOptions | None = N
             "file_pins": {str(path): digest for path, digest in pins.items() if path not in {str(native_executable), str(python_executable)}},
             "trusted_workspace": str(workspace),
             "auth_guard": baseline,
+            "credential_manifest_sha256": _hash(options.credential_manifest),
             "idle_seconds": 10.0,
         }
         _write_private(activation_manifest, activation_payload)
@@ -305,14 +388,18 @@ def build_fixture(native_executable: Path, *, options: FixtureOptions | None = N
             program_arguments=entrypoint_argv,
             startup_sha256=pins[str(ENTRYPOINT)],
             txn_id=txn_id,
-            launchctl=("/usr/bin/launchctl",),
+            launchctl=("/bin/launchctl",),
             manifest_path=activation_manifest,
             manifest_sha256=_hash(activation_manifest),
-            artifact_hashes=((str(python_executable), pins[str(python_executable)]), (str(ENTRYPOINT), pins[str(ENTRYPOINT)])),
+            artifact_hashes=tuple((path, digest) for path, digest in pins.items()),
             lease_path=grants_dir / f"{txn_id}.lease.json",
             startup_path=ENTRYPOINT,
         )
         context = auth_isolation.load_isolation_context(isolation_manifest, options.profile_id)
+        root_identities = {
+            root: (root.stat().st_dev, root.stat().st_ino, root.stat().st_uid, stat.S_IMODE(root.stat().st_mode))
+            for root in owned
+        }
         return NativeActivationFixture(
             mode=options.mode,
             supervisor_root=supervisor_root,
@@ -328,6 +415,7 @@ def build_fixture(native_executable: Path, *, options: FixtureOptions | None = N
             state_dir=state_dir,
             isolation_manifest=isolation_manifest,
             activation_manifest=activation_manifest,
+            credential_manifest=options.credential_manifest,
             public_socket=public_socket,
             backend_socket=backend_socket,
             entrypoint=ENTRYPOINT,
@@ -338,6 +426,7 @@ def build_fixture(native_executable: Path, *, options: FixtureOptions | None = N
             credential_inventory=protected,
             pins=pins,
             _owned_roots=owned,
+            _root_identities=root_identities,
         )
     except Exception:
         for root in owned:
