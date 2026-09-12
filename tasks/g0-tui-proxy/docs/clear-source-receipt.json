@@ -1,0 +1,71 @@
+{
+  "repository": "openai/codex",
+  "commit": "6b9826e3aa83b1a5947db50f4332cb9c65f1b340",
+  "trace": "tasks/g0-tui-proxy/data/proxy-attach-05/trace.json",
+  "files": [
+    {
+      "path": "codex-rs/app-server/src/request_processors/thread_processor.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server/src/request_processors/thread_processor.rs",
+      "bytes": 244999,
+      "sha256": "37a4451e58673b3577c432207a510a7322fd10af5e1e535bb2be8317d5fcb1d9",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__app-server__src__request_processors__thread_processor.rs"
+    },
+    {
+      "path": "codex-rs/tui/src/app/thread_routing.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/app/thread_routing.rs",
+      "bytes": 86626,
+      "sha256": "2ed1a55060be20c10bad33ce3fc5fa178c6923bb3823c62538ca39d0449ae48c",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__tui__src__app__thread_routing.rs"
+    },
+    {
+      "path": "codex-rs/tui/src/app/session_lifecycle.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/app/session_lifecycle.rs",
+      "bytes": 57943,
+      "sha256": "7ba29896f5bfef12133ecba607b7104811975b1a103c964204aebc79dda3712e",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__tui__src__app__session_lifecycle.rs"
+    },
+    {
+      "path": "codex-rs/tui/src/app/event_dispatch.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/app/event_dispatch.rs",
+      "bytes": 158197,
+      "sha256": "a5c99ed4eeddfaefeb888842cfb45a79fa4aa3fa8d142b78949bff688f3d5f69",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__tui__src__app__event_dispatch.rs"
+    },
+    {
+      "path": "codex-rs/tui/src/app/input.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/app/input.rs",
+      "bytes": 24889,
+      "sha256": "362fc8a86ae4d2ff4e140ac0a345958bb53e2780c55a6f743fca16d4f5096f00",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__tui__src__app__input.rs"
+    },
+    {
+      "path": "codex-rs/tui/src/app_event.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/app_event.rs",
+      "bytes": 50656,
+      "sha256": "bd290bb5b041e0bc1a3b7c4c09e23a35e89ac184afa60a6433f29a4fd630e86c",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__tui__src__app_event.rs"
+    },
+    {
+      "path": "codex-rs/tui/src/chatwidget/slash_dispatch.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/chatwidget/slash_dispatch.rs",
+      "bytes": 52523,
+      "sha256": "795f6fe86162088914de82a139331330369bc2670f1477f89322d1d7d2edfee0",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__tui__src__chatwidget__slash_dispatch.rs"
+    },
+    {
+      "path": "codex-rs/tui/src/app_server_session.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/tui/src/app_server_session.rs",
+      "bytes": 154134,
+      "sha256": "8641a4942b1e0f8e39c4c316400b052eaeb5934a19de3164576ad11595d373d4",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__tui__src__app_server_session.rs"
+    },
+    {
+      "path": "codex-rs/app-server-protocol/src/protocol/v2/thread.rs",
+      "source_url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-protocol/src/protocol/v2/thread.rs",
+      "bytes": 76531,
+      "sha256": "ffc2f432bc7d0dadf9ae10db832035c8b75d7b709462bfed3c83d33ea89c526a",
+      "temporary_retrieval_path": "/tmp/proxy-review-6b9826-source-1789212624/source/codex-rs__app-server-protocol__src__protocol__v2__thread.rs"
+    }
+  ],
+  "verification": "Fixed commit source hashes independently verified; immutable source URLs are durable evidence, temporary paths are retrieval locations only."
+}
