@@ -1,10 +1,12 @@
 """Privacy and identity failures that would invalidate the fixed native sample."""
 import datetime as dt
 import json
+import os
 from pathlib import Path
 import sqlite3
 import tempfile
 import unittest
+from types import SimpleNamespace
 from unittest.mock import patch
 import native_sd_collect as c
 
@@ -17,6 +19,25 @@ CANARY = 'CANARY_PRIVATE_TEXT'
 
 
 class EvidenceTests(unittest.TestCase):
+    def test_process_preserves_ps_comm_and_reads_executable_path_from_libproc(self):
+        executable='/trusted/bin/codex'
+        observed=[executable]; calls=[]
+        def proc_pidpath(pid,buffer,size):
+            calls.append(pid); buffer.value=observed[0].encode(); return len(buffer.value)
+        with patch.object(c,'CLI',Path(executable)),patch.object(c.ctypes,'CDLL',return_value=SimpleNamespace(proc_pidpath=proc_pidpath)):
+            for comm in ('codex',executable):
+                row=f'123 100 {os.getuid()} Fri Sep 11 18:00:00 2026 {comm}\n'
+                with patch.object(c.subprocess,'run',return_value=SimpleNamespace(returncode=0,stdout=row)):
+                    got=c.process(123)
+                    self.assertEqual(got.get('executable_path'),executable)
+                    self.assertEqual(got['comm'],comm)
+                    observed[0]='/unrelated/codex'
+                    with self.assertRaises(ValueError): c.process(123)
+                    observed[0]=''
+                    with self.assertRaises(ValueError): c.process(123)
+                    observed[0]=executable
+            self.assertEqual(calls,[123]*6)
+
     def test_window_cannot_hide_a_timeout_or_use_local_or_future_time(self):
         self.assertEqual(c.window(START, END, NOW), (1789120800000000000, 1789120920000000000))
         for begin, end in [(START, '2026-09-11T10:02:01Z'),
@@ -27,11 +48,11 @@ class EvidenceTests(unittest.TestCase):
                 c.window(begin, end, NOW)
 
     def test_process_identity_rejects_wrong_pid_uid_or_executable(self):
-        text = '123 100 501 Fri Sep 11 18:00:00 2026 /trusted/bin/codex\n'
+        text = f'123 100 501 Fri Sep 11 18:00:00 2026 {c.CLI.resolve()}\n'
         got = c.process_fields(text, 123, 501)
         self.assertEqual(got, {'pid':123, 'ppid':100, 'uid':501,
                               'started_at_local':'Fri Sep 11 18:00:00 2026',
-                              'comm':'codex'})
+                              'comm':str(c.CLI.resolve())})
         for value, pid, uid in [(text,124,501),(text,123,502),
                                 (text.replace('codex', CANARY),123,501)]:
             with self.assertRaises(ValueError): c.process_fields(value,pid,uid)

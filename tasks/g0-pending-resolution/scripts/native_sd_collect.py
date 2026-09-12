@@ -66,9 +66,10 @@ def process_fields(text, pid, uid):
         raise ValueError('invalid process fields')
     actual, parent, owner = map(int,parts[:3]); birth = ' '.join(parts[3:8])
     dt.datetime.strptime(birth,'%a %b %d %H:%M:%S %Y')
-    if not integer(actual) or not integer(parent,0) or actual != pid or owner != uid or Path(parts[8]).name != 'codex':
+    if (not integer(actual) or not integer(parent,0) or actual != pid or owner != uid
+            or parts[8] not in ('codex',str(CLI),str(CLI.resolve()))):
         raise ValueError('unexpected process identity')
-    return {'pid':actual,'ppid':parent,'uid':owner,'started_at_local':birth,'comm':'codex'}
+    return {'pid':actual,'ppid':parent,'uid':owner,'started_at_local':birth,'comm':parts[8]}
 
 
 def same_process(current, original):
@@ -138,16 +139,23 @@ def sha(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def native_executable_path(pid):
+    if not integer(pid): raise ValueError('invalid PID')
+    lib = ctypes.CDLL('/usr/lib/libproc.dylib'); buf = ctypes.create_string_buffer(4096)
+    count = lib.proc_pidpath(pid,buf,len(buf))
+    observed = os.fsdecode(buf.value)
+    if not 0 < count < len(buf) or not Path(observed).is_absolute() or observed != str(CLI.resolve()):
+        raise ValueError('unexpected native executable path')
+    return observed
+
+
 def process(pid):
     if not integer(pid): raise ValueError('invalid PID')
     proc = subprocess.run(['ps','-p',str(pid),'-o','pid=,ppid=,uid=,lstart=,comm='],
                           text=True,capture_output=True,timeout=2,env=dict(os.environ,LC_ALL='C'))
     if proc.returncode: return None
     result = process_fields(proc.stdout,pid,os.getuid())
-    lib = ctypes.CDLL('/usr/lib/libproc.dylib'); buf = ctypes.create_string_buffer(4096)
-    count = lib.proc_pidpath(pid,buf,len(buf))
-    if count <= 0 or Path(os.fsdecode(buf.value)).resolve() != CLI.resolve():
-        raise ValueError('unexpected native executable path')
+    result['executable_path'] = native_executable_path(pid)
     result['native_executable_matches'] = True
     return result
 

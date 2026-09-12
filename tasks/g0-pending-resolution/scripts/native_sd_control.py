@@ -137,12 +137,14 @@ def native_ready(root,turn,since,through,now=None):
 
 
 def validate_process_identity(value):
-    keys={'pid','ppid','uid','comm','native_executable_matches','started_at_local'}
+    keys={'pid','ppid','uid','comm','executable_path','native_executable_matches','started_at_local'}
     if type(value) is not dict or set(value)!=keys:
         raise ValueError('complete native process schema required')
     if not c.integer(value['pid']) or not c.integer(value['ppid'],0) or type(value['uid']) is not int or value['uid']!=os.getuid():
         raise ValueError('invalid native process numbers')
-    if value['comm']!='codex' or value['native_executable_matches'] is not True:
+    if (value['comm'] not in ('codex',str(c.CLI),str(c.CLI.resolve()))
+            or type(value['executable_path']) is not str or value['executable_path']!=str(c.CLI.resolve())
+            or value['native_executable_matches'] is not True):
         raise ValueError('unexpected native executable identity')
     birth=value['started_at_local']
     if type(birth) is not str or not re.fullmatch(r'[A-Z][a-z]{2} [A-Z][a-z]{2} [0-9]{1,2} [0-9]{2}:[0-9]{2}:[0-9]{2} [0-9]{4}',birth):
@@ -211,12 +213,11 @@ def fixed_prompt():
 
 def binding_process(identity):
     validate_process_identity(identity)
-    proc=subprocess.run(['ps','-p',str(identity['pid']),'-o','comm='],text=True,capture_output=True,timeout=2)
-    comm=proc.stdout.strip()
-    if proc.returncode or comm not in ('codex',str(c.CLI),str(c.CLI.resolve())):
-        raise ValueError('unrecognized fixed native comm')
-    return {'pid':identity['pid'],'uid':identity['uid'],'birth':identity['started_at_local'],
-            'comm':comm,'native_binary_sha256':c.CLI_SHA}
+    current=c.process(identity['pid'])
+    validate_process_identity(current)
+    if not c.same_process(current,identity): raise ValueError('native creation identity changed')
+    return {'pid':current['pid'],'uid':current['uid'],'birth':current['started_at_local'],
+            'comm':current['comm'],'executable_path':current['executable_path'],'native_binary_sha256':c.CLI_SHA}
 
 
 def matching_prompt_hook(root,service,since,through):

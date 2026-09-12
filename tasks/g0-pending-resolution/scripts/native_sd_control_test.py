@@ -19,6 +19,34 @@ from native_sd_control import require_owned_pair
 
 
 class ControlTests(unittest.TestCase):
+    def test_guard_requires_executable_path_for_each_native_role(self):
+        original=json.loads((control.DOCS/'native-sd-qual-02-controller.json').read_text())['origin']
+        for role in ('service','tui'):
+            with self.subTest(role=role):
+                with self.assertRaises(ValueError): control.validate_process_identity(original[role])
+
+    def test_sd02_comm_binding_uses_actual_collector_path_and_requires_it(self):
+        # Clone the frozen actual sd02 identities. Only libproc/ps are fixture substitutes;
+        # no new path is written into either original record or the binding by this test.
+        captured=json.loads((control.DOCS/'native-sd-qual-02-controller.json').read_text())['origin']
+        observed_path=str(control.c.CLI.resolve())
+        def proc_pidpath(pid,buffer,size):
+            buffer.value=observed_path.encode(); return len(buffer.value)
+        for role in ('service','tui'):
+            original=captured[role]
+            row=f"{original['pid']} {original['ppid']} {original['uid']} {original['started_at_local']} {original['comm']}\n"
+            def ps(args,**kwargs):
+                return SimpleNamespace(returncode=0,stdout=original['comm']+'\n' if args[-1]=='comm=' else row)
+            with self.subTest(role=role),patch.object(control.c.ctypes,'CDLL',return_value=SimpleNamespace(proc_pidpath=proc_pidpath)),patch.object(control.c.subprocess,'run',side_effect=ps):
+                current=control.c.process(original['pid'])
+                result=control.binding_process(current)
+                self.assertEqual(result['comm'],'codex')
+                self.assertEqual(result.get('executable_path'),observed_path)
+                for bad in (dict(current,executable_path='/unrelated/codex'),dict(current,executable_path=None)):
+                    with self.assertRaises(ValueError): control.binding_process(bad)
+                missing=dict(current);missing.pop('executable_path',None)
+                with self.assertRaises(ValueError): control.binding_process(missing)
+
     def test_service_probe_crossing_original_deadline_cannot_start_tui(self):
         identity={'pid':101,'ppid':100,'uid':os.getuid(),'comm':'codex','native_executable_matches':True,
                   'started_at_local':'Fri Sep 11 18:00:00 2026'}
@@ -32,7 +60,7 @@ class ControlTests(unittest.TestCase):
                 docs=base/'docs'; docs.mkdir(); raw=[0]
                 def process(pid):
                     if delayed_probe=='process': raw[0]=10000000000
-                    return identity
+                    return dict(identity,executable_path=str(executable.resolve()))
                 def snapshot(pid=None):
                     if pid is None: return {'exists':False}
                     if delayed_probe=='socket': raw[0]=10000000000
@@ -101,7 +129,7 @@ class ControlTests(unittest.TestCase):
 
     def test_pair_guard_rejects_dead_reused_or_replaced_ownership(self):
         service = {'pid':101,'ppid':100,'uid':os.getuid(),'comm':'codex','native_executable_matches':True,
-                   'started_at_local':'Fri Sep 11 18:00:00 2026'}
+                   'started_at_local':'Fri Sep 11 18:00:00 2026','executable_path':str(control.c.CLI.resolve())}
         tui = dict(service,pid=102,started_at_local='Fri Sep 11 18:00:01 2026')
         socket = {'path':str(control.c.SOCKET),'exists':True,'dev':1,'ino':2,'uid':os.getuid(),'mode':'0600','service_holds_path':True}
         original = {'service':service,'tui':tui,'socket':socket}
@@ -118,7 +146,7 @@ class ControlTests(unittest.TestCase):
 
     def test_pair_guard_cannot_match_missing_fields_or_wrong_types_on_both_sides(self):
         process={'pid':101,'ppid':100,'uid':os.getuid(),'comm':'codex','native_executable_matches':True,
-                 'started_at_local':'Fri Sep 11 18:00:00 2026'}
+                 'started_at_local':'Fri Sep 11 18:00:00 2026','executable_path':str(control.c.CLI.resolve())}
         original={'service':process,'tui':dict(process,pid=102),
                   'socket':{'path':str(control.c.SOCKET),'exists':True,'dev':1,'ino':2,'uid':os.getuid(),
                             'mode':'0600','service_holds_path':True}}
