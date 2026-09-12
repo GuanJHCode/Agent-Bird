@@ -13,6 +13,7 @@ from unittest.mock import patch
 from types import SimpleNamespace
 
 import native_standalone as probe
+import delivery_audit
 
 ROOT = "01900000-0000-7000-8000-000000000001"
 TURN = "01900000-0000-7000-8000-000000000002"
@@ -50,6 +51,93 @@ def thread_result(source="vscode"):
 
 
 class NativeStandaloneTests(unittest.TestCase):
+    def test_observe_writes_verified_sd08_ack_and_audit_accepts_business_evidence(self):
+        docs = pathlib.Path(__file__).resolve().parent.parent / "docs"
+        intent = json.loads((docs / "native-sd-qual-08-intent.json").read_bytes())
+        observation = json.loads((docs / "native-sd-qual-08-send-observation.json").read_bytes())
+        ack = json.loads((docs / "native-sd-qual-08-job-ack-r1.json").read_bytes())
+        original_audit = (docs / "native-sd-qual-08-audit-input.json").read_bytes()
+        root = intent["controller_thread_id"]
+        value = binding()
+        value.update(nonce=intent["delivery_id"][:-len("_delivery")], controller_thread_id=root)
+        value["prior_turn_id"] = TURN
+        inspection = copy.deepcopy(observation["go_inspection"])
+        inspection["ack"] = ack
+        thread = thread_result()
+        thread["thread"].update(id=root, cwd=value["expected_cwd"], historyMode="paginated")
+        thread["thread"]["turns"].append({"id": "new_turn", "status": "completed", "itemsView": "full", "items": [
+            {"id": "delivery_01", "type": "functionCallOutput", "name": "g0_delivery",
+             "namespace": "orchestration", "output": probe.canonical(intent)},
+            {"id": "ack_final", "type": "agentMessage", "phase": "final_answer", "text": "SD_QUAL_08_ACK"}]})
+        no_ack = copy.deepcopy(inspection)
+        no_ack["ack"] = None
+        now = {"boot_id": BOOT, "clock_impl": probe.CLOCK_IMPL, "mono_ns": 1_000_000_000, "wall_ns": 10_000_000_000}
+        attempt = {"boot_id": BOOT, "clock_impl": probe.CLOCK_IMPL, "mono_ns": 0, "wall_ns": 0}
+
+        class Reader:
+            checks, frames, bytes, server_requests, last_hash = {}, 0, 0, 0, None
+            last_request = {"id": 1, "method": "thread/read", "params": {"threadId": ROOT, "includeTurns": True}}
+            def __init__(self): self.reads = 0
+            async def call(self, method, params, intent=None):
+                self.last_request = {"id": self.reads + 1, "method": method, "params": params}
+                self.reads += 1
+                return thread
+            async def wake(self):
+                return None
+
+        reader = Reader()
+        go_values = iter((no_ack, inspection))
+        task_tmp = pathlib.Path(__file__).resolve().parent.parent / "tmp"
+        task_tmp.mkdir(mode=0o700, exist_ok=True)
+        with tempfile.TemporaryDirectory(prefix="sd08-ack-capture-", dir=task_tmp) as directory:
+            with probe.Case(directory) as case, patch.object(probe, "verify_machine"), \
+                 patch.object(probe, "current_clock", return_value=now), \
+                 patch.object(probe, "go_read", side_effect=lambda _binding, _verb, _deadline, allow_ack=False:
+                              probe.validate_go(next(go_values), value, allow_ack=allow_ack)):
+                result = asyncio.run(probe.observe(reader, case, value, intent, attempt, SESSION))
+                self.assertEqual(result["status"], "observed")
+                audit_input = json.loads((pathlib.Path(directory) / "audit-input.json").read_bytes())
+                self.assertEqual(audit_input["acks"], [probe.audit_ack(intent, inspection)])
+                audited = delivery_audit.audit(audit_input)
+                self.assertTrue(audited["business_ack_complete"])
+                self.assertEqual(audited["acknowledged_event_ids"], [intent["events"][0]["event_id"]])
+                self.assertFalse(audited["source_service_verified"])
+                self.assertFalse(audited["captured_page_chain_complete"])
+                self.assertFalse(audited["absence_proof"])
+                self.assertFalse(audited["resend_authorized"])
+        self.assertEqual((docs / "native-sd-qual-08-audit-input.json").read_bytes(), original_audit)
+
+    def test_sd08_verified_go_ack_projects_into_audit_record_without_mutating_history(self):
+        docs = pathlib.Path(__file__).resolve().parent.parent / "docs"
+        intent = json.loads((docs / "native-sd-qual-08-intent.json").read_bytes())
+        observation = json.loads((docs / "native-sd-qual-08-send-observation.json").read_bytes())
+        ack = json.loads((docs / "native-sd-qual-08-job-ack-r1.json").read_bytes())
+        original_audit = (docs / "native-sd-qual-08-audit-input.json").read_bytes()
+        original_hash = hashlib.sha256(original_audit).hexdigest()
+        inspection = dict(observation["go_inspection"])
+        inspection["ack"] = ack
+
+        projected = probe.audit_ack(intent, inspection)
+        self.assertEqual(projected, {
+            "delivery_id": intent["delivery_id"], "controller_thread_id": intent["controller_thread_id"],
+            "controller_epoch": intent["controller_epoch"], "event_id": intent["events"][0]["event_id"],
+            "event_revision": 1, "event_hash": intent["events"][0]["payload_hash"], "action_slot": "ack_r1",
+            "decision": "handled", "command_id": "sd-qual-08-ack-1", "decision_count": 1, "effect_count": 1})
+        # The historical empty-ACK artifact remains byte-for-byte unchanged.
+        self.assertEqual(hashlib.sha256((docs / "native-sd-qual-08-audit-input.json").read_bytes()).hexdigest(), original_hash)
+        self.assertEqual((docs / "native-sd-qual-08-audit-input.json").read_bytes(), original_audit)
+
+        missing = copy.deepcopy(inspection)
+        missing["ack"] = None
+        with self.assertRaises(probe.ProbeError):
+            probe.audit_ack(intent, missing)
+        for field, value in (("nonce", "other-root"), ("controller_thread", "other-root"),
+                             ("revision", 2), ("event_hash", "0" * 64)):
+            changed = copy.deepcopy(inspection)
+            changed["ack"][field] = value
+            with self.subTest(field=field), self.assertRaises(probe.ProbeError):
+                probe.audit_ack(intent, changed)
+
     def test_current_cli_pin_rejects_old_or_mixed_bindings(self):
         good = binding()
         try:

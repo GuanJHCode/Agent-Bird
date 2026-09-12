@@ -266,6 +266,28 @@ def make_intent(binding, inspection):
     return {**body, "payload_hash": digest(canonical(body).encode())}
 
 
+def audit_ack(intent, inspection):
+    """Project one already validated Go ACK into the offline audit schema.
+
+    This is deliberately a projection only: validate_go() has checked the Go
+    record's shape and binding, while these checks bind it to the exact event
+    declared by the intent before it can enter audit-input.json.
+    """
+    check(type(inspection) is dict and type(inspection.get("ack")) is dict, "ack_missing")
+    ack = inspection["ack"]
+    check(intent["delivery_id"] == ack["nonce"] + "_delivery", "ack_nonce_mismatch")
+    check(ack["controller_thread"] == intent["controller_thread_id"], "ack_root_mismatch")
+    check(ack["revision"] == intent["events"][0]["event_revision"], "ack_revision_mismatch")
+    event = next((entry for entry in intent["events"] if entry["payload_hash"] == ack["event_hash"]), None)
+    check(event is not None and event["event_id"] == intent["events"][0]["event_id"], "ack_hash_mismatch")
+    return {"delivery_id": intent["delivery_id"], "controller_thread_id": intent["controller_thread_id"],
+            "controller_epoch": intent["controller_epoch"], "event_id": event["event_id"],
+            "event_revision": event["event_revision"], "event_hash": event["payload_hash"],
+            "action_slot": event["action_slot"], "decision": ack["decision"],
+            "command_id": ack["command_id"], "decision_count": ack["decision_count"],
+            "effect_count": ack["effect_count"]}
+
+
 def make_request(request_id, method, params, binding, intent=None):
     check(number(request_id, 1, 10000), "invalid_request_id")
     allowed = {
@@ -547,7 +569,7 @@ def exists(case, name):
 
 
 async def observe(rpc, case, binding, intent, attempt, expected_session_id):
-    last_read, facts, inspection = None, {}, None
+    last_read, facts, inspection, captured_ack = None, {}, None, None
     rpc_error = None
     reason = "model_window_expired"
     try:
@@ -561,6 +583,10 @@ async def observe(rpc, case, binding, intent, attempt, expected_session_id):
             inspection = go_read(binding, "inspect", rpc.deadline_ns, allow_ack=True)
             check(inspection["event_hash"] == intent["events"][0]["payload_hash"], "producer_changed")
             ack = inspection["ack"]
+            if ack is not None:
+                # Keep the verified projection for the final audit input;
+                # an early poll with no ACK contributes no business record.
+                captured_ack = audit_ack(intent, inspection)
             if all(facts[key] for key in ("history_match", "new_turn_completed", "ack_final_marker", "root_idle", "all_tools_and_turns_terminal", "matching_turn_is_last")) and ack is not None and ack["decision"] == "handled" and ack["effect_count"] == 1:
                 verify_machine(binding, hashes=False)
                 remaining_window(attempt, current_clock())
@@ -583,7 +609,8 @@ async def observe(rpc, case, binding, intent, attempt, expected_session_id):
     if rpc_error is not None:
         output["rpc_error"] = rpc_error
     if last_read is not None and not exists(case, "audit-input.json"):
-        case.write_new("audit-input.json", {"version": 1, "intent": intent, "reads": [last_read], "acks": []})
+        case.write_new("audit-input.json", {"version": 1, "intent": intent, "reads": [last_read],
+                                             "acks": [captured_ack] if captured_ack is not None else []})
     return output
 
 
