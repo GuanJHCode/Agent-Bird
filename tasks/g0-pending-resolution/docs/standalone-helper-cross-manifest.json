@@ -1,0 +1,151 @@
+{
+  "scope": "docs-only bounded offline cross-interface audit, no native/model",
+  "controller_commit": "e6b02bd9a814532031f5c6c586b037b98cfa31c2",
+  "helper_commit": "c2b30e0cf98a3c9bb501822bb81f44294fdb6c70",
+  "tmp_root_relative_to_worktree": "tasks/g0-pending-resolution/tmp/cross-interface-e6-c2",
+  "tmp_file_count_before": 13,
+  "tmp_files_before": [
+    {
+      "path": "chain.log",
+      "bytes": 98,
+      "sha256": "7d6f3f2b0c75a7272e3e136f4ef3512eefcb357922e433d272431e599c2b9d6e",
+      "archived_to": "tasks/g0-pending-resolution/docs/standalone-helper-cross-go-chain.log"
+    },
+    {
+      "path": "controller/native_sd_clock.py",
+      "bytes": 328,
+      "sha256": "c16c8d0d0d9b1652d18606230351493f3cea33211f8b4d3323bb5b6bf2466087",
+      "recoverable_from_commit": "e6b02bd9a814532031f5c6c586b037b98cfa31c2",
+      "repo_path": "tasks/g0-pending-resolution/scripts/native_sd_clock.py"
+    },
+    {
+      "path": "controller/native_sd_collect.py",
+      "bytes": 14010,
+      "sha256": "9770a53904febd21e20ef42b55a3cf12140455313837a11f1d3eeb883b7afe09",
+      "recoverable_from_commit": "e6b02bd9a814532031f5c6c586b037b98cfa31c2",
+      "repo_path": "tasks/g0-pending-resolution/scripts/native_sd_collect.py"
+    },
+    {
+      "path": "controller/native_sd_control.py",
+      "bytes": 38937,
+      "sha256": "73d2df8e1b8bca428e866ae42f094f5fb57a884490c4a6abae4e05d38efd7ac1",
+      "recoverable_from_commit": "e6b02bd9a814532031f5c6c586b037b98cfa31c2",
+      "repo_path": "tasks/g0-pending-resolution/scripts/native_sd_control.py"
+    },
+    {
+      "path": "controller/native_sd_pty.py",
+      "bytes": 5859,
+      "sha256": "0ec348a89cfe1d5b41e23885f20a4323d2631af300ad577fa2e8726e16d8d5c5",
+      "recoverable_from_commit": "e6b02bd9a814532031f5c6c586b037b98cfa31c2",
+      "repo_path": "tasks/g0-pending-resolution/scripts/native_sd_pty.py"
+    },
+    {
+      "path": "helper/delivery_audit.py",
+      "bytes": 10755,
+      "sha256": "59d8129d5409fb7fb5687a5107c81f9d85a63b8f718e4dd22cab660517af87c6",
+      "recoverable_from_commit": "c2b30e0cf98a3c9bb501822bb81f44294fdb6c70",
+      "repo_path": "tasks/g0-pending-resolution/scripts/delivery_audit.py"
+    },
+    {
+      "path": "helper/native_standalone.py",
+      "bytes": 37890,
+      "sha256": "7ac746213b306c3c0e0b7a3b784c79fad51cb7cbca488e22be668d621c0a89dc",
+      "recoverable_from_commit": "c2b30e0cf98a3c9bb501822bb81f44294fdb6c70",
+      "repo_path": "tasks/g0-pending-resolution/scripts/native_standalone.py"
+    },
+    {
+      "path": "helper/native_standalone_test.py",
+      "bytes": 39407,
+      "sha256": "38c73b4a066bc4cfc008374edd7113718e04d89a30d8de5c39ffbfb339bc8a09",
+      "recoverable_from_commit": "c2b30e0cf98a3c9bb501822bb81f44294fdb6c70",
+      "repo_path": "tasks/g0-pending-resolution/scripts/native_standalone_test.py"
+    },
+    {
+      "path": "reproduce-rpc-summary.py",
+      "bytes": 1992,
+      "sha256": "fec44f9e763d8b879243b900718458d5a5d017c42fbbb9bf0339f47798525508",
+      "disposition": "temporary producer wrapper; runner copied it and is committing corresponding consumer regression"
+    },
+    {
+      "path": "rpc-main-outputs.json",
+      "bytes": 2569,
+      "sha256": "091de1d59a3d7599a0205f9df1622e9585ecf6df25fc478559de6a3cb360d3ed",
+      "archived_to": "tasks/g0-pending-resolution/docs/standalone-helper-cross-rpc-main-outputs.json"
+    },
+    {
+      "path": "rpc-summary-cross.json",
+      "bytes": 675,
+      "sha256": "d7b830f0e702bf408a8fb72f435b0ed8e0228040a551e5c92caa2b0a20029d71",
+      "superseded_by": "tasks/g0-pending-resolution/docs/standalone-helper-cross-rpc-red.json"
+    },
+    {
+      "path": "rpc-summary-red.json",
+      "bytes": 724,
+      "sha256": "4c75a19ce6dc0ba14fba135621a894210aef3028b71ba344633da55022515624",
+      "archived_to": "tasks/g0-pending-resolution/docs/standalone-helper-cross-rpc-red.json"
+    },
+    {
+      "path": "runtime03-interface.json",
+      "bytes": 1626,
+      "sha256": "650024e8324bb642f587982027ba6f5e2c64a5963c8ac4edcdbde83e28ceda5a",
+      "archived_to": "tasks/g0-pending-resolution/docs/standalone-helper-cross-runtime03-interface.json"
+    }
+  ],
+  "archives_match_original_bytes": true,
+  "cleanup_status": "removed_after_archive_hash_verification_and_runner_copy_confirmation",
+  "runtime03_nonce_patch": false,
+  "historical02_nonce_patch": "explicit test-only ACTIVE_NONCE=sd-qual-02; synthetic family/session supplement",
+  "production_runtime_code_changed": false,
+  "tmp_file_count_after": 0,
+  "tmp_root_exists_after": false,
+  "earlier_owned_source_cache_cleanup": {
+    "root_relative_to_worktree": "tasks/g0-pending-resolution/tmp/standalone-fixture-src",
+    "files": [
+      {
+        "path": "controller08/native_sd_clock.py",
+        "bytes": 328,
+        "sha256": "c16c8d0d0d9b1652d18606230351493f3cea33211f8b4d3323bb5b6bf2466087",
+        "recoverable_from_commit": "08bdd56be86055bd842507bb21ac1c9e016fe91c",
+        "repo_path": "tasks/g0-pending-resolution/scripts/native_sd_clock.py"
+      },
+      {
+        "path": "controller08/native_sd_collect.py",
+        "bytes": 13542,
+        "sha256": "f4390c6d7c3b7a595e54c600850c586e0dec34ff44d03022b5c27e0a0c4659ee",
+        "recoverable_from_commit": "08bdd56be86055bd842507bb21ac1c9e016fe91c",
+        "repo_path": "tasks/g0-pending-resolution/scripts/native_sd_collect.py"
+      },
+      {
+        "path": "controller08/native_sd_control.py",
+        "bytes": 29825,
+        "sha256": "1606fbbed02298c0455ebca71aebe39b56dbc24bcf29bb451200bd4d30a405cb",
+        "recoverable_from_commit": "08bdd56be86055bd842507bb21ac1c9e016fe91c",
+        "repo_path": "tasks/g0-pending-resolution/scripts/native_sd_control.py"
+      },
+      {
+        "path": "controller08/native_sd_pty.py",
+        "bytes": 5409,
+        "sha256": "c142326e31c2541dbb901c71fa84a96fe0a66bafb46c1344b14c89c94a344190",
+        "recoverable_from_commit": "08bdd56be86055bd842507bb21ac1c9e016fe91c",
+        "repo_path": "tasks/g0-pending-resolution/scripts/native_sd_pty.py"
+      },
+      {
+        "path": "helper06c/delivery_audit.py",
+        "bytes": 10755,
+        "sha256": "59d8129d5409fb7fb5687a5107c81f9d85a63b8f718e4dd22cab660517af87c6",
+        "recoverable_from_commit": "06c0cfe8ab0f974702df30fb5df92333e9c0f811",
+        "repo_path": "tasks/g0-pending-resolution/scripts/delivery_audit.py"
+      },
+      {
+        "path": "helper06c/native_standalone.py",
+        "bytes": 34727,
+        "sha256": "b3677fa6ee27d929436f6c73d1610879a488daad2ea7959f2fd48367bb605c3a",
+        "recoverable_from_commit": "06c0cfe8ab0f974702df30fb5df92333e9c0f811",
+        "repo_path": "tasks/g0-pending-resolution/scripts/native_standalone.py"
+      }
+    ],
+    "file_count_before": 6,
+    "file_count_after": 0,
+    "root_exists_after": false
+  }
+}

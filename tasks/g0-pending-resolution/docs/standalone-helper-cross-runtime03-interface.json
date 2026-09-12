@@ -1,0 +1,66 @@
+{
+  "scope": "fixed e6 production binding statements with synthetic kernel/root inputs; no nonce patch/native run",
+  "publisher_commit": "e6b02bd9a814532031f5c6c586b037b98cfa31c2",
+  "consumer_commit": "c2b30e0cf98a3c9bb501822bb81f44294fdb6c70",
+  "binding_statement_lines": [
+    520,
+    521,
+    522
+  ],
+  "runtime_nonce": "sd-qual-03",
+  "case": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/data/sd-qual-03",
+  "job": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/test-repo/tasks/pending-resolution/data/sd-qual-03",
+  "markers": [
+    "SD_QUAL_03_ACK",
+    "SD_QUAL_03_READY"
+  ],
+  "top_level_keys": [
+    "boot_id",
+    "controller_epoch",
+    "controller_evidence_sha256",
+    "controller_thread_id",
+    "expected_cwd",
+    "go_binary",
+    "go_binary_sha256",
+    "job_dir",
+    "native_cli_version",
+    "nonce",
+    "prior_turn_id",
+    "service",
+    "tui",
+    "version"
+  ],
+  "service_keys": [
+    "birth",
+    "comm",
+    "executable_path",
+    "native_binary_sha256",
+    "pid",
+    "socket_dev",
+    "socket_ino",
+    "socket_path",
+    "uid"
+  ],
+  "tui_keys": [
+    "birth",
+    "comm",
+    "executable_path",
+    "native_binary_sha256",
+    "pid",
+    "uid"
+  ],
+  "comm_preserved": true,
+  "distinct_executable_field": true,
+  "helper_validate_binding": "PASS",
+  "old_runtime_nonces_rejected": [
+    "sd-qual-01",
+    "sd-qual-02"
+  ],
+  "native_go_sha_equal": true,
+  "controller_helper_clock_impl_equal": true,
+  "historical_02_go_clone_chain": {
+    "status": "PASS",
+    "test_count": 1,
+    "elapsed_seconds": 0.145
+  }
+}
