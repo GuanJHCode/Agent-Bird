@@ -3,7 +3,6 @@ import json
 import os
 import struct
 import sys
-import time
 from types import SimpleNamespace
 from pathlib import Path
 
@@ -24,6 +23,7 @@ from proxy_native_runtime import (  # noqa: E402
     RuntimeWindow,
     _CaptureBridge,
     build_ordinary_tui_argv,
+    raw_seconds,
 )
 
 
@@ -238,6 +238,15 @@ def test_status_reference_alone_never_creates_candidate():
     assert inferer.candidate is None
 
 
+def test_replay_readiness_does_not_wait_for_candidate_skills_barrier():
+    inferer = AttachmentInferer()
+    inferer.accept(connected_event())
+    for event in upgrade_events()[:7]:
+        inferer.accept(event)
+    assert inferer.replay_ready is True
+    assert inferer.candidate is None
+
+
 def test_bootstrap_opaque_requires_client_request_and_matching_server_response():
     inferer = AttachmentInferer()
     for event in (
@@ -370,6 +379,53 @@ def test_real_pty_driver_round_trips_dummy_input_and_waits_for_exit(tmp_path):
         assert driver.wait(2.0) == 0
         assert driver.evidence["inputs"][0]["action"] == "dummy-input"
     finally:
+        driver.close()
+
+
+def test_async_pty_read_yields_to_heartbeat_task(tmp_path):
+    import asyncio
+
+    async def scenario():
+        driver = PTYDriver.spawn(
+            [sys.executable, "-c", "import time; time.sleep(.25)"],
+            cwd=tmp_path,
+        )
+        ticks = 0
+
+        async def heartbeat():
+            nonlocal ticks
+            for _ in range(8):
+                ticks += 1
+                await asyncio.sleep(0.01)
+
+        try:
+            await asyncio.gather(driver.aread_until(raw_seconds() + 0.2), heartbeat())
+            assert ticks == 8
+        finally:
+            if driver.poll() is None:
+                driver.terminate()
+            driver.close()
+
+    asyncio.run(scenario())
+
+
+def test_status_and_clear_commands_use_exact_bracketed_paste_then_cr(tmp_path):
+    driver = PTYDriver.spawn(
+        [sys.executable, "-c", "import time; time.sleep(1)"],
+        cwd=tmp_path,
+    )
+    try:
+        driver.command("/status")
+        driver.command("/clear")
+        assert driver.input_bytes == (
+            b"\x1b[200~/status\x1b[201~",
+            b"\r",
+            b"\x1b[200~/clear\x1b[201~",
+            b"\r",
+        )
+    finally:
+        if driver.poll() is None:
+            driver.terminate()
         driver.close()
 
 
@@ -551,6 +607,30 @@ def test_capture_bridge_retains_both_os_peer_identities_and_fds():
     assert (record.frontend_fd, record.backend_fd, record.epoch) == (31, 32, 1)
     assert record.frontend_peer.pid == 11
     assert record.backend_peer.pid == 22
+
+
+def test_capture_bridge_trace_overflow_invalidates_and_preserves_only_whitelist():
+    from proxy_observer import Observer
+
+    inferer = AttachmentInferer()
+    bridge = _CaptureBridge(Observer(), inferer, max_trace_events=1)
+    bridge.on_connect(SimpleNamespace(connection_id="c1", epoch=1, frontend_fd=1, backend_fd=2, frontend_peer=None, backend_peer=None))
+    bridge.on_gap(SimpleNamespace(connection_id="c1", epoch=1, reason="transport_gap"))
+    assert bridge.trace_complete is False
+    assert inferer.invalid_reason == "trace_overflow"
+    assert all(set(row) <= {"event", "local_seq", "conn_epoch", "direction", "method", "request_id", "request_direction", "response", "ok", "thread", "reason"} for row in bridge.trace)
+
+
+def test_model_turn_count_comes_from_observed_client_turn_start():
+    from proxy_observer import Observer
+
+    bridge = _CaptureBridge(Observer(), AttachmentInferer())
+    bridge.on_connect(SimpleNamespace(connection_id="c1", epoch=1, frontend_fd=1, backend_fd=2, frontend_peer=None, backend_peer=None))
+    relay_bytes(bridge, "c1", 1, "frontend_to_backend", raw_upgrade_request())
+    relay_bytes(bridge, "c1", 1, "backend_to_frontend", raw_upgrade_response())
+    rpc(bridge, "c1", 1, "client", {"jsonrpc": "2.0", "id": 9, "method": "turn/start", "params": {}})
+    assert bridge.model_turns == 1
+    assert bridge.trace_complete is True
 
 
 def test_runtime_backend_authorizer_requires_the_registered_native_identity(tmp_path):

@@ -306,6 +306,7 @@ class PTYDriver:
         self.exit_code: int | None = None
         self.eof = False
         self.inputs: list[dict[str, Any]] = []
+        self._input_bytes: list[bytes] = []
         self.status_ids: set[str] = set()
 
     @classmethod
@@ -319,6 +320,7 @@ class PTYDriver:
             os.execvp(argv[0], list(argv))
             raise AssertionError("execvp returned")
         driver = cls(pid, fd)
+        os.set_blocking(fd, False)
         fcntl = __import__("fcntl")
         fcntl.ioctl(fd, termios.TIOCSWINSZ, struct.pack("HHHH", 60, 200, 0, 0))
         return driver
@@ -361,6 +363,38 @@ class PTYDriver:
         self.poll()
         return self.evidence
 
+    def read_available(self) -> dict[str, Any]:
+        """Drain readable PTY bytes without blocking the asyncio loop."""
+
+        if self.eof:
+            return self.evidence
+        while True:
+            ready, _, _ = select.select([self.fd], [], [], 0)
+            if not ready:
+                break
+            try:
+                chunk = os.read(self.fd, 16384)
+            except BlockingIOError:
+                break
+            except OSError as exc:
+                if exc.errno not in {errno.EIO, errno.EBADF}:
+                    raise
+                self.eof = True
+                break
+            if not chunk:
+                self.eof = True
+                break
+            self._capture(chunk)
+        self.poll()
+        return self.evidence
+
+    async def aread_until(self, deadline: float) -> dict[str, Any]:
+        while not self.eof and raw_seconds() < deadline:
+            self.read_available()
+            await asyncio.sleep(0.01)
+        self.read_available()
+        return self.evidence
+
     def write(self, data: bytes, *, action: str) -> None:
         if self.poll() is not None:
             raise RuntimeInvariantError("TUI PTY already exited")
@@ -372,6 +406,7 @@ class PTYDriver:
             if written <= 0:
                 raise OSError("PTY write made no progress")
             position += written
+        self._input_bytes.append(bytes(data))
         self.inputs.append({"at_monotonic_raw": raw_seconds(), "action": action, "bytes": len(data), "sha256": hashlib.sha256(data).hexdigest()})
 
     def command(self, command: str) -> None:
@@ -385,12 +420,28 @@ class PTYDriver:
         self.read(seconds)
         return set(self.status_ids)
 
+    async def async_status_checkpoint(self, deadline: float) -> set[str]:
+        self.status_ids.clear()
+        await self.aread_until(deadline)
+        return set(self.status_ids)
+
+    @property
+    def input_bytes(self) -> tuple[bytes, ...]:
+        return tuple(self._input_bytes)
+
     def wait(self, seconds: float) -> int | None:
         if not 0 < seconds <= 10:
             raise ValueError("bounded PTY wait required")
         deadline = raw_seconds() + seconds
         while self.poll() is None and raw_seconds() < deadline:
             self.read(min(0.2, max(0.001, deadline - raw_seconds())))
+        return self.poll()
+
+    async def await_exit(self, deadline: float) -> int | None:
+        while self.poll() is None and raw_seconds() < deadline:
+            self.read_available()
+            await asyncio.sleep(0.01)
+        self.read_available()
         return self.poll()
 
     def terminate(self, seconds: float = 10.0) -> bool:
@@ -486,6 +537,8 @@ class AttachmentInferer:
         self._candidate: AttachmentCandidate | None = None
         self._status_reference: Mapping[str, Any] | None = None
         self._clear_pending = False
+        self._clear_requested = False
+        self._saw_unsubscribe_after_clear = False
         self._bootstrap_pending: dict[tuple[str, Any], str] = {}
 
     @property
@@ -495,6 +548,19 @@ class AttachmentInferer:
     @property
     def invalid_reason(self) -> str | None:
         return self._invalid_reason
+
+    @property
+    def replay_ready(self) -> bool:
+        """Protocol replay readiness, independent of the candidate decision."""
+
+        return (
+            self._invalid_reason is None
+            and self._upgrades == {"client", "server"}
+            and "initialize" in self._responses
+            and "thread/start" in self._responses
+            and self._thread_id is not None
+            and not self._bootstrap_pending
+        )
 
     @property
     def status_reference(self) -> Mapping[str, Any] | None:
@@ -513,6 +579,8 @@ class AttachmentInferer:
         self._candidate = None
         self._invalid_reason = "clear"
         self._clear_pending = True
+        self._clear_requested = True
+        self._saw_unsubscribe_after_clear = False
         self._requests.intersection_update({"initialize"})
         self._responses.intersection_update({"initialize"})
         self._thread_id = None
@@ -538,12 +606,17 @@ class AttachmentInferer:
             self._invalidate("event_sequence_gap")
             return
         self._next_sequence += 1
+        if kind == "rpc" and event.get("direction") == "client" and event.get("method") == "thread/unsubscribe" and self._clear_pending:
+            self._saw_unsubscribe_after_clear = True
         if (
             self._clear_pending
             and kind == "rpc"
             and event.get("direction") == "client"
             and event.get("method") == "thread/start"
         ):
+            if not self._saw_unsubscribe_after_clear:
+                self._invalidate("clear_without_unsubscribe")
+                return
             self._invalid_reason = None
             self._clear_pending = False
         if kind == "gap":
@@ -569,6 +642,7 @@ class AttachmentInferer:
                 if key in self._bootstrap_pending:
                     self._invalidate("duplicate_bootstrap_request")
                 else:
+                    self._candidate = None
                     self._bootstrap_pending[key] = method
             else:
                 self._invalidate("unknown_event")
@@ -606,6 +680,8 @@ class AttachmentInferer:
         self._next_sequence = sequence + 1
         self._invalid_reason = None
         self._clear_pending = False
+        self._clear_requested = False
+        self._saw_unsubscribe_after_clear = False
         self._candidate = None
         self._upgrades.clear()
         self._requests.clear()
@@ -616,6 +692,8 @@ class AttachmentInferer:
 
     def _maybe_candidate(self) -> None:
         if self._invalid_reason is not None or self._thread_id is None or self._bootstrap_pending:
+            return
+        if self._clear_requested and not self._saw_unsubscribe_after_clear:
             return
         if self._upgrades == {"client", "server"} and self._REQUIRED_METHODS <= self._requests and self._REQUIRED_METHODS <= self._responses:
             assert self._epoch is not None
@@ -654,7 +732,10 @@ class _CaptureBridge:
         frontend_identity: OwnedProcess | None = None,
         backend_identity: OwnedProcess | None = None,
         strict_identity: bool = False,
+        max_trace_events: int = 4096,
     ) -> None:
+        if max_trace_events < 1:
+            raise ValueError("max_trace_events must be positive")
         self.observer = observer
         self.inferer = inferer
         self.frontend_identity = frontend_identity
@@ -662,10 +743,39 @@ class _CaptureBridge:
         self.strict_identity = strict_identity
         self.connection_records: dict[str, ConnectionIdentity] = {}
         self.identity_errors: dict[str, str] = {}
+        self.max_trace_events = max_trace_events
+        self.trace: list[dict[str, Any]] = []
+        self.trace_complete = True
+        self.model_turns = 0
 
     def _accept_rows(self, rows: Iterable[Mapping[str, Any]]) -> None:
         for row in rows:
+            if not self._record_trace(row):
+                return
+            if (
+                row.get("direction") == "client"
+                and row.get("method") == "turn/start"
+                and row.get("event") in {"rpc", "rpc_unknown"}
+            ):
+                self.model_turns += 1
             self.inferer.accept(row)
+
+    def _record_trace(self, row: Mapping[str, Any]) -> bool:
+        if len(self.trace) >= self.max_trace_events:
+            self.trace_complete = False
+            self.inferer.invalidate("trace_overflow")
+            return False
+        self.trace.append(
+            {
+                key: row[key]
+                for key in (
+                    "event", "local_seq", "conn_epoch", "direction", "method",
+                    "request_id", "request_direction", "response", "ok", "thread", "reason",
+                )
+                if key in row
+            }
+        )
+        return True
 
     def on_connect(self, event: Any) -> None:
         record = ConnectionIdentity(
@@ -695,12 +805,16 @@ class _CaptureBridge:
 
     def on_lifecycle(self, event: Any) -> None:
         if event.kind == "eof":
+            self.trace_complete = False
+            self._record_trace({"event": "eof", "conn_epoch": event.epoch, "reason": "eof"})
             self.inferer.invalidate("eof")
             self.observer.set_pending(event.connection_id)
         if event.kind == "disconnect":
             self._accept_rows(self.observer.close(event.connection_id))
 
     def on_gap(self, event: Any) -> None:
+        self.trace_complete = False
+        self._record_trace({"event": "gap", "conn_epoch": event.epoch, "reason": event.reason})
         self.inferer.invalidate(event.reason or "gap")
 
 
@@ -955,6 +1069,17 @@ def _connection_summary(record: ConnectionIdentity) -> dict[str, Any]:
     }
 
 
+def _failure_record(exc: BaseException, stage: str) -> dict[str, str]:
+    code = {
+        "TimeoutError": "deadline_exceeded",
+        "FileExistsError": "owned_endpoint_occupied",
+        "RuntimeInvariantError": "runtime_invariant",
+        "PermissionError": "permission_denied",
+    }.get(type(exc).__name__, "runtime_error")
+    digest = hashlib.sha256(f"{type(exc).__name__}:{exc}".encode()).hexdigest()
+    return {"stage": stage, "type": type(exc).__name__, "code": code, "message_sha256": digest}
+
+
 async def run_case(
     config: NativeRuntimeConfig,
     case_dir: str | os.PathLike[str],
@@ -972,7 +1097,7 @@ async def run_case(
     result: dict[str, Any] = {
         "case": "proxy-attach-01",
         "status": "unknown",
-        "model_turns": 0,
+        "model_turns": None,
         "steps": [],
         "protected_hashes": None,
         "connections": [],
@@ -980,15 +1105,16 @@ async def run_case(
     initial_candidate_ok = False
     clear_candidate_ok = False
     disconnect_invalid = False
+    initial_status_match = False
+    clear_status_match = False
+    quit_success = False
+    initial_thread: str | None = None
+    current_stage = "prepare"
 
     def step(name: str, **fields: Any) -> None:
+        nonlocal current_stage
+        current_stage = name
         result["steps"].append({"name": name, **fields})
-
-    def check_window(name: str, window: RuntimeWindow) -> float:
-        remaining = window.local_deadline - raw_seconds()
-        if remaining <= 0:
-            raise TimeoutError(f"{name} exceeded its local 10 second window")
-        return remaining
 
     try:
         result["protected_hashes"] = asdict(config.snapshot_hashes())
@@ -997,70 +1123,106 @@ async def run_case(
         if tui is None:
             raise RuntimeInvariantError("runtime did not register its PTY TUI")
         initial_window = RuntimeWindow.start(local_seconds=config.local_window_seconds, model_seconds=config.model_window_seconds)
-        while runtime.candidate is None and not initial_window.local_expired():
-            tui.read(min(1.0, check_window("initial-readiness", initial_window)))
+        while not runtime.inferer.replay_ready and not initial_window.local_expired():
+            await tui.aread_until(min(initial_window.local_deadline, raw_seconds() + 1.0))
         step(
             "initial-readiness",
+            replay_ready=runtime.inferer.replay_ready,
             candidate=asdict(runtime.candidate) if runtime.candidate is not None else None,
             tui=tui.evidence,
         )
         initial_candidate_ok = runtime.candidate is not None
+        initial_thread = runtime.candidate.thread_id if runtime.candidate else None
+        initial_target = runtime.candidate.session_id if runtime.candidate and runtime.candidate.session_id else runtime.candidate.thread_id if runtime.candidate else None
 
         status_window = RuntimeWindow.start(local_seconds=config.local_window_seconds, model_seconds=config.model_window_seconds)
         tui.command("/status")
-        tui.status_checkpoint(min(5.0, check_window("status-initial", status_window)))
+        await tui.async_status_checkpoint(status_window.local_deadline)
         status_ids = sorted(tui.status_ids)
         runtime.record_status_reference({"session_id": status_ids[0]} if len(status_ids) == 1 else {"screen_match": False})
-        step("status-initial", session_ids=status_ids, screen_match=len(status_ids) == 1)
+        initial_status_match = len(status_ids) == 1 and status_ids[0] == initial_target
+        step("status-initial", session_ids=status_ids, screen_match=initial_status_match)
 
         clear_window = RuntimeWindow.start(local_seconds=config.local_window_seconds, model_seconds=config.model_window_seconds)
         runtime.inferer.clear()
         tui.command("/clear")
-        while runtime.candidate is None and not clear_window.local_expired():
-            tui.read(min(1.0, check_window("clear-replay", clear_window)))
+        while not runtime.inferer.replay_ready and not clear_window.local_expired():
+            await tui.aread_until(min(clear_window.local_deadline, raw_seconds() + 1.0))
         step(
             "clear-replay",
+            replay_ready=runtime.inferer.replay_ready,
             candidate=asdict(runtime.candidate) if runtime.candidate is not None else None,
             tui=tui.evidence,
         )
         clear_candidate_ok = runtime.candidate is not None
+        clear_target = runtime.candidate.session_id if runtime.candidate and runtime.candidate.session_id else runtime.candidate.thread_id if runtime.candidate else None
+        clear_thread = runtime.candidate.thread_id if runtime.candidate else None
 
         status_window = RuntimeWindow.start(local_seconds=config.local_window_seconds, model_seconds=config.model_window_seconds)
         tui.command("/status")
-        tui.status_checkpoint(min(5.0, check_window("status-after-clear", status_window)))
+        await tui.async_status_checkpoint(status_window.local_deadline)
         status_ids = sorted(tui.status_ids)
         runtime.record_status_reference({"session_id": status_ids[0]} if len(status_ids) == 1 else {"screen_match": False})
-        step("status-after-clear", session_ids=status_ids, screen_match=len(status_ids) == 1)
+        clear_status_match = len(status_ids) == 1 and status_ids[0] == clear_target
+        step("status-after-clear", session_ids=status_ids, screen_match=clear_status_match)
 
         connection_id = next(reversed(runtime._bridge.connection_records), None) if runtime._bridge else None
         if connection_id is not None:
             disconnect_window = RuntimeWindow.start(local_seconds=config.local_window_seconds, model_seconds=config.model_window_seconds)
             disconnected = await runtime.disconnect(connection_id, leg="frontend")
-            tui.read(min(2.0, check_window("disconnect", disconnect_window)))
+            await tui.aread_until(min(disconnect_window.local_deadline, raw_seconds() + 2.0))
             await asyncio.sleep(0)
-            disconnect_invalid = runtime.candidate is None and runtime.inferer.invalid_reason in {"eof", "connection_close", "unknown_event", "identity_mismatch"}
+            disconnect_invalid = disconnected and runtime.candidate is None and runtime.inferer.invalid_reason in {"eof", "connection_close", "unknown_event", "identity_mismatch"}
             step("disconnect", connection_id=connection_id, disconnected=disconnected, candidate=asdict(runtime.candidate) if runtime.candidate else None)
 
         quit_window = RuntimeWindow.start(local_seconds=config.local_window_seconds, model_seconds=config.model_window_seconds)
         if tui.poll() is None:
             tui.command("/quit")
-            exit_code = tui.wait(min(10.0, check_window("quit", quit_window)))
+            exit_code = await tui.await_exit(quit_window.local_deadline)
         else:
             exit_code = tui.poll()
-        step("quit", exit_code=exit_code, tui=tui.evidence)
+        quit_success = exit_code == 0
+        step("quit", exit_code=exit_code, quit_success=quit_success, tui=tui.evidence)
         result["connections"] = [_connection_summary(record) for record in runtime._bridge.connection_records.values()] if runtime._bridge else []
         result["status"] = "observed" if initial_candidate_ok and clear_candidate_ok and disconnect_invalid else "unknown"
     except BaseException as exc:
-        result["error"] = {"type": type(exc).__name__, "message": str(exc)}
+        result["failure"] = _failure_record(exc, current_stage)
     finally:
         try:
             await runtime.close()
         except BaseException as exc:
-            result["cleanup_error"] = {"type": type(exc).__name__, "message": str(exc)}
+            result["cleanup_failure"] = _failure_record(exc, "cleanup")
         try:
             config.verify_hashes(HashSnapshot(**result["protected_hashes"]))
         except BaseException as exc:
-            result["protection_error"] = {"type": type(exc).__name__, "message": str(exc)}
+            result["protection_failure"] = _failure_record(exc, "protection")
+        bridge = runtime._bridge
+        if bridge is not None:
+            result["model_turns"] = bridge.model_turns if bridge.trace_complete else None
+            result["trace_complete"] = bridge.trace_complete
+            try:
+                case.write_json("trace.json", {"complete": bridge.trace_complete, "events": bridge.trace})
+                result["trace_artifact"] = "trace.json"
+            except BaseException as exc:
+                result["trace_failure"] = _failure_record(exc, "trace")
+        cleanup_ok = "cleanup_failure" not in result and not (
+            runtime._tui_driver is not None and runtime._tui_driver.poll() is None
+        ) and not (runtime._backend is not None and runtime._backend.poll() is None)
+        result["status"] = "observed" if (
+            initial_candidate_ok
+            and clear_candidate_ok
+            and disconnect_invalid
+            and initial_status_match
+            and clear_status_match
+            and initial_target is not None
+            and clear_target is not None
+            and clear_thread != initial_thread
+            and quit_success
+            and result.get("model_turns") == 0
+            and result.get("trace_complete") is True
+            and cleanup_ok
+            and not any(key.endswith("failure") or key == "failure" for key in result)
+        ) else "unknown"
         case.write_json("result.json", result)
     return result
 
