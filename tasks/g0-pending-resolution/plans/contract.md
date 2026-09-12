@@ -73,6 +73,12 @@ sd03 已取得真实 initial、同 root 的 READY/pending 屏障及原服务 pre
 
 离线门禁已完成：controller `59a2d67`/`ef949c3` 与 helper 整链 `6e32da75`、nonce 冻结 `9527c495` 均经独立审查 PASS；主树对齐后下发一次 sd04。原生结果为 `initial_binding_inconclusive`，未进入发送；sd03/sd04 均不重试。下一独立 case 若继续，须另登记，不能把本次 lock 文件名或插件缓存当作 Hook 证据。
 
+### 2026-09-12：第五个独立 case，先观察到本服务 SessionStart 再提交
+
+sd04 的 paste+Enter 落在 TUI 启动后约 1 秒，当时插件缓存仍在写入；`hook-events` 窗口内 0 条，包括没有本服务 `SessionStart`。不能据此否定 send-once 接口，也不能把 home 下 thread lock 文件名当成提交证据。
+
+前瞻登记唯一新 case `sd-qual-05`。沿用普通 `codex` 入口、单次 bracketed-paste + 独立 Enter、后验 `UserPromptSubmit` 身份、canonical binding 摘要、一次发送、uncertain 不重发、原 10/120 秒窗口和有界 caffeinate。仅增加：在那一次 paste 之前，必须在启动预算内观察到属于本 service PID 的唯一真实 `SessionStart`；没有则记录明确子阶段失败并中止，不补第二次 Enter。失败时把有界 PTY 字节归档到本 case，供诊断，不把 PTY 文本当作 current-UI 附着证明。历史 sd02/sd03/sd04 原文件不改、不重跑。须冻结、独立复核和新鲜前检后才下发。
+
 ## 接口解释与判据
 
 官方 `turn/start.toolOutput` 接受客户端实际执行的独立工具输出，`input=[]`，以 `functionCallOutput` 持久化；不要求存在旧的 pending tool call。旧研究对“必须补回旧 pending call”的概括不作为本轮排除此接口的依据。[官方 App Server 说明](https://learn.chatgpt.com/docs/app-server#start-a-turn)
