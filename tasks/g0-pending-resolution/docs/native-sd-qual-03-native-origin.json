@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "nonce": "sd-qual-03",
+  "origin": {
+    "service": {
+      "pid": 93158,
+      "ppid": 93153,
+      "uid": 501,
+      "started_at_local": "Sat Sep 12 10:50:06 2026",
+      "comm": "codex",
+      "executable_path": "/Users/guanjunhui/.codex/packages/standalone/releases/0.153.4-aarch64-apple-darwin/bin/codex",
+      "native_executable_matches": true
+    },
+    "tui": {
+      "pid": 93188,
+      "ppid": 93153,
+      "uid": 501,
+      "started_at_local": "Sat Sep 12 10:50:06 2026",
+      "comm": "codex",
+      "executable_path": "/Users/guanjunhui/.codex/packages/standalone/releases/0.153.4-aarch64-apple-darwin/bin/codex",
+      "native_executable_matches": true
+    },
+    "socket": {
+      "path": "/Users/guanjunhui/.codex/app-server-control/app-server-control.sock",
+      "exists": true,
+      "dev": 16777234,
+      "ino": 161019774,
+      "uid": 501,
+      "mode": "0600",
+      "service_holds_path": true
+    }
+  },
+  "pty": {
+    "pid": 93188,
+    "started_at": "2026-09-12T02:50:06.869780+00:00",
+    "bytes": 7008,
+    "sha256": "cb7d67b2cff7d109f0507b4b45a151e304c44a9d1913137158f502d23f22cbec",
+    "cursor_position_replies": 1,
+    "inputs": [],
+    "exit_code": null
+  },
+  "scope": "exclusive fresh owned PTY, before any input; not general UI attachment"
+}

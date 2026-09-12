@@ -1,0 +1,27 @@
+F
+======================================================================
+FAIL: test_active_case_is_04_and_earlier_cases_are_rejected (native_standalone_test.NativeStandaloneTests.test_active_case_is_04_and_earlier_cases_are_rejected)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 57, in test_active_case_is_04_and_earlier_cases_are_rejected
+    probe.validate_binding(value, ROOT, "sd-qual-04")
+    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone.py", line 88, in validate_binding
+    check(safe(root) and nonce == ACTIVE_NONCE and value["nonce"] == nonce and value["controller_thread_id"] == root, "root_nonce_mismatch")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone.py", line 43, in check
+    raise ProbeError(code)
+native_standalone.ProbeError: root_nonce_mismatch
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_test.py", line 59, in test_active_case_is_04_and_earlier_cases_are_rejected
+    self.fail("registered new case rejected: " + error.code)
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: registered new case rejected: root_nonce_mismatch
+
+----------------------------------------------------------------------
+Ran 1 test in 0.001s
+
+FAILED (failures=1)

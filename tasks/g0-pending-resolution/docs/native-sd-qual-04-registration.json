@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "scope": "offline_sd04_runtime_registration_only",
+  "contract_commit": "04758d5",
+  "parent_controller_commit": "59a2d67f94f4998985e9ca4da788a7628650685a",
+  "active_nonce": "sd-qual-04",
+  "case": "tasks/g0-pending-resolution/data/sd-qual-04",
+  "job": "tasks/g0-macos/data/test-repo/tasks/pending-resolution/data/sd-qual-04",
+  "markers": {
+    "ready": "SD_QUAL_04_READY",
+    "ack": "SD_QUAL_04_ACK",
+    "command_id": "sd-qual-04-ack-1"
+  },
+  "rejected_runtime_nonces": [
+    "sd-qual-01",
+    "sd-qual-02",
+    "sd-qual-03"
+  ],
+  "historical_regression": "actual sd03 archived binding/attempt cloned in TemporaryDirectory, with explicit test-only c.NONCE=sd-qual-03; original files unchanged",
+  "red": {
+    "source_commit": "59a2d67f94f4998985e9ca4da788a7628650685a",
+    "count": 2,
+    "exit_code": 1,
+    "failures": 2,
+    "elapsed_seconds": 0.129
+  },
+  "green_targeted": {
+    "count": 2,
+    "exit_code": 0,
+    "elapsed_seconds": 0.141
+  },
+  "green_related": {
+    "command": "python3 -B -m unittest native_sd_collect_test native_sd_pty_test native_sd_control_test",
+    "count": 38,
+    "exit_code": 0,
+    "elapsed_seconds": 0.901
+  },
+  "native_or_model_started": false,
+  "helper_modified": false,
+  "pty_modified": false,
+  "raw_clock_windows_modified": false,
+  "temporary_files_remaining": [],
+  "source_sha256": {
+    "native_sd_control.py": "ae9b5334dc40d40d10efb1f37b4fcf8b72fe26d672909270bb75672d43cb076b",
+    "native_sd_collect.py": "f5f65bbbe4ac1a8378348447d434f2515dfa3b23ac5f332008d3e1f7292eee60",
+    "native_sd_pty.py": "0ec348a89cfe1d5b41e23885f20a4323d2631af300ad577fa2e8726e16d8d5c5",
+    "native_sd_clock.py": "c16c8d0d0d9b1652d18606230351493f3cea33211f8b4d3323bb5b6bf2466087",
+    "delivery_audit.py": "59d8129d5409fb7fb5687a5107c81f9d85a63b8f718e4dd22cab660517af87c6"
+  }
+}

@@ -1,4 +1,4 @@
-"""One fixed sd-qual-03 qualification controller; not a product launcher."""
+"""One fixed sd-qual-04 qualification controller; not a product launcher."""
 import datetime as dt
 import argparse
 import hashlib
@@ -15,9 +15,10 @@ import native_sd_collect as c
 from native_sd_collect import require_live_processes, same_process
 from native_sd_pty import NativePTY, InputSequence, stamp
 from native_sd_clock import CLOCK_IMPL, continuous_ns, clock_pair
+from delivery_audit import canonical, parse
 
-CASE = c.BASE/'tasks/g0-pending-resolution/data/sd-qual-03'
-JOB = c.REPO/'tasks/pending-resolution/data/sd-qual-03'
+CASE = c.BASE/'tasks/g0-pending-resolution/data/sd-qual-04'
+JOB = c.REPO/'tasks/pending-resolution/data/sd-qual-04'
 HELPER = c.BASE/'tasks/g0-pending-resolution/scripts/native_standalone.py'
 AUDIT = HELPER.with_name('delivery_audit.py')
 DOCS = Path(__file__).resolve().parents[1]/'docs'
@@ -80,6 +81,20 @@ def helper_rpc_error_fields(raw):
             or not c.integer(error['message_bytes'],0,65536) or type(error['message_sha256']) is not str
             or re.fullmatch(r'[0-9a-f]{64}',error['message_sha256']) is None): return None
     return {key:error[key] for key in ('method','request_id','code','message_bytes','message_sha256')}
+
+
+def canonical_binding_sha(path):
+    fd=os.open(path,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK)
+    with os.fdopen(fd,'rb') as stream:
+        info=os.fstat(stream.fileno())
+        if (not stat.S_ISREG(info.st_mode) or stat.S_IMODE(info.st_mode)!=0o600
+                or info.st_uid!=os.getuid() or info.st_nlink!=1 or not 0<info.st_size<=65536):
+            raise ValueError('untrusted binding file')
+        raw=stream.read(65537)
+        if not 0<len(raw)<=65536: raise ValueError('binding file size changed')
+    value=parse(raw.decode('utf-8'))
+    if type(value) is not dict: raise ValueError('invalid binding object')
+    return hashlib.sha256(canonical(value).encode('utf-8')).hexdigest()
 
 
 def read_send_attempt(root,boot_id,binding_sha,begin_ns):
@@ -166,11 +181,11 @@ def native_ready(root,turn,since,through,now=None):
             if event.get('type')!='event_msg': continue
             payload=event.get('payload',{})
             if (type(payload) is not dict or payload.get('type')!='task_complete'
-                    or payload.get('turn_id')!=turn or payload.get('last_agent_message')!='SD_QUAL_03_READY'):
+                    or payload.get('turn_id')!=turn or payload.get('last_agent_message')!='SD_QUAL_04_READY'):
                 continue
             if lo<=c.epoch_ns(event.get('timestamp'))<=hi:
                 found.append({'at':event['timestamp'],'turn_id':turn,'type':'task_complete',
-                              'last_agent_message':'SD_QUAL_03_READY'})
+                              'last_agent_message':'SD_QUAL_04_READY'})
     if len(found)>1: raise ValueError('ambiguous native completion event')
     return found[0] if found else None
 
@@ -237,16 +252,16 @@ def read_job():
 def fixed_prompt():
     start=f'{c.GO} start --dir {JOB} --nonce {c.NONCE} --delay 40s --controller-thread "$CODEX_THREAD_ID"'
     inspect=f'{c.GO} inspect --dir {JOB} --nonce {c.NONCE}'
-    ack=f'{c.GO} ack --dir {JOB} --nonce {c.NONCE} --controller-thread "$CODEX_THREAD_ID" --revision 1 --event-hash ACTUAL_EVENT_HASH --command-id sd-qual-03-ack-1 --decision handled'
-    return ('这是用户已授权的固定原生资格实验，仅有一个合成任务 sd-qual-03，目录已预建且工具已审查。'
+    ack=f'{c.GO} ack --dir {JOB} --nonce {c.NONCE} --controller-thread "$CODEX_THREAD_ID" --revision 1 --event-hash ACTUAL_EVENT_HASH --command-id sd-qual-04-ack-1 --decision handled'
+    return ('这是用户已授权的固定原生资格实验，仅有一个合成任务 sd-qual-04，目录已预建且工具已审查。'
             '现在用原生 exec_command 实际执行且仅执行一次以下命令：`'+start+'`。'
-            '该命令快速返回 started 后，你必须立刻结束当前响应，final 只写 SD_QUAL_03_READY。'
+            '该命令快速返回 started 后，你必须立刻结束当前响应，final 只写 SD_QUAL_04_READY。'
             '当前轮不要等待结果、不要读/轮询作业、不要调用 sleep/wait、不要创建 Goal 或子Agent，不要改文件/配置/权限，也不要使用MCP。'
-            '之后只有当本线程收到代表 sd-qual-03 完成的原生 standalone toolOutput 时才执行下一步：'
+            '之后只有当本线程收到代表 sd-qual-04 完成的原生 standalone toolOutput 时才执行下一步：'
             '用真实工具执行 `'+inspect+'`，核对 nonce、controller_thread、revision=1、completed result和未取消，取得实际 event_hash；'
             '把 ACTUAL_EVENT_HASH 替换为该真实返回字段，再执行 `'+ack+'`。'
             '必须使用真实原生 CODEX_THREAD_ID，不得伪造身份或再次start。'
-            '看到真实 acknowledged 且 effect_count=1 后，final 只写 SD_QUAL_03_ACK。'
+            '看到真实 acknowledged 且 effect_count=1 后，final 只写 SD_QUAL_04_ACK。'
             '现在只做首次start与READY final，后续外部工具结果由合法原生通道送达，无需你主动继续。')
 
 
@@ -392,7 +407,7 @@ def run(helper_sha,audit_sha):
     def helper(mode,timeout):
         nonlocal helper_proc
         note(mode); begin_ns=continuous_ns(); wall=stamp()
-        binding_sha=c.sha(CASE/'binding.json')
+        binding_sha=canonical_binding_sha(CASE/'binding.json')
         deadline_ns=begin_ns+int(timeout*1000000000); attempt_seen=False
         helper_proc=subprocess.Popen([sys.executable,'-B',str(HELPER),mode,'--case',str(CASE),'--root',record['root'],
                                       '--nonce',c.NONCE],stdout=subprocess.PIPE,stderr=subprocess.PIPE)
@@ -587,7 +602,7 @@ def run(helper_sha,audit_sha):
         record['ended_clock']=clock_pair()
         record['all_owned_native_exited']=all(p is None or p._poll() is not None for p in (service,tui))
         private_json(CASE/'controller-result.json',record)
-        private_json(DOCS/'native-sd-qual-03-controller.json',record)
+        private_json(DOCS/'native-sd-qual-04-controller.json',record)
         for p in (service,tui):
             if p and p._poll() is not None: p.close()
         print(json.dumps({'nonce':c.NONCE,'stage':'finished','helper_ok':helper_ok,

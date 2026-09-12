@@ -71,6 +71,8 @@ sd03 已取得真实 initial、同 root 的 READY/pending 屏障及原服务 pre
 
 运行前须独立复核专用摘要修复，以及真实 controller 文件序列化→helper `issue_once`→控制器读取发送意图的离线整链回归；随后冻结 helper/controller 的唯一 active nonce 为 sd04 并完成主树新鲜验证。历史 sd02/sd03 回归只可在隔离测试内显式选择对应 nonce，不改变原文件、旧期限或运行入口，不增加可绕过资格的参数。准入仅限此受控原生样本，不计作通用附着或完整 G0。
 
+离线门禁已完成：controller `59a2d67`/`ef949c3` 与 helper 整链 `6e32da75`、nonce 冻结 `9527c495` 均经独立审查 PASS；主树已对齐上述脚本与收据，case/job 目录按 0700 新建。尚未下发 sd04 原生运行，sd03 不重试。
+
 ## 接口解释与判据
 
 官方 `turn/start.toolOutput` 接受客户端实际执行的独立工具输出，`input=[]`，以 `functionCallOutput` 持久化；不要求存在旧的 pending tool call。旧研究对“必须补回旧 pending call”的概括不作为本轮排除此接口的依据。[官方 App Server 说明](https://learn.chatgpt.com/docs/app-server#start-a-turn)
@@ -88,4 +90,4 @@ sd03 已取得真实 initial、同 root 的 READY/pending 屏障及原服务 pre
 
 新建材料按本任务 `plans/`、`docs/`、`scripts/`、`data/`、`tmp/` 分开；`tmp/` 只放可回收 worktree、下载和测试缓存。源码、必要运行记录和可审查证据保留。收尾列清单，核对归属后清理；不删除原有任务材料或配置。
 
-状态：已完成离线对账检查器及修正后研究报告的独立复核；固定当前会话的原生资格工具正在实施和复核。原生准入尚未放行，三项均未新增完整通过声明。
+状态：sd04 的 helper/controller 已冻结为唯一运行 nonce，摘要修复与整链回归已独立复核；主树新鲜验证已完成。原生 sd04 尚未下发，不计作完整 G0 通过。

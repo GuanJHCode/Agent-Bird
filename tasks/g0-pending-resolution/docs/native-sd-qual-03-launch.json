@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "nonce": "sd-qual-03",
+  "scope": "restricted_execution_stdout_metadata_transcription",
+  "main_commit": "318da87",
+  "code_commit": "c2aca6c",
+  "preflight_passed": true,
+  "preflight_clock": {
+    "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+    "mono_ns": 4103974005013708,
+    "wall_ns": 1789181406329738000
+  },
+  "python_version": "3.13.7",
+  "websockets_version": "16.0",
+  "native_cli_version": "codex-cli 0.153.4",
+  "controller_pid": 93153,
+  "caffeinate": {
+    "pid": 93155,
+    "uid": 501,
+    "birth": "Sat Sep 12 10:50:06 2026",
+    "comm": "/usr/bin/caffeinate",
+    "argv": [
+      "/usr/bin/caffeinate",
+      "-i",
+      "-t",
+      "300",
+      "-w",
+      "93153"
+    ]
+  },
+  "source_sha256": {
+    "native_sd_control.py": "a9c4bc203ed2d4e704aa03613f67a1101d1c00ebae7d449acf4f1e348ef7d80a",
+    "native_sd_collect.py": "9770a53904febd21e20ef42b55a3cf12140455313837a11f1d3eeb883b7afe09",
+    "native_sd_pty.py": "0ec348a89cfe1d5b41e23885f20a4323d2631af300ad577fa2e8726e16d8d5c5",
+    "native_sd_clock.py": "c16c8d0d0d9b1652d18606230351493f3cea33211f8b4d3323bb5b6bf2466087",
+    "native_standalone.py": "7ac746213b306c3c0e0b7a3b784c79fad51cb7cbca488e22be668d621c0a89dc",
+    "delivery_audit.py": "59d8129d5409fb7fb5687a5107c81f9d85a63b8f718e4dd22cab660517af87c6"
+  },
+  "native_binary_sha256": "b973d440acac501fd2594a43e7ca9ce41e0a65b9dfb28d0d7a7837c99e1261e3",
+  "go_binary_sha256": "feb9b9ad969abca5ff35db28c0f0d8d920dc0778d7aac68a90952900e989a285",
+  "bytecode_disabled": true,
+  "preflight_default_socket_case_job_absent": true,
+  "ordinary_native_argv": {
+    "service": [
+      "codex",
+      "app-server",
+      "--listen",
+      "unix://"
+    ],
+    "tui": [
+      "codex"
+    ]
+  },
+  "outer_exec_exit_code": 2
+}

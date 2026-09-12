@@ -1,0 +1,109 @@
+{
+  "version": 1,
+  "nonce": "sd-qual-03",
+  "original_case_unchanged": true,
+  "artifacts": [
+    {
+      "source": "tasks/g0-pending-resolution/data/sd-qual-03/binding.json",
+      "archive": "native-sd-qual-03-binding.json",
+      "bytes": 1668,
+      "sha256": "18a053a895178db5472b3ea49cdf71da00f60213cc60bc26788a6fb8875da122"
+    },
+    {
+      "source": "tasks/g0-pending-resolution/data/sd-qual-03/controller-evidence.json",
+      "archive": "native-sd-qual-03-controller-evidence.json",
+      "bytes": 11653,
+      "sha256": "bcb5a130fddf7fc68ba03e78e4296fcf2fad6852726c7b8eeac09991859fe6df"
+    },
+    {
+      "source": "tasks/g0-pending-resolution/data/sd-qual-03/controller-result.json",
+      "archive": "native-sd-qual-03-controller.json",
+      "bytes": 9664,
+      "sha256": "00efa81be7fe9098189ec39723df394218bab1ea956fca06dfda086a3944ccfe"
+    },
+    {
+      "source": "tasks/g0-pending-resolution/data/sd-qual-03/initial-submit.json",
+      "archive": "native-sd-qual-03-initial-submit.json",
+      "bytes": 1123,
+      "sha256": "0a43e82cca7935e37a5cac822d2f326b77f1b9e0ecb5e4f41d5bc05f2bcc9622"
+    },
+    {
+      "source": "tasks/g0-pending-resolution/data/sd-qual-03/intent.json",
+      "archive": "native-sd-qual-03-intent.json",
+      "bytes": 399,
+      "sha256": "c19498a481113eaa4c2488d723077e595d2046b1c10bef3fffed778665014600"
+    },
+    {
+      "source": "tasks/g0-pending-resolution/data/sd-qual-03/native-origin.json",
+      "archive": "native-sd-qual-03-native-origin.json",
+      "bytes": 1298,
+      "sha256": "fbbb16dae605a2adf3becd9ffe44352acb2ba0b10b5d9f33778d8ffceee15daa"
+    },
+    {
+      "source": "tasks/g0-pending-resolution/data/sd-qual-03/prepare-meta.json",
+      "archive": "native-sd-qual-03-prepare-meta.json",
+      "bytes": 951,
+      "sha256": "81bfabc448d941b2f48b0ffee1abff987a35629dcf5578b0535bce6c80abcb32"
+    },
+    {
+      "source": "tasks/g0-pending-resolution/data/sd-qual-03/producer.json",
+      "archive": "native-sd-qual-03-producer.json",
+      "bytes": 418,
+      "sha256": "884bba921ccb5180194115fbabae1d1f538b644114c224f50c4060afe011208c"
+    },
+    {
+      "source": "tasks/g0-pending-resolution/data/sd-qual-03/send-attempt.json",
+      "archive": "native-sd-qual-03-send-attempt.json",
+      "bytes": 447,
+      "sha256": "a84628111b7b97d3d5818c4d4dbb94de563acb336f2fed7722ea51af7a154ab6"
+    }
+  ],
+  "binding_hash_contract": {
+    "raw_sha256": "18a053a895178db5472b3ea49cdf71da00f60213cc60bc26788a6fb8875da122",
+    "canonical_sha256": "dab2c091901e473b5783ea1a43c5a11600f9541a2d308d95dedc18deeb73d15c",
+    "attempt_binding_sha256": "dab2c091901e473b5783ea1a43c5a11600f9541a2d308d95dedc18deeb73d15c",
+    "controller_callsite": "native_sd_control.py:395 c.sha(CASE/binding.json)",
+    "receiver_failure": "native_sd_control.py:101 read_send_attempt",
+    "classification": "offline_exact_bytes_contract_mismatch; wire_send_unknown"
+  },
+  "cleanup_verification": {
+    "protected_after_cleanup": {
+      "global_config": {
+        "exists": true,
+        "sha256": "81f17c8213836b666fcbf970737301e38ddc80856a1c81c958a81c35c19360ef",
+        "bytes": 21358
+      },
+      "login_profile": {
+        "exists": true,
+        "sha256": "9182af26fc3d20697ba0db018bc666dcb326686392db102422e72a4f5b12f549",
+        "bytes": 593
+      },
+      "test_config": {
+        "exists": false
+      },
+      "test_hooks": {
+        "exists": true,
+        "sha256": "666243bf0789d012c7035ff7ef7203735df95fd79eafe763fa5013277f58b917",
+        "bytes": 1393
+      },
+      "trusted_hook_binary": {
+        "exists": true,
+        "sha256": "62e41afd87e1408854490bf6a716cfe846fff0021179a39d163d6e02254ba779",
+        "bytes": 3433442
+      },
+      "existing_daemon_settings": {
+        "exists": true,
+        "sha256": "922e9ed2521a417109eae8429696e6f7c95e06e7a2acd1cf5b2c0326b73d9b40",
+        "bytes": 34
+      }
+    },
+    "protected_unchanged_from_initial": true,
+    "socket_absent": true,
+    "task_pycache_absent": true
+  },
+  "retained_paths": [
+    "tasks/g0-pending-resolution/data/sd-qual-03",
+    "tasks/g0-macos/data/test-repo/tasks/pending-resolution/data/sd-qual-03"
+  ],
+  "deleted_temporary_files": []
+}

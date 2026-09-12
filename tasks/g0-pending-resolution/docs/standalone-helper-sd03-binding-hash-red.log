@@ -1,0 +1,25 @@
+F
+======================================================================
+FAIL: test_real_writer_helper_attempt_and_controller_reader_share_one_binding_digest (native_standalone_hash_test.BindingHashBoundaryTest.test_real_writer_helper_attempt_and_controller_reader_share_one_binding_digest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_hash_test.py", line 123, in test_real_writer_helper_attempt_and_controller_reader_share_one_binding_digest
+    window = control.read_send_attempt(binding["controller_thread_id"], binding["boot_id"], controller_hash, began)
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/tmp/binding-hash-39/native_sd_control.py", line 101, in read_send_attempt
+    raise ValueError('invalid original helper attempt clock/binding')
+ValueError: invalid original helper attempt clock/binding
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/tmp/standalone/tasks/g0-pending-resolution/scripts/native_standalone_hash_test.py", line 125, in test_real_writer_helper_attempt_and_controller_reader_share_one_binding_digest
+    self.fail("controller rejected the real helper publication: " + str(error) +
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+              "; controller_hash=" + controller_hash + "; helper_hash=" + attempt["binding_sha256"])
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: controller rejected the real helper publication: invalid original helper attempt clock/binding; controller_hash=18a053a895178db5472b3ea49cdf71da00f60213cc60bc26788a6fb8875da122; helper_hash=dab2c091901e473b5783ea1a43c5a11600f9541a2d308d95dedc18deeb73d15c
+
+----------------------------------------------------------------------
+Ran 1 test in 0.096s
+
+FAILED (failures=1)

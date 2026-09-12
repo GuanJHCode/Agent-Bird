@@ -1,0 +1,70 @@
+{
+  "scope": "offline clone with real serialization/hash/Case/attempt publication and receiver; no native run",
+  "helper_commit": "c2b30e0cf98a3c9bb501822bb81f44294fdb6c70",
+  "native_facts_commit": "6f3054a",
+  "red_controller_commit": "39e1d36d1ae65d29cc0589d5821ded3170bfdd0e",
+  "green_controller_commit": "59a2d67f94f4998985e9ca4da788a7628650685a",
+  "green_controller_sha256": "dac0770ac19ca8dd9bfa81ac172cd6da41672f7d57865b46b2621be290a239a7",
+  "source_sha256": {
+    "native_standalone.py": "7ac746213b306c3c0e0b7a3b784c79fad51cb7cbca488e22be668d621c0a89dc",
+    "native_standalone_hash_test.py": "a49b4f6f806a50ee324893e236e3d5c346d7481753ef29d557447a9fc7030e8d"
+  },
+  "original_files_checked_after_test": [
+    {
+      "name": "binding.json",
+      "bytes": 1668,
+      "sha256": "18a053a895178db5472b3ea49cdf71da00f60213cc60bc26788a6fb8875da122",
+      "matches_frozen_native_facts": true,
+      "included_in_test_fixture": true
+    },
+    {
+      "name": "controller-evidence.json",
+      "bytes": 11653,
+      "sha256": "bcb5a130fddf7fc68ba03e78e4296fcf2fad6852726c7b8eeac09991859fe6df",
+      "matches_frozen_native_facts": true,
+      "included_in_test_fixture": true
+    },
+    {
+      "name": "producer.json",
+      "bytes": 418,
+      "sha256": "884bba921ccb5180194115fbabae1d1f538b644114c224f50c4060afe011208c",
+      "matches_frozen_native_facts": true,
+      "included_in_test_fixture": true
+    },
+    {
+      "name": "intent.json",
+      "bytes": 399,
+      "sha256": "c19498a481113eaa4c2488d723077e595d2046b1c10bef3fffed778665014600",
+      "matches_frozen_native_facts": true,
+      "included_in_test_fixture": true
+    },
+    {
+      "name": "prepare-meta.json",
+      "bytes": 951,
+      "sha256": "81bfabc448d941b2f48b0ffee1abff987a35629dcf5578b0535bce6c80abcb32",
+      "matches_frozen_native_facts": true,
+      "included_in_test_fixture": true
+    },
+    {
+      "name": "send-attempt.json",
+      "bytes": 447,
+      "sha256": "a84628111b7b97d3d5818c4d4dbb94de563acb336f2fed7722ea51af7a154ab6",
+      "matches_frozen_native_facts": true,
+      "included_in_test_fixture": false
+    }
+  ],
+  "raw_binding_sha256": "18a053a895178db5472b3ea49cdf71da00f60213cc60bc26788a6fb8875da122",
+  "canonical_binding_sha256": "dab2c091901e473b5783ea1a43c5a11600f9541a2d308d95dedc18deeb73d15c",
+  "tests": {
+    "red_count": 1,
+    "red_elapsed_seconds": 0.096,
+    "green_count": 1,
+    "green_elapsed_seconds": 0.023
+  },
+  "original_attempt_copied": false,
+  "fresh_test_attempt_only": true,
+  "second_send_rejected": true,
+  "wire_turn_start_count": 1,
+  "unrelated_suites_repeated": false,
+  "compile_pass": true
+}

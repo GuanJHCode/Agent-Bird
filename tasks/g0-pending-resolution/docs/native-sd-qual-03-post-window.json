@@ -1,0 +1,157 @@
+{
+  "version": 1,
+  "nonce": "sd-qual-03",
+  "scope": "independent_post_window_read_only_same_service_and_owned_cleanup",
+  "initial_window_pass": false,
+  "current_display_verified": false,
+  "diagnostic_started": {
+    "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+    "mono_ns": 4104300241981458,
+    "wall_ns": 1789181732567887000
+  },
+  "attempt_original_mono_ns": 4104027034350250,
+  "attempt_original_deadline_ns": 4104147034350250,
+  "source_service_pid": 93158,
+  "controller_thread_id": "01a09385-af58-7d51-bc08-86449c36b537",
+  "prior_turn_id": "01a09385-b32d-78f2-b546-2c6280842022",
+  "probes": [
+    "initialize",
+    "server/diagnostics",
+    "remoteControl/status/read",
+    "thread/read"
+  ],
+  "new_turn_or_resume_requested": false,
+  "service_before": {
+    "pid": 93158,
+    "ppid": 1,
+    "uid": 501,
+    "started_at_local": "Sat Sep 12 10:50:06 2026",
+    "comm": "codex",
+    "executable_path": "/Users/guanjunhui/.codex/packages/standalone/releases/0.153.4-aarch64-apple-darwin/bin/codex",
+    "native_executable_matches": true
+  },
+  "tui_before": null,
+  "diagnostics_pid": 93158,
+  "remote_control_status": "disabled",
+  "history": {
+    "thread": {
+      "id": "01a09385-af58-7d51-bc08-86449c36b537",
+      "historyMode": "paginated",
+      "turns": [
+        {
+          "id": "01a09385-b32d-78f2-b546-2c6280842022",
+          "status": "completed",
+          "itemsView": "full",
+          "items": [
+            {
+              "id": "01a09385-be37-71f3-b8db-a545a968860d",
+              "type": "userMessage"
+            },
+            {
+              "id": "msg_07e6708f5f98a047016aa4bde522bc87d0bb11c5e0f3219ca7",
+              "type": "agentMessage"
+            },
+            {
+              "id": "exec-8df70adf-63d1-4929-b6ae-4b4ce365b0f3",
+              "type": "commandExecution"
+            },
+            {
+              "id": "msg_07e6708f5f98a047016aa4bdec024087d0aa58d273642ccc24",
+              "type": "agentMessage"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "facts": {
+    "history_match": false,
+    "new_turn_completed": false,
+    "ack_final_marker": false,
+    "prior_tools_terminal": true,
+    "session_id": "01a09385-af58-7d51-bc08-86449c36b537",
+    "fresh_root_family": true,
+    "prior_started_at": 1789181408,
+    "prior_completed_at": 1789181420,
+    "root_idle": true,
+    "all_tools_and_turns_terminal": true,
+    "matching_turn_is_last": false
+  },
+  "thread_metadata": {
+    "id": "01a09385-af58-7d51-bc08-86449c36b537",
+    "sessionId": "01a09385-af58-7d51-bc08-86449c36b537",
+    "source": "vscode",
+    "cliVersion": "0.153.4",
+    "parentThreadId": null,
+    "forkedFromId": null,
+    "ephemeral": false,
+    "historyMode": "paginated"
+  },
+  "thread_status_type": "idle",
+  "rpc_frames": 6,
+  "rpc_bytes": 8431,
+  "last_frame_sha256": "c9720536a99a9006f1abb837147c4a80f54c41aff2d112742305cba15f5ff360",
+  "server_requests_seen": 0,
+  "go_inspection": {
+    "version": 1,
+    "status": "completed",
+    "nonce": "sd-qual-03",
+    "controller_thread": "01a09385-af58-7d51-bc08-86449c36b537",
+    "revision": 1,
+    "task_revision": 1,
+    "cancelled": false,
+    "event_hash": "5a595ce8e3798df227312b476cd11021c0bb09f809b42235a17dfdcb27514ef0",
+    "result": {
+      "version": 1,
+      "status": "completed",
+      "nonce": "sd-qual-03",
+      "count": 1
+    },
+    "ack": null
+  },
+  "diagnostic_finished": {
+    "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+    "mono_ns": 4104300476149125,
+    "wall_ns": 1789181732802054000
+  },
+  "diagnostic_status": "recorded",
+  "probe_closed": true,
+  "service_before_cleanup": {
+    "pid": 93158,
+    "ppid": 1,
+    "uid": 501,
+    "started_at_local": "Sat Sep 12 10:50:06 2026",
+    "comm": "codex",
+    "executable_path": "/Users/guanjunhui/.codex/packages/standalone/releases/0.153.4-aarch64-apple-darwin/bin/codex",
+    "native_executable_matches": true
+  },
+  "service_unix_fd_summary_before_cleanup": {
+    "exit_code": 0,
+    "bytes": 574,
+    "sha256": "762593e14158ce1fcb2dcbbeb0c6ccc60167905a2557332eddc2281fb57ff73f",
+    "fd_count": 5
+  },
+  "other_task_processes_before_cleanup": {
+    "93153": false,
+    "93155": false,
+    "93188": false,
+    "93919": false
+  },
+  "cleanup_basis": "original_pid_birth_executable_sha_socket_inode_match; owned_tui_and_probe_closed; no_actual_other_client_identified; parent_owned_service_cleanup_authorization",
+  "service_signal": "SIGINT",
+  "signal_clock": {
+    "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+    "mono_ns": 4104300607377583,
+    "wall_ns": 1789181732933284000
+  },
+  "service_after_sigint": null,
+  "service_cleanup_elapsed_ns": 65643042,
+  "service_final": null,
+  "socket_remaining": false,
+  "ended": {
+    "clock_impl": "clock_gettime_ns(CLOCK_MONOTONIC_RAW)",
+    "mono_ns": 4104300675915208,
+    "wall_ns": 1789181733001821000
+  },
+  "socket_absent_final": true
+}

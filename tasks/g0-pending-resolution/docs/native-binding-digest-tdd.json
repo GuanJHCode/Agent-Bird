@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "scope": "offline_controller_binding_boundary; no_native_no_resend",
+  "fixed_red_source_commit": "39e1d36d1ae65d29cc0589d5821ded3170bfdd0e",
+  "red_actual_sd03_clone": {
+    "status": "expected_rejection",
+    "raw_binding_sha256": "18a053a895178db5472b3ea49cdf71da00f60213cc60bc26788a6fb8875da122",
+    "attempt_binding_sha256": "dab2c091901e473b5783ea1a43c5a11600f9541a2d308d95dedc18deeb73d15c",
+    "exception_type": "ValueError",
+    "source_frames": [
+      {
+        "function": "read_send_attempt",
+        "line": 101
+      }
+    ],
+    "clock_fixture": "original_attempt_mono_ns+1; original_files_not_modified"
+  },
+  "red_new_tests": {
+    "count": 2,
+    "exit_code": 1,
+    "errors": 2,
+    "reason": "canonical_binding_sha absent",
+    "elapsed_seconds": 0.005
+  },
+  "green_targeted": {
+    "command": "python3 -B -m unittest native_sd_control_test.ControlTests.test_actual_sd03_binding_canonical_digest_matches_immutable_attempt native_sd_control_test.ControlTests.test_binding_digest_rejects_ambiguous_json_and_untrusted_files",
+    "count": 2,
+    "exit_code": 0,
+    "elapsed_seconds": 0.003
+  },
+  "green_related": {
+    "command": "python3 -B -m unittest native_sd_collect_test native_sd_pty_test native_sd_control_test",
+    "count": 37,
+    "exit_code": 0,
+    "elapsed_seconds": 0.798
+  },
+  "scope_boundary": {
+    "production_change": "helper() uses canonical_binding_sha(CASE/binding.json); generic c.sha remains raw",
+    "file_validation": "actual fd regular/0600/current uid/nlink1/non-symlink/bounded 65536 bytes; strict UTF-8 JSON object; duplicate/nonfinite rejected",
+    "canonical_implementation": "pinned delivery_audit.parse + delivery_audit.canonical",
+    "same_actual_binding_and_attempt": "archived sd03 values cloned into private test files; never rewrite original case",
+    "cross_component_issue_once_regression": "owned separately by retained_host_impl; this receipt covers controller module only",
+    "production_nonce": "sd-qual-03",
+    "native_execution": false
+  },
+  "source_sha256": {
+    "native_sd_control.py": "dac0770ac19ca8dd9bfa81ac172cd6da41672f7d57865b46b2621be290a239a7",
+    "native_sd_collect.py": "9770a53904febd21e20ef42b55a3cf12140455313837a11f1d3eeb883b7afe09",
+    "native_sd_pty.py": "0ec348a89cfe1d5b41e23885f20a4323d2631af300ad577fa2e8726e16d8d5c5",
+    "native_sd_clock.py": "c16c8d0d0d9b1652d18606230351493f3cea33211f8b4d3323bb5b6bf2466087",
+    "delivery_audit.py": "59d8129d5409fb7fb5687a5107c81f9d85a63b8f718e4dd22cab660517af87c6"
+  }
+}
