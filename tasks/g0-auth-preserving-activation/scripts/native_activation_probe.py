@@ -448,14 +448,30 @@ def _final_receipt_complete(raw: dict[str, Any], established: dict[str, Any] | N
             if raw.get(name) != established.get(name):
                 return False
         records = raw.get("backend_records")
-        if not isinstance(records, list) or not any(
-            isinstance(row, dict) and row.get("lease_id") == established.get("lease_id")
-            for row in records
-        ):
+        if not isinstance(records, list):
             return False
         transport = raw.get("transport") if isinstance(raw.get("transport"), dict) else {}
         protocol_rows = transport.get("protocol")
-        if not isinstance(protocol_rows, list) or not any(
+        if not isinstance(protocol_rows, list):
+            return False
+        matching_protocol = [
+            row for row in protocol_rows
+            if isinstance(row, dict)
+            and row.get("connection_id") == established.get("connection_id")
+            and row.get("epoch") == established.get("epoch")
+        ]
+        if not matching_protocol:
+            return False
+        matching_records = [
+            row for row in records
+            if isinstance(row, dict) and row.get("lease_id") == established.get("lease_id")
+        ]
+        if not matching_records or not any(
+            _backend_identity_matches(row, matching_protocol, established.get("backend", {}))
+            for row in matching_records
+        ):
+            return False
+        if not any(
             isinstance(row, dict)
             and row.get("connection_id") == established.get("connection_id")
             and row.get("epoch") == established.get("epoch")
@@ -489,6 +505,38 @@ def _final_receipt_complete(raw: dict[str, Any], established: dict[str, Any] | N
             for row in records
         )
     return raw.get("process_stopped") is True and raw.get("socket_removed") is True
+
+
+def _backend_identity_matches(
+    record: dict[str, Any], protocol_rows: list[dict[str, Any]], expected: dict[str, Any]
+) -> bool:
+    """Compare final owned backend identity with the ready lease identity."""
+
+    expected_pid = expected.get("pid")
+    expected_birth = expected.get("birth")
+    expected_executable = expected.get("executable", expected.get("exe"))
+    record_pid = record.get("pid")
+    record_birth = record.get("birth", record.get("creation_birth"))
+    record_executable = record.get("executable", record.get("creation_executable"))
+    if record_pid is None or record_birth is None or record_executable is None:
+        peers = [row.get("backend") for row in protocol_rows if isinstance(row.get("backend"), dict)]
+        if not peers:
+            return False
+        peer = peers[0]
+        record_pid = peer.get("pid")
+        record_birth = peer.get("birth")
+        record_executable = peer.get("executable", peer.get("exe"))
+        record_uid = peer.get("uid")
+    else:
+        record_uid = record.get("uid")
+    if (record_pid, record_birth, os.path.realpath(str(record_executable))) != (
+        expected_pid,
+        expected_birth,
+        os.path.realpath(str(expected_executable)),
+    ):
+        return False
+    expected_uid = expected.get("uid")
+    return expected_uid is None or record_uid is None or record_uid == expected_uid
 
 
 def _receipt_candidates(path: Path | None, directory: Path | None, pattern: str) -> list[Path]:

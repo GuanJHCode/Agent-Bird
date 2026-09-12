@@ -596,8 +596,6 @@ def render_sandbox_profile(spec: IsolationSpec, pty_slave: Path | None = None) -
         rendered_pty = _sbpl_path(Path(pty_slave))
         lines.extend(
             [
-                "(allow pseudo-tty)",
-                '(allow file-read* file-write* file-ioctl (literal "/dev/ptmx"))',
                 f'(allow file-read* file-write* file-ioctl (literal "{rendered_pty}"))',
             ]
         )
