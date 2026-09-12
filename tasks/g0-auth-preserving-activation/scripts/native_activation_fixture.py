@@ -179,6 +179,10 @@ class NativeActivationFixture:
     pins: dict[str, str]
     _owned_roots: tuple[Path, ...]
 
+    @property
+    def context(self) -> auth_isolation.IsolationContext:
+        return self.profile
+
     def cleanup(self) -> None:
         for root in self._owned_roots:
             if root.exists() and root.parent == PRIVATE_ROOT and root.name.startswith("g0-auth-"):

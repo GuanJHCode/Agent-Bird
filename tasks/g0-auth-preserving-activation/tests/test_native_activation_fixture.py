@@ -31,6 +31,7 @@ def test_prepare_builds_isolated_profile_and_supervisor_manifests(fake_native: P
     fixture = build_fixture(fake_native, options=FixtureOptions(mode="preflight", profile_id="p-a"))
     try:
         assert fixture.supervisor_root != fixture.profile_root
+        assert fixture.context is fixture.profile
         assert fixture.supervisor_root.parent == Path("/private/tmp")
         assert fixture.profile_root.parent == Path("/private/tmp")
         assert fixture.grants_dir.parent == fixture.supervisor_root
