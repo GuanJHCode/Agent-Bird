@@ -444,7 +444,7 @@ class SandboxExecTests(unittest.TestCase):
                         str(pty_profile_path),
                         sys.executable,
                         "-c",
-                        "import termios; a=termios.tcgetattr(0); termios.tcsetattr(0, termios.TCSANOW, a); print('pty-ok')",
+                        "import os, termios; null=os.open('/dev/null', os.O_WRONLY); old=os.dup(1); os.dup2(null, 1); os.write(1, b'null-ok'); os.dup2(old, 1); a=termios.tcgetattr(0); termios.tcsetattr(0, termios.TCSANOW, a); print('pty-ok')",
                     ],
                     stdin=slave,
                     stdout=slave,

@@ -581,6 +581,7 @@ def render_sandbox_profile(spec: IsolationSpec, pty_slave: Path | None = None) -
     lines.extend(
         [
             "(deny network-outbound)",
+            '(allow file-write* (literal "/dev/null"))',
             '(allow sysctl-read (sysctl-name "hw.pagesize_compat"))',
             f'(allow network-outbound (literal "{_sbpl_path(spec.backend_socket)}"))',
             f'(allow network-outbound (literal "{_sbpl_path(spec.public_socket)}"))',
