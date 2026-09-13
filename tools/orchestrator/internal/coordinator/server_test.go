@@ -59,15 +59,15 @@ func TestServerRoutesControlToBoundHostAndDurablyCollects(t *testing.T) {
 	var ready contract.HostReady
 	decodePayload(t, readyMessage, &ready)
 	writeMessage(t, conn, ipc.KindHostReconciled, "reconciled", ready.CoordinatorEpoch, contract.HostReconciled{ProducerID: ready.HostID})
+	launchMessage := readMessage(t, conn)
+	var launch contract.LaunchCommand
+	decodePayload(t, launchMessage, &launch)
 	hostStatus := callServer(t, server.SocketPath(), ipc.KindHostStatus, HostStatusRequest{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken})
 	var hostStatusResponse StatusResponse
 	decodePayload(t, hostStatus, &hostStatusResponse)
 	if hostStatusResponse.Status != "ready" {
 		t.Fatalf("host status=%#v", hostStatusResponse)
 	}
-	launchMessage := readMessage(t, conn)
-	var launch contract.LaunchCommand
-	decodePayload(t, launchMessage, &launch)
 	if launch.TaskID != "task" || launch.HostID != ready.HostID || launch.ExecutionEpoch != ready.CoordinatorEpoch {
 		t.Fatalf("launch=%#v ready=%#v", launch, ready)
 	}
