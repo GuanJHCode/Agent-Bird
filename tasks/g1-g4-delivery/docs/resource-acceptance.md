@@ -30,7 +30,7 @@ callback 首次 durable 时间在轮询中立即锁定，只匹配非 `resource-
 1. `LaunchCommand` 带稳定 `report_capability_id`。已认证 Source Host 生成 raw token、写入自己的 durable ledger 与 0600 capability，并在 spawn 前通过 Host 协议登记 token hash 和完整绑定；coordinator durable ACK 后才允许 spawn。Launch 重发必须按同一 capability ID 复用 Host ledger/capability，不能在协调器崩溃窗生成不可恢复的 raw token。
 2. capability 绑定 `run_id/task_id/attempt_id/segment_id/producer_id/work_revision/execution_epoch`；coordinator DB 只保存 token hash。Host 只向该 segment 注入绝对 `ORCHESTRATOR_REPORT_EXECUTABLE` 与 `ORCHESTRATOR_REPORT_CAPABILITY`。
 3. 同一 binary 提供 `report --capability-file ABS --request ABS`。request 是 strict JSON `{version:1,event_id,sequence,kind,payload}`，总帧 ≤64 KiB；不能复用 run control token。资源 progress payload 固定为 `{status:"resource_sample",sequence,elapsed_ms}`。最终 result payload 固定为 `{status:"completed",artifact:{id,path,size,sha256}}`；artifact 是 capability 同目录下的 0600 sentinel，report CLI 必须校验其锚定路径、大小和 hash。
-4. worker report 使用独立 segment sequence 和 `report_events` durable 表，ACK 后 helper 才成功退出；`collect` 统一投影。harness 仅通过 `collect` 的 `event_id` 与 sidecar 对账，不读写产品 DB。
+4. worker report 使用独立 segment sequence 和 `report_events` durable 表，ACK 后 helper 才成功退出；`collect` 统一投影。洪峰验收使用 `collect --include-diagnostics` 和不透明 `next_cursor` 读完所有页，再以全部 `event_id` 与 sidecar 对账；callback 时延只读默认关键事件页。harness 不读写产品 DB。
 
 每 10 秒启动的短命 `report` helper 可能被 1 秒 `ps` 采样漏掉。fixture 对每次 helper 调用采集子进程 `rusage`：CPU 全量加入场景 CPU，两个 worker 的 helper 最大 RSS 相加后保守加入 peak RSS。持续的 coordinator、Host 及其可见辅助后代通过每秒进程树采样统计；synthetic provider 及其非产品后代排除。Source Host 的 owner monitor 每 200 ms 运行一次 `/bin/ps` 身份探针，因此 callback 在 Host 退出前不开始稳态窗口；Host 未退出会直接失败，不能用每秒采样“没有碰巧抓到”推断无周期 helper。其他场景不为抓一个已知短命探针把采样成本放大五倍。
 

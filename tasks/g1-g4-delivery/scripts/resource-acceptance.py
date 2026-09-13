@@ -433,9 +433,52 @@ def task_status(ctx: dict[str, Any], task_id: str, control_file: str) -> dict[st
     return json.loads(result.stdout)
 
 
-def collect(ctx: dict[str, Any], task_id: str, control_file: str) -> dict[str, Any]:
-    result = product_call(ctx, "collect", "--task-id", task_id, "--control-file", control_file)
-    return json.loads(result.stdout)
+def collect_page(
+    ctx: dict[str, Any],
+    task_id: str,
+    control_file: str,
+    *,
+    cursor: str = "",
+    include_diagnostics: bool = False,
+) -> dict[str, Any]:
+    args = ["collect", "--task-id", task_id, "--control-file", control_file]
+    if cursor:
+        args.extend(["--cursor", cursor])
+    if include_diagnostics:
+        args.append("--include-diagnostics")
+    result = product_call(ctx, *args)
+    response = json.loads(result.stdout)
+    if response.get("version") != 1 or response.get("status") != "pending" or not isinstance(response.get("events"), list):
+        raise AcceptanceError(f"invalid collect response: {response!r}")
+    return response
+
+
+def collect_all(
+    ctx: dict[str, Any],
+    task_id: str,
+    control_file: str,
+    *,
+    include_diagnostics: bool = False,
+) -> dict[str, Any]:
+    events: list[dict[str, Any]] = []
+    cursor = ""
+    seen_cursors: set[str] = set()
+    while True:
+        page = collect_page(
+            ctx,
+            task_id,
+            control_file,
+            cursor=cursor,
+            include_diagnostics=include_diagnostics,
+        )
+        events.extend(page["events"])
+        next_cursor = page.get("next_cursor", "")
+        if not next_cursor:
+            return {"version": 1, "status": "pending", "events": events}
+        if not isinstance(next_cursor, str) or next_cursor in seen_cursors:
+            raise AcceptanceError(f"invalid collect cursor progression: {next_cursor!r}")
+        seen_cursors.add(next_cursor)
+        cursor = next_cursor
 
 
 def is_host_terminal_result(event: dict[str, Any]) -> bool:
@@ -679,7 +722,7 @@ def run_scenario(args: argparse.Namespace) -> int:
             first_durable_ns = 0
             def callback_ready() -> bool:
                 nonlocal first_durable_ns
-                response = collect(ctx, task["id"], control)
+                response = collect_page(ctx, task["id"], control)
                 if any(is_host_terminal_result(event) for event in (response.get("events") or [])):
                     first_durable_ns = time.time_ns()
                     collected.append(response)
@@ -702,7 +745,7 @@ def run_scenario(args: argparse.Namespace) -> int:
             sampler.sample()
             baseline_seen = set(sampler.seen)
             sample_for(ctx, duration, sampler)
-            pending_after_window = collect(ctx, task["id"], control)
+            pending_after_window = collect_page(ctx, task["id"], control)
             collected.append(pending_after_window)
             pending_result_preserved = any(
                 is_host_terminal_result(event)
@@ -731,7 +774,14 @@ def run_scenario(args: argparse.Namespace) -> int:
             sample_for(ctx, duration, sampler)
             for task in tasks:
                 wait_for(lambda task=task: task_status(ctx, task["id"], control).get("status") in ("result_ready", "completed", "failed"), 30, f"task did not finish: {task['id']}")
-                collected.append(collect(ctx, task["id"], control))
+                collected.append(
+                    collect_all(
+                        ctx,
+                        task["id"],
+                        control,
+                        include_diagnostics=scenario.startswith("burst-"),
+                    )
+                )
             stats_rows = collect_worker_stats(ctx)
             helper_cpu = sum(row.get("product_report_cpu_nanos", 0) for row in stats_rows)
             helper_rss = sum(row.get("product_report_max_rss_bytes", 0) for row in stats_rows)
