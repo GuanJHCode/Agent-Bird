@@ -286,6 +286,16 @@ func RunSource(ctx context.Context, cfg SourceConfig) error {
 		cancelRun()
 		return err
 	}
+	publishedThrough, err := h.readPublished()
+	if err != nil {
+		cancelRun()
+		return err
+	}
+	reconciledBody, _ := json.Marshal(contract.HostReconciled{ProducerID: producerID, PublishedThrough: publishedThrough})
+	if err = session.writeEnvelope(runCtx, ipc.KindHostReconciled, producerID+":reconciled", reconciledBody); err != nil {
+		cancelRun()
+		return err
+	}
 	var workers sync.WaitGroup
 	workerErrors := make(chan error, 2)
 	defer func() {
@@ -324,6 +334,10 @@ func RunSource(ctx context.Context, cfg SourceConfig) error {
 				return errors.New("invalid_launch_command")
 			}
 			grant.ExecutionEpoch = session.epoch
+			duplicate, acceptErr := h.acceptGrant(grant)
+			if acceptErr != nil {
+				return acceptErr
+			}
 			workers.Add(1)
 			go func() {
 				defer workers.Done()
@@ -334,6 +348,10 @@ func RunSource(ctx context.Context, cfg SourceConfig) error {
 						case <-runCtx.Done():
 						}
 					}
+				}
+				if duplicate {
+					reportError(h.recoverDuplicateGrant(runCtx, grant, session, session.epoch))
+					return
 				}
 				inv, invokeErr := cfg.InvocationProvider(runCtx, grant)
 				a := store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID}

@@ -411,3 +411,34 @@ func TestProducerSequenceRecoversOnlyFromDurableEvents(t *testing.T) {
 		}
 	}
 }
+
+func TestGrantLedgerPreventsDuplicateExecutionAndClosesUnspawnedRecovery(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "spool")
+	grant := contract.LaunchCommand{CommandID: "command-ledger", ReservationID: "reservation-ledger", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 3, GrantedActiveMS: 1000}
+	first, err := NewIPC(root, "ledger-producer")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if duplicate, err := first.acceptGrant(grant); err != nil || duplicate {
+		t.Fatalf("first accept duplicate=%v err=%v", duplicate, err)
+	}
+	recovered, err := NewIPC(root, "ledger-producer")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if duplicate, err := recovered.acceptGrant(grant); err != nil || !duplicate {
+		t.Fatalf("recovered accept duplicate=%v err=%v", duplicate, err)
+	}
+	sink := &durableSink{}
+	if err = recovered.recoverDuplicateGrant(context.Background(), grant, sink, 4); err != nil {
+		t.Fatal(err)
+	}
+	if len(sink.events) != 2 || sink.events[0].Kind != contract.EventFailed || sink.events[1].Kind != contract.EventExited {
+		t.Fatalf("events=%#v", sink.events)
+	}
+	conflict := grant
+	conflict.ReservationID = "different-reservation"
+	if _, err = recovered.acceptGrant(conflict); err == nil || err.Error() != "grant_identity_conflict" {
+		t.Fatalf("conflicting grant err=%v", err)
+	}
+}

@@ -8,12 +8,14 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -29,6 +31,7 @@ type Host struct {
 	sequenceLoaded bool
 	publishedPath  string
 	publishMu      sync.Mutex
+	ledgerMu       sync.Mutex
 	grantMu        sync.Mutex
 	reservations   map[string]time.Time
 	stopMu         sync.Mutex
@@ -381,6 +384,98 @@ func (h *Host) recordLaunchFailed(a store.Attempt, runID, taskID string, meta la
 	}
 	_, err = h.appendPhaseEvent(spool, runID, taskID, a, meta, contract.EventExited, hashText("exited:"+a.SegmentID), nil, &exit, nil)
 	return err
+}
+
+type grantLedgerRecord struct {
+	Version       int    `json:"version"`
+	CommandID     string `json:"command_id"`
+	ReservationID string `json:"reservation_id"`
+	AttemptID     string `json:"attempt_id"`
+	SegmentID     string `json:"segment_id"`
+	GrantSHA256   string `json:"grant_sha256"`
+}
+
+func (h *Host) acceptGrant(grant contract.LaunchCommand) (bool, error) {
+	if grant.CommandID == "" || grant.ReservationID == "" || grant.AttemptID == "" || grant.SegmentID == "" {
+		return false, errors.New("invalid_launch_grant")
+	}
+	identityGrant := grant
+	identityGrant.ExecutionEpoch = 0
+	body, err := json.Marshal(identityGrant)
+	if err != nil {
+		return false, err
+	}
+	record := grantLedgerRecord{Version: 1, CommandID: grant.CommandID, ReservationID: grant.ReservationID, AttemptID: grant.AttemptID, SegmentID: grant.SegmentID, GrantSHA256: hashBytes(body)}
+	recordBody, _ := json.Marshal(record)
+	recordBody = append(recordBody, '\n')
+
+	h.ledgerMu.Lock()
+	defer h.ledgerMu.Unlock()
+	dir := filepath.Join(h.spoolRoot, ".grants")
+	if err = os.Mkdir(dir, 0700); err != nil && !errors.Is(err, os.ErrExist) {
+		return false, err
+	}
+	info, err := os.Lstat(dir)
+	if err != nil || !info.IsDir() || info.Mode().Perm() != 0700 {
+		return false, errors.New("grant_ledger_unsafe")
+	}
+	path := filepath.Join(dir, hashText(grant.CommandID)+".json")
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL|syscall.O_NOFOLLOW, 0600)
+	if errors.Is(err, os.ErrExist) {
+		existing, readErr := os.ReadFile(path)
+		if readErr != nil || string(existing) != string(recordBody) {
+			return false, errors.New("grant_identity_conflict")
+		}
+		return true, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	if _, err = file.Write(recordBody); err == nil {
+		err = file.Sync()
+	}
+	if closeErr := file.Close(); err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		return false, err
+	}
+	directory, err := os.Open(dir)
+	if err != nil {
+		return false, err
+	}
+	err = directory.Sync()
+	_ = directory.Close()
+	return false, err
+}
+
+func (h *Host) recoverDuplicateGrant(ctx context.Context, grant contract.LaunchCommand, sink EventSink, epoch uint64) error {
+	a := store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID}
+	spool, err := h.spool(a)
+	if err != nil {
+		return err
+	}
+	records, err := spool.Read()
+	if err != nil {
+		return err
+	}
+	for _, record := range records {
+		if record.CommandID != grant.CommandID {
+			return errors.New("grant_event_identity_conflict")
+		}
+		if record.Kind == contract.EventExited {
+			return h.PublishAll(ctx, sink, epoch)
+		}
+	}
+	meta := launchMetadata{commandID: grant.CommandID, workRevision: grant.WorkRevision, executionEpoch: epoch}
+	if len(records) == 0 {
+		if err = h.recordLaunchFailed(a, grant.RunID, grant.TaskID, meta, errors.New("recovered_unspawned_grant")); err != nil {
+			return err
+		}
+	} else if err = h.ensureLaunchUnknown(a, grant.RunID, grant.TaskID, meta, errors.New("recovered_incomplete_grant")); err != nil {
+		return err
+	}
+	return h.PublishAll(ctx, sink, epoch)
 }
 
 func (h *Host) finishAttempt(id, status string, persistDB bool) {

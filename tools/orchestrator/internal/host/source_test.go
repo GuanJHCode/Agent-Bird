@@ -56,6 +56,11 @@ func TestRunSourceUDSLaunchAndDurableEventAck(t *testing.T) {
 			serverDone <- err
 			return
 		}
+		reconciled, readErr := ipc.Read(conn)
+		if readErr != nil || reconciled.Kind != ipc.KindHostReconciled {
+			serverDone <- errors.New("host_reconciled_missing")
+			return
+		}
 		grant := contract.LaunchCommand{CommandID: "command-1", ReservationID: "reservation-1", RunID: "run-1", TaskID: "task-1", AttemptID: "attempt-1", SegmentID: "segment-1", GrantedActiveMS: 1500}
 		grantPayload, _ := json.Marshal(grant)
 		if err = ipc.Write(conn, ipc.Envelope{Version: 1, Kind: ipc.KindLaunch, RequestID: grant.CommandID, Epoch: 7, Payload: grantPayload}); err != nil {
@@ -184,6 +189,16 @@ func TestRunSourceReplaysDurableSpoolBeforeNewLaunch(t *testing.T) {
 				serverDone <- err
 				return
 			}
+		}
+		reconciled, readErr := ipc.Read(conn)
+		if readErr != nil || reconciled.Kind != ipc.KindHostReconciled {
+			serverDone <- errors.New("host_reconciled_missing")
+			return
+		}
+		var state contract.HostReconciled
+		if json.Unmarshal(reconciled.Payload, &state) != nil || state.ProducerID != "launch-replay" || state.PublishedThrough != 2 {
+			serverDone <- errors.New("host_reconciled_mismatch")
+			return
 		}
 		serverDone <- nil
 	}()
