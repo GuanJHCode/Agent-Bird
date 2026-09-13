@@ -679,7 +679,7 @@ async def execute(static, _plan_path, plan_sha):
         )
         stage = "product-driver-submit"
         marker = prepared.spec.workspace / "g1-first-segment.marker"
-        task_id, run_id = "native-product-task", "native-product-run"
+        task_id, run_id = case_id + "-task", case_id + "-run"
         submit_path = runtime.plan.case / "g1-submit-template.json"
         submit = {
             "version": 1,
