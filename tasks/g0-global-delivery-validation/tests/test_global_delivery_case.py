@@ -133,3 +133,32 @@ def test_service_started_before_register_return_is_valid(monkeypatch,tmp_path):
             assert result['transaction']['state']=='REVOKED'
             assert result['cleanup']['backend_stopped'] and result['cleanup']['service_stopped'] and result['cleanup']['public_socket_removed']
     asyncio.run(asyncio.wait_for(scenario(),150))
+
+
+@pytest.mark.parametrize('diagnostic',['uid-zero','missing-metadata','complete-other-peer'])
+def test_ungranted_probe_metadata_is_diagnostic_only(monkeypatch,tmp_path,diagnostic):
+    from dataclasses import replace
+    runner=implementation();original=runner.base.proxy_transport.peer_identity;calls=[]
+    def probe_metadata(sock):
+        observed=original(sock);calls.append(True)
+        if diagnostic=='complete-other-peer':
+            controller=runner.base.peer_for_process(os.getpid())
+            return replace(observed,pid=controller['pid'],uid=0,birth=controller['birth'],executable=controller['executable'],
+                pid_available=True,uid_available=True,birth_available=True,executable_available=True)
+        return replace(observed,pid=None,uid=0 if diagnostic=='uid-zero' else None,birth=None,executable=None,
+            pid_available=False,uid_available=diagnostic=='uid-zero',birth_available=False,executable_available=False)
+    # Only this controller's post-EOF diagnostic reader is changed. The
+    # independent service, owner and helper retain their real OS peer checks.
+    monkeypatch.setattr(runner.base.proxy_transport,'peer_identity',probe_metadata)
+    async def scenario():
+        with tempfile.TemporaryDirectory(prefix='g0-auth-',dir='/private/tmp') as raw,tempfile.TemporaryDirectory(prefix='g0-auth-',dir='/private/tmp') as sup,SyntheticEndpoint() as endpoint:
+            prepared,plan=prepare(runner,Path(raw),endpoint,tmp_path,monkeypatch,Path(sup))
+            result=await runner.run_global(plan,prepared)
+            assert result['status']=='passed',result.get('failure')
+            assert calls==[True]
+            assert result['ungranted_probe_peer']['uid']==(None if diagnostic=='missing-metadata' else 0)
+            assert result['ungranted_probe']=={'rpc_bytes_sent':0,'eof':True,'backend_lease_directories':0}
+            assert result['service_identity']['uid']==os.getuid()
+            assert result['owner']['public_peer']['uid']==result['helper_proof']['public_peer']['uid']==os.getuid()
+            assert result['ack']['records'][0]['effect_count']==1 and result['transaction']['state']=='REVOKED'
+    asyncio.run(asyncio.wait_for(scenario(),150))

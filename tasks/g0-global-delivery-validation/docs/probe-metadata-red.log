@@ -1,0 +1,73 @@
+FFF                                                                      [100%]
+=================================== FAILURES ===================================
+__________ test_ungranted_probe_metadata_is_diagnostic_only[uid-zero] __________
+tasks/g0-global-delivery-validation/tests/test_global_delivery_case.py:164: in test_ungranted_probe_metadata_is_diagnostic_only
+    asyncio.run(asyncio.wait_for(scenario(),150))
+/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/tasks.py:507: in wait_for
+    return await fut
+           ^^^^^^^^^
+tasks/g0-global-delivery-validation/tests/test_global_delivery_case.py:157: in scenario
+    assert result['status']=='passed',result.get('failure')
+E   AssertionError: {'stage': 'ungranted-activation', 'type': 'ValueError', 'errno': None, 'message_sha256': 'cfba1877dbc0e9bb304a33a5b8402e823ffac23b2c99c32d1c877f03b60e5994'}
+E   assert 'unknown' == 'passed'
+E
+E     - passed
+E     + unknown
+______ test_ungranted_probe_metadata_is_diagnostic_only[missing-metadata] ______
+tasks/g0-global-delivery-validation/tests/test_global_delivery_case.py:164: in test_ungranted_probe_metadata_is_diagnostic_only
+    asyncio.run(asyncio.wait_for(scenario(),150))
+/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/tasks.py:507: in wait_for
+    return await fut
+           ^^^^^^^^^
+tasks/g0-global-delivery-validation/tests/test_global_delivery_case.py:157: in scenario
+    assert result['status']=='passed',result.get('failure')
+E   AssertionError: {'stage': 'ungranted-activation', 'type': 'ValueError', 'errno': None, 'message_sha256': 'cfba1877dbc0e9bb304a33a5b8402e823ffac23b2c99c32d1c877f03b60e5994'}
+E   assert 'unknown' == 'passed'
+E
+E     - passed
+E     + unknown
+____ test_ungranted_probe_metadata_is_diagnostic_only[complete-other-peer] _____
+tasks/g0-global-delivery-validation/tests/test_global_delivery_case.py:164: in test_ungranted_probe_metadata_is_diagnostic_only
+    asyncio.run(asyncio.wait_for(scenario(),150))
+/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/tasks.py:507: in wait_for
+    return await fut
+           ^^^^^^^^^
+tasks/g0-global-delivery-validation/tests/test_global_delivery_case.py:157: in scenario
+    assert result['status']=='passed',result.get('failure')
+E   AssertionError: {'stage': 'ungranted-activation', 'type': 'ValueError', 'errno': None, 'message_sha256': 'cfba1877dbc0e9bb304a33a5b8402e823ffac23b2c99c32d1c877f03b60e5994'}
+E   assert 'unknown' == 'passed'
+E
+E     - passed
+E     + unknown
+=========================== short test summary info ============================
+FAILED tasks/g0-global-delivery-validation/tests/test_global_delivery_case.py::test_ungranted_probe_metadata_is_diagnostic_only[uid-zero]
+FAILED tasks/g0-global-delivery-validation/tests/test_global_delivery_case.py::test_ungranted_probe_metadata_is_diagnostic_only[missing-metadata]
+FAILED tasks/g0-global-delivery-validation/tests/test_global_delivery_case.py::test_ungranted_probe_metadata_is_diagnostic_only[complete-other-peer]
+3 failed, 7 deselected in 2.15s
