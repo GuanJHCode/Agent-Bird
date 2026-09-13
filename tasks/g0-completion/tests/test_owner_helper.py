@@ -574,3 +574,60 @@ def test_server_notification_rejects_other_top_level_metadata():
     }
     with pytest.raises(OwnerHelperAdmissionError):
         validate_helper_server_message(message, OWNER["owner_thread_id"])
+
+
+def test_native_agent_message_delta_is_owner_scoped_and_type_strict():
+    owner = OWNER["owner_thread_id"]
+    message = {
+        "method": "item/agentMessage/delta",
+        "params": {
+            "threadId": owner,
+            "turnId": "turn_1",
+            "itemId": "item_1",
+            "delta": "partial text",
+        },
+        "emittedAtMs": 1,
+    }
+    assert validate_helper_server_message(message, owner) is None
+    for key, value in (("threadId", "other"), ("turnId", 1), ("itemId", False), ("delta", 1)):
+        bad = {**message, "params": {**message["params"], key: value}}
+        with pytest.raises(OwnerHelperAdmissionError):
+            validate_helper_server_message(bad, owner)
+    with pytest.raises(OwnerHelperAdmissionError):
+        validate_helper_server_message({**message, "params": {**message["params"], "extra": 1}}, owner)
+
+
+def test_account_notifications_use_fixed_read_only_shapes():
+    owner = OWNER["owner_thread_id"]
+    account = {"method": "account/updated", "params": {"authMode": "chatgpt", "planType": "plus"}}
+    assert validate_helper_server_message(account, owner) is None
+    rate_limits = {
+        "limitId": "codex",
+        "limitName": "Codex",
+        "normalModelSlug": "gpt-5",
+        "primary": {"usedPercent": 1, "windowDurationMins": 300, "resetsAt": 1700000000},
+        "secondary": None,
+        "credits": {"hasCredits": False, "unlimited": False, "balance": None},
+        "individualLimit": None,
+        "spendControlReached": False,
+        "planType": "plus",
+        "rateLimitReachedType": None,
+    }
+    limits = {"method": "account/rateLimits/updated", "params": {"rateLimits": rate_limits}, "emittedAtMs": 2}
+    assert validate_helper_server_message(limits, owner) is None
+    for bad in (
+        {**account, "params": {"authMode": 1, "planType": "plus"}},
+        {**account, "params": {"authMode": "chatgpt", "planType": "plus", "secret": "reject"}},
+        {**limits, "params": {"rateLimits": {**rate_limits, "primary": {"usedPercent": True, "windowDurationMins": 1, "resetsAt": 2}}}},
+        {**limits, "params": {"rateLimits": {**rate_limits, "extra": 1}}},
+    ):
+        with pytest.raises(OwnerHelperAdmissionError):
+            validate_helper_server_message(bad, owner)
+
+
+def test_thread_started_remains_rejected_for_helper():
+    with pytest.raises(OwnerHelperAdmissionError):
+        validate_helper_server_message(
+            {"method": "thread/started", "params": {"thread": {"id": OWNER["owner_thread_id"]}}},
+            OWNER["owner_thread_id"],
+        )

@@ -73,6 +73,30 @@ _SERVER_NOTIFICATIONS = frozenset(
         "thread/goal/cleared",
         "remoteControl/status/changed",
         "mcpServer/startupStatus/updated",
+        "item/agentMessage/delta",
+        "account/updated",
+        "account/rateLimits/updated",
+    }
+)
+_AUTH_MODES = frozenset(
+    {
+        "apiKey",
+        "chatgpt",
+        "chatgptAuthTokens",
+        "headers",
+        "agentIdentity",
+        "personalAccessToken",
+        "bedrockApiKey",
+        "bedrockAccessKeys",
+    }
+)
+_RATE_LIMIT_REACHED_TYPES = frozenset(
+    {
+        "rate_limit_reached",
+        "workspace_owner_credits_depleted",
+        "workspace_member_credits_depleted",
+        "workspace_owner_usage_limit_reached",
+        "workspace_member_usage_limit_reached",
     }
 )
 
@@ -96,6 +120,76 @@ def _positive(value: object) -> bool:
 def _exact_keys(value: object, required: set[str]) -> None:
     if not isinstance(value, dict) or set(value) != required:
         _reject("rpc_envelope")
+
+
+def _optional_string(value: object) -> bool:
+    return value is None or type(value) is str
+
+
+def _optional_i64(value: object) -> bool:
+    return value is None or (type(value) is int and -(1 << 63) <= value <= (1 << 63) - 1)
+
+
+def _validate_agent_message_delta(params: object, owner_thread_id: str) -> None:
+    required = {"threadId", "turnId", "itemId", "delta"}
+    _exact_keys(params, required)
+    if type(params["threadId"]) is not str or params["threadId"] != owner_thread_id:
+        _reject("agent_message_delta_thread")
+    if type(params["turnId"]) is not str or type(params["itemId"]) is not str:
+        _reject("agent_message_delta_identity")
+    if type(params["delta"]) is not str:
+        _reject("agent_message_delta_text")
+
+
+def _validate_rate_limit_window(value: object) -> None:
+    if value is None:
+        return
+    _exact_keys(value, {"usedPercent", "windowDurationMins", "resetsAt"})
+    if type(value["usedPercent"]) is not int or not -(1 << 31) <= value["usedPercent"] <= (1 << 31) - 1:
+        _reject("account_rate_limits_window")
+    if not _optional_i64(value["windowDurationMins"]) or not _optional_i64(value["resetsAt"]):
+        _reject("account_rate_limits_window")
+
+
+def _validate_rate_limit_snapshot(value: object) -> None:
+    required = {
+        "limitId", "limitName", "normalModelSlug", "primary", "secondary",
+        "credits", "individualLimit", "spendControlReached", "planType", "rateLimitReachedType",
+    }
+    _exact_keys(value, required)
+    for key in ("limitId", "limitName", "normalModelSlug", "planType"):
+        if not _optional_string(value[key]):
+            _reject("account_rate_limits_shape")
+    _validate_rate_limit_window(value["primary"])
+    _validate_rate_limit_window(value["secondary"])
+    credits = value["credits"]
+    if credits is not None:
+        _exact_keys(credits, {"hasCredits", "unlimited", "balance"})
+        if type(credits["hasCredits"]) is not bool or type(credits["unlimited"]) is not bool or not _optional_string(credits["balance"]):
+            _reject("account_rate_limits_credits")
+    individual = value["individualLimit"]
+    if individual is not None:
+        _exact_keys(individual, {"limit", "used", "remainingPercent", "resetsAt"})
+        if type(individual["limit"]) is not str or type(individual["used"]) is not str:
+            _reject("account_rate_limits_spend")
+        if type(individual["remainingPercent"]) is not int or type(individual["resetsAt"]) is not int:
+            _reject("account_rate_limits_spend")
+    if value["spendControlReached"] is not None and type(value["spendControlReached"]) is not bool:
+        _reject("account_rate_limits_shape")
+    if value["rateLimitReachedType"] is not None and value["rateLimitReachedType"] not in _RATE_LIMIT_REACHED_TYPES:
+        _reject("account_rate_limits_shape")
+
+
+def _validate_account_notification(method: str, params: object) -> None:
+    if method == "account/updated":
+        _exact_keys(params, {"authMode", "planType"})
+        if params["authMode"] is not None and params["authMode"] not in _AUTH_MODES:
+            _reject("account_update_shape")
+        if not _optional_string(params["planType"]):
+            _reject("account_update_shape")
+        return
+    _exact_keys(params, {"rateLimits"})
+    _validate_rate_limit_snapshot(params["rateLimits"])
 
 
 def _json_unique(payload: bytes):
@@ -261,7 +355,11 @@ def validate_helper_server_message(message: object, owner_thread_id: str) -> Non
         _reject("server_notification_params")
     if "threadId" in params and params["threadId"] != owner_thread_id:
         _reject("response_thread_target")
-    if method in {"turn/started", "turn/completed"}:
+    if method == "item/agentMessage/delta":
+        _validate_agent_message_delta(params, owner_thread_id)
+    elif method in {"account/updated", "account/rateLimits/updated"}:
+        _validate_account_notification(method, params)
+    elif method in {"turn/started", "turn/completed"}:
         if set(params) != {"threadId", "turn"} or params["threadId"] != owner_thread_id:
             _reject("turn_notification_envelope")
         if not isinstance(params["turn"], dict) or not isinstance(params["turn"].get("id"), str):
