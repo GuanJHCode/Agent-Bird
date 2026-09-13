@@ -333,6 +333,9 @@ async def run_helper():
               "host_generation": owner_capability.host_generation,
               "attachment_proof_sha256": owner_capability.attachment_proof_sha256})
         deliver = await control(reader, 30)
+        if deliver == {"action": "detach"}:
+            emit({"version": 1, "event": "detached", "lease_id": attachment.lease_id})
+            return
         require(set(deliver) == {"action", "control_binary", "control_binary_sha256",
                                 "control_file", "task_id"}
                 and deliver["action"] == "deliver", "deliver_command")

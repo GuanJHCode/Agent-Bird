@@ -1,6 +1,7 @@
 package nativebridgecli
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -42,17 +43,44 @@ type rebindRequest struct {
 }
 
 type ownerCapability struct {
-	Version               int    `json:"version"`
-	Path                  string `json:"path"`
-	ControllerThread      string `json:"controller_thread_id"`
-	OriginContextID       string `json:"origin_context_id"`
-	OriginPID             int    `json:"origin_pid"`
-	OriginBirth           string `json:"origin_birth"`
-	HostGeneration        string `json:"host_generation"`
-	GenerationNumber      int    `json:"generation_number"`
-	AttachmentProofSHA256 string `json:"attachment_proof_sha256"`
-	LeaseID               string `json:"lease_id"`
-	ActivationID          string `json:"activation_id"`
+	Version               int             `json:"version"`
+	Path                  string          `json:"path"`
+	ControllerThread      string          `json:"controller_thread_id"`
+	OriginContextID       string          `json:"origin_context_id"`
+	OriginPID             int             `json:"origin_pid"`
+	OriginBirth           string          `json:"origin_birth"`
+	HostGeneration        string          `json:"host_generation"`
+	GenerationNumber      int             `json:"generation_number"`
+	AttachmentProofSHA256 string          `json:"attachment_proof_sha256"`
+	LeaseID               string          `json:"lease_id"`
+	ActivationID          string          `json:"activation_id"`
+	OwnerAttachment       json.RawMessage `json:"owner_attachment"`
+}
+
+type attachmentPeer struct {
+	PID              int    `json:"pid"`
+	UID              int    `json:"uid"`
+	Birth            string `json:"birth"`
+	Executable       string `json:"executable"`
+	ExecutableSHA256 string `json:"executable_sha256"`
+}
+
+type ownerAttachment struct {
+	Version               int            `json:"version"`
+	ProfileID             string         `json:"profile_id"`
+	ControllerThread      string         `json:"controller_thread_id"`
+	ControllerEpoch       int            `json:"controller_epoch"`
+	OwnerContextSHA256    string         `json:"owner_context_sha256"`
+	LeaseID               string         `json:"lease_id"`
+	OwnerConnectionID     string         `json:"owner_connection_id"`
+	ActivationID          string         `json:"activation_id"`
+	ManifestSHA256        string         `json:"manifest_sha256"`
+	HelperGrantSHA256     string         `json:"helper_grant_sha256"`
+	ServiceIdentity       attachmentPeer `json:"service_identity"`
+	BackendIdentity       attachmentPeer `json:"backend_identity"`
+	PrivateSocket         string         `json:"private_socket"`
+	PrivateSocketIdentity []uint64       `json:"private_socket_identity"`
+	OriginProcess         attachmentPeer `json:"origin_process"`
 }
 
 type VerifiedRebind struct {
@@ -132,6 +160,10 @@ func VerifyOwnerCapability(path string) (VerifiedOwner, error) {
 		!hexHash(capability.AttachmentProofSHA256) {
 		return VerifiedOwner{}, codeError("owner_capability_invalid")
 	}
+	_, err := verifyOwnerAttachment(capability)
+	if err != nil {
+		return VerifiedOwner{}, err
+	}
 	birth, err := process.Birth(capability.OriginPID)
 	if err != nil || birth != capability.OriginBirth {
 		return VerifiedOwner{}, codeError("owner_not_live")
@@ -142,6 +174,53 @@ func VerifyOwnerCapability(path string) (VerifiedOwner, error) {
 		OriginBirth: capability.OriginBirth, HostGeneration: capability.HostGeneration,
 		AttachmentProofSHA256: capability.AttachmentProofSHA256,
 	}, nil
+}
+
+func verifyOwnerAttachment(capability ownerCapability) (ownerAttachment, error) {
+	proof := sha256.Sum256(capability.OwnerAttachment)
+	if hex.EncodeToString(proof[:]) != capability.AttachmentProofSHA256 {
+		return ownerAttachment{}, codeError("owner_capability_invalid")
+	}
+	var attachment ownerAttachment
+	decoder := json.NewDecoder(bytes.NewReader(capability.OwnerAttachment))
+	decoder.DisallowUnknownFields()
+	if decoder.Decode(&attachment) != nil || decoder.Decode(new(any)) != io.EOF ||
+		attachment.Version != 1 || attachment.ControllerThread != capability.ControllerThread ||
+		attachment.LeaseID != capability.LeaseID || attachment.ActivationID != capability.ActivationID ||
+		attachment.OriginProcess.PID != capability.OriginPID || attachment.OriginProcess.Birth != capability.OriginBirth ||
+		attachment.ControllerEpoch <= 0 || !hexHash(attachment.OwnerContextSHA256) ||
+		!hexHash(attachment.ManifestSHA256) || !hexHash(attachment.HelperGrantSHA256) ||
+		len(attachment.PrivateSocketIdentity) != 4 || !absoluteClean(attachment.PrivateSocket) {
+		return ownerAttachment{}, codeError("owner_capability_invalid")
+	}
+	if attachment.ServiceIdentity.PID == attachment.OriginProcess.PID ||
+		attachment.BackendIdentity.PID == attachment.OriginProcess.PID ||
+		attachment.ServiceIdentity.PID == attachment.BackendIdentity.PID {
+		return ownerAttachment{}, codeError("owner_capability_invalid")
+	}
+	for _, peer := range []attachmentPeer{attachment.ServiceIdentity, attachment.BackendIdentity, attachment.OriginProcess} {
+		if peer.PID <= 0 || peer.UID != os.Getuid() || peer.Birth == "" || !absoluteClean(peer.Executable) || !hexHash(peer.ExecutableSHA256) {
+			return ownerAttachment{}, codeError("owner_capability_invalid")
+		}
+		birth, err := process.Birth(peer.PID)
+		if err != nil || birth != peer.Birth {
+			return ownerAttachment{}, codeError("owner_attachment_not_live")
+		}
+		digest, err := hashRegular(peer.Executable, true)
+		if err != nil || digest != peer.ExecutableSHA256 {
+			return ownerAttachment{}, codeError("owner_attachment_changed")
+		}
+	}
+	info, err := os.Lstat(attachment.PrivateSocket)
+	statValue, ok := infoSys(info)
+	identity := attachment.PrivateSocketIdentity
+	if err != nil || info.Mode()&os.ModeSocket == 0 || info.Mode().Perm() != 0o600 || !ok ||
+		int(statValue.Uid) != os.Getuid() || uint64(statValue.Dev) != identity[0] ||
+		uint64(statValue.Ino) != identity[1] || uint64(statValue.Uid) != identity[2] ||
+		uint64(statValue.Mode) != identity[3] {
+		return ownerAttachment{}, codeError("owner_lease_not_live")
+	}
+	return attachment, nil
 }
 
 type packageManifest struct {

@@ -67,6 +67,9 @@ class OwnerAttachment:
     manifest_sha256: str
     helper_grant_sha256: str
     service_identity: dict[str, object]
+    backend_identity: dict[str, object]
+    private_socket: str
+    private_socket_identity: tuple[int, int, int, int]
     origin_pid: int
     origin_birth: str
     origin_executable: str
@@ -94,7 +97,9 @@ class OwnerAttachment:
         service = owner_ready.get("service_identity", lease.get("service_identity"))
         owner = owner_ready.get("frontend")
         helper = helper_ready.get("frontend_peer")
-        _require(isinstance(service, Mapping) and isinstance(owner, Mapping) and isinstance(helper, Mapping), "attachment_peer")
+        backend = helper_ready.get("backend_peer")
+        _require(isinstance(service, Mapping) and isinstance(owner, Mapping)
+                 and isinstance(helper, Mapping) and isinstance(backend, Mapping), "attachment_peer")
         _require(owner_ready.get("version") == 1 and owner_ready.get("ready_published") is True and owner_ready.get("closed") is False, "owner_not_attached")
         for key in ("activation_id", "manifest_sha256"):
             _require(helper_ready.get(key) == owner_ready.get(key), "receipt_binding")
@@ -117,10 +122,14 @@ class OwnerAttachment:
             "executable_sha256": helper_grant.get("helper_executable_sha256"),
         }
         _require(_peer_matches(helper_expected, helper), "helper_receipt_changed")
+        _require(backend.get("pid") == lease.get("backend_pid")
+                 and backend.get("birth") == lease.get("backend_birth"),
+                 "backend_receipt_changed")
         _require(type(owner.get("pid")) is int and type(helper.get("pid")) is int and owner["pid"] != helper["pid"], "owner_is_helper")
         _require(owner.get("uid") == os.getuid() == helper.get("uid") == service.get("uid"), "attachment_uid")
         current_peers = {}
-        for value, code in ((service, "service_not_live"), (owner, "owner_not_live"), (helper, "helper_not_live")):
+        for value, code in ((service, "service_not_live"), (owner, "owner_not_live"),
+                            (helper, "helper_not_live"), (backend, "backend_not_live")):
             try:
                 current = inspect_process(value["pid"])
             except (KeyError, OSError, ProcessLookupError) as exc:
@@ -129,10 +138,16 @@ class OwnerAttachment:
             current_peers[code] = current
         _require(current_peers["owner_not_live"].get("executable_sha256") == lease.get("backend_executable_sha256"), "owner_binary_changed")
         _require(current_peers["helper_not_live"].get("executable_sha256") == helper_grant.get("helper_executable_sha256"), "helper_binary_changed")
+        _require(current_peers["backend_not_live"].get("executable_sha256") == lease.get("backend_executable_sha256"), "backend_binary_changed")
         _require(_hash(lease.get("owner_context_sha256")), "owner_context")
         _require(type(lease.get("owner_epoch")) is int and lease["owner_epoch"] > 0, "owner_epoch")
         _require(_safe(lease.get("profile_id")) and _safe(lease.get("lease_id")), "owner_identity")
         _require(type(lease.get("owner_thread_id")) is str and 1 <= len(lease["owner_thread_id"]) <= 128, "owner_thread")
+        socket_identity = lease.get("private_socket_identity")
+        _require(type(lease.get("private_socket")) is str and Path(lease["private_socket"]).is_absolute()
+                 and isinstance(socket_identity, list) and len(socket_identity) == 4
+                 and all(type(value) is int and value >= 0 for value in socket_identity),
+                 "private_socket")
         _require(_hash(owner_ready.get("manifest_sha256")) and _hash(helper_ready.get("grant_sha256")), "receipt_hash")
         _require(type(owner_ready.get("activation_id")) is str and re.fullmatch(r"[0-9a-f]{32}", owner_ready["activation_id"]) is not None, "activation_id")
         return cls(
@@ -141,6 +156,8 @@ class OwnerAttachment:
             lease_id=lease["lease_id"], owner_connection_id=lease["owner_connection_id"],
             activation_id=owner_ready["activation_id"], manifest_sha256=owner_ready["manifest_sha256"],
             helper_grant_sha256=helper_ready["grant_sha256"], service_identity=dict(service),
+            backend_identity=dict(current_peers["backend_not_live"]), private_socket=lease["private_socket"],
+            private_socket_identity=tuple(socket_identity),
             origin_pid=owner["pid"], origin_birth=owner["birth"], origin_executable=owner["executable"],
             origin_executable_sha256=current_peers["owner_not_live"]["executable_sha256"],
         )
@@ -153,6 +170,8 @@ class OwnerAttachment:
             "owner_connection_id": self.owner_connection_id, "activation_id": self.activation_id,
             "manifest_sha256": self.manifest_sha256, "helper_grant_sha256": self.helper_grant_sha256,
             "service_identity": self.service_identity,
+            "backend_identity": self.backend_identity, "private_socket": self.private_socket,
+            "private_socket_identity": list(self.private_socket_identity),
             "origin_process": {"pid": self.origin_pid, "birth": self.origin_birth,
                                "executable": self.origin_executable,
                                "executable_sha256": self.origin_executable_sha256},
@@ -201,6 +220,10 @@ class OwnerCapabilityStore:
     @staticmethod
     def _decode(path: Path, value: Mapping[str, Any]) -> OwnerCapability:
         _require(value.get("version") == 1 and value.get("path") == str(path), "owner_capability")
+        attachment = value.get("owner_attachment")
+        _require(isinstance(attachment, Mapping)
+                 and hashlib.sha256(_canonical(attachment)).hexdigest()
+                 == value.get("attachment_proof_sha256"), "owner_capability")
         return OwnerCapability(
             path=path,
             controller_thread_id=value["controller_thread_id"],
@@ -251,7 +274,7 @@ class OwnerCapabilityStore:
                 "origin_pid": attachment.origin_pid, "origin_birth": attachment.origin_birth,
                 "host_generation": host_generation, "generation_number": generation,
                 "attachment_proof_sha256": proof_sha, "lease_id": attachment.lease_id,
-                "activation_id": attachment.activation_id,
+                "activation_id": attachment.activation_id, "owner_attachment": attachment.persisted(),
             }
             _write_exclusive(generation_path, value)
             stage = directory / (".current-" + str(os.getpid()) + ".tmp")

@@ -180,21 +180,6 @@ def test_real_local_service_admission_bridges_g1_event_and_ack(tmp_path):
                     " print(json.dumps({'version':1,'status':'acknowledged','delivery_id':v['delivery_id']}))\n"
                 )
                 fake_control.chmod(0o700)
-                bridge = await asyncio.create_subprocess_exec(binary, "-B", str(entry), "helper",
-                    cwd=profiles["a"]["workspace"], stdin=asyncio.subprocess.PIPE,
-                    stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, env=environment)
-                boot = await read_json(bridge)
-                assert boot == {"event": "boot", "pid": bridge.pid, "version": 1}
-                helper_birth, helper_executable = proxy_transport._process_metadata(bridge.pid)
-                grant = {"version": 1, "role": "owner-helper", "profile_id": "a",
-                    "owner_context_sha256": lease.owner_context_sha256, "lease_id": lease.lease_id,
-                    "owner_connection_id": lease.owner_connection_id, "owner_epoch": lease.owner_epoch,
-                    "owner_thread_id": lease.owner_thread_id, "private_socket": lease.private_socket,
-                    "helper_pid": bridge.pid, "helper_uid": os.getuid(), "helper_birth": helper_birth,
-                    "helper_executable": helper_executable, "helper_executable_sha256": digest(binary),
-                    "helper_source_sha256": digest(runtime_paths["owner_helper"])}
-                grant_path = grants / f"{bridge.pid}.json"
-                private_json(grant_path, grant)
                 controller_birth, controller_executable = proxy_transport._process_metadata(os.getpid())
                 runtime = {"version": 1, "package_root": str(package),
                     "package_manifest": str(package_manifest), "package_manifest_sha256": digest(package_manifest),
@@ -203,34 +188,60 @@ def test_real_local_service_admission_bridges_g1_event_and_ack(tmp_path):
                     "g0_runtime_manifest": str(runtime_manifest),
                     "g0_runtime_manifest_sha256": digest(runtime_manifest),
                     "g0_modules": modules}
-                config = {"version": 1, "runtime": runtime, "manifest_path": str(manifest),
-                    "manifest_sha256": digest(manifest), "grant_path": str(grant_path),
-                    "grant_sha256": digest(grant_path), "profile_id": "a",
-                    "public_socket": str(public),
-                    "public_socket_identity": list((public.stat().st_dev, public.stat().st_ino, public.stat().st_uid, public.stat().st_mode)),
-                    "controller_peer": {"pid": os.getpid(), "uid": os.getuid(), "birth": controller_birth,
-                        "executable": controller_executable, "executable_sha256": digest(binary)},
-                    "owner_ready_receipt": ready_name, "owner_ready_sha256": digest(ready_path),
-                    "bridge_root": str(root / "bridge-ledger"),
-                    "owner_capability_root": str(root / "owner-capabilities")}
-                send(bridge, config); await bridge.stdin.drain()
-                connected = await read_json(bridge)
-                assert connected["event"] == "public_connected"
-                helper_ready_name = f"helper-ready-{lease.lease_id}-{bridge.pid}.json"
-                helper_ready_path = service.receipt_dir / helper_ready_name
-                for _ in range(100):
-                    if helper_ready_path.exists():
-                        break
-                    await asyncio.sleep(0.01)
-                admitted = {"action": "admitted", "role": "helper", "lease_id": lease.lease_id,
-                    "manifest_sha256": digest(manifest), "grant_sha256": digest(grant_path),
-                    "receipt_sha256": digest(helper_ready_path), "activation_id": service.activation_id,
-                    "receipt_name": helper_ready_name}
-                send(bridge, admitted); await bridge.stdin.drain()
-                attached = await read_json(bridge)
-                assert attached["event"] == "attached"
-                assert attached["origin_pid"] == owner.pid
-                assert attached["controller_thread"] == lease.owner_thread_id
+                async def attach_bridge():
+                    child = await asyncio.create_subprocess_exec(binary, "-B", str(entry), "helper",
+                        cwd=profiles["a"]["workspace"], stdin=asyncio.subprocess.PIPE,
+                        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, env=environment)
+                    boot = await read_json(child)
+                    assert boot == {"event": "boot", "pid": child.pid, "version": 1}
+                    helper_birth, helper_executable = proxy_transport._process_metadata(child.pid)
+                    grant = {"version": 1, "role": "owner-helper", "profile_id": "a",
+                        "owner_context_sha256": lease.owner_context_sha256, "lease_id": lease.lease_id,
+                        "owner_connection_id": lease.owner_connection_id, "owner_epoch": lease.owner_epoch,
+                        "owner_thread_id": lease.owner_thread_id, "private_socket": lease.private_socket,
+                        "helper_pid": child.pid, "helper_uid": os.getuid(), "helper_birth": helper_birth,
+                        "helper_executable": helper_executable, "helper_executable_sha256": digest(binary),
+                        "helper_source_sha256": digest(runtime_paths["owner_helper"])}
+                    grant_path = grants / f"{child.pid}.json"
+                    private_json(grant_path, grant)
+                    config = {"version": 1, "runtime": runtime, "manifest_path": str(manifest),
+                        "manifest_sha256": digest(manifest), "grant_path": str(grant_path),
+                        "grant_sha256": digest(grant_path), "profile_id": "a",
+                        "public_socket": str(public),
+                        "public_socket_identity": list((public.stat().st_dev, public.stat().st_ino, public.stat().st_uid, public.stat().st_mode)),
+                        "controller_peer": {"pid": os.getpid(), "uid": os.getuid(), "birth": controller_birth,
+                            "executable": controller_executable, "executable_sha256": digest(binary)},
+                        "owner_ready_receipt": ready_name, "owner_ready_sha256": digest(ready_path),
+                        "bridge_root": str(root / "bridge-ledger"),
+                        "owner_capability_root": str(root / "owner-capabilities")}
+                    send(child, config); await child.stdin.drain()
+                    assert (await read_json(child))["event"] == "public_connected"
+                    helper_ready_name = f"helper-ready-{lease.lease_id}-{child.pid}.json"
+                    helper_ready_path = service.receipt_dir / helper_ready_name
+                    for _ in range(100):
+                        if helper_ready_path.exists():
+                            break
+                        await asyncio.sleep(0.01)
+                    admitted = {"action": "admitted", "role": "helper", "lease_id": lease.lease_id,
+                        "manifest_sha256": digest(manifest), "grant_sha256": digest(grant_path),
+                        "receipt_sha256": digest(helper_ready_path), "activation_id": service.activation_id,
+                        "receipt_name": helper_ready_name}
+                    send(child, admitted); await child.stdin.drain()
+                    attached = await read_json(child)
+                    assert attached["event"] == "attached"
+                    assert attached["origin_pid"] == owner.pid
+                    assert attached["controller_thread"] == lease.owner_thread_id
+                    return child, attached
+
+                bootstrap_bridge, bootstrap_attachment = await attach_bridge()
+                assert bootstrap_attachment["host_generation"] == "generation-00000001"
+                send(bootstrap_bridge, {"action": "detach"}); await bootstrap_bridge.stdin.drain()
+                detached = await read_json(bootstrap_bridge)
+                assert detached == {"version": 1, "event": "detached", "lease_id": lease.lease_id}
+                assert await asyncio.wait_for(bootstrap_bridge.wait(), 5) == 0
+
+                bridge, attached = await attach_bridge()
+                assert attached["host_generation"] == "generation-00000002"
                 send(bridge, {"action": "deliver", "control_binary": str(fake_control),
                     "control_binary_sha256": digest(fake_control), "control_file": str(control),
                     "task_id": "task-a"})
@@ -253,7 +264,7 @@ def test_real_local_service_admission_bridges_g1_event_and_ack(tmp_path):
                 eof = await read_json(bridge)
                 assert eof["event"] == "helper_eof"
                 assert await asyncio.wait_for(bridge.wait(), 5) == 0
-                status = json.loads((Path(config["bridge_root"]) / proof["delivery_id"] / "batch-status.json").read_text())
+                status = json.loads((root / "bridge-ledger" / proof["delivery_id"] / "batch-status.json").read_text())
                 assert status["state"] == "controller_acked"
             finally:
                 if owner.returncode is None:

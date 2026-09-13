@@ -47,6 +47,13 @@ HELPER = {
     "executable": "/verified/python",
     "executable_sha256": "d" * 64,
 }
+BACKEND = {
+    "pid": 903,
+    "uid": os.getuid(),
+    "birth": "backend-birth",
+    "executable": "/verified/codex",
+    "executable_sha256": "c" * 64,
+}
 
 
 def lease():
@@ -58,8 +65,8 @@ def lease():
         "owner_epoch": 1,
         "owner_thread_id": THREAD,
         "private_socket": "/private/tmp/verified-owner.sock",
-        "backend_pid": 903,
-        "backend_birth": "backend-birth",
+        "backend_pid": BACKEND["pid"],
+        "backend_birth": BACKEND["birth"],
         "backend_executable_sha256": "c" * 64,
         "private_socket_identity": [1, 2, os.getuid(), 0o140600],
         "service_identity": SERVICE,
@@ -86,6 +93,7 @@ def attachment():
         "grant_sha256": "3" * 64,
         "owner_lease": {key: value for key, value in owner_lease.items() if key != "service_identity"},
         "frontend_peer": HELPER,
+        "backend_peer": BACKEND,
     }
     grant = {
         "version": 1,
@@ -104,7 +112,8 @@ def attachment():
         "helper_executable_sha256": HELPER["executable_sha256"],
         "helper_source_sha256": "4" * 64,
     }
-    live = {OWNER["pid"]: OWNER, HELPER["pid"]: HELPER, SERVICE["pid"]: SERVICE}
+    live = {OWNER["pid"]: OWNER, HELPER["pid"]: HELPER,
+            SERVICE["pid"]: SERVICE, BACKEND["pid"]: BACKEND}
     return OwnerAttachment.from_service_receipts(
         owner_ready=owner_ready,
         helper_ready=helper_ready,
@@ -153,6 +162,7 @@ def test_attachment_requires_matching_live_native_owner_not_helper():
         "grant_sha256": "3" * 64,
         "owner_lease": {key: value for key, value in owner_lease.items() if key != "service_identity"},
         "frontend_peer": HELPER,
+        "backend_peer": BACKEND,
     }
     grant = {
         "version": 1,
@@ -310,6 +320,11 @@ def test_owner_capability_generation_advances_for_same_thread_new_tui(tmp_path):
     first = attachment()
     first_capability = store.bind(first)
     assert first_capability.host_generation == "generation-00000001"
+    persisted = json.loads(first_capability.path.read_text())
+    assert persisted["owner_attachment"]["service_identity"] == SERVICE
+    assert persisted["owner_attachment"]["backend_identity"] == BACKEND
+    assert hashlib.sha256(json.dumps(persisted["owner_attachment"], sort_keys=True,
+        separators=(",", ":")).encode()).hexdigest() == first_capability.attachment_proof_sha256
     assert store.bind(first).path.read_bytes() == first_capability.path.read_bytes()
 
     resumed = replace(
