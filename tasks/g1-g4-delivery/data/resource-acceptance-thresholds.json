@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "idle": {
+    "debounce_seconds": 30,
+    "observation_seconds": 40,
+    "expected_processes_after_debounce": 0
+  },
+  "callback": {
+    "duration_seconds": 300,
+    "rss_limit_mib": 64,
+    "average_cpu_percent_of_one_core": 1.0,
+    "maximum_new_product_processes_after_stabilization": 0
+  },
+  "workers": {
+    "duration_seconds": 600,
+    "worker_count": 2,
+    "rss_limit_mib": 128
+  },
+  "hosts": {
+    "duration_seconds": 600,
+    "host_count": 4,
+    "rss_limit_mib": 128,
+    "next_host_expected_error": "admission_deferred"
+  },
+  "burst": {
+    "duration_seconds": 1200,
+    "worker_count": 2,
+    "bytes_per_second_per_worker": 1048576,
+    "giant_line_bytes": 4194304,
+    "giant_line_interval_seconds": 30,
+    "report_interval_seconds": 10,
+    "report_max_bytes": 4096,
+    "rss_limit_mib": 128,
+    "steady_start_second": 180,
+    "late_window_seconds": 600,
+    "maximum_late_theil_sen_slope_mib_per_minute": 0.5,
+    "maximum_late_endpoint_growth_mib": 8
+  },
+  "slo": {
+    "durable_ingest_seconds": 2,
+    "attached_delivery_attempt_seconds": 5
+  },
+  "sampling_interval_seconds": 1
+}
