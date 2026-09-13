@@ -27,6 +27,7 @@ import (
 	"codex-cli-orchestration-design/tools/orchestrator/internal/install"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/instance"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/ipc"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/nativebridgecli"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/process"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/store"
 )
@@ -85,6 +86,10 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return answerQuestion(ctx, args[1:], stdout)
 	case "report":
 		return reportEvent(ctx, args[1:], stdout)
+	case "native-bridge":
+		return runNativeBridge(ctx, args[1:], stdout, stderr)
+	case "rebind-owner":
+		return rebindOwner(ctx, args[1:], stdout)
 	case "stop":
 		return taskControl(ctx, ipc.KindStopTask, args[1:], stdout)
 	case "ack":
@@ -102,6 +107,55 @@ func requestFile(args []string) (string, error) {
 		return "", codeError("invalid_args")
 	}
 	return *path, nil
+}
+
+func runNativeBridge(ctx context.Context, args []string, stdout, stderr io.Writer) error {
+	path, err := requestFile(args)
+	if err != nil {
+		return err
+	}
+	return nativebridgecli.RunHelper(ctx, path, os.Stdin, stdout, stderr)
+}
+
+func rebindOwner(ctx context.Context, args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("rebind-owner", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	stateArg := fs.String("state-dir", "", "private state directory")
+	path := fs.String("request", "", "verified owner rebind request")
+	if fs.Parse(args) != nil || *path == "" || fs.NArg() != 0 {
+		return codeError("invalid_args")
+	}
+	verified, err := nativebridgecli.VerifyRebind(*path)
+	if err != nil {
+		return err
+	}
+	capability, err := loadControlCapability(verified.ControlFile)
+	if err != nil {
+		return err
+	}
+	if capability.ControllerThread != verified.ControllerThread {
+		return codeError("owner_mismatch")
+	}
+	state, err := resolveState(*stateArg)
+	if err != nil {
+		return err
+	}
+	request := coordinator.RebindOwnerRequest{RunID: capability.RunID, ControllerThread: capability.ControllerThread, ControlToken: capability.ControlToken, OriginContextID: verified.OriginContextID, OriginPID: verified.OriginPID, OriginBirth: verified.OriginBirth, HostGeneration: verified.HostGeneration, AttachmentProofSHA256: verified.AttachmentProofSHA256}
+	response, err := call(ctx, state, ipc.KindRebindOwner, request)
+	if err != nil {
+		return err
+	}
+	var bootstrap hostBootstrap
+	if err = readPrivateJSON(capability.BootstrapPath, &bootstrap); err != nil {
+		return err
+	}
+	bootstrap.Hello.OriginPID, bootstrap.Hello.OriginBirth = verified.OriginPID, verified.OriginBirth
+	bootstrap.Hello.OriginContextID, bootstrap.Hello.HostGeneration = verified.OriginContextID, verified.HostGeneration
+	if err = replacePrivateJSON(capability.BootstrapPath, bootstrap); err != nil {
+		return err
+	}
+	_, err = stdout.Write(append(response.Payload, '\n'))
+	return err
 }
 
 func runGitopsWorker(ctx context.Context, args []string, stdout io.Writer) error {
@@ -812,6 +866,46 @@ func writeExclusiveJSON(path string, value any) error {
 	if closeErr := file.Close(); err == nil {
 		err = closeErr
 	}
+	return err
+}
+
+func replacePrivateJSON(path string, value any) error {
+	info, err := os.Lstat(path)
+	if err != nil || !info.Mode().IsRegular() || info.Mode().Perm() != 0600 || !owned(info) {
+		return codeError("untrusted_private_file")
+	}
+	data, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	suffix, err := randomValue("replace")
+	if err != nil {
+		return err
+	}
+	temporary := filepath.Join(filepath.Dir(path), "."+filepath.Base(path)+"."+suffix)
+	file, err := os.OpenFile(temporary, os.O_CREATE|os.O_EXCL|os.O_WRONLY|syscall.O_NOFOLLOW, 0600)
+	if err != nil {
+		return err
+	}
+	if _, err = file.Write(append(data, '\n')); err == nil {
+		err = file.Sync()
+	}
+	if closeErr := file.Close(); err == nil {
+		err = closeErr
+	}
+	if err == nil {
+		err = os.Rename(temporary, path)
+	}
+	if err != nil {
+		_ = os.Remove(temporary)
+		return err
+	}
+	directory, err := os.Open(filepath.Dir(path))
+	if err != nil {
+		return err
+	}
+	err = directory.Sync()
+	_ = directory.Close()
 	return err
 }
 
