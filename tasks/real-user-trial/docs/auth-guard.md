@@ -55,6 +55,22 @@ managed ChatGPT 的 `load_auth` 只调用所选 storage 的 `load`，不会在�
 
 API-key auth 原生不进入 ChatGPT OAuth refresh；但 `codex exec` 的启动 cloud-config 阶段会先以 `enable_codex_api_key_env=false` 加载持久认证，因此仅存在 `CODEX_API_KEY` 环境变量不能证明已有 ChatGPT 凭据不会被加载。`requires_openai_auth=false` 只决定 provider 请求是否附加 OpenAI auth，生产 session 仍会调用基础 `AuthManager`，也不能作为 refresh guard。
 
+## RPC auth 策略
+
+`plugins/codex-orchestrator/lib/trial/rpc_policy.py` 提供 trial transport 可调用的纯策略函数。本模块不接代理、不解析 token，也不记录请求内容；拒绝结果只有固定错误码。
+
+固定 `0.154.0` 的 client→server 认证入口包括 `account/login/start`、`account/login/cancel`、`account/logout`、`account/read`、`account/bedrock/discover`、`account/bedrock/setup`、旧 `getAuthStatus` 和 `mcpServer/oauth/login`；server→client 还可以发起 `account/chatgptAuthTokens/refresh`。[固定 client 方法表](https://github.com/openai/codex/blob/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-protocol/src/protocol/common.rs#L1239-L1300)、[Bedrock 与旧认证入口](https://github.com/openai/codex/blob/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-protocol/src/protocol/common.rs#L1406-L1428)、[server refresh 请求](https://github.com/openai/codex/blob/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-protocol/src/protocol/common.rs#L1764-L1767)
+
+策略规则如下：
+
+- `account/read` 只允许省略 `params`、空 `params`，或严格的 `refreshToken:false`。`true`、非布尔值和未知参数均拒绝。
+- 登录开始/取消、注销、Bedrock 凭据发现或配置、旧认证状态接口、MCP OAuth 登录和 server token refresh 均拒绝。固定版本的登录参数确实覆盖 API key、ChatGPT token、Amazon Bedrock API key 与 access keys，不能只按方法名假设某一认证模式。[固定登录参数类型](https://github.com/openai/codex/blob/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-protocol/src/protocol/v2/account.rs#L64-L121)
+- 固定方法表里的非认证 account 查询和已有状态通知原样通过。未来未知的 account/auth/OAuth 类方法 fail closed；普通非认证请求、通知和响应原样通过。
+
+这只是可复用的策略边界，尚未接入主代理或 launcher，不能据此声明真实 RPC 已受保护。
+
+用户已允许一次性 `--remote` 试用。backend 子进程使用本页的环境 admission 仍不够：frontend child 也必须注入同一 refresh tripwire，并由受信启动边界证明两端固定 binary、完整认证路径和 effective `UseAgentIdentity=false`。frontend 接线仍在审计，本模块没有启动真实 remote session，也没有 real-ready 声明。
+
 ## 当前验证
 
 `tools/real-user-trial/test_auth_guard.py` 只使用假环境、假凭据文本和固定非秘密证明 fixture，覆盖：
@@ -66,6 +82,8 @@ API-key auth 原生不进入 ChatGPT OAuth refresh；但 `codex exec` 的启动 
 - dict 自报的 auth mode 不能直接放行；
 - metadata source 错误细节不会进入 block reason；
 - login status 原始输出只投影非秘密类别，额外输出和失败退出均视为 unknown。
+
+`tools/real-user-trial/test_rpc_policy.py` 用纯 JSON fixture 覆盖固定认证方法、严格 `account/read` 参数、server refresh、未来未知 auth 方法和普通流量透传。测试中的 secret-shaped 字段不会进入拒绝错误。
 
 本阶段没有真实账号、真实 CLI、模型请求或 Keychain 访问证据，因此没有 real-ready 声明。
 
