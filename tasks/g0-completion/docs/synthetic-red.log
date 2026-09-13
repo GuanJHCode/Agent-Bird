@@ -1,0 +1,160 @@
+Captured RED; repetitive synthetic oversize parameter IDs shortened below.
+FFFFFFFFFFFFFFFF                                                         [100%]
+=================================== FAILURES ===================================
+_____ test_real_http_ready_then_tool_result_completion_is_bounded_and_safe _____
+tasks/g0-completion/tests/test_synthetic_native_fixture.py:56: in test_real_http_ready_then_tool_result_completion_is_bounded_and_safe
+    synthetic = module('synthetic_responses')
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tasks/g0-completion/tests/test_synthetic_native_fixture.py:24: in module
+    assert path.is_file(), f'{name} executable fixture is missing'
+E   AssertionError: synthetic_responses executable fixture is missing
+E   assert False
+E    +  where False = is_file()
+E    +    where is_file = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-completion/tmp/native-fixture/tasks/g0-completion/scripts/synthetic_responses.py').is_file
+_ test_bad_or_oversize_or_authenticated_request_never_advances_stage[{bad-headers0-400] _
+tasks/g0-completion/tests/test_synthetic_native_fixture.py:86: in test_bad_or_oversize_or_authenticated_request_never_advances_stage
+    synthetic = module('synthetic_responses')
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tasks/g0-completion/tests/test_synthetic_native_fixture.py:24: in module
+    assert path.is_file(), f'{name} executable fixture is missing'
+E   AssertionError: synthetic_responses executable fixture is missing
+E   assert False
+E    +  where False = is_file()
+E    +    where is_file = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-completion/tmp/native-fixture/tasks/g0-completion/scripts/synthetic_responses.py').is_file
+_ test_bad_or_oversize_or_authenticated_request_never_advances_stage[body1-headers1-409] _
+tasks/g0-completion/tests/test_synthetic_native_fixture.py:86: in test_bad_or_oversize_or_authenticated_request_never_advances_stage
+    synthetic = module('synthetic_responses')
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tasks/g0-completion/tests/test_synthetic_native_fixture.py:24: in module
+    assert path.is_file(), f'{name} executable fixture is missing'
+E   AssertionError: synthetic_responses executable fixture is missing
+E   assert False
+E    +  where False = is_file()
+E    +    where is_file = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-completion/tmp/native-fixture/tasks/g0-completion/scripts/synthetic_responses.py').is_file
+_ test_bad_or_oversize_or_authenticated_request_never_advances_stage[body2-headers2-403] _
+tasks/g0-completion/tests/test_synthetic_native_fixture.py:86: in test_bad_or_oversize_or_authenticated_request_never_advances_stage
+    synthetic = module('synthetic_responses')
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tasks/g0-completion/tests/test_synthetic_native_fixture.py:24: in module
+    assert path.is_file(), f'{name} executable fixture is missing'
+E   AssertionError: synthetic_responses executable fixture is missing
+E   assert False
+E    +  where False = is_file()
+E    +    where is_file = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-completion/tmp/native-fixture/tasks/g0-completion/scripts/synthetic_responses.py').is_file
+_ test_bad_or_oversize_or_authenticated_request_never_advances_stage[<synthetic-oversize-body>-headers3-413] _
+tasks/g0-completion/tests/test_synthetic_native_fixture.py:86: in test_bad_or_oversize_or_authenticated_request_never_advances_stage
+    synthetic = module('synthetic_responses')
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tasks/g0-completion/tests/test_synthetic_native_fixture.py:24: in module
+    assert path.is_file(), f'{name} executable fixture is missing'
+E   AssertionError: synthetic_responses executable fixture is missing
+E   assert False
+E    +  where False = is_file()
+E    +    where is_file = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-completion/tmp/native-fixture/tasks/g0-completion/scripts/synthetic_responses.py').is_file
+__________ test_deadline_is_original_and_does_not_reset_after_request __________
+tasks/g0-completion/tests/test_synthetic_native_fixture.py:97: in test_deadline_is_original_and_does_not_reset_after_request
+    synthetic = module('synthetic_responses')
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tasks/g0-completion/tests/test_synthetic_native_fixture.py:24: in module
+    assert path.is_file(), f'{name} executable fixture is missing'
+E   AssertionError: synthetic_responses executable fixture is missing
+E   assert False
+E    +  where False = is_file()
+E    +    where is_file = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-completion/tmp/native-fixture/tasks/g0-completion/scripts/synthetic_responses.py').is_file
+___ test_real_sandbox_allows_only_owned_loopback_port_and_keeps_auth_denials ___
+tasks/g0-completion/tests/test_synthetic_native_fixture.py:107: in test_real_sandbox_allows_only_owned_loopback_port_and_keeps_auth_denials
+    synthetic = module('synthetic_responses')
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tasks/g0-completion/tests/test_synthetic_native_fixture.py:24: in module
+    assert path.is_file(), f'{name} executable fixture is missing'
+E   AssertionError: synthetic_responses executable fixture is missing
+E   assert False
+E    +  where False = is_file()
+E    +    where is_file = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-completion/tmp/native-fixture/tasks/g0-completion/scripts/synthetic_responses.py').is_file
+_____ test_loopback_port_rejects_non_exact_integer_and_invalid_range[True] _____
+tasks/g0-completion/tests/test_synthetic_native_fixture.py:146: in test_loopback_port_rejects_non_exact_integer_and_invalid_range
+    spec(Path(raw),owned_loopback_port=bad).validate()
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tasks/g0-completion/tests/test_synthetic_native_fixture.py:30: in spec
+    return isolation.IsolationSpec(root, root/'h', root/'c', root/'w', 'synthetic-fixture',
+E   TypeError: IsolationSpec.__init__() got an unexpected keyword argument 'owned_loopback_port'
+____ test_loopback_port_rejects_non_exact_integer_and_invalid_range[False] _____
+tasks/g0-completion/tests/test_synthetic_native_fixture.py:146: in test_loopback_port_rejects_non_exact_integer_and_invalid_range
+    spec(Path(raw),owned_loopback_port=bad).validate()
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tasks/g0-completion/tests/test_synthetic_native_fixture.py:30: in spec
+    return isolation.IsolationSpec(root, root/'h', root/'c', root/'w', 'synthetic-fixture',
+E   TypeError: IsolationSpec.__init__() got an unexpected keyword argument 'owned_loopback_port'
+______ test_loopback_port_rejects_non_exact_integer_and_invalid_range[0] _______
+tasks/g0-completion/tests/test_synthetic_native_fixture.py:146: in test_loopback_port_rejects_non_exact_integer_and_invalid_range
+    spec(Path(raw),owned_loopback_port=bad).validate()
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tasks/g0-completion/tests/test_synthetic_native_fixture.py:30: in spec
+    return isolation.IsolationSpec(root, root/'h', root/'c', root/'w', 'synthetic-fixture',
+E   TypeError: IsolationSpec.__init__() got an unexpected keyword argument 'owned_loopback_port'
+______ test_loopback_port_rejects_non_exact_integer_and_invalid_range[-1] ______
+tasks/g0-completion/tests/test_synthetic_native_fixture.py:146: in test_loopback_port_rejects_non_exact_integer_and_invalid_range
+    spec(Path(raw),owned_loopback_port=bad).validate()
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tasks/g0-completion/tests/test_synthetic_native_fixture.py:30: in spec
+    return isolation.IsolationSpec(root, root/'h', root/'c', root/'w', 'synthetic-fixture',
+E   TypeError: IsolationSpec.__init__() got an unexpected keyword argument 'owned_loopback_port'
+____ test_loopback_port_rejects_non_exact_integer_and_invalid_range[65536] _____
+tasks/g0-completion/tests/test_synthetic_native_fixture.py:146: in test_loopback_port_rejects_non_exact_integer_and_invalid_range
+    spec(Path(raw),owned_loopback_port=bad).validate()
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tasks/g0-completion/tests/test_synthetic_native_fixture.py:30: in spec
+    return isolation.IsolationSpec(root, root/'h', root/'c', root/'w', 'synthetic-fixture',
+E   TypeError: IsolationSpec.__init__() got an unexpected keyword argument 'owned_loopback_port'
+_____ test_loopback_port_rejects_non_exact_integer_and_invalid_range[8000] _____
+tasks/g0-completion/tests/test_synthetic_native_fixture.py:146: in test_loopback_port_rejects_non_exact_integer_and_invalid_range
+    spec(Path(raw),owned_loopback_port=bad).validate()
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tasks/g0-completion/tests/test_synthetic_native_fixture.py:30: in spec
+    return isolation.IsolationSpec(root, root/'h', root/'c', root/'w', 'synthetic-fixture',
+E   TypeError: IsolationSpec.__init__() got an unexpected keyword argument 'owned_loopback_port'
+_____ test_loopback_port_rejects_non_exact_integer_and_invalid_range[1.5] ______
+tasks/g0-completion/tests/test_synthetic_native_fixture.py:146: in test_loopback_port_rejects_non_exact_integer_and_invalid_range
+    spec(Path(raw),owned_loopback_port=bad).validate()
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tasks/g0-completion/tests/test_synthetic_native_fixture.py:30: in spec
+    return isolation.IsolationSpec(root, root/'h', root/'c', root/'w', 'synthetic-fixture',
+E   TypeError: IsolationSpec.__init__() got an unexpected keyword argument 'owned_loopback_port'
+______ test_prepare_freezes_owned_listener_config_and_runs_only_endpoint _______
+tasks/g0-completion/tests/test_synthetic_native_fixture.py:150: in test_prepare_freezes_owned_listener_config_and_runs_only_endpoint
+    synthetic = module('synthetic_responses');fixture_module = module('synthetic_native_fixture')
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tasks/g0-completion/tests/test_synthetic_native_fixture.py:24: in module
+    assert path.is_file(), f'{name} executable fixture is missing'
+E   AssertionError: synthetic_responses executable fixture is missing
+E   assert False
+E    +  where False = is_file()
+E    +    where is_file = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-completion/tmp/native-fixture/tasks/g0-completion/scripts/synthetic_responses.py').is_file
+__________ test_prepare_rejects_unowned_listener_or_drift_before_run ___________
+tasks/g0-completion/tests/test_synthetic_native_fixture.py:170: in test_prepare_rejects_unowned_listener_or_drift_before_run
+    synthetic = module('synthetic_responses');fixture_module = module('synthetic_native_fixture')
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tasks/g0-completion/tests/test_synthetic_native_fixture.py:24: in module
+    assert path.is_file(), f'{name} executable fixture is missing'
+E   AssertionError: synthetic_responses executable fixture is missing
+E   assert False
+E    +  where False = is_file()
+E    +    where is_file = PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-completion/tmp/native-fixture/tasks/g0-completion/scripts/synthetic_responses.py').is_file
+=========================== short test summary info ============================
+FAILED tasks/g0-completion/tests/test_synthetic_native_fixture.py::test_real_http_ready_then_tool_result_completion_is_bounded_and_safe
+FAILED tasks/g0-completion/tests/test_synthetic_native_fixture.py::test_bad_or_oversize_or_authenticated_request_never_advances_stage[{bad-headers0-400]
+FAILED tasks/g0-completion/tests/test_synthetic_native_fixture.py::test_bad_or_oversize_or_authenticated_request_never_advances_stage[body1-headers1-409]
+FAILED tasks/g0-completion/tests/test_synthetic_native_fixture.py::test_bad_or_oversize_or_authenticated_request_never_advances_stage[body2-headers2-403]
+FAILED tasks/g0-completion/tests/test_synthetic_native_fixture.py::test_bad_or_oversize_or_authenticated_request_never_advances_stage[<synthetic-oversize-body>-headers3-413]
+FAILED tasks/g0-completion/tests/test_synthetic_native_fixture.py::test_deadline_is_original_and_does_not_reset_after_request
+FAILED tasks/g0-completion/tests/test_synthetic_native_fixture.py::test_real_sandbox_allows_only_owned_loopback_port_and_keeps_auth_denials
+FAILED tasks/g0-completion/tests/test_synthetic_native_fixture.py::test_loopback_port_rejects_non_exact_integer_and_invalid_range[True]
+FAILED tasks/g0-completion/tests/test_synthetic_native_fixture.py::test_loopback_port_rejects_non_exact_integer_and_invalid_range[False]
+FAILED tasks/g0-completion/tests/test_synthetic_native_fixture.py::test_loopback_port_rejects_non_exact_integer_and_invalid_range[0]
+FAILED tasks/g0-completion/tests/test_synthetic_native_fixture.py::test_loopback_port_rejects_non_exact_integer_and_invalid_range[-1]
+FAILED tasks/g0-completion/tests/test_synthetic_native_fixture.py::test_loopback_port_rejects_non_exact_integer_and_invalid_range[65536]
+FAILED tasks/g0-completion/tests/test_synthetic_native_fixture.py::test_loopback_port_rejects_non_exact_integer_and_invalid_range[8000]
+FAILED tasks/g0-completion/tests/test_synthetic_native_fixture.py::test_loopback_port_rejects_non_exact_integer_and_invalid_range[1.5]
+FAILED tasks/g0-completion/tests/test_synthetic_native_fixture.py::test_prepare_freezes_owned_listener_config_and_runs_only_endpoint
+FAILED tasks/g0-completion/tests/test_synthetic_native_fixture.py::test_prepare_rejects_unowned_listener_or_drift_before_run
+16 failed in 0.13s

@@ -67,8 +67,13 @@ class IsolationSpec:
     protected_paths: tuple[Path, ...]
     protected_read_paths: tuple[Path, ...] = ()
     allowed_executables: tuple[Path, ...] = ()
+    owned_loopback_port: int | None = None
 
     def validate(self) -> None:
+        if self.owned_loopback_port is not None and (
+            type(self.owned_loopback_port) is not int or not 1 <= self.owned_loopback_port <= 65535
+        ):
+            raise ValueError("owned loopback port must be an exact integer in 1..65535")
         if not self.profile_id or any(c.isspace() for c in self.profile_id):
             raise ValueError("profile_id must be opaque and whitespace-free")
         paths = (self.task_root, self.home, self.codex_home, self.workspace)
@@ -211,6 +216,7 @@ def load_isolation_context(path: Path, profile_id: str) -> IsolationContext:
         protected_paths=tuple(Path(item) for item in protected),
         protected_read_paths=tuple(Path(item) for item in protected_read),
         allowed_executables=(Path(expected),),
+        owned_loopback_port=raw.get("owned_loopback_port"),
     )
     spec.validate()
     executable_info = os.lstat(expected)
@@ -362,12 +368,19 @@ def prepare_isolated_home(spec: IsolationSpec, *, no_auth_provider: bool = True)
                 "",
                 "[model_providers.synthetic]",
                 'name = "synthetic-offline"',
-                'base_url = "http://127.0.0.1:1"',
+                f'base_url = "http://127.0.0.1:{spec.owned_loopback_port or 1}"',
                 'wire_api = "responses"',
                 "requires_openai_auth = false",
                 "",
             ]
         )
+        if spec.owned_loopback_port is not None:
+            lines.extend([
+                'supports_websockets = false',
+                'request_max_retries = 0',
+                'stream_max_retries = 0',
+                'stream_idle_timeout_ms = 10000',
+            ])
     fd = os.open(config, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(fd, "w", encoding="utf-8") as stream:
         stream.write("\n".join(lines))
@@ -600,6 +613,10 @@ def render_sandbox_profile(spec: IsolationSpec, pty_slave: Path | None = None) -
                 f'(allow file-read* file-write* file-ioctl (literal "{rendered_pty}"))',
             ]
         )
+    if spec.owned_loopback_port is not None:
+        # The fixture owns and continuously holds this exact listener. No
+        # hostname, wildcard, alternate address, bind or inbound IP rule.
+        lines.append(f'(allow network-outbound (remote tcp4 "localhost:{spec.owned_loopback_port}"))')
     return "\n".join(lines) + "\n"
 
 

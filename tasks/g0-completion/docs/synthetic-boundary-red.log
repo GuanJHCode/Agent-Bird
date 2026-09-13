@@ -1,0 +1,17 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+____ test_close_wakes_partial_header_and_no_attempt_can_extend_total_window ____
+tasks/g0-completion/tests/test_synthetic_native_fixture.py:207: in test_close_wakes_partial_header_and_no_attempt_can_extend_total_window
+    assert time.monotonic()-start < .5
+E   assert (1794862.192595875 - 1794852.219755541) < 0.5
+E    +  where 1794862.192595875 = <built-in function monotonic>()
+E    +    where <built-in function monotonic> = time.monotonic
+_______ test_context_port_survives_load_and_closed_listener_prevents_run _______
+tasks/g0-completion/tests/test_synthetic_native_fixture.py:225: in test_context_port_survives_load_and_closed_listener_prevents_run
+    assert prepared.manifest['listener']['owner_birth']
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'owner_birth'
+=========================== short test summary info ============================
+FAILED tasks/g0-completion/tests/test_synthetic_native_fixture.py::test_close_wakes_partial_header_and_no_attempt_can_extend_total_window
+FAILED tasks/g0-completion/tests/test_synthetic_native_fixture.py::test_context_port_survives_load_and_closed_listener_prevents_run
+2 failed, 16 deselected in 10.08s

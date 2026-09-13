@@ -1,0 +1,29 @@
+{
+  "commit": "6b9826e3aa83b1a5947db50f4332cb9c65f1b340",
+  "files": [
+    {
+      "path": "tasks/g0-completion/data/source/codex-rs/codex-api/src/sse/responses.rs",
+      "url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/codex-api/src/sse/responses.rs",
+      "bytes": 72601,
+      "sha256": "38c1fbcfee732d1b9c3f8990cccf08f2043f4c8526143b939c11e318c57f6f01"
+    },
+    {
+      "path": "tasks/g0-completion/data/source/codex-rs/model-provider-info/src/lib.rs",
+      "url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/model-provider-info/src/lib.rs",
+      "bytes": 25233,
+      "sha256": "03ba8ea303b9763f7c5e25a468b7f6675c9970dfb91109205beb6d0509f574d1"
+    },
+    {
+      "path": "tasks/g0-completion/data/source/codex-rs/codex-client/src/retry.rs",
+      "url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/codex-client/src/retry.rs",
+      "bytes": 3308,
+      "sha256": "562efcb2bf160f05b39894131d970bbde053e4804199e8cc7e6183d36f9fb226"
+    },
+    {
+      "path": "tasks/g0-native-0154-contract/data/source/codex-rs/protocol/src/models.rs",
+      "reused_archive": true,
+      "bytes": 153356,
+      "sha256": "9b816fc9fcb7a36a72b0a4dc8b68a5329ea27e2fd53b0530d22c6fe13e4f791c"
+    }
+  ]
+}
