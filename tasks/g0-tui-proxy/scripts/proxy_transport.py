@@ -227,6 +227,8 @@ class BackendConnection:
 
 
 BackendFactory = Callable[[PeerIdentity], AsyncContextManager[BackendConnection]]
+WireGate = Callable[[bytes], bytes | Awaitable[bytes]]
+WireGateFactory = Callable[[PeerIdentity, PeerIdentity, str, int], tuple[WireGate | None, WireGate | None] | None]
 
 
 class ProxyServer:
@@ -245,6 +247,7 @@ class ProxyServer:
         chunk_size: int = 64 * 1024,
         max_connections: int = 64,
         callback_timeout: float = 5.0,
+        wire_gate_factory: WireGateFactory | None = None,
     ) -> None:
         if chunk_size <= 0:
             raise ValueError("chunk_size must be positive")
@@ -264,6 +267,7 @@ class ProxyServer:
         self.chunk_size = chunk_size
         self.max_connections = max_connections
         self.callback_timeout = callback_timeout
+        self.wire_gate_factory = wire_gate_factory
         self._server: asyncio.AbstractServer | None = None
         self._accept_tasks: set[asyncio.Task[None]] = set()
         self._connection_tasks: set[asyncio.Task[None]] = set()
@@ -475,6 +479,11 @@ class ProxyServer:
             )
             await self._emit("on_connect", event, connection_id, epoch)
             self._connections[connection_id] = (frontend_writer, backend_writer)
+            wire_gates = self.wire_gate_factory(frontend_peer, backend_peer, connection_id, epoch) if self.wire_gate_factory is not None else None
+            if wire_gates is None:
+                frontend_gate = backend_gate = None
+            else:
+                frontend_gate, backend_gate = wire_gates
 
             direction_seq: dict[Direction, int] = {
                 "frontend_to_backend": 0,
@@ -489,6 +498,7 @@ class ProxyServer:
                         epoch,
                         "frontend_to_backend",
                         direction_seq,
+                        frontend_gate,
                     )
                 ),
                 asyncio.create_task(
@@ -499,6 +509,7 @@ class ProxyServer:
                         epoch,
                         "backend_to_frontend",
                         direction_seq,
+                        backend_gate,
                     )
                 ),
             ]
@@ -566,6 +577,7 @@ class ProxyServer:
         epoch: int,
         direction: Direction,
         direction_seq: dict[Direction, int],
+        wire_gate: WireGate | None = None,
     ) -> None:
         try:
             while True:
@@ -601,6 +613,13 @@ class ProxyServer:
                     )
                     return
                 direction_seq[direction] += 1
+                forwarded = data
+                if wire_gate is not None:
+                    forwarded = wire_gate(data)
+                    if inspect.isawaitable(forwarded):
+                        forwarded = await asyncio.wait_for(forwarded, self.callback_timeout)
+                    if not isinstance(forwarded, bytes):
+                        raise ValueError("wire gate must return bytes")
                 await self._emit(
                     "on_data",
                     DataEvent(
@@ -614,8 +633,9 @@ class ProxyServer:
                     connection_id,
                     epoch,
                 )
-                destination.write(data)
-                await destination.drain()
+                if forwarded:
+                    destination.write(forwarded)
+                    await destination.drain()
         except _CaptureFailure:
             raise
         except (ConnectionError, asyncio.IncompleteReadError, OSError):

@@ -175,31 +175,49 @@ def test_owner_close_closes_helpers_and_rejects_new_helper(tmp_path):
 
 
 @pytest.mark.parametrize("message", [
-    {"jsonrpc": "2.0", "id": 1, "method": "thread/read", "params": {"threadId": "other"}},
-    {"jsonrpc": "2.0", "id": 1, "method": "turn/start", "params": {"threadId": OWNER["owner_thread_id"]}},
-    {"jsonrpc": "2.0", "id": 1, "method": "command/exec", "params": {"threadId": OWNER["owner_thread_id"], "command": "pwd"}},
-    {"jsonrpc": "2.0", "id": 1, "method": "thread/fork", "params": {"threadId": OWNER["owner_thread_id"]}},
-    {"jsonrpc": "2.0", "id": 1, "method": "thread/read", "params": {"threadId": OWNER["owner_thread_id"], "prompt": "secret"}},
-    {"jsonrpc": "2.0", "id": 1, "method": "unknown/method", "params": {}},
+    {"id": 1, "method": "thread/read", "params": {"threadId": "other", "includeTurns": True}},
+    {"id": 1, "method": "turn/start", "params": {"threadId": OWNER["owner_thread_id"], "input": ["prompt"]}},
+    {"id": 1, "method": "command/exec", "params": {"threadId": OWNER["owner_thread_id"], "command": "pwd"}},
+    {"id": 1, "method": "thread/fork", "params": {"threadId": OWNER["owner_thread_id"]}},
+    {"id": 1, "method": "thread/read", "params": {"threadId": OWNER["owner_thread_id"], "includeTurns": True, "prompt": "secret"}},
+    {"id": 1, "method": "unknown/method", "params": {}},
+    {"id": 1, "method": "turn/start", "params": {"threadId": OWNER["owner_thread_id"], "input": [], "toolOutput": {"name": "wrong", "namespace": "orchestration", "output": "{}"}}},
+    {"id": 1, "method": "turn/start", "params": {"threadId": OWNER["owner_thread_id"], "input": [], "toolOutput": {"name": "g0_delivery", "namespace": "orchestration", "output": "{}", "extra": 1}}},
 ])
 def test_helper_rpc_gate_rejects_cross_thread_or_write_envelopes(message):
     with pytest.raises(OwnerHelperAdmissionError):
         validate_helper_rpc(message, OWNER["owner_thread_id"])
 
 
-def test_helper_rpc_gate_allows_owner_thread_read_only_requests():
-    for method in ("thread/read", "thread/turns/list", "thread/subscribe", "thread/unsubscribe"):
-        message = {
-            "jsonrpc": "2.0",
-            "id": method,
-            "method": method,
-            "params": {"threadId": OWNER["owner_thread_id"]},
-        }
-        assert validate_helper_rpc(message, OWNER["owner_thread_id"]) is None
+def test_helper_rpc_gate_allows_native_owner_requests_and_tool_output():
+    initialize = {
+        "id": 1,
+        "method": "initialize",
+        "params": {
+            "clientInfo": {"name": "g0-native-standalone", "version": "0.1.0"},
+            "capabilities": {"experimentalApi": True},
+        },
+    }
+    assert validate_helper_rpc(initialize, OWNER["owner_thread_id"]) is None
+    assert validate_helper_rpc({"method": "initialized"}, OWNER["owner_thread_id"]) is None
+    for method in ("server/diagnostics", "remoteControl/status/read"):
+        assert validate_helper_rpc({"id": 2, "method": method, "params": {}}, OWNER["owner_thread_id"]) is None
     assert validate_helper_rpc(
-        {"jsonrpc": "2.0", "id": 1, "method": "skills/list", "params": {}},
+        {"id": 3, "method": "thread/read", "params": {"threadId": OWNER["owner_thread_id"], "includeTurns": True}},
         OWNER["owner_thread_id"],
     ) is None
+    intent = {
+        "version": 1,
+        "delivery_id": "delivery_1",
+        "controller_thread_id": OWNER["owner_thread_id"],
+        "controller_epoch": 1,
+        "events": [{"event_id": "event_1", "event_revision": 1, "kind": "result", "payload_hash": "d" * 64, "action_slot": "ack_r1"}],
+    }
+    import hashlib
+    import json as _json
+    intent["payload_hash"] = hashlib.sha256(_json.dumps({k: v for k, v in intent.items() if k != "payload_hash"}, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    params = {"threadId": OWNER["owner_thread_id"], "input": [], "toolOutput": {"name": "g0_delivery", "namespace": "orchestration", "output": _json.dumps(intent, sort_keys=True, separators=(",", ":"))}}
+    assert validate_helper_rpc({"id": 4, "method": "turn/start", "params": params}, OWNER["owner_thread_id"]) is None
 
 
 def _server_frame(payload: bytes, *, opcode: int = 1, fin: bool = True, masked: bool = False, rsv: int = 0) -> bytes:
@@ -220,15 +238,17 @@ def test_helper_reassembles_fragmented_and_pipelined_server_json(tmp_path):
         await _open_owner(path)
         lease = OwnerLease(**{**OWNER, "private_socket": str(path)}, backend_pid=20001, backend_birth="backend-birth", helper_identity=HELPER)
         helper = await lease.open_helper(grant_for(path), HELPER)
-        message = {"jsonrpc": "2.0", "id": 1, "result": {"thread": {"id": OWNER["owner_thread_id"]}}}
+        message = {"id": 1, "result": {"thread": {"id": OWNER["owner_thread_id"]}}}
         encoded = json.dumps(message, separators=(",", ":")).encode()
+        await helper.send_rpc({"id": 1, "method": "server/diagnostics", "params": {}})
+        await helper.send_rpc({"id": 2, "method": "remoteControl/status/read", "params": {}})
         writer = state["connections"][-1]
         split = len(encoded) // 2
         writer.write(_server_frame(encoded[:split], fin=False) + _server_frame(encoded[split:], opcode=0))
-        writer.write(_server_frame(b'{"jsonrpc":"2.0","id":2,"result":{}}'))
+        writer.write(_server_frame(b'{"id":2,"result":{}}'))
         await writer.drain()
         assert await helper.read_rpc() == message
-        assert await helper.read_rpc() == {"jsonrpc": "2.0", "id": 2, "result": {}}
+        assert await helper.read_rpc() == {"id": 2, "result": {}}
         await helper.close()
         server.close()
         await server.wait_closed()
@@ -297,7 +317,8 @@ def test_helper_rejects_response_for_another_thread(tmp_path):
         lease = OwnerLease(**{**OWNER, "private_socket": str(path)}, backend_pid=20001, backend_birth="backend-birth", helper_identity=HELPER)
         helper = await lease.open_helper(grant_for(path), HELPER)
         writer = state["connections"][-1]
-        wrong = {"jsonrpc": "2.0", "id": 1, "result": {"thread": {"id": "other-thread"}}}
+        await helper.send_rpc({"id": 1, "method": "thread/read", "params": {"threadId": OWNER["owner_thread_id"], "includeTurns": True}})
+        wrong = {"id": 1, "result": {"thread": {"id": "other-thread"}}}
         writer.write(_server_frame(json.dumps(wrong).encode()))
         await writer.drain()
         with pytest.raises(OwnerHelperAdmissionError):
@@ -337,11 +358,11 @@ def test_connection_enforces_rpc_gate_before_writing_frame():
             lease_id=OWNER["lease_id"],
             owner_thread_id=OWNER["owner_thread_id"],
         )
-        bad = {"jsonrpc": "2.0", "id": 1, "method": "turn/start", "params": {"threadId": OWNER["owner_thread_id"]}}
+        bad = {"id": 1, "method": "turn/start", "params": {"threadId": OWNER["owner_thread_id"]}}
         with pytest.raises(OwnerHelperAdmissionError):
             await connection.send_rpc(bad)
         assert writer.writes == []
-        await connection.send_rpc({"jsonrpc": "2.0", "id": 2, "method": "skills/list", "params": {}})
+        await connection.send_rpc({"id": 2, "method": "server/diagnostics", "params": {}})
         assert writer.writes and writer.writes[0][1] & 0x80
         await connection.close()
 
@@ -357,7 +378,6 @@ def test_helper_accepts_scoped_server_notification_and_rejects_unknown(tmp_path)
         helper = await lease.open_helper(grant_for(path), HELPER)
         writer = state["connections"][-1]
         notification = {
-            "jsonrpc": "2.0",
             "method": "thread/status/changed",
             "params": {"threadId": OWNER["owner_thread_id"], "status": "idle"},
         }
@@ -366,7 +386,7 @@ def test_helper_accepts_scoped_server_notification_and_rejects_unknown(tmp_path)
         writer.write(_server_frame(encoded_notification[:split], fin=False) + _server_frame(encoded_notification[split:], opcode=0))
         await writer.drain()
         assert await helper.read_rpc() == notification
-        unknown = {"jsonrpc": "2.0", "method": "thread/other/changed", "params": {}}
+        unknown = {"method": "thread/other/changed", "params": {}}
         writer.write(_server_frame(json.dumps(unknown).encode()))
         await writer.drain()
         with pytest.raises(OwnerHelperAdmissionError):
@@ -376,3 +396,131 @@ def test_helper_accepts_scoped_server_notification_and_rejects_unknown(tmp_path)
         await server.wait_closed()
 
     asyncio.run(run())
+
+
+async def _echo_ws_server(path: Path):
+    state = {"connections": [], "handshakes": 0, "requests": []}
+
+    async def handle(reader, writer):
+        try:
+            request = await _read_http_headers(reader)
+            key = next(line.split(b":", 1)[1].strip() for line in request.split(b"\r\n") if line.lower().startswith(b"sec-websocket-key:"))
+            accept = base64.b64encode(hashlib.sha1(key + b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11").digest())
+            writer.write(b"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: " + accept + b"\r\n\r\n")
+            await writer.drain()
+            state["connections"].append(writer)
+            state["handshakes"] += 1
+            while True:
+                first, second = await reader.readexactly(2)
+                if first & 0x70 or not first & 0x80 or first & 0x0F != 1 or not second & 0x80:
+                    raise AssertionError("unexpected helper frame")
+                length = second & 0x7F
+                if length == 126:
+                    length = int.from_bytes(await reader.readexactly(2), "big")
+                mask = await reader.readexactly(4)
+                payload = await reader.readexactly(length)
+                payload = bytes(byte ^ mask[i % 4] for i, byte in enumerate(payload))
+                message = json.loads(payload)
+                state["requests"].append(message)
+                response = {"id": message["id"], "result": {"process": {"id": 20001}}}
+                writer.write(_server_frame(json.dumps(response, separators=(",", ":")).encode()))
+                await writer.drain()
+        except (asyncio.IncompleteReadError, ConnectionError):
+            pass
+        finally:
+            if writer in state["connections"]:
+                state["connections"].remove(writer)
+            writer.close()
+            await writer.wait_closed()
+
+    server = await asyncio.start_unix_server(handle, path=str(path))
+    return server, state
+
+
+def test_real_uds_websocket_forwards_only_authorized_helper_request(tmp_path):
+    async def run():
+        path = socket_path(tmp_path)
+        server, state = await _echo_ws_server(path)
+        await _open_owner(path)
+        lease = OwnerLease(**{**OWNER, "private_socket": str(path)}, backend_pid=20001, backend_birth="backend-birth", helper_identity=HELPER)
+        helper = await lease.open_helper(grant_for(path), HELPER)
+        request = {"id": 1, "method": "server/diagnostics", "params": {}}
+        await helper.send_rpc(request)
+        assert await helper.read_rpc() == {"id": 1, "result": {"process": {"id": 20001}}}
+        assert state["handshakes"] == 2
+        assert state["requests"] == [request]
+        with pytest.raises(OwnerHelperAdmissionError):
+            await helper.send_rpc({"id": 2, "method": "turn/start", "params": {"threadId": OWNER["owner_thread_id"], "input": ["ordinary prompt"]}})
+        assert state["requests"] == [request]
+        await helper.close()
+        server.close()
+        await server.wait_closed()
+
+    asyncio.run(run())
+
+
+def _client_frame(payload: bytes, *, opcode=1, fin=True):
+    mask = b"wxyz"
+    first = (0x80 if fin else 0) | opcode
+    masked = bytes(byte ^ mask[i % 4] for i, byte in enumerate(payload))
+    if len(payload) >= 126:
+        raise AssertionError("test payload must use short frame")
+    return bytes((first, 0x80 | len(payload))) + mask + masked
+
+
+def _upgrade_bytes():
+    return b"GET / HTTP/1.1\r\nHost: synthetic\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n"
+
+
+def test_service_wire_gate_validates_before_forwarding_and_tracks_response_ids():
+    from owner_helper import NativeWebSocketGate
+
+    owner = OWNER["owner_thread_id"]
+    client = NativeWebSocketGate(owner, server=False)
+    request = {"id": 1, "method": "thread/read", "params": {"threadId": owner, "includeTurns": True}}
+    frame = _client_frame(json.dumps(request, separators=(",", ":")).encode())
+    assert client.feed(_upgrade_bytes() + frame[:4]) == _upgrade_bytes()
+    assert client.feed(frame[4:]) == frame
+    server = NativeWebSocketGate(owner, server=True, pending_ids=client.pending_ids)
+    response = {"id": 1, "result": {"thread": {"id": owner}}}
+    server_frame = _server_frame(json.dumps(response, separators=(",", ":")).encode())
+    assert server.feed(_upgrade_bytes() + server_frame) == _upgrade_bytes() + server_frame
+    assert not client.pending_ids
+    bad = {"id": 2, "method": "turn/start", "params": {"threadId": owner, "input": ["ordinary prompt"]}}
+    with pytest.raises(OwnerHelperAdmissionError):
+        client.feed(_client_frame(json.dumps(bad).encode()))
+
+
+def test_service_wire_gate_rejects_server_request_and_cross_thread_response():
+    from owner_helper import NativeWebSocketGate
+
+    owner = OWNER["owner_thread_id"]
+    client = NativeWebSocketGate(owner, server=False)
+    request = {"id": 1, "method": "server/diagnostics", "params": {}}
+    client.feed(_upgrade_bytes() + _client_frame(json.dumps(request).encode()))
+    server = NativeWebSocketGate(owner, server=True, pending_ids=client.pending_ids)
+    server_request = {"id": 99, "method": "thread/read", "params": {"threadId": owner, "includeTurns": True}}
+    with pytest.raises(OwnerHelperAdmissionError):
+        server.feed(_upgrade_bytes() + _server_frame(json.dumps(server_request).encode()))
+    wrong = {"id": 1, "result": {"thread": {"id": "other"}}}
+    with pytest.raises(OwnerHelperAdmissionError):
+        server.feed(_server_frame(json.dumps(wrong).encode()))
+
+
+def test_tool_output_rejects_boolean_intent_version():
+    intent = {
+        "version": True,
+        "delivery_id": "delivery_1",
+        "controller_thread_id": OWNER["owner_thread_id"],
+        "controller_epoch": 1,
+        "events": [{"event_id": "event_1", "event_revision": 1, "kind": "result", "payload_hash": "d" * 64, "action_slot": "ack_r1"}],
+        "payload_hash": "e" * 64,
+    }
+    with pytest.raises(OwnerHelperAdmissionError):
+        validate_helper_rpc({
+            "id": 1,
+            "method": "turn/start",
+            "params": {"threadId": OWNER["owner_thread_id"], "input": [], "toolOutput": {
+                "name": "g0_delivery", "namespace": "orchestration", "output": json.dumps(intent),
+            }},
+        }, OWNER["owner_thread_id"])

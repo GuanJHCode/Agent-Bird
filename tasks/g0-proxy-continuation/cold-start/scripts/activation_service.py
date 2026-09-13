@@ -18,11 +18,12 @@ import time
 import uuid
 
 _REPO = Path(__file__).resolve().parents[4]
-for _directory in (_REPO/'tasks/g0-tui-proxy/scripts', _REPO/'tasks/g0-auth-preserving-activation/scripts'):
+for _directory in (_REPO/'tasks/g0-tui-proxy/scripts', _REPO/'tasks/g0-auth-preserving-activation/scripts', _REPO/'tasks/g0-completion/scripts'):
     if str(_directory) not in sys.path:
         sys.path.insert(0,str(_directory))
-from proxy_transport import BackendConnection, CaptureSink, ProxyServer, _process_metadata
+from proxy_transport import BackendConnection, CaptureSink, ProxyServer, _process_metadata, peer_identity
 from proxy_observer import Observer
+from owner_helper import HelperIdentity, NativeWebSocketGate, OwnerHelperGrant, OwnerLease
 from owned_child_guard import GuardedChild
 
 LOCAL_SECONDS = 10.0
@@ -294,11 +295,16 @@ class ActivationService:
         self.sink=MetadataSink(lease_for_connection=self._protocol_lease,publish_ready=self._publish_ready)
         self.backend_records=[]
         self._admissions={}
+        self._helper_admissions={}
+        self._owner_leases={}
+        helper_pins=manifest.get('owner_helper',{})
+        self._helper_pins=helper_pins if isinstance(helper_pins,dict) else {}
         self._profile_locks={name:asyncio.Lock() for name in self.contexts}
         self._closed=False
         self._close_task=None
         self.proxy=ProxyServer(self.public_socket,None,self.sink,authorize_peer=self._admit,
-            backend_factory=self._backend,stop_on_frontend_eof=True,callback_timeout=LOCAL_SECONDS)
+            backend_factory=self._backend,stop_on_frontend_eof=True,callback_timeout=LOCAL_SECONDS,
+            wire_gate_factory=self._wire_gate_factory)
 
     def _protocol_lease(self,event):
         for record in self.backend_records:
@@ -320,6 +326,20 @@ class ActivationService:
     def _publish_ready(self,protocol):
         self._check_runtime_policy()
         row=dict(protocol,version=1,activation_id=self.activation_id,manifest_sha256=self.manifest_sha256)
+        record=self._record_for_lease(protocol.get('lease_id'))
+        thread_id=protocol.get('thread',{}).get('id') if isinstance(protocol.get('thread'),dict) else None
+        if (record is not None and record.get('state')=='connected' and isinstance(thread_id,str)
+                and all(key in record for key in ('private_socket','pid','birth'))):
+            context=self.contexts[record['profile_id']]
+            owner_context_sha256=self._owner_context_sha(context)
+            record.update(owner_connection_id=protocol.get('connection_id'),owner_epoch=protocol.get('epoch'),
+                owner_thread_id=thread_id,owner_context_sha256=owner_context_sha256)
+            self._owner_leases[record['lease_id']]=OwnerLease(
+                profile_id=record['profile_id'],owner_context_sha256=owner_context_sha256,
+                lease_id=record['lease_id'],owner_connection_id=record['owner_connection_id'],
+                owner_epoch=record['owner_epoch'],owner_thread_id=thread_id,
+                private_socket=record['private_socket'],backend_pid=record['pid'],
+                backend_birth=record['birth'],helper_identity=None)
         path=self.receipt_dir/f"ready-{protocol['lease_id']}.json"
         stage=self.receipt_dir/f".ready-{uuid.uuid4().hex}.json"
         try:
@@ -352,6 +372,61 @@ class ActivationService:
             raise ValueError('isolated profile configuration changed')
         self._check_pins()
 
+    def _wire_gate_factory(self, frontend_peer, backend_peer, connection_id, epoch):
+        admission=self._helper_admissions.get((frontend_peer.pid,frontend_peer.birth,frontend_peer.executable))
+        if admission is None:
+            return None
+        grant,_=admission
+        pending=set()
+        return (NativeWebSocketGate(grant['owner_thread_id'],server=False,pending_ids=pending),
+            NativeWebSocketGate(grant['owner_thread_id'],server=True,pending_ids=pending))
+
+    def _owner_context_sha(self, context):
+        config_path=context.spec.codex_home/'config.toml'
+        config_sha=self._config_pins.get(config_path) or _sha(config_path)
+        value={'profile_id':context.spec.profile_id,'home':str(context.spec.home),
+            'codex_home':str(context.spec.codex_home),'workspace':str(context.spec.workspace),
+            'backend_socket':str(context.spec.backend_socket),'config_sha256':config_sha,
+            'expected_executable_sha256':context.expected_executable_sha256}
+        return hashlib.sha256(json.dumps(value,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+
+    def _record_for_lease(self, lease_id):
+        return next((record for record in self.backend_records if record.get('lease_id')==lease_id), None)
+
+    def _helper_admission(self, peer, grant, grant_sha):
+        required={'version','role','profile_id','owner_context_sha256','lease_id','owner_connection_id',
+            'owner_epoch','owner_thread_id','private_socket','helper_pid','helper_uid','helper_birth',
+            'helper_executable','helper_executable_sha256','helper_source_sha256'}
+        if set(grant)!=required or type(grant.get('version')) is not int or grant.get('version')!=1 or grant.get('role')!='owner-helper': return False
+        if grant.get('helper_pid')!=peer.pid or grant.get('helper_uid')!=peer.uid or grant.get('helper_birth')!=peer.birth: return False
+        if grant.get('helper_executable')!=peer.executable or not peer.complete: return False
+        pins=self._helper_pins
+        if not all(isinstance(pins.get(key),str) and pins.get(key) for key in ('executable','executable_sha256','source_sha256')): return False
+        if grant['helper_executable']!=pins['executable'] or grant['helper_source_sha256']!=pins['source_sha256']: return False
+        try:
+            if grant['helper_executable_sha256']!=pins['executable_sha256'] or _sha(Path(peer.executable))!=pins['executable_sha256']: return False
+            current_birth,current_executable=_process_metadata(peer.pid)
+            if current_birth!=peer.birth or current_executable!=peer.executable: return False
+        except (OSError,ValueError): return False
+        record=self._record_for_lease(grant['lease_id']); lease=self._owner_leases.get(grant['lease_id'])
+        if record is None or lease is None or record.get('state')!='connected': return False
+        context=self.contexts.get(grant['profile_id'])
+        if context is None or record.get('profile_id')!=grant['profile_id']: return False
+        if grant['owner_context_sha256']!=self._owner_context_sha(context): return False
+        if grant['private_socket']!=record.get('private_socket') or grant['private_socket']!=lease.private_socket: return False
+        if grant['owner_connection_id']!=record.get('owner_connection_id') or grant['owner_epoch']!=record.get('owner_epoch') or grant['owner_thread_id']!=record.get('owner_thread_id'): return False
+        try:
+            info=os.lstat(grant['private_socket']); frozen=record.get('private_socket_identity')
+            if frozen is None or (info.st_dev,info.st_ino,info.st_uid,info.st_mode)!=tuple(frozen): return False
+            identity=HelperIdentity(pid=peer.pid,uid=peer.uid,birth=peer.birth,executable=peer.executable,
+                executable_sha256=grant['helper_executable_sha256'],source_sha256=grant['helper_source_sha256'])
+            lease.validate_grant(OwnerHelperGrant(**grant),identity)
+        except (OSError,ValueError,KeyError,TypeError): return False
+        key=(peer.pid,peer.birth,peer.executable); previous=self._helper_admissions.get(key)
+        if previous is not None and previous[1]!=grant_sha: return False
+        self._helper_admissions[key]=(dict(grant),grant_sha)
+        return True
+
     def _admit(self,peer):
         if not peer.complete or peer.uid!=os.getuid(): return False
         try:
@@ -359,6 +434,8 @@ class ActivationService:
             current_birth,current_executable=_process_metadata(peer.pid)
             if current_birth!=peer.birth or current_executable!=peer.executable: return False
             grant,digest=_private_json(self.grants_dir/f'{peer.pid}.json')
+            if grant.get('role')=='owner-helper':
+                return self._helper_admission(peer,grant,digest)
             profile=grant.get('profile_id')
             allowed=(grant.get('version')==1 and grant.get('pid')==peer.pid and grant.get('uid')==peer.uid
                 and grant.get('birth')==peer.birth and grant.get('expected_executable')==peer.executable
@@ -377,8 +454,17 @@ class ActivationService:
 
     @asynccontextmanager
     async def _backend(self,frontend):
-        # Admission is reusable for a no-RPC startup probe, but cannot be remapped.
         key=(frontend.pid,frontend.birth,frontend.executable)
+        if key in self._helper_admissions:
+            grant,grant_sha=self._helper_admissions[key]
+            profile=grant['profile_id']; context=self.contexts[profile]
+            self._check_runtime_policy()
+            if not self._admit(frontend) or self._helper_admissions[key][1]!=grant_sha:
+                raise ValueError('helper grant changed before connection')
+            async with self._leased_helper(frontend,grant,context) as lease:
+                yield lease
+            return
+        # Admission is reusable for a no-RPC startup probe, but cannot be remapped.
         profile,grant_sha=self._admissions[key]
         context=self.contexts[profile]
         start=time.monotonic(); deadline=start+LOCAL_SECONDS
@@ -392,6 +478,37 @@ class ActivationService:
                 yield lease
         finally:
             lock.release()
+
+    @asynccontextmanager
+    async def _leased_helper(self,frontend,grant,context):
+        lease=self._owner_leases.get(grant['lease_id'])
+        record=self._record_for_lease(grant['lease_id'])
+        if lease is None or record is None or record.get('state')!='connected':
+            raise ValueError('owner lease is not active')
+        identity=HelperIdentity(pid=frontend.pid,uid=frontend.uid,birth=frontend.birth,executable=frontend.executable,
+            executable_sha256=grant['helper_executable_sha256'],source_sha256=grant['helper_source_sha256'])
+        helper=None
+        helper_record={'role':'owner-helper','lease_id':grant['lease_id'],
+            'owner_connection_id':grant['owner_connection_id'],'owner_epoch':grant['owner_epoch'],
+            'owner_thread_id':grant['owner_thread_id'],'frontend':_peer(frontend),'state':'opening'}
+        record.setdefault('helpers',[]).append(helper_record)
+        try:
+            helper=await lease.open_helper(OwnerHelperGrant(**grant),identity)
+            helper_record['state']='connected'
+            backend_socket=helper.writer.get_extra_info('socket')
+            backend_peer=peer_identity(backend_socket)
+            if not backend_peer.complete or not _same_process(backend_peer,record['pid'],record['birth'],self.executable):
+                raise ValueError('helper backend peer identity mismatch')
+            info=os.lstat(grant['private_socket'])
+            frozen=record.get('private_socket_identity')
+            if frozen is None or (info.st_dev,info.st_ino,info.st_uid,info.st_mode)!=tuple(frozen):
+                raise ValueError('helper backend socket identity changed')
+            yield BackendConnection(helper.reader,helper.writer,
+                lambda peer:_same_process(peer,record['pid'],record['birth'],self.executable))
+        finally:
+            if helper is not None:
+                await helper.close()
+            helper_record['state']='closed'
 
     @asynccontextmanager
     async def _leased_backend(self,frontend,profile,grant_sha,context,start,deadline):
@@ -448,7 +565,8 @@ class ActivationService:
                     except (ConnectionRefusedError,FileNotFoundError): pass
                 await asyncio.sleep(min(.01,max(0,deadline-time.monotonic())))
             else: raise TimeoutError('isolated backend exceeded original local start window')
-            record.update(state='connected',birth=birth,executable=str(self.executable))
+            record.update(state='connected',birth=birth,executable=str(self.executable),
+                private_socket_identity=identity,backend_peer=_peer(peer_identity(writer.get_extra_info('socket'))))
             yield BackendConnection(reader,writer,lambda peer:_same_process(peer,process.pid,birth,self.executable))
         except BaseException as exc:
             if isinstance(exc,asyncio.CancelledError) and self._closed:
@@ -458,6 +576,12 @@ class ActivationService:
             raise
         finally:
             cleanup_deadline=getattr(self,'_cleanup_deadline',time.monotonic()+LOCAL_SECONDS)
+            owner_lease=self._owner_leases.pop(lease_id,None)
+            if owner_lease is not None:
+                await owner_lease.close()
+            for key, admission in tuple(self._helper_admissions.items()):
+                if admission[0].get('lease_id')==lease_id:
+                    self._helper_admissions.pop(key,None)
             if writer is not None: writer.close()
             if process is not None:
                 guarded=await process.stop(max(0,cleanup_deadline-time.monotonic()))
