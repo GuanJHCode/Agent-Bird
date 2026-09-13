@@ -702,7 +702,7 @@ func collectFiles(root string) ([]manifestFile, error) {
 		if walkErr != nil {
 			return walkErr
 		}
-		if info.IsDir() || filepath.Base(path) == "manifest.json" {
+		if info.IsDir() {
 			return nil
 		}
 		relative, err := filepath.Rel(root, path)
