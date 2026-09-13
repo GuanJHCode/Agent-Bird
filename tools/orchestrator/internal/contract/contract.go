@@ -22,6 +22,7 @@ type Event struct {
 	Process        *ProcessIdentity `json:"process,omitempty"`
 	ExitCode       *int             `json:"exit_code,omitempty"`
 	Artifact       *ArtifactRef     `json:"artifact,omitempty"`
+	ActiveMS       int64            `json:"active_ms,omitempty"`
 }
 
 const (
@@ -104,6 +105,9 @@ type LaunchCommand struct {
 	ExecutionEpoch   uint64          `json:"execution_epoch"`
 	SlotToken        string          `json:"slot_token"`
 	LaunchIntentHash string          `json:"launch_intent_hash"`
+	ReservationID    string          `json:"reservation_id"`
+	BudgetGroupID    string          `json:"budget_group_id"`
+	GrantedActiveMS  int64           `json:"granted_active_ms"`
 	DeadlineUnixMS   int64           `json:"deadline_unix_ms"`
 	AdapterPayload   json.RawMessage `json:"adapter_payload,omitempty"`
 }

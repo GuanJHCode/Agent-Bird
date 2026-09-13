@@ -45,6 +45,31 @@ func TestCodecRoundTripsTypedEnvelope(t *testing.T) {
 	}
 }
 
+func TestLaunchGrantCarriesFrozenActiveBudget(t *testing.T) {
+	want := contract.LaunchCommand{
+		CommandID:       "command-1",
+		ReservationID:   "reservation-1",
+		BudgetGroupID:   "budget-1",
+		GrantedActiveMS: 900_000,
+		DeadlineUnixMS:  2_000_000,
+	}
+	var wire bytes.Buffer
+	if err := Write(&wire, Envelope{Version: Version, Kind: KindLaunch, RequestID: "request-2", Epoch: 8, Payload: mustJSON(t, want)}); err != nil {
+		t.Fatal(err)
+	}
+	message, err := Read(&wire)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got contract.LaunchCommand
+	if err = json.Unmarshal(message.Payload, &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.ReservationID != "reservation-1" || got.BudgetGroupID != "budget-1" || got.GrantedActiveMS != 900_000 {
+		t.Fatalf("grant=%#v", got)
+	}
+}
+
 func TestCodecRejectsOversizeBeforeAllocation(t *testing.T) {
 	var wire bytes.Buffer
 	wire.Write([]byte{0, 1, 0, 1}) // 65,537 bytes, above the 64 KiB contract.
