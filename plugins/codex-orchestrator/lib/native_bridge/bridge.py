@@ -172,7 +172,7 @@ class OwnerAttachment:
             "service_identity": self.service_identity,
             "backend_identity": self.backend_identity, "private_socket": self.private_socket,
             "private_socket_identity": list(self.private_socket_identity),
-            "origin_process": {"pid": self.origin_pid, "birth": self.origin_birth,
+            "origin_process": {"pid": self.origin_pid, "uid": os.getuid(), "birth": self.origin_birth,
                                "executable": self.origin_executable,
                                "executable_sha256": self.origin_executable_sha256},
         }
@@ -666,15 +666,14 @@ class ControlPlaneClient:
 
     def _call(self, args: list[str], *, timeout: int = 10) -> dict[str, Any]:
         self._verify_executable()
-        environment = {
-            "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
-            "LANG": "C",
-            "LC_ALL": "C",
-        }
+        environment = {}
+        for key, value in os.environ.items():
+            upper = key.upper()
+            if not upper.startswith("ORCHESTRATOR_") and key != "PYTHONDONTWRITEBYTECODE":
+                environment[key] = value
+        environment["PYTHONDONTWRITEBYTECODE"] = "1"
         if self.enable_test_fake:
             environment["ORCHESTRATOR_ENABLE_TEST_FAKE"] = "1"
-        if os.getenv("TMPDIR"):
-            environment["TMPDIR"] = os.environ["TMPDIR"]
         try:
             completed = subprocess.run(
                 [str(self.executable), *args],

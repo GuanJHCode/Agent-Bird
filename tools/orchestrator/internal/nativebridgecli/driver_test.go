@@ -13,6 +13,7 @@ func TestDriverEnvironmentPreservesSourceAndStripsToolCapabilities(t *testing.T)
 	t.Setenv("PROVIDER_SESSION_MARKER", "synthetic-source-session")
 	t.Setenv("ORCHESTRATOR_CONTROL_TOKEN", "must-not-cross")
 	t.Setenv("ORCHESTRATOR_REPORT_CAPABILITY", "must-not-cross")
+	t.Setenv("ORCHESTRATOR_FUTURE_SLOT", "must-not-cross")
 	t.Setenv("ORCHESTRATOR_ENABLE_TEST_FAKE", "1")
 	values := make(map[string]string)
 	for _, value := range driverEnvironment(false) {
@@ -27,7 +28,7 @@ func TestDriverEnvironmentPreservesSourceAndStripsToolCapabilities(t *testing.T)
 		values["PROVIDER_SESSION_MARKER"] != "synthetic-source-session" {
 		t.Fatalf("source environment missing: %#v", values)
 	}
-	for _, key := range []string{"ORCHESTRATOR_CONTROL_TOKEN", "ORCHESTRATOR_REPORT_CAPABILITY", "ORCHESTRATOR_ENABLE_TEST_FAKE"} {
+	for _, key := range []string{"ORCHESTRATOR_CONTROL_TOKEN", "ORCHESTRATOR_REPORT_CAPABILITY", "ORCHESTRATOR_FUTURE_SLOT", "ORCHESTRATOR_ENABLE_TEST_FAKE"} {
 		if _, exists := values[key]; exists {
 			t.Fatalf("tool capability escaped: %s", key)
 		}

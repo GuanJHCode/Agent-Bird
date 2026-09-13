@@ -487,6 +487,7 @@ def attachment_live(attachment, proxy_transport):
         attachment.backend_identity,
         {
             "pid": attachment.origin_pid,
+            "uid": os.getuid(),
             "birth": attachment.origin_birth,
             "executable": attachment.origin_executable,
             "executable_sha256": attachment.origin_executable_sha256,
@@ -594,9 +595,7 @@ async def run_driver(request_path_value):
         ),
         "manifest_binding",
     )
-    store = receipt_store.ReceiptStore(
-        Path(manifest["state_dir"]), activation_id=request["activation_id"]
-    )
+    store = receipt_store.ReceiptStore(Path(manifest["state_dir"]))
     connection = None
     ws_writer = None
     base_status = None
@@ -607,6 +606,7 @@ async def run_driver(request_path_value):
             and owner_captured[1] == request["owner_ready_sha256"],
             "owner_ready_changed",
         )
+        require(store.activation_id == request["activation_id"], "owner_ready_changed")
         owner_ready = owner_captured[0]
         lease = owner_ready.get("owner_lease")
         require(
@@ -670,7 +670,7 @@ async def run_driver(request_path_value):
                 "method": "initialize",
                 "params": {
                     "clientInfo": {
-                        "name": "g0-native-product-driver",
+                        "name": "g0-native-standalone",
                         "version": "0.1.0",
                     },
                     "capabilities": {"experimentalApi": True},
@@ -759,11 +759,14 @@ async def run_driver(request_path_value):
                     dict(base_status, status="owner_detached"),
                 )
                 return
+            timeout_ms = max(
+                1, min(30_000, int((deadline - time.monotonic()) * 1000))
+            )
             status, events, next_cursor = client.wait_events(
                 request["task_id"],
                 control_file=control_file,
                 cursor=cursor,
-                timeout_ms=1000,
+                timeout_ms=timeout_ms,
             )
             if status == "timeout":
                 continue

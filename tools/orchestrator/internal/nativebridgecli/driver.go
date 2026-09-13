@@ -155,10 +155,7 @@ func driverEnvironment(enableTestFake bool) []string {
 			key = value[:index]
 		}
 		upper := strings.ToUpper(key)
-		toolSecret := strings.HasPrefix(upper, "ORCHESTRATOR_") &&
-			(strings.Contains(upper, "CONTROL") || strings.Contains(upper, "CAPABILITY") ||
-				strings.Contains(upper, "REPORT") || strings.Contains(upper, "BOOTSTRAP"))
-		if toolSecret || key == "ORCHESTRATOR_ENABLE_TEST_FAKE" || key == "PYTHONDONTWRITEBYTECODE" {
+		if strings.HasPrefix(upper, "ORCHESTRATOR_") || key == "PYTHONDONTWRITEBYTECODE" {
 			continue
 		}
 		out = append(out, value)

@@ -346,6 +346,32 @@ def test_control_plane_wait_events_preserves_actionable_cursor(tmp_path):
     assert "--include-diagnostics" not in argv
 
 
+def test_control_plane_preserves_source_environment_but_strips_tool_capabilities(tmp_path, monkeypatch):
+    control = make_control_file(tmp_path)
+    captured = tmp_path / "environment.json"
+    executable = tmp_path / "fake-orchestrator"
+    payload = {"version": 1, "status": "pending", "events": []}
+    executable.write_text(
+        "#!" + sys.executable + "\nimport json,os\n"
+        f"open({str(captured)!r},'w').write(json.dumps(dict(os.environ)))\n"
+        f"print({json.dumps(json.dumps(payload))})\n"
+    )
+    executable.chmod(0o700)
+    monkeypatch.setenv("HTTPS_PROXY", "http://synthetic-proxy.invalid")
+    monkeypatch.setenv("PROVIDER_SESSION_MARKER", "synthetic-source-session")
+    monkeypatch.setenv("ORCHESTRATOR_CONTROL_TOKEN", "must-not-cross")
+    monkeypatch.setenv("ORCHESTRATOR_REPORT_CAPABILITY", "must-not-cross")
+    monkeypatch.setenv("ORCHESTRATOR_FUTURE_SLOT", "must-not-cross")
+    client = ControlPlaneClient(executable, hashlib.sha256(executable.read_bytes()).hexdigest())
+    assert client.collect("task-a", control_file=control) == []
+    environment = json.loads(captured.read_text())
+    assert environment["HTTPS_PROXY"] == "http://synthetic-proxy.invalid"
+    assert environment["PROVIDER_SESSION_MARKER"] == "synthetic-source-session"
+    assert "ORCHESTRATOR_CONTROL_TOKEN" not in environment
+    assert "ORCHESTRATOR_REPORT_CAPABILITY" not in environment
+    assert "ORCHESTRATOR_FUTURE_SLOT" not in environment
+
+
 def test_owner_capability_generation_advances_for_same_thread_new_tui(tmp_path):
     store = OwnerCapabilityStore(tmp_path / "owner-capabilities")
     first = attachment()
