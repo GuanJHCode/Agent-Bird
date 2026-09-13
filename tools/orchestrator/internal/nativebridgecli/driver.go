@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"syscall"
 	"time"
 
@@ -147,7 +148,22 @@ func validatePrivateDir(path string) error {
 }
 
 func driverEnvironment(enableTestFake bool) []string {
-	out := []string{"PATH=/usr/bin:/bin:/usr/sbin:/sbin", "LANG=C", "LC_ALL=C", "PYTHONDONTWRITEBYTECODE=1"}
+	out := make([]string, 0, len(os.Environ())+1)
+	for _, value := range os.Environ() {
+		key := value
+		if index := strings.IndexByte(value, '='); index >= 0 {
+			key = value[:index]
+		}
+		upper := strings.ToUpper(key)
+		toolSecret := strings.HasPrefix(upper, "ORCHESTRATOR_") &&
+			(strings.Contains(upper, "CONTROL") || strings.Contains(upper, "CAPABILITY") ||
+				strings.Contains(upper, "REPORT") || strings.Contains(upper, "BOOTSTRAP"))
+		if toolSecret || key == "ORCHESTRATOR_ENABLE_TEST_FAKE" || key == "PYTHONDONTWRITEBYTECODE" {
+			continue
+		}
+		out = append(out, value)
+	}
+	out = append(out, "PYTHONDONTWRITEBYTECODE=1")
 	if enableTestFake {
 		out = append(out, "ORCHESTRATOR_ENABLE_TEST_FAKE=1")
 	}

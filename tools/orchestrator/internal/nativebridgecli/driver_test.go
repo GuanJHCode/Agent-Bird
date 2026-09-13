@@ -8,6 +8,44 @@ import (
 	"testing"
 )
 
+func TestDriverEnvironmentPreservesSourceAndStripsToolCapabilities(t *testing.T) {
+	t.Setenv("HTTPS_PROXY", "http://synthetic-proxy.invalid")
+	t.Setenv("PROVIDER_SESSION_MARKER", "synthetic-source-session")
+	t.Setenv("ORCHESTRATOR_CONTROL_TOKEN", "must-not-cross")
+	t.Setenv("ORCHESTRATOR_REPORT_CAPABILITY", "must-not-cross")
+	t.Setenv("ORCHESTRATOR_ENABLE_TEST_FAKE", "1")
+	values := make(map[string]string)
+	for _, value := range driverEnvironment(false) {
+		for index, character := range value {
+			if character == '=' {
+				values[value[:index]] = value[index+1:]
+				break
+			}
+		}
+	}
+	if values["HTTPS_PROXY"] != "http://synthetic-proxy.invalid" ||
+		values["PROVIDER_SESSION_MARKER"] != "synthetic-source-session" {
+		t.Fatalf("source environment missing: %#v", values)
+	}
+	for _, key := range []string{"ORCHESTRATOR_CONTROL_TOKEN", "ORCHESTRATOR_REPORT_CAPABILITY", "ORCHESTRATOR_ENABLE_TEST_FAKE"} {
+		if _, exists := values[key]; exists {
+			t.Fatalf("tool capability escaped: %s", key)
+		}
+	}
+	if fake := driverEnvironment(true); !containsEnvironment(fake, "ORCHESTRATOR_ENABLE_TEST_FAKE=1") {
+		t.Fatal("authorized test fake missing")
+	}
+}
+
+func containsEnvironment(values []string, expected string) bool {
+	for _, value := range values {
+		if value == expected {
+			return true
+		}
+	}
+	return false
+}
+
 func TestRecordDriverDecisionBindsExactHistoryReceipt(t *testing.T) {
 	root := t.TempDir()
 	if err := os.Chmod(root, 0o700); err != nil {
