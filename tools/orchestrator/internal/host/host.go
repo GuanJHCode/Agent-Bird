@@ -9,6 +9,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -21,6 +22,8 @@ type Host struct {
 	spoolRoot    string
 	mu           sync.Mutex
 	active       map[string]*process.Handle
+	activeBySeg  map[string]*process.Handle
+	producerID   string
 	grantMu      sync.Mutex
 	reservations map[string]time.Time
 }
@@ -29,13 +32,27 @@ func New(db *store.DB, spoolRoot string) (*Host, error) {
 	if db == nil {
 		return nil, errors.New("store_required")
 	}
+	return newHost(db, spoolRoot, "")
+}
+
+// NewIPC creates a source Host which owns only process trees and a durable
+// spool. It never opens or writes the coordinator database; Publish must
+// receive a durable ACK before the spool cursor advances.
+func NewIPC(spoolRoot, producerID string) (*Host, error) {
+	if producerID == "" {
+		return nil, errors.New("producer_id_required")
+	}
+	return newHost(nil, spoolRoot, producerID)
+}
+
+func newHost(db *store.DB, spoolRoot, producerID string) (*Host, error) {
 	if !filepath.IsAbs(spoolRoot) {
 		return nil, errors.New("spool_path_not_absolute")
 	}
 	if err := os.MkdirAll(spoolRoot, 0700); err != nil {
 		return nil, err
 	}
-	return &Host{db: db, spoolRoot: spoolRoot, active: map[string]*process.Handle{}, reservations: map[string]time.Time{}}, nil
+	return &Host{db: db, spoolRoot: spoolRoot, active: map[string]*process.Handle{}, activeBySeg: map[string]*process.Handle{}, producerID: producerID, reservations: map[string]time.Time{}}, nil
 }
 func (h *Host) spool(a store.Attempt) (*events.Spool, error) {
 	return events.Open(filepath.Join(h.spoolRoot, a.ID, a.SegmentID))
@@ -70,7 +87,7 @@ func (h *Host) ExecuteLaunch(ctx context.Context, grant contract.LaunchCommand, 
 	h.grantMu.Unlock()
 	runCtx, cancel := context.WithDeadline(ctx, budgetDeadline)
 	defer cancel()
-	return h.Execute(runCtx, store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID, Status: "running"}, grant.RunID, grant.TaskID, invocationCommand(inv))
+	return h.execute(runCtx, store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID, Status: "running"}, grant.RunID, grant.TaskID, invocationCommand(inv), false)
 }
 
 func invocationCommand(inv contract.InvocationView) process.Command {
@@ -84,22 +101,26 @@ func invocationCommand(inv contract.InvocationView) process.Command {
 }
 
 func (h *Host) Execute(ctx context.Context, a store.Attempt, runID, taskID string, cmd process.Command) (contract.Result, error) {
+	return h.execute(ctx, a, runID, taskID, cmd, true)
+}
+
+func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID string, cmd process.Command, persistDB bool) (contract.Result, error) {
 	spool, err := h.spool(a)
 	if err != nil {
 		return contract.Result{}, err
 	}
 	startHash := hashText("segment_started:" + a.SegmentID)
-	if err = spool.Append(contract.Event{Version: 1, RunID: runID, TaskID: taskID, AttemptID: a.ID, SegmentID: a.SegmentID, Sequence: 1, Kind: "segment_started", PayloadHash: startHash}); err != nil {
+	if err = spool.Append(h.event(runID, taskID, a, 1, "prepared", startHash)); err != nil {
 		return contract.Result{}, err
 	}
 	if err = publishLaunchPhase(spool, "prepared", a, runID, taskID, cmd, nil, nil); err != nil {
-		_ = h.db.FinishAttempt(context.Background(), a.ID, "failed")
+		h.finishAttempt(a.ID, "failed", persistDB)
 		return contract.Result{Status: "failed", ExitCode: -1, EventCount: 1}, err
 	}
 	p, err := process.Start(ctx, cmd)
 	if err != nil {
 		_ = publishLaunchPhase(spool, "unknown", a, runID, taskID, cmd, nil, err)
-		_ = h.db.FinishAttempt(context.Background(), a.ID, "failed")
+		h.finishAttempt(a.ID, "failed", persistDB)
 		return contract.Result{Status: "failed", ExitCode: -1, EventCount: 1}, err
 	}
 	identity := p.Identity()
@@ -107,20 +128,21 @@ func (h *Host) Execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		stopCtx, stopCancel := context.WithTimeout(context.Background(), 2*time.Second)
 		_ = p.Stop(stopCtx)
 		stopCancel()
-		_ = h.db.FinishAttempt(context.Background(), a.ID, "unknown")
+		h.finishAttempt(a.ID, "unknown", persistDB)
 		return contract.Result{Status: "unknown", ExitCode: p.ExitCode(), EventCount: 1}, err
 	}
 	if err = publishLaunchPhase(spool, "running", a, runID, taskID, cmd, &identity, nil); err != nil {
 		stopCtx, stopCancel := context.WithTimeout(context.Background(), 2*time.Second)
 		_ = p.Stop(stopCtx)
 		stopCancel()
-		_ = h.db.FinishAttempt(context.Background(), a.ID, "unknown")
+		h.finishAttempt(a.ID, "unknown", persistDB)
 		return contract.Result{Status: "unknown", ExitCode: p.ExitCode(), EventCount: 1}, err
 	}
 	h.mu.Lock()
 	h.active[a.ID] = p
+	h.activeBySeg[a.SegmentID] = p
 	h.mu.Unlock()
-	defer func() { h.mu.Lock(); delete(h.active, a.ID); h.mu.Unlock() }()
+	defer func() { h.mu.Lock(); delete(h.active, a.ID); delete(h.activeBySeg, a.SegmentID); h.mu.Unlock() }()
 	waitErr := p.Wait(ctx)
 	if waitErr != nil {
 		stopErr := p.Stop(ctx)
@@ -128,14 +150,14 @@ func (h *Host) Execute(ctx context.Context, a store.Attempt, runID, taskID strin
 			if phaseErr := publishLaunchPhase(spool, "unknown", a, runID, taskID, cmd, &identity, stopErr); phaseErr != nil {
 				stopErr = phaseErr
 			}
-			_ = h.db.FinishAttempt(context.Background(), a.ID, "unknown")
+			h.finishAttempt(a.ID, "unknown", persistDB)
 			return contract.Result{Status: "unknown", ExitCode: p.ExitCode(), EventCount: 1, OutputHash: hashText(p.Output())}, stopErr
 		}
 		if phaseErr := publishLaunchPhase(spool, "stopped", a, runID, taskID, cmd, &identity, waitErr); phaseErr != nil {
-			_ = h.db.FinishAttempt(context.Background(), a.ID, "unknown")
+			h.finishAttempt(a.ID, "unknown", persistDB)
 			return contract.Result{Status: "unknown", ExitCode: p.ExitCode(), EventCount: 1, OutputHash: hashText(p.Output())}, phaseErr
 		}
-		_ = h.db.FinishAttempt(context.Background(), a.ID, "interrupted")
+		h.finishAttempt(a.ID, "interrupted", persistDB)
 		return contract.Result{Status: "interrupted", ExitCode: p.ExitCode(), EventCount: 1, OutputHash: hashText(p.Output())}, waitErr
 	}
 	status := "result_ready"
@@ -149,7 +171,7 @@ func (h *Host) Execute(ctx context.Context, a store.Attempt, runID, taskID strin
 	if err != nil {
 		return contract.Result{}, err
 	}
-	if err = spool.Append(contract.Event{Version: 1, RunID: runID, TaskID: taskID, AttemptID: a.ID, SegmentID: a.SegmentID, Sequence: 2, Kind: "result", PayloadHash: outHash}); err != nil {
+	if err = spool.Append(h.event(runID, taskID, a, 2, "result", outHash)); err != nil {
 		return contract.Result{}, err
 	}
 	phase := "exited"
@@ -157,13 +179,29 @@ func (h *Host) Execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		phase = "stopped"
 	}
 	if err = publishLaunchPhase(spool, phase, a, runID, taskID, cmd, &identity, nil); err != nil {
-		_ = h.db.FinishAttempt(context.Background(), a.ID, "unknown")
+		h.finishAttempt(a.ID, "unknown", persistDB)
 		return contract.Result{Status: "unknown", ExitCode: p.ExitCode(), EventCount: 2, OutputHash: outHash, ArtifactPath: artifactPath}, err
 	}
-	if err = h.db.FinishAttempt(context.Background(), a.ID, status); err != nil {
-		return contract.Result{}, err
+	if persistDB {
+		if err = h.db.FinishAttempt(context.Background(), a.ID, status); err != nil {
+			return contract.Result{}, err
+		}
 	}
 	return contract.Result{Status: status, ExitCode: p.ExitCode(), EventCount: 2, OutputHash: outHash, ArtifactPath: artifactPath}, nil
+}
+
+func (h *Host) event(runID, taskID string, a store.Attempt, seq int64, kind, payloadHash string) contract.Event {
+	event := contract.Event{Version: 1, ProducerID: h.producerID, RunID: runID, TaskID: taskID, AttemptID: a.ID, SegmentID: a.SegmentID, Sequence: seq, Kind: kind, PayloadHash: payloadHash}
+	if h.producerID != "" {
+		event.EventID = h.producerID + ":" + a.ID + ":" + fmt.Sprint(seq)
+	}
+	return event
+}
+
+func (h *Host) finishAttempt(id, status string, persistDB bool) {
+	if persistDB && h.db != nil {
+		_ = h.db.FinishAttempt(context.Background(), id, status)
+	}
 }
 
 func publishLaunchPhase(spool *events.Spool, phase string, a store.Attempt, runID, taskID string, cmd process.Command, identity *process.Identity, cause error) error {
@@ -243,4 +281,34 @@ func (h *Host) Cancel(ctx context.Context, a store.Attempt) error {
 		return err
 	}
 	return nil
+}
+
+// StopSegment stops only the process group owned by segment. It never signals
+// a caller-selected PID or a process outside the Host registry.
+func (h *Host) StopSegment(ctx context.Context, segmentID string) error {
+	h.mu.Lock()
+	p := h.activeBySeg[segmentID]
+	h.mu.Unlock()
+	if p == nil {
+		return errors.New("segment_not_active")
+	}
+	return p.Stop(ctx)
+}
+
+// StopAll is used when the source IPC connection ends. Each registered handle
+// is bounded by the caller's context; an unprovable tree stop remains unknown.
+func (h *Host) StopAll(ctx context.Context) {
+	h.mu.Lock()
+	processes := make([]*process.Handle, 0, len(h.activeBySeg))
+	seen := make(map[*process.Handle]struct{}, len(h.activeBySeg))
+	for _, p := range h.activeBySeg {
+		if _, ok := seen[p]; !ok {
+			seen[p] = struct{}{}
+			processes = append(processes, p)
+		}
+	}
+	h.mu.Unlock()
+	for _, p := range processes {
+		_ = p.Stop(ctx)
+	}
 }

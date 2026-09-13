@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -65,7 +66,7 @@ func TestSubmitHostCollectAckAndExplicitResume(t *testing.T) {
 		t.Fatalf("launch metadata=%#v", launch)
 	}
 	proc, ok := launch["process"].(map[string]any)
-	if !ok || proc["pid"] == nil || proc["pgid"] == nil || proc["executable_sha256"] == "" || proc["birth_known"] != false {
+	if !ok || proc["pid"] == nil || proc["pgid"] == nil || proc["executable_sha256"] == "" || proc["birth_known"] != true || proc["birth"] == "" {
 		t.Fatalf("process metadata=%#v", launch["process"])
 	}
 	if err = h.Ack(ctx, attempt); err != nil {
@@ -182,5 +183,63 @@ func TestExecuteLaunchConsumesReservationAndUsesBoundedGrant(t *testing.T) {
 	}
 	if _, err = h.ExecuteLaunch(ctx, grant, inv); err == nil || err.Error() != "reservation_reused" {
 		t.Fatalf("duplicate grant err=%v", err)
+	}
+}
+
+type durableSink struct {
+	mu     sync.Mutex
+	events []contract.Event
+	bad    bool
+}
+
+func (s *durableSink) SendEvent(_ context.Context, _ uint64, event contract.Event) (contract.DurableAck, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.events = append(s.events, event)
+	if s.bad {
+		return contract.DurableAck{ProducerID: event.ProducerID, EventID: event.EventID, PayloadHash: event.PayloadHash, AckedThrough: event.Sequence, Status: "pending"}, nil
+	}
+	return contract.DurableAck{ProducerID: event.ProducerID, EventID: event.EventID, PayloadHash: event.PayloadHash, AckedThrough: event.Sequence, Status: "durable"}, nil
+}
+
+func TestIPCSourcePublishesOnlyAfterDurableAck(t *testing.T) {
+	if os.Getenv("G1_HOST_HELPER") == "1" {
+		return
+	}
+	root := filepath.Join(t.TempDir(), "spool")
+	h, err := NewIPC(root, "producer-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	path, err := filepath.EvalSymlinks(os.Args[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	inv := launchInvocation{args: []string{path, "-test.run=TestIPCSourcePublishesOnlyAfterDurableAck"}, env: map[string]string{"G1_HOST_HELPER": "1"}}
+	grant := contract.LaunchCommand{ReservationID: "ipc-reservation", RunID: "ipc-run", TaskID: "ipc-task", AttemptID: "ipc-attempt", SegmentID: "ipc-segment", GrantedActiveMS: 1500}
+	if _, err = h.ExecuteLaunch(context.Background(), grant, inv); err != nil {
+		t.Fatal(err)
+	}
+	a := store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID}
+	bad := &durableSink{bad: true}
+	if err = h.Publish(context.Background(), a, bad, 1); err == nil {
+		t.Fatal("expected non-durable ack rejection")
+	}
+	s, err := events.Open(filepath.Join(root, grant.AttemptID, grant.SegmentID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if acked, err := s.AckedThrough(); err != nil || acked != 0 {
+		t.Fatalf("acked=%d err=%v", acked, err)
+	}
+	good := &durableSink{}
+	if err = h.Publish(context.Background(), a, good, 2); err != nil {
+		t.Fatal(err)
+	}
+	if len(good.events) != 2 {
+		t.Fatalf("events=%d", len(good.events))
+	}
+	if acked, err := s.AckedThrough(); err != nil || acked != 2 {
+		t.Fatalf("acked=%d err=%v", acked, err)
 	}
 }

@@ -22,7 +22,7 @@ func TestOwnedProcessCapturesAndStopsRealChild(t *testing.T) {
 		t.Fatal("missing process identity")
 	}
 	id := h.Identity()
-	if id.PID != h.PID() || id.PGID != h.PGID() || id.Executable == "" || id.ExecutableSHA256 == "" || id.BirthKnown {
+	if id.PID != h.PID() || id.PGID != h.PGID() || id.Executable == "" || id.ExecutableSHA256 == "" || !id.BirthKnown || id.Birth == "" {
 		t.Fatalf("identity=%#v", id)
 	}
 	time.Sleep(100 * time.Millisecond)
