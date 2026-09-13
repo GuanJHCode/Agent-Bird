@@ -170,11 +170,26 @@ def prepare_delivery(prepared,case_dir,*,python_executable,go_executable,expecte
         listener.close();raise
 
 
+class SafeClientFailure(ValueError):
+    def __init__(self,value):
+        import builtins
+        stages={'control','owner','helper','helper-validate','helper-prepare-claim','helper-open-public',
+            'helper-initialize','helper-send','helper-history','helper-decision','helper-ack','helper-eof'}
+        types={name for name,item in vars(builtins).items() if isinstance(item,type) and issubclass(item,BaseException)}
+        types.update({'IncompleteReadError','LimitOverrunError','DeliveryError','OwnerHelperAdmissionError','unlisted'})
+        require(set(value)=={'event','stage','type','errno','message_sha256'} and value['stage'] in stages and value['type'] in types,'unsafe client error shape')
+        require(value['errno'] is None or type(value['errno']) is int,'unsafe client errno')
+        digest=value['message_sha256']
+        require(type(digest) is str and len(digest)==64 and all(c in '0123456789abcdef' for c in digest),'unsafe client error digest')
+        self.child_error=dict(value)
+        super().__init__('client failed at '+value['stage'])
+
+
 async def line(child,end):
     raw=await asyncio.wait_for(child.stdout.readline(),transport.remaining(end))
     require(raw and len(raw)<=65536,'client EOF or oversized receipt')
     value=json.loads(raw);require(isinstance(value,dict),'client receipt shape')
-    if value.get('event')=='error':raise ValueError('client stage failed: '+str(value.get('stage'))+':'+str(value.get('type')))
+    if value.get('event')=='error':raise SafeClientFailure(value)
     return value
 
 
@@ -318,6 +333,7 @@ async def run_delivery(plan,prepared):
         transport.remaining(deadline);result['status']='passed'
     except Exception as exc:
         result['failure']={'stage':stage,'type':type(exc).__name__,'errno':getattr(exc,'errno',None),'message_sha256':hashlib.sha256(str(exc).encode()).hexdigest()}
+        if isinstance(exc,SafeClientFailure):result['failure']['child_error']=exc.child_error
     finally:
         cleanup={'helper_eof':helper_eof,'helper_eof_raw':result.get('helper_eof_raw'),'owner_close_sent_raw':result.get('owner_close_sent_raw'),'public_socket_removed':False,'restart_allowed':False}
         end=min(deadline,transport.now()+10)
@@ -336,6 +352,14 @@ async def run_delivery(plan,prepared):
         plan.listener.close()
         try:
             remove_public_socket(prepared.spec.public_socket,plan.public_identity,plan.public_parent_identity,cleanup)
+        except Exception:result['status']='unknown'
+        result['postflight']={'fixture_valid':False,'source_pins_valid':False}
+        try:
+            prepared.verify();result['postflight']['fixture_valid']=True
+        except Exception:result['status']='unknown'
+        try:
+            require(plan.prepared_pins==source_pins(),'postflight source changed')
+            result['postflight']['source_pins_valid']=True
         except Exception:result['status']='unknown'
         result['synthetic_endpoint']=prepared.endpoint.snapshot()
         try:prepared.endpoint.close()

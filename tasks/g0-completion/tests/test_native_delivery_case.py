@@ -163,3 +163,40 @@ def test_expired_control_deadline_writes_no_bytes():
     async def scenario():
         with pytest.raises(TimeoutError):await runner.send(child,{'action':'close'},runner.transport.now()-1)
     asyncio.run(scenario());assert writes==[]
+
+
+def test_child_safe_error_survives_parent_without_raw_body():
+    from types import SimpleNamespace
+    runner=implementation()
+    async def scenario():
+        stream=asyncio.StreamReader();secret='secret-test-error-message-never-export'
+        row={'event':'error','stage':'helper-open-public','type':'IncompleteReadError','errno':None,'message_sha256':hashlib.sha256(secret.encode()).hexdigest()}
+        stream.feed_data(json.dumps(row).encode()+b'\n');stream.feed_eof()
+        with pytest.raises(runner.SafeClientFailure) as captured:
+            await runner.line(SimpleNamespace(stdout=stream),runner.transport.now()+1)
+        assert captured.value.child_error==row
+        assert secret not in str(captured.value)
+    asyncio.run(scenario())
+
+
+def test_actual_helper_admission_eof_keeps_original_safe_error(monkeypatch,tmp_path):
+    runner=implementation()
+    original=runner.activation_service.ActivationService._helper_admission
+    def mismatched_context(service,peer,grant,digest):
+        return original(service,peer,{**grant,'owner_context_sha256':'f'*64},digest)
+    monkeypatch.setattr(runner.activation_service.ActivationService,'_helper_admission',mismatched_context)
+    async def scenario():
+        with tempfile.TemporaryDirectory(prefix='g0-auth-',dir='/private/tmp') as raw,SyntheticEndpoint() as endpoint:
+            prepared=make_prepared(Path(raw),endpoint);plan=prepare_case(runner,prepared,tmp_path,monkeypatch,'success')
+            result=await runner.run_delivery(plan,prepared)
+            assert result['status']=='unknown' and not result['business_ack_verified']
+            error=result['failure']['child_error']
+            assert error['stage']=='helper-open-public' and error['type']=='IncompleteReadError'
+            assert result['service']['admission_diagnostics'][-1]['reason']=='helper_context'
+            assert result['postflight']=={'fixture_valid':True,'source_pins_valid':True}
+            assert len(error['message_sha256'])==64
+            assert (prepared.spec.workspace/'go-task/batch-send-claim.json').exists()
+            assert result['synthetic_endpoint']['accepted_requests']==1
+            assert not result['service']['backend_records'][0].get('helpers')
+            assert result['cleanup']['public_socket_removed']
+    asyncio.run(asyncio.wait_for(scenario(),120))

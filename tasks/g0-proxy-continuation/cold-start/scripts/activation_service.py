@@ -401,62 +401,77 @@ class ActivationService:
     def _record_for_lease(self, lease_id):
         return next((record for record in self.backend_records if record.get('lease_id')==lease_id), None)
 
+    def _admission_diagnostic(self,peer,reason,*,accepted=False,exc=None):
+        # Literal call-site reason codes only; never exception text, paths,
+        # RPC bodies or arbitrary grant values. Bounded per service instance.
+        rows=getattr(self,'_admission_diagnostics',None)
+        if rows is None: rows=self._admission_diagnostics=[]
+        if len(rows)<64:
+            rows.append({'frontend_pid':peer.pid,'reason':reason,'accepted':accepted,
+                'failure_type':type(exc).__name__ if exc is not None else None})
+        return accepted
+
     def _helper_admission(self, peer, grant, grant_sha):
         required={'version','role','profile_id','owner_context_sha256','lease_id','owner_connection_id',
             'owner_epoch','owner_thread_id','private_socket','helper_pid','helper_uid','helper_birth',
             'helper_executable','helper_executable_sha256','helper_source_sha256'}
-        if set(grant)!=required or type(grant.get('version')) is not int or grant.get('version')!=1 or grant.get('role')!='owner-helper': return False
-        if grant.get('helper_pid')!=peer.pid or grant.get('helper_uid')!=peer.uid or grant.get('helper_birth')!=peer.birth: return False
-        if grant.get('helper_executable')!=peer.executable or not peer.complete: return False
+        if set(grant)!=required or type(grant.get('version')) is not int or grant.get('version')!=1 or grant.get('role')!='owner-helper': return self._admission_diagnostic(peer,'helper_shape')
+        if grant.get('helper_pid')!=peer.pid or grant.get('helper_uid')!=peer.uid or grant.get('helper_birth')!=peer.birth: return self._admission_diagnostic(peer,'helper_process')
+        if grant.get('helper_executable')!=peer.executable or not peer.complete: return self._admission_diagnostic(peer,'helper_executable')
         pins=self._helper_pins
-        if not all(isinstance(pins.get(key),str) and pins.get(key) for key in ('executable','executable_sha256','source_path','source_sha256')): return False
-        if grant['helper_executable']!=pins['executable'] or grant['helper_source_sha256']!=pins['source_sha256']: return False
+        if not all(isinstance(pins.get(key),str) and pins.get(key) for key in ('executable','executable_sha256','source_path','source_sha256')): return self._admission_diagnostic(peer,'helper_policy_shape')
+        if grant['helper_executable']!=pins['executable'] or grant['helper_source_sha256']!=pins['source_sha256']: return self._admission_diagnostic(peer,'helper_policy_pin')
         try:
             source_path=Path(pins['source_path'])
             _canonical_path(source_path)
-            if _sha(source_path)!=pins['source_sha256']: return False
-            if grant['helper_executable_sha256']!=pins['executable_sha256'] or _sha(Path(peer.executable))!=pins['executable_sha256']: return False
+            if _sha(source_path)!=pins['source_sha256']: return self._admission_diagnostic(peer,'helper_source_hash')
+            if grant['helper_executable_sha256']!=pins['executable_sha256'] or _sha(Path(peer.executable))!=pins['executable_sha256']: return self._admission_diagnostic(peer,'helper_executable_hash')
             current_birth,current_executable=_process_metadata(peer.pid)
-            if current_birth!=peer.birth or current_executable!=peer.executable: return False
-        except (OSError,ValueError): return False
+            if current_birth!=peer.birth or current_executable!=peer.executable: return self._admission_diagnostic(peer,'process_changed')
+        except (OSError,ValueError) as exc: return self._admission_diagnostic(peer,'helper_pin_check',exc=exc)
         record=self._record_for_lease(grant['lease_id']); lease=self._owner_leases.get(grant['lease_id'])
-        if record is None or lease is None or record.get('state')!='connected': return False
+        if record is None or lease is None or record.get('state')!='connected': return self._admission_diagnostic(peer,'helper_owner_inactive')
         context=self.contexts.get(grant['profile_id'])
-        if context is None or record.get('profile_id')!=grant['profile_id']: return False
-        if grant['owner_context_sha256']!=self._owner_context_sha(context): return False
-        if grant['private_socket']!=record.get('private_socket') or grant['private_socket']!=lease.private_socket: return False
-        if grant['owner_connection_id']!=record.get('owner_connection_id') or grant['owner_epoch']!=record.get('owner_epoch') or grant['owner_thread_id']!=record.get('owner_thread_id'): return False
+        if context is None or record.get('profile_id')!=grant['profile_id']: return self._admission_diagnostic(peer,'helper_profile')
+        if grant['owner_context_sha256']!=self._owner_context_sha(context): return self._admission_diagnostic(peer,'helper_context')
+        if grant['private_socket']!=record.get('private_socket') or grant['private_socket']!=lease.private_socket: return self._admission_diagnostic(peer,'helper_socket_path')
+        if grant['owner_connection_id']!=record.get('owner_connection_id') or grant['owner_epoch']!=record.get('owner_epoch') or grant['owner_thread_id']!=record.get('owner_thread_id'): return self._admission_diagnostic(peer,'helper_owner_binding')
         try:
             info=os.lstat(grant['private_socket']); frozen=record.get('private_socket_identity')
-            if frozen is None or (info.st_dev,info.st_ino,info.st_uid,info.st_mode)!=tuple(frozen): return False
+            if frozen is None or (info.st_dev,info.st_ino,info.st_uid,info.st_mode)!=tuple(frozen): return self._admission_diagnostic(peer,'helper_socket_identity')
             identity=HelperIdentity(pid=peer.pid,uid=peer.uid,birth=peer.birth,executable=peer.executable,
                 executable_sha256=grant['helper_executable_sha256'],source_sha256=grant['helper_source_sha256'])
             lease.validate_grant(OwnerHelperGrant(**grant),identity)
-        except (OSError,ValueError,KeyError,TypeError): return False
+        except (OSError,ValueError,KeyError,TypeError) as exc: return self._admission_diagnostic(peer,'helper_lease_check',exc=exc)
         key=(peer.pid,peer.birth,peer.executable); previous=self._helper_admissions.get(key)
-        if previous is not None and previous[1]!=grant_sha: return False
+        if previous is not None and previous[1]!=grant_sha: return self._admission_diagnostic(peer,'helper_grant_changed')
         self._helper_admissions[key]=(dict(grant),grant_sha)
-        return True
+        return self._admission_diagnostic(peer,'helper_admitted',accepted=True)
 
     def _admit(self,peer):
-        if not peer.complete or peer.uid!=os.getuid(): return False
+        if not peer.complete or peer.uid!=os.getuid(): return self._admission_diagnostic(peer,'peer_incomplete_or_uid')
+        check_stage='roots'
         try:
             self._check_roots()
+            check_stage='process'
             current_birth,current_executable=_process_metadata(peer.pid)
-            if current_birth!=peer.birth or current_executable!=peer.executable: return False
+            if current_birth!=peer.birth or current_executable!=peer.executable: return self._admission_diagnostic(peer,'process_changed')
+            check_stage='grant_read'
             grant,digest=_private_json(self.grants_dir/f'{peer.pid}.json')
             if grant.get('role')=='owner-helper':
+                check_stage='helper_admission'
                 return self._helper_admission(peer,grant,digest)
+            check_stage='owner_grant_check'
             profile=grant.get('profile_id')
             allowed=(grant.get('version')==1 and grant.get('pid')==peer.pid and grant.get('uid')==peer.uid
                 and grant.get('birth')==peer.birth and grant.get('expected_executable')==peer.executable
                 and grant.get('executable_sha256')==_sha(Path(peer.executable)) and profile in self.contexts)
-            if not allowed: return False
+            if not allowed: return self._admission_diagnostic(peer,'owner_grant')
             key=(peer.pid,peer.birth,peer.executable)
             previous=self._admissions.setdefault(key,(profile,digest))
             return previous==(profile,digest)
-        except (OSError,ValueError,KeyError,TypeError):
-            return False
+        except (OSError,ValueError,KeyError,TypeError) as exc:
+            return self._admission_diagnostic(peer,check_stage,exc=exc)
 
     async def _output_digest(self,stream):
         digest=hashlib.sha256(); size=0
@@ -469,7 +484,10 @@ class ActivationService:
         if key in self._helper_admissions:
             grant,grant_sha=self._helper_admissions[key]
             profile=grant['profile_id']; context=self.contexts[profile]
-            self._check_runtime_policy()
+            try:self._check_runtime_policy()
+            except (OSError,ValueError,KeyError,TypeError) as exc:
+                self._admission_diagnostic(frontend,'helper_runtime_policy',exc=exc)
+                raise
             if not self._admit(frontend) or self._helper_admissions[key][1]!=grant_sha:
                 raise ValueError('helper grant changed before connection')
             async with self._leased_helper(frontend,grant,context) as lease:
@@ -646,6 +664,7 @@ class ActivationService:
     def snapshot(self):
         return {'activation_id':self.activation_id,'manifest_sha256':self.manifest_sha256,
             'backend_records':self.backend_records,'transport':self.sink.snapshot(),
+            'admission_diagnostics':list(getattr(self,'_admission_diagnostics',[])),
             'public_socket_owned':False,'native_registration_verified':False,'stop_signals':getattr(self,'stop_signals',[])}
 
     async def close(self):

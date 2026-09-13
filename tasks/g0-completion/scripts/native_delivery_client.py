@@ -26,6 +26,7 @@ def emit(value):print(json.dumps(value,sort_keys=True,separators=(',',':')),flus
 def sha(path):return activation_service._sha(Path(path))
 def require(value,reason):transport.require(value,reason)
 STDIN=None
+CURRENT_STAGE='control'
 
 
 async def control(end):
@@ -150,16 +151,21 @@ def verify_history(history,capability,initial_turn_id,packets):
 
 
 async def helper(config):
+    global CURRENT_STAGE
+    CURRENT_STAGE='helper-validate'
     _,grant=validate_config(config,'helper')
     transport.remaining(config['local_deadline'])
     require(os.environ.get('CODEX_THREAD_ID')==config['thread_id'],'Go injected owner context mismatch')
     adapter=DeliveryAdapter(config['go_binary'],expected_sha256=config['go_sha256'],owner_context_sha256=grant['owner_context_sha256'])
     binding=DeliveryBinding(config['profile_id'],config['thread_id'],config['owner_epoch'],config['nonce'],1)
+    CURRENT_STAGE='helper-prepare-claim'
     capability=adapter.prepare_and_claim(binding,Path(config['task_dir']),config['delivery_id'],config['events'],env={'CODEX_THREAD_ID':config['thread_id']})
+    CURRENT_STAGE='helper-open-public'
     reader,writer,peer=await open_public(config)
     connection=owner_helper.OwnerHelperConnection(reader,writer,config['lease_id'],config['thread_id'])
     channel=HelperChannel(connection,config['deadline'])
     try:
+        CURRENT_STAGE='helper-initialize'
         await channel.send_rpc({'id':1,'method':'initialize','params':{'clientInfo':{'name':'g0-native-standalone','version':'0.1.0'},'capabilities':{'experimentalApi':True}}})
         while True:
             packet=await asyncio.wait_for(channel.read_rpc(),transport.remaining(config['local_deadline']))
@@ -168,7 +174,9 @@ async def helper(config):
         transport.remaining(config['local_deadline'])
         await channel.send_rpc({'method':'initialized'})
         transport.remaining(config['local_deadline'])
+        CURRENT_STAGE='helper-send'
         packets=await asyncio.wait_for(adapter.send_tool_output_once(channel,capability,request_id=2),transport.remaining(config['deadline']))
+        CURRENT_STAGE='helper-history'
         request={'id':3,'method':'thread/read','params':{'threadId':config['thread_id'],'includeTurns':True}}
         history_end=min(config['deadline'],transport.now()+10)
         await asyncio.wait_for(channel.send_rpc(request),transport.remaining(history_end))
@@ -185,13 +193,16 @@ async def helper(config):
             'native_envelope_sha256':capability.native_envelope_sha256,'go_intent_sha256':capability.go_intent_sha256,'claim_sha256':capability.claim_sha256,
             'reads_sha256':proof.reads_sha256,'matched_event_ids':sorted(proof.matched_event_ids),'summary':proof.summary,'envelopes':channel.envelopes}
         emit(proof_row)
+        CURRENT_STAGE='helper-decision'
         decision=await control(config['deadline'])
         require(decision.get('action')=='decide' and decision.get('reads_sha256')==proof.reads_sha256,'explicit decision does not match proof')
         transport.remaining(config['deadline'])
+        CURRENT_STAGE='helper-ack'
         ack=adapter.ack_confirmed(capability,proof,decision['decisions'],command_ids=decision['command_ids'],env={'CODEX_THREAD_ID':config['thread_id']})
         transport.remaining(config['deadline'])
         emit({'event':'ack','records':list(ack.records),'business_ack_complete':ack.business_ack_complete,
             'pending_event_ids':list(ack.pending_event_ids),'nonhandled_decisions':ack.nonhandled_decisions})
+        CURRENT_STAGE='helper-eof'
         # Keep this helper attached. Only actual transport EOF after owner
         # closes qualifies, not an arbitrary protocol rejection.
         while True:
@@ -205,7 +216,7 @@ async def helper(config):
 
 
 async def main():
-    global STDIN
+    global STDIN,CURRENT_STAGE
     role=sys.argv[1];require(role in ('owner','helper'),'unknown Python client role')
     STDIN=asyncio.StreamReader(limit=65536)
     await asyncio.get_running_loop().connect_read_pipe(lambda:asyncio.StreamReaderProtocol(STDIN),sys.stdin.buffer)
@@ -213,11 +224,11 @@ async def main():
     stage='control'
     try:
         config=await control(transport.now()+10);require(config.get('role')==role,'role changed')
-        stage=role
+        stage=role;CURRENT_STAGE=role
         await asyncio.wait_for(owner(config) if role=='owner' else helper(config),transport.remaining(config['deadline']))
         return 0
     except Exception as exc:
-        emit({'event':'error','stage':stage,'type':type(exc).__name__,'errno':getattr(exc,'errno',None),'message_sha256':hashlib.sha256(str(exc).encode()).hexdigest()})
+        emit({'event':'error','stage':CURRENT_STAGE,'type':type(exc).__name__,'errno':getattr(exc,'errno',None),'message_sha256':hashlib.sha256(str(exc).encode()).hexdigest()})
         return 1
 
 
