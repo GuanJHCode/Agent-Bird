@@ -143,6 +143,7 @@ def prepare_distribution(prepared, case_dir, static):
         str(path): static["package"]["runtime_files"][name]["sha256"]
         for name, path in files.items()
     }
+    activation_pins = {str(python): g.sha(python), **service_pins}
     manifest = {
         "version": 1,
         "external_admission": g.admission_policy("inherited_fd"),
@@ -197,7 +198,7 @@ def prepare_distribution(prepared, case_dir, static):
         ),
         manifest_path=manifest_path,
         manifest_sha256=g.sha(manifest_path),
-        artifact_hashes=tuple(service_pins.items()),
+        artifact_hashes=tuple(activation_pins.items()),
         lease_path=case / "grants/registration.lease.json",
         startup_path=files["projectproxy_launchd_entrypoint"],
     )
