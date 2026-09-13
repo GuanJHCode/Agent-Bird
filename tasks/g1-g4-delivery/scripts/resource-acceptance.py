@@ -280,6 +280,7 @@ class Sampler:
         self.seen: set[tuple[int, str]] = set()
         self.started = time.monotonic()
         self.rss_series: list[tuple[float, float]] = []
+        self.max_role_counts: dict[str, int] = {}
 
     def sample(self) -> dict[str, Any]:
         table = process_table()
@@ -287,6 +288,7 @@ class Sampler:
         rss_kib = sum(table[pid]["rss_kib"] for pid in product)
         now = time.monotonic()
         rows = []
+        role_counts: dict[str, int] = {}
         for pid in sorted(product):
             item = table[pid]
             identity = (pid, item["command"])
@@ -297,12 +299,19 @@ class Sampler:
             self.max_cpu[identity] = max(self.max_cpu.get(identity, 0.0), item["cpu_seconds"])
             self.seen.add(identity)
             rows.append(item)
+            if executable_matches(item["command"], self.orchestrator):
+                arguments = item["command"][len(self.orchestrator):].strip().split()
+                role = arguments[0] if arguments else "entrypoint"
+                role_counts[role] = role_counts.get(role, 0) + 1
+        for role, count in role_counts.items():
+            self.max_role_counts[role] = max(self.max_role_counts.get(role, 0), count)
         record = {
             "monotonic_seconds": now - self.started,
             "unix_nano": time.time_ns(),
             "product_rss_kib": rss_kib,
             "product_process_count": len(product),
             "worker_process_count": len(workers),
+            "product_role_counts": role_counts,
             "product_processes": rows,
         }
         self.rss_series.append((record["monotonic_seconds"], rss_kib / 1024.0))
@@ -328,6 +337,7 @@ class Sampler:
             "sampled_cpu_seconds": sampled_cpu,
             "report_helper_cpu_seconds_from_rusage": report_cpu,
             "unique_product_processes_seen": len(self.seen),
+            "maximum_product_role_counts": self.max_role_counts,
         }
 
 
@@ -445,6 +455,11 @@ def collect_worker_stats(ctx: dict[str, Any]) -> list[dict[str, Any]]:
         if path.exists():
             out.append(json_read(path))
     return out
+
+
+def completed_worker_stats(ctx: dict[str, Any], expected: int) -> list[dict[str, Any]] | bool:
+    rows = [row for row in collect_worker_stats(ctx) if row.get("status") == "completed"]
+    return rows if len(rows) >= expected else False
 
 
 def product_role_processes(ctx: dict[str, Any], role: str) -> list[dict[str, Any]]:
@@ -713,15 +728,35 @@ def run_scenario(args: argparse.Namespace) -> int:
                 task = task_spec(ctx, f"resource-host-task-{index+1}", f"host-{index+1}", "steady", duration)
                 control, _ = submit(ctx, f"host-{index+1}", [task])
                 controls.append(control)
+            wait_for(
+                lambda: len(product_role_processes(ctx, "source-host")) == thresholds["hosts"]["host_count"],
+                15,
+                "four source Hosts were not simultaneously live",
+            )
+            wait_for_workers(ctx, thresholds["workers"]["worker_count"])
             extra = task_spec(ctx, "resource-host-task-extra", "host-extra", "steady", duration)
             _, rejected = submit(ctx, "host-extra", [extra], expect_failure=True)
             rejection = parse_error_code(rejected)
             sample_for(ctx, duration, sampler)
-            metrics_now = sampler.summary()
+            completed_workers = wait_for(
+                lambda: completed_worker_stats(ctx, thresholds["workers"]["worker_count"]),
+                30,
+                "two default workers did not complete",
+            )
+            stats_rows = collect_worker_stats(ctx)
+            helper_cpu = sum(row.get("product_report_cpu_nanos", 0) for row in stats_rows)
+            helper_rss = sum(row.get("product_report_max_rss_bytes", 0) for row in stats_rows)
+            metrics_now = sampler.summary(helper_cpu, helper_rss)
+            two_full_workers = len(completed_workers) >= thresholds["workers"]["worker_count"] and all(
+                row.get("completed_unix_nano", 0) - row.get("started_unix_nano", 0) >= thresholds["workers"]["duration_seconds"] * 1_000_000_000
+                for row in completed_workers[:thresholds["workers"]["worker_count"]]
+            )
             functional["checks"] = {
                 "full_duration": not smoke and metrics_now["elapsed_seconds"] >= thresholds["hosts"]["duration_seconds"],
                 "four_hosts_accepted": len(controls) == thresholds["hosts"]["host_count"],
+                "four_hosts_observed_simultaneously": metrics_now["maximum_product_role_counts"].get("source-host", 0) >= thresholds["hosts"]["host_count"],
                 "fifth_host_deferred": rejection == thresholds["hosts"]["next_host_expected_error"],
+                "default_two_workers_completed_full_duration": two_full_workers,
                 "rss_limit": metrics_now["peak_product_rss_mib"] <= thresholds["hosts"]["rss_limit_mib"],
             }
             functional["fifth_host_error"] = rejection

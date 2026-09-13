@@ -10,8 +10,8 @@
 |---|---:|---|
 | `idle` | 40 秒 | 启动空协调器；30 秒防抖后到结束必须没有本工具进程。 |
 | `callback` | 5 分钟 | synthetic worker 产生完成事件后保持 `owner_review/result_ready`，不 accept、不 ACK；Source Host 必须先退出，此后 controller 不再调用产品。总 RSS ≤64 MiB，平均 CPU ≤单核 1%，稳定后不周期产生新产品进程。完成到首次 `collect` 可见 durable result ≤2 秒；窗口末 result 仍为 pending；attached 回传 5 秒必须有产品证据。 |
-| `workers` | 10 分钟 | 同一来源 Host 下 2 个真实 synthetic worker；worker 资源排除，本工具进程树总 RSS ≤128 MiB。 |
-| `hosts` | 10 分钟 | 4 个来源 Host；第 5 个必须返回 `admission_deferred`，本工具进程树总 RSS ≤128 MiB。全局默认执行槽仍为 2，不能通过扩槽制造 4 个并行 worker。 |
+| `workers` | 10 分钟 | 同一来源 Host 下 2 个真实 synthetic worker；worker 资源排除，本工具进程树总 RSS ≤128 MiB。该场景保留作隔离诊断。 |
+| `hosts` | 10 分钟 | 4 个来源 Host 同时存活；第 5 个必须返回 `admission_deferred`，本工具进程树总 RSS ≤128 MiB。全局默认执行槽仍为 2，且必须有 2 个 worker 各自完整运行 10 分钟，因此本场景同时提供正式 `workers` 证据。 |
 | `burst-valid` | 20 分钟 | 每 worker 的 stdout/stderr 合计 1 MiB/s，合法 Claude schema 普通消息；每 30 秒一个 4 MiB 普通诊断巨行；每 10 秒通过独立 report 通道一个 ≤4 KiB 关键事件。2 workers。 |
 | `burst-unknown` | 20 分钟 | 速率、巨行和 report 与上项相同，普通输出改为 unknown raw。2 workers。 |
 
@@ -58,11 +58,12 @@ manifest=/tmp/resource-g1-g4-freeze.json
 ```sh
 "$harness" run --manifest "$manifest" --scenario idle --out /tmp/resource-idle-final
 "$harness" run --manifest "$manifest" --scenario callback --out /tmp/resource-callback-final
-"$harness" run --manifest "$manifest" --scenario workers --out /tmp/resource-workers-final
 "$harness" run --manifest "$manifest" --scenario hosts --out /tmp/resource-hosts-final
 "$harness" run --manifest "$manifest" --scenario burst-valid --out /tmp/resource-burst-valid-final
 "$harness" run --manifest "$manifest" --scenario burst-unknown --out /tmp/resource-burst-unknown-final
 ```
+
+`hosts` 已在同一冻结阈值下覆盖默认 2 workers 的完整 10 分钟运行；完整验收不重复执行 `workers`。只有 `hosts` 的 worker 子检查失败、需要隔离 Host 数量影响时，才单独运行 `workers`。
 
 `--smoke-seconds 3..30` 仅验证接线，结果永远是 `SMOKE_ONLY`，其中完整时长与趋势检查必然不通过，不能作为验收。场景目录保留 `resource-result.json`、`resource-samples.jsonl`、fixture sidecar 和产品 state；state 含未公开 capability，整个场景目录必须保持 0700，不能作为普通日志整体分享。harness 收尾只向该场景 state path 对应的冻结 binary 进程发信号，不删除证据，并在强制信号前重新核对 PID 的 executable 与 state path。
 
