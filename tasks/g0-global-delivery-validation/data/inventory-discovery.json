@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "count": 14,
+  "inventory_sha256": "2d6fbaec19906b789e8eb6b0fe4fb479e47b62b077142129024b3d9d6fab1c35",
+  "path_ids": [
+    "0004ae4a64590164",
+    "054349eaccce2aa1",
+    "0a935cc2c355690a",
+    "138950b15d376421",
+    "1a2324b3dfdcc3e4",
+    "50fec0c3c93e85ae",
+    "55add75bde3e1db7",
+    "5fa6d346c8d6cadc",
+    "61039ca5ecc8d36e",
+    "7271d2103e34321a",
+    "a3353c6d4e723f19",
+    "b44bc5002ce5f1fd",
+    "c42d4ad4e33989d9",
+    "e7a3ff1a0f32696f"
+  ],
+  "matches_previously_registered_set": true,
+  "owner_uid": 501,
+  "file_mode": "0o600",
+  "parent_mode": "0o700",
+  "credential_contents_read_for_discovery": false,
+  "old_inventory_hash_equal": false,
+  "hash_difference_reason": "not determined; only the matched path set is asserted"
+}
