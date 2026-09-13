@@ -63,6 +63,12 @@ func TestRuntimePersistsDAGSlotsEventsAndExplicitResume(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
+	if err = db.BeginCoordinatorEpoch(ctx, 2); err != nil {
+		t.Fatal(err)
+	}
+	if status, statusErr := db.HostLaunchStatus(ctx, receipt.LaunchID, receipt.LaunchToken); statusErr != nil || status != "offline" {
+		t.Fatalf("restart host status=%q err=%v", status, statusErr)
+	}
 	hostID, err = db.RegisterHost(ctx, contract.HostHello{
 		LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken,
 		OriginContextID: "origin-1", HostGeneration: "generation-1",
@@ -126,6 +132,14 @@ func TestRuntimePersistsDAGSlotsEventsAndExplicitResume(t *testing.T) {
 	if _, err = db.ClaimReady(ctx, hostID, 2, 2); !errors.Is(err, ErrNoReady) {
 		t.Fatalf("silent claim err=%v", err)
 	}
+	hostID, err = db.RegisterHost(ctx, contract.HostHello{
+		LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken,
+		OriginContextID: "origin-1", HostGeneration: "generation-1",
+		PID: 202, Birth: "replacement-birth", Executable: "/private/tmp/orchestrator",
+	}, 2)
+	if err != nil {
+		t.Fatalf("replacement source host: %v", err)
+	}
 	if err = db.QueueResume(ctx, "task-c", 1); err != nil {
 		t.Fatal(err)
 	}
@@ -153,6 +167,29 @@ func TestRuntimePersistsDAGSlotsEventsAndExplicitResume(t *testing.T) {
 	pending, err = db.CollectPending(ctx, "task-c")
 	if err != nil || len(pending) != 0 {
 		t.Fatalf("remaining=%d err=%v", len(pending), err)
+	}
+	for _, taskID := range []string{"task-a", "task-b"} {
+		events, collectErr := db.CollectPending(ctx, taskID)
+		if collectErr != nil {
+			t.Fatal(collectErr)
+		}
+		ids = ids[:0]
+		for _, event := range events {
+			ids = append(ids, event.EventID)
+		}
+		if err = db.AckEvents(ctx, taskID, ids); err != nil {
+			t.Fatal(err)
+		}
+	}
+	retirable, err := db.RetirableHosts(ctx)
+	if err != nil || len(retirable) != 1 || retirable[0] != hostID {
+		t.Fatalf("retirable=%#v err=%v", retirable, err)
+	}
+	if err = db.RetireHost(ctx, hostID); err != nil {
+		t.Fatal(err)
+	}
+	if idle, idleErr := db.CompletelyIdle(ctx); idleErr != nil || !idle {
+		t.Fatalf("idle=%v err=%v", idle, idleErr)
 	}
 }
 

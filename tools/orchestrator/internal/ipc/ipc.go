@@ -20,6 +20,7 @@ type Kind string
 const (
 	KindHostHello  Kind = "host_hello"
 	KindHostReady  Kind = "host_ready"
+	KindHostStatus Kind = "host_status"
 	KindLaunch     Kind = "launch"
 	KindStop       Kind = "stop"
 	KindEvent      Kind = "event"

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"codex-cli-orchestration-design/tools/orchestrator/internal/contract"
@@ -18,12 +19,13 @@ import (
 )
 
 type TaskRequest struct {
-	ID            string   `json:"id"`
-	Dependencies  []string `json:"dependencies,omitempty"`
-	MaxAttempts   int      `json:"max_attempts"`
-	WorkRevision  int      `json:"work_revision,omitempty"`
-	BudgetGroupID string   `json:"budget_group_id,omitempty"`
-	MaxActiveMS   int64    `json:"max_active_ms,omitempty"`
+	ID             string          `json:"id"`
+	Dependencies   []string        `json:"dependencies,omitempty"`
+	MaxAttempts    int             `json:"max_attempts"`
+	WorkRevision   int             `json:"work_revision,omitempty"`
+	BudgetGroupID  string          `json:"budget_group_id,omitempty"`
+	MaxActiveMS    int64           `json:"max_active_ms,omitempty"`
+	AdapterPayload json.RawMessage `json:"adapter"`
 }
 
 type SubmitRequest struct {
@@ -36,24 +38,30 @@ type SubmitRequest struct {
 	HostGeneration   string        `json:"host_generation"`
 	HostExecutable   string        `json:"host_executable"`
 	Tasks            []TaskRequest `json:"tasks"`
+	LaunchID         string        `json:"launch_id,omitempty"`
+	LaunchToken      string        `json:"launch_token,omitempty"`
+	ControlToken     string        `json:"control_token,omitempty"`
 }
 
 type SubmitResponse struct {
-	Status      string `json:"status"`
-	RunID       string `json:"run_id"`
-	LaunchID    string `json:"launch_id"`
-	LaunchToken string `json:"launch_token"`
+	Status       string `json:"status"`
+	RunID        string `json:"run_id"`
+	LaunchID     string `json:"launch_id"`
+	LaunchToken  string `json:"launch_token"`
+	ControlToken string `json:"control_token"`
 }
 
 type TaskControlRequest struct {
 	TaskID           string `json:"task_id"`
 	ControllerThread string `json:"controller_thread"`
+	ControlToken     string `json:"control_token"`
 	WorkRevision     int    `json:"work_revision,omitempty"`
 }
 
 type AckRequest struct {
 	TaskID           string   `json:"task_id"`
 	ControllerThread string   `json:"controller_thread"`
+	ControlToken     string   `json:"control_token"`
 	EventIDs         []string `json:"event_ids"`
 }
 
@@ -64,6 +72,11 @@ type CollectResponse struct {
 
 type StatusResponse struct {
 	Status string `json:"status"`
+}
+
+type HostStatusRequest struct {
+	LaunchID    string `json:"launch_id"`
+	LaunchToken string `json:"launch_token"`
 }
 
 type ErrorResponse struct {
@@ -83,15 +96,17 @@ func (h *hostSession) send(message ipc.Envelope) error {
 }
 
 type Server struct {
-	stateDir string
-	socket   string
-	epoch    uint64
-	lock     *instance.Lock
-	db       *store.DB
-	listener net.Listener
-	mu       sync.Mutex
-	hosts    map[string]*hostSession
-	close    sync.Once
+	stateDir    string
+	socket      string
+	epoch       uint64
+	lock        *instance.Lock
+	db          *store.DB
+	listener    net.Listener
+	mu          sync.Mutex
+	hosts       map[string]*hostSession
+	close       sync.Once
+	idleTimeout time.Duration
+	idleExit    atomic.Bool
 }
 
 func NewServer(stateDir string) (*Server, error) {
@@ -104,6 +119,11 @@ func NewServer(stateDir string) (*Server, error) {
 	}
 	db, err := store.Open(filepath.Join(stateDir, "state.db"))
 	if err != nil {
+		_ = lock.Close()
+		return nil, err
+	}
+	if err = db.BeginCoordinatorEpoch(context.Background(), lock.Epoch()); err != nil {
+		_ = db.Close()
 		_ = lock.Close()
 		return nil, err
 	}
@@ -136,7 +156,7 @@ func NewServer(stateDir string) (*Server, error) {
 		_ = lock.Close()
 		return nil, err
 	}
-	return &Server{stateDir: stateDir, socket: socket, epoch: lock.Epoch(), lock: lock, db: db, listener: listener, hosts: make(map[string]*hostSession)}, nil
+	return &Server{stateDir: stateDir, socket: socket, epoch: lock.Epoch(), lock: lock, db: db, listener: listener, hosts: make(map[string]*hostSession), idleTimeout: 30 * time.Second}, nil
 }
 
 func (s *Server) SocketPath() string { return s.socket }
@@ -147,15 +167,51 @@ func (s *Server) Serve(ctx context.Context) error {
 		<-ctx.Done()
 		_ = s.listener.Close()
 	}()
+	go s.monitorIdle(ctx)
 	for {
 		conn, err := s.listener.Accept()
 		if err != nil {
+			if s.idleExit.Load() {
+				return nil
+			}
 			if ctx.Err() != nil {
 				return nil
 			}
 			return err
 		}
 		go s.handleConnection(ctx, conn)
+	}
+}
+
+func (s *Server) monitorIdle(ctx context.Context) {
+	interval := 250 * time.Millisecond
+	if s.idleTimeout < interval {
+		interval = s.idleTimeout / 4
+		if interval < time.Millisecond {
+			interval = time.Millisecond
+		}
+	}
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	var since time.Time
+	for {
+		idle, err := s.db.CompletelyIdle(context.Background())
+		if err == nil && idle {
+			if since.IsZero() {
+				since = time.Now()
+			} else if time.Since(since) >= s.idleTimeout {
+				s.idleExit.Store(true)
+				_ = s.listener.Close()
+				return
+			}
+		} else {
+			since = time.Time{}
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
 	}
 }
 
@@ -256,19 +312,29 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 		}
 		tasks := make([]store.TaskSpec, 0, len(request.Tasks))
 		for _, task := range request.Tasks {
-			tasks = append(tasks, store.TaskSpec{ID: task.ID, RunID: request.RunID, Dependencies: task.Dependencies, MaxAttempts: task.MaxAttempts, WorkRevision: task.WorkRevision, BudgetGroupID: task.BudgetGroupID, MaxActiveMS: task.MaxActiveMS})
+			tasks = append(tasks, store.TaskSpec{ID: task.ID, RunID: request.RunID, Dependencies: task.Dependencies, MaxAttempts: task.MaxAttempts, WorkRevision: task.WorkRevision, BudgetGroupID: task.BudgetGroupID, MaxActiveMS: task.MaxActiveMS, AdapterPayload: task.AdapterPayload})
 		}
-		receipt, err := s.db.SubmitPlan(ctx, store.PlanSpec{Run: store.RunSpec{ID: request.RunID, ControllerThread: request.ControllerThread, PlanRevision: request.PlanRevision, OriginContextID: request.OriginContextID, OriginPID: request.OriginPID, OriginBirth: request.OriginBirth}, Host: store.HostLaunchSpec{OriginContextID: request.OriginContextID, HostGeneration: request.HostGeneration, Executable: request.HostExecutable}, Tasks: tasks})
+		receipt, err := s.db.SubmitPlan(ctx, store.PlanSpec{Run: store.RunSpec{ID: request.RunID, ControllerThread: request.ControllerThread, PlanRevision: request.PlanRevision, OriginContextID: request.OriginContextID, OriginPID: request.OriginPID, OriginBirth: request.OriginBirth}, Host: store.HostLaunchSpec{OriginContextID: request.OriginContextID, HostGeneration: request.HostGeneration, Executable: request.HostExecutable}, Tasks: tasks, LaunchID: request.LaunchID, LaunchToken: request.LaunchToken, ControlToken: request.ControlToken})
 		if err != nil {
 			return nil, err
 		}
-		return json.Marshal(SubmitResponse{Status: "queued", RunID: request.RunID, LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken})
+		return json.Marshal(SubmitResponse{Status: "queued", RunID: request.RunID, LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, ControlToken: receipt.ControlToken})
+	case ipc.KindHostStatus:
+		var request HostStatusRequest
+		if err := strictJSON(raw, &request); err != nil {
+			return nil, err
+		}
+		status, err := s.db.HostLaunchStatus(ctx, request.LaunchID, request.LaunchToken)
+		if err != nil {
+			return nil, err
+		}
+		return json.Marshal(StatusResponse{Status: status})
 	case ipc.KindStatus:
 		var request TaskControlRequest
 		if err := strictJSON(raw, &request); err != nil {
 			return nil, err
 		}
-		if err := s.db.ValidateTaskOwner(ctx, request.TaskID, request.ControllerThread); err != nil {
+		if err := s.db.ValidateTaskOwner(ctx, request.TaskID, request.ControllerThread, request.ControlToken); err != nil {
 			return nil, err
 		}
 		snapshot, err := s.db.TaskSnapshot(ctx, request.TaskID)
@@ -281,7 +347,7 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 		if err := strictJSON(raw, &request); err != nil {
 			return nil, err
 		}
-		if err := s.db.ValidateTaskOwner(ctx, request.TaskID, request.ControllerThread); err != nil {
+		if err := s.db.ValidateTaskOwner(ctx, request.TaskID, request.ControllerThread, request.ControlToken); err != nil {
 			return nil, err
 		}
 		events, err := s.db.CollectPending(ctx, request.TaskID)
@@ -294,19 +360,20 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 		if err := strictJSON(raw, &request); err != nil {
 			return nil, err
 		}
-		if err := s.db.ValidateTaskOwner(ctx, request.TaskID, request.ControllerThread); err != nil {
+		if err := s.db.ValidateTaskOwner(ctx, request.TaskID, request.ControllerThread, request.ControlToken); err != nil {
 			return nil, err
 		}
 		if err := s.db.AckEvents(ctx, request.TaskID, request.EventIDs); err != nil {
 			return nil, err
 		}
+		s.retireCompletedHosts()
 		return json.Marshal(StatusResponse{Status: "acknowledged"})
 	case ipc.KindResume:
 		var request TaskControlRequest
 		if err := strictJSON(raw, &request); err != nil {
 			return nil, err
 		}
-		if err := s.db.ValidateTaskOwner(ctx, request.TaskID, request.ControllerThread); err != nil {
+		if err := s.db.ValidateTaskOwner(ctx, request.TaskID, request.ControllerThread, request.ControlToken); err != nil {
 			return nil, err
 		}
 		if err := s.db.QueueResume(ctx, request.TaskID, request.WorkRevision); err != nil {
@@ -319,7 +386,7 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 		if err := strictJSON(raw, &request); err != nil {
 			return nil, err
 		}
-		if err := s.db.ValidateTaskOwner(ctx, request.TaskID, request.ControllerThread); err != nil {
+		if err := s.db.ValidateTaskOwner(ctx, request.TaskID, request.ControllerThread, request.ControlToken); err != nil {
 			return nil, err
 		}
 		dispatch, err := s.db.RequestStop(ctx, request.TaskID, request.WorkRevision, "controller_stop")
@@ -362,10 +429,15 @@ func (s *Server) handleHost(ctx context.Context, conn net.Conn, message ipc.Enve
 	s.mu.Unlock()
 	defer func() {
 		s.mu.Lock()
+		current := false
 		if s.hosts[hostID] == session {
 			delete(s.hosts, hostID)
+			current = true
 		}
 		s.mu.Unlock()
+		if current {
+			_ = s.db.MarkHostOffline(context.Background(), hostID, s.epoch)
+		}
 		_ = conn.Close()
 	}()
 	ready, _ := json.Marshal(contract.HostReady{HostID: hostID, CoordinatorEpoch: s.epoch})
@@ -384,7 +456,9 @@ func (s *Server) handleHost(ctx context.Context, conn net.Conn, message ipc.Enve
 		if strictJSON(incoming.Payload, &event) != nil || event.ProducerID != hostID {
 			return
 		}
-		ack, commitErr := s.db.CommitHostEvent(ctx, event)
+		// The accept context is cancelled when shutdown begins, but existing Host
+		// connections must remain able to commit their final stopped/exited events.
+		ack, commitErr := s.db.CommitHostEvent(context.Background(), event)
 		if commitErr != nil {
 			_ = sendError(conn, incoming.RequestID, s.epoch, commitErr)
 			continue
@@ -434,6 +508,25 @@ func (s *Server) dispatchAll() {
 	s.mu.Unlock()
 	for _, host := range hosts {
 		_ = s.dispatch(host, false)
+	}
+}
+
+func (s *Server) retireCompletedHosts() {
+	ids, err := s.db.RetirableHosts(context.Background())
+	if err != nil {
+		return
+	}
+	for _, id := range ids {
+		if s.db.RetireHost(context.Background(), id) != nil {
+			continue
+		}
+		s.mu.Lock()
+		host := s.hosts[id]
+		delete(s.hosts, id)
+		s.mu.Unlock()
+		if host != nil {
+			_ = host.conn.Close()
+		}
 	}
 }
 

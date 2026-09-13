@@ -9,11 +9,19 @@ import (
 )
 
 func TestOpenMigratesAndCommitsRunTaskAttempt(t *testing.T) {
-	db, err := Open(filepath.Join(t.TempDir(), "state.db"))
+	path := filepath.Join(t.TempDir(), "state.db")
+	db, err := Open(path)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer db.Close()
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0600 {
+		t.Fatalf("database mode=%v", info.Mode().Perm())
+	}
 	if err := db.CreateRun(context.Background(), RunSpec{ID: "run-1", ControllerThread: "thread-1", PlanRevision: 1, OriginContextID: "test", OriginPID: os.Getpid(), OriginBirth: "birth"}); err != nil {
 		t.Fatal(err)
 	}

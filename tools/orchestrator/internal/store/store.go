@@ -8,9 +8,11 @@ import (
 	"encoding/json"
 	"errors"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -41,12 +43,13 @@ type RunSpec struct {
 	OriginBirth          string
 }
 type TaskSpec struct {
-	ID, RunID     string
-	Dependencies  []string
-	MaxAttempts   int
-	WorkRevision  int
-	BudgetGroupID string
-	MaxActiveMS   int64
+	ID, RunID      string
+	Dependencies   []string
+	MaxAttempts    int
+	WorkRevision   int
+	BudgetGroupID  string
+	MaxActiveMS    int64
+	AdapterPayload json.RawMessage
 }
 type Attempt struct {
 	ID, TaskID, SegmentID, Status string
@@ -56,6 +59,18 @@ type Attempt struct {
 func Open(path string) (*DB, error) {
 	if !filepath.IsAbs(path) {
 		return nil, CodeError("path_not_absolute")
+	}
+	info, err := os.Lstat(path)
+	if errors.Is(err, os.ErrNotExist) {
+		file, createErr := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_RDWR|syscall.O_NOFOLLOW, 0600)
+		if createErr != nil {
+			return nil, createErr
+		}
+		if closeErr := file.Close(); closeErr != nil {
+			return nil, closeErr
+		}
+	} else if err != nil || !info.Mode().IsRegular() || info.Mode().Perm() != 0600 || !storeOwned(info) {
+		return nil, CodeError("untrusted_database")
 	}
 	u := &url.URL{Scheme: "file", Path: path}
 	u.RawQuery = "_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)"
@@ -75,6 +90,11 @@ func Open(path string) (*DB, error) {
 		return nil, err
 	}
 	return out, nil
+}
+
+func storeOwned(info os.FileInfo) bool {
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	return ok && stat.Uid == uint32(os.Geteuid())
 }
 func (d *DB) Close() error { return d.sql.Close() }
 func (d *DB) SQL() *sql.DB { return d.sql }

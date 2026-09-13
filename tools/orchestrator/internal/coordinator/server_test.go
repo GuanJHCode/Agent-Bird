@@ -33,12 +33,12 @@ func TestServerRoutesControlToBoundHostAndDurablyCollects(t *testing.T) {
 		RunID: "run", ControllerThread: "thread", PlanRevision: 1,
 		OriginContextID: "origin", OriginPID: 7, OriginBirth: "origin-birth",
 		HostGeneration: "generation", HostExecutable: "/private/tmp/orchestrator",
-		Tasks: []TaskRequest{{ID: "task", MaxAttempts: 3}},
+		Tasks: []TaskRequest{{ID: "task", MaxAttempts: 3, AdapterPayload: json.RawMessage(`{"provider":"fake"}`)}},
 	}
 	response := callServer(t, server.SocketPath(), ipc.KindSubmit, submit)
 	var receipt SubmitResponse
 	decodePayload(t, response, &receipt)
-	if receipt.Status != "queued" || receipt.LaunchID == "" || receipt.LaunchToken == "" {
+	if receipt.Status != "queued" || receipt.LaunchID == "" || receipt.LaunchToken == "" || receipt.ControlToken == "" {
 		t.Fatalf("submit=%#v", receipt)
 	}
 
@@ -55,11 +55,20 @@ func TestServerRoutesControlToBoundHostAndDurablyCollects(t *testing.T) {
 	}
 	var ready contract.HostReady
 	decodePayload(t, readyMessage, &ready)
+	hostStatus := callServer(t, server.SocketPath(), ipc.KindHostStatus, HostStatusRequest{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken})
+	var hostStatusResponse StatusResponse
+	decodePayload(t, hostStatus, &hostStatusResponse)
+	if hostStatusResponse.Status != "ready" {
+		t.Fatalf("host status=%#v", hostStatusResponse)
+	}
 	launchMessage := readMessage(t, conn)
 	var launch contract.LaunchCommand
 	decodePayload(t, launchMessage, &launch)
 	if launch.TaskID != "task" || launch.HostID != ready.HostID || launch.ExecutionEpoch != ready.CoordinatorEpoch {
 		t.Fatalf("launch=%#v ready=%#v", launch, ready)
+	}
+	if string(launch.AdapterPayload) != `{"provider":"fake"}` {
+		t.Fatalf("adapter payload=%s", launch.AdapterPayload)
 	}
 
 	sequence := int64(0)
@@ -80,14 +89,33 @@ func TestServerRoutesControlToBoundHostAndDurablyCollects(t *testing.T) {
 	}
 	sendEvent(contract.EventResult, 0)
 	sendEvent(contract.EventExited, 100)
+	if err = conn.Close(); err != nil {
+		t.Fatal(err)
+	}
+	for deadline := time.Now().Add(time.Second); ; {
+		statusMessage := callServer(t, server.SocketPath(), ipc.KindHostStatus, HostStatusRequest{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken})
+		var status StatusResponse
+		decodePayload(t, statusMessage, &status)
+		if status.Status == "offline" {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("host remained %s after disconnect", status.Status)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
 
-	collected := callServer(t, server.SocketPath(), ipc.KindCollect, TaskControlRequest{TaskID: "task", ControllerThread: "thread"})
+	denied, err := ipc.Call(context.Background(), server.SocketPath(), ipc.Envelope{Version: ipc.Version, Kind: ipc.KindCollect, RequestID: "denied", Payload: jsonBytes(t, TaskControlRequest{TaskID: "task", ControllerThread: "thread", ControlToken: "wrong"})})
+	if err != nil || denied.Kind != ipc.KindError {
+		t.Fatalf("denied=%#v err=%v", denied, err)
+	}
+	collected := callServer(t, server.SocketPath(), ipc.KindCollect, TaskControlRequest{TaskID: "task", ControllerThread: "thread", ControlToken: receipt.ControlToken})
 	var collection CollectResponse
 	decodePayload(t, collected, &collection)
 	if len(collection.Events) != 2 || collection.Events[1].Kind != contract.EventExited {
 		t.Fatalf("collection=%#v", collection)
 	}
-	acked := callServer(t, server.SocketPath(), ipc.KindAck, AckRequest{TaskID: "task", ControllerThread: "thread", EventIDs: []string{"event-result", "event-exited"}})
+	acked := callServer(t, server.SocketPath(), ipc.KindAck, AckRequest{TaskID: "task", ControllerThread: "thread", ControlToken: receipt.ControlToken, EventIDs: []string{"event-result", "event-exited"}})
 	var ackResponse StatusResponse
 	decodePayload(t, acked, &ackResponse)
 	if ackResponse.Status != "acknowledged" {
@@ -127,7 +155,7 @@ func TestServerRoutesExplicitStopToOwningHost(t *testing.T) {
 	decodePayload(t, readMessage(t, conn), &ready)
 	var launch contract.LaunchCommand
 	decodePayload(t, readMessage(t, conn), &launch)
-	stopped := callServer(t, server.SocketPath(), ipc.KindStopTask, TaskControlRequest{TaskID: "stop-task", ControllerThread: "thread", WorkRevision: 1})
+	stopped := callServer(t, server.SocketPath(), ipc.KindStopTask, TaskControlRequest{TaskID: "stop-task", ControllerThread: "thread", ControlToken: receipt.ControlToken, WorkRevision: 1})
 	var responseStatus StatusResponse
 	decodePayload(t, stopped, &responseStatus)
 	if responseStatus.Status != "stopping" {
@@ -153,6 +181,30 @@ func TestServerRoutesExplicitStopToOwningHost(t *testing.T) {
 	}
 	if err = <-done; err != context.DeadlineExceeded {
 		t.Fatalf("shutdown err=%v", err)
+	}
+}
+
+func TestServerExitsAfterIdleDebounce(t *testing.T) {
+	root, err := os.MkdirTemp("/tmp", "g1-idle-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(root) })
+	server, err := NewServer(filepath.Join(root, "state"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Close()
+	server.idleTimeout = 50 * time.Millisecond
+	done := make(chan error, 1)
+	go func() { done <- server.Serve(context.Background()) }()
+	select {
+	case err = <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("idle server did not exit")
 	}
 }
 
