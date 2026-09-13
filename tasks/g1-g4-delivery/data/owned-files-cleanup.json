@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-auth-preserving-activation/scripts/__pycache__",
+      "status": "removed",
+      "ownership": "created during current task; excludes original pending-resolution cache"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-completion/scripts/__pycache__",
+      "status": "removed",
+      "ownership": "created during current task; excludes original pending-resolution cache"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-global-delivery-validation/scripts/__pycache__",
+      "status": "removed",
+      "ownership": "created during current task; excludes original pending-resolution cache"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-proxy-continuation/cold-start/scripts/__pycache__",
+      "status": "removed",
+      "ownership": "created during current task; excludes original pending-resolution cache"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-tui-proxy/scripts/__pycache__",
+      "status": "removed",
+      "ownership": "created during current task; excludes original pending-resolution cache"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-global-delivery-validation/tmp/build",
+      "status": "removed",
+      "ownership": "created during current task; excludes original pending-resolution cache"
+    }
+  ]
+}
