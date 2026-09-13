@@ -8,13 +8,71 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 )
+
+func TestNormalLeaderExitWithSurvivingProcessGroupStaysUnknown(t *testing.T) {
+	if os.Getenv("G1_ORPHAN_LEADER") == "1" {
+		child := exec.Command(os.Args[0], "-test.run=TestNormalLeaderExitWithSurvivingProcessGroupStaysUnknown")
+		child.Env = append(os.Environ(), "G1_ORPHAN_SURVIVOR=1")
+		child.Stdout, child.Stderr = nil, nil
+		if err := child.Start(); err != nil {
+			os.Exit(2)
+		}
+		_ = os.WriteFile(os.Getenv("G1_ORPHAN_PID_FILE"), []byte(fmt.Sprint(child.Process.Pid)), 0600)
+		return
+	}
+	if os.Getenv("G1_ORPHAN_SURVIVOR") == "1" {
+		time.Sleep(30 * time.Second)
+		return
+	}
+	binary, err := filepath.EvalSymlinks(os.Args[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	pidFile := filepath.Join(t.TempDir(), "survivor.pid")
+	root := filepath.Join(t.TempDir(), "spool")
+	h, err := NewIPC(root, "orphan-producer")
+	if err != nil {
+		t.Fatal(err)
+	}
+	grant := contract.LaunchCommand{CommandID: "orphan-command", ReservationID: "orphan-reservation", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", GrantedActiveMS: 2000}
+	inv := launchInvocation{args: []string{binary, "-test.run=TestNormalLeaderExitWithSurvivingProcessGroupStaysUnknown"}, env: map[string]string{"G1_ORPHAN_LEADER": "1", "G1_ORPHAN_PID_FILE": pidFile}}
+	result, runErr := h.ExecuteLaunch(context.Background(), grant, inv)
+	childBody, readErr := os.ReadFile(pidFile)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	childPID, parseErr := strconv.Atoi(string(childBody))
+	if parseErr != nil {
+		t.Fatal(parseErr)
+	}
+	defer syscall.Kill(childPID, syscall.SIGKILL)
+	if runErr == nil || result.Status != "unknown" {
+		t.Fatalf("result=%#v err=%v", result, runErr)
+	}
+	sink := &durableSink{}
+	if err = h.PublishAll(context.Background(), sink, 1); err != nil {
+		t.Fatal(err)
+	}
+	for _, event := range sink.events {
+		if event.Kind == contract.EventResult || event.Kind == contract.EventQuestion || event.Kind == contract.EventExited {
+			t.Fatalf("unsettled group published terminal event: %#v", sink.events)
+		}
+	}
+	if len(sink.events) == 0 || sink.events[len(sink.events)-1].Kind != contract.EventUnknown {
+		t.Fatalf("events=%#v", sink.events)
+	}
+}
 
 func TestSubmitHostCollectAckAndExplicitResume(t *testing.T) {
 	if os.Getenv("G1_HOST_HELPER") == "1" {

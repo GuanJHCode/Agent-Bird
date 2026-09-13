@@ -254,6 +254,16 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		result.OutputHash = hashText(p.Output())
 		return result, stoppedErr
 	}
+	if err = p.ConfirmTreeExited(); err != nil {
+		if phaseErr := publishLaunchPhase(spool, "unknown", a, runID, taskID, cmd, &identity, err); phaseErr != nil {
+			err = phaseErr
+		}
+		if phaseErr := appendPhase(contract.EventUnknown, hashText("unknown:"+a.SegmentID), &identity, nil, nil); phaseErr != nil {
+			err = phaseErr
+		}
+		h.finishAttempt(a.ID, "unknown", persistDB)
+		return contract.Result{Status: "unknown", ExitCode: p.ExitCode(), EventCount: eventCount, OutputHash: hashText(p.Output())}, err
+	}
 	if h.stopWasRequested(a.SegmentID) || p.ExitCode() < 0 {
 		return finalizeStopped(&identity, p.ExitCode(), context.Canceled)
 	}

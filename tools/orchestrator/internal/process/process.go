@@ -162,6 +162,23 @@ func (h *Handle) Wait(ctx context.Context) error {
 		return ctx.Err()
 	}
 }
+
+// ConfirmTreeExited proves that the reaped leader's process group has no
+// surviving members. A leader exit alone is not a process-tree receipt.
+func (h *Handle) ConfirmTreeExited() error {
+	h.mu.Lock()
+	waited := h.waited
+	h.mu.Unlock()
+	if !waited {
+		return ErrProcessTreeUnknown
+	}
+	alive, err := processGroupAlive(h.pgid)
+	if err != nil || alive {
+		return ErrProcessTreeUnknown
+	}
+	return nil
+}
+
 func (h *Handle) Stop(ctx context.Context) error {
 	h.mu.Lock()
 	waited := h.waited
