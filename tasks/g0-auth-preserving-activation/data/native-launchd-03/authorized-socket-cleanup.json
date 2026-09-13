@@ -1,0 +1,45 @@
+{
+  "observed_at": "2026-09-13T01:25:41.890308+00:00",
+  "authorization": "user ok to exact residual socket cleanup after identity and absent-job checks",
+  "socket_path": "/Users/guanjunhui/.codex/app-server-control/app-server-control.sock",
+  "matched_socket": {
+    "path": "/Users/guanjunhui/.codex/app-server-control/app-server-control.sock",
+    "device": 16777234,
+    "inode": 162584670,
+    "uid": 501,
+    "gid": 20,
+    "mode": "0o600",
+    "is_socket": true,
+    "is_symlink": false,
+    "mtime_ns": 1789258341745161088,
+    "ctime_ns": 1789258341745486464,
+    "birthtime": 1789258341.745161
+  },
+  "matched_parent": {
+    "path": "/Users/guanjunhui/.codex/app-server-control",
+    "device": 16777234,
+    "inode": 117096009,
+    "uid": 501,
+    "gid": 20,
+    "mode": "0o700",
+    "is_socket": false,
+    "is_symlink": false,
+    "mtime_ns": 1789258341745438172,
+    "ctime_ns": 1789258341745438172,
+    "birthtime": 1780373218.337994
+  },
+  "before": {
+    "job_absent": true,
+    "query_exit": 113,
+    "plist_absent": true
+  },
+  "after": {
+    "job_absent": true,
+    "query_exit": 113,
+    "plist_absent": true
+  },
+  "socket_absent": true,
+  "removed": true,
+  "auth_operations": [],
+  "registration_performed": false
+}

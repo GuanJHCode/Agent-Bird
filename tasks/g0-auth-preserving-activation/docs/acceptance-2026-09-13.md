@@ -1,5 +1,7 @@
 # 认证保护接入实验验收
 
+后续处置：用户明确批准清理残留 socket 后，已复核原 dev/inode、UID/GID、mode、父目录身份以及 job/plist 缺席，仅删除该 socket。删除后 socket、job、plist 均不存在，见 `data/native-launchd-03/authorized-socket-cleanup.json`。本轮残留已清理，没有执行新的注册或认证操作；以下保留原始实验失败与修复记录，不能据此把自动撤回实现追认为已通过真实重测。
+
 本轮真实默认入口已经按需激活并正常完成原生 `/status`、`/quit`，但整体撤回验收未通过：`launchctl bootout` 后默认 public socket 仍存在。认证保护检查通过；不得把本结果表述为完整 G0 或永久安装完成。
 
 ## 实际证据
