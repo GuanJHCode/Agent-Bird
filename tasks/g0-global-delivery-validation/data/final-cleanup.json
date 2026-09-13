@@ -1,0 +1,36 @@
+{
+  "removed_regular_control_files": [
+    "/private/tmp/g0-auth-gdl-nc4e29ow/synthetic-isolation.json",
+    "/private/tmp/g0-auth-gdl-nc4e29ow/private-native-02/grants/70842.json",
+    "/private/tmp/g0-auth-gdl-nc4e29ow/private-native-02/grants/70945.json",
+    "/private/tmp/g0-auth-gdl-nc4e29ow/private-native-02/state/c18391de2c5846f2a5331b401a56aad5/7ef0916a29cb/backend.sbpl",
+    "/private/tmp/g0-auth-gdl-_igy9e8y/synthetic-isolation.json",
+    "/private/tmp/g0-auth-gdl-m293gff_/synthetic-isolation.json",
+    "/private/tmp/g0-auth-gdl-m293gff_/private-native-03/grants/87537.json",
+    "/private/tmp/g0-auth-gdl-m293gff_/private-native-03/grants/87652.json",
+    "/private/tmp/g0-auth-gdl-m293gff_/private-native-03/state/07b5cf269b724139a189a52d96e8edea/24fed9c6c8bf/backend.sbpl",
+    "/private/tmp/g0-global-delivery-auth-inventory/credential-paths.txt",
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-global-delivery-validation/tmp/main-test-copy.patch"
+  ],
+  "removed_directories": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-global-delivery-validation/tmp/build",
+    "/private/tmp/g0-global-delivery-auth-inventory",
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-global-delivery-validation/tmp/runner",
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-global-delivery-validation/tmp/service-receipts",
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-global-delivery-validation/tmp"
+  ],
+  "preserved": "All native profiles, task/history records, runtime receipts, failed cases, unrelated worktrees, existing stash and unowned main changes.",
+  "auth_audit_before_cleanup": {
+    "case": "private-native-03",
+    "source_pins_matched": 37,
+    "auth_paths_unchanged": 14,
+    "owner_helper_receipts_sha_match": true,
+    "same_lease_backend": true,
+    "ack_count": 1,
+    "effect_count": 1,
+    "all_processes_and_sockets_gone": true,
+    "global_registration_verified": false
+  },
+  "real_launchd_case_status": "launchd-native-01 remains UNKNOWN, no re-registration",
+  "all_removed_absent": true
+}
