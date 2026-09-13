@@ -542,3 +542,35 @@ def test_owner_delivery_lifecycle_notifications_are_native_and_owner_scoped():
     wrong = {**messages[1], "params": {**messages[1]["params"], "threadId": "other"}}
     with pytest.raises(OwnerHelperAdmissionError):
         validate_helper_server_message(wrong, owner)
+
+
+@pytest.mark.parametrize("emitted_at_ms", [-(1 << 63), (1 << 63) - 1])
+def test_server_notification_accepts_bounded_emitted_at_ms(emitted_at_ms):
+    message = {
+        "method": "turn/started",
+        "params": {"threadId": OWNER["owner_thread_id"], "turn": {"id": "turn_1"}},
+        "emittedAtMs": emitted_at_ms,
+    }
+    assert validate_helper_server_message(message, OWNER["owner_thread_id"]) is None
+
+
+@pytest.mark.parametrize("emitted_at_ms", [True, False, 1.0, 1 << 63, -(1 << 63) - 1])
+def test_server_notification_rejects_invalid_emitted_at_ms(emitted_at_ms):
+    message = {
+        "method": "turn/started",
+        "params": {"threadId": OWNER["owner_thread_id"], "turn": {"id": "turn_1"}},
+        "emittedAtMs": emitted_at_ms,
+    }
+    with pytest.raises(OwnerHelperAdmissionError):
+        validate_helper_server_message(message, OWNER["owner_thread_id"])
+
+
+def test_server_notification_rejects_other_top_level_metadata():
+    message = {
+        "method": "turn/started",
+        "params": {"threadId": OWNER["owner_thread_id"], "turn": {"id": "turn_1"}},
+        "emittedAtMs": 1,
+        "extra": "reject",
+    }
+    with pytest.raises(OwnerHelperAdmissionError):
+        validate_helper_server_message(message, OWNER["owner_thread_id"])

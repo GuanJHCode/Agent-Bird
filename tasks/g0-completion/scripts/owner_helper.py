@@ -249,8 +249,13 @@ def validate_helper_server_message(message: object, owner_thread_id: str) -> Non
         validate_helper_response(message, owner_thread_id)
         return
     method = message.get("method")
-    if method not in _SERVER_NOTIFICATIONS or set(message) not in ({"method"}, {"method", "params"}):
+    keys = set(message)
+    if method not in _SERVER_NOTIFICATIONS or not keys.issubset({"method", "params", "emittedAtMs"}) or "method" not in keys:
         _reject("server_notification_forbidden")
+    if "emittedAtMs" in message:
+        emitted_at_ms = message["emittedAtMs"]
+        if type(emitted_at_ms) is not int or not -(1 << 63) <= emitted_at_ms <= (1 << 63) - 1:
+            _reject("server_notification_emitted_at_ms")
     params = message.get("params", {})
     if not isinstance(params, dict):
         _reject("server_notification_params")

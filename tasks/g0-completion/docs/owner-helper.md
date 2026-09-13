@@ -22,7 +22,7 @@ native wire 使用 `{id, method, params}`，不带 `jsonrpc` 字段。允许的 
 
 普通 prompt、配置/model override、跨 thread、`turn/steer`、fork、inject、command/exec、未知方法均拒绝。`turn/start` 只有上述 toolOutput 形状可用，不会转换成 user prompt。
 
-service 的双向 `NativeWebSocketGate` 缓冲 HTTP upgrade、分片和粘连帧，完整消息通过 envelope、owner thread、pending request-id 和 toolOutput 校验后才转发。服务端 request、错误方向的 mask、RSV/压缩位、二进制/未知 opcode、超限、重复 JSON key、畸形 JSON 和未知通知 fail closed。允许的 delivery 生命周期通知是 `turn/started`、`item/started`、`item/completed`、`turn/completed`，另保留已审的状态通知；turn/item 的精确 envelope 和 owner thread 必须匹配。固定 native 来源为 `tasks/g0-native-0154-contract/data/source/codex-rs/app-server-protocol/src/protocol/v2/{turn.rs,item.rs}` 的通知结构。响应允许固定的状态通知集合，并要求所有带 thread 的通知/结果匹配 owner thread。
+service 的双向 `NativeWebSocketGate` 缓冲 HTTP upgrade、分片和粘连帧，完整消息通过 envelope、owner thread、pending request-id 和 toolOutput 校验后才转发。服务端 request、错误方向的 mask、RSV/压缩位、二进制/未知 opcode、超限、重复 JSON key、畸形 JSON 和未知通知 fail closed。允许的 delivery 生命周期通知是 `turn/started`、`item/started`、`item/completed`、`turn/completed`，另保留已审的状态通知；turn/item 的精确 envelope 和 owner thread 必须匹配。顶层可带唯一可选的 `emittedAtMs`，必须是非 bool 的 i64 范围整数；其它顶层 metadata 仍拒绝。固定 native 来源为 `tasks/g0-native-0154-contract/data/source/codex-rs/app-server-protocol/src/protocol/v2/{turn.rs,item.rs}` 的通知结构。响应允许固定的状态通知集合，并要求所有带 thread 的通知/结果匹配 owner thread。
 
 `OwnerHelperConnection.send_rpc()` 是 native standalone `make_request()` 形状的可调用适配器：现有 controller 可把 `{id, method, params}` packet 和 response reader 接到此 channel。它不替代 `native_standalone` 的 owner-context、Go/ACK、历史审计或真实 native 验收，也不读取模型正文。
 
