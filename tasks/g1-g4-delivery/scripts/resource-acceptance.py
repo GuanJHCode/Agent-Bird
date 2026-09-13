@@ -163,6 +163,12 @@ def freeze(args: argparse.Namespace) -> int:
             "request_fields": ["version", "event_id", "sequence", "kind", "payload"],
             "durability_evidence": "collect_only"
         },
+        "measurement_scope": {
+            "claim": "g1_core_resource_only",
+            "included": ["orchestrator_coordinator", "source_host", "report_helper", "visible_product_descendants"],
+            "excluded": ["synthetic_provider_worker", "native_codex_backend"],
+            "not_started_or_measured": ["g0_python_service", "g0_native_bridge_python_child"],
+        },
     }
     if out.exists():
         raise AcceptanceError(f"freeze output already exists: {out}")
@@ -791,6 +797,7 @@ def run_scenario(args: argparse.Namespace) -> int:
         "frozen_manifest": str(Path(args.manifest).resolve()),
         "frozen_orchestrator_sha256": manifest["orchestrator"]["sha256"],
         "frozen_worker_sha256": manifest["worker"]["sha256"],
+        "measurement_scope": manifest["measurement_scope"],
         "duration_seconds": duration,
         "metrics": metrics,
         "functional": functional,
