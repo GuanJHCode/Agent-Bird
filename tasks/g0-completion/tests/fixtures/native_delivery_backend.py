@@ -107,6 +107,12 @@ async def main():
                     result={'thread':{'id':THREAD,'cwd':os.getcwd(),'historyMode':'legacy','ephemeral':False,'turns':history}}
                 else:raise ValueError('unexpected method')
                 writer.write(frame({'id':packet['id'],'result':result}));await writer.drain()
+                if method=='thread/read' and MODE=='early-helper-eof':
+                    until=asyncio.get_running_loop().time()+5
+                    while not (Path.cwd()/'go-task/batch-ack-event_result.json').exists():
+                        if asyncio.get_running_loop().time()>=until:raise ValueError('ACK wait timed out')
+                        await asyncio.sleep(.001)
+                    return
         except (asyncio.IncompleteReadError,ConnectionError,ValueError,StopIteration,EOFError):pass
         finally:
             clients.discard(writer);writer.close()

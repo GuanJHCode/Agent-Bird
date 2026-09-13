@@ -50,7 +50,7 @@ def validate_config(config,role):
     require(os.getppid()==config['proxy_peer']['pid'],'proxy is not the original controller')
     if role=='helper':
         require(grant['role']=='owner-helper' and grant['owner_thread_id']==config['thread_id'] and grant['lease_id']==config['lease_id'],'helper owner lease changed')
-    return manifest
+    return manifest,grant
 
 
 async def open_public(config):
@@ -60,7 +60,7 @@ async def open_public(config):
     require(peer.complete and all(getattr(peer,key)==expected[key] for key in ('pid','uid','birth','executable')),'public proxy peer mismatch')
     require(sha(peer.executable)==expected['executable_sha256'],'public proxy executable changed')
     require(transport._socket_identity(Path(config['public_socket']))==tuple(config['public_socket_identity']),'public inode changed after connect')
-    return reader,writer,asdict(peer)
+    transport.remaining(config['local_deadline']);return reader,writer,asdict(peer)
 
 
 class OwnerWire:
@@ -150,9 +150,10 @@ def verify_history(history,capability,initial_turn_id,packets):
 
 
 async def helper(config):
-    validate_config(config,'helper')
+    _,grant=validate_config(config,'helper')
+    transport.remaining(config['local_deadline'])
     require(os.environ.get('CODEX_THREAD_ID')==config['thread_id'],'Go injected owner context mismatch')
-    adapter=DeliveryAdapter(config['go_binary'],expected_sha256=config['go_sha256'])
+    adapter=DeliveryAdapter(config['go_binary'],expected_sha256=config['go_sha256'],owner_context_sha256=grant['owner_context_sha256'])
     binding=DeliveryBinding(config['profile_id'],config['thread_id'],config['owner_epoch'],config['nonce'],1)
     capability=adapter.prepare_and_claim(binding,Path(config['task_dir']),config['delivery_id'],config['events'],env={'CODEX_THREAD_ID':config['thread_id']})
     reader,writer,peer=await open_public(config)
@@ -164,12 +165,16 @@ async def helper(config):
             packet=await asyncio.wait_for(channel.read_rpc(),transport.remaining(config['local_deadline']))
             if packet.get('id')==1:
                 require(packet.get('result',{}).get('codexHome')==config['codex_home'],'helper initialize home mismatch');break
+        transport.remaining(config['local_deadline'])
         await channel.send_rpc({'method':'initialized'})
+        transport.remaining(config['local_deadline'])
         packets=await asyncio.wait_for(adapter.send_tool_output_once(channel,capability,request_id=2),transport.remaining(config['deadline']))
         request={'id':3,'method':'thread/read','params':{'threadId':config['thread_id'],'includeTurns':True}}
-        await channel.send_rpc(request)
+        history_end=min(config['deadline'],transport.now()+10)
+        await asyncio.wait_for(channel.send_rpc(request),transport.remaining(history_end))
         while True:
-            response=await asyncio.wait_for(channel.read_rpc(),min(10,transport.remaining(config['deadline'])))
+            response=await asyncio.wait_for(channel.read_rpc(),transport.remaining(history_end))
+            transport.remaining(history_end)
             if response.get('id')==3:break
         history={'request':request,'response':response}
         delivery_turn_id=verify_history(history,capability,config['initial_turn_id'],packets)
@@ -193,7 +198,7 @@ async def helper(config):
             try:await channel.read_rpc()
             except owner_helper.OwnerHelperAdmissionError as exc:
                 require(str(exc)=='websocket_eof','helper failed before EOF')
-                emit({'event':'helper_eof','lease_id':config['lease_id']});return
+                emit({'event':'helper_eof','lease_id':config['lease_id'],'eof_raw':transport.now()});return
     finally:
         try:await asyncio.wait_for(connection.close(),1)
         except Exception:pass

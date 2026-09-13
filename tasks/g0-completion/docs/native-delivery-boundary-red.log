@@ -1,0 +1,96 @@
+F..FFFF                                                                  [100%]
+=================================== FAILURES ===================================
+_________ test_actual_private_service_owner_helper_and_go_ack_pipeline _________
+tasks/g0-completion/tests/test_native_delivery_case.py:77: in test_actual_private_service_owner_helper_and_go_ack_pipeline
+    asyncio.run(asyncio.wait_for(scenario(),120))
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/tasks.py:507: in wait_for
+    return await fut
+           ^^^^^^^^^
+tasks/g0-completion/tests/test_native_delivery_case.py:72: in scenario
+    binding=json.loads((prepared.spec.workspace/'go-task/delivery-owner-binding.json').read_text())
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py:546: in read_text
+    return PathBase.read_text(self, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_abc.py:632: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors, newline=newline) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/pathlib/_local.py:537: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   FileNotFoundError: [Errno 2] No such file or directory: '/private/tmp/g0-auth-xc7vi4mb/w/go-task/delivery-owner-binding.json'
+________ test_helper_eof_before_owner_close_retains_ack_but_cannot_pass ________
+tasks/g0-completion/tests/test_native_delivery_case.py:111: in test_helper_eof_before_owner_close_retains_ack_but_cannot_pass
+    asyncio.run(asyncio.wait_for(scenario(),120))
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/tasks.py:507: in wait_for
+    return await fut
+           ^^^^^^^^^
+tasks/g0-completion/tests/test_native_delivery_case.py:107: in scenario
+    assert result['status']=='unknown'
+E   AssertionError: assert 'passed' == 'unknown'
+E
+E     - unknown
+E     + passed
+_____________ test_stop_client_refuses_wrong_birth_for_real_child ______________
+tasks/g0-completion/tests/test_native_delivery_case.py:125: in test_stop_client_refuses_wrong_birth_for_real_child
+    asyncio.run(scenario())
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+tasks/g0-completion/tests/test_native_delivery_case.py:121: in scenario
+    await runner.stop_client(child,runner.transport.now()+3,{**actual,'birth':'wrong-birth'})
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: stop_client() takes 2 positional arguments but 3 were given
+_________ test_public_socket_replacement_during_quarantine_is_retained _________
+tasks/g0-completion/tests/test_native_delivery_case.py:131: in test_public_socket_replacement_during_quarantine_is_retained
+    held=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM);held.bind(str(public));os.chmod(public,0o600)
+                                                          ^^^^^^^^^^^^^^^^^^^^^^
+E   OSError: AF_UNIX path too long
+___________ test_original_deadline_late_go_does_not_start_successor ____________
+tasks/g0-completion/tests/test_native_delivery_case.py:155: in test_original_deadline_late_go_does_not_start_successor
+    asyncio.run(scenario());assert called==['start']
+    ^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+tasks/g0-completion/tests/test_native_delivery_case.py:153: in scenario
+    await runner.go_within(Path('/unused'),['start'],{},10.)
+          ^^^^^^^^^^^^^^^^
+E   AttributeError: module 'native_delivery_case' has no attribute 'go_within'
+=========================== short test summary info ============================
+FAILED tasks/g0-completion/tests/test_native_delivery_case.py::test_actual_private_service_owner_helper_and_go_ack_pipeline
+FAILED tasks/g0-completion/tests/test_native_delivery_case.py::test_helper_eof_before_owner_close_retains_ack_but_cannot_pass
+FAILED tasks/g0-completion/tests/test_native_delivery_case.py::test_stop_client_refuses_wrong_birth_for_real_child
+FAILED tasks/g0-completion/tests/test_native_delivery_case.py::test_public_socket_replacement_during_quarantine_is_retained
+FAILED tasks/g0-completion/tests/test_native_delivery_case.py::test_original_deadline_late_go_does_not_start_successor
+5 failed, 2 passed in 9.82s

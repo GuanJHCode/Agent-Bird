@@ -14,6 +14,7 @@ import socket
 import stat
 import subprocess
 import sys
+import uuid
 
 ROOT=Path(__file__).resolve().parents[3]
 for path in (ROOT/'tasks/g0-completion/scripts',ROOT/'tasks/g0-proxy-continuation/cold-start/scripts',ROOT/'tasks/g0-tui-proxy/scripts',ROOT/'tasks/g0-auth-preserving-activation/scripts'):
@@ -60,6 +61,44 @@ def _go(binary,args,env,timeout=10):
     value=json.loads(completed.stdout);require(isinstance(value,dict),'Go output shape');return value
 
 
+async def go_within(binary,args,env,end):
+    result=await asyncio.to_thread(_go,binary,args,env,min(10,transport.remaining(end)))
+    transport.remaining(end);return result
+
+
+def cache_identity(path):
+    auth_isolation._reject_symlink_components(path)
+    info=path.stat()
+    require(stat.S_ISDIR(info.st_mode) and info.st_uid==os.getuid() and not info.st_mode&0o022,'unsafe build cache')
+    return (info.st_dev,info.st_ino,info.st_mode,info.st_uid)
+
+
+def remove_public_socket(path,identity,parent_identity,receipt):
+    # Hold the parent; quarantine first, inspect the moved inode, only then
+    # unlink. A raced replacement is retained and its path reported UNKNOWN.
+    require(transport._dir_identity(path.parent)==parent_identity,'public socket parent changed')
+    fd=transport._open_case(path.parent,parent_identity);quarantine_fd=None
+    try:
+        try:require(transport._socket_identity(path,fd)==identity,'public socket identity changed')
+        except FileNotFoundError:receipt['public_socket_removed']=True;return
+        name='.g0-socket-'+uuid.uuid4().hex
+        os.mkdir(name,0o700,dir_fd=fd)
+        quarantine_fd=os.open(name,os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW,dir_fd=fd)
+        receipt['public_socket_quarantine']=str(path.parent/name/path.name)
+        os.rename(path.name,path.name,src_dir_fd=fd,dst_dir_fd=quarantine_fd)
+        moved=os.stat(path.name,dir_fd=quarantine_fd,follow_symlinks=False)
+        require(stat.S_ISSOCK(moved.st_mode) and (moved.st_dev,moved.st_ino,moved.st_mode,moved.st_uid)==identity,'public socket identity changed in quarantine')
+        os.unlink(path.name,dir_fd=quarantine_fd);os.fsync(quarantine_fd)
+        os.rmdir(name,dir_fd=fd);os.fsync(fd);receipt.pop('public_socket_quarantine')
+        require(transport._dir_identity(path.parent)==parent_identity,'public socket parent changed after cleanup')
+        try:os.stat(path.name,dir_fd=fd,follow_symlinks=False)
+        except FileNotFoundError:receipt['public_socket_removed']=True;return
+        raise ValueError('public socket reappeared')
+    finally:
+        if quarantine_fd is not None:os.close(quarantine_fd)
+        os.close(fd)
+
+
 @dataclass
 class DeliveryPlan:
     case_dir:Path
@@ -75,6 +114,7 @@ class DeliveryPlan:
     plan_sha256:str
     listener:socket.socket
     public_identity:tuple
+    public_parent_identity:tuple
     proxy_peer:dict
 
 
@@ -96,8 +136,10 @@ def prepare_delivery(prepared,case_dir,*,python_executable,go_executable,expecte
     build_env=auth_isolation.build_clean_environment(prepared.spec,{})
     build_env.update(GOENV='off',GOPROXY='off',GOSUMDB='off',GOTOOLCHAIN='local',
         GOCACHE=str(GO_CACHE),GOMODCACHE=str(GO_MOD_CACHE))
+    caches={str(path):cache_identity(path) for path in (GO_CACHE.parent,GO_CACHE,GO_MOD_CACHE)}
     binary=case/'bin/g0-return-lab'
-    built=subprocess.run([str(go),'build','-buildvcs=false','-trimpath','-o',str(binary),'.'],cwd=ROOT/'tools/g0-return-lab',env=build_env,capture_output=True,timeout=10,check=False)
+    built=subprocess.run([str(go),'build','-buildvcs=false','-trimpath','-o',str(binary),'.'],cwd=ROOT/'tools/g0-return-lab',env=build_env,capture_output=True,timeout=120,check=False)
+    require(all(cache_identity(Path(path))==value for path,value in caches.items()),'build cache identity changed')
     require(built.returncode==0,'Go build failed')
     binary_hash=sha(binary)
     pins={**expected_source_pins,str(python):sha(python),str(go):sha(go),str(binary):binary_hash}
@@ -110,7 +152,7 @@ def prepare_delivery(prepared,case_dir,*,python_executable,go_executable,expecte
     listener=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM)
     try:
         listener.bind(str(public));listener.listen(4);os.chmod(public,0o600)
-        public_identity=transport._socket_identity(public);proxy_peer=peer_for_process(os.getpid())
+        public_identity=transport._socket_identity(public);public_parent_identity=transport._dir_identity(public.parent);proxy_peer=peer_for_process(os.getpid())
         plan={'version':1,'synthetic_only':True,'ordinary_tui_verified':False,'durable_history_verified':False,
             'native_sha256':expected_native_sha256,'native_identity':native_identity,'source_pins':pins,
             'python_owner_argv':[str(python),'-I','-B',str(CLIENT),'owner'],
@@ -118,12 +160,12 @@ def prepare_delivery(prepared,case_dir,*,python_executable,go_executable,expecte
             'backend_argv':manifest['backend_argv'],'service_manifest_sha256':sha(manifest_path),
             'fixture_plan_sha256':sha(prepared.spec.task_root/'synthetic-plan.json'),
             'python_client_policy':'fixed-code-cleanenv-no-native-auth-manager','backend_policy':'auth-isolation-sandbox',
-            'go_binary':str(binary),'go_sha256':binary_hash,'go_tool_sha256':sha(go),'build_cache':str(GO_CACHE),
+            'go_binary':str(binary),'go_sha256':binary_hash,'go_tool_sha256':sha(go),'build_cache':str(GO_CACHE),'build_cache_identities':caches,'build_timeout_seconds':120,
             'build_stdout_sha256':hashlib.sha256(built.stdout).hexdigest(),'build_stderr_sha256':hashlib.sha256(built.stderr).hexdigest(),
-            'proxy_peer':proxy_peer,'public_socket':str(public),'public_identity':public_identity,'total_seconds':120,'local_seconds':10}
+            'proxy_peer':proxy_peer,'public_socket':str(public),'public_identity':public_identity,'public_parent_identity':public_parent_identity,'total_seconds':120,'local_seconds':10}
         write(case/'plan.json',plan)
         return DeliveryPlan(case,identity,manifest_path,sha(manifest_path),dict(expected_source_pins),native_identity,
-            python,python_identity,binary,binary_hash,sha(case/'plan.json'),listener,public_identity,proxy_peer)
+            python,python_identity,binary,binary_hash,sha(case/'plan.json'),listener,public_identity,public_parent_identity,proxy_peer)
     except BaseException:
         listener.close();raise
 
@@ -137,8 +179,10 @@ async def line(child,end):
 
 
 async def send(child,value,end):
+    transport.remaining(end)
     child.stdin.write(transport.encoded(value)+b'\n')
-    await asyncio.wait_for(child.stdin.drain(),transport.remaining(end));transport.remaining(end)
+    timeout=transport.remaining(end)
+    await asyncio.wait_for(child.stdin.drain(),timeout);transport.remaining(end)
 
 
 async def wait_until(predicate,end):
@@ -154,15 +198,21 @@ def client_config(plan,prepared,role,peer,deadline,local_deadline,grant):
         'deadline':deadline,'local_deadline':local_deadline}
 
 
-async def stop_client(child,end):
+async def stop_client(child,end,identity):
     if child is None:return None
     if child.stdin is not None:child.stdin.close()
     if child.returncode is None:
         try:await asyncio.wait_for(child.wait(),min(1,transport.remaining(end)))
         except TimeoutError:
-            child.terminate()
+            require(identity is not None and peer_for_process(child.pid)==identity,'client stop identity changed')
+            try:child.terminate()
+            except ProcessLookupError:pass
             try:await asyncio.wait_for(child.wait(),min(1,transport.remaining(end)))
-            except TimeoutError:child.kill();await asyncio.wait_for(child.wait(),transport.remaining(end))
+            except TimeoutError:
+                require(peer_for_process(child.pid)==identity,'client kill identity changed')
+                try:child.kill()
+                except ProcessLookupError:pass
+                await asyncio.wait_for(child.wait(),transport.remaining(end))
     return child.returncode
 
 
@@ -198,24 +248,25 @@ async def run_delivery(plan,prepared):
         config=client_config(plan,prepared,'owner',owner_identity,deadline,startup,grant)
         await send(owner,config,startup);stage='owner-thread'
         ready=await line(owner,startup);require(ready.get('event')=='thread_ready' and ready.get('home_match') is True,'owner thread not ready')
+        require(all(ready['public_peer'][key]==plan.proxy_peer[key] for key in ('pid','uid','birth','executable')),'owner public peer mismatch')
         await wait_until(lambda:len(service._owner_leases)==1,startup)
         lease=next(iter(service._owner_leases.values()));record=service._record_for_lease(lease.lease_id)
         require(lease.owner_thread_id==ready['thread_id'] and record['frontend']['pid']==owner.pid,'service owner mapping mismatch')
         result['lease']={key:getattr(lease,key) for key in ('profile_id','owner_context_sha256','lease_id','owner_connection_id','owner_epoch','owner_thread_id','private_socket','backend_pid','backend_birth')}
         await send(owner,{'action':'initial_turn'},startup);stage='owner-initial'
         initial=await line(owner,deadline);require(initial.get('event')=='initial_ready' and initial['thread_id']==lease.owner_thread_id,'initial turn incomplete')
-        result['owner']={**owner_identity,**initial};result['python_owner_verified']=True
+        result['owner']={**owner_identity,**initial,'public_peer':ready['public_peer']};result['python_owner_verified']=True
         require(prepared.endpoint.snapshot()['accepted_requests']==1,'initial synthetic count mismatch')
         stage='go-task';task.mkdir(mode=0o700);go_env['CODEX_THREAD_ID']=lease.owner_thread_id
-        job=await asyncio.to_thread(_go,plan.go_binary,['start','--dir',str(task),'--nonce',nonce,'--delay','500ms','--controller-thread',lease.owner_thread_id],go_env)
+        job=await go_within(plan.go_binary,['start','--dir',str(task),'--nonce',nonce,'--delay','500ms','--controller-thread',lease.owner_thread_id],go_env,deadline)
         result['go_job']=job
-        completed=await asyncio.to_thread(_go,plan.go_binary,['wait','--dir',str(task),'--nonce',nonce,'--timeout','2s'],go_env)
+        completed=await go_within(plan.go_binary,['wait','--dir',str(task),'--nonce',nonce,'--timeout','2s'],go_env,deadline)
         require(completed.get('status')=='completed' and completed.get('count')==1,'Go task incomplete')
-        inspected=await asyncio.to_thread(_go,plan.go_binary,['inspect','--dir',str(task),'--nonce',nonce],go_env)
+        inspected=await go_within(plan.go_binary,['inspect','--dir',str(task),'--nonce',nonce],go_env,deadline)
         require(inspected.get('controller_thread')==lease.owner_thread_id and inspected.get('event_hash'),'Go result owner mismatch')
         result['go_inspect']=inspected
         events=[{'event_id':'event_result','event_revision':1,'kind':'result','payload_hash':inspected['event_hash'],'action_slot':'ack_result'}]
-        helper_start=min(deadline,transport.now()+10);stage='helper-spawn'
+        transport.remaining(deadline);helper_start=min(deadline,transport.now()+10);stage='helper-spawn'
         helper=await asyncio.create_subprocess_exec(str(plan.python),'-I','-B',str(CLIENT),'helper',cwd=prepared.spec.workspace,
             env=go_env,stdin=asyncio.subprocess.PIPE,stdout=asyncio.subprocess.PIPE,stderr=asyncio.subprocess.PIPE)
         stderr_tasks.append(asyncio.create_task(transport._drain(helper.stderr)))
@@ -239,23 +290,27 @@ async def run_delivery(plan,prepared):
         result['helper_proof']=proof
         require(len(service.backend_records)==1 and service._owner_leases.get(lease.lease_id) is lease and record['state']=='connected','owner backend changed')
         require(len(record.get('helpers',[]))==1 and record['helpers'][0]['frontend']['pid']==helper.pid and record['helpers'][0]['state']=='connected','helper did not reuse owner backend')
-        await send(owner,{'action':'status'},min(deadline,transport.now()+10))
-        live=await line(owner,min(deadline,transport.now()+10));require(live.get('event')=='owner_live' and live['thread_id']==lease.owner_thread_id,'owner no longer live')
+        live_end=min(deadline,transport.now()+10)
+        await send(owner,{'action':'status'},live_end)
+        live=await line(owner,live_end);require(live.get('event')=='owner_live' and live['thread_id']==lease.owner_thread_id,'owner no longer live')
         require(prepared.endpoint.snapshot()['accepted_requests']==2,'delivery synthetic count mismatch')
         prepared.verify();require(plan.prepared_pins==source_pins(),'source changed before handled decision')
         decision={'action':'decide','reads_sha256':proof['reads_sha256'],'decisions':{'event_result':'handled'},'command_ids':{'event_result':'handled_'+nonce}}
         write(plan.case_dir/'controller-handled-decision.json',decision)
-        stage='go-ack';await send(helper,decision,min(deadline,transport.now()+10))
-        ack=await line(helper,min(deadline,transport.now()+10));require(ack.get('event')=='ack' and ack.get('business_ack_complete') is True,'business ACK incomplete')
+        stage='go-ack';ack_end=min(deadline,transport.now()+10);await send(helper,decision,ack_end)
+        ack=await line(helper,ack_end);require(ack.get('event')=='ack' and ack.get('business_ack_complete') is True,'business ACK incomplete')
         require(len(ack['records'])==1 and ack['records'][0].get('status')=='acknowledged' and ack['records'][0].get('effect_count')==1,'Go ACK effect mismatch')
         result['ack']=ack;result['business_ack_verified']=True
-        result['go_status']=await asyncio.to_thread(_go,plan.go_binary,['batch-status','--dir',str(task),'--nonce',nonce],go_env)
+        result['go_status']=await go_within(plan.go_binary,['batch-status','--dir',str(task),'--nonce',nonce],go_env,deadline)
         require(result['go_status'].get('business_status')=='complete' and result['go_status'].get('send_allowed') is False,'Go status not complete')
         stage='normal-close';close_end=min(deadline,transport.now()+10)
+        result['owner_close_sent_raw']=transport.now()
         await send(owner,{'action':'close'},close_end)
         final_owner=await line(owner,close_end);require(final_owner.get('event')=='owner_closed','owner close missing')
         result['owner']['envelopes']=final_owner['envelopes']
-        eof=await line(helper,close_end);require(eof.get('event')=='helper_eof' and eof['lease_id']==lease.lease_id,'helper EOF missing');helper_eof=True
+        eof=await line(helper,close_end);require(eof.get('event')=='helper_eof' and eof['lease_id']==lease.lease_id,'helper EOF missing')
+        result['helper_eof_raw']=eof.get('eof_raw')
+        require(type(eof.get('eof_raw')) in (int,float) and eof['eof_raw']>=result['owner_close_sent_raw'],'helper EOF preceded owner close');helper_eof=True
         await asyncio.wait_for(owner.wait(),transport.remaining(close_end));await asyncio.wait_for(helper.wait(),transport.remaining(close_end))
         require(owner.returncode==helper.returncode==0,'client exit failed')
         await wait_until(lambda:record.get('process_stopped') and record.get('socket_removed'),close_end)
@@ -264,10 +319,10 @@ async def run_delivery(plan,prepared):
     except Exception as exc:
         result['failure']={'stage':stage,'type':type(exc).__name__,'errno':getattr(exc,'errno',None),'message_sha256':hashlib.sha256(str(exc).encode()).hexdigest()}
     finally:
-        cleanup={'helper_eof':helper_eof,'public_socket_removed':False,'restart_allowed':False}
+        cleanup={'helper_eof':helper_eof,'helper_eof_raw':result.get('helper_eof_raw'),'owner_close_sent_raw':result.get('owner_close_sent_raw'),'public_socket_removed':False,'restart_allowed':False}
         end=min(deadline,transport.now()+10)
-        for role,child in (('owner',owner),('helper',helper)):
-            try:cleanup[role+'_exit']=await stop_client(child,end)
+        for role,child,identity in (('owner',owner,owner_identity),('helper',helper,helper_identity)):
+            try:cleanup[role+'_exit']=await stop_client(child,end,identity)
             except Exception:result['status']='unknown';cleanup[role+'_stop_unproven']=True
         if service is not None:
             # Owner EOF already starts the service's backend cleanup. Let
@@ -280,9 +335,7 @@ async def run_delivery(plan,prepared):
         else:result['service']={'backend_records':[]}
         plan.listener.close()
         try:
-            require(transport._socket_identity(prepared.spec.public_socket)==plan.public_identity,'private public socket identity changed')
-            prepared.spec.public_socket.unlink();cleanup['public_socket_removed']=True
-        except FileNotFoundError:cleanup['public_socket_removed']=True
+            remove_public_socket(prepared.spec.public_socket,plan.public_identity,plan.public_parent_identity,cleanup)
         except Exception:result['status']='unknown'
         result['synthetic_endpoint']=prepared.endpoint.snapshot()
         try:prepared.endpoint.close()
