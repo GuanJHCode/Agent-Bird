@@ -377,29 +377,56 @@ def test_production_service_go_batch_history_and_ack_once(tmp_path):
 
 
 def test_reconcile_claimed_is_send_disabled_and_acks_existing_history(tmp_path):
+    import asyncio
+    from owner_helper import HelperIdentity, OwnerHelperGrant, OwnerLease
     go_binary = _build(tmp_path)
     task = tmp_path / "reconcile-task"; task.mkdir(mode=0o700)
-    nonce = "reconcile_1"
-    _start(go_binary, task, nonce)
+    nonce = "reconcile_1"; _start(go_binary, task, nonce)
     owner_context = "a" * 64
     binding = DeliveryBinding("profile-a", THREAD, 1, nonce, 1)
     first = DeliveryAdapter(go_binary, expected_sha256=hashlib.sha256(go_binary.read_bytes()).hexdigest(), owner_context_sha256=owner_context)
-    capability = first.prepare_and_claim(binding, task, "delivery_1", _events(), env={"CODEX_THREAD_ID": THREAD})
-    native = capability.native_envelope
-    read = {"request": {"id": 1, "method": "thread/read", "params": {"threadId": THREAD, "includeTurns": True}},
-            "response": {"id": 1, "result": {"thread": {"id": THREAD, "turns": [{"id": "turn_1", "status": "completed", "items": [{"id": "item_1", "type": "functionCallOutput", "name": "g0_delivery", "namespace": "orchestration", "output": json.dumps(native, sort_keys=True, separators=(",", ":"))}]}]}}}}
-    restarted = DeliveryAdapter(go_binary, expected_sha256=hashlib.sha256(go_binary.read_bytes()).hexdigest(), owner_context_sha256=owner_context)
-    recovered = restarted.reconcile_claimed(binding, task, "delivery_1", env={"CODEX_THREAD_ID": THREAD})
-    assert recovered.send_disabled is True
-    with pytest.raises(DeliveryError, match="send_disabled"):
-        import asyncio
-        asyncio.run(restarted.send_tool_output_once(object(), recovered))
-    proof = restarted.audit_history(recovered, [read])
-    outcome = restarted.ack_confirmed(recovered, proof, {"event_1": "handled"}, command_ids={"event_1": "reconcile_cmd"}, env={"CODEX_THREAD_ID": THREAD})
-    assert outcome.records and outcome.business_ack_complete
-    status = restarted._run(["batch-status", "--dir", str(task), "--nonce", nonce])
-    assert status["ack_count"] == 1 and status["claim"] == "claimed"
-
+    capability = first.prepare_and_claim(binding, task, "delivery_1", env={"CODEX_THREAD_ID": THREAD}, events=_events())
+    fixture = ROOT / "tasks" / "g0-completion" / "tests" / "fixtures" / "owner_helper_tool_backend.py"
+    socket_path = Path("/private/tmp") / f"g0-reconcile-{os.getpid()}-{time.time_ns()}.sock"
+    receipt = tmp_path / "backend-receipt.json"
+    backend = subprocess.Popen([sys.executable, "-B", str(fixture), str(socket_path), str(receipt)], env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"})
+    try:
+        for _ in range(100):
+            if socket_path.exists(): break
+            time.sleep(0.01)
+        executable = Path(sys.executable).resolve(); executable_sha = hashlib.sha256(executable.read_bytes()).hexdigest()
+        identity = HelperIdentity(os.getpid(), os.getuid(), "reconcile-helper", str(executable), executable_sha, "c" * 64)
+        lease = OwnerLease("profile-a", owner_context, "lease-reconcile", "owner-1", 1, THREAD, str(socket_path), backend.pid, "backend", identity)
+        grant = OwnerHelperGrant("owner-helper", "profile-a", owner_context, "lease-reconcile", "owner-1", 1, THREAD, str(socket_path), os.getpid(), os.getuid(), "reconcile-helper", str(executable), executable_sha, "c" * 64)
+        async def old_send():
+            connection = await lease.open_helper(grant, identity)
+            await first.send_tool_output_once(connection, capability)
+            await connection.close()
+        asyncio.run(old_send())
+        restarted = DeliveryAdapter(go_binary, expected_sha256=hashlib.sha256(go_binary.read_bytes()).hexdigest(), owner_context_sha256=owner_context)
+        recovered = restarted.reconcile_claimed(binding, task, "delivery_1", env={"CODEX_THREAD_ID": THREAD})
+        assert recovered.send_disabled is True
+        with pytest.raises(DeliveryError, match="send_disabled"):
+            asyncio.run(restarted.send_tool_output_once(object(), recovered))
+        async def read_and_ack():
+            connection = await lease.open_helper(grant, identity)
+            await connection.send_rpc({"id": 4, "method": "thread/read", "params": {"threadId": THREAD, "includeTurns": True}})
+            response = None
+            while response is None:
+                packet = await connection.read_rpc()
+                if packet.get("id") == 4: response = packet
+            history = {"request": {"id": 4, "method": "thread/read", "params": {"threadId": THREAD, "includeTurns": True}}, "response": response}
+            proof = restarted.audit_history(recovered, [history])
+            outcome = restarted.ack_confirmed(recovered, proof, {"event_1": "handled"}, command_ids={"event_1": "reconcile_cmd"}, env={"CODEX_THREAD_ID": THREAD})
+            await connection.close()
+            return outcome
+        outcome = asyncio.run(read_and_ack())
+        assert outcome.records and outcome.business_ack_complete
+        status = restarted._run(["batch-status", "--dir", str(task), "--nonce", nonce])
+        assert status["ack_count"] == 1 and status["claim"] == "claimed"
+        assert json.loads(receipt.read_text())["methods"].count("turn/start") == 1
+    finally:
+        backend.terminate(); backend.wait(timeout=5); socket_path.unlink(missing_ok=True)
 
 def test_reconcile_requires_original_owner_context_and_history(tmp_path):
     go_binary = _build(tmp_path)
