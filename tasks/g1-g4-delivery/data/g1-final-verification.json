@@ -1,14 +1,16 @@
 {
   "schema_version": 1,
   "kind": "g1_final_verification_archive",
-  "archived_at": "2026-09-14T00:41:54+08:00",
+  "archived_at": "2026-09-14T01:33:24+08:00",
   "provenance": "Archive of already observed tool outputs; this file is not a raw log and no verification command was rerun to create it.",
   "source": {
     "worktree": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g1-g4-delivery/tmp/g1-control-plane",
     "branch": "codex/g1-control-plane",
-    "source_head": "341d8f84acc632ca0a150edd5bde3b55ca715f05",
+    "source_head": "811e01df6ccc1a5f12432d8f33bd6fca8c6b1f03",
     "go_verification_head": "1f8f61fa25383404f0679f58bd7de897dd07458c",
-    "go_source_equivalence": "341d8f8 differs from 1f8f61f only in plugins/codex-orchestrator/lib/native_bridge/bridge.py and two native bridge Python test files; Go source is identical. Build and native bridge checks ran at 341d8f8."
+    "go_source_equivalence": "341d8f8 differs from 1f8f61f only in plugins/codex-orchestrator/lib/native_bridge/bridge.py and two native bridge Python test files; Go source is identical. Build and native bridge checks ran at 341d8f8.",
+    "baseline_source_head": "341d8f84acc632ca0a150edd5bde3b55ca715f05",
+    "followup_note": "The original archive remains below. Follow-up checks cover retry/report/storage fixes, paginated delivery, wait-events, trusted session activation, and the native delivery driver."
   },
   "checks": [
     {
@@ -82,5 +84,68 @@
       ],
       "action": "Recorded only; not modified or deleted while creating this archive."
     }
-  }
+  },
+  "followup_checks": [
+    {
+      "command": "PATH=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin:$PATH /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go test -count=1 -run 'TestReportReplayBindsKindAndProgressCannotConsumeCriticalReserve|TestReportQuestionWaitsForTrustedHostSessionThenStopsAndResumes' ./internal/store",
+      "executed_at_head": "8f8252d5c7053c7854d93c5b146a4c95c21ffad8",
+      "exit_code": 0,
+      "scope": "Report kind/body replay, cross-epoch exact replay, artifact-independent durable replay, progress reserve, trusted session question activation, stop, exit, and same-attempt answer resume."
+    },
+    {
+      "command": "PATH=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin:$PATH /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go test -count=1 -run 'TestCollectPaginatesOversizedPendingSetAndCursorSurvivesAck|TestServerRoutesControlToBoundHostAndDurablyCollects' ./internal/coordinator",
+      "executed_at_head": "307559b9acd02aaf6055b47243b4409cd3c0ddea",
+      "exit_code": 0,
+      "scope": "Actual UDS IPC pagination below 64 KiB, stable cursor after prior-page ACK, wait timeout, and event notification."
+    },
+    {
+      "command": "PATH=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin:$PATH /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go test -race -count=1 ./internal/store ./internal/coordinator ./internal/host ./internal/ipc ./internal/nativebridgecli",
+      "executed_at_head": "2c86ab31f0a9c8f59f2b509e726d8791b69fdbb7",
+      "exit_code": 0,
+      "scope": "Concurrency-sensitive follow-up packages."
+    },
+    {
+      "command": "PATH=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin:$PATH /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go vet ./...",
+      "executed_at_head": "2c86ab31f0a9c8f59f2b509e726d8791b69fdbb7",
+      "exit_code": 0,
+      "scope": "All Go packages after functional follow-up changes."
+    },
+    {
+      "command": "PATH=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin:$PATH /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go build -o /tmp/codex-orchestrator-final-2c86ab3 ./cmd/orchestrator",
+      "executed_at_head": "2c86ab31f0a9c8f59f2b509e726d8791b69fdbb7",
+      "exit_code": 0,
+      "scope": "Production entrypoint; observed executable size 11982802 bytes and removed the temporary artifact."
+    },
+    {
+      "command": "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m pytest -q tools/native-product-bridge/test_bridge.py tools/native-product-bridge/test_local_service_chain.py tools/native-product-bridge/test_local_product_driver.py tools/native-product-bridge/test_private_product_plan.py",
+      "executed_at_head": "2c86ab31f0a9c8f59f2b509e726d8791b69fdbb7",
+      "exit_code": 0,
+      "scope": "Native bridge local non-native tests; 16 passed and 1 skipped."
+    },
+    {
+      "command": "PATH=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin:$PATH /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go test -count=1 ./...",
+      "executed_at_head": "811e01df6ccc1a5f12432d8f33bd6fca8c6b1f03",
+      "exit_code": 0,
+      "scope": "Fresh final run of every Go package after synchronizing the one-way HostReconciled test with the launch message."
+    }
+  ],
+  "independent_evidence": [
+    {
+      "source": "/root/native_product_bridge",
+      "source_head": "2c86ab31f0a9c8f59f2b509e726d8791b69fdbb7",
+      "result": "1 passed in 1.33s",
+      "scope": "Final binary native-bridge start/driver, real local G0 ActivationService and helper transport, wait-events, history, decide, and typed G1 ACK with a fake worker; no model, native automation, or auth mutation.",
+      "binary_sha256": "d85a1931d067538ec1550968d4c710772b1d1cdfc01cf6f243c822f22a8d192b",
+      "provenance": "Collaborator-reported tool output, not a raw log reproduced by this archive."
+    },
+    {
+      "source": "/root/resource_acceptance",
+      "reviewed_commits": [
+        "307559b",
+        "8f8252d"
+      ],
+      "result": "No remaining issue in the four bounded retry/report/storage findings.",
+      "provenance": "Independent read-only review reported by the resource acceptance agent."
+    }
+  ]
 }
