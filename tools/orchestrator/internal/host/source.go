@@ -78,13 +78,20 @@ type SourceConfig struct {
 // RunSource owns the source Host IPC loop. It does not open the coordinator
 // DB and cannot execute a launch until prepared metadata is durable.
 func RunSource(ctx context.Context, cfg SourceConfig) error {
-	if !filepath.IsAbs(cfg.SocketPath) || !filepath.IsAbs(cfg.SpoolRoot) || cfg.InvocationProvider == nil || cfg.ProducerID == "" {
+	if !filepath.IsAbs(cfg.SocketPath) || !filepath.IsAbs(cfg.SpoolRoot) || cfg.InvocationProvider == nil {
 		return errors.New("invalid_source_config")
 	}
 	if err := validateHello(cfg.Hello); err != nil {
 		return err
 	}
-	h, err := NewIPC(cfg.SpoolRoot, cfg.ProducerID)
+	producerID := cfg.ProducerID
+	if producerID == "" {
+		producerID = cfg.Hello.LaunchID
+	}
+	if producerID != cfg.Hello.LaunchID {
+		return errors.New("producer_launch_mismatch")
+	}
+	h, err := NewIPC(cfg.SpoolRoot, producerID)
 	if err != nil {
 		return err
 	}
@@ -106,7 +113,7 @@ func RunSource(ctx context.Context, cfg SourceConfig) error {
 		return errors.New("host_ready_mismatch")
 	}
 	var hostReady contract.HostReady
-	if err = decodePayload(ready.Payload, &hostReady); err != nil || hostReady.HostID == "" {
+	if err = decodePayload(ready.Payload, &hostReady); err != nil || hostReady.HostID == "" || hostReady.HostID != producerID {
 		return errors.New("invalid_host_ready")
 	}
 	session.epoch = ready.Epoch
@@ -132,6 +139,7 @@ func RunSource(ctx context.Context, cfg SourceConfig) error {
 			if err = decodePayload(envelope.Payload, &grant); err != nil || grant.CommandID == "" {
 				return errors.New("invalid_launch_command")
 			}
+			grant.ExecutionEpoch = session.epoch
 			workers.Add(1)
 			go func() {
 				defer workers.Done()

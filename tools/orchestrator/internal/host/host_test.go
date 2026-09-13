@@ -236,10 +236,10 @@ func TestIPCSourcePublishesOnlyAfterDurableAck(t *testing.T) {
 	if err = h.Publish(context.Background(), a, good, 2); err != nil {
 		t.Fatal(err)
 	}
-	if len(good.events) != 2 {
+	if len(good.events) != 5 {
 		t.Fatalf("events=%d", len(good.events))
 	}
-	if acked, err := s.AckedThrough(); err != nil || acked != 2 {
+	if acked, err := s.AckedThrough(); err != nil || acked != 5 {
 		t.Fatalf("acked=%d err=%v", acked, err)
 	}
 }

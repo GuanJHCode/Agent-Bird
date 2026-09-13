@@ -24,6 +24,9 @@ type Host struct {
 	active       map[string]*process.Handle
 	activeBySeg  map[string]*process.Handle
 	producerID   string
+	sequenceMu   sync.Mutex
+	sequencePath string
+	sequence     int64
 	grantMu      sync.Mutex
 	reservations map[string]time.Time
 }
@@ -52,7 +55,7 @@ func newHost(db *store.DB, spoolRoot, producerID string) (*Host, error) {
 	if err := os.MkdirAll(spoolRoot, 0700); err != nil {
 		return nil, err
 	}
-	return &Host{db: db, spoolRoot: spoolRoot, active: map[string]*process.Handle{}, activeBySeg: map[string]*process.Handle{}, producerID: producerID, reservations: map[string]time.Time{}}, nil
+	return &Host{db: db, spoolRoot: spoolRoot, active: map[string]*process.Handle{}, activeBySeg: map[string]*process.Handle{}, producerID: producerID, sequencePath: filepath.Join(spoolRoot, ".producer-sequence"), reservations: map[string]time.Time{}}, nil
 }
 func (h *Host) spool(a store.Attempt) (*events.Spool, error) {
 	return events.Open(filepath.Join(h.spoolRoot, a.ID, a.SegmentID))
@@ -87,7 +90,7 @@ func (h *Host) ExecuteLaunch(ctx context.Context, grant contract.LaunchCommand, 
 	h.grantMu.Unlock()
 	runCtx, cancel := context.WithDeadline(ctx, budgetDeadline)
 	defer cancel()
-	return h.execute(runCtx, store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID, Status: "running"}, grant.RunID, grant.TaskID, invocationCommand(inv), false)
+	return h.execute(runCtx, store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID, Status: "running"}, grant.RunID, grant.TaskID, invocationCommand(inv), false, launchMetadata{commandID: grant.CommandID, workRevision: grant.WorkRevision, executionEpoch: grant.ExecutionEpoch})
 }
 
 func invocationCommand(inv contract.InvocationView) process.Command {
@@ -101,27 +104,49 @@ func invocationCommand(inv contract.InvocationView) process.Command {
 }
 
 func (h *Host) Execute(ctx context.Context, a store.Attempt, runID, taskID string, cmd process.Command) (contract.Result, error) {
-	return h.execute(ctx, a, runID, taskID, cmd, true)
+	return h.execute(ctx, a, runID, taskID, cmd, true, launchMetadata{})
 }
 
-func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID string, cmd process.Command, persistDB bool) (contract.Result, error) {
+type launchMetadata struct {
+	commandID      string
+	workRevision   int
+	executionEpoch uint64
+}
+
+func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID string, cmd process.Command, persistDB bool, meta launchMetadata) (contract.Result, error) {
 	spool, err := h.spool(a)
 	if err != nil {
 		return contract.Result{}, err
 	}
-	startHash := hashText("segment_started:" + a.SegmentID)
-	if err = spool.Append(h.event(runID, taskID, a, 1, "prepared", startHash)); err != nil {
-		return contract.Result{}, err
+	eventCount := 0
+	appendPhase := func(kind, payloadHash string, identity *process.Identity, exitCode *int, artifact *contract.ArtifactRef) error {
+		eventErr := func() error {
+			event, appendErr := h.appendPhaseEvent(spool, runID, taskID, a, meta, kind, payloadHash, identity, exitCode, artifact)
+			if appendErr == nil && event.Sequence > 0 {
+				eventCount++
+			}
+			return appendErr
+		}()
+		return eventErr
 	}
+	startHash := hashText("segment_started:" + a.SegmentID)
 	if err = publishLaunchPhase(spool, "prepared", a, runID, taskID, cmd, nil, nil); err != nil {
 		h.finishAttempt(a.ID, "failed", persistDB)
-		return contract.Result{Status: "failed", ExitCode: -1, EventCount: 1}, err
+		return contract.Result{Status: "failed", ExitCode: -1, EventCount: eventCount}, err
+	}
+	if err = appendPhase(contract.EventPrepared, startHash, nil, nil, nil); err != nil {
+		h.finishAttempt(a.ID, "unknown", persistDB)
+		return contract.Result{Status: "unknown", ExitCode: -1, EventCount: eventCount}, err
 	}
 	p, err := process.Start(ctx, cmd)
 	if err != nil {
-		_ = publishLaunchPhase(spool, "unknown", a, runID, taskID, cmd, nil, err)
-		h.finishAttempt(a.ID, "failed", persistDB)
-		return contract.Result{Status: "failed", ExitCode: -1, EventCount: 1}, err
+		phaseErr := publishLaunchPhase(spool, "unknown", a, runID, taskID, cmd, nil, err)
+		_ = appendPhase(contract.EventUnknown, hashText("unknown:"+a.SegmentID), nil, nil, nil)
+		h.finishAttempt(a.ID, "unknown", persistDB)
+		if phaseErr != nil {
+			return contract.Result{Status: "unknown", ExitCode: -1, EventCount: eventCount}, phaseErr
+		}
+		return contract.Result{Status: "unknown", ExitCode: -1, EventCount: eventCount}, err
 	}
 	identity := p.Identity()
 	if err = publishLaunchPhase(spool, "spawned", a, runID, taskID, cmd, &identity, nil); err != nil {
@@ -129,14 +154,28 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		_ = p.Stop(stopCtx)
 		stopCancel()
 		h.finishAttempt(a.ID, "unknown", persistDB)
-		return contract.Result{Status: "unknown", ExitCode: p.ExitCode(), EventCount: 1}, err
+		return contract.Result{Status: "unknown", ExitCode: p.ExitCode(), EventCount: eventCount}, err
+	}
+	if err = appendPhase(contract.EventSpawned, hashText("spawned:"+a.SegmentID), &identity, nil, nil); err != nil {
+		stopCtx, stopCancel := context.WithTimeout(context.Background(), 2*time.Second)
+		_ = p.Stop(stopCtx)
+		stopCancel()
+		h.finishAttempt(a.ID, "unknown", persistDB)
+		return contract.Result{Status: "unknown", ExitCode: p.ExitCode(), EventCount: eventCount}, err
 	}
 	if err = publishLaunchPhase(spool, "running", a, runID, taskID, cmd, &identity, nil); err != nil {
 		stopCtx, stopCancel := context.WithTimeout(context.Background(), 2*time.Second)
 		_ = p.Stop(stopCtx)
 		stopCancel()
 		h.finishAttempt(a.ID, "unknown", persistDB)
-		return contract.Result{Status: "unknown", ExitCode: p.ExitCode(), EventCount: 1}, err
+		return contract.Result{Status: "unknown", ExitCode: p.ExitCode(), EventCount: eventCount}, err
+	}
+	if err = appendPhase(contract.EventRunning, hashText("running:"+a.SegmentID), &identity, nil, nil); err != nil {
+		stopCtx, stopCancel := context.WithTimeout(context.Background(), 2*time.Second)
+		_ = p.Stop(stopCtx)
+		stopCancel()
+		h.finishAttempt(a.ID, "unknown", persistDB)
+		return contract.Result{Status: "unknown", ExitCode: p.ExitCode(), EventCount: eventCount}, err
 	}
 	h.mu.Lock()
 	h.active[a.ID] = p
@@ -150,15 +189,29 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 			if phaseErr := publishLaunchPhase(spool, "unknown", a, runID, taskID, cmd, &identity, stopErr); phaseErr != nil {
 				stopErr = phaseErr
 			}
+			_ = appendPhase(contract.EventUnknown, hashText("unknown:"+a.SegmentID), &identity, nil, nil)
 			h.finishAttempt(a.ID, "unknown", persistDB)
-			return contract.Result{Status: "unknown", ExitCode: p.ExitCode(), EventCount: 1, OutputHash: hashText(p.Output())}, stopErr
+			return contract.Result{Status: "unknown", ExitCode: p.ExitCode(), EventCount: eventCount, OutputHash: hashText(p.Output())}, stopErr
 		}
-		if phaseErr := publishLaunchPhase(spool, "stopped", a, runID, taskID, cmd, &identity, waitErr); phaseErr != nil {
+		exit := p.ExitCode()
+		if err = publishLaunchPhase(spool, "stopped", a, runID, taskID, cmd, &identity, waitErr); err != nil {
 			h.finishAttempt(a.ID, "unknown", persistDB)
-			return contract.Result{Status: "unknown", ExitCode: p.ExitCode(), EventCount: 1, OutputHash: hashText(p.Output())}, phaseErr
+			return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount, OutputHash: hashText(p.Output())}, err
+		}
+		if err = appendPhase(contract.EventStopped, hashText("stopped:"+a.SegmentID), &identity, &exit, nil); err != nil {
+			h.finishAttempt(a.ID, "unknown", persistDB)
+			return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount, OutputHash: hashText(p.Output())}, err
+		}
+		if err = publishLaunchPhase(spool, "exited", a, runID, taskID, cmd, &identity, nil); err != nil {
+			h.finishAttempt(a.ID, "unknown", persistDB)
+			return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount, OutputHash: hashText(p.Output())}, err
+		}
+		if err = appendPhase(contract.EventExited, hashText("exited:"+a.SegmentID), &identity, &exit, nil); err != nil {
+			h.finishAttempt(a.ID, "unknown", persistDB)
+			return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount, OutputHash: hashText(p.Output())}, err
 		}
 		h.finishAttempt(a.ID, "interrupted", persistDB)
-		return contract.Result{Status: "interrupted", ExitCode: p.ExitCode(), EventCount: 1, OutputHash: hashText(p.Output())}, waitErr
+		return contract.Result{Status: "interrupted", ExitCode: exit, EventCount: eventCount, OutputHash: hashText(p.Output())}, waitErr
 	}
 	status := "result_ready"
 	if p.ExitCode() < 0 {
@@ -166,13 +219,17 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 	} else if p.ExitCode() != 0 {
 		status = "failed"
 	}
+	exit := p.ExitCode()
 	outHash := hashText(p.Output())
 	artifactPath, err := spool.WriteArtifact([]byte(p.Output()))
 	if err != nil {
-		return contract.Result{}, err
+		h.finishAttempt(a.ID, "unknown", persistDB)
+		return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount, OutputHash: outHash}, err
 	}
-	if err = spool.Append(h.event(runID, taskID, a, 2, "result", outHash)); err != nil {
-		return contract.Result{}, err
+	artifact := &contract.ArtifactRef{ID: filepath.Base(artifactPath), Path: artifactPath, Size: int64(len(p.Output())), SHA256: outHash}
+	if err = appendPhase(contract.EventResult, outHash, &identity, &exit, artifact); err != nil {
+		h.finishAttempt(a.ID, "unknown", persistDB)
+		return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount, OutputHash: outHash, ArtifactPath: artifactPath}, err
 	}
 	phase := "exited"
 	if status == "interrupted" {
@@ -180,22 +237,73 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 	}
 	if err = publishLaunchPhase(spool, phase, a, runID, taskID, cmd, &identity, nil); err != nil {
 		h.finishAttempt(a.ID, "unknown", persistDB)
-		return contract.Result{Status: "unknown", ExitCode: p.ExitCode(), EventCount: 2, OutputHash: outHash, ArtifactPath: artifactPath}, err
+		return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount, OutputHash: outHash, ArtifactPath: artifactPath}, err
+	}
+	if err = appendPhase(contract.EventExited, hashText("exited:"+a.SegmentID), &identity, &exit, artifact); err != nil {
+		h.finishAttempt(a.ID, "unknown", persistDB)
+		return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount, OutputHash: outHash, ArtifactPath: artifactPath}, err
 	}
 	if persistDB {
 		if err = h.db.FinishAttempt(context.Background(), a.ID, status); err != nil {
 			return contract.Result{}, err
 		}
 	}
-	return contract.Result{Status: status, ExitCode: p.ExitCode(), EventCount: 2, OutputHash: outHash, ArtifactPath: artifactPath}, nil
+	return contract.Result{Status: status, ExitCode: exit, EventCount: eventCount, OutputHash: outHash, ArtifactPath: artifactPath}, nil
 }
 
-func (h *Host) event(runID, taskID string, a store.Attempt, seq int64, kind, payloadHash string) contract.Event {
-	event := contract.Event{Version: 1, ProducerID: h.producerID, RunID: runID, TaskID: taskID, AttemptID: a.ID, SegmentID: a.SegmentID, Sequence: seq, Kind: kind, PayloadHash: payloadHash}
-	if h.producerID != "" {
-		event.EventID = h.producerID + ":" + a.ID + ":" + fmt.Sprint(seq)
+func (h *Host) appendPhaseEvent(spool *events.Spool, runID, taskID string, a store.Attempt, meta launchMetadata, kind, payloadHash string, identity *process.Identity, exitCode *int, artifact *contract.ArtifactRef) (contract.Event, error) {
+	sequence, err := h.nextEventSequence()
+	if err != nil {
+		return contract.Event{}, err
 	}
-	return event
+	event := contract.Event{Version: 1, ProducerID: h.producerID, RunID: runID, TaskID: taskID, AttemptID: a.ID, SegmentID: a.SegmentID, WorkRevision: meta.workRevision, ExecutionEpoch: meta.executionEpoch, CommandID: meta.commandID, Sequence: sequence, Kind: kind, PayloadHash: payloadHash, ExitCode: exitCode, Artifact: artifact}
+	if identity != nil {
+		event.Process = &contract.ProcessIdentity{PID: identity.PID, Birth: identity.Birth, PGID: identity.PGID}
+	}
+	if h.producerID != "" {
+		event.EventID = h.producerID + ":" + fmt.Sprint(sequence)
+	}
+	return event, spool.Append(event)
+}
+
+func (h *Host) nextEventSequence() (int64, error) {
+	h.sequenceMu.Lock()
+	defer h.sequenceMu.Unlock()
+	if h.producerID == "" {
+		h.sequence++
+		return h.sequence, nil
+	}
+	if h.sequence == 0 {
+		if data, err := os.ReadFile(h.sequencePath); err == nil {
+			if _, scanErr := fmt.Sscan(string(data), &h.sequence); scanErr != nil || h.sequence < 0 {
+				return 0, errors.New("invalid_producer_sequence")
+			}
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return 0, err
+		}
+	}
+	h.sequence++
+	stage := h.sequencePath + ".tmp"
+	_ = os.Remove(stage)
+	fd, err := os.OpenFile(stage, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	if err != nil {
+		return 0, err
+	}
+	_, err = fmt.Fprintf(fd, "%d\n", h.sequence)
+	if err == nil {
+		err = fd.Sync()
+	}
+	if closeErr := fd.Close(); err == nil {
+		err = closeErr
+	}
+	if err == nil {
+		err = os.Rename(stage, h.sequencePath)
+	}
+	if err != nil {
+		_ = os.Remove(stage)
+		return 0, err
+	}
+	return h.sequence, nil
 }
 
 func (h *Host) finishAttempt(id, status string, persistDB bool) {
