@@ -41,9 +41,12 @@ type RunSpec struct {
 	OriginBirth          string
 }
 type TaskSpec struct {
-	ID, RunID    string
-	Dependencies []string
-	MaxAttempts  int
+	ID, RunID     string
+	Dependencies  []string
+	MaxAttempts   int
+	WorkRevision  int
+	BudgetGroupID string
+	MaxActiveMS   int64
 }
 type Attempt struct {
 	ID, TaskID, SegmentID, Status string
@@ -64,6 +67,10 @@ func Open(path string) (*DB, error) {
 	d.SetMaxIdleConns(1)
 	out := &DB{sql: d, path: path}
 	if err := out.migrate(); err != nil {
+		d.Close()
+		return nil, err
+	}
+	if err := out.ensureRuntimeSchema(); err != nil {
 		d.Close()
 		return nil, err
 	}

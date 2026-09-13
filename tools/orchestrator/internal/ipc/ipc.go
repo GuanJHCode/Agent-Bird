@@ -1,10 +1,13 @@
 package ipc
 
 import (
+	"context"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"io"
+	"net"
+	"path/filepath"
 )
 
 const (
@@ -21,6 +24,15 @@ const (
 	KindStop       Kind = "stop"
 	KindEvent      Kind = "event"
 	KindDurableAck Kind = "durable_ack"
+	KindReady      Kind = "ready"
+	KindSubmit     Kind = "submit"
+	KindStatus     Kind = "status"
+	KindCollect    Kind = "collect"
+	KindAck        Kind = "ack"
+	KindResume     Kind = "resume"
+	KindStopTask   Kind = "stop_task"
+	KindResponse   Kind = "response"
+	KindError      Kind = "error"
 )
 
 var (
@@ -34,6 +46,21 @@ type Envelope struct {
 	RequestID string          `json:"request_id"`
 	Epoch     uint64          `json:"epoch"`
 	Payload   json.RawMessage `json:"payload"`
+}
+
+func Call(ctx context.Context, socketPath string, request Envelope) (Envelope, error) {
+	if !filepath.IsAbs(socketPath) {
+		return Envelope{}, ErrInvalidMessage
+	}
+	conn, err := (&net.Dialer{}).DialContext(ctx, "unix", socketPath)
+	if err != nil {
+		return Envelope{}, err
+	}
+	defer conn.Close()
+	if err = Write(conn, request); err != nil {
+		return Envelope{}, err
+	}
+	return Read(conn)
 }
 
 func Write(w io.Writer, message Envelope) error {

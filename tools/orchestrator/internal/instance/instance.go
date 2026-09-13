@@ -24,6 +24,25 @@ type Lock struct {
 	closed bool
 }
 
+// PrepareStateDir creates a missing private directory, but never repairs an
+// existing directory by changing its permissions.
+func PrepareStateDir(root string) error {
+	if !filepath.IsAbs(root) {
+		return CodeError("path_not_absolute")
+	}
+	info, err := os.Lstat(root)
+	if errors.Is(err, os.ErrNotExist) {
+		if err = os.MkdirAll(root, 0700); err != nil {
+			return err
+		}
+		info, err = os.Lstat(root)
+	}
+	if err != nil || !info.IsDir() || info.Mode().Perm() != 0700 || !owned(info) {
+		return CodeError("untrusted_state_dir")
+	}
+	return nil
+}
+
 func Acquire(root string) (*Lock, error) {
 	if !filepath.IsAbs(root) {
 		return nil, CodeError("path_not_absolute")
