@@ -594,7 +594,7 @@ func applyEvent(ctx context.Context, tx *sql.Tx, event contract.Event) error {
 		}
 		_, err := tx.ExecContext(ctx, `UPDATE segments SET status=? WHERE id=?`, event.Kind, event.SegmentID)
 		return err
-	case contract.EventQuestion, contract.EventResult, contract.EventStopped:
+	case contract.EventQuestion, contract.EventResult, contract.EventStopped, contract.EventFailed:
 		_, err := tx.ExecContext(ctx, `UPDATE segment_runtime SET outcome=? WHERE segment_id=? AND (outcome='' OR outcome=?)`, event.Kind, event.SegmentID, event.Kind)
 		if err == nil && event.Kind == contract.EventStopped {
 			_, err = tx.ExecContext(ctx, `UPDATE stop_runtime SET status='accepted' WHERE segment_id=?`, event.SegmentID)
@@ -657,6 +657,8 @@ func applyExit(ctx context.Context, tx *sql.Tx, event contract.Event) error {
 		attemptStatus, taskStatus = "interrupted", "waiting_question"
 	case contract.EventStopped:
 		attemptStatus, taskStatus = "interrupted", "interrupted"
+	case contract.EventFailed:
+		attemptStatus, taskStatus = "failed", "failed"
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE attempts SET status=? WHERE id=?`, attemptStatus, event.AttemptID); err != nil {
 		return err
@@ -666,6 +668,63 @@ func applyExit(ctx context.Context, tx *sql.Tx, event contract.Event) error {
 	}
 	if taskStatus == "completed" {
 		return releaseReady(ctx, tx)
+	}
+	if taskStatus == "failed" {
+		return blockFailedDependencies(ctx, tx)
+	}
+	return nil
+}
+
+func blockFailedDependencies(ctx context.Context, tx *sql.Tx) error {
+	rows, err := tx.QueryContext(ctx, `SELECT id,status,dependencies_json FROM tasks`)
+	if err != nil {
+		return err
+	}
+	type state struct {
+		status string
+		deps   []string
+	}
+	tasks := map[string]state{}
+	for rows.Next() {
+		var id, status, raw string
+		if err = rows.Scan(&id, &status, &raw); err != nil {
+			_ = rows.Close()
+			return err
+		}
+		var deps []string
+		if err = json.Unmarshal([]byte(raw), &deps); err != nil {
+			_ = rows.Close()
+			return err
+		}
+		tasks[id] = state{status: status, deps: deps}
+	}
+	if err = rows.Close(); err != nil {
+		return err
+	}
+	changed := true
+	for changed {
+		changed = false
+		for id, task := range tasks {
+			if task.status != "queued" && task.status != "ready" {
+				continue
+			}
+			for _, dep := range task.deps {
+				depStatus := tasks[dep].status
+				if depStatus == "failed" || depStatus == "cancelled" || depStatus == "budget_exhausted" || depStatus == "blocked_dependency" {
+					task.status = "blocked_dependency"
+					tasks[id] = task
+					changed = true
+					break
+				}
+			}
+		}
+	}
+	for id, task := range tasks {
+		if task.status == "blocked_dependency" {
+			if _, err = tx.ExecContext(ctx, `UPDATE tasks SET status='blocked_dependency' WHERE id=? AND status IN ('queued','ready')`, id); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
@@ -873,6 +932,9 @@ func (d *DB) RequestStop(ctx context.Context, taskID string, workRevision int, r
 	}
 	if status == "queued" || status == "ready" || status == "resume_queued" {
 		if _, err = tx.ExecContext(ctx, `UPDATE tasks SET status='cancelled' WHERE id=?`, taskID); err != nil {
+			return rollback(err)
+		}
+		if err = blockFailedDependencies(ctx, tx); err != nil {
 			return rollback(err)
 		}
 		return StopDispatch{}, tx.Commit()

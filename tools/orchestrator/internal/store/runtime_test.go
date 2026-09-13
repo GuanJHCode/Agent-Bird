@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"errors"
+	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -213,5 +214,87 @@ func TestSubmitPlanRejectsCycleWithoutPartialWrite(t *testing.T) {
 	}
 	if _, err = db.RunID(ctx, "left"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("partial task err=%v", err)
+	}
+}
+
+func TestFailedBeforeSpawnSettlesSlotWithoutBecomingUnknown(t *testing.T) {
+	ctx := context.Background()
+	db, err := Open(filepath.Join(t.TempDir(), "state.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	receipt, err := db.SubmitPlan(ctx, PlanSpec{
+		Run:  RunSpec{ID: "failed-run", ControllerThread: "thread", PlanRevision: 1, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth"},
+		Host: HostLaunchSpec{OriginContextID: "origin", HostGeneration: "generation", Executable: "/private/tmp/orchestrator"},
+		Tasks: []TaskSpec{
+			{ID: "failed-task", RunID: "failed-run", MaxAttempts: 3},
+			{ID: "blocked-task", RunID: "failed-run", Dependencies: []string{"failed-task"}, MaxAttempts: 3},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hostID, err := db.RegisterHost(ctx, contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: "origin", HostGeneration: "generation", PID: 10, Birth: "host-birth", Executable: "/private/tmp/orchestrator"}, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	grant, err := db.ClaimReady(ctx, hostID, 1, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for sequence, kind := range []string{contract.EventFailed, contract.EventExited} {
+		exit := -1
+		event := contract.Event{Version: 1, ProducerID: hostID, EventID: fmt.Sprintf("failed-%d", sequence+1), RunID: grant.RunID, TaskID: grant.TaskID, AttemptID: grant.AttemptID, SegmentID: grant.SegmentID, WorkRevision: 1, ExecutionEpoch: 1, CommandID: grant.CommandID, Sequence: int64(sequence + 1), Kind: kind, PayloadHash: fmt.Sprintf("hash-%d", sequence+1), ExitCode: &exit}
+		if _, err = db.CommitHostEvent(ctx, event); err != nil {
+			t.Fatal(err)
+		}
+	}
+	snapshot, err := db.TaskSnapshot(ctx, "failed-task")
+	if err != nil || snapshot.Status != "failed" || snapshot.SegmentStatus != "exited" {
+		t.Fatalf("snapshot=%#v err=%v", snapshot, err)
+	}
+	if active, activeErr := db.ActiveTasks(ctx); activeErr != nil || len(active) != 0 {
+		t.Fatalf("active=%#v err=%v", active, activeErr)
+	}
+	blocked, err := db.TaskSnapshot(ctx, "blocked-task")
+	if err != nil || blocked.Status != "blocked_dependency" {
+		t.Fatalf("blocked=%#v err=%v", blocked, err)
+	}
+}
+
+func TestCancelBlocksRequiredDescendantButKeepsIndependentTaskReady(t *testing.T) {
+	ctx := context.Background()
+	db, err := Open(filepath.Join(t.TempDir(), "state.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	receipt, err := db.SubmitPlan(ctx, PlanSpec{
+		Run:  RunSpec{ID: "cancel-run", ControllerThread: "thread", PlanRevision: 1, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth"},
+		Host: HostLaunchSpec{OriginContextID: "origin", HostGeneration: "generation", Executable: "/private/tmp/orchestrator"},
+		Tasks: []TaskSpec{
+			{ID: "cancel-root", RunID: "cancel-run", MaxAttempts: 3},
+			{ID: "cancel-child", RunID: "cancel-run", Dependencies: []string{"cancel-root"}, MaxAttempts: 3},
+			{ID: "independent", RunID: "cancel-run", MaxAttempts: 3},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.RequestStop(ctx, "cancel-root", 1, "controller_stop"); err != nil {
+		t.Fatal(err)
+	}
+	child, err := db.TaskSnapshot(ctx, "cancel-child")
+	if err != nil || child.Status != "blocked_dependency" {
+		t.Fatalf("child=%#v err=%v", child, err)
+	}
+	hostID, err := db.RegisterHost(ctx, contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: "origin", HostGeneration: "generation", PID: 10, Birth: "host-birth", Executable: "/private/tmp/orchestrator"}, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	grant, err := db.ClaimReady(ctx, hostID, 1, 2)
+	if err != nil || grant.TaskID != "independent" {
+		t.Fatalf("grant=%#v err=%v", grant, err)
 	}
 }
