@@ -286,6 +286,7 @@ class SubprocessLaunchctl:
     @staticmethod
     def _parse_text(output: str) -> dict[str, Any]:
         """Parse only launchctl's identity/argv fields; discard all else."""
+        pid = None
         lines = output.splitlines()
         label: str | None = None
         path: str | None = None
@@ -313,6 +314,12 @@ class SubprocessLaunchctl:
                     depth -= 1
                 else:
                     argv.append(stripped)
+                continue
+            if depth == 1 and stripped.startswith("pid = "):
+                value = stripped[6:].strip()
+                if pid is not None or re.fullmatch(r"[1-9][0-9]*", value) is None:
+                    raise UnknownStateError("launchctl_pid_invalid_or_duplicate")
+                pid = int(value)
                 continue
             if depth == 1 and stripped.startswith("path = "):
                 path = stripped[7:].strip()
@@ -342,7 +349,7 @@ class SubprocessLaunchctl:
             raise UnknownStateError("launchctl_print_unparseable")
         if not args_seen:
             argv = []
-        return {"label": label, "path": path, "program_arguments": argv}
+        return {"label": label, "path": path, "program_arguments": argv, **({"pid": pid} if pid is not None else {})}
 
 
 class ActivationTransaction:
