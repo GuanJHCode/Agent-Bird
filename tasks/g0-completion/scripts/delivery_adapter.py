@@ -44,6 +44,7 @@ class DeliveryCapability:
     claim_sha256: str
     capability_id: str
     send_disabled: bool = False
+    external_claim: bool = False
 
     @property
     def go_intent(self) -> dict:
@@ -185,7 +186,8 @@ def _validate_go_intent(intent: object, binding: DeliveryBinding, delivery_id: s
     _require(isinstance(intent, dict) and set(intent) == required, "intent_shape")
     _require(intent["version"] == 1 and _safe(intent["delivery_id"]) and (delivery_id is None or intent["delivery_id"] == delivery_id), "intent_identity")
     _require(intent["nonce"] == binding.nonce and intent["controller_thread"] == binding.owner_thread_id, "owner_mismatch")
-    _require(intent["controller_epoch"] == binding.owner_epoch == 1, "epoch_mismatch")
+    _require(type(binding.owner_epoch) is int and binding.owner_epoch > 0
+             and intent["controller_epoch"] == binding.owner_epoch, "epoch_mismatch")
     _require(intent["revision"] == binding.revision and (intent["state"] == "prepared" or allow_transport_uncertain and intent["state"] == "transport_uncertain"), "revision_mismatch")
     _validate_events(intent["events"])
     _require(_hash(intent["payload_hash"]) and intent["payload_hash"] == _go_batch_hash(intent), "intent_hash")
@@ -217,6 +219,18 @@ class DeliveryAdapter:
         self._capabilities: dict[str, DeliveryCapability] = {}
         self._proofs: dict[str, HistoryProof] = {}
 
+    @classmethod
+    def for_external(cls, *, owner_context_sha256: str) -> "DeliveryAdapter":
+        """Create a transport-only adapter for an externally durable claim."""
+        _require(_hash(owner_context_sha256), "owner_context")
+        value = cls.__new__(cls)
+        value.go_binary = None
+        value.expected_sha256 = None
+        value.owner_context_sha256 = owner_context_sha256
+        value._capabilities = {}
+        value._proofs = {}
+        return value
+
     def _bind_owner_context(self, binding: DeliveryBinding, task_dir: Path) -> None:
         if self.owner_context_sha256 is None:
             return
@@ -247,6 +261,7 @@ class DeliveryAdapter:
         _require(_stable_json(task_dir / "delivery-owner-binding.json") == expected, "owner_context_mismatch")
 
     def _run(self, args: list[str], *, env: Mapping[str, str] | None = None) -> dict:
+        _require(self.go_binary is not None, "go_binary_missing")
         child_env = os.environ.copy()
         child_env.update(env or {})
         child_env["PYTHONDONTWRITEBYTECODE"] = "1"
@@ -267,6 +282,57 @@ class DeliveryAdapter:
             raise DeliveryError("go_output") from exc
         _require(isinstance(value, dict), "go_output")
         return value
+
+    def _external_status(self, capability: DeliveryCapability, *, reconcile: bool = False) -> dict:
+        self._require_owner_binding(capability.binding, capability.task_dir)
+        status = _stable_json(capability.task_dir / "batch-status.json")
+        allowed = {"sending"} if not reconcile else {"sending", "transport_accepted", "delivery_uncertain"}
+        _require(status.get("state") in allowed and status.get("delivery_id") == capability.native_envelope["delivery_id"]
+                 and status.get("controller_thread") == capability.binding.owner_thread_id
+                 and status.get("controller_epoch") == capability.binding.owner_epoch
+                 and status.get("revision") == capability.binding.revision, "claim_not_current")
+        expected_transport = "ready" if status["state"] == "sending" else {
+            "transport_accepted": "accepted", "delivery_uncertain": "uncertain",
+        }[status["state"]]
+        _require(status.get("transport_status") == expected_transport, "claim_not_current")
+        _require(_stable_file_hash(capability.task_dir / "batch-send-claim.json") == capability.claim_sha256, "claim_changed")
+        return status
+
+    def attach_external_claim(self, binding: DeliveryBinding, task_dir: Path) -> DeliveryCapability:
+        """Adopt a bridge claim for one send after live owner admission."""
+        _require(task_dir.is_absolute() and task_dir.is_dir(), "task_dir")
+        self._require_owner_binding(binding, task_dir)
+        intent = _stable_json(task_dir / "batch-intent.json")
+        checked = _validate_go_intent(intent, binding)
+        claim = _stable_json(task_dir / "batch-send-claim.json")
+        _require(claim.get("status") == "claimed" and claim.get("delivery_id") == intent["delivery_id"]
+                 and claim.get("controller_thread") == binding.owner_thread_id
+                 and claim.get("controller_epoch") == binding.owner_epoch
+                 and claim.get("revision") == binding.revision
+                 and claim.get("intent_sha256") == hashlib.sha256(_canonical(intent).encode()).hexdigest(), "claim_artifact")
+        native = native_envelope_from_go_intent(checked, binding)
+        go_bytes = _canonical(checked).encode(); native_bytes = _canonical(native).encode()
+        capability = DeliveryCapability(binding, task_dir, go_bytes, native_bytes,
+            hashlib.sha256(go_bytes).hexdigest(), hashlib.sha256(native_bytes).hexdigest(),
+            _stable_file_hash(task_dir / "batch-send-claim.json"), secrets.token_hex(16), False, True)
+        self._capabilities[capability.capability_id] = capability
+        self._external_status(capability)
+        return capability
+
+    def reconcile_external_claim(self, binding: DeliveryBinding, task_dir: Path) -> DeliveryCapability:
+        """Adopt a possibly sent bridge claim for history inspection only."""
+        _require(task_dir.is_absolute() and task_dir.is_dir(), "task_dir")
+        self._require_owner_binding(binding, task_dir)
+        intent = _stable_json(task_dir / "batch-intent.json")
+        checked = _validate_go_intent(intent, binding, allow_transport_uncertain=True)
+        native = native_envelope_from_go_intent(checked, binding, allow_transport_uncertain=True)
+        go_bytes = _canonical(checked).encode(); native_bytes = _canonical(native).encode()
+        capability = DeliveryCapability(binding, task_dir, go_bytes, native_bytes,
+            hashlib.sha256(go_bytes).hexdigest(), hashlib.sha256(native_bytes).hexdigest(),
+            _stable_file_hash(task_dir / "batch-send-claim.json"), secrets.token_hex(16), True, True)
+        self._capabilities[capability.capability_id] = capability
+        self._external_status(capability, reconcile=True)
+        return capability
 
     def prepare(self, binding: DeliveryBinding, task_dir: Path, delivery_id: str, events: list[dict], *, env: Mapping[str, str]) -> dict:
         _require(task_dir.is_absolute() and task_dir.is_dir(), "task_dir")
@@ -369,9 +435,12 @@ class DeliveryAdapter:
         _require(not capability.send_disabled, "send_disabled")
         envelope = capability.native_envelope
         _require(set(envelope) == {"version", "delivery_id", "controller_thread_id", "controller_epoch", "events", "payload_hash"}, "native_envelope")
-        status = self._run(["batch-status", "--dir", str(capability.task_dir), "--nonce", capability.binding.nonce])
-        _require(status.get("claim") == "claimed" and status.get("delivery_id") == envelope["delivery_id"] and status.get("revision") == capability.binding.revision and status.get("transport_status") == "ready" and status.get("status") not in {"cancelled", "stale"}, "claim_not_current")
-        _require(_stable_file_hash(capability.task_dir / "batch-send-claim.json") == capability.claim_sha256, "claim_changed")
+        if capability.external_claim:
+            self._external_status(capability)
+        else:
+            status = self._run(["batch-status", "--dir", str(capability.task_dir), "--nonce", capability.binding.nonce])
+            _require(status.get("claim") == "claimed" and status.get("delivery_id") == envelope["delivery_id"] and status.get("revision") == capability.binding.revision and status.get("transport_status") == "ready" and status.get("status") not in {"cancelled", "stale"}, "claim_not_current")
+            _require(_stable_file_hash(capability.task_dir / "batch-send-claim.json") == capability.claim_sha256, "claim_changed")
         sent = getattr(self, "_sent_delivery_ids", None)
         if sent is None:
             sent = self._sent_delivery_ids = set()

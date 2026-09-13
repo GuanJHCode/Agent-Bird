@@ -129,6 +129,16 @@ func TestParseEventsProjectsOnlyBoundedFields(t *testing.T) {
 	}
 }
 
+func TestAGYWaitingResultIsAUserQuestion(t *testing.T) {
+	event, err := ParseEvent(ProviderAGY, `{"event":"result","result":{"conversation_id":"agy-wait","status":"WAITING","response":"Choose the target package"}}`, 4096)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if event.Kind != EventKind("question") || event.SessionID != "agy-wait" || event.Text != "Choose the target package" {
+		t.Fatalf("event=%#v", event)
+	}
+}
+
 func TestParseEventDoesNotPersistUnknownRawAndBoundsLines(t *testing.T) {
 	got, err := ParseEvent(ProviderAGY, `{"event":"future_event","secret":"DROP"}`, 4096)
 	if err != nil {

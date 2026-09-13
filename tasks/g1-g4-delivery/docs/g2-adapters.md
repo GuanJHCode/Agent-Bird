@@ -52,10 +52,12 @@ persistent setting is written.
 
 ## Event contract
 
-`ParseEvent` and `StreamParser.Consume` retain only `kind`, `session_id`, `status`, and
-bounded text. Unknown event types are projected to `unknown` with no raw JSON;
-malformed JSON, multiple JSON values, wrong identity types, oversized lines,
-and aggregate output over the configured limit fail closed.
+`ParseEvent` and `StreamParser` retain only `kind`, `session_id`, `status`, and
+bounded text. The source Host consumes stdout incrementally through this parser,
+persists only projected terminal result/question text, and binds the provider
+session kind/id to its durable event. Oversized ordinary diagnostic/unknown lines
+are drained and dropped; an oversized result/question, malformed bounded event,
+provider error, nonzero exit, or missing terminal event fails closed.
 
 `Invocation` keeps its command, input, environment, and pin private and only
 returns defensive copies. The G1 host owns process creation, process-tree
@@ -66,7 +68,9 @@ mutating an argv slice.
 The parser recognizes the documented shapes needed by the orchestrator:
 
 * Claude `system/init`, `assistant`/`user`, and terminal `result`.
-* AGY `init`, `step_update`, and terminal `result`.
+* AGY `init`, `step_update`, and terminal `result`; a terminal `WAITING` result
+  is the only shape projected as a user question. Permission events are not
+  projected as questions.
 * Grok `text`, `end`, `error`, and the documented `result` compatibility
   shape. Grok's documented `streaming-json` terminal event is `end`; the
   adapter does not use ACP, so it never performs ACP authentication actions.

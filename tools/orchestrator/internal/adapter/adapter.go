@@ -70,6 +70,7 @@ type Invocation struct {
 }
 
 func (i Invocation) ProviderName() Provider   { return i.provider }
+func (i Invocation) OutputProvider() string   { return string(i.provider) }
 func (i Invocation) Pin() BinaryPin           { return i.pin }
 func (i Invocation) Args() []string           { return append([]string(nil), i.argv...) }
 func (i Invocation) WorkingDirectory() string { return i.cwd }
@@ -88,6 +89,7 @@ const (
 	EventInit       EventKind = "init"
 	EventProgress   EventKind = "progress"
 	EventMessage    EventKind = "message"
+	EventQuestion   EventKind = "question"
 	EventResult     EventKind = "result"
 	EventDiagnostic EventKind = "diagnostic"
 	EventUnknown    EventKind = "unknown"
@@ -436,7 +438,11 @@ func parseAGY(object map[string]json.RawMessage) (Event, error) {
 			return Event{}, errors.New("event_status_invalid")
 		}
 		text, err := stringNestedField(value, "response")
-		return Event{Kind: EventResult, SessionID: session, Status: status, Text: text}, err
+		kind := EventResult
+		if status == "WAITING" {
+			kind = EventQuestion
+		}
+		return Event{Kind: kind, SessionID: session, Status: status, Text: text}, err
 	default:
 		return Event{Kind: EventUnknown}, nil
 	}
