@@ -7,3 +7,5 @@ Normal `prepare_and_claim()` persists only `version`, `owner_context_sha256`, `n
 A recovered capability is explicitly `send_disabled`. Its immutable claim/intent bytes can be used to open a new owner-helper connection, read `thread/read(includeTurns=true)`, and create a new `HistoryProof`. `send_tool_output_once()` rejects it before any connection write. Only history-confirmed events with explicit `handled` decisions call Go `batch-ack`; missing decisions remain pending and transport uncertainty never causes resend.
 
 Existing ACKs are read-only status; recovery does not rewrite claims or prepare a new intent. Tests use the real Go CLI and verify owner-context/revision/history failures plus a post-restart ACK without a second send.
+
+`send_tool_output_once(..., wait_for_completion=False)` is an explicit receipt-only mode. It returns only after the matching `turn/start` response; it does not imply completion or authorize ACK. The caller must perform the same-thread history read and explicit decision flow above. The default remains completion-notification waiting.

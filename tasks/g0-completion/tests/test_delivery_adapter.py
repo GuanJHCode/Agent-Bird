@@ -474,3 +474,38 @@ def test_reconcile_rejects_stale_status_after_real_go_revise(tmp_path):
     assert status["status"] == "stale" and status["transport_status"] == "ready" and status["claim"] == "claimed" and status["send_allowed"] is False
     with pytest.raises(DeliveryError, match="status_terminal"):
         adapter.reconcile_claimed(binding, task, "delivery_1", env=env)
+
+
+def test_receipt_only_send_returns_after_turn_start_without_completion_notifications(tmp_path):
+    import asyncio
+    fixture = ROOT / "tasks" / "g0-completion" / "tests" / "fixtures" / "owner_helper_tool_backend.py"
+    socket_path = Path("/private/tmp") / f"g0-receipt-{os.getpid()}-{time.time_ns()}.sock"
+    receipt = tmp_path / "receipt.json"
+    backend = subprocess.Popen([sys.executable, "-B", str(fixture), str(socket_path), str(receipt), "receipt-only"], env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"})
+    try:
+        for _ in range(100):
+            if socket_path.exists(): break
+            time.sleep(0.01)
+        binding = DeliveryBinding("p", THREAD, 1, "receipt_only", 1)
+        intent = {"version": 1, "delivery_id": "delivery_1", "nonce": binding.nonce, "controller_thread": THREAD, "controller_epoch": 1, "revision": 1, "state": "prepared", "events": _events(), "payload_hash": ""}
+        intent["payload_hash"] = _go_batch_hash(intent)
+        native = native_envelope_from_go_intent(intent, binding)
+        adapter = DeliveryAdapter.__new__(DeliveryAdapter); adapter._capabilities = {}; adapter._proofs = {}
+        adapter._run = lambda *args, **kwargs: {"claim": "claimed", "delivery_id": "delivery_1", "revision": 1, "transport_status": "ready"}
+        capability = _manual_capability(adapter, binding, tmp_path / "receipt-claim", intent, native)
+        executable = Path(sys.executable).resolve(); executable_sha = hashlib.sha256(executable.read_bytes()).hexdigest()
+        identity = HelperIdentity(os.getpid(), os.getuid(), "receipt-helper", str(executable), executable_sha, "c" * 64)
+        lease = OwnerLease("p", "a" * 64, "lease-receipt", "owner-1", 1, THREAD, str(socket_path), backend.pid, "backend", identity)
+        grant = OwnerHelperGrant("owner-helper", "p", "a" * 64, "lease-receipt", "owner-1", 1, THREAD, str(socket_path), os.getpid(), os.getuid(), "receipt-helper", str(executable), executable_sha, "c" * 64)
+        async def run():
+            connection = await lease.open_helper(grant, identity)
+            try:
+                packets = await adapter.send_tool_output_once(connection, capability, wait_for_completion=False)
+                return packets
+            finally:
+                await connection.close()
+        packets = asyncio.run(run())
+        assert any(packet.get("id") == 1 for packet in packets)
+        assert json.loads(receipt.read_text())["methods"].count("turn/start") == 1
+    finally:
+        backend.terminate(); backend.wait(timeout=5); socket_path.unlink(missing_ok=True)

@@ -371,7 +371,7 @@ class DeliveryAdapter:
         self._proofs[proof.proof_id] = proof
         return proof
 
-    async def send_tool_output_once(self, connection: Any, capability: DeliveryCapability, *, request_id: int = 1) -> list[dict]:
+    async def send_tool_output_once(self, connection: Any, capability: DeliveryCapability, *, request_id: int = 1, wait_for_completion: bool = True) -> list[dict]:
         _require(type(request_id) is int and request_id > 0, "request_id")
         _require(self._capabilities.get(capability.capability_id) is capability, "capability_owner")
         _require(not capability.send_disabled, "send_disabled")
@@ -393,7 +393,7 @@ class DeliveryAdapter:
         packets = []
         lifecycle = {"turn/started", "item/started", "item/completed", "turn/completed"}
         got_response = False
-        while not got_response or {packet.get("method") for packet in packets} & lifecycle != lifecycle:
+        while not got_response or (wait_for_completion and {packet.get("method") for packet in packets} & lifecycle != lifecycle):
             packet = await connection.read_rpc()
             packets.append(packet)
             got_response = got_response or packet.get("id") == request_id
