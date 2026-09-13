@@ -299,7 +299,9 @@ func RunSource(ctx context.Context, cfg SourceConfig) error {
 	var workers sync.WaitGroup
 	workerErrors := make(chan error, 2)
 	publisherErrors := make(chan error, 1)
+	publisherDone := make(chan struct{})
 	go func() {
+		defer close(publisherDone)
 		for {
 			select {
 			case <-h.eventReady:
@@ -314,6 +316,7 @@ func RunSource(ctx context.Context, cfg SourceConfig) error {
 	}()
 	defer func() {
 		cancelRun()
+		<-publisherDone
 		stopCtx, cancelStop := context.WithTimeout(context.Background(), 2*time.Second)
 		h.StopAll(stopCtx)
 		cancelStop()

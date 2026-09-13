@@ -2,11 +2,31 @@ package events
 
 import (
 	"codex-cli-orchestration-design/tools/orchestrator/internal/contract"
+	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
+func TestOpenRejectsExistingPublicDirectoryWithoutChangingMode(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "spool")
+	if err := os.Mkdir(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Open(dir); !errors.Is(err, ErrUntrusted) {
+		t.Fatalf("open err=%v", err)
+	}
+	info, err := os.Stat(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0755 {
+		t.Fatalf("mode=%v", info.Mode().Perm())
+	}
+}
+
 func TestSpoolPersistsEventsAndDurableAck(t *testing.T) {
-	s, err := Open(t.TempDir())
+	s, err := Open(privateTempDir(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,11 +47,36 @@ func TestSpoolPersistsEventsAndDurableAck(t *testing.T) {
 }
 
 func TestMetadataPublicationIsBoundedAndReplaceable(t *testing.T) {
-	s, err := Open(t.TempDir()); if err != nil { t.Fatal(err) }
-	if err := s.WriteMetadata("launch.json", map[string]any{"phase":"prepared","version":1}); err != nil { t.Fatal(err) }
-	var got map[string]any; if err := s.ReadMetadata("launch.json", &got); err != nil { t.Fatal(err) }
-	if got["phase"] != "prepared" { t.Fatalf("metadata=%#v", got) }
-	if err := s.WriteMetadata("launch.json", map[string]any{"phase":"running","version":1}); err != nil { t.Fatal(err) }
-	if err := s.ReadMetadata("launch.json", &got); err != nil { t.Fatal(err) }
-	if got["phase"] != "running" { t.Fatalf("metadata=%#v", got) }
+	s, err := Open(privateTempDir(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.WriteMetadata("launch.json", map[string]any{"phase": "prepared", "version": 1}); err != nil {
+		t.Fatal(err)
+	}
+	var got map[string]any
+	if err := s.ReadMetadata("launch.json", &got); err != nil {
+		t.Fatal(err)
+	}
+	if got["phase"] != "prepared" {
+		t.Fatalf("metadata=%#v", got)
+	}
+	if err := s.WriteMetadata("launch.json", map[string]any{"phase": "running", "version": 1}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.ReadMetadata("launch.json", &got); err != nil {
+		t.Fatal(err)
+	}
+	if got["phase"] != "running" {
+		t.Fatalf("metadata=%#v", got)
+	}
+}
+
+func privateTempDir(t *testing.T) string {
+	t.Helper()
+	dir := filepath.Join(t.TempDir(), "private")
+	if err := os.Mkdir(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	return dir
 }

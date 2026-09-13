@@ -35,11 +35,12 @@ func Open(dir string) (*Spool, error) {
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return nil, err
 	}
-	if err := os.Chmod(dir, 0700); err != nil {
+	info, err := os.Lstat(dir)
+	if err != nil {
 		return nil, err
 	}
-	info, err := os.Stat(dir)
-	if err != nil || !info.IsDir() || info.Mode().Perm() != 0700 {
+	stat, owned := info.Sys().(*syscall.Stat_t)
+	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 || info.Mode().Perm() != 0700 || !owned || stat.Uid != uint32(os.Geteuid()) {
 		return nil, ErrUntrusted
 	}
 	return &Spool{dir: dir}, nil
