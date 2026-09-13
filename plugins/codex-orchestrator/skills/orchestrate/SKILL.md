@@ -128,13 +128,17 @@ substitute source files from a repository or another installed runtime.
 
 Use `native-bridge start` for unattended callbacks. Its request binds the
 current service activation and owner-ready receipt, an owner-free submit
-template or existing control file, the private G1 state, and a five-minute
-driver root. The driver creates the helper grant, obtains the verified owner
-capability, submits or rebinds, and waits only for actionable `wait-events`;
-progress never starts a native turn. `status` reads its durable state. After a
-`history_ready` receipt, `decide` records an exact owner decision for that
-delivery and proof. Only the driver sends the typed G1 ACK. Never create the
-decision file directly or treat synthetic output as an owner decision.
+template or existing control file, and the private G1 state. The request fixes
+`bootstrap_timeout_seconds` to `300` and `watch_policy` to
+`until_terminal_or_owner_detached`. The bootstrap timeout ends when the driver
+enters `watching`; it does not limit the callback lifetime. The driver creates
+the helper grant, obtains the verified owner capability, submits or rebinds,
+and waits only for actionable `wait-events` until the task reaches a terminal
+state or the bound owner detaches. Progress never starts a native turn.
+`status` reads its durable state. After a `history_ready` receipt, `decide`
+records an exact owner decision for that delivery and proof. Only the driver
+sends the typed G1 ACK. Never create the decision file directly or treat
+synthetic output as an owner decision.
 
 ## Explicit recovery and stop
 
