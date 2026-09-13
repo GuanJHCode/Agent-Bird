@@ -14,3 +14,5 @@
 - G0 未完整验收前不启动 G1–G4 正式功能。测试不使用 Astra；原生模型测试若后续具备准入条件，仍为 Luna/medium。
 
 完成判据：每项具备失败回归、最小实现、新鲜通过证据和独立复审；主会话对真实功能边界逐项汇总，不将项目内实现等同于安装启用或完整 G0 通过。
+
+接线审计补充：activation 与 standalone delivery 目前未接通。同 profile 的普通第二 frontend 会等待原 lease 结束并启动新 backend，不能满足在线回传。因此在上述范围内补充受控 `owner-helper` role：只连同一 active lease 的既有 backend listener，使用独立 WebSocket；grant 固定 profile、owner、thread、epoch、lease 与进程/源码身份，方法及目标 thread 受限。helper 退出不终止 owner，owner 退出关闭 helper；仍需新鲜合成端到端测试，不能冒充真实 native 回传验收。
