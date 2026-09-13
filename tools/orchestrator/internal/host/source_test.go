@@ -100,3 +100,33 @@ func TestRunSourceUDSLaunchAndDurableEventAck(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestSourceSessionRoutesErrorToAckWaiter(t *testing.T) {
+	client, server := net.Pipe()
+	defer client.Close()
+	defer server.Close()
+	session := &sourceSession{conn: client}
+	session.startReader()
+	event := contract.Event{ProducerID: "p", EventID: "p:1", Sequence: 1, PayloadHash: "hash"}
+	result := make(chan error, 1)
+	go func() {
+		_, sendErr := session.SendEvent(context.Background(), 1, event)
+		result <- sendErr
+	}()
+	request, err := ipc.Read(server)
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload, _ := json.Marshal(map[string]any{"code": "busy"})
+	if err = ipc.Write(server, ipc.Envelope{Version: 1, Kind: ipc.Kind("error"), RequestID: request.RequestID, Epoch: 1, Payload: payload}); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case sendErr := <-result:
+		if sendErr == nil || sendErr.Error() != "durable_ack_mismatch" {
+			t.Fatalf("send err=%v", sendErr)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("ack waiter was not woken")
+	}
+}

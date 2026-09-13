@@ -3,6 +3,7 @@ package host
 import (
 	"bytes"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/contract"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/events"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/ipc"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/process"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/store"
@@ -12,6 +13,9 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -62,6 +66,160 @@ func (h *Host) Publish(ctx context.Context, a store.Attempt, sink EventSink, epo
 		return s.AckThrough(last)
 	}
 	return nil
+}
+
+// PublishAll is the single producer publisher. It merges every segment spool,
+// persists a producer-wide cursor, and refuses to send a later sequence while
+// an earlier sequence is still absent. This prevents concurrent segments from
+// creating durable DB gaps.
+func (h *Host) PublishAll(ctx context.Context, sink EventSink, epoch uint64) error {
+	if h.producerID == "" || sink == nil {
+		return errors.New("ipc_sink_required")
+	}
+	h.publishMu.Lock()
+	defer h.publishMu.Unlock()
+	entries, err := h.spoolEntries()
+	if err != nil {
+		return err
+	}
+	cursor, err := h.readPublished()
+	if err != nil {
+		return err
+	}
+	type pendingEvent struct {
+		spool *events.Spool
+		event contract.Event
+		acked int64
+	}
+	pending := make([]pendingEvent, 0)
+	for _, entry := range entries {
+		acked, readErr := entry.spool.AckedThrough()
+		if readErr != nil {
+			return readErr
+		}
+		all, readErr := entry.spool.Read()
+		if readErr != nil {
+			return readErr
+		}
+		for _, event := range all {
+			if event.ProducerID != h.producerID || event.EventID == "" {
+				return errors.New("event_identity_missing")
+			}
+			if event.Sequence > acked {
+				pending = append(pending, pendingEvent{spool: entry.spool, event: event, acked: acked})
+			}
+		}
+		// Already durably acknowledged events can advance the recovery cursor.
+		if acked > cursor {
+			cursor = acked
+		}
+	}
+	sort.Slice(pending, func(i, j int) bool { return pending[i].event.Sequence < pending[j].event.Sequence })
+	last := cursor
+	for _, item := range pending {
+		if item.event.Sequence <= last {
+			continue
+		}
+		if item.event.Sequence != last+1 {
+			return errors.New("event_sequence_gap")
+		}
+		ack, sendErr := sink.SendEvent(ctx, epoch, item.event)
+		if sendErr != nil {
+			return sendErr
+		}
+		if ack.Status != "durable" || ack.ProducerID != item.event.ProducerID || ack.EventID != item.event.EventID || ack.PayloadHash != item.event.PayloadHash || ack.AckedThrough < item.event.Sequence {
+			return errors.New("invalid_durable_ack")
+		}
+		last = item.event.Sequence
+	}
+	if last == cursor {
+		return nil
+	}
+	// Advance each affected spool only after all corresponding control-plane
+	// durable ACKs succeeded. The cursor is written last; a crash before it is
+	// safe because the coordinator ACK is idempotent and replayable.
+	for _, item := range pending {
+		if item.event.Sequence <= last && item.event.Sequence > item.acked {
+			if err = item.spool.AckThrough(item.event.Sequence); err != nil {
+				return err
+			}
+		}
+	}
+	return h.writePublished(last)
+}
+
+type spoolEntry struct {
+	spool *events.Spool
+}
+
+func (h *Host) spoolEntries() ([]spoolEntry, error) {
+	attemptDirs, err := os.ReadDir(h.spoolRoot)
+	if err != nil {
+		return nil, err
+	}
+	entries := make([]spoolEntry, 0)
+	for _, attempt := range attemptDirs {
+		if !attempt.IsDir() || strings.HasPrefix(attempt.Name(), ".") {
+			continue
+		}
+		segments, readErr := os.ReadDir(filepath.Join(h.spoolRoot, attempt.Name()))
+		if readErr != nil {
+			return nil, readErr
+		}
+		for _, segment := range segments {
+			if !segment.IsDir() || strings.HasPrefix(segment.Name(), ".") {
+				continue
+			}
+			spool, openErr := events.Open(filepath.Join(h.spoolRoot, attempt.Name(), segment.Name()))
+			if openErr != nil {
+				return nil, openErr
+			}
+			entries = append(entries, spoolEntry{spool: spool})
+		}
+	}
+	return entries, nil
+}
+
+func (h *Host) readPublished() (int64, error) {
+	data, err := os.ReadFile(h.publishedPath)
+	if errors.Is(err, os.ErrNotExist) {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, err
+	}
+	var value int64
+	if _, err = strconv.ParseInt(strings.TrimSpace(string(data)), 10, 64); err != nil {
+		return 0, errors.New("invalid_published_sequence")
+	}
+	value, _ = strconv.ParseInt(strings.TrimSpace(string(data)), 10, 64)
+	if value < 0 {
+		return 0, errors.New("invalid_published_sequence")
+	}
+	return value, nil
+}
+
+func (h *Host) writePublished(value int64) error {
+	stage := h.publishedPath + ".tmp"
+	_ = os.Remove(stage)
+	fd, err := os.OpenFile(stage, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	if err != nil {
+		return err
+	}
+	_, err = fd.WriteString(strconv.FormatInt(value, 10) + "\n")
+	if err == nil {
+		err = fd.Sync()
+	}
+	if closeErr := fd.Close(); err == nil {
+		err = closeErr
+	}
+	if err == nil {
+		err = os.Rename(stage, h.publishedPath)
+	}
+	if err != nil {
+		_ = os.Remove(stage)
+	}
+	return err
 }
 
 // SourceConfig contains only source-owned identity and a local invocation
@@ -118,15 +276,22 @@ func RunSource(ctx context.Context, cfg SourceConfig) error {
 	}
 	session.epoch = ready.Epoch
 	session.startReader()
+	runCtx, cancelRun := context.WithCancel(ctx)
 	var workers sync.WaitGroup
 	defer func() {
-		stopCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		cancelRun()
+		stopCtx, cancelStop := context.WithTimeout(context.Background(), 2*time.Second)
 		h.StopAll(stopCtx)
-		cancel()
-		workers.Wait()
+		cancelStop()
+		done := make(chan struct{})
+		go func() { workers.Wait(); close(done) }()
+		select {
+		case <-done:
+		case <-time.After(2 * time.Second):
+		}
 	}()
 	for {
-		envelope, readErr := session.nextEnvelope(ctx)
+		envelope, readErr := session.nextEnvelope(runCtx)
 		if readErr != nil {
 			if ctx.Err() != nil {
 				return ctx.Err()
@@ -143,23 +308,30 @@ func RunSource(ctx context.Context, cfg SourceConfig) error {
 			workers.Add(1)
 			go func() {
 				defer workers.Done()
-				inv, invokeErr := cfg.InvocationProvider(ctx, grant)
+				inv, invokeErr := cfg.InvocationProvider(runCtx, grant)
+				a := store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID}
 				if invokeErr != nil || inv == nil {
+					if invokeErr == nil {
+						invokeErr = errors.New("invocation_unavailable")
+					}
+					_ = h.recordLaunchUnknown(a, grant.RunID, grant.TaskID, launchMetadata{commandID: grant.CommandID, workRevision: grant.WorkRevision, executionEpoch: grant.ExecutionEpoch}, invokeErr)
+					_ = h.PublishAll(runCtx, session, session.epoch)
 					return
 				}
-				_, _ = h.ExecuteLaunch(ctx, grant, inv)
-				a := store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID}
-				_ = h.Publish(ctx, a, session, session.epoch)
+				if _, executeErr := h.ExecuteLaunch(runCtx, grant, inv); executeErr != nil {
+					_ = h.ensureLaunchUnknown(a, grant.RunID, grant.TaskID, launchMetadata{commandID: grant.CommandID, workRevision: grant.WorkRevision, executionEpoch: grant.ExecutionEpoch}, executeErr)
+				}
+				_ = h.PublishAll(runCtx, session, session.epoch)
 			}()
 		case ipc.KindStop:
 			var stop contract.StopCommand
 			if err = decodePayload(envelope.Payload, &stop); err != nil || stop.SegmentID == "" {
 				return errors.New("invalid_stop_command")
 			}
-			stopCtx := ctx
+			stopCtx := runCtx
 			if stop.DeadlineUnixMS > 0 {
 				var cancel context.CancelFunc
-				stopCtx, cancel = context.WithDeadline(ctx, time.UnixMilli(stop.DeadlineUnixMS))
+				stopCtx, cancel = context.WithDeadline(runCtx, time.UnixMilli(stop.DeadlineUnixMS))
 				defer cancel()
 			}
 			_ = h.StopSegment(stopCtx, stop.SegmentID)
@@ -199,7 +371,7 @@ func (s *sourceSession) startReader() {
 		for {
 			envelope, err := ipc.Read(s.conn)
 			frame := frameResult{envelope: envelope, err: err}
-			if err == nil && envelope.Kind == ipc.KindDurableAck {
+			if err == nil {
 				s.ackMu.Lock()
 				ackChannel := s.acks[envelope.RequestID]
 				if ackChannel != nil {

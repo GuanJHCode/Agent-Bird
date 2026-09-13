@@ -6,6 +6,7 @@ import (
 	"codex-cli-orchestration-design/tools/orchestrator/internal/process"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/store"
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -241,5 +242,73 @@ func TestIPCSourcePublishesOnlyAfterDurableAck(t *testing.T) {
 	}
 	if acked, err := s.AckedThrough(); err != nil || acked != 5 {
 		t.Fatalf("acked=%d err=%v", acked, err)
+	}
+}
+
+func TestParallelLaunchesPublishOneProducerSequence(t *testing.T) {
+	if os.Getenv("G1_PARALLEL_HELPER") == "1" {
+		time.Sleep(150 * time.Millisecond)
+		return
+	}
+	root := filepath.Join(t.TempDir(), "spool")
+	h, err := NewIPC(root, "launch-parallel")
+	if err != nil {
+		t.Fatal(err)
+	}
+	path, err := filepath.EvalSymlinks(os.Args[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	inv := launchInvocation{args: []string{path, "-test.run=TestParallelLaunchesPublishOneProducerSequence"}, env: map[string]string{"G1_PARALLEL_HELPER": "1"}}
+	grants := []contract.LaunchCommand{
+		{CommandID: "parallel-a", ReservationID: "reservation-a", RunID: "run", TaskID: "task-a", AttemptID: "attempt-a", SegmentID: "segment-a", GrantedActiveMS: 2000, WorkRevision: 4},
+		{CommandID: "parallel-b", ReservationID: "reservation-b", RunID: "run", TaskID: "task-b", AttemptID: "attempt-b", SegmentID: "segment-b", GrantedActiveMS: 2000, WorkRevision: 5},
+	}
+	results := make(chan error, len(grants))
+	for _, grant := range grants {
+		grant := grant
+		go func() {
+			_, runErr := h.ExecuteLaunch(context.Background(), grant, inv)
+			results <- runErr
+		}()
+	}
+	for range grants {
+		if err = <-results; err != nil {
+			t.Fatal(err)
+		}
+	}
+	sink := &durableSink{}
+	if err = h.PublishAll(context.Background(), sink, 9); err != nil {
+		t.Fatal(err)
+	}
+	if len(sink.events) != 10 {
+		t.Fatalf("published events=%d", len(sink.events))
+	}
+	for index, event := range sink.events {
+		if event.Sequence != int64(index+1) {
+			t.Fatalf("event[%d] sequence=%d", index, event.Sequence)
+		}
+		if event.ExecutionEpoch != 0 {
+			t.Fatalf("event[%d] epoch=%d", index, event.ExecutionEpoch)
+		}
+	}
+}
+
+func TestInvocationFailurePublishesDurableUnknown(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "spool")
+	h, err := NewIPC(root, "launch-failure")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := store.Attempt{ID: "attempt-failure", TaskID: "task-failure", SegmentID: "segment-failure"}
+	if err = h.recordLaunchUnknown(a, "run-failure", a.TaskID, launchMetadata{commandID: "command-failure", executionEpoch: 3}, errors.New("provider body must not persist")); err != nil {
+		t.Fatal(err)
+	}
+	sink := &durableSink{}
+	if err = h.PublishAll(context.Background(), sink, 3); err != nil {
+		t.Fatal(err)
+	}
+	if len(sink.events) != 1 || sink.events[0].Kind != contract.EventUnknown || sink.events[0].CommandID != "command-failure" || sink.events[0].ExecutionEpoch != 3 || sink.events[0].Process != nil {
+		t.Fatalf("events=%#v", sink.events)
 	}
 }

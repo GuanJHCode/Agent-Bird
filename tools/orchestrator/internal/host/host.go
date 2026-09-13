@@ -18,17 +18,19 @@ import (
 )
 
 type Host struct {
-	db           *store.DB
-	spoolRoot    string
-	mu           sync.Mutex
-	active       map[string]*process.Handle
-	activeBySeg  map[string]*process.Handle
-	producerID   string
-	sequenceMu   sync.Mutex
-	sequencePath string
-	sequence     int64
-	grantMu      sync.Mutex
-	reservations map[string]time.Time
+	db            *store.DB
+	spoolRoot     string
+	mu            sync.Mutex
+	active        map[string]*process.Handle
+	activeBySeg   map[string]*process.Handle
+	producerID    string
+	sequenceMu    sync.Mutex
+	sequencePath  string
+	sequence      int64
+	publishedPath string
+	publishMu     sync.Mutex
+	grantMu       sync.Mutex
+	reservations  map[string]time.Time
 }
 
 func New(db *store.DB, spoolRoot string) (*Host, error) {
@@ -55,7 +57,7 @@ func newHost(db *store.DB, spoolRoot, producerID string) (*Host, error) {
 	if err := os.MkdirAll(spoolRoot, 0700); err != nil {
 		return nil, err
 	}
-	return &Host{db: db, spoolRoot: spoolRoot, active: map[string]*process.Handle{}, activeBySeg: map[string]*process.Handle{}, producerID: producerID, sequencePath: filepath.Join(spoolRoot, ".producer-sequence"), reservations: map[string]time.Time{}}, nil
+	return &Host{db: db, spoolRoot: spoolRoot, active: map[string]*process.Handle{}, activeBySeg: map[string]*process.Handle{}, producerID: producerID, sequencePath: filepath.Join(spoolRoot, ".producer-sequence"), publishedPath: filepath.Join(spoolRoot, ".producer-published"), reservations: map[string]time.Time{}}, nil
 }
 func (h *Host) spool(a store.Attempt) (*events.Spool, error) {
 	return events.Open(filepath.Join(h.spoolRoot, a.ID, a.SegmentID))
@@ -304,6 +306,35 @@ func (h *Host) nextEventSequence() (int64, error) {
 		return 0, err
 	}
 	return h.sequence, nil
+}
+
+func (h *Host) ensureLaunchUnknown(a store.Attempt, runID, taskID string, meta launchMetadata, cause error) error {
+	spool, err := h.spool(a)
+	if err != nil {
+		return err
+	}
+	existing, err := spool.Read()
+	if err != nil {
+		return err
+	}
+	for _, event := range existing {
+		if event.Kind == contract.EventUnknown {
+			return nil
+		}
+	}
+	return h.recordLaunchUnknown(a, runID, taskID, meta, cause)
+}
+
+func (h *Host) recordLaunchUnknown(a store.Attempt, runID, taskID string, meta launchMetadata, cause error) error {
+	spool, err := h.spool(a)
+	if err != nil {
+		return err
+	}
+	if err = publishLaunchPhase(spool, "unknown", a, runID, taskID, process.Command{}, nil, cause); err != nil {
+		return err
+	}
+	_, err = h.appendPhaseEvent(spool, runID, taskID, a, meta, contract.EventUnknown, hashText("unknown:"+a.SegmentID), nil, nil, nil)
+	return err
 }
 
 func (h *Host) finishAttempt(id, status string, persistDB bool) {
