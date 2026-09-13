@@ -85,10 +85,13 @@ manifest to the same attached owner lease and activation service manifest.
 
 The caller supplies `DataRoot` as the native/session data location. The
 installer checks that it does not overlap the package destination and never
-removes or rewrites it. Changed files are retained for inspection. rc4 was
+removes or rewrites it. Changed files are retained for inspection. rc6 was
 installed only into a temporary project-local destination and passed `Doctor`.
-No permanent user installation, plugin registration, or service activation was
-performed.
+After native-product-10, its task pin was released automatically; a fresh
+healthy `Doctor` preceded successful removal of temporary rc4, rc5, and rc6.
+The installation now retains only rc3 and its `native-product-task` pin for an
+older recoverable failure. That pin was not forced. No permanent user
+installation, plugin registration, or service activation was performed.
 
 ## Version matrix and removal
 
@@ -110,23 +113,37 @@ resume qualification and task state remain governed by the G1/G2 contracts.
 
 ## Validation
 
-The rc4 package, temporary install, `Doctor`, and plugin validation are archived
-in [`package-rc4-verification.json`](../data/package-rc4-verification.json). The
+The rc6 pinned build, package, temporary install, pre/post-native `Doctor`, and
+plugin validation are archived in
+[`package-rc6-verification.json`](../data/package-rc6-verification.json). The
 installed binary SHA-256 is
-`e6c0bf930a75029d39b38b49cca2ded8999d0ce0545ed8d2fa7e48a1fc0bc3c7`.
-The 6,808,954-byte `codex-orchestrator-0.1.0-rc4.tar.gz` archive has SHA-256
-`b4f312cb0aa459ca0981a6037f78c473f1fe6be9c77e23cc4e840b1ddf77ea56`;
+`f258ab25f5fd8eafa8e08fddc28d630bb342378f7c9fa65cd8c259d6da8b28c4`;
+the installed manifest SHA-256 is
+`5583bc69b4b761e6f36ca2848029ae7b12860a1e2bc772ebcd17451075bd7992`.
+The [`rc6 archive receipt`](../data/release/rc6-archive-receipt.json) binds the
+6,810,308-byte `codex-orchestrator-0.1.0-rc6.tar.gz` archive to SHA-256
+`cc0043af6900a3c917a72931371be918e37897a5764c020f2f052de2b4cf1e41`;
 its package manifest SHA-256 is
-`5a5e195361634fbabb7c4f1b5971bfb13efa84d701654c66467e365b21832845`.
+`40c190c8937367b83412e1cfa8e6f3e069d3169924b8b02ac6d3b39007a6d8e9`.
+The rc6 source package, receipt, and tar remain under `data/release` as release
+artifacts after uninstall; their retention is not an installed-version claim.
 
 The complete project-local native product case is
-[`native-product-08`](../data/cases/native-product-08/acceptance.json) and is
+[`native-product-10`](../data/cases/native-product-10/acceptance.json) and is
 `pass`: auth14 remained unchanged, the Source Host stopped when the original
 owner exited, the same native profile/thread resumed with zero turns under a new owner,
 explicit rebind/resume completed, and delivery ended with a typed ACK. The
-independent [`root-postflight.json`](../data/cases/native-product-08/root-postflight.json)
+independent [`root-postflight.json`](../data/cases/native-product-10/root-postflight.json)
 confirmed all 15 recorded process identities gone and the public socket absent.
 The case used no external model calls and no real launchctl registration.
+Its two same-timeline one-Host samples were 120.421875 MiB and 122.9375 MiB,
+within the case's 128 MiB check; these frames are not a sustained joint G0/G1
+resource benchmark.
+
+rc6 also includes bounded streamed-artifact hashing, a 300-second total native
+watch lifetime, and continuous draining/bounded discard for ordinary raw or
+unknown provider diagnostics. Strict structured terminal/result/question
+schema failures continue to fail closed.
 
 The installer tests cover two coexisting versions, active pins, changed files,
 changed manifests, malformed pins, the shared OS lock, crash recovery after
@@ -137,9 +154,12 @@ against temporary directories.
 [`resource-acceptance.py`](../scripts/resource-acceptance.py) runs the frozen binary with explicit synthetic
 loads, process-tree sampling and durable report checks. It retains the original
 5/10/20 minute budgets and writes private scenario evidence. The full-duration
-resource suite remains in root-owned validation: the 600-second hosts scenario
-has passed, while burst and any other incomplete frozen scenarios remain
-pending. A shortened smoke is not treated as acceptance evidence.
+resource suite remains scoped to G1 core: idle, callback, the 600-second hosts
+scenario, and burst-valid have passed; the 20-minute burst-unknown scenario is
+still running and remains pending until its evidence is archived. No sustained
+full G0/G1 joint resource benchmark was run. A shortened smoke is not treated
+as acceptance evidence, and these scoped results cannot be written as the
+whole distribution meeting a resource target.
 
 Permanent plugin/service deployment is outside this project-local G4 contract.
 It is an optional follow-up that first requires a separately reviewed production

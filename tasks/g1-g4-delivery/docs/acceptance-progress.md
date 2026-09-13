@@ -1,6 +1,6 @@
 # G1–G4 最终功能与验收范围
 
-本说明区分已经通过的模块与纵向链路、仍在根任务执行的资源验收，以及明确延期的范围。当前 G1–G3 的实现和本地产品链路已经闭环；G4 rc4 已通过项目内 package/install/Doctor/plugin validator，完整 native product 链也已通过。G1 长时资源验收仍未全部结束，因此不能提前宣称资源范围全部通过。
+本说明区分已经通过的模块与纵向链路、仍在根任务执行的资源验收，以及明确延期的范围。当前 G1–G3 的实现和本地产品链路已经闭环；G4 rc6 已通过项目内 package/install/Doctor/plugin validator，完整 native product 链也已通过。G1 核心资源场景尚未全部结束，且没有执行 full G0/G1 联合长测，因此不能把局部资源结果写成整个 distribution 达标。
 
 ## G1：本地任务调度与持久状态
 
@@ -14,7 +14,7 @@ G1 是调度中枢。它接收当前 Codex 任务提交的计划，以最多两�
 
 G2 把 Claude Code、Antigravity CLI 和 Grok Build 转成统一的启动与结构化事件合同。启动前固定绝对可执行文件、版本和 SHA-256；不接受调用方追加任意参数，不切换账号、provider 或认证配置。来源 Host 继承当前任务的正常来源环境，只移除编排器内部 capability/bootstrap 变量。
 
-结构化 stdout 已接入真实 Host 进程路径：普通诊断有界排空，结果、失败和技术问题按 schema fail closed；Claude/AGY 的 init 和 Grok 的结构化 session 会及时形成可信内部事件。answer resume 必须使用同一 attempt 已持久化的 session。AGY 的 `WAITING` 保留原生问题路径，permission 事件不会被当作技术问题。
+结构化 stdout 已接入真实 Host 进程路径：普通 raw/unknown 诊断持续排空并有界丢弃，streamed artifact 增量计算 hash 而不在内存保留完整正文；结果、失败和技术问题仍按 schema fail closed。Claude/AGY 的 init 和 Grok 的结构化 session 会及时形成可信内部事件。answer resume 必须使用同一 attempt 已持久化的 session。AGY 的 `WAITING` 保留原生问题路径，permission 事件不会被当作技术问题。Native driver 的 watch 总寿命固定为 300 秒，不因连续事件无限续期。
 
 适配器、Host parser、session 续接和 report question 的本地 fixture/纵向链路已经通过。尚未执行三个真实 provider 账号的认证模型调用矩阵，因此当前结论不覆盖账号可用性、套餐、模型权限或 provider 服务端行为。
 
@@ -30,9 +30,11 @@ G3 在来源 Host 中执行 Git，协调器本身不直接运行 Git。它为每
 
 G4 把同一 orchestrator binary、Codex plugin、native bridge 和固定的 `runtime/g0` 依赖打成可审查版本包。manifest 记录每个文件的路径、mode 和 SHA-256；固定 Python 只记录绝对路径和 SHA-256，不复制或修改系统解释器。安装器使用 OS 锁、版本 receipt、任务 pin、持久卸载意图和 FD 锚定删除，发现修改或未知文件时保留并报告。
 
-rc4 包已经在项目范围的临时目录完成 package、`InstallPackage`、`Doctor` 和 plugin validator 检查。[`package-rc4-verification.json`](../data/package-rc4-verification.json) 记录 binary SHA-256 `e6c0bf930a75029d39b38b49cca2ded8999d0ce0545ed8d2fa7e48a1fc0bc3c7`、installed manifest 和 runtime manifest 身份。归档 `codex-orchestrator-0.1.0-rc4.tar.gz` 为 6,808,954 bytes，SHA-256 `b4f312cb0aa459ca0981a6037f78c473f1fe6be9c77e23cc4e840b1ddf77ea56`，其中 package manifest SHA-256 为 `5a5e195361634fbabb7c4f1b5971bfb13efa84d701654c66467e365b21832845`。
+rc6 包已经在项目范围的临时目录完成 pinned Go build、package、`InstallPackage`、前后两次 `Doctor` 和 plugin validator 检查。[`package-rc6-verification.json`](../data/package-rc6-verification.json) 记录 binary SHA-256 `f258ab25f5fd8eafa8e08fddc28d630bb342378f7c9fa65cd8c259d6da8b28c4`、installed manifest SHA-256 `5583bc69b4b761e6f36ca2848029ae7b12860a1e2bc772ebcd17451075bd7992` 和 runtime manifest 身份。[`rc6-archive-receipt.json`](../data/release/rc6-archive-receipt.json) 记录归档 `codex-orchestrator-0.1.0-rc6.tar.gz` 为 6,810,308 bytes，SHA-256 `cc0043af6900a3c917a72931371be918e37897a5764c020f2f052de2b4cf1e41`，其中 package manifest SHA-256 为 `40c190c8937367b83412e1cfa8e6f3e069d3169924b8b02ac6d3b39007a6d8e9`。
 
-[`native-product-08/acceptance.json`](../data/cases/native-product-08/acceptance.json) 的完整产品链状态为 `pass`：真实 native owner 建立 attached capability；旧 owner 退出后 Source Host 停止；新 owner 在同一 native profile/thread 上零 turn 静默恢复，完成 owner rebind 后才显式 resume；结果通过 native history proof 和 typed ACK 回传。14 个 auth 路径比较保持不变，没有外部模型调用。[`root-postflight.json`](../data/cases/native-product-08/root-postflight.json) 独立核对了 15 个记录进程身份全部消失，公共 socket 也已移除。
+[`native-product-10/acceptance.json`](../data/cases/native-product-10/acceptance.json) 的完整产品链状态为 `pass`：真实 native owner 建立 attached capability；旧 owner 退出后 Source Host 停止；新 owner 在同一 native profile/thread 上零 turn 静默恢复，完成 owner rebind 后才显式 resume；结果通过 native history proof 和 typed ACK 回传。14 个 auth 路径比较保持不变，没有外部模型调用。[`root-postflight.json`](../data/cases/native-product-10/root-postflight.json) 独立核对了 15 个记录进程身份全部消失，公共 socket 也已移除。同一产品时间线的两个单 Host 采样为 120.421875 MiB 和 122.9375 MiB，低于该 case 的 128 MiB 检查；它们不是持续的 full G0/G1 联合资源基准。
+
+native-product-10 完成后，rc6 的任务 pin 已自动释放。根任务再次确认 `Doctor` healthy 后成功卸载临时 rc4、rc5 和 rc6；当前临时安装根只保留 rc3 及其 `native-product-task` pin，因为它仍对应旧的可恢复失败任务，没有被强制解除。rc6 源码包、archive receipt 和 tar 继续保留在 `data/release` 作为交付物，这不等于 rc6 仍处于安装状态。
 
 以上结论只覆盖项目内临时安装和 native product 验收，不代表永久安装、plugin 全局注册或生产 service admission 已获授权或实现。永久部署属于独立可选范围，条件见 [`permanent-install-activation-proposal.md`](permanent-install-activation-proposal.md)。
 
@@ -40,7 +42,8 @@ rc4 包已经在项目范围的临时目录完成 package、`InstallPackage`、`
 
 | 范围 | 当前状态 | 完成条件 |
 |---|---|---|
-| G1 长时资源 | 根任务仍在验收 | `hosts` 600 秒场景已通过；burst 等其余冻结场景仍需跑满并归档，短 smoke 不能代替 PASS |
+| G1 核心长时资源 | 根任务仍在验收 | idle、callback、core hosts 600 秒和 burst-valid 已通过；burst-unknown 20 分钟仍在运行，未归档前保持 pending |
+| full G0/G1 联合长测 | 未覆盖 | native product 中两个单 Host 内存帧只用于同时间线门禁，不能替代持续联合资源测量 |
 | 真实 provider 账号矩阵 | 未执行 | 分别使用真实 Claude/AGY/Grok 账号进行授权的模型任务，并验证结果、失败、问题和 resume；当前不以本地 fixture 代替 |
 | Windows | 延期 | 独立实现并验证 Windows 进程树、文件锁、worktree 清理与安装语义；编译成功不算验收 |
 | 永久部署 | 后续可选范围 | 不属于当前 project-local G4；需先独立解决按连接绑定既有 native profile/backend 的 production admission，并选择、实现和验证 service/plugin 部署方式。当前不请求授权 |
@@ -48,8 +51,8 @@ rc4 包已经在项目范围的临时目录完成 package、`InstallPackage`、`
 
 ## 用户可审查的下一步
 
-1. 根任务使用同一冻结 binary 完成剩余 G1 长时资源场景，逐项保留时长、负载、durable report、RSS、CPU 和趋势结论；任何未跑满场景继续标为未验收。
-2. 用户审查 rc4 package identity、native-product-08 receipt 和最终资源结果，确认当前 project-local 交付的实际边界。
+1. 根任务使用同一冻结 binary 完成 burst-unknown 20 分钟场景，逐项保留时长、负载、durable report、RSS、CPU 和趋势结论；未跑满或未归档继续标为 pending。
+2. 用户审查 rc6 package identity、native-product-10 receipt 和最终 G1 核心资源结果，确认当前 project-local 交付的实际边界，同时保留 full G0/G1 联合长测未覆盖的说明。
 3. 本轮不请求永久部署授权。未来若另行选择永久部署，应先完成独立 production admission 和部署合同，再以新的固定版本/hash/path 提案请求批准；该可选范围不能默认包含登录、登出、账号切换、读取或修改 CLI auth。
 
-本轮没有永久安装、注册 marketplace、修改全局 Codex 配置、启动真实模型任务或改动本机多个 CLI 的认证状态。测试遗留进程 PID 47082 仍按已有记录保持 `cleanup_pending`；不再向它或归属不明的父进程发送信号。
+本轮没有永久安装、注册 marketplace、修改全局 Codex 配置、启动真实模型任务或改动本机多个 CLI 的认证状态。原有两个 `g0-pending-resolution` worktree、stash `ba919f705c87333d295b492927cbac683508fa09` 和用户对 `proxy_native_runtime.py` 的修改均保持原样。测试遗留进程 PID 47082 仍按已有记录保持 `cleanup_pending`；不再向它或归属不明的父进程发送信号。
