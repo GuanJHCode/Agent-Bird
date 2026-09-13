@@ -1,0 +1,26 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+___________ test_owned_binary_mode_drift_after_prepare_refuses_spawn ___________
+tasks/g0-completion/tests/test_synthetic_native_transport.py:147: in test_owned_binary_mode_drift_after_prepare_refuses_spawn
+    asyncio.run(asyncio.wait_for(scenario(),10))
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/tasks.py:507: in wait_for
+    return await fut
+           ^^^^^^^^^
+tasks/g0-completion/tests/test_synthetic_native_transport.py:145: in scenario
+    assert result['status']=='unknown' and result['backend'] is None
+E   AssertionError: assert ('passed' == 'unknown'
+E
+E     - unknown
+E     + passed)
+=========================== short test summary info ============================
+FAILED tasks/g0-completion/tests/test_synthetic_native_transport.py::test_owned_binary_mode_drift_after_prepare_refuses_spawn
+1 failed, 7 deselected in 1.05s

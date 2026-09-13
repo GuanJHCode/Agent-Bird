@@ -1,0 +1,35 @@
+{
+  "commit": "6b9826e3aa83b1a5947db50f4332cb9c65f1b340",
+  "files": [
+    {
+      "path": "tasks/g0-completion/data/source/codex-rs/app-server-protocol/src/protocol/common.rs",
+      "sha256": "6aa47ec984c9198ea797bf63b784cf6a88cc0ab85efb0a4ac75e01aabffc2cfa",
+      "bytes": 170816,
+      "url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-protocol/src/protocol/common.rs"
+    },
+    {
+      "path": "tasks/g0-native-0154-contract/data/source/codex-rs/app-server-protocol/src/protocol/v2/thread.rs",
+      "sha256": "ffc2f432bc7d0dadf9ae10db832035c8b75d7b709462bfed3c83d33ea89c526a",
+      "bytes": 76531,
+      "reused_archive": true
+    },
+    {
+      "path": "tasks/g0-native-0154-contract/data/source/codex-rs/app-server-protocol/src/protocol/v2/turn.rs",
+      "sha256": "49098e1b594835e6376952c35a0b13cfacd1316eb68bd8a46553842534a86bb2",
+      "bytes": 20462,
+      "reused_archive": true
+    },
+    {
+      "path": "tasks/g0-native-0154-contract/data/source/codex-rs/app-server-protocol/src/protocol/v2/item.rs",
+      "sha256": "4cb6190f253d18cafea1451a0b062fef891529757762a4ffe9ff3b0af25d00ff",
+      "bytes": 64137,
+      "reused_archive": true
+    },
+    {
+      "path": "tasks/g0-native-0154-contract/data/source/codex-rs/app-server-protocol/src/protocol/v2/thread_data.rs",
+      "sha256": "c569abd0f1e3244a495a67da73a6b20ecd029a1184f8d6fd4c97a29c6fbc3ff4",
+      "bytes": 18400,
+      "reused_archive": true
+    }
+  ]
+}

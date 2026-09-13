@@ -1,0 +1,74 @@
+FFF                                                                      [100%]
+=================================== FAILURES ===================================
+______________ test_unlisted_notification_cannot_enter_readiness _______________
+tasks/g0-completion/tests/test_synthetic_native_transport.py:176: in test_unlisted_notification_cannot_enter_readiness
+    asyncio.run(asyncio.wait_for(scenario(),10))
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/tasks.py:507: in wait_for
+    return await fut
+           ^^^^^^^^^
+tasks/g0-completion/tests/test_synthetic_native_transport.py:175: in scenario
+    assert result['status']=='unknown' and endpoint.snapshot()['accepted_requests']==0
+E   AssertionError: assert ('passed' == 'unknown'
+E
+E     - unknown
+E     + passed)
+_______ test_initialize_and_thread_start_share_original_startup_deadline _______
+tasks/g0-completion/tests/test_synthetic_native_transport.py:195: in test_initialize_and_thread_start_share_original_startup_deadline
+    asyncio.run(asyncio.wait_for(scenario(),10))
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/tasks.py:507: in wait_for
+    return await fut
+           ^^^^^^^^^
+tasks/g0-completion/tests/test_synthetic_native_transport.py:193: in scenario
+    assert result['status']=='unknown' and endpoint.snapshot()['accepted_requests']==0
+E   AssertionError: assert ('passed' == 'unknown'
+E
+E     - unknown
+E     + passed)
+__________ test_endpoint_close_failure_still_preserves_unknown_result __________
+tasks/g0-completion/tests/test_synthetic_native_transport.py:211: in test_endpoint_close_failure_still_preserves_unknown_result
+    asyncio.run(asyncio.wait_for(scenario(),10))
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/tasks.py:507: in wait_for
+    return await fut
+           ^^^^^^^^^
+tasks/g0-completion/tests/test_synthetic_native_transport.py:206: in scenario
+    try:result=await runner.run_transport(plan,prepared)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tasks/g0-completion/scripts/synthetic_native_transport.py:299: in run_transport
+    prepared.endpoint.close();result['finished_raw']=now()
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+tasks/g0-completion/tests/test_synthetic_native_transport.py:204: in failing_close
+    def failing_close():close();raise OSError(5,'synthetic-close-failure')
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   OSError: [Errno 5] synthetic-close-failure
+=========================== short test summary info ============================
+FAILED tasks/g0-completion/tests/test_synthetic_native_transport.py::test_unlisted_notification_cannot_enter_readiness
+FAILED tasks/g0-completion/tests/test_synthetic_native_transport.py::test_initialize_and_thread_start_share_original_startup_deadline
+FAILED tasks/g0-completion/tests/test_synthetic_native_transport.py::test_endpoint_close_failure_still_preserves_unknown_result
+3 failed, 9 deselected in 1.22s

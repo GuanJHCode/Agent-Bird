@@ -1,0 +1,24 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____ test_case_replacement_between_check_and_open_never_writes_replacement _____
+tasks/g0-completion/tests/test_synthetic_native_transport.py:166: in test_case_replacement_between_check_and_open_never_writes_replacement
+    asyncio.run(asyncio.wait_for(scenario(),10))
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/tasks.py:507: in wait_for
+    return await fut
+           ^^^^^^^^^
+tasks/g0-completion/tests/test_synthetic_native_transport.py:163: in scenario
+    with pytest.raises(ValueError,match='case'):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE ValueError
+=========================== short test summary info ============================
+FAILED tasks/g0-completion/tests/test_synthetic_native_transport.py::test_case_replacement_between_check_and_open_never_writes_replacement
+1 failed, 8 deselected in 0.09s

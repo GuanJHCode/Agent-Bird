@@ -1,0 +1,28 @@
+F.                                                                       [100%]
+=================================== FAILURES ===================================
+_ test_unexpected_server_request_is_unknown_and_never_stores_its_raw_identifiers _
+tasks/g0-completion/tests/test_synthetic_native_transport.py:116: in test_unexpected_server_request_is_unknown_and_never_stores_its_raw_identifiers
+    asyncio.run(asyncio.wait_for(scenario(),10))
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/tasks.py:507: in wait_for
+    return await fut
+           ^^^^^^^^^
+tasks/g0-completion/tests/test_synthetic_native_transport.py:114: in scenario
+    assert 'untrusted-private-marker' not in stored
+E   assert 'untrusted-private-marker' not in '{"backend":...ersion":1}\n'
+E
+E     'untrusted-private-marker' is contained here:
+E       "method":"untrusted-private-marker-method","request_id":"untrusted-private-marker-id","sha256":"8b0c2433f83bd4ff4dcfba86af33926c12cd2cd1807c92fd72f2314039f2c728"}],"failure":{"errno":null,"message_sha256":"f6fec016e7041194c487480588180c2bda11ca8e97b7568dc9587682446ede7a","stage":"initialize","type":"ValueError"},"finished_raw":4190080.036302416,"history_verified":false,"output_digests":[{"bytes":0,"sha256":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"},{"bytes":0,"sha256":"e3b0c44298fc1c149afbf4c8996fb924...
+E
+E     ...Full output truncated (2 lines hidden), use '-vv' to show
+=========================== short test summary info ============================
+FAILED tasks/g0-completion/tests/test_synthetic_native_transport.py::test_unexpected_server_request_is_unknown_and_never_stores_its_raw_identifiers
+1 failed, 1 passed, 5 deselected in 0.55s

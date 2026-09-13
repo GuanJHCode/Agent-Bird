@@ -1,0 +1,59 @@
+FFFFF                                                                    [100%]
+=================================== FAILURES ===================================
+____ test_complete_dummy_transport_proves_same_thread_two_turns_and_history ____
+tasks/g0-completion/tests/test_synthetic_native_transport.py:50: in test_complete_dummy_transport_proves_same_thread_two_turns_and_history
+    runner=implementation()
+           ^^^^^^^^^^^^^^^^
+tasks/g0-completion/tests/test_synthetic_native_transport.py:22: in implementation
+    assert (ROOT/'tasks/g0-completion/scripts/synthetic_native_transport.py').is_file(), 'transport execution chain missing'
+E   AssertionError: transport execution chain missing
+E   assert False
+E    +  where False = is_file()
+E    +    where is_file = (PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-completion/tmp/native-fixture') / 'tasks/g0-completion/scripts/synthetic_native_transport.py').is_file
+_______________ test_failure_never_passes_or_resends[wrong-home] _______________
+tasks/g0-completion/tests/test_synthetic_native_transport.py:74: in test_failure_never_passes_or_resends
+    runner=implementation()
+           ^^^^^^^^^^^^^^^^
+tasks/g0-completion/tests/test_synthetic_native_transport.py:22: in implementation
+    assert (ROOT/'tasks/g0-completion/scripts/synthetic_native_transport.py').is_file(), 'transport execution chain missing'
+E   AssertionError: transport execution chain missing
+E   assert False
+E    +  where False = is_file()
+E    +    where is_file = (PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-completion/tmp/native-fixture') / 'tasks/g0-completion/scripts/synthetic_native_transport.py').is_file
+__________ test_failure_never_passes_or_resends[uncertain-no-resend] ___________
+tasks/g0-completion/tests/test_synthetic_native_transport.py:74: in test_failure_never_passes_or_resends
+    runner=implementation()
+           ^^^^^^^^^^^^^^^^
+tasks/g0-completion/tests/test_synthetic_native_transport.py:22: in implementation
+    assert (ROOT/'tasks/g0-completion/scripts/synthetic_native_transport.py').is_file(), 'transport execution chain missing'
+E   AssertionError: transport execution chain missing
+E   assert False
+E    +  where False = is_file()
+E    +    where is_file = (PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-completion/tmp/native-fixture') / 'tasks/g0-completion/scripts/synthetic_native_transport.py').is_file
+____________ test_failure_never_passes_or_resends[history-mismatch] ____________
+tasks/g0-completion/tests/test_synthetic_native_transport.py:74: in test_failure_never_passes_or_resends
+    runner=implementation()
+           ^^^^^^^^^^^^^^^^
+tasks/g0-completion/tests/test_synthetic_native_transport.py:22: in implementation
+    assert (ROOT/'tasks/g0-completion/scripts/synthetic_native_transport.py').is_file(), 'transport execution chain missing'
+E   AssertionError: transport execution chain missing
+E   assert False
+E    +  where False = is_file()
+E    +    where is_file = (PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-completion/tmp/native-fixture') / 'tasks/g0-completion/scripts/synthetic_native_transport.py').is_file
+_______ test_preflight_drift_or_missing_pins_stops_before_backend_launch _______
+tasks/g0-completion/tests/test_synthetic_native_transport.py:89: in test_preflight_drift_or_missing_pins_stops_before_backend_launch
+    runner=implementation()
+           ^^^^^^^^^^^^^^^^
+tasks/g0-completion/tests/test_synthetic_native_transport.py:22: in implementation
+    assert (ROOT/'tasks/g0-completion/scripts/synthetic_native_transport.py').is_file(), 'transport execution chain missing'
+E   AssertionError: transport execution chain missing
+E   assert False
+E    +  where False = is_file()
+E    +    where is_file = (PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-completion/tmp/native-fixture') / 'tasks/g0-completion/scripts/synthetic_native_transport.py').is_file
+=========================== short test summary info ============================
+FAILED tasks/g0-completion/tests/test_synthetic_native_transport.py::test_complete_dummy_transport_proves_same_thread_two_turns_and_history
+FAILED tasks/g0-completion/tests/test_synthetic_native_transport.py::test_failure_never_passes_or_resends[wrong-home]
+FAILED tasks/g0-completion/tests/test_synthetic_native_transport.py::test_failure_never_passes_or_resends[uncertain-no-resend]
+FAILED tasks/g0-completion/tests/test_synthetic_native_transport.py::test_failure_never_passes_or_resends[history-mismatch]
+FAILED tasks/g0-completion/tests/test_synthetic_native_transport.py::test_preflight_drift_or_missing_pins_stops_before_backend_launch
+5 failed in 0.05s
