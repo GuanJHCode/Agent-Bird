@@ -2,24 +2,29 @@
 
 更新于 2026-09-13。本页记录当前可审查的局部事实，不是 G0 总验收，也不授权再次运行 native、模型、launchd 或真实账号操作。
 
-## 已完成的局部证据
+## 已确认的本轮事实
 
-- `native-transport-03` 使用固定 Codex 0.154 二进制、全新 synthetic HOME/CODEX_HOME/workspace、private UDS 和 synthetic provider 完成两轮运输。receipt 报告 `history_verified=true`、两次 HTTP 200、`external_model_calls=0`、`initialize_home_match=true`、child 已回收、private socket 已清理。
-- 同一 receipt 的 14 条认证路径只保存 opaque 元数据和摘要；前后 `unchanged=true`，合成 profile 没有生成 `auth.json`。这证明本次隔离实验没有改变已登记 auth 路径，不证明真实账号认证可用于业务。
-- 该样本明确保留 `durable_history_verified=false` 和 `business_ack_verified=false`。它证明的是受控 native transport 与服务返回的 history read，不是原生持久历史、Go business ACK 或完整模型流程。
-- 用户级 `native-launchd-03` 的一次真实 bootstrap/bootout 及后续经授权的残留 public socket 清理已有独立记录。job、plist、lease 和 private backend 已不存在；该记录不等于永久安装，也不构成再次注册授权。
-- `native-delivery-03` 已完成一次受控的真实 native + owner-helper + Go ACK 样本：单 backend、独立 owner-helper PID、持久 owner-context lease、两次 synthetic provider HTTP 200，history proof 后由显式 controller decision 产生 1 条 ACK、1 个 effect。14 条 auth 元数据前后不变，source/fixture postflight 通过，owner close→helper EOF→guardian 回收顺序成立。该样本仍是 synthetic provider，`ordinary_tui_verified=false`、`durable_history_verified=false`、外部模型和 global registration 均为 0。
+- 本轮唯一受控 launchd 对象的 bootstrap 与 bootout 返回码均为 0；独立收尾验证 public socket 已自动清理。job、plist、lease、socket 和 server PID 均已 gone。
+- 14 条认证路径只保留安全摘要，前后未变。该事实证明本轮没有改动登记的 auth 文件，不证明真实账号认证可用于业务。
+- `launchd-native01` 保留为 UNKNOWN：观测边界是 0-RPC EOF/uid 0，不能把它解释为 owner、helper 或 backend 已启动，也不能从 client listener provenance 推断实际服务进程归属。
+- 目录初始化 `private01` 的 failed 记录保留，不能用后续成功的私有样本覆盖它。
+- `private-native02` 已通过继承 FD 的私有 native transport 和 1 条真实 native ACK；该结果不包含 launchd 注册，不证明普通 TUI、持久 history 或完整模型流程。
 
-## 两条 runtime 边界
+## 当前服务接线
 
-`ActivationService` 位于 `tasks/g0-proxy-continuation/cold-start/scripts/activation_service.py`，由 `projectproxy_launchd_entrypoint.py` 以 manifest 启动。它校验 profile 配置、file pins、peer 身份和 private backend，并使用 `GuardedChild` 保存 backend 的 start/stop receipt；它不自行安装 LaunchAgent，也不拥有 public socket。安装和撤销属于独立的 `ActivationTransaction`。
+`ActivationService` 位于 `tasks/g0-proxy-continuation/cold-start/scripts/activation_service.py`，由 `projectproxy_launchd_entrypoint.py` 以 manifest 启动。服务在首次 `initialize` 或其他 RPC 前发布 `owner-connected-<lease_id>-<frontend.pid>.json`，绑定 activation、manifest、grant、profile/context、frontend peer、backend peer、backend PID/birth/executable 和 private socket identity；`ready-*` 后续再补 thread/connection/epoch。该 accepted-connection pre-RPC gate 已有真实合成 factory/UDS 正负回归，最终 native runner 组合仍在最后测试，不能提前称为完整通过。
 
 `proxy_native_runtime.py` 是旧的直接 PTY/TUI 控制器，负责受控样本中的 PTY、TUI、private backend、观察和正常 quit/EOF。它不是当前 ActivationService 的 guardian，也不提供 parent-death 或任意进程树清理保证。旧 TUI 样本与 socket-activation 样本不能互相替代。
 
 ## 仍未通过或正在复核
 
-- `native-delivery-03` 只证明一个新的 synthetic provider 组合样本；普通 TUI、真实模型、原生持久 history 和更广泛 G0 生命周期仍未验收。
-- `reconcile_claimed` 的 owner-context 持久绑定、send-disabled、history proof 和 claim 文件身份已实现测试；修复后的恢复语义已通过真实 Go adapter case，组合回归结果仍需按最终合并基线复核。
+- `launchd-native01` 的 0-RPC EOF/uid 0 结果仍是 UNKNOWN；本轮不虚构 owner/helper/backend 启动证据。
+- accepted-connection pre-RPC gate 需要最后的 native 接线与 receipt 消费回归；服务端 receipt 本身不能替代 client/controller 的 kernel/process 验证。
+- `private-native02` 的 ACK 是私有 transport 边界证据，不自动升级为 durable history、ordinary TUI 或完整 G0 业务验收。
 - G0 的完整范围仍包括持久任务、缓存主/侧切换、重连/恢复边界、正常退出和注册撤销的整体时序；已有局部样本不构成整体通过。
 
-所有失败、UNKNOWN、前置实验和残留清理记录均保留在各自 case 目录，不用新结果覆盖历史。后续如需新的 global registration、永久安装、native 或模型运行，必须重新形成明确的受控实验入口和验收记录。
+所有失败、UNKNOWN、前置实验和清理记录均保留在各自 case 目录。下一次真实注册、永久安装、native 或模型运行必须重新形成明确的受控实验入口和授权；不影响普通 TUI、既有持久 history 或 G1–G4 边界。
+
+## 依据
+
+Apple [`getpeereid(3)`](https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man3/getpeereid.3.html)说明 client 侧得到的是 listener 对端 credentials；XNU 的 [`socket.h`](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/sys/socket.h) 和 [`uipc_usrreq.c`](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/uipc_usrreq.c)是本项目复核 Unix-domain socket peer 语义时使用的实现来源。listener provenance 与 actual accepted service 归属因此分开记录。
