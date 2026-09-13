@@ -14,6 +14,7 @@ TURN = "turn_delivery_1"
 ITEM = "item_delivery_1"
 SOCKET = sys.argv[1]
 RECEIPT = sys.argv[2]
+MODE = sys.argv[3] if len(sys.argv) > 3 else "complete"
 
 
 def server_frame(value):
@@ -104,18 +105,20 @@ async def main():
                     history_output = output
                     records.append(record); write_receipt(records)
                     writer.write(server_frame({"id": message["id"], "result": {"turn": turn_body("inProgress")}}))
-                    writer.write(server_frame({"method": "account/rateLimits/updated", "params": {"rateLimits": {
+                    if MODE != "receipt-only":
+                        writer.write(server_frame({"method": "account/rateLimits/updated", "params": {"rateLimits": {
                         "limitId": "codex", "limitName": "Codex", "normalModelSlug": "gpt-5",
                         "primary": {"usedPercent": 1, "windowDurationMins": 300, "resetsAt": 1700000000},
                         "secondary": None, "credits": {"hasCredits": False, "unlimited": False, "balance": None},
                         "individualLimit": None, "spendControlReached": False, "planType": "plus", "rateLimitReachedType": None,
                     }}, "emittedAtMs": int(time.time() * 1000)}))
-                    writer.write(server_frame({"method": "turn/started", "params": {"threadId": THREAD, "turn": turn_body("inProgress")}, "emittedAtMs": int(time.time() * 1000)}))
+                        writer.write(server_frame({"method": "turn/started", "params": {"threadId": THREAD, "turn": turn_body("inProgress")}, "emittedAtMs": int(time.time() * 1000)}))
                     item = item_body(output)
-                    writer.write(server_frame({"method": "item/started", "params": {"threadId": THREAD, "turnId": TURN, "item": item, "startedAtMs": int(time.time() * 1000)}}))
-                    writer.write(server_frame({"method": "item/agentMessage/delta", "params": {"threadId": THREAD, "turnId": TURN, "itemId": ITEM, "delta": "delivery"}, "emittedAtMs": int(time.time() * 1000)}))
-                    writer.write(server_frame({"method": "item/completed", "params": {"threadId": THREAD, "turnId": TURN, "item": item, "completedAtMs": int(time.time() * 1000)}}))
-                    writer.write(server_frame({"method": "turn/completed", "params": {"threadId": THREAD, "turn": turn_body("completed")}, "emittedAtMs": int(time.time() * 1000)}))
+                    if MODE != "receipt-only":
+                        writer.write(server_frame({"method": "item/started", "params": {"threadId": THREAD, "turnId": TURN, "item": item, "startedAtMs": int(time.time() * 1000)}}))
+                        writer.write(server_frame({"method": "item/agentMessage/delta", "params": {"threadId": THREAD, "turnId": TURN, "itemId": ITEM, "delta": "delivery"}, "emittedAtMs": int(time.time() * 1000)}))
+                        writer.write(server_frame({"method": "item/completed", "params": {"threadId": THREAD, "turnId": TURN, "item": item, "completedAtMs": int(time.time() * 1000)}}))
+                        writer.write(server_frame({"method": "turn/completed", "params": {"threadId": THREAD, "turn": turn_body("completed")}, "emittedAtMs": int(time.time() * 1000)}))
                 elif method == "initialize":
                     records.append(record); write_receipt(records)
                     writer.write(server_frame({"id": message["id"], "result": {"codexHome": os.environ.get("CODEX_HOME", ""), "userAgent": "owner-helper-fixture/1"}}))

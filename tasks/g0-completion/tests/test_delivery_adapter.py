@@ -488,6 +488,18 @@ def test_normal_capability_rejects_cancelled_before_any_connection_write(tmp_pat
         asyncio.run(adapter.send_tool_output_once(object(), capability, wait_for_completion=False))
 
 
+def test_normal_capability_rejects_stale_before_any_connection_write(tmp_path):
+    go_binary = _build(tmp_path); task = tmp_path / "normal-stale"; task.mkdir(mode=0o700)
+    nonce = "normal_stale"; _start(go_binary, task, nonce); env = {"CODEX_THREAD_ID": THREAD}
+    binding = DeliveryBinding("profile-a", THREAD, 1, nonce, 1)
+    adapter = DeliveryAdapter(go_binary, expected_sha256=hashlib.sha256(go_binary.read_bytes()).hexdigest())
+    capability = adapter.prepare_and_claim(binding, task, "delivery_1", _events(), env=env)
+    subprocess.run([str(go_binary), "revise", "--dir", str(task), "--nonce", nonce, "--controller-thread", THREAD, "--revision", "1"], env=env, check=True, capture_output=True)
+    with pytest.raises(DeliveryError, match="claim_not_current"):
+        import asyncio
+        asyncio.run(adapter.send_tool_output_once(object(), capability, wait_for_completion=False))
+
+
 def test_receipt_mode_rejects_error_response_and_nonbool_wait_flag(tmp_path):
     import asyncio
     binding = DeliveryBinding("p", THREAD, 1, "receipt_error", 1)
@@ -533,6 +545,7 @@ def test_receipt_only_send_returns_after_turn_start_without_completion_notificat
                 await connection.close()
         packets = asyncio.run(run())
         assert any(packet.get("id") == 1 for packet in packets)
+        assert not {packet.get("method") for packet in packets} & {"turn/completed", "item/completed"}
         assert json.loads(receipt.read_text())["methods"].count("turn/start") == 1
         assert adapter._run(["batch-status", "--dir", str(task), "--nonce", nonce])["ack_count"] == 0
         with pytest.raises(DeliveryError, match="history_uncertain"):

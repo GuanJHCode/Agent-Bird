@@ -397,6 +397,10 @@ class DeliveryAdapter:
         while not got_response or (wait_for_completion and {packet.get("method") for packet in packets} & lifecycle != lifecycle):
             packet = await connection.read_rpc()
             packets.append(packet)
+            if "id" in packet and packet.get("id") != request_id:
+                raise DeliveryError("turn_start_response_id")
+            if got_response and "id" in packet:
+                raise DeliveryError("turn_start_duplicate_response")
             if packet.get("id") == request_id:
                 _require(set(packet) == {"id", "result"} and isinstance(packet.get("result"), dict), "turn_start_failed")
                 turn = packet["result"].get("turn")
