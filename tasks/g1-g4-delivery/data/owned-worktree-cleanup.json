@@ -50,6 +50,55 @@
       "exit_code": 0,
       "status": "removed_worktree_branch_retained",
       "error": null
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g1-g4-delivery/tmp/native-combined",
+      "head": "a588f6ef9ce4649a0a13f3d4a7340c3b86a4a59c",
+      "exit_code": 0,
+      "status": "removed_worktree_branch_retained",
+      "error": null
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g1-g4-delivery/tmp/g3-g4-final",
+      "head": "c2133a198343c1a58705328e9e5da58489078132",
+      "exit_code": 0,
+      "status": "removed_worktree_branch_retained",
+      "error": null
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g1-g4-delivery/tmp/permanent-activation-proposal",
+      "head": "e1dbd21b7f176829effb7ee5904d69d82ab8a840",
+      "exit_code": 0,
+      "status": "removed_worktree_branch_retained",
+      "error": null
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g1-g4-delivery/tmp/final-acceptance-doc",
+      "head": "1cb866a83762a3a98f8bff51f511f1b7ea3d3604",
+      "exit_code": 0,
+      "status": "removed_worktree_branch_retained",
+      "error": null
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g1-g4-delivery/tmp/final-acceptance-rc6",
+      "head": "88bc983b67f80cd9aaf6999b55f0c71f48f642e0",
+      "exit_code": 0,
+      "status": "removed_worktree_branch_retained",
+      "error": null
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design-native-product-bridge",
+      "head": "72a0fad8ccc04fb264fc7e98128f87a81a69ca65",
+      "exit_code": 0,
+      "status": "removed_worktree_branch_retained",
+      "error": null
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design-native-product-resume-fix",
+      "head": "9f9d81b23bd8a3a991121efa5a079f9bab6aff74",
+      "exit_code": 0,
+      "status": "removed_worktree_branch_retained",
+      "error": null
     }
   ]
 }

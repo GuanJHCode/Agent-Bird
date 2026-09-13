@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "checked_at": "2026-09-13T19:13:35.916232+00:00",
+  "status": "cleanup_pending",
+  "known_uninterruptible_test_process": {
+    "pid": 47082,
+    "expected_birth": "Sun Sep 13 22:24:23 2026",
+    "observed": "47082 Sun Sep 13 22:24:23 2026     UEs      32   0.0 /var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/tmp.T2kyk7GSzE/package/plugin/bin/codex-orchestrator",
+    "prior_termination_signals_sent": true,
+    "new_signals_sent": false
+  },
+  "task_owned_trash_paths": [
+    {
+      "path": "/Users/guanjunhui/.Trash/codex-g1-control-debug",
+      "status": "absent"
+    },
+    {
+      "path": "/Users/guanjunhui/.Trash/codex-g1-debug-gFn7W5",
+      "status": "absent"
+    },
+    {
+      "path": "/Users/guanjunhui/.Trash/codex-g1-debug-F845VV",
+      "status": "absent"
+    },
+    {
+      "path": "/Users/guanjunhui/.Trash/codex-g1-stopdebug-b8HLfE",
+      "status": "absent"
+    },
+    {
+      "path": "/Users/guanjunhui/.Trash/codex-g1-stopdebug2-KZAP9b",
+      "status": "absent"
+    }
+  ],
+  "unrelated_processes_or_trash_touched": false
+}
