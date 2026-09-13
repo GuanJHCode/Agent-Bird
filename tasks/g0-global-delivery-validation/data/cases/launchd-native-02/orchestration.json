@@ -1,0 +1,11 @@
+{
+  "case": "launchd-native-02",
+  "source_commit": "bce0f1bd1d07af676818c1511a88b96ef15c38ff",
+  "profile_root": "/private/tmp/g0-auth-gdl-fca_puf4",
+  "runtime_case": "/private/tmp/g0-auth-gdl-fca_puf4/launchd-native-02",
+  "inventory_sha256": "78a5f826242bc439387a8972bddf587383dc7f45ff4dac19118b7a47cbc996a5",
+  "auth_count": 14,
+  "scheduler_mode": "launchd",
+  "external_model_calls": 0,
+  "synthetic_model": true
+}
