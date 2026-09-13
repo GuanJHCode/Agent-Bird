@@ -575,10 +575,27 @@ class DeliveryLedger:
 
 
 class ControlPlaneClient:
-    def __init__(self, executable: str | os.PathLike[str], expected_sha256: str):
+    def __init__(
+        self,
+        executable: str | os.PathLike[str],
+        expected_sha256: str,
+        *,
+        enable_test_fake: bool = False,
+    ):
         self.executable = Path(executable)
-        _require(self.executable.is_absolute() and _hash(expected_sha256), "control_binary")
+        _require(
+            self.executable.is_absolute() and _hash(expected_sha256), "control_binary"
+        )
         self.expected_sha256 = expected_sha256
+        _require(
+            type(enable_test_fake) is bool
+            and (
+                not enable_test_fake
+                or os.getenv("ORCHESTRATOR_ENABLE_TEST_FAKE") == "1"
+            ),
+            "test_fake_not_authorized",
+        )
+        self.enable_test_fake = enable_test_fake
         self._verify_executable()
 
     def _verify_executable(self) -> None:
@@ -588,14 +605,22 @@ class ControlPlaneClient:
             raise BridgeError("control_binary") from exc
         try:
             info = os.fstat(fd)
-            _require(stat.S_ISREG(info.st_mode) and info.st_uid == os.getuid() and info.st_size > 0 and info.st_size <= 512 * 1024 * 1024, "control_binary")
+            _require(
+                stat.S_ISREG(info.st_mode)
+                and info.st_uid == os.getuid()
+                and info.st_size > 0
+                and info.st_size <= 512 * 1024 * 1024,
+                "control_binary",
+            )
             digest = hashlib.sha256()
             while True:
                 chunk = os.read(fd, 1024 * 1024)
                 if not chunk:
                     break
                 digest.update(chunk)
-            _require(digest.hexdigest() == self.expected_sha256, "control_binary_changed")
+            _require(
+                digest.hexdigest() == self.expected_sha256, "control_binary_changed"
+            )
         finally:
             os.close(fd)
 
@@ -607,9 +632,14 @@ class ControlPlaneClient:
             control_info = control_file.lstat()
         except OSError as exc:
             raise BridgeError("control_file") from exc
-        _require(stat.S_ISREG(control_info.st_mode) and not stat.S_ISLNK(control_info.st_mode)
-                 and control_info.st_uid == os.getuid() and stat.S_IMODE(control_info.st_mode) == 0o600
-                 and control_info.st_nlink == 1, "control_file")
+        _require(
+            stat.S_ISREG(control_info.st_mode)
+            and not stat.S_ISLNK(control_info.st_mode)
+            and control_info.st_uid == os.getuid()
+            and stat.S_IMODE(control_info.st_mode) == 0o600
+            and control_info.st_nlink == 1,
+            "control_file",
+        )
         return control_file
 
     @classmethod
@@ -617,28 +647,49 @@ class ControlPlaneClient:
         control_file = cls._validate_control_file(control_file)
         control_dir = control_file.parent
         state_dir = control_dir.parent
-        _require(control_dir.name == "control" and state_dir.is_absolute(), "control_state")
+        _require(
+            control_dir.name == "control" and state_dir.is_absolute(), "control_state"
+        )
         for path in (control_dir, state_dir):
             try:
                 info = path.lstat()
             except OSError as exc:
                 raise BridgeError("control_state") from exc
-            _require(stat.S_ISDIR(info.st_mode) and not stat.S_ISLNK(info.st_mode)
-                     and info.st_uid == os.getuid() and stat.S_IMODE(info.st_mode) == 0o700,
-                     "control_state")
+            _require(
+                stat.S_ISDIR(info.st_mode)
+                and not stat.S_ISLNK(info.st_mode)
+                and info.st_uid == os.getuid()
+                and stat.S_IMODE(info.st_mode) == 0o700,
+                "control_state",
+            )
         return state_dir
 
-    def _call(self, args: list[str]) -> dict[str, Any]:
+    def _call(self, args: list[str], *, timeout: int = 10) -> dict[str, Any]:
         self._verify_executable()
-        environment = {"PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "LANG": "C", "LC_ALL": "C"}
+        environment = {
+            "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+            "LANG": "C",
+            "LC_ALL": "C",
+        }
+        if self.enable_test_fake:
+            environment["ORCHESTRATOR_ENABLE_TEST_FAKE"] = "1"
         if os.getenv("TMPDIR"):
             environment["TMPDIR"] = os.environ["TMPDIR"]
         try:
-            completed = subprocess.run([str(self.executable), *args], stdin=subprocess.DEVNULL,
-                capture_output=True, timeout=10, check=False, env=environment)
+            completed = subprocess.run(
+                [str(self.executable), *args],
+                stdin=subprocess.DEVNULL,
+                capture_output=True,
+                timeout=timeout,
+                check=False,
+                env=environment,
+            )
         except (OSError, subprocess.TimeoutExpired) as exc:
             raise BridgeError("control_io") from exc
-        _require(completed.returncode == 0 and len(completed.stdout) <= 64 * 1024, "control_rejected")
+        _require(
+            completed.returncode == 0 and len(completed.stdout) <= 64 * 1024,
+            "control_rejected",
+        )
         try:
             response = json.loads(completed.stdout)
         except (UnicodeDecodeError, ValueError) as exc:
@@ -646,37 +697,184 @@ class ControlPlaneClient:
         _require(isinstance(response, dict), "control_output")
         return response
 
+    def collect_page(
+        self, task_id: str, *, control_file: Path, cursor: str = ""
+    ) -> tuple[list[dict[str, Any]], str]:
+        _require(_safe(task_id), "task_id")
+        _require(
+            cursor == "" or (type(cursor) is str and len(cursor) <= 256),
+            "delivery_cursor",
+        )
+        control_file = self._validate_control_file(control_file)
+        state = self._state_for_control(control_file)
+        args = [
+            "collect",
+            "--state-dir",
+            str(state),
+            "--task-id",
+            task_id,
+            "--control-file",
+            str(control_file),
+        ]
+        if cursor:
+            args.extend(["--cursor", cursor])
+        response = self._call(args)
+        events = response.get("events")
+        next_cursor = response.get("next_cursor", "")
+        _require(
+            response.get("status") == "pending"
+            and response.get("version", 1) == 1
+            and isinstance(events, list)
+            and len(events) <= 64
+            and all(isinstance(item, dict) for item in events)
+            and type(next_cursor) is str
+            and len(next_cursor) <= 256
+            and (events or not next_cursor),
+            "control_collect_output",
+        )
+        return events, next_cursor
+
     def collect(self, task_id: str, *, control_file: Path) -> list[dict[str, Any]]:
+        events, cursor = self.collect_page(task_id, control_file=control_file)
+        _require(not cursor, "control_collect_paginated")
+        return events
+
+    def submit(self, request_path: Path, *, state_dir: Path) -> dict[str, Any]:
+        request_path = self._validate_control_file(request_path)
+        state_dir = Path(state_dir)
+        try:
+            info = state_dir.lstat()
+        except OSError as exc:
+            raise BridgeError("control_state") from exc
+        _require(
+            state_dir.is_absolute()
+            and stat.S_ISDIR(info.st_mode)
+            and not stat.S_ISLNK(info.st_mode)
+            and info.st_uid == os.getuid()
+            and stat.S_IMODE(info.st_mode) == 0o700,
+            "control_state",
+        )
+        response = self._call(
+            ["submit", "--state-dir", str(state_dir), "--request", str(request_path)]
+        )
+        _require(
+            response.get("version", 1) == 1
+            and response.get("status") == "queued"
+            and _safe(response.get("run_id"))
+            and type(response.get("control_file")) is str,
+            "control_submit_output",
+        )
+        self._validate_control_file(Path(response["control_file"]))
+        _require(
+            self._state_for_control(Path(response["control_file"])) == state_dir,
+            "control_submit_output",
+        )
+        return response
+
+    def status(self, task_id: str, *, control_file: Path) -> dict[str, Any]:
         _require(_safe(task_id), "task_id")
         control_file = self._validate_control_file(control_file)
         state = self._state_for_control(control_file)
-        response = self._call(["collect", "--state-dir", str(state), "--task-id", task_id,
-                               "--control-file", str(control_file)])
-        events = response.get("events")
-        _require(response.get("status") == "pending" and response.get("version", 1) == 1
-                 and isinstance(events, list) and len(events) <= 64
-                 and all(isinstance(item, dict) for item in events), "control_collect_output")
-        return events
+        response = self._call(
+            [
+                "status",
+                "--state-dir",
+                str(state),
+                "--task-id",
+                task_id,
+                "--control-file",
+                str(control_file),
+            ]
+        )
+        _require(
+            response.get("task_id") == task_id and type(response.get("status")) is str,
+            "control_status_output",
+        )
+        return response
 
-    def rebind(self, capability: OwnerCapability, *, control_file: Path) -> dict[str, Any]:
+    def wait_events(
+        self,
+        task_id: str,
+        *,
+        control_file: Path,
+        cursor: str = "",
+        timeout_ms: int = 30_000,
+    ) -> tuple[str, list[dict[str, Any]], str]:
+        _require(
+            _safe(task_id) and type(timeout_ms) is int and 1 <= timeout_ms <= 30_000,
+            "wait_events",
+        )
+        _require(
+            cursor == "" or (type(cursor) is str and len(cursor) <= 256),
+            "delivery_cursor",
+        )
+        control_file = self._validate_control_file(control_file)
+        state = self._state_for_control(control_file)
+        args = [
+            "wait-events",
+            "--state-dir",
+            str(state),
+            "--task-id",
+            task_id,
+            "--control-file",
+            str(control_file),
+            "--timeout-ms",
+            str(timeout_ms),
+        ]
+        if cursor:
+            args.extend(["--cursor", cursor])
+        response = self._call(args, timeout=max(10, timeout_ms // 1000 + 5))
+        status, events = response.get("status"), response.get("events")
+        next_cursor = response.get("next_cursor", "")
+        _require(
+            response.get("version") == 1
+            and status in {"events", "timeout"}
+            and isinstance(events, list)
+            and len(events) <= 8
+            and all(isinstance(item, dict) for item in events)
+            and type(next_cursor) is str
+            and len(next_cursor) <= 256
+            and (
+                (status == "events" and len(events) > 0)
+                or (status == "timeout" and not events and not next_cursor)
+            ),
+            "control_wait_output",
+        )
+        return status, events, next_cursor
+
+    def rebind(
+        self, capability: OwnerCapability, *, control_file: Path
+    ) -> dict[str, Any]:
         state = self._state_for_control(control_file)
         request = build_rebind_request(capability, control_file=control_file)
-        request_path = capability.path.parent / ("rebind-" + capability.host_generation + ".json")
+        request_path = capability.path.parent / (
+            "rebind-" + capability.host_generation + ".json"
+        )
         if request_path.exists():
             _require(_stable_json(request_path) == request, "owner_rebind_conflict")
         else:
             _write_exclusive(request_path, request)
             DeliveryLedger._fsync_dir(capability.path.parent)
-        response = self._call(["rebind-owner", "--state-dir", str(state),
-                               "--request", str(request_path)])
-        _require(response.get("version") == 1 and response.get("status") == "owner_rebound"
+        response = self._call(
+            ["rebind-owner", "--state-dir", str(state), "--request", str(request_path)]
+        )
+        _require(
+            response.get("version") == 1
+            and response.get("status") == "owner_rebound"
                  and _safe(response.get("run_id"))
                  and response.get("origin_context_id") == capability.origin_context_id
                  and response.get("host_generation") == capability.host_generation,
-                 "control_rebind_output")
+            "control_rebind_output",
+        )
         return response
 
-    def ack(self, batch: DeliveryBatch, decisions: Mapping[str, Mapping[str, object]], *, control_file: Path) -> str:
+    def ack(
+        self,
+        batch: DeliveryBatch,
+        decisions: Mapping[str, Mapping[str, object]],
+        *,
+        control_file: Path,
+    ) -> str:
         request = build_ack_request(batch, decisions, control_file=control_file)
         request_path = batch.path / "controller-ack-request.json"
         if request_path.exists():
@@ -687,29 +885,50 @@ class ControlPlaneClient:
         return self._send_ack_request(batch, request_path)
 
     def replay_ack(self, batch: DeliveryBatch) -> str:
-        _require(batch.status == "history_confirmed" and _hash(batch.history_proof_sha256), "history_not_confirmed")
+        _require(
+            batch.status == "history_confirmed" and _hash(batch.history_proof_sha256),
+            "history_not_confirmed",
+        )
         request_path = batch.path / "controller-ack-request.json"
         request = _stable_json(request_path)
-        _require(request.get("version") == 1 and request.get("task_id") == batch.task_id
+        _require(
+            request.get("version") == 1
+            and request.get("task_id") == batch.task_id
                  and request.get("delivery_id") == batch.delivery_id
                  and request.get("history_proof_sha256") == batch.history_proof_sha256
-                 and isinstance(request.get("decisions"), list), "controller_ack_conflict")
+            and isinstance(request.get("decisions"), list),
+            "controller_ack_conflict",
+        )
         self._validate_control_file(Path(request.get("control_file", "")))
         return self._send_ack_request(batch, request_path)
 
     def _send_ack_request(self, batch: DeliveryBatch, request_path: Path) -> str:
         request = _stable_json(request_path)
-        control_file = self._validate_control_file(Path(request.get("control_file", "")))
+        control_file = self._validate_control_file(
+            Path(request.get("control_file", ""))
+        )
         state = self._state_for_control(control_file)
-        response = self._call(["ack", "--state-dir", str(state), "--request", str(request_path)])
-        _require(isinstance(response, dict) and response.get("version") == 1
+        response = self._call(
+            ["ack", "--state-dir", str(state), "--request", str(request_path)]
+        )
+        _require(
+            isinstance(response, dict)
+            and response.get("version") == 1
                  and response.get("status") == "acknowledged"
-                 and response.get("delivery_id") == batch.delivery_id, "control_ack_output")
+            and response.get("delivery_id") == batch.delivery_id,
+            "control_ack_output",
+        )
         digest = hashlib.sha256(_canonical(response)).hexdigest()
         receipt_path = batch.path / "controller-ack-receipt.json"
-        receipt = {"version": 1, "delivery_id": batch.delivery_id, "response_sha256": digest}
+        receipt = {
+            "version": 1,
+            "delivery_id": batch.delivery_id,
+            "response_sha256": digest,
+        }
         if receipt_path.exists():
-            _require(_stable_json(receipt_path) == receipt, "controller_ack_receipt_conflict")
+            _require(
+                _stable_json(receipt_path) == receipt, "controller_ack_receipt_conflict"
+            )
         else:
             _write_exclusive(receipt_path, receipt)
             DeliveryLedger._fsync_dir(batch.path)

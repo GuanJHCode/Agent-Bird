@@ -325,6 +325,27 @@ def test_control_plane_collect_does_not_read_or_copy_control_token(tmp_path):
     assert control.read_text() == "this-is-an-opaque-token-file"
 
 
+def test_control_plane_wait_events_preserves_actionable_cursor(tmp_path):
+    control = make_control_file(tmp_path)
+    captured = tmp_path / "wait-argv.json"
+    executable = tmp_path / "fake-orchestrator"
+    payload = {"version": 1, "status": "events", "events": events(),
+               "next_cursor": "delivery-v1-7-0123456789abcdef01234567"}
+    executable.write_text(
+        "#!" + sys.executable + "\nimport json,sys\n"
+        f"open({str(captured)!r},'w').write(json.dumps(sys.argv))\n"
+        f"print({json.dumps(json.dumps(payload))})\n"
+    )
+    executable.chmod(0o700)
+    client = ControlPlaneClient(executable, hashlib.sha256(executable.read_bytes()).hexdigest())
+    status, pending, cursor = client.wait_events("task-a", control_file=control,
+        cursor="delivery-v1-3-fedcba987654321001234567", timeout_ms=1000)
+    assert status == "events" and pending == events() and cursor == payload["next_cursor"]
+    argv = json.loads(captured.read_text())
+    assert argv[1] == "wait-events" and "--cursor" in argv and "--timeout-ms" in argv
+    assert "--include-diagnostics" not in argv
+
+
 def test_owner_capability_generation_advances_for_same_thread_new_tui(tmp_path):
     store = OwnerCapabilityStore(tmp_path / "owner-capabilities")
     first = attachment()
