@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "kind": "root_observed_package_verification",
+  "provenance": "Archive of root tool outputs, not a raw log; no checks rerun to create this record.",
+  "source_commit": "fc03620dc68aa982f335bd96bef768da9ba0df8a",
+  "package_version": "0.1.0-rc6",
+  "binary_sha256": "f258ab25f5fd8eafa8e08fddc28d630bb342378f7c9fa65cd8c259d6da8b28c4",
+  "installed_manifest_sha256": "5583bc69b4b761e6f36ca2848029ae7b12860a1e2bc772ebcd17451075bd7992",
+  "runtime_manifest_sha256": "9b1834834d80618dc9793ce421a8fe0da2dcec65f5a8cb958d24519d7eeaab73",
+  "checks": [
+    {
+      "operation": "pinned Go build -trimpath from clean fc03620 worktree",
+      "exit_code": 0
+    },
+    {
+      "operation": "package-plugin.sh",
+      "exit_code": 0
+    },
+    {
+      "operation": "project-local install rc6",
+      "exit_code": 0
+    },
+    {
+      "operation": "installed rc6 Doctor before and after native case",
+      "exit_code": 0,
+      "healthy": true,
+      "issues": null,
+      "retained_rc3_pin": "native-product-task"
+    },
+    {
+      "operation": "bundled validate_plugin.py on rc6",
+      "exit_code": 0
+    },
+    {
+      "operation": "root native-product-10",
+      "exit_code": 0,
+      "status": "pass"
+    },
+    {
+      "operation": "root independent postflight",
+      "recorded_process_count": 15,
+      "all_recorded_identities_gone": true,
+      "public_socket_absent": true
+    },
+    {
+      "operation": "uninstall obsolete temporary rc4 and rc5",
+      "exit_code": 0,
+      "status": "removed"
+    }
+  ],
+  "incremental_verification": [
+    {
+      "source": "collaborator-observed",
+      "scope": "streamed artifact digest, bootstrap versus watch lifetime, owner exit under fake clock",
+      "result": "entrypoint 5 passed"
+    },
+    {
+      "source": "root-observed",
+      "scope": "combined new Go driver DTO and Python lifecycle before isolated raw-log Host patch",
+      "command": "ORCHESTRATOR_PRODUCT_BINARY=<rc5 binary> pytest -q -p no:cacheprovider tools/native-product-bridge/test_local_product_driver.py",
+      "result": "1 passed in 1.78s"
+    },
+    {
+      "source": "collaborator-observed",
+      "scope": "Host raw diagnostics followed by strict valid terminal; malformed structured provider boundaries; host/adapter vet",
+      "result": "passed"
+    }
+  ],
+  "same_timeline_diagnostic_frames_mib": [
+    120.421875,
+    122.9375
+  ],
+  "same_timeline_scope": "Two one-Host snapshots; no report helpers. Not a sustained joint resource benchmark.",
+  "skill_validation": "Collaborator quick_validate after watch lifetime documentation change passed; rc6 Skill bytes unchanged from that source.",
+  "permanent_installation": false,
+  "global_configuration_changed": false,
+  "external_model_calls": 0,
+  "native_evidence": "cases/native-product-10/acceptance.json",
+  "resource_acceptance": "Separate G1 core scenarios; final unknown output run in progress."
+}

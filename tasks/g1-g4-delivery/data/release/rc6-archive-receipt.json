@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "archive": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g1-g4-delivery/data/release/codex-orchestrator-0.1.0-rc6.tar.gz",
+  "sha256": "cc0043af6900a3c917a72931371be918e37897a5764c020f2f052de2b4cf1e41",
+  "bytes": 6810308,
+  "package_manifest_sha256": "40c190c8937367b83412e1cfa8e6f3e069d3169924b8b02ac6d3b39007a6d8e9",
+  "verified_manifest_files": 19,
+  "extraction_performed": false
+}
