@@ -31,6 +31,8 @@ type Host struct {
 	publishMu     sync.Mutex
 	grantMu       sync.Mutex
 	reservations  map[string]time.Time
+	stopMu        sync.Mutex
+	stopRequested map[string]bool
 }
 
 func New(db *store.DB, spoolRoot string) (*Host, error) {
@@ -57,7 +59,7 @@ func newHost(db *store.DB, spoolRoot, producerID string) (*Host, error) {
 	if err := os.MkdirAll(spoolRoot, 0700); err != nil {
 		return nil, err
 	}
-	return &Host{db: db, spoolRoot: spoolRoot, active: map[string]*process.Handle{}, activeBySeg: map[string]*process.Handle{}, producerID: producerID, sequencePath: filepath.Join(spoolRoot, ".producer-sequence"), publishedPath: filepath.Join(spoolRoot, ".producer-published"), reservations: map[string]time.Time{}}, nil
+	return &Host{db: db, spoolRoot: spoolRoot, active: map[string]*process.Handle{}, activeBySeg: map[string]*process.Handle{}, producerID: producerID, sequencePath: filepath.Join(spoolRoot, ".producer-sequence"), publishedPath: filepath.Join(spoolRoot, ".producer-published"), reservations: map[string]time.Time{}, stopRequested: map[string]bool{}}, nil
 }
 func (h *Host) spool(a store.Attempt) (*events.Spool, error) {
 	return events.Open(filepath.Join(h.spoolRoot, a.ID, a.SegmentID))
@@ -131,6 +133,27 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		}()
 		return eventErr
 	}
+	finalizeStopped := func(identity *process.Identity, exit int, cause error) (contract.Result, error) {
+		if err = publishLaunchPhase(spool, "stopped", a, runID, taskID, cmd, identity, cause); err != nil {
+			h.finishAttempt(a.ID, "unknown", persistDB)
+			return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount}, err
+		}
+		if err = appendPhase(contract.EventStopped, hashText("stopped:"+a.SegmentID), identity, &exit, nil); err != nil {
+			h.finishAttempt(a.ID, "unknown", persistDB)
+			return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount}, err
+		}
+		if err = publishLaunchPhase(spool, "exited", a, runID, taskID, cmd, identity, nil); err != nil {
+			h.finishAttempt(a.ID, "unknown", persistDB)
+			return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount}, err
+		}
+		if err = appendPhase(contract.EventExited, hashText("exited:"+a.SegmentID), identity, &exit, nil); err != nil {
+			h.finishAttempt(a.ID, "unknown", persistDB)
+			return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount}, err
+		}
+		h.finishAttempt(a.ID, "interrupted", persistDB)
+		return contract.Result{Status: "interrupted", ExitCode: exit, EventCount: eventCount}, cause
+	}
+
 	startHash := hashText("segment_started:" + a.SegmentID)
 	if err = publishLaunchPhase(spool, "prepared", a, runID, taskID, cmd, nil, nil); err != nil {
 		h.finishAttempt(a.ID, "failed", persistDB)
@@ -139,6 +162,9 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 	if err = appendPhase(contract.EventPrepared, startHash, nil, nil, nil); err != nil {
 		h.finishAttempt(a.ID, "unknown", persistDB)
 		return contract.Result{Status: "unknown", ExitCode: -1, EventCount: eventCount}, err
+	}
+	if h.stopWasRequested(a.SegmentID) {
+		return finalizeStopped(nil, -1, context.Canceled)
 	}
 	p, err := process.Start(ctx, cmd)
 	if err != nil {
@@ -183,7 +209,18 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 	h.active[a.ID] = p
 	h.activeBySeg[a.SegmentID] = p
 	h.mu.Unlock()
-	defer func() { h.mu.Lock(); delete(h.active, a.ID); delete(h.activeBySeg, a.SegmentID); h.mu.Unlock() }()
+	defer func() {
+		h.mu.Lock()
+		delete(h.active, a.ID)
+		delete(h.activeBySeg, a.SegmentID)
+		h.mu.Unlock()
+		h.clearStop(a.SegmentID)
+	}()
+	if h.stopWasRequested(a.SegmentID) {
+		stopCtx, stopCancel := context.WithTimeout(context.Background(), 2*time.Second)
+		_ = p.Stop(stopCtx)
+		stopCancel()
+	}
 	waitErr := p.Wait(ctx)
 	if waitErr != nil {
 		stopErr := p.Stop(ctx)
@@ -196,24 +233,12 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 			return contract.Result{Status: "unknown", ExitCode: p.ExitCode(), EventCount: eventCount, OutputHash: hashText(p.Output())}, stopErr
 		}
 		exit := p.ExitCode()
-		if err = publishLaunchPhase(spool, "stopped", a, runID, taskID, cmd, &identity, waitErr); err != nil {
-			h.finishAttempt(a.ID, "unknown", persistDB)
-			return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount, OutputHash: hashText(p.Output())}, err
-		}
-		if err = appendPhase(contract.EventStopped, hashText("stopped:"+a.SegmentID), &identity, &exit, nil); err != nil {
-			h.finishAttempt(a.ID, "unknown", persistDB)
-			return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount, OutputHash: hashText(p.Output())}, err
-		}
-		if err = publishLaunchPhase(spool, "exited", a, runID, taskID, cmd, &identity, nil); err != nil {
-			h.finishAttempt(a.ID, "unknown", persistDB)
-			return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount, OutputHash: hashText(p.Output())}, err
-		}
-		if err = appendPhase(contract.EventExited, hashText("exited:"+a.SegmentID), &identity, &exit, nil); err != nil {
-			h.finishAttempt(a.ID, "unknown", persistDB)
-			return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount, OutputHash: hashText(p.Output())}, err
-		}
-		h.finishAttempt(a.ID, "interrupted", persistDB)
-		return contract.Result{Status: "interrupted", ExitCode: exit, EventCount: eventCount, OutputHash: hashText(p.Output())}, waitErr
+		result, stoppedErr := finalizeStopped(&identity, exit, waitErr)
+		result.OutputHash = hashText(p.Output())
+		return result, stoppedErr
+	}
+	if h.stopWasRequested(a.SegmentID) || p.ExitCode() < 0 {
+		return finalizeStopped(&identity, p.ExitCode(), context.Canceled)
 	}
 	status := "result_ready"
 	if p.ExitCode() < 0 {
@@ -425,13 +450,31 @@ func (h *Host) Cancel(ctx context.Context, a store.Attempt) error {
 // StopSegment stops only the process group owned by segment. It never signals
 // a caller-selected PID or a process outside the Host registry.
 func (h *Host) StopSegment(ctx context.Context, segmentID string) error {
+	if segmentID == "" {
+		return errors.New("segment_required")
+	}
+	h.stopMu.Lock()
+	h.stopRequested[segmentID] = true
+	h.stopMu.Unlock()
 	h.mu.Lock()
 	p := h.activeBySeg[segmentID]
 	h.mu.Unlock()
 	if p == nil {
-		return errors.New("segment_not_active")
+		return nil
 	}
 	return p.Stop(ctx)
+}
+
+func (h *Host) stopWasRequested(segmentID string) bool {
+	h.stopMu.Lock()
+	defer h.stopMu.Unlock()
+	return h.stopRequested[segmentID]
+}
+
+func (h *Host) clearStop(segmentID string) {
+	h.stopMu.Lock()
+	delete(h.stopRequested, segmentID)
+	h.stopMu.Unlock()
 }
 
 // StopAll is used when the source IPC connection ends. Each registered handle
@@ -447,6 +490,11 @@ func (h *Host) StopAll(ctx context.Context) {
 		}
 	}
 	h.mu.Unlock()
+	h.stopMu.Lock()
+	for segmentID := range h.activeBySeg {
+		h.stopRequested[segmentID] = true
+	}
+	h.stopMu.Unlock()
 	for _, p := range processes {
 		_ = p.Stop(ctx)
 	}
