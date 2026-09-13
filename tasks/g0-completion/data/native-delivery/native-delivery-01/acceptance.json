@@ -1,0 +1,45 @@
+{
+  "case": "native-delivery-01",
+  "runner_status": "unknown",
+  "failure": {
+    "stage": "helper-proof",
+    "type": "ValueError",
+    "errno": null,
+    "message_sha256": "f5306bf8b4d23c28d2b35a38443b20da623168f2836706b03e10ed8a41405d96"
+  },
+  "auth_comparison": {
+    "unchanged": true,
+    "changed_path_ids": []
+  },
+  "synthetic_auth_absent": true,
+  "private_socket_absent": true,
+  "public_socket_absent": true,
+  "owned_backend_absent": true,
+  "thread_id": "01a09911-3045-77f0-b7ee-df2996ba6ebc",
+  "python_owner_verified": true,
+  "ordinary_tui_verified": false,
+  "go_status": null,
+  "history_verified": false,
+  "durable_history_verified": false,
+  "business_ack_verified": false,
+  "synthetic_endpoint": {
+    "version": 1,
+    "synthetic_only": true,
+    "external_model_calls": 0,
+    "accepted_requests": 1,
+    "attempts": 1,
+    "requests": [
+      {
+        "attempt": 1,
+        "bytes": 37558,
+        "sha256": "58ba52c509fbb0a93d92d4527993479eeaf26c5a76c5e2544e7afcaa1c9194c0",
+        "status": 200,
+        "stage": 0,
+        "synthetic_only": true
+      }
+    ]
+  },
+  "launchd_registration_performed": false,
+  "external_model_calls": 0,
+  "status": "unknown"
+}
