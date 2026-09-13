@@ -101,6 +101,15 @@ the current service/TUI/helper binding and package/runtime pins before collect,
 send, reconciliation, ACK, or owner rebind. A control file alone is not native
 attachment evidence.
 
+```text
+invoke.sh native-bridge helper --request <absolute-0600-launch-request>
+invoke.sh native-bridge rebind --request <absolute-0600-rebind-request>
+```
+
+The helper requires the matching installed `runtime/g0` manifest used by the
+active attachment service. Do not substitute source files from a repository or
+another installed runtime.
+
 ## Explicit recovery and stop
 
 After a user explicitly requests recovery, fetch fresh status and run:

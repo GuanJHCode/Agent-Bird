@@ -71,8 +71,8 @@ def digest(path):
 
 def validate_runtime(request):
     required = {"version", "package_root", "package_manifest", "package_manifest_sha256",
-                "interpreter", "interpreter_sha256", "g0_manifest", "g0_manifest_sha256",
-                "g0_modules"}
+                "interpreter", "interpreter_sha256", "g0_runtime_root",
+                "g0_runtime_manifest", "g0_runtime_manifest_sha256", "g0_modules"}
     require(isinstance(request, dict) and set(request) == required and request["version"] == 1,
             "request_shape")
     interpreter = Path(request["interpreter"])
@@ -82,8 +82,12 @@ def validate_runtime(request):
 
     package_root = Path(request["package_root"])
     manifest_path = Path(request["package_manifest"])
-    require(package_root.is_absolute() and manifest_path == package_root / "manifest.json",
+    require(package_root.is_absolute() and package_root.resolve() == package_root
+            and manifest_path == package_root / "manifest.json",
             "package_binding")
+    package_info = package_root.lstat()
+    require(stat.S_ISDIR(package_info.st_mode) and package_info.st_uid == os.getuid()
+            and stat.S_IMODE(package_info.st_mode) == 0o700, "package_binding")
     require(digest(manifest_path) == request["package_manifest_sha256"], "package_manifest_changed")
     manifest = stable_json(manifest_path)
     files = manifest.get("files")
@@ -100,21 +104,43 @@ def validate_runtime(request):
         require(stat.S_ISREG(info.st_mode) and stat.S_IMODE(info.st_mode) == row.get("mode")
                 and digest(path) == row.get("sha256"), "package_source_changed")
 
-    g0_manifest_path = Path(request["g0_manifest"])
-    require(g0_manifest_path.is_absolute()
-            and digest(g0_manifest_path) == request["g0_manifest_sha256"], "g0_manifest_changed")
+    runtime_root = Path(request["g0_runtime_root"])
+    g0_manifest_path = Path(request["g0_runtime_manifest"])
+    require(runtime_root.is_absolute() and runtime_root.resolve() == runtime_root
+            and g0_manifest_path == runtime_root / "runtime-manifest.json",
+            "g0_runtime_root")
+    runtime_info = runtime_root.lstat()
+    require(stat.S_ISDIR(runtime_info.st_mode) and runtime_info.st_uid == os.getuid()
+            and stat.S_IMODE(runtime_info.st_mode) == 0o700, "g0_runtime_root")
+    require(digest(g0_manifest_path) == request["g0_runtime_manifest_sha256"], "g0_manifest_changed")
     g0_manifest = stable_json(g0_manifest_path)
-    pins = g0_manifest.get("file_pins")
+    interpreter_pin = g0_manifest.get("interpreter")
+    rows = g0_manifest.get("files")
     modules = request["g0_modules"]
     required_modules = {"delivery_adapter", "delivery_audit", "owner_helper", "proxy_transport", "receipt_store"}
-    require(isinstance(pins, dict) and isinstance(modules, dict)
+    require(g0_manifest.get("version") == 1 and isinstance(interpreter_pin, dict)
+            and set(interpreter_pin) == {"path", "sha256"}
+            and interpreter_pin["path"] == request["interpreter"]
+            and interpreter_pin["sha256"] == request["interpreter_sha256"]
+            and isinstance(rows, list) and isinstance(modules, dict)
             and set(modules) == required_modules, "g0_runtime_shape")
+    pins = {}
+    for row in rows:
+        require(isinstance(row, dict) and set(row) == {"logical_id", "path", "sha256", "mode"}
+                and isinstance(row["logical_id"], str) and isinstance(row["path"], str)
+                and Path(row["path"]).name == row["path"] and row["logical_id"] not in pins,
+                "g0_runtime_manifest")
+        pins[row["logical_id"]] = row
     checked = {}
     for name in sorted(required_modules):
         path = Path(modules[name])
-        require(path.is_absolute() and path.name == name + ".py", "g0_module_path")
-        expected_hash = pins.get(str(path))
-        require(isinstance(expected_hash, str) and digest(path) == expected_hash, "g0_module_changed")
+        row = pins.get(name)
+        require(isinstance(row, dict) and path == runtime_root / row["path"]
+                and path.name == name + ".py", "g0_module_path")
+        info = path.lstat()
+        require(stat.S_ISREG(info.st_mode) and info.st_uid == os.getuid()
+                and stat.S_IMODE(info.st_mode) == row["mode"]
+                and digest(path) == row["sha256"], "g0_module_changed")
         checked[name] = path
     return checked
 
@@ -244,9 +270,12 @@ async def run_helper():
     delivery_adapter = modules["delivery_adapter"]
     bridge_core = modules["bridge"]
     validate_controller_parent(config, proxy_transport)
-    require(config["manifest_path"] == config["runtime"]["g0_manifest"]
-            and config["manifest_sha256"] == config["runtime"]["g0_manifest_sha256"],
-            "manifest_binding")
+    service_manifest = stable_json(config["manifest_path"], private=True)
+    require(digest(config["manifest_path"]) == config["manifest_sha256"], "manifest_binding")
+    service_pins = service_manifest.get("file_pins")
+    require(isinstance(service_pins, dict)
+            and all(service_pins.get(path) == digest(path)
+                    for path in config["runtime"]["g0_modules"].values()), "manifest_binding")
     grant = stable_json(config["grant_path"], private=True)
     require(digest(config["grant_path"]) == config["grant_sha256"]
             and grant.get("version") == 1 and grant.get("role") == "owner-helper"
@@ -271,8 +300,7 @@ async def run_helper():
             and admitted["role"] == "helper" and admitted["lease_id"] == grant["lease_id"]
             and admitted["manifest_sha256"] == config["manifest_sha256"]
             and admitted["grant_sha256"] == config["grant_sha256"], "helper_admission")
-    manifest = stable_json(config["manifest_path"], private=True)
-    store = receipt_store.ReceiptStore(Path(manifest["state_dir"]))
+    store = receipt_store.ReceiptStore(Path(service_manifest["state_dir"]))
     connection = None
     ledger = None
     batch = None

@@ -23,6 +23,7 @@ def private_json(path, value):
 
 def test_packaged_entrypoint_requires_pinned_interpreter_package_and_g0_runtime(tmp_path):
     package = tmp_path / "package"
+    package.mkdir(mode=0o700)
     (package / "scripts").mkdir(parents=True)
     (package / "lib" / "native_bridge").mkdir(parents=True)
     entry = package / "scripts" / ENTRY.name
@@ -40,19 +41,22 @@ def test_packaged_entrypoint_requires_pinned_interpreter_package_and_g0_runtime(
         ],
     })
     runtime = tmp_path / "g0-runtime"
-    runtime.mkdir()
+    runtime.mkdir(mode=0o700)
     modules = {}
     for name in ("delivery_adapter", "delivery_audit", "owner_helper", "proxy_transport", "receipt_store"):
         path = runtime / f"{name}.py"
         path.write_text(f"NAME={name!r}\n")
         path.chmod(0o600)
         modules[name] = str(path)
-    g0_manifest = tmp_path / "g0-manifest.json"
+    interpreter = Path(sys.executable).resolve()
+    g0_manifest = runtime / "runtime-manifest.json"
     private_json(g0_manifest, {
         "version": 1,
-        "file_pins": {path: sha(path) for path in modules.values()},
+        "interpreter": {"path": str(interpreter), "sha256": sha(interpreter)},
+        "files": [{"logical_id": name, "path": Path(path).name,
+                   "sha256": sha(path), "mode": Path(path).stat().st_mode & 0o777}
+                  for name, path in modules.items()],
     })
-    interpreter = Path(sys.executable).resolve()
     request = tmp_path / "request.json"
     private_json(request, {
         "version": 1,
@@ -61,8 +65,9 @@ def test_packaged_entrypoint_requires_pinned_interpreter_package_and_g0_runtime(
         "package_manifest_sha256": sha(package_manifest),
         "interpreter": str(interpreter),
         "interpreter_sha256": sha(interpreter),
-        "g0_manifest": str(g0_manifest),
-        "g0_manifest_sha256": sha(g0_manifest),
+        "g0_runtime_root": str(runtime),
+        "g0_runtime_manifest": str(g0_manifest),
+        "g0_runtime_manifest_sha256": sha(g0_manifest),
         "g0_modules": modules,
     })
     completed = subprocess.run([str(interpreter), "-B", str(entry), "self-check", "--request", str(request)], capture_output=True, text=True)

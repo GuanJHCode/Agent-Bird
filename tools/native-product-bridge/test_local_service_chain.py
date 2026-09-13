@@ -37,10 +37,24 @@ DELIVERY_ADAPTER = ROOT / "tasks" / "g0-completion" / "scripts" / "delivery_adap
 DELIVERY_AUDIT = ROOT / "tasks" / "g0-pending-resolution" / "scripts" / "delivery_audit.py"
 RECEIPT_STORE = ROOT / "tasks" / "g0-global-delivery-validation" / "scripts" / "receipt_store.py"
 BACKEND = ROOT / "tasks" / "g0-completion" / "tests" / "fixtures" / "owner_helper_tool_backend.py"
+RUNTIME_SOURCES = {
+    "projectproxy_launchd_entrypoint": ROOT / "tasks/g0-proxy-continuation/cold-start/scripts/projectproxy_launchd_entrypoint.py",
+    "launch_activation": ROOT / "tasks/g0-proxy-continuation/cold-start/scripts/launch_activation.py",
+    "activation_service": ROOT / "tasks/g0-proxy-continuation/cold-start/scripts/activation_service.py",
+    "proxy_transport": ROOT / "tasks/g0-tui-proxy/scripts/proxy_transport.py",
+    "proxy_observer": ROOT / "tasks/g0-tui-proxy/scripts/proxy_observer.py",
+    "owned_child_guard": ROOT / "tasks/g0-tui-proxy/scripts/owned_child_guard.py",
+    "owner_helper": OWNER_HELPER,
+    "auth_isolation": ROOT / "tasks/g0-auth-preserving-activation/scripts/auth_isolation.py",
+    "delivery_adapter": DELIVERY_ADAPTER,
+    "delivery_audit": DELIVERY_AUDIT,
+    "receipt_store": RECEIPT_STORE,
+}
 
 
 def package_copy(root):
     package = root / "package"
+    package.mkdir(mode=0o700)
     (package / "scripts").mkdir(parents=True)
     (package / "lib" / "native_bridge").mkdir(parents=True)
     entry = package / "scripts" / ENTRY.name
@@ -63,6 +77,28 @@ def package_copy(root):
     return package, entry, manifest
 
 
+def runtime_copy(root, interpreter):
+    runtime = root / "runtime" / "g0"
+    runtime.mkdir(parents=True, mode=0o700)
+    paths = {}
+    rows = []
+    for logical_id, source in RUNTIME_SOURCES.items():
+        target = runtime / source.name
+        shutil.copyfile(source, target)
+        mode = 0o700 if logical_id == "projectproxy_launchd_entrypoint" else 0o644
+        target.chmod(mode)
+        paths[logical_id] = str(target)
+        rows.append({"logical_id": logical_id, "path": target.name,
+                     "sha256": digest(target), "mode": mode})
+    manifest = runtime / "runtime-manifest.json"
+    private_json(manifest, {"version": 1,
+        "interpreter": {"path": interpreter, "sha256": digest(interpreter)},
+        "files": rows})
+    modules = {name: paths[name] for name in
+        ("delivery_adapter", "delivery_audit", "owner_helper", "proxy_transport", "receipt_store")}
+    return runtime, manifest, modules, paths
+
+
 def send(process, value):
     process.stdin.write(json.dumps(value, sort_keys=True, separators=(",", ":")).encode() + b"\n")
 
@@ -81,25 +117,18 @@ def test_real_local_service_admission_bridges_g1_event_and_ack(tmp_path):
             root = Path(raw)
             public = root / "public.sock"
             binary = str(Path(proxy_transport._process_metadata(os.getpid())[1]))
+            runtime_root, runtime_manifest, modules, runtime_paths = runtime_copy(root, binary)
             manifest, profiles, grants = policy(root, public, binary, roots)
             value = json.loads(manifest.read_text())
             backend_receipt = Path(profiles["a"]["workspace"]) / "backend-receipt.json"
             value["backend_argv"] = [binary, "-B", str(BACKEND), "{socket_path}", str(backend_receipt)]
-            modules = {
-                "delivery_adapter": str(DELIVERY_ADAPTER),
-                "delivery_audit": str(DELIVERY_AUDIT),
-                "owner_helper": str(OWNER_HELPER),
-                "proxy_transport": str(ROOT / "tasks" / "g0-tui-proxy" / "scripts" / "proxy_transport.py"),
-                "receipt_store": str(RECEIPT_STORE),
-            }
-            pinned = [BACKEND, Path(activation_service.__file__), OWNER_HELPER, DELIVERY_ADAPTER,
-                      DELIVERY_AUDIT, Path(modules["proxy_transport"]), RECEIPT_STORE]
+            pinned = [BACKEND, *(Path(path) for path in runtime_paths.values())]
             value["file_pins"] = {str(path): digest(path) for path in pinned}
             value["owner_helper"] = {
                 "executable": binary,
                 "executable_sha256": digest(binary),
-                "source_path": str(OWNER_HELPER),
-                "source_sha256": digest(OWNER_HELPER),
+                "source_path": runtime_paths["owner_helper"],
+                "source_sha256": digest(runtime_paths["owner_helper"]),
             }
             private_json(manifest, value)
             owner_script = root / "owner.py"
@@ -163,14 +192,16 @@ def test_real_local_service_admission_bridges_g1_event_and_ack(tmp_path):
                     "owner_thread_id": lease.owner_thread_id, "private_socket": lease.private_socket,
                     "helper_pid": bridge.pid, "helper_uid": os.getuid(), "helper_birth": helper_birth,
                     "helper_executable": helper_executable, "helper_executable_sha256": digest(binary),
-                    "helper_source_sha256": digest(OWNER_HELPER)}
+                    "helper_source_sha256": digest(runtime_paths["owner_helper"])}
                 grant_path = grants / f"{bridge.pid}.json"
                 private_json(grant_path, grant)
                 controller_birth, controller_executable = proxy_transport._process_metadata(os.getpid())
                 runtime = {"version": 1, "package_root": str(package),
                     "package_manifest": str(package_manifest), "package_manifest_sha256": digest(package_manifest),
                     "interpreter": binary, "interpreter_sha256": digest(binary),
-                    "g0_manifest": str(manifest), "g0_manifest_sha256": digest(manifest),
+                    "g0_runtime_root": str(runtime_root),
+                    "g0_runtime_manifest": str(runtime_manifest),
+                    "g0_runtime_manifest_sha256": digest(runtime_manifest),
                     "g0_modules": modules}
                 config = {"version": 1, "runtime": runtime, "manifest_path": str(manifest),
                     "manifest_sha256": digest(manifest), "grant_path": str(grant_path),
