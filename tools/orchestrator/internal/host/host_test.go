@@ -23,7 +23,12 @@ import (
 func TestNormalLeaderExitWithSurvivingProcessGroupStaysUnknown(t *testing.T) {
 	if os.Getenv("G1_ORPHAN_LEADER") == "1" {
 		child := exec.Command(os.Args[0], "-test.run=TestNormalLeaderExitWithSurvivingProcessGroupStaysUnknown")
-		child.Env = append(os.Environ(), "G1_ORPHAN_SURVIVOR=1")
+		for _, value := range os.Environ() {
+			if !strings.HasPrefix(value, "G1_ORPHAN_LEADER=") {
+				child.Env = append(child.Env, value)
+			}
+		}
+		child.Env = append(child.Env, "G1_ORPHAN_SURVIVOR=1")
 		child.Stdout, child.Stderr = nil, nil
 		if err := child.Start(); err != nil {
 			os.Exit(2)
@@ -229,6 +234,10 @@ func TestStructuredProviderTerminalControlsOutcome(t *testing.T) {
 		case "nonzero":
 			_, _ = os.Stdout.WriteString(`{"type":"result","subtype":"success","session_id":"claude-session","result":"structured answer"}` + "\n")
 			os.Exit(7)
+		case "grok-stream":
+			_, _ = os.Stdout.WriteString(`{"type":"text","sessionId":"grok-session","data":"hello "}` + "\n")
+			_, _ = os.Stdout.WriteString(`{"type":"text","sessionId":"grok-session","data":"world"}` + "\n")
+			_, _ = os.Stdout.WriteString(`{"type":"end","sessionId":"grok-session","stopReason":"end_turn"}` + "\n")
 		}
 		os.Exit(0)
 	}
@@ -244,6 +253,7 @@ func TestStructuredProviderTerminalControlsOutcome(t *testing.T) {
 		{"waiting", "waiting", "antigravity-cli", "waiting_user", contract.EventQuestion, "conversation-id", "agy-session", "Choose the package"},
 		{"missing terminal", "missing-terminal", "claude-code", "failed", contract.EventFailed, "session-id", "claude-session", ""},
 		{"nonzero", "nonzero", "claude-code", "failed", contract.EventFailed, "session-id", "claude-session", "structured answer"},
+		{"grok stream", "grok-stream", "grok-build", "result_ready", contract.EventResult, "session-id", "grok-session", "hello world"},
 	}
 	for index, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

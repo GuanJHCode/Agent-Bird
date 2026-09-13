@@ -47,7 +47,12 @@ func TestOwnedProcessCapturesAndStopsRealChild(t *testing.T) {
 func TestStopDoesNotClaimExitedLeaderProcessGroupWasCleared(t *testing.T) {
 	if os.Getenv("G1_GROUP_LEADER") == "1" {
 		child := exec.Command(os.Args[0], "-test.run=TestStopDoesNotClaimExitedLeaderProcessGroupWasCleared")
-		child.Env = append(os.Environ(), "G1_GROUP_SURVIVOR=1")
+		for _, value := range os.Environ() {
+			if !strings.HasPrefix(value, "G1_GROUP_LEADER=") {
+				child.Env = append(child.Env, value)
+			}
+		}
+		child.Env = append(child.Env, "G1_GROUP_SURVIVOR=1")
 		child.Stdout, child.Stderr = nil, nil
 		if err := child.Start(); err != nil {
 			os.Exit(2)

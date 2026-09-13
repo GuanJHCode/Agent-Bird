@@ -21,6 +21,7 @@ type protocolCollector struct {
 	err             error
 	terminal        *adapter.Event
 	sessionID       string
+	message         []byte
 	droppedOversize int
 }
 
@@ -125,6 +126,14 @@ func (p *protocolCollector) accept(event adapter.Event) {
 		}
 		p.sessionID = event.SessionID
 	}
+	if event.Kind == adapter.EventMessage && p.provider == adapter.ProviderGrok && event.Text != "" {
+		if len(p.message) > providerEventLimit-len(event.Text) {
+			p.err = errors.New("provider_critical_event_too_large")
+			return
+		}
+		p.message = append(p.message, event.Text...)
+		return
+	}
 	if event.Kind != adapter.EventResult && event.Kind != adapter.EventQuestion {
 		return
 	}
@@ -149,6 +158,9 @@ func (p *protocolCollector) Finish() (adapter.Event, string, error) {
 		return adapter.Event{}, p.sessionID, errors.New("provider_terminal_missing")
 	}
 	terminal := *p.terminal
+	if terminal.Text == "" && p.provider == adapter.ProviderGrok {
+		terminal.Text = string(p.message)
+	}
 	if terminal.SessionID == "" {
 		terminal.SessionID = p.sessionID
 	}
