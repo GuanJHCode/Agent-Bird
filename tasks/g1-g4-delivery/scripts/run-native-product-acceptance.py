@@ -11,6 +11,9 @@ from pathlib import Path
 import re
 import sys
 
+SCRIPTS = Path(__file__).resolve().parent
+sys.path.insert(0, str(SCRIPTS))
+
 from native_product_plan import PlanError, prepare_plan, verify_plan
 
 
