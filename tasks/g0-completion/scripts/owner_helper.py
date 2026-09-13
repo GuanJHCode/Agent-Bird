@@ -75,8 +75,22 @@ _SERVER_NOTIFICATIONS = frozenset(
         "mcpServer/startupStatus/updated",
         "item/agentMessage/delta",
         "account/rateLimits/updated",
+        "deprecationNotice",
     }
 )
+_PAGINATED_READ_DEPRECATION = (
+    "Full-history hydration is deprecated for paginated threads; omit `includeTurns` "
+    "or set it to `false`, then page with `thread/turns/list` and `thread/items/list`."
+)
+_WIRE_REJECTION_REASONS = frozenset({
+    "server_notification_forbidden", "server_notification_params", "server_notification_emitted_at_ms",
+    "server_request_forbidden", "deprecation_notice_envelope", "response_envelope", "response_id",
+    "response_id_mismatch", "response_thread_target", "response_error", "response_result",
+    "rpc_method_forbidden", "rpc_id_reused", "rpc_envelope", "wire_chunk",
+    "websocket_handshake_size", "websocket_compression_or_reserved", "websocket_mask_direction",
+    "websocket_length", "websocket_frame_too_large", "websocket_message_too_large",
+    "websocket_frame_opcode", "websocket_fragment_start", "websocket_fragment_continuation",
+})
 _RATE_LIMIT_REACHED_TYPES = frozenset(
     {
         "rate_limit_reached",
@@ -355,7 +369,14 @@ def validate_helper_server_message(message: object, owner_thread_id: str) -> Non
         _reject("server_notification_params")
     if "threadId" in params and params["threadId"] != owner_thread_id:
         _reject("response_thread_target")
-    if method == "item/agentMessage/delta":
+    if method == "deprecationNotice":
+        # Fixed 0.154 thread_processor.rs:34,818-828,866-885. This is a
+        # compatibility-read notification, never authority for another RPC.
+        if (set(params) not in ({"summary"}, {"summary", "details"})
+                or params.get("summary") != _PAGINATED_READ_DEPRECATION
+                or params.get("details") is not None):
+            _reject("deprecation_notice_envelope")
+    elif method == "item/agentMessage/delta":
         _validate_agent_message_delta(params, owner_thread_id)
     elif method == "account/rateLimits/updated":
         _validate_account_notification(method, params)
@@ -479,7 +500,7 @@ class NativeWebSocketGate:
     after the complete native message has passed the owner-thread contract.
     """
 
-    def __init__(self, owner_thread_id: str, *, server: bool, pending_ids=None):
+    def __init__(self, owner_thread_id: str, *, server: bool, pending_ids=None, on_reject=None):
         self.owner_thread_id=owner_thread_id
         self.server=server
         self.pending_ids=pending_ids if pending_ids is not None else set()
@@ -487,10 +508,14 @@ class NativeWebSocketGate:
         self._handshake_done=False
         self._fragment_payload=bytearray()
         self._fragment_frames=[]
+        self._on_reject=on_reject
+        self._frame_metadata={}
 
     def _frame(self):
+        self._frame_metadata={}
         if len(self._buffer)<2: return None
         first,second=self._buffer[0],self._buffer[1]
+        self._frame_metadata['frame_opcode']=first&0x0f
         if first&0x70: _reject('websocket_compression_or_reserved')
         fin=bool(first&0x80); opcode=first&0x0f; masked=bool(second&0x80)
         if masked==self.server: _reject('websocket_mask_direction')
@@ -502,6 +527,7 @@ class NativeWebSocketGate:
             if len(self._buffer)<10: return None
             if self._buffer[2]&0x80: _reject('websocket_length')
             length=int.from_bytes(self._buffer[2:10],'big'); header_len=10
+        self._frame_metadata['frame_payload_bytes']=length
         if length>65535: _reject('websocket_frame_too_large')
         total=header_len+(4 if masked else 0)+length
         if len(self._buffer)<total: return None
@@ -514,6 +540,9 @@ class NativeWebSocketGate:
 
     def _complete_message(self, payload):
         message=_json_unique(payload)
+        method=message.get('method') if isinstance(message,dict) else None
+        if isinstance(method,str):
+            self._frame_metadata.update(method_sha256=hashlib.sha256(method.encode('utf-8',errors='surrogatepass')).hexdigest(),method_length=len(method))
         if self.server:
             validate_helper_server_message(message,self.owner_thread_id)
             if 'id' in message:
@@ -531,6 +560,25 @@ class NativeWebSocketGate:
         return self.feed(data)
 
     def feed(self, data: bytes) -> bytes:
+        self._frame_metadata={}
+        try:
+            return self._feed(data)
+        except Exception as exc:
+            reason=str(exc)
+            if self._on_reject is not None:
+                self._on_reject({
+                    'stage':'helper_wire_server' if self.server else 'helper_wire_client',
+                    'reason':reason if reason in _WIRE_REJECTION_REASONS else 'wire_contract_rejected',
+                    'failure_type':type(exc).__name__,
+                    'message_sha256':hashlib.sha256(reason.encode('utf-8',errors='surrogatepass')).hexdigest(),
+                    'frame_opcode':self._frame_metadata.get('frame_opcode'),
+                    'frame_payload_bytes':self._frame_metadata.get('frame_payload_bytes'),
+                    'method_sha256':self._frame_metadata.get('method_sha256'),
+                    'method_length':self._frame_metadata.get('method_length'),
+                })
+            raise
+
+    def _feed(self, data: bytes) -> bytes:
         if not isinstance(data,(bytes,bytearray)) or len(data)>4*1024*1024: _reject('wire_chunk')
         self._buffer.extend(data); output=[]
         if not self._handshake_done:

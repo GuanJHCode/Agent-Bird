@@ -23,7 +23,7 @@ async def dummy_backend(argv,**kwargs):
     socket_path=argv[6].removeprefix('unix://')
     marker=Path(kwargs['cwd'])/'dummy-mode.txt'
     mode=marker.read_text() if marker.exists() else 'owner-only-events'
-    assert mode in ('owner-only-events','bad-history','initial-ambiguous')
+    assert mode in ('owner-only-events','bad-history','initial-ambiguous','wire-notice')
     command=argv[:3]+[argv[3],'-I','-B',str(ROOT/'tasks/g1-g4-delivery/tests/fixtures/tui_backend.py'),socket_path,mode]
     return await spawn(command,**kwargs)
 activation_service.GuardedChild.spawn=dummy_backend

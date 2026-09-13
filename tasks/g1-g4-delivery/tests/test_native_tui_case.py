@@ -1,5 +1,5 @@
 """Actual isolated FD service, PTY processes, HTTP and Go; no Codex/launchctl."""
-import asyncio,json,os,sys,tempfile
+import asyncio,hashlib,json,os,sys,tempfile
 from pathlib import Path
 import pytest
 ROOT=Path(__file__).resolve().parents[3]
@@ -7,7 +7,7 @@ sys.path[:0]=[str(ROOT/'tasks/g1-g4-delivery/scripts'),str(ROOT/'tasks/g0-global
 from test_global_delivery_case import SyntheticEndpoint,PYTHON,GO
 
 
-@pytest.mark.parametrize('fault',[None,'resume-proof','initial-history'])
+@pytest.mark.parametrize('fault',[None,'resume-proof','initial-history','wire-notice'])
 def test_native_tui_quit_resume_same_thread_then_single_go_ack(monkeypatch,tmp_path,fault):
     assert (ROOT/'tasks/g1-g4-delivery/scripts/native_tui_case.py').exists(),'native PTY delivery glue missing'
     import native_tui_case as runner
@@ -41,14 +41,26 @@ def test_native_tui_quit_resume_same_thread_then_single_go_ack(monkeypatch,tmp_p
                     return start(tui,end,**kwargs)
                 monkeypatch.setattr(runner.session.TuiSession,'start',invalid_proof)
             if fault=='initial-history':(prepared.spec.workspace/'dummy-mode.txt').write_text('initial-ambiguous')
+            if fault=='wire-notice':(prepared.spec.workspace/'dummy-mode.txt').write_text('wire-notice')
             result=await runner.run_tui_case(plan,prepared)
             if fault:
                 assert result['status']=='unknown' and not result['business_ack_verified']
-                assert result['failure']['stage']==('tui-resume' if fault=='resume-proof' else 'helper-proof')
+                assert result['failure']['stage']==('tui-resume' if fault=='resume-proof' else 'helper-proof'),result['failure']
                 assert result['synthetic_endpoint']['accepted_requests']==1
                 for name in ('batch-intent.json','batch-send-claim.json','delivery-owner-binding.json'):
                     assert not (prepared.spec.workspace/'go-task'/name).exists()
                 assert result['cleanup']['public_socket_removed'] and result['transaction']['state']=='REVOKED'
+                if fault=='wire-notice':
+                    finals=[json.loads(path.read_text()) for path in (plan.case/'state').glob('*/activation.json')]
+                    rows=[row for final in finals for row in final.get('wire_rejections',[])]
+                    assert len(rows)==1,rows
+                    row=rows[0]
+                    assert row['stage']=='helper_wire_server' and row['reason']=='server_notification_forbidden'
+                    assert row['failure_type']=='OwnerHelperAdmissionError' and row['frame_opcode']==1
+                    assert row['frame_payload_bytes']>0 and row['method_sha256']==hashlib.sha256(b'private-canary-notification-do-not-export').hexdigest()
+                    assert row['frontend_pid']>0
+                    assert row['connection_id'] and row['epoch']>0
+                    assert 'private-canary-notification-do-not-export' not in json.dumps(finals)
                 return
             assert result['status']=='passed',(result.get('failure'),result.get('proof_checks'))
             assert result['tui_thread_id']==result['resumed_thread_id']

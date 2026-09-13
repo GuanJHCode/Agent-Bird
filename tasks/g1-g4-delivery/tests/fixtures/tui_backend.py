@@ -115,6 +115,11 @@ async def main():
                     if index<0:raise ValueError('wrong cursor')
                     result={'data':history[index:index+1],'nextCursor':'second' if index==0 else None,'backwardsCursor':None}
                 elif method=='thread/read':
+                    # Fixed 0.154 thread_processor.rs:866-885 emits this notice
+                    # before returning paginated includeTurns compatibility data.
+                    notice={'method':'deprecationNotice','params':{'summary':'Full-history hydration is deprecated for paginated threads; omit `includeTurns` or set it to `false`, then page with `thread/turns/list` and `thread/items/list`.','details':None},'emittedAtMs':3}
+                    if MODE=='wire-notice':notice['method']='private-canary-notification-do-not-export'
+                    writer.write(frame(notice));await writer.drain()
                     history_reads+=1
                     if MODE=='history-never-completes':await asyncio.sleep(.2)
                     if params!={'threadId':THREAD,'includeTurns':True}:raise ValueError('wrong read')

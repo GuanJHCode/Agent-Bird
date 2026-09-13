@@ -444,6 +444,7 @@ class ActivationService:
         self.backend_records=[]
         self._admissions={}
         self._helper_admissions={}
+        self._wire_rejections=[]
         self._owner_leases={}
         helper_pins=manifest.get('owner_helper',{})
         self._helper_pins=helper_pins if isinstance(helper_pins,dict) else {}
@@ -553,8 +554,14 @@ class ActivationService:
             return None
         grant,_=admission
         pending=set()
-        return (NativeWebSocketGate(grant['owner_thread_id'],server=False,pending_ids=pending),
-            NativeWebSocketGate(grant['owner_thread_id'],server=True,pending_ids=pending))
+        def rejected(value):
+            # Only the gate's fixed codes, hashes and numeric frame metadata;
+            # rejected bytes never enter MetadataSink or this receipt.
+            if len(self._wire_rejections)<64:
+                self._wire_rejections.append(dict(value,frontend_pid=frontend_peer.pid,
+                    connection_id=connection_id,epoch=epoch))
+        return (NativeWebSocketGate(grant['owner_thread_id'],server=False,pending_ids=pending,on_reject=rejected),
+            NativeWebSocketGate(grant['owner_thread_id'],server=True,pending_ids=pending,on_reject=rejected))
 
     def _owner_context_sha(self, context):
         config_path=context.spec.codex_home/'config.toml'
@@ -898,6 +905,7 @@ class ActivationService:
         return {'activation_id':self.activation_id,'manifest_sha256':self.manifest_sha256,
             'backend_records':self.backend_records,'transport':self.sink.snapshot(),
             'admission_diagnostics':list(getattr(self,'_admission_diagnostics',[])),
+            'wire_rejections':list(getattr(self,'_wire_rejections',[])),
             'empty_probe_eofs':self.proxy.empty_probe_eofs,'public_socket_owned':False,'native_registration_verified':False,'stop_signals':getattr(self,'stop_signals',[])}
 
     async def close(self):

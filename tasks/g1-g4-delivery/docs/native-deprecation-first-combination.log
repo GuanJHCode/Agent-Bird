@@ -1,0 +1,38 @@
+..F....................................................................  [100%]
+=================================== FAILURES ===================================
+_ test_native_tui_quit_resume_same_thread_then_single_go_ack[initial-history] __
+tasks/g1-g4-delivery/tests/test_native_tui_case.py:79: in test_native_tui_quit_resume_same_thread_then_single_go_ack
+    asyncio.run(asyncio.wait_for(scenario(),150))
+/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/tasks.py:507: in wait_for
+    return await fut
+           ^^^^^^^^^
+tasks/g1-g4-delivery/tests/test_native_tui_case.py:48: in scenario
+    assert result['failure']['stage']==('tui-resume' if fault=='resume-proof' else 'helper-proof')
+E   AssertionError: assert 'tui-start' == 'helper-proof'
+E     
+E     - helper-proof
+E     + tui-start
+=============================== warnings summary ===============================
+tasks/g1-g4-delivery/tests/test_native_tui_case.py::test_native_tui_quit_resume_same_thread_then_single_go_ack[None]
+tasks/g1-g4-delivery/tests/test_native_tui_case.py::test_native_tui_quit_resume_same_thread_then_single_go_ack[None]
+tasks/g1-g4-delivery/tests/test_native_tui_case.py::test_native_tui_quit_resume_same_thread_then_single_go_ack[resume-proof]
+tasks/g1-g4-delivery/tests/test_native_tui_case.py::test_native_tui_quit_resume_same_thread_then_single_go_ack[resume-proof]
+tasks/g1-g4-delivery/tests/test_native_tui_case.py::test_native_tui_quit_resume_same_thread_then_single_go_ack[initial-history]
+tasks/g1-g4-delivery/tests/test_native_tui_case.py::test_native_tui_quit_resume_same_thread_then_single_go_ack[wire-notice]
+tasks/g1-g4-delivery/tests/test_native_tui_case.py::test_native_tui_quit_resume_same_thread_then_single_go_ack[wire-notice]
+  /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g1-g4-delivery/tmp/native-combined/tasks/g0-auth-preserving-activation/scripts/native_activation_probe.py:360: DeprecationWarning: This process (pid=64558) is multi-threaded, use of fork() may lead to deadlocks in the child.
+    pid = os.fork()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tasks/g1-g4-delivery/tests/test_native_tui_case.py::test_native_tui_quit_resume_same_thread_then_single_go_ack[initial-history]
+1 failed, 70 passed, 7 warnings in 11.77s
