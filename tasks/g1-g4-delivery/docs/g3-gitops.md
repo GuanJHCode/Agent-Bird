@@ -18,12 +18,21 @@ Git CLI 没有 dirfd 版本的 `worktree remove`。实现因此不会把可被�
 
 ## G1 接入
 
-G1 Store 应在 `PersistIntegrationIntent`/`RecordIntegration`、`PersistCleanupIntent`/`RecordCleanup` 外增加候选冻结的两个回调，或用适配器实现 `CandidateJournal`。回调必须先持久化 intent，再把 receipt、验证摘要和依赖顺序写入同一 plan revision。所有 receipt 的目录身份和 OID 必须由本模块返回值绑定，不能由调用方从路径或可变 JSON 自报。
+G1 已通过来源 Host 的 `gitops-worker` 接入 `compose`、`materialize`、
+`integrate` 和 `cleanup`。控制面只派发带不可变身份的 worker grant；来源
+Host 将 snake_case 请求固化为 0600 文件，并在执行 Git 前把意图写入 0700
+目录下的 durable journal。worker 结果沿正常 Host event、collect 和 ACK 链
+返回，协调器进程不直接执行 Git。
+
+worker journal 实现 `PersistIntegrationIntent`/`RecordIntegration`、
+`PersistCleanupIntent`/`RecordCleanup` 和候选冻结的两个 `CandidateJournal`
+回调。所有 receipt 的目录身份和 OID 来自本模块返回值，调用方不从路径或
+可变 JSON 自报。
 
 验证命令（使用仓库固定 Go runtime）：
 
 ```text
-GOCACHE="$PWD/tmp/gocache" GO111MODULE=off <fixed-go> test ./tools/orchestrator/internal/gitops
+cd tools/orchestrator && <fixed-go> test ./internal/gitops ./internal/gitopsworker
 ```
 
 测试使用真实临时 Git 仓库覆盖候选材料化、ordered dependency composition、review binding、OS lock 下的 fast-forward、tracked/ignored 碰撞、目标漂移、CAS private ref、外部 sentinel、根目录替换、晚到同名替换的隔离保留和 admin 清理。未覆盖远程 push、Windows 文件占用和恶意同 UID 进程竞争。

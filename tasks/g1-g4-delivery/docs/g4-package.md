@@ -15,6 +15,7 @@ only `${PLUGIN_ROOT}/scripts/invoke.sh`, whose allowlist is:
 - `ensure-running`, `submit`
 - `status`, `collect`, `ack`
 - `resume`, `stop`
+- `install`, `doctor`, `uninstall`, `pin`, `unpin`
 
 Submission binds the exact `controller_thread`; every later task operation
 requires the returned owner-only 0600 `control_file`, and resume/stop also
@@ -22,8 +23,8 @@ require the latest `work_revision`. A missing binding is `blocked` rather than
 guessed. Session startup is silent and never resumes interrupted work.
 The skill does not use `${PLUGIN_DATA}` for production state, does not replace
 the `codex` entry point, and does not define MCP or app configuration. Git
-materialization/integration remains blocked until the source Host exposes the
-G3 package; the plugin never executes those operations in the coordinator.
+composition, materialization, integration, and cleanup run through the source
+Host's internal `gitops-worker`; the coordinator never executes Git directly.
 
 ## Package and installer contract
 

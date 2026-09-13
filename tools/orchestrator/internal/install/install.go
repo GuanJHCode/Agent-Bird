@@ -660,8 +660,12 @@ func copyTree(source, destination string) error {
 		if entry.IsDir() {
 			return os.Mkdir(target, 0o700)
 		}
+		info, err := entry.Info()
+		if err != nil || !info.Mode().IsRegular() {
+			return errors.New("source_file_unsafe")
+		}
 		mode := os.FileMode(0o600)
-		if entry.Type().Perm()&0o111 != 0 {
+		if info.Mode().Perm()&0o111 != 0 {
 			mode = 0o700
 		}
 		return copyRegular(path, target, mode)

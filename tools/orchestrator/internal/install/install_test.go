@@ -60,6 +60,33 @@ func TestInstallKeepsVersionsAndDoesNotTouchDataRoot(t *testing.T) {
 	}
 }
 
+func TestInstallAcceptsPackagedExecutableAlreadyInsidePlugin(t *testing.T) {
+	root := t.TempDir()
+	source, binary := makePackage(t, root, "1.0.0")
+	data, err := os.ReadFile(binary)
+	if err != nil {
+		t.Fatal(err)
+	}
+	packagedBinary := filepath.Join(source, "bin", "codex-orchestrator")
+	if err = os.MkdirAll(filepath.Dir(packagedBinary), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err = os.WriteFile(packagedBinary, data, 0700); err != nil {
+		t.Fatal(err)
+	}
+	result, err := InstallPackage(InstallOptions{SourceRoot: source, BinaryPath: packagedBinary, DestinationRoot: filepath.Join(root, "destination"), Version: "1.0.0", DataRoot: filepath.Join(root, "data")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(filepath.Join(result.VersionRoot, "bin", "codex-orchestrator"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0700 {
+		t.Fatalf("binary mode=%v", info.Mode().Perm())
+	}
+}
+
 func TestActivePinBlocksUninstallThenUnmodifiedVersionIsRemoved(t *testing.T) {
 	root := t.TempDir()
 	source, binary := makePackage(t, root, "1.0.0")
