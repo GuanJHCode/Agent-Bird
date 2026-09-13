@@ -25,3 +25,13 @@ func TestSpoolPersistsEventsAndDurableAck(t *testing.T) {
 		t.Fatalf("ack=%d err=%v", ack, err)
 	}
 }
+
+func TestMetadataPublicationIsBoundedAndReplaceable(t *testing.T) {
+	s, err := Open(t.TempDir()); if err != nil { t.Fatal(err) }
+	if err := s.WriteMetadata("launch.json", map[string]any{"phase":"prepared","version":1}); err != nil { t.Fatal(err) }
+	var got map[string]any; if err := s.ReadMetadata("launch.json", &got); err != nil { t.Fatal(err) }
+	if got["phase"] != "prepared" { t.Fatalf("metadata=%#v", got) }
+	if err := s.WriteMetadata("launch.json", map[string]any{"phase":"running","version":1}); err != nil { t.Fatal(err) }
+	if err := s.ReadMetadata("launch.json", &got); err != nil { t.Fatal(err) }
+	if got["phase"] != "running" { t.Fatalf("metadata=%#v", got) }
+}

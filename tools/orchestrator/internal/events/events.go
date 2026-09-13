@@ -197,3 +197,57 @@ func (s *Spool) WriteArtifact(data []byte) (string, error) {
 	}
 	return path, nil
 }
+
+func (s *Spool) WriteMetadata(name string, value any) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if name == "" || filepath.Base(name) != name || filepath.Ext(name) != ".json" {
+		return CodeError("metadata_name_invalid")
+	}
+	data, err := json.Marshal(value)
+	if err != nil || len(data) > 64*1024 {
+		return CodeError("metadata_invalid")
+	}
+	data = append(data, '\n')
+	stage := filepath.Join(s.dir, "."+name+".tmp")
+	_ = os.Remove(stage)
+	fd, err := os.OpenFile(stage, os.O_WRONLY|os.O_CREATE|os.O_EXCL|syscall.O_NOFOLLOW, 0600)
+	if err != nil {
+		return err
+	}
+	if _, err = fd.Write(data); err == nil {
+		err = fd.Sync()
+	}
+	if closeErr := fd.Close(); err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		_ = os.Remove(stage)
+		return err
+	}
+	if err = os.Rename(stage, filepath.Join(s.dir, name)); err != nil {
+		_ = os.Remove(stage)
+		return err
+	}
+	return syncDir(s.dir)
+}
+func (s *Spool) ReadMetadata(name string, value any) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if name == "" || filepath.Base(name) != name {
+		return CodeError("metadata_name_invalid")
+	}
+	data, err := os.ReadFile(filepath.Join(s.dir, name))
+	if err != nil {
+		return err
+	}
+	if len(data) > 64*1024 {
+		return CodeError("metadata_too_large")
+	}
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.DisallowUnknownFields()
+	if err = dec.Decode(value); err != nil {
+		return CodeError("metadata_invalid")
+	}
+	return nil
+}

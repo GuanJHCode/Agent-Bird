@@ -37,7 +37,7 @@ func TestSubmitHostCollectAckAndExplicitResume(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cmd := process.Command{Path: os.Args[0], Args: []string{"-test.run=TestSubmitHostCollectAckAndExplicitResume"}, Env: []string{"G1_HOST_HELPER=1"}}
+	cmd := process.Command{Path: func() string { p, _ := filepath.EvalSymlinks(os.Args[0]); return p }(), Args: []string{"-test.run=TestSubmitHostCollectAckAndExplicitResume"}, Env: []string{"G1_HOST_HELPER=1"}}
 	result, err := h.Execute(ctx, attempt, "run", "task", cmd)
 	if err != nil {
 		t.Fatal(err)
@@ -93,7 +93,7 @@ func TestAckKeepsSpoolWhenDatabaseCommitFails(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cmd := process.Command{Path: os.Args[0], Args: []string{"-test.run=TestAckKeepsSpoolWhenDatabaseCommitFails"}, Env: []string{"G1_HOST_HELPER=1"}}
+	cmd := process.Command{Path: func() string { p, _ := filepath.EvalSymlinks(os.Args[0]); return p }(), Args: []string{"-test.run=TestAckKeepsSpoolWhenDatabaseCommitFails"}, Env: []string{"G1_HOST_HELPER=1"}}
 	if _, err = h.Execute(ctx, a, "run-ack", "task-ack", cmd); err != nil {
 		t.Fatal(err)
 	}

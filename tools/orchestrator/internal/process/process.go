@@ -3,9 +3,13 @@ package process
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
+	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"sync"
 	"syscall"
@@ -25,6 +29,15 @@ type Command struct {
 	Env   []string
 	Stdin []byte
 }
+type Identity struct {
+	PID              int
+	PGID             int
+	Birth            string
+	BirthKnown       bool
+	Executable       string
+	ExecutableSHA256 string
+	StartedAt        string
+}
 type Handle struct {
 	cmd         *exec.Cmd
 	done        chan struct{}
@@ -34,6 +47,7 @@ type Handle struct {
 	output      []byte
 	outputLimit int
 	pgid        int
+	identity    Identity
 }
 type captureWriter struct{ h *Handle }
 
@@ -62,6 +76,14 @@ func Start(ctx context.Context, spec Command) (*Handle, error) {
 	if runtime.GOOS != "darwin" {
 		return nil, CodeError("unsupported_platform")
 	}
+	resolved, err := filepath.EvalSymlinks(spec.Path)
+	if err != nil || !filepath.IsAbs(spec.Path) || resolved != spec.Path {
+		return nil, CodeError("command_path_untrusted")
+	}
+	digest, err := executableDigest(spec.Path)
+	if err != nil {
+		return nil, err
+	}
 	cmd := exec.Command(spec.Path, spec.Args...)
 	cmd.Dir = spec.Dir
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
@@ -78,6 +100,7 @@ func Start(ctx context.Context, spec Command) (*Handle, error) {
 		return nil, err
 	}
 	h.pgid = cmd.Process.Pid
+	h.identity = Identity{PID: cmd.Process.Pid, PGID: h.pgid, Executable: resolved, ExecutableSHA256: digest, StartedAt: time.Now().UTC().Format(time.RFC3339Nano)}
 	go func() {
 		err := cmd.Wait()
 		h.mu.Lock()
@@ -97,9 +120,10 @@ func Start(ctx context.Context, spec Command) (*Handle, error) {
 	}()
 	return h, nil
 }
-func (h *Handle) PID() int      { return h.cmd.Process.Pid }
-func (h *Handle) PGID() int     { return h.pgid }
-func (h *Handle) ExitCode() int { h.mu.Lock(); defer h.mu.Unlock(); return h.exit }
+func (h *Handle) PID() int           { return h.cmd.Process.Pid }
+func (h *Handle) PGID() int          { return h.pgid }
+func (h *Handle) Identity() Identity { h.mu.Lock(); defer h.mu.Unlock(); return h.identity }
+func (h *Handle) ExitCode() int      { h.mu.Lock(); defer h.mu.Unlock(); return h.exit }
 func (h *Handle) Output() string {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -176,4 +200,17 @@ func indexByte(s string, b byte) int {
 		}
 	}
 	return -1
+}
+
+func executableDigest(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
 }
