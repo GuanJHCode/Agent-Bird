@@ -3,24 +3,28 @@ set -eu
 umask 077
 
 usage() {
-  echo "usage: $0 --binary ABS_BINARY --version SEMVER --out ABS_EMPTY_DIR" >&2
+  echo "usage: $0 --binary ABS_BINARY --python ABS_PINNED_PYTHON --version SEMVER --out ABS_EMPTY_DIR" >&2
   exit 2
 }
 
 binary=
+python=
 version=
 out=
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --binary) binary=${2-}; shift 2 ;;
+    --python) python=${2-}; shift 2 ;;
     --version) version=${2-}; shift 2 ;;
     --out) out=${2-}; shift 2 ;;
     *) usage ;;
   esac
 done
-[ -n "$binary" ] && [ -n "$version" ] && [ -n "$out" ] || usage
+[ -n "$binary" ] && [ -n "$python" ] && [ -n "$version" ] && [ -n "$out" ] || usage
 [ -f "$binary" ] && [ ! -L "$binary" ] || { echo "binary_missing_or_symlink" >&2; exit 1; }
+[ -f "$python" ] && [ ! -L "$python" ] && [ -x "$python" ] || { echo "python_missing_or_symlink" >&2; exit 1; }
 case "$binary" in /*) : ;; *) echo "binary_not_absolute" >&2; exit 1 ;; esac
+case "$python" in /*) : ;; *) echo "python_not_absolute" >&2; exit 1 ;; esac
 case "$out" in /*) : ;; *) echo "out_not_absolute" >&2; exit 1 ;; esac
 printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$' || { echo "version_invalid" >&2; exit 1; }
 
@@ -36,11 +40,75 @@ plugin_source="$repo_root/plugins/codex-orchestrator"
 [ -f "$plugin_source/.codex-plugin/plugin.json" ] || { echo "plugin_source_missing" >&2; exit 1; }
 mkdir -m 700 "$out/plugin"
 cp -R "$plugin_source"/. "$out/plugin/"
+# Empty source directories have no manifest identity and would be retained as
+# unknown objects by the installer. Remove them only from this fresh package.
+find "$out/plugin" -depth -type d -empty ! -path "$out/plugin" -delete
 mkdir -m 700 "$out/plugin/bin"
 cp "$binary" "$out/plugin/bin/codex-orchestrator"
 chmod 700 "$out/plugin/bin/codex-orchestrator"
 
-python3 - "$out/plugin/.codex-plugin/plugin.json" "$version" <<'PY'
+runtime="$out/plugin/runtime/g0"
+mkdir -m 700 -p "$runtime"
+copy_runtime() {
+  source_file=$1
+  target_name=$2
+  target_mode=$3
+  [ -f "$source_file" ] && [ ! -L "$source_file" ] || { echo "g0_runtime_source_unsafe:$target_name" >&2; exit 1; }
+  cp "$source_file" "$runtime/$target_name"
+  chmod "$target_mode" "$runtime/$target_name"
+}
+copy_runtime "$repo_root/tasks/g0-proxy-continuation/cold-start/scripts/projectproxy_launchd_entrypoint.py" projectproxy_launchd_entrypoint.py 700
+copy_runtime "$repo_root/tasks/g0-proxy-continuation/cold-start/scripts/launch_activation.py" launch_activation.py 644
+copy_runtime "$repo_root/tasks/g0-proxy-continuation/cold-start/scripts/activation_service.py" activation_service.py 644
+copy_runtime "$repo_root/tasks/g0-tui-proxy/scripts/proxy_transport.py" proxy_transport.py 644
+copy_runtime "$repo_root/tasks/g0-tui-proxy/scripts/proxy_observer.py" proxy_observer.py 644
+copy_runtime "$repo_root/tasks/g0-tui-proxy/scripts/owned_child_guard.py" owned_child_guard.py 644
+copy_runtime "$repo_root/tasks/g0-completion/scripts/owner_helper.py" owner_helper.py 644
+copy_runtime "$repo_root/tasks/g0-auth-preserving-activation/scripts/auth_isolation.py" auth_isolation.py 644
+copy_runtime "$repo_root/tasks/g0-completion/scripts/delivery_adapter.py" delivery_adapter.py 644
+copy_runtime "$repo_root/tasks/g0-pending-resolution/scripts/delivery_audit.py" delivery_audit.py 644
+copy_runtime "$repo_root/tasks/g0-global-delivery-validation/scripts/receipt_store.py" receipt_store.py 644
+
+"$python" -B - "$runtime" "$python" <<'PY'
+import hashlib, json, os, stat, sys
+root, interpreter = sys.argv[1:]
+names = (
+    "activation_service.py", "auth_isolation.py", "delivery_adapter.py",
+    "delivery_audit.py", "launch_activation.py", "owned_child_guard.py",
+    "owner_helper.py", "projectproxy_launchd_entrypoint.py",
+    "proxy_observer.py", "proxy_transport.py", "receipt_store.py",
+)
+def digest(path):
+    value = hashlib.sha256()
+    with open(path, "rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            value.update(block)
+    return value.hexdigest()
+files = []
+for name in names:
+    path = os.path.join(root, name)
+    info = os.lstat(path)
+    mode = stat.S_IMODE(info.st_mode)
+    expected = 0o700 if name == "projectproxy_launchd_entrypoint.py" else 0o644
+    if not stat.S_ISREG(info.st_mode) or mode != expected:
+        raise SystemExit("g0_runtime_mode_invalid:" + name)
+    files.append({"logical_id": name[:-3], "path": name, "sha256": digest(path), "mode": mode})
+interpreter_info = os.lstat(interpreter)
+if (not stat.S_ISREG(interpreter_info.st_mode)
+        or stat.S_IMODE(interpreter_info.st_mode) & 0o111 == 0
+        or stat.S_IMODE(interpreter_info.st_mode) & 0o022 != 0):
+    raise SystemExit("python_unsafe")
+manifest = {"version": 1, "interpreter": {"path": interpreter, "sha256": digest(interpreter)}, "files": files}
+path = os.path.join(root, "runtime-manifest.json")
+with open(path, "x", encoding="utf-8") as handle:
+    json.dump(manifest, handle, indent=2, sort_keys=True)
+    handle.write("\n")
+    handle.flush()
+    os.fsync(handle.fileno())
+os.chmod(path, 0o600)
+PY
+
+"$python" -B - "$out/plugin/.codex-plugin/plugin.json" "$version" <<'PY'
 import json, os, sys
 path, version = sys.argv[1:]
 with open(path, encoding="utf-8") as handle:
@@ -56,7 +124,7 @@ os.chmod(temporary, 0o600)
 os.replace(temporary, path)
 PY
 
-python3 - "$out" "$version" <<'PY'
+"$python" -B - "$out" "$version" <<'PY'
 import hashlib, json, os, stat, sys
 root, version = sys.argv[1:]
 files = []

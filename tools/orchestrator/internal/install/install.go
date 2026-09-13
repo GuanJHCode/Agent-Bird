@@ -37,6 +37,7 @@ type InstallResult struct {
 	ManifestSHA256 string
 	BinarySHA256   string
 	Files          []string
+	Runtime        RuntimeIdentity
 }
 
 type UninstallResult struct {
@@ -112,6 +113,9 @@ func InstallPackage(options InstallOptions) (InstallResult, error) {
 	if err := validatePluginSource(options.SourceRoot, options.Version); err != nil {
 		return InstallResult{}, err
 	}
+	if _, err := ValidateRuntimeBundle(options.SourceRoot); err != nil {
+		return InstallResult{}, err
+	}
 	if err := ensurePrivateDir(options.DestinationRoot); err != nil {
 		return InstallResult{}, err
 	}
@@ -146,6 +150,10 @@ func InstallPackage(options InstallOptions) (InstallResult, error) {
 		return InstallResult{}, err
 	}
 	if err := copyTree(options.SourceRoot, stage); err != nil {
+		return InstallResult{}, err
+	}
+	runtimeIdentity, err := ValidateRuntimeBundle(stage)
+	if err != nil {
 		return InstallResult{}, err
 	}
 	binaryDest := filepath.Join(stage, "bin", "codex-orchestrator")
@@ -198,7 +206,9 @@ func InstallPackage(options InstallOptions) (InstallResult, error) {
 		paths = append(paths, file.Path)
 	}
 	sort.Strings(paths)
-	return InstallResult{Version: options.Version, VersionRoot: versionRoot, ManifestPath: manifestPath, ManifestSHA256: manifestHash, BinarySHA256: binaryHash, Files: paths}, nil
+	runtimeIdentity.Root = filepath.Join(versionRoot, "runtime", "g0")
+	runtimeIdentity.ManifestPath = filepath.Join(runtimeIdentity.Root, "runtime-manifest.json")
+	return InstallResult{Version: options.Version, VersionRoot: versionRoot, ManifestPath: manifestPath, ManifestSHA256: manifestHash, BinarySHA256: binaryHash, Files: paths, Runtime: runtimeIdentity}, nil
 }
 
 func PinVersion(destinationRoot, taskID, version string) error {
@@ -409,6 +419,13 @@ func Doctor(destinationRoot string) (DoctorReport, error) {
 		changed, changedErr := changedFiles(filepath.Join(versionsDir, entry.Name()), value, false)
 		if changedErr != nil || len(changed) > 0 {
 			report.Issues = append(report.Issues, entry.Name()+":files")
+		}
+		if _, runtimeErr := ValidateRuntimeBundle(filepath.Join(versionsDir, entry.Name())); runtimeErr != nil {
+			issue := entry.Name() + ":runtime"
+			if errors.Is(runtimeErr, ErrRuntimeInterpreter) {
+				issue = entry.Name() + ":runtime_interpreter"
+			}
+			report.Issues = append(report.Issues, issue)
 		}
 	}
 	pinsDir := filepath.Join(destinationRoot, "pins")
@@ -800,7 +817,13 @@ func copyTree(source, destination string) error {
 			return errors.New("source_file_unsafe")
 		}
 		mode := os.FileMode(0o600)
-		if info.Mode().Perm()&0o111 != 0 {
+		runtimeFile := strings.HasPrefix(filepath.ToSlash(relative), "runtime/g0/") && strings.HasSuffix(relative, ".py")
+		if runtimeFile && filepath.Base(relative) != "projectproxy_launchd_entrypoint.py" {
+			if info.Mode().Perm() != 0o644 {
+				return errors.New("runtime_source_mode_invalid")
+			}
+			mode = 0o644
+		} else if info.Mode().Perm()&0o111 != 0 {
 			mode = 0o700
 		}
 		return copyRegular(path, target, mode)

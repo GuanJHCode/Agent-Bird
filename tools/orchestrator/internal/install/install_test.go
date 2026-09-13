@@ -5,6 +5,8 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"syscall"
 	"testing"
 )
@@ -21,11 +23,85 @@ func makePackage(t *testing.T, root, version string) (string, string) {
 	if err := os.WriteFile(filepath.Join(source, ".codex-plugin", "hooks", "hooks.json"), []byte(`{"hooks":{}}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	runtimeRoot := filepath.Join(source, "runtime", "g0")
+	if err := os.MkdirAll(runtimeRoot, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	runtimeNames := []string{"projectproxy_launchd_entrypoint.py", "launch_activation.py", "activation_service.py", "proxy_transport.py", "proxy_observer.py", "owned_child_guard.py", "owner_helper.py", "auth_isolation.py", "delivery_adapter.py", "delivery_audit.py", "receipt_store.py"}
+	var runtimeFiles []map[string]any
+	for _, name := range runtimeNames {
+		path := filepath.Join(runtimeRoot, name)
+		mode := os.FileMode(0o644)
+		if name == "projectproxy_launchd_entrypoint.py" {
+			mode = 0o700
+		}
+		if err := os.WriteFile(path, []byte("# "+name+"\n"), mode); err != nil {
+			t.Fatal(err)
+		}
+		digest, err := hashFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		runtimeFiles = append(runtimeFiles, map[string]any{"logical_id": strings.TrimSuffix(name, ".py"), "path": name, "sha256": digest, "mode": mode.Perm()})
+	}
+	interpreter := filepath.Join(root, "python-"+version)
+	if err := os.WriteFile(interpreter, []byte("synthetic pinned interpreter "+version+"\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	interpreterHash, err := hashFile(interpreter)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtimeManifest, err := json.Marshal(map[string]any{"version": 1, "files": runtimeFiles, "interpreter": map[string]any{"path": interpreter, "sha256": interpreterHash}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = os.WriteFile(filepath.Join(runtimeRoot, "runtime-manifest.json"), append(runtimeManifest, '\n'), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	binary := filepath.Join(root, "codex-orchestrator-"+version)
 	if err := os.WriteFile(binary, []byte("binary-"+version), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	return source, binary
+}
+
+func TestInstallAndDoctorRequirePinnedG0Runtime(t *testing.T) {
+	root := t.TempDir()
+	source, binary := makePackage(t, root, "1.0.0")
+	runtimeModule := filepath.Join(source, "runtime", "g0", "delivery_adapter.py")
+	if err := os.WriteFile(runtimeModule, []byte("changed\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := InstallPackage(InstallOptions{SourceRoot: source, BinaryPath: binary, DestinationRoot: filepath.Join(root, "rejected"), Version: "1.0.0", DataRoot: filepath.Join(root, "data-rejected")}); err == nil {
+		t.Fatal("install accepted changed G0 runtime")
+	}
+
+	source, binary = makePackage(t, root, "1.1.0")
+	destination := filepath.Join(root, "package")
+	installed, err := InstallPackage(InstallOptions{SourceRoot: source, BinaryPath: binary, DestinationRoot: destination, Version: "1.1.0", DataRoot: filepath.Join(root, "data")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifestData, err := os.ReadFile(filepath.Join(installed.VersionRoot, "runtime", "g0", "runtime-manifest.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var manifest struct {
+		Interpreter struct {
+			Path string `json:"path"`
+		} `json:"interpreter"`
+	}
+	if err = json.Unmarshal(manifestData, &manifest); err != nil || manifest.Interpreter.Path == "" {
+		t.Fatalf("runtime manifest err=%v", err)
+	}
+	if err = os.WriteFile(manifest.Interpreter.Path, []byte("changed interpreter\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	report, err := Doctor(filepath.Dir(filepath.Dir(installed.VersionRoot)))
+	if err != nil || report.Healthy || !slices.Contains(report.Issues, "1.1.0:runtime_interpreter") {
+		t.Fatalf("doctor=%#v err=%v", report, err)
+	}
 }
 
 func TestInstallKeepsVersionsAndDoesNotTouchDataRoot(t *testing.T) {

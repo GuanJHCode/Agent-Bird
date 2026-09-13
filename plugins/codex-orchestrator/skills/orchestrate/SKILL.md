@@ -35,11 +35,12 @@ request in the current owner thread and only with the exact latest
 1. Run `invoke.sh ensure-running`. Stop on a blocked/error response.
 2. Create a task-specific temporary directory with mode 0700 outside
    `${PLUGIN_ROOT}` and `${PLUGIN_DATA}`. Write one request file with mode 0600.
-3. First use `native-bridge` with the current attached owner capability to
-   produce the submit projection. Never infer the owner PID, birth, thread, or
-   generation from the shell, working directory, helper process, or UI text.
-   If the attached capability is unavailable, report `blocked`. The request
-   JSON must include `run_id`, the exact projected `controller_thread`,
+3. Obtain the submit projection emitted by the service-launched
+   `native-bridge` helper for the current attached owner. Never invoke the
+   helper manually or infer the owner PID, birth, thread, or generation from
+   the shell, working directory, helper process, or UI text. If the attached
+   owner capability is unavailable, report `blocked`. The request JSON must
+   include `run_id`, the absolute owner-only `owner_capability`, the exact projected `controller_thread`,
    `origin_context_id`, `origin_pid`, `origin_birth`, `host_generation`, and a
    non-empty `tasks` array. Each task declares `completion_policy` as
    `owner_review` or `artifact`; artifact completion also supplies
@@ -85,7 +86,9 @@ same request. Do not acknowledge an event without the bridge history proof.
 Owner review and follow-up decisions are separate business commands:
 
 ```text
-invoke.sh accept --task-id <id> --work-revision <n> --control-file <path>
+invoke.sh accept --task-id <id> --work-revision <n> --control-file <path> \
+  --event-id <id> --event-revision <n> --event-hash <sha256> \
+  --action-slot <slot> --decision <accept|reject> --command-id <id>
 invoke.sh retry --task-id <id> --work-revision <n> --control-file <path> [--use-next-fallback]
 invoke.sh answer --request <absolute-0600-answer-request>
 ```
@@ -96,19 +99,19 @@ the CLI consumes it. The plugin must not copy the answer into the conversation,
 logs, or argv; the coordinator may persist it for the bound attempt resume.
 Never copy the control token.
 
-`native-bridge` consumes the distinct owner attachment capability. It verifies
+`native-bridge` is launched by the attached service and consumes the distinct owner attachment capability. It verifies
 the current service/TUI/helper binding and package/runtime pins before collect,
 send, reconciliation, ACK, or owner rebind. A control file alone is not native
 attachment evidence.
 
 ```text
-invoke.sh native-bridge helper --request <absolute-0600-launch-request>
 invoke.sh rebind-owner --request <absolute-0600-rebind-request>
 ```
 
-The helper requires the matching installed `runtime/g0` manifest used by the
-active attachment service. Do not substitute source files from a repository or
-another installed runtime.
+The internal helper command is `native-bridge helper --request`; only the
+attached service supplies its request and control stream. It requires the
+matching installed `runtime/g0` manifest used by that service. Do not
+substitute source files from a repository or another installed runtime.
 
 ## Explicit recovery and stop
 

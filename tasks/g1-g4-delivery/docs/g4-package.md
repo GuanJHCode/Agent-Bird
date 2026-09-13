@@ -33,16 +33,21 @@ Host's internal `gitops-worker`; the coordinator never executes Git directly.
 ```text
 <out>/
   plugin/
-    .codex-plugin/plugin.json
-    skills/orchestrate/SKILL.md
-    scripts/invoke.sh
-    bin/codex-orchestrator
+      .codex-plugin/plugin.json
+      skills/orchestrate/SKILL.md
+      scripts/invoke.sh
+      scripts/native-product-bridge.py
+      lib/native_bridge/
+      runtime/g0/
+        runtime-manifest.json
+        <11 pinned service/transport modules>
+      bin/codex-orchestrator
   package-manifest.json
 ```
 
 The manifest records every packaged regular file's path, mode and SHA-256,
 plus the explicit fact that Windows is unsupported. The script requires an
-absolute binary and a new or empty absolute output directory;
+absolute binary, an absolute pinned Python interpreter, and a new or empty absolute output directory;
 the Go installer additionally enforces the strict `MAJOR.MINOR.PATCH` version
 form (with an optional prerelease suffix).
 
@@ -68,6 +73,15 @@ for G1:
 - `Doctor` reports versions, pins, manifest/hash drift, and file drift without
   modifying the native data root.
 
+The packaged `runtime/g0/runtime-manifest.json` fixes the complete 11-file G0
+service/transport closure by logical ID, relative path, mode and SHA-256. It
+also allowlists one existing absolute Python interpreter by SHA-256. Packaging,
+install and `Doctor` validate this manifest; they never copy or chmod the
+interpreter. A missing or changed interpreter is reported as
+`runtime_interpreter`, and the native bridge never falls back to source files
+under the development repository. Its request binds this installed runtime
+manifest to the same attached owner lease and activation service manifest.
+
 The caller supplies `DataRoot` as the native/session data location. The
 installer checks that it does not overlap the package destination and never
 removes or rewrites it. Changed files are retained for inspection. These
@@ -87,10 +101,10 @@ reference. Upgrade is additive: install the new version and remove the old
 version only after every such pin is released and its files still match the
 receipt. `Doctor` is the preflight check for a retained or drifted version.
 
-There is no claim of a complete native/provider integration here. The package
-is only a versioned local distribution boundary; native session identity,
-resume qualification, and provider adapter behavior remain owned by their
-existing G1/G2 contracts.
+The package does not bootstrap launchd, change Codex settings, or create an
+owner lease. Native delivery requires an already attached service capability
+whose service manifest binds the same installed `runtime/g0`; provider launch,
+resume qualification and task state remain governed by the G1/G2 contracts.
 
 ## Validation
 
