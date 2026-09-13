@@ -14,7 +14,13 @@ class OwnerWire:
 
 async def main():
     tty.setraw(sys.stdin.fileno());pending={};next_id=0;completed={}
-    reader,writer=await _open_websocket(str(Path(os.environ['CODEX_HOME'])/'app-server-control/app-server-control.sock'))
+    public=str(Path(os.environ['CODEX_HOME'])/'app-server-control/app-server-control.sock')
+    # Ordinary Codex probes the default socket with no application bytes.
+    probe_reader,probe_writer=await asyncio.open_unix_connection(public)
+    await asyncio.sleep(.05)
+    probe_writer.write_eof();assert await probe_reader.read()==b''
+    probe_writer.close();await probe_writer.wait_closed()
+    reader,writer=await _open_websocket(public)
     wire=OwnerWire(reader,writer)
     async def receive():
         while True:

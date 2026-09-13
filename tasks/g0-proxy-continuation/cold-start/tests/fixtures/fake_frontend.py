@@ -20,7 +20,10 @@ for line in sys.stdin:
         client = socket.socket(socket.AF_UNIX,socket.SOCK_STREAM)
         client.connect(sys.argv[1])
         stream = client.makefile('rb')
-        header = stream.readline()
+        try:
+            client.sendall(b'G')  # Test protocol is client-first, like native WS.
+            header = stream.readline()
+        except OSError:header=b''
         print(header.decode().strip() or 'closed',flush=True)
     elif request['action'] == 'send':
         data=base64.b64decode(request['data']); client.sendall(data)

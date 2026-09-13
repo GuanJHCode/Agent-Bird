@@ -1,0 +1,33 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_______ test_native_tui_quit_resume_same_thread_then_single_go_ack[None] _______
+tasks/g1-g4-delivery/tests/test_native_tui_case.py:67: in test_native_tui_quit_resume_same_thread_then_single_go_ack
+    asyncio.run(asyncio.wait_for(scenario(),150))
+/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/tasks.py:507: in wait_for
+    return await fut
+           ^^^^^^^^^
+tasks/g1-g4-delivery/tests/test_native_tui_case.py:53: in scenario
+    assert result['status']=='passed',(result.get('failure'),result.get('proof_checks'))
+E   AssertionError: ({'stage': 'tui-start', 'type': 'FileNotFoundError', 'message_sha256': '12148deffc6b71e65694fd53a81f2c21c2e135125416bde9205e3f130d433962'}, None)
+E   assert 'unknown' == 'passed'
+E     
+E     - passed
+E     + unknown
+=============================== warnings summary ===============================
+tasks/g1-g4-delivery/tests/test_native_tui_case.py::test_native_tui_quit_resume_same_thread_then_single_go_ack[None]
+  /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g1-g4-delivery/tmp/native-combined/tasks/g0-auth-preserving-activation/scripts/native_activation_probe.py:360: DeprecationWarning: This process (pid=48392) is multi-threaded, use of fork() may lead to deadlocks in the child.
+    pid = os.fork()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tasks/g1-g4-delivery/tests/test_native_tui_case.py::test_native_tui_quit_resume_same_thread_then_single_go_ack[None]
+1 failed, 2 deselected, 1 warning in 1.44s

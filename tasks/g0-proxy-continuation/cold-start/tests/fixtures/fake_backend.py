@@ -17,6 +17,7 @@ async def main():
     async def echo(reader, writer):
         clients.add(writer)
         try:
+            if await reader.read(1)!=b'G':return
             writer.write(json.dumps({'pid':os.getpid(), 'home':os.environ.get('HOME'),
                 'codex_home':os.environ.get('CODEX_HOME'), 'cwd':os.getcwd(),
                 'auth_env_present':any(name in os.environ for name in ('OPENAI_API_KEY','CODEX_API_KEY','AWS_SECRET_ACCESS_KEY'))}).encode()+b'\n')

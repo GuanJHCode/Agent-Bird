@@ -459,7 +459,7 @@ class ActivationService:
         self._closed=False
         self._close_task=None
         self.proxy=ProxyServer(self.public_socket,None,self.sink,authorize_peer=self._admit,
-            backend_factory=self._backend,stop_on_frontend_eof=True,callback_timeout=LOCAL_SECONDS,
+            backend_factory=self._backend,stop_on_frontend_eof=True,wait_for_frontend_data=True,callback_timeout=LOCAL_SECONDS,
             wire_gate_factory=self._wire_gate_factory)
 
     def _publish_service_start(self):
@@ -898,7 +898,7 @@ class ActivationService:
         return {'activation_id':self.activation_id,'manifest_sha256':self.manifest_sha256,
             'backend_records':self.backend_records,'transport':self.sink.snapshot(),
             'admission_diagnostics':list(getattr(self,'_admission_diagnostics',[])),
-            'public_socket_owned':False,'native_registration_verified':False,'stop_signals':getattr(self,'stop_signals',[])}
+            'empty_probe_eofs':self.proxy.empty_probe_eofs,'public_socket_owned':False,'native_registration_verified':False,'stop_signals':getattr(self,'stop_signals',[])}
 
     async def close(self):
         if self._close_task is None:

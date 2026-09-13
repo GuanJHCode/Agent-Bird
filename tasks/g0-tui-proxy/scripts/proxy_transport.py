@@ -244,6 +244,7 @@ class ProxyServer:
         authorize_backend_peer: BackendPeerValidator | None = None,
         backend_factory: BackendFactory | None = None,
         stop_on_frontend_eof: bool = False,
+        wait_for_frontend_data: bool = False,
         chunk_size: int = 64 * 1024,
         max_connections: int = 64,
         callback_timeout: float = 5.0,
@@ -261,6 +262,10 @@ class ProxyServer:
         self.backend_path = Path(backend_path) if backend_path is not None else None
         self.backend_factory = backend_factory
         self.stop_on_frontend_eof = stop_on_frontend_eof
+        if type(wait_for_frontend_data) is not bool or wait_for_frontend_data and backend_factory is None:
+            raise ValueError("frontend data gate requires an explicit backend factory")
+        self.wait_for_frontend_data = wait_for_frontend_data
+        self.empty_probe_eofs = 0
         self.capture_sink = capture_sink
         self.authorize_peer = authorize_peer
         self.authorize_backend_peer = authorize_backend_peer
@@ -442,19 +447,36 @@ class ProxyServer:
         epoch = 0
         pumps: list[asyncio.Task[None]] = []
         backend_scope = AsyncExitStack()
+        first_data = b""
+        deadline = asyncio.get_running_loop().time() + self.callback_timeout
+        def remaining_start():
+            timeout = deadline - asyncio.get_running_loop().time()
+            if timeout <= 0:
+                raise TimeoutError("activation frontend/backend start window elapsed")
+            return timeout
         try:
             frontend_socket = frontend_writer.get_extra_info("socket")
             frontend_peer = peer_identity(frontend_socket)
             if not await self._is_authorized(frontend_peer):
                 return
 
+            if self.wait_for_frontend_data:
+                # A native default-socket probe sends no application bytes.
+                # Hold at most one bounded chunk; EOF must not create a backend.
+                timeout = remaining_start()
+                first_data = await asyncio.wait_for(reader.read(self.chunk_size), timeout)
+                if not first_data:
+                    self.empty_probe_eofs += 1
+                    return
+
             backend_validator = self.authorize_backend_peer
             if self.backend_factory is None:
                 backend_reader, backend_writer = await asyncio.wait_for(
                     asyncio.open_unix_connection(self.backend_path), self.callback_timeout)
             else:
+                timeout = remaining_start() if self.wait_for_frontend_data else self.callback_timeout
                 lease = await asyncio.wait_for(
-                    backend_scope.enter_async_context(self.backend_factory(frontend_peer)), self.callback_timeout)
+                    backend_scope.enter_async_context(self.backend_factory(frontend_peer)), timeout)
                 if not isinstance(lease, BackendConnection):
                     raise TypeError("backend factory did not provide an isolated connection")
                 backend_reader, backend_writer = lease.reader, lease.writer
@@ -499,6 +521,7 @@ class ProxyServer:
                         "frontend_to_backend",
                         direction_seq,
                         frontend_gate,
+                        initial_data=first_data,
                     )
                 ),
                 asyncio.create_task(
@@ -578,10 +601,13 @@ class ProxyServer:
         direction: Direction,
         direction_seq: dict[Direction, int],
         wire_gate: WireGate | None = None,
+        *,
+        initial_data: bytes = b"",
     ) -> None:
         try:
             while True:
-                data = await reader.read(self.chunk_size)
+                data = initial_data or await reader.read(self.chunk_size)
+                initial_data = b""
                 if not data:
                     direction_seq[direction] += 1
                     await self._emit(

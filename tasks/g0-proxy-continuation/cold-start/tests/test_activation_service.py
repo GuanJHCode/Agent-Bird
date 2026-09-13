@@ -231,8 +231,10 @@ def test_same_profile_serializes_and_probe_does_not_consume_grant():
                     child=await client(binary,public,root/f'f{index}'); clients.append(child); register(grants,child,'a',binary)
                 await proxy.start(socket.socket(fileno=os.dup(listener.fileno())))
                 assert await ask(clients[0],'probe')=='probed'
-                await eventually(lambda: len(proxy.backend_records)==1)
+                await eventually(lambda: proxy.proxy.active_frontends==1)
+                assert proxy.backend_records==[]
                 assert await ask(clients[0],'close_probe')=='probe-closed'
+                await eventually(lambda: proxy.proxy.empty_probe_eofs==1)
                 first=json.loads(await ask(clients[0],'connect'))
                 second=asyncio.create_task(ask(clients[1],'connect'))
                 await asyncio.sleep(.1)
@@ -246,7 +248,7 @@ def test_same_profile_serializes_and_probe_does_not_consume_grant():
                 for child in clients:
                     if child.returncode is None: child.terminate(); await child.wait()
                 await proxy.close(); listener.close()
-            assert len(proxy.backend_records)==3
+            assert len(proxy.backend_records)==2
             expected_parent=Path(profiles['a']['backend_socket']).parent
             assert all(Path(r['private_socket']).parent==expected_parent for r in proxy.backend_records)
             assert all(r['process_stopped'] and r['socket_removed'] for r in proxy.backend_records)
