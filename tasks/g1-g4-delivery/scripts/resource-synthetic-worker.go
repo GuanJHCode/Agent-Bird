@@ -43,25 +43,26 @@ type config struct {
 }
 
 type stats struct {
-	SchemaVersion          int    `json:"schema_version"`
-	Scenario               string `json:"scenario"`
-	Mode                   string `json:"mode"`
-	WorkerID               string `json:"worker_id"`
-	PID                    int    `json:"pid"`
-	StartedUnixNano        int64  `json:"started_unix_nano"`
-	CompletedUnixNano      int64  `json:"completed_unix_nano,omitempty"`
-	StdoutBytes            int64  `json:"stdout_bytes"`
-	StderrBytes            int64  `json:"stderr_bytes"`
-	GiantLines             int64  `json:"giant_lines"`
-	EmissionReports        int64  `json:"emission_reports"`
-	ProductReportAttempts  int64  `json:"product_report_attempts"`
-	ProductReportSuccesses int64  `json:"product_report_successes"`
-	ProductReportCPUNanos  int64  `json:"product_report_cpu_nanos"`
-	ProductReportMaxRSS    int64  `json:"product_report_max_rss_bytes"`
-	TerminalWireSHA256     string `json:"terminal_wire_sha256,omitempty"`
-	TerminalSentinel       string `json:"terminal_sentinel,omitempty"`
-	Status                 string `json:"status"`
-	Error                  string `json:"error,omitempty"`
+	SchemaVersion           int    `json:"schema_version"`
+	Scenario                string `json:"scenario"`
+	Mode                    string `json:"mode"`
+	WorkerID                string `json:"worker_id"`
+	PID                     int    `json:"pid"`
+	StartedUnixNano         int64  `json:"started_unix_nano"`
+	TerminalEmittedUnixNano int64  `json:"terminal_emitted_unix_nano,omitempty"`
+	CompletedUnixNano       int64  `json:"completed_unix_nano,omitempty"`
+	StdoutBytes             int64  `json:"stdout_bytes"`
+	StderrBytes             int64  `json:"stderr_bytes"`
+	GiantLines              int64  `json:"giant_lines"`
+	EmissionReports         int64  `json:"emission_reports"`
+	ProductReportAttempts   int64  `json:"product_report_attempts"`
+	ProductReportSuccesses  int64  `json:"product_report_successes"`
+	ProductReportCPUNanos   int64  `json:"product_report_cpu_nanos"`
+	ProductReportMaxRSS     int64  `json:"product_report_max_rss_bytes"`
+	TerminalWireSHA256      string `json:"terminal_wire_sha256,omitempty"`
+	TerminalSentinel        string `json:"terminal_sentinel,omitempty"`
+	Status                  string `json:"status"`
+	Error                   string `json:"error,omitempty"`
 }
 
 type counters struct {
@@ -117,17 +118,23 @@ func run() error {
 
 	terminal := "RESOURCE_TERMINAL:" + cfg.Scenario + ":" + cfg.WorkerID
 	var terminalWire []byte
+	var terminalEmittedUnixNano int64
 	if cfg.Mode == "oneshot" {
 		terminalWire = claudeResult(cfg.WorkerID, terminal)
+		terminalEmittedUnixNano = time.Now().UnixNano()
 		if _, err = os.Stdout.Write(terminalWire); err == nil {
 			count.stdout.Add(int64(len(terminalWire)))
+		} else {
+			terminalEmittedUnixNano = 0
 		}
 	} else if cfg.Mode == "steady" {
 		err = waitUntil(ctx, started.Add(time.Duration(cfg.DurationSeconds)*time.Second))
 		terminalWire = claudeResult(cfg.WorkerID, terminal)
 		if err == nil {
+			terminalEmittedUnixNano = time.Now().UnixNano()
 			if _, writeErr := os.Stdout.Write(terminalWire); writeErr != nil {
 				err = writeErr
+				terminalEmittedUnixNano = 0
 			} else {
 				count.stdout.Add(int64(len(terminalWire)))
 			}
@@ -136,11 +143,25 @@ func run() error {
 		err = emitBurst(ctx, cfg, &count, started)
 		terminalWire = claudeResult(cfg.WorkerID, terminal)
 		if err == nil {
+			terminalEmittedUnixNano = time.Now().UnixNano()
 			if _, writeErr := os.Stdout.Write(terminalWire); writeErr != nil {
 				err = writeErr
+				terminalEmittedUnixNano = 0
 			} else {
 				count.stdout.Add(int64(len(terminalWire)))
 			}
+		}
+	}
+	if terminalEmittedUnixNano > 0 {
+		current.TerminalEmittedUnixNano = terminalEmittedUnixNano
+		current.StdoutBytes = count.stdout.Load()
+		current.StderrBytes = count.stderr.Load()
+		current.GiantLines = count.giants.Load()
+		current.TerminalSentinel = terminal
+		current.TerminalWireSHA256 = sha256Hex(terminalWire)
+		current.Status = "terminal_emitted"
+		if statsErr := writeStats(cfg.StatsPath, current); statsErr != nil && err == nil {
+			err = statsErr
 		}
 	}
 	reportCancel()
@@ -160,6 +181,7 @@ func run() error {
 	_ = reportFile.Sync()
 
 	current.CompletedUnixNano = time.Now().UnixNano()
+	current.TerminalEmittedUnixNano = terminalEmittedUnixNano
 	current.StdoutBytes = count.stdout.Load()
 	current.StderrBytes = count.stderr.Load()
 	current.GiantLines = count.giants.Load()
@@ -239,19 +261,25 @@ func emitBurst(ctx context.Context, cfg config, count *counters, started time.Ti
 	defer ticker.Stop()
 	chunkIndex := 0
 	nextGiant := started.Add(time.Duration(cfg.GiantLineIntervalSeconds) * time.Second)
+	emitDueGiants := func(now time.Time) error {
+		for !now.Before(nextGiant) && !nextGiant.After(deadline) {
+			line := giantLine(cfg.Mode, cfg.GiantLineBytes)
+			if _, err := os.Stdout.Write(line); err != nil {
+				return err
+			}
+			count.stdout.Add(int64(len(line)))
+			count.giants.Add(1)
+			nextGiant = nextGiant.Add(time.Duration(cfg.GiantLineIntervalSeconds) * time.Second)
+		}
+		return nil
+	}
 	for time.Now().Before(deadline) {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		case now := <-ticker.C:
-			if !now.Before(nextGiant) {
-				line := giantLine(cfg.Mode, cfg.GiantLineBytes)
-				if _, err := os.Stdout.Write(line); err != nil {
-					return err
-				}
-				count.stdout.Add(int64(len(line)))
-				count.giants.Add(1)
-				nextGiant = nextGiant.Add(time.Duration(cfg.GiantLineIntervalSeconds) * time.Second)
+			if err := emitDueGiants(now); err != nil {
+				return err
 			}
 			line := outputLine(cfg.Mode, cfg.WorkerID, chunkIndex, chunkBytes)
 			writer := io.Writer(os.Stdout)
@@ -265,6 +293,12 @@ func emitBurst(ctx context.Context, cfg config, count *counters, started time.Ti
 			counter.Add(int64(len(line)))
 			chunkIndex++
 		}
+	}
+	// The deadline itself is part of the declared 20-minute schedule. A loop
+	// condition evaluated just after that instant must not randomly omit the
+	// 40th giant line due at exactly +1200s.
+	if err := emitDueGiants(deadline); err != nil {
+		return err
 	}
 	return nil
 }

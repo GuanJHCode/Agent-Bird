@@ -438,6 +438,11 @@ def collect(ctx: dict[str, Any], task_id: str, control_file: str) -> dict[str, A
     return json.loads(result.stdout)
 
 
+def is_host_terminal_result(event: dict[str, Any]) -> bool:
+    event_id = str(event.get("event_id", ""))
+    return event.get("kind") == "result" and not event_id.startswith("resource-")
+
+
 def wait_for(predicate, timeout: float, message: str, interval: float = 0.05) -> Any:
     deadline = time.monotonic() + timeout
     last = None
@@ -466,6 +471,13 @@ def collect_worker_stats(ctx: dict[str, Any]) -> list[dict[str, Any]]:
 def completed_worker_stats(ctx: dict[str, Any], expected: int) -> list[dict[str, Any]] | bool:
     rows = [row for row in collect_worker_stats(ctx) if row.get("status") == "completed"]
     return rows if len(rows) >= expected else False
+
+
+def completed_stats_file(path: Path) -> dict[str, Any] | bool:
+    if not path.exists():
+        return False
+    row = json_read(path)
+    return row if row.get("status") == "completed" else False
 
 
 def product_role_processes(ctx: dict[str, Any], role: str) -> list[dict[str, Any]]:
@@ -668,14 +680,19 @@ def run_scenario(args: argparse.Namespace) -> int:
             def callback_ready() -> bool:
                 nonlocal first_durable_ns
                 response = collect(ctx, task["id"], control)
-                if any(event.get("kind") == "result" for event in (response.get("events") or [])):
+                if any(is_host_terminal_result(event) for event in (response.get("events") or [])):
                     first_durable_ns = time.time_ns()
                     collected.append(response)
                     return True
                 return False
             wait_for(callback_ready, 10, "callback result not durable")
-            worker_row = json_read(Path(ctx["worker_configs"][0]["stats_path"]))
-            durable_latency = (first_durable_ns - worker_row["completed_unix_nano"]) / 1e9
+            stats_path = Path(ctx["worker_configs"][0]["stats_path"])
+            worker_row = wait_for(
+                lambda: completed_stats_file(stats_path),
+                10,
+                "callback worker final stats unavailable",
+            )
+            durable_latency = (first_durable_ns - worker_row["terminal_emitted_unix_nano"]) / 1e9
             wait_for(
                 lambda: not product_role_processes(ctx, "source-host"),
                 15,
@@ -688,7 +705,7 @@ def run_scenario(args: argparse.Namespace) -> int:
             pending_after_window = collect(ctx, task["id"], control)
             collected.append(pending_after_window)
             pending_result_preserved = any(
-                event.get("kind") == "result"
+                is_host_terminal_result(event)
                 for event in (pending_after_window.get("events") or [])
             )
             metrics_now = sampler.summary()

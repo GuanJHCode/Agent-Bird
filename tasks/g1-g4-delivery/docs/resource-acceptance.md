@@ -17,6 +17,8 @@
 | `burst-valid` | 20 分钟 | 每 worker 的 stdout/stderr 合计 1 MiB/s，合法 Claude schema 普通消息；每 30 秒一个 4 MiB 普通诊断巨行；每 10 秒通过独立 report 通道一个 ≤4 KiB 关键事件。2 workers。 |
 | `burst-unknown` | 20 分钟 | 速率、巨行和 report 与上项相同，普通输出改为 unknown raw。2 workers。 |
 
+callback 首次 durable 时间在轮询中立即锁定，只匹配非 `resource-*` 的 Host terminal result；fixture 在 terminal stdout write 前记录 `terminal_emitted_unix_nano`，随后才发送独立 report 并写 final stats。harness 等 final stats 只为取得冻结时间戳，不会把这段等待算入首次 durable 时间。
+
 洪峰除 128 MiB 上限外，还按最后 10 分钟的一分钟 RSS 中位数冻结两个趋势门槛：Theil–Sen slope ≤0.5 MiB/min，末点相对首点增长 ≤8 MiB。fixture stats 必须证明完整时长、总字节、巨行次数与 report 次数；worker 提前退出一律失败。
 
 普通诊断/unknown raw 巨行应有界丢弃或记录截断，不能挤掉关键 report。关键结构化事件自身超限应可观察拒绝；harness 不要求产品无限容忍坏协议。
