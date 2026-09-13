@@ -1,10 +1,13 @@
+import asyncio
 import ctypes
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
 import shutil
 import subprocess
+from types import SimpleNamespace
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -89,3 +92,68 @@ def test_packaged_entrypoint_requires_pinned_interpreter_package_and_g0_runtime(
     denied = subprocess.run([str(interpreter), "-B", str(entry), "self-check", "--request", str(request.with_name("bad.json"))], capture_output=True, text=True)
     assert denied.returncode == 2
     assert json.loads(denied.stderr)["error"] == "interpreter_changed"
+
+
+def test_exact_history_waits_for_completed_delivery_turn():
+    spec = importlib.util.spec_from_file_location("native_product_bridge_entry", ENTRY)
+    entry = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(entry)
+    envelope = {
+        "version": 1,
+        "delivery_id": "d_" + "a" * 40,
+        "controller_thread_id": "thread-a",
+        "controller_epoch": 3,
+        "events": [],
+        "payload_hash": "b" * 64,
+    }
+
+    class Connection:
+        reads = 0
+
+        async def send_rpc(self, _request):
+            return None
+
+        async def read_rpc(self):
+            self.reads += 1
+            status = "inProgress" if self.reads == 1 else "completed"
+            return {
+                "id": 19 + self.reads,
+                "result": {
+                    "thread": {
+                        "id": "thread-a",
+                        "turns": [
+                            {
+                                "id": "turn-a",
+                                "status": status,
+                                "items": [
+                                    {
+                                        "id": "item-a",
+                                        "type": "functionCallOutput",
+                                        "name": "g0_delivery",
+                                        "namespace": "orchestration",
+                                        "output": json.dumps(envelope),
+                                    }
+                                ],
+                            }
+                        ],
+                    }
+                },
+            }
+
+    class Adapter:
+        @staticmethod
+        def audit_history(_capability, _reads):
+            return SimpleNamespace(reads_sha256="c" * 64, summary={})
+
+    connection = Connection()
+    proof, marker = asyncio.run(
+        entry.exact_history(
+            connection,
+            Adapter(),
+            SimpleNamespace(native_envelope=envelope),
+            "thread-a",
+        )
+    )
+    assert connection.reads == 2
+    assert proof.reads_sha256 == "c" * 64
+    assert marker == ("turn-a", "item-a")

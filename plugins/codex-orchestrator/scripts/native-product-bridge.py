@@ -266,6 +266,9 @@ async def exact_history(connection, adapter, capability, thread_id):
                         continue
                     if output == expected and turn.get("status") == "completed":
                         matches.append((turn.get("id"), item.get("id")))
+        if not matches and attempt < 19:
+            await asyncio.sleep(min(0.1, max(0, end - time.monotonic())))
+            continue
         require(len(matches) == 1, "history_marker_ambiguous")
         return proof, matches[0]
     raise EntryError("history_uncertain")
