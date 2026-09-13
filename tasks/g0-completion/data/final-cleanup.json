@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "status": "complete",
+  "removed_owned_control_files_and_caches": [
+    "/private/tmp/g0-auth-native-auqpnq82/synthetic.sb",
+    "/private/tmp/g0-auth-native-auqpnq82/synthetic-isolation.json",
+    "/private/tmp/g0-auth-native-zov465dr/synthetic.sb",
+    "/private/tmp/g0-auth-native-zov465dr/synthetic-isolation.json",
+    "/private/tmp/g0-auth-native-v6flms9j/synthetic.sb",
+    "/private/tmp/g0-auth-native-v6flms9j/synthetic-isolation.json",
+    "/private/tmp/g0-auth-native-w37bbkjy/synthetic.sb",
+    "/private/tmp/g0-auth-native-w37bbkjy/synthetic-isolation.json",
+    "/private/tmp/g0-auth-native-w37bbkjy/native-delivery-01/state/336b305d8f29448899ace3f5824b3700/0ff77299d0a6/backend.sbpl",
+    "/private/tmp/g0-auth-native-y_nh4jw1/synthetic.sb",
+    "/private/tmp/g0-auth-native-y_nh4jw1/synthetic-isolation.json",
+    "/private/tmp/g0-auth-native-y_nh4jw1/native-delivery-02/state/9dea792464e24bf5b969305f9133a77e/d7312b9823ca/backend.sbpl",
+    "/private/tmp/g0-auth-native-v215iynw/synthetic.sb",
+    "/private/tmp/g0-auth-native-v215iynw/synthetic-isolation.json",
+    "/private/tmp/g0-auth-native-v215iynw/native-delivery-03/state/a5cb445a56b64636b288d64fd8219ab6/7f0d8ad4bf14/backend.sbpl",
+    "/private/tmp/g0-completion-auth-inventory/credential-paths.txt",
+    "tasks/g0-completion/tmp/main-verify",
+    "tasks/g0-completion/scripts/__pycache__",
+    "tasks/g0-proxy-continuation/cold-start/scripts/__pycache__",
+    "tasks/g0-tui-proxy/scripts/__pycache__",
+    "tasks/g0-completion/data/integration-preserved",
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-completion/tmp/acceptance-docs"
+  ],
+  "retained_profiles_and_task_records": [
+    "/private/tmp/g0-auth-native-auqpnq82",
+    "/private/tmp/g0-auth-native-zov465dr",
+    "/private/tmp/g0-auth-native-v6flms9j",
+    "/private/tmp/g0-auth-native-w37bbkjy",
+    "/private/tmp/g0-auth-native-y_nh4jw1",
+    "/private/tmp/g0-auth-native-v215iynw"
+  ],
+  "retained_backup_stash": "ba919f705c87333d295b492927cbac683508fa09",
+  "retained_original_changes": [
+    "tasks/g0-tui-proxy/scripts/proxy_native_runtime.py",
+    "tasks/g0-pending-resolution/scripts/.coverage",
+    "tasks/g0-pending-resolution/scripts/__pycache__",
+    "tasks/g0-pending-resolution/tmp/native",
+    "tasks/g0-pending-resolution/tmp/standalone"
+  ],
+  "no_auth_restore_or_mutation": true,
+  "note": "Experimental credential-path inventory and sandbox manifests removed after final verification; histories/Go task records and safe receipts retained. Source-and-manifest pins describe execution-time state."
+}
