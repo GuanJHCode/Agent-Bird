@@ -33,6 +33,8 @@ import synthetic_responses
 CLIENT=Path(__file__).with_name('native_delivery_client.py')
 GO_CACHE=Path('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-completion/tmp/main-verify/cache')
 GO_MOD_CACHE=GO_CACHE.parent/'modcache'
+TOTAL_SECONDS=120.0
+CLEANUP_SECONDS=10.0
 
 
 def require(value,reason):transport.require(value,reason)
@@ -162,7 +164,7 @@ def prepare_delivery(prepared,case_dir,*,python_executable,go_executable,expecte
             'python_client_policy':'fixed-code-cleanenv-no-native-auth-manager','backend_policy':'auth-isolation-sandbox',
             'go_binary':str(binary),'go_sha256':binary_hash,'go_tool_sha256':sha(go),'build_cache':str(GO_CACHE),'build_cache_identities':caches,'build_timeout_seconds':120,
             'build_stdout_sha256':hashlib.sha256(built.stdout).hexdigest(),'build_stderr_sha256':hashlib.sha256(built.stderr).hexdigest(),
-            'proxy_peer':proxy_peer,'public_socket':str(public),'public_identity':public_identity,'public_parent_identity':public_parent_identity,'total_seconds':120,'local_seconds':10}
+            'proxy_peer':proxy_peer,'public_socket':str(public),'public_identity':public_identity,'public_parent_identity':public_parent_identity,'total_seconds':TOTAL_SECONDS,'business_seconds':TOTAL_SECONDS-CLEANUP_SECONDS,'cleanup_reserved_seconds':CLEANUP_SECONDS,'local_seconds':10}
         write(case/'plan.json',plan)
         return DeliveryPlan(case,identity,manifest_path,sha(manifest_path),dict(expected_source_pins),native_identity,
             python,python_identity,binary,binary_hash,sha(case/'plan.json'),listener,public_identity,public_parent_identity,proxy_peer)
@@ -186,7 +188,8 @@ class SafeClientFailure(ValueError):
 
 
 async def line(child,end):
-    raw=await asyncio.wait_for(child.stdout.readline(),transport.remaining(end))
+    timeout=transport.remaining(end)
+    raw=await asyncio.wait_for(child.stdout.readline(),timeout)
     require(raw and len(raw)<=65536,'client EOF or oversized receipt')
     value=json.loads(raw);require(isinstance(value,dict),'client receipt shape')
     if value.get('event')=='error':raise SafeClientFailure(value)
@@ -204,30 +207,35 @@ async def wait_until(predicate,end):
     while not predicate():transport.remaining(end);await asyncio.sleep(.01)
 
 
-def client_config(plan,prepared,role,peer,deadline,local_deadline,grant):
+def client_config(plan,prepared,role,peer,deadline,local_deadline,grant,cleanup_deadline):
     grant_path=plan.case_dir/'grants'/f"{peer['pid']}.json";write(grant_path,grant)
     return {'role':role,'manifest_path':str(plan.manifest_path),'manifest_sha256':plan.manifest_sha256,
         'grant_path':str(grant_path),'grant_sha256':sha(grant_path),'profile_id':prepared.spec.profile_id,
         'public_socket':str(prepared.spec.public_socket),'public_socket_identity':plan.public_identity,
         'proxy_peer':plan.proxy_peer,'codex_home':str(prepared.spec.codex_home),'workspace':str(prepared.spec.workspace),
-        'deadline':deadline,'local_deadline':local_deadline}
+        'deadline':deadline,'local_deadline':local_deadline,'cleanup_deadline':cleanup_deadline}
 
 
 async def stop_client(child,end,identity):
     if child is None:return None
     if child.stdin is not None:child.stdin.close()
     if child.returncode is None:
-        try:await asyncio.wait_for(child.wait(),min(1,transport.remaining(end)))
+        timeout=min(1,transport.remaining(end))
+        try:await asyncio.wait_for(child.wait(),timeout)
         except TimeoutError:
             require(identity is not None and peer_for_process(child.pid)==identity,'client stop identity changed')
+            transport.remaining(end)
             try:child.terminate()
             except ProcessLookupError:pass
-            try:await asyncio.wait_for(child.wait(),min(1,transport.remaining(end)))
+            timeout=min(1,transport.remaining(end))
+            try:await asyncio.wait_for(child.wait(),timeout)
             except TimeoutError:
                 require(peer_for_process(child.pid)==identity,'client kill identity changed')
+                transport.remaining(end)
                 try:child.kill()
                 except ProcessLookupError:pass
-                await asyncio.wait_for(child.wait(),transport.remaining(end))
+                timeout=transport.remaining(end)
+                await asyncio.wait_for(child.wait(),timeout)
     return child.returncode
 
 
@@ -236,9 +244,9 @@ async def run_delivery(plan,prepared):
     directory_fd=transport._open_case(plan.case_dir,plan.case_identity)
     try:transport._write(directory_fd,'attempt.json',{'start_raw':transport.now(),'automatic_retry':False})
     except BaseException:os.close(directory_fd);raise
-    start=transport.now();deadline=start+120;startup=min(deadline,start+10)
+    start=transport.now();total_deadline=start+TOTAL_SECONDS;deadline=total_deadline-CLEANUP_SECONDS;startup=min(deadline,start+10)
     result={'version':1,'status':'unknown','python_owner_verified':False,'ordinary_tui_verified':False,
-        'durable_history_verified':False,'business_ack_verified':False,'started_raw':start,'deadline_raw':deadline}
+        'durable_history_verified':False,'business_ack_verified':False,'started_raw':start,'deadline_raw':total_deadline,'business_deadline_raw':deadline,'cleanup_reserved_seconds':CLEANUP_SECONDS}
     service=None;owner=None;helper=None;owner_identity=None;helper_identity=None;stage='preflight';helper_eof=False
     stderr_tasks=[];go_env=auth_isolation.build_clean_environment(prepared.spec,{})
     task=prepared.spec.workspace/'go-task';nonce=plan.case_dir.name
@@ -260,7 +268,7 @@ async def run_delivery(plan,prepared):
         owner_identity=peer_for_process(owner.pid);require(owner_identity['executable']==str(plan.python),'owner executable mismatch')
         grant={'version':1,'pid':owner.pid,'uid':os.getuid(),'birth':owner_identity['birth'],'expected_executable':str(plan.python),
             'executable_sha256':sha(plan.python),'profile_id':prepared.spec.profile_id}
-        config=client_config(plan,prepared,'owner',owner_identity,deadline,startup,grant)
+        config=client_config(plan,prepared,'owner',owner_identity,deadline,startup,grant,total_deadline)
         await send(owner,config,startup);stage='owner-thread'
         ready=await line(owner,startup);require(ready.get('event')=='thread_ready' and ready.get('home_match') is True,'owner thread not ready')
         require(all(ready['public_peer'][key]==plan.proxy_peer[key] for key in ('pid','uid','birth','executable')),'owner public peer mismatch')
@@ -292,7 +300,7 @@ async def run_delivery(plan,prepared):
             'lease_id':lease.lease_id,'owner_connection_id':lease.owner_connection_id,'owner_epoch':lease.owner_epoch,'owner_thread_id':lease.owner_thread_id,
             'private_socket':lease.private_socket,'helper_pid':helper.pid,'helper_uid':os.getuid(),'helper_birth':helper_identity['birth'],
             'helper_executable':str(plan.python),'helper_executable_sha256':sha(plan.python),'helper_source_sha256':sha(owner_helper.__file__)}
-        config=client_config(plan,prepared,'helper',helper_identity,deadline,helper_start,grant)
+        config=client_config(plan,prepared,'helper',helper_identity,deadline,helper_start,grant,total_deadline)
         config.update(thread_id=lease.owner_thread_id,initial_turn_id=initial['initial_turn_id'],lease_id=lease.lease_id,
             owner_epoch=lease.owner_epoch,go_binary=str(plan.go_binary),go_sha256=plan.go_sha256,task_dir=str(task),nonce=nonce,
             delivery_id='G0_SYNTHETIC_TOOL_RESULT_'+nonce,events=events)
@@ -318,7 +326,7 @@ async def run_delivery(plan,prepared):
         result['ack']=ack;result['business_ack_verified']=True
         result['go_status']=await go_within(plan.go_binary,['batch-status','--dir',str(task),'--nonce',nonce],go_env,deadline)
         require(result['go_status'].get('business_status')=='complete' and result['go_status'].get('send_allowed') is False,'Go status not complete')
-        stage='normal-close';close_end=min(deadline,transport.now()+10)
+        stage='normal-close';close_end=min(total_deadline,transport.now()+10)
         result['owner_close_sent_raw']=transport.now()
         await send(owner,{'action':'close'},close_end)
         final_owner=await line(owner,close_end);require(final_owner.get('event')=='owner_closed','owner close missing')
@@ -326,17 +334,19 @@ async def run_delivery(plan,prepared):
         eof=await line(helper,close_end);require(eof.get('event')=='helper_eof' and eof['lease_id']==lease.lease_id,'helper EOF missing')
         result['helper_eof_raw']=eof.get('eof_raw')
         require(type(eof.get('eof_raw')) in (int,float) and eof['eof_raw']>=result['owner_close_sent_raw'],'helper EOF preceded owner close');helper_eof=True
-        await asyncio.wait_for(owner.wait(),transport.remaining(close_end));await asyncio.wait_for(helper.wait(),transport.remaining(close_end))
+        timeout=transport.remaining(close_end);await asyncio.wait_for(owner.wait(),timeout)
+        timeout=transport.remaining(close_end);await asyncio.wait_for(helper.wait(),timeout)
         require(owner.returncode==helper.returncode==0,'client exit failed')
         await wait_until(lambda:record.get('process_stopped') and record.get('socket_removed'),close_end)
         prepared.verify();require(plan.prepared_pins==source_pins(),'source changed after delivery')
-        transport.remaining(deadline);result['status']='passed'
+        transport.remaining(total_deadline);result['status']='passed'
     except Exception as exc:
         result['failure']={'stage':stage,'type':type(exc).__name__,'errno':getattr(exc,'errno',None),'message_sha256':hashlib.sha256(str(exc).encode()).hexdigest()}
         if isinstance(exc,SafeClientFailure):result['failure']['child_error']=exc.child_error
     finally:
         cleanup={'helper_eof':helper_eof,'helper_eof_raw':result.get('helper_eof_raw'),'owner_close_sent_raw':result.get('owner_close_sent_raw'),'public_socket_removed':False,'restart_allowed':False}
-        end=min(deadline,transport.now()+10)
+        cleanup['started_raw']=transport.now();end=min(total_deadline,cleanup['started_raw']+10)
+        cleanup['deadline_raw']=end
         for role,child,identity in (('owner',owner,owner_identity),('helper',helper,helper_identity)):
             try:cleanup[role+'_exit']=await stop_client(child,end,identity)
             except Exception:result['status']='unknown';cleanup[role+'_stop_unproven']=True
@@ -345,7 +355,9 @@ async def run_delivery(plan,prepared):
             # that owned finally finish before close() cancels relay tasks.
             try:await wait_until(lambda:all(row.get('process_stopped') and row.get('socket_removed') for row in service.backend_records),end)
             except Exception:result['status']='unknown';cleanup['backend_stop_unproven']=True
-            try:await asyncio.wait_for(service.close(),max(.001,end-transport.now()))
+            try:
+                timeout=transport.remaining(end)
+                await asyncio.wait_for(service.close(),timeout)
             except Exception:result['status']='unknown';cleanup['service_close_unproven']=True
             result['service']=service.snapshot()
         else:result['service']={'backend_records':[]}
@@ -364,10 +376,12 @@ async def run_delivery(plan,prepared):
         result['synthetic_endpoint']=prepared.endpoint.snapshot()
         try:prepared.endpoint.close()
         except Exception:result['status']='unknown';cleanup['endpoint_close_unproven']=True
-        try:result['client_output_digests']=await asyncio.wait_for(asyncio.gather(*stderr_tasks),max(.001,min(1,deadline-transport.now())))
+        try:
+            timeout=min(1,transport.remaining(total_deadline))
+            result['client_output_digests']=await asyncio.wait_for(asyncio.gather(*stderr_tasks),timeout)
         except Exception:cleanup['output_unproven']=True
         result['cleanup']=cleanup;result['finished_raw']=transport.now()
-        if result['finished_raw']>=deadline:result['status']='unknown';result['deadline_exceeded']=True
+        if result['finished_raw']>=total_deadline:result['status']='unknown';result['deadline_exceeded']=True
         try:transport._write(directory_fd,'result.json',result)
         finally:os.close(directory_fd)
     return result

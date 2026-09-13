@@ -1,0 +1,116 @@
+FFF                                                                      [100%]
+=================================== FAILURES ===================================
+_________ test_receipt_then_complete_history_without_helper_lifecycle __________
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/tasks.py:507: in wait_for
+    return await fut
+           ^^^^^^^^^
+tasks/g0-completion/scripts/native_delivery_case.py:300: in run_delivery
+    proof=await line(helper,deadline);require(proof.get('event')=='history_proof','helper history absent')
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tasks/g0-completion/scripts/native_delivery_case.py:189: in line
+    raw=await asyncio.wait_for(child.stdout.readline(),transport.remaining(end))
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/tasks.py:507: in wait_for
+    return await fut
+           ^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/streams.py:562: in readline
+    line = await self.readuntil(sep)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/streams.py:677: in readuntil
+    await self._wait_for_data('readuntil')
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/streams.py:539: in _wait_for_data
+    await self._waiter
+E   asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+tasks/g0-completion/tests/test_native_delivery_case.py:220: in test_receipt_then_complete_history_without_helper_lifecycle
+    asyncio.run(scenario())
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+tasks/g0-completion/tests/test_native_delivery_case.py:210: in scenario
+    result=await asyncio.wait_for(runner.run_delivery(plan,prepared),6)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/tasks.py:506: in wait_for
+    async with timeouts.timeout(timeout):
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/timeouts.py:116: in __aexit__
+    raise TimeoutError from exc_val
+E   TimeoutError
+_______ test_business_expiry_reserves_real_cleanup_inside_original_total _______
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/tasks.py:507: in wait_for
+    return await fut
+           ^^^^^^^^^
+tasks/g0-completion/scripts/native_delivery_case.py:300: in run_delivery
+    proof=await line(helper,deadline);require(proof.get('event')=='history_proof','helper history absent')
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tasks/g0-completion/scripts/native_delivery_case.py:189: in line
+    raw=await asyncio.wait_for(child.stdout.readline(),transport.remaining(end))
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/tasks.py:507: in wait_for
+    return await fut
+           ^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/streams.py:562: in readline
+    line = await self.readuntil(sep)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/streams.py:677: in readuntil
+    await self._wait_for_data('readuntil')
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/streams.py:539: in _wait_for_data
+    await self._waiter
+E   asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+tasks/g0-completion/tests/test_native_delivery_case.py:237: in test_business_expiry_reserves_real_cleanup_inside_original_total
+    asyncio.run(scenario())
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+tasks/g0-completion/tests/test_native_delivery_case.py:230: in scenario
+    result=await asyncio.wait_for(runner.run_delivery(plan,prepared),8)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/tasks.py:506: in wait_for
+    async with timeouts.timeout(timeout):
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/timeouts.py:116: in __aexit__
+    raise TimeoutError from exc_val
+E   TimeoutError
+_______________ test_expired_wait_creates_no_coroutine_or_signal _______________
+tasks/g0-completion/tests/test_native_delivery_case.py:249: in test_expired_wait_creates_no_coroutine_or_signal
+    asyncio.run(scenario());assert calls==[]
+    ^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+tasks/g0-completion/tests/test_native_delivery_case.py:247: in scenario
+    with pytest.raises(TimeoutError):await runner.line(child,end)
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tasks/g0-completion/scripts/native_delivery_case.py:189: in line
+    raw=await asyncio.wait_for(child.stdout.readline(),transport.remaining(end))
+                               ^^^^^^^^^^^^^^^^^^^^^^^
+tasks/g0-completion/tests/test_native_delivery_case.py:243: in unexpected
+    def unexpected():calls.append('called');raise AssertionError('expired work created')
+                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AssertionError: expired work created
+=========================== short test summary info ============================
+FAILED tasks/g0-completion/tests/test_native_delivery_case.py::test_receipt_then_complete_history_without_helper_lifecycle
+FAILED tasks/g0-completion/tests/test_native_delivery_case.py::test_business_expiry_reserves_real_cleanup_inside_original_total
+FAILED tasks/g0-completion/tests/test_native_delivery_case.py::test_expired_wait_creates_no_coroutine_or_signal
+3 failed, 10 deselected in 15.12s

@@ -52,14 +52,16 @@ def turn(index,status,items):
 
 
 async def main():
-    stop=asyncio.Event();clients=set();turns=[];calls=[]
+    stop=asyncio.Event();clients=set();turns=[];calls=[];owner_writer=None;history_reads=0
     asyncio.get_running_loop().add_signal_handler(signal.SIGTERM,stop.set)
     async def broadcast(method,params):
         packet=frame({'method':method,'params':params,'emittedAtMs':int(time.time()*1000)})
         for client in list(clients):
+            if MODE in ('owner-only-events','history-never-completes') and client is not owner_writer:continue
             if not client.is_closing():client.write(packet)
         await asyncio.gather(*(client.drain() for client in list(clients) if not client.is_closing()),return_exceptions=True)
     async def connection(reader,writer):
+        nonlocal owner_writer,history_reads
         try:
             header=await reader.readuntil(b'\r\n\r\n')
             key=next(line.split(b':',1)[1].strip() for line in header.split(b'\r\n') if line.lower().startswith(b'sec-websocket-key:'))
@@ -75,6 +77,7 @@ async def main():
                     result={'codexHome':os.environ['CODEX_HOME'],'userAgent':'controlled-python-backend'}
                 elif method=='initialized':continue
                 elif method=='thread/start':
+                    owner_writer=writer
                     thread={'id':THREAD,'cwd':os.getcwd(),'ephemeral':False,'historyMode':'legacy','turns':[]}
                     writer.write(frame({'id':packet['id'],'result':{'thread':thread}}))
                     writer.write(frame({'method':'thread/started','params':{'thread':thread},'emittedAtMs':2}));await writer.drain();continue
@@ -101,8 +104,12 @@ async def main():
                     (Path.cwd()/'dummy-history.json').write_text(json.dumps(turns))
                     await broadcast('turn/completed',{'threadId':THREAD,'turn':completed});continue
                 elif method=='thread/read':
+                    history_reads+=1
+                    if MODE=='history-never-completes':await asyncio.sleep(.2)
                     if params!={'threadId':THREAD,'includeTurns':True}:raise ValueError('wrong read')
                     history=json.loads((Path.cwd()/'dummy-history.json').read_text())
+                    if MODE=='history-never-completes' or MODE=='owner-only-events' and history_reads==1:
+                        history[1]['status']='inProgress';history[1]['items']=[]
                     if MODE=='bad-history':history[1]['items'][1]['text']='wrong-synthetic-result'
                     result={'thread':{'id':THREAD,'cwd':os.getcwd(),'historyMode':'legacy','ephemeral':False,'turns':history}}
                 else:raise ValueError('unexpected method')

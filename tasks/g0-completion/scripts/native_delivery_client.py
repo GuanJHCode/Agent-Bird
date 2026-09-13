@@ -30,7 +30,8 @@ CURRENT_STAGE='control'
 
 
 async def control(end):
-    raw=await asyncio.wait_for(STDIN.readline(),transport.remaining(end))
+    timeout=transport.remaining(end)
+    raw=await asyncio.wait_for(STDIN.readline(),timeout)
     require(raw and len(raw)<=65536,'controller EOF or oversized command')
     value=json.loads(raw);require(isinstance(value,dict),'invalid control command');return value
 
@@ -55,7 +56,8 @@ def validate_config(config,role):
 
 
 async def open_public(config):
-    reader,writer=await asyncio.wait_for(owner_helper._open_websocket(config['public_socket']),transport.remaining(config['local_deadline']))
+    timeout=transport.remaining(config['local_deadline'])
+    reader,writer=await asyncio.wait_for(owner_helper._open_websocket(config['public_socket']),timeout)
     peer=proxy_transport.peer_identity(writer.get_extra_info('socket'))
     expected=config['proxy_peer']
     require(peer.complete and all(getattr(peer,key)==expected[key] for key in ('pid','uid','birth','executable')),'public proxy peer mismatch')
@@ -81,10 +83,12 @@ class HelperChannel:
             'request_id':packet.get('id') if type(packet.get('id')) is int else None,'sha256':hashlib.sha256(raw).hexdigest(),'bytes':len(raw)})
     async def send_rpc(self,packet):
         self.record('client',packet)
-        await asyncio.wait_for(self.connection.send_rpc(packet),min(10,transport.remaining(self.deadline)))
+        timeout=min(10,transport.remaining(self.deadline))
+        await asyncio.wait_for(self.connection.send_rpc(packet),timeout)
         transport.remaining(self.deadline)
     async def read_rpc(self):
-        packet=await asyncio.wait_for(self.connection.read_rpc(),transport.remaining(self.deadline))
+        timeout=transport.remaining(self.deadline)
+        packet=await asyncio.wait_for(self.connection.read_rpc(),timeout)
         self.record('server',packet);transport.remaining(self.deadline);return packet
 
 
@@ -113,13 +117,14 @@ async def owner(config):
                 packet=await rpc.receive(config['deadline']);require('method' in packet,'unpaired owner response')
         drain=asyncio.create_task(receive_notifications())
         while True:
-            command=await control(config['deadline'])
+            command=await control(config['cleanup_deadline'])
             if command.get('action')=='status':
                 require(not drain.done(),'owner stream lost')
                 emit({'event':'owner_live','thread_id':thread_id,'initial_turn_id':turn_id})
             elif command=={'action':'close'}:
                 drain.cancel();await asyncio.gather(drain,return_exceptions=True);drain=None
-                await asyncio.wait_for(wire.close(),min(10,transport.remaining(config['deadline'])))
+                timeout=min(10,transport.remaining(config['cleanup_deadline']))
+                await asyncio.wait_for(wire.close(),timeout)
                 emit({'event':'owner_closed','thread_id':thread_id,'initial_turn_id':turn_id,'envelopes':records});return
             else:raise ValueError('unsupported owner command')
     finally:
@@ -134,7 +139,7 @@ def verify_history(history,capability,initial_turn_id,packets):
     require(len(responses)==1 and 'error' not in responses[0],'delivery receipt missing')
     turn_id=responses[0]['result']['turn']['id'];require(turn_id!=initial_turn_id,'delivery reused initial turn')
     completed=[packet for packet in packets if packet.get('method')=='turn/completed']
-    require(len(completed)==1 and completed[0]['params']['turn'].get('id')==turn_id and completed[0]['params']['turn'].get('status')=='completed','delivery completion mismatch')
+    require(len(completed)<=1 and all(packet['params']['turn'].get('id')==turn_id and packet['params']['turn'].get('status')=='completed' for packet in completed),'delivery completion mismatch')
     for packet in packets:
         if packet.get('method') in ('turn/started','turn/completed'):
             require(packet['params']['turn']['id']==turn_id,'delivery turn identity changed')
@@ -148,6 +153,39 @@ def verify_history(history,capability,initial_turn_id,packets):
         messages=[item for item in turn.get('items',[]) if item.get('type')=='agentMessage']
         require(len(messages)==1 and messages[0].get('text')==('READY' if index==0 else 'SYNTHETIC_COMPLETE'),'synthetic history message mismatch')
     return turn_id
+
+
+async def read_completed_history(channel,capability,initial_turn_id,packets,deadline):
+    receipts=[packet for packet in packets if packet.get('id')==2]
+    require(len(receipts)==1 and 'error' not in receipts[0],'delivery receipt missing')
+    delivery_turn_id=receipts[0]['result']['turn']['id']
+    require(delivery_turn_id!=initial_turn_id,'delivery reused initial turn')
+    history_end=min(deadline,transport.now()+10)
+    for attempt in range(20):
+        request={'id':3+attempt,'method':'thread/read','params':{'threadId':capability.binding.owner_thread_id,'includeTurns':True}}
+        timeout=transport.remaining(history_end)
+        await asyncio.wait_for(channel.send_rpc(request),timeout)
+        while True:
+            timeout=transport.remaining(history_end)
+            response=await asyncio.wait_for(channel.read_rpc(),timeout)
+            transport.remaining(history_end)
+            if response.get('id')==request['id']:break
+            require('method' in response,'unpaired history response');packets.append(response)
+        require('error' not in response,'history read rejected')
+        thread=response['result']['thread'];turns=thread.get('turns')
+        require(thread.get('id')==capability.binding.owner_thread_id and thread.get('historyMode')=='legacy','history owner/mode mismatch')
+        require(isinstance(turns,list) and 1<=len(turns)<=2 and turns[0].get('id')==initial_turn_id,'history turn chain mismatch')
+        require(turns[0].get('status')=='completed' and not turns[0].get('error'),'initial history incomplete')
+        if len(turns)==2:
+            require(turns[1].get('id')==delivery_turn_id and turns[1].get('status') in ('inProgress','completed') and not turns[1].get('error'),'delivery history identity or status mismatch')
+            if turns[1]['status']=='completed':
+                history={'request':request,'response':response}
+                verify_history(history,capability,initial_turn_id,packets)
+                return history,delivery_turn_id,{'source':'same_service_thread_read','read_count':attempt+1,
+                    'request_id':request['id'],'notification_completion_observed':any(p.get('method')=='turn/completed' for p in packets)}
+        if attempt<19:
+            timeout=min(.1,transport.remaining(history_end));await asyncio.sleep(timeout)
+    raise TimeoutError('bounded history attempts exhausted')
 
 
 async def helper(config):
@@ -168,30 +206,24 @@ async def helper(config):
         CURRENT_STAGE='helper-initialize'
         await channel.send_rpc({'id':1,'method':'initialize','params':{'clientInfo':{'name':'g0-native-standalone','version':'0.1.0'},'capabilities':{'experimentalApi':True}}})
         while True:
-            packet=await asyncio.wait_for(channel.read_rpc(),transport.remaining(config['local_deadline']))
+            timeout=transport.remaining(config['local_deadline'])
+            packet=await asyncio.wait_for(channel.read_rpc(),timeout)
             if packet.get('id')==1:
                 require(packet.get('result',{}).get('codexHome')==config['codex_home'],'helper initialize home mismatch');break
         transport.remaining(config['local_deadline'])
         await channel.send_rpc({'method':'initialized'})
         transport.remaining(config['local_deadline'])
         CURRENT_STAGE='helper-send'
-        packets=await asyncio.wait_for(adapter.send_tool_output_once(channel,capability,request_id=2),transport.remaining(config['deadline']))
+        timeout=transport.remaining(config['deadline'])
+        packets=await asyncio.wait_for(adapter.send_tool_output_once(channel,capability,request_id=2,wait_for_completion=False),timeout)
         CURRENT_STAGE='helper-history'
-        request={'id':3,'method':'thread/read','params':{'threadId':config['thread_id'],'includeTurns':True}}
-        history_end=min(config['deadline'],transport.now()+10)
-        await asyncio.wait_for(channel.send_rpc(request),transport.remaining(history_end))
-        while True:
-            response=await asyncio.wait_for(channel.read_rpc(),transport.remaining(history_end))
-            transport.remaining(history_end)
-            if response.get('id')==3:break
-        history={'request':request,'response':response}
-        delivery_turn_id=verify_history(history,capability,config['initial_turn_id'],packets)
+        history,delivery_turn_id,history_observation=await read_completed_history(channel,capability,config['initial_turn_id'],packets,config['deadline'])
         proof=adapter.audit_history(capability,[history])
         require(proof.summary['captured_page_chain_complete'] and proof.summary['matched_history_items']==1,'history proof incomplete')
         proof_row={'event':'history_proof','thread_id':config['thread_id'],'initial_turn_id':config['initial_turn_id'],'delivery_turn_id':delivery_turn_id,
             'lease_id':config['lease_id'],'public_peer':peer,'grant_sha256':config['grant_sha256'],'manifest_sha256':config['manifest_sha256'],
             'native_envelope_sha256':capability.native_envelope_sha256,'go_intent_sha256':capability.go_intent_sha256,'claim_sha256':capability.claim_sha256,
-            'reads_sha256':proof.reads_sha256,'matched_event_ids':sorted(proof.matched_event_ids),'summary':proof.summary,'envelopes':channel.envelopes}
+            'reads_sha256':proof.reads_sha256,'matched_event_ids':sorted(proof.matched_event_ids),'summary':proof.summary,'envelopes':channel.envelopes,'history_observation':history_observation}
         emit(proof_row)
         CURRENT_STAGE='helper-decision'
         decision=await control(config['deadline'])
@@ -202,7 +234,7 @@ async def helper(config):
         transport.remaining(config['deadline'])
         emit({'event':'ack','records':list(ack.records),'business_ack_complete':ack.business_ack_complete,
             'pending_event_ids':list(ack.pending_event_ids),'nonhandled_decisions':ack.nonhandled_decisions})
-        CURRENT_STAGE='helper-eof'
+        CURRENT_STAGE='helper-eof';channel.deadline=config['cleanup_deadline']
         # Keep this helper attached. Only actual transport EOF after owner
         # closes qualifies, not an arbitrary protocol rejection.
         while True:
@@ -225,7 +257,8 @@ async def main():
     try:
         config=await control(transport.now()+10);require(config.get('role')==role,'role changed')
         stage=role;CURRENT_STAGE=role
-        await asyncio.wait_for(owner(config) if role=='owner' else helper(config),transport.remaining(config['deadline']))
+        timeout=transport.remaining(config['cleanup_deadline'])
+        await asyncio.wait_for(owner(config) if role=='owner' else helper(config),timeout)
         return 0
     except Exception as exc:
         emit({'event':'error','stage':CURRENT_STAGE,'type':type(exc).__name__,'errno':getattr(exc,'errno',None),'message_sha256':hashlib.sha256(str(exc).encode()).hexdigest()})

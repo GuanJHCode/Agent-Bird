@@ -200,3 +200,50 @@ def test_actual_helper_admission_eof_keeps_original_safe_error(monkeypatch,tmp_p
             assert not result['service']['backend_records'][0].get('helpers')
             assert result['cleanup']['public_socket_removed']
     asyncio.run(asyncio.wait_for(scenario(),120))
+
+
+def test_receipt_then_complete_history_without_helper_lifecycle(monkeypatch,tmp_path):
+    runner=implementation()
+    async def scenario():
+        with tempfile.TemporaryDirectory(prefix='g0-auth-',dir='/private/tmp') as raw,SyntheticEndpoint() as endpoint:
+            prepared=make_prepared(Path(raw),endpoint);plan=prepare_case(runner,prepared,tmp_path,monkeypatch,'owner-only-events')
+            result=await asyncio.wait_for(runner.run_delivery(plan,prepared),6)
+            assert result['status']=='passed',result.get('failure')
+            assert result['business_ack_verified'] and result['ack']['records'][0]['effect_count']==1
+            helper=result['helper_proof']
+            assert not any(row['method']=='turn/completed' for row in helper['envelopes'])
+            assert helper['history_observation']['read_count']==2
+            assert helper['history_observation']['source']=='same_service_thread_read'
+            assert result['deadline_raw']-result['started_raw']==120
+            assert result['business_deadline_raw']==result['deadline_raw']-10
+            assert result['synthetic_endpoint']['accepted_requests']==2
+    asyncio.run(scenario())
+
+
+def test_business_expiry_reserves_real_cleanup_inside_original_total(monkeypatch,tmp_path):
+    runner=implementation()
+    monkeypatch.setattr(runner,'TOTAL_SECONDS',6.,raising=False)
+    monkeypatch.setattr(runner,'CLEANUP_SECONDS',3.,raising=False)
+    async def scenario():
+        with tempfile.TemporaryDirectory(prefix='g0-auth-',dir='/private/tmp') as raw,SyntheticEndpoint() as endpoint:
+            prepared=make_prepared(Path(raw),endpoint);plan=prepare_case(runner,prepared,tmp_path,monkeypatch,'history-never-completes')
+            result=await asyncio.wait_for(runner.run_delivery(plan,prepared),8)
+            assert result['status']=='unknown' and not result['business_ack_verified']
+            assert result['finished_raw']<result['deadline_raw']
+            assert result['cleanup']['started_raw']>=result['business_deadline_raw']
+            assert result['cleanup']['deadline_raw']==result['deadline_raw']
+            assert result['cleanup']['public_socket_removed']
+            assert all(row['process_stopped'] and row['socket_removed'] for row in result['service']['backend_records'])
+    asyncio.run(scenario())
+
+
+def test_expired_wait_creates_no_coroutine_or_signal(monkeypatch):
+    from types import SimpleNamespace
+    runner=implementation();calls=[]
+    def unexpected():calls.append('called');raise AssertionError('expired work created')
+    child=SimpleNamespace(stdout=SimpleNamespace(readline=unexpected),stdin=None,returncode=None,wait=unexpected,terminate=unexpected,kill=unexpected)
+    async def scenario():
+        end=runner.transport.now()-1
+        with pytest.raises(TimeoutError):await runner.line(child,end)
+        with pytest.raises(TimeoutError):await runner.stop_client(child,end,None)
+    asyncio.run(scenario());assert calls==[]
