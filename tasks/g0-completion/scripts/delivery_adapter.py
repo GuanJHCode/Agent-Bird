@@ -301,6 +301,7 @@ class DeliveryAdapter:
         self._require_owner_binding(binding, task_dir)
         status = self._run(["batch-status", "--dir", str(task_dir), "--nonce", binding.nonce], env=env)
         _require(status.get("delivery_id") == delivery_id and status.get("revision") == binding.revision and status.get("claim") == "claimed", "claim_not_current")
+        _require(status.get("status") not in {"cancelled", "stale"}, "status_terminal")
         intent = _stable_json(task_dir / "batch-intent.json")
         checked = _validate_go_intent(intent, binding, delivery_id, allow_transport_uncertain=True)
         _require(status.get("transport_status") in {"ready", "uncertain"}, "transport_status")

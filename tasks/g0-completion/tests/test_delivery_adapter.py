@@ -444,3 +444,33 @@ def test_reconcile_requires_original_owner_context_and_history(tmp_path):
                 "response": {"id": 1, "result": {"thread": {"id": THREAD, "turns": [{"id": "turn_1", "status": "completed", "items": []}]}}}}
     with pytest.raises(DeliveryError, match="history_uncertain"):
         restarted.audit_history(recovered, [bad_read])
+
+
+def test_reconcile_rejects_cancelled_status_after_real_go_revise(tmp_path):
+    go_binary = _build(tmp_path)
+    task = tmp_path / "reconcile-cancel"; task.mkdir(mode=0o700)
+    nonce = "reconcile_cancel"; _start(go_binary, task, nonce)
+    binding = DeliveryBinding("profile-a", THREAD, 1, nonce, 1)
+    adapter = DeliveryAdapter(go_binary, expected_sha256=hashlib.sha256(go_binary.read_bytes()).hexdigest(), owner_context_sha256="d" * 64)
+    adapter.prepare_and_claim(binding, task, "delivery_1", _events(), env={"CODEX_THREAD_ID": THREAD})
+    env = {"CODEX_THREAD_ID": THREAD}
+    subprocess.run([str(go_binary), "revise", "--dir", str(task), "--nonce", nonce, "--controller-thread", THREAD, "--revision", "1", "--cancel"], env=env, check=True, capture_output=True)
+    status = adapter._run(["batch-status", "--dir", str(task), "--nonce", nonce], env=env)
+    assert status["status"] == "cancelled" and status["transport_status"] == "ready" and status["claim"] == "claimed" and status["send_allowed"] is False
+    with pytest.raises(DeliveryError, match="status_terminal"):
+        adapter.reconcile_claimed(binding, task, "delivery_1", env=env)
+
+
+def test_reconcile_rejects_stale_status_after_real_go_revise(tmp_path):
+    go_binary = _build(tmp_path)
+    task = tmp_path / "reconcile-stale"; task.mkdir(mode=0o700)
+    nonce = "reconcile_stale"; _start(go_binary, task, nonce)
+    binding = DeliveryBinding("profile-a", THREAD, 1, nonce, 1)
+    adapter = DeliveryAdapter(go_binary, expected_sha256=hashlib.sha256(go_binary.read_bytes()).hexdigest(), owner_context_sha256="e" * 64)
+    adapter.prepare_and_claim(binding, task, "delivery_1", _events(), env={"CODEX_THREAD_ID": THREAD})
+    env = {"CODEX_THREAD_ID": THREAD}
+    subprocess.run([str(go_binary), "revise", "--dir", str(task), "--nonce", nonce, "--controller-thread", THREAD, "--revision", "1"], env=env, check=True, capture_output=True)
+    status = adapter._run(["batch-status", "--dir", str(task), "--nonce", nonce], env=env)
+    assert status["status"] == "stale" and status["transport_status"] == "ready" and status["claim"] == "claimed" and status["send_allowed"] is False
+    with pytest.raises(DeliveryError, match="status_terminal"):
+        adapter.reconcile_claimed(binding, task, "delivery_1", env=env)
