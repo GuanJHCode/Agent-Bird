@@ -43,13 +43,16 @@ type RunSpec struct {
 	OriginBirth          string
 }
 type TaskSpec struct {
-	ID, RunID      string
-	Dependencies   []string
-	MaxAttempts    int
-	WorkRevision   int
-	BudgetGroupID  string
-	MaxActiveMS    int64
-	AdapterPayload json.RawMessage
+	ID, RunID              string
+	Dependencies           []string
+	MaxAttempts            int
+	WorkRevision           int
+	BudgetGroupID          string
+	MaxActiveMS            int64
+	AdapterPayload         json.RawMessage
+	FallbackPayloads       []json.RawMessage
+	CompletionPolicy       string
+	ExpectedArtifactSHA256 string
 }
 type Attempt struct {
 	ID, TaskID, SegmentID, Status string
@@ -346,23 +349,6 @@ func (d *DB) CreateQuestion(ctx context.Context, id, taskID string, revision int
 	}
 	return nil
 }
-func (d *DB) AnswerQuestion(ctx context.Context, id string, revision int, answerHash string) error {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	if id == "" || revision < 1 || answerHash == "" {
-		return CodeError("invalid_answer")
-	}
-	r, err := d.sql.ExecContext(ctx, `UPDATE questions SET status='answer_committed',answer_hash=? WHERE id=? AND revision=? AND status='open'`, answerHash, id, revision)
-	if err != nil {
-		return err
-	}
-	n, _ := r.RowsAffected()
-	if n != 1 {
-		return ErrConflict
-	}
-	return nil
-}
-
 func (d *DB) LatestAttempt(ctx context.Context, taskID string) (Attempt, error) {
 	var a Attempt
 	err := d.sql.QueryRowContext(ctx, `SELECT id,task_id,status,attempt_no,(SELECT id FROM segments WHERE attempt_id=attempts.id ORDER BY segment_no DESC LIMIT 1) FROM attempts WHERE task_id=? ORDER BY attempt_no DESC LIMIT 1`, taskID).Scan(&a.ID, &a.TaskID, &a.Status, &a.AttemptNo, &a.SegmentID)

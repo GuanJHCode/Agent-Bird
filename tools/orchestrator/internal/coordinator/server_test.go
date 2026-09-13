@@ -6,11 +6,13 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"codex-cli-orchestration-design/tools/orchestrator/internal/contract"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/ipc"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/store"
 )
 
 func TestServerRoutesControlToBoundHostAndDurablyCollects(t *testing.T) {
@@ -113,10 +115,11 @@ func TestServerRoutesControlToBoundHostAndDurablyCollects(t *testing.T) {
 	collected := callServer(t, server.SocketPath(), ipc.KindCollect, TaskControlRequest{TaskID: "task", ControllerThread: "thread", ControlToken: receipt.ControlToken})
 	var collection CollectResponse
 	decodePayload(t, collected, &collection)
-	if len(collection.Events) != 2 || collection.Events[1].Kind != contract.EventExited {
+	if len(collection.Events) != 1 || collection.Events[0].Kind != contract.EventResult {
 		t.Fatalf("collection=%#v", collection)
 	}
-	acked := callServer(t, server.SocketPath(), ipc.KindAck, AckRequest{TaskID: "task", ControllerThread: "thread", ControlToken: receipt.ControlToken, EventIDs: []string{"event-result", "event-exited"}})
+	event := collection.Events[0]
+	acked := callServer(t, server.SocketPath(), ipc.KindAck, AckRequest{TaskID: "task", ControllerThread: "thread", ControlToken: receipt.ControlToken, DeliveryID: "delivery-1", HistoryProofSHA256: strings.Repeat("a", 64), Decisions: []store.AckDecision{{EventID: event.EventID, EventRevision: event.EventRevision, EventHash: event.PayloadHash, ActionSlot: event.ActionSlot, Decision: "handled", CommandID: "ack-command"}}})
 	var ackResponse StatusResponse
 	decodePayload(t, acked, &ackResponse)
 	if ackResponse.Status != "acknowledged" {

@@ -2,9 +2,11 @@ package store
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"codex-cli-orchestration-design/tools/orchestrator/internal/contract"
@@ -21,9 +23,9 @@ func TestRuntimePersistsDAGSlotsEventsAndExplicitResume(t *testing.T) {
 		Run:  RunSpec{ID: "run-1", ControllerThread: "thread-1", PlanRevision: 1, OriginContextID: "origin-1", OriginPID: 7, OriginBirth: "origin-birth"},
 		Host: HostLaunchSpec{OriginContextID: "origin-1", HostGeneration: "generation-1", Executable: "/private/tmp/orchestrator"},
 		Tasks: []TaskSpec{
-			{ID: "task-a", RunID: "run-1", MaxAttempts: 3},
-			{ID: "task-b", RunID: "run-1", MaxAttempts: 3},
-			{ID: "task-c", RunID: "run-1", Dependencies: []string{"task-a", "task-b"}, MaxAttempts: 3},
+			{ID: "task-a", RunID: "run-1", MaxAttempts: 3, CompletionPolicy: "exit_success_fixture", AdapterPayload: json.RawMessage(`{"kind":"fake"}`)},
+			{ID: "task-b", RunID: "run-1", MaxAttempts: 3, CompletionPolicy: "exit_success_fixture", AdapterPayload: json.RawMessage(`{"kind":"fake"}`)},
+			{ID: "task-c", RunID: "run-1", Dependencies: []string{"task-a", "task-b"}, MaxAttempts: 3, CompletionPolicy: "exit_success_fixture", AdapterPayload: json.RawMessage(`{"kind":"fake"}`)},
 		},
 	})
 	if err != nil {
@@ -168,15 +170,16 @@ func TestRuntimePersistsDAGSlotsEventsAndExplicitResume(t *testing.T) {
 	commit(resumed, contract.EventResult, 0)
 	commit(resumed, contract.EventExited, 1_000)
 	pending, err := db.CollectPending(ctx, "task-c")
-	if err != nil || len(pending) != 4 {
+	if err != nil || len(pending) != 2 {
 		t.Fatalf("pending=%d err=%v", len(pending), err)
 	}
-	ids := []string{pending[0].EventID, pending[1].EventID, pending[2].EventID, pending[3].EventID}
-	if err = db.AckEvents(ctx, "task-c", ids); err != nil {
-		t.Fatal(err)
-	}
-	if err = db.AckEvents(ctx, "task-c", ids); err != nil {
-		t.Fatalf("repeat ack=%v", err)
+	for _, event := range pending {
+		decision := "stale"
+		if event.SegmentID == resumed.SegmentID {
+			decision = "handled"
+		}
+		ackEvent(t, db, "task-c", event, decision)
+		ackEvent(t, db, "task-c", event, decision)
 	}
 	pending, err = db.CollectPending(ctx, "task-c")
 	if err != nil || len(pending) != 0 {
@@ -187,12 +190,8 @@ func TestRuntimePersistsDAGSlotsEventsAndExplicitResume(t *testing.T) {
 		if collectErr != nil {
 			t.Fatal(collectErr)
 		}
-		ids = ids[:0]
 		for _, event := range events {
-			ids = append(ids, event.EventID)
-		}
-		if err = db.AckEvents(ctx, taskID, ids); err != nil {
-			t.Fatal(err)
+			ackEvent(t, db, taskID, event, "handled")
 		}
 	}
 	retirable, err := db.RetirableHosts(ctx)
@@ -241,7 +240,7 @@ func TestFailedBeforeSpawnSettlesSlotWithoutBecomingUnknown(t *testing.T) {
 		Run:  RunSpec{ID: "failed-run", ControllerThread: "thread", PlanRevision: 1, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth"},
 		Host: HostLaunchSpec{OriginContextID: "origin", HostGeneration: "generation", Executable: "/private/tmp/orchestrator"},
 		Tasks: []TaskSpec{
-			{ID: "failed-task", RunID: "failed-run", MaxAttempts: 3},
+			{ID: "failed-task", RunID: "failed-run", MaxAttempts: 1},
 			{ID: "blocked-task", RunID: "failed-run", Dependencies: []string{"failed-task"}, MaxAttempts: 3},
 		},
 	})
@@ -286,16 +285,20 @@ func TestFailedBeforeSpawnSettlesSlotWithoutBecomingUnknown(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ids := make([]string, 0, len(events))
 	for _, event := range events {
-		ids = append(ids, event.EventID)
-	}
-	if err = db.AckEvents(ctx, "failed-task", ids); err != nil {
-		t.Fatal(err)
+		ackEvent(t, db, "failed-task", event, "handled")
 	}
 	retirable, err := db.RetirableHosts(ctx)
 	if err != nil || len(retirable) != 1 || retirable[0] != hostID {
 		t.Fatalf("failed/blocked host not retirable: %#v err=%v", retirable, err)
+	}
+}
+
+func ackEvent(t *testing.T, db *DB, taskID string, event contract.Event, decision string) {
+	t.Helper()
+	err := db.AckDecision(context.Background(), taskID, AckDecision{EventID: event.EventID, EventRevision: event.EventRevision, EventHash: event.PayloadHash, ActionSlot: event.ActionSlot, Decision: decision, CommandID: "ack-" + event.EventID})
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -356,4 +359,118 @@ func TestSubmitPlanReservesAtMostFourSourceHosts(t *testing.T) {
 			t.Fatalf("fifth submit err=%v", err)
 		}
 	}
+}
+
+func TestQuestionAnswerResumesSameAttemptOnce(t *testing.T) {
+	ctx := context.Background()
+	db, err := Open(filepath.Join(t.TempDir(), "state.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	receipt, err := db.SubmitPlan(ctx, PlanSpec{
+		Run:   RunSpec{ID: "question-run", ControllerThread: "thread", PlanRevision: 1, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth"},
+		Host:  HostLaunchSpec{OriginContextID: "origin", HostGeneration: "generation", Executable: "/private/tmp/orchestrator"},
+		Tasks: []TaskSpec{{ID: "question-task", RunID: "question-run", MaxAttempts: 3, AdapterPayload: json.RawMessage(`{"provider":"antigravity-cli"}`)}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hostID, err := db.RegisterHost(ctx, contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: "origin", HostGeneration: "generation", PID: 10, Birth: "host", Executable: "/private/tmp/orchestrator"}, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	grant, err := db.ClaimReady(ctx, hostID, 1, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	question := contract.Event{Version: 1, ProducerID: hostID, EventID: hostID + ":1", RunID: grant.RunID, TaskID: grant.TaskID, AttemptID: grant.AttemptID, SegmentID: grant.SegmentID, WorkRevision: 1, ExecutionEpoch: 1, CommandID: grant.CommandID, Sequence: 1, Kind: contract.EventQuestion, PayloadHash: strings.Repeat("a", 64), QuestionID: "question-1", QuestionRevision: 1, SessionKind: "conversation-id", SessionID: "conversation-1"}
+	if _, err = db.CommitHostEvent(ctx, question); err != nil {
+		t.Fatal(err)
+	}
+	exit := 0
+	question.Sequence, question.EventID, question.Kind, question.PayloadHash, question.ExitCode = 2, hostID+":2", contract.EventExited, strings.Repeat("b", 64), &exit
+	if _, err = db.CommitHostEvent(ctx, question); err != nil {
+		t.Fatal(err)
+	}
+	if status, answerErr := db.AnswerQuestion(ctx, AnswerSpec{TaskID: grant.TaskID, WorkRevision: 1, QuestionID: "question-1", QuestionRevision: 1, Answer: "Use the narrow API."}); answerErr != nil || status != "resume_queued" {
+		t.Fatalf("answer status=%q err=%v", status, answerErr)
+	}
+	if status, answerErr := db.AnswerQuestion(ctx, AnswerSpec{TaskID: grant.TaskID, WorkRevision: 1, QuestionID: "question-1", QuestionRevision: 1, Answer: "Use the narrow API."}); answerErr != nil || status != "resume_queued" {
+		t.Fatalf("repeat answer status=%q err=%v", status, answerErr)
+	}
+	if _, answerErr := db.AnswerQuestion(ctx, AnswerSpec{TaskID: grant.TaskID, WorkRevision: 1, QuestionID: "question-1", QuestionRevision: 1, Answer: "Use a different API."}); !errors.Is(answerErr, ErrConflict) {
+		t.Fatalf("conflicting answer err=%v", answerErr)
+	}
+	resumed, err := db.ClaimReady(ctx, hostID, 1, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resumed.AttemptID != grant.AttemptID || resumed.SegmentID == grant.SegmentID || resumed.Answer != "Use the narrow API." || resumed.SessionID != "conversation-1" || resumed.QuestionID != "question-1" {
+		t.Fatalf("resumed=%#v initial=%#v", resumed, grant)
+	}
+}
+
+func TestRetryUsesOnlyPreauthorizedFallbackAndAcceptReleasesDependency(t *testing.T) {
+	ctx := context.Background()
+	db, err := Open(filepath.Join(t.TempDir(), "state.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	primary := json.RawMessage(`{"kind":"fake","name":"primary"}`)
+	fallback := json.RawMessage(`{"kind":"fake","name":"fallback"}`)
+	receipt, err := db.SubmitPlan(ctx, PlanSpec{
+		Run:   RunSpec{ID: "retry-run", ControllerThread: "thread", PlanRevision: 1, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth"},
+		Host:  HostLaunchSpec{OriginContextID: "origin", HostGeneration: "generation", Executable: "/private/tmp/orchestrator"},
+		Tasks: []TaskSpec{{ID: "retry-task", RunID: "retry-run", MaxAttempts: 3, AdapterPayload: primary, FallbackPayloads: []json.RawMessage{fallback}}, {ID: "retry-dependent", RunID: "retry-run", Dependencies: []string{"retry-task"}, MaxAttempts: 1}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hostID, err := db.RegisterHost(ctx, contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: "origin", HostGeneration: "generation", PID: 10, Birth: "host", Executable: "/private/tmp/orchestrator"}, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, err := db.ClaimReady(ctx, hostID, 1, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	commit := func(grant contract.LaunchCommand, sequence int64, kind, hash string) {
+		exit := 1
+		event := contract.Event{Version: 1, ProducerID: hostID, EventID: fmt.Sprintf("%s:%d", hostID, sequence), RunID: grant.RunID, TaskID: grant.TaskID, AttemptID: grant.AttemptID, SegmentID: grant.SegmentID, WorkRevision: 1, ExecutionEpoch: 1, CommandID: grant.CommandID, Sequence: sequence, Kind: kind, PayloadHash: hash, ExitCode: &exit}
+		if _, commitErr := db.CommitHostEvent(ctx, event); commitErr != nil {
+			t.Fatal(commitErr)
+		}
+	}
+	commit(first, 1, contract.EventFailed, strings.Repeat("c", 64))
+	commit(first, 2, contract.EventExited, strings.Repeat("d", 64))
+	if err = db.QueueRetry(ctx, first.TaskID, 1, true); err != nil {
+		t.Fatal(err)
+	}
+	second, err := db.ClaimReady(ctx, hostID, 1, 2)
+	if err != nil || second.AttemptID == first.AttemptID || string(second.AdapterPayload) != string(fallback) {
+		t.Fatalf("fallback grant=%#v err=%v", second, err)
+	}
+	commit(second, 3, contract.EventResult, strings.Repeat("e", 64))
+	commit(second, 4, contract.EventExited, strings.Repeat("f", 64))
+	if snapshot, snapshotErr := db.TaskSnapshot(ctx, first.TaskID); snapshotErr != nil || snapshot.Status != "result_ready" {
+		t.Fatalf("result snapshot=%#v err=%v", snapshot, snapshotErr)
+	}
+	if err = db.AcceptResult(ctx, first.TaskID, 1); err != nil {
+		t.Fatal(err)
+	}
+	dependent, err := db.TaskSnapshot(ctx, "retry-dependent")
+	if err != nil || dependent.Status != "ready" {
+		t.Fatalf("dependent=%#v err=%v", dependent, err)
+	}
+	events, err := db.CollectPending(ctx, first.TaskID)
+	if err != nil || len(events) != 2 {
+		t.Fatalf("events=%#v err=%v", events, err)
+	}
+	if ackErr := db.AckDecision(ctx, first.TaskID, AckDecision{EventID: events[0].EventID, EventRevision: events[0].EventRevision, EventHash: events[0].PayloadHash, ActionSlot: events[0].ActionSlot, Decision: "handled", CommandID: "bad-current-ack"}); !errors.Is(ackErr, ErrConflict) {
+		t.Fatalf("old event handled err=%v", ackErr)
+	}
+	ackEvent(t, db, first.TaskID, events[0], "stale")
+	ackEvent(t, db, first.TaskID, events[1], "handled")
 }

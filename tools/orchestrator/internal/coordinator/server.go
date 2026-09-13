@@ -20,13 +20,16 @@ import (
 )
 
 type TaskRequest struct {
-	ID             string          `json:"id"`
-	Dependencies   []string        `json:"dependencies,omitempty"`
-	MaxAttempts    int             `json:"max_attempts"`
-	WorkRevision   int             `json:"work_revision,omitempty"`
-	BudgetGroupID  string          `json:"budget_group_id,omitempty"`
-	MaxActiveMS    int64           `json:"max_active_ms,omitempty"`
-	AdapterPayload json.RawMessage `json:"adapter"`
+	ID                     string            `json:"id"`
+	Dependencies           []string          `json:"dependencies,omitempty"`
+	MaxAttempts            int               `json:"max_attempts"`
+	WorkRevision           int               `json:"work_revision,omitempty"`
+	BudgetGroupID          string            `json:"budget_group_id,omitempty"`
+	MaxActiveMS            int64             `json:"max_active_ms,omitempty"`
+	AdapterPayload         json.RawMessage   `json:"adapter"`
+	Fallbacks              []json.RawMessage `json:"fallbacks,omitempty"`
+	CompletionPolicy       string            `json:"completion_policy,omitempty"`
+	ExpectedArtifactSHA256 string            `json:"expected_artifact_sha256,omitempty"`
 }
 
 type SubmitRequest struct {
@@ -60,10 +63,27 @@ type TaskControlRequest struct {
 }
 
 type AckRequest struct {
-	TaskID           string   `json:"task_id"`
-	ControllerThread string   `json:"controller_thread"`
-	ControlToken     string   `json:"control_token"`
-	EventIDs         []string `json:"event_ids"`
+	TaskID             string              `json:"task_id"`
+	ControllerThread   string              `json:"controller_thread"`
+	ControlToken       string              `json:"control_token"`
+	DeliveryID         string              `json:"delivery_id"`
+	HistoryProofSHA256 string              `json:"history_proof_sha256"`
+	Decisions          []store.AckDecision `json:"decisions"`
+}
+
+type RetryRequest struct {
+	TaskControlRequest
+	UseNextFallback bool `json:"use_next_fallback,omitempty"`
+}
+
+type AnswerRequest struct {
+	TaskID           string `json:"task_id"`
+	ControllerThread string `json:"controller_thread"`
+	ControlToken     string `json:"control_token"`
+	WorkRevision     int    `json:"work_revision"`
+	QuestionID       string `json:"question_id"`
+	QuestionRevision int    `json:"question_revision"`
+	Answer           string `json:"answer"`
 }
 
 type CollectResponse struct {
@@ -336,7 +356,11 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 		}
 		tasks := make([]store.TaskSpec, 0, len(request.Tasks))
 		for _, task := range request.Tasks {
-			tasks = append(tasks, store.TaskSpec{ID: task.ID, RunID: request.RunID, Dependencies: task.Dependencies, MaxAttempts: task.MaxAttempts, WorkRevision: task.WorkRevision, BudgetGroupID: task.BudgetGroupID, MaxActiveMS: task.MaxActiveMS, AdapterPayload: task.AdapterPayload})
+			policy := task.CompletionPolicy
+			if policy == "" {
+				policy = "owner_review"
+			}
+			tasks = append(tasks, store.TaskSpec{ID: task.ID, RunID: request.RunID, Dependencies: task.Dependencies, MaxAttempts: task.MaxAttempts, WorkRevision: task.WorkRevision, BudgetGroupID: task.BudgetGroupID, MaxActiveMS: task.MaxActiveMS, AdapterPayload: task.AdapterPayload, FallbackPayloads: task.Fallbacks, CompletionPolicy: policy, ExpectedArtifactSHA256: task.ExpectedArtifactSHA256})
 		}
 		receipt, err := s.db.SubmitPlan(ctx, store.PlanSpec{Run: store.RunSpec{ID: request.RunID, ControllerThread: request.ControllerThread, PlanRevision: request.PlanRevision, OriginContextID: request.OriginContextID, OriginPID: request.OriginPID, OriginBirth: request.OriginBirth}, Host: store.HostLaunchSpec{OriginContextID: request.OriginContextID, HostGeneration: request.HostGeneration, Executable: request.HostExecutable}, Tasks: tasks, LaunchID: request.LaunchID, LaunchToken: request.LaunchToken, ControlToken: request.ControlToken})
 		if err != nil {
@@ -387,7 +411,7 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 		if err := s.db.ValidateTaskOwner(ctx, request.TaskID, request.ControllerThread, request.ControlToken); err != nil {
 			return nil, err
 		}
-		if err := s.db.AckEvents(ctx, request.TaskID, request.EventIDs); err != nil {
+		if err := s.db.AckDecisions(ctx, request.TaskID, request.DeliveryID, request.HistoryProofSHA256, request.Decisions); err != nil {
 			return nil, err
 		}
 		s.retireCompletedHosts()
@@ -405,6 +429,46 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 		}
 		s.dispatchAll()
 		return json.Marshal(StatusResponse{Status: "resume_queued"})
+	case ipc.KindRetry:
+		var request RetryRequest
+		if err := strictJSON(raw, &request); err != nil {
+			return nil, err
+		}
+		if err := s.db.ValidateTaskOwner(ctx, request.TaskID, request.ControllerThread, request.ControlToken); err != nil {
+			return nil, err
+		}
+		if err := s.db.QueueRetry(ctx, request.TaskID, request.WorkRevision, request.UseNextFallback); err != nil {
+			return nil, err
+		}
+		s.dispatchAll()
+		return json.Marshal(StatusResponse{Status: "retry_queued"})
+	case ipc.KindAccept:
+		var request TaskControlRequest
+		if err := strictJSON(raw, &request); err != nil {
+			return nil, err
+		}
+		if err := s.db.ValidateTaskOwner(ctx, request.TaskID, request.ControllerThread, request.ControlToken); err != nil {
+			return nil, err
+		}
+		if err := s.db.AcceptResult(ctx, request.TaskID, request.WorkRevision); err != nil {
+			return nil, err
+		}
+		s.dispatchAll()
+		return json.Marshal(StatusResponse{Status: "accepted"})
+	case ipc.KindAnswer:
+		var request AnswerRequest
+		if err := strictJSON(raw, &request); err != nil {
+			return nil, err
+		}
+		if err := s.db.ValidateTaskOwner(ctx, request.TaskID, request.ControllerThread, request.ControlToken); err != nil {
+			return nil, err
+		}
+		status, err := s.db.AnswerQuestion(ctx, store.AnswerSpec{TaskID: request.TaskID, WorkRevision: request.WorkRevision, QuestionID: request.QuestionID, QuestionRevision: request.QuestionRevision, Answer: request.Answer})
+		if err != nil {
+			return nil, err
+		}
+		s.dispatchAll()
+		return json.Marshal(StatusResponse{Status: status})
 	case ipc.KindStopTask:
 		var request TaskControlRequest
 		if err := strictJSON(raw, &request); err != nil {

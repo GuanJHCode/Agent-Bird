@@ -27,16 +27,12 @@ import (
 	"codex-cli-orchestration-design/tools/orchestrator/internal/instance"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/ipc"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/process"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/store"
 )
 
 type codeError string
 
 func (e codeError) Error() string { return string(e) }
-
-type stringsFlag []string
-
-func (s *stringsFlag) String() string         { return fmt.Sprint([]string(*s)) }
-func (s *stringsFlag) Set(value string) error { *s = append(*s, value); return nil }
 
 func main() {
 	if err := run(context.Background(), os.Args[1:], os.Stdout, os.Stderr); err != nil {
@@ -76,6 +72,12 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return taskControl(ctx, ipc.KindCollect, args[1:], stdout)
 	case "resume":
 		return taskControl(ctx, ipc.KindResume, args[1:], stdout)
+	case "retry":
+		return retryTask(ctx, args[1:], stdout)
+	case "accept":
+		return taskControl(ctx, ipc.KindAccept, args[1:], stdout)
+	case "answer":
+		return answerQuestion(ctx, args[1:], stdout)
 	case "stop":
 		return taskControl(ctx, ipc.KindStopTask, args[1:], stdout)
 	case "ack":
@@ -234,7 +236,7 @@ func taskControl(ctx context.Context, kind ipc.Kind, args []string, stdout io.Wr
 	if fs.Parse(args) != nil || *taskID == "" || *controlFile == "" || fs.NArg() != 0 {
 		return codeError("invalid_args")
 	}
-	if (kind == ipc.KindResume || kind == ipc.KindStopTask) && *revision < 1 {
+	if (kind == ipc.KindResume || kind == ipc.KindStopTask || kind == ipc.KindAccept) && *revision < 1 {
 		return codeError("invalid_args")
 	}
 	state, err := resolveState(*stateArg)
@@ -258,15 +260,15 @@ func taskControl(ctx context.Context, kind ipc.Kind, args []string, stdout io.Wr
 	return err
 }
 
-func acknowledge(ctx context.Context, args []string, stdout io.Writer) error {
-	fs := flag.NewFlagSet("ack", flag.ContinueOnError)
+func retryTask(ctx context.Context, args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("retry", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	stateArg := fs.String("state-dir", "", "private state directory")
 	taskID := fs.String("task-id", "", "task id")
 	controlFile := fs.String("control-file", "", "owner-only control capability")
-	var eventIDs stringsFlag
-	fs.Var(&eventIDs, "event-id", "event id")
-	if fs.Parse(args) != nil || *taskID == "" || *controlFile == "" || len(eventIDs) == 0 || fs.NArg() != 0 {
+	revision := fs.Int("work-revision", 0, "work revision")
+	useNext := fs.Bool("use-next-fallback", false, "use the next pre-authorized adapter")
+	if fs.Parse(args) != nil || *taskID == "" || *controlFile == "" || *revision < 1 || fs.NArg() != 0 {
 		return codeError("invalid_args")
 	}
 	state, err := resolveState(*stateArg)
@@ -277,12 +279,95 @@ func acknowledge(ctx context.Context, args []string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
-	response, err := call(ctx, state, ipc.KindAck, coordinator.AckRequest{TaskID: *taskID, ControllerThread: capability.ControllerThread, ControlToken: capability.ControlToken, EventIDs: eventIDs})
+	if err = ensureSourceHost(ctx, state, capability.BootstrapPath); err != nil {
+		return err
+	}
+	request := coordinator.RetryRequest{TaskControlRequest: coordinator.TaskControlRequest{TaskID: *taskID, ControllerThread: capability.ControllerThread, ControlToken: capability.ControlToken, WorkRevision: *revision}, UseNextFallback: *useNext}
+	response, err := call(ctx, state, ipc.KindRetry, request)
 	if err != nil {
 		return err
 	}
 	_, err = stdout.Write(append(response.Payload, '\n'))
 	return err
+}
+
+type answerFile struct {
+	TaskID           string `json:"task_id"`
+	ControlFile      string `json:"control_file"`
+	WorkRevision     int    `json:"work_revision"`
+	QuestionID       string `json:"question_id"`
+	QuestionRevision int    `json:"question_revision"`
+	Answer           string `json:"answer"`
+}
+
+func answerQuestion(ctx context.Context, args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("answer", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	stateArg := fs.String("state-dir", "", "private state directory")
+	requestPath := fs.String("request", "", "owner-only answer request")
+	if fs.Parse(args) != nil || *requestPath == "" || fs.NArg() != 0 {
+		return codeError("invalid_args")
+	}
+	state, err := resolveState(*stateArg)
+	if err != nil {
+		return err
+	}
+	var request answerFile
+	if err = readPrivateJSON(*requestPath, &request); err != nil || request.TaskID == "" || request.ControlFile == "" || request.WorkRevision < 1 || request.QuestionID == "" || request.QuestionRevision < 1 || strings.TrimSpace(request.Answer) == "" {
+		return codeError("invalid_answer")
+	}
+	capability, err := loadControlCapability(request.ControlFile)
+	if err != nil {
+		return err
+	}
+	if err = ensureSourceHost(ctx, state, capability.BootstrapPath); err != nil {
+		return err
+	}
+	payload := coordinator.AnswerRequest{TaskID: request.TaskID, ControllerThread: capability.ControllerThread, ControlToken: capability.ControlToken, WorkRevision: request.WorkRevision, QuestionID: request.QuestionID, QuestionRevision: request.QuestionRevision, Answer: request.Answer}
+	response, err := call(ctx, state, ipc.KindAnswer, payload)
+	if err != nil {
+		return err
+	}
+	_, err = stdout.Write(append(response.Payload, '\n'))
+	return err
+}
+
+func acknowledge(ctx context.Context, args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("ack", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	stateArg := fs.String("state-dir", "", "private state directory")
+	requestPath := fs.String("request", "", "owner-only delivery acknowledgement")
+	if fs.Parse(args) != nil || *requestPath == "" || fs.NArg() != 0 {
+		return codeError("invalid_args")
+	}
+	state, err := resolveState(*stateArg)
+	if err != nil {
+		return err
+	}
+	var request ackFile
+	if err = readPrivateJSON(*requestPath, &request); err != nil || request.Version != 1 || request.TaskID == "" || request.ControlFile == "" || request.DeliveryID == "" || request.HistoryProofSHA256 == "" || len(request.Decisions) == 0 {
+		return codeError("invalid_ack")
+	}
+	capability, err := loadControlCapability(request.ControlFile)
+	if err != nil {
+		return err
+	}
+	payload := coordinator.AckRequest{TaskID: request.TaskID, ControllerThread: capability.ControllerThread, ControlToken: capability.ControlToken, DeliveryID: request.DeliveryID, HistoryProofSHA256: request.HistoryProofSHA256, Decisions: request.Decisions}
+	response, err := call(ctx, state, ipc.KindAck, payload)
+	if err != nil {
+		return err
+	}
+	_, err = stdout.Write(append(response.Payload, '\n'))
+	return err
+}
+
+type ackFile struct {
+	Version            int                 `json:"version"`
+	TaskID             string              `json:"task_id"`
+	ControlFile        string              `json:"control_file"`
+	DeliveryID         string              `json:"delivery_id"`
+	HistoryProofSHA256 string              `json:"history_proof_sha256"`
+	Decisions          []store.AckDecision `json:"decisions"`
 }
 
 func call(ctx context.Context, state string, kind ipc.Kind, payload any) (ipc.Envelope, error) {
@@ -471,6 +556,12 @@ func invocationForGrant(ctx context.Context, grant contract.LaunchCommand) (cont
 	var payload invocationPayload
 	if err := decode(grant.AdapterPayload, &payload); err != nil {
 		return nil, err
+	}
+	if grant.Answer != "" {
+		if grant.QuestionID == "" || grant.QuestionRevision < 1 || grant.SessionKind == "" || grant.SessionID == "" || payload.Kind == "fake" {
+			return nil, codeError("invalid_question_resume")
+		}
+		payload.Prompt, payload.SessionKind, payload.SessionID = grant.Answer, grant.SessionKind, grant.SessionID
 	}
 	if payload.Kind == "fake" {
 		if os.Getenv("ORCHESTRATOR_ENABLE_TEST_FAKE") != "1" || len(payload.Args) == 0 || payload.Directory == "" {

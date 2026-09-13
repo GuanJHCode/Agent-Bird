@@ -53,10 +53,10 @@ func TestCLIStartsServiceSourceHostAndCollectsDurableResult(t *testing.T) {
 		"origin_context_id": "cli-origin", "origin_pid": os.Getpid(), "origin_birth": originBirth,
 		"host_generation": "generation-1",
 		"tasks": []any{
-			map[string]any{"id": "task-a", "max_attempts": 3, "adapter": map[string]any{"kind": "fake", "args": []string{"/bin/sleep", "0.2"}, "directory": root}},
-			map[string]any{"id": "task-b", "max_attempts": 3, "adapter": map[string]any{"kind": "fake", "args": []string{"/bin/sleep", "0.2"}, "directory": root}},
-			map[string]any{"id": "task-c", "dependencies": []string{"task-a", "task-b"}, "max_attempts": 3, "adapter": map[string]any{"kind": "fake", "args": []string{"/bin/sleep", "0.2"}, "directory": root}},
-			map[string]any{"id": "task-d", "max_attempts": 3, "adapter": map[string]any{"kind": "fake", "args": []string{"/bin/sh", "-c", "if [ -e " + filepath.Join(root, "resume-marker") + " ]; then exit 0; else : > " + filepath.Join(root, "resume-marker") + "; sleep 30; fi"}, "directory": root}},
+			map[string]any{"id": "task-a", "max_attempts": 3, "completion_policy": "exit_success_fixture", "adapter": map[string]any{"kind": "fake", "args": []string{"/bin/sleep", "0.2"}, "directory": root}},
+			map[string]any{"id": "task-b", "max_attempts": 3, "completion_policy": "exit_success_fixture", "adapter": map[string]any{"kind": "fake", "args": []string{"/bin/sleep", "0.2"}, "directory": root}},
+			map[string]any{"id": "task-c", "dependencies": []string{"task-a", "task-b"}, "max_attempts": 3, "completion_policy": "exit_success_fixture", "adapter": map[string]any{"kind": "fake", "args": []string{"/bin/sleep", "0.2"}, "directory": root}},
+			map[string]any{"id": "task-d", "max_attempts": 3, "completion_policy": "exit_success_fixture", "adapter": map[string]any{"kind": "fake", "args": []string{"/bin/sh", "-c", "if [ -e " + filepath.Join(root, "resume-marker") + " ]; then exit 0; else : > " + filepath.Join(root, "resume-marker") + "; sleep 30; fi"}, "directory": root}},
 		},
 	}
 	data, _ := json.Marshal(request)
@@ -100,18 +100,26 @@ func TestCLIStartsServiceSourceHostAndCollectsDurableResult(t *testing.T) {
 		collected := runBinary(t, ctx, bin, "collect", "--state-dir", state, "--task-id", taskID, "--control-file", submitted.ControlFile)
 		var result struct {
 			Events []struct {
-				EventID string `json:"event_id"`
-				Kind    string `json:"kind"`
+				EventID       string `json:"event_id"`
+				EventRevision int64  `json:"event_revision"`
+				PayloadHash   string `json:"payload_hash"`
+				ActionSlot    string `json:"action_slot"`
+				Kind          string `json:"kind"`
 			} `json:"events"`
 		}
-		if err = json.Unmarshal(collected, &result); err != nil || len(result.Events) < 2 {
+		if err = json.Unmarshal(collected, &result); err != nil || len(result.Events) < 1 {
 			t.Fatalf("collect %s: %s err=%v", taskID, collected, err)
 		}
-		args := []string{"ack", "--state-dir", state, "--task-id", taskID, "--control-file", submitted.ControlFile}
-		for _, event := range result.Events {
-			args = append(args, "--event-id", event.EventID)
+		decisions := make([]map[string]any, 0, len(result.Events))
+		for index, event := range result.Events {
+			decisions = append(decisions, map[string]any{"event_id": event.EventID, "event_revision": event.EventRevision, "event_hash": event.PayloadHash, "action_slot": event.ActionSlot, "decision": "handled", "command_id": fmt.Sprintf("ack-%s-%d", taskID, index)})
 		}
-		runBinary(t, ctx, bin, args...)
+		ackPath := filepath.Join(root, "ack-"+taskID+".json")
+		ackBody, _ := json.Marshal(map[string]any{"version": 1, "task_id": taskID, "control_file": submitted.ControlFile, "delivery_id": "delivery-" + taskID, "history_proof_sha256": strings.Repeat("a", 64), "decisions": decisions})
+		if err = os.WriteFile(ackPath, ackBody, 0600); err != nil {
+			t.Fatal(err)
+		}
+		runBinary(t, ctx, bin, "ack", "--state-dir", state, "--request", ackPath)
 	}
 
 	beforeRestart := taskStatus(t, ctx, bin, state, "task-d", submitted.ControlFile)
@@ -236,7 +244,7 @@ func TestCLIForceRestartReplaysSpoolBeforeExplicitResume(t *testing.T) {
 		"run_id": "force-run", "controller_thread": "force-thread", "plan_revision": 1,
 		"origin_context_id": "force-origin", "origin_pid": os.Getpid(), "origin_birth": originBirth,
 		"host_generation": "force-generation",
-		"tasks":           []any{map[string]any{"id": "force-task", "max_attempts": 3, "adapter": map[string]any{"kind": "fake", "args": []string{"/bin/sh", "-c", "if [ -e " + marker + " ]; then sleep 0.2; exit 0; else : > " + marker + "; sleep 30; fi"}, "directory": root}}},
+		"tasks":           []any{map[string]any{"id": "force-task", "max_attempts": 3, "completion_policy": "exit_success_fixture", "adapter": map[string]any{"kind": "fake", "args": []string{"/bin/sh", "-c", "if [ -e " + marker + " ]; then sleep 0.2; exit 0; else : > " + marker + "; sleep 30; fi"}, "directory": root}}},
 	}
 	requestPath := filepath.Join(root, "request.json")
 	data, _ := json.Marshal(request)

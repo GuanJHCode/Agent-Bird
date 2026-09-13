@@ -8,7 +8,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"sort"
 	"strings"
 	"time"
 
@@ -80,7 +79,9 @@ CREATE TABLE IF NOT EXISTS run_control(
 CREATE TABLE IF NOT EXISTS task_runtime(
   task_id TEXT PRIMARY KEY REFERENCES tasks(id), host_launch_id TEXT NOT NULL REFERENCES host_launches(id),
   work_revision INTEGER NOT NULL, budget_group_id TEXT NOT NULL,
-  max_active_ms INTEGER NOT NULL, ready_sequence INTEGER, adapter_payload TEXT NOT NULL DEFAULT '{}'
+  max_active_ms INTEGER NOT NULL, ready_sequence INTEGER, adapter_payload TEXT NOT NULL DEFAULT '{}',
+  fallback_payloads TEXT NOT NULL DEFAULT '[]', fallback_index INTEGER NOT NULL DEFAULT 0,
+  completion_policy TEXT NOT NULL DEFAULT 'owner_review', expected_artifact_sha256 TEXT NOT NULL DEFAULT ''
 );
 CREATE TABLE IF NOT EXISTS segment_runtime(
   segment_id TEXT PRIMARY KEY REFERENCES segments(id), attempt_id TEXT NOT NULL REFERENCES attempts(id),
@@ -98,13 +99,31 @@ CREATE TABLE IF NOT EXISTS runtime_events(
   event_id TEXT PRIMARY KEY, producer_id TEXT NOT NULL REFERENCES runtime_hosts(id),
   sequence INTEGER NOT NULL, task_id TEXT NOT NULL REFERENCES tasks(id),
   attempt_id TEXT NOT NULL REFERENCES attempts(id), segment_id TEXT NOT NULL REFERENCES segments(id),
-  payload_hash TEXT NOT NULL, body_json TEXT NOT NULL, delivery_status TEXT NOT NULL,
+  payload_hash TEXT NOT NULL, body_json TEXT NOT NULL, event_revision INTEGER NOT NULL DEFAULT 0,
+  action_slot TEXT NOT NULL DEFAULT '', delivery_status TEXT NOT NULL,
   created_at TEXT NOT NULL, UNIQUE(producer_id,sequence)
+);
+CREATE TABLE IF NOT EXISTS runtime_decisions(
+  action_slot TEXT PRIMARY KEY, event_id TEXT NOT NULL UNIQUE REFERENCES runtime_events(event_id),
+  event_revision INTEGER NOT NULL, event_hash TEXT NOT NULL, decision TEXT NOT NULL,
+  command_id TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS delivery_receipts(
+  delivery_id TEXT PRIMARY KEY, task_id TEXT NOT NULL REFERENCES tasks(id),
+  history_proof_sha256 TEXT NOT NULL, decisions_hash TEXT NOT NULL, created_at TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS stop_runtime(
   command_id TEXT PRIMARY KEY, host_id TEXT NOT NULL REFERENCES runtime_hosts(id),
   segment_id TEXT NOT NULL UNIQUE REFERENCES segments(id), reason TEXT NOT NULL,
   deadline_unix_ms INTEGER NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS runtime_questions(
+  question_id TEXT PRIMARY KEY, task_id TEXT NOT NULL REFERENCES tasks(id),
+  attempt_id TEXT NOT NULL REFERENCES attempts(id), segment_id TEXT NOT NULL REFERENCES segments(id),
+  question_revision INTEGER NOT NULL, work_revision INTEGER NOT NULL,
+  session_kind TEXT NOT NULL, session_id TEXT NOT NULL, status TEXT NOT NULL,
+  answer_hash TEXT NOT NULL DEFAULT '', answer_text TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL,
+  UNIQUE(task_id,question_revision)
 );`)
 	if err != nil {
 		return err
@@ -112,6 +131,18 @@ CREATE TABLE IF NOT EXISTS stop_runtime(
 	_, err = d.sql.Exec(`ALTER TABLE task_runtime ADD COLUMN adapter_payload TEXT NOT NULL DEFAULT '{}'`)
 	if err != nil && !strings.Contains(err.Error(), "duplicate column") {
 		return err
+	}
+	for _, statement := range []string{
+		`ALTER TABLE task_runtime ADD COLUMN fallback_payloads TEXT NOT NULL DEFAULT '[]'`,
+		`ALTER TABLE task_runtime ADD COLUMN fallback_index INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE task_runtime ADD COLUMN completion_policy TEXT NOT NULL DEFAULT 'owner_review'`,
+		`ALTER TABLE task_runtime ADD COLUMN expected_artifact_sha256 TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE runtime_events ADD COLUMN event_revision INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE runtime_events ADD COLUMN action_slot TEXT NOT NULL DEFAULT ''`,
+	} {
+		if _, alterErr := d.sql.Exec(statement); alterErr != nil && !strings.Contains(alterErr.Error(), "duplicate column") {
+			return alterErr
+		}
 	}
 	return nil
 }
@@ -154,6 +185,28 @@ func validatePlan(p PlanSpec) error {
 		}
 		if _, exists := byID[task.ID]; exists {
 			return ErrInvalidDAG
+		}
+		if task.CompletionPolicy != "" && task.CompletionPolicy != "owner_review" && task.CompletionPolicy != "artifact" && task.CompletionPolicy != "exit_success_fixture" {
+			return ErrInvalidDAG
+		}
+		if task.CompletionPolicy == "artifact" && !validDigest(task.ExpectedArtifactSHA256) {
+			return ErrInvalidDAG
+		}
+		if task.CompletionPolicy != "artifact" && task.ExpectedArtifactSHA256 != "" {
+			return ErrInvalidDAG
+		}
+		if task.CompletionPolicy == "exit_success_fixture" {
+			var discriminator struct {
+				Kind string `json:"kind"`
+			}
+			if json.Unmarshal(task.AdapterPayload, &discriminator) != nil || discriminator.Kind != "fake" {
+				return ErrInvalidDAG
+			}
+		}
+		for _, fallback := range task.FallbackPayloads {
+			if len(fallback) == 0 || !json.Valid(fallback) {
+				return ErrInvalidDAG
+			}
 		}
 		byID[task.ID] = task
 	}
@@ -271,7 +324,12 @@ func (d *DB) SubmitPlan(ctx context.Context, p PlanSpec) (SubmitReceipt, error) 
 		if !json.Valid(payload) {
 			return rollback(CodeError("invalid_adapter_payload"))
 		}
-		if _, err = tx.ExecContext(ctx, `INSERT INTO task_runtime(task_id,host_launch_id,work_revision,budget_group_id,max_active_ms,ready_sequence,adapter_payload) VALUES(?,?,?,?,?,?,?)`, task.ID, launchID, revision, group, active, ready, string(payload)); err != nil {
+		fallbacks, _ := json.Marshal(task.FallbackPayloads)
+		policy := task.CompletionPolicy
+		if policy == "" {
+			policy = "owner_review"
+		}
+		if _, err = tx.ExecContext(ctx, `INSERT INTO task_runtime(task_id,host_launch_id,work_revision,budget_group_id,max_active_ms,ready_sequence,adapter_payload,fallback_payloads,fallback_index,completion_policy,expected_artifact_sha256) VALUES(?,?,?,?,?,?,?,?,0,?,?)`, task.ID, launchID, revision, group, active, ready, string(payload), string(fallbacks), policy, strings.ToLower(task.ExpectedArtifactSHA256)); err != nil {
 			return rollback(err)
 		}
 	}
@@ -279,6 +337,14 @@ func (d *DB) SubmitPlan(ctx context.Context, p PlanSpec) (SubmitReceipt, error) 
 		return SubmitReceipt{}, err
 	}
 	return SubmitReceipt{LaunchID: launchID, LaunchToken: token, ControlToken: controlToken}, nil
+}
+
+func validDigest(value string) bool {
+	if len(value) != 64 {
+		return false
+	}
+	_, err := hex.DecodeString(value)
+	return err == nil
 }
 
 func mapConflict(err error) error {
@@ -555,10 +621,21 @@ func (d *DB) ClaimReady(ctx context.Context, hostID string, epoch uint64, slots 
 	if _, err = tx.ExecContext(ctx, `UPDATE tasks SET status='running' WHERE id=?`, taskID); err != nil {
 		return rollback(err)
 	}
+	command := contract.LaunchCommand{CommandID: commandID, HostID: hostID, RunID: runID, TaskID: taskID, AttemptID: attemptID, SegmentID: segmentID, WorkRevision: workRevision, ExecutionEpoch: epoch, SlotToken: slotToken, LaunchIntentHash: intentHash, ReservationID: reservationID, BudgetGroupID: budgetGroup, GrantedActiveMS: grant, DeadlineUnixMS: deadline, AdapterPayload: json.RawMessage(adapterPayload)}
+	if taskStatus == "resume_queued" {
+		err = tx.QueryRowContext(ctx, `SELECT question_id,question_revision,session_kind,session_id,answer_text FROM runtime_questions WHERE task_id=? AND attempt_id=? AND status='resume_queued' ORDER BY question_revision DESC LIMIT 1`, taskID, attemptID).Scan(&command.QuestionID, &command.QuestionRevision, &command.SessionKind, &command.SessionID, &command.Answer)
+		if err == nil {
+			if _, err = tx.ExecContext(ctx, `UPDATE runtime_questions SET status='resume_started' WHERE question_id=? AND status='resume_queued'`, command.QuestionID); err != nil {
+				return rollback(err)
+			}
+		} else if !errors.Is(err, sql.ErrNoRows) {
+			return rollback(err)
+		}
+	}
 	if err = tx.Commit(); err != nil {
 		return contract.LaunchCommand{}, err
 	}
-	return contract.LaunchCommand{CommandID: commandID, HostID: hostID, RunID: runID, TaskID: taskID, AttemptID: attemptID, SegmentID: segmentID, WorkRevision: workRevision, ExecutionEpoch: epoch, SlotToken: slotToken, LaunchIntentHash: intentHash, ReservationID: reservationID, BudgetGroupID: budgetGroup, GrantedActiveMS: grant, DeadlineUnixMS: deadline, AdapterPayload: json.RawMessage(adapterPayload)}, nil
+	return command, nil
 }
 
 // PendingLaunches returns crash-window grants without creating a new segment or
@@ -596,6 +673,13 @@ func (d *DB) PendingLaunches(ctx context.Context, hostID string, epoch uint64) (
 	}
 	if err = rows.Close(); err != nil {
 		return rollback(err)
+	}
+	for index := range commands {
+		command := &commands[index]
+		err = tx.QueryRowContext(ctx, `SELECT question_id,question_revision,session_kind,session_id,answer_text FROM runtime_questions WHERE task_id=? AND attempt_id=? AND status='resume_started' ORDER BY question_revision DESC LIMIT 1`, command.TaskID, command.AttemptID).Scan(&command.QuestionID, &command.QuestionRevision, &command.SessionKind, &command.SessionID, &command.Answer)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return rollback(err)
+		}
 	}
 	if err = tx.Commit(); err != nil {
 		return nil, err
@@ -649,7 +733,12 @@ func (d *DB) CommitHostEvent(ctx context.Context, event contract.Event) (contrac
 		return rollback(ErrConflict)
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	if _, err = tx.ExecContext(ctx, `INSERT INTO runtime_events(event_id,producer_id,sequence,task_id,attempt_id,segment_id,payload_hash,body_json,delivery_status,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)`, event.EventID, event.ProducerID, event.Sequence, event.TaskID, event.AttemptID, event.SegmentID, event.PayloadHash, string(body), "pending", now); err != nil {
+	deliveryStatus := "pending"
+	if event.Kind == contract.EventPrepared || event.Kind == contract.EventSpawned || event.Kind == contract.EventRunning || event.Kind == contract.EventExited {
+		deliveryStatus = "internal"
+	}
+	actionSlot := "action-" + runtimeHash(event.ProducerID + "\x00" + event.EventID)[:32]
+	if _, err = tx.ExecContext(ctx, `INSERT INTO runtime_events(event_id,producer_id,sequence,task_id,attempt_id,segment_id,payload_hash,body_json,event_revision,action_slot,delivery_status,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`, event.EventID, event.ProducerID, event.Sequence, event.TaskID, event.AttemptID, event.SegmentID, event.PayloadHash, string(body), event.Sequence, actionSlot, deliveryStatus, now); err != nil {
 		return rollback(mapConflict(err))
 	}
 	if err = applyEvent(ctx, tx, event); err != nil {
@@ -683,7 +772,23 @@ func applyEvent(ctx context.Context, tx *sql.Tx, event contract.Event) error {
 		}
 		_, err = tx.ExecContext(ctx, `UPDATE segments SET status=? WHERE id=?`, event.Kind, event.SegmentID)
 		return err
-	case contract.EventQuestion, contract.EventResult, contract.EventStopped, contract.EventFailed:
+	case contract.EventQuestion:
+		if event.QuestionID == "" || event.QuestionRevision < 1 || event.SessionKind == "" || event.SessionID == "" {
+			return CodeError("invalid_question")
+		}
+		var segmentStatus string
+		if err := tx.QueryRowContext(ctx, `SELECT status FROM segment_runtime WHERE segment_id=?`, event.SegmentID).Scan(&segmentStatus); err != nil {
+			return err
+		}
+		if segmentStatus == "exited" {
+			return nil
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO runtime_questions(question_id,task_id,attempt_id,segment_id,question_revision,work_revision,session_kind,session_id,status,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)`, event.QuestionID, event.TaskID, event.AttemptID, event.SegmentID, event.QuestionRevision, event.WorkRevision, event.SessionKind, event.SessionID, "open", time.Now().UTC().Format(time.RFC3339Nano)); err != nil {
+			return mapConflict(err)
+		}
+		_, err := tx.ExecContext(ctx, `UPDATE segment_runtime SET outcome=? WHERE segment_id=? AND status!='exited' AND outcome=''`, event.Kind, event.SegmentID)
+		return err
+	case contract.EventResult, contract.EventStopped, contract.EventFailed:
 		_, err := tx.ExecContext(ctx, `UPDATE segment_runtime SET outcome=? WHERE segment_id=? AND status!='exited' AND (outcome='' OR outcome=?)`, event.Kind, event.SegmentID, event.Kind)
 		if err == nil && event.Kind == contract.EventStopped {
 			_, err = tx.ExecContext(ctx, `UPDATE stop_runtime SET status='accepted' WHERE segment_id=?`, event.SegmentID)
@@ -744,7 +849,14 @@ func applyExit(ctx context.Context, tx *sql.Tx, event contract.Event) error {
 	attemptStatus, taskStatus := "interrupted", "interrupted"
 	switch outcome {
 	case contract.EventResult:
-		attemptStatus, taskStatus = "result_ready", "completed"
+		attemptStatus, taskStatus = "result_ready", "result_ready"
+		var policy, expected string
+		if err := tx.QueryRowContext(ctx, `SELECT completion_policy,expected_artifact_sha256 FROM task_runtime WHERE task_id=?`, event.TaskID).Scan(&policy, &expected); err != nil {
+			return err
+		}
+		if policy == "exit_success_fixture" || (policy == "artifact" && event.Artifact != nil && subtle.ConstantTimeCompare([]byte(strings.ToLower(event.Artifact.SHA256)), []byte(expected)) == 1) {
+			attemptStatus, taskStatus = "result_ready", "completed"
+		}
 	case contract.EventQuestion:
 		attemptStatus, taskStatus = "interrupted", "waiting_question"
 	case contract.EventStopped:
@@ -755,6 +867,9 @@ func applyExit(ctx context.Context, tx *sql.Tx, event contract.Event) error {
 	if _, err := tx.ExecContext(ctx, `UPDATE attempts SET status=? WHERE id=?`, attemptStatus, event.AttemptID); err != nil {
 		return err
 	}
+	if _, err := tx.ExecContext(ctx, `UPDATE runtime_questions SET status='resolved' WHERE task_id=? AND attempt_id=? AND status='resume_started'`, event.TaskID, event.AttemptID); err != nil {
+		return err
+	}
 	if _, err := tx.ExecContext(ctx, `UPDATE tasks SET status=? WHERE id=?`, taskStatus, event.TaskID); err != nil {
 		return err
 	}
@@ -762,7 +877,13 @@ func applyExit(ctx context.Context, tx *sql.Tx, event contract.Event) error {
 		return releaseReady(ctx, tx)
 	}
 	if taskStatus == "failed" {
-		return blockFailedDependencies(ctx, tx)
+		var attempts, maxAttempts int
+		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*),t.max_attempts FROM attempts a JOIN tasks t ON t.id=a.task_id WHERE a.task_id=?`, event.TaskID).Scan(&attempts, &maxAttempts); err != nil {
+			return err
+		}
+		if attempts >= maxAttempts || attempts >= 3 {
+			return blockFailedDependencies(ctx, tx)
+		}
 	}
 	return nil
 }
@@ -882,7 +1003,7 @@ func (d *DB) QueueResume(ctx context.Context, taskID string, workRevision int) e
 	if err = tx.QueryRowContext(ctx, `SELECT t.status,r.work_revision FROM tasks t JOIN task_runtime r ON r.task_id=t.id WHERE t.id=?`, taskID).Scan(&status, &revision); err != nil {
 		return rollback(ErrNotFound)
 	}
-	if revision != workRevision || (status != "interrupted" && status != "waiting_question") {
+	if revision != workRevision || status != "interrupted" {
 		return rollback(ErrConflict)
 	}
 	var active int
@@ -900,6 +1021,155 @@ func (d *DB) QueueResume(ctx context.Context, taskID string, workRevision int) e
 		return rollback(err)
 	}
 	if _, err = tx.ExecContext(ctx, `UPDATE task_runtime SET ready_sequence=? WHERE task_id=?`, sequence, taskID); err != nil {
+		return rollback(err)
+	}
+	return tx.Commit()
+}
+
+type AnswerSpec struct {
+	TaskID           string
+	WorkRevision     int
+	QuestionID       string
+	QuestionRevision int
+	Answer           string
+}
+
+func (d *DB) AnswerQuestion(ctx context.Context, spec AnswerSpec) (string, error) {
+	if spec.TaskID == "" || spec.WorkRevision < 1 || spec.QuestionID == "" || spec.QuestionRevision < 1 || strings.TrimSpace(spec.Answer) == "" || len(spec.Answer) > 32*1024 {
+		return "", CodeError("invalid_answer")
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	tx, err := d.sql.BeginTx(ctx, nil)
+	if err != nil {
+		return "", err
+	}
+	rollback := func(e error) (string, error) { _ = tx.Rollback(); return "", e }
+	var taskStatus, questionStatus, answerHash, segmentID string
+	var workRevision, questionRevision int
+	if err = tx.QueryRowContext(ctx, `SELECT t.status,r.work_revision,q.question_revision,q.status,q.answer_hash,q.segment_id FROM runtime_questions q JOIN tasks t ON t.id=q.task_id JOIN task_runtime r ON r.task_id=t.id WHERE q.question_id=? AND q.task_id=?`, spec.QuestionID, spec.TaskID).Scan(&taskStatus, &workRevision, &questionRevision, &questionStatus, &answerHash, &segmentID); err != nil {
+		return rollback(ErrNotFound)
+	}
+	wantHash := runtimeHash(spec.Answer)
+	if workRevision != spec.WorkRevision || questionRevision != spec.QuestionRevision {
+		return rollback(ErrConflict)
+	}
+	if questionStatus != "open" {
+		if answerHash == wantHash {
+			_ = tx.Rollback()
+			return questionStatus, nil
+		}
+		return rollback(ErrConflict)
+	}
+	if taskStatus != "waiting_question" {
+		return rollback(ErrConflict)
+	}
+	var active int
+	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM segment_runtime s JOIN attempts a ON a.id=s.attempt_id WHERE a.task_id=? AND s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown')`, spec.TaskID).Scan(&active); err != nil || active != 0 {
+		if err == nil {
+			err = ErrConflict
+		}
+		return rollback(err)
+	}
+	var latestSegment string
+	if err = tx.QueryRowContext(ctx, `SELECT s.id FROM segments s JOIN attempts a ON a.id=s.attempt_id WHERE a.task_id=? ORDER BY a.attempt_no DESC,s.segment_no DESC LIMIT 1`, spec.TaskID).Scan(&latestSegment); err != nil || latestSegment != segmentID {
+		return rollback(ErrConflict)
+	}
+	sequence, err := takeReadySequence(ctx, tx)
+	if err != nil {
+		return rollback(err)
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE runtime_questions SET status='resume_queued',answer_hash=?,answer_text=? WHERE question_id=? AND status='open'`, wantHash, spec.Answer, spec.QuestionID); err != nil {
+		return rollback(err)
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE tasks SET status='resume_queued' WHERE id=?`, spec.TaskID); err != nil {
+		return rollback(err)
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE task_runtime SET ready_sequence=? WHERE task_id=?`, sequence, spec.TaskID); err != nil {
+		return rollback(err)
+	}
+	if err = tx.Commit(); err != nil {
+		return "", err
+	}
+	return "resume_queued", nil
+}
+
+func (d *DB) AcceptResult(ctx context.Context, taskID string, workRevision int) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	tx, err := d.sql.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	rollback := func(e error) error { _ = tx.Rollback(); return e }
+	var status string
+	var revision int
+	if err = tx.QueryRowContext(ctx, `SELECT t.status,r.work_revision FROM tasks t JOIN task_runtime r ON r.task_id=t.id WHERE t.id=?`, taskID).Scan(&status, &revision); err != nil {
+		return rollback(ErrNotFound)
+	}
+	if status != "result_ready" || revision != workRevision {
+		return rollback(ErrConflict)
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE tasks SET status='completed' WHERE id=?`, taskID); err != nil {
+		return rollback(err)
+	}
+	if err = releaseReady(ctx, tx); err != nil {
+		return rollback(err)
+	}
+	return tx.Commit()
+}
+
+func (d *DB) QueueRetry(ctx context.Context, taskID string, workRevision int, useNextFallback bool) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	tx, err := d.sql.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	rollback := func(e error) error { _ = tx.Rollback(); return e }
+	var status, fallbacksJSON string
+	var revision, fallbackIndex, maxAttempts int
+	if err = tx.QueryRowContext(ctx, `SELECT t.status,r.work_revision,t.max_attempts,r.fallback_payloads,r.fallback_index FROM tasks t JOIN task_runtime r ON r.task_id=t.id WHERE t.id=?`, taskID).Scan(&status, &revision, &maxAttempts, &fallbacksJSON, &fallbackIndex); err != nil {
+		return rollback(ErrNotFound)
+	}
+	if status != "failed" || revision != workRevision {
+		return rollback(ErrConflict)
+	}
+	var active, attempts int
+	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM segment_runtime s JOIN attempts a ON a.id=s.attempt_id WHERE a.task_id=? AND s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown')`, taskID).Scan(&active); err != nil || active != 0 {
+		if err == nil {
+			err = ErrConflict
+		}
+		return rollback(err)
+	}
+	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM attempts WHERE task_id=?`, taskID).Scan(&attempts); err != nil {
+		return rollback(err)
+	}
+	if attempts >= maxAttempts || attempts >= 3 {
+		return rollback(ErrAttemptLimit)
+	}
+	adapterUpdate := ""
+	if useNextFallback {
+		var fallbacks []json.RawMessage
+		if json.Unmarshal([]byte(fallbacksJSON), &fallbacks) != nil || fallbackIndex >= len(fallbacks) {
+			return rollback(CodeError("fallback_unavailable"))
+		}
+		adapterUpdate = string(fallbacks[fallbackIndex])
+		fallbackIndex++
+	}
+	sequence, err := takeReadySequence(ctx, tx)
+	if err != nil {
+		return rollback(err)
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE tasks SET status='ready' WHERE id=?`, taskID); err != nil {
+		return rollback(err)
+	}
+	if adapterUpdate == "" {
+		_, err = tx.ExecContext(ctx, `UPDATE task_runtime SET ready_sequence=? WHERE task_id=?`, sequence, taskID)
+	} else {
+		_, err = tx.ExecContext(ctx, `UPDATE task_runtime SET ready_sequence=?,adapter_payload=?,fallback_index=? WHERE task_id=?`, sequence, adapterUpdate, fallbackIndex, taskID)
+	}
+	if err != nil {
 		return rollback(err)
 	}
 	return tx.Commit()
@@ -945,8 +1215,7 @@ func (d *DB) CompletelyIdle(ctx context.Context) (bool, error) {
 
 func (d *DB) RetirableHosts(ctx context.Context) ([]string, error) {
 	rows, err := d.sql.QueryContext(ctx, `SELECT h.id FROM runtime_hosts h WHERE h.status='ready'
- AND NOT EXISTS (SELECT 1 FROM task_runtime r JOIN tasks t ON t.id=r.task_id WHERE r.host_launch_id=h.launch_id AND t.status NOT IN ('completed','cancelled','failed','budget_exhausted','blocked_dependency'))
- AND NOT EXISTS (SELECT 1 FROM runtime_events e JOIN attempts a ON a.id=e.attempt_id JOIN task_runtime r ON r.task_id=a.task_id WHERE r.host_launch_id=h.launch_id AND e.delivery_status='pending')
+	 AND NOT EXISTS (SELECT 1 FROM task_runtime r JOIN tasks t ON t.id=r.task_id WHERE r.host_launch_id=h.launch_id AND t.status NOT IN ('completed','result_ready','cancelled','failed','budget_exhausted','blocked_dependency'))
  ORDER BY h.id`)
 	if err != nil {
 		return nil, err
@@ -1083,37 +1352,54 @@ func (d *DB) PendingStops(ctx context.Context, hostID string) ([]StopDispatch, e
 }
 
 func (d *DB) CollectPending(ctx context.Context, taskID string) ([]contract.Event, error) {
-	rows, err := d.sql.QueryContext(ctx, `SELECT body_json FROM runtime_events WHERE task_id=? AND delivery_status='pending' ORDER BY created_at,producer_id,sequence`, taskID)
+	rows, err := d.sql.QueryContext(ctx, `SELECT body_json,event_revision,action_slot FROM runtime_events WHERE task_id=? AND delivery_status='pending' ORDER BY created_at,producer_id,sequence`, taskID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	var events []contract.Event
 	for rows.Next() {
-		var body string
-		if err = rows.Scan(&body); err != nil {
+		var body, actionSlot string
+		var revision int64
+		if err = rows.Scan(&body, &revision, &actionSlot); err != nil {
 			return nil, err
 		}
 		var event contract.Event
 		if err = json.Unmarshal([]byte(body), &event); err != nil {
 			return nil, err
 		}
+		event.EventRevision, event.ActionSlot = revision, actionSlot
 		events = append(events, event)
 	}
 	return events, rows.Err()
 }
 
-func (d *DB) AckEvents(ctx context.Context, taskID string, eventIDs []string) error {
-	if taskID == "" || len(eventIDs) == 0 {
+type AckDecision struct {
+	EventID       string `json:"event_id"`
+	EventRevision int64  `json:"event_revision"`
+	EventHash     string `json:"event_hash"`
+	ActionSlot    string `json:"action_slot"`
+	Decision      string `json:"decision"`
+	CommandID     string `json:"command_id"`
+}
+
+func validAckDecision(decision AckDecision) bool {
+	return decision.EventID != "" && decision.EventRevision > 0 && decision.EventHash != "" && decision.ActionSlot != "" && decision.CommandID != "" && (decision.Decision == "handled" || decision.Decision == "waiting_user" || decision.Decision == "stale" || decision.Decision == "rejected")
+}
+
+func (d *DB) AckDecisions(ctx context.Context, taskID, deliveryID, historyProofSHA256 string, decisions []AckDecision) error {
+	if taskID == "" || deliveryID == "" || !validDigest(historyProofSHA256) || len(decisions) == 0 || len(decisions) > 64 {
 		return CodeError("invalid_ack")
 	}
-	ids := append([]string(nil), eventIDs...)
-	sort.Strings(ids)
-	for i, id := range ids {
-		if id == "" || (i > 0 && ids[i-1] == id) {
+	seen := make(map[string]bool, len(decisions))
+	for _, decision := range decisions {
+		if !validAckDecision(decision) || seen[decision.ActionSlot] {
 			return CodeError("invalid_ack")
 		}
+		seen[decision.ActionSlot] = true
 	}
+	encoded, _ := json.Marshal(decisions)
+	decisionsHash := runtimeHash(string(encoded))
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	tx, err := d.sql.BeginTx(ctx, nil)
@@ -1121,16 +1407,73 @@ func (d *DB) AckEvents(ctx context.Context, taskID string, eventIDs []string) er
 		return err
 	}
 	rollback := func(e error) error { _ = tx.Rollback(); return e }
-	for _, id := range ids {
-		var storedTask string
-		if err = tx.QueryRowContext(ctx, `SELECT task_id FROM runtime_events WHERE event_id=?`, id).Scan(&storedTask); err != nil || storedTask != taskID {
+	var storedTask, storedProof, storedDecisions string
+	err = tx.QueryRowContext(ctx, `SELECT task_id,history_proof_sha256,decisions_hash FROM delivery_receipts WHERE delivery_id=?`, deliveryID).Scan(&storedTask, &storedProof, &storedDecisions)
+	if err == nil {
+		if storedTask != taskID || storedProof != strings.ToLower(historyProofSHA256) || storedDecisions != decisionsHash {
 			return rollback(ErrConflict)
 		}
-		if _, err = tx.ExecContext(ctx, `UPDATE runtime_events SET delivery_status='acked' WHERE event_id=?`, id); err != nil {
+		_ = tx.Rollback()
+		return nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return rollback(err)
+	}
+	for _, decision := range decisions {
+		if err = applyAckDecision(ctx, tx, taskID, decision); err != nil {
 			return rollback(err)
 		}
 	}
+	if _, err = tx.ExecContext(ctx, `INSERT INTO delivery_receipts(delivery_id,task_id,history_proof_sha256,decisions_hash,created_at) VALUES(?,?,?,?,?)`, deliveryID, taskID, strings.ToLower(historyProofSHA256), decisionsHash, time.Now().UTC().Format(time.RFC3339Nano)); err != nil {
+		return rollback(mapConflict(err))
+	}
 	return tx.Commit()
+}
+
+func applyAckDecision(ctx context.Context, tx *sql.Tx, taskID string, decision AckDecision) error {
+	var err error
+	var storedTask, storedHash, storedSlot, body, delivery string
+	var storedRevision int64
+	if err = tx.QueryRowContext(ctx, `SELECT task_id,payload_hash,event_revision,action_slot,body_json,delivery_status FROM runtime_events WHERE event_id=?`, decision.EventID).Scan(&storedTask, &storedHash, &storedRevision, &storedSlot, &body, &delivery); err != nil || storedTask != taskID || storedRevision != decision.EventRevision || storedSlot != decision.ActionSlot || subtle.ConstantTimeCompare([]byte(storedHash), []byte(strings.ToLower(decision.EventHash))) != 1 {
+		return ErrConflict
+	}
+	var existingDecision, existingHash string
+	var existingRevision int64
+	err = tx.QueryRowContext(ctx, `SELECT decision,event_hash,event_revision FROM runtime_decisions WHERE action_slot=?`, decision.ActionSlot).Scan(&existingDecision, &existingHash, &existingRevision)
+	if err == nil {
+		if existingDecision != decision.Decision || existingHash != storedHash || existingRevision != storedRevision {
+			return ErrConflict
+		}
+		return nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+	if delivery != "pending" {
+		return ErrConflict
+	}
+	if decision.Decision == "handled" || decision.Decision == "waiting_user" {
+		var event contract.Event
+		if json.Unmarshal([]byte(body), &event) != nil {
+			return ErrConflict
+		}
+		var workRevision int
+		var currentSegment sql.NullString
+		if err = tx.QueryRowContext(ctx, `SELECT r.work_revision,(SELECT s.id FROM segments s JOIN attempts a ON a.id=s.attempt_id WHERE a.task_id=t.id ORDER BY a.attempt_no DESC,s.segment_no DESC LIMIT 1) FROM tasks t JOIN task_runtime r ON r.task_id=t.id WHERE t.id=?`, taskID).Scan(&workRevision, &currentSegment); err != nil || event.WorkRevision != workRevision || !currentSegment.Valid || currentSegment.String != event.SegmentID {
+			return ErrConflict
+		}
+	}
+	if _, err = tx.ExecContext(ctx, `INSERT INTO runtime_decisions(action_slot,event_id,event_revision,event_hash,decision,command_id,created_at) VALUES(?,?,?,?,?,?,?)`, decision.ActionSlot, decision.EventID, decision.EventRevision, strings.ToLower(decision.EventHash), decision.Decision, decision.CommandID, time.Now().UTC().Format(time.RFC3339Nano)); err != nil {
+		return mapConflict(err)
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE runtime_events SET delivery_status='acked' WHERE event_id=? AND delivery_status='pending'`, decision.EventID); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (d *DB) AckDecision(ctx context.Context, taskID string, decision AckDecision) error {
+	return d.AckDecisions(ctx, taskID, "delivery-"+decision.CommandID, runtimeHash("proof:"+decision.CommandID), []AckDecision{decision})
 }
 
 func (d *DB) ValidateTaskOwner(ctx context.Context, taskID, controller, controlToken string) error {
@@ -1150,13 +1493,15 @@ func (d *DB) ValidateTaskOwner(ctx context.Context, taskID, controller, controlT
 }
 
 type TaskSnapshot struct {
-	TaskID        string `json:"task_id"`
-	RunID         string `json:"run_id"`
-	Status        string `json:"status"`
-	WorkRevision  int    `json:"work_revision"`
-	AttemptID     string `json:"attempt_id,omitempty"`
-	SegmentID     string `json:"segment_id,omitempty"`
-	SegmentStatus string `json:"segment_status,omitempty"`
+	TaskID           string `json:"task_id"`
+	RunID            string `json:"run_id"`
+	Status           string `json:"status"`
+	WorkRevision     int    `json:"work_revision"`
+	AttemptID        string `json:"attempt_id,omitempty"`
+	SegmentID        string `json:"segment_id,omitempty"`
+	SegmentStatus    string `json:"segment_status,omitempty"`
+	QuestionID       string `json:"question_id,omitempty"`
+	QuestionRevision int    `json:"question_revision,omitempty"`
 }
 
 func (d *DB) TaskSnapshot(ctx context.Context, taskID string) (TaskSnapshot, error) {
@@ -1170,6 +1515,9 @@ func (d *DB) TaskSnapshot(ctx context.Context, taskID string) (TaskSnapshot, err
 		return snapshot, err
 	}
 	snapshot.AttemptID, snapshot.SegmentID, snapshot.SegmentStatus = attempt.String, segment.String, segmentStatus.String
+	if snapshot.Status == "waiting_question" || snapshot.Status == "resume_queued" || snapshot.Status == "running" {
+		_ = d.sql.QueryRowContext(ctx, `SELECT question_id,question_revision FROM runtime_questions WHERE task_id=? AND status IN ('open','resume_queued','resume_started') ORDER BY question_revision DESC LIMIT 1`, taskID).Scan(&snapshot.QuestionID, &snapshot.QuestionRevision)
+	}
 	return snapshot, nil
 }
 
