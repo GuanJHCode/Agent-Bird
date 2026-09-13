@@ -374,6 +374,7 @@ def task_spec(ctx: dict[str, Any], task_id: str, worker_id: str, mode: str, dura
         "max_attempts": 1,
         "work_revision": 1,
         "max_active_ms": (duration + 60) * 1000,
+        "completion_policy": "owner_review",
         "adapter": {
             "provider": "claude-code",
             "binary_path": ctx["worker"],
@@ -444,6 +445,19 @@ def collect_worker_stats(ctx: dict[str, Any]) -> list[dict[str, Any]]:
         if path.exists():
             out.append(json_read(path))
     return out
+
+
+def product_role_processes(ctx: dict[str, Any], role: str) -> list[dict[str, Any]]:
+    table = process_table()
+    marker = f" {role} "
+    state_text = str(ctx["state"])
+    return [
+        item
+        for item in table.values()
+        if executable_matches(item["command"], ctx["orchestrator"])
+        and marker in item["command"]
+        and state_text in item["command"]
+    ]
 
 
 def sample_for(ctx: dict[str, Any], seconds: int, sampler: Sampler) -> None:
@@ -641,9 +655,21 @@ def run_scenario(args: argparse.Namespace) -> int:
             wait_for(callback_ready, 10, "callback result not durable")
             worker_row = json_read(Path(ctx["worker_configs"][0]["stats_path"]))
             durable_latency = (first_durable_ns - worker_row["completed_unix_nano"]) / 1e9
+            wait_for(
+                lambda: not product_role_processes(ctx, "source-host"),
+                15,
+                "source Host retained after terminal durable result",
+            )
+            coordinator_retained = bool(product_role_processes(ctx, "serve"))
             sampler.sample()
             baseline_seen = set(sampler.seen)
             sample_for(ctx, duration, sampler)
+            pending_after_window = collect(ctx, task["id"], control)
+            collected.append(pending_after_window)
+            pending_result_preserved = any(
+                event.get("kind") == "result"
+                for event in (pending_after_window.get("events") or [])
+            )
             metrics_now = sampler.summary()
             functional["durable_ingest_seconds"] = durable_latency
             functional["checks"] = {
@@ -652,6 +678,9 @@ def run_scenario(args: argparse.Namespace) -> int:
                 "cpu_limit": metrics_now["average_product_cpu_percent_of_one_core"] <= thresholds["callback"]["average_cpu_percent_of_one_core"],
                 "durable_ingest_slo": 0 <= durable_latency <= thresholds["slo"]["durable_ingest_seconds"],
                 "no_periodic_product_spawn": len(sampler.seen - baseline_seen) <= thresholds["callback"]["maximum_new_product_processes_after_stabilization"],
+                "source_host_exited_before_offline_window": True,
+                "coordinator_retained_for_pending_callback": coordinator_retained,
+                "pending_result_preserved_without_ack": pending_result_preserved,
                 "attached_delivery_slo_covered": False,
             }
         elif scenario in ("workers", "burst-valid", "burst-unknown"):
@@ -663,7 +692,7 @@ def run_scenario(args: argparse.Namespace) -> int:
             wait_for_workers(ctx, count)
             sample_for(ctx, duration, sampler)
             for task in tasks:
-                wait_for(lambda task=task: task_status(ctx, task["id"], control).get("status") in ("completed", "failed"), 30, f"task did not finish: {task['id']}")
+                wait_for(lambda task=task: task_status(ctx, task["id"], control).get("status") in ("result_ready", "completed", "failed"), 30, f"task did not finish: {task['id']}")
                 collected.append(collect(ctx, task["id"], control))
             stats_rows = collect_worker_stats(ctx)
             helper_cpu = sum(row.get("product_report_cpu_nanos", 0) for row in stats_rows)

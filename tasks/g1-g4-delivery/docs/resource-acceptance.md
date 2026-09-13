@@ -9,7 +9,7 @@
 | 场景 | 完整时长 | 负载与判定 |
 |---|---:|---|
 | `idle` | 40 秒 | 启动空协调器；30 秒防抖后到结束必须没有本工具进程。 |
-| `callback` | 5 分钟 | synthetic worker 产生完成事件后，controller 不再调用产品；总 RSS ≤64 MiB，平均 CPU ≤单核 1%，稳定后不周期产生新产品进程。完成到首次 `collect` 可见 durable result ≤2 秒；attached 回传 5 秒必须有产品证据。 |
+| `callback` | 5 分钟 | synthetic worker 产生完成事件后保持 `owner_review/result_ready`，不 accept、不 ACK；Source Host 必须先退出，此后 controller 不再调用产品。总 RSS ≤64 MiB，平均 CPU ≤单核 1%，稳定后不周期产生新产品进程。完成到首次 `collect` 可见 durable result ≤2 秒；窗口末 result 仍为 pending；attached 回传 5 秒必须有产品证据。 |
 | `workers` | 10 分钟 | 同一来源 Host 下 2 个真实 synthetic worker；worker 资源排除，本工具进程树总 RSS ≤128 MiB。 |
 | `hosts` | 10 分钟 | 4 个来源 Host；第 5 个必须返回 `admission_deferred`，本工具进程树总 RSS ≤128 MiB。全局默认执行槽仍为 2，不能通过扩槽制造 4 个并行 worker。 |
 | `burst-valid` | 20 分钟 | 每 worker 的 stdout/stderr 合计 1 MiB/s，合法 Claude schema 普通消息；每 30 秒一个 4 MiB 普通诊断巨行；每 10 秒通过独立 report 通道一个 ≤4 KiB 关键事件。2 workers。 |
@@ -28,7 +28,7 @@
 3. 同一 binary 提供 `report --capability-file ABS --request ABS`。request 是 strict JSON `{version:1,event_id,sequence,kind,payload}`，总帧 ≤64 KiB；不能复用 run control token。资源 progress payload 固定为 `{status:"resource_sample",sequence,elapsed_ms}`。最终 result payload 固定为 `{status:"completed",artifact:{id,path,size,sha256}}`；artifact 是 capability 同目录下的 0600 sentinel，report CLI 必须校验其锚定路径、大小和 hash。
 4. worker report 使用独立 segment sequence 和 `report_events` durable 表，ACK 后 helper 才成功退出；`collect` 统一投影。harness 仅通过 `collect` 的 `event_id` 与 sidecar 对账，不读写产品 DB。
 
-每 10 秒启动的短命 `report` helper 可能被 1 秒 `ps` 采样漏掉。fixture 对每次 helper 调用采集子进程 `rusage`：CPU 全量加入场景 CPU，两个 worker 的 helper 最大 RSS 相加后保守加入 peak RSS。持续的 coordinator、Host 及其可见辅助后代通过每秒进程树采样统计；synthetic provider 及其非产品后代排除。startup 的极短 `/bin/ps` 身份探针发生在稳定窗口前，不计入 callback 稳态 CPU。
+每 10 秒启动的短命 `report` helper 可能被 1 秒 `ps` 采样漏掉。fixture 对每次 helper 调用采集子进程 `rusage`：CPU 全量加入场景 CPU，两个 worker 的 helper 最大 RSS 相加后保守加入 peak RSS。持续的 coordinator、Host 及其可见辅助后代通过每秒进程树采样统计；synthetic provider 及其非产品后代排除。Source Host 的 owner monitor 每 200 ms 运行一次 `/bin/ps` 身份探针，因此 callback 在 Host 退出前不开始稳态窗口；Host 未退出会直接失败，不能用每秒采样“没有碰巧抓到”推断无周期 helper。其他场景不为抓一个已知短命探针把采样成本放大五倍。
 
 ## 构建、冻结与运行
 
