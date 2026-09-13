@@ -21,14 +21,16 @@ type failure string
 func (f failure) Error() string { return string(f) }
 
 type options struct {
-	sub, dir, nonce string
-	duration        time.Duration
-	controller      string
-	revision        int
-	eventHash       string
-	commandID       string
-	decision        string
-	cancel          bool
+	sub, dir, nonce                    string
+	duration                           time.Duration
+	controller, deliveryID, eventsJSON string
+	eventID, actionSlot                string
+	eventRevision                      int
+	revision                           int
+	eventHash                          string
+	commandID                          string
+	decision                           string
+	cancel                             bool
 }
 
 type job struct {
@@ -111,6 +113,24 @@ func parse(args []string) (options, error) {
 		} else {
 			fs.BoolVar(&o.cancel, "cancel", false, "terminal cancellation of future ACKs")
 		}
+	case "batch-prepare":
+		fs.StringVar(&o.controller, "controller-thread", "", "native controller thread")
+		fs.IntVar(&o.revision, "revision", 0, "expected current revision")
+		fs.StringVar(&o.deliveryID, "delivery-id", "", "business delivery identity")
+		fs.StringVar(&o.eventsJSON, "events-json", "", "bounded event metadata JSON")
+	case "batch-ack":
+		fs.StringVar(&o.controller, "controller-thread", "", "native controller thread")
+		fs.IntVar(&o.revision, "revision", 0, "expected current revision")
+		fs.StringVar(&o.eventID, "event-id", "", "business event identity")
+		fs.IntVar(&o.eventRevision, "event-revision", 0, "event revision")
+		fs.StringVar(&o.eventHash, "event-hash", "", "event payload hash")
+		fs.StringVar(&o.actionSlot, "action-slot", "", "business action slot")
+		fs.StringVar(&o.commandID, "command-id", "", "request identity")
+		fs.StringVar(&o.decision, "decision", "", "handled, waiting_user, stale, or rejected")
+	case "batch-status":
+	case "batch-uncertain":
+		fs.StringVar(&o.controller, "controller-thread", "", "native controller thread")
+		fs.IntVar(&o.revision, "revision", 0, "expected current revision")
 	case "read", "inspect":
 	default:
 		return o, failure("invalid_args")
@@ -128,10 +148,16 @@ func parse(args []string) (options, error) {
 	if (ownerProvided || o.sub == "ack" || o.sub == "revise") && !safeNonce.MatchString(o.controller) {
 		return o, failure("invalid_args")
 	}
-	if (o.sub == "ack" || o.sub == "revise") && !validRevision(o.revision) {
+	if (o.sub == "ack" || o.sub == "revise" || o.sub == "batch-prepare" || o.sub == "batch-ack" || o.sub == "batch-uncertain") && !validRevision(o.revision) {
 		return o, failure("invalid_args")
 	}
 	if o.sub == "ack" && (!safeHash.MatchString(o.eventHash) || !safeNonce.MatchString(o.commandID) || !validDecision(o.decision)) {
+		return o, failure("invalid_args")
+	}
+	if o.sub == "batch-prepare" && (!safeDelivery.MatchString(o.deliveryID) || len(o.eventsJSON) == 0 || len(o.eventsJSON) > 4096) {
+		return o, failure("invalid_args")
+	}
+	if o.sub == "batch-ack" && (!safeDelivery.MatchString(o.eventID) || !validRevision(o.eventRevision) || !safeHash.MatchString(o.eventHash) || !safeDelivery.MatchString(o.actionSlot) || !safeNonce.MatchString(o.commandID) || !validDecision(o.decision)) {
 		return o, failure("invalid_args")
 	}
 	if o.sub == "start" || o.sub == "_worker" || o.sub == "wait" {
@@ -178,6 +204,12 @@ func run(args []string) error {
 		return work(root, o)
 	case "inspect", "ack", "revise":
 		value, err := controlCommand(root, o)
+		if err != nil {
+			return err
+		}
+		return json.NewEncoder(os.Stdout).Encode(value)
+	case "batch-prepare", "batch-ack", "batch-status", "batch-uncertain":
+		value, err := batchCommand(root, o)
 		if err != nil {
 			return err
 		}

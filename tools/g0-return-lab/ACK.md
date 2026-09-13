@@ -40,6 +40,28 @@ An ACK succeeds only when the declared controller matches both native process co
 
 The action slot belongs to this directory/nonce, bound event, and producer revision. Its key does not include the decision or command ID. A duplicate matching decision returns exactly the original committed record, including the first `command_id`, even if the retry supplies a new UUID. A conflicting decision is rejected. `decision_count` is always `1` in a committed record. `effect_count` is `1` only for `handled`; the other three dispositions have `effect_count:0`.
 
+## Batch intent and per-event ACK
+
+The G0 completion extension persists a bounded business intent before transport:
+
+```sh
+g0-return-lab-ack batch-prepare --dir /absolute/private/task --nonce sample_01 \
+  --controller-thread "$CODEX_THREAD_ID" --revision 1 \
+  --delivery-id delivery_01 \
+  --events-json '[{"event_id":"event_01","event_revision":1,"kind":"progress","payload_hash":"...64 lowercase hex...","action_slot":"slot_01"}]'
+```
+
+This creates `batch-intent.json` atomically under the existing control lock. Each event has an independent `batch-ack-<event_id>.json` slot:
+
+```sh
+g0-return-lab-ack batch-ack --dir /absolute/private/task --nonce sample_01 \
+  --controller-thread "$CODEX_THREAD_ID" --revision 1 --event-id event_01 \
+  --event-revision 1 --event-hash HASH --action-slot slot_01 \
+  --command-id 00000000-0000-0000-0000-000000000001 --decision handled
+```
+
+Changing only `command-id` for the same event/action slot returns the original ACK and does not create another effect. Other events remain independently pending, so a partial ACK does not block the batch. `batch-status` reports `prepared`, `partial`, `complete`, or `uncertain`. If the transport response is lost, the controller may persist `batch-uncertain`; later `batch-ack` is rejected with `transport_uncertain`, preventing blind resend. A control revision change or cancellation rejects old batch effects. The files provide local business intent and ACK durability only; they do not prove an external CLI/model side effect happened exactly once.
+
 The effect is the creation of this single synthetic action record. These numbers do not prove exactly-once third-party CLI dispatch or model answer continuation.
 
 The original controller can advance or cancel the control state using a compare-and-set revision:
