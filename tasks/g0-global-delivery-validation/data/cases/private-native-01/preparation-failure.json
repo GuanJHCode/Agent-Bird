@@ -1,0 +1,13 @@
+{
+  "case": "private-native-01",
+  "source_commit": "8f444b1",
+  "status": "preparation_failed",
+  "failure": "activation home created inside profile before empty-root claim",
+  "profile_root": "/private/tmp/g0-auth-gdl-7mz_j6d0",
+  "native_started": false,
+  "real_launchctl_used": false,
+  "bootstrap_attempted": false,
+  "auth_snapshot_taken": false,
+  "credential_contents_read": false,
+  "next_step": "create private activation home after prepare_isolated_home claims the empty profile; use a fresh case"
+}

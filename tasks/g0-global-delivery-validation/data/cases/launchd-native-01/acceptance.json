@@ -1,0 +1,39 @@
+{
+  "case": "launchd-native-01",
+  "runner_status": "unknown",
+  "failure": {
+    "stage": "ungranted-activation",
+    "type": "ValueError",
+    "errno": null,
+    "message_sha256": "cfba1877dbc0e9bb304a33a5b8402e823ffac23b2c99c32d1c877f03b60e5994"
+  },
+  "scheduler_mode": "launchd",
+  "global_registration_verified": false,
+  "auth_comparison": {
+    "unchanged": true,
+    "changed_path_ids": []
+  },
+  "synthetic_auth_absent": true,
+  "public_socket_absent": true,
+  "private_socket_absent": false,
+  "process_identities_absent": {
+    "owner": false,
+    "helper": false,
+    "service": false
+  },
+  "business_ack_verified": false,
+  "go_status": null,
+  "ordinary_tui_verified": false,
+  "durable_history_verified": false,
+  "transaction_state": "REVOKED",
+  "synthetic_endpoint": {
+    "version": 1,
+    "synthetic_only": true,
+    "external_model_calls": 0,
+    "accepted_requests": 0,
+    "attempts": 0,
+    "requests": []
+  },
+  "external_model_calls": 0,
+  "status": "unknown"
+}

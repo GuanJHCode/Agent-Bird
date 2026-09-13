@@ -1,0 +1,11 @@
+{
+  "case": "private-native-02",
+  "source_commit": "8f444b1",
+  "profile_root": "/private/tmp/g0-auth-gdl-nc4e29ow",
+  "runtime_case": "/private/tmp/g0-auth-gdl-nc4e29ow/private-native-02",
+  "inventory_sha256": "2d6fbaec19906b789e8eb6b0fe4fb479e47b62b077142129024b3d9d6fab1c35",
+  "auth_count": 14,
+  "scheduler_mode": "inherited_fd",
+  "external_model_calls": 0,
+  "synthetic_model": true
+}

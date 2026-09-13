@@ -1,0 +1,47 @@
+{
+  "case": "launchd-native-01",
+  "status": "unknown",
+  "failure_reason": "ungranted probe UID differs",
+  "probe_peer": {
+    "birth": null,
+    "birth_available": false,
+    "executable": null,
+    "executable_available": false,
+    "pid": null,
+    "pid_available": false,
+    "source": "darwin-local",
+    "uid": 0,
+    "uid_available": true
+  },
+  "service_identity": {
+    "birth": "Sun Sep 13 14:29:41 2026",
+    "executable": "/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python",
+    "executable_sha256": "8623f5d3e96ae0279fa09f54ea4b355cdc0daf7da285057311f14c7de8c677a0",
+    "pid": 71255,
+    "uid": 501
+  },
+  "service_original_identity_absent": true,
+  "service_final_present": true,
+  "backend_count": 0,
+  "service_stop_signals": [
+    15
+  ],
+  "job_query_code": 113,
+  "job_absent": true,
+  "plist_absent": true,
+  "public_socket_absent": true,
+  "lease_absent": true,
+  "launchctl_calls": [
+    {
+      "command": "bootstrap",
+      "returncode": 0
+    },
+    {
+      "command": "bootout",
+      "returncode": 0
+    }
+  ],
+  "auth_unchanged": true,
+  "native_backend_started": false,
+  "real_bootstrap_authorization_consumed": true
+}
