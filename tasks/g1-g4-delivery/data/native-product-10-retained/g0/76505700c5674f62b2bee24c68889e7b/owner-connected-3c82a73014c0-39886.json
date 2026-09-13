@@ -1,0 +1,43 @@
+{
+  "activation_id": "76505700c5674f62b2bee24c68889e7b",
+  "backend_birth": "Mon Sep 14 02:56:46 2026",
+  "backend_executable_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+  "backend_peer": {
+    "birth": "Mon Sep 14 02:56:46 2026",
+    "complete": true,
+    "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+    "pid": 39922,
+    "source": "darwin-local",
+    "uid": 501
+  },
+  "backend_pid": 39922,
+  "frontend_peer": {
+    "birth": "Mon Sep 14 02:56:45 2026",
+    "complete": true,
+    "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+    "pid": 39886,
+    "source": "darwin-local",
+    "uid": 501
+  },
+  "grant_sha256": "ebd7ba8a3052c68fd09c4ec0a9ae5d6c943e626b10b1e8c1c54034970e2a891a",
+  "lease_id": "3c82a73014c0",
+  "manifest_sha256": "cdba86d2f8bbde96f57715594760eea783d70aba7f2bfcdbf214e171f3c688b5",
+  "owner_context_sha256": "6937094a793e0cc8b394cc841f59660a5b671f0ebd09cd564aa7cb9ae252c16b",
+  "private_socket": "/private/tmp/g0-auth-product-ne4djhhw/b/b-3c82a73014c0.sock",
+  "private_socket_identity": [
+    16777234,
+    164120548,
+    501,
+    49536
+  ],
+  "profile_id": "native-product-10",
+  "service_identity": {
+    "birth": "Mon Sep 14 02:56:41 2026",
+    "executable": "/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python",
+    "executable_sha256": "8623f5d3e96ae0279fa09f54ea4b355cdc0daf7da285057311f14c7de8c677a0",
+    "pid": 39578,
+    "uid": 501
+  },
+  "state": "connected",
+  "version": 1
+}

@@ -1,0 +1,2680 @@
+{
+  "activation_id": "76505700c5674f62b2bee24c68889e7b",
+  "admission_diagnostics": [
+    {
+      "accepted": true,
+      "failure_type": null,
+      "frontend_pid": 39744,
+      "reason": "helper_admitted"
+    },
+    {
+      "accepted": true,
+      "failure_type": null,
+      "frontend_pid": 39744,
+      "reason": "helper_admitted"
+    },
+    {
+      "accepted": true,
+      "failure_type": null,
+      "frontend_pid": 40018,
+      "reason": "helper_admitted"
+    },
+    {
+      "accepted": true,
+      "failure_type": null,
+      "frontend_pid": 40018,
+      "reason": "helper_admitted"
+    }
+  ],
+  "backend_records": [
+    {
+      "backend_peer": {
+        "birth": "Mon Sep 14 02:56:43 2026",
+        "complete": true,
+        "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+        "pid": 39633,
+        "source": "darwin-local",
+        "uid": 501
+      },
+      "birth": "Mon Sep 14 02:56:43 2026",
+      "creation_birth": "Mon Sep 14 02:56:43 2026",
+      "creation_executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+      "elapsed_seconds": 2.263850042130798,
+      "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+      "frontend": {
+        "birth": "Mon Sep 14 02:56:42 2026",
+        "complete": true,
+        "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+        "pid": 39601,
+        "source": "darwin-local",
+        "uid": 501
+      },
+      "grant_sha256": "348a58d737ae6e9c563c783cbd45efb9adc7c21a658fa03624de9a8abd944b3e",
+      "guardian": {
+        "child_birth": "Mon Sep 14 02:56:43 2026",
+        "child_pid": 39633,
+        "child_reaped": true,
+        "child_returncode": 0,
+        "guardian_pid": 39632,
+        "kill_requested": false,
+        "nonce": "765425f705c348cda3d184f1e72193f7",
+        "owner_pid": 39578,
+        "reason": "controller_stop",
+        "receipt_location_unchanged": true,
+        "restart_allowed": false,
+        "state": "stopped",
+        "term_requested": true,
+        "tree_stop_unproven": true,
+        "uid": 501,
+        "version": 1
+      },
+      "guardian_pid": 39632,
+      "helpers": [
+        {
+          "frontend": {
+            "birth": "Mon Sep 14 02:56:43 2026",
+            "complete": true,
+            "executable": "/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python",
+            "pid": 39744,
+            "source": "darwin-local",
+            "uid": 501
+          },
+          "lease_id": "28958af38a4d",
+          "owner_connection_id": "conn-1-d9f1c06629e6",
+          "owner_epoch": 1,
+          "owner_thread_id": "01a09c20-ff75-7ec3-8218-91e5852059bf",
+          "role": "owner-helper",
+          "state": "closed"
+        }
+      ],
+      "lease_id": "28958af38a4d",
+      "owner_connection_id": "conn-1-d9f1c06629e6",
+      "owner_context_sha256": "6937094a793e0cc8b394cc841f59660a5b671f0ebd09cd564aa7cb9ae252c16b",
+      "owner_epoch": 1,
+      "owner_thread_id": "01a09c20-ff75-7ec3-8218-91e5852059bf",
+      "pid": 39633,
+      "private_socket": "/private/tmp/g0-auth-product-ne4djhhw/b/b-28958af38a4d.sock",
+      "private_socket_identity": [
+        16777234,
+        164120320,
+        501,
+        49536
+      ],
+      "process_stopped": true,
+      "profile_id": "native-product-10",
+      "protocol": [
+        {
+          "backend": {
+            "birth": "Mon Sep 14 02:56:43 2026",
+            "complete": true,
+            "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+            "pid": 39633,
+            "source": "darwin-local",
+            "uid": 501
+          },
+          "closed": true,
+          "connection_id": "conn-1-d9f1c06629e6",
+          "epoch": 1,
+          "frontend": {
+            "birth": "Mon Sep 14 02:56:42 2026",
+            "complete": true,
+            "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+            "pid": 39601,
+            "source": "darwin-local",
+            "uid": 501
+          },
+          "initialize": {
+            "home_match": true,
+            "home_sha256": "e4c5b2f7634719ed3d128e02fb4f02fdf957f1172d1be025418a6a1b1fd7f5ed",
+            "request_id": "initialize"
+          },
+          "initialized": true,
+          "lease_id": "28958af38a4d",
+          "profile_id": "native-product-10",
+          "protocol_valid": false,
+          "ready_published": true,
+          "rpc": [
+            {
+              "direction": "client",
+              "event": "rpc",
+              "method": "initialize",
+              "request_id": "initialize"
+            },
+            {
+              "direction": "server",
+              "event": "rpc_response",
+              "method": "initialize",
+              "ok": true,
+              "request_direction": "client",
+              "request_id": "initialize"
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "remoteControl/status/changed",
+              "request_id": null
+            },
+            {
+              "direction": "client",
+              "event": "rpc",
+              "method": "initialized",
+              "request_id": null
+            },
+            {
+              "direction": "client",
+              "event": "rpc_unknown",
+              "method": "account/read",
+              "request_id": 1
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "account/read",
+              "request_id": 1,
+              "response": true
+            },
+            {
+              "direction": "client",
+              "event": "rpc_unknown",
+              "method": "model/list",
+              "request_id": 2
+            },
+            {
+              "direction": "client",
+              "event": "rpc_unknown",
+              "method": "configRequirements/read",
+              "request_id": 3
+            },
+            {
+              "direction": "client",
+              "event": "rpc_unknown",
+              "method": "collaborationMode/list",
+              "request_id": "collaboration-mode-list-5e40365a-e46a-4ff1-af11-cd2947bda1b1"
+            },
+            {
+              "direction": "client",
+              "event": "rpc_unknown",
+              "method": "hooks/list",
+              "request_id": "hooks-list-111b2824-ccf6-4721-9627-d403df264870"
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "collaborationMode/list",
+              "request_id": "collaboration-mode-list-5e40365a-e46a-4ff1-af11-cd2947bda1b1",
+              "response": true
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "model/list",
+              "request_id": 2,
+              "response": true
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "configRequirements/read",
+              "request_id": 3,
+              "response": true
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "hooks/list",
+              "request_id": "hooks-list-111b2824-ccf6-4721-9627-d403df264870",
+              "response": true
+            },
+            {
+              "direction": "client",
+              "event": "rpc_unknown",
+              "method": "config/read",
+              "request_id": "tui-config-read-d41dd4c5-7402-4110-b95a-5b1aa9c594a4"
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "config/read",
+              "request_id": "tui-config-read-d41dd4c5-7402-4110-b95a-5b1aa9c594a4",
+              "response": true
+            },
+            {
+              "direction": "client",
+              "event": "rpc",
+              "method": "thread/start",
+              "request_id": "startup-thread-start-971c14f8-4087-4a72-85b6-2ed69553c0ac"
+            },
+            {
+              "direction": "client",
+              "event": "rpc_unknown",
+              "method": "thread/loaded/list",
+              "request_id": "917ecb91-6b7f-482b-a2dd-afcbf4ee2f88"
+            },
+            {
+              "direction": "client",
+              "event": "rpc_unknown",
+              "method": "thread/list",
+              "request_id": "0b3f3508-34ce-4ba1-88e0-84a3516b863c"
+            },
+            {
+              "direction": "client",
+              "event": "rpc_unknown",
+              "method": "thread/list",
+              "request_id": "afeb83e5-730a-42f9-86d6-d52e9fe4e1a7"
+            },
+            {
+              "direction": "client",
+              "event": "rpc",
+              "method": "skills/list",
+              "request_id": "startup-skills-list-01ef2734-5e44-47ef-b41a-b65308d7ab6d"
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "thread/loaded/list",
+              "request_id": "917ecb91-6b7f-482b-a2dd-afcbf4ee2f88",
+              "response": true
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "thread/list",
+              "request_id": "0b3f3508-34ce-4ba1-88e0-84a3516b863c",
+              "response": true
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "thread/list",
+              "request_id": "afeb83e5-730a-42f9-86d6-d52e9fe4e1a7",
+              "response": true
+            },
+            {
+              "direction": "server",
+              "event": "rpc_response",
+              "method": "thread/start",
+              "ok": true,
+              "request_direction": "client",
+              "request_id": "startup-thread-start-971c14f8-4087-4a72-85b6-2ed69553c0ac"
+            },
+            {
+              "direction": "server",
+              "event": "rpc",
+              "method": "thread/started",
+              "request_id": null
+            },
+            {
+              "direction": "server",
+              "event": "rpc_response",
+              "method": "skills/list",
+              "ok": true,
+              "request_direction": "client",
+              "request_id": "startup-skills-list-01ef2734-5e44-47ef-b41a-b65308d7ab6d"
+            },
+            {
+              "direction": "client",
+              "event": "rpc_unknown",
+              "method": "plugin/list",
+              "request_id": "plugin-list-510f6454-8675-43df-a871-ae3faf1159b5"
+            },
+            {
+              "direction": "client",
+              "event": "rpc_unknown",
+              "method": "plugin/list",
+              "request_id": "plugin-list-49deaa15-b076-47b4-ac2b-7a5ae66b8a8f"
+            },
+            {
+              "direction": "client",
+              "event": "rpc",
+              "method": "skills/list",
+              "request_id": 4
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "plugin/list",
+              "request_id": "plugin-list-510f6454-8675-43df-a871-ae3faf1159b5",
+              "response": true
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "plugin/list",
+              "request_id": "plugin-list-49deaa15-b076-47b4-ac2b-7a5ae66b8a8f",
+              "response": true
+            },
+            {
+              "direction": "server",
+              "event": "rpc_response",
+              "method": "skills/list",
+              "ok": true,
+              "request_direction": "client",
+              "request_id": 4
+            },
+            {
+              "direction": "client",
+              "event": "rpc_unknown",
+              "method": "plugin/list",
+              "request_id": "plugin-list-8576b8db-d271-41c3-bc63-9e242c5e242c"
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "plugin/list",
+              "request_id": "plugin-list-8576b8db-d271-41c3-bc63-9e242c5e242c",
+              "response": true
+            },
+            {
+              "direction": "client",
+              "event": "rpc_unknown",
+              "method": "turn/start",
+              "request_id": 5
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "thread/settings/updated",
+              "request_id": null
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "turn/start",
+              "request_id": 5,
+              "response": true
+            },
+            {
+              "direction": "client",
+              "event": "rpc_unknown",
+              "method": "plugin/list",
+              "request_id": "plugin-list-c592c2c8-ef7f-4d73-9630-aaf962637d48"
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "plugin/list",
+              "request_id": "plugin-list-c592c2c8-ef7f-4d73-9630-aaf962637d48",
+              "response": true
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "thread/status/changed",
+              "request_id": null
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "turn/started",
+              "request_id": null
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "item/started",
+              "request_id": null
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "item/completed",
+              "request_id": null
+            },
+            {
+              "direction": "client",
+              "event": "rpc_unknown",
+              "method": "config/read",
+              "request_id": "temporary-config-a02db5c2-e9bf-4ea5-b99d-e3f889ca19a8"
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "config/read",
+              "request_id": "temporary-config-a02db5c2-e9bf-4ea5-b99d-e3f889ca19a8",
+              "response": true
+            },
+            {
+              "direction": "client",
+              "event": "rpc",
+              "method": "thread/start",
+              "request_id": "temporary-structured-da972ab4-690c-41c5-a16b-427125d36bc6"
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "item/started",
+              "request_id": null
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "item/agentMessage/delta",
+              "request_id": null
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "item/completed",
+              "request_id": null
+            },
+            {
+              "direction": "server",
+              "event": "rpc_response",
+              "method": "thread/start",
+              "ok": true,
+              "request_direction": "client",
+              "request_id": "temporary-structured-da972ab4-690c-41c5-a16b-427125d36bc6"
+            },
+            {
+              "direction": "server",
+              "event": "rpc",
+              "method": "thread/started",
+              "request_id": null
+            },
+            {
+              "direction": "client",
+              "event": "rpc_unknown",
+              "method": "turn/start",
+              "request_id": "temporary-structured-turn-7c8f6d2f-4497-438f-a41d-db79e39f0e45"
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "thread/settings/updated",
+              "request_id": null
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "turn/start",
+              "request_id": "temporary-structured-turn-7c8f6d2f-4497-438f-a41d-db79e39f0e45",
+              "response": true
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "thread/status/changed",
+              "request_id": null
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "turn/started",
+              "request_id": null
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "item/started",
+              "request_id": null
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "item/completed",
+              "request_id": null
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "thread/tokenUsage/updated",
+              "request_id": null
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "account/rateLimits/updated",
+              "request_id": null
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "thread/status/changed",
+              "request_id": null
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "turn/completed",
+              "request_id": null
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "thread/status/changed",
+              "request_id": null
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "error",
+              "request_id": null
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "turn/completed",
+              "request_id": null
+            },
+            {
+              "direction": "client",
+              "event": "rpc",
+              "method": "thread/unsubscribe",
+              "request_id": "temporary-structured-unsubscribe-79740e37-247b-4a82-ba2d-fae85f1875d3"
+            },
+            {
+              "direction": "server",
+              "event": "rpc_response",
+              "method": "thread/unsubscribe",
+              "ok": true,
+              "request_direction": "client",
+              "request_id": "temporary-structured-unsubscribe-79740e37-247b-4a82-ba2d-fae85f1875d3"
+            },
+            {
+              "direction": "client",
+              "event": "rpc",
+              "method": "thread/unsubscribe",
+              "request_id": 6
+            },
+            {
+              "direction": "server",
+              "event": "rpc_response",
+              "method": "thread/unsubscribe",
+              "ok": true,
+              "request_direction": "client",
+              "request_id": 6
+            }
+          ],
+          "thread": {
+            "id": "01a09c20-ff75-7ec3-8218-91e5852059bf",
+            "start_request_id": "temporary-structured-da972ab4-690c-41c5-a16b-427125d36bc6",
+            "started_id": "01a09c20-ff75-7ec3-8218-91e5852059bf"
+          },
+          "turn_counts": {
+            "start": 2,
+            "steer": 0
+          },
+          "zero_turns": false
+        }
+      ],
+      "restart_allowed": false,
+      "returncode": 0,
+      "socket_removed": true,
+      "state": "closed",
+      "stderr": {
+        "bytes": 2948,
+        "sha256": "eaf4913ef15c953fc57e20219f95b989047ea9cb197ef832f25e72a7fb240e56"
+      },
+      "stdout": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "tree_stop_unproven": true
+    },
+    {
+      "backend_peer": {
+        "birth": "Mon Sep 14 02:56:46 2026",
+        "complete": true,
+        "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+        "pid": 39922,
+        "source": "darwin-local",
+        "uid": 501
+      },
+      "birth": "Mon Sep 14 02:56:46 2026",
+      "creation_birth": "Mon Sep 14 02:56:46 2026",
+      "creation_executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+      "elapsed_seconds": 5.409742041956633,
+      "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+      "expected_resume_thread_id": "01a09c20-ff75-7ec3-8218-91e5852059bf",
+      "frontend": {
+        "birth": "Mon Sep 14 02:56:45 2026",
+        "complete": true,
+        "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+        "pid": 39886,
+        "source": "darwin-local",
+        "uid": 501
+      },
+      "grant_sha256": "ebd7ba8a3052c68fd09c4ec0a9ae5d6c943e626b10b1e8c1c54034970e2a891a",
+      "guardian": {
+        "child_birth": "Mon Sep 14 02:56:46 2026",
+        "child_pid": 39922,
+        "child_reaped": true,
+        "child_returncode": 0,
+        "guardian_pid": 39914,
+        "kill_requested": false,
+        "nonce": "b4f17f6fc6e245e5a2437535492c373e",
+        "owner_pid": 39578,
+        "reason": "controller_stop",
+        "receipt_location_unchanged": true,
+        "restart_allowed": false,
+        "state": "stopped",
+        "term_requested": true,
+        "tree_stop_unproven": true,
+        "uid": 501,
+        "version": 1
+      },
+      "guardian_pid": 39914,
+      "helpers": [
+        {
+          "frontend": {
+            "birth": "Mon Sep 14 02:56:46 2026",
+            "complete": true,
+            "executable": "/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python",
+            "pid": 40018,
+            "source": "darwin-local",
+            "uid": 501
+          },
+          "lease_id": "3c82a73014c0",
+          "owner_connection_id": "conn-3-6917e4172cbb",
+          "owner_epoch": 3,
+          "owner_thread_id": "01a09c20-ff75-7ec3-8218-91e5852059bf",
+          "role": "owner-helper",
+          "state": "closed"
+        }
+      ],
+      "lease_id": "3c82a73014c0",
+      "owner_connection_id": "conn-3-6917e4172cbb",
+      "owner_context_sha256": "6937094a793e0cc8b394cc841f59660a5b671f0ebd09cd564aa7cb9ae252c16b",
+      "owner_epoch": 3,
+      "owner_thread_id": "01a09c20-ff75-7ec3-8218-91e5852059bf",
+      "pid": 39922,
+      "private_socket": "/private/tmp/g0-auth-product-ne4djhhw/b/b-3c82a73014c0.sock",
+      "private_socket_identity": [
+        16777234,
+        164120548,
+        501,
+        49536
+      ],
+      "process_stopped": true,
+      "profile_id": "native-product-10",
+      "protocol": [
+        {
+          "backend": {
+            "birth": "Mon Sep 14 02:56:46 2026",
+            "complete": true,
+            "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+            "pid": 39922,
+            "source": "darwin-local",
+            "uid": 501
+          },
+          "closed": true,
+          "connection_id": "conn-3-6917e4172cbb",
+          "epoch": 3,
+          "frontend": {
+            "birth": "Mon Sep 14 02:56:45 2026",
+            "complete": true,
+            "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+            "pid": 39886,
+            "source": "darwin-local",
+            "uid": 501
+          },
+          "initialize": {
+            "home_match": true,
+            "home_sha256": "e4c5b2f7634719ed3d128e02fb4f02fdf957f1172d1be025418a6a1b1fd7f5ed",
+            "request_id": "initialize"
+          },
+          "initialized": true,
+          "lease_id": "3c82a73014c0",
+          "profile_id": "native-product-10",
+          "protocol_valid": true,
+          "ready_published": true,
+          "rpc": [
+            {
+              "direction": "client",
+              "event": "rpc",
+              "method": "initialize",
+              "request_id": "initialize"
+            },
+            {
+              "direction": "server",
+              "event": "rpc_response",
+              "method": "initialize",
+              "ok": true,
+              "request_direction": "client",
+              "request_id": "initialize"
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "remoteControl/status/changed",
+              "request_id": null
+            },
+            {
+              "direction": "client",
+              "event": "rpc",
+              "method": "initialized",
+              "request_id": null
+            },
+            {
+              "direction": "client",
+              "event": "rpc_unknown",
+              "method": "account/read",
+              "request_id": 1
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "account/read",
+              "request_id": 1,
+              "response": true
+            },
+            {
+              "direction": "client",
+              "event": "rpc",
+              "method": "thread/read",
+              "request_id": 2
+            },
+            {
+              "direction": "server",
+              "event": "rpc_response",
+              "method": "thread/read",
+              "ok": true,
+              "request_direction": "client",
+              "request_id": 2
+            },
+            {
+              "direction": "client",
+              "event": "rpc_unknown",
+              "method": "model/list",
+              "request_id": 3
+            },
+            {
+              "direction": "client",
+              "event": "rpc_unknown",
+              "method": "configRequirements/read",
+              "request_id": 4
+            },
+            {
+              "direction": "client",
+              "event": "rpc_unknown",
+              "method": "collaborationMode/list",
+              "request_id": "collaboration-mode-list-29e8d99d-704b-48dd-b890-d9b189a64fd0"
+            },
+            {
+              "direction": "client",
+              "event": "rpc_unknown",
+              "method": "hooks/list",
+              "request_id": "hooks-list-711d0e3b-5eb9-4a40-a94c-4fd0f8d93dad"
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "collaborationMode/list",
+              "request_id": "collaboration-mode-list-29e8d99d-704b-48dd-b890-d9b189a64fd0",
+              "response": true
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "model/list",
+              "request_id": 3,
+              "response": true
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "configRequirements/read",
+              "request_id": 4,
+              "response": true
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "hooks/list",
+              "request_id": "hooks-list-711d0e3b-5eb9-4a40-a94c-4fd0f8d93dad",
+              "response": true
+            },
+            {
+              "direction": "client",
+              "event": "rpc",
+              "method": "thread/resume",
+              "request_id": 5
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "thread/status/changed",
+              "request_id": null
+            },
+            {
+              "direction": "server",
+              "event": "rpc_response",
+              "method": "thread/resume",
+              "ok": true,
+              "request_direction": "client",
+              "request_id": 5
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "thread/tokenUsage/updated",
+              "request_id": null
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "thread/goal/cleared",
+              "request_id": null
+            },
+            {
+              "direction": "client",
+              "event": "rpc_unknown",
+              "method": "thread/turns/list",
+              "request_id": 6
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "thread/turns/list",
+              "request_id": 6,
+              "response": true
+            },
+            {
+              "direction": "client",
+              "event": "rpc_unknown",
+              "method": "thread/items/list",
+              "request_id": 7
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "thread/items/list",
+              "request_id": 7,
+              "response": true
+            },
+            {
+              "direction": "client",
+              "event": "rpc_unknown",
+              "method": "thread/goal/get",
+              "request_id": 8
+            },
+            {
+              "direction": "client",
+              "event": "rpc_unknown",
+              "method": "thread/loaded/list",
+              "request_id": "b3a3c3db-1343-4fec-8bb8-97355e98c6c6"
+            },
+            {
+              "direction": "client",
+              "event": "rpc_unknown",
+              "method": "thread/list",
+              "request_id": "32b8b84c-1d2e-4e66-8f60-b9d30ad26880"
+            },
+            {
+              "direction": "client",
+              "event": "rpc_unknown",
+              "method": "thread/list",
+              "request_id": "0be2d9f4-81a4-4323-8c41-8678c9809548"
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "thread/loaded/list",
+              "request_id": "b3a3c3db-1343-4fec-8bb8-97355e98c6c6",
+              "response": true
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "thread/goal/get",
+              "request_id": 8,
+              "response": true
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "thread/list",
+              "request_id": "0be2d9f4-81a4-4323-8c41-8678c9809548",
+              "response": true
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "thread/list",
+              "request_id": "32b8b84c-1d2e-4e66-8f60-b9d30ad26880",
+              "response": true
+            },
+            {
+              "direction": "client",
+              "event": "rpc",
+              "method": "thread/read",
+              "request_id": "9e7567c4-080f-4b1a-b840-d719bc4071fe"
+            },
+            {
+              "direction": "server",
+              "event": "rpc_response",
+              "method": "thread/read",
+              "ok": true,
+              "request_direction": "client",
+              "request_id": "9e7567c4-080f-4b1a-b840-d719bc4071fe"
+            },
+            {
+              "direction": "client",
+              "event": "rpc_unknown",
+              "method": "thread/turns/list",
+              "request_id": "cd6bff39-c713-47dd-9ace-4d2409fa015f"
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "thread/turns/list",
+              "request_id": "cd6bff39-c713-47dd-9ace-4d2409fa015f",
+              "response": true
+            },
+            {
+              "direction": "client",
+              "event": "rpc",
+              "method": "skills/list",
+              "request_id": "startup-skills-list-4bf12881-0358-4391-841f-64d566b8d8c3"
+            },
+            {
+              "direction": "client",
+              "event": "rpc_unknown",
+              "method": "plugin/list",
+              "request_id": "plugin-list-2013d75e-0553-45e5-a70e-7531b46afb60"
+            },
+            {
+              "direction": "client",
+              "event": "rpc",
+              "method": "skills/list",
+              "request_id": 9
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "plugin/list",
+              "request_id": "plugin-list-2013d75e-0553-45e5-a70e-7531b46afb60",
+              "response": true
+            },
+            {
+              "direction": "server",
+              "event": "rpc_response",
+              "method": "skills/list",
+              "ok": true,
+              "request_direction": "client",
+              "request_id": 9
+            },
+            {
+              "direction": "server",
+              "event": "rpc_response",
+              "method": "skills/list",
+              "ok": true,
+              "request_direction": "client",
+              "request_id": "startup-skills-list-4bf12881-0358-4391-841f-64d566b8d8c3"
+            },
+            {
+              "direction": "client",
+              "event": "rpc_unknown",
+              "method": "plugin/list",
+              "request_id": "plugin-list-29b051fe-b9ce-4f8c-ae1d-0575dc097d63"
+            },
+            {
+              "direction": "client",
+              "event": "rpc_unknown",
+              "method": "plugin/list",
+              "request_id": "plugin-list-7d4383e2-a987-43a6-a9bc-fb0bd64e0712"
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "plugin/list",
+              "request_id": "plugin-list-29b051fe-b9ce-4f8c-ae1d-0575dc097d63",
+              "response": true
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "plugin/list",
+              "request_id": "plugin-list-7d4383e2-a987-43a6-a9bc-fb0bd64e0712",
+              "response": true
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "thread/status/changed",
+              "request_id": null
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "turn/started",
+              "request_id": null
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "item/started",
+              "request_id": null
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "item/completed",
+              "request_id": null
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "item/started",
+              "request_id": null
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "item/agentMessage/delta",
+              "request_id": null
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "item/completed",
+              "request_id": null
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "thread/tokenUsage/updated",
+              "request_id": null
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "account/rateLimits/updated",
+              "request_id": null
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "thread/status/changed",
+              "request_id": null
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "turn/completed",
+              "request_id": null
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "thread/status/changed",
+              "request_id": null
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "turn/started",
+              "request_id": null
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "item/started",
+              "request_id": null
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "item/completed",
+              "request_id": null
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "item/started",
+              "request_id": null
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "item/agentMessage/delta",
+              "request_id": null
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "item/completed",
+              "request_id": null
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "thread/tokenUsage/updated",
+              "request_id": null
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "account/rateLimits/updated",
+              "request_id": null
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "thread/status/changed",
+              "request_id": null
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "turn/completed",
+              "request_id": null
+            },
+            {
+              "direction": "client",
+              "event": "rpc",
+              "method": "thread/unsubscribe",
+              "request_id": 10
+            },
+            {
+              "direction": "server",
+              "event": "rpc_response",
+              "method": "thread/unsubscribe",
+              "ok": true,
+              "request_direction": "client",
+              "request_id": 10
+            }
+          ],
+          "thread": {
+            "id": "01a09c20-ff75-7ec3-8218-91e5852059bf",
+            "resume_barrier": true,
+            "resume_request_id": 5,
+            "resume_response": true,
+            "skills_request_id": 9
+          },
+          "turn_counts": {
+            "start": 0,
+            "steer": 0
+          },
+          "zero_turns": true
+        }
+      ],
+      "restart_allowed": false,
+      "returncode": 0,
+      "socket_removed": true,
+      "state": "closed",
+      "stderr": {
+        "bytes": 2948,
+        "sha256": "4e45a5d50b90230a2228676b80bf83c569ede195c211cd6a7f5c3ebb4a4f104b"
+      },
+      "stdout": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "tree_stop_unproven": true
+    }
+  ],
+  "empty_probe_eofs": 1,
+  "manifest_sha256": "cdba86d2f8bbde96f57715594760eea783d70aba7f2bfcdbf214e171f3c688b5",
+  "native_registration_verified": false,
+  "public_socket_owned": false,
+  "stop_signals": [
+    15
+  ],
+  "transport": {
+    "events": [
+      {
+        "backend": {
+          "birth": "Mon Sep 14 02:56:43 2026",
+          "complete": true,
+          "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+          "pid": 39633,
+          "source": "darwin-local",
+          "uid": 501
+        },
+        "connection_id": "conn-1-d9f1c06629e6",
+        "epoch": 1,
+        "frontend": {
+          "birth": "Mon Sep 14 02:56:42 2026",
+          "complete": true,
+          "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+          "pid": 39601,
+          "source": "darwin-local",
+          "uid": 501
+        },
+        "kind": "connect"
+      },
+      {
+        "backend": {
+          "birth": "Mon Sep 14 02:56:43 2026",
+          "complete": true,
+          "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+          "pid": 39633,
+          "source": "darwin-local",
+          "uid": 501
+        },
+        "connection_id": "conn-2-fbec18403844",
+        "epoch": 2,
+        "frontend": {
+          "birth": "Mon Sep 14 02:56:43 2026",
+          "complete": true,
+          "executable": "/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python",
+          "pid": 39744,
+          "source": "darwin-local",
+          "uid": 501
+        },
+        "kind": "connect"
+      },
+      {
+        "connection_id": "conn-1-d9f1c06629e6",
+        "direction": "frontend_to_backend",
+        "epoch": 1,
+        "kind": "eof"
+      },
+      {
+        "connection_id": "conn-1-d9f1c06629e6",
+        "direction": "frontend_to_backend",
+        "epoch": 1,
+        "kind": "half_close"
+      },
+      {
+        "connection_id": "conn-1-d9f1c06629e6",
+        "direction": null,
+        "epoch": 1,
+        "kind": "disconnect"
+      },
+      {
+        "connection_id": "conn-2-fbec18403844",
+        "direction": "backend_to_frontend",
+        "epoch": 2,
+        "kind": "eof"
+      },
+      {
+        "connection_id": "conn-2-fbec18403844",
+        "direction": "backend_to_frontend",
+        "epoch": 2,
+        "kind": "half_close"
+      },
+      {
+        "connection_id": "conn-2-fbec18403844",
+        "direction": null,
+        "epoch": 2,
+        "kind": "disconnect"
+      },
+      {
+        "backend": {
+          "birth": "Mon Sep 14 02:56:46 2026",
+          "complete": true,
+          "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+          "pid": 39922,
+          "source": "darwin-local",
+          "uid": 501
+        },
+        "connection_id": "conn-3-6917e4172cbb",
+        "epoch": 3,
+        "frontend": {
+          "birth": "Mon Sep 14 02:56:45 2026",
+          "complete": true,
+          "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+          "pid": 39886,
+          "source": "darwin-local",
+          "uid": 501
+        },
+        "kind": "connect"
+      },
+      {
+        "backend": {
+          "birth": "Mon Sep 14 02:56:46 2026",
+          "complete": true,
+          "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+          "pid": 39922,
+          "source": "darwin-local",
+          "uid": 501
+        },
+        "connection_id": "conn-4-9c7a250cdb2b",
+        "epoch": 4,
+        "frontend": {
+          "birth": "Mon Sep 14 02:56:46 2026",
+          "complete": true,
+          "executable": "/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python",
+          "pid": 40018,
+          "source": "darwin-local",
+          "uid": 501
+        },
+        "kind": "connect"
+      },
+      {
+        "connection_id": "conn-4-9c7a250cdb2b",
+        "direction": "frontend_to_backend",
+        "epoch": 4,
+        "kind": "eof"
+      },
+      {
+        "connection_id": "conn-4-9c7a250cdb2b",
+        "direction": "frontend_to_backend",
+        "epoch": 4,
+        "kind": "half_close"
+      },
+      {
+        "connection_id": "conn-4-9c7a250cdb2b",
+        "direction": null,
+        "epoch": 4,
+        "kind": "disconnect"
+      },
+      {
+        "connection_id": "conn-3-6917e4172cbb",
+        "direction": "frontend_to_backend",
+        "epoch": 3,
+        "kind": "eof"
+      },
+      {
+        "connection_id": "conn-3-6917e4172cbb",
+        "direction": "frontend_to_backend",
+        "epoch": 3,
+        "kind": "half_close"
+      },
+      {
+        "connection_id": "conn-3-6917e4172cbb",
+        "direction": null,
+        "epoch": 3,
+        "kind": "disconnect"
+      }
+    ],
+    "protocol": [
+      {
+        "backend": {
+          "birth": "Mon Sep 14 02:56:43 2026",
+          "complete": true,
+          "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+          "pid": 39633,
+          "source": "darwin-local",
+          "uid": 501
+        },
+        "closed": true,
+        "connection_id": "conn-1-d9f1c06629e6",
+        "epoch": 1,
+        "frontend": {
+          "birth": "Mon Sep 14 02:56:42 2026",
+          "complete": true,
+          "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+          "pid": 39601,
+          "source": "darwin-local",
+          "uid": 501
+        },
+        "initialize": {
+          "home_match": true,
+          "home_sha256": "e4c5b2f7634719ed3d128e02fb4f02fdf957f1172d1be025418a6a1b1fd7f5ed",
+          "request_id": "initialize"
+        },
+        "initialized": true,
+        "lease_id": "28958af38a4d",
+        "profile_id": "native-product-10",
+        "protocol_valid": false,
+        "ready_published": true,
+        "rpc": [
+          {
+            "direction": "client",
+            "event": "rpc",
+            "method": "initialize",
+            "request_id": "initialize"
+          },
+          {
+            "direction": "server",
+            "event": "rpc_response",
+            "method": "initialize",
+            "ok": true,
+            "request_direction": "client",
+            "request_id": "initialize"
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "remoteControl/status/changed",
+            "request_id": null
+          },
+          {
+            "direction": "client",
+            "event": "rpc",
+            "method": "initialized",
+            "request_id": null
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "account/read",
+            "request_id": 1
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "account/read",
+            "request_id": 1,
+            "response": true
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "model/list",
+            "request_id": 2
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "configRequirements/read",
+            "request_id": 3
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "collaborationMode/list",
+            "request_id": "collaboration-mode-list-5e40365a-e46a-4ff1-af11-cd2947bda1b1"
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "hooks/list",
+            "request_id": "hooks-list-111b2824-ccf6-4721-9627-d403df264870"
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "collaborationMode/list",
+            "request_id": "collaboration-mode-list-5e40365a-e46a-4ff1-af11-cd2947bda1b1",
+            "response": true
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "model/list",
+            "request_id": 2,
+            "response": true
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "configRequirements/read",
+            "request_id": 3,
+            "response": true
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "hooks/list",
+            "request_id": "hooks-list-111b2824-ccf6-4721-9627-d403df264870",
+            "response": true
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "config/read",
+            "request_id": "tui-config-read-d41dd4c5-7402-4110-b95a-5b1aa9c594a4"
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "config/read",
+            "request_id": "tui-config-read-d41dd4c5-7402-4110-b95a-5b1aa9c594a4",
+            "response": true
+          },
+          {
+            "direction": "client",
+            "event": "rpc",
+            "method": "thread/start",
+            "request_id": "startup-thread-start-971c14f8-4087-4a72-85b6-2ed69553c0ac"
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "thread/loaded/list",
+            "request_id": "917ecb91-6b7f-482b-a2dd-afcbf4ee2f88"
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "thread/list",
+            "request_id": "0b3f3508-34ce-4ba1-88e0-84a3516b863c"
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "thread/list",
+            "request_id": "afeb83e5-730a-42f9-86d6-d52e9fe4e1a7"
+          },
+          {
+            "direction": "client",
+            "event": "rpc",
+            "method": "skills/list",
+            "request_id": "startup-skills-list-01ef2734-5e44-47ef-b41a-b65308d7ab6d"
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "thread/loaded/list",
+            "request_id": "917ecb91-6b7f-482b-a2dd-afcbf4ee2f88",
+            "response": true
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "thread/list",
+            "request_id": "0b3f3508-34ce-4ba1-88e0-84a3516b863c",
+            "response": true
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "thread/list",
+            "request_id": "afeb83e5-730a-42f9-86d6-d52e9fe4e1a7",
+            "response": true
+          },
+          {
+            "direction": "server",
+            "event": "rpc_response",
+            "method": "thread/start",
+            "ok": true,
+            "request_direction": "client",
+            "request_id": "startup-thread-start-971c14f8-4087-4a72-85b6-2ed69553c0ac"
+          },
+          {
+            "direction": "server",
+            "event": "rpc",
+            "method": "thread/started",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_response",
+            "method": "skills/list",
+            "ok": true,
+            "request_direction": "client",
+            "request_id": "startup-skills-list-01ef2734-5e44-47ef-b41a-b65308d7ab6d"
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "plugin/list",
+            "request_id": "plugin-list-510f6454-8675-43df-a871-ae3faf1159b5"
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "plugin/list",
+            "request_id": "plugin-list-49deaa15-b076-47b4-ac2b-7a5ae66b8a8f"
+          },
+          {
+            "direction": "client",
+            "event": "rpc",
+            "method": "skills/list",
+            "request_id": 4
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "plugin/list",
+            "request_id": "plugin-list-510f6454-8675-43df-a871-ae3faf1159b5",
+            "response": true
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "plugin/list",
+            "request_id": "plugin-list-49deaa15-b076-47b4-ac2b-7a5ae66b8a8f",
+            "response": true
+          },
+          {
+            "direction": "server",
+            "event": "rpc_response",
+            "method": "skills/list",
+            "ok": true,
+            "request_direction": "client",
+            "request_id": 4
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "plugin/list",
+            "request_id": "plugin-list-8576b8db-d271-41c3-bc63-9e242c5e242c"
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "plugin/list",
+            "request_id": "plugin-list-8576b8db-d271-41c3-bc63-9e242c5e242c",
+            "response": true
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "turn/start",
+            "request_id": 5
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "thread/settings/updated",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "turn/start",
+            "request_id": 5,
+            "response": true
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "plugin/list",
+            "request_id": "plugin-list-c592c2c8-ef7f-4d73-9630-aaf962637d48"
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "plugin/list",
+            "request_id": "plugin-list-c592c2c8-ef7f-4d73-9630-aaf962637d48",
+            "response": true
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "thread/status/changed",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "turn/started",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "item/started",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "item/completed",
+            "request_id": null
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "config/read",
+            "request_id": "temporary-config-a02db5c2-e9bf-4ea5-b99d-e3f889ca19a8"
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "config/read",
+            "request_id": "temporary-config-a02db5c2-e9bf-4ea5-b99d-e3f889ca19a8",
+            "response": true
+          },
+          {
+            "direction": "client",
+            "event": "rpc",
+            "method": "thread/start",
+            "request_id": "temporary-structured-da972ab4-690c-41c5-a16b-427125d36bc6"
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "item/started",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "item/agentMessage/delta",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "item/completed",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_response",
+            "method": "thread/start",
+            "ok": true,
+            "request_direction": "client",
+            "request_id": "temporary-structured-da972ab4-690c-41c5-a16b-427125d36bc6"
+          },
+          {
+            "direction": "server",
+            "event": "rpc",
+            "method": "thread/started",
+            "request_id": null
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "turn/start",
+            "request_id": "temporary-structured-turn-7c8f6d2f-4497-438f-a41d-db79e39f0e45"
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "thread/settings/updated",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "turn/start",
+            "request_id": "temporary-structured-turn-7c8f6d2f-4497-438f-a41d-db79e39f0e45",
+            "response": true
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "thread/status/changed",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "turn/started",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "item/started",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "item/completed",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "thread/tokenUsage/updated",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "account/rateLimits/updated",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "thread/status/changed",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "turn/completed",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "thread/status/changed",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "error",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "turn/completed",
+            "request_id": null
+          },
+          {
+            "direction": "client",
+            "event": "rpc",
+            "method": "thread/unsubscribe",
+            "request_id": "temporary-structured-unsubscribe-79740e37-247b-4a82-ba2d-fae85f1875d3"
+          },
+          {
+            "direction": "server",
+            "event": "rpc_response",
+            "method": "thread/unsubscribe",
+            "ok": true,
+            "request_direction": "client",
+            "request_id": "temporary-structured-unsubscribe-79740e37-247b-4a82-ba2d-fae85f1875d3"
+          },
+          {
+            "direction": "client",
+            "event": "rpc",
+            "method": "thread/unsubscribe",
+            "request_id": 6
+          },
+          {
+            "direction": "server",
+            "event": "rpc_response",
+            "method": "thread/unsubscribe",
+            "ok": true,
+            "request_direction": "client",
+            "request_id": 6
+          }
+        ],
+        "thread": {
+          "id": "01a09c20-ff75-7ec3-8218-91e5852059bf",
+          "start_request_id": "temporary-structured-da972ab4-690c-41c5-a16b-427125d36bc6",
+          "started_id": "01a09c20-ff75-7ec3-8218-91e5852059bf"
+        },
+        "turn_counts": {
+          "start": 2,
+          "steer": 0
+        },
+        "zero_turns": false
+      },
+      {
+        "backend": {
+          "birth": "Mon Sep 14 02:56:43 2026",
+          "complete": true,
+          "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+          "pid": 39633,
+          "source": "darwin-local",
+          "uid": 501
+        },
+        "closed": true,
+        "connection_id": "conn-2-fbec18403844",
+        "epoch": 2,
+        "frontend": {
+          "birth": "Mon Sep 14 02:56:43 2026",
+          "complete": true,
+          "executable": "/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python",
+          "pid": 39744,
+          "source": "darwin-local",
+          "uid": 501
+        },
+        "initialize": {
+          "home_match": false,
+          "home_sha256": "e4c5b2f7634719ed3d128e02fb4f02fdf957f1172d1be025418a6a1b1fd7f5ed",
+          "request_id": 1
+        },
+        "initialized": true,
+        "lease_id": null,
+        "profile_id": null,
+        "protocol_valid": false,
+        "ready_published": false,
+        "rpc": [
+          {
+            "direction": "client",
+            "event": "rpc",
+            "method": "initialize",
+            "request_id": 1
+          },
+          {
+            "direction": "server",
+            "event": "rpc_response",
+            "method": "initialize",
+            "ok": true,
+            "request_direction": "client",
+            "request_id": 1
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "remoteControl/status/changed",
+            "request_id": null
+          },
+          {
+            "direction": "client",
+            "event": "rpc",
+            "method": "initialized",
+            "request_id": null
+          }
+        ],
+        "thread": {},
+        "turn_counts": {
+          "start": 0,
+          "steer": 0
+        },
+        "zero_turns": true
+      },
+      {
+        "backend": {
+          "birth": "Mon Sep 14 02:56:46 2026",
+          "complete": true,
+          "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+          "pid": 39922,
+          "source": "darwin-local",
+          "uid": 501
+        },
+        "closed": true,
+        "connection_id": "conn-3-6917e4172cbb",
+        "epoch": 3,
+        "frontend": {
+          "birth": "Mon Sep 14 02:56:45 2026",
+          "complete": true,
+          "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+          "pid": 39886,
+          "source": "darwin-local",
+          "uid": 501
+        },
+        "initialize": {
+          "home_match": true,
+          "home_sha256": "e4c5b2f7634719ed3d128e02fb4f02fdf957f1172d1be025418a6a1b1fd7f5ed",
+          "request_id": "initialize"
+        },
+        "initialized": true,
+        "lease_id": "3c82a73014c0",
+        "profile_id": "native-product-10",
+        "protocol_valid": true,
+        "ready_published": true,
+        "rpc": [
+          {
+            "direction": "client",
+            "event": "rpc",
+            "method": "initialize",
+            "request_id": "initialize"
+          },
+          {
+            "direction": "server",
+            "event": "rpc_response",
+            "method": "initialize",
+            "ok": true,
+            "request_direction": "client",
+            "request_id": "initialize"
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "remoteControl/status/changed",
+            "request_id": null
+          },
+          {
+            "direction": "client",
+            "event": "rpc",
+            "method": "initialized",
+            "request_id": null
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "account/read",
+            "request_id": 1
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "account/read",
+            "request_id": 1,
+            "response": true
+          },
+          {
+            "direction": "client",
+            "event": "rpc",
+            "method": "thread/read",
+            "request_id": 2
+          },
+          {
+            "direction": "server",
+            "event": "rpc_response",
+            "method": "thread/read",
+            "ok": true,
+            "request_direction": "client",
+            "request_id": 2
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "model/list",
+            "request_id": 3
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "configRequirements/read",
+            "request_id": 4
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "collaborationMode/list",
+            "request_id": "collaboration-mode-list-29e8d99d-704b-48dd-b890-d9b189a64fd0"
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "hooks/list",
+            "request_id": "hooks-list-711d0e3b-5eb9-4a40-a94c-4fd0f8d93dad"
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "collaborationMode/list",
+            "request_id": "collaboration-mode-list-29e8d99d-704b-48dd-b890-d9b189a64fd0",
+            "response": true
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "model/list",
+            "request_id": 3,
+            "response": true
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "configRequirements/read",
+            "request_id": 4,
+            "response": true
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "hooks/list",
+            "request_id": "hooks-list-711d0e3b-5eb9-4a40-a94c-4fd0f8d93dad",
+            "response": true
+          },
+          {
+            "direction": "client",
+            "event": "rpc",
+            "method": "thread/resume",
+            "request_id": 5
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "thread/status/changed",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_response",
+            "method": "thread/resume",
+            "ok": true,
+            "request_direction": "client",
+            "request_id": 5
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "thread/tokenUsage/updated",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "thread/goal/cleared",
+            "request_id": null
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "thread/turns/list",
+            "request_id": 6
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "thread/turns/list",
+            "request_id": 6,
+            "response": true
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "thread/items/list",
+            "request_id": 7
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "thread/items/list",
+            "request_id": 7,
+            "response": true
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "thread/goal/get",
+            "request_id": 8
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "thread/loaded/list",
+            "request_id": "b3a3c3db-1343-4fec-8bb8-97355e98c6c6"
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "thread/list",
+            "request_id": "32b8b84c-1d2e-4e66-8f60-b9d30ad26880"
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "thread/list",
+            "request_id": "0be2d9f4-81a4-4323-8c41-8678c9809548"
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "thread/loaded/list",
+            "request_id": "b3a3c3db-1343-4fec-8bb8-97355e98c6c6",
+            "response": true
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "thread/goal/get",
+            "request_id": 8,
+            "response": true
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "thread/list",
+            "request_id": "0be2d9f4-81a4-4323-8c41-8678c9809548",
+            "response": true
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "thread/list",
+            "request_id": "32b8b84c-1d2e-4e66-8f60-b9d30ad26880",
+            "response": true
+          },
+          {
+            "direction": "client",
+            "event": "rpc",
+            "method": "thread/read",
+            "request_id": "9e7567c4-080f-4b1a-b840-d719bc4071fe"
+          },
+          {
+            "direction": "server",
+            "event": "rpc_response",
+            "method": "thread/read",
+            "ok": true,
+            "request_direction": "client",
+            "request_id": "9e7567c4-080f-4b1a-b840-d719bc4071fe"
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "thread/turns/list",
+            "request_id": "cd6bff39-c713-47dd-9ace-4d2409fa015f"
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "thread/turns/list",
+            "request_id": "cd6bff39-c713-47dd-9ace-4d2409fa015f",
+            "response": true
+          },
+          {
+            "direction": "client",
+            "event": "rpc",
+            "method": "skills/list",
+            "request_id": "startup-skills-list-4bf12881-0358-4391-841f-64d566b8d8c3"
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "plugin/list",
+            "request_id": "plugin-list-2013d75e-0553-45e5-a70e-7531b46afb60"
+          },
+          {
+            "direction": "client",
+            "event": "rpc",
+            "method": "skills/list",
+            "request_id": 9
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "plugin/list",
+            "request_id": "plugin-list-2013d75e-0553-45e5-a70e-7531b46afb60",
+            "response": true
+          },
+          {
+            "direction": "server",
+            "event": "rpc_response",
+            "method": "skills/list",
+            "ok": true,
+            "request_direction": "client",
+            "request_id": 9
+          },
+          {
+            "direction": "server",
+            "event": "rpc_response",
+            "method": "skills/list",
+            "ok": true,
+            "request_direction": "client",
+            "request_id": "startup-skills-list-4bf12881-0358-4391-841f-64d566b8d8c3"
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "plugin/list",
+            "request_id": "plugin-list-29b051fe-b9ce-4f8c-ae1d-0575dc097d63"
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "plugin/list",
+            "request_id": "plugin-list-7d4383e2-a987-43a6-a9bc-fb0bd64e0712"
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "plugin/list",
+            "request_id": "plugin-list-29b051fe-b9ce-4f8c-ae1d-0575dc097d63",
+            "response": true
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "plugin/list",
+            "request_id": "plugin-list-7d4383e2-a987-43a6-a9bc-fb0bd64e0712",
+            "response": true
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "thread/status/changed",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "turn/started",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "item/started",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "item/completed",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "item/started",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "item/agentMessage/delta",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "item/completed",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "thread/tokenUsage/updated",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "account/rateLimits/updated",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "thread/status/changed",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "turn/completed",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "thread/status/changed",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "turn/started",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "item/started",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "item/completed",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "item/started",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "item/agentMessage/delta",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "item/completed",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "thread/tokenUsage/updated",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "account/rateLimits/updated",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "thread/status/changed",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "turn/completed",
+            "request_id": null
+          },
+          {
+            "direction": "client",
+            "event": "rpc",
+            "method": "thread/unsubscribe",
+            "request_id": 10
+          },
+          {
+            "direction": "server",
+            "event": "rpc_response",
+            "method": "thread/unsubscribe",
+            "ok": true,
+            "request_direction": "client",
+            "request_id": 10
+          }
+        ],
+        "thread": {
+          "id": "01a09c20-ff75-7ec3-8218-91e5852059bf",
+          "resume_barrier": true,
+          "resume_request_id": 5,
+          "resume_response": true,
+          "skills_request_id": 9
+        },
+        "turn_counts": {
+          "start": 0,
+          "steer": 0
+        },
+        "zero_turns": true
+      },
+      {
+        "backend": {
+          "birth": "Mon Sep 14 02:56:46 2026",
+          "complete": true,
+          "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+          "pid": 39922,
+          "source": "darwin-local",
+          "uid": 501
+        },
+        "closed": true,
+        "connection_id": "conn-4-9c7a250cdb2b",
+        "epoch": 4,
+        "frontend": {
+          "birth": "Mon Sep 14 02:56:46 2026",
+          "complete": true,
+          "executable": "/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python",
+          "pid": 40018,
+          "source": "darwin-local",
+          "uid": 501
+        },
+        "initialize": {
+          "home_match": false,
+          "home_sha256": "e4c5b2f7634719ed3d128e02fb4f02fdf957f1172d1be025418a6a1b1fd7f5ed",
+          "request_id": 1
+        },
+        "initialized": true,
+        "lease_id": null,
+        "profile_id": null,
+        "protocol_valid": false,
+        "ready_published": false,
+        "rpc": [
+          {
+            "direction": "client",
+            "event": "rpc",
+            "method": "initialize",
+            "request_id": 1
+          },
+          {
+            "direction": "server",
+            "event": "rpc_response",
+            "method": "initialize",
+            "ok": true,
+            "request_direction": "client",
+            "request_id": 1
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "remoteControl/status/changed",
+            "request_id": null
+          },
+          {
+            "direction": "client",
+            "event": "rpc",
+            "method": "initialized",
+            "request_id": null
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "turn/start",
+            "request_id": 2
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "turn/start",
+            "request_id": 2,
+            "response": true
+          },
+          {
+            "direction": "client",
+            "event": "rpc",
+            "method": "thread/read",
+            "request_id": 20
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "thread/status/changed",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "deprecationNotice",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_response",
+            "method": "thread/read",
+            "ok": true,
+            "request_direction": "client",
+            "request_id": 20
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "thread/status/changed",
+            "request_id": null
+          },
+          {
+            "direction": "client",
+            "event": "rpc",
+            "method": "thread/read",
+            "request_id": 21
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "deprecationNotice",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_response",
+            "method": "thread/read",
+            "ok": true,
+            "request_direction": "client",
+            "request_id": 21
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "turn/start",
+            "request_id": 2
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "turn/start",
+            "request_id": 2,
+            "response": true
+          },
+          {
+            "direction": "client",
+            "event": "rpc",
+            "method": "thread/read",
+            "request_id": 20
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "thread/status/changed",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "deprecationNotice",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_response",
+            "method": "thread/read",
+            "ok": true,
+            "request_direction": "client",
+            "request_id": 20
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "thread/status/changed",
+            "request_id": null
+          },
+          {
+            "direction": "client",
+            "event": "rpc",
+            "method": "thread/read",
+            "request_id": 21
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "deprecationNotice",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_response",
+            "method": "thread/read",
+            "ok": true,
+            "request_direction": "client",
+            "request_id": 21
+          }
+        ],
+        "thread": {},
+        "turn_counts": {
+          "start": 2,
+          "steer": 0
+        },
+        "zero_turns": false
+      }
+    ],
+    "streams": [
+      {
+        "bytes": 53759,
+        "connection_id": "conn-1-d9f1c06629e6",
+        "direction": "backend_to_frontend",
+        "sha256": "3f53c2078ca14e98f42db725698b8400e174ac193234a783d4e79eb31d15809b"
+      },
+      {
+        "bytes": 10457,
+        "connection_id": "conn-1-d9f1c06629e6",
+        "direction": "frontend_to_backend",
+        "sha256": "bf3d1bb85c737cd1dff70db36b4a8b6fc708b324528cb0a9b29b431f1263c150"
+      },
+      {
+        "bytes": 545,
+        "connection_id": "conn-2-fbec18403844",
+        "direction": "backend_to_frontend",
+        "sha256": "2515b31d90ec06d2082b047c4a60c23d88f218018a5534cfe33c1d5248caed05"
+      },
+      {
+        "bytes": 333,
+        "connection_id": "conn-2-fbec18403844",
+        "direction": "frontend_to_backend",
+        "sha256": "422e31e6b68be9da415ef9799dffc252801f2cb709ba0d996530081234652595"
+      },
+      {
+        "bytes": 42444,
+        "connection_id": "conn-3-6917e4172cbb",
+        "direction": "backend_to_frontend",
+        "sha256": "309b484f76935ffa1ed2b93a9dc5feb130b23ca820bb9c8a586cd612ba177cfc"
+      },
+      {
+        "bytes": 4322,
+        "connection_id": "conn-3-6917e4172cbb",
+        "direction": "frontend_to_backend",
+        "sha256": "69d100b65a9caa34771b2e01890051e231e776af2391371f325bade16e4aa9f5"
+      },
+      {
+        "bytes": 13684,
+        "connection_id": "conn-4-9c7a250cdb2b",
+        "direction": "backend_to_frontend",
+        "sha256": "5845b64c65430f09a601048427656ae6d980c26e5b5cb9e3c4feff0dfa6d3e95"
+      },
+      {
+        "bytes": 2185,
+        "connection_id": "conn-4-9c7a250cdb2b",
+        "direction": "frontend_to_backend",
+        "sha256": "5ec5775baee0cc920434577efbf4492ea7bf610318535c09cfc14980d7635edc"
+      }
+    ]
+  },
+  "wire_rejections": []
+}
