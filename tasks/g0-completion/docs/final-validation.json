@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "source_commit": "9f31847",
+  "case": "native-delivery-03",
+  "status": "passed",
+  "scope": "one controlled native-owner-helper-Go-ACK sample; not complete G0",
+  "auth": {
+    "opaque_path_count": 14,
+    "unchanged": true,
+    "changed_path_ids": [],
+    "synthetic_auth_absent": true
+  },
+  "delivery": {
+    "backend_count": 1,
+    "owner_helper_count": 1,
+    "owner_context_bound": true,
+    "backend_owner_helper_pid_distinct": true,
+    "history_proof": true,
+    "controller_decision": "handled",
+    "ack_count": 1,
+    "effect_count": 1,
+    "second_claim_or_send": false,
+    "send_allowed_after_ack": false,
+    "source_pins_valid": true,
+    "fixture_valid": true
+  },
+  "transport": {
+    "synthetic_provider": true,
+    "http_statuses": [200, 200],
+    "external_model_calls": 0,
+    "ordinary_tui_verified": false,
+    "durable_history_verified": false,
+    "business_ack_verified": true
+  },
+  "cleanup": {
+    "owner_exit": 0,
+    "helper_exit": 0,
+    "owner_close_before_helper_eof": true,
+    "guardian_reaped": true,
+    "private_socket_absent": true,
+    "public_socket_absent": true,
+    "restart_allowed": false
+  },
+  "registration": {
+    "global_registration_performed": false,
+    "permanent_installation": false
+  },
+  "full_suite": {
+    "passed": 549,
+    "subtests": 116,
+    "duration_seconds": 61.03,
+    "source": "root final integration report"
+  },
+  "not_proven": [
+    "ordinary TUI interaction",
+    "durable native history",
+    "real model response",
+    "complete G0",
+    "G1-G4"
+  ]
+}
