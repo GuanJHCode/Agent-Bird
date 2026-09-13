@@ -1,0 +1,61 @@
+{
+  "removed": [
+    "/private/tmp/g0-auth-2oi5jez4",
+    "/private/tmp/g0-auth-aquwmh5d",
+    "/private/tmp/g0-auth-gm07zn9z",
+    "/private/tmp/g0-auth-da8h6kpq",
+    "/private/tmp/g0-auth-24wyxl3t",
+    "/private/tmp/g0-auth-j_eohwwk",
+    "/private/tmp/g0-auth-31_3zn0e",
+    "/private/tmp/g0-auth-v1-95av4jdy",
+    "/private/tmp/g0-auth-audit-final/credential-paths.txt",
+    "tasks/g0-proxy-continuation/cold-start/scripts/__pycache__",
+    "tasks/g0-tui-proxy/scripts/__pycache__"
+  ],
+  "retained_profiles": [
+    {
+      "case": "native-preflight-04",
+      "profile_root": "/private/tmp/g0-auth-umicfwq9",
+      "reason": "synthetic exited profile and task records retained",
+      "exists": true
+    },
+    {
+      "case": "native-preflight-03",
+      "profile_root": "/private/tmp/g0-auth-8vvl8po0",
+      "reason": "synthetic exited profile and task records retained",
+      "exists": true
+    },
+    {
+      "case": "native-preflight-02",
+      "profile_root": "/private/tmp/g0-auth-9cygy53y",
+      "reason": "synthetic exited profile and task records retained",
+      "exists": true
+    },
+    {
+      "case": "native-launchd-01",
+      "profile_root": "/private/tmp/g0-auth-zsy7elh7",
+      "reason": "synthetic exited profile and task records retained",
+      "exists": true
+    },
+    {
+      "case": "native-preflight-01",
+      "profile_root": "/private/tmp/g0-auth-aiy2ely9",
+      "reason": "synthetic exited profile and task records retained",
+      "exists": true
+    },
+    {
+      "case": "native-launchd-02",
+      "profile_root": "/private/tmp/g0-auth-jwey_4e1",
+      "reason": "synthetic exited profile and task records retained",
+      "exists": true
+    },
+    {
+      "case": "native-launchd-03",
+      "profile_root": "/private/tmp/g0-auth-j7da7crk",
+      "reason": "synthetic exited profile and task records retained",
+      "exists": true
+    }
+  ],
+  "public_socket_removed": false,
+  "preexisting_user_changes_preserved": true
+}

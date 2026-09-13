@@ -1,0 +1,31 @@
+{
+  "case": "native-preflight-03",
+  "source_commit": "3b8a957",
+  "registration_performed": false,
+  "model_calls_requested": 0,
+  "service_pid": 48027,
+  "service_birth": "Sun Sep 13 08:10:51 2026",
+  "service_argv": [
+    "/Users/guanjunhui/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3.12",
+    "-I",
+    "-B",
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-proxy-continuation/cold-start/scripts/projectproxy_launchd_entrypoint.py",
+    "--manifest",
+    "/private/tmp/g0-auth-aquwmh5d/activation.json",
+    "--listener-fd",
+    "3"
+  ],
+  "error_type": "ProbeError",
+  "error": "activation readiness receipt timeout",
+  "service_exit": 1,
+  "service_stdout": "{\"status\": \"failed\", \"failure_type\": \"TypeError\", \"errno\": null, \"message_sha256\": \"8e032b817fa92532696bacd97befd72d1e377618d74e9307050904f833089c12\"}\n",
+  "service_stderr": "",
+  "auth_comparison": {
+    "unchanged": true,
+    "changed_path_ids": []
+  },
+  "owned_private_listener_removed": true,
+  "synthetic_auth_absent": true,
+  "retained_profile_exists": true,
+  "status": "failed"
+}

@@ -1,0 +1,115 @@
+{
+  "case": "native-preflight-04",
+  "source_commit": "3b8a957",
+  "registration_performed": false,
+  "model_calls_requested": 0,
+  "service_pid": 48215,
+  "service_birth": "Sun Sep 13 08:12:03 2026",
+  "service_argv": [
+    "/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/bin/python3.13",
+    "-I",
+    "-B",
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-proxy-continuation/cold-start/scripts/projectproxy_launchd_entrypoint.py",
+    "--manifest",
+    "/private/tmp/g0-auth-2oi5jez4/activation.json",
+    "--listener-fd",
+    "3"
+  ],
+  "probe": {
+    "schema_version": 1,
+    "profile_id": "native-preflight-04",
+    "expected_executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+    "expected_executable_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc",
+    "public_socket": "/private/tmp/g0-auth-2oi5jez4/home/.codex/app-server-control/app-server-control.sock",
+    "backend_socket": "/private/tmp/g0-auth-umicfwq9/backend/backend.sock",
+    "default_socket_alias": "/private/tmp/g0-auth-umicfwq9/codex-home/app-server-control/app-server-control.sock",
+    "env_names": [
+      "CODEX_HOME",
+      "CODEX_ORCHESTRATION_PROFILE_ID",
+      "CODEX_SQLITE_HOME",
+      "COLORTERM",
+      "HOME",
+      "LANG",
+      "LC_ALL",
+      "LC_CTYPE",
+      "PATH",
+      "PROBE_EXPECTED_EXECUTABLE",
+      "PROBE_EXPECTED_HOME_SHA256",
+      "PROBE_MANIFEST_SHA256",
+      "PROBE_PROFILE_ID",
+      "PWD",
+      "TERM",
+      "TERM_PROGRAM",
+      "TMPDIR"
+    ],
+    "grant_registered_before_release": true,
+    "status_sent": true,
+    "quit_sent": true,
+    "child_exit": 0,
+    "auth": {
+      "unchanged": true,
+      "changed_path_ids": []
+    },
+    "sandbox_executable": "/usr/bin/sandbox-exec",
+    "sandbox_executable_sha256": "f3162ae11789a5b296bb3850d493c33ddd52053a03f984b2c4bc34004f4fee99",
+    "backend_plan": {
+      "private_socket": "/private/tmp/g0-auth-umicfwq9/backend/backend.sock",
+      "expected_executable_sha256": "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc"
+    },
+    "gate_executable": "/usr/bin/sandbox-exec",
+    "ready": {
+      "path": "/private/tmp/g0-auth-2oi5jez4/state/5a800736588e41518572a0a5a8848193/ready-357e973e7cd8.json",
+      "connection_id": "conn-1-dee6e8921732",
+      "epoch": 1,
+      "thread_id": "01a0981b-5acc-7bc1-8980-e017651b7127",
+      "home_match": true
+    },
+    "established": {
+      "activation_id": "5a800736588e41518572a0a5a8848193",
+      "lease_id": "357e973e7cd8",
+      "connection_id": "conn-1-dee6e8921732",
+      "epoch": 1,
+      "manifest_sha256": "90876bc1f5599e8992b2d8c69ed3cd58759afd376787a8fe93fe7733e1bddf23",
+      "frontend": {
+        "birth": "Sun Sep 13 08:12:03 2026",
+        "complete": true,
+        "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+        "pid": 48217,
+        "source": "darwin-local",
+        "uid": 501
+      },
+      "backend": {
+        "birth": "Sun Sep 13 08:12:04 2026",
+        "complete": true,
+        "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+        "pid": 48246,
+        "source": "darwin-local",
+        "uid": 501
+      }
+    },
+    "status_session_ids": [
+      "01a0981b-5acc-7bc1-8980-e017651b7127"
+    ],
+    "final_receipt_path": "/private/tmp/g0-auth-2oi5jez4/state/5a800736588e41518572a0a5a8848193/activation.json",
+    "default_socket_exists_after": false,
+    "cleanup_failures": [],
+    "pty": {
+      "bytes_captured": 8425,
+      "sha256": "ddcb04474e520230472812fc3565f85783cb304c4df5ddd4757d1fa2802760c5",
+      "excerpt": "[?2004h[>4;0m[>7u[?1004h[6n]10;?\\]11;?\\[?u[c[?2026h[1;1H[J[1;42H[0m[49m[K[2;42H[0m[49m[K[3;42H[0m[49m[K[4;42H[0m[49m[K[5;42H[0m[49m[K[6;42H[0m[49m[K[7;2H[0m[49m[K[8;2H[0m[49m[K[9;27H[0m[49m[K[10;2H[0m[49m[K[11;18H[0m[49m[K[1;1H[2m\u256d\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e[2;1H\u2502 >_ [22m[1mOpenAI Codex[22m[2m[2m (v0.154.0)            \u2502[3;1H\u2502                                       \u2502[4;1H\u2502 model:     [3mloading[23m   [22m[38;5;6;49m/model[2m[39;49m to change \u2502[5;1H\u2502 directory: [22mloading[2m                    \u2502[6;1H\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f[7;1H[22m [8;1H [9;1H[1m\u203a[22m [2mAsk Codex to do anything[10;1H[22m [11;1H  [2m? for shortcuts[39m[49m[0m[1;1H[0 q[1;1H[2m\u256d[39m[49m[0m[9;3H[?25h[?2026l[?2026h[39m[49m[0m[1;1H[0 q[1;1H[2m\u256d[39m[49m[0m[9;3H[?25h[?2026l[?2026h[39m[49m[0m[1;1H[0 q[1;1H[2m\u256d[39m[49m[0m[9;3H[?25h[?2026l[?2026h[39m[49m[0m[1;1H[0 q[1;1H[2m\u256d[39m[49m[0m[9;3H[?25h[?2026l[?2026h[39m[49m[0m[1;1H[0 q[1;1H[2m\u256d[39m[49m[0m[9;3H[?25h[?2026l[?2026h[39m[49m[0m[1;1H[0 q[1;1H[2m\u256d[39m[49m[0m[9;3H[?25h[?2026l[?2026h[39m[49m[0m[1;1H[0 q[1;1H[2m\u256d[39m[49m[0m[9;3H[?25h[?2026l[?2026h[1;41H[2m\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e[2;41H             \u2502[3;41H             \u2502[4;41H             \u2502[5;14H[22m/private/tmp/g0-auth-umicfwq9/workspace[2m \u2502[6;41H\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f[39m[49m[0m[1;1H[0 q[1;1H[2m\u256d[39m[49m[0m[9;3H[?25h[?2026l[?2026h[39m[49m[0m[1;1H[0 q[1;1H[2m\u256d[39m[49m[0m[9;3H[?25h[?2026l[?2026h[39m[49m[0m[1;1H[0 q[1;1H[2m\u256d[39m[49m[0m[9;3H[?25h[?2026l[?2026h[39m[49m[0m[1;1H[0 q[1;1H[2m\u256d[39m[49m[0m[9;3H[?25h[?2026l[?2026h[39m[49m[0m[1;1H[0 q[1;1H[2m\u256d[39m[49m[0m[9;3H[?25h[?2026l[?2026h[39m[49m[0m[1;1H[0 q[1;1H[2m\u256d[39m[49m[0m[9;3H[?25h[?2026l[?2026h[39m[49m[0m[1;1H[0 q[1;1H[2m\u256d[39m[49m[0m[9;3H[?25h[?2026l[?2026h[39m[49m[0m[1;1H[0 q[1;1H[2m\u256d[39m[49m[0m[9;3H[?25h[?2026l[?2026h[39m[49m[0m[1;1H[0 q[1;1H[2m\u256d[39m[49m[0m[9;3H[?25h[?2026l[?2026h[39m[49m[0m[1;1H[0 q[1;1H[2m\u256d[39m[49m[0m[9;3H[?25h[?2026l[?2026h[39m[49m[0m[1;1H[0 q[1;1H[2m\u256d[39m[49m[0m[9;3H[?25h[?2026l]0;workspace[?2026h[11;3H[38;2;246;226;183;49mgpt-5.6-luna default[2m[39;49m \u00b7 [22m[38;2;171;223;167;49m/private/tmp/g0-auth-umicfwq9/workspace[2m[39;49m \u00b7 \u2190 for agents[39m[49m[0m[1;1H[0 q[1;1H[2m\u256d[39m[49m[0m[9;3H[?25h[?2026l[?2026h[39m[49m[0m[1;1H[0 q[1;1H[2m\u256d[39m[49m[0m[9;3H[?25h[?2026l[?2026h[1;1H[J[1;60r[1;1HMMMMMMMM[r[1;8r[1;1H\r\n[39;49m[K[2m\u256d\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256e[39m[49m[0m\r\n[39;49m[K[2m\u2502 >_ [22m[1mOpenAI Codex[22m[2m[2m (v0.154.0)                         \u2502[39m[49m[0m\r\n[39;49m[K[2m\u2502                                                    \u2502[39m[49m[0m\r\n[39;49m[K[2m\u2502 model:     [22mgpt-5.6-luna medium[2m   [22m[38;5;6;49m/model[2m[39;49m to change  \u2502[39m[49m[0m\r\n[39;49m[K[2m\u2502 directory: [22m/private/tmp/g0-auth-umicfwq9/workspace[2m \u2502[39m[49m[0m\r\n[39;49m[K[2m\u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u256f[39m[49m[0m\r\n[39;49m[K[39m[49m[0m\r\n[39;49m[K  [1mTip:[22m [3mNew[23m Build faster with the [1mDesktop app[22m. Run 'codex app' or visit https://chatgpt.com/codex?app-landing-page=true[39m[49m[0m[r[9;3H[9;2H[0m[49m[K[10;2H[0m[49m[K[11;27H[0m[49m[K[12;2H[0m[49m[K[13;79H[0m[49m[K"
+    },
+    "status": "passed",
+    "report_path": "/private/tmp/g0-auth-umicfwq9/native-probe-report.json"
+  },
+  "service_exit": 0,
+  "service_stdout": "{\"activation_id\": \"5a800736588e41518572a0a5a8848193\", \"all_backends_stopped\": true, \"backend_count\": 1, \"public_socket_owned\": false, \"status\": \"closed\"}\n",
+  "service_stderr": "",
+  "auth_comparison": {
+    "unchanged": true,
+    "changed_path_ids": []
+  },
+  "owned_private_listener_removed": true,
+  "synthetic_auth_absent": true,
+  "retained_profile_exists": true,
+  "status": "pass"
+}

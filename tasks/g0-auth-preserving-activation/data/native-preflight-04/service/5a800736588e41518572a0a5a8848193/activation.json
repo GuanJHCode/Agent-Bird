@@ -1,0 +1,676 @@
+{
+  "activation_id": "5a800736588e41518572a0a5a8848193",
+  "backend_records": [
+    {
+      "birth": "Sun Sep 13 08:12:04 2026",
+      "creation_birth": "Sun Sep 13 08:12:04 2026",
+      "creation_executable": "/usr/bin/sandbox-exec",
+      "elapsed_seconds": 1.1251359169837087,
+      "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+      "frontend": {
+        "birth": "Sun Sep 13 08:12:03 2026",
+        "complete": true,
+        "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+        "pid": 48217,
+        "source": "darwin-local",
+        "uid": 501
+      },
+      "grant_sha256": "6af03841edb7ff94075d1886b5878a6e30ee2ac8ef463951e0e064e97268ae37",
+      "lease_id": "357e973e7cd8",
+      "pid": 48246,
+      "private_socket": "/private/tmp/g0-auth-umicfwq9/backend/b-357e973e7cd8.sock",
+      "process_stopped": true,
+      "profile_id": "native-preflight-04",
+      "protocol": [
+        {
+          "backend": {
+            "birth": "Sun Sep 13 08:12:04 2026",
+            "complete": true,
+            "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+            "pid": 48246,
+            "source": "darwin-local",
+            "uid": 501
+          },
+          "closed": true,
+          "connection_id": "conn-1-dee6e8921732",
+          "epoch": 1,
+          "frontend": {
+            "birth": "Sun Sep 13 08:12:03 2026",
+            "complete": true,
+            "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+            "pid": 48217,
+            "source": "darwin-local",
+            "uid": 501
+          },
+          "initialize": {
+            "home_match": true,
+            "home_sha256": "ed8ce412641ae3773790c5be3882d7592a035a8ae736d81e654f4589752bf2aa",
+            "request_id": "initialize"
+          },
+          "initialized": true,
+          "lease_id": "357e973e7cd8",
+          "profile_id": "native-preflight-04",
+          "protocol_valid": true,
+          "ready_published": true,
+          "rpc": [
+            {
+              "direction": "client",
+              "event": "rpc",
+              "method": "initialize",
+              "request_id": "initialize"
+            },
+            {
+              "direction": "server",
+              "event": "rpc_response",
+              "method": "initialize",
+              "ok": true,
+              "request_direction": "client",
+              "request_id": "initialize"
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "remoteControl/status/changed",
+              "request_id": null
+            },
+            {
+              "direction": "client",
+              "event": "rpc",
+              "method": "initialized",
+              "request_id": null
+            },
+            {
+              "direction": "client",
+              "event": "rpc_unknown",
+              "method": "account/read",
+              "request_id": 1
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "account/read",
+              "request_id": 1,
+              "response": true
+            },
+            {
+              "direction": "client",
+              "event": "rpc_unknown",
+              "method": "model/list",
+              "request_id": 2
+            },
+            {
+              "direction": "client",
+              "event": "rpc_unknown",
+              "method": "configRequirements/read",
+              "request_id": 3
+            },
+            {
+              "direction": "client",
+              "event": "rpc_unknown",
+              "method": "collaborationMode/list",
+              "request_id": "collaboration-mode-list-dd481e69-b034-46d7-9bdc-fe76cdf0d665"
+            },
+            {
+              "direction": "client",
+              "event": "rpc_unknown",
+              "method": "hooks/list",
+              "request_id": "hooks-list-208627c5-17be-4995-a114-70fce4bb15bc"
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "collaborationMode/list",
+              "request_id": "collaboration-mode-list-dd481e69-b034-46d7-9bdc-fe76cdf0d665",
+              "response": true
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "model/list",
+              "request_id": 2,
+              "response": true
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "configRequirements/read",
+              "request_id": 3,
+              "response": true
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "hooks/list",
+              "request_id": "hooks-list-208627c5-17be-4995-a114-70fce4bb15bc",
+              "response": true
+            },
+            {
+              "direction": "client",
+              "event": "rpc_unknown",
+              "method": "config/read",
+              "request_id": "tui-config-read-d2661870-04d3-4123-b9ba-a1710f695c3e"
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "config/read",
+              "request_id": "tui-config-read-d2661870-04d3-4123-b9ba-a1710f695c3e",
+              "response": true
+            },
+            {
+              "direction": "client",
+              "event": "rpc",
+              "method": "thread/start",
+              "request_id": "startup-thread-start-8bf924e1-ab85-4fa7-8eb8-308febd41423"
+            },
+            {
+              "direction": "client",
+              "event": "rpc_unknown",
+              "method": "thread/loaded/list",
+              "request_id": "f5ad06f2-25ce-4a9e-b027-432f2fe01c77"
+            },
+            {
+              "direction": "client",
+              "event": "rpc_unknown",
+              "method": "thread/list",
+              "request_id": "fc182678-6dad-44d9-ac4f-588929c0296f"
+            },
+            {
+              "direction": "client",
+              "event": "rpc_unknown",
+              "method": "thread/list",
+              "request_id": "274d4663-c466-4293-a6e9-1315ec75aebc"
+            },
+            {
+              "direction": "client",
+              "event": "rpc",
+              "method": "skills/list",
+              "request_id": "startup-skills-list-0c5c7e4d-5ab4-49fe-8424-6e3db3444d30"
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "thread/loaded/list",
+              "request_id": "f5ad06f2-25ce-4a9e-b027-432f2fe01c77",
+              "response": true
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "thread/list",
+              "request_id": "fc182678-6dad-44d9-ac4f-588929c0296f",
+              "response": true
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "thread/list",
+              "request_id": "274d4663-c466-4293-a6e9-1315ec75aebc",
+              "response": true
+            },
+            {
+              "direction": "server",
+              "event": "rpc_response",
+              "method": "thread/start",
+              "ok": true,
+              "request_direction": "client",
+              "request_id": "startup-thread-start-8bf924e1-ab85-4fa7-8eb8-308febd41423"
+            },
+            {
+              "direction": "server",
+              "event": "rpc",
+              "method": "thread/started",
+              "request_id": null
+            },
+            {
+              "direction": "server",
+              "event": "rpc_response",
+              "method": "skills/list",
+              "ok": true,
+              "request_direction": "client",
+              "request_id": "startup-skills-list-0c5c7e4d-5ab4-49fe-8424-6e3db3444d30"
+            },
+            {
+              "direction": "client",
+              "event": "rpc_unknown",
+              "method": "plugin/list",
+              "request_id": "plugin-list-c5a9d3a4-f2db-45e9-a644-e14d73c73e7f"
+            },
+            {
+              "direction": "client",
+              "event": "rpc_unknown",
+              "method": "plugin/list",
+              "request_id": "plugin-list-e5601db2-cecc-4565-a319-47f7bd514b90"
+            },
+            {
+              "direction": "client",
+              "event": "rpc",
+              "method": "skills/list",
+              "request_id": 4
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "plugin/list",
+              "request_id": "plugin-list-c5a9d3a4-f2db-45e9-a644-e14d73c73e7f",
+              "response": true
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "plugin/list",
+              "request_id": "plugin-list-e5601db2-cecc-4565-a319-47f7bd514b90",
+              "response": true
+            },
+            {
+              "direction": "server",
+              "event": "rpc_response",
+              "method": "skills/list",
+              "ok": true,
+              "request_direction": "client",
+              "request_id": 4
+            },
+            {
+              "direction": "client",
+              "event": "rpc_unknown",
+              "method": "plugin/list",
+              "request_id": "plugin-list-1a50df6e-4e92-4706-9d1b-a61e24bde1d6"
+            },
+            {
+              "direction": "server",
+              "event": "rpc_unknown",
+              "method": "plugin/list",
+              "request_id": "plugin-list-1a50df6e-4e92-4706-9d1b-a61e24bde1d6",
+              "response": true
+            },
+            {
+              "direction": "client",
+              "event": "rpc",
+              "method": "thread/unsubscribe",
+              "request_id": 5
+            },
+            {
+              "direction": "server",
+              "event": "rpc_response",
+              "method": "thread/unsubscribe",
+              "ok": true,
+              "request_direction": "client",
+              "request_id": 5
+            }
+          ],
+          "thread": {
+            "id": "01a0981b-5acc-7bc1-8980-e017651b7127",
+            "start_request_id": "startup-thread-start-8bf924e1-ab85-4fa7-8eb8-308febd41423",
+            "started_id": "01a0981b-5acc-7bc1-8980-e017651b7127"
+          },
+          "turn_counts": {
+            "start": 0,
+            "steer": 0
+          },
+          "zero_turns": true
+        }
+      ],
+      "returncode": 0,
+      "socket_removed": true,
+      "state": "closed",
+      "stderr": {
+        "bytes": 1876,
+        "sha256": "a3e1492ac28bb803a39ce573562e4dcec409fa8996a95c8a3e012d498fb800d0"
+      },
+      "stdout": {
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    }
+  ],
+  "manifest_sha256": "90876bc1f5599e8992b2d8c69ed3cd58759afd376787a8fe93fe7733e1bddf23",
+  "native_registration_verified": false,
+  "public_socket_owned": false,
+  "stop_signals": [],
+  "transport": {
+    "events": [
+      {
+        "backend": {
+          "birth": "Sun Sep 13 08:12:04 2026",
+          "complete": true,
+          "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+          "pid": 48246,
+          "source": "darwin-local",
+          "uid": 501
+        },
+        "connection_id": "conn-1-dee6e8921732",
+        "epoch": 1,
+        "frontend": {
+          "birth": "Sun Sep 13 08:12:03 2026",
+          "complete": true,
+          "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+          "pid": 48217,
+          "source": "darwin-local",
+          "uid": 501
+        },
+        "kind": "connect"
+      },
+      {
+        "connection_id": "conn-1-dee6e8921732",
+        "direction": "frontend_to_backend",
+        "epoch": 1,
+        "kind": "eof"
+      },
+      {
+        "connection_id": "conn-1-dee6e8921732",
+        "direction": "frontend_to_backend",
+        "epoch": 1,
+        "kind": "half_close"
+      },
+      {
+        "connection_id": "conn-1-dee6e8921732",
+        "direction": null,
+        "epoch": 1,
+        "kind": "disconnect"
+      }
+    ],
+    "protocol": [
+      {
+        "backend": {
+          "birth": "Sun Sep 13 08:12:04 2026",
+          "complete": true,
+          "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+          "pid": 48246,
+          "source": "darwin-local",
+          "uid": 501
+        },
+        "closed": true,
+        "connection_id": "conn-1-dee6e8921732",
+        "epoch": 1,
+        "frontend": {
+          "birth": "Sun Sep 13 08:12:03 2026",
+          "complete": true,
+          "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+          "pid": 48217,
+          "source": "darwin-local",
+          "uid": 501
+        },
+        "initialize": {
+          "home_match": true,
+          "home_sha256": "ed8ce412641ae3773790c5be3882d7592a035a8ae736d81e654f4589752bf2aa",
+          "request_id": "initialize"
+        },
+        "initialized": true,
+        "lease_id": "357e973e7cd8",
+        "profile_id": "native-preflight-04",
+        "protocol_valid": true,
+        "ready_published": true,
+        "rpc": [
+          {
+            "direction": "client",
+            "event": "rpc",
+            "method": "initialize",
+            "request_id": "initialize"
+          },
+          {
+            "direction": "server",
+            "event": "rpc_response",
+            "method": "initialize",
+            "ok": true,
+            "request_direction": "client",
+            "request_id": "initialize"
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "remoteControl/status/changed",
+            "request_id": null
+          },
+          {
+            "direction": "client",
+            "event": "rpc",
+            "method": "initialized",
+            "request_id": null
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "account/read",
+            "request_id": 1
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "account/read",
+            "request_id": 1,
+            "response": true
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "model/list",
+            "request_id": 2
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "configRequirements/read",
+            "request_id": 3
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "collaborationMode/list",
+            "request_id": "collaboration-mode-list-dd481e69-b034-46d7-9bdc-fe76cdf0d665"
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "hooks/list",
+            "request_id": "hooks-list-208627c5-17be-4995-a114-70fce4bb15bc"
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "collaborationMode/list",
+            "request_id": "collaboration-mode-list-dd481e69-b034-46d7-9bdc-fe76cdf0d665",
+            "response": true
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "model/list",
+            "request_id": 2,
+            "response": true
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "configRequirements/read",
+            "request_id": 3,
+            "response": true
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "hooks/list",
+            "request_id": "hooks-list-208627c5-17be-4995-a114-70fce4bb15bc",
+            "response": true
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "config/read",
+            "request_id": "tui-config-read-d2661870-04d3-4123-b9ba-a1710f695c3e"
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "config/read",
+            "request_id": "tui-config-read-d2661870-04d3-4123-b9ba-a1710f695c3e",
+            "response": true
+          },
+          {
+            "direction": "client",
+            "event": "rpc",
+            "method": "thread/start",
+            "request_id": "startup-thread-start-8bf924e1-ab85-4fa7-8eb8-308febd41423"
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "thread/loaded/list",
+            "request_id": "f5ad06f2-25ce-4a9e-b027-432f2fe01c77"
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "thread/list",
+            "request_id": "fc182678-6dad-44d9-ac4f-588929c0296f"
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "thread/list",
+            "request_id": "274d4663-c466-4293-a6e9-1315ec75aebc"
+          },
+          {
+            "direction": "client",
+            "event": "rpc",
+            "method": "skills/list",
+            "request_id": "startup-skills-list-0c5c7e4d-5ab4-49fe-8424-6e3db3444d30"
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "thread/loaded/list",
+            "request_id": "f5ad06f2-25ce-4a9e-b027-432f2fe01c77",
+            "response": true
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "thread/list",
+            "request_id": "fc182678-6dad-44d9-ac4f-588929c0296f",
+            "response": true
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "thread/list",
+            "request_id": "274d4663-c466-4293-a6e9-1315ec75aebc",
+            "response": true
+          },
+          {
+            "direction": "server",
+            "event": "rpc_response",
+            "method": "thread/start",
+            "ok": true,
+            "request_direction": "client",
+            "request_id": "startup-thread-start-8bf924e1-ab85-4fa7-8eb8-308febd41423"
+          },
+          {
+            "direction": "server",
+            "event": "rpc",
+            "method": "thread/started",
+            "request_id": null
+          },
+          {
+            "direction": "server",
+            "event": "rpc_response",
+            "method": "skills/list",
+            "ok": true,
+            "request_direction": "client",
+            "request_id": "startup-skills-list-0c5c7e4d-5ab4-49fe-8424-6e3db3444d30"
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "plugin/list",
+            "request_id": "plugin-list-c5a9d3a4-f2db-45e9-a644-e14d73c73e7f"
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "plugin/list",
+            "request_id": "plugin-list-e5601db2-cecc-4565-a319-47f7bd514b90"
+          },
+          {
+            "direction": "client",
+            "event": "rpc",
+            "method": "skills/list",
+            "request_id": 4
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "plugin/list",
+            "request_id": "plugin-list-c5a9d3a4-f2db-45e9-a644-e14d73c73e7f",
+            "response": true
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "plugin/list",
+            "request_id": "plugin-list-e5601db2-cecc-4565-a319-47f7bd514b90",
+            "response": true
+          },
+          {
+            "direction": "server",
+            "event": "rpc_response",
+            "method": "skills/list",
+            "ok": true,
+            "request_direction": "client",
+            "request_id": 4
+          },
+          {
+            "direction": "client",
+            "event": "rpc_unknown",
+            "method": "plugin/list",
+            "request_id": "plugin-list-1a50df6e-4e92-4706-9d1b-a61e24bde1d6"
+          },
+          {
+            "direction": "server",
+            "event": "rpc_unknown",
+            "method": "plugin/list",
+            "request_id": "plugin-list-1a50df6e-4e92-4706-9d1b-a61e24bde1d6",
+            "response": true
+          },
+          {
+            "direction": "client",
+            "event": "rpc",
+            "method": "thread/unsubscribe",
+            "request_id": 5
+          },
+          {
+            "direction": "server",
+            "event": "rpc_response",
+            "method": "thread/unsubscribe",
+            "ok": true,
+            "request_direction": "client",
+            "request_id": 5
+          }
+        ],
+        "thread": {
+          "id": "01a0981b-5acc-7bc1-8980-e017651b7127",
+          "start_request_id": "startup-thread-start-8bf924e1-ab85-4fa7-8eb8-308febd41423",
+          "started_id": "01a0981b-5acc-7bc1-8980-e017651b7127"
+        },
+        "turn_counts": {
+          "start": 0,
+          "steer": 0
+        },
+        "zero_turns": true
+      }
+    ],
+    "streams": [
+      {
+        "bytes": 34321,
+        "connection_id": "conn-1-dee6e8921732",
+        "direction": "backend_to_frontend",
+        "sha256": "5676648943f19d9891e9ec993c443dbad070f67c058bdd469e18d9dc02026531"
+      },
+      {
+        "bytes": 6253,
+        "connection_id": "conn-1-dee6e8921732",
+        "direction": "frontend_to_backend",
+        "sha256": "c00ba8c985336f9f57925750b74a59ce3e557b265ea2a30e190842373aac937b"
+      }
+    ]
+  }
+}

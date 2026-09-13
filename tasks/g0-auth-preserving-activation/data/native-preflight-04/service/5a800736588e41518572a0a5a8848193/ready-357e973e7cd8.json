@@ -1,0 +1,216 @@
+{
+  "activation_id": "5a800736588e41518572a0a5a8848193",
+  "backend": {
+    "birth": "Sun Sep 13 08:12:04 2026",
+    "complete": true,
+    "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+    "pid": 48246,
+    "source": "darwin-local",
+    "uid": 501
+  },
+  "closed": false,
+  "connection_id": "conn-1-dee6e8921732",
+  "epoch": 1,
+  "frontend": {
+    "birth": "Sun Sep 13 08:12:03 2026",
+    "complete": true,
+    "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+    "pid": 48217,
+    "source": "darwin-local",
+    "uid": 501
+  },
+  "initialize": {
+    "home_match": true,
+    "home_sha256": "ed8ce412641ae3773790c5be3882d7592a035a8ae736d81e654f4589752bf2aa",
+    "request_id": "initialize"
+  },
+  "initialized": true,
+  "lease_id": "357e973e7cd8",
+  "manifest_sha256": "90876bc1f5599e8992b2d8c69ed3cd58759afd376787a8fe93fe7733e1bddf23",
+  "milestone_only": true,
+  "profile_id": "native-preflight-04",
+  "protocol_valid": true,
+  "ready_published": true,
+  "rpc": [
+    {
+      "direction": "client",
+      "event": "rpc",
+      "method": "initialize",
+      "request_id": "initialize"
+    },
+    {
+      "direction": "server",
+      "event": "rpc_response",
+      "method": "initialize",
+      "ok": true,
+      "request_direction": "client",
+      "request_id": "initialize"
+    },
+    {
+      "direction": "server",
+      "event": "rpc_unknown",
+      "method": "remoteControl/status/changed",
+      "request_id": null
+    },
+    {
+      "direction": "client",
+      "event": "rpc",
+      "method": "initialized",
+      "request_id": null
+    },
+    {
+      "direction": "client",
+      "event": "rpc_unknown",
+      "method": "account/read",
+      "request_id": 1
+    },
+    {
+      "direction": "server",
+      "event": "rpc_unknown",
+      "method": "account/read",
+      "request_id": 1,
+      "response": true
+    },
+    {
+      "direction": "client",
+      "event": "rpc_unknown",
+      "method": "model/list",
+      "request_id": 2
+    },
+    {
+      "direction": "client",
+      "event": "rpc_unknown",
+      "method": "configRequirements/read",
+      "request_id": 3
+    },
+    {
+      "direction": "client",
+      "event": "rpc_unknown",
+      "method": "collaborationMode/list",
+      "request_id": "collaboration-mode-list-dd481e69-b034-46d7-9bdc-fe76cdf0d665"
+    },
+    {
+      "direction": "client",
+      "event": "rpc_unknown",
+      "method": "hooks/list",
+      "request_id": "hooks-list-208627c5-17be-4995-a114-70fce4bb15bc"
+    },
+    {
+      "direction": "server",
+      "event": "rpc_unknown",
+      "method": "collaborationMode/list",
+      "request_id": "collaboration-mode-list-dd481e69-b034-46d7-9bdc-fe76cdf0d665",
+      "response": true
+    },
+    {
+      "direction": "server",
+      "event": "rpc_unknown",
+      "method": "model/list",
+      "request_id": 2,
+      "response": true
+    },
+    {
+      "direction": "server",
+      "event": "rpc_unknown",
+      "method": "configRequirements/read",
+      "request_id": 3,
+      "response": true
+    },
+    {
+      "direction": "server",
+      "event": "rpc_unknown",
+      "method": "hooks/list",
+      "request_id": "hooks-list-208627c5-17be-4995-a114-70fce4bb15bc",
+      "response": true
+    },
+    {
+      "direction": "client",
+      "event": "rpc_unknown",
+      "method": "config/read",
+      "request_id": "tui-config-read-d2661870-04d3-4123-b9ba-a1710f695c3e"
+    },
+    {
+      "direction": "server",
+      "event": "rpc_unknown",
+      "method": "config/read",
+      "request_id": "tui-config-read-d2661870-04d3-4123-b9ba-a1710f695c3e",
+      "response": true
+    },
+    {
+      "direction": "client",
+      "event": "rpc",
+      "method": "thread/start",
+      "request_id": "startup-thread-start-8bf924e1-ab85-4fa7-8eb8-308febd41423"
+    },
+    {
+      "direction": "client",
+      "event": "rpc_unknown",
+      "method": "thread/loaded/list",
+      "request_id": "f5ad06f2-25ce-4a9e-b027-432f2fe01c77"
+    },
+    {
+      "direction": "client",
+      "event": "rpc_unknown",
+      "method": "thread/list",
+      "request_id": "fc182678-6dad-44d9-ac4f-588929c0296f"
+    },
+    {
+      "direction": "client",
+      "event": "rpc_unknown",
+      "method": "thread/list",
+      "request_id": "274d4663-c466-4293-a6e9-1315ec75aebc"
+    },
+    {
+      "direction": "client",
+      "event": "rpc",
+      "method": "skills/list",
+      "request_id": "startup-skills-list-0c5c7e4d-5ab4-49fe-8424-6e3db3444d30"
+    },
+    {
+      "direction": "server",
+      "event": "rpc_unknown",
+      "method": "thread/loaded/list",
+      "request_id": "f5ad06f2-25ce-4a9e-b027-432f2fe01c77",
+      "response": true
+    },
+    {
+      "direction": "server",
+      "event": "rpc_unknown",
+      "method": "thread/list",
+      "request_id": "fc182678-6dad-44d9-ac4f-588929c0296f",
+      "response": true
+    },
+    {
+      "direction": "server",
+      "event": "rpc_unknown",
+      "method": "thread/list",
+      "request_id": "274d4663-c466-4293-a6e9-1315ec75aebc",
+      "response": true
+    },
+    {
+      "direction": "server",
+      "event": "rpc_response",
+      "method": "thread/start",
+      "ok": true,
+      "request_direction": "client",
+      "request_id": "startup-thread-start-8bf924e1-ab85-4fa7-8eb8-308febd41423"
+    },
+    {
+      "direction": "server",
+      "event": "rpc",
+      "method": "thread/started",
+      "request_id": null
+    }
+  ],
+  "thread": {
+    "id": "01a0981b-5acc-7bc1-8980-e017651b7127",
+    "start_request_id": "startup-thread-start-8bf924e1-ab85-4fa7-8eb8-308febd41423",
+    "started_id": "01a0981b-5acc-7bc1-8980-e017651b7127"
+  },
+  "turn_counts": {
+    "start": 0,
+    "steer": 0
+  },
+  "version": 1,
+  "zero_turns": true
+}

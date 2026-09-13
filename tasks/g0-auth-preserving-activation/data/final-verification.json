@@ -1,0 +1,207 @@
+{
+  "observed_at": "2026-09-13T00:15:38.099792+00:00",
+  "count": 14,
+  "comparisons": {
+    "native-preflight-04/auth-before.json": {
+      "unchanged": true,
+      "changed_path_ids": []
+    },
+    "native-preflight-03/auth-before.json": {
+      "unchanged": true,
+      "changed_path_ids": []
+    },
+    "native-version-03/auth-before.json": {
+      "unchanged": true,
+      "changed_path_ids": []
+    },
+    "native-preflight-02/auth-before.json": {
+      "unchanged": true,
+      "changed_path_ids": []
+    },
+    "native-launchd-01/auth-before.json": {
+      "unchanged": true,
+      "changed_path_ids": []
+    },
+    "native-version-01/auth-before.json": {
+      "unchanged": true,
+      "changed_path_ids": []
+    },
+    "native-preflight-01/auth-before.json": {
+      "unchanged": true,
+      "changed_path_ids": []
+    },
+    "native-launchd-02/auth-before.json": {
+      "unchanged": true,
+      "changed_path_ids": []
+    },
+    "native-launchd-03/auth-before.json": {
+      "unchanged": true,
+      "changed_path_ids": []
+    }
+  },
+  "snapshot": {
+    "paths": [
+      {
+        "path_id": "054349eaccce2aa1",
+        "exists": true,
+        "mode": "0o600",
+        "kind": "file",
+        "size": 4207,
+        "st_dev": 16777234,
+        "st_ino": 121537726,
+        "st_uid": 501,
+        "sha256": "422f3a2e0e910b090678f2875cad423db116d59815158cc6cc48fb576545b4aa"
+      },
+      {
+        "path_id": "0a935cc2c355690a",
+        "exists": true,
+        "mode": "0o600",
+        "kind": "file",
+        "size": 32,
+        "st_dev": 16777234,
+        "st_ino": 135262513,
+        "st_uid": 501,
+        "sha256": "4d9ec5ca822599102f284b213f5e227b0317bce1b46acd1cb5168ab06365c788"
+      },
+      {
+        "path_id": "0004ae4a64590164",
+        "exists": true,
+        "mode": "0o600",
+        "kind": "file",
+        "size": 503,
+        "st_dev": 16777234,
+        "st_ino": 159414632,
+        "st_uid": 501,
+        "sha256": "0520f2bd5f4fd75e76526b99770004b7ca5b2add2e9d83d4e206d21869c2e3d6"
+      },
+      {
+        "path_id": "a3353c6d4e723f19",
+        "exists": true,
+        "mode": "0o600",
+        "kind": "file",
+        "size": 43,
+        "st_dev": 16777234,
+        "st_ino": 149787506,
+        "st_uid": 501,
+        "sha256": "442dfa252afcdf675b5c3683378b88eb634379d703ce8f4674453ba21a794f1b"
+      },
+      {
+        "path_id": "5fa6d346c8d6cadc",
+        "exists": true,
+        "mode": "0o600",
+        "kind": "file",
+        "size": 1639,
+        "st_dev": 16777234,
+        "st_ino": 161486776,
+        "st_uid": 501,
+        "sha256": "7657bebe693773d2a436f87274ce38cf35a268c32ae93f0eeb0385b6f209c4f6"
+      },
+      {
+        "path_id": "7271d2103e34321a",
+        "exists": true,
+        "mode": "0o600",
+        "kind": "file",
+        "size": 21358,
+        "st_dev": 16777234,
+        "st_ino": 161617523,
+        "st_uid": 501,
+        "sha256": "53b1aa3016356f244170c6b5bc84773767672c852b59f9594f9ae694ebb8eca3"
+      },
+      {
+        "path_id": "1a2324b3dfdcc3e4",
+        "exists": true,
+        "mode": "0o600",
+        "kind": "file",
+        "size": 5104,
+        "st_dev": 16777234,
+        "st_ino": 159404190,
+        "st_uid": 501,
+        "sha256": "2c3764c6b3dd1d719b1bbb625886857486b1f214e751c69f6d0131eef1226754"
+      },
+      {
+        "path_id": "c42d4ad4e33989d9",
+        "exists": true,
+        "mode": "0o600",
+        "kind": "file",
+        "size": 727,
+        "st_dev": 16777234,
+        "st_ino": 159416106,
+        "st_uid": 501,
+        "sha256": "afe93399cc1ec878bf4ee4ffb370a7d3d8244e8f6e23d81077a8b8fb03715958"
+      },
+      {
+        "path_id": "50fec0c3c93e85ae",
+        "exists": true,
+        "mode": "0o600",
+        "kind": "file",
+        "size": 1474,
+        "st_dev": 16777234,
+        "st_ino": 159723492,
+        "st_uid": 501,
+        "sha256": "4bfb8b8437d24e5ec4a311095882ce816e38fcc8a435286475d46a46a29a54e2"
+      },
+      {
+        "path_id": "61039ca5ecc8d36e",
+        "exists": true,
+        "mode": "0o644",
+        "kind": "file",
+        "size": 5110,
+        "st_dev": 16777234,
+        "st_ino": 161157193,
+        "st_uid": 501,
+        "sha256": "c7aba75ca9a7e495d96e4ab4612d8e3dd765a5debf12f4c59f5415f366ef1582"
+      },
+      {
+        "path_id": "138950b15d376421",
+        "exists": true,
+        "mode": "0o600",
+        "kind": "file",
+        "size": 77824,
+        "st_dev": 16777234,
+        "st_ino": 116554707,
+        "st_uid": 501,
+        "sha256": "120f131533c5c017e1af78e84335dda9e14992ac9e7bd6392dacd29a917328b0"
+      },
+      {
+        "path_id": "b44bc5002ce5f1fd",
+        "exists": true,
+        "mode": "0o600",
+        "kind": "file",
+        "size": 40960,
+        "st_dev": 16777234,
+        "st_ino": 116554689,
+        "st_uid": 501,
+        "sha256": "83b8decd484a2c31e781eda0367d8ec2311254227d8d37773df19ac458c6ed72"
+      },
+      {
+        "path_id": "55add75bde3e1db7",
+        "exists": true,
+        "mode": "0o600",
+        "kind": "file",
+        "size": 77824,
+        "st_dev": 16777234,
+        "st_ino": 142996726,
+        "st_uid": 501,
+        "sha256": "1ca870c3ab4f330f59485e8a7bd770ba7ad322aaea5c07ca4c91ebedc230aeb3"
+      },
+      {
+        "path_id": "e7a3ff1a0f32696f",
+        "exists": true,
+        "mode": "0o600",
+        "kind": "file",
+        "size": 40960,
+        "st_dev": 16777234,
+        "st_ino": 142996720,
+        "st_uid": 501,
+        "sha256": "05e8c5e696093d57d273f916a2c9f2ef9b055eea6cb41f3ae258255409a89012"
+      }
+    ]
+  },
+  "unchanged": true,
+  "tests": {
+    "source_commit": "2a54596",
+    "passed": 413,
+    "subtests_passed": 116,
+    "duration_seconds": 21.07
+  }
+}
