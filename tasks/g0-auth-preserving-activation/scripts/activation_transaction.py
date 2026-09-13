@@ -827,6 +827,14 @@ class ActivationTransaction:
         if self.receipt["state"] == "STAGED":
             self._remove_stage()
             self._remove_lease()
+            if os.path.lexists(self.spec.socket_path):
+                self.receipt["public_socket_residual"] = {
+                    "path": str(self.spec.socket_path),
+                    "cleanup": "manual_launchd_or_owner_audit_required",
+                }
+                self.receipt["state"] = "UNKNOWN"
+                self._finish_auth()
+                raise UnknownStateError("public_socket_residual")
             self.receipt["state"] = "REVOKED"
             self._finish_auth()
             return dict(self.receipt)
@@ -849,10 +857,18 @@ class ActivationTransaction:
                 raise UnknownStateError("bootout_unknown")
             if status_after != "absent":
                 raise UnknownStateError("job_still_present")
-        # Public socket is intentionally not inspected or unlinked here.
+        public_socket_residual = os.path.lexists(self.spec.socket_path)
         self._remove_plist()
         self._remove_lease()
         self.registered = False
+        if public_socket_residual:
+            self.receipt["public_socket_residual"] = {
+                "path": str(self.spec.socket_path),
+                "cleanup": "manual_launchd_or_owner_audit_required",
+            }
+            self.receipt["state"] = "UNKNOWN"
+            self._finish_auth()
+            raise UnknownStateError("public_socket_residual")
         self.receipt["state"] = "REVOKED"
         self._finish_auth()
         return dict(self.receipt)

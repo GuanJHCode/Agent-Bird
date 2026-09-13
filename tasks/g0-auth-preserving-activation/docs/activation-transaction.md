@@ -35,7 +35,9 @@ hash 通过 `manifest_sha256`、`artifact_hashes` 固定，receipt 只保存路�
 4. `revoke` 在 bootout 前先复核 final plist 的 dev/ino/size/hash/uid/mode，
    只对精确匹配的本事务 job 调用 bootout；bootout 后再次确认 job absent，
    且 final plist 仍与登记 identity 相同才删除。public
-   socket 始终由 launchd 管理，controller 从不 unlink、chmod 或清理它。
+   socket 始终由 launchd 管理，controller 从不 unlink、chmod 或清理它；bootout
+   后若 socket 残留，receipt 标记 `public_socket_residual` 并进入 `UNKNOWN`，
+   由人工完成后续 launchd/owner 审计，不能把该 case 标为 `REVOKED`。
    lease 只在自身 identity 仍匹配时删除。
 
 状态为 `NEW -> STAGED -> PUBLISHED -> BOOTSTRAPPING -> REGISTERED ->

@@ -372,6 +372,31 @@ def test_revoke_refuses_replaced_plist_and_never_unlinks_socket(fake_env):
     assert json.loads(fake_env[3].read_text(encoding="utf-8")).get("bootout_calls", 0) == 0
 
 
+def test_revoke_residual_public_socket_is_unknown_without_unlink(fake_env):
+    tx = make_controller(fake_env)
+    tx.prepare()
+    tx.register()
+    tx.spec.socket_path.write_bytes(b"launchd-residual")
+
+    with pytest.raises(UnknownStateError, match="public_socket_residual"):
+        tx.revoke()
+
+    assert tx.receipt["state"] == "UNKNOWN"
+    assert tx.receipt["public_socket_residual"]["path"] == str(tx.spec.socket_path)
+    assert tx.spec.socket_path.read_bytes() == b"launchd-residual"
+    assert not tx.spec.plist_path.exists()
+    assert tx.spec.lease_path is not None and not tx.spec.lease_path.exists()
+
+
+def test_revoke_absent_public_socket_is_revoked(fake_env):
+    tx = make_controller(fake_env)
+    tx.prepare()
+    tx.register()
+    receipt = tx.revoke()
+    assert receipt["state"] == "REVOKED"
+    assert "public_socket_residual" not in receipt
+
+
 def test_foreign_job_after_bootstrap_error_is_not_booted_out(fake_env):
     tx = make_controller(fake_env)
     state = fake_env[3]
