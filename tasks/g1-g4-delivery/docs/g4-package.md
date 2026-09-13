@@ -13,8 +13,9 @@ validated with the bundled `plugin-creator` validator. The
 only `${PLUGIN_ROOT}/scripts/invoke.sh`, whose allowlist is:
 
 - `ensure-running`, `submit`
-- `status`, `collect`, `ack`
-- `resume`, `stop`
+- `status`, `collect`, `wait-events`, `ack`
+- `accept`, `answer`, `retry`, `resume`, `stop`
+- `native-bridge`, `rebind-owner`
 - `install`, `doctor`, `uninstall`, `pin`, `unpin`
 
 Submission binds the exact `controller_thread`; every later task operation
@@ -84,9 +85,10 @@ manifest to the same attached owner lease and activation service manifest.
 
 The caller supplies `DataRoot` as the native/session data location. The
 installer checks that it does not overlap the package destination and never
-removes or rewrites it. Changed files are retained for inspection. These
-interfaces operate on a temporary project-local destination in this delivery;
-no real install or uninstall was performed.
+removes or rewrites it. Changed files are retained for inspection. rc1 and rc2
+were installed only into temporary project-local destinations: rc1 was
+successfully uninstalled, while rc2 remains temporarily installed for final
+native acceptance. No permanent user installation or activation was performed.
 
 ## Version matrix and removal
 
@@ -108,15 +110,16 @@ resume qualification and task state remain governed by the G1/G2 contracts.
 
 ## Validation
 
-The plugin manifest was checked with the bundled `validate_plugin.py`. The
+The rc2 plugin manifest was checked with the bundled `validate_plugin.py`, and
+its temporary install passed `Doctor`. The
 installer tests cover two coexisting versions, active pins, changed files,
 changed manifests, malformed pins, the shared OS lock, crash recovery after
 the version-local manifest is gone, unknown nested objects, symlink rejection,
 existing-directory mode preservation, doctor reporting, and preservation of a
 native-data sentinel. The package script and installed wrapper were exercised
 against temporary directories.
-`scripts/measure-resources.sh` samples an explicit PID list once per second and
-accepts only the original budget/scenario pairs: no-task or offline-callback/5
-minutes, workers/10 minutes, and burst/20 minutes. It produces a private JSONL artifact. The long
-measurement run remains deferred to the root-owned final binary validation; a
-shortened run is not treated as acceptance evidence.
+[`resource-acceptance.py`](../scripts/resource-acceptance.py) runs the frozen binary with explicit synthetic
+loads, process-tree sampling and durable report checks. It retains the original
+5/10/20 minute budgets and writes private scenario evidence. The full-duration
+run remains in the root-owned final binary validation; a shortened smoke is not
+treated as acceptance evidence.
