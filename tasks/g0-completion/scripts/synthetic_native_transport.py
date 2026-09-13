@@ -40,7 +40,7 @@ SAFE_METHODS={'initialize','initialized','thread/start','thread/started','turn/s
     'thread/status/changed','thread/tokenUsage/updated','thread/name/updated','thread/settings/updated',
     'skills/changed','mcpServer/startupStatus/updated','account/updated','account/rateLimits/updated',
     'hook/started','hook/completed','warning','configWarning','deprecationNotice','app/list/updated',
-    'rawResponseItem/completed','rawResponse/completed'}
+    'rawResponseItem/completed','rawResponse/completed','remoteControl/status/changed'}
 
 
 def now(): return time.clock_gettime(time.CLOCK_MONOTONIC_RAW)
@@ -179,6 +179,16 @@ class _Rpc:
         if 'method' in packet:
             require('id' not in packet,'unexpected server request')
             require(isinstance(packet['method'],str) and packet['method'] in SAFE_METHODS,'unlisted notification')
+            if packet['method']=='remoteControl/status/changed':
+                # Fixed v2/remote_control.rs:30,161. Validate opaque status
+                # metadata only; no identity fields enter the safe record.
+                params=packet.get('params')
+                required={'status','serverName','installationId'}
+                require(isinstance(params,dict) and required<=set(params)<=required|{'environmentId'},'invalid remote status shape')
+                require(params['status'] in ('disabled','connecting','connected','errored')
+                    and all(isinstance(params[name],str) for name in ('serverName','installationId'))
+                    and (params.get('environmentId') is None or isinstance(params['environmentId'],str)),
+                    'invalid remote status payload')
         return packet
 
     async def call(self,method,params):

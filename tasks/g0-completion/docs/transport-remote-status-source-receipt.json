@@ -1,0 +1,12 @@
+{
+  "commit": "6b9826e3aa83b1a5947db50f4332cb9c65f1b340",
+  "path": "tasks/g0-completion/data/source/codex-rs/app-server-protocol/src/protocol/v2/remote_control.rs",
+  "sha256": "26a76375d0b9286de8740ff6550801cf85c22563e6d68b8734f86f5ba17f372f",
+  "bytes": 6511,
+  "url": "https://raw.githubusercontent.com/openai/codex/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server-protocol/src/protocol/v2/remote_control.rs",
+  "method_sha256": "fc90be8d31a9f1bb24948acd35f025e91f103bcde03fb735388a7169f1262d24",
+  "shape_lines": [
+    30,
+    161
+  ]
+}

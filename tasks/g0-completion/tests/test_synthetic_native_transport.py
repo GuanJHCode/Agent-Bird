@@ -246,3 +246,36 @@ def test_unknown_notification_diagnostic_never_admits_or_records_private_name(mo
             assert method not in runner.SAFE_METHODS
             assert 'untrusted-private-marker' not in (plan.case_dir/'result.json').read_text()
     asyncio.run(asyncio.wait_for(scenario(),10))
+
+
+def test_remote_status_before_thread_start_response_is_opaque_background_notification(monkeypatch):
+    runner=implementation()
+    async def scenario():
+        with tempfile.TemporaryDirectory(prefix='g0-auth-',dir='/private/tmp') as raw,SyntheticEndpoint() as endpoint:
+            prepared=prepared_fixture(Path(raw),endpoint);plan=setup_plan(runner,prepared,monkeypatch,'remote-status')
+            result=await runner.run_transport(plan,prepared)
+            assert result['status']=='passed' and result['history_verified']
+            assert endpoint.snapshot()['accepted_requests']==2
+            envelopes=result['envelopes']
+            position=next(i for i,item in enumerate(envelopes) if item['method']=='remoteControl/status/changed')
+            reply=next(i for i,item in enumerate(envelopes) if item['direction']=='server' and item['request_id']==2)
+            assert position<reply
+            assert set(envelopes[position])=={'direction','method','request_id','bytes','sha256'}
+            assert not any(item['direction']=='client' and (item['method'] or '').startswith('remoteControl/') for item in envelopes)
+            assert 'private-remote-' not in (plan.case_dir/'result.json').read_text()
+            assert result['cleanup']['child_reaped'] and result['cleanup']['socket_removed']
+    asyncio.run(asyncio.wait_for(scenario(),10))
+
+
+@pytest.mark.parametrize('mode',['remote-status-invalid-status','remote-status-missing-name','remote-status-bad-environment','remote-status-server-request'])
+def test_remote_status_malformed_payload_or_request_cannot_pass(monkeypatch,mode):
+    runner=implementation()
+    async def scenario():
+        with tempfile.TemporaryDirectory(prefix='g0-auth-',dir='/private/tmp') as raw,SyntheticEndpoint() as endpoint:
+            prepared=prepared_fixture(Path(raw),endpoint);plan=setup_plan(runner,prepared,monkeypatch,mode)
+            result=await runner.run_transport(plan,prepared)
+            assert result['status']=='unknown' and result['turn_ids']==[]
+            assert endpoint.snapshot()['accepted_requests']==0
+            assert result['cleanup']['child_reaped'] and result['cleanup']['socket_removed']
+            assert 'private-remote-' not in (plan.case_dir/'result.json').read_text()
+    asyncio.run(asyncio.wait_for(scenario(),10))

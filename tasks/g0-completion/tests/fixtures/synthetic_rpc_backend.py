@@ -67,6 +67,14 @@ async def main():
                         writer.write(frame({'id':'untrusted-private-marker-id','method':'untrusted-private-marker-method','params':{'text':'untrusted-private-marker-body'}}));await writer.drain()
                     result={'codexHome':os.environ['CODEX_HOME']+('-wrong' if MODE=='wrong-home' else ''),'userAgent':'synthetic/0.154.0'}
                 elif method=='thread/start':
+                    if MODE.startswith('remote-status'):
+                        params={'status':'disabled','serverName':'private-remote-server','installationId':'private-remote-installation','environmentId':None}
+                        if MODE=='remote-status-invalid-status':params['status']='enabled'
+                        if MODE=='remote-status-missing-name':params.pop('serverName')
+                        if MODE=='remote-status-bad-environment':params['environmentId']={'token':'private-remote-token'}
+                        notice={'method':'remoteControl/status/changed','params':params,'emittedAtMs':1234}
+                        if MODE=='remote-status-server-request':notice['id']=999
+                        writer.write(frame(notice));await writer.drain()
                     if MODE=='official-unlisted-notification':
                         writer.write(frame({'method':'thread/goal/updated','params':{'threadId':THREAD,'goal':None},'emittedAtMs':1234}));await writer.drain()
                     result={'thread':{'id':THREAD,'cwd':os.getcwd(),'ephemeral':False,'historyMode':'legacy','turns':[]}}

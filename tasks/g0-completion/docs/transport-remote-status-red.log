@@ -1,0 +1,26 @@
+F....                                                                    [100%]
+=================================== FAILURES ===================================
+_ test_remote_status_before_thread_start_response_is_opaque_background_notification _
+tasks/g0-completion/tests/test_synthetic_native_transport.py:267: in test_remote_status_before_thread_start_response_is_opaque_background_notification
+    asyncio.run(asyncio.wait_for(scenario(),10))
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/tasks.py:507: in wait_for
+    return await fut
+           ^^^^^^^^^
+tasks/g0-completion/tests/test_synthetic_native_transport.py:257: in scenario
+    assert result['status']=='passed' and result['history_verified']
+E   AssertionError: assert ('unknown' == 'passed'
+E
+E     - passed
+E     + unknown)
+=========================== short test summary info ============================
+FAILED tasks/g0-completion/tests/test_synthetic_native_transport.py::test_remote_status_before_thread_start_response_is_opaque_background_notification
+1 failed, 4 passed, 15 deselected in 1.78s
