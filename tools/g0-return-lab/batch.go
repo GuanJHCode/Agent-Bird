@@ -51,8 +51,18 @@ type batchAck struct {
 	EffectCount      int    `json:"effect_count"`
 }
 
+type batchClaim struct {
+	Version          int    `json:"version"`
+	Status           string `json:"status"`
+	DeliveryID       string `json:"delivery_id"`
+	Nonce            string `json:"nonce"`
+	ControllerThread string `json:"controller_thread"`
+	Revision         int    `json:"revision"`
+}
+
 func batchIntentName() string            { return "batch-intent.json" }
 func batchAckName(eventID string) string { return "batch-ack-" + eventID + ".json" }
+func batchClaimName() string             { return "batch-send-claim.json" }
 
 func batchHash(intent batchIntent) string {
 	intent.PayloadHash = ""
@@ -70,7 +80,7 @@ func readBatchIntent(root *os.Root, c control) (batchIntent, error) {
 		}
 		return intent, err
 	}
-	if intent.Version != 1 || !safeDelivery.MatchString(intent.DeliveryID) || intent.Nonce != c.Nonce || intent.ControllerThread != c.ControllerThread || intent.ControllerEpoch != 1 || !validRevision(intent.Revision) || intent.Revision != 1 || intent.State == "" || intent.PayloadHash != batchHash(intent) || len(intent.Events) == 0 || len(intent.Events) > 8 {
+	if intent.Version != 1 || !safeDelivery.MatchString(intent.DeliveryID) || intent.Nonce != c.Nonce || intent.ControllerThread != c.ControllerThread || intent.ControllerEpoch != 1 || !validRevision(intent.Revision) || (intent.State != "prepared" && intent.State != "transport_uncertain") || intent.PayloadHash != batchHash(intent) || len(intent.Events) == 0 || len(intent.Events) > 8 {
 		return intent, failure("invalid_artifact")
 	}
 	ids, slots := map[string]bool{}, map[string]bool{}
@@ -92,6 +102,17 @@ func readBatchAck(root *os.Root, intent batchIntent, event batchEvent) (batchAck
 		return ack, failure("invalid_artifact")
 	}
 	return ack, nil
+}
+
+func readBatchClaim(root *os.Root, intent batchIntent) (batchClaim, error) {
+	var claim batchClaim
+	if err := readJSON(root, batchClaimName(), &claim); err != nil {
+		return claim, err
+	}
+	if claim.Version != 1 || claim.Status != "claimed" || claim.DeliveryID != intent.DeliveryID || claim.Nonce != intent.Nonce || claim.ControllerThread != intent.ControllerThread || claim.Revision != intent.Revision {
+		return claim, failure("invalid_artifact")
+	}
+	return claim, nil
 }
 
 func decodeBatchEvents(raw string) ([]batchEvent, error) {
@@ -158,15 +179,37 @@ func batchCommand(root *os.Root, o options) (any, error) {
 				}
 			}
 			state := intent.State
+			transportStatus := "ready"
 			if state == "transport_uncertain" {
+				transportStatus = "uncertain"
 				state = "uncertain"
 			}
+			businessStatus := "partial"
 			if state == "prepared" && pending == 0 {
-				state = "complete"
+				businessStatus = "complete"
 			} else if state == "prepared" && len(acks) > 0 {
-				state = "partial"
+				businessStatus = "partial"
+			} else if state == "prepared" {
+				businessStatus = "prepared"
 			}
-			output = map[string]any{"version": 1, "status": state, "delivery_id": intent.DeliveryID, "revision": intent.Revision, "event_count": len(intent.Events), "ack_count": len(acks), "pending_count": pending, "acks": acks}
+			overallStatus := businessStatus
+			if transportStatus == "uncertain" {
+				overallStatus = "uncertain"
+			}
+			if c.Cancelled {
+				overallStatus = "cancelled"
+			} else if c.Revision != intent.Revision {
+				overallStatus = "stale"
+			}
+			claim, claimErr := readBatchClaim(root, intent)
+			claimState := "unclaimed"
+			if claimErr == nil {
+				claimState = claim.Status
+			} else if !errors.Is(claimErr, os.ErrNotExist) {
+				return claimErr
+			}
+			sendAllowed := transportStatus == "ready" && claimState == "unclaimed" && !c.Cancelled && c.Revision == intent.Revision
+			output = map[string]any{"version": 1, "status": overallStatus, "transport_status": transportStatus, "business_status": businessStatus, "send_allowed": sendAllowed, "delivery_id": intent.DeliveryID, "revision": intent.Revision, "event_count": len(intent.Events), "ack_count": len(acks), "pending_count": pending, "claim": claimState, "acks": acks}
 			return nil
 		}
 		if c.ControllerThread != o.controller {
@@ -200,11 +243,24 @@ func batchCommand(root *os.Root, o options) (any, error) {
 		if err != nil {
 			return err
 		}
-		if intent.State == "transport_uncertain" {
-			return failure("transport_uncertain")
-		}
 		if intent.Revision != c.Revision {
 			return failure("stale_revision")
+		}
+		if o.sub == "batch-claim" {
+			if intent.State == "transport_uncertain" {
+				return failure("transport_uncertain")
+			}
+			if _, claimErr := readBatchClaim(root, intent); claimErr == nil {
+				return failure("claim_exists")
+			} else if !errors.Is(claimErr, os.ErrNotExist) {
+				return claimErr
+			}
+			claim := batchClaim{1, "claimed", intent.DeliveryID, intent.Nonce, intent.ControllerThread, intent.Revision}
+			if err := publish(root, batchClaimName(), claim); err != nil {
+				return failure("claim_uncertain")
+			}
+			output = claim
+			return nil
 		}
 		if o.sub == "batch-uncertain" {
 			intent.State = "transport_uncertain"

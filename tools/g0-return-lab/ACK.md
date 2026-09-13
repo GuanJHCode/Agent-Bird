@@ -51,7 +51,7 @@ g0-return-lab-ack batch-prepare --dir /absolute/private/task --nonce sample_01 \
   --events-json '[{"event_id":"event_01","event_revision":1,"kind":"progress","payload_hash":"...64 lowercase hex...","action_slot":"slot_01"}]'
 ```
 
-This creates `batch-intent.json` atomically under the existing control lock. Each event has an independent `batch-ack-<event_id>.json` slot:
+This creates `batch-intent.json` atomically under the existing control lock. Before transport, `batch-claim` creates one durable `batch-send-claim.json`; a second claim after restart is rejected, so the sender must reconcile instead of blindly transmitting again. Each event has an independent `batch-ack-<event_id>.json` slot:
 
 ```sh
 g0-return-lab-ack batch-ack --dir /absolute/private/task --nonce sample_01 \
@@ -60,7 +60,7 @@ g0-return-lab-ack batch-ack --dir /absolute/private/task --nonce sample_01 \
   --command-id 00000000-0000-0000-0000-000000000001 --decision handled
 ```
 
-Changing only `command-id` for the same event/action slot returns the original ACK and does not create another effect. Other events remain independently pending, so a partial ACK does not block the batch. `batch-status` reports `prepared`, `partial`, `complete`, or `uncertain`. If the transport response is lost, the controller may persist `batch-uncertain`; later `batch-ack` is rejected with `transport_uncertain`, preventing blind resend. A control revision change or cancellation rejects old batch effects. The files provide local business intent and ACK durability only; they do not prove an external CLI/model side effect happened exactly once.
+Changing only `command-id` for the same event/action slot returns the original ACK and does not create another effect. Other events remain independently pending, so a partial ACK does not block the batch. `batch-status` reports business and transport state separately, including `send_allowed=false` after claim, revision, cancellation, or uncertainty. If the transport response is lost, the controller may persist `batch-uncertain`; later `batch-claim` is rejected, while a separately confirmed business event may still be recorded by `batch-ack` for reconciliation. A control revision change or cancellation rejects old batch effects. The files provide local business intent and ACK durability only; they do not prove an external CLI/model side effect happened exactly once.
 
 The effect is the creation of this single synthetic action record. These numbers do not prove exactly-once third-party CLI dispatch or model answer continuation.
 

@@ -131,6 +131,9 @@ func parse(args []string) (options, error) {
 	case "batch-uncertain":
 		fs.StringVar(&o.controller, "controller-thread", "", "native controller thread")
 		fs.IntVar(&o.revision, "revision", 0, "expected current revision")
+	case "batch-claim":
+		fs.StringVar(&o.controller, "controller-thread", "", "native controller thread")
+		fs.IntVar(&o.revision, "revision", 0, "expected current revision")
 	case "read", "inspect":
 	default:
 		return o, failure("invalid_args")
@@ -148,7 +151,7 @@ func parse(args []string) (options, error) {
 	if (ownerProvided || o.sub == "ack" || o.sub == "revise") && !safeNonce.MatchString(o.controller) {
 		return o, failure("invalid_args")
 	}
-	if (o.sub == "ack" || o.sub == "revise" || o.sub == "batch-prepare" || o.sub == "batch-ack" || o.sub == "batch-uncertain") && !validRevision(o.revision) {
+	if (o.sub == "ack" || o.sub == "revise" || o.sub == "batch-prepare" || o.sub == "batch-ack" || o.sub == "batch-uncertain" || o.sub == "batch-claim") && !validRevision(o.revision) {
 		return o, failure("invalid_args")
 	}
 	if o.sub == "ack" && (!safeHash.MatchString(o.eventHash) || !safeNonce.MatchString(o.commandID) || !validDecision(o.decision)) {
@@ -208,10 +211,13 @@ func run(args []string) error {
 			return err
 		}
 		return json.NewEncoder(os.Stdout).Encode(value)
-	case "batch-prepare", "batch-ack", "batch-status", "batch-uncertain":
+	case "batch-prepare", "batch-ack", "batch-status", "batch-uncertain", "batch-claim":
 		value, err := batchCommand(root, o)
 		if err != nil {
 			return err
+		}
+		if o.sub == "batch-ack" && os.Getenv("G0_TEST_BLOCK_AFTER_COMMIT") == "1" {
+			select {}
 		}
 		return json.NewEncoder(os.Stdout).Encode(value)
 	default:
