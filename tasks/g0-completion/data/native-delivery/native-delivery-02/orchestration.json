@@ -1,0 +1,10 @@
+{
+  "case": "native-delivery-02",
+  "source_commit": "d9e86d3",
+  "profile_root": "/private/tmp/g0-auth-native-y_nh4jw1",
+  "inventory_sha256": "78a5f826242bc439387a8972bddf587383dc7f45ff4dac19118b7a47cbc996a5",
+  "auth_count": 14,
+  "launchd_registration_performed": false,
+  "external_model_calls": 0,
+  "synthetic_model": true
+}

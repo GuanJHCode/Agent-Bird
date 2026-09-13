@@ -1,0 +1,30 @@
+{
+  "case": "native-delivery-02",
+  "status": "unknown",
+  "runner_cleanup_unproven": true,
+  "post_run_kernel_observation": [
+    {
+      "role": "owner",
+      "pid": 36806,
+      "original_identity_absent": true
+    },
+    {
+      "role": "helper",
+      "pid": 36920,
+      "original_identity_absent": true
+    },
+    {
+      "role": "backend",
+      "pid": 36824,
+      "original_identity_absent": true,
+      "socket_absent": true
+    }
+  ],
+  "shutdown_diagnostics": [
+    "Process.wait coroutine never awaited at expired deadline",
+    "async generator closure already running"
+  ],
+  "ordinary_tui_verified": false,
+  "business_ack_verified": false,
+  "note": "Post-run absence does not upgrade the failed in-window cleanup or delivery to PASS."
+}
