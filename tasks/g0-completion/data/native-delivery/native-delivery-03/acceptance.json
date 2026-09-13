@@ -1,0 +1,79 @@
+{
+  "case": "native-delivery-03",
+  "runner_status": "passed",
+  "failure": null,
+  "auth_comparison": {
+    "unchanged": true,
+    "changed_path_ids": []
+  },
+  "synthetic_auth_absent": true,
+  "private_socket_absent": true,
+  "public_socket_absent": true,
+  "owned_backend_absent": true,
+  "thread_id": "01a0992a-0417-7293-a019-6ab332d6ab01",
+  "python_owner_verified": true,
+  "ordinary_tui_verified": false,
+  "go_status": {
+    "ack_count": 1,
+    "acks": [
+      {
+        "version": 1,
+        "status": "acknowledged",
+        "delivery_id": "G0_SYNTHETIC_TOOL_RESULT_native-delivery-03",
+        "nonce": "native-delivery-03",
+        "controller_thread": "01a0992a-0417-7293-a019-6ab332d6ab01",
+        "controller_epoch": 1,
+        "revision": 1,
+        "event_id": "event_result",
+        "event_revision": 1,
+        "event_hash": "bd1058e2b4f000e05cf4a0ff8a54244f4324dcaaef9119298f609540e61d7304",
+        "action_slot": "ack_result",
+        "command_id": "handled_native-delivery-03",
+        "decision": "handled",
+        "decision_count": 1,
+        "effect_count": 1
+      }
+    ],
+    "business_status": "complete",
+    "claim": "claimed",
+    "delivery_id": "G0_SYNTHETIC_TOOL_RESULT_native-delivery-03",
+    "event_count": 1,
+    "pending_count": 0,
+    "revision": 1,
+    "send_allowed": false,
+    "status": "complete",
+    "transport_status": "ready",
+    "version": 1
+  },
+  "history_verified": true,
+  "durable_history_verified": false,
+  "business_ack_verified": true,
+  "synthetic_endpoint": {
+    "version": 1,
+    "synthetic_only": true,
+    "external_model_calls": 0,
+    "accepted_requests": 2,
+    "attempts": 2,
+    "requests": [
+      {
+        "attempt": 1,
+        "bytes": 37558,
+        "sha256": "640b866260087787fdb5164018662d7027de27c1cac3fc8a743e65812318256e",
+        "status": 200,
+        "stage": 0,
+        "synthetic_only": true
+      },
+      {
+        "attempt": 2,
+        "bytes": 38270,
+        "sha256": "9b6bfb36c0756d8f25e2bd1be1b83f2d6c771452784f0b99803c3ffd47e728dc",
+        "status": 200,
+        "stage": 1,
+        "synthetic_only": true
+      }
+    ]
+  },
+  "launchd_registration_performed": false,
+  "external_model_calls": 0,
+  "status": "pass"
+}
