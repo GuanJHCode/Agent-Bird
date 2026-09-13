@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "kind": "root_observed_package_verification",
+  "provenance": "Archive of root tool results; not a raw log. No checks rerun to create this file.",
+  "source_commit": "8139120",
+  "package_version": "0.1.0-rc3",
+  "binary_sha256": "e6c0bf930a75029d39b38b49cca2ded8999d0ce0545ed8d2fa7e48a1fc0bc3c7",
+  "installed_manifest_sha256": "0fce3f6ce00053d270089bf479baf88d74656bb58cc287f8044dd8e43b1bac12",
+  "runtime_manifest_sha256": "9b1834834d80618dc9793ce421a8fe0da2dcec65f5a8cb958d24519d7eeaab73",
+  "checks": [
+    {"operation": "resource-build.sh from clean 8139120 worktree", "exit_code": 0},
+    {"operation": "package-plugin.sh", "exit_code": 0},
+    {"operation": "project-local install rc3", "exit_code": 0, "status": "ok"},
+    {"operation": "installed rc3 doctor", "exit_code": 0, "healthy": true, "issues": null, "pins": null},
+    {"operation": "bundled validate_plugin.py", "exit_code": 0, "result": "Plugin validation passed"},
+    {"operation": "uninstall unused temporary rc2", "exit_code": 0, "status": "removed"}
+  ],
+  "skill_validation": "Reused rc2 result; Skill contents unchanged.",
+  "permanent_installation": false,
+  "global_configuration_changed": false,
+  "native_product_acceptance": "pending; see separate immutable case evidence",
+  "resource_acceptance": "in progress; separate G1 core scenarios"
+}
