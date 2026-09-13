@@ -317,6 +317,7 @@ class MetadataSink(CaptureSink):
                         or row.get('params',{}).get('threadId')!=expected):state['protocol_valid']=False
                     state['thread']['resume_request_id']=request_id
                 elif method=='skills/list' and state['thread'].get('resume_response'):
+                    state.setdefault('resume_skills_pending',set()).add(request_id)
                     state['thread']['skills_request_id']=request_id
                 elif method=='thread/start':
                     if state['lease'].get('expected_resume_thread_id') is not None:state['protocol_valid']=False
@@ -333,9 +334,12 @@ class MetadataSink(CaptureSink):
                     state['protocol_valid']=False
                 else:state['thread'].update(id=expected,resume_response=True)
             elif event=='rpc_response' and method=='skills/list' and state['thread'].get('resume_response'):
-                if (row.get('ok') is True and row.get('direction')=='server' and row.get('request_direction')=='client'
-                    and state['thread'].get('skills_request_id')==request_id):state['thread']['resume_barrier']=True
-                else:state['protocol_valid']=False
+                pending=state.get('resume_skills_pending',set())
+                if request_id in pending:
+                    pending.remove(request_id)
+                    if row.get('ok') is True and row.get('direction')=='server' and row.get('request_direction')=='client':
+                        state['thread']['resume_barrier']=True
+                    else:state['protocol_valid']=False
             elif event=='rpc_response' and method=='thread/start' and row.get('ok') is True:
                 thread=row.get('thread',{}); identifier=thread.get('id')
                 if (row.get('direction')!='server' or row.get('request_direction')!='client'
@@ -874,7 +878,8 @@ class ActivationService:
             record['protocol']=self.sink.protocol_for_lease(lease_id)
             record['elapsed_seconds']=time.monotonic()-start
             self._check_roots()
-            _write_json(self.receipt_dir/f'backend-{lease_id}.json',record)
+            _publish_receipt(self.receipt_dir/f'backend-{lease_id}.json',record,
+                expected_parent=self._directory_pins[self.receipt_dir])
 
     async def start(self,listener: socket.socket):
         await self.proxy.start(inherited_listener=listener)
@@ -905,4 +910,5 @@ class ActivationService:
     async def _finish_close(self):
         await self.proxy.close()
         self._check_roots()
-        _write_json(self.receipt_dir/'activation.json',self.snapshot())
+        _publish_receipt(self.receipt_dir/'activation.json',self.snapshot(),
+            expected_parent=self._directory_pins[self.receipt_dir])

@@ -61,4 +61,7 @@ def test_native_tui_quit_resume_same_thread_then_single_go_ack(monkeypatch,tmp_p
             assert result['cleanup']['all_backends_stopped'] and result['cleanup']['service_stopped']
             assert result['transaction']['state']=='REVOKED' and not result['real_launchctl_used']
             assert result['go_status']['send_allowed'] is False
+            publications=[json.loads(line)['name'] for line in (plan.case/'published-finals.jsonl').read_text().splitlines()]
+            assert publications.count('activation.json')==2
+            assert sum(name.startswith('backend-') for name in publications)==2
     asyncio.run(asyncio.wait_for(scenario(),150))

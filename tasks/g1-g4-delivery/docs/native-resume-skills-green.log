@@ -1,0 +1,13 @@
+..................................                                       [100%]
+=============================== warnings summary ===============================
+tasks/g1-g4-delivery/tests/test_native_tui_case.py::test_native_tui_quit_resume_same_thread_then_single_go_ack[None]
+tasks/g1-g4-delivery/tests/test_native_tui_case.py::test_native_tui_quit_resume_same_thread_then_single_go_ack[None]
+tasks/g1-g4-delivery/tests/test_native_tui_case.py::test_native_tui_quit_resume_same_thread_then_single_go_ack[resume-proof]
+tasks/g1-g4-delivery/tests/test_native_tui_case.py::test_native_tui_quit_resume_same_thread_then_single_go_ack[resume-proof]
+tasks/g1-g4-delivery/tests/test_native_tui_case.py::test_native_tui_quit_resume_same_thread_then_single_go_ack[initial-history]
+tasks/g1-g4-delivery/tests/test_native_tui_case.py::test_native_tui_quit_resume_same_thread_then_single_go_ack[initial-history]
+  /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g1-g4-delivery/tmp/native-combined/tasks/g0-auth-preserving-activation/scripts/native_activation_probe.py:360: DeprecationWarning: This process (pid=43900) is multi-threaded, use of fork() may lead to deadlocks in the child.
+    pid = os.fork()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+34 passed, 6 warnings in 9.98s

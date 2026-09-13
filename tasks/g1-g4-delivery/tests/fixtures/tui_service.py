@@ -6,6 +6,16 @@ sys.path.insert(0,str(ROOT/'tasks/g0-proxy-continuation/cold-start/scripts'))
 import projectproxy_launchd_entrypoint as entry
 original=entry.ActivationService.__module__
 import activation_service
+# Test-only evidence that the real final call sites use the immutable publisher.
+import json,os
+publish=activation_service._publish_receipt
+def observed_publish(path,value,**kwargs):
+    publish(path,value,**kwargs)
+    if path.name=='activation.json' or path.name.startswith('backend-'):
+        fd=os.open(path.parents[2]/'published-finals.jsonl',os.O_WRONLY|os.O_APPEND|os.O_CREAT,0o600)
+        try:os.write(fd,(json.dumps({'name':path.name})+'\n').encode())
+        finally:os.close(fd)
+activation_service._publish_receipt=observed_publish
 spawn=activation_service.GuardedChild.spawn
 async def dummy_backend(argv,**kwargs):
     assert argv[:2]==['/usr/bin/sandbox-exec','-f']

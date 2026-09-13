@@ -1,0 +1,10 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+______ test_two_concurrent_post_resume_skills_responses_keep_owner_ready _______
+tasks/g1-g4-delivery/tests/test_native_resume_gate.py:94: in test_two_concurrent_post_resume_skills_responses_keep_owner_ready
+    assert len(paths)==1
+E   assert 0 == 1
+E    +  where 0 = len([])
+=========================== short test summary info ============================
+FAILED tasks/g1-g4-delivery/tests/test_native_resume_gate.py::test_two_concurrent_post_resume_skills_responses_keep_owner_ready
+1 failed in 0.12s

@@ -47,15 +47,15 @@ def test_reader_waits_for_publisher_link_cleanup_without_reading_body(tmp_path,m
     def paused(*args,**kwargs):
         link(*args,**kwargs);linked.set();assert release.wait(2)
     monkeypatch.setattr(service.os,'link',paused)
-    worker=threading.Thread(target=service._publish_receipt,args=(directory/'service-start.json',{'version':1}))
+    worker=threading.Thread(target=service._publish_receipt,args=(directory/'backend-controlled.json',{'version':1}))
     worker.start();assert linked.wait(2)
     strict=ReceiptStore(state);pending=ReceiptStore(state,pending_publication=True)
     try:
-        with pytest.raises(ValueError,match='unsafe'):strict.read('service-start.json')
-        assert pending.read('service-start.json') is None
+        with pytest.raises(ValueError,match='unsafe'):strict.read('backend-controlled.json')
+        assert pending.read('backend-controlled.json') is None
         assert not pending.pins
         release.set();worker.join(2);assert not worker.is_alive()
-        assert pending.read('service-start.json')[0]=={'version':1}
+        assert pending.read('backend-controlled.json')[0]=={'version':1}
     finally:release.set();worker.join(2);strict.close();pending.close()
 
 
@@ -79,3 +79,18 @@ def test_resume_original_process_identity_distinguishes_reuse_from_unknown(monke
     with pytest.raises(ValueError,match='unknown'):service._original_process_gone(pid,birth,executable)
     monkeypatch.setattr(service,'_process_metadata',lambda _: (birth,None))
     with pytest.raises(ValueError,match='unknown'):service._original_process_gone(pid,birth,executable)
+
+
+def test_two_concurrent_post_resume_skills_responses_keep_owner_ready(tmp_path):
+    sink,paths=setup(tmp_path);original=sink._leases
+    sink._leases=lambda event:{**original(event),'expected_resume_thread_id':THREAD}
+    connect(sink);initialize(sink)
+    feed(sink,frame({'id':5,'method':'thread/resume','params':{'threadId':THREAD}},True),client=True)
+    feed(sink,frame({'id':5,'result':{'thread':{'id':THREAD,'cwd':WORKSPACE}}}))
+    requests=['startup-skills-list-controlled',9]
+    feed(sink,b''.join(frame({'id':identifier,'method':'skills/list','params':{}},True) for identifier in requests),client=True)
+    assert not paths
+    feed(sink,b''.join(frame({'id':identifier,'result':{'data':[]}}) for identifier in requests))
+    assert len(paths)==1
+    state=sink.snapshot()['protocol'][0]
+    assert state['protocol_valid'] and state['ready_published'] and state['thread']['id']==THREAD and state['zero_turns']

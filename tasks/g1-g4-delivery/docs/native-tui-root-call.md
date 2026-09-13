@@ -29,7 +29,7 @@ from native_activation_fixture import _load_credential_inventory
 inventory = Path('/private/tmp/g0-next-delivery-auth-inventory/credential-paths.txt')
 assert hashlib.sha256(inventory.read_bytes()).hexdigest() == '78a5f826242bc439387a8972bddf587383dc7f45ff4dac19118b7a47cbc996a5'
 paths, _ = _load_credential_inventory(inventory)
-native = Path('/Users/guanjunhui/.local/bin/codex').resolve(strict=True)
+native = Path('/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex')
 assert hashlib.sha256(native.read_bytes()).hexdigest() == NATIVE_SHA256
 python = Path('/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python')
 go = repo/'tasks/g0-macos/data/go/bin/go'

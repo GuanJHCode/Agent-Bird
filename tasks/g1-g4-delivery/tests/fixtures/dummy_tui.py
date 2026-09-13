@@ -33,7 +33,9 @@ async def main():
     if sys.argv[1:]:
         assert sys.argv[1]=='resume' and len(sys.argv)==3
         thread=(await call('thread/resume',{'threadId':sys.argv[2]}))['thread']
-        await call('skills/list',{})
+        # Actual 0.154 resume sends two post-response skills requests before
+        # either response arrives (startup refresh and numeric request).
+        await asyncio.gather(call('skills/list',{}),call('skills/list',{}))
     else:thread=(await call('thread/start',{'cwd':os.getcwd(),'ephemeral':False,'historyMode':'legacy'}))['thread']
     stdin=asyncio.StreamReader();loop=asyncio.get_running_loop()
     def receive_input():
