@@ -1,7 +1,9 @@
 """Offline-safe controller for one user LaunchAgent activation transaction.
 
-The controller deliberately owns only the plist and a staging/lease record.  The
-launchd public socket is launchd-owned and is never unlinked by this module.
+The controller owns the plist, a staging/lease record, and a socket only after
+freezing its post-bootstrap identity.  A residual socket is removed only through
+an identity-checked private quarantine; an ambiguous replacement remains owned
+by neither cleanup path and leaves the transaction UNKNOWN.
 The executable is injected in tests; callers must not pass the real launchctl
 unless a separately approved user-level experiment is in progress.
 """
@@ -17,6 +19,7 @@ import plistlib
 import re
 import stat
 import subprocess
+import uuid
 from contextlib import contextmanager
 from typing import Any, Protocol, Sequence
 
@@ -356,6 +359,7 @@ class ActivationTransaction:
         self.plist_identity: FileIdentity | None = None
         self.lease_identity: FileIdentity | None = None
         self.public_socket_identity: SocketIdentity | None = None
+        self.public_socket_quarantine_path: Path | None = None
         self.parent_identities: dict[str, DirectoryIdentity] = {}
         self.auth_baseline: dict[str, Any] | None = None
         self.registered = False
@@ -552,6 +556,8 @@ class ActivationTransaction:
             parent,
             os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0),
         )
+        quarantine_fd: int | None = None
+        quarantine_name: str | None = None
         try:
             if _directory_identity_fd(fd) != parent_identity or _directory_identity(parent) != parent_identity:
                 raise UnknownStateError("public_socket_parent_changed")
@@ -564,9 +570,81 @@ class ActivationTransaction:
             observed = SocketIdentity(current.st_dev, current.st_ino, current.st_uid, stat.S_IMODE(current.st_mode))
             if observed != self.public_socket_identity:
                 raise UnknownStateError("public_socket_replaced")
-            os.unlink(self.spec.socket_path.name, dir_fd=fd)
+
+            # POSIX has no unlink-if-(dev,ino) primitive. Move the current
+            # directory entry atomically into a fresh private directory, then
+            # inspect the moved inode before deleting anything. If a competitor
+            # replaced the public name between stat and rename, the replacement
+            # is quarantined and restored with link(2)'s no-replace semantics;
+            # EEXIST leaves both objects intact and reports UNKNOWN.
+            quarantine_name = f".g0-socket-quarantine-{uuid.uuid4().hex}"
+            self.public_socket_quarantine_path = parent / quarantine_name / self.spec.socket_path.name
+            os.mkdir(quarantine_name, 0o700, dir_fd=fd)
             os.fsync(fd)
+            quarantine_fd = os.open(
+                quarantine_name,
+                os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0),
+                dir_fd=fd,
+            )
+            quarantine_identity = _directory_identity_fd(quarantine_fd)
+            if quarantine_identity.uid != os.getuid() or quarantine_identity.mode & 0o077:
+                raise UnknownStateError("public_socket_quarantine_identity")
+            try:
+                os.rename(
+                    self.spec.socket_path.name,
+                    self.spec.socket_path.name,
+                    src_dir_fd=fd,
+                    dst_dir_fd=quarantine_fd,
+                )
+            except FileNotFoundError:
+                os.rmdir(quarantine_name, dir_fd=fd)
+                os.fsync(fd)
+                self.public_socket_quarantine_path = None
+                return
+            try:
+                moved = os.stat(self.spec.socket_path.name, dir_fd=quarantine_fd, follow_symlinks=False)
+            except OSError as exc:
+                self.public_socket_quarantine_path = parent / quarantine_name / self.spec.socket_path.name
+                raise UnknownStateError("public_socket_quarantine_unreadable") from exc
+            moved_identity = SocketIdentity(
+                moved.st_dev,
+                moved.st_ino,
+                moved.st_uid,
+                stat.S_IMODE(moved.st_mode),
+            )
+            if moved_identity == self.public_socket_identity:
+                os.unlink(self.spec.socket_path.name, dir_fd=quarantine_fd)
+                os.fsync(quarantine_fd)
+                os.rmdir(quarantine_name, dir_fd=fd)
+                os.fsync(fd)
+                self.public_socket_quarantine_path = None
+                return
+
+            quarantine_path = parent / quarantine_name / self.spec.socket_path.name
+            try:
+                os.link(
+                    self.spec.socket_path.name,
+                    self.spec.socket_path.name,
+                    src_dir_fd=quarantine_fd,
+                    dst_dir_fd=fd,
+                    follow_symlinks=False,
+                )
+            except OSError as exc:
+                self.public_socket_quarantine_path = quarantine_path
+                raise UnknownStateError("public_socket_replaced") from exc
+            try:
+                os.unlink(self.spec.socket_path.name, dir_fd=quarantine_fd)
+                os.fsync(quarantine_fd)
+                os.rmdir(quarantine_name, dir_fd=fd)
+                os.fsync(fd)
+                self.public_socket_quarantine_path = None
+            except OSError as exc:
+                self.public_socket_quarantine_path = quarantine_path
+                raise UnknownStateError("public_socket_replacement_restore") from exc
+            raise UnknownStateError("public_socket_replaced")
         finally:
+            if quarantine_fd is not None:
+                os.close(quarantine_fd)
             os.close(fd)
 
     @staticmethod
@@ -952,6 +1030,10 @@ class ActivationTransaction:
                 "cleanup": "manual_launchd_or_owner_audit_required",
                 "reason": type(public_socket_error).__name__,
             }
+            if self.public_socket_quarantine_path is not None:
+                self.receipt["public_socket_residual"]["quarantine_path"] = str(
+                    self.public_socket_quarantine_path
+                )
             self.receipt["state"] = "UNKNOWN"
             self._finish_auth()
             if isinstance(public_socket_error, UnknownStateError):

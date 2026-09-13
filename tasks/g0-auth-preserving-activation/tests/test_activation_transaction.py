@@ -518,6 +518,113 @@ def test_open_time_parent_redirect_keeps_external_sentinel(monkeypatch, fake_env
     assert tx.spec.socket_path.exists()
 
 
+def test_socket_quarantine_preserves_replacement_between_check_and_move(monkeypatch, fake_env):
+    tx = make_controller(fake_env)
+    state = json.loads(fake_env[3].read_text(encoding="utf-8"))
+    state.update(create_public_socket=True, remove_socket_on_bootout=False, socket_path=str(tx.spec.socket_path))
+    fake_env[3].write_text(json.dumps(state), encoding="utf-8")
+    tx.prepare()
+    tx.register()
+
+    import activation_transaction as module
+
+    real_rename = module.os.rename
+    real_unlink = module.os.unlink
+    racing_socket: socket.socket | None = None
+    triggered = False
+
+    def replace_before_quarantine(src, dst, *args, **kwargs):
+        nonlocal racing_socket, triggered
+        if (
+            not triggered
+            and src == tx.spec.socket_path.name
+            and kwargs.get("src_dir_fd") is not None
+        ):
+            triggered = True
+            real_unlink(tx.spec.socket_path)
+            racing_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            racing_socket.bind(str(tx.spec.socket_path))
+            racing_socket.listen(1)
+        return real_rename(src, dst, *args, **kwargs)
+
+    monkeypatch.setattr(module.os, "rename", replace_before_quarantine)
+    try:
+        with pytest.raises(UnknownStateError, match="public_socket"):
+            tx.revoke()
+        assert triggered
+        assert tx.receipt["state"] == "UNKNOWN"
+        assert tx.spec.socket_path.exists()
+        assert stat.S_ISSOCK(tx.spec.socket_path.stat().st_mode)
+    finally:
+        if racing_socket is not None:
+            racing_socket.close()
+
+
+def test_socket_quarantine_never_overwrites_new_public_object_on_restore_race(monkeypatch, fake_env):
+    tx = make_controller(fake_env)
+    state = json.loads(fake_env[3].read_text(encoding="utf-8"))
+    state.update(create_public_socket=True, remove_socket_on_bootout=False, socket_path=str(tx.spec.socket_path))
+    fake_env[3].write_text(json.dumps(state), encoding="utf-8")
+    tx.prepare()
+    tx.register()
+
+    import activation_transaction as module
+
+    real_link = module.os.link
+    real_rename = module.os.rename
+    real_unlink = module.os.unlink
+    racing_socket: socket.socket | None = None
+    newer_socket: socket.socket | None = None
+    replaced = False
+    occupied = False
+
+    def replace_before_quarantine(src, dst, *args, **kwargs):
+        nonlocal racing_socket, replaced
+        if (
+            not replaced
+            and src == tx.spec.socket_path.name
+            and kwargs.get("src_dir_fd") is not None
+        ):
+            replaced = True
+            real_unlink(tx.spec.socket_path)
+            racing_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            racing_socket.bind(str(tx.spec.socket_path))
+            racing_socket.listen(1)
+        return real_rename(src, dst, *args, **kwargs)
+
+    def occupy_before_restore(src, dst, *args, **kwargs):
+        nonlocal newer_socket, occupied
+        if (
+            not occupied
+            and src == tx.spec.socket_path.name
+            and kwargs.get("src_dir_fd") is not None
+            and kwargs.get("dst_dir_fd") is not None
+        ):
+            occupied = True
+            newer_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            newer_socket.bind(str(tx.spec.socket_path))
+            newer_socket.listen(1)
+        return real_link(src, dst, *args, **kwargs)
+
+    monkeypatch.setattr(module.os, "rename", replace_before_quarantine)
+    monkeypatch.setattr(module.os, "link", occupy_before_restore)
+    try:
+        with pytest.raises(UnknownStateError, match="public_socket"):
+            tx.revoke()
+        assert replaced and occupied
+        assert tx.receipt["state"] == "UNKNOWN"
+        assert tx.spec.socket_path.exists()
+        assert stat.S_ISSOCK(tx.spec.socket_path.stat().st_mode)
+        assert tx.public_socket_quarantine_path is not None
+        assert tx.public_socket_quarantine_path.exists()
+        assert stat.S_ISSOCK(tx.public_socket_quarantine_path.stat().st_mode)
+    finally:
+        if racing_socket is not None:
+            racing_socket.close()
+        if newer_socket is not None:
+            newer_socket.close()
+
+
 def test_foreign_job_after_bootstrap_error_is_not_booted_out(fake_env):
     tx = make_controller(fake_env)
     state = fake_env[3]

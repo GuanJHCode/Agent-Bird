@@ -34,10 +34,13 @@ hash 通过 `manifest_sha256`、`artifact_hashes` 固定，receipt 只保存路�
    不确定时进入 `UNKNOWN`，保留 plist/lease 等证据。
 4. `revoke` 在 bootout 前先复核 final plist 的 dev/ino/size/hash/uid/mode，
    只对精确匹配的本事务 job 调用 bootout；bootout 后再次确认 job absent，
-   且 final plist 仍与登记 identity 相同才删除。public
-   socket 始终由 launchd 管理，controller 从不 unlink、chmod 或清理它；bootout
-   后若 socket 残留，receipt 标记 `public_socket_residual` 并进入 `UNKNOWN`，
-   由人工完成后续 launchd/owner 审计，不能把该 case 标为 `REVOKED`。
+   且 final plist 仍与登记 identity 相同才删除。残留 public socket 先在
+   冻结 parent 下原子移入本事务随机 mode-0700 quarantine，再用打开后的
+   entry identity 判断：匹配的旧 socket 才从 quarantine 删除。若是目录项
+   置换对象，则用 no-replace hard link 恢复；恢复遇到 `EEXIST` 时保留新
+   public object 与 quarantine object，receipt 记录 quarantine path 并进入
+   `UNKNOWN`，绝不覆盖或删除新对象。该隔离发生在 job 已确认 absent 后，
+   因此正常 listener 不会被中途移走；无法证明时仍需人工 owner 审计。
    lease 只在自身 identity 仍匹配时删除。
 
 状态为 `NEW -> STAGED -> PUBLISHED -> BOOTSTRAPPING -> REGISTERED ->
