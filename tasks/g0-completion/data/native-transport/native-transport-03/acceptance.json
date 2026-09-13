@@ -1,0 +1,48 @@
+{
+  "case": "native-transport-03",
+  "runner_status": "passed",
+  "failure": null,
+  "auth_comparison": {
+    "unchanged": true,
+    "changed_path_ids": []
+  },
+  "synthetic_auth_absent": true,
+  "private_socket_absent": true,
+  "owned_backend_absent": true,
+  "thread_id": "01a098d6-738e-76e0-b105-c6a441fe2e1c",
+  "turn_ids": [
+    "01a098d6-73ae-7493-bc57-0c44c34358a7",
+    "01a098d6-73c7-7952-80f1-9a4f6541dee7"
+  ],
+  "history_verified": true,
+  "durable_history_verified": false,
+  "business_ack_verified": false,
+  "synthetic_endpoint": {
+    "version": 1,
+    "synthetic_only": true,
+    "external_model_calls": 0,
+    "accepted_requests": 2,
+    "attempts": 2,
+    "requests": [
+      {
+        "attempt": 1,
+        "bytes": 37558,
+        "sha256": "80db937f5d211c7de1717a12a2cd9a22a203e739e40b8669d367f7762e291e53",
+        "status": 200,
+        "stage": 0,
+        "synthetic_only": true
+      },
+      {
+        "attempt": 2,
+        "bytes": 37837,
+        "sha256": "05dbf76079e361951c6652f02fc079063b81ceec944c94e5686b5e8e92feee14",
+        "status": 200,
+        "stage": 1,
+        "synthetic_only": true
+      }
+    ]
+  },
+  "launchd_registration_performed": false,
+  "external_model_calls": 0,
+  "status": "pass"
+}
