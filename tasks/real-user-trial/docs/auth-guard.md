@@ -68,3 +68,17 @@ API-key auth 原生不进入 ChatGPT OAuth refresh；但 `codex exec` 的启动 
 - login status 原始输出只投影非秘密类别，额外输出和失败退出均视为 unknown。
 
 本阶段没有真实账号、真实 CLI、模型请求或 Keychain 访问证据，因此没有 real-ready 声明。
+
+## 待执行的固定 native 回归
+
+`tools/real-user-trial/test_native_auth_tripwire.py` 是显式 opt-in 的单个 native fixture，默认跳过。它要求调用者同时设置 `CODEX_RUN_NATIVE_AUTH_TRIPWIRE=1` 和 `CODEX_TRIAL_NATIVE_BINARY=<ABS>`；传入文件必须是 owner 持有的 regular non-symlink executable，且 SHA-256 和 `--version` 均匹配上述固定值。
+
+fixture 的 baseline 和 guarded case 分别创建新的直接 `/private/tmp/g0-auth-*` 根，每个根只含 synthetic 过期 ChatGPT auth、`store=file`、effective `UseAgentIdentity=false` 配置、独立 `HOME/CODEX_HOME/CODEX_SQLITE_HOME` 和 private app-server UDS。它不读取或复制真实认证路径。
+
+测试持有一个 `127.0.0.1` 随机端口。baseline 把 refresh endpoint 指向该端口；guarded case 使用本模块的 invalid-scheme tripwire。两个 native 进程均在 fixture 自己生成的收紧 SBPL 下运行：文件读取只放行系统 runtime、各自 fake 根、精确 native executable 及其祖先 metadata；文件写入只放行 fake 根；拒绝 securityd；IP 网络只放行测试持有的单个 loopback 端口。若该 allowlist 不足以启动固定 native，结果应报告 blocked，不能放开真实 HOME。
+
+唯一 RPC 是 `initialize/initialized` 后的 `account/read {refreshToken:true}`。它会显式进入固定源码的 refresh 路径，但不创建 thread 或 model turn。[固定 account refresh 入口](https://github.com/openai/codex/blob/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/app-server/src/request_processors/account_processor.rs#L1106-L1126)
+
+通过条件是 baseline 在有界范围内观察到至少一次只含 synthetic marker 的 refresh POST，guarded case 对同一 listener 的请求计数不增加，且 guarded `auth.json` 的 bytes、inode、mode、size 和 mtime 全部不变。请求体、native stderr 和 token 不落盘、不打印；成功且两个 owned process group 都已结束时才删除该 fixture 新建的两个根。身份不确定或启动失败时保留只含 synthetic 数据的根供根验收清理，不在未知进程仍可能使用时递归删除。
+
+当前提交只提供可审查 fixture，没有执行 opt-in native case。执行权留给根验收流程。
