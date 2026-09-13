@@ -111,3 +111,8 @@ def test_native_product_run_module_compiles_without_starting_native():
     ):
         source = (ROOT / relative).read_text()
         compile(source, str(ROOT / relative), "exec")
+
+
+def test_private_plan_pins_native_resource_sampler():
+    sampler = ROOT / "tasks/g1-g4-delivery/scripts/native_resource_sampler.py"
+    assert sampler in plan.source_paths(ROOT)

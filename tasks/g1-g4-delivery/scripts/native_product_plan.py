@@ -163,6 +163,7 @@ def source_paths(repo):
         "tasks/g1-g4-delivery/scripts/run-native-product-acceptance.py",
         "tasks/g1-g4-delivery/scripts/native_product_plan.py",
         "tasks/g1-g4-delivery/scripts/native_product_case.py",
+        "tasks/g1-g4-delivery/scripts/native_resource_sampler.py",
         "tasks/g1-g4-delivery/scripts/native_tui_case.py",
         "tasks/g1-g4-delivery/scripts/native_tui_session.py",
         "tasks/g0-global-delivery-validation/scripts/global_delivery_case.py",
