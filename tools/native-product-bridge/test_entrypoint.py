@@ -94,6 +94,27 @@ def test_packaged_entrypoint_requires_pinned_interpreter_package_and_g0_runtime(
     assert json.loads(denied.stderr)["error"] == "interpreter_changed"
 
 
+def test_digest_streams_file_through_bounded_reads(tmp_path, monkeypatch):
+    spec = importlib.util.spec_from_file_location("native_product_bridge_entry", ENTRY)
+    entry = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(entry)
+    artifact = tmp_path / "large-artifact"
+    payload = b"bridge-digest-block\n" * 160_000
+    artifact.write_bytes(payload)
+    original_read = entry.os.read
+    requested_sizes = []
+
+    def bounded_read(fd, size):
+        requested_sizes.append(size)
+        assert size <= 1024 * 1024
+        return original_read(fd, size)
+
+    monkeypatch.setattr(entry.os, "read", bounded_read)
+    assert entry.digest(artifact) == hashlib.sha256(payload).hexdigest()
+    assert requested_sizes[-1] == 1
+    assert len(requested_sizes) >= 4
+
+
 def test_exact_history_waits_for_completed_delivery_turn():
     spec = importlib.util.spec_from_file_location("native_product_bridge_entry", ENTRY)
     entry = importlib.util.module_from_spec(spec)

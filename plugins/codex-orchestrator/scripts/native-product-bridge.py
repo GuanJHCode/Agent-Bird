@@ -67,7 +67,32 @@ def stable_json(path, *, private=False):
 
 
 def digest(path):
-    return hashlib.sha256(stable_bytes(path, 512 * 1024 * 1024)).hexdigest()
+    path = Path(path)
+    require(path.is_absolute(), "path_not_absolute")
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except OSError as exc:
+        raise EntryError("file_unavailable") from exc
+    try:
+        before = os.fstat(fd)
+        require(stat.S_ISREG(before.st_mode) and before.st_uid in (0, os.getuid())
+                and before.st_nlink == 1 and 0 < before.st_size <= 512 * 1024 * 1024,
+                "file_identity")
+        value = hashlib.sha256()
+        remaining = before.st_size
+        while remaining:
+            block = os.read(fd, min(1024 * 1024, remaining))
+            require(block, "file_changed")
+            value.update(block)
+            remaining -= len(block)
+        require(os.read(fd, 1) == b"", "file_changed")
+        after = os.fstat(fd)
+        identity = lambda item: (item.st_dev, item.st_ino, item.st_uid, item.st_mode,
+                                 item.st_nlink, item.st_size, item.st_mtime_ns, item.st_ctime_ns)
+        require(identity(before) == identity(after), "file_changed")
+        return value.hexdigest()
+    finally:
+        os.close(fd)
 
 
 def kernel_executable():
