@@ -1,0 +1,94 @@
+{
+  "cleanup": {
+    "forced_product_pids": [],
+    "signalled_product_pids": [
+      89323
+    ]
+  },
+  "completed_unix_nano": 1789323010299211000,
+  "duration_seconds": 300,
+  "evidence": {
+    "durability_source": "orchestrator collect only",
+    "fixture_dir": "/private/tmp/codex-g1-resource-8139120/resource-callback/resource-fixture",
+    "samples": "/private/tmp/codex-g1-resource-8139120/resource-callback/resource-samples.jsonl",
+    "state_dir": "/private/tmp/codex-g1-resource-8139120/resource-callback/resource-state"
+  },
+  "failure": "",
+  "fixture_stats": [
+    {
+      "completed_unix_nano": 1789322709160943000,
+      "emission_reports": 1,
+      "giant_lines": 0,
+      "mode": "oneshot",
+      "pid": 89330,
+      "product_report_attempts": 1,
+      "product_report_cpu_nanos": 8732000,
+      "product_report_max_rss_bytes": 11812864,
+      "product_report_successes": 1,
+      "scenario": "callback",
+      "schema_version": 1,
+      "started_unix_nano": 1789322709115611000,
+      "status": "completed",
+      "stderr_bytes": 0,
+      "stdout_bytes": 113,
+      "terminal_emitted_unix_nano": 1789322709121661000,
+      "terminal_sentinel": "RESOURCE_TERMINAL:callback:callback-1",
+      "terminal_wire_sha256": "c19d7d4d4de0e2ea1aab267de26e0cd39d1bda8a2cb8fe643bd8065e65f80d95",
+      "worker_id": "callback-1"
+    }
+  ],
+  "frozen_manifest": "/private/tmp/codex-g1-resource-8139120/resource-manifest.json",
+  "frozen_orchestrator_sha256": "e6c0bf930a75029d39b38b49cca2ded8999d0ce0545ed8d2fa7e48a1fc0bc3c7",
+  "frozen_worker_sha256": "4e98fbcdfcaf3c54bdbdde2af86380b63b63c23faa704785331d1f0afebe10c2",
+  "functional": {
+    "checks": {
+      "attached_delivery_slo_covered": false,
+      "coordinator_retained_for_pending_callback": true,
+      "cpu_limit": true,
+      "durable_ingest_slo": true,
+      "full_duration": true,
+      "no_periodic_product_spawn": true,
+      "pending_result_preserved_without_ack": true,
+      "rss_limit": true,
+      "source_host_exited_before_offline_window": true
+    },
+    "durable_ingest_seconds": 0.098387
+  },
+  "measurement_scope": {
+    "claim": "g1_core_resource_only",
+    "excluded": [
+      "synthetic_provider_worker",
+      "native_codex_backend"
+    ],
+    "included": [
+      "orchestrator_coordinator",
+      "source_host",
+      "report_helper",
+      "visible_product_descendants"
+    ],
+    "native_attached_delivery_evidence": false,
+    "not_started_or_measured": [
+      "g0_python_service",
+      "g0_native_bridge_python_child"
+    ],
+    "synthetic_owner_admission": "ORCHESTRATOR_ENABLE_TEST_FAKE=1"
+  },
+  "metrics": {
+    "average_product_cpu_percent_of_one_core": 0.2481275205091838,
+    "elapsed_seconds": 301.75290449988097,
+    "maximum_product_role_counts": {
+      "serve": 1
+    },
+    "peak_product_rss_mib": 32.09375,
+    "peak_sampled_roots_rss_mib": 20.828125,
+    "report_helper_cpu_seconds_from_rusage": 0.008732,
+    "sampled_cpu_seconds": 0.74,
+    "short_lived_report_max_rss_mib_added_conservatively": 11.265625,
+    "unique_product_processes_seen": 1
+  },
+  "scenario": "callback",
+  "schema_version": 1,
+  "smoke": false,
+  "started_unix_nano": 1789322708545567000,
+  "status": "FAIL"
+}

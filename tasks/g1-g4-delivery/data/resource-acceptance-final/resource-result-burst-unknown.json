@@ -1,0 +1,163 @@
+{
+  "cleanup": {
+    "forced_product_pids": [],
+    "signalled_product_pids": [
+      38064
+    ]
+  },
+  "completed_unix_nano": 1789326890002907000,
+  "duration_seconds": 1200,
+  "evidence": {
+    "durability_source": "orchestrator collect only",
+    "fixture_dir": "/private/tmp/codex-g1-resource-fc03620/resource-burst-unknown/resource-fixture",
+    "samples": "/private/tmp/codex-g1-resource-fc03620/resource-burst-unknown/resource-samples.jsonl",
+    "state_dir": "/private/tmp/codex-g1-resource-fc03620/resource-burst-unknown/resource-state"
+  },
+  "failure": "",
+  "fixture_stats": [
+    {
+      "completed_unix_nano": 1789326888926852000,
+      "emission_reports": 120,
+      "giant_lines": 40,
+      "mode": "burst-unknown",
+      "pid": 38071,
+      "product_report_attempts": 120,
+      "product_report_cpu_nanos": 1722696000,
+      "product_report_max_rss_bytes": 12582912,
+      "product_report_successes": 120,
+      "scenario": "burst-unknown",
+      "schema_version": 1,
+      "started_unix_nano": 1789325688885511000,
+      "status": "completed",
+      "stderr_bytes": 314540032,
+      "stdout_bytes": 1111457920,
+      "terminal_emitted_unix_nano": 1789326888906792000,
+      "terminal_sentinel": "RESOURCE_TERMINAL:burst-unknown:burst-unknown-1",
+      "terminal_wire_sha256": "2126dd80288cd57dcc2f982ee90bb16ef9bb52a5834c687db9172655ad5ed153",
+      "worker_id": "burst-unknown-1"
+    },
+    {
+      "completed_unix_nano": 1789326888938760000,
+      "emission_reports": 120,
+      "giant_lines": 40,
+      "mode": "burst-unknown",
+      "pid": 38073,
+      "product_report_attempts": 120,
+      "product_report_cpu_nanos": 1620411000,
+      "product_report_max_rss_bytes": 12320768,
+      "product_report_successes": 120,
+      "scenario": "burst-unknown",
+      "schema_version": 1,
+      "started_unix_nano": 1789325688894326000,
+      "status": "completed",
+      "stderr_bytes": 314540032,
+      "stdout_bytes": 1111425152,
+      "terminal_emitted_unix_nano": 1789326888909900000,
+      "terminal_sentinel": "RESOURCE_TERMINAL:burst-unknown:burst-unknown-2",
+      "terminal_wire_sha256": "cd1e756536a94823ef1acac072a6d182e724c6e29b3b4eeefc31ecc95125c776",
+      "worker_id": "burst-unknown-2"
+    }
+  ],
+  "frozen_manifest": "/private/tmp/codex-g1-resource-fc03620/resource-manifest.json",
+  "frozen_orchestrator_sha256": "f258ab25f5fd8eafa8e08fddc28d630bb342378f7c9fa65cd8c259d6da8b28c4",
+  "frozen_worker_sha256": "4e98fbcdfcaf3c54bdbdde2af86380b63b63c23faa704785331d1f0afebe10c2",
+  "functional": {
+    "checks": {
+      "all_report_events_durable": true,
+      "all_workers_completed": true,
+      "full_duration": true,
+      "giant_line_schedule_met": true,
+      "independent_reports_emitted": true,
+      "late_endpoint_growth": true,
+      "late_rss_slope": true,
+      "output_rate_met": true,
+      "product_report_calls_acked": true,
+      "product_report_contract_injected": true,
+      "rss_limit": true
+    },
+    "durable_report_events": 240,
+    "expected_report_events": 240,
+    "late_endpoint_growth_mib": -0.96875,
+    "late_minute_medians": [
+      [
+        0.0,
+        35.375
+      ],
+      [
+        60.0,
+        32.890625
+      ],
+      [
+        120.0,
+        34.09375
+      ],
+      [
+        180.0,
+        31.0
+      ],
+      [
+        240.0,
+        35.28125
+      ],
+      [
+        300.0,
+        35.796875
+      ],
+      [
+        360.0,
+        36.046875
+      ],
+      [
+        420.0,
+        31.1171875
+      ],
+      [
+        480.0,
+        34.34375
+      ],
+      [
+        540.0,
+        34.40625
+      ]
+    ],
+    "late_theil_sen_slope_mib_per_minute": 0.044642857142857144
+  },
+  "measurement_scope": {
+    "claim": "g1_core_resource_only",
+    "excluded": [
+      "synthetic_provider_worker",
+      "native_codex_backend"
+    ],
+    "included": [
+      "orchestrator_coordinator",
+      "source_host",
+      "report_helper",
+      "visible_product_descendants"
+    ],
+    "native_attached_delivery_evidence": false,
+    "not_started_or_measured": [
+      "g0_python_service",
+      "g0_native_bridge_python_child"
+    ],
+    "synthetic_owner_admission": "ORCHESTRATOR_ENABLE_TEST_FAKE=1"
+  },
+  "metrics": {
+    "average_product_cpu_percent_of_one_core": 3.6049396693012516,
+    "elapsed_seconds": 1201.2158585831057,
+    "maximum_product_role_counts": {
+      "serve": 1,
+      "source-host": 1
+    },
+    "peak_product_rss_mib": 65.296875,
+    "peak_sampled_roots_rss_mib": 41.546875,
+    "report_helper_cpu_seconds_from_rusage": 3.343107,
+    "sampled_cpu_seconds": 39.959999999999994,
+    "short_lived_report_max_rss_mib_added_conservatively": 23.75,
+    "unique_product_processes_seen": 82
+  },
+  "scenario": "burst-unknown",
+  "schema_version": 1,
+  "smoke": false,
+  "started_unix_nano": 1789325688783642000,
+  "status": "PASS"
+}

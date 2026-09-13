@@ -1,0 +1,25 @@
+{
+  "derived_from": "/private/tmp/codex-g1-resource-8139120/resource-callback/resource-result.json",
+  "derived_from_sha256": "fa0878b36d83f73c20f33cae8ab52a57244e8db0794e3038646504f2e331e46d",
+  "measurement_scope": "g1_core_resource_only",
+  "not_covered": {
+    "attached_delivery_slo": {
+      "covered": false,
+      "reason": "requires a real native owner capability outside g1_core_resource_only"
+    }
+  },
+  "original_preserved": true,
+  "original_status": "FAIL",
+  "schema_version": 1,
+  "scope_checks": {
+    "coordinator_retained_for_pending_callback": true,
+    "cpu_limit": true,
+    "durable_ingest_slo": true,
+    "full_duration": true,
+    "no_periodic_product_spawn": true,
+    "pending_result_preserved_without_ack": true,
+    "rss_limit": true,
+    "source_host_exited_before_offline_window": true
+  },
+  "scope_status": "PASS"
+}

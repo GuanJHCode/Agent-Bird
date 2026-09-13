@@ -1,0 +1,62 @@
+{
+  "cleanup": {
+    "forced_product_pids": [],
+    "signalled_product_pids": []
+  },
+  "completed_unix_nano": 1789322477434504000,
+  "duration_seconds": 40,
+  "evidence": {
+    "durability_source": "orchestrator collect only",
+    "fixture_dir": "/private/tmp/codex-g1-resource-64515ff/resource-idle/resource-fixture",
+    "samples": "/private/tmp/codex-g1-resource-64515ff/resource-idle/resource-samples.jsonl",
+    "state_dir": "/private/tmp/codex-g1-resource-64515ff/resource-idle/resource-state"
+  },
+  "failure": "",
+  "fixture_stats": [],
+  "frozen_manifest": "/private/tmp/codex-g1-resource-64515ff/resource-manifest.json",
+  "frozen_orchestrator_sha256": "8874d6da2b907aec5b558f6837cce30953275b1a83d042b801c4cc64e258d56e",
+  "frozen_worker_sha256": "4e98fbcdfcaf3c54bdbdde2af86380b63b63c23faa704785331d1f0afebe10c2",
+  "functional": {
+    "checks": {
+      "full_duration": true,
+      "no_process_after_debounce": true
+    }
+  },
+  "measurement_scope": {
+    "claim": "g1_core_resource_only",
+    "excluded": [
+      "synthetic_provider_worker",
+      "native_codex_backend"
+    ],
+    "included": [
+      "orchestrator_coordinator",
+      "source_host",
+      "report_helper",
+      "visible_product_descendants"
+    ],
+    "native_attached_delivery_evidence": false,
+    "not_started_or_measured": [
+      "g0_python_service",
+      "g0_native_bridge_python_child"
+    ],
+    "synthetic_owner_admission": "ORCHESTRATOR_ENABLE_TEST_FAKE=1"
+  },
+  "metrics": {
+    "average_product_cpu_percent_of_one_core": 0.14836337486617412,
+    "elapsed_seconds": 40.44124775007367,
+    "maximum_product_role_counts": {
+      "serve": 1
+    },
+    "peak_product_rss_mib": 17.265625,
+    "peak_sampled_roots_rss_mib": 17.265625,
+    "report_helper_cpu_seconds_from_rusage": 0.0,
+    "sampled_cpu_seconds": 0.060000000000000005,
+    "short_lived_report_max_rss_mib_added_conservatively": 0.0,
+    "unique_product_processes_seen": 1
+  },
+  "scenario": "idle",
+  "schema_version": 1,
+  "smoke": false,
+  "started_unix_nano": 1789322436993139000,
+  "status": "PASS"
+}

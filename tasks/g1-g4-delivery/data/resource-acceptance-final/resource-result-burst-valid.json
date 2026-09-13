@@ -1,0 +1,163 @@
+{
+  "cleanup": {
+    "forced_product_pids": [],
+    "signalled_product_pids": [
+      11728
+    ]
+  },
+  "completed_unix_nano": 1789324883691867000,
+  "duration_seconds": 1200,
+  "evidence": {
+    "durability_source": "orchestrator collect only",
+    "fixture_dir": "/private/tmp/codex-g1-resource-8139120/resource-burst-valid/resource-fixture",
+    "samples": "/private/tmp/codex-g1-resource-8139120/resource-burst-valid/resource-samples.jsonl",
+    "state_dir": "/private/tmp/codex-g1-resource-8139120/resource-burst-valid/resource-state"
+  },
+  "failure": "",
+  "fixture_stats": [
+    {
+      "completed_unix_nano": 1789324882727882000,
+      "emission_reports": 120,
+      "giant_lines": 40,
+      "mode": "burst-valid",
+      "pid": 11736,
+      "product_report_attempts": 120,
+      "product_report_cpu_nanos": 1630505000,
+      "product_report_max_rss_bytes": 12320768,
+      "product_report_successes": 120,
+      "scenario": "burst-valid",
+      "schema_version": 1,
+      "started_unix_nano": 1789323682695291000,
+      "status": "completed",
+      "stderr_bytes": 314540032,
+      "stdout_bytes": 1111457914,
+      "terminal_emitted_unix_nano": 1789324882710890000,
+      "terminal_sentinel": "RESOURCE_TERMINAL:burst-valid:burst-valid-1",
+      "terminal_wire_sha256": "cc4874cff9913d7c67bfc44234fa6767619ee8d855ca22653b42a6d991b4b198",
+      "worker_id": "burst-valid-1"
+    },
+    {
+      "completed_unix_nano": 1789324882740233000,
+      "emission_reports": 120,
+      "giant_lines": 40,
+      "mode": "burst-valid",
+      "pid": 11738,
+      "product_report_attempts": 120,
+      "product_report_cpu_nanos": 1354301000,
+      "product_report_max_rss_bytes": 12304384,
+      "product_report_successes": 120,
+      "scenario": "burst-valid",
+      "schema_version": 1,
+      "started_unix_nano": 1789323682700814000,
+      "status": "completed",
+      "stderr_bytes": 314540032,
+      "stdout_bytes": 1111425146,
+      "terminal_emitted_unix_nano": 1789324882718222000,
+      "terminal_sentinel": "RESOURCE_TERMINAL:burst-valid:burst-valid-2",
+      "terminal_wire_sha256": "82fcdb6da3efe91d09ab923ec2dcb1fea380457e573be97fc9c12c87d8a19213",
+      "worker_id": "burst-valid-2"
+    }
+  ],
+  "frozen_manifest": "/private/tmp/codex-g1-resource-8139120/resource-manifest.json",
+  "frozen_orchestrator_sha256": "e6c0bf930a75029d39b38b49cca2ded8999d0ce0545ed8d2fa7e48a1fc0bc3c7",
+  "frozen_worker_sha256": "4e98fbcdfcaf3c54bdbdde2af86380b63b63c23faa704785331d1f0afebe10c2",
+  "functional": {
+    "checks": {
+      "all_report_events_durable": true,
+      "all_workers_completed": true,
+      "full_duration": true,
+      "giant_line_schedule_met": true,
+      "independent_reports_emitted": true,
+      "late_endpoint_growth": true,
+      "late_rss_slope": true,
+      "output_rate_met": true,
+      "product_report_calls_acked": true,
+      "product_report_contract_injected": true,
+      "rss_limit": true
+    },
+    "durable_report_events": 240,
+    "expected_report_events": 240,
+    "late_endpoint_growth_mib": 1.4375,
+    "late_minute_medians": [
+      [
+        0.0,
+        34.859375
+      ],
+      [
+        60.0,
+        35.0859375
+      ],
+      [
+        120.0,
+        35.296875
+      ],
+      [
+        180.0,
+        35.4375
+      ],
+      [
+        240.0,
+        35.015625
+      ],
+      [
+        300.0,
+        34.96875
+      ],
+      [
+        360.0,
+        35.375
+      ],
+      [
+        420.0,
+        34.859375
+      ],
+      [
+        480.0,
+        36.0
+      ],
+      [
+        540.0,
+        36.296875
+      ]
+    ],
+    "late_theil_sen_slope_mib_per_minute": 0.13058035714285715
+  },
+  "measurement_scope": {
+    "claim": "g1_core_resource_only",
+    "excluded": [
+      "synthetic_provider_worker",
+      "native_codex_backend"
+    ],
+    "included": [
+      "orchestrator_coordinator",
+      "source_host",
+      "report_helper",
+      "visible_product_descendants"
+    ],
+    "native_attached_delivery_evidence": false,
+    "not_started_or_measured": [
+      "g0_python_service",
+      "g0_native_bridge_python_child"
+    ],
+    "synthetic_owner_admission": "ORCHESTRATOR_ENABLE_TEST_FAKE=1"
+  },
+  "metrics": {
+    "average_product_cpu_percent_of_one_core": 5.892452347559691,
+    "elapsed_seconds": 1201.1095181670971,
+    "maximum_product_role_counts": {
+      "serve": 1,
+      "source-host": 1
+    },
+    "peak_product_rss_mib": 64.640625,
+    "peak_sampled_roots_rss_mib": 41.15625,
+    "report_helper_cpu_seconds_from_rusage": 2.984806,
+    "sampled_cpu_seconds": 67.79,
+    "short_lived_report_max_rss_mib_added_conservatively": 23.484375,
+    "unique_product_processes_seen": 78
+  },
+  "scenario": "burst-valid",
+  "schema_version": 1,
+  "smoke": false,
+  "started_unix_nano": 1789323682579203000,
+  "status": "PASS"
+}

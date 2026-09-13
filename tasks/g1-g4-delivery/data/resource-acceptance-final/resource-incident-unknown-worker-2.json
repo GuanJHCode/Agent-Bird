@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "scenario": "burst-unknown",
+  "mode": "burst-unknown",
+  "worker_id": "burst-unknown-2",
+  "pid": 29817,
+  "started_unix_nano": 1789324916881361000,
+  "completed_unix_nano": 1789324916979702000,
+  "stdout_bytes": 65536,
+  "stderr_bytes": 0,
+  "giant_lines": 0,
+  "emission_reports": 1,
+  "product_report_attempts": 1,
+  "product_report_successes": 1,
+  "product_report_cpu_nanos": 6752000,
+  "product_report_max_rss_bytes": 11894784,
+  "terminal_wire_sha256": "cd1e756536a94823ef1acac072a6d182e724c6e29b3b4eeefc31ecc95125c776",
+  "terminal_sentinel": "RESOURCE_TERMINAL:burst-unknown:burst-unknown-2",
+  "status": "failed",
+  "error": "context canceled"
+}

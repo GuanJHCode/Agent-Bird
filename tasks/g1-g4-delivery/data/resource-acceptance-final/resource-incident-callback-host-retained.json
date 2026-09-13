@@ -1,0 +1,80 @@
+{
+  "cleanup": {
+    "forced_product_pids": [],
+    "signalled_product_pids": [
+      87069,
+      87070
+    ]
+  },
+  "completed_unix_nano": 1789322503723111000,
+  "duration_seconds": 300,
+  "evidence": {
+    "durability_source": "orchestrator collect only",
+    "fixture_dir": "/private/tmp/codex-g1-resource-64515ff/resource-callback/resource-fixture",
+    "samples": "/private/tmp/codex-g1-resource-64515ff/resource-callback/resource-samples.jsonl",
+    "state_dir": "/private/tmp/codex-g1-resource-64515ff/resource-callback/resource-state"
+  },
+  "failure": "AcceptanceError: source Host retained after terminal durable result; last=False",
+  "fixture_stats": [
+    {
+      "completed_unix_nano": 1789322488496015000,
+      "emission_reports": 1,
+      "giant_lines": 0,
+      "mode": "oneshot",
+      "pid": 87076,
+      "product_report_attempts": 1,
+      "product_report_cpu_nanos": 6760000,
+      "product_report_max_rss_bytes": 11665408,
+      "product_report_successes": 1,
+      "scenario": "callback",
+      "schema_version": 1,
+      "started_unix_nano": 1789322488453244000,
+      "status": "completed",
+      "stderr_bytes": 0,
+      "stdout_bytes": 113,
+      "terminal_emitted_unix_nano": 1789322488458732000,
+      "terminal_sentinel": "RESOURCE_TERMINAL:callback:callback-1",
+      "terminal_wire_sha256": "c19d7d4d4de0e2ea1aab267de26e0cd39d1bda8a2cb8fe643bd8065e65f80d95",
+      "worker_id": "callback-1"
+    }
+  ],
+  "frozen_manifest": "/private/tmp/codex-g1-resource-64515ff/resource-manifest.json",
+  "frozen_orchestrator_sha256": "8874d6da2b907aec5b558f6837cce30953275b1a83d042b801c4cc64e258d56e",
+  "frozen_worker_sha256": "4e98fbcdfcaf3c54bdbdde2af86380b63b63c23faa704785331d1f0afebe10c2",
+  "functional": {},
+  "measurement_scope": {
+    "claim": "g1_core_resource_only",
+    "excluded": [
+      "synthetic_provider_worker",
+      "native_codex_backend"
+    ],
+    "included": [
+      "orchestrator_coordinator",
+      "source_host",
+      "report_helper",
+      "visible_product_descendants"
+    ],
+    "native_attached_delivery_evidence": false,
+    "not_started_or_measured": [
+      "g0_python_service",
+      "g0_native_bridge_python_child"
+    ],
+    "synthetic_owner_admission": "ORCHESTRATOR_ENABLE_TEST_FAKE=1"
+  },
+  "metrics": {
+    "average_product_cpu_percent_of_one_core": 0.04402018806522505,
+    "elapsed_seconds": 15.3565904579591,
+    "maximum_product_role_counts": {},
+    "peak_product_rss_mib": 11.125,
+    "peak_sampled_roots_rss_mib": 0.0,
+    "report_helper_cpu_seconds_from_rusage": 0.00676,
+    "sampled_cpu_seconds": 0,
+    "short_lived_report_max_rss_mib_added_conservatively": 11.125,
+    "unique_product_processes_seen": 0
+  },
+  "scenario": "callback",
+  "schema_version": 1,
+  "smoke": false,
+  "started_unix_nano": 1789322488366481000,
+  "status": "ERROR"
+}

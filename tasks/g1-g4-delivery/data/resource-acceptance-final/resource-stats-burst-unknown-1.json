@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "scenario": "burst-unknown",
+  "mode": "burst-unknown",
+  "worker_id": "burst-unknown-1",
+  "pid": 38071,
+  "started_unix_nano": 1789325688885511000,
+  "terminal_emitted_unix_nano": 1789326888906792000,
+  "completed_unix_nano": 1789326888926852000,
+  "stdout_bytes": 1111457920,
+  "stderr_bytes": 314540032,
+  "giant_lines": 40,
+  "emission_reports": 120,
+  "product_report_attempts": 120,
+  "product_report_successes": 120,
+  "product_report_cpu_nanos": 1722696000,
+  "product_report_max_rss_bytes": 12582912,
+  "terminal_wire_sha256": "2126dd80288cd57dcc2f982ee90bb16ef9bb52a5834c687db9172655ad5ed153",
+  "terminal_sentinel": "RESOURCE_TERMINAL:burst-unknown:burst-unknown-1",
+  "status": "completed"
+}

@@ -1,0 +1,122 @@
+{
+  "cleanup": {
+    "forced_product_pids": [],
+    "signalled_product_pids": [
+      37757
+    ]
+  },
+  "completed_unix_nano": 1789325670600785000,
+  "duration_seconds": 5,
+  "evidence": {
+    "durability_source": "orchestrator collect only",
+    "fixture_dir": "/private/tmp/codex-g1-resource-fc03620/resource-burst-unknown-smoke5/resource-fixture",
+    "samples": "/private/tmp/codex-g1-resource-fc03620/resource-burst-unknown-smoke5/resource-samples.jsonl",
+    "state_dir": "/private/tmp/codex-g1-resource-fc03620/resource-burst-unknown-smoke5/resource-state"
+  },
+  "failure": "",
+  "fixture_stats": [
+    {
+      "completed_unix_nano": 1789325670377819000,
+      "emission_reports": 1,
+      "giant_lines": 0,
+      "mode": "burst-unknown",
+      "pid": 37764,
+      "product_report_attempts": 1,
+      "product_report_cpu_nanos": 7787000,
+      "product_report_max_rss_bytes": 11550720,
+      "product_report_successes": 1,
+      "scenario": "burst-unknown",
+      "schema_version": 1,
+      "started_unix_nano": 1789325665338447000,
+      "status": "completed",
+      "stderr_bytes": 1310720,
+      "stdout_bytes": 3932288,
+      "terminal_emitted_unix_nano": 1789325670351550000,
+      "terminal_sentinel": "RESOURCE_TERMINAL:burst-unknown:burst-unknown-1",
+      "terminal_wire_sha256": "2126dd80288cd57dcc2f982ee90bb16ef9bb52a5834c687db9172655ad5ed153",
+      "worker_id": "burst-unknown-1"
+    },
+    {
+      "completed_unix_nano": 1789325670381737000,
+      "emission_reports": 1,
+      "giant_lines": 0,
+      "mode": "burst-unknown",
+      "pid": 37766,
+      "product_report_attempts": 1,
+      "product_report_cpu_nanos": 7240000,
+      "product_report_max_rss_bytes": 11616256,
+      "product_report_successes": 1,
+      "scenario": "burst-unknown",
+      "schema_version": 1,
+      "started_unix_nano": 1789325665347432000,
+      "status": "completed",
+      "stderr_bytes": 1310720,
+      "stdout_bytes": 3932288,
+      "terminal_emitted_unix_nano": 1789325670354781000,
+      "terminal_sentinel": "RESOURCE_TERMINAL:burst-unknown:burst-unknown-2",
+      "terminal_wire_sha256": "cd1e756536a94823ef1acac072a6d182e724c6e29b3b4eeefc31ecc95125c776",
+      "worker_id": "burst-unknown-2"
+    }
+  ],
+  "frozen_manifest": "/private/tmp/codex-g1-resource-fc03620/resource-manifest.json",
+  "frozen_orchestrator_sha256": "f258ab25f5fd8eafa8e08fddc28d630bb342378f7c9fa65cd8c259d6da8b28c4",
+  "frozen_worker_sha256": "4e98fbcdfcaf3c54bdbdde2af86380b63b63c23faa704785331d1f0afebe10c2",
+  "functional": {
+    "checks": {
+      "all_report_events_durable": true,
+      "all_workers_completed": true,
+      "full_duration": false,
+      "giant_line_schedule_met": true,
+      "independent_reports_emitted": true,
+      "late_endpoint_growth": false,
+      "late_rss_slope": false,
+      "output_rate_met": true,
+      "product_report_calls_acked": true,
+      "product_report_contract_injected": true,
+      "rss_limit": true
+    },
+    "durable_report_events": 2,
+    "expected_report_events": 2,
+    "late_endpoint_growth_mib": null,
+    "late_minute_medians": [],
+    "late_theil_sen_slope_mib_per_minute": null
+  },
+  "measurement_scope": {
+    "claim": "g1_core_resource_only",
+    "excluded": [
+      "synthetic_provider_worker",
+      "native_codex_backend"
+    ],
+    "included": [
+      "orchestrator_coordinator",
+      "source_host",
+      "report_helper",
+      "visible_product_descendants"
+    ],
+    "native_attached_delivery_evidence": false,
+    "not_started_or_measured": [
+      "g0_python_service",
+      "g0_native_bridge_python_child"
+    ],
+    "synthetic_owner_admission": "ORCHESTRATOR_ENABLE_TEST_FAKE=1"
+  },
+  "metrics": {
+    "average_product_cpu_percent_of_one_core": 2.328254845663753,
+    "elapsed_seconds": 5.3699877499602735,
+    "maximum_product_role_counts": {
+      "serve": 1,
+      "source-host": 1
+    },
+    "peak_product_rss_mib": 62.625,
+    "peak_sampled_roots_rss_mib": 40.53125,
+    "report_helper_cpu_seconds_from_rusage": 0.015027,
+    "sampled_cpu_seconds": 0.10999999999999999,
+    "short_lived_report_max_rss_mib_added_conservatively": 22.09375,
+    "unique_product_processes_seen": 2
+  },
+  "scenario": "burst-unknown",
+  "schema_version": 1,
+  "smoke": true,
+  "started_unix_nano": 1789325665230776000,
+  "status": "SMOKE_ONLY"
+}

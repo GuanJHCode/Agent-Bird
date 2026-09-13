@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "scenario": "burst-valid",
+  "mode": "burst-valid",
+  "worker_id": "burst-valid-2",
+  "pid": 11738,
+  "started_unix_nano": 1789323682700814000,
+  "terminal_emitted_unix_nano": 1789324882718222000,
+  "completed_unix_nano": 1789324882740233000,
+  "stdout_bytes": 1111425146,
+  "stderr_bytes": 314540032,
+  "giant_lines": 40,
+  "emission_reports": 120,
+  "product_report_attempts": 120,
+  "product_report_successes": 120,
+  "product_report_cpu_nanos": 1354301000,
+  "product_report_max_rss_bytes": 12304384,
+  "terminal_wire_sha256": "82fcdb6da3efe91d09ab923ec2dcb1fea380457e573be97fc9c12c87d8a19213",
+  "terminal_sentinel": "RESOURCE_TERMINAL:burst-valid:burst-valid-2",
+  "status": "completed"
+}

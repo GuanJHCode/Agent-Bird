@@ -1,0 +1,56 @@
+{
+  "cleanup_verified_no_matching_processes": true,
+  "fixture_stats": [
+    {
+      "duration_seconds": 0.10315,
+      "emission_reports": 1,
+      "error": "context canceled",
+      "giant_lines": 0,
+      "path": "/private/tmp/codex-g1-resource-8139120/resource-burst-unknown/resource-fixture/resource-stats-burst-unknown-1.json",
+      "sha256": "d8b7c2df4d718aaa0684766f3e481bfc3ed0d8df55054fd326f8f34d19e734c0",
+      "status": "failed",
+      "stdout_bytes": 65536
+    },
+    {
+      "duration_seconds": 0.098341,
+      "emission_reports": 1,
+      "error": "context canceled",
+      "giant_lines": 0,
+      "path": "/private/tmp/codex-g1-resource-8139120/resource-burst-unknown/resource-fixture/resource-stats-burst-unknown-2.json",
+      "sha256": "a68dbe6050a8cb441b7c389583d2a4bfd16379958f0a985ff2205b8949efe71b",
+      "status": "failed",
+      "stdout_bytes": 65536
+    }
+  ],
+  "full_duration_met": false,
+  "measurement_scope": "g1_core_resource_only",
+  "raw_samples": "/private/tmp/codex-g1-resource-8139120/resource-burst-unknown/resource-samples.jsonl",
+  "raw_samples_sha256": "2721726ebc995d73b9ca7c3773bbfe563b3226f913aabd71f76b9c108fae36c2",
+  "reason": "ordinary unknown raw output moved both tasks to unknown and canceled both workers before the fixed load could run",
+  "retry_performed": false,
+  "scenario": "burst-unknown",
+  "schema_version": 1,
+  "segment_states": [
+    {
+      "outcome": "stopped",
+      "segment_id": "segment-03b411adc0760d0bc1ac1c32",
+      "status": "unknown"
+    },
+    {
+      "outcome": "stopped",
+      "segment_id": "segment-a838737ed27c583db80839ec",
+      "status": "unknown"
+    }
+  ],
+  "status": "ABORTED_PRODUCT_FAILURE",
+  "task_states": [
+    {
+      "status": "unknown",
+      "task_id": "resource-burst-unknown-task-1"
+    },
+    {
+      "status": "unknown",
+      "task_id": "resource-burst-unknown-task-2"
+    }
+  ]
+}

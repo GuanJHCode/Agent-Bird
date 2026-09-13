@@ -1,0 +1,158 @@
+{
+  "excluded_sensitive_artifacts": [
+    "state.db",
+    "control capabilities",
+    "host bootstrap",
+    "report capabilities",
+    "slot tokens"
+  ],
+  "files": [
+    {
+      "path": "tasks/g1-g4-delivery/data/resource-acceptance-final/resource-emitted-burst-unknown-1.jsonl",
+      "sha256": "ef761b9d9d52e2c0c1b61ae107379f18ede93e6577bb5aa053aadac083bae54a",
+      "size": 35051
+    },
+    {
+      "path": "tasks/g1-g4-delivery/data/resource-acceptance-final/resource-emitted-burst-unknown-2.jsonl",
+      "sha256": "1896ac08876bf2d2bb7893d3259fe9c0c4338ad551f110a2eba9e5f5e4ebf7d1",
+      "size": 35051
+    },
+    {
+      "path": "tasks/g1-g4-delivery/data/resource-acceptance-final/resource-emitted-burst-valid-1.jsonl",
+      "sha256": "a94868f04fb0cd99435559794ca0ca60dc371e652836f955f9bd8476e929925e",
+      "size": 34331
+    },
+    {
+      "path": "tasks/g1-g4-delivery/data/resource-acceptance-final/resource-emitted-burst-valid-2.jsonl",
+      "sha256": "c3e885662886abee2e1558b42fd361674de743ec14bfd32af22a47f0da8287aa",
+      "size": 34331
+    },
+    {
+      "path": "tasks/g1-g4-delivery/data/resource-acceptance-final/resource-incident-callback-host-retained.json",
+      "sha256": "2b77076a54a727199425c365ea560114696bbe75281b02822ff7a7d5a51af72c",
+      "size": 2818
+    },
+    {
+      "path": "tasks/g1-g4-delivery/data/resource-acceptance-final/resource-incident-unknown-raw.json",
+      "sha256": "ae914ffa34df565edbf7012053496eb83545fc3ada44b4af2fef18fc5fca8df1",
+      "size": 1889
+    },
+    {
+      "path": "tasks/g1-g4-delivery/data/resource-acceptance-final/resource-incident-unknown-samples.jsonl",
+      "sha256": "2721726ebc995d73b9ca7c3773bbfe563b3226f913aabd71f76b9c108fae36c2",
+      "size": 359601
+    },
+    {
+      "path": "tasks/g1-g4-delivery/data/resource-acceptance-final/resource-incident-unknown-worker-1.json",
+      "sha256": "d8b7c2df4d718aaa0684766f3e481bfc3ed0d8df55054fd326f8f34d19e734c0",
+      "size": 684
+    },
+    {
+      "path": "tasks/g1-g4-delivery/data/resource-acceptance-final/resource-incident-unknown-worker-2.json",
+      "sha256": "a68dbe6050a8cb441b7c389583d2a4bfd16379958f0a985ff2205b8949efe71b",
+      "size": 684
+    },
+    {
+      "path": "tasks/g1-g4-delivery/data/resource-acceptance-final/resource-manifest-64515ff.json",
+      "sha256": "9c3f1fecaa5cf6717eab0e6e3e2254d9bfd048f368fa39aebdb5ba0f7643b7f4",
+      "size": 3155
+    },
+    {
+      "path": "tasks/g1-g4-delivery/data/resource-acceptance-final/resource-manifest-8139120.json",
+      "sha256": "858baafcb78c600568706ce11baf1369db372c2cd85ce4584f4db4c4fe14c404",
+      "size": 3155
+    },
+    {
+      "path": "tasks/g1-g4-delivery/data/resource-acceptance-final/resource-manifest-fc03620.json",
+      "sha256": "a4ad84d7355814864d2f7ce027cef9de3a5da1b11cf51a645473ef728ce72eb3",
+      "size": 3155
+    },
+    {
+      "path": "tasks/g1-g4-delivery/data/resource-acceptance-final/resource-result-burst-unknown-smoke5.json",
+      "sha256": "7a622bbbe4afb85830698c84c7d6fdd59e21416e4ebc9275cb7bc1d9d7af2520",
+      "size": 4290
+    },
+    {
+      "path": "tasks/g1-g4-delivery/data/resource-acceptance-final/resource-result-burst-unknown.json",
+      "sha256": "fb49be421420486db6130b34ab5d491aaad2a7e8f07a87dfc5f056afe4e37721",
+      "size": 4810
+    },
+    {
+      "path": "tasks/g1-g4-delivery/data/resource-acceptance-final/resource-result-burst-valid.json",
+      "sha256": "9b739642879cd4724ca4a3f8c3ba61a0309b0984ab032e957e1f5abb700ae8c9",
+      "size": 4769
+    },
+    {
+      "path": "tasks/g1-g4-delivery/data/resource-acceptance-final/resource-result-callback-original.json",
+      "sha256": "fa0878b36d83f73c20f33cae8ab52a57244e8db0794e3038646504f2e331e46d",
+      "size": 3192
+    },
+    {
+      "path": "tasks/g1-g4-delivery/data/resource-acceptance-final/resource-result-hosts.json",
+      "sha256": "a2435504f072ad3ca2e4cd27f2c38064aeb4c37faf04e43534837b141edc0109",
+      "size": 3843
+    },
+    {
+      "path": "tasks/g1-g4-delivery/data/resource-acceptance-final/resource-result-idle.json",
+      "sha256": "13a0ac9bbc766429878bad7e6a75b8cea775bd322bf6688dda44e00766a15f01",
+      "size": 2061
+    },
+    {
+      "path": "tasks/g1-g4-delivery/data/resource-acceptance-final/resource-samples-burst-unknown-smoke5.jsonl",
+      "sha256": "ae3da7ecc4ff517f1d7df73b1e5efb323396400620eec62a0b534ed21c9b515f",
+      "size": 4782
+    },
+    {
+      "path": "tasks/g1-g4-delivery/data/resource-acceptance-final/resource-samples-burst-unknown.jsonl",
+      "sha256": "91118db8929fc3685d6ad831dc29921bad05784cb42fb197fa5a17261b3eec48",
+      "size": 1119736
+    },
+    {
+      "path": "tasks/g1-g4-delivery/data/resource-acceptance-final/resource-samples-burst-valid.jsonl",
+      "sha256": "0d684d6132cbf19a81a5103068b5b45c41418010f6d5838d8ebc2f4db3800373",
+      "size": 1112505
+    },
+    {
+      "path": "tasks/g1-g4-delivery/data/resource-acceptance-final/resource-samples-callback.jsonl",
+      "sha256": "5063fa09e99703f295ab437528f5b52ab9506d3a619455ad8f419e11e078aacf",
+      "size": 141848
+    },
+    {
+      "path": "tasks/g1-g4-delivery/data/resource-acceptance-final/resource-samples-hosts.jsonl",
+      "sha256": "b7f9c6b10ea97fbd2f58bf34347c1db52d4c6d967d37607b355a9307df356135",
+      "size": 1307932
+    },
+    {
+      "path": "tasks/g1-g4-delivery/data/resource-acceptance-final/resource-samples-idle.jsonl",
+      "sha256": "8cf43e39a6f218bcc945db8eba5972a0d7bef93a3f9f9f553c2fcbcfcca0827f",
+      "size": 16020
+    },
+    {
+      "path": "tasks/g1-g4-delivery/data/resource-acceptance-final/resource-stats-burst-unknown-1.json",
+      "sha256": "05f2633b96f160e7230750a9d72e3cc3c121b8639c73946f13306cd79b96e1df",
+      "size": 732
+    },
+    {
+      "path": "tasks/g1-g4-delivery/data/resource-acceptance-final/resource-stats-burst-unknown-2.json",
+      "sha256": "9d9a7cdf24ff06245f7782963c9175b4e1cc6b44450310ae8787d439edb5e724",
+      "size": 732
+    },
+    {
+      "path": "tasks/g1-g4-delivery/data/resource-acceptance-final/resource-stats-burst-valid-1.json",
+      "sha256": "53489f335139a2707868778fcfd8ea2ff6aab9ee5eac70367ca075a0ea6e938c",
+      "size": 722
+    },
+    {
+      "path": "tasks/g1-g4-delivery/data/resource-acceptance-final/resource-stats-burst-valid-2.json",
+      "sha256": "8b928dc2101f8d85d4f3b2b9186cb384e30f3c9ab62e95a410c8d8af2bec192f",
+      "size": 722
+    },
+    {
+      "path": "tasks/g1-g4-delivery/data/resource-acceptance-final/resource-summary-callback-scope.json",
+      "sha256": "3a7e8a7b9d9255039f6aad14a52e2c12870023bbd57287959979ba5bad0b6ac4",
+      "size": 851
+    }
+  ],
+  "schema_version": 1,
+  "source_summary": "tasks/g1-g4-delivery/data/resource-acceptance-summary.json"
+}

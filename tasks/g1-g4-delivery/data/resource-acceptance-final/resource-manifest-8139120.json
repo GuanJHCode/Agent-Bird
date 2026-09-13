@@ -1,0 +1,104 @@
+{
+  "frozen_at": "2026-09-13T18:05:01Z",
+  "machine": {
+    "hw_logicalcpu": "11",
+    "hw_memsize": "19327352832",
+    "hw_model": "Mac15,6",
+    "hw_physicalcpu": "11",
+    "logical_cpus": 11,
+    "machine": "arm64",
+    "macos_version": "26.3.1",
+    "python": "3.13.7",
+    "release": "25.3.0",
+    "system": "Darwin"
+  },
+  "measurement_scope": {
+    "claim": "g1_core_resource_only",
+    "excluded": [
+      "synthetic_provider_worker",
+      "native_codex_backend"
+    ],
+    "included": [
+      "orchestrator_coordinator",
+      "source_host",
+      "report_helper",
+      "visible_product_descendants"
+    ],
+    "native_attached_delivery_evidence": false,
+    "not_started_or_measured": [
+      "g0_python_service",
+      "g0_native_bridge_python_child"
+    ],
+    "synthetic_owner_admission": "ORCHESTRATOR_ENABLE_TEST_FAKE=1"
+  },
+  "orchestrator": {
+    "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g1-g4-delivery/tmp/final-build/bin/orchestrator",
+    "sha256": "e6c0bf930a75029d39b38b49cca2ded8999d0ce0545ed8d2fa7e48a1fc0bc3c7"
+  },
+  "report_contract": {
+    "capability_env": "ORCHESTRATOR_REPORT_CAPABILITY",
+    "command": "report --capability-file ABS --request ABS",
+    "durability_evidence": "collect_only",
+    "executable_env": "ORCHESTRATOR_REPORT_EXECUTABLE",
+    "request_fields": [
+      "version",
+      "event_id",
+      "sequence",
+      "kind",
+      "payload"
+    ]
+  },
+  "schema_version": 1,
+  "source_clean": true,
+  "source_commit": "81391200f98c57de2d59f76a55f5b76572665081",
+  "thresholds": {
+    "burst": {
+      "bytes_per_second_per_worker": 1048576,
+      "duration_seconds": 1200,
+      "giant_line_bytes": 4194304,
+      "giant_line_interval_seconds": 30,
+      "late_window_seconds": 600,
+      "maximum_late_endpoint_growth_mib": 8,
+      "maximum_late_theil_sen_slope_mib_per_minute": 0.5,
+      "report_interval_seconds": 10,
+      "report_max_bytes": 4096,
+      "rss_limit_mib": 128,
+      "steady_start_second": 180,
+      "worker_count": 2
+    },
+    "callback": {
+      "average_cpu_percent_of_one_core": 1.0,
+      "duration_seconds": 300,
+      "maximum_new_product_processes_after_stabilization": 0,
+      "rss_limit_mib": 64
+    },
+    "hosts": {
+      "duration_seconds": 600,
+      "host_count": 4,
+      "next_host_expected_error": "admission_deferred",
+      "rss_limit_mib": 128
+    },
+    "idle": {
+      "debounce_seconds": 30,
+      "expected_processes_after_debounce": 0,
+      "observation_seconds": 40
+    },
+    "sampling_interval_seconds": 1,
+    "schema_version": 1,
+    "slo": {
+      "attached_delivery_attempt_seconds": 5,
+      "durable_ingest_seconds": 2
+    },
+    "workers": {
+      "duration_seconds": 600,
+      "rss_limit_mib": 128,
+      "worker_count": 2
+    }
+  },
+  "thresholds_sha256": "2709b1aa7eb7a9d31603c8b415679141d4207e47ffe412d56fea90adf1cb3b59",
+  "worker": {
+    "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g1-g4-delivery/tmp/final-build/bin/resource-synthetic-worker",
+    "sha256": "4e98fbcdfcaf3c54bdbdde2af86380b63b63c23faa704785331d1f0afebe10c2",
+    "version": "resource-synthetic-worker/1"
+  }
+}

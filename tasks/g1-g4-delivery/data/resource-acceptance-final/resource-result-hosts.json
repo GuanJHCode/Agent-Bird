@@ -1,0 +1,115 @@
+{
+  "cleanup": {
+    "forced_product_pids": [],
+    "signalled_product_pids": [
+      93580,
+      93599,
+      93607
+    ]
+  },
+  "completed_unix_nano": 1789323662885208000,
+  "duration_seconds": 600,
+  "evidence": {
+    "durability_source": "orchestrator collect only",
+    "fixture_dir": "/private/tmp/codex-g1-resource-8139120/resource-hosts/resource-fixture",
+    "samples": "/private/tmp/codex-g1-resource-8139120/resource-hosts/resource-samples.jsonl",
+    "state_dir": "/private/tmp/codex-g1-resource-8139120/resource-hosts/resource-state"
+  },
+  "failure": "",
+  "fixture_stats": [
+    {
+      "completed_unix_nano": 1789323662176607000,
+      "emission_reports": 1,
+      "giant_lines": 0,
+      "mode": "steady",
+      "pid": 93592,
+      "product_report_attempts": 1,
+      "product_report_cpu_nanos": 13341000,
+      "product_report_max_rss_bytes": 11829248,
+      "product_report_successes": 1,
+      "scenario": "hosts",
+      "schema_version": 1,
+      "started_unix_nano": 1789323062143640000,
+      "status": "completed",
+      "stderr_bytes": 0,
+      "stdout_bytes": 102,
+      "terminal_emitted_unix_nano": 1789323662147109000,
+      "terminal_sentinel": "RESOURCE_TERMINAL:hosts:host-1",
+      "terminal_wire_sha256": "1a47db1ce20ebd797f8e43b29349bce42d191ab91d413c176e3e0f623771fae0",
+      "worker_id": "host-1"
+    },
+    {
+      "completed_unix_nano": 1789323662251576000,
+      "emission_reports": 1,
+      "giant_lines": 0,
+      "mode": "steady",
+      "pid": 93604,
+      "product_report_attempts": 1,
+      "product_report_cpu_nanos": 11470000,
+      "product_report_max_rss_bytes": 11960320,
+      "product_report_successes": 1,
+      "scenario": "hosts",
+      "schema_version": 1,
+      "started_unix_nano": 1789323062224487000,
+      "status": "completed",
+      "stderr_bytes": 0,
+      "stdout_bytes": 102,
+      "terminal_emitted_unix_nano": 1789323662227896000,
+      "terminal_sentinel": "RESOURCE_TERMINAL:hosts:host-2",
+      "terminal_wire_sha256": "98867ee9d6e551b506b8f8e6be8fb30c16fca9f5d5e483adfecdcc1e788d1a0c",
+      "worker_id": "host-2"
+    }
+  ],
+  "frozen_manifest": "/private/tmp/codex-g1-resource-8139120/resource-manifest.json",
+  "frozen_orchestrator_sha256": "e6c0bf930a75029d39b38b49cca2ded8999d0ce0545ed8d2fa7e48a1fc0bc3c7",
+  "frozen_worker_sha256": "4e98fbcdfcaf3c54bdbdde2af86380b63b63c23faa704785331d1f0afebe10c2",
+  "functional": {
+    "checks": {
+      "default_two_workers_completed_full_duration": true,
+      "fifth_host_deferred": true,
+      "four_hosts_accepted": true,
+      "four_hosts_observed_simultaneously": true,
+      "full_duration": true,
+      "rss_limit": true
+    },
+    "fifth_host_error": "admission_deferred"
+  },
+  "measurement_scope": {
+    "claim": "g1_core_resource_only",
+    "excluded": [
+      "synthetic_provider_worker",
+      "native_codex_backend"
+    ],
+    "included": [
+      "orchestrator_coordinator",
+      "source_host",
+      "report_helper",
+      "visible_product_descendants"
+    ],
+    "native_attached_delivery_evidence": false,
+    "not_started_or_measured": [
+      "g0_python_service",
+      "g0_native_bridge_python_child"
+    ],
+    "synthetic_owner_admission": "ORCHESTRATOR_ENABLE_TEST_FAKE=1"
+  },
+  "metrics": {
+    "average_product_cpu_percent_of_one_core": 4.752509739373037,
+    "elapsed_seconds": 600.8364541251212,
+    "maximum_product_role_counts": {
+      "serve": 1,
+      "source-host": 4
+    },
+    "peak_product_rss_mib": 103.703125,
+    "peak_sampled_roots_rss_mib": 81.015625,
+    "report_helper_cpu_seconds_from_rusage": 0.024811,
+    "sampled_cpu_seconds": 28.53,
+    "short_lived_report_max_rss_mib_added_conservatively": 22.6875,
+    "unique_product_processes_seen": 125
+  },
+  "scenario": "hosts",
+  "schema_version": 1,
+  "smoke": false,
+  "started_unix_nano": 1789323062047520000,
+  "status": "PASS"
+}
