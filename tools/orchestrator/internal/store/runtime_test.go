@@ -799,6 +799,17 @@ func TestReportQuestionWaitsForTrustedHostSessionThenStopsAndResumes(t *testing.
 	if err != nil || len(page.Events) != 1 || page.Events[0].EventID != report.EventID || page.Events[0].SessionID != "trusted-session-1" {
 		t.Fatalf("materialized question=%#v err=%v", page, err)
 	}
+	var usedBeforeReplay int64
+	if err = db.sql.QueryRow(`SELECT used_bytes FROM report_capabilities WHERE capability_id=?`, grant.ReportCapabilityID).Scan(&usedBeforeReplay); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.CommitReportEvent(ctx, report); err != nil {
+		t.Fatalf("materialized question replay: %v", err)
+	}
+	var usedAfterReplay int64
+	if err = db.sql.QueryRow(`SELECT used_bytes FROM report_capabilities WHERE capability_id=?`, grant.ReportCapabilityID).Scan(&usedAfterReplay); err != nil || usedAfterReplay != usedBeforeReplay {
+		t.Fatalf("question replay used=%d before=%d err=%v", usedAfterReplay, usedBeforeReplay, err)
+	}
 	stops, err := db.PendingStops(ctx, hostID)
 	if err != nil || len(stops) != 1 || stops[0].Command.Reason != "waiting_question" {
 		t.Fatalf("stops=%#v err=%v", stops, err)
