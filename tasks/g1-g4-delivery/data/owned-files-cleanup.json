@@ -36,6 +36,17 @@
       "status": "removed",
       "regular_request_files": 13,
       "ownership": "current task temporary package administration requests; receipts retained"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g1-g4-delivery/tmp/final-build/cache",
+      "status": "removed",
+      "entry_count": 8529,
+      "ownership": "completed task build/module cache; frozen benchmark binaries retained"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g1-g4-delivery/tmp/final-build-rc5",
+      "status": "removed",
+      "ownership": "superseded rc5 build output; final rc6 and recorded benchmark inputs retained"
     }
   ]
 }

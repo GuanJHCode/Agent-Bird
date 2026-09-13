@@ -99,6 +99,34 @@
       "exit_code": 0,
       "status": "removed_worktree_branch_retained",
       "error": null
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g1-g4-delivery/tmp/final-package",
+      "head": "fc03620dc68aa982f335bd96bef768da9ba0df8a",
+      "exit_code": 0,
+      "status": "removed_worktree_branch_retained",
+      "error": null
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g1-g4-delivery/tmp/final-verify",
+      "head": "81391200f98c57de2d59f76a55f5b76572665081",
+      "exit_code": 0,
+      "status": "removed_worktree_branch_retained",
+      "error": null
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g1-g4-delivery/tmp/g1-control-plane",
+      "head": "7f5609cf7b1a4b7f492ff502e6796a1be9634075",
+      "exit_code": 0,
+      "status": "removed_worktree_branch_retained",
+      "error": null
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g1-g4-delivery/tmp/resource-acceptance",
+      "head": "035ed2c600e5798d27352fa707b8e8e1a710b851",
+      "exit_code": 0,
+      "status": "removed_worktree_branch_retained",
+      "error": null
     }
   ]
 }
