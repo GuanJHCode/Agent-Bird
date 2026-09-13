@@ -1,7 +1,6 @@
 package adapter
 
 import (
-	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"os"
@@ -34,20 +33,24 @@ func TestBuildInvocationUsesExactResumeAndBoundedPermission(t *testing.T) {
 		Prompt:   "continue the bounded task",
 		Session:  SessionRef{Kind: SessionID, ID: "sess_123"},
 		Permission: Permission{
-			Mode:  "plan",
-			Allow: []string{"Read", "Grep"},
-			Deny:  []string{"Bash"},
+			Mode: "plan",
+			Deny: []string{"Bash"},
 		},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"/private/bin/agent", "-p", "--output-format", "stream-json", "--input-format", "stream-json", "--verbose", "--include-partial-messages", "--resume", "sess_123", "--permission-mode", "plan", "--allowed-tools", "Read,Grep", "--disallowed-tools", "Bash"}
-	if got := invocation.Argv; !equalStrings(got, want) {
+	want := []string{"/private/bin/agent", "-p", "--output-format", "stream-json", "--input-format", "stream-json", "--verbose", "--include-partial-messages", "--resume", "sess_123", "--permission-mode", "plan", "--disallowed-tools", "Bash"}
+	if got := invocation.Args(); !equalStrings(got, want) {
 		t.Fatalf("argv = %#v, want %#v", got, want)
 	}
-	if invocation.Env["HOME"] != "" || invocation.Env["ANTHROPIC_API_KEY"] != "" || invocation.Env["XAI_API_KEY"] != "" {
-		t.Fatalf("credential environment leaked: %#v", invocation.Env)
+	args := invocation.Args()
+	args[0] = "/tampered"
+	if invocation.Args()[0] == "/tampered" {
+		t.Fatal("invocation argv was mutable")
+	}
+	if invocation.Environment()["HOME"] != "" || invocation.Environment()["ANTHROPIC_API_KEY"] != "" || invocation.Environment()["XAI_API_KEY"] != "" {
+		t.Fatalf("credential environment leaked: %#v", invocation.Environment())
 	}
 }
 
@@ -57,6 +60,9 @@ func TestBuildInvocationRejectsPermissionExpansionAndAuthFlags(t *testing.T) {
 		{Provider: ProviderAGY, Binary: pinForTest(), Permission: Permission{Mode: "dangerously-skip-permissions"}},
 		{Provider: ProviderGrok, Binary: pinForTest(), ExtraArgs: []string{"--oauth"}},
 		{Provider: ProviderGrok, Binary: pinForTest(), ExtraArgs: []string{"login"}},
+		{Provider: ProviderGrok, Binary: pinForTest(), ExtraArgs: []string{"--model", "other"}},
+		{Provider: ProviderGrok, Binary: pinForTest(), ExtraArgs: []string{"--settings", "foreign.json"}},
+		{Provider: ProviderGrok, Binary: pinForTest(), ExtraArgs: []string{"--resume", "other"}},
 		{Provider: ProviderAGY, Binary: pinForTest(), Permission: Permission{Allow: []string{"Read"}}},
 	}
 	for i, tc := range cases {
@@ -67,13 +73,13 @@ func TestBuildInvocationRejectsPermissionExpansionAndAuthFlags(t *testing.T) {
 }
 
 func TestDefaultPermissionDoesNotAddApprovalFlags(t *testing.T) {
-	invocation, err := BuildInvocation(Request{Provider: ProviderGrok, Binary: pinForTest(), CWD: "/private/workspace", Prompt: "inspect"})
+	invocation, err := BuildInvocation(Request{Provider: ProviderAGY, Binary: pinForTest(), CWD: "/private/workspace", Prompt: "inspect"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, arg := range invocation.Argv {
+	for _, arg := range invocation.Args() {
 		if arg == "--always-approve" || arg == "--yolo" || arg == "bypassPermissions" || arg == "--permission-mode" {
-			t.Fatalf("default permission expanded argv: %#v", invocation.Argv)
+			t.Fatalf("default permission expanded argv: %#v", invocation.Args())
 		}
 	}
 }
@@ -143,6 +149,12 @@ func TestParseEventDoesNotPersistUnknownRawAndBoundsLines(t *testing.T) {
 	if _, err := ParseEvent(ProviderClaude, `{"type":"result"} trailing`, 4096); err == nil {
 		t.Fatal("trailing JSON accepted")
 	}
+	if _, err := ParseEvent(ProviderClaude, `{"type":"result","subtype":"not-a-terminal-status","session_id":"s","result":"bad"}`, 4096); err == nil {
+		t.Fatal("invalid Claude semantic status accepted")
+	}
+	if _, err := ParseEvent(ProviderAGY, `{"event":"result","result":{"conversation_id":"s","status":"NOT_A_STATUS","response":"bad"}}`, 4096); err == nil {
+		t.Fatal("invalid AGY semantic status accepted")
+	}
 }
 
 func TestStreamParserBoundsAggregateOutput(t *testing.T) {
@@ -155,24 +167,17 @@ func TestStreamParserBoundsAggregateOutput(t *testing.T) {
 	}
 }
 
-func TestRunCancelsOwnedProcessWithoutPersistingStderr(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	invocation := Invocation{Provider: ProviderClaude, Argv: []string{"/bin/sh", "-c", "sleep 10"}, CWD: "/tmp"}
-	done := make(chan struct{})
-	var result RunResult
-	var err error
-	go func() {
-		result, err = Run(ctx, invocation, 4096, 8192)
-		close(done)
-	}()
-	cancel()
-	<-done
-	if err != nil {
+func TestStreamParserConsumesEventsIncrementally(t *testing.T) {
+	parser := NewStreamParser(ProviderClaude, 256, 1024)
+	var got []Event
+	if err := parser.Consume(strings.NewReader("{\"type\":\"system\",\"subtype\":\"init\",\"session_id\":\"s\"}\n{\"type\":\"result\",\"subtype\":\"success\",\"session_id\":\"s\",\"result\":\"ok\"}\n"), func(event Event) error {
+		got = append(got, event)
+		return nil
+	}); err != nil {
 		t.Fatal(err)
 	}
-	if result.Status != RunCancelled || result.ExitCode == 0 || result.StderrBytes != 0 {
-		t.Fatalf("cancel result = %#v", result)
+	if len(got) != 2 || got[1].Kind != EventResult || got[1].Text != "ok" {
+		t.Fatalf("events = %#v", got)
 	}
 }
 

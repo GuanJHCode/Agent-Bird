@@ -6,14 +6,12 @@ package adapter
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -63,12 +61,25 @@ type Request struct {
 }
 
 type Invocation struct {
-	Provider Provider
-	Pin      BinaryPin
-	Argv     []string
-	CWD      string
-	Input    []byte
-	Env      map[string]string
+	provider Provider
+	pin      BinaryPin
+	argv     []string
+	cwd      string
+	input    []byte
+	env      map[string]string
+}
+
+func (i Invocation) ProviderName() Provider   { return i.provider }
+func (i Invocation) Pin() BinaryPin           { return i.pin }
+func (i Invocation) Args() []string           { return append([]string(nil), i.argv...) }
+func (i Invocation) WorkingDirectory() string { return i.cwd }
+func (i Invocation) Stdin() []byte            { return append([]byte(nil), i.input...) }
+func (i Invocation) Environment() map[string]string {
+	copy := map[string]string{}
+	for key, value := range i.env {
+		copy[key] = value
+	}
+	return copy
 }
 
 type EventKind string
@@ -97,22 +108,6 @@ type StreamParser struct {
 	total    int
 }
 
-type RunStatus string
-
-const (
-	RunCompleted  RunStatus = "completed"
-	RunCancelled  RunStatus = "cancelled"
-	RunFailed     RunStatus = "failed"
-	RunParseError RunStatus = "parse_error"
-)
-
-type RunResult struct {
-	Status      RunStatus
-	Events      []Event
-	ExitCode    int
-	StderrBytes int64
-}
-
 func NewStreamParser(provider Provider, lineMax, totalMax int) *StreamParser {
 	return &StreamParser{provider: provider, lineMax: lineMax, totalMax: totalMax}
 }
@@ -132,109 +127,25 @@ func (p *StreamParser) Parse(line string) (Event, error) {
 	return event, nil
 }
 
-// Run owns exactly one child process. Context cancellation terminates that
-// child; stderr is counted and discarded, and stdout is retained only as the
-// bounded Event projection.
-func Run(ctx context.Context, invocation Invocation, lineMax, totalMax int) (RunResult, error) {
-	if ctx == nil || len(invocation.Argv) == 0 || invocation.Argv[0] == "" {
-		return RunResult{Status: RunFailed, ExitCode: -1}, errors.New("invocation_invalid")
+func (p *StreamParser) Consume(reader io.Reader, callback func(Event) error) error {
+	if reader == nil || callback == nil {
+		return errors.New("stream_consumer_invalid")
 	}
-	parser := NewStreamParser(invocation.Provider, lineMax, totalMax)
-	runCtx, stop := context.WithCancel(ctx)
-	defer stop()
-	command := exec.CommandContext(runCtx, invocation.Argv[0], invocation.Argv[1:]...)
-	command.Dir = invocation.CWD
-	var envErr error
-	command.Env, envErr = mergedEnvironment(invocation.Env)
-	if envErr != nil {
-		return RunResult{Status: RunFailed, ExitCode: -1}, envErr
-	}
-	stdout, err := command.StdoutPipe()
-	if err != nil {
-		return RunResult{Status: RunFailed, ExitCode: -1}, err
-	}
-	stderr, err := command.StderrPipe()
-	if err != nil {
-		return RunResult{Status: RunFailed, ExitCode: -1}, err
-	}
-	stdin, err := command.StdinPipe()
-	if err != nil {
-		return RunResult{Status: RunFailed, ExitCode: -1}, err
-	}
-	if err := command.Start(); err != nil {
-		if ctx.Err() != nil {
-			return RunResult{Status: RunCancelled, ExitCode: -1}, nil
-		}
-		return RunResult{Status: RunFailed, ExitCode: -1}, err
-	}
-	stderrCount := make(chan int64, 1)
-	go func() {
-		count, _ := io.Copy(&countWriter{}, stderr)
-		stderrCount <- count
-	}()
-	if len(invocation.Input) > 0 {
-		if _, err := stdin.Write(invocation.Input); err != nil && ctx.Err() == nil {
-			stop()
-		}
-	}
-	_ = stdin.Close()
-	result := RunResult{Status: RunCompleted, ExitCode: -1}
-	scanner := bufio.NewScanner(stdout)
-	scanner.Buffer(make([]byte, 4096), lineMax)
+	scanner := bufio.NewScanner(reader)
+	scanner.Buffer(make([]byte, 4096), p.lineMax)
 	for scanner.Scan() {
-		event, parseErr := parser.Parse(scanner.Text())
-		if parseErr != nil {
-			result.Status = RunParseError
-			stop()
-			break
+		event, err := p.Parse(scanner.Text())
+		if err != nil {
+			return err
 		}
-		result.Events = append(result.Events, event)
-	}
-	if scanner.Err() != nil && result.Status == RunCompleted {
-		result.Status = RunParseError
-		stop()
-	}
-	waitErr := command.Wait()
-	result.StderrBytes = <-stderrCount
-	if command.ProcessState != nil {
-		result.ExitCode = command.ProcessState.ExitCode()
-	}
-	if ctx.Err() != nil {
-		result.Status = RunCancelled
-		return result, nil
-	}
-	if result.Status == RunParseError {
-		return result, errors.New("event_stream_invalid")
-	}
-	if waitErr != nil {
-		result.Status = RunFailed
-	}
-	return result, nil
-}
-
-type countWriter struct{ count int64 }
-
-func (w *countWriter) Write(data []byte) (int, error) {
-	w.count += int64(len(data))
-	return len(data), nil
-}
-
-func mergedEnvironment(overrides map[string]string) ([]string, error) {
-	env := os.Environ()
-	for key, value := range overrides {
-		if key != "AGY_CLI_DISABLE_AUTO_UPDATE" && key != "GROK_DISABLE_AUTOUPDATER" {
-			return nil, errors.New("environment_override_forbidden")
+		if err := callback(event); err != nil {
+			return err
 		}
-		for i, item := range env {
-			if strings.HasPrefix(item, key+"=") {
-				env[i] = key + "=" + value
-				goto next
-			}
-		}
-		env = append(env, key+"="+value)
-	next:
 	}
-	return env, nil
+	if err := scanner.Err(); err != nil {
+		return errors.New("stream_read_failed")
+	}
+	return nil
 }
 
 var hex64 = regexp.MustCompile(`^[0-9a-f]{64}$`)
@@ -335,34 +246,33 @@ func BuildInvocation(req Request) (Invocation, error) {
 		}
 		input = agyUserEvent(req.Prompt)
 	case ProviderGrok:
-		args = append(args, "-p", req.Prompt, "--output-format", "streaming-json")
+		args = append(args, "-p", req.Prompt, "--output-format", "streaming-json", "--no-auto-update")
 		if req.Session.ID != "" {
 			args = append(args, "--resume", req.Session.ID)
 		}
 	}
 	appendPermissionArgs(&args, req.Provider, req.Permission)
-	args = append(args, req.ExtraArgs...)
 	env := map[string]string{}
 	if req.Provider == ProviderAGY {
 		// Prevent a self-update from changing the pinned executable mid-run.
 		env["AGY_CLI_DISABLE_AUTO_UPDATE"] = "true"
 	}
-	if req.Provider == ProviderGrok {
-		env["GROK_DISABLE_AUTOUPDATER"] = "1"
-	}
-	return Invocation{Provider: req.Provider, Pin: req.Binary, Argv: args, CWD: req.CWD, Input: input, Env: env}, nil
+	return Invocation{provider: req.Provider, pin: req.Binary, argv: args, cwd: req.CWD, input: input, env: env}, nil
 }
 
 func validatePermission(provider Provider, p Permission) error {
 	if p.Mode == "bypassPermissions" || p.Mode == "dangerously-skip-permissions" || p.Mode == "always-approve" || p.Mode == "yolo" {
 		return errors.New("permission_expansion_forbidden")
 	}
+	if len(p.Allow) > 0 {
+		return errors.New("permission_allow_expansion_forbidden")
+	}
 	allowed := map[Provider]map[string]bool{
 		ProviderClaude: {"": true, "default": true, "plan": true, "dontAsk": true},
 		ProviderAGY:    {"": true, "default": true, "plan": true},
 		ProviderGrok:   {"": true, "default": true, "plan": true, "dontAsk": true},
 	}
-	if provider == ProviderAGY && (len(p.Allow) > 0 || len(p.Deny) > 0) {
+	if provider == ProviderAGY && len(p.Deny) > 0 {
 		return errors.New("agy_permission_rules_unsupported")
 	}
 	if !allowed[provider][p.Mode] {
@@ -377,19 +287,12 @@ func validatePermission(provider Provider, p Permission) error {
 }
 
 func appendPermissionArgs(args *[]string, provider Provider, p Permission) {
-	if p.Mode != "" {
+	if p.Mode != "" && p.Mode != "default" {
 		flag := "--permission-mode"
 		if provider == ProviderAGY {
 			flag = "--mode"
 		}
 		*args = append(*args, flag, p.Mode)
-	}
-	if len(p.Allow) > 0 {
-		flag := "--allowed-tools"
-		if provider == ProviderAGY {
-			flag = "--allow"
-		}
-		*args = append(*args, flag, strings.Join(p.Allow, ","))
 	}
 	if len(p.Deny) > 0 {
 		flag := "--disallowed-tools"
@@ -401,11 +304,8 @@ func appendPermissionArgs(args *[]string, provider Provider, p Permission) {
 }
 
 func validateExtraArgs(args []string) error {
-	for _, arg := range args {
-		lower := strings.ToLower(arg)
-		if strings.ContainsAny(arg, "\r\n\x00") || lower == "login" || lower == "logout" || lower == "auth" || lower == "authenticate" || strings.HasPrefix(lower, "--oauth") || strings.HasPrefix(lower, "--api-key") || strings.HasPrefix(lower, "--account") || strings.HasPrefix(lower, "--provider") || strings.HasPrefix(lower, "--project") || strings.Contains(lower, "dangerously-skip-permissions") || lower == "--always-approve" || lower == "--yolo" {
-			return errors.New("auth_or_permission_argument_forbidden")
-		}
+	if len(args) > 0 {
+		return errors.New("extra_args_forbidden")
 	}
 	return nil
 }
@@ -484,6 +384,9 @@ func parseClaude(object map[string]json.RawMessage) (Event, error) {
 		if err != nil {
 			return Event{}, err
 		}
+		if !validClaudeStatus(subtype) {
+			return Event{}, errors.New("event_status_invalid")
+		}
 		text, err := stringFieldOptional(object, "result")
 		if err != nil {
 			return Event{}, err
@@ -528,6 +431,9 @@ func parseAGY(object map[string]json.RawMessage) (Event, error) {
 		status, err := stringNestedField(value, "status")
 		if err != nil {
 			return Event{}, err
+		}
+		if !validAGYStatus(status) {
+			return Event{}, errors.New("event_status_invalid")
 		}
 		text, err := stringNestedField(value, "response")
 		return Event{Kind: EventResult, SessionID: session, Status: status, Text: text}, err
@@ -594,6 +500,19 @@ func stringFieldOptional(object map[string]json.RawMessage, name string) (string
 		return "", fmt.Errorf("event_%s_invalid", name)
 	}
 	return result, nil
+}
+
+func validClaudeStatus(status string) bool {
+	return status == "success" || strings.HasPrefix(status, "error") || strings.Contains(status, "cancel") || status == "interrupted"
+}
+
+func validAGYStatus(status string) bool {
+	switch status {
+	case "SUCCESS", "ERROR", "CANCELED", "INTERRUPTED", "INVALID", "WAITING", "RUNNING":
+		return true
+	default:
+		return false
+	}
 }
 
 func stringNestedField(object map[string]json.RawMessage, name string) (string, error) {
