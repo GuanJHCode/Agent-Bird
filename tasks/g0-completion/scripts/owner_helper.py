@@ -548,6 +548,18 @@ class OwnerLease:
         self._helpers.append(connection)
         return connection
 
+    async def open_helper_transport(self, grant: OwnerHelperGrant, identity: HelperIdentity) -> OwnerHelperConnection:
+        """Open raw private UDS transport for ProxyServer's single public WS relay.
+
+        The caller must relay the one public HTTP upgrade through this raw
+        stream.  This method deliberately does not consume a backend 101.
+        """
+        self.validate_grant(grant, identity)
+        reader, writer = await asyncio.open_unix_connection(self.private_socket)
+        connection = OwnerHelperConnection(reader=reader, writer=writer, lease_id=self.lease_id, owner_thread_id=self.owner_thread_id)
+        self._helpers.append(connection)
+        return connection
+
     def owner_closed(self) -> None:
         self.closed = True
         for helper in tuple(self._helpers):

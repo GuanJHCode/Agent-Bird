@@ -299,6 +299,14 @@ class ActivationService:
         self._owner_leases={}
         helper_pins=manifest.get('owner_helper',{})
         self._helper_pins=helper_pins if isinstance(helper_pins,dict) else {}
+        if self._helper_pins:
+            required_helper_pins=('executable','executable_sha256','source_path','source_sha256')
+            if any(not isinstance(self._helper_pins.get(key),str) or not self._helper_pins[key] for key in required_helper_pins):
+                raise ValueError('incomplete owner-helper source policy')
+            source_path=Path(self._helper_pins['source_path'])
+            _canonical_path(source_path)
+            if self._helper_pins['source_sha256']!=_sha(source_path):
+                raise ValueError('owner-helper source changed')
         self._profile_locks={name:asyncio.Lock() for name in self.contexts}
         self._closed=False
         self._close_task=None
@@ -401,9 +409,12 @@ class ActivationService:
         if grant.get('helper_pid')!=peer.pid or grant.get('helper_uid')!=peer.uid or grant.get('helper_birth')!=peer.birth: return False
         if grant.get('helper_executable')!=peer.executable or not peer.complete: return False
         pins=self._helper_pins
-        if not all(isinstance(pins.get(key),str) and pins.get(key) for key in ('executable','executable_sha256','source_sha256')): return False
+        if not all(isinstance(pins.get(key),str) and pins.get(key) for key in ('executable','executable_sha256','source_path','source_sha256')): return False
         if grant['helper_executable']!=pins['executable'] or grant['helper_source_sha256']!=pins['source_sha256']: return False
         try:
+            source_path=Path(pins['source_path'])
+            _canonical_path(source_path)
+            if _sha(source_path)!=pins['source_sha256']: return False
             if grant['helper_executable_sha256']!=pins['executable_sha256'] or _sha(Path(peer.executable))!=pins['executable_sha256']: return False
             current_birth,current_executable=_process_metadata(peer.pid)
             if current_birth!=peer.birth or current_executable!=peer.executable: return False
@@ -493,7 +504,7 @@ class ActivationService:
             'owner_thread_id':grant['owner_thread_id'],'frontend':_peer(frontend),'state':'opening'}
         record.setdefault('helpers',[]).append(helper_record)
         try:
-            helper=await lease.open_helper(OwnerHelperGrant(**grant),identity)
+            helper=await lease.open_helper_transport(OwnerHelperGrant(**grant),identity)
             helper_record['state']='connected'
             backend_socket=helper.writer.get_extra_info('socket')
             backend_peer=peer_identity(backend_socket)

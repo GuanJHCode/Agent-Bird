@@ -123,6 +123,10 @@ def test_manifests_pin_executable_and_profile_roots(fake_native: Path, tmp_path:
         assert sum(argument.count("{socket_path}") for argument in activation["backend_argv"]) == 1
         assert activation["backend_executable_sha256"] == fixture.pins[str(fake_native)]
         assert activation["idle_seconds"] == 2.0
+        helper_policy = activation["owner_helper"]
+        assert Path(helper_policy["source_path"]).is_absolute()
+        assert helper_policy["source_sha256"] == fixture.pins[helper_policy["source_path"]]
+        assert fixture.pins[helper_policy["source_path"]] == __import__("hashlib").sha256(Path(helper_policy["source_path"]).read_bytes()).hexdigest()
     finally:
         fixture.cleanup_ephemeral()
         fixture.cleanup_profile()

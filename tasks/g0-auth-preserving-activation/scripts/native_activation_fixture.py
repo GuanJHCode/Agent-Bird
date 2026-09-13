@@ -28,6 +28,7 @@ LABEL = "org.codex.orchestration.proxy"
 REPO_ROOT = Path(__file__).resolve().parents[3]
 ENTRYPOINT = REPO_ROOT / "tasks/g0-proxy-continuation/cold-start/scripts/projectproxy_launchd_entrypoint.py"
 ACTIVATION_SERVICE = REPO_ROOT / "tasks/g0-proxy-continuation/cold-start/scripts/activation_service.py"
+OWNER_HELPER_SOURCE = REPO_ROOT / "tasks/g0-completion/scripts/owner_helper.py"
 LAUNCH_ACTIVATION = REPO_ROOT / "tasks/g0-proxy-continuation/cold-start/scripts/launch_activation.py"
 PRIVATE_ROOT = Path("/private/tmp")
 
@@ -344,6 +345,7 @@ def build_fixture(native_executable: Path, *, options: FixtureOptions | None = N
             str(REPO_ROOT / "tasks/g0-tui-proxy/scripts/proxy_observer.py"): _hash(REPO_ROOT / "tasks/g0-tui-proxy/scripts/proxy_observer.py"),
             str(REPO_ROOT / "tasks/g0-auth-preserving-activation/scripts/auth_isolation.py"): _hash(REPO_ROOT / "tasks/g0-auth-preserving-activation/scripts/auth_isolation.py"),
             str(REPO_ROOT / "tasks/g0-auth-preserving-activation/scripts/activation_transaction.py"): _hash(REPO_ROOT / "tasks/g0-auth-preserving-activation/scripts/activation_transaction.py"),
+            str(OWNER_HELPER_SOURCE): _hash(OWNER_HELPER_SOURCE),
             str(options.credential_manifest): credential_manifest_sha256,
             str(config): _hash(config),
         }
@@ -380,6 +382,12 @@ def build_fixture(native_executable: Path, *, options: FixtureOptions | None = N
             "file_pins": {str(path): digest for path, digest in pins.items() if path not in {str(native_executable), str(python_executable)}},
             "trusted_workspace": str(workspace),
             "auth_guard": baseline,
+            "owner_helper": {
+                "executable": str(python_executable),
+                "executable_sha256": _hash(python_executable),
+                "source_path": str(OWNER_HELPER_SOURCE),
+                "source_sha256": _hash(OWNER_HELPER_SOURCE),
+            },
             "credential_manifest_sha256": credential_manifest_sha256,
             "idle_seconds": options.idle_seconds,
         }

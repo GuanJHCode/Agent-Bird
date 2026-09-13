@@ -128,7 +128,7 @@ def test_activation_service_helper_branch_rejects_without_active_owner(tmp_path)
     service.backend_records = []
     service._helper_admissions = {}
     service.contexts = {}
-    service._helper_pins = {"executable": identity.executable, "executable_sha256": identity.executable_sha256, "source_sha256": identity.source_sha256}
+    service._helper_pins = {"executable": identity.executable, "executable_sha256": identity.executable_sha256, "source_path": identity.executable, "source_sha256": identity.source_sha256}
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(activation_service, "_process_metadata", lambda pid: (identity.birth, identity.executable))
         patch.setattr(activation_service, "_sha", lambda path: identity.executable_sha256)
@@ -160,11 +160,10 @@ def test_activation_service_helper_branch_reuses_existing_listener(tmp_path):
         service._admit = lambda peer: True
         key = (frontend.pid, frontend.birth, frontend.executable)
         service._helper_admissions[key] = (grant, "d" * 64)
-        spawn_count = 0
         async with service._backend(frontend) as connection:
-            assert state["handshakes"] == 1
+            # Service returns raw transport; ProxyServer owns the single WS upgrade.
+            assert state["handshakes"] == 0
             assert connection.reader is not None and connection.writer is not None
-            assert spawn_count == 0
         await owner.close()
         server.close()
         await server.wait_closed()
