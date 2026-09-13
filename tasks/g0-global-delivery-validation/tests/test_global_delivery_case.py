@@ -162,3 +162,63 @@ def test_ungranted_probe_metadata_is_diagnostic_only(monkeypatch,tmp_path,diagno
             assert result['owner']['public_peer']['uid']==result['helper_proof']['public_peer']['uid']==os.getuid()
             assert result['ack']['records'][0]['effect_count']==1 and result['transaction']['state']=='REVOKED'
     asyncio.run(asyncio.wait_for(scenario(),150))
+
+
+def test_global_children_wait_for_receipt_admission_before_rpc_or_claim(monkeypatch,tmp_path):
+    runner=implementation();original_line=runner.base.line;observed=[];workspace={}
+    async def inspect_line(child,end):
+        row=await original_line(child,end)
+        if row.get('event')=='public_connected':
+            await asyncio.sleep(.08)
+            methods=workspace['path']/'dummy-methods.json'
+            calls=json.loads(methods.read_text()) if methods.exists() else []
+            assert [item['method'] for item in calls]==([] if row['role']=='owner' else ['initialize','initialized','thread/start','turn/start'])
+            for name in ('batch-intent.json','batch-send-claim.json','delivery-owner-binding.json'):
+                assert not (workspace['path']/'go-task'/name).exists()
+            observed.append(row['role'])
+        return row
+    monkeypatch.setattr(runner.base,'line',inspect_line)
+    async def scenario():
+        with tempfile.TemporaryDirectory(prefix='g0-auth-',dir='/private/tmp') as raw,tempfile.TemporaryDirectory(prefix='g0-auth-',dir='/private/tmp') as sup,SyntheticEndpoint() as endpoint:
+            prepared,plan=prepare(runner,Path(raw),endpoint,tmp_path,monkeypatch,Path(sup));workspace['path']=prepared.spec.workspace
+            result=await runner.run_global(plan,prepared)
+            assert observed==['owner','helper']
+            assert result['status']=='passed',result.get('failure')
+            assert result['ack']['records'][0]['effect_count']==1
+            assert result['owner_admission']['lease_id']==result['lease']['lease_id']==result['helper_admission']['lease_id']
+    asyncio.run(asyncio.wait_for(scenario(),150))
+
+
+@pytest.mark.parametrize('fault',['owner-missing','owner-frontend','owner-socket','helper-missing','helper-grant','helper-frontend'])
+def test_receipt_gate_failure_has_no_client_rpc_or_claim(monkeypatch,tmp_path,fault):
+    runner=implementation();read=runner.ReceiptStore.read;children=runner.ReceiptStore.children;admit=runner.admit_public_child
+    async def bounded(*args,**kwargs):
+        values=list(args);values[7]=min(values[7],runner.now()+1)
+        return await admit(*values,**kwargs)
+    monkeypatch.setattr(runner,'admit_public_child',bounded)
+    def filtered(store):
+        names=children(store)
+        return [n for n in names if not (fault=='owner-missing' and n.startswith('owner-connected-'))]
+    monkeypatch.setattr(runner.ReceiptStore,'children',filtered)
+    def changed(store,name):
+        if fault=='helper-missing' and name.startswith('helper-ready-'):return None
+        found=read(store,name)
+        if found is None:return None
+        row,digest=found;row=json.loads(json.dumps(row))
+        if fault=='owner-frontend' and name.startswith('owner-connected-'):row['frontend_peer']['birth']='wrong-frontend'
+        if fault=='owner-socket' and name.startswith('owner-connected-'):row['private_socket_identity'][1]+=1
+        if fault=='helper-grant' and name.startswith('helper-ready-'):row['grant_sha256']='f'*64
+        if fault=='helper-frontend' and name.startswith('helper-ready-'):row['frontend_peer']['birth']='wrong-frontend'
+        return row,digest
+    monkeypatch.setattr(runner.ReceiptStore,'read',changed)
+    async def scenario():
+        with tempfile.TemporaryDirectory(prefix='g0-auth-',dir='/private/tmp') as raw,tempfile.TemporaryDirectory(prefix='g0-auth-',dir='/private/tmp') as sup,SyntheticEndpoint() as endpoint:
+            prepared,plan=prepare(runner,Path(raw),endpoint,tmp_path,monkeypatch,Path(sup))
+            result=await runner.run_global(plan,prepared)
+            assert result['status']=='unknown' and not result['business_ack_verified']
+            methods=prepared.spec.workspace/'dummy-methods.json'
+            calls=json.loads(methods.read_text()) if methods.exists() else []
+            assert [item['method'] for item in calls]==([] if fault.startswith('owner-') else ['initialize','initialized','thread/start','turn/start'])
+            for name in ('batch-intent.json','batch-send-claim.json','delivery-owner-binding.json'):
+                assert not (prepared.spec.workspace/'go-task'/name).exists()
+    asyncio.run(asyncio.wait_for(scenario(),40))

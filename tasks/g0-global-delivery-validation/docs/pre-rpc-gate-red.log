@@ -1,0 +1,26 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_____ test_global_children_wait_for_receipt_admission_before_rpc_or_claim ______
+tasks/g0-global-delivery-validation/tests/test_global_delivery_case.py:189: in test_global_children_wait_for_receipt_admission_before_rpc_or_claim
+    asyncio.run(asyncio.wait_for(scenario(),150))
+/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/tasks.py:507: in wait_for
+    return await fut
+           ^^^^^^^^^
+tasks/g0-global-delivery-validation/tests/test_global_delivery_case.py:185: in scenario
+    assert observed==['owner','helper']
+E   AssertionError: assert [] == ['owner', 'helper']
+E     
+E     Right contains 2 more items, first extra item: 'owner'
+E     Use -v to get more diff
+=========================== short test summary info ============================
+FAILED tasks/g0-global-delivery-validation/tests/test_global_delivery_case.py::test_global_children_wait_for_receipt_admission_before_rpc_or_claim
+1 failed, 10 deselected in 3.31s

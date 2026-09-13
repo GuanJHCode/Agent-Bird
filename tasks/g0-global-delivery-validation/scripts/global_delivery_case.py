@@ -29,9 +29,14 @@ require=base.require;now=base.transport.now;remaining=base.transport.remaining;s
 def source_pins():
     pins=base.source_pins()
     paths=[Path(__file__).resolve(),Path(__file__).with_name('receipt_store.py'),Path(__file__).with_name('inherited_fd_scheduler.py'),ENTRYPOINT,
-        ROOT/'tasks/g0-proxy-continuation/cold-start/scripts/launch_activation.py',
+        ROOT/'tasks/g0-proxy-continuation/cold-start/scripts/launch_activation.py',ROOT/'tasks/g0-completion/scripts/native_delivery_client.py',
         Path(transaction_module.__file__).resolve(),ROOT/'tasks/g0-auth-preserving-activation/scripts/native_activation_fixture.py']
     return {**pins,**{str(p):sha(p) for p in paths}}
+
+
+def admission_policy(mode):
+    require(mode in ('launchd','inherited_fd'),'invalid scheduler admission mode')
+    return {'version':1,'mode':mode}
 
 
 class DeadlineLaunchctl(SubprocessLaunchctl):
@@ -93,7 +98,7 @@ def prepare_global(prepared,case_dir,*,python_executable,go_executable,activatio
     require(built.returncode==0,'Go build failed')
     require(all(base.cache_identity(Path(p))==v for p,v in caches.items()),'Go cache identity changed')
     pins={**expected_source_pins,str(python):sha(python),str(go):sha(go),str(binary):sha(binary),str(credential_manifest):digest}
-    manifest={'version':1,'public_socket':str(public),'state_dir':str(case/'state'),'grants_dir':str(case/'grants'),
+    manifest={'version':1,'external_admission':admission_policy(scheduler_mode),'public_socket':str(public),'state_dir':str(case/'state'),'grants_dir':str(case/'grants'),
         'isolation_manifest':prepared.manifest['isolation_manifest'],'isolation_manifest_sha256':sha(prepared.manifest['isolation_manifest']),
         'backend_argv':[str(native),'app-server','--listen','unix://{socket_path}'],'backend_executable_sha256':expected_native_sha256,
         'file_pins':pins,'idle_seconds':10,'owner_helper':{'executable':str(python),'executable_sha256':sha(python),
@@ -127,6 +132,8 @@ def frozen(plan,prepared):
     require(plan.source_hashes==source_pins() and sha(plan.manifest_path)==plan.manifest_sha256 and sha(plan.case/'plan.json')==plan.plan_sha256,'frozen source or manifest changed')
     require(base.peer_for_process(os.getpid())==plan.controller_peer,'controller identity changed')
     require(sha(plan.go_binary)==plan.go_sha256,'Go artifact changed');prepared.verify()
+    manifest,_=base.activation_service._private_json(plan.manifest_path)
+    require(manifest.get('external_admission')==admission_policy(plan.scheduler_mode),'frozen admission mode changed')
 
 
 def transaction_phase(plan,name,operation,seconds):
@@ -193,10 +200,10 @@ async def spawn_client(plan,prepared,role,env,end,cleanup_end=None):
 
 def config(plan,prepared,role,peer,proxy,public_identity,grant,business,startup,total):
     path=plan.grants_dir/f"{peer['pid']}.json";write(path,grant)
-    return {'role':role,'manifest_path':str(plan.manifest_path),'manifest_sha256':plan.manifest_sha256,
+    return {'role':role,'external_admission':admission_policy(plan.scheduler_mode),'manifest_path':str(plan.manifest_path),'manifest_sha256':plan.manifest_sha256,
         'grant_path':str(path),'grant_sha256':sha(path),'profile_id':prepared.spec.profile_id,
         'public_socket':str(plan.spec.socket_path),'public_socket_identity':public_identity,'proxy_peer':proxy,
-        'controller_peer':plan.controller_peer,'codex_home':str(prepared.spec.codex_home),'workspace':str(prepared.spec.workspace),
+        'controller_peer':plan.controller_peer,'owner_context_sha256':context_sha(prepared),'codex_home':str(prepared.spec.codex_home),'workspace':str(prepared.spec.workspace),
         'deadline':business,'local_deadline':startup,'cleanup_deadline':total}
 
 
@@ -230,6 +237,70 @@ def validate_lease(row,prepared,service_peer):
     info=os.lstat(row['private_socket'])
     require(stat.S_ISSOCK(info.st_mode) and info.st_uid==os.getuid() and not info.st_mode&0o077 and list((info.st_dev,info.st_ino,info.st_uid,info.st_mode))==row['private_socket_identity'],'lease socket identity mismatch')
     return dict(row),native
+
+
+CONNECTED_KEYS={'version','activation_id','manifest_sha256','service_identity','state','profile_id','owner_context_sha256',
+    'lease_id','frontend_peer','grant_sha256','private_socket','private_socket_identity','backend_pid','backend_birth',
+    'backend_executable_sha256','backend_peer'}
+CONNECTED_LEASE_KEYS=LEASE_KEYS-{'owner_connection_id','owner_epoch','owner_thread_id'}
+
+
+def check_connected_backend(row,prepared,service_peer):
+    require(row['service_identity']==service_peer and row['profile_id']==prepared.spec.profile_id and row['owner_context_sha256']==context_sha(prepared),'connected profile/service mismatch')
+    require(type(row['lease_id']) is str and re.fullmatch('[0-9a-f]{12}',row['lease_id']) is not None,'connected lease invalid')
+    require(row['private_socket']==str(prepared.spec.backend_socket.parent/f"b-{row['lease_id']}.sock"),'connected backend path mismatch')
+    require(row['backend_executable_sha256']==prepared.context.expected_executable_sha256,'connected backend SHA mismatch')
+    native=base.peer_for_process(row['backend_pid'])
+    require(native['birth']==row['backend_birth'] and native['executable']==str(prepared.context.expected_executable) and native['executable_sha256']==row['backend_executable_sha256'],'connected backend process mismatch')
+    info=os.lstat(row['private_socket'])
+    require(stat.S_ISSOCK(info.st_mode) and info.st_uid==os.getuid() and not info.st_mode&0o077 and list((info.st_dev,info.st_ino,info.st_uid,info.st_mode))==row['private_socket_identity'],'connected backend inode mismatch')
+    return native
+
+
+def validate_helper_ready(row,store,plan,prepared,service_peer,helper_peer,lease,grant_sha):
+    common(row,store,plan)
+    require(set(row)=={'version','activation_id','manifest_sha256','service_identity','grant_sha256','owner_lease','frontend_peer','backend_peer'}
+        and row['version']==1 and row['service_identity']==service_peer and row['grant_sha256']==grant_sha,'helper ready shape/service/grant mismatch')
+    require(row['owner_lease']=={k:v for k,v in lease.items() if k!='service_identity'},'helper live lease mismatch')
+    _,native=validate_lease(lease,prepared,service_peer)
+    check_peer(row['frontend_peer'],helper_peer);check_peer(row['backend_peer'],native)
+
+
+async def admit_public_child(plan,prepared,store,child,peer,child_config,service_peer,end,lease=None):
+    event=await base.line(child,end)
+    require(set(event)=={'event','role','pid','profile_id','manifest_sha256','grant_sha256','public_peer'} and event['event']=='public_connected'
+        and event['role']==child_config['role'] and event['pid']==peer['pid'] and event['profile_id']==prepared.spec.profile_id
+        and event['manifest_sha256']==plan.manifest_sha256 and event['grant_sha256']==child_config['grant_sha256'],'public connection event mismatch')
+    mode=admission_policy(plan.scheduler_mode)
+    require(child_config.get('external_admission')==mode,'client gate mode mismatch')
+    if mode['mode']=='inherited_fd':check_peer(event['public_peer'],service_peer)
+    if child_config['role']=='owner':
+        while True:
+            remaining(end);names=[n for n in store.children() if re.fullmatch(r'owner-connected-[0-9a-f]{12}-'+str(peer['pid'])+r'\.json',n)]
+            require(len(names)<=1,'multiple owner connected receipts')
+            if names:break
+            await asyncio.sleep(.01)
+        receipt_name=names[0]
+        row,digest=await receipt(store,receipt_name,end);common(row,store,plan)
+        require(set(row)==CONNECTED_KEYS and row['version']==1 and row['state']=='connected' and row['grant_sha256']==child_config['grant_sha256'],'owner connected shape/grant mismatch')
+        check_peer(row['frontend_peer'],peer);native=check_connected_backend(row,prepared,service_peer);check_peer(row['backend_peer'],native)
+        connected={k:row[k] for k in CONNECTED_LEASE_KEYS}
+    else:
+        require(lease is not None,'helper owner lease absent')
+        receipt_name=f"helper-ready-{lease['lease_id']}-{peer['pid']}.json"
+        row,digest=await receipt(store,receipt_name,end)
+        validate_helper_ready(row,store,plan,prepared,service_peer,peer,lease,child_config['grant_sha256'])
+        connected={k:lease[k] for k in CONNECTED_LEASE_KEYS}
+    require(peer_matches(base.peer_for_process(peer['pid']),peer),'frontend changed before admission')
+    require(peer_matches(base.peer_for_process(service_peer['pid']),service_peer),'service changed before admission')
+    plan.transaction.launchd.phase_end=end
+    require(plan.transaction.verify()['job'].get('pid')==service_peer['pid'],'job changed before admission')
+    frozen(plan,prepared);remaining(end)
+    admitted={'action':'admitted','role':child_config['role'],'lease_id':connected['lease_id'],
+        'manifest_sha256':plan.manifest_sha256,'grant_sha256':child_config['grant_sha256'],'receipt_sha256':digest,
+        'activation_id':store.activation_id,'receipt_name':receipt_name}
+    await base.send(child,admitted,end)
+    return connected,{'lease_id':connected['lease_id'],'receipt_sha256':digest,'public_peer':event['public_peer'],'mode':mode['mode']}
 
 
 def backend_projection(row,lease,owner_peer,helper_peer,*,require_helper):
@@ -303,7 +374,10 @@ async def run_global(plan,prepared):
         grant={'version':1,'pid':owner.pid,'uid':os.getuid(),'birth':owner_peer['birth'],'expected_executable':str(plan.python),
             'executable_sha256':sha(plan.python),'profile_id':prepared.spec.profile_id}
         owner_config=config(plan,prepared,'owner',owner_peer,service_peer,public_identity,grant,business,startup,total)
-        await base.send(owner,owner_config,startup);ready=await base.line(owner,startup)
+        await base.send(owner,owner_config,startup);stage='owner-admission'
+        owner_connected,owner_admission=await admit_public_child(plan,prepared,store,owner,owner_peer,owner_config,service_peer,startup)
+        result['owner_admission']=owner_admission
+        ready=await base.line(owner,startup)
         require(ready.get('event')=='thread_ready' and ready.get('home_match') is True,'owner thread not ready')
         # The service is external: discover its immutable owner-ready receipt.
         while True:
@@ -316,7 +390,8 @@ async def run_global(plan,prepared):
         require(owner_ready.get('ready_published') is True and owner_ready.get('zero_turns') is True and owner_ready.get('initialized') is True and owner_ready.get('closed') is False,'owner ready milestone invalid')
         checked,native_peer=validate_lease(owner_ready['owner_lease'],prepared,service_peer)
         check_peer(owner_ready.get('backend'),native_peer)
-        require(checked['owner_thread_id']==ready['thread_id'] and all(ready['public_peer'][k]==service_peer[k] for k in ('pid','uid','birth','executable')),'owner ready thread/service mismatch')
+        require(checked['owner_thread_id']==ready['thread_id'] and ready['public_peer']==owner_admission['public_peer'],'owner ready thread/provenance mismatch')
+        require(all(checked[k]==owner_connected[k] for k in CONNECTED_LEASE_KEYS),'owner ready changed connected lease/backend')
         lease=checked
         result['lease']=lease;result['owner_ready_sha256']=owner_sha
         await base.send(owner,{'action':'initial_turn'},startup);initial=await base.line(owner,business)
@@ -337,14 +412,16 @@ async def run_global(plan,prepared):
         helper_config.update(thread_id=lease['owner_thread_id'],initial_turn_id=initial['initial_turn_id'],lease_id=lease['lease_id'],owner_epoch=lease['owner_epoch'],
             go_binary=str(plan.go_binary),go_sha256=plan.go_sha256,task_dir=str(task),nonce=nonce,delivery_id='G0_SYNTHETIC_TOOL_RESULT_'+nonce,
             events=[{'event_id':'event_result','event_revision':1,'kind':'result','payload_hash':inspected['event_hash'],'action_slot':'ack_result'}])
-        await base.send(helper,helper_config,helper_start);stage='helper-proof';proof=await base.line(helper,business)
+        await base.send(helper,helper_config,helper_start);stage='helper-admission'
+        _,helper_admission=await admit_public_child(plan,prepared,store,helper,helper_peer,helper_config,service_peer,helper_start,lease)
+        result['helper_admission']=helper_admission
+        stage='helper-proof';proof=await base.line(helper,business)
         require(proof.get('event')=='history_proof' and proof['thread_id']==lease['owner_thread_id'] and proof['lease_id']==lease['lease_id'] and proof['initial_turn_id']==initial['initial_turn_id'],'helper proof binding')
         require(proof['grant_sha256']==helper_config['grant_sha256'] and proof['manifest_sha256']==plan.manifest_sha256,'helper policy changed')
-        require(all(proof['public_peer'][k]==service_peer[k] for k in ('pid','uid','birth','executable')),'helper service peer mismatch')
+        require(proof['public_peer']==helper_admission['public_peer'],'helper connection provenance changed')
         helper_ready,helper_sha=await receipt(store,f"helper-ready-{lease['lease_id']}-{helper.pid}.json",min(business,now()+10));common(helper_ready,store,plan)
-        require(set(helper_ready)=={'version','activation_id','manifest_sha256','service_identity','owner_lease','frontend_peer','backend_peer'} and helper_ready['version']==1 and helper_ready['service_identity']==service_peer,'helper ready shape/service mismatch')
-        require(helper_ready['owner_lease']=={k:v for k,v in lease.items() if k!='service_identity'},'helper live lease mismatch')
-        check_peer(helper_ready['frontend_peer'],helper_peer);check_peer(helper_ready['backend_peer'],native_peer)
+        validate_helper_ready(helper_ready,store,plan,prepared,service_peer,helper_peer,lease,helper_config['grant_sha256'])
+        require(helper_sha==helper_admission['receipt_sha256'],'helper admission receipt changed')
         helper_live=True
         require(peer_matches(base.peer_for_process(service_peer['pid']),service_peer),'service changed before ACK')
         require(base.proxy_transport._process_metadata(lease['backend_pid'])[0]==lease['backend_birth'],'backend changed before ACK')

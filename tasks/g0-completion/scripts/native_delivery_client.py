@@ -44,11 +44,59 @@ def validate_controller_parent(config):
     require(sha(executable)==expected['executable_sha256'],'controller parent executable changed')
 
 
+def external_admission_mode(config,manifest):
+    policy=manifest.get('external_admission')
+    require(config.get('external_admission')==policy,'external admission policy changed')
+    if policy is None:return None
+    require(isinstance(policy,dict) and set(policy)=={'version','mode'} and type(policy['version']) is int and policy['version']==1
+        and policy['mode'] in ('launchd','inherited_fd'),'invalid external admission policy')
+    return policy['mode']
+
+
+async def wait_parent_admission(config,peer,mode,manifest):
+    if mode is None:return
+    transport.remaining(config['local_deadline'])
+    emit({'event':'public_connected','role':config['role'],'pid':os.getpid(),'profile_id':config['profile_id'],
+        'manifest_sha256':config['manifest_sha256'],'grant_sha256':config['grant_sha256'],'public_peer':peer})
+    admitted=await control(config['local_deadline'])
+    require(set(admitted)=={'action','role','lease_id','manifest_sha256','grant_sha256','receipt_sha256','activation_id','receipt_name'}
+        and admitted['action']=='admitted' and admitted['role']==config['role']
+        and admitted['manifest_sha256']==config['manifest_sha256'] and admitted['grant_sha256']==config['grant_sha256'],'parent admission binding changed')
+    require(type(admitted['lease_id']) is str and len(admitted['lease_id'])==12 and all(c in '0123456789abcdef' for c in admitted['lease_id']),'parent admission lease invalid')
+    require(type(admitted['receipt_sha256']) is str and len(admitted['receipt_sha256'])==64 and all(c in '0123456789abcdef' for c in admitted['receipt_sha256']),'parent admission receipt invalid')
+    if config['role']=='helper':require(admitted['lease_id']==config['lease_id'],'parent helper lease changed')
+    require(type(admitted['activation_id']) is str and len(admitted['activation_id'])==32 and all(c in '0123456789abcdef' for c in admitted['activation_id']),'parent activation invalid')
+    name=(f"owner-connected-{admitted['lease_id']}-{os.getpid()}.json" if config['role']=='owner' else f"helper-ready-{admitted['lease_id']}-{os.getpid()}.json")
+    require(admitted['receipt_name']==name,'parent receipt name mismatch')
+    receipt_source=ROOT/'tasks/g0-global-delivery-validation/scripts/receipt_store.py'
+    require(manifest['file_pins'].get(str(receipt_source))==sha(receipt_source),'admission reader is not pinned')
+    sys.path.insert(0,str(receipt_source.parent))
+    from receipt_store import ReceiptStore
+    store=ReceiptStore(Path(manifest['state_dir']))
+    try:
+        captured=store.read(name)
+        require(captured is not None and store.activation_id==admitted['activation_id'],'admission receipt missing')
+        row,digest=captured
+        require(digest==admitted['receipt_sha256'] and row.get('manifest_sha256')==config['manifest_sha256']
+            and row.get('activation_id')==admitted['activation_id'] and row.get('grant_sha256')==config['grant_sha256'],'admission receipt hash/binding changed')
+        bound=row if config['role']=='owner' else row['owner_lease']
+        require(bound.get('lease_id')==admitted['lease_id'] and bound.get('profile_id')==config['profile_id']
+            and bound.get('owner_context_sha256')==config['owner_context_sha256'],'admission receipt owner context changed')
+        require(row.get('service_identity')==config['proxy_peer'],'admission receipt service changed')
+        actual_birth,actual_executable=proxy_transport._process_metadata(os.getpid())
+        frontend=row.get('frontend_peer',{})
+        require(frontend.get('pid')==os.getpid() and frontend.get('uid')==os.getuid() and frontend.get('birth')==actual_birth
+            and frontend.get('executable')==actual_executable and frontend.get('complete') is True,'admission receipt frontend changed')
+    finally:store.close()
+    validate_controller_parent(config);transport.remaining(config['local_deadline'])
+
+
 def validate_config(config,role):
     manifest,digest=activation_service._private_json(Path(config['manifest_path']))
     require(digest==config['manifest_sha256'],'manifest changed')
     require(manifest['public_socket']==config['public_socket'],'public socket mapping changed')
     require(all(sha(path)==value for path,value in manifest['file_pins'].items()),'source pins changed')
+    external_admission_mode(config,manifest)
     grant,digest=activation_service._private_json(Path(config['grant_path']))
     require(digest==config['grant_sha256'] and grant['profile_id']==config['profile_id'],'grant changed')
     birth,executable=proxy_transport._process_metadata(os.getpid())
@@ -63,13 +111,14 @@ def validate_config(config,role):
     return manifest,grant
 
 
-async def open_public(config):
+async def open_public(config,mode=None):
     timeout=transport.remaining(config['local_deadline'])
     reader,writer=await asyncio.wait_for(owner_helper._open_websocket(config['public_socket']),timeout)
     peer=proxy_transport.peer_identity(writer.get_extra_info('socket'))
     expected=config['proxy_peer']
-    require(peer.complete and all(getattr(peer,key)==expected[key] for key in ('pid','uid','birth','executable')),'public proxy peer mismatch')
-    require(sha(peer.executable)==expected['executable_sha256'],'public proxy executable changed')
+    if mode!='launchd':
+        require(peer.complete and all(getattr(peer,key)==expected[key] for key in ('pid','uid','birth','executable')),'public proxy peer mismatch')
+        require(sha(peer.executable)==expected['executable_sha256'],'public proxy executable changed')
     require(transport._socket_identity(Path(config['public_socket']))==tuple(config['public_socket_identity']),'public inode changed after connect')
     transport.remaining(config['local_deadline']);return reader,writer,asdict(peer)
 
@@ -101,9 +150,11 @@ class HelperChannel:
 
 
 async def owner(config):
-    validate_config(config,'owner');reader,writer,peer=await open_public(config)
+    manifest,_=validate_config(config,'owner');mode=external_admission_mode(config,manifest)
+    reader,writer,peer=await open_public(config,mode)
     wire=OwnerWire(reader,writer);records=[];drain=None
     try:
+        await wait_parent_admission(config,peer,mode,manifest)
         rpc=transport._Rpc(wire,config['deadline'],records,config['local_deadline'])
         initialized=await rpc.call('initialize',{'clientInfo':{'name':'g0-python-owner','version':'1'},'capabilities':{'experimentalApi':True}})
         require(initialized.get('codexHome')==config['codex_home'],'owner initialize home mismatch')
@@ -199,18 +250,23 @@ async def read_completed_history(channel,capability,initial_turn_id,packets,dead
 async def helper(config):
     global CURRENT_STAGE
     CURRENT_STAGE='helper-validate'
-    _,grant=validate_config(config,'helper')
+    manifest,grant=validate_config(config,'helper');mode=external_admission_mode(config,manifest)
     transport.remaining(config['local_deadline'])
     require(os.environ.get('CODEX_THREAD_ID')==config['thread_id'],'Go injected owner context mismatch')
     adapter=DeliveryAdapter(config['go_binary'],expected_sha256=config['go_sha256'],owner_context_sha256=grant['owner_context_sha256'])
     binding=DeliveryBinding(config['profile_id'],config['thread_id'],config['owner_epoch'],config['nonce'],1)
     CURRENT_STAGE='helper-prepare-claim'
-    capability=adapter.prepare_and_claim(binding,Path(config['task_dir']),config['delivery_id'],config['events'],env={'CODEX_THREAD_ID':config['thread_id']})
+    capability=None
+    if mode is None:capability=adapter.prepare_and_claim(binding,Path(config['task_dir']),config['delivery_id'],config['events'],env={'CODEX_THREAD_ID':config['thread_id']})
     CURRENT_STAGE='helper-open-public'
-    reader,writer,peer=await open_public(config)
+    reader,writer,peer=await open_public(config,mode)
     connection=owner_helper.OwnerHelperConnection(reader,writer,config['lease_id'],config['thread_id'])
     channel=HelperChannel(connection,config['deadline'])
     try:
+        await wait_parent_admission(config,peer,mode,manifest)
+        if mode is not None:
+            CURRENT_STAGE='helper-prepare-claim'
+            capability=adapter.prepare_and_claim(binding,Path(config['task_dir']),config['delivery_id'],config['events'],env={'CODEX_THREAD_ID':config['thread_id']})
         CURRENT_STAGE='helper-initialize'
         await channel.send_rpc({'id':1,'method':'initialize','params':{'clientInfo':{'name':'g0-native-standalone','version':'0.1.0'},'capabilities':{'experimentalApi':True}}})
         while True:
