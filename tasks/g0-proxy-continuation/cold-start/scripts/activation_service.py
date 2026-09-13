@@ -685,6 +685,8 @@ class ActivationService:
             'private_socket':str(private_socket),'state':'starting','process_stopped':False,'socket_removed':False}
         self.backend_records.append(record)
         process=None; birth=None; creation_birth=None; identity=None; outputs=[]; writer=None; launch_attempted=False
+        owner_connected_path=self.receipt_dir/f'owner-connected-{frontend.pid}.json'
+        owner_connected_identity=None
         try:
             self._check_pins()
             argv=[argument.replace('{socket_path}',str(private_socket)) for argument in self.argv]
@@ -727,8 +729,28 @@ class ActivationService:
                     except (ConnectionRefusedError,FileNotFoundError): pass
                 await asyncio.sleep(min(.01,max(0,deadline-time.monotonic())))
             else: raise TimeoutError('isolated backend exceeded original local start window')
+            socket_info = private_socket.lstat()
+            if (socket_info.st_dev, socket_info.st_ino, socket_info.st_uid, socket_info.st_mode) != identity:
+                raise ValueError('backend socket identity changed before owner receipt')
+            backend_peer_object = peer_identity(writer.get_extra_info('socket'))
+            if not backend_peer_object.complete or not _same_process(backend_peer_object, process.pid, birth, self.executable):
+                raise ValueError('backend peer identity mismatch before owner receipt')
+            backend_peer = _peer(backend_peer_object)
             record.update(state='connected',birth=birth,executable=str(self.executable),
-                private_socket_identity=identity,backend_peer=_peer(peer_identity(writer.get_extra_info('socket'))))
+                private_socket_identity=identity,backend_peer=backend_peer)
+            _publish_receipt(owner_connected_path, {
+                'version':1,'activation_id':self.activation_id,'manifest_sha256':self.manifest_sha256,
+                'service_identity':dict(self._service_identity),
+                'profile_id':profile,'owner_context_sha256':self._owner_context_sha(context),
+                'lease_id':lease_id,'frontend_peer':_peer(frontend),'grant_sha256':grant_sha,
+                'private_socket':str(private_socket),'private_socket_identity':list(identity),
+                'backend_pid':process.pid,'backend_birth':birth,
+                'backend_executable_sha256':_sha(self.executable),'backend_peer':backend_peer},
+                expected_parent=self._directory_pins[self.receipt_dir])
+            owner_connected_info=os.lstat(owner_connected_path)
+            owner_connected_identity=(owner_connected_info.st_dev,owner_connected_info.st_ino,
+                owner_connected_info.st_uid,owner_connected_info.st_mode)
+            record['owner_connected_identity']=owner_connected_identity
             yield BackendConnection(reader,writer,lambda peer:_same_process(peer,process.pid,birth,self.executable))
         except BaseException as exc:
             if isinstance(exc,asyncio.CancelledError) and self._closed:
@@ -775,6 +797,27 @@ class ActivationService:
                     else: record['cleanup_failure']='backend_socket_identity_changed'
                 except FileNotFoundError: record['socket_removed']=True
             elif not os.path.lexists(private_socket): record['socket_removed']=True
+            if owner_connected_identity is not None:
+                receipt_fd=None; receipt_open=None
+                try:
+                    receipt_fd=os.open(self.receipt_dir,os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW)
+                    current=os.stat(owner_connected_path.name,dir_fd=receipt_fd,follow_symlinks=False)
+                    receipt_open=os.open(owner_connected_path.name,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK,dir_fd=receipt_fd)
+                    opened=os.fstat(receipt_open)
+                    if ((current.st_dev,current.st_ino,current.st_uid,current.st_mode)!=owner_connected_identity
+                            or (opened.st_dev,opened.st_ino,opened.st_uid,opened.st_mode)!=owner_connected_identity):
+                        raise ValueError('owner-connected receipt identity changed')
+                    os.unlink(owner_connected_path.name,dir_fd=receipt_fd)
+                    os.fsync(receipt_fd)
+                    record['owner_connected_removed']=True
+                except FileNotFoundError:
+                    record['owner_connected_removed']=True
+                except (OSError,ValueError):
+                    record['owner_connected_removed']=False
+                    record['cleanup_failure']='owner_connected_receipt_identity_unknown'
+                finally:
+                    if receipt_open is not None: os.close(receipt_open)
+                    if receipt_fd is not None: os.close(receipt_fd)
             if record['state']!='failed': record['state']='closed'
             record['protocol']=self.sink.protocol_for_lease(lease_id)
             record['elapsed_seconds']=time.monotonic()-start

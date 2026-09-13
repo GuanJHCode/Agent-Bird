@@ -25,3 +25,25 @@ The activation service creates these receipts under `state/<activation_id>/` wit
 `helper-ready-<lease>-<helperpid>.json` is published only after helper admission, the private backend peer identity, and frozen socket identity all pass. It binds the same activation/manifest/service and owner lease, and records safe `frontend_peer` and `backend_peer` projections. It contains no RPC body, credentials, or auth paths.
 
 The receipts are evidence projections. They do not add an IPC or RPC route, widen admission, or replace final cleanup receipts.
+
+`owner-connected-<frontend.pid>.json` is emitted only by the service after the admitted owner frontend has an authenticated backend process peer and the frozen private socket identity has been rechecked. It is emitted before the backend connection is yielded to the relay, so it contains no thread, epoch, initialize, or RPC state. The active receipt is removed with the same frozen parent/inode checks when that backend lease closes; a changed or foreign receipt is retained as UNKNOWN. Its safe projection is:
+
+```json
+{
+  "version": 1,
+  "activation_id": "...",
+  "manifest_sha256": "...",
+  "service_identity": {"pid": 123, "uid": 501, "birth": "...", "executable": "/.../python", "executable_sha256": "..."},
+  "profile_id": "profile-a",
+  "owner_context_sha256": "...",
+  "lease_id": "...",
+  "frontend_peer": {"pid": 456, "uid": 501, "birth": "...", "executable": "/.../python", "complete": true},
+  "grant_sha256": "...",
+  "private_socket": "/private/.../backend.sock",
+  "private_socket_identity": [1, 2, 501, 496],
+  "backend_pid": 789,
+  "backend_birth": "...",
+  "backend_executable_sha256": "...",
+  "backend_peer": {"pid": 789, "uid": 501, "birth": "...", "executable": "/.../python", "complete": true}
+}
+```

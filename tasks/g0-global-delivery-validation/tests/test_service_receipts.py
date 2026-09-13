@@ -34,6 +34,12 @@ def test_service_start_publishes_owner_receipt_directory(tmp_path):
                 value = json.loads(start.read_text())
                 assert value["activation_id"] == service.activation_id
                 assert isinstance(value["started_raw_ns"], int) and "started_raw" not in value
+                unknown_reader, unknown_writer = await asyncio.open_unix_connection(public)
+                unknown_writer.write(b"GET / HTTP/1.1\r\nHost: unknown\r\nUpgrade: websocket\r\n\r\n")
+                await unknown_writer.drain()
+                assert await asyncio.wait_for(unknown_reader.read(), 2) == b""
+                unknown_writer.close(); await unknown_writer.wait_closed()
+                assert not list(service.receipt_dir.glob("owner-connected-*.json"))
             finally:
                 await service.close()
     asyncio.run(run())
@@ -111,6 +117,9 @@ def test_real_service_publishes_owner_and_helper_receipts(tmp_path):
             import test_owner_helper_production_pipeline as owner_pipeline
             from owner_helper import _open_websocket
             owner_script=root/"owner.py"; owner_pipeline._write_client(owner_script,False)
+            owner_script.write_text(owner_script.read_text().replace(
+                "sock=connect(sys.argv[1]); initialize(sock)",
+                "sock=connect(sys.argv[1]); print('upgraded',flush=True)\nif sys.stdin.readline().strip() != 'initialize': raise SystemExit(3)\ninitialize(sock)"))
             listener=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM); listener.bind(str(public)); listener.listen(8); public.chmod(0o600)
             service=activation_service.ActivationService.from_manifest(manifest); await service.start(listener)
             owner=await asyncio.create_subprocess_exec(binary,"-B",str(owner_script),str(public),cwd=profiles["a"]["workspace"],stdin=asyncio.subprocess.PIPE,stdout=asyncio.subprocess.PIPE,env={"PATH":"/usr/bin:/bin","HOME":str(root),"PYTHONDONTWRITEBYTECODE":"1"})
@@ -119,7 +128,19 @@ def test_real_service_publishes_owner_and_helper_receipts(tmp_path):
                 assert await owner_pipeline._line(owner)=="ready"
                 birth,executable=proxy_transport._process_metadata(owner.pid)
                 private_json(grants/f"{owner.pid}.json",{"version":1,"pid":owner.pid,"uid":os.getuid(),"birth":birth,"expected_executable":executable,"executable_sha256":digest(binary),"profile_id":"a"})
-                owner.stdin.write(b"go\n"); await owner.stdin.drain(); assert await owner_pipeline._line(owner)=="owner-ready"
+                owner.stdin.write(b"go\n"); await owner.stdin.drain()
+                assert await owner_pipeline._line(owner)=="upgraded"
+                connected=service.receipt_dir/f"owner-connected-{owner.pid}.json"
+                for _ in range(100):
+                    if connected.exists(): break
+                    await asyncio.sleep(.01)
+                assert connected.exists()
+                connected_value=json.loads(connected.read_text())
+                assert connected_value["frontend_peer"]["pid"]==owner.pid
+                assert connected_value["backend_pid"]==connected_value["backend_peer"]["pid"]
+                assert not list(service.receipt_dir.glob("ready-*.json"))
+                owner.stdin.write(b"initialize\n"); await owner.stdin.drain()
+                assert await owner_pipeline._line(owner)=="owner-ready"
                 for _ in range(100):
                     if service._owner_leases: break
                     await asyncio.sleep(.01)
