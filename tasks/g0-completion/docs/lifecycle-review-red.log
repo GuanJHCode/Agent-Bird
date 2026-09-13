@@ -1,0 +1,69 @@
+FF..F                                                                    [100%]
+=================================== FAILURES ===================================
+___ test_receipt_parent_replacement_preserves_records_on_the_owned_directory ___
+tasks/g0-completion/tests/test_lifecycle_guard.py:175: in test_receipt_parent_replacement_preserves_records_on_the_owned_directory
+    asyncio.run(asyncio.wait_for(scenario(),10))
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/tasks.py:507: in wait_for
+    return await fut
+           ^^^^^^^^^
+tasks/g0-completion/tests/test_lifecycle_guard.py:171: in scenario
+    assert (retained/'guardian-final.json').exists()
+E   AssertionError: assert False
+E    +  where False = exists()
+E    +    where exists = (PosixPath('/private/tmp/g0-life-fdtqqu1c/retained') / 'guardian-final.json').exists
+________ test_missing_birth_is_explicit_unknown_with_real_child_stopped ________
+tasks/g0-completion/tests/test_lifecycle_guard.py:196: in test_missing_birth_is_explicit_unknown_with_real_child_stopped
+    asyncio.run(asyncio.wait_for(scenario(),10))
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/tasks.py:507: in wait_for
+    return await fut
+           ^^^^^^^^^
+tasks/g0-completion/tests/test_lifecycle_guard.py:194: in scenario
+    assert outcome['state']=='unknown' and outcome['child_birth'] is None
+E   AssertionError: assert ('stopped' == 'unknown'
+E     
+E     - unknown
+E     + stopped)
+______________ test_hardlinked_final_receipt_cannot_prove_cleanup ______________
+tasks/g0-completion/tests/test_lifecycle_guard.py:236: in test_hardlinked_final_receipt_cannot_prove_cleanup
+    asyncio.run(asyncio.wait_for(scenario(),10))
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/tasks.py:507: in wait_for
+    return await fut
+           ^^^^^^^^^
+tasks/g0-completion/tests/test_lifecycle_guard.py:235: in scenario
+    assert result['state']=='unknown' and result['child_reaped'] is False
+E   AssertionError: assert ('stopped' == 'unknown'
+E     
+E     - unknown
+E     + stopped)
+=========================== short test summary info ============================
+FAILED tasks/g0-completion/tests/test_lifecycle_guard.py::test_receipt_parent_replacement_preserves_records_on_the_owned_directory
+FAILED tasks/g0-completion/tests/test_lifecycle_guard.py::test_missing_birth_is_explicit_unknown_with_real_child_stopped
+FAILED tasks/g0-completion/tests/test_lifecycle_guard.py::test_hardlinked_final_receipt_cannot_prove_cleanup
+3 failed, 2 passed, 5 deselected in 0.95s

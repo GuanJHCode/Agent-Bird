@@ -23,6 +23,7 @@ for _directory in (_REPO/'tasks/g0-tui-proxy/scripts', _REPO/'tasks/g0-auth-pres
         sys.path.insert(0,str(_directory))
 from proxy_transport import BackendConnection, CaptureSink, ProxyServer, _process_metadata
 from proxy_observer import Observer
+from owned_child_guard import GuardedChild
 
 LOCAL_SECONDS = 10.0
 
@@ -404,7 +405,7 @@ class ActivationService:
         record={'lease_id':lease_id,'profile_id':profile,'grant_sha256':grant_sha,'frontend':_peer(frontend),
             'private_socket':str(private_socket),'state':'starting','process_stopped':False,'socket_removed':False}
         self.backend_records.append(record)
-        process=None; birth=None; creation_birth=None; identity=None; outputs=[]; writer=None
+        process=None; birth=None; creation_birth=None; identity=None; outputs=[]; writer=None; launch_attempted=False
         try:
             self._check_pins()
             argv=[argument.replace('{socket_path}',str(private_socket)) for argument in self.argv]
@@ -414,9 +415,10 @@ class ActivationService:
             with os.fdopen(fd,'w') as stream: stream.write(plan['sandbox_profile'])
             if time.monotonic()>=deadline: raise TimeoutError('backend start deadline elapsed before spawn')
             launch=['/usr/bin/sandbox-exec','-f',str(sandbox_path),*plan['argv']]
-            spawn=asyncio.create_task(asyncio.create_subprocess_exec(*launch,cwd=plan['cwd'],env=plan['env'],
+            launch_attempted=True
+            spawn=asyncio.create_task(GuardedChild.spawn(launch,cwd=plan['cwd'],env=plan['env'],receipt_dir=lease_dir,
                 stdin=asyncio.subprocess.DEVNULL,stdout=asyncio.subprocess.PIPE,stderr=asyncio.subprocess.PIPE,
-                start_new_session=True,umask=0o077))
+                ))
             try:
                 process=await asyncio.shield(spawn)
             except asyncio.CancelledError:
@@ -425,8 +427,10 @@ class ActivationService:
             finally:
                 if process is not None:
                     creation_birth,creation_executable=_process_metadata(process.pid)
-                    record.update(pid=process.pid,creation_birth=creation_birth,creation_executable=creation_executable)
+                    record.update(pid=process.pid,guardian_pid=process.guardian_pid,creation_birth=creation_birth,creation_executable=creation_executable)
                     outputs=[asyncio.create_task(self._output_digest(stream)) for stream in (process.stdout,process.stderr)]
+            if not process.identity_known:
+                raise OSError('guardian child identity is unknown')
             if not creation_birth and process.returncode is None:
                 raise OSError('owned child creation identity unavailable')
             while time.monotonic()<deadline:
@@ -456,27 +460,22 @@ class ActivationService:
             cleanup_deadline=getattr(self,'_cleanup_deadline',time.monotonic()+LOCAL_SECONDS)
             if writer is not None: writer.close()
             if process is not None:
-                if process.returncode is None:
-                    current_birth,_=_process_metadata(process.pid)
-                    # sandbox-exec may still be transitioning to the expected image.
-                    # The creation PID/birth remains the owned identity across exec.
-                    if creation_birth and current_birth==creation_birth:
-                        process.terminate()
-                        try: await asyncio.wait_for(process.wait(),1.0)
-                        except TimeoutError:
-                            check_birth,_=_process_metadata(process.pid)
-                            if check_birth==creation_birth:
-                                process.kill()
-                                try: await asyncio.wait_for(process.wait(),max(0,cleanup_deadline-time.monotonic()))
-                                except TimeoutError: record['cleanup_failure']='owned_backend_stop_timeout'
-                    else: record['cleanup_failure']='backend_process_identity_unknown'
-                record['returncode']=process.returncode
-                record['process_stopped']=process.returncode is not None
+                guarded=await process.stop(max(0,cleanup_deadline-time.monotonic()))
+                record['guardian']=guarded
+                record['returncode']=guarded.get('child_returncode')
+                record['process_stopped']=guarded.get('child_reaped') is True
+                record['tree_stop_unproven']=True
+                record['restart_allowed']=False
+                if guarded.get('state')!='stopped': record['cleanup_failure']='guardian_ownership_unknown'
                 try:
                     digests=await asyncio.wait_for(asyncio.gather(*outputs),min(1.0,max(0,cleanup_deadline-time.monotonic())))
                     record['stdout'],record['stderr']=digests
                 except TimeoutError:
                     record['output_digest_complete']=False
+            elif launch_attempted:
+                record['cleanup_failure']='guardian_launch_unproven'
+                record['process_stopped']=False
+                record['restart_allowed']=False
             else: record['process_stopped']=True
             if writer is not None:
                 try: await asyncio.wait_for(writer.wait_closed(),min(1.0,max(0,cleanup_deadline-time.monotonic())))

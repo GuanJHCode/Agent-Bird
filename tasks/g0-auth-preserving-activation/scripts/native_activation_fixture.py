@@ -340,6 +340,7 @@ def build_fixture(native_executable: Path, *, options: FixtureOptions | None = N
             str(ACTIVATION_SERVICE): _hash(ACTIVATION_SERVICE),
             str(LAUNCH_ACTIVATION): _hash(LAUNCH_ACTIVATION),
             str(REPO_ROOT / "tasks/g0-tui-proxy/scripts/proxy_transport.py"): _hash(REPO_ROOT / "tasks/g0-tui-proxy/scripts/proxy_transport.py"),
+            str(REPO_ROOT / "tasks/g0-tui-proxy/scripts/owned_child_guard.py"): _hash(REPO_ROOT / "tasks/g0-tui-proxy/scripts/owned_child_guard.py"),
             str(REPO_ROOT / "tasks/g0-tui-proxy/scripts/proxy_observer.py"): _hash(REPO_ROOT / "tasks/g0-tui-proxy/scripts/proxy_observer.py"),
             str(REPO_ROOT / "tasks/g0-auth-preserving-activation/scripts/auth_isolation.py"): _hash(REPO_ROOT / "tasks/g0-auth-preserving-activation/scripts/auth_isolation.py"),
             str(REPO_ROOT / "tasks/g0-auth-preserving-activation/scripts/activation_transaction.py"): _hash(REPO_ROOT / "tasks/g0-auth-preserving-activation/scripts/activation_transaction.py"),
