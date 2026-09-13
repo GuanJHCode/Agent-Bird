@@ -43,6 +43,14 @@ cp -R "$plugin_source"/. "$out/plugin/"
 # Empty source directories have no manifest identity and would be retained as
 # unknown objects by the installer. Remove them only from this fresh package.
 find "$out/plugin" -depth -type d -empty ! -path "$out/plugin" -delete
+for executable in scripts/invoke.sh scripts/native-product-bridge.py; do
+  packaged_executable="$out/plugin/$executable"
+  [ -f "$packaged_executable" ] && [ ! -L "$packaged_executable" ] || {
+    echo "packaged_executable_unsafe:$executable" >&2
+    exit 1
+  }
+  chmod 700 "$packaged_executable"
+done
 mkdir -m 700 "$out/plugin/bin"
 cp "$binary" "$out/plugin/bin/codex-orchestrator"
 chmod 700 "$out/plugin/bin/codex-orchestrator"
