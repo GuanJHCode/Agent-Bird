@@ -105,6 +105,7 @@ type Server struct {
 	listener    net.Listener
 	mu          sync.Mutex
 	hosts       map[string]*hostSession
+	inFlight    int
 	close       sync.Once
 	idleTimeout time.Duration
 	idleExit    atomic.Bool
@@ -180,7 +181,22 @@ func (s *Server) Serve(ctx context.Context) error {
 			}
 			return err
 		}
-		go s.handleConnection(ctx, conn)
+		s.mu.Lock()
+		if s.idleExit.Load() {
+			s.mu.Unlock()
+			_ = conn.Close()
+			continue
+		}
+		s.inFlight++
+		s.mu.Unlock()
+		go func() {
+			defer func() {
+				s.mu.Lock()
+				s.inFlight--
+				s.mu.Unlock()
+			}()
+			s.handleConnection(ctx, conn)
+		}()
 	}
 }
 
@@ -196,18 +212,25 @@ func (s *Server) monitorIdle(ctx context.Context) {
 	defer ticker.Stop()
 	var since time.Time
 	for {
-		idle, err := s.db.CompletelyIdle(context.Background())
+		s.mu.Lock()
+		busy := s.inFlight != 0
+		idle, err := false, error(nil)
+		if !busy {
+			idle, err = s.db.CompletelyIdle(context.Background())
+		}
 		if err == nil && idle {
 			if since.IsZero() {
 				since = time.Now()
 			} else if time.Since(since) >= s.idleTimeout {
 				s.idleExit.Store(true)
 				_ = s.listener.Close()
+				s.mu.Unlock()
 				return
 			}
 		} else {
 			since = time.Time{}
 		}
+		s.mu.Unlock()
 		select {
 		case <-ctx.Done():
 			return

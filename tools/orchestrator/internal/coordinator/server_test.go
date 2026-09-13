@@ -210,6 +210,48 @@ func TestServerExitsAfterIdleDebounce(t *testing.T) {
 	}
 }
 
+func TestServerDoesNotExitWhileAcceptedRequestIsInFlight(t *testing.T) {
+	root, err := os.MkdirTemp("/tmp", "g1-idle-request-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(root) })
+	server, err := NewServer(filepath.Join(root, "state"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Close()
+	server.idleTimeout = 40 * time.Millisecond
+	done := make(chan error, 1)
+	go func() { done <- server.Serve(context.Background()) }()
+	conn, err := net.Dial("unix", server.SocketPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = conn.Close() })
+	time.Sleep(80 * time.Millisecond)
+	select {
+	case err = <-done:
+		t.Fatalf("server exited with an accepted request: %v", err)
+	default:
+	}
+	if err = ipc.Write(conn, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindReady, RequestID: "late-ready", Payload: json.RawMessage(`{}`)}); err != nil {
+		t.Fatal(err)
+	}
+	if response := readMessage(t, conn); response.Kind != ipc.KindResponse {
+		t.Fatalf("late accepted response=%#v", response)
+	}
+	_ = conn.Close()
+	select {
+	case err = <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("server did not exit after in-flight request completed")
+	}
+}
+
 func callServer(t *testing.T, socket string, kind ipc.Kind, payload any) ipc.Envelope {
 	t.Helper()
 	message, err := ipc.Call(context.Background(), socket, ipc.Envelope{Version: ipc.Version, Kind: kind, RequestID: "control-request", Payload: jsonBytes(t, payload)})
