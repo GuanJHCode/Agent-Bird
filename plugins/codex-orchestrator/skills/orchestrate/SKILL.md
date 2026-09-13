@@ -39,7 +39,10 @@ request in the current owner thread and only with the exact latest
    `native-bridge` helper for the current attached owner. Never invoke the
    helper manually or infer the owner PID, birth, thread, or generation from
    the shell, working directory, helper process, or UI text. If the attached
-   owner capability is unavailable, report `blocked`. The request JSON must
+   owner capability is unavailable, report `blocked`. After emitting that
+   capability the bootstrap helper detaches cleanly; the capability remains
+   usable only while its origin owner, service, backend, and private socket
+   identities still match. The request JSON must
    include `run_id`, the absolute owner-only `owner_capability`, the exact projected `controller_thread`,
    `origin_context_id`, `origin_pid`, `origin_birth`, `host_generation`, and a
    non-empty `tasks` array. Each task declares `completion_policy` as
@@ -99,10 +102,12 @@ the CLI consumes it. The plugin must not copy the answer into the conversation,
 logs, or argv; the coordinator may persist it for the bound attempt resume.
 Never copy the control token.
 
-`native-bridge` is launched by the attached service and consumes the distinct owner attachment capability. It verifies
-the current service/TUI/helper binding and package/runtime pins before collect,
-send, reconciliation, ACK, or owner rebind. A control file alone is not native
-attachment evidence.
+`native-bridge` is launched by the attached service and consumes the distinct
+owner attachment capability. It verifies the live origin owner, service,
+backend, private socket, and package/runtime pins before collect, send,
+reconciliation, ACK, or owner rebind. It does not require the detached
+bootstrap helper to remain alive. A control file alone is not native attachment
+evidence.
 
 ```text
 invoke.sh rebind-owner --request <absolute-0600-rebind-request>
