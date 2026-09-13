@@ -6,6 +6,7 @@ import os
 import shutil
 import stat
 import subprocess
+import socket
 import sys
 import uuid
 from dataclasses import replace
@@ -72,6 +73,7 @@ def fake_env() -> tuple[Path, Path, Path, Path, Path]:
     fake_launchctl.write_text(
         """#!/usr/bin/env python3
 import json, os, sys
+import socket
 state_path = os.environ['FAKE_LAUNCHD_STATE']
 state = json.loads(open(state_path).read()) if os.path.exists(state_path) else {}
 cmd = sys.argv[1]
@@ -86,6 +88,14 @@ if cmd == 'bootstrap':
         open(state_path, 'w').write(json.dumps(state))
         raise SystemExit(37)
     state['job'] = {'domain': domain, 'label': state['label'], 'path': target, 'program_arguments': state['program_arguments']}
+    if state.get('create_public_socket'):
+        socket_path = state['socket_path']
+        if os.path.lexists(socket_path): os.unlink(socket_path)
+        listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        listener.bind(socket_path)
+        listener.listen(1)
+        listener.close()
+        os.chmod(socket_path, 0o600)
 elif cmd == 'print':
     if state.get('foreign_job'):
         print(json.dumps(state['foreign_job']))
@@ -113,6 +123,8 @@ elif cmd == 'bootout':
     if state.get('fail_bootout'):
         raise SystemExit(39)
     state.pop('job', None)
+    if state.get('remove_socket_on_bootout', True) and state.get('socket_path') and os.path.lexists(state['socket_path']):
+        os.unlink(state['socket_path'])
 else:
     raise SystemExit(2)
 open(state_path, 'w').write(json.dumps(state))
@@ -187,6 +199,9 @@ def make_controller(fake_env, txn_id="txn-001", guard=None):
             {
                 "label": spec.label,
                 "program_arguments": list(spec.program_arguments),
+                "create_public_socket": True,
+                "remove_socket_on_bootout": True,
+                "socket_path": str(spec.socket_path),
             }
         ),
         encoding="utf-8",
@@ -368,7 +383,7 @@ def test_revoke_refuses_replaced_plist_and_never_unlinks_socket(fake_env):
 
     assert tx.spec.plist_path.read_bytes() == b"foreign-replacement"
     assert tx.spec.lease_path is not None and tx.spec.lease_path.exists()
-    assert not tx.spec.socket_path.exists()
+    assert tx.spec.socket_path.exists()
     assert json.loads(fake_env[3].read_text(encoding="utf-8")).get("bootout_calls", 0) == 0
 
 
@@ -376,9 +391,13 @@ def test_revoke_residual_public_socket_is_unknown_without_unlink(fake_env):
     tx = make_controller(fake_env)
     tx.prepare()
     tx.register()
+    state = json.loads(fake_env[3].read_text(encoding="utf-8"))
+    state["remove_socket_on_bootout"] = False
+    fake_env[3].write_text(json.dumps(state), encoding="utf-8")
+    tx.spec.socket_path.unlink()
     tx.spec.socket_path.write_bytes(b"launchd-residual")
 
-    with pytest.raises(UnknownStateError, match="public_socket_residual"):
+    with pytest.raises(UnknownStateError, match="public_socket"):
         tx.revoke()
 
     assert tx.receipt["state"] == "UNKNOWN"
@@ -395,6 +414,59 @@ def test_revoke_absent_public_socket_is_revoked(fake_env):
     receipt = tx.revoke()
     assert receipt["state"] == "REVOKED"
     assert "public_socket_residual" not in receipt
+
+
+def test_real_socket_identity_is_frozen_and_same_residual_is_removed_by_dirfd(fake_env):
+    tx = make_controller(fake_env)
+    state = json.loads(fake_env[3].read_text(encoding="utf-8"))
+    state.update(create_public_socket=True, remove_socket_on_bootout=False, socket_path=str(tx.spec.socket_path))
+    fake_env[3].write_text(json.dumps(state), encoding="utf-8")
+
+    tx.prepare()
+    tx.register()
+    assert tx.public_socket_identity is not None
+    receipt = tx.revoke()
+
+    assert receipt["state"] == "REVOKED"
+    assert not tx.spec.socket_path.exists()
+
+
+def test_socket_symlink_replacement_stays_unknown_and_is_never_deleted(fake_env):
+    tx = make_controller(fake_env)
+    state = json.loads(fake_env[3].read_text(encoding="utf-8"))
+    state.update(create_public_socket=True, remove_socket_on_bootout=False, socket_path=str(tx.spec.socket_path))
+    fake_env[3].write_text(json.dumps(state), encoding="utf-8")
+    tx.prepare()
+    tx.register()
+    tx.spec.socket_path.unlink()
+    foreign = tx.spec.socket_path.parent / "foreign-socket"
+    foreign.write_bytes(b"foreign")
+    tx.spec.socket_path.symlink_to(foreign)
+
+    with pytest.raises(UnknownStateError, match="public_socket"):
+        tx.revoke()
+
+    assert tx.receipt["state"] == "UNKNOWN"
+    assert tx.spec.socket_path.is_symlink()
+    assert foreign.read_bytes() == b"foreign"
+
+
+def test_socket_parent_replacement_stays_unknown_and_keeps_old_socket(fake_env):
+    tx = make_controller(fake_env)
+    state = json.loads(fake_env[3].read_text(encoding="utf-8"))
+    state.update(create_public_socket=True, remove_socket_on_bootout=False, socket_path=str(tx.spec.socket_path))
+    fake_env[3].write_text(json.dumps(state), encoding="utf-8")
+    tx.prepare()
+    tx.register()
+    old_parent = tx.spec.socket_path.parent.with_name("app-server-control-old")
+    os.rename(tx.spec.socket_path.parent, old_parent)
+    tx.spec.socket_path.parent.mkdir(mode=0o700)
+
+    with pytest.raises(UnknownStateError, match="parent_changed"):
+        tx.revoke()
+
+    assert tx.receipt["state"] != "REVOKED"
+    assert (old_parent / tx.spec.socket_path.name).exists()
 
 
 def test_foreign_job_after_bootstrap_error_is_not_booted_out(fake_env):

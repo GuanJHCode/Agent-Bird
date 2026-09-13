@@ -92,6 +92,14 @@ class DirectoryIdentity:
     mode: int
 
 
+@dataclass(frozen=True)
+class SocketIdentity:
+    dev: int
+    ino: int
+    uid: int
+    mode: int
+
+
 def _sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as stream:
@@ -143,6 +151,16 @@ def _directory_identity(path: Path) -> DirectoryIdentity:
     if stat.S_ISLNK(st.st_mode) or not stat.S_ISDIR(st.st_mode):
         raise UnknownStateError("directory_identity_invalid")
     return DirectoryIdentity(st.st_dev, st.st_ino, st.st_uid, stat.S_IMODE(st.st_mode))
+
+
+def _socket_identity(path: Path) -> SocketIdentity:
+    ActivationTransaction._reject_symlink_components(path)
+    st = path.lstat()
+    if stat.S_ISLNK(st.st_mode) or not stat.S_ISSOCK(st.st_mode):
+        raise UnknownStateError("public_socket_not_socket")
+    if st.st_uid != os.getuid():
+        raise UnknownStateError("public_socket_owner")
+    return SocketIdentity(st.st_dev, st.st_ino, st.st_uid, stat.S_IMODE(st.st_mode))
 
 
 def _fsync_directory(path: Path) -> None:
@@ -330,6 +348,7 @@ class ActivationTransaction:
         self.stage_identity: FileIdentity | None = None
         self.plist_identity: FileIdentity | None = None
         self.lease_identity: FileIdentity | None = None
+        self.public_socket_identity: SocketIdentity | None = None
         self.parent_identities: dict[str, DirectoryIdentity] = {}
         self.auth_baseline: dict[str, Any] | None = None
         self.registered = False
@@ -501,6 +520,44 @@ class ActivationTransaction:
         if job is not None:
             self.receipt["job"] = job
         return status, job
+
+    def _freeze_public_socket(self) -> None:
+        self._check_frozen_parents()
+        identity = _socket_identity(self.spec.socket_path)
+        if identity.mode != 0o600:
+            raise UnknownStateError("public_socket_mode")
+        self.public_socket_identity = identity
+        self.receipt["public_socket"] = {
+            "path": str(self.spec.socket_path),
+            "dev": identity.dev,
+            "ino": identity.ino,
+            "uid": identity.uid,
+            "mode": format(identity.mode, "04o"),
+        }
+
+    def _remove_owned_public_socket(self) -> None:
+        if self.public_socket_identity is None:
+            raise UnknownStateError("public_socket_identity_missing")
+        self._check_frozen_parents()
+        parent = self.spec.socket_path.parent
+        parent_identity = self.parent_identities["socket_parent"]
+        fd = os.open(parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+        try:
+            if _directory_identity(parent) != parent_identity:
+                raise UnknownStateError("public_socket_parent_changed")
+            try:
+                current = os.stat(self.spec.socket_path.name, dir_fd=fd, follow_symlinks=False)
+            except FileNotFoundError:
+                return
+            if stat.S_ISLNK(current.st_mode) or not stat.S_ISSOCK(current.st_mode):
+                raise UnknownStateError("public_socket_replaced")
+            observed = SocketIdentity(current.st_dev, current.st_ino, current.st_uid, stat.S_IMODE(current.st_mode))
+            if observed != self.public_socket_identity:
+                raise UnknownStateError("public_socket_replaced")
+            os.unlink(self.spec.socket_path.name, dir_fd=fd)
+            os.fsync(fd)
+        finally:
+            os.close(fd)
 
     @staticmethod
     def _validate_artifact(
@@ -806,6 +863,7 @@ class ActivationTransaction:
             self.receipt["state"] = "ROLLED_BACK"
             self._finish_auth()
             raise RegistrationError("foreign_job")
+        self._freeze_public_socket()
         self.registered = True
         self.receipt["state"] = "REGISTERED"
         return dict(self.receipt)
@@ -857,18 +915,28 @@ class ActivationTransaction:
                 raise UnknownStateError("bootout_unknown")
             if status_after != "absent":
                 raise UnknownStateError("job_still_present")
-        public_socket_residual = os.path.lexists(self.spec.socket_path)
+        public_socket_error: Exception | None = None
+        if os.path.lexists(self.spec.socket_path):
+            try:
+                self._remove_owned_public_socket()
+            except Exception as exc:
+                public_socket_error = exc
+        elif self.public_socket_identity is None:
+            public_socket_error = UnknownStateError("public_socket_identity_missing")
         self._remove_plist()
         self._remove_lease()
         self.registered = False
-        if public_socket_residual:
+        if public_socket_error is not None:
             self.receipt["public_socket_residual"] = {
                 "path": str(self.spec.socket_path),
                 "cleanup": "manual_launchd_or_owner_audit_required",
+                "reason": type(public_socket_error).__name__,
             }
             self.receipt["state"] = "UNKNOWN"
             self._finish_auth()
-            raise UnknownStateError("public_socket_residual")
+            if isinstance(public_socket_error, UnknownStateError):
+                raise public_socket_error
+            raise UnknownStateError("public_socket_residual") from public_socket_error
         self.receipt["state"] = "REVOKED"
         self._finish_auth()
         return dict(self.receipt)
