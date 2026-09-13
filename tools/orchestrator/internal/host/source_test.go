@@ -4,6 +4,7 @@ import (
 	"codex-cli-orchestration-design/tools/orchestrator/internal/contract"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/ipc"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/process"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/store"
 	"context"
 	"encoding/json"
 	"errors"
@@ -128,5 +129,82 @@ func TestSourceSessionRoutesErrorToAckWaiter(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("ack waiter was not woken")
+	}
+}
+
+func TestRunSourceReplaysDurableSpoolBeforeNewLaunch(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "spool")
+	h, err := NewIPC(root, "launch-replay")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := store.Attempt{ID: "attempt-replay", TaskID: "task-replay", SegmentID: "segment-replay"}
+	if err = h.recordLaunchFailed(a, "run-replay", a.TaskID, launchMetadata{commandID: "command-replay", workRevision: 2, executionEpoch: 1}, errors.New("unspawned")); err != nil {
+		t.Fatal(err)
+	}
+	socket := fmt.Sprintf("/tmp/g1-host-replay-%d.sock", os.Getpid())
+	_ = os.Remove(socket)
+	defer os.Remove(socket)
+	listener, err := net.Listen("unix", socket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	serverDone := make(chan error, 1)
+	go func() {
+		conn, acceptErr := listener.Accept()
+		if acceptErr != nil {
+			serverDone <- acceptErr
+			return
+		}
+		defer conn.Close()
+		helloEnvelope, readErr := ipc.Read(conn)
+		if readErr != nil {
+			serverDone <- readErr
+			return
+		}
+		readyPayload, _ := json.Marshal(contract.HostReady{HostID: "launch-replay", CoordinatorEpoch: 8})
+		if err = ipc.Write(conn, ipc.Envelope{Version: 1, Kind: ipc.KindHostReady, RequestID: helloEnvelope.RequestID, Epoch: 8, Payload: readyPayload}); err != nil {
+			serverDone <- err
+			return
+		}
+		for sequence := int64(1); sequence <= 2; sequence++ {
+			envelope, readErr := ipc.Read(conn)
+			if readErr != nil {
+				serverDone <- readErr
+				return
+			}
+			var event contract.Event
+			if json.Unmarshal(envelope.Payload, &event) != nil || event.Sequence != sequence || event.ExecutionEpoch != 8 {
+				serverDone <- errors.New("replay_event_mismatch")
+				return
+			}
+			ack, _ := json.Marshal(contract.DurableAck{ProducerID: event.ProducerID, AckedThrough: event.Sequence, EventID: event.EventID, PayloadHash: event.PayloadHash, Status: "durable"})
+			if err = ipc.Write(conn, ipc.Envelope{Version: 1, Kind: ipc.KindDurableAck, RequestID: envelope.RequestID, Epoch: 8, Payload: ack}); err != nil {
+				serverDone <- err
+				return
+			}
+		}
+		serverDone <- nil
+	}()
+	binary, err := filepath.EvalSymlinks(os.Args[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	birth, err := process.Birth(os.Getpid())
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	hello := contract.HostHello{LaunchID: "launch-replay", LaunchToken: "token", OriginContextID: "origin", HostGeneration: "generation", PID: os.Getpid(), Birth: birth, Executable: binary}
+	runErr := RunSource(ctx, SourceConfig{SocketPath: socket, SpoolRoot: root, ProducerID: "launch-replay", Hello: hello, InvocationProvider: func(context.Context, contract.LaunchCommand) (contract.InvocationView, error) {
+		return nil, errors.New("unexpected launch")
+	}})
+	if !errors.Is(runErr, io.EOF) {
+		t.Fatalf("run err=%v", runErr)
+	}
+	if err = <-serverDone; err != nil {
+		t.Fatal(err)
 	}
 }

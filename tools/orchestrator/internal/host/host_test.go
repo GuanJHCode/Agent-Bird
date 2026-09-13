@@ -187,6 +187,68 @@ func TestExecuteLaunchConsumesReservationAndUsesBoundedGrant(t *testing.T) {
 	}
 }
 
+func TestStoppedLaunchPublishesStoppedThenExitedWithoutUnknown(t *testing.T) {
+	if os.Getenv("G1_STOP_HELPER") == "1" {
+		time.Sleep(5 * time.Second)
+		return
+	}
+	root := filepath.Join(t.TempDir(), "spool")
+	h, err := NewIPC(root, "stop-producer")
+	if err != nil {
+		t.Fatal(err)
+	}
+	path, err := filepath.EvalSymlinks(os.Args[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	grant := contract.LaunchCommand{CommandID: "stop-command", ReservationID: "stop-reservation", RunID: "stop-run", TaskID: "stop-task", AttemptID: "stop-attempt", SegmentID: "stop-segment", GrantedActiveMS: 10_000, WorkRevision: 1, ExecutionEpoch: 4}
+	inv := launchInvocation{args: []string{path, "-test.run=TestStoppedLaunchPublishesStoppedThenExitedWithoutUnknown"}, env: map[string]string{"G1_STOP_HELPER": "1"}}
+	type execution struct {
+		result contract.Result
+		err    error
+	}
+	done := make(chan execution, 1)
+	go func() {
+		result, runErr := h.ExecuteLaunch(context.Background(), grant, inv)
+		done <- execution{result: result, err: runErr}
+	}()
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		h.mu.Lock()
+		active := h.activeBySeg[grant.SegmentID] != nil
+		h.mu.Unlock()
+		if active {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("worker did not become active")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	stopCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	err = h.StopSegment(stopCtx, grant.SegmentID)
+	cancel()
+	if err != nil {
+		t.Fatal(err)
+	}
+	executed := <-done
+	if executed.result.Status != "interrupted" || executed.err == nil {
+		t.Fatalf("result=%#v err=%v", executed.result, executed.err)
+	}
+	sink := &durableSink{}
+	if err = h.PublishAll(context.Background(), sink, 4); err != nil {
+		t.Fatal(err)
+	}
+	if len(sink.events) < 2 || sink.events[len(sink.events)-2].Kind != contract.EventStopped || sink.events[len(sink.events)-1].Kind != contract.EventExited {
+		t.Fatalf("events=%#v", sink.events)
+	}
+	for _, event := range sink.events {
+		if event.Kind == contract.EventUnknown {
+			t.Fatalf("stopped launch appended unknown: %#v", sink.events)
+		}
+	}
+}
+
 type durableSink struct {
 	mu     sync.Mutex
 	events []contract.Event
@@ -288,27 +350,64 @@ func TestParallelLaunchesPublishOneProducerSequence(t *testing.T) {
 		if event.Sequence != int64(index+1) {
 			t.Fatalf("event[%d] sequence=%d", index, event.Sequence)
 		}
-		if event.ExecutionEpoch != 0 {
+		if event.ExecutionEpoch != 9 {
 			t.Fatalf("event[%d] epoch=%d", index, event.ExecutionEpoch)
 		}
 	}
 }
 
-func TestInvocationFailurePublishesDurableUnknown(t *testing.T) {
+func TestUnspawnedInvocationFailurePublishesFailedThenExited(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "spool")
 	h, err := NewIPC(root, "launch-failure")
 	if err != nil {
 		t.Fatal(err)
 	}
 	a := store.Attempt{ID: "attempt-failure", TaskID: "task-failure", SegmentID: "segment-failure"}
-	if err = h.recordLaunchUnknown(a, "run-failure", a.TaskID, launchMetadata{commandID: "command-failure", executionEpoch: 3}, errors.New("provider body must not persist")); err != nil {
+	if err = h.recordLaunchFailed(a, "run-failure", a.TaskID, launchMetadata{commandID: "command-failure", executionEpoch: 3}, errors.New("provider body must not persist")); err != nil {
 		t.Fatal(err)
 	}
 	sink := &durableSink{}
 	if err = h.PublishAll(context.Background(), sink, 3); err != nil {
 		t.Fatal(err)
 	}
-	if len(sink.events) != 1 || sink.events[0].Kind != contract.EventUnknown || sink.events[0].CommandID != "command-failure" || sink.events[0].ExecutionEpoch != 3 || sink.events[0].Process != nil {
+	if len(sink.events) != 2 || sink.events[0].Kind != contract.EventFailed || sink.events[1].Kind != contract.EventExited || sink.events[0].CommandID != "command-failure" || sink.events[0].ExecutionEpoch != 3 || sink.events[0].Process != nil {
 		t.Fatalf("events=%#v", sink.events)
+	}
+}
+
+func TestProducerSequenceRecoversOnlyFromDurableEvents(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "spool")
+	first, err := NewIPC(root, "launch-recover")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := store.Attempt{ID: "attempt-a", TaskID: "task-a", SegmentID: "segment-a"}
+	if err = first.recordLaunchFailed(a, "run", a.TaskID, launchMetadata{commandID: "command-a", executionEpoch: 1}, errors.New("unspawned")); err != nil {
+		t.Fatal(err)
+	}
+	// This is the unsafe legacy counter shape. It must not reserve sequence
+	// numbers because no corresponding event was durably appended.
+	if err = os.WriteFile(filepath.Join(root, ".producer-sequence"), []byte("99\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	second, err := NewIPC(root, "launch-recover")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := store.Attempt{ID: "attempt-b", TaskID: "task-b", SegmentID: "segment-b"}
+	if err = second.recordLaunchFailed(b, "run", b.TaskID, launchMetadata{commandID: "command-b", executionEpoch: 2}, errors.New("unspawned")); err != nil {
+		t.Fatal(err)
+	}
+	sink := &durableSink{}
+	if err = second.PublishAll(context.Background(), sink, 2); err != nil {
+		t.Fatal(err)
+	}
+	if len(sink.events) != 4 {
+		t.Fatalf("events=%#v", sink.events)
+	}
+	for index, event := range sink.events {
+		if event.Sequence != int64(index+1) {
+			t.Fatalf("event[%d] sequence=%d", index, event.Sequence)
+		}
 	}
 }

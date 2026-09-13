@@ -124,7 +124,9 @@ func (h *Host) PublishAll(ctx context.Context, sink EventSink, epoch uint64) err
 		if item.event.Sequence != last+1 {
 			return errors.New("event_sequence_gap")
 		}
-		ack, sendErr := sink.SendEvent(ctx, epoch, item.event)
+		sendEvent := item.event
+		sendEvent.ExecutionEpoch = epoch
+		ack, sendErr := sink.SendEvent(ctx, epoch, sendEvent)
 		if sendErr != nil {
 			return sendErr
 		}
@@ -278,7 +280,14 @@ func RunSource(ctx context.Context, cfg SourceConfig) error {
 	session.epoch = ready.Epoch
 	session.startReader()
 	runCtx, cancelRun := context.WithCancel(ctx)
+	// Reconcile the durable source spool before accepting another grant. This
+	// closes the disconnect window without automatically resuming work.
+	if err = h.PublishAll(runCtx, session, session.epoch); err != nil {
+		cancelRun()
+		return err
+	}
 	var workers sync.WaitGroup
+	workerErrors := make(chan error, 2)
 	defer func() {
 		cancelRun()
 		stopCtx, cancelStop := context.WithTimeout(context.Background(), 2*time.Second)
@@ -292,7 +301,16 @@ func RunSource(ctx context.Context, cfg SourceConfig) error {
 		}
 	}()
 	for {
-		envelope, readErr := session.nextEnvelope(runCtx)
+		var envelope ipc.Envelope
+		var readErr error
+		select {
+		case frame := <-session.frames:
+			envelope, readErr = frame.envelope, frame.err
+		case workerErr := <-workerErrors:
+			return workerErr
+		case <-runCtx.Done():
+			return runCtx.Err()
+		}
 		if readErr != nil {
 			if ctx.Err() != nil {
 				return ctx.Err()
@@ -309,20 +327,45 @@ func RunSource(ctx context.Context, cfg SourceConfig) error {
 			workers.Add(1)
 			go func() {
 				defer workers.Done()
+				reportError := func(err error) {
+					if err != nil {
+						select {
+						case workerErrors <- err:
+						case <-runCtx.Done():
+						}
+					}
+				}
 				inv, invokeErr := cfg.InvocationProvider(runCtx, grant)
 				a := store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID}
 				if invokeErr != nil || inv == nil {
 					if invokeErr == nil {
 						invokeErr = errors.New("invocation_unavailable")
 					}
-					_ = h.recordLaunchUnknown(a, grant.RunID, grant.TaskID, launchMetadata{commandID: grant.CommandID, workRevision: grant.WorkRevision, executionEpoch: grant.ExecutionEpoch}, invokeErr)
-					_ = h.PublishAll(runCtx, session, session.epoch)
+					if recordErr := h.recordLaunchFailed(a, grant.RunID, grant.TaskID, launchMetadata{commandID: grant.CommandID, workRevision: grant.WorkRevision, executionEpoch: grant.ExecutionEpoch}, invokeErr); recordErr != nil {
+						reportError(recordErr)
+						return
+					}
+					reportError(h.PublishAll(runCtx, session, session.epoch))
 					return
 				}
-				if _, executeErr := h.ExecuteLaunch(runCtx, grant, inv); executeErr != nil {
-					_ = h.ensureLaunchUnknown(a, grant.RunID, grant.TaskID, launchMetadata{commandID: grant.CommandID, workRevision: grant.WorkRevision, executionEpoch: grant.ExecutionEpoch}, executeErr)
+				result, executeErr := h.ExecuteLaunch(runCtx, grant, inv)
+				if executeErr != nil {
+					meta := launchMetadata{commandID: grant.CommandID, workRevision: grant.WorkRevision, executionEpoch: grant.ExecutionEpoch}
+					var terminalErr error
+					switch result.Status {
+					case "interrupted":
+						// ExecuteLaunch already wrote stopped followed by exited.
+					case "unknown":
+						terminalErr = h.ensureLaunchUnknown(a, grant.RunID, grant.TaskID, meta, executeErr)
+					default:
+						terminalErr = h.recordLaunchFailed(a, grant.RunID, grant.TaskID, meta, executeErr)
+					}
+					if terminalErr != nil {
+						reportError(terminalErr)
+						return
+					}
 				}
-				_ = h.PublishAll(runCtx, session, session.epoch)
+				reportError(h.PublishAll(runCtx, session, session.epoch))
 			}()
 		case ipc.KindStop:
 			var stop contract.StopCommand

@@ -18,21 +18,21 @@ import (
 )
 
 type Host struct {
-	db            *store.DB
-	spoolRoot     string
-	mu            sync.Mutex
-	active        map[string]*process.Handle
-	activeBySeg   map[string]*process.Handle
-	producerID    string
-	sequenceMu    sync.Mutex
-	sequencePath  string
-	sequence      int64
-	publishedPath string
-	publishMu     sync.Mutex
-	grantMu       sync.Mutex
-	reservations  map[string]time.Time
-	stopMu        sync.Mutex
-	stopRequested map[string]bool
+	db             *store.DB
+	spoolRoot      string
+	mu             sync.Mutex
+	active         map[string]*process.Handle
+	activeBySeg    map[string]*process.Handle
+	producerID     string
+	sequenceMu     sync.Mutex
+	sequence       int64
+	sequenceLoaded bool
+	publishedPath  string
+	publishMu      sync.Mutex
+	grantMu        sync.Mutex
+	reservations   map[string]time.Time
+	stopMu         sync.Mutex
+	stopRequested  map[string]bool
 }
 
 func New(db *store.DB, spoolRoot string) (*Host, error) {
@@ -59,7 +59,7 @@ func newHost(db *store.DB, spoolRoot, producerID string) (*Host, error) {
 	if err := os.MkdirAll(spoolRoot, 0700); err != nil {
 		return nil, err
 	}
-	return &Host{db: db, spoolRoot: spoolRoot, active: map[string]*process.Handle{}, activeBySeg: map[string]*process.Handle{}, producerID: producerID, sequencePath: filepath.Join(spoolRoot, ".producer-sequence"), publishedPath: filepath.Join(spoolRoot, ".producer-published"), reservations: map[string]time.Time{}, stopRequested: map[string]bool{}}, nil
+	return &Host{db: db, spoolRoot: spoolRoot, active: map[string]*process.Handle{}, activeBySeg: map[string]*process.Handle{}, producerID: producerID, publishedPath: filepath.Join(spoolRoot, ".producer-published"), reservations: map[string]time.Time{}, stopRequested: map[string]bool{}}, nil
 }
 func (h *Host) spool(a store.Attempt) (*events.Spool, error) {
 	return events.Open(filepath.Join(h.spoolRoot, a.ID, a.SegmentID))
@@ -279,10 +279,12 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 }
 
 func (h *Host) appendPhaseEvent(spool *events.Spool, runID, taskID string, a store.Attempt, meta launchMetadata, kind, payloadHash string, identity *process.Identity, exitCode *int, artifact *contract.ArtifactRef) (contract.Event, error) {
-	sequence, err := h.nextEventSequence()
-	if err != nil {
+	h.sequenceMu.Lock()
+	defer h.sequenceMu.Unlock()
+	if err := h.loadEventSequenceLocked(); err != nil {
 		return contract.Event{}, err
 	}
+	sequence := h.sequence + 1
 	event := contract.Event{Version: 1, ProducerID: h.producerID, RunID: runID, TaskID: taskID, AttemptID: a.ID, SegmentID: a.SegmentID, WorkRevision: meta.workRevision, ExecutionEpoch: meta.executionEpoch, CommandID: meta.commandID, Sequence: sequence, Kind: kind, PayloadHash: payloadHash, ExitCode: exitCode, Artifact: artifact}
 	if identity != nil {
 		event.Process = &contract.ProcessIdentity{PID: identity.PID, Birth: identity.Birth, PGID: identity.PGID}
@@ -290,47 +292,45 @@ func (h *Host) appendPhaseEvent(spool *events.Spool, runID, taskID string, a sto
 	if h.producerID != "" {
 		event.EventID = h.producerID + ":" + fmt.Sprint(sequence)
 	}
-	return event, spool.Append(event)
+	if err := spool.Append(event); err != nil {
+		return contract.Event{}, err
+	}
+	// The sequence becomes visible only after the event file and its directory
+	// entry are durable. A crash can replay an event, but cannot reserve a hole.
+	h.sequence = sequence
+	return event, nil
 }
 
-func (h *Host) nextEventSequence() (int64, error) {
-	h.sequenceMu.Lock()
-	defer h.sequenceMu.Unlock()
-	if h.producerID == "" {
-		h.sequence++
-		return h.sequence, nil
+func (h *Host) loadEventSequenceLocked() error {
+	if h.sequenceLoaded {
+		return nil
 	}
-	if h.sequence == 0 {
-		if data, err := os.ReadFile(h.sequencePath); err == nil {
-			if _, scanErr := fmt.Sscan(string(data), &h.sequence); scanErr != nil || h.sequence < 0 {
-				return 0, errors.New("invalid_producer_sequence")
+	maximum := int64(0)
+	entries, err := h.spoolEntries()
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		records, readErr := entry.spool.Read()
+		if readErr != nil {
+			return readErr
+		}
+		for _, record := range records {
+			if (h.producerID != "" && record.ProducerID != h.producerID) || record.Sequence < 1 {
+				return errors.New("event_identity_missing")
 			}
-		} else if !errors.Is(err, os.ErrNotExist) {
-			return 0, err
+			if record.Sequence > maximum {
+				maximum = record.Sequence
+			}
 		}
 	}
-	h.sequence++
-	stage := h.sequencePath + ".tmp"
-	_ = os.Remove(stage)
-	fd, err := os.OpenFile(stage, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
-	if err != nil {
-		return 0, err
+	if published, readErr := h.readPublished(); readErr != nil {
+		return readErr
+	} else if published > maximum {
+		maximum = published
 	}
-	_, err = fmt.Fprintf(fd, "%d\n", h.sequence)
-	if err == nil {
-		err = fd.Sync()
-	}
-	if closeErr := fd.Close(); err == nil {
-		err = closeErr
-	}
-	if err == nil {
-		err = os.Rename(stage, h.sequencePath)
-	}
-	if err != nil {
-		_ = os.Remove(stage)
-		return 0, err
-	}
-	return h.sequence, nil
+	h.sequence, h.sequenceLoaded = maximum, true
+	return nil
 }
 
 func (h *Host) ensureLaunchUnknown(a store.Attempt, runID, taskID string, meta launchMetadata, cause error) error {
@@ -359,6 +359,27 @@ func (h *Host) recordLaunchUnknown(a store.Attempt, runID, taskID string, meta l
 		return err
 	}
 	_, err = h.appendPhaseEvent(spool, runID, taskID, a, meta, contract.EventUnknown, hashText("unknown:"+a.SegmentID), nil, nil, nil)
+	return err
+}
+
+// recordLaunchFailed closes a grant rejected before its worker process was
+// spawned. UNKNOWN remains reserved for uncertain process ownership.
+func (h *Host) recordLaunchFailed(a store.Attempt, runID, taskID string, meta launchMetadata, cause error) error {
+	spool, err := h.spool(a)
+	if err != nil {
+		return err
+	}
+	if err = publishLaunchPhase(spool, "failed", a, runID, taskID, process.Command{}, nil, cause); err != nil {
+		return err
+	}
+	exit := -1
+	if _, err = h.appendPhaseEvent(spool, runID, taskID, a, meta, contract.EventFailed, hashText("failed:"+a.SegmentID), nil, &exit, nil); err != nil {
+		return err
+	}
+	if err = publishLaunchPhase(spool, "exited", a, runID, taskID, process.Command{}, nil, nil); err != nil {
+		return err
+	}
+	_, err = h.appendPhaseEvent(spool, runID, taskID, a, meta, contract.EventExited, hashText("exited:"+a.SegmentID), nil, &exit, nil)
 	return err
 }
 

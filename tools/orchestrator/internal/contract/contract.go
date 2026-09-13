@@ -33,6 +33,7 @@ const (
 	EventResult   = "result"
 	EventExited   = "exited"
 	EventStopped  = "stopped"
+	EventFailed   = "failed"
 	EventUnknown  = "unknown"
 )
 
