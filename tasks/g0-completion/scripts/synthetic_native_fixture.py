@@ -41,6 +41,7 @@ class PreparedSyntheticFixture:
     def verify(self):
         self.endpoint.verify()
         if self.endpoint.identity() != self.manifest['listener']: raise ValueError('listener changed')
+        if self.endpoint.contract() != self.manifest['response_contract']: raise ValueError('response contract changed')
         for path,identity in self._directories.items():
             if _directory(path) != identity: raise ValueError('profile directory changed')
         for path,digest in self._pins.items():
@@ -88,11 +89,12 @@ def prepare(endpoint: SyntheticEndpoint, spec: isolation.IsolationSpec, *, execu
         Path(isolation.__file__).resolve(),Path(sys.modules[SyntheticEndpoint.__module__].__file__).resolve()]
     pins = {path:_hash(path) for path in paths}
     directories = {path:_directory(path) for path in (spec.task_root,spec.home,spec.codex_home,spec.workspace,spec.backend_socket.parent)}
+    contract=endpoint.contract()
     manifest = {'version':1,'synthetic_only':True,'external_model_calls':0,'native_started':False,
         'local_seconds':10,'return_seconds':120,'listener':endpoint.identity(),
         'profile_id':spec.profile_id,'source_and_config_pins':{str(path):value for path,value in pins.items()},
-        'stage_markers':['G0_SYNTHETIC_READY','G0_SYNTHETIC_TOOL_RESULT'],
-        'response_texts':['READY','SYNTHETIC_COMPLETE'],'isolation_manifest':str(context_path)}
+        'response_contract':contract,'stage_markers':contract['request_stages'],
+        'response_texts':contract['response_texts'],'isolation_manifest':str(context_path)}
     manifest_path = spec.task_root/'synthetic-plan.json'
     isolation.write_private_manifest(manifest,manifest_path)
     pins[manifest_path] = _hash(manifest_path)

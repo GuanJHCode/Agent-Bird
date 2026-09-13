@@ -7,6 +7,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import select
 import socket
 import subprocess
@@ -18,6 +19,8 @@ MAX_HEADER = 16 * 1024
 MAX_ATTEMPTS = 8
 LOCAL_SECONDS = 10.0
 RETURN_SECONDS = 120.0
+_HASH = re.compile(r'^[0-9a-f]{64}$')
+_SAFE = re.compile(r'^[A-Za-z0-9_-]{1,64}$')
 
 
 def _birth(pid):
@@ -51,19 +54,54 @@ def _strings(value, depth=0):
         for item in value.values(): yield from _strings(item,depth+1)
 
 
+def _g0_delivery(value):
+    if not isinstance(value,str) or len(value)>65536:return None
+    try: envelope=json.loads(value)
+    except (TypeError,ValueError):return None
+    if (not isinstance(envelope,dict)
+        or set(envelope)!={'version','delivery_id','controller_thread_id','controller_epoch','events','payload_hash'}
+        or envelope['version']!=1 or not isinstance(envelope['delivery_id'],str)
+        or re.fullmatch(r'd_[0-9a-f]{40}',envelope['delivery_id']) is None
+        or not isinstance(envelope['controller_thread_id'],str) or _SAFE.fullmatch(envelope['controller_thread_id']) is None
+        or type(envelope['controller_epoch']) is not int or envelope['controller_epoch']<1
+        or not isinstance(envelope['events'],list) or not 1<=len(envelope['events'])<=8
+        or not isinstance(envelope['payload_hash'],str) or _HASH.fullmatch(envelope['payload_hash']) is None):return None
+    for event in envelope['events']:
+        if (not isinstance(event,dict)
+            or set(event)!={'event_id','event_revision','kind','payload_hash','action_slot'}
+            or not isinstance(event['event_id'],str) or re.fullmatch(r'e_[0-9a-f]{32}',event['event_id']) is None
+            or type(event['event_revision']) is not int or event['event_revision']<1
+            or event['kind'] not in ('question','result')
+            or not isinstance(event['payload_hash'],str) or _HASH.fullmatch(event['payload_hash']) is None
+            or not isinstance(event['action_slot'],str) or re.fullmatch(r's_[0-9a-f]{32}',event['action_slot']) is None):return None
+    delivery_id=envelope['delivery_id']
+    expected=envelope.pop('payload_hash')
+    actual=hashlib.sha256(json.dumps(envelope,sort_keys=True,separators=(',',':'),ensure_ascii=False).encode()).hexdigest()
+    return delivery_id if expected==actual else None
+
+
 class SyntheticEndpoint:
-    def __init__(self, *, window_seconds=RETURN_SECONDS):
+    def __init__(self, *, window_seconds=RETURN_SECONDS, response_contract='marker-v1'):
         if not 0 < window_seconds <= RETURN_SECONDS: raise ValueError('invalid synthetic return window')
+        if response_contract not in ('marker-v1','g0-delivery-v1'):raise ValueError('invalid synthetic response contract')
         self.listener = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
         self.listener.bind(('127.0.0.1',0));self.listener.listen(4)
         self.port = self.listener.getsockname()[1]
         self.window_seconds = window_seconds
         self.owner_pid = os.getpid()
         self.owner_birth = _birth(self.owner_pid)
+        self.response_contract = response_contract
         self._identity = self.identity()
         self._thread = None;self._stop = threading.Event();self._lock = threading.Lock()
         self._started = False;self._deadline = None;self._accepted = 0;self._attempts = 0;self._records = []
-        self._active = None
+        self._active = None;self._accepted_deliveries = set()
+
+    def contract(self):
+        if self.response_contract=='marker-v1':
+            return {'version':1,'name':'marker-v1','request_stages':['G0_SYNTHETIC_READY','G0_SYNTHETIC_TOOL_RESULT'],
+                'response_texts':['READY','SYNTHETIC_COMPLETE']}
+        return {'version':1,'name':'g0-delivery-v1','request_stages':['G0_SYNTHETIC_READY','new_g0_delivery','new_g0_delivery'],
+            'response_texts':['READY','DELIVERY_RECEIVED','SYNTHETIC_COMPLETE']}
 
     def identity(self):
         if os.getpid() != self.owner_pid: raise ValueError('listener owner changed')
@@ -148,6 +186,7 @@ class SyntheticEndpoint:
             if not chunk: return
             body.extend(chunk)
         status = 400;stage = None
+        accepted_delivery=None
         try:
             request = json.loads(body)
             if not isinstance(request,dict) or request.get('stream') is not True or request.get('model') != 'gpt-5.6-luna':
@@ -155,21 +194,31 @@ class SyntheticEndpoint:
             if not isinstance(request.get('input'),list): raise ValueError('input must be array')
             markers = tuple(_strings(request['input']))
             with self._lock: stage = self._accepted
-            expected = 'G0_SYNTHETIC_READY' if stage == 0 else 'G0_SYNTHETIC_TOOL_RESULT'
-            status = 200 if stage < 2 and any(expected in item for item in markers) else 409
+            contract=self.contract();expected=contract['request_stages']
+            if stage<len(expected):
+                if stage==0 or self.response_contract=='marker-v1':valid=any(expected[stage] in item for item in markers)
+                else:
+                    deliveries={found for item in markers if (found:=_g0_delivery(item)) is not None}
+                    fresh=deliveries-self._accepted_deliveries;valid=len(fresh)==1
+                    if valid:accepted_delivery=next(iter(fresh))
+                status=200 if valid else 409
+            else:status=409
         except (ValueError,RecursionError): pass
         if time.monotonic() >= self._deadline: status = 408
         summary = {'attempt':attempt,'bytes':len(body),'sha256':hashlib.sha256(body).hexdigest(),'status':status,
             'stage':stage,'synthetic_only':True}
         with self._lock:
             self._records.append(summary)
-            if status == 200: self._accepted += 1
-        self._reply(client,status,_sse(stage+1,'READY' if stage == 0 else 'SYNTHETIC_COMPLETE') if status == 200 else b'')
+            if status == 200:
+                self._accepted += 1
+                if accepted_delivery is not None:self._accepted_deliveries.add(accepted_delivery)
+        text=self.contract()['response_texts'][stage] if status==200 else ''
+        self._reply(client,status,_sse(stage+1,text) if status == 200 else b'')
 
     def snapshot(self):
         with self._lock:
             return {'version':1,'synthetic_only':True,'external_model_calls':0,'accepted_requests':self._accepted,
-                'attempts':self._attempts,'requests':[dict(item) for item in self._records]}
+                'attempts':self._attempts,'response_contract':self.response_contract,'requests':[dict(item) for item in self._records]}
 
     def close(self):
         self._stop.set()

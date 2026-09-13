@@ -544,7 +544,7 @@ async def execute(static, _plan_path, plan_sha):
     )
     activation_home = supervisor / "h"
     public = activation_home / ".codex/app-server-control/app-server-control.sock"
-    endpoint = SyntheticEndpoint()
+    endpoint = SyntheticEndpoint(response_contract="g0-delivery-v1")
     spec = IsolationSpec(
         task_root=profile,
         home=profile / "h",
