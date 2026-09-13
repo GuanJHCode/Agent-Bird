@@ -229,7 +229,8 @@ def test_owner_bound_driver_waits_then_delivers_without_manual_collect():
                         "submit_request": str(template),
                         "control_file": "",
                         "task_id": "driver-task",
-                        "max_wait_seconds": 300,
+                        "bootstrap_timeout_seconds": 300,
+                        "watch_policy": "until_terminal_or_owner_detached",
                         "enable_test_fake": True,
                     },
                 )

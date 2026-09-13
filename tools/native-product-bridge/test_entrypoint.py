@@ -9,6 +9,8 @@ import shutil
 import subprocess
 from types import SimpleNamespace
 
+import pytest
+
 
 ROOT = Path(__file__).resolve().parents[2]
 ENTRY = ROOT / "plugins" / "codex-orchestrator" / "scripts" / "native-product-bridge.py"
@@ -113,6 +115,85 @@ def test_digest_streams_file_through_bounded_reads(tmp_path, monkeypatch):
     assert entry.digest(artifact) == hashlib.sha256(payload).hexdigest()
     assert requested_sizes[-1] == 1
     assert len(requested_sizes) >= 4
+
+
+def test_actionable_watch_survives_bootstrap_window_and_stops_on_owner_exit(monkeypatch):
+    spec = importlib.util.spec_from_file_location("native_product_bridge_entry", ENTRY)
+    entry = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(entry)
+    clock = [0.0]
+    owner_live = [True]
+
+    class Client:
+        calls = 0
+
+        def wait_events(self, task_id, *, control_file, cursor, timeout_ms):
+            assert task_id == "task-a"
+            assert control_file == Path("/private/tmp/control.json")
+            assert cursor == "cursor-a"
+            assert timeout_ms == 30_000
+            self.calls += 1
+            clock[0] += 301.0
+            if self.calls == 1:
+                return "timeout", [], ""
+            return "events", [{"event_id": "event-a"}], "cursor-b"
+
+    monkeypatch.setattr(entry.time, "monotonic", lambda: clock[0])
+    monkeypatch.setattr(entry, "attachment_live", lambda *_: owner_live[0])
+    client = Client()
+    result = entry.wait_actionable_events(
+        client,
+        "task-a",
+        Path("/private/tmp/control.json"),
+        "cursor-a",
+        object(),
+        object(),
+    )
+    assert clock[0] > 300
+    assert result == ("events", [{"event_id": "event-a"}], "cursor-b")
+
+    class DetachingClient(Client):
+        def wait_events(self, *args, **kwargs):
+            owner_live[0] = False
+            return "timeout", [], ""
+
+    owner_live[0] = True
+    with pytest.raises(entry.EntryError, match="^owner_detached$"):
+        entry.wait_actionable_events(
+            DetachingClient(),
+            "task-a",
+            Path("/private/tmp/control.json"),
+            "cursor-a",
+            object(),
+            object(),
+        )
+
+
+def test_decision_wait_survives_bootstrap_window_and_stops_on_owner_exit(tmp_path, monkeypatch):
+    spec = importlib.util.spec_from_file_location("native_product_bridge_entry", ENTRY)
+    entry = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(entry)
+    decision = tmp_path / "decision.json"
+    clock = [0.0]
+    owner_live = [True]
+
+    async def advance(_seconds):
+        clock[0] += 301.0
+        private_json(decision, {"version": 1, "action": "decide"})
+
+    monkeypatch.setattr(entry.time, "monotonic", lambda: clock[0])
+    monkeypatch.setattr(entry.asyncio, "sleep", advance)
+    monkeypatch.setattr(entry, "attachment_live", lambda *_: owner_live[0])
+    assert asyncio.run(entry.wait_decision(decision, object(), object())) == {
+        "version": 1,
+        "action": "decide",
+    }
+    assert clock[0] > 300
+
+    decision.unlink()
+    owner_live[0] = False
+    with pytest.raises(entry.EntryError, match="^owner_detached$"):
+        asyncio.run(entry.wait_decision(decision, object(), object()))
 
 
 def test_exact_history_waits_for_completed_delivery_turn():

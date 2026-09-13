@@ -528,6 +528,19 @@ async def wait_receipt(store, name, seconds=10):
     raise EntryError("attachment_receipt_missing")
 
 
+def bootstrap_remaining(deadline):
+    remaining = deadline - time.monotonic()
+    require(remaining > 0, "driver_bootstrap_expired")
+    return remaining
+
+
+async def wait_during_bootstrap(awaitable, deadline):
+    try:
+        return await asyncio.wait_for(awaitable, bootstrap_remaining(deadline))
+    except TimeoutError as exc:
+        raise EntryError("driver_bootstrap_expired") from exc
+
+
 def attachment_live(attachment, proxy_transport):
     peers = (
         attachment.service_identity,
@@ -555,14 +568,31 @@ def attachment_live(attachment, proxy_transport):
         return False
 
 
-async def wait_decision(path, attachment, proxy_transport, deadline):
-    while time.monotonic() < deadline:
+def wait_actionable_events(client, task_id, control_file, cursor, attachment,
+                           proxy_transport):
+    while True:
+        if not attachment_live(attachment, proxy_transport):
+            raise EntryError("owner_detached")
+        status, events, next_cursor = client.wait_events(
+            task_id,
+            control_file=control_file,
+            cursor=cursor,
+            timeout_ms=30_000,
+        )
+        if status == "timeout":
+            continue
+        if not attachment_live(attachment, proxy_transport):
+            raise EntryError("owner_detached")
+        return status, events, next_cursor
+
+
+async def wait_decision(path, attachment, proxy_transport):
+    while True:
         if not attachment_live(attachment, proxy_transport):
             raise EntryError("owner_detached")
         if path.exists():
             return stable_json(path, private=True)
         await asyncio.sleep(0.05)
-    raise EntryError("driver_wait_expired")
 
 
 async def run_driver(request_path_value):
@@ -586,18 +616,22 @@ async def run_driver(request_path_value):
         "submit_request",
         "control_file",
         "task_id",
-        "max_wait_seconds",
+        "bootstrap_timeout_seconds",
+        "watch_policy",
         "enable_test_fake",
     }
     require(
         set(request) == required
         and request["version"] == 1
         and request["mode"] in {"submit", "rebind"}
-        and request["max_wait_seconds"] == 300
+        and request["bootstrap_timeout_seconds"] == 300
+        and request["watch_policy"] == "until_terminal_or_owner_detached"
         and type(request["enable_test_fake"]) is bool,
         "driver_request",
     )
+    bootstrap_deadline = time.monotonic() + request["bootstrap_timeout_seconds"]
     modules = load_g0_runtime(request["runtime"])
+    bootstrap_remaining(bootstrap_deadline)
     proxy_transport = modules["proxy_transport"]
     owner_helper = modules["owner_helper"]
     receipt_store = modules["receipt_store"]
@@ -694,11 +728,14 @@ async def run_driver(request_path_value):
             == socket_identity(manifest["public_socket"]),
             "public_socket_changed",
         )
-        ws_reader, ws_writer = await owner_helper._open_websocket(
-            request["public_socket"]
+        ws_reader, ws_writer = await wait_during_bootstrap(
+            owner_helper._open_websocket(request["public_socket"]),
+            bootstrap_deadline,
         )
         helper_ready_name = f"helper-ready-{lease['lease_id']}-{os.getpid()}.json"
-        helper_ready, helper_sha = await wait_receipt(store, helper_ready_name)
+        helper_ready, helper_sha = await wait_during_bootstrap(
+            wait_receipt(store, helper_ready_name), bootstrap_deadline
+        )
         attachment = bridge_core.OwnerAttachment.from_service_receipts(
             owner_ready=owner_ready,
             helper_ready=helper_ready,
@@ -711,7 +748,7 @@ async def run_driver(request_path_value):
         connection = owner_helper.OwnerHelperConnection(
             ws_reader, ws_writer, attachment.lease_id, attachment.controller_thread_id
         )
-        await connection.send_rpc(
+        await wait_during_bootstrap(connection.send_rpc(
             {
                 "id": 1,
                 "method": "initialize",
@@ -723,13 +760,17 @@ async def run_driver(request_path_value):
                     "capabilities": {"experimentalApi": True},
                 },
             }
+        ), bootstrap_deadline)
+        initialized, _ = await wait_during_bootstrap(
+            wait_for_id(connection, 1), bootstrap_deadline
         )
-        initialized, _ = await wait_for_id(connection, 1)
         require(
             "error" not in initialized and isinstance(initialized.get("result"), dict),
             "initialize_rejected",
         )
-        await connection.send_rpc({"method": "initialized"})
+        await wait_during_bootstrap(
+            connection.send_rpc({"method": "initialized"}), bootstrap_deadline
+        )
         control_binary = launcher_peer["executable"]
         client = bridge_core.ControlPlaneClient(
             control_binary,
@@ -773,6 +814,7 @@ async def run_driver(request_path_value):
             control_file = Path(request["control_file"])
             response = client.rebind(owner_capability, control_file=control_file)
             run_id = response["run_id"]
+        bootstrap_remaining(bootstrap_deadline)
         base_status = {
             "version": 1,
             "status": "watching",
@@ -797,29 +839,16 @@ async def run_driver(request_path_value):
         }
         replace_private(driver_root / "status.json", base_status)
         ledger = bridge_core.DeliveryLedger(bridge_root)
-        deadline = time.monotonic() + request["max_wait_seconds"]
         cursor = ""
-        while time.monotonic() < deadline:
-            if not attachment_live(attachment, proxy_transport):
-                replace_private(
-                    driver_root / "status.json",
-                    dict(base_status, status="owner_detached"),
-                )
-                return
-            timeout_ms = max(
-                1, min(30_000, int((deadline - time.monotonic()) * 1000))
-            )
-            status, events, next_cursor = client.wait_events(
+        while True:
+            status, events, next_cursor = wait_actionable_events(
+                client,
                 request["task_id"],
-                control_file=control_file,
-                cursor=cursor,
-                timeout_ms=timeout_ms,
+                control_file,
+                cursor,
+                attachment,
+                proxy_transport,
             )
-            if status == "timeout":
-                continue
-            if not attachment_live(attachment, proxy_transport):
-                replace_private(driver_root / "status.json", dict(base_status, status="owner_detached"))
-                return
             batch = ledger.prepare_and_claim(attachment, request["task_id"], events)
             binding = delivery_adapter.DeliveryBinding(
                 attachment.profile_id,
@@ -881,9 +910,7 @@ async def run_driver(request_path_value):
                 ),
             )
             decision_path = driver_root / "decisions" / (batch.delivery_id + ".json")
-            decision = await wait_decision(
-                decision_path, attachment, proxy_transport, deadline
-            )
+            decision = await wait_decision(decision_path, attachment, proxy_transport)
             require(
                 set(decision)
                 == {
@@ -933,9 +960,14 @@ async def run_driver(request_path_value):
                 driver_root / "status.json",
                 dict(base_status, status="watching", cursor=cursor),
             )
-        raise EntryError("driver_wait_expired")
     except Exception as exc:
         if base_status is not None:
+            if str(exc) == "owner_detached":
+                replace_private(
+                    driver_root / "status.json",
+                    dict(base_status, status="owner_detached"),
+                )
+                return
             code = (
                 str(exc)
                 if re.fullmatch(r"[A-Za-z0-9_-]{1,64}", str(exc))

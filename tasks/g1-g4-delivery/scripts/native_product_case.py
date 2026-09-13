@@ -428,7 +428,8 @@ async def start_product_driver(
         "submit_request": str(submit_request) if submit_request else "",
         "control_file": str(control_file) if control_file else "",
         "task_id": task_id,
-        "max_wait_seconds": 300,
+        "bootstrap_timeout_seconds": 300,
+        "watch_policy": "until_terminal_or_owner_detached",
         "enable_test_fake": True,
     }
     g.write(request_path, request)
