@@ -116,6 +116,76 @@ func TestActivePinBlocksUninstallThenUnmodifiedVersionIsRemoved(t *testing.T) {
 	}
 }
 
+func TestRunningPackageLifecyclePinIsDurableAndIdempotent(t *testing.T) {
+	root := t.TempDir()
+	source, binary := makePackage(t, root, "1.0.0")
+	destination := filepath.Join(root, "package")
+	installed, err := InstallPackage(InstallOptions{SourceRoot: source, BinaryPath: binary, DestinationRoot: destination, Version: "1.0.0", DataRoot: filepath.Join(root, "data")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity, err := PinRunningVersion(filepath.Join(installed.VersionRoot, "bin", "codex-orchestrator"), "task-running")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if identity.DestinationRoot != filepath.Dir(filepath.Dir(installed.VersionRoot)) || identity.Version != "1.0.0" {
+		t.Fatalf("identity=%#v", identity)
+	}
+	if repeated, repeatErr := PinRunningVersion(filepath.Join(installed.VersionRoot, "bin", "codex-orchestrator"), "task-running"); repeatErr != nil || repeated != identity {
+		t.Fatalf("repeat=%#v err=%v", repeated, repeatErr)
+	}
+	if _, err = UninstallPackage(destination, "1.0.0"); !errors.Is(err, ErrVersionPinned) {
+		t.Fatalf("pinned uninstall err=%v", err)
+	}
+	if err = UnpinRunningVersion(filepath.Join(installed.VersionRoot, "bin", "codex-orchestrator"), "task-running"); err != nil {
+		t.Fatal(err)
+	}
+	if err = UnpinRunningVersion(filepath.Join(installed.VersionRoot, "bin", "codex-orchestrator"), "task-running"); err != nil {
+		t.Fatalf("idempotent unpin: %v", err)
+	}
+	if _, err = UninstallPackage(destination, "1.0.0"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRunningPackagePinRejectsReplacedPinsDirectory(t *testing.T) {
+	root := t.TempDir()
+	source, binary := makePackage(t, root, "1.0.0")
+	destination := filepath.Join(root, "package")
+	installed, err := InstallPackage(InstallOptions{SourceRoot: source, BinaryPath: binary, DestinationRoot: destination, Version: "1.0.0", DataRoot: filepath.Join(root, "data")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	canonicalDestination := filepath.Dir(filepath.Dir(installed.VersionRoot))
+	pins := filepath.Join(canonicalDestination, "pins")
+	if err = os.Rename(pins, pins+"-owned"); err != nil {
+		t.Fatal(err)
+	}
+	foreign := filepath.Join(root, "foreign-pins")
+	if err = os.Mkdir(foreign, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err = os.Symlink(foreign, pins); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = PinRunningVersion(filepath.Join(installed.VersionRoot, "bin", "codex-orchestrator"), "task-unsafe"); err == nil {
+		t.Fatal("pin followed replaced pins directory")
+	}
+	if _, err = os.Lstat(filepath.Join(foreign, "task-unsafe.json")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("foreign path changed: %v", err)
+	}
+}
+
+func TestRunningPackagePinRejectsUninstalledExecutable(t *testing.T) {
+	executable := filepath.Join(t.TempDir(), "codex-orchestrator")
+	if err := os.WriteFile(executable, []byte("not installed"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := PinRunningVersion(executable, "task-running"); err == nil {
+		t.Fatal("uninstalled executable was pinned")
+	}
+}
+
 func TestChangedFileIsRetainedAndReported(t *testing.T) {
 	root := t.TempDir()
 	source, binary := makePackage(t, root, "1.0.0")

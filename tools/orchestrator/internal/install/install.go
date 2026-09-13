@@ -214,9 +214,29 @@ func PinVersion(destinationRoot, taskID, version string) error {
 		return err
 	}
 	defer releaseInstallLock(lock)
+	for _, directory := range []string{destinationRoot, filepath.Join(destinationRoot, "versions"), filepath.Join(destinationRoot, "manifests"), filepath.Join(destinationRoot, "pins")} {
+		if err = verifyPrivateDirectory(directory); err != nil {
+			return err
+		}
+	}
+	if err = verifyInstalledVersion(destinationRoot, version); err != nil {
+		return err
+	}
 	path := filepath.Join(destinationRoot, "pins", taskID+".json")
 	data, _ := json.Marshal(pin{TaskID: taskID, Version: version})
-	return writeExclusive(path, append(data, '\n'), 0o600)
+	data = append(data, '\n')
+	if active, exists, readErr := readPin(path); readErr != nil {
+		return readErr
+	} else if exists {
+		if active.TaskID == taskID && active.Version == version {
+			return nil
+		}
+		return errors.New("pin_conflict")
+	}
+	if err = writeExclusive(path, data, 0o600); err != nil {
+		return err
+	}
+	return syncDir(filepath.Dir(path))
 }
 
 func UnpinVersion(destinationRoot, taskID string) error {
@@ -232,7 +252,122 @@ func UnpinVersion(destinationRoot, taskID string) error {
 		return err
 	}
 	defer releaseInstallLock(lock)
-	return os.Remove(filepath.Join(destinationRoot, "pins", taskID+".json"))
+	for _, directory := range []string{destinationRoot, filepath.Join(destinationRoot, "pins")} {
+		if err = verifyPrivateDirectory(directory); err != nil {
+			return err
+		}
+	}
+	path := filepath.Join(destinationRoot, "pins", taskID+".json")
+	active, exists, err := readPin(path)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return nil
+	}
+	if active.TaskID != taskID {
+		return errors.New("pin_conflict")
+	}
+	if err = os.Remove(path); err != nil {
+		return err
+	}
+	return syncDir(filepath.Dir(path))
+}
+
+func verifyInstalledVersion(destinationRoot, version string) error {
+	versionRoot := filepath.Join(destinationRoot, "versions", version)
+	if info, err := os.Lstat(versionRoot); err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+		return errors.New("installed_version_invalid")
+	}
+	manifestData, err := readOwnedRegular(filepath.Join(versionRoot, "manifest.json"), 0o600, 4*1024*1024)
+	var value manifest
+	if err != nil || json.Unmarshal(manifestData, &value) != nil || value.SchemaVersion != 1 || value.PackageName != "codex-orchestrator" || value.Version != version || value.BinaryPath != "bin/codex-orchestrator" {
+		return errors.New("installed_version_invalid")
+	}
+	manifestDigest := sha256.Sum256(manifestData)
+	manifestHash := hex.EncodeToString(manifestDigest[:])
+	receiptData, err := readOwnedRegular(filepath.Join(destinationRoot, "manifests", version+".json"), 0o600, 4096)
+	var receipt manifestReceipt
+	if err != nil || json.Unmarshal(receiptData, &receipt) != nil || receipt.Version != version || receipt.ManifestSHA256 != manifestHash {
+		return errors.New("installed_version_invalid")
+	}
+	binaryHash, err := hashFile(filepath.Join(versionRoot, filepath.FromSlash(value.BinaryPath)))
+	if err != nil || binaryHash != value.BinarySHA256 {
+		return errors.New("installed_version_invalid")
+	}
+	changed, err := changedFiles(versionRoot, value, false)
+	if err != nil || len(changed) != 0 {
+		return errors.New("installed_version_invalid")
+	}
+	return nil
+}
+
+func readPin(path string) (pin, bool, error) {
+	info, err := os.Lstat(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return pin{}, false, nil
+	}
+	if err != nil || !info.Mode().IsRegular() || info.Mode().Perm() != 0o600 || info.Mode()&os.ModeSymlink != 0 {
+		return pin{}, false, errors.New("pin_invalid")
+	}
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	if !ok || int(stat.Uid) != os.Geteuid() || stat.Nlink != 1 {
+		return pin{}, false, errors.New("pin_invalid")
+	}
+	file, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+	if err != nil {
+		return pin{}, false, errors.New("pin_invalid")
+	}
+	defer file.Close()
+	opened, err := file.Stat()
+	if err != nil || !os.SameFile(info, opened) {
+		return pin{}, false, errors.New("pin_invalid")
+	}
+	data, err := io.ReadAll(io.LimitReader(file, 4097))
+	var value pin
+	decoder := json.NewDecoder(strings.NewReader(string(data)))
+	decoder.DisallowUnknownFields()
+	if err != nil || len(data) > 4096 || decoder.Decode(&value) != nil || decoder.Decode(&struct{}{}) != io.EOF || !idPattern.MatchString(value.TaskID) || !versionPattern.MatchString(value.Version) {
+		return pin{}, false, errors.New("pin_invalid")
+	}
+	return value, true, nil
+}
+
+func verifyPrivateDirectory(path string) error {
+	info, err := os.Lstat(path)
+	if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 || info.Mode().Perm() != 0o700 {
+		return errors.New("pin_directory_unsafe")
+	}
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	if !ok || int(stat.Uid) != os.Geteuid() {
+		return errors.New("pin_directory_unsafe")
+	}
+	return nil
+}
+
+func readOwnedRegular(path string, mode os.FileMode, limit int64) ([]byte, error) {
+	info, err := os.Lstat(path)
+	if err != nil || !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 || info.Mode().Perm() != mode {
+		return nil, errors.New("installed_file_unsafe")
+	}
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	if !ok || int(stat.Uid) != os.Geteuid() || stat.Nlink != 1 {
+		return nil, errors.New("installed_file_unsafe")
+	}
+	file, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+	if err != nil {
+		return nil, errors.New("installed_file_unsafe")
+	}
+	defer file.Close()
+	opened, err := file.Stat()
+	if err != nil || !os.SameFile(info, opened) {
+		return nil, errors.New("installed_file_unsafe")
+	}
+	data, err := io.ReadAll(io.LimitReader(file, limit+1))
+	if err != nil || int64(len(data)) > limit {
+		return nil, errors.New("installed_file_unsafe")
+	}
+	return data, nil
 }
 
 func Doctor(destinationRoot string) (DoctorReport, error) {

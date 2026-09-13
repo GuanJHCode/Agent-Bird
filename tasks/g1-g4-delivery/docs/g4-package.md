@@ -77,9 +77,14 @@ no real install or uninstall was performed.
 ## Version matrix and removal
 
 Each installed version has its own immutable-by-convention directory and
-receipt. An active task records a pin to the exact version it uses. Upgrade is
-therefore additive: install the new version, switch the caller's pin, then
-remove the old version only after it is unpinned and its files still match the
+receipt. `PinRunningVersion` derives the package root and version from the
+exact installed executable, verifies its manifest/receipt/files, and writes an
+idempotent durable task pin before the control plane makes work executable. An
+ambiguous database commit retains the pin for restart reconciliation. The
+control plane may call `UnpinRunningVersion` only after it proves the task has
+no active, unknown, explicitly recoverable, open-question, or pending-delivery
+reference. Upgrade is additive: install the new version and remove the old
+version only after every such pin is released and its files still match the
 receipt. `Doctor` is the preflight check for a retained or drifted version.
 
 There is no claim of a complete native/provider integration here. The package
