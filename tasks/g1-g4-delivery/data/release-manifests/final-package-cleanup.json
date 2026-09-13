@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "temporary_installs_removed": [
+    "0.1.0-rc1",
+    "0.1.0-rc2",
+    "0.1.0-rc4",
+    "0.1.0-rc5",
+    "0.1.0-rc6"
+  ],
+  "retained_install": {
+    "version": "0.1.0-rc3",
+    "reason": "recoverable historical native-product-task pin; no forced unpin"
+  },
+  "latest_doctor": {
+    "healthy": true,
+    "versions": [
+      "0.1.0-rc3"
+    ],
+    "pins": [
+      "native-product-task"
+    ],
+    "issues": null
+  },
+  "obsolete_package_copies_removed": [
+    {
+      "version": "0.1.0-rc4",
+      "removed_duplicate_package": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g1-g4-delivery/data/release/codex-orchestrator-0.1.0-rc4",
+      "manifest_retained": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g1-g4-delivery/data/release-manifests/0.1.0-rc4.json"
+    },
+    {
+      "version": "0.1.0-rc5",
+      "removed_duplicate_package": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g1-g4-delivery/data/release/codex-orchestrator-0.1.0-rc5",
+      "manifest_retained": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g1-g4-delivery/data/release-manifests/0.1.0-rc5.json"
+    }
+  ],
+  "obsolete_archive_removed": {
+    "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g1-g4-delivery/data/release/codex-orchestrator-0.1.0-rc4.tar.gz",
+    "sha256": "b4f312cb0aa459ca0981a6037f78c473f1fe6be9c77e23cc4e840b1ddf77ea56"
+  },
+  "delivery_retained": [
+    "codex-orchestrator-0.1.0-rc6",
+    "codex-orchestrator-0.1.0-rc6.tar.gz"
+  ],
+  "task_records_removed": false
+}
