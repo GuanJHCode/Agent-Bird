@@ -540,12 +540,16 @@ def product_role_processes(ctx: dict[str, Any], role: str) -> list[dict[str, Any
     ]
 
 
-def sample_for(ctx: dict[str, Any], seconds: int, sampler: Sampler) -> None:
+def sample_for(ctx: dict[str, Any], seconds: int, sampler: Sampler, *, minimum_workers: int = 0) -> None:
     deadline = time.monotonic() + seconds
     interval = ctx["thresholds"]["sampling_interval_seconds"]
     while time.monotonic() < deadline:
         before = time.monotonic()
-        sampler.sample()
+        record = sampler.sample()
+        if minimum_workers and record["worker_process_count"] < minimum_workers:
+            raise AcceptanceError(
+                f"fixture worker exited before fixed duration: observed={record['worker_process_count']} expected={minimum_workers}"
+            )
         remaining = interval - (time.monotonic() - before)
         if remaining > 0:
             time.sleep(remaining)
@@ -775,7 +779,7 @@ def run_scenario(args: argparse.Namespace) -> int:
             control, _ = submit(ctx, scenario, tasks)
             assert control
             wait_for_workers(ctx, count)
-            sample_for(ctx, duration, sampler)
+            sample_for(ctx, duration, sampler, minimum_workers=count)
             for task in tasks:
                 wait_for(lambda task=task: task_status(ctx, task["id"], control).get("status") in ("result_ready", "completed", "failed"), 30, f"task did not finish: {task['id']}")
                 collected.append(
@@ -814,7 +818,7 @@ def run_scenario(args: argparse.Namespace) -> int:
             extra = task_spec(ctx, "resource-host-task-extra", "host-extra", "steady", duration)
             _, rejected = submit(ctx, "host-extra", [extra], expect_failure=True)
             rejection = parse_error_code(rejected)
-            sample_for(ctx, duration, sampler)
+            sample_for(ctx, duration, sampler, minimum_workers=thresholds["workers"]["worker_count"])
             completed_workers = wait_for(
                 lambda: completed_worker_stats(ctx, thresholds["workers"]["worker_count"]),
                 30,
