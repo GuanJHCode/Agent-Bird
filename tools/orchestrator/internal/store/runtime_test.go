@@ -102,13 +102,21 @@ func TestRuntimePersistsDAGSlotsEventsAndExplicitResume(t *testing.T) {
 	for _, command := range []contract.LaunchCommand{first, second} {
 		commit(command, contract.EventResult, 0)
 		ack := commit(command, contract.EventExited, 12_000)
-		if ack.AckedThrough != seq || ack.Status != "committed" {
+		if ack.AckedThrough != seq || ack.Status != "durable" {
 			t.Fatalf("ack=%#v", ack)
 		}
 	}
 	third, err := db.ClaimReady(ctx, hostID, 2, 2)
 	if err != nil || third.TaskID != "task-c" {
 		t.Fatalf("dependency claim=%#v err=%v", third, err)
+	}
+	stop, err := db.RequestStop(ctx, "task-c", 1, "controller_exit")
+	if err != nil || stop.HostID != hostID || stop.Command.SegmentID != third.SegmentID {
+		t.Fatalf("stop=%#v err=%v", stop, err)
+	}
+	active, err := db.ActiveTasks(ctx)
+	if err != nil || len(active) != 1 || active[0].TaskID != "task-c" || active[0].WorkRevision != 1 {
+		t.Fatalf("active=%#v err=%v", active, err)
 	}
 
 	// Interrupted work stays silent across restart and receives a new segment

@@ -74,7 +74,7 @@ func TestServerRoutesControlToBoundHostAndDurablyCollects(t *testing.T) {
 		}
 		var ack contract.DurableAck
 		decodePayload(t, ackMessage, &ack)
-		if ack.AckedThrough != sequence || ack.Status != "committed" {
+		if ack.AckedThrough != sequence || ack.Status != "durable" {
 			t.Fatalf("ack=%#v", ack)
 		}
 	}
@@ -92,6 +92,67 @@ func TestServerRoutesControlToBoundHostAndDurablyCollects(t *testing.T) {
 	decodePayload(t, acked, &ackResponse)
 	if ackResponse.Status != "acknowledged" {
 		t.Fatalf("ack response=%#v", ackResponse)
+	}
+}
+
+func TestServerRoutesExplicitStopToOwningHost(t *testing.T) {
+	shortRoot, err := os.MkdirTemp("/tmp", "g1-stop-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(shortRoot) })
+	server, err := NewServer(filepath.Join(shortRoot, "state"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = server.Serve(ctx) }()
+	t.Cleanup(func() { _ = server.Close() })
+	response := callServer(t, server.SocketPath(), ipc.KindSubmit, SubmitRequest{
+		RunID: "stop-run", ControllerThread: "thread", PlanRevision: 1,
+		OriginContextID: "origin", OriginPID: 7, OriginBirth: "origin-birth",
+		HostGeneration: "generation", HostExecutable: "/private/tmp/orchestrator",
+		Tasks: []TaskRequest{{ID: "stop-task", MaxAttempts: 3}},
+	})
+	var receipt SubmitResponse
+	decodePayload(t, response, &receipt)
+	conn, err := net.Dial("unix", server.SocketPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	writeMessage(t, conn, ipc.KindHostHello, "hello", 0, contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: "origin", HostGeneration: "generation", PID: os.Getpid(), Birth: "host-birth", Executable: "/private/tmp/orchestrator"})
+	var ready contract.HostReady
+	decodePayload(t, readMessage(t, conn), &ready)
+	var launch contract.LaunchCommand
+	decodePayload(t, readMessage(t, conn), &launch)
+	stopped := callServer(t, server.SocketPath(), ipc.KindStopTask, TaskControlRequest{TaskID: "stop-task", ControllerThread: "thread", WorkRevision: 1})
+	var responseStatus StatusResponse
+	decodePayload(t, stopped, &responseStatus)
+	if responseStatus.Status != "stopping" {
+		t.Fatalf("status=%#v", responseStatus)
+	}
+	message := readMessage(t, conn)
+	if message.Kind != ipc.KindStop {
+		t.Fatalf("kind=%s", message.Kind)
+	}
+	var command contract.StopCommand
+	decodePayload(t, message, &command)
+	if command.SegmentID != launch.SegmentID || command.Reason != "controller_stop" {
+		t.Fatalf("stop=%#v launch=%#v", command, launch)
+	}
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer shutdownCancel()
+	done := make(chan error, 1)
+	go func() { done <- server.Shutdown(shutdownCtx) }()
+	var repeated contract.StopCommand
+	decodePayload(t, readMessage(t, conn), &repeated)
+	if repeated.CommandID != command.CommandID {
+		t.Fatalf("shutdown issued a new stop: %#v previous=%#v", repeated, command)
+	}
+	if err = <-done; err != context.DeadlineExceeded {
+		t.Fatalf("shutdown err=%v", err)
 	}
 }
 

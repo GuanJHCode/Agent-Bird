@@ -85,6 +85,11 @@ CREATE TABLE IF NOT EXISTS runtime_events(
   attempt_id TEXT NOT NULL REFERENCES attempts(id), segment_id TEXT NOT NULL REFERENCES segments(id),
   payload_hash TEXT NOT NULL, body_json TEXT NOT NULL, delivery_status TEXT NOT NULL,
   created_at TEXT NOT NULL, UNIQUE(producer_id,sequence)
+);
+CREATE TABLE IF NOT EXISTS stop_runtime(
+  command_id TEXT PRIMARY KEY, host_id TEXT NOT NULL REFERENCES runtime_hosts(id),
+  segment_id TEXT NOT NULL UNIQUE REFERENCES segments(id), reason TEXT NOT NULL,
+  deadline_unix_ms INTEGER NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL
 );`)
 	return err
 }
@@ -241,10 +246,7 @@ func (d *DB) RegisterHost(ctx context.Context, hello contract.HostHello, epoch u
 	}
 	hostID := existing.String
 	if !existing.Valid || hostID == "" {
-		hostID, err = newID("host")
-		if err != nil {
-			return rollback(err)
-		}
+		hostID = hello.LaunchID
 	} else {
 		var pid int
 		var birth string
@@ -451,7 +453,7 @@ func (d *DB) CommitHostEvent(ctx context.Context, event contract.Event) (contrac
 			return rollback(ErrEventSequence)
 		}
 		_ = tx.Rollback()
-		return contract.DurableAck{ProducerID: event.ProducerID, AckedThrough: event.Sequence, EventID: event.EventID, PayloadHash: event.PayloadHash, Status: "committed"}, nil
+		return contract.DurableAck{ProducerID: event.ProducerID, AckedThrough: event.Sequence, EventID: event.EventID, PayloadHash: event.PayloadHash, Status: "durable"}, nil
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
 		return rollback(err)
@@ -477,7 +479,7 @@ func (d *DB) CommitHostEvent(ctx context.Context, event contract.Event) (contrac
 	if err = tx.Commit(); err != nil {
 		return contract.DurableAck{}, err
 	}
-	return contract.DurableAck{ProducerID: event.ProducerID, AckedThrough: event.Sequence, EventID: event.EventID, PayloadHash: event.PayloadHash, Status: "committed"}, nil
+	return contract.DurableAck{ProducerID: event.ProducerID, AckedThrough: event.Sequence, EventID: event.EventID, PayloadHash: event.PayloadHash, Status: "durable"}, nil
 }
 
 func applyEvent(ctx context.Context, tx *sql.Tx, event contract.Event) error {
@@ -489,7 +491,10 @@ func applyEvent(ctx context.Context, tx *sql.Tx, event contract.Event) error {
 		_, err := tx.ExecContext(ctx, `UPDATE segments SET status=? WHERE id=?`, event.Kind, event.SegmentID)
 		return err
 	case contract.EventQuestion, contract.EventResult, contract.EventStopped:
-		_, err := tx.ExecContext(ctx, `UPDATE segment_runtime SET outcome=? WHERE segment_id=?`, event.Kind, event.SegmentID)
+		_, err := tx.ExecContext(ctx, `UPDATE segment_runtime SET outcome=? WHERE segment_id=? AND (outcome='' OR outcome=?)`, event.Kind, event.SegmentID, event.Kind)
+		if err == nil && event.Kind == contract.EventStopped {
+			_, err = tx.ExecContext(ctx, `UPDATE stop_runtime SET status='accepted' WHERE segment_id=?`, event.SegmentID)
+		}
 		return err
 	case contract.EventUnknown:
 		if _, err := tx.ExecContext(ctx, `UPDATE segment_runtime SET status='unknown' WHERE segment_id=?`, event.SegmentID); err != nil {
@@ -524,6 +529,9 @@ func applyExit(ctx context.Context, tx *sql.Tx, event contract.Event) error {
 		return err
 	}
 	if _, err := tx.ExecContext(ctx, `UPDATE budget_runtime SET status='settled',used_ms=? WHERE id=?`, used, reservation); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE stop_runtime SET status='completed' WHERE segment_id=?`, event.SegmentID); err != nil {
 		return err
 	}
 	attemptStatus, taskStatus := "interrupted", "interrupted"
@@ -629,6 +637,132 @@ func (d *DB) QueueResume(ctx context.Context, taskID string, workRevision int) e
 		return rollback(err)
 	}
 	return tx.Commit()
+}
+
+type StopDispatch struct {
+	HostID  string
+	Command contract.StopCommand
+}
+
+type ActiveTask struct {
+	TaskID       string
+	WorkRevision int
+}
+
+func (d *DB) ActiveTasks(ctx context.Context) ([]ActiveTask, error) {
+	rows, err := d.sql.QueryContext(ctx, `SELECT DISTINCT t.id,r.work_revision FROM tasks t JOIN task_runtime r ON r.task_id=t.id JOIN attempts a ON a.task_id=t.id JOIN segment_runtime s ON s.attempt_id=a.id WHERE s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown') ORDER BY t.id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var tasks []ActiveTask
+	for rows.Next() {
+		var task ActiveTask
+		if err = rows.Scan(&task.TaskID, &task.WorkRevision); err != nil {
+			return nil, err
+		}
+		tasks = append(tasks, task)
+	}
+	return tasks, rows.Err()
+}
+
+func (d *DB) MarkStoppingUnknown(ctx context.Context) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	tx, err := d.sql.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	rollback := func(e error) error { _ = tx.Rollback(); return e }
+	if _, err = tx.ExecContext(ctx, `UPDATE segment_runtime SET status='unknown' WHERE status='stopping'`); err != nil {
+		return rollback(err)
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE attempts SET status='unknown' WHERE id IN (SELECT attempt_id FROM segment_runtime WHERE status='unknown')`); err != nil {
+		return rollback(err)
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE tasks SET status='unknown' WHERE id IN (SELECT a.task_id FROM attempts a JOIN segment_runtime s ON s.attempt_id=a.id WHERE s.status='unknown')`); err != nil {
+		return rollback(err)
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE stop_runtime SET status='unknown' WHERE status IN ('pending','accepted')`); err != nil {
+		return rollback(err)
+	}
+	return tx.Commit()
+}
+
+func (d *DB) RequestStop(ctx context.Context, taskID string, workRevision int, reason string) (StopDispatch, error) {
+	if taskID == "" || workRevision < 1 || reason == "" {
+		return StopDispatch{}, CodeError("invalid_stop")
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	tx, err := d.sql.BeginTx(ctx, nil)
+	if err != nil {
+		return StopDispatch{}, err
+	}
+	rollback := func(e error) (StopDispatch, error) { _ = tx.Rollback(); return StopDispatch{}, e }
+	var status string
+	var revision int
+	if err = tx.QueryRowContext(ctx, `SELECT t.status,r.work_revision FROM tasks t JOIN task_runtime r ON r.task_id=t.id WHERE t.id=?`, taskID).Scan(&status, &revision); err != nil {
+		return rollback(ErrNotFound)
+	}
+	if revision != workRevision {
+		return rollback(ErrConflict)
+	}
+	if status == "queued" || status == "ready" || status == "resume_queued" {
+		if _, err = tx.ExecContext(ctx, `UPDATE tasks SET status='cancelled' WHERE id=?`, taskID); err != nil {
+			return rollback(err)
+		}
+		return StopDispatch{}, tx.Commit()
+	}
+	var segmentID, hostID, segmentStatus string
+	if err = tx.QueryRowContext(ctx, `SELECT s.segment_id,s.host_id,s.status FROM segment_runtime s JOIN attempts a ON a.id=s.attempt_id WHERE a.task_id=? AND s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown') ORDER BY s.created_at DESC LIMIT 1`, taskID).Scan(&segmentID, &hostID, &segmentStatus); err != nil {
+		return rollback(ErrConflict)
+	}
+	var command contract.StopCommand
+	err = tx.QueryRowContext(ctx, `SELECT command_id,segment_id,reason,deadline_unix_ms FROM stop_runtime WHERE segment_id=?`, segmentID).Scan(&command.CommandID, &command.SegmentID, &command.Reason, &command.DeadlineUnixMS)
+	if err == nil {
+		_ = tx.Rollback()
+		return StopDispatch{HostID: hostID, Command: command}, nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return rollback(err)
+	}
+	commandID, err := newID("stop")
+	if err != nil {
+		return rollback(err)
+	}
+	command = contract.StopCommand{CommandID: commandID, SegmentID: segmentID, Reason: reason, DeadlineUnixMS: time.Now().Add(10 * time.Second).UnixMilli()}
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	if _, err = tx.ExecContext(ctx, `INSERT INTO stop_runtime(command_id,host_id,segment_id,reason,deadline_unix_ms,status,created_at) VALUES(?,?,?,?,?,'pending',?)`, command.CommandID, hostID, segmentID, reason, command.DeadlineUnixMS, now); err != nil {
+		return rollback(err)
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE segment_runtime SET status='stopping',outcome='stopped' WHERE segment_id=?`, segmentID); err != nil {
+		return rollback(err)
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE tasks SET status='stopping' WHERE id=?`, taskID); err != nil {
+		return rollback(err)
+	}
+	if err = tx.Commit(); err != nil {
+		return StopDispatch{}, err
+	}
+	return StopDispatch{HostID: hostID, Command: command}, nil
+}
+
+func (d *DB) PendingStops(ctx context.Context, hostID string) ([]StopDispatch, error) {
+	rows, err := d.sql.QueryContext(ctx, `SELECT command_id,segment_id,reason,deadline_unix_ms FROM stop_runtime WHERE host_id=? AND status='pending' ORDER BY created_at`, hostID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []StopDispatch
+	for rows.Next() {
+		var command contract.StopCommand
+		if err = rows.Scan(&command.CommandID, &command.SegmentID, &command.Reason, &command.DeadlineUnixMS); err != nil {
+			return nil, err
+		}
+		out = append(out, StopDispatch{HostID: hostID, Command: command})
+	}
+	return out, rows.Err()
 }
 
 func (d *DB) CollectPending(ctx context.Context, taskID string) ([]contract.Event, error) {

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"codex-cli-orchestration-design/tools/orchestrator/internal/contract"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/instance"
@@ -144,7 +145,7 @@ func (s *Server) Epoch() uint64      { return s.epoch }
 func (s *Server) Serve(ctx context.Context) error {
 	go func() {
 		<-ctx.Done()
-		_ = s.Close()
+		_ = s.listener.Close()
 	}()
 	for {
 		conn, err := s.listener.Accept()
@@ -155,6 +156,45 @@ func (s *Server) Serve(ctx context.Context) error {
 			return err
 		}
 		go s.handleConnection(ctx, conn)
+	}
+}
+
+// Shutdown asks each owning Host to stop its active tree and waits for durable
+// exit events. Work that cannot be confirmed before ctx expires remains
+// unknown and continues to occupy its reservation after restart.
+func (s *Server) Shutdown(ctx context.Context) error {
+	active, err := s.db.ActiveTasks(context.Background())
+	if err != nil {
+		return err
+	}
+	for _, task := range active {
+		dispatch, stopErr := s.db.RequestStop(context.Background(), task.TaskID, task.WorkRevision, "coordinator_exit")
+		if stopErr != nil || dispatch.HostID == "" {
+			continue
+		}
+		s.mu.Lock()
+		host := s.hosts[dispatch.HostID]
+		s.mu.Unlock()
+		if host != nil {
+			_ = sendStop(host, s.epoch, dispatch.Command)
+		}
+	}
+	ticker := time.NewTicker(20 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		active, err = s.db.ActiveTasks(context.Background())
+		if err != nil {
+			return err
+		}
+		if len(active) == 0 {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			_ = s.db.MarkStoppingUnknown(context.Background())
+			return ctx.Err()
+		case <-ticker.C:
+		}
 	}
 }
 
@@ -274,6 +314,31 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 		}
 		s.dispatchAll()
 		return json.Marshal(StatusResponse{Status: "resume_queued"})
+	case ipc.KindStopTask:
+		var request TaskControlRequest
+		if err := strictJSON(raw, &request); err != nil {
+			return nil, err
+		}
+		if err := s.db.ValidateTaskOwner(ctx, request.TaskID, request.ControllerThread); err != nil {
+			return nil, err
+		}
+		dispatch, err := s.db.RequestStop(ctx, request.TaskID, request.WorkRevision, "controller_stop")
+		if err != nil {
+			return nil, err
+		}
+		if dispatch.HostID == "" {
+			return json.Marshal(StatusResponse{Status: "cancelled"})
+		}
+		s.mu.Lock()
+		host := s.hosts[dispatch.HostID]
+		s.mu.Unlock()
+		if host == nil {
+			return nil, errors.New("host_unavailable")
+		}
+		if err = sendStop(host, s.epoch, dispatch.Command); err != nil {
+			return nil, err
+		}
+		return json.Marshal(StatusResponse{Status: "stopping"})
 	default:
 		return nil, errors.New("unsupported_request")
 	}
@@ -375,6 +440,11 @@ func (s *Server) dispatchAll() {
 func sendLaunch(session *hostSession, epoch uint64, command contract.LaunchCommand) error {
 	body, _ := json.Marshal(command)
 	return session.send(ipc.Envelope{Version: ipc.Version, Kind: ipc.KindLaunch, RequestID: command.CommandID, Epoch: epoch, Payload: body})
+}
+
+func sendStop(session *hostSession, epoch uint64, command contract.StopCommand) error {
+	body, _ := json.Marshal(command)
+	return session.send(ipc.Envelope{Version: ipc.Version, Kind: ipc.KindStop, RequestID: command.CommandID, Epoch: epoch, Payload: body})
 }
 
 func sendError(conn net.Conn, requestID string, epoch uint64, err error) error {
