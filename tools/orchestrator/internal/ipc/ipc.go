@@ -32,6 +32,7 @@ const (
 	KindSubmit           Kind = "submit"
 	KindStatus           Kind = "status"
 	KindCollect          Kind = "collect"
+	KindWaitEvents       Kind = "wait_events"
 	KindAck              Kind = "ack"
 	KindResume           Kind = "resume"
 	KindRetry            Kind = "retry"

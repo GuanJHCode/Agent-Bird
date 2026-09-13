@@ -35,6 +35,7 @@ const (
 	EventPrepared = "prepared"
 	EventSpawned  = "spawned"
 	EventRunning  = "running"
+	EventSession  = "session"
 	EventQuestion = "question"
 	EventResult   = "result"
 	EventExited   = "exited"

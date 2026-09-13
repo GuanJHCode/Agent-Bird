@@ -108,6 +108,7 @@ func TestCLIStartsServiceSourceHostAndCollectsDurableResult(t *testing.T) {
 				EventRevision int64  `json:"event_revision"`
 				PayloadHash   string `json:"payload_hash"`
 				ActionSlot    string `json:"action_slot"`
+				SegmentID     string `json:"segment_id"`
 				Kind          string `json:"kind"`
 			} `json:"events"`
 		}
@@ -136,7 +137,17 @@ func TestCLIStartsServiceSourceHostAndCollectsDurableResult(t *testing.T) {
 		case <-time.After(20 * time.Millisecond):
 		}
 	}
-	runBinary(t, ctx, bin, "retry", "--state-dir", state, "--task-id", "task-e", "--work-revision", "1", "--control-file", submitted.ControlFile, "--use-next-fallback")
+	failedOutput := runBinary(t, ctx, bin, "collect", "--state-dir", state, "--task-id", "task-e", "--control-file", submitted.ControlFile)
+	var failed struct {
+		Events []contract.Event `json:"events"`
+	}
+	if err = json.Unmarshal(failedOutput, &failed); err != nil || len(failed.Events) != 1 || failed.Events[0].Kind != contract.EventFailed {
+		t.Fatalf("failed collect=%s err=%v", failedOutput, err)
+	}
+	failure := failed.Events[0]
+	runBinary(t, ctx, bin, "retry", "--state-dir", state, "--task-id", "task-e", "--work-revision", "1", "--control-file", submitted.ControlFile,
+		"--event-id", failure.EventID, "--event-revision", fmt.Sprintf("%d", failure.EventRevision), "--event-hash", failure.PayloadHash,
+		"--action-slot", failure.ActionSlot, "--segment-id", failure.SegmentID, "--next-attempt", "2", "--command-id", "retry-task-e-1", "--use-next-fallback")
 	for {
 		status := taskStatus(t, ctx, bin, state, "task-e", submitted.ControlFile)
 		if status.Status == "completed" {

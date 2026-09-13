@@ -76,6 +76,8 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return taskControl(ctx, ipc.KindStatus, args[1:], stdout)
 	case "collect":
 		return taskControl(ctx, ipc.KindCollect, args[1:], stdout)
+	case "wait-events":
+		return waitEvents(ctx, args[1:], stdout)
 	case "resume":
 		return taskControl(ctx, ipc.KindResume, args[1:], stdout)
 	case "retry":
@@ -337,7 +339,9 @@ func taskControl(ctx context.Context, kind ipc.Kind, args []string, stdout io.Wr
 	taskID := fs.String("task-id", "", "task id")
 	controlFile := fs.String("control-file", "", "owner-only control capability")
 	revision := fs.Int("work-revision", 0, "work revision")
-	if fs.Parse(args) != nil || *taskID == "" || *controlFile == "" || fs.NArg() != 0 {
+	cursor := fs.String("cursor", "", "opaque delivery cursor")
+	includeDiagnostics := fs.Bool("include-diagnostics", false, "include durable progress diagnostics")
+	if fs.Parse(args) != nil || *taskID == "" || *controlFile == "" || fs.NArg() != 0 || (kind != ipc.KindCollect && (*cursor != "" || *includeDiagnostics)) {
 		return codeError("invalid_args")
 	}
 	if (kind == ipc.KindResume || kind == ipc.KindStopTask) && *revision < 1 {
@@ -356,7 +360,40 @@ func taskControl(ctx context.Context, kind ipc.Kind, args []string, stdout io.Wr
 			return err
 		}
 	}
-	response, err := call(ctx, state, kind, coordinator.TaskControlRequest{TaskID: *taskID, ControllerThread: capability.ControllerThread, ControlToken: capability.ControlToken, WorkRevision: *revision})
+	control := coordinator.TaskControlRequest{TaskID: *taskID, ControllerThread: capability.ControllerThread, ControlToken: capability.ControlToken, WorkRevision: *revision}
+	request := any(control)
+	if kind == ipc.KindCollect {
+		request = coordinator.CollectRequest{TaskControlRequest: control, Cursor: *cursor, IncludeDiagnostics: *includeDiagnostics}
+	}
+	response, err := call(ctx, state, kind, request)
+	if err != nil {
+		return err
+	}
+	_, err = stdout.Write(append(response.Payload, '\n'))
+	return err
+}
+
+func waitEvents(ctx context.Context, args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("wait-events", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	stateArg := fs.String("state-dir", "", "private state directory")
+	taskID := fs.String("task-id", "", "task id")
+	controlFile := fs.String("control-file", "", "owner-only control capability")
+	cursor := fs.String("cursor", "", "opaque delivery cursor")
+	timeoutMS := fs.Int("timeout-ms", 30_000, "bounded wait in milliseconds")
+	if fs.Parse(args) != nil || *taskID == "" || *controlFile == "" || *timeoutMS < 1 || *timeoutMS > 30_000 || fs.NArg() != 0 {
+		return codeError("invalid_args")
+	}
+	state, err := resolveState(*stateArg)
+	if err != nil {
+		return err
+	}
+	capability, err := loadControlCapability(*controlFile)
+	if err != nil {
+		return err
+	}
+	request := coordinator.WaitEventsRequest{TaskControlRequest: coordinator.TaskControlRequest{TaskID: *taskID, ControllerThread: capability.ControllerThread, ControlToken: capability.ControlToken}, Cursor: *cursor, TimeoutMS: *timeoutMS}
+	response, err := call(ctx, state, ipc.KindWaitEvents, request)
 	if err != nil {
 		return err
 	}
@@ -404,8 +441,15 @@ func retryTask(ctx context.Context, args []string, stdout io.Writer) error {
 	taskID := fs.String("task-id", "", "task id")
 	controlFile := fs.String("control-file", "", "owner-only control capability")
 	revision := fs.Int("work-revision", 0, "work revision")
+	eventID := fs.String("event-id", "", "failed event id")
+	eventRevision := fs.Int64("event-revision", 0, "failed event revision")
+	eventHash := fs.String("event-hash", "", "failed event payload hash")
+	actionSlot := fs.String("action-slot", "", "failed event action slot")
+	segmentID := fs.String("segment-id", "", "failed segment id")
+	nextAttemptNo := fs.Int("next-attempt", 0, "next attempt number in the frozen budget group")
+	commandID := fs.String("command-id", "", "stable retry command id")
 	useNext := fs.Bool("use-next-fallback", false, "use the next pre-authorized adapter")
-	if fs.Parse(args) != nil || *taskID == "" || *controlFile == "" || *revision < 1 || fs.NArg() != 0 {
+	if fs.Parse(args) != nil || *taskID == "" || *controlFile == "" || *revision < 1 || *eventID == "" || *eventRevision < 1 || *eventHash == "" || *actionSlot == "" || *segmentID == "" || *nextAttemptNo < 2 || *commandID == "" || fs.NArg() != 0 {
 		return codeError("invalid_args")
 	}
 	state, err := resolveState(*stateArg)
@@ -419,7 +463,7 @@ func retryTask(ctx context.Context, args []string, stdout io.Writer) error {
 	if err = ensureSourceHost(ctx, state, capability.BootstrapPath); err != nil {
 		return err
 	}
-	request := coordinator.RetryRequest{TaskControlRequest: coordinator.TaskControlRequest{TaskID: *taskID, ControllerThread: capability.ControllerThread, ControlToken: capability.ControlToken, WorkRevision: *revision}, UseNextFallback: *useNext}
+	request := coordinator.RetryRequest{TaskControlRequest: coordinator.TaskControlRequest{TaskID: *taskID, ControllerThread: capability.ControllerThread, ControlToken: capability.ControlToken, WorkRevision: *revision}, EventID: *eventID, EventRevision: *eventRevision, EventHash: *eventHash, ActionSlot: *actionSlot, SegmentID: *segmentID, NextAttemptNo: *nextAttemptNo, UseNextFallback: *useNext, CommandID: *commandID}
 	response, err := call(ctx, state, ipc.KindRetry, request)
 	if err != nil {
 		return err
