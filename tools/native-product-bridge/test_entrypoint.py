@@ -1,10 +1,10 @@
+import ctypes
 import hashlib
 import json
 import os
 from pathlib import Path
 import shutil
 import subprocess
-import sys
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -19,6 +19,15 @@ def sha(path):
 def private_json(path, value):
     path.write_text(json.dumps(value, sort_keys=True) + "\n")
     path.chmod(0o600)
+
+
+def kernel_executable():
+    libproc = ctypes.CDLL("/usr/lib/libproc.dylib")
+    libproc.proc_pidpath.argtypes = [ctypes.c_int, ctypes.c_void_p, ctypes.c_uint32]
+    libproc.proc_pidpath.restype = ctypes.c_int
+    buffer = ctypes.create_string_buffer(4096)
+    assert libproc.proc_pidpath(os.getpid(), buffer, len(buffer)) > 0
+    return Path(os.fsdecode(buffer.value))
 
 
 def test_packaged_entrypoint_requires_pinned_interpreter_package_and_g0_runtime(tmp_path):
@@ -48,7 +57,7 @@ def test_packaged_entrypoint_requires_pinned_interpreter_package_and_g0_runtime(
         path.write_text(f"NAME={name!r}\n")
         path.chmod(0o600)
         modules[name] = str(path)
-    interpreter = Path(sys.executable).resolve()
+    interpreter = kernel_executable()
     g0_manifest = runtime / "runtime-manifest.json"
     private_json(g0_manifest, {
         "version": 1,

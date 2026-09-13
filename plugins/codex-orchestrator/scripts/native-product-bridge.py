@@ -8,6 +8,7 @@ the separately pinned G0 attachment runtime before importing either runtime.
 from __future__ import annotations
 
 import asyncio
+import ctypes
 from dataclasses import asdict
 import hashlib
 import importlib
@@ -69,6 +70,23 @@ def digest(path):
     return hashlib.sha256(stable_bytes(path, 512 * 1024 * 1024)).hexdigest()
 
 
+def kernel_executable():
+    require(sys.platform == "darwin", "interpreter_changed")
+    try:
+        libproc = ctypes.CDLL("/usr/lib/libproc.dylib")
+        libproc.proc_pidpath.argtypes = [ctypes.c_int, ctypes.c_void_p, ctypes.c_uint32]
+        libproc.proc_pidpath.restype = ctypes.c_int
+        buffer = ctypes.create_string_buffer(4096)
+        length = libproc.proc_pidpath(os.getpid(), buffer, len(buffer))
+    except (AttributeError, OSError, ValueError) as exc:
+        raise EntryError("interpreter_changed") from exc
+    require(0 < length < len(buffer), "interpreter_changed")
+    executable = Path(os.fsdecode(buffer.value))
+    require(executable.is_absolute() and executable.resolve() == executable,
+            "interpreter_changed")
+    return executable
+
+
 def validate_runtime(request):
     required = {"version", "package_root", "package_manifest", "package_manifest_sha256",
                 "interpreter", "interpreter_sha256", "g0_runtime_root",
@@ -76,7 +94,8 @@ def validate_runtime(request):
     require(isinstance(request, dict) and set(request) == required and request["version"] == 1,
             "request_shape")
     interpreter = Path(request["interpreter"])
-    require(interpreter.is_absolute() and Path(sys.executable).resolve() == interpreter.resolve(),
+    require(interpreter.is_absolute() and interpreter.resolve() == interpreter
+            and kernel_executable() == interpreter,
             "interpreter_changed")
     require(digest(interpreter) == request["interpreter_sha256"], "interpreter_changed")
 
