@@ -1,0 +1,83 @@
+{
+  "case": "private-native-03",
+  "runner_status": "passed",
+  "failure": null,
+  "scheduler_mode": "inherited_fd",
+  "global_registration_verified": false,
+  "auth_comparison": {
+    "unchanged": true,
+    "changed_path_ids": []
+  },
+  "synthetic_auth_absent": true,
+  "public_socket_absent": true,
+  "private_socket_absent": true,
+  "process_identities_absent": {
+    "owner": true,
+    "helper": true,
+    "service": true,
+    "backend": true
+  },
+  "business_ack_verified": true,
+  "go_status": {
+    "ack_count": 1,
+    "acks": [
+      {
+        "version": 1,
+        "status": "acknowledged",
+        "delivery_id": "G0_SYNTHETIC_TOOL_RESULT_private-native-03",
+        "nonce": "private-native-03",
+        "controller_thread": "01a099a9-542f-7841-a372-4645c2b7b68e",
+        "controller_epoch": 1,
+        "revision": 1,
+        "event_id": "event_result",
+        "event_revision": 1,
+        "event_hash": "e394a513bfdf427d1057e72e57cad355a04a31a7ddb83a229734001992d452ad",
+        "action_slot": "ack_result",
+        "command_id": "handled_private-native-03",
+        "decision": "handled",
+        "decision_count": 1,
+        "effect_count": 1
+      }
+    ],
+    "business_status": "complete",
+    "claim": "claimed",
+    "delivery_id": "G0_SYNTHETIC_TOOL_RESULT_private-native-03",
+    "event_count": 1,
+    "pending_count": 0,
+    "revision": 1,
+    "send_allowed": false,
+    "status": "complete",
+    "transport_status": "ready",
+    "version": 1
+  },
+  "ordinary_tui_verified": false,
+  "durable_history_verified": false,
+  "transaction_state": "REVOKED",
+  "synthetic_endpoint": {
+    "version": 1,
+    "synthetic_only": true,
+    "external_model_calls": 0,
+    "accepted_requests": 2,
+    "attempts": 2,
+    "requests": [
+      {
+        "attempt": 1,
+        "bytes": 37531,
+        "sha256": "85f1dea8af3c88a6836327a54113396dfa18749fca9f539a1a1a050fb7d2a5a4",
+        "status": 200,
+        "stage": 0,
+        "synthetic_only": true
+      },
+      {
+        "attempt": 2,
+        "bytes": 38242,
+        "sha256": "ae87049c138f2a68146ec2d3c52fcc761d81b4b40fce9892bb038bafd4bd1adb",
+        "status": 200,
+        "stage": 1,
+        "synthetic_only": true
+      }
+    ]
+  },
+  "external_model_calls": 0,
+  "status": "pass"
+}

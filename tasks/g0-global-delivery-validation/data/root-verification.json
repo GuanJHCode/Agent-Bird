@@ -1,0 +1,13 @@
+{
+  "source_commit": "a671d65aa9c920c620e9c71eb949e8d092b2d016",
+  "test_result": "601 passed, 116 subtests passed in 116.42s",
+  "exit_code": 0,
+  "command": "PATH=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin:$PATH PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 GOENV=off GOPROXY=off GOSUMDB=off /opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/bin/python3.13 -I -B - <<'PY'\nimport os,sys\nfrom pathlib import Path\nroot=Path.cwd(); build=root/'tasks/g0-global-delivery-validation/tmp/build'\nfor name in ('cache','modcache','tests'):(build/name).mkdir(parents=True,exist_ok=True)\nos.environ['GOCACHE']=str(build/'cache');os.environ['GOMODCACHE']=str(build/'modcache')\nsys.path[:0]=['/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages','/Users/guanjunhui/Library/Python/3.13/lib/python/site-packages']+[str(root/p) for p in ('tasks/g0-pending-resolution/scripts','tasks/g0-tui-proxy/scripts','tasks/g0-proxy-continuation/scripts','tasks/g0-cached-switch-boundary/scripts','tasks/g0-proxy-continuation/cold-start/scripts','tasks/g0-auth-preserving-activation/scripts','tasks/g0-completion/scripts')]\nimport native_delivery_case as legacy\nlegacy.GO_CACHE=build/'cache';legacy.GO_MOD_CACHE=build/'modcache'\nimport pytest\nraise SystemExit(pytest.main(['-q','-p','no:cacheprovider','tasks/g0-tui-proxy/tests','tasks/g0-proxy-continuation/tests','tasks/g0-cached-switch-boundary/tests','tasks/g0-proxy-continuation/cold-start/tests','tasks/g0-proxy-continuation/cold-start/scripts/test_render_launchagent.py','tasks/g0-auth-preserving-activation/tests','tasks/g0-completion/tests','tasks/g0-global-delivery-validation/tests','tasks/g0-pending-resolution/scripts/native_standalone_test.py','tasks/g0-pending-resolution/scripts/native_sd_control_test.py']))\nPY",
+  "test_scope": "full project G0 regression; no real launchctl or external model calls",
+  "review": {
+    "author_commit": "e4b2938a5268e4376e91ab367bd4f16084d0b392",
+    "reviewer": "resume_boundary",
+    "blocking_findings": 0
+  },
+  "preserved_uncommitted_source": "tasks/g0-tui-proxy/scripts/proxy_native_runtime.py: existing __all__ classify_screen export left unchanged; actual source hashes pinned per case"
+}
