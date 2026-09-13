@@ -964,8 +964,15 @@ func applyEvent(ctx context.Context, tx *sql.Tx, event contract.Event) error {
 		if _, err := tx.ExecContext(ctx, `INSERT INTO runtime_questions(question_id,task_id,attempt_id,segment_id,question_revision,work_revision,session_kind,session_id,status,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)`, event.QuestionID, event.TaskID, event.AttemptID, event.SegmentID, event.QuestionRevision, event.WorkRevision, event.SessionKind, event.SessionID, "open", time.Now().UTC().Format(time.RFC3339Nano)); err != nil {
 			return mapConflict(err)
 		}
-		_, err := tx.ExecContext(ctx, `UPDATE segment_runtime SET outcome=? WHERE segment_id=? AND status!='exited' AND outcome=''`, event.Kind, event.SegmentID)
-		return err
+		result, err := tx.ExecContext(ctx, `UPDATE segment_runtime SET outcome=? WHERE segment_id=? AND status!='exited' AND outcome=''`, event.Kind, event.SegmentID)
+		if err != nil {
+			return err
+		}
+		changed, err := result.RowsAffected()
+		if err != nil || changed != 1 {
+			return ErrConflict
+		}
+		return nil
 	case contract.EventResult, contract.EventStopped, contract.EventFailed:
 		_, err := tx.ExecContext(ctx, `UPDATE segment_runtime SET outcome=? WHERE segment_id=? AND status!='exited' AND (outcome='' OR outcome=?)`, event.Kind, event.SegmentID, event.Kind)
 		if err == nil && event.Kind == contract.EventStopped {
@@ -1988,12 +1995,13 @@ func validateReportPayload(kind string, raw json.RawMessage, capabilityDir strin
 		Status           string               `json:"status"`
 		QuestionID       string               `json:"question_id,omitempty"`
 		QuestionRevision int                  `json:"question_revision,omitempty"`
+		QuestionKind     string               `json:"question_kind,omitempty"`
 		Artifact         contract.ArtifactRef `json:"artifact"`
 	}
 	if decoder.Decode(&value) != nil {
 		return contract.Event{}, CodeError("invalid_report_payload")
 	}
-	allowed := (kind == "result" && (value.Status == "completed" || value.Status == "partial")) || (kind == "failure" && (value.Status == "failed" || value.Status == "blocked")) || (kind == "question" && value.Status == "waiting_user" && value.QuestionID != "" && value.QuestionRevision > 0)
+	allowed := (kind == "result" && (value.Status == "completed" || value.Status == "partial")) || (kind == "failure" && (value.Status == "failed" || value.Status == "blocked")) || (kind == "question" && value.Status == "waiting_user" && value.QuestionID != "" && value.QuestionRevision > 0 && value.QuestionKind == "technical")
 	if !allowed || value.Artifact.Path == "" || !filepath.IsAbs(value.Artifact.Path) || !validDigest(value.Artifact.SHA256) || value.Artifact.Size < 0 {
 		return contract.Event{}, CodeError("invalid_report_payload")
 	}
@@ -2010,7 +2018,7 @@ func validateReportPayload(kind string, raw json.RawMessage, capabilityDir strin
 	if err != nil || runtimeHash(string(data)) != strings.ToLower(value.Artifact.SHA256) {
 		return contract.Event{}, CodeError("report_artifact_hash_mismatch")
 	}
-	return contract.Event{Artifact: &value.Artifact, QuestionID: value.QuestionID, QuestionRevision: value.QuestionRevision}, nil
+	return contract.Event{Artifact: &value.Artifact, QuestionID: value.QuestionID, QuestionRevision: value.QuestionRevision, QuestionKind: value.QuestionKind}, nil
 }
 
 type PendingPage struct {

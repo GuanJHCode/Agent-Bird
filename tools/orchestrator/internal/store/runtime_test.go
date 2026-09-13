@@ -766,7 +766,7 @@ func TestReportQuestionWaitsForTrustedHostSessionThenStopsAndResumes(t *testing.
 		t.Fatal(err)
 	}
 	digest := sha256.Sum256(artifactData)
-	payload, _ := json.Marshal(map[string]any{"status": "waiting_user", "question_id": "worker-question-1", "question_revision": 1, "artifact": map[string]any{"id": "question", "path": artifactPath, "size": len(artifactData), "sha256": fmt.Sprintf("%x", digest)}})
+	payload, _ := json.Marshal(map[string]any{"status": "waiting_user", "question_id": "worker-question-1", "question_revision": 1, "question_kind": "technical", "artifact": map[string]any{"id": "question", "path": artifactPath, "size": len(artifactData), "sha256": fmt.Sprintf("%x", digest)}})
 	report := ReportEventSpec{CapabilityID: grant.ReportCapabilityID, Token: token, EventID: "reported-question", Sequence: 1, Kind: "question", Payload: payload}
 	if _, err = db.CommitReportEvent(ctx, report); err != nil {
 		t.Fatal(err)
@@ -776,7 +776,7 @@ func TestReportQuestionWaitsForTrustedHostSessionThenStopsAndResumes(t *testing.
 	}
 	malicious := report
 	malicious.EventID, malicious.Sequence = "reported-question-2", 2
-	malicious.Payload = json.RawMessage(`{"status":"waiting_user","question_id":"worker-question-2","question_revision":2,"session_kind":"forged","session_id":"forged","artifact":{"id":"question","path":"` + artifactPath + `","size":43,"sha256":"` + fmt.Sprintf("%x", digest) + `"}}`)
+	malicious.Payload = json.RawMessage(`{"status":"waiting_user","question_id":"worker-question-2","question_revision":2,"question_kind":"technical","session_kind":"forged","session_id":"forged","artifact":{"id":"question","path":"` + artifactPath + `","size":43,"sha256":"` + fmt.Sprintf("%x", digest) + `"}}`)
 	if _, maliciousErr := db.CommitReportEvent(ctx, malicious); maliciousErr == nil || maliciousErr.Error() != "invalid_report_payload" {
 		t.Fatalf("worker supplied session err=%v", maliciousErr)
 	}
