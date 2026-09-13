@@ -763,6 +763,13 @@ func (s *Server) handleHost(ctx context.Context, conn net.Conn, message ipc.Enve
 			continue
 		}
 		s.dispatchPendingStops()
+		s.retireCompletedHosts()
+		s.mu.Lock()
+		_, stillRegistered := s.hosts[session.id]
+		s.mu.Unlock()
+		if !stillRegistered {
+			return
+		}
 		if err = s.dispatch(session, false); err != nil {
 			return
 		}

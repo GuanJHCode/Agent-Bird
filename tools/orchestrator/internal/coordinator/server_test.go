@@ -93,18 +93,15 @@ func TestServerRoutesControlToBoundHostAndDurablyCollects(t *testing.T) {
 	}
 	sendEvent(contract.EventResult, 0)
 	sendEvent(contract.EventExited, 100)
-	if err = conn.Close(); err != nil {
-		t.Fatal(err)
-	}
 	for deadline := time.Now().Add(time.Second); ; {
 		statusMessage := callServer(t, server.SocketPath(), ipc.KindHostStatus, HostStatusRequest{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken})
 		var status StatusResponse
 		decodePayload(t, statusMessage, &status)
-		if status.Status == "offline" {
+		if status.Status == "released" {
 			break
 		}
 		if time.Now().After(deadline) {
-			t.Fatalf("host remained %s after disconnect", status.Status)
+			t.Fatalf("host remained %s after terminal durable exit", status.Status)
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
