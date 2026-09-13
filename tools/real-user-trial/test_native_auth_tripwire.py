@@ -25,7 +25,7 @@ import threading
 import time
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler
-from typing import Mapping
+from typing import Callable, Mapping, Protocol
 
 import pytest
 
@@ -48,7 +48,7 @@ SYNTHETIC_REFRESH_TOKEN = "synthetic-refresh-token-never-from-user-storage"
 RUN_OPT_IN = os.environ.get("CODEX_RUN_NATIVE_AUTH_TRIPWIRE") == "1"
 NATIVE_BINARY_INPUT = os.environ.get("CODEX_TRIAL_NATIVE_BINARY")
 
-pytestmark = pytest.mark.skipif(
+NATIVE_OPT_IN = pytest.mark.skipif(
     not RUN_OPT_IN or not NATIVE_BINARY_INPUT,
     reason="native auth tripwire requires explicit fixed-binary opt-in",
 )
@@ -89,6 +89,27 @@ class _ProcessIdentity:
     pgid: int
     birth: str
     executable: str
+
+
+class _VersionProcess(Protocol):
+    pid: int
+
+    def communicate(self, timeout: float) -> tuple[bytes, object]: ...
+
+    def wait(self, timeout: float) -> int: ...
+
+
+class NativeFixtureUninterruptible(RuntimeError):
+    def __init__(self, owner: _ProcessIdentity, fixture_root: Path) -> None:
+        self.safe_report = {
+            "code": "native_version_process_uninterruptible",
+            "pid": owner.pid,
+            "uid": owner.uid,
+            "pgid": owner.pgid,
+            "birth": owner.birth,
+            "fixture_root": str(fixture_root),
+        }
+        super().__init__("native_version_process_uninterruptible")
 
 
 class _RefreshObservation:
@@ -360,27 +381,63 @@ def _same_owned_process(saved: _ProcessIdentity) -> bool:
     )
 
 
+def _collect_version_output(
+    process: _VersionProcess,
+    fixture_root: Path,
+    *,
+    identity_reader: Callable[[int], _ProcessIdentity | None] = _process_identity,
+    kill_group: Callable[[int, int], None] = os.killpg,
+    timeout: float = 5,
+    reap_timeout: float = 2,
+) -> bytes:
+    if (
+        fixture_root.parent != Path("/private/tmp")
+        or not fixture_root.name.startswith("g0-auth-")
+    ):
+        raise AssertionError("fixture_root_outside_private_tmp")
+    try:
+        stdout, _ = process.communicate(timeout=timeout)
+        return stdout
+    except subprocess.TimeoutExpired:
+        owner = identity_reader(process.pid)
+        if (
+            owner is None
+            or owner.uid != os.getuid()
+            or owner.pid != process.pid
+            or owner.pgid != process.pid
+        ):
+            raise AssertionError("native_version_process_ownership_invalid")
+        try:
+            kill_group(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        try:
+            process.wait(timeout=reap_timeout)
+        except subprocess.TimeoutExpired:
+            raise NativeFixtureUninterruptible(owner, fixture_root) from None
+        raise AssertionError("native_version_timeout")
+
+
 def _verify_native_version(
     binary: Path,
     home: _FixtureHome,
     environment: Mapping[str, str],
     profile: str,
 ) -> None:
-    completed = subprocess.run(
+    process = subprocess.Popen(
         ["/usr/bin/sandbox-exec", "-p", profile, str(binary), "--version"],
         cwd=home.workspace,
         env=dict(environment),
         stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
-        timeout=5,
-        check=False,
+        start_new_session=True,
     )
+    stdout = _collect_version_output(process, home.root)
     if (
-        completed.returncode != 0
-        or len(completed.stdout) > 1024
-        or completed.stdout.decode("utf-8", errors="strict").strip()
-        != EXPECTED_VERSION_OUTPUT
+        process.returncode != 0
+        or len(stdout) > 1024
+        or stdout.decode("utf-8", errors="strict").strip() != EXPECTED_VERSION_OUTPUT
     ):
         raise AssertionError("native_version_mismatch")
 
@@ -556,6 +613,61 @@ def _auth_identity(path: Path) -> tuple[bytes, tuple[int, ...]]:
     )
 
 
+class _UnreapableFakeProcess:
+    pid = 41001
+
+    def __init__(self) -> None:
+        self.communicate_calls = 0
+        self.wait_calls = 0
+
+    def communicate(self, timeout: float) -> tuple[bytes, None]:
+        self.communicate_calls += 1
+        raise subprocess.TimeoutExpired(["synthetic-native", "--version"], timeout)
+
+    def wait(self, timeout: float) -> int:
+        self.wait_calls += 1
+        raise subprocess.TimeoutExpired(["synthetic-native", "--version"], timeout)
+
+
+def test_version_probe_reports_uninterruptible_without_unbounded_wait() -> None:
+    process = _UnreapableFakeProcess()
+    owner = _ProcessIdentity(
+        pid=process.pid,
+        uid=os.getuid(),
+        pgid=process.pid,
+        birth="synthetic birth",
+        executable="/synthetic/native",
+    )
+    killed: list[tuple[int, int]] = []
+    fixture_root = Path("/private/tmp/g0-auth-synthetic")
+
+    with pytest.raises(
+        NativeFixtureUninterruptible,
+        match="^native_version_process_uninterruptible$",
+    ) as error:
+        _collect_version_output(
+            process,
+            fixture_root,
+            identity_reader=lambda _pid: owner,
+            kill_group=lambda pgid, sig: killed.append((pgid, sig)),
+            timeout=0.01,
+            reap_timeout=0.01,
+        )
+
+    assert error.value.safe_report == {
+        "code": "native_version_process_uninterruptible",
+        "pid": process.pid,
+        "uid": os.getuid(),
+        "pgid": process.pid,
+        "birth": "synthetic birth",
+        "fixture_root": str(fixture_root),
+    }
+    assert process.communicate_calls == 1
+    assert process.wait_calls == 1
+    assert killed == [(process.pid, signal.SIGKILL)]
+
+
+@NATIVE_OPT_IN
 def test_fixed_native_refresh_tripwire_blocks_oauth_egress() -> None:
     binary = _verify_native_binary(str(NATIVE_BINARY_INPUT))
     observation = _RefreshObservation()

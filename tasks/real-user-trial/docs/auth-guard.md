@@ -87,7 +87,7 @@ API-key auth 原生不进入 ChatGPT OAuth refresh；但 `codex exec` 的启动 
 
 本阶段没有真实账号、真实 CLI、模型请求或 Keychain 访问证据，因此没有 real-ready 声明。
 
-## 待执行的固定 native 回归
+## 固定 native 回归与当前阻断
 
 `tools/real-user-trial/test_native_auth_tripwire.py` 是显式 opt-in 的单个 native fixture，默认跳过。它要求调用者同时设置 `CODEX_RUN_NATIVE_AUTH_TRIPWIRE=1` 和 `CODEX_TRIAL_NATIVE_BINARY=<ABS>`；传入文件必须是 owner 持有的 regular non-symlink executable，且 SHA-256 和 `--version` 均匹配上述固定值。
 
@@ -99,4 +99,6 @@ fixture 的 baseline 和 guarded case 分别创建新的直接 `/private/tmp/g0-
 
 通过条件是 baseline 在有界范围内观察到至少一次只含 synthetic marker 的 refresh POST，guarded case 对同一 listener 的请求计数不增加，且 guarded `auth.json` 的 bytes、inode、mode、size 和 mtime 全部不变。请求体、native stderr 和 token 不落盘、不打印；成功且两个 owned process group 都已结束时才删除该 fixture 新建的两个根。身份不确定或启动失败时保留只含 synthetic 数据的根供根验收清理，不在未知进程仍可能使用时递归删除。
 
-当前提交只提供可审查 fixture，没有执行 opt-in native case。执行权留给根验收流程。
+根验收流程已执行过一次 opt-in case，但固定 native 在 `--version` 探测阶段进入 dyld `ignition_halt -> __abort_with_payload` 的不可中断等待；Codex main 和 app-server 均未进入。该结果记为 `BLOCKED`，不能作为 refresh tripwire 通过证据，也没有据此放宽 sandbox 对真实 HOME、Keychain 或网络的限制。相关 synthetic fixture 根由根验收流程保留。
+
+版本探测现改为显式 `Popen` 生命周期：首次 `communicate`、单次进程组 `SIGKILL` 和 reap 都有界。若 owner PID/UID/PGID/birth 一致但进程仍不可回收，fixture 返回 `native_version_process_uninterruptible`；报告只含上述进程身份与 `/private/tmp/g0-auth-*` synthetic 根，不含 stdout、stderr、命令环境或凭据。失败路径继续保留 synthetic 根，且不会重复发送 signal。此修正只经过 fake unreapable process 回归，没有再次启动 native。
