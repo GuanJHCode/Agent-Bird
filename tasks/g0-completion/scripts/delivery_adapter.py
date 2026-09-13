@@ -6,8 +6,7 @@ observation separate from business ACK publication.
 """
 from __future__ import annotations
 
-import asyncio
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import hashlib
 import json
 import os
@@ -30,6 +29,35 @@ _DECISIONS = {"handled", "waiting_user", "stale", "rejected"}
 
 class DeliveryError(ValueError):
     """Stable adapter rejection; arbitrary subprocess text is not retained."""
+
+
+@dataclass(frozen=True)
+class DeliveryCapability:
+    binding: "DeliveryBinding"
+    task_dir: Path
+    go_intent: dict
+    native_envelope: dict
+    claim_sha256: str
+    _token: object = field(repr=False, compare=False)
+
+
+@dataclass(frozen=True)
+class HistoryProof:
+    native_envelope: dict
+    summary: dict
+    matched_event_ids: frozenset[str]
+    _token: object = field(repr=False, compare=False)
+
+
+@dataclass(frozen=True)
+class AckOutcome:
+    records: tuple[dict, ...]
+    pending_event_ids: tuple[str, ...]
+    nonhandled_decisions: dict[str, str]
+
+    @property
+    def business_ack_complete(self) -> bool:
+        return not self.pending_event_ids and not self.nonhandled_decisions
 
 
 @dataclass(frozen=True)
@@ -125,6 +153,7 @@ class DeliveryAdapter:
         _require(self.go_binary.is_absolute() and self.go_binary.is_file(), "go_binary_missing")
         _require(_hash(expected_sha256) and hashlib.sha256(self.go_binary.read_bytes()).hexdigest() == expected_sha256, "go_binary_hash")
         self.expected_sha256 = expected_sha256
+        self._capability_token = object()
 
     def _run(self, args: list[str], *, env: Mapping[str, str] | None = None) -> dict:
         child_env = os.environ.copy()
@@ -161,21 +190,38 @@ class DeliveryAdapter:
         return self._run(["batch-claim", "--dir", str(task_dir), "--nonce", binding.nonce,
                           "--controller-thread", binding.owner_thread_id, "--revision", str(binding.revision)], env=env)
 
-    def prepare_and_claim(self, binding: DeliveryBinding, task_dir: Path, delivery_id: str, events: list[dict], *, env: Mapping[str, str]) -> dict:
+    def prepare_and_claim(self, binding: DeliveryBinding, task_dir: Path, delivery_id: str, events: list[dict], *, env: Mapping[str, str]) -> DeliveryCapability:
         intent = self.prepare(binding, task_dir, delivery_id, events, env=env)
         claim = self.claim(binding, task_dir, env=env)
         _require(claim.get("status") == "claimed" and claim.get("delivery_id") == intent["delivery_id"] and claim.get("controller_thread") == binding.owner_thread_id and claim.get("revision") == binding.revision, "claim_artifact")
-        return intent
+        claim_path = task_dir / "batch-send-claim.json"
+        _require(claim_path.is_file(), "claim_missing")
+        claim_sha = hashlib.sha256(claim_path.read_bytes()).hexdigest()
+        native = native_envelope_from_go_intent(intent, binding)
+        return DeliveryCapability(binding, task_dir, intent, native, claim_sha, self._capability_token)
 
-    def ack_confirmed(self, binding: DeliveryBinding, task_dir: Path, intent: Mapping[str, Any], decisions: Mapping[str, str], *, confirmed_event_ids: set[str], command_ids: Mapping[str, str], env: Mapping[str, str]) -> list[dict]:
-        checked = _validate_go_intent(dict(intent), binding)
+    def ack_confirmed(self, capability: DeliveryCapability, proof: HistoryProof, decisions: Mapping[str, str], *, command_ids: Mapping[str, str], env: Mapping[str, str]) -> AckOutcome:
+        _require(capability._token is self._capability_token, "capability_owner")
+        _require(proof._token is self._capability_token, "proof_owner")
+        _require(proof.native_envelope == capability.native_envelope, "history_binding")
+        binding, task_dir = capability.binding, capability.task_dir
+        checked = _validate_go_intent(dict(capability.go_intent), binding)
         events = {event["event_id"]: event for event in checked["events"]}
         outputs = []
-        for event_id in confirmed_event_ids:
-            _require(event_id in events, "event_unknown")
+        pending, nonhandled = [], {}
+        for event_id in events:
             decision = decisions.get(event_id)
-            if decision != "handled":
+            if event_id not in proof.matched_event_ids:
+                pending.append(event_id)
                 continue
+            if decision is None:
+                pending.append(event_id)
+                continue
+            _require(decision in _DECISIONS, "decision_unknown")
+            if decision != "handled":
+                nonhandled[event_id] = decision
+                continue
+            _require(event_id in events, "event_unknown")
             command_id = command_ids.get(event_id)
             _require(_safe(command_id), "command_id")
             event = events[event_id]
@@ -184,17 +230,35 @@ class DeliveryAdapter:
                                       "--event-id", event_id, "--event-revision", str(event["event_revision"]),
                                       "--event-hash", event["payload_hash"], "--action-slot", event["action_slot"],
                                       "--command-id", command_id, "--decision", "handled"], env=env))
-        return outputs
+        return AckOutcome(tuple(outputs), tuple(pending), nonhandled)
 
-    @staticmethod
-    def audit_history(intent: Mapping[str, Any], reads: list[dict], decisions: list[dict] | None = None) -> dict:
+    def audit_history(self, intent: Mapping[str, Any], reads: list[dict], decisions: list[dict] | None = None) -> HistoryProof:
         value = audit_history({"version": 1, "intent": dict(intent), "reads": reads, "acks": decisions or []})
         _require(value.get("transport_evidence") == "exact_history_marker", "history_uncertain")
-        return value
+        matched = set()
+        for read in reads:
+            thread = read.get("response", {}).get("result", {}).get("thread", {})
+            for turn in thread.get("turns", []) if isinstance(thread, dict) else []:
+                for item in turn.get("items", []) if isinstance(turn, dict) else []:
+                    if item.get("type") == "functionCallOutput" and item.get("name") == "g0_delivery" and item.get("namespace") == "orchestration":
+                        try:
+                            output = json.loads(item.get("output", ""))
+                        except (TypeError, ValueError):
+                            continue
+                        if output == dict(intent):
+                            for event in intent["events"]:
+                                matched.add(event["event_id"])
+        return HistoryProof(dict(intent), value, frozenset(matched), self._capability_token)
 
-    async def send_tool_output_once(self, connection: Any, envelope: Mapping[str, Any], *, request_id: int = 1) -> list[dict]:
+    async def send_tool_output_once(self, connection: Any, capability: DeliveryCapability, *, request_id: int = 1) -> list[dict]:
         _require(type(request_id) is int and request_id > 0, "request_id")
+        _require(capability._token is self._capability_token, "capability_owner")
+        envelope = capability.native_envelope
         _require(set(envelope) == {"version", "delivery_id", "controller_thread_id", "controller_epoch", "events", "payload_hash"}, "native_envelope")
+        status = self._run(["batch-status", "--dir", str(capability.task_dir), "--nonce", capability.binding.nonce])
+        _require(status.get("claim") == "claimed" and status.get("delivery_id") == envelope["delivery_id"] and status.get("revision") == capability.binding.revision and status.get("transport_status") == "ready", "claim_not_current")
+        claim_path = capability.task_dir / "batch-send-claim.json"
+        _require(claim_path.is_file() and hashlib.sha256(claim_path.read_bytes()).hexdigest() == capability.claim_sha256, "claim_changed")
         sent = getattr(self, "_sent_delivery_ids", None)
         if sent is None:
             sent = self._sent_delivery_ids = set()

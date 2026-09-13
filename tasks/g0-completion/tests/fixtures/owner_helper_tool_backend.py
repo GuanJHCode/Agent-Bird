@@ -65,10 +65,12 @@ async def main():
     stop = asyncio.Event()
     clients = set()
     records = []
+    history_output = None
     loop = asyncio.get_running_loop()
     loop.add_signal_handler(signal.SIGTERM, stop.set)
 
     async def connection(reader, writer):
+        nonlocal history_output
         clients.add(writer)
         try:
             header = await reader.readuntil(b"\r\n\r\n")
@@ -99,6 +101,7 @@ async def main():
                         await writer.drain()
                         continue
                     record["accepted"] = True
+                    history_output = output
                     records.append(record); write_receipt(records)
                     writer.write(server_frame({"id": message["id"], "result": {"turn": turn_body("inProgress")}}))
                     writer.write(server_frame({"method": "turn/started", "params": {"threadId": THREAD, "turn": turn_body("inProgress")}, "emittedAtMs": int(time.time() * 1000)}))
@@ -117,6 +120,11 @@ async def main():
                 elif method == "initialized":
                     records.append(record); write_receipt(records)
                     continue
+                elif method == "thread/read":
+                    records.append(record); write_receipt(records)
+                    item = {"id": ITEM, "type": "functionCallOutput", "name": "g0_delivery", "namespace": "orchestration", "output": history_output or ""}
+                    turn = {"id": TURN, "status": "completed", "items": [item], "itemsView": "full"}
+                    writer.write(server_frame({"id": message["id"], "result": {"thread": {"id": THREAD, "turns": [turn]}}}))
                 elif method in ("server/diagnostics", "remoteControl/status/read"):
                     records.append(record); write_receipt(records)
                     writer.write(server_frame({"id": message["id"], "result": {}}))
