@@ -98,7 +98,11 @@ func (h *Host) ExecuteLaunch(ctx context.Context, grant contract.LaunchCommand, 
 	h.grantMu.Unlock()
 	runCtx, cancel := context.WithDeadline(ctx, budgetDeadline)
 	defer cancel()
-	return h.execute(runCtx, store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID, Status: "running"}, grant.RunID, grant.TaskID, invocationCommand(inv), false, launchMetadata{commandID: grant.CommandID, workRevision: grant.WorkRevision, executionEpoch: grant.ExecutionEpoch})
+	meta := launchMetadata{commandID: grant.CommandID, workRevision: grant.WorkRevision, executionEpoch: grant.ExecutionEpoch}
+	if structured, ok := inv.(interface{ OutputProvider() string }); ok {
+		meta.outputProvider = structured.OutputProvider()
+	}
+	return h.execute(runCtx, store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID, Status: "running"}, grant.RunID, grant.TaskID, invocationCommand(inv), false, meta)
 }
 
 func invocationCommand(inv contract.InvocationView) process.Command {
@@ -119,12 +123,21 @@ type launchMetadata struct {
 	commandID      string
 	workRevision   int
 	executionEpoch uint64
+	outputProvider string
 }
 
 func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID string, cmd process.Command, persistDB bool, meta launchMetadata) (contract.Result, error) {
 	spool, err := h.spool(a)
 	if err != nil {
 		return contract.Result{}, err
+	}
+	var protocol *protocolCollector
+	if meta.outputProvider != "" {
+		protocol, err = newProtocolCollector(meta.outputProvider)
+		if err != nil {
+			return contract.Result{}, err
+		}
+		cmd.Stdout = protocol
 	}
 	eventCount := 0
 	appendPhase := func(kind, payloadHash string, identity *process.Identity, exitCode *int, artifact *contract.ArtifactRef) error {
@@ -244,6 +257,50 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 	if h.stopWasRequested(a.SegmentID) || p.ExitCode() < 0 {
 		return finalizeStopped(&identity, p.ExitCode(), context.Canceled)
 	}
+	if protocol != nil {
+		exit := p.ExitCode()
+		terminal, sessionID, protocolErr := protocol.Finish()
+		kind, status := contract.EventResult, "result_ready"
+		if protocolErr != nil || exit != 0 || (terminal.Kind != "question" && !providerSucceeded(protocol.provider, terminal)) {
+			kind, status = contract.EventFailed, "failed"
+		} else if terminal.Kind == "question" {
+			kind, status = contract.EventQuestion, "waiting_user"
+		}
+		content := []byte(terminal.Text)
+		var artifact *contract.ArtifactRef
+		artifactPath := ""
+		if len(content) > 0 {
+			artifactPath, err = spool.WriteArtifact(content)
+			if err != nil {
+				h.finishAttempt(a.ID, "unknown", persistDB)
+				return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount}, err
+			}
+			artifact = &contract.ArtifactRef{ID: filepath.Base(artifactPath), Path: artifactPath, Size: int64(len(content)), SHA256: hashBytes(content)}
+		}
+		payloadHash := hashText(kind + ":" + a.SegmentID)
+		if artifact != nil {
+			payloadHash = artifact.SHA256
+		}
+		fields := structuredEventFields{SessionKind: providerSessionKind(protocol.provider), SessionID: sessionID}
+		if kind == contract.EventQuestion {
+			fields.QuestionRevision = 1
+		}
+		if _, err = h.appendStructuredEvent(spool, runID, taskID, a, meta, kind, payloadHash, &identity, &exit, artifact, fields); err != nil {
+			h.finishAttempt(a.ID, "unknown", persistDB)
+			return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount, OutputHash: payloadHash, ArtifactPath: artifactPath}, err
+		}
+		eventCount++
+		if err = publishLaunchPhase(spool, "exited", a, runID, taskID, cmd, &identity, protocolErr); err != nil {
+			h.finishAttempt(a.ID, "unknown", persistDB)
+			return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount, OutputHash: payloadHash, ArtifactPath: artifactPath}, err
+		}
+		if err = appendPhase(contract.EventExited, hashText("exited:"+a.SegmentID), &identity, &exit, artifact); err != nil {
+			h.finishAttempt(a.ID, "unknown", persistDB)
+			return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount, OutputHash: payloadHash, ArtifactPath: artifactPath}, err
+		}
+		h.finishAttempt(a.ID, status, persistDB)
+		return contract.Result{Status: status, ExitCode: exit, EventCount: eventCount, OutputHash: payloadHash, ArtifactPath: artifactPath}, nil
+	}
 	status := "result_ready"
 	if p.ExitCode() < 0 {
 		status = "interrupted"
@@ -283,18 +340,31 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 }
 
 func (h *Host) appendPhaseEvent(spool *events.Spool, runID, taskID string, a store.Attempt, meta launchMetadata, kind, payloadHash string, identity *process.Identity, exitCode *int, artifact *contract.ArtifactRef) (contract.Event, error) {
+	return h.appendStructuredEvent(spool, runID, taskID, a, meta, kind, payloadHash, identity, exitCode, artifact, structuredEventFields{})
+}
+
+type structuredEventFields struct {
+	QuestionRevision int
+	SessionKind      string
+	SessionID        string
+}
+
+func (h *Host) appendStructuredEvent(spool *events.Spool, runID, taskID string, a store.Attempt, meta launchMetadata, kind, payloadHash string, identity *process.Identity, exitCode *int, artifact *contract.ArtifactRef, fields structuredEventFields) (contract.Event, error) {
 	h.sequenceMu.Lock()
 	defer h.sequenceMu.Unlock()
 	if err := h.loadEventSequenceLocked(); err != nil {
 		return contract.Event{}, err
 	}
 	sequence := h.sequence + 1
-	event := contract.Event{Version: 1, ProducerID: h.producerID, RunID: runID, TaskID: taskID, AttemptID: a.ID, SegmentID: a.SegmentID, WorkRevision: meta.workRevision, ExecutionEpoch: meta.executionEpoch, CommandID: meta.commandID, Sequence: sequence, Kind: kind, PayloadHash: payloadHash, ExitCode: exitCode, Artifact: artifact}
+	event := contract.Event{Version: 1, ProducerID: h.producerID, RunID: runID, TaskID: taskID, AttemptID: a.ID, SegmentID: a.SegmentID, WorkRevision: meta.workRevision, ExecutionEpoch: meta.executionEpoch, CommandID: meta.commandID, Sequence: sequence, Kind: kind, PayloadHash: payloadHash, ExitCode: exitCode, Artifact: artifact, QuestionRevision: fields.QuestionRevision, SessionKind: fields.SessionKind, SessionID: fields.SessionID}
 	if identity != nil {
 		event.Process = &contract.ProcessIdentity{PID: identity.PID, Birth: identity.Birth, PGID: identity.PGID}
 	}
 	if h.producerID != "" {
 		event.EventID = h.producerID + ":" + fmt.Sprint(sequence)
+	}
+	if kind == contract.EventQuestion {
+		event.QuestionID = event.EventID + ":question"
 	}
 	if err := spool.Append(event); err != nil {
 		return contract.Event{}, err
@@ -607,8 +677,10 @@ func (h *Host) clearStop(segmentID string) {
 func (h *Host) StopAll(ctx context.Context) {
 	h.mu.Lock()
 	processes := make([]*process.Handle, 0, len(h.activeBySeg))
+	segments := make([]string, 0, len(h.activeBySeg))
 	seen := make(map[*process.Handle]struct{}, len(h.activeBySeg))
-	for _, p := range h.activeBySeg {
+	for segmentID, p := range h.activeBySeg {
+		segments = append(segments, segmentID)
 		if _, ok := seen[p]; !ok {
 			seen[p] = struct{}{}
 			processes = append(processes, p)
@@ -616,7 +688,7 @@ func (h *Host) StopAll(ctx context.Context) {
 	}
 	h.mu.Unlock()
 	h.stopMu.Lock()
-	for segmentID := range h.activeBySeg {
+	for _, segmentID := range segments {
 		h.stopRequested[segmentID] = true
 	}
 	h.stopMu.Unlock()

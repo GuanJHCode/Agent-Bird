@@ -1,0 +1,179 @@
+package host
+
+import (
+	"bytes"
+	"errors"
+	"sync"
+
+	"codex-cli-orchestration-design/tools/orchestrator/internal/adapter"
+)
+
+const providerEventLimit = 64 * 1024
+
+type protocolCollector struct {
+	mu              sync.Mutex
+	provider        adapter.Provider
+	parser          *adapter.StreamParser
+	line            []byte
+	oversized       bool
+	critical        bool
+	markerTail      []byte
+	err             error
+	terminal        *adapter.Event
+	sessionID       string
+	droppedOversize int
+}
+
+func newProtocolCollector(provider string) (*protocolCollector, error) {
+	p := adapter.Provider(provider)
+	if p != adapter.ProviderClaude && p != adapter.ProviderAGY && p != adapter.ProviderGrok {
+		return nil, errors.New("provider_output_protocol_invalid")
+	}
+	return &protocolCollector{provider: p, parser: adapter.NewStreamParser(p, providerEventLimit, int(^uint(0)>>1)), line: make([]byte, 0, 4096)}, nil
+}
+
+func (p *protocolCollector) Write(data []byte) (int, error) {
+	written := len(data)
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for len(data) > 0 {
+		index := bytes.IndexByte(data, '\n')
+		part := data
+		complete := false
+		if index >= 0 {
+			part, data, complete = data[:index], data[index+1:], true
+		}
+		p.consumePart(part)
+		if complete {
+			p.finishLine()
+		}
+		if index < 0 {
+			break
+		}
+	}
+	return written, nil
+}
+
+func (p *protocolCollector) consumePart(part []byte) {
+	for len(part) > 0 {
+		length := len(part)
+		if length > 4096 {
+			length = 4096
+		}
+		chunk := part[:length]
+		part = part[length:]
+		probe := make([]byte, 0, len(p.markerTail)+len(chunk))
+		probe = append(probe, p.markerTail...)
+		probe = append(probe, chunk...)
+		compact := make([]byte, 0, len(probe))
+		for _, value := range probe {
+			if value != ' ' && value != '\t' && value != '\r' && value != '\n' {
+				compact = append(compact, value)
+			}
+		}
+		if bytes.Contains(compact, []byte(`"type":"result"`)) || bytes.Contains(compact, []byte(`"event":"result"`)) {
+			p.critical = true
+		}
+		if len(probe) > 128 {
+			probe = probe[len(probe)-128:]
+		}
+		p.markerTail = append(p.markerTail[:0], probe...)
+		if p.oversized {
+			continue
+		}
+		if len(p.line)+len(chunk) > providerEventLimit {
+			remaining := providerEventLimit - len(p.line)
+			if remaining > 0 {
+				p.line = append(p.line, chunk[:remaining]...)
+			}
+			p.oversized = true
+			continue
+		}
+		p.line = append(p.line, chunk...)
+	}
+}
+
+func (p *protocolCollector) finishLine() {
+	if p.err == nil {
+		if p.oversized {
+			if p.critical {
+				p.err = errors.New("provider_critical_event_too_large")
+			} else {
+				p.droppedOversize++
+			}
+		} else if len(bytes.TrimSpace(p.line)) > 0 {
+			line := bytes.TrimSuffix(p.line, []byte{'\r'})
+			event, err := p.parser.Parse(string(line))
+			if err != nil {
+				p.err = err
+			} else {
+				p.accept(event)
+			}
+		}
+	}
+	p.line = p.line[:0]
+	p.markerTail = p.markerTail[:0]
+	p.oversized = false
+	p.critical = false
+}
+
+func (p *protocolCollector) accept(event adapter.Event) {
+	if event.SessionID != "" {
+		if p.sessionID != "" && p.sessionID != event.SessionID {
+			p.err = errors.New("provider_session_changed")
+			return
+		}
+		p.sessionID = event.SessionID
+	}
+	if event.Kind != adapter.EventResult && event.Kind != adapter.EventQuestion {
+		return
+	}
+	if p.terminal != nil {
+		p.err = errors.New("provider_multiple_terminal_events")
+		return
+	}
+	copy := event
+	p.terminal = &copy
+}
+
+func (p *protocolCollector) Finish() (adapter.Event, string, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if len(p.line) > 0 || p.oversized {
+		p.finishLine()
+	}
+	if p.err != nil {
+		return adapter.Event{}, p.sessionID, p.err
+	}
+	if p.terminal == nil {
+		return adapter.Event{}, p.sessionID, errors.New("provider_terminal_missing")
+	}
+	terminal := *p.terminal
+	if terminal.SessionID == "" {
+		terminal.SessionID = p.sessionID
+	}
+	if terminal.SessionID == "" {
+		return adapter.Event{}, "", errors.New("provider_session_missing")
+	}
+	return terminal, terminal.SessionID, nil
+}
+
+func providerSessionKind(provider adapter.Provider) string {
+	if provider == adapter.ProviderAGY {
+		return "conversation-id"
+	}
+	return "session-id"
+}
+
+func providerSucceeded(provider adapter.Provider, event adapter.Event) bool {
+	switch provider {
+	case adapter.ProviderClaude:
+		return event.Status == "success"
+	case adapter.ProviderAGY:
+		return event.Status == "SUCCESS"
+	case adapter.ProviderGrok:
+		return event.Status == "success" || event.Status == "end_turn"
+	default:
+		return false
+	}
+}

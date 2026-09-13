@@ -2,8 +2,13 @@ package process
 
 import (
 	"context"
+	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strconv"
+	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -36,5 +41,43 @@ func TestOwnedProcessCapturesAndStopsRealChild(t *testing.T) {
 	}
 	if h.Output() != "synthetic-result\n" {
 		t.Fatalf("output=%q", h.Output())
+	}
+}
+
+func TestStopDoesNotClaimExitedLeaderProcessGroupWasCleared(t *testing.T) {
+	if os.Getenv("G1_GROUP_LEADER") == "1" {
+		child := exec.Command(os.Args[0], "-test.run=TestStopDoesNotClaimExitedLeaderProcessGroupWasCleared")
+		child.Env = append(os.Environ(), "G1_GROUP_SURVIVOR=1")
+		child.Stdout, child.Stderr = nil, nil
+		if err := child.Start(); err != nil {
+			os.Exit(2)
+		}
+		_, _ = os.Stdout.WriteString(strconv.Itoa(child.Process.Pid) + "\n")
+		return
+	}
+	if os.Getenv("G1_GROUP_SURVIVOR") == "1" {
+		time.Sleep(30 * time.Second)
+		return
+	}
+	binary, err := filepath.EvalSymlinks(os.Args[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	h, err := Start(context.Background(), Command{Path: binary, Args: []string{"-test.run=TestStopDoesNotClaimExitedLeaderProcessGroupWasCleared"}, Env: []string{"G1_GROUP_LEADER=1"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = h.Wait(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	childPID, err := strconv.Atoi(strings.Split(strings.TrimSpace(h.Output()), "\n")[0])
+	if err != nil || childPID <= 0 {
+		t.Fatalf("child pid=%q err=%v", h.Output(), err)
+	}
+	defer syscall.Kill(childPID, syscall.SIGKILL)
+	stopCtx, cancel := context.WithTimeout(context.Background(), 250*time.Millisecond)
+	defer cancel()
+	if err = h.Stop(stopCtx); !errors.Is(err, ErrProcessTreeUnknown) {
+		t.Fatalf("Stop err=%v, want %v", err, ErrProcessTreeUnknown)
 	}
 }

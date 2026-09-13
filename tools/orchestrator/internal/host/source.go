@@ -315,8 +315,6 @@ func RunSource(ctx context.Context, cfg SourceConfig) error {
 		}
 	}()
 	defer func() {
-		cancelRun()
-		<-publisherDone
 		stopCtx, cancelStop := context.WithTimeout(context.Background(), 2*time.Second)
 		h.StopAll(stopCtx)
 		cancelStop()
@@ -326,7 +324,14 @@ func RunSource(ctx context.Context, cfg SourceConfig) error {
 		case <-done:
 		case <-time.After(2 * time.Second):
 		}
+		// Workers append stopped/exited only after their process groups are
+		// settled. Flush those records before tearing down the sole publisher.
+		_ = h.PublishAll(runCtx, session, session.epoch)
+		cancelRun()
+		<-publisherDone
 	}()
+	originTicker := time.NewTicker(200 * time.Millisecond)
+	defer originTicker.Stop()
 	for {
 		var envelope ipc.Envelope
 		var readErr error
@@ -337,6 +342,12 @@ func RunSource(ctx context.Context, cfg SourceConfig) error {
 			return workerErr
 		case publisherErr := <-publisherErrors:
 			return publisherErr
+		case <-originTicker.C:
+			birth, ownerErr := process.Birth(cfg.Hello.OriginPID)
+			if ownerErr != nil || birth != cfg.Hello.OriginBirth {
+				return errors.New("origin_owner_lost")
+			}
+			continue
 		case <-runCtx.Done():
 			return runCtx.Err()
 		}
@@ -537,8 +548,12 @@ func decodePayload(data []byte, out any) error {
 }
 
 func validateHello(hello contract.HostHello) error {
-	if hello.LaunchID == "" || hello.LaunchToken == "" || hello.OriginContextID == "" || hello.HostGeneration == "" || hello.PID != os.Getpid() || hello.Birth == "" || hello.Executable == "" {
+	if hello.LaunchID == "" || hello.LaunchToken == "" || hello.OriginContextID == "" || hello.OriginPID <= 0 || hello.OriginBirth == "" || hello.HostGeneration == "" || hello.PID != os.Getpid() || hello.Birth == "" || hello.Executable == "" {
 		return errors.New("invalid_host_hello")
+	}
+	originBirth, err := process.Birth(hello.OriginPID)
+	if err != nil || originBirth != hello.OriginBirth {
+		return errors.New("origin_birth_mismatch")
 	}
 	birth, err := process.Birth(hello.PID)
 	if err != nil || birth != hello.Birth {

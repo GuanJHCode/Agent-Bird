@@ -6,6 +6,7 @@ import (
 	"codex-cli-orchestration-design/tools/orchestrator/internal/process"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/store"
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -144,6 +145,96 @@ func (i launchInvocation) Args() []string                 { return append([]stri
 func (i launchInvocation) WorkingDirectory() string       { return i.dir }
 func (i launchInvocation) Stdin() []byte                  { return nil }
 func (i launchInvocation) Environment() map[string]string { return i.env }
+
+type providerInvocation struct {
+	launchInvocation
+	provider string
+}
+
+func (i providerInvocation) OutputProvider() string { return i.provider }
+
+func TestStructuredProviderTerminalControlsOutcome(t *testing.T) {
+	if mode := os.Getenv("G1_STRUCTURED_HELPER"); mode != "" {
+		switch mode {
+		case "success":
+			_, _ = os.Stdout.WriteString(`{"type":"system","subtype":"status","session_id":"claude-session"}` + "\n")
+			_, _ = os.Stderr.WriteString("bounded diagnostic\n")
+			_, _ = os.Stdout.WriteString(`{"type":"system","subtype":"init","session_id":"claude-session"}` + "\n")
+			_, _ = os.Stdout.WriteString(`{"type":"result","subtype":"success","session_id":"claude-session","result":"structured answer"}` + "\n")
+		case "provider-error":
+			_, _ = os.Stdout.WriteString(`{"type":"result","subtype":"error_during_execution","session_id":"claude-session","result":"provider rejected the task"}` + "\n")
+		case "waiting":
+			_, _ = os.Stdout.WriteString(`{"event":"init","conversation_id":"agy-session"}` + "\n")
+			_, _ = os.Stdout.WriteString(`{"event":"result","result":{"conversation_id":"agy-session","status":"WAITING","response":"Choose the package"}}` + "\n")
+		case "missing-terminal":
+			_, _ = os.Stdout.WriteString(`{"type":"system","subtype":"init","session_id":"claude-session"}` + "\n")
+		case "nonzero":
+			_, _ = os.Stdout.WriteString(`{"type":"result","subtype":"success","session_id":"claude-session","result":"structured answer"}` + "\n")
+			os.Exit(7)
+		}
+		os.Exit(0)
+	}
+	path, err := filepath.EvalSymlinks(os.Args[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name, mode, provider, status, terminal, sessionKind, sessionID, artifact string
+	}{
+		{"success", "success", "claude-code", "result_ready", contract.EventResult, "session-id", "claude-session", "structured answer"},
+		{"provider error exits zero", "provider-error", "claude-code", "failed", contract.EventFailed, "session-id", "claude-session", "provider rejected the task"},
+		{"waiting", "waiting", "antigravity-cli", "waiting_user", contract.EventQuestion, "conversation-id", "agy-session", "Choose the package"},
+		{"missing terminal", "missing-terminal", "claude-code", "failed", contract.EventFailed, "session-id", "claude-session", ""},
+		{"nonzero", "nonzero", "claude-code", "failed", contract.EventFailed, "session-id", "claude-session", "structured answer"},
+	}
+	for index, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			root := filepath.Join(t.TempDir(), "spool")
+			h, newErr := NewIPC(root, "structured-producer-"+tc.mode)
+			if newErr != nil {
+				t.Fatal(newErr)
+			}
+			grant := contract.LaunchCommand{CommandID: "structured-command-" + tc.mode, ReservationID: "structured-reservation-" + tc.mode, RunID: "run", TaskID: "task-" + tc.mode, AttemptID: "attempt-" + tc.mode, SegmentID: "segment-" + tc.mode, WorkRevision: index + 1, GrantedActiveMS: 2000}
+			inv := providerInvocation{launchInvocation: launchInvocation{args: []string{path, "-test.run=TestStructuredProviderTerminalControlsOutcome"}, env: map[string]string{"G1_STRUCTURED_HELPER": tc.mode}}, provider: tc.provider}
+			result, runErr := h.ExecuteLaunch(context.Background(), grant, inv)
+			if runErr != nil {
+				t.Fatal(runErr)
+			}
+			if result.Status != tc.status {
+				t.Fatalf("status=%q result=%#v", result.Status, result)
+			}
+			sink := &durableSink{}
+			if publishErr := h.PublishAll(context.Background(), sink, 1); publishErr != nil {
+				t.Fatal(publishErr)
+			}
+			var terminal *contract.Event
+			for eventIndex := range sink.events {
+				if sink.events[eventIndex].Kind == tc.terminal {
+					terminal = &sink.events[eventIndex]
+				}
+			}
+			if terminal == nil {
+				t.Fatalf("terminal %q missing: %#v", tc.terminal, sink.events)
+			}
+			body, _ := json.Marshal(terminal)
+			if !strings.Contains(string(body), `"session_kind":"`+tc.sessionKind+`"`) || !strings.Contains(string(body), `"session_id":"`+tc.sessionID+`"`) {
+				t.Fatalf("session metadata missing: %s", body)
+			}
+			if tc.terminal == contract.EventQuestion && (!strings.Contains(string(body), `"question_id":`) || !strings.Contains(string(body), `"question_revision":1`)) {
+				t.Fatalf("question metadata missing: %s", body)
+			}
+			if tc.artifact != "" {
+				if terminal.Artifact == nil {
+					t.Fatalf("artifact missing: %#v", terminal)
+				}
+				artifact, readErr := os.ReadFile(terminal.Artifact.Path)
+				if readErr != nil || string(artifact) != tc.artifact {
+					t.Fatalf("artifact=%q err=%v", artifact, readErr)
+				}
+			}
+		})
+	}
+}
 
 func TestExecuteLaunchConsumesReservationAndUsesBoundedGrant(t *testing.T) {
 	if os.Getenv("G1_HOST_HELPER") == "1" {

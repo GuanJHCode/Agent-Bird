@@ -25,11 +25,12 @@ func (e CodeError) Error() string { return string(e) }
 const ErrProcessTreeUnknown CodeError = "process_tree_unknown"
 
 type Command struct {
-	Path  string
-	Args  []string
-	Dir   string
-	Env   []string
-	Stdin []byte
+	Path   string
+	Args   []string
+	Dir    string
+	Env    []string
+	Stdin  []byte
+	Stdout io.Writer
 }
 type Identity struct {
 	PID              int
@@ -50,12 +51,15 @@ type Handle struct {
 	outputLimit int
 	pgid        int
 	identity    Identity
+	stdout      io.Writer
 }
-type captureWriter struct{ h *Handle }
+type captureWriter struct {
+	h      *Handle
+	stdout bool
+}
 
 func (w captureWriter) Write(p []byte) (int, error) {
 	w.h.mu.Lock()
-	defer w.h.mu.Unlock()
 	remaining := w.h.outputLimit - len(w.h.output)
 	if remaining > 0 {
 		if len(p) > remaining {
@@ -63,6 +67,14 @@ func (w captureWriter) Write(p []byte) (int, error) {
 		} else {
 			w.h.output = append(w.h.output, p...)
 		}
+	}
+	downstream := io.Writer(nil)
+	if w.stdout {
+		downstream = w.h.stdout
+	}
+	w.h.mu.Unlock()
+	if downstream != nil {
+		_, _ = downstream.Write(p)
 	}
 	return len(p), nil
 }
@@ -95,9 +107,9 @@ func Start(ctx context.Context, spec Command) (*Handle, error) {
 	if spec.Stdin != nil {
 		cmd.Stdin = bytes.NewReader(append([]byte(nil), spec.Stdin...))
 	}
-	h := &Handle{cmd: cmd, done: make(chan struct{}), exit: -1, outputLimit: 1024 * 1024}
-	cmd.Stdout = captureWriter{h}
-	cmd.Stderr = captureWriter{h}
+	h := &Handle{cmd: cmd, done: make(chan struct{}), exit: -1, outputLimit: 1024 * 1024, stdout: spec.Stdout}
+	cmd.Stdout = captureWriter{h: h, stdout: true}
+	cmd.Stderr = captureWriter{h: h}
 	if err := cmd.Start(); err != nil {
 		return nil, err
 	}
@@ -153,29 +165,92 @@ func (h *Handle) Wait(ctx context.Context) error {
 func (h *Handle) Stop(ctx context.Context) error {
 	h.mu.Lock()
 	waited := h.waited
+	identity := h.identity
 	h.mu.Unlock()
 	if waited {
+		alive, err := processGroupAlive(h.pgid)
+		if err != nil || alive {
+			return ErrProcessTreeUnknown
+		}
 		return nil
 	}
 	if h.pgid <= 0 {
 		return ErrProcessTreeUnknown
 	}
+	birth, err := processBirth(identity.PID)
+	if err != nil || !identity.BirthKnown || birth != identity.Birth {
+		alive, groupErr := processGroupAlive(h.pgid)
+		if groupErr != nil || alive {
+			return ErrProcessTreeUnknown
+		}
+		return nil
+	}
 	if err := syscall.Kill(-h.pgid, syscall.SIGTERM); err != nil && !errors.Is(err, os.ErrProcessDone) {
 		return ErrProcessTreeUnknown
 	}
-	select {
-	case <-h.done:
+	if waitProcessGroupGone(ctx, h.pgid) {
 		return nil
-	case <-ctx.Done():
+	}
+	birth, err = processBirth(identity.PID)
+	if err != nil || birth != identity.Birth {
+		return ErrProcessTreeUnknown
 	}
 	_ = syscall.Kill(-h.pgid, syscall.SIGKILL)
 	grace, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	select {
-	case <-h.done:
+	if waitProcessGroupGone(grace, h.pgid) {
 		return nil
-	case <-grace.Done():
-		return ErrProcessTreeUnknown
+	}
+	return ErrProcessTreeUnknown
+}
+
+func processGroupAlive(pgid int) (bool, error) {
+	if pgid <= 0 {
+		return false, ErrProcessTreeUnknown
+	}
+	err := syscall.Kill(-pgid, 0)
+	if err == nil {
+		return true, nil
+	}
+	if errors.Is(err, syscall.ESRCH) {
+		return false, nil
+	}
+	if errors.Is(err, syscall.EPERM) {
+		return processGroupListed(pgid)
+	}
+	return false, err
+}
+
+func processGroupListed(pgid int) (bool, error) {
+	out, err := exec.Command("/bin/ps", "-axo", "pgid=").Output()
+	if err != nil || len(out) > 1024*1024 {
+		return false, ErrProcessTreeUnknown
+	}
+	want := strconv.Itoa(pgid)
+	for _, line := range strings.Split(string(out), "\n") {
+		if strings.TrimSpace(line) == want {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func waitProcessGroupGone(ctx context.Context, pgid int) bool {
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		alive, err := processGroupAlive(pgid)
+		if err != nil {
+			return false
+		}
+		if !alive {
+			return true
+		}
+		select {
+		case <-ctx.Done():
+			return false
+		case <-ticker.C:
+		}
 	}
 }
 

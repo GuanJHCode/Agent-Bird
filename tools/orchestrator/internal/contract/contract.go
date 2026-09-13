@@ -88,6 +88,8 @@ type HostHello struct {
 	LaunchID        string `json:"launch_id"`
 	LaunchToken     string `json:"launch_token"`
 	OriginContextID string `json:"origin_context_id"`
+	OriginPID       int    `json:"origin_pid"`
+	OriginBirth     string `json:"origin_birth"`
 	HostGeneration  string `json:"host_generation"`
 	PID             int    `json:"pid"`
 	Birth           string `json:"birth"`
@@ -122,9 +124,9 @@ type LaunchCommand struct {
 	GrantedActiveMS  int64           `json:"granted_active_ms"`
 	DeadlineUnixMS   int64           `json:"deadline_unix_ms"`
 	AdapterPayload   json.RawMessage `json:"adapter_payload,omitempty"`
-	Answer           string          `json:"answer,omitempty"`
 	QuestionID       string          `json:"question_id,omitempty"`
 	QuestionRevision int             `json:"question_revision,omitempty"`
+	Answer           string          `json:"answer,omitempty"`
 	SessionKind      string          `json:"session_kind,omitempty"`
 	SessionID        string          `json:"session_id,omitempty"`
 }
