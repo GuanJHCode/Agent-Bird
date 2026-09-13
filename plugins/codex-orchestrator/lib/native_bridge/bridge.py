@@ -617,6 +617,22 @@ class ControlPlaneClient:
                  and all(isinstance(item, dict) for item in events), "control_collect_output")
         return events
 
+    def rebind(self, capability: OwnerCapability, *, control_file: Path) -> dict[str, Any]:
+        request = build_rebind_request(capability, control_file=control_file)
+        request_path = capability.path.parent / ("rebind-" + capability.host_generation + ".json")
+        if request_path.exists():
+            _require(_stable_json(request_path) == request, "owner_rebind_conflict")
+        else:
+            _write_exclusive(request_path, request)
+            DeliveryLedger._fsync_dir(capability.path.parent)
+        response = self._call(["rebind-owner", "--request", str(request_path)])
+        _require(response.get("version") == 1 and response.get("status") == "owner_rebound"
+                 and _safe(response.get("run_id"))
+                 and response.get("origin_context_id") == capability.origin_context_id
+                 and response.get("host_generation") == capability.host_generation,
+                 "control_rebind_output")
+        return response
+
     def ack(self, batch: DeliveryBatch, decisions: Mapping[str, Mapping[str, object]], *, control_file: Path) -> str:
         request = build_ack_request(batch, decisions, control_file=control_file)
         request_path = batch.path / "controller-ack-request.json"

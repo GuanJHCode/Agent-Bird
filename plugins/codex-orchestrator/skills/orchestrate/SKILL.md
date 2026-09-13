@@ -7,8 +7,8 @@ description: Submit, inspect, collect, acknowledge, explicitly resume, or stop l
 
 Use only the installed wrapper at `${PLUGIN_ROOT}/scripts/invoke.sh`. It accepts
 `ensure-running`, `submit`, `status`, `collect`, `ack`, `accept`, `answer`,
-`retry`, `resume`, `stop`, `native-bridge`, `install`, `doctor`, `uninstall`,
-`pin`, and `unpin`.
+`retry`, `resume`, `stop`, `native-bridge`, `rebind-owner`, `install`, `doctor`,
+`uninstall`, `pin`, and `unpin`.
 Never invoke `codex` as a replacement entry point, never invent an MCP server,
 and never bypass a blocked CLI result with direct process or Git operations.
 
@@ -103,7 +103,7 @@ attachment evidence.
 
 ```text
 invoke.sh native-bridge helper --request <absolute-0600-launch-request>
-invoke.sh native-bridge rebind --request <absolute-0600-rebind-request>
+invoke.sh rebind-owner --request <absolute-0600-rebind-request>
 ```
 
 The helper requires the matching installed `runtime/g0` manifest used by the

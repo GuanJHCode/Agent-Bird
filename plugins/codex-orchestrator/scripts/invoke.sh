@@ -9,7 +9,7 @@ binary="$root/bin/codex-orchestrator"
 }
 
 case "${1-}" in
-  ensure-running|submit|status|collect|ack|accept|answer|retry|resume|stop|native-bridge|install|doctor|uninstall|pin|unpin) ;;
+  ensure-running|submit|status|collect|ack|accept|answer|retry|resume|stop|native-bridge|rebind-owner|install|doctor|uninstall|pin|unpin) ;;
   *)
     printf '%s\n' '{"status":"blocked","reason":"unsupported_orchestrator_command"}' >&2
     exit 2

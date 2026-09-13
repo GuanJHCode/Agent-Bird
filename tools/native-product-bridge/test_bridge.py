@@ -347,6 +347,31 @@ def test_rebind_projection_uses_verified_owner_capability_without_token(tmp_path
     assert "token" not in json.dumps(request)
 
 
+def test_control_plane_rebind_uses_verified_projection_and_owner_response(tmp_path):
+    capability = OwnerCapabilityStore(tmp_path / "owner-capabilities").bind(attachment())
+    control = tmp_path / "control.json"
+    control.write_text("opaque")
+    control.chmod(0o600)
+    captured = tmp_path / "rebind-captured.json"
+    executable = tmp_path / "fake-orchestrator"
+    executable.write_text(
+        "#!" + sys.executable + "\nimport json,sys\n"
+        "assert sys.argv[1]=='rebind-owner'\n"
+        "p=sys.argv[sys.argv.index('--request')+1];v=json.load(open(p))\n"
+        f"open({str(captured)!r},'w').write(json.dumps(v,sort_keys=True))\n"
+        "print(json.dumps({'version':1,'status':'owner_rebound','run_id':'run-a','origin_context_id':v['origin_context_id'],'host_generation':v['host_generation']}))\n"
+    )
+    executable.chmod(0o700)
+    client = ControlPlaneClient(executable, hashlib.sha256(executable.read_bytes()).hexdigest())
+    response = client.rebind(capability, control_file=control)
+    assert response == {"version": 1, "status": "owner_rebound", "run_id": "run-a",
+        "origin_context_id": capability.origin_context_id,
+        "host_generation": capability.host_generation}
+    sent = json.loads(captured.read_text())
+    assert sent["owner_capability"] == str(capability.path)
+    assert sent["origin_pid"] == OWNER["pid"]
+
+
 def test_external_g0_capability_revalidates_bridge_claim_before_wire_write(tmp_path):
     ledger = DeliveryLedger(tmp_path / "bridge")
     batch = ledger.prepare_and_claim(attachment(), "task-a", events())

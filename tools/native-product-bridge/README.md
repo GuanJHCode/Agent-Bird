@@ -20,7 +20,7 @@ task/control binding and request delivery.
 Recovery uses the newly attached owner capability:
 
 ```text
-invoke.sh native-bridge rebind --request /absolute/0600-rebind.json
+invoke.sh rebind-owner --request /absolute/0600-rebind.json
 ```
 
 `VerifyRebind` checks the capability, current owner PID/birth, thread,
