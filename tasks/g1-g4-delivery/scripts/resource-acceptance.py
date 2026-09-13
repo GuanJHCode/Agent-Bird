@@ -540,16 +540,54 @@ def product_role_processes(ctx: dict[str, Any], role: str) -> list[dict[str, Any
     ]
 
 
-def sample_for(ctx: dict[str, Any], seconds: int, sampler: Sampler, *, minimum_workers: int = 0) -> None:
+def fixture_completion_state(configs: list[dict[str, Any]], required_duration: int) -> tuple[str, str]:
+    complete = 0
+    for config in configs:
+        path = Path(config["stats_path"])
+        if not path.exists():
+            continue
+        row = json_read(path)
+        status = row.get("status")
+        elapsed = row.get("completed_unix_nano", 0) - row.get("started_unix_nano", 0)
+        if status == "failed":
+            return "failed", f"{config['worker_id']} failed: {row.get('error', '')}"
+        if status == "completed":
+            if elapsed < required_duration * 1_000_000_000:
+                return "failed", f"{config['worker_id']} completed before fixed duration"
+            complete += 1
+    if complete == len(configs):
+        return "completed", ""
+    return "pending", "final fixture stats unavailable"
+
+
+def sample_for(
+    ctx: dict[str, Any],
+    seconds: int,
+    sampler: Sampler,
+    *,
+    minimum_workers: int = 0,
+    worker_configs: list[dict[str, Any]] | None = None,
+    worker_exit_grace_seconds: float = 2.0,
+) -> None:
     deadline = time.monotonic() + seconds
     interval = ctx["thresholds"]["sampling_interval_seconds"]
     while time.monotonic() < deadline:
         before = time.monotonic()
         record = sampler.sample()
         if minimum_workers and record["worker_process_count"] < minimum_workers:
-            raise AcceptanceError(
-                f"fixture worker exited before fixed duration: observed={record['worker_process_count']} expected={minimum_workers}"
-            )
+            if worker_configs is None or len(worker_configs) != minimum_workers:
+                raise AcceptanceError("fixture worker completion evidence is incomplete")
+            grace_deadline = time.monotonic() + worker_exit_grace_seconds
+            while True:
+                state, detail = fixture_completion_state(worker_configs, seconds)
+                if state == "completed":
+                    return
+                if state == "failed" or time.monotonic() >= grace_deadline:
+                    raise AcceptanceError(
+                        f"fixture worker exited before fixed duration: observed={record['worker_process_count']} "
+                        f"expected={minimum_workers}; {detail}"
+                    )
+                time.sleep(0.05)
         remaining = interval - (time.monotonic() - before)
         if remaining > 0:
             time.sleep(remaining)
@@ -779,7 +817,13 @@ def run_scenario(args: argparse.Namespace) -> int:
             control, _ = submit(ctx, scenario, tasks)
             assert control
             wait_for_workers(ctx, count)
-            sample_for(ctx, duration, sampler, minimum_workers=count)
+            sample_for(
+                ctx,
+                duration,
+                sampler,
+                minimum_workers=count,
+                worker_configs=ctx["worker_configs"],
+            )
             for task in tasks:
                 wait_for(lambda task=task: task_status(ctx, task["id"], control).get("status") in ("result_ready", "completed", "failed"), 30, f"task did not finish: {task['id']}")
                 collected.append(
@@ -818,7 +862,13 @@ def run_scenario(args: argparse.Namespace) -> int:
             extra = task_spec(ctx, "resource-host-task-extra", "host-extra", "steady", duration)
             _, rejected = submit(ctx, "host-extra", [extra], expect_failure=True)
             rejection = parse_error_code(rejected)
-            sample_for(ctx, duration, sampler, minimum_workers=thresholds["workers"]["worker_count"])
+            sample_for(
+                ctx,
+                duration,
+                sampler,
+                minimum_workers=thresholds["workers"]["worker_count"],
+                worker_configs=ctx["worker_configs"][:thresholds["workers"]["worker_count"]],
+            )
             completed_workers = wait_for(
                 lambda: completed_worker_stats(ctx, thresholds["workers"]["worker_count"]),
                 30,
