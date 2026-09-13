@@ -417,6 +417,9 @@ async def start_product_driver(
         and started.get("task_id") == task_id,
         "product driver start",
     )
+    g.require(started.get("control_action_status")
+              == ("queued" if mode == "submit" else "owner_rebound"),
+              "product driver control action")
     launcher_peer = g.base.peer_for_process(started["launcher_pid"])
     driver_peer = g.base.peer_for_process(started["driver_pid"])
     g.require(
@@ -1216,8 +1219,7 @@ async def execute(static, _plan_path, plan_sha):
                 "resource-pids.txt",
                 "service.json",
                 "plan.json",
-                "g1-submit.json",
-                "g1-rebind.json",
+                "g1-submit-template.json",
             ):
                 source = runtime.plan.case / name
                 target = export / name

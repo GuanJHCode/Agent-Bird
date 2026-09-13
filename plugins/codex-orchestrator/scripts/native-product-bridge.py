@@ -736,6 +736,7 @@ async def run_driver(request_path_value):
             "launcher_birth": launcher_peer["birth"],
             "task_id": request["task_id"],
             "run_id": run_id,
+            "control_action_status": response["status"],
             "control_file": str(control_file),
             "owner_capability": str(owner_capability.path),
             "controller_thread": attachment.controller_thread_id,
@@ -766,6 +767,9 @@ async def run_driver(request_path_value):
             )
             if status == "timeout":
                 continue
+            if not attachment_live(attachment, proxy_transport):
+                replace_private(driver_root / "status.json", dict(base_status, status="owner_detached"))
+                return
             batch = ledger.prepare_and_claim(attachment, request["task_id"], events)
             binding = delivery_adapter.DeliveryBinding(
                 attachment.profile_id,

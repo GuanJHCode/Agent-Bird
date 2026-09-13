@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"regexp"
 	"syscall"
@@ -286,6 +287,8 @@ func stopDriverGroup(receipt driverLauncherReceipt) {
 }
 
 func RunDriver(ctx context.Context, requestPath string, stdout, stderr io.Writer) error {
+	ctx, cancel := signal.NotifyContext(ctx, syscall.SIGTERM, syscall.SIGINT)
+	defer cancel()
 	request, err := loadDriverRequest(requestPath)
 	if err != nil {
 		return err
