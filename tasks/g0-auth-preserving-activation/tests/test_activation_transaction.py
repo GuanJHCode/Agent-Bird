@@ -625,6 +625,46 @@ def test_socket_quarantine_never_overwrites_new_public_object_on_restore_race(mo
             newer_socket.close()
 
 
+def test_socket_quarantine_detects_new_public_object_after_old_inode_move(monkeypatch, fake_env):
+    tx = make_controller(fake_env)
+    state = json.loads(fake_env[3].read_text(encoding="utf-8"))
+    state.update(create_public_socket=True, remove_socket_on_bootout=False, socket_path=str(tx.spec.socket_path))
+    fake_env[3].write_text(json.dumps(state), encoding="utf-8")
+    tx.prepare()
+    tx.register()
+
+    import activation_transaction as module
+
+    real_unlink = module.os.unlink
+    new_socket: socket.socket | None = None
+    triggered = False
+
+    def create_new_public_before_old_delete(path, *args, **kwargs):
+        nonlocal new_socket, triggered
+        if (
+            not triggered
+            and path == tx.spec.socket_path.name
+            and kwargs.get("dir_fd") is not None
+        ):
+            triggered = True
+            new_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            new_socket.bind(str(tx.spec.socket_path))
+            new_socket.listen(1)
+        return real_unlink(path, *args, **kwargs)
+
+    monkeypatch.setattr(module.os, "unlink", create_new_public_before_old_delete)
+    try:
+        with pytest.raises(UnknownStateError, match="public_socket"):
+            tx.revoke()
+        assert triggered
+        assert tx.receipt["state"] == "UNKNOWN"
+        assert tx.spec.socket_path.exists()
+        assert stat.S_ISSOCK(tx.spec.socket_path.stat().st_mode)
+    finally:
+        if new_socket is not None:
+            new_socket.close()
+
+
 def test_foreign_job_after_bootstrap_error_is_not_booted_out(fake_env):
     tx = make_controller(fake_env)
     state = fake_env[3]

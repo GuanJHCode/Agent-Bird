@@ -12,7 +12,9 @@ Because POSIX has no portable unlink-if-(dev,ino), the controller creates a
 random mode-0700 quarantine directory under that frozen parent and atomically
 renames the current socket entry into it. It then inspects the moved entry. A
 matching frozen socket is unlinked from quarantine and the quarantine directory
-is fsynced and removed.
+is fsynced and removed. The moved entry must still be a real Unix socket, and
+the public name is rechecked after quarantine removal; a new public entry makes
+the result `UNKNOWN` and is left untouched.
 
 If the moved entry is a replacement, the controller attempts to restore it to
 the public name with a no-replace hard link. A concurrent new public entry makes

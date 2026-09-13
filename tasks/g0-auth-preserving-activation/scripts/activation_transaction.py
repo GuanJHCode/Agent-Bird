@@ -612,13 +612,19 @@ class ActivationTransaction:
                 moved.st_uid,
                 stat.S_IMODE(moved.st_mode),
             )
-            if moved_identity == self.public_socket_identity:
+            if stat.S_ISSOCK(moved.st_mode) and moved_identity == self.public_socket_identity:
                 os.unlink(self.spec.socket_path.name, dir_fd=quarantine_fd)
                 os.fsync(quarantine_fd)
                 os.rmdir(quarantine_name, dir_fd=fd)
                 os.fsync(fd)
-                self.public_socket_quarantine_path = None
-                return
+                try:
+                    os.stat(self.spec.socket_path.name, dir_fd=fd, follow_symlinks=False)
+                except FileNotFoundError:
+                    self.public_socket_quarantine_path = None
+                    return
+                except OSError as exc:
+                    raise UnknownStateError("public_socket_recheck_failed") from exc
+                raise UnknownStateError("public_socket_reappeared")
 
             quarantine_path = parent / quarantine_name / self.spec.socket_path.name
             try:

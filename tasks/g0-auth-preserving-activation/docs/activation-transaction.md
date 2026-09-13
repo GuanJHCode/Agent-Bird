@@ -40,7 +40,9 @@ hash 通过 `manifest_sha256`、`artifact_hashes` 固定，receipt 只保存路�
    置换对象，则用 no-replace hard link 恢复；恢复遇到 `EEXIST` 时保留新
    public object 与 quarantine object，receipt 记录 quarantine path 并进入
    `UNKNOWN`，绝不覆盖或删除新对象。该隔离发生在 job 已确认 absent 后，
-   因此正常 listener 不会被中途移走；无法证明时仍需人工 owner 审计。
+   因此正常 listener 不会被中途移走；删除旧 quarantine entry 后还要复核
+   public name，若新对象已出现则保留它并进入 `UNKNOWN`。无法证明时仍需
+   人工 owner 审计。
    lease 只在自身 identity 仍匹配时删除。
 
 状态为 `NEW -> STAGED -> PUBLISHED -> BOOTSTRAPPING -> REGISTERED ->
