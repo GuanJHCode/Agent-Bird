@@ -612,6 +612,22 @@ class ControlPlaneClient:
                  and control_info.st_nlink == 1, "control_file")
         return control_file
 
+    @classmethod
+    def _state_for_control(cls, control_file: Path) -> Path:
+        control_file = cls._validate_control_file(control_file)
+        control_dir = control_file.parent
+        state_dir = control_dir.parent
+        _require(control_dir.name == "control" and state_dir.is_absolute(), "control_state")
+        for path in (control_dir, state_dir):
+            try:
+                info = path.lstat()
+            except OSError as exc:
+                raise BridgeError("control_state") from exc
+            _require(stat.S_ISDIR(info.st_mode) and not stat.S_ISLNK(info.st_mode)
+                     and info.st_uid == os.getuid() and stat.S_IMODE(info.st_mode) == 0o700,
+                     "control_state")
+        return state_dir
+
     def _call(self, args: list[str]) -> dict[str, Any]:
         self._verify_executable()
         environment = {"PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "LANG": "C", "LC_ALL": "C"}
@@ -633,7 +649,9 @@ class ControlPlaneClient:
     def collect(self, task_id: str, *, control_file: Path) -> list[dict[str, Any]]:
         _require(_safe(task_id), "task_id")
         control_file = self._validate_control_file(control_file)
-        response = self._call(["collect", "--task-id", task_id, "--control-file", str(control_file)])
+        state = self._state_for_control(control_file)
+        response = self._call(["collect", "--state-dir", str(state), "--task-id", task_id,
+                               "--control-file", str(control_file)])
         events = response.get("events")
         _require(response.get("status") == "pending" and response.get("version", 1) == 1
                  and isinstance(events, list) and len(events) <= 64
@@ -641,6 +659,7 @@ class ControlPlaneClient:
         return events
 
     def rebind(self, capability: OwnerCapability, *, control_file: Path) -> dict[str, Any]:
+        state = self._state_for_control(control_file)
         request = build_rebind_request(capability, control_file=control_file)
         request_path = capability.path.parent / ("rebind-" + capability.host_generation + ".json")
         if request_path.exists():
@@ -648,7 +667,8 @@ class ControlPlaneClient:
         else:
             _write_exclusive(request_path, request)
             DeliveryLedger._fsync_dir(capability.path.parent)
-        response = self._call(["rebind-owner", "--request", str(request_path)])
+        response = self._call(["rebind-owner", "--state-dir", str(state),
+                               "--request", str(request_path)])
         _require(response.get("version") == 1 and response.get("status") == "owner_rebound"
                  and _safe(response.get("run_id"))
                  and response.get("origin_context_id") == capability.origin_context_id
@@ -678,7 +698,10 @@ class ControlPlaneClient:
         return self._send_ack_request(batch, request_path)
 
     def _send_ack_request(self, batch: DeliveryBatch, request_path: Path) -> str:
-        response = self._call(["ack", "--request", str(request_path)])
+        request = _stable_json(request_path)
+        control_file = self._validate_control_file(Path(request.get("control_file", "")))
+        state = self._state_for_control(control_file)
+        response = self._call(["ack", "--state-dir", str(state), "--request", str(request_path)])
         _require(isinstance(response, dict) and response.get("version") == 1
                  and response.get("status") == "acknowledged"
                  and response.get("delivery_id") == batch.delivery_id, "control_ack_output")

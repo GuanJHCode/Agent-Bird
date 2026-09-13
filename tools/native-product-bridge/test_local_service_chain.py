@@ -162,7 +162,9 @@ def test_real_local_service_admission_bridges_g1_event_and_ack(tmp_path):
                 assert ready_path.exists()
 
                 package, entry, package_manifest = package_copy(root)
-                control = root / "control.json"
+                (root / "g1-state" / "control").mkdir(parents=True, mode=0o700)
+                (root / "g1-state").chmod(0o700)
+                control = root / "g1-state" / "control" / "control.json"
                 control.write_text("opaque-control-capability")
                 control.chmod(0o600)
                 captured_ack = root / "captured-ack.json"
