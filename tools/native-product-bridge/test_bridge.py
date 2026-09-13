@@ -137,6 +137,17 @@ def events():
     ]
 
 
+def make_control_file(root):
+    state = root / "state"
+    directory = state / "control"
+    directory.mkdir(parents=True, mode=0o700)
+    state.chmod(0o700)
+    path = directory / "control.json"
+    path.write_text("opaque")
+    path.chmod(0o600)
+    return path
+
+
 def test_attachment_requires_matching_live_native_owner_not_helper():
     checked = attachment()
     assert checked.controller_thread_id == THREAD
@@ -232,9 +243,7 @@ def test_ack_maps_native_aliases_back_to_g1_only_after_history_proof(tmp_path):
     ledger.mark_transport_accepted(batch.delivery_id, "turn_1")
     ledger.confirm_history(batch.delivery_id, "6" * 64, "turn_1", "item_1")
     confirmed = ledger.load(batch.delivery_id)
-    control_file = tmp_path / "control.json"
-    control_file.write_text("opaque")
-    control_file.chmod(0o600)
+    control_file = make_control_file(tmp_path)
     request = build_ack_request(confirmed, decisions, control_file=control_file)
     assert request == {
         "version": 1,
@@ -261,9 +270,7 @@ def test_control_plane_ack_uses_immutable_request_and_original_event_id(tmp_path
     ledger.mark_sending(batch.delivery_id)
     ledger.confirm_history(batch.delivery_id, "6" * 64, "turn_1", "item_1")
     batch = ledger.load(batch.delivery_id)
-    control = tmp_path / "control.json"
-    control.write_text("opaque")
-    control.chmod(0o600)
+    control = make_control_file(tmp_path)
     captured = tmp_path / "captured.json"
     executable = tmp_path / "fake-orchestrator"
     executable.write_text(
@@ -299,19 +306,22 @@ def test_control_plane_ack_uses_immutable_request_and_original_event_id(tmp_path
 
 
 def test_control_plane_collect_does_not_read_or_copy_control_token(tmp_path):
-    control = tmp_path / "control.json"
+    control = make_control_file(tmp_path)
+    state = control.parent.parent
     control.write_text("this-is-an-opaque-token-file")
-    control.chmod(0o600)
     executable = tmp_path / "fake-orchestrator"
+    captured = tmp_path / "collect-argv.json"
     payload = {"version": 1, "status": "pending", "events": events()}
     executable.write_text(
-        "#!" + sys.executable + "\n"
-        "import json\n"
+        "#!" + sys.executable + "\nimport json,sys\n"
+        f"open({str(captured)!r},'w').write(json.dumps(sys.argv))\n"
         f"print({json.dumps(json.dumps(payload))})\n"
     )
     executable.chmod(0o700)
     client = ControlPlaneClient(executable, hashlib.sha256(executable.read_bytes()).hexdigest())
     assert client.collect("task-a", control_file=control) == events()
+    assert json.loads(captured.read_text())[1:3] == ["collect", "--state-dir"]
+    assert json.loads(captured.read_text())[3] == str(state)
     assert control.read_text() == "this-is-an-opaque-token-file"
 
 
@@ -344,9 +354,7 @@ def test_owner_capability_generation_advances_for_same_thread_new_tui(tmp_path):
 
 def test_rebind_projection_uses_verified_owner_capability_without_token(tmp_path):
     capability = OwnerCapabilityStore(tmp_path / "owner-capabilities").bind(attachment())
-    control = tmp_path / "control.json"
-    control.write_text("opaque")
-    control.chmod(0o600)
+    control = make_control_file(tmp_path)
     request = build_rebind_request(capability, control_file=control)
     assert request == {
         "version": 1,
@@ -364,9 +372,7 @@ def test_rebind_projection_uses_verified_owner_capability_without_token(tmp_path
 
 def test_control_plane_rebind_uses_verified_projection_and_owner_response(tmp_path):
     capability = OwnerCapabilityStore(tmp_path / "owner-capabilities").bind(attachment())
-    control = tmp_path / "control.json"
-    control.write_text("opaque")
-    control.chmod(0o600)
+    control = make_control_file(tmp_path)
     captured = tmp_path / "rebind-captured.json"
     executable = tmp_path / "fake-orchestrator"
     executable.write_text(
