@@ -1,7 +1,7 @@
 {
   "name": "codex-orchestrator",
   "version": "0.1.0",
-  "description": "Project-local Codex orchestration controls and versioned package hooks",
+  "description": "Project-local Codex orchestration controls with owner-bound task delivery",
   "author": {
     "name": "Local developer"
   },
@@ -9,10 +9,10 @@
   "interface": {
     "displayName": "Codex Orchestrator",
     "shortDescription": "Project-local orchestration controls.",
-    "longDescription": "Provides versioned local orchestration metadata and quiet lifecycle hooks without automatic task recovery or global installation.",
+    "longDescription": "Submits and controls local orchestration tasks through an owner-bound CLI. Recovery remains explicit and session startup is silent.",
     "developerName": "Local developer",
     "category": "Productivity",
     "capabilities": [],
-    "defaultPrompt": "Inspect the local orchestrator status."
+    "defaultPrompt": "Inspect an owner-bound local orchestrator task."
   }
 }

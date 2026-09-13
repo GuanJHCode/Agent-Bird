@@ -1,9 +1,11 @@
 package install
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
+	"syscall"
 	"testing"
 )
 
@@ -171,8 +173,12 @@ func TestPinAndUninstallHonorInstallLock(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	lock := filepath.Join(destination, ".install.lock")
-	if err := os.WriteFile(lock, []byte("held\n"), 0o600); err != nil {
+	lock, err := os.OpenFile(filepath.Join(destination, ".install.lock"), os.O_RDWR, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lock.Close()
+	if err := syscall.Flock(int(lock.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
 		t.Fatal(err)
 	}
 	if err := PinVersion(destination, "task-locked", "1.0.0"); err == nil {
@@ -202,6 +208,62 @@ func TestUnknownNestedManifestRetainsVersion(t *testing.T) {
 	result, err := UninstallPackage(destination, "1.0.0")
 	if !errors.Is(err, ErrChangedFiles) || result.Status != "retained" || !fileExists(unknown) || !fileExists(installed.VersionRoot) {
 		t.Fatalf("nested manifest uninstall result = %#v err=%v", result, err)
+	}
+}
+
+func TestUninstallResumesAfterOwnedManifestWasAlreadyRemoved(t *testing.T) {
+	root := t.TempDir()
+	source, binary := makePackage(t, root, "1.0.0")
+	destination := filepath.Join(root, "package")
+	installed, err := InstallPackage(InstallOptions{SourceRoot: source, BinaryPath: binary, DestinationRoot: destination, Version: "1.0.0", DataRoot: filepath.Join(root, "data")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	value, err := readManifest(installed.ManifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	intent := uninstallIntent{SchemaVersion: 1, Version: "1.0.0", ManifestSHA256: installed.ManifestSHA256, Manifest: value, CreatedAt: "test"}
+	data, err := json.Marshal(intent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	intentPath := filepath.Join(destination, "uninstall-intents", "1.0.0.json")
+	if err := os.WriteFile(intentPath, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(filepath.Join(installed.VersionRoot, "bin", "codex-orchestrator")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(installed.ManifestPath); err != nil {
+		t.Fatal(err)
+	}
+	result, err := UninstallPackage(destination, "1.0.0")
+	if err != nil || result.Status != "removed" || fileExists(installed.VersionRoot) || fileExists(intentPath) {
+		t.Fatalf("resume result=%#v err=%v", result, err)
+	}
+}
+
+func TestInstallRejectsFinalSymlinkAndDoesNotChangeExistingDirectoryMode(t *testing.T) {
+	root := t.TempDir()
+	source, binary := makePackage(t, root, "1.0.0")
+	realDestination := filepath.Join(root, "real-package")
+	if err := os.Mkdir(realDestination, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	linkDestination := filepath.Join(root, "package-link")
+	if err := os.Symlink(realDestination, linkDestination); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := InstallPackage(InstallOptions{SourceRoot: source, BinaryPath: binary, DestinationRoot: linkDestination, Version: "1.0.0", DataRoot: filepath.Join(root, "data")}); err == nil {
+		t.Fatal("symlink destination accepted")
+	}
+	if _, err := InstallPackage(InstallOptions{SourceRoot: source, BinaryPath: binary, DestinationRoot: realDestination, Version: "1.0.0", DataRoot: filepath.Join(root, "data")}); err == nil {
+		t.Fatal("unsafe existing destination mode accepted")
+	}
+	info, err := os.Stat(realDestination)
+	if err != nil || info.Mode().Perm() != 0o755 {
+		t.Fatalf("existing directory mode changed: info=%v err=%v", info, err)
 	}
 }
 

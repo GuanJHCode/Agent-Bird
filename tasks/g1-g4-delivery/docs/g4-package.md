@@ -5,20 +5,24 @@ does not install a marketplace entry, modify a global Codex directory, register
 launchd, or perform login/authentication. No public license or publication is
 asserted.
 
-## Plugin and hooks
+## Plugin command surface
 
 `plugins/codex-orchestrator/.codex-plugin/plugin.json` is the plugin manifest
-validated with the bundled `plugin-creator` validator. The default
-`hooks/hooks.json` registers two quiet command hooks:
+validated with the bundled `plugin-creator` validator. The
+`skills/orchestrate/SKILL.md` skill is the user-facing entry point. It calls
+only `${PLUGIN_ROOT}/scripts/invoke.sh`, whose allowlist is:
 
-- `SessionStart` appends fixed control metadata and reports whether a local
-  `pending.json` marker exists. It never resumes a task or selects a thread.
-- `SessionEnd` appends fixed control metadata. It is auxiliary and cannot
-  prove that an arbitrary crash or transport disconnect was observed.
+- `ensure-running`, `submit`
+- `status`, `collect`, `ack`
+- `resume`, `stop`
 
-Both hooks use `${PLUGIN_ROOT}` and `${PLUGIN_DATA}` supplied by the host. They
-do not read or persist inherited environment values, credentials, prompts, or
-raw provider events.
+Every task operation requires the exact `controller_thread`; resume and stop
+also require the latest `work_revision`. A missing binding is `blocked` rather
+than guessed. Session startup is silent and never resumes interrupted work.
+The skill does not use `${PLUGIN_DATA}` for production state, does not replace
+the `codex` entry point, and does not define MCP or app configuration. Git
+materialization/integration remains blocked until the source Host exposes the
+G3 package; the plugin never executes those operations in the coordinator.
 
 ## Package and installer contract
 
@@ -26,13 +30,17 @@ raw provider events.
 
 ```text
 <out>/
-  bin/codex-orchestrator
-  plugins/codex-orchestrator/...
+  plugin/
+    .codex-plugin/plugin.json
+    skills/orchestrate/SKILL.md
+    scripts/invoke.sh
+    bin/codex-orchestrator
   package-manifest.json
 ```
 
-The manifest records the package version, binary SHA-256, plugin path, and the
-explicit fact that Windows is unsupported. The script requires absolute paths;
+The manifest records every packaged regular file's path, mode and SHA-256,
+plus the explicit fact that Windows is unsupported. The script requires an
+absolute binary and a new or empty absolute output directory;
 the Go installer additionally enforces the strict `MAJOR.MINOR.PATCH` version
 form (with an optional prerelease suffix).
 
@@ -43,13 +51,18 @@ for G1:
   `destination/versions/<version>` and writes a receipt whose hash covers the
   install manifest. Versions coexist, and a duplicate version is rejected.
 - `PinVersion` and `UnpinVersion` maintain task pins. Install, pin, unpin, and
-  uninstall share the exclusive `.install.lock` transaction lock.
+  uninstall share a persistent `.install.lock` file guarded by kernel
+  `flock`; a crashed process releases the lock without leaving a stale flag.
 - `UninstallPackage` refuses a pinned, malformed, changed, or unknown version.
   A changed file, malformed pin, symlinked parent, or unknown nested file is
   retained and reported; it is never swept by a recursive `RemoveAll`.
   Only manifest-listed regular files with the expected mode and digest are
-  eligible for removal, followed by empty directories. The final receipt is
-  removed only after that owned tree is gone.
+  eligible for removal. Each item is moved through a private 0700 quarantine,
+  verified by inode/content through held directory descriptors, then removed
+  with `unlinkat`. The uninstall intent embeds the complete verified manifest
+  and is synced before removal, so losing the version-local manifest mid-crash
+  does not make recovery impossible. The receipt and intent are removed only
+  after the owned tree is gone.
 - `Doctor` reports versions, pins, manifest/hash drift, and file drift without
   modifying the native data root.
 
@@ -76,8 +89,13 @@ existing G1/G2 contracts.
 
 The plugin manifest was checked with the bundled `validate_plugin.py`. The
 installer tests cover two coexisting versions, active pins, changed files,
-changed manifests, malformed pins, the shared lock, unknown nested manifests,
-doctor reporting, and preservation of a native-data sentinel. The package
-script and both hook scripts were exercised against temporary directories.
-The resource protocol's long measurement run is intentionally deferred to the
-root-owned final binary validation.
+changed manifests, malformed pins, the shared OS lock, crash recovery after
+the version-local manifest is gone, unknown nested objects, symlink rejection,
+existing-directory mode preservation, doctor reporting, and preservation of a
+native-data sentinel. The package script and installed wrapper were exercised
+against temporary directories.
+`scripts/measure-resources.sh` samples an explicit PID list once per second and
+accepts only the original budget/scenario pairs: no-task or offline-callback/5
+minutes, workers/10 minutes, and burst/20 minutes. It produces a private JSONL artifact. The long
+measurement run remains deferred to the root-owned final binary validation; a
+shortened run is not treated as acceptance evidence.

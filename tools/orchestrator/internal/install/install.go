@@ -12,6 +12,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"syscall"
+	"time"
 )
 
 var (
@@ -60,14 +62,26 @@ type manifest struct {
 }
 
 type manifestFile struct {
-	Path   string `json:"path"`
-	SHA256 string `json:"sha256"`
-	Mode   uint32 `json:"mode"`
+	Path        string `json:"path"`
+	SHA256      string `json:"sha256"`
+	Mode        uint32 `json:"mode"`
+	Device      uint64 `json:"device"`
+	Inode       uint64 `json:"inode"`
+	Size        int64  `json:"size"`
+	ModUnixNano int64  `json:"mod_unix_nano"`
 }
 
 type manifestReceipt struct {
 	Version        string `json:"version"`
 	ManifestSHA256 string `json:"manifest_sha256"`
+}
+
+type uninstallIntent struct {
+	SchemaVersion  int      `json:"schema_version"`
+	Version        string   `json:"version"`
+	ManifestSHA256 string   `json:"manifest_sha256"`
+	Manifest       manifest `json:"manifest"`
+	CreatedAt      string   `json:"created_at"`
 }
 
 type pin struct {
@@ -80,6 +94,19 @@ var idPattern = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,128}$`)
 
 func InstallPackage(options InstallOptions) (InstallResult, error) {
 	if err := validateOptions(options); err != nil {
+		return InstallResult{}, err
+	}
+	var err error
+	if options.SourceRoot, err = canonicalManagedPath(options.SourceRoot); err != nil {
+		return InstallResult{}, err
+	}
+	if options.BinaryPath, err = canonicalManagedPath(options.BinaryPath); err != nil {
+		return InstallResult{}, err
+	}
+	if options.DestinationRoot, err = canonicalManagedPath(options.DestinationRoot); err != nil {
+		return InstallResult{}, err
+	}
+	if options.DataRoot, err = canonicalManagedPath(options.DataRoot); err != nil {
 		return InstallResult{}, err
 	}
 	if err := validatePluginSource(options.SourceRoot, options.Version); err != nil {
@@ -100,11 +127,14 @@ func InstallPackage(options InstallOptions) (InstallResult, error) {
 	if err := os.MkdirAll(filepath.Join(options.DestinationRoot, "manifests"), 0o700); err != nil {
 		return InstallResult{}, err
 	}
+	if err := os.MkdirAll(filepath.Join(options.DestinationRoot, "uninstall-intents"), 0o700); err != nil {
+		return InstallResult{}, err
+	}
 	lock, err := acquireInstallLock(options.DestinationRoot)
 	if err != nil {
 		return InstallResult{}, err
 	}
-	defer func() { _ = os.Remove(lock) }()
+	defer releaseInstallLock(lock)
 	versionRoot := filepath.Join(options.DestinationRoot, "versions", options.Version)
 	if _, err := os.Lstat(versionRoot); err == nil {
 		return InstallResult{}, ErrVersionExists
@@ -115,7 +145,6 @@ func InstallPackage(options InstallOptions) (InstallResult, error) {
 	if err != nil {
 		return InstallResult{}, err
 	}
-	defer os.RemoveAll(stage)
 	if err := copyTree(options.SourceRoot, stage); err != nil {
 		return InstallResult{}, err
 	}
@@ -123,8 +152,18 @@ func InstallPackage(options InstallOptions) (InstallResult, error) {
 	if err := os.MkdirAll(filepath.Dir(binaryDest), 0o700); err != nil {
 		return InstallResult{}, err
 	}
-	if err := copyRegular(options.BinaryPath, binaryDest, 0o700); err != nil {
-		return InstallResult{}, err
+	if info, statErr := os.Lstat(binaryDest); statErr == nil {
+		sourceHash, sourceErr := hashFile(options.BinaryPath)
+		installedHash, installedErr := hashFile(binaryDest)
+		if sourceErr != nil || installedErr != nil || !info.Mode().IsRegular() || info.Mode().Perm() != 0o700 || sourceHash != installedHash {
+			return InstallResult{}, errors.New("packaged_binary_mismatch")
+		}
+	} else if errors.Is(statErr, os.ErrNotExist) {
+		if err := copyRegular(options.BinaryPath, binaryDest, 0o700); err != nil {
+			return InstallResult{}, err
+		}
+	} else {
+		return InstallResult{}, statErr
 	}
 	files, err := collectFiles(stage)
 	if err != nil {
@@ -166,11 +205,15 @@ func PinVersion(destinationRoot, taskID, version string) error {
 	if !validDestination(destinationRoot) || !idPattern.MatchString(taskID) || !versionPattern.MatchString(version) {
 		return errors.New("pin_invalid")
 	}
+	destinationRoot, err := canonicalManagedPath(destinationRoot)
+	if err != nil {
+		return err
+	}
 	lock, err := acquireInstallLock(destinationRoot)
 	if err != nil {
 		return err
 	}
-	defer func() { _ = os.Remove(lock) }()
+	defer releaseInstallLock(lock)
 	path := filepath.Join(destinationRoot, "pins", taskID+".json")
 	data, _ := json.Marshal(pin{TaskID: taskID, Version: version})
 	return writeExclusive(path, append(data, '\n'), 0o600)
@@ -180,17 +223,26 @@ func UnpinVersion(destinationRoot, taskID string) error {
 	if !validDestination(destinationRoot) || !idPattern.MatchString(taskID) {
 		return errors.New("pin_invalid")
 	}
+	destinationRoot, err := canonicalManagedPath(destinationRoot)
+	if err != nil {
+		return err
+	}
 	lock, err := acquireInstallLock(destinationRoot)
 	if err != nil {
 		return err
 	}
-	defer func() { _ = os.Remove(lock) }()
+	defer releaseInstallLock(lock)
 	return os.Remove(filepath.Join(destinationRoot, "pins", taskID+".json"))
 }
 
 func Doctor(destinationRoot string) (DoctorReport, error) {
 	if !filepath.IsAbs(destinationRoot) || filepath.Clean(destinationRoot) != destinationRoot {
 		return DoctorReport{}, errors.New("doctor_path_invalid")
+	}
+	var err error
+	destinationRoot, err = canonicalManagedPath(destinationRoot)
+	if err != nil {
+		return DoctorReport{}, err
 	}
 	report := DoctorReport{Healthy: true}
 	versionsDir := filepath.Join(destinationRoot, "versions")
@@ -199,7 +251,11 @@ func Doctor(destinationRoot string) (DoctorReport, error) {
 		return DoctorReport{}, err
 	}
 	for _, entry := range entries {
-		if !entry.IsDir() || strings.HasPrefix(entry.Name(), ".") {
+		if !entry.IsDir() {
+			continue
+		}
+		if strings.HasPrefix(entry.Name(), ".") {
+			report.Issues = append(report.Issues, "retained:"+entry.Name())
 			continue
 		}
 		report.Versions = append(report.Versions, entry.Name())
@@ -215,7 +271,7 @@ func Doctor(destinationRoot string) (DoctorReport, error) {
 			report.Issues = append(report.Issues, entry.Name()+":manifest_hash")
 			continue
 		}
-		changed, changedErr := changedFiles(filepath.Join(versionsDir, entry.Name()), value)
+		changed, changedErr := changedFiles(filepath.Join(versionsDir, entry.Name()), value, false)
 		if changedErr != nil || len(changed) > 0 {
 			report.Issues = append(report.Issues, entry.Name()+":files")
 		}
@@ -230,6 +286,22 @@ func Doctor(destinationRoot string) (DoctorReport, error) {
 			report.Pins = append(report.Pins, strings.TrimSuffix(entry.Name(), ".json"))
 		}
 	}
+	intentEntries, err := os.ReadDir(filepath.Join(destinationRoot, "uninstall-intents"))
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return DoctorReport{}, err
+	}
+	for _, entry := range intentEntries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
+			report.Issues = append(report.Issues, "uninstall_intent_unknown:"+entry.Name())
+			continue
+		}
+		version := strings.TrimSuffix(entry.Name(), ".json")
+		if _, ok, readErr := readUninstallIntent(filepath.Join(destinationRoot, "uninstall-intents", entry.Name()), version); readErr != nil || !ok {
+			report.Issues = append(report.Issues, "uninstall_intent_invalid:"+entry.Name())
+		} else {
+			report.Issues = append(report.Issues, "uninstall_pending:"+version)
+		}
+	}
 	sort.Strings(report.Versions)
 	sort.Strings(report.Pins)
 	if len(report.Issues) > 0 {
@@ -242,33 +314,117 @@ func UninstallPackage(destinationRoot, version string) (UninstallResult, error) 
 	if !validDestination(destinationRoot) || !versionPattern.MatchString(version) {
 		return UninstallResult{Version: version, Status: "unknown"}, errors.New("uninstall_invalid")
 	}
+	var err error
+	destinationRoot, err = canonicalManagedPath(destinationRoot)
+	if err != nil {
+		return UninstallResult{Version: version, Status: "unknown"}, err
+	}
 	versionRoot := filepath.Join(destinationRoot, "versions", version)
 	lock, err := acquireInstallLock(destinationRoot)
 	if err != nil {
 		return UninstallResult{Version: version, Status: "unknown", Retained: []string{versionRoot}}, err
 	}
-	defer func() { _ = os.Remove(lock) }()
+	defer releaseInstallLock(lock)
 	manifestPath := filepath.Join(versionRoot, "manifest.json")
 	receiptPath := filepath.Join(destinationRoot, "manifests", version+".json")
-	receiptData, err := os.ReadFile(receiptPath)
+	intentPath := filepath.Join(destinationRoot, "uninstall-intents", version+".json")
+	if err := checkPins(destinationRoot, version); err != nil {
+		status := "unknown"
+		if errors.Is(err, ErrVersionPinned) {
+			status = "pinned"
+		}
+		return UninstallResult{Version: version, Status: status, Retained: []string{versionRoot}}, err
+	}
+
+	intent, resumed, err := readUninstallIntent(intentPath, version)
+	if err != nil {
+		return UninstallResult{Version: version, Status: "unknown", Retained: []string{versionRoot, intentPath}}, err
+	}
+	if !resumed {
+		receiptData, readErr := os.ReadFile(receiptPath)
+		var receipt manifestReceipt
+		if readErr != nil || json.Unmarshal(receiptData, &receipt) != nil || receipt.Version != version {
+			return UninstallResult{Version: version, Status: "retained", Retained: []string{versionRoot}}, ErrChangedFiles
+		}
+		manifestHash, hashErr := hashFile(manifestPath)
+		if hashErr != nil || manifestHash != receipt.ManifestSHA256 {
+			return UninstallResult{Version: version, Status: "retained", Retained: []string{versionRoot}}, ErrChangedFiles
+		}
+		value, readErr := readManifest(manifestPath)
+		if readErr != nil {
+			return UninstallResult{Version: version, Status: "retained", Retained: []string{versionRoot}}, ErrChangedFiles
+		}
+		changed, changedErr := changedFiles(versionRoot, value, false)
+		if changedErr != nil {
+			return UninstallResult{Version: version, Status: "unknown", Retained: []string{versionRoot}}, changedErr
+		}
+		if len(changed) > 0 {
+			return UninstallResult{Version: version, Status: "retained", Retained: changed}, ErrChangedFiles
+		}
+		intent = uninstallIntent{SchemaVersion: 1, Version: version, ManifestSHA256: manifestHash, Manifest: value, CreatedAt: time.Now().UTC().Format(time.RFC3339Nano)}
+		data, marshalErr := json.MarshalIndent(intent, "", "  ")
+		if marshalErr != nil {
+			return UninstallResult{Version: version, Status: "unknown", Retained: []string{versionRoot}}, marshalErr
+		}
+		if err := writeExclusive(intentPath, append(data, '\n'), 0o600); err != nil {
+			return UninstallResult{Version: version, Status: "unknown", Retained: []string{versionRoot}}, err
+		}
+		if err := syncDir(filepath.Dir(intentPath)); err != nil {
+			return UninstallResult{Version: version, Status: "unknown", Retained: []string{versionRoot, intentPath}}, err
+		}
+	}
+
+	quarantineRoot := filepath.Join(filepath.Dir(versionRoot), ".uninstall-root-"+version)
+	_, versionErr := os.Lstat(versionRoot)
+	_, quarantineErr := os.Lstat(quarantineRoot)
+	if errors.Is(versionErr, os.ErrNotExist) && errors.Is(quarantineErr, os.ErrNotExist) {
+		if err := removeReceiptForIntent(receiptPath, intent); err != nil {
+			return UninstallResult{Version: version, Status: "cleanup_pending", Retained: []string{receiptPath, intentPath}}, err
+		}
+		if err := os.Remove(intentPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return UninstallResult{Version: version, Status: "cleanup_pending", Retained: []string{intentPath}}, err
+		}
+		if err := syncDir(filepath.Dir(intentPath)); err != nil {
+			return UninstallResult{Version: version, Status: "cleanup_pending", Retained: []string{intentPath}}, err
+		}
+		return UninstallResult{Version: version, Status: "removed"}, nil
+	} else if versionErr != nil && !errors.Is(versionErr, os.ErrNotExist) {
+		return UninstallResult{Version: version, Status: "unknown", Retained: []string{versionRoot}}, versionErr
+	} else if quarantineErr != nil && !errors.Is(quarantineErr, os.ErrNotExist) {
+		return UninstallResult{Version: version, Status: "unknown", Retained: []string{quarantineRoot}}, quarantineErr
+	}
+
+	activeRoot := versionRoot
+	if errors.Is(versionErr, os.ErrNotExist) {
+		activeRoot = quarantineRoot
+	}
+	changed, err := changedFiles(activeRoot, intent.Manifest, resumed)
 	if err != nil {
 		return UninstallResult{Version: version, Status: "unknown", Retained: []string{versionRoot}}, err
 	}
-	var receipt manifestReceipt
-	if json.Unmarshal(receiptData, &receipt) != nil || receipt.Version != version {
-		return UninstallResult{Version: version, Status: "retained", Retained: []string{versionRoot}}, ErrChangedFiles
+	if len(changed) > 0 {
+		return UninstallResult{Version: version, Status: "retained", Retained: changed}, ErrChangedFiles
 	}
-	manifestHash, err := hashFile(manifestPath)
-	if err != nil || manifestHash != receipt.ManifestSHA256 {
-		return UninstallResult{Version: version, Status: "retained", Retained: []string{versionRoot}}, ErrChangedFiles
+	retained, err := removeOwnedTreeAnchored(versionRoot, intent.Manifest, intent.ManifestSHA256, resumed)
+	if err != nil || len(retained) > 0 {
+		return UninstallResult{Version: version, Status: "cleanup_pending", Retained: retained}, err
 	}
-	value, err := readManifest(manifestPath)
-	if err != nil {
-		return UninstallResult{Version: version, Status: "retained", Retained: []string{versionRoot}}, ErrChangedFiles
+	if err := removeReceiptForIntent(receiptPath, intent); err != nil {
+		return UninstallResult{Version: version, Status: "cleanup_pending", Retained: []string{receiptPath, intentPath}}, err
 	}
+	if err := os.Remove(intentPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return UninstallResult{Version: version, Status: "cleanup_pending", Retained: []string{intentPath}}, err
+	}
+	if err := syncDir(filepath.Dir(intentPath)); err != nil {
+		return UninstallResult{Version: version, Status: "cleanup_pending", Retained: []string{intentPath}}, err
+	}
+	return UninstallResult{Version: version, Status: "removed"}, nil
+}
+
+func checkPins(destinationRoot, version string) error {
 	entries, err := os.ReadDir(filepath.Join(destinationRoot, "pins"))
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return UninstallResult{Version: version, Status: "unknown", Retained: []string{versionRoot}}, err
+		return err
 	}
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
@@ -276,31 +432,99 @@ func UninstallPackage(destinationRoot, version string) (UninstallResult, error) 
 		}
 		data, readErr := os.ReadFile(filepath.Join(destinationRoot, "pins", entry.Name()))
 		if readErr != nil {
-			return UninstallResult{Version: version, Status: "unknown", Retained: []string{versionRoot}}, readErr
+			return readErr
 		}
 		var active pin
 		if json.Unmarshal(data, &active) != nil || !idPattern.MatchString(active.TaskID) || !versionPattern.MatchString(active.Version) {
-			return UninstallResult{Version: version, Status: "unknown", Retained: []string{versionRoot}}, errors.New("pin_invalid")
+			return errors.New("pin_invalid")
 		}
 		if active.Version == version {
-			return UninstallResult{Version: version, Status: "pinned", Retained: []string{versionRoot}}, ErrVersionPinned
+			return ErrVersionPinned
 		}
 	}
-	changed, err := changedFiles(versionRoot, value)
+	return nil
+}
+
+func readUninstallIntent(path, version string) (uninstallIntent, bool, error) {
+	data, err := os.ReadFile(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return uninstallIntent{}, false, nil
+	}
 	if err != nil {
-		return UninstallResult{Version: version, Status: "unknown", Retained: []string{versionRoot}}, err
+		return uninstallIntent{}, false, err
 	}
-	if len(changed) > 0 {
-		return UninstallResult{Version: version, Status: "retained", Retained: changed}, ErrChangedFiles
+	var intent uninstallIntent
+	if json.Unmarshal(data, &intent) != nil || intent.SchemaVersion != 1 || intent.Version != version || intent.ManifestSHA256 == "" || intent.Manifest.Version != version || intent.Manifest.PackageName != "codex-orchestrator" || intent.Manifest.SchemaVersion != 1 {
+		return uninstallIntent{}, false, errors.New("uninstall_intent_invalid")
 	}
-	retained, err := removeOwnedTree(versionRoot, value, receipt.ManifestSHA256)
-	if err != nil || len(retained) > 0 {
-		return UninstallResult{Version: version, Status: "cleanup_pending", Retained: retained}, err
+	for _, file := range intent.Manifest.Files {
+		clean := filepath.Clean(filepath.FromSlash(file.Path))
+		if clean == "." || filepath.IsAbs(clean) || clean == ".." || strings.HasPrefix(clean, ".."+string(os.PathSeparator)) || len(file.SHA256) != sha256.Size*2 || file.Device == 0 || file.Inode == 0 {
+			return uninstallIntent{}, false, errors.New("uninstall_intent_invalid")
+		}
 	}
-	if err := os.Remove(receiptPath); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return UninstallResult{Version: version, Status: "cleanup_pending", Retained: []string{receiptPath}}, err
+	return intent, true, nil
+}
+
+func removeReceiptForIntent(path string, intent uninstallIntent) error {
+	data, err := os.ReadFile(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
 	}
-	return UninstallResult{Version: version, Status: "removed"}, nil
+	if err != nil {
+		return err
+	}
+	var receipt manifestReceipt
+	if json.Unmarshal(data, &receipt) != nil || receipt.Version != intent.Version || receipt.ManifestSHA256 != intent.ManifestSHA256 {
+		return ErrChangedFiles
+	}
+	if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	return syncDir(filepath.Dir(path))
+}
+
+func syncDir(path string) error {
+	directory, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer directory.Close()
+	return directory.Sync()
+}
+
+func canonicalManagedPath(path string) (string, error) {
+	if path == "" || !filepath.IsAbs(path) || filepath.Clean(path) != path {
+		return "", errors.New("path_invalid")
+	}
+	if info, err := os.Lstat(path); err == nil && info.Mode()&os.ModeSymlink != 0 {
+		return "", errors.New("path_symlink_forbidden")
+	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return "", err
+	}
+	existing := path
+	missing := []string{}
+	for {
+		if _, err := os.Lstat(existing); err == nil {
+			break
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return "", err
+		}
+		parent := filepath.Dir(existing)
+		if parent == existing {
+			return "", errors.New("path_ancestor_missing")
+		}
+		missing = append(missing, filepath.Base(existing))
+		existing = parent
+	}
+	resolved, err := filepath.EvalSymlinks(existing)
+	if err != nil {
+		return "", err
+	}
+	for i := len(missing) - 1; i >= 0; i-- {
+		resolved = filepath.Join(resolved, missing[i])
+	}
+	return filepath.Clean(resolved), nil
 }
 
 func validateOptions(options InstallOptions) error {
@@ -319,8 +543,50 @@ func validDestination(path string) bool {
 	return path != "" && filepath.IsAbs(path) && filepath.Clean(path) == path
 }
 
-func acquireInstallLock(destinationRoot string) (string, error) {
-	return createExclusive(filepath.Join(destinationRoot, ".install.lock"), []byte("owned\n"), 0o600)
+func acquireInstallLock(destinationRoot string) (*os.File, error) {
+	rootBefore, err := os.Lstat(destinationRoot)
+	if err != nil || !rootBefore.IsDir() || rootBefore.Mode()&os.ModeSymlink != 0 {
+		return nil, errors.New("destination_unsafe")
+	}
+	lockPath := filepath.Join(destinationRoot, ".install.lock")
+	if info, err := os.Lstat(lockPath); err == nil && info.Mode()&os.ModeSymlink != 0 {
+		return nil, errors.New("install_lock_unsafe")
+	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return nil, err
+	}
+	file, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR|syscall.O_NOFOLLOW, 0o600)
+	if err != nil {
+		return nil, err
+	}
+	pathInfo, pathErr := os.Stat(lockPath)
+	fileInfo, fileErr := file.Stat()
+	if pathErr != nil || fileErr != nil || !os.SameFile(pathInfo, fileInfo) || !fileInfo.Mode().IsRegular() || fileInfo.Mode().Perm() != 0o600 {
+		_ = file.Close()
+		return nil, errors.New("install_lock_unsafe")
+	}
+	stat, ok := fileInfo.Sys().(*syscall.Stat_t)
+	if !ok || stat.Nlink != 1 || int(stat.Uid) != os.Getuid() {
+		_ = file.Close()
+		return nil, errors.New("install_lock_unsafe")
+	}
+	rootAfter, err := os.Lstat(destinationRoot)
+	if err != nil || !os.SameFile(rootBefore, rootAfter) {
+		_ = file.Close()
+		return nil, errors.New("destination_changed")
+	}
+	if err := syscall.Flock(int(file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		_ = file.Close()
+		return nil, errors.New("install_locked")
+	}
+	return file, nil
+}
+
+func releaseInstallLock(file *os.File) {
+	if file == nil {
+		return
+	}
+	_ = syscall.Flock(int(file.Fd()), syscall.LOCK_UN)
+	_ = file.Close()
 }
 
 func ensurePrivateDir(path string) error {
@@ -447,23 +713,37 @@ func collectFiles(root string) ([]manifestFile, error) {
 		if err != nil {
 			return err
 		}
-		files = append(files, manifestFile{Path: filepath.ToSlash(relative), SHA256: digest, Mode: uint32(info.Mode().Perm())})
+		stat, ok := info.Sys().(*syscall.Stat_t)
+		if !ok || !info.Mode().IsRegular() {
+			return errors.New("installed_file_unsafe")
+		}
+		files = append(files, manifestFile{Path: filepath.ToSlash(relative), SHA256: digest, Mode: uint32(info.Mode().Perm()), Device: uint64(stat.Dev), Inode: uint64(stat.Ino), Size: info.Size(), ModUnixNano: info.ModTime().UnixNano()})
 		return nil
 	})
 	sort.Slice(files, func(i, j int) bool { return files[i].Path < files[j].Path })
 	return files, err
 }
 
-func changedFiles(root string, value manifest) ([]string, error) {
+func changedFiles(root string, value manifest, allowMissing bool) ([]string, error) {
 	known := map[string]manifestFile{}
+	knownDirectories := map[string]bool{".": true}
 	for _, file := range value.Files {
 		known[file.Path] = file
+		current := filepath.ToSlash(filepath.Dir(filepath.FromSlash(file.Path)))
+		for current != "." && current != "" {
+			knownDirectories[current] = true
+			current = filepath.ToSlash(filepath.Dir(filepath.FromSlash(current)))
+		}
 	}
+	knownDirectories[filepath.ToSlash(filepath.Dir("manifest.json"))] = true
 	var changed []string
 	for _, file := range value.Files {
 		path := filepath.Join(root, filepath.FromSlash(file.Path))
 		info, err := os.Lstat(path)
-		if err != nil || !info.Mode().IsRegular() || uint32(info.Mode().Perm()) != file.Mode {
+		if allowMissing && errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil || !matchesManifestIdentity(info, file) {
 			changed = append(changed, file.Path)
 			continue
 		}
@@ -476,10 +756,13 @@ func changedFiles(root string, value manifest) ([]string, error) {
 		if walkErr != nil {
 			return walkErr
 		}
+		relative, _ := filepath.Rel(root, path)
 		if info.IsDir() {
+			if !knownDirectories[filepath.ToSlash(relative)] {
+				changed = append(changed, filepath.ToSlash(relative))
+			}
 			return nil
 		}
-		relative, _ := filepath.Rel(root, path)
 		if filepath.ToSlash(relative) == "manifest.json" {
 			return nil
 		}
@@ -491,100 +774,9 @@ func changedFiles(root string, value manifest) ([]string, error) {
 	return unique(changed), err
 }
 
-// removeOwnedTree only removes files whose digest and mode are still covered by
-// the install manifest. Directories are removed only when empty. This keeps an
-// unknown file, including one inserted after changedFiles, in place.
-func removeOwnedTree(root string, value manifest, manifestHash string) ([]string, error) {
-	retained := []string{}
-	rootInfo, err := os.Lstat(root)
-	if err != nil || !rootInfo.IsDir() || rootInfo.Mode()&os.ModeSymlink != 0 {
-		return []string{root}, errors.New("owned_root_unsafe")
-	}
-	for _, file := range value.Files {
-		path, err := safeOwnedPath(root, file.Path)
-		if err != nil {
-			retained = append(retained, file.Path)
-			continue
-		}
-		info, err := os.Lstat(path)
-		if err != nil || !info.Mode().IsRegular() || uint32(info.Mode().Perm()) != file.Mode {
-			retained = append(retained, file.Path)
-			continue
-		}
-		digest, err := hashFile(path)
-		if err != nil || digest != file.SHA256 {
-			retained = append(retained, file.Path)
-			continue
-		}
-		if err := os.Remove(path); err != nil {
-			retained = append(retained, file.Path)
-		}
-	}
-
-	manifestPath := filepath.Join(root, "manifest.json")
-	if info, err := os.Lstat(manifestPath); err != nil || !info.Mode().IsRegular() {
-		retained = append(retained, "manifest.json")
-	} else if digest, err := hashFile(manifestPath); err != nil || digest != manifestHash {
-		retained = append(retained, "manifest.json")
-	} else if err := os.Remove(manifestPath); err != nil {
-		retained = append(retained, "manifest.json")
-	}
-
-	dirs, err := directoriesDeepestFirst(root)
-	if err != nil {
-		return unique(append(retained, root)), err
-	}
-	for _, directory := range dirs {
-		if err := os.Remove(directory); err != nil {
-			if errors.Is(err, os.ErrNotExist) {
-				continue
-			}
-			relative, relErr := filepath.Rel(root, directory)
-			if relErr == nil && relative != "." {
-				retained = append(retained, filepath.ToSlash(relative))
-			} else {
-				retained = append(retained, root)
-			}
-		}
-	}
-	return unique(retained), nil
-}
-
-func safeOwnedPath(root, relative string) (string, error) {
-	clean := filepath.Clean(filepath.FromSlash(relative))
-	if clean == "." || filepath.IsAbs(clean) || clean == ".." || strings.HasPrefix(clean, ".."+string(os.PathSeparator)) {
-		return "", errors.New("owned_path_invalid")
-	}
-	parts := strings.Split(clean, string(os.PathSeparator))
-	current := root
-	for _, part := range parts[:len(parts)-1] {
-		current = filepath.Join(current, part)
-		info, err := os.Lstat(current)
-		if err != nil || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
-			return "", errors.New("owned_parent_unsafe")
-		}
-	}
-	return filepath.Join(root, clean), nil
-}
-
-func directoriesDeepestFirst(root string) ([]string, error) {
-	var directories []string
-	err := filepath.Walk(root, func(path string, info os.FileInfo, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if info.IsDir() && info.Mode()&os.ModeSymlink == 0 {
-			directories = append(directories, path)
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	sort.Slice(directories, func(i, j int) bool {
-		return strings.Count(directories[i], string(os.PathSeparator)) > strings.Count(directories[j], string(os.PathSeparator))
-	})
-	return directories, nil
+func matchesManifestIdentity(info os.FileInfo, file manifestFile) bool {
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	return ok && info.Mode().IsRegular() && uint32(info.Mode().Perm()) == file.Mode && uint64(stat.Dev) == file.Device && uint64(stat.Ino) == file.Inode && info.Size() == file.Size && info.ModTime().UnixNano() == file.ModUnixNano
 }
 
 func readManifest(path string) (manifest, error) {
@@ -610,13 +802,6 @@ func hashFile(path string) (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(digest.Sum(nil)), nil
-}
-
-func createExclusive(path string, data []byte, mode os.FileMode) (string, error) {
-	if err := writeExclusive(path, data, mode); err != nil {
-		return "", err
-	}
-	return path, nil
 }
 
 func writeExclusive(path string, data []byte, mode os.FileMode) error {
