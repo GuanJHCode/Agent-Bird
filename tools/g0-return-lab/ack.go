@@ -201,6 +201,20 @@ func clearUnpublishedStage(root *os.Root, name string) error {
 	if err != nil || !os.SameFile(info, current) {
 		return failure("untrusted_file")
 	}
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	if !ok || (stat.Nlink != 1 && stat.Nlink != 2) {
+		return failure("untrusted_file")
+	}
+	if stat.Nlink == 2 {
+		if len(name) < 6 || name[0] != '.' || name[len(name)-4:] != ".tmp" {
+			return failure("untrusted_file")
+		}
+		destination := name[1 : len(name)-4]
+		paired, pairErr := root.Lstat(destination)
+		if pairErr != nil || !owned(paired, 0600) || !os.SameFile(info, paired) {
+			return failure("untrusted_file")
+		}
+	}
 	return root.Remove(name)
 }
 

@@ -4,12 +4,31 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 )
+
+func batchCrash(t *testing.T, mode string, args ...string) commandOutput {
+	t.Helper()
+	cmd := commandAs(testController, args...)
+	cmd.Env = append(cmd.Env, "G0_TEST_BATCH_PUBLISH_CRASH="+mode)
+	var out, errOut strings.Builder
+	cmd.Stdout, cmd.Stderr = &out, &errOut
+	err := cmd.Run()
+	code := 0
+	if err != nil {
+		if exit, ok := err.(*exec.ExitError); ok {
+			code = exit.ExitCode()
+		} else {
+			t.Fatal(err)
+		}
+	}
+	return commandOutput{code, out.String(), errOut.String()}
+}
 
 func batchEventsJSON(t *testing.T) string {
 	t.Helper()
@@ -60,6 +79,146 @@ func TestBatchIntentPersistsPartialAndDuplicateSlotACK(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dir, "batch-ack-event_progress.json")); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestBatchCompleteDisablesFurtherSendClaim(t *testing.T) {
+	dir, _ := completedOwned(t, "batch_complete")
+	invokeAs(t, testController, 0, batchPrepareArgs(dir, "batch_complete", batchEventsJSON(t))...)
+	invokeAs(t, testController, 0, batchAckArgs(dir, "batch_complete", "event_progress", "complete_a", "handled")...)
+	invokeAs(t, testController, 0, batchAckArgs(dir, "batch_complete", "event_question", "complete_b", "waiting_user")...)
+	status := decode(t, invokeAs(t, "synthetic_observer", 0, "batch-status", "--dir", dir, "--nonce", "batch_complete").out)
+	if status["business_status"] != "complete" || status["transport_status"] != "ready" || status["send_allowed"] != false {
+		t.Fatalf("complete batch remained sendable: %s", mustJSON(status))
+	}
+	assertError(t, invokeAs(t, testController, 2, "batch-claim", "--dir", dir, "--nonce", "batch_complete", "--controller-thread", testController, "--revision", "1"), "batch_complete")
+}
+
+func TestBatchPublishRecoversFixedStagesBeforeAndAfterLink(t *testing.T) {
+	for _, mode := range []string{"before_link", "after_link"} {
+		t.Run(mode, func(t *testing.T) {
+			dir, _ := completedOwned(t, "batch_stage_"+mode)
+			invokeAs(t, testController, 0, batchPrepareArgs(dir, "batch_stage_"+mode, batchEventsJSON(t))...)
+			args := batchAckArgs(dir, "batch_stage_"+mode, "event_progress", "stage_first_"+mode, "handled")
+			crashed := batchCrash(t, mode, args...)
+			if crashed.code != 97 || crashed.out != "" {
+				t.Fatalf("publish crash was not an actual bounded process failure: %+v", crashed)
+			}
+			stage := filepath.Join(dir, ".batch-ack-event_progress.json.tmp")
+			if _, err := os.Lstat(stage); err != nil {
+				t.Fatalf("crash did not leave fixed stage: %v", err)
+			}
+			if mode == "before_link" {
+				if _, err := os.Lstat(filepath.Join(dir, "batch-ack-event_progress.json")); !os.IsNotExist(err) {
+					t.Fatalf("before-link crash unexpectedly published destination: %v", err)
+				}
+			} else if _, err := os.Stat(filepath.Join(dir, "batch-ack-event_progress.json")); err != nil {
+				t.Fatalf("after-link crash lost published destination: %v", err)
+			}
+			retry := invokeAs(t, testController, 0, batchAckArgs(dir, "batch_stage_"+mode, "event_progress", "stage_retry_"+mode, "handled")...)
+			if mode == "before_link" && !strings.Contains(retry.out, `"command_id":"stage_retry_before_link"`) {
+				t.Fatalf("before-link retry did not publish: %s", retry.out)
+			}
+			if mode == "after_link" && !strings.Contains(retry.out, `"command_id":"stage_first_after_link"`) {
+				t.Fatalf("after-link retry did not recover committed ACK: %s", retry.out)
+			}
+			if _, err := os.Lstat(stage); !os.IsNotExist(err) {
+				t.Fatalf("fixed stage survived recovery: %v", err)
+			}
+		})
+	}
+}
+
+func TestBatchIntentPublishRecoversFixedStagesBeforeAndAfterLink(t *testing.T) {
+	for _, mode := range []string{"before_link", "after_link"} {
+		t.Run(mode, func(t *testing.T) {
+			nonce := "batch_intent_stage_" + mode
+			dir, _ := completedOwned(t, nonce)
+			args := batchPrepareArgs(dir, nonce, batchEventsJSON(t))
+			crashed := batchCrash(t, mode, args...)
+			if crashed.code != 97 || crashed.out != "" {
+				t.Fatalf("publish crash was not an actual bounded process failure: %+v", crashed)
+			}
+			stage := filepath.Join(dir, ".batch-intent.json.tmp")
+			if _, err := os.Lstat(stage); err != nil {
+				t.Fatalf("crash did not leave intent stage: %v", err)
+			}
+			if mode == "before_link" {
+				invokeAs(t, testController, 0, args...)
+			} else {
+				assertError(t, invokeAs(t, testController, 2, args...), "batch_intent_exists")
+			}
+			if _, err := os.Lstat(stage); !os.IsNotExist(err) {
+				t.Fatalf("intent stage survived recovery: %v", err)
+			}
+		})
+	}
+}
+
+func TestBatchClaimPublishRecoversFixedStagesBeforeAndAfterLink(t *testing.T) {
+	for _, mode := range []string{"before_link", "after_link"} {
+		t.Run(mode, func(t *testing.T) {
+			nonce := "batch_claim_stage_" + mode
+			dir, _ := completedOwned(t, nonce)
+			invokeAs(t, testController, 0, batchPrepareArgs(dir, nonce, batchEventsJSON(t))...)
+			args := []string{"batch-claim", "--dir", dir, "--nonce", nonce, "--controller-thread", testController, "--revision", "1"}
+			crashed := batchCrash(t, mode, args...)
+			if crashed.code != 97 || crashed.out != "" {
+				t.Fatalf("publish crash was not an actual bounded process failure: %+v", crashed)
+			}
+			stage := filepath.Join(dir, ".batch-send-claim.json.tmp")
+			if _, err := os.Lstat(stage); err != nil {
+				t.Fatalf("crash did not leave claim stage: %v", err)
+			}
+			if mode == "before_link" {
+				invokeAs(t, testController, 0, args...)
+			} else {
+				assertError(t, invokeAs(t, testController, 2, args...), "claim_exists")
+			}
+			if _, err := os.Lstat(stage); !os.IsNotExist(err) {
+				t.Fatalf("claim stage survived recovery: %v", err)
+			}
+		})
+	}
+}
+
+func TestBatchPublishDoesNotDeleteSymlinkStage(t *testing.T) {
+	dir, _ := completedOwned(t, "batch_stage_symlink")
+	invokeAs(t, testController, 0, batchPrepareArgs(dir, "batch_stage_symlink", batchEventsJSON(t))...)
+	stage := filepath.Join(dir, ".batch-ack-event_progress.json.tmp")
+	foreign := filepath.Join(dir, "foreign-stage")
+	if err := os.WriteFile(foreign, []byte("foreign"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(foreign, stage); err != nil {
+		t.Fatal(err)
+	}
+	assertError(t, invokeAs(t, testController, 2, batchAckArgs(dir, "batch_stage_symlink", "event_progress", "symlink_stage", "handled")...), "untrusted_file")
+	if _, err := os.Lstat(stage); err != nil {
+		t.Fatalf("unsafe stage was removed: %v", err)
+	}
+	if got, err := os.ReadFile(foreign); err != nil || string(got) != "foreign" {
+		t.Fatalf("foreign stage target changed: %v %q", err, got)
+	}
+}
+
+func TestBatchPublishDoesNotDeleteForeignHardlinkStage(t *testing.T) {
+	dir, _ := completedOwned(t, "batch_stage_hardlink")
+	invokeAs(t, testController, 0, batchPrepareArgs(dir, "batch_stage_hardlink", batchEventsJSON(t))...)
+	stage := filepath.Join(dir, ".batch-ack-event_progress.json.tmp")
+	foreign := filepath.Join(dir, "foreign-stage-hardlink")
+	if err := os.WriteFile(foreign, []byte("foreign"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Link(foreign, stage); err != nil {
+		t.Fatal(err)
+	}
+	assertError(t, invokeAs(t, testController, 2, batchAckArgs(dir, "batch_stage_hardlink", "event_progress", "hardlink_stage", "handled")...), "untrusted_file")
+	if _, err := os.Lstat(stage); err != nil {
+		t.Fatalf("foreign hardlink stage was removed: %v", err)
+	}
+	if got, err := os.ReadFile(foreign); err != nil || string(got) != "foreign" {
+		t.Fatalf("foreign hardlink target changed: %v %q", err, got)
 	}
 }
 

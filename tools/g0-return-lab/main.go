@@ -316,15 +316,22 @@ func writeNew(root *os.Root, name string, value any) error {
 
 func publish(root *os.Root, name string, value any) error {
 	// Link publishes a complete file atomically and refuses any existing target.
-	// The staging path is also exclusive; a failed prior attempt is not reused.
+	// A bounded, owner-only fixed stage from a prior interrupted attempt is
+	// recovered before the next publication. Published destinations are never
+	// removed by this recovery.
 	stage := "." + name + ".tmp"
+	if err := clearUnpublishedStage(root, stage); err != nil {
+		return err
+	}
 	if err := writeNew(root, stage, value); err != nil {
 		return err
 	}
+	maybeCrashBatchPublish(name, "before_link")
 	defer root.Remove(stage)
 	if err := root.Link(stage, name); err != nil {
 		return err
 	}
+	maybeCrashBatchPublish(name, "after_link")
 	if err := root.Remove(stage); err != nil {
 		return err
 	}

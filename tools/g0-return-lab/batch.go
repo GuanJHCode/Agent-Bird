@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"regexp"
+	"strings"
 )
 
 var safeDelivery = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
@@ -64,6 +65,20 @@ func batchIntentName() string            { return "batch-intent.json" }
 func batchAckName(eventID string) string { return "batch-ack-" + eventID + ".json" }
 func batchClaimName() string             { return "batch-send-claim.json" }
 
+func uncertainOr(err error, fallback string) error {
+	var known failure
+	if errors.As(err, &known) {
+		return err
+	}
+	return failure(fallback)
+}
+
+func maybeCrashBatchPublish(name, phase string) {
+	if strings.HasPrefix(name, "batch-") && os.Getenv("G0_TEST_BATCH_PUBLISH_CRASH") == phase {
+		os.Exit(97)
+	}
+}
+
 func batchHash(intent batchIntent) string {
 	intent.PayloadHash = ""
 	intent.State = ""
@@ -115,6 +130,22 @@ func readBatchClaim(root *os.Root, intent batchIntent) (batchClaim, error) {
 	return claim, nil
 }
 
+func batchAcks(root *os.Root, intent batchIntent) ([]batchAck, int, error) {
+	acks := make([]batchAck, 0, len(intent.Events))
+	pending := 0
+	for _, event := range intent.Events {
+		ack, err := readBatchAck(root, intent, event)
+		if err == nil {
+			acks = append(acks, ack)
+		} else if errors.Is(err, os.ErrNotExist) {
+			pending++
+		} else {
+			return nil, 0, err
+		}
+	}
+	return acks, pending, nil
+}
+
 func decodeBatchEvents(raw string) ([]batchEvent, error) {
 	if len(raw) == 0 || len(raw) > 4096 {
 		return nil, failure("invalid_args")
@@ -140,7 +171,7 @@ func validateBatchEvents(events []batchEvent) error {
 }
 
 func rewriteBatchIntent(root *os.Root, intent batchIntent) error {
-	stage := ".batch-intent.tmp"
+	stage := "." + batchIntentName() + ".tmp"
 	if err := clearUnpublishedStage(root, stage); err != nil {
 		return err
 	}
@@ -166,17 +197,9 @@ func batchCommand(root *os.Root, o options) (any, error) {
 			if err != nil {
 				return err
 			}
-			acks := []batchAck{}
-			pending := 0
-			for _, event := range intent.Events {
-				ack, readErr := readBatchAck(root, intent, event)
-				if readErr == nil {
-					acks = append(acks, ack)
-				} else if errors.Is(readErr, os.ErrNotExist) {
-					pending++
-				} else {
-					return readErr
-				}
+			acks, pending, err := batchAcks(root, intent)
+			if err != nil {
+				return err
 			}
 			state := intent.State
 			transportStatus := "ready"
@@ -208,7 +231,7 @@ func batchCommand(root *os.Root, o options) (any, error) {
 			} else if !errors.Is(claimErr, os.ErrNotExist) {
 				return claimErr
 			}
-			sendAllowed := transportStatus == "ready" && claimState == "unclaimed" && !c.Cancelled && c.Revision == intent.Revision
+			sendAllowed := transportStatus == "ready" && claimState == "unclaimed" && pending > 0 && !c.Cancelled && c.Revision == intent.Revision
 			output = map[string]any{"version": 1, "status": overallStatus, "transport_status": transportStatus, "business_status": businessStatus, "send_allowed": sendAllowed, "delivery_id": intent.DeliveryID, "revision": intent.Revision, "event_count": len(intent.Events), "ack_count": len(acks), "pending_count": pending, "claim": claimState, "acks": acks}
 			return nil
 		}
@@ -223,6 +246,9 @@ func batchCommand(root *os.Root, o options) (any, error) {
 		}
 		if o.sub == "batch-prepare" {
 			if _, statErr := root.Lstat(batchIntentName()); statErr == nil {
+				if err := clearUnpublishedStage(root, "."+batchIntentName()+".tmp"); err != nil {
+					return err
+				}
 				return failure("batch_intent_exists")
 			} else if !errors.Is(statErr, os.ErrNotExist) {
 				return failure("untrusted_file")
@@ -234,7 +260,7 @@ func batchCommand(root *os.Root, o options) (any, error) {
 			intent := batchIntent{1, o.deliveryID, c.Nonce, c.ControllerThread, 1, c.Revision, "prepared", events, ""}
 			intent.PayloadHash = batchHash(intent)
 			if err := publish(root, batchIntentName(), intent); err != nil {
-				return failure("intent_uncertain")
+				return uncertainOr(err, "intent_uncertain")
 			}
 			output = intent
 			return nil
@@ -251,13 +277,21 @@ func batchCommand(root *os.Root, o options) (any, error) {
 				return failure("transport_uncertain")
 			}
 			if _, claimErr := readBatchClaim(root, intent); claimErr == nil {
+				if err := clearUnpublishedStage(root, "."+batchClaimName()+".tmp"); err != nil {
+					return err
+				}
 				return failure("claim_exists")
 			} else if !errors.Is(claimErr, os.ErrNotExist) {
 				return claimErr
 			}
+			if _, pending, pendingErr := batchAcks(root, intent); pendingErr != nil {
+				return pendingErr
+			} else if pending == 0 {
+				return failure("batch_complete")
+			}
 			claim := batchClaim{1, "claimed", intent.DeliveryID, intent.Nonce, intent.ControllerThread, intent.Revision}
 			if err := publish(root, batchClaimName(), claim); err != nil {
-				return failure("claim_uncertain")
+				return uncertainOr(err, "claim_uncertain")
 			}
 			output = claim
 			return nil
@@ -265,7 +299,7 @@ func batchCommand(root *os.Root, o options) (any, error) {
 		if o.sub == "batch-uncertain" {
 			intent.State = "transport_uncertain"
 			if err := rewriteBatchIntent(root, intent); err != nil {
-				return failure("intent_uncertain")
+				return uncertainOr(err, "intent_uncertain")
 			}
 			output = intent
 			return nil
@@ -285,6 +319,9 @@ func batchCommand(root *os.Root, o options) (any, error) {
 			if existing.Decision != o.decision {
 				return failure("decision_conflict")
 			}
+			if err := clearUnpublishedStage(root, "."+batchAckName(event.EventID)+".tmp"); err != nil {
+				return err
+			}
 			output = existing
 			return nil
 		}
@@ -293,7 +330,7 @@ func batchCommand(root *os.Root, o options) (any, error) {
 		}
 		ack := batchAck{1, "acknowledged", intent.DeliveryID, intent.Nonce, intent.ControllerThread, intent.ControllerEpoch, intent.Revision, event.EventID, event.EventRevision, event.PayloadHash, event.ActionSlot, o.commandID, o.decision, 1, effectCount(o.decision)}
 		if err := publish(root, batchAckName(event.EventID), ack); err != nil {
-			return failure("ack_uncertain")
+			return uncertainOr(err, "ack_uncertain")
 		}
 		output = ack
 		return nil
