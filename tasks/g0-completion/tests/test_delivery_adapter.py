@@ -517,6 +517,22 @@ def test_receipt_mode_rejects_error_response_and_nonbool_wait_flag(tmp_path):
         asyncio.run(adapter.send_tool_output_once(ErrorConnection(), capability, wait_for_completion=1))
 
 
+@pytest.mark.parametrize("bad_id", [True, 1.0])
+def test_receipt_mode_rejects_noninteger_response_id(tmp_path, bad_id):
+    import asyncio
+    binding = DeliveryBinding("p", THREAD, 1, "receipt_id", 1)
+    intent = {"version": 1, "delivery_id": "delivery_1", "nonce": binding.nonce, "controller_thread": THREAD, "controller_epoch": 1, "revision": 1, "state": "prepared", "events": _events(), "payload_hash": ""}
+    intent["payload_hash"] = _go_batch_hash(intent); native = native_envelope_from_go_intent(intent, binding)
+    adapter = DeliveryAdapter.__new__(DeliveryAdapter); adapter._capabilities = {}; adapter._proofs = {}
+    adapter._run = lambda *args, **kwargs: {"claim": "claimed", "delivery_id": "delivery_1", "revision": 1, "transport_status": "ready"}
+    capability = _manual_capability(adapter, binding, tmp_path / "receipt-id", intent, native)
+    class BadIdConnection:
+        async def send_rpc(self, packet): pass
+        async def read_rpc(self): return {"id": bad_id, "result": {"turn": {"id": "turn_1", "status": "inProgress"}}}
+    with pytest.raises(DeliveryError, match="turn_start_response_id"):
+        asyncio.run(adapter.send_tool_output_once(BadIdConnection(), capability, wait_for_completion=False))
+
+
 def test_receipt_only_send_returns_after_turn_start_without_completion_notifications(tmp_path):
     import asyncio
     fixture = ROOT / "tasks" / "g0-completion" / "tests" / "fixtures" / "owner_helper_tool_backend.py"
