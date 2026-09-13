@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "kind": "root_observed_package_verification",
+  "provenance": "Archive of root tool results; not a raw log. No checks rerun to create this file.",
+  "source_commit": "64515ff1e589bbdb7eae3fdadc7c41b9aaa41f3d",
+  "go_source_equivalent_to": "811e01df6ccc1a5f12432d8f33bd6fca8c6b1f03",
+  "package_version": "0.1.0-rc2",
+  "binary_sha256": "8874d6da2b907aec5b558f6837cce30953275b1a83d042b801c4cc64e258d56e",
+  "installed_manifest_sha256": "191be825c3315cb0fc03a55aaf305b55aecc33bcc1e7890e4a5679da5bd48799",
+  "runtime_manifest_sha256": "9b1834834d80618dc9793ce421a8fe0da2dcec65f5a8cb958d24519d7eeaab73",
+  "checks": [
+    {"operation": "package-plugin.sh", "exit_code": 0},
+    {"operation": "project-local install rc2", "exit_code": 0, "status": "ok"},
+    {"operation": "installed rc2 doctor", "exit_code": 0, "healthy": true, "issues": null, "pins": null},
+    {"operation": "bundled validate_plugin.py", "exit_code": 0, "result": "Plugin validation passed"},
+    {"operation": "bundled skill quick_validate.py", "exit_code": 0, "result": "Skill is valid!"},
+    {"operation": "uninstall unused temporary rc1", "exit_code": 0, "status": "removed"}
+  ],
+  "validation_dependencies": "Pinned Python -I -B; existing PyYAML imported through explicit read-only site paths. No dependency installation.",
+  "permanent_installation": false,
+  "global_configuration_changed": false,
+  "native_product_acceptance": "pending; see separate immutable case evidence",
+  "resource_acceptance": "pending; separate G1 core scenarios"
+}
