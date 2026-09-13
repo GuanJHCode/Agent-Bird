@@ -1,15 +1,17 @@
 # 后继工作状态
 
-更新于 2026-09-13。授权边界见 `../plans/contract.md`。
+更新于 2026-09-13。授权边界见 [`contract.md`](../../g0-auth-preserving-activation/plans/contract.md)。本页区分当前 socket-activation 服务、旧的直接 TUI runtime 和一次性用户级注册实验；没有把任一局部样本提升为完整 G0。
 
-| 工作 | 当前证据与下一步 |
+| 工作 | 当前状态与边界 |
 | --- | --- |
-| 原持久任务重新打开且不自动执行 | proxy-resume-02 已通过主会话和独立验收，见 `proxy-resume-02-acceptance.md`。 |
-| 部分任务退出停止、记录保留、明确继续后续跑 | proxy-partial-02 已通过主会话和独立验收：quiet 0 turn、前缀不变，明确继续后 segment 2 完成 12/12。初次 backend cleanup 约 10.155 秒，不是立即停止。 |
-| cached side/primary 切换 | proxy-cached-04 的 P/S/P/S 与正常退出已通过。cached S 有后台 RPC 但没有带 S 的选择事件；不能自动绑定当前显示，用户已批准固定原主会话回传，正在补 home/profile 上下文保护，见 `../../g0-cached-switch-boundary/docs/routing-decision.md`。 |
-| 强制断连后重新获得附着资格 | proxy-reconnect-01 已通过：旧 epoch 失效，新 epoch 独立 initialize/resume/skills，status 同 P，零模型正常退出。 |
-| 用户级按需冷启动 | 一次注册/撤销实验已获授权；正在补 activation FD 接线、逐客户端隔离及认证保护，未实际注册。 |
-| 控制器崩溃后的任务清理 | 当前 runtime 没有 parent-death guard，只拥有直接 TUI/backend；未验证，不沿用旧 Go fixture 的直接父进程保证。 |
-| 完整 G0 与 G1–G4 | G0 尚未全部通过；不启动 G1–G4 正式功能。 |
+| 原持久任务重新打开且不自动执行 | `proxy-resume-02` 已通过其独立验收；只覆盖固定合成任务和该样本的恢复时序。 |
+| 部分任务退出、记录保留、明确继续 | `proxy-partial-02` 已通过其独立验收；初次退出保持 0 turn，明确继续后完成后缀步骤。它不证明立即停止、任意进程树清理或控制器崩溃恢复。 |
+| 强制断连后的重新附着 | `proxy-reconnect-01` 已通过固定样本；不能替代持久任务恢复、缓存主/侧切换或完整 G0。 |
+| 旧的直接 TUI runtime | `tasks/g0-tui-proxy/scripts/proxy_native_runtime.py` 直接管理受控 PTY、TUI 和 private backend，已有正常 quit/EOF 样本。它不是 launchd 注册器，也不拥有当前 socket-activation 服务的 guardian；其样本不能推导用户级安装或崩溃后的进程树清理。 |
+| 当前 ActivationService | `tasks/g0-proxy-continuation/cold-start/scripts/projectproxy_launchd_entrypoint.py` 从 manifest 接收 Listener FD（离线测试可接收 inherited FD），由 `ActivationService` 做 profile、peer、private backend、lease 和 ready/final receipt 管理；backend 使用 `GuardedChild`。entrypoint 本身不拥有 public socket，注册/撤销由 `ActivationTransaction` 单独负责。 |
+| 一次真实用户级注册/撤销 | `native-launchd-03` 已执行过唯一一次真实 bootstrap/bootout；job、plist、lease、child 和 private socket 已撤回。bootout 后曾留下 public socket，用户随后单独批准并完成了同一对象的身份复核和清理。该历史过程保留原始失败/UNKNOWN 记录，不能表述为自动撤回或永久安装已经通过。当前没有新的注册，也没有常驻安装。 |
+| 私有真实 native 合成运输 | `tasks/g0-completion/data/native-transport/native-transport-03/` 的两轮 Codex 0.154 私有运输通过：synthetic provider 两次 HTTP 200、同一 thread、history read、14 条 auth 元数据前后不变、无外部模型、无 global registration。`durable_history_verified=false`、`business_ack_verified=false` 保持不变；这不是 helper + Go ACK 的组合验收。 |
+| delivery adapter 与恢复对账 | 正常 Go → owner-helper → history → ACK 闭环已有 production evidence。`reconcile_claimed` 已补齐原持久 owner-context binding、`send_disabled` 和旧 revision/cancelled 拒绝；恢复只允许读 history 后显式 ACK，不重新发送。最终组合回归仍在等待整合。 |
+| 完整 G0 与 G1–G4 | G0 尚未全部通过；不启动 G1–G4 正式功能，不把局部 native、TUI、helper、Go ACK 或注册样本合并成整体结论。 |
 
-用户已允许项目内实现与受控实验，测试使用 Luna，禁止 Astra。用户于 2026-09-13 批准固定 owner 回传和一次用户级注册/撤销；不得影响任何现有 CLI 账号的 auth。实际账号登出、认证写入、全局账号配置修改和永久安装仍未授权。
+现有授权允许项目内实现和一次已完成的用户级注册/撤销实验；不得影响已有 CLI 账号的 auth。没有新的注册/永久安装授权。真实账号登录、登出、切换、Keychain 操作、认证写入和全局账号配置修改均不在本页范围内。
