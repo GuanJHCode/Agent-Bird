@@ -174,10 +174,12 @@ func submit(ctx context.Context, args []string, stdout io.Writer) error {
 		return codeError("submit_receipt_mismatch")
 	}
 	if err = startSourceHost(executable, state, bootstrapPath); err != nil {
-		return err
+		_ = json.NewEncoder(stdout).Encode(map[string]any{"version": 1, "status": "queued_host_unavailable", "run_id": request.RunID, "control_file": controlPath})
+		return codeError("source_host_start_failed")
 	}
 	if err = waitForHost(ctx, state, receipt.LaunchID, receipt.LaunchToken); err != nil {
-		return err
+		_ = json.NewEncoder(stdout).Encode(map[string]any{"version": 1, "status": "queued_host_unavailable", "run_id": request.RunID, "control_file": controlPath})
+		return codeError("source_host_start_timeout")
 	}
 	return json.NewEncoder(stdout).Encode(map[string]any{"version": 1, "status": "queued", "run_id": request.RunID, "control_file": controlPath})
 }

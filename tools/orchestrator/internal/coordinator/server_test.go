@@ -55,6 +55,7 @@ func TestServerRoutesControlToBoundHostAndDurablyCollects(t *testing.T) {
 	}
 	var ready contract.HostReady
 	decodePayload(t, readyMessage, &ready)
+	writeMessage(t, conn, ipc.KindHostReconciled, "reconciled", ready.CoordinatorEpoch, contract.HostReconciled{ProducerID: ready.HostID})
 	hostStatus := callServer(t, server.SocketPath(), ipc.KindHostStatus, HostStatusRequest{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken})
 	var hostStatusResponse StatusResponse
 	decodePayload(t, hostStatus, &hostStatusResponse)
@@ -153,6 +154,7 @@ func TestServerRoutesExplicitStopToOwningHost(t *testing.T) {
 	writeMessage(t, conn, ipc.KindHostHello, "hello", 0, contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: "origin", HostGeneration: "generation", PID: os.Getpid(), Birth: "host-birth", Executable: "/private/tmp/orchestrator"})
 	var ready contract.HostReady
 	decodePayload(t, readMessage(t, conn), &ready)
+	writeMessage(t, conn, ipc.KindHostReconciled, "reconciled", ready.CoordinatorEpoch, contract.HostReconciled{ProducerID: ready.HostID})
 	var launch contract.LaunchCommand
 	decodePayload(t, readMessage(t, conn), &launch)
 	stopped := callServer(t, server.SocketPath(), ipc.KindStopTask, TaskControlRequest{TaskID: "stop-task", ControllerThread: "thread", ControlToken: receipt.ControlToken, WorkRevision: 1})

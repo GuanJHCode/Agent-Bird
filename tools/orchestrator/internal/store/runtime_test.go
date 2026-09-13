@@ -254,12 +254,35 @@ func TestFailedBeforeSpawnSettlesSlotWithoutBecomingUnknown(t *testing.T) {
 	if err != nil || snapshot.Status != "failed" || snapshot.SegmentStatus != "exited" {
 		t.Fatalf("snapshot=%#v err=%v", snapshot, err)
 	}
+	late := contract.Event{Version: 1, ProducerID: hostID, EventID: "failed-late-prepared", RunID: grant.RunID, TaskID: grant.TaskID, AttemptID: grant.AttemptID, SegmentID: grant.SegmentID, WorkRevision: 1, ExecutionEpoch: 1, CommandID: grant.CommandID, Sequence: 3, Kind: contract.EventPrepared, PayloadHash: "hash-late-prepared"}
+	if _, err = db.CommitHostEvent(ctx, late); err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err = db.TaskSnapshot(ctx, "failed-task")
+	if err != nil || snapshot.Status != "failed" || snapshot.SegmentStatus != "exited" {
+		t.Fatalf("late event regressed terminal state: %#v err=%v", snapshot, err)
+	}
 	if active, activeErr := db.ActiveTasks(ctx); activeErr != nil || len(active) != 0 {
 		t.Fatalf("active=%#v err=%v", active, activeErr)
 	}
 	blocked, err := db.TaskSnapshot(ctx, "blocked-task")
 	if err != nil || blocked.Status != "blocked_dependency" {
 		t.Fatalf("blocked=%#v err=%v", blocked, err)
+	}
+	events, err := db.CollectPending(ctx, "failed-task")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ids := make([]string, 0, len(events))
+	for _, event := range events {
+		ids = append(ids, event.EventID)
+	}
+	if err = db.AckEvents(ctx, "failed-task", ids); err != nil {
+		t.Fatal(err)
+	}
+	retirable, err := db.RetirableHosts(ctx)
+	if err != nil || len(retirable) != 1 || retirable[0] != hostID {
+		t.Fatalf("failed/blocked host not retirable: %#v err=%v", retirable, err)
 	}
 }
 
@@ -296,5 +319,28 @@ func TestCancelBlocksRequiredDescendantButKeepsIndependentTaskReady(t *testing.T
 	grant, err := db.ClaimReady(ctx, hostID, 1, 2)
 	if err != nil || grant.TaskID != "independent" {
 		t.Fatalf("grant=%#v err=%v", grant, err)
+	}
+}
+
+func TestSubmitPlanReservesAtMostFourSourceHosts(t *testing.T) {
+	ctx := context.Background()
+	db, err := Open(filepath.Join(t.TempDir(), "state.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	for index := 1; index <= 5; index++ {
+		id := fmt.Sprintf("run-%d", index)
+		_, err = db.SubmitPlan(ctx, PlanSpec{
+			Run:   RunSpec{ID: id, ControllerThread: "thread", PlanRevision: 1, OriginContextID: id, OriginPID: index, OriginBirth: "birth"},
+			Host:  HostLaunchSpec{OriginContextID: id, HostGeneration: "generation", Executable: "/private/tmp/orchestrator"},
+			Tasks: []TaskSpec{{ID: "task-" + id, RunID: id, MaxAttempts: 3}},
+		})
+		if index < 5 && err != nil {
+			t.Fatalf("submit %d: %v", index, err)
+		}
+		if index == 5 && !errors.Is(err, ErrAdmissionDeferred) {
+			t.Fatalf("fifth submit err=%v", err)
+		}
 	}
 }

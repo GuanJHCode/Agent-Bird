@@ -93,6 +93,11 @@ type HostReady struct {
 	CoordinatorEpoch uint64 `json:"coordinator_epoch"`
 }
 
+type HostReconciled struct {
+	ProducerID       string `json:"producer_id"`
+	PublishedThrough int64  `json:"published_through"`
+}
+
 // LaunchCommand contains ownership and budget grants only. The source Host
 // retains the invocation and authentication environment locally.
 type LaunchCommand struct {

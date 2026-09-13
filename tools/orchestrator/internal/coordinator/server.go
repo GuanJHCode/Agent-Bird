@@ -15,6 +15,7 @@ import (
 	"codex-cli-orchestration-design/tools/orchestrator/internal/contract"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/instance"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/ipc"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/process"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/store"
 )
 
@@ -417,8 +418,26 @@ func (s *Server) handleHost(ctx context.Context, conn net.Conn, message ipc.Enve
 		_ = conn.Close()
 		return
 	}
+	if binding, bindingErr := s.db.HostBinding(ctx, hello.LaunchID); bindingErr == nil && (binding.PID != hello.PID || binding.Birth != hello.Birth) && binding.Active > 0 {
+		birth, birthErr := process.Birth(binding.PID)
+		if birthErr == nil && birth == binding.Birth {
+			_ = sendError(conn, message.RequestID, s.epoch, store.ErrHostRejected)
+			_ = conn.Close()
+			return
+		}
+		if s.db.AuthorizeHostRebind(context.Background(), hello.LaunchID, binding.PID, binding.Birth) != nil {
+			_ = sendError(conn, message.RequestID, s.epoch, store.ErrHostRejected)
+			_ = conn.Close()
+			return
+		}
+	}
 	hostID, err := s.db.RegisterHost(ctx, hello, s.epoch)
 	if err != nil {
+		_ = sendError(conn, message.RequestID, s.epoch, err)
+		_ = conn.Close()
+		return
+	}
+	if err = s.db.BeginHostReconcile(context.Background(), hostID); err != nil {
 		_ = sendError(conn, message.RequestID, s.epoch, err)
 		_ = conn.Close()
 		return
@@ -442,6 +461,17 @@ func (s *Server) handleHost(ctx context.Context, conn net.Conn, message ipc.Enve
 	}()
 	ready, _ := json.Marshal(contract.HostReady{HostID: hostID, CoordinatorEpoch: s.epoch})
 	if err = session.send(ipc.Envelope{Version: ipc.Version, Kind: ipc.KindHostReady, RequestID: message.RequestID, Epoch: s.epoch, Payload: ready}); err != nil {
+		return
+	}
+	reconciledEnvelope, err := ipc.Read(conn)
+	if err != nil || reconciledEnvelope.Kind != ipc.KindHostReconciled || reconciledEnvelope.Epoch != s.epoch {
+		return
+	}
+	var reconciled contract.HostReconciled
+	if strictJSON(reconciledEnvelope.Payload, &reconciled) != nil || reconciled.ProducerID != hostID {
+		return
+	}
+	if err = s.db.FinishHostReconcile(context.Background(), hostID); err != nil {
 		return
 	}
 	if err = s.dispatch(session, true); err != nil {

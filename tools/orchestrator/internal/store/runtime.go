@@ -21,11 +21,12 @@ const (
 )
 
 const (
-	ErrNoSlot        CodeError = "no_execution_slot"
-	ErrNoReady       CodeError = "no_ready_task"
-	ErrInvalidDAG    CodeError = "invalid_dag"
-	ErrHostRejected  CodeError = "host_rejected"
-	ErrEventSequence CodeError = "event_sequence_conflict"
+	ErrNoSlot            CodeError = "no_execution_slot"
+	ErrNoReady           CodeError = "no_ready_task"
+	ErrInvalidDAG        CodeError = "invalid_dag"
+	ErrHostRejected      CodeError = "host_rejected"
+	ErrEventSequence     CodeError = "event_sequence_conflict"
+	ErrAdmissionDeferred CodeError = "admission_deferred"
 )
 
 type HostLaunchSpec struct {
@@ -47,6 +48,13 @@ type SubmitReceipt struct {
 	LaunchID     string `json:"launch_id"`
 	LaunchToken  string `json:"launch_token"`
 	ControlToken string `json:"control_token"`
+}
+
+type HostBinding struct {
+	HostID string
+	PID    int
+	Birth  string
+	Active int
 }
 
 func (d *DB) ensureRuntimeSchema() error {
@@ -213,6 +221,13 @@ func (d *DB) SubmitPlan(ctx context.Context, p PlanSpec) (SubmitReceipt, error) 
 	}
 	rollback := func(e error) (SubmitReceipt, error) { _ = tx.Rollback(); return SubmitReceipt{}, e }
 	now := time.Now().UTC().Format(time.RFC3339Nano)
+	var activeHosts int
+	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM host_launches WHERE status!='released'`).Scan(&activeHosts); err != nil {
+		return rollback(err)
+	}
+	if activeHosts >= 4 {
+		return rollback(ErrAdmissionDeferred)
+	}
 	if _, err = tx.ExecContext(ctx, `INSERT INTO runs(id,controller_thread,plan_revision,origin_context_id,origin_pid,origin_birth,status,created_at) VALUES(?,?,?,?,?,?,?,?)`, p.Run.ID, p.Run.ControllerThread, p.Run.PlanRevision, p.Run.OriginContextID, p.Run.OriginPID, p.Run.OriginBirth, "queued", now); err != nil {
 		return rollback(mapConflict(err))
 	}
@@ -309,13 +324,13 @@ func (d *DB) RegisterHost(ctx context.Context, hello contract.HostHello, epoch u
 		hostID = hello.LaunchID
 	} else {
 		var pid int
-		var birth string
-		if err = tx.QueryRowContext(ctx, `SELECT pid,birth FROM runtime_hosts WHERE id=?`, hostID).Scan(&pid, &birth); err != nil {
+		var birth, hostStatus string
+		if err = tx.QueryRowContext(ctx, `SELECT pid,birth,status FROM runtime_hosts WHERE id=?`, hostID).Scan(&pid, &birth, &hostStatus); err != nil {
 			return rollback(ErrHostRejected)
 		}
 		if pid != hello.PID || birth != hello.Birth {
 			var active int
-			if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM segment_runtime WHERE host_id=? AND status IN ('launch_requested','prepared','spawned','running','stopping','unknown')`, hostID).Scan(&active); err != nil || active != 0 {
+			if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM segment_runtime WHERE host_id=? AND status IN ('launch_requested','prepared','spawned','running','stopping','unknown')`, hostID).Scan(&active); err != nil || (active != 0 && hostStatus != "reconcile_authorized") {
 				return rollback(ErrHostRejected)
 			}
 		}
@@ -331,6 +346,63 @@ func (d *DB) RegisterHost(ctx context.Context, hello contract.HostHello, epoch u
 		return "", err
 	}
 	return hostID, nil
+}
+
+func (d *DB) HostBinding(ctx context.Context, launchID string) (HostBinding, error) {
+	var binding HostBinding
+	err := d.sql.QueryRowContext(ctx, `SELECT h.id,h.pid,h.birth,(SELECT COUNT(*) FROM segment_runtime s WHERE s.host_id=h.id AND s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown')) FROM runtime_hosts h WHERE h.launch_id=?`, launchID).Scan(&binding.HostID, &binding.PID, &binding.Birth, &binding.Active)
+	if errors.Is(err, sql.ErrNoRows) {
+		return binding, ErrNotFound
+	}
+	return binding, err
+}
+
+func (d *DB) AuthorizeHostRebind(ctx context.Context, launchID string, pid int, birth string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	result, err := d.sql.ExecContext(ctx, `UPDATE runtime_hosts SET status='reconcile_authorized',updated_at=? WHERE launch_id=? AND pid=? AND birth=? AND status='offline'`, time.Now().UTC().Format(time.RFC3339Nano), launchID, pid, birth)
+	if err != nil {
+		return err
+	}
+	changed, _ := result.RowsAffected()
+	if changed != 1 {
+		return ErrHostRejected
+	}
+	return nil
+}
+
+func (d *DB) BeginHostReconcile(ctx context.Context, hostID string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	tx, err := d.sql.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	rollback := func(e error) error { _ = tx.Rollback(); return e }
+	if _, err = tx.ExecContext(ctx, `UPDATE runtime_hosts SET status='reconciling' WHERE id=?`, hostID); err != nil {
+		return rollback(err)
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE host_launches SET status='reconciling' WHERE host_id=?`, hostID); err != nil {
+		return rollback(err)
+	}
+	return tx.Commit()
+}
+
+func (d *DB) FinishHostReconcile(ctx context.Context, hostID string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	tx, err := d.sql.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	rollback := func(e error) error { _ = tx.Rollback(); return e }
+	if _, err = tx.ExecContext(ctx, `UPDATE runtime_hosts SET status='ready' WHERE id=? AND status='reconciling'`, hostID); err != nil {
+		return rollback(err)
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE host_launches SET status='ready' WHERE host_id=?`, hostID); err != nil {
+		return rollback(err)
+	}
+	return tx.Commit()
 }
 
 func (d *DB) HostLaunchStatus(ctx context.Context, launchID, token string) (string, error) {
@@ -589,13 +661,27 @@ func (d *DB) CommitHostEvent(ctx context.Context, event contract.Event) (contrac
 func applyEvent(ctx context.Context, tx *sql.Tx, event contract.Event) error {
 	switch event.Kind {
 	case contract.EventPrepared, contract.EventSpawned, contract.EventRunning:
-		if _, err := tx.ExecContext(ctx, `UPDATE segment_runtime SET status=? WHERE segment_id=?`, event.Kind, event.SegmentID); err != nil {
+		allowed := ""
+		switch event.Kind {
+		case contract.EventPrepared:
+			allowed = "launch_requested,prepared"
+		case contract.EventSpawned:
+			allowed = "prepared,spawned"
+		case contract.EventRunning:
+			allowed = "spawned,running"
+		}
+		result, err := tx.ExecContext(ctx, `UPDATE segment_runtime SET status=? WHERE segment_id=? AND instr(?,status)>0 AND status!='exited'`, event.Kind, event.SegmentID, allowed)
+		if err != nil {
 			return err
 		}
-		_, err := tx.ExecContext(ctx, `UPDATE segments SET status=? WHERE id=?`, event.Kind, event.SegmentID)
+		changed, _ := result.RowsAffected()
+		if changed == 0 {
+			return nil
+		}
+		_, err = tx.ExecContext(ctx, `UPDATE segments SET status=? WHERE id=?`, event.Kind, event.SegmentID)
 		return err
 	case contract.EventQuestion, contract.EventResult, contract.EventStopped, contract.EventFailed:
-		_, err := tx.ExecContext(ctx, `UPDATE segment_runtime SET outcome=? WHERE segment_id=? AND (outcome='' OR outcome=?)`, event.Kind, event.SegmentID, event.Kind)
+		_, err := tx.ExecContext(ctx, `UPDATE segment_runtime SET outcome=? WHERE segment_id=? AND status!='exited' AND (outcome='' OR outcome=?)`, event.Kind, event.SegmentID, event.Kind)
 		if err == nil && event.Kind == contract.EventStopped {
 			_, err = tx.ExecContext(ctx, `UPDATE stop_runtime SET status='accepted' WHERE segment_id=?`, event.SegmentID)
 		}
@@ -625,10 +711,13 @@ func applyEvent(ctx context.Context, tx *sql.Tx, event contract.Event) error {
 }
 
 func applyExit(ctx context.Context, tx *sql.Tx, event contract.Event) error {
-	var outcome, reservation string
+	var outcome, reservation, segmentStatus string
 	var grant int64
-	if err := tx.QueryRowContext(ctx, `SELECT outcome,reservation_id,(SELECT granted_ms FROM budget_runtime WHERE id=segment_runtime.reservation_id) FROM segment_runtime WHERE segment_id=?`, event.SegmentID).Scan(&outcome, &reservation, &grant); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT outcome,reservation_id,status,(SELECT granted_ms FROM budget_runtime WHERE id=segment_runtime.reservation_id) FROM segment_runtime WHERE segment_id=?`, event.SegmentID).Scan(&outcome, &reservation, &segmentStatus, &grant); err != nil {
 		return err
+	}
+	if segmentStatus == "exited" {
+		return nil
 	}
 	used := event.ActiveMS
 	if used < 0 {
@@ -853,7 +942,7 @@ func (d *DB) CompletelyIdle(ctx context.Context) (bool, error) {
 
 func (d *DB) RetirableHosts(ctx context.Context) ([]string, error) {
 	rows, err := d.sql.QueryContext(ctx, `SELECT h.id FROM runtime_hosts h WHERE h.status='ready'
- AND NOT EXISTS (SELECT 1 FROM task_runtime r JOIN tasks t ON t.id=r.task_id WHERE r.host_launch_id=h.launch_id AND t.status NOT IN ('completed','cancelled','failed','budget_exhausted'))
+ AND NOT EXISTS (SELECT 1 FROM task_runtime r JOIN tasks t ON t.id=r.task_id WHERE r.host_launch_id=h.launch_id AND t.status NOT IN ('completed','cancelled','failed','budget_exhausted','blocked_dependency'))
  AND NOT EXISTS (SELECT 1 FROM runtime_events e JOIN attempts a ON a.id=e.attempt_id JOIN task_runtime r ON r.task_id=a.task_id WHERE r.host_launch_id=h.launch_id AND e.delivery_status='pending')
  ORDER BY h.id`)
 	if err != nil {
