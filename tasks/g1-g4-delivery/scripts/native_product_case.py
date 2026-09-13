@@ -28,6 +28,7 @@ for relative in (
     sys.path.insert(0, str(ROOT / relative))
 
 import global_delivery_case as g  # noqa: E402
+import native_resource_sampler as resource_sampler  # noqa: E402
 import native_tui_session as tui_session  # noqa: E402
 from auth_isolation import IsolationSpec, build_clean_environment, snapshot_auth_paths  # noqa: E402
 from synthetic_native_fixture import prepare  # noqa: E402
@@ -59,6 +60,12 @@ class Timeline:
         self.path = Path(path)
         self.fd = os.open(
             self.path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600
+        )
+        self.samples_path = self.path.with_name("resource-samples.jsonl")
+        self.samples_fd = os.open(
+            self.samples_path,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+            0o600,
         )
         self.pids = set()
 
@@ -98,8 +105,28 @@ class Timeline:
         )
         os.fsync(self.fd)
 
+    def sample(self, milestone, members):
+        row = resource_sampler.sample_set(
+            members,
+            identity_probe=g.base.peer_for_process,
+            report_rusage=[],
+        )
+        row.update(
+            milestone=milestone,
+            sample_kind="same-timeline diagnostic frame",
+            report_helper_calls=0,
+            report_rusage_reason="native product case does not invoke report helpers",
+        )
+        os.write(
+            self.samples_fd,
+            json.dumps(row, sort_keys=True, separators=(",", ":")).encode() + b"\n",
+        )
+        os.fsync(self.samples_fd)
+        return row
+
     def close(self, pid_path):
         os.close(self.fd)
+        os.close(self.samples_fd)
         fd = os.open(
             pid_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600
         )
@@ -755,6 +782,26 @@ async def execute(static, _plan_path, plan_sha):
         old_worker = g.base.peer_for_process(running["process"]["pid"])
         g.require(old_worker["birth"] == running["process"]["birth"], "worker receipt")
         timeline.add("g1-worker-old", old_worker, "status.process", "running")
+        stage = "resource-sample-initial"
+        initial_resource_sample = timeline.sample(
+            "initial-running",
+            [
+                {"role": "g0-service", "identity": service_peer,
+                 "evidence": "service-start receipt"},
+                {"role": "bridge-launcher", "identity": bridge["launcher_peer"],
+                 "evidence": "initial driver launcher receipt"},
+                {"role": "bridge-helper", "identity": bridge["driver_peer"],
+                 "evidence": "initial helper-ready receipt"},
+                {"role": "g1-coordinator", "identity": coordinator_peer,
+                 "evidence": "coordinator.pid"},
+                {"role": "g1-source-host", "identity": old_host,
+                 "evidence": "status.host_pid/host_birth"},
+            ],
+        )
+        g.require(
+            initial_resource_sample["product_rss_kib_upper_bound"] <= 128 * 1024,
+            "initial product RSS exceeds 128 MiB",
+        )
         stage = "owner-exit"
         await first.quit(min(total, g.now() + 8))
         await first.cleanup(min(total, g.now() + 3))
@@ -963,6 +1010,26 @@ async def execute(static, _plan_path, plan_sha):
             "new worker receipt",
         )
         timeline.add("g1-worker-new", new_worker, "status.process", "resumed-running")
+        stage = "resource-sample-rebound"
+        rebound_resource_sample = timeline.sample(
+            "rebound-running",
+            [
+                {"role": "g0-service", "identity": service_peer,
+                 "evidence": "service-start receipt"},
+                {"role": "bridge-launcher", "identity": bridge2["launcher_peer"],
+                 "evidence": "rebound driver launcher receipt"},
+                {"role": "bridge-helper", "identity": bridge2["driver_peer"],
+                 "evidence": "rebound helper-ready receipt"},
+                {"role": "g1-coordinator", "identity": coordinator_peer,
+                 "evidence": "coordinator.pid"},
+                {"role": "g1-source-host", "identity": new_host,
+                 "evidence": "status.host_pid/host_birth"},
+            ],
+        )
+        g.require(
+            rebound_resource_sample["product_rss_kib_upper_bound"] <= 128 * 1024,
+            "rebound product RSS exceeds 128 MiB",
+        )
         result_ready = await wait_status(
             runtime,
             prepared,
@@ -1114,6 +1181,8 @@ async def execute(static, _plan_path, plan_sha):
             typed_ack=ack,
             final_status=final_status,
             bridge_status=completed_driver,
+            resource_samples=[initial_resource_sample, rebound_resource_sample],
+            same_timeline_rss_under_128_mib=True,
             resume_zero_turns=True,
             owner_pid_changed=True,
             origin_context_preserved=True,
@@ -1216,6 +1285,9 @@ async def execute(static, _plan_path, plan_sha):
                 "source_host_stopped_on_owner_exit", False
             ),
             "typed_ack_verified": result.get("typed_ack_verified", False),
+            "same_timeline_rss_under_128_mib": result.get(
+                "same_timeline_rss_under_128_mib", False
+            ),
             "public_socket_absent": result["cleanup"]["public_socket_absent"],
             "synthetic_auth_absent": result["cleanup"]["synthetic_auth_absent"],
             "failure": result.get("failure"),
@@ -1233,6 +1305,7 @@ async def execute(static, _plan_path, plan_sha):
                         "origin_context_preserved",
                         "source_host_stopped_on_owner_exit",
                         "typed_ack_verified",
+                        "same_timeline_rss_under_128_mib",
                         "public_socket_absent",
                         "synthetic_auth_absent",
                     )
@@ -1253,6 +1326,7 @@ async def execute(static, _plan_path, plan_sha):
         if runtime is not None:
             for name in (
                 "resource-identities.jsonl",
+                "resource-samples.jsonl",
                 "resource-pids.txt",
                 "service.json",
                 "plan.json",

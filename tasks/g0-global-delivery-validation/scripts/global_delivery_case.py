@@ -32,7 +32,7 @@ def source_pins(native_tui_policy=None):
         ROOT/'tasks/g0-proxy-continuation/cold-start/scripts/launch_activation.py',ROOT/'tasks/g0-completion/scripts/native_delivery_client.py',
         Path(transaction_module.__file__).resolve(),ROOT/'tasks/g0-auth-preserving-activation/scripts/native_activation_fixture.py']
     if base.activation_service.native_tui_policy(native_tui_policy) is not None:
-        paths += [ROOT/'tasks/g1-g4-delivery/scripts'/name for name in ('native_tui_case.py','native_tui_session.py')]
+        paths += [ROOT/'tasks/g1-g4-delivery/scripts'/name for name in ('native_tui_case.py','native_tui_session.py','native_resource_sampler.py')]
         paths += [ROOT/'tasks/g0-auth-preserving-activation/scripts/native_activation_probe.py',ROOT/'tasks/g0-tui-proxy/scripts/proxy_native_runtime.py']
     return {**pins,**{str(p):sha(p) for p in paths}}
 
