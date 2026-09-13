@@ -58,6 +58,7 @@ func TestCLIStartsServiceSourceHostAndCollectsDurableResult(t *testing.T) {
 			map[string]any{"id": "task-b", "max_attempts": 3, "completion_policy": "exit_success_fixture", "adapter": map[string]any{"kind": "fake", "args": []string{"/bin/sleep", "0.2"}, "directory": root}},
 			map[string]any{"id": "task-c", "dependencies": []string{"task-a", "task-b"}, "max_attempts": 3, "completion_policy": "exit_success_fixture", "adapter": map[string]any{"kind": "fake", "args": []string{"/bin/sleep", "0.2"}, "directory": root}},
 			map[string]any{"id": "task-d", "max_attempts": 3, "completion_policy": "exit_success_fixture", "adapter": map[string]any{"kind": "fake", "args": []string{"/bin/sh", "-c", "if [ -e " + filepath.Join(root, "resume-marker") + " ]; then exit 0; else : > " + filepath.Join(root, "resume-marker") + "; sleep 30; fi"}, "directory": root}},
+			map[string]any{"id": "task-e", "max_attempts": 2, "completion_policy": "exit_success_fixture", "adapter": map[string]any{"kind": "fake", "args": []string{"/bin/sh", "-c", "sleep 0.1; exit 7"}, "directory": root}, "fallbacks": []any{map[string]any{"kind": "fake", "args": []string{"/bin/sleep", "0.1"}, "directory": root}}},
 		},
 	}
 	data, _ := json.Marshal(request)
@@ -121,6 +122,29 @@ func TestCLIStartsServiceSourceHostAndCollectsDurableResult(t *testing.T) {
 			t.Fatal(err)
 		}
 		runBinary(t, ctx, bin, "ack", "--state-dir", state, "--request", ackPath)
+	}
+	for {
+		status := taskStatus(t, ctx, bin, state, "task-e", submitted.ControlFile)
+		if status.Status == "failed" {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatalf("task-e primary did not fail: %#v", status)
+		case <-time.After(20 * time.Millisecond):
+		}
+	}
+	runBinary(t, ctx, bin, "retry", "--state-dir", state, "--task-id", "task-e", "--work-revision", "1", "--control-file", submitted.ControlFile, "--use-next-fallback")
+	for {
+		status := taskStatus(t, ctx, bin, state, "task-e", submitted.ControlFile)
+		if status.Status == "completed" {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatalf("task-e fallback did not complete: %#v", status)
+		case <-time.After(20 * time.Millisecond):
+		}
 	}
 
 	beforeRestart := taskStatus(t, ctx, bin, state, "task-d", submitted.ControlFile)
@@ -512,6 +536,88 @@ func TestCLIWorkerReportUsesSegmentCapability(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("durable worker report missing: %#v", collection.Events)
+	}
+}
+
+func TestCLIOwnerExitRequiresVerifiedRebindBeforeResume(t *testing.T) {
+	root, err := os.MkdirTemp("/tmp", "g1-rebind-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(root) })
+	state, bin := filepath.Join(root, "state"), filepath.Join(root, "orchestrator")
+	t.Cleanup(func() {
+		if _, statErr := os.Stat(filepath.Join(state, "coordinator.pid")); statErr == nil {
+			stopCoordinator(t, state)
+		}
+	})
+	build := exec.Command("go", "build", "-o", bin, ".")
+	build.Env = os.Environ()
+	if output, buildErr := build.CombinedOutput(); buildErr != nil {
+		t.Fatalf("build: %v\n%s", buildErr, output)
+	}
+	owner := exec.Command("/bin/sleep", "1")
+	if err = owner.Start(); err != nil {
+		t.Fatal(err)
+	}
+	oldPID := owner.Process.Pid
+	oldBirth, err := process.Birth(oldPID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	marker := filepath.Join(root, "marker")
+	requestPath := filepath.Join(root, "submit.json")
+	body, _ := json.Marshal(map[string]any{"run_id": "rebind-run", "controller_thread": "rebind-thread", "plan_revision": 1, "origin_context_id": "rebind-origin", "origin_pid": oldPID, "origin_birth": oldBirth, "host_generation": "generation-00000001", "tasks": []any{map[string]any{"id": "rebind-task", "max_attempts": 3, "completion_policy": "exit_success_fixture", "adapter": map[string]any{"kind": "fake", "args": []string{"/bin/sh", "-c", "if [ -e " + marker + " ]; then exit 0; else : > " + marker + "; sleep 30; fi"}, "directory": root}}}})
+	if err = os.WriteFile(requestPath, body, 0600); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	var submitted struct {
+		ControlFile string `json:"control_file"`
+	}
+	if err = json.Unmarshal(runBinary(t, ctx, bin, "submit", "--state-dir", state, "--request", requestPath), &submitted); err != nil {
+		t.Fatal(err)
+	}
+	_ = owner.Wait()
+	for {
+		status := taskStatus(t, ctx, bin, state, "rebind-task", submitted.ControlFile)
+		if status.Status == "interrupted" {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatalf("owner exit did not interrupt task: %#v", status)
+		case <-time.After(20 * time.Millisecond):
+		}
+	}
+	newBirth, err := process.Birth(os.Getpid())
+	if err != nil {
+		t.Fatal(err)
+	}
+	proof := strings.Repeat("b", 64)
+	ownerCapability := filepath.Join(root, "owner.json")
+	ownerBody, _ := json.Marshal(map[string]any{"version": 1, "path": ownerCapability, "controller_thread_id": "rebind-thread", "origin_context_id": "rebind-origin", "origin_pid": os.Getpid(), "origin_birth": newBirth, "host_generation": "generation-00000002", "generation_number": 2, "attachment_proof_sha256": proof, "lease_id": "lease-2", "activation_id": "activation-2"})
+	if err = os.WriteFile(ownerCapability, ownerBody, 0600); err != nil {
+		t.Fatal(err)
+	}
+	rebindPath := filepath.Join(root, "rebind.json")
+	rebindBody, _ := json.Marshal(map[string]any{"version": 1, "owner_capability": ownerCapability, "control_file": submitted.ControlFile, "controller_thread": "rebind-thread", "origin_context_id": "rebind-origin", "origin_pid": os.Getpid(), "origin_birth": newBirth, "host_generation": "generation-00000002", "attachment_proof_sha256": proof})
+	if err = os.WriteFile(rebindPath, rebindBody, 0600); err != nil {
+		t.Fatal(err)
+	}
+	runBinary(t, ctx, bin, "rebind-owner", "--state-dir", state, "--request", rebindPath)
+	runBinary(t, ctx, bin, "resume", "--state-dir", state, "--task-id", "rebind-task", "--work-revision", "1", "--control-file", submitted.ControlFile)
+	for {
+		status := taskStatus(t, ctx, bin, state, "rebind-task", submitted.ControlFile)
+		if status.Status == "completed" {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatalf("rebound task did not resume: %#v", status)
+		case <-time.After(20 * time.Millisecond):
+		}
 	}
 }
 

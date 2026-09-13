@@ -110,7 +110,16 @@ func requestFile(args []string) (string, error) {
 }
 
 func runNativeBridge(ctx context.Context, args []string, stdout, stderr io.Writer) error {
-	path, err := requestFile(args)
+	if len(args) == 0 {
+		return codeError("invalid_args")
+	}
+	if args[0] == "rebind" {
+		return rebindOwner(ctx, args[1:], stdout)
+	}
+	if args[0] != "helper" {
+		return codeError("invalid_args")
+	}
+	path, err := requestFile(args[1:])
 	if err != nil {
 		return err
 	}
@@ -228,6 +237,16 @@ func submit(ctx context.Context, args []string, stdout io.Writer) error {
 	if request.HostGeneration == "" || len(request.Tasks) == 0 {
 		return codeError("invalid_submit")
 	}
+	if request.OwnerCapability == "" {
+		if os.Getenv("ORCHESTRATOR_ENABLE_TEST_FAKE") != "1" {
+			return codeError("owner_capability_required")
+		}
+	} else {
+		owner, verifyErr := nativebridgecli.VerifyOwnerCapability(request.OwnerCapability)
+		if verifyErr != nil || owner.ControllerThread != request.ControllerThread || owner.OriginContextID != request.OriginContextID || owner.OriginPID != request.OriginPID || owner.OriginBirth != request.OriginBirth || owner.HostGeneration != request.HostGeneration {
+			return codeError("owner_capability_mismatch")
+		}
+	}
 	originBirth, err := process.Birth(request.OriginPID)
 	if err != nil || originBirth != request.OriginBirth {
 		return codeError("origin_identity_mismatch")
@@ -280,10 +299,13 @@ func submit(ctx context.Context, args []string, stdout io.Writer) error {
 			for _, taskID := range pinned {
 				_ = install.UnpinRunningVersion(executable, taskID)
 			}
+			_ = os.Remove(controlPath)
+			_ = os.Remove(bootstrapPath)
+			return err
 		}
-		_ = os.Remove(controlPath)
-		_ = os.Remove(bootstrapPath)
-		return err
+		_ = startSourceHost(executable, state, bootstrapPath)
+		_ = json.NewEncoder(stdout).Encode(map[string]any{"version": 1, "status": "submit_uncertain", "run_id": request.RunID, "control_file": controlPath})
+		return codeError("submit_uncertain")
 	}
 	var receipt coordinator.SubmitResponse
 	if err = decode(response.Payload, &receipt); err != nil || receipt.LaunchID != launchID || receipt.LaunchToken != launchToken || receipt.ControlToken != controlToken {

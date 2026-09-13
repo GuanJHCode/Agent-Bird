@@ -41,6 +41,7 @@ type SubmitRequest struct {
 	OriginPID        int           `json:"origin_pid"`
 	OriginBirth      string        `json:"origin_birth"`
 	HostGeneration   string        `json:"host_generation"`
+	OwnerCapability  string        `json:"owner_capability,omitempty"`
 	HostExecutable   string        `json:"host_executable"`
 	Tasks            []TaskRequest `json:"tasks"`
 	LaunchID         string        `json:"launch_id,omitempty"`
@@ -489,6 +490,7 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 			return nil, err
 		}
 		s.dispatchAll()
+		s.releaseTaskPins()
 		return json.Marshal(StatusResponse{Status: status})
 	case ipc.KindAnswer:
 		var request AnswerRequest
@@ -546,6 +548,7 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 			return nil, err
 		}
 		if dispatch.HostID == "" {
+			s.releaseTaskPins()
 			return json.Marshal(StatusResponse{Status: "cancelled"})
 		}
 		s.mu.Lock()

@@ -39,6 +39,11 @@ func (h *Host) prepareReportCapability(ctx context.Context, cfg SourceConfig, gr
 	path := filepath.Join(dir, "capability.json")
 	var capability reportCapabilityFile
 	if body, err := os.ReadFile(path); err == nil {
+		info, statErr := os.Lstat(path)
+		stat, ok := infoSyscall(info)
+		if statErr != nil || !ok || !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 || info.Mode().Perm() != 0600 || stat.Uid != uint32(os.Geteuid()) || stat.Nlink != 1 {
+			return "", errors.New("report_capability_unsafe")
+		}
 		if decodePayload(body, &capability) != nil {
 			return "", errors.New("report_capability_unsafe")
 		}
@@ -63,6 +68,14 @@ func (h *Host) prepareReportCapability(ctx context.Context, cfg SourceConfig, gr
 		return "", err
 	}
 	return path, nil
+}
+
+func infoSyscall(info os.FileInfo) (*syscall.Stat_t, bool) {
+	if info == nil {
+		return nil, false
+	}
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	return stat, ok
 }
 
 func ensurePrivateReportDir(path string) error {

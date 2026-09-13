@@ -206,6 +206,7 @@ func validatePlan(p PlanSpec) error {
 		return ErrInvalidDAG
 	}
 	byID := make(map[string]TaskSpec, len(p.Tasks))
+	groupAttempts := make(map[string]int)
 	for _, task := range p.Tasks {
 		if task.ID == "" || task.RunID != p.Run.ID || task.MaxAttempts < 1 || task.MaxAttempts > 3 {
 			return ErrInvalidDAG
@@ -235,6 +236,14 @@ func validatePlan(p PlanSpec) error {
 				return ErrInvalidDAG
 			}
 		}
+		group := task.BudgetGroupID
+		if group == "" {
+			group = task.ID
+		}
+		if existing, ok := groupAttempts[group]; ok && existing != task.MaxAttempts {
+			return ErrInvalidDAG
+		}
+		groupAttempts[group] = task.MaxAttempts
 		byID[task.ID] = task
 	}
 	state := make(map[string]uint8, len(byID))
@@ -1176,31 +1185,6 @@ func (d *DB) AnswerQuestion(ctx context.Context, spec AnswerSpec) (string, error
 	return "resume_queued", nil
 }
 
-func (d *DB) AcceptResult(ctx context.Context, taskID string, workRevision int) error {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	rollback := func(e error) error { _ = tx.Rollback(); return e }
-	var status string
-	var revision int
-	if err = tx.QueryRowContext(ctx, `SELECT t.status,r.work_revision FROM tasks t JOIN task_runtime r ON r.task_id=t.id WHERE t.id=?`, taskID).Scan(&status, &revision); err != nil {
-		return rollback(ErrNotFound)
-	}
-	if status != "result_ready" || revision != workRevision {
-		return rollback(ErrConflict)
-	}
-	if _, err = tx.ExecContext(ctx, `UPDATE tasks SET status='completed' WHERE id=?`, taskID); err != nil {
-		return rollback(err)
-	}
-	if err = releaseReady(ctx, tx); err != nil {
-		return rollback(err)
-	}
-	return tx.Commit()
-}
-
 type ReviewSpec struct {
 	TaskID        string
 	WorkRevision  int
@@ -1360,7 +1344,7 @@ func (d *DB) ReleasableTasks(ctx context.Context) ([]ReleasableTask, error) {
 	rows, err := d.sql.QueryContext(ctx, `SELECT t.id,h.executable FROM tasks t
 	 JOIN task_runtime r ON r.task_id=t.id JOIN host_launches h ON h.id=r.host_launch_id
 	 WHERE (t.status IN ('completed','cancelled','budget_exhausted','blocked_dependency')
-	        OR (t.status='failed' AND (SELECT COUNT(*) FROM attempts a WHERE a.task_id=t.id) >= t.max_attempts))
+	        OR (t.status='failed' AND (SELECT COUNT(*) FROM attempts a JOIN task_runtime ar ON ar.task_id=a.task_id WHERE ar.budget_group_id=r.budget_group_id) >= MIN(t.max_attempts,3)))
 	 AND NOT EXISTS (SELECT 1 FROM segment_runtime s JOIN attempts a ON a.id=s.attempt_id WHERE a.task_id=t.id AND s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown'))
 	 AND NOT EXISTS (SELECT 1 FROM runtime_events e WHERE e.task_id=t.id AND e.delivery_status='pending')
 	 AND NOT EXISTS (SELECT 1 FROM report_events e JOIN report_capabilities c ON c.capability_id=e.capability_id WHERE c.task_id=t.id AND e.delivery_status='pending')
@@ -1404,6 +1388,7 @@ func (d *DB) CompletelyIdle(ctx context.Context) (bool, error) {
  (SELECT COUNT(*) FROM segment_runtime WHERE status IN ('launch_requested','prepared','spawned','running','stopping','unknown')) +
  (SELECT COUNT(*) FROM tasks WHERE status IN ('queued','ready','resume_queued','running','stopping','unknown','waiting_question','interrupted','result_ready')) +
  (SELECT COUNT(*) FROM runtime_events WHERE delivery_status='pending') +
+ (SELECT COUNT(*) FROM report_events WHERE delivery_status='pending') +
  (SELECT COUNT(*) FROM stop_runtime WHERE status IN ('pending','accepted')) +
  (SELECT COUNT(*) FROM runtime_hosts WHERE status='ready')`).Scan(&count)
 	return count == 0, err
@@ -1573,7 +1558,12 @@ func (d *DB) RegisterReportCapability(ctx context.Context, registration contract
 		if tokenHash != strings.ToLower(registration.TokenHash) || capabilityDir != registration.CapabilityDir {
 			return rollback(ErrConflict)
 		}
-		_ = tx.Rollback()
+		if _, err = tx.ExecContext(ctx, `UPDATE report_capabilities SET execution_epoch=? WHERE capability_id=?`, registration.ExecutionEpoch, registration.CapabilityID); err != nil {
+			return rollback(err)
+		}
+		if err = tx.Commit(); err != nil {
+			return contract.DurableAck{}, err
+		}
 		return contract.DurableAck{ProducerID: producerID, EventID: registration.CapabilityID, PayloadHash: tokenHash, Status: "durable"}, nil
 	}
 	if status != "pending" {
@@ -1625,7 +1615,9 @@ func (d *DB) CommitReportEvent(ctx context.Context, spec ReportEventSpec) (contr
 	var revision int
 	var epoch uint64
 	var used int64
-	if err = tx.QueryRowContext(ctx, `SELECT token_hash,capability_dir,run_id,task_id,attempt_id,segment_id,producer_id,work_revision,execution_epoch,status,used_bytes FROM report_capabilities WHERE capability_id=?`, spec.CapabilityID).Scan(&tokenHash, &capabilityDir, &runID, &taskID, &attemptID, &segmentID, &producerID, &revision, &epoch, &status, &used); err != nil || status != "registered" || subtle.ConstantTimeCompare([]byte(tokenHash), []byte(runtimeHash(spec.Token))) != 1 {
+	var hostEpoch uint64
+	var hostStatus string
+	if err = tx.QueryRowContext(ctx, `SELECT c.token_hash,c.capability_dir,c.run_id,c.task_id,c.attempt_id,c.segment_id,c.producer_id,c.work_revision,c.execution_epoch,c.status,c.used_bytes,h.coordinator_epoch,h.status FROM report_capabilities c JOIN runtime_hosts h ON h.id=c.producer_id WHERE c.capability_id=?`, spec.CapabilityID).Scan(&tokenHash, &capabilityDir, &runID, &taskID, &attemptID, &segmentID, &producerID, &revision, &epoch, &status, &used, &hostEpoch, &hostStatus); err != nil || status != "registered" || hostStatus != "ready" || hostEpoch != epoch || subtle.ConstantTimeCompare([]byte(tokenHash), []byte(runtimeHash(spec.Token))) != 1 {
 		return rollback(CodeError("report_capability_rejected"))
 	}
 	payloadHash := runtimeHash(string(spec.Payload))
@@ -1649,7 +1641,11 @@ func (d *DB) CommitReportEvent(ctx context.Context, spec ReportEventSpec) (contr
 	}
 	event.Version, event.ProducerID, event.EventID = 1, spec.CapabilityID, spec.EventID
 	event.RunID, event.TaskID, event.AttemptID, event.SegmentID = runID, taskID, attemptID, segmentID
-	event.WorkRevision, event.ExecutionEpoch, event.Sequence, event.Kind, event.PayloadHash = revision, epoch, spec.Sequence, spec.Kind, payloadHash
+	eventKind := spec.Kind
+	if eventKind == "failure" {
+		eventKind = contract.EventFailed
+	}
+	event.WorkRevision, event.ExecutionEpoch, event.Sequence, event.Kind, event.PayloadHash = revision, epoch, spec.Sequence, eventKind, payloadHash
 	body, _ := json.Marshal(event)
 	if err = d.storageAdmission(ctx, tx, runID, int64(len(body))); err != nil {
 		return rollback(err)
@@ -1954,15 +1950,19 @@ func (d *DB) RebindOwner(ctx context.Context, spec RebindOwnerSpec) error {
 }
 
 type TaskSnapshot struct {
-	TaskID           string `json:"task_id"`
-	RunID            string `json:"run_id"`
-	Status           string `json:"status"`
-	WorkRevision     int    `json:"work_revision"`
-	AttemptID        string `json:"attempt_id,omitempty"`
-	SegmentID        string `json:"segment_id,omitempty"`
-	SegmentStatus    string `json:"segment_status,omitempty"`
-	QuestionID       string `json:"question_id,omitempty"`
-	QuestionRevision int    `json:"question_revision,omitempty"`
+	TaskID           string                    `json:"task_id"`
+	RunID            string                    `json:"run_id"`
+	Status           string                    `json:"status"`
+	WorkRevision     int                       `json:"work_revision"`
+	AttemptID        string                    `json:"attempt_id,omitempty"`
+	SegmentID        string                    `json:"segment_id,omitempty"`
+	SegmentStatus    string                    `json:"segment_status,omitempty"`
+	QuestionID       string                    `json:"question_id,omitempty"`
+	QuestionRevision int                       `json:"question_revision,omitempty"`
+	HostPID          int                       `json:"host_pid,omitempty"`
+	HostBirth        string                    `json:"host_birth,omitempty"`
+	HostStatus       string                    `json:"host_status,omitempty"`
+	Process          *contract.ProcessIdentity `json:"process,omitempty"`
 }
 
 func (d *DB) TaskSnapshot(ctx context.Context, taskID string) (TaskSnapshot, error) {
@@ -1976,6 +1976,21 @@ func (d *DB) TaskSnapshot(ctx context.Context, taskID string) (TaskSnapshot, err
 		return snapshot, err
 	}
 	snapshot.AttemptID, snapshot.SegmentID, snapshot.SegmentStatus = attempt.String, segment.String, segmentStatus.String
+	_ = d.sql.QueryRowContext(ctx, `SELECT h.pid,h.birth,h.status FROM task_runtime r JOIN host_launches l ON l.id=r.host_launch_id LEFT JOIN runtime_hosts h ON h.launch_id=l.id WHERE r.task_id=?`, taskID).Scan(&snapshot.HostPID, &snapshot.HostBirth, &snapshot.HostStatus)
+	if snapshot.SegmentID != "" {
+		rows, queryErr := d.sql.QueryContext(ctx, `SELECT body_json FROM runtime_events WHERE segment_id=? ORDER BY sequence DESC`, snapshot.SegmentID)
+		if queryErr == nil {
+			for rows.Next() {
+				var body string
+				var event contract.Event
+				if rows.Scan(&body) == nil && json.Unmarshal([]byte(body), &event) == nil && event.Process != nil {
+					snapshot.Process = event.Process
+					break
+				}
+			}
+			_ = rows.Close()
+		}
+	}
 	if snapshot.Status == "waiting_question" || snapshot.Status == "resume_queued" || snapshot.Status == "running" {
 		_ = d.sql.QueryRowContext(ctx, `SELECT question_id,question_revision FROM runtime_questions WHERE task_id=? AND status IN ('open','resume_queued','resume_started') ORDER BY question_revision DESC LIMIT 1`, taskID).Scan(&snapshot.QuestionID, &snapshot.QuestionRevision)
 	}
