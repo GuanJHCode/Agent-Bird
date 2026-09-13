@@ -1,0 +1,214 @@
+"""Narrow Go-batch to owner-helper delivery adapter.
+
+This module owns no native/backend process.  It verifies the real Go batch
+artifacts, maps them to the owner-helper wire envelope, and keeps transport
+observation separate from business ACK publication.
+"""
+from __future__ import annotations
+
+import asyncio
+from dataclasses import dataclass
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import subprocess
+from typing import Any, Mapping
+
+SCRIPT_ROOT = Path(__file__).resolve().parents[2]
+AUDIT_ROOT = SCRIPT_ROOT / "g0-pending-resolution" / "scripts"
+import sys
+if str(AUDIT_ROOT) not in sys.path:
+    sys.path.insert(0, str(AUDIT_ROOT))
+from delivery_audit import audit as audit_history  # type: ignore  # noqa: E402
+
+_SAFE = re.compile(r"^[A-Za-z0-9_-]{1,64}$\Z")
+_HASH = re.compile(r"^[0-9a-f]{64}\Z")
+_DECISIONS = {"handled", "waiting_user", "stale", "rejected"}
+
+
+class DeliveryError(ValueError):
+    """Stable adapter rejection; arbitrary subprocess text is not retained."""
+
+
+@dataclass(frozen=True)
+class DeliveryBinding:
+    profile_id: str
+    owner_thread_id: str
+    owner_epoch: int
+    nonce: str
+    revision: int
+
+
+def _canonical(value: object) -> str:
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+
+def _safe(value: object) -> bool:
+    return type(value) is str and _SAFE.fullmatch(value) is not None
+
+
+def _hash(value: object) -> bool:
+    return type(value) is str and _HASH.fullmatch(value) is not None
+
+
+def _require(condition: bool, code: str) -> None:
+    if not condition:
+        raise DeliveryError(code)
+
+
+def _event_shape(event: object) -> None:
+    _require(isinstance(event, dict) and set(event) == {"event_id", "event_revision", "kind", "payload_hash", "action_slot"}, "event_shape")
+    _require(_safe(event["event_id"]) and type(event["event_revision"]) is int and 1 <= event["event_revision"] <= 1_000_000, "event_identity")
+    _require(event["kind"] in {"progress", "question", "result"} and _hash(event["payload_hash"]) and _safe(event["action_slot"]), "event_shape")
+
+
+def _validate_events(events: object) -> None:
+    _require(isinstance(events, list) and 1 <= len(events) <= 8, "events_shape")
+    ids, slots = set(), set()
+    for event in events:
+        _event_shape(event)
+        _require(event["event_id"] not in ids and event["action_slot"] not in slots, "event_duplicate")
+        ids.add(event["event_id"]); slots.add(event["action_slot"])
+
+
+def _go_batch_hash(intent: Mapping[str, Any]) -> str:
+    """Reproduce Go's batchIntent JSON field order and empty hash/state rule."""
+    events = []
+    for event in intent["events"]:
+        events.append({
+            "event_id": event["event_id"], "event_revision": event["event_revision"],
+            "kind": event["kind"], "payload_hash": event["payload_hash"],
+            "action_slot": event["action_slot"],
+        })
+    value = {
+        "version": intent["version"], "delivery_id": intent["delivery_id"],
+        "nonce": intent["nonce"], "controller_thread": intent["controller_thread"],
+        "controller_epoch": intent["controller_epoch"], "revision": intent["revision"],
+        "state": "", "events": events, "payload_hash": "",
+    }
+    # All accepted identifiers are ASCII, so Go's HTML escaping cannot alter
+    # a valid batch. Keep ensure_ascii=True to retain its JSON string rules.
+    return hashlib.sha256(json.dumps(value, ensure_ascii=True, separators=(",", ":")).encode()).hexdigest()
+
+
+def _validate_go_intent(intent: object, binding: DeliveryBinding, delivery_id: str | None = None) -> dict:
+    required = {"version", "delivery_id", "nonce", "controller_thread", "controller_epoch", "revision", "state", "events", "payload_hash"}
+    _require(isinstance(intent, dict) and set(intent) == required, "intent_shape")
+    _require(intent["version"] == 1 and _safe(intent["delivery_id"]) and (delivery_id is None or intent["delivery_id"] == delivery_id), "intent_identity")
+    _require(intent["nonce"] == binding.nonce and intent["controller_thread"] == binding.owner_thread_id, "owner_mismatch")
+    _require(intent["controller_epoch"] == binding.owner_epoch == 1, "epoch_mismatch")
+    _require(intent["revision"] == binding.revision and intent["state"] == "prepared", "revision_mismatch")
+    _validate_events(intent["events"])
+    _require(_hash(intent["payload_hash"]) and intent["payload_hash"] == _go_batch_hash(intent), "intent_hash")
+    return intent
+
+
+def native_envelope_from_go_intent(intent: Mapping[str, Any], binding: DeliveryBinding) -> dict:
+    """Map verified Go fields without reusing the Go batch hash."""
+    checked = _validate_go_intent(dict(intent), binding)
+    envelope = {
+        "version": 1,
+        "delivery_id": checked["delivery_id"],
+        "controller_thread_id": checked["controller_thread"],
+        "controller_epoch": checked["controller_epoch"],
+        "events": checked["events"],
+    }
+    envelope["payload_hash"] = hashlib.sha256(_canonical(envelope).encode()).hexdigest()
+    return envelope
+
+
+class DeliveryAdapter:
+    def __init__(self, go_binary: str | os.PathLike[str], *, expected_sha256: str):
+        self.go_binary = Path(go_binary)
+        _require(self.go_binary.is_absolute() and self.go_binary.is_file(), "go_binary_missing")
+        _require(_hash(expected_sha256) and hashlib.sha256(self.go_binary.read_bytes()).hexdigest() == expected_sha256, "go_binary_hash")
+        self.expected_sha256 = expected_sha256
+
+    def _run(self, args: list[str], *, env: Mapping[str, str] | None = None) -> dict:
+        child_env = os.environ.copy()
+        child_env.update(env or {})
+        child_env["PYTHONDONTWRITEBYTECODE"] = "1"
+        try:
+            completed = subprocess.run([str(self.go_binary), *args], env=child_env, capture_output=True, text=True, timeout=10, check=False)
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            raise DeliveryError("go_process") from exc
+        if completed.returncode != 0:
+            try:
+                value = json.loads(completed.stderr)
+                code = value.get("error") if isinstance(value, dict) else None
+            except (TypeError, ValueError):
+                code = None
+            raise DeliveryError(code if _safe(code) else "go_rejected")
+        try:
+            value = json.loads(completed.stdout)
+        except (TypeError, ValueError) as exc:
+            raise DeliveryError("go_output") from exc
+        _require(isinstance(value, dict), "go_output")
+        return value
+
+    def prepare(self, binding: DeliveryBinding, task_dir: Path, delivery_id: str, events: list[dict], *, env: Mapping[str, str]) -> dict:
+        _require(task_dir.is_absolute() and task_dir.is_dir(), "task_dir")
+        _require(_safe(delivery_id), "delivery_id")
+        _validate_events(events)
+        value = self._run(["batch-prepare", "--dir", str(task_dir), "--nonce", binding.nonce,
+                           "--controller-thread", binding.owner_thread_id, "--revision", str(binding.revision),
+                           "--delivery-id", delivery_id, "--events-json", _canonical(events)], env=env)
+        return _validate_go_intent(value, binding, delivery_id)
+
+    def claim(self, binding: DeliveryBinding, task_dir: Path, *, env: Mapping[str, str]) -> dict:
+        return self._run(["batch-claim", "--dir", str(task_dir), "--nonce", binding.nonce,
+                          "--controller-thread", binding.owner_thread_id, "--revision", str(binding.revision)], env=env)
+
+    def prepare_and_claim(self, binding: DeliveryBinding, task_dir: Path, delivery_id: str, events: list[dict], *, env: Mapping[str, str]) -> dict:
+        intent = self.prepare(binding, task_dir, delivery_id, events, env=env)
+        claim = self.claim(binding, task_dir, env=env)
+        _require(claim.get("status") == "claimed" and claim.get("delivery_id") == intent["delivery_id"] and claim.get("controller_thread") == binding.owner_thread_id and claim.get("revision") == binding.revision, "claim_artifact")
+        return intent
+
+    def ack_confirmed(self, binding: DeliveryBinding, task_dir: Path, intent: Mapping[str, Any], decisions: Mapping[str, str], *, confirmed_event_ids: set[str], command_ids: Mapping[str, str], env: Mapping[str, str]) -> list[dict]:
+        checked = _validate_go_intent(dict(intent), binding)
+        events = {event["event_id"]: event for event in checked["events"]}
+        outputs = []
+        for event_id in confirmed_event_ids:
+            _require(event_id in events, "event_unknown")
+            decision = decisions.get(event_id)
+            if decision != "handled":
+                continue
+            command_id = command_ids.get(event_id)
+            _require(_safe(command_id), "command_id")
+            event = events[event_id]
+            outputs.append(self._run(["batch-ack", "--dir", str(task_dir), "--nonce", binding.nonce,
+                                      "--controller-thread", binding.owner_thread_id, "--revision", str(binding.revision),
+                                      "--event-id", event_id, "--event-revision", str(event["event_revision"]),
+                                      "--event-hash", event["payload_hash"], "--action-slot", event["action_slot"],
+                                      "--command-id", command_id, "--decision", "handled"], env=env))
+        return outputs
+
+    @staticmethod
+    def audit_history(intent: Mapping[str, Any], reads: list[dict], decisions: list[dict] | None = None) -> dict:
+        value = audit_history({"version": 1, "intent": dict(intent), "reads": reads, "acks": decisions or []})
+        _require(value.get("transport_evidence") == "exact_history_marker", "history_uncertain")
+        return value
+
+    async def send_tool_output_once(self, connection: Any, envelope: Mapping[str, Any], *, request_id: int = 1) -> list[dict]:
+        _require(type(request_id) is int and request_id > 0, "request_id")
+        _require(set(envelope) == {"version", "delivery_id", "controller_thread_id", "controller_epoch", "events", "payload_hash"}, "native_envelope")
+        sent = getattr(self, "_sent_delivery_ids", None)
+        if sent is None:
+            sent = self._sent_delivery_ids = set()
+        delivery_id = envelope.get("delivery_id")
+        _require(_safe(delivery_id) and delivery_id not in sent, "delivery_already_sent")
+        # Mark before I/O: an ambiguous transport must not be retried by this
+        # adapter; the caller can classify it uncertain and inspect history.
+        sent.add(delivery_id)
+        await connection.send_rpc({"id": request_id, "method": "turn/start", "params": {"threadId": envelope["controller_thread_id"], "input": [], "toolOutput": {"name": "g0_delivery", "namespace": "orchestration", "output": _canonical(envelope)}}})
+        packets = []
+        lifecycle = {"turn/started", "item/started", "item/completed", "turn/completed"}
+        got_response = False
+        while not got_response or {packet.get("method") for packet in packets} & lifecycle != lifecycle:
+            packet = await connection.read_rpc()
+            packets.append(packet)
+            got_response = got_response or packet.get("id") == request_id
+        return packets
