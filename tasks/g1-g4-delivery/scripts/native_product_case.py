@@ -290,7 +290,35 @@ def control(runtime, prepared, *args, timeout=10):
     return value
 
 
-async def wait_status(runtime, prepared, task_id, control_file, statuses, end):
+def active_process_ready(value):
+    process = value.get("process")
+    return (
+        type(value.get("host_pid")) is int
+        and value["host_pid"] > 0
+        and isinstance(value.get("host_birth"), str)
+        and bool(value["host_birth"])
+        and value.get("host_status") == "ready"
+        and isinstance(process, dict)
+        and set(process) == {"pid", "birth", "pgid"}
+        and type(process["pid"]) is int
+        and process["pid"] > 0
+        and isinstance(process["birth"], str)
+        and bool(process["birth"])
+        and type(process["pgid"]) is int
+        and process["pgid"] > 0
+    )
+
+
+async def wait_status(
+    runtime,
+    prepared,
+    task_id,
+    control_file,
+    statuses,
+    end,
+    *,
+    require_active_process=False,
+):
     while True:
         g.remaining(end)
         value = await asyncio.to_thread(
@@ -305,7 +333,9 @@ async def wait_status(runtime, prepared, task_id, control_file, statuses, end):
             "--control-file",
             control_file,
         )
-        if value.get("status") in statuses:
+        if value.get("status") in statuses and (
+            not require_active_process or active_process_ready(value)
+        ):
             return value
         await asyncio.sleep(0.02)
 
@@ -704,6 +734,7 @@ async def execute(static, _plan_path, plan_sha):
             control_file,
             {"running"},
             min(total, g.now() + 10),
+            require_active_process=True,
         )
         coordinator_pid = int(
             (runtime.g1_state / "coordinator.pid").read_text().strip()
@@ -914,6 +945,7 @@ async def execute(static, _plan_path, plan_sha):
             control_file,
             {"running"},
             min(total, g.now() + 8),
+            require_active_process=True,
         )
         new_host = g.base.peer_for_process(resumed_running["host_pid"])
         g.require(new_host["birth"] == resumed_running["host_birth"], "new source host")
