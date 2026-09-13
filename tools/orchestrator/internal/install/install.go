@@ -31,26 +31,26 @@ type InstallOptions struct {
 }
 
 type InstallResult struct {
-	Version        string
-	VersionRoot    string
-	ManifestPath   string
-	ManifestSHA256 string
-	BinarySHA256   string
-	Files          []string
-	Runtime        RuntimeIdentity
+	Version        string          `json:"version"`
+	VersionRoot    string          `json:"version_root"`
+	ManifestPath   string          `json:"manifest_path"`
+	ManifestSHA256 string          `json:"manifest_sha256"`
+	BinarySHA256   string          `json:"binary_sha256"`
+	Files          []string        `json:"files"`
+	Runtime        RuntimeIdentity `json:"runtime"`
 }
 
 type UninstallResult struct {
-	Version  string
-	Status   string
-	Retained []string
+	Version  string   `json:"version"`
+	Status   string   `json:"status"`
+	Retained []string `json:"retained,omitempty"`
 }
 
 type DoctorReport struct {
-	Healthy  bool
-	Versions []string
-	Pins     []string
-	Issues   []string
+	Healthy  bool     `json:"healthy"`
+	Versions []string `json:"versions"`
+	Pins     []string `json:"pins"`
+	Issues   []string `json:"issues"`
 }
 
 type manifest struct {

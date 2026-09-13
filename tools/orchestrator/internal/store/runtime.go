@@ -207,6 +207,7 @@ func validatePlan(p PlanSpec) error {
 	}
 	byID := make(map[string]TaskSpec, len(p.Tasks))
 	groupAttempts := make(map[string]int)
+	groupActive := make(map[string]int64)
 	for _, task := range p.Tasks {
 		if task.ID == "" || task.RunID != p.Run.ID || task.MaxAttempts < 1 || task.MaxAttempts > 3 {
 			return ErrInvalidDAG
@@ -244,6 +245,14 @@ func validatePlan(p PlanSpec) error {
 			return ErrInvalidDAG
 		}
 		groupAttempts[group] = task.MaxAttempts
+		active := task.MaxActiveMS
+		if active <= 0 || active > defaultSegmentActiveMS {
+			active = defaultSegmentActiveMS
+		}
+		if existing, ok := groupActive[group]; ok && existing != active {
+			return ErrInvalidDAG
+		}
+		groupActive[group] = active
 		byID[task.ID] = task
 	}
 	state := make(map[string]uint8, len(byID))
