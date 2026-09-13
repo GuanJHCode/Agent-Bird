@@ -33,7 +33,7 @@ func TestRuntimePersistsDAGSlotsEventsAndExplicitResume(t *testing.T) {
 	}
 	hostID, err := db.RegisterHost(ctx, contract.HostHello{
 		LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken,
-		OriginContextID: "origin-1", HostGeneration: "generation-1",
+		OriginContextID: "origin-1", OriginPID: 7, OriginBirth: "origin-birth", HostGeneration: "generation-1",
 		PID: 101, Birth: "host-birth", Executable: "/private/tmp/orchestrator",
 	}, 1)
 	if err != nil {
@@ -81,7 +81,7 @@ func TestRuntimePersistsDAGSlotsEventsAndExplicitResume(t *testing.T) {
 	}
 	hostID, err = db.RegisterHost(ctx, contract.HostHello{
 		LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken,
-		OriginContextID: "origin-1", HostGeneration: "generation-1",
+		OriginContextID: "origin-1", OriginPID: 7, OriginBirth: "origin-birth", HostGeneration: "generation-1",
 		PID: 202, Birth: "replacement-active-birth", Executable: "/private/tmp/orchestrator",
 	}, 2)
 	if err != nil {
@@ -150,7 +150,7 @@ func TestRuntimePersistsDAGSlotsEventsAndExplicitResume(t *testing.T) {
 	}
 	hostID, err = db.RegisterHost(ctx, contract.HostHello{
 		LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken,
-		OriginContextID: "origin-1", HostGeneration: "generation-1",
+		OriginContextID: "origin-1", OriginPID: 7, OriginBirth: "origin-birth", HostGeneration: "generation-1",
 		PID: 303, Birth: "replacement-birth", Executable: "/private/tmp/orchestrator",
 	}, 2)
 	if err != nil {
@@ -247,7 +247,7 @@ func TestFailedBeforeSpawnSettlesSlotWithoutBecomingUnknown(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	hostID, err := db.RegisterHost(ctx, contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: "origin", HostGeneration: "generation", PID: 10, Birth: "host-birth", Executable: "/private/tmp/orchestrator"}, 1)
+	hostID, err := db.RegisterHost(ctx, contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth", HostGeneration: "generation", PID: 10, Birth: "host-birth", Executable: "/private/tmp/orchestrator"}, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -328,7 +328,7 @@ func TestCancelBlocksRequiredDescendantButKeepsIndependentTaskReady(t *testing.T
 	if err != nil || child.Status != "blocked_dependency" {
 		t.Fatalf("child=%#v err=%v", child, err)
 	}
-	hostID, err := db.RegisterHost(ctx, contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: "origin", HostGeneration: "generation", PID: 10, Birth: "host-birth", Executable: "/private/tmp/orchestrator"}, 1)
+	hostID, err := db.RegisterHost(ctx, contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth", HostGeneration: "generation", PID: 10, Birth: "host-birth", Executable: "/private/tmp/orchestrator"}, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -376,7 +376,7 @@ func TestQuestionAnswerResumesSameAttemptOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	hostID, err := db.RegisterHost(ctx, contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: "origin", HostGeneration: "generation", PID: 10, Birth: "host", Executable: "/private/tmp/orchestrator"}, 1)
+	hostID, err := db.RegisterHost(ctx, contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth", HostGeneration: "generation", PID: 10, Birth: "host", Executable: "/private/tmp/orchestrator"}, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -387,6 +387,11 @@ func TestQuestionAnswerResumesSameAttemptOnce(t *testing.T) {
 	question := contract.Event{Version: 1, ProducerID: hostID, EventID: hostID + ":1", RunID: grant.RunID, TaskID: grant.TaskID, AttemptID: grant.AttemptID, SegmentID: grant.SegmentID, WorkRevision: 1, ExecutionEpoch: 1, CommandID: grant.CommandID, Sequence: 1, Kind: contract.EventQuestion, PayloadHash: strings.Repeat("a", 64), QuestionID: "question-1", QuestionRevision: 1, SessionKind: "conversation-id", SessionID: "conversation-1"}
 	if _, err = db.CommitHostEvent(ctx, question); err != nil {
 		t.Fatal(err)
+	}
+	changed := question
+	changed.SessionID = "conversation-changed"
+	if _, changedErr := db.CommitHostEvent(ctx, changed); !errors.Is(changedErr, ErrEventSequence) {
+		t.Fatalf("same hash with changed session err=%v", changedErr)
 	}
 	exit := 0
 	question.Sequence, question.EventID, question.Kind, question.PayloadHash, question.ExitCode = 2, hostID+":2", contract.EventExited, strings.Repeat("b", 64), &exit
@@ -428,7 +433,7 @@ func TestRetryUsesOnlyPreauthorizedFallbackAndAcceptReleasesDependency(t *testin
 	if err != nil {
 		t.Fatal(err)
 	}
-	hostID, err := db.RegisterHost(ctx, contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: "origin", HostGeneration: "generation", PID: 10, Birth: "host", Executable: "/private/tmp/orchestrator"}, 1)
+	hostID, err := db.RegisterHost(ctx, contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth", HostGeneration: "generation", PID: 10, Birth: "host", Executable: "/private/tmp/orchestrator"}, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -457,20 +462,80 @@ func TestRetryUsesOnlyPreauthorizedFallbackAndAcceptReleasesDependency(t *testin
 	if snapshot, snapshotErr := db.TaskSnapshot(ctx, first.TaskID); snapshotErr != nil || snapshot.Status != "result_ready" {
 		t.Fatalf("result snapshot=%#v err=%v", snapshot, snapshotErr)
 	}
-	if err = db.AcceptResult(ctx, first.TaskID, 1); err != nil {
+	events, err := db.CollectPending(ctx, first.TaskID)
+	if err != nil || len(events) != 2 {
+		t.Fatalf("events=%#v err=%v", events, err)
+	}
+	result := events[1]
+	review := ReviewSpec{TaskID: first.TaskID, WorkRevision: 1, EventID: result.EventID, EventRevision: result.EventRevision, EventHash: result.PayloadHash, ActionSlot: result.ActionSlot, Decision: "reject", CommandID: "review-result"}
+	if status, reviewErr := db.ReviewResult(ctx, review); reviewErr != nil || status != "rejected" {
+		t.Fatalf("review status=%q err=%v", status, reviewErr)
+	}
+	if status, reviewErr := db.ReviewResult(ctx, review); reviewErr != nil || status != "rejected" {
+		t.Fatalf("repeat review status=%q err=%v", status, reviewErr)
+	}
+	conflict := review
+	conflict.Decision = "accept"
+	if _, reviewErr := db.ReviewResult(ctx, conflict); !errors.Is(reviewErr, ErrConflict) {
+		t.Fatalf("conflicting review err=%v", reviewErr)
+	}
+	if err = db.QueueRetry(ctx, first.TaskID, 1, false); err != nil {
 		t.Fatal(err)
+	}
+	third, err := db.ClaimReady(ctx, hostID, 1, 2)
+	if err != nil || third.AttemptID == second.AttemptID || string(third.AdapterPayload) != string(fallback) {
+		t.Fatalf("third grant=%#v err=%v", third, err)
+	}
+	commit(third, 5, contract.EventResult, strings.Repeat("1", 64))
+	commit(third, 6, contract.EventExited, strings.Repeat("2", 64))
+	events, err = db.CollectPending(ctx, first.TaskID)
+	if err != nil || len(events) != 3 {
+		t.Fatalf("events after rework=%#v err=%v", events, err)
+	}
+	finalResult := events[2]
+	accepted := ReviewSpec{TaskID: first.TaskID, WorkRevision: 1, EventID: finalResult.EventID, EventRevision: finalResult.EventRevision, EventHash: finalResult.PayloadHash, ActionSlot: finalResult.ActionSlot, Decision: "accept", CommandID: "review-final"}
+	if status, reviewErr := db.ReviewResult(ctx, accepted); reviewErr != nil || status != "accepted" {
+		t.Fatalf("final review status=%q err=%v", status, reviewErr)
 	}
 	dependent, err := db.TaskSnapshot(ctx, "retry-dependent")
 	if err != nil || dependent.Status != "ready" {
 		t.Fatalf("dependent=%#v err=%v", dependent, err)
 	}
-	events, err := db.CollectPending(ctx, first.TaskID)
-	if err != nil || len(events) != 2 {
-		t.Fatalf("events=%#v err=%v", events, err)
-	}
 	if ackErr := db.AckDecision(ctx, first.TaskID, AckDecision{EventID: events[0].EventID, EventRevision: events[0].EventRevision, EventHash: events[0].PayloadHash, ActionSlot: events[0].ActionSlot, Decision: "handled", CommandID: "bad-current-ack"}); !errors.Is(ackErr, ErrConflict) {
 		t.Fatalf("old event handled err=%v", ackErr)
 	}
 	ackEvent(t, db, first.TaskID, events[0], "stale")
-	ackEvent(t, db, first.TaskID, events[1], "handled")
+	ackEvent(t, db, first.TaskID, events[1], "stale")
+	ackEvent(t, db, first.TaskID, events[2], "handled")
+}
+
+func TestStorageAdmissionBlocksDispatchAndEventAck(t *testing.T) {
+	ctx := context.Background()
+	db, err := Open(filepath.Join(t.TempDir(), "state.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	receipt, err := db.SubmitPlan(ctx, PlanSpec{Run: RunSpec{ID: "storage-run", ControllerThread: "thread", PlanRevision: 1, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth"}, Host: HostLaunchSpec{OriginContextID: "origin", HostGeneration: "generation", Executable: "/private/tmp/orchestrator"}, Tasks: []TaskSpec{{ID: "storage-task", RunID: "storage-run", MaxAttempts: 1}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hostID, err := db.RegisterHost(ctx, contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth", HostGeneration: "generation", PID: 10, Birth: "host", Executable: "/private/tmp/orchestrator"}, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.minFreeBytes = ^uint64(0)
+	if _, claimErr := db.ClaimReady(ctx, hostID, 1, 2); claimErr == nil || claimErr.Error() != "storage_blocked" {
+		t.Fatalf("low disk claim err=%v", claimErr)
+	}
+	db.minFreeBytes = 0
+	grant, err := db.ClaimReady(ctx, hostID, 1, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.runControlLimit = 1
+	event := contract.Event{Version: 1, ProducerID: hostID, EventID: hostID + ":1", RunID: grant.RunID, TaskID: grant.TaskID, AttemptID: grant.AttemptID, SegmentID: grant.SegmentID, WorkRevision: 1, ExecutionEpoch: 1, CommandID: grant.CommandID, Sequence: 1, Kind: contract.EventPrepared, PayloadHash: strings.Repeat("a", 64)}
+	if _, commitErr := db.CommitHostEvent(ctx, event); commitErr == nil || commitErr.Error() != "control_spool_full" {
+		t.Fatalf("quota event err=%v", commitErr)
+	}
 }

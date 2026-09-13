@@ -395,6 +395,14 @@ func RunSource(ctx context.Context, cfg SourceConfig) error {
 					}
 					return
 				}
+				if grant.ReportCapabilityID != "" {
+					reportPath, capabilityErr := h.prepareReportCapability(runCtx, cfg, grant, session)
+					if capabilityErr != nil {
+						reportError(capabilityErr)
+						return
+					}
+					inv = reportInvocation{base: inv, reportPath: reportPath, reportExecutable: cfg.Hello.Executable}
+				}
 				result, executeErr := h.ExecuteLaunch(runCtx, grant, inv)
 				if executeErr != nil {
 					meta := launchMetadata{commandID: grant.CommandID, workRevision: grant.WorkRevision, executionEpoch: grant.ExecutionEpoch}

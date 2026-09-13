@@ -98,7 +98,7 @@ func (h *Host) ExecuteLaunch(ctx context.Context, grant contract.LaunchCommand, 
 	h.grantMu.Unlock()
 	runCtx, cancel := context.WithDeadline(ctx, budgetDeadline)
 	defer cancel()
-	meta := launchMetadata{commandID: grant.CommandID, workRevision: grant.WorkRevision, executionEpoch: grant.ExecutionEpoch}
+	meta := launchMetadata{commandID: grant.CommandID, workRevision: grant.WorkRevision, executionEpoch: grant.ExecutionEpoch, questionRevision: grant.QuestionRevision}
 	if structured, ok := inv.(interface{ OutputProvider() string }); ok {
 		meta.outputProvider = structured.OutputProvider()
 	}
@@ -120,10 +120,11 @@ func (h *Host) Execute(ctx context.Context, a store.Attempt, runID, taskID strin
 }
 
 type launchMetadata struct {
-	commandID      string
-	workRevision   int
-	executionEpoch uint64
-	outputProvider string
+	commandID        string
+	workRevision     int
+	executionEpoch   uint64
+	outputProvider   string
+	questionRevision int
 }
 
 func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID string, cmd process.Command, persistDB bool, meta launchMetadata) (contract.Result, error) {
@@ -293,7 +294,7 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		}
 		fields := structuredEventFields{SessionKind: providerSessionKind(protocol.provider), SessionID: sessionID}
 		if kind == contract.EventQuestion {
-			fields.QuestionRevision = 1
+			fields.QuestionRevision = meta.questionRevision + 1
 		}
 		if _, err = h.appendStructuredEvent(spool, runID, taskID, a, meta, kind, payloadHash, &identity, &exit, artifact, fields); err != nil {
 			h.finishAttempt(a.ID, "unknown", persistDB)
@@ -325,7 +326,11 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount, OutputHash: outHash}, err
 	}
 	artifact := &contract.ArtifactRef{ID: filepath.Base(artifactPath), Path: artifactPath, Size: int64(len(p.Output())), SHA256: outHash}
-	if err = appendPhase(contract.EventResult, outHash, &identity, &exit, artifact); err != nil {
+	terminalKind := contract.EventResult
+	if status == "failed" {
+		terminalKind = contract.EventFailed
+	}
+	if err = appendPhase(terminalKind, outHash, &identity, &exit, artifact); err != nil {
 		h.finishAttempt(a.ID, "unknown", persistDB)
 		return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount, OutputHash: outHash, ArtifactPath: artifactPath}, err
 	}

@@ -24,6 +24,7 @@ import (
 	"codex-cli-orchestration-design/tools/orchestrator/internal/coordinator"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/gitopsworker"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/host"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/install"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/instance"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/ipc"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/process"
@@ -33,6 +34,10 @@ import (
 type codeError string
 
 func (e codeError) Error() string { return string(e) }
+
+type remoteError string
+
+func (e remoteError) Error() string { return string(e) }
 
 func main() {
 	if err := run(context.Background(), os.Args[1:], os.Stdout, os.Stderr); err != nil {
@@ -75,9 +80,11 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	case "retry":
 		return retryTask(ctx, args[1:], stdout)
 	case "accept":
-		return taskControl(ctx, ipc.KindAccept, args[1:], stdout)
+		return reviewResult(ctx, args[1:], stdout)
 	case "answer":
 		return answerQuestion(ctx, args[1:], stdout)
+	case "report":
+		return reportEvent(ctx, args[1:], stdout)
 	case "stop":
 		return taskControl(ctx, ipc.KindStopTask, args[1:], stdout)
 	case "ack":
@@ -186,7 +193,7 @@ func submit(ctx context.Context, args []string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
-	bootstrap := hostBootstrap{SocketPath: filepath.Join(state, "coordinator.sock"), SpoolRoot: filepath.Join(state, "host-spool", launchID), ProducerID: launchID, Hello: contract.HostHello{LaunchID: launchID, LaunchToken: launchToken, OriginContextID: request.OriginContextID, HostGeneration: request.HostGeneration, Executable: executable}}
+	bootstrap := hostBootstrap{SocketPath: filepath.Join(state, "coordinator.sock"), SpoolRoot: filepath.Join(state, "host-spool", launchID), ProducerID: launchID, Hello: contract.HostHello{LaunchID: launchID, LaunchToken: launchToken, OriginContextID: request.OriginContextID, OriginPID: request.OriginPID, OriginBirth: request.OriginBirth, HostGeneration: request.HostGeneration, Executable: executable}}
 	bootstrapPath, err := writeBootstrap(state, bootstrap)
 	if err != nil {
 		return err
@@ -196,9 +203,30 @@ func submit(ctx context.Context, args []string, stdout io.Writer) error {
 		_ = os.Remove(bootstrapPath)
 		return err
 	}
+	pinned := make([]string, 0, len(request.Tasks))
+	for _, task := range request.Tasks {
+		if _, pinErr := install.PinRunningVersion(executable, task.ID); pinErr != nil {
+			if os.Getenv("ORCHESTRATOR_ENABLE_TEST_FAKE") == "1" && pinErr.Error() == "running_package_invalid" {
+				continue
+			}
+			for _, taskID := range pinned {
+				_ = install.UnpinRunningVersion(executable, taskID)
+			}
+			_ = os.Remove(controlPath)
+			_ = os.Remove(bootstrapPath)
+			return pinErr
+		}
+		pinned = append(pinned, task.ID)
+	}
 	request.LaunchID, request.LaunchToken, request.ControlToken = launchID, launchToken, controlToken
 	response, err := call(ctx, state, ipc.KindSubmit, request)
 	if err != nil {
+		var rejected remoteError
+		if errors.As(err, &rejected) {
+			for _, taskID := range pinned {
+				_ = install.UnpinRunningVersion(executable, taskID)
+			}
+		}
 		_ = os.Remove(controlPath)
 		_ = os.Remove(bootstrapPath)
 		return err
@@ -236,7 +264,7 @@ func taskControl(ctx context.Context, kind ipc.Kind, args []string, stdout io.Wr
 	if fs.Parse(args) != nil || *taskID == "" || *controlFile == "" || fs.NArg() != 0 {
 		return codeError("invalid_args")
 	}
-	if (kind == ipc.KindResume || kind == ipc.KindStopTask || kind == ipc.KindAccept) && *revision < 1 {
+	if (kind == ipc.KindResume || kind == ipc.KindStopTask) && *revision < 1 {
 		return codeError("invalid_args")
 	}
 	state, err := resolveState(*stateArg)
@@ -253,6 +281,39 @@ func taskControl(ctx context.Context, kind ipc.Kind, args []string, stdout io.Wr
 		}
 	}
 	response, err := call(ctx, state, kind, coordinator.TaskControlRequest{TaskID: *taskID, ControllerThread: capability.ControllerThread, ControlToken: capability.ControlToken, WorkRevision: *revision})
+	if err != nil {
+		return err
+	}
+	_, err = stdout.Write(append(response.Payload, '\n'))
+	return err
+}
+
+func reviewResult(ctx context.Context, args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("accept", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	stateArg := fs.String("state-dir", "", "private state directory")
+	taskID := fs.String("task-id", "", "task id")
+	controlFile := fs.String("control-file", "", "owner-only control capability")
+	workRevision := fs.Int("work-revision", 0, "work revision")
+	eventID := fs.String("event-id", "", "result event id")
+	eventRevision := fs.Int64("event-revision", 0, "result event revision")
+	eventHash := fs.String("event-hash", "", "result event hash")
+	actionSlot := fs.String("action-slot", "", "result action slot")
+	decision := fs.String("decision", "accept", "accept or reject")
+	commandID := fs.String("command-id", "", "stable review command id")
+	if fs.Parse(args) != nil || *taskID == "" || *controlFile == "" || *workRevision < 1 || *eventID == "" || *eventRevision < 1 || *eventHash == "" || *actionSlot == "" || *commandID == "" || (*decision != "accept" && *decision != "reject") || fs.NArg() != 0 {
+		return codeError("invalid_args")
+	}
+	state, err := resolveState(*stateArg)
+	if err != nil {
+		return err
+	}
+	capability, err := loadControlCapability(*controlFile)
+	if err != nil {
+		return err
+	}
+	request := coordinator.ReviewRequest{TaskControlRequest: coordinator.TaskControlRequest{TaskID: *taskID, ControllerThread: capability.ControllerThread, ControlToken: capability.ControlToken, WorkRevision: *workRevision}, EventID: *eventID, EventRevision: *eventRevision, EventHash: *eventHash, ActionSlot: *actionSlot, Decision: *decision, CommandID: *commandID}
+	response, err := call(ctx, state, ipc.KindAccept, request)
 	if err != nil {
 		return err
 	}
@@ -370,6 +431,63 @@ type ackFile struct {
 	Decisions          []store.AckDecision `json:"decisions"`
 }
 
+type reportCapabilityFile struct {
+	Version        int    `json:"version"`
+	SocketPath     string `json:"socket_path"`
+	CapabilityID   string `json:"capability_id"`
+	Token          string `json:"token"`
+	RunID          string `json:"run_id"`
+	TaskID         string `json:"task_id"`
+	AttemptID      string `json:"attempt_id"`
+	SegmentID      string `json:"segment_id"`
+	ProducerID     string `json:"producer_id"`
+	WorkRevision   int    `json:"work_revision"`
+	ExecutionEpoch uint64 `json:"execution_epoch"`
+}
+
+type reportFile struct {
+	Version  int             `json:"version"`
+	EventID  string          `json:"event_id"`
+	Sequence int64           `json:"sequence"`
+	Kind     string          `json:"kind"`
+	Payload  json.RawMessage `json:"payload"`
+}
+
+func reportEvent(ctx context.Context, args []string, stdout io.Writer) error {
+	fs := flag.NewFlagSet("report", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	capabilityPath := fs.String("capability-file", "", "segment report capability")
+	requestPath := fs.String("request", "", "structured report request")
+	if fs.Parse(args) != nil || *capabilityPath == "" || *requestPath == "" || fs.NArg() != 0 {
+		return codeError("invalid_args")
+	}
+	var capability reportCapabilityFile
+	if err := readPrivateJSON(*capabilityPath, &capability); err != nil || capability.Version != 1 || capability.SocketPath == "" || capability.CapabilityID == "" || capability.Token == "" {
+		return codeError("invalid_report_capability")
+	}
+	var request reportFile
+	if err := readPrivateJSON(*requestPath, &request); err != nil || request.Version != 1 {
+		return codeError("invalid_report_event")
+	}
+	payload, _ := json.Marshal(coordinator.ReportEventRequest{CapabilityID: capability.CapabilityID, Token: capability.Token, EventID: request.EventID, Sequence: request.Sequence, Kind: request.Kind, Payload: request.Payload})
+	response, err := ipc.Call(ctx, capability.SocketPath, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindReportEvent, RequestID: "report-" + request.EventID, Payload: payload})
+	if err != nil {
+		return err
+	}
+	if response.Kind == ipc.KindError {
+		var remote coordinator.ErrorResponse
+		if decode(response.Payload, &remote) != nil || remote.Error == "" {
+			return codeError("remote_error")
+		}
+		return codeError(remote.Error)
+	}
+	if response.Kind != ipc.KindResponse {
+		return codeError("invalid_response")
+	}
+	_, err = stdout.Write(append(response.Payload, '\n'))
+	return err
+}
+
 func call(ctx context.Context, state string, kind ipc.Kind, payload any) (ipc.Envelope, error) {
 	if _, err := ensureServer(ctx, state); err != nil {
 		return ipc.Envelope{}, err
@@ -388,7 +506,7 @@ func call(ctx context.Context, state string, kind ipc.Kind, payload any) (ipc.En
 		if decode(response.Payload, &remote) != nil || remote.Error == "" {
 			return ipc.Envelope{}, codeError("remote_error")
 		}
-		return ipc.Envelope{}, codeError(remote.Error)
+		return ipc.Envelope{}, remoteError(remote.Error)
 	}
 	if response.Kind != ipc.KindResponse {
 		return ipc.Envelope{}, codeError("invalid_response")
@@ -832,6 +950,10 @@ func errorCode(err error) string {
 	var coded codeError
 	if errors.As(err, &coded) {
 		return coded.Error()
+	}
+	var remote remoteError
+	if errors.As(err, &remote) {
+		return remote.Error()
 	}
 	return err.Error()
 }

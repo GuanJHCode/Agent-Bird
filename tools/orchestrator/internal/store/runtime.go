@@ -8,7 +8,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
+	"syscall"
 	"time"
 
 	"codex-cli-orchestration-design/tools/orchestrator/internal/contract"
@@ -76,6 +80,11 @@ CREATE TABLE IF NOT EXISTS runtime_hosts(
 CREATE TABLE IF NOT EXISTS run_control(
   run_id TEXT PRIMARY KEY REFERENCES runs(id), token_hash TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS owner_rebinds(
+  run_id TEXT NOT NULL REFERENCES runs(id), host_generation TEXT NOT NULL,
+  origin_pid INTEGER NOT NULL, origin_birth TEXT NOT NULL, attachment_proof_sha256 TEXT NOT NULL,
+  created_at TEXT NOT NULL, PRIMARY KEY(run_id,host_generation)
+);
 CREATE TABLE IF NOT EXISTS task_runtime(
   task_id TEXT PRIMARY KEY REFERENCES tasks(id), host_launch_id TEXT NOT NULL REFERENCES host_launches(id),
   work_revision INTEGER NOT NULL, budget_group_id TEXT NOT NULL,
@@ -104,13 +113,31 @@ CREATE TABLE IF NOT EXISTS runtime_events(
   created_at TEXT NOT NULL, UNIQUE(producer_id,sequence)
 );
 CREATE TABLE IF NOT EXISTS runtime_decisions(
-  action_slot TEXT PRIMARY KEY, event_id TEXT NOT NULL UNIQUE REFERENCES runtime_events(event_id),
+  action_slot TEXT PRIMARY KEY, event_id TEXT NOT NULL UNIQUE,
   event_revision INTEGER NOT NULL, event_hash TEXT NOT NULL, decision TEXT NOT NULL,
   command_id TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS delivery_receipts(
   delivery_id TEXT PRIMARY KEY, task_id TEXT NOT NULL REFERENCES tasks(id),
   history_proof_sha256 TEXT NOT NULL, decisions_hash TEXT NOT NULL, created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS review_decisions(
+  action_slot TEXT PRIMARY KEY, task_id TEXT NOT NULL REFERENCES tasks(id),
+  event_id TEXT NOT NULL UNIQUE, event_revision INTEGER NOT NULL, event_hash TEXT NOT NULL,
+  decision TEXT NOT NULL, command_id TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS report_capabilities(
+  capability_id TEXT PRIMARY KEY, segment_id TEXT NOT NULL UNIQUE REFERENCES segments(id),
+  producer_id TEXT NOT NULL REFERENCES runtime_hosts(id), token_hash TEXT NOT NULL DEFAULT '',
+  capability_dir TEXT NOT NULL DEFAULT '', run_id TEXT NOT NULL, task_id TEXT NOT NULL,
+  attempt_id TEXT NOT NULL, work_revision INTEGER NOT NULL, execution_epoch INTEGER NOT NULL,
+  status TEXT NOT NULL, used_bytes INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS report_events(
+  event_id TEXT PRIMARY KEY, capability_id TEXT NOT NULL REFERENCES report_capabilities(capability_id),
+  sequence INTEGER NOT NULL, kind TEXT NOT NULL, payload_hash TEXT NOT NULL, body_json TEXT NOT NULL,
+  event_revision INTEGER NOT NULL, action_slot TEXT NOT NULL, delivery_status TEXT NOT NULL,
+  created_at TEXT NOT NULL, UNIQUE(capability_id,sequence)
 );
 CREATE TABLE IF NOT EXISTS stop_runtime(
   command_id TEXT PRIMARY KEY, host_id TEXT NOT NULL REFERENCES runtime_hosts(id),
@@ -366,7 +393,7 @@ func takeReadySequence(ctx context.Context, tx *sql.Tx) (int64, error) {
 }
 
 func (d *DB) RegisterHost(ctx context.Context, hello contract.HostHello, epoch uint64) (string, error) {
-	if hello.LaunchID == "" || hello.LaunchToken == "" || hello.OriginContextID == "" || hello.HostGeneration == "" || hello.PID <= 0 || hello.Birth == "" || hello.Executable == "" || epoch == 0 {
+	if hello.LaunchID == "" || hello.LaunchToken == "" || hello.OriginContextID == "" || hello.OriginPID <= 0 || hello.OriginBirth == "" || hello.HostGeneration == "" || hello.PID <= 0 || hello.Birth == "" || hello.Executable == "" || epoch == 0 {
 		return "", ErrHostRejected
 	}
 	d.mu.Lock()
@@ -383,6 +410,11 @@ func (d *DB) RegisterHost(ctx context.Context, hello contract.HostHello, epoch u
 	}
 	want := runtimeHash(hello.LaunchToken)
 	if subtle.ConstantTimeCompare([]byte(tokenHash), []byte(want)) != 1 || origin != hello.OriginContextID || generation != hello.HostGeneration || executable != hello.Executable {
+		return rollback(ErrHostRejected)
+	}
+	var originPID int
+	var originBirth string
+	if err = tx.QueryRowContext(ctx, `SELECT r.origin_pid,r.origin_birth FROM runs r JOIN tasks t ON t.run_id=r.id JOIN task_runtime tr ON tr.task_id=t.id WHERE tr.host_launch_id=? LIMIT 1`, hello.LaunchID).Scan(&originPID, &originBirth); err != nil || originPID != hello.OriginPID || originBirth != hello.OriginBirth {
 		return rollback(ErrHostRejected)
 	}
 	hostID := existing.String
@@ -540,6 +572,9 @@ func (d *DB) ClaimReady(ctx context.Context, hostID string, epoch uint64, slots 
 	if err != nil {
 		return rollback(err)
 	}
+	if err = d.storageAdmission(ctx, tx, runID, 0); err != nil {
+		return rollback(err)
+	}
 	var attemptID string
 	var attemptNo, segmentNo int
 	if taskStatus == "resume_queued" {
@@ -587,6 +622,10 @@ func (d *DB) ClaimReady(ctx context.Context, hostID string, epoch uint64, slots 
 	if err != nil {
 		return rollback(err)
 	}
+	reportCapabilityID, err := newID("report-capability")
+	if err != nil {
+		return rollback(err)
+	}
 	var charged int64
 	if err = tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(CASE WHEN status='settled' THEN used_ms ELSE granted_ms END),0) FROM budget_runtime WHERE budget_group_id=?`, budgetGroup).Scan(&charged); err != nil {
 		return rollback(err)
@@ -618,10 +657,13 @@ func (d *DB) ClaimReady(ctx context.Context, hostID string, epoch uint64, slots 
 	if _, err = tx.ExecContext(ctx, `INSERT INTO budget_runtime(id,budget_group_id,segment_id,granted_ms,used_ms,status,created_at) VALUES(?,?,?,?,0,'reserved',?)`, reservationID, budgetGroup, segmentID, grant, stamp); err != nil {
 		return rollback(err)
 	}
+	if _, err = tx.ExecContext(ctx, `INSERT INTO report_capabilities(capability_id,segment_id,producer_id,run_id,task_id,attempt_id,work_revision,execution_epoch,status,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)`, reportCapabilityID, segmentID, hostID, runID, taskID, attemptID, workRevision, epoch, "pending", stamp); err != nil {
+		return rollback(err)
+	}
 	if _, err = tx.ExecContext(ctx, `UPDATE tasks SET status='running' WHERE id=?`, taskID); err != nil {
 		return rollback(err)
 	}
-	command := contract.LaunchCommand{CommandID: commandID, HostID: hostID, RunID: runID, TaskID: taskID, AttemptID: attemptID, SegmentID: segmentID, WorkRevision: workRevision, ExecutionEpoch: epoch, SlotToken: slotToken, LaunchIntentHash: intentHash, ReservationID: reservationID, BudgetGroupID: budgetGroup, GrantedActiveMS: grant, DeadlineUnixMS: deadline, AdapterPayload: json.RawMessage(adapterPayload)}
+	command := contract.LaunchCommand{CommandID: commandID, HostID: hostID, RunID: runID, TaskID: taskID, AttemptID: attemptID, SegmentID: segmentID, WorkRevision: workRevision, ExecutionEpoch: epoch, SlotToken: slotToken, LaunchIntentHash: intentHash, ReservationID: reservationID, BudgetGroupID: budgetGroup, GrantedActiveMS: grant, DeadlineUnixMS: deadline, AdapterPayload: json.RawMessage(adapterPayload), ReportCapabilityID: reportCapabilityID}
 	if taskStatus == "resume_queued" {
 		err = tx.QueryRowContext(ctx, `SELECT question_id,question_revision,session_kind,session_id,answer_text FROM runtime_questions WHERE task_id=? AND attempt_id=? AND status='resume_queued' ORDER BY question_revision DESC LIMIT 1`, taskID, attemptID).Scan(&command.QuestionID, &command.QuestionRevision, &command.SessionKind, &command.SessionID, &command.Answer)
 		if err == nil {
@@ -656,7 +698,7 @@ func (d *DB) PendingLaunches(ctx context.Context, hostID string, epoch uint64) (
 	if _, err = tx.ExecContext(ctx, `UPDATE segment_runtime SET execution_epoch=? WHERE host_id=? AND status='launch_requested'`, epoch, hostID); err != nil {
 		return rollback(err)
 	}
-	rows, err := tx.QueryContext(ctx, `SELECT s.command_id,s.host_id,t.run_id,t.id,s.attempt_id,s.segment_id,r.work_revision,s.execution_epoch,s.slot_token,s.launch_intent_hash,s.reservation_id,r.budget_group_id,b.granted_ms,s.deadline_unix_ms,r.adapter_payload FROM segment_runtime s JOIN attempts a ON a.id=s.attempt_id JOIN tasks t ON t.id=a.task_id JOIN task_runtime r ON r.task_id=t.id JOIN budget_runtime b ON b.id=s.reservation_id WHERE s.host_id=? AND s.status='launch_requested' ORDER BY s.created_at,s.segment_id`, hostID)
+	rows, err := tx.QueryContext(ctx, `SELECT s.command_id,s.host_id,t.run_id,t.id,s.attempt_id,s.segment_id,r.work_revision,s.execution_epoch,s.slot_token,s.launch_intent_hash,s.reservation_id,r.budget_group_id,b.granted_ms,s.deadline_unix_ms,r.adapter_payload,(SELECT capability_id FROM report_capabilities WHERE segment_id=s.segment_id) FROM segment_runtime s JOIN attempts a ON a.id=s.attempt_id JOIN tasks t ON t.id=a.task_id JOIN task_runtime r ON r.task_id=t.id JOIN budget_runtime b ON b.id=s.reservation_id WHERE s.host_id=? AND s.status='launch_requested' ORDER BY s.created_at,s.segment_id`, hostID)
 	if err != nil {
 		return rollback(err)
 	}
@@ -664,7 +706,7 @@ func (d *DB) PendingLaunches(ctx context.Context, hostID string, epoch uint64) (
 	for rows.Next() {
 		var command contract.LaunchCommand
 		var adapterPayload string
-		if err = rows.Scan(&command.CommandID, &command.HostID, &command.RunID, &command.TaskID, &command.AttemptID, &command.SegmentID, &command.WorkRevision, &command.ExecutionEpoch, &command.SlotToken, &command.LaunchIntentHash, &command.ReservationID, &command.BudgetGroupID, &command.GrantedActiveMS, &command.DeadlineUnixMS, &adapterPayload); err != nil {
+		if err = rows.Scan(&command.CommandID, &command.HostID, &command.RunID, &command.TaskID, &command.AttemptID, &command.SegmentID, &command.WorkRevision, &command.ExecutionEpoch, &command.SlotToken, &command.LaunchIntentHash, &command.ReservationID, &command.BudgetGroupID, &command.GrantedActiveMS, &command.DeadlineUnixMS, &adapterPayload, &command.ReportCapabilityID); err != nil {
 			_ = rows.Close()
 			return rollback(err)
 		}
@@ -685,6 +727,30 @@ func (d *DB) PendingLaunches(ctx context.Context, hostID string, epoch uint64) (
 		return nil, err
 	}
 	return commands, nil
+}
+
+func (d *DB) storageAdmission(ctx context.Context, tx *sql.Tx, runID string, incoming int64) error {
+	var filesystem syscall.Statfs_t
+	if err := syscall.Statfs(filepath.Dir(d.path), &filesystem); err != nil {
+		return CodeError("storage_blocked")
+	}
+	available := uint64(filesystem.Bavail) * uint64(filesystem.Bsize)
+	if available < d.minFreeBytes {
+		return CodeError("storage_blocked")
+	}
+	var runBytes, userBytes int64
+	if err := tx.QueryRowContext(ctx, `SELECT
+	 COALESCE((SELECT SUM(length(e.body_json)) FROM runtime_events e JOIN tasks t ON t.id=e.task_id WHERE t.run_id=?),0) +
+	 COALESCE((SELECT SUM(length(e.body_json)) FROM report_events e JOIN report_capabilities c ON c.capability_id=e.capability_id WHERE c.run_id=?),0)`, runID, runID).Scan(&runBytes); err != nil {
+		return err
+	}
+	if err := tx.QueryRowContext(ctx, `SELECT COALESCE((SELECT SUM(length(body_json)) FROM runtime_events),0) + COALESCE((SELECT SUM(length(body_json)) FROM report_events),0)`).Scan(&userBytes); err != nil {
+		return err
+	}
+	if incoming < 0 || runBytes > d.runControlLimit-incoming || userBytes > d.userControlLimit-incoming {
+		return CodeError("control_spool_full")
+	}
+	return nil
 }
 
 func (d *DB) CommitHostEvent(ctx context.Context, event contract.Event) (contract.DurableAck, error) {
@@ -709,10 +775,12 @@ func (d *DB) CommitHostEvent(ctx context.Context, event contract.Event) (contrac
 	if err = tx.QueryRowContext(ctx, `SELECT coordinator_epoch FROM runtime_hosts WHERE id=? AND status IN ('ready','reconciling')`, event.ProducerID).Scan(&registeredEpoch); err != nil || registeredEpoch != event.ExecutionEpoch {
 		return rollback(ErrHostRejected)
 	}
-	var oldID, oldHash string
-	err = tx.QueryRowContext(ctx, `SELECT event_id,payload_hash FROM runtime_events WHERE producer_id=? AND sequence=?`, event.ProducerID, event.Sequence).Scan(&oldID, &oldHash)
+	var oldID, oldHash, oldBody string
+	err = tx.QueryRowContext(ctx, `SELECT event_id,payload_hash,body_json FROM runtime_events WHERE producer_id=? AND sequence=?`, event.ProducerID, event.Sequence).Scan(&oldID, &oldHash, &oldBody)
 	if err == nil {
-		if oldID != event.EventID || oldHash != event.PayloadHash {
+		oldCanonical, oldErr := canonicalHostEvent([]byte(oldBody))
+		newCanonical, newErr := canonicalHostEvent(body)
+		if oldID != event.EventID || oldHash != event.PayloadHash || oldErr != nil || newErr != nil || subtle.ConstantTimeCompare(oldCanonical, newCanonical) != 1 {
 			return rollback(ErrEventSequence)
 		}
 		_ = tx.Rollback()
@@ -727,6 +795,9 @@ func (d *DB) CommitHostEvent(ctx context.Context, event contract.Event) (contrac
 	}
 	if event.Sequence != last+1 {
 		return rollback(ErrEventSequence)
+	}
+	if err = d.storageAdmission(ctx, tx, event.RunID, int64(len(body))); err != nil {
+		return rollback(err)
 	}
 	var storedHost, taskID, attemptID string
 	if err = tx.QueryRowContext(ctx, `SELECT host_id,(SELECT task_id FROM attempts WHERE id=segment_runtime.attempt_id),attempt_id FROM segment_runtime WHERE segment_id=? AND command_id=?`, event.SegmentID, event.CommandID).Scan(&storedHost, &taskID, &attemptID); err != nil || storedHost != event.ProducerID || taskID != event.TaskID || attemptID != event.AttemptID {
@@ -748,6 +819,17 @@ func (d *DB) CommitHostEvent(ctx context.Context, event contract.Event) (contrac
 		return contract.DurableAck{}, err
 	}
 	return contract.DurableAck{ProducerID: event.ProducerID, AckedThrough: event.Sequence, EventID: event.EventID, PayloadHash: event.PayloadHash, Status: "durable"}, nil
+}
+
+func canonicalHostEvent(body []byte) ([]byte, error) {
+	var event contract.Event
+	if err := json.Unmarshal(body, &event); err != nil {
+		return nil, err
+	}
+	event.ExecutionEpoch = 0
+	event.EventRevision = 0
+	event.ActionSlot = ""
+	return json.Marshal(event)
 }
 
 func applyEvent(ctx context.Context, tx *sql.Tx, event contract.Event) error {
@@ -1119,6 +1201,90 @@ func (d *DB) AcceptResult(ctx context.Context, taskID string, workRevision int) 
 	return tx.Commit()
 }
 
+type ReviewSpec struct {
+	TaskID        string
+	WorkRevision  int
+	EventID       string
+	EventRevision int64
+	EventHash     string
+	ActionSlot    string
+	Decision      string
+	CommandID     string
+}
+
+func (d *DB) ReviewResult(ctx context.Context, spec ReviewSpec) (string, error) {
+	if spec.TaskID == "" || spec.WorkRevision < 1 || spec.EventID == "" || spec.EventRevision < 1 || spec.EventHash == "" || spec.ActionSlot == "" || spec.CommandID == "" || (spec.Decision != "accept" && spec.Decision != "reject") {
+		return "", CodeError("invalid_review")
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	tx, err := d.sql.BeginTx(ctx, nil)
+	if err != nil {
+		return "", err
+	}
+	rollback := func(e error) (string, error) { _ = tx.Rollback(); return "", e }
+	var previousDecision, eventHash string
+	var eventRevision int64
+	err = tx.QueryRowContext(ctx, `SELECT decision,event_hash,event_revision FROM review_decisions WHERE action_slot=?`, spec.ActionSlot).Scan(&previousDecision, &eventHash, &eventRevision)
+	if err == nil {
+		if previousDecision != spec.Decision || eventHash != strings.ToLower(spec.EventHash) || eventRevision != spec.EventRevision {
+			return rollback(ErrConflict)
+		}
+		_ = tx.Rollback()
+		return previousDecision + "ed", nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return rollback(err)
+	}
+	var taskStatus, storedHash, storedSlot, body string
+	var workRevision int
+	var storedRevision int64
+	if err = tx.QueryRowContext(ctx, `SELECT t.status,r.work_revision,e.payload_hash,e.event_revision,e.action_slot,e.body_json FROM tasks t JOIN task_runtime r ON r.task_id=t.id JOIN runtime_events e ON e.task_id=t.id WHERE t.id=? AND e.event_id=?`, spec.TaskID, spec.EventID).Scan(&taskStatus, &workRevision, &storedHash, &storedRevision, &storedSlot, &body); err != nil || taskStatus != "result_ready" || workRevision != spec.WorkRevision || storedRevision != spec.EventRevision || storedSlot != spec.ActionSlot || subtle.ConstantTimeCompare([]byte(storedHash), []byte(strings.ToLower(spec.EventHash))) != 1 {
+		return rollback(ErrConflict)
+	}
+	var event contract.Event
+	if json.Unmarshal([]byte(body), &event) != nil || event.Kind != contract.EventResult {
+		return rollback(ErrConflict)
+	}
+	var latestSegment string
+	if err = tx.QueryRowContext(ctx, `SELECT s.id FROM segments s JOIN attempts a ON a.id=s.attempt_id WHERE a.task_id=? ORDER BY a.attempt_no DESC,s.segment_no DESC LIMIT 1`, spec.TaskID).Scan(&latestSegment); err != nil || latestSegment != event.SegmentID {
+		return rollback(ErrConflict)
+	}
+	if _, err = tx.ExecContext(ctx, `INSERT INTO review_decisions(action_slot,task_id,event_id,event_revision,event_hash,decision,command_id,created_at) VALUES(?,?,?,?,?,?,?,?)`, spec.ActionSlot, spec.TaskID, spec.EventID, spec.EventRevision, strings.ToLower(spec.EventHash), spec.Decision, spec.CommandID, time.Now().UTC().Format(time.RFC3339Nano)); err != nil {
+		return rollback(mapConflict(err))
+	}
+	status := "accepted"
+	if spec.Decision == "accept" {
+		if _, err = tx.ExecContext(ctx, `UPDATE tasks SET status='completed' WHERE id=?`, spec.TaskID); err != nil {
+			return rollback(err)
+		}
+		if err = releaseReady(ctx, tx); err != nil {
+			return rollback(err)
+		}
+	} else {
+		status = "rejected"
+		if _, err = tx.ExecContext(ctx, `UPDATE tasks SET status='failed' WHERE id=?`, spec.TaskID); err != nil {
+			return rollback(err)
+		}
+		if _, err = tx.ExecContext(ctx, `UPDATE attempts SET status='failed' WHERE id=?`, event.AttemptID); err != nil {
+			return rollback(err)
+		}
+		var attempts, maxAttempts int
+		if err = tx.QueryRowContext(ctx, `SELECT COUNT(*),t.max_attempts FROM attempts a JOIN tasks t ON t.id=a.task_id WHERE a.task_id=?`, spec.TaskID).Scan(&attempts, &maxAttempts); err != nil {
+			return rollback(err)
+		}
+		if attempts >= maxAttempts || attempts >= 3 {
+			if err = blockFailedDependencies(ctx, tx); err != nil {
+				return rollback(err)
+			}
+		}
+	}
+	if err = tx.Commit(); err != nil {
+		return "", err
+	}
+	return status, nil
+}
+
 func (d *DB) QueueRetry(ctx context.Context, taskID string, workRevision int, useNextFallback bool) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -1185,6 +1351,36 @@ type ActiveTask struct {
 	WorkRevision int
 }
 
+type ReleasableTask struct {
+	TaskID     string
+	Executable string
+}
+
+func (d *DB) ReleasableTasks(ctx context.Context) ([]ReleasableTask, error) {
+	rows, err := d.sql.QueryContext(ctx, `SELECT t.id,h.executable FROM tasks t
+	 JOIN task_runtime r ON r.task_id=t.id JOIN host_launches h ON h.id=r.host_launch_id
+	 WHERE (t.status IN ('completed','cancelled','budget_exhausted','blocked_dependency')
+	        OR (t.status='failed' AND (SELECT COUNT(*) FROM attempts a WHERE a.task_id=t.id) >= t.max_attempts))
+	 AND NOT EXISTS (SELECT 1 FROM segment_runtime s JOIN attempts a ON a.id=s.attempt_id WHERE a.task_id=t.id AND s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown'))
+	 AND NOT EXISTS (SELECT 1 FROM runtime_events e WHERE e.task_id=t.id AND e.delivery_status='pending')
+	 AND NOT EXISTS (SELECT 1 FROM report_events e JOIN report_capabilities c ON c.capability_id=e.capability_id WHERE c.task_id=t.id AND e.delivery_status='pending')
+	 AND NOT EXISTS (SELECT 1 FROM runtime_questions q WHERE q.task_id=t.id AND q.status IN ('open','resume_queued','resume_started'))
+	 ORDER BY t.id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []ReleasableTask
+	for rows.Next() {
+		var item ReleasableTask
+		if err = rows.Scan(&item.TaskID, &item.Executable); err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
 func (d *DB) ActiveTasks(ctx context.Context) ([]ActiveTask, error) {
 	rows, err := d.sql.QueryContext(ctx, `SELECT DISTINCT t.id,r.work_revision FROM tasks t JOIN task_runtime r ON r.task_id=t.id JOIN attempts a ON a.task_id=t.id JOIN segment_runtime s ON s.attempt_id=a.id WHERE s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown') ORDER BY t.id`)
 	if err != nil {
@@ -1206,7 +1402,7 @@ func (d *DB) CompletelyIdle(ctx context.Context) (bool, error) {
 	var count int
 	err := d.sql.QueryRowContext(ctx, `SELECT
  (SELECT COUNT(*) FROM segment_runtime WHERE status IN ('launch_requested','prepared','spawned','running','stopping','unknown')) +
- (SELECT COUNT(*) FROM tasks WHERE status IN ('queued','ready','resume_queued','running','stopping','unknown','waiting_question','interrupted')) +
+ (SELECT COUNT(*) FROM tasks WHERE status IN ('queued','ready','resume_queued','running','stopping','unknown','waiting_question','interrupted','result_ready')) +
  (SELECT COUNT(*) FROM runtime_events WHERE delivery_status='pending') +
  (SELECT COUNT(*) FROM stop_runtime WHERE status IN ('pending','accepted')) +
  (SELECT COUNT(*) FROM runtime_hosts WHERE status='ready')`).Scan(&count)
@@ -1351,8 +1547,184 @@ func (d *DB) PendingStops(ctx context.Context, hostID string) ([]StopDispatch, e
 	return out, rows.Err()
 }
 
+func (d *DB) RegisterReportCapability(ctx context.Context, registration contract.ReportCapabilityRegistration) (contract.DurableAck, error) {
+	if registration.CapabilityID == "" || registration.ProducerID == "" || registration.SegmentID == "" || registration.TokenHash == "" || !validDigest(registration.TokenHash) || registration.WorkRevision < 1 || registration.ExecutionEpoch == 0 || !filepath.IsAbs(registration.CapabilityDir) {
+		return contract.DurableAck{}, CodeError("invalid_report_capability")
+	}
+	info, err := os.Lstat(registration.CapabilityDir)
+	stat, owned := infoSyscall(info)
+	if err != nil || !owned || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 || info.Mode().Perm() != 0700 || stat.Uid != uint32(os.Geteuid()) {
+		return contract.DurableAck{}, CodeError("unsafe_report_capability")
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	tx, err := d.sql.BeginTx(ctx, nil)
+	if err != nil {
+		return contract.DurableAck{}, err
+	}
+	rollback := func(e error) (contract.DurableAck, error) { _ = tx.Rollback(); return contract.DurableAck{}, e }
+	var segmentID, producerID, runID, taskID, attemptID, tokenHash, capabilityDir, status string
+	var revision int
+	var hostEpoch uint64
+	if err = tx.QueryRowContext(ctx, `SELECT c.segment_id,c.producer_id,c.run_id,c.task_id,c.attempt_id,c.work_revision,c.token_hash,c.capability_dir,c.status,h.coordinator_epoch FROM report_capabilities c JOIN runtime_hosts h ON h.id=c.producer_id WHERE c.capability_id=? AND h.status IN ('ready','reconciling')`, registration.CapabilityID).Scan(&segmentID, &producerID, &runID, &taskID, &attemptID, &revision, &tokenHash, &capabilityDir, &status, &hostEpoch); err != nil || segmentID != registration.SegmentID || producerID != registration.ProducerID || runID != registration.RunID || taskID != registration.TaskID || attemptID != registration.AttemptID || revision != registration.WorkRevision || hostEpoch != registration.ExecutionEpoch {
+		return rollback(ErrConflict)
+	}
+	if status == "registered" {
+		if tokenHash != strings.ToLower(registration.TokenHash) || capabilityDir != registration.CapabilityDir {
+			return rollback(ErrConflict)
+		}
+		_ = tx.Rollback()
+		return contract.DurableAck{ProducerID: producerID, EventID: registration.CapabilityID, PayloadHash: tokenHash, Status: "durable"}, nil
+	}
+	if status != "pending" {
+		return rollback(ErrConflict)
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE report_capabilities SET token_hash=?,capability_dir=?,execution_epoch=?,status='registered' WHERE capability_id=?`, strings.ToLower(registration.TokenHash), registration.CapabilityDir, registration.ExecutionEpoch, registration.CapabilityID); err != nil {
+		return rollback(err)
+	}
+	if err = tx.Commit(); err != nil {
+		return contract.DurableAck{}, err
+	}
+	return contract.DurableAck{ProducerID: producerID, EventID: registration.CapabilityID, PayloadHash: strings.ToLower(registration.TokenHash), Status: "durable"}, nil
+}
+
+func infoSyscall(info os.FileInfo) (*syscall.Stat_t, bool) {
+	if info == nil {
+		return nil, false
+	}
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	return stat, ok
+}
+
+type ReportEventSpec struct {
+	CapabilityID string
+	Token        string
+	EventID      string
+	Sequence     int64
+	Kind         string
+	Payload      json.RawMessage
+}
+
+var reportIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
+
+func (d *DB) CommitReportEvent(ctx context.Context, spec ReportEventSpec) (contract.DurableAck, error) {
+	if spec.CapabilityID == "" || spec.Token == "" || !reportIDPattern.MatchString(spec.EventID) || spec.Sequence < 1 || len(spec.Payload) == 0 || len(spec.Payload) > 60*1024 || !json.Valid(spec.Payload) {
+		return contract.DurableAck{}, CodeError("invalid_report_event")
+	}
+	if spec.Kind != "progress" && spec.Kind != "question" && spec.Kind != "result" && spec.Kind != "failure" {
+		return contract.DurableAck{}, CodeError("invalid_report_kind")
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	tx, err := d.sql.BeginTx(ctx, nil)
+	if err != nil {
+		return contract.DurableAck{}, err
+	}
+	rollback := func(e error) (contract.DurableAck, error) { _ = tx.Rollback(); return contract.DurableAck{}, e }
+	var tokenHash, capabilityDir, runID, taskID, attemptID, segmentID, producerID, status string
+	var revision int
+	var epoch uint64
+	var used int64
+	if err = tx.QueryRowContext(ctx, `SELECT token_hash,capability_dir,run_id,task_id,attempt_id,segment_id,producer_id,work_revision,execution_epoch,status,used_bytes FROM report_capabilities WHERE capability_id=?`, spec.CapabilityID).Scan(&tokenHash, &capabilityDir, &runID, &taskID, &attemptID, &segmentID, &producerID, &revision, &epoch, &status, &used); err != nil || status != "registered" || subtle.ConstantTimeCompare([]byte(tokenHash), []byte(runtimeHash(spec.Token))) != 1 {
+		return rollback(CodeError("report_capability_rejected"))
+	}
+	payloadHash := runtimeHash(string(spec.Payload))
+	var oldHash string
+	if err = tx.QueryRowContext(ctx, `SELECT payload_hash FROM report_events WHERE capability_id=? AND sequence=? AND event_id=?`, spec.CapabilityID, spec.Sequence, spec.EventID).Scan(&oldHash); err == nil {
+		if oldHash != payloadHash {
+			return rollback(ErrConflict)
+		}
+		_ = tx.Rollback()
+		return contract.DurableAck{ProducerID: spec.CapabilityID, AckedThrough: spec.Sequence, EventID: spec.EventID, PayloadHash: payloadHash, Status: "durable"}, nil
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return rollback(err)
+	}
+	var last int64
+	if err = tx.QueryRowContext(ctx, `SELECT COALESCE(MAX(sequence),0) FROM report_events WHERE capability_id=?`, spec.CapabilityID).Scan(&last); err != nil || spec.Sequence != last+1 {
+		return rollback(ErrEventSequence)
+	}
+	event, err := validateReportPayload(spec.Kind, spec.Payload, capabilityDir)
+	if err != nil {
+		return rollback(err)
+	}
+	event.Version, event.ProducerID, event.EventID = 1, spec.CapabilityID, spec.EventID
+	event.RunID, event.TaskID, event.AttemptID, event.SegmentID = runID, taskID, attemptID, segmentID
+	event.WorkRevision, event.ExecutionEpoch, event.Sequence, event.Kind, event.PayloadHash = revision, epoch, spec.Sequence, spec.Kind, payloadHash
+	body, _ := json.Marshal(event)
+	if err = d.storageAdmission(ctx, tx, runID, int64(len(body))); err != nil {
+		return rollback(err)
+	}
+	delivery := "pending"
+	if spec.Kind == "progress" {
+		delivery = "internal"
+	}
+	actionSlot := "action-" + runtimeHash(spec.CapabilityID + "\x00" + spec.EventID)[:32]
+	if used+int64(len(body)) > 20*1024*1024 {
+		return rollback(CodeError("report_budget_exhausted"))
+	}
+	if _, err = tx.ExecContext(ctx, `INSERT INTO report_events(event_id,capability_id,sequence,kind,payload_hash,body_json,event_revision,action_slot,delivery_status,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)`, spec.EventID, spec.CapabilityID, spec.Sequence, spec.Kind, payloadHash, string(body), spec.Sequence, actionSlot, delivery, time.Now().UTC().Format(time.RFC3339Nano)); err != nil {
+		return rollback(mapConflict(err))
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE report_capabilities SET used_bytes=used_bytes+? WHERE capability_id=?`, len(body), spec.CapabilityID); err != nil {
+		return rollback(err)
+	}
+	if err = tx.Commit(); err != nil {
+		return contract.DurableAck{}, err
+	}
+	return contract.DurableAck{ProducerID: spec.CapabilityID, AckedThrough: spec.Sequence, EventID: spec.EventID, PayloadHash: payloadHash, Status: "durable"}, nil
+}
+
+func validateReportPayload(kind string, raw json.RawMessage, capabilityDir string) (contract.Event, error) {
+	decoder := json.NewDecoder(strings.NewReader(string(raw)))
+	decoder.DisallowUnknownFields()
+	if kind == "progress" {
+		var value struct {
+			Status    string `json:"status"`
+			Sequence  int64  `json:"sequence"`
+			ElapsedMS int64  `json:"elapsed_ms"`
+		}
+		if decoder.Decode(&value) != nil || (value.Status != "resource_sample" && value.Status != "checkpoint") || value.Sequence < 0 || value.ElapsedMS < 0 {
+			return contract.Event{}, CodeError("invalid_report_payload")
+		}
+		return contract.Event{}, nil
+	}
+	var value struct {
+		Status           string               `json:"status"`
+		QuestionID       string               `json:"question_id,omitempty"`
+		QuestionRevision int                  `json:"question_revision,omitempty"`
+		SessionKind      string               `json:"session_kind,omitempty"`
+		SessionID        string               `json:"session_id,omitempty"`
+		Artifact         contract.ArtifactRef `json:"artifact"`
+	}
+	if decoder.Decode(&value) != nil {
+		return contract.Event{}, CodeError("invalid_report_payload")
+	}
+	allowed := (kind == "result" && (value.Status == "completed" || value.Status == "partial")) || (kind == "failure" && (value.Status == "failed" || value.Status == "blocked")) || (kind == "question" && value.Status == "waiting_user" && value.QuestionID != "" && value.QuestionRevision > 0 && value.SessionKind != "" && value.SessionID != "")
+	if !allowed || value.Artifact.Path == "" || !filepath.IsAbs(value.Artifact.Path) || !validDigest(value.Artifact.SHA256) || value.Artifact.Size < 0 {
+		return contract.Event{}, CodeError("invalid_report_payload")
+	}
+	rel, err := filepath.Rel(capabilityDir, value.Artifact.Path)
+	if err != nil || rel == "." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
+		return contract.Event{}, CodeError("report_artifact_outside_capability")
+	}
+	info, err := os.Lstat(value.Artifact.Path)
+	stat, owned := infoSyscall(info)
+	if err != nil || !owned || !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 || info.Mode().Perm() != 0600 || stat.Uid != uint32(os.Geteuid()) || info.Size() != value.Artifact.Size {
+		return contract.Event{}, CodeError("unsafe_report_artifact")
+	}
+	data, err := os.ReadFile(value.Artifact.Path)
+	if err != nil || runtimeHash(string(data)) != strings.ToLower(value.Artifact.SHA256) {
+		return contract.Event{}, CodeError("report_artifact_hash_mismatch")
+	}
+	return contract.Event{Artifact: &value.Artifact, QuestionID: value.QuestionID, QuestionRevision: value.QuestionRevision, SessionKind: value.SessionKind, SessionID: value.SessionID}, nil
+}
+
 func (d *DB) CollectPending(ctx context.Context, taskID string) ([]contract.Event, error) {
-	rows, err := d.sql.QueryContext(ctx, `SELECT body_json,event_revision,action_slot FROM runtime_events WHERE task_id=? AND delivery_status='pending' ORDER BY created_at,producer_id,sequence`, taskID)
+	rows, err := d.sql.QueryContext(ctx, `SELECT body_json,event_revision,action_slot FROM (
+	 SELECT body_json,event_revision,action_slot,created_at,sequence FROM runtime_events WHERE task_id=? AND delivery_status='pending'
+	 UNION ALL
+	 SELECT e.body_json,e.event_revision,e.action_slot,e.created_at,e.sequence FROM report_events e JOIN report_capabilities c ON c.capability_id=e.capability_id WHERE c.task_id=? AND e.delivery_status='pending'
+	) ORDER BY created_at,sequence`, taskID, taskID)
 	if err != nil {
 		return nil, err
 	}
@@ -1434,8 +1806,16 @@ func applyAckDecision(ctx context.Context, tx *sql.Tx, taskID string, decision A
 	var err error
 	var storedTask, storedHash, storedSlot, body, delivery string
 	var storedRevision int64
+	eventTable := "runtime_events"
 	if err = tx.QueryRowContext(ctx, `SELECT task_id,payload_hash,event_revision,action_slot,body_json,delivery_status FROM runtime_events WHERE event_id=?`, decision.EventID).Scan(&storedTask, &storedHash, &storedRevision, &storedSlot, &body, &delivery); err != nil || storedTask != taskID || storedRevision != decision.EventRevision || storedSlot != decision.ActionSlot || subtle.ConstantTimeCompare([]byte(storedHash), []byte(strings.ToLower(decision.EventHash))) != 1 {
-		return ErrConflict
+		if !errors.Is(err, sql.ErrNoRows) {
+			return ErrConflict
+		}
+		eventTable = "report_events"
+		err = tx.QueryRowContext(ctx, `SELECT c.task_id,e.payload_hash,e.event_revision,e.action_slot,e.body_json,e.delivery_status FROM report_events e JOIN report_capabilities c ON c.capability_id=e.capability_id WHERE e.event_id=?`, decision.EventID).Scan(&storedTask, &storedHash, &storedRevision, &storedSlot, &body, &delivery)
+		if err != nil || storedTask != taskID || storedRevision != decision.EventRevision || storedSlot != decision.ActionSlot || subtle.ConstantTimeCompare([]byte(storedHash), []byte(strings.ToLower(decision.EventHash))) != 1 {
+			return ErrConflict
+		}
 	}
 	var existingDecision, existingHash string
 	var existingRevision int64
@@ -1466,7 +1846,11 @@ func applyAckDecision(ctx context.Context, tx *sql.Tx, taskID string, decision A
 	if _, err = tx.ExecContext(ctx, `INSERT INTO runtime_decisions(action_slot,event_id,event_revision,event_hash,decision,command_id,created_at) VALUES(?,?,?,?,?,?,?)`, decision.ActionSlot, decision.EventID, decision.EventRevision, strings.ToLower(decision.EventHash), decision.Decision, decision.CommandID, time.Now().UTC().Format(time.RFC3339Nano)); err != nil {
 		return mapConflict(err)
 	}
-	if _, err = tx.ExecContext(ctx, `UPDATE runtime_events SET delivery_status='acked' WHERE event_id=? AND delivery_status='pending'`, decision.EventID); err != nil {
+	statement := `UPDATE runtime_events SET delivery_status='acked' WHERE event_id=? AND delivery_status='pending'`
+	if eventTable == "report_events" {
+		statement = `UPDATE report_events SET delivery_status='acked' WHERE event_id=? AND delivery_status='pending'`
+	}
+	if _, err = tx.ExecContext(ctx, statement, decision.EventID); err != nil {
 		return err
 	}
 	return nil
@@ -1490,6 +1874,83 @@ func (d *DB) ValidateTaskOwner(ctx context.Context, taskID, controller, controlT
 		return CodeError("owner_mismatch")
 	}
 	return nil
+}
+
+type RunOwnerBinding struct {
+	OriginContextID string
+	OriginPID       int
+	OriginBirth     string
+}
+
+func (d *DB) ValidateRunOwner(ctx context.Context, runID, controller, controlToken string) (RunOwnerBinding, error) {
+	var binding RunOwnerBinding
+	var storedController, tokenHash string
+	err := d.sql.QueryRowContext(ctx, `SELECT r.controller_thread,r.origin_context_id,r.origin_pid,r.origin_birth,c.token_hash FROM runs r JOIN run_control c ON c.run_id=r.id WHERE r.id=?`, runID).Scan(&storedController, &binding.OriginContextID, &binding.OriginPID, &binding.OriginBirth, &tokenHash)
+	if errors.Is(err, sql.ErrNoRows) {
+		return binding, ErrNotFound
+	}
+	if err != nil {
+		return binding, err
+	}
+	if controller == "" || controlToken == "" || storedController != controller || subtle.ConstantTimeCompare([]byte(tokenHash), []byte(runtimeHash(controlToken))) != 1 {
+		return binding, CodeError("owner_mismatch")
+	}
+	return binding, nil
+}
+
+type RebindOwnerSpec struct {
+	RunID                 string
+	OriginContextID       string
+	OriginPID             int
+	OriginBirth           string
+	HostGeneration        string
+	AttachmentProofSHA256 string
+}
+
+func (d *DB) RebindOwner(ctx context.Context, spec RebindOwnerSpec) error {
+	if spec.RunID == "" || spec.OriginContextID == "" || spec.OriginPID <= 0 || spec.OriginBirth == "" || spec.HostGeneration == "" || !validDigest(spec.AttachmentProofSHA256) {
+		return CodeError("invalid_owner_rebind")
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	tx, err := d.sql.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	rollback := func(e error) error { _ = tx.Rollback(); return e }
+	var origin, oldGeneration string
+	if err = tx.QueryRowContext(ctx, `SELECT r.origin_context_id,h.host_generation FROM runs r JOIN tasks t ON t.run_id=r.id JOIN task_runtime tr ON tr.task_id=t.id JOIN host_launches h ON h.id=tr.host_launch_id WHERE r.id=? LIMIT 1`, spec.RunID).Scan(&origin, &oldGeneration); err != nil || origin != spec.OriginContextID {
+		return rollback(ErrConflict)
+	}
+	var proof string
+	err = tx.QueryRowContext(ctx, `SELECT attachment_proof_sha256 FROM owner_rebinds WHERE run_id=? AND host_generation=?`, spec.RunID, spec.HostGeneration).Scan(&proof)
+	if err == nil {
+		if proof != strings.ToLower(spec.AttachmentProofSHA256) {
+			return rollback(ErrConflict)
+		}
+		_ = tx.Rollback()
+		return nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) || oldGeneration == spec.HostGeneration {
+		return rollback(ErrConflict)
+	}
+	var active int
+	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM segment_runtime s JOIN attempts a ON a.id=s.attempt_id JOIN tasks t ON t.id=a.task_id WHERE t.run_id=? AND s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown')`, spec.RunID).Scan(&active); err != nil || active != 0 {
+		return rollback(ErrConflict)
+	}
+	if _, err = tx.ExecContext(ctx, `INSERT INTO owner_rebinds(run_id,host_generation,origin_pid,origin_birth,attachment_proof_sha256,created_at) VALUES(?,?,?,?,?,?)`, spec.RunID, spec.HostGeneration, spec.OriginPID, spec.OriginBirth, strings.ToLower(spec.AttachmentProofSHA256), time.Now().UTC().Format(time.RFC3339Nano)); err != nil {
+		return rollback(mapConflict(err))
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE runs SET origin_pid=?,origin_birth=? WHERE id=?`, spec.OriginPID, spec.OriginBirth, spec.RunID); err != nil {
+		return rollback(err)
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE host_launches SET host_generation=?,status='offline' WHERE id IN (SELECT host_launch_id FROM task_runtime r JOIN tasks t ON t.id=r.task_id WHERE t.run_id=?)`, spec.HostGeneration, spec.RunID); err != nil {
+		return rollback(err)
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE runtime_hosts SET host_generation=?,status='offline' WHERE launch_id IN (SELECT host_launch_id FROM task_runtime r JOIN tasks t ON t.id=r.task_id WHERE t.run_id=?)`, spec.HostGeneration, spec.RunID); err != nil {
+		return rollback(err)
+	}
+	return tx.Commit()
 }
 
 type TaskSnapshot struct {

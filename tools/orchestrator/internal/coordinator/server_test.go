@@ -49,7 +49,7 @@ func TestServerRoutesControlToBoundHostAndDurablyCollects(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer conn.Close()
-	hello := contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: "origin", HostGeneration: "generation", PID: os.Getpid(), Birth: "host-birth", Executable: "/private/tmp/orchestrator"}
+	hello := contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: "origin", OriginPID: 7, OriginBirth: "origin-birth", HostGeneration: "generation", PID: os.Getpid(), Birth: "host-birth", Executable: "/private/tmp/orchestrator"}
 	writeMessage(t, conn, ipc.KindHostHello, "hello", 0, hello)
 	readyMessage := readMessage(t, conn)
 	if readyMessage.Kind != ipc.KindHostReady {
@@ -154,7 +154,7 @@ func TestServerRoutesExplicitStopToOwningHost(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer conn.Close()
-	writeMessage(t, conn, ipc.KindHostHello, "hello", 0, contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: "origin", HostGeneration: "generation", PID: os.Getpid(), Birth: "host-birth", Executable: "/private/tmp/orchestrator"})
+	writeMessage(t, conn, ipc.KindHostHello, "hello", 0, contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: "origin", OriginPID: 7, OriginBirth: "origin-birth", HostGeneration: "generation", PID: os.Getpid(), Birth: "host-birth", Executable: "/private/tmp/orchestrator"})
 	var ready contract.HostReady
 	decodePayload(t, readMessage(t, conn), &ready)
 	writeMessage(t, conn, ipc.KindHostReconciled, "reconciled", ready.CoordinatorEpoch, contract.HostReconciled{ProducerID: ready.HostID})

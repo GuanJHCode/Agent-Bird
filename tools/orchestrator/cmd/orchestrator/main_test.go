@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -315,6 +316,202 @@ func TestCLIForceRestartReplaysSpoolBeforeExplicitResume(t *testing.T) {
 			t.Fatalf("force resume did not complete: %#v", resumed)
 		case <-time.After(25 * time.Millisecond):
 		}
+	}
+}
+
+func TestCLIProviderQuestionAnswerAndOwnerAccept(t *testing.T) {
+	if testing.Short() {
+		t.Skip("builds and runs the real multi-process entrypoint")
+	}
+	root, err := os.MkdirTemp("/tmp", "g1-question-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(root) })
+	state, bin := filepath.Join(root, "state"), filepath.Join(root, "orchestrator")
+	t.Cleanup(func() {
+		if _, statErr := os.Stat(filepath.Join(state, "coordinator.pid")); statErr == nil {
+			stopCoordinator(t, state)
+		}
+	})
+	build := exec.Command("go", "build", "-o", bin, ".")
+	build.Env = os.Environ()
+	if output, buildErr := build.CombinedOutput(); buildErr != nil {
+		t.Fatalf("build: %v\n%s", buildErr, output)
+	}
+	answerCapture := filepath.Join(root, "answer-input")
+	provider := filepath.Join(root, "agy-provider")
+	script := "#!/bin/sh\n" +
+		"if [ \"${1-}\" = --version ]; then echo 1.0.0; exit 0; fi\n" +
+		"case \" $* \" in\n" +
+		"  *\" --conversation session-1 \"*) IFS= read -r answer; printf '%s\\n' \"$answer\" > \"" + answerCapture + "\"; printf '%s\\n' '{\"event\":\"init\",\"conversation_id\":\"session-1\"}' '{\"event\":\"result\",\"result\":{\"conversation_id\":\"session-1\",\"status\":\"SUCCESS\",\"response\":\"done\"}}' ;;\n" +
+		"  *) printf '%s\\n' '{\"event\":\"init\",\"conversation_id\":\"session-1\"}' '{\"event\":\"result\",\"result\":{\"conversation_id\":\"session-1\",\"status\":\"WAITING\",\"response\":\"Choose the narrow API\"}}' ;;\n" +
+		"esac\n"
+	if err = os.WriteFile(provider, []byte(script), 0700); err != nil {
+		t.Fatal(err)
+	}
+	provider, err = filepath.EvalSymlinks(provider)
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256([]byte(script))
+	originBirth, err := process.Birth(os.Getpid())
+	if err != nil {
+		t.Fatal(err)
+	}
+	requestPath := filepath.Join(root, "request.json")
+	request := map[string]any{
+		"run_id": "question-run", "controller_thread": "question-thread", "plan_revision": 1,
+		"origin_context_id": "question-origin", "origin_pid": os.Getpid(), "origin_birth": originBirth,
+		"host_generation": "question-generation",
+		"tasks":           []any{map[string]any{"id": "question-task", "max_attempts": 3, "completion_policy": "owner_review", "adapter": map[string]any{"provider": "antigravity-cli", "binary_path": provider, "binary_version": "1.0.0", "binary_sha256": fmt.Sprintf("%x", digest), "directory": root, "prompt": "Start", "permission_mode": "default"}}},
+	}
+	body, _ := json.Marshal(request)
+	if err = os.WriteFile(requestPath, body, 0600); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	var submitted struct {
+		ControlFile string `json:"control_file"`
+	}
+	if err = json.Unmarshal(runBinary(t, ctx, bin, "submit", "--state-dir", state, "--request", requestPath), &submitted); err != nil {
+		t.Fatal(err)
+	}
+	for {
+		statusBody := runBinary(t, ctx, bin, "status", "--state-dir", state, "--task-id", "question-task", "--control-file", submitted.ControlFile)
+		var status struct {
+			Status           string `json:"status"`
+			SegmentID        string `json:"segment_id"`
+			QuestionID       string `json:"question_id"`
+			QuestionRevision int    `json:"question_revision"`
+		}
+		if err = json.Unmarshal(statusBody, &status); err != nil {
+			t.Fatal(err)
+		}
+		if status.Status == "waiting_question" {
+			answerPath := filepath.Join(root, "answer.json")
+			answerBody, _ := json.Marshal(map[string]any{"task_id": "question-task", "control_file": submitted.ControlFile, "work_revision": 1, "question_id": status.QuestionID, "question_revision": status.QuestionRevision, "answer": "Use the narrow API."})
+			if err = os.WriteFile(answerPath, answerBody, 0600); err != nil {
+				t.Fatal(err)
+			}
+			runBinary(t, ctx, bin, "answer", "--state-dir", state, "--request", answerPath)
+			break
+		}
+		if status.Status == "failed" || status.Status == "unknown" {
+			collected := runBinary(t, ctx, bin, "collect", "--state-dir", state, "--task-id", "question-task", "--control-file", submitted.ControlFile)
+			t.Fatalf("provider question failed: status=%#v collected=%s", status, collected)
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatalf("question was not persisted: %#v", status)
+		case <-time.After(20 * time.Millisecond):
+		}
+	}
+	for {
+		status := taskStatus(t, ctx, bin, state, "question-task", submitted.ControlFile)
+		if status.Status == "result_ready" {
+			var collection struct {
+				Events []contract.Event `json:"events"`
+			}
+			if err = json.Unmarshal(runBinary(t, ctx, bin, "collect", "--state-dir", state, "--task-id", "question-task", "--control-file", submitted.ControlFile), &collection); err != nil {
+				t.Fatal(err)
+			}
+			var result contract.Event
+			for _, event := range collection.Events {
+				if event.Kind == contract.EventResult {
+					result = event
+				}
+			}
+			if result.EventID == "" {
+				t.Fatalf("result event missing: %#v", collection.Events)
+			}
+			runBinary(t, ctx, bin, "accept", "--state-dir", state, "--task-id", "question-task", "--work-revision", "1", "--control-file", submitted.ControlFile, "--event-id", result.EventID, "--event-revision", fmt.Sprint(result.EventRevision), "--event-hash", result.PayloadHash, "--action-slot", result.ActionSlot, "--decision", "accept", "--command-id", "review-question-result")
+			break
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatalf("answered provider did not return result: %#v", status)
+		case <-time.After(20 * time.Millisecond):
+		}
+	}
+	if captured, readErr := os.ReadFile(answerCapture); readErr != nil || !strings.Contains(string(captured), "Use the narrow API.") {
+		t.Fatalf("answer was not delivered through resume stdin: %q err=%v", captured, readErr)
+	}
+	if status := taskStatus(t, ctx, bin, state, "question-task", submitted.ControlFile); status.Status != "completed" {
+		t.Fatalf("accepted status=%#v", status)
+	}
+}
+
+func TestCLIWorkerReportUsesSegmentCapability(t *testing.T) {
+	root, err := os.MkdirTemp("/tmp", "g1-report-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(root) })
+	state, bin := filepath.Join(root, "state"), filepath.Join(root, "orchestrator")
+	t.Cleanup(func() {
+		if _, statErr := os.Stat(filepath.Join(state, "coordinator.pid")); statErr == nil {
+			stopCoordinator(t, state)
+		}
+	})
+	build := exec.Command("go", "build", "-o", bin, ".")
+	build.Env = os.Environ()
+	if output, buildErr := build.CombinedOutput(); buildErr != nil {
+		t.Fatalf("build: %v\n%s", buildErr, output)
+	}
+	artifactBody := []byte("reported\n")
+	artifactHash := sha256.Sum256(artifactBody)
+	worker := filepath.Join(root, "worker.sh")
+	script := "#!/bin/sh\nset -eu\ndir=$(dirname \"$ORCHESTRATOR_REPORT_CAPABILITY\")\nartifact=$dir/result.txt\nrequest=$dir/report.json\nprintf 'reported\\n' > \"$artifact\"\nchmod 600 \"$artifact\"\nprintf '%s\\n' '{\"version\":1,\"event_id\":\"worker-result-1\",\"sequence\":1,\"kind\":\"result\",\"payload\":{\"status\":\"completed\",\"artifact\":{\"id\":\"result.txt\",\"path\":\"'\"$artifact\"'\",\"size\":9,\"sha256\":\"" + fmt.Sprintf("%x", artifactHash) + "\"}}}' > \"$request\"\nchmod 600 \"$request\"\n\"$ORCHESTRATOR_REPORT_EXECUTABLE\" report --capability-file \"$ORCHESTRATOR_REPORT_CAPABILITY\" --request \"$request\"\n"
+	if err = os.WriteFile(worker, []byte(script), 0700); err != nil {
+		t.Fatal(err)
+	}
+	worker, err = filepath.EvalSymlinks(worker)
+	if err != nil {
+		t.Fatal(err)
+	}
+	originBirth, err := process.Birth(os.Getpid())
+	if err != nil {
+		t.Fatal(err)
+	}
+	requestPath := filepath.Join(root, "submit.json")
+	body, _ := json.Marshal(map[string]any{"run_id": "report-run", "controller_thread": "report-thread", "plan_revision": 1, "origin_context_id": "report-origin", "origin_pid": os.Getpid(), "origin_birth": originBirth, "host_generation": "report-generation", "tasks": []any{map[string]any{"id": "report-task", "max_attempts": 1, "completion_policy": "exit_success_fixture", "adapter": map[string]any{"kind": "fake", "args": []string{worker}, "directory": root}}}})
+	if err = os.WriteFile(requestPath, body, 0600); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	var submitted struct {
+		ControlFile string `json:"control_file"`
+	}
+	if err = json.Unmarshal(runBinary(t, ctx, bin, "submit", "--state-dir", state, "--request", requestPath), &submitted); err != nil {
+		t.Fatal(err)
+	}
+	for {
+		if status := taskStatus(t, ctx, bin, state, "report-task", submitted.ControlFile); status.Status == "completed" {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatal("reported task did not complete")
+		case <-time.After(20 * time.Millisecond):
+		}
+	}
+	var collection struct {
+		Events []contract.Event `json:"events"`
+	}
+	if err = json.Unmarshal(runBinary(t, ctx, bin, "collect", "--state-dir", state, "--task-id", "report-task", "--control-file", submitted.ControlFile), &collection); err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, event := range collection.Events {
+		if event.EventID == "worker-result-1" && strings.HasPrefix(event.ProducerID, "report-capability-") && event.Artifact != nil && event.Artifact.SHA256 == fmt.Sprintf("%x", artifactHash) {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("durable worker report missing: %#v", collection.Events)
 	}
 }
 

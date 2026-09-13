@@ -109,26 +109,40 @@ type HostReconciled struct {
 // LaunchCommand contains ownership and budget grants only. The source Host
 // retains the invocation and authentication environment locally.
 type LaunchCommand struct {
-	CommandID        string          `json:"command_id"`
-	HostID           string          `json:"host_id"`
-	RunID            string          `json:"run_id"`
-	TaskID           string          `json:"task_id"`
-	AttemptID        string          `json:"attempt_id"`
-	SegmentID        string          `json:"segment_id"`
-	WorkRevision     int             `json:"work_revision"`
-	ExecutionEpoch   uint64          `json:"execution_epoch"`
-	SlotToken        string          `json:"slot_token"`
-	LaunchIntentHash string          `json:"launch_intent_hash"`
-	ReservationID    string          `json:"reservation_id"`
-	BudgetGroupID    string          `json:"budget_group_id"`
-	GrantedActiveMS  int64           `json:"granted_active_ms"`
-	DeadlineUnixMS   int64           `json:"deadline_unix_ms"`
-	AdapterPayload   json.RawMessage `json:"adapter_payload,omitempty"`
-	QuestionID       string          `json:"question_id,omitempty"`
-	QuestionRevision int             `json:"question_revision,omitempty"`
-	Answer           string          `json:"answer,omitempty"`
-	SessionKind      string          `json:"session_kind,omitempty"`
-	SessionID        string          `json:"session_id,omitempty"`
+	CommandID          string          `json:"command_id"`
+	HostID             string          `json:"host_id"`
+	RunID              string          `json:"run_id"`
+	TaskID             string          `json:"task_id"`
+	AttemptID          string          `json:"attempt_id"`
+	SegmentID          string          `json:"segment_id"`
+	WorkRevision       int             `json:"work_revision"`
+	ExecutionEpoch     uint64          `json:"execution_epoch"`
+	SlotToken          string          `json:"slot_token"`
+	LaunchIntentHash   string          `json:"launch_intent_hash"`
+	ReservationID      string          `json:"reservation_id"`
+	BudgetGroupID      string          `json:"budget_group_id"`
+	GrantedActiveMS    int64           `json:"granted_active_ms"`
+	DeadlineUnixMS     int64           `json:"deadline_unix_ms"`
+	AdapterPayload     json.RawMessage `json:"adapter_payload,omitempty"`
+	QuestionID         string          `json:"question_id,omitempty"`
+	QuestionRevision   int             `json:"question_revision,omitempty"`
+	Answer             string          `json:"answer,omitempty"`
+	SessionKind        string          `json:"session_kind,omitempty"`
+	SessionID          string          `json:"session_id,omitempty"`
+	ReportCapabilityID string          `json:"report_capability_id"`
+}
+
+type ReportCapabilityRegistration struct {
+	CapabilityID   string `json:"capability_id"`
+	TokenHash      string `json:"token_hash"`
+	CapabilityDir  string `json:"capability_dir"`
+	RunID          string `json:"run_id"`
+	TaskID         string `json:"task_id"`
+	AttemptID      string `json:"attempt_id"`
+	SegmentID      string `json:"segment_id"`
+	ProducerID     string `json:"producer_id"`
+	WorkRevision   int    `json:"work_revision"`
+	ExecutionEpoch uint64 `json:"execution_epoch"`
 }
 
 type StopCommand struct {

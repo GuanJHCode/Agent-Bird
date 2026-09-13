@@ -30,9 +30,12 @@ const (
 )
 
 type DB struct {
-	sql  *sql.DB
-	path string
-	mu   sync.Mutex
+	sql              *sql.DB
+	path             string
+	mu               sync.Mutex
+	runControlLimit  int64
+	userControlLimit int64
+	minFreeBytes     uint64
 }
 
 type RunSpec struct {
@@ -83,7 +86,7 @@ func Open(path string) (*DB, error) {
 	}
 	d.SetMaxOpenConns(1)
 	d.SetMaxIdleConns(1)
-	out := &DB{sql: d, path: path}
+	out := &DB{sql: d, path: path, runControlLimit: 16 * 1024 * 1024, userControlLimit: 128 * 1024 * 1024, minFreeBytes: 64 * 1024 * 1024}
 	if err := out.migrate(); err != nil {
 		d.Close()
 		return nil, err

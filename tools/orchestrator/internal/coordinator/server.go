@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"codex-cli-orchestration-design/tools/orchestrator/internal/contract"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/install"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/instance"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/ipc"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/process"
@@ -84,6 +85,36 @@ type AnswerRequest struct {
 	QuestionID       string `json:"question_id"`
 	QuestionRevision int    `json:"question_revision"`
 	Answer           string `json:"answer"`
+}
+
+type ReviewRequest struct {
+	TaskControlRequest
+	EventID       string `json:"event_id"`
+	EventRevision int64  `json:"event_revision"`
+	EventHash     string `json:"event_hash"`
+	ActionSlot    string `json:"action_slot"`
+	Decision      string `json:"decision"`
+	CommandID     string `json:"command_id"`
+}
+
+type ReportEventRequest struct {
+	CapabilityID string          `json:"capability_id"`
+	Token        string          `json:"token"`
+	EventID      string          `json:"event_id"`
+	Sequence     int64           `json:"sequence"`
+	Kind         string          `json:"kind"`
+	Payload      json.RawMessage `json:"payload"`
+}
+
+type RebindOwnerRequest struct {
+	RunID                 string `json:"run_id"`
+	ControllerThread      string `json:"controller_thread"`
+	ControlToken          string `json:"control_token"`
+	OriginContextID       string `json:"origin_context_id"`
+	OriginPID             int    `json:"origin_pid"`
+	OriginBirth           string `json:"origin_birth"`
+	HostGeneration        string `json:"host_generation"`
+	AttachmentProofSHA256 string `json:"attachment_proof_sha256"`
 }
 
 type CollectResponse struct {
@@ -178,7 +209,9 @@ func NewServer(stateDir string) (*Server, error) {
 		_ = lock.Close()
 		return nil, err
 	}
-	return &Server{stateDir: stateDir, socket: socket, epoch: lock.Epoch(), lock: lock, db: db, listener: listener, hosts: make(map[string]*hostSession), idleTimeout: 30 * time.Second}, nil
+	server := &Server{stateDir: stateDir, socket: socket, epoch: lock.Epoch(), lock: lock, db: db, listener: listener, hosts: make(map[string]*hostSession), idleTimeout: 30 * time.Second}
+	server.releaseTaskPins()
+	return server, nil
 }
 
 func (s *Server) SocketPath() string { return s.socket }
@@ -415,7 +448,8 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 			return nil, err
 		}
 		s.retireCompletedHosts()
-		return json.Marshal(StatusResponse{Status: "acknowledged"})
+		s.releaseTaskPins()
+		return json.Marshal(map[string]any{"version": 1, "status": "acknowledged", "delivery_id": request.DeliveryID})
 	case ipc.KindResume:
 		var request TaskControlRequest
 		if err := strictJSON(raw, &request); err != nil {
@@ -443,18 +477,19 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 		s.dispatchAll()
 		return json.Marshal(StatusResponse{Status: "retry_queued"})
 	case ipc.KindAccept:
-		var request TaskControlRequest
+		var request ReviewRequest
 		if err := strictJSON(raw, &request); err != nil {
 			return nil, err
 		}
 		if err := s.db.ValidateTaskOwner(ctx, request.TaskID, request.ControllerThread, request.ControlToken); err != nil {
 			return nil, err
 		}
-		if err := s.db.AcceptResult(ctx, request.TaskID, request.WorkRevision); err != nil {
+		status, err := s.db.ReviewResult(ctx, store.ReviewSpec{TaskID: request.TaskID, WorkRevision: request.WorkRevision, EventID: request.EventID, EventRevision: request.EventRevision, EventHash: request.EventHash, ActionSlot: request.ActionSlot, Decision: request.Decision, CommandID: request.CommandID})
+		if err != nil {
 			return nil, err
 		}
 		s.dispatchAll()
-		return json.Marshal(StatusResponse{Status: "accepted"})
+		return json.Marshal(StatusResponse{Status: status})
 	case ipc.KindAnswer:
 		var request AnswerRequest
 		if err := strictJSON(raw, &request); err != nil {
@@ -469,6 +504,35 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 		}
 		s.dispatchAll()
 		return json.Marshal(StatusResponse{Status: status})
+	case ipc.KindReportEvent:
+		var request ReportEventRequest
+		if err := strictJSON(raw, &request); err != nil {
+			return nil, err
+		}
+		ack, err := s.db.CommitReportEvent(ctx, store.ReportEventSpec{CapabilityID: request.CapabilityID, Token: request.Token, EventID: request.EventID, Sequence: request.Sequence, Kind: request.Kind, Payload: request.Payload})
+		if err != nil {
+			return nil, err
+		}
+		return json.Marshal(ack)
+	case ipc.KindRebindOwner:
+		var request RebindOwnerRequest
+		if err := strictJSON(raw, &request); err != nil {
+			return nil, err
+		}
+		binding, err := s.db.ValidateRunOwner(ctx, request.RunID, request.ControllerThread, request.ControlToken)
+		if err != nil || binding.OriginContextID != request.OriginContextID {
+			return nil, store.ErrConflict
+		}
+		if birth, birthErr := process.Birth(binding.OriginPID); birthErr == nil && birth == binding.OriginBirth {
+			return nil, store.ErrConflict
+		}
+		if birth, birthErr := process.Birth(request.OriginPID); birthErr != nil || birth != request.OriginBirth {
+			return nil, store.ErrConflict
+		}
+		if err = s.db.RebindOwner(ctx, store.RebindOwnerSpec{RunID: request.RunID, OriginContextID: request.OriginContextID, OriginPID: request.OriginPID, OriginBirth: request.OriginBirth, HostGeneration: request.HostGeneration, AttachmentProofSHA256: request.AttachmentProofSHA256}); err != nil {
+			return nil, err
+		}
+		return json.Marshal(map[string]any{"version": 1, "status": "owner_rebound", "run_id": request.RunID, "origin_context_id": request.OriginContextID, "host_generation": request.HostGeneration})
 	case ipc.KindStopTask:
 		var request TaskControlRequest
 		if err := strictJSON(raw, &request); err != nil {
@@ -496,6 +560,16 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 		return json.Marshal(StatusResponse{Status: "stopping"})
 	default:
 		return nil, errors.New("unsupported_request")
+	}
+}
+
+func (s *Server) releaseTaskPins() {
+	tasks, err := s.db.ReleasableTasks(context.Background())
+	if err != nil {
+		return
+	}
+	for _, task := range tasks {
+		_ = install.UnpinRunningVersion(task.Executable, task.TaskID)
 	}
 }
 
@@ -562,6 +636,12 @@ func (s *Server) handleHost(ctx context.Context, conn net.Conn, message ipc.Enve
 			}
 			continue
 		}
+		if reconcileMessage.Kind == ipc.KindReportCapability {
+			if s.commitReportCapability(session, reconcileMessage) != nil {
+				return
+			}
+			continue
+		}
 		if reconcileMessage.Kind != ipc.KindHostReconciled {
 			return
 		}
@@ -579,7 +659,16 @@ func (s *Server) handleHost(ctx context.Context, conn net.Conn, message ipc.Enve
 	}
 	for {
 		incoming, readErr := ipc.Read(conn)
-		if readErr != nil || incoming.Epoch != s.epoch || incoming.Kind != ipc.KindEvent {
+		if readErr != nil || incoming.Epoch != s.epoch {
+			return
+		}
+		if incoming.Kind == ipc.KindReportCapability {
+			if s.commitReportCapability(session, incoming) != nil {
+				return
+			}
+			continue
+		}
+		if incoming.Kind != ipc.KindEvent {
 			return
 		}
 		committed, commitErr := s.commitHostEvent(session, incoming)
@@ -593,6 +682,20 @@ func (s *Server) handleHost(ctx context.Context, conn net.Conn, message ipc.Enve
 			return
 		}
 	}
+}
+
+func (s *Server) commitReportCapability(session *hostSession, incoming ipc.Envelope) error {
+	var registration contract.ReportCapabilityRegistration
+	if strictJSON(incoming.Payload, &registration) != nil || registration.ProducerID != session.id {
+		return errors.New("invalid_report_capability")
+	}
+	ack, err := s.db.RegisterReportCapability(context.Background(), registration)
+	if err != nil {
+		_ = sendError(session.conn, incoming.RequestID, s.epoch, err)
+		return nil
+	}
+	body, _ := json.Marshal(ack)
+	return session.send(ipc.Envelope{Version: ipc.Version, Kind: ipc.KindDurableAck, RequestID: incoming.RequestID, Epoch: s.epoch, Payload: body})
 }
 
 func (s *Server) commitHostEvent(session *hostSession, incoming ipc.Envelope) (bool, error) {
