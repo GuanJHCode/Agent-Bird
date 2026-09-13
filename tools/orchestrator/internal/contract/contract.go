@@ -1,16 +1,51 @@
 package contract
 
-import "context"
+import (
+	"context"
+	"encoding/json"
+)
 
 type Event struct {
-	Version     int    `json:"version"`
-	RunID       string `json:"run_id"`
-	TaskID      string `json:"task_id"`
-	AttemptID   string `json:"attempt_id"`
-	SegmentID   string `json:"segment_id"`
-	Sequence    int64  `json:"sequence"`
-	Kind        string `json:"kind"`
-	PayloadHash string `json:"payload_hash"`
+	Version        int              `json:"version"`
+	ProducerID     string           `json:"producer_id,omitempty"`
+	EventID        string           `json:"event_id,omitempty"`
+	RunID          string           `json:"run_id"`
+	TaskID         string           `json:"task_id"`
+	AttemptID      string           `json:"attempt_id"`
+	SegmentID      string           `json:"segment_id"`
+	WorkRevision   int              `json:"work_revision,omitempty"`
+	ExecutionEpoch uint64           `json:"execution_epoch,omitempty"`
+	CommandID      string           `json:"command_id,omitempty"`
+	Sequence       int64            `json:"sequence"`
+	Kind           string           `json:"kind"`
+	PayloadHash    string           `json:"payload_hash"`
+	Process        *ProcessIdentity `json:"process,omitempty"`
+	ExitCode       *int             `json:"exit_code,omitempty"`
+	Artifact       *ArtifactRef     `json:"artifact,omitempty"`
+}
+
+const (
+	EventPrepared = "prepared"
+	EventSpawned  = "spawned"
+	EventRunning  = "running"
+	EventQuestion = "question"
+	EventResult   = "result"
+	EventExited   = "exited"
+	EventStopped  = "stopped"
+	EventUnknown  = "unknown"
+)
+
+type ProcessIdentity struct {
+	PID   int    `json:"pid"`
+	Birth string `json:"birth"`
+	PGID  int    `json:"pgid"`
+}
+
+type ArtifactRef struct {
+	ID     string `json:"id"`
+	Path   string `json:"path"`
+	Size   int64  `json:"size"`
+	SHA256 string `json:"sha256"`
 }
 type Question struct {
 	ID       string
@@ -37,6 +72,55 @@ type HostIdentity struct {
 	PID                             int
 	Birth                           string
 	Executable                      string
+}
+
+// HostHello binds a source Host process to a coordinator-approved launch.
+// Credentials and environment data are deliberately absent.
+type HostHello struct {
+	LaunchID        string `json:"launch_id"`
+	LaunchToken     string `json:"launch_token"`
+	OriginContextID string `json:"origin_context_id"`
+	HostGeneration  string `json:"host_generation"`
+	PID             int    `json:"pid"`
+	Birth           string `json:"birth"`
+	Executable      string `json:"executable"`
+}
+
+type HostReady struct {
+	HostID           string `json:"host_id"`
+	CoordinatorEpoch uint64 `json:"coordinator_epoch"`
+}
+
+// LaunchCommand contains ownership and budget grants only. The source Host
+// retains the invocation and authentication environment locally.
+type LaunchCommand struct {
+	CommandID        string          `json:"command_id"`
+	HostID           string          `json:"host_id"`
+	RunID            string          `json:"run_id"`
+	TaskID           string          `json:"task_id"`
+	AttemptID        string          `json:"attempt_id"`
+	SegmentID        string          `json:"segment_id"`
+	WorkRevision     int             `json:"work_revision"`
+	ExecutionEpoch   uint64          `json:"execution_epoch"`
+	SlotToken        string          `json:"slot_token"`
+	LaunchIntentHash string          `json:"launch_intent_hash"`
+	DeadlineUnixMS   int64           `json:"deadline_unix_ms"`
+	AdapterPayload   json.RawMessage `json:"adapter_payload,omitempty"`
+}
+
+type StopCommand struct {
+	CommandID      string `json:"command_id"`
+	SegmentID      string `json:"segment_id"`
+	Reason         string `json:"reason"`
+	DeadlineUnixMS int64  `json:"deadline_unix_ms"`
+}
+
+type DurableAck struct {
+	ProducerID   string `json:"producer_id"`
+	AckedThrough int64  `json:"acked_through"`
+	EventID      string `json:"event_id"`
+	PayloadHash  string `json:"payload_hash"`
+	Status       string `json:"status"`
 }
 type Command struct {
 	Path string
