@@ -1,0 +1,46 @@
+[
+  {
+    "receipt": "/private/tmp/g0-auth-tuir-hzt0gvnm/native-tui-01/state/bc7b911adc24462ea44cd4e6879fd0d7/49b31e87fe1c/guardian-start.json",
+    "guardian_pid": 40249,
+    "guardian_now": [
+      null,
+      null
+    ],
+    "child_pid": 40250,
+    "child_reaped": null,
+    "state": "running"
+  },
+  {
+    "receipt": "/private/tmp/g0-auth-tuir-hzt0gvnm/native-tui-01/state/bc7b911adc24462ea44cd4e6879fd0d7/49b31e87fe1c/guardian-final.json",
+    "guardian_pid": 40249,
+    "guardian_now": [
+      null,
+      null
+    ],
+    "child_pid": 40250,
+    "child_reaped": true,
+    "state": "stopped"
+  },
+  {
+    "receipt": "/private/tmp/g0-auth-tuir-hzt0gvnm/native-tui-01/state/12b7b2676d964f708f5733a28a3adc94/c75c5fe9ff22/guardian-start.json",
+    "guardian_pid": 40071,
+    "guardian_now": [
+      null,
+      null
+    ],
+    "child_pid": 40082,
+    "child_reaped": null,
+    "state": "running"
+  },
+  {
+    "receipt": "/private/tmp/g0-auth-tuir-hzt0gvnm/native-tui-01/state/12b7b2676d964f708f5733a28a3adc94/c75c5fe9ff22/guardian-final.json",
+    "guardian_pid": 40071,
+    "guardian_now": [
+      null,
+      null
+    ],
+    "child_pid": 40082,
+    "child_reaped": true,
+    "state": "stopped"
+  }
+]

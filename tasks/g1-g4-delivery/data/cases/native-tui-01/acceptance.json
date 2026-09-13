@@ -1,0 +1,37 @@
+{
+  "case": "native-tui-01",
+  "runner_status": "unknown",
+  "failure": {
+    "stage": "tui-resume",
+    "type": "TimeoutError",
+    "message_sha256": "67f5061872443dc26800fdb4ff7b5878a02f8c0b79cbf6813e1940529d2e5a9a"
+  },
+  "auth_comparison": {
+    "unchanged": true,
+    "changed_path_ids": []
+  },
+  "known_process_identities_gone": true,
+  "public_socket_absent": true,
+  "synthetic_auth_absent": true,
+  "ordinary_tui_verified": false,
+  "durable_history_verified": false,
+  "business_ack_verified": false,
+  "resume_zero_turns": false,
+  "pending_delivery_preserved": false,
+  "cleanup": {
+    "all_backends_stopped": false,
+    "service_stopped": false,
+    "restart_allowed": false,
+    "tui_exits": [
+      0,
+      -15
+    ],
+    "helper_exit": null,
+    "service_failure": "ValueError",
+    "public_socket_removed": true
+  },
+  "go_status": null,
+  "real_launchctl_used": false,
+  "external_model_calls": 0,
+  "status": "unknown"
+}

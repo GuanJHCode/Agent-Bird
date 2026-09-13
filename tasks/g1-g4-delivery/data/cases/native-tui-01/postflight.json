@@ -1,0 +1,46 @@
+[
+  {
+    "file": "/private/tmp/g0-auth-tuir-hzt0gvnm/native-tui-01/state/12b7b2676d964f708f5733a28a3adc94/activation.json",
+    "service_peer": {},
+    "service_now": null,
+    "backends": [
+      {
+        "pid": 40082,
+        "birth": "Sun Sep 13 22:05:59 2026",
+        "state": "closed",
+        "socket_absent": true,
+        "process_now": [
+          null,
+          null
+        ],
+        "process_stopped": true,
+        "guardian": true
+      }
+    ],
+    "stop_signals": [
+      15
+    ]
+  },
+  {
+    "file": "/private/tmp/g0-auth-tuir-hzt0gvnm/native-tui-01/state/bc7b911adc24462ea44cd4e6879fd0d7/activation.json",
+    "service_peer": {},
+    "service_now": null,
+    "backends": [
+      {
+        "pid": 40250,
+        "birth": "Sun Sep 13 22:06:02 2026",
+        "state": "connected",
+        "socket_absent": true,
+        "process_now": [
+          null,
+          null
+        ],
+        "process_stopped": false,
+        "guardian": null
+      }
+    ],
+    "stop_signals": [
+      15
+    ]
+  }
+]

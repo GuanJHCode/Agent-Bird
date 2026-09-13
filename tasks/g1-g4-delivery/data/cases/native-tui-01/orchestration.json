@@ -1,0 +1,11 @@
+{
+  "case": "native-tui-01",
+  "profile_root": "/private/tmp/g0-auth-tuir-hzt0gvnm",
+  "supervisor_root": "/private/tmp/g0-auth-tuis-cct1gcru",
+  "runtime_case": "/private/tmp/g0-auth-tuir-hzt0gvnm/native-tui-01",
+  "inventory_sha256": "78a5f826242bc439387a8972bddf587383dc7f45ff4dac19118b7a47cbc996a5",
+  "controller_sha256": "38bcf4c56a315923fe8c31c4c775d3c2d6ab1a24f9ce03e4962b4034d33a9ac3",
+  "source_commit": "3f1c2df029b6a61749afba6c0d365d3aac7e00a5",
+  "real_launchctl_used": false,
+  "external_model_calls": 0
+}
