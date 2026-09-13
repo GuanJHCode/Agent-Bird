@@ -6,12 +6,14 @@ observation separate from business ACK publication.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import hashlib
 import json
 import os
 from pathlib import Path
 import re
+import secrets
+import stat
 import subprocess
 from typing import Any, Mapping
 
@@ -35,10 +37,20 @@ class DeliveryError(ValueError):
 class DeliveryCapability:
     binding: "DeliveryBinding"
     task_dir: Path
-    go_intent: dict
-    native_envelope: dict
+    _go_intent_bytes: bytes
+    _native_envelope_bytes: bytes
+    go_intent_sha256: str
+    native_envelope_sha256: str
     claim_sha256: str
-    _token: object = field(repr=False, compare=False)
+    capability_id: str
+
+    @property
+    def go_intent(self) -> dict:
+        return json.loads(self._go_intent_bytes)
+
+    @property
+    def native_envelope(self) -> dict:
+        return json.loads(self._native_envelope_bytes)
 
 
 @dataclass(frozen=True)
@@ -46,7 +58,9 @@ class HistoryProof:
     native_envelope: dict
     summary: dict
     matched_event_ids: frozenset[str]
-    _token: object = field(repr=False, compare=False)
+    proof_id: str
+    capability_id: str
+    reads_sha256: str
 
 
 @dataclass(frozen=True)
@@ -84,6 +98,29 @@ def _hash(value: object) -> bool:
 def _require(condition: bool, code: str) -> None:
     if not condition:
         raise DeliveryError(code)
+
+
+def _stable_file_hash(path: Path) -> str:
+    """Read one owner-only regular file through a no-follow stable FD."""
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except OSError as exc:
+        raise DeliveryError("claim_missing") from exc
+    try:
+        before = os.fstat(fd)
+        _require(stat.S_ISREG(before.st_mode) and before.st_uid == os.getuid()
+                 and stat.S_IMODE(before.st_mode) == 0o600 and before.st_nlink == 1
+                 and 0 < before.st_size <= 4096, "claim_file")
+        data = os.read(fd, before.st_size + 1)
+        after = os.fstat(fd)
+        identity = lambda value: (value.st_dev, value.st_ino, value.st_uid, value.st_mode,
+                                  value.st_nlink, value.st_size, value.st_mtime_ns, value.st_ctime_ns)
+        _require(len(data) == before.st_size and identity(before) == identity(after), "claim_changed")
+        return hashlib.sha256(data).hexdigest()
+    except OSError as exc:
+        raise DeliveryError("claim_file") from exc
+    finally:
+        os.close(fd)
 
 
 def _event_shape(event: object) -> None:
@@ -153,7 +190,8 @@ class DeliveryAdapter:
         _require(self.go_binary.is_absolute() and self.go_binary.is_file(), "go_binary_missing")
         _require(_hash(expected_sha256) and hashlib.sha256(self.go_binary.read_bytes()).hexdigest() == expected_sha256, "go_binary_hash")
         self.expected_sha256 = expected_sha256
-        self._capability_token = object()
+        self._capabilities: dict[str, DeliveryCapability] = {}
+        self._proofs: dict[str, HistoryProof] = {}
 
     def _run(self, args: list[str], *, env: Mapping[str, str] | None = None) -> dict:
         child_env = os.environ.copy()
@@ -194,18 +232,22 @@ class DeliveryAdapter:
         intent = self.prepare(binding, task_dir, delivery_id, events, env=env)
         claim = self.claim(binding, task_dir, env=env)
         _require(claim.get("status") == "claimed" and claim.get("delivery_id") == intent["delivery_id"] and claim.get("controller_thread") == binding.owner_thread_id and claim.get("revision") == binding.revision, "claim_artifact")
-        claim_path = task_dir / "batch-send-claim.json"
-        _require(claim_path.is_file(), "claim_missing")
-        claim_sha = hashlib.sha256(claim_path.read_bytes()).hexdigest()
+        claim_sha = _stable_file_hash(task_dir / "batch-send-claim.json")
         native = native_envelope_from_go_intent(intent, binding)
-        return DeliveryCapability(binding, task_dir, intent, native, claim_sha, self._capability_token)
+        go_bytes = _canonical(intent).encode()
+        native_bytes = _canonical(native).encode()
+        capability = DeliveryCapability(binding, task_dir, go_bytes, native_bytes,
+            hashlib.sha256(go_bytes).hexdigest(), hashlib.sha256(native_bytes).hexdigest(),
+            claim_sha, secrets.token_hex(16))
+        self._capabilities[capability.capability_id] = capability
+        return capability
 
     def ack_confirmed(self, capability: DeliveryCapability, proof: HistoryProof, decisions: Mapping[str, str], *, command_ids: Mapping[str, str], env: Mapping[str, str]) -> AckOutcome:
-        _require(capability._token is self._capability_token, "capability_owner")
-        _require(proof._token is self._capability_token, "proof_owner")
+        _require(self._capabilities.get(capability.capability_id) is capability, "capability_owner")
+        _require(self._proofs.get(proof.proof_id) is proof and proof.capability_id == capability.capability_id, "proof_owner")
         _require(proof.native_envelope == capability.native_envelope, "history_binding")
         binding, task_dir = capability.binding, capability.task_dir
-        checked = _validate_go_intent(dict(capability.go_intent), binding)
+        checked = _validate_go_intent(capability.go_intent, binding)
         events = {event["event_id"]: event for event in checked["events"]}
         outputs = []
         pending, nonhandled = [], {}
@@ -232,8 +274,10 @@ class DeliveryAdapter:
                                       "--command-id", command_id, "--decision", "handled"], env=env))
         return AckOutcome(tuple(outputs), tuple(pending), nonhandled)
 
-    def audit_history(self, intent: Mapping[str, Any], reads: list[dict], decisions: list[dict] | None = None) -> HistoryProof:
-        value = audit_history({"version": 1, "intent": dict(intent), "reads": reads, "acks": decisions or []})
+    def audit_history(self, capability: DeliveryCapability, reads: list[dict], decisions: list[dict] | None = None) -> HistoryProof:
+        _require(self._capabilities.get(capability.capability_id) is capability, "capability_owner")
+        intent = capability.native_envelope
+        value = audit_history({"version": 1, "intent": intent, "reads": reads, "acks": decisions or []})
         _require(value.get("transport_evidence") == "exact_history_marker", "history_uncertain")
         matched = set()
         for read in reads:
@@ -248,20 +292,23 @@ class DeliveryAdapter:
                         if output == dict(intent):
                             for event in intent["events"]:
                                 matched.add(event["event_id"])
-        return HistoryProof(dict(intent), value, frozenset(matched), self._capability_token)
+        reads_bytes = _canonical(reads).encode()
+        proof = HistoryProof(dict(intent), value, frozenset(matched), secrets.token_hex(16), capability.capability_id, hashlib.sha256(reads_bytes).hexdigest())
+        self._proofs[proof.proof_id] = proof
+        return proof
 
     async def send_tool_output_once(self, connection: Any, capability: DeliveryCapability, *, request_id: int = 1) -> list[dict]:
         _require(type(request_id) is int and request_id > 0, "request_id")
-        _require(capability._token is self._capability_token, "capability_owner")
+        _require(self._capabilities.get(capability.capability_id) is capability, "capability_owner")
         envelope = capability.native_envelope
         _require(set(envelope) == {"version", "delivery_id", "controller_thread_id", "controller_epoch", "events", "payload_hash"}, "native_envelope")
         status = self._run(["batch-status", "--dir", str(capability.task_dir), "--nonce", capability.binding.nonce])
         _require(status.get("claim") == "claimed" and status.get("delivery_id") == envelope["delivery_id"] and status.get("revision") == capability.binding.revision and status.get("transport_status") == "ready", "claim_not_current")
-        claim_path = capability.task_dir / "batch-send-claim.json"
-        _require(claim_path.is_file() and hashlib.sha256(claim_path.read_bytes()).hexdigest() == capability.claim_sha256, "claim_changed")
+        _require(_stable_file_hash(capability.task_dir / "batch-send-claim.json") == capability.claim_sha256, "claim_changed")
         sent = getattr(self, "_sent_delivery_ids", None)
         if sent is None:
             sent = self._sent_delivery_ids = set()
+        _require(native_envelope_from_go_intent(capability.go_intent, capability.binding) == envelope, "capability_changed")
         delivery_id = envelope.get("delivery_id")
         _require(_safe(delivery_id) and delivery_id not in sent, "delivery_already_sent")
         # Mark before I/O: an ambiguous transport must not be retried by this

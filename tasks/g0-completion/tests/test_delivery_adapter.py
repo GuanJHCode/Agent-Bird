@@ -37,6 +37,20 @@ from owner_helper import (  # noqa: E402
 THREAD = "01a097ff-f802-7b02-9159-4b2bd0552626"
 
 
+def _manual_capability(adapter, binding, task_dir, intent, native, claim_bytes=b"claim"):
+    task_dir.mkdir(parents=True, exist_ok=True)
+    claim_path = task_dir / "batch-send-claim.json"
+    claim_path.write_bytes(claim_bytes)
+    claim_path.chmod(0o600)
+    go_bytes = json.dumps(intent, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+    native_bytes = json.dumps(native, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+    capability = DeliveryCapability(binding, task_dir, go_bytes, native_bytes,
+        hashlib.sha256(go_bytes).hexdigest(), hashlib.sha256(native_bytes).hexdigest(),
+        hashlib.sha256(claim_bytes).hexdigest(), "cap_" + str(id(intent)))
+    adapter._capabilities[capability.capability_id] = capability
+    return capability
+
+
 def _build(tmp: Path) -> Path:
     go = os.environ.get("G0_GO_EXECUTABLE", "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go")
     if not Path(go).is_file():
@@ -96,8 +110,9 @@ def test_history_audit_is_separate_from_business_decision():
     native = native_envelope_from_go_intent(intent, binding)
     read = {"request": {"id": 1, "method": "thread/read", "params": {"threadId": THREAD, "includeTurns": True}},
             "response": {"id": 1, "result": {"thread": {"id": THREAD, "turns": [{"id": "turn_1", "status": "completed", "items": [{"id": "item_1", "type": "functionCallOutput", "name": "g0_delivery", "namespace": "orchestration", "output": json.dumps(native, sort_keys=True, separators=(",", ":"))}]}]}}}}
-    adapter = DeliveryAdapter.__new__(DeliveryAdapter); adapter._capability_token = object()
-    result = adapter.audit_history(native, [read])
+    adapter = DeliveryAdapter.__new__(DeliveryAdapter); adapter._capabilities = {}; adapter._proofs = {}
+    capability = _manual_capability(adapter, binding, Path(tempfile.mkdtemp(prefix="g0-history-")), intent, native)
+    result = adapter.audit_history(capability, [read])
     assert result.summary["transport_evidence"] == "exact_history_marker"
     assert result.summary["business_ack_complete"] is False
     assert result.summary["source_service_verified"] is False
@@ -108,16 +123,17 @@ def test_missing_or_nonhandled_decision_stays_pending_without_go_ack(tmp_path):
     intent = {"version": 1, "delivery_id": "delivery_1", "nonce": binding.nonce, "controller_thread": THREAD,
               "controller_epoch": 1, "revision": 1, "state": "prepared", "events": _events(), "payload_hash": ""}
     intent["payload_hash"] = _go_batch_hash(intent)
-    adapter = DeliveryAdapter.__new__(DeliveryAdapter); adapter._capability_token = object()
+    adapter = DeliveryAdapter.__new__(DeliveryAdapter); adapter._capabilities = {}; adapter._proofs = {}
     native = native_envelope_from_go_intent(intent, binding)
-    capability = DeliveryCapability(binding, tmp_path, intent, native, "c" * 64, adapter._capability_token)
-    proof = HistoryProof(native, {"business_ack_complete": False}, frozenset({"event_1"}), adapter._capability_token)
+    capability = _manual_capability(adapter, binding, tmp_path, intent, native)
+    proof = HistoryProof(native, {"business_ack_complete": False}, frozenset({"event_1"}), "proof_1", capability.capability_id, "reads")
+    adapter._proofs[proof.proof_id] = proof
     empty = adapter.ack_confirmed(capability, proof, {}, command_ids={}, env={})
     assert empty.records == () and empty.pending_event_ids == ("event_1",)
     waiting = adapter.ack_confirmed(capability, proof, {"event_1": "waiting_user"}, command_ids={}, env={})
     assert waiting.records == () and waiting.nonhandled_decisions == {"event_1": "waiting_user"}
     with pytest.raises(DeliveryError, match="proof_owner"):
-        adapter.ack_confirmed(capability, HistoryProof(native, {}, frozenset({"event_1"}), object()), {"event_1": "handled"}, command_ids={"event_1": "cmd_1"}, env={})
+        adapter.ack_confirmed(capability, HistoryProof(native, {}, frozenset({"event_1"}), "fake", capability.capability_id, "reads"), {"event_1": "handled"}, command_ids={"event_1": "cmd_1"}, env={})
 
 
 def test_send_tool_output_uses_owner_helper_wire_contract():
@@ -148,16 +164,19 @@ def test_send_tool_output_uses_owner_helper_wire_contract():
     intent["payload_hash"] = _go_batch_hash(intent)
     native = native_envelope_from_go_intent(intent, binding)
     connection = Connection()
-    adapter = DeliveryAdapter.__new__(DeliveryAdapter); adapter._capability_token = object()
+    adapter = DeliveryAdapter.__new__(DeliveryAdapter); adapter._capabilities = {}; adapter._proofs = {}
     import asyncio
     # The fake connection only exercises the packet contract; production UDS
     # coverage below uses a capability returned by prepare_and_claim.
     adapter._run = lambda *args, **kwargs: {"claim": "claimed", "delivery_id": "delivery_1", "revision": 1, "transport_status": "ready"}
     # Avoid global filesystem mutation in this contract-only test by using a temp claim.
     claim_path = Path(tempfile.mkdtemp(prefix="g0-claim-")) / "batch-send-claim.json"; claim_path.write_text("claim")
-    capability = DeliveryCapability(binding, claim_path.parent, intent, native, hashlib.sha256(b"claim").hexdigest(), adapter._capability_token)
+    capability = _manual_capability(adapter, binding, claim_path.parent, intent, native)
+    tampered = capability.native_envelope
+    tampered["events"][0]["event_id"] = "forged"
     packets = asyncio.run(adapter.send_tool_output_once(connection, capability))
     assert len(packets) == 5 and connection.sent[0]["params"]["input"] == []
+    assert json.loads(connection.sent[0]["params"]["toolOutput"]["output"])["events"][0]["event_id"] == "event_1"
     with pytest.raises(DeliveryError, match="delivery_already_sent"):
         asyncio.run(adapter.send_tool_output_once(connection, capability))
 
@@ -180,10 +199,14 @@ def test_send_tool_output_over_real_owner_helper_uds_process(tmp_path):
         grant = OwnerHelperGrant("owner-helper", "p", "b" * 64, "lease_1", "owner_1", 1, THREAD, str(socket_path), os.getpid(), os.getuid(), "adapter-process", str(executable), executable_sha, "c" * 64)
         native = {"version": 1, "delivery_id": "delivery_1", "controller_thread_id": THREAD, "controller_epoch": 1, "events": _events()}
         native["payload_hash"] = hashlib.sha256(json.dumps(native, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()).hexdigest()
-        adapter = DeliveryAdapter.__new__(DeliveryAdapter); adapter._capability_token = object()
+        adapter = DeliveryAdapter.__new__(DeliveryAdapter); adapter._capabilities = {}; adapter._proofs = {}
         claim_dir = Path(tempfile.mkdtemp(prefix="g0-uds-claim-")); claim_file = claim_dir / "batch-send-claim.json"; claim_file.write_text("claim")
         adapter._run = lambda *args, **kwargs: {"claim": "claimed", "delivery_id": "delivery_1", "revision": 1, "transport_status": "ready"}
-        capability = DeliveryCapability(DeliveryBinding("p", THREAD, 1, "adapter_uds", 1), claim_dir, {"version":1,"delivery_id":"delivery_1","nonce":"adapter_uds","controller_thread":THREAD,"controller_epoch":1,"revision":1,"state":"prepared","events":_events(),"payload_hash":"0"*64}, native, hashlib.sha256(b"claim").hexdigest(), adapter._capability_token)
+        binding = DeliveryBinding("p", THREAD, 1, "adapter_uds", 1)
+        go_intent = {"version":1,"delivery_id":"delivery_1","nonce":"adapter_uds","controller_thread":THREAD,"controller_epoch":1,"revision":1,"state":"prepared","events":_events(),"payload_hash":""}
+        go_intent["payload_hash"] = _go_batch_hash(go_intent)
+        native = native_envelope_from_go_intent(go_intent, binding)
+        capability = _manual_capability(adapter, binding, claim_dir, go_intent, native)
         async def run():
             connection = await lease.open_helper(grant, identity)
             try:
@@ -330,7 +353,7 @@ def test_production_service_go_batch_history_and_ack_once(tmp_path):
                     packet = await helper_connection.read_rpc()
                     if packet.get("id") == 4: history_response = packet
                 history = {"request":{"id":4,"method":"thread/read","params":{"threadId":lease.owner_thread_id,"includeTurns":True}},"response":history_response}
-                proof = adapter.audit_history(native, [history]); assert proof.summary["transport_evidence"] == "exact_history_marker"
+                proof = adapter.audit_history(capability, [history]); assert proof.summary["transport_evidence"] == "exact_history_marker"
                 ack = adapter.ack_confirmed(capability, proof, {"event_1":"handled"}, command_ids={"event_1":"cmd_1"}, env={"CODEX_THREAD_ID":THREAD})
                 assert ack.records and ack.records[0]["status"] == "acknowledged"
                 restarted = DeliveryAdapter(go_binary, expected_sha256=hashlib.sha256(go_binary.read_bytes()).hexdigest())
@@ -345,4 +368,5 @@ def test_production_service_go_batch_history_and_ack_once(tmp_path):
                 if owner.returncode is None: owner.kill(); await owner.wait()
                 if helper_connection is not None: await helper_connection.close()
                 await service.close()
+                await asyncio.sleep(0.1)
     asyncio.run(run())
