@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "removed_temporary_inventory": "/private/tmp/g0-next-delivery-auth-inventory/credential-paths.txt",
+  "inventory_sha256": "78a5f826242bc439387a8972bddf587383dc7f45ff4dac19118b7a47cbc996a5",
+  "path_count": 14,
+  "credential_contents_read_by_cleanup": false,
+  "credential_files_modified_by_cleanup": false,
+  "final_auth_evidence": "cases/native-product-10/auth-before.json and auth-after.json: unchanged",
+  "case_records_and_capabilities_removed": false
+}

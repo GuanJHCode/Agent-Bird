@@ -140,8 +140,8 @@ Its two same-timeline one-Host samples were 120.421875 MiB and 122.9375 MiB,
 within the case's 128 MiB check; these frames are not a sustained joint G0/G1
 resource benchmark.
 
-rc6 also includes bounded streamed-artifact hashing, a 300-second total native
-watch lifetime, and continuous draining/bounded discard for ordinary raw or
+rc6 also includes bounded streamed-artifact hashing, a 300-second bootstrap
+timeout followed by watching until terminal state or owner detachment, and continuous draining/bounded discard for ordinary raw or
 unknown provider diagnostics. Strict structured terminal/result/question
 schema failures continue to fail closed.
 
@@ -155,8 +155,8 @@ against temporary directories.
 loads, process-tree sampling and durable report checks. It retains the original
 5/10/20 minute budgets and writes private scenario evidence. The full-duration
 resource suite remains scoped to G1 core: idle, callback, the 600-second hosts
-scenario, and burst-valid have passed; the 20-minute burst-unknown scenario is
-still running and remains pending until its evidence is archived. No sustained
+scenario, and both 20-minute burst scenarios have passed. The results and reuse
+basis are archived in [`resource-acceptance-summary.json`](../data/resource-acceptance-summary.json). No sustained
 full G0/G1 joint resource benchmark was run. A shortened smoke is not treated
 as acceptance evidence, and these scoped results cannot be written as the
 whole distribution meeting a resource target.
