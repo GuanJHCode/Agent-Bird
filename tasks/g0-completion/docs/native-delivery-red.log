@@ -1,0 +1,37 @@
+FFF                                                                      [100%]
+=================================== FAILURES ===================================
+_________ test_actual_private_service_owner_helper_and_go_ack_pipeline _________
+tasks/g0-completion/tests/test_native_delivery_case.py:50: in test_actual_private_service_owner_helper_and_go_ack_pipeline
+    runner=implementation()
+           ^^^^^^^^^^^^^^^^
+tasks/g0-completion/tests/test_native_delivery_case.py:23: in implementation
+    assert (ROOT/'tasks/g0-completion/scripts/native_delivery_case.py').is_file(), 'combined execution chain missing'
+E   AssertionError: combined execution chain missing
+E   assert False
+E    +  where False = is_file()
+E    +    where is_file = (PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-completion/tmp/native-delivery') / 'tasks/g0-completion/scripts/native_delivery_case.py').is_file
+_______ test_unknown_delivery_never_acknowledges_or_resends[bad-history] _______
+tasks/g0-completion/tests/test_native_delivery_case.py:79: in test_unknown_delivery_never_acknowledges_or_resends
+    runner=implementation()
+           ^^^^^^^^^^^^^^^^
+tasks/g0-completion/tests/test_native_delivery_case.py:23: in implementation
+    assert (ROOT/'tasks/g0-completion/scripts/native_delivery_case.py').is_file(), 'combined execution chain missing'
+E   AssertionError: combined execution chain missing
+E   assert False
+E    +  where False = is_file()
+E    +    where is_file = (PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-completion/tmp/native-delivery') / 'tasks/g0-completion/scripts/native_delivery_case.py').is_file
+___ test_unknown_delivery_never_acknowledges_or_resends[drop-helper-receipt] ___
+tasks/g0-completion/tests/test_native_delivery_case.py:79: in test_unknown_delivery_never_acknowledges_or_resends
+    runner=implementation()
+           ^^^^^^^^^^^^^^^^
+tasks/g0-completion/tests/test_native_delivery_case.py:23: in implementation
+    assert (ROOT/'tasks/g0-completion/scripts/native_delivery_case.py').is_file(), 'combined execution chain missing'
+E   AssertionError: combined execution chain missing
+E   assert False
+E    +  where False = is_file()
+E    +    where is_file = (PosixPath('/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-completion/tmp/native-delivery') / 'tasks/g0-completion/scripts/native_delivery_case.py').is_file
+=========================== short test summary info ============================
+FAILED tasks/g0-completion/tests/test_native_delivery_case.py::test_actual_private_service_owner_helper_and_go_ack_pipeline
+FAILED tasks/g0-completion/tests/test_native_delivery_case.py::test_unknown_delivery_never_acknowledges_or_resends[bad-history]
+FAILED tasks/g0-completion/tests/test_native_delivery_case.py::test_unknown_delivery_never_acknowledges_or_resends[drop-helper-receipt]
+3 failed in 0.04s
