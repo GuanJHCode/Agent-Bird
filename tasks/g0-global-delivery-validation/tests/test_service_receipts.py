@@ -65,19 +65,31 @@ def test_receipt_publisher_refuses_existing_and_stage_symlink(tmp_path, monkeypa
     race_stage = parent / ".race.json.race.tmp"
     race_target = parent / "race-foreign.json"
     race_target.write_text("foreign-race")
-    real_link = activation_service.os.link
+    real_fsync = activation_service.os.fsync
+    real_rename = activation_service.os.rename
+    fsync_calls = 0
 
-    def replace_stage_then_link(source, destination, *args, **kwargs):
+    def fail_after_link(fd):
+        nonlocal fsync_calls
+        fsync_calls += 1
+        if fsync_calls == 2:
+            raise OSError("injected publish failure")
+        return real_fsync(fd)
+
+    def replace_stage_before_quarantine(source, destination, *args, **kwargs):
         race_stage.unlink()
         race_stage.symlink_to(race_target)
-        return real_link(source, destination, *args, **kwargs)
+        return real_rename(source, destination, *args, **kwargs)
 
-    monkeypatch.setattr(activation_service.os, "link", replace_stage_then_link)
-    with pytest.raises((OSError, ValueError)):
+    monkeypatch.setattr(activation_service.os, "fsync", fail_after_link)
+    monkeypatch.setattr(activation_service.os, "rename", replace_stage_before_quarantine)
+    with pytest.raises(RuntimeError, match="ownership unknown"):
         activation_service._publish_receipt(parent / "race.json", {"version": 1})
-    assert race_stage.is_symlink()
+    quarantine = list(parent.glob(".race.json.race.quarantine"))
+    assert len(quarantine) == 1 and quarantine[0].is_symlink()
     assert race_target.read_text() == "foreign-race"
-    assert not (parent / "race.json").exists()
+    # The failed final publication is retained as UNKNOWN evidence.
+    assert (parent / "race.json").exists()
 
 
 def test_real_service_publishes_owner_and_helper_receipts(tmp_path):

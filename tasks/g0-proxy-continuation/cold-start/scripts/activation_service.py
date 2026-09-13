@@ -102,9 +102,6 @@ def _publish_receipt(path: Path, value: dict, *, expected_parent=None) -> None:
     descriptor = None
     created_stage = False
     stage_identity = None
-    final_created = False
-    final_identity = None
-    published = False
     try:
         current = os.stat(parent, follow_symlinks=False)
         if _file_identity(current)[:4] != _file_identity(parent_info)[:4]:
@@ -118,10 +115,8 @@ def _publish_receipt(path: Path, value: dict, *, expected_parent=None) -> None:
             raise ValueError('receipt stage identity')
         stage_identity = (before.st_dev, before.st_ino)
         os.link(stage_name, final_name, src_dir_fd=directory_fd, dst_dir_fd=directory_fd, follow_symlinks=False)
-        final_created = True
         staged = os.fstat(descriptor)
         final = os.stat(final_name, dir_fd=directory_fd, follow_symlinks=False)
-        final_identity = _file_identity(final)
         final_fd = os.open(final_name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory_fd)
         try:
             same_file = os.path.sameopenfile(descriptor, final_fd)
@@ -135,30 +130,44 @@ def _publish_receipt(path: Path, value: dict, *, expected_parent=None) -> None:
         if _file_identity(current)[:4] != _file_identity(parent_info)[:4]:
             raise ValueError('receipt parent identity changed')
         os.fsync(directory_fd)
-        published = True
     finally:
-        # If validation failed after our link created the final name, remove
-        # only that exact inode; a later replacement remains for diagnosis.
-        if final_created and not published and final_identity is not None:
+        # A failed final validation is deliberately left in place as UNKNOWN
+        # evidence.  Never stat-then-unlink the public receipt name.
+        #
+        # For our stage, first atomically move the current directory entry to
+        # a fresh quarantine name.  Only the moved inode matching the still
+        # open creation FD may be removed; a replaced/symlinked stage remains
+        # in quarantine for diagnosis.
+        cleanup_error = None
+        if created_stage and stage_identity is not None and descriptor is not None:
+            quarantine_name = f".{path.name}.{uuid.uuid4().hex}.quarantine"
             try:
-                current_final = os.stat(final_name, dir_fd=directory_fd, follow_symlinks=False)
-                if _file_identity(current_final) == final_identity:
-                    os.unlink(final_name, dir_fd=directory_fd)
+                os.rename(stage_name, quarantine_name,
+                    src_dir_fd=directory_fd, dst_dir_fd=directory_fd)
+                quarantine_fd = None
+                try:
+                    quarantine_fd = os.open(quarantine_name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
+                        dir_fd=directory_fd)
+                    moved = os.fstat(quarantine_fd)
+                    original = os.fstat(descriptor)
+                    if (moved.st_dev, moved.st_ino) != (original.st_dev, original.st_ino):
+                        raise RuntimeError('receipt stage ownership unknown')
+                finally:
+                    if quarantine_fd is not None:
+                        os.close(quarantine_fd)
+                os.unlink(quarantine_name, dir_fd=directory_fd)
+                os.fsync(directory_fd)
             except FileNotFoundError:
                 pass
-        # Only remove a stage created by this invocation while its directory
-        # entry still names the inode opened above.  Failed O_EXCL or a later
-        # replacement is foreign evidence and remains for diagnosis.
-        if created_stage and stage_identity is not None:
-            try:
-                stage_stat = os.stat(stage_name, dir_fd=directory_fd, follow_symlinks=False)
-                if (stage_stat.st_dev, stage_stat.st_ino) == stage_identity:
-                    os.unlink(stage_name, dir_fd=directory_fd)
-            except FileNotFoundError:
-                pass
+            except RuntimeError as exc:
+                cleanup_error = exc
+            except OSError:
+                cleanup_error = RuntimeError('receipt stage ownership unknown')
         if descriptor is not None:
             os.close(descriptor)
         os.close(directory_fd)
+        if cleanup_error is not None:
+            raise cleanup_error
 
 
 def _peer(peer) -> dict:
