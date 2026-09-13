@@ -33,6 +33,7 @@ def test_service_start_publishes_owner_receipt_directory(tmp_path):
                 assert start.is_file()
                 value = json.loads(start.read_text())
                 assert value["activation_id"] == service.activation_id
+                assert isinstance(value["started_raw_ns"], int) and "started_raw" not in value
             finally:
                 await service.close()
     asyncio.run(run())
@@ -51,6 +52,32 @@ def test_receipt_publisher_refuses_existing_and_stage_symlink(tmp_path, monkeypa
     with pytest.raises((FileExistsError, OSError)):
         activation_service._publish_receipt(parent / "other.json", {"version": 1})
     assert target.read_text() == "foreign"
+    assert stage.is_symlink()
+
+    pinned_parent = activation_service._private_directory(parent)
+    wrong_parent = (pinned_parent[0], pinned_parent[1] + 1, pinned_parent[2], pinned_parent[3])
+    with pytest.raises(ValueError, match="parent identity"):
+        activation_service._publish_receipt(parent / "blocked.json", {"version": 1}, expected_parent=wrong_parent)
+    assert not (parent / "blocked.json").exists()
+
+    race_uuid = type("UUID", (), {"hex": "race"})()
+    monkeypatch.setattr(activation_service.uuid, "uuid4", lambda: race_uuid)
+    race_stage = parent / ".race.json.race.tmp"
+    race_target = parent / "race-foreign.json"
+    race_target.write_text("foreign-race")
+    real_link = activation_service.os.link
+
+    def replace_stage_then_link(source, destination, *args, **kwargs):
+        race_stage.unlink()
+        race_stage.symlink_to(race_target)
+        return real_link(source, destination, *args, **kwargs)
+
+    monkeypatch.setattr(activation_service.os, "link", replace_stage_then_link)
+    with pytest.raises((OSError, ValueError)):
+        activation_service._publish_receipt(parent / "race.json", {"version": 1})
+    assert race_stage.is_symlink()
+    assert race_target.read_text() == "foreign-race"
+    assert not (parent / "race.json").exists()
 
 
 def test_real_service_publishes_owner_and_helper_receipts(tmp_path):

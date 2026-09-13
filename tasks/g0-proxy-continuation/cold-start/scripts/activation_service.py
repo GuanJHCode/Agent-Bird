@@ -85,7 +85,7 @@ def _write_json(path: Path, value: dict) -> None:
         json.dump(value,stream,sort_keys=True,indent=2); stream.write('\n')
 
 
-def _publish_receipt(path: Path, value: dict) -> None:
+def _publish_receipt(path: Path, value: dict, *, expected_parent=None) -> None:
     """Publish one owner-created receipt without path-based replacement."""
     parent = path.parent
     directory_fd = os.open(parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
@@ -93,25 +93,35 @@ def _publish_receipt(path: Path, value: dict) -> None:
     if not stat.S_ISDIR(parent_info.st_mode) or parent_info.st_uid != os.getuid() or stat.S_IMODE(parent_info.st_mode) & 0o077:
         os.close(directory_fd)
         raise ValueError('receipt parent is not private')
+    if expected_parent is not None and (parent_info.st_dev, parent_info.st_ino, parent_info.st_uid, parent_info.st_mode) != tuple(expected_parent):
+        os.close(directory_fd)
+        raise ValueError('receipt parent identity changed')
     stage_name = f".{path.name}.{uuid.uuid4().hex}.tmp"
     final_name = path.name
     data = (json.dumps(value, sort_keys=True, indent=2) + '\n').encode()
     descriptor = None
-    linked = False
+    created_stage = False
+    stage_identity = None
+    final_created = False
+    final_identity = None
+    published = False
     try:
         current = os.stat(parent, follow_symlinks=False)
         if _file_identity(current)[:4] != _file_identity(parent_info)[:4]:
             raise ValueError('receipt parent identity changed')
         descriptor = os.open(stage_name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600, dir_fd=directory_fd)
+        created_stage = True
         os.write(descriptor, data)
         os.fsync(descriptor)
         before = os.fstat(descriptor)
         if not stat.S_ISREG(before.st_mode) or before.st_uid != os.getuid() or stat.S_IMODE(before.st_mode) != 0o600 or before.st_nlink != 1 or before.st_size != len(data):
             raise ValueError('receipt stage identity')
+        stage_identity = (before.st_dev, before.st_ino)
         os.link(stage_name, final_name, src_dir_fd=directory_fd, dst_dir_fd=directory_fd, follow_symlinks=False)
-        linked = True
+        final_created = True
         staged = os.fstat(descriptor)
         final = os.stat(final_name, dir_fd=directory_fd, follow_symlinks=False)
+        final_identity = _file_identity(final)
         final_fd = os.open(final_name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory_fd)
         try:
             same_file = os.path.sameopenfile(descriptor, final_fd)
@@ -125,19 +135,29 @@ def _publish_receipt(path: Path, value: dict) -> None:
         if _file_identity(current)[:4] != _file_identity(parent_info)[:4]:
             raise ValueError('receipt parent identity changed')
         os.fsync(directory_fd)
+        published = True
     finally:
+        # If validation failed after our link created the final name, remove
+        # only that exact inode; a later replacement remains for diagnosis.
+        if final_created and not published and final_identity is not None:
+            try:
+                current_final = os.stat(final_name, dir_fd=directory_fd, follow_symlinks=False)
+                if _file_identity(current_final) == final_identity:
+                    os.unlink(final_name, dir_fd=directory_fd)
+            except FileNotFoundError:
+                pass
+        # Only remove a stage created by this invocation while its directory
+        # entry still names the inode opened above.  Failed O_EXCL or a later
+        # replacement is foreign evidence and remains for diagnosis.
+        if created_stage and stage_identity is not None:
+            try:
+                stage_stat = os.stat(stage_name, dir_fd=directory_fd, follow_symlinks=False)
+                if (stage_stat.st_dev, stage_stat.st_ino) == stage_identity:
+                    os.unlink(stage_name, dir_fd=directory_fd)
+            except FileNotFoundError:
+                pass
         if descriptor is not None:
             os.close(descriptor)
-        if linked:
-            try:
-                os.unlink(stage_name, dir_fd=directory_fd)
-            except FileNotFoundError:
-                pass
-        else:
-            try:
-                os.unlink(stage_name, dir_fd=directory_fd)
-            except FileNotFoundError:
-                pass
         os.close(directory_fd)
 
 
@@ -382,7 +402,8 @@ class ActivationService:
         _publish_receipt(self.receipt_dir/'service-start.json', {
             'version': 1, 'activation_id': self.activation_id,
             'manifest_sha256': self.manifest_sha256, 'service_identity': identity,
-            'started_raw': time.clock_gettime_ns(time.CLOCK_MONOTONIC_RAW)})
+            'started_raw_ns': time.clock_gettime_ns(time.CLOCK_MONOTONIC_RAW)},
+            expected_parent=self._directory_pins[self.receipt_dir])
 
     def _protocol_lease(self,event):
         for record in self.backend_records:
@@ -412,7 +433,7 @@ class ActivationService:
             owner_context_sha256=self._owner_context_sha(context)
             record.update(owner_connection_id=protocol.get('connection_id'),owner_epoch=protocol.get('epoch'),
                 owner_thread_id=thread_id,owner_context_sha256=owner_context_sha256)
-            self._owner_leases[record['lease_id']]=OwnerLease(
+            owner_lease=OwnerLease(
                 profile_id=record['profile_id'],owner_context_sha256=owner_context_sha256,
                 lease_id=record['lease_id'],owner_connection_id=record['owner_connection_id'],
                 owner_epoch=record['owner_epoch'],owner_thread_id=thread_id,
@@ -426,7 +447,10 @@ class ActivationService:
                 'backend_birth':record['birth'],'backend_executable_sha256':_sha(self.executable),
                 'private_socket_identity':list(record.get('private_socket_identity', ())),
                 'service_identity':dict(self._service_identity)}
-        _publish_receipt(self.receipt_dir/f"ready-{protocol['lease_id']}.json", row)
+        _publish_receipt(self.receipt_dir/f"ready-{protocol['lease_id']}.json", row,
+            expected_parent=self._directory_pins[self.receipt_dir])
+        if record is not None and 'owner_lease' in row:
+            self._owner_leases[record['lease_id']]=owner_lease
 
     @classmethod
     def from_manifest(cls,path: Path):
@@ -613,7 +637,8 @@ class ActivationService:
                     'private_socket':grant['private_socket'],'backend_pid':record['pid'],
                     'backend_birth':record['birth'],'backend_executable_sha256':_sha(self.executable),
                     'private_socket_identity':list(frozen)},
-                'frontend_peer':_peer(frontend),'backend_peer':_peer(backend_peer)})
+                'frontend_peer':_peer(frontend),'backend_peer':_peer(backend_peer)},
+                expected_parent=self._directory_pins[self.receipt_dir])
             yield BackendConnection(helper.reader,helper.writer,
                 lambda peer:_same_process(peer,record['pid'],record['birth'],self.executable))
         finally:

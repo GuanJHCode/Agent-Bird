@@ -16,7 +16,7 @@ The activation service creates these receipts under `state/<activation_id>/` wit
     "executable": "/.../python",
     "executable_sha256": "..."
   },
-  "started_raw": 123
+  "started_raw_ns": 123
 }
 ```
 
