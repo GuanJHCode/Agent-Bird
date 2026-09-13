@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -595,9 +597,80 @@ func TestCLIOwnerExitRequiresVerifiedRebindBeforeResume(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	proof := strings.Repeat("b", 64)
+	service := exec.Command("/bin/sleep", "30")
+	backend := exec.Command("/bin/sleep", "30")
+	if err = service.Start(); err != nil {
+		t.Fatal(err)
+	}
+	if err = backend.Start(); err != nil {
+		_ = service.Process.Kill()
+		_ = service.Wait()
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = service.Process.Kill()
+		_ = service.Wait()
+		_ = backend.Process.Kill()
+		_ = backend.Wait()
+	})
+	serviceBirth, err := process.Birth(service.Process.Pid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	backendBirth, err := process.Birth(backend.Process.Pid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ownerExecutable, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ownerExecutable, err = filepath.EvalSymlinks(ownerExecutable)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sleepExecutable, err := filepath.EvalSymlinks("/bin/sleep")
+	if err != nil {
+		t.Fatal(err)
+	}
+	socketPath := filepath.Join(root, "owner.sock")
+	listener, err := net.Listen("unix", socketPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = listener.Close() })
+	if err = os.Chmod(socketPath, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	socketInfo, err := os.Lstat(socketPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	socketStat := socketInfo.Sys().(*syscall.Stat_t)
+	leaseID := "lease-2"
+	activationID := strings.Repeat("a", 32)
+	attachment := map[string]any{
+		"version": 1, "profile_id": "profile-a", "controller_thread_id": "rebind-thread",
+		"controller_epoch": 2, "owner_context_sha256": strings.Repeat("c", 64),
+		"lease_id": leaseID, "owner_connection_id": "connection-2", "activation_id": activationID,
+		"manifest_sha256": strings.Repeat("d", 64), "helper_grant_sha256": strings.Repeat("e", 64),
+		"service_identity": map[string]any{"pid": service.Process.Pid, "uid": os.Getuid(), "birth": serviceBirth,
+			"executable": sleepExecutable, "executable_sha256": testFileSHA(t, sleepExecutable)},
+		"backend_identity": map[string]any{"pid": backend.Process.Pid, "uid": os.Getuid(), "birth": backendBirth,
+			"executable": sleepExecutable, "executable_sha256": testFileSHA(t, sleepExecutable)},
+		"private_socket":          socketPath,
+		"private_socket_identity": []uint64{uint64(socketStat.Dev), uint64(socketStat.Ino), uint64(socketStat.Uid), uint64(socketStat.Mode)},
+		"origin_process": map[string]any{"pid": os.Getpid(), "uid": os.Getuid(), "birth": newBirth,
+			"executable": ownerExecutable, "executable_sha256": testFileSHA(t, ownerExecutable)},
+	}
+	attachmentJSON, err := json.Marshal(attachment)
+	if err != nil {
+		t.Fatal(err)
+	}
+	attachmentProof := sha256.Sum256(attachmentJSON)
+	proof := hex.EncodeToString(attachmentProof[:])
 	ownerCapability := filepath.Join(root, "owner.json")
-	ownerBody, _ := json.Marshal(map[string]any{"version": 1, "path": ownerCapability, "controller_thread_id": "rebind-thread", "origin_context_id": "rebind-origin", "origin_pid": os.Getpid(), "origin_birth": newBirth, "host_generation": "generation-00000002", "generation_number": 2, "attachment_proof_sha256": proof, "lease_id": "lease-2", "activation_id": "activation-2"})
+	ownerBody, _ := json.Marshal(map[string]any{"version": 1, "path": ownerCapability, "controller_thread_id": "rebind-thread", "origin_context_id": "rebind-origin", "origin_pid": os.Getpid(), "origin_birth": newBirth, "host_generation": "generation-00000002", "generation_number": 2, "attachment_proof_sha256": proof, "lease_id": leaseID, "activation_id": activationID, "owner_attachment": attachment})
 	if err = os.WriteFile(ownerCapability, ownerBody, 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -619,6 +692,16 @@ func TestCLIOwnerExitRequiresVerifiedRebindBeforeResume(t *testing.T) {
 		case <-time.After(20 * time.Millisecond):
 		}
 	}
+}
+
+func testFileSHA(t *testing.T, path string) string {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:])
 }
 
 func runBinary(t *testing.T, ctx context.Context, bin string, args ...string) []byte {
