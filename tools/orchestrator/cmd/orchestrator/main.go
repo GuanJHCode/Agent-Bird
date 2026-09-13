@@ -118,14 +118,30 @@ func runNativeBridge(ctx context.Context, args []string, stdout, stderr io.Write
 	if args[0] == "rebind" {
 		return rebindOwner(ctx, args[1:], stdout)
 	}
-	if args[0] != "helper" {
-		return codeError("invalid_args")
-	}
 	path, err := requestFile(args[1:])
 	if err != nil {
 		return err
 	}
-	return nativebridgecli.RunHelper(ctx, path, os.Stdin, stdout, stderr)
+	var response json.RawMessage
+	switch args[0] {
+	case "helper":
+		return nativebridgecli.RunHelper(ctx, path, os.Stdin, stdout, stderr)
+	case "start":
+		response, err = nativebridgecli.StartDriver(ctx, path)
+	case "driver":
+		return nativebridgecli.RunDriver(ctx, path, stdout, stderr)
+	case "decide":
+		response, err = nativebridgecli.RecordDriverDecision(path)
+	case "status":
+		response, err = nativebridgecli.DriverStatus(path)
+	default:
+		return codeError("invalid_args")
+	}
+	if err != nil {
+		return err
+	}
+	_, err = stdout.Write(append(response, '\n'))
+	return err
 }
 
 func rebindOwner(ctx context.Context, args []string, stdout io.Writer) error {
