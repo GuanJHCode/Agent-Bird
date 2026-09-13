@@ -14,7 +14,7 @@
 
 helper 发出的 JSON-RPC 只允许有限只读集合：`thread/read`、`thread/turns/list`、`thread/subscribe`、`thread/unsubscribe`（参数必须只含精确的 owner `threadId`），以及无参数的 `initialize`、`initialized`、`skills/list`。`turn/start`、`turn/steer`、`thread/start`、`thread/resume`、`thread/fork`、`thread/inject_items`、`command/exec`、`prompt` 和未知方法明确拒绝。
 
-收到 backend response 时，解析器只接受有限大小、无压缩、服务端未掩码的文本 JSON-RPC 帧，支持文本分片和同一读取中的粘连帧；压缩位、服务端掩码、二进制/不支持 opcode、超限帧、畸形 JSON 和不同 thread 的结果均在交付前拒绝。这个边界是执行 gate，不是 observer 记录。后续如需写操作，必须增加独立、具体的合同和测试，不能通过扩大当前 allowlist 实现。
+收到 backend response 或通知时，解析器只接受有限大小、无压缩、服务端未掩码的文本 JSON-RPC 帧，支持文本分片和同一读取中的粘连帧；响应必须保持 owner thread，通知只允许固定的 `thread/status/changed`、`thread/updated`、`thread/tokenUsage/updated`、`thread/goal/cleared`、`remoteControl/status/changed` 和 `mcpServer/startupStatus/updated` 集合。压缩位、服务端掩码、二进制/不支持 opcode、超限帧、畸形 JSON、未知通知和不同 thread 的结果均在交付前拒绝。这个边界是执行 gate，不是 observer 记录。后续如需写操作，必须增加独立、具体的合同和测试，不能通过扩大当前 allowlist 实现。
 
 ## 接线要求与范围
 

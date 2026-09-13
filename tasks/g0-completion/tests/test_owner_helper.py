@@ -346,3 +346,33 @@ def test_connection_enforces_rpc_gate_before_writing_frame():
         await connection.close()
 
     asyncio.run(run())
+
+
+def test_helper_accepts_scoped_server_notification_and_rejects_unknown(tmp_path):
+    async def run():
+        path = socket_path(tmp_path)
+        server, state = await _ws_server(path)
+        await _open_owner(path)
+        lease = OwnerLease(**{**OWNER, "private_socket": str(path)}, backend_pid=20001, backend_birth="backend-birth", helper_identity=HELPER)
+        helper = await lease.open_helper(grant_for(path), HELPER)
+        writer = state["connections"][-1]
+        notification = {
+            "jsonrpc": "2.0",
+            "method": "thread/status/changed",
+            "params": {"threadId": OWNER["owner_thread_id"], "status": "idle"},
+        }
+        encoded_notification = json.dumps(notification).encode()
+        split = len(encoded_notification) // 2
+        writer.write(_server_frame(encoded_notification[:split], fin=False) + _server_frame(encoded_notification[split:], opcode=0))
+        await writer.drain()
+        assert await helper.read_rpc() == notification
+        unknown = {"jsonrpc": "2.0", "method": "thread/other/changed", "params": {}}
+        writer.write(_server_frame(json.dumps(unknown).encode()))
+        await writer.drain()
+        with pytest.raises(OwnerHelperAdmissionError):
+            await helper.read_rpc()
+        await helper.close()
+        server.close()
+        await server.wait_closed()
+
+    asyncio.run(run())

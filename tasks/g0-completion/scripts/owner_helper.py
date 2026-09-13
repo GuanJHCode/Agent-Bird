@@ -77,6 +77,16 @@ _THREAD_PARAM_KEYS = {
     "thread/subscribe": frozenset({"threadId"}),
     "thread/unsubscribe": frozenset({"threadId"}),
 }
+_SERVER_NOTIFICATIONS = frozenset(
+    {
+        "thread/status/changed",
+        "thread/updated",
+        "thread/tokenUsage/updated",
+        "thread/goal/cleared",
+        "remoteControl/status/changed",
+        "mcpServer/startupStatus/updated",
+    }
+)
 
 
 def _reject(reason: str) -> None:
@@ -126,6 +136,24 @@ def validate_helper_response(message: object, owner_thread_id: str) -> None:
     if isinstance(thread, dict) and "id" in thread and thread["id"] != owner_thread_id:
         _reject("response_thread_target")
     if "threadId" in result and result["threadId"] != owner_thread_id:
+        _reject("response_thread_target")
+
+
+def validate_helper_server_message(message: object, owner_thread_id: str) -> None:
+    """Validate a response or one of the explicitly scoped backend notices."""
+
+    if not isinstance(message, dict) or message.get("jsonrpc") != "2.0":
+        _reject("response_envelope")
+    if "id" in message:
+        validate_helper_response(message, owner_thread_id)
+        return
+    method = message.get("method")
+    if method not in _SERVER_NOTIFICATIONS:
+        _reject("server_notification_forbidden")
+    params = message.get("params", {})
+    if not isinstance(params, dict):
+        _reject("server_notification_params")
+    if "threadId" in params and params["threadId"] != owner_thread_id:
         _reject("response_thread_target")
 
 
@@ -266,9 +294,7 @@ class OwnerHelperConnection:
             message = json.loads(payload)
         except (UnicodeDecodeError, json.JSONDecodeError):
             _reject("response_json")
-        if not isinstance(message, dict) or message.get("jsonrpc") != "2.0" or "id" not in message:
-            _reject("response_envelope")
-        validate_helper_response(message, self.owner_thread_id)
+        validate_helper_server_message(message, self.owner_thread_id)
         return message
 
     async def close(self) -> None:
