@@ -86,23 +86,59 @@ def _write_json(path: Path, value: dict) -> None:
 
 
 def _publish_receipt(path: Path, value: dict) -> None:
-    """Publish one owner-created receipt without replacing an existing inode."""
-    stage = path.parent / f".{path.name}.{uuid.uuid4().hex}.tmp"
-    _write_json(stage, value)
+    """Publish one owner-created receipt without path-based replacement."""
+    parent = path.parent
+    directory_fd = os.open(parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    parent_info = os.fstat(directory_fd)
+    if not stat.S_ISDIR(parent_info.st_mode) or parent_info.st_uid != os.getuid() or stat.S_IMODE(parent_info.st_mode) & 0o077:
+        os.close(directory_fd)
+        raise ValueError('receipt parent is not private')
+    stage_name = f".{path.name}.{uuid.uuid4().hex}.tmp"
+    final_name = path.name
+    data = (json.dumps(value, sort_keys=True, indent=2) + '\n').encode()
+    descriptor = None
+    linked = False
     try:
-        with stage.open('rb') as stream:
-            os.fsync(stream.fileno())
-        os.link(stage, path, follow_symlinks=False)
-        directory_fd = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        current = os.stat(parent, follow_symlinks=False)
+        if _file_identity(current)[:4] != _file_identity(parent_info)[:4]:
+            raise ValueError('receipt parent identity changed')
+        descriptor = os.open(stage_name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600, dir_fd=directory_fd)
+        os.write(descriptor, data)
+        os.fsync(descriptor)
+        before = os.fstat(descriptor)
+        if not stat.S_ISREG(before.st_mode) or before.st_uid != os.getuid() or stat.S_IMODE(before.st_mode) != 0o600 or before.st_nlink != 1 or before.st_size != len(data):
+            raise ValueError('receipt stage identity')
+        os.link(stage_name, final_name, src_dir_fd=directory_fd, dst_dir_fd=directory_fd, follow_symlinks=False)
+        linked = True
+        staged = os.fstat(descriptor)
+        final = os.stat(final_name, dir_fd=directory_fd, follow_symlinks=False)
+        final_fd = os.open(final_name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory_fd)
         try:
-            os.fsync(directory_fd)
+            same_file = os.path.sameopenfile(descriptor, final_fd)
         finally:
-            os.close(directory_fd)
+            os.close(final_fd)
+        if not stat.S_ISREG(final.st_mode) or not same_file:
+            raise ValueError('receipt final identity')
+        if (final.st_dev, final.st_ino, final.st_uid, final.st_mode) != (staged.st_dev, staged.st_ino, staged.st_uid, staged.st_mode):
+            raise ValueError('receipt final identity')
+        current = os.stat(parent, follow_symlinks=False)
+        if _file_identity(current)[:4] != _file_identity(parent_info)[:4]:
+            raise ValueError('receipt parent identity changed')
+        os.fsync(directory_fd)
     finally:
-        try:
-            stage.unlink()
-        except FileNotFoundError:
-            pass
+        if descriptor is not None:
+            os.close(descriptor)
+        if linked:
+            try:
+                os.unlink(stage_name, dir_fd=directory_fd)
+            except FileNotFoundError:
+                pass
+        else:
+            try:
+                os.unlink(stage_name, dir_fd=directory_fd)
+            except FileNotFoundError:
+                pass
+        os.close(directory_fd)
 
 
 def _peer(peer) -> dict:
@@ -337,6 +373,8 @@ class ActivationService:
 
     def _publish_service_start(self):
         birth, executable = _process_metadata(os.getpid())
+        if not birth or not executable:
+            raise ValueError('service identity incomplete')
         executable_path = Path(executable).resolve()
         identity = {'pid': os.getpid(), 'uid': os.getuid(), 'birth': birth,
                     'executable': executable, 'executable_sha256': _sha(executable_path)}
@@ -388,14 +426,7 @@ class ActivationService:
                 'backend_birth':record['birth'],'backend_executable_sha256':_sha(self.executable),
                 'private_socket_identity':list(record.get('private_socket_identity', ())),
                 'service_identity':dict(self._service_identity)}
-        path=self.receipt_dir/f"ready-{protocol['lease_id']}.json"
-        stage=self.receipt_dir/f".ready-{uuid.uuid4().hex}.json"
-        try:
-            _write_json(stage,row)
-            with stage.open('rb') as stream: os.fsync(stream.fileno())
-            os.link(stage,path,follow_symlinks=False)
-        finally:
-            if stage.exists(): stage.unlink()
+        _publish_receipt(self.receipt_dir/f"ready-{protocol['lease_id']}.json", row)
 
     @classmethod
     def from_manifest(cls,path: Path):

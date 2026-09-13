@@ -38,6 +38,21 @@ def test_service_start_publishes_owner_receipt_directory(tmp_path):
     asyncio.run(run())
 
 
+def test_receipt_publisher_refuses_existing_and_stage_symlink(tmp_path, monkeypatch):
+    parent = tmp_path / "state"; parent.mkdir(mode=0o700)
+    receipt = parent / "receipt.json"
+    activation_service._publish_receipt(receipt, {"version": 1, "safe": True})
+    with pytest.raises(FileExistsError):
+        activation_service._publish_receipt(receipt, {"version": 1, "safe": False})
+    fixed = type("UUID", (), {"hex": "fixed"})()
+    monkeypatch.setattr(activation_service.uuid, "uuid4", lambda: fixed)
+    target = parent / "foreign.json"; target.write_text("foreign")
+    stage = parent / ".other.json.fixed.tmp"; stage.symlink_to(target)
+    with pytest.raises((FileExistsError, OSError)):
+        activation_service._publish_receipt(parent / "other.json", {"version": 1})
+    assert target.read_text() == "foreign"
+
+
 def test_real_service_publishes_owner_and_helper_receipts(tmp_path):
     async def run():
         with tempfile.TemporaryDirectory(prefix="g0-receipts-helper-", dir="/private/tmp") as raw, ExitStack() as roots:
