@@ -1,0 +1,3 @@
+pytest 9.1.1 plugins: builtin only; cacheprovider disabled; subtests builtin
+...............................................................          [100%]
+63 passed in 33.85s

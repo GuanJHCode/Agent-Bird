@@ -36,6 +36,14 @@ async def control(end):
     value=json.loads(raw);require(isinstance(value,dict),'invalid control command');return value
 
 
+def validate_controller_parent(config):
+    expected=config.get('controller_peer',config['proxy_peer'])
+    require(os.getppid()==expected['pid'] and expected['uid']==os.getuid(),'controller parent identity changed')
+    birth,executable=proxy_transport._process_metadata(expected['pid'])
+    require(birth==expected['birth'] and executable==expected['executable'],'controller parent process changed')
+    require(sha(executable)==expected['executable_sha256'],'controller parent executable changed')
+
+
 def validate_config(config,role):
     manifest,digest=activation_service._private_json(Path(config['manifest_path']))
     require(digest==config['manifest_sha256'],'manifest changed')
@@ -49,7 +57,7 @@ def validate_config(config,role):
     require(grant['helper_executable' if role=='helper' else 'expected_executable']==executable,'grant executable changed')
     require(sha(executable)==grant['helper_executable_sha256' if role=='helper' else 'executable_sha256'],'executable SHA changed')
     require(transport._socket_identity(Path(config['public_socket']))==tuple(config['public_socket_identity']),'public inode changed')
-    require(os.getppid()==config['proxy_peer']['pid'],'proxy is not the original controller')
+    validate_controller_parent(config)
     if role=='helper':
         require(grant['role']=='owner-helper' and grant['owner_thread_id']==config['thread_id'] and grant['lease_id']==config['lease_id'],'helper owner lease changed')
     return manifest,grant
