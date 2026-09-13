@@ -298,6 +298,20 @@ func RunSource(ctx context.Context, cfg SourceConfig) error {
 	}
 	var workers sync.WaitGroup
 	workerErrors := make(chan error, 2)
+	publisherErrors := make(chan error, 1)
+	go func() {
+		for {
+			select {
+			case <-h.eventReady:
+				if publishErr := h.PublishAll(runCtx, session, session.epoch); publishErr != nil {
+					publisherErrors <- publishErr
+					return
+				}
+			case <-runCtx.Done():
+				return
+			}
+		}
+	}()
 	defer func() {
 		cancelRun()
 		stopCtx, cancelStop := context.WithTimeout(context.Background(), 2*time.Second)
@@ -318,6 +332,8 @@ func RunSource(ctx context.Context, cfg SourceConfig) error {
 			envelope, readErr = frame.envelope, frame.err
 		case workerErr := <-workerErrors:
 			return workerErr
+		case publisherErr := <-publisherErrors:
+			return publisherErr
 		case <-runCtx.Done():
 			return runCtx.Err()
 		}
@@ -350,7 +366,7 @@ func RunSource(ctx context.Context, cfg SourceConfig) error {
 					}
 				}
 				if duplicate {
-					reportError(h.recoverDuplicateGrant(runCtx, grant, session, session.epoch))
+					reportError(h.recoverDuplicateGrant(grant, session.epoch))
 					return
 				}
 				inv, invokeErr := cfg.InvocationProvider(runCtx, grant)
@@ -363,7 +379,6 @@ func RunSource(ctx context.Context, cfg SourceConfig) error {
 						reportError(recordErr)
 						return
 					}
-					reportError(h.PublishAll(runCtx, session, session.epoch))
 					return
 				}
 				result, executeErr := h.ExecuteLaunch(runCtx, grant, inv)
@@ -383,7 +398,6 @@ func RunSource(ctx context.Context, cfg SourceConfig) error {
 						return
 					}
 				}
-				reportError(h.PublishAll(runCtx, session, session.epoch))
 			}()
 		case ipc.KindStop:
 			var stop contract.StopCommand

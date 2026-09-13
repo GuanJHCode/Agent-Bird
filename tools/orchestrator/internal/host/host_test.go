@@ -430,7 +430,10 @@ func TestGrantLedgerPreventsDuplicateExecutionAndClosesUnspawnedRecovery(t *test
 		t.Fatalf("recovered accept duplicate=%v err=%v", duplicate, err)
 	}
 	sink := &durableSink{}
-	if err = recovered.recoverDuplicateGrant(context.Background(), grant, sink, 4); err != nil {
+	if err = recovered.recoverDuplicateGrant(grant, 4); err != nil {
+		t.Fatal(err)
+	}
+	if err = recovered.PublishAll(context.Background(), sink, 4); err != nil {
 		t.Fatal(err)
 	}
 	if len(sink.events) != 2 || sink.events[0].Kind != contract.EventFailed || sink.events[1].Kind != contract.EventExited {

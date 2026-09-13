@@ -36,6 +36,7 @@ type Host struct {
 	reservations   map[string]time.Time
 	stopMu         sync.Mutex
 	stopRequested  map[string]bool
+	eventReady     chan struct{}
 }
 
 func New(db *store.DB, spoolRoot string) (*Host, error) {
@@ -62,7 +63,7 @@ func newHost(db *store.DB, spoolRoot, producerID string) (*Host, error) {
 	if err := os.MkdirAll(spoolRoot, 0700); err != nil {
 		return nil, err
 	}
-	return &Host{db: db, spoolRoot: spoolRoot, active: map[string]*process.Handle{}, activeBySeg: map[string]*process.Handle{}, producerID: producerID, publishedPath: filepath.Join(spoolRoot, ".producer-published"), reservations: map[string]time.Time{}, stopRequested: map[string]bool{}}, nil
+	return &Host{db: db, spoolRoot: spoolRoot, active: map[string]*process.Handle{}, activeBySeg: map[string]*process.Handle{}, producerID: producerID, publishedPath: filepath.Join(spoolRoot, ".producer-published"), reservations: map[string]time.Time{}, stopRequested: map[string]bool{}, eventReady: make(chan struct{}, 1)}, nil
 }
 func (h *Host) spool(a store.Attempt) (*events.Spool, error) {
 	return events.Open(filepath.Join(h.spoolRoot, a.ID, a.SegmentID))
@@ -301,7 +302,15 @@ func (h *Host) appendPhaseEvent(spool *events.Spool, runID, taskID string, a sto
 	// The sequence becomes visible only after the event file and its directory
 	// entry are durable. A crash can replay an event, but cannot reserve a hole.
 	h.sequence = sequence
+	h.notifyEventReady()
 	return event, nil
+}
+
+func (h *Host) notifyEventReady() {
+	select {
+	case h.eventReady <- struct{}{}:
+	default:
+	}
 }
 
 func (h *Host) loadEventSequenceLocked() error {
@@ -449,7 +458,7 @@ func (h *Host) acceptGrant(grant contract.LaunchCommand) (bool, error) {
 	return false, err
 }
 
-func (h *Host) recoverDuplicateGrant(ctx context.Context, grant contract.LaunchCommand, sink EventSink, epoch uint64) error {
+func (h *Host) recoverDuplicateGrant(grant contract.LaunchCommand, epoch uint64) error {
 	a := store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID}
 	spool, err := h.spool(a)
 	if err != nil {
@@ -464,7 +473,7 @@ func (h *Host) recoverDuplicateGrant(ctx context.Context, grant contract.LaunchC
 			return errors.New("grant_event_identity_conflict")
 		}
 		if record.Kind == contract.EventExited {
-			return h.PublishAll(ctx, sink, epoch)
+			return nil
 		}
 	}
 	meta := launchMetadata{commandID: grant.CommandID, workRevision: grant.WorkRevision, executionEpoch: epoch}
@@ -475,7 +484,7 @@ func (h *Host) recoverDuplicateGrant(ctx context.Context, grant contract.LaunchC
 	} else if err = h.ensureLaunchUnknown(a, grant.RunID, grant.TaskID, meta, errors.New("recovered_incomplete_grant")); err != nil {
 		return err
 	}
-	return h.PublishAll(ctx, sink, epoch)
+	return nil
 }
 
 func (h *Host) finishAttempt(id, status string, persistDB bool) {

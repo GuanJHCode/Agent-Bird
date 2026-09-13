@@ -19,8 +19,11 @@ import (
 
 func TestRunSourceUDSLaunchAndDurableEventAck(t *testing.T) {
 	if os.Getenv("G1_HOST_HELPER") == "1" {
+		time.Sleep(300 * time.Millisecond)
+		_ = os.WriteFile(os.Getenv("G1_HOST_EXIT_MARKER"), []byte("exited\n"), 0600)
 		return
 	}
+	exitMarker := filepath.Join(t.TempDir(), "exited")
 	socket := fmt.Sprintf("/tmp/g1-host-%d.sock", os.Getpid())
 	_ = os.Remove(socket)
 	defer os.Remove(socket)
@@ -82,6 +85,12 @@ func TestRunSourceUDSLaunchAndDurableEventAck(t *testing.T) {
 				serverDone <- errors.New("event_identity_mismatch")
 				return
 			}
+			if event.Kind == contract.EventRunning {
+				if _, markerErr := os.Stat(exitMarker); !errors.Is(markerErr, os.ErrNotExist) {
+					serverDone <- errors.New("running_was_not_published_until_exit")
+					return
+				}
+			}
 			ackPayload, _ := json.Marshal(contract.DurableAck{ProducerID: event.ProducerID, AckedThrough: event.Sequence, EventID: event.EventID, PayloadHash: event.PayloadHash, Status: "durable"})
 			if err = ipc.Write(conn, ipc.Envelope{Version: 1, Kind: ipc.KindDurableAck, RequestID: eventEnvelope.RequestID, Epoch: 7, Payload: ackPayload}); err != nil {
 				serverDone <- err
@@ -97,7 +106,7 @@ func TestRunSourceUDSLaunchAndDurableEventAck(t *testing.T) {
 	hello := contract.HostHello{LaunchID: "launch-1", LaunchToken: "token-1", OriginContextID: "origin-1", HostGeneration: "generation-1", PID: os.Getpid(), Birth: birth, Executable: serverPath}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	inv := launchInvocation{args: []string{serverPath, "-test.run=TestRunSourceUDSLaunchAndDurableEventAck"}, env: map[string]string{"G1_HOST_HELPER": "1"}}
+	inv := launchInvocation{args: []string{serverPath, "-test.run=TestRunSourceUDSLaunchAndDurableEventAck"}, env: map[string]string{"G1_HOST_HELPER": "1", "G1_HOST_EXIT_MARKER": exitMarker}}
 	runErr := RunSource(ctx, SourceConfig{SocketPath: socket, SpoolRoot: filepath.Join(t.TempDir(), "spool"), ProducerID: "launch-1", Hello: hello, InvocationProvider: func(context.Context, contract.LaunchCommand) (contract.InvocationView, error) { return inv, nil }})
 	if !errors.Is(runErr, io.EOF) {
 		t.Fatalf("run err=%v", runErr)

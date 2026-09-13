@@ -53,12 +53,17 @@ func (s *Spool) Append(e contract.Event) error {
 	data, _ := json.Marshal(e)
 	data = append(data, '\n')
 	name := filepath.Join(s.dir, fmt.Sprintf("event-%020d.json", e.Sequence))
-	fd, err := os.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL|syscall.O_NOFOLLOW, 0600)
-	if errors.Is(err, os.ErrExist) {
-		old, readErr := os.ReadFile(name)
-		if readErr == nil && bytes.Equal(old, data) {
+	if old, readErr := os.ReadFile(name); readErr == nil {
+		if bytes.Equal(old, data) {
 			return nil
 		}
+		return ErrConflict
+	} else if !errors.Is(readErr, os.ErrNotExist) {
+		return readErr
+	}
+	stage := filepath.Join(s.dir, fmt.Sprintf(".event-%020d-%d.tmp", e.Sequence, os.Getpid()))
+	fd, err := os.OpenFile(stage, os.O_WRONLY|os.O_CREATE|os.O_EXCL|syscall.O_NOFOLLOW, 0600)
+	if errors.Is(err, os.ErrExist) {
 		return ErrConflict
 	}
 	if err != nil {
@@ -74,6 +79,20 @@ func (s *Spool) Append(e contract.Event) error {
 	if err != nil {
 		return err
 	}
+	// Link publishes the fully synced inode without replacing an existing
+	// sequence. Readers never observe a partial JSON event.
+	if err = os.Link(stage, name); errors.Is(err, os.ErrExist) {
+		old, readErr := os.ReadFile(name)
+		if readErr == nil && bytes.Equal(old, data) {
+			_ = os.Remove(stage)
+			return nil
+		}
+		return ErrConflict
+	}
+	if err != nil {
+		return err
+	}
+	_ = os.Remove(stage)
 	return syncDir(s.dir)
 }
 func (s *Spool) Read() ([]contract.Event, error) {
