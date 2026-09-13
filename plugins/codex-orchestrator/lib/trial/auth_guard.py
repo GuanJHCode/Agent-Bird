@@ -32,6 +32,13 @@ _UNSUPPORTED_AUTH_CODES = {
     "command_external": "auth_kind_command_external",
     "external_chatgpt_tokens": "auth_kind_external_chatgpt_tokens",
 }
+_SUPPORTED_BOOTSTRAP_AUTH_KINDS = frozenset({"none", "managed_chatgpt", "api_key"})
+_UNSUPPORTED_BOOTSTRAP_AUTH_CODES = {
+    "unknown": "bootstrap_auth_kind_unknown",
+    "workload_identity": "bootstrap_auth_kind_workload_identity",
+    "command_external": "bootstrap_auth_kind_command_external",
+    "external_chatgpt_tokens": "bootstrap_auth_kind_external_chatgpt_tokens",
+}
 
 
 class AuthGuardBlocked(RuntimeError):
@@ -47,7 +54,9 @@ class MetadataObservation:
     native_version: str
     native_sha256: str
     auth_kind: str
+    bootstrap_auth_kind: str
     credential_store: str
+    external_auth_configured: bool
     use_agent_identity: bool
     source_kind: str
     proof_sha256: str
@@ -58,7 +67,9 @@ class VerifiedAuthMetadata:
 
     __slots__ = (
         "_auth_kind",
+        "_bootstrap_auth_kind",
         "_credential_store",
+        "_external_auth_configured",
         "_use_agent_identity",
         "_source_kind",
         "_proof_sha256",
@@ -69,7 +80,9 @@ class VerifiedAuthMetadata:
         self,
         *,
         auth_kind: str,
+        bootstrap_auth_kind: str,
         credential_store: str,
+        external_auth_configured: bool,
         use_agent_identity: bool,
         source_kind: str,
         proof_sha256: str,
@@ -78,7 +91,9 @@ class VerifiedAuthMetadata:
         if _seal is not _VERIFIED_METADATA_SEAL:
             raise AuthGuardBlocked("metadata_not_verified")
         self._auth_kind = auth_kind
+        self._bootstrap_auth_kind = bootstrap_auth_kind
         self._credential_store = credential_store
+        self._external_auth_configured = external_auth_configured
         self._use_agent_identity = use_agent_identity
         self._source_kind = source_kind
         self._proof_sha256 = proof_sha256
@@ -116,11 +131,18 @@ def extract_safe_auth_metadata(source: VerifiedMetadataSource) -> VerifiedAuthMe
             observation.native_version,
             observation.native_sha256,
             observation.auth_kind,
+            observation.bootstrap_auth_kind,
             observation.credential_store,
             observation.source_kind,
             observation.proof_sha256,
         )
-    ) or not isinstance(observation.use_agent_identity, bool):
+    ) or not all(
+        isinstance(value, bool)
+        for value in (
+            observation.external_auth_configured,
+            observation.use_agent_identity,
+        )
+    ):
         raise AuthGuardBlocked("metadata_source_invalid")
     if observation.native_version != EXPECTED_NATIVE_VERSION:
         raise AuthGuardBlocked("native_version_mismatch")
@@ -135,7 +157,9 @@ def extract_safe_auth_metadata(source: VerifiedMetadataSource) -> VerifiedAuthMe
 
     return VerifiedAuthMetadata(
         auth_kind=observation.auth_kind,
+        bootstrap_auth_kind=observation.bootstrap_auth_kind,
         credential_store=observation.credential_store,
+        external_auth_configured=observation.external_auth_configured,
         use_agent_identity=observation.use_agent_identity,
         source_kind=observation.source_kind,
         proof_sha256=observation.proof_sha256,
@@ -158,6 +182,21 @@ def prepare_guarded_environment(
         raise AuthGuardBlocked(
             _UNSUPPORTED_AUTH_CODES.get(metadata._auth_kind, "auth_kind_unknown")
         )
+    if not metadata._bootstrap_auth_kind:
+        raise AuthGuardBlocked("bootstrap_auth_kind_missing")
+    if metadata._bootstrap_auth_kind not in _SUPPORTED_BOOTSTRAP_AUTH_KINDS:
+        raise AuthGuardBlocked(
+            _UNSUPPORTED_BOOTSTRAP_AUTH_CODES.get(
+                metadata._bootstrap_auth_kind, "bootstrap_auth_kind_unknown"
+            )
+        )
+    if metadata._external_auth_configured:
+        raise AuthGuardBlocked("external_auth_configured")
+    if (
+        metadata._auth_kind == "managed_chatgpt"
+        and metadata._bootstrap_auth_kind != "managed_chatgpt"
+    ):
+        raise AuthGuardBlocked("auth_path_inconsistent")
     if metadata._use_agent_identity:
         raise AuthGuardBlocked("use_agent_identity_enabled")
     if metadata._credential_store not in _SUPPORTED_STORES[metadata._auth_kind]:

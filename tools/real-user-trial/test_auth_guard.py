@@ -34,7 +34,9 @@ def observation(**changes: object) -> MetadataObservation:
             "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc"
         ),
         "auth_kind": "managed_chatgpt",
+        "bootstrap_auth_kind": "managed_chatgpt",
         "credential_store": "file",
+        "external_auth_configured": False,
         "use_agent_identity": False,
         "source_kind": "fixed_native_internal_sdk",
         "proof_sha256": "a" * 64,
@@ -121,6 +123,35 @@ def test_prepare_accepts_verified_api_key_without_changing_its_source() -> None:
         "CODEX_API_KEY": "fake-api-key",
         "CODEX_REFRESH_TOKEN_URL_OVERRIDE": "invalid://refresh-blocked",
     }
+
+
+@pytest.mark.parametrize(
+    ("bootstrap_auth_kind", "expected_code"),
+    [
+        ("", "bootstrap_auth_kind_missing"),
+        ("unknown", "bootstrap_auth_kind_unknown"),
+        ("workload_identity", "bootstrap_auth_kind_workload_identity"),
+        ("command_external", "bootstrap_auth_kind_command_external"),
+    ],
+)
+def test_prepare_blocks_unsupported_bootstrap_auth_even_for_final_api_key(
+    bootstrap_auth_kind: str, expected_code: str
+) -> None:
+    metadata = verified_metadata(
+        auth_kind="api_key",
+        bootstrap_auth_kind=bootstrap_auth_kind,
+        credential_store="environment",
+    )
+
+    with pytest.raises(AuthGuardBlocked, match=f"^{expected_code}$"):
+        prepare_guarded_environment({}, metadata)
+
+
+def test_prepare_blocks_any_configured_external_auth_path() -> None:
+    with pytest.raises(AuthGuardBlocked, match="^external_auth_configured$"):
+        prepare_guarded_environment(
+            {}, verified_metadata(external_auth_configured=True)
+        )
 
 
 def test_prepare_does_not_echo_unknown_auth_kind_in_block_reason() -> None:

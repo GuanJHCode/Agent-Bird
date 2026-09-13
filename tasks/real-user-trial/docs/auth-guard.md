@@ -20,13 +20,15 @@ Codex `0.154.0` 锁定 `reqwest 0.12.28`。该版本在执行请求前拒绝非 
 
 实现位于 `plugins/codex-orchestrator/lib/trial/auth_guard.py`：
 
-1. 可信 native/SDK 边界实现 `VerifiedMetadataSource.read_verified_nonsecret_metadata()`。它只返回 `MetadataObservation`：固定 native version/SHA、`auth_kind`、`credential_store`、effective `use_agent_identity`、来源类别和证明摘要。不得包含 token、完整 config、认证文件内容或环境值。
-2. `extract_safe_auth_metadata(source)` 校验固定 binary 和证明形状，并产生不可由 JSON/dict 直接替代的 `VerifiedAuthMetadata`。Python 对象不是跨进程能力；生产调用者必须硬编码可信 source implementation，不能让 worker、模型输出或请求 DTO 选择实现。
+1. 可信 native/SDK 边界实现 `VerifiedMetadataSource.read_verified_nonsecret_metadata()`。它只返回 `MetadataObservation`：固定 native version/SHA、最终 `auth_kind`、启动阶段 `bootstrap_auth_kind`、`credential_store`、是否配置 external auth、effective `use_agent_identity`、来源类别和证明摘要。不得包含 token、完整 config、认证文件内容或环境值。
+2. `extract_safe_auth_metadata(source)` 校验固定 binary 和证明字段的完整形状，并产生不可由 JSON/dict 直接替代的 `VerifiedAuthMetadata`。摘要格式正确不代表来源已验证；真实性由调用者硬编码的 native/SDK source implementation 和 owner binding 建立。Python 对象不是跨进程能力，不能让 worker、模型输出或请求 DTO 选择 source implementation。
 3. `prepare_guarded_environment(source_env, metadata)` 校验 admission 后复制正常来源环境，只在副本加入 refresh tripwire。它不清洗、不覆盖、不持久化来源环境。
 
 若来源环境已经存在 `CODEX_REFRESH_TOKEN_URL_OVERRIDE`，无论值是否为空都返回 `refresh_override_already_present`，不会覆盖用户或企业设置。
 
-允许的认证类别只有经证明的 `managed_chatgpt` 和 `api_key`。`unknown`、Workload Identity、command-backed external bearer、external ChatGPT token 均阻断。managed ChatGPT 的 store 只接受 `file/keyring/auto`；API key 只接受 `file/keyring/auto/environment`。这描述来源类别，不会切换用户认证方式。
+最终认证类别只允许经证明的 `managed_chatgpt` 和 `api_key`。启动阶段认证必须另外提供且只能是 `none/managed_chatgpt/api_key`；缺失、`unknown`、Workload Identity、command-backed external bearer、external ChatGPT token 均阻断。任何 `external_auth_configured=true` 也阻断。最终 API key 可以搭配受 tripwire 保护的 managed ChatGPT bootstrap；最终 managed ChatGPT 则必须与 managed ChatGPT bootstrap 一致。
+
+managed ChatGPT 的 store 只接受 `file/keyring/auto`；API key 只接受 `file/keyring/auto/environment`。这些字段描述完整认证路径，不会切换用户认证方式。
 
 effective `UseAgentIdentity` 必须为 `false`。固定版本默认关闭该功能，但最终值可能受 managed requirements 约束；仅凭默认值不足以放行。[默认关闭](https://github.com/openai/codex/blob/6b9826e3aa83b1a5947db50f4332cb9c65f1b340/codex-rs/features/src/lib.rs#L1750-L1755)
 
@@ -60,7 +62,7 @@ API-key auth 原生不进入 ChatGPT OAuth refresh；但 `codex exec` 的启动 
 - 只修改返回的 child env，保留 `HOME`、`CODEX_HOME` 和其余来源环境；
 - tripwire 不是 HTTP(S) endpoint；
 - 已有 override 不被覆盖；
-- binary/version/proof 不匹配、unsupported auth、unknown store、effective Agent Identity 均 fail closed；
+- binary/version/proof 不匹配、最终或 bootstrap auth 不完整、external auth、unknown store、effective Agent Identity 均 fail closed；
 - dict 自报的 auth mode 不能直接放行；
 - metadata source 错误细节不会进入 block reason；
 - login status 原始输出只投影非秘密类别，额外输出和失败退出均视为 unknown。
