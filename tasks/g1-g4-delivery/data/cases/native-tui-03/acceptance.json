@@ -1,0 +1,45 @@
+{
+  "case": "native-tui-03",
+  "runner_status": "unknown",
+  "failure": {
+    "stage": "helper-proof",
+    "type": "SafeClientFailure",
+    "message_sha256": "e9e3419827aeb23a2af91f96ef689807ae718ab3bdc08bd444211b5c33f3aa4f",
+    "child_error": {
+      "errno": null,
+      "event": "error",
+      "message_sha256": "5bbb7c2df599f63fb20e1436afc4b4522fc80bd548d5da3f3885d7d2be51fcd0",
+      "stage": "helper-initialize",
+      "type": "OwnerHelperAdmissionError"
+    }
+  },
+  "auth_comparison": {
+    "unchanged": true,
+    "changed_path_ids": []
+  },
+  "known_process_identities_gone": true,
+  "public_socket_absent": true,
+  "synthetic_auth_absent": true,
+  "private_sockets_absent": true,
+  "ordinary_tui_verified": false,
+  "durable_history_verified": false,
+  "business_ack_verified": false,
+  "resume_zero_turns": true,
+  "pending_delivery_preserved": true,
+  "cleanup": {
+    "all_backends_stopped": true,
+    "service_stopped": true,
+    "restart_allowed": false,
+    "tui_exits": [
+      0,
+      -15
+    ],
+    "helper_exit": 1,
+    "backend_count": 2,
+    "public_socket_removed": true
+  },
+  "go_status": null,
+  "real_launchctl_used": false,
+  "external_model_calls": 0,
+  "status": "unknown"
+}

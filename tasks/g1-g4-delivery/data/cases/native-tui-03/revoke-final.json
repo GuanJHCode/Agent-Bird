@@ -1,0 +1,247 @@
+{
+  "deadline_raw": 4232675.366854541,
+  "finished_raw": 4232645.368991916,
+  "phase": "revoke",
+  "receipt": {
+    "artifacts": [
+      {
+        "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-completion/scripts/native_delivery_case.py",
+        "sha256": "f277e73243add31a831b83ea2ac70fc2f2a454f23f1223dae0dc65d983a0d451"
+      },
+      {
+        "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-completion/scripts/native_delivery_client.py",
+        "sha256": "22f8f011b3032b063eb9206c6d70f66688d626b24885603444000888520e82c4"
+      },
+      {
+        "path": "/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/bin/python3.13",
+        "sha256": "620c13be5186d1eac338dfe624472719550fe6dded67c1241382d8ab7644f4eb"
+      },
+      {
+        "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-proxy-continuation/cold-start/scripts/activation_service.py",
+        "sha256": "aac50c3bef3ba6eae152853b1de7d9b96b9faf01a4d4ba6d60b8dc5eb9a0535a"
+      },
+      {
+        "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-auth-preserving-activation/scripts/auth_isolation.py",
+        "sha256": "caf05d6d2d88b3c2abc4bef0d8d615d7588380894bc1f7c6a84dc47a5d6aee5e"
+      },
+      {
+        "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-completion/scripts/delivery_adapter.py",
+        "sha256": "70559ae872f6d7d9c5157d546f099b20a12118cc6b0096efa7b717d02aadcdf9"
+      },
+      {
+        "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-completion/scripts/owner_helper.py",
+        "sha256": "e43dd44da2aec6dec5a20f2e9730ac307b0234afa83ab772304cae4ccc0931d7"
+      },
+      {
+        "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-tui-proxy/scripts/proxy_observer.py",
+        "sha256": "6e1e16f37707bd8c88fd8717058afe1a4920bd406aec3b907cf7fc50e9066587"
+      },
+      {
+        "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-tui-proxy/scripts/proxy_transport.py",
+        "sha256": "9621a89877a313704fba1f13e38646cecf88ccbf0bb86ecabd3ae6575fd4885c"
+      },
+      {
+        "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-tui-proxy/scripts/owned_child_guard.py",
+        "sha256": "5c0b30fc60eed9d26b08f64a82cdb69abebb27193549ac12a3e21c8850779dac"
+      },
+      {
+        "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-completion/scripts/synthetic_native_transport.py",
+        "sha256": "b9af48741b3d113f6ff5a6b3bded29c8727def81738258fc44b1104c60b16fc5"
+      },
+      {
+        "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-completion/scripts/synthetic_native_fixture.py",
+        "sha256": "b42c61ee2cd285fd6c3d9f2e060fc4cf0e8e9b492f16dfb5be6cb1accc13ce86"
+      },
+      {
+        "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-completion/scripts/synthetic_responses.py",
+        "sha256": "561488314faf252294c0b31b631e4c86e96c74bf34f45abfd6b86126731491a0"
+      },
+      {
+        "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-pending-resolution/scripts/delivery_audit.py",
+        "sha256": "59d8129d5409fb7fb5687a5107c81f9d85a63b8f718e4dd22cab660517af87c6"
+      },
+      {
+        "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-completion/data/source/codex-rs/app-server-protocol/src/protocol/common.rs",
+        "sha256": "6aa47ec984c9198ea797bf63b784cf6a88cc0ab85efb0a4ac75e01aabffc2cfa"
+      },
+      {
+        "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tools/g0-return-lab/retained.go",
+        "sha256": "144c199e3dc863b30517500e57428f689c09a8bbbb13d19c58ee11ff5776650d"
+      },
+      {
+        "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tools/g0-return-lab/retained_parent_test.go",
+        "sha256": "bf891029a883a81ea90a3c4ff77a65cf90e34c01d1e1b6e52965415a488a077c"
+      },
+      {
+        "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tools/g0-return-lab/ack.go",
+        "sha256": "b765a932b7cfb4aa6b102070975b293742a5d998ed5121fccf770839b3b3fd32"
+      },
+      {
+        "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tools/g0-return-lab/batch.go",
+        "sha256": "654f40846a67b1c8ccebaddb50c3f382fc9b39d973f5bb897ec418cb93f068a7"
+      },
+      {
+        "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tools/g0-return-lab/batch_test.go",
+        "sha256": "61fbd597cd24497dbdcb5c40e96715796117b09d3de74e4d4000319129f66c03"
+      },
+      {
+        "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tools/g0-return-lab/ack_test.go",
+        "sha256": "96854c8eaad1bd084a63eafce6b21ed6598526f2ca11601e5bcf773012eb9ed8"
+      },
+      {
+        "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tools/g0-return-lab/retained_review_test.go",
+        "sha256": "bcb86f300e6d700568c9fd1fa7fdbb6e658a133f9b6479cad5de093b4dc61839"
+      },
+      {
+        "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tools/g0-return-lab/main.go",
+        "sha256": "ce1a8f47884e2d7fbaf32d978c8fc273487340d94ae035e47821ff7174767350"
+      },
+      {
+        "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tools/g0-return-lab/main_test.go",
+        "sha256": "0345d46d81d1775fafd03fd9f3a94de8cb84a79c45822c81725237ee48db0497"
+      },
+      {
+        "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tools/g0-return-lab/retained_test.go",
+        "sha256": "62698666a6c5b80b72e48037047266b97007cec4a4ac963745c20088609dd8d0"
+      },
+      {
+        "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tools/g0-return-lab/go.mod",
+        "sha256": "8f495c7873750be32ae232e67f3296d40cc0fd18f9c92c790cf5a896d0865979"
+      },
+      {
+        "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-global-delivery-validation/scripts/global_delivery_case.py",
+        "sha256": "c7ba314cc5129b54bbdb5b66da0ffada5bdf8197797ad95b6601985435b81f1c"
+      },
+      {
+        "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-global-delivery-validation/scripts/receipt_store.py",
+        "sha256": "ec8c2014dcfed03e1bbec6a2a50b3644371a47c3f2688eeaaf8d41749cf6c295"
+      },
+      {
+        "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-global-delivery-validation/scripts/inherited_fd_scheduler.py",
+        "sha256": "84e86d6e35951be887067564365aa23e48c5af7cf935b424a0eb0914a340ac50"
+      },
+      {
+        "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-proxy-continuation/cold-start/scripts/projectproxy_launchd_entrypoint.py",
+        "sha256": "4816b3d092496117d20fb24431908a32ac3de684404305908dee06a0ba6d9836"
+      },
+      {
+        "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-proxy-continuation/cold-start/scripts/launch_activation.py",
+        "sha256": "df5ef0206ef09c1420a1cefaf4d8c1c552e5c235c0427b12333d0eca74caac5c"
+      },
+      {
+        "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-auth-preserving-activation/scripts/activation_transaction.py",
+        "sha256": "8bbe3aa96350543e6939c52f5dacc9d15770955bb0c1e756ae14a34804e00d4e"
+      },
+      {
+        "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-auth-preserving-activation/scripts/native_activation_fixture.py",
+        "sha256": "290b04e3d6ff633db3365444a512a5cfd890bb4572f4c9140603e8f2cdd29ab5"
+      },
+      {
+        "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g1-g4-delivery/scripts/native_tui_case.py",
+        "sha256": "669d53c1f4b5ba5efacf7e8a607de5a0ad43bddf12513c523921e07af23a1423"
+      },
+      {
+        "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g1-g4-delivery/scripts/native_tui_session.py",
+        "sha256": "8f21e92f79829eaba603bb41f813c1d5a1c8483c4908079fc5c25a4a150c46e6"
+      },
+      {
+        "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-auth-preserving-activation/scripts/native_activation_probe.py",
+        "sha256": "3e442fd386a3618356ec9e0929f5e176ca39c201c7e0abc4704e1391e7b55de3"
+      },
+      {
+        "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-tui-proxy/scripts/proxy_native_runtime.py",
+        "sha256": "803b1eb84583a47ee980a8197108279643664103cd5c15f67f8b44fdc860df2a"
+      },
+      {
+        "path": "/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python",
+        "sha256": "8623f5d3e96ae0279fa09f54ea4b355cdc0daf7da285057311f14c7de8c677a0"
+      },
+      {
+        "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "sha256": "2ebc27dd4e38e9b86a9f41df0307785f4f7e2997e4be761a7b4af04b41a0de57"
+      },
+      {
+        "path": "/private/tmp/g0-auth-tuir-y4lwx2ra/native-tui-03/bin/g0-return-lab",
+        "sha256": "7b4153b93ad14f5c22f3b6af9a5f45e18dae6394a56ef9a8eede1aa07a971160"
+      },
+      {
+        "path": "/private/tmp/g0-next-delivery-auth-inventory/credential-paths.txt",
+        "sha256": "78a5f826242bc439387a8972bddf587383dc7f45ff4dac19118b7a47cbc996a5"
+      }
+    ],
+    "auth_after": {
+      "comparison": null,
+      "count": 14,
+      "digest": "a5106ed0edd967166a6e670679c6f079eb940f5b35dcf2560727c3ccd5a390a3",
+      "opaque_id": null,
+      "real_paths_read": null,
+      "summary": null,
+      "unchanged": true
+    },
+    "auth_before": {
+      "comparison": null,
+      "count": 14,
+      "digest": "a5106ed0edd967166a6e670679c6f079eb940f5b35dcf2560727c3ccd5a390a3",
+      "opaque_id": null,
+      "real_paths_read": null,
+      "summary": null,
+      "unchanged": true
+    },
+    "domain": "gui/501",
+    "job": {
+      "label": "org.codex.orchestration.proxy",
+      "path": "/private/tmp/g0-auth-tuis-k9vjxtsj/h/Library/LaunchAgents/org.codex.orchestration.proxy.plist",
+      "program_arguments": [
+        "/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python",
+        "-I",
+        "-B",
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-proxy-continuation/cold-start/scripts/projectproxy_launchd_entrypoint.py",
+        "--manifest",
+        "/private/tmp/g0-auth-tuir-y4lwx2ra/native-tui-03/service.json"
+      ]
+    },
+    "label": "org.codex.orchestration.proxy",
+    "launchctl": {
+      "calls": [
+        {
+          "command": "bootstrap",
+          "returncode": 0
+        },
+        {
+          "command": "bootout",
+          "returncode": 0
+        }
+      ]
+    },
+    "lease_path": "/private/tmp/g0-auth-tuir-y4lwx2ra/native-tui-03/grants/registration.lease.json",
+    "lease_sha256": "965c8169b8932eca6fcd304966837bba028b9422c408fa8b50e806028607f8a2",
+    "manifest": {
+      "path": "/private/tmp/g0-auth-tuir-y4lwx2ra/native-tui-03/service.json",
+      "sha256": "807a65061c12267ba2b2b124f989afb2d86f704f936960696d797c26a88c34fd"
+    },
+    "plist_path": "/private/tmp/g0-auth-tuis-k9vjxtsj/h/Library/LaunchAgents/org.codex.orchestration.proxy.plist",
+    "plist_sha256": "1fd697b2a229cb2796d07828ba61e09a5afa02bb614582300eaf5b07cd31a00a",
+    "program_arguments": [
+      "/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python",
+      "-I",
+      "-B",
+      "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-proxy-continuation/cold-start/scripts/projectproxy_launchd_entrypoint.py",
+      "--manifest",
+      "/private/tmp/g0-auth-tuir-y4lwx2ra/native-tui-03/service.json"
+    ],
+    "public_socket": {
+      "dev": 16777234,
+      "ino": 163636472,
+      "mode": "0600",
+      "path": "/private/tmp/g0-auth-tuis-k9vjxtsj/h/.codex/app-server-control/app-server-control.sock",
+      "uid": 501
+    },
+    "schema_version": 1,
+    "socket_path": "/private/tmp/g0-auth-tuis-k9vjxtsj/h/.codex/app-server-control/app-server-control.sock",
+    "stage_path": "/private/tmp/g0-auth-tuis-k9vjxtsj/h/Library/LaunchAgents/.org.codex.orchestration.proxy.native-tui-03.stage",
+    "startup_sha256": "4816b3d092496117d20fb24431908a32ac3de684404305908dee06a0ba6d9836",
+    "state": "REVOKED",
+    "txn_id": "native-tui-03"
+  },
+  "started_raw": 4232645.366854541
+}
