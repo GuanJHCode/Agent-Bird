@@ -17,6 +17,7 @@ from owner_helper import (  # noqa: E402
     OwnerHelperGrant,
     OwnerLease,
     validate_helper_rpc,
+    validate_helper_server_message,
 )
 
 
@@ -524,3 +525,20 @@ def test_tool_output_rejects_boolean_intent_version():
                 "name": "g0_delivery", "namespace": "orchestration", "output": json.dumps(intent),
             }},
         }, OWNER["owner_thread_id"])
+
+
+def test_owner_delivery_lifecycle_notifications_are_native_and_owner_scoped():
+    owner = OWNER["owner_thread_id"]
+    turn = {"id": "turn_delivery_1", "status": "inProgress", "items": []}
+    item = {"type": "functionCallOutput", "id": "item_delivery_1", "name": "g0_delivery", "namespace": "orchestration", "output": "{}"}
+    messages = [
+        {"method": "turn/started", "params": {"threadId": owner, "turn": turn}},
+        {"method": "item/started", "params": {"threadId": owner, "turnId": turn["id"], "item": item, "startedAtMs": 1}},
+        {"method": "item/completed", "params": {"threadId": owner, "turnId": turn["id"], "item": item, "completedAtMs": 2}},
+        {"method": "turn/completed", "params": {"threadId": owner, "turn": {**turn, "status": "completed"}}},
+    ]
+    for message in messages:
+        assert validate_helper_server_message(message, owner) is None
+    wrong = {**messages[1], "params": {**messages[1]["params"], "threadId": "other"}}
+    with pytest.raises(OwnerHelperAdmissionError):
+        validate_helper_server_message(wrong, owner)

@@ -22,10 +22,10 @@ native wire 使用 `{id, method, params}`，不带 `jsonrpc` 字段。允许的 
 
 普通 prompt、配置/model override、跨 thread、`turn/steer`、fork、inject、command/exec、未知方法均拒绝。`turn/start` 只有上述 toolOutput 形状可用，不会转换成 user prompt。
 
-service 的双向 `NativeWebSocketGate` 缓冲 HTTP upgrade、分片和粘连帧，完整消息通过 envelope、owner thread、pending request-id 和 toolOutput 校验后才转发。服务端 request、错误方向的 mask、RSV/压缩位、二进制/未知 opcode、超限、重复 JSON key、畸形 JSON 和未知通知 fail closed。响应允许固定的状态通知集合，并要求所有带 thread 的通知/结果匹配 owner thread。
+service 的双向 `NativeWebSocketGate` 缓冲 HTTP upgrade、分片和粘连帧，完整消息通过 envelope、owner thread、pending request-id 和 toolOutput 校验后才转发。服务端 request、错误方向的 mask、RSV/压缩位、二进制/未知 opcode、超限、重复 JSON key、畸形 JSON 和未知通知 fail closed。允许的 delivery 生命周期通知是 `turn/started`、`item/started`、`item/completed`、`turn/completed`，另保留已审的状态通知；turn/item 的精确 envelope 和 owner thread 必须匹配。固定 native 来源为 `tasks/g0-native-0154-contract/data/source/codex-rs/app-server-protocol/src/protocol/v2/{turn.rs,item.rs}` 的通知结构。响应允许固定的状态通知集合，并要求所有带 thread 的通知/结果匹配 owner thread。
 
 `OwnerHelperConnection.send_rpc()` 是 native standalone `make_request()` 形状的可调用适配器：现有 controller 可把 `{id, method, params}` packet 和 response reader 接到此 channel。它不替代 `native_standalone` 的 owner-context、Go/ACK、历史审计或真实 native 验收，也不读取模型正文。
 
 ## Verification and limits
 
-本交付包含真实合成 UDS、HTTP 101、双向 WebSocket、第二 frontend、owner EOF/helper EOF 和 production `ActivationService.from_manifest → backend process → ready → OwnerLease → helper` pipeline 测试。测试使用 dummy backend/子进程，不连接真实 auth、Keychain、模型或 launchctl；通过这些测试不能宣称 G0 原生验收通过。
+本交付包含真实合成 UDS、HTTP 101、双向 WebSocket、第二 frontend、owner EOF/helper EOF 和 production `ActivationService.from_manifest → backend process → ready → OwnerLease → helper` pipeline 测试。production fixture 实际接收并回传一次 owner-scoped `turn/start`，验证完整 turn/item lifecycle；普通 prompt 与跨 thread 请求在 service gate 被拒绝且 backend receipt 没有相应请求。manifest 中的 `owner_helper.source_path` 是 gate library 的 immutable code pin，不是对任意外部 helper 脚本身份的声明；若未来部署独立 helper entrypoint，必须另行冻结其 executable/source pins。测试使用 dummy backend/子进程，不连接真实 auth、Keychain、模型或 launchctl；通过这些测试不能宣称 G0 原生验收通过。

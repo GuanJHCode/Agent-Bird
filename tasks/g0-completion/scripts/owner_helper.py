@@ -60,6 +60,13 @@ _GLOBAL_READ_PARAMS = {
 }
 _SERVER_NOTIFICATIONS = frozenset(
     {
+        # Turn/item lifecycle notifications are the bounded output of the
+        # owner-scoped delivery turn. Opaque native bodies are checked only
+        # for the ownership and lifecycle envelope below.
+        "turn/started",
+        "turn/completed",
+        "item/started",
+        "item/completed",
         "thread/status/changed",
         "thread/updated",
         "thread/tokenUsage/updated",
@@ -249,6 +256,17 @@ def validate_helper_server_message(message: object, owner_thread_id: str) -> Non
         _reject("server_notification_params")
     if "threadId" in params and params["threadId"] != owner_thread_id:
         _reject("response_thread_target")
+    if method in {"turn/started", "turn/completed"}:
+        if set(params) != {"threadId", "turn"} or params["threadId"] != owner_thread_id:
+            _reject("turn_notification_envelope")
+        if not isinstance(params["turn"], dict) or not isinstance(params["turn"].get("id"), str):
+            _reject("turn_notification_body")
+    elif method in {"item/started", "item/completed"}:
+        required = {"threadId", "turnId", "item", "startedAtMs"} if method == "item/started" else {"threadId", "turnId", "item", "completedAtMs"}
+        if set(params) != required or params["threadId"] != owner_thread_id:
+            _reject("item_notification_envelope")
+        if not isinstance(params["turnId"], str) or not isinstance(params["item"], dict):
+            _reject("item_notification_body")
 
 
 def _websocket_frame(payload: bytes) -> bytes:
