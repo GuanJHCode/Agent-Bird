@@ -31,25 +31,26 @@ type driverRuntime struct {
 }
 
 type driverRequest struct {
-	Version             int           `json:"version"`
-	Runtime             driverRuntime `json:"runtime"`
-	DriverRoot          string        `json:"driver_root"`
-	ManifestPath        string        `json:"manifest_path"`
-	ManifestSHA256      string        `json:"manifest_sha256"`
-	ActivationID        string        `json:"activation_id"`
-	OwnerReadyReceipt   string        `json:"owner_ready_receipt"`
-	OwnerReadySHA256    string        `json:"owner_ready_sha256"`
-	ProfileID           string        `json:"profile_id"`
-	PublicSocket        string        `json:"public_socket"`
-	BridgeRoot          string        `json:"bridge_root"`
-	OwnerCapabilityRoot string        `json:"owner_capability_root"`
-	G1State             string        `json:"g1_state"`
-	Mode                string        `json:"mode"`
-	SubmitRequest       string        `json:"submit_request,omitempty"`
-	ControlFile         string        `json:"control_file,omitempty"`
-	TaskID              string        `json:"task_id"`
-	MaxWaitSeconds      int           `json:"max_wait_seconds"`
-	EnableTestFake      bool          `json:"enable_test_fake,omitempty"`
+	Version                 int           `json:"version"`
+	Runtime                 driverRuntime `json:"runtime"`
+	DriverRoot              string        `json:"driver_root"`
+	ManifestPath            string        `json:"manifest_path"`
+	ManifestSHA256          string        `json:"manifest_sha256"`
+	ActivationID            string        `json:"activation_id"`
+	OwnerReadyReceipt       string        `json:"owner_ready_receipt"`
+	OwnerReadySHA256        string        `json:"owner_ready_sha256"`
+	ProfileID               string        `json:"profile_id"`
+	PublicSocket            string        `json:"public_socket"`
+	BridgeRoot              string        `json:"bridge_root"`
+	OwnerCapabilityRoot     string        `json:"owner_capability_root"`
+	G1State                 string        `json:"g1_state"`
+	Mode                    string        `json:"mode"`
+	SubmitRequest           string        `json:"submit_request,omitempty"`
+	ControlFile             string        `json:"control_file,omitempty"`
+	TaskID                  string        `json:"task_id"`
+	BootstrapTimeoutSeconds int           `json:"bootstrap_timeout_seconds"`
+	WatchPolicy             string        `json:"watch_policy"`
+	EnableTestFake          bool          `json:"enable_test_fake,omitempty"`
 }
 
 type driverLauncherReceipt struct {
@@ -116,7 +117,8 @@ func loadDriverRequest(path string) (driverRequest, error) {
 	}
 	if request.Version != 1 || !driverIDPattern.MatchString(request.TaskID) ||
 		!driverIDPattern.MatchString(request.ProfileID) || !hexHash(request.ManifestSHA256) ||
-		!hexHash(request.OwnerReadySHA256) || request.MaxWaitSeconds != 300 ||
+		!hexHash(request.OwnerReadySHA256) || request.BootstrapTimeoutSeconds != 300 ||
+		request.WatchPolicy != "until_terminal_or_owner_detached" ||
 		!regexp.MustCompile(`^[0-9a-f]{32}$`).MatchString(request.ActivationID) ||
 		!regexp.MustCompile(`^ready-[0-9a-f]{12}\.json$`).MatchString(request.OwnerReadyReceipt) ||
 		(request.Mode != "submit" && request.Mode != "rebind") {
@@ -221,7 +223,23 @@ func StartDriver(ctx context.Context, requestPath string) (json.RawMessage, erro
 			return nil, codeError("driver_request_conflict")
 		}
 		if data, statusErr := readDriverStatus(request.DriverRoot); statusErr == nil {
+			var status map[string]any
+			if json.Unmarshal(data, &status) != nil {
+				return nil, codeError("driver_status_invalid")
+			}
+			name, _ := status["status"].(string)
+			if name == "watching" || name == "awaiting_owner_decision" {
+				if current, birthErr := process.Birth(existing.PID); birthErr != nil || current != existing.Birth {
+					return json.Marshal(map[string]any{"version": 1, "status": "driver_dead",
+						"recoverable": true, "driver_root": request.DriverRoot, "task_id": request.TaskID,
+						"previous_status": name})
+				}
+			}
 			return data, nil
+		}
+		if current, birthErr := process.Birth(existing.PID); birthErr != nil || current != existing.Birth {
+			return json.Marshal(map[string]any{"version": 1, "status": "driver_dead",
+				"recoverable": true, "driver_root": request.DriverRoot, "task_id": request.TaskID})
 		}
 		return nil, codeError("driver_starting")
 	} else if !errors.Is(err, os.ErrNotExist) {
