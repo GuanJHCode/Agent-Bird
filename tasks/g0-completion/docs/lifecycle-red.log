@@ -1,0 +1,11 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_________ test_service_sigkill_stops_its_real_backend_without_finally __________
+tasks/g0-completion/tests/test_lifecycle_guard.py:53: in test_service_sigkill_stops_its_real_backend_without_finally
+    assert wait_absent(backend_pid,backend_birth), 'service SIGKILL left its registered backend alive'
+E   AssertionError: service SIGKILL left its registered backend alive
+E   assert False
+E    +  where False = wait_absent(60236, 'Sun Sep 13 09:43:26 2026')
+=========================== short test summary info ============================
+FAILED tasks/g0-completion/tests/test_lifecycle_guard.py::test_service_sigkill_stops_its_real_backend_without_finally
+1 failed in 3.33s
