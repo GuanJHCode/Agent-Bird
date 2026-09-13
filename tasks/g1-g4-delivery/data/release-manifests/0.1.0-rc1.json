@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "package_name": "codex-orchestrator",
+  "version": "0.1.0-rc1",
+  "plugin_path": "plugin",
+  "binary_path": "plugin/bin/codex-orchestrator",
+  "windows_supported": false,
+  "files": [
+    {
+      "path": "plugin/.codex-plugin/plugin.json",
+      "sha256": "d28e2dda44fb66d1ec44001a4ec731658ccae0d70d421cabbc5337bdc0dfb4e9",
+      "mode": 384
+    },
+    {
+      "path": "plugin/bin/codex-orchestrator",
+      "sha256": "8874d6da2b907aec5b558f6837cce30953275b1a83d042b801c4cc64e258d56e",
+      "mode": 448
+    },
+    {
+      "path": "plugin/lib/native_bridge/__init__.py",
+      "sha256": "41d9d039fb2d04cf66f9c76480381d829a96931ed1e1a7a327d6e40e3aa2b872",
+      "mode": 384
+    },
+    {
+      "path": "plugin/lib/native_bridge/bridge.py",
+      "sha256": "b3ffeeec7a310395262b950a73b4a4661677364ea8ea77a05f07fb0178c29795",
+      "mode": 384
+    },
+    {
+      "path": "plugin/runtime/g0/activation_service.py",
+      "sha256": "b2a739fbfacabcfe009ecb8da7367083ec5f979851e0b32b5e43673a6cad7393",
+      "mode": 420
+    },
+    {
+      "path": "plugin/runtime/g0/auth_isolation.py",
+      "sha256": "caf05d6d2d88b3c2abc4bef0d8d615d7588380894bc1f7c6a84dc47a5d6aee5e",
+      "mode": 420
+    },
+    {
+      "path": "plugin/runtime/g0/delivery_adapter.py",
+      "sha256": "4479b16e81a3de5f15377205c9d1f19586b07f1dea5de14ce3af863c8f4b93ec",
+      "mode": 420
+    },
+    {
+      "path": "plugin/runtime/g0/delivery_audit.py",
+      "sha256": "59d8129d5409fb7fb5687a5107c81f9d85a63b8f718e4dd22cab660517af87c6",
+      "mode": 420
+    },
+    {
+      "path": "plugin/runtime/g0/launch_activation.py",
+      "sha256": "df5ef0206ef09c1420a1cefaf4d8c1c552e5c235c0427b12333d0eca74caac5c",
+      "mode": 420
+    },
+    {
+      "path": "plugin/runtime/g0/owned_child_guard.py",
+      "sha256": "5c0b30fc60eed9d26b08f64a82cdb69abebb27193549ac12a3e21c8850779dac",
+      "mode": 420
+    },
+    {
+      "path": "plugin/runtime/g0/owner_helper.py",
+      "sha256": "7e09d14e45d34101a1d6ffe82170d48afef3800e7c24322ad52f0ad54563d017",
+      "mode": 420
+    },
+    {
+      "path": "plugin/runtime/g0/projectproxy_launchd_entrypoint.py",
+      "sha256": "4816b3d092496117d20fb24431908a32ac3de684404305908dee06a0ba6d9836",
+      "mode": 448
+    },
+    {
+      "path": "plugin/runtime/g0/proxy_observer.py",
+      "sha256": "6e1e16f37707bd8c88fd8717058afe1a4920bd406aec3b907cf7fc50e9066587",
+      "mode": 420
+    },
+    {
+      "path": "plugin/runtime/g0/proxy_transport.py",
+      "sha256": "9621a89877a313704fba1f13e38646cecf88ccbf0bb86ecabd3ae6575fd4885c",
+      "mode": 420
+    },
+    {
+      "path": "plugin/runtime/g0/receipt_store.py",
+      "sha256": "ec8c2014dcfed03e1bbec6a2a50b3644371a47c3f2688eeaaf8d41749cf6c295",
+      "mode": 420
+    },
+    {
+      "path": "plugin/runtime/g0/runtime-manifest.json",
+      "sha256": "9b1834834d80618dc9793ce421a8fe0da2dcec65f5a8cb958d24519d7eeaab73",
+      "mode": 384
+    },
+    {
+      "path": "plugin/scripts/invoke.sh",
+      "sha256": "e4aee185528e2b33e69626a42e36887029b5e8a0b9195b908fdf5a5907441f2c",
+      "mode": 448
+    },
+    {
+      "path": "plugin/scripts/native-product-bridge.py",
+      "sha256": "ecff7508d6141144a375944481b10f953c15700664b4e119d2adafe49dead99b",
+      "mode": 448
+    },
+    {
+      "path": "plugin/skills/orchestrate/SKILL.md",
+      "sha256": "fe7c799e1469b5206968e4b425748c3ccef5ab3c744b99a56178aeb4c531667d",
+      "mode": 384
+    }
+  ]
+}

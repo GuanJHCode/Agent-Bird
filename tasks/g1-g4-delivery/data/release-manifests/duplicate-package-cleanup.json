@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "version": "0.1.0-rc1",
+      "removed_duplicate_package": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g1-g4-delivery/data/release/codex-orchestrator-0.1.0-rc1",
+      "manifest_retained": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g1-g4-delivery/data/release-manifests/0.1.0-rc1.json",
+      "installed_versions_untouched": true
+    },
+    {
+      "version": "0.1.0-rc2",
+      "removed_duplicate_package": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g1-g4-delivery/data/release/codex-orchestrator-0.1.0-rc2",
+      "manifest_retained": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g1-g4-delivery/data/release-manifests/0.1.0-rc2.json",
+      "installed_versions_untouched": true
+    },
+    {
+      "version": "0.1.0-rc3",
+      "removed_duplicate_package": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g1-g4-delivery/data/release/codex-orchestrator-0.1.0-rc3",
+      "manifest_retained": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g1-g4-delivery/data/release-manifests/0.1.0-rc3.json",
+      "installed_versions_untouched": true
+    }
+  ]
+}
