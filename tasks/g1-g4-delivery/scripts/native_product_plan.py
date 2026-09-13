@@ -363,7 +363,7 @@ def prepare_plan(repo, case_id, package_root, *, export_root=None, **overrides):
         **static_inputs(repo, package_root, **overrides),
         "case_id": case_id,
         "export_dir": str(export),
-        "profile_prefix": "g0-product-p-",
+        "profile_prefix": "g0-auth-product-",
         "supervisor_prefix": "g0-product-s-",
         "automatic_retry": False,
         "run_deadline_seconds": 150,
