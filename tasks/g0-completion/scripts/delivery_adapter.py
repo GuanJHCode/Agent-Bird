@@ -373,12 +373,13 @@ class DeliveryAdapter:
 
     async def send_tool_output_once(self, connection: Any, capability: DeliveryCapability, *, request_id: int = 1, wait_for_completion: bool = True) -> list[dict]:
         _require(type(request_id) is int and request_id > 0, "request_id")
+        _require(type(wait_for_completion) is bool, "wait_mode")
         _require(self._capabilities.get(capability.capability_id) is capability, "capability_owner")
         _require(not capability.send_disabled, "send_disabled")
         envelope = capability.native_envelope
         _require(set(envelope) == {"version", "delivery_id", "controller_thread_id", "controller_epoch", "events", "payload_hash"}, "native_envelope")
         status = self._run(["batch-status", "--dir", str(capability.task_dir), "--nonce", capability.binding.nonce])
-        _require(status.get("claim") == "claimed" and status.get("delivery_id") == envelope["delivery_id"] and status.get("revision") == capability.binding.revision and status.get("transport_status") == "ready", "claim_not_current")
+        _require(status.get("claim") == "claimed" and status.get("delivery_id") == envelope["delivery_id"] and status.get("revision") == capability.binding.revision and status.get("transport_status") == "ready" and status.get("status") not in {"cancelled", "stale"}, "claim_not_current")
         _require(_stable_file_hash(capability.task_dir / "batch-send-claim.json") == capability.claim_sha256, "claim_changed")
         sent = getattr(self, "_sent_delivery_ids", None)
         if sent is None:
@@ -396,5 +397,9 @@ class DeliveryAdapter:
         while not got_response or (wait_for_completion and {packet.get("method") for packet in packets} & lifecycle != lifecycle):
             packet = await connection.read_rpc()
             packets.append(packet)
-            got_response = got_response or packet.get("id") == request_id
+            if packet.get("id") == request_id:
+                _require(set(packet) == {"id", "result"} and isinstance(packet.get("result"), dict), "turn_start_failed")
+                turn = packet["result"].get("turn")
+                _require(isinstance(turn, dict) and _safe(turn.get("id")) and turn.get("status") in {"inProgress", "completed"}, "turn_start_result")
+                got_response = True
         return packets

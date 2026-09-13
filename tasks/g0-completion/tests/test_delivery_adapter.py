@@ -476,6 +476,35 @@ def test_reconcile_rejects_stale_status_after_real_go_revise(tmp_path):
         adapter.reconcile_claimed(binding, task, "delivery_1", env=env)
 
 
+def test_normal_capability_rejects_cancelled_before_any_connection_write(tmp_path):
+    go_binary = _build(tmp_path); task = tmp_path / "normal-cancel"; task.mkdir(mode=0o700)
+    nonce = "normal_cancel"; _start(go_binary, task, nonce); env = {"CODEX_THREAD_ID": THREAD}
+    binding = DeliveryBinding("profile-a", THREAD, 1, nonce, 1)
+    adapter = DeliveryAdapter(go_binary, expected_sha256=hashlib.sha256(go_binary.read_bytes()).hexdigest())
+    capability = adapter.prepare_and_claim(binding, task, "delivery_1", _events(), env=env)
+    subprocess.run([str(go_binary), "revise", "--dir", str(task), "--nonce", nonce, "--controller-thread", THREAD, "--revision", "1", "--cancel"], env=env, check=True, capture_output=True)
+    with pytest.raises(DeliveryError, match="claim_not_current"):
+        import asyncio
+        asyncio.run(adapter.send_tool_output_once(object(), capability, wait_for_completion=False))
+
+
+def test_receipt_mode_rejects_error_response_and_nonbool_wait_flag(tmp_path):
+    import asyncio
+    binding = DeliveryBinding("p", THREAD, 1, "receipt_error", 1)
+    intent = {"version": 1, "delivery_id": "delivery_1", "nonce": binding.nonce, "controller_thread": THREAD, "controller_epoch": 1, "revision": 1, "state": "prepared", "events": _events(), "payload_hash": ""}
+    intent["payload_hash"] = _go_batch_hash(intent); native = native_envelope_from_go_intent(intent, binding)
+    adapter = DeliveryAdapter.__new__(DeliveryAdapter); adapter._capabilities = {}; adapter._proofs = {}
+    adapter._run = lambda *args, **kwargs: {"claim": "claimed", "delivery_id": "delivery_1", "revision": 1, "transport_status": "ready"}
+    capability = _manual_capability(adapter, binding, tmp_path / "receipt-error", intent, native)
+    class ErrorConnection:
+        async def send_rpc(self, packet): pass
+        async def read_rpc(self): return {"id": 1, "error": {"code": -1, "message": "rejected"}}
+    with pytest.raises(DeliveryError, match="turn_start_failed"):
+        asyncio.run(adapter.send_tool_output_once(ErrorConnection(), capability, wait_for_completion=False))
+    with pytest.raises(DeliveryError, match="wait_mode"):
+        asyncio.run(adapter.send_tool_output_once(ErrorConnection(), capability, wait_for_completion=1))
+
+
 def test_receipt_only_send_returns_after_turn_start_without_completion_notifications(tmp_path):
     import asyncio
     fixture = ROOT / "tasks" / "g0-completion" / "tests" / "fixtures" / "owner_helper_tool_backend.py"
@@ -486,13 +515,11 @@ def test_receipt_only_send_returns_after_turn_start_without_completion_notificat
         for _ in range(100):
             if socket_path.exists(): break
             time.sleep(0.01)
-        binding = DeliveryBinding("p", THREAD, 1, "receipt_only", 1)
-        intent = {"version": 1, "delivery_id": "delivery_1", "nonce": binding.nonce, "controller_thread": THREAD, "controller_epoch": 1, "revision": 1, "state": "prepared", "events": _events(), "payload_hash": ""}
-        intent["payload_hash"] = _go_batch_hash(intent)
-        native = native_envelope_from_go_intent(intent, binding)
-        adapter = DeliveryAdapter.__new__(DeliveryAdapter); adapter._capabilities = {}; adapter._proofs = {}
-        adapter._run = lambda *args, **kwargs: {"claim": "claimed", "delivery_id": "delivery_1", "revision": 1, "transport_status": "ready"}
-        capability = _manual_capability(adapter, binding, tmp_path / "receipt-claim", intent, native)
+        go_binary = _build(tmp_path); task = tmp_path / "receipt-go-task"; task.mkdir(mode=0o700)
+        nonce = "receipt_only"; _start(go_binary, task, nonce)
+        binding = DeliveryBinding("p", THREAD, 1, nonce, 1)
+        adapter = DeliveryAdapter(go_binary, expected_sha256=hashlib.sha256(go_binary.read_bytes()).hexdigest())
+        capability = adapter.prepare_and_claim(binding, task, "delivery_1", _events(), env={"CODEX_THREAD_ID": THREAD})
         executable = Path(sys.executable).resolve(); executable_sha = hashlib.sha256(executable.read_bytes()).hexdigest()
         identity = HelperIdentity(os.getpid(), os.getuid(), "receipt-helper", str(executable), executable_sha, "c" * 64)
         lease = OwnerLease("p", "a" * 64, "lease-receipt", "owner-1", 1, THREAD, str(socket_path), backend.pid, "backend", identity)
@@ -507,5 +534,8 @@ def test_receipt_only_send_returns_after_turn_start_without_completion_notificat
         packets = asyncio.run(run())
         assert any(packet.get("id") == 1 for packet in packets)
         assert json.loads(receipt.read_text())["methods"].count("turn/start") == 1
+        assert adapter._run(["batch-status", "--dir", str(task), "--nonce", nonce])["ack_count"] == 0
+        with pytest.raises(DeliveryError, match="history_uncertain"):
+            adapter.audit_history(capability, [{"request": {"id": 2, "method": "thread/read", "params": {"threadId": THREAD, "includeTurns": True}}, "response": {"id": 2, "result": {"thread": {"id": THREAD, "turns": []}}}}])
     finally:
         backend.terminate(); backend.wait(timeout=5); socket_path.unlink(missing_ok=True)
