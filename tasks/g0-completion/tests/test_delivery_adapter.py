@@ -116,6 +116,10 @@ def test_history_audit_is_separate_from_business_decision():
     assert result.summary["transport_evidence"] == "exact_history_marker"
     assert result.summary["business_ack_complete"] is False
     assert result.summary["source_service_verified"] is False
+    result.native_envelope["events"][0]["event_id"] = "forged"
+    result.summary["transport_evidence"] = "forged"
+    assert result.native_envelope["events"][0]["event_id"] == "event_1"
+    assert result.summary["transport_evidence"] == "exact_history_marker"
 
 
 def test_missing_or_nonhandled_decision_stays_pending_without_go_ack(tmp_path):
@@ -126,14 +130,14 @@ def test_missing_or_nonhandled_decision_stays_pending_without_go_ack(tmp_path):
     adapter = DeliveryAdapter.__new__(DeliveryAdapter); adapter._capabilities = {}; adapter._proofs = {}
     native = native_envelope_from_go_intent(intent, binding)
     capability = _manual_capability(adapter, binding, tmp_path, intent, native)
-    proof = HistoryProof(native, {"business_ack_complete": False}, frozenset({"event_1"}), "proof_1", capability.capability_id, "reads")
+    proof = HistoryProof(json.dumps(native, sort_keys=True, separators=(",", ":")).encode(), json.dumps({"business_ack_complete": False}, separators=(",", ":")).encode(), frozenset({"event_1"}), "proof_1", capability.capability_id, "reads")
     adapter._proofs[proof.proof_id] = proof
     empty = adapter.ack_confirmed(capability, proof, {}, command_ids={}, env={})
     assert empty.records == () and empty.pending_event_ids == ("event_1",)
     waiting = adapter.ack_confirmed(capability, proof, {"event_1": "waiting_user"}, command_ids={}, env={})
     assert waiting.records == () and waiting.nonhandled_decisions == {"event_1": "waiting_user"}
     with pytest.raises(DeliveryError, match="proof_owner"):
-        adapter.ack_confirmed(capability, HistoryProof(native, {}, frozenset({"event_1"}), "fake", capability.capability_id, "reads"), {"event_1": "handled"}, command_ids={"event_1": "cmd_1"}, env={})
+        adapter.ack_confirmed(capability, HistoryProof(json.dumps(native, sort_keys=True, separators=(",", ":")).encode(), b"{}", frozenset({"event_1"}), "fake", capability.capability_id, "reads"), {"event_1": "handled"}, command_ids={"event_1": "cmd_1"}, env={})
 
 
 def test_send_tool_output_uses_owner_helper_wire_contract():

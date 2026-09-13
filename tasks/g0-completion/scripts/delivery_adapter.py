@@ -55,12 +55,20 @@ class DeliveryCapability:
 
 @dataclass(frozen=True)
 class HistoryProof:
-    native_envelope: dict
-    summary: dict
+    _native_envelope_bytes: bytes
+    _summary_bytes: bytes
     matched_event_ids: frozenset[str]
     proof_id: str
     capability_id: str
     reads_sha256: str
+
+    @property
+    def native_envelope(self) -> dict:
+        return json.loads(self._native_envelope_bytes)
+
+    @property
+    def summary(self) -> dict:
+        return json.loads(self._summary_bytes)
 
 
 @dataclass(frozen=True)
@@ -293,7 +301,9 @@ class DeliveryAdapter:
                             for event in intent["events"]:
                                 matched.add(event["event_id"])
         reads_bytes = _canonical(reads).encode()
-        proof = HistoryProof(dict(intent), value, frozenset(matched), secrets.token_hex(16), capability.capability_id, hashlib.sha256(reads_bytes).hexdigest())
+        envelope_bytes = _canonical(intent).encode()
+        summary_bytes = _canonical(value).encode()
+        proof = HistoryProof(envelope_bytes, summary_bytes, frozenset(matched), secrets.token_hex(16), capability.capability_id, hashlib.sha256(reads_bytes).hexdigest())
         self._proofs[proof.proof_id] = proof
         return proof
 
