@@ -88,6 +88,16 @@ def _peer_for_current_process():
 
 def _service_for(path: Path, lease: OwnerLease, record: dict):
     service = object.__new__(activation_service.ActivationService)
+    service.receipt_dir = path.parent / f".{path.stem}-receipts"
+    service.receipt_dir.mkdir(mode=0o700)
+    service._directory_pins = {service.receipt_dir: activation_service._private_directory(service.receipt_dir)}
+    service.activation_id = "synthetic-activation"
+    service.manifest_sha256 = "e" * 64
+    peer = _peer_for_current_process()
+    service._service_identity = {
+        "pid": peer.pid, "uid": peer.uid, "birth": peer.birth,
+        "executable": peer.executable, "executable_sha256": activation_service._sha(Path(peer.executable)),
+    }
     service._owner_leases = {lease.lease_id: lease}
     service.backend_records = [record]
     service._helper_admissions = {}
@@ -137,7 +147,7 @@ def test_activation_service_helper_branch_rejects_without_active_owner(tmp_path)
 
 def test_activation_service_helper_branch_reuses_existing_listener(tmp_path):
     async def run():
-        path = Path("/tmp") / f"oh-service-positive-{os.getpid()}.sock"
+        path = Path("/private/tmp") / f"oh-service-positive-{os.getpid()}.sock"
         server, state = await _backend_server(path)
         backend_peer = _peer_for_current_process()
         owner = OwnerLease(
@@ -160,13 +170,19 @@ def test_activation_service_helper_branch_reuses_existing_listener(tmp_path):
         service._admit = lambda peer: True
         key = (frontend.pid, frontend.birth, frontend.executable)
         service._helper_admissions[key] = (grant, "d" * 64)
-        async with service._backend(frontend) as connection:
-            # Service returns raw transport; ProxyServer owns the single WS upgrade.
-            assert state["handshakes"] == 0
-            assert connection.reader is not None and connection.writer is not None
-        await owner.close()
-        server.close()
-        await server.wait_closed()
+        try:
+            async with service._backend(frontend) as connection:
+                # Service returns raw transport; ProxyServer owns the single WS upgrade.
+                assert state["handshakes"] == 0
+                assert connection.reader is not None and connection.writer is not None
+        finally:
+            await owner.close()
+            server.close()
+            await server.wait_closed()
+            for child in service.receipt_dir.iterdir():
+                child.unlink()
+            service.receipt_dir.rmdir()
+            path.unlink(missing_ok=True)
 
     asyncio.run(run())
 
