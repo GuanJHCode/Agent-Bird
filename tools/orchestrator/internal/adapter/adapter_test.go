@@ -25,6 +25,93 @@ func pinForTest() BinaryPin {
 	return BinaryPin{Path: "/private/bin/agent", Version: "1.2.3", SHA256: strings.Repeat("a", 64)}
 }
 
+func codexPinForTest() BinaryPin {
+	return BinaryPin{Path: "/private/bin/codex", Version: CodexVersion, SHA256: CodexSHA256}
+}
+
+func TestBuildCodexInvocationUsesFixedReadOnlyPlanContract(t *testing.T) {
+	invocation, err := BuildInvocation(Request{
+		Provider:   ProviderCodex,
+		Binary:     codexPinForTest(),
+		CWD:        "/private/workspace",
+		Prompt:     "inspect the bounded change",
+		Permission: Permission{Mode: "plan"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{
+		"/private/bin/codex", "exec", "--json", "--color", "never",
+		"--model", "gpt-5.6-luna", "--sandbox", "read-only",
+		"-c", `model_reasoning_effort="medium"`,
+		"-c", `approval_policy="never"`, "-",
+	}
+	if got := invocation.Args(); !equalStrings(got, want) {
+		t.Fatalf("argv = %#v, want %#v", got, want)
+	}
+	if got := string(invocation.Stdin()); got != "inspect the bounded change" {
+		t.Fatalf("stdin = %q", got)
+	}
+	if got := invocation.Environment(); len(got) != 0 {
+		t.Fatalf("environment overrides = %#v", got)
+	}
+	for _, arg := range invocation.Args() {
+		if arg == "inspect the bounded change" || arg == "--ephemeral" {
+			t.Fatalf("prompt or forbidden flag leaked into argv: %#v", invocation.Args())
+		}
+	}
+}
+
+func TestBuildCodexResumeUsesExactSessionAndStdin(t *testing.T) {
+	invocation, err := BuildInvocation(Request{
+		Provider:   ProviderCodex,
+		Binary:     codexPinForTest(),
+		CWD:        "/private/workspace",
+		Prompt:     "continue the review",
+		Session:    SessionRef{Kind: SessionID, ID: "0199aabb-1234-7000-8000-aabbccddeeff"},
+		Permission: Permission{Mode: "plan"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantTail := []string{"resume", "0199aabb-1234-7000-8000-aabbccddeeff", "-"}
+	got := invocation.Args()
+	if len(got) < len(wantTail) || !equalStrings(got[len(got)-len(wantTail):], wantTail) {
+		t.Fatalf("resume argv = %#v", got)
+	}
+	if string(invocation.Stdin()) != "continue the review" {
+		t.Fatalf("stdin = %q", invocation.Stdin())
+	}
+}
+
+func TestBuildCodexInvocationRejectsContractExpansion(t *testing.T) {
+	base := Request{Provider: ProviderCodex, Binary: codexPinForTest(), CWD: "/private/workspace", Prompt: "inspect", Permission: Permission{Mode: "plan"}}
+	cases := []Request{
+		func() Request { value := base; value.Binary.Version = "0.154.0"; return value }(),
+		func() Request { value := base; value.Binary.SHA256 = strings.Repeat("b", 64); return value }(),
+		func() Request { value := base; value.Permission.Mode = "default"; return value }(),
+		func() Request { value := base; value.Permission.Allow = []string{"Read"}; return value }(),
+		func() Request { value := base; value.Permission.Deny = []string{"Bash"}; return value }(),
+		func() Request { value := base; value.ExtraArgs = []string{"--ephemeral"}; return value }(),
+		func() Request {
+			value := base
+			value.Session = SessionRef{Kind: ConversationID, ID: "conversation"}
+			return value
+		}(),
+		func() Request {
+			value := base
+			value.Session = SessionRef{Kind: SessionMostRecent, ID: "last"}
+			return value
+		}(),
+		func() Request { value := base; value.Prompt = "bad\x00prompt"; return value }(),
+	}
+	for i, request := range cases {
+		if _, err := BuildInvocation(request); err == nil {
+			t.Errorf("case %d: expected rejection", i)
+		}
+	}
+}
+
 func TestBuildInvocationUsesExactResumeAndBoundedPermission(t *testing.T) {
 	invocation, err := BuildInvocation(Request{
 		Provider: ProviderClaude,
@@ -126,6 +213,83 @@ func TestParseEventsProjectsOnlyBoundedFields(t *testing.T) {
 		if got != tc.want {
 			t.Errorf("%s: event = %#v, want %#v", tc.provider, got, tc.want)
 		}
+	}
+}
+
+func TestParseCodexEventsProjectsFixedJSONL(t *testing.T) {
+	cases := []struct {
+		line string
+		want Event
+	}{
+		{`{"type":"thread.started","thread_id":"codex-thread-1","secret":"DROP"}`, Event{Kind: EventInit, SessionID: "codex-thread-1"}},
+		{`{"type":"turn.started"}`, Event{Kind: EventDiagnostic}},
+		{`{"type":"item.completed","item":{"id":"item-1","type":"reasoning","text":"DROP"}}`, Event{Kind: EventDiagnostic}},
+		{`{"type":"item.completed","item":{"id":"item-2","type":"agent_message","text":"bounded answer","secret":"DROP"}}`, Event{Kind: EventMessage, Text: "bounded answer"}},
+		{`{"type":"turn.completed","usage":{"input_tokens":7,"cached_input_tokens":3,"cache_write_input_tokens":0,"output_tokens":2,"reasoning_output_tokens":1}}`, Event{Kind: EventResult, Status: "completed"}},
+		{`{"type":"turn.failed","error":{"message":"model unavailable","private":"DROP"}}`, Event{Kind: EventResult, Status: "failed", Text: "model unavailable"}},
+		{`{"type":"error","message":"retrying stream","details":"DROP"}`, Event{Kind: EventDiagnostic, Status: "error", Text: "retrying stream"}},
+		{`{"type":"future.progress","private":"DROP"}`, Event{Kind: EventDiagnostic}},
+	}
+	for _, tc := range cases {
+		got, err := ParseEvent(ProviderCodex, tc.line, 4096)
+		if err != nil {
+			t.Fatalf("%s: %v", tc.line, err)
+		}
+		if got != tc.want {
+			t.Errorf("%s: event = %#v, want %#v", tc.line, got, tc.want)
+		}
+		if got.Kind == EventQuestion {
+			t.Fatalf("Codex JSONL unexpectedly projected a native question: %#v", got)
+		}
+	}
+}
+
+func TestParseCodexEventRejectsMalformedContractFields(t *testing.T) {
+	lines := []string{
+		`{"type":"thread.started"}`,
+		`{"type":"thread.started","thread_id":7}`,
+		`{"type":"item.completed"}`,
+		`{"type":"item.completed","item":{"type":"reasoning","text":"missing id"}}`,
+		`{"type":"item.completed","item":{"id":"item-1","type":"agent_message"}}`,
+		`{"type":"turn.completed"}`,
+		`{"type":"turn.completed","usage":{"input_tokens":7,"cached_input_tokens":3,"output_tokens":2}}`,
+		`{"type":"turn.completed","usage":{"input_tokens":"7","cached_input_tokens":3,"output_tokens":2,"reasoning_output_tokens":1}}`,
+		`{"type":"turn.completed","usage":{"input_tokens":7,"cached_input_tokens":3,"cache_write_input_tokens":null,"output_tokens":2,"reasoning_output_tokens":1}}`,
+		`{"type":"turn.failed","error":"failed"}`,
+		`{"type":"error"}`,
+	}
+	for _, line := range lines {
+		if _, err := ParseEvent(ProviderCodex, line, 4096); err == nil {
+			t.Errorf("accepted malformed event: %s", line)
+		}
+	}
+}
+
+func TestCodexJSONLFixtureParsesWithoutRawRetention(t *testing.T) {
+	file, err := os.Open(filepath.Join("testdata", "codex-success.jsonl"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	parser := NewStreamParser(ProviderCodex, 4096, 32*1024)
+	var events []Event
+	if err := parser.Consume(file, func(event Event) error {
+		events = append(events, event)
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	want := []EventKind{EventInit, EventDiagnostic, EventDiagnostic, EventMessage, EventResult}
+	if len(events) != len(want) {
+		t.Fatalf("events=%#v", events)
+	}
+	for i, kind := range want {
+		if events[i].Kind != kind {
+			t.Fatalf("event %d = %#v, want kind %q", i, events[i], kind)
+		}
+	}
+	if events[3].Text != "bounded answer" || events[4].Status != "completed" {
+		t.Fatalf("events=%#v", events)
 	}
 }
 

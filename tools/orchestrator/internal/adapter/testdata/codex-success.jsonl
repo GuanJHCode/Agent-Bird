@@ -1,0 +1,5 @@
+{"type":"thread.started","thread_id":"codex-thread-1"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item-1","type":"reasoning","text":"diagnostic only"}}
+{"type":"item.completed","item":{"id":"item-2","type":"agent_message","text":"bounded answer"}}
+{"type":"turn.completed","usage":{"input_tokens":7,"cached_input_tokens":3,"cache_write_input_tokens":0,"output_tokens":2,"reasoning_output_tokens":1}}

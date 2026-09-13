@@ -1,4 +1,4 @@
-// Package adapter contains the pinned, protocol-only surface for the three
+// Package adapter contains the pinned, protocol-only surface for the
 // external coding CLIs. It deliberately does not authenticate, select an
 // account, or persist provider output.
 package adapter
@@ -23,6 +23,10 @@ const (
 	ProviderClaude Provider = "claude-code"
 	ProviderAGY    Provider = "antigravity-cli"
 	ProviderGrok   Provider = "grok-build"
+	ProviderCodex  Provider = "codex-cli"
+
+	CodexVersion = "codex-cli 0.154.0"
+	CodexSHA256  = "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc"
 )
 
 type SessionKind string
@@ -196,7 +200,7 @@ func VerifyExecutable(pin BinaryPin, actualVersion string) error {
 }
 
 func BuildInvocation(req Request) (Invocation, error) {
-	if req.Provider != ProviderClaude && req.Provider != ProviderAGY && req.Provider != ProviderGrok {
+	if req.Provider != ProviderClaude && req.Provider != ProviderAGY && req.Provider != ProviderGrok && req.Provider != ProviderCodex {
 		return Invocation{}, errors.New("provider_unknown")
 	}
 	if req.Binary.Path == "" || !filepath.IsAbs(req.Binary.Path) || filepath.Clean(req.Binary.Path) != req.Binary.Path {
@@ -205,8 +209,14 @@ func BuildInvocation(req Request) (Invocation, error) {
 	if req.Binary.Version == "" || !hex64.MatchString(strings.ToLower(req.Binary.SHA256)) {
 		return Invocation{}, errors.New("binary_pin_invalid")
 	}
+	if req.Provider == ProviderCodex && (req.Binary.Version != CodexVersion || strings.ToLower(req.Binary.SHA256) != CodexSHA256) {
+		return Invocation{}, errors.New("codex_binary_pin_mismatch")
+	}
 	if req.CWD == "" || !filepath.IsAbs(req.CWD) || filepath.Clean(req.CWD) != req.CWD {
 		return Invocation{}, errors.New("cwd_invalid")
+	}
+	if req.Provider == ProviderCodex && (req.Prompt == "" || strings.ContainsRune(req.Prompt, '\x00')) {
+		return Invocation{}, errors.New("codex_prompt_invalid")
 	}
 	if err := validatePermission(req.Provider, req.Permission); err != nil {
 		return Invocation{}, err
@@ -252,6 +262,19 @@ func BuildInvocation(req Request) (Invocation, error) {
 		if req.Session.ID != "" {
 			args = append(args, "--resume", req.Session.ID)
 		}
+	case ProviderCodex:
+		args = append(args,
+			"exec", "--json", "--color", "never",
+			"--model", "gpt-5.6-luna",
+			"--sandbox", "read-only",
+			"-c", `model_reasoning_effort="medium"`,
+			"-c", `approval_policy="never"`,
+		)
+		if req.Session.ID != "" {
+			args = append(args, "resume", req.Session.ID)
+		}
+		args = append(args, "-")
+		input = []byte(req.Prompt)
 	}
 	appendPermissionArgs(&args, req.Provider, req.Permission)
 	env := map[string]string{}
@@ -268,6 +291,12 @@ func validatePermission(provider Provider, p Permission) error {
 	}
 	if len(p.Allow) > 0 {
 		return errors.New("permission_allow_expansion_forbidden")
+	}
+	if provider == ProviderCodex {
+		if p.Mode != "plan" || len(p.Deny) > 0 {
+			return errors.New("codex_readonly_plan_required")
+		}
+		return nil
 	}
 	allowed := map[Provider]map[string]bool{
 		ProviderClaude: {"": true, "default": true, "plan": true, "dontAsk": true},
@@ -289,6 +318,9 @@ func validatePermission(provider Provider, p Permission) error {
 }
 
 func appendPermissionArgs(args *[]string, provider Provider, p Permission) {
+	if provider == ProviderCodex {
+		return
+	}
 	if p.Mode != "" && p.Mode != "default" {
 		flag := "--permission-mode"
 		if provider == ProviderAGY {
@@ -357,9 +389,87 @@ func ParseEvent(provider Provider, line string, maxBytes int) (Event, error) {
 		return parseAGY(object)
 	case ProviderGrok:
 		return parseGrok(object)
+	case ProviderCodex:
+		return parseCodex(object)
 	default:
 		return Event{}, errors.New("provider_unknown")
 	}
+}
+
+func parseCodex(object map[string]json.RawMessage) (Event, error) {
+	typeName, err := stringField(object, "type")
+	if err != nil {
+		return Event{}, err
+	}
+	switch typeName {
+	case "thread.started":
+		session, err := stringField(object, "thread_id")
+		if err != nil || !safeID(session) {
+			if err != nil {
+				return Event{}, err
+			}
+			return Event{}, errors.New("event_thread_id_invalid")
+		}
+		return Event{Kind: EventInit, SessionID: session}, nil
+	case "item.completed":
+		var item map[string]json.RawMessage
+		if err := json.Unmarshal(object["item"], &item); err != nil || item == nil {
+			return Event{}, errors.New("event_item_invalid")
+		}
+		if _, err := stringField(item, "id"); err != nil {
+			return Event{}, err
+		}
+		itemType, err := stringField(item, "type")
+		if err != nil {
+			return Event{}, err
+		}
+		if itemType != "agent_message" {
+			return Event{Kind: EventDiagnostic}, nil
+		}
+		text, err := stringField(item, "text")
+		if err != nil {
+			return Event{}, err
+		}
+		return Event{Kind: EventMessage, Text: text}, nil
+	case "turn.completed":
+		if err := validateCodexUsage(object["usage"]); err != nil {
+			return Event{}, err
+		}
+		return Event{Kind: EventResult, Status: "completed"}, nil
+	case "turn.failed":
+		var failure map[string]json.RawMessage
+		if err := json.Unmarshal(object["error"], &failure); err != nil || failure == nil {
+			return Event{}, errors.New("event_error_invalid")
+		}
+		message, err := stringField(failure, "message")
+		if err != nil {
+			return Event{}, err
+		}
+		return Event{Kind: EventResult, Status: "failed", Text: message}, nil
+	case "error":
+		message, err := stringField(object, "message")
+		if err != nil {
+			return Event{}, err
+		}
+		return Event{Kind: EventDiagnostic, Status: "error", Text: message}, nil
+	default:
+		return Event{Kind: EventDiagnostic}, nil
+	}
+}
+
+func validateCodexUsage(raw json.RawMessage) error {
+	var usage map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &usage); err != nil || usage == nil {
+		return errors.New("event_usage_invalid")
+	}
+	for _, name := range []string{"input_tokens", "cached_input_tokens", "cache_write_input_tokens", "output_tokens", "reasoning_output_tokens"} {
+		value, ok := usage[name]
+		var count *int64
+		if !ok || json.Unmarshal(value, &count) != nil || count == nil || *count < 0 {
+			return errors.New("event_usage_invalid")
+		}
+	}
+	return nil
 }
 
 func parseClaude(object map[string]json.RawMessage) (Event, error) {

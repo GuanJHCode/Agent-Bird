@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"codex-cli-orchestration-design/tools/orchestrator/internal/adapter"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/contract"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/process"
 )
@@ -251,6 +252,30 @@ func TestInvocationRejectsChangedPinBeforeExecutingVersionProbe(t *testing.T) {
 	}
 	if _, err := os.Stat(canary); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("untrusted binary executed, canary err=%v", err)
+	}
+}
+
+func TestCodexTrialInvocationIsBlockedBeforePinReadOrVersionProbe(t *testing.T) {
+	root := t.TempDir()
+	canary := filepath.Join(root, "must-not-exist")
+	cases := []map[string]any{
+		{"provider": string(adapter.ProviderCodex), "binary_version": "alias-version", "binary_sha256": strings.Repeat("a", 64)},
+		{"provider": string(adapter.ProviderClaude), "binary_version": adapter.CodexVersion, "binary_sha256": strings.Repeat("a", 64)},
+		{"provider": string(adapter.ProviderClaude), "binary_version": "alias-version", "binary_sha256": strings.ToUpper(adapter.CodexSHA256)},
+	}
+	for i, fields := range cases {
+		fields["binary_path"] = canary
+		fields["directory"] = root
+		fields["prompt"] = "inspect"
+		fields["permission_mode"] = "plan"
+		payload, _ := json.Marshal(fields)
+		_, err := invocationForGrant(context.Background(), contract.LaunchCommand{AdapterPayload: payload})
+		if err == nil || err.Error() != "codex_trial_guard_not_ready" {
+			t.Fatalf("case %d: err=%v", i, err)
+		}
+	}
+	if _, statErr := os.Stat(canary); !errors.Is(statErr, os.ErrNotExist) {
+		t.Fatalf("blocked Codex path was touched: %v", statErr)
 	}
 }
 

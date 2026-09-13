@@ -3,6 +3,7 @@ package host
 import (
 	"bytes"
 	"errors"
+	"strings"
 	"sync"
 
 	"codex-cli-orchestration-design/tools/orchestrator/internal/adapter"
@@ -30,7 +31,7 @@ type protocolCollector struct {
 
 func newProtocolCollector(provider string) (*protocolCollector, error) {
 	p := adapter.Provider(provider)
-	if p != adapter.ProviderClaude && p != adapter.ProviderAGY && p != adapter.ProviderGrok {
+	if p != adapter.ProviderClaude && p != adapter.ProviderAGY && p != adapter.ProviderGrok && p != adapter.ProviderCodex {
 		return nil, errors.New("provider_output_protocol_invalid")
 	}
 	return &protocolCollector{provider: p, parser: adapter.NewStreamParser(p, providerEventLimit, int(^uint(0)>>1)), line: make([]byte, 0, 4096)}, nil
@@ -75,7 +76,10 @@ func (p *protocolCollector) consumePart(part []byte) {
 				compact = append(compact, value)
 			}
 		}
-		if bytes.Contains(compact, []byte(`"type":"result"`)) || bytes.Contains(compact, []byte(`"event":"result"`)) {
+		if bytes.Contains(compact, []byte(`"type":"result"`)) ||
+			bytes.Contains(compact, []byte(`"event":"result"`)) ||
+			bytes.Contains(compact, []byte(`"type":"turn.completed"`)) ||
+			bytes.Contains(compact, []byte(`"type":"turn.failed"`)) {
 			p.critical = true
 		}
 		if len(probe) > 128 {
@@ -124,16 +128,47 @@ func (p *protocolCollector) finishLine() {
 }
 
 func (p *protocolCollector) accept(event adapter.Event) {
-	if event.SessionID != "" {
-		if p.sessionID != "" && p.sessionID != event.SessionID {
-			p.err = errors.New("provider_session_changed")
-			return
+	if event.SessionID != "" && p.sessionID != "" && p.sessionID != event.SessionID {
+		p.err = errors.New("provider_session_changed")
+		return
+	}
+	if p.provider == adapter.ProviderCodex {
+		switch event.Kind {
+		case adapter.EventInit:
+			if p.sessionObserved {
+				p.err = errors.New("provider_session_duplicate")
+				return
+			}
+		case adapter.EventMessage:
+			if !p.sessionObserved {
+				p.err = errors.New("provider_event_before_session")
+				return
+			}
+			if p.terminal != nil {
+				p.err = errors.New("provider_event_after_terminal")
+				return
+			}
+		case adapter.EventResult, adapter.EventQuestion:
+			if !p.sessionObserved {
+				p.err = errors.New("provider_event_before_session")
+				return
+			}
 		}
+	}
+	if event.SessionID != "" {
 		p.sessionID = event.SessionID
 		if p.isAuthoritativeSessionEvent(event) {
 			p.sessionObserved = true
 			p.reportSession()
 		}
+	}
+	if event.Kind == adapter.EventMessage && p.provider == adapter.ProviderCodex && event.Text != "" {
+		if len(event.Text) > providerEventLimit {
+			p.err = errors.New("provider_critical_event_too_large")
+			return
+		}
+		p.message = append(p.message[:0], event.Text...)
+		return
 	}
 	if event.Kind == adapter.EventMessage && p.provider == adapter.ProviderGrok && event.Text != "" {
 		if len(p.message) > providerEventLimit-len(event.Text) {
@@ -196,8 +231,11 @@ func (p *protocolCollector) Finish() (adapter.Event, string, error) {
 		return adapter.Event{}, p.sessionID, errors.New("provider_terminal_missing")
 	}
 	terminal := *p.terminal
-	if terminal.Text == "" && p.provider == adapter.ProviderGrok {
+	if terminal.Text == "" && (p.provider == adapter.ProviderGrok || p.provider == adapter.ProviderCodex) {
 		terminal.Text = string(p.message)
+	}
+	if p.provider == adapter.ProviderCodex && terminal.Status == "completed" && strings.TrimSpace(terminal.Text) == "" {
+		return adapter.Event{}, p.sessionID, errors.New("provider_result_missing")
 	}
 	if terminal.SessionID == "" {
 		terminal.SessionID = p.sessionID
@@ -223,6 +261,8 @@ func providerSucceeded(provider adapter.Provider, event adapter.Event) bool {
 		return event.Status == "SUCCESS"
 	case adapter.ProviderGrok:
 		return event.Status == "success" || event.Status == "end_turn"
+	case adapter.ProviderCodex:
+		return event.Status == "completed"
 	default:
 		return false
 	}

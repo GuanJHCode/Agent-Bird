@@ -811,6 +811,9 @@ func invocationForGrant(ctx context.Context, grant contract.LaunchCommand) (cont
 	if err := decode(grant.AdapterPayload, &payload); err != nil {
 		return nil, err
 	}
+	if payload.Provider == string(adapter.ProviderCodex) || payload.BinaryVersion == adapter.CodexVersion || strings.EqualFold(payload.BinarySHA256, adapter.CodexSHA256) {
+		return nil, codeError("codex_trial_guard_not_ready")
+	}
 	if grant.Answer != "" {
 		if grant.QuestionID == "" || grant.QuestionRevision < 1 || grant.SessionKind == "" || grant.SessionID == "" || payload.Kind == "fake" {
 			return nil, codeError("invalid_question_resume")
