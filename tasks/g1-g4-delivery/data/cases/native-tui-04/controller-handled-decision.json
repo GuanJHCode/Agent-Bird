@@ -1,0 +1,10 @@
+{
+  "action": "decide",
+  "command_ids": {
+    "event_result": "handled_native-tui-04"
+  },
+  "decisions": {
+    "event_result": "handled"
+  },
+  "reads_sha256": "d85a238b9bdb824e65aa93c1e06ff745d7f02d05a62acb1d33d9bd68f7bf8878"
+}

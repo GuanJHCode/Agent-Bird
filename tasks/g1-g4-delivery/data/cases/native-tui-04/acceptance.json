@@ -1,0 +1,65 @@
+{
+  "case": "native-tui-04",
+  "runner_status": "passed",
+  "failure": null,
+  "auth_comparison": {
+    "unchanged": true,
+    "changed_path_ids": []
+  },
+  "known_process_identities_gone": true,
+  "public_socket_absent": true,
+  "synthetic_auth_absent": true,
+  "private_sockets_absent": true,
+  "ordinary_tui_verified": true,
+  "durable_history_verified": false,
+  "business_ack_verified": true,
+  "resume_zero_turns": true,
+  "pending_delivery_preserved": true,
+  "cleanup": {
+    "all_backends_stopped": true,
+    "service_stopped": true,
+    "restart_allowed": false,
+    "tui_exits": [
+      0,
+      0
+    ],
+    "helper_exit": 0,
+    "backend_count": 2,
+    "public_socket_removed": true
+  },
+  "go_status": {
+    "ack_count": 1,
+    "acks": [
+      {
+        "version": 1,
+        "status": "acknowledged",
+        "delivery_id": "G0_SYNTHETIC_TOOL_RESULT_native-tui-04",
+        "nonce": "native-tui-04",
+        "controller_thread": "01a09b43-79e1-7541-b3cd-51a35b3c0cac",
+        "controller_epoch": 1,
+        "revision": 1,
+        "event_id": "event_result",
+        "event_revision": 1,
+        "event_hash": "d28f42646b2ea738477d0e3397810a682a5bfe68d69c585eb18a4ed156f0f927",
+        "action_slot": "ack_result",
+        "command_id": "handled_native-tui-04",
+        "decision": "handled",
+        "decision_count": 1,
+        "effect_count": 1
+      }
+    ],
+    "business_status": "complete",
+    "claim": "claimed",
+    "delivery_id": "G0_SYNTHETIC_TOOL_RESULT_native-tui-04",
+    "event_count": 1,
+    "pending_count": 0,
+    "revision": 1,
+    "send_allowed": false,
+    "status": "complete",
+    "transport_status": "ready",
+    "version": 1
+  },
+  "real_launchctl_used": false,
+  "external_model_calls": 0,
+  "status": "pass"
+}

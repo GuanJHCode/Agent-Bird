@@ -1,0 +1,6 @@
+{
+  "action": "deliver_pending_result",
+  "lease_id": "56d68035f9c1",
+  "owner_context_sha256": "43ac21a686ae381b28420416869d327d4c2ccf4b86e8c381ebc7addf39ce3263",
+  "thread_id": "01a09b43-79e1-7541-b3cd-51a35b3c0cac"
+}
