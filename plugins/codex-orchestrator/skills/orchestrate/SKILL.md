@@ -6,7 +6,8 @@ description: Submit, inspect, collect, acknowledge, explicitly resume, or stop l
 # Local orchestration
 
 Use only the installed wrapper at `${PLUGIN_ROOT}/scripts/invoke.sh`. It accepts
-`ensure-running`, `submit`, `status`, `collect`, `ack`, `resume`, and `stop`.
+`ensure-running`, `submit`, `status`, `collect`, `ack`, `resume`, `stop`,
+`install`, `doctor`, `uninstall`, `pin`, and `unpin`.
 Never invoke `codex` as a replacement entry point, never invent an MCP server,
 and never bypass a blocked CLI result with direct process or Git operations.
 
@@ -92,3 +93,22 @@ Git materialization, integration, and cleanup are source Host capabilities. If
 the installed CLI/Host does not advertise those capabilities, report blocked;
 do not run Git from the controller process and do not claim the task is fully
 integrated.
+
+## Package administration
+
+Run `install`, `doctor`, `uninstall`, `pin`, or `unpin` only after an explicit
+package-management request. Each takes `--request <absolute-0600-json-file>`;
+create that file in a task-specific 0700 temporary directory and remove it
+after the command consumes it.
+
+- install: `source_root`, `binary_path`, `destination_root`, `data_root`,
+  `version`
+- doctor: `destination_root`
+- uninstall: `destination_root`, `version`
+- pin: `destination_root`, `task_id`, `version`
+- unpin: `destination_root`, `task_id`
+
+Run `doctor` before uninstall. Never unpin an active or recoverable task merely
+to force removal. Preserve `pinned`, `retained`, and `cleanup_pending` results;
+do not delete files outside the version/hash manifest or touch authentication,
+global Codex configuration, marketplace state, native data, or launchd.
