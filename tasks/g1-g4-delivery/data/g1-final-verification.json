@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "kind": "g1_final_verification_archive",
+  "archived_at": "2026-09-14T00:41:54+08:00",
+  "provenance": "Archive of already observed tool outputs; this file is not a raw log and no verification command was rerun to create it.",
+  "source": {
+    "worktree": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g1-g4-delivery/tmp/g1-control-plane",
+    "branch": "codex/g1-control-plane",
+    "source_head": "341d8f84acc632ca0a150edd5bde3b55ca715f05",
+    "go_verification_head": "1f8f61fa25383404f0679f58bd7de897dd07458c",
+    "go_source_equivalence": "341d8f8 differs from 1f8f61f only in plugins/codex-orchestrator/lib/native_bridge/bridge.py and two native bridge Python test files; Go source is identical. Build and native bridge checks ran at 341d8f8."
+  },
+  "checks": [
+    {
+      "command": "PATH=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin:$PATH /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go test -count=1 -run TestCLIOwnerExitRequiresVerifiedRebindBeforeResume ./cmd/orchestrator ./internal/nativebridgecli",
+      "working_directory": "tools/orchestrator",
+      "executed_at_head": "1f8f61fa25383404f0679f58bd7de897dd07458c",
+      "exit_code": 0,
+      "scope": "Owner exit, complete live owner attachment verification, rebind, and explicit resume."
+    },
+    {
+      "command": "PATH=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin:$PATH /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go test -count=1 ./...",
+      "working_directory": "tools/orchestrator",
+      "executed_at_head": "1f8f61fa25383404f0679f58bd7de897dd07458c",
+      "exit_code": 0,
+      "scope": "All Go packages under tools/orchestrator."
+    },
+    {
+      "command": "PATH=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin:$PATH /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go vet ./...",
+      "working_directory": "tools/orchestrator",
+      "executed_at_head": "1f8f61fa25383404f0679f58bd7de897dd07458c",
+      "exit_code": 0,
+      "scope": "All Go packages under tools/orchestrator."
+    },
+    {
+      "command": "PATH=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin:$PATH /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go test -race -count=1 ./internal/coordinator ./internal/store ./internal/host ./internal/ipc ./internal/nativebridgecli",
+      "working_directory": "tools/orchestrator",
+      "executed_at_head": "1f8f61fa25383404f0679f58bd7de897dd07458c",
+      "exit_code": 0,
+      "scope": "Concurrency-sensitive coordinator, store, Host, IPC, and native owner binding packages."
+    },
+    {
+      "command": "PATH=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin:$PATH /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go test -v -count=1 -run '^TestStorageAdmissionBlocksDispatchAndEventAck$' ./internal/store",
+      "working_directory": "tools/orchestrator",
+      "executed_at_head": "1f8f61fa25383404f0679f58bd7de897dd07458c",
+      "exit_code": 0,
+      "scope": "Injected low-disk admission returns storage_blocked and injected control-event quota returns control_spool_full without filling user storage."
+    },
+    {
+      "command": "PATH=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin:$PATH /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go build -o /tmp/codex-orchestrator-final-verify ./cmd/orchestrator",
+      "working_directory": "tools/orchestrator",
+      "executed_at_head": "341d8f84acc632ca0a150edd5bde3b55ca715f05",
+      "exit_code": 0,
+      "scope": "Production orchestrator entrypoint; observed executable size 11877010 bytes and then removed the temporary artifact."
+    },
+    {
+      "command": "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m pytest -q tools/native-product-bridge/test_bridge.py tools/native-product-bridge/test_local_service_chain.py",
+      "working_directory": ".",
+      "executed_at_head": "341d8f84acc632ca0a150edd5bde3b55ca715f05",
+      "exit_code": 0,
+      "scope": "Native bridge control state derivation and local service chain; 12 tests passed."
+    }
+  ],
+  "debug_cleanup_inventory": {
+    "ownership": "All paths below were created by this G1 diagnosis and are no longer used by implementation or verification.",
+    "trash_paths": [
+      "/Users/guanjunhui/.Trash/codex-g1-control-debug",
+      "/Users/guanjunhui/.Trash/codex-g1-debug-gFn7W5",
+      "/Users/guanjunhui/.Trash/codex-g1-debug-F845VV",
+      "/Users/guanjunhui/.Trash/codex-g1-stopdebug-b8HLfE",
+      "/Users/guanjunhui/.Trash/codex-g1-stopdebug2-KZAP9b"
+    ],
+    "trash_cleanup_status": "Deletion could not be verified or completed because macOS returned Operation not permitted; unrelated Trash contents were not touched.",
+    "main_debug_path": {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g1-control-debug",
+      "present_at_archive_time": true,
+      "ownership_confirmed": true,
+      "still_used": false,
+      "contents": [
+        "tmp/orchestrator",
+        "tmp/request.json"
+      ],
+      "action": "Recorded only; not modified or deleted while creating this archive."
+    }
+  }
+}
