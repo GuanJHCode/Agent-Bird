@@ -1,6 +1,6 @@
 # G1–G4 最终功能与验收范围
 
-本说明以主线 `64515ff` 为基线，区分已经通过的模块与本地纵向链路、仍在根任务执行的最终验收，以及明确延期的范围。当前可以确认 G1–G3 的实现和本地产品链路已经闭环，G4 的 rc2 项目内包已经通过临时安装检查；完整原生产品用例和 G1 长时资源验收尚未结束，因此不能宣称整个产品已经验收完成。
+本说明区分已经通过的模块与纵向链路、仍在根任务执行的资源验收，以及明确延期的范围。当前 G1–G3 的实现和本地产品链路已经闭环；G4 rc4 已通过项目内 package/install/Doctor/plugin validator，完整 native product 链也已通过。G1 长时资源验收仍未全部结束，因此不能提前宣称资源范围全部通过。
 
 ## G1：本地任务调度与持久状态
 
@@ -30,23 +30,26 @@ G3 在来源 Host 中执行 Git，协调器本身不直接运行 Git。它为每
 
 G4 把同一 orchestrator binary、Codex plugin、native bridge 和固定的 `runtime/g0` 依赖打成可审查版本包。manifest 记录每个文件的路径、mode 和 SHA-256；固定 Python 只记录绝对路径和 SHA-256，不复制或修改系统解释器。安装器使用 OS 锁、版本 receipt、任务 pin、持久卸载意图和 FD 锚定删除，发现修改或未知文件时保留并报告。
 
-rc2 包已经在项目范围的临时目录完成 package、`InstallPackage`、`Doctor` 和 plugin validator 检查。rc1 的临时版本已成功卸载；rc2 仍作为临时验收安装保留，等待根任务完成完整 native product 用例。这里的“安装通过”只指临时 project-local 生命周期，不代表已永久安装到用户环境。
+rc4 包已经在项目范围的临时目录完成 package、`InstallPackage`、`Doctor` 和 plugin validator 检查。[`package-rc4-verification.json`](../data/package-rc4-verification.json) 记录 binary SHA-256 `e6c0bf930a75029d39b38b49cca2ded8999d0ce0545ed8d2fa7e48a1fc0bc3c7`、installed manifest 和 runtime manifest 身份。归档 `codex-orchestrator-0.1.0-rc4.tar.gz` 为 6,808,954 bytes，SHA-256 `b4f312cb0aa459ca0981a6037f78c473f1fe6be9c77e23cc4e840b1ddf77ea56`，其中 package manifest SHA-256 为 `5a5e195361634fbabb7c4f1b5971bfb13efa84d701654c66467e365b21832845`。
+
+[`native-product-08/acceptance.json`](../data/cases/native-product-08/acceptance.json) 的完整产品链状态为 `pass`：真实 native owner 建立 attached capability；旧 owner 退出后 Source Host 停止；新 owner 在同一 native profile/thread 上零 turn 静默恢复，完成 owner rebind 后才显式 resume；结果通过 native history proof 和 typed ACK 回传。14 个 auth 路径比较保持不变，没有外部模型调用。[`root-postflight.json`](../data/cases/native-product-08/root-postflight.json) 独立核对了 15 个记录进程身份全部消失，公共 socket 也已移除。
+
+以上结论只覆盖项目内临时安装和 native product 验收，不代表永久安装、plugin 全局注册或生产 service admission 已获授权或实现。永久部署属于独立可选范围，条件见 [`permanent-install-activation-proposal.md`](permanent-install-activation-proposal.md)。
 
 ## 尚未完成或明确延期
 
 | 范围 | 当前状态 | 完成条件 |
 |---|---|---|
-| 完整 native product | 根任务仍在验收 | 用最终 rc2 distribution 完成 attached owner capability、submit、Source Host、回传、typed ACK、rebind/cleanup 的产品用例，并保存最终 receipt |
-| G1 长时资源 | 根任务仍在验收 | 对冻结 binary 完成 `resource-acceptance.py` 的原定 5/10/20 分钟场景；短 smoke 不能代替 PASS |
+| G1 长时资源 | 根任务仍在验收 | `hosts` 600 秒场景已通过；burst 等其余冻结场景仍需跑满并归档，短 smoke 不能代替 PASS |
 | 真实 provider 账号矩阵 | 未执行 | 分别使用真实 Claude/AGY/Grok 账号进行授权的模型任务，并验证结果、失败、问题和 resume；当前不以本地 fixture 代替 |
 | Windows | 延期 | 独立实现并验证 Windows 进程树、文件锁、worktree 清理与安装语义；编译成功不算验收 |
-| 永久安装与激活 | 未执行 | 用户审查最终 package manifest、安装路径、service 配置和验收 receipt 后，单独授权永久安装/激活 |
+| 永久部署 | 后续可选范围 | 不属于当前 project-local G4；需先独立解决按连接绑定既有 native profile/backend 的 production admission，并选择、实现和验证 service/plugin 部署方式。当前不请求授权 |
 | 公开发布与许可证选择 | 不在本轮范围 | 需要另行确定发布目标和许可证 |
 
 ## 用户可审查的下一步
 
-1. 根任务完成一次完整 native product 验收，并把 rc2 binary/package SHA、安装与 Doctor receipt、native delivery/ACK/rebind/cleanup 结果写入项目证据目录。
-2. 根任务使用同一冻结 binary 完成 G1 长时资源场景，逐项保留时长、负载、durable report、RSS、CPU 和趋势结论；任何未跑满场景继续标为未验收。
-3. 用户审查上述证据以及 package manifest、永久目标路径和激活配置。只有永久安装/激活需要下一次明确授权；这项授权不包含登录、登出、账号切换、读取或修改任何 CLI auth。
+1. 根任务使用同一冻结 binary 完成剩余 G1 长时资源场景，逐项保留时长、负载、durable report、RSS、CPU 和趋势结论；任何未跑满场景继续标为未验收。
+2. 用户审查 rc4 package identity、native-product-08 receipt 和最终资源结果，确认当前 project-local 交付的实际边界。
+3. 本轮不请求永久部署授权。未来若另行选择永久部署，应先完成独立 production admission 和部署合同，再以新的固定版本/hash/path 提案请求批准；该可选范围不能默认包含登录、登出、账号切换、读取或修改 CLI auth。
 
 本轮没有永久安装、注册 marketplace、修改全局 Codex 配置、启动真实模型任务或改动本机多个 CLI 的认证状态。测试遗留进程 PID 47082 仍按已有记录保持 `cleanup_pending`；不再向它或归属不明的父进程发送信号。

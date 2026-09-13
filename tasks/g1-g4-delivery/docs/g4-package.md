@@ -85,10 +85,10 @@ manifest to the same attached owner lease and activation service manifest.
 
 The caller supplies `DataRoot` as the native/session data location. The
 installer checks that it does not overlap the package destination and never
-removes or rewrites it. Changed files are retained for inspection. rc1 and rc2
-were installed only into temporary project-local destinations: rc1 was
-successfully uninstalled, while rc2 remains temporarily installed for final
-native acceptance. No permanent user installation or activation was performed.
+removes or rewrites it. Changed files are retained for inspection. rc4 was
+installed only into a temporary project-local destination and passed `Doctor`.
+No permanent user installation, plugin registration, or service activation was
+performed.
 
 ## Version matrix and removal
 
@@ -110,9 +110,25 @@ resume qualification and task state remain governed by the G1/G2 contracts.
 
 ## Validation
 
-The rc2 plugin manifest was checked with the bundled `validate_plugin.py`, and
-its temporary install passed `Doctor`. The
-installer tests cover two coexisting versions, active pins, changed files,
+The rc4 package, temporary install, `Doctor`, and plugin validation are archived
+in [`package-rc4-verification.json`](../data/package-rc4-verification.json). The
+installed binary SHA-256 is
+`e6c0bf930a75029d39b38b49cca2ded8999d0ce0545ed8d2fa7e48a1fc0bc3c7`.
+The 6,808,954-byte `codex-orchestrator-0.1.0-rc4.tar.gz` archive has SHA-256
+`b4f312cb0aa459ca0981a6037f78c473f1fe6be9c77e23cc4e840b1ddf77ea56`;
+its package manifest SHA-256 is
+`5a5e195361634fbabb7c4f1b5971bfb13efa84d701654c66467e365b21832845`.
+
+The complete project-local native product case is
+[`native-product-08`](../data/cases/native-product-08/acceptance.json) and is
+`pass`: auth14 remained unchanged, the Source Host stopped when the original
+owner exited, the same native profile/thread resumed with zero turns under a new owner,
+explicit rebind/resume completed, and delivery ended with a typed ACK. The
+independent [`root-postflight.json`](../data/cases/native-product-08/root-postflight.json)
+confirmed all 15 recorded process identities gone and the public socket absent.
+The case used no external model calls and no real launchctl registration.
+
+The installer tests cover two coexisting versions, active pins, changed files,
 changed manifests, malformed pins, the shared OS lock, crash recovery after
 the version-local manifest is gone, unknown nested objects, symlink rejection,
 existing-directory mode preservation, doctor reporting, and preservation of a
@@ -121,5 +137,11 @@ against temporary directories.
 [`resource-acceptance.py`](../scripts/resource-acceptance.py) runs the frozen binary with explicit synthetic
 loads, process-tree sampling and durable report checks. It retains the original
 5/10/20 minute budgets and writes private scenario evidence. The full-duration
-run remains in the root-owned final binary validation; a shortened smoke is not
-treated as acceptance evidence.
+resource suite remains in root-owned validation: the 600-second hosts scenario
+has passed, while burst and any other incomplete frozen scenarios remain
+pending. A shortened smoke is not treated as acceptance evidence.
+
+Permanent plugin/service deployment is outside this project-local G4 contract.
+It is an optional follow-up that first requires a separately reviewed production
+admission contract for the existing native profile/backend and a verified
+plugin/service deployment method; no permanent authorization is requested here.
