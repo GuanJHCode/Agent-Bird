@@ -1,0 +1,13 @@
+{
+  "activation_id": "e80b15a58b924acfaff83c56caf9947a",
+  "manifest_sha256": "19d51e6299173a4162d45a7a3ba4b69b2877e0b969f94b1565f029ccff5a0373",
+  "service_identity": {
+    "birth": "Mon Sep 14 02:26:40 2026",
+    "executable": "/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python",
+    "executable_sha256": "8623f5d3e96ae0279fa09f54ea4b355cdc0daf7da285057311f14c7de8c677a0",
+    "pid": 17289,
+    "uid": 501
+  },
+  "started_raw_ns": 4246568708887708,
+  "version": 1
+}

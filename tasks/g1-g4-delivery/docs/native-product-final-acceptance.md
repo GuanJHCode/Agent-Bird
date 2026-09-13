@@ -58,26 +58,40 @@ binds the detailed lifecycle:
    receipt records two backends and has SHA-256
    `6935979059f221f48440b9a7e26600f407f781b6709d61d2d7cf2e1678289f2b`.
 
-The stopped and result deliveries remain reviewable in the task-owned profile
-`/private/tmp/g0-auth-product-e5vm4tip`:
+The minimum raw evidence needed to review the stopped and result deliveries is
+retained under
+[`native-product-08-retained/`](../data/native-product-08-retained/manifest.json).
+The manifest records every archived file's source-relative path, byte count,
+and source/archive SHA-256. It also records the allowlist, exclusions, and the
+credential scan result:
 
-- Native rollout:
-  `c/sessions/2026/09/14/rollout-2026-09-14T02-26-42-01a09c05-8430-7771-99fb-5b3d48448f23.jsonl`,
-  SHA-256 `df079384ffbae13b23211cc3a2a3c8ae8aa073866771dcc470d43098edc775a2`.
-  It contains the initial READY turn and the two distinct `g0_delivery` turns,
+- The exact
+  [`native rollout`](../data/native-product-08-retained/native/rollout.jsonl),
+  SHA-256 `df079384ffbae13b23211cc3a2a3c8ae8aa073866771dcc470d43098edc775a2`,
+  contains the initial READY turn and the two distinct `g0_delivery` turns,
   completed with `DELIVERY_RECEIVED` and `SYNTHETIC_COMPLETE`.
-- `native-product-08/bridge-ledger/` contains the two immutable intents, source
-  mappings, send claims, `controller_acked` statuses, ACK requests, and ACK
-  receipts.
-- `native-product-08/driver-rebound/` contains both history receipts, explicit
-  decision requests, decision files, ACK receipts, and the completed driver
-  status.
-- `native-product-08/g1-state/state.db`, SHA-256
-  `ccc8205c41d49da1b876aff0d6c54b1b690331c32d944300cbf0b5e686dfeae9`,
-  retains G1 task, segment, event, review, delivery, host, and rebind state.
-- `native-product-08/state/e80b15a58b924acfaff83c56caf9947a/`
-  retains service, owner/helper readiness, backend, guardian, and final
-  activation receipts.
+- [`bridge/`](../data/native-product-08-retained/bridge/) contains the two
+  immutable intents, source mappings, send claims, owner bindings,
+  `controller_acked` statuses, exact-history receipts, explicit decisions, and
+  ACK receipts. Each raw ACK request was replaced by a projection that removes
+  `control_file` and binds the source request by SHA-256.
+- [`g1/state-projection.json`](../data/native-product-08-retained/g1/state-projection.json)
+  contains the non-secret G1 task, segment, event, review, delivery, host, and
+  rebind tables. The source `state.db` passed `PRAGMA integrity_check` and has
+  SHA-256
+  `ccc8205c41d49da1b876aff0d6c54b1b690331c32d944300cbf0b5e686dfeae9`.
+  The raw database was deliberately not copied because
+  `segment_runtime.slot_token` contains an original capability value; the
+  projection lists every omitted table and column.
+- [`g0/e80b15a58b924acfaff83c56caf9947a/`](../data/native-product-08-retained/g0/e80b15a58b924acfaff83c56caf9947a/)
+  contains the service, two owner/helper readiness chains, backend receipts,
+  guardian receipts, and final activation receipt.
+
+CLI auth, process environments, control files/tokens, owner capabilities and
+attachments, host bootstraps, grants, isolation manifests/policies, sandbox
+profiles, and raw G1 capability values are absent from the durable archive.
+The original task-owned profile `/private/tmp/g0-auth-product-e5vm4tip` remains
+unchanged for recovery while it is present.
 
 The auth snapshots are byte-identical: both
 [`auth-before.json`](../data/cases/native-product-08/auth-before.json) and
@@ -92,7 +106,7 @@ public socket as absent.
 ## Scope boundary
 
 The provider was the task-owned loopback `g0-delivery-v1` synthetic fixture.
-`/private/tmp/g0-auth-product-e5vm4tip/synthetic-plan.json`, SHA-256
+The retained [`synthetic-plan.json`](../data/native-product-08-retained/fixture/synthetic-plan.json), SHA-256
 `9659653fa545c5730b760e8b6d41ef647eec8de2b48f3d792e7f40a56aa84075`,
 freezes `synthetic_only: true`, `external_model_calls: 0`, and the three request
 stages. The isolated provider config has SHA-256
@@ -130,10 +144,12 @@ runs.
 
 ## Retention and optional cleanup
 
-No cleanup is performed by this archive. Retain the final profile artifacts
-listed above, especially the native rollout, bridge ledger, driver receipts,
-G1 database/spool, G0 state receipts, and `synthetic-plan.json`. Retain all
-repository case archives and the rc3 version pin.
+No cleanup is performed by this archive. Retain the durable
+[`native-product-08-retained/`](../data/native-product-08-retained/manifest.json)
+archive, all repository case archives, and the rc3 version pin. While the
+original final profile remains present, retain its G1 database/spool and other
+recovery state; the repository snapshot is an audit archive and does not
+replace mutable recovery state.
 
 After the archive is accepted, only the following expired capability and
 isolation objects are candidates for deletion. Removing them is optional and

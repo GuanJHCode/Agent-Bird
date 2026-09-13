@@ -1,0 +1,584 @@
+{
+  "backend_peer": {
+    "birth": "Mon Sep 14 02:26:42 2026",
+    "complete": true,
+    "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+    "pid": 17336,
+    "source": "darwin-local",
+    "uid": 501
+  },
+  "birth": "Mon Sep 14 02:26:42 2026",
+  "creation_birth": "Mon Sep 14 02:26:42 2026",
+  "creation_executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+  "elapsed_seconds": 2.271292750025168,
+  "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+  "frontend": {
+    "birth": "Mon Sep 14 02:26:41 2026",
+    "complete": true,
+    "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+    "pid": 17304,
+    "source": "darwin-local",
+    "uid": 501
+  },
+  "grant_sha256": "74a7c905f750dda658fe3cc592c4175344426b8bc22b8184b9fd18b919c8b6cb",
+  "guardian": {
+    "child_birth": "Mon Sep 14 02:26:42 2026",
+    "child_pid": 17336,
+    "child_reaped": true,
+    "child_returncode": 0,
+    "guardian_pid": 17335,
+    "kill_requested": false,
+    "nonce": "62644c78786e473ebd31d750ec28a4ce",
+    "owner_pid": 17289,
+    "reason": "controller_stop",
+    "receipt_location_unchanged": true,
+    "restart_allowed": false,
+    "state": "stopped",
+    "term_requested": true,
+    "tree_stop_unproven": true,
+    "uid": 501,
+    "version": 1
+  },
+  "guardian_pid": 17335,
+  "helpers": [
+    {
+      "frontend": {
+        "birth": "Mon Sep 14 02:26:42 2026",
+        "complete": true,
+        "executable": "/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python",
+        "pid": 17455,
+        "source": "darwin-local",
+        "uid": 501
+      },
+      "lease_id": "a10bb386d796",
+      "owner_connection_id": "conn-1-aa960e5a365d",
+      "owner_epoch": 1,
+      "owner_thread_id": "01a09c05-8430-7771-99fb-5b3d48448f23",
+      "role": "owner-helper",
+      "state": "closed"
+    }
+  ],
+  "lease_id": "a10bb386d796",
+  "owner_connection_id": "conn-1-aa960e5a365d",
+  "owner_context_sha256": "c47907c592edb582ea24f9e89e54457bcfdbc270fe90b6f5b6de674369c37302",
+  "owner_epoch": 1,
+  "owner_thread_id": "01a09c05-8430-7771-99fb-5b3d48448f23",
+  "pid": 17336,
+  "private_socket": "/private/tmp/g0-auth-product-e5vm4tip/b/b-a10bb386d796.sock",
+  "private_socket_identity": [
+    16777234,
+    164102805,
+    501,
+    49536
+  ],
+  "process_stopped": true,
+  "profile_id": "native-product-08",
+  "protocol": [
+    {
+      "backend": {
+        "birth": "Mon Sep 14 02:26:42 2026",
+        "complete": true,
+        "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+        "pid": 17336,
+        "source": "darwin-local",
+        "uid": 501
+      },
+      "closed": true,
+      "connection_id": "conn-1-aa960e5a365d",
+      "epoch": 1,
+      "frontend": {
+        "birth": "Mon Sep 14 02:26:41 2026",
+        "complete": true,
+        "executable": "/Users/guanjunhui/.codex/packages/standalone/releases/0.154.0-aarch64-apple-darwin/bin/codex",
+        "pid": 17304,
+        "source": "darwin-local",
+        "uid": 501
+      },
+      "initialize": {
+        "home_match": true,
+        "home_sha256": "e101ad310e8669f9513515a5352e0d4d33b471e5c0928c1598bdf49e89630c62",
+        "request_id": "initialize"
+      },
+      "initialized": true,
+      "lease_id": "a10bb386d796",
+      "profile_id": "native-product-08",
+      "protocol_valid": false,
+      "ready_published": true,
+      "rpc": [
+        {
+          "direction": "client",
+          "event": "rpc",
+          "method": "initialize",
+          "request_id": "initialize"
+        },
+        {
+          "direction": "server",
+          "event": "rpc_response",
+          "method": "initialize",
+          "ok": true,
+          "request_direction": "client",
+          "request_id": "initialize"
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "remoteControl/status/changed",
+          "request_id": null
+        },
+        {
+          "direction": "client",
+          "event": "rpc",
+          "method": "initialized",
+          "request_id": null
+        },
+        {
+          "direction": "client",
+          "event": "rpc_unknown",
+          "method": "account/read",
+          "request_id": 1
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "account/read",
+          "request_id": 1,
+          "response": true
+        },
+        {
+          "direction": "client",
+          "event": "rpc_unknown",
+          "method": "model/list",
+          "request_id": 2
+        },
+        {
+          "direction": "client",
+          "event": "rpc_unknown",
+          "method": "configRequirements/read",
+          "request_id": 3
+        },
+        {
+          "direction": "client",
+          "event": "rpc_unknown",
+          "method": "collaborationMode/list",
+          "request_id": "collaboration-mode-list-1ee9a35d-7297-4363-8c66-78b9ca94ca6c"
+        },
+        {
+          "direction": "client",
+          "event": "rpc_unknown",
+          "method": "hooks/list",
+          "request_id": "hooks-list-f478995d-02ea-41fd-b220-995416039536"
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "collaborationMode/list",
+          "request_id": "collaboration-mode-list-1ee9a35d-7297-4363-8c66-78b9ca94ca6c",
+          "response": true
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "model/list",
+          "request_id": 2,
+          "response": true
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "configRequirements/read",
+          "request_id": 3,
+          "response": true
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "hooks/list",
+          "request_id": "hooks-list-f478995d-02ea-41fd-b220-995416039536",
+          "response": true
+        },
+        {
+          "direction": "client",
+          "event": "rpc_unknown",
+          "method": "config/read",
+          "request_id": "tui-config-read-d5613d24-b017-434a-b7fb-64c5810dc0c7"
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "config/read",
+          "request_id": "tui-config-read-d5613d24-b017-434a-b7fb-64c5810dc0c7",
+          "response": true
+        },
+        {
+          "direction": "client",
+          "event": "rpc",
+          "method": "thread/start",
+          "request_id": "startup-thread-start-c931cb4c-f21f-40c8-89f9-ccfa820d936d"
+        },
+        {
+          "direction": "client",
+          "event": "rpc_unknown",
+          "method": "thread/loaded/list",
+          "request_id": "b16ccd43-99a4-4b2b-81d4-6f9d06a07697"
+        },
+        {
+          "direction": "client",
+          "event": "rpc_unknown",
+          "method": "thread/list",
+          "request_id": "8c33a00f-88b5-4f31-b323-52397b52635a"
+        },
+        {
+          "direction": "client",
+          "event": "rpc_unknown",
+          "method": "thread/list",
+          "request_id": "06e7a4d1-b55c-4d13-b390-dc961e3f1e8d"
+        },
+        {
+          "direction": "client",
+          "event": "rpc",
+          "method": "skills/list",
+          "request_id": "startup-skills-list-8f7e7b6f-dbe1-4cb3-9e6f-29ed7dd8b378"
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "thread/loaded/list",
+          "request_id": "b16ccd43-99a4-4b2b-81d4-6f9d06a07697",
+          "response": true
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "thread/list",
+          "request_id": "8c33a00f-88b5-4f31-b323-52397b52635a",
+          "response": true
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "thread/list",
+          "request_id": "06e7a4d1-b55c-4d13-b390-dc961e3f1e8d",
+          "response": true
+        },
+        {
+          "direction": "server",
+          "event": "rpc_response",
+          "method": "thread/start",
+          "ok": true,
+          "request_direction": "client",
+          "request_id": "startup-thread-start-c931cb4c-f21f-40c8-89f9-ccfa820d936d"
+        },
+        {
+          "direction": "server",
+          "event": "rpc",
+          "method": "thread/started",
+          "request_id": null
+        },
+        {
+          "direction": "server",
+          "event": "rpc_response",
+          "method": "skills/list",
+          "ok": true,
+          "request_direction": "client",
+          "request_id": "startup-skills-list-8f7e7b6f-dbe1-4cb3-9e6f-29ed7dd8b378"
+        },
+        {
+          "direction": "client",
+          "event": "rpc_unknown",
+          "method": "plugin/list",
+          "request_id": "plugin-list-42d908ad-934f-4a4b-a605-347f8f6f229a"
+        },
+        {
+          "direction": "client",
+          "event": "rpc_unknown",
+          "method": "plugin/list",
+          "request_id": "plugin-list-3347b4f6-12ba-4f21-8266-9bb8a500a350"
+        },
+        {
+          "direction": "client",
+          "event": "rpc",
+          "method": "skills/list",
+          "request_id": 4
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "plugin/list",
+          "request_id": "plugin-list-3347b4f6-12ba-4f21-8266-9bb8a500a350",
+          "response": true
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "plugin/list",
+          "request_id": "plugin-list-42d908ad-934f-4a4b-a605-347f8f6f229a",
+          "response": true
+        },
+        {
+          "direction": "server",
+          "event": "rpc_response",
+          "method": "skills/list",
+          "ok": true,
+          "request_direction": "client",
+          "request_id": 4
+        },
+        {
+          "direction": "client",
+          "event": "rpc_unknown",
+          "method": "plugin/list",
+          "request_id": "plugin-list-a0e62d4b-3375-4f3b-905d-6fdb828d0c29"
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "plugin/list",
+          "request_id": "plugin-list-a0e62d4b-3375-4f3b-905d-6fdb828d0c29",
+          "response": true
+        },
+        {
+          "direction": "client",
+          "event": "rpc_unknown",
+          "method": "turn/start",
+          "request_id": 5
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "thread/settings/updated",
+          "request_id": null
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "turn/start",
+          "request_id": 5,
+          "response": true
+        },
+        {
+          "direction": "client",
+          "event": "rpc_unknown",
+          "method": "plugin/list",
+          "request_id": "plugin-list-6abf9052-6487-4cdc-aa30-7051ffeccb8f"
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "plugin/list",
+          "request_id": "plugin-list-6abf9052-6487-4cdc-aa30-7051ffeccb8f",
+          "response": true
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "thread/status/changed",
+          "request_id": null
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "turn/started",
+          "request_id": null
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "item/started",
+          "request_id": null
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "item/completed",
+          "request_id": null
+        },
+        {
+          "direction": "client",
+          "event": "rpc_unknown",
+          "method": "config/read",
+          "request_id": "temporary-config-d8ba5d36-975c-417e-92ca-5a6c15a4ae42"
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "config/read",
+          "request_id": "temporary-config-d8ba5d36-975c-417e-92ca-5a6c15a4ae42",
+          "response": true
+        },
+        {
+          "direction": "client",
+          "event": "rpc",
+          "method": "thread/start",
+          "request_id": "temporary-structured-d1fd8976-aeea-4f94-8dd6-1c95526de32d"
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "item/started",
+          "request_id": null
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "item/agentMessage/delta",
+          "request_id": null
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "item/completed",
+          "request_id": null
+        },
+        {
+          "direction": "server",
+          "event": "rpc_response",
+          "method": "thread/start",
+          "ok": true,
+          "request_direction": "client",
+          "request_id": "temporary-structured-d1fd8976-aeea-4f94-8dd6-1c95526de32d"
+        },
+        {
+          "direction": "server",
+          "event": "rpc",
+          "method": "thread/started",
+          "request_id": null
+        },
+        {
+          "direction": "client",
+          "event": "rpc_unknown",
+          "method": "turn/start",
+          "request_id": "temporary-structured-turn-0c1c7f07-ba00-4e97-af19-c59f5c94d600"
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "thread/settings/updated",
+          "request_id": null
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "turn/start",
+          "request_id": "temporary-structured-turn-0c1c7f07-ba00-4e97-af19-c59f5c94d600",
+          "response": true
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "thread/status/changed",
+          "request_id": null
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "turn/started",
+          "request_id": null
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "item/started",
+          "request_id": null
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "item/completed",
+          "request_id": null
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "thread/tokenUsage/updated",
+          "request_id": null
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "account/rateLimits/updated",
+          "request_id": null
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "thread/status/changed",
+          "request_id": null
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "turn/completed",
+          "request_id": null
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "thread/status/changed",
+          "request_id": null
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "error",
+          "request_id": null
+        },
+        {
+          "direction": "server",
+          "event": "rpc_unknown",
+          "method": "turn/completed",
+          "request_id": null
+        },
+        {
+          "direction": "client",
+          "event": "rpc",
+          "method": "thread/unsubscribe",
+          "request_id": "temporary-structured-unsubscribe-89c15446-5a2f-4925-9359-75c9c7e5e978"
+        },
+        {
+          "direction": "server",
+          "event": "rpc_response",
+          "method": "thread/unsubscribe",
+          "ok": true,
+          "request_direction": "client",
+          "request_id": "temporary-structured-unsubscribe-89c15446-5a2f-4925-9359-75c9c7e5e978"
+        },
+        {
+          "direction": "client",
+          "event": "rpc",
+          "method": "thread/unsubscribe",
+          "request_id": 6
+        },
+        {
+          "direction": "server",
+          "event": "rpc_response",
+          "method": "thread/unsubscribe",
+          "ok": true,
+          "request_direction": "client",
+          "request_id": 6
+        }
+      ],
+      "thread": {
+        "id": "01a09c05-8430-7771-99fb-5b3d48448f23",
+        "start_request_id": "temporary-structured-d1fd8976-aeea-4f94-8dd6-1c95526de32d",
+        "started_id": "01a09c05-8430-7771-99fb-5b3d48448f23"
+      },
+      "turn_counts": {
+        "start": 2,
+        "steer": 0
+      },
+      "zero_turns": false
+    }
+  ],
+  "restart_allowed": false,
+  "returncode": 0,
+  "socket_removed": true,
+  "state": "closed",
+  "stderr": {
+    "bytes": 2948,
+    "sha256": "b55eaa6f690c7e1f5f464ced8baf37b592cb44a9ffaeeb2c6f922db1cdb60863"
+  },
+  "stdout": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "tree_stop_unproven": true
+}

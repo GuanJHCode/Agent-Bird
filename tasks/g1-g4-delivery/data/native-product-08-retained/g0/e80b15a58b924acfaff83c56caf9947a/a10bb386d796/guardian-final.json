@@ -1,0 +1,1 @@
+{"child_birth":"Mon Sep 14 02:26:42 2026","child_pid":17336,"child_reaped":true,"child_returncode":0,"guardian_pid":17335,"kill_requested":false,"nonce":"62644c78786e473ebd31d750ec28a4ce","owner_pid":17289,"reason":"controller_stop","restart_allowed":false,"state":"stopped","term_requested":true,"tree_stop_unproven":true,"uid":501,"version":1}
