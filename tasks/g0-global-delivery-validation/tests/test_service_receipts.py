@@ -85,8 +85,11 @@ def test_receipt_publisher_refuses_existing_and_stage_symlink(tmp_path, monkeypa
     monkeypatch.setattr(activation_service.os, "rename", replace_stage_before_quarantine)
     with pytest.raises(RuntimeError, match="ownership unknown"):
         activation_service._publish_receipt(parent / "race.json", {"version": 1})
-    quarantine = list(parent.glob(".race.json.race.quarantine"))
-    assert len(quarantine) == 1 and quarantine[0].is_symlink()
+    quarantine = parent / ".race.json.race.quarantine"
+    assert quarantine.is_dir()
+    assert quarantine.stat().st_uid == os.getuid()
+    assert quarantine.stat().st_mode & 0o777 == 0o700
+    assert (quarantine / "entry").is_symlink()
     assert race_target.read_text() == "foreign-race"
     # The failed final publication is retained as UNKNOWN evidence.
     assert (parent / "race.json").exists()

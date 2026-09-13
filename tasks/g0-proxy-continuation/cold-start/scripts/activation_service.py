@@ -141,21 +141,33 @@ def _publish_receipt(path: Path, value: dict, *, expected_parent=None) -> None:
         cleanup_error = None
         if created_stage and stage_identity is not None and descriptor is not None:
             quarantine_name = f".{path.name}.{uuid.uuid4().hex}.quarantine"
+            quarantine_dir_fd = None
+            quarantine_entry_fd = None
             try:
-                os.rename(stage_name, quarantine_name,
-                    src_dir_fd=directory_fd, dst_dir_fd=directory_fd)
-                quarantine_fd = None
-                try:
-                    quarantine_fd = os.open(quarantine_name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
-                        dir_fd=directory_fd)
-                    moved = os.fstat(quarantine_fd)
-                    original = os.fstat(descriptor)
-                    if (moved.st_dev, moved.st_ino) != (original.st_dev, original.st_ino):
-                        raise RuntimeError('receipt stage ownership unknown')
-                finally:
-                    if quarantine_fd is not None:
-                        os.close(quarantine_fd)
-                os.unlink(quarantine_name, dir_fd=directory_fd)
+                os.mkdir(quarantine_name, 0o700, dir_fd=directory_fd)
+                quarantine_dir_fd = os.open(quarantine_name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                    dir_fd=directory_fd)
+                quarantine_info = os.fstat(quarantine_dir_fd)
+                if (not stat.S_ISDIR(quarantine_info.st_mode)
+                        or quarantine_info.st_uid != os.getuid()
+                        or stat.S_IMODE(quarantine_info.st_mode) != 0o700):
+                    raise RuntimeError('receipt stage ownership unknown')
+                # Rename the current stage entry into the private directory.
+                # The source path is never stat-then-unlinked.
+                os.rename(stage_name, 'entry', src_dir_fd=directory_fd, dst_dir_fd=quarantine_dir_fd)
+                quarantine_entry_fd = os.open('entry', os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
+                    dir_fd=quarantine_dir_fd)
+                moved = os.fstat(quarantine_entry_fd)
+                original = os.fstat(descriptor)
+                if (moved.st_dev, moved.st_ino) != (original.st_dev, original.st_ino):
+                    raise RuntimeError('receipt stage ownership unknown')
+                os.close(quarantine_entry_fd)
+                quarantine_entry_fd = None
+                os.unlink('entry', dir_fd=quarantine_dir_fd)
+                os.fsync(quarantine_dir_fd)
+                os.close(quarantine_dir_fd)
+                quarantine_dir_fd = None
+                os.rmdir(quarantine_name, dir_fd=directory_fd)
                 os.fsync(directory_fd)
             except FileNotFoundError:
                 pass
@@ -163,6 +175,11 @@ def _publish_receipt(path: Path, value: dict, *, expected_parent=None) -> None:
                 cleanup_error = exc
             except OSError:
                 cleanup_error = RuntimeError('receipt stage ownership unknown')
+            finally:
+                if quarantine_entry_fd is not None:
+                    os.close(quarantine_entry_fd)
+                if quarantine_dir_fd is not None:
+                    os.close(quarantine_dir_fd)
         if descriptor is not None:
             os.close(descriptor)
         os.close(directory_fd)
