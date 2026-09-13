@@ -4,6 +4,7 @@ No token, RPC body or inherited environment is recorded.  Auth confinement is
 provided by the separately reviewed auth_isolation launch-plan adapter.
 """
 from __future__ import annotations
+import re
 
 import asyncio
 from contextlib import asynccontextmanager
@@ -196,6 +197,26 @@ def _same_process(peer,pid,birth,executable) -> bool:
                 and peer.executable and os.path.realpath(peer.executable)==os.path.realpath(executable))
 
 
+def _original_process_gone(pid,birth,executable):
+    if type(pid) is not int or pid<=0 or not birth or not executable:raise ValueError('original identity incomplete')
+    current_birth,current_executable=_process_metadata(pid)
+    if current_birth and current_executable:return current_birth!=birth
+    if current_birth is None and current_executable is None:
+        try:os.kill(pid,0)
+        except ProcessLookupError:return True
+        except PermissionError:pass
+    raise ValueError('original process state unknown')
+
+
+def native_tui_policy(value):
+    if value is None:return None
+    expected={'version':1,'resume_owned_thread':True,'initial_history_discovery':True}
+    if (not isinstance(value,dict) or value!=expected or type(value.get('version')) is not int
+        or any(type(value.get(k)) is not bool for k in ('resume_owned_thread','initial_history_discovery'))):
+        raise ValueError('invalid native TUI policy')
+    return dict(expected)
+
+
 class _ActivationObserver(Observer):
     """Reuse the fixed bounded decoder; add only initialize home equality/digest."""
     def __init__(self,expected_home,**kwargs):
@@ -290,12 +311,31 @@ class MetadataSink(CaptureSink):
                     if state['initialized'] or state['initialize'].get('home_match') is not True:
                         state['protocol_valid']=False
                     state['initialized']=True
+                elif method=='thread/resume':
+                    expected=state['lease'].get('expected_resume_thread_id')
+                    if (not state['initialized'] or state['thread'] or not self._thread_id(expected)
+                        or row.get('params',{}).get('threadId')!=expected):state['protocol_valid']=False
+                    state['thread']['resume_request_id']=request_id
+                elif method=='skills/list' and state['thread'].get('resume_response'):
+                    state['thread']['skills_request_id']=request_id
                 elif method=='thread/start':
+                    if state['lease'].get('expected_resume_thread_id') is not None:state['protocol_valid']=False
                     if not state['initialized'] or state['thread'].get('id') is not None:
                         state['protocol_valid']=False
                     if row.get('params',{}).get('cwd')!=state['lease'].get('expected_cwd'):
                         state['protocol_valid']=False
                     state['thread']['start_request_id']=request_id
+            elif event=='rpc_response' and method=='thread/resume':
+                thread=row.get('thread',{});expected=state['lease'].get('expected_resume_thread_id')
+                if (row.get('ok') is not True or row.get('direction')!='server' or row.get('request_direction')!='client'
+                    or state['thread'].get('resume_request_id')!=request_id or state['thread'].get('resume_response')
+                    or not self._thread_id(expected) or thread.get('id')!=expected or thread.get('cwd')!=state['lease'].get('expected_cwd')):
+                    state['protocol_valid']=False
+                else:state['thread'].update(id=expected,resume_response=True)
+            elif event=='rpc_response' and method=='skills/list' and state['thread'].get('resume_response'):
+                if (row.get('ok') is True and row.get('direction')=='server' and row.get('request_direction')=='client'
+                    and state['thread'].get('skills_request_id')==request_id):state['thread']['resume_barrier']=True
+                else:state['protocol_valid']=False
             elif event=='rpc_response' and method=='thread/start' and row.get('ok') is True:
                 thread=row.get('thread',{}); identifier=thread.get('id')
                 if (row.get('direction')!='server' or row.get('request_direction')!='client'
@@ -321,7 +361,7 @@ class MetadataSink(CaptureSink):
         return (state['protocol_valid'] and not state['closed'] and not state['ready_published']
             and state['upgrades']=={'client','server'} and state['initialized']
             and state['initialize'].get('home_match') is True and state['thread'].get('id') is not None
-            and state['thread'].get('id')==state['thread'].get('started_id')
+            and (state['thread'].get('id')==state['thread'].get('started_id') or state['thread'].get('resume_barrier') is True)
             and not any(state['turn_counts'].values()))
 
     @staticmethod
@@ -356,6 +396,7 @@ class ActivationService:
         import auth_isolation
         self.auth=auth_isolation
         if manifest.get('version')!=1: raise ValueError('unsupported activation manifest')
+        self.native_tui_policy=native_tui_policy(manifest.get('native_tui_policy'))
         self.manifest=manifest
         self.manifest_sha256=manifest_sha256
         self.public_socket=Path(manifest['public_socket'])
@@ -438,7 +479,8 @@ class ActivationService:
                 and record['frontend']==_peer(event.frontend_peer)):
                 context=self.contexts[record['profile_id']]
                 return {'lease_id':record['lease_id'],'profile_id':record['profile_id'],
-                    'expected_home':str(context.spec.codex_home),'expected_cwd':str(context.spec.workspace)}
+                    'expected_home':str(context.spec.codex_home),'expected_cwd':str(context.spec.workspace),
+                    **({'expected_resume_thread_id':record['expected_resume_thread_id']} if record.get('expected_resume_thread_id') else {})}
         return None
 
     def record_startup_failure(self,stage,exc):
@@ -599,6 +641,33 @@ class ActivationService:
         while chunk:=await stream.read(65536): size+=len(chunk); digest.update(chunk)
         return {'bytes':size,'sha256':digest.hexdigest()}
 
+    def _resume_owner_proof(self,proof,resume_id,profile,context):
+        if not isinstance(proof,dict) or set(proof)!={'activation_id','lease_id','ready_sha256','backend_sha256'}:
+            raise ValueError('resume owner proof missing')
+        activation=proof['activation_id'];lease=proof['lease_id']
+        if not isinstance(activation,str) or re.fullmatch('[0-9a-f]{32}',activation) is None or not isinstance(lease,str) or re.fullmatch('[0-9a-f]{12}',lease) is None:
+            raise ValueError('resume proof identity invalid')
+        parent=self.state_dir/activation;_private_directory(parent)
+        ready,ready_sha=_private_json(parent/f'ready-{lease}.json')
+        final,final_sha=_private_json(parent/f'backend-{lease}.json')
+        if ready_sha!=proof['ready_sha256'] or final_sha!=proof['backend_sha256']:
+            raise ValueError('resume proof changed')
+        binding=ready.get('owner_lease',{})
+        if (ready.get('activation_id')!=activation or ready.get('manifest_sha256')!=self.manifest_sha256
+            or binding.get('lease_id')!=lease or binding.get('owner_thread_id')!=resume_id or binding.get('profile_id')!=profile
+            or binding.get('owner_context_sha256')!=self._owner_context_sha(context)
+            or any(final.get(k)!=binding.get(k) for k in ('lease_id','profile_id','owner_thread_id','owner_context_sha256','owner_connection_id','owner_epoch','private_socket'))
+            or final.get('pid')!=binding.get('backend_pid') or final.get('birth')!=binding.get('backend_birth')
+            or final.get('frontend')!=ready.get('frontend') or final.get('state')!='closed' or not final.get('process_stopped') or not final.get('socket_removed')
+            or final.get('cleanup_failure') or final.get('guardian',{}).get('child_reaped') is not True):
+            raise ValueError('resume proof owner/cleanup mismatch')
+        if (any(row.get('state')!='closed' for row in final.get('helpers',[]))
+            or not _original_process_gone(final['pid'],final['birth'],final['executable'])
+            or not _original_process_gone(final['frontend']['pid'],final['frontend']['birth'],final['frontend']['executable'])
+            or os.path.lexists(final['private_socket'])):raise ValueError('resume owner resources remain')
+        service=binding.get('service_identity',{})
+        if activation!=self.activation_id and not _original_process_gone(service['pid'],service['birth'],service['executable']):raise ValueError('prior service remains')
+
     @asynccontextmanager
     async def _backend(self,frontend):
         key=(frontend.pid,frontend.birth,frontend.executable)
@@ -617,6 +686,12 @@ class ActivationService:
         # Admission is reusable for a no-RPC startup probe, but cannot be remapped.
         profile,grant_sha=self._admissions[key]
         context=self.contexts[profile]
+        grant,current_sha=_private_json(self.grants_dir/f'{frontend.pid}.json')
+        if current_sha!=grant_sha:raise ValueError('owner grant changed before launch')
+        resume_id=grant.get('expected_resume_thread_id')
+        if resume_id is not None:
+            if self.native_tui_policy is None or not MetadataSink._thread_id(resume_id):raise ValueError('resume policy absent')
+            self._resume_owner_proof(grant.get('resume_owner_proof'),resume_id,profile,context)
         start=time.monotonic(); deadline=start+LOCAL_SECONDS
         lock=self._profile_locks[profile]
         await asyncio.wait_for(lock.acquire(),max(0,deadline-time.monotonic()))
@@ -624,7 +699,7 @@ class ActivationService:
             self._check_runtime_policy()
             if not self._admit(frontend) or self._admissions[key]!=(profile,grant_sha):
                 raise ValueError('frontend grant changed before backend start')
-            async with self._leased_backend(frontend,profile,grant_sha,context,start,deadline) as lease:
+            async with self._leased_backend(frontend,profile,grant_sha,context,start,deadline,resume_id) as lease:
                 yield lease
         finally:
             lock.release()
@@ -674,7 +749,7 @@ class ActivationService:
             helper_record['state']='closed'
 
     @asynccontextmanager
-    async def _leased_backend(self,frontend,profile,grant_sha,context,start,deadline):
+    async def _leased_backend(self,frontend,profile,grant_sha,context,start,deadline,resume_id=None):
         lease_id=uuid.uuid4().hex[:12]
         lease_dir=self.receipt_dir/lease_id
         lease_dir.mkdir(mode=0o700)
@@ -684,6 +759,7 @@ class ActivationService:
         if os.path.lexists(private_socket): raise FileExistsError('private backend path already exists')
         record={'lease_id':lease_id,'profile_id':profile,'grant_sha256':grant_sha,'frontend':_peer(frontend),
             'private_socket':str(private_socket),'state':'starting','process_stopped':False,'socket_removed':False}
+        if resume_id is not None:record['expected_resume_thread_id']=resume_id
         self.backend_records.append(record)
         process=None; birth=None; creation_birth=None; identity=None; outputs=[]; writer=None; launch_attempted=False
         owner_connected_path=self.receipt_dir/f'owner-connected-{lease_id}-{frontend.pid}.json'

@@ -75,6 +75,44 @@ class InheritedFdScheduler:
             t=threading.Thread(target=digest,args=(name,stream),daemon=True);t.start();self._threads.append(t)
         t=threading.Thread(target=self.process.wait,daemon=True);t.start();self._threads.append(t)
         return 0
+    def activate_successor(self,activation_id,final_sha256):
+        """Private-only one successor after a fully stopped prior service."""
+        from activation_service import _private_json,native_tui_policy,_original_process_gone
+        from receipt_store import ReceiptStore
+        self._remaining();self.verify()
+        manifest,digest=_private_json(self.spec.manifest_path)
+        if digest!=self.spec.manifest_sha256 or native_tui_policy(manifest.get('native_tui_policy')) is None:
+            raise ValueError('successor is not in the frozen TUI policy')
+        if getattr(self,'successor_started',False) or not self._job or self.process is None or self.process.poll() is None:
+            raise ValueError('prior service is not stopped')
+        if not _original_process_gone(self.process.pid,*self._identity):raise ValueError('prior service identity remains')
+        store=ReceiptStore(Path(manifest['state_dir']),activation_id=activation_id)
+        try:
+            captured=store.read('activation.json')
+            if captured is None or captured[1]!=final_sha256:raise ValueError('prior service final missing')
+            final=captured[0];rows=final.get('backend_records',[])
+            if final.get('manifest_sha256')!=digest or len(rows)!=1:raise ValueError('prior service final differs')
+            for row in rows:
+                if (row.get('state')!='closed' or row.get('process_stopped') is not True or row.get('socket_removed') is not True
+                    or row.get('cleanup_failure') or row.get('guardian',{}).get('child_reaped') is not True
+                    or not _original_process_gone(row['pid'],row['birth'],row['executable']) or os.path.lexists(row['private_socket'])):
+                    raise ValueError('prior backend cleanup unproven')
+        finally:store.close()
+        self.previous_service={'pid':self.process.pid,'identity':self._identity,'final_sha256':final_sha256}
+        self.successor_started=True;self._remaining()
+        self.process=subprocess.Popen(self.actual_argv,pass_fds=(self.listener.fileno(),),stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,stderr=subprocess.PIPE,env={'PATH':'/usr/bin:/bin','LANG':'C'})
+        self._identity=_process_metadata(self.process.pid)
+        if not all(self._identity):raise ValueError('successor identity unavailable')
+        def digest_stream(name,stream):
+            value=hashlib.sha256();count=0
+            while block:=stream.read(65536):value.update(block);count+=len(block)
+            self.digests['successor_'+name]={'bytes':count,'sha256':value.hexdigest()};stream.close()
+        for name,stream in (('stdout',self.process.stdout),('stderr',self.process.stderr)):
+            thread=threading.Thread(target=digest_stream,args=(name,stream),daemon=True);thread.start();self._threads.append(thread)
+        thread=threading.Thread(target=self.process.wait,daemon=True);thread.start();self._threads.append(thread)
+        return self.process.pid
+
     def bootout(self,domain,path):
         self._remaining()
         if not self._job:return 0

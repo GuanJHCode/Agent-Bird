@@ -1,0 +1,10 @@
+F.....                                                                   [100%]
+=================================== FAILURES ===================================
+______ test_resume_requires_owned_target_and_fresh_response_barrier[None] ______
+tasks/g1-g4-delivery/tests/test_native_resume_gate.py:26: in test_resume_requires_owned_target_and_fresh_response_barrier
+    assert bool(paths)==(fault is None)
+E   assert False == (None is None)
+E    +  where False = bool([])
+=========================== short test summary info ============================
+FAILED tasks/g1-g4-delivery/tests/test_native_resume_gate.py::test_resume_requires_owned_target_and_fresh_response_barrier[None]
+1 failed, 5 passed in 0.14s

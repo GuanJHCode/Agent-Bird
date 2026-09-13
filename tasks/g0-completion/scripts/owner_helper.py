@@ -295,6 +295,13 @@ def validate_helper_rpc(message: object, owner_thread_id: str) -> None:
         if params != {"threadId": owner_thread_id, "includeTurns": True}:
             _reject("rpc_thread_envelope")
         return
+    if method == "thread/turns/list":
+        if (set(params)!={"threadId","cursor","limit","sortDirection","itemsView"}
+                or params["threadId"]!=owner_thread_id or params["sortDirection"]!="asc" or params["itemsView"]!="full"
+                or type(params["limit"]) is not int or not 1<=params["limit"]<=64
+                or params["cursor"] is not None and (type(params["cursor"]) is not str or not 0<len(params["cursor"])<=256)):
+            _reject("rpc_turns_envelope")
+        return
     if method == "turn/start":
         _validate_turn_start(params, owner_thread_id)
         return

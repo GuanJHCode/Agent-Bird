@@ -351,19 +351,10 @@ class DeliveryAdapter:
         intent = capability.native_envelope
         value = audit_history({"version": 1, "intent": intent, "reads": reads, "acks": decisions or []})
         _require(value.get("transport_evidence") == "exact_history_marker", "history_uncertain")
-        matched = set()
-        for read in reads:
-            thread = read.get("response", {}).get("result", {}).get("thread", {})
-            for turn in thread.get("turns", []) if isinstance(thread, dict) else []:
-                for item in turn.get("items", []) if isinstance(turn, dict) else []:
-                    if item.get("type") == "functionCallOutput" and item.get("name") == "g0_delivery" and item.get("namespace") == "orchestration":
-                        try:
-                            output = json.loads(item.get("output", ""))
-                        except (TypeError, ValueError):
-                            continue
-                        if output == dict(intent):
-                            for event in intent["events"]:
-                                matched.add(event["event_id"])
+        # The auditor already matched the entire immutable envelope, including
+        # every event. Its proof supports both full thread/read and cursor-
+        # complete turns/items pages; a second legacy-only scan loses that fact.
+        matched = {event["event_id"] for event in intent["events"]}
         reads_bytes = _canonical(reads).encode()
         envelope_bytes = _canonical(intent).encode()
         summary_bytes = _canonical(value).encode()

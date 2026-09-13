@@ -72,7 +72,7 @@ async def wait_parent_admission(config,peer,mode,manifest):
     require(manifest['file_pins'].get(str(receipt_source))==sha(receipt_source),'admission reader is not pinned')
     sys.path.insert(0,str(receipt_source.parent))
     from receipt_store import ReceiptStore
-    store=ReceiptStore(Path(manifest['state_dir']))
+    store=ReceiptStore(Path(manifest['state_dir']),activation_id=admitted['activation_id'])
     try:
         captured=store.read(name)
         require(captured is not None and store.activation_id==admitted['activation_id'],'admission receipt missing')
@@ -97,6 +97,8 @@ def validate_config(config,role):
     require(manifest['public_socket']==config['public_socket'],'public socket mapping changed')
     require(all(sha(path)==value for path,value in manifest['file_pins'].items()),'source pins changed')
     external_admission_mode(config,manifest)
+    policy=activation_service.native_tui_policy(manifest.get('native_tui_policy'))
+    require(config.get('native_tui_policy')==policy,'native TUI policy changed')
     grant,digest=activation_service._private_json(Path(config['grant_path']))
     require(digest==config['grant_sha256'] and grant['profile_id']==config['profile_id'],'grant changed')
     birth,executable=proxy_transport._process_metadata(os.getpid())
@@ -136,7 +138,7 @@ class HelperChannel:
         raw=transport.encoded(packet);self.bytes+=len(raw);self.frames+=1
         require(self.frames<=512 and self.bytes<=4*1024*1024,'helper wire budget')
         method=packet.get('method')
-        self.envelopes.append({'direction':direction,'method':method if method in owner_helper._SERVER_NOTIFICATIONS or method in ('initialize','initialized','turn/start','thread/read') else None,
+        self.envelopes.append({'direction':direction,'method':method if method in owner_helper._SERVER_NOTIFICATIONS or method in ('initialize','initialized','turn/start','thread/read','thread/turns/list') else None,
             'request_id':packet.get('id') if type(packet.get('id')) is int else None,'sha256':hashlib.sha256(raw).hexdigest(),'bytes':len(raw)})
     async def send_rpc(self,packet):
         self.record('client',packet)
@@ -193,7 +195,7 @@ async def owner(config):
         except Exception:pass
 
 
-def verify_history(history,capability,initial_turn_id,packets):
+def verify_history(history,capability,initial_turn_id,packets,*,paginated=False):
     responses=[packet for packet in packets if packet.get('id')==2]
     require(len(responses)==1 and 'error' not in responses[0],'delivery receipt missing')
     turn_id=responses[0]['result']['turn']['id'];require(turn_id!=initial_turn_id,'delivery reused initial turn')
@@ -205,7 +207,7 @@ def verify_history(history,capability,initial_turn_id,packets):
         if packet.get('method') in ('item/started','item/completed','item/agentMessage/delta'):
             require(packet['params']['turnId']==turn_id,'delivery item turn changed')
     thread=history['response']['result']['thread'];turns=thread.get('turns',[])
-    require(thread.get('id')==capability.binding.owner_thread_id and thread.get('historyMode')=='legacy','history owner/mode mismatch')
+    require(thread.get('id')==capability.binding.owner_thread_id and thread.get('historyMode')==('paginated' if paginated else 'legacy'),'history owner/mode mismatch')
     require(len(turns)==2 and [turn['id'] for turn in turns]==[initial_turn_id,turn_id],'history turn chain mismatch')
     for index,turn in enumerate(turns):
         require(turn.get('status')=='completed' and not turn.get('error'),'history incomplete')
@@ -214,7 +216,7 @@ def verify_history(history,capability,initial_turn_id,packets):
     return turn_id
 
 
-async def read_completed_history(channel,capability,initial_turn_id,packets,deadline):
+async def read_completed_history(channel,capability,initial_turn_id,packets,deadline,*,paginated=False):
     receipts=[packet for packet in packets if packet.get('id')==2]
     require(len(receipts)==1 and 'error' not in receipts[0],'delivery receipt missing')
     delivery_turn_id=receipts[0]['result']['turn']['id']
@@ -232,14 +234,14 @@ async def read_completed_history(channel,capability,initial_turn_id,packets,dead
             require('method' in response,'unpaired history response');packets.append(response)
         require('error' not in response,'history read rejected')
         thread=response['result']['thread'];turns=thread.get('turns')
-        require(thread.get('id')==capability.binding.owner_thread_id and thread.get('historyMode')=='legacy','history owner/mode mismatch')
+        require(thread.get('id')==capability.binding.owner_thread_id and thread.get('historyMode')==('paginated' if paginated else 'legacy'),'history owner/mode mismatch')
         require(isinstance(turns,list) and 1<=len(turns)<=2 and turns[0].get('id')==initial_turn_id,'history turn chain mismatch')
         require(turns[0].get('status')=='completed' and not turns[0].get('error'),'initial history incomplete')
         if len(turns)==2:
             require(turns[1].get('id')==delivery_turn_id and turns[1].get('status') in ('inProgress','completed') and not turns[1].get('error'),'delivery history identity or status mismatch')
             if turns[1]['status']=='completed':
                 history={'request':request,'response':response}
-                verify_history(history,capability,initial_turn_id,packets)
+                verify_history(history,capability,initial_turn_id,packets,paginated=paginated)
                 return history,delivery_turn_id,{'source':'same_service_thread_read','read_count':attempt+1,
                     'request_id':request['id'],'notification_completion_observed':any(p.get('method')=='turn/completed' for p in packets)}
         if attempt<19:
@@ -247,10 +249,61 @@ async def read_completed_history(channel,capability,initial_turn_id,packets,dead
     raise TimeoutError('bounded history attempts exhausted')
 
 
+async def discover_initial_history(channel,config):
+    request={'id':1001,'method':'thread/read','params':{'threadId':config['thread_id'],'includeTurns':True}}
+    end=min(config['deadline'],config['local_deadline'])
+    timeout=transport.remaining(end);await asyncio.wait_for(channel.send_rpc(request),timeout)
+    while True:
+        timeout=transport.remaining(end);packet=await asyncio.wait_for(channel.read_rpc(),timeout)
+        if packet.get('id')==1001:break
+        require('method' in packet,'initial history unpaired response')
+    require('error' not in packet,'initial history rejected')
+    thread=packet['result']['thread'];turns=thread.get('turns')
+    require(thread.get('id')==config['thread_id'] and thread.get('cwd')==config['workspace'] and thread.get('historyMode')=='paginated','initial history identity changed')
+    require(isinstance(turns,list) and len(turns)==1,'initial history ambiguous')
+    turn=turns[0];require(isinstance(turn.get('id'),str) and turn['id'] and turn.get('status')=='completed' and not turn.get('error'),'initial history incomplete')
+    items=turn.get('items',[]);messages=[item for item in items if item.get('type')=='agentMessage']
+    inputs=[item for item in items if item.get('type')=='userMessage']
+    require(len(messages)==1 and messages[0].get('text')=='READY' and len(inputs)==1,'initial history marker mismatch')
+    content=inputs[0].get('content')
+    require(isinstance(content,list) and len(content)==1 and isinstance(content[0],dict)
+        and set(content[0])<= {'type','text','text_elements'} and content[0].get('type')=='text'
+        and content[0].get('text')=='G0_SYNTHETIC_READY' and content[0].get('text_elements',[])==[],'initial input mismatch')
+    transport.remaining(end)
+    return turn['id'],hashlib.sha256(transport.encoded({'request':request,'response':packet})).hexdigest()
+
+
+async def capture_paginated_history(channel,config,initial_turn_id,delivery_turn_id,end):
+    end=min(config['deadline'],end);cursor=None;seen=set();reads=[];turns=[]
+    for index in range(8):
+        request={'id':2001+index,'method':'thread/turns/list','params':{'threadId':config['thread_id'],
+            'cursor':cursor,'limit':2,'sortDirection':'asc','itemsView':'full'}}
+        timeout=transport.remaining(end);await asyncio.wait_for(channel.send_rpc(request),timeout)
+        while True:
+            timeout=transport.remaining(end);response=await asyncio.wait_for(channel.read_rpc(),timeout)
+            if response.get('id')==request['id']:break
+            require('method' in response,'unpaired page response')
+        require('error' not in response,'history page rejected')
+        result=response['result'];page=result.get('data')
+        require(isinstance(page,list) and len(page)<=2,'history page size')
+        turns.extend(page);require(len(turns)<=2,'history page chain grew')
+        require(all(turn.get('itemsView')=='full' and turn.get('status')=='completed' and not turn.get('error') for turn in page),'history page incomplete')
+        reads.append({'request':request,'response':response})
+        cursor=result.get('nextCursor')
+        if cursor is None:
+            require([turn.get('id') for turn in turns]==[initial_turn_id,delivery_turn_id],'paged turn chain changed')
+            transport.remaining(end);return reads
+        require(type(cursor) is str and 0<len(cursor)<=256 and cursor not in seen,'history cursor repeated or invalid')
+        seen.add(cursor)
+    raise ValueError('history page limit exceeded')
+
+
 async def helper(config):
     global CURRENT_STAGE
     CURRENT_STAGE='helper-validate'
     manifest,grant=validate_config(config,'helper');mode=external_admission_mode(config,manifest)
+    discover=manifest.get('native_tui_policy') is not None
+    require(not discover or mode=='inherited_fd','native TUI discovery is private only')
     transport.remaining(config['local_deadline'])
     require(os.environ.get('CODEX_THREAD_ID')==config['thread_id'],'Go injected owner context mismatch')
     adapter=DeliveryAdapter(config['go_binary'],expected_sha256=config['go_sha256'],owner_context_sha256=grant['owner_context_sha256'])
@@ -264,7 +317,7 @@ async def helper(config):
     channel=HelperChannel(connection,config['deadline'])
     try:
         await wait_parent_admission(config,peer,mode,manifest)
-        if mode is not None:
+        if mode is not None and not discover:
             CURRENT_STAGE='helper-prepare-claim'
             capability=adapter.prepare_and_claim(binding,Path(config['task_dir']),config['delivery_id'],config['events'],env={'CODEX_THREAD_ID':config['thread_id']})
         CURRENT_STAGE='helper-initialize'
@@ -277,17 +330,26 @@ async def helper(config):
         transport.remaining(config['local_deadline'])
         await channel.send_rpc({'method':'initialized'})
         transport.remaining(config['local_deadline'])
+        initial_history_sha=None
+        if discover:
+            require(config.get('initial_turn_id') is None,'TUI initial history must come from the backend')
+            initial_turn,initial_history_sha=await discover_initial_history(channel,config)
+            config=dict(config,initial_turn_id=initial_turn)
+            CURRENT_STAGE='helper-prepare-claim'
+            capability=adapter.prepare_and_claim(binding,Path(config['task_dir']),config['delivery_id'],config['events'],env={'CODEX_THREAD_ID':config['thread_id']})
         CURRENT_STAGE='helper-send'
         timeout=transport.remaining(config['deadline'])
         packets=await asyncio.wait_for(adapter.send_tool_output_once(channel,capability,request_id=2,wait_for_completion=False),timeout)
         CURRENT_STAGE='helper-history'
-        history,delivery_turn_id,history_observation=await read_completed_history(channel,capability,config['initial_turn_id'],packets,config['deadline'])
-        proof=adapter.audit_history(capability,[history])
+        history_deadline=min(config['deadline'],transport.now()+10)
+        history,delivery_turn_id,history_observation=await read_completed_history(channel,capability,config['initial_turn_id'],packets,history_deadline,paginated=discover)
+        reads=await capture_paginated_history(channel,config,config['initial_turn_id'],delivery_turn_id,history_deadline) if discover else [history]
+        proof=adapter.audit_history(capability,reads)
         require(proof.summary['captured_page_chain_complete'] and proof.summary['matched_history_items']==1,'history proof incomplete')
         proof_row={'event':'history_proof','thread_id':config['thread_id'],'initial_turn_id':config['initial_turn_id'],'delivery_turn_id':delivery_turn_id,
             'lease_id':config['lease_id'],'public_peer':peer,'grant_sha256':config['grant_sha256'],'manifest_sha256':config['manifest_sha256'],
             'native_envelope_sha256':capability.native_envelope_sha256,'go_intent_sha256':capability.go_intent_sha256,'claim_sha256':capability.claim_sha256,
-            'reads_sha256':proof.reads_sha256,'matched_event_ids':sorted(proof.matched_event_ids),'summary':proof.summary,'envelopes':channel.envelopes,'history_observation':history_observation}
+            'reads_sha256':proof.reads_sha256,'matched_event_ids':sorted(proof.matched_event_ids),'summary':proof.summary,'envelopes':channel.envelopes,'history_observation':history_observation,**({'initial_history_sha256':initial_history_sha} if initial_history_sha else {})}
         emit(proof_row)
         CURRENT_STAGE='helper-decision'
         decision=await control(config['deadline'])

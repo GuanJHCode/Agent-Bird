@@ -26,11 +26,14 @@ REGISTER_SECONDS=30.;REVOKE_SECONDS=30.;TOTAL_SECONDS=120.;CLEANUP_SECONDS=10.
 require=base.require;now=base.transport.now;remaining=base.transport.remaining;sha=base.sha;write=base.write
 
 
-def source_pins():
+def source_pins(native_tui_policy=None):
     pins=base.source_pins()
     paths=[Path(__file__).resolve(),Path(__file__).with_name('receipt_store.py'),Path(__file__).with_name('inherited_fd_scheduler.py'),ENTRYPOINT,
         ROOT/'tasks/g0-proxy-continuation/cold-start/scripts/launch_activation.py',ROOT/'tasks/g0-completion/scripts/native_delivery_client.py',
         Path(transaction_module.__file__).resolve(),ROOT/'tasks/g0-auth-preserving-activation/scripts/native_activation_fixture.py']
+    if base.activation_service.native_tui_policy(native_tui_policy) is not None:
+        paths += [ROOT/'tasks/g1-g4-delivery/scripts'/name for name in ('native_tui_case.py','native_tui_session.py')]
+        paths += [ROOT/'tasks/g0-auth-preserving-activation/scripts/native_activation_probe.py',ROOT/'tasks/g0-tui-proxy/scripts/proxy_native_runtime.py']
     return {**pins,**{str(p):sha(p) for p in paths}}
 
 
@@ -66,11 +69,14 @@ class GlobalPlan:
     state_dir:Path
     scheduler_mode:str
     scheduler:object
+    native_tui_policy:dict|None=None
 
 
 def prepare_global(prepared,case_dir,*,python_executable,go_executable,activation_home,credential_manifest,
-                   expected_native_sha256,expected_source_pins,scheduler_mode='launchd'):
-    require(expected_source_pins==source_pins() and expected_source_pins,'source pins missing or changed')
+                   expected_native_sha256,expected_source_pins,scheduler_mode='launchd',native_tui_policy=None):
+    policy=base.activation_service.native_tui_policy(native_tui_policy)
+    require(policy is None or scheduler_mode=='inherited_fd','native TUI policy is private only')
+    require(expected_source_pins==source_pins(policy) and expected_source_pins,'source pins missing or changed')
     prepared.verify();require(not prepared.endpoint._started,'endpoint already started')
     python=Path(python_executable);go=Path(go_executable)
     require(base.peer_for_process(os.getpid())['executable']==str(python),'controller must use the pinned safe interpreter')
@@ -103,6 +109,7 @@ def prepare_global(prepared,case_dir,*,python_executable,go_executable,activatio
         'backend_argv':[str(native),'app-server','--listen','unix://{socket_path}'],'backend_executable_sha256':expected_native_sha256,
         'file_pins':pins,'idle_seconds':10,'owner_helper':{'executable':str(python),'executable_sha256':sha(python),
         'source_path':str(Path(base.owner_helper.__file__).resolve()),'source_sha256':sha(base.owner_helper.__file__)}}
+    if policy is not None:manifest['native_tui_policy']=policy
     manifest_path=case/'service.json';write(manifest_path,manifest)
     argv=(str(python),'-I','-B',str(ENTRYPOINT),'--manifest',str(manifest_path))
     spec=ActivationSpec(home=home,plist_path=home/'Library/LaunchAgents/org.codex.orchestration.proxy.plist',socket_path=public,
@@ -120,7 +127,7 @@ def prepare_global(prepared,case_dir,*,python_executable,go_executable,activatio
         'ordinary_tui_verified':False,'durable_history_verified':False,'external_model_calls':0}
     write(case/'plan.json',plan)
     return GlobalPlan(case,base.transport._dir_identity(case),manifest_path,sha(manifest_path),sha(case/'plan.json'),
-        expected_source_pins,spec,txn,python,binary,sha(binary),peer,case/'grants',case/'state',scheduler_mode,txn.launchd)
+        expected_source_pins,spec,txn,python,binary,sha(binary),peer,case/'grants',case/'state',scheduler_mode,txn.launchd,policy)
 
 
 def frozen(plan,prepared):
@@ -129,10 +136,12 @@ def frozen(plan,prepared):
         require(type(plan.scheduler) is InheritedFdScheduler and plan.spec.home.is_relative_to(Path('/private/tmp')),'private scheduler replaced')
         plan.scheduler.verify()
     require(plan.scheduler_mode!='launchd' or (type(plan.scheduler) is DeadlineLaunchctl and plan.spec.launchctl==('/bin/launchctl',) and plan.spec.home==Path(pwd.getpwuid(os.getuid()).pw_dir).resolve()),'real scheduler replaced')
-    require(plan.source_hashes==source_pins() and sha(plan.manifest_path)==plan.manifest_sha256 and sha(plan.case/'plan.json')==plan.plan_sha256,'frozen source or manifest changed')
+    require(plan.source_hashes==source_pins(plan.native_tui_policy) and sha(plan.manifest_path)==plan.manifest_sha256 and sha(plan.case/'plan.json')==plan.plan_sha256,'frozen source or manifest changed')
     require(base.peer_for_process(os.getpid())==plan.controller_peer,'controller identity changed')
     require(sha(plan.go_binary)==plan.go_sha256,'Go artifact changed');prepared.verify()
     manifest,_=base.activation_service._private_json(plan.manifest_path)
+    require(manifest.get('native_tui_policy')==plan.native_tui_policy,'frozen native TUI policy changed')
+    require(plan.native_tui_policy is None or plan.scheduler_mode=='inherited_fd','native TUI scheduler changed')
     require(manifest.get('external_admission')==admission_policy(plan.scheduler_mode),'frozen admission mode changed')
 
 
@@ -200,7 +209,7 @@ async def spawn_client(plan,prepared,role,env,end,cleanup_end=None):
 
 def config(plan,prepared,role,peer,proxy,public_identity,grant,business,startup,total):
     path=plan.grants_dir/f"{peer['pid']}.json";write(path,grant)
-    return {'role':role,'external_admission':admission_policy(plan.scheduler_mode),'manifest_path':str(plan.manifest_path),'manifest_sha256':plan.manifest_sha256,
+    return {'role':role,'native_tui_policy':plan.native_tui_policy,'external_admission':admission_policy(plan.scheduler_mode),'manifest_path':str(plan.manifest_path),'manifest_sha256':plan.manifest_sha256,
         'grant_path':str(path),'grant_sha256':sha(path),'profile_id':prepared.spec.profile_id,
         'public_socket':str(plan.spec.socket_path),'public_socket_identity':public_identity,'proxy_peer':proxy,
         'controller_peer':plan.controller_peer,'owner_context_sha256':context_sha(prepared),'codex_home':str(prepared.spec.codex_home),'workspace':str(prepared.spec.workspace),

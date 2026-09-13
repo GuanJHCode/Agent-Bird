@@ -19,7 +19,11 @@ def identity(info):
 
 
 class ReceiptStore:
-    def __init__(self,state):
+    def __init__(self,state,*,activation_id=None,pending_publication=False):
+        require(activation_id is None or re.fullmatch('[0-9a-f]{32}',activation_id),'invalid explicit activation')
+        require(type(pending_publication) is bool,'invalid publication reader policy')
+        self.pending_publication=pending_publication
+        self.selected_activation=activation_id
         self.state=Path(state);self.state_identity=directory(self.state)
         self.state_fd=os.open(self.state,os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW)
         info=os.fstat(self.state_fd)
@@ -29,7 +33,8 @@ class ReceiptStore:
     def discover(self):
         require(directory(self.state)==self.state_identity,'receipt state replaced')
         names=os.listdir(self.state_fd)
-        require(len(names)<=1 and all(re.fullmatch('[0-9a-f]{32}',n) for n in names),'multiple or invalid service activation')
+        require(len(names)<=(2 if self.selected_activation else 1) and all(re.fullmatch('[0-9a-f]{32}',n) for n in names),'multiple or invalid service activation')
+        if self.selected_activation is not None:names=[name for name in names if name==self.selected_activation]
         if not names:
             require(self.activation_id is None,'bound activation disappeared')
             return False
@@ -48,6 +53,9 @@ class ReceiptStore:
         except FileNotFoundError:return None
         try:
             before=os.fstat(fd)
+            if self.pending_publication and before.st_nlink==2:
+                require(stat.S_ISREG(before.st_mode) and before.st_uid==os.getuid() and stat.S_IMODE(before.st_mode)==0o600,'pending receipt unsafe')
+                return None
             require(stat.S_ISREG(before.st_mode) and before.st_uid==os.getuid() and stat.S_IMODE(before.st_mode)==0o600 and before.st_nlink==1 and before.st_size<=4*1024*1024,'receipt file unsafe')
             chunks=[];left=before.st_size
             while left:
