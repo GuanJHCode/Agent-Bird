@@ -282,6 +282,12 @@ func fileIdentity(path string) (FileIdentity, error) {
 	if st.Mode()&os.ModeSymlink != 0 {
 		return FileIdentity{}, fail(CodeUnknownObject, "lstat", fmt.Errorf("symlink"))
 	}
+	return identityFromInfo(st)
+}
+func identityFromInfo(st os.FileInfo) (FileIdentity, error) {
+	if st.Mode()&os.ModeSymlink != 0 || (!st.Mode().IsRegular() && !st.IsDir()) {
+		return FileIdentity{}, fail(CodeUnknownObject, "identity", fmt.Errorf("unsupported file type"))
+	}
 	fi := st.Sys()
 	var dev, ino int64
 	if s, ok := fi.(*syscall.Stat_t); ok {
@@ -759,6 +765,71 @@ func recordCleanup(ctx context.Context, journal Journal, out CleanupOutcome, cau
 	return cause
 }
 
+type cleanupAdmin struct {
+	path, name string
+	rootFD     *os.File
+	parentFD   *os.File
+	rootInfo   os.FileInfo
+	files      map[string]FileIdentity
+}
+
+func (a *cleanupAdmin) close() {
+	if a == nil {
+		return
+	}
+	_ = a.rootFD.Close()
+	_ = a.parentFD.Close()
+}
+
+func prepareCleanupAdmin(ctx context.Context, root, expectedCommon string) (*cleanupAdmin, error) {
+	gitDirText, _, err := gitText(ctx, root, "rev-parse", "--path-format=absolute", "--absolute-git-dir")
+	if err != nil {
+		return nil, err
+	}
+	adminPath := CanonicalPath(gitDirText)
+	common := CanonicalPath(expectedCommon)
+	adminParent := filepath.Join(common, "worktrees")
+	if adminPath == "" || common == "" || filepath.Dir(adminPath) != adminParent {
+		return nil, fail(CodeUnknownObject, "cleanup admin", fmt.Errorf("git dir outside managed worktrees"))
+	}
+	worktreeGitFile, err := os.ReadFile(filepath.Join(root, ".git"))
+	if err != nil || strings.TrimSpace(string(worktreeGitFile)) != "gitdir: "+adminPath {
+		return nil, fail(CodeIdentityChanged, "cleanup admin", fmt.Errorf("worktree gitdir binding changed"))
+	}
+	adminGitFile, err := os.ReadFile(filepath.Join(adminPath, "gitdir"))
+	if err != nil || CanonicalPath(strings.TrimSpace(string(adminGitFile))) != filepath.Join(CanonicalPath(root), ".git") {
+		return nil, fail(CodeIdentityChanged, "cleanup admin", fmt.Errorf("admin worktree binding changed"))
+	}
+	parentFD, err := os.Open(adminParent)
+	if err != nil {
+		return nil, err
+	}
+	rootFD, err := os.Open(adminPath)
+	if err != nil {
+		_ = parentFD.Close()
+		return nil, err
+	}
+	rootInfo, err := rootFD.Stat()
+	if err != nil {
+		_ = rootFD.Close()
+		_ = parentFD.Close()
+		return nil, err
+	}
+	pathInfo, err := os.Stat(adminPath)
+	if err != nil || !os.SameFile(rootInfo, pathInfo) {
+		_ = rootFD.Close()
+		_ = parentFD.Close()
+		return nil, fail(CodeIdentityChanged, "cleanup admin", fmt.Errorf("admin handle changed"))
+	}
+	files, err := snapshot(adminPath)
+	if err != nil {
+		_ = rootFD.Close()
+		_ = parentFD.Close()
+		return nil, err
+	}
+	return &cleanupAdmin{path: adminPath, name: filepath.Base(adminPath), rootFD: rootFD, parentFD: parentFD, rootInfo: rootInfo, files: files}, nil
+}
+
 func Cleanup(ctx context.Context, req CleanupRequest) (CleanupOutcome, error) {
 	out := CleanupOutcome{State: CleanupPending, Root: req.Root, RecordedAt: time.Now().UTC()}
 	if req.Journal == nil || req.Root == "" || req.Receipt.WorktreeIdentity == "" {
@@ -800,6 +871,21 @@ func Cleanup(ctx context.Context, req CleanupRequest) (CleanupOutcome, error) {
 	if err != nil || pathInfo == nil || !os.SameFile(fdInfo, pathInfo) {
 		return out, fail(CodeIdentityChanged, "cleanup", fmt.Errorf("root handle changed"))
 	}
+	rootParentFD, err := os.Open(filepath.Dir(req.Root))
+	if err != nil {
+		return out, err
+	}
+	defer rootParentFD.Close()
+	admin, err := prepareCleanupAdmin(ctx, req.Root, req.Receipt.CommonDir)
+	if err != nil {
+		return out, err
+	}
+	defer admin.close()
+	commonLock, err := acquireIntegrationLock(req.Receipt.CommonDir)
+	if err != nil {
+		return out, err
+	}
+	defer releaseIntegrationLock(commonLock)
 	for _, pid := range req.ActivePIDs {
 		if pid > 0 {
 			err := syscall.Kill(pid, 0)
@@ -842,93 +928,56 @@ func Cleanup(ctx context.Context, req CleanupRequest) (CleanupOutcome, error) {
 		out.Code = string(CodeIdentityChanged)
 		return out, recordCleanup(ctx, req.Journal, out, fail(CodeIdentityChanged, "cleanup", fmt.Errorf("root changed before remove")))
 	}
-	// Quarantine the already classified tree before asking Git to forget the
-	// worktree. Git accepts a missing worktree path and removes only its own
-	// administrative record; the held descriptor keeps the moved directory
-	// anchored while we verify it again. Any replacement or rename failure is
-	// retained as UNKNOWN and never passed to RemoveAll.
+	// Quarantine the classified root through its held parent. All later
+	// removals are relative to held descriptors.
 	parent := filepath.Dir(req.Root)
 	if err := noSymlinkComponents(parent); err != nil {
 		out.Code = string(CodeUnknownObject)
 		return out, recordCleanup(ctx, req.Journal, out, err)
 	}
-	quarantine, err := os.MkdirTemp(parent, ".g3-quarantine-")
+	quarantineName, err := quarantineAt(rootParentFD, filepath.Base(req.Root), ".g3-quarantine-")
 	if err != nil {
 		out.Code = string(CodeUnknownObject)
 		return out, recordCleanup(ctx, req.Journal, out, err)
 	}
-	if err := os.Remove(quarantine); err != nil {
-		out.Code = string(CodeUnknownObject)
-		return out, recordCleanup(ctx, req.Journal, out, err)
-	}
-	if err := os.Rename(req.Root, quarantine); err != nil {
-		out.Code = string(CodeUnknownObject)
-		return out, recordCleanup(ctx, req.Journal, out, err)
-	}
+	quarantine := filepath.Join(parent, quarantineName)
 	qInfo, err := os.Stat(quarantine)
 	if err != nil || !os.SameFile(fdInfo, qInfo) {
 		out.Code = string(CodeIdentityChanged)
 		return out, recordCleanup(ctx, req.Journal, out, fail(CodeIdentityChanged, "cleanup", fmt.Errorf("quarantine identity changed")))
-	}
-	qCurrent, err := snapshot(quarantine)
-	if err != nil {
-		out.Code = string(CodeUnknownObject)
-		return out, recordCleanup(ctx, req.Journal, out, err)
-	}
-	if len(qCurrent) != len(current) {
-		out.Code = string(CodeUnknownObject)
-		return out, recordCleanup(ctx, req.Journal, out, fail(CodeUnknownObject, "cleanup", fmt.Errorf("quarantine inventory changed")))
-	}
-	for path, id := range qCurrent {
-		if !sameIdentity(id, current[path]) {
-			out.Code = string(CodeIdentityChanged)
-			return out, recordCleanup(ctx, req.Journal, out, fail(CodeIdentityChanged, "cleanup", fmt.Errorf("quarantine entry changed")))
-		}
 	}
 	if req.AfterQuarantine != nil {
 		if err := req.AfterQuarantine(quarantine); err != nil {
 			out.Code = string(CodeUnknownObject)
 			return out, recordCleanup(ctx, req.Journal, out, err)
 		}
-		latest, e := snapshot(quarantine)
-		if e != nil || len(latest) != len(qCurrent) {
+	}
+	if req.BeforeAnchoredRemove != nil {
+		if err := req.BeforeAnchoredRemove(quarantine); err != nil {
 			out.Code = string(CodeUnknownObject)
-			return out, recordCleanup(ctx, req.Journal, out, fail(CodeUnknownObject, "cleanup", fmt.Errorf("quarantine gained unknown object")))
-		}
-		for path, id := range latest {
-			if !sameIdentity(id, qCurrent[path]) {
-				out.Code = string(CodeIdentityChanged)
-				return out, recordCleanup(ctx, req.Journal, out, fail(CodeIdentityChanged, "cleanup", fmt.Errorf("quarantine entry changed")))
-			}
+			return out, recordCleanup(ctx, req.Journal, out, err)
 		}
 	}
-	// The original pathname must remain absent.  Never let Git's pathname
-	// based administrative cleanup touch a directory recreated by another
-	// actor after quarantine.
-	if _, e := os.Lstat(req.Root); e == nil {
-		out.Code = string(CodeUnknownObject)
-		return out, recordCleanup(ctx, req.Journal, out, fail(CodeUnknownObject, "cleanup", fmt.Errorf("worktree path recreated")))
-	} else if !os.IsNotExist(e) {
-		out.Code = string(CodeUnknownObject)
-		return out, recordCleanup(ctx, req.Journal, out, e)
-	}
-	if _, err := run(ctx, req.Receipt.RepoRoot, "worktree", "remove", req.Root); err != nil {
-		out.Code = string(CodeUnknownObject)
-		return out, recordCleanup(ctx, req.Journal, out, fail(CodeUnknownObject, "worktree remove", err))
-	}
-	if _, err := os.Lstat(req.Root); err == nil {
-		out.Code = string(CodeUnknownObject)
-		return out, recordCleanup(ctx, req.Journal, out, fail(CodeUnknownObject, "cleanup", fmt.Errorf("root remains")))
-	} else if !os.IsNotExist(err) {
-		return out, err
-	}
-	if err := removeOwnedTree(quarantine, qCurrent, fdInfo); err != nil {
+	if err := removeAnchoredTree(rootFD, rootParentFD, quarantineName, current, fdInfo); err != nil {
 		out.Code = string(CodeUnknownObject)
 		return out, recordCleanup(ctx, req.Journal, out, err)
 	}
-	if _, err := os.Lstat(quarantine); err == nil {
+
+	// Remove only this worktree's verified administrative directory. This
+	// avoids giving Git a reusable pathname and does not touch refs, objects,
+	// other worktrees, prune, or GC.
+	adminQuarantine, err := quarantineAt(admin.parentFD, admin.name, ".g3-admin-quarantine-")
+	if err != nil {
 		out.Code = string(CodeUnknownObject)
-		return out, recordCleanup(ctx, req.Journal, out, fail(CodeUnknownObject, "cleanup", fmt.Errorf("quarantine remains")))
+		return out, recordCleanup(ctx, req.Journal, out, err)
+	}
+	if err := removeAnchoredTree(admin.rootFD, admin.parentFD, adminQuarantine, admin.files, admin.rootInfo); err != nil {
+		out.Code = string(CodeUnknownObject)
+		return out, recordCleanup(ctx, req.Journal, out, err)
+	}
+	if _, err := os.Lstat(req.Root); err == nil {
+		out.Code = string(CodeUnknownObject)
+		return out, recordCleanup(ctx, req.Journal, out, fail(CodeUnknownObject, "cleanup", fmt.Errorf("worktree path recreated and retained")))
 	} else if !os.IsNotExist(err) {
 		return out, err
 	}
@@ -938,45 +987,6 @@ func Cleanup(ctx context.Context, req CleanupRequest) (CleanupOutcome, error) {
 		return out, journalErr
 	}
 	return out, nil
-}
-
-// removeOwnedTree removes only entries whose identities were captured while
-// the quarantined root was held. It deliberately avoids RemoveAll: an entry
-// added or replaced after the inventory is unknown and therefore retained.
-func removeOwnedTree(root string, expected map[string]FileIdentity, rootInfo os.FileInfo) error {
-	paths := make([]string, 0, len(expected))
-	for path := range expected {
-		paths = append(paths, path)
-	}
-	sort.Slice(paths, func(i, j int) bool {
-		left, right := strings.Count(paths[i], "/"), strings.Count(paths[j], "/")
-		if left == right {
-			return paths[i] > paths[j]
-		}
-		return left > right
-	})
-	for _, path := range paths {
-		currentRoot, err := os.Stat(root)
-		if err != nil || currentRoot == nil || !os.SameFile(currentRoot, rootInfo) {
-			return fail(CodeIdentityChanged, "quarantine remove", fmt.Errorf("root identity changed"))
-		}
-		full := filepath.Join(root, filepath.FromSlash(path))
-		id, err := fileIdentity(full)
-		if err != nil {
-			return fail(CodeUnknownObject, "quarantine remove", err)
-		}
-		if !sameIdentity(id, expected[path]) {
-			return fail(CodeIdentityChanged, "quarantine remove", fmt.Errorf("entry identity changed"))
-		}
-		if err := os.Remove(full); err != nil {
-			return fail(CodeUnknownObject, "quarantine remove", err)
-		}
-	}
-	currentRoot, err := os.Stat(root)
-	if err != nil || currentRoot == nil || !os.SameFile(currentRoot, rootInfo) {
-		return fail(CodeIdentityChanged, "quarantine remove", fmt.Errorf("root identity changed"))
-	}
-	return os.Remove(root)
 }
 
 type CleanupRequest struct {
@@ -989,6 +999,9 @@ type CleanupRequest struct {
 	// AfterQuarantine is a test/fault seam used to prove late additions are
 	// retained. Production leaves it nil.
 	AfterQuarantine func(string) error
+	// BeforeAnchoredRemove runs after the final pathname-based checks. It exists
+	// only to prove that descriptor-relative removal retains late replacements.
+	BeforeAnchoredRemove func(string) error
 }
 
 func validatePrivateRef(ref string) error {

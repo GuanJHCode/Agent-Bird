@@ -12,9 +12,9 @@
 
 ## 清理边界
 
-`Cleanup` 先持有 worktree 根目录句柄，复核目录和每个 tracked/untracked/ignored 条目的 device/inode/mode/size/mtime 身份。未知文件、symlink、身份变化、活跃 PID 或账本失败都保留现场并返回 `cleanup_pending`/`unknown`。已分类的目录先移动到同父目录的私有 quarantine，重新核验；原 worktree 名称必须仍不存在后才让 `git worktree remove` 清理 Git 管理记录，最后按深度逆序逐项复核身份并删除核验过的 quarantine 条目，不使用 `RemoveAll`。未知对象永不传给删除操作。
+`Cleanup` 先持有 worktree 根目录、父目录、Git common-dir 锁和该 worktree 专属 admin 目录句柄，复核目录和每个 tracked/untracked/ignored 条目的 device/inode/mode/size/mtime 身份。未知文件、symlink、身份变化、活跃 PID 或账本失败都保留现场并返回 `cleanup_pending`/`unknown`。已分类的根目录先通过父目录 FD 移入同父目录的私有 quarantine；其中每个清单项再以 `openat` 打开父组件、用 `renameat` 原子移入新的 0700 删除隔离目录、通过 FD 复核身份，最后才 `unlinkat`。晚到替换会被移入隔离目录并保留，晚到新增会使已知目录无法删除并保留。
 
-Git CLI 本身没有 dirfd 版本的 `worktree remove`；因此实现依靠持有根句柄、quarantine、移动后再次身份核验和失败保留来缩小 pathname race。若内核句柄核验、Git 管理清理或 quarantine 复核不能完成，结果保持未知，不宣称完全清理。
+Git CLI 没有 dirfd 版本的 `worktree remove`。实现因此不会把可被重建的原 worktree 路径传给 Git：它核对 `.git` 与 `<common-dir>/worktrees/<id>/gitdir` 的双向绑定，只对这一个 admin 目录做同样的 FD 锚定清单回收，不调用全仓 prune/GC，也不触碰 refs 或 objects。若原名称被重建，它不会被删除，结果保持 `cleanup_pending`。若内核句柄核验、admin 清理或 quarantine 回收不能完成，也不宣称完全清理。
 
 ## G1 接入
 
@@ -26,4 +26,4 @@ G1 Store 应在 `PersistIntegrationIntent`/`RecordIntegration`、`PersistCleanup
 GOCACHE="$PWD/tmp/gocache" GO111MODULE=off <fixed-go> test ./tools/orchestrator/internal/gitops
 ```
 
-测试使用真实临时 Git 仓库覆盖候选材料化、ordered dependency composition、review binding、OS lock 下的 fast-forward、tracked/ignored 碰撞、目标漂移、CAS private ref、外部 sentinel、根目录替换和 quarantine 清理。未覆盖真实项目分支整合、远程 push、Windows 文件占用和恶意同 UID 进程竞争。
+测试使用真实临时 Git 仓库覆盖候选材料化、ordered dependency composition、review binding、OS lock 下的 fast-forward、tracked/ignored 碰撞、目标漂移、CAS private ref、外部 sentinel、根目录替换、晚到同名替换的隔离保留和 admin 清理。未覆盖远程 push、Windows 文件占用和恶意同 UID 进程竞争。

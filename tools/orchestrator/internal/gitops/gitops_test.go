@@ -359,6 +359,50 @@ func TestCleanupRetainsSentinelCreatedAfterQuarantineInventory(t *testing.T) {
 	}
 }
 
+func TestCleanupRetainsKnownPathReplacedAfterFinalPathCheck(t *testing.T) {
+	d, base := repo(t)
+	candidateOID, _ := candidate(t, d)
+	parent := t.TempDir()
+	work := filepath.Join(parent, "worktree")
+	receipt, err := Materialize(context.Background(), MaterializeRequest{RepoRoot: d, Worktree: work, AttemptID: "late-replacement", BaseOID: base, CandidateOID: candidateOID, OrderedInputOIDs: []string{candidateOID}, PlanRevision: 1}, &memoryJournal{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := Cleanup(context.Background(), CleanupRequest{Root: work, Receipt: receipt, Journal: &memoryJournal{}, BeforeAnchoredRemove: func(quarantine string) error {
+		path := filepath.Join(quarantine, "candidate.txt")
+		if err := os.Remove(path); err != nil {
+			return err
+		}
+		return os.WriteFile(path, []byte("foreign replacement\n"), 0600)
+	}})
+	if err == nil || out.State != CleanupPending || !IsCode(err, CodeIdentityChanged) {
+		t.Fatalf("late replacement was treated as owned: err=%v out=%+v", err, out)
+	}
+	entries, err := os.ReadDir(parent)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, entry := range entries {
+		if !strings.HasPrefix(entry.Name(), ".g3-delete-") {
+			continue
+		}
+		children, readErr := os.ReadDir(filepath.Join(parent, entry.Name()))
+		if readErr != nil {
+			t.Fatal(readErr)
+		}
+		for _, child := range children {
+			data, readErr := os.ReadFile(filepath.Join(parent, entry.Name(), child.Name()))
+			if readErr == nil && string(data) == "foreign replacement\n" {
+				found = true
+			}
+		}
+	}
+	if !found {
+		t.Fatal("late replacement was not retained in the private delete quarantine")
+	}
+}
+
 func TestCleanupNeverLetsGitTouchRecreatedOriginalPath(t *testing.T) {
 	d, base := repo(t)
 	candidateOID, _ := candidate(t, d)
