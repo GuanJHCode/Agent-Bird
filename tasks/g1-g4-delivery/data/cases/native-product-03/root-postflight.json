@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "kind": "root_postflight",
+  "checked_unix": 1789322844.6463292,
+  "processes": [
+    {
+      "pid": 90131,
+      "original_birth": "Mon Sep 14 02:06:45 2026",
+      "same_identity_alive": false,
+      "current_birth": null
+    },
+    {
+      "pid": 90150,
+      "original_birth": "Mon Sep 14 02:06:46 2026",
+      "same_identity_alive": false,
+      "current_birth": null
+    },
+    {
+      "pid": 90161,
+      "original_birth": "Mon Sep 14 02:06:47 2026",
+      "same_identity_alive": false,
+      "current_birth": null
+    },
+    {
+      "pid": 90188,
+      "original_birth": "Mon Sep 14 02:06:47 2026",
+      "same_identity_alive": false,
+      "current_birth": null
+    },
+    {
+      "pid": 90293,
+      "original_birth": "Mon Sep 14 02:06:48 2026",
+      "same_identity_alive": false,
+      "current_birth": null
+    },
+    {
+      "pid": 90297,
+      "original_birth": "Mon Sep 14 02:06:48 2026",
+      "same_identity_alive": false,
+      "current_birth": null
+    },
+    {
+      "pid": 90375,
+      "original_birth": "Mon Sep 14 02:06:49 2026",
+      "same_identity_alive": false,
+      "current_birth": null
+    },
+    {
+      "pid": 90379,
+      "original_birth": "Mon Sep 14 02:06:49 2026",
+      "same_identity_alive": false,
+      "current_birth": null
+    },
+    {
+      "pid": 90386,
+      "original_birth": "Mon Sep 14 02:06:49 2026",
+      "same_identity_alive": false,
+      "current_birth": null
+    }
+  ],
+  "all_recorded_identities_gone": true,
+  "public_socket_absent": true,
+  "scope": "recorded process identities and public socket; no credential contents read"
+}

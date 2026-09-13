@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "kind": "root_postflight",
+  "checked_unix": 1789323492.721138,
+  "processes": [
+    {
+      "pid": 4556,
+      "original_birth": "Mon Sep 14 02:17:22 2026",
+      "same_identity_alive": false,
+      "current_birth": null
+    },
+    {
+      "pid": 4593,
+      "original_birth": "Mon Sep 14 02:17:23 2026",
+      "same_identity_alive": false,
+      "current_birth": null
+    },
+    {
+      "pid": 4628,
+      "original_birth": "Mon Sep 14 02:17:23 2026",
+      "same_identity_alive": false,
+      "current_birth": null
+    },
+    {
+      "pid": 4672,
+      "original_birth": "Mon Sep 14 02:17:24 2026",
+      "same_identity_alive": false,
+      "current_birth": null
+    },
+    {
+      "pid": 4792,
+      "original_birth": "Mon Sep 14 02:17:25 2026",
+      "same_identity_alive": false,
+      "current_birth": null
+    },
+    {
+      "pid": 4796,
+      "original_birth": "Mon Sep 14 02:17:25 2026",
+      "same_identity_alive": false,
+      "current_birth": null
+    },
+    {
+      "pid": 4899,
+      "original_birth": "Mon Sep 14 02:17:26 2026",
+      "same_identity_alive": false,
+      "current_birth": null
+    },
+    {
+      "pid": 4903,
+      "original_birth": "Mon Sep 14 02:17:26 2026",
+      "same_identity_alive": false,
+      "current_birth": null
+    },
+    {
+      "pid": 4911,
+      "original_birth": "Mon Sep 14 02:17:26 2026",
+      "same_identity_alive": false,
+      "current_birth": null
+    },
+    {
+      "pid": 4955,
+      "original_birth": "Mon Sep 14 02:17:26 2026",
+      "same_identity_alive": false,
+      "current_birth": null
+    },
+    {
+      "pid": 5000,
+      "original_birth": "Mon Sep 14 02:17:27 2026",
+      "same_identity_alive": false,
+      "current_birth": null
+    },
+    {
+      "pid": 5107,
+      "original_birth": "Mon Sep 14 02:17:28 2026",
+      "same_identity_alive": false,
+      "current_birth": null
+    },
+    {
+      "pid": 5111,
+      "original_birth": "Mon Sep 14 02:17:28 2026",
+      "same_identity_alive": false,
+      "current_birth": null
+    },
+    {
+      "pid": 5283,
+      "original_birth": "Mon Sep 14 02:17:30 2026",
+      "same_identity_alive": false,
+      "current_birth": null
+    }
+  ],
+  "all_recorded_identities_gone": true,
+  "public_socket_absent": true,
+  "scope": "recorded process identities and public socket; no credential contents read"
+}

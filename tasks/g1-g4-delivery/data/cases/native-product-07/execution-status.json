@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "status": "prepared_not_run",
+  "reason": "Root preflight found legacy task ID shared with recoverable rc3 version pin; runner changed to per-case ID before any native start.",
+  "replacement_case": "native-product-08"
+}
