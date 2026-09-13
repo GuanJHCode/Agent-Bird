@@ -6,8 +6,9 @@ description: Submit, inspect, collect, acknowledge, explicitly resume, or stop l
 # Local orchestration
 
 Use only the installed wrapper at `${PLUGIN_ROOT}/scripts/invoke.sh`. It accepts
-`ensure-running`, `submit`, `status`, `collect`, `ack`, `resume`, `stop`,
-`install`, `doctor`, `uninstall`, `pin`, and `unpin`.
+`ensure-running`, `submit`, `status`, `collect`, `ack`, `accept`, `answer`,
+`retry`, `resume`, `stop`, `native-bridge`, `install`, `doctor`, `uninstall`,
+`pin`, and `unpin`.
 Never invoke `codex` as a replacement entry point, never invent an MCP server,
 and never bypass a blocked CLI result with direct process or Git operations.
 
@@ -34,11 +35,18 @@ request in the current owner thread and only with the exact latest
 1. Run `invoke.sh ensure-running`. Stop on a blocked/error response.
 2. Create a task-specific temporary directory with mode 0700 outside
    `${PLUGIN_ROOT}` and `${PLUGIN_DATA}`. Write one request file with mode 0600.
-3. The request JSON must include `run_id`, the exact `controller_thread`,
+3. First use `native-bridge` with the current attached owner capability to
+   produce the submit projection. Never infer the owner PID, birth, thread, or
+   generation from the shell, working directory, helper process, or UI text.
+   If the attached capability is unavailable, report `blocked`. The request
+   JSON must include `run_id`, the exact projected `controller_thread`,
    `origin_context_id`, `origin_pid`, `origin_birth`, `host_generation`, and a
-   non-empty `tasks` array. Use immutable dependency revisions where the
-   request supports them. Do not place credentials, CLI authentication state,
-   or inherited environment data in the request.
+   non-empty `tasks` array. Each task declares `completion_policy` as
+   `owner_review` or `artifact`; artifact completion also supplies
+   `expected_artifact_sha256`. Optional `fallbacks` are frozen with the task.
+   Use immutable dependency revisions where the request supports them. Do not
+   place credentials, CLI authentication state, or inherited environment data
+   in the request.
 4. Run `invoke.sh submit --request <absolute-request-path>`. The CLI starts the
    source Host and returns `queued` plus the owner-only `control_file`; no
    bearer token is printed to the plugin.
@@ -61,15 +69,37 @@ invoke.sh status --task-id <task-id> --control-file <absolute-control-file>
 invoke.sh collect --task-id <task-id> --control-file <absolute-control-file>
 ```
 
-`collect` does not acknowledge delivery. Present collected events to the owner,
-then acknowledge each durable event separately with:
+`collect` does not acknowledge delivery. Native delivery is performed only by
+the owner-attached bridge. After its exact history proof, write one owner-only
+0600 ACK request containing `task_id`, `control_file`, `delivery_id`,
+`history_proof_sha256`, and the complete `decisions` array, then run:
 
 ```text
-invoke.sh ack --task-id <task-id> --control-file <absolute-control-file> --event-id <event-id>
+invoke.sh ack --request <absolute-ack-request>
 ```
 
-Repeat an ACK only with the same event ID; ACK is idempotent. Do not acknowledge
-an event that was not successfully collected and delivered to this owner.
+Each decision contains the original `event_id`, `event_revision`, `event_hash`,
+`action_slot`, typed `decision`, and stable `command_id`. Repeat only the exact
+same request. Do not acknowledge an event without the bridge history proof.
+
+Owner review and follow-up decisions are separate business commands:
+
+```text
+invoke.sh accept --task-id <id> --work-revision <n> --control-file <path>
+invoke.sh retry --task-id <id> --work-revision <n> --control-file <path> [--use-next-fallback]
+invoke.sh answer --request <absolute-0600-answer-request>
+```
+
+An answer request contains only `task_id`, `control_file`, `work_revision`,
+`question_id`, `question_revision`, and `answer`. Remove the request file after
+the CLI consumes it. The plugin must not copy the answer into the conversation,
+logs, or argv; the coordinator may persist it for the bound attempt resume.
+Never copy the control token.
+
+`native-bridge` consumes the distinct owner attachment capability. It verifies
+the current service/TUI/helper binding and package/runtime pins before collect,
+send, reconciliation, ACK, or owner rebind. A control file alone is not native
+attachment evidence.
 
 ## Explicit recovery and stop
 
