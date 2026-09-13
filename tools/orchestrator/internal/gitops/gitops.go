@@ -80,62 +80,86 @@ type CandidateIntent struct {
 }
 
 type CandidateCompositionRequest struct {
-	RepoRoot, Worktree, AttemptID, BaseOID string
-	OrderedInputOIDs                       []string
-	PlanRevision                           int64
+	RepoRoot         string   `json:"repo_root"`
+	Worktree         string   `json:"worktree"`
+	AttemptID        string   `json:"attempt_id"`
+	BaseOID          string   `json:"base_oid"`
+	OrderedInputOIDs []string `json:"ordered_input_oids"`
+	PlanRevision     int64    `json:"plan_revision"`
 }
 
 type CandidateReceipt struct {
-	AttemptID, RepoRoot, Worktree, CommonDir string
-	BaseOID, CandidateOID, TreeOID           string
-	OrderedInputOIDs                         []string
-	RootIdentity                             DirectoryIdentity
-	Files                                    map[string]FileIdentity
-	PlanRevision                             int64
+	AttemptID        string                  `json:"attempt_id"`
+	RepoRoot         string                  `json:"repo_root"`
+	Worktree         string                  `json:"worktree"`
+	CommonDir        string                  `json:"common_dir"`
+	BaseOID          string                  `json:"base_oid"`
+	CandidateOID     string                  `json:"candidate_oid"`
+	TreeOID          string                  `json:"tree_oid"`
+	OrderedInputOIDs []string                `json:"ordered_input_oids"`
+	RootIdentity     DirectoryIdentity       `json:"root_identity"`
+	Files            map[string]FileIdentity `json:"files"`
+	PlanRevision     int64                   `json:"plan_revision"`
 }
 
 type ReviewBinding struct {
-	TargetWorktreeIdentity  string
-	TargetDirectoryIdentity DirectoryIdentity
-	TargetRef               string
-	TargetBaseOID           string
-	FinalCandidateOID       string
-	OrderedInputOIDs        []string
-	ValidationDigest        string
-	PlanRevision            int64
-	ReviewRevision          int64
+	TargetWorktreeIdentity  string            `json:"target_worktree_identity"`
+	TargetDirectoryIdentity DirectoryIdentity `json:"target_directory_identity"`
+	TargetRef               string            `json:"target_ref"`
+	TargetBaseOID           string            `json:"target_base_oid"`
+	FinalCandidateOID       string            `json:"final_candidate_oid"`
+	OrderedInputOIDs        []string          `json:"ordered_input_oids"`
+	ValidationDigest        string            `json:"validation_digest"`
+	PlanRevision            int64             `json:"plan_revision"`
+	ReviewRevision          int64             `json:"review_revision"`
 }
 
 type MaterializeRequest struct {
-	RepoRoot, Worktree, AttemptID, BaseOID, CandidateOID string
-	OrderedInputOIDs                                     []string
-	PlanRevision                                         int64
+	RepoRoot         string   `json:"repo_root"`
+	Worktree         string   `json:"worktree"`
+	AttemptID        string   `json:"attempt_id"`
+	BaseOID          string   `json:"base_oid"`
+	CandidateOID     string   `json:"candidate_oid"`
+	OrderedInputOIDs []string `json:"ordered_input_oids"`
+	PlanRevision     int64    `json:"plan_revision"`
 }
 
 type MaterializeReceipt struct {
-	AttemptID, RepoRoot, Worktree, CommonDir, CommitOID, TreeOID string
-	BaseOID                                                      string
-	WorktreeIdentity                                             string
-	RootIdentity                                                 DirectoryIdentity
-	Files                                                        map[string]FileIdentity
-	OrderedInputOIDs                                             []string
-	PlanRevision                                                 int64
+	AttemptID        string                  `json:"attempt_id"`
+	RepoRoot         string                  `json:"repo_root"`
+	Worktree         string                  `json:"worktree"`
+	CommonDir        string                  `json:"common_dir"`
+	CommitOID        string                  `json:"commit_oid"`
+	TreeOID          string                  `json:"tree_oid"`
+	BaseOID          string                  `json:"base_oid"`
+	WorktreeIdentity string                  `json:"worktree_identity"`
+	RootIdentity     DirectoryIdentity       `json:"root_identity"`
+	Files            map[string]FileIdentity `json:"files"`
+	OrderedInputOIDs []string                `json:"ordered_input_oids"`
+	PlanRevision     int64                   `json:"plan_revision"`
 }
 
 type IntegrationRequest struct {
-	RepoRoot, TargetWorktree, TargetRef, TargetBaseOID, CandidateOID string
-	Review                                                           ReviewBinding
-	Journal                                                          Journal
+	RepoRoot       string        `json:"repo_root"`
+	TargetWorktree string        `json:"target_worktree"`
+	TargetRef      string        `json:"target_ref"`
+	TargetBaseOID  string        `json:"target_base_oid"`
+	CandidateOID   string        `json:"candidate_oid"`
+	Review         ReviewBinding `json:"review"`
+	Journal        Journal       `json:"-"`
 	// BeforeMerge is a deterministic test/fault injection seam. Production
 	// callers leave it nil; no production code relies on it.
-	BeforeMerge func() error
+	BeforeMerge func() error `json:"-"`
 }
 
 // DirectoryIdentity is the kernel identity of a managed directory.  A
 // canonical pathname is retained for Git's CLI, but never used as the sole
 // ownership proof.
 type DirectoryIdentity struct {
-	Device, Inode, Mode, UID int64
+	Device int64 `json:"device"`
+	Inode  int64 `json:"inode"`
+	Mode   int64 `json:"mode"`
+	UID    int64 `json:"uid"`
 }
 
 type IntegrationIntent struct {
@@ -148,11 +172,15 @@ type IntegrationIntent struct {
 }
 
 type IntegrationOutcome struct {
-	State, Code, TargetHEAD, CandidateOID, TargetWorktree string
-	GitExitCode                                           int
-	ProcessPID                                            int
-	DetailDigest                                          string
-	RecordedAt                                            time.Time
+	State          string    `json:"state"`
+	Code           string    `json:"code,omitempty"`
+	TargetHEAD     string    `json:"target_head,omitempty"`
+	CandidateOID   string    `json:"candidate_oid"`
+	TargetWorktree string    `json:"target_worktree"`
+	GitExitCode    int       `json:"git_exit_code"`
+	ProcessPID     int       `json:"process_pid"`
+	DetailDigest   string    `json:"detail_digest,omitempty"`
+	RecordedAt     time.Time `json:"recorded_at"`
 }
 
 type CleanupIntent struct {
@@ -160,15 +188,20 @@ type CleanupIntent struct {
 	CreatedAt                                   time.Time
 }
 type CleanupOutcome struct {
-	State, Code, Root string
-	RemovedFiles      int
-	DetailDigest      string
-	RecordedAt        time.Time
+	State        string    `json:"state"`
+	Code         string    `json:"code,omitempty"`
+	Root         string    `json:"root"`
+	RemovedFiles int       `json:"removed_files"`
+	DetailDigest string    `json:"detail_digest,omitempty"`
+	RecordedAt   time.Time `json:"recorded_at"`
 }
 
 type FileIdentity struct {
-	Device, Inode, Mode, Size int64
-	ModUnixNano               int64
+	Device      int64 `json:"device"`
+	Inode       int64 `json:"inode"`
+	Mode        int64 `json:"mode"`
+	Size        int64 `json:"size"`
+	ModUnixNano int64 `json:"mod_unix_nano"`
 }
 
 type CommandResult struct {
@@ -990,18 +1023,18 @@ func Cleanup(ctx context.Context, req CleanupRequest) (CleanupOutcome, error) {
 }
 
 type CleanupRequest struct {
-	Root       string
-	Receipt    MaterializeReceipt
-	Journal    Journal
-	ActivePIDs []int
+	Root       string             `json:"root"`
+	Receipt    MaterializeReceipt `json:"receipt"`
+	Journal    Journal            `json:"-"`
+	ActivePIDs []int              `json:"active_pids,omitempty"`
 	// BeforeRemove is a test/fault seam. Production leaves it nil.
-	BeforeRemove func() error
+	BeforeRemove func() error `json:"-"`
 	// AfterQuarantine is a test/fault seam used to prove late additions are
 	// retained. Production leaves it nil.
-	AfterQuarantine func(string) error
+	AfterQuarantine func(string) error `json:"-"`
 	// BeforeAnchoredRemove runs after the final pathname-based checks. It exists
 	// only to prove that descriptor-relative removal retains late replacements.
-	BeforeAnchoredRemove func(string) error
+	BeforeAnchoredRemove func(string) error `json:"-"`
 }
 
 func validatePrivateRef(ref string) error {
