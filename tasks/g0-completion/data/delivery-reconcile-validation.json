@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "commit": "f07cc19",
+  "scope": "send-disabled delivery reconciliation",
+  "tests": {
+    "command": "PYTHONDONTWRITEBYTECODE=1 python3 -B -m pytest -q tasks/g0-completion/tests/test_delivery_adapter.py tasks/g0-completion/tests/test_owner_helper.py tasks/g0-completion/tests/test_owner_helper_service.py tasks/g0-completion/tests/test_owner_helper_production_pipeline.py tasks/g0-pending-resolution/scripts/delivery_audit_test.py",
+    "exit_code": 0,
+    "passed": 75,
+    "subtests": 8,
+    "duration_seconds": 7.24
+  },
+  "tdd_failures_before_fix": [
+    {
+      "case": "cancelled",
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 -B -m pytest -q tasks/g0-completion/tests/test_delivery_adapter.py::test_reconcile_rejects_cancelled_status_after_real_go_revise",
+      "observed": "Failed: DID NOT RAISE DeliveryError",
+      "expected_after_fix": "status_terminal"
+    },
+    {
+      "case": "stale",
+      "command": "PYTHONDONTWRITEBYTECODE=1 python3 -B -m pytest -q tasks/g0-completion/tests/test_delivery_adapter.py::test_reconcile_rejects_stale_status_after_real_go_revise",
+      "observed": "Failed: DID NOT RAISE DeliveryError",
+      "expected_after_fix": "status_terminal"
+    }
+  ],
+  "verified_boundaries": [
+    "real Go prepare/claim",
+    "send-disabled reconcile after prior delivery",
+    "history proof and explicit handled ACK",
+    "cancelled and stale status rejection",
+    "owner-context mismatch rejection",
+    "no second turn/start after reconcile"
+  ],
+  "not_run": [
+    "real native Codex",
+    "model invocation",
+    "auth or Keychain access",
+    "global registration or launchctl"
+  ]
+}
