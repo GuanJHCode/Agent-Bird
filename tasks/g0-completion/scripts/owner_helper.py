@@ -74,20 +74,7 @@ _SERVER_NOTIFICATIONS = frozenset(
         "remoteControl/status/changed",
         "mcpServer/startupStatus/updated",
         "item/agentMessage/delta",
-        "account/updated",
         "account/rateLimits/updated",
-    }
-)
-_AUTH_MODES = frozenset(
-    {
-        "apiKey",
-        "chatgpt",
-        "chatgptAuthTokens",
-        "headers",
-        "agentIdentity",
-        "personalAccessToken",
-        "bedrockApiKey",
-        "bedrockAccessKeys",
     }
 )
 _RATE_LIMIT_REACHED_TYPES = frozenset(
@@ -144,50 +131,56 @@ def _validate_agent_message_delta(params: object, owner_thread_id: str) -> None:
 def _validate_rate_limit_window(value: object) -> None:
     if value is None:
         return
-    _exact_keys(value, {"usedPercent", "windowDurationMins", "resetsAt"})
+    if not isinstance(value, dict):
+        _reject("account_rate_limits_window")
+    if set(value) - {"usedPercent", "windowDurationMins", "resetsAt"} or "usedPercent" not in value:
+        _reject("account_rate_limits_window")
     if type(value["usedPercent"]) is not int or not -(1 << 31) <= value["usedPercent"] <= (1 << 31) - 1:
         _reject("account_rate_limits_window")
-    if not _optional_i64(value["windowDurationMins"]) or not _optional_i64(value["resetsAt"]):
+    if "windowDurationMins" in value and not _optional_i64(value["windowDurationMins"]):
+        _reject("account_rate_limits_window")
+    if "resetsAt" in value and not _optional_i64(value["resetsAt"]):
         _reject("account_rate_limits_window")
 
 
 def _validate_rate_limit_snapshot(value: object) -> None:
-    required = {
+    allowed = {
         "limitId", "limitName", "normalModelSlug", "primary", "secondary",
         "credits", "individualLimit", "spendControlReached", "planType", "rateLimitReachedType",
     }
-    _exact_keys(value, required)
+    if not isinstance(value, dict) or set(value) - allowed:
+        _reject("rpc_envelope")
     for key in ("limitId", "limitName", "normalModelSlug", "planType"):
+        if key not in value:
+            continue
         if not _optional_string(value[key]):
             _reject("account_rate_limits_shape")
-    _validate_rate_limit_window(value["primary"])
-    _validate_rate_limit_window(value["secondary"])
-    credits = value["credits"]
+    if "primary" in value:
+        _validate_rate_limit_window(value["primary"])
+    if "secondary" in value:
+        _validate_rate_limit_window(value["secondary"])
+    credits = value.get("credits")
     if credits is not None:
-        _exact_keys(credits, {"hasCredits", "unlimited", "balance"})
-        if type(credits["hasCredits"]) is not bool or type(credits["unlimited"]) is not bool or not _optional_string(credits["balance"]):
+        if not isinstance(credits, dict) or set(credits) - {"hasCredits", "unlimited", "balance"} or not {"hasCredits", "unlimited"}.issubset(credits):
             _reject("account_rate_limits_credits")
-    individual = value["individualLimit"]
+        if type(credits["hasCredits"]) is not bool or type(credits["unlimited"]) is not bool:
+            _reject("account_rate_limits_credits")
+        if "balance" in credits and not _optional_string(credits["balance"]):
+            _reject("account_rate_limits_credits")
+    individual = value.get("individualLimit")
     if individual is not None:
         _exact_keys(individual, {"limit", "used", "remainingPercent", "resetsAt"})
         if type(individual["limit"]) is not str or type(individual["used"]) is not str:
             _reject("account_rate_limits_spend")
         if type(individual["remainingPercent"]) is not int or type(individual["resetsAt"]) is not int:
             _reject("account_rate_limits_spend")
-    if value["spendControlReached"] is not None and type(value["spendControlReached"]) is not bool:
+    if "spendControlReached" in value and value["spendControlReached"] is not None and type(value["spendControlReached"]) is not bool:
         _reject("account_rate_limits_shape")
-    if value["rateLimitReachedType"] is not None and value["rateLimitReachedType"] not in _RATE_LIMIT_REACHED_TYPES:
+    if "rateLimitReachedType" in value and value["rateLimitReachedType"] is not None and value["rateLimitReachedType"] not in _RATE_LIMIT_REACHED_TYPES:
         _reject("account_rate_limits_shape")
 
 
 def _validate_account_notification(method: str, params: object) -> None:
-    if method == "account/updated":
-        _exact_keys(params, {"authMode", "planType"})
-        if params["authMode"] is not None and params["authMode"] not in _AUTH_MODES:
-            _reject("account_update_shape")
-        if not _optional_string(params["planType"]):
-            _reject("account_update_shape")
-        return
     _exact_keys(params, {"rateLimits"})
     _validate_rate_limit_snapshot(params["rateLimits"])
 
@@ -357,7 +350,7 @@ def validate_helper_server_message(message: object, owner_thread_id: str) -> Non
         _reject("response_thread_target")
     if method == "item/agentMessage/delta":
         _validate_agent_message_delta(params, owner_thread_id)
-    elif method in {"account/updated", "account/rateLimits/updated"}:
+    elif method == "account/rateLimits/updated":
         _validate_account_notification(method, params)
     elif method in {"turn/started", "turn/completed"}:
         if set(params) != {"threadId", "turn"} or params["threadId"] != owner_thread_id:

@@ -599,8 +599,6 @@ def test_native_agent_message_delta_is_owner_scoped_and_type_strict():
 
 def test_account_notifications_use_fixed_read_only_shapes():
     owner = OWNER["owner_thread_id"]
-    account = {"method": "account/updated", "params": {"authMode": "chatgpt", "planType": "plus"}}
-    assert validate_helper_server_message(account, owner) is None
     rate_limits = {
         "limitId": "codex",
         "limitName": "Codex",
@@ -615,11 +613,15 @@ def test_account_notifications_use_fixed_read_only_shapes():
     }
     limits = {"method": "account/rateLimits/updated", "params": {"rateLimits": rate_limits}, "emittedAtMs": 2}
     assert validate_helper_server_message(limits, owner) is None
+    assert validate_helper_server_message({"method": "account/rateLimits/updated", "params": {"rateLimits": {}}}, owner) is None
+    assert validate_helper_server_message({"method": "account/rateLimits/updated", "params": {"rateLimits": {
+        "primary": {"usedPercent": 1}, "credits": {"hasCredits": False, "unlimited": False},
+    }}}, owner) is None
     for bad in (
-        {**account, "params": {"authMode": 1, "planType": "plus"}},
-        {**account, "params": {"authMode": "chatgpt", "planType": "plus", "secret": "reject"}},
+        {"method": "account/updated", "params": {"authMode": "chatgpt", "planType": "plus"}},
         {**limits, "params": {"rateLimits": {**rate_limits, "primary": {"usedPercent": True, "windowDurationMins": 1, "resetsAt": 2}}}},
         {**limits, "params": {"rateLimits": {**rate_limits, "extra": 1}}},
+        {**limits, "params": {"rateLimits": {"primary": {"usedPercent": 1, "unknown": 2}}}},
     ):
         with pytest.raises(OwnerHelperAdmissionError):
             validate_helper_server_message(bad, owner)

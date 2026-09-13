@@ -104,7 +104,6 @@ async def main():
                     history_output = output
                     records.append(record); write_receipt(records)
                     writer.write(server_frame({"id": message["id"], "result": {"turn": turn_body("inProgress")}}))
-                    writer.write(server_frame({"method": "account/updated", "params": {"authMode": "chatgpt", "planType": "plus"}, "emittedAtMs": int(time.time() * 1000)}))
                     writer.write(server_frame({"method": "account/rateLimits/updated", "params": {"rateLimits": {
                         "limitId": "codex", "limitName": "Codex", "normalModelSlug": "gpt-5",
                         "primary": {"usedPercent": 1, "windowDurationMins": 300, "resetsAt": 1700000000},
