@@ -1,0 +1,24 @@
+{
+  "launchd_native_02": {
+    "status": "passed",
+    "case_source": "bce0f1b",
+    "real_registration": true,
+    "bootstrap_count": 1,
+    "bootout_count": 1,
+    "ack_count": 1,
+    "effect_count": 1,
+    "auth_unchanged_count": 14,
+    "independent_receipt_audit": "passed",
+    "ordinary_tui_verified": false,
+    "durable_history_verified": false,
+    "external_model_calls": 0
+  },
+  "g2_protocol": {
+    "source": "0102ac0",
+    "command": "GO111MODULE=off GOENV=off GOTOOLCHAIN=local GOCACHE=$PWD/tasks/g1-g4-delivery/tmp/root-build tasks/g0-macos/data/go/bin/go test -race ./tools/orchestrator/internal/adapter",
+    "exit_code": 0,
+    "elapsed_package_seconds": 1.405,
+    "scope": "Versioned invocation and bounded structured protocol only; actual CLI tasks and G1 Host integration pending."
+  },
+  "previous_601_suite_rerun": false
+}
