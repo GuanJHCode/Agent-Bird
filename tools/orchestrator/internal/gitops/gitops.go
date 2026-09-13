@@ -69,14 +69,33 @@ type Journal interface {
 // candidate-freeze records without changing its existing integration ABI.
 type CandidateJournal interface {
 	PersistCandidateIntent(context.Context, CandidateIntent) error
+	PersistCandidateRefIntent(context.Context, CandidateRefIntent) error
 	RecordCandidateFreeze(context.Context, CandidateReceipt) error
 }
 
+type PrivateRefJournal interface {
+	PersistPrivateRefIntent(context.Context, PrivateRefIntent) error
+	RecordPrivateRef(context.Context, PrivateRefOutcome) error
+}
+
 type CandidateIntent struct {
-	AttemptID, RepoRoot, Worktree, BaseOID string
-	OrderedInputOIDs                       []string
-	PlanRevision                           int64
-	CreatedAt                              time.Time
+	AttemptID        string    `json:"attempt_id"`
+	RepoRoot         string    `json:"repo_root"`
+	Worktree         string    `json:"worktree"`
+	BaseOID          string    `json:"base_oid"`
+	PrivateRef       string    `json:"private_ref"`
+	OrderedInputOIDs []string  `json:"ordered_input_oids"`
+	PlanRevision     int64     `json:"plan_revision"`
+	CreatedAt        time.Time `json:"created_at"`
+}
+
+type CandidateRefIntent struct {
+	AttemptID      string    `json:"attempt_id"`
+	RepoRoot       string    `json:"repo_root"`
+	PrivateRef     string    `json:"private_ref"`
+	ExpectedOldOID string    `json:"expected_old_oid"`
+	CandidateOID   string    `json:"candidate_oid"`
+	CreatedAt      time.Time `json:"created_at"`
 }
 
 type CandidateCompositionRequest struct {
@@ -86,20 +105,63 @@ type CandidateCompositionRequest struct {
 	BaseOID          string   `json:"base_oid"`
 	OrderedInputOIDs []string `json:"ordered_input_oids"`
 	PlanRevision     int64    `json:"plan_revision"`
+	PrivateRef       string   `json:"private_ref"`
 }
 
 type CandidateReceipt struct {
-	AttemptID        string                  `json:"attempt_id"`
-	RepoRoot         string                  `json:"repo_root"`
-	Worktree         string                  `json:"worktree"`
-	CommonDir        string                  `json:"common_dir"`
-	BaseOID          string                  `json:"base_oid"`
-	CandidateOID     string                  `json:"candidate_oid"`
-	TreeOID          string                  `json:"tree_oid"`
-	OrderedInputOIDs []string                `json:"ordered_input_oids"`
-	RootIdentity     DirectoryIdentity       `json:"root_identity"`
-	Files            map[string]FileIdentity `json:"files"`
-	PlanRevision     int64                   `json:"plan_revision"`
+	AttemptID             string                  `json:"attempt_id"`
+	RepoRoot              string                  `json:"repo_root"`
+	Worktree              string                  `json:"worktree"`
+	CommonDir             string                  `json:"common_dir"`
+	BaseOID               string                  `json:"base_oid"`
+	CandidateOID          string                  `json:"candidate_oid"`
+	TreeOID               string                  `json:"tree_oid"`
+	OrderedInputOIDs      []string                `json:"ordered_input_oids"`
+	RootIdentity          DirectoryIdentity       `json:"root_identity"`
+	WorktreeIdentity      string                  `json:"worktree_identity"`
+	Files                 map[string]FileIdentity `json:"files"`
+	PlanRevision          int64                   `json:"plan_revision"`
+	PrivateRef            string                  `json:"private_ref"`
+	PrivateRefExpectedOID string                  `json:"private_ref_expected_oid"`
+}
+
+type PrivateRefRequest struct {
+	RepoRoot       string `json:"repo_root"`
+	PrivateRef     string `json:"private_ref"`
+	ExpectedOldOID string `json:"expected_old_oid"`
+	OID            string `json:"oid"`
+}
+
+type DeletePrivateRefRequest struct {
+	RepoRoot    string `json:"repo_root"`
+	PrivateRef  string `json:"private_ref"`
+	ExpectedOID string `json:"expected_oid"`
+}
+
+type PrivateRefReceipt struct {
+	RepoRoot    string `json:"repo_root"`
+	PrivateRef  string `json:"private_ref"`
+	ExpectedOID string `json:"expected_oid"`
+	State       string `json:"state"`
+}
+
+type PrivateRefIntent struct {
+	Operation      string    `json:"operation"`
+	RepoRoot       string    `json:"repo_root"`
+	PrivateRef     string    `json:"private_ref"`
+	ExpectedOldOID string    `json:"expected_old_oid,omitempty"`
+	OID            string    `json:"oid"`
+	CreatedAt      time.Time `json:"created_at"`
+}
+
+type PrivateRefOutcome struct {
+	Operation  string    `json:"operation"`
+	RepoRoot   string    `json:"repo_root"`
+	PrivateRef string    `json:"private_ref"`
+	OID        string    `json:"oid"`
+	State      string    `json:"state"`
+	Code       string    `json:"code,omitempty"`
+	RecordedAt time.Time `json:"recorded_at"`
 }
 
 type ReviewBinding struct {
@@ -184,16 +246,23 @@ type IntegrationOutcome struct {
 }
 
 type CleanupIntent struct {
-	Root, AttemptID, CandidateOID, RootIdentity string
-	CreatedAt                                   time.Time
+	Root                  string    `json:"root"`
+	AttemptID             string    `json:"attempt_id"`
+	CandidateOID          string    `json:"candidate_oid"`
+	RootIdentity          string    `json:"root_identity"`
+	PrivateRef            string    `json:"private_ref,omitempty"`
+	PrivateRefExpectedOID string    `json:"private_ref_expected_oid,omitempty"`
+	CreatedAt             time.Time `json:"created_at"`
 }
 type CleanupOutcome struct {
-	State        string    `json:"state"`
-	Code         string    `json:"code,omitempty"`
-	Root         string    `json:"root"`
-	RemovedFiles int       `json:"removed_files"`
-	DetailDigest string    `json:"detail_digest,omitempty"`
-	RecordedAt   time.Time `json:"recorded_at"`
+	State           string    `json:"state"`
+	Code            string    `json:"code,omitempty"`
+	Root            string    `json:"root"`
+	RemovedFiles    int       `json:"removed_files"`
+	PrivateRef      string    `json:"private_ref,omitempty"`
+	PrivateRefState string    `json:"private_ref_state,omitempty"`
+	DetailDigest    string    `json:"detail_digest,omitempty"`
+	RecordedAt      time.Time `json:"recorded_at"`
 }
 
 type FileIdentity struct {
@@ -575,10 +644,10 @@ func Materialize(ctx context.Context, req MaterializeRequest, journal Journal) (
 
 // ComposeCandidate materializes the declared base in a dedicated worktree,
 // applies each dependency in the declared order with protected fast-forward
-// merges, and freezes the resulting commit/tree as the candidate receipt.  It
-// never changes the caller's target worktree or any branch ref.
+// merges, and freezes the resulting commit/tree behind a managed private ref.
+// It never changes the caller's target worktree or any user branch ref.
 func ComposeCandidate(ctx context.Context, req CandidateCompositionRequest, journal CandidateJournal) (CandidateReceipt, error) {
-	if journal == nil || req.AttemptID == "" || req.Worktree == "" || req.RepoRoot == "" || req.BaseOID == "" || len(req.OrderedInputOIDs) == 0 {
+	if journal == nil || req.AttemptID == "" || req.Worktree == "" || req.RepoRoot == "" || req.BaseOID == "" || req.PrivateRef == "" || len(req.OrderedInputOIDs) == 0 {
 		return CandidateReceipt{}, fail(CodeInvalidInput, "compose", fmt.Errorf("missing input"))
 	}
 	root, common, err := validateRepo(ctx, req.RepoRoot)
@@ -589,6 +658,9 @@ func ComposeCandidate(ctx context.Context, req CandidateCompositionRequest, jour
 		return CandidateReceipt{}, fail(CodeInvalidInput, "compose", fmt.Errorf("repository/worktree identity"))
 	}
 	if err := validateOIDInRepo(ctx, req.RepoRoot, req.BaseOID); err != nil {
+		return CandidateReceipt{}, err
+	}
+	if err := validatePrivateRef(req.PrivateRef); err != nil {
 		return CandidateReceipt{}, err
 	}
 	if err := noSymlinkComponents(filepath.Dir(req.Worktree)); err != nil {
@@ -605,7 +677,7 @@ func ComposeCandidate(ctx context.Context, req CandidateCompositionRequest, jour
 			return CandidateReceipt{}, err
 		}
 	}
-	if err := journal.PersistCandidateIntent(ctx, CandidateIntent{AttemptID: req.AttemptID, RepoRoot: root, Worktree: req.Worktree, BaseOID: req.BaseOID, OrderedInputOIDs: inputs, PlanRevision: req.PlanRevision, CreatedAt: time.Now().UTC()}); err != nil {
+	if err := journal.PersistCandidateIntent(ctx, CandidateIntent{AttemptID: req.AttemptID, RepoRoot: root, Worktree: req.Worktree, BaseOID: req.BaseOID, PrivateRef: req.PrivateRef, OrderedInputOIDs: inputs, PlanRevision: req.PlanRevision, CreatedAt: time.Now().UTC()}); err != nil {
 		return CandidateReceipt{}, err
 	}
 	if result, e := run(ctx, req.RepoRoot, "worktree", "add", "--detach", req.Worktree, req.BaseOID); e != nil || result.ExitCode != 0 {
@@ -656,7 +728,15 @@ func ComposeCandidate(ctx context.Context, req CandidateCompositionRequest, jour
 	if err != nil {
 		return CandidateReceipt{}, err
 	}
-	receipt := CandidateReceipt{AttemptID: req.AttemptID, RepoRoot: root, Worktree: CanonicalPath(req.Worktree), CommonDir: common, BaseOID: req.BaseOID, CandidateOID: candidateOID, TreeOID: treeOID, OrderedInputOIDs: inputs, RootIdentity: rootIdentity, Files: files, PlanRevision: req.PlanRevision}
+	refIntent := CandidateRefIntent{AttemptID: req.AttemptID, RepoRoot: root, PrivateRef: req.PrivateRef, ExpectedOldOID: "", CandidateOID: candidateOID, CreatedAt: time.Now().UTC()}
+	if err := journal.PersistCandidateRefIntent(ctx, refIntent); err != nil {
+		return CandidateReceipt{}, err
+	}
+	if err := PrivateRef(ctx, req.RepoRoot, req.PrivateRef, "", candidateOID); err != nil {
+		return CandidateReceipt{}, err
+	}
+	worktree := CanonicalPath(req.Worktree)
+	receipt := CandidateReceipt{AttemptID: req.AttemptID, RepoRoot: root, Worktree: worktree, CommonDir: common, BaseOID: req.BaseOID, CandidateOID: candidateOID, TreeOID: treeOID, OrderedInputOIDs: inputs, RootIdentity: rootIdentity, WorktreeIdentity: worktree, Files: files, PlanRevision: req.PlanRevision, PrivateRef: req.PrivateRef, PrivateRefExpectedOID: candidateOID}
 	if err := journal.RecordCandidateFreeze(ctx, receipt); err != nil {
 		return CandidateReceipt{}, err
 	}
@@ -864,17 +944,48 @@ func prepareCleanupAdmin(ctx context.Context, root, expectedCommon string) (*cle
 }
 
 func Cleanup(ctx context.Context, req CleanupRequest) (CleanupOutcome, error) {
-	out := CleanupOutcome{State: CleanupPending, Root: req.Root, RecordedAt: time.Now().UTC()}
-	if req.Journal == nil || req.Root == "" || req.Receipt.WorktreeIdentity == "" {
+	receipt, receiptErr := cleanupReceipt(req)
+	out := CleanupOutcome{State: CleanupPending, Root: req.Root, PrivateRef: receipt.PrivateRef, RecordedAt: time.Now().UTC()}
+	if receiptErr != nil {
+		return out, receiptErr
+	}
+	if req.Journal == nil || req.Root == "" || receipt.WorktreeIdentity == "" {
 		return out, fail(CodeInvalidInput, "cleanup", fmt.Errorf("missing cleanup input"))
+	}
+	if (receipt.PrivateRef == "") != (receipt.PrivateRefExpectedOID == "") {
+		return out, fail(CodeInvalidInput, "cleanup", fmt.Errorf("incomplete private ref binding"))
+	}
+	if receipt.PrivateRef != "" {
+		if err := validatePrivateRef(receipt.PrivateRef); err != nil {
+			return out, err
+		}
+		if err := requireOID(receipt.PrivateRefExpectedOID); err != nil {
+			return out, err
+		}
+		root, common, err := validateRepo(ctx, receipt.RepoRoot)
+		if err != nil || root != CanonicalPath(receipt.RepoRoot) || common != receipt.CommonDir {
+			return out, fail(CodeIdentityChanged, "cleanup private-ref repository", err)
+		}
+		out.PrivateRefState = "retained"
 	}
 	if err := noSymlinkComponents(req.Root); err != nil {
 		return out, err
 	}
-	if CanonicalPath(req.Root) != req.Receipt.WorktreeIdentity {
+	if CanonicalPath(req.Root) != receipt.WorktreeIdentity {
 		return out, fail(CodeIdentityChanged, "cleanup", fmt.Errorf("root identity"))
 	}
 	if _, err := os.Stat(req.Root); os.IsNotExist(err) {
+		if receipt.PrivateRef != "" {
+			intent := CleanupIntent{Root: req.Root, AttemptID: receipt.AttemptID, CandidateOID: receipt.CommitOID, RootIdentity: receipt.WorktreeIdentity, PrivateRef: receipt.PrivateRef, PrivateRefExpectedOID: receipt.PrivateRefExpectedOID, CreatedAt: time.Now().UTC()}
+			if err := req.Journal.PersistCleanupIntent(ctx, intent); err != nil {
+				return out, err
+			}
+			if err := DeletePrivateRef(ctx, receipt.RepoRoot, receipt.PrivateRef, receipt.PrivateRefExpectedOID); err != nil {
+				out.Code = string(CodeTargetDrift)
+				return out, recordCleanup(ctx, req.Journal, out, err)
+			}
+			out.PrivateRefState = "deleted"
+		}
 		out.State = CleanupRemoved
 		return out, recordCleanup(ctx, req.Journal, out, nil)
 	} else if err != nil {
@@ -884,7 +995,7 @@ func Cleanup(ctx context.Context, req CleanupRequest) (CleanupOutcome, error) {
 	if err != nil {
 		return out, err
 	}
-	if req.Receipt.RootIdentity != (DirectoryIdentity{}) && !sameDirectoryIdentity(rootIdentity, req.Receipt.RootIdentity) {
+	if receipt.RootIdentity != (DirectoryIdentity{}) && !sameDirectoryIdentity(rootIdentity, receipt.RootIdentity) {
 		return out, fail(CodeIdentityChanged, "cleanup", fmt.Errorf("root inode changed"))
 	}
 	// Keep an anchored directory handle open across inventory, the final
@@ -909,12 +1020,12 @@ func Cleanup(ctx context.Context, req CleanupRequest) (CleanupOutcome, error) {
 		return out, err
 	}
 	defer rootParentFD.Close()
-	admin, err := prepareCleanupAdmin(ctx, req.Root, req.Receipt.CommonDir)
+	admin, err := prepareCleanupAdmin(ctx, req.Root, receipt.CommonDir)
 	if err != nil {
 		return out, err
 	}
 	defer admin.close()
-	commonLock, err := acquireIntegrationLock(req.Receipt.CommonDir)
+	commonLock, err := acquireIntegrationLock(receipt.CommonDir)
 	if err != nil {
 		return out, err
 	}
@@ -927,9 +1038,19 @@ func Cleanup(ctx context.Context, req CleanupRequest) (CleanupOutcome, error) {
 			}
 		}
 	}
-	intent := CleanupIntent{Root: req.Root, AttemptID: req.Receipt.AttemptID, CandidateOID: req.Receipt.CommitOID, RootIdentity: req.Receipt.WorktreeIdentity, CreatedAt: time.Now().UTC()}
+	intent := CleanupIntent{Root: req.Root, AttemptID: receipt.AttemptID, CandidateOID: receipt.CommitOID, RootIdentity: receipt.WorktreeIdentity, PrivateRef: receipt.PrivateRef, PrivateRefExpectedOID: receipt.PrivateRefExpectedOID, CreatedAt: time.Now().UTC()}
 	if err := req.Journal.PersistCleanupIntent(ctx, intent); err != nil {
 		return out, err
+	}
+	if receipt.PrivateRef != "" {
+		current, exists, refErr := privateRefOID(ctx, receipt.RepoRoot, receipt.PrivateRef)
+		if refErr != nil || !exists || current != receipt.PrivateRefExpectedOID {
+			out.Code = string(CodeTargetDrift)
+			if refErr == nil {
+				refErr = fail(CodeTargetDrift, "cleanup private-ref", fmt.Errorf("ref changed"))
+			}
+			return out, recordCleanup(ctx, req.Journal, out, refErr)
+		}
 	}
 	current, err := snapshot(req.Root)
 	if err != nil {
@@ -941,7 +1062,7 @@ func Cleanup(ctx context.Context, req CleanupRequest) (CleanupOutcome, error) {
 		return out, recordCleanup(ctx, req.Journal, out, fail(CodeIdentityChanged, "cleanup", fmt.Errorf("root changed after inventory")))
 	}
 	for path, id := range current {
-		expected, ok := req.Receipt.Files[path]
+		expected, ok := receipt.Files[path]
 		if !ok {
 			out.Code = string(CodeUnknownObject)
 			return out, recordCleanup(ctx, req.Journal, out, fail(CodeUnknownObject, "cleanup", fmt.Errorf("unowned entry")))
@@ -1014,6 +1135,13 @@ func Cleanup(ctx context.Context, req CleanupRequest) (CleanupOutcome, error) {
 	} else if !os.IsNotExist(err) {
 		return out, err
 	}
+	if receipt.PrivateRef != "" {
+		if err := DeletePrivateRef(ctx, receipt.RepoRoot, receipt.PrivateRef, receipt.PrivateRefExpectedOID); err != nil {
+			out.Code = string(CodeTargetDrift)
+			return out, recordCleanup(ctx, req.Journal, out, err)
+		}
+		out.PrivateRefState = "deleted"
+	}
 	out.State, out.Code, out.RemovedFiles = CleanupRemoved, "", len(current)
 	if journalErr := req.Journal.RecordCleanup(ctx, out); journalErr != nil {
 		out.State = CleanupPending
@@ -1023,10 +1151,11 @@ func Cleanup(ctx context.Context, req CleanupRequest) (CleanupOutcome, error) {
 }
 
 type CleanupRequest struct {
-	Root       string             `json:"root"`
-	Receipt    MaterializeReceipt `json:"receipt"`
-	Journal    Journal            `json:"-"`
-	ActivePIDs []int              `json:"active_pids,omitempty"`
+	Root             string             `json:"root"`
+	Receipt          MaterializeReceipt `json:"receipt,omitempty"`
+	CandidateReceipt *CandidateReceipt  `json:"candidate_receipt,omitempty"`
+	Journal          Journal            `json:"-"`
+	ActivePIDs       []int              `json:"active_pids,omitempty"`
 	// BeforeRemove is a test/fault seam. Production leaves it nil.
 	BeforeRemove func() error `json:"-"`
 	// AfterQuarantine is a test/fault seam used to prove late additions are
@@ -1037,11 +1166,64 @@ type CleanupRequest struct {
 	BeforeAnchoredRemove func(string) error `json:"-"`
 }
 
+type cleanupReceiptBinding struct {
+	AttemptID             string
+	RepoRoot              string
+	CommonDir             string
+	CommitOID             string
+	WorktreeIdentity      string
+	RootIdentity          DirectoryIdentity
+	Files                 map[string]FileIdentity
+	PrivateRef            string
+	PrivateRefExpectedOID string
+}
+
+func cleanupReceipt(req CleanupRequest) (cleanupReceiptBinding, error) {
+	hasMaterialized := req.Receipt.WorktreeIdentity != ""
+	hasCandidate := req.CandidateReceipt != nil
+	if hasMaterialized == hasCandidate {
+		return cleanupReceiptBinding{}, fail(CodeInvalidInput, "cleanup", fmt.Errorf("exactly one receipt is required"))
+	}
+	if hasMaterialized {
+		return cleanupReceiptBinding{
+			AttemptID: req.Receipt.AttemptID, RepoRoot: req.Receipt.RepoRoot, CommonDir: req.Receipt.CommonDir,
+			CommitOID: req.Receipt.CommitOID, WorktreeIdentity: req.Receipt.WorktreeIdentity,
+			RootIdentity: req.Receipt.RootIdentity, Files: req.Receipt.Files,
+		}, nil
+	}
+	candidate := req.CandidateReceipt
+	return cleanupReceiptBinding{
+		AttemptID: candidate.AttemptID, RepoRoot: candidate.RepoRoot, CommonDir: candidate.CommonDir,
+		CommitOID: candidate.CandidateOID, WorktreeIdentity: candidate.WorktreeIdentity, RootIdentity: candidate.RootIdentity,
+		Files:      candidate.Files,
+		PrivateRef: candidate.PrivateRef, PrivateRefExpectedOID: candidate.PrivateRefExpectedOID,
+	}, nil
+}
+
+var privateRefRE = regexp.MustCompile(`^refs/orchestrator/g3/[A-Za-z0-9][A-Za-z0-9._/-]*$`)
+
 func validatePrivateRef(ref string) error {
-	if !strings.HasPrefix(ref, "refs/orchestrator/g3/") || strings.Contains(ref, "..") || strings.ContainsAny(ref, " \t\n") {
+	if !privateRefRE.MatchString(ref) || strings.Contains(ref, "..") || strings.Contains(ref, "//") || strings.Contains(ref, "@{") || strings.HasSuffix(ref, "/") || strings.HasSuffix(ref, ".") || strings.HasSuffix(ref, ".lock") {
 		return fail(CodeInvalidInput, "private-ref", fmt.Errorf("ref outside managed namespace"))
 	}
 	return nil
+}
+
+func privateRefOID(ctx context.Context, repo, ref string) (string, bool, error) {
+	if _, _, err := validateRepo(ctx, repo); err != nil {
+		return "", false, err
+	}
+	result, err := run(ctx, repo, "rev-parse", "--verify", "--quiet", ref)
+	if err != nil || result.ExitCode != 0 {
+		if result.ExitCode == 1 {
+			return "", false, nil
+		}
+		return "", false, fail(CodeGitFailure, "rev-parse private-ref", err)
+	}
+	if err := requireOID(result.Stdout); err != nil {
+		return "", false, err
+	}
+	return result.Stdout, true, nil
 }
 
 // PrivateRef performs a compare-and-swap creation/update.  The expected old
@@ -1051,15 +1233,33 @@ func PrivateRef(ctx context.Context, repo, ref, expectedOld, oid string) error {
 	if err := validatePrivateRef(ref); err != nil {
 		return err
 	}
+	if _, _, err := validateRepo(ctx, repo); err != nil {
+		return err
+	}
 	if expectedOld != "" {
 		if err := requireOID(expectedOld); err != nil {
 			return err
 		}
-	} else if current, _, err := gitText(ctx, repo, "rev-parse", "--verify", ref); err == nil && current != "" {
-		return fail(CodeTargetDrift, "create-ref", fmt.Errorf("ref already exists"))
 	}
 	if err := requireOID(oid); err != nil {
 		return err
+	}
+	if err := validateOIDInRepo(ctx, repo, oid); err != nil {
+		return err
+	}
+	current, exists, err := privateRefOID(ctx, repo, ref)
+	if err != nil {
+		return err
+	}
+	if expectedOld == "" {
+		if exists && current == oid {
+			return nil
+		}
+		if exists {
+			return fail(CodeTargetDrift, "create-ref", fmt.Errorf("ref already exists"))
+		}
+	} else if !exists || current != expectedOld {
+		return fail(CodeTargetDrift, "update-ref", fmt.Errorf("ref changed"))
 	}
 	args := []string{"update-ref", ref, oid}
 	if expectedOld != "" {
@@ -1071,24 +1271,97 @@ func PrivateRef(ctx context.Context, repo, ref, expectedOld, oid string) error {
 	if err != nil || result.ExitCode != 0 {
 		return fail(CodeTargetDrift, "update-ref", err)
 	}
+	current, exists, err = privateRefOID(ctx, repo, ref)
+	if err != nil || !exists || current != oid {
+		return fail(CodeTargetDrift, "verify-ref", err)
+	}
 	return nil
 }
+
+func CreatePrivateRef(ctx context.Context, req PrivateRefRequest, journal PrivateRefJournal) (PrivateRefReceipt, error) {
+	receipt := PrivateRefReceipt{RepoRoot: CanonicalPath(req.RepoRoot), PrivateRef: req.PrivateRef, ExpectedOID: req.OID, State: "create_pending"}
+	if journal == nil || req.RepoRoot == "" || req.PrivateRef == "" || req.OID == "" {
+		return receipt, fail(CodeInvalidInput, "create-private-ref", fmt.Errorf("missing input"))
+	}
+	intent := PrivateRefIntent{Operation: "create_private_ref", RepoRoot: receipt.RepoRoot, PrivateRef: req.PrivateRef, ExpectedOldOID: req.ExpectedOldOID, OID: req.OID, CreatedAt: time.Now().UTC()}
+	if err := journal.PersistPrivateRefIntent(ctx, intent); err != nil {
+		return receipt, err
+	}
+	operationErr := PrivateRef(ctx, req.RepoRoot, req.PrivateRef, req.ExpectedOldOID, req.OID)
+	outcome := PrivateRefOutcome{Operation: intent.Operation, RepoRoot: receipt.RepoRoot, PrivateRef: req.PrivateRef, OID: req.OID, State: "created", RecordedAt: time.Now().UTC()}
+	if operationErr != nil {
+		outcome.State, outcome.Code = "rejected", errorCode(operationErr)
+	}
+	recordErr := journal.RecordPrivateRef(ctx, outcome)
+	if operationErr != nil || recordErr != nil {
+		return receipt, errors.Join(operationErr, recordErr)
+	}
+	receipt.State = outcome.State
+	return receipt, nil
+}
+
 func DeletePrivateRef(ctx context.Context, repo, ref, expected string) error {
 	if err := validatePrivateRef(ref); err != nil {
+		return err
+	}
+	if _, _, err := validateRepo(ctx, repo); err != nil {
 		return err
 	}
 	if err := requireOID(expected); err != nil {
 		return err
 	}
-	current, _, err := gitText(ctx, repo, "rev-parse", "--verify", ref)
+	current, exists, err := privateRefOID(ctx, repo, ref)
 	if err != nil {
 		return err
+	}
+	if !exists {
+		return nil
 	}
 	if current != expected {
 		return fail(CodeTargetDrift, "delete-ref", fmt.Errorf("ref changed"))
 	}
-	_, err = run(ctx, repo, "update-ref", "-d", ref, expected)
-	return err
+	result, err := run(ctx, repo, "update-ref", "-d", ref, expected)
+	if err != nil || result.ExitCode != 0 {
+		return fail(CodeTargetDrift, "delete-ref", err)
+	}
+	_, exists, err = privateRefOID(ctx, repo, ref)
+	if err != nil || exists {
+		return fail(CodeTargetDrift, "verify-delete-ref", err)
+	}
+	return nil
+}
+
+func DeletePrivateRefWithReceipt(ctx context.Context, req DeletePrivateRefRequest, journal PrivateRefJournal) (PrivateRefReceipt, error) {
+	receipt := PrivateRefReceipt{RepoRoot: CanonicalPath(req.RepoRoot), PrivateRef: req.PrivateRef, ExpectedOID: req.ExpectedOID, State: "delete_pending"}
+	if journal == nil || req.RepoRoot == "" || req.PrivateRef == "" || req.ExpectedOID == "" {
+		return receipt, fail(CodeInvalidInput, "delete-private-ref", fmt.Errorf("missing input"))
+	}
+	intent := PrivateRefIntent{Operation: "delete_private_ref", RepoRoot: receipt.RepoRoot, PrivateRef: req.PrivateRef, OID: req.ExpectedOID, CreatedAt: time.Now().UTC()}
+	if err := journal.PersistPrivateRefIntent(ctx, intent); err != nil {
+		return receipt, err
+	}
+	operationErr := DeletePrivateRef(ctx, req.RepoRoot, req.PrivateRef, req.ExpectedOID)
+	outcome := PrivateRefOutcome{Operation: intent.Operation, RepoRoot: receipt.RepoRoot, PrivateRef: req.PrivateRef, OID: req.ExpectedOID, State: "deleted", RecordedAt: time.Now().UTC()}
+	if operationErr != nil {
+		outcome.State, outcome.Code = "retained", errorCode(operationErr)
+	}
+	recordErr := journal.RecordPrivateRef(ctx, outcome)
+	if operationErr != nil || recordErr != nil {
+		return receipt, errors.Join(operationErr, recordErr)
+	}
+	receipt.State = outcome.State
+	return receipt, nil
+}
+
+func errorCode(err error) string {
+	var gitErr *Error
+	if errors.As(err, &gitErr) {
+		return string(gitErr.Code)
+	}
+	if err != nil {
+		return string(CodeGitFailure)
+	}
+	return ""
 }
 func DigestDetail(value string) string {
 	sum := sha256.Sum256([]byte(value))

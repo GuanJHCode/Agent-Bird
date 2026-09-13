@@ -104,6 +104,16 @@ func Run(ctx context.Context, requestPath string, stdout io.Writer) error {
 		if err = decode(envelope.Request, &request); err == nil {
 			result, err = gitops.ComposeCandidate(ctx, request, journal)
 		}
+	case "create_private_ref":
+		var request gitops.PrivateRefRequest
+		if err = decode(envelope.Request, &request); err == nil {
+			result, err = gitops.CreatePrivateRef(ctx, request, journal)
+		}
+	case "delete_private_ref":
+		var request gitops.DeletePrivateRefRequest
+		if err = decode(envelope.Request, &request); err == nil {
+			result, err = gitops.DeletePrivateRefWithReceipt(ctx, request, journal)
+		}
 	case "materialize":
 		var request gitops.MaterializeRequest
 		if err = decode(envelope.Request, &request); err == nil {
@@ -187,12 +197,21 @@ func (j *durableJournal) RecordCleanup(_ context.Context, value gitops.CleanupOu
 func (j *durableJournal) PersistCandidateIntent(_ context.Context, value gitops.CandidateIntent) error {
 	return j.append("candidate_intent", value)
 }
+func (j *durableJournal) PersistCandidateRefIntent(_ context.Context, value gitops.CandidateRefIntent) error {
+	return j.append("candidate_ref_intent", value)
+}
 func (j *durableJournal) RecordCandidateFreeze(_ context.Context, value gitops.CandidateReceipt) error {
 	return j.append("candidate_receipt", value)
 }
+func (j *durableJournal) PersistPrivateRefIntent(_ context.Context, value gitops.PrivateRefIntent) error {
+	return j.append("private_ref_intent", value)
+}
+func (j *durableJournal) RecordPrivateRef(_ context.Context, value gitops.PrivateRefOutcome) error {
+	return j.append("private_ref_outcome", value)
+}
 
 func validOperation(value string) bool {
-	return value == "compose" || value == "materialize" || value == "integrate" || value == "cleanup"
+	return value == "compose" || value == "create_private_ref" || value == "delete_private_ref" || value == "materialize" || value == "integrate" || value == "cleanup"
 }
 
 func requestWorkingDirectory(operation string, body json.RawMessage) (string, error) {
@@ -202,6 +221,9 @@ func requestWorkingDirectory(operation string, body json.RawMessage) (string, er
 		Receipt  struct {
 			RepoRoot string `json:"repo_root"`
 		} `json:"receipt"`
+		CandidateReceipt struct {
+			RepoRoot string `json:"repo_root"`
+		} `json:"candidate_receipt"`
 	}
 	if err := json.Unmarshal(body, &value); err != nil {
 		return "", errors.New("gitops_worker_request_invalid")
@@ -209,6 +231,9 @@ func requestWorkingDirectory(operation string, body json.RawMessage) (string, er
 	directory := value.RepoRoot
 	if operation == "cleanup" {
 		directory = value.Receipt.RepoRoot
+		if directory == "" {
+			directory = value.CandidateReceipt.RepoRoot
+		}
 		if directory == "" {
 			directory = filepath.Dir(value.Root)
 		}
@@ -305,3 +330,4 @@ func digest(value string) string {
 
 var _ gitops.Journal = (*durableJournal)(nil)
 var _ gitops.CandidateJournal = (*durableJournal)(nil)
+var _ gitops.PrivateRefJournal = (*durableJournal)(nil)

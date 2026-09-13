@@ -2,6 +2,7 @@ package gitops
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -10,16 +11,27 @@ import (
 )
 
 type memoryJournal struct {
-	intents           []IntegrationIntent
-	outcomes          []IntegrationOutcome
-	cleanupIntents    []CleanupIntent
-	cleanupOutcomes   []CleanupOutcome
-	candidateIntents  []CandidateIntent
-	candidateReceipts []CandidateReceipt
+	intents             []IntegrationIntent
+	outcomes            []IntegrationOutcome
+	cleanupIntents      []CleanupIntent
+	cleanupOutcomes     []CleanupOutcome
+	candidateIntents    []CandidateIntent
+	candidateRefIntents []CandidateRefIntent
+	candidateReceipts   []CandidateReceipt
+}
+
+type failingFreezeJournal struct{ memoryJournal }
+
+func (j *failingFreezeJournal) RecordCandidateFreeze(context.Context, CandidateReceipt) error {
+	return errors.New("candidate receipt unavailable")
 }
 
 func (m *memoryJournal) PersistCandidateIntent(_ context.Context, in CandidateIntent) error {
 	m.candidateIntents = append(m.candidateIntents, in)
+	return nil
+}
+func (m *memoryJournal) PersistCandidateRefIntent(_ context.Context, in CandidateRefIntent) error {
+	m.candidateRefIntents = append(m.candidateRefIntents, in)
 	return nil
 }
 func (m *memoryJournal) RecordCandidateFreeze(_ context.Context, in CandidateReceipt) error {
@@ -256,15 +268,19 @@ func TestComposeCandidateFreezesOrderedDependencyComposition(t *testing.T) {
 	second := git(t, d, "rev-parse", "HEAD")
 	work := filepath.Join(t.TempDir(), "composed")
 	j := &memoryJournal{}
-	got, err := ComposeCandidate(context.Background(), CandidateCompositionRequest{RepoRoot: d, Worktree: work, AttemptID: "compose-1", BaseOID: base, OrderedInputOIDs: []string{first, second}, PlanRevision: 7}, j)
+	privateRef := "refs/orchestrator/g3/compose-1"
+	got, err := ComposeCandidate(context.Background(), CandidateCompositionRequest{RepoRoot: d, Worktree: work, AttemptID: "compose-1", BaseOID: base, OrderedInputOIDs: []string{first, second}, PlanRevision: 7, PrivateRef: privateRef}, j)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.CandidateOID != second || got.BaseOID != base || len(j.candidateIntents) != 1 || len(j.candidateReceipts) != 1 {
+	if got.CandidateOID != second || got.BaseOID != base || got.PrivateRef != privateRef || got.PrivateRefExpectedOID != second || len(j.candidateIntents) != 1 || len(j.candidateRefIntents) != 1 || len(j.candidateReceipts) != 1 {
 		t.Fatalf("receipt=%+v journal=%+v", got, j)
 	}
 	if git(t, work, "rev-parse", "HEAD") != second {
 		t.Fatal("composition did not freeze final dependency")
+	}
+	if git(t, d, "rev-parse", privateRef) != second {
+		t.Fatal("composition did not create the persistent private ref")
 	}
 }
 
@@ -286,7 +302,8 @@ func TestComposeCandidateMergesIndependentBranchesIntoFrozenCommit(t *testing.T)
 	b := git(t, d, "rev-parse", "HEAD")
 	work := filepath.Join(t.TempDir(), "independent-composed")
 	j := &memoryJournal{}
-	got, err := ComposeCandidate(context.Background(), CandidateCompositionRequest{RepoRoot: d, Worktree: work, AttemptID: "compose-independent", BaseOID: base, OrderedInputOIDs: []string{a, b}, PlanRevision: 8}, j)
+	privateRef := "refs/orchestrator/g3/compose-independent"
+	got, err := ComposeCandidate(context.Background(), CandidateCompositionRequest{RepoRoot: d, Worktree: work, AttemptID: "compose-independent", BaseOID: base, OrderedInputOIDs: []string{a, b}, PlanRevision: 8, PrivateRef: privateRef}, j)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -295,6 +312,9 @@ func TestComposeCandidateMergesIndependentBranchesIntoFrozenCommit(t *testing.T)
 	}
 	if got := git(t, work, "rev-parse", "--verify", got.CandidateOID+"^{tree}"); got == "" {
 		t.Fatal("missing composed tree")
+	}
+	if git(t, d, "rev-parse", privateRef) != got.CandidateOID {
+		t.Fatal("composed merge commit is not pinned")
 	}
 }
 
@@ -308,11 +328,128 @@ func TestPrivateRefRequiresManagedNamespaceAndCompareAndSwap(t *testing.T) {
 	if err := PrivateRef(context.Background(), d, managed, "", candidateOID); err != nil {
 		t.Fatal(err)
 	}
+	if err := PrivateRef(context.Background(), d, managed, "", candidateOID); err != nil {
+		t.Fatalf("idempotent create failed: %v", err)
+	}
 	if err := PrivateRef(context.Background(), d, managed, base, candidateOID); err == nil || !IsCode(err, CodeTargetDrift) {
 		t.Fatalf("CAS mismatch accepted: %v", err)
 	}
 	if err := DeletePrivateRef(context.Background(), d, managed, candidateOID); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestComposeDoesNotReturnFreezeReceiptWhenJournalRecordFails(t *testing.T) {
+	d, base := repo(t)
+	candidateOID, _ := candidate(t, d)
+	work := filepath.Join(t.TempDir(), "freeze-record-failure")
+	privateRef := "refs/orchestrator/g3/freeze-record-failure"
+	journal := &failingFreezeJournal{}
+	receipt, err := ComposeCandidate(context.Background(), CandidateCompositionRequest{
+		RepoRoot: d, Worktree: work, AttemptID: "freeze-record-failure", BaseOID: base,
+		OrderedInputOIDs: []string{candidateOID}, PlanRevision: 1, PrivateRef: privateRef,
+	}, journal)
+	if err == nil || receipt.CandidateOID != "" {
+		t.Fatalf("freeze was reported despite journal failure: receipt=%+v err=%v", receipt, err)
+	}
+	if got := git(t, d, "rev-parse", privateRef); got != candidateOID {
+		t.Fatalf("recoverable private ref missing: got=%s want=%s", got, candidateOID)
+	}
+	if len(journal.candidateRefIntents) != 1 {
+		t.Fatalf("candidate ref intent missing: %+v", journal.candidateRefIntents)
+	}
+}
+
+func TestCleanupDeletesExpectedPrivateRefAndRetainsDrift(t *testing.T) {
+	d, base := repo(t)
+	candidateOID, _ := candidate(t, d)
+	firstWork := filepath.Join(t.TempDir(), "cleanup-private-ref")
+	firstRef := "refs/orchestrator/g3/cleanup-private-ref"
+	first, err := ComposeCandidate(context.Background(), CandidateCompositionRequest{
+		RepoRoot: d, Worktree: firstWork, AttemptID: "cleanup-private-ref", BaseOID: base,
+		OrderedInputOIDs: []string{candidateOID}, PlanRevision: 1, PrivateRef: firstRef,
+	}, &memoryJournal{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := Cleanup(context.Background(), CleanupRequest{Root: firstWork, CandidateReceipt: &first, Journal: &memoryJournal{}})
+	if err != nil || out.State != CleanupRemoved || out.PrivateRefState != "deleted" {
+		t.Fatalf("cleanup failed: out=%+v err=%v", out, err)
+	}
+	if _, _, refErr := gitText(context.Background(), d, "show-ref", "--verify", firstRef); refErr == nil {
+		t.Fatal("expected private ref survived cleanup")
+	}
+
+	secondWork := filepath.Join(t.TempDir(), "cleanup-private-ref-drift")
+	secondRef := "refs/orchestrator/g3/cleanup-private-ref-drift"
+	second, err := ComposeCandidate(context.Background(), CandidateCompositionRequest{
+		RepoRoot: d, Worktree: secondWork, AttemptID: "cleanup-private-ref-drift", BaseOID: base,
+		OrderedInputOIDs: []string{candidateOID}, PlanRevision: 1, PrivateRef: secondRef,
+	}, &memoryJournal{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	git(t, d, "update-ref", secondRef, base, candidateOID)
+	out, err = Cleanup(context.Background(), CleanupRequest{Root: secondWork, CandidateReceipt: &second, Journal: &memoryJournal{}})
+	if err == nil || !IsCode(err, CodeTargetDrift) || out.State != CleanupPending || out.PrivateRefState != "retained" {
+		t.Fatalf("drift was not retained: out=%+v err=%v", out, err)
+	}
+	if got := git(t, d, "rev-parse", secondRef); got != base {
+		t.Fatalf("drifted private ref changed: %s", got)
+	}
+	if _, statErr := os.Stat(secondWork); statErr != nil {
+		t.Fatalf("worktree changed before drift rejection: %v", statErr)
+	}
+}
+
+func TestMissingWorktreeCannotRedirectPrivateRefCleanupToAnotherRepository(t *testing.T) {
+	firstRepo, base := repo(t)
+	candidateOID, _ := candidate(t, firstRepo)
+	work := filepath.Join(t.TempDir(), "removed-compose-worktree")
+	receipt, err := ComposeCandidate(context.Background(), CandidateCompositionRequest{
+		RepoRoot: firstRepo, Worktree: work, AttemptID: "redirect-check", BaseOID: base,
+		OrderedInputOIDs: []string{candidateOID}, PlanRevision: 1, PrivateRef: "refs/orchestrator/g3/redirect-check",
+	}, &memoryJournal{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	git(t, firstRepo, "worktree", "remove", "--force", work)
+
+	secondRepo, secondOID := repo(t)
+	secondRef := "refs/orchestrator/g3/foreign"
+	git(t, secondRepo, "update-ref", secondRef, secondOID, "")
+	receipt.RepoRoot = secondRepo
+	receipt.PrivateRef = secondRef
+	receipt.PrivateRefExpectedOID = secondOID
+	out, err := Cleanup(context.Background(), CleanupRequest{Root: work, CandidateReceipt: &receipt, Journal: &memoryJournal{}})
+	if err == nil || !IsCode(err, CodeIdentityChanged) || out.State != CleanupPending {
+		t.Fatalf("foreign repository binding accepted: out=%+v err=%v", out, err)
+	}
+	if got := git(t, secondRepo, "rev-parse", secondRef); got != secondOID {
+		t.Fatalf("foreign ref changed: got=%s want=%s", got, secondOID)
+	}
+}
+
+func TestMissingComposedWorktreeDeletesExpectedRefAfterDurableIntent(t *testing.T) {
+	d, base := repo(t)
+	candidateOID, _ := candidate(t, d)
+	work := filepath.Join(t.TempDir(), "missing-compose-worktree")
+	privateRef := "refs/orchestrator/g3/missing-compose-worktree"
+	receipt, err := ComposeCandidate(context.Background(), CandidateCompositionRequest{
+		RepoRoot: d, Worktree: work, AttemptID: "missing-compose-worktree", BaseOID: base,
+		OrderedInputOIDs: []string{candidateOID}, PlanRevision: 1, PrivateRef: privateRef,
+	}, &memoryJournal{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	git(t, d, "worktree", "remove", "--force", work)
+	journal := &memoryJournal{}
+	out, err := Cleanup(context.Background(), CleanupRequest{Root: receipt.Worktree, CandidateReceipt: &receipt, Journal: journal})
+	if err != nil || out.State != CleanupRemoved || out.PrivateRefState != "deleted" || len(journal.cleanupIntents) != 1 || len(journal.cleanupOutcomes) != 1 {
+		t.Fatalf("missing root recovery failed: out=%+v intents=%+v outcomes=%+v err=%v", out, journal.cleanupIntents, journal.cleanupOutcomes, err)
+	}
+	if _, exists, refErr := privateRefOID(context.Background(), d, privateRef); refErr != nil || exists {
+		t.Fatalf("private ref remains after recovery: exists=%v err=%v", exists, refErr)
 	}
 }
 
