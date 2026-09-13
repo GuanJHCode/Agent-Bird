@@ -16,9 +16,10 @@ only `${PLUGIN_ROOT}/scripts/invoke.sh`, whose allowlist is:
 - `status`, `collect`, `ack`
 - `resume`, `stop`
 
-Every task operation requires the exact `controller_thread`; resume and stop
-also require the latest `work_revision`. A missing binding is `blocked` rather
-than guessed. Session startup is silent and never resumes interrupted work.
+Submission binds the exact `controller_thread`; every later task operation
+requires the returned owner-only 0600 `control_file`, and resume/stop also
+require the latest `work_revision`. A missing binding is `blocked` rather than
+guessed. Session startup is silent and never resumes interrupted work.
 The skill does not use `${PLUGIN_DATA}` for production state, does not replace
 the `codex` entry point, and does not define MCP or app configuration. Git
 materialization/integration remains blocked until the source Host exposes the

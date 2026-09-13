@@ -15,12 +15,13 @@ exit status 2. Preserve that structured reason in the response.
 
 ## Owner binding
 
-The controller is the current Codex task. Use its exact thread identifier as
-`controller_thread`; do not infer it from a task ID, title, working directory,
-or another session. If the current thread identifier, task receipt, task ID, or
-required `work_revision` is unavailable, report `blocked` and name the missing
-binding. Never query, collect, acknowledge, resume, or stop a task with a
-different controller binding.
+The controller is the current Codex task. Submission binds its exact thread
+identifier, but later commands prove ownership with the owner-only 0600
+`control_file` returned by `submit`. Do not infer this path from a task ID,
+title, working directory, or another session. If the control file, task receipt,
+task ID, or required `work_revision` is unavailable, report `blocked` and name
+the missing binding. Never query, collect, acknowledge, resume, or stop a task
+with a control file returned to a different controller.
 
 Session startup is silent. Do not scan plugin data, emit a pending marker, or
 automatically resume interrupted work. Resume only after an explicit user
@@ -38,10 +39,12 @@ request in the current owner thread and only with the exact latest
    request supports them. Do not place credentials, CLI authentication state,
    or inherited environment data in the request.
 4. Run `invoke.sh submit --request <absolute-request-path>`. The CLI starts the
-   source Host and returns `queued` plus `launch_id`; no bearer token is printed
-   to the plugin.
+   source Host and returns `queued` plus the owner-only `control_file`; no
+   bearer token is printed to the plugin.
 5. Remove the temporary request file and directory after the CLI has consumed
-   it. Retain the returned owner/task receipts in the conversation.
+   it. Retain the returned `control_file` path and task receipts in the owner
+   conversation. Never print or read the capability token stored inside that
+   file.
 
 Do not use `${PLUGIN_DATA}` for coordinator state. Production state is selected
 by the CLI through the native user data directory. A test may pass
@@ -53,15 +56,15 @@ directory in scope.
 Use both binding arguments for every task query:
 
 ```text
-invoke.sh status --task-id <task-id> --controller-thread <thread-id>
-invoke.sh collect --task-id <task-id> --controller-thread <thread-id>
+invoke.sh status --task-id <task-id> --control-file <absolute-control-file>
+invoke.sh collect --task-id <task-id> --control-file <absolute-control-file>
 ```
 
 `collect` does not acknowledge delivery. Present collected events to the owner,
 then acknowledge each durable event separately with:
 
 ```text
-invoke.sh ack --task-id <task-id> --controller-thread <thread-id> --event-id <event-id>
+invoke.sh ack --task-id <task-id> --control-file <absolute-control-file> --event-id <event-id>
 ```
 
 Repeat an ACK only with the same event ID; ACK is idempotent. Do not acknowledge
@@ -72,7 +75,7 @@ an event that was not successfully collected and delivered to this owner.
 After a user explicitly requests recovery, fetch fresh status and run:
 
 ```text
-invoke.sh resume --task-id <task-id> --work-revision <revision> --controller-thread <thread-id>
+invoke.sh resume --task-id <task-id> --work-revision <revision> --control-file <absolute-control-file>
 ```
 
 Resume only queues work. If the old execution tree has not been confirmed
@@ -82,7 +85,7 @@ interrupted work during startup or reconciliation.
 For an explicit stop request, fetch fresh status and run:
 
 ```text
-invoke.sh stop --task-id <task-id> --work-revision <revision> --controller-thread <thread-id>
+invoke.sh stop --task-id <task-id> --work-revision <revision> --control-file <absolute-control-file>
 ```
 
 Git materialization, integration, and cleanup are source Host capabilities. If
