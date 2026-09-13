@@ -86,6 +86,7 @@ func (h *Host) PublishAll(ctx context.Context, sink EventSink, epoch uint64) err
 	if err != nil {
 		return err
 	}
+	originalCursor := cursor
 	type pendingEvent struct {
 		spool *events.Spool
 		event contract.Event
@@ -132,7 +133,7 @@ func (h *Host) PublishAll(ctx context.Context, sink EventSink, epoch uint64) err
 		}
 		last = item.event.Sequence
 	}
-	if last == cursor {
+	if last == originalCursor {
 		return nil
 	}
 	// Advance each affected spool only after all corresponding control-plane
