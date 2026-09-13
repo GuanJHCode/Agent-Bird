@@ -103,8 +103,20 @@ func (h *Host) Execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		return contract.Result{Status: "failed", ExitCode: -1, EventCount: 1}, err
 	}
 	identity := p.Identity()
-	_ = publishLaunchPhase(spool, "spawned", a, runID, taskID, cmd, &identity, nil)
-	_ = publishLaunchPhase(spool, "running", a, runID, taskID, cmd, &identity, nil)
+	if err = publishLaunchPhase(spool, "spawned", a, runID, taskID, cmd, &identity, nil); err != nil {
+		stopCtx, stopCancel := context.WithTimeout(context.Background(), 2*time.Second)
+		_ = p.Stop(stopCtx)
+		stopCancel()
+		_ = h.db.FinishAttempt(context.Background(), a.ID, "unknown")
+		return contract.Result{Status: "unknown", ExitCode: p.ExitCode(), EventCount: 1}, err
+	}
+	if err = publishLaunchPhase(spool, "running", a, runID, taskID, cmd, &identity, nil); err != nil {
+		stopCtx, stopCancel := context.WithTimeout(context.Background(), 2*time.Second)
+		_ = p.Stop(stopCtx)
+		stopCancel()
+		_ = h.db.FinishAttempt(context.Background(), a.ID, "unknown")
+		return contract.Result{Status: "unknown", ExitCode: p.ExitCode(), EventCount: 1}, err
+	}
 	h.mu.Lock()
 	h.active[a.ID] = p
 	h.mu.Unlock()
@@ -113,11 +125,16 @@ func (h *Host) Execute(ctx context.Context, a store.Attempt, runID, taskID strin
 	if waitErr != nil {
 		stopErr := p.Stop(ctx)
 		if stopErr != nil {
-			_ = publishLaunchPhase(spool, "unknown", a, runID, taskID, cmd, &identity, stopErr)
+			if phaseErr := publishLaunchPhase(spool, "unknown", a, runID, taskID, cmd, &identity, stopErr); phaseErr != nil {
+				stopErr = phaseErr
+			}
 			_ = h.db.FinishAttempt(context.Background(), a.ID, "unknown")
 			return contract.Result{Status: "unknown", ExitCode: p.ExitCode(), EventCount: 1, OutputHash: hashText(p.Output())}, stopErr
 		}
-		_ = publishLaunchPhase(spool, "stopped", a, runID, taskID, cmd, &identity, waitErr)
+		if phaseErr := publishLaunchPhase(spool, "stopped", a, runID, taskID, cmd, &identity, waitErr); phaseErr != nil {
+			_ = h.db.FinishAttempt(context.Background(), a.ID, "unknown")
+			return contract.Result{Status: "unknown", ExitCode: p.ExitCode(), EventCount: 1, OutputHash: hashText(p.Output())}, phaseErr
+		}
 		_ = h.db.FinishAttempt(context.Background(), a.ID, "interrupted")
 		return contract.Result{Status: "interrupted", ExitCode: p.ExitCode(), EventCount: 1, OutputHash: hashText(p.Output())}, waitErr
 	}
@@ -135,14 +152,17 @@ func (h *Host) Execute(ctx context.Context, a store.Attempt, runID, taskID strin
 	if err = spool.Append(contract.Event{Version: 1, RunID: runID, TaskID: taskID, AttemptID: a.ID, SegmentID: a.SegmentID, Sequence: 2, Kind: "result", PayloadHash: outHash}); err != nil {
 		return contract.Result{}, err
 	}
-	if err = h.db.FinishAttempt(context.Background(), a.ID, status); err != nil {
-		return contract.Result{}, err
-	}
 	phase := "exited"
 	if status == "interrupted" {
 		phase = "stopped"
 	}
-	_ = publishLaunchPhase(spool, phase, a, runID, taskID, cmd, &identity, nil)
+	if err = publishLaunchPhase(spool, phase, a, runID, taskID, cmd, &identity, nil); err != nil {
+		_ = h.db.FinishAttempt(context.Background(), a.ID, "unknown")
+		return contract.Result{Status: "unknown", ExitCode: p.ExitCode(), EventCount: 2, OutputHash: outHash, ArtifactPath: artifactPath}, err
+	}
+	if err = h.db.FinishAttempt(context.Background(), a.ID, status); err != nil {
+		return contract.Result{}, err
+	}
 	return contract.Result{Status: status, ExitCode: p.ExitCode(), EventCount: 2, OutputHash: outHash, ArtifactPath: artifactPath}, nil
 }
 
