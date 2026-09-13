@@ -85,6 +85,26 @@ def _write_json(path: Path, value: dict) -> None:
         json.dump(value,stream,sort_keys=True,indent=2); stream.write('\n')
 
 
+def _publish_receipt(path: Path, value: dict) -> None:
+    """Publish one owner-created receipt without replacing an existing inode."""
+    stage = path.parent / f".{path.name}.{uuid.uuid4().hex}.tmp"
+    _write_json(stage, value)
+    try:
+        with stage.open('rb') as stream:
+            os.fsync(stream.fileno())
+        os.link(stage, path, follow_symlinks=False)
+        directory_fd = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        try:
+            os.fsync(directory_fd)
+        finally:
+            os.close(directory_fd)
+    finally:
+        try:
+            stage.unlink()
+        except FileNotFoundError:
+            pass
+
+
 def _peer(peer) -> dict:
     return {key:getattr(peer,key,None) for key in ('pid','uid','birth','executable','complete','source')}
 
@@ -292,6 +312,7 @@ class ActivationService:
         self.receipt_dir=self.state_dir/self.activation_id
         self.receipt_dir.mkdir(mode=0o700)
         self._directory_pins[self.receipt_dir]=_private_directory(self.receipt_dir)
+        self._publish_service_start()
         self.sink=MetadataSink(lease_for_connection=self._protocol_lease,publish_ready=self._publish_ready)
         self.backend_records=[]
         self._admissions={}
@@ -313,6 +334,17 @@ class ActivationService:
         self.proxy=ProxyServer(self.public_socket,None,self.sink,authorize_peer=self._admit,
             backend_factory=self._backend,stop_on_frontend_eof=True,callback_timeout=LOCAL_SECONDS,
             wire_gate_factory=self._wire_gate_factory)
+
+    def _publish_service_start(self):
+        birth, executable = _process_metadata(os.getpid())
+        executable_path = Path(executable).resolve()
+        identity = {'pid': os.getpid(), 'uid': os.getuid(), 'birth': birth,
+                    'executable': executable, 'executable_sha256': _sha(executable_path)}
+        self._service_identity = identity
+        _publish_receipt(self.receipt_dir/'service-start.json', {
+            'version': 1, 'activation_id': self.activation_id,
+            'manifest_sha256': self.manifest_sha256, 'service_identity': identity,
+            'started_raw': time.clock_gettime_ns(time.CLOCK_MONOTONIC_RAW)})
 
     def _protocol_lease(self,event):
         for record in self.backend_records:
@@ -348,6 +380,14 @@ class ActivationService:
                 owner_epoch=record['owner_epoch'],owner_thread_id=thread_id,
                 private_socket=record['private_socket'],backend_pid=record['pid'],
                 backend_birth=record['birth'],helper_identity=None)
+            row['owner_lease']={
+                'profile_id':record['profile_id'],'owner_context_sha256':owner_context_sha256,
+                'lease_id':record['lease_id'],'owner_connection_id':record['owner_connection_id'],
+                'owner_epoch':record['owner_epoch'],'owner_thread_id':thread_id,
+                'private_socket':record['private_socket'],'backend_pid':record['pid'],
+                'backend_birth':record['birth'],'backend_executable_sha256':_sha(self.executable),
+                'private_socket_identity':list(record.get('private_socket_identity', ())),
+                'service_identity':dict(self._service_identity)}
         path=self.receipt_dir/f"ready-{protocol['lease_id']}.json"
         stage=self.receipt_dir/f".ready-{uuid.uuid4().hex}.json"
         try:
@@ -532,6 +572,17 @@ class ActivationService:
             frozen=record.get('private_socket_identity')
             if frozen is None or (info.st_dev,info.st_ino,info.st_uid,info.st_mode)!=tuple(frozen):
                 raise ValueError('helper backend socket identity changed')
+            _publish_receipt(self.receipt_dir/f"helper-ready-{grant['lease_id']}-{frontend.pid}.json", {
+                'version':1,'activation_id':self.activation_id,'manifest_sha256':self.manifest_sha256,
+                'service_identity':dict(self._service_identity),
+                'owner_lease':{
+                    'profile_id':record['profile_id'],'owner_context_sha256':grant['owner_context_sha256'],
+                    'lease_id':grant['lease_id'],'owner_connection_id':grant['owner_connection_id'],
+                    'owner_epoch':grant['owner_epoch'],'owner_thread_id':grant['owner_thread_id'],
+                    'private_socket':grant['private_socket'],'backend_pid':record['pid'],
+                    'backend_birth':record['birth'],'backend_executable_sha256':_sha(self.executable),
+                    'private_socket_identity':list(frozen)},
+                'frontend_peer':_peer(frontend),'backend_peer':_peer(backend_peer)})
             yield BackendConnection(helper.reader,helper.writer,
                 lambda peer:_same_process(peer,record['pid'],record['birth'],self.executable))
         finally:
