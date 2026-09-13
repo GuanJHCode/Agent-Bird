@@ -1,0 +1,20 @@
+{
+  "scope": "intermediate integration; owner-helper and synthetic native fixture pending",
+  "python_source_commit": "6bfb87f",
+  "python_passed": 432,
+  "python_subtests_passed": 116,
+  "python_duration_seconds": 26.28,
+  "go_source_commit": "6794b6c",
+  "go_main_equivalent_commit": "f60108e",
+  "go_full_race": "passed",
+  "go_duration_seconds": 34.793,
+  "independently_reviewed": {
+    "socket": "7f7ff06",
+    "delivery": "6794b6c",
+    "lifecycle": "6edba3a"
+  },
+  "native_run_performed": false,
+  "launchd_registration_performed": false,
+  "auth_operations": [],
+  "complete_g0": false
+}

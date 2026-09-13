@@ -1,0 +1,33 @@
+{
+  "case": "native-transport-01",
+  "runner_status": "unknown",
+  "failure": {
+    "stage": "thread/start",
+    "type": "ValueError",
+    "errno": null,
+    "message_sha256": "0ab80875e1f425dc48e2a6bf8087a716a945dc92f91af479273457ac18c13b76"
+  },
+  "auth_comparison": {
+    "unchanged": true,
+    "changed_path_ids": []
+  },
+  "synthetic_auth_absent": true,
+  "private_socket_absent": true,
+  "owned_backend_absent": true,
+  "thread_id": null,
+  "turn_ids": [],
+  "history_verified": false,
+  "durable_history_verified": false,
+  "business_ack_verified": false,
+  "synthetic_endpoint": {
+    "version": 1,
+    "synthetic_only": true,
+    "external_model_calls": 0,
+    "accepted_requests": 0,
+    "attempts": 0,
+    "requests": []
+  },
+  "launchd_registration_performed": false,
+  "external_model_calls": 0,
+  "status": "unknown"
+}
