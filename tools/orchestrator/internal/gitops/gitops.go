@@ -410,10 +410,34 @@ func acquireIntegrationLock(common string) (*os.File, error) {
 	if common == "" {
 		return nil, fail(CodeInvalidInput, "lock", fmt.Errorf("missing common dir"))
 	}
-	lockPath := filepath.Join(common, "g3-integration.lock")
-	f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0600)
+	if err := noSymlinkComponents(common); err != nil {
+		return nil, err
+	}
+	commonIdentity, err := directoryIdentity(common)
 	if err != nil {
 		return nil, err
+	}
+	lockPath := filepath.Join(common, "g3-integration.lock")
+	if st, e := os.Lstat(lockPath); e == nil && st.Mode()&os.ModeSymlink != 0 {
+		return nil, fail(CodeUnknownObject, "lock", fmt.Errorf("lock path is symlink"))
+	}
+	f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR|syscall.O_NOFOLLOW, 0600)
+	if err != nil {
+		return nil, err
+	}
+	pathInfo, statErr := os.Stat(lockPath)
+	fileInfo, fileErr := f.Stat()
+	if statErr != nil || fileErr != nil || pathInfo == nil || fileInfo == nil || !os.SameFile(pathInfo, fileInfo) {
+		_ = f.Close()
+		return nil, fail(CodeIdentityChanged, "lock", fmt.Errorf("lock inode changed"))
+	}
+	if lockStat, ok := fileInfo.Sys().(*syscall.Stat_t); !ok || lockStat.Nlink != 1 || int64(lockStat.Uid) != int64(os.Getuid()) || fileInfo.Mode().Perm() != 0600 {
+		_ = f.Close()
+		return nil, fail(CodeUnknownObject, "lock", fmt.Errorf("lock ownership or mode"))
+	}
+	if latest, e := directoryIdentity(common); e != nil || !sameDirectoryIdentity(latest, commonIdentity) {
+		_ = f.Close()
+		return nil, fail(CodeIdentityChanged, "lock", fmt.Errorf("common directory changed"))
 	}
 	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
 		_ = f.Close()
@@ -549,9 +573,27 @@ func ComposeCandidate(ctx context.Context, req CandidateCompositionRequest, jour
 		return CandidateReceipt{}, fail(CodeGitFailure, "compose worktree add", e)
 	}
 	for _, input := range inputs {
-		result, e := run(ctx, req.Worktree, "merge", "--ff-only", "--no-autostash", "--no-overwrite-ignore", input)
-		if e != nil || result.ExitCode != 0 {
-			return CandidateReceipt{}, fail(CodeGitFailure, "compose dependency merge", e)
+		// A dependency may be a descendant of the current composition (the
+		// cheap fast-forward case), or it may be an independent branch from
+		// the same base.  The latter must be composed with a normal merge;
+		// ff-only is reserved for the final consumer integration.
+		if _, e := run(ctx, req.Worktree, "merge-base", "--is-ancestor", input, "HEAD"); e == nil {
+			continue
+		}
+		if _, e := run(ctx, req.Worktree, "merge-base", "--is-ancestor", "HEAD", input); e == nil {
+			result, mergeErr := run(ctx, req.Worktree, "merge", "--ff-only", "--no-autostash", "--no-overwrite-ignore", input)
+			if mergeErr != nil || result.ExitCode != 0 {
+				return CandidateReceipt{}, fail(CodeGitFailure, "compose fast-forward", mergeErr)
+			}
+			continue
+		}
+		result, mergeErr := run(ctx, req.Worktree, "merge", "--no-ff", "--no-commit", "--no-autostash", "--no-overwrite-ignore", input)
+		if mergeErr != nil || result.ExitCode != 0 {
+			return CandidateReceipt{}, fail(CodeGitFailure, "compose dependency merge", mergeErr)
+		}
+		result, mergeErr = run(ctx, req.Worktree, "commit", "--no-edit", "-m", "G3 candidate composition")
+		if mergeErr != nil || result.ExitCode != 0 {
+			return CandidateReceipt{}, fail(CodeGitFailure, "compose merge commit", mergeErr)
 		}
 	}
 	candidateOID, err := rev(ctx, req.Worktree, "HEAD")
@@ -843,6 +885,33 @@ func Cleanup(ctx context.Context, req CleanupRequest) (CleanupOutcome, error) {
 			return out, recordCleanup(ctx, req.Journal, out, fail(CodeIdentityChanged, "cleanup", fmt.Errorf("quarantine entry changed")))
 		}
 	}
+	if req.AfterQuarantine != nil {
+		if err := req.AfterQuarantine(quarantine); err != nil {
+			out.Code = string(CodeUnknownObject)
+			return out, recordCleanup(ctx, req.Journal, out, err)
+		}
+		latest, e := snapshot(quarantine)
+		if e != nil || len(latest) != len(qCurrent) {
+			out.Code = string(CodeUnknownObject)
+			return out, recordCleanup(ctx, req.Journal, out, fail(CodeUnknownObject, "cleanup", fmt.Errorf("quarantine gained unknown object")))
+		}
+		for path, id := range latest {
+			if !sameIdentity(id, qCurrent[path]) {
+				out.Code = string(CodeIdentityChanged)
+				return out, recordCleanup(ctx, req.Journal, out, fail(CodeIdentityChanged, "cleanup", fmt.Errorf("quarantine entry changed")))
+			}
+		}
+	}
+	// The original pathname must remain absent.  Never let Git's pathname
+	// based administrative cleanup touch a directory recreated by another
+	// actor after quarantine.
+	if _, e := os.Lstat(req.Root); e == nil {
+		out.Code = string(CodeUnknownObject)
+		return out, recordCleanup(ctx, req.Journal, out, fail(CodeUnknownObject, "cleanup", fmt.Errorf("worktree path recreated")))
+	} else if !os.IsNotExist(e) {
+		out.Code = string(CodeUnknownObject)
+		return out, recordCleanup(ctx, req.Journal, out, e)
+	}
 	if _, err := run(ctx, req.Receipt.RepoRoot, "worktree", "remove", req.Root); err != nil {
 		out.Code = string(CodeUnknownObject)
 		return out, recordCleanup(ctx, req.Journal, out, fail(CodeUnknownObject, "worktree remove", err))
@@ -853,7 +922,7 @@ func Cleanup(ctx context.Context, req CleanupRequest) (CleanupOutcome, error) {
 	} else if !os.IsNotExist(err) {
 		return out, err
 	}
-	if err := os.RemoveAll(quarantine); err != nil {
+	if err := removeOwnedTree(quarantine, qCurrent, fdInfo); err != nil {
 		out.Code = string(CodeUnknownObject)
 		return out, recordCleanup(ctx, req.Journal, out, err)
 	}
@@ -871,6 +940,45 @@ func Cleanup(ctx context.Context, req CleanupRequest) (CleanupOutcome, error) {
 	return out, nil
 }
 
+// removeOwnedTree removes only entries whose identities were captured while
+// the quarantined root was held. It deliberately avoids RemoveAll: an entry
+// added or replaced after the inventory is unknown and therefore retained.
+func removeOwnedTree(root string, expected map[string]FileIdentity, rootInfo os.FileInfo) error {
+	paths := make([]string, 0, len(expected))
+	for path := range expected {
+		paths = append(paths, path)
+	}
+	sort.Slice(paths, func(i, j int) bool {
+		left, right := strings.Count(paths[i], "/"), strings.Count(paths[j], "/")
+		if left == right {
+			return paths[i] > paths[j]
+		}
+		return left > right
+	})
+	for _, path := range paths {
+		currentRoot, err := os.Stat(root)
+		if err != nil || currentRoot == nil || !os.SameFile(currentRoot, rootInfo) {
+			return fail(CodeIdentityChanged, "quarantine remove", fmt.Errorf("root identity changed"))
+		}
+		full := filepath.Join(root, filepath.FromSlash(path))
+		id, err := fileIdentity(full)
+		if err != nil {
+			return fail(CodeUnknownObject, "quarantine remove", err)
+		}
+		if !sameIdentity(id, expected[path]) {
+			return fail(CodeIdentityChanged, "quarantine remove", fmt.Errorf("entry identity changed"))
+		}
+		if err := os.Remove(full); err != nil {
+			return fail(CodeUnknownObject, "quarantine remove", err)
+		}
+	}
+	currentRoot, err := os.Stat(root)
+	if err != nil || currentRoot == nil || !os.SameFile(currentRoot, rootInfo) {
+		return fail(CodeIdentityChanged, "quarantine remove", fmt.Errorf("root identity changed"))
+	}
+	return os.Remove(root)
+}
+
 type CleanupRequest struct {
 	Root       string
 	Receipt    MaterializeReceipt
@@ -878,6 +986,9 @@ type CleanupRequest struct {
 	ActivePIDs []int
 	// BeforeRemove is a test/fault seam. Production leaves it nil.
 	BeforeRemove func() error
+	// AfterQuarantine is a test/fault seam used to prove late additions are
+	// retained. Production leaves it nil.
+	AfterQuarantine func(string) error
 }
 
 func validatePrivateRef(ref string) error {

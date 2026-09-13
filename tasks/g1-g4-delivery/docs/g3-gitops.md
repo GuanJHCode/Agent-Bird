@@ -4,7 +4,7 @@
 
 ## 接口与不变量
 
-`Materialize` 在独立 worktree 中验证 base、candidate、依赖祖先关系，记录候选 commit/tree、ordered inputs、common-dir、文件身份和目录的 device/inode/uid 身份。`ComposeCandidate` 则在独立 worktree 以明确顺序执行 `merge --ff-only --no-autostash --no-overwrite-ignore`，并返回冻结的 candidate receipt；失败现场由上层按意图账本保留。
+`Materialize` 在独立 worktree 中验证 base、candidate、依赖祖先关系，记录候选 commit/tree、ordered inputs、common-dir、文件身份和目录的 device/inode/uid 身份。`ComposeCandidate` 则在独立 worktree 以明确顺序组合依赖：可快进时使用受保护的 ff-only，独立分支使用受保护的普通 merge 并生成组合 commit；冲突保留现场并由上层按意图账本处理。最终消费者整合仍只允许 ff-only。
 
 `Integrate` 要求 review 同时绑定 canonical worktree、目录内核身份、symbolic ref、base/candidate OID、ordered inputs 和 review/plan revision。它在 common-dir 的 OS `flock` 内重新检查 ref、HEAD、index、tracked/ignored 碰撞和依赖祖先关系，然后只执行受保护的 fast-forward merge。后置必须同时满足 symbolic ref、HEAD、candidate tree、index tree 和 clean status；任何漂移或账本记录失败都返回 `integration_uncertain`，不会自动重试。
 
@@ -12,7 +12,7 @@
 
 ## 清理边界
 
-`Cleanup` 先持有 worktree 根目录句柄，复核目录和每个 tracked/untracked/ignored 条目的 device/inode/mode/size/mtime 身份。未知文件、symlink、身份变化、活跃 PID 或账本失败都保留现场并返回 `cleanup_pending`/`unknown`。已分类的目录先移动到同父目录的私有 quarantine，重新用持有的根句柄核验，再让 `git worktree remove` 清理 Git 管理记录，最后只删除核验过的 quarantine 树；未知对象永不传给删除操作。
+`Cleanup` 先持有 worktree 根目录句柄，复核目录和每个 tracked/untracked/ignored 条目的 device/inode/mode/size/mtime 身份。未知文件、symlink、身份变化、活跃 PID 或账本失败都保留现场并返回 `cleanup_pending`/`unknown`。已分类的目录先移动到同父目录的私有 quarantine，重新核验；原 worktree 名称必须仍不存在后才让 `git worktree remove` 清理 Git 管理记录，最后按深度逆序逐项复核身份并删除核验过的 quarantine 条目，不使用 `RemoveAll`。未知对象永不传给删除操作。
 
 Git CLI 本身没有 dirfd 版本的 `worktree remove`；因此实现依靠持有根句柄、quarantine、移动后再次身份核验和失败保留来缩小 pathname race。若内核句柄核验、Git 管理清理或 quarantine 复核不能完成，结果保持未知，不宣称完全清理。
 

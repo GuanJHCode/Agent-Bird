@@ -268,6 +268,36 @@ func TestComposeCandidateFreezesOrderedDependencyComposition(t *testing.T) {
 	}
 }
 
+func TestComposeCandidateMergesIndependentBranchesIntoFrozenCommit(t *testing.T) {
+	d, base := repo(t)
+	git(t, d, "switch", "-c", "dep-a")
+	if err := os.WriteFile(filepath.Join(d, "a.txt"), []byte("a\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	git(t, d, "add", "a.txt")
+	git(t, d, "commit", "-qm", "dep-a")
+	a := git(t, d, "rev-parse", "HEAD")
+	git(t, d, "switch", "-c", "dep-b", base)
+	if err := os.WriteFile(filepath.Join(d, "b.txt"), []byte("b\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	git(t, d, "add", "b.txt")
+	git(t, d, "commit", "-qm", "dep-b")
+	b := git(t, d, "rev-parse", "HEAD")
+	work := filepath.Join(t.TempDir(), "independent-composed")
+	j := &memoryJournal{}
+	got, err := ComposeCandidate(context.Background(), CandidateCompositionRequest{RepoRoot: d, Worktree: work, AttemptID: "compose-independent", BaseOID: base, OrderedInputOIDs: []string{a, b}, PlanRevision: 8}, j)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.CandidateOID == a || got.CandidateOID == b || len(j.candidateReceipts) != 1 {
+		t.Fatalf("expected merge commit, receipt=%+v", got)
+	}
+	if got := git(t, work, "rev-parse", "--verify", got.CandidateOID+"^{tree}"); got == "" {
+		t.Fatal("missing composed tree")
+	}
+}
+
 func TestPrivateRefRequiresManagedNamespaceAndCompareAndSwap(t *testing.T) {
 	d, base := repo(t)
 	candidateOID, _ := candidate(t, d)
@@ -307,6 +337,48 @@ func TestCleanupDetectsRootReplacementBeforeGitRemoval(t *testing.T) {
 	}
 	if _, err := os.Stat(replaced); err != nil {
 		t.Fatal("original root was not retained")
+	}
+}
+
+func TestCleanupRetainsSentinelCreatedAfterQuarantineInventory(t *testing.T) {
+	d, base := repo(t)
+	candidateOID, _ := candidate(t, d)
+	work := filepath.Join(t.TempDir(), "worktree")
+	receipt, err := Materialize(context.Background(), MaterializeRequest{RepoRoot: d, Worktree: work, AttemptID: "late-sentinel", BaseOID: base, CandidateOID: candidateOID, OrderedInputOIDs: []string{candidateOID}, PlanRevision: 1}, &memoryJournal{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	j := &memoryJournal{}
+	// This callback runs after the quarantine move in the implementation and
+	// models a late writer adding an ignored/unknown object.
+	out, err := Cleanup(context.Background(), CleanupRequest{Root: work, Receipt: receipt, Journal: j, AfterQuarantine: func(quarantine string) error {
+		return os.WriteFile(filepath.Join(quarantine, "late-sentinel"), []byte("external\n"), 0600)
+	}})
+	if err == nil || out.State != CleanupPending {
+		t.Fatalf("late object was treated as removed: err=%v out=%+v", err, out)
+	}
+}
+
+func TestCleanupNeverLetsGitTouchRecreatedOriginalPath(t *testing.T) {
+	d, base := repo(t)
+	candidateOID, _ := candidate(t, d)
+	work := filepath.Join(t.TempDir(), "worktree")
+	receipt, err := Materialize(context.Background(), MaterializeRequest{RepoRoot: d, Worktree: work, AttemptID: "recreated-path", BaseOID: base, CandidateOID: candidateOID, OrderedInputOIDs: []string{candidateOID}, PlanRevision: 1}, &memoryJournal{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	j := &memoryJournal{}
+	out, err := Cleanup(context.Background(), CleanupRequest{Root: work, Receipt: receipt, Journal: j, AfterQuarantine: func(quarantine string) error {
+		if err := os.Mkdir(work, 0700); err != nil {
+			return err
+		}
+		return os.WriteFile(filepath.Join(work, "foreign"), []byte("retain\n"), 0600)
+	}})
+	if err == nil || out.State != CleanupPending || !IsCode(err, CodeUnknownObject) {
+		t.Fatalf("recreated path was touched: err=%v out=%+v", err, out)
+	}
+	if _, err := os.Stat(filepath.Join(work, "foreign")); err != nil {
+		t.Fatal("recreated foreign object was removed")
 	}
 }
 
