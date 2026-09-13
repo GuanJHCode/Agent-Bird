@@ -141,6 +141,23 @@ def private_dir(path):
     return path
 
 
+def runner_process_identity(repo):
+    scripts = Path(repo) / "tasks/g0-completion/scripts"
+    sys.path.insert(0, str(scripts))
+    try:
+        import native_delivery_case as base
+    finally:
+        sys.path.remove(str(scripts))
+    require(
+        Path(base.__file__).resolve() == scripts / "native_delivery_case.py",
+        "runner_interpreter",
+    )
+    try:
+        return base.peer_for_process(os.getpid())
+    except (OSError, ValueError) as exc:
+        raise PlanError("runner_interpreter") from exc
+
+
 def source_paths(repo):
     relative = (
         "tasks/g1-g4-delivery/scripts/run-native-product-acceptance.py",
@@ -290,8 +307,12 @@ def static_inputs(
 ):
     repo = Path(repo).resolve()
     require(repo.is_absolute(), "repo")
+    runner = runner_process_identity(repo)
     require(
-        Path(sys.executable).resolve() == Path(interpreter).resolve(),
+        runner.get("pid") == os.getpid()
+        and runner.get("uid") == os.getuid()
+        and runner.get("executable") == str(interpreter)
+        and runner.get("executable_sha256") == interpreter_sha256,
         "runner_interpreter",
     )
     require(
