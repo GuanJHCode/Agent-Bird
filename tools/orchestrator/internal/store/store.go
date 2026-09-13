@@ -36,6 +36,9 @@ type DB struct {
 type RunSpec struct {
 	ID, ControllerThread string
 	PlanRevision         int
+	OriginContextID      string
+	OriginPID            int
+	OriginBirth          string
 }
 type TaskSpec struct {
 	ID, RunID    string
@@ -95,7 +98,7 @@ func (d *DB) migrate() error {
 	}
 	stmts := []string{
 		`CREATE TABLE IF NOT EXISTS coordinator(id INTEGER PRIMARY KEY CHECK(id=1), epoch INTEGER NOT NULL, updated_at TEXT NOT NULL)`,
-		`CREATE TABLE IF NOT EXISTS runs(id TEXT PRIMARY KEY, controller_thread TEXT NOT NULL, plan_revision INTEGER NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL)`,
+		`CREATE TABLE IF NOT EXISTS runs(id TEXT PRIMARY KEY, controller_thread TEXT NOT NULL, plan_revision INTEGER NOT NULL, origin_context_id TEXT NOT NULL, origin_pid INTEGER NOT NULL, origin_birth TEXT NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL)`,
 		`CREATE TABLE IF NOT EXISTS tasks(id TEXT PRIMARY KEY, run_id TEXT NOT NULL REFERENCES runs(id), status TEXT NOT NULL, dependencies_json TEXT NOT NULL, max_attempts INTEGER NOT NULL, created_at TEXT NOT NULL)`,
 		`CREATE TABLE IF NOT EXISTS attempts(id TEXT PRIMARY KEY, task_id TEXT NOT NULL REFERENCES tasks(id), attempt_no INTEGER NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL, UNIQUE(task_id, attempt_no))`,
 		`CREATE TABLE IF NOT EXISTS segments(id TEXT PRIMARY KEY, attempt_id TEXT NOT NULL REFERENCES attempts(id), segment_no INTEGER NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL, UNIQUE(attempt_id, segment_no))`,
@@ -123,10 +126,10 @@ func (d *DB) migrate() error {
 func (d *DB) CreateRun(ctx context.Context, s RunSpec) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	if s.ID == "" || s.ControllerThread == "" || s.PlanRevision < 1 {
+	if s.ID == "" || s.ControllerThread == "" || s.PlanRevision < 1 || s.OriginContextID == "" || s.OriginPID <= 0 || s.OriginBirth == "" {
 		return CodeError("invalid_run")
 	}
-	_, err := d.sql.ExecContext(ctx, `INSERT INTO runs(id,controller_thread,plan_revision,status,created_at) VALUES(?,?,?,?,?)`, s.ID, s.ControllerThread, s.PlanRevision, "queued", time.Now().UTC().Format(time.RFC3339Nano))
+	_, err := d.sql.ExecContext(ctx, `INSERT INTO runs(id,controller_thread,plan_revision,origin_context_id,origin_pid,origin_birth,status,created_at) VALUES(?,?,?,?,?,?,?,?)`, s.ID, s.ControllerThread, s.PlanRevision, s.OriginContextID, s.OriginPID, s.OriginBirth, "queued", time.Now().UTC().Format(time.RFC3339Nano))
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE") {
 			return ErrConflict
@@ -293,4 +296,59 @@ func (d *DB) AcknowledgeAttempt(ctx context.Context, id string) error {
 		return ErrConflict
 	}
 	return nil
+}
+
+type Question struct {
+	ID, TaskID         string
+	Revision           int
+	Status, AnswerHash string
+}
+
+func (d *DB) CreateQuestion(ctx context.Context, id, taskID string, revision int) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if id == "" || taskID == "" || revision < 1 {
+		return CodeError("invalid_question")
+	}
+	_, err := d.sql.ExecContext(ctx, `INSERT INTO questions(id,task_id,revision,status,created_at) VALUES(?,?,?,?,?)`, id, taskID, revision, "open", time.Now().UTC().Format(time.RFC3339Nano))
+	if err != nil {
+		if strings.Contains(err.Error(), "UNIQUE") {
+			return ErrConflict
+		}
+		return err
+	}
+	return nil
+}
+func (d *DB) AnswerQuestion(ctx context.Context, id string, revision int, answerHash string) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if id == "" || revision < 1 || answerHash == "" {
+		return CodeError("invalid_answer")
+	}
+	r, err := d.sql.ExecContext(ctx, `UPDATE questions SET status='answer_committed',answer_hash=? WHERE id=? AND revision=? AND status='open'`, answerHash, id, revision)
+	if err != nil {
+		return err
+	}
+	n, _ := r.RowsAffected()
+	if n != 1 {
+		return ErrConflict
+	}
+	return nil
+}
+
+func (d *DB) LatestAttempt(ctx context.Context, taskID string) (Attempt, error) {
+	var a Attempt
+	err := d.sql.QueryRowContext(ctx, `SELECT id,task_id,status,attempt_no,(SELECT id FROM segments WHERE attempt_id=attempts.id ORDER BY segment_no DESC LIMIT 1) FROM attempts WHERE task_id=? ORDER BY attempt_no DESC LIMIT 1`, taskID).Scan(&a.ID, &a.TaskID, &a.Status, &a.AttemptNo, &a.SegmentID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return a, ErrNotFound
+	}
+	return a, err
+}
+func (d *DB) RunID(ctx context.Context, taskID string) (string, error) {
+	var id string
+	err := d.sql.QueryRowContext(ctx, `SELECT run_id FROM tasks WHERE id=?`, taskID).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", ErrNotFound
+	}
+	return id, err
 }

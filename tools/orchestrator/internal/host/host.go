@@ -62,13 +62,17 @@ func (h *Host) Execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		status = "failed"
 	}
 	outHash := hashText(p.Output())
+	artifactPath, err := spool.WriteArtifact([]byte(p.Output()))
+	if err != nil {
+		return contract.Result{}, err
+	}
 	if err = spool.Append(contract.Event{Version: 1, RunID: runID, TaskID: taskID, AttemptID: a.ID, SegmentID: a.SegmentID, Sequence: 2, Kind: "result", PayloadHash: outHash}); err != nil {
 		return contract.Result{}, err
 	}
 	if err = h.db.FinishAttempt(context.Background(), a.ID, status); err != nil {
 		return contract.Result{}, err
 	}
-	return contract.Result{Status: status, ExitCode: p.ExitCode(), EventCount: 2, OutputHash: outHash}, nil
+	return contract.Result{Status: status, ExitCode: p.ExitCode(), EventCount: 2, OutputHash: outHash, ArtifactPath: artifactPath}, nil
 }
 func (h *Host) Collect(ctx context.Context, a store.Attempt) ([]contract.Event, error) {
 	_ = ctx
@@ -90,9 +94,22 @@ func (h *Host) Ack(ctx context.Context, a store.Attempt) error {
 	if len(ev) == 0 {
 		return errors.New("no_events")
 	}
-	if err = s.AckThrough(ev[len(ev)-1].Sequence); err != nil {
+	if err = h.db.AcknowledgeAttempt(ctx, a.ID); err != nil {
 		return err
 	}
-	return h.db.AcknowledgeAttempt(ctx, a.ID)
+	return s.AckThrough(ev[len(ev)-1].Sequence)
 }
 func hashText(s string) string { h := sha256.Sum256([]byte(s)); return hex.EncodeToString(h[:]) }
+
+func (h *Host) ExecuteInvocation(ctx context.Context, a store.Attempt, runID, taskID string, inv contract.InvocationView) (contract.Result, error) {
+	args := inv.Args()
+	if len(args) == 0 || args[0] == "" {
+		return contract.Result{}, errors.New("invocation_args_invalid")
+	}
+	envMap := inv.Environment()
+	env := make([]string, 0, len(envMap))
+	for k, v := range envMap {
+		env = append(env, k+"="+v)
+	}
+	return h.Execute(ctx, a, runID, taskID, process.Command{Path: args[0], Args: append([]string(nil), args[1:]...), Dir: inv.WorkingDirectory(), Env: env, Stdin: append([]byte(nil), inv.Stdin()...)})
+}

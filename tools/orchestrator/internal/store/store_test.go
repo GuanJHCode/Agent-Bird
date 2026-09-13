@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"strconv"
 	"testing"
@@ -13,7 +14,7 @@ func TestOpenMigratesAndCommitsRunTaskAttempt(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	if err := db.CreateRun(context.Background(), RunSpec{ID: "run-1", ControllerThread: "thread-1", PlanRevision: 1}); err != nil {
+	if err := db.CreateRun(context.Background(), RunSpec{ID: "run-1", ControllerThread: "thread-1", PlanRevision: 1, OriginContextID: "test", OriginPID: os.Getpid(), OriginBirth: "birth"}); err != nil {
 		t.Fatal(err)
 	}
 	if err := db.CreateTask(context.Background(), TaskSpec{ID: "task-a", RunID: "run-1", Dependencies: nil, MaxAttempts: 3}); err != nil {
@@ -45,7 +46,7 @@ func TestStartAttemptRejectsDependencyAndThirdAttempt(t *testing.T) {
 	}
 	defer db.Close()
 	ctx := context.Background()
-	if err := db.CreateRun(ctx, RunSpec{ID: "run-1", ControllerThread: "thread-1", PlanRevision: 1}); err != nil {
+	if err := db.CreateRun(ctx, RunSpec{ID: "run-1", ControllerThread: "thread-1", PlanRevision: 1, OriginContextID: "test", OriginPID: os.Getpid(), OriginBirth: "birth"}); err != nil {
 		t.Fatal(err)
 	}
 	if err := db.CreateTask(ctx, TaskSpec{ID: "upstream", RunID: "run-1", MaxAttempts: 3}); err != nil {

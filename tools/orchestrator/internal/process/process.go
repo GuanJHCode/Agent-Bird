@@ -1,6 +1,7 @@
 package process
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"os"
@@ -18,10 +19,11 @@ func (e CodeError) Error() string { return string(e) }
 const ErrProcessTreeUnknown CodeError = "process_tree_unknown"
 
 type Command struct {
-	Path string
-	Args []string
-	Dir  string
-	Env  []string
+	Path  string
+	Args  []string
+	Dir   string
+	Env   []string
+	Stdin []byte
 }
 type Handle struct {
 	cmd         *exec.Cmd
@@ -65,6 +67,9 @@ func Start(ctx context.Context, spec Command) (*Handle, error) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	if spec.Env != nil {
 		cmd.Env = mergeEnv(os.Environ(), spec.Env)
+	}
+	if spec.Stdin != nil {
+		cmd.Stdin = bytes.NewReader(append([]byte(nil), spec.Stdin...))
 	}
 	h := &Handle{cmd: cmd, done: make(chan struct{}), exit: -1, outputLimit: 1024 * 1024}
 	cmd.Stdout = captureWriter{h}
