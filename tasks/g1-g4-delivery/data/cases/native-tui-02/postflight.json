@@ -1,0 +1,39 @@
+[
+  {
+    "role": "service_or_frontend",
+    "pid": 45489,
+    "birth": "Sun Sep 13 22:18:32 2026",
+    "now": [
+      null,
+      null
+    ]
+  },
+  {
+    "role": "service_or_frontend",
+    "pid": 45500,
+    "birth": "Sun Sep 13 22:18:33 2026",
+    "now": [
+      null,
+      null
+    ]
+  },
+  {
+    "role": "backend",
+    "pid": 45527,
+    "birth": "Sun Sep 13 22:18:34 2026",
+    "now": [
+      null,
+      null
+    ],
+    "socket_absent": true
+  },
+  {
+    "role": "guardian",
+    "pid": 45524,
+    "now": [
+      null,
+      null
+    ],
+    "child_reaped": true
+  }
+]
