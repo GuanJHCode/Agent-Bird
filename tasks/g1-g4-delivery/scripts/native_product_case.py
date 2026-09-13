@@ -803,7 +803,10 @@ async def execute(static, _plan_path, plan_sha):
         end = min(total, g.now() + 9)
         second.start(end, resume_thread_id=thread_id, resume_proof=resume_proof)
         second_lease, second_ready_sha, second_ready = await second.ready(
-            store, service_peer, end
+            store,
+            service_peer,
+            end,
+            expected_owner_epoch=first_lease["owner_epoch"] + 2,
         )
         g.require(
             second_lease["owner_thread_id"] == thread_id

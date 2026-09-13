@@ -233,11 +233,18 @@ def context_sha(prepared):
     return hashlib.sha256(base.transport.encoded(value)).hexdigest()
 
 
-def validate_lease(row,prepared,service_peer):
+def _validate_owner_connection(row,expected_owner_epoch):
+    require(type(expected_owner_epoch) is int and expected_owner_epoch>0,'expected owner epoch invalid')
+    require(type(row['owner_epoch']) is int and row['owner_epoch']==expected_owner_epoch
+        and re.fullmatch(f'conn-{expected_owner_epoch}-[0-9a-f]{{12}}',row['owner_connection_id']) is not None,
+        'owner connection epoch invalid')
+
+
+def validate_lease(row,prepared,service_peer,*,expected_owner_epoch=1):
     require(isinstance(row,dict) and set(row)==LEASE_KEYS,'owner lease shape')
     require(row['profile_id']==prepared.spec.profile_id and row['owner_context_sha256']==context_sha(prepared),'owner context mismatch')
     require(type(row['lease_id']) is str and re.fullmatch('[0-9a-f]{12}',row['lease_id']) is not None,'lease id invalid')
-    require(type(row['owner_epoch']) is int and row['owner_epoch']==1 and re.fullmatch('conn-1-[0-9a-f]{12}',row['owner_connection_id']) is not None,'owner connection epoch invalid')
+    _validate_owner_connection(row,expected_owner_epoch)
     require(row['service_identity']==service_peer,'lease service identity mismatch')
     require(row['private_socket']==str(prepared.spec.backend_socket.parent/f"b-{row['lease_id']}.sock"),'lease socket path mismatch')
     require(row['backend_executable_sha256']==prepared.context.expected_executable_sha256,'lease backend SHA mismatch')

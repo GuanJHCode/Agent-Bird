@@ -72,7 +72,7 @@ class TuiSession:
             g.require(self.driver.poll() is None,'native TUI exited before milestone')
             await asyncio.sleep(.01)
 
-    async def ready(self,store,service_peer,end):
+    async def ready(self,store,service_peer,end,*,expected_owner_epoch=1):
         found=None
         while found is None:
             g.remaining(end);self.drain()
@@ -92,7 +92,7 @@ class TuiSession:
             g.require(self.driver.poll() is None,'TUI exited before ready');await asyncio.sleep(.01)
         ready,ready_sha=found;g.common(ready,store,self.plan)
         g.require(ready.get('ready_published') is True and ready.get('zero_turns') is True and ready.get('initialized') is True,'TUI initial ready invalid')
-        g.check_peer(ready['frontend'],self.peer);lease,native=g.validate_lease(ready['owner_lease'],self.prepared,service_peer);g.check_peer(ready['backend'],native)
+        g.check_peer(ready['frontend'],self.peer);lease,native=g.validate_lease(ready['owner_lease'],self.prepared,service_peer,expected_owner_epoch=expected_owner_epoch);g.check_peer(ready['backend'],native)
         g.require(all(lease[k]==row[k] for k in g.CONNECTED_LEASE_KEYS),'TUI lease changed between connected/ready')
         g.require(g.peer_matches(g.base.peer_for_process(self.peer['pid']),self.peer),'TUI executable changed')
         self.record.update(ready_sha256=ready_sha,thread_id=lease['owner_thread_id'],lease_id=lease_id)
