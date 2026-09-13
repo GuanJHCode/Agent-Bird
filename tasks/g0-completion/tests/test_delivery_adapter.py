@@ -374,3 +374,46 @@ def test_production_service_go_batch_history_and_ack_once(tmp_path):
                 await service.close()
                 await asyncio.sleep(0.1)
     asyncio.run(run())
+
+
+def test_reconcile_claimed_is_send_disabled_and_acks_existing_history(tmp_path):
+    go_binary = _build(tmp_path)
+    task = tmp_path / "reconcile-task"; task.mkdir(mode=0o700)
+    nonce = "reconcile_1"
+    _start(go_binary, task, nonce)
+    owner_context = "a" * 64
+    binding = DeliveryBinding("profile-a", THREAD, 1, nonce, 1)
+    first = DeliveryAdapter(go_binary, expected_sha256=hashlib.sha256(go_binary.read_bytes()).hexdigest(), owner_context_sha256=owner_context)
+    capability = first.prepare_and_claim(binding, task, "delivery_1", _events(), env={"CODEX_THREAD_ID": THREAD})
+    native = capability.native_envelope
+    read = {"request": {"id": 1, "method": "thread/read", "params": {"threadId": THREAD, "includeTurns": True}},
+            "response": {"id": 1, "result": {"thread": {"id": THREAD, "turns": [{"id": "turn_1", "status": "completed", "items": [{"id": "item_1", "type": "functionCallOutput", "name": "g0_delivery", "namespace": "orchestration", "output": json.dumps(native, sort_keys=True, separators=(",", ":"))}]}]}}}}
+    restarted = DeliveryAdapter(go_binary, expected_sha256=hashlib.sha256(go_binary.read_bytes()).hexdigest(), owner_context_sha256=owner_context)
+    recovered = restarted.reconcile_claimed(binding, task, "delivery_1", env={"CODEX_THREAD_ID": THREAD})
+    assert recovered.send_disabled is True
+    with pytest.raises(DeliveryError, match="send_disabled"):
+        import asyncio
+        asyncio.run(restarted.send_tool_output_once(object(), recovered))
+    proof = restarted.audit_history(recovered, [read])
+    outcome = restarted.ack_confirmed(recovered, proof, {"event_1": "handled"}, command_ids={"event_1": "reconcile_cmd"}, env={"CODEX_THREAD_ID": THREAD})
+    assert outcome.records and outcome.business_ack_complete
+    status = restarted._run(["batch-status", "--dir", str(task), "--nonce", nonce])
+    assert status["ack_count"] == 1 and status["claim"] == "claimed"
+
+
+def test_reconcile_requires_original_owner_context_and_history(tmp_path):
+    go_binary = _build(tmp_path)
+    task = tmp_path / "reconcile-owner"; task.mkdir(mode=0o700)
+    nonce = "reconcile_2"; _start(go_binary, task, nonce)
+    binding = DeliveryBinding("profile-a", THREAD, 1, nonce, 1)
+    first = DeliveryAdapter(go_binary, expected_sha256=hashlib.sha256(go_binary.read_bytes()).hexdigest(), owner_context_sha256="b" * 64)
+    first.prepare_and_claim(binding, task, "delivery_1", _events(), env={"CODEX_THREAD_ID": THREAD})
+    wrong = DeliveryAdapter(go_binary, expected_sha256=hashlib.sha256(go_binary.read_bytes()).hexdigest(), owner_context_sha256="c" * 64)
+    with pytest.raises(DeliveryError, match="owner_context_mismatch"):
+        wrong.reconcile_claimed(binding, task, "delivery_1", env={"CODEX_THREAD_ID": THREAD})
+    restarted = DeliveryAdapter(go_binary, expected_sha256=hashlib.sha256(go_binary.read_bytes()).hexdigest(), owner_context_sha256="b" * 64)
+    recovered = restarted.reconcile_claimed(binding, task, "delivery_1", env={"CODEX_THREAD_ID": THREAD})
+    bad_read = {"request": {"id": 1, "method": "thread/read", "params": {"threadId": THREAD, "includeTurns": True}},
+                "response": {"id": 1, "result": {"thread": {"id": THREAD, "turns": [{"id": "turn_1", "status": "completed", "items": []}]}}}}
+    with pytest.raises(DeliveryError, match="history_uncertain"):
+        restarted.audit_history(recovered, [bad_read])

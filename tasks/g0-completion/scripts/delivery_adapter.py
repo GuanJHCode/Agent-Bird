@@ -43,6 +43,7 @@ class DeliveryCapability:
     native_envelope_sha256: str
     claim_sha256: str
     capability_id: str
+    send_disabled: bool = False
 
     @property
     def go_intent(self) -> dict:
@@ -108,7 +109,7 @@ def _require(condition: bool, code: str) -> None:
         raise DeliveryError(code)
 
 
-def _stable_file_hash(path: Path) -> str:
+def _stable_file_bytes(path: Path) -> bytes:
     """Read one owner-only regular file through a no-follow stable FD."""
     try:
         fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
@@ -124,11 +125,24 @@ def _stable_file_hash(path: Path) -> str:
         identity = lambda value: (value.st_dev, value.st_ino, value.st_uid, value.st_mode,
                                   value.st_nlink, value.st_size, value.st_mtime_ns, value.st_ctime_ns)
         _require(len(data) == before.st_size and identity(before) == identity(after), "claim_changed")
-        return hashlib.sha256(data).hexdigest()
+        return data
     except OSError as exc:
         raise DeliveryError("claim_file") from exc
     finally:
         os.close(fd)
+
+
+def _stable_file_hash(path: Path) -> str:
+    return hashlib.sha256(_stable_file_bytes(path)).hexdigest()
+
+
+def _stable_json(path: Path) -> dict:
+    try:
+        value = json.loads(_stable_file_bytes(path))
+    except (TypeError, ValueError, UnicodeDecodeError) as exc:
+        raise DeliveryError("artifact_invalid") from exc
+    _require(isinstance(value, dict), "artifact_invalid")
+    return value
 
 
 def _event_shape(event: object) -> None:
@@ -166,21 +180,21 @@ def _go_batch_hash(intent: Mapping[str, Any]) -> str:
     return hashlib.sha256(json.dumps(value, ensure_ascii=True, separators=(",", ":")).encode()).hexdigest()
 
 
-def _validate_go_intent(intent: object, binding: DeliveryBinding, delivery_id: str | None = None) -> dict:
+def _validate_go_intent(intent: object, binding: DeliveryBinding, delivery_id: str | None = None, *, allow_transport_uncertain: bool = False) -> dict:
     required = {"version", "delivery_id", "nonce", "controller_thread", "controller_epoch", "revision", "state", "events", "payload_hash"}
     _require(isinstance(intent, dict) and set(intent) == required, "intent_shape")
     _require(intent["version"] == 1 and _safe(intent["delivery_id"]) and (delivery_id is None or intent["delivery_id"] == delivery_id), "intent_identity")
     _require(intent["nonce"] == binding.nonce and intent["controller_thread"] == binding.owner_thread_id, "owner_mismatch")
     _require(intent["controller_epoch"] == binding.owner_epoch == 1, "epoch_mismatch")
-    _require(intent["revision"] == binding.revision and intent["state"] == "prepared", "revision_mismatch")
+    _require(intent["revision"] == binding.revision and (intent["state"] == "prepared" or allow_transport_uncertain and intent["state"] == "transport_uncertain"), "revision_mismatch")
     _validate_events(intent["events"])
     _require(_hash(intent["payload_hash"]) and intent["payload_hash"] == _go_batch_hash(intent), "intent_hash")
     return intent
 
 
-def native_envelope_from_go_intent(intent: Mapping[str, Any], binding: DeliveryBinding) -> dict:
+def native_envelope_from_go_intent(intent: Mapping[str, Any], binding: DeliveryBinding, *, allow_transport_uncertain: bool = False) -> dict:
     """Map verified Go fields without reusing the Go batch hash."""
-    checked = _validate_go_intent(dict(intent), binding)
+    checked = _validate_go_intent(dict(intent), binding, allow_transport_uncertain=allow_transport_uncertain)
     envelope = {
         "version": 1,
         "delivery_id": checked["delivery_id"],
@@ -193,13 +207,44 @@ def native_envelope_from_go_intent(intent: Mapping[str, Any], binding: DeliveryB
 
 
 class DeliveryAdapter:
-    def __init__(self, go_binary: str | os.PathLike[str], *, expected_sha256: str):
+    def __init__(self, go_binary: str | os.PathLike[str], *, expected_sha256: str, owner_context_sha256: str | None = None):
         self.go_binary = Path(go_binary)
         _require(self.go_binary.is_absolute() and self.go_binary.is_file(), "go_binary_missing")
         _require(_hash(expected_sha256) and hashlib.sha256(self.go_binary.read_bytes()).hexdigest() == expected_sha256, "go_binary_hash")
         self.expected_sha256 = expected_sha256
+        _require(owner_context_sha256 is None or _hash(owner_context_sha256), "owner_context")
+        self.owner_context_sha256 = owner_context_sha256
         self._capabilities: dict[str, DeliveryCapability] = {}
         self._proofs: dict[str, HistoryProof] = {}
+
+    def _bind_owner_context(self, binding: DeliveryBinding, task_dir: Path) -> None:
+        if self.owner_context_sha256 is None:
+            return
+        path = task_dir / "delivery-owner-binding.json"
+        value = {"version": 1, "owner_context_sha256": self.owner_context_sha256,
+                 "nonce": binding.nonce, "controller_thread": binding.owner_thread_id,
+                 "revision": binding.revision}
+        data = (_canonical(value) + "\n").encode()
+        try:
+            fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+        except FileExistsError:
+            existing = _stable_json(path)
+            _require(existing == value, "owner_context_mismatch")
+            return
+        except OSError as exc:
+            raise DeliveryError("owner_binding") from exc
+        try:
+            os.write(fd, data)
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+
+    def _require_owner_binding(self, binding: DeliveryBinding, task_dir: Path) -> None:
+        _require(self.owner_context_sha256 is not None, "owner_context_required")
+        expected = {"version": 1, "owner_context_sha256": self.owner_context_sha256,
+                    "nonce": binding.nonce, "controller_thread": binding.owner_thread_id,
+                    "revision": binding.revision}
+        _require(_stable_json(task_dir / "delivery-owner-binding.json") == expected, "owner_context_mismatch")
 
     def _run(self, args: list[str], *, env: Mapping[str, str] | None = None) -> dict:
         child_env = os.environ.copy()
@@ -237,6 +282,7 @@ class DeliveryAdapter:
                           "--controller-thread", binding.owner_thread_id, "--revision", str(binding.revision)], env=env)
 
     def prepare_and_claim(self, binding: DeliveryBinding, task_dir: Path, delivery_id: str, events: list[dict], *, env: Mapping[str, str]) -> DeliveryCapability:
+        self._bind_owner_context(binding, task_dir)
         intent = self.prepare(binding, task_dir, delivery_id, events, env=env)
         claim = self.claim(binding, task_dir, env=env)
         _require(claim.get("status") == "claimed" and claim.get("delivery_id") == intent["delivery_id"] and claim.get("controller_thread") == binding.owner_thread_id and claim.get("revision") == binding.revision, "claim_artifact")
@@ -250,12 +296,29 @@ class DeliveryAdapter:
         self._capabilities[capability.capability_id] = capability
         return capability
 
+    def reconcile_claimed(self, binding: DeliveryBinding, task_dir: Path, delivery_id: str, *, env: Mapping[str, str]) -> DeliveryCapability:
+        """Adopt an existing claimed intent for history reconciliation only."""
+        self._require_owner_binding(binding, task_dir)
+        status = self._run(["batch-status", "--dir", str(task_dir), "--nonce", binding.nonce], env=env)
+        _require(status.get("delivery_id") == delivery_id and status.get("revision") == binding.revision and status.get("claim") == "claimed", "claim_not_current")
+        intent = _stable_json(task_dir / "batch-intent.json")
+        checked = _validate_go_intent(intent, binding, delivery_id, allow_transport_uncertain=True)
+        _require(status.get("transport_status") in {"ready", "uncertain"}, "transport_status")
+        claim_sha = _stable_file_hash(task_dir / "batch-send-claim.json")
+        native = native_envelope_from_go_intent(checked, binding, allow_transport_uncertain=True)
+        go_bytes = _canonical(checked).encode(); native_bytes = _canonical(native).encode()
+        capability = DeliveryCapability(binding, task_dir, go_bytes, native_bytes,
+            hashlib.sha256(go_bytes).hexdigest(), hashlib.sha256(native_bytes).hexdigest(),
+            claim_sha, secrets.token_hex(16), True)
+        self._capabilities[capability.capability_id] = capability
+        return capability
+
     def ack_confirmed(self, capability: DeliveryCapability, proof: HistoryProof, decisions: Mapping[str, str], *, command_ids: Mapping[str, str], env: Mapping[str, str]) -> AckOutcome:
         _require(self._capabilities.get(capability.capability_id) is capability, "capability_owner")
         _require(self._proofs.get(proof.proof_id) is proof and proof.capability_id == capability.capability_id, "proof_owner")
         _require(proof.native_envelope == capability.native_envelope, "history_binding")
         binding, task_dir = capability.binding, capability.task_dir
-        checked = _validate_go_intent(capability.go_intent, binding)
+        checked = _validate_go_intent(capability.go_intent, binding, allow_transport_uncertain=capability.send_disabled)
         events = {event["event_id"]: event for event in checked["events"]}
         outputs = []
         pending, nonhandled = [], {}
@@ -310,6 +373,7 @@ class DeliveryAdapter:
     async def send_tool_output_once(self, connection: Any, capability: DeliveryCapability, *, request_id: int = 1) -> list[dict]:
         _require(type(request_id) is int and request_id > 0, "request_id")
         _require(self._capabilities.get(capability.capability_id) is capability, "capability_owner")
+        _require(not capability.send_disabled, "send_disabled")
         envelope = capability.native_envelope
         _require(set(envelope) == {"version", "delivery_id", "controller_thread_id", "controller_epoch", "events", "payload_hash"}, "native_envelope")
         status = self._run(["batch-status", "--dir", str(capability.task_dir), "--nonce", capability.binding.nonce])
