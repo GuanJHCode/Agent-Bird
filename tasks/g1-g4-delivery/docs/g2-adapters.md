@@ -47,7 +47,8 @@ The provider mappings are:
   provider-required argument and does not pretend stdin is supported.
 
 AGY receives the process-scoped `AGY_CLI_DISABLE_AUTO_UPDATE=true` override;
-Grok receives `GROK_DISABLE_AUTOUPDATER=1`. No persistent setting is written.
+Grok receives the documented session-scoped `--no-auto-update` flag. No
+persistent setting is written.
 
 ## Event contract
 
