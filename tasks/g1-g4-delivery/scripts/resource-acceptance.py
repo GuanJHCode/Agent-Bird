@@ -81,6 +81,7 @@ def sanitized_env(tmpdir: Path) -> dict[str, str]:
         "LANG": "C",
         "LC_ALL": "C",
         "TMPDIR": str(tmpdir),
+        "ORCHESTRATOR_ENABLE_TEST_FAKE": "1",
     }
 
 
@@ -168,6 +169,8 @@ def freeze(args: argparse.Namespace) -> int:
             "included": ["orchestrator_coordinator", "source_host", "report_helper", "visible_product_descendants"],
             "excluded": ["synthetic_provider_worker", "native_codex_backend"],
             "not_started_or_measured": ["g0_python_service", "g0_native_bridge_python_child"],
+            "synthetic_owner_admission": "ORCHESTRATOR_ENABLE_TEST_FAKE=1",
+            "native_attached_delivery_evidence": False,
         },
     }
     if out.exists():
@@ -208,6 +211,7 @@ def preflight(args: argparse.Namespace) -> int:
         "source_was_clean_when_frozen": manifest.get("source_clean") is True,
         "report_contract_runtime_check_required": True,
         "no_auth_environment_passed_by_harness": True,
+        "synthetic_owner_test_gate_explicit": manifest.get("measurement_scope", {}).get("synthetic_owner_admission") == "ORCHESTRATOR_ENABLE_TEST_FAKE=1",
     }
     result = {"schema_version": 1, "status": "READY" if all(checks.values()) else "BLOCKED", "checks": checks}
     print(json.dumps(result, sort_keys=True))

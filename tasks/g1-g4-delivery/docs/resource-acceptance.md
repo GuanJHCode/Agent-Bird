@@ -4,6 +4,8 @@
 
 当前 manifest/result 明确标记 `measurement_scope.claim=g1_core_resource_only`。采样包含 coordinator、Source Host、report helper 及可见产品后代，排除 synthetic provider 和原生 Codex backend；它不启动也不测 G0 Python service/bridge child。因此 `PASS` 只证明 G1 核心，不能写成整个 G4 distribution 达标。
 
+隔离环境显式设置 `ORCHESTRATOR_ENABLE_TEST_FAKE=1`，只用于允许无认证 synthetic provider 以假 owner 进入 G1 资源场景。它不改变生产默认，也不构成 native owner capability 或 attached 回传证据；联合原生验收仍必须使用真实 owner capability。
+
 ## 固定场景
 
 门槛由 `data/resource-acceptance-thresholds.json` 在 binary freeze 前固化：
