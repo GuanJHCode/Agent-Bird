@@ -304,6 +304,84 @@ func TestStructuredProviderTerminalControlsOutcome(t *testing.T) {
 	}
 }
 
+func TestProviderSessionIsPublishedBeforeTerminalAndBindsResume(t *testing.T) {
+	if os.Getenv("G1_SESSION_HELPER") == "1" {
+		_, _ = os.Stdout.WriteString(`{"type":"system","subtype":"init","session_id":"claude-live-session"}` + "\n")
+		release := os.Getenv("G1_SESSION_RELEASE")
+		deadline := time.Now().Add(2 * time.Second)
+		for time.Now().Before(deadline) {
+			if _, err := os.Stat(release); err == nil {
+				break
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+		_, _ = os.Stdout.WriteString(`{"type":"result","subtype":"success","session_id":"claude-live-session","result":"done"}` + "\n")
+		os.Exit(0)
+	}
+	path, err := filepath.EvalSymlinks(os.Args[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := filepath.Join(t.TempDir(), "spool")
+	h, err := NewIPC(root, "session-producer")
+	if err != nil {
+		t.Fatal(err)
+	}
+	release := filepath.Join(t.TempDir(), "release")
+	grant := contract.LaunchCommand{CommandID: "session-command", ReservationID: "session-reservation", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment-1", WorkRevision: 1, GrantedActiveMS: 3000}
+	inv := providerInvocation{launchInvocation: launchInvocation{args: []string{path, "-test.run=TestProviderSessionIsPublishedBeforeTerminalAndBindsResume"}, env: map[string]string{"G1_SESSION_HELPER": "1", "G1_SESSION_RELEASE": release}}, provider: "claude-code"}
+	type execution struct {
+		result contract.Result
+		err    error
+	}
+	done := make(chan execution, 1)
+	go func() {
+		result, runErr := h.ExecuteLaunch(context.Background(), grant, inv)
+		done <- execution{result: result, err: runErr}
+	}()
+	sink := &durableSink{}
+	deadline := time.Now().Add(time.Second)
+	found := false
+	for time.Now().Before(deadline) {
+		if err = h.PublishAll(context.Background(), sink, 1); err != nil {
+			t.Fatal(err)
+		}
+		sink.mu.Lock()
+		for _, event := range sink.events {
+			if event.Kind == "session" && event.SessionKind == "session-id" && event.SessionID == "claude-live-session" {
+				found = true
+			}
+		}
+		sink.mu.Unlock()
+		if found {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if !found {
+		t.Fatal("provider session was not durably published while the segment was running")
+	}
+	if err = os.WriteFile(release, []byte("release"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	executed := <-done
+	if executed.err != nil || executed.result.Status != "result_ready" {
+		t.Fatalf("result=%#v err=%v", executed.result, executed.err)
+	}
+	resume := grant
+	resume.CommandID = "resume-command"
+	resume.ReservationID = "resume-reservation"
+	resume.SegmentID = "segment-2"
+	resume.QuestionID = "report-question"
+	resume.QuestionRevision = 1
+	resume.Answer = "continue"
+	resume.SessionKind = "session-id"
+	resume.SessionID = "forged-session"
+	if _, err = h.ExecuteLaunch(context.Background(), resume, inv); err == nil || err.Error() != "resume_session_mismatch" {
+		t.Fatalf("mismatched resume err=%v", err)
+	}
+}
+
 func TestExecuteLaunchConsumesReservationAndUsesBoundedGrant(t *testing.T) {
 	if os.Getenv("G1_HOST_HELPER") == "1" {
 		return

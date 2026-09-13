@@ -78,6 +78,9 @@ func (h *Host) ExecuteLaunch(ctx context.Context, grant contract.LaunchCommand, 
 	if grant.ReservationID == "" || grant.AttemptID == "" || grant.SegmentID == "" || grant.RunID == "" || grant.TaskID == "" || grant.GrantedActiveMS <= 0 || inv == nil || len(inv.Args()) == 0 || inv.Args()[0] == "" {
 		return contract.Result{}, errors.New("invalid_launch_grant")
 	}
+	if err := h.validateLaunchSession(grant); err != nil {
+		return contract.Result{}, err
+	}
 	now := time.Now()
 	budgetDeadline := now.Add(time.Duration(grant.GrantedActiveMS) * time.Millisecond)
 	if grant.DeadlineUnixMS > 0 {
@@ -223,6 +226,18 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		h.finishAttempt(a.ID, "unknown", persistDB)
 		return contract.Result{Status: "unknown", ExitCode: p.ExitCode(), EventCount: eventCount}, err
 	}
+	if protocol != nil {
+		if err = protocol.SetSessionObserver(func(kind, id string) error {
+			_, appendErr := h.appendStructuredEvent(spool, runID, taskID, a, meta, contract.EventSession, hashText("session:"+kind+":"+id), &identity, nil, nil, structuredEventFields{SessionKind: kind, SessionID: id})
+			return appendErr
+		}); err != nil {
+			stopCtx, stopCancel := context.WithTimeout(context.Background(), 2*time.Second)
+			_ = p.Stop(stopCtx)
+			stopCancel()
+			h.finishAttempt(a.ID, "unknown", persistDB)
+			return contract.Result{Status: "unknown", ExitCode: p.ExitCode(), EventCount: eventCount}, err
+		}
+	}
 	h.mu.Lock()
 	h.active[a.ID] = p
 	h.activeBySeg[a.SegmentID] = p
@@ -352,6 +367,47 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		}
 	}
 	return contract.Result{Status: status, ExitCode: exit, EventCount: eventCount, OutputHash: outHash, ArtifactPath: artifactPath}, nil
+}
+
+func (h *Host) validateLaunchSession(grant contract.LaunchCommand) error {
+	hasSession := grant.SessionKind != "" || grant.SessionID != ""
+	needsSession := grant.QuestionID != "" || grant.QuestionRevision != 0 || grant.Answer != ""
+	if needsSession && !hasSession {
+		return errors.New("resume_session_required")
+	}
+	if !hasSession {
+		return nil
+	}
+	if (grant.SessionKind != "session-id" && grant.SessionKind != "conversation-id") || grant.SessionID == "" {
+		return errors.New("resume_session_invalid")
+	}
+	entries, err := h.spoolEntries()
+	if err != nil {
+		return err
+	}
+	foundKind, foundID := "", ""
+	for _, entry := range entries {
+		records, readErr := entry.spool.Read()
+		if readErr != nil {
+			return readErr
+		}
+		for _, record := range records {
+			if record.AttemptID != grant.AttemptID || record.Kind != contract.EventSession {
+				continue
+			}
+			if foundID != "" && (foundKind != record.SessionKind || foundID != record.SessionID) {
+				return errors.New("resume_session_history_conflict")
+			}
+			foundKind, foundID = record.SessionKind, record.SessionID
+		}
+	}
+	if foundID == "" {
+		return errors.New("resume_session_unbound")
+	}
+	if foundKind != grant.SessionKind || foundID != grant.SessionID {
+		return errors.New("resume_session_mismatch")
+	}
+	return nil
 }
 
 func (h *Host) appendPhaseEvent(spool *events.Spool, runID, taskID string, a store.Attempt, meta launchMetadata, kind, payloadHash string, identity *process.Identity, exitCode *int, artifact *contract.ArtifactRef) (contract.Event, error) {
