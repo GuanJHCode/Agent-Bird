@@ -153,6 +153,13 @@ def _directory_identity(path: Path) -> DirectoryIdentity:
     return DirectoryIdentity(st.st_dev, st.st_ino, st.st_uid, stat.S_IMODE(st.st_mode))
 
 
+def _directory_identity_fd(fd: int) -> DirectoryIdentity:
+    st = os.fstat(fd)
+    if stat.S_ISLNK(st.st_mode) or not stat.S_ISDIR(st.st_mode):
+        raise UnknownStateError("directory_fd_invalid")
+    return DirectoryIdentity(st.st_dev, st.st_ino, st.st_uid, stat.S_IMODE(st.st_mode))
+
+
 def _socket_identity(path: Path) -> SocketIdentity:
     ActivationTransaction._reject_symlink_components(path)
     st = path.lstat()
@@ -541,9 +548,12 @@ class ActivationTransaction:
         self._check_frozen_parents()
         parent = self.spec.socket_path.parent
         parent_identity = self.parent_identities["socket_parent"]
-        fd = os.open(parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+        fd = os.open(
+            parent,
+            os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0),
+        )
         try:
-            if _directory_identity(parent) != parent_identity:
+            if _directory_identity_fd(fd) != parent_identity or _directory_identity(parent) != parent_identity:
                 raise UnknownStateError("public_socket_parent_changed")
             try:
                 current = os.stat(self.spec.socket_path.name, dir_fd=fd, follow_symlinks=False)
@@ -863,7 +873,17 @@ class ActivationTransaction:
             self.receipt["state"] = "ROLLED_BACK"
             self._finish_auth()
             raise RegistrationError("foreign_job")
-        self._freeze_public_socket()
+        try:
+            self._freeze_public_socket()
+        except Exception:
+            self.receipt["state"] = "UNKNOWN"
+            try:
+                self._rollback_job_if_own()
+                self._remove_plist()
+                self._remove_lease()
+            except Exception:
+                pass
+            raise
         self.registered = True
         self.receipt["state"] = "REGISTERED"
         return dict(self.receipt)

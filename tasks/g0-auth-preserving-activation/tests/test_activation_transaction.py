@@ -95,7 +95,7 @@ if cmd == 'bootstrap':
         listener.bind(socket_path)
         listener.listen(1)
         listener.close()
-        os.chmod(socket_path, 0o600)
+        os.chmod(socket_path, state.get('socket_mode', 0o600))
 elif cmd == 'print':
     if state.get('foreign_job'):
         print(json.dumps(state['foreign_job']))
@@ -467,6 +467,55 @@ def test_socket_parent_replacement_stays_unknown_and_keeps_old_socket(fake_env):
 
     assert tx.receipt["state"] != "REVOKED"
     assert (old_parent / tx.spec.socket_path.name).exists()
+
+
+def test_missing_socket_freeze_rolls_back_owned_job_as_unknown(fake_env):
+    tx = make_controller(fake_env)
+    state = json.loads(fake_env[3].read_text(encoding="utf-8"))
+    state.update(create_public_socket=True, socket_mode=0o644, socket_path=str(tx.spec.socket_path))
+    fake_env[3].write_text(json.dumps(state), encoding="utf-8")
+
+    with pytest.raises(UnknownStateError, match="public_socket_mode"):
+        with tx.managed():
+            pass
+
+    assert tx.receipt["state"] == "UNKNOWN"
+    assert "job" not in json.loads(fake_env[3].read_text(encoding="utf-8"))
+    assert not tx.spec.plist_path.exists()
+    assert tx.spec.lease_path is not None and not tx.spec.lease_path.exists()
+
+
+def test_open_time_parent_redirect_keeps_external_sentinel(monkeypatch, fake_env):
+    tx = make_controller(fake_env)
+    state = json.loads(fake_env[3].read_text(encoding="utf-8"))
+    state.update(create_public_socket=True, remove_socket_on_bootout=False, socket_path=str(tx.spec.socket_path))
+    fake_env[3].write_text(json.dumps(state), encoding="utf-8")
+    tx.prepare()
+    tx.register()
+
+    import activation_transaction as module
+
+    external_parent = tx.spec.socket_path.parent.parent / "external-parent"
+    external_parent.mkdir(mode=0o700)
+    sentinel = external_parent / tx.spec.socket_path.name
+    sentinel_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    sentinel_socket.bind(str(sentinel))
+    sentinel_socket.listen(1)
+    sentinel_socket.close()
+    real_open = module.os.open
+    directory_flag = getattr(os, "O_DIRECTORY", 0)
+
+    def redirected_open(path, flags, *args, **kwargs):
+        if Path(path) == tx.spec.socket_path.parent and flags & directory_flag:
+            return real_open(external_parent, flags, *args, **kwargs)
+        return real_open(path, flags, *args, **kwargs)
+
+    monkeypatch.setattr(module.os, "open", redirected_open)
+    with pytest.raises(UnknownStateError, match="public_socket_parent_changed"):
+        tx.revoke()
+
+    assert sentinel.exists()
+    assert tx.spec.socket_path.exists()
 
 
 def test_foreign_job_after_bootstrap_error_is_not_booted_out(fake_env):
