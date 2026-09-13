@@ -27,6 +27,7 @@ type Event struct {
 	ActiveMS         int64            `json:"active_ms,omitempty"`
 	QuestionID       string           `json:"question_id,omitempty"`
 	QuestionRevision int              `json:"question_revision,omitempty"`
+	QuestionKind     string           `json:"question_kind,omitempty"`
 	SessionKind      string           `json:"session_kind,omitempty"`
 	SessionID        string           `json:"session_id,omitempty"`
 }
@@ -35,6 +36,7 @@ const (
 	EventPrepared = "prepared"
 	EventSpawned  = "spawned"
 	EventRunning  = "running"
+	EventSession  = "session"
 	EventQuestion = "question"
 	EventResult   = "result"
 	EventExited   = "exited"

@@ -64,6 +64,18 @@ type TaskControlRequest struct {
 	WorkRevision     int    `json:"work_revision,omitempty"`
 }
 
+type CollectRequest struct {
+	TaskControlRequest
+	Cursor             string `json:"cursor,omitempty"`
+	IncludeDiagnostics bool   `json:"include_diagnostics,omitempty"`
+}
+
+type WaitEventsRequest struct {
+	TaskControlRequest
+	Cursor    string `json:"cursor,omitempty"`
+	TimeoutMS int    `json:"timeout_ms"`
+}
+
 type AckRequest struct {
 	TaskID             string              `json:"task_id"`
 	ControllerThread   string              `json:"controller_thread"`
@@ -75,7 +87,14 @@ type AckRequest struct {
 
 type RetryRequest struct {
 	TaskControlRequest
-	UseNextFallback bool `json:"use_next_fallback,omitempty"`
+	EventID         string `json:"event_id"`
+	EventRevision   int64  `json:"event_revision"`
+	EventHash       string `json:"event_hash"`
+	ActionSlot      string `json:"action_slot"`
+	SegmentID       string `json:"segment_id"`
+	NextAttemptNo   int    `json:"next_attempt_no"`
+	UseNextFallback bool   `json:"use_next_fallback,omitempty"`
+	CommandID       string `json:"command_id"`
 }
 
 type AnswerRequest struct {
@@ -119,8 +138,10 @@ type RebindOwnerRequest struct {
 }
 
 type CollectResponse struct {
-	Status string           `json:"status"`
-	Events []contract.Event `json:"events"`
+	Version    int              `json:"version"`
+	Status     string           `json:"status"`
+	Events     []contract.Event `json:"events"`
+	NextCursor string           `json:"next_cursor,omitempty"`
 }
 
 type StatusResponse struct {
@@ -161,6 +182,8 @@ type Server struct {
 	close       sync.Once
 	idleTimeout time.Duration
 	idleExit    atomic.Bool
+	eventMu     sync.Mutex
+	eventSignal chan struct{}
 }
 
 func NewServer(stateDir string) (*Server, error) {
@@ -210,13 +233,26 @@ func NewServer(stateDir string) (*Server, error) {
 		_ = lock.Close()
 		return nil, err
 	}
-	server := &Server{stateDir: stateDir, socket: socket, epoch: lock.Epoch(), lock: lock, db: db, listener: listener, hosts: make(map[string]*hostSession), idleTimeout: 30 * time.Second}
+	server := &Server{stateDir: stateDir, socket: socket, epoch: lock.Epoch(), lock: lock, db: db, listener: listener, hosts: make(map[string]*hostSession), idleTimeout: 30 * time.Second, eventSignal: make(chan struct{})}
 	server.releaseTaskPins()
 	return server, nil
 }
 
 func (s *Server) SocketPath() string { return s.socket }
 func (s *Server) Epoch() uint64      { return s.epoch }
+
+func (s *Server) currentEventSignal() <-chan struct{} {
+	s.eventMu.Lock()
+	defer s.eventMu.Unlock()
+	return s.eventSignal
+}
+
+func (s *Server) notifyActionableEvent() {
+	s.eventMu.Lock()
+	close(s.eventSignal)
+	s.eventSignal = make(chan struct{})
+	s.eventMu.Unlock()
+}
 
 func (s *Server) Serve(ctx context.Context) error {
 	go func() {
@@ -366,7 +402,18 @@ func (s *Server) handleConnection(ctx context.Context, conn net.Conn) {
 		return
 	}
 	defer conn.Close()
-	s.handleControl(ctx, conn, message)
+	controlCtx := ctx
+	if message.Kind == ipc.KindWaitEvents {
+		var cancel context.CancelFunc
+		controlCtx, cancel = context.WithCancel(ctx)
+		defer cancel()
+		go func() {
+			var probe [1]byte
+			_, _ = conn.Read(probe[:])
+			cancel()
+		}()
+	}
+	s.handleControl(controlCtx, conn, message)
 }
 
 func (s *Server) handleControl(ctx context.Context, conn net.Conn, message ipc.Envelope) {
@@ -425,18 +472,45 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 		}
 		return json.Marshal(snapshot)
 	case ipc.KindCollect:
-		var request TaskControlRequest
+		var request CollectRequest
 		if err := strictJSON(raw, &request); err != nil {
 			return nil, err
 		}
 		if err := s.db.ValidateTaskOwner(ctx, request.TaskID, request.ControllerThread, request.ControlToken); err != nil {
 			return nil, err
 		}
-		events, err := s.db.CollectPending(ctx, request.TaskID)
+		page, err := s.db.CollectPending(ctx, request.TaskID, request.Cursor, 0, request.IncludeDiagnostics)
 		if err != nil {
 			return nil, err
 		}
-		return json.Marshal(CollectResponse{Status: "pending", Events: events})
+		return json.Marshal(CollectResponse{Version: 1, Status: "pending", Events: page.Events, NextCursor: page.NextCursor})
+	case ipc.KindWaitEvents:
+		var request WaitEventsRequest
+		if err := strictJSON(raw, &request); err != nil || request.TimeoutMS < 1 || request.TimeoutMS > 30_000 {
+			return nil, store.CodeError("invalid_wait_events")
+		}
+		if err := s.db.ValidateTaskOwner(ctx, request.TaskID, request.ControllerThread, request.ControlToken); err != nil {
+			return nil, err
+		}
+		timer := time.NewTimer(time.Duration(request.TimeoutMS) * time.Millisecond)
+		defer timer.Stop()
+		for {
+			signal := s.currentEventSignal()
+			page, err := s.db.CollectPending(ctx, request.TaskID, request.Cursor, 8, false)
+			if err != nil {
+				return nil, err
+			}
+			if len(page.Events) != 0 {
+				return json.Marshal(CollectResponse{Version: 1, Status: "events", Events: page.Events, NextCursor: page.NextCursor})
+			}
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-timer.C:
+				return json.Marshal(CollectResponse{Version: 1, Status: "timeout", Events: []contract.Event{}})
+			case <-signal:
+			}
+		}
 	case ipc.KindAck:
 		var request AckRequest
 		if err := strictJSON(raw, &request); err != nil {
@@ -472,11 +546,12 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 		if err := s.db.ValidateTaskOwner(ctx, request.TaskID, request.ControllerThread, request.ControlToken); err != nil {
 			return nil, err
 		}
-		if err := s.db.QueueRetry(ctx, request.TaskID, request.WorkRevision, request.UseNextFallback); err != nil {
+		receipt, err := s.db.QueueRetry(ctx, store.RetrySpec{TaskID: request.TaskID, WorkRevision: request.WorkRevision, EventID: request.EventID, EventRevision: request.EventRevision, EventHash: request.EventHash, ActionSlot: request.ActionSlot, SegmentID: request.SegmentID, NextAttemptNo: request.NextAttemptNo, UseNextFallback: request.UseNextFallback, CommandID: request.CommandID})
+		if err != nil {
 			return nil, err
 		}
 		s.dispatchAll()
-		return json.Marshal(StatusResponse{Status: "retry_queued"})
+		return json.Marshal(receipt)
 	case ipc.KindAccept:
 		var request ReviewRequest
 		if err := strictJSON(raw, &request); err != nil {
@@ -514,6 +589,12 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 		ack, err := s.db.CommitReportEvent(ctx, store.ReportEventSpec{CapabilityID: request.CapabilityID, Token: request.Token, EventID: request.EventID, Sequence: request.Sequence, Kind: request.Kind, Payload: request.Payload})
 		if err != nil {
 			return nil, err
+		}
+		if request.Kind != "progress" {
+			s.notifyActionableEvent()
+		}
+		if request.Kind == "question" {
+			s.dispatchPendingStops()
 		}
 		return json.Marshal(ack)
 	case ipc.KindRebindOwner:
@@ -681,8 +762,27 @@ func (s *Server) handleHost(ctx context.Context, conn net.Conn, message ipc.Enve
 		if !committed {
 			continue
 		}
+		s.dispatchPendingStops()
 		if err = s.dispatch(session, false); err != nil {
 			return
+		}
+	}
+}
+
+func (s *Server) dispatchPendingStops() {
+	s.mu.Lock()
+	hosts := make([]*hostSession, 0, len(s.hosts))
+	for _, session := range s.hosts {
+		hosts = append(hosts, session)
+	}
+	s.mu.Unlock()
+	for _, session := range hosts {
+		pending, err := s.db.PendingStops(context.Background(), session.id)
+		if err != nil {
+			continue
+		}
+		for _, dispatch := range pending {
+			_ = sendStop(session, s.epoch, dispatch.Command)
 		}
 	}
 }
@@ -712,6 +812,9 @@ func (s *Server) commitHostEvent(session *hostSession, incoming ipc.Envelope) (b
 	if err != nil {
 		_ = sendError(session.conn, incoming.RequestID, s.epoch, err)
 		return false, nil
+	}
+	if event.Kind == contract.EventSession || event.Kind == contract.EventQuestion || event.Kind == contract.EventResult || event.Kind == contract.EventFailed || event.Kind == contract.EventUnknown || event.Kind == contract.EventStopped {
+		s.notifyActionableEvent()
 	}
 	body, _ := json.Marshal(ack)
 	return true, session.send(ipc.Envelope{Version: ipc.Version, Kind: ipc.KindDurableAck, RequestID: incoming.RequestID, Epoch: s.epoch, Payload: body})

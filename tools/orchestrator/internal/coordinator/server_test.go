@@ -3,6 +3,7 @@ package coordinator
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net"
 	"os"
 	"path/filepath"
@@ -58,15 +59,15 @@ func TestServerRoutesControlToBoundHostAndDurablyCollects(t *testing.T) {
 	var ready contract.HostReady
 	decodePayload(t, readyMessage, &ready)
 	writeMessage(t, conn, ipc.KindHostReconciled, "reconciled", ready.CoordinatorEpoch, contract.HostReconciled{ProducerID: ready.HostID})
+	launchMessage := readMessage(t, conn)
+	var launch contract.LaunchCommand
+	decodePayload(t, launchMessage, &launch)
 	hostStatus := callServer(t, server.SocketPath(), ipc.KindHostStatus, HostStatusRequest{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken})
 	var hostStatusResponse StatusResponse
 	decodePayload(t, hostStatus, &hostStatusResponse)
 	if hostStatusResponse.Status != "ready" {
 		t.Fatalf("host status=%#v", hostStatusResponse)
 	}
-	launchMessage := readMessage(t, conn)
-	var launch contract.LaunchCommand
-	decodePayload(t, launchMessage, &launch)
 	if launch.TaskID != "task" || launch.HostID != ready.HostID || launch.ExecutionEpoch != ready.CoordinatorEpoch {
 		t.Fatalf("launch=%#v ready=%#v", launch, ready)
 	}
@@ -108,11 +109,11 @@ func TestServerRoutesControlToBoundHostAndDurablyCollects(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 
-	denied, err := ipc.Call(context.Background(), server.SocketPath(), ipc.Envelope{Version: ipc.Version, Kind: ipc.KindCollect, RequestID: "denied", Payload: jsonBytes(t, TaskControlRequest{TaskID: "task", ControllerThread: "thread", ControlToken: "wrong"})})
+	denied, err := ipc.Call(context.Background(), server.SocketPath(), ipc.Envelope{Version: ipc.Version, Kind: ipc.KindCollect, RequestID: "denied", Payload: jsonBytes(t, CollectRequest{TaskControlRequest: TaskControlRequest{TaskID: "task", ControllerThread: "thread", ControlToken: "wrong"}})})
 	if err != nil || denied.Kind != ipc.KindError {
 		t.Fatalf("denied=%#v err=%v", denied, err)
 	}
-	collected := callServer(t, server.SocketPath(), ipc.KindCollect, TaskControlRequest{TaskID: "task", ControllerThread: "thread", ControlToken: receipt.ControlToken})
+	collected := callServer(t, server.SocketPath(), ipc.KindCollect, CollectRequest{TaskControlRequest: TaskControlRequest{TaskID: "task", ControllerThread: "thread", ControlToken: receipt.ControlToken}})
 	var collection CollectResponse
 	decodePayload(t, collected, &collection)
 	if len(collection.Events) != 1 || collection.Events[0].Kind != contract.EventResult {
@@ -186,6 +187,130 @@ func TestServerRoutesExplicitStopToOwningHost(t *testing.T) {
 	}
 	if err = <-done; err != context.DeadlineExceeded {
 		t.Fatalf("shutdown err=%v", err)
+	}
+}
+
+func TestCollectPaginatesOversizedPendingSetAndCursorSurvivesAck(t *testing.T) {
+	root, err := os.MkdirTemp("/tmp", "g1-collect-page-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(root) })
+	server, err := NewServer(filepath.Join(root, "state"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = server.Serve(ctx) }()
+	t.Cleanup(func() { _ = server.Close() })
+	response := callServer(t, server.SocketPath(), ipc.KindSubmit, SubmitRequest{
+		RunID: "page-run", ControllerThread: "thread", PlanRevision: 1,
+		OriginContextID: "origin", OriginPID: 7, OriginBirth: "origin-birth",
+		HostGeneration: "generation", HostExecutable: "/private/tmp/orchestrator",
+		Tasks: []TaskRequest{{ID: "page-task", MaxAttempts: 3}},
+	})
+	var receipt SubmitResponse
+	decodePayload(t, response, &receipt)
+	conn, err := net.Dial("unix", server.SocketPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	writeMessage(t, conn, ipc.KindHostHello, "hello", 0, contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: "origin", OriginPID: 7, OriginBirth: "origin-birth", HostGeneration: "generation", PID: os.Getpid(), Birth: "host-birth", Executable: "/private/tmp/orchestrator"})
+	var ready contract.HostReady
+	decodePayload(t, readMessage(t, conn), &ready)
+	writeMessage(t, conn, ipc.KindHostReconciled, "reconciled", ready.CoordinatorEpoch, contract.HostReconciled{ProducerID: ready.HostID})
+	var launch contract.LaunchCommand
+	decodePayload(t, readMessage(t, conn), &launch)
+	tx, err := server.db.SQL().Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for sequence := int64(1); sequence <= 80; sequence++ {
+		eventID := fmt.Sprintf("page-event-%03d", sequence)
+		event := contract.Event{Version: 1, ProducerID: ready.HostID, EventID: eventID, RunID: "page-run", TaskID: "page-task", AttemptID: launch.AttemptID, SegmentID: launch.SegmentID, WorkRevision: 1, ExecutionEpoch: ready.CoordinatorEpoch, CommandID: launch.CommandID, Sequence: sequence, Kind: contract.EventResult, PayloadHash: fmt.Sprintf("%064x", sequence), SessionID: strings.Repeat("x", 1024)}
+		body, _ := json.Marshal(event)
+		if _, err = tx.Exec(`INSERT INTO runtime_events(event_id,producer_id,sequence,task_id,attempt_id,segment_id,payload_hash,body_json,event_revision,action_slot,delivery_status,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`, eventID, ready.HostID, sequence, "page-task", launch.AttemptID, launch.SegmentID, event.PayloadHash, string(body), sequence, "action-"+eventID, "pending", "2026-09-14T00:00:00Z"); err != nil {
+			_ = tx.Rollback()
+			t.Fatal(err)
+		}
+		if _, err = tx.Exec(`INSERT INTO delivery_order(event_id,task_id) VALUES(?,?)`, eventID, "page-task"); err != nil {
+			_ = tx.Rollback()
+			t.Fatal(err)
+		}
+	}
+	if err = tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	cursor := ""
+	seen := make(map[string]bool)
+	for {
+		message := callServer(t, server.SocketPath(), ipc.KindCollect, CollectRequest{TaskControlRequest: TaskControlRequest{TaskID: "page-task", ControllerThread: "thread", ControlToken: receipt.ControlToken}, Cursor: cursor})
+		if len(message.Payload) >= ipc.MaxMessageSize {
+			t.Fatalf("page payload=%d", len(message.Payload))
+		}
+		var page CollectResponse
+		decodePayload(t, message, &page)
+		if len(page.Events) == 0 {
+			t.Fatalf("empty page at cursor %q", cursor)
+		}
+		for _, event := range page.Events {
+			if seen[event.EventID] {
+				t.Fatalf("duplicate event %s", event.EventID)
+			}
+			seen[event.EventID] = true
+			if _, err = server.db.SQL().Exec(`UPDATE runtime_events SET delivery_status='acked' WHERE event_id=?`, event.EventID); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if page.NextCursor == "" {
+			break
+		}
+		cursor = page.NextCursor
+	}
+	if len(seen) != 80 {
+		t.Fatalf("seen=%d", len(seen))
+	}
+	timeout := callServer(t, server.SocketPath(), ipc.KindWaitEvents, WaitEventsRequest{TaskControlRequest: TaskControlRequest{TaskID: "page-task", ControllerThread: "thread", ControlToken: receipt.ControlToken}, TimeoutMS: 10})
+	var waited CollectResponse
+	decodePayload(t, timeout, &waited)
+	if waited.Status != "timeout" || len(waited.Events) != 0 {
+		t.Fatalf("waited=%#v", waited)
+	}
+	waitResult := make(chan ipc.Envelope, 1)
+	waitError := make(chan error, 1)
+	waitPayload := jsonBytes(t, WaitEventsRequest{TaskControlRequest: TaskControlRequest{TaskID: "page-task", ControllerThread: "thread", ControlToken: receipt.ControlToken}, TimeoutMS: 1000})
+	go func() {
+		message, callErr := ipc.Call(context.Background(), server.SocketPath(), ipc.Envelope{Version: ipc.Version, Kind: ipc.KindWaitEvents, RequestID: "wait-for-event", Payload: waitPayload})
+		if callErr != nil {
+			waitError <- callErr
+			return
+		}
+		waitResult <- message
+	}()
+	time.Sleep(20 * time.Millisecond)
+	sequence := int64(81)
+	eventID := "page-event-081"
+	event := contract.Event{Version: 1, ProducerID: ready.HostID, EventID: eventID, RunID: "page-run", TaskID: "page-task", AttemptID: launch.AttemptID, SegmentID: launch.SegmentID, WorkRevision: 1, ExecutionEpoch: ready.CoordinatorEpoch, CommandID: launch.CommandID, Sequence: sequence, Kind: contract.EventResult, PayloadHash: fmt.Sprintf("%064x", sequence)}
+	body, _ := json.Marshal(event)
+	if _, err = server.db.SQL().Exec(`INSERT INTO runtime_events(event_id,producer_id,sequence,task_id,attempt_id,segment_id,payload_hash,body_json,event_revision,action_slot,delivery_status,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`, eventID, ready.HostID, sequence, "page-task", launch.AttemptID, launch.SegmentID, event.PayloadHash, string(body), sequence, "action-"+eventID, "pending", "2026-09-14T00:00:01Z"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = server.db.SQL().Exec(`INSERT INTO delivery_order(event_id,task_id) VALUES(?,?)`, eventID, "page-task"); err != nil {
+		t.Fatal(err)
+	}
+	server.notifyActionableEvent()
+	select {
+	case err = <-waitError:
+		t.Fatal(err)
+	case message := <-waitResult:
+		decodePayload(t, message, &waited)
+		if waited.Status != "events" || len(waited.Events) != 1 || waited.Events[0].EventID != eventID {
+			t.Fatalf("notified wait=%#v", waited)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("wait-events was not notified")
 	}
 }
 

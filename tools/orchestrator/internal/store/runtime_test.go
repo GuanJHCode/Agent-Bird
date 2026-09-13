@@ -2,9 +2,11 @@ package store
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -169,11 +171,11 @@ func TestRuntimePersistsDAGSlotsEventsAndExplicitResume(t *testing.T) {
 
 	commit(resumed, contract.EventResult, 0)
 	commit(resumed, contract.EventExited, 1_000)
-	pending, err := db.CollectPending(ctx, "task-c")
-	if err != nil || len(pending) != 2 {
-		t.Fatalf("pending=%d err=%v", len(pending), err)
+	pending, err := db.CollectPending(ctx, "task-c", "", 0, false)
+	if err != nil || len(pending.Events) != 2 {
+		t.Fatalf("pending=%d err=%v", len(pending.Events), err)
 	}
-	for _, event := range pending {
+	for _, event := range pending.Events {
 		decision := "stale"
 		if event.SegmentID == resumed.SegmentID {
 			decision = "handled"
@@ -181,16 +183,16 @@ func TestRuntimePersistsDAGSlotsEventsAndExplicitResume(t *testing.T) {
 		ackEvent(t, db, "task-c", event, decision)
 		ackEvent(t, db, "task-c", event, decision)
 	}
-	pending, err = db.CollectPending(ctx, "task-c")
-	if err != nil || len(pending) != 0 {
-		t.Fatalf("remaining=%d err=%v", len(pending), err)
+	pending, err = db.CollectPending(ctx, "task-c", "", 0, false)
+	if err != nil || len(pending.Events) != 0 {
+		t.Fatalf("remaining=%d err=%v", len(pending.Events), err)
 	}
 	for _, taskID := range []string{"task-a", "task-b"} {
-		events, collectErr := db.CollectPending(ctx, taskID)
+		page, collectErr := db.CollectPending(ctx, taskID, "", 0, false)
 		if collectErr != nil {
 			t.Fatal(collectErr)
 		}
-		for _, event := range events {
+		for _, event := range page.Events {
 			ackEvent(t, db, taskID, event, "handled")
 		}
 	}
@@ -281,11 +283,11 @@ func TestFailedBeforeSpawnSettlesSlotWithoutBecomingUnknown(t *testing.T) {
 	if err != nil || blocked.Status != "blocked_dependency" {
 		t.Fatalf("blocked=%#v err=%v", blocked, err)
 	}
-	events, err := db.CollectPending(ctx, "failed-task")
+	page, err := db.CollectPending(ctx, "failed-task", "", 0, false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, event := range events {
+	for _, event := range page.Events {
 		ackEvent(t, db, "failed-task", event, "handled")
 	}
 	retirable, err := db.RetirableHosts(ctx)
@@ -398,6 +400,10 @@ func TestQuestionAnswerResumesSameAttemptOnce(t *testing.T) {
 	if _, err = db.CommitHostEvent(ctx, question); err != nil {
 		t.Fatal(err)
 	}
+	questionPage, err := db.CollectPending(ctx, grant.TaskID, "", 0, false)
+	if err != nil || len(questionPage.Events) != 1 {
+		t.Fatalf("question page=%#v err=%v", questionPage, err)
+	}
 	if status, answerErr := db.AnswerQuestion(ctx, AnswerSpec{TaskID: grant.TaskID, WorkRevision: 1, QuestionID: "question-1", QuestionRevision: 1, Answer: "Use the narrow API."}); answerErr != nil || status != "resume_queued" {
 		t.Fatalf("answer status=%q err=%v", status, answerErr)
 	}
@@ -414,6 +420,7 @@ func TestQuestionAnswerResumesSameAttemptOnce(t *testing.T) {
 	if resumed.AttemptID != grant.AttemptID || resumed.SegmentID == grant.SegmentID || resumed.Answer != "Use the narrow API." || resumed.SessionID != "conversation-1" || resumed.QuestionID != "question-1" {
 		t.Fatalf("resumed=%#v initial=%#v", resumed, grant)
 	}
+	ackEvent(t, db, grant.TaskID, questionPage.Events[0], "handled")
 }
 
 func TestRetryUsesOnlyPreauthorizedFallbackAndAcceptReleasesDependency(t *testing.T) {
@@ -450,7 +457,12 @@ func TestRetryUsesOnlyPreauthorizedFallbackAndAcceptReleasesDependency(t *testin
 	}
 	commit(first, 1, contract.EventFailed, strings.Repeat("c", 64))
 	commit(first, 2, contract.EventExited, strings.Repeat("d", 64))
-	if err = db.QueueRetry(ctx, first.TaskID, 1, true); err != nil {
+	failurePage, err := db.CollectPending(ctx, first.TaskID, "", 0, false)
+	if err != nil || len(failurePage.Events) != 1 {
+		t.Fatalf("failure events=%#v err=%v", failurePage.Events, err)
+	}
+	firstFailure := failurePage.Events[0]
+	if _, err = db.QueueRetry(ctx, RetrySpec{TaskID: first.TaskID, WorkRevision: 1, EventID: firstFailure.EventID, EventRevision: firstFailure.EventRevision, EventHash: firstFailure.PayloadHash, ActionSlot: firstFailure.ActionSlot, SegmentID: first.SegmentID, NextAttemptNo: 2, UseNextFallback: true, CommandID: "retry-first"}); err != nil {
 		t.Fatal(err)
 	}
 	second, err := db.ClaimReady(ctx, hostID, 1, 2)
@@ -462,10 +474,11 @@ func TestRetryUsesOnlyPreauthorizedFallbackAndAcceptReleasesDependency(t *testin
 	if snapshot, snapshotErr := db.TaskSnapshot(ctx, first.TaskID); snapshotErr != nil || snapshot.Status != "result_ready" {
 		t.Fatalf("result snapshot=%#v err=%v", snapshot, snapshotErr)
 	}
-	events, err := db.CollectPending(ctx, first.TaskID)
-	if err != nil || len(events) != 2 {
-		t.Fatalf("events=%#v err=%v", events, err)
+	eventPage, err := db.CollectPending(ctx, first.TaskID, "", 0, false)
+	if err != nil || len(eventPage.Events) != 2 {
+		t.Fatalf("events=%#v err=%v", eventPage.Events, err)
 	}
+	events := eventPage.Events
 	result := events[1]
 	review := ReviewSpec{TaskID: first.TaskID, WorkRevision: 1, EventID: result.EventID, EventRevision: result.EventRevision, EventHash: result.PayloadHash, ActionSlot: result.ActionSlot, Decision: "reject", CommandID: "review-result"}
 	if status, reviewErr := db.ReviewResult(ctx, review); reviewErr != nil || status != "rejected" {
@@ -479,7 +492,7 @@ func TestRetryUsesOnlyPreauthorizedFallbackAndAcceptReleasesDependency(t *testin
 	if _, reviewErr := db.ReviewResult(ctx, conflict); !errors.Is(reviewErr, ErrConflict) {
 		t.Fatalf("conflicting review err=%v", reviewErr)
 	}
-	if err = db.QueueRetry(ctx, first.TaskID, 1, false); err != nil {
+	if _, err = db.QueueRetry(ctx, RetrySpec{TaskID: first.TaskID, WorkRevision: 1, EventID: result.EventID, EventRevision: result.EventRevision, EventHash: result.PayloadHash, ActionSlot: result.ActionSlot, SegmentID: second.SegmentID, NextAttemptNo: 3, CommandID: "retry-review-rejection"}); err != nil {
 		t.Fatal(err)
 	}
 	third, err := db.ClaimReady(ctx, hostID, 1, 2)
@@ -488,10 +501,11 @@ func TestRetryUsesOnlyPreauthorizedFallbackAndAcceptReleasesDependency(t *testin
 	}
 	commit(third, 5, contract.EventResult, strings.Repeat("1", 64))
 	commit(third, 6, contract.EventExited, strings.Repeat("2", 64))
-	events, err = db.CollectPending(ctx, first.TaskID)
-	if err != nil || len(events) != 3 {
-		t.Fatalf("events after rework=%#v err=%v", events, err)
+	eventPage, err = db.CollectPending(ctx, first.TaskID, "", 0, false)
+	if err != nil || len(eventPage.Events) != 3 {
+		t.Fatalf("events after rework=%#v err=%v", eventPage.Events, err)
 	}
+	events = eventPage.Events
 	finalResult := events[2]
 	accepted := ReviewSpec{TaskID: first.TaskID, WorkRevision: 1, EventID: finalResult.EventID, EventRevision: finalResult.EventRevision, EventHash: finalResult.PayloadHash, ActionSlot: finalResult.ActionSlot, Decision: "accept", CommandID: "review-final"}
 	if status, reviewErr := db.ReviewResult(ctx, accepted); reviewErr != nil || status != "accepted" {
@@ -501,12 +515,80 @@ func TestRetryUsesOnlyPreauthorizedFallbackAndAcceptReleasesDependency(t *testin
 	if err != nil || dependent.Status != "ready" {
 		t.Fatalf("dependent=%#v err=%v", dependent, err)
 	}
-	if ackErr := db.AckDecision(ctx, first.TaskID, AckDecision{EventID: events[0].EventID, EventRevision: events[0].EventRevision, EventHash: events[0].PayloadHash, ActionSlot: events[0].ActionSlot, Decision: "handled", CommandID: "bad-current-ack"}); !errors.Is(ackErr, ErrConflict) {
-		t.Fatalf("old event handled err=%v", ackErr)
+	if ackErr := db.AckDecision(ctx, first.TaskID, AckDecision{EventID: events[0].EventID, EventRevision: events[0].EventRevision, EventHash: events[0].PayloadHash, ActionSlot: events[0].ActionSlot, Decision: "handled", CommandID: "bound-retry-ack"}); ackErr != nil {
+		t.Fatalf("bound old event handled err=%v", ackErr)
 	}
-	ackEvent(t, db, first.TaskID, events[0], "stale")
-	ackEvent(t, db, first.TaskID, events[1], "stale")
+	if staleErr := db.AckDecision(ctx, first.TaskID, AckDecision{EventID: events[0].EventID, EventRevision: events[0].EventRevision, EventHash: events[0].PayloadHash, ActionSlot: events[0].ActionSlot, Decision: "stale", CommandID: "conflicting-stale"}); !errors.Is(staleErr, ErrConflict) {
+		t.Fatalf("conflicting stale err=%v", staleErr)
+	}
+	ackEvent(t, db, first.TaskID, events[1], "handled")
 	ackEvent(t, db, first.TaskID, events[2], "handled")
+}
+
+func TestRetryReplaysStableFailureSlotWithoutConsumingAnotherAttempt(t *testing.T) {
+	ctx := context.Background()
+	db, err := Open(filepath.Join(t.TempDir(), "state.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	receipt, err := db.SubmitPlan(ctx, PlanSpec{
+		Run:   RunSpec{ID: "retry-replay-run", ControllerThread: "thread", PlanRevision: 1, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth"},
+		Host:  HostLaunchSpec{OriginContextID: "origin", HostGeneration: "generation", Executable: "/private/tmp/orchestrator"},
+		Tasks: []TaskSpec{{ID: "retry-replay-task", RunID: "retry-replay-run", MaxAttempts: 3}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hostID, err := db.RegisterHost(ctx, contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth", HostGeneration: "generation", PID: 10, Birth: "host", Executable: "/private/tmp/orchestrator"}, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sequence := int64(0)
+	fail := func(grant contract.LaunchCommand) contract.Event {
+		sequence++
+		exit := 1
+		event := contract.Event{Version: 1, ProducerID: hostID, EventID: fmt.Sprintf("%s:%d", hostID, sequence), RunID: grant.RunID, TaskID: grant.TaskID, AttemptID: grant.AttemptID, SegmentID: grant.SegmentID, WorkRevision: 1, ExecutionEpoch: 1, CommandID: grant.CommandID, Sequence: sequence, Kind: contract.EventFailed, PayloadHash: fmt.Sprintf("%064x", sequence), ExitCode: &exit}
+		if _, commitErr := db.CommitHostEvent(ctx, event); commitErr != nil {
+			t.Fatal(commitErr)
+		}
+		sequence++
+		event.EventID, event.Sequence, event.Kind, event.PayloadHash = fmt.Sprintf("%s:%d", hostID, sequence), sequence, contract.EventExited, fmt.Sprintf("%064x", sequence)
+		if _, commitErr := db.CommitHostEvent(ctx, event); commitErr != nil {
+			t.Fatal(commitErr)
+		}
+		page, collectErr := db.CollectPending(ctx, grant.TaskID, "", 0, false)
+		if collectErr != nil {
+			t.Fatal(collectErr)
+		}
+		return page.Events[len(page.Events)-1]
+	}
+	first, err := db.ClaimReady(ctx, hostID, 1, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstFailure := fail(first)
+	spec := RetrySpec{TaskID: first.TaskID, WorkRevision: 1, EventID: firstFailure.EventID, EventRevision: firstFailure.EventRevision, EventHash: firstFailure.PayloadHash, ActionSlot: firstFailure.ActionSlot, SegmentID: first.SegmentID, NextAttemptNo: 2, CommandID: "retry-command-1"}
+	queued, err := db.QueueRetry(ctx, spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := db.ClaimReady(ctx, hostID, 1, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ackEvent(t, db, first.TaskID, firstFailure, "handled")
+	_ = fail(second)
+	replayed, err := db.QueueRetry(ctx, spec)
+	if err != nil || replayed != queued {
+		t.Fatalf("replayed=%#v queued=%#v err=%v", replayed, queued, err)
+	}
+	if snapshot, snapshotErr := db.TaskSnapshot(ctx, first.TaskID); snapshotErr != nil || snapshot.Status != "failed" {
+		t.Fatalf("snapshot=%#v err=%v", snapshot, snapshotErr)
+	}
+	if _, claimErr := db.ClaimReady(ctx, hostID, 1, 2); !errors.Is(claimErr, ErrNoReady) {
+		t.Fatalf("delayed retry replay claimed another attempt: %v", claimErr)
+	}
 }
 
 func TestStorageAdmissionBlocksDispatchAndEventAck(t *testing.T) {
@@ -537,5 +619,229 @@ func TestStorageAdmissionBlocksDispatchAndEventAck(t *testing.T) {
 	event := contract.Event{Version: 1, ProducerID: hostID, EventID: hostID + ":1", RunID: grant.RunID, TaskID: grant.TaskID, AttemptID: grant.AttemptID, SegmentID: grant.SegmentID, WorkRevision: 1, ExecutionEpoch: 1, CommandID: grant.CommandID, Sequence: 1, Kind: contract.EventPrepared, PayloadHash: strings.Repeat("a", 64)}
 	if _, commitErr := db.CommitHostEvent(ctx, event); commitErr == nil || commitErr.Error() != "control_spool_full" {
 		t.Fatalf("quota event err=%v", commitErr)
+	}
+	db.runControlLimit = 16 * 1024 * 1024
+	body, err := json.Marshal(event)
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.minFreeBytes = 64
+	db.sqliteWriteOverhead = 32
+	db.storageAvailable = func(string) (uint64, error) { return 64 + 32 + uint64(len(body)) - 1, nil }
+	if _, commitErr := db.CommitHostEvent(ctx, event); commitErr == nil || commitErr.Error() != "storage_blocked" {
+		t.Fatalf("incoming storage event err=%v", commitErr)
+	}
+}
+
+func TestReportReplayBindsKindAndProgressCannotConsumeCriticalReserve(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	db, err := Open(filepath.Join(root, "state.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	receipt, err := db.SubmitPlan(ctx, PlanSpec{
+		Run:   RunSpec{ID: "report-budget-run", ControllerThread: "thread", PlanRevision: 1, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth"},
+		Host:  HostLaunchSpec{OriginContextID: "origin", HostGeneration: "generation", Executable: "/private/tmp/orchestrator"},
+		Tasks: []TaskSpec{{ID: "report-budget-task", RunID: "report-budget-run", MaxAttempts: 1}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hostID, err := db.RegisterHost(ctx, contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth", HostGeneration: "generation", PID: 10, Birth: "host", Executable: "/private/tmp/orchestrator"}, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	grant, err := db.ClaimReady(ctx, hostID, 1, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	capabilityDir := filepath.Join(root, "report-capability")
+	if err = os.Mkdir(capabilityDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	token := "report-token"
+	if _, err = db.RegisterReportCapability(ctx, contract.ReportCapabilityRegistration{CapabilityID: grant.ReportCapabilityID, ProducerID: hostID, RunID: grant.RunID, TaskID: grant.TaskID, AttemptID: grant.AttemptID, SegmentID: grant.SegmentID, WorkRevision: grant.WorkRevision, ExecutionEpoch: grant.ExecutionEpoch, TokenHash: runtimeHash(token), CapabilityDir: capabilityDir}); err != nil {
+		t.Fatal(err)
+	}
+	progress := json.RawMessage(`{"status":"resource_sample","sequence":1,"elapsed_ms":10}`)
+	spec := ReportEventSpec{CapabilityID: grant.ReportCapabilityID, Token: token, EventID: "progress-1", Sequence: 1, Kind: "progress", Payload: progress}
+	firstAck, err := db.CommitReportEvent(ctx, spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var usedBefore int64
+	if err = db.sql.QueryRow(`SELECT used_bytes FROM report_capabilities WHERE capability_id=?`, grant.ReportCapabilityID).Scan(&usedBefore); err != nil {
+		t.Fatal(err)
+	}
+	replayed, err := db.CommitReportEvent(ctx, spec)
+	if err != nil || replayed != firstAck {
+		t.Fatalf("replayed=%#v first=%#v err=%v", replayed, firstAck, err)
+	}
+	var usedAfter int64
+	if err = db.sql.QueryRow(`SELECT used_bytes FROM report_capabilities WHERE capability_id=?`, grant.ReportCapabilityID).Scan(&usedAfter); err != nil || usedAfter != usedBefore {
+		t.Fatalf("used after replay=%d before=%d err=%v", usedAfter, usedBefore, err)
+	}
+	if _, err = db.sql.Exec(`UPDATE runtime_hosts SET coordinator_epoch=2 WHERE id=?`, hostID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.sql.Exec(`UPDATE report_capabilities SET execution_epoch=2 WHERE capability_id=?`, grant.ReportCapabilityID); err != nil {
+		t.Fatal(err)
+	}
+	replayed, err = db.CommitReportEvent(ctx, spec)
+	if err != nil || replayed != firstAck {
+		t.Fatalf("cross-epoch replay=%#v first=%#v err=%v", replayed, firstAck, err)
+	}
+	changedKind := spec
+	changedKind.Kind = "result"
+	if _, changedErr := db.CommitReportEvent(ctx, changedKind); !errors.Is(changedErr, ErrConflict) {
+		t.Fatalf("same identity changed kind err=%v", changedErr)
+	}
+	db.runProgressLimit = 1
+	db.userProgressLimit = 1
+	db.reportProgressLimit = 1
+	secondProgress := spec
+	secondProgress.EventID, secondProgress.Sequence = "progress-2", 2
+	secondProgress.Payload = json.RawMessage(`{"status":"resource_sample","sequence":2,"elapsed_ms":20}`)
+	if _, progressErr := db.CommitReportEvent(ctx, secondProgress); progressErr == nil || progressErr.Error() != "report_budget_exhausted" {
+		t.Fatalf("progress quota err=%v", progressErr)
+	}
+	db.runProgressLimit = 12 * 1024 * 1024
+	db.userProgressLimit = 96 * 1024 * 1024
+	db.reportProgressLimit = 16 * 1024 * 1024
+	db.minFreeBytes = 64
+	db.sqliteWriteOverhead = 32
+	db.criticalDiskReserve = 20 * 1024
+	db.storageAvailable = func(string) (uint64, error) { return 10 * 1024, nil }
+	if _, progressErr := db.CommitReportEvent(ctx, secondProgress); progressErr == nil || progressErr.Error() != "storage_blocked" {
+		t.Fatalf("progress disk reserve err=%v", progressErr)
+	}
+	artifactPath := filepath.Join(capabilityDir, "result.json")
+	artifactData := []byte("terminal-result")
+	if err = os.WriteFile(artifactPath, artifactData, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256(artifactData)
+	resultPayload, _ := json.Marshal(map[string]any{"status": "completed", "artifact": map[string]any{"id": "terminal", "path": artifactPath, "size": len(artifactData), "sha256": fmt.Sprintf("%x", digest)}})
+	terminal := ReportEventSpec{CapabilityID: grant.ReportCapabilityID, Token: token, EventID: "terminal-result", Sequence: 2, Kind: "result", Payload: resultPayload}
+	if _, err = db.CommitReportEvent(ctx, terminal); err != nil {
+		t.Fatalf("critical terminal after progress exhaustion: %v", err)
+	}
+	actionable, err := db.CollectPending(ctx, grant.TaskID, "", 0, false)
+	if err != nil || len(actionable.Events) != 1 || actionable.Events[0].EventID != terminal.EventID {
+		t.Fatalf("actionable=%#v err=%v", actionable, err)
+	}
+	withDiagnostics, err := db.CollectPending(ctx, grant.TaskID, "", 0, true)
+	if err != nil || len(withDiagnostics.Events) != 2 || withDiagnostics.Events[0].EventID != spec.EventID || withDiagnostics.Events[1].EventID != terminal.EventID {
+		t.Fatalf("with diagnostics=%#v err=%v", withDiagnostics, err)
+	}
+	if err = os.Remove(artifactPath); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.CommitReportEvent(ctx, terminal); err != nil {
+		t.Fatalf("durable terminal replay after artifact removal: %v", err)
+	}
+}
+
+func TestReportQuestionWaitsForTrustedHostSessionThenStopsAndResumes(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	db, err := Open(filepath.Join(root, "state.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	receipt, err := db.SubmitPlan(ctx, PlanSpec{
+		Run:   RunSpec{ID: "report-question-run", ControllerThread: "thread", PlanRevision: 1, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth"},
+		Host:  HostLaunchSpec{OriginContextID: "origin", HostGeneration: "generation", Executable: "/private/tmp/orchestrator"},
+		Tasks: []TaskSpec{{ID: "report-question-task", RunID: "report-question-run", MaxAttempts: 2}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hostID, err := db.RegisterHost(ctx, contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth", HostGeneration: "generation", PID: 10, Birth: "host", Executable: "/private/tmp/orchestrator"}, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	grant, err := db.ClaimReady(ctx, hostID, 1, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	capabilityDir := filepath.Join(root, "question-capability")
+	if err = os.Mkdir(capabilityDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	token := "question-token"
+	if _, err = db.RegisterReportCapability(ctx, contract.ReportCapabilityRegistration{CapabilityID: grant.ReportCapabilityID, ProducerID: hostID, RunID: grant.RunID, TaskID: grant.TaskID, AttemptID: grant.AttemptID, SegmentID: grant.SegmentID, WorkRevision: grant.WorkRevision, ExecutionEpoch: grant.ExecutionEpoch, TokenHash: runtimeHash(token), CapabilityDir: capabilityDir}); err != nil {
+		t.Fatal(err)
+	}
+	artifactPath := filepath.Join(capabilityDir, "question.json")
+	artifactData := []byte("Which implementation boundary should I use?")
+	if err = os.WriteFile(artifactPath, artifactData, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256(artifactData)
+	payload, _ := json.Marshal(map[string]any{"status": "waiting_user", "question_id": "worker-question-1", "question_revision": 1, "question_kind": "technical", "artifact": map[string]any{"id": "question", "path": artifactPath, "size": len(artifactData), "sha256": fmt.Sprintf("%x", digest)}})
+	report := ReportEventSpec{CapabilityID: grant.ReportCapabilityID, Token: token, EventID: "reported-question", Sequence: 1, Kind: "question", Payload: payload}
+	if _, err = db.CommitReportEvent(ctx, report); err != nil {
+		t.Fatal(err)
+	}
+	if page, collectErr := db.CollectPending(ctx, grant.TaskID, "", 0, false); collectErr != nil || len(page.Events) != 0 {
+		t.Fatalf("question exposed before trusted session: %#v err=%v", page, collectErr)
+	}
+	malicious := report
+	malicious.EventID, malicious.Sequence = "reported-question-2", 2
+	malicious.Payload = json.RawMessage(`{"status":"waiting_user","question_id":"worker-question-2","question_revision":2,"question_kind":"technical","session_kind":"forged","session_id":"forged","artifact":{"id":"question","path":"` + artifactPath + `","size":43,"sha256":"` + fmt.Sprintf("%x", digest) + `"}}`)
+	if _, maliciousErr := db.CommitReportEvent(ctx, malicious); maliciousErr == nil || maliciousErr.Error() != "invalid_report_payload" {
+		t.Fatalf("worker supplied session err=%v", maliciousErr)
+	}
+	sequence := int64(0)
+	commitHost := func(kind string, session bool) {
+		sequence++
+		event := contract.Event{Version: 1, ProducerID: hostID, EventID: fmt.Sprintf("host-session-%d", sequence), RunID: grant.RunID, TaskID: grant.TaskID, AttemptID: grant.AttemptID, SegmentID: grant.SegmentID, WorkRevision: 1, ExecutionEpoch: 1, CommandID: grant.CommandID, Sequence: sequence, Kind: kind, PayloadHash: fmt.Sprintf("%064x", sequence)}
+		if session {
+			event.SessionKind, event.SessionID = "conversation-id", "trusted-session-1"
+		}
+		if _, commitErr := db.CommitHostEvent(ctx, event); commitErr != nil {
+			t.Fatal(commitErr)
+		}
+	}
+	commitHost(contract.EventPrepared, false)
+	commitHost(contract.EventSpawned, false)
+	commitHost(contract.EventRunning, false)
+	commitHost(contract.EventSession, true)
+	page, err := db.CollectPending(ctx, grant.TaskID, "", 0, false)
+	if err != nil || len(page.Events) != 1 || page.Events[0].EventID != report.EventID || page.Events[0].SessionID != "trusted-session-1" {
+		t.Fatalf("materialized question=%#v err=%v", page, err)
+	}
+	var usedBeforeReplay int64
+	if err = db.sql.QueryRow(`SELECT used_bytes FROM report_capabilities WHERE capability_id=?`, grant.ReportCapabilityID).Scan(&usedBeforeReplay); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.CommitReportEvent(ctx, report); err != nil {
+		t.Fatalf("materialized question replay: %v", err)
+	}
+	var usedAfterReplay int64
+	if err = db.sql.QueryRow(`SELECT used_bytes FROM report_capabilities WHERE capability_id=?`, grant.ReportCapabilityID).Scan(&usedAfterReplay); err != nil || usedAfterReplay != usedBeforeReplay {
+		t.Fatalf("question replay used=%d before=%d err=%v", usedAfterReplay, usedBeforeReplay, err)
+	}
+	stops, err := db.PendingStops(ctx, hostID)
+	if err != nil || len(stops) != 1 || stops[0].Command.Reason != "waiting_question" {
+		t.Fatalf("stops=%#v err=%v", stops, err)
+	}
+	commitHost(contract.EventStopped, false)
+	exit := 0
+	sequence++
+	exited := contract.Event{Version: 1, ProducerID: hostID, EventID: fmt.Sprintf("host-session-%d", sequence), RunID: grant.RunID, TaskID: grant.TaskID, AttemptID: grant.AttemptID, SegmentID: grant.SegmentID, WorkRevision: 1, ExecutionEpoch: 1, CommandID: grant.CommandID, Sequence: sequence, Kind: contract.EventExited, PayloadHash: fmt.Sprintf("%064x", sequence), ExitCode: &exit}
+	if _, err = db.CommitHostEvent(ctx, exited); err != nil {
+		t.Fatal(err)
+	}
+	if status, answerErr := db.AnswerQuestion(ctx, AnswerSpec{TaskID: grant.TaskID, WorkRevision: 1, QuestionID: "worker-question-1", QuestionRevision: 1, Answer: "Use the narrow boundary."}); answerErr != nil || status != "resume_queued" {
+		t.Fatalf("answer status=%q err=%v", status, answerErr)
+	}
+	resumed, err := db.ClaimReady(ctx, hostID, 1, 2)
+	if err != nil || resumed.AttemptID != grant.AttemptID || resumed.SessionKind != "conversation-id" || resumed.SessionID != "trusted-session-1" || resumed.Answer != "Use the narrow boundary." {
+		t.Fatalf("resumed=%#v err=%v", resumed, err)
 	}
 }

@@ -423,6 +423,491 @@ async def wait_helper_eof(connection, attachment):
             return
 
 
+def private_directory(path):
+    path = Path(path)
+    require(path.is_absolute(), "driver_root")
+    info = path.lstat()
+    require(
+        stat.S_ISDIR(info.st_mode)
+        and not stat.S_ISLNK(info.st_mode)
+        and info.st_uid == os.getuid()
+        and stat.S_IMODE(info.st_mode) == 0o700,
+        "driver_root",
+    )
+    return path
+
+
+def replace_private(path, value):
+    path = Path(path)
+    data = json.dumps(value, sort_keys=True, separators=(",", ":")).encode() + b"\n"
+    if path.exists():
+        info = path.lstat()
+        require(
+            stat.S_ISREG(info.st_mode)
+            and info.st_uid == os.getuid()
+            and stat.S_IMODE(info.st_mode) == 0o600
+            and info.st_nlink == 1,
+            "driver_status",
+        )
+        stage = path.parent / ("." + path.name + "." + str(os.getpid()) + ".tmp")
+        fd = os.open(stage, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+        try:
+            os.write(fd, data)
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+        os.rename(stage, path)
+    else:
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+        try:
+            os.write(fd, data)
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+    directory = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        os.fsync(directory)
+    finally:
+        os.close(directory)
+
+
+async def wait_receipt(store, name, seconds=10):
+    end = time.monotonic() + seconds
+    while time.monotonic() < end:
+        value = store.read(name)
+        if value is not None:
+            return value
+        await asyncio.sleep(0.02)
+    raise EntryError("attachment_receipt_missing")
+
+
+def attachment_live(attachment, proxy_transport):
+    peers = (
+        attachment.service_identity,
+        attachment.backend_identity,
+        {
+            "pid": attachment.origin_pid,
+            "uid": os.getuid(),
+            "birth": attachment.origin_birth,
+            "executable": attachment.origin_executable,
+            "executable_sha256": attachment.origin_executable_sha256,
+        },
+    )
+    try:
+        for expected in peers:
+            current = process_inspector(proxy_transport, expected["pid"])
+            if any(
+                current.get(key) != expected.get(key)
+                for key in ("pid", "uid", "birth", "executable", "executable_sha256")
+            ):
+                return False
+        return socket_identity(attachment.private_socket) == list(
+            attachment.private_socket_identity
+        )
+    except (OSError, EntryError, KeyError):
+        return False
+
+
+async def wait_decision(path, attachment, proxy_transport, deadline):
+    while time.monotonic() < deadline:
+        if not attachment_live(attachment, proxy_transport):
+            raise EntryError("owner_detached")
+        if path.exists():
+            return stable_json(path, private=True)
+        await asyncio.sleep(0.05)
+    raise EntryError("driver_wait_expired")
+
+
+async def run_driver(request_path_value):
+    request_path_value = Path(request_path_value)
+    request = stable_json(request_path_value, private=True)
+    required = {
+        "version",
+        "runtime",
+        "driver_root",
+        "manifest_path",
+        "manifest_sha256",
+        "activation_id",
+        "owner_ready_receipt",
+        "owner_ready_sha256",
+        "profile_id",
+        "public_socket",
+        "bridge_root",
+        "owner_capability_root",
+        "g1_state",
+        "mode",
+        "submit_request",
+        "control_file",
+        "task_id",
+        "max_wait_seconds",
+        "enable_test_fake",
+    }
+    require(
+        set(request) == required
+        and request["version"] == 1
+        and request["mode"] in {"submit", "rebind"}
+        and request["max_wait_seconds"] == 300
+        and type(request["enable_test_fake"]) is bool,
+        "driver_request",
+    )
+    modules = load_g0_runtime(request["runtime"])
+    proxy_transport = modules["proxy_transport"]
+    owner_helper = modules["owner_helper"]
+    receipt_store = modules["receipt_store"]
+    delivery_adapter = modules["delivery_adapter"]
+    bridge_core = modules["bridge"]
+    driver_root = private_directory(request["driver_root"])
+    bridge_root = private_directory(request["bridge_root"])
+    capability_root = private_directory(request["owner_capability_root"])
+    private_directory(request["g1_state"])
+    launcher = stable_json(driver_root / "launcher.json", private=True)
+    require(
+        launcher.get("version") == 1
+        and launcher.get("pid") == os.getppid()
+        and launcher.get("request_sha256") == digest(request_path_value),
+        "driver_launcher",
+    )
+    launcher_peer = process_inspector(proxy_transport, os.getppid())
+    require(
+        all(
+            launcher_peer.get(key) == launcher.get(key)
+            for key in ("pid", "birth", "executable", "executable_sha256")
+        ),
+        "driver_launcher",
+    )
+    require(
+        launcher_peer["executable"]
+        == str(Path(request["runtime"]["package_root"]) / "bin" / "codex-orchestrator"),
+        "driver_launcher",
+    )
+    manifest = stable_json(request["manifest_path"], private=True)
+    require(
+        digest(request["manifest_path"]) == request["manifest_sha256"]
+        and manifest.get("public_socket") == request["public_socket"],
+        "manifest_binding",
+    )
+    service_pins = manifest.get("file_pins")
+    require(
+        isinstance(service_pins, dict)
+        and all(
+            service_pins.get(path) == digest(path)
+            for path in request["runtime"]["g0_modules"].values()
+        ),
+        "manifest_binding",
+    )
+    store = receipt_store.ReceiptStore(Path(manifest["state_dir"]))
+    connection = None
+    ws_writer = None
+    base_status = None
+    try:
+        owner_captured = store.read(request["owner_ready_receipt"])
+        require(
+            owner_captured is not None
+            and owner_captured[1] == request["owner_ready_sha256"],
+            "owner_ready_changed",
+        )
+        require(store.activation_id == request["activation_id"], "owner_ready_changed")
+        owner_ready = owner_captured[0]
+        lease = owner_ready.get("owner_lease")
+        require(
+            isinstance(lease, dict)
+            and lease.get("profile_id") == request["profile_id"],
+            "owner_ready_changed",
+        )
+        helper = process_inspector(proxy_transport, os.getpid())
+        grant = {
+            key: lease[key]
+            for key in (
+                "profile_id",
+                "owner_context_sha256",
+                "lease_id",
+                "owner_connection_id",
+                "owner_epoch",
+                "owner_thread_id",
+                "private_socket",
+            )
+        }
+        grant.update(
+            version=1,
+            role="owner-helper",
+            helper_pid=os.getpid(),
+            helper_uid=os.getuid(),
+            helper_birth=helper["birth"],
+            helper_executable=helper["executable"],
+            helper_executable_sha256=helper["executable_sha256"],
+            helper_source_sha256=digest(
+                request["runtime"]["g0_modules"]["owner_helper"]
+            ),
+        )
+        grants_root = private_directory(manifest["grants_dir"])
+        grant_path = grants_root / f"{os.getpid()}.json"
+        bridge_core._write_exclusive(grant_path, grant)
+        require(
+            socket_identity(request["public_socket"])
+            == socket_identity(manifest["public_socket"]),
+            "public_socket_changed",
+        )
+        ws_reader, ws_writer = await owner_helper._open_websocket(
+            request["public_socket"]
+        )
+        helper_ready_name = f"helper-ready-{lease['lease_id']}-{os.getpid()}.json"
+        helper_ready, helper_sha = await wait_receipt(store, helper_ready_name)
+        attachment = bridge_core.OwnerAttachment.from_service_receipts(
+            owner_ready=owner_ready,
+            helper_ready=helper_ready,
+            helper_grant=grant,
+            inspect_process=lambda pid: process_inspector(proxy_transport, pid),
+        )
+        owner_capability = bridge_core.OwnerCapabilityStore(capability_root).bind(
+            attachment
+        )
+        connection = owner_helper.OwnerHelperConnection(
+            ws_reader, ws_writer, attachment.lease_id, attachment.controller_thread_id
+        )
+        await connection.send_rpc(
+            {
+                "id": 1,
+                "method": "initialize",
+                "params": {
+                    "clientInfo": {
+                        "name": "g0-native-standalone",
+                        "version": "0.1.0",
+                    },
+                    "capabilities": {"experimentalApi": True},
+                },
+            }
+        )
+        initialized, _ = await wait_for_id(connection, 1)
+        require(
+            "error" not in initialized and isinstance(initialized.get("result"), dict),
+            "initialize_rejected",
+        )
+        await connection.send_rpc({"method": "initialized"})
+        control_binary = launcher_peer["executable"]
+        client = bridge_core.ControlPlaneClient(
+            control_binary,
+            launcher_peer["executable_sha256"],
+            enable_test_fake=request["enable_test_fake"],
+        )
+        if request["mode"] == "submit":
+            template = stable_json(request["submit_request"], private=True)
+            require(
+                set(template) == {"version", "run_id", "plan_revision", "tasks"}
+                and template["version"] == 1
+                and isinstance(template["tasks"], list)
+                and any(
+                    item.get("id") == request["task_id"]
+                    for item in template["tasks"]
+                    if isinstance(item, dict)
+                ),
+                "submit_template",
+            )
+            derived = {
+                "run_id": template["run_id"],
+                "controller_thread": attachment.controller_thread_id,
+                "plan_revision": template["plan_revision"],
+                "origin_context_id": owner_capability.origin_context_id,
+                "origin_pid": owner_capability.origin_pid,
+                "origin_birth": owner_capability.origin_birth,
+                "host_generation": owner_capability.host_generation,
+                "owner_capability": str(owner_capability.path),
+                "tasks": template["tasks"],
+            }
+            derived_path = driver_root / "g1-submit-derived.json"
+            bridge_core._write_exclusive(derived_path, derived)
+            response = client.submit(derived_path, state_dir=Path(request["g1_state"]))
+            control_file = Path(response["control_file"])
+            run_id = response["run_id"]
+        else:
+            require(
+                request["submit_request"] == "" and request["control_file"],
+                "rebind_request",
+            )
+            control_file = Path(request["control_file"])
+            response = client.rebind(owner_capability, control_file=control_file)
+            run_id = response["run_id"]
+        base_status = {
+            "version": 1,
+            "status": "watching",
+            "driver_root": str(driver_root),
+            "driver_pid": os.getpid(),
+            "driver_birth": helper["birth"],
+            "launcher_pid": launcher_peer["pid"],
+            "launcher_birth": launcher_peer["birth"],
+            "task_id": request["task_id"],
+            "run_id": run_id,
+            "control_action_status": response["status"],
+            "control_file": str(control_file),
+            "owner_capability": str(owner_capability.path),
+            "controller_thread": attachment.controller_thread_id,
+            "origin_context_id": owner_capability.origin_context_id,
+            "origin_pid": owner_capability.origin_pid,
+            "origin_birth": owner_capability.origin_birth,
+            "host_generation": owner_capability.host_generation,
+            "attachment_proof_sha256": owner_capability.attachment_proof_sha256,
+            "helper_ready_receipt": helper_ready_name,
+            "helper_ready_sha256": helper_sha,
+        }
+        replace_private(driver_root / "status.json", base_status)
+        ledger = bridge_core.DeliveryLedger(bridge_root)
+        deadline = time.monotonic() + request["max_wait_seconds"]
+        cursor = ""
+        while time.monotonic() < deadline:
+            if not attachment_live(attachment, proxy_transport):
+                replace_private(
+                    driver_root / "status.json",
+                    dict(base_status, status="owner_detached"),
+                )
+                return
+            timeout_ms = max(
+                1, min(30_000, int((deadline - time.monotonic()) * 1000))
+            )
+            status, events, next_cursor = client.wait_events(
+                request["task_id"],
+                control_file=control_file,
+                cursor=cursor,
+                timeout_ms=timeout_ms,
+            )
+            if status == "timeout":
+                continue
+            if not attachment_live(attachment, proxy_transport):
+                replace_private(driver_root / "status.json", dict(base_status, status="owner_detached"))
+                return
+            batch = ledger.prepare_and_claim(attachment, request["task_id"], events)
+            binding = delivery_adapter.DeliveryBinding(
+                attachment.profile_id,
+                attachment.controller_thread_id,
+                attachment.controller_epoch,
+                batch.delivery_id,
+                1,
+            )
+            adapter = delivery_adapter.DeliveryAdapter.for_external(
+                owner_context_sha256=attachment.owner_context_sha256
+            )
+            batch = ledger.mark_sending(batch.delivery_id)
+            capability = adapter.attach_external_claim(binding, batch.path)
+            packets = await adapter.send_tool_output_once(
+                connection, capability, request_id=2, wait_for_completion=False
+            )
+            receipts = [packet for packet in packets if packet.get("id") == 2]
+            require(
+                len(receipts) == 1 and "error" not in receipts[0], "transport_receipt"
+            )
+            native_turn_id = receipts[0]["result"]["turn"]["id"]
+            batch = ledger.mark_transport_accepted(batch.delivery_id, native_turn_id)
+            proof, (native_turn_id, native_item_id) = await exact_history(
+                connection, adapter, capability, attachment.controller_thread_id
+            )
+            proof_sha = hashlib.sha256(
+                json.dumps(
+                    {"reads_sha256": proof.reads_sha256, "summary": proof.summary},
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ).encode()
+            ).hexdigest()
+            batch = ledger.confirm_history(
+                batch.delivery_id, proof_sha, native_turn_id, native_item_id
+            )
+            history = {
+                "version": 1,
+                "event": "history_ready",
+                "driver_root": str(driver_root),
+                "task_id": request["task_id"],
+                "delivery_id": batch.delivery_id,
+                "history_proof_sha256": proof_sha,
+                "native_event_ids": [
+                    item["event_id"] for item in batch.envelope["events"]
+                ],
+                "source_events": list(batch.source_events),
+                "next_cursor": next_cursor,
+            }
+            history_path = driver_root / ("history-" + batch.delivery_id + ".json")
+            bridge_core._write_exclusive(history_path, history)
+            replace_private(
+                driver_root / "status.json",
+                dict(
+                    base_status,
+                    status="awaiting_owner_decision",
+                    delivery_id=batch.delivery_id,
+                    history_receipt=str(history_path),
+                    history_receipt_sha256=digest(history_path),
+                ),
+            )
+            decision_path = driver_root / "decisions" / (batch.delivery_id + ".json")
+            decision = await wait_decision(
+                decision_path, attachment, proxy_transport, deadline
+            )
+            require(
+                set(decision)
+                == {
+                    "version",
+                    "action",
+                    "delivery_id",
+                    "history_proof_sha256",
+                    "decisions",
+                }
+                and decision["version"] == 1
+                and decision["action"] == "decide"
+                and decision["delivery_id"] == batch.delivery_id
+                and decision["history_proof_sha256"] == proof_sha,
+                "driver_decision",
+            )
+            ack_sha = client.ack(
+                batch, decision["decisions"], control_file=control_file
+            )
+            batch = ledger.mark_controller_acked(batch.delivery_id, ack_sha)
+            replace_private(
+                driver_root / ("ack-" + batch.delivery_id + ".json"),
+                {
+                    "version": 1,
+                    "event": "ack",
+                    "delivery_id": batch.delivery_id,
+                    "status": batch.status,
+                    "controller_ack_sha256": ack_sha,
+                },
+            )
+            current = client.status(request["task_id"], control_file=control_file)
+            cursor = next_cursor
+            if not cursor and current.get("status") in {
+                "completed",
+                "failed",
+                "cancelled",
+                "budget_exhausted",
+                "blocked_dependency",
+            }:
+                replace_private(
+                    driver_root / "status.json",
+                    dict(
+                        base_status, status="completed", delivery_id=batch.delivery_id
+                    ),
+                )
+                return
+            replace_private(
+                driver_root / "status.json",
+                dict(base_status, status="watching", cursor=cursor),
+            )
+        raise EntryError("driver_wait_expired")
+    except Exception as exc:
+        if base_status is not None:
+            code = (
+                str(exc)
+                if re.fullmatch(r"[A-Za-z0-9_-]{1,64}", str(exc))
+                else "driver_failed"
+            )
+            replace_private(
+                driver_root / "status.json",
+                dict(base_status, status="failed", error=code),
+            )
+        raise
+    finally:
+        store.close()
+        if connection is not None:
+            await connection.close()
+        elif ws_writer is not None:
+            ws_writer.close()
+            await ws_writer.wait_closed()
+
+
 def request_path(args):
     require(len(args) == 3 and args[0] == "self-check" and args[1] == "--request",
             "usage")
@@ -440,6 +925,9 @@ def main(args):
 async def async_main(args):
     if args == ["helper"]:
         await run_helper()
+        return None
+    if len(args) == 3 and args[:2] == ["driver", "--request"]:
+        await run_driver(args[2])
         return None
     return main(args)
 

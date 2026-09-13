@@ -23,6 +23,9 @@ type protocolCollector struct {
 	sessionID       string
 	message         []byte
 	droppedOversize int
+	onSession       func(string, string) error
+	sessionObserved bool
+	sessionReported bool
 }
 
 func newProtocolCollector(provider string) (*protocolCollector, error) {
@@ -125,6 +128,10 @@ func (p *protocolCollector) accept(event adapter.Event) {
 			return
 		}
 		p.sessionID = event.SessionID
+		if p.isAuthoritativeSessionEvent(event) {
+			p.sessionObserved = true
+			p.reportSession()
+		}
 	}
 	if event.Kind == adapter.EventMessage && p.provider == adapter.ProviderGrok && event.Text != "" {
 		if len(p.message) > providerEventLimit-len(event.Text) {
@@ -143,6 +150,35 @@ func (p *protocolCollector) accept(event adapter.Event) {
 	}
 	copy := event
 	p.terminal = &copy
+}
+
+func (p *protocolCollector) SetSessionObserver(observer func(string, string) error) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if observer == nil || p.onSession != nil {
+		return errors.New("provider_session_observer_invalid")
+	}
+	p.onSession = observer
+	p.reportSession()
+	return p.err
+}
+
+func (p *protocolCollector) reportSession() {
+	if p.err != nil || !p.sessionObserved || p.sessionReported || p.onSession == nil {
+		return
+	}
+	if err := p.onSession(providerSessionKind(p.provider), p.sessionID); err != nil {
+		p.err = err
+		return
+	}
+	p.sessionReported = true
+}
+
+func (p *protocolCollector) isAuthoritativeSessionEvent(event adapter.Event) bool {
+	if p.provider == adapter.ProviderGrok {
+		return event.Kind == adapter.EventMessage
+	}
+	return event.Kind == adapter.EventInit
 }
 
 func (p *protocolCollector) Finish() (adapter.Event, string, error) {

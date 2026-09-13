@@ -30,12 +30,19 @@ const (
 )
 
 type DB struct {
-	sql              *sql.DB
-	path             string
-	mu               sync.Mutex
-	runControlLimit  int64
-	userControlLimit int64
-	minFreeBytes     uint64
+	sql                 *sql.DB
+	path                string
+	mu                  sync.Mutex
+	runControlLimit     int64
+	userControlLimit    int64
+	runProgressLimit    int64
+	userProgressLimit   int64
+	reportControlLimit  int64
+	reportProgressLimit int64
+	minFreeBytes        uint64
+	criticalDiskReserve uint64
+	sqliteWriteOverhead uint64
+	storageAvailable    func(string) (uint64, error)
 }
 
 type RunSpec struct {
@@ -86,7 +93,14 @@ func Open(path string) (*DB, error) {
 	}
 	d.SetMaxOpenConns(1)
 	d.SetMaxIdleConns(1)
-	out := &DB{sql: d, path: path, runControlLimit: 16 * 1024 * 1024, userControlLimit: 128 * 1024 * 1024, minFreeBytes: 64 * 1024 * 1024}
+	out := &DB{
+		sql: d, path: path,
+		runControlLimit: 16 * 1024 * 1024, userControlLimit: 128 * 1024 * 1024,
+		runProgressLimit: 12 * 1024 * 1024, userProgressLimit: 96 * 1024 * 1024,
+		reportControlLimit: 20 * 1024 * 1024, reportProgressLimit: 16 * 1024 * 1024,
+		minFreeBytes: 64 * 1024 * 1024, criticalDiskReserve: 1024 * 1024, sqliteWriteOverhead: 4 * 1024 * 1024,
+		storageAvailable: filesystemAvailable,
+	}
 	if err := out.migrate(); err != nil {
 		d.Close()
 		return nil, err
@@ -96,6 +110,14 @@ func Open(path string) (*DB, error) {
 		return nil, err
 	}
 	return out, nil
+}
+
+func filesystemAvailable(path string) (uint64, error) {
+	var filesystem syscall.Statfs_t
+	if err := syscall.Statfs(path, &filesystem); err != nil {
+		return 0, err
+	}
+	return uint64(filesystem.Bavail) * uint64(filesystem.Bsize), nil
 }
 
 func storeOwned(info os.FileInfo) bool {

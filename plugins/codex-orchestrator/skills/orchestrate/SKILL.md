@@ -6,8 +6,8 @@ description: Submit, inspect, collect, acknowledge, explicitly resume, or stop l
 # Local orchestration
 
 Use only the installed wrapper at `${PLUGIN_ROOT}/scripts/invoke.sh`. It accepts
-`ensure-running`, `submit`, `status`, `collect`, `ack`, `accept`, `answer`,
-`retry`, `resume`, `stop`, `native-bridge`, `rebind-owner`, `install`, `doctor`,
+`ensure-running`, `submit`, `status`, `collect`, `wait-events`, `ack`, `accept`,
+`answer`, `retry`, `resume`, `stop`, `native-bridge`, `rebind-owner`, `install`, `doctor`,
 `uninstall`, `pin`, and `unpin`.
 Never invoke `codex` as a replacement entry point, never invent an MCP server,
 and never bypass a blocked CLI result with direct process or Git operations.
@@ -70,7 +70,8 @@ Use both binding arguments for every task query:
 
 ```text
 invoke.sh status --task-id <task-id> --control-file <absolute-control-file>
-invoke.sh collect --task-id <task-id> --control-file <absolute-control-file>
+invoke.sh collect --task-id <task-id> --control-file <absolute-control-file> [--cursor <opaque>] [--include-diagnostics]
+invoke.sh wait-events --task-id <task-id> --control-file <absolute-control-file> [--cursor <opaque>] [--timeout-ms <1..30000>]
 ```
 
 `collect` does not acknowledge delivery. Native delivery is performed only by
@@ -92,7 +93,10 @@ Owner review and follow-up decisions are separate business commands:
 invoke.sh accept --task-id <id> --work-revision <n> --control-file <path> \
   --event-id <id> --event-revision <n> --event-hash <sha256> \
   --action-slot <slot> --decision <accept|reject> --command-id <id>
-invoke.sh retry --task-id <id> --work-revision <n> --control-file <path> [--use-next-fallback]
+invoke.sh retry --task-id <id> --work-revision <n> --control-file <path> \
+  --event-id <id> --event-revision <n> --event-hash <sha256> \
+  --action-slot <slot> --segment-id <id> --next-attempt <n> \
+  --command-id <stable-id> [--use-next-fallback]
 invoke.sh answer --request <absolute-0600-answer-request>
 ```
 
@@ -110,6 +114,10 @@ bootstrap helper to remain alive. A control file alone is not native attachment
 evidence.
 
 ```text
+invoke.sh native-bridge helper --request <absolute-0600-launch-request>
+invoke.sh native-bridge start --request <absolute-0600-driver-request>
+invoke.sh native-bridge status --request <absolute-0600-status-request>
+invoke.sh native-bridge decide --request <absolute-0600-decision-request>
 invoke.sh rebind-owner --request <absolute-0600-rebind-request>
 ```
 
@@ -117,6 +125,16 @@ The internal helper command is `native-bridge helper --request`; only the
 attached service supplies its request and control stream. It requires the
 matching installed `runtime/g0` manifest used by that service. Do not
 substitute source files from a repository or another installed runtime.
+
+Use `native-bridge start` for unattended callbacks. Its request binds the
+current service activation and owner-ready receipt, an owner-free submit
+template or existing control file, the private G1 state, and a five-minute
+driver root. The driver creates the helper grant, obtains the verified owner
+capability, submits or rebinds, and waits only for actionable `wait-events`;
+progress never starts a native turn. `status` reads its durable state. After a
+`history_ready` receipt, `decide` records an exact owner decision for that
+delivery and proof. Only the driver sends the typed G1 ACK. Never create the
+decision file directly or treat synthetic output as an owner decision.
 
 ## Explicit recovery and stop
 

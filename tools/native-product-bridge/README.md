@@ -43,3 +43,15 @@ history proof IDs, and the final G1 ACK request/receipt. A `sending` crash is
 reconciled through history with sending disabled. An identical G1 ACK can be
 replayed after a crash between the G1 commit and local `controller_acked`
 transition.
+
+For unattended callbacks, `native-bridge start --request` launches a detached,
+owner-bound five-minute driver. It creates the helper grant, submits or rebinds
+through the verified owner capability, and waits on G1 `wait-events`; only
+actionable events enter the native transport. Exact history is written as an
+owner-only driver receipt. `native-bridge decide --request` records the bound
+owner decision, after which the driver submits the typed G1 ACK. The driver
+stops when its original owner/service/backend/socket attachment is no longer
+live and never resumes an interrupted task by itself.
+
+The root-only final flow and frozen SHA prerequisites are documented in
+`tasks/g1-g4-delivery/plans/native-product-acceptance.md`.

@@ -43,22 +43,31 @@ placed in worker arguments, environment, or prompts.
 
 ```text
 orchestrator status  --task-id <id> --control-file <path>
-orchestrator collect --task-id <id> --control-file <path>
+orchestrator collect --task-id <id> --control-file <path> \
+  [--cursor <opaque>] [--include-diagnostics]
+orchestrator wait-events --task-id <id> --control-file <path> \
+  [--cursor <opaque>] [--timeout-ms <1..30000>]
 orchestrator ack     --request <absolute-0600-delivery-ack.json>
 orchestrator accept  --task-id <id> --work-revision <n> --control-file <path> \
   --event-id <id> --event-revision <n> --event-hash <sha256> \
   --action-slot <slot> --decision accept|reject --command-id <stable-id>
 orchestrator answer  --request <absolute-0600-answer.json>
 orchestrator retry   --task-id <id> --work-revision <n> --control-file <path> \
-  [--use-next-fallback]
+  --event-id <failure-or-rejected-result-id> --event-revision <n> \
+  --event-hash <sha256> --action-slot <slot> --segment-id <id> \
+  --next-attempt <n> --command-id <stable-id> [--use-next-fallback]
 orchestrator stop    --task-id <id> --work-revision <n> --control-file <path>
 orchestrator resume  --task-id <id> --work-revision <n> --control-file <path>
 ```
 
-`collect` returns only owner-facing question/result/failure/unknown/stop
-events. Every event includes a stable `event_revision` and `action_slot`.
-Lifecycle events remain internal. Delivery ACK uses one transaction and this
-shape:
+`collect` returns bounded pages of owner-facing question/result/failure/unknown/stop
+events. Follow `next_cursor` until it is absent; the cursor remains valid if an
+earlier page is ACKed. `--include-diagnostics` additionally returns durable
+progress reports without making them owner decisions. `wait-events` waits on
+the same stable cursor for at most 30 seconds, returns at most eight actionable
+events, and never wakes for progress. Every actionable event includes a stable
+`event_revision` and `action_slot`. Host lifecycle events remain internal.
+Delivery ACK uses one transaction and this shape:
 
 ```json
 {
@@ -79,10 +88,13 @@ shape:
 ```
 
 Owner review is separate from delivery ACK. Rejecting a result moves it to a
-failed state eligible for an explicit new attempt. `retry` never selects an
-adapter outside the task's frozen fallback list and never resets the shared
-budget group. `answer` binds the exact question revision and resumes the same
-attempt in a new segment; repeating the same answer is idempotent.
+failed state eligible for an explicit new attempt. `retry` binds the exact
+failure or rejected result, source segment, next attempt number, and action
+slot; replay returns the original receipt without consuming another attempt.
+It never selects an adapter outside the task's frozen fallback list and never
+resets the shared budget group. `answer` binds the exact question revision and
+resumes the same attempt in a new segment; repeating the same answer is
+idempotent.
 
 Workers receive a segment-scoped report capability in
 `ORCHESTRATOR_REPORT_CAPABILITY` and the pinned binary path in
@@ -90,6 +102,8 @@ Workers receive a segment-scoped report capability in
 `orchestrator report --capability-file <path> --request <0600-json>`. The Host
 registers only the token hash before spawning, and the coordinator applies
 per-segment, per-run, per-user, and free-disk admission before durable ACK.
+Progress has a separate discardable quota; reserved critical capacity remains
+available for question/result/failure and Host terminal records.
 
 Git compose/materialize/integrate/cleanup requests use adapter kind `gitops`;
 the Source Host materializes a private request and invokes the same binary's
