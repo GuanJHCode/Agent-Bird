@@ -1890,7 +1890,12 @@ func (d *DB) CommitReportEvent(ctx context.Context, spec ReportEventSpec) (contr
 			return rollback(ErrEventSequence)
 		}
 	}
-	event, err := validateReportPayload(spec.Kind, canonicalPayload, capabilityDir)
+	var event contract.Event
+	if duplicate {
+		event, err = decodeReportPayload(spec.Kind, canonicalPayload)
+	} else {
+		event, err = validateReportPayload(spec.Kind, canonicalPayload, capabilityDir)
+	}
 	if err != nil {
 		return rollback(err)
 	}
@@ -1909,7 +1914,9 @@ func (d *DB) CommitReportEvent(ctx context.Context, spec ReportEventSpec) (contr
 	}
 	body, _ := json.Marshal(event)
 	if duplicate {
-		if subtle.ConstantTimeCompare([]byte(oldBody), body) != 1 {
+		oldCanonical, oldErr := canonicalReportEvent([]byte(oldBody))
+		newCanonical, newErr := canonicalReportEvent(body)
+		if oldErr != nil || newErr != nil || subtle.ConstantTimeCompare(oldCanonical, newCanonical) != 1 {
 			return rollback(ErrConflict)
 		}
 		_ = tx.Rollback()
@@ -1967,6 +1974,15 @@ func (d *DB) CommitReportEvent(ctx context.Context, spec ReportEventSpec) (contr
 	return contract.DurableAck{ProducerID: spec.CapabilityID, AckedThrough: spec.Sequence, EventID: spec.EventID, PayloadHash: payloadHash, Status: "durable"}, nil
 }
 
+func canonicalReportEvent(body []byte) ([]byte, error) {
+	var event contract.Event
+	if err := json.Unmarshal(body, &event); err != nil {
+		return nil, err
+	}
+	event.ExecutionEpoch = 0
+	return json.Marshal(event)
+}
+
 func canonicalReportPayload(raw json.RawMessage) (json.RawMessage, error) {
 	var value any
 	decoder := json.NewDecoder(strings.NewReader(string(raw)))
@@ -1978,6 +1994,27 @@ func canonicalReportPayload(raw json.RawMessage) (json.RawMessage, error) {
 }
 
 func validateReportPayload(kind string, raw json.RawMessage, capabilityDir string) (contract.Event, error) {
+	event, err := decodeReportPayload(kind, raw)
+	if err != nil || kind == "progress" {
+		return event, err
+	}
+	if err = validateReportArtifactPath(event, capabilityDir); err != nil {
+		return contract.Event{}, err
+	}
+	value := event.Artifact
+	info, err := os.Lstat(value.Path)
+	stat, owned := infoSyscall(info)
+	if err != nil || !owned || !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 || info.Mode().Perm() != 0600 || stat.Uid != uint32(os.Geteuid()) || info.Size() != value.Size {
+		return contract.Event{}, CodeError("unsafe_report_artifact")
+	}
+	data, err := os.ReadFile(value.Path)
+	if err != nil || runtimeHash(string(data)) != strings.ToLower(value.SHA256) {
+		return contract.Event{}, CodeError("report_artifact_hash_mismatch")
+	}
+	return event, nil
+}
+
+func decodeReportPayload(kind string, raw json.RawMessage) (contract.Event, error) {
 	decoder := json.NewDecoder(strings.NewReader(string(raw)))
 	decoder.DisallowUnknownFields()
 	if kind == "progress" {
@@ -2005,20 +2042,18 @@ func validateReportPayload(kind string, raw json.RawMessage, capabilityDir strin
 	if !allowed || value.Artifact.Path == "" || !filepath.IsAbs(value.Artifact.Path) || !validDigest(value.Artifact.SHA256) || value.Artifact.Size < 0 {
 		return contract.Event{}, CodeError("invalid_report_payload")
 	}
-	rel, err := filepath.Rel(capabilityDir, value.Artifact.Path)
-	if err != nil || rel == "." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
-		return contract.Event{}, CodeError("report_artifact_outside_capability")
-	}
-	info, err := os.Lstat(value.Artifact.Path)
-	stat, owned := infoSyscall(info)
-	if err != nil || !owned || !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 || info.Mode().Perm() != 0600 || stat.Uid != uint32(os.Geteuid()) || info.Size() != value.Artifact.Size {
-		return contract.Event{}, CodeError("unsafe_report_artifact")
-	}
-	data, err := os.ReadFile(value.Artifact.Path)
-	if err != nil || runtimeHash(string(data)) != strings.ToLower(value.Artifact.SHA256) {
-		return contract.Event{}, CodeError("report_artifact_hash_mismatch")
-	}
 	return contract.Event{Artifact: &value.Artifact, QuestionID: value.QuestionID, QuestionRevision: value.QuestionRevision, QuestionKind: value.QuestionKind}, nil
+}
+
+func validateReportArtifactPath(event contract.Event, capabilityDir string) error {
+	if event.Artifact == nil {
+		return CodeError("invalid_report_payload")
+	}
+	rel, err := filepath.Rel(capabilityDir, event.Artifact.Path)
+	if err != nil || rel == "." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
+		return CodeError("report_artifact_outside_capability")
+	}
+	return nil
 }
 
 type PendingPage struct {

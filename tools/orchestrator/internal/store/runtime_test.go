@@ -683,6 +683,16 @@ func TestReportReplayBindsKindAndProgressCannotConsumeCriticalReserve(t *testing
 	if err = db.sql.QueryRow(`SELECT used_bytes FROM report_capabilities WHERE capability_id=?`, grant.ReportCapabilityID).Scan(&usedAfter); err != nil || usedAfter != usedBefore {
 		t.Fatalf("used after replay=%d before=%d err=%v", usedAfter, usedBefore, err)
 	}
+	if _, err = db.sql.Exec(`UPDATE runtime_hosts SET coordinator_epoch=2 WHERE id=?`, hostID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.sql.Exec(`UPDATE report_capabilities SET execution_epoch=2 WHERE capability_id=?`, grant.ReportCapabilityID); err != nil {
+		t.Fatal(err)
+	}
+	replayed, err = db.CommitReportEvent(ctx, spec)
+	if err != nil || replayed != firstAck {
+		t.Fatalf("cross-epoch replay=%#v first=%#v err=%v", replayed, firstAck, err)
+	}
 	changedKind := spec
 	changedKind.Kind = "result"
 	if _, changedErr := db.CommitReportEvent(ctx, changedKind); !errors.Is(changedErr, ErrConflict) {
@@ -725,6 +735,12 @@ func TestReportReplayBindsKindAndProgressCannotConsumeCriticalReserve(t *testing
 	withDiagnostics, err := db.CollectPending(ctx, grant.TaskID, "", 0, true)
 	if err != nil || len(withDiagnostics.Events) != 2 || withDiagnostics.Events[0].EventID != spec.EventID || withDiagnostics.Events[1].EventID != terminal.EventID {
 		t.Fatalf("with diagnostics=%#v err=%v", withDiagnostics, err)
+	}
+	if err = os.Remove(artifactPath); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.CommitReportEvent(ctx, terminal); err != nil {
+		t.Fatalf("durable terminal replay after artifact removal: %v", err)
 	}
 }
 

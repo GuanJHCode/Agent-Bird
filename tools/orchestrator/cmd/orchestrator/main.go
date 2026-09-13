@@ -891,7 +891,7 @@ func sourceEnvironment() []string {
 		if index := strings.IndexByte(value, '='); index >= 0 {
 			key = value[:index]
 		}
-		if key == "ORCHESTRATOR_CONTROL_TOKEN" || key == "ORCHESTRATOR_CONTROL_FILE" {
+		if strings.HasPrefix(key, "ORCHESTRATOR_") && key != "ORCHESTRATOR_ENABLE_TEST_FAKE" {
 			continue
 		}
 		out = append(out, value)

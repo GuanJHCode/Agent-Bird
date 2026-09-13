@@ -715,6 +715,29 @@ func testFileSHA(t *testing.T, path string) string {
 	return hex.EncodeToString(sum[:])
 }
 
+func TestSourceEnvironmentPreservesOwnerEnvironmentWithoutToolCapabilities(t *testing.T) {
+	t.Setenv("OWNER_PROVIDER_AUTH", "owner-auth")
+	t.Setenv("ORCHESTRATOR_CONTROL_TOKEN", "control-secret")
+	t.Setenv("ORCHESTRATOR_REPORT_CAPABILITY", "report-secret")
+	t.Setenv("ORCHESTRATOR_BOOTSTRAP", "bootstrap-secret")
+	t.Setenv("ORCHESTRATOR_ENABLE_TEST_FAKE", "1")
+	values := make(map[string]string)
+	for _, item := range sourceEnvironment() {
+		parts := strings.SplitN(item, "=", 2)
+		if len(parts) == 2 {
+			values[parts[0]] = parts[1]
+		}
+	}
+	if values["OWNER_PROVIDER_AUTH"] != "owner-auth" || values["ORCHESTRATOR_ENABLE_TEST_FAKE"] != "1" {
+		t.Fatalf("owner environment missing: %#v", values)
+	}
+	for _, key := range []string{"ORCHESTRATOR_CONTROL_TOKEN", "ORCHESTRATOR_REPORT_CAPABILITY", "ORCHESTRATOR_BOOTSTRAP"} {
+		if _, ok := values[key]; ok {
+			t.Fatalf("tool capability leaked: %s", key)
+		}
+	}
+}
+
 func runBinary(t *testing.T, ctx context.Context, bin string, args ...string) []byte {
 	t.Helper()
 	command := exec.CommandContext(ctx, bin, args...)
