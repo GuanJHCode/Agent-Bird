@@ -12,6 +12,7 @@ import json
 import logging
 import os
 from pathlib import Path
+import re
 import socket
 import stat
 import sys
@@ -32,6 +33,8 @@ LOCAL_SECONDS=10.0
 TOTAL_SECONDS=120.0
 INITIAL='G0_SYNTHETIC_READY'
 TOOL_OUTPUT='G0_SYNTHETIC_TOOL_RESULT'
+NOTIFICATION_SOURCE=ROOT/'tasks/g0-completion/data/source/codex-rs/app-server-protocol/src/protocol/common.rs'
+NOTIFICATION_SOURCE_SHA256='6aa47ec984c9198ea797bf63b784cf6a88cc0ab85efb0a4ac75e01aabffc2cfa'
 SAFE_METHODS={'initialize','initialized','thread/start','thread/started','turn/start','turn/started',
     'turn/completed','thread/read','item/started','item/completed','item/agentMessage/delta',
     'thread/status/changed','thread/tokenUsage/updated','thread/name/updated','thread/settings/updated',
@@ -52,10 +55,27 @@ def remaining(deadline):
 
 
 def source_pins():
-    paths=[Path(__file__).resolve(),Path(sys.executable).resolve(),Path('/usr/bin/sandbox-exec')]
+    paths=[Path(__file__).resolve(),Path(sys.executable).resolve(),Path('/usr/bin/sandbox-exec'),NOTIFICATION_SOURCE]
     paths += [Path(module.__file__).resolve() for module in (isolation,proxy_transport,owned_child_guard,
         synthetic_native_fixture,synthetic_responses)]
     return {str(path):isolation._hash_stable_file(path) for path in paths}
+
+
+def _diagnostic_known_method(method):
+    # Diagnostic projection only: never contributes to SAFE_METHODS/admission.
+    # Read and hash the same bounded bytes from the pinned 0.154 source.
+    try:
+        fd=os.open(NOTIFICATION_SOURCE,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK)
+        try:
+            if not stat.S_ISREG(os.fstat(fd).st_mode):return None
+            raw=os.read(fd,512*1024+1)
+        finally:os.close(fd)
+        if digest(raw)!=NOTIFICATION_SOURCE_SHA256:return None
+        body=raw.decode().split('server_notification_definitions! {',1)[1].split('\n}\n',1)[0]
+        names=set(re.findall(r'\b\w+\s*=>\s*"([^"]+)"',body))
+        names.update(re.findall(r'#\[serde\(rename = "([^"]+)"\)\]',body))
+        return method if method in names else None
+    except (OSError,UnicodeError,IndexError):return None
 
 
 def _write(directory_fd,name,value):
@@ -141,8 +161,14 @@ class _Rpc:
         raw=encoded(packet)
         method=packet.get('method')
         safe_method=method if isinstance(method,str) and method in SAFE_METHODS else ('unlisted' if method is not None else None)
-        self.records.append({'direction':direction,'method':safe_method,'request_id':packet.get('id') if type(packet.get('id')) is int else None,
-            'bytes':len(raw),'sha256':digest(raw)})
+        summary={'direction':direction,'method':safe_method,'request_id':packet.get('id') if type(packet.get('id')) is int else None,
+            'bytes':len(raw),'sha256':digest(raw)}
+        if isinstance(method,str) and safe_method=='unlisted':
+            name=method.encode()
+            summary.update(unknown_method_sha256=digest(name),method_length=len(name))
+            known=_diagnostic_known_method(method)
+            if known is not None:summary['diagnostic_known_method']=known
+        self.records.append(summary)
 
     async def receive(self,end):
         raw=await asyncio.wait_for(self.ws.recv(),remaining(end));remaining(end)

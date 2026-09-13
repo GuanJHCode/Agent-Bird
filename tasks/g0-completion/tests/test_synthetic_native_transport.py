@@ -224,3 +224,25 @@ def test_late_cleanup_cannot_report_pass_after_original_total_deadline(monkeypat
             assert result['status']=='unknown' and result['deadline_exceeded'] is True
             assert result['cleanup']['child_reaped'] and result['history_verified']
     asyncio.run(asyncio.wait_for(scenario(),10))
+
+
+@pytest.mark.parametrize('mode,method,known',[
+    ('unlisted-notification','untrusted-private-marker-notification',None),
+    ('official-unlisted-notification','thread/goal/updated','thread/goal/updated'),
+],ids=['private-name-hash-only','official-name-diagnostic-only'])
+def test_unknown_notification_diagnostic_never_admits_or_records_private_name(monkeypatch,mode,method,known):
+    runner=implementation()
+    async def scenario():
+        with tempfile.TemporaryDirectory(prefix='g0-auth-',dir='/private/tmp') as raw,SyntheticEndpoint() as endpoint:
+            prepared=prepared_fixture(Path(raw),endpoint);plan=setup_plan(runner,prepared,monkeypatch,mode)
+            result=await runner.run_transport(plan,prepared)
+            assert result['status']=='unknown' and result['turn_ids']==[]
+            assert endpoint.snapshot()['accepted_requests']==0 and result['cleanup']['child_reaped']
+            records=[item for item in result['envelopes'] if item['method']=='unlisted']
+            assert len(records)==1
+            assert records[0]['unknown_method_sha256']==hashlib.sha256(method.encode()).hexdigest()
+            assert records[0]['method_length']==len(method.encode())
+            assert records[0].get('diagnostic_known_method')==known
+            assert method not in runner.SAFE_METHODS
+            assert 'untrusted-private-marker' not in (plan.case_dir/'result.json').read_text()
+    asyncio.run(asyncio.wait_for(scenario(),10))
