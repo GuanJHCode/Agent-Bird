@@ -5,6 +5,27 @@ import (
 	"testing"
 )
 
+func TestProtocolCollectorDrainsRawDiagnosticsUntilStructuredTerminal(t *testing.T) {
+	collector, err := newProtocolCollector("claude-code")
+	if err != nil {
+		t.Fatal(err)
+	}
+	line := "UNKNOWN:worker:1:" + strings.Repeat("x", 32*1024-len("UNKNOWN:worker:1:")-1) + "\n"
+	if _, err = collector.Write([]byte(line + line)); err != nil {
+		t.Fatal(err)
+	}
+	if err = collector.SetSessionObserver(func(string, string) error { return nil }); err != nil {
+		t.Fatalf("raw diagnostics poisoned running collector: %v", err)
+	}
+	if _, err = collector.Write([]byte(`{"type":"result","subtype":"success","session_id":"session-a","result":"ok"}` + "\n")); err != nil {
+		t.Fatal(err)
+	}
+	terminal, session, err := collector.Finish()
+	if err != nil || terminal.Text != "ok" || session != "session-a" {
+		t.Fatalf("terminal=%#v session=%q err=%v", terminal, session, err)
+	}
+}
+
 func TestProtocolCollectorDropsOversizedDiagnosticButRejectsOversizedResult(t *testing.T) {
 	diagnostic, err := newProtocolCollector("claude-code")
 	if err != nil {

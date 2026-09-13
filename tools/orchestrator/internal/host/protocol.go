@@ -107,11 +107,13 @@ func (p *protocolCollector) finishLine() {
 			}
 		} else if len(bytes.TrimSpace(p.line)) > 0 {
 			line := bytes.TrimSuffix(p.line, []byte{'\r'})
-			event, err := p.parser.Parse(string(line))
-			if err != nil {
-				p.err = err
-			} else {
-				p.accept(event)
+			if bytes.HasPrefix(bytes.TrimSpace(line), []byte{'{'}) {
+				event, err := p.parser.Parse(string(line))
+				if err != nil {
+					p.err = err
+				} else {
+					p.accept(event)
+				}
 			}
 		}
 	}
