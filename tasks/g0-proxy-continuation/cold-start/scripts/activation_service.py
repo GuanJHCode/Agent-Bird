@@ -611,7 +611,7 @@ class ActivationService:
                 raise
             if not self._admit(frontend) or self._helper_admissions[key][1]!=grant_sha:
                 raise ValueError('helper grant changed before connection')
-            async with self._leased_helper(frontend,grant,context) as lease:
+            async with self._leased_helper(frontend,grant,context,grant_sha) as lease:
                 yield lease
             return
         # Admission is reusable for a no-RPC startup probe, but cannot be remapped.
@@ -630,7 +630,7 @@ class ActivationService:
             lock.release()
 
     @asynccontextmanager
-    async def _leased_helper(self,frontend,grant,context):
+    async def _leased_helper(self,frontend,grant,context,grant_sha):
         lease=self._owner_leases.get(grant['lease_id'])
         record=self._record_for_lease(grant['lease_id'])
         if lease is None or record is None or record.get('state')!='connected':
@@ -655,6 +655,7 @@ class ActivationService:
                 raise ValueError('helper backend socket identity changed')
             _publish_receipt(self.receipt_dir/f"helper-ready-{grant['lease_id']}-{frontend.pid}.json", {
                 'version':1,'activation_id':self.activation_id,'manifest_sha256':self.manifest_sha256,
+                'grant_sha256':grant_sha,
                 'service_identity':dict(self._service_identity),
                 'owner_lease':{
                     'profile_id':record['profile_id'],'owner_context_sha256':grant['owner_context_sha256'],
@@ -685,8 +686,7 @@ class ActivationService:
             'private_socket':str(private_socket),'state':'starting','process_stopped':False,'socket_removed':False}
         self.backend_records.append(record)
         process=None; birth=None; creation_birth=None; identity=None; outputs=[]; writer=None; launch_attempted=False
-        owner_connected_path=self.receipt_dir/f'owner-connected-{frontend.pid}.json'
-        owner_connected_identity=None
+        owner_connected_path=self.receipt_dir/f'owner-connected-{lease_id}-{frontend.pid}.json'
         try:
             self._check_pins()
             argv=[argument.replace('{socket_path}',str(private_socket)) for argument in self.argv]
@@ -741,16 +741,13 @@ class ActivationService:
             _publish_receipt(owner_connected_path, {
                 'version':1,'activation_id':self.activation_id,'manifest_sha256':self.manifest_sha256,
                 'service_identity':dict(self._service_identity),
+                'state':'connected',
                 'profile_id':profile,'owner_context_sha256':self._owner_context_sha(context),
                 'lease_id':lease_id,'frontend_peer':_peer(frontend),'grant_sha256':grant_sha,
                 'private_socket':str(private_socket),'private_socket_identity':list(identity),
                 'backend_pid':process.pid,'backend_birth':birth,
                 'backend_executable_sha256':_sha(self.executable),'backend_peer':backend_peer},
                 expected_parent=self._directory_pins[self.receipt_dir])
-            owner_connected_info=os.lstat(owner_connected_path)
-            owner_connected_identity=(owner_connected_info.st_dev,owner_connected_info.st_ino,
-                owner_connected_info.st_uid,owner_connected_info.st_mode)
-            record['owner_connected_identity']=owner_connected_identity
             yield BackendConnection(reader,writer,lambda peer:_same_process(peer,process.pid,birth,self.executable))
         except BaseException as exc:
             if isinstance(exc,asyncio.CancelledError) and self._closed:
@@ -797,27 +794,6 @@ class ActivationService:
                     else: record['cleanup_failure']='backend_socket_identity_changed'
                 except FileNotFoundError: record['socket_removed']=True
             elif not os.path.lexists(private_socket): record['socket_removed']=True
-            if owner_connected_identity is not None:
-                receipt_fd=None; receipt_open=None
-                try:
-                    receipt_fd=os.open(self.receipt_dir,os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW)
-                    current=os.stat(owner_connected_path.name,dir_fd=receipt_fd,follow_symlinks=False)
-                    receipt_open=os.open(owner_connected_path.name,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK,dir_fd=receipt_fd)
-                    opened=os.fstat(receipt_open)
-                    if ((current.st_dev,current.st_ino,current.st_uid,current.st_mode)!=owner_connected_identity
-                            or (opened.st_dev,opened.st_ino,opened.st_uid,opened.st_mode)!=owner_connected_identity):
-                        raise ValueError('owner-connected receipt identity changed')
-                    os.unlink(owner_connected_path.name,dir_fd=receipt_fd)
-                    os.fsync(receipt_fd)
-                    record['owner_connected_removed']=True
-                except FileNotFoundError:
-                    record['owner_connected_removed']=True
-                except (OSError,ValueError):
-                    record['owner_connected_removed']=False
-                    record['cleanup_failure']='owner_connected_receipt_identity_unknown'
-                finally:
-                    if receipt_open is not None: os.close(receipt_open)
-                    if receipt_fd is not None: os.close(receipt_fd)
             if record['state']!='failed': record['state']='closed'
             record['protocol']=self.sink.protocol_for_lease(lease_id)
             record['elapsed_seconds']=time.monotonic()-start

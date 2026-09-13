@@ -130,12 +130,15 @@ def test_real_service_publishes_owner_and_helper_receipts(tmp_path):
                 private_json(grants/f"{owner.pid}.json",{"version":1,"pid":owner.pid,"uid":os.getuid(),"birth":birth,"expected_executable":executable,"executable_sha256":digest(binary),"profile_id":"a"})
                 owner.stdin.write(b"go\n"); await owner.stdin.drain()
                 assert await owner_pipeline._line(owner)=="upgraded"
-                connected=service.receipt_dir/f"owner-connected-{owner.pid}.json"
+                connected_matches=[]
                 for _ in range(100):
-                    if connected.exists(): break
+                    connected_matches=list(service.receipt_dir.glob(f"owner-connected-*-{owner.pid}.json"))
+                    if connected_matches: break
                     await asyncio.sleep(.01)
-                assert connected.exists()
+                assert len(connected_matches)==1
+                connected=connected_matches[0]
                 connected_value=json.loads(connected.read_text())
+                assert connected_value["state"]=="connected"
                 assert connected_value["frontend_peer"]["pid"]==owner.pid
                 assert connected_value["backend_pid"]==connected_value["backend_peer"]["pid"]
                 assert not list(service.receipt_dir.glob("ready-*.json"))

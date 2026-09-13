@@ -26,13 +26,14 @@ The activation service creates these receipts under `state/<activation_id>/` wit
 
 The receipts are evidence projections. They do not add an IPC or RPC route, widen admission, or replace final cleanup receipts.
 
-`owner-connected-<frontend.pid>.json` is emitted only by the service after the admitted owner frontend has an authenticated backend process peer and the frozen private socket identity has been rechecked. It is emitted before the backend connection is yielded to the relay, so it contains no thread, epoch, initialize, or RPC state. The active receipt is removed with the same frozen parent/inode checks when that backend lease closes; a changed or foreign receipt is retained as UNKNOWN. Its safe projection is:
+`owner-connected-<lease_id>-<frontend.pid>.json` is emitted only by the service after the admitted owner frontend has an authenticated backend process peer and the frozen private socket identity has been rechecked. It is emitted before the backend connection is yielded to the relay, so it contains no thread, epoch, initialize, or RPC state. The receipt is retained through task cleanup as evidence; current liveness is established separately from kernel/socket state. Its safe projection is:
 
 ```json
 {
   "version": 1,
   "activation_id": "...",
   "manifest_sha256": "...",
+  "state": "connected",
   "service_identity": {"pid": 123, "uid": 501, "birth": "...", "executable": "/.../python", "executable_sha256": "..."},
   "profile_id": "profile-a",
   "owner_context_sha256": "...",
