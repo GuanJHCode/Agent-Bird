@@ -146,8 +146,9 @@ func TestCLIStartsServiceSourceHostAndCollectsDurableResult(t *testing.T) {
 }
 
 type cliTaskStatus struct {
-	Status    string `json:"status"`
-	SegmentID string `json:"segment_id"`
+	Status        string `json:"status"`
+	SegmentID     string `json:"segment_id"`
+	SegmentStatus string `json:"segment_status"`
 }
 
 func taskStatus(t *testing.T, ctx context.Context, bin, state, taskID, controlFile string) cliTaskStatus {
@@ -204,6 +205,108 @@ func TestInvocationRejectsChangedPinBeforeExecutingVersionProbe(t *testing.T) {
 	}
 	if _, err := os.Stat(canary); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("untrusted binary executed, canary err=%v", err)
+	}
+}
+
+func TestCLIForceRestartReplaysSpoolBeforeExplicitResume(t *testing.T) {
+	root, err := os.MkdirTemp("/tmp", "g1-force-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = os.RemoveAll(root)
+	})
+	state, bin := filepath.Join(root, "state"), filepath.Join(root, "orchestrator")
+	t.Cleanup(func() {
+		if _, statErr := os.Stat(filepath.Join(state, "coordinator.pid")); statErr == nil {
+			stopCoordinator(t, state)
+		}
+	})
+	build := exec.Command("go", "build", "-o", bin, ".")
+	build.Env = os.Environ()
+	if output, buildErr := build.CombinedOutput(); buildErr != nil {
+		t.Fatalf("build: %v\n%s", buildErr, output)
+	}
+	originBirth, err := process.Birth(os.Getpid())
+	if err != nil {
+		t.Fatal(err)
+	}
+	marker := filepath.Join(root, "marker")
+	request := map[string]any{
+		"run_id": "force-run", "controller_thread": "force-thread", "plan_revision": 1,
+		"origin_context_id": "force-origin", "origin_pid": os.Getpid(), "origin_birth": originBirth,
+		"host_generation": "force-generation",
+		"tasks":           []any{map[string]any{"id": "force-task", "max_attempts": 3, "adapter": map[string]any{"kind": "fake", "args": []string{"/bin/sh", "-c", "if [ -e " + marker + " ]; then sleep 0.2; exit 0; else : > " + marker + "; sleep 30; fi"}, "directory": root}}},
+	}
+	requestPath := filepath.Join(root, "request.json")
+	data, _ := json.Marshal(request)
+	if err = os.WriteFile(requestPath, data, 0600); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	var submitted struct {
+		ControlFile string `json:"control_file"`
+	}
+	if err = json.Unmarshal(runBinary(t, ctx, bin, "submit", "--state-dir", state, "--request", requestPath), &submitted); err != nil || submitted.ControlFile == "" {
+		t.Fatalf("submit err=%v", err)
+	}
+	var before cliTaskStatus
+	for runningDeadline := time.Now().Add(5 * time.Second); ; {
+		before = taskStatus(t, ctx, bin, state, "force-task", submitted.ControlFile)
+		if before.SegmentStatus == "running" {
+			break
+		}
+		if time.Now().After(runningDeadline) {
+			for _, name := range []string{"coordinator.log", "source-host.log"} {
+				if log, readErr := os.ReadFile(filepath.Join(state, name)); readErr == nil {
+					t.Logf("%s:\n%s", name, log)
+				}
+			}
+			t.Fatalf("force task never reached running: %#v", before)
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatalf("force task context expired: %#v", before)
+		case <-time.After(20 * time.Millisecond):
+		}
+	}
+	data, err = os.ReadFile(filepath.Join(state, "coordinator.pid"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var pid int
+	_, _ = fmt.Sscanf(string(data), "%d", &pid)
+	if err = syscall.Kill(pid, syscall.SIGKILL); err != nil {
+		t.Fatal(err)
+	}
+	for deadline := time.Now().Add(3 * time.Second); ; {
+		if errors.Is(syscall.Kill(pid, 0), syscall.ESRCH) {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("killed coordinator %d remained", pid)
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	after := taskStatus(t, ctx, bin, state, "force-task", submitted.ControlFile)
+	if after.SegmentID != before.SegmentID || after.Status == "completed" {
+		t.Fatalf("force restart dispatched work: before=%#v after=%#v", before, after)
+	}
+	runBinary(t, ctx, bin, "resume", "--state-dir", state, "--task-id", "force-task", "--work-revision", "1", "--control-file", submitted.ControlFile)
+	for {
+		resumed := taskStatus(t, ctx, bin, state, "force-task", submitted.ControlFile)
+		if resumed.Status == "completed" {
+			if resumed.SegmentID == before.SegmentID {
+				t.Fatalf("force resume reused segment: %#v", resumed)
+			}
+			break
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatalf("force resume did not complete: %#v", resumed)
+		case <-time.After(25 * time.Millisecond):
+		}
 	}
 }
 

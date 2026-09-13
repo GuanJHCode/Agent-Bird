@@ -619,7 +619,10 @@ func (d *DB) CommitHostEvent(ctx context.Context, event contract.Event) (contrac
 	}
 	rollback := func(e error) (contract.DurableAck, error) { _ = tx.Rollback(); return contract.DurableAck{}, e }
 	var registeredEpoch uint64
-	if err = tx.QueryRowContext(ctx, `SELECT coordinator_epoch FROM runtime_hosts WHERE id=? AND status='ready'`, event.ProducerID).Scan(&registeredEpoch); err != nil || registeredEpoch != event.ExecutionEpoch {
+	// A rebound Host must replay its durable spool before it is marked ready
+	// for new dispatch. Those replay events still belong to the newly verified
+	// Host session and epoch, so accept them while the Host is reconciling.
+	if err = tx.QueryRowContext(ctx, `SELECT coordinator_epoch FROM runtime_hosts WHERE id=? AND status IN ('ready','reconciling')`, event.ProducerID).Scan(&registeredEpoch); err != nil || registeredEpoch != event.ExecutionEpoch {
 		return rollback(ErrHostRejected)
 	}
 	var oldID, oldHash string

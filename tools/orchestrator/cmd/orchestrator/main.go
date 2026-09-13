@@ -19,8 +19,10 @@ import (
 	"time"
 
 	"codex-cli-orchestration-design/tools/orchestrator/internal/adapter"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/admincli"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/contract"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/coordinator"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/gitopsworker"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/host"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/instance"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/ipc"
@@ -52,6 +54,10 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return serve(ctx, args[1:], stderr)
 	case "source-host":
 		return sourceHost(ctx, args[1:])
+	case "gitops-worker":
+		return runGitopsWorker(ctx, args[1:], stdout)
+	case "install", "doctor", "uninstall", "pin", "unpin":
+		return runAdmin(args[0], args[1:], stdout)
 	case "ensure-running":
 		state, err := parseStateOnly(args[1:])
 		if err != nil {
@@ -77,6 +83,32 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	default:
 		return codeError("invalid_args")
 	}
+}
+
+func requestFile(args []string) (string, error) {
+	fs := flag.NewFlagSet("request", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	path := fs.String("request", "", "owner-only JSON request")
+	if fs.Parse(args) != nil || *path == "" || fs.NArg() != 0 {
+		return "", codeError("invalid_args")
+	}
+	return *path, nil
+}
+
+func runGitopsWorker(ctx context.Context, args []string, stdout io.Writer) error {
+	path, err := requestFile(args)
+	if err != nil {
+		return err
+	}
+	return gitopsworker.Run(ctx, path, stdout)
+}
+
+func runAdmin(operation string, args []string, stdout io.Writer) error {
+	path, err := requestFile(args)
+	if err != nil {
+		return err
+	}
+	return admincli.Run(operation, path, stdout)
 }
 
 func serve(parent context.Context, args []string, stderr io.Writer) error {
@@ -380,7 +412,19 @@ func sourceHost(parent context.Context, args []string) error {
 	bootstrap.Hello.PID, bootstrap.Hello.Birth, bootstrap.Hello.Executable = os.Getpid(), birth, executable
 	ctx, cancel := signal.NotifyContext(parent, syscall.SIGTERM, syscall.SIGINT)
 	defer cancel()
-	err = host.RunSource(ctx, host.SourceConfig{SocketPath: bootstrap.SocketPath, SpoolRoot: bootstrap.SpoolRoot, ProducerID: bootstrap.ProducerID, Hello: bootstrap.Hello, InvocationProvider: invocationForGrant})
+	err = host.RunSource(ctx, host.SourceConfig{
+		SocketPath: bootstrap.SocketPath, SpoolRoot: bootstrap.SpoolRoot,
+		ProducerID: bootstrap.ProducerID, Hello: bootstrap.Hello,
+		InvocationProvider: func(ctx context.Context, grant contract.LaunchCommand) (contract.InvocationView, error) {
+			var discriminator struct {
+				Kind string `json:"kind"`
+			}
+			if json.Unmarshal(grant.AdapterPayload, &discriminator) == nil && discriminator.Kind == "gitops" {
+				return gitopsworker.BuildInvocation(grant.AdapterPayload, executable, bootstrap.SpoolRoot, grant.CommandID)
+			}
+			return invocationForGrant(ctx, grant)
+		},
+	})
 	if err == nil || errors.Is(err, context.Canceled) {
 		_ = os.Remove(*bootstrapPath)
 		return nil

@@ -70,12 +70,25 @@ func TestRuntimePersistsDAGSlotsEventsAndExplicitResume(t *testing.T) {
 	if status, statusErr := db.HostLaunchStatus(ctx, receipt.LaunchID, receipt.LaunchToken); statusErr != nil || status != "offline" {
 		t.Fatalf("restart host status=%q err=%v", status, statusErr)
 	}
+	binding, err := db.HostBinding(ctx, receipt.LaunchID)
+	if err != nil || binding.PID != 101 || binding.Active != 2 {
+		t.Fatalf("binding=%#v err=%v", binding, err)
+	}
+	if err = db.AuthorizeHostRebind(ctx, receipt.LaunchID, binding.PID, binding.Birth); err != nil {
+		t.Fatal(err)
+	}
 	hostID, err = db.RegisterHost(ctx, contract.HostHello{
 		LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken,
 		OriginContextID: "origin-1", HostGeneration: "generation-1",
-		PID: 101, Birth: "host-birth", Executable: "/private/tmp/orchestrator",
+		PID: 202, Birth: "replacement-active-birth", Executable: "/private/tmp/orchestrator",
 	}, 2)
 	if err != nil {
+		t.Fatal(err)
+	}
+	if err = db.BeginHostReconcile(ctx, hostID); err != nil {
+		t.Fatal(err)
+	}
+	if err = db.FinishHostReconcile(ctx, hostID); err != nil {
 		t.Fatal(err)
 	}
 	pendingGrants, err := db.PendingLaunches(ctx, hostID, 2)
@@ -136,7 +149,7 @@ func TestRuntimePersistsDAGSlotsEventsAndExplicitResume(t *testing.T) {
 	hostID, err = db.RegisterHost(ctx, contract.HostHello{
 		LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken,
 		OriginContextID: "origin-1", HostGeneration: "generation-1",
-		PID: 202, Birth: "replacement-birth", Executable: "/private/tmp/orchestrator",
+		PID: 303, Birth: "replacement-birth", Executable: "/private/tmp/orchestrator",
 	}, 2)
 	if err != nil {
 		t.Fatalf("replacement source host: %v", err)

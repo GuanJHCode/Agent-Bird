@@ -463,13 +463,26 @@ func (s *Server) handleHost(ctx context.Context, conn net.Conn, message ipc.Enve
 	if err = session.send(ipc.Envelope{Version: ipc.Version, Kind: ipc.KindHostReady, RequestID: message.RequestID, Epoch: s.epoch, Payload: ready}); err != nil {
 		return
 	}
-	reconciledEnvelope, err := ipc.Read(conn)
-	if err != nil || reconciledEnvelope.Kind != ipc.KindHostReconciled || reconciledEnvelope.Epoch != s.epoch {
-		return
-	}
-	var reconciled contract.HostReconciled
-	if strictJSON(reconciledEnvelope.Payload, &reconciled) != nil || reconciled.ProducerID != hostID {
-		return
+	for {
+		reconcileMessage, readErr := ipc.Read(conn)
+		if readErr != nil || reconcileMessage.Epoch != s.epoch {
+			return
+		}
+		if reconcileMessage.Kind == ipc.KindEvent {
+			_, commitErr := s.commitHostEvent(session, reconcileMessage)
+			if commitErr != nil {
+				return
+			}
+			continue
+		}
+		if reconcileMessage.Kind != ipc.KindHostReconciled {
+			return
+		}
+		var reconciled contract.HostReconciled
+		if strictJSON(reconcileMessage.Payload, &reconciled) != nil || reconciled.ProducerID != hostID {
+			return
+		}
+		break
 	}
 	if err = s.db.FinishHostReconcile(context.Background(), hostID); err != nil {
 		return
@@ -482,25 +495,33 @@ func (s *Server) handleHost(ctx context.Context, conn net.Conn, message ipc.Enve
 		if readErr != nil || incoming.Epoch != s.epoch || incoming.Kind != ipc.KindEvent {
 			return
 		}
-		var event contract.Event
-		if strictJSON(incoming.Payload, &event) != nil || event.ProducerID != hostID {
-			return
-		}
-		// The accept context is cancelled when shutdown begins, but existing Host
-		// connections must remain able to commit their final stopped/exited events.
-		ack, commitErr := s.db.CommitHostEvent(context.Background(), event)
+		committed, commitErr := s.commitHostEvent(session, incoming)
 		if commitErr != nil {
-			_ = sendError(conn, incoming.RequestID, s.epoch, commitErr)
-			continue
-		}
-		body, _ := json.Marshal(ack)
-		if err = session.send(ipc.Envelope{Version: ipc.Version, Kind: ipc.KindDurableAck, RequestID: incoming.RequestID, Epoch: s.epoch, Payload: body}); err != nil {
 			return
+		}
+		if !committed {
+			continue
 		}
 		if err = s.dispatch(session, false); err != nil {
 			return
 		}
 	}
+}
+
+func (s *Server) commitHostEvent(session *hostSession, incoming ipc.Envelope) (bool, error) {
+	var event contract.Event
+	if strictJSON(incoming.Payload, &event) != nil || event.ProducerID != session.id {
+		return false, errors.New("invalid_host_event")
+	}
+	// The accept context is cancelled when shutdown begins, but existing Host
+	// connections must remain able to commit their final stopped/exited events.
+	ack, err := s.db.CommitHostEvent(context.Background(), event)
+	if err != nil {
+		_ = sendError(session.conn, incoming.RequestID, s.epoch, err)
+		return false, nil
+	}
+	body, _ := json.Marshal(ack)
+	return true, session.send(ipc.Envelope{Version: ipc.Version, Kind: ipc.KindDurableAck, RequestID: incoming.RequestID, Epoch: s.epoch, Payload: body})
 }
 
 func (s *Server) dispatch(session *hostSession, includePending bool) error {
