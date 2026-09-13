@@ -100,3 +100,36 @@ def test_real_chain_failure_never_false_passes_or_reboots(monkeypatch,tmp_path,f
             finally:
                 if plan.scheduler.listener is not None:plan.scheduler.listener.close()
     asyncio.run(asyncio.wait_for(scenario(),150))
+
+
+def test_service_started_before_register_return_is_valid(monkeypatch,tmp_path):
+    import time
+    runner=implementation();observed={}
+    async def scenario():
+        with tempfile.TemporaryDirectory(prefix='g0-auth-',dir='/private/tmp') as raw,tempfile.TemporaryDirectory(prefix='g0-auth-',dir='/private/tmp') as sup,SyntheticEndpoint() as endpoint:
+            prepared,plan=prepare(runner,Path(raw),endpoint,tmp_path,monkeypatch,Path(sup))
+            register=plan.transaction.register
+            def delayed_register():
+                value=register();store=runner.ReceiptStore(plan.state_dir);end=runner.now()+2
+                try:
+                    while True:
+                        runner.remaining(end);started=store.read('service-start.json')
+                        if started is not None:break
+                        time.sleep(.01)
+                    observed['service_started_raw_ns']=started[0]['started_raw_ns']
+                    # Keep the service demonstrably started before register
+                    # returns, without starting a backend or sending RPC.
+                    time.sleep(.03)
+                    observed['register_return_raw']=runner.now()
+                finally:store.close()
+                return value
+            monkeypatch.setattr(plan.transaction,'register',delayed_register)
+            result=await runner.run_global(plan,prepared)
+            register_start=json.loads((plan.case/'register-start.json').read_text())['started_raw']
+            assert register_start*1e9<=observed['service_started_raw_ns']<observed['register_return_raw']*1e9
+            assert observed['register_return_raw']<=result['started_raw']
+            assert result['status']=='passed',result.get('failure')
+            assert result['business_ack_verified'] and result['ack']['records'][0]['effect_count']==1
+            assert result['transaction']['state']=='REVOKED'
+            assert result['cleanup']['backend_stopped'] and result['cleanup']['service_stopped'] and result['cleanup']['public_socket_removed']
+    asyncio.run(asyncio.wait_for(scenario(),150))

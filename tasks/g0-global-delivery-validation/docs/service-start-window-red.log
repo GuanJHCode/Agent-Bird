@@ -1,0 +1,27 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_____________ test_service_started_before_register_return_is_valid _____________
+tasks/g0-global-delivery-validation/tests/test_global_delivery_case.py:135: in test_service_started_before_register_return_is_valid
+    asyncio.run(asyncio.wait_for(scenario(),150))
+/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/base_events.py:725: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.13/3.13.5/Frameworks/Python.framework/Versions/3.13/lib/python3.13/asyncio/tasks.py:507: in wait_for
+    return await fut
+           ^^^^^^^^^
+tasks/g0-global-delivery-validation/tests/test_global_delivery_case.py:131: in scenario
+    assert result['status']=='passed',result.get('failure')
+E   AssertionError: {'stage': 'ungranted-activation', 'type': 'ValueError', 'errno': None, 'message_sha256': '8e99d37c9d3463995209c902274bef2ddab5956c6ac08416bb799a747f2ee783'}
+E   assert 'unknown' == 'passed'
+E
+E     - passed
+E     + unknown
+=========================== short test summary info ============================
+FAILED tasks/g0-global-delivery-validation/tests/test_global_delivery_case.py::test_service_started_before_register_return_is_valid
+1 failed, 6 deselected in 1.14s

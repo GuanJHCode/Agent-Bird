@@ -290,7 +290,7 @@ async def run_global(plan,prepared):
             require(raw_peer.uid==os.getuid(),'ungranted probe UID differs')
         finally:writer.close();await writer.wait_closed()
         started,started_sha=await receipt(store,'service-start.json',startup);common(started,store,plan)
-        require(set(started)=={'version','activation_id','manifest_sha256','service_identity','started_raw_ns'} and started['version']==1 and type(started['started_raw_ns']) is int and int(start*1e9)<=started['started_raw_ns']<=int(startup*1e9),'service start shape or time mismatch')
+        require(set(started)=={'version','activation_id','manifest_sha256','service_identity','started_raw_ns'} and started['version']==1 and type(started['started_raw_ns']) is int and int(result['registration']['started_raw']*1e9)<=started['started_raw_ns']<=int(startup*1e9),'service start shape or time mismatch')
         service_peer=started['service_identity'];require(set(service_peer)==PEER_KEYS,'service identity shape')
         require(service_peer['executable']==str(plan.python) and service_peer['executable_sha256']==sha(plan.python),'service executable mismatch')
         require(peer_matches(base.peer_for_process(service_peer['pid']),service_peer),'service process mismatch')
