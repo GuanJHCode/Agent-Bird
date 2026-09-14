@@ -217,6 +217,17 @@ def native_tui_policy(value):
     return dict(expected)
 
 
+def _chain_wire_gates(first, second):
+    def chained(data):
+        forwarded=first(data)
+        if not isinstance(forwarded,bytes): raise ValueError('wire gate must return bytes')
+        if not forwarded:return b''
+        result=second(forwarded)
+        if not isinstance(result,bytes): raise ValueError('wire gate must return bytes')
+        return result
+    return chained
+
+
 class _ActivationObserver(Observer):
     """Reuse the fixed bounded decoder; add only initialize home equality/digest."""
     def __init__(self,expected_home,**kwargs):
@@ -396,8 +407,13 @@ class MetadataSink(CaptureSink):
 
 
 class ActivationService:
-    def __init__(self,manifest: dict,manifest_sha256: str):
+    def __init__(self,manifest: dict,manifest_sha256: str,*,auth_wire_gate_factory=None):
         import auth_isolation
+        if auth_wire_gate_factory is not None and not callable(auth_wire_gate_factory):
+            raise ValueError('auth wire gate factory must be callable')
+        # Trial auth filtering is enabled only by the trusted service entrypoint
+        # passing a process-local factory.  The wire and manifest cannot toggle it.
+        self._auth_wire_gate_factory=auth_wire_gate_factory
         self.auth=auth_isolation
         if manifest.get('version')!=1: raise ValueError('unsupported activation manifest')
         self.native_tui_policy=native_tui_policy(manifest.get('native_tui_policy'))
@@ -526,9 +542,9 @@ class ActivationService:
             self._owner_leases[record['lease_id']]=owner_lease
 
     @classmethod
-    def from_manifest(cls,path: Path):
+    def from_manifest(cls,path: Path,*,auth_wire_gate_factory=None):
         manifest,digest=_private_json(Path(path))
-        return cls(manifest,digest)
+        return cls(manifest,digest,auth_wire_gate_factory=auth_wire_gate_factory)
 
     def _check_pins(self):
         if _sha(self.executable)!=self.manifest['backend_executable_sha256']:
@@ -549,19 +565,29 @@ class ActivationService:
         self._check_pins()
 
     def _wire_gate_factory(self, frontend_peer, backend_peer, connection_id, epoch):
-        admission=self._helper_admissions.get((frontend_peer.pid,frontend_peer.birth,frontend_peer.executable))
-        if admission is None:
-            return None
-        grant,_=admission
-        pending=set()
         def rejected(value):
-            # Only the gate's fixed codes, hashes and numeric frame metadata;
+            # Gate callbacks contain only fixed codes and numeric frame metadata;
             # rejected bytes never enter MetadataSink or this receipt.
             if len(self._wire_rejections)<64:
                 self._wire_rejections.append(dict(value,frontend_pid=frontend_peer.pid,
                     connection_id=connection_id,epoch=epoch))
-        return (NativeWebSocketGate(grant['owner_thread_id'],server=False,pending_ids=pending,on_reject=rejected),
+        auth_gates=None
+        auth_factory=getattr(self,'_auth_wire_gate_factory',None)
+        if auth_factory is not None:
+            auth_gates=auth_factory(frontend_peer,backend_peer,connection_id,epoch,rejected)
+            if (not isinstance(auth_gates,tuple) or len(auth_gates)!=2
+                    or not all(callable(gate) for gate in auth_gates)):
+                raise ValueError('auth wire gate factory returned invalid gates')
+        admission=self._helper_admissions.get((frontend_peer.pid,frontend_peer.birth,frontend_peer.executable))
+        if admission is None:
+            return auth_gates
+        grant,_=admission
+        pending=set()
+        helper_gates=(NativeWebSocketGate(grant['owner_thread_id'],server=False,pending_ids=pending,on_reject=rejected),
             NativeWebSocketGate(grant['owner_thread_id'],server=True,pending_ids=pending,on_reject=rejected))
+        if auth_gates is None:return helper_gates
+        return tuple(_chain_wire_gates(auth_gate,helper_gate)
+            for auth_gate,helper_gate in zip(auth_gates,helper_gates))
 
     def _owner_context_sha(self, context):
         config_path=context.spec.codex_home/'config.toml'
