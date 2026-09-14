@@ -45,6 +45,7 @@ EXPECTED_NATIVE_SHA256 = (
 )
 EXPECTED_VERSION_OUTPUT = "codex-cli 0.154.0"
 SYNTHETIC_REFRESH_TOKEN = "synthetic-refresh-token-never-from-user-storage"
+STDERR_DIAGNOSTIC_PREFIX_LIMIT = 4096
 RUN_OPT_IN = os.environ.get("CODEX_RUN_NATIVE_AUTH_TRIPWIRE") == "1"
 NATIVE_BINARY_INPUT = os.environ.get("CODEX_TRIAL_NATIVE_BINARY")
 
@@ -110,6 +111,14 @@ class NativeFixtureUninterruptible(RuntimeError):
             "fixture_root": str(fixture_root),
         }
         super().__init__("native_version_process_uninterruptible")
+
+
+class NativeAppServerDiagnostic(RuntimeError):
+    def __init__(self, safe_report: Mapping[str, object]) -> None:
+        self.safe_report = dict(safe_report)
+        super().__init__(
+            json.dumps(self.safe_report, sort_keys=True, separators=(",", ":"))
+        )
 
 
 class _RefreshObservation:
@@ -294,6 +303,89 @@ def _quote_sbpl(path: Path) -> str:
     return value.replace("\\", "\\\\")
 
 
+def _safe_native_stderr_diagnostic(
+    stderr_prefix: bytes,
+    *,
+    stderr_bytes: int,
+    stderr_sha256: str,
+    exit_code: int,
+) -> dict[str, object]:
+    if len(stderr_prefix) > STDERR_DIAGNOSTIC_PREFIX_LIMIT:
+        raise AssertionError("native_stderr_prefix_limit_exceeded")
+    lowered = stderr_prefix.lower()
+    if b"sandbox-exec:" in lowered or b"sandbox violation" in lowered:
+        category = "sandbox_denied"
+    elif any(
+        marker in lowered
+        for marker in (b"unexpected argument", b"unrecognized option", b"usage:")
+    ):
+        category = "cli_usage_rejected"
+    elif any(
+        marker in lowered
+        for marker in (b"configuration", b"config.toml", b"toml parse")
+    ):
+        category = "configuration_rejected"
+    elif any(
+        marker in lowered
+        for marker in (b"failed to bind", b"unix socket", b"address already in use")
+    ):
+        category = "socket_setup_failed"
+    elif any(
+        marker in lowered
+        for marker in (b"connection refused", b"network is unreachable", b"dns error")
+    ):
+        category = "network_setup_failed"
+    elif any(marker in lowered for marker in (b"panicked at", b"fatal error")):
+        category = "native_fatal"
+    elif stderr_bytes == 0:
+        category = "empty"
+    else:
+        category = "unclassified"
+
+    errno_name = None
+    for marker, name in (
+        (b"operation not permitted", "operation_not_permitted"),
+        (b"permission denied", "permission_denied"),
+        (b"address already in use", "address_in_use"),
+        (b"connection refused", "connection_refused"),
+        (b"no such file or directory", "no_such_file"),
+        (b"invalid argument", "invalid_argument"),
+    ):
+        if marker in lowered:
+            errno_name = name
+            break
+
+    return {
+        "code": "native_exited_before_socket",
+        "phase": "app_server_pre_socket",
+        "exit_code": exit_code,
+        "stderr_category": category,
+        "stderr_errno": errno_name,
+        "stderr_bytes": stderr_bytes,
+        "stderr_sha256": stderr_sha256,
+        "stderr_prefix_truncated": stderr_bytes > len(stderr_prefix),
+    }
+
+
+def _raise_native_exited_before_socket(
+    stderr_prefix: bytearray,
+    *,
+    stderr_bytes: int,
+    stderr_sha256: str,
+    exit_code: int,
+) -> None:
+    try:
+        safe_report = _safe_native_stderr_diagnostic(
+            bytes(stderr_prefix),
+            stderr_bytes=stderr_bytes,
+            stderr_sha256=stderr_sha256,
+            exit_code=exit_code,
+        )
+    finally:
+        stderr_prefix.clear()
+    raise NativeAppServerDiagnostic(safe_report)
+
+
 def _strict_sandbox_profile(home: _FixtureHome, binary: Path, port: int) -> str:
     binary_ancestors = []
     current = binary.parent
@@ -372,6 +464,80 @@ def test_strict_profile_adds_only_apple_dyld_bootstrap_permissions() -> None:
     assert "SYS_shared_region" not in profile
     assert "(deny network*)" in profile
     assert '(deny mach-lookup (global-name "com.apple.securityd"))' in profile
+
+
+@pytest.mark.parametrize(
+    ("stderr", "category", "errno_name"),
+    [
+        (
+            b"error: unexpected argument '--listen' found\nUsage: codex app-server\n",
+            "cli_usage_rejected",
+            None,
+        ),
+        (
+            b"failed to load configuration: TOML parse error\n",
+            "configuration_rejected",
+            None,
+        ),
+        (
+            b"failed to bind unix socket: Address already in use\n",
+            "socket_setup_failed",
+            "address_in_use",
+        ),
+        (
+            b"sandbox-exec: operation not permitted\n",
+            "sandbox_denied",
+            "operation_not_permitted",
+        ),
+        (b"opaque synthetic failure\n", "unclassified", None),
+    ],
+)
+def test_native_stderr_diagnostic_is_bounded_and_nonrevealing(
+    stderr: bytes,
+    category: str,
+    errno_name: str | None,
+) -> None:
+    secret_marker = b"synthetic-refresh-token-never-report"
+    raw = stderr + secret_marker * 500
+
+    report = _safe_native_stderr_diagnostic(
+        raw[:4096],
+        stderr_bytes=len(raw),
+        stderr_sha256=hashlib.sha256(raw).hexdigest(),
+        exit_code=2,
+    )
+
+    assert report == {
+        "code": "native_exited_before_socket",
+        "phase": "app_server_pre_socket",
+        "exit_code": 2,
+        "stderr_category": category,
+        "stderr_errno": errno_name,
+        "stderr_bytes": len(raw),
+        "stderr_sha256": hashlib.sha256(raw).hexdigest(),
+        "stderr_prefix_truncated": True,
+    }
+    assert secret_marker.decode() not in json.dumps(report, sort_keys=True)
+
+
+def test_native_exit_diagnostic_clears_captured_stderr() -> None:
+    stderr_prefix = bytearray(
+        b"failed to load configuration: synthetic-sensitive-marker"
+    )
+
+    with pytest.raises(NativeAppServerDiagnostic) as error:
+        _raise_native_exited_before_socket(
+            stderr_prefix,
+            stderr_bytes=len(stderr_prefix),
+            stderr_sha256=hashlib.sha256(stderr_prefix).hexdigest(),
+            exit_code=1,
+        )
+
+    assert stderr_prefix == b""
+    assert error.value.safe_report["stderr_category"] == "configuration_rejected"
+    assert json.loads(str(error.value)) == error.value.safe_report
+    assert "synthetic-sensitive-marker" not in json.dumps(error.value.safe_report)
+    assert "synthetic-sensitive-marker" not in str(error.value)
 
 
 def _minimal_environment(home: _FixtureHome) -> dict[str, str]:
@@ -547,6 +713,7 @@ def _run_fixed_native(
     _write_exclusive(profile_path, profile.encode("utf-8"))
     stderr_digest = hashlib.sha256()
     stderr_bytes = 0
+    stderr_prefix = bytearray()
     process: subprocess.Popen[bytes] | None = None
     owner: _ProcessIdentity | None = None
     reader: threading.Thread | None = None
@@ -576,6 +743,9 @@ def _run_fixed_native(
             for chunk in iter(lambda: process.stderr.read(65536), b""):
                 stderr_digest.update(chunk)
                 stderr_bytes += len(chunk)
+                remaining = STDERR_DIAGNOSTIC_PREFIX_LIMIT - len(stderr_prefix)
+                if remaining > 0:
+                    stderr_prefix.extend(chunk[:remaining])
 
         reader = threading.Thread(target=drain_stderr, daemon=True)
         reader.start()
@@ -588,8 +758,18 @@ def _run_fixed_native(
             raise AssertionError("native_process_ownership_invalid")
         deadline = time.monotonic() + 30
         while not home.socket_path.exists():
-            if process.poll() is not None:
-                raise AssertionError("native_exited_before_socket")
+            exit_code = process.poll()
+            if exit_code is not None:
+                reader.join(timeout=1)
+                if reader.is_alive():
+                    stderr_prefix.clear()
+                    raise AssertionError("native_stderr_reader_not_finished")
+                _raise_native_exited_before_socket(
+                    stderr_prefix,
+                    stderr_bytes=stderr_bytes,
+                    stderr_sha256=stderr_digest.hexdigest(),
+                    exit_code=exit_code,
+                )
             if time.monotonic() >= deadline:
                 raise AssertionError("native_socket_timeout")
             time.sleep(0.025)
@@ -627,7 +807,9 @@ def _run_fixed_native(
             reader.join(timeout=1)
         if process is not None and process.poll() is None:
             raise AssertionError("native_process_not_reaped")
-        if stderr_bytes > 8 * 1024 * 1024:
+        stderr_limit_exceeded = stderr_bytes > 8 * 1024 * 1024
+        stderr_prefix.clear()
+        if stderr_limit_exceeded:
             raise AssertionError("native_stderr_limit_exceeded")
 
 

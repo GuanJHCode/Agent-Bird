@@ -75,3 +75,30 @@ python3 -m pytest -q tools/real-user-trial/test_native_auth_tripwire.py \
 
 This check does not compile SBPL and cannot establish launch behavior or
 process cleanup. It does not read credentials or create fixture homes.
+
+## Bounded app-server diagnostic
+
+The bounded fake-only follow-up established that `--version` now completes and
+that app-server exits before creating its Unix socket. That moves the failure
+past dyld bootstrap, but does not identify a missing policy operation.
+
+The fixture now retains at most the first 4,096 stderr bytes in memory while it
+continues to hash and count the drained stream. On a pre-socket exit it erases
+that prefix and exposes only a fixed JSON report containing the phase, exit
+code, stderr byte count and digest, truncation status, a fixed category, and a
+fixed errno name when one is recognized. Raw stderr, environment values, and
+matched substrings are never included in the exception or written to disk.
+
+The fixed categories distinguish CLI usage, configuration, socket setup,
+network setup, explicit sandbox diagnostics, native fatal errors, empty
+stderr, and unclassified output. They are routing hints rather than proof of a
+root cause. The next bounded experiment should publish only the JSON exception
+message.
+
+Importing the version-3 `dyld-support.sb` does not supply a general application
+profile. Apple's version-1 `blastdoor.sb` imports it and then separately adds
+file-existence and metadata access, selected Mach lookups, self-process
+operations, sysctl access, and a broad explicit syscall allowlist. This is
+evidence that an app-server may require more than the dyld block; it does not
+identify which permission this fixture needs. No BlastDoor rule should be
+copied without a matching bounded diagnostic.
