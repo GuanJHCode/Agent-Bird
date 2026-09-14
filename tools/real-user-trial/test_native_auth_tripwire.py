@@ -303,6 +303,7 @@ def _strict_sandbox_profile(home: _FixtureHome, binary: Path, port: int) -> str:
     lines = [
         "(version 1)",
         "(deny default)",
+        '(import "dyld-support.sb")',
         "(allow process-fork)",
         "(allow signal (target self))",
         "(allow sysctl-read)",
@@ -310,6 +311,9 @@ def _strict_sandbox_profile(home: _FixtureHome, binary: Path, port: int) -> str:
         '(allow file-read* (subpath "/usr/lib"))',
         '(allow file-read* (subpath "/usr/share"))',
         '(allow file-read* (subpath "/private/etc"))',
+        '(allow file-map-executable\n'
+        '       (subpath "/System/Library")\n'
+        '       (subpath "/usr/lib"))',
         '(allow file-read* (literal "/dev/null"))',
         '(allow file-read* (literal "/dev/random"))',
         '(allow file-read* (literal "/dev/urandom"))',
@@ -333,6 +337,41 @@ def _strict_sandbox_profile(home: _FixtureHome, binary: Path, port: int) -> str:
         for path in binary_ancestors
     )
     return "\n".join(lines) + "\n"
+
+
+def test_strict_profile_adds_only_apple_dyld_bootstrap_permissions() -> None:
+    root = Path("/private/tmp/g0-auth-static-fixture")
+    home = _FixtureHome(
+        root=root,
+        home=root / "home",
+        codex_home=root / "codex-home",
+        sqlite_home=root / "sqlite",
+        workspace=root / "workspace",
+        temp=root / "tmp",
+        socket_path=root / "app-server.sock",
+        auth_path=root / "codex-home/auth.json",
+        auth_bytes=b"",
+    )
+    binary = root / "codex"
+
+    profile = _strict_sandbox_profile(home, binary, 43123)
+
+    assert profile.count('(import "dyld-support.sb")') == 1
+    assert profile.count("(allow file-map-executable") == 1
+    assert (
+        '(allow file-map-executable\n'
+        '       (subpath "/System/Library")\n'
+        '       (subpath "/usr/lib"))'
+    ) in profile
+    assert (
+        '(allow process-exec '
+        '(literal "/private/tmp/g0-auth-static-fixture/codex"))'
+    ) in profile
+    assert "(allow process-exec*)" not in profile
+    assert "(allow mach-bootstrap)" not in profile
+    assert "SYS_shared_region" not in profile
+    assert "(deny network*)" in profile
+    assert '(deny mach-lookup (global-name "com.apple.securityd"))' in profile
 
 
 def _minimal_environment(home: _FixtureHome) -> dict[str, str]:
