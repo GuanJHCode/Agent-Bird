@@ -122,3 +122,19 @@ operations, sysctl access, and a broad explicit syscall allowlist. This is
 evidence that an app-server may require more than the dyld block; it does not
 identify which permission this fixture needs. No BlastDoor rule should be
 copied without a matching bounded diagnostic.
+
+## CODEX_HOME ancestor traversal
+
+The bounded sanitized diagnostic identified the next failure as
+`canonicalize(CODEX_HOME)` returning `Operation not permitted`. Rust's Unix
+implementation calls `realpath(3)`, which traverses and inspects every path
+component. The fixture already grants the synthetic root as a subpath, but the
+native binary's `/Users` ancestors do not cover the separate `/private/tmp`
+fixture chain.
+
+The profile therefore grants only `file-read-metadata` and
+`file-test-existence` on the literal directories `/private` and
+`/private/tmp`. Apple's current `system.sb` uses those same operations for
+path-component and symlink resolution. Neither directory is granted as a
+subpath, and network, process-exec, Mach, and real-home boundaries remain
+unchanged.

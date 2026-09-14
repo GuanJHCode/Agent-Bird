@@ -488,6 +488,9 @@ def _strict_sandbox_profile(home: _FixtureHome, binary: Path, port: int) -> str:
         '(allow file-read* (subpath "/usr/lib"))',
         '(allow file-read* (subpath "/usr/share"))',
         '(allow file-read* (subpath "/private/etc"))',
+        '(allow file-read-metadata file-test-existence\n'
+        '       (literal "/private")\n'
+        '       (literal "/private/tmp"))',
         '(allow file-map-executable\n'
         '       (subpath "/System/Library")\n'
         '       (subpath "/usr/lib"))',
@@ -529,7 +532,7 @@ def test_strict_profile_adds_only_apple_dyld_bootstrap_permissions() -> None:
         auth_path=root / "codex-home/auth.json",
         auth_bytes=b"",
     )
-    binary = root / "codex"
+    binary = Path("/Users/synthetic/native/codex")
 
     profile = _strict_sandbox_profile(home, binary, 43123)
 
@@ -541,8 +544,15 @@ def test_strict_profile_adds_only_apple_dyld_bootstrap_permissions() -> None:
         '       (subpath "/usr/lib"))'
     ) in profile
     assert (
+        '(allow file-read-metadata file-test-existence\n'
+        '       (literal "/private")\n'
+        '       (literal "/private/tmp"))'
+    ) in profile
+    assert '(subpath "/private")' not in profile
+    assert '(subpath "/private/tmp")' not in profile
+    assert (
         '(allow process-exec '
-        '(literal "/private/tmp/g0-auth-static-fixture/codex"))'
+        '(literal "/Users/synthetic/native/codex"))'
     ) in profile
     assert "(allow process-exec*)" not in profile
     assert "(allow mach-bootstrap)" not in profile
