@@ -138,3 +138,21 @@ The profile therefore grants only `file-read-metadata` and
 path-component and symlink resolution. Neither directory is granted as a
 subpath, and network, process-exec, Mach, and real-home boundaries remain
 unchanged.
+
+## Optional system requirements probe
+
+The next sanitized failure identified the fixed Unix system requirements
+probe. Codex 0.154 sets `system_requirements_path` to
+`/etc/codex/requirements.toml`, calls `read_file_text`, and continues only when
+the result is `NotFound`. On this host `/etc` is a symlink to `/private/etc`,
+and both logical and resolved `codex/requirements.toml` paths are absent.
+
+The strict profile now grants `file-read-metadata` and
+`file-test-existence` only on the four literal parent directories in those two
+fixed paths. It grants `file-read*` and `file-test-existence` only on the two
+literal requirements-file spellings, allowing the expected absent-file probe
+to reach `NotFound`. It adds no `/etc` or `/private` subpath rule and does not
+grant global metadata access.
+
+Sanitized diagnostics map either fixed spelling to the public constant label
+`SYSTEM_REQUIREMENTS`; arbitrary paths remain redacted.

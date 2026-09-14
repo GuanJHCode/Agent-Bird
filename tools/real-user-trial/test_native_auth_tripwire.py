@@ -59,6 +59,10 @@ MANAGED_CONFIG_PATHS = (
     Path("/etc/codex/config.toml"),
     Path("/etc/codex/requirements.toml"),
 )
+SYSTEM_REQUIREMENTS_PATHS = (
+    "/etc/codex/requirements.toml",
+    "/private/etc/codex/requirements.toml",
+)
 
 NATIVE_OPT_IN = pytest.mark.skipif(
     not RUN_OPT_IN or not NATIVE_BINARY_INPUT,
@@ -323,6 +327,9 @@ def _sanitize_synthetic_stderr_context(
     except UnicodeDecodeError:
         return "context_non_utf8"
 
+    for path in SYSTEM_REQUIREMENTS_PATHS:
+        context = context.replace(path, "<SYSTEM_REQUIREMENTS>")
+
     known_synthetic = (
         SYNTHETIC_REFRESH_TOKEN,
         "synthetic@example.invalid",
@@ -491,6 +498,14 @@ def _strict_sandbox_profile(home: _FixtureHome, binary: Path, port: int) -> str:
         '(allow file-read-metadata file-test-existence\n'
         '       (literal "/private")\n'
         '       (literal "/private/tmp"))',
+        '(allow file-read-metadata file-test-existence\n'
+        '       (literal "/etc")\n'
+        '       (literal "/etc/codex")\n'
+        '       (literal "/private/etc")\n'
+        '       (literal "/private/etc/codex"))',
+        '(allow file-read* file-test-existence\n'
+        '       (literal "/etc/codex/requirements.toml")\n'
+        '       (literal "/private/etc/codex/requirements.toml"))',
         '(allow file-map-executable\n'
         '       (subpath "/System/Library")\n'
         '       (subpath "/usr/lib"))',
@@ -548,6 +563,20 @@ def test_strict_profile_adds_only_apple_dyld_bootstrap_permissions() -> None:
         '       (literal "/private")\n'
         '       (literal "/private/tmp"))'
     ) in profile
+    assert (
+        '(allow file-read-metadata file-test-existence\n'
+        '       (literal "/etc")\n'
+        '       (literal "/etc/codex")\n'
+        '       (literal "/private/etc")\n'
+        '       (literal "/private/etc/codex"))'
+    ) in profile
+    assert (
+        '(allow file-read* file-test-existence\n'
+        '       (literal "/etc/codex/requirements.toml")\n'
+        '       (literal "/private/etc/codex/requirements.toml"))'
+    ) in profile
+    assert '(subpath "/etc")' not in profile
+    assert '(subpath "/etc/codex")' not in profile
     assert '(subpath "/private")' not in profile
     assert '(subpath "/private/tmp")' not in profile
     assert (
@@ -661,7 +690,8 @@ def test_synthetic_diagnostic_context_redacts_paths_urls_and_secrets() -> None:
         auth_bytes=b"synthetic-only",
     )
     raw = (
-        b"Error: failed to open /private/tmp/g0-auth-sensitive-fixture/"
+        b"Error: requirements /etc/codex/requirements.toml; failed to open "
+        b"/private/tmp/g0-auth-sensitive-fixture/"
         b"codex-home/auth.json via /System/Library/example; "
         b"POST https://example.invalid/oauth; "
         b"token=synthetic-refresh-token-never-from-user-storage; "
@@ -680,6 +710,7 @@ def test_synthetic_diagnostic_context_redacts_paths_urls_and_secrets() -> None:
     assert "failed to open" in context
     assert "Operation not permitted (os error 1)" in context
     assert "<path>" in context
+    assert "<SYSTEM_REQUIREMENTS>" in context
     assert "<url>" in context
     assert "<redacted>" in context
     assert "/" not in context
