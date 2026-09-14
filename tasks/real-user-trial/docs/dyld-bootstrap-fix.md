@@ -175,6 +175,13 @@ MiB, examines at most 32 frames per response, and requires the initialize
 signal; a bounded wait verifies shutdown before the existing identity-checked
 TERM/KILL fallback.
 
+Immediately after spawn, the same PID may still identify as
+`/usr/bin/sandbox-exec`. The fixture records that initial PID, UID, PGID, and
+birth identity, then conditionally waits up to five seconds for the executable
+image to become the fixed native binary. Exit during that transition uses the
+bounded stderr diagnostic; any identity-field change or third executable image
+fails closed.
+
 Stdout is consumed only in memory for the two protocol responses and is never
 printed. Any remaining stdout and all stderr are bounded and drained before a
 stable diagnostic is raised. No model-turn method is sent. The previously

@@ -114,6 +114,12 @@ class _VersionProcess(Protocol):
     def wait(self, timeout: float) -> int: ...
 
 
+class _PollProcess(Protocol):
+    pid: int
+
+    def poll(self) -> int | None: ...
+
+
 class NativeFixtureUninterruptible(RuntimeError):
     def __init__(self, owner: _ProcessIdentity, fixture_root: Path) -> None:
         self.safe_report = {
@@ -852,6 +858,40 @@ def _same_owned_process(saved: _ProcessIdentity) -> bool:
     )
 
 
+def _wait_for_native_image(
+    process: _PollProcess,
+    owner: _ProcessIdentity,
+    binary: Path,
+    *,
+    identity_reader: Callable[[int], _ProcessIdentity | None] = _process_identity,
+    wait: Callable[[float], None] = time.sleep,
+    timeout: float = 5,
+) -> _ProcessIdentity | None:
+    allowed_images = {Path("/usr/bin/sandbox-exec"), binary}
+    if Path(owner.executable) not in allowed_images:
+        raise AssertionError("native_initial_image_invalid")
+    deadline = time.monotonic() + timeout
+    while True:
+        if process.poll() is not None:
+            return None
+        current = identity_reader(process.pid)
+        if current is not None:
+            if any(
+                getattr(current, field) != getattr(owner, field)
+                for field in ("pid", "uid", "pgid", "birth")
+            ):
+                raise AssertionError("native_identity_changed_during_exec")
+            current_image = Path(current.executable)
+            if current_image == binary:
+                return current
+            if current_image not in allowed_images:
+                raise AssertionError("native_exec_image_unexpected")
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise AssertionError("native_exec_transition_timeout")
+        wait(min(0.01, remaining))
+
+
 def _collect_version_output(
     process: _VersionProcess,
     fixture_root: Path,
@@ -1061,22 +1101,35 @@ def _run_fixed_native(
         stderr_reader = threading.Thread(target=drain_stderr, daemon=True)
         stderr_reader.start()
         owner = _process_identity(process.pid)
-        if (
-            owner is None
-            or owner.uid != os.getuid()
-            or owner.pgid != process.pid
+        if owner is not None and (
+            owner.uid != os.getuid() or owner.pgid != process.pid
         ):
             raise AssertionError("native_process_ownership_invalid")
-        running = _process_identity(process.pid)
-        if (
-            running is None
-            or any(
-                getattr(running, field) != getattr(owner, field)
-                for field in ("pid", "uid", "pgid", "birth")
+        if owner is None:
+            if process.poll() is None:
+                raise AssertionError("native_process_ownership_invalid")
+            running = None
+        else:
+            running = _wait_for_native_image(process, owner, binary)
+        if running is None:
+            stderr_reader.join(timeout=1)
+            if stderr_reader.is_alive():
+                stderr_prefix.clear()
+                raise AssertionError("native_stderr_reader_not_finished")
+            sanitized_context = None
+            if DIAGNOSTIC_CONTEXT_OPT_IN:
+                sanitized_context = _sanitize_synthetic_stderr_context(
+                    bytes(stderr_prefix), home
+                )
+            _raise_native_exited_before_socket(
+                stderr_prefix,
+                stderr_bytes=stderr_bytes,
+                stderr_sha256=stderr_digest.hexdigest(),
+                exit_code=process.returncode,
+                sanitized_context=sanitized_context,
+                code="native_exited_before_stdio",
+                phase="stdio_startup",
             )
-            or Path(running.executable) != binary
-        ):
-            raise AssertionError("native_process_identity_invalid")
         client = _BoundedStdioJsonlClient(process)
         try:
             _request_refresh_without_model_turn(client)
@@ -1181,6 +1234,42 @@ def _auth_identity(path: Path) -> tuple[bytes, tuple[int, ...]]:
         info.st_nlink,
         info.st_mtime_ns,
     )
+
+
+class _TransitioningImageProcess:
+    pid = 41000
+
+    def poll(self) -> None:
+        return None
+
+
+def test_wait_for_native_image_accepts_same_process_exec_transition() -> None:
+    process = _TransitioningImageProcess()
+    owner = _ProcessIdentity(
+        pid=process.pid,
+        uid=os.getuid(),
+        pgid=process.pid,
+        birth="synthetic birth",
+        executable="/usr/bin/sandbox-exec",
+    )
+    native = _ProcessIdentity(
+        pid=process.pid,
+        uid=owner.uid,
+        pgid=owner.pgid,
+        birth=owner.birth,
+        executable="/synthetic/native",
+    )
+    identities = iter((owner, native))
+
+    running = _wait_for_native_image(
+        process,
+        owner,
+        Path(native.executable),
+        identity_reader=lambda _pid: next(identities),
+        wait=lambda _seconds: None,
+    )
+
+    assert running == native
 
 
 class _UnreapableFakeProcess:
