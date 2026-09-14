@@ -638,7 +638,6 @@ class ProxyServer:
                         epoch,
                     )
                     return
-                direction_seq[direction] += 1
                 forwarded = data
                 if wire_gate is not None:
                     forwarded = wire_gate(data)
@@ -646,19 +645,21 @@ class ProxyServer:
                         forwarded = await asyncio.wait_for(forwarded, self.callback_timeout)
                     if not isinstance(forwarded, bytes):
                         raise ValueError("wire gate must return bytes")
-                await self._emit(
-                    "on_data",
-                    DataEvent(
-                        observation_seq=self._next_seq(),
-                        connection_id=connection_id,
-                        epoch=epoch,
-                        direction=direction,
-                        direction_seq=direction_seq[direction],
-                        data=data,
-                    ),
-                    connection_id,
-                    epoch,
-                )
+                if wire_gate is None or forwarded:
+                    direction_seq[direction] += 1
+                    await self._emit(
+                        "on_data",
+                        DataEvent(
+                            observation_seq=self._next_seq(),
+                            connection_id=connection_id,
+                            epoch=epoch,
+                            direction=direction,
+                            direction_seq=direction_seq[direction],
+                            data=forwarded if wire_gate is not None else data,
+                        ),
+                        connection_id,
+                        epoch,
+                    )
                 if forwarded:
                     destination.write(forwarded)
                     await destination.drain()

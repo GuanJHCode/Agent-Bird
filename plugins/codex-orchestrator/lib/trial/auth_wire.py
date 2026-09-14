@@ -80,6 +80,8 @@ def _fixed_tui_config_is_safe(method: str, value: object) -> bool:
     features = value["features"]
     if not isinstance(features, dict):
         return False
+    if set(features) - {"use_agent_identity"}:
+        return False
     if "use_agent_identity" not in features:
         return True
     return features["use_agent_identity"] is False
@@ -197,6 +199,8 @@ def _gate_type(native_websocket_gate_type: type):
                         raise _InvalidAuthWireMessage("websocket_handshake_size")
                     return b""
                 end = marker + 4
+                if end > 65536:
+                    raise _InvalidAuthWireMessage("websocket_handshake_size")
                 output.append(bytes(self._buffer[:end]))
                 del self._buffer[:end]
                 self._handshake_done = True
@@ -231,14 +235,14 @@ def _gate_type(native_websocket_gate_type: type):
                 elif opcode in (8, 9, 10):
                     if not fin or len(payload) > 125 or (opcode == 8 and len(payload) == 1):
                         raise _InvalidAuthWireMessage("websocket_control_frame")
-                    if self._fragment_frames:
-                        self._fragment_frames.append(raw)
-                    else:
-                        output.append(raw)
                     if opcode == 8:
                         if self._buffer:
                             raise _InvalidAuthWireMessage("websocket_after_close")
+                        self._fragment_frames = []
+                        self._fragment_payload.clear()
                         self._auth_closed = True
+                    output.append(raw)
+                    if opcode == 8:
                         break
                 else:
                     raise _InvalidAuthWireMessage("websocket_frame_opcode")
