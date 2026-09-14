@@ -14,6 +14,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import signal
 import socketserver
@@ -35,6 +36,8 @@ sys.path.insert(0, str(ROOT / "plugins" / "codex-orchestrator" / "lib"))
 
 from trial.auth_guard import (  # noqa: E402
     MetadataObservation,
+    REFRESH_OVERRIDE_ENV,
+    REFRESH_TRIPWIRE,
     extract_safe_auth_metadata,
     prepare_guarded_environment,
 )
@@ -46,8 +49,16 @@ EXPECTED_NATIVE_SHA256 = (
 EXPECTED_VERSION_OUTPUT = "codex-cli 0.154.0"
 SYNTHETIC_REFRESH_TOKEN = "synthetic-refresh-token-never-from-user-storage"
 STDERR_DIAGNOSTIC_PREFIX_LIMIT = 4096
+STDERR_SANITIZED_CONTEXT_LIMIT = 512
 RUN_OPT_IN = os.environ.get("CODEX_RUN_NATIVE_AUTH_TRIPWIRE") == "1"
+DIAGNOSTIC_CONTEXT_OPT_IN = (
+    os.environ.get("CODEX_RUN_NATIVE_AUTH_DIAGNOSTIC_CONTEXT") == "1"
+)
 NATIVE_BINARY_INPUT = os.environ.get("CODEX_TRIAL_NATIVE_BINARY")
+MANAGED_CONFIG_PATHS = (
+    Path("/etc/codex/config.toml"),
+    Path("/etc/codex/requirements.toml"),
+)
 
 NATIVE_OPT_IN = pytest.mark.skipif(
     not RUN_OPT_IN or not NATIVE_BINARY_INPUT,
@@ -303,12 +314,74 @@ def _quote_sbpl(path: Path) -> str:
     return value.replace("\\", "\\\\")
 
 
+def _sanitize_synthetic_stderr_context(
+    stderr_prefix: bytes,
+    home: _FixtureHome,
+) -> str:
+    try:
+        context = stderr_prefix.decode("utf-8", errors="strict")
+    except UnicodeDecodeError:
+        return "context_non_utf8"
+
+    known_synthetic = (
+        SYNTHETIC_REFRESH_TOKEN,
+        "synthetic@example.invalid",
+        "synthetic-signature",
+        "synthetic-account",
+        "synthetic-user",
+        str(home.auth_path),
+        str(home.socket_path),
+        str(home.codex_home),
+        str(home.sqlite_home),
+        str(home.workspace),
+        str(home.temp),
+        str(home.home),
+        str(home.root),
+    )
+    for value in sorted(known_synthetic, key=len, reverse=True):
+        context = context.replace(value, "<redacted>")
+
+    context = re.sub(
+        r"(?i)\b(?:https?|wss?|ws|unix)://[^\s'\";,]+",
+        "<url>",
+        context,
+    )
+    context = re.sub(r"(?<![A-Za-z0-9_])/(?:[^\s'\";,)]*)", "<path>", context)
+    context = re.sub(
+        r"(?i)\b(authorization|token|password|secret|credential)"
+        r"\s*[:=]\s*[^\s;,]+",
+        lambda match: match.group(1) + "=<redacted>",
+        context,
+    )
+    context = re.sub(
+        r"\b[A-Za-z0-9_-]{20,}(?:\.[A-Za-z0-9_-]{20,}){1,2}\b",
+        "<redacted>",
+        context,
+    )
+    context = re.sub(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\b", "<redacted>", context)
+    context = re.sub(r"\b[A-Za-z0-9_-]{32,}\b", "<redacted>", context)
+    context = "".join(char if 0x20 <= ord(char) <= 0x7E else " " for char in context)
+    context = re.sub(r"\s+", " ", context).strip()[:STDERR_SANITIZED_CONTEXT_LIMIT]
+
+    folded = context.casefold()
+    if (
+        "/" in context
+        or "://" in context
+        or "@" in context
+        or any(value.casefold() in folded for value in known_synthetic)
+        or re.search(r"\b[A-Za-z0-9_-]{32,}\b", context)
+    ):
+        return "context_redaction_failed"
+    return context or "context_empty_after_redaction"
+
+
 def _safe_native_stderr_diagnostic(
     stderr_prefix: bytes,
     *,
     stderr_bytes: int,
     stderr_sha256: str,
     exit_code: int,
+    sanitized_context: str | None = None,
 ) -> dict[str, object]:
     if len(stderr_prefix) > STDERR_DIAGNOSTIC_PREFIX_LIMIT:
         raise AssertionError("native_stderr_prefix_limit_exceeded")
@@ -355,7 +428,7 @@ def _safe_native_stderr_diagnostic(
             errno_name = name
             break
 
-    return {
+    report: dict[str, object] = {
         "code": "native_exited_before_socket",
         "phase": "app_server_pre_socket",
         "exit_code": exit_code,
@@ -372,6 +445,9 @@ def _safe_native_stderr_diagnostic(
             "proxy": b"proxy" in lowered,
         },
     }
+    if sanitized_context is not None:
+        report["stderr_context_sanitized"] = sanitized_context
+    return report
 
 
 def _raise_native_exited_before_socket(
@@ -380,6 +456,7 @@ def _raise_native_exited_before_socket(
     stderr_bytes: int,
     stderr_sha256: str,
     exit_code: int,
+    sanitized_context: str | None = None,
 ) -> None:
     try:
         safe_report = _safe_native_stderr_diagnostic(
@@ -387,6 +464,7 @@ def _raise_native_exited_before_socket(
             stderr_bytes=stderr_bytes,
             stderr_sha256=stderr_sha256,
             exit_code=exit_code,
+            sanitized_context=sanitized_context,
         )
     finally:
         stderr_prefix.clear()
@@ -559,6 +637,47 @@ def test_native_exit_diagnostic_clears_captured_stderr() -> None:
     assert "synthetic-sensitive-marker" not in str(error.value)
 
 
+def test_synthetic_diagnostic_context_redacts_paths_urls_and_secrets() -> None:
+    root = Path("/private/tmp/g0-auth-sensitive-fixture")
+    home = _FixtureHome(
+        root=root,
+        home=root / "home",
+        codex_home=root / "codex-home",
+        sqlite_home=root / "sqlite",
+        workspace=root / "workspace",
+        temp=root / "tmp",
+        socket_path=root / "app-server.sock",
+        auth_path=root / "codex-home/auth.json",
+        auth_bytes=b"synthetic-only",
+    )
+    raw = (
+        b"Error: failed to open /private/tmp/g0-auth-sensitive-fixture/"
+        b"codex-home/auth.json via /System/Library/example; "
+        b"POST https://example.invalid/oauth; "
+        b"token=synthetic-refresh-token-never-from-user-storage; "
+        b"cause: Operation not permitted (os error 1)"
+    )
+
+    context = _sanitize_synthetic_stderr_context(raw, home)
+    report = _safe_native_stderr_diagnostic(
+        raw,
+        stderr_bytes=len(raw),
+        stderr_sha256=hashlib.sha256(raw).hexdigest(),
+        exit_code=1,
+        sanitized_context=context,
+    )
+
+    assert "failed to open" in context
+    assert "Operation not permitted (os error 1)" in context
+    assert "<path>" in context
+    assert "<url>" in context
+    assert "<redacted>" in context
+    assert "/" not in context
+    assert "@" not in context
+    assert SYNTHETIC_REFRESH_TOKEN not in context
+    assert report["stderr_context_sanitized"] == context
+
+
 def _minimal_environment(home: _FixtureHome) -> dict[str, str]:
     return {
         "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
@@ -570,6 +689,64 @@ def _minimal_environment(home: _FixtureHome) -> dict[str, str]:
         "LANG": "C",
         "LC_ALL": "C",
     }
+
+
+def _verify_synthetic_diagnostic_preconditions(
+    home: _FixtureHome,
+    binary: Path,
+    environment: Mapping[str, str],
+) -> None:
+    if home.root.parent != Path("/private/tmp") or not home.root.name.startswith(
+        "g0-auth-"
+    ):
+        raise AssertionError("diagnostic_fixture_root_invalid")
+    expected_paths = {
+        "home": home.root / "home",
+        "codex_home": home.root / "codex-home",
+        "sqlite_home": home.root / "sqlite",
+        "workspace": home.root / "workspace",
+        "temp": home.root / "tmp",
+        "socket_path": home.root / "app-server.sock",
+        "auth_path": home.root / "codex-home/auth.json",
+    }
+    if any(getattr(home, name) != path for name, path in expected_paths.items()):
+        raise AssertionError("diagnostic_fixture_layout_invalid")
+    for directory in (
+        home.root,
+        home.home,
+        home.codex_home,
+        home.sqlite_home,
+        home.workspace,
+        home.temp,
+    ):
+        _owned_private_dir(directory)
+
+    for path in MANAGED_CONFIG_PATHS:
+        try:
+            os.lstat(path)
+        except FileNotFoundError:
+            continue
+        raise AssertionError("diagnostic_managed_config_present")
+
+    current_auth, _ = _auth_identity(home.auth_path)
+    expected_auth = _synthetic_auth_bytes()
+    if current_auth != expected_auth or home.auth_bytes != expected_auth:
+        raise AssertionError("diagnostic_auth_not_synthetic")
+    if _stable_sha256(binary) != EXPECTED_NATIVE_SHA256:
+        raise AssertionError("diagnostic_native_binary_changed")
+
+    child_environment = dict(environment)
+    refresh_override = child_environment.pop(REFRESH_OVERRIDE_ENV, None)
+    if child_environment != _minimal_environment(home):
+        raise AssertionError("diagnostic_environment_not_minimal")
+    if refresh_override == REFRESH_TRIPWIRE:
+        return
+    match = re.fullmatch(
+        r"http://127\.0\.0\.1:([0-9]{1,5})/oauth/token",
+        refresh_override or "",
+    )
+    if match is None or not 0 < int(match.group(1)) <= 65535:
+        raise AssertionError("diagnostic_refresh_override_invalid")
 
 
 def _process_identity(pid: int) -> _ProcessIdentity | None:
@@ -738,6 +915,8 @@ def _run_fixed_native(
     reader: threading.Thread | None = None
 
     try:
+        if DIAGNOSTIC_CONTEXT_OPT_IN:
+            _verify_synthetic_diagnostic_preconditions(home, binary, environment)
         process = subprocess.Popen(
             [
                 "/usr/bin/sandbox-exec",
@@ -783,11 +962,17 @@ def _run_fixed_native(
                 if reader.is_alive():
                     stderr_prefix.clear()
                     raise AssertionError("native_stderr_reader_not_finished")
+                sanitized_context = None
+                if DIAGNOSTIC_CONTEXT_OPT_IN:
+                    sanitized_context = _sanitize_synthetic_stderr_context(
+                        bytes(stderr_prefix), home
+                    )
                 _raise_native_exited_before_socket(
                     stderr_prefix,
                     stderr_bytes=stderr_bytes,
                     stderr_sha256=stderr_digest.hexdigest(),
                     exit_code=exit_code,
+                    sanitized_context=sanitized_context,
                 )
             if time.monotonic() >= deadline:
                 raise AssertionError("native_socket_timeout")

@@ -98,6 +98,23 @@ stderr, and unclassified output. They are routing hints rather than proof of a
 root cause. The next bounded experiment should publish only the JSON exception
 message.
 
+For the separately approved diagnostic run,
+`CODEX_RUN_NATIVE_AUTH_DIAGNOSTIC_CONTEXT=1` adds at most 512 characters of
+`stderr_context_sanitized`. Before every app-server launch, the fixture
+rechecks that both `/etc/codex/config.toml` and
+`/etc/codex/requirements.toml` are absent, all fixture paths are the expected
+owned `0700` directories under `/private/tmp/g0-auth-*`, auth bytes still
+exactly equal the generated synthetic fixture, the native SHA is fixed, and
+the replacement child environment contains only the fixed minimal keys plus
+one validated synthetic refresh override.
+
+The in-memory sanitizer removes known synthetic values, URLs, absolute paths,
+email addresses, JWT-shaped values, long token-shaped values, and sensitive
+key-value values. It removes control characters, collapses whitespace, and
+fails closed to `context_redaction_failed` if the bounded result still looks
+like a path, URL, email, or long token. This retains the error-chain wording
+needed to identify the startup phase without retaining or printing raw stderr.
+
 Importing the version-3 `dyld-support.sb` does not supply a general application
 profile. Apple's version-1 `blastdoor.sb` imports it and then separately adds
 file-existence and metadata access, selected Mach lookups, self-process
