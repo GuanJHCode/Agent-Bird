@@ -315,6 +315,8 @@ def _safe_native_stderr_diagnostic(
     lowered = stderr_prefix.lower()
     if b"sandbox-exec:" in lowered or b"sandbox violation" in lowered:
         category = "sandbox_denied"
+    elif any(marker in lowered for marker in (b"panicked at", b"fatal error")):
+        category = "native_fatal"
     elif any(
         marker in lowered
         for marker in (b"unexpected argument", b"unrecognized option", b"usage:")
@@ -335,8 +337,6 @@ def _safe_native_stderr_diagnostic(
         for marker in (b"connection refused", b"network is unreachable", b"dns error")
     ):
         category = "network_setup_failed"
-    elif any(marker in lowered for marker in (b"panicked at", b"fatal error")):
-        category = "native_fatal"
     elif stderr_bytes == 0:
         category = "empty"
     else:
@@ -364,6 +364,13 @@ def _safe_native_stderr_diagnostic(
         "stderr_bytes": stderr_bytes,
         "stderr_sha256": stderr_sha256,
         "stderr_prefix_truncated": stderr_bytes > len(stderr_prefix),
+        "stderr_hints": {
+            "panicked_at": b"panicked at" in lowered,
+            "scproxy": b"scproxy" in lowered,
+            "system_configuration": b"systemconfiguration" in lowered,
+            "failed_to_create": b"failed to create" in lowered,
+            "proxy": b"proxy" in lowered,
+        },
     }
 
 
@@ -489,6 +496,11 @@ def test_strict_profile_adds_only_apple_dyld_bootstrap_permissions() -> None:
             "sandbox_denied",
             "operation_not_permitted",
         ),
+        (
+            b"thread panicked at SystemConfiguration failed to create scproxy proxy\n",
+            "native_fatal",
+            None,
+        ),
         (b"opaque synthetic failure\n", "unclassified", None),
     ],
 )
@@ -516,6 +528,13 @@ def test_native_stderr_diagnostic_is_bounded_and_nonrevealing(
         "stderr_bytes": len(raw),
         "stderr_sha256": hashlib.sha256(raw).hexdigest(),
         "stderr_prefix_truncated": True,
+        "stderr_hints": {
+            "panicked_at": b"panicked at" in stderr.lower(),
+            "scproxy": b"scproxy" in stderr.lower(),
+            "system_configuration": b"systemconfiguration" in stderr.lower(),
+            "failed_to_create": b"failed to create" in stderr.lower(),
+            "proxy": b"proxy" in stderr.lower(),
+        },
     }
     assert secret_marker.decode() not in json.dumps(report, sort_keys=True)
 

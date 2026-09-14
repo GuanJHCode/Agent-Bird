@@ -88,6 +88,9 @@ that prefix and exposes only a fixed JSON report containing the phase, exit
 code, stderr byte count and digest, truncation status, a fixed category, and a
 fixed errno name when one is recognized. Raw stderr, environment values, and
 matched substrings are never included in the exception or written to disk.
+The report also includes fixed booleans for `panicked_at`, `scproxy`,
+`system_configuration`, `failed_to_create`, and `proxy`. Fatal/panic detection
+takes precedence over the generic configuration category.
 
 The fixed categories distinguish CLI usage, configuration, socket setup,
 network setup, explicit sandbox diagnostics, native fatal errors, empty
