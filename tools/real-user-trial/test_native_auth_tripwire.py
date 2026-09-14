@@ -745,13 +745,14 @@ def test_stdio_jsonl_initialize_contract_uses_fixed_native_version() -> None:
     frames = iter(
         [
             b'{"method":"server/notification","params":{}}\n',
-            b'{"id":1,"result":{"userAgent":"codex_cli_rs/0.154.0 (macOS) rust"}}\n',
+            b'{"id":1,"result":{"userAgent":"native-auth-tripwire-fixture/'
+            b'0.154.0 (macOS; arm64) (native-auth-tripwire-fixture; 1)"}}\n',
         ]
     )
 
     response = _receive_bounded_jsonl_response(lambda: next(frames), 1)
 
-    _verify_initialize_user_agent(response)
+    assert _verify_initialize_user_agent(response) == "0.154.0"
 
 
 def _minimal_environment(home: _FixtureHome) -> dict[str, str]:
@@ -956,13 +957,20 @@ def _receive_bounded_jsonl_response(
     raise NativeStdioProtocolError("stdio_response_frame_limit")
 
 
-def _verify_initialize_user_agent(response: Mapping[str, object]) -> None:
+def _verify_initialize_user_agent(response: Mapping[str, object]) -> str:
     result = response.get("result")
     user_agent = result.get("userAgent") if isinstance(result, dict) else None
-    if not isinstance(user_agent, str) or re.fullmatch(
-        r"codex_cli_rs/0\.154\.0(?: .*)?", user_agent
-    ) is None:
+    match = (
+        re.fullmatch(
+            r"native-auth-tripwire-fixture/(0\.154\.0)(?: [\x20-\x7E]*)?",
+            user_agent,
+        )
+        if isinstance(user_agent, str)
+        else None
+    )
+    if match is None:
         raise NativeStdioProtocolError("initialize_user_agent_mismatch")
+    return match.group(1)
 
 
 class _BoundedStdioJsonlClient:

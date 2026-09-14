@@ -171,7 +171,8 @@ keeps the existing PID/birth/executable checks and sandbox/network boundary,
 and sends only `initialize`, `initialized`, and `account/read` with
 `refreshToken: true`. It accepts only newline-terminated JSON objects up to 1
 MiB, examines at most 32 frames per response, and requires the initialize
-`userAgent` to identify `codex_cli_rs/0.154.0`. Closing stdin is the lifecycle
+`userAgent` to use the known fixture originator prefix and server version
+`native-auth-tripwire-fixture/0.154.0`. Closing stdin is the lifecycle
 signal; a bounded wait verifies shutdown before the existing identity-checked
 TERM/KILL fallback.
 
@@ -186,3 +187,8 @@ Stdout is consumed only in memory for the two protocol responses and is never
 printed. Any remaining stdout and all stderr are bounded and drained before a
 stable diagnostic is raised. No model-turn method is sent. The previously
 proven fixed binary SHA replaces the redundant per-fixture `--version` launch.
+
+Codex 0.154 builds the initialize `userAgent` after setting the process-global
+originator from `clientInfo.name`; it does not promise a `codex_cli_rs` prefix.
+The validator returns only the extracted fixed server version and neither
+stores nor reports the OS-specific suffix.
