@@ -7,7 +7,6 @@ the pinned native binary and opts in.
 
 from __future__ import annotations
 
-import asyncio
 import base64
 import ctypes
 import hashlib
@@ -15,6 +14,7 @@ import json
 import os
 from pathlib import Path
 import re
+import select
 import shutil
 import signal
 import socketserver
@@ -46,7 +46,6 @@ from trial.auth_guard import (  # noqa: E402
 EXPECTED_NATIVE_SHA256 = (
     "4f85982624b3898c8991cb80c0981b2aa71070e3537046c9a95950318a95afcc"
 )
-EXPECTED_VERSION_OUTPUT = "codex-cli 0.154.0"
 SYNTHETIC_REFRESH_TOKEN = "synthetic-refresh-token-never-from-user-storage"
 STDERR_DIAGNOSTIC_PREFIX_LIMIT = 4096
 STDERR_SANITIZED_CONTEXT_LIMIT = 512
@@ -134,6 +133,12 @@ class NativeAppServerDiagnostic(RuntimeError):
         super().__init__(
             json.dumps(self.safe_report, sort_keys=True, separators=(",", ":"))
         )
+
+
+class NativeStdioProtocolError(RuntimeError):
+    def __init__(self, code: str) -> None:
+        self.code = code
+        super().__init__(code)
 
 
 class _RefreshObservation:
@@ -387,8 +392,11 @@ def _safe_native_stderr_diagnostic(
     *,
     stderr_bytes: int,
     stderr_sha256: str,
-    exit_code: int,
+    exit_code: int | None,
     sanitized_context: str | None = None,
+    code: str = "native_exited_before_socket",
+    phase: str = "app_server_pre_socket",
+    protocol_failure: str | None = None,
 ) -> dict[str, object]:
     if len(stderr_prefix) > STDERR_DIAGNOSTIC_PREFIX_LIMIT:
         raise AssertionError("native_stderr_prefix_limit_exceeded")
@@ -436,8 +444,8 @@ def _safe_native_stderr_diagnostic(
             break
 
     report: dict[str, object] = {
-        "code": "native_exited_before_socket",
-        "phase": "app_server_pre_socket",
+        "code": code,
+        "phase": phase,
         "exit_code": exit_code,
         "stderr_category": category,
         "stderr_errno": errno_name,
@@ -454,6 +462,8 @@ def _safe_native_stderr_diagnostic(
     }
     if sanitized_context is not None:
         report["stderr_context_sanitized"] = sanitized_context
+    if protocol_failure is not None:
+        report["protocol_failure"] = protocol_failure
     return report
 
 
@@ -462,8 +472,11 @@ def _raise_native_exited_before_socket(
     *,
     stderr_bytes: int,
     stderr_sha256: str,
-    exit_code: int,
+    exit_code: int | None,
     sanitized_context: str | None = None,
+    code: str = "native_exited_before_socket",
+    phase: str = "app_server_pre_socket",
+    protocol_failure: str | None = None,
 ) -> None:
     try:
         safe_report = _safe_native_stderr_diagnostic(
@@ -472,6 +485,9 @@ def _raise_native_exited_before_socket(
             stderr_sha256=stderr_sha256,
             exit_code=exit_code,
             sanitized_context=sanitized_context,
+            code=code,
+            phase=phase,
+            protocol_failure=protocol_failure,
         )
     finally:
         stderr_prefix.clear()
@@ -719,6 +735,19 @@ def test_synthetic_diagnostic_context_redacts_paths_urls_and_secrets() -> None:
     assert report["stderr_context_sanitized"] == context
 
 
+def test_stdio_jsonl_initialize_contract_uses_fixed_native_version() -> None:
+    frames = iter(
+        [
+            b'{"method":"server/notification","params":{}}\n',
+            b'{"id":1,"result":{"userAgent":"codex_cli_rs/0.154.0 (macOS) rust"}}\n',
+        ]
+    )
+
+    response = _receive_bounded_jsonl_response(lambda: next(frames), 1)
+
+    _verify_initialize_user_agent(response)
+
+
 def _minimal_environment(home: _FixtureHome) -> dict[str, str]:
     return {
         "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
@@ -860,82 +889,121 @@ def _collect_version_output(
         raise AssertionError("native_version_timeout")
 
 
-def _verify_native_version(
-    binary: Path,
-    home: _FixtureHome,
-    environment: Mapping[str, str],
-    profile: str,
-) -> None:
-    process = subprocess.Popen(
-        ["/usr/bin/sandbox-exec", "-p", profile, str(binary), "--version"],
-        cwd=home.workspace,
-        env=dict(environment),
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.DEVNULL,
-        start_new_session=True,
-    )
-    stdout = _collect_version_output(process, home.root)
-    if (
-        process.returncode != 0
-        or len(stdout) > 1024
-        or stdout.decode("utf-8", errors="strict").strip() != EXPECTED_VERSION_OUTPUT
-    ):
-        raise AssertionError("native_version_mismatch")
-
-
-async def _receive_response(websocket: object, request_id: int) -> dict[str, object]:
+def _receive_bounded_jsonl_response(
+    read_line: Callable[[], bytes],
+    request_id: int,
+) -> dict[str, object]:
     for _ in range(32):
-        raw = await asyncio.wait_for(websocket.recv(), timeout=5)  # type: ignore[attr-defined]
-        packet = json.loads(raw)
+        try:
+            raw = read_line()
+        except StopIteration:
+            raise NativeStdioProtocolError("stdio_eof_before_response") from None
+        if not raw:
+            raise NativeStdioProtocolError("stdio_eof_before_response")
+        if len(raw) > 1024 * 1024 or not raw.endswith(b"\n"):
+            raise NativeStdioProtocolError("stdio_frame_invalid")
+        try:
+            packet = json.loads(raw)
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            raise NativeStdioProtocolError("stdio_json_invalid") from None
+        if not isinstance(packet, dict):
+            raise NativeStdioProtocolError("stdio_packet_not_object")
         if "method" in packet:
             continue
         if packet.get("id") != request_id:
-            raise AssertionError("unexpected_rpc_response_id")
+            raise NativeStdioProtocolError("stdio_response_id_unexpected")
         return packet
-    raise AssertionError("rpc_response_frame_limit")
+    raise NativeStdioProtocolError("stdio_response_frame_limit")
 
 
-async def _request_refresh_without_model_turn(socket_path: Path) -> None:
-    from websockets.asyncio.client import unix_connect
+def _verify_initialize_user_agent(response: Mapping[str, object]) -> None:
+    result = response.get("result")
+    user_agent = result.get("userAgent") if isinstance(result, dict) else None
+    if not isinstance(user_agent, str) or re.fullmatch(
+        r"codex_cli_rs/0\.154\.0(?: .*)?", user_agent
+    ) is None:
+        raise NativeStdioProtocolError("initialize_user_agent_mismatch")
 
-    websocket = await asyncio.wait_for(
-        unix_connect(
-            str(socket_path),
-            open_timeout=5,
-            close_timeout=1,
-            max_size=1024 * 1024,
-            max_queue=16,
-        ),
-        timeout=6,
-    )
-    try:
-        await websocket.send(
-            json.dumps(
-                {
-                    "id": 1,
-                    "method": "initialize",
-                    "params": {
-                        "clientInfo": {
-                            "name": "native-auth-tripwire-fixture",
-                            "version": "1",
-                        }
-                    },
+
+class _BoundedStdioJsonlClient:
+    def __init__(self, process: subprocess.Popen[bytes]) -> None:
+        if process.stdin is None or process.stdout is None:
+            raise AssertionError("native_stdio_pipe_missing")
+        self._stdin = process.stdin
+        self._stdout = process.stdout
+        self._buffer = bytearray()
+        self._bytes_read = 0
+
+    def send(self, packet: Mapping[str, object]) -> None:
+        payload = json.dumps(packet, separators=(",", ":")).encode("utf-8") + b"\n"
+        if len(payload) > 64 * 1024:
+            raise NativeStdioProtocolError("stdio_request_too_large")
+        try:
+            self._stdin.write(payload)
+            self._stdin.flush()
+        except BrokenPipeError:
+            raise NativeStdioProtocolError("stdio_stdin_closed") from None
+
+    def read_line(self) -> bytes:
+        deadline = time.monotonic() + 5
+        while True:
+            newline = self._buffer.find(b"\n")
+            if newline >= 0:
+                line = bytes(self._buffer[: newline + 1])
+                del self._buffer[: newline + 1]
+                return line
+            if len(self._buffer) > 1024 * 1024:
+                raise NativeStdioProtocolError("stdio_frame_too_large")
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise NativeStdioProtocolError("stdio_response_timeout")
+            ready, _, _ = select.select([self._stdout.fileno()], [], [], remaining)
+            if not ready:
+                raise NativeStdioProtocolError("stdio_response_timeout")
+            chunk = os.read(self._stdout.fileno(), 65536)
+            if not chunk:
+                if self._buffer:
+                    raise NativeStdioProtocolError("stdio_frame_truncated")
+                return b""
+            self._bytes_read += len(chunk)
+            if self._bytes_read > 8 * 1024 * 1024:
+                raise NativeStdioProtocolError("stdio_output_limit_exceeded")
+            self._buffer.extend(chunk)
+
+    def discard_buffered_output(self) -> None:
+        self._buffer.clear()
+
+    @property
+    def bytes_read(self) -> int:
+        return self._bytes_read
+
+
+def _request_refresh_without_model_turn(client: _BoundedStdioJsonlClient) -> None:
+    client.send(
+        {
+            "id": 1,
+            "method": "initialize",
+            "params": {
+                "clientInfo": {
+                    "name": "native-auth-tripwire-fixture",
+                    "version": "1",
                 }
-            )
-        )
-        initialized = await _receive_response(websocket, 1)
-        if "result" not in initialized:
-            raise AssertionError("initialize_failed")
-        await websocket.send('{"method":"initialized"}')
-        await websocket.send(
-            '{"id":2,"method":"account/read","params":{"refreshToken":true}}'
-        )
-        account = await _receive_response(websocket, 2)
-        if "result" not in account and "error" not in account:
-            raise AssertionError("account_read_missing_result")
-    finally:
-        await asyncio.wait_for(websocket.close(), timeout=2)
+            },
+        }
+    )
+    initialized = _receive_bounded_jsonl_response(client.read_line, 1)
+    _verify_initialize_user_agent(initialized)
+    client.send({"method": "initialized"})
+    client.send(
+        {
+            "id": 2,
+            "method": "account/read",
+            "params": {"refreshToken": True},
+        }
+    )
+    account = _receive_bounded_jsonl_response(client.read_line, 2)
+    if "result" not in account and "error" not in account:
+        raise NativeStdioProtocolError("account_read_missing_result")
 
 
 def _run_fixed_native(
@@ -951,9 +1019,13 @@ def _run_fixed_native(
     stderr_digest = hashlib.sha256()
     stderr_bytes = 0
     stderr_prefix = bytearray()
+    stdout_bytes = 0
     process: subprocess.Popen[bytes] | None = None
     owner: _ProcessIdentity | None = None
-    reader: threading.Thread | None = None
+    stderr_reader: threading.Thread | None = None
+    stdout_reader: threading.Thread | None = None
+    protocol_failure: str | None = None
+    diagnostic_exit_code: int | None = None
 
     try:
         if DIAGNOSTIC_CONTEXT_OPT_IN:
@@ -966,12 +1038,12 @@ def _run_fixed_native(
                 str(binary),
                 "app-server",
                 "--listen",
-                "unix://" + str(home.socket_path),
+                "stdio://",
             ],
             cwd=home.workspace,
             env=dict(environment),
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.DEVNULL,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             start_new_session=True,
         )
@@ -986,8 +1058,8 @@ def _run_fixed_native(
                 if remaining > 0:
                     stderr_prefix.extend(chunk[:remaining])
 
-        reader = threading.Thread(target=drain_stderr, daemon=True)
-        reader.start()
+        stderr_reader = threading.Thread(target=drain_stderr, daemon=True)
+        stderr_reader.start()
         owner = _process_identity(process.pid)
         if (
             owner is None
@@ -995,36 +1067,6 @@ def _run_fixed_native(
             or owner.pgid != process.pid
         ):
             raise AssertionError("native_process_ownership_invalid")
-        deadline = time.monotonic() + 30
-        while not home.socket_path.exists():
-            exit_code = process.poll()
-            if exit_code is not None:
-                reader.join(timeout=1)
-                if reader.is_alive():
-                    stderr_prefix.clear()
-                    raise AssertionError("native_stderr_reader_not_finished")
-                sanitized_context = None
-                if DIAGNOSTIC_CONTEXT_OPT_IN:
-                    sanitized_context = _sanitize_synthetic_stderr_context(
-                        bytes(stderr_prefix), home
-                    )
-                _raise_native_exited_before_socket(
-                    stderr_prefix,
-                    stderr_bytes=stderr_bytes,
-                    stderr_sha256=stderr_digest.hexdigest(),
-                    exit_code=exit_code,
-                    sanitized_context=sanitized_context,
-                )
-            if time.monotonic() >= deadline:
-                raise AssertionError("native_socket_timeout")
-            time.sleep(0.025)
-        info = os.lstat(home.socket_path)
-        if (
-            not stat.S_ISSOCK(info.st_mode)
-            or info.st_uid != os.getuid()
-            or stat.S_IMODE(info.st_mode) != 0o600
-        ):
-            raise AssertionError("native_socket_identity_invalid")
         running = _process_identity(process.pid)
         if (
             running is None
@@ -1035,7 +1077,40 @@ def _run_fixed_native(
             or Path(running.executable) != binary
         ):
             raise AssertionError("native_process_identity_invalid")
-        asyncio.run(_request_refresh_without_model_turn(home.socket_path))
+        client = _BoundedStdioJsonlClient(process)
+        try:
+            _request_refresh_without_model_turn(client)
+        except NativeStdioProtocolError as error:
+            protocol_failure = error.code
+            diagnostic_exit_code = process.poll()
+        stdout_bytes = client.bytes_read
+        client.discard_buffered_output()
+
+        def drain_stdout() -> None:
+            nonlocal stdout_bytes
+            assert process is not None and process.stdout is not None
+            for chunk in iter(lambda: process.stdout.read(65536), b""):
+                stdout_bytes += len(chunk)
+
+        stdout_reader = threading.Thread(target=drain_stdout, daemon=True)
+        stdout_reader.start()
+        assert process.stdin is not None
+        try:
+            process.stdin.close()
+        except BrokenPipeError:
+            if protocol_failure is None:
+                protocol_failure = "stdio_stdin_closed"
+                diagnostic_exit_code = process.poll()
+        if process.poll() is None:
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                if protocol_failure is None:
+                    protocol_failure = "stdio_eof_shutdown_timeout"
+                    diagnostic_exit_code = None
+        if protocol_failure is None and process.poll() != 0:
+            protocol_failure = "stdio_nonzero_exit"
+            diagnostic_exit_code = process.returncode
     finally:
         if process is not None and process.poll() is None:
             if owner is None or not _same_owned_process(owner):
@@ -1048,14 +1123,43 @@ def _run_fixed_native(
                     raise AssertionError("native_identity_changed_before_kill")
                 os.killpg(process.pid, signal.SIGKILL)
                 process.wait(timeout=2)
-        if reader is not None:
-            reader.join(timeout=1)
+        if stdout_reader is not None:
+            stdout_reader.join(timeout=1)
+        if stderr_reader is not None:
+            stderr_reader.join(timeout=1)
         if process is not None and process.poll() is None:
             raise AssertionError("native_process_not_reaped")
+        if stdout_reader is not None and stdout_reader.is_alive():
+            raise AssertionError("native_stdout_reader_not_finished")
+        if stderr_reader is not None and stderr_reader.is_alive():
+            raise AssertionError("native_stderr_reader_not_finished")
         stderr_limit_exceeded = stderr_bytes > 8 * 1024 * 1024
-        stderr_prefix.clear()
+        stdout_limit_exceeded = stdout_bytes > 8 * 1024 * 1024
+        if protocol_failure is None:
+            stderr_prefix.clear()
         if stderr_limit_exceeded:
+            stderr_prefix.clear()
             raise AssertionError("native_stderr_limit_exceeded")
+        if stdout_limit_exceeded:
+            stderr_prefix.clear()
+            raise AssertionError("native_stdout_limit_exceeded")
+
+    if protocol_failure is not None:
+        sanitized_context = None
+        if DIAGNOSTIC_CONTEXT_OPT_IN:
+            sanitized_context = _sanitize_synthetic_stderr_context(
+                bytes(stderr_prefix), home
+            )
+        _raise_native_exited_before_socket(
+            stderr_prefix,
+            stderr_bytes=stderr_bytes,
+            stderr_sha256=stderr_digest.hexdigest(),
+            exit_code=diagnostic_exit_code,
+            sanitized_context=sanitized_context,
+            code="native_stdio_rpc_failed",
+            phase="stdio_rpc",
+            protocol_failure=protocol_failure,
+        )
 
 
 def _auth_identity(path: Path) -> tuple[bytes, tuple[int, ...]]:
@@ -1182,7 +1286,6 @@ def test_fixed_native_refresh_tripwire_blocks_oauth_egress() -> None:
             f"http://127.0.0.1:{port}/oauth/token"
         )
         baseline_profile = _strict_sandbox_profile(baseline, binary, port)
-        _verify_native_version(binary, baseline, baseline_env, baseline_profile)
         assert observation.snapshot() == (0, False)
         _run_fixed_native(
             binary,

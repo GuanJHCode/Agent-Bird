@@ -156,3 +156,26 @@ grant global metadata access.
 
 Sanitized diagnostics map either fixed spelling to the public constant label
 `SYSTEM_REQUIREMENTS`; arbitrary paths remain redacted.
+
+## Stdio auth tripwire path
+
+After the requirements probe was corrected, the Unix socket was created but
+the Python WebSocket client received EOF before a valid HTTP upgrade. That UDS
+handshake remains unresolved and is not evidence of a working UDS transport.
+The auth tripwire does not require that transport: Codex 0.154 exposes the same
+app-server request processor over native JSONL stdio, and marks stdio as its
+single-client mode.
+
+The fixture now launches the fixed binary with `app-server --listen stdio://`,
+keeps the existing PID/birth/executable checks and sandbox/network boundary,
+and sends only `initialize`, `initialized`, and `account/read` with
+`refreshToken: true`. It accepts only newline-terminated JSON objects up to 1
+MiB, examines at most 32 frames per response, and requires the initialize
+`userAgent` to identify `codex_cli_rs/0.154.0`. Closing stdin is the lifecycle
+signal; a bounded wait verifies shutdown before the existing identity-checked
+TERM/KILL fallback.
+
+Stdout is consumed only in memory for the two protocol responses and is never
+printed. Any remaining stdout and all stderr are bounded and drained before a
+stable diagnostic is raised. No model-turn method is sent. The previously
+proven fixed binary SHA replaces the redundant per-fixture `--version` launch.
