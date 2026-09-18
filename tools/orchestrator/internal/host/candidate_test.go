@@ -8,6 +8,7 @@ import (
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitopsworker"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -43,6 +44,15 @@ func TestCandidateReviewDirectoryUsesTheMaterializedAbsolutePath(t *testing.T) {
 	want := candidateDirectory("/private/reviews/candidate", grant, true)
 	if directory != want {
 		t.Fatalf("review directory=%q want=%q", directory, want)
+	}
+}
+
+func TestCandidateReviewReadInstructionIsProviderSpecific(t *testing.T) {
+	if got := candidateReviewReadInstruction(adapter.ProviderAGY); got != "Begin with view_file on the relevant absolute paths under that directory" {
+		t.Fatalf("AGY instruction=%q", got)
+	}
+	if got := candidateReviewReadInstruction(adapter.ProviderClaude); strings.Contains(got, "view_file") || !strings.Contains(got, "read-only tools") {
+		t.Fatalf("Claude instruction=%q", got)
 	}
 }
 
