@@ -1,0 +1,40 @@
+name: Build release artifacts
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Package version (for example 0.2.0-preview.3)
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version: '1.26.x'
+          cache-dependency-path: tools/orchestrator/go.sum
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.14'
+      - name: Test release and native installer behavior
+        run: python3 -m unittest discover -s tasks/native-rollout/tests
+      - name: Build versioned macOS ARM64 archive
+        env:
+          BIRD_RELEASE_VERSION: ${{ inputs.version }}
+        run: ./scripts/build-release.sh "$BIRD_RELEASE_VERSION" ./dist/release
+      - name: Upload artifacts for review (does not publish a release)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: agent-bird-macos-arm64
+          path: |
+            dist/release/*.tar.gz
+            dist/release/SHA256SUMS
+            dist/release/agent-bird.rb
+          if-no-files-found: error

@@ -17,7 +17,39 @@
 
 `install.command` 通过 Codex 官方 plugin/marketplace 命令注册生成的本地目录。安装后保留来源目录，并新开 Codex 会话加载 Skill。首次实际使用会将运行时安装到系统用户数据目录中的独立版本目录。
 
-当前仓库没有对应的新预编译 Release，不要把源码压缩包当成已构建的安装包。没有提供 Homebrew formula。
+当前仓库尚未发布这一版预编译 Release，不要把源码压缩包当成已构建的安装包。
+
+## 四种 CLI 的统一安装包（预览）
+
+维护者可以一次构建 macOS Apple Silicon 安装包：
+
+```sh
+./scripts/build-release.sh 0.2.0-preview.3 ./dist/release-preview3
+```
+
+输出包含 `agent-bird` 目录、压缩包、`SHA256SUMS` 和固定下载摘要的
+`agent-bird.rb`。用户解压后，在该目录运行：
+
+```sh
+./agent-bird install codex   # 也可选 claude、grok、agy
+```
+
+安装器先检查对应 CLI 和包内容，将运行文件保留在用户数据目录，再调用该
+CLI 的原生插件安装命令。它不启用自动信任或跳过权限确认。同名 Marketplace
+指向其他来源时会停止，保留原安装；旧版本的来源迁移尚未实现，不能用删除
+状态或新建重复 Marketplace 绕过。
+
+安装 Claude、Grok 或 AGY 插件后，当前可靠的主脑归属入口仍是：
+
+```sh
+./agent-bird start claude    # 也可选 grok、agy
+```
+
+直接从普通原生会话或 `/clear` 后自动绑定新的安全归属尚未完成。
+
+目前只验证了离线打包和安装命令契约，未完成四种 CLI 的真实安装验收。
+生成的 Homebrew formula 是待发布工件，下载地址只有对应 Release 发布后才可用；
+尚未提供可直接使用的 Brew tap。
 
 ## 非 Codex 主脑
 

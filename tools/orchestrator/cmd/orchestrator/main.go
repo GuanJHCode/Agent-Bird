@@ -62,6 +62,8 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return taskEntry(ctx, args[1:], stdout)
 	case "preflight":
 		return preflight(args[1:], stdout)
+	case "marketplace-check":
+		return marketplaceCheck(ctx, args[1:], stdout)
 	case "plugin-run":
 		return pluginRun(ctx, args[1:], stdout)
 	case "owner-bind":
@@ -346,9 +348,7 @@ func submitWithPreparedControl(ctx context.Context, args []string, stdout io.Wri
 			if os.Getenv("ORCHESTRATOR_ENABLE_TEST_FAKE") == "1" && pinErr.Error() == "running_package_invalid" {
 				continue
 			}
-			for _, taskID := range pinned {
-				_ = install.UnpinRunningVersion(executable, taskID)
-			}
+			for _, taskID := range pinned { _ = install.UnpinRunningVersion(executable, taskID) }
 			_ = os.Remove(controlPath)
 			_ = os.Remove(bootstrapPath)
 			return pinErr
@@ -368,9 +368,7 @@ func submitWithPreparedControl(ctx context.Context, args []string, stdout io.Wri
 	if err != nil {
 		var rejected remoteError
 		if errors.As(err, &rejected) {
-			for _, taskID := range pinned {
-				_ = install.UnpinRunningVersion(executable, taskID)
-			}
+			for _, taskID := range pinned { _ = install.UnpinRunningVersion(executable, taskID) }
 			_ = os.Remove(controlPath)
 			_ = os.Remove(bootstrapPath)
 			return err
