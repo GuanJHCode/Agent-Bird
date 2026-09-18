@@ -22,3 +22,37 @@
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 replay_pid*
+
+# Local builds, caches and private orchestration state
+/dist/
+/build/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage*
+.DS_Store
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.db
+*.db-*
+*.sqlite*
+**/data/
+**/tmp/
+**/logs/
+**/node_modules/
+**/bin/codex-orchestrator
+*.test
+*.out
+# Project source fixtures live in testdata, not runtime data directories.
+.codex/
+.claude/
+.grok/
+.agy/
+.ssh/
+.aws/

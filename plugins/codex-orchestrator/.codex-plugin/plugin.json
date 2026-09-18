@@ -1,0 +1,18 @@
+{
+  "name": "codex-orchestrator",
+  "version": "0.1.0",
+  "description": "Project-local Codex orchestration controls with owner-bound task delivery",
+  "author": {
+    "name": "Local developer"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Codex Orchestrator",
+    "shortDescription": "Project-local orchestration controls.",
+    "longDescription": "Submits and controls local orchestration tasks through an owner-bound CLI. Recovery remains explicit and session startup is silent.",
+    "developerName": "Local developer",
+    "category": "Productivity",
+    "capabilities": [],
+    "defaultPrompt": "Inspect an owner-bound local orchestrator task."
+  }
+}

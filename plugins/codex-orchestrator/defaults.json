@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "write_workspace": "isolated-worktree",
+  "allow_shared_write": false,
+  "provider_scope": "codex-session",
+  "model": "cli-default"
+}

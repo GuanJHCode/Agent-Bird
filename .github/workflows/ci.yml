@@ -1,0 +1,79 @@
+name: orchestrator
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  macos:
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version: '1.26.x'
+          cache-dependency-path: tools/orchestrator/go.sum
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.14'
+      - name: Pin CI interpreter permissions
+        run: |
+          python - <<'PY'
+          import pathlib, stat, subprocess, sys
+          interpreter = pathlib.Path(sys.executable).resolve(strict=True)
+          mode = stat.S_IMODE(interpreter.stat().st_mode)
+          print(f"CI interpreter: {interpreter}, mode before: {mode:o}")
+          # Hosted toolcache permissions must satisfy the production pin policy.
+          try:
+              interpreter.chmod(mode & ~0o022)
+          except PermissionError:
+              # macOS framework executables can be owned by root on hosted runners.
+              subprocess.run(["sudo", "-n", "chmod", "go-w", str(interpreter)], check=True)
+          print(f"CI interpreter mode after: {stat.S_IMODE(interpreter.stat().st_mode):o}")
+          PY
+      - name: Remove hosted-image LFS filters from the test environment
+        run: |
+          # The macOS image installs LFS globally and system-wide. Candidate
+          # tests deliberately reject all execution extensions. Normalize only
+          # this disposable runner; keep production checks and negative tests.
+          python - <<'PYCODE'
+          import subprocess
+          def keys(scope=None):
+              args = ["/usr/bin/git", "config"] + (["--" + scope] if scope else [])
+              result = subprocess.run(args + ["--name-only", "--get-regexp", r"^filter\.lfs\."], capture_output=True, text=True)
+              if result.returncode not in (0, 1):
+                  raise SystemExit("Unable to inspect Git LFS configuration")
+              print(scope or "effective", result.stdout.strip() or "no LFS filters")
+              return result.returncode == 0
+          for scope in ("global", "system"):
+              if keys(scope):
+                  command = ["/usr/bin/git", "config", "--" + scope, "--remove-section", "filter.lfs"]
+                  subprocess.run((["sudo", "-n"] if scope == "system" else []) + command, check=True)
+          if keys():
+              raise SystemExit("Unexpected LFS configuration remains; refusing to mask it")
+          PYCODE
+      - name: Go build, tests, race and vet
+        working-directory: tools/orchestrator
+        run: |
+          go build ./...
+          go test -count=1 ./...
+          go test -race -count=1 ./...
+          go vet ./...
+      - name: Independent probe modules
+        run: |
+          (cd tools/g0-probe && go test -count=1 ./...)
+          (cd tools/g0-return-lab && go test -count=1 ./...)
+      - name: Python runtime, bridge and package contracts
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: |
+          python -m pip install 'pytest==9.1.1' 'PyYAML==6.0.3'
+          python -m pytest -p no:cacheprovider tools/native-product-bridge tools/real-user-trial tasks/brain-control-hardening/scripts/test_package_skills.py tasks/provider-runtime-completion/scripts/test_runtime_layout.py tasks/mvp-simple-install/scripts/test_package.py -q -rs
+          export G4_TEST_PYTHON="$(python -c 'import pathlib,sys; print(pathlib.Path(sys.executable).resolve())')"
+          sh tasks/g1-g4-delivery/scripts/test-package-executable-modes.sh
+      - name: Patch hygiene
+        run: git diff --check
