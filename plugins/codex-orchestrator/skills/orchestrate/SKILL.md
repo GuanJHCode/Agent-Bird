@@ -1,9 +1,54 @@
 ---
 name: orchestrate
-description: Submit, inspect, collect, acknowledge, explicitly resume, or stop local orchestration tasks through the installed owner-bound codex-orchestrator CLI. Use when the user asks the current controller to enable/disable Claude, AGY, or Grok delegation, configure worker models, delegate implementation or review, or coordinate local subtasks.
+description: Submit, inspect, collect, acknowledge, explicitly resume, or stop local orchestration tasks through the installed owner-bound codex-orchestrator CLI. Use for suitable independent implementation, analysis or review when the native controller rules allow collaboration, and for explicit Claude/AGY/Grok provider controls or model settings.
 ---
 
 # Local orchestration
+
+## Ordinary-task collaboration
+
+This entry is available during ordinary tasks, explicit commands, plans and goals;
+no special goal mode is required. Native controller instructions remain binding.
+If no verified owner is available, keep work in the main CLI and report that Bird
+delegation is unavailable; do not create another controller to impersonate this
+session or bypass its limits.
+Use the main controller itself for tightly coupled work. Consider native subagents
+when their actual tools satisfy isolation and lifecycle requirements; consider
+Bird for independently verifiable work or to preserve the primary CLI quota.
+Do not add another routing model. Worker recursion remains forbidden.
+
+Read `routing status` through this plugin wrapper and consult `provider status`.
+`balanced` weighs task fit and handoff cost; `save-primary` prefers suitable enabled
+external providers in the configured order; `manual` requires an explicit request
+for delegation. These are decision preferences, not execution authorization or
+quota measurements. Do not infer remaining provider quota. Native subagents and
+Bird remain serial because their shared lifecycle and concurrent limits have not
+been verified. Bird's existing runtime concurrency guard still applies.
+
+Only change preferences when asked, using `routing set` with the documented private
+request containing `version:1`, `mode`, ordered nonempty `preferred_providers`
+(array of unique claude/grok/agy names), and `native_parallel:false`. Preferences never enable providers, change permission/model configuration,
+reset task budgets or override explicit provider choices. Never silently switch
+provider after a rejected or uncertain launch.
+
+For one independent task, prefer `task dispatch --request <private-json>` over
+assembling a low-level plan. The version-1 JSON contains stable `request_id`,
+explicit `provider`, confirmed `provider_lock`, `directory`, `prompt`, `role`
+(`reviewer` or `implementer`), `acceptance` array, authorized `max_attempts` and
+`max_active_ms`, optional `model`, and explicit `grok_session_write` for Grok.
+Implementation also requires exact repository-relative `paths`; the source must
+be a clean repository root. Dispatch allocates the isolated candidate and handle.
+Preserve dirty inputs using the authorized snapshot workflow below.
+
+Keep the same request ID and body when command output is lost. An identical
+request returns the same handle; changed content is a conflict, not new work.
+Use `task reconcile --handle <handle>` for an uncertain receipt. It only queries
+the original coordinator; missing evidence or an offline coordinator is a blocker,
+not permission to redispatch. Legacy unresolved handles are not guessed.
+Use `task wait --handle <handle> --timeout-ms 30000` for bounded event waits;
+for a multi-task handle also supply `--task-id`. A wait timeout is not a failure.
+Continue to collect, acknowledge and explicitly accept through the existing
+protocol below; no result receipt constitutes business acceptance.
 
 ## Current controller, provider worker
 

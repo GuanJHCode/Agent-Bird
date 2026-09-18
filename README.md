@@ -39,7 +39,7 @@ cd Agent-Bird
 
 在该 CLI 中让主脑读取 `AGENT_BIRD_SKILL` 指向的说明，再提出委派需求。
 此入口按启动进程隔离委派；同一进程内清空或新建原生对话不会改变归属。
-其他 CLI 的插件自动加载尚未接入，不会修改其配置。
+四家薄插件的生成入口见 [轻量协作](docs/lightweight-collaboration.md)。生成包内置运行时；其他 CLI 的真实安装与自动 Skill 发现仍待原生验收，不会修改其权限配置。
 
 [使用说明](docs/quick-start.md) · [安装与卸载](docs/installation.md) · [开发与验证](docs/development.md)
 
