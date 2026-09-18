@@ -58,7 +58,7 @@ func TestTaskHandleCollectAndDecisionKeepOriginalRun(t *testing.T) {
 	owner["run_id"] = "local"
 	owner["plan_revision"] = 1
 	owner["delivery_mode"] = "collect"
-	owner["tasks"] = []any{map[string]any{"id": "task", "max_attempts": 1, "adapter": map[string]any{"kind": "fake", "args": []string{"/bin/sh", "-c", "printf result"}, "directory": root}}}
+	owner["tasks"] = []any{map[string]any{"id": "task", "max_attempts": 1, "adapter": map[string]any{"kind": "fake", "args": []string{"/bin/sh", "-c", "printf x >> launch-count; printf result"}, "directory": root}}}
 	write(owner)
 	var submitted struct {
 		ControlFile string `json:"control_file"`
@@ -80,6 +80,36 @@ func TestTaskHandleCollectAndDecisionKeepOriginalRun(t *testing.T) {
 		}
 		time.Sleep(30 * time.Millisecond)
 	}
+	// Lost final submission output must be recoverable from the original
+	// capability route, without another provider launch or business acceptance.
+	if err = replacePrivateJSON(handle, taskHandle{Version: 1, RunID: "local", StateDir: state, ControlFile: submitted.ControlFile, TaskIDs: []string{"task"}, Status: "submitting"}); err != nil {
+		t.Fatal(err)
+	}
+	var reconciled struct {
+		RunID string `json:"run_id"`
+	}
+	if err = json.Unmarshal(runBinary(t, ctx, bin, "task", "reconcile", "--handle", handle), &reconciled); err != nil || reconciled.RunID != "local" {
+		t.Fatalf("reconcile: %+v %v", reconciled, err)
+	}
+	var restored taskHandle
+	if err = readPrivateJSON(handle, &restored); err != nil || restored.ControlFile != submitted.ControlFile || restored.Status != "reconciled" {
+		t.Fatalf("lost original route: %+v %v", restored, err)
+	}
+	if count, err := os.ReadFile(filepath.Join(root, "launch-count")); err != nil || string(count) != "x" {
+		t.Fatalf("reconcile repeated launch: %q %v", count, err)
+	}
+	// Waiting delivers the original event without launching or acknowledging it.
+	var waited struct {
+		Status                string           `json:"status"`
+		CollectionProofSHA256 string           `json:"collection_proof_sha256"`
+		Events                []contract.Event `json:"events"`
+	}
+	if err = json.Unmarshal(runBinary(t, ctx, bin, "task", "wait", "--handle", handle, "--timeout-ms", "100"), &waited); err != nil {
+		t.Fatal(err)
+	}
+	if waited.Status != "events" || len(waited.Events) != 1 || waited.CollectionProofSHA256 == "" {
+		t.Fatalf("wait lost pending event or proof: %+v", waited)
+	}
 	var collection struct {
 		DeliveryID            string           `json:"delivery_id"`
 		CollectionProofSHA256 string           `json:"collection_proof_sha256"`
@@ -98,6 +128,9 @@ func TestTaskHandleCollectAndDecisionKeepOriginalRun(t *testing.T) {
 			"event_hash": event.PayloadHash, "action_slot": event.ActionSlot, "decision": "handled", "command_id": "ack-result"}}})
 	for i := 0; i < 2; i++ {
 		runBinary(t, ctx, bin, "task", "ack", "--handle", handle, "--request", path)
+	}
+	if err = json.Unmarshal(runBinary(t, ctx, bin, "task", "wait", "--handle", handle, "--timeout-ms", "25"), &waited); err != nil || waited.Status != "timeout" || len(waited.Events) != 0 {
+		t.Fatalf("acked result redelivered or wait failed: %+v %v", waited, err)
 	}
 	if snapshot := taskStatus(t, ctx, bin, state, "task", submitted.ControlFile); snapshot.Status != "result_ready" {
 		t.Fatalf("delivery ACK accepted business result: %+v", snapshot)

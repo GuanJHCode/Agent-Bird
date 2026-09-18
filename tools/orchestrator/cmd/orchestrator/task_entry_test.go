@@ -2,10 +2,10 @@ package main
 
 import (
 	"bytes"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
 	"os"
 	"path/filepath"
 	"testing"
@@ -77,7 +77,7 @@ func TestTaskHandleScopeRejectsForeignTaskBeforeReadingControl(t *testing.T) {
 	if err = writeExclusiveJSON(path, h); err != nil {
 		t.Fatal(err)
 	}
-	for _, action := range []string{"inspect", "collect"} {
+	for _, action := range []string{"inspect", "collect", "wait"} {
 		err = run(context.Background(), []string{"task", action, "--handle", path, "--task-id", "foreign"}, &bytes.Buffer{}, &bytes.Buffer{})
 		if err == nil || err.Error() != "task_handle_scope_mismatch" {
 			t.Fatalf("%s: %v", action, err)

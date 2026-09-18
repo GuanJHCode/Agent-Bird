@@ -264,6 +264,11 @@ func serve(parent context.Context, args []string, stderr io.Writer) error {
 }
 
 func submit(ctx context.Context, args []string, stdout io.Writer) error {
+	return submitWithPreparedControl(ctx, args, stdout, nil)
+}
+
+// Persist the high-level recovery route before any submission can reach the coordinator.
+func submitWithPreparedControl(ctx context.Context, args []string, stdout io.Writer, onPrepared func(string) error) error {
 	fs := flag.NewFlagSet("submit", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	stateArg := fs.String("state-dir", "", "private state directory")
@@ -347,6 +352,14 @@ func submit(ctx context.Context, args []string, stdout io.Writer) error {
 			return pinErr
 		}
 		pinned = append(pinned, task.ID)
+	}
+	if onPrepared != nil {
+		if err = onPrepared(controlPath); err != nil {
+			for _, taskID := range pinned { _ = install.UnpinRunningVersion(executable, taskID) }
+			_ = os.Remove(controlPath)
+			_ = os.Remove(bootstrapPath)
+			return err
+		}
 	}
 	request.LaunchID, request.LaunchToken, request.ControlToken = launchID, launchToken, controlToken
 	response, err := call(ctx, state, ipc.KindSubmit, request)

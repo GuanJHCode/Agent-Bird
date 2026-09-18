@@ -210,7 +210,17 @@ exit 1
 		t.Fatal(err)
 	}
 	for _, attempt := range []string{"first", "retry"} {
-		grant := contract.LaunchCommand{CommandID: attempt, ReservationID: attempt, RunID: "coding", TaskID: "implement", AttemptID: attempt, SegmentID: attempt, WorkRevision: 1, PlanRevision: 1, GrantedActiveMS: 5000}
+		grant := contract.LaunchCommand{CommandID: attempt, ReservationID: attempt, RunID: "coding-" + hashBytes([]byte(root))[:16], TaskID: "implement", AttemptID: attempt, SegmentID: attempt, WorkRevision: 1, PlanRevision: 1, GrantedActiveMS: 5000}
+		socket := filepath.Join("/private/tmp", "codex-grok-"+grokSessionID(grant))
+		if _, err := os.Lstat(socket); !os.IsNotExist(err) {
+			t.Fatalf("fixture socket already exists: %v", err)
+		}
+		t.Cleanup(func() {
+			// The synthetic CLI creates no socket children. Remove only this test's empty directory.
+			if err := os.Remove(socket); err != nil && !os.IsNotExist(err) {
+				t.Errorf("fixture socket cleanup: %v", err)
+			}
+		})
 		result, err := h.ExecuteLaunch(context.Background(), grant, reportInvocation{base: inv})
 		if err != nil || result.Status != "failed" || result.ExitCode != 1 {
 			t.Fatalf("%s: %+v %v", attempt, result, err)
