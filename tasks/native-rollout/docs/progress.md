@@ -214,3 +214,13 @@ Final installed-runtime check exposed an additional compatibility gap:
   use; required external semantic context instead requires model rejection.
   Installed preview.4 retains equivalent runtime behavior; its immutable package
   was not overwritten for this wording-only clarification.
+
+- One-shot upgrade operation prepared in private task tmp with explicit client
+  quiescence prerequisite, exact old/new binary hashes and kernel process identity,
+  readonly lifecycle checks, absent Host identities, consistent private SQLite
+  backup, graceful SIGTERM only (no forced stop), same-state new start and complete
+  before/after business-table hashes excluding only epoch/update timestamps.
+- Native old/new binary isolated no-model rehearsal passed: epoch 1 -> 2,
+  isolated_provider_coding_v1 present, 38 table digests preserved. First rehearsal
+  used an overlong Unix socket path and failed before server ready; retried only
+  that local no-model fixture in a short private path. Real state remains untouched.
