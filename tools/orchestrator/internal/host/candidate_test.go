@@ -34,6 +34,18 @@ func TestCandidateReviewUsesItsOwnProviderLock(t *testing.T) {
 	}
 }
 
+func TestCandidateReviewDirectoryUsesTheMaterializedAbsolutePath(t *testing.T) {
+	grant := contract.LaunchCommand{RunID: "run", TaskID: "review", AttemptID: "attempt", SegmentID: "segment", AdapterPayload: []byte(`{"directory":"/private/reviews/candidate","candidate_action":{"version":1,"operation":"review","auto_directory":true}}`)}
+	directory, err := candidateReviewDirectory(grant)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := candidateDirectory("/private/reviews/candidate", grant, true)
+	if directory != want {
+		t.Fatalf("review directory=%q want=%q", directory, want)
+	}
+}
+
 func TestDecodeCandidateReviewRejectsAnythingButOneStrictSchemaValue(t *testing.T) {
 	valid := `{"decision":"approve","summary":"reviewed"}`
 	decision, err := decodeCandidateReview(valid)

@@ -279,13 +279,17 @@ func parseAGY(object map[string]json.RawMessage) (Event, error) {
 		if status == "SUCCESS" || status == "WAITING" {
 			text, err = stringNestedField(value, "response")
 		}
+		structured, structuredErr := objectFieldOptional(value, "structured_output")
+		if structuredErr != nil {
+			return Event{}, structuredErr
+		}
 		kind := EventResult
 		if status == "WAITING" {
 			kind = EventQuestion
 		}
-		// AGY documents --json-schema as constraining the final result response
-		// for stream-json. Keep that terminal field distinct from progress text.
-		return Event{Kind: kind, SessionID: session, Status: status, Text: text, StructuredText: text}, err
+		// AGY's response is aggregate commentary. Only its final object envelope
+		// is authoritative for a native schema-constrained candidate review.
+		return Event{Kind: kind, SessionID: session, Status: status, Text: text, StructuredText: structured}, err
 	default:
 		return Event{Kind: EventUnknown}, nil
 	}
@@ -376,4 +380,16 @@ func stringFieldEitherOptional(object map[string]json.RawMessage, first, second 
 		return stringFieldOptional(object, second)
 	}
 	return "", nil
+}
+
+func objectFieldOptional(object map[string]json.RawMessage, name string) (string, error) {
+	value, ok := object[name]
+	if !ok {
+		return "", nil
+	}
+	var nested map[string]json.RawMessage
+	if err := json.Unmarshal(value, &nested); err != nil || nested == nil {
+		return "", fmt.Errorf("event_%s_invalid", name)
+	}
+	return string(value), nil
 }
