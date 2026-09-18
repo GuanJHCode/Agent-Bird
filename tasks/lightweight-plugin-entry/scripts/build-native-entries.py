@@ -14,10 +14,10 @@ def write_json(path, value):
     path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
 
 
-def skill(provider):
+def skill(provider, native_codex=False):
     owner = (
         "This entry can use the calling native Codex session."
-        if provider == "codex-orchestrator"
+        if native_codex
         else f"Start only through `agent-bird controller start --provider {provider}`. "
              "That launcher creates the verified managed process scope."
     )
@@ -42,12 +42,14 @@ Prefer `task`, `provider`, `routing`, and the documented controller launcher thr
 """
 
 
-def package(output, provider, manifest_path, manifest, runtime):
+def package(output, provider, manifest_path, manifest, runtime, native_codex=None):
     root = output / provider
     write_json(root / manifest_path, manifest)
     skill_path = root / "skills/agent-bird/SKILL.md"
     skill_path.parent.mkdir(parents=True, exist_ok=True)
-    skill_path.write_text(skill(provider), encoding="utf-8")
+    if native_codex is None:
+        native_codex = provider == "codex-orchestrator"
+    skill_path.write_text(skill(provider, native_codex), encoding="utf-8")
     reference = root / "skills/agent-bird/references/protocol.md"
     reference.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(runtime / "plugins/codex-orchestrator/skills/orchestrate/SKILL.md", reference)

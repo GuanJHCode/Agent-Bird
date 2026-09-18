@@ -3,13 +3,63 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"testing"
+	"time"
 )
 
 type recordedRPC struct {
 	calls           []rpcCall
 	writeStatus     string
 	finalOverridden bool
+}
+
+func TestAppServerCloseKillsChildThatInheritedStdout(t *testing.T) {
+	dir := t.TempDir()
+	child := filepath.Join(dir, "child")
+	old := appServerCommand
+	defer func() { appServerCommand = old }()
+	appServerCommand = func(context.Context) *exec.Cmd {
+		return exec.Command("/bin/sh", "-c", "read x; echo '{\"id\":1,\"result\":{\"codexHome\":\"/private/test\"}}'; read x; (echo $$ > '"+child+"'; sleep 30) & exit 0")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	_, closeRPC, err := startCodexAppServer(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := closeRPC(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(child); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestAppServerContextCancellationStopsProcessGroup(t *testing.T) {
+	old := appServerCommand
+	defer func() { appServerCommand = old }()
+	appServerCommand = func(context.Context) *exec.Cmd {
+		return exec.Command("/bin/sh", "-c", "read x; echo '{\"id\":1,\"result\":{\"codexHome\":\"/private/test\"}}'; read x; sleep 30")
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	_, closeRPC, err := startCodexAppServer(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cancel()
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		if err := closeRPC(); err != nil {
+			t.Fatal(err)
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("app server did not stop")
+		}
+		return
+	}
 }
 
 type rpcCall struct {

@@ -51,7 +51,7 @@ def build(binary, version, output):
             manifest = json.loads((ROOT / 'plugins/codex-orchestrator/.codex-plugin/plugin.json').read_text())
             manifest['name'] = 'agent-bird'
             manifest['version'] = version
-        entries.package(package / 'plugins', provider, path, manifest, portable)
+        entries.package(package / 'plugins', provider, path, manifest, portable, native_codex=(provider == 'agent-bird'))
     write(package / '.agents/plugins/marketplace.json', json.dumps({
         'name': 'agent-bird', 'interface': {'displayName': 'Agent Bird'},
         'plugins': [{'name': 'agent-bird', 'source': {'source': 'local', 'path': './plugins/agent-bird'},

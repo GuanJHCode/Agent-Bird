@@ -53,6 +53,10 @@ class NativeEntriesTest(unittest.TestCase):
                     metadata = json.loads((package / manifest).read_text())
                     self.assertIsInstance(metadata['author'], dict)
                     self.assertIsInstance(metadata['interface'], dict)
+                    self.assertIn('calling native Codex session', skill)
+                    self.assertNotIn('--provider codex-orchestrator', skill)
+                else:
+                    self.assertIn(f'--provider {provider}', skill)
                 self.assertNotIn('--provider codex-orchestrator', skill)
 
     def test_rejects_tampered_or_symlink_runtime_before_output(self):

@@ -48,6 +48,9 @@ class ReleaseTest(unittest.TestCase):
             self.assertEqual(marketplace['plugins'][0]['source']['path'], './plugins/agent-bird')
             manifest = json.loads((package / 'plugins/agent-bird/.codex-plugin/plugin.json').read_text())
             self.assertEqual(manifest['name'], 'agent-bird')
+            skill = (package / 'plugins/agent-bird/skills/agent-bird/SKILL.md').read_text()
+            self.assertIn('calling native Codex session', skill)
+            self.assertNotIn('--provider agent-bird', skill)
 
     def test_existing_output_is_preserved(self):
         with tempfile.TemporaryDirectory() as temp:
