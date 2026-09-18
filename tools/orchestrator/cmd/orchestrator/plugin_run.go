@@ -23,9 +23,7 @@ func pluginRun(ctx context.Context, args []string, out io.Writer) error {
 		return codeError("invalid_args")
 	}
 	action := fs.Arg(0)
-	switch action {
-	case "provider", "check", "runtime-status", "preflight", "task", "owner-bind", "controller", "provider-probe", "provider-lock", "ensure-running", "submit", "status", "summary", "collect", "wait-events", "ack", "accept", "answer", "retry", "rework", "resume", "stop", "rebind-owner", "recover-host":
-	default:
+	if !pluginActionAllowed(action) {
 		return codeError("portable_action_unsupported")
 	}
 	if runtime.GOOS != "darwin" {
@@ -55,4 +53,13 @@ func pluginRun(ctx context.Context, args []string, out io.Writer) error {
 	// Replace the transient plugin-cache process. The durable runtime is outside
 	// Codex's cache and keeps the existing installed-version pin lifecycle.
 	return syscall.Exec(binary, append([]string{binary}, fs.Args()...), os.Environ())
+}
+
+func pluginActionAllowed(action string) bool {
+	switch action {
+	case "provider", "check", "runtime-status", "preflight", "task", "routing", "owner-bind", "controller", "provider-probe", "provider-lock", "ensure-running", "submit", "status", "summary", "collect", "wait-events", "ack", "accept", "answer", "retry", "rework", "resume", "stop", "rebind-owner", "recover-host":
+		return true
+	default:
+		return false
+	}
 }

@@ -54,6 +54,8 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 	switch args[0] {
 	case "runtime-status":
 		return runtimeStatus(ctx, args[1:], stdout)
+	case "routing":
+		return routingEntry(ctx, args[1:], stdout)
 	case "provider":
 		return providerSettingsEntry(ctx, args[1:], stdout)
 	case "task":
