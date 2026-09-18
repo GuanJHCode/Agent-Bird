@@ -224,3 +224,30 @@ Final installed-runtime check exposed an additional compatibility gap:
   isolated_provider_coding_v1 present, 38 table digests preserved. First rehearsal
   used an overlong Unix socket path and failed before server ready; retried only
   that local no-model fixture in a short private path. Real state remains untouched.
+
+Controlled default coordinator upgrade completed (2026-09-18):
+- User confirmed other Codex/Claude/Grok/AGY sessions would not operate Bird
+  during maintenance. This resolves the old admission-fence prerequisite.
+- Rechecked pinned old/new binaries, old PID/birth/kernel executable, absence of
+  all recorded Host PIDs, and zero active/unknown/queued/pending runtime work.
+  Created a consistent owner-only SQLite backup before any stop.
+- Old default coordinator exited through SIGTERM; no force, model call, automatic
+  retry, Host recovery, task cancellation or quota reset. New pinned preview.4
+  coordinator started against the same state directory and schema 8 database.
+- Ready epoch advanced 9 -> 10 and now includes isolated_provider_coding_v1.
+  All 38 table row counts and normalized content digests match before/after;
+  normalization excludes only coordinator/runtime-host epoch and update times.
+  Existing interrupted task, offline unreleased Host, handles and budgets remain.
+- Six other recorded coordinators retain process identities and epochs. Original
+  Codex plugin cache bytes/inode and unrelated parsed config fields still match.
+  Backup mode is 0600. Installed Grok and AGY probes both return supported=true;
+  no claim of a new model acceptance is based on these probes.
+- The previously recorded default-coordinator capability blocker is resolved.
+  Older roadmap limitations and the original interrupted task remain unchanged;
+  they are not new upgrade failures and were not silently resumed or discarded.
+- Independent post-upgrade reliability review PASS: compared backup/current
+  schema SQL, columns and all 38 row multisets; both integrity_check results ok,
+  schema version 8. Seven task/task-runtime/budget-runtime rows remain, with
+  zero budget reservations. Old PID absent; new PID/kernel executable and both
+  binary pins match; all recorded Host PIDs absent. No remaining blocker for
+  this bounded, user-confirmed maintenance operation.
