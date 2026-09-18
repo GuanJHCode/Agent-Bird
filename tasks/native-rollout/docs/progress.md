@@ -121,3 +121,15 @@ Authorized second native acceptance (2026-09-18):
   exited 0 without model use. Claude/AGY/Grok installation is now verified.
 - Codex remains on its original plugin/cache; the proven cache-pruning migration
   hazard has not been bypassed. No remote push or release in this continuation.
+
+Authentication investigation (read-only):
+- Official Grok authentication docs describe auth.json token refresh after 401;
+  current main hub_auth.rs writes refreshed tokens under an auth.json.lock.
+  References: https://github.com/xai-org/grok-build/blob/main/crates/codegen/xai-grok-pager/docs/user-guide/02-authentication.md
+  and https://github.com/xai-org/grok-build/blob/main/crates/codegen/xai-grok-workspace/src/hub_auth.rs
+- The production readonly profile denies writes to those paths. This is a possible
+  explanation for the observed missing-credential/401 loop, not proof of expired
+  credentials or exact behavior of pinned 1.0.34. Auth file existence/0600 and
+  absence of API-key environment variables were checked, not credential values.
+- No supported refresh mechanism preserving the current no-auth-writes constraint
+  was established. Do not relax guards, copy secrets or repeatedly ask for login.
