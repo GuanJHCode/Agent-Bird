@@ -55,7 +55,7 @@ func ValidModelID(value string) bool { return value == "" || modelID.MatchString
 var modelID = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$`)
 
 func validateProfile(req Request) error {
-	if req.Action != nil && req.Action.Operation == "review" && req.Provider != ProviderClaude {
+	if req.Action != nil && req.Action.Operation == "review" && req.Provider != ProviderClaude && req.Provider != ProviderAGY {
 		return errors.New("candidate_review_provider_unsupported")
 	}
 	if req.Lock != nil && (req.Lock.Version != 1 || req.Lock.Provider != req.Provider || req.Lock.Protocol == "" || req.Lock.Protocol != ProtocolID(req.Provider) || req.Lock.Binary != req.Binary) {
@@ -133,9 +133,6 @@ func CheckCapabilities(req Request, help string) error {
 	if req.Provider == ProviderClaude {
 		flags = append(flags, "--disallowed-tools")
 	}
-	if usesCandidateReviewSchema(req) {
-		flags = append(flags, "--json-schema")
-	}
 	if req.Provider == ProviderAGY {
 		flags = []string{"--output-format", "--input-format", "--mode"}
 	}
@@ -147,6 +144,9 @@ func CheckCapabilities(req Request, help string) error {
 	}
 	if req.Provider == ProviderCodex {
 		return errors.New("codex_trial_guard_not_ready")
+	}
+	if usesCandidateReviewSchema(req) {
+		flags = append(flags, "--json-schema")
 	}
 	if req.Profile.Model != "" {
 		flags = append(flags, "--model")

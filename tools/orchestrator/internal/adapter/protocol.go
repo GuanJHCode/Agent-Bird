@@ -283,7 +283,9 @@ func parseAGY(object map[string]json.RawMessage) (Event, error) {
 		if status == "WAITING" {
 			kind = EventQuestion
 		}
-		return Event{Kind: kind, SessionID: session, Status: status, Text: text}, err
+		// AGY documents --json-schema as constraining the final result response
+		// for stream-json. Keep that terminal field distinct from progress text.
+		return Event{Kind: kind, SessionID: session, Status: status, Text: text, StructuredText: text}, err
 	default:
 		return Event{Kind: EventUnknown}, nil
 	}

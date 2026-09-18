@@ -1,20 +1,57 @@
 package host
 
 import (
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitopsworker"
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitopsworker"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
 )
+
+func TestCandidateReviewProviderLockRequiresSameSupportedProvider(t *testing.T) {
+	lock := &adapter.ProviderLock{Version: 1, Provider: adapter.ProviderAGY, Protocol: adapter.ProtocolID(adapter.ProviderAGY), Binary: adapter.BinaryPin{Path: "/private/bin/agy", Version: "1.2.5", SHA256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}
+	if err := validateCandidateReviewProvider(lock, string(adapter.ProviderAGY)); err != nil {
+		t.Fatalf("matching AGY lock rejected: %v", err)
+	}
+	for _, provider := range []string{string(adapter.ProviderClaude), string(adapter.ProviderGrok), ""} {
+		if err := validateCandidateReviewProvider(lock, provider); err == nil || err.Error() != "candidate_review_provider_mismatch" {
+			t.Fatalf("provider %q accepted against AGY lock: %v", provider, err)
+		}
+	}
+	lock.Provider = adapter.ProviderGrok
+	lock.Protocol = adapter.ProtocolID(adapter.ProviderGrok)
+	if err := validateCandidateReviewProvider(lock, string(adapter.ProviderGrok)); err == nil || err.Error() != "candidate_review_provider_unsupported" {
+		t.Fatalf("unverified Grok review lock accepted: %v", err)
+	}
+}
+
+func TestDecodeCandidateReviewRejectsAnythingButOneStrictSchemaValue(t *testing.T) {
+	valid := `{"decision":"approve","summary":"reviewed"}`
+	decision, err := decodeCandidateReview(valid)
+	if err != nil || decision.Decision != "approve" || decision.Summary != "reviewed" {
+		t.Fatalf("valid structured review=%+v err=%v", decision, err)
+	}
+	for _, body := range []string{
+		"prose " + valid,
+		`{"decision":"approve"}`,
+		valid + "\n" + valid,
+		`{"decision":"approve","summary":"reviewed","extra":true}`,
+		`{"decision":"approve","summary":""}`,
+	} {
+		if _, err := decodeCandidateReview(body); err == nil || err.Error() != "candidate_review_invalid" {
+			t.Fatalf("accepted non-schema review %q: %v", body, err)
+		}
+	}
+}
 
 func TestCandidateFailureClassifiesActionWithoutErrorText(t *testing.T) {
 	for _, tc := range []struct{ message, code string }{

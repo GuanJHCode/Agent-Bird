@@ -132,7 +132,7 @@ func (h *Host) ExecuteLaunch(ctx context.Context, grant contract.LaunchCommand, 
 	}); ok && value.CandidateAction() != nil {
 		action := value.CandidateAction()
 		meta.integrationAction = action.Operation == "integrate"
-		meta.structuredReview = action.Operation == "review" && meta.outputProvider == string(adapter.ProviderClaude)
+		meta.structuredReview = action.Operation == "review" && (meta.outputProvider == string(adapter.ProviderClaude) || meta.outputProvider == string(adapter.ProviderAGY))
 		meta.prepareAction = func(ctx context.Context) (process.Command, actionFinalizer, func(), error) {
 			return h.prepareCandidateAction(ctx, grant, inv, action, profile)
 		}

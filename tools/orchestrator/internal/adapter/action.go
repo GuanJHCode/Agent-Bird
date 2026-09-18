@@ -31,5 +31,5 @@ func (i Invocation) CandidateAction() *CandidateAction {
 const candidateReviewSchema = `{"type":"object","properties":{"decision":{"type":"string","enum":["approve","reject"]},"summary":{"type":"string","minLength":1,"maxLength":65536}},"required":["decision","summary"],"additionalProperties":false}`
 
 func usesCandidateReviewSchema(req Request) bool {
-	return req.Provider == ProviderClaude && req.Profile != nil && req.Profile.Role == Reviewer && req.Action != nil && req.Action.Version == 1 && req.Action.Operation == "review"
+	return (req.Provider == ProviderClaude || req.Provider == ProviderAGY) && req.Profile != nil && req.Profile.Role == Reviewer && req.Action != nil && req.Action.Version == 1 && req.Action.Operation == "review"
 }

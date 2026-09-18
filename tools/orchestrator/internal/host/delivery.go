@@ -38,6 +38,20 @@ type ReviewEvidence struct {
 	Summary  string `json:"summary"`
 }
 
+// decodeCandidateReview accepts exactly one value from the provider's native
+// structured terminal envelope. The prompt's prose channel is never decoded.
+func decodeCandidateReview(text string) (ReviewEvidence, error) {
+	var decision ReviewEvidence
+	decoder := json.NewDecoder(strings.NewReader(text))
+	decoder.DisallowUnknownFields()
+	err := decoder.Decode(&decision)
+	var trailing any
+	if err != nil || decoder.Decode(&trailing) != io.EOF || (decision.Decision != "approve" && decision.Decision != "reject") || strings.TrimSpace(decision.Summary) == "" || len(decision.Summary) > 64*1024 {
+		return ReviewEvidence{}, errors.New("candidate_review_invalid")
+	}
+	return decision, nil
+}
+
 type CandidateDelivery struct {
 	Version          int                        `json:"version"`
 	Stage            string                     `json:"stage"`
@@ -46,11 +60,22 @@ type CandidateDelivery struct {
 	InputSHA256      string                     `json:"input_sha256"`
 	OwnerDecisionID  string                     `json:"owner_decision_id"`
 	Candidate        gitops.CandidateReceipt    `json:"candidate"`
+	ProviderLock     *adapter.ProviderLock      `json:"provider_lock,omitempty"`
 	Validation       *ValidationEvidence        `json:"validation,omitempty"`
 	ValidationDigest string                     `json:"validation_digest,omitempty"`
 	Review           *ReviewEvidence            `json:"review,omitempty"`
 	Target           gitops.ReviewBinding       `json:"target"`
 	Integration      *gitops.IntegrationOutcome `json:"integration,omitempty"`
+}
+
+func validateCandidateReviewProvider(lock *adapter.ProviderLock, provider string) error {
+	if lock == nil || provider == "" || provider != string(lock.Provider) || lock.Version != 1 || lock.Protocol != adapter.ProtocolID(lock.Provider) || lock.Binary.Path == "" || lock.Binary.Version == "" || len(lock.Binary.SHA256) != 64 {
+		return errors.New("candidate_review_provider_mismatch")
+	}
+	if lock.Provider != adapter.ProviderClaude && lock.Provider != adapter.ProviderAGY {
+		return errors.New("candidate_review_provider_unsupported")
+	}
+	return nil
 }
 
 type actionRejected struct{ body []byte }
@@ -139,25 +164,29 @@ func (h *Host) prepareCandidateAction(ctx context.Context, grant contract.Launch
 		Action    *adapter.CandidateAction    `json:"candidate_action"`
 		Workspace *adapter.CandidateWorkspace `json:"candidate_workspace"`
 		Profile   *adapter.ExecutionProfile   `json:"profile"`
+		Lock      *adapter.ProviderLock       `json:"provider_lock"`
 	}
 	if json.Unmarshal(grant.Input.AdapterPayload, &source) != nil {
 		return empty, nil, noop, errors.New("candidate_source_invalid")
 	}
+	var sourceLock *adapter.ProviderLock
 	switch action.Operation {
 	case "validate":
-		if source.Kind != "" || source.Provider != "claude-code" || source.Profile == nil || source.Profile.Role != adapter.Implementer || source.Workspace == nil || in.Stage != "" || profile != nil || len(action.Command) == 0 || len(action.Command) > 64 {
+		if source.Kind != "" || validateCandidateReviewProvider(source.Lock, source.Provider) != nil || source.Profile == nil || source.Profile.Role != adapter.Implementer || source.Workspace == nil || in.Stage != "" || profile != nil || len(action.Command) == 0 || len(action.Command) > 64 {
 			return empty, nil, noop, errors.New("candidate_validation_source_invalid")
 		}
+		lock := *source.Lock
+		sourceLock = &lock
 	case "review":
 		provider, ok := inv.(interface{ OutputProvider() string })
-		if !ok || provider.OutputProvider() != string(adapter.ProviderClaude) {
+		if !ok || validateCandidateReviewProvider(in.ProviderLock, provider.OutputProvider()) != nil {
 			return empty, nil, noop, errors.New("candidate_review_provider_unsupported")
 		}
 		if source.Kind != "candidate" || source.Action == nil || source.Action.Operation != "validate" || in.Stage != "validate" || in.Validation == nil || !in.Validation.Passed || profile == nil || profile.Role != adapter.Reviewer || profile.Permission != adapter.ReadOnly || len(action.Command) != 0 {
 			return empty, nil, noop, errors.New("candidate_review_source_invalid")
 		}
 	case "integrate":
-		if source.Kind != "" || source.Provider != string(adapter.ProviderClaude) || source.Action == nil || source.Action.Operation != "review" || source.Profile == nil || source.Profile.Role != adapter.Reviewer || source.Profile.Permission != adapter.ReadOnly || in.Stage != "review" || in.Review == nil || in.Review.Decision != "approve" || in.Validation == nil || !in.Validation.Passed || profile != nil || len(action.Command) != 0 || inv.WorkingDirectory() != action.Target.Worktree {
+		if source.Kind != "" || validateCandidateReviewProvider(source.Lock, source.Provider) != nil || !reflect.DeepEqual(source.Lock, in.ProviderLock) || source.Action == nil || source.Action.Operation != "review" || source.Profile == nil || source.Profile.Role != adapter.Reviewer || source.Profile.Permission != adapter.ReadOnly || in.Stage != "review" || in.Review == nil || in.Review.Decision != "approve" || in.Validation == nil || !in.Validation.Passed || profile != nil || len(action.Command) != 0 || inv.WorkingDirectory() != action.Target.Worktree {
 			return empty, nil, noop, errors.New("candidate_integration_source_invalid")
 		}
 	default:
@@ -193,6 +222,9 @@ func (h *Host) prepareCandidateAction(ctx context.Context, grant contract.Launch
 	}
 	ctx = gitops.WithCandidateJournal(ctx, journal)
 	out := in
+	if sourceLock != nil {
+		out.ProviderLock = sourceLock
+	}
 	out.Stage = action.Operation
 	out.Binding = gitops.CandidateBinding{RunID: grant.RunID, TaskID: grant.TaskID, AttemptID: grant.AttemptID, SegmentID: grant.SegmentID, WorkRevision: grant.WorkRevision, PlanRevision: grant.PlanRevision}
 	out.InputEventID = grant.Input.Event.EventID
@@ -261,12 +293,8 @@ func (h *Host) prepareCandidateAction(ctx context.Context, grant contract.Launch
 			out.ValidationDigest = hashBytes(encoded)
 			out.Target.ValidationDigest = out.ValidationDigest
 		case "review":
-			var decision ReviewEvidence
-			decoder := json.NewDecoder(strings.NewReader(text))
-			decoder.DisallowUnknownFields()
-			err := decoder.Decode(&decision)
-			var trailing any
-			if !success || err != nil || decoder.Decode(&trailing) != io.EOF || (decision.Decision != "approve" && decision.Decision != "reject") || strings.TrimSpace(decision.Summary) == "" || len(decision.Summary) > 64*1024 {
+			decision, err := decodeCandidateReview(text)
+			if !success || err != nil {
 				return nil, errors.New("candidate_review_invalid")
 			}
 			out.Review = &decision

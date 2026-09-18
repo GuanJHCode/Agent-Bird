@@ -129,12 +129,30 @@ func TestCandidateReviewRequiresVerifiedStructuredProvider(t *testing.T) {
 	req.Provider = ProviderAGY
 	req.Lock.Provider, req.Lock.Protocol = req.Provider, ProtocolID(req.Provider)
 	req.Action = &CandidateAction{Version: 1, Operation: "review", SourceTask: "validate"}
-	if _, err := BuildInvocation(req); err == nil {
-		t.Fatal("unverified candidate review provider admitted without structured channel")
+	inv, err := BuildInvocation(req)
+	if err != nil {
+		t.Fatalf("AGY candidate review rejected: %v", err)
+	}
+	if !strings.Contains(strings.Join(inv.Args(), " "), "--json-schema") {
+		t.Fatal("AGY candidate review lacks native schema")
+	}
+	if err := CheckCapabilities(req, "--input-format --output-format --mode"); err == nil {
+		t.Fatal("AGY candidate review accepted missing native schema capability")
+	}
+	if err := CheckCapabilities(req, "--input-format --output-format --mode --json-schema"); err != nil {
+		t.Fatalf("AGY candidate review capability rejected: %v", err)
 	}
 	req.Action = nil
 	if _, err := BuildInvocation(req); err != nil {
 		t.Fatalf("ordinary AGY read-only task regressed: %v", err)
+	}
+}
+
+func TestGrokCandidateReviewStaysRejectedUntilStreamingSchemaIsVerified(t *testing.T) {
+	req := grokProfileRequest(t)
+	req.Action = &CandidateAction{Version: 1, Operation: "review", SourceTask: "validate"}
+	if _, err := BuildInvocation(req); err == nil || err.Error() != "candidate_review_provider_unsupported" {
+		t.Fatalf("unverified Grok streaming review admitted: %v", err)
 	}
 }
 

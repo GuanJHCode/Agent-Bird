@@ -201,7 +201,7 @@ func TestParseEventsProjectsOnlyBoundedFields(t *testing.T) {
 		{ProviderClaude, `{"type":"system","subtype":"init","session_id":"claude-1","cwd":"PRIVATE","secret":"DROP"}`, Event{Kind: EventInit, SessionID: "claude-1"}},
 		{ProviderClaude, `{"type":"result","subtype":"success","session_id":"claude-1","result":"done","usage":{"input_tokens":7}}`, Event{Kind: EventResult, SessionID: "claude-1", Status: "success", Text: "done"}},
 		{ProviderAGY, `{"event":"init","conversation_id":"agy-1","init":{"cwd":"PRIVATE","tools":["read"]}}`, Event{Kind: EventInit, SessionID: "agy-1"}},
-		{ProviderAGY, `{"event":"result","result":{"conversation_id":"agy-1","status":"SUCCESS","response":"done","secret":"DROP"}}`, Event{Kind: EventResult, SessionID: "agy-1", Status: "SUCCESS", Text: "done"}},
+		{ProviderAGY, `{"event":"result","result":{"conversation_id":"agy-1","status":"SUCCESS","response":"done","secret":"DROP"}}`, Event{Kind: EventResult, SessionID: "agy-1", Status: "SUCCESS", Text: "done", StructuredText: "done"}},
 		{ProviderGrok, `{"type":"text","sessionId":"grok-1","data":"chunk","secret":"DROP"}`, Event{Kind: EventMessage, SessionID: "grok-1", Text: "chunk"}},
 		{ProviderGrok, `{"type":"end","sessionId":"grok-1","stopReason":"end_turn","usage":{"output_tokens":2}}`, Event{Kind: EventResult, SessionID: "grok-1", Status: "end_turn"}},
 		{ProviderGrok, `{"type":"result","sessionId":"grok-1","status":"success","text":"done","requestId":"req-1","secret":"DROP"}`, Event{Kind: EventResult, SessionID: "grok-1", Status: "success", Text: "done"}},
@@ -392,5 +392,15 @@ func TestClaudeStructuredResultPreservesTypedChannel(t *testing.T) {
 	body, _ := json.Marshal(event)
 	if !strings.Contains(string(body), `\"decision\":\"approve\"`) {
 		t.Fatalf("structured review output lost: %s", body)
+	}
+}
+
+func TestAGYFinalResultPreservesSchemaResponseChannel(t *testing.T) {
+	event, err := ParseEvent(ProviderAGY, `{"event":"result","result":{"conversation_id":"agy-1","status":"SUCCESS","response":"{\"decision\":\"approve\",\"summary\":\"reviewed\"}"}}`, 4096)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if event.Text == "" || event.StructuredText != event.Text {
+		t.Fatalf("AGY final response was not retained as authoritative structured output: %#v", event)
 	}
 }
