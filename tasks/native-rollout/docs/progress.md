@@ -99,3 +99,25 @@ Continuation: real installation (2026-09-18)
 - Final fixture regression: 14 test cases including subtests passed, 0 failed,
   0 skipped. Independent read-only review passed. Both installed main launchers
   (Claude and AGY) completed --help with exit 0; no model call was made.
+
+Authorized second native acceptance (2026-09-18):
+- User granted AGY/Grok one additional isolated readonly call each, <=120s, no
+  orchestrator relaunch. Both confirmed binary digests/versions were unchanged.
+- AGY: PASS 26.99s, exit 0, tree exit confirmed, 6,279 bytes stdout. Exactly one
+  SUCCESS terminal; matching conversation view_file ACTIVE->DONE read the exact
+  fixture and structured_output rejected return a-b (-1 instead of 5). Fixture
+  bytes unchanged. Independent evidence review passed for this scope only.
+- Grok: FAIL 94.39s, exited -15, tree exit confirmed, 1,812 bytes stdout, no final
+  schema result. Native session diagnostics revealed repeated 401 requests with
+  no credential. The CLI itself performed six observed internal retries; upon
+  detection only this verified process group was stopped. No second launch.
+  This is not evidence that the user's normal interactive login is invalid.
+  Authentication/config files and sandbox permissions were not changed.
+- Both new model grants are consumed. Grok candidate review stays guarded.
+- User separately trusted exactly the local 0.2.0-preview.3 Grok plugin. One native
+  install --trust succeeded after package verification. Native list/details show
+  one Skill, no agent/command directories; no hooks/MCP in the reviewed package.
+  Installed Skill/wrapper/binary match the package, and managed launcher --help
+  exited 0 without model use. Claude/AGY/Grok installation is now verified.
+- Codex remains on its original plugin/cache; the proven cache-pruning migration
+  hazard has not been bypassed. No remote push or release in this continuation.
