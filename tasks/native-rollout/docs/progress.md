@@ -70,5 +70,32 @@ Remaining work (not claimed complete):
 - Actual account remaining-quota observation is not implemented; session usage
   must not be described as remaining account quota.
 - Four-CLI fresh install, automatic Skill loading and end-to-end real acceptance
-  remain unverified. No native configuration, permissions or running coordinator
-  changed, and no publication was performed for this milestone.
+  remain unverified. In this previous milestone, no native configuration,
+  permissions or running coordinator changed, and no publication was performed.
+
+Continuation: real installation (2026-09-18)
+- Claude native validate/install/details succeeded: one agent-bird Skill, zero
+  hooks/MCP. Repeated installation succeeded; installed Skill/reference/wrapper/
+  runtime binary match the verified preview package. Only enabledPlugins and
+  extraKnownMarketplaces changed in Claude settings; prior permission keys match.
+- AGY native validate/install/list succeeded and repeated installation succeeded.
+  Imported plugin retains the complete wrapper/runtime. Installed launcher with
+  --help completed successfully without a model invocation.
+- Grok native validate succeeded. Install refused explicit trust; no --trust was
+  added. User confirmation is pending for this exact local plugin only.
+- Codex migration was tested with a private isolated CODEX_HOME, no model/auth.
+  Same-name source add is refused. Removing/readding the source retains cache,
+  but plugin add of the new version prunes the old cache. Therefore the actual
+  codex-bird source and old plugin cache have not been changed. No seamless
+  upgrade is claimed; old sessions must end before the documented native switch.
+- Strengthened native AGY business acceptance: a SUCCESS/reject envelope saying
+  file-not-found must fail. Red-green regression requires the actual buggy return
+  statement and observed/expected values, plus a completed view_file event for the
+  exact fixture path in the final conversation. Production schema is unchanged.
+  A synthetic read-event fixture is not a claim of native read success; unexpected
+  native tool envelope fields fail closed pending examination.
+- No new provider model call has run. Previous grants remain consumed; a fresh
+  bounded grant was requested separately from installation authorization.
+- Final fixture regression: 14 test cases including subtests passed, 0 failed,
+  0 skipped. Independent read-only review passed. Both installed main launchers
+  (Claude and AGY) completed --help with exit 0; no model call was made.

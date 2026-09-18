@@ -76,7 +76,7 @@ func TestNativeSchemaContract(t *testing.T) {
 	}
 	profile := &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: 120000, GrokSessionWrite: provider == adapter.ProviderGrok}
 	lock := &adapter.ProviderLock{Version: 1, Provider: provider, Protocol: adapter.ProtocolID(provider), Binary: pin}
-	req := adapter.Request{Provider: provider, Binary: pin, Lock: lock, CWD: work, Prompt: fmt.Sprintf("Review ONLY this exact file: %s. Requirement: add(2, 3) must return 5. Read that absolute path using read_file (Grok) or view_file (AGY); do not search home or other directories. Use only read operations, do not invoke other agents, and return the schema object with your approve/reject decision and a concise reason.", filepath.Join(work, "calc.py")), Profile: profile}
+	req := adapter.Request{Provider: provider, Binary: pin, Lock: lock, CWD: work, Prompt: fmt.Sprintf("Review ONLY this exact file: %s. Requirement: add(2, 3) must return 5. Read that absolute path using read_file (Grok) or view_file (AGY); do not search home or other directories. Use only read operations, do not invoke other agents, and return the schema object with your approve/reject decision and a concise reason. In summary cite the exact return statement from the file and the actual and expected values for add(2, 3).", filepath.Join(work, "calc.py")), Profile: profile}
 	if provider == adapter.ProviderAGY {
 		req.Action = &adapter.CandidateAction{Version: 1, Operation: "review", SourceTask: "native-schema-contract"}
 		if err = adapter.CheckCapabilities(req, string(help)); err != nil {
@@ -164,7 +164,7 @@ func TestNativeSchemaContract(t *testing.T) {
 		t.Logf("saved Grok raw contract fixture to %s for terminal-envelope review", fixture)
 		return
 	}
-	if err := validateNativeAGYReview(raw); err != nil {
+	if err := validateNativeAGYReview(raw, filepath.Join(work, "calc.py")); err != nil {
 		t.Fatal(err)
 	}
 
@@ -211,7 +211,7 @@ func (s *nativeEvidenceSink) Write(p []byte) (int, error) {
 	return n, err
 }
 func (s *nativeEvidenceSink) Err() error { s.mu.Lock(); defer s.mu.Unlock(); return s.err }
-func validateNativeAGYReview(raw []byte) error {
+func validateNativeAGYReview(raw []byte, fixture string) error {
 	collector, err := newProtocolCollector(string(adapter.ProviderAGY))
 	if err != nil {
 		return err
@@ -219,12 +219,46 @@ func validateNativeAGYReview(raw []byte) error {
 	if _, err = collector.Write(raw); err != nil {
 		return err
 	}
-	terminal, _, err := collector.Finish()
+	terminal, session, err := collector.Finish()
 	if err != nil {
 		return err
 	}
 	if !providerSucceeded(adapter.ProviderAGY, terminal) {
 		return errors.New("native_review_unsuccessful")
+	}
+	// Require a completed native file-read event for the exact fixture in this
+	// terminal's conversation. Model prose alone cannot establish that it read it.
+	read := false
+	for _, line := range bytes.Split(raw, []byte("\n")) {
+		if len(bytes.TrimSpace(line)) == 0 {
+			continue
+		}
+		var envelope struct {
+			Event string `json:"event"`
+			Step  struct {
+				Session string `json:"conversation_id"`
+				State   string `json:"state"`
+				Type    string `json:"step_type"`
+				Tool    string `json:"tool_name"`
+				Info    struct {
+					Name       string `json:"name"`
+					Parameters struct {
+						Path string `json:"AbsolutePath"`
+					} `json:"parameters"`
+					Error json.RawMessage `json:"error"`
+				} `json:"tool_info"`
+			} `json:"step_update"`
+		}
+		if err := json.Unmarshal(line, &envelope); err != nil {
+			return err
+		}
+		step := envelope.Step
+		if envelope.Event == "step_update" && step.Session == session && step.Type == "tool" && step.State == "DONE" && step.Tool == "view_file" && step.Info.Name == "view_file" && step.Info.Parameters.Path == fixture && (len(step.Info.Error) == 0 || string(step.Info.Error) == "null") {
+			read = true
+		}
+	}
+	if !read {
+		return errors.New("native_review_file_read_missing")
 	}
 	decision, err := decodeCandidateReview(terminal.StructuredText)
 	if err != nil {
@@ -232,6 +266,13 @@ func validateNativeAGYReview(raw []byte) error {
 	}
 	if decision.Decision != "reject" {
 		return errors.New("native_review_wrong_decision")
+	}
+	// A rejection caused by a missing file is not a successful bug review.
+	// These fixture-specific findings do not change the production schema.
+	for _, evidence := range []string{"return a - b", "-1", "5"} {
+		if !strings.Contains(decision.Summary, evidence) {
+			return errors.New("native_review_finding_missing")
+		}
 	}
 	return nil
 }
@@ -266,12 +307,19 @@ func TestNativeEvidenceSinkWriteFailure(t *testing.T) {
 	}
 }
 func TestNativeAGYReviewValidation(t *testing.T) {
-	good := `{"event":"result","result":{"conversation_id":"s1","status":"SUCCESS","response":"done","structured_output":{"decision":"reject","summary":"subtraction instead of addition"}}}` + "\n"
+	terminal := `{"event":"result","result":{"conversation_id":"s1","status":"SUCCESS","response":"done","structured_output":{"decision":"reject","summary":"calc.py: return a - b yields -1; expected 5"}}}` + "\n"
+	read := `{"event":"step_update","step_update":{"conversation_id":"s1","state":"DONE","step_type":"tool","tool_name":"view_file","tool_info":{"name":"view_file","parameters":{"AbsolutePath":"/private/fixture/calc.py"}}}}` + "\n"
+	good := read + terminal
 	for _, tc := range []struct {
 		name, raw string
 		ok        bool
 	}{
 		{"success", good, true},
+		{"no-native-read", terminal, false},
+		{"guessed-finding-without-read", strings.Replace(terminal, "calc.py: return a - b yields -1; expected 5", "could not locate calc.py; guessed return a - b yields -1; expected 5", 1), false},
+		{"wrong-read-path", strings.Replace(good, "/private/fixture/calc.py", "/private/elsewhere/calc.py", 1), false},
+		{"failed-read", strings.Replace(good, `"state":"DONE"`, `"state":"ERROR"`, 1), false},
+		{"file-not-found-is-not-business-acceptance", strings.Replace(good, "calc.py: return a - b yields -1; expected 5", "could not locate calc.py", 1), false},
 		{"error", strings.Replace(good, "SUCCESS", "ERROR", 1), false},
 		{"duplicate", good + good, false},
 		{"changed-session", `{"event":"init","conversation_id":"s2"}` + "\n" + good, false},
@@ -279,7 +327,7 @@ func TestNativeAGYReviewValidation(t *testing.T) {
 		{"missing-terminal", `{"event":"init","conversation_id":"s1"}` + "\n", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if err := validateNativeAGYReview([]byte(tc.raw)); (err == nil) != tc.ok {
+			if err := validateNativeAGYReview([]byte(tc.raw), "/private/fixture/calc.py"); (err == nil) != tc.ok {
 				t.Fatal(err)
 			}
 		})
