@@ -17,19 +17,19 @@ import (
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
 )
 
-func TestCandidateReviewProviderLockRequiresSameSupportedProvider(t *testing.T) {
-	lock := &adapter.ProviderLock{Version: 1, Provider: adapter.ProviderAGY, Protocol: adapter.ProtocolID(adapter.ProviderAGY), Binary: adapter.BinaryPin{Path: "/private/bin/agy", Version: "1.2.5", SHA256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}
-	if err := validateCandidateReviewProvider(lock, string(adapter.ProviderAGY)); err != nil {
-		t.Fatalf("matching AGY lock rejected: %v", err)
+func TestCandidateReviewUsesItsOwnProviderLock(t *testing.T) {
+	implementer := &adapter.ProviderLock{Version: 1, Provider: adapter.ProviderGrok, Protocol: adapter.ProtocolID(adapter.ProviderGrok), Binary: adapter.BinaryPin{Path: "/private/bin/grok", Version: "grok 1.0.34 (3736acbc8658)", SHA256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}
+	reviewer := &adapter.ProviderLock{Version: 1, Provider: adapter.ProviderAGY, Protocol: adapter.ProtocolID(adapter.ProviderAGY), Binary: adapter.BinaryPin{Path: "/private/bin/agy", Version: "1.2.5", SHA256: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}}
+	if err := validateCandidateSourceProvider(implementer, string(adapter.ProviderGrok)); err != nil {
+		t.Fatalf("Grok implementation lock rejected: %v", err)
 	}
-	for _, provider := range []string{string(adapter.ProviderClaude), string(adapter.ProviderGrok), ""} {
-		if err := validateCandidateReviewProvider(lock, provider); err == nil || err.Error() != "candidate_review_provider_mismatch" {
-			t.Fatalf("provider %q accepted against AGY lock: %v", provider, err)
-		}
+	if err := validateCandidateReviewProvider(reviewer, string(adapter.ProviderAGY), reviewer.Binary.Path, reviewer.Binary.SHA256); err != nil {
+		t.Fatalf("AGY review lock rejected after Grok implementation: %v", err)
 	}
-	lock.Provider = adapter.ProviderGrok
-	lock.Protocol = adapter.ProtocolID(adapter.ProviderGrok)
-	if err := validateCandidateReviewProvider(lock, string(adapter.ProviderGrok)); err == nil || err.Error() != "candidate_review_provider_unsupported" {
+	if err := validateCandidateReviewProvider(reviewer, string(adapter.ProviderAGY), implementer.Binary.Path, implementer.Binary.SHA256); err == nil || err.Error() != "candidate_review_provider_mismatch" {
+		t.Fatalf("review accepted implementation pin: %v", err)
+	}
+	if err := validateCandidateReviewProvider(implementer, string(adapter.ProviderGrok), implementer.Binary.Path, implementer.Binary.SHA256); err == nil || err.Error() != "candidate_review_provider_unsupported" {
 		t.Fatalf("unverified Grok review lock accepted: %v", err)
 	}
 }

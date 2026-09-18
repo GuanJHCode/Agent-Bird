@@ -68,14 +68,48 @@ type CandidateDelivery struct {
 	Integration      *gitops.IntegrationOutcome `json:"integration,omitempty"`
 }
 
-func validateCandidateReviewProvider(lock *adapter.ProviderLock, provider string) error {
+func validateCandidateSourceProvider(lock *adapter.ProviderLock, provider string) error {
 	if lock == nil || provider == "" || provider != string(lock.Provider) || lock.Version != 1 || lock.Protocol != adapter.ProtocolID(lock.Provider) || lock.Binary.Path == "" || lock.Binary.Version == "" || len(lock.Binary.SHA256) != 64 {
+		return errors.New("candidate_review_provider_mismatch")
+	}
+	if lock.Provider != adapter.ProviderClaude && lock.Provider != adapter.ProviderAGY && lock.Provider != adapter.ProviderGrok {
+		return errors.New("candidate_review_provider_unsupported")
+	}
+	return nil
+}
+
+func validateCandidateReviewProvider(lock *adapter.ProviderLock, provider, executablePath, executableSHA256 string) error {
+	if err := validateCandidateSourceProvider(lock, provider); err != nil {
+		return err
+	}
+	if executablePath != lock.Binary.Path || !strings.EqualFold(executableSHA256, lock.Binary.SHA256) {
 		return errors.New("candidate_review_provider_mismatch")
 	}
 	if lock.Provider != adapter.ProviderClaude && lock.Provider != adapter.ProviderAGY {
 		return errors.New("candidate_review_provider_unsupported")
 	}
 	return nil
+}
+
+func reviewProviderLock(grant contract.LaunchCommand, inv contract.InvocationView) (*adapter.ProviderLock, error) {
+	payload, err := adapter.DecodeInvocationPayload(grant.AdapterPayload)
+	if err != nil || payload.ProviderLock == nil || payload.Provider != string(payload.ProviderLock.Provider) {
+		return nil, errors.New("candidate_review_provider_mismatch")
+	}
+	provider, ok := inv.(interface{ OutputProvider() string })
+	if !ok {
+		return nil, errors.New("candidate_review_provider_mismatch")
+	}
+	pinned, ok := inv.(interface{ ExecutablePin() (string, string) })
+	if !ok {
+		return nil, errors.New("candidate_review_provider_mismatch")
+	}
+	path, digest := pinned.ExecutablePin()
+	if err := validateCandidateReviewProvider(payload.ProviderLock, provider.OutputProvider(), path, digest); err != nil {
+		return nil, err
+	}
+	lock := *payload.ProviderLock
+	return &lock, nil
 }
 
 type actionRejected struct{ body []byte }
@@ -169,24 +203,23 @@ func (h *Host) prepareCandidateAction(ctx context.Context, grant contract.Launch
 	if json.Unmarshal(grant.Input.AdapterPayload, &source) != nil {
 		return empty, nil, noop, errors.New("candidate_source_invalid")
 	}
-	var sourceLock *adapter.ProviderLock
+	var reviewLock *adapter.ProviderLock
 	switch action.Operation {
 	case "validate":
-		if source.Kind != "" || validateCandidateReviewProvider(source.Lock, source.Provider) != nil || source.Profile == nil || source.Profile.Role != adapter.Implementer || source.Workspace == nil || in.Stage != "" || profile != nil || len(action.Command) == 0 || len(action.Command) > 64 {
+		if source.Kind != "" || validateCandidateSourceProvider(source.Lock, source.Provider) != nil || source.Profile == nil || source.Profile.Role != adapter.Implementer || source.Workspace == nil || in.Stage != "" || profile != nil || len(action.Command) == 0 || len(action.Command) > 64 {
 			return empty, nil, noop, errors.New("candidate_validation_source_invalid")
 		}
-		lock := *source.Lock
-		sourceLock = &lock
 	case "review":
-		provider, ok := inv.(interface{ OutputProvider() string })
-		if !ok || validateCandidateReviewProvider(in.ProviderLock, provider.OutputProvider()) != nil {
+		var reviewErr error
+		reviewLock, reviewErr = reviewProviderLock(grant, inv)
+		if reviewErr != nil {
 			return empty, nil, noop, errors.New("candidate_review_provider_unsupported")
 		}
 		if source.Kind != "candidate" || source.Action == nil || source.Action.Operation != "validate" || in.Stage != "validate" || in.Validation == nil || !in.Validation.Passed || profile == nil || profile.Role != adapter.Reviewer || profile.Permission != adapter.ReadOnly || len(action.Command) != 0 {
 			return empty, nil, noop, errors.New("candidate_review_source_invalid")
 		}
 	case "integrate":
-		if source.Kind != "" || validateCandidateReviewProvider(source.Lock, source.Provider) != nil || !reflect.DeepEqual(source.Lock, in.ProviderLock) || source.Action == nil || source.Action.Operation != "review" || source.Profile == nil || source.Profile.Role != adapter.Reviewer || source.Profile.Permission != adapter.ReadOnly || in.Stage != "review" || in.Review == nil || in.Review.Decision != "approve" || in.Validation == nil || !in.Validation.Passed || profile != nil || len(action.Command) != 0 || inv.WorkingDirectory() != action.Target.Worktree {
+		if source.Kind != "" || validateCandidateSourceProvider(source.Lock, source.Provider) != nil || !reflect.DeepEqual(source.Lock, in.ProviderLock) || source.Action == nil || source.Action.Operation != "review" || source.Profile == nil || source.Profile.Role != adapter.Reviewer || source.Profile.Permission != adapter.ReadOnly || in.Stage != "review" || in.Review == nil || in.Review.Decision != "approve" || in.Validation == nil || !in.Validation.Passed || profile != nil || len(action.Command) != 0 || inv.WorkingDirectory() != action.Target.Worktree {
 			return empty, nil, noop, errors.New("candidate_integration_source_invalid")
 		}
 	default:
@@ -222,8 +255,8 @@ func (h *Host) prepareCandidateAction(ctx context.Context, grant contract.Launch
 	}
 	ctx = gitops.WithCandidateJournal(ctx, journal)
 	out := in
-	if sourceLock != nil {
-		out.ProviderLock = sourceLock
+	if reviewLock != nil {
+		out.ProviderLock = reviewLock
 	}
 	out.Stage = action.Operation
 	out.Binding = gitops.CandidateBinding{RunID: grant.RunID, TaskID: grant.TaskID, AttemptID: grant.AttemptID, SegmentID: grant.SegmentID, WorkRevision: grant.WorkRevision, PlanRevision: grant.PlanRevision}
