@@ -59,3 +59,21 @@ func TestGrokRequiresExplicitSessionWriteAuthorization(t *testing.T) {
 		t.Fatal("unverified version accepted")
 	}
 }
+
+func TestGrokImplementationRequiresExactEditRuleCapability(t *testing.T) {
+	req := grokProfileRequest(t)
+	req.Profile.Role, req.Profile.Permission = Implementer, WorkspaceWrite
+	req.Permission.Mode = "default"
+	req.Workspace = &CandidateWorkspace{Version: 1}
+	help := "--output-format --permission-mode --no-subagents --disable-web-search --session-id --leader-socket --tools --deny"
+	if err := CheckCapabilities(req, help); err == nil {
+		t.Fatal("implementation accepted CLI without edit rule support")
+	}
+	if err := CheckCapabilities(req, help+" --allow <rule>"); err != nil {
+		t.Fatal(err)
+	}
+	req.Permission.Allow = []string{"Edit"}
+	if _, err := BuildInvocation(req); err == nil {
+		t.Fatal("legacy permission expansion accepted")
+	}
+}

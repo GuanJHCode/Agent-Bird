@@ -141,6 +141,9 @@ func CheckCapabilities(req Request, help string) error {
 	}
 	if req.Provider == ProviderGrok {
 		flags = []string{"--output-format", "--permission-mode", "--no-subagents", "--disable-web-search", "--session-id", "--leader-socket", "--tools", "--deny"}
+		if req.Profile.Role == Implementer {
+			flags = append(flags, "--allow")
+		}
 	}
 	if req.Provider == ProviderCodex {
 		return errors.New("codex_trial_guard_not_ready")

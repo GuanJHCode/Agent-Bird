@@ -147,14 +147,22 @@ answer matched; retain the original artifact and document the distinction.
 Stop on `profile_supported=false`; do not fall back to legacy requests or another
 provider. A successful probe establishes capabilities, not model success.
 Managed implementation profiles are implemented for Claude, Grok and AGY.
-AGY 1.2.5 passed one native isolated coding/freeze/behavior fixture. Grok 1.0.34
-native coding failed: read_file succeeded, but search_replace permission was
-cancelled. Do not claim Grok coding works, silently retry, or bypass that denial.
+AGY 1.2.5 and Grok 1.0.34 each passed a native isolated coding/freeze/behavior
+fixture. Grok initially cancelled search_replace; a separately authorized
+verification passed after the Host added exact candidate-file edit grants.
+Do not silently retry or bypass any subsequent denial.
 This does not establish native controller delegation, review or integration.
-Grok uses `acceptEdits` with file tools;
+Grok uses `acceptEdits` with file tools. After materializing and validating the
+managed worktree, the Host derives process-local `--allow Edit(<absolute-file>)`
+rules solely from the candidate file list. Paths containing rule/glob syntax,
+Git metadata, symlinks or hard-linked existing files are rejected before Grok
+launch. These exact file grants preserve existing native deny/ask rules and
+the OS sandbox. Native verification confirmed read_file and search_replace
+success, a frozen candidate, and two behavior assertions.
 AGY uses `accept-edits`. These modes are selected only for a typed implementation
-in a Host-managed worktree. Never add bypass/always-approve flags or legacy
-permission allow rules to overcome a denial. Testing uses candidate validation;
+in a Host-managed worktree. Never supply arbitrary permission rules, expand the
+file list to defeat a denial, or add bypass/always-approve flags or legacy
+permission allow rules. Testing uses candidate validation;
 structured candidate review remains Claude-only.
 
 Grok additionally reports `requires_session_write_authorization=true`. Obtain
@@ -169,8 +177,9 @@ directory. It preserves authentication/configuration and existing sessions.
 Never supply arbitrary writable paths, change GROK_HOME, or copy credentials.
 Existing session/intent directories, untrusted paths and unverified versions are
 refused. Preserve failures and budgets; do not delete directories to retry.
-Grok resume and implementation remain unsupported. Native verification covers
-one read_file task, session binding, collection and owner ACK/accept. It does
+Grok resume remains unsupported. Native read-only verification covers one
+read_file task, session binding, collection and owner ACK/accept; native coding
+verification covers the isolated fixture described above. It does
 not establish terminal use, MCP denial enforcement, or final-answer-only artifacts.
 Existing workspace aliases such as macOS `/tmp` are canonicalized before
 submission; Host checks remain unchanged. The command probes the exact pinned

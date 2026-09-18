@@ -12,39 +12,39 @@ import (
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitopsworker"
 )
 
-func (h *Host) prepareCandidate(ctx context.Context, grant contract.LaunchCommand, inv contract.InvocationView, profile *adapter.ExecutionProfile) (func(context.Context, string) ([]byte, error), func(), error) {
+func (h *Host) prepareCandidate(ctx context.Context, grant contract.LaunchCommand, inv contract.InvocationView, profile *adapter.ExecutionProfile) (func(context.Context, string) ([]byte, error), func(), *gitops.PreparedWorkspace, error) {
 	value, ok := inv.(interface {
 		CandidateWorkspace() *adapter.CandidateWorkspace
 	})
 	if !ok || value.CandidateWorkspace() == nil {
-		return nil, func() {}, nil
+		return nil, func() {}, nil, nil
 	}
 	spec := value.CandidateWorkspace()
 	if spec.Version != 1 || profile == nil || profile.Role != adapter.Implementer || profile.Permission != adapter.WorkspaceWrite || grant.SessionID != "" {
-		return nil, func() {}, errors.New("candidate_workspace_profile_invalid")
+		return nil, func() {}, nil, errors.New("candidate_workspace_profile_invalid")
 	}
 	binding := gitops.CandidateBinding{RunID: grant.RunID, TaskID: grant.TaskID, AttemptID: grant.AttemptID, SegmentID: grant.SegmentID, WorkRevision: grant.WorkRevision, PlanRevision: grant.PlanRevision}
 	if r := spec.Rework; r != nil {
 		if r.Version != 1 || r.RunID != grant.RunID || r.TaskID != grant.TaskID || r.PreviousWorkRevision+1 != grant.WorkRevision || r.PreviousCandidateOID != spec.BaseOID || r.CandidateEventID == "" || len(r.CandidateSHA256) != 64 || r.ReviewEventID == "" || len(r.ReviewSHA256) != 64 || r.Feedback == "" || r.Acceptance == "" {
-			return nil, func() {}, errors.New("candidate_rework_binding_invalid")
+			return nil, func() {}, nil, errors.New("candidate_rework_binding_invalid")
 		}
 		binding.RevisionSHA256 = r.Digest()
 	}
 	key := hashText(grant.RunID + "\x00" + grant.TaskID + "\x00" + grant.AttemptID + "\x00" + grant.SegmentID)
 	journal, err := gitopsworker.OpenJournal(filepath.Join(h.spoolRoot, ".gitops-journal", key))
 	if err != nil {
-		return nil, func() {}, err
+		return nil, func() {}, nil, err
 	}
 	ctx = gitops.WithCandidateJournal(ctx, journal)
 	closeJournal := func() { _ = journal.Close() }
 	prepared, err := gitops.PrepareWorkspace(ctx, gitops.MaterializeRequest{RepoRoot: spec.RepoRoot, Worktree: candidateDirectory(inv.WorkingDirectory(), grant, spec.AutoDirectory), AttemptID: grant.AttemptID, BaseOID: spec.BaseOID, CandidateOID: spec.BaseOID, OrderedInputOIDs: []string{spec.BaseOID}, PlanRevision: int64(grant.PlanRevision)}, binding, spec.Paths, "refs/orchestrator/g3/candidate-"+key, journal)
 	if err != nil {
 		closeJournal()
-		return nil, func() {}, err
+		return nil, func() {}, nil, err
 	}
 	if err = journal.RecordWorkspacePrepared(ctx, prepared); err != nil {
 		closeJournal()
-		return nil, func() {}, err
+		return nil, func() {}, nil, err
 	}
 	return func(ctx context.Context, providerResult string) ([]byte, error) {
 		if len(providerResult) > 512*1024 {
@@ -59,7 +59,7 @@ func (h *Host) prepareCandidate(ctx context.Context, grant contract.LaunchComman
 			return nil, err
 		}
 		return gitops.CandidateArtifact(providerResult, receipt)
-	}, closeJournal, nil
+	}, closeJournal, &prepared, nil
 }
 
 func candidateFailure(err error) []byte {

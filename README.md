@@ -48,7 +48,7 @@ cd Agent-Bird
 | Provider | 只读分析 | 代码实现 / 候选审查 |
 |---|---|---|
 | Claude | 支持 | 支持托管 worktree 流程 |
-| Grok | 已验证版本的显式只读 profile | 隔离编码验收失败：编辑权限取消 / 使用 Claude 审查 |
+| Grok | 已验证版本的显式只读 profile | 逐文件许可下隔离编码、冻结及行为验收通过 / 使用 Claude 审查 |
 | AGY | 已验证版本的只读 profile | 1.2.5 已通过一次真实隔离编码 / 使用 Claude 审查 |
 
 这是有人看护的技术预览。当前版本不保证中断后的原生会话续接；预算不会自动重置。Grok 结果 artifact 可包含过程说明，不能将其视为纯最终答案；原生 MCP 拒绝的负向验收尚未完成。完整限制见 [支持矩阵](docs/support-matrix.md)。

@@ -149,14 +149,18 @@ func (h *Host) ExecuteLaunch(ctx context.Context, grant contract.LaunchCommand, 
 			meta.expectedSessionID = grokSessionID(grant)
 		}
 		meta.prepareCandidate = func(ctx context.Context) (process.Command, func(context.Context, string) ([]byte, error), func(), error) {
-			freeze, closeCandidate, err := h.prepareCandidate(ctx, grant, inv, profile)
+			freeze, closeCandidate, prepared, err := h.prepareCandidate(ctx, grant, inv, profile)
 			if err != nil {
 				return cmd, nil, closeCandidate, err
 			}
 			scratch := filepath.Join(h.spoolRoot, grant.AttemptID, grant.SegmentID, "scratch")
 			var wrapped process.Command
 			if profile != nil && profile.GrokSessionWrite {
-				wrapped, err = prepareGrokCommand(ctx, cmd, profile, grant, scratch)
+				cmd.Dir = prepared.Receipt.Worktree
+				cmd, err = authorizeGrokEdits(cmd, profile, prepared)
+				if err == nil {
+					wrapped, err = prepareGrokCommand(ctx, cmd, profile, grant, scratch)
+				}
 			} else {
 				wrapped, err = sandboxCommand(ctx, cmd, profile, scratch)
 			}
