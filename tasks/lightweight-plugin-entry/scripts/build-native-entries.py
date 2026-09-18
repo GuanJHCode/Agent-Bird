@@ -4,7 +4,6 @@
 import argparse
 import json
 import pathlib
-import shutil
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
@@ -27,13 +26,13 @@ name: agent-bird
 description: Coordinate an owner-bound Agent Bird task when the user explicitly asks to delegate, inspect, collect, or control local work.
 ---
 
-Use the installed `agent-bird` command for task and provider operations. {owner}
+Use this package's `scripts/agent-bird --runtime <absolute-built-runtime>` wrapper for task and provider operations. {owner}
 
-Use only `agent-bird task`, `agent-bird provider`, and the documented controller launcher. Keep the user's selected provider, quota, permissions, and recursion limits unchanged. Do not claim support for an unknown native session or a native subagent identity.
+Use this skill when a task is suitable for independent analysis, implementation, or review and the original CLI rules plus existing user authorization permit collaboration. Do not use it for every task. Preserve the primary controller's quota preferences; do not create another routing model, guess a budget, or change provider enable/default-model settings.
 
-For a normal task, submit through `agent-bird task run` or `agent-bird task submit`, retain the private handle, then use `agent-bird task inspect`, `agent-bird task wait`, `agent-bird task reconcile`, or `agent-bird task collect` as applicable. Pass an explicit private request file whenever the command requires one. Do not invent routing or dispatch arguments until the installed CLI documents them.
+For a normal task, create a private version-1 dispatch request with `request_id`, explicit `provider`, confirmed `provider_lock`, `directory`, `prompt`, `role`, `paths` for implementation, `acceptance`, optional `model`, `max_attempts`, `max_active_ms`, and explicit `grok_session_write`. Submit it through `scripts/agent-bird --runtime <runtime> task dispatch --request <private-json> [--state-dir <private-state>]`. The CLI returns a handle and deduplicates an identical request ID; a different body for that ID is a conflict. Use `task inspect`, `task wait --handle <handle> --timeout-ms <=30000 [--cursor <cursor>]`, `task reconcile --handle <handle>`, and `task collect` for control and observation.
 
-Never alter CLI configuration, install packages, create a tool server, or use bypass approval flags. The task handle and owner capability remain the authorization boundary.
+Use only `task`, `provider`, and the documented controller launcher. Do not claim support for an unknown native session or a native subagent identity. Never alter CLI configuration, install packages, create a tool server, or use bypass approval flags. The control capability is the authorization boundary; the handle only routes to it.
 """
 
 
@@ -43,17 +42,36 @@ def package(output, provider, manifest_path, manifest):
     skill_path = root / "skills/agent-bird/SKILL.md"
     skill_path.parent.mkdir(parents=True, exist_ok=True)
     skill_path.write_text(skill(provider), encoding="utf-8")
+    wrapper = root / "scripts/agent-bird"
+    wrapper.parent.mkdir(parents=True, exist_ok=True)
+    wrapper.write_text("""#!/bin/sh
+set -eu
+root=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
+[ -f "$root/runtime-required" ] || exit 2
+[ "${1-}" = "--runtime" ] && [ "$#" -ge 3 ] || exit 2
+runtime=$2
+shift 2
+[ -f "$runtime" ] && [ -x "$runtime" ] || exit 2
+case "$1" in task|provider|controller) ;; *) exit 2 ;; esac
+exec "$runtime" "$@"
+""", encoding="utf-8")
+    wrapper.chmod(0o700)
+    (root / "runtime-required").write_text("pass --runtime with an existing built portable runtime\n", encoding="utf-8")
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", required=True)
+    parser.add_argument("--runtime", required=True)
     args = parser.parse_args()
     output = pathlib.Path(args.output).resolve()
     if output.exists():
-        shutil.rmtree(output)
+        raise SystemExit("output_exists")
+    runtime = pathlib.Path(args.runtime)
+    if not runtime.is_absolute() or not runtime.is_file() or not runtime.stat().st_mode & 0o111:
+        raise SystemExit("runtime_invalid")
     output.mkdir(parents=True)
-    package(output, "codex", ".codex-plugin/plugin.json", {
+    package(output, "codex-orchestrator", ".codex-plugin/plugin.json", {
         "name": "codex-orchestrator", "version": "0.1.0",
         "description": "Owner-bound Agent Bird task controls for Codex.",
         "skills": "./skills/",
