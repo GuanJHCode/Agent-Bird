@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 // Reuse the already-running test executable instead of a newly created shell
@@ -12,6 +13,21 @@ import (
 // the same script via /bin/sh completes in milliseconds. The test covers stream
 // selection, not first-execution policy latency for an unsigned script.
 func TestMain(m *testing.M) {
+	if mode := os.Getenv("ORCHESTRATOR_GROK_AUTH_HELPER"); mode != "" {
+		if len(os.Args) != 2 || os.Args[1] != "models" || os.Getenv("GROK_DISABLE_AUTOUPDATER") != "1" {
+			os.Exit(71)
+		}
+		if mode == "fail" {
+			_, _ = os.Stdout.WriteString("private-auth-detail")
+			os.Exit(9)
+		}
+		if mode == "slow" {
+			time.Sleep(time.Minute)
+		}
+		_, _ = os.Stdout.WriteString("grok-model\n")
+		os.Exit(0)
+	}
+
 	if os.Getenv("ORCHESTRATOR_PROBE_TEST_HELPER") == "grok-auto-update" {
 		if os.Getenv("GROK_DISABLE_AUTOUPDATER") != "1" {
 			os.Exit(2)

@@ -24,7 +24,7 @@
 维护者可以一次构建 macOS Apple Silicon 安装包：
 
 ```sh
-./scripts/build-release.sh 0.2.0-preview.3 ./dist/release-preview3
+./scripts/build-release.sh 0.2.0-preview.4 ./dist/release-preview4
 ```
 
 输出包含 `agent-bird` 目录、压缩包、`SHA256SUMS` 和固定下载摘要的
@@ -36,8 +36,7 @@
 
 安装器先检查对应 CLI 和包内容，将运行文件保留在用户数据目录，再调用该
 CLI 的原生插件安装命令。它不启用自动信任或跳过权限确认。同名 Marketplace
-指向其他来源时会停止，保留原安装；旧版本的来源迁移尚未实现，不能用删除
-状态或新建重复 Marketplace 绕过。
+指向其他来源时会停止，保留原安装；不同来源的自动替换仍会拒绝。Codex 旧插件迁移使用下面的独立新身份，不删除编排状态。
 
 安装 Claude、Grok 或 AGY 插件后，当前可靠的主脑归属入口仍是：
 
@@ -52,21 +51,21 @@ Grok 在用户明确授权对本次包使用原生 `--trust` 后也已安装验�
 Grok 1.0.34 普通安装会停止并要求该信任确认；本安装器不自动添加该参数，
 也不修改模型工具权限。三者的已安装主脑启动入口均通过 `--help` 检查。
 
-安装不等于模型任务验收。AGY 已通过一次修正后的真实只读结构化审查；
-Grok 隔离审查请求因未携带凭据收到 401，尚未通过。不能因此声称
-全部 CLI 的主脑、编码、审查和集成闭环均已通过。
+安装不等于模型任务验收。AGY 已通过一次真实文件读取和结构化审查；
+Grok 已修正登录续期路径，并通过一次 Host 完整 Git 快照的真实错误识别。
+Grok 快照审查支持小型纯文本候选，具体边界见[支持范围](support-matrix.md)。
 
-Codex 0.154.0 的隔离原生测试确认：更换同名 Marketplace 来源后安装新版
-插件会删除旧版插件缓存。不要在旧会话仍使用插件时升级。待旧会话结束后，
-通过原生 CLI 移除旧来源登记，再运行安装器：
+Codex 新包使用 `agent-bird@agent-bird`。运行安装器会通过官方配置接口启用
+新插件、关闭旧 `codex-orchestrator@codex-bird` 的后续加载，并保留旧来源、
+缓存和运行时。配置更新不请求当前会话热重载；在新 Codex 会话中使用
+`$agent-bird`。旧会话继续使用其已加载的入口，不需要结束或清空历史。
+不要手动删除旧缓存，也不要移除 `codex-bird` 来源。
 
-```sh
-codex plugin marketplace remove codex-bird
-./agent-bird install codex
-```
+本机已完成 preview.4 Codex 安装，新旧运行时入口均检查通过，旧缓存和
+7 个已有协调器保持原身份与运行代次。Claude/AGY/Grok 原生插件当前仍是
+已验证安装的 preview.3；使用 preview.4 包的 `agent-bird start <cli>` 才会
+从新运行时启动这些主脑。未对旧原生插件做静默覆盖或重新授信。
 
-这一步只用于已存在的 `codex-bird` 来源迁移，不需要卸载插件，也不能代替
-结束旧会话或清空编排历史。当前正式 Codex 环境尚未执行该迁移。
 生成的 Homebrew formula 是待发布工件，下载地址只有对应 Release 发布后才可用；
 尚未提供可直接使用的 Brew tap。
 

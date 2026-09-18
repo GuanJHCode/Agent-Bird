@@ -2,7 +2,7 @@
 set -eu
 umask 077
 repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-version=${1:-0.2.0-preview.3}
+version=${1:-0.2.0-preview.4}
 output=${2:-"$repo_root/dist/release"}
 command -v go >/dev/null 2>&1 || { echo 'Go 1.26+ is required for building.' >&2; exit 1; }
 command -v python3 >/dev/null 2>&1 || { echo 'Python 3 is required for building.' >&2; exit 1; }

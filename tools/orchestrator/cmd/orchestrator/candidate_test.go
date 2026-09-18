@@ -28,6 +28,7 @@ func TestManagedCandidateFreezesWorkerChangesWithoutUserChanges(t *testing.T) {
 		failed bool
 	}{
 		{name: "success"},
+		{name: "grok_review"},
 		{name: "undeclared", failed: true},
 		{name: "ignored", failed: true},
 		{name: "symlink", failed: true},
@@ -91,7 +92,7 @@ func TestManagedCandidateFreezesWorkerChangesWithoutUserChanges(t *testing.T) {
 				"profile":             map[string]any{"version": 1, "role": "implementer", "permission": "workspace-write", "timeout_ms": 15000},
 				"candidate_workspace": map[string]any{"version": 1, "repo_root": repo, "base_oid": base, "paths": []string{"README", "added.txt", "obsolete.txt"}},
 			})
-			grant := contract.LaunchCommand{RunID: "run", TaskID: "implement", AttemptID: "attempt", SegmentID: "segment", CommandID: "command", ReservationID: "reservation", WorkRevision: 1, PlanRevision: 1, GrantedActiveMS: 15000, AdapterPayload: payload}
+			grant := contract.LaunchCommand{RunID: fmt.Sprintf("fixture-%x", sha256.Sum256([]byte(root))), TaskID: "implement", AttemptID: "attempt", SegmentID: "segment", CommandID: "command", ReservationID: "reservation", WorkRevision: 1, PlanRevision: 1, GrantedActiveMS: 15000, AdapterPayload: payload}
 			inv, err := invocationForGrant(context.Background(), grant)
 			if err != nil {
 				t.Fatalf("managed implementer request rejected: %v", err)
@@ -149,7 +150,7 @@ func TestManagedCandidateFreezesWorkerChangesWithoutUserChanges(t *testing.T) {
 				t.Fatal("prepared workspace identity was not durably registered")
 			}
 			c := artifact.Candidate
-			if artifact.ProviderResult != "implemented" || c.CandidateOID == "" || c.Binding.RunID != "run" || c.Binding.TaskID != "implement" || c.Binding.AttemptID != "attempt" || c.Binding.SegmentID != "segment" || c.Binding.WorkRevision != 1 {
+			if artifact.ProviderResult != "implemented" || c.CandidateOID == "" || c.Binding.RunID != grant.RunID || c.Binding.TaskID != "implement" || c.Binding.AttemptID != "attempt" || c.Binding.SegmentID != "segment" || c.Binding.WorkRevision != 1 {
 				t.Fatalf("unbound candidate: %s", body)
 			}
 			if git(repo, "show", c.CandidateOID+":README") != "worker implementation" || git(repo, "show", c.CandidateOID+":added.txt") != "new code" {
@@ -162,6 +163,14 @@ func TestManagedCandidateFreezesWorkerChangesWithoutUserChanges(t *testing.T) {
 				t.Fatal("candidate pin or user's original worktree changed")
 			}
 
+			if tc.name == "grok_review" {
+				t.Setenv("GROK_REVIEW_FIXTURE", "1")
+				home := filepath.Join(root, "grok-home")
+				if err := os.Mkdir(home, 0700); err != nil {
+					t.Fatal(err)
+				}
+				t.Setenv("GROK_HOME", home)
+			}
 			exerciseCandidateDelivery(t, root, repo, base, grant, result, git)
 
 		})
@@ -176,11 +185,19 @@ func TestMain(m *testing.M) {
 		os.Exit(m.Run())
 	}
 	if len(os.Args) == 2 && os.Args[1] == "--version" {
+		if os.Getenv("GROK_REVIEW_FIXTURE") != "" {
+			fmt.Println("grok 1.0.34 (3736acbc8658)")
+			os.Exit(0)
+		}
 		fmt.Println("fixture-v1")
 		os.Exit(0)
 	}
 	if len(os.Args) == 2 && os.Args[1] == "--help" {
-		fmt.Println("--output-format --input-format --permission-mode --disallowed-tools --json-schema")
+		fmt.Println("--output-format --input-format --permission-mode --disallowed-tools --json-schema --prompt-file --session-id --output --model --allowed-tools --denied-tools --no-subagents --disable-web-search --leader-socket --tools --deny")
+		os.Exit(0)
+	}
+	if os.Getenv("GROK_REVIEW_FIXTURE") != "" && len(os.Args) == 2 && os.Args[1] == "models" {
+		fmt.Println("fixture model")
 		os.Exit(0)
 	}
 	if mode == "progress" {
@@ -228,6 +245,33 @@ func TestMain(m *testing.M) {
 			decision = "reject"
 		}
 		body, _ := json.Marshal(map[string]string{"decision": decision, "summary": "fixture independently inspected candidate"})
+		if os.Getenv("GROK_REVIEW_FIXTURE") != "" {
+			var input, session string
+			for i, arg := range os.Args {
+				if i+1 < len(os.Args) {
+					if arg == "--prompt-file" {
+						input = os.Args[i+1]
+					}
+					if arg == "--session-id" {
+						session = os.Args[i+1]
+					}
+				}
+			}
+			snapshot, err := os.ReadFile(input)
+			if err != nil || session == "" || !strings.Contains(string(snapshot), "worker implementation") || !strings.Contains(string(snapshot), "complete-tracked-text-base-and-candidate") {
+				os.Exit(8)
+			}
+			envelope := map[string]any{"type": "end", "stopReason": "end_turn", "sessionId": session, "structuredOutput": json.RawMessage(body)}
+			if mode == "review_unstructured" {
+				delete(envelope, "structuredOutput")
+			}
+			if mode == "review_invalid" {
+				envelope["structuredOutput"] = map[string]any{"decision": "approve", "summary": "reviewed", "untrusted_extra": true}
+			}
+			result, _ := json.Marshal(envelope)
+			fmt.Println(string(result))
+			os.Exit(0)
+		}
 		fmt.Println(`{"type":"system","subtype":"init","session_id":"review-fixture"}`)
 		envelope := map[string]any{"type": "result", "subtype": "success", "session_id": "review-fixture", "result": "```json\n" + string(body) + "\n```", "structured_output": json.RawMessage(body)}
 		if mode == "review_unstructured" {

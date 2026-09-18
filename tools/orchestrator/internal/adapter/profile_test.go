@@ -148,11 +148,22 @@ func TestCandidateReviewRequiresVerifiedStructuredProvider(t *testing.T) {
 	}
 }
 
-func TestGrokCandidateReviewStaysRejectedUntilStreamingSchemaIsVerified(t *testing.T) {
+func TestGrokCandidateReviewRequiresSchemaAndPrivatePromptInput(t *testing.T) {
 	req := grokProfileRequest(t)
 	req.Action = &CandidateAction{Version: 1, Operation: "review", SourceTask: "validate"}
-	if _, err := BuildInvocation(req); err == nil || err.Error() != "candidate_review_provider_unsupported" {
-		t.Fatalf("unverified Grok streaming review admitted: %v", err)
+	inv, err := BuildInvocation(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(strings.Join(inv.Args(), " "), "--json-schema") {
+		t.Fatal("review lacks native schema")
+	}
+	help := "--output-format --permission-mode --no-subagents --disable-web-search --session-id --leader-socket --tools --deny --json-schema"
+	if err := CheckCapabilities(req, help); err == nil {
+		t.Fatal("accepted missing private prompt input")
+	}
+	if err := CheckCapabilities(req, help+" --prompt-file"); err != nil {
+		t.Fatal(err)
 	}
 }
 

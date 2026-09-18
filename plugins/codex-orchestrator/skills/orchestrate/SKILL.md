@@ -208,7 +208,7 @@ AGY uses `accept-edits`. These modes are selected only for a typed implementatio
 in a Host-managed worktree. Never supply arbitrary permission rules, expand the
 file list to defeat a denial, or add bypass/always-approve flags or legacy
 permission allow rules. Testing uses candidate validation;
-structured candidate review remains Claude-only.
+structured candidate review supports Claude, AGY, and the bounded Grok snapshot path described below.
 
 Grok additionally reports `requires_session_write_authorization=true`. Obtain
 explicit user authorization for this task's fresh Grok session directory writes
@@ -218,7 +218,7 @@ only when it clearly covers this task; a consumed one-shot diagnostic permission
 is not a blanket grant. Do not set the field merely because login or binary pin
 confirmation succeeded. The Host derives a new UUID and exact session directory
 under the original GROK_HOME (or HOME/.grok), plus a private short socket scratch
-directory. It preserves authentication/configuration and existing sessions.
+directory. Before the sandboxed worker starts, the pinned native `grok models` command may renew its existing login in the source context. This non-generating preflight has a 15-second bound; failure blocks the worker. Bird never copies credentials or changes configuration, and the worker sandbox and existing sessions are preserved.
 Never supply arbitrary writable paths, change GROK_HOME, or copy credentials.
 Existing session/intent directories, untrusted paths and unverified versions are
 refused. Preserve failures and budgets; do not delete directories to retry.
@@ -496,9 +496,16 @@ programs cannot attempt delegation; keep the existing sandbox and owner guards.
 - Review: use a locked Provider, `role=reviewer`, `permission=read-only`, a fresh
   `directory`, and a prompt giving the acceptance conditions. Omit `kind` and
   `candidate_action.command`. The Host adds immutable candidate/test identities and requires
-  actual code inspection and JSON `decision`/`summary` output. Claude candidate
-  reviews use its native fixed JSON schema and `structured_output`; prose or
-  fenced JSON without that structured channel fails closed. Omit `profile.model`
+  actual candidate inspection and JSON `decision`/`summary` output. Claude and AGY
+  use native `structured_output`; Grok uses native `end.structuredOutput`. Prose
+  or fenced JSON without the structured channel fails closed. Grok receives a
+  private Host-generated complete base/candidate tracked-text Git snapshot, not
+  a truncated diff: at most 64 files, 128 KiB combined content and 256 KiB JSON.
+  Missing Git objects, binary files, symlinks, Git LFS or oversized snapshots block before model use.
+  If external context is required, reject rather than invent it. Host binds the
+  exact input and snapshot digests to the receipt and rechecks the immutable
+  snapshot before integrating the same candidate. Native acceptance proved one
+  correct rejection from that snapshot; do not claim the CLI read files itself. Omit `profile.model`
   to use the configured default, including third-party backends; do not assume an
   official model alias is supported.
 - Integrate: set `kind=candidate`, `directory` equal to `target.worktree`, and

@@ -27,7 +27,7 @@ func TestCodingHostFreezesProviderCandidate(t *testing.T) {
 				t.Fatal(err)
 			}
 			t.Setenv("GROK_HOME", home)
-			script := "#!/bin/sh\nprintf 'def add(a, b):\\n    return a + b\\n' > calc.py\nprintf forbidden > ../outside\nprintf forbidden > .git\n"
+			script := "#!/bin/sh\nif [ \"$1\" = models ]; then echo grok-model; exit 0; fi\nprintf 'def add(a, b):\\n    return a + b\\n' > calc.py\nprintf forbidden > ../outside\nprintf forbidden > .git\n"
 			if provider == adapter.ProviderGrok {
 				script += `session=''
 grants=0
@@ -182,6 +182,7 @@ func TestGrokAutomaticRetryBindsOnlyFreshWorkspace(t *testing.T) {
 	git("-C", repo, "-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "-m", "base")
 	base := git("-C", repo, "rev-parse", "HEAD")
 	script := `#!/bin/sh
+if [ "$1" = models ] && [ "$#" = 1 ]; then echo grok-model; exit 0; fi
 grants=0
 denies=0
 while [ $# -gt 0 ]; do

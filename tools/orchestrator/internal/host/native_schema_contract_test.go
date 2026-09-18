@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 )
 
@@ -77,29 +79,47 @@ func TestNativeSchemaContract(t *testing.T) {
 	profile := &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: 120000, GrokSessionWrite: provider == adapter.ProviderGrok}
 	lock := &adapter.ProviderLock{Version: 1, Provider: provider, Protocol: adapter.ProtocolID(provider), Binary: pin}
 	req := adapter.Request{Provider: provider, Binary: pin, Lock: lock, CWD: work, Prompt: fmt.Sprintf("Review ONLY this exact file: %s. Requirement: add(2, 3) must return 5. Read that absolute path using read_file (Grok) or view_file (AGY); do not search home or other directories. Use only read operations, do not invoke other agents, and return the schema object with your approve/reject decision and a concise reason. In summary cite the exact return statement from the file and the actual and expected values for add(2, 3).", filepath.Join(work, "calc.py")), Profile: profile}
-	if provider == adapter.ProviderAGY {
-		req.Action = &adapter.CandidateAction{Version: 1, Operation: "review", SourceTask: "native-schema-contract"}
-		if err = adapter.CheckCapabilities(req, string(help)); err != nil {
-			t.Fatal(err)
-		}
-	} else if !strings.Contains(string(help), "--json-schema") {
-		t.Fatal("provider_capability_unsupported")
+	var snapshot []byte
+	if provider == adapter.ProviderGrok {
+		snapshot = nativeReviewSnapshot(t, ctx, work)
+		req.Prompt = "Requirement: calc.py add(2, 3) must return 5. Review the actual candidate content in the supplied snapshot. In summary cite the exact return statement and the actual and expected values."
 	}
+
+	req.Action = &adapter.CandidateAction{Version: 1, Operation: "review", SourceTask: "native-schema-contract"}
+	if err = adapter.CheckCapabilities(req, string(help)); err != nil {
+		t.Fatal(err)
+	}
+
 	inv, err := adapter.BuildInvocation(req)
 	if err != nil {
 		t.Fatal(err)
 	}
 	args := inv.Args()
-	if provider == adapter.ProviderGrok {
-		args = append(args, "--json-schema", nativeReviewSchema)
+	schemaCount := 0
+	for i, arg := range args {
+		if arg == "--json-schema" {
+			schemaCount++
+			if i+1 >= len(args) || args[i+1] != nativeReviewSchema {
+				t.Fatal("candidate review schema changed")
+			}
+		}
+	}
+	if schemaCount != 1 {
+		t.Fatal("candidate review schema missing or duplicated")
 	}
 	cmd := process.Command{Path: args[0], Args: args[1:], Dir: inv.WorkingDirectory(), Stdin: inv.Stdin(), PinnedPath: pin.Path, PinnedSHA256: pin.SHA256}
 	for key, value := range inv.Environment() {
 		cmd.Env = append(cmd.Env, key+"="+value)
 	}
 	scratch := filepath.Join(evidence, "scratch-"+string(provider))
+	inputDigest, snapshotDigest := "", ""
+	nativeGrant := contract.LaunchCommand{CommandID: "native-schema-contract-" + string(provider), RunID: "native-schema-" + hashBytes([]byte(evidence))[:16], TaskID: "review"}
 	if provider == adapter.ProviderGrok {
-		cmd, err = prepareGrokCommand(ctx, cmd, profile, contract.LaunchCommand{CommandID: "native-schema-contract-" + string(provider), RunID: "native-schema-" + hashBytes([]byte(evidence))[:16], TaskID: "review"}, scratch)
+		cmd, inputDigest, snapshotDigest, err = prepareGrokSnapshotPrompt(cmd, snapshot, hashBytes([]byte("native-fixture-validation")), scratch)
+		if err == nil {
+			cmd, err = prepareAuthenticatedGrokCommand(ctx, cmd, profile, nativeGrant, scratch)
+		}
+
 	} else {
 		cmd, err = sandboxCommand(ctx, cmd, profile, scratch)
 	}
@@ -149,7 +169,7 @@ func TestNativeSchemaContract(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(evidence, "combined-output.txt"), []byte(p.Output()), 0600); err != nil {
 		t.Fatal(err)
 	}
-	metadata, _ := json.Marshal(map[string]any{"exit_code": p.ExitCode(), "stdout_bytes": len(raw), "wait_error": fmtError(waitErr), "tree_error": fmtError(treeErr), "sink_error": fmtError(sink.Err())})
+	metadata, _ := json.Marshal(map[string]any{"exit_code": p.ExitCode(), "stdout_bytes": len(raw), "wait_error": fmtError(waitErr), "tree_error": fmtError(treeErr), "sink_error": fmtError(sink.Err()), "review_input_sha256": inputDigest, "review_snapshot_sha256": snapshotDigest})
 	if err := os.WriteFile(filepath.Join(evidence, "result.json"), metadata, 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -161,7 +181,28 @@ func TestNativeSchemaContract(t *testing.T) {
 		t.Fatal("readonly source changed")
 	}
 	if provider != adapter.ProviderAGY {
-		t.Logf("saved Grok raw contract fixture to %s for terminal-envelope review", fixture)
+		if err := verifyGrokReviewInput(scratch, inputDigest); err != nil {
+			t.Fatal(err)
+		}
+		collector, _ := newProtocolCollector(string(provider))
+		collector.expectedSessionID = grokSessionID(nativeGrant)
+		_, _ = collector.Write(raw)
+		terminal, _, e := collector.Finish()
+		if e != nil || !providerSucceeded(provider, terminal) {
+			t.Fatalf("Grok terminal: %v %+v", e, terminal)
+		}
+		decision, e := decodeCandidateReview(terminal.StructuredText)
+		if e != nil || decision.Decision != "reject" {
+			t.Fatalf("Grok review invalid: %v", e)
+		}
+		for _, finding := range []string{"return a - b", "-1", "5"} {
+			if !strings.Contains(decision.Summary, finding) {
+				t.Fatal("Grok did not identify actual snapshot defect")
+			}
+		}
+		if inputDigest == "" || snapshotDigest == "" {
+			t.Fatal("missing source binding")
+		}
 		return
 	}
 	if err := validateNativeAGYReview(raw, filepath.Join(work, "calc.py")); err != nil {
@@ -332,4 +373,31 @@ func TestNativeAGYReviewValidation(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Only used in this authorized native fixture; production uses the accepted
+// Host receipt after managed materialization, never a caller's source bundle.
+func nativeReviewSnapshot(t *testing.T, ctx context.Context, work string) []byte {
+	t.Helper()
+	git := func(args ...string) string {
+		t.Helper()
+		out, err := exec.CommandContext(ctx, "/usr/bin/git", append([]string{"-C", work}, args...)...).CombinedOutput()
+		if err != nil {
+			t.Fatalf("fixture git: %v %s", err, out)
+		}
+		return strings.TrimSpace(string(out))
+	}
+	git("init", "-q", "-b", "main")
+	git("config", "user.name", "Native Review Fixture")
+	git("config", "user.email", "fixture@example.invalid")
+	git("commit", "--allow-empty", "-qm", "base")
+	base := git("rev-parse", "HEAD")
+	git("add", "calc.py")
+	git("commit", "-qm", "candidate")
+	receipt := gitops.CandidateReceipt{RepoRoot: work, Worktree: work, CommonDir: filepath.Join(work, ".git"), BaseOID: base, CandidateOID: git("rev-parse", "HEAD"), TreeOID: git("rev-parse", "HEAD^{tree}"), Changes: []gitops.CandidateChange{{Path: "calc.py", Mode: "100644", BlobOID: git("rev-parse", "HEAD:calc.py")}}}
+	body, err := gitops.CandidateReviewSnapshot(ctx, receipt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return body
 }

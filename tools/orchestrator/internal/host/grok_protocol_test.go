@@ -58,3 +58,36 @@ func TestGrokRejectsDifferentGrantedSession(t *testing.T) {
 		t.Fatalf("mismatched session: %v", err)
 	}
 }
+
+func TestGrokNativeStructuredReviewField(t *testing.T) {
+	object := `{"decision":"reject","summary":"return a - b returns -1, expected 5"}`
+	for _, tc := range []struct {
+		name, tail          string
+		structured, invalid bool
+	}{
+		{"native-object", `,"structuredOutput":` + object, true, false},
+		{"absent", ``, false, false},
+		{"prose-not-authoritative", `,"text":` + `"{\"decision\":\"approve\",\"summary\":\"prose\"}"`, false, false},
+		{"string", `,"structuredOutput":"not-an-object"`, false, true},
+		{"array", `,"structuredOutput":[]`, false, true},
+		{"null", `,"structuredOutput":null`, false, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p, _ := newProtocolCollector("grok-build")
+			_, _ = p.Write([]byte(`{"type":"text","data":"ordinary commentary"}` + "\n" + `{"type":"end","stopReason":"end_turn","sessionId":"s1"` + tc.tail + "}\n"))
+			result, _, err := p.Finish()
+			if (err != nil) != tc.invalid {
+				t.Fatalf("unexpected protocol error: %v", err)
+			}
+			if tc.invalid {
+				return
+			}
+			if tc.structured && result.StructuredText != object {
+				t.Fatalf("missing authoritative object: %+v", result)
+			}
+			if !tc.structured && result.StructuredText != "" {
+				t.Fatal("promoted prose to review")
+			}
+		})
+	}
+}

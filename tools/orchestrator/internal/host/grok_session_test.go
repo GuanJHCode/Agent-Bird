@@ -139,7 +139,7 @@ func TestGrokHostLaunchUsesAuthorizedSession(t *testing.T) {
 		t.Fatal(err)
 	}
 	binary := filepath.Join(root, "provider")
-	script := []byte("#!/bin/sh\nsession=''\nwhile [ $# -gt 0 ]; do\ncase \"$1\" in --session-id) shift; session=$1;; esac\nshift\ndone\n[ -n \"$session\" ] || exit 9\nanswer=$(cat INPUT.txt)\nprintf '%s\\n' \"{\\\"type\\\":\\\"text\\\",\\\"data\\\":\\\"$answer\\\"}\"\nprintf '%s\\n' \"{\\\"type\\\":\\\"end\\\",\\\"stopReason\\\":\\\"end_turn\\\",\\\"sessionId\\\":\\\"$session\\\"}\"\n")
+	script := []byte("#!/bin/sh\nif [ \"$1\" = models ] && [ \"$#\" = 1 ]; then echo grok-model; exit 0; fi\nsession=''\nwhile [ $# -gt 0 ]; do\ncase \"$1\" in --session-id) shift; session=$1;; esac\nshift\ndone\n[ -n \"$session\" ] || exit 9\nanswer=$(cat INPUT.txt)\nprintf '%s\\n' \"{\\\"type\\\":\\\"text\\\",\\\"data\\\":\\\"$answer\\\"}\"\nprintf '%s\\n' \"{\\\"type\\\":\\\"end\\\",\\\"stopReason\\\":\\\"end_turn\\\",\\\"sessionId\\\":\\\"$session\\\"}\"\n")
 	if err := os.WriteFile(binary, script, 0700); err != nil {
 		t.Fatal(err)
 	}

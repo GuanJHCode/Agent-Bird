@@ -133,3 +133,84 @@ Authentication investigation (read-only):
   absence of API-key environment variables were checked, not credential values.
 - No supported refresh mechanism preserving the current no-auth-writes constraint
   was established. Do not relax guards, copy secrets or repeatedly ask for login.
+
+Authorized completion continuation (2026-09-18):
+- User authorized resolving the outstanding problems and necessary validation.
+  Existing task grants remain consumed; each new diagnostic/model execution has
+  its own private bounded record, no old attempt budget is reset.
+- Actual Grok auth metadata showed expiry before both failed calls. Pinned native
+  `models` (non-generating) refreshed the existing login successfully; config hash
+  unchanged. Same sandbox then returned a native structured result in 9.69s.
+- Two tool-based schema reviews failed business acceptance: intent-only result,
+  then fabricated multiplication result without any read event despite explicit
+  read-first prompt. Stop prompt-only retries. Both exit/tree checks were clean.
+- Implemented source-context bounded pinned `models` preflight before Grok worker;
+  no credential copying or worker sandbox changes. All uncertain process starts
+  are classified unknown. Adapter regression and Host auth fixture updates exist.
+- New approach under implementation: complete immutable base+candidate tracked
+  text snapshot, <=64 files/128KiB content/256KiB JSON, reject binary/symlinks/LFS/
+  missing or oversized context. Host writes private prompt-file and binds exact
+  input/snapshot digests to review receipt; no source bytes in argv. Native
+  structuredOutput remains the sole decision channel. Grok review guard remains
+  closed until this new business path is verified.
+- Root owns Host/adapter/auth and integration. Snapshot worker owns only new Git
+  snapshot files in sibling grok-review-snapshot worktree. Migration worker owns
+  Codex packaging/activate command in sibling native-codex-migration worktree.
+- Codex migration initial commit cherry-picked as eb3824e: new permanent identity
+  agent-bird@agent-bird and official config CAS without hot reload. Independent
+  review requires two fixes before installation: cancel/confirm app-server child
+  group, and keep Codex native owner semantics after the outer folder rename.
+  Worker is correcting both. No production Codex switch has happened.
+
+Completion verification (2026-09-18):
+- Grok snapshot model acceptance passed in 25.18s: one native end_turn with
+  structuredOutput rejecting return a-b (-1 vs 5), exit 0, tree exit confirmed,
+  source unchanged. Private input and extracted snapshot digests independently
+  matched. This is Host-provided snapshot review, not a CLI read_file claim.
+- Production schema construction and Host review/finalize/integrate now support
+  the bounded Grok snapshot path. A real Host/Git/sandbox fixture covers absent
+  and invalid structured output, rejection, modified accepted evidence, target
+  drift and successful integration of exactly the frozen candidate; original
+  dirty user workspace is preserved. This fixture does not use a real model.
+- Full Go suite: 14 tested packages passed; 750 tests including subtests passed,
+  4 skipped opt-in/native cases, 0 failures. Contract package has no tests.
+  Adapter/Host/Gitops race: 336 passed, 2 skipped; CLI candidate/activation race:
+  13 passed. go vet passed. Python release/entry: 10 tests + 12 subtests passed.
+  Python checks ran in a task-local venv because system Python lacked pytest and
+  PyYAML; no user Python configuration changed. Plugin and Skill validators pass.
+- Independent code/evidence review passed auth preflight, immutable snapshot,
+  structured channel, same-candidate receipt binding and Codex safe migration.
+- Built and verified immutable 0.2.0-preview.4 macOS ARM64 package, archive/file
+  digests and formula syntax. Installed Codex agent-bird@agent-bird successfully
+  through native CLI registration and official app-server config CAS.
+- Old codex-orchestrator cache bytes and directory inode unchanged. All seven
+  observed prior coordinators kept PID/birth/PGID/executable and epoch. Only the
+  new marketplace and old/new plugin enabled fields changed in Codex config;
+  every other parsed configuration value and unrelated plugin entry matches.
+  Old and new portable runtime check both pass. No running session was restarted.
+- Claude/AGY/Grok native registrations remain the previously verified preview.3
+  packages. Codex and the new preview.4 managed launcher carry these new fixes;
+  existing provider-native plugins were not silently overwritten or re-trusted.
+  Seamless in-place native plugin upgrades are not claimed by this migration.
+- No publication or remote push in this completion batch. Private evidence and
+  every consumed trial ledger remain retained. Remaining roadmap items above
+  (typed resume, Codex worker, authenticated clear/session rebinding, unified
+  native-subagent lifecycle and account quota observations) are still distinct
+  unimplemented capabilities, not hidden by the installation result.
+
+Final installed-runtime check exposed an additional compatibility gap:
+- New installed Grok probe returns profile_supported=true; this is capability
+  evidence, not an additional model call. Default coordinator still advertises
+  the old feature set and lacks isolated_provider_coding_v1 (epoch 9).
+- Narrow runtime-status reports no active/unknown/queued work, no ready Hosts,
+  no pending stops/events/reports, but one interrupted task and one unreleased
+  offline Host. Recorded Host PIDs were confirmed absent. Preserve this history.
+- Independent architecture check confirms schema 8 compatibility and graceful
+  SIGTERM path, but the old coordinator has no maintenance/admission fence.
+  A SQLite-only barrier cannot stop submit/recover-host filesystem/process
+  side effects. No coordinator stop or DB write was performed. Await factual
+  confirmation that other clients will not operate Bird during the switch.
+- Source Skill wording tightened: missing Git objects are detected before model
+  use; required external semantic context instead requires model rejection.
+  Installed preview.4 retains equivalent runtime behavior; its immutable package
+  was not overwritten for this wording-only clarification.

@@ -132,7 +132,10 @@ func (h *Host) ExecuteLaunch(ctx context.Context, grant contract.LaunchCommand, 
 	}); ok && value.CandidateAction() != nil {
 		action := value.CandidateAction()
 		meta.integrationAction = action.Operation == "integrate"
-		meta.structuredReview = action.Operation == "review" && (meta.outputProvider == string(adapter.ProviderClaude) || meta.outputProvider == string(adapter.ProviderAGY))
+		meta.structuredReview = action.Operation == "review" && (meta.outputProvider == string(adapter.ProviderClaude) || meta.outputProvider == string(adapter.ProviderAGY) || meta.outputProvider == string(adapter.ProviderGrok))
+		if action.Operation == "review" && meta.outputProvider == string(adapter.ProviderGrok) {
+			meta.expectedSessionID = grokSessionID(grant)
+		}
 		meta.prepareAction = func(ctx context.Context) (process.Command, actionFinalizer, func(), error) {
 			return h.prepareCandidateAction(ctx, grant, inv, action, profile)
 		}
@@ -159,7 +162,7 @@ func (h *Host) ExecuteLaunch(ctx context.Context, grant contract.LaunchCommand, 
 				cmd.Dir = prepared.Receipt.Worktree
 				cmd, err = authorizeGrokEdits(cmd, profile, prepared)
 				if err == nil {
-					wrapped, err = prepareGrokCommand(ctx, cmd, profile, grant, scratch)
+					wrapped, err = prepareAuthenticatedGrokCommand(ctx, cmd, profile, grant, scratch)
 				}
 			} else {
 				wrapped, err = sandboxCommand(ctx, cmd, profile, scratch)
@@ -174,7 +177,7 @@ func (h *Host) ExecuteLaunch(ctx context.Context, grant contract.LaunchCommand, 
 		}
 		meta.expectedSessionID = grokSessionID(grant)
 		meta.prepareProvider = func(ctx context.Context) (process.Command, error) {
-			return prepareGrokCommand(ctx, cmd, profile, grant, filepath.Join(h.spoolRoot, grant.AttemptID, grant.SegmentID, "scratch"))
+			return prepareAuthenticatedGrokCommand(ctx, cmd, profile, grant, filepath.Join(h.spoolRoot, grant.AttemptID, grant.SegmentID, "scratch"))
 		}
 	} else if profile != nil {
 		var err error
@@ -328,6 +331,9 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 	if meta.prepareProvider != nil {
 		prepared, prepareErr := meta.prepareProvider(ctx)
 		if prepareErr != nil {
+			if errors.Is(prepareErr, process.ErrProcessTreeUnknown) {
+				return finalizeCandidateUnknown(prepareErr, nil, -1)
+			}
 			if ctx.Err() != nil || h.stopWasRequested(a.SegmentID) {
 				return finalizeStopped(nil, -1, context.Canceled)
 			}

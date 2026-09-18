@@ -310,7 +310,18 @@ func parseGrok(object map[string]json.RawMessage) (Event, error) {
 		return Event{Kind: EventMessage, SessionID: session, Text: text}, err
 	case "end":
 		status, err := stringFieldOptional(object, "stopReason")
-		return Event{Kind: EventResult, SessionID: session, Status: status}, err
+		if err != nil {
+			return Event{}, err
+		}
+		structured := ""
+		if raw, exists := object["structuredOutput"]; exists {
+			var value map[string]json.RawMessage
+			if json.Unmarshal(raw, &value) != nil || value == nil {
+				return Event{}, errors.New("event_structured_output_invalid")
+			}
+			structured = string(raw)
+		}
+		return Event{Kind: EventResult, SessionID: session, Status: status, StructuredText: structured}, nil
 	case "error":
 		return Event{Kind: EventResult, SessionID: session, Status: "error"}, nil
 	case "result":

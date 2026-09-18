@@ -30,8 +30,8 @@ func TestCandidateReviewUsesItsOwnProviderLock(t *testing.T) {
 	if err := validateCandidateReviewProvider(reviewer, string(adapter.ProviderAGY), implementer.Binary.Path, implementer.Binary.SHA256); err == nil || err.Error() != "candidate_review_provider_mismatch" {
 		t.Fatalf("review accepted implementation pin: %v", err)
 	}
-	if err := validateCandidateReviewProvider(implementer, string(adapter.ProviderGrok), implementer.Binary.Path, implementer.Binary.SHA256); err == nil || err.Error() != "candidate_review_provider_unsupported" {
-		t.Fatalf("unverified Grok review lock accepted: %v", err)
+	if err := validateCandidateReviewProvider(implementer, string(adapter.ProviderGrok), implementer.Binary.Path, implementer.Binary.SHA256); err != nil {
+		t.Fatalf("verified Grok review lock rejected: %v", err)
 	}
 }
 

@@ -53,19 +53,22 @@ func decodeCandidateReview(text string) (ReviewEvidence, error) {
 }
 
 type CandidateDelivery struct {
-	Version          int                        `json:"version"`
-	Stage            string                     `json:"stage"`
-	Binding          gitops.CandidateBinding    `json:"binding"`
-	InputEventID     string                     `json:"input_event_id"`
-	InputSHA256      string                     `json:"input_sha256"`
-	OwnerDecisionID  string                     `json:"owner_decision_id"`
-	Candidate        gitops.CandidateReceipt    `json:"candidate"`
-	ProviderLock     *adapter.ProviderLock      `json:"provider_lock,omitempty"`
-	Validation       *ValidationEvidence        `json:"validation,omitempty"`
-	ValidationDigest string                     `json:"validation_digest,omitempty"`
-	Review           *ReviewEvidence            `json:"review,omitempty"`
-	Target           gitops.ReviewBinding       `json:"target"`
-	Integration      *gitops.IntegrationOutcome `json:"integration,omitempty"`
+	Version              int                        `json:"version"`
+	Stage                string                     `json:"stage"`
+	Binding              gitops.CandidateBinding    `json:"binding"`
+	InputEventID         string                     `json:"input_event_id"`
+	InputSHA256          string                     `json:"input_sha256"`
+	OwnerDecisionID      string                     `json:"owner_decision_id"`
+	Candidate            gitops.CandidateReceipt    `json:"candidate"`
+	ProviderLock         *adapter.ProviderLock      `json:"provider_lock,omitempty"`
+	Validation           *ValidationEvidence        `json:"validation,omitempty"`
+	ValidationDigest     string                     `json:"validation_digest,omitempty"`
+	ReviewInputSHA256    string                     `json:"review_input_sha256,omitempty"`
+	ReviewSnapshotSHA256 string                     `json:"review_snapshot_sha256,omitempty"`
+	ReviewScope          string                     `json:"review_scope,omitempty"`
+	Review               *ReviewEvidence            `json:"review,omitempty"`
+	Target               gitops.ReviewBinding       `json:"target"`
+	Integration          *gitops.IntegrationOutcome `json:"integration,omitempty"`
 }
 
 func validateCandidateSourceProvider(lock *adapter.ProviderLock, provider string) error {
@@ -85,7 +88,7 @@ func validateCandidateReviewProvider(lock *adapter.ProviderLock, provider, execu
 	if executablePath != lock.Binary.Path || !strings.EqualFold(executableSHA256, lock.Binary.SHA256) {
 		return errors.New("candidate_review_provider_mismatch")
 	}
-	if lock.Provider != adapter.ProviderClaude && lock.Provider != adapter.ProviderAGY {
+	if lock.Provider != adapter.ProviderClaude && lock.Provider != adapter.ProviderAGY && lock.Provider != adapter.ProviderGrok {
 		return errors.New("candidate_review_provider_unsupported")
 	}
 	return nil
@@ -191,6 +194,10 @@ func CandidateReviewPrompt(grant contract.LaunchCommand) (string, error) {
 }
 
 func candidateReviewReadInstruction(provider adapter.Provider) string {
+	if provider == adapter.ProviderGrok {
+		return "Use the complete immutable Git snapshot supplied by the Host; reject if additional context is required"
+	}
+
 	if provider == adapter.ProviderAGY {
 		return "Begin with view_file on the relevant absolute paths under that directory"
 	}
@@ -207,7 +214,7 @@ func candidateReviewDirectory(grant contract.LaunchCommand) (string, error) {
 
 func candidateReviewProvider(grant contract.LaunchCommand) (adapter.Provider, error) {
 	payload, err := adapter.DecodeInvocationPayload(grant.AdapterPayload)
-	if err != nil || payload.CandidateAction == nil || payload.CandidateAction.Version != 1 || payload.CandidateAction.Operation != "review" || (payload.Provider != string(adapter.ProviderClaude) && payload.Provider != string(adapter.ProviderAGY)) {
+	if err != nil || payload.CandidateAction == nil || payload.CandidateAction.Version != 1 || payload.CandidateAction.Operation != "review" || (payload.Provider != string(adapter.ProviderClaude) && payload.Provider != string(adapter.ProviderAGY) && payload.Provider != string(adapter.ProviderGrok)) {
 		return "", errors.New("candidate_review_source_invalid")
 	}
 	return adapter.Provider(payload.Provider), nil
@@ -278,6 +285,20 @@ func (h *Host) prepareCandidateAction(ctx context.Context, grant contract.Launch
 	fail := func(err error) (process.Command, actionFinalizer, func(), error) {
 		return empty, nil, closeJournal, err
 	}
+	if action.Operation == "integrate" && source.Lock.Provider == adapter.ProviderGrok {
+		if in.ReviewScope != "complete-tracked-text-base-and-candidate" || len(in.ReviewInputSHA256) != 64 || len(in.ReviewSnapshotSHA256) != 64 {
+			return fail(errors.New("candidate_review_input_missing"))
+		}
+		bound := c
+		bound.Worktree = c.RepoRoot
+		snapshot, err := gitops.CandidateReviewSnapshot(gitops.WithCandidateJournal(ctx, journal), bound)
+		if err != nil {
+			return fail(err)
+		}
+		if hashBytes(snapshot) != in.ReviewSnapshotSHA256 {
+			return fail(errors.New("candidate_review_input_changed"))
+		}
+	}
 	if action.Operation == "integrate" {
 		started, err := journal.IntegrationStarted(ctx)
 		if err != nil || started {
@@ -333,7 +354,23 @@ func (h *Host) prepareCandidateAction(ctx context.Context, grant contract.Launch
 			out.Validation = &ValidationEvidence{CandidateOID: c.CandidateOID, TreeOID: c.TreeOID, Binding: out.Binding, Command: append([]string(nil), action.Command...), ExecutableSHA256: digest}
 			profile = &adapter.ExecutionProfile{Version: 1, Role: adapter.Implementer, Permission: adapter.WorkspaceWrite, TimeoutMS: grant.GrantedActiveMS}
 		}
-		cmd, err = sandboxCommand(ctx, cmd, profile, filepath.Join(h.spoolRoot, grant.AttemptID, grant.SegmentID, "scratch"))
+		scratch := filepath.Join(h.spoolRoot, grant.AttemptID, grant.SegmentID, "scratch")
+		if action.Operation == "review" && reviewLock.Provider == adapter.ProviderGrok {
+			snapshotReceipt := c
+			snapshotReceipt.Worktree = workspace.Worktree
+			snapshot, snapshotErr := gitops.CandidateReviewSnapshot(ctx, snapshotReceipt)
+			if snapshotErr != nil {
+				return fail(snapshotErr)
+			}
+			cmd, out.ReviewInputSHA256, out.ReviewSnapshotSHA256, err = prepareGrokSnapshotPrompt(cmd, snapshot, in.ValidationDigest, scratch)
+			if err != nil {
+				return fail(err)
+			}
+			out.ReviewScope = "complete-tracked-text-base-and-candidate"
+			cmd, err = prepareAuthenticatedGrokCommand(ctx, cmd, profile, grant, scratch)
+		} else {
+			cmd, err = sandboxCommand(ctx, cmd, profile, scratch)
+		}
 		if err != nil {
 			return fail(err)
 		}
@@ -357,6 +394,11 @@ func (h *Host) prepareCandidateAction(ctx context.Context, grant contract.Launch
 			out.ValidationDigest = hashBytes(encoded)
 			out.Target.ValidationDigest = out.ValidationDigest
 		case "review":
+			if out.ReviewInputSHA256 != "" {
+				if err := verifyGrokReviewInput(filepath.Join(h.spoolRoot, grant.AttemptID, grant.SegmentID, "scratch"), out.ReviewInputSHA256); err != nil {
+					return nil, err
+				}
+			}
 			decision, err := decodeCandidateReview(text)
 			if !success || err != nil {
 				return nil, errors.New("candidate_review_invalid")

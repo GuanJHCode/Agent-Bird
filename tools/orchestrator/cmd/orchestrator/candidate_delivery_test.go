@@ -29,7 +29,7 @@ func exerciseCandidateDelivery(t *testing.T, root, repo, base string, source con
 	run := func(name string, payload map[string]any, from contract.LaunchCommand, r contract.Result, wantError ...bool) (contract.LaunchCommand, contract.Result) {
 		t.Helper()
 		body, _ := json.Marshal(payload)
-		grant := contract.LaunchCommand{RunID: "run", TaskID: name, AttemptID: "attempt-" + name, SegmentID: "segment-" + name, CommandID: "command-" + name, ReservationID: "reservation-" + name, WorkRevision: 1, PlanRevision: 1, GrantedActiveMS: 15000, AdapterPayload: body, Input: input(from, r)}
+		grant := contract.LaunchCommand{RunID: source.RunID, TaskID: name, AttemptID: "attempt-" + name, SegmentID: "segment-" + name, CommandID: "command-" + name, ReservationID: "reservation-" + name, WorkRevision: 1, PlanRevision: 1, GrantedActiveMS: 15000, AdapterPayload: body, Input: input(from, r)}
 		inv, err := invocationForGrant(context.Background(), grant)
 		if err != nil {
 			if len(wantError) > 0 && wantError[0] {
@@ -82,6 +82,13 @@ func exerciseCandidateDelivery(t *testing.T, root, repo, base string, source con
 	reviewPayload["candidate_action"] = action("review", "check")
 	reviewPayload["profile"] = map[string]any{"version": 1, "role": "reviewer", "permission": "read-only", "timeout_ms": 15000}
 	reviewPayload["prompt"] = "Independently review the candidate"
+	if os.Getenv("GROK_REVIEW_FIXTURE") != "" {
+		reviewPayload["provider"] = "grok-build"
+		lock := reviewPayload["provider_lock"].(map[string]any)
+		lock["provider"], lock["protocol"] = "grok-build", "grok-streaming-json-v1"
+		lock["binary"].(map[string]any)["version"] = "grok 1.0.34 (3736acbc8658)"
+		reviewPayload["profile"].(map[string]any)["grok_session_write"] = true
+	}
 	// Native schema absence and invalid fields fail closed; never fall back to
 	// a valid-looking result string or trust Provider-side schema validation.
 	for _, mode := range []string{"review_unstructured", "review_invalid"} {
@@ -118,6 +125,13 @@ func exerciseCandidateDelivery(t *testing.T, root, repo, base string, source con
 	if reviewResult.Status != "result_ready" {
 		body, _ := os.ReadFile(reviewResult.ArtifactPath)
 		t.Fatalf("review failed: %s", body)
+	}
+	if os.Getenv("GROK_REVIEW_FIXTURE") != "" {
+		var evidence host.CandidateDelivery
+		body, _ := os.ReadFile(reviewResult.ArtifactPath)
+		if json.Unmarshal(body, &evidence) != nil || len(evidence.ReviewInputSHA256) != 64 || len(evidence.ReviewSnapshotSHA256) != 64 || evidence.ReviewScope != "complete-tracked-text-base-and-candidate" {
+			t.Fatalf("unbound snapshot review: %s", body)
+		}
 	}
 	git(target, "checkout", "-b", "drifted")
 	_, drifted := run("drift-integrate", map[string]any{"kind": "candidate", "directory": target, "candidate_action": action("integrate", "review")}, reviewed, reviewResult)
