@@ -1,13 +1,16 @@
 package host
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -109,7 +112,8 @@ func TestNativeSchemaContract(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer stdout.Close()
-	cmd.Stdout = stdout
+	sink := &nativeEvidenceSink{writer: stdout, remaining: 1024 * 1024, cancel: cancel}
+	cmd.Stdout = sink
 	intent := filepath.Join(evidence, "launch-intent.json")
 	intentFile, err := os.OpenFile(intent, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 	if err != nil {
@@ -145,11 +149,11 @@ func TestNativeSchemaContract(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(evidence, "combined-output.txt"), []byte(p.Output()), 0600); err != nil {
 		t.Fatal(err)
 	}
-	metadata, _ := json.Marshal(map[string]any{"exit_code": p.ExitCode(), "stdout_bytes": len(raw), "wait_error": fmtError(waitErr), "tree_error": fmtError(treeErr)})
+	metadata, _ := json.Marshal(map[string]any{"exit_code": p.ExitCode(), "stdout_bytes": len(raw), "wait_error": fmtError(waitErr), "tree_error": fmtError(treeErr), "sink_error": fmtError(sink.Err())})
 	if err := os.WriteFile(filepath.Join(evidence, "result.json"), metadata, 0600); err != nil {
 		t.Fatal(err)
 	}
-	if waitErr != nil || treeErr != nil || len(raw) == 0 || len(raw) > 1024*1024 || p.ExitCode() != 0 {
+	if sink.Err() != nil || waitErr != nil || treeErr != nil || len(raw) == 0 || len(raw) > 1024*1024 || p.ExitCode() != 0 {
 		t.Fatalf("native execution unsuccessful; retained evidence: wait=%v tree=%v exit=%d", waitErr, treeErr, p.ExitCode())
 	}
 	source, err := os.ReadFile(filepath.Join(work, "calc.py"))
@@ -160,20 +164,10 @@ func TestNativeSchemaContract(t *testing.T) {
 		t.Logf("saved Grok raw contract fixture to %s for terminal-envelope review", fixture)
 		return
 	}
-	parser := adapter.NewStreamParser(provider, providerEventLimit, 1024*1024)
-	var terminal adapter.Event
-	if err = parser.Consume(strings.NewReader(string(raw)), func(event adapter.Event) error {
-		if event.Kind == adapter.EventResult {
-			terminal = event
-		}
-		return nil
-	}); err != nil {
+	if err := validateNativeAGYReview(raw); err != nil {
 		t.Fatal(err)
 	}
-	if decision, e := decodeCandidateReview(terminal.StructuredText); e != nil || decision.Decision != "reject" {
-		err = e
-		t.Fatalf("AGY final result did not carry one strict review object: %v", err)
-	}
+
 }
 
 func fmtError(err error) string {
@@ -181,4 +175,113 @@ func fmtError(err error) string {
 		return ""
 	}
 	return err.Error()
+}
+
+// The file sink must enforce its own bound; process.Output only bounds memory.
+type nativeEvidenceSink struct {
+	mu        sync.Mutex
+	writer    io.Writer
+	remaining int
+	cancel    context.CancelFunc
+	err       error
+}
+
+func (s *nativeEvidenceSink) Write(p []byte) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.err != nil {
+		return 0, s.err
+	}
+	q := p
+	if len(q) > s.remaining {
+		q = q[:s.remaining]
+	}
+	n, err := s.writer.Write(q)
+	s.remaining -= n
+	if err == nil && n != len(q) {
+		err = io.ErrShortWrite
+	}
+	if err == nil && len(p) > len(q) {
+		err = errors.New("native_evidence_limit")
+	}
+	if err != nil {
+		s.err = err
+		s.cancel()
+	}
+	return n, err
+}
+func (s *nativeEvidenceSink) Err() error { s.mu.Lock(); defer s.mu.Unlock(); return s.err }
+func validateNativeAGYReview(raw []byte) error {
+	collector, err := newProtocolCollector(string(adapter.ProviderAGY))
+	if err != nil {
+		return err
+	}
+	if _, err = collector.Write(raw); err != nil {
+		return err
+	}
+	terminal, _, err := collector.Finish()
+	if err != nil {
+		return err
+	}
+	if !providerSucceeded(adapter.ProviderAGY, terminal) {
+		return errors.New("native_review_unsuccessful")
+	}
+	decision, err := decodeCandidateReview(terminal.StructuredText)
+	if err != nil {
+		return err
+	}
+	if decision.Decision != "reject" {
+		return errors.New("native_review_wrong_decision")
+	}
+	return nil
+}
+func TestNativeEvidenceSinkBound(t *testing.T) {
+	var b bytes.Buffer
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	s := &nativeEvidenceSink{writer: &b, remaining: 4, cancel: cancel}
+	if n, err := s.Write([]byte("123")); n != 3 || err != nil {
+		t.Fatal(n, err)
+	}
+	if n, err := s.Write([]byte("456")); n != 1 || err == nil {
+		t.Fatal(n, err)
+	}
+	if b.String() != "1234" || ctx.Err() == nil || s.Err() == nil {
+		t.Fatal("unbounded or uncancelled sink")
+	}
+	if n, err := s.Write([]byte("7")); n != 0 || err == nil || b.Len() != 4 {
+		t.Fatal(n, err)
+	}
+}
+
+type nativeFailedWriter struct{}
+
+func (nativeFailedWriter) Write([]byte) (int, error) { return 0, io.ErrClosedPipe }
+func TestNativeEvidenceSinkWriteFailure(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	s := &nativeEvidenceSink{writer: nativeFailedWriter{}, remaining: 4, cancel: cancel}
+	if _, err := s.Write([]byte("x")); !errors.Is(err, io.ErrClosedPipe) || ctx.Err() == nil {
+		t.Fatal(err)
+	}
+}
+func TestNativeAGYReviewValidation(t *testing.T) {
+	good := `{"event":"result","result":{"conversation_id":"s1","status":"SUCCESS","response":"done","structured_output":{"decision":"reject","summary":"subtraction instead of addition"}}}` + "\n"
+	for _, tc := range []struct {
+		name, raw string
+		ok        bool
+	}{
+		{"success", good, true},
+		{"error", strings.Replace(good, "SUCCESS", "ERROR", 1), false},
+		{"duplicate", good + good, false},
+		{"changed-session", `{"event":"init","conversation_id":"s2"}` + "\n" + good, false},
+		{"missing-session", strings.Replace(good, `"s1"`, `""`, 1), false},
+		{"missing-terminal", `{"event":"init","conversation_id":"s1"}` + "\n", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := validateNativeAGYReview([]byte(tc.raw)); (err == nil) != tc.ok {
+				t.Fatal(err)
+			}
+		})
+	}
 }
