@@ -42,7 +42,7 @@ destination="$base/versions/$version"
 marketplace=missing
 case "$provider" in
   codex|claude)
-    marketplace=$("$root/plugins/codex-orchestrator/runtime/plugins/codex-orchestrator/bin/codex-orchestrator" marketplace-check --provider "$provider" --destination "$destination")
+    marketplace=$("$root/plugins/agent-bird/runtime/plugins/codex-orchestrator/bin/codex-orchestrator" marketplace-check --provider "$provider" --destination "$destination")
     case "$marketplace" in same|missing) ;; *) echo 'Native marketplace preflight failed.' >&2; exit 1 ;; esac ;;
 esac
 mkdir -p "$base/versions"
@@ -58,7 +58,8 @@ fi
 case "$provider" in
   codex)
     if [ "$marketplace" = missing ]; then codex plugin marketplace add "$destination"; fi
-    codex plugin add codex-orchestrator@codex-bird ;;
+    codex plugin add agent-bird@agent-bird
+    "$destination/plugins/agent-bird/runtime/plugins/codex-orchestrator/bin/codex-orchestrator" codex-plugin-activate --cwd "$destination" ;;
   claude)
     if [ "$marketplace" = missing ]; then claude plugin marketplace add "$destination" --scope user; fi
     claude plugin install agent-bird-claude@agent-bird --scope user ;;

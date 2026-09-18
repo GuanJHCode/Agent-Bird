@@ -64,6 +64,8 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return preflight(args[1:], stdout)
 	case "marketplace-check":
 		return marketplaceCheck(ctx, args[1:], stdout)
+	case "codex-plugin-activate":
+		return codexPluginActivate(ctx, args[1:], stdout)
 	case "plugin-run":
 		return pluginRun(ctx, args[1:], stdout)
 	case "owner-bind":

@@ -14,7 +14,7 @@ BUILD = ROOT / 'tasks/native-rollout/scripts/build-release.py'
 class ReleaseTest(unittest.TestCase):
     def build(self, root):
         binary = root / 'binary'
-        binary.write_text('#!/bin/sh\nif [ "${1-}" = marketplace-check ]; then echo missing; exit 0; fi\nprintf "%s\\n" "$@" > "$CAPTURE"\n')
+        binary.write_text('#!/bin/sh\nif [ "${1-}" = marketplace-check ]; then echo missing; exit 0; fi\nif [ "${1-}" = codex-plugin-activate ]; then printf "%s\\n" "$@" >> "$ORCHESTRATOR_CALL_LOG"; exit 0; fi\nprintf "%s\\n" "$@" > "$CAPTURE"\n')
         binary.chmod(0o700)
         output = root / 'output'
         result = subprocess.run([sys.executable, str(BUILD), '--binary', str(binary), '--version', '0.2.0-preview.3', '--output', str(output)], capture_output=True, text=True)
@@ -42,6 +42,12 @@ class ReleaseTest(unittest.TestCase):
             self.assertTrue((output / 'agent-bird.rb').is_file())
             self.assertTrue((package / 'LICENSE').is_file())
             self.assertTrue((package / 'install.command').is_file())
+            marketplace = json.loads((package / '.agents/plugins/marketplace.json').read_text())
+            self.assertEqual(marketplace['name'], 'agent-bird')
+            self.assertEqual(marketplace['plugins'][0]['name'], 'agent-bird')
+            self.assertEqual(marketplace['plugins'][0]['source']['path'], './plugins/agent-bird')
+            manifest = json.loads((package / 'plugins/agent-bird/.codex-plugin/plugin.json').read_text())
+            self.assertEqual(manifest['name'], 'agent-bird')
 
     def test_existing_output_is_preserved(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -62,7 +68,7 @@ class InstallerTest(ReleaseTest):
         uname = commands / 'uname'
         uname.write_text('#!/bin/sh\ncase "$1" in -s) echo Darwin ;; -m) echo arm64 ;; esac\n')
         uname.chmod(0o700)
-        environment = dict(os.environ, PATH=str(commands)+':/usr/bin:/bin', AGENT_BIRD_INSTALL_ROOT=str(root / 'installed'), CALL_LOG=str(root / 'calls'))
+        environment = dict(os.environ, PATH=str(commands)+':/usr/bin:/bin', AGENT_BIRD_INSTALL_ROOT=str(root / 'installed'), CALL_LOG=str(root / 'calls'), ORCHESTRATOR_CALL_LOG=str(root / 'orchestrator-calls'))
         return package, commands, environment
 
     def test_each_cli_gets_only_its_native_install_commands(self):
@@ -78,7 +84,8 @@ class InstallerTest(ReleaseTest):
                 destination = root / 'installed/versions/0.2.0-preview.3'
                 self.assertTrue((destination / 'agent-bird').exists())
                 if provider == 'codex':
-                    expected = ['plugin','marketplace','add',str(destination),'END','plugin','add','codex-orchestrator@codex-bird','END']
+                    expected = ['plugin','marketplace','add',str(destination),'END','plugin','add','agent-bird@agent-bird','END']
+                    self.assertEqual((root / 'orchestrator-calls').read_text().splitlines(), ['codex-plugin-activate', '--cwd', str(destination)])
                 elif provider == 'claude':
                     expected = ['plugin','marketplace','add',str(destination),'--scope','user','END','plugin','install','agent-bird-claude@agent-bird','--scope','user','END']
                 else:

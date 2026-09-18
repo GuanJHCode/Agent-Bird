@@ -33,7 +33,7 @@ func marketplaceSourceState(provider string, raw []byte, destination string) (st
 			return "", codeError("marketplace_catalog_invalid")
 		}
 		rows = *catalog.Marketplaces
-		name = "codex-bird"
+		name = "agent-bird"
 	} else if provider == "claude" {
 		if json.Unmarshal(raw, &rows) != nil || rows == nil {
 			return "", codeError("marketplace_catalog_invalid")

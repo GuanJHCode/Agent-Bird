@@ -40,20 +40,21 @@ def build(binary, version, output):
     entries = module('entries', 'tasks/lightweight-plugin-entry/scripts/build-native-entries.py')
     entries.validate_runtime(portable)
     manifests = {
-        'codex-orchestrator': ('.codex-plugin/plugin.json', 'codex-orchestrator'),
+        'agent-bird': ('.codex-plugin/plugin.json', 'agent-bird'),
         'claude': ('.claude-plugin/plugin.json', 'agent-bird-claude'),
         'grok': ('.grok-plugin/plugin.json', 'agent-bird-grok'),
         'agy': ('plugin.json', 'agent-bird-agy'),
     }
     for provider, (path, name) in manifests.items():
         manifest = {'name': name, 'version': version, 'description': 'Isolated local Agent Bird collaboration.'}
-        if provider == 'codex-orchestrator':
+        if provider == 'agent-bird':
             manifest = json.loads((ROOT / 'plugins/codex-orchestrator/.codex-plugin/plugin.json').read_text())
+            manifest['name'] = 'agent-bird'
             manifest['version'] = version
         entries.package(package / 'plugins', provider, path, manifest, portable)
     write(package / '.agents/plugins/marketplace.json', json.dumps({
-        'name': 'codex-bird', 'interface': {'displayName': 'Agent Bird'},
-        'plugins': [{'name': 'codex-orchestrator', 'source': {'source': 'local', 'path': './plugins/codex-orchestrator'},
+        'name': 'agent-bird', 'interface': {'displayName': 'Agent Bird'},
+        'plugins': [{'name': 'agent-bird', 'source': {'source': 'local', 'path': './plugins/agent-bird'},
                      'policy': {'installation': 'AVAILABLE', 'authentication': 'ON_INSTALL'}, 'category': 'Productivity'}]
     }, indent=2) + '\n')
     write(package / '.claude-plugin/marketplace.json', json.dumps({
@@ -70,9 +71,9 @@ case "${1-}" in
     shift
     provider=${1-}
     case "$provider" in claude|grok|agy) shift ;; *) echo 'Usage: agent-bird start claude|grok|agy' >&2; exit 2 ;; esac
-    exec "$root/plugins/codex-orchestrator/scripts/agent-bird" controller start --provider "$provider" "$@" ;;
+    exec "$root/plugins/agent-bird/scripts/agent-bird" controller start --provider "$provider" "$@" ;;
 esac
-exec "$root/plugins/codex-orchestrator/scripts/agent-bird" "$@"
+exec "$root/plugins/agent-bird/scripts/agent-bird" "$@"
 ''', True)
     write(package / 'VERSION', version + '\n')
     write(package / 'install.command', (ROOT / 'tasks/native-rollout/scripts/install-native.sh').read_text(), True)

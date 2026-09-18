@@ -5,9 +5,10 @@ import "testing"
 func TestMarketplaceCheckDoesNotReplaceAnotherSource(t *testing.T) {
 	for _, tc := range []struct{ provider, body, want string }{
 		{"codex", `{"marketplaces":[]}`, "missing"},
-		{"codex", `{"marketplaces":[{"name":"codex-bird","marketplaceSource":{"sourceType":"local","source":"/private/release"}}]}`, "same"},
-		{"codex", `{"marketplaces":[{"name":"codex-bird","marketplaceSource":{"sourceType":"local","source":"/private/old"}}]}`, ""},
-		{"codex", `{"marketplaces":[{"name":"codex-bird","marketplaceSource":{"sourceType":"git","source":"/private/release"}}]}`, ""},
+		{"codex", `{"marketplaces":[{"name":"agent-bird","marketplaceSource":{"sourceType":"local","source":"/private/release"}}]}`, "same"},
+		{"codex", `{"marketplaces":[{"name":"codex-bird","marketplaceSource":{"sourceType":"local","source":"/private/old"}}]}`, "missing"},
+		{"codex", `{"marketplaces":[{"name":"agent-bird","marketplaceSource":{"sourceType":"local","source":"/private/old"}}]}`, ""},
+		{"codex", `{"marketplaces":[{"name":"agent-bird","marketplaceSource":{"sourceType":"git","source":"/private/release"}}]}`, ""},
 		{"claude", `[]`, "missing"},
 		{"claude", `[{"name":"agent-bird","source":"directory","path":"/private/release","installLocation":"/private/cache"}]`, "same"},
 		{"claude", `[{"name":"agent-bird","source":"github","installLocation":"/private/release"}]`, ""},
