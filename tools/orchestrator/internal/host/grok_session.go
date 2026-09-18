@@ -1,14 +1,14 @@
 package host
 
 import (
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 	"os"
 	"path/filepath"
 	"strings"
@@ -35,7 +35,7 @@ func grokEncodeCWD(cwd string) string {
 }
 
 func prepareGrokCommand(ctx context.Context, cmd process.Command, profile *adapter.ExecutionProfile, grant contract.LaunchCommand, scratch string) (process.Command, error) {
-	if profile == nil || !profile.GrokSessionWrite || profile.Version != 1 || profile.Role != adapter.Reviewer || profile.Permission != adapter.ReadOnly || grant.CommandID == "" {
+	if profile == nil || !profile.GrokSessionWrite || profile.Version != 1 || ((profile.Role != adapter.Reviewer || profile.Permission != adapter.ReadOnly) && (profile.Role != adapter.Implementer || profile.Permission != adapter.WorkspaceWrite)) || grant.CommandID == "" {
 		return cmd, errors.New("grok_session_write_required")
 	}
 	if err := ctx.Err(); err != nil {

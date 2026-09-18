@@ -49,8 +49,8 @@ func TestAGYReviewerProfileUsesNativePlanAndTypedModel(t *testing.T) {
 		t.Fatal("accepted CLI without native plan capability")
 	}
 	req.Profile.Role, req.Profile.Permission = Implementer, WorkspaceWrite
-	if _, err := BuildInvocation(req); err == nil {
-		t.Fatal("unverified AGY editing accepted")
+	if _, err := BuildInvocation(req); err == nil || err.Error() != "managed_workspace_required" {
+		t.Fatalf("unmanaged AGY editing accepted: %v", err)
 	}
 }
 

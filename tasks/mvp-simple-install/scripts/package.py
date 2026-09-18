@@ -22,7 +22,7 @@ def package(binary, version, output):
     shutil.copyfile(binary, plugin / "bin/codex-orchestrator")
     manifest = json.loads((ROOT / "plugins/codex-orchestrator/.codex-plugin/plugin.json").read_text())
     manifest["version"] = version
-    manifest["description"] = "Delegate Claude, Grok and AGY tasks from the current Codex conversation on macOS."
+    manifest["description"] = "Coordinate isolated CLI workers from a Codex session or a managed Claude, Grok or AGY controller on macOS."
     (plugin / ".codex-plugin/plugin.json").write_text(json.dumps(manifest, indent=2) + "\n")
     shutil.copyfile(ROOT / "plugins/codex-orchestrator/skills/orchestrate/SKILL.md", plugin / "skills/orchestrate/SKILL.md")
     (plugin / "runtime/g0/runtime-manifest.json").write_text('{"version":2,"kind":"collect-only"}\n')
@@ -43,6 +43,13 @@ exec "$root/bin/codex-orchestrator" plugin-run --plugin-root "$root" -- "$@"
     marketplace = output / ".agents/plugins"
     marketplace.mkdir(mode=0o700, parents=True)
     (marketplace / "marketplace.json").write_text(json.dumps({"name":"codex-bird", "interface":{"displayName":"Codex Bird"}, "plugins":[{"name":"codex-orchestrator", "source":{"source":"local","path":"./plugins/codex-orchestrator"}, "policy":{"installation":"AVAILABLE","authentication":"ON_INSTALL"}, "category":"Productivity"}]}, indent=2) + "\n")
+    standalone = output / "agent-bird"
+    standalone.write_text('''#!/bin/sh
+set -eu
+root=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+exec "$root/plugins/codex-orchestrator/scripts/invoke.sh" "$@"
+''')
+    standalone.chmod(0o700)
     installer = output / "install.command"
     installer.write_text('''#!/bin/sh
 set -eu

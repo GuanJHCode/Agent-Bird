@@ -1,6 +1,6 @@
 # Provider 与运行时
 
-插件入口为 `scripts/invoke.sh`；生成的 portable 包会解析自身目录并安装私有运行时。所有状态操作绑定已验证的 Codex owner，handle 只保存路由元数据，不是授权来源。
+插件入口为 `scripts/invoke.sh`；生成的 portable 包会解析自身目录并安装私有运行时。所有状态操作绑定已验证的 owner（Codex 原生 thread 或显式 launcher 托管进程），handle 只保存路由元数据，不是授权来源。
 
 ## 控制接口
 

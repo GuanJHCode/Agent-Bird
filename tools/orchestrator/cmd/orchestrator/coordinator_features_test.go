@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator"
 	"encoding/json"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator"
 	"testing"
 )
 
@@ -26,5 +26,25 @@ func TestCoordinatorGrokProfileCompatibility(t *testing.T) {
 				t.Fatalf("err=%v blocked=%v", err, tc.blocked)
 			}
 		})
+	}
+}
+
+func TestCoordinatorCodingRequiresMatchingRuntime(t *testing.T) {
+	for _, provider := range []string{"grok-build", "antigravity-cli"} {
+		raw := json.RawMessage(`{"provider":"` + provider + `","profile":{"role":"implementer","permission":"workspace-write"}}`)
+		for _, fallback := range []bool{false, true} {
+			task := coordinator.TaskRequest{AdapterPayload: raw}
+			if fallback {
+				task = coordinator.TaskRequest{AdapterPayload: json.RawMessage(`{"provider":"claude-code"}`), Fallbacks: []json.RawMessage{raw}}
+			}
+			caps := []string{"interruption_feedback_v1", "grok_readonly_v1"}
+			if err := checkCoordinatorTasks(caps, []coordinator.TaskRequest{task}); err == nil {
+				t.Fatalf("old runtime accepted %s fallback=%v", provider, fallback)
+			}
+			caps = append(caps, "isolated_provider_coding_v1")
+			if err := checkCoordinatorTasks(caps, []coordinator.TaskRequest{task}); err != nil {
+				t.Fatal(err)
+			}
+		}
 	}
 }

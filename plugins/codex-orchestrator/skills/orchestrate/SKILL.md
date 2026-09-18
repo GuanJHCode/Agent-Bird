@@ -1,14 +1,14 @@
 ---
 name: orchestrate
-description: Submit, inspect, collect, acknowledge, explicitly resume, or stop local Codex orchestration tasks through the installed owner-bound codex-orchestrator CLI. Use when the user asks Codex to enable/disable Claude, AGY, or Grok delegation, configure worker models, delegate implementation or review, or coordinate local subtasks.
+description: Submit, inspect, collect, acknowledge, explicitly resume, or stop local orchestration tasks through the installed owner-bound codex-orchestrator CLI. Use when the user asks the current controller to enable/disable Claude, AGY, or Grok delegation, configure worker models, delegate implementation or review, or coordinate local subtasks.
 ---
 
 # Local orchestration
 
-## Codex main, provider worker
+## Current controller, provider worker
 
 When the user says “use Claude/AGY/Grok to handle this task” (including “用 AGY 分析任务”),
-keep the current Codex conversation as the main agent. Do not ask the user to
+keep the current verified controller as the main agent. Do not ask the user to
 launch a separate provider main session, run trial preparation scripts, supply a context
 file, construct requests, or manage worker terminals. Read the repository and
 infer the allowed scope and test command where possible; ask only for missing
@@ -18,15 +18,38 @@ For a packaged collect-only plugin, its wrapper installs the bundled runtime
 into a private version directory on first explicit use. No Go build or Python
 runtime setup is required from the user. Execute the wrapper by its absolute
 path from this plugin; it resolves its own root if PLUGIN_ROOT is not exported.
-Prefer the high-level `task` commands below. They bind the current Codex owner,
+Prefer the high-level `task` commands below. They bind the current verified owner,
 probe the pinned provider and preserve an explicit handle to the original run.
 Do not manually assemble owner/process fields for new high-level submissions.
+
+## Managed non-Codex controllers
+
+A user can launch an installed Claude, Grok or AGY CLI with
+`agent-bird controller start --provider claude|grok|agy`. The launcher supplies
+`AGENT_BIRD_OWNER_REQUEST` and `AGENT_BIRD_COMMAND`; use the same high-level
+commands from its child tools. Missing CLI fails before creating a controller.
+Do not create or edit owner request files manually or copy them to other sessions.
+
+The managed owner is scoped to this launcher process lifetime, not a verified
+native conversation ID. Separate launches have separate provider settings.
+A native `/clear` or `/new` inside one launcher does not create another owner;
+start another launcher when a separate delegation scope is needed. Closing
+workers through `provider disable` still requires confirmed process-tree exit.
+Ordinary non-Codex sessions without the launcher are not automatically enrolled.
+Codex's existing native thread binding remains supported.
+The launcher requires a readable packaged Skill. If it reports
+`controller_process_tree_unknown`, preserve its private `state/controller-*`
+context and investigate remaining processes; do not claim they stopped or start
+another scope to conceal the failure. Group checks do not prove termination of
+descendants that deliberately detached into a different process group.
+With an explicit launcher `--state-dir`, child commands must pass that same
+state directory; do not allocate another state directory to bypass quotas.
 
 ## Session controls and saved defaults
 
 Handle `$orchestrate 开启 claude|grok|agy`, `关闭`, `状态`, and model settings
 through the installed wrapper. These are orchestration controls for the current
-Codex conversation, not instructions to launch an interactive CLI window.
+controller scope, not instructions to launch an interactive CLI window.
 
 ```
 <plugin-root>/scripts/invoke.sh provider enable --provider <claude|grok|agy> --provider-lock <confirmed-lock.json>
@@ -110,9 +133,8 @@ For a single read-only analysis/review:
 This creates one read-only Worker with one attempt and owner review. Select the
 provider explicitly from the user request; omission defaults to Claude. The
 confirmed lock must match the selected provider; never substitute another CLI.
-AGY currently supports read-only analysis only: ask it to use `view_file` for
-file reads; terminal tools remain unverified. Grok 1.0.34 supports an explicit
-read-only profile in the current source implementation. It restricts built-in tools to
+For AGY read-only analysis, ask it to use `view_file` for file reads; terminal
+tools remain unverified. Grok 1.0.34 supports an explicit read-only profile. It restricts built-in tools to
 `read_file`, `list_dir`, and `grep`, disables native subagents, and adds the
 per-invocation `--deny MCPTool(*)` rule for all MCP tools. Do not remove this rule
 or treat a built-in tool allowlist alone as an MCP restriction. The new rule
@@ -124,7 +146,16 @@ Do not claim a whole-artifact exact-match check passed when only the final
 answer matched; retain the original artifact and document the distinction.
 Stop on `profile_supported=false`; do not fall back to legacy requests or another
 provider. A successful probe establishes capabilities, not model success.
-Implementation and candidate review remain Claude-only.
+Managed implementation profiles are implemented for Claude, Grok and AGY.
+AGY 1.2.5 passed one native isolated coding/freeze/behavior fixture. Grok 1.0.34
+native coding failed: read_file succeeded, but search_replace permission was
+cancelled. Do not claim Grok coding works, silently retry, or bypass that denial.
+This does not establish native controller delegation, review or integration.
+Grok uses `acceptEdits` with file tools;
+AGY uses `accept-edits`. These modes are selected only for a typed implementation
+in a Host-managed worktree. Never add bypass/always-approve flags or legacy
+permission allow rules to overcome a denial. Testing uses candidate validation;
+structured candidate review remains Claude-only.
 
 Grok additionally reports `requires_session_write_authorization=true`. Obtain
 explicit user authorization for this task's fresh Grok session directory writes

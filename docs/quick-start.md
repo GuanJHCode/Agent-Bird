@@ -1,6 +1,6 @@
 # 使用
 
-先按 [安装说明](installation.md) 构建并安装插件，在目标项目新开 Codex 会话。
+先按 [安装说明](installation.md) 构建。Codex 使用插件；Claude/Grok/AGY 使用 `agent-bird controller start --provider <cli>`，在该主脑中读取 `AGENT_BIRD_SKILL` 指向的说明。
 
 ```text
 $orchestrate 开启 claude
@@ -22,7 +22,7 @@ $orchestrate 关闭 grok
 用 AGY 只读检查这个目录，给出源码依据。
 ```
 
-Codex 自动准备任务目标、文件范围、输入版本、执行者和验收条件。写任务必须使用独立托管 worktree，测试和构建在候选验证区执行，无需每次重复要求。已有未提交修改不会被自动提交或丢弃；相关未提交输入需先明确纳入候选基线。
+主脑准备任务目标、文件范围、输入版本、执行者和验收条件。写任务必须使用独立托管 worktree，测试和构建在候选验证区执行，无需每次重复要求。已有未提交修改不会被自动提交或丢弃；相关未提交输入需先明确纳入候选基线。
 
 每个任务保留独立 handle、执行预算和证据。超时或中断后继续使用原 handle，不自动加预算、不另建任务绕过失败。
 

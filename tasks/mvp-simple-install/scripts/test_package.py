@@ -36,3 +36,18 @@ def test_existing_bundle_is_preserved(tmp_path):
     import pytest
     with pytest.raises(FileExistsError):MODULE.package(binary,"1.2.3",output)
     assert sentinel.read_text()=="keep"
+
+def test_standalone_entry_does_not_require_codex(tmp_path):
+    binary=tmp_path/'binary'
+    binary.write_bytes(b'test executable')
+    plugin=MODULE.package(binary,'1.2.3',tmp_path/'bundle')
+    entry=plugin.parents[1]/'agent-bird'
+    assert entry.is_file()
+    assert entry.stat().st_mode&0o777==0o700
+    # Replace only this fixture's wrapper and verify argument preservation.
+    wrapper=plugin/'scripts/invoke.sh'
+    wrapper.write_text('#!/bin/sh\nprintf "%s\\n" "$@"\n')
+    wrapper.chmod(0o700)
+    r=subprocess.run([str(entry),'controller','start','--provider','grok','--','hello world'],env={'PATH':'/usr/bin:/bin'},capture_output=True,text=True)
+    assert r.returncode==0,r.stderr
+    assert r.stdout.splitlines()==['controller','start','--provider','grok','--','hello world']

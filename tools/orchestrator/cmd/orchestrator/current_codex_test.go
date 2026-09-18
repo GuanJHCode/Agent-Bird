@@ -29,3 +29,16 @@ func TestCurrentCodexRejectsIdentityOverrides(t *testing.T) {
 		}
 	}
 }
+
+func TestCurrentOwnerMissingManagedContextDoesNotStartRuntime(t *testing.T) {
+	t.Setenv("AGENT_BIRD_OWNER_REQUEST", "")
+	t.Setenv("CODEX_THREAD_ID", "")
+	state := filepath.Join(t.TempDir(), "state")
+	err := run(context.Background(), []string{"owner-bind", "--current", "--state-dir", state}, &bytes.Buffer{}, &bytes.Buffer{})
+	if err == nil || err.Error() != "current_codex_thread_unavailable" {
+		t.Fatalf("got %v", err)
+	}
+	if _, err := os.Stat(state); !os.IsNotExist(err) {
+		t.Fatal("created runtime before validating origin")
+	}
+}

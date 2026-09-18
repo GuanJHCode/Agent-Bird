@@ -236,6 +236,16 @@ func (h *Handle) Stop(ctx context.Context) error {
 	return ErrProcessTreeUnknown
 }
 
+// ConfirmGroupExited checks the OS group without sending a signal that can
+// mutate it. An exited leader alone does not establish descendant termination.
+func ConfirmGroupExited(pgid int) error {
+	alive, err := processGroupAlive(pgid)
+	if err != nil || alive {
+		return ErrProcessTreeUnknown
+	}
+	return nil
+}
+
 func processGroupAlive(pgid int) (bool, error) {
 	if pgid <= 0 {
 		return false, ErrProcessTreeUnknown

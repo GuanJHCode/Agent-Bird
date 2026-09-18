@@ -2,13 +2,13 @@ package main
 
 import (
 	"bytes"
+	"context"
+	"encoding/json"
+	"flag"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
-	"context"
-	"encoding/json"
-	"flag"
 	"io"
 	"path/filepath"
 	"slices"
@@ -27,7 +27,7 @@ func requireProviderCoordinator(ctx context.Context, state string) error {
 }
 func bindProviderOwner(ctx context.Context, state string) (string, error) {
 	var out bytes.Buffer
-	if err := ownerBind(ctx, []string{"--current-codex", "--state-dir", state}, &out); err != nil {
+	if err := ownerBind(ctx, []string{"--current", "--state-dir", state}, &out); err != nil {
 		return "", err
 	}
 	var owner struct {
@@ -139,7 +139,7 @@ func providerSettingsEntry(ctx context.Context, args []string, out io.Writer) er
 			return err
 		}
 	}
-	if _, err := currentCodexOwner(ctx); err != nil {
+	if _, err := currentOwner(ctx); err != nil {
 		return err
 	}
 	state, err := resolveState(*stateArg)

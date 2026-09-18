@@ -64,6 +64,8 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return pluginRun(ctx, args[1:], stdout)
 	case "owner-bind":
 		return ownerBind(ctx, args[1:], stdout)
+	case "controller":
+		return controllerEntry(ctx, args[1:])
 	case "provider-probe", "provider-lock":
 		return providerControl(ctx, args[0], args[1:], stdout)
 	case "serve":

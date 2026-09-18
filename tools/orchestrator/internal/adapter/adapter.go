@@ -171,7 +171,11 @@ func BuildInvocation(req Request) (Invocation, error) {
 	case ProviderGrok:
 		args = append(args, "-p", req.Prompt, "--output-format", "streaming-json")
 		if req.Profile != nil {
-			args = append(args, "--no-subagents", "--disable-web-search", "--tools", "read_file,list_dir,grep", "--deny", "MCPTool(*)")
+			tools := "read_file,list_dir,grep"
+			if req.Profile.Role == Implementer {
+				tools += ",search_replace"
+			}
+			args = append(args, "--no-subagents", "--disable-web-search", "--tools", tools, "--deny", "MCPTool(*)")
 		}
 		if req.Session.ID != "" {
 			args = append(args, "--resume", req.Session.ID)
@@ -191,6 +195,16 @@ func BuildInvocation(req Request) (Invocation, error) {
 		input = []byte(req.Prompt)
 	}
 	appendPermissionArgs(&args, req.Provider, req.Permission)
+	// Only the validated, managed implementation profile selects native edit
+	// approval. Legacy permission flags cannot opt into this mode.
+	if req.Profile != nil && req.Profile.Role == Implementer {
+		switch req.Provider {
+		case ProviderGrok:
+			args = append(args, "--permission-mode", "acceptEdits")
+		case ProviderAGY:
+			args = append(args, "--mode", "accept-edits")
+		}
+	}
 	if usesCandidateReviewSchema(req) {
 		args = append(args, "--json-schema", candidateReviewSchema)
 	}

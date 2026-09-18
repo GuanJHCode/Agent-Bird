@@ -24,7 +24,7 @@ func pluginRun(ctx context.Context, args []string, out io.Writer) error {
 	}
 	action := fs.Arg(0)
 	switch action {
-	case "provider", "check", "runtime-status", "preflight", "task", "owner-bind", "provider-probe", "provider-lock", "ensure-running", "submit", "status", "summary", "collect", "wait-events", "ack", "accept", "answer", "retry", "rework", "resume", "stop", "rebind-owner", "recover-host":
+	case "provider", "check", "runtime-status", "preflight", "task", "owner-bind", "controller", "provider-probe", "provider-lock", "ensure-running", "submit", "status", "summary", "collect", "wait-events", "ack", "accept", "answer", "retry", "rework", "resume", "stop", "rebind-owner", "recover-host":
 	default:
 		return codeError("portable_action_unsupported")
 	}

@@ -184,7 +184,7 @@ func taskSubmit(ctx context.Context, action string, args []string, out io.Writer
 		return err
 	}
 	// Observe identity before reserving anything; never fall back to a shell PID.
-	if _, err := currentCodexOwner(ctx); err != nil {
+	if _, err := currentOwner(ctx); err != nil {
 		return err
 	}
 	state, err := resolveState(*stateArg)
@@ -205,7 +205,7 @@ func taskSubmit(ctx context.Context, action string, args []string, out io.Writer
 		h.TaskIDs = append(h.TaskIDs, task.ID)
 	}
 	var ownerOut bytes.Buffer
-	if err = ownerBind(ctx, []string{"--current-codex", "--state-dir", state}, &ownerOut); err != nil {
+	if err = ownerBind(ctx, []string{"--current", "--state-dir", state}, &ownerOut); err != nil {
 		return err
 	}
 	var owner struct {

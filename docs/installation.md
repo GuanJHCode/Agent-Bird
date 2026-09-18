@@ -1,6 +1,6 @@
 # 安装与卸载
 
-当前源码支持 macOS；用户包以 Apple Silicon 为首要目标。准备 Go 1.26+、Python 3、Codex CLI，以及要使用的 Claude、Grok 或 AGY CLI。Provider 的安装和登录由用户自行完成，项目不提供账号或密钥。
+当前源码支持 macOS；用户包以 Apple Silicon 为首要目标。准备 Go 1.26+、Python 3、选用的主脑 CLI，以及要使用的 Claude、Grok 或 AGY CLI。Provider 的安装和登录由用户自行完成，项目不提供账号或密钥。
 
 从仓库根目录运行：
 
@@ -18,6 +18,17 @@
 `install.command` 通过 Codex 官方 plugin/marketplace 命令注册生成的本地目录。安装后保留来源目录，并新开 Codex 会话加载 Skill。首次实际使用会将运行时安装到系统用户数据目录中的独立版本目录。
 
 当前仓库没有对应的新预编译 Release，不要把源码压缩包当成已构建的安装包。没有提供 Homebrew formula。
+
+## 非 Codex 主脑
+
+构建后直接使用 `./dist/plugin/agent-bird controller start --provider claude`
+（也可选 `grok`、`agy`）。无需安装 Codex 或运行 `install.command`。
+入口检查所选 CLI，继承当前终端配置与登录，保留一个独立的主脑进程归属。
+让主脑读取环境变量 `AGENT_BIRD_SKILL` 指向的使用说明，然后通过
+`AGENT_BIRD_COMMAND` 指向的运行时执行同样的任务命令。
+不向第三方 CLI 自动安装插件或修改配置。若使用自定义 `--state-dir`，其子 CLI 中的编排命令也必须传入相同参数。
+
+主脑退出时检查其进程组；如果 leader 已退出但后代仍存活，返回 `controller_process_tree_unknown` 并保留私有上下文，不把它标为关闭成功。主动脱离进程组的后代不在这项检测保证内。
 
 ## 升级
 

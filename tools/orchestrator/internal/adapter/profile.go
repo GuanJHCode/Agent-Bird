@@ -103,7 +103,7 @@ func validateProfile(req Request) error {
 	if len(req.Permission.Allow) > 0 || len(req.Permission.Deny) > 0 || (req.Permission.Mode != "" && req.Permission.Mode != "plan" && req.Permission.Mode != "default") {
 		return errors.New("profile_legacy_permission_conflict")
 	}
-	if p.Role == Implementer && req.Provider != ProviderClaude {
+	if p.Role == Implementer && req.Provider != ProviderClaude && req.Provider != ProviderGrok && req.Provider != ProviderAGY {
 		return errors.New("implementer_unsupported")
 	}
 	if p.Role == Implementer && req.Permission.Mode == "plan" {

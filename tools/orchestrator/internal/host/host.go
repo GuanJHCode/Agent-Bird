@@ -1,18 +1,18 @@
 package host
 
 import (
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/events"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/events"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
 	"os"
 	"path/filepath"
 	"strings"
@@ -142,12 +142,24 @@ func (h *Host) ExecuteLaunch(ctx context.Context, grant contract.LaunchCommand, 
 		CandidateWorkspace() *adapter.CandidateWorkspace
 	}); ok && managed.CandidateWorkspace() != nil {
 		cmd.Dir = candidateDirectory(cmd.Dir, grant, managed.CandidateWorkspace().AutoDirectory)
+		if profile != nil && profile.GrokSessionWrite {
+			if meta.outputProvider != string(adapter.ProviderGrok) {
+				return contract.Result{}, errors.New("profile_provider_state_mismatch")
+			}
+			meta.expectedSessionID = grokSessionID(grant)
+		}
 		meta.prepareCandidate = func(ctx context.Context) (process.Command, func(context.Context, string) ([]byte, error), func(), error) {
 			freeze, closeCandidate, err := h.prepareCandidate(ctx, grant, inv, profile)
 			if err != nil {
 				return cmd, nil, closeCandidate, err
 			}
-			wrapped, err := sandboxCommand(ctx, cmd, profile, filepath.Join(h.spoolRoot, grant.AttemptID, grant.SegmentID, "scratch"))
+			scratch := filepath.Join(h.spoolRoot, grant.AttemptID, grant.SegmentID, "scratch")
+			var wrapped process.Command
+			if profile != nil && profile.GrokSessionWrite {
+				wrapped, err = prepareGrokCommand(ctx, cmd, profile, grant, scratch)
+			} else {
+				wrapped, err = sandboxCommand(ctx, cmd, profile, scratch)
+			}
 			return wrapped, freeze, closeCandidate, err
 		}
 	} else if profile != nil && profile.Permission == adapter.WorkspaceWrite {
