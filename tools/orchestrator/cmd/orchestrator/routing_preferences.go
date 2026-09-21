@@ -41,12 +41,12 @@ func routingPreferencesEqual(a, b routingPreferences) bool {
 }
 
 func validateRoutingPreferences(p routingPreferences) error {
-	if p.Version != 1 || (p.Mode != "balanced" && p.Mode != "save-primary" && p.Mode != "manual") || p.NativeParallel || len(p.PreferredProviders) == 0 || len(p.PreferredProviders) > 3 {
+	if p.Version != 1 || (p.Mode != "balanced" && p.Mode != "save-primary" && p.Mode != "manual") || p.NativeParallel || len(p.PreferredProviders) == 0 || len(p.PreferredProviders) > 4 {
 		return codeError("routing_preferences_invalid")
 	}
 	seen := map[string]bool{}
 	for _, provider := range p.PreferredProviders {
-		if provider != "claude" && provider != "grok" && provider != "agy" || seen[provider] {
+		if provider != "claude" && provider != "grok" && provider != "agy" && provider != "codex" || seen[provider] {
 			return codeError("routing_preferences_invalid")
 		}
 		seen[provider] = true

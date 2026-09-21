@@ -1,11 +1,11 @@
 package store
 
 import (
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
 )
 
 type ProviderState struct {
@@ -20,7 +20,7 @@ type ProviderState struct {
 // thread is reserved for saved model defaults and never holds an enable switch.
 func (d *DB) ProviderControl(ctx context.Context, thread, provider, action string, model *string) (ProviderState, error) {
 	empty := ProviderState{}
-	if thread == "" || (provider != string(adapter.ProviderClaude) && provider != string(adapter.ProviderGrok) && provider != string(adapter.ProviderAGY)) {
+	if thread == "" || (provider != string(adapter.ProviderClaude) && provider != string(adapter.ProviderGrok) && provider != string(adapter.ProviderAGY) && provider != string(adapter.ProviderCodex)) {
 		return empty, CodeError("provider_control_invalid")
 	}
 	if action != "status" && action != "enable" && action != "disable" && action != "model" && action != "default-model" {

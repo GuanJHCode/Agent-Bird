@@ -84,3 +84,12 @@ func Probe(ctx context.Context, provider Provider, path string) (ProviderLock, e
 	}
 	return ProviderLock{Version: 1, Provider: provider, Protocol: ProtocolID(provider), Binary: pin}, nil
 }
+
+// ProbeCapabilities reads the help for the exact non-interactive command that
+// will execute the task; top-level Codex help does not describe exec flags.
+func ProbeCapabilities(ctx context.Context, provider Provider, path string) (string, error) {
+	if provider == ProviderCodex {
+		return ProbeOutput(ctx, path, "exec", "--help")
+	}
+	return ProbeOutput(ctx, path, "--help")
+}

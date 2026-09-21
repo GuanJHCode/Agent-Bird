@@ -8,6 +8,7 @@ import (
 	"errors"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -129,7 +130,7 @@ func BuildInvocation(req Request) (Invocation, error) {
 	if req.Provider == ProviderCodex && (req.Prompt == "" || strings.ContainsRune(req.Prompt, '\x00')) {
 		return Invocation{}, errors.New("codex_prompt_invalid")
 	}
-	if err := validatePermission(req.Provider, req.Permission); err != nil {
+	if err := validateRequestPermission(req); err != nil {
 		return Invocation{}, err
 	}
 	if err := validateExtraArgs(req.ExtraArgs); err != nil {
@@ -181,18 +182,30 @@ func BuildInvocation(req Request) (Invocation, error) {
 			args = append(args, "--resume", req.Session.ID)
 		}
 	case ProviderCodex:
-		args = append(args,
-			"exec", "--json", "--color", "never",
-			"--model", "gpt-5.6-luna",
-			"--sandbox", "read-only",
-			"-c", `model_reasoning_effort="medium"`,
-			"-c", `approval_policy="never"`,
-		)
-		if req.Session.ID != "" {
-			args = append(args, "resume", req.Session.ID)
+		if req.Profile == nil {
+			args = append(args,
+				"exec", "--json", "--color", "never",
+				"--model", "gpt-5.6-luna",
+				"--sandbox", "read-only",
+				"-c", `model_reasoning_effort="medium"`,
+				"-c", `approval_policy="never"`,
+			)
+			if req.Session.ID != "" {
+				args = append(args, "resume", req.Session.ID)
+			}
+			args = append(args, "-")
+			input = []byte(req.Prompt)
+		} else {
+			args = append(args, "exec", "--json", "--color", "never", "--ephemeral", "--sandbox", string(req.Profile.Permission), "-c", "agents.enabled=false", "--disable", "multi_agent", "--disable", "hooks", "--disable", "plugins", "--disable", "apps")
+			if req.Profile.Model != "" {
+				args = append(args, "--model", string(req.Profile.Model))
+			}
+			if req.Profile.Reasoning != "" {
+				args = append(args, "-c", "model_reasoning_effort="+strconv.Quote(string(req.Profile.Reasoning)))
+			}
+			args = append(args, "-")
+			input = []byte(req.Prompt)
 		}
-		args = append(args, "-")
-		input = []byte(req.Prompt)
 	}
 	appendPermissionArgs(&args, req.Provider, req.Permission)
 	// Only the validated, managed implementation profile selects native edit
@@ -205,7 +218,7 @@ func BuildInvocation(req Request) (Invocation, error) {
 			args = append(args, "--mode", "accept-edits")
 		}
 	}
-	if usesCandidateReviewSchema(req) {
+	if usesCandidateReviewSchema(req) && req.Provider != ProviderCodex {
 		args = append(args, "--json-schema", candidateReviewSchema)
 	}
 	if req.Profile != nil && (req.Provider == ProviderClaude || req.Provider == ProviderAGY || req.Provider == ProviderGrok) {
@@ -225,6 +238,15 @@ func BuildInvocation(req Request) (Invocation, error) {
 		env["AGY_CLI_DISABLE_AUTO_UPDATE"] = "true"
 	}
 	return Invocation{provider: req.Provider, pin: req.Binary, argv: args, cwd: req.CWD, input: input, env: env, profile: req.Profile, workspace: cloneWorkspace(req.Workspace), action: req.Action}, nil
+}
+
+// Typed Codex permissions are validated by validateProfile and the managed
+// workspace contract. The old untyped trial remains read-only and plan-only.
+func validateRequestPermission(req Request) error {
+	if req.Provider == ProviderCodex && req.Profile != nil {
+		return nil
+	}
+	return validatePermission(req.Provider, req.Permission)
 }
 
 func validatePermission(provider Provider, p Permission) error {

@@ -164,6 +164,9 @@ func (h *Host) ExecuteLaunch(ctx context.Context, grant contract.LaunchCommand, 
 				if err == nil {
 					wrapped, err = prepareAuthenticatedGrokCommand(ctx, cmd, profile, grant, scratch)
 				}
+			} else if meta.outputProvider == string(adapter.ProviderCodex) {
+				cmd.Dir = prepared.Receipt.Worktree
+				wrapped, err = prepareCodexCommand(ctx, cmd, profile, scratch, false)
 			} else {
 				wrapped, err = sandboxCommand(ctx, cmd, profile, scratch)
 			}
@@ -178,6 +181,10 @@ func (h *Host) ExecuteLaunch(ctx context.Context, grant contract.LaunchCommand, 
 		meta.expectedSessionID = grokSessionID(grant)
 		meta.prepareProvider = func(ctx context.Context) (process.Command, error) {
 			return prepareAuthenticatedGrokCommand(ctx, cmd, profile, grant, filepath.Join(h.spoolRoot, grant.AttemptID, grant.SegmentID, "scratch"))
+		}
+	} else if profile != nil && meta.outputProvider == string(adapter.ProviderCodex) {
+		meta.prepareProvider = func(ctx context.Context) (process.Command, error) {
+			return prepareCodexCommand(ctx, cmd, profile, filepath.Join(h.spoolRoot, grant.AttemptID, grant.SegmentID, "scratch"), false)
 		}
 	} else if profile != nil {
 		var err error

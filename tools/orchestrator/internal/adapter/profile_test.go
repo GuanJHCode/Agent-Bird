@@ -85,16 +85,16 @@ func TestProfileLockValidationAndSnapshot(t *testing.T) {
 		t.Fatal("unknown lock version accepted without profile")
 	}
 }
-func TestCodexTypedProfileExplicitlyRejectsUnavailableProtocol(t *testing.T) {
+func TestCodexTypedProfileRejectsUnverifiedBinary(t *testing.T) {
 	req := profileRequest(t, `{"version":1,"role":"reviewer","model":"custom-model","permission":"read-only","timeout_ms":9000}`)
 	req.Provider = ProviderCodex
 	req.Lock.Provider = ProviderCodex
 	req.Lock.Protocol = ProtocolID(ProviderCodex)
 	req.Binary.Version = CodexVersion
-	req.Binary.SHA256 = CodexSHA256
+	req.Binary.SHA256 = strings.Repeat("b", 64)
 	req.Lock.Binary = req.Binary
 	if _, err := BuildInvocation(req); err == nil {
-		t.Fatal("typed Codex profile silently ignored model")
+		t.Fatal("unverified Codex binary accepted")
 	}
 }
 

@@ -5,6 +5,11 @@ import (
 	"regexp"
 )
 
+// Codex command construction is staged, but native admission is not verified.
+// Keep both discovery and Host execution closed until the auth/runtime contract
+// has independent evidence. A binary digest alone is insufficient.
+const CodexWorkerAdmissionReason = "codex_trial_guard_not_ready"
+
 type Role string
 type ModelID string
 type ReasoningEffort string
@@ -55,7 +60,7 @@ func ValidModelID(value string) bool { return value == "" || modelID.MatchString
 var modelID = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$`)
 
 func validateProfile(req Request) error {
-	if req.Action != nil && req.Action.Operation == "review" && req.Provider != ProviderClaude && req.Provider != ProviderAGY && req.Provider != ProviderGrok {
+	if req.Action != nil && req.Action.Operation == "review" && req.Provider != ProviderClaude && req.Provider != ProviderAGY && req.Provider != ProviderGrok && req.Provider != ProviderCodex {
 		return errors.New("candidate_review_provider_unsupported")
 	}
 	if req.Lock != nil && (req.Lock.Version != 1 || req.Lock.Provider != req.Provider || req.Lock.Protocol == "" || req.Lock.Protocol != ProtocolID(req.Provider) || req.Lock.Binary != req.Binary) {
@@ -65,6 +70,9 @@ func validateProfile(req Request) error {
 	if p == nil {
 		return nil
 	}
+	if req.Provider == ProviderCodex && (req.Binary.Version != CodexVersion || req.Binary.SHA256 != CodexSHA256) {
+		return errors.New("codex_binary_pin_mismatch")
+	}
 	if p.GrokSessionWrite && req.Provider != ProviderGrok {
 		return errors.New("profile_provider_state_mismatch")
 	}
@@ -73,9 +81,6 @@ func validateProfile(req Request) error {
 	}
 	if req.Session.ID != "" {
 		return errors.New("profile_resume_not_verified")
-	}
-	if req.Provider == ProviderCodex {
-		return errors.New("codex_trial_guard_not_ready")
 	}
 	if p.Version != 1 || p.TimeoutMS < 1 || p.TimeoutMS > 3_600_000 {
 		return errors.New("execution_profile_invalid")
@@ -103,7 +108,7 @@ func validateProfile(req Request) error {
 	if len(req.Permission.Allow) > 0 || len(req.Permission.Deny) > 0 || (req.Permission.Mode != "" && req.Permission.Mode != "plan" && req.Permission.Mode != "default") {
 		return errors.New("profile_legacy_permission_conflict")
 	}
-	if p.Role == Implementer && req.Provider != ProviderClaude && req.Provider != ProviderGrok && req.Provider != ProviderAGY {
+	if p.Role == Implementer && req.Provider != ProviderClaude && req.Provider != ProviderGrok && req.Provider != ProviderAGY && req.Provider != ProviderCodex {
 		return errors.New("implementer_unsupported")
 	}
 	if p.Role == Implementer && req.Permission.Mode == "plan" {
@@ -129,6 +134,9 @@ func CheckCapabilities(req Request, help string) error {
 	if req.Profile == nil {
 		return nil
 	}
+	if req.Provider == ProviderCodex && CodexWorkerAdmissionReason != "" {
+		return errors.New(CodexWorkerAdmissionReason)
+	}
 	flags := []string{"--output-format", "--input-format", "--permission-mode"}
 	if req.Provider == ProviderClaude {
 		flags = append(flags, "--disallowed-tools")
@@ -143,10 +151,14 @@ func CheckCapabilities(req Request, help string) error {
 		}
 	}
 	if req.Provider == ProviderCodex {
-		return errors.New("codex_trial_guard_not_ready")
+		flags = []string{"--json", "--ephemeral", "--sandbox", "--config", "--output-last-message", "--disable"}
 	}
 	if usesCandidateReviewSchema(req) {
-		flags = append(flags, "--json-schema")
+		if req.Provider == ProviderCodex {
+			flags = append(flags, "--output-schema")
+		} else {
+			flags = append(flags, "--json-schema")
+		}
 		if req.Provider == ProviderGrok {
 			flags = append(flags, "--prompt-file")
 		}
@@ -155,7 +167,9 @@ func CheckCapabilities(req Request, help string) error {
 		flags = append(flags, "--model")
 	}
 	if req.Profile.Reasoning != "" {
-		flags = append(flags, "--effort")
+		if req.Provider != ProviderCodex {
+			flags = append(flags, "--effort")
+		}
 	}
 	if req.Session.ID != "" {
 		flags = append(flags, "--resume")

@@ -1,9 +1,9 @@
 package store
 
 import (
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"context"
 	"encoding/json"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"path/filepath"
 	"testing"
 )
@@ -245,5 +245,65 @@ func TestProviderWriteCannotBypassManagedWorkspaceViaSubmit(t *testing.T) {
 	p.Tasks[0].AdapterPayload = json.RawMessage(`{"provider":"claude-code","profile":{"version":1,"role":"implementer","permission":"workspace-write","timeout_ms":1000},"directory":"/private/arbitrary-linked-worktree"}`)
 	if _, err = db.SubmitPlan(ctx, p); err == nil || err.Error() != "managed_workspace_required" {
 		t.Fatalf("unmanaged admission: %v", err)
+	}
+}
+
+func TestCodexClosePreservesOtherOwnerAndRequiresTreeExit(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "state.db")
+	db, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { db.Close() }()
+	a := providerTestPlan("a", "thread-a", "codex-cli")
+	b := providerTestPlan("b", "thread-b", "codex-cli")
+	ra, err := db.SubmitPlan(ctx, a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.SubmitPlan(ctx, b); err != nil {
+		t.Fatal(err)
+	}
+	host, err := db.RegisterHost(ctx, contract.HostHello{LaunchID: ra.LaunchID, LaunchToken: ra.LaunchToken, OriginContextID: "a", OriginPID: 7, OriginBirth: "birth", HostGeneration: "a", PID: 101, Birth: "host", Executable: "/private/host"}, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	launch, err := db.ClaimReady(ctx, host, 1, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := db.ProviderControl(ctx, "thread-a", "codex-cli", "disable", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Enabled || result.Status != "stopping" || result.Active != 1 {
+		t.Fatalf("close=%+v", result)
+	}
+	stops, err := db.PendingStops(ctx, host)
+	if err != nil || len(stops) != 1 || stops[0].Command.SegmentID != launch.SegmentID {
+		t.Fatalf("stops=%v %v", stops, err)
+	}
+	pending, err := db.PendingLaunches(ctx, host, 1)
+	if err != nil || len(pending) != 0 {
+		t.Fatalf("replayed closed launch: %v %v", pending, err)
+	}
+	var status string
+	if err = db.sql.QueryRow(`SELECT status FROM tasks WHERE id='b-task'`).Scan(&status); err != nil || status != "ready" {
+		t.Fatalf("other session affected: %s %v", status, err)
+	}
+	if _, err = db.SubmitPlan(ctx, providerTestPlan("c", "thread-a", "codex-cli")); err == nil || err.Error() != "provider_disabled" {
+		t.Fatalf("admission=%v", err)
+	}
+	db.Close()
+	db, err = Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.SubmitPlan(ctx, providerTestPlan("d", "thread-a", "codex-cli")); err == nil || err.Error() != "provider_disabled" {
+		t.Fatalf("restart admission=%v", err)
+	}
+	if _, err = db.ProviderControl(ctx, "thread-a", "codex-cli", "enable", nil); err == nil || err.Error() != "provider_stop_pending" {
+		t.Fatalf("reopen before exit=%v", err)
 	}
 }

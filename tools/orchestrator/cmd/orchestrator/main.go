@@ -350,7 +350,9 @@ func submitWithPreparedControl(ctx context.Context, args []string, stdout io.Wri
 			if os.Getenv("ORCHESTRATOR_ENABLE_TEST_FAKE") == "1" && pinErr.Error() == "running_package_invalid" {
 				continue
 			}
-			for _, taskID := range pinned { _ = install.UnpinRunningVersion(executable, taskID) }
+			for _, taskID := range pinned {
+				_ = install.UnpinRunningVersion(executable, taskID)
+			}
 			_ = os.Remove(controlPath)
 			_ = os.Remove(bootstrapPath)
 			return pinErr
@@ -359,7 +361,9 @@ func submitWithPreparedControl(ctx context.Context, args []string, stdout io.Wri
 	}
 	if onPrepared != nil {
 		if err = onPrepared(controlPath); err != nil {
-			for _, taskID := range pinned { _ = install.UnpinRunningVersion(executable, taskID) }
+			for _, taskID := range pinned {
+				_ = install.UnpinRunningVersion(executable, taskID)
+			}
 			_ = os.Remove(controlPath)
 			_ = os.Remove(bootstrapPath)
 			return err
@@ -370,7 +374,9 @@ func submitWithPreparedControl(ctx context.Context, args []string, stdout io.Wri
 	if err != nil {
 		var rejected remoteError
 		if errors.As(err, &rejected) {
-			for _, taskID := range pinned { _ = install.UnpinRunningVersion(executable, taskID) }
+			for _, taskID := range pinned {
+				_ = install.UnpinRunningVersion(executable, taskID)
+			}
 			_ = os.Remove(controlPath)
 			_ = os.Remove(bootstrapPath)
 			return err
@@ -1036,7 +1042,7 @@ func invocationForGrant(ctx context.Context, grant contract.LaunchCommand) (cont
 		}
 		payload.BinaryPath, payload.BinaryVersion, payload.BinarySHA256 = lock.Binary.Path, lock.Binary.Version, lock.Binary.SHA256
 	}
-	if payload.Provider == string(adapter.ProviderCodex) || payload.BinaryVersion == adapter.CodexVersion || strings.EqualFold(payload.BinarySHA256, adapter.CodexSHA256) {
+	if (payload.Provider == string(adapter.ProviderCodex) || payload.BinaryVersion == adapter.CodexVersion || strings.EqualFold(payload.BinarySHA256, adapter.CodexSHA256)) && (payload.Provider != string(adapter.ProviderCodex) || payload.Profile == nil || payload.ProviderLock == nil) {
 		return nil, codeError("codex_trial_guard_not_ready")
 	}
 	if grant.Answer != "" {
@@ -1066,7 +1072,7 @@ func invocationForGrant(ctx context.Context, grant contract.LaunchCommand) (cont
 		return nil, err
 	}
 	if request.Profile != nil {
-		help, err := adapter.ProbeOutput(probeCtx, request.Binary.Path, "--help")
+		help, err := adapter.ProbeCapabilities(probeCtx, request.Provider, request.Binary.Path)
 		if err != nil {
 			return nil, err
 		}

@@ -58,6 +58,8 @@ func taskEntry(ctx context.Context, args []string, out io.Writer) error {
 
 func taskProvider(name string) (adapter.Provider, string, error) {
 	switch name {
+	case "codex", string(adapter.ProviderCodex):
+		return adapter.ProviderCodex, "codex", nil
 	case "claude", string(adapter.ProviderClaude):
 		return adapter.ProviderClaude, "claude", nil
 	case "agy", string(adapter.ProviderAGY):
@@ -73,7 +75,7 @@ func taskProbe(ctx context.Context, args []string, out io.Writer) error {
 	fs := flag.NewFlagSet("task probe", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	binary := fs.String("binary", "", "provider executable; defaults to PATH lookup")
-	providerName := fs.String("provider", "claude", "claude, agy, or grok")
+	providerName := fs.String("provider", "claude", "codex, claude, agy, or grok")
 	if fs.Parse(args) != nil || fs.NArg() != 0 {
 		return codeError("invalid_args")
 	}
@@ -119,7 +121,7 @@ func taskSubmitPrepared(ctx context.Context, action string, args []string, out i
 		fs.StringVar(&planPath, "request", "", "business plan JSON")
 	} else {
 		fs.StringVar(&model, "model", "", "model ID or cli-default")
-		fs.StringVar(&providerName, "provider", "claude", "claude, agy, or grok")
+		fs.StringVar(&providerName, "provider", "claude", "codex, claude, agy, or grok")
 		fs.BoolVar(&grokSessionWrite, "grok-session-write", false, "explicitly authorize this Grok task's new session directory writes")
 		fs.StringVar(&runID, "run-id", "", "unique run ID")
 		fs.StringVar(&dir, "directory", "", "read-only workspace")
@@ -382,7 +384,7 @@ func preflightProviders(ctx context.Context, tasks []coordinator.TaskRequest) er
 			if err = adapter.VerifyExecutable(req.Binary, strings.TrimSpace(actual)); err != nil {
 				return err
 			}
-			help, err := adapter.ProbeOutput(ctx, req.Binary.Path, "--help")
+			help, err := adapter.ProbeCapabilities(ctx, req.Provider, req.Binary.Path)
 			if err != nil {
 				return err
 			}

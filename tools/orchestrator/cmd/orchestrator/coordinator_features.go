@@ -39,6 +39,9 @@ func checkCoordinatorTasks(capabilities []string, tasks []coordinator.TaskReques
 			if err := json.Unmarshal(raw, &payload); err != nil {
 				return codeError("invalid_adapter_payload")
 			}
+			if payload.Provider == "codex-cli" && !slices.Contains(capabilities, "codex_worker_v1") {
+				return codeError("coordinator_upgrade_required")
+			}
 			if payload.Profile != nil && payload.Profile.Permission == "workspace-write" && (payload.Provider == "grok-build" || payload.Provider == "antigravity-cli") && !slices.Contains(capabilities, "isolated_provider_coding_v1") {
 				return codeError("coordinator_upgrade_required")
 			}

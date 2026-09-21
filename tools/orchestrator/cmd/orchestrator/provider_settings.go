@@ -57,7 +57,7 @@ func providerSettingsEntry(ctx context.Context, args []string, out io.Writer) er
 	}
 	fs := flag.NewFlagSet("provider "+action, flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
-	name := fs.String("provider", "", "claude, grok, agy; status defaults to all")
+	name := fs.String("provider", "", "codex, claude, grok, agy; status defaults to all")
 	stateArg := fs.String("state-dir", "", "private runtime state")
 	binary := fs.String("binary", "", "provider executable for enable probe")
 	lockPath := fs.String("provider-lock", "", "confirmed unchanged provider lock for enable")
@@ -82,7 +82,7 @@ func providerSettingsEntry(ctx context.Context, args []string, out io.Writer) er
 		if action != "status" {
 			return codeError("invalid_args")
 		}
-		names = []string{"claude", "grok", "agy"}
+		names = []string{"claude", "grok", "agy", "codex"}
 	}
 	var providers []adapter.Provider
 	for _, name := range names {

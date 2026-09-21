@@ -28,7 +28,7 @@ func controllerEntry(ctx context.Context, args []string) error {
 	}
 	fs := flag.NewFlagSet("controller start", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
-	providerName := fs.String("provider", "", "claude, grok, or agy")
+	providerName := fs.String("provider", "", "codex, claude, grok, or agy")
 	skillPath := fs.String("skill-path", "", "optional installed Agent Bird skill path for the launched CLI")
 	stateArg := fs.String("state-dir", "", "private runtime state directory")
 	if fs.Parse(args[1:]) != nil || *providerName == "" {

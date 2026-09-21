@@ -75,7 +75,7 @@ func validateCandidateSourceProvider(lock *adapter.ProviderLock, provider string
 	if lock == nil || provider == "" || provider != string(lock.Provider) || lock.Version != 1 || lock.Protocol != adapter.ProtocolID(lock.Provider) || lock.Binary.Path == "" || lock.Binary.Version == "" || len(lock.Binary.SHA256) != 64 {
 		return errors.New("candidate_review_provider_mismatch")
 	}
-	if lock.Provider != adapter.ProviderClaude && lock.Provider != adapter.ProviderAGY && lock.Provider != adapter.ProviderGrok {
+	if lock.Provider != adapter.ProviderClaude && lock.Provider != adapter.ProviderAGY && lock.Provider != adapter.ProviderGrok && lock.Provider != adapter.ProviderCodex {
 		return errors.New("candidate_review_provider_unsupported")
 	}
 	return nil
@@ -88,7 +88,7 @@ func validateCandidateReviewProvider(lock *adapter.ProviderLock, provider, execu
 	if executablePath != lock.Binary.Path || !strings.EqualFold(executableSHA256, lock.Binary.SHA256) {
 		return errors.New("candidate_review_provider_mismatch")
 	}
-	if lock.Provider != adapter.ProviderClaude && lock.Provider != adapter.ProviderAGY && lock.Provider != adapter.ProviderGrok {
+	if lock.Provider != adapter.ProviderClaude && lock.Provider != adapter.ProviderAGY && lock.Provider != adapter.ProviderGrok && lock.Provider != adapter.ProviderCodex {
 		return errors.New("candidate_review_provider_unsupported")
 	}
 	return nil
@@ -214,7 +214,7 @@ func candidateReviewDirectory(grant contract.LaunchCommand) (string, error) {
 
 func candidateReviewProvider(grant contract.LaunchCommand) (adapter.Provider, error) {
 	payload, err := adapter.DecodeInvocationPayload(grant.AdapterPayload)
-	if err != nil || payload.CandidateAction == nil || payload.CandidateAction.Version != 1 || payload.CandidateAction.Operation != "review" || (payload.Provider != string(adapter.ProviderClaude) && payload.Provider != string(adapter.ProviderAGY) && payload.Provider != string(adapter.ProviderGrok)) {
+	if err != nil || payload.CandidateAction == nil || payload.CandidateAction.Version != 1 || payload.CandidateAction.Operation != "review" || (payload.Provider != string(adapter.ProviderClaude) && payload.Provider != string(adapter.ProviderAGY) && payload.Provider != string(adapter.ProviderGrok) && payload.Provider != string(adapter.ProviderCodex)) {
 		return "", errors.New("candidate_review_source_invalid")
 	}
 	return adapter.Provider(payload.Provider), nil
@@ -368,6 +368,8 @@ func (h *Host) prepareCandidateAction(ctx context.Context, grant contract.Launch
 			}
 			out.ReviewScope = "complete-tracked-text-base-and-candidate"
 			cmd, err = prepareAuthenticatedGrokCommand(ctx, cmd, profile, grant, scratch)
+		} else if action.Operation == "review" && reviewLock.Provider == adapter.ProviderCodex {
+			cmd, err = prepareCodexCommand(ctx, cmd, profile, scratch, true)
 		} else {
 			cmd, err = sandboxCommand(ctx, cmd, profile, scratch)
 		}
@@ -394,6 +396,13 @@ func (h *Host) prepareCandidateAction(ctx context.Context, grant contract.Launch
 			out.ValidationDigest = hashBytes(encoded)
 			out.Target.ValidationDigest = out.ValidationDigest
 		case "review":
+			if reviewLock.Provider == adapter.ProviderCodex {
+				var err error
+				text, err = readCodexReview(filepath.Join(h.spoolRoot, grant.AttemptID, grant.SegmentID, "scratch"), text)
+				if err != nil {
+					return nil, err
+				}
+			}
 			if out.ReviewInputSHA256 != "" {
 				if err := verifyGrokReviewInput(filepath.Join(h.spoolRoot, grant.AttemptID, grant.SegmentID, "scratch"), out.ReviewInputSHA256); err != nil {
 					return nil, err

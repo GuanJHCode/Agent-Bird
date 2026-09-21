@@ -32,11 +32,12 @@ func providerControl(ctx context.Context, operation string, args []string, out i
 	}
 	reason := ""
 	if req.Provider == adapter.ProviderCodex {
-		reason = "codex_trial_guard_not_ready"
-	} else if req.Provider != adapter.ProviderClaude && req.Provider != adapter.ProviderAGY && req.Provider != adapter.ProviderGrok {
+		reason = adapter.CodexWorkerAdmissionReason
+	}
+	if req.Provider != adapter.ProviderCodex && req.Provider != adapter.ProviderClaude && req.Provider != adapter.ProviderAGY && req.Provider != adapter.ProviderGrok {
 		reason = "execution_profile_unsupported"
 	}
-	help, err := adapter.ProbeOutput(ctx, req.BinaryPath, "--help")
+	help, err := adapter.ProbeCapabilities(ctx, req.Provider, req.BinaryPath)
 	if err != nil {
 		return err
 	}
