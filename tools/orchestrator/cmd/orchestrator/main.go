@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -22,6 +23,7 @@ import (
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/admincli"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/execbridge"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitopsworker"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/install"
@@ -52,6 +54,15 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return codeError("invalid_args")
 	}
 	switch args[0] {
+	case "codex-exec-bridge":
+		if len(args) != 4 {
+			return codeError("invalid_args")
+		}
+		pid, err := strconv.Atoi(args[2])
+		if err != nil {
+			return codeError("invalid_args")
+		}
+		return execbridge.Forward(ctx, args[1], pid, args[3], os.Stdin, stdout)
 	case "runtime-status":
 		return runtimeStatus(ctx, args[1:], stdout)
 	case "routing":

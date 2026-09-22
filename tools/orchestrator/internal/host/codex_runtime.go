@@ -8,29 +8,79 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/codexrpc"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/execbridge"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 )
 
 var errCodexAuthCleanup = errors.New("codex_auth_cleanup_failed")
 
-type codexRuntimeState struct{ home *codexHome }
+type codexRuntimeState struct {
+	home   *codexHome
+	config map[string]any
+	bridge *execbridge.Broker
+	turn   *codexrpc.Turn
+	input  *os.File
+	mu     sync.Mutex
+	bound  bool
+}
 
 func (s *codexRuntimeState) verify() error {
 	if s == nil || s.home == nil {
 		return errors.New("codex_runtime_unprepared")
 	}
+	s.mu.Lock()
+	bound := s.bound
+	s.mu.Unlock()
+	if bound && s.bridge != nil {
+		if err := s.bridge.Finish(); err != nil {
+			return err
+		}
+		if err := s.bridge.Err(); err != nil {
+			return err
+		}
+		if err := s.turn.Err(); err != nil {
+			return err
+		}
+	}
 	return s.home.verifyInputs()
 }
 func (s *codexRuntimeState) close() error {
-	if s != nil && s.home != nil {
-		return s.home.detachAuth()
+	if s == nil {
+		return nil
 	}
+	var result error
+	if s.bridge != nil {
+		result = s.bridge.Close()
+	}
+	if s.turn != nil {
+		_ = s.turn.Close()
+	}
+	if s.input != nil {
+		_ = s.input.Close()
+	}
+	if s.home != nil {
+		result = errors.Join(result, s.home.detachAuth())
+	}
+	return result
+}
+func (s *codexRuntimeState) bind(identity process.Identity) error {
+	if s.input != nil {
+		_ = s.input.Close()
+	}
+	if err := s.bridge.Bind(identity); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	s.bound = true
+	s.mu.Unlock()
 	return nil
 }
+
 func (h *codexHome) detachAuth() error {
 	path := filepath.Join(h.path, "auth.json")
 	target, err := os.Readlink(path)
@@ -172,6 +222,7 @@ func prepareCodexRuntime(ctx context.Context, cmd process.Command, profile *adap
 	if profile.Permission == adapter.WorkspaceWrite && cfg["sandbox_mode"] != "workspace-write" && cfg["sandbox_mode"] != "danger-full-access" {
 		return cmd, errors.New("codex_source_policy_read_only")
 	}
+	state.config = cfg
 	restrictions, err := codexPolicyRestrictions(cfg)
 	if err != nil {
 		return cmd, err

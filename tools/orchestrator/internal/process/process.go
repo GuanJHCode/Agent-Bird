@@ -33,7 +33,10 @@ type Command struct {
 	Env          []string
 	ExactEnv     bool
 	Stdin        []byte
+	StdinFile    *os.File
 	Stdout       io.Writer
+	OutputFilter func(io.Writer) io.Writer
+	Started      func(Identity) error
 }
 type Identity struct {
 	PID              int
@@ -109,10 +112,18 @@ func Start(ctx context.Context, spec Command) (*Handle, error) {
 	} else if spec.Env != nil {
 		cmd.Env = mergeEnv(os.Environ(), spec.Env)
 	}
-	if spec.Stdin != nil {
+	if spec.StdinFile != nil && spec.Stdin != nil {
+		return nil, CodeError("command_stdin_conflict")
+	}
+	if spec.StdinFile != nil {
+		cmd.Stdin = spec.StdinFile
+	} else if spec.Stdin != nil {
 		cmd.Stdin = bytes.NewReader(append([]byte(nil), spec.Stdin...))
 	}
 	h := &Handle{cmd: cmd, done: make(chan struct{}), exit: -1, outputLimit: 1024 * 1024, stdout: spec.Stdout}
+	if spec.OutputFilter != nil {
+		h.stdout = spec.OutputFilter(spec.Stdout)
+	}
 	cmd.Stdout = captureWriter{h: h, stdout: true}
 	cmd.Stderr = captureWriter{h: h}
 	// Recheck the provider after all wrappers/probes have been assembled. The
@@ -157,6 +168,14 @@ func Start(ctx context.Context, spec Command) (*Handle, error) {
 		_ = h.Stop(stopCtx)
 		cancel()
 		return nil, CodeError("process_birth_unknown")
+	}
+	if spec.Started != nil {
+		if err := spec.Started(h.identity); err != nil {
+			stopCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			stopErr := h.Stop(stopCtx)
+			cancel()
+			return nil, errors.Join(err, stopErr)
+		}
 	}
 	return h, nil
 }
