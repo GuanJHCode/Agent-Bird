@@ -126,18 +126,28 @@ func (h *Host) ExecuteLaunch(ctx context.Context, grant contract.LaunchCommand, 
 	if structured, ok := inv.(interface{ OutputProvider() string }); ok {
 		meta.outputProvider = structured.OutputProvider()
 	}
+	var codexState *codexRuntimeState
+	if profile != nil && meta.outputProvider == string(adapter.ProviderCodex) {
+		codexState = &codexRuntimeState{}
+		meta.verifyProvider = codexState.verify
+		meta.closeProvider = codexState.close
+	}
 	cmd := invocationCommand(inv)
 	if value, ok := inv.(interface {
 		CandidateAction() *adapter.CandidateAction
 	}); ok && value.CandidateAction() != nil {
 		action := value.CandidateAction()
+		if action.Operation != "review" {
+			meta.verifyProvider = nil
+			meta.closeProvider = nil
+		}
 		meta.integrationAction = action.Operation == "integrate"
 		meta.structuredReview = action.Operation == "review" && (meta.outputProvider == string(adapter.ProviderClaude) || meta.outputProvider == string(adapter.ProviderAGY) || meta.outputProvider == string(adapter.ProviderGrok))
 		if action.Operation == "review" && meta.outputProvider == string(adapter.ProviderGrok) {
 			meta.expectedSessionID = grokSessionID(grant)
 		}
 		meta.prepareAction = func(ctx context.Context) (process.Command, actionFinalizer, func(), error) {
-			return h.prepareCandidateAction(ctx, grant, inv, action, profile)
+			return h.prepareCandidateAction(ctx, grant, inv, action, profile, codexState)
 		}
 		return h.execute(runCtx, store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID, Status: "running"}, grant.RunID, grant.TaskID, cmd, false, meta)
 	}
@@ -166,7 +176,7 @@ func (h *Host) ExecuteLaunch(ctx context.Context, grant contract.LaunchCommand, 
 				}
 			} else if meta.outputProvider == string(adapter.ProviderCodex) {
 				cmd.Dir = prepared.Receipt.Worktree
-				wrapped, err = prepareCodexCommand(ctx, cmd, profile, scratch, false)
+				wrapped, err = prepareCodexCommand(ctx, cmd, profile, scratch, false, codexState)
 			} else {
 				wrapped, err = sandboxCommand(ctx, cmd, profile, scratch)
 			}
@@ -184,7 +194,7 @@ func (h *Host) ExecuteLaunch(ctx context.Context, grant contract.LaunchCommand, 
 		}
 	} else if profile != nil && meta.outputProvider == string(adapter.ProviderCodex) {
 		meta.prepareProvider = func(ctx context.Context) (process.Command, error) {
-			return prepareCodexCommand(ctx, cmd, profile, filepath.Join(h.spoolRoot, grant.AttemptID, grant.SegmentID, "scratch"), false)
+			return prepareCodexCommand(ctx, cmd, profile, filepath.Join(h.spoolRoot, grant.AttemptID, grant.SegmentID, "scratch"), false, codexState)
 		}
 	} else if profile != nil {
 		var err error
@@ -215,6 +225,8 @@ func (h *Host) Execute(ctx context.Context, a store.Attempt, runID, taskID strin
 }
 
 type launchMetadata struct {
+	verifyProvider    func() error
+	closeProvider     func() error
 	prepareProvider   func(context.Context) (process.Command, error)
 	expectedSessionID string
 	integrationAction bool
@@ -230,7 +242,22 @@ type launchMetadata struct {
 	questionRevision  int
 }
 
-func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID string, cmd process.Command, persistDB bool, meta launchMetadata) (contract.Result, error) {
+func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID string, cmd process.Command, persistDB bool, meta launchMetadata) (finalResult contract.Result, finalErr error) {
+	closeProvider := func() error {
+		if meta.closeProvider == nil {
+			return nil
+		}
+		close := meta.closeProvider
+		meta.closeProvider = nil
+		return close()
+	}
+	defer func() {
+		if closeErr := closeProvider(); closeErr != nil {
+			finalErr = errors.Join(finalErr, closeErr)
+			finalResult.Status = "unknown"
+			h.finishAttempt(a.ID, "unknown", persistDB)
+		}
+	}()
 	if meta.prepareCandidate != nil || meta.freezeCandidate != nil || meta.prepareAction != nil || meta.prepareProvider != nil {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithCancel(ctx)
@@ -321,7 +348,7 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		prepared, freeze, closeCandidate, prepareErr := meta.prepareCandidate(ctx)
 		defer closeCandidate()
 		if prepareErr != nil {
-			if errors.Is(prepareErr, process.ErrProcessTreeUnknown) || errors.Is(prepareErr, gitops.ErrIntegrationUncertain) {
+			if errors.Is(prepareErr, process.ErrProcessTreeUnknown) || errors.Is(prepareErr, errCodexAuthCleanup) || errors.Is(prepareErr, gitops.ErrIntegrationUncertain) {
 				return finalizeCandidateUnknown(prepareErr, nil, -1)
 			}
 			if ctx.Err() != nil || h.stopWasRequested(a.SegmentID) {
@@ -338,7 +365,7 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 	if meta.prepareProvider != nil {
 		prepared, prepareErr := meta.prepareProvider(ctx)
 		if prepareErr != nil {
-			if errors.Is(prepareErr, process.ErrProcessTreeUnknown) {
+			if errors.Is(prepareErr, process.ErrProcessTreeUnknown) || errors.Is(prepareErr, errCodexAuthCleanup) {
 				return finalizeCandidateUnknown(prepareErr, nil, -1)
 			}
 			if ctx.Err() != nil || h.stopWasRequested(a.SegmentID) {
@@ -350,6 +377,12 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		cmd = prepared
 		if ctx.Err() != nil || h.stopWasRequested(a.SegmentID) {
 			return finalizeStopped(nil, -1, context.Canceled)
+		}
+	}
+	if meta.verifyProvider != nil {
+		if err := meta.verifyProvider(); err != nil {
+			h.finishAttempt(a.ID, "failed", persistDB)
+			return contract.Result{Status: "failed", ExitCode: -1, EventCount: eventCount}, err
 		}
 	}
 	p, err := process.Start(ctx, cmd)
@@ -496,6 +529,24 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		}
 		h.finishAttempt(a.ID, "unknown", persistDB)
 		return contract.Result{Status: "unknown", ExitCode: p.ExitCode(), EventCount: eventCount, OutputHash: hashText(p.Output())}, err
+	}
+	var verifyErr error
+	if meta.verifyProvider != nil {
+		verifyErr = meta.verifyProvider()
+	}
+	verifyErr = errors.Join(verifyErr, closeProvider())
+	if verifyErr != nil {
+		exit := p.ExitCode()
+		phaseErr := appendPhase(contract.EventExited, hashText("exited:"+a.SegmentID), &identity, &exit, nil)
+		if phaseErr == nil {
+			phaseErr = appendPhase(contract.EventFailed, hashText(verifyErr.Error()), &identity, &exit, nil)
+		}
+		status := "failed"
+		if phaseErr != nil || errors.Is(verifyErr, errCodexAuthCleanup) {
+			status = "unknown"
+		}
+		h.finishAttempt(a.ID, status, persistDB)
+		return contract.Result{Status: status, ExitCode: exit, EventCount: eventCount, OutputHash: hashText(p.Output())}, errors.Join(verifyErr, phaseErr)
 	}
 	if h.stopWasRequested(a.SegmentID) || p.ExitCode() < 0 {
 		if protocol != nil {

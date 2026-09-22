@@ -30,6 +30,19 @@ func TestAppServerCloseKillsChildThatInheritedStdout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Wait for the child to exist before asking the group to stop. Closing
+	// immediately races the child setup and does not exercise inherited stdout.
+	deadline := time.Now().Add(500 * time.Millisecond)
+	for {
+		if _, err := os.Stat(child); err == nil {
+			break
+		}
+		if time.Now().After(deadline) {
+			_ = closeRPC()
+			t.Fatal("fixture child did not become ready")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
 	if err := closeRPC(); err != nil {
 		t.Fatal(err)
 	}

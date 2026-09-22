@@ -15,6 +15,10 @@ import (
 )
 
 func sandboxCommand(ctx context.Context, cmd process.Command, profile *adapter.ExecutionProfile, scratch string, grok ...grokSandbox) (process.Command, error) {
+	return sandboxCommandWithPolicy(ctx, cmd, profile, scratch, grok, nil)
+}
+
+func sandboxCommandWithPolicy(ctx context.Context, cmd process.Command, profile *adapter.ExecutionProfile, scratch string, grok []grokSandbox, home *codexHome) (process.Command, error) {
 	if runtime.GOOS != "darwin" {
 		return cmd, errors.New("profile_sandbox_unsupported")
 	}
@@ -35,7 +39,28 @@ func sandboxCommand(ctx context.Context, cmd process.Command, profile *adapter.E
 	if err != nil {
 		return cmd, err
 	}
-	rules := []string{"(version 1)", "(allow default)", "(deny file-write*)", `(allow file-write* (literal "/dev/null"))`, "(allow file-write* (subpath " + strconv.Quote(scratch) + "))"}
+	writeFilter := "(subpath " + strconv.Quote(scratch) + ")"
+	if home != nil {
+		if home.path != filepath.Join(scratch, "codex-home") || home.runtime != filepath.Join(scratch, "codex-runtime") || !filepath.IsAbs(home.source) {
+			return cmd, errors.New("codex_home_unverified")
+		}
+		overlap := func(a, b string) bool {
+			return a == b || strings.HasPrefix(a, b+string(os.PathSeparator)) || strings.HasPrefix(b, a+string(os.PathSeparator))
+		}
+		if overlap(home.source, cwd) || overlap(home.source, scratch) {
+			return cmd, errors.New("codex_source_home_overlap")
+		}
+		if profile.Role == adapter.Implementer && overlap(cwd, scratch) {
+			return cmd, errors.New("codex_runtime_workspace_overlap")
+		}
+		for _, path := range []string{home.path, home.runtime} {
+			if err := grokOwnedDirectory(path, false, true); err != nil {
+				return cmd, err
+			}
+		}
+		writeFilter = "(require-all " + writeFilter + " (require-not (subpath " + strconv.Quote(home.path) + ")))"
+	}
+	rules := []string{"(version 1)", "(allow default)", "(deny file-write*)", `(allow file-write* (literal "/dev/null"))`, "(allow file-write* " + writeFilter + ")"}
 	if len(grok) == 1 {
 		for _, path := range []string{grok[0].session, grok[0].socket} {
 			if err := grokOwnedDirectory(path, false, true); err != nil {
@@ -48,7 +73,7 @@ func sandboxCommand(ctx context.Context, cmd process.Command, profile *adapter.E
 	spoolRoot := filepath.Dir(filepath.Dir(filepath.Dir(scratch)))
 	if filepath.Base(filepath.Dir(spoolRoot)) == "host-spool" {
 		state := filepath.Dir(filepath.Dir(spoolRoot))
-		rules = append(rules, "(deny file-read* (subpath "+strconv.Quote(filepath.Dir(spoolRoot))+"))", "(deny file-write* (subpath "+strconv.Quote(state)+"))", "(allow file-read* file-write* (subpath "+strconv.Quote(scratch)+"))")
+		rules = append(rules, "(deny file-read* (subpath "+strconv.Quote(filepath.Dir(spoolRoot))+"))", "(deny file-write* (subpath "+strconv.Quote(state)+"))", "(allow file-read* (subpath "+strconv.Quote(scratch)+"))", "(allow file-write* "+writeFilter+")")
 		for _, entry := range cmd.Env {
 			capPath, ok := strings.CutPrefix(entry, "ORCHESTRATOR_REPORT_CAPABILITY=")
 			if !ok {
@@ -90,6 +115,13 @@ func sandboxCommand(ctx context.Context, cmd process.Command, profile *adapter.E
 		for _, p := range paths[1:] {
 			rules = append(rules, "(deny file-write* (subpath "+strconv.Quote(p)+"))")
 		}
+	}
+	if home != nil {
+		rules = append(rules, "(deny file-write* (subpath "+strconv.Quote(home.path)+"))")
+		if home.provisionSystem {
+			rules = append(rules, "(allow file-write* (subpath "+strconv.Quote(filepath.Join(home.path, "skills/.system"))+"))")
+		}
+		rules = append(rules, "(allow file-write* (literal "+strconv.Quote(filepath.Join(home.path, "installation_id"))+"))", "(deny file-write* (subpath "+strconv.Quote(home.source)+"))")
 	}
 	// TMPDIR is task-owned; no authentication/config directories are made writable.
 	cmd.Env = append(cmd.Env, "TMPDIR="+scratch)

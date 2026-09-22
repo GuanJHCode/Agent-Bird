@@ -5,12 +5,12 @@
 ## 控制接口
 
 ```text
-provider enable --provider <claude|grok|agy> --provider-lock <confirmed-lock.json>
-provider disable --provider <claude|grok|agy>
+provider enable --provider <codex|claude|grok|agy> --provider-lock <confirmed-lock.json>
+provider disable --provider <codex|claude|grok|agy>
 provider status
-provider model --provider <claude|grok|agy> --model <model-id|cli-default>
-provider default-model --provider <claude|grok|agy> --model <model-id|cli-default>
-task probe --provider <claude|grok|agy>
+provider model --provider <codex|claude|grok|agy> --model <model-id|cli-default>
+provider default-model --provider <codex|claude|grok|agy> --model <model-id|cli-default>
+task probe --provider <codex|claude|grok|agy>
 ```
 
 这些参数由 Skill 自动组织。Provider lock、handle、请求文件生成在 owner-only 任务目录内，不应提交 Git。第一次使用或二进制摘要变化需核对真实指纹；普通 probe 不登录、不执行模型。
@@ -21,7 +21,7 @@ task probe --provider <claude|grok|agy>
 
 Provider 启停与模型配置属于编排器自己的 SQLite 状态。缺少显式开关记录时保留兼容默认；显式关闭持久化为阻断记录。新提交、fallback 和重新排队受检查；关闭中的进程仍占槽，unknown 不等于已退出。
 
-新的会话控制需要协调器能力 `session_provider_lifecycle_v1`，Grok profile 需要 `grok_readonly_v1`。旧协调器不满足时应受控升级，不修改 guard 或切换另一状态目录绕过限制。
+新的会话控制需要协调器能力 `session_provider_lifecycle_v1`，Grok profile 需要 `grok_readonly_v1`。Codex worker 还需要 `codex_worker_v1`；其源码仅覆盖固定 0.154.0，目前真实编码验收未通过，尚未发布安装包。旧协调器不满足时应受控升级，不修改 guard 或切换另一状态目录绕过限制。
 
 ## 结果和恢复
 

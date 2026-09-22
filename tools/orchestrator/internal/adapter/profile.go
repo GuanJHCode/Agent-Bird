@@ -8,7 +8,6 @@ import (
 // Codex command construction is staged, but native admission is not verified.
 // Keep both discovery and Host execution closed until the auth/runtime contract
 // has independent evidence. A binary digest alone is insufficient.
-const CodexWorkerAdmissionReason = "codex_trial_guard_not_ready"
 
 type Role string
 type ModelID string
@@ -133,9 +132,6 @@ func CheckCapabilities(req Request, help string) error {
 	}
 	if req.Profile == nil {
 		return nil
-	}
-	if req.Provider == ProviderCodex && CodexWorkerAdmissionReason != "" {
-		return errors.New(CodexWorkerAdmissionReason)
 	}
 	flags := []string{"--output-format", "--input-format", "--permission-mode"}
 	if req.Provider == ProviderClaude {

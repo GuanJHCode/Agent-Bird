@@ -220,7 +220,7 @@ func candidateReviewProvider(grant contract.LaunchCommand) (adapter.Provider, er
 	return adapter.Provider(payload.Provider), nil
 }
 
-func (h *Host) prepareCandidateAction(ctx context.Context, grant contract.LaunchCommand, inv contract.InvocationView, action *adapter.CandidateAction, profile *adapter.ExecutionProfile) (process.Command, actionFinalizer, func(), error) {
+func (h *Host) prepareCandidateAction(ctx context.Context, grant contract.LaunchCommand, inv contract.InvocationView, action *adapter.CandidateAction, profile *adapter.ExecutionProfile, runtime ...*codexRuntimeState) (process.Command, actionFinalizer, func(), error) {
 	empty := invocationCommand(inv)
 	noop := func() {}
 	in, err := readAcceptedCandidate(grant)
@@ -369,7 +369,7 @@ func (h *Host) prepareCandidateAction(ctx context.Context, grant contract.Launch
 			out.ReviewScope = "complete-tracked-text-base-and-candidate"
 			cmd, err = prepareAuthenticatedGrokCommand(ctx, cmd, profile, grant, scratch)
 		} else if action.Operation == "review" && reviewLock.Provider == adapter.ProviderCodex {
-			cmd, err = prepareCodexCommand(ctx, cmd, profile, scratch, true)
+			cmd, err = prepareCodexCommand(ctx, cmd, profile, scratch, true, runtime...)
 		} else {
 			cmd, err = sandboxCommand(ctx, cmd, profile, scratch)
 		}

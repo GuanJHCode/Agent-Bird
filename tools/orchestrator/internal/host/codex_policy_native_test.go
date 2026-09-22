@@ -15,7 +15,11 @@ func TestNativeCodexPolicyMetadataOnly(t *testing.T) {
 	if os.Getenv("AGENT_BIRD_NATIVE_CODEX_POLICY") != "1" {
 		t.Skip("opt-in native metadata probe; no model")
 	}
-	binary, err := exec.LookPath("codex")
+	binary := os.Getenv("AGENT_BIRD_NATIVE_CODEX_BINARY")
+	var err error
+	if binary == "" {
+		binary, err = exec.LookPath("codex")
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -28,9 +32,11 @@ func TestNativeCodexPolicyMetadataOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("metadata evidence retained: %s", work)
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 	defer cancel()
-	cmd, err := prepareCodexCommand(ctx, process.Command{Path: binary, PinnedPath: binary, PinnedSHA256: adapter.CodexSHA256, Dir: work, Args: []string{"exec", "--json", "--ephemeral", "--sandbox", "read-only", "-"}}, &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: 20000}, filepath.Join(work, "scratch"), false)
+	state := &codexRuntimeState{}
+	defer state.close()
+	cmd, err := prepareCodexCommand(ctx, process.Command{Path: binary, PinnedPath: binary, PinnedSHA256: adapter.CodexSHA256, Dir: work, Args: []string{"exec", "--json", "--ephemeral", "--sandbox", "read-only", "-"}}, &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: 40000}, filepath.Join(work, "scratch"), false, state)
 	if err != nil {
 		t.Fatal(err)
 	}

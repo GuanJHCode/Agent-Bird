@@ -1,6 +1,6 @@
 ---
 name: orchestrate
-description: Submit, inspect, collect, acknowledge, explicitly resume, or stop local orchestration tasks through the installed owner-bound codex-orchestrator CLI. Use for suitable independent implementation, analysis or review when the native controller rules allow collaboration, and for explicit Claude/AGY/Grok provider controls or model settings.
+description: Submit, inspect, collect, acknowledge, explicitly resume, or stop local orchestration tasks through the installed owner-bound codex-orchestrator CLI. Use for suitable independent implementation, analysis or review when the native controller rules allow collaboration, and for explicit Codex/Claude/AGY/Grok provider controls or model settings.
 ---
 
 # Local orchestration
@@ -52,7 +52,7 @@ protocol below; no result receipt constitutes business acceptance.
 
 ## Current controller, provider worker
 
-When the user says “use Claude/AGY/Grok to handle this task” (including “用 AGY 分析任务”),
+When the user says “use Codex/Claude/AGY/Grok to handle this task” (including “用 AGY 分析任务”),
 keep the current verified controller as the main agent. Do not ask the user to
 launch a separate provider main session, run trial preparation scripts, supply a context
 file, construct requests, or manage worker terminals. Read the repository and
@@ -92,16 +92,16 @@ state directory; do not allocate another state directory to bypass quotas.
 
 ## Session controls and saved defaults
 
-Handle `$orchestrate 开启 claude|grok|agy`, `关闭`, `状态`, and model settings
+Handle `$orchestrate 开启 codex|claude|grok|agy`, `关闭`, `状态`, and model settings
 through the installed wrapper. These are orchestration controls for the current
 controller scope, not instructions to launch an interactive CLI window.
 
 ```
-<plugin-root>/scripts/invoke.sh provider enable --provider <claude|grok|agy> --provider-lock <confirmed-lock.json>
-<plugin-root>/scripts/invoke.sh provider disable --provider <claude|grok|agy>
+<plugin-root>/scripts/invoke.sh provider enable --provider <codex|claude|grok|agy> --provider-lock <confirmed-lock.json>
+<plugin-root>/scripts/invoke.sh provider disable --provider <codex|claude|grok|agy>
 <plugin-root>/scripts/invoke.sh provider status
-<plugin-root>/scripts/invoke.sh provider model --provider <claude|grok|agy> --model <model-id|cli-default>
-<plugin-root>/scripts/invoke.sh provider default-model --provider <claude|grok|agy> --model <model-id|cli-default>
+<plugin-root>/scripts/invoke.sh provider model --provider <codex|claude|grok|agy> --model <model-id|cli-default>
+<plugin-root>/scripts/invoke.sh provider default-model --provider <codex|claude|grok|agy> --model <model-id|cli-default>
 ```
 
 Enable probes the actual environment and confirmed binary. Discover the CLI with
@@ -164,7 +164,7 @@ Record the handle path in the existing task handoff so another conversation can
 find the same run. Never choose a "latest" run or reuse a handle for submission.
 
 For provider discovery, use `<plugin-root>/scripts/invoke.sh task probe` (optional
-`--provider claude|agy|grok` and `--binary <path>`). This only probes version/help and never authenticates or
+`--provider codex|claude|agy|grok` and `--binary <path>`). This only probes version/help and never authenticates or
 changes a provider lock. Reuse an already confirmed unchanged lock. First use or
 changed digest still requires the existing explicit pin confirmation and
 `provider-lock` procedure below; never fabricate confirmation from probe output.
@@ -172,7 +172,7 @@ changed digest still requires the existing explicit pin confirmation and
 For a single read-only analysis/review:
 
 ```
-<plugin-root>/scripts/invoke.sh task run --provider <claude|agy|grok> --run-id <unique-id> --directory <workspace> --prompt-file <private-brief.txt> --provider-lock <confirmed-lock.json> --timeout-ms <authorized-budget> --handle <new-private-handle.json>
+<plugin-root>/scripts/invoke.sh task run --provider <codex|claude|agy|grok> --run-id <unique-id> --directory <workspace> --prompt-file <private-brief.txt> --provider-lock <confirmed-lock.json> --timeout-ms <authorized-budget> --handle <new-private-handle.json>
 ```
 
 This creates one read-only Worker with one attempt and owner review. Select the
@@ -191,6 +191,18 @@ Do not claim a whole-artifact exact-match check passed when only the final
 answer matched; retain the original artifact and document the distinction.
 Stop on `profile_supported=false`; do not fall back to legacy requests or another
 provider. A successful probe establishes capabilities, not model success.
+The source branch also implements a typed Codex worker for the exact pinned
+0.154.0 binary. It requires coordinator capability `codex_worker_v1`; do not
+restart an older shared coordinator or bypass this check. Native metadata,
+source/overlay login, immutable instructions/skills and OS boundaries were
+verified. The first native coding acceptance produced no changed candidate and
+failed safely; coding/review/integration are NOT yet natively accepted or released.
+Do not report the installed preview package or another Codex version as supported.
+Codex preserves the CLI model default unless a model is explicitly selected,
+requires file-backed native ChatGPT authentication, and refuses unsupported
+configuration/managed requirements, changed inputs, path overlaps or unknown pins.
+It never copies auth.json, changes the source home, or enables native subagents.
+
 Managed implementation profiles are implemented for Claude, Grok and AGY.
 AGY 1.2.5 and Grok 1.0.34 each passed a native isolated coding/freeze/behavior
 fixture. Grok initially cancelled search_replace; a separately authorized

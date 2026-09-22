@@ -88,7 +88,7 @@ finally:
    result[label+'_login']='managed_chatgpt' if status.returncode==0 and lines.count('Logged in using ChatGPT')==1 else 'unverified'
   except subprocess.TimeoutExpired:
    os.killpg(status.pid,signal.SIGKILL);status.communicate(timeout=2)
-   result[label+'_login']='timeout' 
+   result[label+'_login']='timeout'
  for name in ['config.toml', 'auth.json', 'AGENTS.md', 'rules', 'requirements.toml']:
   link=home/name
   if link.is_symlink(): link.unlink()

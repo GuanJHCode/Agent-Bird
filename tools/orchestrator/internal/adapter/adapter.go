@@ -196,7 +196,7 @@ func BuildInvocation(req Request) (Invocation, error) {
 			args = append(args, "-")
 			input = []byte(req.Prompt)
 		} else {
-			args = append(args, "exec", "--json", "--color", "never", "--ephemeral", "--sandbox", string(req.Profile.Permission), "-c", "agents.enabled=false", "--disable", "multi_agent", "--disable", "hooks", "--disable", "plugins", "--disable", "apps")
+			args = append(args, "exec", "--json", "--color", "never", "--ephemeral", "--sandbox", string(req.Profile.Permission), "-c", "agents.enabled=false", "--disable", "multi_agent", "--disable", "multi_agent_v2", "--disable", "hooks", "--disable", "plugins", "--disable", "apps")
 			if req.Profile.Model != "" {
 				args = append(args, "--model", string(req.Profile.Model))
 			}

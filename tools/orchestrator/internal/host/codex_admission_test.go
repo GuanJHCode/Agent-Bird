@@ -9,9 +9,9 @@ import (
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 )
 
-func TestCodexWorkerRejectsBeforeStartingNativeWithoutVerifiedAdmission(t *testing.T) {
+func TestCodexWorkerRejectsBeforeStartingNativeWithoutRuntimeState(t *testing.T) {
 	_, err := prepareCodexCommand(context.Background(), process.Command{}, &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: 1000}, t.TempDir(), false)
-	if err == nil || !strings.Contains(err.Error(), "codex_trial_guard_not_ready") {
+	if err == nil || !strings.Contains(err.Error(), "codex_runtime_state_required") {
 		t.Fatalf("unverified native worker admission must fail before probing: %v", err)
 	}
 }

@@ -70,7 +70,7 @@ func TestNativeCodingHost(t *testing.T) {
 		t.Skip("native model execution requires explicit bounded authorization")
 	}
 	provider := adapter.Provider(name)
-	if provider != adapter.ProviderGrok && provider != adapter.ProviderAGY {
+	if provider != adapter.ProviderGrok && provider != adapter.ProviderAGY && provider != adapter.ProviderCodex {
 		t.Fatal("unsupported native provider")
 	}
 	root := os.Getenv("AGENT_BIRD_NATIVE_CODING_EVIDENCE")
@@ -86,6 +86,17 @@ func TestNativeCodingHost(t *testing.T) {
 	}
 	pin := adapter.BinaryPin{Path: os.Getenv("AGENT_BIRD_NATIVE_CODING_BINARY"), Version: os.Getenv("AGENT_BIRD_NATIVE_CODING_VERSION"), SHA256: os.Getenv("AGENT_BIRD_NATIVE_CODING_SHA256")}
 	runCodingHost(t, canonical, provider, pin, 120000)
+}
+
+// Native acceptance keeps the final provider explanation even when candidate
+// freezing fails. This is test-only evidence, not an additional runtime option.
+type nativeCodingEvidenceInvocation struct {
+	reportInvocation
+	outputPath string
+}
+
+func (i nativeCodingEvidenceInvocation) Args() []string {
+	return append(i.reportInvocation.Args(), "--output-last-message", i.outputPath)
 }
 
 func runCodingHost(t *testing.T, root string, provider adapter.Provider, pin adapter.BinaryPin, budget int64) {
@@ -108,7 +119,11 @@ func runCodingHost(t *testing.T, root string, provider adapter.Provider, pin ada
 	git("-C", repo, "-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "-m", "base")
 	base := git("-C", repo, "rev-parse", "HEAD")
 	profile := &adapter.ExecutionProfile{Version: 1, Role: adapter.Implementer, Permission: adapter.WorkspaceWrite, TimeoutMS: budget, GrokSessionWrite: provider == adapter.ProviderGrok}
-	inv, err := adapter.BuildInvocation(adapter.Request{Provider: provider, Binary: pin, Lock: &adapter.ProviderLock{Version: 1, Provider: provider, Protocol: adapter.ProtocolID(provider), Binary: pin}, CWD: work, Prompt: "Fix calc.py: add(a, b) must return a + b. Read the file, use the native file edit/write tool to change only calc.py, then stop. Do not run terminal commands, use subagents or change configuration. Do not merely describe the change.", Profile: profile, Workspace: &adapter.CandidateWorkspace{Version: 1, RepoRoot: repo, BaseOID: base, Paths: []string{"calc.py"}}})
+	prompt := "Fix calc.py: add(a, b) must return a + b. Read the file, use the native file edit/write tool to change only calc.py, then stop. Do not run terminal commands, use subagents or change configuration. Do not merely describe the change."
+	if provider == adapter.ProviderCodex {
+		prompt = "Fix only calc.py: add(a, b) must return a + b. Read the file and apply the edit. You may use the native shell to read this file and apply_patch to edit it. Do not use subagents, other CLIs, change configuration, or modify any other file. Stop after the edit and briefly report it."
+	}
+	inv, err := adapter.BuildInvocation(adapter.Request{Provider: provider, Binary: pin, Lock: &adapter.ProviderLock{Version: 1, Provider: provider, Protocol: adapter.ProtocolID(provider), Binary: pin}, CWD: work, Prompt: prompt, Profile: profile, Workspace: &adapter.CandidateWorkspace{Version: 1, RepoRoot: repo, BaseOID: base, Paths: []string{"calc.py"}}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,7 +132,18 @@ func runCodingHost(t *testing.T, root string, provider adapter.Provider, pin ada
 		t.Fatal(err)
 	}
 	grant := contract.LaunchCommand{CommandID: root, ReservationID: "coding", RunID: "coding", TaskID: "implement", AttemptID: "first", SegmentID: "first", WorkRevision: 1, PlanRevision: 1, GrantedActiveMS: budget}
-	result, err := h.ExecuteLaunch(context.Background(), grant, reportInvocation{base: inv})
+	var launch contract.InvocationView = reportInvocation{base: inv}
+	if provider == adapter.ProviderCodex {
+		evidence := filepath.Join(root, "spool", "first", "first", "scratch", "provider-final.txt")
+		if err := os.MkdirAll(filepath.Dir(evidence), 0700); err != nil {
+			t.Fatal(err)
+		}
+		if err := writeCodexPrivate(evidence, nil); err != nil {
+			t.Fatal(err)
+		}
+		launch = nativeCodingEvidenceInvocation{reportInvocation: reportInvocation{base: inv}, outputPath: evidence}
+	}
+	result, err := h.ExecuteLaunch(context.Background(), grant, launch)
 	if err != nil || result.Status != "result_ready" || result.ExitCode != 0 {
 		t.Fatalf("result=%+v err=%v", result, err)
 	}

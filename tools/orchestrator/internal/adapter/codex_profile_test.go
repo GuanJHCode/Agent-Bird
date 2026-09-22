@@ -58,9 +58,18 @@ func TestCodexTypedWorkerUsesRequestedModel(t *testing.T) {
 	}
 }
 
-func TestCodexCapabilityPreflightRejectsUntilNativeAdmissionVerified(t *testing.T) {
+func TestCodexCapabilityPreflightRequiresPinnedNativeContract(t *testing.T) {
 	help := "--json --ephemeral --sandbox --config --output-last-message --disable --output-schema --model"
-	if err := CheckCapabilities(typedCodexRequest(t), help); err == nil || err.Error() != CodexWorkerAdmissionReason {
-		t.Fatalf("help flags cannot establish native auth admission: %v", err)
+	if err := CheckCapabilities(typedCodexRequest(t), help); err != nil {
+		t.Fatalf("verified typed worker contract rejected: %v", err)
+	}
+	if err := CheckCapabilities(typedCodexRequest(t), "--json"); err == nil {
+		t.Fatal("incomplete native contract accepted")
+	}
+	changed := typedCodexRequest(t)
+	changed.Binary.SHA256 = strings.Repeat("0", 64)
+	changed.Lock.Binary = changed.Binary
+	if err := CheckCapabilities(changed, help); err == nil {
+		t.Fatal("unverified binary accepted")
 	}
 }

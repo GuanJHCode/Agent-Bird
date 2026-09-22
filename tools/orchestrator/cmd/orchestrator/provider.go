@@ -31,9 +31,6 @@ func providerControl(ctx context.Context, operation string, args []string, out i
 		return err
 	}
 	reason := ""
-	if req.Provider == adapter.ProviderCodex {
-		reason = adapter.CodexWorkerAdmissionReason
-	}
 	if req.Provider != adapter.ProviderCodex && req.Provider != adapter.ProviderClaude && req.Provider != adapter.ProviderAGY && req.Provider != adapter.ProviderGrok {
 		reason = "execution_profile_unsupported"
 	}
