@@ -191,17 +191,15 @@ Do not claim a whole-artifact exact-match check passed when only the final
 answer matched; retain the original artifact and document the distinction.
 Stop on `profile_supported=false`; do not fall back to legacy requests or another
 provider. A successful probe establishes capabilities, not model success.
-The source branch also implements a typed Codex worker for the exact pinned
-0.154.0 binary. It requires coordinator capability `codex_worker_v1`; do not
-restart an older shared coordinator or bypass this check. Native metadata,
-source/overlay login, immutable instructions/skills and OS boundaries were
-verified. The first native coding acceptance produced no changed candidate and
-failed safely; coding/review/integration are NOT yet natively accepted or released.
-Do not report the installed preview package or another Codex version as supported.
-Codex preserves the CLI model default unless a model is explicitly selected,
-requires file-backed native ChatGPT authentication, and refuses unsupported
-configuration/managed requirements, changed inputs, path overlaps or unknown pins.
-It never copies auth.json, changes the source home, or enables native subagents.
+The pinned Codex 0.154.0 worker is currently blocked with
+`codex_nested_sandbox_unsupported`: its native tool sandbox cannot run inside
+the mandatory macOS worker sandbox. Metadata success is not coding support.
+The coordinator does not advertise `codex_worker_v1`, and Host refuses the
+execution before creating a private home or starting a model. Reconfirming the
+pin, logging in, retrying, or restarting the coordinator cannot remove this
+blocker. Preserve existing handles, results and budgets; do not bypass the guard.
+Codex as a main/controller remains supported. No Codex worker version is
+currently accepted or released by this source branch.
 
 Managed implementation profiles are implemented for Claude, Grok and AGY.
 AGY 1.2.5 and Grok 1.0.34 each passed a native isolated coding/freeze/behavior

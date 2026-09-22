@@ -294,3 +294,96 @@ Final verification for this source snapshot:
   paths retain pin/profile binding and enter prepareCodexCommand; validation and
   integration are Host operations rather than alternate native Codex launches.
   Legacy/missing-lock requests and old coordinator capability remain blocked.
+
+## Second authorized coding acceptance: confirmed sandbox blocker
+
+The user authorized one additional isolated Codex 0.154.0 coding attempt, capped
+at 120 seconds with no automatic retry. That allowance is now consumed. The real
+Host test ended after 25.21 seconds (package 26.022 seconds), failed, and accepted
+no candidate. No further model invocation was performed. Private evidence:
+`data/native-codex-coding-02-authorization.json`,
+`data/native-codex-coding-02.jsonl`, and
+`data/codex-nested-sandbox-repro.json`.
+
+The retained native final response reports that reading calc.py failed with
+`sandbox_apply: Operation not permitted`. Both the original test repository and
+the isolated worktree remain clean, with calc.py unchanged; the private auth
+alias was removed. Host additionally rejected post-exit source-home verification
+with `codex_source_home_changed`. The exact changed source input was not captured;
+its cause remains unresolved. Do not infer that the trial changed source config,
+or weaken the source identity guard.
+
+A zero-model macOS control reproduced the failure: a single sandbox-exec succeeds
+(exit 0), while nesting another sandbox-exec fails with sandbox_apply (exit 71).
+Agent Bird's outer sandbox and Codex's native tool sandbox therefore conflict.
+Passing metadata/preflight checks do not establish functional coding support.
+The current source capability advertisement does not establish usability; native
+Codex coding and four-way delegation acceptance remain incomplete.
+
+Independent architecture review of fixed 0.154.0 confirmed that codex exec offers
+no supported external-sandbox entry. The app-server turn/start protocol supports
+externalSandbox, but delegates filesystem AND network enforcement to the caller.
+The existing outer sandbox does not enforce restricted tool network access; merely
+switching that protocol would weaken effective permissions. No bypass flag,
+danger-full-access setting, source configuration edit, installation or coordinator
+restart was used.
+
+Remaining implementation: design and verify equivalent external filesystem and
+network enforcement, then adapt turn/notification/result handling and candidate
+acceptance. A further model acceptance requires a new explicit allowance. Earlier
+unit/metadata suite counts above remain evidence only for their recorded snapshot
+and scope; they do not override either failed real coding trial.
+
+## Third authorized coding acceptance: unchanged sandbox failure
+
+The user explicitly authorized another retry. One fresh isolated Codex 0.154.0
+attempt used the same 120-second cap; no automatic retry or permission change.
+No execution-path fix had landed before this controlled repeat.
+
+TestNativeCodingHost failed after 25.54 seconds (package 26.447 seconds). Native
+exit was 0, but the retained final response again reports sandbox_apply:
+Operation not permitted while reading calc.py. The result artifact reports
+candidate_freeze_failed / invalid_input. Unlike trial 02, this run did not report
+codex_source_home_changed. Both test repository and worktree remain clean with
+calc.py unchanged; private auth alias is absent. No candidate was accepted.
+
+Evidence: data/native-codex-coding-03-authorization.json and
+data/native-codex-coding-03.jsonl, plus retained private native scratch evidence.
+This single allowance is consumed. The architecture blocker described above
+remains; further unchanged model retries are not a repair. No production code,
+installed package, source configuration, permissions or coordinator was changed.
+
+## Admission repair after sandbox investigation
+
+The user authorized handling the repair. No additional model execution was used.
+The known-broken typed Codex worker now fails closed before runtime preparation:
+CheckCapabilities returns codex_nested_sandbox_unsupported after validating the
+profile/pin/native flags; Host ordinary/managed/review entrypoints reject even if
+submission preflight is bypassed; coordinator no longer advertises codex_worker_v1.
+Codex main/controller support and the other providers are unchanged. Existing
+handles, results, source configuration, installed packages and coordinator state
+were not changed. This fixes false admission and quota waste, NOT native coding.
+
+Three regression behaviors failed before the fix and passed afterward: complete
+metadata cannot admit the broken worker; Host refuses before creating a home;
+coordinator does not advertise an unusable worker. Evidence:
+- data/codex-admission-sandbox-red.txt and codex-admission-sandbox-green.txt.
+- Full Go suite: 815 passed, 7 explicit native/model opt-in skips, 0 failed tests;
+  15 packages passed, 1 package has no tests (codex-admission-full-go.jsonl).
+- Focused race tests passed (codex-admission-race.jsonl).
+- go vet ./..., Skill quick_validate and git diff --check passed.
+- Actual pinned CLI task probe returned profile_supported=false with the explicit
+  sandbox reason (codex-admission-native-probe.json); version/help only, no model.
+- Independent security review passed the primary/fallback, old-task/direct-IPC,
+  managed implementation and review routes. Raw metadata is not logged.
+
+Architecture review rejected removing the outer guard, broadening tool network
+access via ExternalSandbox, or using unauthenticated local WebSocket exec-server.
+The remaining safe execution boundary is recorded in codex-sandbox-repair.md.
+Native exec-server cannot currently be connected as a safe sibling through its
+provided transports without an additional authenticated broker. That subsystem,
+its native negative tests, and coding/review/integration acceptance are outstanding.
+No usable Codex worker, installation, or four-way acceptance is claimed.
+
+Only new task-scoped source audit files and verification logs were retained as
+necessary evidence; no existing temporary artifacts or trials were removed.

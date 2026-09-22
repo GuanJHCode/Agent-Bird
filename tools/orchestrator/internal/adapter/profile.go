@@ -5,9 +5,10 @@ import (
 	"regexp"
 )
 
-// Codex command construction is staged, but native admission is not verified.
-// Keep both discovery and Host execution closed until the auth/runtime contract
-// has independent evidence. A binary digest alone is insufficient.
+// Metadata probes do not exercise native shell tools. The pinned Codex exec
+// worker cannot apply its inner macOS sandbox under our mandatory outer guard.
+// Admission stays closed until an equivalent isolated execution path is verified.
+const CodexWorkerAdmissionReason = "codex_nested_sandbox_unsupported"
 
 type Role string
 type ModelID string
@@ -176,6 +177,9 @@ func CheckCapabilities(req Request, help string) error {
 		if !matched {
 			return errors.New("provider_capability_unsupported")
 		}
+	}
+	if req.Provider == ProviderCodex {
+		return errors.New(CodexWorkerAdmissionReason)
 	}
 	return nil
 }

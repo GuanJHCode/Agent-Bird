@@ -415,3 +415,32 @@ func jsonBytes(t *testing.T, value any) json.RawMessage {
 	}
 	return b
 }
+
+func TestCoordinatorDoesNotAdvertiseUnusableCodexWorker(t *testing.T) {
+	root, err := os.MkdirTemp("/tmp", "bird-cap-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(root)
+	server, err := NewServer(filepath.Join(root, "state"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer server.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() { _ = server.Serve(ctx) }()
+	response := callServer(t, server.SocketPath(), ipc.KindReady, map[string]any{})
+	var got struct {
+		Capabilities []string `json:"capabilities"`
+	}
+	decodePayload(t, response, &got)
+	if len(got.Capabilities) == 0 {
+		t.Fatal("missing capability response")
+	}
+	for _, c := range got.Capabilities {
+		if c == "codex_worker_v1" {
+			t.Fatal("advertised known-incompatible worker")
+		}
+	}
+}

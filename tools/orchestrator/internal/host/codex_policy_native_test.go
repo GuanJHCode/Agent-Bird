@@ -36,7 +36,8 @@ func TestNativeCodexPolicyMetadataOnly(t *testing.T) {
 	defer cancel()
 	state := &codexRuntimeState{}
 	defer state.close()
-	cmd, err := prepareCodexCommand(ctx, process.Command{Path: binary, PinnedPath: binary, PinnedSHA256: adapter.CodexSHA256, Dir: work, Args: []string{"exec", "--json", "--ephemeral", "--sandbox", "read-only", "-"}}, &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: 40000}, filepath.Join(work, "scratch"), false, state)
+	// Metadata-only research helper; it does not establish production admission.
+	cmd, err := prepareCodexRuntime(ctx, process.Command{Path: binary, PinnedPath: binary, PinnedSHA256: adapter.CodexSHA256, Dir: work, Args: []string{"exec", "--json", "--ephemeral", "--sandbox", "read-only", "-"}}, &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: 40000}, filepath.Join(work, "scratch"), false, state)
 	if err != nil {
 		t.Fatal(err)
 	}

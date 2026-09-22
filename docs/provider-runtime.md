@@ -21,7 +21,7 @@ task probe --provider <codex|claude|grok|agy>
 
 Provider 启停与模型配置属于编排器自己的 SQLite 状态。缺少显式开关记录时保留兼容默认；显式关闭持久化为阻断记录。新提交、fallback 和重新排队受检查；关闭中的进程仍占槽，unknown 不等于已退出。
 
-新的会话控制需要协调器能力 `session_provider_lifecycle_v1`，Grok profile 需要 `grok_readonly_v1`。Codex worker 还需要 `codex_worker_v1`；其源码仅覆盖固定 0.154.0，目前真实编码验收未通过，尚未发布安装包。旧协调器不满足时应受控升级，不修改 guard 或切换另一状态目录绕过限制。
+新的会话控制需要协调器能力 `session_provider_lifecycle_v1`，Grok profile 需要 `grok_readonly_v1`。Codex worker 的 `codex_worker_v1` 当前不再声明：固定 0.154.0 已确认存在嵌套 macOS 沙箱冲突，预检与 Host 执行入口拒绝 `codex_nested_sandbox_unsupported`。登录、确认版本或升级协调器不能修复这一执行协议问题；不得修改 guard 或切换状态目录绕过。Codex 作为主脑的控制入口不受此阻塞影响。
 
 ## 结果和恢复
 
