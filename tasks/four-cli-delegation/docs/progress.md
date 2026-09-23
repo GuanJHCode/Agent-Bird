@@ -1,5 +1,23 @@
 # Four-CLI delegation
 
+## Current checkpoint — 2026-09-22 lightweight Codex worker
+
+Claude/Grok/AGY-to-Codex lightweight source implementation is complete: Codex
+reads and edits its isolated candidate; the main CLI runs commands/tests. The
+single authorized 120-second native coding acceptance passed in 17.43 seconds,
+including candidate freeze, four main-CLI assertions, process-group exit, auth
+alias cleanup and unchanged source checkout. Full uncached race suite: 1,016
+passed / 15 explicit opt-in skips / 0 failed; build/vet and independent reviews
+passed. Public probe now supports fixed Codex 0.154.0, and new tasks require
+`codex_read_edit_worker_v1`; legacy coordinators remain rejected.
+
+No installation, coordinator replacement, third-party configuration change,
+commit or push was performed in this continuation. Real structured Codex review,
+the full controller-to-integration flow and other versions/models remain
+unverified. Details and local evidence: [Codex repair](codex-sandbox-repair.md).
+Earlier checkpoints below retain their historical status statements.
+
+
 Base: 2e78f24; isolated branch feat/four-cli-delegation.
 User authorizes implementing mutual delegation across Codex, Claude, Grok and AGY,
 and continuing recorded unfinished work. Existing native permissions, credentials,

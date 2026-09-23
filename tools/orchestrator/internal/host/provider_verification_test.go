@@ -10,9 +10,72 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
 )
+
+func TestProviderUnknownNeverPublishesSlotRelease(t *testing.T) {
+	for _, phase := range []string{"verification", "cleanup", "cancel_before_spawn", "preflight_unknown", "preflight_cleanup_unknown"} {
+		t.Run(phase, func(t *testing.T) {
+			root, _ := filepath.EvalSymlinks(t.TempDir())
+			h, err := NewIPC(filepath.Join(root, "spool"), "provider-unknown")
+			if err != nil {
+				t.Fatal(err)
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			command := process.Command{Path: "/bin/sh", Dir: root, Args: []string{"-c", "exit 0"}}
+			calls := 0
+			meta := launchMetadata{closeProvider: func() error { return process.ErrProcessTreeUnknown }}
+			if phase == "verification" {
+				meta.closeProvider = func() error { return nil }
+				meta.verifyProvider = func() error {
+					calls++
+					if calls == 2 {
+						return process.ErrProcessTreeUnknown
+					}
+					return nil
+				}
+			}
+			if phase == "cancel_before_spawn" {
+				meta.prepareProvider = func(context.Context) (process.Command, error) { cancel(); return command, nil }
+			}
+			if phase == "preflight_unknown" {
+				meta.verifyProvider = func() error { return process.ErrProcessTreeUnknown }
+				meta.closeProvider = func() error { return nil }
+			}
+			if phase == "preflight_cleanup_unknown" {
+				meta.verifyProvider = func() error { return errors.New("provider_context_changed") }
+			}
+			a := store.Attempt{ID: "attempt", TaskID: "task", SegmentID: "segment", Status: "running"}
+			result, err := h.execute(ctx, a, "run", "task", command, false, meta)
+			if result.Status != "unknown" || !errors.Is(err, process.ErrProcessTreeUnknown) {
+				t.Errorf("auxiliary ownership was released: status=%s err=%v", result.Status, err)
+			}
+			spool, err := h.spool(a)
+			if err != nil {
+				t.Fatal(err)
+			}
+			records, err := spool.Read()
+			if err != nil {
+				t.Fatal(err)
+			}
+			unknown := false
+			for _, record := range records {
+				switch record.Kind {
+				case contract.EventExited, contract.EventStopped, contract.EventFailed, contract.EventResult:
+					t.Errorf("unsafe terminal event before auxiliary cleanup: %s", record.Kind)
+				case contract.EventUnknown:
+					unknown = true
+				}
+			}
+			if !unknown {
+				t.Error("no durable UNKNOWN evidence")
+			}
+		})
+	}
+}
 
 func TestProviderContextVerifiedBeforeSpawnAndAfterExit(t *testing.T) {
 	for _, phase := range []string{"before", "after"} {

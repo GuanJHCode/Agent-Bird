@@ -26,6 +26,8 @@ type Broker struct {
 	helper, helperHash, worker string
 	workerHash                 string
 	executor                   *process.Handle
+	journal                    *executorJournal
+	workspace                  *workspacePolicy
 	input                      *os.File
 	output                     *io.PipeReader
 	bound                      chan struct{}
@@ -37,21 +39,27 @@ type Broker struct {
 	connection                 *net.UnixConn
 	tools                      bool
 	toolsStarted               bool
+	skillRoots                 *SkillRoots
 	failure                    error
 	lastRejected               string
 	lastMethod                 string
+	rejectedOperation          string
+	rejectedPathDigest         string
+	rejectedNullSandbox        bool
 	pending                    map[string]requestInfo
 	seen                       map[string]bool
 	initialized                bool
 	initRequested, ready       bool
 	handles, processes         map[string]bool
 	once                       sync.Once
+	receiptOnce                sync.Once
 	closeErr                   error
+	receiptErr                 error
 }
 
 // Start owns an already-constrained executor command, not a model invocation.
 // Only an authenticated direct child of Bind's worker may use its stdio stream.
-func Start(ctx context.Context, spec process.Command, helper, journal string) (*Broker, error) {
+func Start(ctx context.Context, spec process.Command, helper, journal string, skillRoots *SkillRoots, writable bool) (*Broker, error) {
 	canonical, err := filepath.EvalSymlinks(helper)
 	if err != nil || canonical != helper {
 		return nil, errors.New("codex_bridge_binary_untrusted")
@@ -76,6 +84,16 @@ func Start(ctx context.Context, spec process.Command, helper, journal string) (*
 	}
 	b := &Broker{listener: listener, directory: dir, helper: helper, helperHash: hash, worker: spec.PinnedPath, workerHash: spec.PinnedSHA256, bound: make(chan struct{}), closed: make(chan struct{}), pending: map[string]requestInfo{}, handles: map[string]bool{}, processes: map[string]bool{}, seen: map[string]bool{}}
 	b.changed = make(chan struct{})
+	b.skillRoots = skillRoots
+	protected := []string{journal, journal + ".required"}
+	if skillRoots != nil {
+		protected = append(protected, skillRoots.ProtectedDirectories()...)
+		protected = append(protected, skillRoots.ProtectedInstructions()...)
+	}
+	b.workspace, err = newWorkspacePolicy(ctx, spec.Dir, writable, protected)
+	if err != nil {
+		return nil, errors.Join(err, b.Close())
+	}
 	read, write, err := os.Pipe()
 	if err != nil {
 		b.Close()
@@ -87,21 +105,20 @@ func Start(ctx context.Context, spec process.Command, helper, journal string) (*
 	spec.Stdin = nil
 	spec.StdinFile = read
 	spec.Stdout = sink
+	b.journal, err = newExecutorJournal(journal, spec)
+	if err != nil {
+		read.Close()
+		sink.Close()
+		return nil, errors.Join(err, b.Close())
+	}
 	b.executor, err = process.Start(ctx, spec)
 	read.Close()
 	if err != nil {
 		sink.Close()
-		b.Close()
-		return nil, err
+		return nil, errors.Join(err, b.Close())
 	}
 	// No commands can reach the executor until its identity is durably recorded.
-	identity := b.executor.Identity()
-	raw, _ := json.Marshal(identity)
-	f, err := os.OpenFile(journal, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
-	if err == nil {
-		_, err = f.Write(raw)
-		err = errors.Join(err, f.Sync(), f.Close())
-	}
+	err = b.journal.spawned(b.executor.Identity())
 	if err != nil {
 		sink.Close()
 		return nil, errors.Join(err, b.Close())
@@ -111,7 +128,7 @@ func Start(ctx context.Context, spec process.Command, helper, journal string) (*
 	go func() {
 		select {
 		case <-ctx.Done():
-			_ = b.Close()
+			_ = b.closeTransport()
 		case <-b.closed:
 		}
 	}()
@@ -133,6 +150,11 @@ func (b *Broker) Bind(identity process.Identity) error {
 	return nil
 }
 func (b *Broker) EnableTools() error {
+	if b.skillRoots != nil {
+		if err := b.skillRoots.Verify(); err != nil {
+			return err
+		}
+	}
 	timer := time.NewTimer(3 * time.Second)
 	defer timer.Stop()
 	for {
@@ -191,7 +213,7 @@ func (b *Broker) serve(ctx context.Context) {
 		conn, err := b.listener.AcceptUnix()
 		if err != nil {
 			b.fail(errors.New("codex_bridge_accept_failed"))
-			go b.Close()
+			go b.closeTransport()
 			return
 		}
 		if !b.authorized(conn) {
@@ -212,7 +234,7 @@ func (b *Broker) serve(ctx context.Context) {
 		first := <-finished
 		if first.err != nil {
 			b.fail(first.err)
-			go b.Close()
+			go b.closeTransport()
 		} else if first.request {
 			_ = b.input.Close() // Clean half-close: drain the executor's responses.
 		} else {
@@ -222,11 +244,11 @@ func (b *Broker) serve(ctx context.Context) {
 		if second.err != nil {
 			b.fail(second.err)
 		}
-		go b.Close()
+		go b.closeTransport()
 		return
 	}
 	b.fail(errors.New("codex_bridge_peer_rejected"))
-	go b.Close()
+	go b.closeTransport()
 }
 func parentPID(pid int) (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
@@ -315,6 +337,12 @@ func (b *Broker) copyFrames(src io.Reader, dst io.Writer, request bool) error {
 		b.mu.Unlock()
 		if err != nil {
 			return err
+		}
+		if request {
+			raw, err = json.Marshal(msg)
+			if err != nil || len(raw) > maxFrame {
+				return errPolicy
+			}
 		}
 		if !request {
 			if result, ok := msg["result"].(map[string]any); ok {
@@ -422,6 +450,29 @@ func (b *Broker) Finish() error {
 // Close is abort/cleanup. Successful business verification uses Finish so it
 // cannot discard a buffered executor frame by closing the transport early.
 func (b *Broker) Close() error {
+	cleanupErr := b.closeTransport()
+	b.receiptOnce.Do(func() {
+		if b.journal != nil {
+			defer b.journal.close()
+			if cleanupErr != nil {
+				b.receiptErr = process.ErrProcessTreeUnknown
+			} else {
+				b.receiptErr = b.journal.exited(b.executor)
+			}
+		}
+	})
+	if b.journal != nil && b.receiptErr == nil {
+		return errors.Join(cleanupErr, VerifyExecutorExit(b.journal.path))
+	}
+	if b.receiptErr == nil {
+		return cleanupErr
+	}
+	return errors.Join(cleanupErr, b.receiptErr)
+}
+
+// Background cancellation/EOF can stop IO, but only a Host Close/Finish call
+// may persist the exit receipt used by the launch state machine.
+func (b *Broker) closeTransport() error {
 	b.once.Do(func() {
 		close(b.closed)
 		if b.listener != nil {
@@ -436,9 +487,8 @@ func (b *Broker) Close() error {
 		if b.output != nil {
 			_ = b.output.Close()
 		}
-		// The native executor owns tool process groups separate from its own.
-		// EOF runs its shutdown routine; killing only its leader cannot prove
-		// those tool groups have exited.
+		// EOF asks the process-free native executor to finish pending filesystem
+		// operations. A nonzero exit or forced kill remains UNKNOWN.
 		if b.input != nil {
 			_ = b.input.Close()
 		}
@@ -457,6 +507,9 @@ func (b *Broker) Close() error {
 		}
 		if b.serveDone != nil {
 			<-b.serveDone
+		}
+		if b.workspace != nil {
+			_ = b.workspace.close()
 		}
 		b.mu.Lock()
 		toolsStarted := b.toolsStarted
@@ -480,18 +533,46 @@ func (b *Broker) Close() error {
 
 type requestInfo struct {
 	method, resource string
+	metadataPath     string
 	tools            bool
 }
 
 func (b *Broker) checkFrame(m map[string]any, raw []byte, request bool) error {
+	// The lightweight worker never owns a tool process. Reject both directions
+	// independently of native feature flags or a claimed logical process ID.
+	if method, _ := m["method"].(string); strings.HasPrefix(method, "process/") {
+		return errPolicy
+	}
 	id, hasID := frameID(m["id"])
 	if request {
-		if err := validateRequest(raw, b.tools); err != nil {
+		method, _ := m["method"].(string)
+		p, _ := m["params"].(map[string]any)
+		backgroundMetadata := b.skillRoots.Allows(method, p)
+		workspaceFile := b.tools && strings.HasPrefix(method, "fs/") && !backgroundMetadata
+		if workspaceFile {
+			if len(raw) > maxFrame || !boundedValue(m, 0) || b.workspace == nil || b.workspace.check(method, p) != nil {
+				return errPolicy
+			}
+			// The fixed native backend uses openat(O_NOFOLLOW) for every path
+			// component when this flag is false. Never forward its unsafe default.
+			p["followSymlinks"] = false
+		}
+		// Only the phase-specific sandbox check changes for a bound metadata
+		// probe. Frame and protocol validation remain mandatory.
+		if err := validateRequest(raw, b.tools && !backgroundMetadata); err != nil && !workspaceFile {
+			switch method {
+			case "fs/readFile", "fs/open", "fs/getMetadata", "fs/canonicalize", "fs/readDirectory", "fs/walk", "fs/writeFile", "fs/createDirectory", "fs/remove", "fs/copy":
+				b.rejectedOperation = method
+				if path, ok := p["path"].(string); ok {
+					b.rejectedPathDigest = journalHash([]byte(path))
+				}
+				b.rejectedNullSandbox = p["sandbox"] == nil
+			default:
+				b.rejectedOperation = "unregistered_method"
+			}
 			return err
 		}
-		method, _ := m["method"].(string)
 		b.lastMethod = method
-		p, _ := m["params"].(map[string]any)
 		if method == "initialized" {
 			if hasID || !b.initialized || b.ready {
 				return errPolicy
@@ -511,6 +592,9 @@ func (b *Broker) checkFrame(m map[string]any, raw []byte, request bool) error {
 			return errPolicy
 		}
 		info := requestInfo{method: method, tools: b.tools}
+		if backgroundMetadata {
+			info.metadataPath, _ = b.skillRoots.metadataPath(p)
+		}
 		switch method {
 		case "fs/open":
 			if !b.tools {
@@ -552,6 +636,16 @@ func (b *Broker) checkFrame(m map[string]any, raw []byte, request bool) error {
 			return errPolicy
 		}
 		delete(b.pending, id)
+		if info.metadataPath != "" {
+			verify := b.skillRoots.verifyResponse
+			if info.method == "fs/readFile" {
+				verify = b.skillRoots.verifyInstructionResponse
+			}
+			if err := verify(info.metadataPath, m); err != nil {
+				b.rejectedOperation = "bound_metadata_response"
+				return err
+			}
+		}
 		if m["error"] != nil {
 			if info.method == "fs/open" {
 				delete(b.handles, info.resource)
@@ -595,5 +689,5 @@ func (b *Broker) checkFrame(m map[string]any, raw []byte, request bool) error {
 func (b *Broker) Diagnostics() map[string]any {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	return map[string]any{"peer_rejection": b.lastRejected, "last_method": b.lastMethod, "initialized": b.initialized, "ready": b.ready, "tools": b.tools, "pending": len(b.pending), "handles": len(b.handles)}
+	return map[string]any{"peer_rejection": b.lastRejected, "last_method": b.lastMethod, "rejected_operation": b.rejectedOperation, "rejected_path_sha256": b.rejectedPathDigest, "rejected_null_sandbox": b.rejectedNullSandbox, "initialized": b.initialized, "ready": b.ready, "tools": b.tools, "pending": len(b.pending), "handles": len(b.handles)}
 }

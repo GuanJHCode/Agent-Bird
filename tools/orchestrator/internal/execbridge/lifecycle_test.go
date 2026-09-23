@@ -10,9 +10,52 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 )
+
+func TestBackgroundCleanupCannotSignReceiptAndHostCloseIsConcurrent(t *testing.T) {
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	helper, err := filepath.EvalSymlinks(os.Args[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	path := filepath.Join(root, "codex-executor")
+	b, err := Start(ctx, process.Command{Path: "/bin/cat", Dir: root}, helper, path, nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	cancel()
+	if err := b.closeTransport(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Lstat(filepath.Join(path, "exited.json")); !os.IsNotExist(err) {
+		t.Fatal("background cleanup signed an exit receipt")
+	}
+	var wait sync.WaitGroup
+	results := make(chan error, 8)
+	for i := 0; i < 8; i++ {
+		wait.Add(1)
+		go func() { defer wait.Done(); results <- b.Close() }()
+	}
+	wait.Wait()
+	close(results)
+	for err := range results {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := VerifyExecutorExit(path); err != nil {
+		t.Fatal(err)
+	}
+}
 
 type nopWriteCloser struct{ io.Writer }
 

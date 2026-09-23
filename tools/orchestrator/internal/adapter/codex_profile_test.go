@@ -60,8 +60,8 @@ func TestCodexTypedWorkerUsesRequestedModel(t *testing.T) {
 
 func TestCodexCapabilityPreflightRequiresPinnedNativeContract(t *testing.T) {
 	help := "--json --ephemeral --sandbox --config --output-last-message --disable --output-schema --model"
-	if err := CheckCapabilities(typedCodexRequest(t), help); err == nil || err.Error() != "codex_nested_sandbox_unsupported" {
-		t.Fatalf("metadata flags must not admit the broken native tool path: %v", err)
+	if err := CheckCapabilities(typedCodexRequest(t), help); err != nil {
+		t.Fatalf("verified lightweight native contract rejected: %v", err)
 	}
 	if err := CheckCapabilities(typedCodexRequest(t), "--json"); err == nil {
 		t.Fatal("incomplete native contract accepted")

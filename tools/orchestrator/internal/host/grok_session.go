@@ -36,12 +36,19 @@ func grokEncodeCWD(cwd string) string {
 
 // Authentication maintenance is separate from the model worker. This fixed,
 // pinned, non-generating command never changes the worker sandbox rules.
-func prepareAuthenticatedGrokCommand(ctx context.Context, cmd process.Command, profile *adapter.ExecutionProfile, grant contract.LaunchCommand, scratch string) (process.Command, error) {
+func prepareAuthenticatedGrokCommand(ctx context.Context, cmd process.Command, pin adapter.BinaryPin, profile *adapter.ExecutionProfile, grant contract.LaunchCommand, scratch string) (process.Command, error) {
+	if !adapter.GrokVersionSupported(pin.Version) {
+		return cmd, errors.New("grok_version_not_verified")
+	}
+	if cmd.Path != pin.Path || cmd.PinnedPath != pin.Path || adapter.ValidatePin(pin, pin.Version, cmd.PinnedSHA256) != nil {
+		return cmd, errors.New("grok_binary_pin_mismatch")
+	}
+	// Carry the actual, confirmed invocation pin into auth maintenance. Never
+	// synthesize a historical version for a different executable.
 	prepared, err := prepareGrokCommand(ctx, cmd, profile, grant, scratch)
 	if err != nil {
 		return cmd, err
 	}
-	pin := adapter.BinaryPin{Path: cmd.PinnedPath, SHA256: cmd.PinnedSHA256, Version: "grok 1.0.34 (3736acbc8658)"}
 	if err := adapter.RefreshGrokAuth(ctx, pin, cmd.Env); err != nil {
 		return cmd, err
 	}

@@ -254,11 +254,11 @@ func taskDispatch(ctx context.Context, args []string, out io.Writer) error {
 	if h != nil && (h.ControlFile != "" || h.Status != "submitting") {
 		if h.Status == "submitting" {
 			if err = taskFollowup(ctx, "reconcile", []string{"--handle", handle}, io.Discard); err != nil {
-				_ = json.NewEncoder(out).Encode(map[string]any{"version": 1, "status": "submitting", "handle": handle, "run_id": runID, "existing": true})
+				_ = json.NewEncoder(out).Encode(taskSubmissionReceipt(handle, *h, "submitting", true))
 				return err
 			}
 		}
-		return json.NewEncoder(out).Encode(map[string]any{"version": 1, "status": "existing", "handle": handle, "run_id": runID, "task_ids": h.TaskIDs, "existing": true})
+		return json.NewEncoder(out).Encode(taskSubmissionReceipt(handle, *h, "existing", true))
 	}
 	planPath := filepath.Join(directory, "plan.json")
 	if checkpoint.Phase == "preparing" {

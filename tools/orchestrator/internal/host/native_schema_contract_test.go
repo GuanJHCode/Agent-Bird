@@ -117,7 +117,7 @@ func TestNativeSchemaContract(t *testing.T) {
 	if provider == adapter.ProviderGrok {
 		cmd, inputDigest, snapshotDigest, err = prepareGrokSnapshotPrompt(cmd, snapshot, hashBytes([]byte("native-fixture-validation")), scratch)
 		if err == nil {
-			cmd, err = prepareAuthenticatedGrokCommand(ctx, cmd, profile, nativeGrant, scratch)
+			cmd, err = prepareAuthenticatedGrokCommand(ctx, cmd, pin, profile, nativeGrant, scratch)
 		}
 
 	} else {

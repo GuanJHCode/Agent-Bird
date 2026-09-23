@@ -10,6 +10,7 @@ import (
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/events"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/execbridge"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
@@ -133,6 +134,10 @@ func (h *Host) ExecuteLaunch(ctx context.Context, grant contract.LaunchCommand, 
 		meta.closeProvider = codexState.close
 	}
 	cmd := invocationCommand(inv)
+	var providerPin adapter.BinaryPin
+	if pinned, ok := inv.(interface{ Pin() adapter.BinaryPin }); ok {
+		providerPin = pinned.Pin()
+	}
 	if value, ok := inv.(interface {
 		CandidateAction() *adapter.CandidateAction
 	}); ok && value.CandidateAction() != nil {
@@ -172,7 +177,7 @@ func (h *Host) ExecuteLaunch(ctx context.Context, grant contract.LaunchCommand, 
 				cmd.Dir = prepared.Receipt.Worktree
 				cmd, err = authorizeGrokEdits(cmd, profile, prepared)
 				if err == nil {
-					wrapped, err = prepareAuthenticatedGrokCommand(ctx, cmd, profile, grant, scratch)
+					wrapped, err = prepareAuthenticatedGrokCommand(ctx, cmd, providerPin, profile, grant, scratch)
 				}
 			} else if meta.outputProvider == string(adapter.ProviderCodex) {
 				cmd.Dir = prepared.Receipt.Worktree
@@ -190,7 +195,7 @@ func (h *Host) ExecuteLaunch(ctx context.Context, grant contract.LaunchCommand, 
 		}
 		meta.expectedSessionID = grokSessionID(grant)
 		meta.prepareProvider = func(ctx context.Context) (process.Command, error) {
-			return prepareAuthenticatedGrokCommand(ctx, cmd, profile, grant, filepath.Join(h.spoolRoot, grant.AttemptID, grant.SegmentID, "scratch"))
+			return prepareAuthenticatedGrokCommand(ctx, cmd, providerPin, profile, grant, filepath.Join(h.spoolRoot, grant.AttemptID, grant.SegmentID, "scratch"))
 		}
 	} else if profile != nil && meta.outputProvider == string(adapter.ProviderCodex) {
 		meta.prepareProvider = func(ctx context.Context) (process.Command, error) {
@@ -304,6 +309,11 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount, ArtifactPath: path, OutputHash: hashBytes(body)}, errors.Join(cause, artifactErr, eventErr, phaseErr)
 	}
 	finalizeStopped := func(identity *process.Identity, exit int, cause error) (contract.Result, error) {
+		// Auxiliary executors are writers too. Do not release the segment until
+		// their shutdown evidence is durable, including pre-parent cancellation.
+		if closeErr := closeProvider(); closeErr != nil {
+			return finalizeCandidateUnknown(errors.Join(cause, closeErr), identity, exit)
+		}
 		if err = publishLaunchPhase(spool, "stopped", a, runID, taskID, cmd, identity, cause); err != nil {
 			h.finishAttempt(a.ID, "unknown", persistDB)
 			return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount}, err
@@ -381,6 +391,10 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 	}
 	if meta.verifyProvider != nil {
 		if err := meta.verifyProvider(); err != nil {
+			err = errors.Join(err, closeProvider())
+			if errors.Is(err, process.ErrProcessTreeUnknown) || errors.Is(err, errCodexAuthCleanup) {
+				return finalizeCandidateUnknown(err, nil, -1)
+			}
 			h.finishAttempt(a.ID, "failed", persistDB)
 			return contract.Result{Status: "failed", ExitCode: -1, EventCount: eventCount}, err
 		}
@@ -537,6 +551,9 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 	verifyErr = errors.Join(verifyErr, closeProvider())
 	if verifyErr != nil {
 		exit := p.ExitCode()
+		if errors.Is(verifyErr, process.ErrProcessTreeUnknown) || errors.Is(verifyErr, errCodexAuthCleanup) {
+			return finalizeCandidateUnknown(verifyErr, &identity, exit)
+		}
 		phaseErr := appendPhase(contract.EventExited, hashText("exited:"+a.SegmentID), &identity, &exit, nil)
 		if phaseErr == nil {
 			phaseErr = appendPhase(contract.EventFailed, hashText(verifyErr.Error()), &identity, &exit, nil)
@@ -856,6 +873,9 @@ func (h *Host) recordLaunchFailed(a store.Attempt, runID, taskID string, meta la
 	if err != nil {
 		return err
 	}
+	if err := verifyAuxiliaryExit(filepath.Join(h.spoolRoot, a.ID, a.SegmentID)); err != nil {
+		return err
+	}
 	// ExecuteLaunch can already have published a terminal outcome before its
 	// caller reaches this fallback. Never replace or append to that evidence.
 	for _, event := range existing {
@@ -1001,20 +1021,46 @@ func (h *Host) recoverDuplicateGrant(grant contract.LaunchCommand, epoch uint64)
 	if err != nil {
 		return err
 	}
+	exited := false
 	for _, record := range records {
 		if record.CommandID != grant.CommandID {
 			return errors.New("grant_event_identity_conflict")
 		}
 		if record.Kind == contract.EventExited {
-			return nil
+			exited = true
 		}
 	}
 	meta := launchMetadata{commandID: grant.CommandID, workRevision: grant.WorkRevision, executionEpoch: epoch}
+	if err := verifyAuxiliaryExit(filepath.Join(h.spoolRoot, a.ID, a.SegmentID)); err != nil {
+		if exited {
+			return err
+		}
+		return h.ensureLaunchUnknown(a, grant.RunID, grant.TaskID, meta, err)
+	}
+	if exited {
+		return nil
+	}
+	// Even an auxiliary exit receipt cannot reconstruct a lost business result.
+	if _, err := os.Lstat(filepath.Join(h.spoolRoot, a.ID, a.SegmentID, "codex-executor.required")); !os.IsNotExist(err) {
+		return h.ensureLaunchUnknown(a, grant.RunID, grant.TaskID, meta, process.ErrProcessTreeUnknown)
+	}
 	if len(records) == 0 {
 		if err = h.recordLaunchFailed(a, grant.RunID, grant.TaskID, meta, recoveredLaunchFailure{}); err != nil {
 			return err
 		}
 	} else if err = h.ensureLaunchUnknown(a, grant.RunID, grant.TaskID, meta, errors.New("recovered_incomplete_grant")); err != nil {
+		return err
+	}
+	return nil
+}
+
+func verifyAuxiliaryExit(segment string) error {
+	// Old experimental metadata was writable by the executor and never proves
+	// shutdown under the new contract. Do not upgrade it into a clean receipt.
+	if _, err := os.Lstat(filepath.Join(segment, "scratch", "executor-process.json")); !os.IsNotExist(err) {
+		return process.ErrProcessTreeUnknown
+	}
+	if err := execbridge.VerifyExecutorExit(filepath.Join(segment, "codex-executor")); !os.IsNotExist(err) {
 		return err
 	}
 	return nil

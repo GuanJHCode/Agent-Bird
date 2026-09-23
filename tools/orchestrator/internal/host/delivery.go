@@ -111,6 +111,12 @@ func reviewProviderLock(grant contract.LaunchCommand, inv contract.InvocationVie
 	if err := validateCandidateReviewProvider(payload.ProviderLock, provider.OutputProvider(), path, digest); err != nil {
 		return nil, err
 	}
+	if payload.ProviderLock.Provider == adapter.ProviderGrok {
+		versioned, ok := inv.(interface{ Pin() adapter.BinaryPin })
+		if !ok || versioned.Pin() != payload.ProviderLock.Binary {
+			return nil, errors.New("candidate_review_provider_mismatch")
+		}
+	}
 	lock := *payload.ProviderLock
 	return &lock, nil
 }
@@ -367,7 +373,7 @@ func (h *Host) prepareCandidateAction(ctx context.Context, grant contract.Launch
 				return fail(err)
 			}
 			out.ReviewScope = "complete-tracked-text-base-and-candidate"
-			cmd, err = prepareAuthenticatedGrokCommand(ctx, cmd, profile, grant, scratch)
+			cmd, err = prepareAuthenticatedGrokCommand(ctx, cmd, reviewLock.Binary, profile, grant, scratch)
 		} else if action.Operation == "review" && reviewLock.Provider == adapter.ProviderCodex {
 			cmd, err = prepareCodexCommand(ctx, cmd, profile, scratch, true, runtime...)
 		} else {

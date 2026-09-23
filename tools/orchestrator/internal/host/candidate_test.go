@@ -35,6 +35,30 @@ func TestCandidateReviewUsesItsOwnProviderLock(t *testing.T) {
 	}
 }
 
+func TestGrokReviewLockKeepsInvocationVersion(t *testing.T) {
+	pin := adapter.BinaryPin{Path: "/private/bin/grok", Version: "grok 1.0.34 (3736acbc8658)", SHA256: strings.Repeat("a", 64)}
+	lock := &adapter.ProviderLock{Version: 1, Provider: adapter.ProviderGrok, Protocol: adapter.ProtocolID(adapter.ProviderGrok), Binary: pin}
+	inv, err := adapter.BuildInvocation(adapter.Request{Provider: adapter.ProviderGrok, Binary: pin, Lock: lock, CWD: "/private/workspace", Prompt: "review", Profile: &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: 1000, GrokSessionWrite: true}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, version := range []string{pin.Version, "grok 1.0.40 (eb1a2256660d)"} {
+		lock.Binary.Version = version
+		payload, err := json.Marshal(adapter.InvocationPayload{Provider: string(adapter.ProviderGrok), ProviderLock: lock})
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = reviewProviderLock(contract.LaunchCommand{AdapterPayload: payload}, reportInvocation{base: inv})
+		if version == pin.Version {
+			if err != nil {
+				t.Fatal(err)
+			}
+		} else if err == nil || err.Error() != "candidate_review_provider_mismatch" {
+			t.Fatalf("review accepted a different version with the same path/hash: %v", err)
+		}
+	}
+}
+
 func TestCandidateReviewDirectoryUsesTheMaterializedAbsolutePath(t *testing.T) {
 	grant := contract.LaunchCommand{RunID: "run", TaskID: "review", AttemptID: "attempt", SegmentID: "segment", AdapterPayload: []byte(`{"directory":"/private/reviews/candidate","candidate_action":{"version":1,"operation":"review","auto_directory":true}}`)}
 	directory, err := candidateReviewDirectory(grant)

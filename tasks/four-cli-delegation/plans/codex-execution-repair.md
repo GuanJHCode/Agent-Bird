@@ -1,5 +1,9 @@
 # Codex execution repair
 
+Current resolution: the user-approved process-free lightweight replacement is
+implemented and verified; see `codex-lightweight-worker.md`. Earlier checkpoints
+below are retained as evidence. Native commands/tests stay with the main CLI.
+
 Authorized outcome: a real isolated Codex coding candidate, without widening the
 existing filesystem or tool-network boundary. Root owns writes in this worktree.
 Architecture/security agents are read-only. No automatic paid retry.
@@ -24,3 +28,12 @@ Architecture/security agents are read-only. No automatic paid retry.
 
 The old production admission block remains until these gates pass. No source
 home or installed package/configuration is modified by development.
+
+2026-09-22 checkpoint: the post-thread-start skill-root metadata failure is
+traced and repaired with a Host-sealed exact metadata scope, immutable skill
+inputs and strict response checks. Native empty/populated fixtures, including
+tools-phase `skills/list`, pass without `turn/start`; final affected-package race
+tests and independent review pass. See `../docs/codex-sandbox-repair.md` for
+counts and evidence. Steps 2 and 6 still require durable spawn/cleanup records
+and provable cleanup of every tool process group before production admission or
+the unused single 120-second coding acceptance.

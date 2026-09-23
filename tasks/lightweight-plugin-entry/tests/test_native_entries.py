@@ -49,6 +49,12 @@ class NativeEntriesTest(unittest.TestCase):
                 skill = (package / 'skills/agent-bird/SKILL.md').read_text()
                 self.assertNotIn('--runtime', skill)
                 self.assertTrue((package / 'skills/agent-bird/references/protocol.md').is_file())
+                self.assertIn('Do not end the main turn at `queued` or `running`', skill)
+                self.assertIn('no automatic callback', skill)
+                self.assertIn('A 30-second timeout means wait again', skill)
+                self.assertIn('main agent\'s responsibility', skill)
+                self.assertIn('separately ACK', skill)
+                self.assertIn('does not end tracking of the others', skill)
                 if provider == 'codex-orchestrator':
                     metadata = json.loads((package / manifest).read_text())
                     self.assertIsInstance(metadata['author'], dict)

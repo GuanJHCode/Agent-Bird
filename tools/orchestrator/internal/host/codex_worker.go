@@ -16,6 +16,7 @@ import (
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/codexrpc"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/execbridge"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/workspaceread"
 )
 
 // prepareCodexWorker keeps model IO in the read-only parent and all tool IO in
@@ -25,12 +26,46 @@ func prepareCodexWorker(ctx context.Context, original process.Command, profile *
 	if err != nil {
 		return original, err
 	}
+	return finishCodexWorker(ctx, original, prepared, profile, scratch, review, state)
+}
+
+// Metadata/authentication preparation and the native read/edit transport have
+// separate lifetimes. Production always prepares the immutable home first.
+func finishCodexWorker(ctx context.Context, original, prepared process.Command, profile *adapter.ExecutionProfile, scratch string, review bool, state *codexRuntimeState) (cmd process.Command, failure error) {
+	var err error
 	defer func() {
 		if failure != nil {
 			failure = errors.Join(failure, state.close())
 		}
 	}()
+	state.reader, err = workspaceread.Open(original.Dir)
+	if err != nil {
+		return original, err
+	}
 	home := state.home
+	// Custom project markers are not admitted by the current source snapshot.
+	// Bind the pinned default explicitly, rather than deriving roots from RPC.
+	if raw := state.config["project_root_markers"]; raw != nil && !reflect.DeepEqual(raw, []any{".git"}) {
+		return original, errors.New("codex_project_markers_unverified")
+	}
+	var fallbackDocuments []string
+	if value := state.config["project_doc_fallback_filenames"]; value != nil {
+		names, ok := value.([]any)
+		if !ok {
+			return original, errors.New("codex_project_documents_unverified")
+		}
+		for _, value := range names {
+			name, ok := value.(string)
+			if !ok {
+				return original, errors.New("codex_project_documents_unverified")
+			}
+			fallbackDocuments = append(fallbackDocuments, name)
+		}
+	}
+	state.skills, err = execbridge.SealSkillRoots(original.Dir, []string{".git"}, fallbackDocuments...)
+	if err != nil {
+		return original, err
+	}
 	if _, err := os.Lstat(filepath.Join(home.source, "environments.toml")); !os.IsNotExist(err) {
 		return original, errors.New("codex_source_environments_unverified")
 	}
@@ -50,8 +85,9 @@ func prepareCodexWorker(ctx context.Context, original process.Command, profile *
 	if err != nil {
 		return original, err
 	}
-	executor.Args[1] += "\n(deny network*)\n(deny file-read* (literal " + strconv.Quote(filepath.Join(home.source, "auth.json")) + "))\n(deny file-read* (literal " + strconv.Quote(filepath.Join(home.path, "auth.json")) + "))"
-	broker, err := execbridge.Start(ctx, executor, helper, filepath.Join(scratch, "executor-process.json"))
+	journal := filepath.Join(filepath.Dir(scratch), "codex-executor")
+	executor.Args[1] += codexExecutorRestrictions(home, state.skills, journal)
+	broker, err := execbridge.Start(ctx, executor, helper, journal, state.skills, profile.Permission == adapter.WorkspaceWrite)
 	if err != nil {
 		return original, err
 	}
@@ -87,12 +123,16 @@ func prepareCodexWorker(ctx context.Context, original process.Command, profile *
 	}
 	state.turn = codexrpc.NewTurn(codexrpc.TurnConfig{
 		Home: home.path, Directory: original.Dir, Prompt: string(original.Stdin), Model: string(profile.Model), Reasoning: string(profile.Reasoning), Schema: schema,
-		Approval: state.config["approval_policy"], Reviewer: state.config["approvals_reviewer"], EnableTools: broker.EnableTools,
+		Approval: state.config["approval_policy"], Reviewer: codexThreadReviewer(state.config), EnableTools: broker.EnableTools,
+		DynamicTools: codexReadTools(ctx, state.reader),
 		VerifyConfig: func(r map[string]any) error {
 			if err := verifyCodexConfigLayers(r, home.runtime); err != nil {
 				return err
 			}
 			cfg, _ := r["config"].(map[string]any)
+			if err := verifyCodexReadEditConfig(cfg); err != nil {
+				return err
+			}
 			for _, key := range []string{"approval_policy", "approvals_reviewer", "sandbox_mode", "model_provider"} {
 				if !reflect.DeepEqual(cfg[key], state.config[key]) {
 					return errors.New("codex_execution_policy_changed")
@@ -141,6 +181,7 @@ func prepareCodexWorker(ctx context.Context, original process.Command, profile *
 		return original, err
 	}
 	cmd.Args[1] += "\n(deny process-exec*)\n(allow process-exec* (literal " + strconv.Quote(original.Path) + ") (literal " + strconv.Quote(helper) + "))"
+	cmd.Args[1] += codexJournalRules(journal)
 	// Make loss of remote execution fail closed even for local filesystem tools.
 	if !strings.HasPrefix(original.Dir, scratch+string(os.PathSeparator)) {
 		cmd.Args[1] += "\n(deny file-write* (subpath " + strconv.Quote(original.Dir) + "))"
@@ -155,4 +196,23 @@ func codexWorkerParentArgs(home *codexHome, config map[string]any) ([]string, er
 	}
 	args := append(codexRuntimeFlags(home), restrictions...)
 	return append(args, "app-server", "--listen", "stdio://"), nil
+}
+
+func codexSkillInputRules(skills *execbridge.SkillRoots) string {
+	var rules strings.Builder
+	for _, path := range skills.ProtectedDirectories() {
+		rules.WriteString("\n(deny file-write* (subpath " + strconv.Quote(path) + "))")
+	}
+	for _, path := range skills.ProtectedInstructions() {
+		rules.WriteString("\n(deny file-write* (literal " + strconv.Quote(path) + "))")
+	}
+	return rules.String()
+}
+
+func codexJournalRules(journal string) string {
+	return "\n(deny file-read* file-write* (subpath " + strconv.Quote(journal) + ") (literal " + strconv.Quote(journal+".required") + "))"
+}
+
+func codexExecutorRestrictions(home *codexHome, skills *execbridge.SkillRoots, journal string) string {
+	return "\n(deny network*)\n(deny process-fork)\n(deny file-read* (literal " + strconv.Quote(filepath.Join(home.source, "auth.json")) + "))\n(deny file-read* (literal " + strconv.Quote(filepath.Join(home.path, "auth.json")) + "))" + codexSkillInputRules(skills) + codexJournalRules(journal)
 }

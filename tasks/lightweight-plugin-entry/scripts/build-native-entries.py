@@ -38,6 +38,10 @@ For a normal task, create a private version-1 dispatch request with `request_id`
 
 For a multi-task handle, also pass `--task-id` to wait and task-specific operations.
 
+Normal delegation includes finishing in this main session. Do not end the main turn at `queued` or `running`. This collect-only package has no automatic callback and cannot wake an idle model. Follow the receipt's `continuation` using the same entry. Keep every original handle/task in a pending set, do independent work or use bounded `task wait` calls, and rotate fairly across tasks with their own cursors. A 30-second timeout means wait again; one rejected/failed worker does not end tracking of the others. Never ask the user to poll for ordinary completion.
+
+When wait returns events, it already includes collection proof. Read all pages and registered artifacts, verify hashes and content against the brief, then make the authorized owner accept/reject decision and separately ACK delivery. Owner acceptance is the main agent's responsibility, not a request for human approval by default. Present results or the exact failure in this conversation. Do not call incomplete output success, retry without authorization, or turn a read-only report into permission to edit code. Ask only for missing authority or a genuine business choice. If the user explicitly requests dispatch-only/background work or pauses, or the host ends the turn, preserve pending handles and disclose the lack of automatic wake-up; never add hooks/MCP, forge history, or start a new model turn to simulate a callback.
+
 Prefer `task`, `provider`, `routing`, and the documented controller launcher through the outer wrapper. For first-use pin confirmation, follow the reference provider-lock procedure at the explicitly mapped nested runtime root. Do not claim support for an unknown native session or a native subagent identity. Never alter CLI configuration, install packages, create a tool server, or use bypass approval flags. The control capability is the authorization boundary; the handle only routes to it.
 """
 

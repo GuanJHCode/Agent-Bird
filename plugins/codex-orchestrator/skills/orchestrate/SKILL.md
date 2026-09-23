@@ -27,7 +27,7 @@ been verified. Bird's existing runtime concurrency guard still applies.
 
 Only change preferences when asked, using `routing set` with the documented private
 request containing `version:1`, `mode`, ordered nonempty `preferred_providers`
-(array of unique claude/grok/agy names), and `native_parallel:false`. Preferences never enable providers, change permission/model configuration,
+(array of unique codex/claude/grok/agy names), and `native_parallel:false`. Preferences never enable providers, change permission/model configuration,
 reset task budgets or override explicit provider choices. Never silently switch
 provider after a rejected or uncertain launch.
 
@@ -49,6 +49,49 @@ Use `task wait --handle <handle> --timeout-ms 30000` for bounded event waits;
 for a multi-task handle also supply `--task-id`. A wait timeout is not a failure.
 Continue to collect, acknowledge and explicitly accept through the existing
 protocol below; no result receipt constitutes business acceptance.
+
+## Finish the delegation in the main session
+
+Normal delegation includes following through to a verified result or a reported
+blocker. **Do not end the main turn merely because dispatch or inspect returned
+queued/running.** The collect-only package has no automatic callback: ending the
+turn leaves results on disk until the owner asks for them again. A background
+shell, terminal notification or recorded handle does not wake an idle model.
+
+Keep a pending set of original handles/task IDs. While authorized work remains,
+do independent main-agent work or call `task wait --handle <handle> --task-id
+<task> --timeout-ms 30000`. Rotate fairly across pending tasks, carrying each
+task's own cursor; a timeout is not failure or completion. A rejection/failure
+for one worker does not end tracking of other workers. Report concise progress
+without returning a final answer while merely waiting. Follow the receipt's
+`continuation` commands using this same runtime entry; they never grant new
+scope, budget or owner identity.
+
+`task wait` already returns collected events and collection proof when available.
+Read all pages and the exact registered artifact, verify its digest and content,
+and compare it with the brief. Do not require a redundant collect when the wait
+already returned the needed event/proof. For a verified in-scope result, the main
+agent makes the explicit accept/reject decision and separately ACKs delivery.
+"Owner acceptance" means the main agent's verified decision, not an automatic
+request for human approval. Ask the user only for missing authority or a genuine
+business choice. Read-only review acceptance does not authorize implementation.
+
+For failed/stopped/incomplete work, display the real reason and limitations;
+preserve its handle, evidence and budget, and do not accept it as success or retry
+without authorization. A failed event may have no report artifact; report the
+verified failure metadata and any missing diagnostic detail instead of waiting
+for a success report or inventing a reason. On receipt of a question, answer within existing scope
+or surface the specific missing decision. After ACK or a resumed conversation,
+use inspect and any retained exact event binding; empty collect is not evidence
+of missing results. Present the outcome, evidence and remaining gap in the main
+conversation before considering delegation finished.
+
+If the user explicitly wants dispatch-only/background work, asks to pause, or
+the host ends/detaches this turn, preserve the pending set and explain that this
+package cannot wake the idle main session. Do not fake native history, attach a
+bridge to another session, add a hook/MCP server, or spend a new model turn to
+simulate a callback. These are owner workflow instructions, not a runtime power
+to keep a host-controlled model alive.
 
 ## Current controller, provider worker
 
@@ -179,7 +222,12 @@ This creates one read-only Worker with one attempt and owner review. Select the
 provider explicitly from the user request; omission defaults to Claude. The
 confirmed lock must match the selected provider; never substitute another CLI.
 For AGY read-only analysis, ask it to use `view_file` for file reads; terminal
-tools remain unverified. Grok 1.0.34 supports an explicit read-only profile. It restricts built-in tools to
+tools remain unverified. Grok 1.0.34 and 1.0.40 have compatible explicit profiles
+for the verified builds accepted by probe; AGY retains its per-task capability checks,
+including historical 1.2.5 and current 1.2.7 coverage. Keep unchanged confirmed locks;
+new-version support never confirms a binary, session write, or spending budget.
+Grok 1.0.40 and AGY 1.2.7 have metadata/controlled regression coverage, not native
+model acceptance. Grok's read-only profile restricts built-in tools to
 `read_file`, `list_dir`, and `grep`, disables native subagents, and adds the
 per-invocation `--deny MCPTool(*)` rule for all MCP tools. Do not remove this rule
 or treat a built-in tool allowlist alone as an MCP restriction. The new rule
@@ -191,17 +239,25 @@ Do not claim a whole-artifact exact-match check passed when only the final
 answer matched; retain the original artifact and document the distinction.
 Stop on `profile_supported=false`; do not fall back to legacy requests or another
 provider. A successful probe establishes capabilities, not model success.
-The pinned Codex 0.154.0 worker is currently blocked with
-`codex_nested_sandbox_unsupported`: its native tool sandbox cannot run inside
-the mandatory macOS worker sandbox. Metadata success is not coding support.
-The coordinator does not advertise `codex_worker_v1`, and Host refuses the
-execution before creating a private home or starting a model. Reconfirming the
-pin, logging in, retrying, or restarting the coordinator cannot remove this
-blocker. Preserve existing handles, results and budgets; do not bypass the guard.
-Codex as a main/controller remains supported. No Codex worker version is
-currently accepted or released by this source branch.
+The fixed Codex 0.154.0 worker supports a lightweight read/edit contract when
+preflight succeeds and the coordinator advertises `codex_read_edit_worker_v1`.
+The legacy `codex_worker_v1` capability is insufficient. Keep existing tasks and
+handles on their runtime; an old coordinator requires a separately safe upgrade,
+not another state directory or a forced restart.
+Codex discovers and reads its own isolated code through `bird_list_files`,
+`bird_read_file` and `bird_search_text`, then edits with native `apply_patch`.
+The main CLI owns commands and tests through candidate validation after freezing.
+Worker shell/process tools, web, MCP and recursive delegation are unavailable.
+Preserve source approval settings, binary pin, workspace and cleanup guards;
+do not enable commands to satisfy a worker request. No Docker is required.
+Claude/Grok/AGY controllers may use this worker; a Codex main agent should use
+its native subagents for Codex work when their actual constraints permit it.
+Keep CLI-default or explicitly requested models; the native coding acceptance
+used `gpt-5.5`, not every model/version. Structured model review and the entire
+real controller-to-integration path have not received a native acceptance.
+The source change does not itself update an installed plugin or coordinator.
 
-Managed implementation profiles are implemented for Claude, Grok and AGY.
+Managed implementation profiles are implemented for Claude, Grok, AGY and Codex.
 AGY 1.2.5 and Grok 1.0.34 each passed a native isolated coding/freeze/behavior
 fixture. Grok initially cancelled search_replace; a separately authorized
 verification passed after the Host added exact candidate-file edit grants.

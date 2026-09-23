@@ -17,20 +17,22 @@ type TurnConfig struct {
 	VerifyConfig                              func(map[string]any) error
 	EnableTools                               func() error
 	SaveFinal                                 func(string) error
+	DynamicTools                              []DynamicTool
 }
 type Turn struct {
-	config              TurnConfig
-	input               io.WriteCloser
-	output              io.Writer
-	mu                  sync.Mutex
-	buffer              []byte
-	stage               int
-	thread, turn, final string
-	usage               map[string]any
-	queued              []map[string]any
-	queuedBytes         int
-	complete            bool
-	failure             error
+	config                  TurnConfig
+	input                   io.WriteCloser
+	output                  io.Writer
+	mu                      sync.Mutex
+	buffer                  []byte
+	stage                   int
+	thread, turn, final     string
+	usage                   map[string]any
+	queued                  []map[string]any
+	queuedBytes             int
+	complete                bool
+	failure                 error
+	toolCalls, toolRequests map[string]bool
 }
 
 func NewTurn(config TurnConfig, input io.WriteCloser) *Turn {
@@ -106,6 +108,9 @@ func (t *Turn) accept(m map[string]any) error {
 	invalid := CodeError("codex_turn_protocol_failed")
 	if method, ok := m["method"].(string); ok {
 		if m["id"] != nil {
+			if method == "item/tool/call" {
+				return t.dynamicCall(m)
+			}
 			return CodeError("codex_native_decision_required")
 		}
 		params, _ := m["params"].(map[string]any)
@@ -156,6 +161,13 @@ func (t *Turn) accept(m map[string]any) error {
 			return err
 		}
 		params := map[string]any{"cwd": t.config.Directory, "ephemeral": true, "sandbox": "read-only", "experimentalRawEvents": false}
+		if len(t.config.DynamicTools) > 0 {
+			definitions, err := t.dynamicDefinitions()
+			if err != nil {
+				return err
+			}
+			params["dynamicTools"] = definitions
+		}
 		if t.config.Model != "" {
 			params["model"] = t.config.Model
 		}

@@ -2,6 +2,23 @@ package host
 
 import "testing"
 
+func TestExperimentalToolRestrictionRequiresFlagsWhenEffectiveAPIHidesIt(t *testing.T) {
+	flags := codexExpectedRuntimeConfig("/runtime")
+	effective := codexExpectedRuntimeConfig("/runtime")
+	effective["tools"] = map[string]any{"web_search": nil}
+	result := map[string]any{"config": effective, "layers": []any{
+		map[string]any{"name": map[string]any{"type": "user"}, "config": map[string]any{}},
+		map[string]any{"name": map[string]any{"type": "sessionFlags"}, "config": flags},
+	}}
+	if err := verifyCodexConfigLayers(result, "/runtime"); err != nil {
+		t.Fatal("pinned API hides experimental field:", err)
+	}
+	delete(flags, "tools")
+	if err := verifyCodexConfigLayers(result, "/runtime"); err == nil {
+		t.Fatal("missing user-input disable was inferred from incomplete effective projection")
+	}
+}
+
 func TestCodexLayersRejectUnverifiedManagedPolicyAndProfiles(t *testing.T) {
 	layer := func(kind string, config map[string]any) map[string]any {
 		return map[string]any{"name": map[string]any{"type": kind}, "config": config}
@@ -10,6 +27,11 @@ func TestCodexLayersRejectUnverifiedManagedPolicyAndProfiles(t *testing.T) {
 		"features": map[string]any{"multi_agent": false, "multi_agent_v2": false, "hooks": false, "plugins": false, "apps": false, "shell_snapshot": false, "memories": false},
 		"agents":   map[string]any{"enabled": false}, "notify": []any{}, "sqlite_home": "/runtime/sqlite", "log_dir": "/runtime/log",
 	}
+	for _, name := range codexDisabledFeatures() {
+		projection["features"].(map[string]any)[name] = false
+	}
+	projection["web_search"] = "disabled"
+	projection["tools"] = map[string]any{"experimental_request_user_input": map[string]any{"enabled": false}}
 	valid := map[string]any{"config": projection, "layers": []any{layer("sessionFlags", projection), layer("user", map[string]any{"model": "fixture"}), layer("system", map[string]any{})}}
 	if err := verifyCodexConfigLayers(valid, "/runtime"); err != nil {
 		t.Fatal(err)

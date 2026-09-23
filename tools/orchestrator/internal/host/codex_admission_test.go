@@ -25,18 +25,18 @@ func TestCodexAccountTypeDoesNotProveBootstrapAuth(t *testing.T) {
 	}
 }
 
-// A valid runtime container must not turn a known incompatible native execution
-// path into a paid model call, even when submission preflight was bypassed.
-func TestCodexWorkerRejectsNestedSandboxBeforePreparingHome(t *testing.T) {
+// Direct callers still enter the immutable-home/pin guard. Enabling the new
+// execution path must not make an unchecked native binary or home admissible.
+func TestCodexWorkerRequiresVerifiedPinBeforePreparingHome(t *testing.T) {
 	for _, review := range []bool{false, true} {
 		scratch := filepath.Join(t.TempDir(), "scratch")
 		state := &codexRuntimeState{}
 		_, err := prepareCodexCommand(context.Background(), process.Command{}, &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: 1000}, scratch, review, state)
-		if err == nil || err.Error() != "codex_nested_sandbox_unsupported" {
+		if err == nil || err.Error() != "codex_binary_pin_mismatch" {
 			t.Fatalf("unsafe admission: %v", err)
 		}
 		if state.home != nil {
-			t.Fatal("created credential home before refusing incompatible execution")
+			t.Fatal("created credential home before verifying native binary")
 		}
 		if _, err := os.Stat(scratch); !os.IsNotExist(err) {
 			t.Fatal("allocated runtime before refusal")

@@ -12,25 +12,30 @@ import (
 )
 
 func TestGrokProbeReportsSeparateWriteAuthorization(t *testing.T) {
-	root := privateTaskTemp(t)
-	binary := filepath.Join(root, "grok")
-	script := "#!/bin/sh\ncase \"$1\" in\n--version) echo 'grok 1.0.34 (3736acbc8658)';;\n--help) echo '--output-format --permission-mode --session-id --leader-socket --no-subagents --disable-web-search --tools --deny';;\n*) exit 99;;\nesac\n"
-	if err := os.WriteFile(binary, []byte(script), 0700); err != nil {
-		t.Fatal(err)
-	}
-	var out bytes.Buffer
-	if err := taskProbe(context.Background(), []string{"--provider", "grok", "--binary", binary}, &out); err != nil {
-		t.Fatal(err)
-	}
-	var got struct {
-		Supported     bool `json:"profile_supported"`
-		WriteRequired bool `json:"requires_session_write_authorization"`
-	}
-	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
-		t.Fatal(err)
-	}
-	if !got.Supported || !got.WriteRequired {
-		t.Fatalf("wrong capability/authorization: %+v", got)
+	for _, version := range []string{"grok 1.0.34 (3736acbc8658)", "grok 1.0.40 (eb1a2256660d)"} {
+		t.Run(version, func(t *testing.T) {
+			root := privateTaskTemp(t)
+			binary := filepath.Join(root, "grok")
+			script := "#!/bin/sh\ncase \"$1\" in\n--version) echo '" + version + "';;\n--help) echo '--output-format --permission-mode --session-id --leader-socket --no-subagents --disable-web-search --tools --deny';;\n*) exit 99;;\nesac\n"
+			if err := os.WriteFile(binary, []byte(script), 0700); err != nil {
+				t.Fatal(err)
+			}
+			var out bytes.Buffer
+			if err := taskProbe(context.Background(), []string{"--provider", "grok", "--binary", binary}, &out); err != nil {
+				t.Fatal(err)
+			}
+			var got struct {
+				Lock          adapter.ProviderLock `json:"lock"`
+				Supported     bool                 `json:"profile_supported"`
+				WriteRequired bool                 `json:"requires_session_write_authorization"`
+			}
+			if err := json.Unmarshal(out.Bytes(), &got); err != nil {
+				t.Fatal(err)
+			}
+			if !got.Supported || !got.WriteRequired || got.Lock.Binary.Version != version {
+				t.Fatalf("wrong capability/authorization: %+v", got)
+			}
+		})
 	}
 }
 

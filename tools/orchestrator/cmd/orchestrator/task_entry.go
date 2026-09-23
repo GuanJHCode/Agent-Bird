@@ -301,7 +301,7 @@ func taskSubmitPrepared(ctx context.Context, action string, args []string, out i
 			return err
 		}
 	}
-	if err = json.NewEncoder(out).Encode(map[string]any{"version": 1, "handle": *handle, "run_id": h.RunID, "task_ids": h.TaskIDs, "status": h.Status}); err != nil {
+	if err = json.NewEncoder(out).Encode(taskSubmissionReceipt(*handle, h, h.Status, false)); err != nil {
 		return err
 	}
 	return submitErr

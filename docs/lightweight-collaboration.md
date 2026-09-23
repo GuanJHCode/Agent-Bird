@@ -73,7 +73,7 @@ python3 tasks/lightweight-plugin-entry/scripts/build-native-entries.py \
 | Grok | `grok` | 通过 `controller start --provider grok` 启动的受管进程 |
 | AGY | `agy` | 通过 `controller start --provider agy` 启动的受管进程 |
 
-已验收的 Worker 为 Claude/Grok/AGY。固定 Codex 0.154.0 的真实编码已确认受嵌套 macOS 沙箱冲突阻塞，本开发分支已关闭其 Worker 准入以免继续空耗额度。编码/审查/集成仍未验收，当前安装包和新版本 Codex 也不能据此视为已支持。
+Claude/Grok/AGY 的已验证范围见[支持矩阵](support-matrix.md)。固定 Codex 0.154.0 的轻量 Worker 已通过一次真实自主读改、候选冻结和主脑测试；它只读取隔离文件并使用原生 `apply_patch`，命令和测试由主脑执行，不开放 shell，也不要求 Docker。准入需要 `codex_read_edit_worker_v1`。本地并存运行时已包含该实现，默认插件和后台协调器尚未切换，未发布新安装包。真实结构化审查、完整主脑到集成链路及其他版本/模型组合仍未验收。
 
 非 Codex 主脑需要通过包内 `scripts/agent-bird controller start --provider <name>` 启动；安装 Skill 本身不产生可信 owner。进程内清空或新建原生对话不等于新 owner。停止 Provider 只作用于当前 owner 的委派。
 

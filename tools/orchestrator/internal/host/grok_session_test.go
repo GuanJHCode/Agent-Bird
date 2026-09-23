@@ -70,6 +70,38 @@ func TestGrokSessionRequiresPermissionBeforeWrites(t *testing.T) {
 	}
 }
 
+func TestGrokAuthRejectsUnboundPinBeforeSessionWrites(t *testing.T) {
+	for _, kind := range []string{"missing-pin", "unknown-build", "path-mismatch", "digest-mismatch"} {
+		t.Run(kind, func(t *testing.T) {
+			root, _ := filepath.EvalSymlinks(t.TempDir())
+			pin := adapter.BinaryPin{Path: filepath.Join(root, "provider"), Version: "grok 1.0.40 (eb1a2256660d)", SHA256: strings.Repeat("a", 64)}
+			cmd := process.Command{Path: pin.Path, PinnedPath: pin.Path, PinnedSHA256: pin.SHA256, Dir: root}
+			want := "grok_binary_pin_mismatch"
+			switch kind {
+			case "missing-pin":
+				pin = adapter.BinaryPin{}
+				want = "grok_version_not_verified"
+			case "unknown-build":
+				pin.Version = "grok future"
+				want = "grok_version_not_verified"
+			case "path-mismatch":
+				cmd.Path = filepath.Join(root, "another-provider")
+			case "digest-mismatch":
+				cmd.PinnedSHA256 = strings.Repeat("b", 64)
+			}
+			profile := &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: 1000, GrokSessionWrite: true}
+			_, err := prepareAuthenticatedGrokCommand(context.Background(), cmd, pin, profile, contract.LaunchCommand{CommandID: "c"}, filepath.Join(root, "scratch"))
+			if err == nil || err.Error() != want {
+				t.Fatalf("unbound pin reached session/auth preparation: %v", err)
+			}
+			entries, err := os.ReadDir(root)
+			if err != nil || len(entries) != 0 {
+				t.Fatalf("session or scratch written before pin validation: %v %v", entries, err)
+			}
+		})
+	}
+}
+
 func TestGrokSessionRejectsExistingAndUntrustedPaths(t *testing.T) {
 	for _, kind := range []string{"existing-session", "symlink-sessions", "symlink-policy", "long-workspace", "public-sessions"} {
 		t.Run(kind, func(t *testing.T) {
@@ -126,49 +158,58 @@ func TestGrokSessionRejectsExistingAndUntrustedPaths(t *testing.T) {
 }
 
 func TestGrokHostLaunchUsesAuthorizedSession(t *testing.T) {
-	root, _ := filepath.EvalSymlinks(t.TempDir())
-	home := filepath.Join(root, "home")
-	work := filepath.Join(root, "work")
-	for _, p := range []string{home, work} {
-		if err := os.Mkdir(p, 0700); err != nil {
-			t.Fatal(err)
-		}
-	}
-	t.Setenv("GROK_HOME", home)
-	if err := os.WriteFile(filepath.Join(work, "INPUT.txt"), []byte("fixture-readonly"), 0600); err != nil {
-		t.Fatal(err)
-	}
-	binary := filepath.Join(root, "provider")
-	script := []byte("#!/bin/sh\nif [ \"$1\" = models ] && [ \"$#\" = 1 ]; then echo grok-model; exit 0; fi\nsession=''\nwhile [ $# -gt 0 ]; do\ncase \"$1\" in --session-id) shift; session=$1;; esac\nshift\ndone\n[ -n \"$session\" ] || exit 9\nanswer=$(cat INPUT.txt)\nprintf '%s\\n' \"{\\\"type\\\":\\\"text\\\",\\\"data\\\":\\\"$answer\\\"}\"\nprintf '%s\\n' \"{\\\"type\\\":\\\"end\\\",\\\"stopReason\\\":\\\"end_turn\\\",\\\"sessionId\\\":\\\"$session\\\"}\"\n")
-	if err := os.WriteFile(binary, script, 0700); err != nil {
-		t.Fatal(err)
-	}
-	pin := adapter.BinaryPin{Path: binary, Version: "grok 1.0.34 (3736acbc8658)", SHA256: hashBytes(script)}
-	profile := &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: 5000, GrokSessionWrite: true}
-	inv, err := adapter.BuildInvocation(adapter.Request{Provider: adapter.ProviderGrok, Binary: pin, Lock: &adapter.ProviderLock{Version: 1, Provider: adapter.ProviderGrok, Protocol: adapter.ProtocolID(adapter.ProviderGrok), Binary: pin}, CWD: work, Prompt: "read INPUT.txt", Profile: profile})
-	if err != nil {
-		t.Fatal(err)
-	}
-	h, err := NewIPC(filepath.Join(root, "spool"), "producer")
-	if err != nil {
-		t.Fatal(err)
-	}
-	grant := contract.LaunchCommand{CommandID: root, ReservationID: "reservation", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, GrantedActiveMS: 5000}
-	socket := filepath.Join("/private/tmp", "codex-grok-"+grokSessionID(grant))
-	t.Cleanup(func() {
-		if err := os.Remove(socket); err != nil && !os.IsNotExist(err) {
-			t.Error(err)
-		}
-	})
-	result, err := h.ExecuteLaunch(context.Background(), grant, reportInvocation{base: inv})
-	if err != nil || result.Status != "result_ready" || result.ExitCode != 0 {
-		t.Fatalf("result=%+v err=%v", result, err)
-	}
-	answer, err := os.ReadFile(result.ArtifactPath)
-	if err != nil || string(answer) != "fixture-readonly" {
-		t.Fatalf("answer=%q err=%v", answer, err)
-	}
-	if _, err := os.Stat(filepath.Join(home, "sessions", grokEncodeCWD(work), grokSessionID(grant))); err != nil {
-		t.Fatal(err)
+	for _, version := range []string{"grok 1.0.34 (3736acbc8658)", "grok 1.0.40 (eb1a2256660d)"} {
+		t.Run(version, func(t *testing.T) {
+			root, _ := filepath.EvalSymlinks(t.TempDir())
+			home := filepath.Join(root, "home")
+			work := filepath.Join(root, "work")
+			for _, p := range []string{home, work} {
+				if err := os.Mkdir(p, 0700); err != nil {
+					t.Fatal(err)
+				}
+			}
+			t.Setenv("GROK_HOME", home)
+			if err := os.WriteFile(filepath.Join(work, "INPUT.txt"), []byte("fixture-readonly"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			binary := filepath.Join(root, "provider")
+			script := []byte("#!/bin/sh\nif [ \"$1\" = models ] && [ \"$#\" = 1 ]; then echo grok-model; exit 0; fi\nsession=''\nwhile [ $# -gt 0 ]; do\ncase \"$1\" in --session-id) shift; session=$1;; esac\nshift\ndone\n[ -n \"$session\" ] || exit 9\nanswer=$(cat INPUT.txt)\nprintf '%s\\n' \"{\\\"type\\\":\\\"text\\\",\\\"data\\\":\\\"$answer\\\"}\"\nprintf '%s\\n' \"{\\\"type\\\":\\\"end\\\",\\\"stopReason\\\":\\\"end_turn\\\",\\\"sessionId\\\":\\\"$session\\\"}\"\n")
+			if err := os.WriteFile(binary, script, 0700); err != nil {
+				t.Fatal(err)
+			}
+			pin := adapter.BinaryPin{Path: binary, Version: version, SHA256: hashBytes(script)}
+			profile := &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: 5000, GrokSessionWrite: true}
+			inv, err := adapter.BuildInvocation(adapter.Request{Provider: adapter.ProviderGrok, Binary: pin, Lock: &adapter.ProviderLock{Version: 1, Provider: adapter.ProviderGrok, Protocol: adapter.ProtocolID(adapter.ProviderGrok), Binary: pin}, CWD: work, Prompt: "read INPUT.txt", Profile: profile})
+			if err != nil {
+				t.Fatal(err)
+			}
+			h, err := NewIPC(filepath.Join(root, "spool"), "producer")
+			if err != nil {
+				t.Fatal(err)
+			}
+			grant := contract.LaunchCommand{CommandID: root, ReservationID: "reservation", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, GrantedActiveMS: 5000}
+			socket := filepath.Join("/private/tmp", "codex-grok-"+grokSessionID(grant))
+			t.Cleanup(func() {
+				if err := os.Remove(socket); err != nil && !os.IsNotExist(err) {
+					t.Error(err)
+				}
+			})
+			wrapped := reportInvocation{base: inv}
+			pinned, ok := any(wrapped).(interface{ Pin() adapter.BinaryPin })
+			if !ok || pinned.Pin() != pin {
+				t.Fatal("report wrapper lost actual provider version/pin")
+			}
+			result, err := h.ExecuteLaunch(context.Background(), grant, wrapped)
+			if err != nil || result.Status != "result_ready" || result.ExitCode != 0 {
+				t.Fatalf("result=%+v err=%v", result, err)
+			}
+			answer, err := os.ReadFile(result.ArtifactPath)
+			if err != nil || string(answer) != "fixture-readonly" {
+				t.Fatalf("answer=%q err=%v", answer, err)
+			}
+			if _, err := os.Stat(filepath.Join(home, "sessions", grokEncodeCWD(work), grokSessionID(grant))); err != nil {
+				t.Fatal(err)
+			}
+		})
 	}
 }

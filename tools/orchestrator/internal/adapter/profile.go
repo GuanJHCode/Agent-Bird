@@ -5,10 +5,10 @@ import (
 	"regexp"
 )
 
-// Metadata probes do not exercise native shell tools. The pinned Codex exec
-// worker cannot apply its inner macOS sandbox under our mandatory outer guard.
-// Admission stays closed until an equivalent isolated execution path is verified.
-const CodexWorkerAdmissionReason = "codex_nested_sandbox_unsupported"
+// This capability is distinct from the retired shell-worker contract. The
+// pinned worker reads via bounded tools and edits via native apply_patch;
+// commands and tests remain with the main CLI.
+const CodexWorkerCapability = "codex_read_edit_worker_v1"
 
 type Role string
 type ModelID string
@@ -95,7 +95,7 @@ func validateProfile(req Request) error {
 		return errors.New("reasoning_unsupported")
 	}
 	if req.Provider == ProviderGrok {
-		if req.Binary.Version != "grok 1.0.34 (3736acbc8658)" {
+		if !GrokVersionSupported(req.Binary.Version) {
 			return errors.New("grok_version_not_verified")
 		}
 		if !p.GrokSessionWrite {
@@ -177,9 +177,6 @@ func CheckCapabilities(req Request, help string) error {
 		if !matched {
 			return errors.New("provider_capability_unsupported")
 		}
-	}
-	if req.Provider == ProviderCodex {
-		return errors.New(CodexWorkerAdmissionReason)
 	}
 	return nil
 }

@@ -55,9 +55,15 @@ func verifyCodexConfigLayers(result map[string]any, runtime string) error {
 }
 
 func codexExpectedRuntimeConfig(runtime string) map[string]any {
+	features := map[string]any{}
+	for _, name := range codexDisabledFeatures() {
+		features[name] = false
+	}
 	return map[string]any{
-		"features": map[string]any{"multi_agent": false, "multi_agent_v2": false, "hooks": false, "plugins": false, "apps": false, "shell_snapshot": false, "memories": false},
-		"agents":   map[string]any{"enabled": false}, "notify": []any{},
+		"features":   features,
+		"web_search": "disabled",
+		"tools":      map[string]any{"experimental_request_user_input": map[string]any{"enabled": false}},
+		"agents":     map[string]any{"enabled": false}, "notify": []any{},
 		"sqlite_home": filepath.Join(runtime, "sqlite"), "log_dir": filepath.Join(runtime, "log"),
 	}
 }
@@ -74,6 +80,12 @@ func verifyCodexEffectiveRestrictions(result map[string]any, runtime string) err
 		return invalid
 	}
 	for key, want := range codexExpectedRuntimeConfig(runtime) {
+		// Fixed config/read exposes only legacy tools.web_search. The newer
+		// user-input switch is proven by the exact, highest-priority session
+		// flags above; it is not represented by this effective API projection.
+		if key == "tools" {
+			continue
+		}
 		if nested, ok := want.(map[string]any); ok {
 			actual, ok := config[key].(map[string]any)
 			if !ok {

@@ -29,6 +29,10 @@ func TestCodexTasksRequireMatchingCoordinatorForPrimaryAndFallback(t *testing.T)
 			t.Fatal("old coordinator accepted Codex task")
 		}
 		caps = append(caps, "codex_worker_v1")
+		if err := checkCoordinatorTasks(caps, []coordinator.TaskRequest{task}); err == nil {
+			t.Fatal("legacy shell-worker capability accepted as lightweight support")
+		}
+		caps = append(caps, "codex_read_edit_worker_v1")
 		if err := checkCoordinatorTasks(caps, []coordinator.TaskRequest{task}); err != nil {
 			t.Fatal(err)
 		}

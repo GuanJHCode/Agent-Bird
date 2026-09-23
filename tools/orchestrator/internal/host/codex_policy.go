@@ -125,5 +125,5 @@ func prepareCodexCommand(ctx context.Context, cmd process.Command, profile *adap
 	if len(runtime) != 1 || runtime[0] == nil {
 		return cmd, errors.New("codex_runtime_state_required")
 	}
-	return cmd, errors.New(adapter.CodexWorkerAdmissionReason)
+	return prepareCodexWorker(ctx, cmd, profile, scratch, review, runtime[0])
 }

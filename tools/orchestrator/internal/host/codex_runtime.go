@@ -15,6 +15,7 @@ import (
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/codexrpc"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/execbridge"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/workspaceread"
 )
 
 var errCodexAuthCleanup = errors.New("codex_auth_cleanup_failed")
@@ -23,6 +24,8 @@ type codexRuntimeState struct {
 	home   *codexHome
 	config map[string]any
 	bridge *execbridge.Broker
+	skills *execbridge.SkillRoots
+	reader *workspaceread.Reader
 	turn   *codexrpc.Turn
 	input  *os.File
 	mu     sync.Mutex
@@ -47,6 +50,11 @@ func (s *codexRuntimeState) verify() error {
 			return err
 		}
 	}
+	if s.skills != nil {
+		if err := s.skills.Verify(); err != nil {
+			return err
+		}
+	}
 	return s.home.verifyInputs()
 }
 func (s *codexRuntimeState) close() error {
@@ -65,6 +73,9 @@ func (s *codexRuntimeState) close() error {
 	}
 	if s.home != nil {
 		result = errors.Join(result, s.home.detachAuth())
+	}
+	if s.reader != nil {
+		result = errors.Join(result, s.reader.Close())
 	}
 	return result
 }
@@ -97,7 +108,11 @@ func (h *codexHome) detachAuth() error {
 }
 
 func codexRuntimeFlags(home *codexHome) []string {
-	return []string{"--strict-config", "--disable", "multi_agent", "--disable", "multi_agent_v2", "--disable", "hooks", "--disable", "plugins", "--disable", "apps", "--disable", "shell_snapshot", "--disable", "memories", "-c", "agents.enabled=false", "-c", "notify=[]", "-c", "sqlite_home=" + strconv.Quote(filepath.Join(home.runtime, "sqlite")), "-c", "log_dir=" + strconv.Quote(filepath.Join(home.runtime, "log"))}
+	flags := []string{"--strict-config"}
+	for _, name := range codexDisabledFeatures() {
+		flags = append(flags, "--disable", name)
+	}
+	return append(flags, "-c", `web_search="disabled"`, "-c", "tools.experimental_request_user_input.enabled=false", "-c", "agents.enabled=false", "-c", "notify=[]", "-c", "sqlite_home="+strconv.Quote(filepath.Join(home.runtime, "sqlite")), "-c", "log_dir="+strconv.Quote(filepath.Join(home.runtime, "log")))
 }
 
 // Metadata-only preparation. No model/thread method is sent here. Source files

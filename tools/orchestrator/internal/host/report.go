@@ -1,12 +1,12 @@
 package host
 
 import (
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -222,4 +222,11 @@ func (i reportInvocation) ExecutablePin() (string, string) {
 		return pinned.ExecutablePin()
 	}
 	return "", ""
+}
+
+func (i reportInvocation) Pin() adapter.BinaryPin {
+	if pinned, ok := i.base.(interface{ Pin() adapter.BinaryPin }); ok {
+		return pinned.Pin()
+	}
+	return adapter.BinaryPin{}
 }

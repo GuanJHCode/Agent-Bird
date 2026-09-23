@@ -416,7 +416,7 @@ func jsonBytes(t *testing.T, value any) json.RawMessage {
 	return b
 }
 
-func TestCoordinatorDoesNotAdvertiseUnusableCodexWorker(t *testing.T) {
+func TestCoordinatorAdvertisesOnlyLightweightCodexWorker(t *testing.T) {
 	root, err := os.MkdirTemp("/tmp", "bird-cap-")
 	if err != nil {
 		t.Fatal(err)
@@ -438,9 +438,14 @@ func TestCoordinatorDoesNotAdvertiseUnusableCodexWorker(t *testing.T) {
 	if len(got.Capabilities) == 0 {
 		t.Fatal("missing capability response")
 	}
+	found := false
 	for _, c := range got.Capabilities {
 		if c == "codex_worker_v1" {
 			t.Fatal("advertised known-incompatible worker")
 		}
+		found = found || c == "codex_read_edit_worker_v1"
+	}
+	if !found {
+		t.Fatal("missing verified lightweight worker capability")
 	}
 }

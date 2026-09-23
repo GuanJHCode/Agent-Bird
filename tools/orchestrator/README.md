@@ -75,6 +75,16 @@ verify the brief, artifacts and actual test evidence before approving the bound
 candidate. Prefer 30-second `wait-events` over status polling and retain cursors
 and receipt paths for recovery after context compression.
 
+High-level submission receipts include additive `continuation` metadata with
+`delivery_mode: collect`, `automatic_callback: false`, a `next_action`, and argv
+arrays for the same runtime entry. A new submission points to bounded waits;
+an existing request points to inspect; an unresolved receipt points to reconcile;
+a rejection must be reported without redispatch. No command or acceptance is
+executed by this metadata. The main agent keeps its current turn active through
+artifact verification, authorized owner decisions and presentation of the result
+or failure. A wait timeout is not permission to end normal delegation. Idle or
+detached native CLI turns are not awakened by this collect-only package.
+
 Codex JSONL currently uses the pinned 0.154.0 contract. Structured records above
 64 KiB fail with a bounded artifact containing `status: incomplete` and reason
 `provider_critical_event_too_large`; earlier messages are never used as the final
@@ -159,8 +169,10 @@ New requests use separate protocol, Execution Profile and Provider Lock objects;
 see [configuration and recovery](../../docs/provider-runtime.md) for exact JSON,
 `provider-probe` / confirmed `provider-lock`, and the persisted concurrency policy.
 Legacy invocation fields remain accepted within their existing boundary; they are
-not a fallback for a rejected profile. Typed Codex/AGY/Grok and typed session
-resume are explicitly unsupported until their capability gates are verified.
+not a fallback for a rejected profile. Typed Codex/AGY/Grok requests require
+their verified provider pin, per-task capabilities and coordinator gates.
+The fixed Codex lightweight worker reads and patches isolated files; the main
+agent runs commands and tests. Typed session resume remains unsupported.
 
 `owner-bind --request <private-json>` registers a local main-agent identity using
 kernel peer ancestry and PID birth. Submit with `owner_mode=local` and

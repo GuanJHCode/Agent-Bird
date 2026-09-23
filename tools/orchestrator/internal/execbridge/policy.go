@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"reflect"
+	"strings"
 )
 
 var errPolicy = errors.New("codex_executor_protocol_rejected")
@@ -20,7 +21,7 @@ func validateRequest(raw []byte, toolsEnabled bool) error {
 		return errPolicy
 	}
 	method, ok := message["method"].(string)
-	if !ok {
+	if !ok || strings.HasPrefix(method, "process/") {
 		return errPolicy
 	}
 	params, ok := message["params"].(map[string]any)
@@ -33,17 +34,6 @@ func validateRequest(raw []byte, toolsEnabled bool) error {
 			return errPolicy
 		}
 	case "initialized", "environment/info", "environment/status":
-	case "process/start":
-		if !toolsEnabled || params["sandbox"] != nil || params["managedNetwork"] != nil || params["networkProxy"] != nil {
-			return errPolicy
-		}
-		if v := params["enforceManagedNetwork"]; v != nil && v != false {
-			return errPolicy
-		}
-	case "process/read", "process/write", "process/signal", "process/terminate":
-		if !toolsEnabled {
-			return errPolicy
-		}
 	case "fs/readBlock", "fs/close":
 	case "fs/readFile", "fs/open", "fs/getMetadata", "fs/canonicalize", "fs/readDirectory", "fs/walk":
 		// Startup can read environment metadata before a turn's external policy is
