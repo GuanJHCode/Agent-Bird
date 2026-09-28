@@ -25,20 +25,26 @@ const (
 	KindLaunch           Kind = "launch"
 	KindStop             Kind = "stop"
 	KindEvent            Kind = "event"
+	KindHostProgress     Kind = "host_progress"
 	KindReportCapability Kind = "report_capability"
 	KindReportEvent      Kind = "report_event"
 	KindDurableAck       Kind = "durable_ack"
 	KindReady            Kind = "ready"
+	KindOwnerBind        Kind = "owner_bind"
+	KindProviderControl  Kind = "provider_control"
 	KindSubmit           Kind = "submit"
 	KindStatus           Kind = "status"
+	KindSummary          Kind = "summary"
 	KindCollect          Kind = "collect"
 	KindWaitEvents       Kind = "wait_events"
 	KindAck              Kind = "ack"
 	KindResume           Kind = "resume"
 	KindRetry            Kind = "retry"
+	KindRework           Kind = "rework"
 	KindAccept           Kind = "accept"
 	KindAnswer           Kind = "answer"
 	KindRebindOwner      Kind = "rebind_owner"
+	KindRecoverHost      Kind = "recover_host"
 	KindStopTask         Kind = "stop_task"
 	KindResponse         Kind = "response"
 	KindError            Kind = "error"
@@ -66,10 +72,21 @@ func Call(ctx context.Context, socketPath string, request Envelope) (Envelope, e
 		return Envelope{}, err
 	}
 	defer conn.Close()
+	// DialContext only governs connection establishment. Closing the owned
+	// connection also interrupts a blocked write or an incomplete response frame.
+	stop := context.AfterFunc(ctx, func() { _ = conn.Close() })
+	defer stop()
 	if err = Write(conn, request); err != nil {
+		if ctx.Err() != nil {
+			return Envelope{}, ctx.Err()
+		}
 		return Envelope{}, err
 	}
-	return Read(conn)
+	response, err := Read(conn)
+	if ctx.Err() != nil {
+		return Envelope{}, ctx.Err()
+	}
+	return response, err
 }
 
 func Write(w io.Writer, message Envelope) error {

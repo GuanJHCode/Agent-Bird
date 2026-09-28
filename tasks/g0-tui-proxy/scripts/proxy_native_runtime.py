@@ -2004,6 +2004,7 @@ __all__ = [
     "build_ordinary_tui_argv",
     "build_resume_tui_argv",
     "canonical_resume_thread_id",
+    "classify_screen",
     "raw_seconds",
     "sha256_file",
     "main",

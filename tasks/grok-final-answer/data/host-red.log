@@ -1,0 +1,9 @@
+--- FAIL: TestGrokToolBoundaryKeepsFinalAnswerOnly (0.00s)
+    grok_protocol_test.go:78: unexpected result: {Kind:result SessionID:grok-1 Status:end_turn Text:I'll read INPUT.txt and return it.GROK_READ_final StructuredText:} "grok-1" <nil>
+--- FAIL: TestGrokKeepsTextAfterLastToolBoundary (0.00s)
+    grok_protocol_test.go:94: unexpected result: {Kind:result SessionID:grok-1 Status:end_turn Text:first middlefinal StructuredText:} "grok-1" <nil>
+--- FAIL: TestGrokRejectsToolEventAfterTerminal (0.00s)
+    grok_protocol_test.go:103: accepted late tool event: <nil>
+FAIL
+FAIL	codex-cli-orchestration-design/tools/orchestrator/internal/host	1.166s
+FAIL

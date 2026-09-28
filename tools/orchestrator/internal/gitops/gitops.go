@@ -4,6 +4,7 @@
 package gitops
 
 import (
+	"codex-cli-orchestration-design/tools/orchestrator/internal/process"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -79,14 +80,16 @@ type PrivateRefJournal interface {
 }
 
 type CandidateIntent struct {
-	AttemptID        string    `json:"attempt_id"`
-	RepoRoot         string    `json:"repo_root"`
-	Worktree         string    `json:"worktree"`
-	BaseOID          string    `json:"base_oid"`
-	PrivateRef       string    `json:"private_ref"`
-	OrderedInputOIDs []string  `json:"ordered_input_oids"`
-	PlanRevision     int64     `json:"plan_revision"`
-	CreatedAt        time.Time `json:"created_at"`
+	Binding          *CandidateBinding `json:"binding,omitempty"`
+	Changes          []CandidateChange `json:"changes,omitempty"`
+	AttemptID        string            `json:"attempt_id"`
+	RepoRoot         string            `json:"repo_root"`
+	Worktree         string            `json:"worktree"`
+	BaseOID          string            `json:"base_oid"`
+	PrivateRef       string            `json:"private_ref"`
+	OrderedInputOIDs []string          `json:"ordered_input_oids"`
+	PlanRevision     int64             `json:"plan_revision"`
+	CreatedAt        time.Time         `json:"created_at"`
 }
 
 type CandidateRefIntent struct {
@@ -109,6 +112,8 @@ type CandidateCompositionRequest struct {
 }
 
 type CandidateReceipt struct {
+	Binding               *CandidateBinding       `json:"binding,omitempty"`
+	Changes               []CandidateChange       `json:"changes,omitempty"`
 	AttemptID             string                  `json:"attempt_id"`
 	RepoRoot              string                  `json:"repo_root"`
 	Worktree              string                  `json:"worktree"`
@@ -202,6 +207,7 @@ type MaterializeReceipt struct {
 }
 
 type IntegrationRequest struct {
+	AttemptID      string        `json:"attempt_id,omitempty"`
 	RepoRoot       string        `json:"repo_root"`
 	TargetWorktree string        `json:"target_worktree"`
 	TargetRef      string        `json:"target_ref"`
@@ -329,6 +335,11 @@ func noSymlinkComponents(path string) error {
 }
 
 func run(ctx context.Context, dir string, args ...string) (CommandResult, error) {
+	if managed, _ := ctx.Value(candidateRunnerKey{}).(bool); managed {
+		result, err := candidateGit(ctx, dir, nil, args...)
+		result.Stdout = strings.TrimSpace(result.Stdout)
+		return result, err
+	}
 	cmd := exec.CommandContext(ctx, "git", append([]string{"-C", dir}, args...)...)
 	var out, errOut strings.Builder
 	cmd.Stdout = &out
@@ -459,40 +470,45 @@ func validateOIDInRepo(ctx context.Context, repo, oid string) error {
 	_, err := rev(ctx, repo, oid+"^{commit}")
 	return err
 }
-func candidatePaths(ctx context.Context, repo, oid string) ([]string, error) {
+
+// NUL-delimited paths must retain leading/trailing whitespace and newlines.
+func gitRecords(ctx context.Context, repo string, args ...string) (string, error) {
+	if managed, _ := ctx.Value(candidateRunnerKey{}).(bool); managed {
+		result, err := candidateGit(ctx, repo, nil, args...)
+		return result.Stdout, err
+	}
+	cmd := exec.CommandContext(ctx, "git", append([]string{"-C", repo}, args...)...)
+	body, err := cmd.Output()
+	return string(body), err
+}
+func candidatePaths(ctx context.Context, repo, base, oid string) ([]string, error) {
 	if err := validateOIDInRepo(ctx, repo, oid); err != nil {
 		return nil, err
 	}
-	text, _, err := gitText(ctx, repo, "diff-tree", "--root", "--no-commit-id", "--name-only", "-r", "--no-renames", oid)
+	text, err := gitRecords(ctx, repo, "diff-tree", "--no-commit-id", "--name-only", "-r", "--no-renames", "-z", base, oid, "--")
 	if err != nil {
 		return nil, err
 	}
-	var paths []string
-	for _, line := range strings.Split(text, "\n") {
-		if line != "" {
-			paths = append(paths, filepath.ToSlash(filepath.Clean(line)))
-		}
+	if text == "" {
+		return nil, nil
 	}
-	return paths, nil
+	return strings.Split(strings.TrimSuffix(text, "\x00"), "\x00"), nil
 }
 func targetStatus(ctx context.Context, target string) (trackedDirty bool, untrackedIgnored []string, err error) {
-	text, _, e := gitText(ctx, target, "status", "--porcelain=v2", "--untracked-files=all", "--ignored=matching")
-	if e != nil {
-		return false, nil, e
+	text, err := gitRecords(ctx, target, "status", "--porcelain=v2", "-z", "--no-renames", "--untracked-files=all", "--ignored=matching")
+	if err != nil {
+		return false, nil, err
 	}
-	for _, line := range strings.Split(text, "\n") {
-		if line == "" {
+	for _, record := range strings.Split(text, "\x00") {
+		if record == "" {
 			continue
 		}
-		prefix := line[:1]
-		switch prefix {
-		case "1", "2", "u":
+		if strings.HasPrefix(record, "? ") || strings.HasPrefix(record, "! ") {
+			untrackedIgnored = append(untrackedIgnored, record[2:])
+		} else if strings.HasPrefix(record, "1 ") || strings.HasPrefix(record, "2 ") || strings.HasPrefix(record, "u ") {
 			trackedDirty = true
-		case "?", "!":
-			fields := strings.Fields(line)
-			if len(fields) > 1 {
-				untrackedIgnored = append(untrackedIgnored, filepath.ToSlash(fields[len(fields)-1]))
-			}
+		} else {
+			return false, nil, fail(CodeInvalidInput, "status", fmt.Errorf("unexpected git status record"))
 		}
 	}
 	sort.Strings(untrackedIgnored)
@@ -631,7 +647,7 @@ func Materialize(ctx context.Context, req MaterializeRequest, journal Journal) (
 	if err != nil {
 		return MaterializeReceipt{}, err
 	}
-	files, err := snapshot(req.Worktree)
+	files, err := snapshotWithContext(ctx, req.Worktree)
 	if err != nil {
 		return MaterializeReceipt{}, err
 	}
@@ -779,7 +795,16 @@ func Integrate(ctx context.Context, req IntegrationRequest) (IntegrationOutcome,
 	if base != req.TargetBaseOID {
 		return out, fail(CodeTargetDrift, "target base", fmt.Errorf("head drift"))
 	}
-	if operationInProgress(ctx, req.TargetWorktree) {
+	inProgress := false
+	if managed, _ := ctx.Value(candidateRunnerKey{}).(bool); managed {
+		inProgress, err = candidateOperationInProgress(ctx, req.TargetWorktree)
+		if err != nil {
+			return out, err
+		}
+	} else {
+		inProgress = operationInProgress(ctx, req.TargetWorktree)
+	}
+	if inProgress {
 		return out, fail(CodeTargetDirty, "operation", fmt.Errorf("git operation in progress"))
 	}
 	dirty, entries, err := targetStatus(ctx, req.TargetWorktree)
@@ -789,7 +814,7 @@ func Integrate(ctx context.Context, req IntegrationRequest) (IntegrationOutcome,
 	if dirty {
 		return out, fail(CodeTargetDirty, "status", fmt.Errorf("tracked/index changes"))
 	}
-	paths, err := candidatePaths(ctx, req.RepoRoot, req.CandidateOID)
+	paths, err := candidatePaths(ctx, req.RepoRoot, req.TargetBaseOID, req.CandidateOID)
 	if err != nil {
 		return out, err
 	}
@@ -820,7 +845,7 @@ func Integrate(ctx context.Context, req IntegrationRequest) (IntegrationOutcome,
 	if err != nil {
 		return out, err
 	}
-	intent := IntegrationIntent{TargetWorktree: req.TargetWorktree, TargetRef: req.TargetRef, TargetBaseOID: req.TargetBaseOID, CandidateOID: req.CandidateOID, TargetIdentity: CanonicalPath(req.TargetWorktree), InitialHEAD: base, InitialIndexTree: initialTree, UntrackedIgnored: entries, ValidationDigest: req.Review.ValidationDigest, PlanRevision: req.Review.PlanRevision, ReviewRevision: req.Review.ReviewRevision, CreatedAt: time.Now().UTC()}
+	intent := IntegrationIntent{AttemptID: req.AttemptID, OrderedInputOIDs: append([]string(nil), req.Review.OrderedInputOIDs...), TargetWorktree: req.TargetWorktree, TargetRef: req.TargetRef, TargetBaseOID: req.TargetBaseOID, CandidateOID: req.CandidateOID, TargetIdentity: CanonicalPath(req.TargetWorktree), InitialHEAD: base, InitialIndexTree: initialTree, UntrackedIgnored: entries, ValidationDigest: req.Review.ValidationDigest, PlanRevision: req.Review.PlanRevision, ReviewRevision: req.Review.ReviewRevision, CreatedAt: time.Now().UTC()}
 	intent.InitialIndexTree = initialIndex
 	if err := req.Journal.PersistIntegrationIntent(ctx, intent); err != nil {
 		return out, err
@@ -830,19 +855,51 @@ func Integrate(ctx context.Context, req IntegrationRequest) (IntegrationOutcome,
 			return out, recordIntegration(ctx, req.Journal, out, err)
 		}
 	}
+	uncertain := func(cause error) (IntegrationOutcome, error) {
+		out.State = IntegrationUncertain
+		out.Code = string(CodeGitFailure)
+		return out, recordIntegration(ctx, req.Journal, out, cause)
+	}
 	ref2, _, e := gitText(ctx, req.TargetWorktree, "symbolic-ref", "-q", "HEAD")
-	head2, e2 := rev(ctx, req.TargetWorktree, "HEAD")
-	if e != nil || e2 != nil || ref2 != req.TargetRef || head2 != base {
-		out.State, out.Code, out.TargetHEAD = IntegrationUncertain, string(CodeTargetDrift), head2
+	if e != nil {
+		return uncertain(e)
+	}
+	head2, e := rev(ctx, req.TargetWorktree, "HEAD")
+	if e != nil {
+		return uncertain(e)
+	}
+	if ref2 != req.TargetRef || head2 != base {
+		out.TargetHEAD = head2
+		out.Code = string(CodeTargetDrift)
+		out.State = IntegrationUncertain
 		return out, recordIntegration(ctx, req.Journal, out, fail(CodeTargetDrift, "pre-merge", fmt.Errorf("target changed")))
 	}
 	result, mergeErr := run(ctx, req.TargetWorktree, "merge", "--ff-only", "--no-autostash", "--no-overwrite-ignore", req.CandidateOID)
 	out.ProcessPID, out.GitExitCode = result.PID, result.ExitCode
+	if errors.Is(mergeErr, process.ErrProcessTreeUnknown) {
+		return uncertain(mergeErr)
+	}
 	postHead, postErr := rev(ctx, req.TargetWorktree, "HEAD")
+	if postErr != nil {
+		return uncertain(postErr)
+	}
+	out.TargetHEAD = postHead
 	postDirty, _, postStatusErr := targetStatus(ctx, req.TargetWorktree)
+	if postStatusErr != nil {
+		return uncertain(postStatusErr)
+	}
 	postRef, _, postRefErr := gitText(ctx, req.TargetWorktree, "symbolic-ref", "-q", "HEAD")
+	if postRefErr != nil {
+		return uncertain(postRefErr)
+	}
 	postTree, postTreeErr := rev(ctx, req.TargetWorktree, "HEAD^{tree}")
+	if postTreeErr != nil {
+		return uncertain(postTreeErr)
+	}
 	postIndex, _, postIndexErr := gitText(ctx, req.TargetWorktree, "write-tree")
+	if postIndexErr != nil {
+		return uncertain(postIndexErr)
+	}
 	if mergeErr == nil && postErr == nil && postStatusErr == nil && postRefErr == nil && postTreeErr == nil && postIndexErr == nil && result.ExitCode == 0 && postRef == req.TargetRef && postHead == req.CandidateOID && postTree == candidateTree && postIndex == postTree && !postDirty {
 		out.State, out.Code, out.TargetHEAD = IntegrationIntegrated, "", postHead
 		if journalErr := req.Journal.RecordIntegration(ctx, out); journalErr != nil {

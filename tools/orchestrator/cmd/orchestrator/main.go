@@ -52,6 +52,20 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return codeError("invalid_args")
 	}
 	switch args[0] {
+	case "runtime-status":
+		return runtimeStatus(ctx, args[1:], stdout)
+	case "provider":
+		return providerSettingsEntry(ctx, args[1:], stdout)
+	case "task":
+		return taskEntry(ctx, args[1:], stdout)
+	case "preflight":
+		return preflight(args[1:], stdout)
+	case "plugin-run":
+		return pluginRun(ctx, args[1:], stdout)
+	case "owner-bind":
+		return ownerBind(ctx, args[1:], stdout)
+	case "provider-probe", "provider-lock":
+		return providerControl(ctx, args[0], args[1:], stdout)
 	case "serve":
 		return serve(ctx, args[1:], stderr)
 	case "source-host":
@@ -74,6 +88,8 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return submit(ctx, args[1:], stdout)
 	case "status":
 		return taskControl(ctx, ipc.KindStatus, args[1:], stdout)
+	case "summary":
+		return taskControl(ctx, ipc.KindSummary, args[1:], stdout)
 	case "collect":
 		return taskControl(ctx, ipc.KindCollect, args[1:], stdout)
 	case "wait-events":
@@ -82,6 +98,8 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return taskControl(ctx, ipc.KindResume, args[1:], stdout)
 	case "retry":
 		return retryTask(ctx, args[1:], stdout)
+	case "rework":
+		return reworkTask(ctx, args[1:], stdout)
 	case "accept":
 		return reviewResult(ctx, args[1:], stdout)
 	case "answer":
@@ -90,6 +108,8 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return reportEvent(ctx, args[1:], stdout)
 	case "native-bridge":
 		return runNativeBridge(ctx, args[1:], stdout, stderr)
+	case "recover-host":
+		return recoverHost(ctx, args[1:], stdout)
 	case "rebind-owner":
 		return rebindOwner(ctx, args[1:], stdout)
 	case "stop":
@@ -152,6 +172,13 @@ func rebindOwner(ctx context.Context, args []string, stdout io.Writer) error {
 	if fs.Parse(args) != nil || *path == "" || fs.NArg() != 0 {
 		return codeError("invalid_args")
 	}
+	var projection map[string]json.RawMessage
+	if err := readPrivateJSON(*path, &projection); err != nil {
+		return err
+	}
+	if string(projection["owner_mode"]) == `"local"` {
+		return rebindLocalOwner(ctx, *stateArg, *path, stdout)
+	}
 	verified, err := nativebridgecli.VerifyRebind(*path)
 	if err != nil {
 		return err
@@ -167,18 +194,21 @@ func rebindOwner(ctx context.Context, args []string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
+	bootstrap, err := loadHostBootstrap(capability)
+	if err != nil {
+		return err
+	}
+	if bootstrap.Version != 2 {
+		return codeError("legacy_bootstrap_rebind_unsupported")
+	}
 	request := coordinator.RebindOwnerRequest{RunID: capability.RunID, ControllerThread: capability.ControllerThread, ControlToken: capability.ControlToken, OriginContextID: verified.OriginContextID, OriginPID: verified.OriginPID, OriginBirth: verified.OriginBirth, HostGeneration: verified.HostGeneration, AttachmentProofSHA256: verified.AttachmentProofSHA256}
 	response, err := call(ctx, state, ipc.KindRebindOwner, request)
 	if err != nil {
 		return err
 	}
-	var bootstrap hostBootstrap
-	if err = readPrivateJSON(capability.BootstrapPath, &bootstrap); err != nil {
-		return err
-	}
 	bootstrap.Hello.OriginPID, bootstrap.Hello.OriginBirth = verified.OriginPID, verified.OriginBirth
 	bootstrap.Hello.OriginContextID, bootstrap.Hello.HostGeneration = verified.OriginContextID, verified.HostGeneration
-	if err = replacePrivateJSON(capability.BootstrapPath, bootstrap); err != nil {
+	if err = replacePrivateJSON(capability.BootstrapPath, bootstrapMetadata(bootstrap)); err != nil {
 		return err
 	}
 	_, err = stdout.Write(append(response.Payload, '\n'))
@@ -247,6 +277,9 @@ func submit(ctx context.Context, args []string, stdout io.Writer) error {
 	if err = readPrivateJSON(*requestPath, &request); err != nil {
 		return err
 	}
+	if err = preflightTasks(request.Tasks); err != nil {
+		return err
+	}
 	executable, err := resolvedExecutable()
 	if err != nil {
 		return err
@@ -255,7 +288,11 @@ func submit(ctx context.Context, args []string, stdout io.Writer) error {
 	if request.HostGeneration == "" || len(request.Tasks) == 0 {
 		return codeError("invalid_submit")
 	}
-	if request.OwnerCapability == "" {
+	if request.OwnerMode == "local" {
+		if err = verifyLocalProjection(request); err != nil {
+			return err
+		}
+	} else if request.OwnerCapability == "" {
 		if os.Getenv("ORCHESTRATOR_ENABLE_TEST_FAKE") != "1" {
 			return codeError("owner_capability_required")
 		}
@@ -269,7 +306,7 @@ func submit(ctx context.Context, args []string, stdout io.Writer) error {
 	if err != nil || originBirth != request.OriginBirth {
 		return codeError("origin_identity_mismatch")
 	}
-	if _, err = ensureServer(ctx, state); err != nil {
+	if err = requireTaskCoordinator(ctx, state, request.Tasks); err != nil {
 		return err
 	}
 	launchID, err := randomValue("host-launch")
@@ -284,12 +321,12 @@ func submit(ctx context.Context, args []string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
-	bootstrap := hostBootstrap{SocketPath: filepath.Join(state, "coordinator.sock"), SpoolRoot: filepath.Join(state, "host-spool", launchID), ProducerID: launchID, Hello: contract.HostHello{LaunchID: launchID, LaunchToken: launchToken, OriginContextID: request.OriginContextID, OriginPID: request.OriginPID, OriginBirth: request.OriginBirth, HostGeneration: request.HostGeneration, Executable: executable}}
+	bootstrap := hostBootstrap{Version: 2, SocketPath: filepath.Join(state, "coordinator.sock"), SpoolRoot: filepath.Join(state, "host-spool", launchID), ProducerID: launchID, Hello: contract.HostHello{LaunchID: launchID, LaunchToken: launchToken, OriginContextID: request.OriginContextID, OriginPID: request.OriginPID, OriginBirth: request.OriginBirth, HostGeneration: request.HostGeneration, Executable: executable}}
 	bootstrapPath, err := writeBootstrap(state, bootstrap)
 	if err != nil {
 		return err
 	}
-	controlPath, err := writeControlCapability(state, request.RunID, request.ControllerThread, controlToken, bootstrapPath)
+	controlPath, err := writeControlCapability(state, request.RunID, request.ControllerThread, controlToken, bootstrapPath, launchID, launchToken)
 	if err != nil {
 		_ = os.Remove(bootstrapPath)
 		return err
@@ -321,7 +358,7 @@ func submit(ctx context.Context, args []string, stdout io.Writer) error {
 			_ = os.Remove(bootstrapPath)
 			return err
 		}
-		_ = startSourceHost(executable, state, bootstrapPath)
+		_ = startSourceHost(executable, state, bootstrap)
 		_ = json.NewEncoder(stdout).Encode(map[string]any{"version": 1, "status": "submit_uncertain", "run_id": request.RunID, "control_file": controlPath})
 		return codeError("submit_uncertain")
 	}
@@ -329,7 +366,7 @@ func submit(ctx context.Context, args []string, stdout io.Writer) error {
 	if err = decode(response.Payload, &receipt); err != nil || receipt.LaunchID != launchID || receipt.LaunchToken != launchToken || receipt.ControlToken != controlToken {
 		return codeError("submit_receipt_mismatch")
 	}
-	if err = startSourceHost(executable, state, bootstrapPath); err != nil {
+	if err = startSourceHost(executable, state, bootstrap); err != nil {
 		_ = json.NewEncoder(stdout).Encode(map[string]any{"version": 1, "status": "queued_host_unavailable", "run_id": request.RunID, "control_file": controlPath})
 		return codeError("source_host_start_failed")
 	}
@@ -346,6 +383,8 @@ type controlCapability struct {
 	ControllerThread string `json:"controller_thread"`
 	ControlToken     string `json:"control_token"`
 	BootstrapPath    string `json:"bootstrap_path"`
+	HostLaunchID     string `json:"host_launch_id,omitempty"`
+	HostLaunchToken  string `json:"host_launch_token,omitempty"`
 }
 
 func taskControl(ctx context.Context, kind ipc.Kind, args []string, stdout io.Writer) error {
@@ -372,7 +411,23 @@ func taskControl(ctx context.Context, kind ipc.Kind, args []string, stdout io.Wr
 		return err
 	}
 	if kind == ipc.KindResume {
-		if err = ensureSourceHost(ctx, state, capability.BootstrapPath); err != nil {
+		if err = requireInterruptionCoordinator(ctx, state); err != nil {
+			return err
+		}
+		response, queryErr := call(ctx, state, ipc.KindSummary, coordinator.TaskControlRequest{TaskID: *taskID, ControllerThread: capability.ControllerThread, ControlToken: capability.ControlToken})
+		if queryErr != nil {
+			return queryErr
+		}
+		var summary store.RunSummary
+		if err = decode(response.Payload, &summary); err != nil {
+			return err
+		}
+		for _, task := range summary.Tasks {
+			if task.TaskID == *taskID && task.ResumeBlockedReason != "" {
+				return codeError(task.ResumeBlockedReason)
+			}
+		}
+		if err = ensureSourceHost(ctx, state, capability); err != nil {
 			return err
 		}
 	}
@@ -417,31 +472,74 @@ func waitEvents(ctx context.Context, args []string, stdout io.Writer) error {
 	return err
 }
 
+type acceptFile struct {
+	TaskID        string `json:"task_id"`
+	ControlFile   string `json:"control_file"`
+	WorkRevision  int    `json:"work_revision"`
+	EventID       string `json:"event_id"`
+	EventRevision int64  `json:"event_revision"`
+	EventHash     string `json:"event_hash"`
+	ActionSlot    string `json:"action_slot"`
+	Decision      string `json:"decision"`
+	CommandID     string `json:"command_id"`
+}
+
 func reviewResult(ctx context.Context, args []string, stdout io.Writer) error {
 	fs := flag.NewFlagSet("accept", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	stateArg := fs.String("state-dir", "", "private state directory")
-	taskID := fs.String("task-id", "", "task id")
-	controlFile := fs.String("control-file", "", "owner-only control capability")
-	workRevision := fs.Int("work-revision", 0, "work revision")
-	eventID := fs.String("event-id", "", "result event id")
-	eventRevision := fs.Int64("event-revision", 0, "result event revision")
-	eventHash := fs.String("event-hash", "", "result event hash")
-	actionSlot := fs.String("action-slot", "", "result action slot")
-	decision := fs.String("decision", "accept", "accept or reject")
-	commandID := fs.String("command-id", "", "stable review command id")
-	if fs.Parse(args) != nil || *taskID == "" || *controlFile == "" || *workRevision < 1 || *eventID == "" || *eventRevision < 1 || *eventHash == "" || *actionSlot == "" || *commandID == "" || (*decision != "accept" && *decision != "reject") || fs.NArg() != 0 {
+	requestPath := fs.String("request", "", "owner-only review request")
+	var input acceptFile
+	fs.StringVar(&input.TaskID, "task-id", "", "task id")
+	fs.StringVar(&input.ControlFile, "control-file", "", "owner-only control capability")
+	fs.IntVar(&input.WorkRevision, "work-revision", 0, "work revision")
+	fs.StringVar(&input.EventID, "event-id", "", "result event id")
+	fs.Int64Var(&input.EventRevision, "event-revision", 0, "result event revision")
+	fs.StringVar(&input.EventHash, "event-hash", "", "result event hash")
+	fs.StringVar(&input.ActionSlot, "action-slot", "", "result action slot")
+	fs.StringVar(&input.Decision, "decision", "accept", "accept or reject")
+	fs.StringVar(&input.CommandID, "command-id", "", "stable review command id")
+	if fs.Parse(args) != nil || fs.NArg() != 0 {
 		return codeError("invalid_args")
+	}
+	requestSet, businessFlagSet := false, false
+	fs.Visit(func(f *flag.Flag) {
+		switch f.Name {
+		case "request":
+			requestSet = true
+		case "state-dir":
+		default:
+			businessFlagSet = true
+		}
+	})
+	invalidInput := "invalid_args"
+	if requestSet {
+		if *requestPath == "" || businessFlagSet {
+			return codeError("invalid_args")
+		}
+		// JSON requests must explicitly choose a decision; the flag default applies
+		// only to the legacy flag interface.
+		input = acceptFile{}
+		if err := readPrivateJSON(*requestPath, &input); err != nil {
+			if errorCode(err) == "invalid_json" {
+				return codeError("invalid_review")
+			}
+			return err
+		}
+		invalidInput = "invalid_review"
+	}
+	if input.TaskID == "" || input.ControlFile == "" || input.WorkRevision < 1 || input.EventID == "" || input.EventRevision < 1 || input.EventHash == "" || input.ActionSlot == "" || input.CommandID == "" || (input.Decision != "accept" && input.Decision != "reject") {
+		return codeError(invalidInput)
 	}
 	state, err := resolveState(*stateArg)
 	if err != nil {
 		return err
 	}
-	capability, err := loadControlCapability(*controlFile)
+	capability, err := loadControlCapability(input.ControlFile)
 	if err != nil {
 		return err
 	}
-	request := coordinator.ReviewRequest{TaskControlRequest: coordinator.TaskControlRequest{TaskID: *taskID, ControllerThread: capability.ControllerThread, ControlToken: capability.ControlToken, WorkRevision: *workRevision}, EventID: *eventID, EventRevision: *eventRevision, EventHash: *eventHash, ActionSlot: *actionSlot, Decision: *decision, CommandID: *commandID}
+	request := coordinator.ReviewRequest{TaskControlRequest: coordinator.TaskControlRequest{TaskID: input.TaskID, ControllerThread: capability.ControllerThread, ControlToken: capability.ControlToken, WorkRevision: input.WorkRevision}, EventID: input.EventID, EventRevision: input.EventRevision, EventHash: input.EventHash, ActionSlot: input.ActionSlot, Decision: input.Decision, CommandID: input.CommandID}
 	response, err := call(ctx, state, ipc.KindAccept, request)
 	if err != nil {
 		return err
@@ -476,7 +574,7 @@ func retryTask(ctx context.Context, args []string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
-	if err = ensureSourceHost(ctx, state, capability.BootstrapPath); err != nil {
+	if err = ensureSourceHost(ctx, state, capability); err != nil {
 		return err
 	}
 	request := coordinator.RetryRequest{TaskControlRequest: coordinator.TaskControlRequest{TaskID: *taskID, ControllerThread: capability.ControllerThread, ControlToken: capability.ControlToken, WorkRevision: *revision}, EventID: *eventID, EventRevision: *eventRevision, EventHash: *eventHash, ActionSlot: *actionSlot, SegmentID: *segmentID, NextAttemptNo: *nextAttemptNo, UseNextFallback: *useNext, CommandID: *commandID}
@@ -517,7 +615,7 @@ func answerQuestion(ctx context.Context, args []string, stdout io.Writer) error 
 	if err != nil {
 		return err
 	}
-	if err = ensureSourceHost(ctx, state, capability.BootstrapPath); err != nil {
+	if err = ensureSourceHost(ctx, state, capability); err != nil {
 		return err
 	}
 	payload := coordinator.AnswerRequest{TaskID: request.TaskID, ControllerThread: capability.ControllerThread, ControlToken: capability.ControlToken, WorkRevision: request.WorkRevision, QuestionID: request.QuestionID, QuestionRevision: request.QuestionRevision, Answer: request.Answer}
@@ -542,14 +640,14 @@ func acknowledge(ctx context.Context, args []string, stdout io.Writer) error {
 		return err
 	}
 	var request ackFile
-	if err = readPrivateJSON(*requestPath, &request); err != nil || request.Version != 1 || request.TaskID == "" || request.ControlFile == "" || request.DeliveryID == "" || request.HistoryProofSHA256 == "" || len(request.Decisions) == 0 {
+	if err = readPrivateJSON(*requestPath, &request); err != nil || request.Version != 1 || request.TaskID == "" || request.ControlFile == "" || request.DeliveryID == "" || (request.HistoryProofSHA256 == "" && request.CollectionProofSHA256 == "") || len(request.Decisions) == 0 {
 		return codeError("invalid_ack")
 	}
 	capability, err := loadControlCapability(request.ControlFile)
 	if err != nil {
 		return err
 	}
-	payload := coordinator.AckRequest{TaskID: request.TaskID, ControllerThread: capability.ControllerThread, ControlToken: capability.ControlToken, DeliveryID: request.DeliveryID, HistoryProofSHA256: request.HistoryProofSHA256, Decisions: request.Decisions}
+	payload := coordinator.AckRequest{TaskID: request.TaskID, ControllerThread: capability.ControllerThread, ControlToken: capability.ControlToken, DeliveryID: request.DeliveryID, HistoryProofSHA256: request.HistoryProofSHA256, CollectionProofSHA256: request.CollectionProofSHA256, Decisions: request.Decisions}
 	response, err := call(ctx, state, ipc.KindAck, payload)
 	if err != nil {
 		return err
@@ -559,12 +657,13 @@ func acknowledge(ctx context.Context, args []string, stdout io.Writer) error {
 }
 
 type ackFile struct {
-	Version            int                 `json:"version"`
-	TaskID             string              `json:"task_id"`
-	ControlFile        string              `json:"control_file"`
-	DeliveryID         string              `json:"delivery_id"`
-	HistoryProofSHA256 string              `json:"history_proof_sha256"`
-	Decisions          []store.AckDecision `json:"decisions"`
+	CollectionProofSHA256 string              `json:"collection_proof_sha256,omitempty"`
+	Version               int                 `json:"version"`
+	TaskID                string              `json:"task_id"`
+	ControlFile           string              `json:"control_file"`
+	DeliveryID            string              `json:"delivery_id"`
+	HistoryProofSHA256    string              `json:"history_proof_sha256"`
+	Decisions             []store.AckDecision `json:"decisions"`
 }
 
 type reportCapabilityFile struct {
@@ -651,23 +750,41 @@ func call(ctx context.Context, state string, kind ipc.Kind, payload any) (ipc.En
 }
 
 func ensureServer(ctx context.Context, state string) (map[string]any, error) {
+	parent := ctx
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	timeoutError := func() error {
+		if parent.Err() != nil {
+			return parent.Err()
+		}
+		return codeError("coordinator_start_timeout")
+	}
 	if err := instance.PrepareStateDir(state); err != nil {
 		return nil, err
 	}
 	ready := func() (map[string]any, error) {
 		requestID := fmt.Sprintf("ready-%d", os.Getpid())
 		response, err := ipc.Call(ctx, filepath.Join(state, "coordinator.sock"), ipc.Envelope{Version: ipc.Version, Kind: ipc.KindReady, RequestID: requestID, Payload: json.RawMessage(`{}`)})
-		if err != nil || response.Kind != ipc.KindResponse {
+		if err != nil {
 			return nil, err
 		}
-		var value map[string]any
-		if err = json.Unmarshal(response.Payload, &value); err != nil {
-			return nil, err
+		var value struct {
+			Status       string   `json:"status"`
+			Epoch        uint64   `json:"epoch"`
+			Capabilities []string `json:"capabilities"`
 		}
-		return value, nil
+		if response.Kind != ipc.KindResponse || response.RequestID != requestID || json.Unmarshal(response.Payload, &value) != nil || value.Status != "ready" || value.Epoch == 0 || response.Epoch != value.Epoch {
+			return nil, ipc.ErrInvalidMessage
+		}
+		return map[string]any{"status": value.Status, "epoch": value.Epoch, "capabilities": value.Capabilities}, nil
 	}
 	if value, err := ready(); err == nil {
 		return value, nil
+	} else if errors.Is(err, ipc.ErrInvalidMessage) || errors.Is(err, ipc.ErrMessageTooLarge) {
+		return nil, err
+	}
+	if ctx.Err() != nil {
+		return nil, timeoutError()
 	}
 	executable, err := resolvedExecutable()
 	if err != nil {
@@ -687,19 +804,17 @@ func ensureServer(ctx context.Context, state string) (map[string]any, error) {
 	}
 	_ = command.Process.Release()
 	_ = logFile.Close()
-	deadline := time.NewTimer(5 * time.Second)
-	defer deadline.Stop()
 	ticker := time.NewTicker(20 * time.Millisecond)
 	defer ticker.Stop()
 	for {
 		if value, readyErr := ready(); readyErr == nil {
 			return value, nil
+		} else if errors.Is(readyErr, ipc.ErrInvalidMessage) || errors.Is(readyErr, ipc.ErrMessageTooLarge) {
+			return nil, readyErr
 		}
 		select {
 		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-deadline.C:
-			return nil, codeError("coordinator_start_timeout")
+			return nil, timeoutError()
 		case <-ticker.C:
 		}
 	}
@@ -721,25 +836,102 @@ type hostBootstrap struct {
 	Hello      contract.HostHello `json:"hello"`
 }
 
+// hostBootstrapMetadataV2 is the token-free disk contract, distinct from the
+// in-memory/v1 wire object. Strict decoding rejects injected token fields.
+type hostBootstrapMetadataV2 struct {
+	Version    int               `json:"version"`
+	SocketPath string            `json:"socket_path"`
+	SpoolRoot  string            `json:"spool_root"`
+	ProducerID string            `json:"producer_id"`
+	Hello      hostHelloMetadata `json:"hello"`
+}
+type hostHelloMetadata struct {
+	LaunchID        string `json:"launch_id"`
+	OriginContextID string `json:"origin_context_id"`
+	OriginPID       int    `json:"origin_pid"`
+	OriginBirth     string `json:"origin_birth"`
+	HostGeneration  string `json:"host_generation"`
+	PID             int    `json:"pid"`
+	Birth           string `json:"birth"`
+	Executable      string `json:"executable"`
+}
+
+func bootstrapMetadata(b hostBootstrap) hostBootstrapMetadataV2 {
+	h := b.Hello
+	return hostBootstrapMetadataV2{Version: 2, SocketPath: b.SocketPath, SpoolRoot: b.SpoolRoot, ProducerID: b.ProducerID, Hello: hostHelloMetadata{LaunchID: h.LaunchID, OriginContextID: h.OriginContextID, OriginPID: h.OriginPID, OriginBirth: h.OriginBirth, HostGeneration: h.HostGeneration, PID: h.PID, Birth: h.Birth, Executable: h.Executable}}
+}
+func loadHostBootstrap(c controlCapability) (hostBootstrap, error) {
+	var b hostBootstrap
+	if c.Version == 1 {
+		if c.HostLaunchID != "" || c.HostLaunchToken != "" {
+			return b, codeError("invalid_control_capability")
+		}
+		if err := readPrivateJSON(c.BootstrapPath, &b); err != nil {
+			return b, err
+		}
+		if b.Version != 1 {
+			return hostBootstrap{}, codeError("invalid_host_bootstrap")
+		}
+		return b, nil
+	}
+	if c.Version != 2 || c.HostLaunchID == "" || c.HostLaunchToken == "" {
+		return b, codeError("invalid_control_capability")
+	}
+	var m hostBootstrapMetadataV2
+	if err := readPrivateJSON(c.BootstrapPath, &m); err != nil {
+		return b, err
+	}
+	if m.Version != 2 || m.Hello.LaunchID != c.HostLaunchID || m.ProducerID != c.HostLaunchID {
+		return b, codeError("invalid_host_bootstrap")
+	}
+	h := m.Hello
+	return hostBootstrap{Version: 2, SocketPath: m.SocketPath, SpoolRoot: m.SpoolRoot, ProducerID: m.ProducerID, Hello: contract.HostHello{LaunchID: h.LaunchID, LaunchToken: c.HostLaunchToken, OriginContextID: h.OriginContextID, OriginPID: h.OriginPID, OriginBirth: h.OriginBirth, HostGeneration: h.HostGeneration, PID: h.PID, Birth: h.Birth, Executable: h.Executable}}, nil
+}
+
 func sourceHost(parent context.Context, args []string) error {
 	fs := flag.NewFlagSet("source-host", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	stateArg := fs.String("state-dir", "", "private state directory")
-	bootstrapPath := fs.String("bootstrap", "", "owner-only source bootstrap")
-	if fs.Parse(args) != nil || *bootstrapPath == "" || fs.NArg() != 0 {
+	bootstrapPath := fs.String("bootstrap", "", "legacy owner-only source bootstrap")
+	bootstrapFD := fs.Int("bootstrap-fd", -1, "inherited bootstrap pipe")
+	if fs.Parse(args) != nil || fs.NArg() != 0 {
 		return codeError("invalid_args")
+	}
+	var hasFD, hasPath bool
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == "bootstrap-fd" {
+			hasFD = true
+		}
+		if f.Name == "bootstrap" {
+			hasPath = true
+		}
+	})
+	if hasFD == hasPath {
+		return codeError("invalid_args")
+	}
+	var bootstrap hostBootstrap
+	var err error
+	if hasFD {
+		bootstrap, err = readBootstrapFD(*bootstrapFD)
+	} else {
+		// Read-only compatibility for old private v1 material. Never accept v2
+		// metadata as a complete bootstrap or look for a token in that file.
+		err = readPrivateJSON(*bootstrapPath, &bootstrap)
+		if err == nil && bootstrap.Version != 1 {
+			err = codeError("invalid_host_bootstrap")
+		}
+	}
+	if err != nil {
+		return err
 	}
 	state, err := resolveState(*stateArg)
 	if err != nil {
 		return err
 	}
-	var bootstrap hostBootstrap
-	if err = readPrivateJSON(*bootstrapPath, &bootstrap); err != nil {
-		return err
-	}
-	if bootstrap.Version != 1 || bootstrap.SocketPath != filepath.Join(state, "coordinator.sock") || bootstrap.ProducerID != bootstrap.Hello.LaunchID {
+	if !validHostBootstrap(state, bootstrap) {
 		return codeError("invalid_host_bootstrap")
 	}
+
 	birth, err := process.Birth(os.Getpid())
 	if err != nil {
 		return err
@@ -765,35 +957,22 @@ func sourceHost(parent context.Context, args []string) error {
 		},
 	})
 	if err == nil || errors.Is(err, context.Canceled) {
-		_ = os.Remove(*bootstrapPath)
 		return nil
 	}
 	return err
 }
 
-type invocationPayload struct {
-	Kind           string   `json:"kind"`
-	Args           []string `json:"args,omitempty"`
-	Directory      string   `json:"directory,omitempty"`
-	Provider       string   `json:"provider,omitempty"`
-	BinaryPath     string   `json:"binary_path,omitempty"`
-	BinaryVersion  string   `json:"binary_version,omitempty"`
-	BinarySHA256   string   `json:"binary_sha256,omitempty"`
-	Prompt         string   `json:"prompt,omitempty"`
-	SessionKind    string   `json:"session_kind,omitempty"`
-	SessionID      string   `json:"session_id,omitempty"`
-	PermissionMode string   `json:"permission_mode,omitempty"`
-	Allow          []string `json:"allow,omitempty"`
-	Deny           []string `json:"deny,omitempty"`
-	ExtraArgs      []string `json:"extra_args,omitempty"`
-}
+type invocationPayload = adapter.InvocationPayload
 
 type localInvocation struct {
-	args  []string
-	dir   string
-	stdin []byte
-	env   map[string]string
+	action *adapter.CandidateAction
+	args   []string
+	dir    string
+	stdin  []byte
+	env    map[string]string
 }
+
+func (i localInvocation) CandidateAction() *adapter.CandidateAction { return i.action }
 
 func (i localInvocation) Args() []string           { return append([]string(nil), i.args...) }
 func (i localInvocation) WorkingDirectory() string { return i.dir }
@@ -807,9 +986,38 @@ func (i localInvocation) Environment() map[string]string {
 }
 
 func invocationForGrant(ctx context.Context, grant contract.LaunchCommand) (contract.InvocationView, error) {
-	var payload invocationPayload
-	if err := decode(grant.AdapterPayload, &payload); err != nil {
-		return nil, err
+	payload, err := adapter.DecodeInvocationPayload(grant.AdapterPayload)
+	if err != nil {
+		return nil, codeError("invalid_json")
+	}
+	if action := payload.CandidateAction; action != nil {
+		if action.Version != 1 || grant.Input == nil || action.SourceTask != grant.Input.Event.TaskID || payload.CandidateWorkspace != nil || grant.SessionID != "" || payload.SessionID != "" || !filepath.IsAbs(payload.Directory) {
+			return nil, codeError("candidate_action_invalid")
+		}
+		if payload.Kind == "candidate" {
+			if payload.Provider != "" || payload.Profile != nil || payload.ProviderLock != nil || payload.BinaryPath != "" || len(payload.Args) != 0 || len(payload.ExtraArgs) != 0 {
+				return nil, codeError("candidate_action_invalid")
+			}
+			if action.Operation != "validate" && action.Operation != "integrate" {
+				return nil, codeError("candidate_action_invalid")
+			}
+			return localInvocation{args: []string{"/usr/bin/true"}, dir: payload.Directory, action: action}, nil
+		}
+		if action.Operation != "review" || payload.Profile == nil || payload.Profile.Role != adapter.Reviewer || payload.Profile.Permission != adapter.ReadOnly {
+			return nil, codeError("candidate_action_invalid")
+		}
+		brief, err := host.CandidateReviewPrompt(grant)
+		if err != nil {
+			return nil, err
+		}
+		payload.Prompt += brief
+	}
+	if payload.ProviderLock != nil {
+		lock := payload.ProviderLock
+		if payload.BinaryPath != "" || payload.BinaryVersion != "" || payload.BinarySHA256 != "" {
+			return nil, codeError("provider_lock_legacy_conflict")
+		}
+		payload.BinaryPath, payload.BinaryVersion, payload.BinarySHA256 = lock.Binary.Path, lock.Binary.Version, lock.Binary.SHA256
 	}
 	if payload.Provider == string(adapter.ProviderCodex) || payload.BinaryVersion == adapter.CodexVersion || strings.EqualFold(payload.BinarySHA256, adapter.CodexSHA256) {
 		return nil, codeError("codex_trial_guard_not_ready")
@@ -827,19 +1035,27 @@ func invocationForGrant(ctx context.Context, grant contract.LaunchCommand) (cont
 		return localInvocation{args: payload.Args, dir: payload.Directory, env: map[string]string{}}, nil
 	}
 	request := adapter.Request{Provider: adapter.Provider(payload.Provider), Binary: adapter.BinaryPin{Path: payload.BinaryPath, Version: payload.BinaryVersion, SHA256: payload.BinarySHA256}, CWD: payload.Directory, Prompt: payload.Prompt, Session: adapter.SessionRef{Kind: adapter.SessionKind(payload.SessionKind), ID: payload.SessionID}, Permission: adapter.Permission{Mode: payload.PermissionMode, Allow: payload.Allow, Deny: payload.Deny}, ExtraArgs: payload.ExtraArgs}
+	request.Profile, request.Lock, request.Workspace, request.Action = payload.Profile, payload.ProviderLock, payload.CandidateWorkspace, payload.CandidateAction
 	if err := adapter.VerifyExecutable(request.Binary, request.Binary.Version); err != nil {
 		return nil, err
 	}
 	probeCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
-	probe := exec.CommandContext(probeCtx, request.Binary.Path, "--version")
-	probe.Env = os.Environ()
-	version, err := probe.Output()
+	version, err := adapter.ProbeOutput(probeCtx, request.Binary.Path, "--version")
 	if err != nil {
 		return nil, codeError("binary_version_probe_failed")
 	}
 	if err = adapter.VerifyExecutable(request.Binary, strings.TrimSpace(string(version))); err != nil {
 		return nil, err
+	}
+	if request.Profile != nil {
+		help, err := adapter.ProbeOutput(probeCtx, request.Binary.Path, "--help")
+		if err != nil {
+			return nil, err
+		}
+		if err = adapter.CheckCapabilities(request, help); err != nil {
+			return nil, err
+		}
 	}
 	return adapter.BuildInvocation(request)
 }
@@ -869,22 +1085,82 @@ func waitForHost(ctx context.Context, state, launchID, launchToken string) error
 	}
 }
 
-func startSourceHost(executable, state, bootstrapPath string) error {
-	command := exec.Command(executable, "source-host", "--state-dir", state, "--bootstrap", bootstrapPath)
+const maxBootstrapBytes = 64 * 1024
+
+// readBootstrapFD consumes the inherited pipe before any Host/Worker starts.
+// Close-on-exec is set immediately; even error paths close the descriptor.
+func readBootstrapFD(fd int) (hostBootstrap, error) {
+	var bootstrap hostBootstrap
+	if fd < 3 {
+		return bootstrap, codeError("invalid_bootstrap_fd")
+	}
+	// Inherited descriptors start in blocking mode. Set O_NONBLOCK before
+	// wrapping so Go registers the pipe with its poller and enforces deadlines.
+	if err := syscall.SetNonblock(fd, true); err != nil {
+		_ = syscall.Close(fd)
+		return bootstrap, codeError("invalid_bootstrap_fd")
+	}
+	file := os.NewFile(uintptr(fd), "host-bootstrap-pipe")
+	if file == nil {
+		return bootstrap, codeError("invalid_bootstrap_fd")
+	}
+	defer file.Close()
+	syscall.CloseOnExec(fd)
+	info, err := file.Stat()
+	if err != nil || info.Mode()&os.ModeNamedPipe == 0 {
+		return bootstrap, codeError("invalid_bootstrap_fd")
+	}
+	if err = file.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		return bootstrap, codeError("invalid_bootstrap_fd")
+	}
+	data, err := io.ReadAll(io.LimitReader(file, maxBootstrapBytes+1))
+	if err != nil || len(data) > maxBootstrapBytes || decode(data, &bootstrap) != nil || (bootstrap.Version != 1 && bootstrap.Version != 2) {
+		return hostBootstrap{}, codeError("invalid_host_bootstrap")
+	}
+	return bootstrap, nil
+}
+
+func validHostBootstrap(state string, b hostBootstrap) bool {
+	return (b.Version == 1 || b.Version == 2) && b.SocketPath == filepath.Join(state, "coordinator.sock") && b.ProducerID != "" && b.ProducerID == b.Hello.LaunchID && b.Hello.LaunchToken != ""
+}
+
+func startSourceHost(executable, state string, bootstrap hostBootstrap) error {
+	if !validHostBootstrap(state, bootstrap) {
+		return codeError("invalid_host_bootstrap")
+	}
+	data, err := json.Marshal(bootstrap)
+	if err != nil || len(data) > maxBootstrapBytes {
+		return codeError("invalid_host_bootstrap")
+	}
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		return codeError("bootstrap_pipe_failed")
+	}
+	defer reader.Close()
+	defer writer.Close()
+	command := exec.Command(executable, "source-host", "--state-dir", state, "--bootstrap-fd", "3")
+	command.ExtraFiles = []*os.File{reader}
 	command.Stdin = nil
 	logFile, err := os.OpenFile(filepath.Join(state, "source-host.log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY|syscall.O_NOFOLLOW, 0600)
 	if err != nil {
 		return err
 	}
+	defer logFile.Close()
 	command.Stdout, command.Stderr = logFile, logFile
 	command.Env = sourceEnvironment()
 	command.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	if err = command.Start(); err != nil {
-		_ = logFile.Close()
 		return err
 	}
-	_ = command.Process.Release()
-	return logFile.Close()
+	defer command.Process.Release()
+	_ = reader.Close()
+	if err = writer.SetWriteDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		return codeError("bootstrap_pipe_failed")
+	}
+	if _, err = writer.Write(data); err != nil {
+		return codeError("bootstrap_pipe_failed")
+	}
+	return nil
 }
 
 func sourceEnvironment() []string {
@@ -902,7 +1178,7 @@ func sourceEnvironment() []string {
 	return out
 }
 
-func writeControlCapability(state, runID, controller, token, bootstrapPath string) (string, error) {
+func writeControlCapability(state, runID, controller, token, bootstrapPath, launchID, launchToken string) (string, error) {
 	dir := filepath.Join(state, "control")
 	if err := privateSubdir(dir); err != nil {
 		return "", err
@@ -912,7 +1188,7 @@ func writeControlCapability(state, runID, controller, token, bootstrapPath strin
 		return "", err
 	}
 	path := filepath.Join(dir, name+".json")
-	return path, writeExclusiveJSON(path, controlCapability{Version: 1, RunID: runID, ControllerThread: controller, ControlToken: token, BootstrapPath: bootstrapPath})
+	return path, writeExclusiveJSON(path, controlCapability{Version: 2, RunID: runID, ControllerThread: controller, ControlToken: token, BootstrapPath: bootstrapPath, HostLaunchID: launchID, HostLaunchToken: launchToken})
 }
 
 func writeBootstrap(state string, bootstrap hostBootstrap) (string, error) {
@@ -920,9 +1196,8 @@ func writeBootstrap(state string, bootstrap hostBootstrap) (string, error) {
 	if err := privateSubdir(dir); err != nil {
 		return "", err
 	}
-	bootstrap.Version = 1
 	path := filepath.Join(dir, bootstrap.Hello.LaunchID+".json")
-	return path, writeExclusiveJSON(path, bootstrap)
+	return path, writeExclusiveJSON(path, bootstrapMetadata(bootstrap))
 }
 
 func privateSubdir(path string) error {
@@ -997,15 +1272,18 @@ func replacePrivateJSON(path string, value any) error {
 func loadControlCapability(path string) (controlCapability, error) {
 	var capability controlCapability
 	err := readPrivateJSON(path, &capability)
-	if err == nil && (capability.Version != 1 || capability.ControllerThread == "" || capability.ControlToken == "" || !filepath.IsAbs(capability.BootstrapPath)) {
+	if err == nil && ((capability.Version != 1 && capability.Version != 2) || capability.ControllerThread == "" || capability.ControlToken == "" || !filepath.IsAbs(capability.BootstrapPath)) {
+		err = codeError("invalid_control_capability")
+	}
+	if err == nil && ((capability.Version == 2 && (capability.HostLaunchID == "" || capability.HostLaunchToken == "")) || (capability.Version == 1 && (capability.HostLaunchID != "" || capability.HostLaunchToken != ""))) {
 		err = codeError("invalid_control_capability")
 	}
 	return capability, err
 }
 
-func ensureSourceHost(ctx context.Context, state, bootstrapPath string) error {
-	var bootstrap hostBootstrap
-	if err := readPrivateJSON(bootstrapPath, &bootstrap); err != nil {
+func ensureSourceHost(ctx context.Context, state string, capability controlCapability) error {
+	bootstrap, err := loadHostBootstrap(capability)
+	if err != nil {
 		return err
 	}
 	response, err := call(ctx, state, ipc.KindHostStatus, coordinator.HostStatusRequest{LaunchID: bootstrap.Hello.LaunchID, LaunchToken: bootstrap.Hello.LaunchToken})
@@ -1019,7 +1297,7 @@ func ensureSourceHost(ctx context.Context, state, bootstrapPath string) error {
 	if err != nil {
 		return err
 	}
-	if err = startSourceHost(executable, state, bootstrapPath); err != nil {
+	if err = startSourceHost(executable, state, bootstrap); err != nil {
 		return err
 	}
 	return waitForHost(ctx, state, bootstrap.Hello.LaunchID, bootstrap.Hello.LaunchToken)

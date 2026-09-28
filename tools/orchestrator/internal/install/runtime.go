@@ -34,6 +34,7 @@ var runtimeFileNames = []string{
 }
 
 type RuntimeIdentity struct {
+	Kind              string `json:"kind,omitempty"`
 	Root              string `json:"root"`
 	ManifestPath      string `json:"manifest_path"`
 	ManifestSHA256    string `json:"manifest_sha256"`
@@ -42,6 +43,7 @@ type RuntimeIdentity struct {
 }
 
 type runtimeManifest struct {
+	Kind        string             `json:"kind,omitempty"`
 	Version     int                `json:"version"`
 	Interpreter runtimeInterpreter `json:"interpreter"`
 	Files       []runtimeFile      `json:"files"`
@@ -75,9 +77,24 @@ func ValidateRuntimeBundle(packageRoot string) (RuntimeIdentity, error) {
 	var manifest runtimeManifest
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
-	if decoder.Decode(&manifest) != nil || decoder.Decode(&struct{}{}) != io.EOF || manifest.Version != 1 || len(manifest.Files) != len(runtimeFileNames) {
+	if decoder.Decode(&manifest) != nil || decoder.Decode(&struct{}{}) != io.EOF {
 		return RuntimeIdentity{}, ErrRuntimeInvalid
 	}
+	if manifest.Version == 2 && manifest.Kind == "collect-only" {
+		if manifest.Interpreter.Path != "" || manifest.Interpreter.SHA256 != "" || len(manifest.Files) != 0 {
+			return RuntimeIdentity{}, ErrRuntimeInvalid
+		}
+		entries, err := os.ReadDir(runtimeRoot)
+		if err != nil || len(entries) != 1 || entries[0].Name() != "runtime-manifest.json" {
+			return RuntimeIdentity{}, ErrRuntimeInvalid
+		}
+		digest := sha256.Sum256(data)
+		return RuntimeIdentity{Kind: "collect-only", Root: runtimeRoot, ManifestPath: manifestPath, ManifestSHA256: hex.EncodeToString(digest[:])}, nil
+	}
+	if manifest.Version != 1 || manifest.Kind != "" || len(manifest.Files) != len(runtimeFileNames) {
+		return RuntimeIdentity{}, ErrRuntimeInvalid
+	}
+
 	expected := append([]string(nil), runtimeFileNames...)
 	sort.Strings(expected)
 	actual := make([]string, 0, len(manifest.Files))

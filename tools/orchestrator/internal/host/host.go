@@ -1,8 +1,10 @@
 package host
 
 import (
+	"codex-cli-orchestration-design/tools/orchestrator/internal/adapter"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/contract"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/events"
+	"codex-cli-orchestration-design/tools/orchestrator/internal/gitops"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/process"
 	"codex-cli-orchestration-design/tools/orchestrator/internal/store"
 	"context"
@@ -25,6 +27,7 @@ type Host struct {
 	mu             sync.Mutex
 	active         map[string]*process.Handle
 	activeBySeg    map[string]*process.Handle
+	segmentCancels map[string]context.CancelFunc
 	producerID     string
 	sequenceMu     sync.Mutex
 	sequence       int64
@@ -37,6 +40,7 @@ type Host struct {
 	stopMu         sync.Mutex
 	stopRequested  map[string]bool
 	eventReady     chan struct{}
+	progressSink   func(context.Context, contract.Event) error
 }
 
 func New(db *store.DB, spoolRoot string) (*Host, error) {
@@ -63,7 +67,7 @@ func newHost(db *store.DB, spoolRoot, producerID string) (*Host, error) {
 	if err := os.MkdirAll(spoolRoot, 0700); err != nil {
 		return nil, err
 	}
-	return &Host{db: db, spoolRoot: spoolRoot, active: map[string]*process.Handle{}, activeBySeg: map[string]*process.Handle{}, producerID: producerID, publishedPath: filepath.Join(spoolRoot, ".producer-published"), reservations: map[string]time.Time{}, stopRequested: map[string]bool{}, eventReady: make(chan struct{}, 1)}, nil
+	return &Host{db: db, spoolRoot: spoolRoot, active: map[string]*process.Handle{}, activeBySeg: map[string]*process.Handle{}, segmentCancels: map[string]context.CancelFunc{}, producerID: producerID, publishedPath: filepath.Join(spoolRoot, ".producer-published"), reservations: map[string]time.Time{}, stopRequested: map[string]bool{}, eventReady: make(chan struct{}, 1)}, nil
 }
 func (h *Host) spool(a store.Attempt) (*events.Spool, error) {
 	return events.Open(filepath.Join(h.spoolRoot, a.ID, a.SegmentID))
@@ -83,10 +87,27 @@ func (h *Host) ExecuteLaunch(ctx context.Context, grant contract.LaunchCommand, 
 	}
 	now := time.Now()
 	budgetDeadline := now.Add(time.Duration(grant.GrantedActiveMS) * time.Millisecond)
+	deadlineReason := "active_budget_exhausted"
+	var profile *adapter.ExecutionProfile
+	if profiled, ok := inv.(interface {
+		ExecutionProfile() *adapter.ExecutionProfile
+	}); ok {
+		profile = profiled.ExecutionProfile()
+	}
+	if profile != nil {
+		if profile.TimeoutMS < 1 || profile.TimeoutMS > 3_600_000 {
+			return contract.Result{}, errors.New("profile_timeout_invalid")
+		}
+		if deadline := now.Add(time.Duration(profile.TimeoutMS) * time.Millisecond); deadline.Before(budgetDeadline) {
+			budgetDeadline = deadline
+			deadlineReason = "profile_timeout"
+		}
+	}
 	if grant.DeadlineUnixMS > 0 {
 		deadline := time.UnixMilli(grant.DeadlineUnixMS)
 		if deadline.Before(budgetDeadline) {
 			budgetDeadline = deadline
+			deadlineReason = "task_deadline_exceeded"
 		}
 	}
 	if !budgetDeadline.After(now) {
@@ -99,13 +120,54 @@ func (h *Host) ExecuteLaunch(ctx context.Context, grant contract.LaunchCommand, 
 	}
 	h.reservations[grant.ReservationID] = budgetDeadline
 	h.grantMu.Unlock()
-	runCtx, cancel := context.WithDeadline(ctx, budgetDeadline)
+	runCtx, cancel := context.WithDeadlineCause(ctx, budgetDeadline, deadlineCause(deadlineReason))
 	defer cancel()
 	meta := launchMetadata{commandID: grant.CommandID, workRevision: grant.WorkRevision, executionEpoch: grant.ExecutionEpoch, questionRevision: grant.QuestionRevision}
 	if structured, ok := inv.(interface{ OutputProvider() string }); ok {
 		meta.outputProvider = structured.OutputProvider()
 	}
-	return h.execute(runCtx, store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID, Status: "running"}, grant.RunID, grant.TaskID, invocationCommand(inv), false, meta)
+	cmd := invocationCommand(inv)
+	if value, ok := inv.(interface {
+		CandidateAction() *adapter.CandidateAction
+	}); ok && value.CandidateAction() != nil {
+		action := value.CandidateAction()
+		meta.integrationAction = action.Operation == "integrate"
+		meta.structuredReview = action.Operation == "review" && meta.outputProvider == string(adapter.ProviderClaude)
+		meta.prepareAction = func(ctx context.Context) (process.Command, actionFinalizer, func(), error) {
+			return h.prepareCandidateAction(ctx, grant, inv, action, profile)
+		}
+		return h.execute(runCtx, store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID, Status: "running"}, grant.RunID, grant.TaskID, cmd, false, meta)
+	}
+	if managed, ok := inv.(interface {
+		CandidateWorkspace() *adapter.CandidateWorkspace
+	}); ok && managed.CandidateWorkspace() != nil {
+		cmd.Dir = candidateDirectory(cmd.Dir, grant, managed.CandidateWorkspace().AutoDirectory)
+		meta.prepareCandidate = func(ctx context.Context) (process.Command, func(context.Context, string) ([]byte, error), func(), error) {
+			freeze, closeCandidate, err := h.prepareCandidate(ctx, grant, inv, profile)
+			if err != nil {
+				return cmd, nil, closeCandidate, err
+			}
+			wrapped, err := sandboxCommand(ctx, cmd, profile, filepath.Join(h.spoolRoot, grant.AttemptID, grant.SegmentID, "scratch"))
+			return wrapped, freeze, closeCandidate, err
+		}
+	} else if profile != nil && profile.Permission == adapter.WorkspaceWrite {
+		return contract.Result{}, errors.New("managed_workspace_required")
+	} else if profile != nil && profile.GrokSessionWrite {
+		if meta.outputProvider != string(adapter.ProviderGrok) {
+			return contract.Result{}, errors.New("profile_provider_state_mismatch")
+		}
+		meta.expectedSessionID = grokSessionID(grant)
+		meta.prepareProvider = func(ctx context.Context) (process.Command, error) {
+			return prepareGrokCommand(ctx, cmd, profile, grant, filepath.Join(h.spoolRoot, grant.AttemptID, grant.SegmentID, "scratch"))
+		}
+	} else if profile != nil {
+		var err error
+		cmd, err = sandboxCommand(runCtx, cmd, profile, filepath.Join(h.spoolRoot, grant.AttemptID, grant.SegmentID, "scratch"))
+		if err != nil {
+			return contract.Result{}, err
+		}
+	}
+	return h.execute(runCtx, store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID, Status: "running"}, grant.RunID, grant.TaskID, cmd, false, meta)
 }
 
 func invocationCommand(inv contract.InvocationView) process.Command {
@@ -115,7 +177,11 @@ func invocationCommand(inv contract.InvocationView) process.Command {
 	for k, v := range envMap {
 		env = append(env, k+"="+v)
 	}
-	return process.Command{Path: args[0], Args: append([]string(nil), args[1:]...), Dir: inv.WorkingDirectory(), Env: env, Stdin: append([]byte(nil), inv.Stdin()...)}
+	var pinnedPath, pinnedSHA string
+	if pinned, ok := inv.(interface{ ExecutablePin() (string, string) }); ok {
+		pinnedPath, pinnedSHA = pinned.ExecutablePin()
+	}
+	return process.Command{PinnedPath: pinnedPath, PinnedSHA256: pinnedSHA, Path: args[0], Args: append([]string(nil), args[1:]...), Dir: inv.WorkingDirectory(), Env: env, Stdin: append([]byte(nil), inv.Stdin()...)}
 }
 
 func (h *Host) Execute(ctx context.Context, a store.Attempt, runID, taskID string, cmd process.Command) (contract.Result, error) {
@@ -123,14 +189,31 @@ func (h *Host) Execute(ctx context.Context, a store.Attempt, runID, taskID strin
 }
 
 type launchMetadata struct {
-	commandID        string
-	workRevision     int
-	executionEpoch   uint64
-	outputProvider   string
-	questionRevision int
+	prepareProvider   func(context.Context) (process.Command, error)
+	expectedSessionID string
+	integrationAction bool
+	structuredReview  bool
+	prepareAction     func(context.Context) (process.Command, actionFinalizer, func(), error)
+	finalizeAction    actionFinalizer
+	prepareCandidate  func(context.Context) (process.Command, func(context.Context, string) ([]byte, error), func(), error)
+	freezeCandidate   func(context.Context, string) ([]byte, error)
+	commandID         string
+	workRevision      int
+	executionEpoch    uint64
+	outputProvider    string
+	questionRevision  int
 }
 
 func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID string, cmd process.Command, persistDB bool, meta launchMetadata) (contract.Result, error) {
+	if meta.prepareCandidate != nil || meta.freezeCandidate != nil || meta.prepareAction != nil || meta.prepareProvider != nil {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithCancel(ctx)
+		h.mu.Lock()
+		h.segmentCancels[a.SegmentID] = cancel
+		h.mu.Unlock()
+		defer func() { cancel(); h.mu.Lock(); delete(h.segmentCancels, a.SegmentID); h.mu.Unlock() }()
+	}
+
 	spool, err := h.spool(a)
 	if err != nil {
 		return contract.Result{}, err
@@ -142,6 +225,7 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 			return contract.Result{}, err
 		}
 		cmd.Stdout = protocol
+		protocol.expectedSessionID = meta.expectedSessionID
 	}
 	eventCount := 0
 	appendPhase := func(kind, payloadHash string, identity *process.Identity, exitCode *int, artifact *contract.ArtifactRef) error {
@@ -154,12 +238,25 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		}()
 		return eventErr
 	}
+	finalizeCandidateUnknown := func(cause error, identity *process.Identity, exit int) (contract.Result, error) {
+		body := candidateFailure(cause)
+		path, artifactErr := spool.WriteArtifact(body)
+		var ref *contract.ArtifactRef
+		if artifactErr == nil {
+			ref = &contract.ArtifactRef{ID: filepath.Base(path), Path: path, Size: int64(len(body)), SHA256: hashBytes(body)}
+		}
+		eventErr := appendPhase(contract.EventUnknown, hashBytes(body), identity, nil, ref)
+		phaseErr := publishLaunchPhase(spool, "unknown", a, runID, taskID, cmd, identity, cause)
+		h.finishAttempt(a.ID, "unknown", persistDB)
+		return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount, ArtifactPath: path, OutputHash: hashBytes(body)}, errors.Join(cause, artifactErr, eventErr, phaseErr)
+	}
 	finalizeStopped := func(identity *process.Identity, exit int, cause error) (contract.Result, error) {
 		if err = publishLaunchPhase(spool, "stopped", a, runID, taskID, cmd, identity, cause); err != nil {
 			h.finishAttempt(a.ID, "unknown", persistDB)
 			return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount}, err
 		}
-		if err = appendPhase(contract.EventStopped, hashText("stopped:"+a.SegmentID), identity, &exit, nil); err != nil {
+		_, err = h.appendStructuredEvent(spool, runID, taskID, a, meta, contract.EventStopped, hashText("stopped:"+a.SegmentID), identity, &exit, nil, structuredEventFields{StopReason: interruptionReason(ctx, h.stopWasRequested(a.SegmentID), exit)})
+		if err != nil {
 			h.finishAttempt(a.ID, "unknown", persistDB)
 			return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount}, err
 		}
@@ -186,6 +283,45 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 	}
 	if h.stopWasRequested(a.SegmentID) {
 		return finalizeStopped(nil, -1, context.Canceled)
+	}
+	if meta.prepareAction != nil {
+		meta.prepareCandidate = func(ctx context.Context) (process.Command, func(context.Context, string) ([]byte, error), func(), error) {
+			cmd, finalize, close, err := meta.prepareAction(ctx)
+			meta.finalizeAction = finalize
+			return cmd, nil, close, err
+		}
+	}
+	if meta.prepareCandidate != nil {
+		prepared, freeze, closeCandidate, prepareErr := meta.prepareCandidate(ctx)
+		defer closeCandidate()
+		if prepareErr != nil {
+			if errors.Is(prepareErr, process.ErrProcessTreeUnknown) || errors.Is(prepareErr, gitops.ErrIntegrationUncertain) {
+				return finalizeCandidateUnknown(prepareErr, nil, -1)
+			}
+			if ctx.Err() != nil || h.stopWasRequested(a.SegmentID) {
+				return finalizeStopped(nil, -1, context.Canceled)
+			}
+			return contract.Result{Status: "failed", ExitCode: -1, EventCount: eventCount}, prepareErr
+		}
+		prepared.Stdout = cmd.Stdout
+		cmd, meta.freezeCandidate = prepared, freeze
+		if ctx.Err() != nil || h.stopWasRequested(a.SegmentID) {
+			return finalizeStopped(nil, -1, context.Canceled)
+		}
+	}
+	if meta.prepareProvider != nil {
+		prepared, prepareErr := meta.prepareProvider(ctx)
+		if prepareErr != nil {
+			if ctx.Err() != nil || h.stopWasRequested(a.SegmentID) {
+				return finalizeStopped(nil, -1, context.Canceled)
+			}
+			return contract.Result{Status: "failed", ExitCode: -1, EventCount: eventCount}, prepareErr
+		}
+		prepared.Stdout = cmd.Stdout
+		cmd = prepared
+		if ctx.Err() != nil || h.stopWasRequested(a.SegmentID) {
+			return finalizeStopped(nil, -1, context.Canceled)
+		}
 	}
 	p, err := process.Start(ctx, cmd)
 	if err != nil {
@@ -254,9 +390,56 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		_ = p.Stop(stopCtx)
 		stopCancel()
 	}
+	// Progress is observational and bounded independently of the model budget.
+	// Stop the observer before publishing terminal events, so late snapshots
+	// cannot be mistaken for new work after exit.
+	started := time.Now()
+	progressDone, progressStopped := make(chan struct{}), make(chan struct{})
+	if protocol != nil {
+		go func() {
+			defer close(progressStopped)
+			ticker := time.NewTicker(15 * time.Second)
+			defer ticker.Stop()
+			for index := 0; index < 20; index++ {
+				select {
+				case <-progressDone:
+					return
+				case <-ticker.C:
+					_ = h.recordProgress(a, runID, taskID, meta, protocol, &identity, index, started, "")
+				}
+			}
+			<-progressDone
+		}()
+	} else {
+		close(progressStopped)
+	}
 	waitErr := p.Wait(ctx)
+	close(progressDone)
+	var protocolSnapshots *protocolDiagnostics
+	if protocol != nil {
+		snapshot := protocol.Snapshot()
+		snapshot.WaitComplete = waitErr == nil
+		protocolSnapshots = &protocolDiagnostics{AfterWait: snapshot}
+	}
+	writeDiagnostics := func() {
+		if protocolSnapshots == nil {
+			return
+		}
+		diagnostics := providerDiagnostics(p.Output())
+		diagnostics.ProtocolSnapshots = protocolSnapshots
+		_ = spool.WriteMetadata("provider-diagnostics.json", diagnostics)
+	}
 	if waitErr != nil {
 		stopErr := p.Stop(ctx)
+		<-progressStopped
+		if protocol != nil {
+			snapshot := protocol.Snapshot()
+			// Stop proves the owned group is gone, not Wait completion or EOF.
+			// Keep wait_complete false without adding a new wait or process probe.
+			snapshot.TreeConfirmed = stopErr == nil
+			protocolSnapshots.AfterStop = &snapshot
+			writeDiagnostics()
+		}
 		if stopErr != nil {
 			if phaseErr := publishLaunchPhase(spool, "unknown", a, runID, taskID, cmd, &identity, stopErr); phaseErr != nil {
 				stopErr = phaseErr
@@ -266,10 +449,15 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 			return contract.Result{Status: "unknown", ExitCode: p.ExitCode(), EventCount: eventCount, OutputHash: hashText(p.Output())}, stopErr
 		}
 		exit := p.ExitCode()
+		if protocol != nil {
+			_ = h.recordProgress(a, runID, taskID, meta, protocol, &identity, 20, started, interruptionReason(ctx, h.stopWasRequested(a.SegmentID), exit))
+		}
 		result, stoppedErr := finalizeStopped(&identity, exit, waitErr)
 		result.OutputHash = hashText(p.Output())
 		return result, stoppedErr
 	}
+	<-progressStopped
+	writeDiagnostics()
 	if err = p.ConfirmTreeExited(); err != nil {
 		if phaseErr := publishLaunchPhase(spool, "unknown", a, runID, taskID, cmd, &identity, err); phaseErr != nil {
 			err = phaseErr
@@ -281,6 +469,9 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		return contract.Result{Status: "unknown", ExitCode: p.ExitCode(), EventCount: eventCount, OutputHash: hashText(p.Output())}, err
 	}
 	if h.stopWasRequested(a.SegmentID) || p.ExitCode() < 0 {
+		if protocol != nil {
+			_ = h.recordProgress(a, runID, taskID, meta, protocol, &identity, 20, started, interruptionReason(ctx, h.stopWasRequested(a.SegmentID), p.ExitCode()))
+		}
 		return finalizeStopped(&identity, p.ExitCode(), context.Canceled)
 	}
 	if protocol != nil {
@@ -292,7 +483,40 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		} else if terminal.Kind == "question" {
 			kind, status = contract.EventQuestion, "waiting_user"
 		}
+		if meta.structuredReview {
+			// A schema request must return the native structured channel. Never
+			// silently accept fenced prose or fall back to prompt-only JSON.
+			terminal.Text = terminal.StructuredText
+		}
 		content := []byte(terminal.Text)
+		if meta.finalizeAction != nil || status == "result_ready" && meta.freezeCandidate != nil {
+			if meta.finalizeAction != nil {
+				content, err = meta.finalizeAction(ctx, terminal.Text, exit, status == "result_ready")
+			} else {
+				content, err = meta.freezeCandidate(ctx, terminal.Text)
+			}
+			if errors.Is(err, process.ErrProcessTreeUnknown) || errors.Is(err, gitops.ErrIntegrationUncertain) {
+				return finalizeCandidateUnknown(err, &identity, exit)
+			}
+			if ctx.Err() != nil || h.stopWasRequested(a.SegmentID) {
+				if meta.integrationAction {
+					if err != nil {
+						content = candidateFailure(err)
+					}
+					return finalizeCandidateUnknown(&actionUncertain{content, context.Canceled}, &identity, exit)
+				}
+				return finalizeStopped(&identity, exit, context.Canceled)
+			}
+			if err != nil {
+				kind, status = contract.EventFailed, "failed"
+				content = candidateFailure(err)
+			}
+		}
+		if protocolErr != nil && protocolErr.Error() == "provider_critical_event_too_large" {
+			// Keep an actionable, bounded failure artifact in the durable event
+			// path. Never publish an earlier message as a partial final answer.
+			content = []byte(`{"status":"incomplete","reason":"provider_critical_event_too_large"}`)
+		}
 		var artifact *contract.ArtifactRef
 		artifactPath := ""
 		if len(content) > 0 {
@@ -334,13 +558,37 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		status = "failed"
 	}
 	exit := p.ExitCode()
-	outHash := hashText(p.Output())
-	artifactPath, err := spool.WriteArtifact([]byte(p.Output()))
+	content := []byte(p.Output())
+	if meta.finalizeAction != nil || status == "result_ready" && meta.freezeCandidate != nil {
+		if meta.finalizeAction != nil {
+			content, err = meta.finalizeAction(ctx, p.Output(), exit, status == "result_ready")
+		} else {
+			content, err = meta.freezeCandidate(ctx, p.Output())
+		}
+		if errors.Is(err, process.ErrProcessTreeUnknown) || errors.Is(err, gitops.ErrIntegrationUncertain) {
+			return finalizeCandidateUnknown(err, &identity, exit)
+		}
+		if ctx.Err() != nil || h.stopWasRequested(a.SegmentID) {
+			if meta.integrationAction {
+				if err != nil {
+					content = candidateFailure(err)
+				}
+				return finalizeCandidateUnknown(&actionUncertain{content, context.Canceled}, &identity, exit)
+			}
+			return finalizeStopped(&identity, exit, context.Canceled)
+		}
+		if err != nil {
+			status = "failed"
+			content = candidateFailure(err)
+		}
+	}
+	outHash := hashBytes(content)
+	artifactPath, err := spool.WriteArtifact(content)
 	if err != nil {
 		h.finishAttempt(a.ID, "unknown", persistDB)
 		return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount, OutputHash: outHash}, err
 	}
-	artifact := &contract.ArtifactRef{ID: filepath.Base(artifactPath), Path: artifactPath, Size: int64(len(p.Output())), SHA256: outHash}
+	artifact := &contract.ArtifactRef{ID: filepath.Base(artifactPath), Path: artifactPath, Size: int64(len(content)), SHA256: outHash}
 	terminalKind := contract.EventResult
 	if status == "failed" {
 		terminalKind = contract.EventFailed
@@ -415,6 +663,7 @@ func (h *Host) appendPhaseEvent(spool *events.Spool, runID, taskID string, a sto
 }
 
 type structuredEventFields struct {
+	StopReason       string
 	QuestionRevision int
 	SessionKind      string
 	SessionID        string
@@ -428,6 +677,7 @@ func (h *Host) appendStructuredEvent(spool *events.Spool, runID, taskID string, 
 	}
 	sequence := h.sequence + 1
 	event := contract.Event{Version: 1, ProducerID: h.producerID, RunID: runID, TaskID: taskID, AttemptID: a.ID, SegmentID: a.SegmentID, WorkRevision: meta.workRevision, ExecutionEpoch: meta.executionEpoch, CommandID: meta.commandID, Sequence: sequence, Kind: kind, PayloadHash: payloadHash, ExitCode: exitCode, Artifact: artifact, QuestionRevision: fields.QuestionRevision, SessionKind: fields.SessionKind, SessionID: fields.SessionID}
+	event.StopReason = fields.StopReason
 	if identity != nil {
 		event.Process = &contract.ProcessIdentity{PID: identity.PID, Birth: identity.Birth, PGID: identity.PGID}
 	}
@@ -522,14 +772,76 @@ func (h *Host) recordLaunchFailed(a store.Attempt, runID, taskID string, meta la
 	if err != nil {
 		return err
 	}
-	if err = publishLaunchPhase(spool, "failed", a, runID, taskID, process.Command{}, nil, cause); err != nil {
+	existing, err := spool.Read()
+	if err != nil {
+		return err
+	}
+	// ExecuteLaunch can already have published a terminal outcome before its
+	// caller reaches this fallback. Never replace or append to that evidence.
+	for _, event := range existing {
+		if event.Kind == contract.EventUnknown {
+			return errors.New("launch_failure_state_conflict")
+		}
+	}
+	for _, event := range existing {
+		if event.Kind == contract.EventExited {
+			return nil
+		}
+	}
+	for _, event := range existing {
+		if event.Kind != contract.EventPrepared || event.Process != nil || event.Artifact != nil {
+			return errors.New("launch_failure_state_conflict")
+		}
+	}
+	segmentRoot := filepath.Join(h.spoolRoot, a.ID, a.SegmentID)
+	if _, err = os.Lstat(filepath.Join(segmentRoot, "result-output.bin")); !errors.Is(err, os.ErrNotExist) {
+		return errors.New("launch_failure_state_conflict")
+	}
+	// Read into a map because launch.json carries the existing identity fields.
+	var phase map[string]any
+	if err = spool.ReadMetadata("launch.json", &phase); err == nil {
+		previousPhase, _ := phase["phase"].(string)
+		if phase["process"] != nil || (previousPhase != "prepared" && previousPhase != "failed") {
+			return errors.New("launch_failure_state_conflict")
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return errors.New("launch_failure_state_conflict")
+	}
+
+	safeCause := safeLaunchFailureCause(cause)
+	body, err := json.Marshal(launchFailureDiagnostic{1, "launch_failure", "prelaunch", string(safeCause)})
+	if err != nil {
+		return err
+	}
+	// Reuse the durable artifact writer without taking the candidate result
+	// filename in the segment root. This directory contains no event stream.
+	diagnostic, err := events.Open(filepath.Join(segmentRoot, "launch-failure"))
+	if err != nil {
+		return err
+	}
+	if _, recovering := cause.(recoveredLaunchFailure); recovering {
+		// The accepted grant ledger binds this segment directory to the original
+		// launch. An artifact can be durable before its first event is appended.
+		oldBody, oldCause, readErr := readRecoveredLaunchFailure(filepath.Join(segmentRoot, "launch-failure", "result-output.bin"))
+		if readErr == nil {
+			body, safeCause = oldBody, oldCause
+		} else if !errors.Is(readErr, os.ErrNotExist) {
+			return readErr
+		}
+	}
+	path, err := diagnostic.WriteArtifact(body)
+	if err != nil {
+		return err
+	}
+	artifact := &contract.ArtifactRef{ID: "launch-failure", Path: path, Size: int64(len(body)), SHA256: hashBytes(body)}
+	if err = publishLaunchPhase(spool, "failed", a, runID, taskID, process.Command{}, nil, safeCause); err != nil {
 		return err
 	}
 	exit := -1
-	if _, err = h.appendPhaseEvent(spool, runID, taskID, a, meta, contract.EventFailed, hashText("failed:"+a.SegmentID), nil, &exit, nil); err != nil {
+	if _, err = h.appendPhaseEvent(spool, runID, taskID, a, meta, contract.EventFailed, artifact.SHA256, nil, &exit, artifact); err != nil {
 		return err
 	}
-	if err = publishLaunchPhase(spool, "exited", a, runID, taskID, process.Command{}, nil, nil); err != nil {
+	if err = publishLaunchPhase(spool, "exited", a, runID, taskID, process.Command{}, nil, safeCause); err != nil {
 		return err
 	}
 	_, err = h.appendPhaseEvent(spool, runID, taskID, a, meta, contract.EventExited, hashText("exited:"+a.SegmentID), nil, &exit, nil)
@@ -619,7 +931,7 @@ func (h *Host) recoverDuplicateGrant(grant contract.LaunchCommand, epoch uint64)
 	}
 	meta := launchMetadata{commandID: grant.CommandID, workRevision: grant.WorkRevision, executionEpoch: epoch}
 	if len(records) == 0 {
-		if err = h.recordLaunchFailed(a, grant.RunID, grant.TaskID, meta, errors.New("recovered_unspawned_grant")); err != nil {
+		if err = h.recordLaunchFailed(a, grant.RunID, grant.TaskID, meta, recoveredLaunchFailure{}); err != nil {
 			return err
 		}
 	} else if err = h.ensureLaunchUnknown(a, grant.RunID, grant.TaskID, meta, errors.New("recovered_incomplete_grant")); err != nil {
@@ -653,8 +965,14 @@ func publishLaunchPhase(spool *events.Spool, phase string, a store.Attempt, runI
 func hashBytes(data []byte) string { h := sha256.Sum256(data); return hex.EncodeToString(h[:]) }
 
 func stableCause(err error) string {
+	if safe, ok := err.(launchFailureCause); ok {
+		return string(safe)
+	}
 	if err == nil {
 		return ""
+	}
+	if errors.Is(err, gitops.ErrIntegrationUncertain) {
+		return "integration_uncertain"
 	}
 	if errors.Is(err, process.ErrProcessTreeUnknown) {
 		return "process_tree_unknown"
@@ -724,7 +1042,11 @@ func (h *Host) StopSegment(ctx context.Context, segmentID string) error {
 	h.stopMu.Unlock()
 	h.mu.Lock()
 	p := h.activeBySeg[segmentID]
+	cancel := h.segmentCancels[segmentID]
 	h.mu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
 	if p == nil {
 		return nil
 	}
@@ -749,6 +1071,11 @@ func (h *Host) StopAll(ctx context.Context) {
 	h.mu.Lock()
 	processes := make([]*process.Handle, 0, len(h.activeBySeg))
 	segments := make([]string, 0, len(h.activeBySeg))
+	cancels := make([]context.CancelFunc, 0, len(h.segmentCancels))
+	for segment, cancel := range h.segmentCancels {
+		segments = append(segments, segment)
+		cancels = append(cancels, cancel)
+	}
 	seen := make(map[*process.Handle]struct{}, len(h.activeBySeg))
 	for segmentID, p := range h.activeBySeg {
 		segments = append(segments, segmentID)
@@ -763,6 +1090,9 @@ func (h *Host) StopAll(ctx context.Context) {
 		h.stopRequested[segmentID] = true
 	}
 	h.stopMu.Unlock()
+	for _, cancel := range cancels {
+		cancel()
+	}
 	for _, p := range processes {
 		_ = p.Stop(ctx)
 	}

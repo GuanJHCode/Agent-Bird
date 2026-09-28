@@ -38,6 +38,37 @@ fi
 repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd)
 plugin_source="$repo_root/plugins/codex-orchestrator"
 [ -f "$plugin_source/.codex-plugin/plugin.json" ] || { echo "plugin_source_missing" >&2; exit 1; }
+"$python" -B - "$plugin_source" <<'PY'
+import json, os, pathlib, sys
+root = pathlib.Path(sys.argv[1])
+try:
+    manifest = json.loads((root / ".codex-plugin/plugin.json").read_text(encoding="utf-8"))
+    declared = manifest.get("skills")
+    if not isinstance(declared, str) or not declared.startswith("./"):
+        raise ValueError("skills path must be plugin-relative")
+    relative = pathlib.PurePosixPath(declared[2:])
+    if relative.is_absolute() or not relative.parts or ".." in relative.parts:
+        raise ValueError("skills path escapes plugin")
+    directory = root
+    for part in relative.parts:
+        directory = directory / part
+        if directory.is_symlink() or not directory.is_dir():
+            raise ValueError("skills directory missing or symlink")
+    found = False
+    for current, dirs, files in os.walk(directory, followlinks=False):
+        for name in dirs + files:
+            if (pathlib.Path(current) / name).is_symlink():
+                raise ValueError("skill symlink forbidden")
+        if "SKILL.md" in files:
+            skill = pathlib.Path(current) / "SKILL.md"
+            if not skill.is_file() or not skill.read_text(encoding="utf-8").strip():
+                raise ValueError("skill document empty or invalid")
+            found = True
+    if not found:
+        raise ValueError("no SKILL.md in declared directory")
+except (OSError, ValueError) as error:
+    raise SystemExit("plugin_skills_invalid: " + str(error))
+PY
 mkdir -m 700 "$out/plugin"
 cp -R "$plugin_source"/. "$out/plugin/"
 # Empty source directories have no manifest identity and would be retained as
@@ -65,17 +96,17 @@ copy_runtime() {
   cp "$source_file" "$runtime/$target_name"
   chmod "$target_mode" "$runtime/$target_name"
 }
-copy_runtime "$repo_root/tasks/g0-proxy-continuation/cold-start/scripts/projectproxy_launchd_entrypoint.py" projectproxy_launchd_entrypoint.py 700
-copy_runtime "$repo_root/tasks/g0-proxy-continuation/cold-start/scripts/launch_activation.py" launch_activation.py 644
-copy_runtime "$repo_root/tasks/g0-proxy-continuation/cold-start/scripts/activation_service.py" activation_service.py 644
-copy_runtime "$repo_root/tasks/g0-tui-proxy/scripts/proxy_transport.py" proxy_transport.py 644
-copy_runtime "$repo_root/tasks/g0-tui-proxy/scripts/proxy_observer.py" proxy_observer.py 644
-copy_runtime "$repo_root/tasks/g0-tui-proxy/scripts/owned_child_guard.py" owned_child_guard.py 644
-copy_runtime "$repo_root/tasks/g0-completion/scripts/owner_helper.py" owner_helper.py 644
-copy_runtime "$repo_root/tasks/g0-auth-preserving-activation/scripts/auth_isolation.py" auth_isolation.py 644
-copy_runtime "$repo_root/tasks/g0-completion/scripts/delivery_adapter.py" delivery_adapter.py 644
-copy_runtime "$repo_root/tasks/g0-pending-resolution/scripts/delivery_audit.py" delivery_audit.py 644
-copy_runtime "$repo_root/tasks/g0-global-delivery-validation/scripts/receipt_store.py" receipt_store.py 644
+copy_runtime "$repo_root/runtime/native/projectproxy_launchd_entrypoint.py" projectproxy_launchd_entrypoint.py 700
+copy_runtime "$repo_root/runtime/native/launch_activation.py" launch_activation.py 644
+copy_runtime "$repo_root/runtime/native/activation_service.py" activation_service.py 644
+copy_runtime "$repo_root/runtime/native/proxy_transport.py" proxy_transport.py 644
+copy_runtime "$repo_root/runtime/native/proxy_observer.py" proxy_observer.py 644
+copy_runtime "$repo_root/runtime/native/owned_child_guard.py" owned_child_guard.py 644
+copy_runtime "$repo_root/runtime/native/owner_helper.py" owner_helper.py 644
+copy_runtime "$repo_root/runtime/native/auth_isolation.py" auth_isolation.py 644
+copy_runtime "$repo_root/runtime/native/delivery_adapter.py" delivery_adapter.py 644
+copy_runtime "$repo_root/runtime/native/delivery_audit.py" delivery_audit.py 644
+copy_runtime "$repo_root/runtime/native/receipt_store.py" receipt_store.py 644
 
 "$python" -B - "$runtime" "$python" <<'PY'
 import hashlib, json, os, stat, sys

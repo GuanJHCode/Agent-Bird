@@ -142,6 +142,59 @@ type durableJournal struct {
 	file *os.File
 }
 
+// OpenJournal shares the existing Git Host journal with managed workspace execution.
+func OpenJournal(root string) (*durableJournal, error) { return openJournal(root) }
+func (j *durableJournal) Close() error                 { return j.file.Close() }
+
+func (j *durableJournal) RecordGitProcess(_ context.Context, record gitops.GitProcessRecord) error {
+	return j.append("git_process", record)
+}
+
+// A managed integration retry must not replay an existing merge intent.
+// The journal is the existing durable operation ledger, not a second state store.
+func (j *durableJournal) IntegrationStarted(ctx context.Context) (bool, error) {
+	f, err := os.OpenFile(j.file.Name(), os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+	if err != nil {
+		return false, err
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil {
+		return false, err
+	}
+	if info.Size() > 16*1024*1024 {
+		return false, errors.New("gitops_journal_limit")
+	}
+	decoder := json.NewDecoder(io.LimitReader(f, 16*1024*1024+1))
+	found := false
+	for {
+		if err = ctx.Err(); err != nil {
+			return false, err
+		}
+		var record struct {
+			Kind string `json:"kind"`
+		}
+		err = decoder.Decode(&record)
+		if err == io.EOF {
+			return found, nil
+		}
+		if err != nil {
+			return false, err
+		}
+		if record.Kind == "integration_intent" {
+			found = true
+		}
+	}
+}
+
+func (j *durableJournal) RecordCandidateAction(_ context.Context, phase string, value any) error {
+	return j.append("candidate_action_"+phase, value)
+}
+
+func (j *durableJournal) RecordWorkspacePrepared(_ context.Context, workspace gitops.PreparedWorkspace) error {
+	return j.append("workspace_prepared", workspace)
+}
+
 func openJournal(root string) (*durableJournal, error) {
 	if err := ensurePrivateDir(root); err != nil {
 		return nil, err

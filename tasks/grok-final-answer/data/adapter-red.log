@@ -1,0 +1,6 @@
+--- FAIL: TestParseGrokToolEventsProjectBoundaryOnly (0.00s)
+    adapter_test.go:234: {"type":"tool_started","sessionId":"grok-1","tool_name":"read_file","secret":"DROP"}: event = adapter.Event{Kind:"unknown", SessionID:"", Status:"", Text:"", StructuredText:""}, want adapter.Event{Kind:"progress", SessionID:"grok-1", Status:"tool_started", Text:"", StructuredText:""}
+    adapter_test.go:234: {"type":"tool_completed","tool_name":"read_file","outcome":"success","secret":"DROP"}: event = adapter.Event{Kind:"unknown", SessionID:"", Status:"", Text:"", StructuredText:""}, want adapter.Event{Kind:"progress", SessionID:"", Status:"tool_completed", Text:"", StructuredText:""}
+FAIL
+FAIL	codex-cli-orchestration-design/tools/orchestrator/internal/adapter	1.029s
+FAIL

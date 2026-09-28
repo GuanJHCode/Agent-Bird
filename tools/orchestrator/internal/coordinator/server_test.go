@@ -32,10 +32,11 @@ func TestServerRoutesControlToBoundHostAndDurablyCollects(t *testing.T) {
 	go func() { _ = server.Serve(ctx) }()
 	t.Cleanup(func() { _ = server.Close() })
 
+	pid, birth, executable := testHostIdentity(t)
 	submit := SubmitRequest{
 		RunID: "run", ControllerThread: "thread", PlanRevision: 1,
-		OriginContextID: "origin", OriginPID: 7, OriginBirth: "origin-birth",
-		HostGeneration: "generation", HostExecutable: "/private/tmp/orchestrator",
+		OriginContextID: "origin", OriginPID: pid, OriginBirth: birth,
+		HostGeneration: "generation", HostExecutable: executable,
 		Tasks: []TaskRequest{{ID: "task", MaxAttempts: 3, AdapterPayload: json.RawMessage(`{"provider":"fake"}`)}},
 	}
 	response := callServer(t, server.SocketPath(), ipc.KindSubmit, submit)
@@ -45,12 +46,9 @@ func TestServerRoutesControlToBoundHostAndDurablyCollects(t *testing.T) {
 		t.Fatalf("submit=%#v", receipt)
 	}
 
-	conn, err := net.Dial("unix", server.SocketPath())
-	if err != nil {
-		t.Fatal(err)
-	}
+	conn, hostPID, hostBirth := testHostSocketPeer(t, server.SocketPath())
 	defer conn.Close()
-	hello := contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: "origin", OriginPID: 7, OriginBirth: "origin-birth", HostGeneration: "generation", PID: os.Getpid(), Birth: "host-birth", Executable: "/private/tmp/orchestrator"}
+	hello := contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: "origin", OriginPID: pid, OriginBirth: birth, HostGeneration: "generation", PID: hostPID, Birth: hostBirth, Executable: executable}
 	writeMessage(t, conn, ipc.KindHostHello, "hello", 0, hello)
 	readyMessage := readMessage(t, conn)
 	if readyMessage.Kind != ipc.KindHostReady {
@@ -139,20 +137,18 @@ func TestServerRoutesExplicitStopToOwningHost(t *testing.T) {
 	defer cancel()
 	go func() { _ = server.Serve(ctx) }()
 	t.Cleanup(func() { _ = server.Close() })
+	pid, birth, executable := testHostIdentity(t)
 	response := callServer(t, server.SocketPath(), ipc.KindSubmit, SubmitRequest{
 		RunID: "stop-run", ControllerThread: "thread", PlanRevision: 1,
-		OriginContextID: "origin", OriginPID: 7, OriginBirth: "origin-birth",
-		HostGeneration: "generation", HostExecutable: "/private/tmp/orchestrator",
+		OriginContextID: "origin", OriginPID: pid, OriginBirth: birth,
+		HostGeneration: "generation", HostExecutable: executable,
 		Tasks: []TaskRequest{{ID: "stop-task", MaxAttempts: 3}},
 	})
 	var receipt SubmitResponse
 	decodePayload(t, response, &receipt)
-	conn, err := net.Dial("unix", server.SocketPath())
-	if err != nil {
-		t.Fatal(err)
-	}
+	conn, hostPID, hostBirth := testHostSocketPeer(t, server.SocketPath())
 	defer conn.Close()
-	writeMessage(t, conn, ipc.KindHostHello, "hello", 0, contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: "origin", OriginPID: 7, OriginBirth: "origin-birth", HostGeneration: "generation", PID: os.Getpid(), Birth: "host-birth", Executable: "/private/tmp/orchestrator"})
+	writeMessage(t, conn, ipc.KindHostHello, "hello", 0, contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: "origin", OriginPID: pid, OriginBirth: birth, HostGeneration: "generation", PID: hostPID, Birth: hostBirth, Executable: executable})
 	var ready contract.HostReady
 	decodePayload(t, readMessage(t, conn), &ready)
 	writeMessage(t, conn, ipc.KindHostReconciled, "reconciled", ready.CoordinatorEpoch, contract.HostReconciled{ProducerID: ready.HostID})
@@ -201,20 +197,18 @@ func TestCollectPaginatesOversizedPendingSetAndCursorSurvivesAck(t *testing.T) {
 	defer cancel()
 	go func() { _ = server.Serve(ctx) }()
 	t.Cleanup(func() { _ = server.Close() })
+	pid, birth, executable := testHostIdentity(t)
 	response := callServer(t, server.SocketPath(), ipc.KindSubmit, SubmitRequest{
 		RunID: "page-run", ControllerThread: "thread", PlanRevision: 1,
-		OriginContextID: "origin", OriginPID: 7, OriginBirth: "origin-birth",
-		HostGeneration: "generation", HostExecutable: "/private/tmp/orchestrator",
+		OriginContextID: "origin", OriginPID: pid, OriginBirth: birth,
+		HostGeneration: "generation", HostExecutable: executable,
 		Tasks: []TaskRequest{{ID: "page-task", MaxAttempts: 3}},
 	})
 	var receipt SubmitResponse
 	decodePayload(t, response, &receipt)
-	conn, err := net.Dial("unix", server.SocketPath())
-	if err != nil {
-		t.Fatal(err)
-	}
+	conn, hostPID, hostBirth := testHostSocketPeer(t, server.SocketPath())
 	defer conn.Close()
-	writeMessage(t, conn, ipc.KindHostHello, "hello", 0, contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: "origin", OriginPID: 7, OriginBirth: "origin-birth", HostGeneration: "generation", PID: os.Getpid(), Birth: "host-birth", Executable: "/private/tmp/orchestrator"})
+	writeMessage(t, conn, ipc.KindHostHello, "hello", 0, contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: "origin", OriginPID: pid, OriginBirth: birth, HostGeneration: "generation", PID: hostPID, Birth: hostBirth, Executable: executable})
 	var ready contract.HostReady
 	decodePayload(t, readMessage(t, conn), &ready)
 	writeMessage(t, conn, ipc.KindHostReconciled, "reconciled", ready.CoordinatorEpoch, contract.HostReconciled{ProducerID: ready.HostID})

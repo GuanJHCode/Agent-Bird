@@ -22,7 +22,7 @@ func TestRuntimePersistsDAGSlotsEventsAndExplicitResume(t *testing.T) {
 		t.Fatal(err)
 	}
 	receipt, err := db.SubmitPlan(ctx, PlanSpec{
-		Run:  RunSpec{ID: "run-1", ControllerThread: "thread-1", PlanRevision: 1, OriginContextID: "origin-1", OriginPID: 7, OriginBirth: "origin-birth"},
+		Run:  RunSpec{ID: "run-1", ControllerThread: "thread-1", PlanRevision: 7, OriginContextID: "origin-1", OriginPID: 7, OriginBirth: "origin-birth"},
 		Host: HostLaunchSpec{OriginContextID: "origin-1", HostGeneration: "generation-1", Executable: "/private/tmp/orchestrator"},
 		Tasks: []TaskSpec{
 			{ID: "task-a", RunID: "run-1", MaxAttempts: 3, CompletionPolicy: "exit_success_fixture", AdapterPayload: json.RawMessage(`{"kind":"fake"}`)},
@@ -101,6 +101,9 @@ func TestRuntimePersistsDAGSlotsEventsAndExplicitResume(t *testing.T) {
 	}
 	if len(pendingGrants) != 2 || pendingGrants[0].ReservationID != first.ReservationID || pendingGrants[1].ReservationID != second.ReservationID || pendingGrants[0].GrantedActiveMS != first.GrantedActiveMS {
 		t.Fatalf("pending grants=%#v", pendingGrants)
+	}
+	if first.PlanRevision != 7 || pendingGrants[0].PlanRevision != 7 || pendingGrants[1].PlanRevision != 7 {
+		t.Fatalf("replayed grant lost immutable plan binding: initial=%d pending=%d,%d", first.PlanRevision, pendingGrants[0].PlanRevision, pendingGrants[1].PlanRevision)
 	}
 	if _, err = db.ClaimReady(ctx, hostID, 2, 2); !errors.Is(err, ErrNoSlot) {
 		t.Fatalf("restart claim err=%v", err)
@@ -404,6 +407,7 @@ func TestQuestionAnswerResumesSameAttemptOnce(t *testing.T) {
 	if err != nil || len(questionPage.Events) != 1 {
 		t.Fatalf("question page=%#v err=%v", questionPage, err)
 	}
+	assertSummaryActions(t, db, grant.TaskID, receipt.ControlToken, "blocked", 0, "status", "collect", "answer")
 	if status, answerErr := db.AnswerQuestion(ctx, AnswerSpec{TaskID: grant.TaskID, WorkRevision: 1, QuestionID: "question-1", QuestionRevision: 1, Answer: "Use the narrow API."}); answerErr != nil || status != "resume_queued" {
 		t.Fatalf("answer status=%q err=%v", status, answerErr)
 	}
@@ -430,8 +434,8 @@ func TestRetryUsesOnlyPreauthorizedFallbackAndAcceptReleasesDependency(t *testin
 		t.Fatal(err)
 	}
 	defer db.Close()
-	primary := json.RawMessage(`{"kind":"fake","name":"primary"}`)
-	fallback := json.RawMessage(`{"kind":"fake","name":"fallback"}`)
+	primary := json.RawMessage(`{"kind":"fake","prompt":"primary"}`)
+	fallback := json.RawMessage(`{"kind":"fake","prompt":"fallback"}`)
 	receipt, err := db.SubmitPlan(ctx, PlanSpec{
 		Run:   RunSpec{ID: "retry-run", ControllerThread: "thread", PlanRevision: 1, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth"},
 		Host:  HostLaunchSpec{OriginContextID: "origin", HostGeneration: "generation", Executable: "/private/tmp/orchestrator"},
@@ -451,6 +455,11 @@ func TestRetryUsesOnlyPreauthorizedFallbackAndAcceptReleasesDependency(t *testin
 	commit := func(grant contract.LaunchCommand, sequence int64, kind, hash string) {
 		exit := 1
 		event := contract.Event{Version: 1, ProducerID: hostID, EventID: fmt.Sprintf("%s:%d", hostID, sequence), RunID: grant.RunID, TaskID: grant.TaskID, AttemptID: grant.AttemptID, SegmentID: grant.SegmentID, WorkRevision: 1, ExecutionEpoch: 1, CommandID: grant.CommandID, Sequence: sequence, Kind: kind, PayloadHash: hash, ExitCode: &exit}
+		// This fallback fixture models a measured short execution. Missing
+		// ActiveMS now conservatively consumes the full segment grant.
+		if kind == contract.EventExited {
+			event.ActiveMS = 1
+		}
 		if _, commitErr := db.CommitHostEvent(ctx, event); commitErr != nil {
 			t.Fatal(commitErr)
 		}
@@ -462,6 +471,7 @@ func TestRetryUsesOnlyPreauthorizedFallbackAndAcceptReleasesDependency(t *testin
 		t.Fatalf("failure events=%#v err=%v", failurePage.Events, err)
 	}
 	firstFailure := failurePage.Events[0]
+	assertSummaryActions(t, db, first.TaskID, receipt.ControlToken, "blocked", 0, "status", "collect", "retry")
 	if _, err = db.QueueRetry(ctx, RetrySpec{TaskID: first.TaskID, WorkRevision: 1, EventID: firstFailure.EventID, EventRevision: firstFailure.EventRevision, EventHash: firstFailure.PayloadHash, ActionSlot: firstFailure.ActionSlot, SegmentID: first.SegmentID, NextAttemptNo: 2, UseNextFallback: true, CommandID: "retry-first"}); err != nil {
 		t.Fatal(err)
 	}
@@ -474,6 +484,7 @@ func TestRetryUsesOnlyPreauthorizedFallbackAndAcceptReleasesDependency(t *testin
 	if snapshot, snapshotErr := db.TaskSnapshot(ctx, first.TaskID); snapshotErr != nil || snapshot.Status != "result_ready" {
 		t.Fatalf("result snapshot=%#v err=%v", snapshot, snapshotErr)
 	}
+	assertSummaryActions(t, db, first.TaskID, receipt.ControlToken, "pending", 0, "status", "collect", "accept")
 	eventPage, err := db.CollectPending(ctx, first.TaskID, "", 0, false)
 	if err != nil || len(eventPage.Events) != 2 {
 		t.Fatalf("events=%#v err=%v", eventPage.Events, err)
@@ -511,6 +522,7 @@ func TestRetryUsesOnlyPreauthorizedFallbackAndAcceptReleasesDependency(t *testin
 	if status, reviewErr := db.ReviewResult(ctx, accepted); reviewErr != nil || status != "accepted" {
 		t.Fatalf("final review status=%q err=%v", status, reviewErr)
 	}
+	assertSummaryActions(t, db, first.TaskID, receipt.ControlToken, "completed", 0, "status", "collect")
 	dependent, err := db.TaskSnapshot(ctx, "retry-dependent")
 	if err != nil || dependent.Status != "ready" {
 		t.Fatalf("dependent=%#v err=%v", dependent, err)

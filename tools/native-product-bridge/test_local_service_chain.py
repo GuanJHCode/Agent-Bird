@@ -38,17 +38,10 @@ DELIVERY_AUDIT = ROOT / "tasks" / "g0-pending-resolution" / "scripts" / "deliver
 RECEIPT_STORE = ROOT / "tasks" / "g0-global-delivery-validation" / "scripts" / "receipt_store.py"
 BACKEND = ROOT / "tasks" / "g0-completion" / "tests" / "fixtures" / "owner_helper_tool_backend.py"
 RUNTIME_SOURCES = {
-    "projectproxy_launchd_entrypoint": ROOT / "tasks/g0-proxy-continuation/cold-start/scripts/projectproxy_launchd_entrypoint.py",
-    "launch_activation": ROOT / "tasks/g0-proxy-continuation/cold-start/scripts/launch_activation.py",
-    "activation_service": ROOT / "tasks/g0-proxy-continuation/cold-start/scripts/activation_service.py",
-    "proxy_transport": ROOT / "tasks/g0-tui-proxy/scripts/proxy_transport.py",
-    "proxy_observer": ROOT / "tasks/g0-tui-proxy/scripts/proxy_observer.py",
-    "owned_child_guard": ROOT / "tasks/g0-tui-proxy/scripts/owned_child_guard.py",
-    "owner_helper": OWNER_HELPER,
-    "auth_isolation": ROOT / "tasks/g0-auth-preserving-activation/scripts/auth_isolation.py",
-    "delivery_adapter": DELIVERY_ADAPTER,
-    "delivery_audit": DELIVERY_AUDIT,
-    "receipt_store": RECEIPT_STORE,
+    name: ROOT / "runtime/native" / f"{name}.py"
+    for name in ("projectproxy_launchd_entrypoint", "launch_activation", "activation_service",
+                 "proxy_transport", "proxy_observer", "owned_child_guard", "owner_helper",
+                 "auth_isolation", "delivery_adapter", "delivery_audit", "receipt_store")
 }
 
 

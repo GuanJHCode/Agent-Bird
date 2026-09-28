@@ -20,10 +20,18 @@
 
 ## 正在核验
 
-1. 一次原生 synthetic 验证停在 macOS dyld 启动阶段，尚未进入 Codex 主程序；见 `../docs/native-tripwire-attempt.md`。本机不重复启动，真实刷新保护仍未通过验收。
+1. 原生 synthetic 验证曾停在 macOS dyld 启动阶段；后续根据本机 Apple `dyld-support.sb` 增加一组启动规则后，`--version` 已正常完成，app-server 则快速退出，尚未完成刷新保护验收。只有新增证据支持的有界实验才继续，不能重复旧失败或随意放开隔离。
 2. 前端与后台都需要保护；仅给后台设置刷新阻断不足。固定 native 没有在 AuthManager 之前返回完整 effective config 的查询入口，启动前防护与启动后复核必须分别成立。
 3. 后续仍需实现可信元数据来源、真实来源环境下的专用私有端点、代理亲自观察的 owner/thread 绑定、临时入口和停止/显式续接流程。纯策略测试不等于这些接线已完成。
 4. 低价 Codex adapter 的协议候选可以独立完成；认证保护接线前，通用执行入口必须在启动 native 之前拒绝该 provider。
+
+## 当前最小实现决定
+
+用户要求保护现有认证，不等于禁止原生程序正常读取认证，也不要求 Keychain 必须由内核区分读取和写入。保留正常来源环境和既有 store，不复制或切换账户。前端、后台和 supervisor 启动的 SourceHost 子树都应用刷新阻断、禁用 Agent Identity 和认证文件写保护；认证 RPC 与可改变相关配置的覆盖须在转发前被限制。
+
+supervisor 在任何线程前从自己启动并核验的固定 backend 投影有效配置和账户类别；原始配置、账户响应和环境值不落盘或进入日志。临时任务许可绑定既有 owner attachment proof、固定 binary、run/task、prompt hash 和预算，由 SourceHost 每次启动前复核，不能由 adapter 请求自报。初始真实试用仅单条只读 README 任务、Luna/medium、owner_review，无 fallback，最大一次尝试和 120 秒活动预算。
+
+新增实现分属独立 worktree：auth wire gate、Python supervisor/metadata/owner bridge、Go trial admission；主会话统一验收和集成。旧 synthetic IsolationSpec、既有账号和全局配置保持不变。
 
 官方当前文档用于补充接口背景；固定版本行为以本地源码核验为准：
 

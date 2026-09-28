@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -238,6 +239,11 @@ func TestStructuredProviderTerminalControlsOutcome(t *testing.T) {
 			_, _ = os.Stdout.WriteString(`{"type":"text","sessionId":"grok-session","data":"hello "}` + "\n")
 			_, _ = os.Stdout.WriteString(`{"type":"text","sessionId":"grok-session","data":"world"}` + "\n")
 			_, _ = os.Stdout.WriteString(`{"type":"end","sessionId":"grok-session","stopReason":"end_turn"}` + "\n")
+		case "codex-oversized":
+			_, _ = os.Stdout.WriteString(`{"type":"thread.started","thread_id":"codex-session"}` + "\n")
+			_, _ = os.Stdout.WriteString(`{"type":"item.completed","item":{"id":"draft","type":"agent_message","text":"old draft"}}` + "\n")
+			_, _ = os.Stdout.WriteString(`{"type":"item.completed","item":{"id":"final","type":"agent_message","text":"` + strings.Repeat("x", providerEventLimit+1) + `"}}` + "\n")
+			_, _ = os.Stdout.WriteString(`{"type":"turn.completed","usage":{"input_tokens":7,"cached_input_tokens":3,"cache_write_input_tokens":0,"output_tokens":2,"reasoning_output_tokens":1}}` + "\n")
 		}
 		os.Exit(0)
 	}
@@ -254,6 +260,7 @@ func TestStructuredProviderTerminalControlsOutcome(t *testing.T) {
 		{"missing terminal", "missing-terminal", "claude-code", "failed", contract.EventFailed, "session-id", "claude-session", ""},
 		{"nonzero", "nonzero", "claude-code", "failed", contract.EventFailed, "session-id", "claude-session", "structured answer"},
 		{"grok stream", "grok-stream", "grok-build", "result_ready", contract.EventResult, "session-id", "grok-session", "hello world"},
+		{"codex oversized final", "codex-oversized", "codex-cli", "failed", contract.EventFailed, "session-id", "codex-session", `{"status":"incomplete","reason":"provider_critical_event_too_large"}`},
 	}
 	for index, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -410,7 +417,10 @@ func TestExecuteLaunchConsumesReservationAndUsesBoundedGrant(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	inv := launchInvocation{args: []string{path, "-test.run=TestExecuteLaunchConsumesReservationAndUsesBoundedGrant"}, env: map[string]string{"G1_HOST_HELPER": "1"}}
+	// This child only returns from the fixture. The race runtime's default 1s
+	// exit delay is not task work; keep race detection but omit that artificial
+	// delay from the 1.5s production grant exercised below.
+	inv := launchInvocation{args: []string{path, "-test.run=TestExecuteLaunchConsumesReservationAndUsesBoundedGrant"}, env: map[string]string{"G1_HOST_HELPER": "1", "GORACE": os.Getenv("GORACE") + " atexit_sleep_ms=0"}}
 	grant := contract.LaunchCommand{ReservationID: "reservation-1", RunID: "grant-run", TaskID: "grant-task", AttemptID: attempt.ID, SegmentID: attempt.SegmentID, GrantedActiveMS: 1500, DeadlineUnixMS: time.Now().Add(2 * time.Second).UnixMilli()}
 	result, err := h.ExecuteLaunch(ctx, grant, inv)
 	if err != nil {
@@ -680,5 +690,144 @@ func TestGrantLedgerPreventsDuplicateExecutionAndClosesUnspawnedRecovery(t *test
 	conflict.ReservationID = "different-reservation"
 	if _, err = recovered.acceptGrant(conflict); err == nil || err.Error() != "grant_identity_conflict" {
 		t.Fatalf("conflicting grant err=%v", err)
+	}
+}
+
+func TestTimeoutProtocolSnapshotsDoNotAcceptTerminalOrExposeContent(t *testing.T) {
+	if mode := os.Getenv("G1_SNAPSHOT_TIMEOUT_HELPER"); mode != "" {
+		// Keep SIGTERM from creating an identity-exit race in this fixture. The
+		// existing Stop path still proves and terminates this owned process group.
+		signal.Ignore(syscall.SIGTERM)
+		fmt.Println(`{"type":"system","subtype":"init","session_id":"PRIVATE_SNAPSHOT_SENTINEL"}`)
+		terminal := `{"type":"result","subtype":"success","session_id":"PRIVATE_SNAPSHOT_SENTINEL","result":"PRIVATE_SNAPSHOT_SENTINEL","structured_output":{"secret":"PRIVATE_SNAPSHOT_SENTINEL"}}`
+		if mode == "rejected" {
+			fmt.Println(`{"type":"result","subtype":"PRIVATE_SNAPSHOT_SENTINEL","session_id":"PRIVATE_SNAPSHOT_SENTINEL"}`)
+		} else if mode == "terminal" {
+			fmt.Println(terminal)
+		} else {
+			fmt.Print(terminal)
+		}
+		time.Sleep(10 * time.Second)
+		os.Exit(0)
+	}
+	for _, mode := range []string{"terminal", "tail", "rejected"} {
+		t.Run(mode, func(t *testing.T) {
+			root := filepath.Join(t.TempDir(), "spool")
+			h, err := NewIPC(root, "snapshot-producer")
+			if err != nil {
+				t.Fatal(err)
+			}
+			binary, err := filepath.EvalSymlinks(os.Args[0])
+			if err != nil {
+				t.Fatal(err)
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			defer cancel()
+			result, err := h.execute(ctx, store.Attempt{ID: "attempt", TaskID: "task", SegmentID: "segment"}, "run", "task", process.Command{Path: binary, Args: []string{"-test.run=^TestTimeoutProtocolSnapshotsDoNotAcceptTerminalOrExposeContent$"}, Env: []string{"G1_SNAPSHOT_TIMEOUT_HELPER=" + mode}}, false, launchMetadata{commandID: "command", workRevision: 1, outputProvider: "claude-code"})
+			if !errors.Is(err, context.DeadlineExceeded) || result.Status != "interrupted" || result.ArtifactPath != "" {
+				t.Fatalf("timeout outcome status=%s artifact_present=%t err=%v", result.Status, result.ArtifactPath != "", err)
+			}
+			body, err := os.ReadFile(filepath.Join(root, "attempt", "segment", "provider-diagnostics.json"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if strings.Contains(string(body), "PRIVATE_SNAPSHOT_SENTINEL") {
+				t.Fatal("snapshot leaked private output")
+			}
+			var got struct {
+				Protocol *struct {
+					AfterWait struct {
+						TerminalSeen  bool   `json:"terminal_seen"`
+						TailPending   bool   `json:"tail_pending"`
+						WaitComplete  bool   `json:"wait_complete"`
+						TreeConfirmed bool   `json:"tree_confirmed"`
+						ProtocolError string `json:"protocol_error"`
+					} `json:"after_wait"`
+					AfterStop *struct {
+						TerminalSeen  bool   `json:"terminal_seen"`
+						TailPending   bool   `json:"tail_pending"`
+						WaitComplete  bool   `json:"wait_complete"`
+						TreeConfirmed bool   `json:"tree_confirmed"`
+						ProtocolError string `json:"protocol_error"`
+					} `json:"after_stop"`
+				} `json:"protocol_snapshots"`
+			}
+			if json.Unmarshal(body, &got) != nil || got.Protocol == nil || got.Protocol.AfterStop == nil {
+				t.Fatal("timeout diagnostics lack before/after Stop collector evidence")
+			}
+			before, after := got.Protocol.AfterWait, got.Protocol.AfterStop
+			wantError := "none"
+			if mode == "rejected" {
+				wantError = "event_status_invalid"
+			}
+			if before.TerminalSeen != (mode == "terminal") || after.TerminalSeen != (mode == "terminal") || before.TailPending != (mode == "tail") || after.TailPending != (mode == "tail") || before.WaitComplete || before.TreeConfirmed || after.WaitComplete || !after.TreeConfirmed || before.ProtocolError != wantError || after.ProtocolError != wantError {
+				t.Fatalf("incorrect safe snapshot: %s", body)
+			}
+			sink := &durableSink{}
+			if err = h.PublishAll(context.Background(), sink, 1); err != nil {
+				t.Fatal(err)
+			}
+			for _, event := range sink.events {
+				if event.Kind == contract.EventResult {
+					t.Fatal("timeout snapshot accepted a business result")
+				}
+			}
+		})
+	}
+}
+
+func TestProtocolSnapshotAllowsStopWhileObserverIsBlocked(t *testing.T) {
+	collector, _ := newProtocolCollector("claude-code")
+	entered, release := make(chan struct{}), make(chan struct{})
+	var releaseOnce sync.Once
+	releaseObserver := func() { releaseOnce.Do(func() { close(release) }) }
+	defer releaseObserver()
+	if err := collector.SetSessionObserver(func(string, string) error { close(entered); <-release; return nil }); err != nil {
+		t.Fatal(err)
+	}
+	binary, err := filepath.EvalSymlinks(os.Args[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := process.Start(context.Background(), process.Command{Path: binary, Args: []string{"-test.run=^TestTimeoutProtocolSnapshotsDoNotAcceptTerminalOrExposeContent$"}, Env: []string{"G1_SNAPSHOT_TIMEOUT_HELPER=terminal"}, Stdout: collector})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		releaseObserver()
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = p.Stop(ctx)
+		_ = p.Wait(ctx)
+	}()
+	select {
+	case <-entered:
+	case <-time.After(time.Second):
+		t.Fatal("fixture observer never entered")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	if err = p.Wait(ctx); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("fixture Wait err=%v", err)
+	}
+	if snapshot := collector.Snapshot(); snapshot.Available {
+		t.Fatal("snapshot claimed access while observer owns lock")
+	}
+	// The observer remains blocked throughout the unchanged Stop call. No EOF
+	// claim or diagnostic lock wait is required before terminating the group.
+	if err = p.Stop(ctx); err != nil {
+		t.Fatalf("owned fixture Stop err=%v", err)
+	}
+	if snapshot := collector.Snapshot(); snapshot.Available {
+		t.Fatal("Stop was treated as collector EOF")
+	}
+	releaseObserver()
+	waitCtx, waitCancel := context.WithTimeout(context.Background(), time.Second)
+	defer waitCancel()
+	if err = p.Wait(waitCtx); err != nil {
+		t.Fatal(err)
+	}
+	if snapshot := collector.Snapshot(); !snapshot.Available || !snapshot.TerminalSeen {
+		t.Fatal("drained output unavailable after observer release")
 	}
 }

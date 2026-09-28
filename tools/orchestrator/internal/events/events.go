@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 
@@ -62,6 +64,15 @@ func (s *Spool) Append(e contract.Event) error {
 	} else if !errors.Is(readErr, os.ErrNotExist) {
 		return readErr
 	}
+	archived := filepath.Join(s.dir, "archive", filepath.Base(name))
+	if old, err := os.ReadFile(archived); err == nil {
+		if bytes.Equal(old, data) {
+			return nil
+		}
+		return ErrConflict
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
 	stage := filepath.Join(s.dir, fmt.Sprintf(".event-%020d-%d.tmp", e.Sequence, os.Getpid()))
 	fd, err := os.OpenFile(stage, os.O_WRONLY|os.O_CREATE|os.O_EXCL|syscall.O_NOFOLLOW, 0600)
 	if errors.Is(err, os.ErrExist) {
@@ -96,32 +107,119 @@ func (s *Spool) Append(e contract.Event) error {
 	_ = os.Remove(stage)
 	return syncDir(s.dir)
 }
+
+// Read retains full history for reconciliation, including archived records.
 func (s *Spool) Read() ([]contract.Event, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.readEvents(0, true)
+}
+
+// ReadAfter reads only the unarchived suffix used by the publisher. Recovery
+// that needs acknowledged history must use Read instead.
+func (s *Spool) ReadAfter(after int64) ([]contract.Event, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.readEvents(after, false)
+}
+func (s *Spool) readEvents(after int64, history bool) ([]contract.Event, error) {
 	paths, err := filepath.Glob(filepath.Join(s.dir, "event-*.json"))
 	if err != nil {
 		return nil, err
 	}
-	sort.Strings(paths)
-	out := make([]contract.Event, 0, len(paths))
-	for _, p := range paths {
-		data, err := os.ReadFile(p)
+	if history {
+		archive, err := filepath.Glob(filepath.Join(s.dir, "archive", "event-*.json"))
 		if err != nil {
 			return nil, err
 		}
-		if len(data) > 64*1024 {
+		paths = append(paths, archive...)
+	}
+	out := make([]contract.Event, 0, len(paths))
+	seen := map[int64][]byte{}
+	for _, p := range paths {
+		sequence, err := strconv.ParseInt(strings.TrimSuffix(strings.TrimPrefix(filepath.Base(p), "event-"), ".json"), 10, 64)
+		if err != nil || sequence < 1 {
+			return nil, CodeError("invalid_event")
+		}
+		if sequence <= after {
+			continue
+		}
+		file, err := os.OpenFile(p, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+		if err != nil {
+			return nil, err
+		}
+		info, err := file.Stat()
+		if err != nil {
+			file.Close()
+			return nil, err
+		}
+		if !info.Mode().IsRegular() || info.Size() > 64*1024 {
+			file.Close()
 			return nil, CodeError("event_too_large")
 		}
+		data := make([]byte, info.Size())
+		_, err = file.ReadAt(data, 0)
+		file.Close()
+		if err != nil {
+			return nil, err
+		}
+		if old, exists := seen[sequence]; exists {
+			if !bytes.Equal(old, data) {
+				return nil, ErrConflict
+			}
+			continue
+		}
+		seen[sequence] = data
 		var e contract.Event
-		d := json.NewDecoder(bytes.NewReader(data))
-		d.DisallowUnknownFields()
-		if err = d.Decode(&e); err != nil {
+		decoder := json.NewDecoder(bytes.NewReader(data))
+		decoder.DisallowUnknownFields()
+		if err = decoder.Decode(&e); err != nil || e.Sequence != sequence {
 			return nil, CodeError("invalid_event")
 		}
 		out = append(out, e)
 	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Sequence < out[j].Sequence })
 	return out, nil
+}
+func (s *Spool) archiveThrough(sequence int64) error {
+	dir := filepath.Join(s.dir, "archive")
+	if _, err := Open(dir); err != nil {
+		return err
+	}
+	paths, err := filepath.Glob(filepath.Join(s.dir, "event-*.json"))
+	if err != nil {
+		return err
+	}
+	archived := []string{}
+	for _, p := range paths {
+		seq, err := strconv.ParseInt(strings.TrimSuffix(strings.TrimPrefix(filepath.Base(p), "event-"), ".json"), 10, 64)
+		if err != nil {
+			return CodeError("invalid_event")
+		}
+		if seq > sequence {
+			continue
+		}
+		target := filepath.Join(dir, filepath.Base(p))
+		if err = os.Link(p, target); errors.Is(err, os.ErrExist) {
+			old, readErr := os.ReadFile(target)
+			current, currentErr := os.ReadFile(p)
+			if readErr != nil || currentErr != nil || !bytes.Equal(old, current) {
+				return ErrConflict
+			}
+		} else if err != nil {
+			return err
+		}
+		archived = append(archived, p)
+	}
+	if err = syncDir(dir); err != nil {
+		return err
+	}
+	for _, p := range archived {
+		if err = os.Remove(p); err != nil {
+			return err
+		}
+	}
+	return syncDir(s.dir)
 }
 func (s *Spool) AckThrough(seq int64) error {
 	s.mu.Lock()
@@ -129,7 +227,10 @@ func (s *Spool) AckThrough(seq int64) error {
 	if seq < 0 {
 		return CodeError("invalid_ack")
 	}
-	current, _ := s.readAck()
+	current, err := s.readAck()
+	if err != nil {
+		return err
+	}
 	if seq < current {
 		return CodeError("stale_ack")
 	}
@@ -152,7 +253,10 @@ func (s *Spool) AckThrough(seq int64) error {
 	if err = os.Rename(stage, filepath.Join(s.dir, "ack.json")); err != nil {
 		return err
 	}
-	return syncDir(s.dir)
+	if err = syncDir(s.dir); err != nil {
+		return err
+	}
+	return s.archiveThrough(seq)
 }
 func (s *Spool) AckedThrough() (int64, error) { s.mu.Lock(); defer s.mu.Unlock(); return s.readAck() }
 func (s *Spool) readAck() (int64, error) {

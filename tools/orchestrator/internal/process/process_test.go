@@ -13,6 +13,23 @@ import (
 	"time"
 )
 
+// A fast child must retain its kernel identity until Start records it. Reaping
+// it before the birth lookup turns ordinary success into launch_unknown.
+func TestShortLivedChildRetainsBirthUntilRegistered(t *testing.T) {
+	for i := 0; i < 20; i++ {
+		h, err := Start(context.Background(), Command{Path: "/usr/bin/true"})
+		if err != nil {
+			t.Fatalf("child %d: %v", i, err)
+		}
+		if err := h.Wait(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+		if !h.Identity().BirthKnown || h.Identity().Birth == "" || h.ExitCode() != 0 {
+			t.Fatalf("identity=%+v exit=%d", h.Identity(), h.ExitCode())
+		}
+	}
+}
+
 func TestOwnedProcessCapturesAndStopsRealChild(t *testing.T) {
 	if os.Getenv("G1_HELPER") == "1" {
 		_, _ = os.Stdout.WriteString("synthetic-result\n")

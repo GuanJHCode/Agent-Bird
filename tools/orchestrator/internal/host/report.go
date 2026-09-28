@@ -1,6 +1,7 @@
 package host
 
 import (
+	"codex-cli-orchestration-design/tools/orchestrator/internal/adapter"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -63,7 +64,17 @@ func (h *Host) prepareReportCapability(ctx context.Context, cfg SourceConfig, gr
 		return "", errors.New("report_capability_conflict")
 	}
 	capability.ExecutionEpoch = session.epoch
-	registration := contract.ReportCapabilityRegistration{CapabilityID: capability.CapabilityID, TokenHash: hashText(capability.Token), CapabilityDir: dir, RunID: capability.RunID, TaskID: capability.TaskID, AttemptID: capability.AttemptID, SegmentID: capability.SegmentID, ProducerID: capability.ProducerID, WorkRevision: capability.WorkRevision, ExecutionEpoch: session.epoch}
+	artifactDir := dir
+	var profile struct {
+		Profile json.RawMessage `json:"profile"`
+	}
+	if json.Unmarshal(grant.AdapterPayload, &profile) == nil && len(profile.Profile) > 0 && string(profile.Profile) != "null" {
+		artifactDir = filepath.Join(dir, "artifacts")
+		if err := ensurePrivateReportDir(artifactDir); err != nil {
+			return "", err
+		}
+	}
+	registration := contract.ReportCapabilityRegistration{CapabilityID: capability.CapabilityID, TokenHash: hashText(capability.Token), CapabilityDir: artifactDir, RunID: capability.RunID, TaskID: capability.TaskID, AttemptID: capability.AttemptID, SegmentID: capability.SegmentID, ProducerID: capability.ProducerID, WorkRevision: capability.WorkRevision, ExecutionEpoch: session.epoch}
 	if err := session.registerReportCapability(ctx, registration); err != nil {
 		return "", err
 	}
@@ -160,6 +171,33 @@ type reportInvocation struct {
 	reportExecutable string
 }
 
+func (i reportInvocation) ExecutionProfile() *adapter.ExecutionProfile {
+	if value, ok := i.base.(interface {
+		ExecutionProfile() *adapter.ExecutionProfile
+	}); ok {
+		return value.ExecutionProfile()
+	}
+	return nil
+}
+
+func (i reportInvocation) CandidateAction() *adapter.CandidateAction {
+	if value, ok := i.base.(interface {
+		CandidateAction() *adapter.CandidateAction
+	}); ok {
+		return value.CandidateAction()
+	}
+	return nil
+}
+
+func (i reportInvocation) CandidateWorkspace() *adapter.CandidateWorkspace {
+	if value, ok := i.base.(interface {
+		CandidateWorkspace() *adapter.CandidateWorkspace
+	}); ok {
+		return value.CandidateWorkspace()
+	}
+	return nil
+}
+
 func (i reportInvocation) Args() []string           { return i.base.Args() }
 func (i reportInvocation) WorkingDirectory() string { return i.base.WorkingDirectory() }
 func (i reportInvocation) Stdin() []byte            { return i.base.Stdin() }
@@ -177,4 +215,11 @@ func (i reportInvocation) OutputProvider() string {
 		return value.OutputProvider()
 	}
 	return ""
+}
+
+func (i reportInvocation) ExecutablePin() (string, string) {
+	if pinned, ok := i.base.(interface{ ExecutablePin() (string, string) }); ok {
+		return pinned.ExecutablePin()
+	}
+	return "", ""
 }

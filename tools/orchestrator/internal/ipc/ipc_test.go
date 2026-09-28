@@ -2,12 +2,34 @@ package ipc
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"testing"
+	"testing/iotest"
 
 	"codex-cli-orchestration-design/tools/orchestrator/internal/contract"
 )
+
+func TestFragmentedWireRejectsUnsupportedProtocolVersions(t *testing.T) {
+	for _, version := range []int{0, 1, 2} {
+		body := []byte(fmt.Sprintf(`{"version":%d,"kind":"event","request_id":"r","epoch":1,"payload":{"version":1,"kind":"failed"}}`, version))
+		var wire bytes.Buffer
+		if err := binary.Write(&wire, binary.BigEndian, uint32(len(body))); err != nil {
+			t.Fatal(err)
+		}
+		wire.Write(body)
+		got, err := Read(iotest.OneByteReader(&wire))
+		if version == 1 {
+			if err != nil || got.Kind != KindEvent {
+				t.Fatalf("got=%#v err=%v", got, err)
+			}
+		} else if !errors.Is(err, ErrInvalidMessage) {
+			t.Fatalf("version=%d err=%v", version, err)
+		}
+	}
+}
 
 func TestCodecRoundTripsTypedEnvelope(t *testing.T) {
 	want := Envelope{

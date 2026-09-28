@@ -25,12 +25,15 @@ func (e CodeError) Error() string { return string(e) }
 const ErrProcessTreeUnknown CodeError = "process_tree_unknown"
 
 type Command struct {
-	Path   string
-	Args   []string
-	Dir    string
-	Env    []string
-	Stdin  []byte
-	Stdout io.Writer
+	PinnedPath   string
+	PinnedSHA256 string
+	Path         string
+	Args         []string
+	Dir          string
+	Env          []string
+	ExactEnv     bool
+	Stdin        []byte
+	Stdout       io.Writer
 }
 type Identity struct {
 	PID              int
@@ -94,14 +97,16 @@ func Start(ctx context.Context, spec Command) (*Handle, error) {
 	if err != nil || !filepath.IsAbs(spec.Path) || resolved != spec.Path {
 		return nil, CodeError("command_path_untrusted")
 	}
-	digest, err := executableDigest(spec.Path)
+	digest, err := ExecutableDigest(ctx, spec.Path)
 	if err != nil {
 		return nil, err
 	}
 	cmd := exec.Command(spec.Path, spec.Args...)
 	cmd.Dir = spec.Dir
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	if spec.Env != nil {
+	if spec.ExactEnv {
+		cmd.Env = append([]string{}, spec.Env...)
+	} else if spec.Env != nil {
 		cmd.Env = mergeEnv(os.Environ(), spec.Env)
 	}
 	if spec.Stdin != nil {
@@ -110,11 +115,26 @@ func Start(ctx context.Context, spec Command) (*Handle, error) {
 	h := &Handle{cmd: cmd, done: make(chan struct{}), exit: -1, outputLimit: 1024 * 1024, stdout: spec.Stdout}
 	cmd.Stdout = captureWriter{h: h, stdout: true}
 	cmd.Stderr = captureWriter{h: h}
+	// Recheck the provider after all wrappers/probes have been assembled. The
+	// wrapper executable's own identity is separate from the provider lock.
+	if spec.PinnedPath != "" || spec.PinnedSHA256 != "" {
+		canonical, pinErr := filepath.EvalSymlinks(spec.PinnedPath)
+		actual, hashErr := ExecutableDigest(ctx, spec.PinnedPath)
+		if pinErr != nil || canonical != spec.PinnedPath || hashErr != nil || !strings.EqualFold(actual, spec.PinnedSHA256) {
+			return nil, CodeError("binary_pin_mismatch")
+		}
+	}
 	if err := cmd.Start(); err != nil {
 		return nil, err
 	}
 	h.pgid = cmd.Process.Pid
 	h.identity = Identity{PID: cmd.Process.Pid, PGID: h.pgid, Executable: resolved, ExecutableSHA256: digest, StartedAt: time.Now().UTC().Format(time.RFC3339Nano)}
+	// Keep the child waitable until its birth is captured: even a child that
+	// has already exited retains its PID and start time until Wait reaps it.
+	birth, birthErr := processBirth(cmd.Process.Pid)
+	if birthErr == nil {
+		h.identity.Birth, h.identity.BirthKnown = birth, true
+	}
 	go func() {
 		err := cmd.Wait()
 		h.mu.Lock()
@@ -132,17 +152,12 @@ func Start(ctx context.Context, spec Command) (*Handle, error) {
 		h.mu.Unlock()
 		close(h.done)
 	}()
-	birth, err := processBirth(cmd.Process.Pid)
-	if err != nil {
+	if birthErr != nil {
 		stopCtx, cancel := context.WithTimeout(context.Background(), time.Second)
 		_ = h.Stop(stopCtx)
 		cancel()
 		return nil, CodeError("process_birth_unknown")
 	}
-	h.mu.Lock()
-	h.identity.Birth = birth
-	h.identity.BirthKnown = true
-	h.mu.Unlock()
 	return h, nil
 }
 func (h *Handle) PID() int           { return h.cmd.Process.Pid }
@@ -307,15 +322,52 @@ func indexByte(s string, b byte) int {
 	return -1
 }
 
-func executableDigest(path string) (string, error) {
-	f, err := os.Open(path)
+// ExecutableDigest rejects devices/FIFOs before reading and hashes with bounded
+// memory. Used before wrappers are applied and again at the actual exec boundary.
+func ExecutableDigest(ctx context.Context, path string) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
 	if err != nil {
 		return "", err
 	}
 	defer f.Close()
-	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
+	info, err := f.Stat()
+	if err != nil {
 		return "", err
+	}
+	if !info.Mode().IsRegular() || info.Mode().Perm()&0111 == 0 || info.Size() < 1 || info.Size() > 512*1024*1024 {
+		return "", CodeError("command_executable_invalid")
+	}
+	h := sha256.New()
+	buf := make([]byte, 64*1024)
+	var size int64
+	for {
+		if err = ctx.Err(); err != nil {
+			return "", err
+		}
+		n, readErr := f.Read(buf)
+		size += int64(n)
+		if size > 512*1024*1024 {
+			return "", CodeError("command_executable_invalid")
+		}
+		if n > 0 {
+			_, _ = h.Write(buf[:n])
+		}
+		if readErr == io.EOF {
+			break
+		}
+		if readErr != nil {
+			return "", readErr
+		}
+	}
+	after, err := f.Stat()
+	if err != nil {
+		return "", err
+	}
+	if size != info.Size() || after.Size() != info.Size() || after.ModTime() != info.ModTime() {
+		return "", CodeError("command_executable_changed")
 	}
 	return hex.EncodeToString(h.Sum(nil)), nil
 }

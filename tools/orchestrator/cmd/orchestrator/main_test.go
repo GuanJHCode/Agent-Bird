@@ -78,6 +78,14 @@ func TestCLIStartsServiceSourceHostAndCollectsDurableResult(t *testing.T) {
 	if err = json.Unmarshal(submitOutput, &submitted); err != nil || submitted.Status != "queued" || submitted.ControlFile == "" {
 		t.Fatalf("submit=%s err=%v", submitOutput, err)
 	}
+	summaryOutput := runBinary(t, ctx, bin, "summary", "--state-dir", state, "--task-id", "task-a", "--control-file", submitted.ControlFile)
+	var summary struct {
+		RunID string            `json:"run_id"`
+		Tasks []json.RawMessage `json:"tasks"`
+	}
+	if err := json.Unmarshal(summaryOutput, &summary); err != nil || summary.RunID != "cli-run" || len(summary.Tasks) != 5 {
+		t.Fatalf("summary=%s err=%v", summaryOutput, err)
+	}
 
 	for _, taskID := range []string{"task-a", "task-b", "task-c"} {
 		for {

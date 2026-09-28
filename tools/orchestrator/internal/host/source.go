@@ -98,7 +98,7 @@ func (h *Host) PublishAll(ctx context.Context, sink EventSink, epoch uint64) err
 		if readErr != nil {
 			return readErr
 		}
-		all, readErr := entry.spool.Read()
+		all, readErr := entry.spool.ReadAfter(acked)
 		if readErr != nil {
 			return readErr
 		}
@@ -141,11 +141,15 @@ func (h *Host) PublishAll(ctx context.Context, sink EventSink, epoch uint64) err
 	// Advance each affected spool only after all corresponding control-plane
 	// durable ACKs succeeded. The cursor is written last; a crash before it is
 	// safe because the coordinator ACK is idempotent and replayable.
+	maxima := map[*events.Spool]int64{}
 	for _, item := range pending {
-		if item.event.Sequence <= last && item.event.Sequence > item.acked {
-			if err = item.spool.AckThrough(item.event.Sequence); err != nil {
-				return err
-			}
+		if item.event.Sequence <= last && item.event.Sequence > item.acked && item.event.Sequence > maxima[item.spool] {
+			maxima[item.spool] = item.event.Sequence
+		}
+	}
+	for spool, sequence := range maxima {
+		if err = spool.AckThrough(sequence); err != nil {
+			return err
 		}
 	}
 	return h.writePublished(last)
@@ -295,6 +299,27 @@ func RunSource(ctx context.Context, cfg SourceConfig) error {
 	if err = session.writeEnvelope(runCtx, ipc.KindHostReconciled, producerID+":reconciled", reconciledBody); err != nil {
 		cancelRun()
 		return err
+	}
+	h.progressSink = func(_ context.Context, event contract.Event) error {
+		progressCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		event.ExecutionEpoch = session.epoch
+		payload, err := json.Marshal(struct {
+			LaunchID    string         `json:"launch_id"`
+			LaunchToken string         `json:"launch_token"`
+			Event       contract.Event `json:"event"`
+		}{cfg.Hello.LaunchID, cfg.Hello.LaunchToken, event})
+		if err != nil {
+			return err
+		}
+		response, err := ipc.Call(progressCtx, cfg.SocketPath, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindHostProgress, RequestID: event.EventID, Payload: payload})
+		if err != nil {
+			return err
+		}
+		if response.Kind != ipc.KindResponse {
+			return errors.New("progress_not_recorded")
+		}
+		return nil
 	}
 	var workers sync.WaitGroup
 	workerErrors := make(chan error, 2)

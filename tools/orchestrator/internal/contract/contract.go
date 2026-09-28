@@ -30,12 +30,14 @@ type Event struct {
 	QuestionKind     string           `json:"question_kind,omitempty"`
 	SessionKind      string           `json:"session_kind,omitempty"`
 	SessionID        string           `json:"session_id,omitempty"`
+	StopReason       string           `json:"stop_reason,omitempty"`
 }
 
 const (
 	EventPrepared = "prepared"
 	EventSpawned  = "spawned"
 	EventRunning  = "running"
+	EventProgress = "progress"
 	EventSession  = "session"
 	EventQuestion = "question"
 	EventResult   = "result"
@@ -110,7 +112,15 @@ type HostReconciled struct {
 
 // LaunchCommand contains ownership and budget grants only. The source Host
 // retains the invocation and authentication environment locally.
+type AcceptedInput struct {
+	Event             Event           `json:"event"`
+	AdapterPayload    json.RawMessage `json:"adapter_payload"`
+	DecisionCommandID string          `json:"decision_command_id"`
+}
+
 type LaunchCommand struct {
+	Input              *AcceptedInput  `json:"input,omitempty"`
+	PlanRevision       int             `json:"plan_revision,omitempty"`
 	CommandID          string          `json:"command_id"`
 	HostID             string          `json:"host_id"`
 	RunID              string          `json:"run_id"`

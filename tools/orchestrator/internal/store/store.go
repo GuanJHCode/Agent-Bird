@@ -46,6 +46,7 @@ type DB struct {
 }
 
 type RunSpec struct {
+	DeliveryMode         string
 	ID, ControllerThread string
 	PlanRevision         int
 	OriginContextID      string
@@ -105,7 +106,7 @@ func Open(path string) (*DB, error) {
 		d.Close()
 		return nil, err
 	}
-	if err := out.ensureRuntimeSchema(); err != nil {
+	if err := out.migrateRuntime(); err != nil {
 		d.Close()
 		return nil, err
 	}
@@ -145,7 +146,7 @@ func (d *DB) migrate() error {
 	if err != nil && !fresh {
 		return rollback(err)
 	}
-	if err == nil && version > 1 {
+	if err == nil && version > currentSchemaVersion {
 		return rollback(CodeError("schema_newer_than_binary"))
 	}
 	if err == nil && version < 1 {

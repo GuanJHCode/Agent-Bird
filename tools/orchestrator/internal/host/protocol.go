@@ -12,21 +12,85 @@ import (
 const providerEventLimit = 64 * 1024
 
 type protocolCollector struct {
-	mu              sync.Mutex
-	provider        adapter.Provider
-	parser          *adapter.StreamParser
-	line            []byte
-	oversized       bool
-	critical        bool
-	markerTail      []byte
-	err             error
-	terminal        *adapter.Event
-	sessionID       string
-	message         []byte
-	droppedOversize int
-	onSession       func(string, string) error
-	sessionObserved bool
-	sessionReported bool
+	mu                sync.Mutex
+	provider          adapter.Provider
+	parser            *adapter.StreamParser
+	line              []byte
+	oversized         bool
+	critical          bool
+	structured        bool
+	contentObserved   bool
+	markerTail        []byte
+	err               error
+	terminal          *adapter.Event
+	sessionID         string
+	expectedSessionID string
+	message           []byte
+	droppedOversize   int
+	onSession         func(string, string) error
+	observerErr       error
+	sessionObserved   bool
+	sessionReported   bool
+	receivedBytes     int64
+	completeLines     int64
+	partialText       string
+	partialTruncated  bool
+}
+
+// protocolSnapshot is a read-only observation, not EOF or a business result.
+// WaitComplete records proof from Wait; false means no such proof was obtained.
+// TreeConfirmed records the existing Stop proof that the owned group is gone,
+// independently of cmd.Wait/stdout completion (unlike ConfirmTreeExited).
+type protocolSnapshot struct {
+	Available            bool   `json:"available"`
+	TerminalSeen         bool   `json:"terminal_seen"`
+	ProtocolError        string `json:"protocol_error"`
+	ObserverFailed       bool   `json:"observer_failed"`
+	OversizedTail        bool   `json:"oversized_tail"`
+	DroppedOversizeLines int    `json:"dropped_oversize_lines"`
+	TailPending          bool   `json:"tail_pending"`
+	WaitComplete         bool   `json:"wait_complete"`
+	TreeConfirmed        bool   `json:"tree_confirmed"`
+}
+
+type protocolDiagnostics struct {
+	AfterWait protocolSnapshot  `json:"after_wait"`
+	AfterStop *protocolSnapshot `json:"after_stop,omitempty"`
+}
+
+// Snapshot never finalizes a pending line, reports a session, or calls observers.
+// Available=false makes all collector fields inconclusive. A missing terminal
+// with an error or pending tail is also not proof of no result.
+func (p *protocolCollector) Snapshot() protocolSnapshot {
+	// Write may be persisting a session while holding this lock. Diagnostics
+	// must never wait behind that observer before the deadline Stop.
+	if !p.mu.TryLock() {
+		return protocolSnapshot{ProtocolError: "none"}
+	}
+	defer p.mu.Unlock()
+	return protocolSnapshot{
+		Available: true, TerminalSeen: p.terminal != nil, ProtocolError: safeProtocolError(p.err),
+		ObserverFailed: p.observerErr != nil, OversizedTail: p.oversized,
+		DroppedOversizeLines: p.droppedOversize,
+		TailPending:          len(p.line) != 0 || p.oversized,
+	}
+}
+
+func safeProtocolError(err error) string {
+	if err == nil {
+		return "none"
+	}
+	// Exact values only: observer errors can contain private paths or content.
+	code := err.Error()
+	switch code {
+	case "event_invalid_json", "event_multiple_json", "event_status_invalid",
+		"event_session_id_invalid", "event_type_missing", "event_type_invalid", "event_subtype_invalid",
+		"provider_session_changed", "provider_multiple_terminal_events", "provider_critical_event_too_large",
+		"provider_session_duplicate", "provider_event_before_session", "provider_event_after_terminal":
+		return code
+	default:
+		return "other"
+	}
 }
 
 func newProtocolCollector(provider string) (*protocolCollector, error) {
@@ -41,6 +105,7 @@ func (p *protocolCollector) Write(data []byte) (int, error) {
 	written := len(data)
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	p.receivedBytes += int64(written)
 	for len(data) > 0 {
 		index := bytes.IndexByte(data, '\n')
 		part := data
@@ -67,6 +132,12 @@ func (p *protocolCollector) consumePart(part []byte) {
 		}
 		chunk := part[:length]
 		part = part[length:]
+		if !p.contentObserved {
+			if content := bytes.TrimSpace(chunk); len(content) > 0 {
+				p.contentObserved = true
+				p.structured = content[0] == '{'
+			}
+		}
 		probe := make([]byte, 0, len(p.markerTail)+len(chunk))
 		probe = append(probe, p.markerTail...)
 		probe = append(probe, chunk...)
@@ -102,9 +173,14 @@ func (p *protocolCollector) consumePart(part []byte) {
 }
 
 func (p *protocolCollector) finishLine() {
+	p.completeLines++
 	if p.err == nil {
 		if p.oversized {
-			if p.critical {
+			// Codex item.completed carries the answer, separately from the
+			// terminal. A bounded prefix cannot establish that a structured
+			// record is disposable: fields may be reordered or escaped. Fail
+			// closed for oversized Codex JSON, while raw diagnostics can drain.
+			if p.critical || ((p.provider == adapter.ProviderCodex || p.provider == adapter.ProviderGrok) && p.structured) {
 				p.err = errors.New("provider_critical_event_too_large")
 			} else {
 				p.droppedOversize++
@@ -125,9 +201,19 @@ func (p *protocolCollector) finishLine() {
 	p.markerTail = p.markerTail[:0]
 	p.oversized = false
 	p.critical = false
+	p.structured = false
+	p.contentObserved = false
 }
 
 func (p *protocolCollector) accept(event adapter.Event) {
+	if p.expectedSessionID != "" && event.SessionID != "" && event.SessionID != p.expectedSessionID {
+		p.err = errors.New("provider_session_changed")
+		return
+	}
+	if p.provider == adapter.ProviderGrok && (event.Kind == adapter.EventMessage || event.Kind == adapter.EventProgress) && p.terminal != nil {
+		p.err = errors.New("provider_event_after_terminal")
+		return
+	}
 	if event.SessionID != "" && p.sessionID != "" && p.sessionID != event.SessionID {
 		p.err = errors.New("provider_session_changed")
 		return
@@ -162,12 +248,21 @@ func (p *protocolCollector) accept(event adapter.Event) {
 			p.reportSession()
 		}
 	}
+	if p.provider == adapter.ProviderClaude && event.Kind == adapter.EventMessage && event.Text != "" {
+		p.partialText, p.partialTruncated = boundedProgressText(event.Text)
+	}
 	if event.Kind == adapter.EventMessage && p.provider == adapter.ProviderCodex && event.Text != "" {
 		if len(event.Text) > providerEventLimit {
 			p.err = errors.New("provider_critical_event_too_large")
 			return
 		}
 		p.message = append(p.message[:0], event.Text...)
+		return
+	}
+	// Grok assistant messages are delimited by tool events; the terminal result
+	// carries no text, so only chunks after the last boundary are the answer.
+	if p.provider == adapter.ProviderGrok && event.Kind == adapter.EventProgress {
+		p.message = p.message[:0]
 		return
 	}
 	if event.Kind == adapter.EventMessage && p.provider == adapter.ProviderGrok && event.Text != "" {
@@ -197,14 +292,17 @@ func (p *protocolCollector) SetSessionObserver(observer func(string, string) err
 	}
 	p.onSession = observer
 	p.reportSession()
-	return p.err
+	// Output failures belong to Finish's durable failed-result path. Only
+	// failure to persist the session should abort Host observer installation.
+	return p.observerErr
 }
 
 func (p *protocolCollector) reportSession() {
-	if p.err != nil || !p.sessionObserved || p.sessionReported || p.onSession == nil {
+	if p.observerErr != nil || !p.sessionObserved || p.sessionReported || p.onSession == nil {
 		return
 	}
 	if err := p.onSession(providerSessionKind(p.provider), p.sessionID); err != nil {
+		p.observerErr = err
 		p.err = err
 		return
 	}
@@ -213,7 +311,7 @@ func (p *protocolCollector) reportSession() {
 
 func (p *protocolCollector) isAuthoritativeSessionEvent(event adapter.Event) bool {
 	if p.provider == adapter.ProviderGrok {
-		return event.Kind == adapter.EventMessage
+		return event.Kind == adapter.EventMessage || event.Kind == adapter.EventResult
 	}
 	return event.Kind == adapter.EventInit
 }

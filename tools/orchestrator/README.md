@@ -1,7 +1,7 @@
 # G1/G2 orchestrator
 
 `orchestrator` provides the macOS control plane, source Run Host, durable
-two-slot DAG scheduler, and pinned Claude/AGY/Grok invocation boundary. It does
+DAG scheduler (default two slots), and pinned Claude/AGY/Grok/Codex invocation boundary. It does
 not register a login service or read provider credentials in the coordinator.
 
 The default state directory is
@@ -43,6 +43,7 @@ placed in worker arguments, environment, or prompts.
 
 ```text
 orchestrator status  --task-id <id> --control-file <path>
+orchestrator summary --task-id <any-task-in-run> --control-file <path>
 orchestrator collect --task-id <id> --control-file <path> \
   [--cursor <opaque>] [--include-diagnostics]
 orchestrator wait-events --task-id <id> --control-file <path> \
@@ -59,6 +60,28 @@ orchestrator retry   --task-id <id> --work-revision <n> --control-file <path> \
 orchestrator stop    --task-id <id> --work-revision <n> --control-file <path>
 orchestrator resume  --task-id <id> --work-revision <n> --control-file <path>
 ```
+
+`summary` rebuilds a compact version-1 run view from SQLite using an existing
+owner-bound task receipt. It includes all tasks in that run, pending/running/
+blocked/completed counts, work revisions, active-segment counts, and conservative
+state-eligible actions. It excludes prompts, tokens and raw logs. Reads do not
+launch or resume workers. Action names are guidance: commands still validate
+fresh event/question bindings and authorization; `resume` requires an explicit
+recovery request. Unknown processes retain their slots.
+
+The main agent uses `submit → wait-events/collect → verify → accept/answer/retry`.
+Workers do not recursively dispatch. A delivered result or ACK is not acceptance:
+verify the brief, artifacts and actual test evidence before approving the bound
+candidate. Prefer 30-second `wait-events` over status polling and retain cursors
+and receipt paths for recovery after context compression.
+
+Codex JSONL currently uses the pinned 0.154.0 contract. Structured records above
+64 KiB fail with a bounded artifact containing `status: incomplete` and reason
+`provider_critical_event_too_large`; earlier messages are never used as the final
+answer after that failure. This conservatively includes oversized structured
+diagnostics whose content cannot be safely classified. Raw diagnostics may be
+dropped. No large raw provider transcript is retained. Synthetic protocol and
+multi-process tests do not establish live Codex or native TUI compatibility.
 
 `collect` returns bounded pages of owner-facing question/result/failure/unknown/stop
 events. Follow `next_cursor` until it is absent; the cursor remains valid if an
@@ -129,3 +152,42 @@ requires the native trusted attachment/broker established outside this module.
 `ORCHESTRATOR_ENABLE_TEST_FAKE=1` enables the synthetic `fake` adapter used by
 the multi-process integration test. Production workflows must use a pinned
 provider adapter.
+
+## Typed profiles and generic main agents
+
+New requests use separate protocol, Execution Profile and Provider Lock objects;
+see [configuration and recovery](../../docs/provider-runtime.md) for exact JSON,
+`provider-probe` / confirmed `provider-lock`, and the persisted concurrency policy.
+Legacy invocation fields remain accepted within their existing boundary; they are
+not a fallback for a rejected profile. Typed Codex/AGY/Grok and typed session
+resume are explicitly unsupported until their capability gates are verified.
+
+`owner-bind --request <private-json>` registers a local main-agent identity using
+kernel peer ancestry and PID birth. Submit with `owner_mode=local` and
+`delivery_mode=collect` to use the existing durable scheduler without native
+injection. Collection pages carry `delivery_id` and `collection_proof_sha256`;
+ACK supplies that proof instead of `history_proof_sha256`. The server validates
+the run's persisted delivery mode and exact event bindings. Neither proof is
+business acceptance. Local `rebind-owner` retains the original run context and
+requires the old control capability plus a fresh validated owner grant.
+
+`recover-host --request <private-json>` explicitly restores the registered source
+Host of a quiescent run after owner binding/rebinding. It requires the current
+local owner grant, original control path, task/revision and the verified original
+Host executable SHA256. It refuses unfinished segments, ready tasks and pending
+stop/questions; it never accepts work, resets budgets or substitutes a new Host
+binary. The new CLI/coordinator can restore a previous pinned Host. A retained
+startup intent blocks another spawn for that launch if readiness is uncertain
+or the Host is subsequently lost again. See the installed orchestration Skill
+for the request shape and recovery limits. This is not Provider session resume.
+
+Production Python source is in `runtime/native`; the package retains the pinned
+`runtime/g0` installed layout. Database schema v5 uses atomic, ordered migrations
+and transactionally maintained storage counters. Newer databases cannot be
+opened by older binaries. Spool ACK archives the confirmed prefix; it does not
+release storage quota or discard reconciliation history.
+
+See [installation](../../docs/installation.md), [support matrix](../../docs/support-matrix.md)
+and [test layers](../../docs/testing.md) before enabling a Provider in a main-agent
+workflow. The real CLI trial and synthetic protocol tests establish different
+claims and are reported separately.

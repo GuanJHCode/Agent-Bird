@@ -3,6 +3,7 @@ package adapter
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -216,6 +217,25 @@ func TestParseEventsProjectsOnlyBoundedFields(t *testing.T) {
 	}
 }
 
+func TestParseGrokToolEventsProjectBoundaryOnly(t *testing.T) {
+	cases := []struct {
+		line string
+		want Event
+	}{
+		{`{"type":"tool_started","sessionId":"grok-1","tool_name":"read_file","secret":"DROP"}`, Event{Kind: EventProgress, SessionID: "grok-1", Status: "tool_started"}},
+		{`{"type":"tool_completed","tool_name":"read_file","outcome":"success","secret":"DROP"}`, Event{Kind: EventProgress, Status: "tool_completed"}},
+	}
+	for _, tc := range cases {
+		got, err := ParseEvent(ProviderGrok, tc.line, 4096)
+		if err != nil {
+			t.Fatalf("%s: %v", tc.line, err)
+		}
+		if got != tc.want {
+			t.Errorf("%s: event = %#v, want %#v", tc.line, got, tc.want)
+		}
+	}
+}
+
 func TestParseCodexEventsProjectsFixedJSONL(t *testing.T) {
 	cases := []struct {
 		line string
@@ -303,6 +323,23 @@ func TestAGYWaitingResultIsAUserQuestion(t *testing.T) {
 	}
 }
 
+func TestAGYNonTextStepsAndEmptyFailureResponse(t *testing.T) {
+	for _, line := range []string{
+		`{"event":"step_update","step_update":{"conversation_id":"agy-1","step_index":0,"state":"DONE","step_type":"user_input"}}`,
+		`{"event":"step_update","step_update":{"conversation_id":"agy-1","step_index":1,"state":"DONE","step_type":"tool","text_delta":""}}`,
+	} {
+		event, err := ParseEvent(ProviderAGY, line, 4096)
+		if err != nil || event.Kind != EventProgress || event.SessionID != "agy-1" || event.Text != "" {
+			t.Fatalf("non-text step rejected: %+v %v", event, err)
+		}
+	}
+	line := `{"event":"result","result":{"conversation_id":"agy-1","status":"ERROR","response":"","error":"request denied"}}`
+	event, err := ParseEvent(ProviderAGY, line, 4096)
+	if err != nil || event.Kind != EventResult || event.Status != "ERROR" {
+		t.Fatalf("native failure lost: %+v %v", event, err)
+	}
+}
+
 func TestParseEventDoesNotPersistUnknownRawAndBoundsLines(t *testing.T) {
 	got, err := ParseEvent(ProviderAGY, `{"event":"future_event","secret":"DROP"}`, 4096)
 	if err != nil {
@@ -363,5 +400,16 @@ func TestValidatePinRequiresVersionAndDigest(t *testing.T) {
 		if err := ValidatePin(pinForTest(), pair[0], pair[1]); err == nil {
 			t.Fatalf("accepted drift: %#v", pair)
 		}
+	}
+}
+
+func TestClaudeStructuredResultPreservesTypedChannel(t *testing.T) {
+	event, err := ParseEvent(ProviderClaude, `{"type":"result","subtype":"success","session_id":"s","result":"fenced prose","structured_output":{"decision":"approve","summary":"reviewed"}}`, 4096)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, _ := json.Marshal(event)
+	if !strings.Contains(string(body), `\"decision\":\"approve\"`) {
+		t.Fatalf("structured review output lost: %s", body)
 	}
 }
