@@ -210,7 +210,7 @@ func (p *protocolCollector) accept(event adapter.Event) {
 		p.err = errors.New("provider_session_changed")
 		return
 	}
-	if p.provider == adapter.ProviderGrok && event.Kind == adapter.EventMessage && p.terminal != nil {
+	if p.provider == adapter.ProviderGrok && (event.Kind == adapter.EventMessage || event.Kind == adapter.EventProgress) && p.terminal != nil {
 		p.err = errors.New("provider_event_after_terminal")
 		return
 	}
@@ -257,6 +257,12 @@ func (p *protocolCollector) accept(event adapter.Event) {
 			return
 		}
 		p.message = append(p.message[:0], event.Text...)
+		return
+	}
+	// Grok assistant messages are delimited by tool events; the terminal result
+	// carries no text, so only chunks after the last boundary are the answer.
+	if p.provider == adapter.ProviderGrok && event.Kind == adapter.EventProgress {
+		p.message = p.message[:0]
 		return
 	}
 	if event.Kind == adapter.EventMessage && p.provider == adapter.ProviderGrok && event.Text != "" {

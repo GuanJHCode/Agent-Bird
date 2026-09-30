@@ -212,6 +212,72 @@ func TestLaunchFailureRejectsAmbiguousPartialEvidence(t *testing.T) {
 	}
 }
 
+// events.go publishes a record once os.Link has made it durable, so
+// ExecuteLaunch can fail after its exited event is already on disk. The unknown
+// fallback must then preserve that confirmed terminal instead of appending a
+// second one; the sibling recordLaunchFailed already refuses both kinds.
+func TestLaunchUnknownNeverAppendsAfterDurableExited(t *testing.T) {
+	for _, prior := range [][]string{
+		{contract.EventExited},
+		{contract.EventResult, contract.EventExited},
+		{contract.EventFailed, contract.EventExited},
+	} {
+		name := strings.Join(prior, "+")
+		t.Run(name, func(t *testing.T) {
+			root := filepath.Join(t.TempDir(), "spool")
+			h, err := NewIPC(root, "unknown-producer")
+			if err != nil {
+				t.Fatal(err)
+			}
+			a := store.Attempt{ID: "a", TaskID: "t", SegmentID: "s"}
+			sp, err := h.spool(a)
+			if err != nil {
+				t.Fatal(err)
+			}
+			meta := launchMetadata{commandID: "c", workRevision: 1, executionEpoch: 1}
+			for index, kind := range prior {
+				if _, err = h.appendPhaseEvent(sp, "r", "t", a, meta, kind, fmt.Sprintf("hash-%d", index), nil, nil, nil); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err = sp.WriteMetadata("launch.json", map[string]any{"phase": "exited", "marker": "original"}); err != nil {
+				t.Fatal(err)
+			}
+			before, err := h.Collect(context.Background(), a)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err = h.ensureLaunchUnknown(a, "r", "t", meta, errors.New("host died after publishing exited")); err != nil {
+				t.Fatalf("fallback over confirmed terminal: %v", err)
+			}
+			after, err := h.Collect(context.Background(), a)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(before, after) {
+				t.Fatalf("unknown fallback appended to a durable exited: before=%v after=%v", eventKinds(before), eventKinds(after))
+			}
+			records, err := sp.Read()
+			if err != nil {
+				t.Fatal(err)
+			}
+			terminals := 0
+			for _, record := range records {
+				if record.Kind == contract.EventUnknown || record.Kind == contract.EventExited {
+					terminals++
+				}
+			}
+			if terminals != 1 {
+				t.Fatalf("segment carries %d process terminals: %#v", terminals, records)
+			}
+			var launch map[string]any
+			if err = sp.ReadMetadata("launch.json", &launch); err != nil || launch["marker"] != "original" {
+				t.Fatalf("launch metadata changed: %+v %v", launch, err)
+			}
+		})
+	}
+}
+
 type launchFailureDBSink struct{ db *store.DB }
 
 func (s launchFailureDBSink) SendEvent(ctx context.Context, _ uint64, e contract.Event) (contract.DurableAck, error) {

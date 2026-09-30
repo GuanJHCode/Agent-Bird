@@ -308,6 +308,9 @@ func parseGrok(object map[string]json.RawMessage) (Event, error) {
 	case "text":
 		text, err := stringFieldOptional(object, "data")
 		return Event{Kind: EventMessage, SessionID: session, Text: text}, err
+	case "tool_started", "tool_completed":
+		// Message boundary; tool names and outcomes stay provider-private.
+		return Event{Kind: EventProgress, SessionID: session, Status: typeName}, nil
 	case "end":
 		status, err := stringFieldOptional(object, "stopReason")
 		if err != nil {

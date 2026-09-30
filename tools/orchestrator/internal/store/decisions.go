@@ -1,12 +1,12 @@
 package store
 
 import (
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"context"
 	"crypto/subtle"
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"strings"
 	"time"
 )
@@ -146,11 +146,13 @@ func (d *DB) ReviewResult(ctx context.Context, spec ReviewSpec) (string, error) 
 		return "", err
 	}
 	rollback := func(e error) (string, error) { _ = tx.Rollback(); return "", e }
-	var previousDecision, eventHash string
+	// The slot is derived from producer+event content, so a replay is only the
+	// same decision when the stored task and event match as well.
+	var previousDecision, eventHash, storedTask, storedEvent string
 	var eventRevision int64
-	err = tx.QueryRowContext(ctx, `SELECT decision,event_hash,event_revision FROM review_decisions WHERE action_slot=?`, spec.ActionSlot).Scan(&previousDecision, &eventHash, &eventRevision)
+	err = tx.QueryRowContext(ctx, `SELECT decision,event_hash,event_revision,task_id,event_id FROM review_decisions WHERE action_slot=?`, spec.ActionSlot).Scan(&previousDecision, &eventHash, &eventRevision, &storedTask, &storedEvent)
 	if err == nil {
-		if previousDecision != spec.Decision || eventHash != strings.ToLower(spec.EventHash) || eventRevision != spec.EventRevision {
+		if previousDecision != spec.Decision || eventHash != strings.ToLower(spec.EventHash) || eventRevision != spec.EventRevision || storedTask != spec.TaskID || storedEvent != spec.EventID {
 			return rollback(ErrConflict)
 		}
 		_ = tx.Rollback()
@@ -159,14 +161,20 @@ func (d *DB) ReviewResult(ctx context.Context, spec ReviewSpec) (string, error) 
 	if !errors.Is(err, sql.ErrNoRows) {
 		return rollback(err)
 	}
-	var taskStatus, storedHash, storedSlot, body string
+	var taskStatus, storedHash, storedSlot, policy, body string
 	var workRevision int
 	var storedRevision int64
-	if err = tx.QueryRowContext(ctx, `SELECT t.status,r.work_revision,e.payload_hash,e.event_revision,e.action_slot,e.body_json FROM tasks t JOIN task_runtime r ON r.task_id=t.id JOIN runtime_events e ON e.task_id=t.id WHERE t.id=? AND e.event_id=?`, spec.TaskID, spec.EventID).Scan(&taskStatus, &workRevision, &storedHash, &storedRevision, &storedSlot, &body); err != nil || taskStatus != "result_ready" || workRevision != spec.WorkRevision || storedRevision != spec.EventRevision || storedSlot != spec.ActionSlot || subtle.ConstantTimeCompare([]byte(storedHash), []byte(strings.ToLower(spec.EventHash))) != 1 {
+	if err = tx.QueryRowContext(ctx, `SELECT t.status,r.work_revision,e.payload_hash,e.event_revision,e.action_slot,r.completion_policy,e.body_json FROM tasks t JOIN task_runtime r ON r.task_id=t.id JOIN runtime_events e ON e.task_id=t.id WHERE t.id=? AND e.event_id=?`, spec.TaskID, spec.EventID).Scan(&taskStatus, &workRevision, &storedHash, &storedRevision, &storedSlot, &policy, &body); err != nil || taskStatus != "result_ready" || workRevision != spec.WorkRevision || storedRevision != spec.EventRevision || storedSlot != spec.ActionSlot || subtle.ConstantTimeCompare([]byte(storedHash), []byte(strings.ToLower(spec.EventHash))) != 1 {
 		return rollback(ErrConflict)
 	}
 	var event contract.Event
 	if json.Unmarshal([]byte(body), &event) != nil || event.Kind != contract.EventResult {
+		return rollback(ErrConflict)
+	}
+	// An artifact-pinned task only reaches completed through a settlement that
+	// matched the plan digest, so an accept still sitting on result_ready means
+	// the artifact was missing or mismatched and cannot be substituted here.
+	if spec.Decision == "accept" && policy == "artifact" {
 		return rollback(ErrConflict)
 	}
 	var latestSegment string

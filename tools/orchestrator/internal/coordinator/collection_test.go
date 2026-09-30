@@ -76,6 +76,13 @@ func TestCollectionReceiptDoesNotAcceptBusinessResult(t *testing.T) {
 		t.Helper()
 		sequence++
 		event := contract.Event{Version: 1, ProducerID: ready.HostID, EventID: "event-" + kind, RunID: "run", TaskID: "task", AttemptID: launch.AttemptID, SegmentID: launch.SegmentID, WorkRevision: 1, ExecutionEpoch: ready.CoordinatorEpoch, CommandID: launch.CommandID, Sequence: sequence, Kind: kind, PayloadHash: "hash-" + kind, ActiveMS: activeMS}
+		// The real Host always carries the OS exit code on its exited event;
+		// this wire fixture simulates a clean zero exit so the durable result
+		// settles result_ready (the state under test), matching production.
+		if kind == contract.EventExited {
+			zero := 0
+			event.ExitCode = &zero
+		}
 		writeMessage(t, conn, ipc.KindEvent, "event-request", ready.CoordinatorEpoch, event)
 		ackMessage := readMessage(t, conn)
 		if ackMessage.Kind != ipc.KindDurableAck {
