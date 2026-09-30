@@ -1,0 +1,14 @@
+#!/bin/sh
+: > "$TMPDIR/m1"
+session=''
+while [ $# -gt 0 ]; do
+case "$1" in --session-id) shift; session=$1;; esac
+shift
+done
+[ -n "$session" ] || exit 9
+: > "$TMPDIR/m2"
+answer=$(cat INPUT.txt)
+: > "$TMPDIR/m3"
+printf '%s\n' "{\"type\":\"text\",\"data\":\"$answer\"}"
+printf '%s\n' "{\"type\":\"end\",\"stopReason\":\"end_turn\",\"sessionId\":\"$session\"}"
+: > "$TMPDIR/m4"

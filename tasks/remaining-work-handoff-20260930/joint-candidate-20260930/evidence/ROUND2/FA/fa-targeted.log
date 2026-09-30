@@ -1,0 +1,54 @@
+F-A 定向与 -run 同前缀共存证明 (bash, 逐命令真实 rc)
+window_open: utc=2026-09-30T04:30:52Z load={ 4.43 5.65 7.12 } holders_sleep30=0
+### [a-alone] cmd: /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go test -count=1 -v -timeout 180s ./internal/host -run ^TestProgressStaysBoundedWhileDescendantHoldsPipeAndNeverFinalizes$
+    before: utc=2026-09-30T04:30:52Z load={ 4.43 5.65 7.12 } holders_sleep30=0
+    rc=0
+    after: utc=2026-09-30T04:30:54Z load={ 4.43 5.65 7.12 } holders_sleep30=0
+=== RUN   TestProgressStaysBoundedWhileDescendantHoldsPipeAndNeverFinalizes
+--- PASS: TestProgressStaysBoundedWhileDescendantHoldsPipeAndNeverFinalizes (0.86s)
+PASS
+ok  	codex-cli-orchestration-design/tools/orchestrator/internal/host	1.915s
+
+### [b-alone] cmd: /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go test -count=1 -v -timeout 180s ./internal/host -run ^TestN04PipeSensitiveDescendantHoldingStdoutIsNecessary$
+    before: utc=2026-09-30T04:30:54Z load={ 4.43 5.65 7.12 } holders_sleep30=0
+    rc=0
+    after: utc=2026-09-30T04:30:56Z load={ 4.48 5.64 7.11 } holders_sleep30=0
+=== RUN   TestN04PipeSensitiveDescendantHoldingStdoutIsNecessary
+--- PASS: TestN04PipeSensitiveDescendantHoldingStdoutIsNecessary (1.58s)
+PASS
+ok  	codex-cli-orchestration-design/tools/orchestrator/internal/host	2.151s
+
+### [ab-combined] cmd: /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go test -count=1 -v -timeout 240s ./internal/host -run TestProgressStays|TestN04PipeSensitive
+    before: utc=2026-09-30T04:30:56Z load={ 4.48 5.64 7.11 } holders_sleep30=0
+    rc=0
+    after: utc=2026-09-30T04:31:00Z load={ 4.48 5.64 7.11 } holders_sleep30=0
+=== RUN   TestN04PipeSensitiveDescendantHoldingStdoutIsNecessary
+--- PASS: TestN04PipeSensitiveDescendantHoldingStdoutIsNecessary (1.58s)
+=== RUN   TestProgressStaysBoundedWhileDescendantHoldsPipeAndNeverFinalizes
+--- PASS: TestProgressStaysBoundedWhileDescendantHoldsPipeAndNeverFinalizes (0.86s)
+PASS
+ok  	codex-cli-orchestration-design/tools/orchestrator/internal/host	3.009s
+
+### [broad-descendant] cmd: /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go test -count=1 -timeout 300s ./internal/host -run Descendant
+    before: utc=2026-09-30T04:31:00Z load={ 4.48 5.64 7.11 } holders_sleep30=0
+    rc=0
+    after: utc=2026-09-30T04:31:06Z load={ 4.17 5.53 7.05 } holders_sleep30=0
+ok  	codex-cli-orchestration-design/tools/orchestrator/internal/host	5.909s
+
+### [holder-group] cmd: /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go test -count=1 -timeout 300s ./internal/host -run Holder
+    before: utc=2026-09-30T04:31:06Z load={ 4.17 5.53 7.05 } holders_sleep30=0
+    rc=0
+    after: utc=2026-09-30T04:31:09Z load={ 4.17 5.53 7.05 } holders_sleep30=0
+ok  	codex-cli-orchestration-design/tools/orchestrator/internal/host	2.852s
+
+window_close: utc=2026-09-30T04:31:09Z load={ 4.17 5.53 7.05 } holders_sleep30=0
+
+### B 子进程 re-exec 的 -test.run 匹配串 (逐字引用)
+63:		holder := exec.Command(os.Args[0], "-test.run=^TestN04PipeSensitiveDescendantHoldingStdoutIsNecessary$")
+106:		Args: []string{"-test.run=^TestN04PipeSensitiveDescendantHoldingStdoutIsNecessary$"},
+### A 用例 holder 形状 (子 shell sleep, 非 re-exec 测试二进制)
+119:	script := `( sleep 30 ) & echo $! > "$G1_HOLD_PID_FILE"; echo lead-exit; exit 0`
+428:( sleep 30 ) & echo $! > "$G1_HOLD_PID_FILE"
+### 残留进程最终核查
+sleep30_left=0 orch_test_bins=0
+final: utc=2026-09-30T04:31:09Z load={ 4.17 5.53 7.05 } holders_sleep30=0

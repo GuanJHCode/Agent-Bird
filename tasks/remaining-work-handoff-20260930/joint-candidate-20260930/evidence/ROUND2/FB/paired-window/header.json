@@ -1,0 +1,20 @@
+{
+ "mode": "paired",
+ "utc": "20260930T045449Z",
+ "source_root": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/scratch/exp-n01",
+ "budget": {
+  "storm_duration_s": 150.0,
+  "churn_threads": 8,
+  "churn_cap": 3200,
+  "churn_timeout_s": 10.0,
+  "min_success_samples": 8,
+  "timeline_count": 5,
+  "fullgate_runs": 1,
+  "load_before": [
+   3.55712890625,
+   3.3642578125,
+   4.00146484375
+  ]
+ },
+ "go_version": "go version go1.26.8 darwin/arm64"
+}

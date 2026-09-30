@@ -1,0 +1,27 @@
+=== 负控制 1: 隐藏新钉 REQUIRED (F-A stop_timing_test.go) ===
+{"ok": false, "root": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/candidate", "required": 20, "failures": [{"manifest": "candidate-source-manifest.json", "issue": "manifest-path-missing-on-disk", "path": "tools/orchestrator/internal/host/stop_timing_test.go"}, {"issue": "required_source_missing", "path": "tools/orchestrator/internal/host/stop_timing_test.go"}]}
+verify_rc=1
+restored sha before=[1322b337f1e214c695a82b3631f873f2417ecc707a2523b9db7a52b879e17781  /private/tmp/bird-nseries-repair-20260930-3bcaf2/candidate/tools/orchestrator/internal/host/stop_timing_test.go] after=[1322b337f1e214c695a82b3631f873f2417ecc707a2523b9db7a52b879e17781  /private/tmp/bird-nseries-repair-20260930-3bcaf2/candidate/tools/orchestrator/internal/host/stop_timing_test.go]
+
+=== 负控制 2: 篡改 SHA ===
+tampered rc= 1
+{"ok": false, "root": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/candidate", "required": 20, "failures": [{"manifest": "candidate-source-manifest.json", "issue": "sha-mismatch", "path": "tools/orchestrator/internal/host/stop_timing_test.go"}]}
+--- 用重跑 emit 复原 manifest (篡改已撤销靠重新 emit) ---
+{"ok": false, "root": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/candidate", "required": 20, "failures": [{"manifest": "candidate-source-manifest.json", "issue": "sha-mismatch", "path": "tools/orchestrator/internal/host/stop_timing_test.go"}]}
+
+=== 控制后清理: 篡改件与被篡改 manifest 一并废弃, 由 emit 重新产出 (不覆盖原始证据, 只重建派生清单) ===
+before: REQUIRED.json
+candidate-source-manifest.bak
+candidate-source-manifest.json
+evidence-manifest.json
+bc919a437b7d06e1614cb1fa08736bc54f9d7ae0e83a6ddf44351a8b92cb4b27  /private/tmp/bird-nseries-repair-20260930-3bcaf2/candidate/evidence/ROUND2/R5/joint-manifests/candidate-source-manifest.json
+31039e93904b845ae1064afa9767e9fc27bafa2e30266ccdc0c13e9ec8bc3a7f  /private/tmp/bird-nseries-repair-20260930-3bcaf2/candidate/evidence/ROUND2/R5/joint-manifests/candidate-source-manifest.bak
+{"source_files": 22, "evidence_files": 624, "required": 20}
+re-emit_rc=0
+after: REQUIRED.json
+candidate-source-manifest.json
+evidence-manifest.json
+{"ok": true, "root": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/candidate", "required": 20, "failures": []}
+verify_after_cleanup_rc=0
+{"ok": true, "root": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/scratch/reloc-candidate-round2", "required": 20, "failures": []}
+reloc_rc=0

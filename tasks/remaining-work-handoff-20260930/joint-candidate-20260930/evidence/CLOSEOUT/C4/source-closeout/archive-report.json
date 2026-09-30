@@ -1,0 +1,27 @@
+{
+  "candidateSha256": "42dc58ac241d2329ff11bc9544ae3574112fd06f1581701629551efd91d80617",
+  "manifestSha256": "46eadeaa7f7166c9c83469f1ff538ee26223634b299f7f69d0141d24e4acf57f",
+  "files": 1834,
+  "digestMismatchAgainstWorktree": [],
+  "missingOnRescan": [],
+  "extraOnRescan": [],
+  "changedOnRescan": [],
+  "rawMembers": {
+    "members": 1834,
+    "extra": [],
+    "missing": [],
+    "duplicate": [],
+    "nonRegular": [],
+    "pathEscape": [],
+    "digestMismatch": [],
+    "status": "pass"
+  },
+  "archiveSha256": "4e0e494b3c308c2c3595e38c6aed0cf8386867bbe4ba1e3a7071e85c73bcbc5d",
+  "extractedFiles": 1834,
+  "unpackMismatch": 0,
+  "unpackSymlinks": 0,
+  "rebuiltSha256": "42dc58ac241d2329ff11bc9544ae3574112fd06f1581701629551efd91d80617",
+  "rebuildMatchesCandidate": true,
+  "freshGocacheEntries": 1484,
+  "status": "pass"
+}

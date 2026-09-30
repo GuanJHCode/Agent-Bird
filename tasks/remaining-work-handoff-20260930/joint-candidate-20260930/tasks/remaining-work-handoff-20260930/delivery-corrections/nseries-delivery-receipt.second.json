@@ -1,0 +1,96 @@
+{
+ "schemaVersion": 1,
+ "status": "N_SERIES_LOCAL_VERIFIED_S4_STILL_OPEN_READY_FOR_ROOT_REVIEW",
+ "generatedUtc": "2026-09-30T02:47:11.223832+00:00",
+ "baseFrozen": {
+  "sourceArchiveSha256": "e7bc444a5df23f4e2e93c14b22ee049ac6f8545744cf4e7f67afdf174fcbe775",
+  "sourceManifestSha256": "2def1de40443f7dbb460d82745c4a0a61e9e3a2c60e5dda60ea9ee503f187b3a",
+  "deliveryReceiptSha256": "ebdf61f5d131c0ba1171833f2df3292eceaf3b48dfca98198aff6b5673b78b77",
+  "finalIndexSha256": "25a67ca2e07e46600d8add5dac1d616733a68a8fc77610619e40b2e9061e5688",
+  "originalHead": "9eb5561bd81417ace70de1da1ad3af371418dfc6",
+  "n00InputSnapshotSha256": "c56396b507a8bd58acbac6bdb68483f6f7222fde6996a4d097dc9f86db30d8c9"
+ },
+ "candidate": {
+  "binarySha256": "42dc58ac241d2329ff11bc9544ae3574112fd06f1581701629551efd91d80617",
+  "binaryEqualsPreviousCloseoutCandidate": true,
+  "note": "本批零产品码变更,生产二进制逐字节等于 42dc58ac…;新增仅为两个 Go 测试文件与任务目录交付物",
+  "sourceArchiveSha256": "5a8f90e110a13438342e09ba78f20fe388ec775bb19e2ab867cdc17dfadd2704",
+  "sourceManifestSha256": "f2691dbc50eb0fdd9f6d899bd5001144db082b974ffefddce94754b8bc14ecb5",
+  "sourceFiles": 1831,
+  "archiveReport": {
+   "candidateSha256": "42dc58ac241d2329ff11bc9544ae3574112fd06f1581701629551efd91d80617",
+   "manifestSha256": "f2691dbc50eb0fdd9f6d899bd5001144db082b974ffefddce94754b8bc14ecb5",
+   "files": 1831,
+   "digestMismatchAgainstWorktree": [],
+   "missingOnRescan": [],
+   "extraOnRescan": [],
+   "changedOnRescan": [],
+   "rawMembers": {
+    "members": 1831,
+    "extra": [],
+    "missing": [],
+    "duplicate": [],
+    "nonRegular": [],
+    "pathEscape": [],
+    "digestMismatch": [],
+    "status": "pass"
+   },
+   "archiveSha256": "5a8f90e110a13438342e09ba78f20fe388ec775bb19e2ab867cdc17dfadd2704",
+   "extractedFiles": 1831,
+   "unpackMismatch": 0,
+   "unpackSymlinks": 0,
+   "rebuiltSha256": "42dc58ac241d2329ff11bc9544ae3574112fd06f1581701629551efd91d80617",
+   "rebuildMatchesCandidate": true,
+   "freshGocacheEntries": 1484,
+   "status": "pass"
+  },
+  "portableBundleVerified": "pass",
+  "isolatedInstall": "verify_install.py PASS (fresh HOME, doctor healthy)"
+ },
+ "gates": {
+  "ordinary": {
+   "exit": 0,
+   "pass": 730,
+   "fail": 0,
+   "skip": 2,
+   "jsonlSha256": "1d8ab5dff19dbd86917dfce9c80cac53d046c3287ef8ad5f0e276698b72d2c43"
+  },
+  "race": {
+   "exit": 0,
+   "pass": 730,
+   "fail": 0,
+   "skip": 2,
+   "jsonlSha256": "1f0f901d5d4c2e6ee01b99248bf9663852b9ccd82ea612f8f8d40b59d8924302"
+  },
+  "build": {
+   "exit": 0
+  },
+  "vet": {
+   "exit": 0
+  },
+  "python": {
+   "exit": 0,
+   "tests": 309,
+   "failures": 0,
+   "errors": 0,
+   "skipped": 1
+  },
+  "diffCheck": {
+   "originalExit": 1,
+   "explained": "原始 diff-check exit 1 与 summary passed=false 保留不删。【R4 纠正】原补充记录表述有误:git add 后用不带 --cached 的 git diff --check 只看未暂存差异,已全部 staged 时为空证据,不能证明通过;逐文件检查误用双重根前缀 tools/orchestrator/tools/orchestrator/... 导致两次 Could not access、whitespace rc=1,而旧文案写'2 新文件 rc=0' 是错误的。联合候选的正确判据:git add -A 后 git diff --cached --check(rc=0)+ 新增文件逐路径 git diff --no-index --check /dev/null <correct-path>,以是否出现空白/EOF空行/trailing 行为判定,并附缺文件/目录/植入空白三类负控制。culprit grok_protocol_test.go EOF 空行三方 sha 0224afd2... 全同、非本批引入的事实不变。",
+   "correctedJointCandidateEvidence": "evidence/R4/r4-cached-check.log (git diff --cached --check rc=0); evidence/R4/r4-noindex-stdout-verdict.log (逐新增文件 whitespace 全 PASS); evidence/R4/r4-noindex-and-controls.log (三类负控制)"
+  },
+  "identityDeltaVsFrozenBaseline": "R6 纠正:统一口径 unique run = pass + fail + skip。双方默认 ordinary/race 均为 732 个 unique run 身份(A 726 pass/2 fail/4 skip;B 730 pass/0 fail/2 skip),身份集合差集各 3,禁止按数量择一去重。'730' 是 pass 数不是身份总数。",
+  "binding": "race 轮构建于 gofmt(progress_guards_test.go,纯空白改动)之前;最终字节另行普通+race 复测 PASS(见 n04/N04-analysis.md POST_GOFMT_RECHECK)"
+ },
+ "unverified": [
+  "S4 default-concurrency stability (OPEN)",
+  "real Provider/native",
+  "Linux/Windows isolation",
+  "power-loss recovery",
+  "remote backup/CI",
+  "N13 controlled-crash implementation",
+  "coordinator KindHostProgress IPC route & captureWriter overflow (N04 leftover gaps)"
+ ],
+ "realExecAuthRemaining": true
+}

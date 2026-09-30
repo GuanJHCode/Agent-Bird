@@ -1,0 +1,27 @@
+{
+ "status": "PASS",
+ "verify_install_rc": 0,
+ "isolatedInstallArtifacts": {
+  "doctor.json": "614488d53534fd5d7e522dbc5446dbabfaa5024a7b6d950f2fe025209de82eac",
+  "install.json": "d69eecb69055950b0d180ca534321106e4798eaabb13809d4ffe7d41ababcab2",
+  "installed/manifests/0.2.0-runtime-check.json": "04470f2c2d41ae7d01eec165b9f89ed7e0a3076544548f64092d577cbe2c0743",
+  "installed/versions/0.2.0-runtime-check/.codex-plugin/plugin.json": "68a0e5aceee0de4cf784ba8991045c28ff4872767684ed008566edaed2241163",
+  "installed/versions/0.2.0-runtime-check/defaults.json": "d87cce1addf8d6b66930adb465abb5438214b09ac691e351a0b64865687acda5",
+  "installed/versions/0.2.0-runtime-check/manifest.json": "805fc843dc657fab28a7bf7e4cffbeca85bafeaaff9fcab456b3c415dbb2da09",
+  "installed/versions/0.2.0-runtime-check/runtime/g0/runtime-manifest.json": "2a7e403d30c87dd0ffc95cab9837080726b177a1f4e093222d87185db5498ac0",
+  "package/package-manifest.json": "7556acbaca5f0d2565408cb5d01e27065b95a0e4cfc4ea33fa7035e12240a17b",
+  "package/plugin/.codex-plugin/plugin.json": "68a0e5aceee0de4cf784ba8991045c28ff4872767684ed008566edaed2241163",
+  "package/plugin/defaults.json": "d87cce1addf8d6b66930adb465abb5438214b09ac691e351a0b64865687acda5",
+  "package/plugin/runtime/g0/runtime-manifest.json": "2a7e403d30c87dd0ffc95cab9837080726b177a1f4e093222d87185db5498ac0"
+ },
+ "packageBundlePortableSha256": "a2674909a6642bf91670f0d77277bbf06d97eada0ffe03c35268a4fe10fa7891",
+ "packageBundleFiles": {
+  "defaults.json": "d87cce1addf8d6b66930adb465abb5438214b09ac691e351a0b64865687acda5",
+  "bin/codex-orchestrator": "42dc58ac241d2329ff11bc9544ae3574112fd06f1581701629551efd91d80617",
+  "scripts/invoke.sh": "e88f69c5232e4b03d691e5e308011e732ae21d1741de1481478f89929752b8c3",
+  ".codex-plugin/plugin.json": "e087c216c2b33ddf6301eabcf9c83c21bbcfa1770f8742b1b28f322f95b5dd42",
+  "skills/orchestrate/SKILL.md": "88a77bc1e66db691e6de19fa600b8133782819ba7e2e46d1fc9e49e24f90daa8",
+  "runtime/g0/runtime-manifest.json": "3eff2193261ada3448cc6c93c9c5297beed153d35d31b1bfe6c865d31a3c77a8"
+ },
+ "note": "安装报告由仓内既有工具 tasks/provider-runtime-completion/scripts/verify_install.py 与 tasks/mvp-simple-install/scripts/package.py 真实产出; 未伪造。"
+}

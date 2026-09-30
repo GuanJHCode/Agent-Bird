@@ -1,0 +1,13 @@
+{"result":{"class":"ok"},"run_id":"quiet","shape":"control_warm_absorb"}
+{"result":{"cancelled":true,"class":"classified","deadline":false,"exit_text":"","exited":false,"start_failure":false,"text":"provider_probe_failed"},"run_id":"quiet","shape":"control_cancelled"}
+{"result":{"class":"ok"},"run_id":"quiet","shape":"control_warm_ok"}
+{"iteration":0,"result":{"class":"ok","elapsed_ms":515.433},"run_id":"quiet","shape":"fresh_probe_iteration"}
+{"iteration":1,"result":{"class":"ok","elapsed_ms":536.847},"run_id":"quiet","shape":"fresh_probe_iteration"}
+{"iteration":2,"result":{"class":"ok","elapsed_ms":524.101},"run_id":"quiet","shape":"fresh_probe_iteration"}
+{"iteration":3,"result":{"class":"ok","elapsed_ms":531.427},"run_id":"quiet","shape":"fresh_probe_iteration"}
+{"iteration":4,"result":{"class":"ok","elapsed_ms":519.057},"run_id":"quiet","shape":"fresh_probe_iteration"}
+{"iteration":5,"result":{"class":"ok","elapsed_ms":516.8},"run_id":"quiet","shape":"fresh_probe_iteration"}
+{"iteration":6,"result":{"class":"ok","elapsed_ms":526.652},"run_id":"quiet","shape":"fresh_probe_iteration"}
+{"iteration":7,"result":{"class":"ok","elapsed_ms":538.067},"run_id":"quiet","shape":"fresh_probe_iteration"}
+{"iteration":8,"result":{"class":"ok","elapsed_ms":521.88},"run_id":"quiet","shape":"fresh_probe_iteration"}
+{"iteration":9,"result":{"class":"ok","elapsed_ms":528.999},"run_id":"quiet","shape":"fresh_probe_iteration"}

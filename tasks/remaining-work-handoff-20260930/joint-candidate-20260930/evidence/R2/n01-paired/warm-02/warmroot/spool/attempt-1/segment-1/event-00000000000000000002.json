@@ -1,0 +1,1 @@
+{"version":1,"producer_id":"producer","event_id":"producer:2","run_id":"run-1","task_id":"task-1","attempt_id":"attempt-1","segment_id":"segment-1","work_revision":1,"command_id":"n01-1","sequence":2,"kind":"spawned","payload_hash":"6d894e8844daf2b0b9f9e35fe0b32387c6f5fd895000cef70c625830182800f7","process":{"pid":39832,"birth":"Wed Sep 30 11:56:05 2026","pgid":39832}}

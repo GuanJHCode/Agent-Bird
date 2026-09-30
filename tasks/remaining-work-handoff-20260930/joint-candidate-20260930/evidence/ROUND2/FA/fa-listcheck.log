@@ -1,0 +1,36 @@
+### -run 正则命中集证明 (go test -list, 不执行)
+--- -run 'TestProgressStays' 命中:
+    TestProgressStaysBoundedWhileDescendantHoldsPipeAndNeverFinalizes
+    count=1
+--- -run 'TestN04PipeSensitive' 命中:
+    TestN04PipeSensitiveDescendantHoldingStdoutIsNecessary
+    count=1
+--- -run 'TestProgressStays|TestN04PipeSensitive' 命中:
+    TestN04PipeSensitiveDescendantHoldingStdoutIsNecessary
+    TestProgressStaysBoundedWhileDescendantHoldsPipeAndNeverFinalizes
+    count=2
+--- -run 'Descendant' 命中:
+    TestN04PipeSensitiveDescendantHoldingStdoutIsNecessary
+    TestPipeHoldingDescendantRecordsSingleStoppingProgress
+    TestDescendantHoldingPipesSameGroupNeverReportsResult
+    TestEscapedDescendantHoldingPipesCannotProduceResult
+    TestProgressStaysBoundedWhileDescendantHoldsPipeAndNeverFinalizes
+    count=5
+--- -run 'Holder' 命中:
+    TestEscapedPipeHolderProgressDoesNotAdvanceAfterTerminal
+    count=1
+--- -run '^(TestProgressStaysBoundedWhileDescendantHoldsPipeAndNeverFinalizes|TestN04PipeSensitiveDescendantHoldingStdoutIsNecessary)$' 命中:
+    TestN04PipeSensitiveDescendantHoldingStdoutIsNecessary
+    TestProgressStaysBoundedWhileDescendantHoldsPipeAndNeverFinalizes
+    count=2
+
+### B 子进程 re-exec 的 -test.run 匹配串 (逐字引用)
+63:		holder := exec.Command(os.Args[0], "-test.run=^TestN04PipeSensitiveDescendantHoldingStdoutIsNecessary$")
+106:		Args: []string{"-test.run=^TestN04PipeSensitiveDescendantHoldingStdoutIsNecessary$"},
+### A 用例 holder 形状 (子 shell sleep, 非 re-exec 测试二进制)
+119:	script := `( sleep 30 ) & echo $! > "$G1_HOLD_PID_FILE"; echo lead-exit; exit 0`
+428:( sleep 30 ) & echo $! > "$G1_HOLD_PID_FILE"
+### B 用例 holder 形状 (re-exec 自身二进制 + env role)
+38:const pipeSensitiveEnvLeader = "G1_N04_PIPE_SENSITIVE_ROLE"
+63:		holder := exec.Command(os.Args[0], "-test.run=^TestN04PipeSensitiveDescendantHoldingStdoutIsNecessary$")
+90:	binary, err := filepath.EvalSymlinks(os.Args[0])

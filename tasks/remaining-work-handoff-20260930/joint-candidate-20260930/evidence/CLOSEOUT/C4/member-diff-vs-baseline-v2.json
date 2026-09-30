@@ -1,0 +1,50 @@
+{
+ "final_manifest": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/CLOSEOUT/C4/source-closeout/source-manifest.json",
+ "final_manifest_sha256": "46eadeaa7f7166c9c83469f1ff538ee26223634b299f7f69d0141d24e4acf57f",
+ "final_members": 1834,
+ "final_total_field": 1834,
+ "baseline_archive": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/snapshots/second/data/n06/source/source.tar.gz",
+ "baseline_archive_sha256": "5a8f90e110a13438342e09ba78f20fe388ec775bb19e2ab867cdc17dfadd2704",
+ "baseline_members": 1831,
+ "baseline_duplicates": [],
+ "counts": {
+  "added": 3,
+  "removed": 0,
+  "changed": 3,
+  "identical": 1828
+ },
+ "added": {
+  "tools/native-product-bridge/n02_owner_readiness_observer.py": {
+   "sha256": "96260b2e6b4efc2695345bb5f0ff432c8e4e119cef990d3b3f54a2b1dda8de12",
+   "explanation": "R1 观察协议 helper; 收尾集成轮把它同步进联合运行树供消费测试 import (此前只在 candidate/)"
+  },
+  "tools/native-product-bridge/test_n02_owner_readiness_observer.py": {
+   "sha256": "7569715aa68c10ba6bb38a147f073190d365855e8473251eabdcdf4fc058ae9a",
+   "explanation": "R1 观察协议负例套; 同上随 helper 入树"
+  },
+  "tools/orchestrator/internal/host/n04_pipe_sensitive_test.go": {
+   "sha256": "c73c5251c0b81ff85513485bc428376f5056342811fb523e1fd841cb1114829c",
+   "explanation": "R3 (第 1 轮返修) 新增的 N04 管道敏感组合判据; 相对 B 基线是新增成员, root 第 1/2 轮复核均已验收并钉入 REQUIRED"
+  }
+ },
+ "changed": {
+  "tasks/g0-completion/tests/test_owner_helper_production_pipeline.py": {
+   "baseline_sha256": "72bafcdc17c02da5cf07cd44795304cd82e43f28065abe54b12c42cf4ee3e6f3",
+   "final_sha256": "2d7665cdacc50239d774ad488078b54d36a0e7496247aaacc8bdc7aa2c1e0237",
+   "explanation": "收尾集成 C1 (D1): owner-ready 5s 硬观察改接单一 readline 协议 (两处调用点)"
+  },
+  "tools/native-product-bridge/test_local_service_chain.py": {
+   "baseline_sha256": "b893ea04c75e2fccb953fd9c68eaca757efc281fd12a38ee0e3229aefe654305",
+   "final_sha256": "12cce6f7af274f4d0c8d4430d1c7904b4b962e4bc24db0dce988c27dd93cc69c",
+   "explanation": "收尾集成 C1 (D1): owner-ready 5s 硬观察改接单一 readline 协议"
+  },
+  "tools/orchestrator/internal/host/stop_timing_test.go": {
+   "baseline_sha256": "9377183c743b8575834f00a012f10cad0a3a9fcb256c16188fbe9ef22bbb3ce4",
+   "final_sha256": "1322b337f1e214c695a82b3631f873f2417ecc707a2523b9db7a52b879e17781",
+   "explanation": "第 2 轮 F-A: 逐字并回 A 必测 TestProgressStaysBoundedWhileDescendantHoldsPipeAndNeverFinalizes, 合并后 SHA 即 A 冻结 1322b337…"
+  }
+ },
+ "removed": [],
+ "unexplained": [],
+ "ok": true
+}

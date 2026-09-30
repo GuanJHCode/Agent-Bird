@@ -1,0 +1,53 @@
+{
+ "root": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/candidate",
+ "members": [
+  {
+   "path": "evidence/R1/n02_owner_readiness_observer.RED.stub.py",
+   "sha256": "d0b7e1a938e2f022645278ad55d8e6e39497562834d47577fb92e7122d0e9380"
+  },
+  {
+   "path": "evidence/R1/n02_owner_readiness_observer.green.py",
+   "sha256": "96260b2e6b4efc2695345bb5f0ff432c8e4e119cef990d3b3f54a2b1dda8de12"
+  },
+  {
+   "path": "tasks/remaining-work-handoff-20260930/scripts/build_joint_closure.py",
+   "sha256": "efe4d249803bab1f6b4b0f7cdc872a54f44a10ce2a054b974d7a4408d4a380dd"
+  },
+  {
+   "path": "tasks/remaining-work-handoff-20260930/scripts/n03_s1_s3_storm.py",
+   "sha256": "d0d21649b3971e5eb7c53b153de45ec328d5f769d0b959a08f41819467a245d7"
+  },
+  {
+   "path": "tasks/remaining-work-handoff-20260930/scripts/run_n01.py",
+   "sha256": "a56c8d8ef205e97ebc3ebdd19b5e5f2d627ae3918add725da28d5307714e33dd"
+  },
+  {
+   "path": "tasks/remaining-work-handoff-20260930/scripts/test_n03_window_bounds.py",
+   "sha256": "32542d9c96eba0ba52dc56f96654107152d58e4fa65489da4729f2456a839f16"
+  },
+  {
+   "path": "tasks/remaining-work-handoff-20260930/scripts/test_run_n01_harness.py",
+   "sha256": "634ee5f7182b9bd0db60de48760620736134be8d3e75cc1c99d0753126d50a5d"
+  },
+  {
+   "path": "tools/native-product-bridge/n02_owner_readiness_observer.py",
+   "sha256": "96260b2e6b4efc2695345bb5f0ff432c8e4e119cef990d3b3f54a2b1dda8de12"
+  },
+  {
+   "path": "tools/native-product-bridge/test_n02_owner_readiness_observer.py",
+   "sha256": "7569715aa68c10ba6bb38a147f073190d365855e8473251eabdcdf4fc058ae9a"
+  },
+  {
+   "path": "tools/orchestrator/internal/host/n04_pipe_sensitive_test.go",
+   "sha256": "c73c5251c0b81ff85513485bc428376f5056342811fb523e1fd841cb1114829c"
+  },
+  {
+   "path": "tools/orchestrator/internal/host/progress_pipe_hold_test.go",
+   "sha256": "5fbe31b24b00a966e4a014025752c3a90c501bcb189adbd61a6fdc02fb391202"
+  },
+  {
+   "path": "tools/orchestrator/internal/store/progress_guards_test.go",
+   "sha256": "9f58b9e98e231a6daf092017707be6c1e1f8408f9990bb830c9e2d09ed22f54a"
+  }
+ ]
+}

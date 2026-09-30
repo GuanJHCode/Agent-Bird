@@ -1,0 +1,24 @@
+--- (2) 逐新增文件 git diff --no-index --check /dev/null <correct-path> ---
+rc=1  tasks/remaining-work-handoff-20260930/scripts/n03_s1_s3_storm.py
+rc=1  tasks/remaining-work-handoff-20260930/scripts/run_n01.py
+rc=1  tasks/remaining-work-handoff-20260930/scripts/test_n03_window_bounds.py
+rc=1  tasks/remaining-work-handoff-20260930/scripts/test_run_n01_harness.py
+rc=1  tools/native-product-bridge/n02_owner_readiness_observer.py
+rc=1  tools/native-product-bridge/test_n02_owner_readiness_observer.py
+rc=1  tools/orchestrator/internal/host/n04_pipe_sensitive_test.go
+rc=1  tools/orchestrator/internal/host/progress_pipe_hold_test.go
+rc=1  tools/orchestrator/internal/store/progress_guards_test.go
+
+--- (3) 负控制 A: 缺文件 (复现旧双重前缀 bug tools/orchestrator/tools/orchestrator/...) ---
+error: Could not access 'tools/orchestrator/tools/orchestrator/internal/host/progress_pipe_hold_test.go'
+rc=1
+
+--- (4) 负控制 B: 传目录 ---
+error: Could not access 'tools/orchestrator/internal/host/null'
+rc=
+
+--- (5) 负控制 C: 制造真实空白错误(尾随空格/EOF空行) 必须 RED ---
+tools/orchestrator/internal/host/_ws_bad_probe_test.go:3: trailing whitespace.
++func F() {	
+tools/orchestrator/internal/host/_ws_bad_probe_test.go:5: new blank line at EOF.
+rc=3

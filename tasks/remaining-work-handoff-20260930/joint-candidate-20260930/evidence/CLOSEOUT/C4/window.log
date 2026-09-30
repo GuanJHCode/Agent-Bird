@@ -1,0 +1,7 @@
+### window_open utc=2026-09-30T05:39:20Z load={ 6.67 7.37 6.53 }
+label: no-self-storm (只跑打包与安装校验, 不创建自建 churn/storm 负载)
+### candidate_built utc=2026-09-30T05:39:21Z load={ 6.67 7.37 6.53 }
+### install_done utc=2026-09-30T05:39:35Z load={ 9.11 7.87 6.72 }
+### window_close utc=2026-09-30T05:39:37Z load={ 9.34 7.93 6.75 }
+done utc=2026-09-30T05:39:37Z
+### finalize open utc=2026-09-30T05:44:33Z load={ 8.76 7.77 6.93 }

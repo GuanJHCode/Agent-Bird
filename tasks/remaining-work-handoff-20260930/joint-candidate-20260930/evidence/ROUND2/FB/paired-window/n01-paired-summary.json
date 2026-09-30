@@ -1,0 +1,568 @@
+{
+ "experiment": "N01-paired-fresh-warm-no-self-storm",
+ "self_storm": false,
+ "label": "no-self-storm (无本批自建 storm; 同机负载无法完全隔离, 不称 quiet/静默)",
+ "source_root": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/scratch/exp-n01",
+ "iters_per_arm": 10,
+ "precompiled_binary": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/ROUND2/FB/paired-window/n01probe.test",
+ "precompiled_binary_sha256": "489b58bb41e73192f466080ae5b71204359a00f751429cd97507fc69cc393ea1",
+ "compile_rc": 0,
+ "fresh": {
+  "n": 10,
+  "buckets": {
+   "success": 10
+  },
+  "verdict": "OK",
+  "success_samples": 10,
+  "p50_ms": 487.8,
+  "min_ms": 480.0,
+  "max_ms": 502.4,
+  "mean_ms": 489.6
+ },
+ "warm": {
+  "n": 10,
+  "buckets": {
+   "success": 10
+  },
+  "verdict": "OK",
+  "success_samples": 10,
+  "p50_ms": 483.6,
+  "min_ms": 445.9,
+  "max_ms": 490.7,
+  "mean_ms": 480.6
+ },
+ "rows": [
+  {
+   "arm": "fresh",
+   "index": 0,
+   "rc": 0,
+   "bucket": "success",
+   "wall_s": 1.794,
+   "running_to_m1_s": 0.502408504486084,
+   "elapsed_test_s": 0.603388542,
+   "status": "result_ready",
+   "provider_root": "/private/var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/TestN01S4TimelineProbe839543421/001",
+   "iter_json": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/ROUND2/FB/paired-window/fresh-00/iter-001.json"
+  },
+  {
+   "arm": "warm",
+   "index": 0,
+   "rc": 0,
+   "bucket": "success",
+   "wall_s": 0.547,
+   "running_to_m1_s": 0.44585633277893066,
+   "elapsed_test_s": 0.522039334,
+   "status": "result_ready",
+   "provider_root": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/ROUND2/FB/paired-window/_probeout/warmroot",
+   "iter_json": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/ROUND2/FB/paired-window/warm-00/iter-001.json"
+  },
+  {
+   "arm": "fresh",
+   "index": 1,
+   "rc": 0,
+   "bucket": "success",
+   "wall_s": 0.593,
+   "running_to_m1_s": 0.4877781867980957,
+   "elapsed_test_s": 0.572375542,
+   "status": "result_ready",
+   "provider_root": "/private/var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/TestN01S4TimelineProbe1454742798/001",
+   "iter_json": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/ROUND2/FB/paired-window/fresh-01/iter-001.json"
+  },
+  {
+   "arm": "warm",
+   "index": 1,
+   "rc": 0,
+   "bucket": "success",
+   "wall_s": 0.607,
+   "running_to_m1_s": 0.48982882499694824,
+   "elapsed_test_s": 0.570956416,
+   "status": "result_ready",
+   "provider_root": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/ROUND2/FB/paired-window/_probeout/warmroot",
+   "iter_json": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/ROUND2/FB/paired-window/warm-01/iter-001.json"
+  },
+  {
+   "arm": "fresh",
+   "index": 2,
+   "rc": 0,
+   "bucket": "success",
+   "wall_s": 0.638,
+   "running_to_m1_s": 0.4933300018310547,
+   "elapsed_test_s": 0.576293208,
+   "status": "result_ready",
+   "provider_root": "/private/var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/TestN01S4TimelineProbe3666279061/001",
+   "iter_json": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/ROUND2/FB/paired-window/fresh-02/iter-001.json"
+  },
+  {
+   "arm": "warm",
+   "index": 2,
+   "rc": 0,
+   "bucket": "success",
+   "wall_s": 0.587,
+   "running_to_m1_s": 0.4786999225616455,
+   "elapsed_test_s": 0.569514875,
+   "status": "result_ready",
+   "provider_root": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/ROUND2/FB/paired-window/_probeout/warmroot",
+   "iter_json": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/ROUND2/FB/paired-window/warm-02/iter-001.json"
+  },
+  {
+   "arm": "fresh",
+   "index": 3,
+   "rc": 0,
+   "bucket": "success",
+   "wall_s": 0.661,
+   "running_to_m1_s": 0.4986391067504883,
+   "elapsed_test_s": 0.5999565,
+   "status": "result_ready",
+   "provider_root": "/private/var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/TestN01S4TimelineProbe764890984/001",
+   "iter_json": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/ROUND2/FB/paired-window/fresh-03/iter-001.json"
+  },
+  {
+   "arm": "warm",
+   "index": 3,
+   "rc": 0,
+   "bucket": "success",
+   "wall_s": 0.601,
+   "running_to_m1_s": 0.49071788787841797,
+   "elapsed_test_s": 0.580872292,
+   "status": "result_ready",
+   "provider_root": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/ROUND2/FB/paired-window/_probeout/warmroot",
+   "iter_json": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/ROUND2/FB/paired-window/warm-03/iter-001.json"
+  },
+  {
+   "arm": "fresh",
+   "index": 4,
+   "rc": 0,
+   "bucket": "success",
+   "wall_s": 0.657,
+   "running_to_m1_s": 0.4867696762084961,
+   "elapsed_test_s": 0.586926833,
+   "status": "result_ready",
+   "provider_root": "/private/var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/TestN01S4TimelineProbe1014380534/001",
+   "iter_json": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/ROUND2/FB/paired-window/fresh-04/iter-001.json"
+  },
+  {
+   "arm": "warm",
+   "index": 4,
+   "rc": 0,
+   "bucket": "success",
+   "wall_s": 0.606,
+   "running_to_m1_s": 0.48091912269592285,
+   "elapsed_test_s": 0.575379083,
+   "status": "result_ready",
+   "provider_root": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/ROUND2/FB/paired-window/_probeout/warmroot",
+   "iter_json": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/ROUND2/FB/paired-window/warm-04/iter-001.json"
+  },
+  {
+   "arm": "fresh",
+   "index": 5,
+   "rc": 0,
+   "bucket": "success",
+   "wall_s": 0.642,
+   "running_to_m1_s": 0.48674750328063965,
+   "elapsed_test_s": 0.575693125,
+   "status": "result_ready",
+   "provider_root": "/private/var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/TestN01S4TimelineProbe135061000/001",
+   "iter_json": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/ROUND2/FB/paired-window/fresh-05/iter-001.json"
+  },
+  {
+   "arm": "warm",
+   "index": 5,
+   "rc": 0,
+   "bucket": "success",
+   "wall_s": 0.604,
+   "running_to_m1_s": 0.4846041202545166,
+   "elapsed_test_s": 0.570835834,
+   "status": "result_ready",
+   "provider_root": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/ROUND2/FB/paired-window/_probeout/warmroot",
+   "iter_json": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/ROUND2/FB/paired-window/warm-05/iter-001.json"
+  },
+  {
+   "arm": "fresh",
+   "index": 6,
+   "rc": 0,
+   "bucket": "success",
+   "wall_s": 0.585,
+   "running_to_m1_s": 0.490203857421875,
+   "elapsed_test_s": 0.567949167,
+   "status": "result_ready",
+   "provider_root": "/private/var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/TestN01S4TimelineProbe2553434381/001",
+   "iter_json": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/ROUND2/FB/paired-window/fresh-06/iter-001.json"
+  },
+  {
+   "arm": "warm",
+   "index": 6,
+   "rc": 0,
+   "bucket": "success",
+   "wall_s": 0.597,
+   "running_to_m1_s": 0.48947882652282715,
+   "elapsed_test_s": 0.580996541,
+   "status": "result_ready",
+   "provider_root": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/ROUND2/FB/paired-window/_probeout/warmroot",
+   "iter_json": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/ROUND2/FB/paired-window/warm-06/iter-001.json"
+  },
+  {
+   "arm": "fresh",
+   "index": 7,
+   "rc": 0,
+   "bucket": "success",
+   "wall_s": 0.649,
+   "running_to_m1_s": 0.48627161979675293,
+   "elapsed_test_s": 0.582530292,
+   "status": "result_ready",
+   "provider_root": "/private/var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/TestN01S4TimelineProbe3340879964/001",
+   "iter_json": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/ROUND2/FB/paired-window/fresh-07/iter-001.json"
+  },
+  {
+   "arm": "warm",
+   "index": 7,
+   "rc": 0,
+   "bucket": "success",
+   "wall_s": 0.6,
+   "running_to_m1_s": 0.48355603218078613,
+   "elapsed_test_s": 0.572964542,
+   "status": "result_ready",
+   "provider_root": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/ROUND2/FB/paired-window/_probeout/warmroot",
+   "iter_json": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/ROUND2/FB/paired-window/warm-07/iter-001.json"
+  },
+  {
+   "arm": "fresh",
+   "index": 8,
+   "rc": 0,
+   "bucket": "success",
+   "wall_s": 0.608,
+   "running_to_m1_s": 0.4800448417663574,
+   "elapsed_test_s": 0.560628584,
+   "status": "result_ready",
+   "provider_root": "/private/var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/TestN01S4TimelineProbe2626050945/001",
+   "iter_json": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/ROUND2/FB/paired-window/fresh-08/iter-001.json"
+  },
+  {
+   "arm": "warm",
+   "index": 8,
+   "rc": 0,
+   "bucket": "success",
+   "wall_s": 0.635,
+   "running_to_m1_s": 0.4800734519958496,
+   "elapsed_test_s": 0.570544667,
+   "status": "result_ready",
+   "provider_root": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/ROUND2/FB/paired-window/_probeout/warmroot",
+   "iter_json": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/ROUND2/FB/paired-window/warm-08/iter-001.json"
+  },
+  {
+   "arm": "fresh",
+   "index": 9,
+   "rc": 0,
+   "bucket": "success",
+   "wall_s": 0.642,
+   "running_to_m1_s": 0.48385143280029297,
+   "elapsed_test_s": 0.571642709,
+   "status": "result_ready",
+   "provider_root": "/private/var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/TestN01S4TimelineProbe4224826880/001",
+   "iter_json": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/ROUND2/FB/paired-window/fresh-09/iter-001.json"
+  },
+  {
+   "arm": "warm",
+   "index": 9,
+   "rc": 0,
+   "bucket": "success",
+   "wall_s": 0.602,
+   "running_to_m1_s": 0.4826517105102539,
+   "elapsed_test_s": 0.567882042,
+   "status": "result_ready",
+   "provider_root": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/ROUND2/FB/paired-window/_probeout/warmroot",
+   "iter_json": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/ROUND2/FB/paired-window/warm-09/iter-001.json"
+  }
+ ],
+ "interpretation": "running→child main(m1) 的 pre-user-code 首执行相关延迟; 本窗 fresh/warm 差分只在 provider 绝对路径是否跨迭代恒定时可比",
+ "experiment_id": "n01-paired-20260930T045449Z-25161",
+ "window_label": "N01 paired fresh/warm no-self-storm minimal window",
+ "window_log": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/ROUND2/FB/paired-window/window.log",
+ "utc_window_start": "2026-09-30T04:54:49Z",
+ "utc_window_end": "2026-09-30T04:55:03Z",
+ "load_start": [
+  3.55712890625,
+  3.3642578125,
+  4.00146484375
+ ],
+ "load_end": [
+  3.7216796875,
+  3.41064453125,
+  4.005859375
+ ],
+ "sysctl_loadavg_start": "{ 3.56 3.36 4.00 }",
+ "sysctl_loadavg_end": "{ 3.72 3.41 4.01 }",
+ "sub_window_bounds": [
+  {
+   "window": "compile",
+   "utc": "2026-09-30T04:54:50Z",
+   "sysctl_vm_loadavg": "{ 3.56 3.36 4.00 }",
+   "getloadavg": [
+    3.55712890625,
+    3.3642578125,
+    4.00146484375
+   ],
+   "gap_since_prev_mark_s": null,
+   "rc": 0
+  },
+  {
+   "window": "fresh-00",
+   "utc": "2026-09-30T04:54:52Z",
+   "sysctl_vm_loadavg": "{ 3.56 3.36 4.00 }",
+   "getloadavg": [
+    3.55712890625,
+    3.3642578125,
+    4.00146484375
+   ],
+   "gap_since_prev_mark_s": 2.0,
+   "rc": 0,
+   "bucket": "success"
+  },
+  {
+   "window": "warm-00",
+   "utc": "2026-09-30T04:54:52Z",
+   "sysctl_vm_loadavg": "{ 3.56 3.36 4.00 }",
+   "getloadavg": [
+    3.55712890625,
+    3.3642578125,
+    4.00146484375
+   ],
+   "gap_since_prev_mark_s": 0.0,
+   "rc": 0,
+   "bucket": "success"
+  },
+  {
+   "window": "fresh-01",
+   "utc": "2026-09-30T04:54:53Z",
+   "sysctl_vm_loadavg": "{ 3.56 3.36 4.00 }",
+   "getloadavg": [
+    3.55712890625,
+    3.3642578125,
+    4.00146484375
+   ],
+   "gap_since_prev_mark_s": 1.0,
+   "rc": 0,
+   "bucket": "success"
+  },
+  {
+   "window": "warm-01",
+   "utc": "2026-09-30T04:54:53Z",
+   "sysctl_vm_loadavg": "{ 3.59 3.37 4.00 }",
+   "getloadavg": [
+    3.59228515625,
+    3.37451171875,
+    4.0009765625
+   ],
+   "gap_since_prev_mark_s": 0.0,
+   "rc": 0,
+   "bucket": "success"
+  },
+  {
+   "window": "fresh-02",
+   "utc": "2026-09-30T04:54:54Z",
+   "sysctl_vm_loadavg": "{ 3.59 3.37 4.00 }",
+   "getloadavg": [
+    3.59228515625,
+    3.37451171875,
+    4.0009765625
+   ],
+   "gap_since_prev_mark_s": 1.0,
+   "rc": 0,
+   "bucket": "success"
+  },
+  {
+   "window": "warm-02",
+   "utc": "2026-09-30T04:54:55Z",
+   "sysctl_vm_loadavg": "{ 3.59 3.37 4.00 }",
+   "getloadavg": [
+    3.59228515625,
+    3.37451171875,
+    4.0009765625
+   ],
+   "gap_since_prev_mark_s": 1.0,
+   "rc": 0,
+   "bucket": "success"
+  },
+  {
+   "window": "fresh-03",
+   "utc": "2026-09-30T04:54:55Z",
+   "sysctl_vm_loadavg": "{ 3.59 3.37 4.00 }",
+   "getloadavg": [
+    3.59228515625,
+    3.37451171875,
+    4.0009765625
+   ],
+   "gap_since_prev_mark_s": 0.0,
+   "rc": 0,
+   "bucket": "success"
+  },
+  {
+   "window": "warm-03",
+   "utc": "2026-09-30T04:54:56Z",
+   "sysctl_vm_loadavg": "{ 3.59 3.37 4.00 }",
+   "getloadavg": [
+    3.59228515625,
+    3.37451171875,
+    4.0009765625
+   ],
+   "gap_since_prev_mark_s": 1.0,
+   "rc": 0,
+   "bucket": "success"
+  },
+  {
+   "window": "fresh-04",
+   "utc": "2026-09-30T04:54:57Z",
+   "sysctl_vm_loadavg": "{ 3.59 3.37 4.00 }",
+   "getloadavg": [
+    3.59228515625,
+    3.37451171875,
+    4.0009765625
+   ],
+   "gap_since_prev_mark_s": 1.0,
+   "rc": 0,
+   "bucket": "success"
+  },
+  {
+   "window": "warm-04",
+   "utc": "2026-09-30T04:54:57Z",
+   "sysctl_vm_loadavg": "{ 3.59 3.37 4.00 }",
+   "getloadavg": [
+    3.59228515625,
+    3.37451171875,
+    4.0009765625
+   ],
+   "gap_since_prev_mark_s": 0.0,
+   "rc": 0,
+   "bucket": "success"
+  },
+  {
+   "window": "fresh-05",
+   "utc": "2026-09-30T04:54:58Z",
+   "sysctl_vm_loadavg": "{ 3.59 3.37 4.00 }",
+   "getloadavg": [
+    3.59228515625,
+    3.37451171875,
+    4.0009765625
+   ],
+   "gap_since_prev_mark_s": 1.0,
+   "rc": 0,
+   "bucket": "success"
+  },
+  {
+   "window": "warm-05",
+   "utc": "2026-09-30T04:54:58Z",
+   "sysctl_vm_loadavg": "{ 3.78 3.42 4.01 }",
+   "getloadavg": [
+    3.78466796875,
+    3.41796875,
+    4.01220703125
+   ],
+   "gap_since_prev_mark_s": 0.0,
+   "rc": 0,
+   "bucket": "success"
+  },
+  {
+   "window": "fresh-06",
+   "utc": "2026-09-30T04:54:59Z",
+   "sysctl_vm_loadavg": "{ 3.78 3.42 4.01 }",
+   "getloadavg": [
+    3.78466796875,
+    3.41796875,
+    4.01220703125
+   ],
+   "gap_since_prev_mark_s": 1.0,
+   "rc": 0,
+   "bucket": "success"
+  },
+  {
+   "window": "warm-06",
+   "utc": "2026-09-30T04:55:00Z",
+   "sysctl_vm_loadavg": "{ 3.78 3.42 4.01 }",
+   "getloadavg": [
+    3.78466796875,
+    3.41796875,
+    4.01220703125
+   ],
+   "gap_since_prev_mark_s": 1.0,
+   "rc": 0,
+   "bucket": "success"
+  },
+  {
+   "window": "fresh-07",
+   "utc": "2026-09-30T04:55:00Z",
+   "sysctl_vm_loadavg": "{ 3.78 3.42 4.01 }",
+   "getloadavg": [
+    3.78466796875,
+    3.41796875,
+    4.01220703125
+   ],
+   "gap_since_prev_mark_s": 0.0,
+   "rc": 0,
+   "bucket": "success"
+  },
+  {
+   "window": "warm-07",
+   "utc": "2026-09-30T04:55:01Z",
+   "sysctl_vm_loadavg": "{ 3.78 3.42 4.01 }",
+   "getloadavg": [
+    3.78466796875,
+    3.41796875,
+    4.01220703125
+   ],
+   "gap_since_prev_mark_s": 1.0,
+   "rc": 0,
+   "bucket": "success"
+  },
+  {
+   "window": "fresh-08",
+   "utc": "2026-09-30T04:55:02Z",
+   "sysctl_vm_loadavg": "{ 3.78 3.42 4.01 }",
+   "getloadavg": [
+    3.78466796875,
+    3.41796875,
+    4.01220703125
+   ],
+   "gap_since_prev_mark_s": 1.0,
+   "rc": 0,
+   "bucket": "success"
+  },
+  {
+   "window": "warm-08",
+   "utc": "2026-09-30T04:55:02Z",
+   "sysctl_vm_loadavg": "{ 3.78 3.42 4.01 }",
+   "getloadavg": [
+    3.78466796875,
+    3.41796875,
+    4.01220703125
+   ],
+   "gap_since_prev_mark_s": 0.0,
+   "rc": 0,
+   "bucket": "success"
+  },
+  {
+   "window": "fresh-09",
+   "utc": "2026-09-30T04:55:03Z",
+   "sysctl_vm_loadavg": "{ 3.78 3.42 4.01 }",
+   "getloadavg": [
+    3.78466796875,
+    3.41796875,
+    4.01220703125
+   ],
+   "gap_since_prev_mark_s": 1.0,
+   "rc": 0,
+   "bucket": "success"
+  },
+  {
+   "window": "warm-09",
+   "utc": "2026-09-30T04:55:03Z",
+   "sysctl_vm_loadavg": "{ 3.72 3.41 4.01 }",
+   "getloadavg": [
+    3.7216796875,
+    3.41064453125,
+    4.005859375
+   ],
+   "gap_since_prev_mark_s": 0.0,
+   "rc": 0,
+   "bucket": "success"
+  }
+ ]
+}

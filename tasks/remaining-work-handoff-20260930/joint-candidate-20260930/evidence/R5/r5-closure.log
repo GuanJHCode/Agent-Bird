@@ -1,0 +1,15 @@
+R5 joint closure evidence 2026-09-30T04:00:38Z
+=== emit result ===
+REQUIRED.json
+candidate-source-manifest.json
+evidence-manifest.json
+=== verify (pristine) : expect ok=true ===
+{"ok": true, "root": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/candidate", "required": 15, "failures": []}
+=== cold-relocation: copy candidate to new abs root, re-verify same manifests : expect ok=true (proves no hardcoded root) ===
+{"ok": true, "root": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/scratch/reloc-candidate", "required": 15, "failures": []}
+=== negative control: hide one REQUIRED (n04_pipe_sensitive_test.go) : expect required_source_missing ===
+{"ok": false, "root": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/scratch/reloc-candidate", "required": 15, "failures": [{"manifest": "candidate-source-manifest.json", "issue": "manifest-path-missing-on-disk", "path": "tools/orchestrator/internal/host/n04_pipe_sensitive_test.go"}, {"issue": "required_source_missing", "path": "tools/orchestrator/internal/host/n04_pipe_sensitive_test.go"}]}
+verify-rc=1
+=== negative control: tamper one REQUIRED SHA (append newline) : expect sha-mismatch ===
+{"ok": false, "root": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/scratch/reloc-candidate", "required": 15, "failures": [{"manifest": "candidate-source-manifest.json", "issue": "sha-mismatch", "path": "tools/native-product-bridge/n02_owner_readiness_observer.py"}]}
+verify-rc=1

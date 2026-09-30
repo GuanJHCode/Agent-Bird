@@ -1,0 +1,16 @@
+Traceback (most recent call last):
+  File "/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/CLOSEOUT/C4/make_closeout_receipt.py", line 268, in <module>
+    raise SystemExit(main())
+                     ~~~~^^
+  File "/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/CLOSEOUT/C4/make_closeout_receipt.py", line 246, in main
+    receipt = build_receipt(workspace, args)
+  File "/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/CLOSEOUT/C4/make_closeout_receipt.py", line 172, in build_receipt
+    (workspace / "evidence" / "CLOSEOUT" / "C4" / "negative-controls.json").read_text()),
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/pathlib/__init__.py", line 787, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors, newline=newline) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/pathlib/__init__.py", line 771, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/CLOSEOUT/C4/negative-controls.json'

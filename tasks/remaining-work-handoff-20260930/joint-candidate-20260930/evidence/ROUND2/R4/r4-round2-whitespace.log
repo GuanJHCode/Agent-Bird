@@ -1,0 +1,33 @@
+candidate/evidence/R1/n02_owner_readiness_observer.RED.stub.py rc=1
+candidate/evidence/R1/n02_owner_readiness_observer.green.py rc=1
+candidate/evidence/ROUND2/FB/red/run_n01.py rc=1
+candidate/evidence/ROUND2/FB/red/test_run_n01_harness.py rc=1
+candidate/evidence/ROUND2/FB/redstub/make_fb_red_stub.py rc=1
+candidate/evidence/ROUND2/FB/redstub/run_n01.py rc=1
+candidate/evidence/ROUND2/FC/red/n03_s1_s3_storm.py rc=1
+candidate/evidence/ROUND2/FC/red/test_n03_window_bounds.py rc=1
+candidate/evidence/ROUND2/FC/redstub/make_fc_red_stub.py rc=1
+candidate/evidence/ROUND2/FC/redstub/n03_s1_s3_storm.py rc=1
+candidate/tasks/remaining-work-handoff-20260930/scripts/build_joint_closure.py rc=1
+candidate/tasks/remaining-work-handoff-20260930/scripts/identity_diff_round2.py rc=1
+candidate/tasks/remaining-work-handoff-20260930/scripts/n03_s1_s3_storm.py rc=1
+candidate/tasks/remaining-work-handoff-20260930/scripts/run_n01.py rc=1
+candidate/tasks/remaining-work-handoff-20260930/scripts/test_n03_window_bounds.py rc=1
+candidate/tasks/remaining-work-handoff-20260930/scripts/test_run_n01_harness.py rc=1
+candidate/tools/native-product-bridge/n02_owner_readiness_observer.py rc=1
+candidate/tools/native-product-bridge/test_n02_owner_readiness_observer.py rc=1
+candidate/tools/orchestrator/internal/host/n04_pipe_sensitive_test.go rc=1
+candidate/tools/orchestrator/internal/host/progress_pipe_hold_test.go rc=1
+candidate/tools/orchestrator/internal/host/stop_timing_test.go rc=1
+candidate/tools/orchestrator/internal/store/progress_guards_test.go rc=1
+
+=== 负控制 (证明判据非空集真空) ===
+planted rc=3
+planted output: /tmp/r4neg/planted.py:1: trailing whitespace.
++x = 1   
+/tmp/r4neg/planted.py:2: new blank line at EOF.
+clean rc=1
+clean output: []
+
+判据语义: rc=1 表示与 /dev/null 不同但无空白违规 (stdout 空); rc=3 + stdout 违规行 = 有空白问题。
+本轮交付面 .go/.py 逐路径 stdout 违规行计数: 0

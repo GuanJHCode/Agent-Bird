@@ -1,0 +1,6 @@
+=== RUN   TestN04PipeSensitiveDescendantHoldingStdoutIsNecessary
+--- PASS: TestN04PipeSensitiveDescendantHoldingStdoutIsNecessary (1.58s)
+=== RUN   TestProgressStaysBoundedWhileDescendantHoldsPipeAndNeverFinalizes
+--- PASS: TestProgressStaysBoundedWhileDescendantHoldsPipeAndNeverFinalizes (0.86s)
+PASS
+ok  	codex-cli-orchestration-design/tools/orchestrator/internal/host	3.009s

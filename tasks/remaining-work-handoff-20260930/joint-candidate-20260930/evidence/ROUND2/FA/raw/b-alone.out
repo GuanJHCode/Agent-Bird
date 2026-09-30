@@ -1,0 +1,4 @@
+=== RUN   TestN04PipeSensitiveDescendantHoldingStdoutIsNecessary
+--- PASS: TestN04PipeSensitiveDescendantHoldingStdoutIsNecessary (1.58s)
+PASS
+ok  	codex-cli-orchestration-design/tools/orchestrator/internal/host	2.151s

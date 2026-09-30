@@ -1,0 +1,93 @@
+{
+ "root": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/candidate",
+ "members": [
+  {
+   "path": "evidence/R1/n02_owner_readiness_observer.RED.stub.py",
+   "sha256": "d0b7e1a938e2f022645278ad55d8e6e39497562834d47577fb92e7122d0e9380"
+  },
+  {
+   "path": "evidence/R1/n02_owner_readiness_observer.green.py",
+   "sha256": "96260b2e6b4efc2695345bb5f0ff432c8e4e119cef990d3b3f54a2b1dda8de12"
+  },
+  {
+   "path": "evidence/ROUND2/FB/red/run_n01.py",
+   "sha256": "59fd76c9fb1824d37287cde7e4dea522f294510a1a7fea5ef9861c129fbb59dc"
+  },
+  {
+   "path": "evidence/ROUND2/FB/red/test_run_n01_harness.py",
+   "sha256": "98a91148c1d4085dd6b93544b07d53bb7f58d1cf5de57fcae116dbb22522fa56"
+  },
+  {
+   "path": "evidence/ROUND2/FB/redstub/make_fb_red_stub.py",
+   "sha256": "6ff962273e13676f2df37ed023b8a868ec203ab28abb4000f1b371f5aebe9adb"
+  },
+  {
+   "path": "evidence/ROUND2/FB/redstub/run_n01.py",
+   "sha256": "59fd76c9fb1824d37287cde7e4dea522f294510a1a7fea5ef9861c129fbb59dc"
+  },
+  {
+   "path": "evidence/ROUND2/FC/red/n03_s1_s3_storm.py",
+   "sha256": "41ef79d6bb1f8f53677551f868adc65d9ec9ecff156223db8c63d94d7e4459bb"
+  },
+  {
+   "path": "evidence/ROUND2/FC/red/test_n03_window_bounds.py",
+   "sha256": "3893f99c9a1d00c7b9cc4cea1aabb13c946a7ad9a91ea59ce68842f4d9f26819"
+  },
+  {
+   "path": "evidence/ROUND2/FC/redstub/make_fc_red_stub.py",
+   "sha256": "c3075742cf267968191444b9921392e6362cba577b7acc3595b4f1da2ecbaba2"
+  },
+  {
+   "path": "evidence/ROUND2/FC/redstub/n03_s1_s3_storm.py",
+   "sha256": "41ef79d6bb1f8f53677551f868adc65d9ec9ecff156223db8c63d94d7e4459bb"
+  },
+  {
+   "path": "tasks/remaining-work-handoff-20260930/scripts/build_joint_closure.py",
+   "sha256": "5b3674cb815a75d17650eced5e9f8f468c009bae54308cda13e44a72699c512a"
+  },
+  {
+   "path": "tasks/remaining-work-handoff-20260930/scripts/identity_diff_round2.py",
+   "sha256": "200d06acd5794a95ca549fe0b837910703906b684976854f0186207095f10a79"
+  },
+  {
+   "path": "tasks/remaining-work-handoff-20260930/scripts/n03_s1_s3_storm.py",
+   "sha256": "30376e718528684c93ee6ad803420fe36105ad6c0c824b1d0ebd5364f7b6894d"
+  },
+  {
+   "path": "tasks/remaining-work-handoff-20260930/scripts/run_n01.py",
+   "sha256": "6efb263ad26dbec4b3b27078fac22729ddb4a2c8465f3973e872e1a09f72c9bb"
+  },
+  {
+   "path": "tasks/remaining-work-handoff-20260930/scripts/test_n03_window_bounds.py",
+   "sha256": "3893f99c9a1d00c7b9cc4cea1aabb13c946a7ad9a91ea59ce68842f4d9f26819"
+  },
+  {
+   "path": "tasks/remaining-work-handoff-20260930/scripts/test_run_n01_harness.py",
+   "sha256": "98a91148c1d4085dd6b93544b07d53bb7f58d1cf5de57fcae116dbb22522fa56"
+  },
+  {
+   "path": "tools/native-product-bridge/n02_owner_readiness_observer.py",
+   "sha256": "96260b2e6b4efc2695345bb5f0ff432c8e4e119cef990d3b3f54a2b1dda8de12"
+  },
+  {
+   "path": "tools/native-product-bridge/test_n02_owner_readiness_observer.py",
+   "sha256": "7569715aa68c10ba6bb38a147f073190d365855e8473251eabdcdf4fc058ae9a"
+  },
+  {
+   "path": "tools/orchestrator/internal/host/n04_pipe_sensitive_test.go",
+   "sha256": "c73c5251c0b81ff85513485bc428376f5056342811fb523e1fd841cb1114829c"
+  },
+  {
+   "path": "tools/orchestrator/internal/host/progress_pipe_hold_test.go",
+   "sha256": "5fbe31b24b00a966e4a014025752c3a90c501bcb189adbd61a6fdc02fb391202"
+  },
+  {
+   "path": "tools/orchestrator/internal/host/stop_timing_test.go",
+   "sha256": "1322b337f1e214c695a82b3631f873f2417ecc707a2523b9db7a52b879e17781"
+  },
+  {
+   "path": "tools/orchestrator/internal/store/progress_guards_test.go",
+   "sha256": "9f58b9e98e231a6daf092017707be6c1e1f8408f9990bb830c9e2d09ed22f54a"
+  }
+ ]
+}

@@ -1,0 +1,57 @@
+.FF.F                                                                    [100%]
+=================================== FAILURES ===================================
+________ test_c1_owner_ready_observation_contract[failure-before-ready] ________
+
+case = 'failure-before-ready'
+
+    @pytest.mark.parametrize("case", sorted(CASES))
+    def test_c1_owner_ready_observation_contract(case):
+        expect_accept, expect_stage = CASES[case]
+        accepted, exception = asyncio.run(_observe(case))
+        if expect_accept:
+            assert exception is None, f"{case}: D1 requires no false reject, got {exception!r}"
+            assert accepted is True, f"{case}: D1 requires accepted observation"
+            return
+>       assert accepted is not True, (
+            f"{case}: D1 requires rejection before 5s-only acceptance, but observation accepted")
+E       AssertionError: failure-before-ready: D1 requires rejection before 5s-only acceptance, but observation accepted
+E       assert True is not True
+
+../../evidence/CLOSEOUT/C1/test_c1_consumer_wiring_probe.py:158: AssertionError
+____________ test_c1_owner_ready_observation_contract[late-success] ____________
+
+case = 'late-success'
+
+    @pytest.mark.parametrize("case", sorted(CASES))
+    def test_c1_owner_ready_observation_contract(case):
+        expect_accept, expect_stage = CASES[case]
+        accepted, exception = asyncio.run(_observe(case))
+        if expect_accept:
+>           assert exception is None, f"{case}: D1 requires no false reject, got {exception!r}"
+E           AssertionError: late-success: D1 requires no false reject, got TimeoutError()
+E           assert TimeoutError() is None
+
+../../evidence/CLOSEOUT/C1/test_c1_consumer_wiring_probe.py:155: AssertionError
+________ test_c1_owner_ready_observation_contract[stale-lease-identity] ________
+
+case = 'stale-lease-identity'
+
+    @pytest.mark.parametrize("case", sorted(CASES))
+    def test_c1_owner_ready_observation_contract(case):
+        expect_accept, expect_stage = CASES[case]
+        accepted, exception = asyncio.run(_observe(case))
+        if expect_accept:
+            assert exception is None, f"{case}: D1 requires no false reject, got {exception!r}"
+            assert accepted is True, f"{case}: D1 requires accepted observation"
+            return
+>       assert accepted is not True, (
+            f"{case}: D1 requires rejection before 5s-only acceptance, but observation accepted")
+E       AssertionError: stale-lease-identity: D1 requires rejection before 5s-only acceptance, but observation accepted
+E       assert True is not True
+
+../../evidence/CLOSEOUT/C1/test_c1_consumer_wiring_probe.py:158: AssertionError
+=========================== short test summary info ============================
+FAILED ../../evidence/CLOSEOUT/C1/test_c1_consumer_wiring_probe.py::test_c1_owner_ready_observation_contract[failure-before-ready]
+FAILED ../../evidence/CLOSEOUT/C1/test_c1_consumer_wiring_probe.py::test_c1_owner_ready_observation_contract[late-success]
+FAILED ../../evidence/CLOSEOUT/C1/test_c1_consumer_wiring_probe.py::test_c1_owner_ready_observation_contract[stale-lease-identity]
+3 failed, 2 passed in 7.57s

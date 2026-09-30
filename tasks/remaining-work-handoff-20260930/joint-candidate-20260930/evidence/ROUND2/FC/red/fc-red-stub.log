@@ -1,0 +1,251 @@
+.FF.F.                                                                   [100%]
+=================================== FAILURES ===================================
+____________ test_window_ledger_has_utc_bounds_load_and_storm_state ____________
+
+tmp_path = PosixPath('/private/var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/pytest-of-guanjunhui/pytest-134/test_window_ledger_has_utc_bou0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1089fdba0>
+
+    def test_window_ledger_has_utc_bounds_load_and_storm_state(tmp_path, monkeypatch):
+        rep = _run_offline(H, tmp_path, monkeypatch)
+        bounds = rep["window_bounds"]
+        assert list(bounds) == WINDOWS, sorted(bounds)
+        assert rep["window_order"] == WINDOWS
+        required_keys = ("start", "end", "load_start", "load_end", "sysctl_loadavg_start",
+                         "sysctl_loadavg_end", "self_storm_active", "duration_s",
+                         "gap_since_prev_window_end_s")
+        for name in WINDOWS:
+            missing = [k for k in required_keys if k not in bounds[name]]
+>           assert not missing, (name, missing, sorted(bounds[name]))
+E           AssertionError: ('warm', ['load_start', 'load_end', 'sysctl_loadavg_start', 'sysctl_loadavg_end', 'self_storm_active', 'duration_s', ...], ['end', 'start'])
+E           assert not ['load_start', 'load_end', 'sysctl_loadavg_start', 'sysctl_loadavg_end', 'self_storm_active', 'duration_s', ...]
+
+test_n03_window_bounds.py:161: AssertionError
+----------------------------- Captured stdout call -----------------------------
+{
+ "experiment_id": "n03-cause-storm-20260930T044907Z-22988",
+ "started": "2026-09-30T04:49:07Z",
+ "finished": "2026-09-30T04:49:11Z",
+ "storm_active": true,
+ "churn": {
+  "count": 100,
+  "p50_ms": 1500.0,
+  "p99_ms": 2000.0,
+  "max_ms": 3000.0,
+  "ge_1900ms": 5
+ },
+ "quiet_counts": {
+  "S1": {
+   "pass": 10
+  },
+  "S3": {
+   "pass": 10
+  }
+ },
+ "storm_counts": {
+  "S1": {
+   "pass": 10
+  },
+  "S3": {
+   "pass": 10
+  }
+ },
+ "cause_units_rc": 0,
+ "measurer_gaps": [
+  {
+   "gap": "window-metadata-incomplete",
+   "window": "warm",
+   "missing": [
+    "load_start",
+    "load_end",
+    "sysctl_loadavg_start",
+    "sysctl_loadavg_end",
+    "self_storm_active"
+   ]
+  },
+  {
+   "gap": "window-metadata-incomplete",
+   "window": "quiet_controls",
+   "missing": [
+    "load_start",
+    "load_end",
+    "sysctl_loadavg_start",
+    "sysctl_loadavg_end",
+    "self_storm_active"
+   ]
+  },
+  {
+   "gap": "window-metadata-incomplete",
+   "window": "cause_observation_quiet",
+   "missing": [
+    "load_start",
+    "load_end",
+    "sysctl_loadavg_start",
+    "sysctl_loadavg_end",
+    "self_storm_active"
+   ]
+  },
+  {
+   "gap": "window-metadata-incomplete",
+   "window": "cause_chain_units",
+   "missing": [
+    "load_start",
+    "load_end",
+    "sysctl_loadavg_start",
+    "sysctl_loadavg_end",
+    "self_storm_active"
+   ]
+  },
+  {
+   "gap": "window-metadata-incomplete",
+   "window": "storm_windows",
+   "missing": [
+    "load_start",
+    "load_end",
+    "sysctl_loadavg_start",
+    "sysctl_loadavg_end",
+    "self_storm_active"
+   ]
+  },
+  {
+   "gap": "window-metadata-incomplete",
+   "window": "cause_observation_storm",
+   "missing": [
+    "load_start",
+    "load_end",
+    "sysctl_loadavg_start",
+    "sysctl_loadavg_end",
+    "self_storm_active"
+   ]
+  }
+ ]
+}
+_____________ test_window_ledger_records_intervals_between_windows _____________
+
+tmp_path = PosixPath('/private/var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/pytest-of-guanjunhui/pytest-134/test_window_ledger_records_int0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x108c44950>
+
+    def test_window_ledger_records_intervals_between_windows(tmp_path, monkeypatch):
+        rep = _run_offline(H, tmp_path, monkeypatch)
+        bounds = rep["window_bounds"]
+>       assert bounds[WINDOWS[0]]["gap_since_prev_window_end_s"] is None
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'gap_since_prev_window_end_s'
+
+test_n03_window_bounds.py:187: KeyError
+----------------------------- Captured stdout call -----------------------------
+{
+ "experiment_id": "n03-cause-storm-20260930T044911Z-22988",
+ "started": "2026-09-30T04:49:11Z",
+ "finished": "2026-09-30T04:49:15Z",
+ "storm_active": true,
+ "churn": {
+  "count": 100,
+  "p50_ms": 1500.0,
+  "p99_ms": 2000.0,
+  "max_ms": 3000.0,
+  "ge_1900ms": 5
+ },
+ "quiet_counts": {
+  "S1": {
+   "pass": 10
+  },
+  "S3": {
+   "pass": 10
+  }
+ },
+ "storm_counts": {
+  "S1": {
+   "pass": 10
+  },
+  "S3": {
+   "pass": 10
+  }
+ },
+ "cause_units_rc": 0,
+ "measurer_gaps": [
+  {
+   "gap": "window-metadata-incomplete",
+   "window": "warm",
+   "missing": [
+    "load_start",
+    "load_end",
+    "sysctl_loadavg_start",
+    "sysctl_loadavg_end",
+    "self_storm_active"
+   ]
+  },
+  {
+   "gap": "window-metadata-incomplete",
+   "window": "quiet_controls",
+   "missing": [
+    "load_start",
+    "load_end",
+    "sysctl_loadavg_start",
+    "sysctl_loadavg_end",
+    "self_storm_active"
+   ]
+  },
+  {
+   "gap": "window-metadata-incomplete",
+   "window": "cause_observation_quiet",
+   "missing": [
+    "load_start",
+    "load_end",
+    "sysctl_loadavg_start",
+    "sysctl_loadavg_end",
+    "self_storm_active"
+   ]
+  },
+  {
+   "gap": "window-metadata-incomplete",
+   "window": "cause_chain_units",
+   "missing": [
+    "load_start",
+    "load_end",
+    "sysctl_loadavg_start",
+    "sysctl_loadavg_end",
+    "self_storm_active"
+   ]
+  },
+  {
+   "gap": "window-metadata-incomplete",
+   "window": "storm_windows",
+   "missing": [
+    "load_start",
+    "load_end",
+    "sysctl_loadavg_start",
+    "sysctl_loadavg_end",
+    "self_storm_active"
+   ]
+  },
+  {
+   "gap": "window-metadata-incomplete",
+   "window": "cause_observation_storm",
+   "missing": [
+    "load_start",
+    "load_end",
+    "sysctl_loadavg_start",
+    "sysctl_loadavg_end",
+    "self_storm_active"
+   ]
+  }
+ ]
+}
+__________________ test_source_root_and_go_are_parameterized ___________________
+
+tmp_path = PosixPath('/private/var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/pytest-of-guanjunhui/pytest-134/test_source_root_and_go_are_pa0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1089fb350>
+
+    def test_source_root_and_go_are_parameterized(tmp_path, monkeypatch):
+        ws, go = tmp_path / "ws", tmp_path / "go"
+>       assert H.resolve_ws({}, ["prog", "out", str(ws)]) == ws
+E       AssertionError: assert PosixPath('/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/tasks/remaining-work-handoff-20260930/tmp/workspace/tools/orchestrator') == PosixPath('/private/var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/pytest-of-guanjunhui/pytest-134/test_source_root_and_go_are_pa0/ws')
+E        +  where PosixPath('/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/tasks/remaining-work-handoff-20260930/tmp/workspace/tools/orchestrator') = <function resolve_ws at 0x108a49dd0>({}, ['prog', 'out', '/private/var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/pytest-of-guanjunhui/pytest-134/test_source_root_and_go_are_pa0/ws'])
+E        +    where <function resolve_ws at 0x108a49dd0> = H.resolve_ws
+
+test_n03_window_bounds.py:205: AssertionError
+=========================== short test summary info ============================
+FAILED test_n03_window_bounds.py::test_window_ledger_has_utc_bounds_load_and_storm_state
+FAILED test_n03_window_bounds.py::test_window_ledger_records_intervals_between_windows
+FAILED test_n03_window_bounds.py::test_source_root_and_go_are_parameterized
+3 failed, 3 passed in 16.24s

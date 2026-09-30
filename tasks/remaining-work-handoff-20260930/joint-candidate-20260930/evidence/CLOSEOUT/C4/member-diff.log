@@ -1,0 +1,1 @@
+{"ok": false, "counts": {"added": 3, "removed": 0, "changed": 3, "identical": 1828}, "baseline_members": 1831, "final_members": 1834, "unexplained": ["tools/orchestrator/internal/host/n04_pipe_sensitive_test.go"], "out": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/CLOSEOUT/C4/member-diff-vs-baseline.json"}

@@ -1,0 +1,18 @@
+=== 第 1 轮原件未被改动 (逐文件 SHA, 与第 2 轮实测一致) ===
+0124c99a7c867e82465afd22b3db4677ff01c9309db0a6f224e7f52c58ef62b8  /private/tmp/bird-nseries-repair-20260930-3bcaf2/candidate/evidence/R7/r7-ordinary.jsonl
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  /private/tmp/bird-nseries-repair-20260930-3bcaf2/candidate/evidence/R7/r7-ordinary.stderr
+937d6c3c87f2ae09b61062ba21e8eb00a6657798d09622d2f522b3be3890e4ca  /private/tmp/bird-nseries-repair-20260930-3bcaf2/candidate/evidence/R7/r7-python-packaging.log
+ebc5d65ea105972776a25291d422eb02365723f0126470f4b2e34410a302e42a  /private/tmp/bird-nseries-repair-20260930-3bcaf2/candidate/evidence/R7/r7-race.jsonl
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  /private/tmp/bird-nseries-repair-20260930-3bcaf2/candidate/evidence/R7/r7-race.stderr
+aac33f87e0536d0674334d4d778fc8025d75bb37993cc2cf1b669eb14df75cd6  /private/tmp/bird-nseries-repair-20260930-3bcaf2/candidate/evidence/R7/r7-vet-build.log
+
+=== 第 1 轮 paired 旧窗原件保留 (窗端缺失本身未被改写) ===
+d331b723c268f989a98dc101e588a7aaef94dedaa1add53f726ef1c21ae2fe7e  /private/tmp/bird-nseries-repair-20260930-3bcaf2/candidate/evidence/R2/n01-paired/window.log
+7d14dfac475042ce54943df2ccfbcead58f2b50603716208aa89e50f113a00ab  /private/tmp/bird-nseries-repair-20260930-3bcaf2/candidate/evidence/R2/n01-paired/n01-paired-summary.json
+
+N01 paired fresh/warm window: start=2026-09-30T03:56:01Z end=
+load_start={ 7.55 8.68 9.54 } load_end=
+
+=== 与 workspace 侧同一文件的比对 (证明 candidate 副本 == 原件) ===
+identical=yes
+r7-ordinary identical=yes

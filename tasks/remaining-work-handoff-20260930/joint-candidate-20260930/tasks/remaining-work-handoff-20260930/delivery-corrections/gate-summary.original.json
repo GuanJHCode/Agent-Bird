@@ -1,0 +1,69 @@
+{
+  "go-test": {
+    "tests": {
+      "pass": 730,
+      "skip": 2
+    },
+    "packages": {
+      "skip": 1,
+      "pass": 14
+    },
+    "skips": [
+      {
+        "package": "codex-cli-orchestration-design/tools/orchestrator/internal/contract",
+        "test": null
+      },
+      {
+        "package": "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator",
+        "test": "TestRealClaudeManagedCandidate"
+      },
+      {
+        "package": "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator",
+        "test": "TestRealClaudeReviewerProfile"
+      }
+    ]
+  },
+  "go-race": {
+    "tests": {
+      "pass": 730,
+      "skip": 2
+    },
+    "packages": {
+      "skip": 1,
+      "pass": 14
+    },
+    "skips": [
+      {
+        "package": "codex-cli-orchestration-design/tools/orchestrator/internal/contract",
+        "test": null
+      },
+      {
+        "package": "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator",
+        "test": "TestRealClaudeManagedCandidate"
+      },
+      {
+        "package": "codex-cli-orchestration-design/tools/orchestrator/cmd/orchestrator",
+        "test": "TestRealClaudeReviewerProfile"
+      }
+    ]
+  },
+  "diff-check-exit": 1,
+  "go-build-exit": 0,
+  "go-race-exit": 0,
+  "go-test-exit": 0,
+  "go-vet-exit": 0,
+  "python-exit": 0,
+  "python": {
+    "tests": 309,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 1,
+    "skipDetails": [
+      {
+        "test": "test_fixed_native_refresh_tripwire_blocks_oauth_egress",
+        "reason": "native auth tripwire requires explicit fixed-binary opt-in"
+      }
+    ]
+  },
+  "passed": false
+}

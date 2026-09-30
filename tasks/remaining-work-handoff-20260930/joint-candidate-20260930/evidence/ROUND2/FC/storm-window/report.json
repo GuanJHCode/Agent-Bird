@@ -1,0 +1,559 @@
+{
+ "limits": {
+  "storm_threads": 8,
+  "churn_cap": 3200,
+  "storm_duration_s": 150.0,
+  "windows": [
+   "quiet",
+   "storm(1)"
+  ],
+  "iterations_per_identity": {
+   "quiet": 10,
+   "storm": 10
+  }
+ },
+ "experiment_id": "n03-cause-storm-20260930T045503Z-25305",
+ "outer_window_label": "no-self-storm",
+ "label_note": "本实验的受控 churn storm 是本批自建负载, 逐窗以 self_storm_active 如实区分; 外层独占窗序列标签 no-self-storm 只表示「该窗内没有本批自建 storm 在跑」, 绝不表示机器安静。",
+ "resolved": {
+  "source_root": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/scratch/primary/tools/orchestrator",
+  "go": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+  "gocache": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/scratch/gocache-primary",
+  "gomodcache": "/Users/guanjunhui/go/pkg/mod"
+ },
+ "started": "2026-09-30T04:55:03Z",
+ "window_bounds": {
+  "warm": {
+   "start": "2026-09-30T04:55:03Z",
+   "load_start": [
+    3.7216796875,
+    3.41064453125,
+    4.005859375
+   ],
+   "sysctl_loadavg_start": "{ 3.72 3.41 4.01 }",
+   "self_storm_active": false,
+   "gap_since_prev_window_end_s": null,
+   "end": "2026-09-30T04:55:11Z",
+   "load_end": [
+    4.62451171875,
+    3.60302734375,
+    4.06982421875
+   ],
+   "sysctl_loadavg_end": "{ 4.62 3.60 4.07 }",
+   "duration_s": 8.0
+  },
+  "quiet_controls": {
+   "start": "2026-09-30T04:55:11Z",
+   "load_start": [
+    4.62451171875,
+    3.60302734375,
+    4.06982421875
+   ],
+   "sysctl_loadavg_start": "{ 4.62 3.60 4.07 }",
+   "self_storm_active": false,
+   "gap_since_prev_window_end_s": 0.0,
+   "end": "2026-09-30T04:55:23Z",
+   "load_end": [
+    4.60791015625,
+    3.6533203125,
+    4.07958984375
+   ],
+   "sysctl_loadavg_end": "{ 4.61 3.65 4.08 }",
+   "duration_s": 12.0
+  },
+  "cause_observation_quiet": {
+   "start": "2026-09-30T04:55:23Z",
+   "load_start": [
+    4.60791015625,
+    3.6533203125,
+    4.07958984375
+   ],
+   "sysctl_loadavg_start": "{ 4.61 3.65 4.08 }",
+   "self_storm_active": false,
+   "gap_since_prev_window_end_s": 0.0,
+   "end": "2026-09-30T04:55:30Z",
+   "load_end": [
+    4.31884765625,
+    3.60888671875,
+    4.0615234375
+   ],
+   "sysctl_loadavg_end": "{ 4.32 3.61 4.06 }",
+   "duration_s": 7.0
+  },
+  "cause_chain_units": {
+   "start": "2026-09-30T04:55:30Z",
+   "load_start": [
+    4.31884765625,
+    3.60888671875,
+    4.0615234375
+   ],
+   "sysctl_loadavg_start": "{ 4.32 3.61 4.06 }",
+   "self_storm_active": false,
+   "gap_since_prev_window_end_s": 0.0,
+   "end": "2026-09-30T04:55:31Z",
+   "load_end": [
+    4.31884765625,
+    3.60888671875,
+    4.0615234375
+   ],
+   "sysctl_loadavg_end": "{ 4.32 3.61 4.06 }",
+   "duration_s": 1.0
+  },
+  "storm_windows": {
+   "start": "2026-09-30T04:55:35Z",
+   "load_start": [
+    4.373046875,
+    3.6318359375,
+    4.06689453125
+   ],
+   "sysctl_loadavg_start": "{ 4.37 3.63 4.07 }",
+   "self_storm_active": true,
+   "gap_since_prev_window_end_s": 4.0,
+   "end": "2026-09-30T04:56:25Z",
+   "load_end": [
+    5.83984375,
+    4.150390625,
+    4.23291015625
+   ],
+   "sysctl_loadavg_end": "{ 5.84 4.15 4.23 }",
+   "duration_s": 50.0
+  },
+  "cause_observation_storm": {
+   "start": "2026-09-30T04:56:25Z",
+   "load_start": [
+    5.83984375,
+    4.150390625,
+    4.23291015625
+   ],
+   "sysctl_loadavg_start": "{ 5.84 4.15 4.23 }",
+   "self_storm_active": true,
+   "gap_since_prev_window_end_s": 0.0,
+   "end": "2026-09-30T04:56:54Z",
+   "load_end": [
+    4.6923828125,
+    4.037109375,
+    4.18896484375
+   ],
+   "sysctl_loadavg_end": "{ 4.69 4.04 4.19 }",
+   "duration_s": 29.0
+  }
+ },
+ "window_order": [
+  "warm",
+  "quiet_controls",
+  "cause_observation_quiet",
+  "cause_chain_units",
+  "storm_windows",
+  "cause_observation_storm"
+ ],
+ "quiet_controls": {
+  "S1": {
+   "rc": 0,
+   "wall_s": 6.13,
+   "load0": [
+    4.62,
+    3.6,
+    4.07
+   ],
+   "load1": [
+    4.73,
+    3.64,
+    4.08
+   ],
+   "counts": {
+    "TestProfileRunsThroughPinnedCapabilityProbe": {
+     "pass": 10,
+     "fail": 0,
+     "skip": 0,
+     "elapsed": [
+      0.59,
+      0.48,
+      0.53,
+      0.53,
+      0.54,
+      0.52,
+      0.53,
+      0.53,
+      0.52,
+      0.53
+     ]
+    }
+   },
+   "failure_analysis": {},
+   "sample_complete": true
+  },
+  "S3": {
+   "rc": 0,
+   "wall_s": 6.02,
+   "load0": [
+    4.73,
+    3.64,
+    4.08
+   ],
+   "load1": [
+    4.61,
+    3.65,
+    4.08
+   ],
+   "counts": {
+    "TestGrokProbeReportsSeparateWriteAuthorization": {
+     "pass": 10,
+     "fail": 0,
+     "skip": 0,
+     "elapsed": [
+      0.58,
+      0.47,
+      0.53,
+      0.51,
+      0.52,
+      0.51,
+      0.51,
+      0.51,
+      0.52,
+      0.51
+     ]
+    }
+   },
+   "failure_analysis": {},
+   "sample_complete": true
+  }
+ },
+ "cause_observation_quiet": {
+  "rc": 0,
+  "wall_s": 6.62,
+  "observations": 10,
+  "class_counts": {
+   "('ok', False, False, False, False)": 10
+  },
+  "iterations": [
+   {
+    "iteration": 0,
+    "elapsed_ms": 515.433,
+    "class": "ok",
+    "deadline": null,
+    "exited": null,
+    "start_failure": null
+   },
+   {
+    "iteration": 1,
+    "elapsed_ms": 536.847,
+    "class": "ok",
+    "deadline": null,
+    "exited": null,
+    "start_failure": null
+   },
+   {
+    "iteration": 2,
+    "elapsed_ms": 524.101,
+    "class": "ok",
+    "deadline": null,
+    "exited": null,
+    "start_failure": null
+   },
+   {
+    "iteration": 3,
+    "elapsed_ms": 531.427,
+    "class": "ok",
+    "deadline": null,
+    "exited": null,
+    "start_failure": null
+   },
+   {
+    "iteration": 4,
+    "elapsed_ms": 519.057,
+    "class": "ok",
+    "deadline": null,
+    "exited": null,
+    "start_failure": null
+   },
+   {
+    "iteration": 5,
+    "elapsed_ms": 516.8,
+    "class": "ok",
+    "deadline": null,
+    "exited": null,
+    "start_failure": null
+   },
+   {
+    "iteration": 6,
+    "elapsed_ms": 526.652,
+    "class": "ok",
+    "deadline": null,
+    "exited": null,
+    "start_failure": null
+   },
+   {
+    "iteration": 7,
+    "elapsed_ms": 538.067,
+    "class": "ok",
+    "deadline": null,
+    "exited": null,
+    "start_failure": null
+   },
+   {
+    "iteration": 8,
+    "elapsed_ms": 521.88,
+    "class": "ok",
+    "deadline": null,
+    "exited": null,
+    "start_failure": null
+   },
+   {
+    "iteration": 9,
+    "elapsed_ms": 528.999,
+    "class": "ok",
+    "deadline": null,
+    "exited": null,
+    "start_failure": null
+   }
+  ]
+ },
+ "cause_chain_units": {
+  "rc": 0,
+  "wall_s": 1.12,
+  "load0": [
+   4.32,
+   3.61,
+   4.06
+  ],
+  "load1": [
+   4.32,
+   3.61,
+   4.06
+  ],
+  "counts": {
+   "TestProbeFailureRetainsExitCauseWithoutOutput": {
+    "pass": 4,
+    "fail": 0,
+    "skip": 0,
+    "elapsed": [
+     0.01,
+     0.01,
+     0.01,
+     0.02
+    ]
+   },
+   "TestProbeFailureRetainsStartCause": {
+    "pass": 4,
+    "fail": 0,
+    "skip": 0,
+    "elapsed": [
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   "TestProbeFailureRetainsCancellationCause": {
+    "pass": 4,
+    "fail": 0,
+    "skip": 0,
+    "elapsed": [
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   "TestProbeFailureRetainsDeadlineAndExitCauses": {
+    "pass": 4,
+    "fail": 0,
+    "skip": 0,
+    "elapsed": [
+     0.1,
+     0.1,
+     0.1,
+     0.1
+    ]
+   }
+  },
+  "failure_analysis": {},
+  "sample_complete": false
+ },
+ "storm_windows": {
+  "S1": {
+   "rc": 1,
+   "wall_s": 24.73,
+   "load0": [
+    4.37,
+    3.63,
+    4.07
+   ],
+   "load1": [
+    5.88,
+    3.99,
+    4.18
+   ],
+   "counts": {
+    "TestProfileRunsThroughPinnedCapabilityProbe": {
+     "pass": 0,
+     "fail": 10,
+     "skip": 0,
+     "elapsed": [
+      2,
+      2.01,
+      2.01,
+      2,
+      2.01,
+      2.01,
+      2.01,
+      2.01,
+      2.01,
+      2.01
+     ]
+    }
+   },
+   "failure_analysis": {
+    "TestProfileRunsThroughPinnedCapabilityProbe": {
+     "cause_wrapped": false,
+     "buckets": [
+      "cause-missing"
+     ]
+    }
+   },
+   "sample_complete": true
+  },
+  "S3": {
+   "rc": 1,
+   "wall_s": 24.96,
+   "load0": [
+    5.88,
+    3.99,
+    4.18
+   ],
+   "load1": [
+    5.84,
+    4.15,
+    4.23
+   ],
+   "counts": {
+    "TestGrokProbeReportsSeparateWriteAuthorization": {
+     "pass": 0,
+     "fail": 10,
+     "skip": 0,
+     "elapsed": [
+      2.01,
+      2.01,
+      2.01,
+      2.02,
+      2.01,
+      2.01,
+      2.01,
+      2.01,
+      2.01,
+      2.01
+     ]
+    }
+   },
+   "failure_analysis": {
+    "TestGrokProbeReportsSeparateWriteAuthorization": {
+     "cause_wrapped": false,
+     "buckets": [
+      "cause-missing"
+     ]
+    }
+   },
+   "sample_complete": true
+  }
+ },
+ "cause_observation_storm": {
+  "rc": 0,
+  "wall_s": 29.28,
+  "observations": 10,
+  "class_counts": {
+   "('classified', True, True, False, False)": 10
+  },
+  "iterations": [
+   {
+    "iteration": 0,
+    "elapsed_ms": 2002.569,
+    "class": "classified",
+    "deadline": true,
+    "exited": true,
+    "start_failure": false
+   },
+   {
+    "iteration": 1,
+    "elapsed_ms": 2002.521,
+    "class": "classified",
+    "deadline": true,
+    "exited": true,
+    "start_failure": false
+   },
+   {
+    "iteration": 2,
+    "elapsed_ms": 2001.725,
+    "class": "classified",
+    "deadline": true,
+    "exited": true,
+    "start_failure": false
+   },
+   {
+    "iteration": 3,
+    "elapsed_ms": 2001.717,
+    "class": "classified",
+    "deadline": true,
+    "exited": true,
+    "start_failure": false
+   },
+   {
+    "iteration": 4,
+    "elapsed_ms": 2002.907,
+    "class": "classified",
+    "deadline": true,
+    "exited": true,
+    "start_failure": false
+   },
+   {
+    "iteration": 5,
+    "elapsed_ms": 2002.403,
+    "class": "classified",
+    "deadline": true,
+    "exited": true,
+    "start_failure": false
+   },
+   {
+    "iteration": 6,
+    "elapsed_ms": 2001.507,
+    "class": "classified",
+    "deadline": true,
+    "exited": true,
+    "start_failure": false
+   },
+   {
+    "iteration": 7,
+    "elapsed_ms": 2000.52,
+    "class": "classified",
+    "deadline": true,
+    "exited": true,
+    "start_failure": false
+   },
+   {
+    "iteration": 8,
+    "elapsed_ms": 2002.604,
+    "class": "classified",
+    "deadline": true,
+    "exited": true,
+    "start_failure": false
+   },
+   {
+    "iteration": 9,
+    "elapsed_ms": 2002.578,
+    "class": "classified",
+    "deadline": true,
+    "exited": true,
+    "start_failure": false
+   }
+  ]
+ },
+ "churn": {
+  "count": 291,
+  "p50_ms": 4067.38,
+  "p99_ms": 5502.88,
+  "max_ms": 5515.7,
+  "ge_1900ms": 288
+ },
+ "storm_active": true,
+ "measurer_gaps": [],
+ "finished": "2026-09-30T04:58:05Z"
+}

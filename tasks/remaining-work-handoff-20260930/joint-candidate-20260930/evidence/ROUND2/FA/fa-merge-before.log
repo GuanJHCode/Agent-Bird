@@ -1,0 +1,6 @@
+=== round2 F-A merge: before ===
+9377183c743b8575834f00a012f10cad0a3a9fcb256c16188fbe9ef22bbb3ce4  scratch/second/tools/orchestrator/internal/host/stop_timing_test.go
+1322b337f1e214c695a82b3631f873f2417ecc707a2523b9db7a52b879e17781  /private/tmp/bird-nseries-root-review-20260930-pzpzp52_/snapshots/primary/data/n06-source-archive-20260930T110823/unpacked/tools/orchestrator/internal/host/stop_timing_test.go
+jointLines=     397 aLines=     541
+1322b337f1e214c695a82b3631f873f2417ecc707a2523b9db7a52b879e17781  scratch/second/tools/orchestrator/internal/host/stop_timing_test.go
+verbatim_identical_to_A=yes

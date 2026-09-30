@@ -1,0 +1,81 @@
+{
+ "inputs": {
+  "A_authoritative": 732,
+  "B_authoritative": 732,
+  "J1_log": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/ROUND2/GATE/r7-ordinary-round2.jsonl",
+  "J2_log": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/CLOSEOUT/C3/closeout-ordinary.jsonl"
+ },
+ "counts": {
+  "J1": {
+   "uniqueRun": 734,
+   "pass": 732,
+   "skip": 2,
+   "first": "2026-09-30T12:58:06.772768+08:00",
+   "last": "2026-09-30T13:00:01.12937+08:00",
+   "duplicate_terminal": 0
+  },
+  "J2": {
+   "uniqueRun": 734,
+   "pass": 732,
+   "skip": 2,
+   "first": "2026-09-30T13:27:02.825925+08:00",
+   "last": "2026-09-30T13:29:14.705962+08:00",
+   "duplicate_terminal": 0
+  }
+ },
+ "checks": {
+  "unionAB_minus_J2": [
+   "codex-cli-orchestration-design/tools/orchestrator/internal/adapter TestProbeCauseDecompositionObservation",
+   "codex-cli-orchestration-design/tools/orchestrator/internal/host TestS4StageTimingObservation"
+  ],
+  "J2_minus_A": [
+   "codex-cli-orchestration-design/tools/orchestrator/internal/host TestEscapedPipeHolderProgressDoesNotAdvanceAfterTerminal",
+   "codex-cli-orchestration-design/tools/orchestrator/internal/host TestN04PipeSensitiveDescendantHoldingStdoutIsNecessary",
+   "codex-cli-orchestration-design/tools/orchestrator/internal/host TestPipeHoldingDescendantRecordsSingleStoppingProgress",
+   "codex-cli-orchestration-design/tools/orchestrator/internal/store TestHostProgressRejectsUnknownSegmentAndEnvelopeBranches"
+  ],
+  "J2_minus_B": [
+   "codex-cli-orchestration-design/tools/orchestrator/internal/host TestN04PipeSensitiveDescendantHoldingStdoutIsNecessary",
+   "codex-cli-orchestration-design/tools/orchestrator/internal/host TestProgressStaysBoundedWhileDescendantHoldsPipeAndNeverFinalizes"
+  ],
+  "A_minus_J2": [
+   "codex-cli-orchestration-design/tools/orchestrator/internal/adapter TestProbeCauseDecompositionObservation",
+   "codex-cli-orchestration-design/tools/orchestrator/internal/host TestS4StageTimingObservation"
+  ],
+  "B_minus_J2": [],
+  "J2_minus_J1": [],
+  "J1_minus_J2": []
+ },
+ "cell_explanations": {
+  "unionAB_minus_J2": "必须恰等于 opt-in 诊断登记表 (两个 A 实验身份); 出现第三个即为漏件。 必测集合按 mandatory_expected/mandatory_missing 单独核算。",
+  "J2_minus_A": "联合新增: R3 组合判据 TestN04PipeSensitiveDescendantHoldingStdoutIsNecessary + B 独有必测三件 (TestEscapedPipeHolderProgressDoesNotAdvanceAfterTerminal / TestPipeHoldingDescendantRecordsSingleStoppingProgress / store TestHostProgressRejectsUnknownSegmentAndEnvelopeBranches)。",
+  "J2_minus_B": "联合新增: A 的必测 TestProgressStaysBoundedWhileDescendantHoldsPipeAndNeverFinalizes (第 2 轮 F-A 并入) 与上述 R3 组合判据。",
+  "A_minus_J2": "非空即违规: 这些 A 身份未进第 2 轮默认集, 必须逐条给出分账登记理由。",
+  "B_minus_J2": "非空即违规: 同上, 针对 B 身份。",
+  "J2_minus_J1": "第 2 轮相对第 1 轮联合集的新增 (应为 F-A 并入的 A 必测)。",
+  "J1_minus_J2": "第 2 轮相对第 1 轮联合集的消失 (必须为空, 否则说明削减了已交付身份)。"
+ },
+ "accounting": {
+  "opt_in_diagnostics_registered": [
+   "codex-cli-orchestration-design/tools/orchestrator/internal/adapter TestProbeCauseDecompositionObservation",
+   "codex-cli-orchestration-design/tools/orchestrator/internal/host TestS4StageTimingObservation"
+  ],
+  "opt_in_present_in_default_set_anyway": [],
+  "opt_in_absent_from_default_set": [
+   "codex-cli-orchestration-design/tools/orchestrator/internal/adapter TestProbeCauseDecompositionObservation",
+   "codex-cli-orchestration-design/tools/orchestrator/internal/host TestS4StageTimingObservation"
+  ],
+  "A_only_identities_present_in_J2": [
+   "codex-cli-orchestration-design/tools/orchestrator/internal/host TestProgressStaysBoundedWhileDescendantHoldsPipeAndNeverFinalizes"
+  ],
+  "B_only_identities_present_in_J2": [
+   "codex-cli-orchestration-design/tools/orchestrator/internal/host TestEscapedPipeHolderProgressDoesNotAdvanceAfterTerminal",
+   "codex-cli-orchestration-design/tools/orchestrator/internal/host TestPipeHoldingDescendantRecordsSingleStoppingProgress",
+   "codex-cli-orchestration-design/tools/orchestrator/internal/store TestHostProgressRejectsUnknownSegmentAndEnvelopeBranches"
+  ],
+  "B_only_identities_absent": [],
+  "mandatory_expected": 733,
+  "mandatory_missing": []
+ },
+ "violations": []
+}

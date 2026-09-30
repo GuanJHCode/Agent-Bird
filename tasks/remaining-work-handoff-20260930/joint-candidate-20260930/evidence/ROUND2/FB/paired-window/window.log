@@ -1,0 +1,25 @@
+# experiment_id=n01-paired-20260930T045449Z-25161
+# label=N01 paired fresh/warm no-self-storm minimal window
+start=2026-09-30T04:54:49Z load_start={ 3.56 3.36 4.00 }
+  bound compile: start/end=2026-09-30T04:54:50Z load={ 3.56 3.36 4.00 } gap_since_prev=None
+  bound fresh-00: start/end=2026-09-30T04:54:52Z load={ 3.56 3.36 4.00 } gap_since_prev=2.0
+  bound warm-00: start/end=2026-09-30T04:54:52Z load={ 3.56 3.36 4.00 } gap_since_prev=0.0
+  bound fresh-01: start/end=2026-09-30T04:54:53Z load={ 3.56 3.36 4.00 } gap_since_prev=1.0
+  bound warm-01: start/end=2026-09-30T04:54:53Z load={ 3.59 3.37 4.00 } gap_since_prev=0.0
+  bound fresh-02: start/end=2026-09-30T04:54:54Z load={ 3.59 3.37 4.00 } gap_since_prev=1.0
+  bound warm-02: start/end=2026-09-30T04:54:55Z load={ 3.59 3.37 4.00 } gap_since_prev=1.0
+  bound fresh-03: start/end=2026-09-30T04:54:55Z load={ 3.59 3.37 4.00 } gap_since_prev=0.0
+  bound warm-03: start/end=2026-09-30T04:54:56Z load={ 3.59 3.37 4.00 } gap_since_prev=1.0
+  bound fresh-04: start/end=2026-09-30T04:54:57Z load={ 3.59 3.37 4.00 } gap_since_prev=1.0
+  bound warm-04: start/end=2026-09-30T04:54:57Z load={ 3.59 3.37 4.00 } gap_since_prev=0.0
+  bound fresh-05: start/end=2026-09-30T04:54:58Z load={ 3.59 3.37 4.00 } gap_since_prev=1.0
+  bound warm-05: start/end=2026-09-30T04:54:58Z load={ 3.78 3.42 4.01 } gap_since_prev=0.0
+  bound fresh-06: start/end=2026-09-30T04:54:59Z load={ 3.78 3.42 4.01 } gap_since_prev=1.0
+  bound warm-06: start/end=2026-09-30T04:55:00Z load={ 3.78 3.42 4.01 } gap_since_prev=1.0
+  bound fresh-07: start/end=2026-09-30T04:55:00Z load={ 3.78 3.42 4.01 } gap_since_prev=0.0
+  bound warm-07: start/end=2026-09-30T04:55:01Z load={ 3.78 3.42 4.01 } gap_since_prev=1.0
+  bound fresh-08: start/end=2026-09-30T04:55:02Z load={ 3.78 3.42 4.01 } gap_since_prev=1.0
+  bound warm-08: start/end=2026-09-30T04:55:02Z load={ 3.78 3.42 4.01 } gap_since_prev=0.0
+  bound fresh-09: start/end=2026-09-30T04:55:03Z load={ 3.78 3.42 4.01 } gap_since_prev=1.0
+  bound warm-09: start/end=2026-09-30T04:55:03Z load={ 3.72 3.41 4.01 } gap_since_prev=0.0
+end=2026-09-30T04:55:03Z load_end={ 3.72 3.41 4.01 }

@@ -1,0 +1,10 @@
+candidate_build_rc=0
+source_archive_rc=0
+member_diff_rc=1
+install_verify_rc=0
+package_bundle_rc=0
+install_report_rc=0
+closure_emit_rc=0
+closure_verify_rc=0
+relocation_verify_rc=0
+receipt_rc=1

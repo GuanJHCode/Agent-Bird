@@ -1,0 +1,12 @@
+UTC window_open: 2026-09-30T05:04:43Z load={ 3.62 3.96 4.11 }
+### go vet ./... 
+vet_rc=0
+### go build ./...
+build_rc=0
+### python selftests (candidate scripts + native-product-bridge)
+............................                                             [100%]
+28 passed in 17.79s
+### closure verify
+{"ok": true, "root": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/candidate", "required": 20, "failures": []}
+verify_rc=0
+UTC window_close: 2026-09-30T05:05:02Z load={ 4.06 4.04 4.14 }

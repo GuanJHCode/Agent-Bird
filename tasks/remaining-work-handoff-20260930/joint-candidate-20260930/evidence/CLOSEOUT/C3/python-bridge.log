@@ -1,0 +1,10 @@
+..................s..............                                        [100%]
+=============================== warnings summary ===============================
+tools/native-product-bridge/test_private_product_plan.py::test_native_product_run_module_compiles_without_starting_native
+  /private/tmp/bird-nseries-repair-20260930-3bcaf2/scratch/second/tasks/g1-g4-delivery/scripts/native_product_case.py:1348: SyntaxWarning: 'return' in a 'finally' block
+    return {"summary": summary, "result": result}
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+SKIPPED [1] tools/native-product-bridge/test_local_product_driver.py:89: requires integrated final G1 binary
+32 passed, 1 skipped, 1 warning in 5.80s

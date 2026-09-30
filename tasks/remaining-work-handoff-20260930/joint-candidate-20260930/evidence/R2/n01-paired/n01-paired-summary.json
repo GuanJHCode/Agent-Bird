@@ -1,0 +1,146 @@
+{
+ "experiment": "N01-paired-fresh-warm-no-self-storm",
+ "utc_window_start": "",
+ "fresh": {
+  "verdict": "OK",
+  "n": 10,
+  "p50_ms": 474.1,
+  "min_ms": 96.1,
+  "max_ms": 3132.2,
+  "mean_ms": 629.5
+ },
+ "warm": {
+  "verdict": "OK",
+  "n": 10,
+  "p50_ms": 484.8,
+  "min_ms": 97.6,
+  "max_ms": 1222.3,
+  "mean_ms": 523.8
+ },
+ "fresh_rows": [
+  {
+   "rc": 0,
+   "mode": "fresh",
+   "elapsed_test_s": 3.224115083,
+   "running_to_m1_s": 3.1322238445281982
+  },
+  {
+   "rc": 0,
+   "mode": "fresh",
+   "elapsed_test_s": 0.180394333,
+   "running_to_m1_s": 0.09609460830688477
+  },
+  {
+   "rc": 0,
+   "mode": "fresh",
+   "elapsed_test_s": 0.174528791,
+   "running_to_m1_s": 0.0972898006439209
+  },
+  {
+   "rc": 0,
+   "mode": "fresh",
+   "elapsed_test_s": 0.182702292,
+   "running_to_m1_s": 0.0969400405883789
+  },
+  {
+   "rc": 0,
+   "mode": "fresh",
+   "elapsed_test_s": 0.548985375,
+   "running_to_m1_s": 0.4739711284637451
+  },
+  {
+   "rc": 0,
+   "mode": "fresh",
+   "elapsed_test_s": 0.563080791,
+   "running_to_m1_s": 0.47421932220458984
+  },
+  {
+   "rc": 0,
+   "mode": "fresh",
+   "elapsed_test_s": 0.570663417,
+   "running_to_m1_s": 0.47864747047424316
+  },
+  {
+   "rc": 0,
+   "mode": "fresh",
+   "elapsed_test_s": 0.599139541,
+   "running_to_m1_s": 0.49205780029296875
+  },
+  {
+   "rc": 0,
+   "mode": "fresh",
+   "elapsed_test_s": 0.563502833,
+   "running_to_m1_s": 0.4715445041656494
+  },
+  {
+   "rc": 0,
+   "mode": "fresh",
+   "elapsed_test_s": 0.572061625,
+   "running_to_m1_s": 0.48151564598083496
+  }
+ ],
+ "warm_rows": [
+  {
+   "rc": 0,
+   "mode": "warm",
+   "elapsed_test_s": 0.210912125,
+   "running_to_m1_s": 0.1353919506072998
+  },
+  {
+   "rc": 0,
+   "mode": "warm",
+   "elapsed_test_s": 0.196147375,
+   "running_to_m1_s": 0.1099863052368164
+  },
+  {
+   "rc": 0,
+   "mode": "warm",
+   "elapsed_test_s": 0.17846825,
+   "running_to_m1_s": 0.09758353233337402
+  },
+  {
+   "rc": 0,
+   "mode": "warm",
+   "elapsed_test_s": 1.313989292,
+   "running_to_m1_s": 1.2223138809204102
+  },
+  {
+   "rc": 0,
+   "mode": "warm",
+   "elapsed_test_s": 0.540353167,
+   "running_to_m1_s": 0.45936036109924316
+  },
+  {
+   "rc": 0,
+   "mode": "warm",
+   "elapsed_test_s": 0.577282375,
+   "running_to_m1_s": 0.4903719425201416
+  },
+  {
+   "rc": 0,
+   "mode": "warm",
+   "elapsed_test_s": 0.574889583,
+   "running_to_m1_s": 0.47928500175476074
+  },
+  {
+   "rc": 0,
+   "mode": "warm",
+   "elapsed_test_s": 0.961728209,
+   "running_to_m1_s": 0.8814282417297363
+  },
+  {
+   "rc": 0,
+   "mode": "warm",
+   "elapsed_test_s": 0.589456458,
+   "running_to_m1_s": 0.500551700592041
+  },
+  {
+   "rc": 0,
+   "mode": "warm",
+   "elapsed_test_s": 0.942356167,
+   "running_to_m1_s": 0.8613879680633545
+  }
+ ],
+ "label": "no-self-storm (无本批自建 storm; 同机负载无法完全隔离, 不称 quiet/静默)",
+ "interpretation": "running→child main(m1) 的 pre-user-code 首执行相关延迟; fresh/warm 差分支持新路径首执行相关, 未唯一归因 OS"
+}

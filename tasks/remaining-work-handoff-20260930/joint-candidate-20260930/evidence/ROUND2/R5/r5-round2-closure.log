@@ -1,0 +1,6 @@
+=== emit (round2) ===
+{"source_files": 22, "evidence_files": 624, "required": 20}
+emit_rc=0
+=== verify pristine ===
+{"ok": true, "root": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/candidate", "required": 20, "failures": []}
+verify_rc=0

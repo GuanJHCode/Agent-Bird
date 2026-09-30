@@ -1,0 +1,4 @@
+R4 corrected gate diff-check  joint candidate  2026-09-30T03:57:37Z  cwd=/private/tmp/bird-nseries-repair-20260930-3bcaf2/scratch/candidate-git
+--- (1) git add -A done; git diff --cached --check (staged whitespace) ---
+cmd: git diff --cached --check
+rc=0

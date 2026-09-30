@@ -1,0 +1,78 @@
+{
+ "ok": true,
+ "cases": {
+  "M1-self-storm-flip": {
+   "returncode": 1,
+   "failing_checks": [
+    "label.storm_windows.self_storm_active"
+   ],
+   "expected_check": "label.storm_windows.self_storm_active",
+   "killed_by_expected_check": true,
+   "verdict": "PASS",
+   "stdout": "{\"ok\": false, \"checks_total\": 120, \"verdicts\": {\"PASS\": 119, \"FAIL\": 1}, \"out\": \"/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/CLOSEOUT/C2/mutants/M1-self-storm-flip/verdict.json\"}",
+   "stderr": ""
+  },
+  "M2-sample-count-short": {
+   "returncode": 1,
+   "failing_checks": [
+    "sample.quiet_controls.S1.TestProfileRunsThroughPinnedCapabilityProbe.matches_budget",
+    "sample.quiet_controls.S1.TestProfileRunsThroughPinnedCapabilityProbe.run_lines_equal_samples",
+    "sample.quiet_controls.S1.TestProfileRunsThroughPinnedCapabilityProbe.terminal_lines_equal_samples"
+   ],
+   "expected_check": "sample.quiet_controls.S1.TestProfileRunsThroughPinnedCapabilityProbe.matches_budget",
+   "killed_by_expected_check": true,
+   "verdict": "PASS",
+   "stdout": "{\"ok\": false, \"checks_total\": 120, \"verdicts\": {\"PASS\": 117, \"FAIL\": 3}, \"out\": \"/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/CLOSEOUT/C2/mutants/M2-sample-count-short/verdict.json\"}",
+   "stderr": ""
+  },
+  "M3-nonmonotonic-bounds": {
+   "returncode": 1,
+   "failing_checks": [
+    "bounds.cause_observation_storm.duration_matches_endpoints",
+    "bounds.cause_observation_storm.monotonic_after_previous_end",
+    "bounds.cause_observation_storm.gap_matches_measured_delta"
+   ],
+   "expected_check": "bounds.cause_observation_storm.monotonic_after_previous_end",
+   "killed_by_expected_check": true,
+   "verdict": "PASS",
+   "stdout": "{\"ok\": false, \"checks_total\": 120, \"verdicts\": {\"PASS\": 117, \"FAIL\": 3}, \"out\": \"/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/CLOSEOUT/C2/mutants/M3-nonmonotonic-bounds/verdict.json\"}",
+   "stderr": ""
+  },
+  "M4-observation-row-dropped": {
+   "returncode": 1,
+   "failing_checks": [
+    "cause.cause_observation_quiet.observation_iteration_rows_equal_samples",
+    "cause.cause_observation_quiet.observation_control_rows_equal_three",
+    "cause.cause_observation_quiet.observation_row_shape_accounting"
+   ],
+   "expected_check": "cause.cause_observation_quiet.observation_iteration_rows_equal_samples",
+   "killed_by_expected_check": true,
+   "verdict": "PASS",
+   "stdout": "{\"ok\": false, \"checks_total\": 120, \"verdicts\": {\"PASS\": 117, \"FAIL\": 3}, \"out\": \"/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/CLOSEOUT/C2/mutants/M4-observation-row-dropped/verdict.json\"}",
+   "stderr": ""
+  },
+  "M5-churn-decoupled": {
+   "returncode": 1,
+   "failing_checks": [
+    "label.storm_active_derives_from_churn_p50"
+   ],
+   "expected_check": "label.storm_active_derives_from_churn_p50",
+   "killed_by_expected_check": true,
+   "verdict": "PASS",
+   "stdout": "{\"ok\": false, \"checks_total\": 120, \"verdicts\": {\"PASS\": 119, \"FAIL\": 1}, \"out\": \"/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/CLOSEOUT/C2/mutants/M5-churn-decoupled/verdict.json\"}",
+   "stderr": ""
+  },
+  "M6-missing-event-stream": {
+   "returncode": 1,
+   "failing_checks": [
+    "sample.quiet_controls.S3.event_stream_present",
+    "files.all_referenced_files_present"
+   ],
+   "expected_check": "sample.quiet_controls.S3.event_stream_present",
+   "killed_by_expected_check": true,
+   "verdict": "PASS",
+   "stdout": "{\"ok\": false, \"checks_total\": 117, \"verdicts\": {\"PASS\": 115, \"FAIL\": 2}, \"out\": \"/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/CLOSEOUT/C2/mutants/M6-missing-event-stream/verdict.json\"}",
+   "stderr": ""
+  }
+ }
+}

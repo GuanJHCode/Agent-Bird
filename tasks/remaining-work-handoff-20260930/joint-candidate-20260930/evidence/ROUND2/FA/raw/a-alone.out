@@ -1,0 +1,4 @@
+=== RUN   TestProgressStaysBoundedWhileDescendantHoldsPipeAndNeverFinalizes
+--- PASS: TestProgressStaysBoundedWhileDescendantHoldsPipeAndNeverFinalizes (0.86s)
+PASS
+ok  	codex-cli-orchestration-design/tools/orchestrator/internal/host	1.915s

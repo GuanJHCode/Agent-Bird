@@ -1,0 +1,13 @@
+R1 N02 observation-protocol evidence  generated=2026-09-30T03:48:11Z
+python: Python 3.14.3 / pytest pytest 9.1.1
+helper: n02_owner_readiness_observer.py  test: test_n02_owner_readiness_observer.py
+
+=== GREEN run (real shielded single-readline protocol) ===
+..........                                                               [100%]
+10 passed in 1.10s
+
+NOTE: RED run (stub reproducing OLD hard 5s cancel behavior) archived separately as r1-red-stub.log; it produced 7 real assertion failures (DID NOT RAISE / late-ready false-reject), no build errors.
+
+=== SHAs ===
+96260b2e6b4efc2695345bb5f0ff432c8e4e119cef990d3b3f54a2b1dda8de12  /private/tmp/bird-nseries-repair-20260930-3bcaf2/candidate/tools/native-product-bridge/n02_owner_readiness_observer.py
+7569715aa68c10ba6bb38a147f073190d365855e8473251eabdcdf4fc058ae9a  /private/tmp/bird-nseries-repair-20260930-3bcaf2/candidate/tools/native-product-bridge/test_n02_owner_readiness_observer.py

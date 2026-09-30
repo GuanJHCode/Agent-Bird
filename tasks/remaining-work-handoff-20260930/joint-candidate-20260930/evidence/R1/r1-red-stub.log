@@ -1,0 +1,410 @@
+R1 RED evidence (stub reproducing OLD hard-5s cancel protocol; assertions genuinely fail, no build error)  2026-09-30T03:48:23Z
+.F.FFFFFF.                                                               [100%]
+=================================== FAILURES ===================================
+_________________ test_new_protocol_accepts_late_but_accepted __________________
+
+    async def _factory() -> bytes:
+        calls.append(1)
+>       await asyncio.sleep(delay)
+
+test_n02_owner_readiness_observer.py:27: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+delay = 0.35, result = None
+
+    async def sleep(delay, result=None):
+        """Coroutine that completes after a given time (in seconds)."""
+        if delay <= 0:
+            await __sleep0()
+            return result
+    
+        if math.isnan(delay):
+            raise ValueError("Invalid delay: NaN (not a number)")
+    
+        loop = events.get_running_loop()
+        future = loop.create_future()
+        h = loop.call_later(delay,
+                            futures._set_result_unless_cancelled,
+                            future, result)
+        try:
+>           return await future
+                   ^^^^^^^^^^^^
+E           asyncio.exceptions.CancelledError
+
+/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/tasks.py:702: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+    def test_new_protocol_accepts_late_but_accepted():
+        # GREEN: 新协议同一场景不误拒, 标 late-but-accepted, 且全程只有一个 readline。
+        calls: list = []
+    
+        async def body():
+            readline = make_readline(b"owner-ready\n", 0.35, calls)
+            obs = await observe_owner_ready(
+                readline=readline, durable_ready=lambda: True, failure_present=lambda: False,
+                soft_s=0.2, watchdog_s=2.0,
+            )
+            return obs, sum(calls)
+    
+>       obs, call_count = asyncio.run(body())
+                          ^^^^^^^^^^^^^^^^^^^
+
+test_n02_owner_readiness_observer.py:57: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py:204: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py:127: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/base_events.py:719: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+test_n02_owner_readiness_observer.py:51: in body
+    obs = await observe_owner_ready(
+n02_owner_readiness_observer.py:20: in observe_owner_ready
+    raw = await asyncio.wait_for(readline(), soft_s)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/tasks.py:487: in wait_for
+    async with timeouts.timeout(timeout):
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x10adc26c0>
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> bool | None:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is not None:
+                # Since there are no new cancel requests, we're
+                # handling this.
+                if issubclass(exc_type, exceptions.CancelledError):
+>                   raise TimeoutError from exc_val
+E                   TimeoutError
+
+/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/timeouts.py:114: TimeoutError
+_________________ test_never_ready_hits_watchdog_and_converges _________________
+
+    async def _never():
+>       await asyncio.sleep(5)
+
+test_n02_owner_readiness_observer.py:80: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+delay = 5, result = None
+
+    async def sleep(delay, result=None):
+        """Coroutine that completes after a given time (in seconds)."""
+        if delay <= 0:
+            await __sleep0()
+            return result
+    
+        if math.isnan(delay):
+            raise ValueError("Invalid delay: NaN (not a number)")
+    
+        loop = events.get_running_loop()
+        future = loop.create_future()
+        h = loop.call_later(delay,
+                            futures._set_result_unless_cancelled,
+                            future, result)
+        try:
+>           return await future
+                   ^^^^^^^^^^^^
+E           asyncio.exceptions.CancelledError
+
+/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/tasks.py:702: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+    def test_never_ready_hits_watchdog_and_converges():
+        # 永不 ready → 总看门狗失败; finally 收敛自建等待任务, 无泄漏。
+        async def body():
+            async def _never():
+                await asyncio.sleep(5)
+                return b"owner-ready\n"
+            before = {t for t in asyncio.all_tasks() if t is not asyncio.current_task()}
+            with pytest.raises(OwnerReadinessError) as exc:
+                await observe_owner_ready(
+                    readline=_never, durable_ready=lambda: True, failure_present=lambda: False,
+                    soft_s=0.15, watchdog_s=0.4,
+                )
+            stage = exc.value.stage
+            await asyncio.sleep(0)
+            after = {t for t in asyncio.all_tasks() if t is not asyncio.current_task()}
+            return stage, before == after
+    
+>       stage, no_leak = asyncio.run(body())
+                         ^^^^^^^^^^^^^^^^^^^
+
+test_n02_owner_readiness_observer.py:93: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py:204: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py:127: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/base_events.py:719: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+test_n02_owner_readiness_observer.py:84: in body
+    await observe_owner_ready(
+n02_owner_readiness_observer.py:20: in observe_owner_ready
+    raw = await asyncio.wait_for(readline(), soft_s)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/tasks.py:487: in wait_for
+    async with timeouts.timeout(timeout):
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x10ae7bd80>
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> bool | None:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is not None:
+                # Since there are no new cancel requests, we're
+                # handling this.
+                if issubclass(exc_type, exceptions.CancelledError):
+>                   raise TimeoutError from exc_val
+E                   TimeoutError
+
+/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/timeouts.py:114: TimeoutError
+_________________________ test_premature_eof_rejected __________________________
+
+    def test_premature_eof_rejected():
+        calls: list = []
+    
+        async def body():
+            readline = make_readline(b"", 0.01, calls)
+            with pytest.raises(OwnerReadinessError) as exc:
+                await observe_owner_ready(
+                    readline=readline, durable_ready=lambda: True, failure_present=lambda: False,
+                    soft_s=0.2, watchdog_s=2.0,
+                )
+            return exc.value.stage
+    
+>       assert asyncio.run(body()) == "premature-eof"
+               ^^^^^^^^^^^^^^^^^^^
+
+test_n02_owner_readiness_observer.py:110: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py:204: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py:127: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/base_events.py:719: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    async def body():
+        readline = make_readline(b"", 0.01, calls)
+>       with pytest.raises(OwnerReadinessError) as exc:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE OwnerReadinessError
+
+test_n02_owner_readiness_observer.py:103: Failed
+__________________________ test_wrong_token_rejected ___________________________
+
+    def test_wrong_token_rejected():
+        calls: list = []
+    
+        async def body():
+            readline = make_readline(b"not-ready\n", 0.01, calls)
+            with pytest.raises(OwnerReadinessError) as exc:
+                await observe_owner_ready(
+                    readline=readline, durable_ready=lambda: True, failure_present=lambda: False,
+                    soft_s=0.2, watchdog_s=2.0,
+                )
+            return exc.value.stage
+    
+>       assert asyncio.run(body()) == "wrong-token"
+               ^^^^^^^^^^^^^^^^^^^
+
+test_n02_owner_readiness_observer.py:125: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py:204: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py:127: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/base_events.py:719: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    async def body():
+        readline = make_readline(b"not-ready\n", 0.01, calls)
+>       with pytest.raises(OwnerReadinessError) as exc:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE OwnerReadinessError
+
+test_n02_owner_readiness_observer.py:118: Failed
+_____________ test_stale_lease_durable_identity_mismatch_rejected ______________
+
+    def test_stale_lease_durable_identity_mismatch_rejected():
+        # 只见 receipt 存在不算端到端成功; lease/身份不绑定必须失败 (错误/旧 lease)。
+        calls: list = []
+    
+        async def body():
+            readline = make_readline(b"owner-ready\n", 0.01, calls)
+            with pytest.raises(OwnerReadinessError) as exc:
+                await observe_owner_ready(
+                    readline=readline, durable_ready=lambda: False, failure_present=lambda: False,
+                    soft_s=0.2, watchdog_s=2.0,
+                )
+            return exc.value.stage
+    
+>       assert asyncio.run(body()) == "durable-identity"
+               ^^^^^^^^^^^^^^^^^^^
+
+test_n02_owner_readiness_observer.py:141: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py:204: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py:127: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/base_events.py:719: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    async def body():
+        readline = make_readline(b"owner-ready\n", 0.01, calls)
+>       with pytest.raises(OwnerReadinessError) as exc:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE OwnerReadinessError
+
+test_n02_owner_readiness_observer.py:134: Failed
+__________________ test_failure_present_before_ready_rejected __________________
+
+    def test_failure_present_before_ready_rejected():
+        calls: list = []
+    
+        async def body():
+            readline = make_readline(b"owner-ready\n", 0.01, calls)
+            with pytest.raises(OwnerReadinessError) as exc:
+                await observe_owner_ready(
+                    readline=readline, durable_ready=lambda: True, failure_present=lambda: True,
+                    soft_s=0.2, watchdog_s=2.0,
+                )
+            return exc.value.stage
+    
+>       assert asyncio.run(body()) == "failure-before-ready"
+               ^^^^^^^^^^^^^^^^^^^
+
+test_n02_owner_readiness_observer.py:156: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py:204: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py:127: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/base_events.py:719: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    async def body():
+        readline = make_readline(b"owner-ready\n", 0.01, calls)
+>       with pytest.raises(OwnerReadinessError) as exc:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE OwnerReadinessError
+
+test_n02_owner_readiness_observer.py:149: Failed
+____________________ test_late_ready_after_failure_rejected ____________________
+
+    def test_late_ready_after_failure_rejected():
+        # 失败先落, owner-ready 迟到: acceptance 时 failure_present() 已 True → 拒绝。
+    
+        async def body():
+            flag = {"failure": False}
+    
+            async def _factory():
+                await asyncio.sleep(0.05)
+                flag["failure"] = True
+                await asyncio.sleep(0.02)
+                return b"owner-ready\n"
+    
+            with pytest.raises(OwnerReadinessError) as exc:
+                await observe_owner_ready(
+                    readline=_factory, durable_ready=lambda: True,
+                    failure_present=lambda: flag["failure"], soft_s=0.2, watchdog_s=2.0,
+                )
+            return exc.value.stage
+    
+>       assert asyncio.run(body()) == "failure-before-ready"
+               ^^^^^^^^^^^^^^^^^^^
+
+test_n02_owner_readiness_observer.py:178: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py:204: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/runners.py:127: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/asyncio/base_events.py:719: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    async def body():
+        flag = {"failure": False}
+    
+        async def _factory():
+            await asyncio.sleep(0.05)
+            flag["failure"] = True
+            await asyncio.sleep(0.02)
+            return b"owner-ready\n"
+    
+>       with pytest.raises(OwnerReadinessError) as exc:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE OwnerReadinessError
+
+test_n02_owner_readiness_observer.py:171: Failed
+=========================== short test summary info ============================
+FAILED test_n02_owner_readiness_observer.py::test_new_protocol_accepts_late_but_accepted
+FAILED test_n02_owner_readiness_observer.py::test_never_ready_hits_watchdog_and_converges
+FAILED test_n02_owner_readiness_observer.py::test_premature_eof_rejected - Fa...
+FAILED test_n02_owner_readiness_observer.py::test_wrong_token_rejected - Fail...
+FAILED test_n02_owner_readiness_observer.py::test_stale_lease_durable_identity_mismatch_rejected
+FAILED test_n02_owner_readiness_observer.py::test_failure_present_before_ready_rejected
+FAILED test_n02_owner_readiness_observer.py::test_late_ready_after_failure_rejected
+7 failed, 3 passed in 0.86s

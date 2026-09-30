@@ -1,0 +1,2 @@
+/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/CLOSEOUT/C4/install-check/package
+{"installed": true, "doctor_healthy": true, "version": "0.2.0-runtime-check", "binary": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/CLOSEOUT/C4/install-check/installed/versions/0.2.0-runtime-check/bin/codex-orchestrator", "native_runtime_files": 11}

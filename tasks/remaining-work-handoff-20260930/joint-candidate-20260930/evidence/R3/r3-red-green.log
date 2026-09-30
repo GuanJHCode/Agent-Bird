@@ -1,0 +1,27 @@
+R3 pipe-sensitive combined-judge evidence  generated=2026-09-30T03:44:07Z
+test: TestN04PipeSensitiveDescendantHoldingStdoutIsNecessary (file n04_pipe_sensitive_test.go)
+command: go test -count=1 -timeout 90s -run '^TestN04...$' ./internal/host
+
+=== HELD pipe (product condition) x3 : expect PASS ===
+ok  	codex-cli-orchestration-design/tools/orchestrator/internal/host	2.143s
+ok  	codex-cli-orchestration-design/tools/orchestrator/internal/host	2.179s
+ok  	codex-cli-orchestration-design/tools/orchestrator/internal/host	3.330s
+
+=== NO-PIPE negative control (descendant alive, stdout->/dev/null) x3 : expect RED ===
+-- run 1 --
+--- FAIL: TestN04PipeSensitiveDescendantHoldingStdoutIsNecessary (0.11s)
+    n04_pipe_sensitive_test.go:128: descendant still holds stdout yet host finalized a result: status=result_ready artifact="/var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/TestN04PipeSensitiveDescendantHoldingStdoutIsNecessary1602059337/001/spool/a/s/result-output.bin"
+FAIL
+-- run 2 --
+--- FAIL: TestN04PipeSensitiveDescendantHoldingStdoutIsNecessary (0.10s)
+    n04_pipe_sensitive_test.go:128: descendant still holds stdout yet host finalized a result: status=result_ready artifact="/var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/TestN04PipeSensitiveDescendantHoldingStdoutIsNecessary2183305216/001/spool/a/s/result-output.bin"
+FAIL
+-- run 3 --
+--- FAIL: TestN04PipeSensitiveDescendantHoldingStdoutIsNecessary (0.10s)
+    n04_pipe_sensitive_test.go:128: descendant still holds stdout yet host finalized a result: status=result_ready artifact="/var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/TestN04PipeSensitiveDescendantHoldingStdoutIsNecessary2441361338/001/spool/a/s/result-output.bin"
+FAIL
+
+SHA of test file:
+c73c5251c0b81ff85513485bc428376f5056342811fb523e1fd841cb1114829c  ./internal/host/n04_pipe_sensitive_test.go
+SHA of production host.go (unchanged, pristine):
+ee6ce551560bd04dd108cf5d23646e38a9cf9f66af1e1dbe0e58638ea732bf22  ./internal/host/host.go

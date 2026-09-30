@@ -1,0 +1,6 @@
+R7 Python + packaging window=2026-09-30T04:10:20Z
+=== all repair Python self-tests (R1 observer + R2 n01 harness + R2 n03 window) ===
+..............                                                           [100%]
+14 passed in 5.17s
+=== R5 closure verify (packaging/relocation) ===
+{"ok": true, "root": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/candidate", "required": 15, "failures": []}

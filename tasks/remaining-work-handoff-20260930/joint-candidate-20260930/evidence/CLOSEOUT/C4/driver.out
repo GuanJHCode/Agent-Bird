@@ -1,0 +1,7 @@
+{"status": "PASS", "artifacts": 11}
+package_bundle_rc=0
+install_report_rc=0
+closure_emit_rc=0
+closure_verify_rc=0
+relocation_verify_rc=0
+receipt_rc=1

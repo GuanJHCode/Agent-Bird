@@ -1,0 +1,8 @@
+label: no-self-storm (本窗口只跑门禁自身, 未创建任何自建 churn/storm 负载)
+tree: /private/tmp/bird-nseries-repair-20260930-3bcaf2/scratch/second  module: codex-cli-orchestration-design/tools/orchestrator
+window_open utc=2026-09-30T05:26:48Z load={ 13.34 7.07 5.10 } go_procs=0 test_bin_procs=0
+after_build utc=2026-09-30T05:27:00Z load={ 13.22 7.25 5.19 } go_procs=0 test_bin_procs=0
+after_ordinary utc=2026-09-30T05:29:14Z load={ 7.43 7.01 5.38 } go_procs=0 test_bin_procs=0
+after_race utc=2026-09-30T05:31:58Z load={ 7.74 7.52 5.89 } go_procs=0 test_bin_procs=0
+window_close utc=2026-09-30T05:32:39Z load={ 6.48 7.23 5.85 } go_procs=0 test_bin_procs=0
+done utc=2026-09-30T05:32:39Z

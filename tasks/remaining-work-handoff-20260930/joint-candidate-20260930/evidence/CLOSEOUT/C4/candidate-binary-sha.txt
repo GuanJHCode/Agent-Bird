@@ -1,0 +1,3 @@
+42dc58ac241d2329ff11bc9544ae3574112fd06f1581701629551efd91d80617  /private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/CLOSEOUT/C4/candidate-bin/codex-orchestrator
+previous_closeout_candidate=42dc58ac241d2329ff11bc9544ae3574112fd06f1581701629551efd91d80617
+binary_equals_previous_candidate=true

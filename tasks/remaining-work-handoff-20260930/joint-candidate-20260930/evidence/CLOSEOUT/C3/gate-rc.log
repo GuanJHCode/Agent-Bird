@@ -1,0 +1,10 @@
+vet_rc=0
+build_rc=0
+ordinary_rc=0
+race_rc=0
+python_bridge_rc=0
+python_pipeline_rc=0
+python_scripts_rc=0
+python_c1_probe_rc=0
+python_c1_legacy_red_rc=1 (预期 1: 真 RED)
+identity_recalc_rc=0

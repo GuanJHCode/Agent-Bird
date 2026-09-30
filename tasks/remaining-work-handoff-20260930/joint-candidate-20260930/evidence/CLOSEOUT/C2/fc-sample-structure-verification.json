@@ -1,0 +1,1016 @@
+{
+ "generated_utc": "2026-09-30T05:23:25Z",
+ "window_dir": "/private/tmp/bird-nseries-repair-20260930-3bcaf2/evidence/ROUND2/FC/storm-window",
+ "report_sha256": "8dbf8b57a94e817460916e42839e366d61065a43e848f95403f1ea216b507ca5",
+ "ok": false,
+ "checks_total": 119,
+ "verdicts": {
+  "PASS": 118,
+  "FAIL": 1
+ },
+ "sample_structure_conclusion": {
+  "cause_samples_are_single_probe_identity": true,
+  "cause_samples_per_s1_s3_identity": 0,
+  "quiet_storm_samples_per_identity": {
+   "quiet": 10,
+   "storm": 10
+  },
+  "cause_observation_rows_per_window": {
+   "cause_observation_quiet": {
+    "iterations": 10,
+    "control_rows": 3
+   },
+   "cause_observation_storm": {
+    "iterations": 10,
+    "control_rows": 3
+   }
+  },
+  "note": "10/10 每身份样本预算落在 quiet_controls/storm_windows 的 S1/S3 控制窗; cause 观测窗是单个 adapter 探针身份的 10 次迭代 + 3 个控制形状行, cause_chain_units 是 4 身份 × 4 次重跑且 sample_complete=false (每身份未达 10)。"
+ },
+ "checks": [
+  {
+   "id": "bounds.window_order_keys_match",
+   "expected": [
+    "cause_chain_units",
+    "cause_observation_quiet",
+    "cause_observation_storm",
+    "quiet_controls",
+    "storm_windows",
+    "warm"
+   ],
+   "actual": [
+    "cause_chain_units",
+    "cause_observation_quiet",
+    "cause_observation_storm",
+    "quiet_controls",
+    "storm_windows",
+    "warm"
+   ],
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.window_names_cover_expected_mapping",
+   "expected": [
+    "cause_chain_units",
+    "cause_observation_quiet",
+    "cause_observation_storm",
+    "quiet_controls",
+    "storm_windows",
+    "warm"
+   ],
+   "actual": [
+    "cause_chain_units",
+    "cause_observation_quiet",
+    "cause_observation_storm",
+    "quiet_controls",
+    "storm_windows",
+    "warm"
+   ],
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.warm.start_before_end",
+   "expected": "start<=end",
+   "actual": "2026-09-30T04:55:03Z<=2026-09-30T04:55:11Z",
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.warm.duration_matches_endpoints",
+   "expected": 8.0,
+   "actual": 8.0,
+   "verdict": "PASS",
+   "note": "端点按整秒记录, duration_s 保留实测小数, 容差 1s"
+  },
+  {
+   "id": "bounds.warm.inside_outer_window",
+   "expected": "2026-09-30 04:55:03+00:00..2026-09-30 04:58:05+00:00",
+   "actual": "2026-09-30 04:55:03+00:00..2026-09-30 04:55:11+00:00",
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.warm.load_start.is_three_field_loadavg",
+   "expected": 3,
+   "actual": 3,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.warm.load_end.is_three_field_loadavg",
+   "expected": 3,
+   "actual": 3,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.warm.sysctl_loadavg_start.sysctl_raw_present",
+   "expected": "{ a b c }",
+   "actual": "{ 3.72 3.41 4.01 }",
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.warm.sysctl_loadavg_end.sysctl_raw_present",
+   "expected": "{ a b c }",
+   "actual": "{ 4.62 3.60 4.07 }",
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.warm.gap_field",
+   "expected": "None (first window)",
+   "actual": null,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.quiet_controls.start_before_end",
+   "expected": "start<=end",
+   "actual": "2026-09-30T04:55:11Z<=2026-09-30T04:55:23Z",
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.quiet_controls.duration_matches_endpoints",
+   "expected": 12.0,
+   "actual": 12.0,
+   "verdict": "PASS",
+   "note": "端点按整秒记录, duration_s 保留实测小数, 容差 1s"
+  },
+  {
+   "id": "bounds.quiet_controls.inside_outer_window",
+   "expected": "2026-09-30 04:55:03+00:00..2026-09-30 04:58:05+00:00",
+   "actual": "2026-09-30 04:55:11+00:00..2026-09-30 04:55:23+00:00",
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.quiet_controls.load_start.is_three_field_loadavg",
+   "expected": 3,
+   "actual": 3,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.quiet_controls.load_end.is_three_field_loadavg",
+   "expected": 3,
+   "actual": 3,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.quiet_controls.sysctl_loadavg_start.sysctl_raw_present",
+   "expected": "{ a b c }",
+   "actual": "{ 4.62 3.60 4.07 }",
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.quiet_controls.sysctl_loadavg_end.sysctl_raw_present",
+   "expected": "{ a b c }",
+   "actual": "{ 4.61 3.65 4.08 }",
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.quiet_controls.monotonic_after_previous_end",
+   "expected": ">=0",
+   "actual": 0.0,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.quiet_controls.gap_matches_measured_delta",
+   "expected": 0.0,
+   "actual": 0.0,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.cause_observation_quiet.start_before_end",
+   "expected": "start<=end",
+   "actual": "2026-09-30T04:55:23Z<=2026-09-30T04:55:30Z",
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.cause_observation_quiet.duration_matches_endpoints",
+   "expected": 7.0,
+   "actual": 7.0,
+   "verdict": "PASS",
+   "note": "端点按整秒记录, duration_s 保留实测小数, 容差 1s"
+  },
+  {
+   "id": "bounds.cause_observation_quiet.inside_outer_window",
+   "expected": "2026-09-30 04:55:03+00:00..2026-09-30 04:58:05+00:00",
+   "actual": "2026-09-30 04:55:23+00:00..2026-09-30 04:55:30+00:00",
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.cause_observation_quiet.load_start.is_three_field_loadavg",
+   "expected": 3,
+   "actual": 3,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.cause_observation_quiet.load_end.is_three_field_loadavg",
+   "expected": 3,
+   "actual": 3,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.cause_observation_quiet.sysctl_loadavg_start.sysctl_raw_present",
+   "expected": "{ a b c }",
+   "actual": "{ 4.61 3.65 4.08 }",
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.cause_observation_quiet.sysctl_loadavg_end.sysctl_raw_present",
+   "expected": "{ a b c }",
+   "actual": "{ 4.32 3.61 4.06 }",
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.cause_observation_quiet.monotonic_after_previous_end",
+   "expected": ">=0",
+   "actual": 0.0,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.cause_observation_quiet.gap_matches_measured_delta",
+   "expected": 0.0,
+   "actual": 0.0,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.cause_chain_units.start_before_end",
+   "expected": "start<=end",
+   "actual": "2026-09-30T04:55:30Z<=2026-09-30T04:55:31Z",
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.cause_chain_units.duration_matches_endpoints",
+   "expected": 1.0,
+   "actual": 1.0,
+   "verdict": "PASS",
+   "note": "端点按整秒记录, duration_s 保留实测小数, 容差 1s"
+  },
+  {
+   "id": "bounds.cause_chain_units.inside_outer_window",
+   "expected": "2026-09-30 04:55:03+00:00..2026-09-30 04:58:05+00:00",
+   "actual": "2026-09-30 04:55:30+00:00..2026-09-30 04:55:31+00:00",
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.cause_chain_units.load_start.is_three_field_loadavg",
+   "expected": 3,
+   "actual": 3,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.cause_chain_units.load_end.is_three_field_loadavg",
+   "expected": 3,
+   "actual": 3,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.cause_chain_units.sysctl_loadavg_start.sysctl_raw_present",
+   "expected": "{ a b c }",
+   "actual": "{ 4.32 3.61 4.06 }",
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.cause_chain_units.sysctl_loadavg_end.sysctl_raw_present",
+   "expected": "{ a b c }",
+   "actual": "{ 4.32 3.61 4.06 }",
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.cause_chain_units.monotonic_after_previous_end",
+   "expected": ">=0",
+   "actual": 0.0,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.cause_chain_units.gap_matches_measured_delta",
+   "expected": 0.0,
+   "actual": 0.0,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.storm_windows.start_before_end",
+   "expected": "start<=end",
+   "actual": "2026-09-30T04:55:35Z<=2026-09-30T04:56:25Z",
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.storm_windows.duration_matches_endpoints",
+   "expected": 50.0,
+   "actual": 50.0,
+   "verdict": "PASS",
+   "note": "端点按整秒记录, duration_s 保留实测小数, 容差 1s"
+  },
+  {
+   "id": "bounds.storm_windows.inside_outer_window",
+   "expected": "2026-09-30 04:55:03+00:00..2026-09-30 04:58:05+00:00",
+   "actual": "2026-09-30 04:55:35+00:00..2026-09-30 04:56:25+00:00",
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.storm_windows.load_start.is_three_field_loadavg",
+   "expected": 3,
+   "actual": 3,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.storm_windows.load_end.is_three_field_loadavg",
+   "expected": 3,
+   "actual": 3,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.storm_windows.sysctl_loadavg_start.sysctl_raw_present",
+   "expected": "{ a b c }",
+   "actual": "{ 4.37 3.63 4.07 }",
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.storm_windows.sysctl_loadavg_end.sysctl_raw_present",
+   "expected": "{ a b c }",
+   "actual": "{ 5.84 4.15 4.23 }",
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.storm_windows.monotonic_after_previous_end",
+   "expected": ">=0",
+   "actual": 4.0,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.storm_windows.gap_matches_measured_delta",
+   "expected": 4.0,
+   "actual": 4.0,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.cause_observation_storm.start_before_end",
+   "expected": "start<=end",
+   "actual": "2026-09-30T04:56:25Z<=2026-09-30T04:56:54Z",
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.cause_observation_storm.duration_matches_endpoints",
+   "expected": 29.0,
+   "actual": 29.0,
+   "verdict": "PASS",
+   "note": "端点按整秒记录, duration_s 保留实测小数, 容差 1s"
+  },
+  {
+   "id": "bounds.cause_observation_storm.inside_outer_window",
+   "expected": "2026-09-30 04:55:03+00:00..2026-09-30 04:58:05+00:00",
+   "actual": "2026-09-30 04:56:25+00:00..2026-09-30 04:56:54+00:00",
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.cause_observation_storm.load_start.is_three_field_loadavg",
+   "expected": 3,
+   "actual": 3,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.cause_observation_storm.load_end.is_three_field_loadavg",
+   "expected": 3,
+   "actual": 3,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.cause_observation_storm.sysctl_loadavg_start.sysctl_raw_present",
+   "expected": "{ a b c }",
+   "actual": "{ 5.84 4.15 4.23 }",
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.cause_observation_storm.sysctl_loadavg_end.sysctl_raw_present",
+   "expected": "{ a b c }",
+   "actual": "{ 4.69 4.04 4.19 }",
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.cause_observation_storm.monotonic_after_previous_end",
+   "expected": ">=0",
+   "actual": 0.0,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "bounds.cause_observation_storm.gap_matches_measured_delta",
+   "expected": 0.0,
+   "actual": 0.0,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "label.warm.self_storm_active",
+   "expected": false,
+   "actual": false,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "label.quiet_controls.self_storm_active",
+   "expected": false,
+   "actual": false,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "label.cause_observation_quiet.self_storm_active",
+   "expected": false,
+   "actual": false,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "label.cause_chain_units.self_storm_active",
+   "expected": false,
+   "actual": false,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "label.storm_windows.self_storm_active",
+   "expected": true,
+   "actual": true,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "label.cause_observation_storm.self_storm_active",
+   "expected": true,
+   "actual": true,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "label.report_storm_active_equals_any_window",
+   "expected": true,
+   "actual": true,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "label.storm_active_derives_from_churn_p50",
+   "expected": true,
+   "actual": true,
+   "verdict": "PASS",
+   "note": "churn p50=4067.38ms"
+  },
+  {
+   "id": "label.outer_window_label",
+   "expected": "no-self-storm",
+   "actual": "no-self-storm",
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "label.label_note_declares_not_machine_quiet",
+   "expected": "含'绝不表示机器安静'",
+   "actual": "本实验的受控 churn storm 是本批自建负载, 逐窗以 self_storm_active 如实区分; 外层独占窗序列标签 no-self-storm 只表示「该窗内没有本批自建 storm 在跑」, 绝不表示机器安静。",
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "sample.quiet_controls.S1.TestProfileRunsThroughPinnedCapabilityProbe.matches_budget",
+   "expected": 10,
+   "actual": 10,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "sample.quiet_controls.S1.TestProfileRunsThroughPinnedCapabilityProbe.elapsed_length_matches",
+   "expected": 10,
+   "actual": 10,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "sample.quiet_controls.S1.TestProfileRunsThroughPinnedCapabilityProbe.sample_complete_flag",
+   "expected": true,
+   "actual": true,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "sample.quiet_controls.S1.TestProfileRunsThroughPinnedCapabilityProbe.run_lines_equal_samples",
+   "expected": 10,
+   "actual": 10,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "sample.quiet_controls.S1.TestProfileRunsThroughPinnedCapabilityProbe.terminal_lines_equal_samples",
+   "expected": 10,
+   "actual": 10,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "sample.quiet_controls.S1.TestProfileRunsThroughPinnedCapabilityProbe.outcome_matches_rc",
+   "expected": "pass",
+   "actual": "pass",
+   "verdict": "PASS",
+   "note": "storm 窗 rc=1 对应身份全部 fail; quiet 窗 rc=0 对应全部 pass"
+  },
+  {
+   "id": "sample.quiet_controls.S1.single_test_identity_in_stream",
+   "expected": 1,
+   "actual": 1,
+   "verdict": "PASS",
+   "note": "该窗只驱动一个身份: ['TestProfileRunsThroughPinnedCapabilityProbe']"
+  },
+  {
+   "id": "sample.quiet_controls.S3.TestGrokProbeReportsSeparateWriteAuthorization.matches_budget",
+   "expected": 10,
+   "actual": 10,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "sample.quiet_controls.S3.TestGrokProbeReportsSeparateWriteAuthorization.elapsed_length_matches",
+   "expected": 10,
+   "actual": 10,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "sample.quiet_controls.S3.TestGrokProbeReportsSeparateWriteAuthorization.sample_complete_flag",
+   "expected": true,
+   "actual": true,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "sample.quiet_controls.S3.TestGrokProbeReportsSeparateWriteAuthorization.run_lines_equal_samples",
+   "expected": 10,
+   "actual": 10,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "sample.quiet_controls.S3.TestGrokProbeReportsSeparateWriteAuthorization.terminal_lines_equal_samples",
+   "expected": 10,
+   "actual": 10,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "sample.quiet_controls.S3.TestGrokProbeReportsSeparateWriteAuthorization.outcome_matches_rc",
+   "expected": "pass",
+   "actual": "pass",
+   "verdict": "PASS",
+   "note": "storm 窗 rc=1 对应身份全部 fail; quiet 窗 rc=0 对应全部 pass"
+  },
+  {
+   "id": "sample.quiet_controls.S3.single_test_identity_in_stream",
+   "expected": 1,
+   "actual": 1,
+   "verdict": "PASS",
+   "note": "该窗只驱动一个身份: ['TestGrokProbeReportsSeparateWriteAuthorization']"
+  },
+  {
+   "id": "sample.storm_windows.S1.TestProfileRunsThroughPinnedCapabilityProbe.matches_budget",
+   "expected": 10,
+   "actual": 10,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "sample.storm_windows.S1.TestProfileRunsThroughPinnedCapabilityProbe.elapsed_length_matches",
+   "expected": 10,
+   "actual": 10,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "sample.storm_windows.S1.TestProfileRunsThroughPinnedCapabilityProbe.sample_complete_flag",
+   "expected": true,
+   "actual": true,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "sample.storm_windows.S1.TestProfileRunsThroughPinnedCapabilityProbe.run_lines_equal_samples",
+   "expected": 10,
+   "actual": 10,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "sample.storm_windows.S1.TestProfileRunsThroughPinnedCapabilityProbe.terminal_lines_equal_samples",
+   "expected": 10,
+   "actual": 10,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "sample.storm_windows.S1.TestProfileRunsThroughPinnedCapabilityProbe.outcome_matches_rc",
+   "expected": "fail",
+   "actual": "fail",
+   "verdict": "PASS",
+   "note": "storm 窗 rc=1 对应身份全部 fail; quiet 窗 rc=0 对应全部 pass"
+  },
+  {
+   "id": "sample.storm_windows.S1.single_test_identity_in_stream",
+   "expected": 1,
+   "actual": 1,
+   "verdict": "PASS",
+   "note": "该窗只驱动一个身份: ['TestProfileRunsThroughPinnedCapabilityProbe']"
+  },
+  {
+   "id": "sample.storm_windows.S3.TestGrokProbeReportsSeparateWriteAuthorization.matches_budget",
+   "expected": 10,
+   "actual": 10,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "sample.storm_windows.S3.TestGrokProbeReportsSeparateWriteAuthorization.elapsed_length_matches",
+   "expected": 10,
+   "actual": 10,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "sample.storm_windows.S3.TestGrokProbeReportsSeparateWriteAuthorization.sample_complete_flag",
+   "expected": true,
+   "actual": true,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "sample.storm_windows.S3.TestGrokProbeReportsSeparateWriteAuthorization.run_lines_equal_samples",
+   "expected": 10,
+   "actual": 10,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "sample.storm_windows.S3.TestGrokProbeReportsSeparateWriteAuthorization.terminal_lines_equal_samples",
+   "expected": 10,
+   "actual": 10,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "sample.storm_windows.S3.TestGrokProbeReportsSeparateWriteAuthorization.outcome_matches_rc",
+   "expected": "fail",
+   "actual": "fail",
+   "verdict": "PASS",
+   "note": "storm 窗 rc=1 对应身份全部 fail; quiet 窗 rc=0 对应全部 pass"
+  },
+  {
+   "id": "sample.storm_windows.S3.single_test_identity_in_stream",
+   "expected": 1,
+   "actual": 1,
+   "verdict": "PASS",
+   "note": "该窗只驱动一个身份: ['TestGrokProbeReportsSeparateWriteAuthorization']"
+  },
+  {
+   "id": "cause.cause_observation_quiet.observations_field_matches_iterations",
+   "expected": 10,
+   "actual": 10,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "cause.cause_observation_quiet.iteration_indices_are_0_to_n",
+   "expected": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+   ],
+   "actual": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+   ],
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "cause.cause_observation_quiet.class_counts_total_matches",
+   "expected": 10,
+   "actual": 10,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "cause.cause_observation_quiet.stream_drives_single_probe_identity",
+   "expected": 1,
+   "actual": 1,
+   "verdict": "PASS",
+   "note": "身份: ['TestProbeCauseDecompositionObservation']"
+  },
+  {
+   "id": "cause.cause_observation_quiet.observation_iteration_rows_equal_samples",
+   "expected": 10,
+   "actual": 10,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "cause.cause_observation_quiet.observation_control_rows_equal_three",
+   "expected": [
+    "control_warm_absorb",
+    "control_cancelled",
+    "control_warm_ok"
+   ],
+   "actual": [
+    "control_cancelled",
+    "control_warm_absorb",
+    "control_warm_ok"
+   ],
+   "verdict": "PASS",
+   "note": "3 行是探针自身的控制形状, 不计入 10 个样本"
+  },
+  {
+   "id": "cause.cause_observation_quiet.observation_row_shape_accounting",
+   "expected": 13,
+   "actual": 13,
+   "verdict": "PASS",
+   "note": "observations 行数 = 10 样本 + 3 控制行; 事件流 21 行是同一个 go-test 身份的输出行"
+  },
+  {
+   "id": "cause.cause_observation_quiet.run_id_matches_window",
+   "expected": "quiet",
+   "actual": [
+    "quiet"
+   ],
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "cause.cause_observation_storm.observations_field_matches_iterations",
+   "expected": 10,
+   "actual": 10,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "cause.cause_observation_storm.iteration_indices_are_0_to_n",
+   "expected": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+   ],
+   "actual": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9
+   ],
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "cause.cause_observation_storm.class_counts_total_matches",
+   "expected": 10,
+   "actual": 10,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "cause.cause_observation_storm.stream_drives_single_probe_identity",
+   "expected": 1,
+   "actual": 1,
+   "verdict": "PASS",
+   "note": "身份: ['TestProbeCauseDecompositionObservation']"
+  },
+  {
+   "id": "cause.cause_observation_storm.observation_iteration_rows_equal_samples",
+   "expected": 10,
+   "actual": 10,
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "cause.cause_observation_storm.observation_control_rows_equal_three",
+   "expected": [
+    "control_warm_absorb",
+    "control_cancelled",
+    "control_warm_ok"
+   ],
+   "actual": [
+    "control_cancelled",
+    "control_warm_absorb",
+    "control_warm_ok"
+   ],
+   "verdict": "PASS",
+   "note": "3 行是探针自身的控制形状, 不计入 10 个样本"
+  },
+  {
+   "id": "cause.cause_observation_storm.observation_row_shape_accounting",
+   "expected": 13,
+   "actual": 13,
+   "verdict": "PASS",
+   "note": "observations 行数 = 10 样本 + 3 控制行; 事件流 21 行是同一个 go-test 身份的输出行"
+  },
+  {
+   "id": "cause.cause_observation_storm.run_id_matches_window",
+   "expected": "storm",
+   "actual": [
+    "storm"
+   ],
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "units.TestProbeFailureRetainsExitCauseWithoutOutput.report_matches_stream_run_lines",
+   "expected": 4,
+   "actual": 4,
+   "verdict": "PASS",
+   "note": "cause_chain_units 是 4 个身份 × 4 次重跑的链单元核对, 预算不是 10"
+  },
+  {
+   "id": "units.TestProbeFailureRetainsStartCause.report_matches_stream_run_lines",
+   "expected": 4,
+   "actual": 4,
+   "verdict": "PASS",
+   "note": "cause_chain_units 是 4 个身份 × 4 次重跑的链单元核对, 预算不是 10"
+  },
+  {
+   "id": "units.TestProbeFailureRetainsCancellationCause.report_matches_stream_run_lines",
+   "expected": 4,
+   "actual": 4,
+   "verdict": "PASS",
+   "note": "cause_chain_units 是 4 个身份 × 4 次重跑的链单元核对, 预算不是 10"
+  },
+  {
+   "id": "units.TestProbeFailureRetainsDeadlineAndExitCauses.report_matches_stream_run_lines",
+   "expected": 4,
+   "actual": 4,
+   "verdict": "PASS",
+   "note": "cause_chain_units 是 4 个身份 × 4 次重跑的链单元核对, 预算不是 10"
+  },
+  {
+   "id": "units.sample_complete_flag_is_honest_false",
+   "expected": false,
+   "actual": false,
+   "verdict": "PASS",
+   "note": "该窗每身份 4 样本 < limits.iterations_per_identity 的 10, 数据自身标 false"
+  },
+  {
+   "id": "units.identity_set_matches_stream",
+   "expected": [
+    "TestProbeFailureRetainsCancellationCause",
+    "TestProbeFailureRetainsDeadlineAndExitCauses",
+    "TestProbeFailureRetainsExitCauseWithoutOutput",
+    "TestProbeFailureRetainsStartCause"
+   ],
+   "actual": [
+    "TestProbeFailureRetainsCancellationCause",
+    "TestProbeFailureRetainsDeadlineAndExitCauses",
+    "TestProbeFailureRetainsExitCauseWithoutOutput",
+    "TestProbeFailureRetainsStartCause"
+   ],
+   "verdict": "PASS",
+   "note": ""
+  },
+  {
+   "id": "warm.stream_has_no_test_identity",
+   "expected": 0,
+   "actual": 0,
+   "verdict": "PASS",
+   "note": "warm 窗只是编译/预热包, 'testing: warning: no tests to run' 已记在包级输出行"
+  },
+  {
+   "id": "warm.package_actions_accounted",
+   "expected": [
+    "start",
+    "output",
+    "elapsed"
+   ],
+   "actual": [
+    "output",
+    "pass",
+    "start"
+   ],
+   "verdict": "FAIL",
+   "note": ""
+  },
+  {
+   "id": "files.all_referenced_files_present",
+   "expected": [
+    "cause-quiet.jsonl",
+    "cause-quiet.observations.jsonl",
+    "cause-storm.jsonl",
+    "cause-storm.observations.jsonl",
+    "cause-units.jsonl",
+    "quiet-S1.jsonl",
+    "quiet-S3.jsonl",
+    "report.json",
+    "storm-S1.jsonl",
+    "storm-S3.jsonl",
+    "warm.jsonl"
+   ],
+   "actual": [
+    "cause-quiet.jsonl",
+    "cause-quiet.observations.jsonl",
+    "cause-storm.jsonl",
+    "cause-storm.observations.jsonl",
+    "cause-units.jsonl",
+    "quiet-S1.jsonl",
+    "quiet-S3.jsonl",
+    "report.json",
+    "storm-S1.jsonl",
+    "storm-S3.jsonl",
+    "warm.jsonl"
+   ],
+   "verdict": "PASS",
+   "note": "storm/fresh/*.sh 是自建 churn 的探针脚本目录, 单独列在 extra_dirs"
+  },
+  {
+   "id": "files.storm_script_dir_exists",
+   "expected": true,
+   "actual": true,
+   "verdict": "PASS",
+   "note": ""
+  }
+ ],
+ "failures": [
+  {
+   "id": "warm.package_actions_accounted",
+   "expected": [
+    "start",
+    "output",
+    "elapsed"
+   ],
+   "actual": [
+    "output",
+    "pass",
+    "start"
+   ],
+   "verdict": "FAIL",
+   "note": ""
+  }
+ ]
+}

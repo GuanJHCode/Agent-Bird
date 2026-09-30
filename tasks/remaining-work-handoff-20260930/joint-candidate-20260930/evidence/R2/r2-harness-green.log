@@ -1,0 +1,8 @@
+R2 harness evidence 2026-09-30T03:50:21Z
+GREEN new harness self-tests:
+...                                                                      [100%]
+3 passed in 0.01s
+run_n01.py SHA:
+a56c8d8ef205e97ebc3ebdd19b5e5f2d627ae3918add725da28d5307714e33dd  /private/tmp/bird-nseries-repair-20260930-3bcaf2/candidate/tasks/remaining-work-handoff-20260930/scripts/run_n01.py
+634ee5f7182b9bd0db60de48760620736134be8d3e75cc1c99d0753126d50a5d  /private/tmp/bird-nseries-repair-20260930-3bcaf2/candidate/tasks/remaining-work-handoff-20260930/scripts/test_run_n01_harness.py
+RED stub (OLD overwrite+mixed semantics) archived at r2-red-stub.log (3 assertion failures)

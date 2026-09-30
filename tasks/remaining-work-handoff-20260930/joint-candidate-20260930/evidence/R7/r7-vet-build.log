@@ -1,0 +1,5 @@
+R7 gate window start=2026-09-30T04:02:13Z load0={ 7.45 8.21 9.00 }
+=== go vet ./... ===
+vet-rc=0
+=== go build ./... ===
+build-rc=0

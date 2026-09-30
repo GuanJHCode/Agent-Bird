@@ -1,0 +1,24 @@
+{
+ "required": [
+  "tools/orchestrator/internal/host/n04_pipe_sensitive_test.go",
+  "tools/orchestrator/internal/host/progress_pipe_hold_test.go",
+  "tools/orchestrator/internal/host/stop_timing_test.go",
+  "tools/orchestrator/internal/store/progress_guards_test.go",
+  "tools/native-product-bridge/n02_owner_readiness_observer.py",
+  "tools/native-product-bridge/test_n02_owner_readiness_observer.py",
+  "tasks/remaining-work-handoff-20260930/scripts/run_n01.py",
+  "tasks/remaining-work-handoff-20260930/scripts/test_run_n01_harness.py",
+  "tasks/remaining-work-handoff-20260930/scripts/n03_s1_s3_storm.py",
+  "tasks/remaining-work-handoff-20260930/scripts/test_n03_window_bounds.py",
+  "tasks/remaining-work-handoff-20260930/scripts/identity_diff_round2.py",
+  "tasks/remaining-work-handoff-20260930/docs/n01-s4-findings.md",
+  "tasks/remaining-work-handoff-20260930/docs/n03-s1s3-findings.md",
+  "tasks/remaining-work-handoff-20260930/docs/N01-analysis.second.md",
+  "tasks/remaining-work-handoff-20260930/docs/R6-status.md",
+  "tasks/remaining-work-handoff-20260930/delivery-corrections/delivery.second.md",
+  "tasks/remaining-work-handoff-20260930/delivery-corrections/nseries-delivery-receipt.second.json",
+  "tasks/remaining-work-handoff-20260930/delivery-corrections/gate-summary.original.json",
+  "evidence/ROUND2/FB/redstub/make_fb_red_stub.py",
+  "evidence/ROUND2/FC/redstub/make_fc_red_stub.py"
+ ]
+}

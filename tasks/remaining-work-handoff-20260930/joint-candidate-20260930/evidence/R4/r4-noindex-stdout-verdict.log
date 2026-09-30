@@ -1,0 +1,13 @@
+--- per-new-file git diff --no-index --check: whitespace LINES are the verdict (exit 1=differ only) ---
+PASS(no-whitespace-error)  tasks/remaining-work-handoff-20260930/scripts/n03_s1_s3_storm.py
+PASS(no-whitespace-error)  tasks/remaining-work-handoff-20260930/scripts/run_n01.py
+PASS(no-whitespace-error)  tasks/remaining-work-handoff-20260930/scripts/test_n03_window_bounds.py
+PASS(no-whitespace-error)  tasks/remaining-work-handoff-20260930/scripts/test_run_n01_harness.py
+PASS(no-whitespace-error)  tools/native-product-bridge/n02_owner_readiness_observer.py
+PASS(no-whitespace-error)  tools/native-product-bridge/test_n02_owner_readiness_observer.py
+PASS(no-whitespace-error)  tools/orchestrator/internal/host/n04_pipe_sensitive_test.go
+PASS(no-whitespace-error)  tools/orchestrator/internal/host/progress_pipe_hold_test.go
+PASS(no-whitespace-error)  tools/orchestrator/internal/store/progress_guards_test.go
+
+--- cross-check: same files via git diff --cached --check (authoritative, all staged) ---
+cached-check rc=0
