@@ -53,3 +53,7 @@ Linux arm64验证仅覆盖本批 Store/文件系统逻辑。Linux Provider/完�
 Linux二进制 SHA256 `c936ce99c29f5c35f89288c34dbad74f776abff6c168d1840e58e5f0d466b815`，固定镜像 `sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99`。原CID `34edbb7160ee140e91479c0d7e8c0c73b21404b1567c12f334e45bc870e96986` 已按精确ID inspect确认不存在；禁网、非root、只读root、只挂测试二进制、没有超时或强制清理。
 
 全部命令、原始输出、逐项结果及CID在 `../data/`；复现脚本在 `../scripts/`。最终Linux二进制留在任务私有 `../tmp/linux-bin/` 作为原物理证据，不作为发行产物。没有创建新的用户安装或外部环境。
+
+## 集成核验
+
+六个提交已无冲突合入本地 integration 分支，产品映射为 `2ba7b27` / `7d61669` / `7236f0f` / `ab3b0ef` / `16a1c05`，文档证据为 `c0a80a4`。ROOT逐 raw文件重算SHA及计数，确认 `c0a80a4` 的整个Git tree与已验收的 `51290fe` 完全相同，复用上述有效证据，不重复计数；见 `integration-readback.json`。没有推送或发布。
