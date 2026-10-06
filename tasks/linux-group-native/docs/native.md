@@ -18,3 +18,5 @@ Go1.26.8 Linux cross compilation and Linux `go vet ./internal/process` exit0. Da
 Temporary cleanup: removed the superseded worker-built binary under the misplaced `tools/orchestrator/tasks/linux-group-native/tmp` and its empty directories. The final tested binary, raw evidence, and reproduction script are retained under the task directory.
 
 Independent review of 9a38e71: PASS. ROOT also reran the compile/vet checks with `GOOS`, `GOARCH`, `CGO_ENABLED`, and `GOMAXPROCS` recorded explicitly in command arrays; see `compile-vet-explicit-receipt.json`. Both exit0. No native test rerun was needed because the source and tested binary were unchanged.
+
+Linux race instrumentation was not run: this environment uses a CGO-disabled cross-compiled test binary and the pinned runtime image contains no Go/C compiler. No Linux race result is claimed. The tests-only process source is unchanged by the Task5 integration; its native evidence is reused rather than counted again.
