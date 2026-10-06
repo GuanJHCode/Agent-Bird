@@ -72,8 +72,13 @@ func TestCLIOriginalOwnerRenewsReplacementAfterCoordinatorRestart(t *testing.T) 
 	exerciseCLIOriginalOwner(t, 1, true)
 }
 
-func exerciseCLIOriginalOwner(t *testing.T, transportDeaths int, restartCoordinator bool) {
+func exerciseCLIOriginalOwner(t *testing.T, transportDeaths int, restartCoordinator bool, budgetRevision ...string) {
 	t.Helper()
+	budgetMode := ""
+	if len(budgetRevision) == 1 {
+		budgetMode = budgetRevision[0]
+	}
+	reviseBudget := budgetMode == "retry" || budgetMode == "resume"
 	root, err := os.MkdirTemp("/private/tmp", "owner-first-cli-")
 	if err != nil {
 		t.Fatal(err)
@@ -97,6 +102,9 @@ func exerciseCLIOriginalOwner(t *testing.T, transportDeaths int, restartCoordina
 		t.Fatal(err)
 	}
 	fixture := filepath.Join(root, "original-owner-worker-fixture")
+	if reviseBudget {
+		fixture = filepath.Join(root, "budget-revision-worker-fixture")
+	}
 	image, err := os.ReadFile(os.Args[0])
 	if err != nil {
 		t.Fatal(err)
@@ -228,6 +236,11 @@ func exerciseCLIOriginalOwner(t *testing.T, transportDeaths int, restartCoordina
 		"delivery_mode": "collect",
 		"tasks":         []any{map[string]any{"id": "worker", "max_attempts": 1, "max_active_ms": 60000, "completion_policy": "owner_review", "adapter": map[string]any{"kind": "fake", "args": []string{fixture, markerPath, releasePath}, "directory": root}}},
 	}
+	if reviseBudget {
+		task := request["tasks"].([]any)[0].(map[string]any)
+		task["max_active_ms"] = 30000
+		task["execution_policy"] = contract.ExecutionPolicy{Version: 1, GroupMaxAttempts: 1, GroupMaxActiveMS: 60000, TaskMaxActiveMS: 60000, SegmentMaxActiveMS: 30000}
+	}
 	raw, _ := json.Marshal(request)
 	requestPath := filepath.Join(root, "request.json")
 	if err := os.WriteFile(requestPath, raw, 0600); err != nil {
@@ -279,6 +292,9 @@ func exerciseCLIOriginalOwner(t *testing.T, transportDeaths int, restartCoordina
 	chain, err := process.AncestryContext(ctx, worker.PID)
 	if err != nil || worker.ParentPID != binding.Owner.PID || worker.ParentPID == host.PID || chain[worker.PID] != worker.Birth || chain[binding.Owner.PID] != binding.Owner.Birth || chain[host.PID] != host.Birth {
 		t.Fatalf("worker did not belong to original owner: worker=%+v host=%+v err=%v", worker, host, err)
+	}
+	if reviseBudget {
+		worker = exerciseNativeBudgetRevision(t, ctx, bin, state, root, submitted.ControlFile, bootstrap, db, binding, bindingJSON, host, worker, &markerPath, &releasePath, &actors, budgetMode == "resume")
 	}
 	currentTransport := contract.OriginalOwnerTransport{PID: host.PID, Birth: host.Birth}
 	for fault := 0; fault < transportDeaths; fault++ {

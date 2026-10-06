@@ -52,3 +52,11 @@ ROOT公开接线里程碑（2026-10-07）：
 - Linux arm64预算范围19top39named PASS无skip，crossbuild19752/run93801/container均exit0；owned CID2cd11ecf...c8cdc9e精确删除且inspect已不存在。固定缓存镜像、禁网、只读root、nobody、无cap，未跑Linux race/CLI/Provider。Mac build64838/vet950e6f/diffcheck0。
 - 独立审查PASS。原CommandID blocker经既有协议和review_retry_test明确新delivery重放合同撤回，未按错误建议破坏legacy。来源/原session/JSON及SHA见data/root-public-milestone-receipt.json。
 - 下一步：实际构建CLI、受控worker Failed/Exited→旧预算拒绝→原Host保留→增额→原failure slot retry→实际新worker/newattempt；随后原生resume与组合验收。详细日志、owner分支/最终集成继续OPEN，不声明完整F02或全目标完成。
+
+ROOT真实CLI预算retry/resume验收（2026-10-07）：
+
+- 在c342ecb之上只增加/扩展三个测试文件，未改产品。复用既有真实CLI/original-owner harness，独立fixture的两层O_EXCL marker区分首worker与第二worker，并拒绝第三Start。真实build binary经公开submit、签名owner与原OS child，不是直接调用Store模拟。
+- retry链：首worker原PID/birth的唯一Exited=7且ESRCH；原Host保持ready；旧attempt cap明确拒绝retry；公开budget-revise只增额、不改failed状态、不占failure slot；原slot explicit retry启动新worker和恰第二attempt。resume链：公开stop产生owner_stop_requested/非零原退出，增额后resume使用同attempt/新segment与新worker。两条链均保留原owner/Host和原binding JSON字节；旧used/grant/deadline保持，新retry grant45000，新resume grant45000-old_used。
+- 最终第二worker均有唯一ExitCode0与reap，Coordinator原Cmd.Wait0；source/owner只凭已登记tuple确认退出，不当它们的Wait0。所有成功runtime由既有cleanup确认后删除，无本轮遗留actor/容器。
+- normal4367 exit0，2top2named；最终race83926 exit0，含既有首次链共3top3named，全部0fail/skip；vet8eda82/diffcheck0。产品未改，实际每个native场景go build成功，已有c342ecb Store/Linux证据仍有效。独立fixture审查PASS。
+- race仅覆盖test和复制的受控worker；单独go build的CLI/Coordinator/owner不是race binary。不证明真实账号模型/Provider/TUI或其他平台整链。receipt=data/root-native-budget-receipt.json。预算修订受控本机垂直链已通过，F02有界详细日志、分支组合/最终集成仍OPEN。
