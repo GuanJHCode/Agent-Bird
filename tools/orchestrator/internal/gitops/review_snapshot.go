@@ -76,6 +76,76 @@ func ReviewIndexManifestSHA256(index ReviewIndex) string {
 	return reviewChunkDigest(raw)
 }
 
+// HydrateReviewChunks reads only the immutable blob ranges assigned by an
+// accepted manifest. It never rebuilds an index or discovers paths.
+func HydrateReviewChunks(ctx context.Context, receipt CandidateReceipt, chunks []ReviewIndexChunk) ([]ReviewIndexChunk, error) {
+	if err := validateReviewSnapshotReceipt(ctx, receipt); err != nil {
+		return nil, err
+	}
+	out := append([]ReviewIndexChunk(nil), chunks...)
+	byBlob := map[string][]int{}
+	for i := range out {
+		if out[i].Length < 0 || out[i].Offset < 0 || out[i].BlobOID == "" {
+			return nil, fail(CodeInvalidInput, "review hydrate", fmt.Errorf("invalid chunk"))
+		}
+		byBlob[out[i].BlobOID] = append(byBlob[out[i].BlobOID], i)
+	}
+	read := 0
+	for oid, positions := range byBlob {
+		sizeText, err := freezeGit(ctx, receipt.Worktree, nil, "cat-file", "-s", oid)
+		if err != nil {
+			return nil, err
+		}
+		var size int
+		if _, err = fmt.Sscanf(strings.TrimSpace(sizeText), "%d", &size); err != nil || size < 0 || size > indexedReviewBlobReadLimit || size > indexedReviewTextLimit-read {
+			return nil, fail(CodeInvalidInput, "review hydrate", fmt.Errorf("blob read exceeds limit"))
+		}
+		read += size
+		c := &hydrateCollector{chunks: out, positions: positions, expected: size, whole: sha256.New()}
+		if err = candidateGitStream(ctx, receipt.Worktree, c, "cat-file", "blob", oid); err != nil {
+			return nil, err
+		}
+		if c.seen != size {
+			return nil, fail(CodeUnknownObject, "review hydrate", fmt.Errorf("blob size changed"))
+		}
+		whole := hex.EncodeToString(c.whole.Sum(nil))
+		for _, pos := range positions {
+			if out[pos].WholeSHA256 != whole || len(out[pos].Content) != out[pos].Length || reviewChunkDigest([]byte(out[pos].Content)) != out[pos].SHA256 {
+				return nil, fail(CodeUnknownObject, "review hydrate", fmt.Errorf("chunk mismatch"))
+			}
+		}
+	}
+	return out, nil
+}
+
+type hydrateCollector struct {
+	chunks         []ReviewIndexChunk
+	positions      []int
+	expected, seen int
+	whole          hash.Hash
+}
+
+func (c *hydrateCollector) Write(p []byte) (int, error) {
+	start := c.seen
+	c.seen += len(p)
+	_, _ = c.whole.Write(p)
+	for _, pos := range c.positions {
+		q := &c.chunks[pos]
+		a, b := q.Offset, q.Offset+q.Length
+		lo, hi := a, b
+		if lo < start {
+			lo = start
+		}
+		if hi > c.seen {
+			hi = c.seen
+		}
+		if lo < hi {
+			q.Content += string(p[lo-start : hi-start])
+		}
+	}
+	return len(p), nil
+}
+
 // CandidateReviewIndex enumerates both immutable trees, preserving a distinct
 // logical side even when their blob OIDs match. It rejects unsupported entries
 // rather than presenting partial coverage as complete.
@@ -92,6 +162,12 @@ func CandidateReviewIndex(ctx context.Context, receipt CandidateReceipt, receipt
 	}
 	candidateTree, err := rev(ctx, receipt.Worktree, receipt.CandidateOID+"^{tree}")
 	if err != nil {
+		return ReviewIndex{}, err
+	}
+	if candidateTree != receipt.TreeOID {
+		return ReviewIndex{}, fail(CodeTargetDrift, "review index", fmt.Errorf("candidate tree differs from receipt"))
+	}
+	if err := verifyFrozenChanges(ctx, receipt.Worktree, receipt.BaseOID, candidateTree, receipt.Changes); err != nil {
 		return ReviewIndex{}, err
 	}
 	base, err := reviewTree(ctx, receipt.Worktree, baseTree)
@@ -168,6 +244,9 @@ func appendIndexedReviewBlob(ctx context.Context, repo, path, side string, entry
 	if _, err = fmt.Sscanf(strings.TrimSpace(sizeText), "%d", &size); err != nil || size < 0 || size > indexedReviewBlobReadLimit {
 		return fail(CodeInvalidInput, "review index", fmt.Errorf("blob exceeds read limit"))
 	}
+	if size > indexedReviewTextLimit-indexedTextBytes(index.Chunks) {
+		return fail(CodeInvalidInput, "review index", fmt.Errorf("logical text exceeds limit"))
+	}
 	c := indexedChunkCollector{path: path, side: side, entry: entry, index: index, expected: size, whole: sha256.New()}
 	if err := candidateGitStream(ctx, repo, &c, "cat-file", "blob", entry.oid); err != nil {
 		return err
@@ -195,7 +274,7 @@ type indexedChunkCollector struct {
 
 func (c *indexedChunkCollector) Write(p []byte) (int, error) {
 	c.seen += len(p)
-	if c.seen > c.expected || c.seen+indexedTextBytes(c.index.Chunks) > indexedReviewTextLimit || strings.IndexByte(string(p), 0) >= 0 {
+	if c.seen > c.expected || strings.IndexByte(string(p), 0) >= 0 {
 		c.invalid = true
 		return len(p), nil
 	}
@@ -239,6 +318,10 @@ func (c *indexedChunkCollector) finish() error {
 	}
 	if len(c.pending) > 0 {
 		if err := c.append(c.pending); err != nil {
+			return fail(CodeInvalidInput, "review index", err)
+		}
+	} else if c.expected == 0 {
+		if err := c.append(nil); err != nil {
 			return fail(CodeInvalidInput, "review index", err)
 		}
 	}

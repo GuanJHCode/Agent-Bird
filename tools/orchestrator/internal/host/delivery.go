@@ -350,7 +350,7 @@ func (h *Host) prepareCandidateAction(ctx context.Context, grant contract.Launch
 	var reviewLock *adapter.ProviderLock
 	switch action.Operation {
 	case "validate":
-		if action.ReviewIndex != nil || source.Kind != "" || validateCandidateSourceProvider(source.Lock, source.Provider) != nil || source.Profile == nil || source.Profile.Role != adapter.Implementer || source.Workspace == nil || in.Stage != "" || profile != nil || len(action.Command) == 0 || len(action.Command) > 64 {
+		if source.Kind != "" || validateCandidateSourceProvider(source.Lock, source.Provider) != nil || source.Profile == nil || source.Profile.Role != adapter.Implementer || source.Workspace == nil || in.Stage != "" || profile != nil || len(action.Command) == 0 || len(action.Command) > 64 {
 			return empty, nil, noop, errors.New("candidate_validation_source_invalid")
 		}
 	case "review":
@@ -436,6 +436,16 @@ func (h *Host) prepareCandidateAction(ctx context.Context, grant contract.Launch
 		if err != nil {
 			return fail(err)
 		}
+		if action.ReviewIndex != nil {
+			if len(in.CandidateReceiptSHA256) != 64 {
+				return fail(errors.New("candidate_receipt_missing"))
+			}
+			index, indexErr := gitops.CandidateReviewIndex(ctx, c, in.CandidateReceiptSHA256)
+			if indexErr != nil {
+				return fail(indexErr)
+			}
+			out.ReviewIndex = &index
+		}
 	}
 	var workspace gitops.MaterializeReceipt
 	cmd := empty
@@ -478,15 +488,19 @@ func (h *Host) prepareCandidateAction(ctx context.Context, grant contract.Launch
 				if len(in.CandidateReceiptSHA256) != 64 {
 					return fail(errors.New("candidate_receipt_missing"))
 				}
-				index, indexErr := gitops.CandidateReviewIndex(ctx, snapshotReceipt, in.CandidateReceiptSHA256)
-				if indexErr != nil {
-					return fail(indexErr)
+				if in.ReviewIndex == nil || gitops.ReviewIndexManifestSHA256(*in.ReviewIndex) == "" {
+					return fail(errors.New("candidate_review_index_missing"))
 				}
+				index := *in.ReviewIndex
 				assigned := make([]gitops.ReviewIndexChunk, 0)
 				for _, chunk := range index.Chunks {
 					if chunk.Ordinal%action.ReviewIndex.Shards == action.ReviewIndex.ReviewOrdinal {
 						assigned = append(assigned, chunk)
 					}
+				}
+				assigned, err = gitops.HydrateReviewChunks(ctx, snapshotReceipt, assigned)
+				if err != nil {
+					return fail(err)
 				}
 				assignment, marshalErr := json.Marshal(assigned)
 				if marshalErr != nil {

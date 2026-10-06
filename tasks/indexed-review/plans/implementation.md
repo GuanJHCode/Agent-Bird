@@ -10,3 +10,9 @@
 - `279853c`: index metadata, opt-in action, Grok prompt-file delivery, Store plan gate and coordinator capability gate.
 - `3f698c`: indexed integration reads every immutable dependency artifact, requires complete ordinal coverage, and rechecks assignment hashes before mutation. Git blob bytes now reach the index chunk collector through a journaled bounded stream.
 - Focused Git index and Host dependency/Grok tests pass; `go build ./...` and `go vet ./...` pass. The full managed three-shard mutation fixture and rejection matrix remain to be added.
+
+## Running verification snapshot (do not replace)
+
+- From `tools/orchestrator`, an exec invocation with no recoverable cell/session id started `TMPDIR=/private/tmp /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go test -count=1 ./internal/gitops ./internal/host ./internal/store ./internal/adapter ./internal/coordinator ./cmd/orchestrator`. Observed parent PID `2292` (PPID `21154`), children `2317` host.test and `2410` orchestrator.test. Output is owned by the original exec capture; process state is polled with `ps`, so no file log exists.
+- A second earlier exec invocation with no recoverable cell/session id started `TMPDIR=/private/tmp /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go test -count=1 ./internal/host ./cmd/orchestrator`. Observed parent PID `21354` (PPID `21154`), children `21555` host.test and `21777` orchestrator.test. It has the same original exec-only capture and no file log.
+- Both remained live at the last poll; no third full-suite command will be launched, and their outcomes will not be inferred from process creation or prior output.

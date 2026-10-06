@@ -34,6 +34,10 @@ func (i Invocation) CandidateAction() *CandidateAction {
 	}
 	copy := *i.action
 	copy.Command = append([]string(nil), i.action.Command...)
+	if i.action.ReviewIndex != nil {
+		index := *i.action.ReviewIndex
+		copy.ReviewIndex = &index
+	}
 	return &copy
 }
 

@@ -247,3 +247,32 @@ func TestCandidateReviewIndexAcceptsLargeCompleteCandidateBeyondLegacySnapshotLi
 		t.Fatalf("index lacks complete large coverage: chunks=%d pages=%d", len(index.Chunks), len(index.Pages))
 	}
 }
+
+func TestCandidateReviewIndexRejectsReceiptDriftAndRetainsEmptyFileMetadata(t *testing.T) {
+	d, base := repo(t)
+	if err := os.WriteFile(filepath.Join(d, "empty"), nil, 0600); err != nil {
+		t.Fatal(err)
+	}
+	git(t, d, "add", "empty")
+	git(t, d, "commit", "-qm", "empty")
+	candidateOID := git(t, d, "rev-parse", "HEAD")
+	receipt := frozenReviewReceipt(t, d, base, candidateOID, git(t, d, "rev-parse", "HEAD^{tree}"))
+	receipt.Changes = []CandidateChange{{Path: "empty", Mode: "100644", BlobOID: git(t, d, "rev-parse", candidateOID+":empty")}}
+	index, err := CandidateReviewIndex(context.Background(), receipt, strings.Repeat("a", 64))
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, chunk := range index.Chunks {
+		if chunk.Path == "empty" && chunk.Side == "candidate" && chunk.Length == 0 {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("empty metadata absent: %+v", index.Chunks)
+	}
+	receipt.TreeOID = base
+	if _, err := CandidateReviewIndex(context.Background(), receipt, strings.Repeat("a", 64)); err == nil {
+		t.Fatal("tree drift accepted")
+	}
+}
