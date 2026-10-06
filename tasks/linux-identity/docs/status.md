@@ -30,8 +30,9 @@ double-checked stat snapshot and boot ID; it does not issue a third stat read.
 `process-milestone-retry.log` covers parser, self, real parent/child/gone,
 and UDS tests. `group-milestone.log` covers a waitable group leader while
 active and after its original Wait. Both logs include post-removal CID checks.
-The post-review pure regressions for inode mismatch, stat reuse, and
-cancellation have cross-compiled but await a newly scheduled native run.
+The post-review regressions for inode mismatch, stat reuse, and cancellation
+passed the final native run. Its exact inputs, binary hashes, named-test count,
+and CID cleanup receipt are recorded in `final-native-manifest.md`.
 
 ## Remaining work
 
