@@ -126,6 +126,10 @@ func writeOwnerTransportFrame(ctx context.Context, conn net.Conn, message ipc.En
 }
 
 func runOwnerTransportLoop(parent context.Context, bootstrap contract.OwnerTransportBootstrap, identity contract.OriginalOwnerTransport, control *net.UnixConn) error {
+	return runOwnerTransportLoopWithInitial(parent, bootstrap, identity, control, nil)
+}
+
+func runOwnerTransportLoopWithInitial(parent context.Context, bootstrap contract.OwnerTransportBootstrap, identity contract.OriginalOwnerTransport, control *net.UnixConn, initial *ownerTransportInitialSession) error {
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
 	defer control.Close()
@@ -151,6 +155,21 @@ func runOwnerTransportLoop(parent context.Context, bootstrap contract.OwnerTrans
 	}
 	defer closeConnection()
 	token := "" // stays in this transport; never written to inherited control
+	if initial != nil {
+		if err := initial.validate(bootstrap, identity); err != nil {
+			if initial.connection != nil {
+				_ = initial.connection.Close()
+			}
+			return err
+		}
+		connection, token = initial.connection, initial.token
+		if err := connection.SetDeadline(time.Time{}); err != nil {
+			return err
+		}
+		connectionContext, cancelConnection := context.WithCancel(ctx)
+		stopConnection = cancelConnection
+		connectionFrames = readOwnerTransportFrames(connectionContext, connection)
+	}
 	notifyOffline := func(id string) error {
 		raw, _ := json.Marshal(contract.OwnerTransportControl{Version: 1, Action: "offline"})
 		return writeOwnerTransportFrame(ctx, control, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindOwnerTransportControl, RequestID: id, Payload: raw})
