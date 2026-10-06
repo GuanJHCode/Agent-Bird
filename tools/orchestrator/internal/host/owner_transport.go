@@ -36,6 +36,40 @@ func RunOwnerTransport(ctx context.Context, bootstrap contract.OwnerTransportBoo
 	return runOwnerTransportLoop(ctx, bootstrap, identity, control)
 }
 
+// InitialOwnerTransportConfig preserves the already authenticated first
+// HostHello connection while the original owner binds over its independent
+// kernel-authenticated socket.  The launch token stays in InitialToken and is
+// never copied into OwnerRuntimeBootstrap or the child environment.
+type InitialOwnerTransportConfig struct {
+	Bootstrap    contract.OwnerTransportBootstrap
+	Control      *net.UnixConn
+	Connection   net.Conn
+	Pending      ipc.Envelope
+	InitialToken string
+}
+
+// RunInitialOwnerTransport is the source-host half of the initial relay.  It
+// is intentionally separate from RunOwnerTransport: replacement transports
+// exchange a short ticket, whereas this parent retains the one initial token
+// and the exact connection on which Prepare succeeded.
+func RunInitialOwnerTransport(ctx context.Context, cfg InitialOwnerTransportConfig) error {
+	if cfg.Control == nil || cfg.Connection == nil || cfg.Bootstrap.Validate() != nil {
+		return errOwnerTransportProtocol
+	}
+	identity, err := ownerProcessIdentity(ctx, cfg.Bootstrap.StateDir, cfg.Bootstrap.Intent.Scope, cfg.Bootstrap.Intent.FirstHost)
+	if err != nil {
+		return err
+	}
+	return runOwnerTransportLoopWithInitial(ctx, cfg.Bootstrap, identity, cfg.Control, &ownerTransportInitialSession{connection: cfg.Connection, pending: cfg.Pending, token: cfg.InitialToken})
+}
+
+// VerifyInitialOwnerBound verifies the owner-process proof received on FD4
+// before the initial transport starts forwarding the retained coordinator
+// connection.
+func VerifyInitialOwnerBound(bootstrap contract.OwnerRuntimeBootstrap, child contract.OriginalOwnerTransport, frame ipc.Envelope) (contract.OwnerBindReply, error) {
+	return verifyInitialOwnerBound(bootstrap, child, frame)
+}
+
 func validateOwnerTransportProcess(ctx context.Context, b contract.OwnerTransportBootstrap) (contract.OriginalOwnerTransport, error) {
 	if b.Validate() != nil {
 		return contract.OriginalOwnerTransport{}, errOwnerTransportProtocol

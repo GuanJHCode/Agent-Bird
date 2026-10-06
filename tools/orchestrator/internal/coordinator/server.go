@@ -213,6 +213,7 @@ func (h *hostSession) send(message ipc.Envelope) error {
 }
 
 type Server struct {
+	cliSupervised      bool
 	ownerKeys          *originalOwnerKeys
 	stateDir           string
 	socket             string
@@ -256,6 +257,17 @@ func NewServer(stateDir string) (*Server, error) {
 // made after acquiring the instance lock so an EOF cannot race Shutdown.
 func NewServerForRecovery(stateDir string) (*Server, error) {
 	return newServer(stateDir, true)
+}
+
+// NewCLIServer selects the durable supervised owner mode for native CLI
+// submissions.  NewServer remains legacy by default so embedders and existing
+// tests do not silently change their source-host protocol.
+func NewCLIServer(stateDir string, recovery bool) (*Server, error) {
+	s, err := newServer(stateDir, recovery)
+	if err == nil {
+		s.cliSupervised = true
+	}
+	return s, err
 }
 
 func newServer(stateDir string, recovery bool) (*Server, error) {
@@ -772,7 +784,11 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 			}
 			tasks = append(tasks, store.TaskSpec{ID: task.ID, RunID: request.RunID, Dependencies: task.Dependencies, ExecutionPolicy: task.ExecutionPolicy, MaxAttempts: task.MaxAttempts, WorkRevision: task.WorkRevision, BudgetGroupID: task.BudgetGroupID, MaxActiveMS: task.MaxActiveMS, AdapterPayload: task.AdapterPayload, FallbackPayloads: task.Fallbacks, CompletionPolicy: policy, ExpectedArtifactSHA256: task.ExpectedArtifactSHA256})
 		}
-		receipt, err := s.db.SubmitPlan(ctx, store.PlanSpec{ConfigSubmission: configGuard, Run: store.RunSpec{DeliveryMode: request.DeliveryMode, ID: request.RunID, ControllerThread: request.ControllerThread, PlanRevision: request.PlanRevision, OriginContextID: request.OriginContextID, OriginPID: request.OriginPID, OriginBirth: request.OriginBirth}, Host: store.HostLaunchSpec{OriginContextID: request.OriginContextID, HostGeneration: request.HostGeneration, Executable: request.HostExecutable}, Tasks: tasks, LaunchID: request.LaunchID, LaunchToken: request.LaunchToken, ControlToken: request.ControlToken})
+		mode := "legacy"
+		if s.cliSupervised && request.OwnerMode != "local" {
+			mode = "supervised-v1"
+		}
+		receipt, err := s.db.SubmitPlan(ctx, store.PlanSpec{ConfigSubmission: configGuard, Run: store.RunSpec{DeliveryMode: request.DeliveryMode, ID: request.RunID, ControllerThread: request.ControllerThread, PlanRevision: request.PlanRevision, OriginContextID: request.OriginContextID, OriginPID: request.OriginPID, OriginBirth: request.OriginBirth}, Host: store.HostLaunchSpec{ExecutionOwnerMode: mode, OriginContextID: request.OriginContextID, HostGeneration: request.HostGeneration, Executable: request.HostExecutable}, Tasks: tasks, LaunchID: request.LaunchID, LaunchToken: request.LaunchToken, ControlToken: request.ControlToken})
 		if err != nil {
 			return nil, err
 		}

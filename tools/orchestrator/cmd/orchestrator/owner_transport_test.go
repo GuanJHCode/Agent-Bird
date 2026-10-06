@@ -30,6 +30,14 @@ func TestOwnerTransportEntryRequiresDedicatedFDs(t *testing.T) {
 	}
 }
 
+func TestOriginalOwnerEntryRequiresDedicatedFDs(t *testing.T) {
+	for _, args := range [][]string{nil, {"--bootstrap-fd", "3"}, {"--bootstrap-fd", "4", "--control-fd", "4"}, {"--bootstrap-fd", "3", "--control-fd", "5"}, {"--launch-token", "secret"}} {
+		if err := run(context.Background(), append([]string{"original-owner"}, args...), &bytes.Buffer{}, &bytes.Buffer{}); err == nil || errorCode(err) != "invalid_args" {
+			t.Fatalf("invalid inherited original owner entry %v: %v", args, err)
+		}
+	}
+}
+
 // The server sockets below are controlled fixtures, not the real Coordinator.
 // This proves the actual CLI/FD/identity/token/relay/Wait path without a provider.
 func TestOwnerTransportActualCLIInheritedChannels(t *testing.T) {

@@ -78,6 +78,8 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return serve(ctx, args[1:], stderr)
 	case "owner-transport":
 		return ownerTransportEntry(ctx, args[1:])
+	case "original-owner":
+		return originalOwnerEntry(ctx, args[1:])
 	case "source-host":
 		return sourceHost(ctx, args[1:])
 	case "gitops-worker":
@@ -255,12 +257,7 @@ func serve(parent context.Context, args []string, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
-	var server *coordinator.Server
-	if *recovery {
-		server, err = coordinator.NewServerForRecovery(state)
-	} else {
-		server, err = coordinator.NewServer(state)
-	}
+	server, err := coordinator.NewCLIServer(state, *recovery)
 	if err != nil {
 		return err
 	}
@@ -1015,6 +1012,12 @@ func sourceHost(parent context.Context, args []string) error {
 	bootstrap.Hello.PID, bootstrap.Hello.Birth, bootstrap.Hello.Executable = os.Getpid(), birth, executable
 	ctx, cancel := signal.NotifyContext(parent, syscall.SIGTERM, syscall.SIGINT)
 	defer cancel()
+	if supervised, runErr := runInitialOriginalOwner(ctx, bootstrap); supervised {
+		if runErr == nil || errors.Is(runErr, context.Canceled) {
+			return nil
+		}
+		return runErr
+	}
 	err = host.RunSource(ctx, host.SourceConfig{
 		SocketPath: bootstrap.SocketPath, SpoolRoot: bootstrap.SpoolRoot,
 		ProducerID: bootstrap.ProducerID, Hello: bootstrap.Hello,
