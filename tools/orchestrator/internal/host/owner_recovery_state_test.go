@@ -251,3 +251,103 @@ func TestOriginalOwnerRecoverySharesFlockAndPreservesLegacyBytes(t *testing.T) {
 		t.Fatal("legacy acquired owner flock")
 	}
 }
+
+func TestOriginalOwnerRecoveryTicketReadsRejectLedgerDrift(t *testing.T) {
+	for _, kind := range []string{"deleted", "replaced", "corrupt", "hardlink", "public_mode"} {
+		t.Run(kind, func(t *testing.T) {
+			dir := privateRecoveryTestDirectory(t)
+			s, err := openOwnerRecovery(dir, strings.Repeat("a", 64))
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer s.close()
+			if _, err = s.reserveTransport(time.UnixMilli(100_000), "original", 1, contract.OriginalOwnerTransport{PID: 10, Birth: "old"}); err != nil {
+				t.Fatal(err)
+			}
+			if err = s.beginTransportStart(); err != nil {
+				t.Fatal(err)
+			}
+			if err = s.recordTransportStarted(contract.OriginalOwnerTransport{PID: 20, Birth: "child"}); err != nil {
+				t.Fatal(err)
+			}
+			path := s.file.path
+			before, _ := os.ReadFile(path)
+			switch kind {
+			case "deleted":
+				err = os.Remove(path)
+			case "replaced":
+				changed := s.copyRecord()
+				changed.OwnerPending.RequestID = "foreign"
+				body, _ := json.Marshal(changed)
+				err = os.WriteFile(path+".foreign", append(body, '\n'), 0600)
+				if err == nil {
+					err = os.Rename(path+".foreign", path)
+				}
+			case "corrupt":
+				err = os.WriteFile(path, []byte("broken\n"), 0600)
+			case "hardlink":
+				err = os.Link(path, path+".linked")
+			case "public_mode":
+				err = os.Chmod(path, 0644)
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err = s.ticketPending(); err == nil {
+				t.Fatal("ticket read ignored durable ledger drift")
+			}
+			if kind == "hardlink" {
+				if err = os.Remove(path + ".linked"); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if kind == "public_mode" {
+				if err = os.Chmod(path, 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err = os.WriteFile(path, before, 0600); err != nil {
+				t.Fatal(err)
+			}
+			if _, err = s.ticketPending(); err == nil {
+				t.Fatal("restoring bytes revived poisoned authority")
+			}
+		})
+	}
+}
+
+func TestOriginalOwnerRecoveryExactReservationReplayDoesNotRewrite(t *testing.T) {
+	dir := privateRecoveryTestDirectory(t)
+	scope := strings.Repeat("a", 64)
+	s, err := openOwnerRecovery(dir, scope)
+	if err != nil {
+		t.Fatal(err)
+	}
+	when, err := s.reserveCoordinator(time.UnixMilli(100_000))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.close()
+	s, err = openOwnerRecovery(dir, scope)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.close()
+	before, err := os.Stat(s.file.path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	content, _ := os.ReadFile(s.file.path)
+	again, err := s.reserveCoordinator(time.UnixMilli(100_500))
+	if err != nil || again != when || s.record.Attempts != 1 {
+		t.Fatal("exact replay", err)
+	}
+	after, err := os.Stat(s.file.path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	newContent, _ := os.ReadFile(s.file.path)
+	if !os.SameFile(before, after) || !bytes.Equal(content, newContent) {
+		t.Fatal("exact reservation replay rewrote persistent ledger")
+	}
+}

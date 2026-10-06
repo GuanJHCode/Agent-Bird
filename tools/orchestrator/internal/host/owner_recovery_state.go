@@ -142,6 +142,9 @@ func (s *ownerRecoveryState) ticketPending() (contract.OwnerTransportPending, er
 	if s.failed || s.file == nil || s.file.lock == nil || s.record.Unavailable || p == nil || p.Phase != "started" || p.NewHost == nil {
 		return contract.OwnerTransportPending{}, ownerRecoveryRejected()
 	}
+	if err := s.verifyCurrent(); err != nil {
+		return contract.OwnerTransportPending{}, err
+	}
 	return contract.OwnerTransportPending{Version: 1, RecoverySlot: p.StartSlot, RequestID: p.RequestID, ExpectedControlRevision: p.ExpectedControlRevision, OldHost: p.OldHost, NewHost: *p.NewHost}, nil
 }
 func (s *ownerRecoveryState) reserveCoordinator(now time.Time) (time.Time, error) {
@@ -237,11 +240,33 @@ func (s *ownerRecoveryState) commit(next ownerRecoveryRecord) error {
 	if err != nil || len(body)+1 > 4096 {
 		return ownerRecoveryRejected()
 	}
-	if err = s.file.persistBytes(append(body, '\n')); err != nil {
+	body = append(body, '\n')
+	// An existing durable reservation needs only a validated read. Replaying it
+	// must not depend on another stage allocation/rename/directory sync.
+	if bytes.Equal(body, s.file.bytes) {
+		return s.verifyCurrent()
+	}
+	if err = s.file.persistBytes(body); err != nil {
 		s.failed = true
 		return err
 	}
 	s.record = next
+	return nil
+}
+
+func (s *ownerRecoveryState) verifyCurrent() error {
+	if s.failed || s.file == nil || s.file.lock == nil {
+		return ownerRecoveryRejected()
+	}
+	if err := validateRecoveryDirectory(s.file.directory); err != nil {
+		s.failed = true
+		return err
+	}
+	body, err := readPrivateRecoveryFile(s.file.path)
+	if err != nil || !bytes.Equal(body, s.file.bytes) {
+		s.failed = true
+		return ownerRecoveryRejected()
+	}
 	return nil
 }
 
