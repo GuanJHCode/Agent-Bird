@@ -41,3 +41,13 @@ ROOT跨Coordinator重启增量（2026-10-07）：
 - owner等待当前child的HostPending失败后，使用同一持久五次Ensure预算，并按已有signed state为原pending child重签ticket/重建连接；保留原child/Wait/StartSlot/request，不重新Start。Attach ACK repair也统一重建确切连接，支持sameepoch丢失socket；signed owner RPC拒绝仍直返。
 - 普通63207 exit0，1top3named；最终race72548 exit0：Host2top7named、Coordinator3top13named（原8个ACK案例+exchange2案例）、CLI4top4named，共9top24named 0fail0skip。build/vet/diffcheck0。已有5f4cf78中未受影响的OwnerExecution/ledger和same-tuple验证可复用，但不把新exchange复验称为整个B2完成。
 - 两处RED现场的8个DB/ledger/marker记录PID均ESRCH，未删除必要证据，无原Wait0推断。完整receipt=root-exchange-receipt.json。稳定5f4cf78..b994afc已独立审查PASS，未集成。签名拒绝立即停止仅指owner RPC；private exchange错误回复未签名，child转offline后仍须经有预算上限的重新鉴权，未获得额外权限。physical五次共享耗尽/13秒fault矩阵和B3仍OPEN。
+
+
+共享五次预算与原生耗尽清理增量（2026-10-07）：
+
+- 仅增加测试，生产仍为 b994afc。连续丢同一 ticket 的前 4 次成功回复后，第 5 次恢复成功；ledger Attempts=5、Unavailable=false、无 reservation，原 pending request/StartSlot=1/child、owner/worker/attempt/segment/binding 保持，原 worker 最终唯一 Exited=0。
+- 连续丢 5 次成功回复后，第 6 次操作不得发生。ledger Attempts=5、Unavailable=true、无 reservation，V2 允许保留精确原 OwnerPending。受控 worker 记录 TERM 后继续至少 8 秒；测试验收前不发信号、不 release，产品自身升级清理，在最后一次丢回复后严格 13 秒内使原 owner/child/worker 均 ESRCH，并留下唯一原 PID/birth 非零 Exited。单 attempt/segment 与 O_EXCL marker 证明未再派 worker。
+- 首次 session84139 exit1 只因成功场景窗口 15 秒短于第五次 16 秒 backoff，耗尽场景已通过 10.196 秒；属于 fixture 失败，保留日志和现场。修为 30 秒等待，TERM 文件半写继续等待，deadline 先于 allGone 接受。普通 session48200 exit0：1top3named、0fail/skip，耗尽 10.200 秒。
+- 最终 race 原 session21982 exit0：4top16named、0fail/skip，包含既有同 epoch/跨重启四类 ACK-loss、exchange 两场景和新增两场景。go vet exit0（d99f9f），每场景实际构建产品 CLI 成功；稳定一文件测试独立审查 PASS。完整 hash/计数/自动清理耗时在 root-native-five-budget-receipt.json。
+- race 插桩只覆盖测试、inprocess Coordinator 和复制 worker；另 build 的产品 CLI/owner/transport 非 race。worker 的持久原退出记录与 actor ESRCH 分别记账，后者不称其原 Wait0。此 fixture 无持久 descendant subtree，不代表完整 Provider 进程树验收。
+- 所有原 session 终态；成功现场清理，v1 失败现场 4 个已登记 PID 均 ESRCH（root-native-five-v1-actor-audit.json），必要证据保留。未运行 Docker/真实模型。origin-loss/authenticated-terminal 与 blocked admission/publisher/disk 完整 13 秒矩阵、B3 及集成仍 OPEN。

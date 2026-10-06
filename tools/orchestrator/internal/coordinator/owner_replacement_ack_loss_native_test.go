@@ -1,6 +1,7 @@
 package coordinator
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -9,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -19,6 +21,7 @@ import (
 	"time"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/events"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 )
@@ -43,8 +46,14 @@ func TestMain(m *testing.M) {
 // public CLI, source host, owner and replacement transport are production
 // binaries and protocols. The worker blocks until the test releases it.
 func replacementACKWorker(args []string) int {
-	if len(args) != 2 {
+	if len(args) != 2 && len(args) != 3 {
 		return 21
+	}
+	var term chan os.Signal
+	if len(args) == 3 {
+		term = make(chan os.Signal, 1)
+		signal.Notify(term, syscall.SIGTERM)
+		defer signal.Stop(term)
 	}
 	birth, err := process.Birth(os.Getpid())
 	if err != nil {
@@ -61,6 +70,22 @@ func replacementACKWorker(args []string) int {
 		return 24
 	}
 	for deadline := time.Now().Add(60 * time.Second); time.Now().Before(deadline); time.Sleep(10 * time.Millisecond) {
+		select {
+		case <-term:
+			// Receipt is written before continuing to ignore TERM. The test
+			// observes survival; only the product's escalation may end us.
+			f, err := os.OpenFile(args[2], os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+			if err == nil {
+				writeErr := json.NewEncoder(f).Encode(time.Now().UnixNano())
+				closeErr := f.Close()
+				if writeErr != nil || closeErr != nil {
+					return 26
+				}
+			} else if !errors.Is(err, os.ErrExist) {
+				return 27
+			}
+		default:
+		}
 		if _, err := os.Stat(args[1]); err == nil {
 			return 0
 		}
@@ -97,8 +122,35 @@ func TestNativeReplacementExchangeReplyLoss(t *testing.T) {
 	t.Run("hard_restart", func(t *testing.T) { nativeReplacementACKLoss(t, "exchange", true) })
 }
 
-func nativeReplacementACKLoss(t *testing.T, lostKind string, restartCoordinator bool) {
+type replacementACKFaultPlan struct {
+	losses  int
+	exhaust bool
+}
+
+type replacementACKDroppedReply struct {
+	request contract.OwnerRPCRequest
+	at      time.Time
+}
+
+func TestNativeReplacementSharedFiveOperationBudget(t *testing.T) {
+	if runtime.GOOS != "darwin" {
+		t.Skip("native source-host fixture requires macOS")
+	}
+	t.Run("last_operation_succeeds", func(t *testing.T) { nativeReplacementACKLoss(t, "ticket", false, replacementACKFaultPlan{losses: 4}) })
+	t.Run("exhaustion_stops_stubborn_worker", func(t *testing.T) {
+		nativeReplacementACKLoss(t, "ticket", false, replacementACKFaultPlan{losses: 5, exhaust: true})
+	})
+}
+
+func nativeReplacementACKLoss(t *testing.T, lostKind string, restartCoordinator bool, options ...replacementACKFaultPlan) {
 	t.Helper()
+	plan := replacementACKFaultPlan{losses: 1}
+	if len(options) == 1 {
+		plan = options[0]
+	}
+	if plan.losses < 1 || plan.losses > 5 || (plan.exhaust && plan.losses != 5) {
+		t.Fatal("invalid fault plan")
+	}
 	root, err := os.MkdirTemp("/private/tmp", "replacement-ack-loss-")
 	if err != nil {
 		t.Fatal(err)
@@ -125,21 +177,18 @@ func nativeReplacementACKLoss(t *testing.T, lostKind string, restartCoordinator 
 		t.Fatal(err)
 	}
 	var armed atomic.Bool
-	var lost atomic.Bool
-	lostReply := make(chan contract.OwnerRPCRequest, 1)
-	s.ownerRPCReplyHook = func(request contract.OwnerRPCRequest) bool {
-		if armed.Load() && request.Kind == lostKind && lost.CompareAndSwap(false, true) {
-			lostReply <- request
+	var committedReplies atomic.Int32
+	lostReply := make(chan replacementACKDroppedReply, plan.losses)
+	drop := func(request contract.OwnerRPCRequest) bool {
+		if armed.Load() && request.Kind == lostKind && committedReplies.Add(1) <= int32(plan.losses) {
+			lostReply <- replacementACKDroppedReply{request: request, at: time.Now()}
 			return true
 		}
 		return false
 	}
+	s.ownerRPCReplyHook = drop
 	s.ownerTransportExchangeReplyHook = func(ticket contract.OwnerTransportTicket) bool {
-		if armed.Load() && lostKind == "exchange" && lost.CompareAndSwap(false, true) {
-			lostReply <- contract.OwnerRPCRequest{Kind: "exchange", ControlRevision: ticket.Pending.ExpectedControlRevision, RequestID: ticket.Pending.RequestID}
-			return true
-		}
-		return false
+		return drop(contract.OwnerRPCRequest{Kind: "exchange", ControlRevision: ticket.Pending.ExpectedControlRevision, RequestID: ticket.Pending.RequestID})
 	}
 	serveCtx, cancelServe := context.WithCancel(context.Background())
 	serveDone := make(chan error, 1)
@@ -226,7 +275,11 @@ func nativeReplacementACKLoss(t *testing.T, lostKind string, restartCoordinator 
 		}
 	})
 
-	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	maximum := 45 * time.Second
+	if plan.losses > 1 {
+		maximum = 75 * time.Second
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), maximum)
 	defer cancel()
 	image, err := os.ReadFile(os.Args[0])
 	if err != nil {
@@ -239,7 +292,12 @@ func nativeReplacementACKLoss(t *testing.T, lostKind string, restartCoordinator 
 	if err != nil {
 		t.Fatal(err)
 	}
-	request := map[string]any{"run_id": "replacement-ack-loss", "controller_thread": "replacement-ack-thread", "plan_revision": 1, "origin_context_id": "replacement-ack-origin", "origin_pid": os.Getpid(), "origin_birth": birth, "host_generation": "replacement-ack-generation", "delivery_mode": "collect", "tasks": []any{map[string]any{"id": "worker", "max_attempts": 1, "max_active_ms": 60000, "completion_policy": "owner_review", "adapter": map[string]any{"kind": "fake", "args": []string{fixture, marker, release}, "directory": root}}}}
+	workerArgs := []string{fixture, marker, release}
+	termReceipt := filepath.Join(root, "worker-term.json")
+	if plan.exhaust {
+		workerArgs = append(workerArgs, termReceipt)
+	}
+	request := map[string]any{"run_id": "replacement-ack-loss", "controller_thread": "replacement-ack-thread", "plan_revision": 1, "origin_context_id": "replacement-ack-origin", "origin_pid": os.Getpid(), "origin_birth": birth, "host_generation": "replacement-ack-generation", "delivery_mode": "collect", "tasks": []any{map[string]any{"id": "worker", "max_attempts": 1, "max_active_ms": 60000, "completion_policy": "owner_review", "adapter": map[string]any{"kind": "fake", "args": workerArgs, "directory": root}}}}
 	requestPath := filepath.Join(root, "request.json")
 	raw, _ := json.Marshal(request)
 	if err = os.WriteFile(requestPath, raw, 0600); err != nil {
@@ -311,9 +369,10 @@ func nativeReplacementACKLoss(t *testing.T, lostKind string, restartCoordinator 
 		}
 		time.Sleep(20 * time.Millisecond)
 	}
+	var firstDrop replacementACKDroppedReply
 	select {
-	case request := <-lostReply:
-		t.Logf("dropped committed replacement %s reply revision=%d request=%s", request.Kind, request.ControlRevision, request.RequestID)
+	case firstDrop = <-lostReply:
+		t.Logf("dropped committed replacement %s reply revision=%d request=%s", firstDrop.request.Kind, firstDrop.request.ControlRevision, firstDrop.request.RequestID)
 	case <-time.After(15 * time.Second):
 		t.Fatalf("replacement did not reach committed %s reply-loss point", lostKind)
 	}
@@ -375,9 +434,96 @@ func nativeReplacementACKLoss(t *testing.T, lostKind string, restartCoordinator 
 	if pending.StartSlot != 1 || pending.Host.Validate() != nil {
 		t.Fatal("missing original pending child")
 	}
+	lastDrop := firstDrop
+	for n := 1; n < plan.losses; n++ {
+		select {
+		case next := <-lostReply:
+			if next.request.Kind != firstDrop.request.Kind || next.request.ControlRevision != firstDrop.request.ControlRevision || next.request.RequestID != firstDrop.request.RequestID || !bytes.Equal(next.request.Body, firstDrop.request.Body) {
+				t.Fatal("retry changed original pending RPC business request")
+			}
+			lastDrop = next
+		case <-ctx.Done():
+			t.Fatal("shared budget did not reach required reply loss", n+1, ctx.Err())
+		}
+		ledger := readLedger()
+		if ledger.Pending.StartSlot != pending.StartSlot || ledger.Pending.Host != pending.Host || ledger.Pending.RequestID != pending.RequestID {
+			t.Fatal("reply retry started another child or changed pending slot")
+		}
+	}
+	if plan.exhaust {
+		deadline := lastDrop.at.Add(13 * time.Second)
+		var termAt time.Time
+		survivedTERM := false
+		for {
+			ledger := readLedger()
+			if ledger.Attempts != 5 || ledger.Pending.StartSlot != 1 || ledger.Pending.Host != pending.Host || ledger.Pending.RequestID != pending.RequestID || committedReplies.Load() != 5 {
+				t.Fatalf("exhaustion reset/expanded shared budget or replaced child: %+v replies=%d", ledger, committedReplies.Load())
+			}
+			if raw, err := os.ReadFile(termReceipt); err == nil && termAt.IsZero() {
+				var ns int64
+				if json.Unmarshal(raw, &ns) == nil && ns > 0 {
+					termAt = time.Unix(0, ns)
+				}
+			}
+			if !termAt.IsZero() && time.Since(termAt) >= 8*time.Second && replacementACKOwned(contract.OriginalOwnerTransport{PID: worker.PID, Birth: worker.Birth}, fixture) {
+				survivedTERM = true
+			}
+			allGone := true
+			for _, actor := range []contract.OriginalOwnerTransport{pending.Host, {PID: binding.Owner.PID, Birth: binding.Owner.Birth}, {PID: worker.PID, Birth: worker.Birth}} {
+				allGone = allGone && errors.Is(syscall.Kill(actor.PID, 0), syscall.ESRCH)
+			}
+			if time.Now().After(deadline) {
+				t.Fatal("product exhaustion cleanup exceeded 13 seconds; fixture has not sent a signal")
+			}
+			if allGone {
+				if !ledger.Unavailable || len(ledger.Reservation) != 0 || !survivedTERM || termAt.Before(lastDrop.at) || termAt.After(lastDrop.at.Add(2*time.Second)) {
+					t.Fatal("exhaustion has no product TERM/escalation/closed-budget proof", ledger.Unavailable, survivedTERM, termAt)
+				}
+				break
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+		spool, err := events.Open(filepath.Join(state, "host-spool", binding.Scope.LaunchID, before.AttemptID, before.SegmentID))
+		if err != nil {
+			t.Fatal(err)
+		}
+		observed, err := spool.Read()
+		if err != nil {
+			t.Fatal(err)
+		}
+		exits := 0
+		for _, event := range observed {
+			if event.Kind == contract.EventExited {
+				exits++
+				if event.Process == nil || event.Process.PID != worker.PID || event.Process.Birth != worker.Birth || event.ExitCode == nil || *event.ExitCode == 0 {
+					t.Fatal("exhaustion lost original worker nonzero Wait receipt")
+				}
+			}
+		}
+		if exits != 1 {
+			t.Fatal("exhaustion did not record exactly one original worker exit", exits)
+		}
+		var afterMarker replacementACKWorkerMarker
+		if raw, err := os.ReadFile(marker); err != nil || json.Unmarshal(raw, &afterMarker) != nil || afterMarker != originalWorker {
+			t.Fatal("exhaustion replaced worker")
+		}
+		var attempts, segments int
+		if err := db.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM attempts WHERE task_id='worker'),(SELECT COUNT(*) FROM segments s JOIN attempts a ON a.id=s.attempt_id WHERE a.task_id='worker')`).Scan(&attempts, &segments); err != nil || attempts != 1 || segments != 1 {
+			t.Fatal("exhaustion redispatched worker", attempts, segments, err)
+		}
+		t.Logf("five operations exhausted; product TERM ignored for >=8s then original worker exited; owner/child/worker gone within %s without fixture signals", time.Since(lastDrop.at))
+		stop()
+		clean = true
+		return
+	}
 	// The required green behavior is a live, ready replacement and the same
 	// original worker. HEAD returns from the first transient error before this.
-	for deadline := time.Now().Add(15 * time.Second); ; time.Sleep(25 * time.Millisecond) {
+	readyWindow := 15 * time.Second
+	if plan.losses > 1 {
+		// The fifth reservation alone waits 16s before the actual handshake.
+		readyWindow = 30 * time.Second
+	}
+	for deadline := time.Now().Add(readyWindow); ; time.Sleep(25 * time.Millisecond) {
 		status := replacementACKReadStatus(t, ctx, bin, state, submitted.ControlFile)
 		if status.HostPID != source.PID && status.HostStatus == "ready" && status.Status != "failed" {
 			if raw, err := os.ReadFile(marker); err != nil || json.Unmarshal(raw, &worker) != nil || worker.PID <= 1 {
@@ -415,7 +561,7 @@ func nativeReplacementACKLoss(t *testing.T, lostKind string, restartCoordinator 
 			// in the owner's required two-second recovery backoff.
 			for deadline := time.Now().Add(5 * time.Second); ; {
 				ledger := readLedger()
-				if ledger.Attempts == 2 && len(ledger.Reservation) == 0 && ledger.Pending.StartSlot == 1 && ledger.Pending.RequestID == pending.RequestID && ledger.Pending.Host == pending.Host && ledger.Pending.Phase == "activated" {
+				if ledger.Attempts == plan.losses+1 && !ledger.Unavailable && len(ledger.Reservation) == 0 && ledger.Pending.StartSlot == 1 && ledger.Pending.RequestID == pending.RequestID && ledger.Pending.Host == pending.Host && ledger.Pending.Phase == "activated" {
 					break
 				}
 				if time.Now().After(deadline) {
@@ -462,6 +608,7 @@ func nativeReplacementACKLoss(t *testing.T, lostKind string, restartCoordinator 
 
 type replacementACKLedger struct {
 	Attempts    int             `json:"attempts"`
+	Unavailable bool            `json:"unavailable"`
 	Reservation json.RawMessage `json:"reservation"`
 	Pending     struct {
 		StartSlot int                             `json:"start_slot"`
