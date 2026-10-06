@@ -139,45 +139,60 @@ func recoverInitialOwnerTransport(ctx context.Context, cfg OriginalOwnerConfig, 
 	if cfg.EnsureCoordinator == nil || (!notice.offline && notice.pending == nil && !ownerExecutionNeedsRecovery(notice.cause)) {
 		return errOriginalOwnerRuntime
 	}
-	when, err := recovery.reserveCoordinator(time.Now())
-	if err != nil {
-		return err
-	}
-	if delay := time.Until(when); delay > 0 {
-		timer := time.NewTimer(delay)
-		defer timer.Stop()
-		select {
-		case <-ctx.Done():
-			return context.Cause(ctx)
-		case <-timer.C:
-		}
-	}
-	if err = recovery.beginCoordinatorEnsure(); err != nil {
-		return err
-	}
-	if err = cfg.EnsureCoordinator(ctx); err != nil {
-		return err
-	}
-	if err = recovery.finishCoordinatorEnsure(); err != nil {
-		return err
-	}
-	execution.pausePublication()
-	control, _ := json.Marshal(contract.OwnerTransportControl{Version: 1, Action: "connect"})
-	if err = ipc.Write(cfg.Control, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindOwnerTransportControl, RequestID: "owner-reconnect", Payload: control}); err != nil {
-		return err
-	}
-	// The reader reports the authenticated pending session on the next wake.
+	// This local value is deliberately retained across lost RPC replies.  The
+	// same request ID/revision/body is replayed after a new Coordinator epoch;
+	// it is never replaced by a second renewal while its ACK is uncertain.
+	var renewal *contract.OwnerAttachRequest
+	var requestID string
 	for {
+		when, err := recovery.reserveCoordinator(time.Now())
+		if err != nil {
+			return err
+		}
+		if delay := time.Until(when); delay > 0 {
+			timer := time.NewTimer(delay)
+			select {
+			case <-ctx.Done():
+				timer.Stop()
+				return context.Cause(ctx)
+			case <-timer.C:
+			}
+		}
+		if err = recovery.beginCoordinatorEnsure(); err != nil {
+			return err
+		}
+		execution.pausePublication() // before Ensure/reconnect/Attach RPCs
+		err = cfg.EnsureCoordinator(ctx)
+		finishErr := recovery.finishCoordinatorEnsure()
+		if finishErr != nil {
+			return finishErr
+		}
+		if err != nil {
+			if transientSourceError(err) {
+				continue
+			}
+			return err
+		}
+		control, _ := json.Marshal(contract.OwnerTransportControl{Version: 1, Action: "connect"})
+		if err = ipc.Write(cfg.Control, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindOwnerTransportControl, RequestID: "owner-reconnect", Payload: control}); err != nil {
+			if transientSourceError(err) {
+				continue
+			}
+			return err
+		}
+		// The reader reports the authenticated pending session on the next wake.
+		pending := false
 		select {
 		case <-ctx.Done():
 			return context.Cause(ctx)
 		case <-time.After(5 * time.Second):
-			return errCoordinatorUnavailable
+			continue
 		case <-lifecycle.wake:
 			next, ok := lifecycle.takeNotice(1)
-			if !ok || next.pending == nil {
-				continue
-			}
+			pending = ok && next.pending != nil
+		}
+		if !pending {
+			continue
 		}
 		// A fresh state RPC proves the new Coordinator epoch.  It is legal only
 		// after the parent transport has completed its ordinary HostHello.
@@ -189,11 +204,17 @@ func recoverInitialOwnerTransport(ctx context.Context, cfg OriginalOwnerConfig, 
 		if contract.DecodeOwnerRuntimeStrict(reply.Body, &state) != nil || state.Binding != execution.cfg.binding {
 			return errOriginalOwnerRuntime
 		}
-		old := state.Permit.NewHost
-		requestID := fmt.Sprintf("%s:renew:%d", state.Permit.PermitID, reply.CoordinatorEpoch)
-		attach := contract.OwnerAttachRequest{ExpectedControlRevision: state.Permit.ControlRevision, OldHost: old, NewHost: old}
-		reply, callErr = enrollment.client.Call(ctx, state.Permit.ControlRevision, "attach", requestID, attach)
+		if renewal == nil {
+			old := state.Permit.NewHost
+			value := contract.OwnerAttachRequest{ExpectedControlRevision: state.Permit.ControlRevision, OldHost: old, NewHost: old}
+			renewal = &value
+			requestID = fmt.Sprintf("%s:renew:%d", state.Permit.PermitID, reply.CoordinatorEpoch)
+		}
+		reply, callErr = enrollment.client.Call(ctx, renewal.ExpectedControlRevision, "attach", requestID, *renewal)
 		if callErr != nil {
+			if transientSourceError(callErr) {
+				continue
+			}
 			return callErr
 		}
 		permit, decodeErr := contract.DecodeOwnerControlPermit(reply.Body)
