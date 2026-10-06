@@ -36,7 +36,7 @@ and CID cleanup receipt are recorded in `final-native-manifest.md`.
 
 ## Remaining work
 
-The Coordinator real-UDS authorization/worker-control loop remains open for
-the next milestone. Zombie-only group quiescence is not claimed as a native
+The Coordinator real-UDS owner-binding, spoof rejection, and Store-registered
+worker-control rejection checks now pass; see `coordinator-native.md`. Zombie-only group quiescence is not claimed as a native
 actor result. No claim is made for Linux Provider execution, native Codex
 behavior, or plugin installation.
