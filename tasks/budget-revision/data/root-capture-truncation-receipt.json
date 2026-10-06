@@ -1,0 +1,115 @@
+{
+  "base": "5ebb6fbb6597694f6d64df01136f8469c63912c3",
+  "scope": "Exact actual byte-drop state for existing bounded process capture and existing redacted provider diagnostics; no detail-log entry point or quota/schema change",
+  "evidence": [
+    {
+      "file": "root-capture-truncation-red.jsonl",
+      "session": 30415,
+      "tool_exit": 1,
+      "counts": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host": {
+          "fail": 2,
+          "pass": 1,
+          "top_fail": 1
+        }
+      },
+      "sha256": "66e69a21e989a5e3d9bef93092eee64498e247dec83945b4dfff88da3dc54160"
+    },
+    {
+      "file": "root-capture-truncation-green.jsonl",
+      "session": 77362,
+      "tool_exit": 0,
+      "counts": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process": {
+          "pass": 2,
+          "top_pass": 2
+        },
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host": {
+          "pass": 11,
+          "top_pass": 9
+        }
+      },
+      "sha256": "bffeffbe00b7791af2c22519f6de5baeba4727c72442ac0961cf08baf143248a"
+    },
+    {
+      "file": "root-capture-truncation-final-normal.jsonl",
+      "session": 98943,
+      "tool_exit": 0,
+      "counts": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process": {
+          "pass": 3,
+          "top_pass": 3
+        },
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host": {
+          "pass": 16,
+          "top_pass": 12
+        }
+      },
+      "sha256": "19859d190e653f60061a0d14ba9a1ed0c89433e82320789e309ce4d93b80773c"
+    },
+    {
+      "file": "root-capture-truncation-final-race.jsonl",
+      "session": 34333,
+      "tool_exit": 0,
+      "counts": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process": {
+          "pass": 3,
+          "top_pass": 3
+        },
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host": {
+          "pass": 16,
+          "top_pass": 12
+        }
+      },
+      "sha256": "71af3ae50e76df59a15b372507ce84a6f8d6b96326a306164591523d24f3af55"
+    }
+  ],
+  "build": {
+    "session": 41929,
+    "exit": 0
+  },
+  "vet": {
+    "chunk": "b4512b",
+    "exit": 0
+  },
+  "review": "Independent final five-file production/tests review PASS; no production changes after review.",
+  "linux": {
+    "build_chunk": "d99e56",
+    "build_exit": 0,
+    "run_session": 26416,
+    "run_exit": 0,
+    "container": "1042f5bd0e1b1c1372bd8ab9022641f5fa1ca132c2c890b87029eabede4b9690",
+    "state": {
+      "Status": "exited",
+      "Running": false,
+      "Paused": false,
+      "Restarting": false,
+      "OOMKilled": false,
+      "Dead": false,
+      "Pid": 0,
+      "ExitCode": 0,
+      "Error": "",
+      "StartedAt": "2026-10-06T23:31:16.828899292Z",
+      "FinishedAt": "2026-10-06T23:31:16.92459825Z"
+    },
+    "removed_and_inspect_absent": true,
+    "image": "sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99",
+    "scope": "Linux arm64 two pure OutputSnapshot capture/concurrency tests, 2top2named PASS, no skip; no Provider/process.Start/race claim",
+    "hashes": {
+      "container.cid": "4331eaed4cb4c1d72fad16c4b7cac156e6c4bda463f53ab33fd88ca9505629ae",
+      "container-state.json": "793b3fb6b097584728c279160a6a173cb2612e56f6c075682765dbef4cdc1a8f",
+      "run.log": "05c2c45c384be8eb585c5b81119f71232f0cbad9d254e7dce1bd39b26dcabadf",
+      "process.test": "561af4f1b238692d1deca35217abf2587204541db291ce8308006a2eb531386f",
+      "removed-check.log": "d7fc958b52cae7dfe6ff66635314f1973ee3808d4e18de1a3b1e1338c1a3bfa2"
+    }
+  },
+  "limits": [
+    "Legacy Output content and 1MiB cap unchanged; actual discarded-byte flag and capture snapshot share the same mutex.",
+    "Provider long-line/record-limit truncation preserved. No raw output persistence or permission expansion.",
+    "Mac real /bin/cat Host tests prove actual capture exact-limit/drop behavior, not actual Provider/model quality.",
+    "Detailed logging opt-in, public metadata projection and WriteMetadata failure visibility still OPEN.",
+    "Unintegrated; budget revision production/native evidence not invalidated by this isolated diagnostics change."
+  ],
+  "cleanup": "All original sessions terminal. Linux container removed after inspected exit0; no actors remain from successful Host tests. Binary/raw logs preserved as verification evidence.",
+  "invocation_error": "Initial Linux crossbuild ran at worktree root and failed no-main-module; rerun from tools/orchestrator succeeded. Not a product RED."
+}

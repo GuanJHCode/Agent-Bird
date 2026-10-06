@@ -45,17 +45,18 @@ type Identity struct {
 	StartedAt        string
 }
 type Handle struct {
-	duplexLaunch *DuplexLaunchState
-	cmd          *exec.Cmd
-	done         chan struct{}
-	mu           sync.Mutex
-	exit         int
-	waited       bool
-	output       []byte
-	outputLimit  int
-	pgid         int
-	identity     Identity
-	stdout       io.Writer
+	duplexLaunch    *DuplexLaunchState
+	cmd             *exec.Cmd
+	done            chan struct{}
+	mu              sync.Mutex
+	exit            int
+	waited          bool
+	output          []byte
+	outputLimit     int
+	outputTruncated bool
+	pgid            int
+	identity        Identity
+	stdout          io.Writer
 }
 type captureWriter struct {
 	h      *Handle
@@ -65,6 +66,9 @@ type captureWriter struct {
 func (w captureWriter) Write(p []byte) (int, error) {
 	w.h.mu.Lock()
 	remaining := w.h.outputLimit - len(w.h.output)
+	if len(p) > remaining {
+		w.h.outputTruncated = true
+	}
 	if remaining > 0 {
 		if len(p) > remaining {
 			w.h.output = append(w.h.output, p[:remaining]...)
@@ -235,9 +239,16 @@ func (h *Handle) PGID() int          { return h.pgid }
 func (h *Handle) Identity() Identity { h.mu.Lock(); defer h.mu.Unlock(); return h.identity }
 func (h *Handle) ExitCode() int      { h.mu.Lock(); defer h.mu.Unlock(); return h.exit }
 func (h *Handle) Output() string {
+	output, _ := h.OutputSnapshot()
+	return output
+}
+
+// OutputSnapshot returns one consistent bounded capture and whether any bytes
+// have actually been discarded. Reaching the cap alone is not truncation.
+func (h *Handle) OutputSnapshot() (string, bool) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	return string(append([]byte(nil), h.output...))
+	return string(append([]byte(nil), h.output...)), h.outputTruncated
 }
 func (h *Handle) Wait(ctx context.Context) error {
 	select {

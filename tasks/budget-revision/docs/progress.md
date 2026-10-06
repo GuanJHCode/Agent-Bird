@@ -60,3 +60,11 @@ ROOT真实CLI预算retry/resume验收（2026-10-07）：
 - 最终第二worker均有唯一ExitCode0与reap，Coordinator原Cmd.Wait0；source/owner只凭已登记tuple确认退出，不当它们的Wait0。所有成功runtime由既有cleanup确认后删除，无本轮遗留actor/容器。
 - normal4367 exit0，2top2named；最终race83926 exit0，含既有首次链共3top3named，全部0fail/skip；vet8eda82/diffcheck0。产品未改，实际每个native场景go build成功，已有c342ecb Store/Linux证据仍有效。独立fixture审查PASS。
 - race仅覆盖test和复制的受控worker；单独go build的CLI/Coordinator/owner不是race binary。不证明真实账号模型/Provider/TUI或其他平台整链。receipt=data/root-native-budget-receipt.json。预算修订受控本机垂直链已通过，F02有界详细日志、分支组合/最终集成仍OPEN。
+
+
+## 有界捕获截断判定（5ebb6fb后，进行中）
+
+ROOT唯一writer修复明确F02日志误报，不扩展日志权限/cap/原始行持久化。真实Host /bin/cat 4096条合法短行总计1MiB的RED30415 exit1：无drop却truncated=true；+1byte case通过。Handle在实际丢字节时记录flag，同锁OutputSnapshot返回内容+flag，旧Output兼容；Host将capture flag与parser长行/record cap截断合并。生产三文件/测试两文件独审PASS。最终normal98943 exit0，process3top3named+Host12top16named，0fail/skip；最终race34333待ROOT终态重数。build/vet41929 exit0、diffcheck0；后续只追加parser regression和失败路径join，生产未变。Linux pure OutputSnapshot交叉构建首次错误cwd导致no main module（非产品RED），已切正确Go module。详细日志入口、公开metadata投影、持久失败可见性仍OPEN。
+
+
+ROOT截断修复最终证据：normal98943/race34333均exit0，每种15top19named（process3/3+Host12/16），0fail/skip。真实Host精确1MiB未drop=false、+1byte=true，原流仍完整drain；parser巨行/4097records仍truncated，脱敏聚合保持。build41929/vet b4512b/diffcheck0，最终5文件独审PASS。Linux arm64 pure OutputSnapshot 2top2named无skip，build d99e56/run26416/container exit0；CID1042f5bd0e1b1c1372bd8ab9022641f5fa1ca132c2c890b87029eabede4b9690已精确rm且inspect不存在。无Linux Provider/Start/race声明，证据binary保留。全部session终态，raw/hash/范围见data/root-capture-truncation-receipt.json。F02详细日志入口/公开投影/写失败可见性及集成继续OPEN；预算功能原证据保持有效。
