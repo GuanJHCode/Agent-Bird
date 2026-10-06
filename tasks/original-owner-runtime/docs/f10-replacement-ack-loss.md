@@ -35,9 +35,9 @@ ROOT跨Coordinator重启增量（2026-10-07）：
 - B2仍缺ticket兑换ACKloss、连续丢回复与物理共享五次耗尽/13秒清理fault矩阵；B3 deadowner seal/replay仍OPEN。该本地里程碑尚未集成。
 
 
-凭据兑换回复丢失增量（2026-10-07，待独立审查）：
+凭据兑换回复丢失增量（2026-10-07，b994afc独立审查PASS）：
 
 - 新私有exchange hook只在实际精确child兑换成功后丢reply，不开放生产配置/故障环境变量。原生sameepoch/hardrestart RED69057 exit1，1top3named FAIL，证明旧driver在exchange后offline/未Attach，不是未执行兑换。
 - owner等待当前child的HostPending失败后，使用同一持久五次Ensure预算，并按已有signed state为原pending child重签ticket/重建连接；保留原child/Wait/StartSlot/request，不重新Start。Attach ACK repair也统一重建确切连接，支持sameepoch丢失socket；signed owner RPC拒绝仍直返。
 - 普通63207 exit0，1top3named；最终race72548 exit0：Host2top7named、Coordinator3top13named（原8个ACK案例+exchange2案例）、CLI4top4named，共9top24named 0fail0skip。build/vet/diffcheck0。已有5f4cf78中未受影响的OwnerExecution/ledger和same-tuple验证可复用，但不把新exchange复验称为整个B2完成。
-- 两处RED现场的8个DB/ledger/marker记录PID均ESRCH，未删除必要证据，无原Wait0推断。完整receipt=root-exchange-receipt.json。此增量尚待独立审查，未集成；当前Agent运行槽用于预算Store实现，下一阶段先review稳定增量。physical五次共享耗尽/13秒fault矩阵和B3仍OPEN。
+- 两处RED现场的8个DB/ledger/marker记录PID均ESRCH，未删除必要证据，无原Wait0推断。完整receipt=root-exchange-receipt.json。稳定5f4cf78..b994afc已独立审查PASS，未集成。签名拒绝立即停止仅指owner RPC；private exchange错误回复未签名，child转offline后仍须经有预算上限的重新鉴权，未获得额外权限。physical五次共享耗尽/13秒fault矩阵和B3仍OPEN。
