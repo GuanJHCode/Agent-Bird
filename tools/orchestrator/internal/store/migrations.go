@@ -1,6 +1,6 @@
 package store
 
-const currentSchemaVersion = 14
+const currentSchemaVersion = 15
 
 // Runtime migrations run under the coordinator instance lock (NewServer) and
 // one SQLite transaction. DDL, backfills and version publication commit together;
@@ -111,6 +111,14 @@ func (d *DB) migrateRuntime() error {
 			return err
 		}
 		if _, err = tx.Exec(`UPDATE schema_meta SET version=14`); err != nil {
+			return err
+		}
+	}
+	if version < 15 {
+		if err = migrateExecutionPolicies(tx); err != nil {
+			return err
+		}
+		if _, err = tx.Exec(`UPDATE schema_meta SET version=15`); err != nil {
 			return err
 		}
 	}

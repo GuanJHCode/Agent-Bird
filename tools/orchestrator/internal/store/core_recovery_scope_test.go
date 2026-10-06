@@ -186,6 +186,7 @@ func TestCoreOwnerRebindProofRollsBackAndMigratesLegacyWithoutGuessing(t *testin
 		db, old := coreRecoveryScopeFixture(t)
 		h := coreRebindScope(t, db, old, 1)
 		path := db.path
+		downgradePolicySchema(t, db)
 		if _, err := db.sql.Exec(`DROP TABLE config_preparation_abandons; DROP TABLE decision_attempt_bindings; DROP TABLE owner_control_changes; DROP TABLE execution_owners; ALTER TABLE host_launches DROP COLUMN execution_owner_mode; ALTER TABLE owner_rebinds DROP COLUMN old_host_generation; UPDATE schema_meta SET version=10`); err != nil {
 			t.Fatal(err)
 		}

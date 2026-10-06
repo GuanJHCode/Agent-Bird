@@ -40,6 +40,19 @@ func (d *DB) QueueResume(ctx context.Context, taskID string, workRevision int) e
 		}
 		return rollback(err)
 	}
+	b, e := readExecutionBudget(ctx, tx, taskID)
+	if e != nil {
+		return rollback(e)
+	}
+	if b.policy != nil {
+		var attemptID string
+		if e = tx.QueryRowContext(ctx, `SELECT id FROM attempts WHERE task_id=? ORDER BY attempt_no DESC LIMIT 1`, taskID).Scan(&attemptID); e != nil {
+			return rollback(e)
+		}
+		if _, e = executionGrant(ctx, tx, taskID, attemptID); e != nil {
+			return rollback(e)
+		}
+	}
 	sequence, err := takeReadySequence(ctx, tx)
 	if err != nil {
 		return rollback(err)
@@ -207,7 +220,11 @@ func (d *DB) ReviewResult(ctx context.Context, spec ReviewSpec) (string, error) 
 		if err = tx.QueryRowContext(ctx, `SELECT COUNT(*),t.max_attempts FROM attempts a JOIN tasks t ON t.id=a.task_id WHERE a.task_id=?`, spec.TaskID).Scan(&attempts, &maxAttempts); err != nil {
 			return rollback(err)
 		}
-		if attempts >= maxAttempts || attempts >= 3 {
+		exhausted, e := executionExhausted(ctx, tx, spec.TaskID)
+		if e != nil {
+			return rollback(e)
+		}
+		if exhausted {
 			if err = blockFailedDependencies(ctx, tx); err != nil {
 				return rollback(err)
 			}
@@ -299,18 +316,24 @@ func (d *DB) QueueRetry(ctx context.Context, spec RetrySpec) (RetryReceipt, erro
 	if (status != "failed" && !(managed && status == "interrupted")) || revision != spec.WorkRevision {
 		return rollback(ErrConflict)
 	}
-	var active, attempts int
+	var active int
 	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM segment_runtime s JOIN attempts a ON a.id=s.attempt_id WHERE a.task_id=? AND s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown')`, spec.TaskID).Scan(&active); err != nil || active != 0 {
 		if err == nil {
 			err = ErrConflict
 		}
 		return rollback(err)
 	}
-	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM attempts a JOIN task_runtime r ON r.task_id=a.task_id WHERE r.budget_group_id=?`, budgetGroup).Scan(&attempts); err != nil {
+	if err = executionCapacity(ctx, tx, spec.TaskID, false); err != nil {
 		return rollback(err)
 	}
-	if attempts >= maxAttempts || attempts >= 3 {
-		return rollback(ErrAttemptLimit)
+	b, e := readExecutionBudget(ctx, tx, spec.TaskID)
+	if e != nil {
+		return rollback(e)
+	}
+	if b.policy != nil {
+		if _, e = executionGrant(ctx, tx, spec.TaskID, ""); e != nil {
+			return rollback(e)
+		}
 	}
 	nextOrdinal, ordinalErr := nextTaskAttemptOrdinal(ctx, tx, spec.TaskID)
 	if ordinalErr != nil {

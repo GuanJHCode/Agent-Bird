@@ -57,6 +57,7 @@ type RunSpec struct {
 	OriginBirth          string
 }
 type TaskSpec struct {
+	ExecutionPolicy        *contract.ExecutionPolicy `json:"execution_policy,omitempty"`
 	ID, RunID              string
 	Dependencies           []string
 	MaxAttempts            int
@@ -206,6 +207,9 @@ func (d *DB) CreateRun(ctx context.Context, s RunSpec) error {
 	return nil
 }
 func (d *DB) CreateTask(ctx context.Context, s TaskSpec) error {
+	if s.ExecutionPolicy != nil {
+		return CodeError("execution_policy_managed_task_required")
+	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if s.ID == "" || s.RunID == "" || s.MaxAttempts < 1 || s.MaxAttempts > 3 {

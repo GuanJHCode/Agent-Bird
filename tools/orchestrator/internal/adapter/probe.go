@@ -11,14 +11,35 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
+
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 )
 
 type probeBuffer struct{ bytes.Buffer }
 
+var probeCommand = exec.CommandContext
+
+func ProbeFailureFacts(err error) *contract.FailureFacts {
+	var failure *probeFailure
+	if !errors.As(err, &failure) {
+		return nil
+	}
+	if failure.facts == nil {
+		return ProbeFailureFacts(failure.cause)
+	}
+	copy := *failure.facts
+	return &copy
+}
+func VersionProbeFailure(err error) error {
+	return &probeFailure{code: "binary_version_probe_failed", cause: err}
+}
+
 type probeFailure struct {
 	code  string
 	cause error
+	facts *contract.FailureFacts
 }
 
 func (failure *probeFailure) Error() string {
@@ -39,7 +60,7 @@ func (b *probeBuffer) Write(data []byte) (int, error) {
 func ProbeOutput(ctx context.Context, path string, args ...string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, path, args...)
+	cmd := probeCommand(ctx, path, args...)
 	// Discovery must not trigger provider auto-updaters. These switches affect
 	// only the probe child; other providers ignore the provider-specific keys.
 	cmd.Env = append(os.Environ(), "AGY_CLI_DISABLE_AUTO_UPDATE=true", "GROK_DISABLE_AUTOUPDATER=1")
@@ -53,7 +74,20 @@ func ProbeOutput(ctx context.Context, path string, args ...string) (string, erro
 		cmd.Stderr = &helpOutput
 	}
 	if err := cmd.Run(); err != nil {
-		return "", &probeFailure{code: "provider_probe_failed", cause: errors.Join(err, ctx.Err())}
+		var facts *contract.FailureFacts
+		var exited *exec.ExitError
+		if cmd.Process == nil && cmd.ProcessState == nil && ctx.Err() == nil && !errors.As(err, &exited) && !errors.Is(err, context.Canceled) && !errors.Is(err, context.DeadlineExceeded) && len(args) == 1 && (args[0] == "--version" || args[0] == "--help") {
+			code := ""
+			if errors.Is(err, syscall.EAGAIN) {
+				code = "probe_start_eagain"
+			} else if errors.Is(err, syscall.EINTR) {
+				code = "probe_start_eintr"
+			}
+			if code != "" {
+				facts = &contract.FailureFacts{Version: 1, Stage: "prelaunch_probe", Code: code, WorkerState: "not_started", ProbeState: "not_started"}
+			}
+		}
+		return "", &probeFailure{code: "provider_probe_failed", cause: errors.Join(err, ctx.Err()), facts: facts}
 	}
 	if isHelp {
 		if output.Len()+helpOutput.Len() > 64*1024 {

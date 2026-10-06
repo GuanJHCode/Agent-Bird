@@ -62,6 +62,7 @@ func legacyReviewRetryThirdFixture(t *testing.T, consumed bool) (reviewRetryFixt
 			t.Fatal(err)
 		}
 	}
+	downgradePolicySchema(t, f.db)
 	if _, err = f.db.sql.Exec(`DELETE FROM decision_attempt_bindings; DROP TABLE config_preparation_abandons; DROP TABLE decision_attempt_bindings; UPDATE schema_meta SET version=12`); err != nil {
 		t.Fatal(err)
 	}

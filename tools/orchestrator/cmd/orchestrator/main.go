@@ -617,7 +617,7 @@ func retryTask(ctx context.Context, args []string, stdout io.Writer) error {
 	eventHash := fs.String("event-hash", "", "failed event payload hash")
 	actionSlot := fs.String("action-slot", "", "failed event action slot")
 	segmentID := fs.String("segment-id", "", "failed segment id")
-	nextAttemptNo := fs.Int("next-attempt", 0, "next attempt number in the frozen budget group")
+	nextAttemptNo := fs.Int("next-attempt", 0, "next task attempt number in the frozen budget group")
 	commandID := fs.String("command-id", "", "stable retry command id")
 	useNext := fs.Bool("use-next-fallback", false, "use the next pre-authorized adapter")
 	if fs.Parse(args) != nil || *taskID == "" || *controlFile == "" || *revision < 1 || *eventID == "" || *eventRevision < 1 || *eventHash == "" || *actionSlot == "" || *segmentID == "" || *nextAttemptNo < 2 || *commandID == "" || fs.NArg() != 0 {
@@ -1124,7 +1124,7 @@ func invocationForGrant(ctx context.Context, grant contract.LaunchCommand) (cont
 	defer cancel()
 	version, err := adapter.ProbeOutput(probeCtx, request.Binary.Path, "--version")
 	if err != nil {
-		return nil, codeError("binary_version_probe_failed")
+		return nil, adapter.VersionProbeFailure(err)
 	}
 	if err = adapter.VerifyExecutable(request.Binary, strings.TrimSpace(string(version))); err != nil {
 		return nil, err

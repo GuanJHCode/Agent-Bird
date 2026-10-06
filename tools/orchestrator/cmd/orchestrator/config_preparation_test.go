@@ -476,3 +476,33 @@ func prepareConfigTaskPlanFixture(ctx context.Context, state, exe, scope string,
 		return contract.ConfigPreparationAuthority{SchemaVersion: 1, OwnerGrantID: "fs-only-grant", StateRoot: state, StateDevice: uint64(rs.Dev), StateInode: rs.Ino, DatabaseDevice: uint64(fs.Dev), DatabaseInode: fs.Ino}, nil
 	})
 }
+
+func TestConfigPreparationExecutionPolicyDriftCannotReuseCheckpoint(t *testing.T) {
+	_, exe, state := configPreparedPackage(t)
+	scope, _ := contract.ConfigGenerationOwnerScope("controller", "birth")
+	values := install.ConfigSavedDefaults{AGY: "a", Claude: "b", Codex: ""}
+	if _, err := install.UpdateConfigGeneration(exe, scope, install.ConfigGenerationOperation{RequestID: "policy", Action: "publish", SavedDefaults: &values}); err != nil {
+		t.Fatal(err)
+	}
+	plan := configPlanFixture("policy-run")
+	plan.Tasks[0].ExecutionPolicy = &contract.ExecutionPolicy{Version: 1, GroupMaxAttempts: 3, GroupMaxActiveMS: 2000, TaskMaxActiveMS: 1000, SegmentMaxActiveMS: 500}
+	status := func(context.Context, string) (store.ProviderState, error) {
+		return store.ProviderState{Enabled: true}, nil
+	}
+	saved, err := prepareConfigTaskPlanFixture(context.Background(), state, exe, scope, plan, "", false, status, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	changed := *plan.Tasks[0].ExecutionPolicy
+	changed.SegmentMaxActiveMS = 501
+	plan.Tasks[0].ExecutionPolicy = &changed
+	if _, err = prepareConfigTaskPlanFixture(context.Background(), state, exe, scope, plan, "", false, status, nil); err == nil {
+		t.Fatal("changed policy reused original CPP")
+	}
+	drifted := saved
+	drifted.ResolvedPlan.Tasks = append([]coordinator.TaskRequest(nil), saved.ResolvedPlan.Tasks...)
+	drifted.ResolvedPlan.Tasks[0].ExecutionPolicy = &changed
+	if err = coordinator.ValidateConfigPreparedStructure(drifted, *saved.Use); err == nil {
+		t.Fatal("changed receiver policy reused original PlanSHA")
+	}
+}

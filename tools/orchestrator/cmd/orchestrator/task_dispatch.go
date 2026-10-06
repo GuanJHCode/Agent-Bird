@@ -17,24 +17,26 @@ import (
 	"unicode/utf8"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/instance"
 )
 
 type dispatchRequest struct {
-	Version          int          `json:"version"`
-	RequestID        string       `json:"request_id"`
-	Provider         string       `json:"provider"`
-	ProviderLock     string       `json:"provider_lock"`
-	Directory        string       `json:"directory"`
-	Prompt           string       `json:"prompt"`
-	Role             adapter.Role `json:"role"`
-	Paths            []string     `json:"paths,omitempty"`
-	Acceptance       []string     `json:"acceptance"`
-	Model            string       `json:"model,omitempty"`
-	MaxAttempts      int          `json:"max_attempts"`
-	MaxActiveMS      int64        `json:"max_active_ms"`
-	GrokSessionWrite bool         `json:"grok_session_write,omitempty"`
+	ExecutionPolicy  *contract.ExecutionPolicy `json:"execution_policy,omitempty"`
+	Version          int                       `json:"version"`
+	RequestID        string                    `json:"request_id"`
+	Provider         string                    `json:"provider"`
+	ProviderLock     string                    `json:"provider_lock"`
+	Directory        string                    `json:"directory"`
+	Prompt           string                    `json:"prompt"`
+	Role             adapter.Role              `json:"role"`
+	Paths            []string                  `json:"paths,omitempty"`
+	Acceptance       []string                  `json:"acceptance"`
+	Model            string                    `json:"model,omitempty"`
+	MaxAttempts      int                       `json:"max_attempts"`
+	MaxActiveMS      int64                     `json:"max_active_ms"`
+	GrokSessionWrite bool                      `json:"grok_session_write,omitempty"`
 }
 
 type dispatchReservation struct {
@@ -50,7 +52,7 @@ var dispatchID = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,95}$`)
 var dispatchOID = regexp.MustCompile(`^[a-f0-9]{40}$`)
 
 func validateDispatch(req dispatchRequest) error {
-	if req.Version != 1 || !dispatchID.MatchString(req.RequestID) || req.ProviderLock == "" || req.Directory == "" || strings.TrimSpace(req.Prompt) == "" || !utf8.ValidString(req.Prompt) || strings.ContainsRune(req.Prompt, 0) || len(req.Prompt) > 256*1024 || req.MaxAttempts < 1 || req.MaxAttempts > 64 || req.MaxActiveMS < 1 || req.MaxActiveMS > 3600000 || len(req.Acceptance) < 1 || len(req.Acceptance) > 64 {
+	if req.Version != 1 || !dispatchID.MatchString(req.RequestID) || req.ProviderLock == "" || req.Directory == "" || strings.TrimSpace(req.Prompt) == "" || !utf8.ValidString(req.Prompt) || strings.ContainsRune(req.Prompt, 0) || len(req.Prompt) > 256*1024 || (req.ExecutionPolicy == nil && (req.MaxAttempts < 1 || req.MaxActiveMS < 1 || req.MaxActiveMS > 3_600_000)) || req.MaxAttempts < 0 || req.MaxAttempts > 64 || req.MaxActiveMS < 0 || req.MaxActiveMS > 86_400_000 || len(req.Acceptance) < 1 || len(req.Acceptance) > 64 {
 		return codeError("dispatch_request_invalid")
 	}
 	p, _, err := taskProvider(req.Provider)
@@ -59,6 +61,9 @@ func validateDispatch(req dispatchRequest) error {
 	}
 	if req.Role != adapter.Reviewer && req.Role != adapter.Implementer {
 		return codeError("dispatch_request_invalid")
+	}
+	if req.Role == adapter.Implementer && req.ExecutionPolicy != nil && req.ExecutionPolicy.Retry != nil {
+		return codeError("execution_policy_retry_stage_unsupported")
 	}
 	if req.Role == adapter.Implementer && (len(req.Paths) == 0 || len(req.Paths) > 256) {
 		return codeError("dispatch_paths_required")
@@ -144,11 +149,26 @@ func dispatchHash(value string) string {
 }
 
 func dispatchPlan(req dispatchRequest, lock adapter.ProviderLock, runID, base string) (taskPlan, error) {
+	if req.ExecutionPolicy != nil {
+		if req.MaxAttempts == 0 {
+			req.MaxAttempts = 3
+		}
+		if req.MaxActiveMS == 0 {
+			req.MaxActiveMS = 3600000
+		}
+	}
 	provider, _, err := taskProvider(req.Provider)
 	if err != nil {
 		return taskPlan{}, err
 	}
-	profile := &adapter.ExecutionProfile{Version: 1, Role: req.Role, Permission: adapter.ReadOnly, TimeoutMS: req.MaxActiveMS, GrokSessionWrite: req.GrokSessionWrite}
+	profileTimeout := req.MaxActiveMS
+	if req.ExecutionPolicy != nil {
+		profileTimeout = min(profileTimeout, 3_600_000)
+		if req.ExecutionPolicy.SegmentMaxActiveMS > 0 {
+			profileTimeout = min(profileTimeout, req.ExecutionPolicy.SegmentMaxActiveMS)
+		}
+	}
+	profile := &adapter.ExecutionProfile{Version: 1, Role: req.Role, Permission: adapter.ReadOnly, TimeoutMS: profileTimeout, GrokSessionWrite: req.GrokSessionWrite}
 	if req.Model == "cli-default" {
 		profile.CLIModelDefault = true
 	} else {
@@ -164,7 +184,7 @@ func dispatchPlan(req dispatchRequest, lock adapter.ProviderLock, runID, base st
 	if err != nil {
 		return taskPlan{}, err
 	}
-	return taskPlan{RunID: runID, PlanRevision: 1, Tasks: []coordinator.TaskRequest{{ID: runID + "-work", MaxAttempts: req.MaxAttempts, MaxActiveMS: req.MaxActiveMS, BudgetGroupID: runID + "-budget", CompletionPolicy: "owner_review", AdapterPayload: raw}}}, nil
+	return taskPlan{RunID: runID, PlanRevision: 1, Tasks: []coordinator.TaskRequest{{ID: runID + "-work", ExecutionPolicy: req.ExecutionPolicy, MaxAttempts: req.MaxAttempts, MaxActiveMS: req.MaxActiveMS, BudgetGroupID: runID + "-budget", CompletionPolicy: "owner_review", AdapterPayload: raw}}}, nil
 }
 
 func taskDispatch(ctx context.Context, args []string, out io.Writer) error {

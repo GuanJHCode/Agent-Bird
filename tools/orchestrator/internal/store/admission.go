@@ -75,14 +75,20 @@ func validatePlan(p PlanSpec) error {
 	groupAttempts := make(map[string]int)
 	groupTasks := make(map[string]int)
 	groupActive := make(map[string]int64)
+	groupPolicy := make(map[string]bool)
 	for _, task := range p.Tasks {
+		var err error
+		task, err = normalizeExecutionTask(task)
+		if err != nil {
+			return err
+		}
 		if err := validateInvocationPayload(task.AdapterPayload); err != nil {
 			return err
 		}
 		if err := rejectSubmittedRework(task.AdapterPayload); err != nil {
 			return err
 		}
-		if task.ID == "" || task.RunID != p.Run.ID || task.MaxAttempts < 1 || task.MaxAttempts > 3 {
+		if task.ID == "" || task.RunID != p.Run.ID || task.MaxAttempts < 1 || (task.ExecutionPolicy == nil && task.MaxAttempts > 3) {
 			return ErrInvalidDAG
 		}
 		if _, exists := byID[task.ID]; exists {
@@ -120,19 +126,27 @@ func validatePlan(p PlanSpec) error {
 		if group == "" {
 			group = task.ID
 		}
-		if existing, ok := groupAttempts[group]; ok && existing != task.MaxAttempts {
-			return ErrInvalidDAG
+		policy := task.ExecutionPolicy != nil
+		if old, ok := groupPolicy[group]; ok && old != policy {
+			return CodeError("execution_policy_group_mixed")
 		}
-		groupAttempts[group] = task.MaxAttempts
-		groupTasks[group]++
-		if groupTasks[group] > task.MaxAttempts {
-			return CodeError("budget_group_attempts_insufficient")
-		}
-		active := task.MaxActiveMS
-		if active <= 0 || active > defaultSegmentActiveMS {
+		groupPolicy[group] = policy
+		capacity, active := task.MaxAttempts, task.MaxActiveMS
+		if policy {
+			capacity = task.ExecutionPolicy.GroupMaxAttempts
+			active = task.ExecutionPolicy.GroupMaxActiveMS
+		} else if active <= 0 || active > defaultSegmentActiveMS {
 			active = defaultSegmentActiveMS
 		}
-		if existing, ok := groupActive[group]; ok && existing != active {
+		if old, ok := groupAttempts[group]; ok && old != capacity {
+			return ErrInvalidDAG
+		}
+		groupAttempts[group] = capacity
+		groupTasks[group]++
+		if groupTasks[group] > capacity {
+			return CodeError("budget_group_attempts_insufficient")
+		}
+		if old, ok := groupActive[group]; ok && old != active {
 			return ErrInvalidDAG
 		}
 		groupActive[group] = active
@@ -245,6 +259,9 @@ func (d *DB) submitPlan(ctx context.Context, p PlanSpec, authority *contract.Con
 			return rollback(err)
 		}
 	}
+	if err = validateExistingPolicyGroups(ctx, tx, p.Tasks); err != nil {
+		return rollback(err)
+	}
 	for _, task := range p.Tasks {
 		for _, raw := range append([]json.RawMessage{task.AdapterPayload}, task.FallbackPayloads...) {
 			if err = checkProviderEnabled(ctx, tx, p.Run.ControllerThread, raw); err != nil {
@@ -270,6 +287,10 @@ func (d *DB) submitPlan(ctx context.Context, p PlanSpec, authority *contract.Con
 		return rollback(err)
 	}
 	for _, task := range p.Tasks {
+		task, err = normalizeExecutionTask(task)
+		if err != nil {
+			return rollback(err)
+		}
 		deps, _ := json.Marshal(task.Dependencies)
 		status := "queued"
 		var ready any
@@ -293,7 +314,7 @@ func (d *DB) submitPlan(ctx context.Context, p PlanSpec, authority *contract.Con
 			group = task.ID
 		}
 		active := task.MaxActiveMS
-		if active <= 0 || active > defaultSegmentActiveMS {
+		if task.ExecutionPolicy == nil && (active <= 0 || active > defaultSegmentActiveMS) {
 			active = defaultSegmentActiveMS
 		}
 		payload := task.AdapterPayload
@@ -310,6 +331,19 @@ func (d *DB) submitPlan(ctx context.Context, p PlanSpec, authority *contract.Con
 		}
 		if _, err = tx.ExecContext(ctx, `INSERT INTO task_runtime(task_id,host_launch_id,work_revision,budget_group_id,max_active_ms,ready_sequence,adapter_payload,fallback_payloads,fallback_index,completion_policy,expected_artifact_sha256) VALUES(?,?,?,?,?,?,?,?,0,?,?)`, task.ID, launchID, revision, group, active, ready, string(payload), string(fallbacks), policy, strings.ToLower(task.ExpectedArtifactSHA256)); err != nil {
 			return rollback(err)
+		}
+		if task.ExecutionPolicy != nil {
+			body, e := task.ExecutionPolicy.CanonicalJSON()
+			if e != nil {
+				return rollback(e)
+			}
+			hash := runtimeHash(string(body))
+			if e = d.storageAdmission(ctx, tx, p.Run.ID, int64(16+len(task.ID)+len(p.Run.ID)+len(body)+len(hash)), false); e != nil {
+				return rollback(e)
+			}
+			if _, e = tx.ExecContext(ctx, `INSERT INTO task_execution_policies(task_id,run_id,body_json,policy_sha256) VALUES(?,?,?,?)`, task.ID, p.Run.ID, string(body), hash); e != nil {
+				return rollback(e)
+			}
 		}
 	}
 	if err = tx.Commit(); err != nil {

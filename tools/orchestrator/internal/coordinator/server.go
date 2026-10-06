@@ -23,16 +23,17 @@ import (
 )
 
 type TaskRequest struct {
-	ID                     string            `json:"id"`
-	Dependencies           []string          `json:"dependencies,omitempty"`
-	MaxAttempts            int               `json:"max_attempts"`
-	WorkRevision           int               `json:"work_revision,omitempty"`
-	BudgetGroupID          string            `json:"budget_group_id,omitempty"`
-	MaxActiveMS            int64             `json:"max_active_ms,omitempty"`
-	AdapterPayload         json.RawMessage   `json:"adapter"`
-	Fallbacks              []json.RawMessage `json:"fallbacks,omitempty"`
-	CompletionPolicy       string            `json:"completion_policy,omitempty"`
-	ExpectedArtifactSHA256 string            `json:"expected_artifact_sha256,omitempty"`
+	ExecutionPolicy        *contract.ExecutionPolicy `json:"execution_policy,omitempty"`
+	ID                     string                    `json:"id"`
+	Dependencies           []string                  `json:"dependencies,omitempty"`
+	MaxAttempts            int                       `json:"max_attempts"`
+	WorkRevision           int                       `json:"work_revision,omitempty"`
+	BudgetGroupID          string                    `json:"budget_group_id,omitempty"`
+	MaxActiveMS            int64                     `json:"max_active_ms,omitempty"`
+	AdapterPayload         json.RawMessage           `json:"adapter"`
+	Fallbacks              []json.RawMessage         `json:"fallbacks,omitempty"`
+	CompletionPolicy       string                    `json:"completion_policy,omitempty"`
+	ExpectedArtifactSHA256 string                    `json:"expected_artifact_sha256,omitempty"`
 }
 
 type SubmitRequest struct {
@@ -334,6 +335,11 @@ func (s *Server) Serve(ctx context.Context) error {
 		}
 		_ = s.listener.Close()
 	}()
+	dispatchCtx, stopDispatch := context.WithCancel(ctx)
+	defer stopDispatch()
+	dispatchDone := make(chan struct{})
+	go func() { defer close(dispatchDone); s.monitorRetryDispatch(dispatchCtx) }()
+	defer func() { stopDispatch(); <-dispatchDone }()
 	go s.monitorIdle(ctx)
 	for {
 		conn, err := s.listener.Accept()
@@ -362,6 +368,27 @@ func (s *Server) Serve(ctx context.Context) error {
 			}()
 			s.handleConnection(ctx, conn)
 		}()
+	}
+}
+
+// Persisted eligibility is authoritative; this bounded wake only asks the
+// existing dispatcher to claim. Reconnects continue to replay the original grant.
+func (s *Server) monitorRetryDispatch(ctx context.Context) {
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if s.closed.Load() || s.terminating.Load() {
+				return
+			}
+			due, err := s.db.HasDuePolicyRetry(ctx)
+			if err == nil && due {
+				s.dispatchAll()
+			}
+		}
 	}
 }
 
@@ -674,7 +701,7 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 			if policy == "" {
 				policy = "owner_review"
 			}
-			tasks = append(tasks, store.TaskSpec{ID: task.ID, RunID: request.RunID, Dependencies: task.Dependencies, MaxAttempts: task.MaxAttempts, WorkRevision: task.WorkRevision, BudgetGroupID: task.BudgetGroupID, MaxActiveMS: task.MaxActiveMS, AdapterPayload: task.AdapterPayload, FallbackPayloads: task.Fallbacks, CompletionPolicy: policy, ExpectedArtifactSHA256: task.ExpectedArtifactSHA256})
+			tasks = append(tasks, store.TaskSpec{ID: task.ID, RunID: request.RunID, Dependencies: task.Dependencies, ExecutionPolicy: task.ExecutionPolicy, MaxAttempts: task.MaxAttempts, WorkRevision: task.WorkRevision, BudgetGroupID: task.BudgetGroupID, MaxActiveMS: task.MaxActiveMS, AdapterPayload: task.AdapterPayload, FallbackPayloads: task.Fallbacks, CompletionPolicy: policy, ExpectedArtifactSHA256: task.ExpectedArtifactSHA256})
 		}
 		receipt, err := s.db.SubmitPlan(ctx, store.PlanSpec{ConfigSubmission: configGuard, Run: store.RunSpec{DeliveryMode: request.DeliveryMode, ID: request.RunID, ControllerThread: request.ControllerThread, PlanRevision: request.PlanRevision, OriginContextID: request.OriginContextID, OriginPID: request.OriginPID, OriginBirth: request.OriginBirth}, Host: store.HostLaunchSpec{OriginContextID: request.OriginContextID, HostGeneration: request.HostGeneration, Executable: request.HostExecutable}, Tasks: tasks, LaunchID: request.LaunchID, LaunchToken: request.LaunchToken, ControlToken: request.ControlToken})
 		if err != nil {

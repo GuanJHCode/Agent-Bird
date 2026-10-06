@@ -16,6 +16,7 @@ func TestContinuationV9UpgradePreservesHistoryAndReopens(t *testing.T) {
 	if _, err = db.SubmitPlan(context.Background(), providerTestPlan("history", "owner", "grok-build")); err != nil {
 		t.Fatal(err)
 	}
+	downgradePolicySchema(t, db)
 	if _, err = db.sql.Exec(`DROP TABLE config_preparation_abandons; DROP TABLE decision_attempt_bindings; DROP TABLE owner_control_changes; DROP TABLE execution_owners; ALTER TABLE host_launches DROP COLUMN execution_owner_mode; ALTER TABLE owner_rebinds DROP COLUMN old_host_generation; DROP TABLE continuation_decisions;DROP TABLE attempt_provider_bindings;UPDATE schema_meta SET version=9`); err != nil {
 		t.Fatal(err)
 	}
@@ -52,6 +53,7 @@ func TestContinuationV9UpgradeFailureRollsBackNewBindingTable(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	downgradePolicySchema(t, db)
 	if _, err = db.sql.Exec(`DROP TABLE config_preparation_abandons; DROP TABLE decision_attempt_bindings; DROP TABLE owner_control_changes; DROP TABLE execution_owners; ALTER TABLE host_launches DROP COLUMN execution_owner_mode; ALTER TABLE owner_rebinds DROP COLUMN old_host_generation; DROP TABLE continuation_decisions;DROP TABLE attempt_provider_bindings;UPDATE schema_meta SET version=9;CREATE TABLE continuation_decisions(blocker TEXT)`); err != nil {
 		t.Fatal(err)
 	}

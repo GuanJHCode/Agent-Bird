@@ -6,6 +6,7 @@ import (
 )
 
 type Event struct {
+	Failure          *FailureFacts    `json:"failure,omitempty"`
 	Version          int              `json:"version"`
 	ProducerID       string           `json:"producer_id,omitempty"`
 	EventID          string           `json:"event_id,omitempty"`

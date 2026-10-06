@@ -91,7 +91,7 @@ func validateConfigSubmission(request SubmitRequest, actualExecutable string, ow
 	}
 	uses := make([]install.ConfigGenerationTaskUse, len(request.Tasks))
 	for i, t := range request.Tasks {
-		uses[i] = install.ConfigGenerationTaskUse{TaskID: t.ID, AdapterPayload: t.AdapterPayload, Fallbacks: t.Fallbacks}
+		uses[i] = install.ConfigGenerationTaskUse{ExecutionPolicy: t.ExecutionPolicy, TaskID: t.ID, AdapterPayload: t.AdapterPayload, Fallbacks: t.Fallbacks}
 	}
 	return install.ValidateConfigGenerationSubmission(actualExecutable, scope, request.RunID, ConfigTaskPlanDigest(request.RunID, request.PlanRevision, request.Tasks), uses)
 }
@@ -235,7 +235,7 @@ func openConfigSubmission(request SubmitRequest, exe string, owner store.OwnerGr
 	}
 	uses := make([]install.ConfigGenerationTaskUse, len(request.Tasks))
 	for i, t := range request.Tasks {
-		uses[i] = install.ConfigGenerationTaskUse{TaskID: t.ID, AdapterPayload: t.AdapterPayload, Fallbacks: t.Fallbacks, PlanRevision: request.PlanRevision, Dependencies: t.Dependencies, MaxAttempts: t.MaxAttempts, WorkRevision: t.WorkRevision, BudgetGroupID: t.BudgetGroupID, MaxActiveMS: t.MaxActiveMS, CompletionPolicy: t.CompletionPolicy, ExpectedArtifactSHA256: t.ExpectedArtifactSHA256}
+		uses[i] = install.ConfigGenerationTaskUse{ExecutionPolicy: t.ExecutionPolicy, TaskID: t.ID, AdapterPayload: t.AdapterPayload, Fallbacks: t.Fallbacks, PlanRevision: request.PlanRevision, Dependencies: t.Dependencies, MaxAttempts: t.MaxAttempts, WorkRevision: t.WorkRevision, BudgetGroupID: t.BudgetGroupID, MaxActiveMS: t.MaxActiveMS, CompletionPolicy: t.CompletionPolicy, ExpectedArtifactSHA256: t.ExpectedArtifactSHA256}
 	}
 	return install.OpenConfigSubmissionGuard(exe, scope, request.RunID, ConfigTaskPlanDigest(request.RunID, request.PlanRevision, request.Tasks), uses)
 }

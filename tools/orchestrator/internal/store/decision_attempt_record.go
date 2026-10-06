@@ -19,6 +19,7 @@ type attemptDecisionRecord struct {
 	revision, promise                         int
 	eventRevision                             int64
 	fallback                                  bool
+	origin, policySHA                         string
 }
 
 func strictDecisionJSON(raw string, target any) error {
@@ -148,7 +149,7 @@ func exactDecisionFields(body []byte, typ reflect.Type) error {
 
 func readAttemptDecision(ctx context.Context, tx *sql.Tx, slot string) (attemptDecisionRecord, error) {
 	var r attemptDecisionRecord
-	err := tx.QueryRowContext(ctx, `SELECT action_slot,task_id,work_revision,source_event_id,source_event_revision,source_event_hash,source_segment_id,next_attempt_no,use_next_fallback,revision_payload FROM retry_decisions WHERE action_slot=?`, slot).Scan(&r.slot, &r.task, &r.revision, &r.event, &r.eventRevision, &r.hash, &r.segment, &r.promise, &r.fallback, &r.payload)
+	err := tx.QueryRowContext(ctx, `SELECT action_slot,task_id,work_revision,source_event_id,source_event_revision,source_event_hash,source_segment_id,next_attempt_no,use_next_fallback,revision_payload,origin,policy_sha256 FROM retry_decisions WHERE action_slot=?`, slot).Scan(&r.slot, &r.task, &r.revision, &r.event, &r.eventRevision, &r.hash, &r.segment, &r.promise, &r.fallback, &r.payload, &r.origin, &r.policySHA)
 	return r, err
 }
 
@@ -185,7 +186,7 @@ func decisionSource(ctx context.Context, tx *sql.Tx, r attemptDecisionRecord, ta
 		err = tx.QueryRowContext(ctx, `SELECT e.body_json,e.payload_hash,e.event_revision,e.action_slot,c.segment_id,s.status,s.outcome,b.status,c.capability_id,c.producer_id,c.run_id,c.task_id,c.attempt_id,c.work_revision,c.execution_epoch,c.status FROM report_events e JOIN report_capabilities c ON c.capability_id=e.capability_id JOIN segment_runtime s ON s.segment_id=c.segment_id AND s.attempt_id=c.attempt_id AND s.host_id=c.producer_id JOIN budget_runtime b ON b.id=s.reservation_id AND b.segment_id=s.segment_id WHERE e.event_id=? AND c.task_id=? AND e.kind='failure'`, r.event, task).Scan(&body, &hash, &rev, &slot, &segment, &status, &outcome, &settled, &capability, &capProducer, &capRun, &capTask, &capAttempt, &capRevision, &capEpoch, &capStatus)
 	}
 	var event contract.Event
-	if err != nil || hash != r.hash || rev != r.eventRevision || slot != r.slot || segment != r.segment || status != "exited" || settled != "settled" || json.Unmarshal([]byte(body), &event) != nil || event.EventID != r.event || event.TaskID != task || event.SegmentID != segment || event.WorkRevision != revision || event.PayloadHash != hash || outcome != event.Kind {
+	if err != nil || hash != r.hash || rev != r.eventRevision || slot != r.slot || segment != r.segment || (status != "exited" && !(r.origin == "policy" && status == "not_started")) || settled != "settled" || json.Unmarshal([]byte(body), &event) != nil || event.EventID != r.event || event.TaskID != task || event.SegmentID != segment || event.WorkRevision != revision || event.PayloadHash != hash || outcome != event.Kind {
 		return event, ErrConflict
 	}
 	var run, attempt, command, producer string
@@ -206,7 +207,7 @@ func decisionSource(ctx context.Context, tx *sql.Tx, r attemptDecisionRecord, ta
 	} else if event.CommandID != command || event.ProducerID != producer {
 		return event, ErrConflict
 	}
-	if event.Kind != contract.EventFailed && event.Kind != contract.EventStopped && event.Kind != contract.EventResult {
+	if event.Kind != contract.EventFailed && event.Kind != contract.EventStopped && event.Kind != contract.EventResult && !(r.origin == "policy" && event.Kind == contract.EventLaunchRejected) {
 		return event, ErrConflict
 	}
 	if event.Kind == contract.EventResult {

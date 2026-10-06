@@ -40,6 +40,31 @@ func validateOrdinaryDecisionPending(ctx context.Context, tx *sql.Tx, r attemptD
 	if err != nil || e.Kind == "stopped" && !managed {
 		return ErrConflict
 	}
+	if r.origin == "policy" {
+		budget, e2 := readExecutionBudget(ctx, tx, task.id)
+		if e2 != nil || budget.policy == nil || budget.policy.Retry == nil || r.fallback || r.payload != "" || e.Kind != contract.EventLaunchRejected || !e.Failure.ValidPrelaunchProbe() {
+			return ErrConflict
+		}
+		body, e2 := budget.policy.CanonicalJSON()
+		if e2 != nil || runtimeHash(string(body)) != r.policySHA {
+			return ErrConflict
+		}
+		allowed := false
+		for _, code := range budget.policy.Retry.Codes {
+			allowed = allowed || code == e.Failure.Code
+		}
+		if !allowed {
+			return ErrConflict
+		}
+		var state string
+		var questions int
+		if tx.QueryRowContext(ctx, `SELECT status FROM segment_runtime WHERE segment_id=?`, r.segment).Scan(&state) != nil || state != "not_started" {
+			return ErrConflict
+		}
+		if tx.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM runtime_questions WHERE task_id=? AND status IN ('open','resume_queued','resume_started'))+(SELECT COUNT(*) FROM report_events q JOIN report_capabilities c ON c.capability_id=q.capability_id WHERE c.task_id=? AND q.kind='question' AND q.delivery_status='pending_session')`, task.id, task.id).Scan(&questions) != nil || questions != 0 {
+			return ErrConflict
+		}
+	}
 	var attemptStatus, sourceAttempt, latestAttempt, latestSegment string
 	err = tx.QueryRowContext(ctx, `SELECT a.id,a.status,(SELECT id FROM attempts WHERE task_id=a.task_id ORDER BY attempt_no DESC LIMIT 1),(SELECT id FROM segments WHERE attempt_id=a.id ORDER BY segment_no DESC LIMIT 1) FROM attempts a JOIN segments s ON s.attempt_id=a.id WHERE s.id=? AND a.task_id=?`, r.segment, task.id).Scan(&sourceAttempt, &attemptStatus, &latestAttempt, &latestSegment)
 	if err != nil || sourceAttempt != e.AttemptID || sourceAttempt != latestAttempt || r.segment != latestSegment || (attemptStatus != "failed" && !(managed && attemptStatus == "interrupted")) {

@@ -28,6 +28,7 @@ func TestOriginalOwnerV11MigrationPreservesLegacyRowsAndReopens(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Remove every additive v12 object, rather than only backdating schema_meta.
+	downgradePolicySchema(t, f.db)
 	if _, err := f.db.sql.Exec(`DROP TABLE config_preparation_abandons; DROP TABLE decision_attempt_bindings; DROP TABLE owner_control_changes; DROP TABLE execution_owners; ALTER TABLE host_launches DROP COLUMN execution_owner_mode; UPDATE schema_meta SET version=11`); err != nil {
 		t.Fatal(err)
 	}
@@ -75,6 +76,7 @@ func TestOriginalOwnerV11MigrationPreservesLegacyRowsAndReopens(t *testing.T) {
 
 func TestOriginalOwnerV11MigrationFailureRollsBackDDLAndVersion(t *testing.T) {
 	f := newOriginalOwnerFixture(t)
+	downgradePolicySchema(t, f.db)
 	if _, err := f.db.sql.Exec(`DROP TABLE config_preparation_abandons; DROP TABLE decision_attempt_bindings; DROP TABLE owner_control_changes; DROP TABLE execution_owners; ALTER TABLE host_launches DROP COLUMN execution_owner_mode; UPDATE schema_meta SET version=11; CREATE TABLE owner_control_changes(injected TEXT)`); err != nil {
 		t.Fatal(err)
 	}

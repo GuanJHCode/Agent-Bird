@@ -46,6 +46,7 @@ func TestBridgeV8UpgradeFailureRollsBackDDLAndKeepsOldRows(t *testing.T) {
 	if _, err = db.sql.Exec(`INSERT INTO runs(id,controller_thread,plan_revision,origin_context_id,origin_pid,origin_birth,status,created_at,delivery_mode) VALUES('old','c',1,'o',1,'b','queued','2026-01-01T00:00:00Z','collect')`); err != nil {
 		t.Fatal(err)
 	}
+	downgradePolicySchema(t, db)
 	if _, err = db.sql.Exec(`DROP TABLE config_preparation_abandons; DROP TABLE decision_attempt_bindings; DROP TABLE owner_control_changes; DROP TABLE execution_owners; ALTER TABLE host_launches DROP COLUMN execution_owner_mode; ALTER TABLE owner_rebinds DROP COLUMN old_host_generation; DROP TABLE continuation_decisions; DROP TABLE attempt_provider_bindings; DROP TABLE bridge_delivery_attempts; DROP TABLE bridge_batch_items; DROP TABLE bridge_batches; DROP TABLE bridge_ingress; DROP TABLE bridge_bindings; ALTER TABLE schema_meta DROP COLUMN bridge_cutover_at; UPDATE schema_meta SET version=8; CREATE TABLE bridge_batches(blocker TEXT)`); err != nil {
 		t.Fatal(err)
 	}

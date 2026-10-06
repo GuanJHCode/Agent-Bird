@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"io"
 	"path/filepath"
+	"time"
 )
 
 type ConcurrencyLimits struct {
@@ -121,6 +122,7 @@ func selectReady(ctx context.Context, tx *sql.Tx, launchID string, epoch uint64,
 		return readyTask{}, err
 	}
 	defer rows.Close()
+	var blockedPolicy error
 	for rows.Next() {
 		var task readyTask
 		if err = rows.Scan(&task.taskID, &task.runID, &task.status, &task.revision, &task.group, &task.maxActive, &task.maxAttempts, &task.payload, &task.launchID); err != nil {
@@ -143,37 +145,50 @@ func selectReady(ctx context.Context, tx *sql.Tx, launchID string, epoch uint64,
 		if providers[p] >= pmax || workspaces[w] >= wmax {
 			continue
 		}
+		var eligible int64
+		if err = tx.QueryRowContext(ctx, `SELECT COALESCE(MAX(d.eligible_at_unix_ms),0) FROM decision_attempt_bindings b JOIN retry_decisions d USING(action_slot) WHERE b.task_id=? AND b.attempt_id IS NULL`, task.taskID).Scan(&eligible); err != nil {
+			return readyTask{}, err
+		}
+		if eligible > time.Now().UnixMilli() {
+			continue
+		}
 		if task.status != "resume_queued" {
-			var attempts int
-			if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM attempts a JOIN task_runtime r ON r.task_id=a.task_id WHERE r.budget_group_id=?`, task.group).Scan(&attempts); err != nil {
-				return readyTask{}, err
-			}
-			if attempts >= task.maxAttempts || attempts >= 3 {
+			if e := executionCapacity(ctx, tx, task.taskID, true); e != nil {
 				if task.launchID == launchID {
-					return readyTask{}, ErrAttemptLimit
+					budget, readErr := readExecutionBudget(ctx, tx, task.taskID)
+					if readErr != nil {
+						return readyTask{}, readErr
+					}
+					if budget.policy == nil || e != ErrAttemptLimit {
+						return readyTask{}, e
+					}
+					// A pending promise can make an older sibling ineligible.
+					// Continue FIFO so its due retry can consume that promise.
+					if blockedPolicy == nil {
+						blockedPolicy = e
+					}
 				}
 				continue
 			}
 		}
-		var charged int64
-		if err = tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(CASE WHEN status='settled' THEN used_ms ELSE granted_ms END),0) FROM budget_runtime WHERE budget_group_id=?`, task.group).Scan(&charged); err != nil {
-			return readyTask{}, err
-		}
-		attemptRemaining := task.maxActive
+		attempt := ""
 		if task.status == "resume_queued" {
-			var attemptID string
-			if err = tx.QueryRowContext(ctx, `SELECT id FROM attempts WHERE task_id=? ORDER BY attempt_no DESC LIMIT 1`, task.taskID).Scan(&attemptID); err != nil {
+			if err = tx.QueryRowContext(ctx, `SELECT id FROM attempts WHERE task_id=? ORDER BY attempt_no DESC LIMIT 1`, task.taskID).Scan(&attempt); err != nil {
 				return readyTask{}, err
 			}
-			attemptCharged, chargeErr := attemptChargedActiveMS(ctx, tx, attemptID)
-			if chargeErr != nil {
-				return readyTask{}, chargeErr
-			}
-			attemptRemaining -= attemptCharged
 		}
-		if attemptRemaining <= 0 || defaultGroupActiveMS-charged <= 0 {
+		if _, e := executionGrant(ctx, tx, task.taskID, attempt); e != nil {
 			if task.launchID == launchID {
-				return readyTask{}, CodeError("budget_exhausted")
+				budget, readErr := readExecutionBudget(ctx, tx, task.taskID)
+				if readErr != nil {
+					return readyTask{}, readErr
+				}
+				if budget.policy == nil || e != CodeError("budget_exhausted") {
+					return readyTask{}, e
+				}
+				if blockedPolicy == nil {
+					blockedPolicy = e
+				}
 			}
 			continue
 		}
@@ -184,6 +199,9 @@ func selectReady(ctx context.Context, tx *sql.Tx, launchID string, epoch uint64,
 	}
 	if err = rows.Err(); err != nil {
 		return readyTask{}, err
+	}
+	if blockedPolicy != nil {
+		return readyTask{}, blockedPolicy
 	}
 	return readyTask{}, sql.ErrNoRows
 }

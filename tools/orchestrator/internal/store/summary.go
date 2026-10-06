@@ -17,6 +17,8 @@ type RunSummary struct {
 }
 
 type SummaryTask struct {
+	ExecutionPolicy     *contract.ExecutionPolicy  `json:"execution_policy,omitempty"`
+	NextRetryAtUnixMS   int64                      `json:"next_retry_at_unix_ms,omitempty"`
 	TaskID              string                     `json:"task_id"`
 	Status              string                     `json:"status"`
 	Group               string                     `json:"group"`
@@ -80,6 +82,7 @@ WHERE t.run_id=(SELECT run_id FROM tasks WHERE id=?) ORDER BY t.id`, taskID)
 	}
 	defer rows.Close()
 	summary := RunSummary{Version: 1, Counts: map[string]int{"pending": 0, "running": 0, "blocked": 0, "completed": 0}, Tasks: []SummaryTask{}}
+	policyRetryEligible := map[string]bool{}
 	for rows.Next() {
 		var task SummaryTask
 		var attempts, maxAttempts, groupTasks int
@@ -100,6 +103,7 @@ WHERE t.run_id=(SELECT run_id FROM tasks WHERE id=?) ORDER BY t.id`, taskID)
 		}
 		managed := candidateManaged([]byte(adapterPayload))
 		_, reviewProfileErr := reviewRetryProfile([]byte(adapterPayload))
+		policyRetryEligible[task.TaskID] = (!managed && failure) || (technicalReviewFailure && reviewProfileErr == nil && groupTasks == 1)
 		reviewRetryEligible := technicalReviewFailure && reviewProfileErr == nil && groupTasks == 1 && attempts < maxAttempts && attempts < 3
 		task.Group = "blocked"
 		task.AllowedActions = []string{"status", "collect"}
@@ -149,6 +153,40 @@ WHERE t.run_id=(SELECT run_id FROM tasks WHERE id=?) ORDER BY t.id`, taskID)
 	}
 	if err := rows.Close(); err != nil {
 		return RunSummary{}, err
+	}
+	tx, e := d.sql.BeginTx(ctx, nil)
+	if e != nil {
+		return RunSummary{}, e
+	}
+	defer tx.Rollback()
+	for i := range summary.Tasks {
+		task := &summary.Tasks[i]
+		b, e := readExecutionBudget(ctx, tx, task.TaskID)
+		if e != nil {
+			return RunSummary{}, e
+		}
+		if b.policy == nil {
+			continue
+		}
+		task.ExecutionPolicy = b.policy
+		if e = tx.QueryRowContext(ctx, `SELECT COALESCE(MAX(d.eligible_at_unix_ms),0) FROM decision_attempt_bindings b JOIN retry_decisions d USING(action_slot) WHERE b.task_id=? AND b.attempt_id IS NULL`, task.TaskID).Scan(&task.NextRetryAtUnixMS); e != nil {
+			return RunSummary{}, e
+		}
+		actions := task.AllowedActions[:0]
+		for _, action := range task.AllowedActions {
+			if action != "retry" {
+				actions = append(actions, action)
+			}
+		}
+		task.AllowedActions = actions
+		if (task.Status == "failed" || task.Status == "interrupted") && task.ActiveSegments == 0 && policyRetryEligible[task.TaskID] && executionCapacity(ctx, tx, task.TaskID, false) == nil {
+			if _, e = executionGrant(ctx, tx, task.TaskID, ""); e == nil {
+				task.AllowedActions = append(task.AllowedActions, "retry")
+			}
+		}
+	}
+	if e = tx.Commit(); e != nil {
+		return RunSummary{}, e
 	}
 	for i := range summary.Tasks {
 		task := &summary.Tasks[i]

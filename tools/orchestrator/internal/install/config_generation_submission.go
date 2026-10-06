@@ -30,6 +30,7 @@ func ValidateConfigGenerationSubmission(actualExecutable, authenticatedScope, ru
 }
 
 type ConfigGenerationTaskUse struct {
+	ExecutionPolicy *contract.ExecutionPolicy
 	// Submission constraints are copied from the authenticated resolved request.
 	// FS-only manifest checks do not establish a Store admission capability.
 	PlanRevision           int

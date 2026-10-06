@@ -30,7 +30,13 @@ type ReleasableTask struct {
 }
 
 const releasableTaskPredicate = `(t.status IN ('completed','cancelled','budget_exhausted','blocked_dependency')
-	        OR (t.status='failed' AND (SELECT COUNT(*) FROM attempts a JOIN task_runtime ar ON ar.task_id=a.task_id WHERE ar.budget_group_id=r.budget_group_id) >= MIN(t.max_attempts,3)))
+	        OR (t.status='failed' AND (
+          (SELECT COUNT(*) FROM attempts a JOIN task_runtime ar ON ar.task_id=a.task_id WHERE ar.budget_group_id=r.budget_group_id) >= COALESCE((SELECT json_extract(body_json,'$.group_max_attempts') FROM task_execution_policies WHERE task_id=t.id),MIN(t.max_attempts,3))
+          OR EXISTS(SELECT 1 FROM task_execution_policies p WHERE p.task_id=t.id AND (
+            (SELECT COUNT(*) FROM attempts WHERE task_id=t.id)>=t.max_attempts OR
+            (SELECT COALESCE(SUM(CASE WHEN b.status='settled' THEN b.used_ms ELSE b.granted_ms END),0) FROM budget_runtime b JOIN segments s ON s.id=b.segment_id JOIN attempts a ON a.id=s.attempt_id WHERE a.task_id=t.id)>=json_extract(p.body_json,'$.task_max_active_ms') OR
+            (SELECT COALESCE(SUM(CASE WHEN status='settled' THEN used_ms ELSE granted_ms END),0) FROM budget_runtime WHERE budget_group_id=r.budget_group_id)>=json_extract(p.body_json,'$.group_max_active_ms'))))))
+     AND NOT EXISTS(SELECT 1 FROM decision_attempt_bindings WHERE task_id=t.id AND attempt_id IS NULL)
 	 AND NOT EXISTS (SELECT 1 FROM segment_runtime s JOIN attempts a ON a.id=s.attempt_id WHERE a.task_id=t.id AND s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown'))
 	 AND NOT EXISTS (SELECT 1 FROM runtime_events e WHERE e.task_id=t.id AND e.delivery_status='pending')
 	 AND NOT EXISTS (SELECT 1 FROM report_events e JOIN report_capabilities c ON c.capability_id=e.capability_id WHERE c.task_id=t.id AND e.delivery_status IN ('pending','pending_session'))
@@ -98,11 +104,12 @@ func (d *DB) CompletelyIdle(ctx context.Context) (bool, error) {
  (SELECT COUNT(*) FROM runtime_events WHERE delivery_status='pending') +
 	 (SELECT COUNT(*) FROM report_events WHERE delivery_status IN ('pending','pending_session')) +
  (SELECT COUNT(*) FROM stop_runtime WHERE status IN ('pending','accepted')) +
- (SELECT COUNT(*) FROM runtime_hosts WHERE status='ready')`).Scan(&count)
+ (SELECT COUNT(*) FROM runtime_hosts WHERE status='ready') + (SELECT COUNT(*) FROM decision_attempt_bindings WHERE attempt_id IS NULL)`).Scan(&count)
 	return count == 0, err
 }
 
 const retirableHostPredicate = `h.status='ready'
+ AND NOT EXISTS(SELECT 1 FROM decision_attempt_bindings b JOIN task_runtime r ON r.task_id=b.task_id WHERE r.host_launch_id=h.launch_id AND b.attempt_id IS NULL)
 	 AND NOT EXISTS (SELECT 1 FROM task_runtime r JOIN tasks t ON t.id=r.task_id WHERE r.host_launch_id=h.launch_id AND t.status NOT IN ('completed','result_ready','cancelled','failed','budget_exhausted','blocked_dependency'))
 	 AND NOT EXISTS (SELECT 1 FROM report_events e JOIN report_capabilities c ON c.capability_id=e.capability_id WHERE c.producer_id=h.id AND e.delivery_status='pending_session')
 	 AND NOT EXISTS (SELECT 1 FROM segment_runtime s WHERE s.host_id=h.id AND s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown'))`

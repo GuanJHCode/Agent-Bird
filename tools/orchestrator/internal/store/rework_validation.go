@@ -173,6 +173,7 @@ func loadReworkChain(ctx context.Context, tx *sql.Tx, taskID, reviewID string) (
 func reworkBudgetsAndLifecycle(ctx context.Context, tx *sql.Tx, chain []*reworkTask) error {
 	groupNeeds := map[string]int{}
 	groupLimits := map[string]int{}
+	groupTimes := map[string]int64{}
 	for _, v := range chain {
 		var active, attempts, ready, questions int
 		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM segment_runtime s JOIN attempts a ON a.id=s.attempt_id WHERE a.task_id=? AND s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown')`, v.id).Scan(&active); err != nil {
@@ -200,10 +201,18 @@ func reworkBudgetsAndLifecycle(ctx context.Context, tx *sql.Tx, chain []*reworkT
 			return ErrConflict
 		}
 		groupNeeds[v.group]++
-		limit := v.maxAttempts
-		if limit > 3 {
-			limit = 3
+		budget, e := readExecutionBudget(ctx, tx, v.id)
+		if e != nil {
+			return e
 		}
+		if e = executionCapacity(ctx, tx, v.id, false); e != nil {
+			return e
+		}
+		if _, e = executionGrant(ctx, tx, v.id, ""); e != nil {
+			return e
+		}
+		limit := budget.groupAttempts
+		groupTimes[v.group] = budget.groupMS
 		if old, ok := groupLimits[v.group]; !ok || limit < old {
 			groupLimits[v.group] = limit
 		}
@@ -214,13 +223,17 @@ func reworkBudgetsAndLifecycle(ctx context.Context, tx *sql.Tx, chain []*reworkT
 		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM attempts a JOIN task_runtime r ON r.task_id=a.task_id WHERE r.budget_group_id=?`, group).Scan(&attempts); err != nil {
 			return err
 		}
-		if attempts+need > groupLimits[group] {
+		var pending int
+		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM decision_attempt_bindings b JOIN task_runtime r ON r.task_id=b.task_id JOIN task_execution_policies p ON p.task_id=b.task_id WHERE r.budget_group_id=? AND b.attempt_id IS NULL`, group).Scan(&pending); err != nil {
+			return err
+		}
+		if attempts+pending+need > groupLimits[group] {
 			return ErrAttemptLimit
 		}
 		if err := tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(CASE WHEN status='settled' THEN used_ms ELSE granted_ms END),0) FROM budget_runtime WHERE budget_group_id=?`, group).Scan(&charged); err != nil {
 			return err
 		}
-		if charged >= defaultGroupActiveMS {
+		if charged >= groupTimes[group] {
 			return CodeError("budget_exhausted")
 		}
 	}

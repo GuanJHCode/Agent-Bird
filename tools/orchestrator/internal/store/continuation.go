@@ -195,22 +195,8 @@ func validateTypedQuestionBinding(ctx context.Context, tx *sql.Tx, event contrac
 }
 
 func checkContinuationBudget(ctx context.Context, tx *sql.Tx, task, attempt string) error {
-	var max, charged int64
-	var group string
-	if err := tx.QueryRowContext(ctx, `SELECT max_active_ms,budget_group_id FROM task_runtime WHERE task_id=?`, task).Scan(&max, &group); err != nil {
-		return err
-	}
-	used, err := attemptChargedActiveMS(ctx, tx, attempt)
-	if err != nil {
-		return err
-	}
-	if err = tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(CASE WHEN status='settled' THEN used_ms ELSE granted_ms END),0) FROM budget_runtime WHERE budget_group_id=?`, group).Scan(&charged); err != nil {
-		return err
-	}
-	if used >= max || charged >= defaultGroupActiveMS {
-		return CodeError("budget_exhausted")
-	}
-	return nil
+	_, err := executionGrant(ctx, tx, task, attempt)
+	return err
 }
 
 func readContinuationSource(ctx context.Context, tx *sql.Tx, eventID, task, segment string, report bool) (contract.Event, string, error) {

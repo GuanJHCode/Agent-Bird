@@ -7,6 +7,9 @@ import (
 	"io"
 	"os"
 	"syscall"
+
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 )
 
 type launchFailureDiagnostic struct {
@@ -48,7 +51,7 @@ func readRecoveredLaunchFailure(path string) ([]byte, launchFailureCause, error)
 		return nil, "", invalid
 	}
 	switch diagnostic.CauseCode {
-	case "launch_failed", "invocation_payload_invalid", "candidate_validation_source_invalid", "candidate_review_source_invalid", "candidate_integration_source_invalid", "candidate_input_changed", "candidate_target_mismatch", "invocation_unavailable", "profile_workspace_untrusted":
+	case "probe_start_eagain", "probe_start_eintr", "launch_failed", "invocation_payload_invalid", "candidate_validation_source_invalid", "candidate_review_source_invalid", "candidate_integration_source_invalid", "candidate_input_changed", "candidate_target_mismatch", "invocation_unavailable", "profile_workspace_untrusted":
 	default:
 		return nil, "", invalid
 	}
@@ -67,7 +70,19 @@ type launchFailureCause string
 
 func (e launchFailureCause) Error() string { return string(e) }
 
+func launchFailureFacts(cause launchFailureCause) *contract.FailureFacts {
+	if cause != "probe_start_eagain" && cause != "probe_start_eintr" {
+		return nil
+	}
+	return &contract.FailureFacts{Version: 1, Stage: "prelaunch_probe", Code: string(cause), WorkerState: "not_started", ProbeState: "not_started"}
+}
 func safeLaunchFailureCause(cause error) launchFailureCause {
+	if facts := adapter.ProbeFailureFacts(cause); facts.ValidPrelaunchProbe() {
+		return launchFailureCause(facts.Code)
+	}
+	if recovered, ok := cause.(launchFailureCause); ok && launchFailureFacts(recovered) != nil {
+		return recovered
+	}
 	if cause == nil {
 		return "launch_failed"
 	}

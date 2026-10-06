@@ -38,7 +38,7 @@ func (d *DB) ClaimReady(ctx context.Context, hostID string, epoch uint64, slots 
 	}
 	selected, err := selectReady(ctx, tx, launchID, epoch, limits)
 	taskID, runID, taskStatus, budgetGroup := selected.taskID, selected.runID, selected.status, selected.group
-	workRevision, maxAttempts, maxActive, adapterPayload := selected.revision, selected.maxAttempts, selected.maxActive, selected.payload
+	workRevision, adapterPayload := selected.revision, selected.payload
 	if errors.Is(err, sql.ErrNoRows) {
 		return rollback(ErrNoReady)
 	}
@@ -67,12 +67,8 @@ func (d *DB) ClaimReady(ctx context.Context, hostID string, epoch uint64, slots 
 		}
 		segmentNo++
 	} else {
-		var admitted int
-		if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM attempts a JOIN task_runtime r ON r.task_id=a.task_id WHERE r.budget_group_id=?`, budgetGroup).Scan(&admitted); err != nil {
+		if err = executionCapacity(ctx, tx, taskID, true); err != nil {
 			return rollback(err)
-		}
-		if admitted >= maxAttempts || admitted >= 3 {
-			return rollback(ErrAttemptLimit)
 		}
 		attemptNo, err = nextTaskAttemptOrdinal(ctx, tx, taskID)
 		if err != nil {
@@ -120,23 +116,13 @@ func (d *DB) ClaimReady(ctx context.Context, hostID string, epoch uint64, slots 
 	if err != nil {
 		return rollback(err)
 	}
-	var charged int64
-	if err = tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(CASE WHEN status='settled' THEN used_ms ELSE granted_ms END),0) FROM budget_runtime WHERE budget_group_id=?`, budgetGroup).Scan(&charged); err != nil {
-		return rollback(err)
-	}
-	grant := maxActive
+	budgetAttempt := ""
 	if taskStatus == "resume_queued" {
-		attemptCharged, chargeErr := attemptChargedActiveMS(ctx, tx, attemptID)
-		if chargeErr != nil {
-			return rollback(chargeErr)
-		}
-		grant -= attemptCharged
+		budgetAttempt = attemptID
 	}
-	if remaining := defaultGroupActiveMS - charged; grant > remaining {
-		grant = remaining
-	}
-	if grant <= 0 {
-		return rollback(CodeError("budget_exhausted"))
+	grant, err := executionGrant(ctx, tx, taskID, budgetAttempt)
+	if err != nil {
+		return rollback(err)
 	}
 	now := time.Now().UTC()
 	deadline := now.Add(time.Duration(grant) * time.Millisecond).UnixMilli()

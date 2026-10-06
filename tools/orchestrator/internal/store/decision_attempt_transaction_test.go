@@ -183,6 +183,7 @@ func TestTaskLocalOrdinalOverflowAndGapDoNotGrantCapacity(t *testing.T) {
 
 func TestDecisionBindingV12MigrationKeepsHistoricalReceiptWithoutBackfill(t *testing.T) {
 	db, _, spec := newOrdinaryDecisionFixture(t)
+	downgradePolicySchema(t, db)
 	if _, err := db.sql.Exec(`DELETE FROM decision_attempt_bindings; DROP TABLE config_preparation_abandons; DROP TABLE decision_attempt_bindings; UPDATE retry_decisions SET next_attempt_no=9; UPDATE attempts SET attempt_no=7; UPDATE schema_meta SET version=12`); err != nil {
 		t.Fatal(err)
 	}
@@ -220,6 +221,7 @@ func TestDecisionBindingV12MigrationKeepsHistoricalReceiptWithoutBackfill(t *tes
 
 func TestDecisionBindingV12MigrationDDLFailureRollsBack(t *testing.T) {
 	db, _, _ := newOrdinaryDecisionFixture(t)
+	downgradePolicySchema(t, db)
 	if _, err := db.sql.Exec(`DELETE FROM decision_attempt_bindings; DROP TABLE config_preparation_abandons; DROP TABLE decision_attempt_bindings; UPDATE schema_meta SET version=12; CREATE INDEX decision_attempt_pending_task ON retry_decisions(task_id)`); err != nil {
 		t.Fatal(err)
 	}

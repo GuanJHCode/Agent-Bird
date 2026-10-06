@@ -110,7 +110,7 @@ func configPlanTasks(p PlanSpec) ([]install.ConfigGenerationTaskUse, bool, error
 	paired := false
 	legacy := false
 	for i, t := range p.Tasks {
-		out[i] = install.ConfigGenerationTaskUse{TaskID: t.ID, AdapterPayload: t.AdapterPayload, Fallbacks: t.FallbackPayloads, PlanRevision: p.Run.PlanRevision, Dependencies: t.Dependencies, MaxAttempts: t.MaxAttempts, WorkRevision: t.WorkRevision, BudgetGroupID: t.BudgetGroupID, MaxActiveMS: t.MaxActiveMS, CompletionPolicy: t.CompletionPolicy, ExpectedArtifactSHA256: t.ExpectedArtifactSHA256}
+		out[i] = install.ConfigGenerationTaskUse{ExecutionPolicy: t.ExecutionPolicy, TaskID: t.ID, AdapterPayload: t.AdapterPayload, Fallbacks: t.FallbackPayloads, PlanRevision: p.Run.PlanRevision, Dependencies: t.Dependencies, MaxAttempts: t.MaxAttempts, WorkRevision: t.WorkRevision, BudgetGroupID: t.BudgetGroupID, MaxActiveMS: t.MaxActiveMS, CompletionPolicy: t.CompletionPolicy, ExpectedArtifactSHA256: t.ExpectedArtifactSHA256}
 		for _, raw := range append([]json.RawMessage{t.AdapterPayload}, t.FallbackPayloads...) {
 			if len(raw) == 0 {
 				legacy = true

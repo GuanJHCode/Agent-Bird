@@ -219,7 +219,7 @@ func taskSubmitWithConfigPreparation(ctx context.Context, action string, args []
 	}
 	h := taskHandle{Version: 1, RunID: plan.RunID, StateDir: state, Status: "submitting", TaskIDs: []string{}}
 	for _, task := range plan.Tasks {
-		if task.ID == "" || slices.Contains(h.TaskIDs, task.ID) || task.MaxAttempts < 1 || task.MaxActiveMS < 1 {
+		if task.ID == "" || slices.Contains(h.TaskIDs, task.ID) || (task.ExecutionPolicy == nil && (task.MaxAttempts < 1 || task.MaxActiveMS < 1)) || task.MaxAttempts < 0 || task.MaxActiveMS < 0 {
 			return codeError("invalid_task_plan")
 		}
 		h.TaskIDs = append(h.TaskIDs, task.ID)

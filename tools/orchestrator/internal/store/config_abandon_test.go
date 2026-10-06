@@ -18,8 +18,8 @@ func TestStoreConfigAbandonMigration14(t *testing.T) {
 	if e = db.SQL().QueryRow(`SELECT version FROM schema_meta`).Scan(&version); e != nil {
 		t.Fatal(e)
 	}
-	if version != 14 {
-		t.Errorf("schema version = %d, want14", version)
+	if version != currentSchemaVersion {
+		t.Errorf("schema version = %d, want %d", version, currentSchemaVersion)
 	}
 	var n int
 	if e = db.SQL().QueryRow(`SELECT count(*) FROM config_preparation_abandons`).Scan(&n); e != nil {
@@ -33,6 +33,7 @@ func TestStoreConfigAbandonV13MigrationRollbackAndReopen(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
+	downgradePolicySchema(t, db)
 	if _, e = db.SQL().Exec(`DROP TABLE config_preparation_abandons; UPDATE schema_meta SET version=13; CREATE TRIGGER quota_config_abandon_INSERT AFTER INSERT ON tasks BEGIN SELECT 1; END`); e != nil {
 		t.Fatal(e)
 	}
@@ -61,7 +62,7 @@ func TestStoreConfigAbandonV13MigrationRollbackAndReopen(t *testing.T) {
 		if e != nil {
 			t.Fatal(e)
 		}
-		if e = opened.SQL().QueryRow(`SELECT version FROM schema_meta`).Scan(&version); e != nil || version != 14 {
+		if e = opened.SQL().QueryRow(`SELECT version FROM schema_meta`).Scan(&version); e != nil || version != currentSchemaVersion {
 			t.Fatal(version, e)
 		}
 		opened.Close()

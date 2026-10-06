@@ -74,11 +74,11 @@ func applyLaunchRejection(ctx context.Context, tx *sql.Tx, e contract.Event) err
 	if _, err := tx.ExecContext(ctx, `UPDATE tasks SET status='failed' WHERE id=?`, e.TaskID); err != nil {
 		return err
 	}
-	var count, max int
-	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*),t.max_attempts FROM attempts a JOIN tasks t ON t.id=a.task_id WHERE a.task_id=?`, e.TaskID).Scan(&count, &max); err != nil {
+	exhausted, err := executionExhausted(ctx, tx, e.TaskID)
+	if err != nil {
 		return err
 	}
-	if count >= max || count >= 3 {
+	if exhausted {
 		return blockFailedDependencies(ctx, tx)
 	}
 	return nil

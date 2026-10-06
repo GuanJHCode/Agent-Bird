@@ -118,12 +118,8 @@ func authorizeReviewRetry(ctx context.Context, tx *sql.Tx, spec RetrySpec, raw s
 	if questions != 0 {
 		return "", ErrConflict
 	}
-	var charged int64
-	if err = tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(CASE WHEN b.status='settled' THEN b.used_ms ELSE b.granted_ms END),0) FROM budget_runtime b JOIN task_runtime r ON r.budget_group_id=b.budget_group_id WHERE r.task_id=?`, spec.TaskID).Scan(&charged); err != nil {
+	if _, err = executionGrant(ctx, tx, spec.TaskID, ""); err != nil {
 		return "", err
-	}
-	if charged >= defaultGroupActiveMS {
-		return "", CodeError("budget_exhausted")
 	}
 	// Reconstruct the exact previous grant, including any previous retry directory.
 	if err = bindCandidateInput(ctx, tx, &c, true); err != nil {

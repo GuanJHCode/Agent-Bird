@@ -12,6 +12,9 @@ import (
 )
 
 func (d *DB) CommitHostEvent(ctx context.Context, event contract.Event) (contract.DurableAck, error) {
+	if event.Failure != nil && (event.Kind != contract.EventLaunchRejected || !event.Failure.ValidPrelaunchProbe()) {
+		return contract.DurableAck{}, CodeError("failure_facts_invalid")
+	}
 	if event.Kind == contract.EventProgress {
 		return contract.DurableAck{}, CodeError("progress_requires_side_channel")
 	}
@@ -129,6 +132,9 @@ func (d *DB) CommitHostEvent(ctx context.Context, event contract.Event) (contrac
 			}
 		}
 		if err = applyEvent(ctx, tx, event); err != nil {
+			return rollback(err)
+		}
+		if err = d.queuePolicyRetry(ctx, tx, event, actionSlot); err != nil {
 			return rollback(err)
 		}
 	}
@@ -390,11 +396,11 @@ func applyExit(ctx context.Context, tx *sql.Tx, event contract.Event) error {
 		return releaseReady(ctx, tx)
 	}
 	if taskStatus == "failed" {
-		var attempts, maxAttempts int
-		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*),t.max_attempts FROM attempts a JOIN tasks t ON t.id=a.task_id WHERE a.task_id=?`, event.TaskID).Scan(&attempts, &maxAttempts); err != nil {
+		exhausted, err := executionExhausted(ctx, tx, event.TaskID)
+		if err != nil {
 			return err
 		}
-		if attempts >= maxAttempts || attempts >= 3 {
+		if exhausted {
 			return blockFailedDependencies(ctx, tx)
 		}
 	}
