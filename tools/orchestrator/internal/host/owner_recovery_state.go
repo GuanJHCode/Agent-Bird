@@ -183,8 +183,6 @@ func (s *ownerRecoveryState) finishCoordinatorEnsure() error {
 	return s.commit(next)
 }
 
-// No transition here retires a started child. That operation must be wired to
-// the runtime's retained original Cmd.Wait, never inferred from this file.
 func (s *ownerRecoveryState) copyRecord() ownerRecoveryRecord {
 	r := s.record
 	if r.Reservation != nil {

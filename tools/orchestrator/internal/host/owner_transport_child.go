@@ -36,7 +36,17 @@ func startOwnerTransport(ctx context.Context, bootstrap contract.OwnerTransportB
 }
 
 // args/birth are private launch seams; the runtime entry point above fixes both.
-func startOwnerTransportWith(parent context.Context, bootstrap contract.OwnerTransportBootstrap, pending ownerRecoveryPending, environment, args []string, birth func(context.Context, int) (string, error)) (*ownerTransportChild, error) {
+func startOwnerTransportWith(parent context.Context, bootstrap contract.OwnerTransportBootstrap, pending ownerRecoveryPending, environment, args []string, birth func(context.Context, int) (string, error)) (result *ownerTransportChild, resultErr error) {
+	started := false
+	defer func() {
+		// Only this launcher knows that no successful Start occurred. Preserve
+		// the ordinary error chain while carrying its exact in-memory reservation.
+		if !started && result == nil && resultErr != nil {
+			if scope, err := originalOwnerRecoveryScope(bootstrap.Intent.Scope, bootstrap.Owner); err == nil {
+				resultErr = &ownerTransportNoStartError{scope: scope, reservation: pending, cause: resultErr}
+			}
+		}
+	}()
 	ctx, cancel := context.WithTimeout(parent, 5*time.Second)
 	defer cancel()
 	if err := ctx.Err(); err != nil {
@@ -80,7 +90,6 @@ func startOwnerTransportWith(parent context.Context, bootstrap contract.OwnerTra
 		return nil, err
 	}
 	defer childControl.Close()
-	started := false
 	defer func() {
 		if !started {
 			_ = control.Close()
@@ -152,9 +161,12 @@ func (c *ownerTransportChild) wait(ctx context.Context) error {
 }
 
 func (c *ownerTransportChild) waited() bool {
+	if c == nil || c.command == nil || c.command.Process == nil || c.done == nil {
+		return false
+	}
 	select {
 	case <-c.done:
-		return c.command.ProcessState != nil
+		return c.command.ProcessState != nil && c.command.Process.Pid == c.identity.PID && c.command.ProcessState.Pid() == c.identity.PID
 	default:
 		return false
 	}
