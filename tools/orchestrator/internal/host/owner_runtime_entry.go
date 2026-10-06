@@ -194,11 +194,23 @@ func recoverInitialOwnerTransport(ctx context.Context, cfg OriginalOwnerConfig, 
 		if !pending {
 			continue
 		}
-		// A fresh state RPC proves the new Coordinator epoch.  It is legal only
+		// A fresh state RPC proves the new Coordinator epoch.  The outer signed
+		// reply may have that epoch while its durable permit is still the old
+		// revision, so state must be authenticated with the last verified permit.
+		execution.mu.Lock()
+		last := execution.last
+		execution.mu.Unlock()
+		if last == nil {
+			return errOriginalOwnerRuntime
+		}
+		// It is legal only
 		// after the parent transport has completed its ordinary HostHello.
-		reply, callErr := enrollment.client.Call(ctx, 0, "state", cfg.Bootstrap.Prepared.Intent.RequestID, struct{}{})
+		reply, callErr := enrollment.client.Call(ctx, last.permit.ControlRevision, "state", cfg.Bootstrap.Prepared.Intent.RequestID, struct{}{})
 		if callErr != nil {
-			continue
+			if transientSourceError(callErr) {
+				continue
+			}
+			return callErr
 		}
 		var state contract.OwnerRuntimeState
 		if contract.DecodeOwnerRuntimeStrict(reply.Body, &state) != nil || state.Binding != execution.cfg.binding {

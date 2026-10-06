@@ -20,10 +20,231 @@ import (
 	"time"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
 )
+
+// TestOriginalOwnerRuntimeChild is a real owner process used by the recovery
+// integration fixture below.  It intentionally does not speak the test RPC
+// protocol: FD3/FD4 are the same inherited runtime channels used in product.
+func TestOriginalOwnerRuntimeChild(t *testing.T) {
+	if os.Getenv("ORCHESTRATOR_OWNER_RUNTIME_CHILD") != "1" {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	control, err := ipc.TakeOwnerControlFD(4)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer control.Close()
+	raw, err := ipc.ReadOwnerBootstrapPipe(ctx, 3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bootstrap, err := contract.DecodeOwnerRuntimeBootstrap(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = host.RunOriginalOwner(ctx, host.OriginalOwnerConfig{Bootstrap: bootstrap, Control: control, InvocationProvider: ownerRuntimeSleepInvocation, EnsureCoordinator: func(context.Context) error { return nil }})
+	if err != nil && !errors.Is(err, context.Canceled) {
+		t.Fatal(err)
+	}
+}
+
+type ownerRuntimeSleep struct{}
+
+func (ownerRuntimeSleep) Args() []string                 { return []string{"/bin/sleep", "30"} }
+func (ownerRuntimeSleep) WorkingDirectory() string       { return "/private/tmp" }
+func (ownerRuntimeSleep) Stdin() []byte                  { return nil }
+func (ownerRuntimeSleep) Environment() map[string]string { return map[string]string{} }
+
+func ownerRuntimeSleepInvocation(context.Context, contract.LaunchCommand) (contract.InvocationView, error) {
+	return ownerRuntimeSleep{}, nil
+}
+
+// startRealOwnerRuntimeChild gives recovery tests a real FD3/FD4 owner while
+// leaving the first transport connection under the test's control.
+func startRealOwnerRuntimeChild(t *testing.T, bootstrap contract.OwnerRuntimeBootstrap) (*net.UnixConn, *exec.Cmd, <-chan struct{}) {
+	t.Helper()
+	parent, childFD, err := ipc.NewOwnerControlPair()
+	if err != nil {
+		t.Fatal(err)
+	}
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestOriginalOwnerRuntimeChild$", "-test.v")
+	cmd.Env = append(os.Environ(), "ORCHESTRATOR_OWNER_RUNTIME_CHILD=1")
+	cmd.ExtraFiles = []*os.File{reader, childFD}
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	cmd.Stdout, cmd.Stderr = os.Stderr, os.Stderr
+	if err = cmd.Start(); err != nil {
+		cancel()
+		t.Fatal(err)
+	}
+	_ = reader.Close()
+	_ = childFD.Close()
+	done := make(chan struct{})
+	go func() { _ = cmd.Wait(); cancel(); close(done) }()
+	raw, _ := json.Marshal(bootstrap)
+	if err = writer.SetWriteDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = writer.Write(raw); err != nil {
+		t.Fatal(err)
+	}
+	if err = writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = parent.Close()
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			_ = cmd.Process.Kill()
+			<-done
+		}
+	})
+	return parent, cmd, done
+}
+
+func TestOriginalOwnerNativeSameTupleHardRestart(t *testing.T) {
+	s, hello, stop := ownerRuntimeFixtureWithCancel(t)
+	defer stop()
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	dial := func(server *Server) net.Conn {
+		t.Helper()
+		conn, err := net.Dial("unix", server.SocketPath())
+		if err != nil {
+			t.Fatal(err)
+		}
+		body, _ := json.Marshal(hello)
+		if err = ipc.Write(conn, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindHostHello, RequestID: hello.LaunchID, Payload: body}); err != nil {
+			t.Fatal(err)
+		}
+		return conn
+	}
+	conn := dial(s)
+	defer conn.Close()
+	_ = conn.SetDeadline(time.Now().Add(5 * time.Second))
+	pending, err := ipc.Read(conn)
+	if err != nil || pending.Kind != ipc.KindOwnerHostPending {
+		t.Fatalf("pending %s %v", pending.Kind, err)
+	}
+	token := strings.Repeat("a", 64)
+	hash, _ := contract.OriginalOwnerBootstrapSHA256(token)
+	prepare := contract.OwnerPrepareRequest{Version: 1, BootstrapID: "runtime-native", BootstrapTokenSHA256: hash, StartupDeadlineUnixMS: time.Now().Add(15 * time.Second).UnixMilli()}
+	body, _ := json.Marshal(prepare)
+	if err = ipc.Write(conn, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindOwnerPrepare, RequestID: "runtime-prepare", Epoch: pending.Epoch, Payload: body}); err != nil {
+		t.Fatal(err)
+	}
+	frame, err := ipc.Read(conn)
+	var prepared contract.OwnerPrepared
+	if err != nil || frame.Kind != ipc.KindResponse || contract.DecodeOwnerRuntimeStrict(frame.Payload, &prepared) != nil {
+		t.Fatalf("prepare %s %v", frame.Kind, err)
+	}
+	stateDir, err := filepath.EvalSymlinks(s.stateDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	prepared.RPCSocketPath = filepath.Join(stateDir, "owner.sock")
+	boot := contract.OwnerRuntimeBootstrap{Version: 1, StateDir: stateDir, SpoolRoot: filepath.Join(stateDir, "host-spool", hello.LaunchID), Prepared: prepared, BootstrapToken: token}
+	control, child, done := startRealOwnerRuntimeChild(t, boot)
+	birth, err := process.BirthContext(ctx, child.Process.Pid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	boundFrame, err := ipc.Read(control)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bound, err := host.VerifyInitialOwnerBound(boot, contract.OriginalOwnerTransport{PID: child.Process.Pid, Birth: birth}, boundFrame)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Wait for the child-owned applied/activate RPCs to make the first session ready.
+	deadline := time.Now().Add(5 * time.Second)
+	activated := false
+	for time.Now().Before(deadline) {
+		state, e := s.db.OriginalOwnerControl(ctx, prepared.Intent.Scope.OwnerID, s.ownerPublicKey())
+		if e == nil && state.AppliedControlRevision == 1 {
+			presence, _ := s.db.InspectHostPresence(ctx, hello.LaunchID, hello.LaunchToken)
+			if presence.Status == "ready" {
+				activated = true
+				break
+			}
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if !activated {
+		state, _ := s.db.OriginalOwnerControl(ctx, prepared.Intent.Scope.OwnerID, s.ownerPublicKey())
+		presence, _ := s.db.InspectHostPresence(ctx, hello.LaunchID, hello.LaunchToken)
+		s.mu.Lock()
+		session := s.ownerTransports[prepared.Intent.Scope.ProducerID]
+		s.mu.Unlock()
+		t.Logf("activate evidence host_status=%q transport_present=%t transport_closed=%t permit_epoch=%d revision=%d applied=%d", presence.Status, session != nil, session != nil && session.transportClosed.Load(), state.Permit.CoordinatorEpoch, state.Permit.ControlRevision, state.AppliedControlRevision)
+		t.Fatalf("initial activate %+v", state)
+	}
+	if err = s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	stop() // hard path: Close before Serve cancel
+	next, err := NewServer(s.stateDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	nextCtx, nextStop := context.WithCancel(context.Background())
+	defer func() { nextStop(); _ = next.Close() }()
+	go func() { _ = next.Serve(nextCtx) }()
+	offline, _ := json.Marshal(contract.OwnerTransportControl{Version: 1, Action: "offline"})
+	if err = ipc.Write(control, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindOwnerTransportControl, RequestID: "offline", Payload: offline}); err != nil {
+		t.Fatal(err)
+	}
+	connect, err := ipc.Read(control)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if connect.Kind != ipc.KindOwnerTransportControl {
+		t.Fatalf("reconnect %s", connect.Kind)
+	}
+	conn2 := dial(next)
+	defer conn2.Close()
+	_ = conn2.SetDeadline(time.Now().Add(5 * time.Second))
+	pending2, err := ipc.Read(conn2)
+	if err != nil || pending2.Kind != ipc.KindOwnerHostPending || pending2.Epoch <= bound.Permit.CoordinatorEpoch {
+		t.Fatalf("renew pending %s %v", pending2.Kind, err)
+	}
+	if err = ipc.Write(control, pending2); err != nil {
+		t.Fatal(err)
+	}
+	deadline = time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		state, e := next.db.OriginalOwnerControl(ctx, prepared.Intent.Scope.OwnerID, next.ownerPublicKey())
+		if e == nil && state.AppliedControlRevision == 2 && state.Permit.CoordinatorEpoch == next.epoch {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	state, err := next.db.OriginalOwnerControl(ctx, prepared.Intent.Scope.OwnerID, next.ownerPublicKey())
+	if err != nil || state.AppliedControlRevision != 2 || state.Permit.NewHost != bound.Permit.NewHost {
+		t.Fatalf("same tuple renewal %+v %v", state, err)
+	}
+	_ = control.Close()
+	if err = child.Process.Signal(syscall.SIGTERM); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("owner original Wait timeout")
+	}
+}
 
 type ownerChildConfig struct {
 	Transport      bool
