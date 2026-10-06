@@ -27,3 +27,9 @@ These files are ignored operational evidence retained in the local task tree.
 
 Linux Provider execution/sandbox, native Codex, installation, and independent
 leader-gone/zombie process-group actors remain outside this acceptance scope.
+
+After retry-policy integration `2587052`, the same four tests passed again
+(exit 0, no timeout) using binary SHA-256
+`faf43142ad86d0c30487b4f8a041bbc9d1935d1e7c713d8076d4fc97a41415a3`. The original new CID was absent
+after Docker returned. Exact final evidence is `owner-control-integrated.log`
+and `owner-control-integrated-receipt.json` in the same data directory.

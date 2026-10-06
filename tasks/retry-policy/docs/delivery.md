@@ -1,6 +1,10 @@
 # F01/F02 第一里程碑交付
 
-产品与测试冻结提交：`740324974aab278cdd9d2f0b6819e18b692dfcd7`，base `3ecc6dd3f129f25194d1255d3be0862f3d7be872`。此提交是生产 prelaunch probe 瞬态重试和四层预算的第一里程碑，**不是全部 F01/F02 闭环**。ROOT 对固定提交安排独立审查；本报告编写时尚未取得独审结论。
+最终产品修复快照：`b2d5be98f28a3ff508aeaab577d5011d2af6ee89`；集成提交 `2587052`。R1 公开预检、R2 终态依赖/pin、R3 pending 时间预留及精确 quota 准入均已修复并独立审查 PASS。此范围是 prelaunch probe 有限重试与四层预算，不是全部 F01/F02 完成。
+
+最新证据和原始失败说明见 [review-closure.md](review-closure.md)。下面保留初始 `7403249` 里程碑的范围和验证记录；其中“等待独审/集成”已被本段与新报告取代。
+
+产品与测试冻结提交：`740324974aab278cdd9d2f0b6819e18b692dfcd7`，base `3ecc6dd3f129f25194d1255d3be0862f3d7be872`。此提交是生产 prelaunch probe 瞬态重试和四层预算的第一里程碑，**不是全部 F01/F02 闭环**。初始证据保留于下文，最终独审和补验以 review-closure.md 为准。
 
 ## 已完成行为
 
@@ -75,4 +79,4 @@ actor 日志产生在 policy exhausted-sibling FIFO 修复与 CLI timeout 修复
 
 ## 状态
 
-源码和测试已提交，产品文件冻结，等待 ROOT 独审/集成。本任务没有派生 Agent、真实 Provider/model、用户安装或 push。任务数据均为交付或必要验证证据；隔离 GOCACHE 继续保留为可复验缓存并通过 `tmp/` 忽略，不纳入交付提交。
+源码和测试已提交，最终修复已独审并由 ROOT 集成；范围仍限第一里程碑。本任务没有派生 Agent、真实 Provider/model、用户安装或 push。任务数据均为交付或必要验证证据；隔离 GOCACHE 继续保留为可复验缓存并通过 `tmp/` 忽略，不纳入交付提交。

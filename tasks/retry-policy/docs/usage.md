@@ -28,6 +28,8 @@ v1 policy 提交后不可变；本里程碑没有增额命令。零值表示省�
 
 `task dispatch` 为 policy 生成的 adapter profile timeout 使用 segment 上限；attempt 可以通过同一 attempt 的 continuation 累计超过 60 分钟。`task submit` 保留显式 adapter profile，Host deadline 使用 profile 与实际预算 grant 的较小值。
 
-退避省略时为 5 秒、20 秒，按 task 剩余可授权次数截短；次数大于 3 也不会自行增加默认自动重试。显式退避为 1–15 项，每项 1 ms–60 分钟，项数不得超过 task 次数减一。到期前既不创建新 attempt，也不启动执行；pending 决策预占次数，重启和重复事件不会清零退避或生成第二份 grant。
+退避省略时为 5 秒、20 秒，按 task 剩余可授权次数截短；次数大于 3 也不会自行增加默认自动重试。显式退避为 1–15 项，每项 1 ms–60 分钟，项数不得超过 task 次数减一。到期前既不创建新 attempt，也不启动执行；pending 决策逐 task/binding 预占次数和下一段有限时间，claim 原子消费该承诺并沿用原额度；重启和重复事件不会清零退避或生成第二份 grant。取消、Provider disable 或必需依赖终止会退休待执行承诺、释放未使用的容量，并保留原决定与额度历史。
 
 本阶段只支持生产 `--version`/`--help` probe 在主 worker 尚未启动、probe 本身未启动且 OS 返回 EAGAIN/EINTR 的事实。已启动 probe、退出码、超时/取消、权限错误、任意 launch_failed、UNKNOWN 或 question 都不触发自动重试。候选 validate/review/implement/integrate 与 GitOps 的自动重试目前明确拒绝；这些任务仍可使用没有 `retry` 的预算策略。已退出 readonly 执行和候选阶段安全重试、策略 revision 增额、详细诊断日志仍是后续范围。
+
+合法 retry 任务的公开入口只做静态 profile/binary pin/digest 校验，动态 version/help probe 在持久 Host attempt 内执行。primary 与所有 fallback 均不得包含候选/GitOps 自动重试。最终未排重试的已证明启动拒绝会阻塞该任务必需后代，原事件 ACK 后才释放配置 pin；显式 stop 不会触发再次启动。
