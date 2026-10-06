@@ -303,7 +303,7 @@ func TestOwnerExecutionReportLostACKRetainsBindingUntilReconcile(t *testing.T) {
 func TestOwnerExecutionRPCFailureClassification(t *testing.T) {
 	for _, scenario := range []string{"signed_semantic", "signed_error_named_EOF", "higher_epoch", "lower_epoch", "transport_EOF", "invalid_signature", "canceled_parent"} {
 		t.Run(scenario, func(t *testing.T) {
-			cfg, permit, _ := ownerExecutionFixture(t)
+			cfg, permit, key := ownerExecutionFixture(t)
 			e, err := newOwnerExecution(context.Background(), cfg)
 			if err != nil {
 				t.Fatal(err)
@@ -356,6 +356,101 @@ func TestOwnerExecutionRPCFailureClassification(t *testing.T) {
 				}
 			} else if e.session != nil || e.active || len(e.recovery) != 1 {
 				t.Fatal("transport or authentication failure did not reach runtime")
+			}
+			if scenario == "higher_epoch" || scenario == "lower_epoch" || scenario == "invalid_signature" {
+				if e.command(ownerExecutionSignedLaunch(t, permit, key)) == nil {
+					e.run.workers.Wait()
+					t.Fatal("revoked epoch or authentication failure retained launch authority")
+				}
+			}
+			if scenario == "higher_epoch" {
+				if err := e.reconcile(context.Background(), permit); err == nil || e.session != nil {
+					t.Fatal("old permit reopened a session after newer epoch proof", err)
+				}
+			}
+		})
+	}
+}
+
+func TestOwnerExecutionSignedActivateRejectionRevokesAdmission(t *testing.T) {
+	cfg, permit, key := ownerExecutionFixture(t)
+	original := cfg.rpc
+	cfg.rpc = func(ctx context.Context, revision uint64, kind, id string, body any) (contract.OwnerRPCReply, error) {
+		if kind == "activate" {
+			return contract.OwnerRPCReply{Version: 1, OwnerID: permit.OwnerID, CoordinatorEpoch: permit.CoordinatorEpoch, RequestID: id, Error: "original_owner_rejected"}, errors.New("original_owner_rejected")
+		}
+		return original(ctx, revision, kind, id, body)
+	}
+	e, err := newOwnerExecution(context.Background(), cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer e.run.cancel(context.Canceled)
+	if err = e.reconcile(context.Background(), permit); err == nil || err.Error() != "original_owner_rejected" {
+		t.Fatal("expected verified activation rejection", err)
+	}
+	if e.command(ownerExecutionSignedLaunch(t, permit, key)) == nil {
+		e.run.workers.Wait()
+		t.Fatal("signed activation rejection retained launch authority")
+	}
+	if len(e.recovery) != 0 {
+		t.Fatal("signed activation rejection was converted to transport recovery")
+	}
+}
+
+func TestOwnerExecutionNewEpochProofRevokesEvenFromOldSessionOrProgress(t *testing.T) {
+	for _, viaProgress := range []bool{false, true} {
+		name := "old_session"
+		if viaProgress {
+			name = "progress"
+		}
+		t.Run(name, func(t *testing.T) {
+			cfg, first, key := ownerExecutionFixture(t)
+			e, err := newOwnerExecution(context.Background(), cfg)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer e.run.cancel(context.Canceled)
+			if err = e.reconcile(context.Background(), first); err != nil {
+				t.Fatal(err)
+			}
+			old := e.session
+			if err = e.reconcile(context.Background(), first); err != nil {
+				t.Fatal(err)
+			}
+			e.cfg.rpc = func(_ context.Context, _ uint64, kind, id string, _ any) (contract.OwnerRPCReply, error) {
+				return contract.OwnerRPCReply{Version: 1, OwnerID: first.OwnerID, CoordinatorEpoch: first.CoordinatorEpoch + 1, RequestID: id, Error: "original_owner_rejected"}, errors.New("original_owner_rejected")
+			}
+			if viaProgress {
+				err = e.progress(context.Background(), contract.Event{EventID: "progress"})
+			} else {
+				err = old.status(context.Background(), "applied", "late-call", *e.applied, "applied")
+			}
+			if !ownerExecutionNeedsRecovery(err) || e.session != nil || e.admitSignedLaunch {
+				t.Fatal("newer epoch proof did not revoke the current session", err)
+			}
+			if e.reconcile(context.Background(), first) == nil {
+				t.Fatal("old epoch reopened after signed revocation")
+			}
+			next := first
+			next.ExpectedControlRevision, next.ControlRevision = 1, 2
+			next.CoordinatorEpoch++
+			next.OldHost = &first.NewHost
+			next.RequestID, next.PermitID, next.Signature = "renewal", "permit-2", ""
+			next, err = contract.SignOwnerControlPermit(next, key)
+			if err != nil {
+				t.Fatal(err)
+			}
+			e.cfg.rpc = func(_ context.Context, _ uint64, kind, id string, _ any) (contract.OwnerRPCReply, error) {
+				status := "applied"
+				if kind == "activate" {
+					status = "active"
+				}
+				raw, _ := json.Marshal(map[string]string{"status": status})
+				return contract.OwnerRPCReply{Version: 1, OwnerID: next.OwnerID, CoordinatorEpoch: next.CoordinatorEpoch, RequestID: id, Body: raw}, nil
+			}
+			if err = e.reconcile(context.Background(), next); err != nil || !e.active || !e.admitSignedLaunch {
+				t.Fatal("verified renewal failed to reopen admission", err)
 			}
 		})
 	}

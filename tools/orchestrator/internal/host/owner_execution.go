@@ -43,6 +43,7 @@ type ownerExecution struct {
 	recovery          chan error
 	active            bool
 	admitSignedLaunch bool
+	observedEpoch     uint64
 	stopping          bool
 }
 
@@ -82,6 +83,10 @@ func (e *ownerExecution) reconcile(ctx context.Context, permit contract.OwnerCon
 		e.mu.Unlock()
 		return errors.New("owner_execution_stopping")
 	}
+	if permit.CoordinatorEpoch < e.observedEpoch {
+		e.mu.Unlock()
+		return errors.New("owner_execution_permit_rejected")
+	}
 	same := false
 	if e.last != nil {
 		prior := e.last.permit
@@ -98,6 +103,7 @@ func (e *ownerExecution) reconcile(ctx context.Context, permit contract.OwnerCon
 	}
 	s := &ownerExecutionSession{owner: e, permit: permit}
 	e.session, e.last, e.active = s, s, false
+	e.observedEpoch = permit.CoordinatorEpoch
 	if !same {
 		e.admitSignedLaunch = false
 	}
@@ -220,6 +226,35 @@ func (e *ownerExecution) offline(s *ownerExecutionSession, cause error) {
 	}
 }
 
+func (e *ownerExecution) revokeAdmission(s *ownerExecutionSession) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.last == s {
+		e.admitSignedLaunch, e.active = false, false
+	}
+}
+
+// A newer signed epoch is already a revocation proof; obtaining its new permit
+// may require reconnecting first. Never reopen an older permit in that gap,
+// even if the proof came from a call on a concurrently replaced session.
+func (e *ownerExecution) observeEpoch(epoch uint64, cause error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if epoch <= e.observedEpoch {
+		return
+	}
+	e.observedEpoch = epoch
+	if e.last != nil && e.last.permit.CoordinatorEpoch < epoch {
+		e.admitSignedLaunch, e.active, e.session = false, false, nil
+		close(e.changed)
+		e.changed = make(chan struct{})
+		select {
+		case e.recovery <- cause:
+		default:
+		}
+	}
+}
+
 func (e *ownerExecution) available(ctx context.Context) (*ownerExecutionSession, error) {
 	for {
 		e.mu.Lock()
@@ -256,7 +291,8 @@ func (e *ownerExecution) prepareReport(ctx context.Context, grant contract.Launc
 }
 
 // Progress stays observational: a missed best-effort update cannot consume a
-// recovery attempt or revoke an otherwise working execution session.
+// recovery attempt or revoke an otherwise working execution session. A verified
+// newer epoch still revokes old authority, regardless of which RPC observed it.
 func (e *ownerExecution) progress(_ context.Context, event contract.Event) error {
 	e.mu.Lock()
 	s := e.session
@@ -268,6 +304,11 @@ func (e *ownerExecution) progress(_ context.Context, event contract.Event) error
 	defer cancel()
 	event.ExecutionEpoch = s.permit.CoordinatorEpoch
 	reply, err := e.cfg.rpc(ctx, s.permit.ControlRevision, "progress", event.EventID, event)
+	if reply.Version == 1 && reply.OwnerID == s.permit.OwnerID && reply.RequestID == event.EventID && reply.CoordinatorEpoch > s.permit.CoordinatorEpoch {
+		err = &ownerExecutionRecoveryError{cause: errCoordinatorUnavailable}
+		e.observeEpoch(reply.CoordinatorEpoch, err)
+		return err
+	}
 	if err != nil {
 		return err
 	}
@@ -336,10 +377,14 @@ func (s *ownerExecutionSession) call(ctx context.Context, kind, id string, body 
 	if reply.Version == 1 && reply.OwnerID == s.permit.OwnerID && reply.RequestID == id {
 		if reply.CoordinatorEpoch > s.permit.CoordinatorEpoch {
 			err = &ownerExecutionRecoveryError{cause: errCoordinatorUnavailable}
+			s.owner.observeEpoch(reply.CoordinatorEpoch, err)
 		} else if reply.CoordinatorEpoch == s.permit.CoordinatorEpoch && reply.Error != "" {
 			// OwnerClient returns this reply only after full signature and
 			// request-hash verification. Preserve the Store rejection without
 			// clearing the session or requesting another recovery reservation.
+			if kind == "activate" {
+				s.owner.revokeAdmission(s)
+			}
 			return reply, errors.New(reply.Error)
 		} else if err == nil {
 			err = s.verifyReply(reply, id)
@@ -350,6 +395,9 @@ func (s *ownerExecutionSession) call(ctx context.Context, kind, id string, body 
 		err = errors.New("owner_execution_reply_rejected")
 	}
 	if err != nil {
+		if !ownerExecutionNeedsRecovery(err) {
+			s.owner.revokeAdmission(s)
+		}
 		s.owner.offline(s, err)
 	}
 	return reply, err
@@ -375,6 +423,7 @@ func (s *ownerExecutionSession) status(ctx context.Context, kind, id string, bod
 	}
 	err = s.verifyStatus(reply, id, expected)
 	if err != nil {
+		s.owner.revokeAdmission(s)
 		s.owner.offline(s, err)
 	}
 	return err
@@ -390,6 +439,7 @@ func (s *ownerExecutionSession) SendEvent(ctx context.Context, epoch uint64, eve
 		return ack, err
 	}
 	if err = contract.DecodeOwnerRuntimeStrict(reply.Body, &ack); err != nil {
+		s.owner.revokeAdmission(s)
 		s.owner.offline(s, err)
 	}
 	return ack, err
@@ -406,6 +456,7 @@ func (s *ownerExecutionSession) registerReportCapability(ctx context.Context, re
 	var ack contract.DurableAck
 	if contract.DecodeOwnerRuntimeStrict(reply.Body, &ack) != nil || ack.Status != "durable" || ack.EventID != registration.CapabilityID || ack.PayloadHash != registration.TokenHash {
 		err = errors.New("report_capability_ack_mismatch")
+		s.owner.revokeAdmission(s)
 		s.owner.offline(s, err)
 	}
 	return err
