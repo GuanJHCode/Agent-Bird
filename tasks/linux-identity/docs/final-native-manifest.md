@@ -29,3 +29,16 @@ On the macOS host, Go 1.26.8 ran the exact process regex
 with `GOMAXPROCS=2`, isolated `GOCACHE`, `-count=1 -v -timeout=30s`.
 It passed (including ten group-state subtests); raw output and exit 0 are in
 `tasks/linux-identity/data/darwin-regression.log`.
+
+## Post-review ancestry recheck
+
+After `6fde60ce2eae2cb48f8f55f7807e874e2fbf63aa`, the affected Linux ancestry
+tests were rebuilt as SHA-256
+`d4a32d798b5732ad52d0a8b916960770acac13a995e0b2961d1eacbbd68182cd`
+and run with `-test.v -test.timeout=30s` under the same pinned container
+constraints. Exact regex:
+`^(TestLinuxAncestryUsesObservedStatForBirth|TestLinuxAncestryCancellationWins|TestLinuxAncestryObserveCancellationWins|TestLinuxAncestryUIDBoundaryCancellationWins|TestAncestryContextRealOSSelfAndCompatibility|TestAncestryContextRealOSParentChildAndGone)$`.
+All six named tests passed. Raw evidence is
+`tasks/linux-identity/data/ancestry-final.log`; it records exit 0, CID
+`f330bcd90be5222e8ed10851cfd6a7c942f1faa49069f33039be7e57e893cf6f`,
+and post-removal `No such object` inspection.
