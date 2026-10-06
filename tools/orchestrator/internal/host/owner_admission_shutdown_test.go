@@ -276,3 +276,49 @@ func TestOwnerAdmissionStoppedDuplicatePreservesStartingEvidence(t *testing.T) {
 		t.Fatal("duplicate produced a false noStart event", err, records)
 	}
 }
+
+func TestOwnerAdmissionLateExecutionWriteFailurePreservesCleanupOrder(t *testing.T) {
+	cfg, permit, key := ownerExecutionFixture(t)
+	entered, release := make(chan struct{}), make(chan struct{})
+	cfg.invocation = func(context.Context, contract.LaunchCommand) (contract.InvocationView, error) {
+		close(entered)
+		<-release
+		return nil, context.Canceled
+	}
+	e, err := newOwnerExecution(context.Background(), cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer e.run.cancel(context.Canceled)
+	if err = e.reconcile(context.Background(), permit); err != nil {
+		t.Fatal(err)
+	}
+	if err = e.command(ownerExecutionSignedLaunch(t, permit, key)); err != nil {
+		t.Fatal(err)
+	}
+	<-entered
+	// Admission is durable, but its later noStart event cannot be persisted.
+	if err = os.WriteFile(filepath.Join(cfg.host.spoolRoot, "attempt"), []byte("blocked"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	close(release)
+	e.run.workers.Wait()
+	if e.run.ctx.Err() != nil {
+		t.Fatal("worker error canceled execution before runtime registered original TERM")
+	}
+	select {
+	case cause := <-e.fatal:
+		if cause == nil {
+			t.Fatal("missing durable failure")
+		}
+	default:
+		t.Fatal("late worker write failure did not reach fatal cleanup latch")
+	}
+	if e.command(ownerExecutionSignedLaunch(t, permit, key)) == nil {
+		t.Fatal("durable failure left admission open")
+	}
+	e.beginStop(context.Background(), context.Canceled)
+	if e.run.ctx.Err() == nil {
+		t.Fatal("registered cleanup failed to cancel workers")
+	}
+}

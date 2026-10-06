@@ -68,6 +68,7 @@ func newOwnerExecution(ctx context.Context, cfg ownerExecutionConfig) (*ownerExe
 	runCtx, cancel := context.WithCancelCause(context.WithoutCancel(ctx))
 	e.run = &livingSource{host: cfg.host, ctx: runCtx, cancel: cancel, working: make(map[string]bool), cfg: SourceConfig{SocketPath: cfg.reportSocket, SpoolRoot: cfg.host.spoolRoot, ProducerID: cfg.host.producerID, InvocationProvider: cfg.invocation, Hello: contract.HostHello{Executable: cfg.binding.Scope.Executable}}}
 	e.run.prepareReport = e.prepareReport
+	e.run.failure = func(cause error) { _ = e.failAdmission(cause) }
 	cfg.host.progressSink = e.progress
 	return e, nil
 }
@@ -385,6 +386,9 @@ func (e *ownerExecution) prepareReport(ctx context.Context, grant contract.Launc
 		path, err := e.run.host.prepareReportCapability(ctx, e.run.cfg, grant, s, e.run.reports.remember)
 		if err == nil {
 			return path, nil
+		}
+		if e.obsoleteRejection(s, err) {
+			continue // preserve the accepted claim and exact remembered capability
 		}
 		if !ownerExecutionNeedsRecovery(err) {
 			return "", err // authenticated rejection or local failure, not an outage

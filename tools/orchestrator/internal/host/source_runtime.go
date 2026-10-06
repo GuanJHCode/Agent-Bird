@@ -90,6 +90,9 @@ type livingSource struct {
 	publisherDone <-chan struct{}
 	reports       sourceReportRegistry
 	prepareReport func(context.Context, contract.LaunchCommand) (string, error)
+	// Original-owner runtime must register its shared TERM window before
+	// cancellation. Legacy source behavior continues to use cancel directly.
+	failure func(error)
 }
 
 func runLivingSource(parent context.Context, cfg SourceConfig, h *Host) error {
@@ -445,7 +448,11 @@ func (r *livingSource) execute(grant contract.LaunchCommand, duplicate bool) {
 	defer func() { r.workingMu.Lock(); delete(r.working, grant.CommandID); r.workingMu.Unlock() }()
 	reportError := func(err error) {
 		if err != nil {
-			r.cancel(err)
+			if r.failure != nil {
+				r.failure(err)
+			} else {
+				r.cancel(err)
+			}
 		}
 	}
 	if duplicate {
