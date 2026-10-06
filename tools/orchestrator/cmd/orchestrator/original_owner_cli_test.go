@@ -11,6 +11,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -55,6 +57,15 @@ func runOriginalOwnerWorkerFixture() {
 // task adapter is a controlled worker; enrollment, signatures, process handles,
 // Store, spool publication and Coordinator shutdown are production paths.
 func TestCLIOriginalOwnerExecutesSignedWorker(t *testing.T) {
+	exerciseCLIOriginalOwner(t, false)
+}
+
+func TestCLIOriginalOwnerReplacesDeadTransport(t *testing.T) {
+	exerciseCLIOriginalOwner(t, true)
+}
+
+func exerciseCLIOriginalOwner(t *testing.T, killTransport bool) {
+	t.Helper()
 	root, err := os.MkdirTemp("/private/tmp", "owner-first-cli-")
 	if err != nil {
 		t.Fatal(err)
@@ -260,6 +271,61 @@ func TestCLIOriginalOwnerExecutesSignedWorker(t *testing.T) {
 	if err != nil || worker.ParentPID != binding.Owner.PID || worker.ParentPID == host.PID || chain[worker.PID] != worker.Birth || chain[binding.Owner.PID] != binding.Owner.Birth || chain[host.PID] != host.Birth {
 		t.Fatalf("worker did not belong to original owner: worker=%+v host=%+v err=%v", worker, host, err)
 	}
+	if killTransport {
+		before := recoveryTaskStatus(t, ctx, bin, state, "worker", submitted.ControlFile)
+		if current, err := process.Birth(host.PID); err != nil || current != host.Birth {
+			t.Fatal("first transport identity changed before fault", err)
+		}
+		if err := syscall.Kill(host.PID, syscall.SIGKILL); err != nil {
+			t.Fatal(err)
+		}
+		var recovered recoveryStatus
+		for deadline := time.Now().Add(20 * time.Second); ; {
+			recovered = recoveryTaskStatus(t, ctx, bin, state, "worker", submitted.ControlFile)
+			if recovered.HostPID != host.PID && recovered.HostStatus == "ready" {
+				break
+			}
+			if recovered.Status == "failed" || recovered.Status == "unknown" || recovered.Status == "interrupted" || time.Now().After(deadline) {
+				t.Fatalf("live owner did not replace dead first transport: before=%+v after=%+v", before, recovered)
+			}
+			time.Sleep(20 * time.Millisecond)
+		}
+		actors = append(actors, contract.OriginalOwnerTransport{PID: recovered.HostPID, Birth: recovered.HostBirth})
+		if gone, err := process.IdentityExitedContext(ctx, host.PID, host.Birth); err != nil || !gone {
+			t.Fatal("original source transport was not proven exited", gone, err)
+		}
+		if recovered.AttemptID != before.AttemptID || recovered.SegmentID != before.SegmentID || recovered.WorkRevision != before.WorkRevision {
+			t.Fatal("transport recovery redispatched the worker")
+		}
+		for _, actor := range []contract.OriginalOwnerTransport{{PID: worker.PID, Birth: worker.Birth}, {PID: binding.Owner.PID, Birth: binding.Owner.Birth}, {PID: recovered.HostPID, Birth: recovered.HostBirth}} {
+			if current, err := process.Birth(actor.PID); err != nil || current != actor.Birth {
+				t.Fatal("recovery lost original owner/worker or replacement identity", err)
+			}
+		}
+		parents, err := process.AncestryContext(ctx, recovered.HostPID)
+		if err != nil || parents[binding.Owner.PID] != binding.Owner.Birth {
+			t.Fatal("replacement transport is not a child of original owner", err)
+		}
+		parentRaw, err := exec.CommandContext(ctx, "/bin/ps", "-o", "ppid=", "-p", strconv.Itoa(recovered.HostPID)).Output()
+		parentPID, parseErr := strconv.Atoi(strings.TrimSpace(string(parentRaw)))
+		if err != nil || parseErr != nil || parentPID != binding.Owner.PID {
+			t.Fatal("replacement transport direct parent is not original owner", parentPID, err, parseErr)
+		}
+		if birth, err := process.BirthContext(ctx, recovered.HostPID); err != nil || birth != recovered.HostBirth {
+			t.Fatal("replacement identity changed during parent observation", err)
+		}
+		var afterMarker originalOwnerWorkerMarker
+		marker, err := os.ReadFile(markerPath)
+		if err != nil || json.Unmarshal(marker, &afterMarker) != nil || afterMarker != worker {
+			t.Fatal("recovery started a replacement worker")
+		}
+		var revision int
+		var afterBinding string
+		if err := db.QueryRowContext(ctx, `SELECT control_revision,original_binding_json FROM execution_owners WHERE run_id='owner-cli-run' AND is_current=1`).Scan(&revision, &afterBinding); err != nil || revision != 2 || afterBinding != bindingJSON {
+			t.Fatal("recovery did not retain original owner binding and one control transfer", err)
+		}
+		t.Log("dead first transport replaced once under original live owner; worker tuple and segment unchanged")
+	}
 	if err := os.WriteFile(releasePath, nil, 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -303,7 +369,7 @@ func TestCLIOriginalOwnerExecutesSignedWorker(t *testing.T) {
 	}
 	t.Log("public supervised CLI worker parent/birth and one durable ExitCode=0 verified")
 	stop()
-	for _, actor := range actors[:2] {
+	for _, actor := range actors {
 		for end := time.Now().Add(13 * time.Second); ; {
 			if errors.Is(syscall.Kill(actor.PID, 0), syscall.ESRCH) {
 				break

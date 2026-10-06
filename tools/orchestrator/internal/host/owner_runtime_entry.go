@@ -164,11 +164,11 @@ func recoverInitialOwnerTransport(ctx context.Context, cfg OriginalOwnerConfig, 
 		last := execution.last
 		execution.mu.Unlock()
 		if last != nil && last.permit.NewHost == execution.cfg.binding.FirstHost {
-			observed, birthErr := process.BirthContext(ctx, last.permit.NewHost.PID)
-			if birthErr != nil {
-				return birthErr
+			exited, observeErr := process.IdentityExitedContext(ctx, last.permit.NewHost.PID, last.permit.NewHost.Birth)
+			if observeErr != nil {
+				return observeErr
 			}
-			if observed != last.permit.NewHost.Birth {
+			if exited {
 				return recoverDeadInitialTransport(ctx, cfg, enrollment, execution, lifecycle, recovery, last.permit)
 			}
 		}
@@ -293,6 +293,12 @@ func recoverInitialOwnerTransport(ctx context.Context, cfg OriginalOwnerConfig, 
 // written before Start and the returned *exec.Cmd remains owned by the live
 // owner; no PID reconstruction can create another child.
 func recoverDeadInitialTransport(ctx context.Context, cfg OriginalOwnerConfig, enrollment *ownerEnrollment, execution *ownerExecution, lifecycle *ownerRuntimeLifecycle, recovery *ownerRecoveryState, current contract.OwnerControlPermit) error {
+	return recoverDeadInitialTransportWithStart(ctx, cfg, enrollment, execution, lifecycle, recovery, current, startOwnerTransport)
+}
+
+// The private launch seam preserves the production recovery sequence while
+// exercising failures after the kernel has already created the owned child.
+func recoverDeadInitialTransportWithStart(ctx context.Context, cfg OriginalOwnerConfig, enrollment *ownerEnrollment, execution *ownerExecution, lifecycle *ownerRuntimeLifecycle, recovery *ownerRecoveryState, current contract.OwnerControlPermit, start func(context.Context, contract.OwnerTransportBootstrap, ownerRecoveryPending, []string) (*ownerTransportChild, error)) error {
 	requestID := fmt.Sprintf("%s:transport:%d", current.PermitID, current.ControlRevision)
 	when, err := recovery.reserveTransport(time.Now(), requestID, current.ControlRevision, current.NewHost)
 	if err != nil {
@@ -312,7 +318,10 @@ func recoverDeadInitialTransport(ctx context.Context, cfg OriginalOwnerConfig, e
 	}
 	pendingRecord := *recovery.record.OwnerPending
 	bootstrap := contract.OwnerTransportBootstrap{Version: 1, StateDir: cfg.Bootstrap.StateDir, Intent: cfg.Bootstrap.Prepared.Intent, Owner: execution.cfg.binding.Owner, CoordinatorPublicKey: cfg.Bootstrap.Prepared.CoordinatorPublicKey}
-	child, startErr := startOwnerTransport(ctx, bootstrap, pendingRecord, os.Environ())
+	child, startErr := start(ctx, bootstrap, pendingRecord, os.Environ())
+	// Successful kernel Start owns a Cmd/Wait even when identity or bootstrap
+	// observation subsequently fails. Retain it before handling that error.
+	lifecycle.retainTransportChild(child)
 	if startErr != nil {
 		if child == nil {
 			if retireErr := recovery.retireTransportNoStart(startErr); retireErr != nil {
@@ -324,9 +333,6 @@ func recoverDeadInitialTransport(ctx context.Context, cfg OriginalOwnerConfig, e
 		// consume a second Start slot. Its Wait stays live until cleanup.
 		return startErr
 	}
-	// From successful Start onward this exact Cmd owns the only Wait. Register
-	// it before any persistence/RPC can fail so cleanup never loses the child.
-	lifecycle.retainTransportChild(child)
 	if err = recovery.recordTransportStarted(child.identity); err != nil {
 		return err
 	}
@@ -346,7 +352,7 @@ func recoverDeadInitialTransport(ctx context.Context, cfg OriginalOwnerConfig, e
 		return errOriginalOwnerRuntime
 	}
 	raw, _ := json.Marshal(contract.OwnerTransportControl{Version: 1, Action: "connect", Ticket: &ticket})
-	if err = ipc.Write(child.control, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindOwnerTransportControl, RequestID: pending.RequestID, Payload: raw}); err != nil {
+	if err = writeOwnerTransportFrame(ctx, child.control, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindOwnerTransportControl, RequestID: pending.RequestID, Payload: raw}); err != nil {
 		return err
 	}
 	// Generation fencing drops all notices from the dead parent reader before

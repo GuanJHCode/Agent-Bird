@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"syscall"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
@@ -55,22 +54,11 @@ func (s *Server) inspectHostRecovery(ctx context.Context, raw json.RawMessage) (
 // An observation failure is not proof of exit. A reused PID has a different
 // birth and cannot be treated as the old Host or signalled by recovery.
 func hostIdentityExited(pid int, birth string) (bool, error) {
-	if pid <= 1 || birth == "" {
-		return false, store.CodeError("host_recovery_identity_unknown")
-	}
-	if err := syscall.Kill(pid, 0); errors.Is(err, syscall.ESRCH) {
-		return true, nil
-	} else if err != nil {
-		return false, store.CodeError("host_recovery_identity_unknown")
-	}
-	current, err := process.Birth(pid)
+	exited, err := process.IdentityExitedContext(context.Background(), pid, birth)
 	if err != nil {
-		if errors.Is(syscall.Kill(pid, 0), syscall.ESRCH) {
-			return true, nil
-		}
 		return false, store.CodeError("host_recovery_identity_unknown")
 	}
-	return current != birth, nil
+	return exited, nil
 }
 
 // Serialize admission so two valid peers cannot both replace a retired Host.
