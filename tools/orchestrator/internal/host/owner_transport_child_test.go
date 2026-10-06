@@ -22,6 +22,12 @@ func TestOwnerTransportChildHelper(t *testing.T) {
 	if os.Getenv("GO_OWNER_TRANSPORT_CHILD") != "1" {
 		return
 	}
+	if marker := os.Getenv("GO_OWNER_FAST_EXIT_MARKER"); marker != "" {
+		if err := os.WriteFile(marker, []byte("exiting"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
 	control, err := ipc.TakeOwnerControlFD(4)
 	if err != nil {
 		t.Fatal(err)
@@ -48,6 +54,58 @@ func TestOwnerTransportChildHelper(t *testing.T) {
 	if err != nil || message.RequestID != "release" {
 		t.Fatal("missing explicit owner release", err)
 	}
+}
+
+func TestOwnerTransportChildObservesBirthBeforeReapingFastExit(t *testing.T) {
+	bootstrap, pending, environment := ownerTransportFixture(t)
+	marker := filepath.Join(bootstrap.StateDir, "fast-exit-marker")
+	environment = append(environment, "GO_OWNER_FAST_EXIT_MARKER="+marker)
+	observedBeforeReap := false
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	child, startErr := startOwnerTransportWith(ctx, bootstrap, pending, environment, []string{"-test.run=^TestOwnerTransportChildHelper$"}, func(ctx context.Context, pid int) (string, error) {
+		for {
+			if _, err := os.Stat(marker); err == nil {
+				if quiet, err := process.GroupQuiescent(ctx, pid); err != nil {
+					return "", err
+				} else if quiet {
+					break
+				}
+			}
+			select {
+			case <-ctx.Done():
+				return "", ctx.Err()
+			case <-time.After(time.Millisecond):
+			}
+		}
+		birth, err := process.BirthContext(ctx, pid)
+		if err != nil {
+			return "", err
+		}
+		if err = process.MatchWaitableGroupLeader(ctx, pid, birth); err != nil {
+			return "", err
+		}
+		observedBeforeReap = true
+		return birth, nil
+	})
+	if child == nil {
+		t.Fatal("fast child lost original Start/Wait ownership", startErr)
+	}
+	defer child.control.Close()
+	waitCtx, stop := context.WithTimeout(context.Background(), 2*time.Second)
+	err := child.wait(waitCtx)
+	stop()
+	if err != nil || !child.waited() {
+		_ = child.command.Process.Kill()
+		t.Fatal("fast child missing original Wait", err)
+	}
+	if !observedBeforeReap || child.identity.Birth == "" {
+		t.Fatal("original child was reaped before birth observation", startErr)
+	}
+	if startErr == nil {
+		t.Fatal("fast child closed bootstrap before write but Start was reported ready")
+	}
+	t.Logf("fast transport child: pid=%d birth_before_reap=true post_start_pipe_failure=true original_Wait=0", child.identity.PID)
 }
 
 func ownerTransportFixture(t *testing.T) (contract.OwnerTransportBootstrap, ownerRecoveryPending, []string) {

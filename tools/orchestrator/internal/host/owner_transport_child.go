@@ -106,12 +106,21 @@ func startOwnerTransportWith(parent context.Context, bootstrap contract.OwnerTra
 	}
 	started = true
 	child := &ownerTransportChild{command: command, control: control, reservation: pending, recoveryScope: scope, identity: contract.OriginalOwnerTransport{PID: command.Process.Pid}, done: make(chan struct{})}
+	_ = reader.Close()
+	_ = childControl.Close()
+	// Keep the original child unreaped until identity capture finishes. A
+	// concurrently started Wait could free this PID before BirthContext reads
+	// it, accidentally binding a recycled PID. Every outcome below still starts
+	// exactly one original Wait and returns the owning child object.
+	child.identity.Birth, err = birth(ctx, child.identity.PID)
+	birthUnknown := err != nil || child.identity.Validate() != nil
+	if birthUnknown {
+		child.identity.Birth = ""
+	}
 	go func() {
 		child.waitError = command.Wait()
 		close(child.done)
 	}()
-	_ = reader.Close()
-	_ = childControl.Close()
 	deadline, _ := ctx.Deadline()
 	if err = writer.SetWriteDeadline(deadline); err != nil {
 		return child, err
@@ -122,9 +131,7 @@ func startOwnerTransportWith(parent context.Context, bootstrap contract.OwnerTra
 	if err = writer.Close(); err != nil {
 		return child, err
 	}
-	child.identity.Birth, err = birth(ctx, child.identity.PID)
-	if err != nil || child.identity.Validate() != nil {
-		child.identity.Birth = ""
+	if birthUnknown {
 		return child, errors.New("owner_transport_birth_unknown")
 	}
 	return child, nil
