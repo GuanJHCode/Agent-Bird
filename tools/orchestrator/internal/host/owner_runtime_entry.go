@@ -57,8 +57,14 @@ func RunOriginalOwner(parent context.Context, cfg OriginalOwnerConfig) error {
 		return err
 	}
 	defer directories.close()
+	if err = directories.verify(); err != nil {
+		return err
+	}
 	h, err := NewIPC(cfg.Bootstrap.SpoolRoot, cfg.Bootstrap.Prepared.Intent.Scope.ProducerID)
 	if err != nil {
+		return err
+	}
+	if err = directories.verify(); err != nil {
 		return err
 	}
 	execution, err := newOwnerExecution(ctx, ownerExecutionConfig{

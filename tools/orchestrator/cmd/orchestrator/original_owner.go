@@ -11,10 +11,12 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"sync"
 	"syscall"
 	"time"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitopsworker"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc"
@@ -68,6 +70,21 @@ func originalOwnerEntry(parent context.Context, args []string) error {
 // response is deliberately left to RunSource, preserving the established CLI
 // behavior and tests.
 func runInitialOriginalOwner(ctx context.Context, bootstrap hostBootstrap) (bool, error) {
+	statusBody, _ := json.Marshal(coordinator.HostStatusRequest{LaunchID: bootstrap.Hello.LaunchID, LaunchToken: bootstrap.Hello.LaunchToken})
+	status, err := ipc.Call(ctx, bootstrap.SocketPath, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindHostStatus, RequestID: bootstrap.Hello.LaunchID + ":status", Payload: statusBody})
+	if err != nil || status.Kind != ipc.KindResponse {
+		return false, errors.New("supervised_mode_unknown")
+	}
+	var presence contract.HostPresenceResponse
+	if err = contract.DecodeOwnerRuntimeStrict(status.Payload, &presence); err != nil || presence.ExecutionOwnerMode == "" {
+		return false, errors.New("supervised_mode_unknown")
+	}
+	if presence.ExecutionOwnerMode == "legacy" {
+		return false, nil
+	}
+	if presence.ExecutionOwnerMode != "supervised-v1" {
+		return false, errors.New("supervised_mode_unknown")
+	}
 	conn, err := (&net.Dialer{}).DialContext(ctx, "unix", bootstrap.SocketPath)
 	if err != nil {
 		return false, err
@@ -110,7 +127,8 @@ func runInitialOriginalOwner(ctx context.Context, bootstrap hostBootstrap) (bool
 	if err != nil {
 		return true, err
 	}
-	prepare, _ := json.Marshal(contract.OwnerPrepareRequest{Version: 1, BootstrapID: bootstrapID, BootstrapTokenSHA256: tokenHash, StartupDeadlineUnixMS: time.Now().Add(25 * time.Second).UnixMilli()})
+	startupDeadline := time.Now().Add(25 * time.Second)
+	prepare, _ := json.Marshal(contract.OwnerPrepareRequest{Version: 1, BootstrapID: bootstrapID, BootstrapTokenSHA256: tokenHash, StartupDeadlineUnixMS: startupDeadline.UnixMilli()})
 	if err = ipc.Write(conn, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindOwnerPrepare, RequestID: prepareID, Epoch: pending.Epoch, Payload: prepare}); err != nil {
 		return true, err
 	}
@@ -146,48 +164,104 @@ func runInitialOriginalOwner(ctx context.Context, bootstrap hostBootstrap) (bool
 	if err = child.Start(); err != nil {
 		return true, err
 	}
+	owned := &initialOwnerChild{command: child, done: make(chan error, 1)}
+	retire := func(cause error) error {
+		return errors.Join(cause, owned.retire(initialOwnerDeadline(ctx, startupDeadline)))
+	}
 	_ = reader.Close()
 	_ = childControl.Close()
 	childIdentity := contract.OriginalOwnerTransport{PID: child.Process.Pid}
 	childIdentity.Birth, err = process.BirthContext(ctx, childIdentity.PID)
 	if err != nil || childIdentity.Validate() != nil {
 		_ = writer.Close()
-		return true, errors.New("initial_owner_birth_unknown")
+		// Birth observation has completed.  The original handle now owns the
+		// sole Wait even though its tuple is unknown and must never be rebuilt.
+		owned.startWait()
+		return true, retire(errors.New("initial_owner_birth_unknown"))
 	}
-	waited := make(chan error, 1)
-	go func() { waited <- child.Wait() }()
+	owned.startWait()
+	deadline := initialOwnerDeadline(ctx, startupDeadline)
+	if err = writer.SetWriteDeadline(deadline); err != nil {
+		return true, retire(err)
+	}
 	if _, err = writer.Write(raw); err != nil {
-		return true, err
+		return true, retire(err)
 	}
 	if err = writer.Close(); err != nil {
-		return true, err
+		return true, retire(err)
 	}
-	if err = parentControl.SetReadDeadline(time.Now().Add(8 * time.Second)); err != nil {
-		return true, err
+	if err = parentControl.SetReadDeadline(deadline); err != nil {
+		return true, retire(err)
 	}
 	boundFrame, err := ipc.Read(parentControl)
 	if err != nil {
-		return true, err
+		return true, retire(err)
 	}
-	if _, err = host.VerifyInitialOwnerBound(runtimeBootstrap, childIdentity, boundFrame); err != nil {
-		return true, err
+	bound, err := host.VerifyInitialOwnerBound(runtimeBootstrap, childIdentity, boundFrame)
+	if err != nil {
+		return true, retire(err)
 	}
 	_ = parentControl.SetReadDeadline(time.Time{})
-	transport := contract.OwnerTransportBootstrap{Version: 1, StateDir: runtimeBootstrap.StateDir, Intent: prepared.Intent, Owner: contract.OriginalOwnerIdentity{PID: childIdentity.PID, Birth: childIdentity.Birth}}
 	// The verified Bound reply is the only authority for this public key.
-	var wire struct {
-		Binding contract.OriginalOwnerBinding `json:"binding"`
-	}
-	_ = contract.DecodeOwnerRuntimeStrict(boundFrame.Payload, &wire)
-	transport.Owner = wire.Binding.Owner
+	transport := contract.OwnerTransportBootstrap{Version: 1, StateDir: runtimeBootstrap.StateDir, Intent: prepared.Intent, Owner: bound.Binding.Owner}
 	transport.CoordinatorPublicKey = prepared.CoordinatorPublicKey
 	if err = host.RunInitialOwnerTransport(ctx, host.InitialOwnerTransportConfig{Bootstrap: transport, Control: parentControl, Connection: conn, Pending: pending, InitialToken: bootstrap.Hello.LaunchToken}); err != nil && !errors.Is(err, context.Canceled) {
-		return true, err
+		return true, retire(err)
 	}
 	select {
-	case err = <-waited:
+	case err = <-owned.done:
 		return true, err
 	case <-ctx.Done():
-		return true, ctx.Err()
+		return true, retire(ctx.Err())
 	}
+}
+
+// initialOwnerChild retains the exact *exec.Cmd that observed Start.  It never
+// reconstructs a PID and it never calls Wait before the caller has completed
+// its one birth observation.
+type initialOwnerChild struct {
+	command *exec.Cmd
+	done    chan error
+	once    sync.Once
+}
+
+func (c *initialOwnerChild) startWait() {
+	c.once.Do(func() { go func() { c.done <- c.command.Wait() }() })
+}
+
+func (c *initialOwnerChild) retire(deadline time.Time) error {
+	if c == nil || c.command == nil || c.command.Process == nil {
+		return errors.New("initial_owner_wait_missing")
+	}
+	c.startWait()
+	_ = c.command.Process.Signal(syscall.SIGTERM)
+	if err := waitInitialOwner(c.done, deadline); err == nil {
+		return nil
+	}
+	_ = c.command.Process.Kill()
+	// Keep the original waiter alive through a short post-KILL confirmation;
+	// a caller deadline cannot turn a known child into an unowned PID.
+	return waitInitialOwner(c.done, time.Now().Add(time.Second))
+}
+
+func waitInitialOwner(done <-chan error, deadline time.Time) error {
+	if deadline.Before(time.Now()) {
+		return context.DeadlineExceeded
+	}
+	timer := time.NewTimer(time.Until(deadline))
+	defer timer.Stop()
+	select {
+	case <-done:
+		return nil
+	case <-timer.C:
+		return context.DeadlineExceeded
+	}
+}
+
+func initialOwnerDeadline(ctx context.Context, startup time.Time) time.Time {
+	deadline := startup
+	if caller, ok := ctx.Deadline(); ok && caller.Before(deadline) {
+		deadline = caller
+	}
+	return deadline
 }

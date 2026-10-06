@@ -1012,7 +1012,11 @@ func sourceHost(parent context.Context, args []string) error {
 	bootstrap.Hello.PID, bootstrap.Hello.Birth, bootstrap.Hello.Executable = os.Getpid(), birth, executable
 	ctx, cancel := signal.NotifyContext(parent, syscall.SIGTERM, syscall.SIGINT)
 	defer cancel()
-	if supervised, runErr := runInitialOriginalOwner(ctx, bootstrap); supervised {
+	supervised, runErr := runInitialOriginalOwner(ctx, bootstrap)
+	if runErr != nil {
+		return runErr
+	}
+	if supervised {
 		if runErr == nil || errors.Is(runErr, context.Canceled) {
 			return nil
 		}

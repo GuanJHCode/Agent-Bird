@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"net"
 	"os"
 	"os/exec"
@@ -35,6 +36,17 @@ func TestOriginalOwnerEntryRequiresDedicatedFDs(t *testing.T) {
 		if err := run(context.Background(), append([]string{"original-owner"}, args...), &bytes.Buffer{}, &bytes.Buffer{}); err == nil || errorCode(err) != "invalid_args" {
 			t.Fatalf("invalid inherited original owner entry %v: %v", args, err)
 		}
+	}
+}
+
+func TestInitialOwnerWaitUsesOriginalCompletionChannel(t *testing.T) {
+	done := make(chan error, 1)
+	done <- nil
+	if err := waitInitialOwner(done, time.Now().Add(time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if err := waitInitialOwner(make(chan error), time.Now().Add(-time.Millisecond)); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("expired bounded wait = %v", err)
 	}
 }
 
