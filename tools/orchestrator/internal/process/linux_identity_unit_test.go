@@ -54,6 +54,30 @@ func TestLinuxAncestryCancellationWins(t *testing.T) {
 	}
 }
 
+func TestLinuxAncestryObserveCancellationWins(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	_, err := linuxAncestryContextWith(ctx, 42, func(context.Context, int) (linuxStat, int, error) {
+		cancel()
+		return linuxStat{}, 0, context.Canceled
+	}, func(context.Context) (string, error) { return "boot", nil })
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("err=%v", err)
+	}
+}
+
+func TestLinuxAncestryUIDBoundaryCancellationWins(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	_, err := linuxAncestryContextWith(ctx, 42, func(context.Context, int) (linuxStat, int, error) {
+		cancel()
+		return linuxStat{ppid: 1, start: "1"}, os.Geteuid() + 1, nil
+	}, func(context.Context) (string, error) { return "boot", nil })
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("err=%v", err)
+	}
+}
+
 func TestLinuxParseStatAcceptsSpacesAndRightParensInComm(t *testing.T) {
 	fields := []string{"S", "7", "8"}
 	fields = append(fields, make([]string, 16)...)

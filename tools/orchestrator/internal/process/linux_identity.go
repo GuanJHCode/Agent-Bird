@@ -169,6 +169,10 @@ func linuxAncestryContextWith(ctx context.Context, pid int, observe func(context
 	if pid <= 0 {
 		return nil, errors.New("process_ancestry_invalid")
 	}
+	bootID, err := boot(ctx)
+	if err != nil {
+		return nil, err
+	}
 	result := map[int]string{}
 	for pid > 1 {
 		if ctx.Err() != nil {
@@ -183,18 +187,23 @@ func linuxAncestryContextWith(ctx context.Context, pid int, observe func(context
 		nctx, ncancel := context.WithTimeout(ctx, time.Second)
 		before, uid, err := observe(nctx, pid)
 		ncancel()
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
 		if err != nil {
 			return nil, errors.New("process_ancestry_unknown")
 		}
 		if uid != os.Geteuid() {
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
 			break
-		}
-		bootID, err := boot(ctx)
-		if err != nil {
-			return nil, err
 		}
 		result[pid] = "linux:" + bootID + ":" + before.start
 		pid = before.ppid
+	}
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
 	}
 	return result, nil
 }
