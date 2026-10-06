@@ -340,10 +340,11 @@ func preflightProviders(ctx context.Context, tasks []coordinator.TaskRequest) er
 		deferDynamicProbe := false
 		if task.ExecutionPolicy != nil {
 			normalized, err := store.NormalizeExecutionTask(store.TaskSpec{
-				ExecutionPolicy: task.ExecutionPolicy,
-				MaxAttempts:     task.MaxAttempts,
-				MaxActiveMS:     task.MaxActiveMS,
-				AdapterPayload:  task.AdapterPayload,
+				ExecutionPolicy:  task.ExecutionPolicy,
+				MaxAttempts:      task.MaxAttempts,
+				MaxActiveMS:      task.MaxActiveMS,
+				AdapterPayload:   task.AdapterPayload,
+				FallbackPayloads: task.Fallbacks,
 			})
 			if err != nil {
 				return err

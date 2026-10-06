@@ -13,6 +13,9 @@ func migrateExecutionPolicies(tx *sql.Tx) error {
 	if err != nil {
 		return err
 	}
+	if err = migratePolicyBindingHolds(tx); err != nil {
+		return err
+	}
 	for _, op := range []string{"INSERT", "DELETE"} {
 		ref, sign := "NEW", "+"
 		if op == "DELETE" {

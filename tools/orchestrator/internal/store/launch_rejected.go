@@ -74,12 +74,6 @@ func applyLaunchRejection(ctx context.Context, tx *sql.Tx, e contract.Event) err
 	if _, err := tx.ExecContext(ctx, `UPDATE tasks SET status='failed' WHERE id=?`, e.TaskID); err != nil {
 		return err
 	}
-	exhausted, err := executionExhausted(ctx, tx, e.TaskID)
-	if err != nil {
-		return err
-	}
-	if exhausted {
-		return blockFailedDependencies(ctx, tx)
-	}
+	// Retry admission and terminal dependency closure share the event transaction.
 	return nil
 }

@@ -65,11 +65,13 @@ func normalizeExecutionTask(task TaskSpec) (TaskSpec, error) {
 				}
 			}
 		}
-		var raw struct {
-			Kind string `json:"kind"`
-		}
-		if candidateManaged(task.AdapterPayload) || (json.Unmarshal(task.AdapterPayload, &raw) == nil && raw.Kind == "gitops") {
-			return task, CodeError("execution_policy_retry_stage_unsupported")
+		for _, payload := range append([]json.RawMessage{task.AdapterPayload}, task.FallbackPayloads...) {
+			var raw struct {
+				Kind string `json:"kind"`
+			}
+			if candidateManaged(payload) || (json.Unmarshal(payload, &raw) == nil && raw.Kind == "gitops") {
+				return task, CodeError("execution_policy_retry_stage_unsupported")
+			}
 		}
 		p.Retry = &r
 	}
@@ -114,6 +116,10 @@ func chargedTaskActiveMS(ctx context.Context, tx *sql.Tx, task string) (int64, e
 	return n, err
 }
 func executionGrant(ctx context.Context, tx *sql.Tx, task, attempt string) (int64, error) {
+	return executionGrantForBinding(ctx, tx, task, attempt, nil)
+}
+
+func executionGrantForBinding(ctx context.Context, tx *sql.Tx, task, attempt string, binding *decisionAttemptBinding) (int64, error) {
 	b, err := readExecutionBudget(ctx, tx, task)
 	if err != nil {
 		return 0, err
@@ -122,13 +128,17 @@ func executionGrant(ctx context.Context, tx *sql.Tx, task, attempt string) (int6
 	if err = tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(CASE WHEN status='settled' THEN used_ms ELSE granted_ms END),0) FROM budget_runtime WHERE budget_group_id=?`, b.group).Scan(&groupCharge); err != nil {
 		return 0, err
 	}
-	grant := min(b.segmentMS, b.attemptMS, b.groupMS-groupCharge)
+	groupHold, taskHold, err := pendingActiveHolds(ctx, tx, b.group, task, binding)
+	if err != nil {
+		return 0, err
+	}
+	grant := min(b.segmentMS, b.attemptMS, b.groupMS-groupCharge-groupHold)
 	if b.policy != nil {
 		taskCharge, e := chargedTaskActiveMS(ctx, tx, task)
 		if e != nil {
 			return 0, e
 		}
-		grant = min(grant, b.taskMS-taskCharge)
+		grant = min(grant, b.taskMS-taskCharge-taskHold)
 	}
 	if attempt != "" {
 		used, e := attemptChargedActiveMS(ctx, tx, attempt)
@@ -136,6 +146,13 @@ func executionGrant(ctx context.Context, tx *sql.Tx, task, attempt string) (int6
 			return 0, e
 		}
 		grant = min(grant, b.attemptMS-used)
+	}
+	if binding != nil && b.policy != nil {
+		if binding.task != task || binding.reservedMS <= 0 || binding.reservedMS > grant {
+			return 0, ErrConflict
+		}
+		// A later refund never increases a previously authorized promise.
+		grant = binding.reservedMS
 	}
 	if grant <= 0 {
 		return 0, CodeError("budget_exhausted")
@@ -145,7 +162,7 @@ func executionGrant(ctx context.Context, tx *sql.Tx, task, attempt string) (int6
 
 // Pending policy bindings reserve finite capacity. Claim excludes only its own
 // promise; consuming it and inserting the attempt happen in the same transaction.
-func executionCapacity(ctx context.Context, tx *sql.Tx, task string, claim bool) error {
+func executionCapacity(ctx context.Context, tx *sql.Tx, task string, binding *decisionAttemptBinding) error {
 	b, err := readExecutionBudget(ctx, tx, task)
 	if err != nil {
 		return err
@@ -155,12 +172,19 @@ func executionCapacity(ctx context.Context, tx *sql.Tx, task string, claim bool)
 		return err
 	}
 	if b.policy != nil {
-		if err = tx.QueryRowContext(ctx, `SELECT COUNT(*),COALESCE(SUM(CASE WHEN b.task_id=? THEN 1 ELSE 0 END),0) FROM decision_attempt_bindings b JOIN task_runtime r ON r.task_id=b.task_id WHERE r.budget_group_id=? AND b.attempt_id IS NULL`, task, b.group).Scan(&pendingGroup, &pendingTask); err != nil {
+		if err = tx.QueryRowContext(ctx, `SELECT COUNT(*),COALESCE(SUM(CASE WHEN b.task_id=? THEN 1 ELSE 0 END),0) FROM decision_attempt_bindings b JOIN task_runtime r ON r.task_id=b.task_id WHERE r.budget_group_id=? AND b.attempt_id IS NULL AND b.retired=0`, task, b.group).Scan(&pendingGroup, &pendingTask); err != nil {
 			return err
 		}
-		if claim {
-			pendingGroup -= pendingTask
-			pendingTask = 0
+		if binding != nil {
+			var own int
+			if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM decision_attempt_bindings WHERE action_slot=? AND task_id=? AND task_id=? AND target_work_revision=? AND attempt_id IS NULL AND retired=0`, binding.slot, binding.task, task, binding.revision).Scan(&own); err != nil {
+				return err
+			}
+			if own != 1 {
+				return ErrConflict
+			}
+			pendingGroup--
+			pendingTask--
 		}
 	}
 	if groupCount+pendingGroup >= b.groupAttempts || (b.policy != nil && taskCount+pendingTask >= b.taskAttempts) {
@@ -169,7 +193,7 @@ func executionCapacity(ctx context.Context, tx *sql.Tx, task string, claim bool)
 	return nil
 }
 func executionExhausted(ctx context.Context, tx *sql.Tx, task string) (bool, error) {
-	if err := executionCapacity(ctx, tx, task, false); err != nil {
+	if err := executionCapacity(ctx, tx, task, nil); err != nil {
 		if err == ErrAttemptLimit {
 			return true, nil
 		}

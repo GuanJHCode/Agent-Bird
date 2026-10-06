@@ -323,7 +323,7 @@ func (d *DB) QueueRetry(ctx context.Context, spec RetrySpec) (RetryReceipt, erro
 		}
 		return rollback(err)
 	}
-	if err = executionCapacity(ctx, tx, spec.TaskID, false); err != nil {
+	if err = executionCapacity(ctx, tx, spec.TaskID, nil); err != nil {
 		return rollback(err)
 	}
 	b, e := readExecutionBudget(ctx, tx, spec.TaskID)
@@ -402,7 +402,7 @@ func (d *DB) QueueRetry(ctx context.Context, spec RetrySpec) (RetryReceipt, erro
 	if _, err = tx.ExecContext(ctx, `INSERT INTO retry_decisions(action_slot,task_id,work_revision,source_event_id,source_event_revision,source_event_hash,source_segment_id,next_attempt_no,use_next_fallback,command_id,created_at,revision_payload) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`, spec.ActionSlot, spec.TaskID, spec.WorkRevision, spec.EventID, spec.EventRevision, spec.EventHash, spec.SegmentID, spec.NextAttemptNo, spec.UseNextFallback, spec.CommandID, now, revisionPayload); err != nil {
 		return rollback(mapConflict(err))
 	}
-	if err = insertDecisionBindings(ctx, tx, []decisionAttemptBinding{{slot: spec.ActionSlot, task: spec.TaskID, revision: spec.WorkRevision}}); err != nil {
+	if err = d.reserveDecisionBindings(ctx, tx, []decisionAttemptBinding{{slot: spec.ActionSlot, task: spec.TaskID, revision: spec.WorkRevision}}); err != nil {
 		return rollback(err)
 	}
 	if managed {

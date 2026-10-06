@@ -36,7 +36,7 @@ func (d *DB) ClaimReady(ctx context.Context, hostID string, epoch uint64, slots 
 	if active >= slots {
 		return rollback(ErrNoSlot)
 	}
-	selected, err := selectReady(ctx, tx, launchID, epoch, limits)
+	selected, err := d.selectReady(ctx, tx, launchID, epoch, limits)
 	taskID, runID, taskStatus, budgetGroup := selected.taskID, selected.runID, selected.status, selected.group
 	workRevision, adapterPayload := selected.revision, selected.payload
 	if errors.Is(err, sql.ErrNoRows) {
@@ -67,9 +67,6 @@ func (d *DB) ClaimReady(ctx context.Context, hostID string, epoch uint64, slots 
 		}
 		segmentNo++
 	} else {
-		if err = executionCapacity(ctx, tx, taskID, true); err != nil {
-			return rollback(err)
-		}
 		attemptNo, err = nextTaskAttemptOrdinal(ctx, tx, taskID)
 		if err != nil {
 			return rollback(err)
@@ -77,6 +74,9 @@ func (d *DB) ClaimReady(ctx context.Context, hostID string, epoch uint64, slots 
 		var promise int
 		binding, promise, err = d.pendingDecisionBinding(ctx, tx, taskID, workRevision)
 		if err != nil {
+			return rollback(err)
+		}
+		if err = executionCapacity(ctx, tx, taskID, binding); err != nil {
 			return rollback(err)
 		}
 		if promise > 0 {
@@ -120,7 +120,7 @@ func (d *DB) ClaimReady(ctx context.Context, hostID string, epoch uint64, slots 
 	if taskStatus == "resume_queued" {
 		budgetAttempt = attemptID
 	}
-	grant, err := executionGrant(ctx, tx, taskID, budgetAttempt)
+	grant, err := executionGrantForBinding(ctx, tx, taskID, budgetAttempt, binding)
 	if err != nil {
 		return rollback(err)
 	}

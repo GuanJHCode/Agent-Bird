@@ -134,8 +134,14 @@ func (d *DB) CommitHostEvent(ctx context.Context, event contract.Event) (contrac
 		if err = applyEvent(ctx, tx, event); err != nil {
 			return rollback(err)
 		}
-		if err = d.queuePolicyRetry(ctx, tx, event, actionSlot); err != nil {
-			return rollback(err)
+		queued, retryErr := d.queuePolicyRetry(ctx, tx, event, actionSlot)
+		if retryErr != nil {
+			return rollback(retryErr)
+		}
+		if event.Kind == contract.EventLaunchRejected && !queued {
+			if err = blockFailedDependencies(ctx, tx, event.TaskID); err != nil {
+				return rollback(err)
+			}
 		}
 	}
 	if err = tx.Commit(); err != nil {
@@ -407,7 +413,9 @@ func applyExit(ctx context.Context, tx *sql.Tx, event contract.Event) error {
 	return nil
 }
 
-func blockFailedDependencies(ctx context.Context, tx *sql.Tx) error {
+// roots scopes a newly terminal event to its own descendant closure. An
+// unrelated failed task may still have an authorized owner retry available.
+func blockFailedDependencies(ctx context.Context, tx *sql.Tx, roots ...string) error {
 	rows, err := tx.QueryContext(ctx, `SELECT id,status,dependencies_json FROM tasks`)
 	if err != nil {
 		return err
@@ -433,6 +441,10 @@ func blockFailedDependencies(ctx context.Context, tx *sql.Tx) error {
 	if err = rows.Close(); err != nil {
 		return err
 	}
+	terminal := map[string]bool{}
+	for _, root := range roots {
+		terminal[root] = true
+	}
 	changed := true
 	for changed {
 		changed = false
@@ -442,9 +454,10 @@ func blockFailedDependencies(ctx context.Context, tx *sql.Tx) error {
 			}
 			for _, dep := range task.deps {
 				depStatus := tasks[dep].status
-				if depStatus == "failed" || depStatus == "cancelled" || depStatus == "budget_exhausted" || depStatus == "blocked_dependency" {
+				if (len(roots) > 0 && terminal[dep]) || (len(roots) == 0 && (depStatus == "failed" || depStatus == "cancelled" || depStatus == "budget_exhausted" || depStatus == "blocked_dependency")) {
 					task.status = "blocked_dependency"
 					tasks[id] = task
+					terminal[id] = true
 					changed = true
 					break
 				}
@@ -454,6 +467,9 @@ func blockFailedDependencies(ctx context.Context, tx *sql.Tx) error {
 	for id, task := range tasks {
 		if task.status == "blocked_dependency" {
 			if _, err = tx.ExecContext(ctx, `UPDATE tasks SET status='blocked_dependency' WHERE id=? AND status IN ('queued','ready')`, id); err != nil {
+				return err
+			}
+			if err = retireDecisionBindings(ctx, tx, id); err != nil {
 				return err
 			}
 		}

@@ -169,7 +169,7 @@ WHERE t.run_id=(SELECT run_id FROM tasks WHERE id=?) ORDER BY t.id`, taskID)
 			continue
 		}
 		task.ExecutionPolicy = b.policy
-		if e = tx.QueryRowContext(ctx, `SELECT COALESCE(MAX(d.eligible_at_unix_ms),0) FROM decision_attempt_bindings b JOIN retry_decisions d USING(action_slot) WHERE b.task_id=? AND b.attempt_id IS NULL`, task.TaskID).Scan(&task.NextRetryAtUnixMS); e != nil {
+		if e = tx.QueryRowContext(ctx, `SELECT COALESCE(MAX(d.eligible_at_unix_ms),0) FROM decision_attempt_bindings b JOIN retry_decisions d USING(action_slot) WHERE b.task_id=? AND b.attempt_id IS NULL AND b.retired=0`, task.TaskID).Scan(&task.NextRetryAtUnixMS); e != nil {
 			return RunSummary{}, e
 		}
 		actions := task.AllowedActions[:0]
@@ -179,7 +179,7 @@ WHERE t.run_id=(SELECT run_id FROM tasks WHERE id=?) ORDER BY t.id`, taskID)
 			}
 		}
 		task.AllowedActions = actions
-		if (task.Status == "failed" || task.Status == "interrupted") && task.ActiveSegments == 0 && policyRetryEligible[task.TaskID] && executionCapacity(ctx, tx, task.TaskID, false) == nil {
+		if (task.Status == "failed" || task.Status == "interrupted") && task.ActiveSegments == 0 && policyRetryEligible[task.TaskID] && executionCapacity(ctx, tx, task.TaskID, nil) == nil {
 			if _, e = executionGrant(ctx, tx, task.TaskID, ""); e == nil {
 				task.AllowedActions = append(task.AllowedActions, "retry")
 			}

@@ -205,7 +205,7 @@ func reworkBudgetsAndLifecycle(ctx context.Context, tx *sql.Tx, chain []*reworkT
 		if e != nil {
 			return e
 		}
-		if e = executionCapacity(ctx, tx, v.id, false); e != nil {
+		if e = executionCapacity(ctx, tx, v.id, nil); e != nil {
 			return e
 		}
 		if _, e = executionGrant(ctx, tx, v.id, ""); e != nil {
@@ -224,7 +224,7 @@ func reworkBudgetsAndLifecycle(ctx context.Context, tx *sql.Tx, chain []*reworkT
 			return err
 		}
 		var pending int
-		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM decision_attempt_bindings b JOIN task_runtime r ON r.task_id=b.task_id JOIN task_execution_policies p ON p.task_id=b.task_id WHERE r.budget_group_id=? AND b.attempt_id IS NULL`, group).Scan(&pending); err != nil {
+		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM decision_attempt_bindings b JOIN task_runtime r ON r.task_id=b.task_id JOIN task_execution_policies p ON p.task_id=b.task_id WHERE r.budget_group_id=? AND b.attempt_id IS NULL AND b.retired=0`, group).Scan(&pending); err != nil {
 			return err
 		}
 		if attempts+pending+need > groupLimits[group] {

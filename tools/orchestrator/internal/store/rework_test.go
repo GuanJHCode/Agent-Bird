@@ -26,6 +26,10 @@ func newReworkFixture(t *testing.T) reworkFixture {
 }
 
 func newReworkFixtureWithConfig(t *testing.T, ref *contract.ConfigGenerationRef) reworkFixture {
+	return newReworkFixtureWithTasks(t, ref, nil)
+}
+
+func newReworkFixtureWithTasks(t *testing.T, ref *contract.ConfigGenerationRef, configure func([]TaskSpec)) reworkFixture {
 	t.Helper()
 	ctx := context.Background()
 	dir := t.TempDir()
@@ -75,6 +79,9 @@ func newReworkFixtureWithConfig(t *testing.T, ref *contract.ConfigGenerationRef)
 			deps = []string{source}
 		}
 		tasks = append(tasks, TaskSpec{ID: s, RunID: "run", MaxAttempts: 3, Dependencies: deps, AdapterPayload: payload(s, source)})
+	}
+	if configure != nil {
+		configure(tasks)
 	}
 	plan, err := submitExistingConfigHistory(t, db, ctx, PlanSpec{Run: RunSpec{ID: "run", ControllerThread: "owner", PlanRevision: 7, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth"}, Host: HostLaunchSpec{OriginContextID: "origin", HostGeneration: "gen", Executable: "/private/bin/orchestrator"}, Tasks: tasks})
 	if err != nil {

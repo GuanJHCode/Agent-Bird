@@ -96,7 +96,7 @@ type readyTask struct {
 	payload                                string
 }
 
-func selectReady(ctx context.Context, tx *sql.Tx, launchID string, epoch uint64, limits ConcurrencyLimits) (readyTask, error) {
+func (d *DB) selectReady(ctx context.Context, tx *sql.Tx, launchID string, epoch uint64, limits ConcurrencyLimits) (readyTask, error) {
 	rows, err := tx.QueryContext(ctx, `SELECT r.adapter_payload FROM segment_runtime s JOIN attempts a ON a.id=s.attempt_id JOIN task_runtime r ON r.task_id=a.task_id WHERE s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown')`)
 	if err != nil {
 		return readyTask{}, err
@@ -146,14 +146,25 @@ func selectReady(ctx context.Context, tx *sql.Tx, launchID string, epoch uint64,
 			continue
 		}
 		var eligible int64
-		if err = tx.QueryRowContext(ctx, `SELECT COALESCE(MAX(d.eligible_at_unix_ms),0) FROM decision_attempt_bindings b JOIN retry_decisions d USING(action_slot) WHERE b.task_id=? AND b.attempt_id IS NULL`, task.taskID).Scan(&eligible); err != nil {
+		if err = tx.QueryRowContext(ctx, `SELECT COALESCE(MAX(d.eligible_at_unix_ms),0) FROM decision_attempt_bindings b JOIN retry_decisions d USING(action_slot) WHERE b.task_id=? AND b.attempt_id IS NULL AND b.retired=0`, task.taskID).Scan(&eligible); err != nil {
 			return readyTask{}, err
 		}
 		if eligible > time.Now().UnixMilli() {
 			continue
 		}
+		var binding *decisionAttemptBinding
 		if task.status != "resume_queued" {
-			if e := executionCapacity(ctx, tx, task.taskID, true); e != nil {
+			budget, readErr := readExecutionBudget(ctx, tx, task.taskID)
+			if readErr != nil {
+				return readyTask{}, readErr
+			}
+			if budget.policy != nil {
+				binding, _, err = d.pendingDecisionBinding(ctx, tx, task.taskID, task.revision)
+				if err != nil {
+					return readyTask{}, err
+				}
+			}
+			if e := executionCapacity(ctx, tx, task.taskID, binding); e != nil {
 				if task.launchID == launchID {
 					budget, readErr := readExecutionBudget(ctx, tx, task.taskID)
 					if readErr != nil {
@@ -177,7 +188,7 @@ func selectReady(ctx context.Context, tx *sql.Tx, launchID string, epoch uint64,
 				return readyTask{}, err
 			}
 		}
-		if _, e := executionGrant(ctx, tx, task.taskID, attempt); e != nil {
+		if _, e := executionGrantForBinding(ctx, tx, task.taskID, attempt, binding); e != nil {
 			if task.launchID == launchID {
 				budget, readErr := readExecutionBudget(ctx, tx, task.taskID)
 				if readErr != nil {

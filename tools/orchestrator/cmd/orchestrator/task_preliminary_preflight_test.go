@@ -61,6 +61,26 @@ func TestTaskSubmitRetryPolicyDefersDynamicProbeUntilHostAdmission(t *testing.T)
 	}
 }
 
+func TestPreflightRetryPolicyRejectsUnsupportedFallbacks(t *testing.T) {
+	for name, raw := range map[string]string{
+		"candidate": `{"kind":"candidate","candidate_action":{"version":1,"operation":"validate","source_task":"source","command":["/usr/bin/true"]}}`,
+		"review":    `{"provider":"claude-code","candidate_action":{"version":1,"operation":"review","source_task":"source"}}`,
+		"gitops":    `{"kind":"gitops"}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			root := privateTaskTemp(t)
+			task, marker := retryPolicyPreflightTask(t, root)
+			task.Fallbacks = []json.RawMessage{json.RawMessage(raw)}
+			if err := preflightProviders(context.Background(), []coordinator.TaskRequest{task}); err == nil || err.Error() != "execution_policy_retry_stage_unsupported" {
+				t.Fatalf("unsupported fallback preflight: %v", err)
+			}
+			if _, err := os.Stat(marker); !os.IsNotExist(err) {
+				t.Fatal("unsupported fallback reached dynamic probe")
+			}
+		})
+	}
+}
+
 func TestPreflightProvidersRetryPolicyRetainsStaticGuardsAndLegacyDynamicProbe(t *testing.T) {
 	root := privateTaskTemp(t)
 	task, marker := retryPolicyPreflightTask(t, root)

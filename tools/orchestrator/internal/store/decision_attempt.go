@@ -13,6 +13,7 @@ const errLegacyDecisionAmbiguous CodeError = "legacy_decision_binding_ambiguous"
 type decisionAttemptBinding struct {
 	slot, task, attempt string
 	revision            int
+	reservedMS          int64
 }
 
 func nextTaskAttemptOrdinal(ctx context.Context, tx *sql.Tx, task string) (int, error) {
@@ -36,7 +37,7 @@ func insertDecisionBindings(ctx context.Context, tx *sql.Tx, bindings []decision
 		if b.attempt != "" {
 			attempt = b.attempt
 		}
-		if _, err := tx.ExecContext(ctx, `INSERT INTO decision_attempt_bindings(action_slot,task_id,target_work_revision,attempt_id) VALUES(?,?,?,?)`, b.slot, b.task, b.revision, attempt); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO decision_attempt_bindings(action_slot,task_id,target_work_revision,attempt_id,reserved_active_ms) VALUES(?,?,?,?,?)`, b.slot, b.task, b.revision, attempt, b.reservedMS); err != nil {
 			return mapConflict(err)
 		}
 	}
@@ -46,12 +47,12 @@ func insertDecisionBindings(ctx context.Context, tx *sql.Tx, bindings []decision
 func (d *DB) pendingDecisionBinding(ctx context.Context, tx *sql.Tx, task string, revision int) (*decisionAttemptBinding, int, error) {
 	var b decisionAttemptBinding
 	var promise int
-	err := tx.QueryRowContext(ctx, `SELECT b.action_slot,b.task_id,b.target_work_revision,d.next_attempt_no FROM decision_attempt_bindings b JOIN retry_decisions d USING(action_slot) WHERE b.task_id=? AND b.attempt_id IS NULL`, task).Scan(&b.slot, &b.task, &b.revision, &promise)
+	err := tx.QueryRowContext(ctx, `SELECT b.action_slot,b.task_id,b.target_work_revision,b.reserved_active_ms,d.next_attempt_no FROM decision_attempt_bindings b JOIN retry_decisions d USING(action_slot) WHERE b.task_id=? AND b.attempt_id IS NULL AND b.retired=0`, task).Scan(&b.slot, &b.task, &b.revision, &b.reservedMS, &promise)
 	if errors.Is(err, sql.ErrNoRows) {
 		if err = d.reconcileLegacyPendingTask(ctx, tx, task, revision); err != nil {
 			return nil, 0, err
 		}
-		err = tx.QueryRowContext(ctx, `SELECT b.action_slot,b.task_id,b.target_work_revision,d.next_attempt_no FROM decision_attempt_bindings b JOIN retry_decisions d USING(action_slot) WHERE b.task_id=? AND b.attempt_id IS NULL`, task).Scan(&b.slot, &b.task, &b.revision, &promise)
+		err = tx.QueryRowContext(ctx, `SELECT b.action_slot,b.task_id,b.target_work_revision,b.reserved_active_ms,d.next_attempt_no FROM decision_attempt_bindings b JOIN retry_decisions d USING(action_slot) WHERE b.task_id=? AND b.attempt_id IS NULL AND b.retired=0`, task).Scan(&b.slot, &b.task, &b.revision, &b.reservedMS, &promise)
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, 0, nil
 		}
@@ -80,7 +81,7 @@ func consumeDecisionBinding(ctx context.Context, tx *sql.Tx, b *decisionAttemptB
 	if b == nil {
 		return nil
 	}
-	r, err := tx.ExecContext(ctx, `UPDATE decision_attempt_bindings SET attempt_id=? WHERE action_slot=? AND task_id=? AND target_work_revision=? AND attempt_id IS NULL AND EXISTS(SELECT 1 FROM attempts a WHERE a.id=? AND a.task_id=decision_attempt_bindings.task_id)`, attempt, b.slot, b.task, b.revision, attempt)
+	r, err := tx.ExecContext(ctx, `UPDATE decision_attempt_bindings SET attempt_id=? WHERE action_slot=? AND task_id=? AND target_work_revision=? AND attempt_id IS NULL AND retired=0 AND EXISTS(SELECT 1 FROM attempts a WHERE a.id=? AND a.task_id=decision_attempt_bindings.task_id)`, attempt, b.slot, b.task, b.revision, attempt)
 	if err != nil {
 		return mapConflict(err)
 	}

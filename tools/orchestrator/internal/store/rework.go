@@ -187,7 +187,7 @@ func (d *DB) QueueRework(ctx context.Context, spec ReworkSpec) (ReworkReceipt, e
 	if _, err = tx.ExecContext(ctx, `INSERT INTO retry_decisions(action_slot,task_id,work_revision,source_event_id,source_event_revision,source_event_hash,source_segment_id,next_attempt_no,use_next_fallback,command_id,created_at,revision_payload) VALUES(?,?,?,?,?,?,?,?,0,?,?,?)`, spec.ActionSlot, edit.id, edit.revision, spec.Review.EventID, spec.Review.EventRevision, spec.Review.EventHash, feedbackEvent.SegmentID, nextOrdinal, spec.CommandID, time.Now().UTC().Format(time.RFC3339Nano), string(encoded)); err != nil {
 		return empty, mapConflict(err)
 	}
-	if err = insertDecisionBindings(ctx, tx, bindings); err != nil {
+	if err = d.reserveDecisionBindings(ctx, tx, bindings); err != nil {
 		return empty, err
 	}
 	for _, task := range chain {
