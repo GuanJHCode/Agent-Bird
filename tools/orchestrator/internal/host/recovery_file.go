@@ -149,12 +149,21 @@ func (s *hostRecoveryState) readFile() ([]byte, error) {
 	if err != nil || !privateRecoveryInfo(info, false) || info.Size() < 1 || info.Size() > 4096 {
 		return nil, errors.New("host_recovery_state_unsafe")
 	}
+	if s.afterReadOpen != nil {
+		if err := s.afterReadOpen(); err != nil {
+			return nil, err
+		}
+	}
 	body, err := io.ReadAll(io.LimitReader(file, 4097))
 	if err != nil || int64(len(body)) != info.Size() {
 		return nil, errors.New("host_recovery_state_unsafe")
 	}
-	if err = s.verifyAuthorityPath(); err != nil {
+	if err = s.verifyNamedFile(file, recoveryLedgerName, body); err != nil {
 		return nil, err
+	}
+	after, err := file.Stat()
+	if err != nil || !privateRecoveryInfo(after, false) || after.Size() != info.Size() || !after.ModTime().Equal(info.ModTime()) {
+		return nil, errors.New("host_recovery_state_changed")
 	}
 	return body, nil
 }
@@ -198,7 +207,7 @@ func (s *hostRecoveryState) persistBytesWithHooks(body []byte, hooks recoveryPub
 		err = hooks.beforeVerify(name)
 	}
 	if err == nil {
-		err = s.verifyPublication(stage, name, body)
+		err = s.verifyNamedFile(stage, name, body)
 	}
 	if err == nil && hooks.beforeRename != nil {
 		err = hooks.beforeRename(name)
@@ -211,7 +220,7 @@ func (s *hostRecoveryState) persistBytesWithHooks(body []byte, hooks recoveryPub
 	}
 	// The held descriptor survives publication. A substitution between the
 	// precheck and rename must not become a trusted recovery authority.
-	if err = s.verifyPublication(stage, recoveryLedgerName, body); err != nil {
+	if err = s.verifyNamedFile(stage, recoveryLedgerName, body); err != nil {
 		removed := unix.Unlinkat(int(s.directoryFile.Fd()), recoveryLedgerName, 0)
 		if errors.Is(removed, unix.ENOENT) {
 			removed = nil
@@ -227,7 +236,7 @@ func (s *hostRecoveryState) persistBytesWithHooks(body []byte, hooks recoveryPub
 	return err
 }
 
-func (s *hostRecoveryState) verifyPublication(stage *os.File, name string, body []byte) error {
+func (s *hostRecoveryState) verifyNamedFile(stage *os.File, name string, body []byte) error {
 	if err := s.verifyAuthorityPath(); err != nil {
 		return err
 	}

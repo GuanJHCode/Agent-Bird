@@ -29,6 +29,8 @@ type hostRecoveryState struct {
 	lock          *os.File
 	record        hostRecoveryRecord
 	bytes         []byte
+	// Private per-ledger observation seam; production leaves it nil.
+	afterReadOpen func() error
 }
 
 func openHostRecovery(directory, scope string, pid int, birth string) (*hostRecoveryState, error) {
