@@ -491,12 +491,15 @@ func (d *DB) FinishHostReconcile(ctx context.Context, hostID string) error {
 		return err
 	}
 	rollback := func(e error) error { _ = tx.Rollback(); return e }
-	var mode string
-	if err = tx.QueryRowContext(ctx, `SELECT l.execution_owner_mode FROM host_launches l JOIN runtime_hosts h ON h.launch_id=l.id WHERE h.id=?`, hostID).Scan(&mode); err != nil || mode != "legacy" {
-		return rollback(ErrHostRejected)
-	}
-	if _, err = tx.ExecContext(ctx, `UPDATE runtime_hosts SET status='ready' WHERE id=? AND status='reconciling'`, hostID); err != nil {
+	// Keep the first statement a write, so SQLite waits for an existing writer
+	// instead of attempting to upgrade a stale read snapshot. The predicate
+	// still excludes supervised Hosts atomically, before any readiness change.
+	result, err := tx.ExecContext(ctx, `UPDATE runtime_hosts SET status='ready' WHERE id=? AND status IN ('reconciling','ready') AND EXISTS(SELECT 1 FROM host_launches l WHERE l.id=runtime_hosts.launch_id AND l.execution_owner_mode='legacy')`, hostID)
+	if err != nil {
 		return rollback(err)
+	}
+	if n, e := result.RowsAffected(); e != nil || n != 1 {
+		return rollback(ErrHostRejected)
 	}
 	if _, err = tx.ExecContext(ctx, `UPDATE host_launches SET status='ready' WHERE host_id=?`, hostID); err != nil {
 		return rollback(err)

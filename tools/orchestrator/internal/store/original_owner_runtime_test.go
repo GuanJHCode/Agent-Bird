@@ -3,8 +3,10 @@ package store
 import (
 	"context"
 	"crypto/ed25519"
+	"database/sql"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 )
@@ -186,5 +188,45 @@ func historicalOwnerClaim(t *testing.T, f originalOwnerFixture) {
 	}
 	if _, err := f.db.sql.Exec(`UPDATE host_launches SET execution_owner_mode='supervised-v1'; UPDATE runtime_hosts SET status='reconciling'`); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestLegacyHostReconcileWaitsForExistingWriter(t *testing.T) {
+	f := newOriginalOwnerFixture(t)
+	ctx := context.Background()
+	if _, err := f.db.sql.Exec(`UPDATE host_launches SET execution_owner_mode='legacy'`); err != nil {
+		t.Fatal(err)
+	}
+	gate, err := sql.Open("sqlite", f.db.path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer gate.Close()
+	conn, err := gate.Conn(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	if _, err = conn.ExecContext(ctx, `BEGIN IMMEDIATE`); err != nil {
+		t.Fatal(err)
+	}
+	defer conn.ExecContext(ctx, `ROLLBACK`)
+	done := make(chan error, 1)
+	go func() { done <- f.db.FinishHostReconcile(ctx, f.prepare.Host.LaunchID) }()
+	select {
+	case err := <-done:
+		t.Fatalf("legacy reconcile returned before writer released: %v", err)
+	case <-time.After(100 * time.Millisecond):
+	}
+	if _, err = conn.ExecContext(ctx, `ROLLBACK`); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("legacy reconcile did not resume after writer released")
 	}
 }
