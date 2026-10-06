@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -65,6 +66,299 @@ func ownerExecutionFixture(t *testing.T) (ownerExecutionConfig, contract.OwnerCo
 		return contract.OwnerRPCReply{Version: 1, OwnerID: scope.OwnerID, CoordinatorEpoch: permit.CoordinatorEpoch, RequestID: id, Body: raw}, nil
 	}
 	return cfg, permit, coordinatorPrivate
+}
+
+func ownerExecutionSignedLaunch(t *testing.T, permit contract.OwnerControlPermit, key ed25519.PrivateKey) []byte {
+	t.Helper()
+	grant := contract.LaunchCommand{CommandID: "command", ReservationID: "reservation", RunID: "run", HostID: "producer", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, PlanRevision: 1, ExecutionEpoch: permit.CoordinatorEpoch, GrantedActiveMS: 1000}
+	body, _ := json.Marshal(grant)
+	command, err := contract.SignOwnerCommand(contract.OwnerCommand{Version: 1, Permit: permit, Kind: "launch", RequestID: grant.CommandID, Body: body}, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := json.Marshal(command)
+	return raw
+}
+
+func TestOwnerExecutionSignedLaunchDoesNotDependOnActivateReplyOrder(t *testing.T) {
+	for _, lost := range []bool{false, true} {
+		name := "command_before_reply"
+		if lost {
+			name = "command_after_lost_reply"
+		}
+		t.Run(name, func(t *testing.T) {
+			cfg, permit, key := ownerExecutionFixture(t)
+			var invoked atomic.Int32
+			cfg.invocation = func(context.Context, contract.LaunchCommand) (contract.InvocationView, error) {
+				invoked.Add(1)
+				return nil, errors.New("no process started")
+			}
+			original := cfg.rpc
+			activating, release := make(chan struct{}), make(chan struct{})
+			cfg.rpc = func(ctx context.Context, revision uint64, kind, id string, body any) (contract.OwnerRPCReply, error) {
+				if kind == "activate" {
+					// The Coordinator committed Activate and can dispatch on the
+					// other socket before this reply is delivered (or lost).
+					close(activating)
+					<-release
+					if lost {
+						return contract.OwnerRPCReply{}, io.EOF
+					}
+				}
+				return original(ctx, revision, kind, id, body)
+			}
+			e, err := newOwnerExecution(context.Background(), cfg)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer e.run.cancel(context.Canceled)
+			done := make(chan error, 1)
+			go func() { done <- e.reconcile(context.Background(), permit) }()
+			<-activating
+			raw := ownerExecutionSignedLaunch(t, permit, key)
+			var commandErr, reconcileErr error
+			if lost {
+				close(release)
+				reconcileErr = <-done
+				commandErr = e.command(raw)
+			} else {
+				commandErr = e.command(raw)
+				close(release)
+				reconcileErr = <-done
+			}
+			e.run.workers.Wait()
+			if commandErr != nil || invoked.Load() != 1 {
+				t.Fatalf("durably claimed signed launch was lost: %v invoked=%d", commandErr, invoked.Load())
+			}
+			if lost != errors.Is(reconcileErr, io.EOF) || (!lost && reconcileErr != nil) {
+				t.Fatal("unexpected activation outcome", reconcileErr)
+			}
+			if err = e.command(raw); err != nil {
+				t.Fatal("duplicate signed command rejected", err)
+			}
+			e.run.workers.Wait()
+			if invoked.Load() != 1 {
+				t.Fatal("ACK ambiguity launched a second invocation")
+			}
+			e.beginStop(context.Background(), context.Canceled)
+			if err = e.command(raw); err == nil {
+				t.Fatal("signed launch crossed shutdown admission fence")
+			}
+		})
+	}
+}
+
+func TestOwnerExecutionReportStoreRejectionDoesNotEnterRecovery(t *testing.T) {
+	for _, scenario := range []string{"conflict", "invalid_report_capability"} {
+		t.Run(scenario, func(t *testing.T) {
+			ctx := context.Background()
+			cfg, permit, key := ownerExecutionFixture(t)
+			db, err := store.Open(filepath.Join(t.TempDir(), "state.db"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer db.Close()
+			plan, err := db.SubmitPlan(ctx, store.PlanSpec{Run: store.RunSpec{ID: "run", ControllerThread: "controller", PlanRevision: 1, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth"}, Host: store.HostLaunchSpec{OriginContextID: "origin", HostGeneration: "generation", Executable: "/pinned/orchestrator"}, Tasks: []store.TaskSpec{{ID: "task", RunID: "run", MaxAttempts: 1}}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			producer, err := db.RegisterHost(ctx, contract.HostHello{LaunchID: plan.LaunchID, LaunchToken: plan.LaunchToken, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth", HostGeneration: "generation", PID: 10, Birth: "host", Executable: "/pinned/orchestrator"}, permit.CoordinatorEpoch)
+			if err != nil {
+				t.Fatal(err)
+			}
+			grant, err := db.ClaimReady(ctx, producer, permit.CoordinatorEpoch, 1)
+			if err != nil {
+				t.Fatal(err)
+			}
+			cfg.host, err = NewIPC(filepath.Join(t.TempDir(), "spool"), producer)
+			if err != nil {
+				t.Fatal(err)
+			}
+			cfg.binding.Scope.ProducerID = producer
+			cfg.binding.Signature = ""
+			cfg.binding.BindingSHA256 = ""
+			cfg.binding, err = contract.SignOriginalOwnerBinding(cfg.binding, key)
+			if err != nil {
+				t.Fatal(err)
+			}
+			permit.ScopeSHA256, _ = contract.OriginalOwnerScopeSHA256(cfg.binding.Scope)
+			permit.Signature = ""
+			permit, err = contract.SignOwnerControlPermit(permit, key)
+			if err != nil {
+				t.Fatal(err)
+			}
+			original := cfg.rpc
+			calls := 0
+			cfg.rpc = func(ctx context.Context, revision uint64, kind, id string, body any) (contract.OwnerRPCReply, error) {
+				if kind != "report_capability" {
+					return original(ctx, revision, kind, id, body)
+				}
+				calls++
+				registration := body.(contract.ReportCapabilityRegistration)
+				if scenario == "conflict" {
+					registered := registration
+					registered.TokenHash = strings.Repeat("d", 64)
+					if _, err := db.RegisterReportCapability(ctx, registered); err != nil {
+						t.Fatal("could not establish real conflicting binding", err)
+					}
+				} else {
+					registration.WorkRevision = 0
+				}
+				_, err := db.RegisterReportCapability(ctx, registration)
+				if err == nil || err.Error() != scenario {
+					t.Fatalf("unexpected Store result %v", err)
+				}
+				// The production client returns a populated reply only after
+				// verifying its signature/request binding. This fixture uses a
+				// real SQLite rejection, but does not claim native RPC proof.
+				return contract.OwnerRPCReply{Version: 1, OwnerID: permit.OwnerID, CoordinatorEpoch: permit.CoordinatorEpoch, RequestID: id, Error: err.Error()}, err
+			}
+			e, err := newOwnerExecution(ctx, cfg)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer e.run.cancel(context.Canceled)
+			if err = e.reconcile(ctx, permit); err != nil {
+				t.Fatal(err)
+			}
+			session := e.session
+			deadline, cancel := context.WithTimeout(ctx, time.Second)
+			defer cancel()
+			if _, err = e.prepareReport(deadline, grant); err == nil || err.Error() != scenario {
+				t.Fatalf("permanent Store error was hidden by recovery: %v", err)
+			}
+			if calls != 1 || e.session != session || !e.active || len(e.recovery) != 0 {
+				t.Fatal("permanent report rejection changed session or requested recovery")
+			}
+		})
+	}
+}
+
+func TestOwnerExecutionReportLostACKRetainsBindingUntilReconcile(t *testing.T) {
+	cfg, permit, _ := ownerExecutionFixture(t)
+	original := cfg.rpc
+	var calls atomic.Int32
+	registrations := make(chan contract.ReportCapabilityRegistration, 4)
+	cfg.rpc = func(ctx context.Context, revision uint64, kind, id string, body any) (contract.OwnerRPCReply, error) {
+		if kind != "report_capability" {
+			return original(ctx, revision, kind, id, body)
+		}
+		registration := body.(contract.ReportCapabilityRegistration)
+		registrations <- registration
+		if calls.Add(1) == 1 {
+			return contract.OwnerRPCReply{}, io.EOF
+		}
+		raw, _ := json.Marshal(contract.DurableAck{Status: "durable", EventID: registration.CapabilityID, PayloadHash: registration.TokenHash})
+		return contract.OwnerRPCReply{Version: 1, OwnerID: permit.OwnerID, CoordinatorEpoch: permit.CoordinatorEpoch, RequestID: id, Body: raw}, nil
+	}
+	e, err := newOwnerExecution(context.Background(), cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer e.run.cancel(context.Canceled)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	if err = e.reconcile(ctx, permit); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() {
+		path, err := e.prepareReport(ctx, contract.LaunchCommand{ReportCapabilityID: "capability", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1})
+		if err == nil && path == "" {
+			err = errors.New("acknowledged report has no capability path")
+		}
+		done <- err
+	}()
+	select {
+	case err = <-e.recovery:
+		if !ownerExecutionNeedsRecovery(err) || !errors.Is(err, io.EOF) {
+			t.Fatal("lost ACK did not retain transport uncertainty", err)
+		}
+	case <-ctx.Done():
+		t.Fatal("lost report ACK failed to request recovery")
+	}
+	select {
+	case err = <-done:
+		t.Fatal("report preparation completed before a new session", err)
+	default:
+	}
+	if err = e.reconcile(ctx, permit); err != nil {
+		t.Fatal(err)
+	}
+	if err = <-done; err != nil {
+		t.Fatal("transient report registration did not resume", err)
+	}
+	close(registrations)
+	first := <-registrations
+	if calls.Load() != 3 {
+		t.Fatal("expected original request, registry replay, and resumed preparation", calls.Load())
+	}
+	for replay := range registrations {
+		if replay != first {
+			t.Fatal("ACK loss changed immutable report registration")
+		}
+	}
+}
+
+func TestOwnerExecutionRPCFailureClassification(t *testing.T) {
+	for _, scenario := range []string{"signed_semantic", "signed_error_named_EOF", "higher_epoch", "lower_epoch", "transport_EOF", "invalid_signature", "canceled_parent"} {
+		t.Run(scenario, func(t *testing.T) {
+			cfg, permit, _ := ownerExecutionFixture(t)
+			e, err := newOwnerExecution(context.Background(), cfg)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer e.run.cancel(context.Canceled)
+			if err = e.reconcile(context.Background(), permit); err != nil {
+				t.Fatal(err)
+			}
+			s := e.session
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			recoverable, unchanged := false, false
+			s.owner.cfg.rpc = func(context.Context, uint64, string, string, any) (contract.OwnerRPCReply, error) {
+				reply := contract.OwnerRPCReply{Version: 1, OwnerID: permit.OwnerID, CoordinatorEpoch: permit.CoordinatorEpoch, RequestID: "request", Body: json.RawMessage(`{"status":"applied"}`)}
+				switch scenario {
+				case "signed_semantic", "signed_error_named_EOF":
+					unchanged = true
+					reply.Error = "conflict"
+					if scenario == "signed_error_named_EOF" {
+						reply.Error = "EOF"
+					}
+					return reply, errors.New(reply.Error)
+				case "higher_epoch":
+					recoverable = true
+					reply.CoordinatorEpoch++
+					reply.Error = "original_owner_rejected"
+					return reply, errors.New(reply.Error)
+				case "lower_epoch":
+					reply.CoordinatorEpoch--
+					return reply, nil
+				case "transport_EOF":
+					recoverable = true
+					return contract.OwnerRPCReply{}, io.EOF
+				case "invalid_signature":
+					return contract.OwnerRPCReply{}, errors.New("original_owner_reply_rejected")
+				case "canceled_parent":
+					unchanged = true
+					cancel()
+					return contract.OwnerRPCReply{}, io.EOF
+				}
+				panic("unknown scenario")
+			}
+			err = s.status(ctx, "applied", "request", *e.applied, "applied")
+			if err == nil || ownerExecutionNeedsRecovery(err) != recoverable {
+				t.Fatal("wrong error classification", err)
+			}
+			if unchanged {
+				if e.session != s || !e.active || len(e.recovery) != 0 {
+					t.Fatal("non-transport outcome requested recovery")
+				}
+			} else if e.session != nil || e.active || len(e.recovery) != 1 {
+				t.Fatal("transport or authentication failure did not reach runtime")
+			}
+		})
+	}
 }
 
 func TestOwnerExecutionRetainsSignedStopAfterTransportLoss(t *testing.T) {
@@ -188,6 +482,9 @@ func TestOwnerExecutionEpochRenewalReplaysReportsAndRejectsInvalidTransitions(t 
 	epoch, revision = next.CoordinatorEpoch, next.ControlRevision
 	if err = e.reconcile(context.Background(), next); err != nil {
 		t.Fatal(err)
+	}
+	if err = e.command(ownerExecutionSignedLaunch(t, first, key)); err == nil {
+		t.Fatal("epoch renewal retained old permit launch authority")
 	}
 	if len(registered) != 2 || registered[0] != first.CoordinatorEpoch || registered[1] != next.CoordinatorEpoch || len(receipts) != 2 || receipts[1].Permit.PermitID != next.PermitID {
 		t.Fatal("renewal lost report or new permit application", registered, receipts)
@@ -317,6 +614,15 @@ func TestOwnerExecutionOnlyAdmitsActivatedExactSignedScopeAndDeduplicates(t *tes
 	valid := sign(grant)
 	if err = e.command(valid); err == nil {
 		t.Fatal("unapplied permit launched execution")
+	}
+	original := e.cfg.rpc
+	e.cfg.rpc = func(ctx context.Context, revision uint64, kind, id string, body any) (contract.OwnerRPCReply, error) {
+		if kind == "applied" {
+			if err := e.command(valid); err == nil {
+				t.Error("installing a permit admitted a launch before Applied confirmation")
+			}
+		}
+		return original(ctx, revision, kind, id, body)
 	}
 	if err = e.reconcile(context.Background(), permit); err != nil {
 		t.Fatal(err)

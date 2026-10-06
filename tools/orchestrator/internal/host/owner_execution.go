@@ -30,19 +30,20 @@ type ownerExecutionConfig struct {
 }
 
 type ownerExecution struct {
-	run          *livingSource
-	cfg          ownerExecutionConfig
-	scopeHash    string
-	identityHash string
-	workflow     sync.Mutex // serial permit/reconciliation and immutable receipt
-	applied      *contract.OwnerPermitApplied
-	mu           sync.Mutex // admission/worker Add precedes shutdown Wait
-	session      *ownerExecutionSession
-	last         *ownerExecutionSession
-	changed      chan struct{}
-	recovery     chan error
-	active       bool
-	stopping     bool
+	run               *livingSource
+	cfg               ownerExecutionConfig
+	scopeHash         string
+	identityHash      string
+	workflow          sync.Mutex // serial permit/reconciliation and immutable receipt
+	applied           *contract.OwnerPermitApplied
+	mu                sync.Mutex // admission/worker Add precedes shutdown Wait
+	session           *ownerExecutionSession
+	last              *ownerExecutionSession
+	changed           chan struct{}
+	recovery          chan error
+	active            bool
+	admitSignedLaunch bool
+	stopping          bool
 }
 
 func newOwnerExecution(ctx context.Context, cfg ownerExecutionConfig) (*ownerExecution, error) {
@@ -97,6 +98,9 @@ func (e *ownerExecution) reconcile(ctx context.Context, permit contract.OwnerCon
 	}
 	s := &ownerExecutionSession{owner: e, permit: permit}
 	e.session, e.last, e.active = s, s, false
+	if !same {
+		e.admitSignedLaunch = false
+	}
 	close(e.changed)
 	e.changed = make(chan struct{})
 	e.mu.Unlock()
@@ -126,6 +130,18 @@ func (e *ownerExecution) reconcile(ctx context.Context, permit contract.OwnerCon
 	if err := s.status(ctx, "applied", permit.PermitID+":applied", *e.applied, "applied"); err != nil {
 		return err
 	}
+	e.mu.Lock()
+	if e.stopping || e.session != s {
+		e.mu.Unlock()
+		return errCoordinatorUnavailable
+	}
+	// Coordinator publishes command signing authority to dispatch only after
+	// Activate commits. A full signed launch for this exact permit therefore
+	// proves activation even when its separate RPC reply arrives later or is
+	// lost. Keep accepting those durable claims across transient transport loss;
+	// a new permit or shutdown revokes this admission, not reply arrival order.
+	e.admitSignedLaunch = true
+	e.mu.Unlock()
 	if err := s.status(ctx, "activate", permit.PermitID+":activate", *e.applied, "active"); err != nil {
 		return err
 	}
@@ -155,12 +171,12 @@ func (e *ownerExecution) command(raw []byte) error {
 			e.mu.Unlock()
 			return err
 		}
-		e.stopping, e.active = true, false
+		e.stopping, e.active, e.admitSignedLaunch = true, false, false
 		e.mu.Unlock()
 		return sourceTerminalDisposition(terminal.Reason)
 	}
-	// Loss of transport readiness revokes new launch admission. It does not
-	// erase a stop signed for the latest verified permit and original Handle.
+	// A transport outage cannot erase stop authority for the latest verified
+	// permit or the original Handle.
 	if command.Kind == "stop" {
 		e.mu.Unlock()
 		var stop contract.StopCommand
@@ -170,7 +186,7 @@ func (e *ownerExecution) command(raw []byte) error {
 		e.run.dispatchStop(stop)
 		return nil
 	}
-	if e.stopping || !e.active || e.session != s {
+	if e.stopping || !e.admitSignedLaunch {
 		e.mu.Unlock()
 		return errors.New("owner_execution_not_active")
 	}
@@ -233,11 +249,8 @@ func (e *ownerExecution) prepareReport(ctx context.Context, grant contract.Launc
 		if err == nil {
 			return path, nil
 		}
-		e.mu.Lock()
-		current := e.session == s
-		e.mu.Unlock()
-		if current {
-			return "", err // local capability failure, not connection recovery
+		if !ownerExecutionNeedsRecovery(err) {
+			return "", err // authenticated rejection or local failure, not an outage
 		}
 	}
 }
@@ -263,7 +276,7 @@ func (e *ownerExecution) progress(_ context.Context, event contract.Event) error
 
 func (e *ownerExecution) beginStop(ctx context.Context, cause error) {
 	e.mu.Lock()
-	e.stopping, e.active = true, false
+	e.stopping, e.active, e.admitSignedLaunch = true, false, false
 	close(e.changed)
 	e.changed = make(chan struct{})
 	e.mu.Unlock()
@@ -292,6 +305,18 @@ type ownerExecutionSession struct {
 	permit contract.OwnerControlPermit
 }
 
+// Only transport uncertainty and a verified newer Coordinator epoch can enter
+// the reconnect path. In particular, a signed application error is never
+// classified by its text or by a concurrent session replacement.
+type ownerExecutionRecoveryError struct{ cause error }
+
+func (e *ownerExecutionRecoveryError) Error() string { return e.cause.Error() }
+func (e *ownerExecutionRecoveryError) Unwrap() error { return e.cause }
+func ownerExecutionNeedsRecovery(err error) bool {
+	var recovery *ownerExecutionRecoveryError
+	return errors.As(err, &recovery)
+}
+
 func (s *ownerExecutionSession) reportEpoch() uint64 { return s.permit.CoordinatorEpoch }
 
 func (s *ownerExecutionSession) verifyReply(reply contract.OwnerRPCReply, id string) error {
@@ -305,8 +330,24 @@ func (s *ownerExecutionSession) call(ctx context.Context, kind, id string, body 
 	op, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 	reply, err := s.owner.cfg.rpc(op, s.permit.ControlRevision, kind, id, body)
-	if err == nil {
-		err = s.verifyReply(reply, id)
+	if ctx.Err() != nil {
+		return reply, ctx.Err()
+	}
+	if reply.Version == 1 && reply.OwnerID == s.permit.OwnerID && reply.RequestID == id {
+		if reply.CoordinatorEpoch > s.permit.CoordinatorEpoch {
+			err = &ownerExecutionRecoveryError{cause: errCoordinatorUnavailable}
+		} else if reply.CoordinatorEpoch == s.permit.CoordinatorEpoch && reply.Error != "" {
+			// OwnerClient returns this reply only after full signature and
+			// request-hash verification. Preserve the Store rejection without
+			// clearing the session or requesting another recovery reservation.
+			return reply, errors.New(reply.Error)
+		} else if err == nil {
+			err = s.verifyReply(reply, id)
+		}
+	} else if err != nil && reply.Version == 0 && transientSourceError(err) {
+		err = &ownerExecutionRecoveryError{cause: err}
+	} else if err == nil {
+		err = errors.New("owner_execution_reply_rejected")
 	}
 	if err != nil {
 		s.owner.offline(s, err)
@@ -329,9 +370,10 @@ func (s *ownerExecutionSession) verifyStatus(reply contract.OwnerRPCReply, id, s
 
 func (s *ownerExecutionSession) status(ctx context.Context, kind, id string, body any, expected string) error {
 	reply, err := s.call(ctx, kind, id, body)
-	if err == nil {
-		err = s.verifyStatus(reply, id, expected)
+	if err != nil {
+		return err
 	}
+	err = s.verifyStatus(reply, id, expected)
 	if err != nil {
 		s.owner.offline(s, err)
 	}
