@@ -160,6 +160,15 @@ func (s *hostRecoveryState) readFile() ([]byte, error) {
 }
 
 func (s *hostRecoveryState) persistBytes(body []byte) error {
+	return s.persistBytesWithHooks(body, recoveryPublicationHooks{})
+}
+
+type recoveryPublicationHooks struct {
+	beforeVerify func(string) error
+	beforeRename func(string) error
+}
+
+func (s *hostRecoveryState) persistBytesWithHooks(body []byte, hooks recoveryPublicationHooks) error {
 	current, err := s.readFile()
 	if s.bytes == nil {
 		if !errors.Is(err, os.ErrNotExist) {
@@ -176,31 +185,72 @@ func (s *hostRecoveryState) persistBytes(body []byte) error {
 		return err
 	}
 	name := ".coordinator-recovery-" + hex.EncodeToString(nonce) + ".new"
-	stage, err := recoveryFileAt(s.directoryFile, name, unix.O_WRONLY|unix.O_CREAT|unix.O_EXCL, 0600)
+	stage, err := recoveryFileAt(s.directoryFile, name, unix.O_RDWR|unix.O_CREAT|unix.O_EXCL, 0600)
 	if err != nil {
 		return err
 	}
+	defer stage.Close()
 	defer unix.Unlinkat(int(s.directoryFile.Fd()), name, 0)
 	if _, err = stage.Write(body); err == nil {
 		err = stage.Sync()
 	}
-	if closeErr := stage.Close(); err == nil {
-		err = closeErr
+	if err == nil && hooks.beforeVerify != nil {
+		err = hooks.beforeVerify(name)
 	}
 	if err == nil {
-		err = s.verifyAuthorityPath()
+		err = s.verifyPublication(stage, name, body)
+	}
+	if err == nil && hooks.beforeRename != nil {
+		err = hooks.beforeRename(name)
 	}
 	if err == nil {
 		err = unix.Renameat(int(s.directoryFile.Fd()), name, int(s.directoryFile.Fd()), recoveryLedgerName)
 	}
-	if err == nil {
-		err = s.verifyAuthorityPath()
+	if err != nil {
+		return err
+	}
+	// The held descriptor survives publication. A substitution between the
+	// precheck and rename must not become a trusted recovery authority.
+	if err = s.verifyPublication(stage, recoveryLedgerName, body); err != nil {
+		removed := unix.Unlinkat(int(s.directoryFile.Fd()), recoveryLedgerName, 0)
+		if errors.Is(removed, unix.ENOENT) {
+			removed = nil
+		}
+		return errors.Join(err, removed, s.directoryFile.Sync())
 	}
 	if err == nil {
 		err = s.directoryFile.Sync()
 	}
 	if err == nil {
-		s.bytes = body
+		s.bytes = append([]byte(nil), body...)
 	}
 	return err
+}
+
+func (s *hostRecoveryState) verifyPublication(stage *os.File, name string, body []byte) error {
+	if err := s.verifyAuthorityPath(); err != nil {
+		return err
+	}
+	held, err := stage.Stat()
+	if err != nil || !privateRecoveryInfo(held, false) || held.Size() != int64(len(body)) {
+		return errors.New("host_recovery_state_changed")
+	}
+	named, err := recoveryFileAt(s.directoryFile, name, unix.O_RDONLY, 0)
+	if err != nil {
+		return errors.New("host_recovery_state_changed")
+	}
+	defer named.Close()
+	info, err := named.Stat()
+	if err != nil || !privateRecoveryInfo(info, false) || !os.SameFile(held, info) {
+		return errors.New("host_recovery_state_changed")
+	}
+	actual, err := io.ReadAll(io.NewSectionReader(stage, 0, int64(len(body)+1)))
+	if err != nil || !bytes.Equal(actual, body) {
+		return errors.New("host_recovery_state_changed")
+	}
+	after, err := stage.Stat()
+	if err != nil || !privateRecoveryInfo(after, false) || after.Size() != held.Size() || !after.ModTime().Equal(held.ModTime()) {
+		return errors.New("host_recovery_state_changed")
+	}
+	return s.verifyAuthorityPath()
 }
