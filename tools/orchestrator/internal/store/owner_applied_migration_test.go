@@ -81,3 +81,22 @@ func TestOriginalOwnerRuntimeMigrationFrom16AndRollback(t *testing.T) {
 		})
 	}
 }
+
+func TestOriginalOwnerRuntimeMigratedPendingRequiresApplied(t *testing.T) {
+	f, i, _ := originalOwnerBound(t)
+	historicalOwnerClaim(t, f)
+	if _, err := f.db.sql.Exec(`UPDATE runtime_hosts SET status='ready'`); err != nil {
+		t.Fatal(err)
+	}
+	downgradeOwnerAppliedSchema(t, f.db)
+	path := f.db.path
+	f.db.Close()
+	db, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err = db.PendingLaunches(context.Background(), i.Scope.ProducerID, 1); err != ErrHostRejected {
+		t.Fatal("v16 ready host replayed grant before applied", err)
+	}
+}

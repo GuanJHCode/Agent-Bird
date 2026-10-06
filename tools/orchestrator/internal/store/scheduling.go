@@ -206,7 +206,7 @@ func (d *DB) PendingLaunches(ctx context.Context, hostID string, epoch uint64) (
 	}
 	rollback := func(e error) ([]contract.LaunchCommand, error) { _ = tx.Rollback(); return nil, e }
 	var registered uint64
-	if err = tx.QueryRowContext(ctx, `SELECT coordinator_epoch FROM runtime_hosts WHERE id=? AND status='ready'`, hostID).Scan(&registered); err != nil || registered != epoch {
+	if err = tx.QueryRowContext(ctx, `SELECT h.coordinator_epoch FROM runtime_hosts h JOIN host_launches l ON l.id=h.launch_id WHERE h.id=? AND h.status='ready' AND (l.execution_owner_mode='legacy' OR EXISTS(SELECT 1 FROM execution_owners e WHERE e.launch_id=l.id AND e.is_current=1 AND e.phase='bound' AND e.control_revision=e.applied_control_revision AND e.current_host_pid=h.pid AND e.current_host_birth=h.birth AND e.coordinator_epoch=h.coordinator_epoch))`, hostID).Scan(&registered); err != nil || registered != epoch {
 		return rollback(ErrHostRejected)
 	}
 	if _, err = tx.ExecContext(ctx, `UPDATE segment_runtime SET execution_epoch=? WHERE host_id=? AND status='launch_requested'`, epoch, hostID); err != nil {
