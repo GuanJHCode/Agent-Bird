@@ -27,6 +27,8 @@ type ownerExecutionConfig struct {
 	reportSocket   string
 	invocation     func(context.Context, contract.LaunchCommand) (contract.InvocationView, error)
 	rpc            ownerExecutionRPC
+	onApplied      func(contract.OwnerControlPermit, contract.OwnerPermitApplied) error
+	onActivated    func(contract.OwnerControlPermit, contract.OwnerPermitApplied) error
 }
 
 type ownerExecution struct {
@@ -141,6 +143,11 @@ func (e *ownerExecution) reconcile(ctx context.Context, permit contract.OwnerCon
 	if err := s.status(ctx, "applied", permit.PermitID+":applied", *e.applied, "applied"); err != nil {
 		return err
 	}
+	if e.cfg.onApplied != nil {
+		if err := e.cfg.onApplied(permit, *e.applied); err != nil {
+			return err
+		}
+	}
 	e.mu.Lock()
 	if e.stopping || e.session != s {
 		e.mu.Unlock()
@@ -155,6 +162,11 @@ func (e *ownerExecution) reconcile(ctx context.Context, permit contract.OwnerCon
 	e.mu.Unlock()
 	if err := s.status(ctx, "activate", permit.PermitID+":activate", *e.applied, "active"); err != nil {
 		return err
+	}
+	if e.cfg.onActivated != nil {
+		if err := e.cfg.onActivated(permit, *e.applied); err != nil {
+			return err
+		}
 	}
 	e.mu.Lock()
 	defer e.mu.Unlock()

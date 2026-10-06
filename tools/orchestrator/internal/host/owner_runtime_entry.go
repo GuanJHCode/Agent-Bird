@@ -94,6 +94,20 @@ func RunOriginalOwner(parent context.Context, cfg OriginalOwnerConfig) error {
 		return err
 	}
 	defer recovery.close()
+	// Replacement-stage writes occur immediately after each durable signed RPC,
+	// so Applied commit and Activate ACK-loss remain distinguishable on disk.
+	execution.cfg.onApplied = func(permit contract.OwnerControlPermit, applied contract.OwnerPermitApplied) error {
+		if recovery.record.OwnerPending == nil || recovery.record.OwnerPending.Phase != "attached" || recovery.record.OwnerPending.PermitSHA256 == "" {
+			return nil
+		}
+		return recovery.markTransportApplied(applied)
+	}
+	execution.cfg.onActivated = func(permit contract.OwnerControlPermit, applied contract.OwnerPermitApplied) error {
+		if recovery.record.OwnerPending == nil || recovery.record.OwnerPending.Phase != "applied" {
+			return nil
+		}
+		return recovery.markTransportActivated(applied)
+	}
 	reader := lifecycle.readControl(ctx, 1, cfg.Control)
 	failures := lifecycle.watchFailures(ctx)
 	origin := lifecycle.watchOrigin(ctx, bound.Binding.Scope)
@@ -365,14 +379,5 @@ func recoverDeadInitialTransport(ctx context.Context, cfg OriginalOwnerConfig, e
 	if err = execution.reconcile(ctx, permit); err != nil {
 		return err
 	}
-	execution.mu.Lock()
-	applied := execution.applied
-	execution.mu.Unlock()
-	if applied == nil {
-		return errOriginalOwnerRuntime
-	}
-	if err = recovery.markTransportApplied(*applied); err != nil {
-		return err
-	}
-	return recovery.markTransportActivated(*applied)
+	return nil
 }
