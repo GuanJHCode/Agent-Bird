@@ -110,6 +110,8 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return taskControl(ctx, ipc.KindResume, args[1:], stdout)
 	case "retry":
 		return retryTask(ctx, args[1:], stdout)
+	case "budget-revise":
+		return reviseBudget(ctx, args[1:], stdout)
 	case "rework":
 		return reworkTask(ctx, args[1:], stdout)
 	case "accept":

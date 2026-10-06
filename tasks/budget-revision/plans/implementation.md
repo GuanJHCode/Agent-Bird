@@ -4,7 +4,7 @@ ROOT冻结2026-10-07。目标：真实公开owner控制命令以显式budget-gro
 
 ## 责任和权限
 
-指定budget_revision_worker为本WT唯一writer，ROOT不互写；你不是唯一协作者，其他WT有ROOT修改，不撤销他人变更。不得派生。负责budget DTO/IPC/CLI/Coordinator/Store schema18、effective caps、生命周期与summary投影、必要回归及本任务记录。不要改owner runtime/签名/process/候选输入/retry profile权限面或详细日志。纯Store/contract测试和build/vet可执行，mac原生进程/CLI/sandbox与Docker token始终ROOT，必须先交可运行用例再由ROOT调度。无账号、用户安装、push/release。可本地commit。
+ROOT已收回本WT唯一写入权，两个实现worker停止写入；其他WT的协作者变更保留，禁止派生。负责budget DTO/IPC/CLI/Coordinator/Store schema18、effective caps、生命周期与summary投影、必要回归及本任务记录。不要改owner runtime/签名/process/候选输入/retry profile权限面或详细日志。Mac原生进程/CLI/sandbox与Docker token始终ROOT，独立审查只读。无账号、用户安装、push/release。可本地commit。
 
 ## 固定契约
 
@@ -28,3 +28,17 @@ ROOT冻结2026-10-07。目标：真实公开owner控制命令以显式budget-gro
 先TDD真实Store RED，再最小实现。每次测试必须 `-count=1 -json`落本WT tasks/budget-revision/data，functions.exec必须text返回exec_command metadata；保存原session并poll至终态，不能把30s观察返回/旧报告/自述当PASS。记录top/named/fail/skip和未验native范围。控制命令和JSON不得泄露真实能力材料。原生CLI测试先准备但无token不执行。
 
 交付：本地commit（含测试/记录），原session和JSON路径/计数、源码位置、未解问题。ROOT独审和原生最终验收后再集成；scope冲突或连续两次无新进展及时交回，不重做已调查模块。
+
+
+## 公开接线阶段（从7aa77db，2026-10-07）
+
+Store/schema/reader已普通+race+Docker Linux验证及独审，不重做。公开阶段原交budget_store_implementation，但其两次提前交回后ROOT再次接管全部写入权；物理/CLI/Docker token仍ROOT。完整实现本brief剩余垂直路径，不停在仅Store ready：
+
+- 冻结最小投影：在现有status TaskSnapshot与summary SummaryTask给policy任务新增可选effective_budget对象，legacy不输出。对象含budget_group_id、revision（明确输出0）、当前group caps与该task的max_attempts/attempt_max_active_ms/task_max_active_ms/segment_max_active_ms；task_id/work_revision可复用外层。RunSummary已包含同run全部任务，owner可按group收集完整request snapshot。保留execution_policy为immutable baseline，勿把它改成effective hash。
+- 既有Summary对policy会用executionCapacity/executionGrant二次投影，注意复用而不是盲目把legacy SQL分支全部改掉；新增ACK slot资格守卫也必须反映到retry allowed_actions，revision未消费slot。
+- lifecycle predicate与RetireHost TX保留pending失败事件原Host，ACK规则严格照固定契约；修releasableTaskPredicate的effective caps旁路。旧已released owner不复活，不扩ordinary HostHello权限。
+- 公开budget-revise严格request解码必须拒绝未知/重复key、超量/过大/非法字段，controller/token从control-file加入；Coordinator在Kind允许列表和mutation处理处复用ValidateDispatchPeer/ValidateTaskOwner。成功revision本身不Start，只让未来显式retry/resume/ready capacity使用新cap。返回canonical原receipt，并由既有调度wake机制处理已有ready/resume_queued。
+- 补普通Store+contract层 failed/四ACK/replay/retention+TX重验/interrupted resume/UNKNOWN/blocked/summary/caps测试；准备实际public CLI fixture（controlled worker，真实Failed/Exited，原Host保留，拒绝旧预算→amend→原slot retry→newworker），可写但无token不执行。fixture不花真实模型/账号，不改测试为假Store流程。
+- 首阶段实现完成后稳定commit与测试证据交ROOT审查/物理验收；发现前置契约冲突先回报，不自行缩小目标。禁止派生、push/安装/发布。
+
+幂等用词澄清：retry的“精确replay”延续docs/runtime-protocols.md的业务action-slot语义，比较task/workrev/source event/hash/segment/nextattempt/fallback，同业务tuple以不同delivery command_id重送也返回原receipt，不创建第二决定；不能为了本功能改变既有legacy合同。budget-revise自身则按command_id + canonical request精确重放，两种去重键不可混同。此点经独立审查核协议及既有review_retry_test.go后确认，原CommandID blocker已撤回。

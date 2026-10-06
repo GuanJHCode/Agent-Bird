@@ -52,6 +52,7 @@ const (
 	KindResume                 Kind = "resume"
 	KindResumeContinuation     Kind = "resume_continuation"
 	KindRetry                  Kind = "retry"
+	KindBudgetRevise           Kind = "budget_revise"
 	KindRework                 Kind = "rework"
 	KindAccept                 Kind = "accept"
 	KindAnswer                 Kind = "answer"

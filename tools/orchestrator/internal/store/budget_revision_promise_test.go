@@ -8,7 +8,7 @@ import (
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 )
 
-func budgetRevisionRuntimeFixture(t *testing.T, task TaskSpec) (budgetBatchFixture, BudgetRevisionCommand) {
+func budgetRevisionRuntimeFixture(t *testing.T, task TaskSpec, additional ...TaskSpec) (budgetBatchFixture, BudgetRevisionCommand) {
 	t.Helper()
 	ctx := context.Background()
 	db, err := Open(filepath.Join(t.TempDir(), "state.db"))
@@ -16,7 +16,7 @@ func budgetRevisionRuntimeFixture(t *testing.T, task TaskSpec) (budgetBatchFixtu
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = db.Close() })
-	submitted, err := db.SubmitPlan(ctx, PlanSpec{Run: RunSpec{ID: "run", ControllerThread: "owner", PlanRevision: 1, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth"}, Host: HostLaunchSpec{OriginContextID: "origin", HostGeneration: "generation", Executable: "/private/bin/host"}, Tasks: []TaskSpec{task}})
+	submitted, err := db.SubmitPlan(ctx, PlanSpec{Run: RunSpec{ID: "run", ControllerThread: "owner", PlanRevision: 1, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth"}, Host: HostLaunchSpec{OriginContextID: "origin", HostGeneration: "generation", Executable: "/private/bin/host"}, Tasks: append([]TaskSpec{task}, additional...)})
 	if err != nil {
 		t.Fatal(err)
 	}

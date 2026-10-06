@@ -29,14 +29,23 @@ type ReleasableTask struct {
 	ConfigGeneration *contract.ConfigGenerationRef
 }
 
+// These expressions share the latest absolute snapshot used by admission.
+// Both enumeration and the config-pin removal TX must see the same caps.
+// Aliases t/r refer to tasks/task_runtime in both callers.
+const latestBudgetRequestSQL = `(SELECT br.request_json FROM budget_revisions br WHERE br.run_id=t.run_id AND br.budget_group_id=r.budget_group_id ORDER BY br.revision DESC LIMIT 1)`
+const effectiveGroupAttemptsSQL = `COALESCE(json_extract(` + latestBudgetRequestSQL + `,'$.group_max_attempts'),(SELECT json_extract(body_json,'$.group_max_attempts') FROM task_execution_policies WHERE task_id=t.id),MIN(t.max_attempts,3))`
+const effectiveTaskAttemptsSQL = `COALESCE((SELECT json_extract(j.value,'$.max_attempts') FROM json_each(` + latestBudgetRequestSQL + `,'$.tasks') j WHERE json_extract(j.value,'$.task_id')=t.id),t.max_attempts)`
+const effectiveTaskTimeSQL = `COALESCE((SELECT json_extract(j.value,'$.task_max_active_ms') FROM json_each(` + latestBudgetRequestSQL + `,'$.tasks') j WHERE json_extract(j.value,'$.task_id')=t.id),json_extract(p.body_json,'$.task_max_active_ms'))`
+const effectiveGroupTimeSQL = `COALESCE(json_extract(` + latestBudgetRequestSQL + `,'$.group_max_active_ms'),json_extract(p.body_json,'$.group_max_active_ms'))`
+
 const releasableTaskPredicate = `(t.status IN ('completed','cancelled','budget_exhausted','blocked_dependency')
 	        OR (t.status='failed' AND (
           EXISTS(SELECT 1 FROM attempts a JOIN segment_runtime s ON s.attempt_id=a.id WHERE a.task_id=t.id AND a.attempt_no=(SELECT MAX(attempt_no) FROM attempts WHERE task_id=t.id) AND s.segment_id=(SELECT id FROM segments WHERE attempt_id=a.id ORDER BY segment_no DESC LIMIT 1) AND a.status='failed' AND s.status='not_started' AND s.outcome='launch_rejected') OR
-          (SELECT COUNT(*) FROM attempts a JOIN task_runtime ar ON ar.task_id=a.task_id WHERE ar.budget_group_id=r.budget_group_id) >= COALESCE((SELECT json_extract(body_json,'$.group_max_attempts') FROM task_execution_policies WHERE task_id=t.id),MIN(t.max_attempts,3))
+          (SELECT COUNT(*) FROM attempts a JOIN task_runtime ar ON ar.task_id=a.task_id WHERE ar.budget_group_id=r.budget_group_id) >= ` + effectiveGroupAttemptsSQL + `
           OR EXISTS(SELECT 1 FROM task_execution_policies p WHERE p.task_id=t.id AND (
-            (SELECT COUNT(*) FROM attempts WHERE task_id=t.id)>=t.max_attempts OR
-            (SELECT COALESCE(SUM(CASE WHEN b.status='settled' THEN b.used_ms ELSE b.granted_ms END),0) FROM budget_runtime b JOIN segments s ON s.id=b.segment_id JOIN attempts a ON a.id=s.attempt_id WHERE a.task_id=t.id)>=json_extract(p.body_json,'$.task_max_active_ms') OR
-            (SELECT COALESCE(SUM(CASE WHEN status='settled' THEN used_ms ELSE granted_ms END),0) FROM budget_runtime WHERE budget_group_id=r.budget_group_id)>=json_extract(p.body_json,'$.group_max_active_ms'))))))
+            (SELECT COUNT(*) FROM attempts WHERE task_id=t.id)>=` + effectiveTaskAttemptsSQL + ` OR
+            (SELECT COALESCE(SUM(CASE WHEN b.status='settled' THEN b.used_ms ELSE b.granted_ms END),0) FROM budget_runtime b JOIN segments s ON s.id=b.segment_id JOIN attempts a ON a.id=s.attempt_id WHERE a.task_id=t.id)>=` + effectiveTaskTimeSQL + ` OR
+            (SELECT COALESCE(SUM(CASE WHEN status='settled' THEN used_ms ELSE granted_ms END),0) FROM budget_runtime WHERE budget_group_id=r.budget_group_id)>=` + effectiveGroupTimeSQL + `)))))
      AND NOT EXISTS(SELECT 1 FROM decision_attempt_bindings WHERE task_id=t.id AND attempt_id IS NULL AND retired=0)
 	 AND NOT EXISTS (SELECT 1 FROM segment_runtime s JOIN attempts a ON a.id=s.attempt_id WHERE a.task_id=t.id AND s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown'))
 	 AND NOT EXISTS (SELECT 1 FROM runtime_events e WHERE e.task_id=t.id AND e.delivery_status='pending')
@@ -113,6 +122,10 @@ const retirableHostPredicate = `h.status='ready'
  AND NOT EXISTS(SELECT 1 FROM decision_attempt_bindings b JOIN task_runtime r ON r.task_id=b.task_id WHERE r.host_launch_id=h.launch_id AND b.attempt_id IS NULL AND b.retired=0)
 	 AND NOT EXISTS (SELECT 1 FROM task_runtime r JOIN tasks t ON t.id=r.task_id WHERE r.host_launch_id=h.launch_id AND t.status NOT IN ('completed','result_ready','cancelled','failed','budget_exhausted','blocked_dependency'))
 	 AND NOT EXISTS (SELECT 1 FROM report_events e JOIN report_capabilities c ON c.capability_id=e.capability_id WHERE c.producer_id=h.id AND e.delivery_status='pending_session')
+	 AND NOT EXISTS (SELECT 1 FROM task_runtime r JOIN tasks t ON t.id=r.task_id JOIN task_execution_policies p ON p.task_id=t.id
+	  WHERE r.host_launch_id=h.launch_id AND t.status='failed' AND (
+	   EXISTS(SELECT 1 FROM runtime_events e WHERE e.task_id=t.id AND e.delivery_status='pending') OR
+	   EXISTS(SELECT 1 FROM report_events e JOIN report_capabilities c ON c.capability_id=e.capability_id WHERE c.task_id=t.id AND e.delivery_status IN ('pending','pending_session'))))
 	 AND NOT EXISTS (SELECT 1 FROM segment_runtime s WHERE s.host_id=h.id AND s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown'))`
 
 func (d *DB) RetirableHosts(ctx context.Context) ([]string, error) {

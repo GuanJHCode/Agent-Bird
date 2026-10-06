@@ -118,7 +118,7 @@ func TestWorkerPeerCannotUseMainAgentControlKinds(t *testing.T) {
 		t.Fatal(err)
 	}
 	raw, _ := json.Marshal(TaskControlRequest{TaskID: "task", ControllerThread: "master", ControlToken: receipt.ControlToken})
-	for _, kind := range []ipc.Kind{ipc.KindRecoverHost, ipc.KindResume, ipc.KindRetry, ipc.KindRework, ipc.KindAccept, ipc.KindAnswer, ipc.KindStopTask, ipc.KindAck, ipc.KindCollect, ipc.KindWaitEvents, ipc.KindSummary, ipc.KindStatus} {
+	for _, kind := range []ipc.Kind{ipc.Kind("budget_revise"), ipc.KindRecoverHost, ipc.KindResume, ipc.KindRetry, ipc.KindRework, ipc.KindAccept, ipc.KindAnswer, ipc.KindStopTask, ipc.KindAck, ipc.KindCollect, ipc.KindWaitEvents, ipc.KindSummary, ipc.KindStatus} {
 		response, err := ipc.Call(ctx, server.SocketPath(), ipc.Envelope{Version: 1, Kind: kind, RequestID: "worker", Payload: raw})
 		if err != nil || response.Kind != ipc.KindError || !strings.Contains(string(response.Payload), "worker_dispatch_forbidden") {
 			t.Errorf("worker %s reached controller path: %s %v", kind, response.Payload, err)
@@ -206,7 +206,7 @@ func TestUnidentifiedLaunchDefersUnboundPeerDispatchControls(t *testing.T) {
 	}
 	control := TaskControlRequest{TaskID: "task", ControllerThread: "master", ControlToken: receipt.ControlToken}
 	raw, _ := json.Marshal(control)
-	for _, kind := range []ipc.Kind{ipc.KindRecoverHost, ipc.KindRebindOwner, ipc.KindResume, ipc.KindRetry, ipc.KindRework, ipc.KindAccept, ipc.KindAnswer} {
+	for _, kind := range []ipc.Kind{ipc.Kind("budget_revise"), ipc.KindRecoverHost, ipc.KindRebindOwner, ipc.KindResume, ipc.KindRetry, ipc.KindRework, ipc.KindAccept, ipc.KindAnswer} {
 		response, err := ipc.Call(ctx, server.SocketPath(), ipc.Envelope{Version: 1, Kind: kind, RequestID: "control", Payload: raw})
 		if err != nil || response.Kind != ipc.KindError || !strings.Contains(string(response.Payload), "owner_registration_deferred") {
 			t.Errorf("unbound peer reached %s: response_kind=%s err=%v", kind, response.Kind, err)

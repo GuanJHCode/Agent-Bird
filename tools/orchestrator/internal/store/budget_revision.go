@@ -47,6 +47,29 @@ type BudgetRevisionReceipt struct {
 	RequestJSON   string `json:"request_json"`
 }
 
+// EffectiveBudgetSnapshot exposes the current absolute caps without replacing
+// the immutable execution policy or changing any outstanding grant.
+type EffectiveBudgetSnapshot struct {
+	BudgetGroupID      string `json:"budget_group_id"`
+	Revision           int    `json:"revision"`
+	GroupMaxAttempts   int    `json:"group_max_attempts"`
+	GroupMaxActiveMS   int64  `json:"group_max_active_ms"`
+	MaxAttempts        int    `json:"max_attempts"`
+	AttemptMaxActiveMS int64  `json:"attempt_max_active_ms"`
+	TaskMaxActiveMS    int64  `json:"task_max_active_ms"`
+	SegmentMaxActiveMS int64  `json:"segment_max_active_ms"`
+}
+
+func (b executionBudget) snapshot() *EffectiveBudgetSnapshot {
+	if b.policy == nil {
+		return nil
+	}
+	return &EffectiveBudgetSnapshot{BudgetGroupID: b.group, Revision: b.revision,
+		GroupMaxAttempts: b.groupAttempts, GroupMaxActiveMS: b.groupMS,
+		MaxAttempts: b.taskAttempts, AttemptMaxActiveMS: b.attemptMS,
+		TaskMaxActiveMS: b.taskMS, SegmentMaxActiveMS: b.segmentMS}
+}
+
 func canonicalBudgetRevisionRequest(req BudgetRevisionRequest) (BudgetRevisionRequest, string, error) {
 	if req.BudgetGroupID == "" || req.ExpectedRevision < 0 || req.CommandID == "" || len(req.CommandID) > 128 || len(req.Tasks) == 0 || len(req.Tasks) > 64 {
 		return req, "", CodeError("budget_revision_invalid")

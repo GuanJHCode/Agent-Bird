@@ -1,0 +1,260 @@
+{
+  "base": "7aa77dbdaa96dab6cee480977f7d19aadf42458f",
+  "scope": "public budget-revise CLI function + real Coordinator IPC/peer authorization; Store failure/ACK/lifecycle, effective snapshots, resume/UNKNOWN/blocked boundary",
+  "evidence": [
+    {
+      "file": "root-lifecycle-scope-red.jsonl",
+      "session": 11134,
+      "tool_exit": 1,
+      "top": 0,
+      "named": 1,
+      "failed_named": 8,
+      "skipped": 0,
+      "packages": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "outcome": "fail"
+        }
+      ],
+      "sha256": "2d6b5f9a04d26c3ca55aa5995ca8d2f186a31f12ece2f9a904a0d825455c3ab9"
+    },
+    {
+      "file": "root-lifecycle-scope-green.jsonl",
+      "session": 59577,
+      "tool_exit": 0,
+      "top": 3,
+      "named": 9,
+      "failed_named": 0,
+      "skipped": 0,
+      "packages": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "outcome": "pass"
+        }
+      ],
+      "sha256": "0b458ee6c47ec5c2f7453eb7d5a7aaa7b7e406620174c8525fdde8f52b07e25d"
+    },
+    {
+      "file": "root-projection-red.jsonl",
+      "session": 77370,
+      "tool_exit": 1,
+      "top": 0,
+      "named": 1,
+      "failed_named": 7,
+      "skipped": 0,
+      "packages": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "outcome": "fail"
+        }
+      ],
+      "sha256": "bc1d0aac9964bd3ecaedfa44f4ecd5fb6ae6dae9baac46d142fefc6397c00ff6"
+    },
+    {
+      "file": "root-projection-red-v2.jsonl",
+      "session": 13369,
+      "tool_exit": 1,
+      "top": 0,
+      "named": 1,
+      "failed_named": 7,
+      "skipped": 0,
+      "packages": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "outcome": "fail"
+        }
+      ],
+      "sha256": "2dda7d04e306f9671e4fb9b77e9d02ec37404aa0c288b38136d7f0f1a3c1bc0b"
+    },
+    {
+      "file": "root-projection-green.jsonl",
+      "session": 7028,
+      "tool_exit": 0,
+      "top": 16,
+      "named": 36,
+      "failed_named": 0,
+      "skipped": 0,
+      "packages": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "outcome": "pass"
+        }
+      ],
+      "sha256": "dd6f2cc66528b470b7ce25ca9882a693de58a41c0246f5cbbfa6d6a6096c4c60"
+    },
+    {
+      "file": "root-public-red.jsonl",
+      "session": 82656,
+      "tool_exit": 1,
+      "top": 0,
+      "named": 0,
+      "failed_named": 15,
+      "skipped": 0,
+      "packages": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+          "outcome": "fail"
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator",
+          "outcome": "fail"
+        }
+      ],
+      "sha256": "1400c2633c7d503fcb891284b2ee0aff173ba8aa9606fdcb570389e23dc8b214"
+    },
+    {
+      "file": "root-public-green.jsonl",
+      "session": 94683,
+      "tool_exit": 0,
+      "top": 4,
+      "named": 23,
+      "failed_named": 0,
+      "skipped": 0,
+      "packages": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+          "outcome": "pass"
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator",
+          "outcome": "pass"
+        }
+      ],
+      "sha256": "71b34ecd9e82e25270e624b163a300bab7a67dbb6fcdcc8c680c93cf9925f04f"
+    },
+    {
+      "file": "root-public-full-store.jsonl",
+      "session": 77626,
+      "tool_exit": 0,
+      "top": 330,
+      "named": 884,
+      "failed_named": 0,
+      "skipped": 0,
+      "packages": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "outcome": "pass"
+        }
+      ],
+      "sha256": "1660ede518462a7000772689832f1b981530ba000d710bb0c0be214f817b88c0"
+    },
+    {
+      "file": "root-public-race.jsonl",
+      "session": 41966,
+      "tool_exit": 1,
+      "top": 30,
+      "named": 81,
+      "failed_named": 1,
+      "skipped": 0,
+      "packages": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "outcome": "fail"
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+          "outcome": "pass"
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator",
+          "outcome": "pass"
+        }
+      ],
+      "sha256": "1de8af0c36eb67fe972f7d386b36b0ab8235132b7421f0e23177f15f7c53e441"
+    },
+    {
+      "file": "root-public-race-v2.jsonl",
+      "session": 66846,
+      "tool_exit": 0,
+      "top": 2,
+      "named": 4,
+      "failed_named": 0,
+      "skipped": 0,
+      "packages": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "outcome": "pass"
+        }
+      ],
+      "sha256": "c87ed39b37abce38cd8cd0fae379e97f48eb2da151eef46ba965e6b7c24b5f81"
+    },
+    {
+      "file": "root-public-final-normal.jsonl",
+      "session": 72832,
+      "tool_exit": 0,
+      "top": 4,
+      "named": 6,
+      "failed_named": 0,
+      "skipped": 0,
+      "packages": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "outcome": "pass"
+        }
+      ],
+      "sha256": "bb7498db9dc5b194ebe9793677be455a10a931b4ad4408756356f2a099e407f3"
+    }
+  ],
+  "effective_race": {
+    "top": 31,
+    "named": 82,
+    "fail": 0,
+    "skip": 0
+  },
+  "reuse": "race v1 overall FAILED solely because UNKNOWN fixture had no free global slot. v2 leaves another slot free and requires ErrNoReady; it also replaces policy retention/replay assertions. All other v1 named pass cases are unaffected and reused, never sum duplicate cases.",
+  "fixture_failures": [
+    "projection-red v1 task/group attempt-cap subcases used an incompatible explicit retry backoff; Retry=nil v2 then produced valid cap REDs",
+    "public-race v1 UNKNOWN expected ErrNoReady but got no_execution_slot; changed fixture capacity to 2, no production change"
+  ],
+  "checks": {
+    "build_session": 64838,
+    "build_exit": 0,
+    "vet_chunk": "950e6f",
+    "vet_exit": 0,
+    "diff_check_exit": 0
+  },
+  "review": "Independent candidate_retry_review overall PASS after retracting command-id objection against existing action-slot protocol; production unchanged since review.",
+  "linux": {
+    "build_session": 19752,
+    "run_session": 93801,
+    "tool_exit": 0,
+    "container": "2cd11ecffb640c0e72bdcfd6dbb32d235b7a3bbacc826e5bce6ab9d75c8cdc9e",
+    "container_exit": 0,
+    "removed_and_inspect_absent": true,
+    "image": "sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99",
+    "top": 19,
+    "named": 39,
+    "fail": 0,
+    "skip": 0,
+    "scope": "Linux arm64 pure Store; no race, CLI or Provider",
+    "sha256": {
+      "root-public-linux-store.test": "ec94a1faf3bb083a58353116bbe29b56178ef834053e1cd88650298e359b3cde",
+      "root-public-linux.log": "f230b881d34fd6b546c28487e529cd225d2934136eda9d903f775ea125cbf661",
+      "root-public-linux-container-state.json": "20bc0b5a3be261a08b4fcf1e01f57c0e67cb5d2ffce1748636c159d48fb7784f",
+      "root-public-linux-removed-check.log": "7e69ed3fa5d0e3fb031ef10494377a9cfeaeef5e6d6d37f041bc85f7ac2a8e18"
+    }
+  },
+  "source_sha256": {
+    "cmd/orchestrator/budget_revision.go": "2d1ed136629f2a9571c73c75165f180af486993375f2899067e662384588e792",
+    "cmd/orchestrator/budget_revision_test.go": "3a625f470282693cfccec863a8443e371a0ae845a6dcab4e8d18c5e2b1939989",
+    "cmd/orchestrator/main.go": "e391a5abe1f875ee2ead2e9f64da361b8ee13fab3816f0cf56d0b943d562d3e1",
+    "internal/coordinator/budget_revision.go": "83178bb0d659f7309e26b70def43396eb4fa9774d91e7ab6dd8f57f1ddf07a70",
+    "internal/coordinator/server.go": "02e2da5cb14e442882767ca063f6425f7dba2399373707609ccd2d4a0d56c910",
+    "internal/coordinator/local_owner_test.go": "6d02a9542a1fbb3e39fa8377831b2284c0e1373613fb54c0b3bf97be9aaa9a61",
+    "internal/ipc/ipc.go": "5c46cfae024cf874dbea5db1b77cf6af50a1e54a4a2b0f5b6a4fcadf7c4bb508",
+    "internal/store/budget_revision.go": "6bb31cdf832d2179ce9ea967eb925f9b2112d36b194fe9a5b82f492139e92799",
+    "internal/store/budget_revision_decode.go": "d36b8256106d651d0526128c79af10ec33d769d6191b83b7fe83b475430d39b0",
+    "internal/store/budget_revision_lifecycle_test.go": "44a167d8c9b154288c10f99bdb958f444790ad6679074dc0b7584a09b4abf431",
+    "internal/store/budget_revision_promise_test.go": "df6e8cf6bfdd0b5601b53e43e996b546000d53319250fb3c4e46a0a8cde2b579",
+    "internal/store/decisions.go": "708a0fdc0983c42aa1121a833103ca791f0bf52bb0914ec30077b312bd224dd4",
+    "internal/store/lifecycle.go": "430a7fb090631eaffe32e38687db985644c2570a4495dc84e0510864aa2ef412",
+    "internal/store/snapshot.go": "4a57deef2fd1d2530431fec501d4a4a5ccd82c2f87f4fce0994c974372f434f9",
+    "internal/store/summary.go": "73c0418a16bba02893de25141df9fd85c7e242e4971df31d39992550f25c2e7c"
+  },
+  "limits": [
+    "Native built public CLI: actual worker Failed/Exited -> old cap refusal -> revision -> same failure slot retry -> new worker still pending",
+    "Interrupted/UNKNOWN/blocked proofs use real Store events, not native Provider execution",
+    "Detailed logs remain separate F02 work",
+    "Unintegrated; F02 and full F01-F13 goal remain open"
+  ]
+}
