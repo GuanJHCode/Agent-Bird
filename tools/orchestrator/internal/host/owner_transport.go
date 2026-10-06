@@ -56,11 +56,26 @@ func RunInitialOwnerTransport(ctx context.Context, cfg InitialOwnerTransportConf
 	if cfg.Control == nil || cfg.Connection == nil || cfg.Bootstrap.Validate() != nil {
 		return errOwnerTransportProtocol
 	}
-	identity, err := ownerProcessIdentity(ctx, cfg.Bootstrap.StateDir, cfg.Bootstrap.Intent.Scope, cfg.Bootstrap.Intent.FirstHost)
+	validate, cancel := context.WithTimeout(ctx, 5*time.Second)
+	identity, err := initialTransportProcessIdentity(validate, cfg.Bootstrap)
+	cancel()
 	if err != nil {
 		return err
 	}
 	return runOwnerTransportLoopWithInitial(ctx, cfg.Bootstrap, identity, cfg.Control, &ownerTransportInitialSession{connection: cfg.Connection, pending: cfg.Pending, token: cfg.InitialToken})
+}
+
+func initialTransportProcessIdentity(ctx context.Context, b contract.OwnerTransportBootstrap) (contract.OriginalOwnerTransport, error) {
+	identity, err := ownerCurrentProcessIdentity(ctx, b.StateDir, b.Intent.Scope)
+	if err != nil {
+		return contract.OriginalOwnerTransport{}, err
+	}
+	// The initial Source Host is the signed first transport itself, not a
+	// child of that transport. Only owner/replacement roles inherit a parent.
+	if identity != b.Intent.FirstHost {
+		return contract.OriginalOwnerTransport{}, errOwnerTransportProtocol
+	}
+	return identity, nil
 }
 
 // VerifyInitialOwnerBound verifies the owner-process proof received on FD4
@@ -84,11 +99,20 @@ func ownerProcessIdentity(ctx context.Context, stateDir string, scope contract.O
 	if parent.PID != os.Getppid() {
 		return zero, errOwnerTransportProtocol
 	}
-	for _, p := range []contract.OriginalOwnerTransport{{PID: parent.PID, Birth: parent.Birth}, {PID: scope.OriginalOriginPID, Birth: scope.OriginalOriginBirth}} {
-		birth, err := process.BirthContext(ctx, p.PID)
-		if err != nil || birth != p.Birth {
-			return zero, errOwnerTransportProtocol
-		}
+	birth, err := process.BirthContext(ctx, parent.PID)
+	if err != nil || birth != parent.Birth {
+		return zero, errOwnerTransportProtocol
+	}
+	return ownerCurrentProcessIdentity(ctx, stateDir, scope)
+}
+
+// Role-specific callers first establish the required self/parent relationship;
+// all roles retain the same live origin, private state and executable checks.
+func ownerCurrentProcessIdentity(ctx context.Context, stateDir string, scope contract.OriginalOwnerScope) (contract.OriginalOwnerTransport, error) {
+	var zero contract.OriginalOwnerTransport
+	birth, err := process.BirthContext(ctx, scope.OriginalOriginPID)
+	if err != nil || birth != scope.OriginalOriginBirth {
+		return zero, errOwnerTransportProtocol
 	}
 	state, err := filepath.EvalSymlinks(stateDir)
 	if err != nil || state != stateDir {
@@ -111,7 +135,7 @@ func ownerProcessIdentity(ctx context.Context, stateDir string, scope contract.O
 	if err != nil || digest != scope.ExecutableSHA256 {
 		return zero, errOwnerTransportProtocol
 	}
-	birth, err := process.BirthContext(ctx, os.Getpid())
+	birth, err = process.BirthContext(ctx, os.Getpid())
 	if err != nil {
 		return zero, err
 	}
@@ -291,6 +315,16 @@ func runOwnerTransportLoopWithInitial(parent context.Context, bootstrap contract
 				continue
 			}
 			frame := read.message
+			if frame.Kind == ipc.KindHostReady {
+				// Activate also acknowledges this retained HostHello session.
+				// This unsigned status stays in the transport; only signed owner
+				// commands may cross FD4 and influence execution admission.
+				var ready contract.HostReady
+				if contract.DecodeOwnerRuntimeStrict(frame.Payload, &ready) != nil || frame.RequestID != bootstrap.Intent.Scope.LaunchID || frame.Epoch != minimumEpoch || ready.CoordinatorEpoch != frame.Epoch || ready.HostID != bootstrap.Intent.Scope.ProducerID {
+					return errOwnerTransportProtocol
+				}
+				continue
+			}
 			command, err := contract.DecodeOwnerCommand(frame.Payload)
 			if err != nil || frame.Kind != ipc.KindOwnerCommand || frame.RequestID != command.RequestID || frame.Epoch != minimumEpoch || frame.Epoch != command.Permit.CoordinatorEpoch || command.Permit.OwnerID != bootstrap.Intent.Scope.OwnerID || command.Permit.ScopeSHA256 != scope || command.Permit.OwnerIdentitySHA256 != owner || command.Permit.NewHost != identity || contract.VerifyOwnerCommand(command, key, command.Permit) != nil {
 				return errOwnerTransportProtocol

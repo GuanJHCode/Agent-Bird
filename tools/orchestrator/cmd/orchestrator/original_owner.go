@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -130,10 +132,11 @@ func runInitialOriginalOwner(ctx context.Context, bootstrap hostBootstrap) (bool
 	if err != nil {
 		return true, err
 	}
-	bootstrapToken, err := randomValue("owner-bootstrap-token")
-	if err != nil {
+	var bootstrapSecret [32]byte
+	if _, err = rand.Read(bootstrapSecret[:]); err != nil {
 		return true, err
 	}
+	bootstrapToken := hex.EncodeToString(bootstrapSecret[:])
 	tokenHash, err := contract.OriginalOwnerBootstrapSHA256(bootstrapToken)
 	if err != nil {
 		return true, err

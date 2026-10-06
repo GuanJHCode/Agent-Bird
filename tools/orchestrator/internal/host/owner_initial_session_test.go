@@ -46,6 +46,12 @@ func TestOwnerTransportInitialSessionRetainsConnectionAndCredential(t *testing.T
 	go func() {
 		done <- runOwnerTransportLoopWithInitial(ctx, b, b.Intent.FirstHost, control, &ownerTransportInitialSession{connection: connection, pending: frame, token: token})
 	}()
+	// The real Coordinator emits this informational acknowledgement before
+	// signed commands after Activate. It is not execution authority for FD4.
+	ready, _ := json.Marshal(contract.HostReady{HostID: b.Intent.Scope.ProducerID, CoordinatorEpoch: bound.Permit.CoordinatorEpoch})
+	if err := ipc.Write(coordinator, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindHostReady, RequestID: b.Intent.Scope.LaunchID, Epoch: bound.Permit.CoordinatorEpoch, Payload: ready}); err != nil {
+		t.Fatal(err)
+	}
 	command, err := contract.SignOwnerCommand(contract.OwnerCommand{Version: 1, Permit: bound.Permit, Kind: "terminal", RequestID: "command", Body: json.RawMessage(`{"reason":"host_retired"}`)}, key)
 	if err != nil {
 		t.Fatal(err)
@@ -131,6 +137,57 @@ func TestInitialOwnerBoundPinsActualChildAndCompleteSignedReply(t *testing.T) {
 			}
 			if _, err := verifyInitialOwnerBound(e.bootstrap, identity, wrong); !errors.Is(err, errOwnerEnrollment) {
 				t.Fatal("initial transport accepted foreign/incomplete owner", err)
+			}
+		})
+	}
+}
+
+func TestInitialTransportRejectsForeignReady(t *testing.T) {
+	for _, kind := range []string{"request", "epoch", "payload_epoch", "host", "unknown_field"} {
+		t.Run(kind, func(t *testing.T) {
+			e, bound, _ := ownerEnrollmentFixture(t)
+			b := contract.OwnerTransportBootstrap{Version: 1, StateDir: e.bootstrap.StateDir, Intent: e.bootstrap.Prepared.Intent, Owner: bound.Binding.Owner, CoordinatorPublicKey: e.bootstrap.Prepared.CoordinatorPublicKey}
+			pending, _ := json.Marshal(contract.OwnerHostPending{Version: 1, HostID: b.Intent.Scope.ProducerID, CoordinatorEpoch: b.Intent.CoordinatorEpoch, CoordinatorPublicKey: b.CoordinatorPublicKey})
+			initial := ipc.Envelope{Version: ipc.Version, Kind: ipc.KindOwnerHostPending, RequestID: b.Intent.Scope.LaunchID, Epoch: b.Intent.CoordinatorEpoch, Payload: pending}
+			control, owner := ownerRuntimeControlPair(t)
+			connection, coordinator := net.Pipe()
+			defer coordinator.Close()
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			done := make(chan error, 1)
+			go func() {
+				done <- runOwnerTransportLoopWithInitial(ctx, b, b.Intent.FirstHost, control, &ownerTransportInitialSession{connection, initial, "initial-token"})
+			}()
+			ready := contract.HostReady{HostID: b.Intent.Scope.ProducerID, CoordinatorEpoch: b.Intent.CoordinatorEpoch}
+			frame := ipc.Envelope{Version: ipc.Version, Kind: ipc.KindHostReady, RequestID: b.Intent.Scope.LaunchID, Epoch: b.Intent.CoordinatorEpoch}
+			switch kind {
+			case "request":
+				frame.RequestID = "foreign"
+			case "epoch":
+				frame.Epoch++
+			case "payload_epoch":
+				ready.CoordinatorEpoch++
+			case "host":
+				ready.HostID = "foreign"
+			}
+			frame.Payload, _ = json.Marshal(ready)
+			if kind == "unknown_field" {
+				frame.Payload = append(frame.Payload[:len(frame.Payload)-1], []byte(`,"launch":true}`)...)
+			}
+			if err := ipc.Write(coordinator, frame); err != nil {
+				t.Fatal(err)
+			}
+			select {
+			case err := <-done:
+				if !errors.Is(err, errOwnerTransportProtocol) {
+					t.Fatal("foreign readiness accepted", err)
+				}
+			case <-time.After(time.Second):
+				t.Fatal("foreign readiness did not terminate relay")
+			}
+			_ = owner.SetReadDeadline(time.Now().Add(time.Second))
+			if _, err := ipc.Read(owner); err == nil {
+				t.Fatal("unsigned readiness crossed owner channel")
 			}
 		})
 	}
