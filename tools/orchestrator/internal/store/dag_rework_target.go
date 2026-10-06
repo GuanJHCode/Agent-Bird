@@ -381,7 +381,7 @@ func admitLegacyReworkTarget(ctx context.Context, tx *sql.Tx, artifact reworkArt
 // cannot make that reservation disappear. Classify every outstanding decision
 // before deciding that the compatibility fast path contains only legacy work.
 func outstandingDAGTargets(ctx context.Context, tx *sql.Tx) (map[string]dagReworkTarget, error) {
-	rows, err := tx.QueryContext(ctx, `SELECT b.action_slot,b.task_id,b.target_work_revision,b.reserved_active_ms FROM decision_attempt_bindings b JOIN task_runtime t ON t.task_id=b.task_id WHERE json_extract(t.adapter_payload,'$.candidate_action.operation')='integrate' AND b.retired=0 AND (b.attempt_id IS NULL OR EXISTS(SELECT 1 FROM segment_runtime s WHERE s.attempt_id=b.attempt_id AND s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown')))`)
+	rows, err := tx.QueryContext(ctx, `SELECT b.action_slot,b.task_id,b.target_work_revision,b.reserved_active_ms FROM decision_attempt_bindings b WHERE b.retired=0 AND (b.attempt_id IS NULL OR EXISTS(SELECT 1 FROM segment_runtime s WHERE s.attempt_id=b.attempt_id AND s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown')))`)
 	if err != nil {
 		return nil, err
 	}
@@ -409,7 +409,24 @@ func outstandingDAGTargets(ctx context.Context, tx *sql.Tx) (map[string]dagRewor
 		if err != nil {
 			return nil, CodeError("rework_target_scope_unresolved")
 		}
+		current, err := readDecisionTask(ctx, tx, b.task)
+		if err != nil || current.revision != b.revision {
+			return nil, CodeError("rework_target_scope_unresolved")
+		}
 		switch kind {
+		case "ordinary":
+			// Ordinary retries cannot authorize a candidate stage or a new revision.
+			if record.task != b.task || record.revision != b.revision || candidateManaged([]byte(current.payload)) {
+				return nil, CodeError("rework_target_scope_unresolved")
+			}
+		case reviewRetryKind:
+			retry, err := parseReviewRetry(record.payload)
+			if err != nil || record.task != b.task || record.revision != b.revision || retry.AdapterSHA256 != runtimeHash(current.payload) {
+				return nil, CodeError("rework_target_scope_unresolved")
+			}
+			if _, err = reviewRetryProfile([]byte(current.payload)); err != nil {
+				return nil, CodeError("rework_target_scope_unresolved")
+			}
 		case "rework":
 			var saved reworkDecision
 			if strictDecisionJSON(record.payload, &saved) != nil || saved.Spec.Version != 0 || saved.Receipt.Version != 0 || saved.Receipt.ClosureSHA256 != "" || saved.Receipt.TaskRevisions[b.task] != b.revision {
@@ -422,6 +439,23 @@ func outstandingDAGTargets(ctx context.Context, tx *sql.Tx) (map[string]dagRewor
 			saved, err := parseDAGRework(record.payload)
 			if err != nil || saved.Receipt.TaskRevisions[b.task] != b.revision || b.reservedMS <= 0 {
 				return nil, CodeError("rework_target_scope_unresolved")
+			}
+			var revised json.RawMessage
+			for _, node := range saved.Nodes {
+				if node.TaskID == b.task {
+					revised = node.Revised
+					break
+				}
+			}
+			if len(revised) == 0 || string(revised) != current.payload {
+				return nil, CodeError("rework_target_scope_unresolved")
+			}
+			p, err := adapter.DecodeInvocationPayload(revised)
+			if err != nil {
+				return nil, CodeError("rework_target_scope_unresolved")
+			}
+			if p.CandidateAction == nil || p.CandidateAction.Operation != "integrate" {
+				continue
 			}
 			target, ok := saved.Targets[b.task]
 			if !ok {

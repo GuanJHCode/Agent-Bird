@@ -680,7 +680,7 @@ func dagIndependentLegacyChain(tasks []TaskSpec) []TaskSpec {
 }
 
 func TestDAGReworkLaterLegacyDecisionCannotPoisonTargetPromise(t *testing.T) {
-	for _, corrupt := range []string{"intact", "remove_version", "bad_json"} {
+	for _, corrupt := range []string{"intact", "remove_version", "bad_json", "task_payload"} {
 		t.Run(corrupt, func(t *testing.T) {
 			f := newDAGReworkFixture(t, adapter.ProviderClaude, adapter.ProviderClaude, dagIndependentLegacyChain)
 			ctx := context.Background()
@@ -718,6 +718,9 @@ func TestDAGReworkLaterLegacyDecisionCannotPoisonTargetPromise(t *testing.T) {
 				query := `UPDATE retry_decisions SET revision_payload=json_remove(revision_payload,'$.request.version')`
 				if corrupt == "bad_json" {
 					query = `UPDATE retry_decisions SET revision_payload='{'`
+				}
+				if corrupt == "task_payload" {
+					query = `UPDATE task_runtime SET adapter_payload='{"kind":"fake"}' WHERE task_id='integrate'`
 				}
 				if _, err = f.db.sql.Exec(query); err != nil {
 					t.Fatal(err)
@@ -823,6 +826,9 @@ func TestDAGReworkMalformedMarkerCannotEvadeBindingGuard(t *testing.T) {
 			if corrupt == "bad_json" {
 				query = `UPDATE retry_decisions SET revision_payload='{'`
 			}
+			if corrupt == "task_payload" {
+				query = `UPDATE task_runtime SET adapter_payload='{"kind":"fake"}' WHERE task_id='integrate'`
+			}
 			if _, err := f.db.sql.Exec(query); err != nil {
 				t.Fatal(err)
 			}
@@ -835,7 +841,7 @@ func TestDAGReworkMalformedMarkerCannotEvadeBindingGuard(t *testing.T) {
 }
 
 func TestDAGReworkCorruptPromiseCannotDisappearFromDispatch(t *testing.T) {
-	for _, corrupt := range []string{"remove_version", "bad_json"} {
+	for _, corrupt := range []string{"remove_version", "bad_json", "task_payload"} {
 		t.Run(corrupt, func(t *testing.T) {
 			f := newConfiguredDAGReworkFixture(t, adapter.ProviderClaude, adapter.ProviderClaude, func(f *dagReworkFixture) {
 				f.acceptResult = func(g contract.LaunchCommand) bool { return g.TaskID != "side-review" }
@@ -863,6 +869,9 @@ func TestDAGReworkCorruptPromiseCannotDisappearFromDispatch(t *testing.T) {
 			query := `UPDATE retry_decisions SET revision_payload=json_remove(revision_payload,'$.request.version')`
 			if corrupt == "bad_json" {
 				query = `UPDATE retry_decisions SET revision_payload='{'`
+			}
+			if corrupt == "task_payload" {
+				query = `UPDATE task_runtime SET adapter_payload='{"kind":"fake"}' WHERE task_id='integrate'`
 			}
 			if _, err = f.db.sql.Exec(query); err != nil {
 				t.Fatal(err)
