@@ -23,10 +23,15 @@ Linux ancestry observes `stat`, effective UID from `status`, and `stat` again
 for each bounded node. Linux group observations scan procfs and fail closed
 when a numeric proc entry cannot be parsed or read; a disappeared entry is
 only accepted when it is absent from the directory snapshot.
+Executable identity compares the kernel object at `/proc/PID/exe` with the
+canonical target using `SameFile`. Ancestry derives its birth from the already
+double-checked stat snapshot and boot ID; it does not issue a third stat read.
 
 `process-milestone-retry.log` covers parser, self, real parent/child/gone,
 and UDS tests. `group-milestone.log` covers a waitable group leader while
 active and after its original Wait. Both logs include post-removal CID checks.
+The post-review pure regressions for inode mismatch, stat reuse, and
+cancellation have cross-compiled but await a newly scheduled native run.
 
 ## Remaining work
 
