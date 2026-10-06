@@ -29,6 +29,7 @@ type ownerRecoveryPending struct {
 }
 type ownerRecoveryRecord struct {
 	Version           int                       `json:"version"`
+	AuthoritySHA256   string                    `json:"authority_sha256"`
 	ScopeSHA256       string                    `json:"scope_sha256"`
 	Attempts          int                       `json:"attempts"`
 	NextAttemptUnixMS int64                     `json:"next_attempt_unix_ms"`
@@ -66,13 +67,18 @@ func openOwnerRecovery(directory, scope string) (*ownerRecoveryState, error) {
 	if err != nil {
 		return nil, err
 	}
-	s := &ownerRecoveryState{file: file, record: ownerRecoveryRecord{Version: 2, ScopeSHA256: scope}}
-	body, err := readPrivateRecoveryFile(file.path)
+	authority, err := file.authoritySHA256()
+	if err != nil {
+		file.close()
+		return nil, err
+	}
+	s := &ownerRecoveryState{file: file, record: ownerRecoveryRecord{Version: 2, ScopeSHA256: scope, AuthoritySHA256: authority}}
+	body, err := file.readFile()
 	if errors.Is(err, os.ErrNotExist) {
 		err = s.commit(s.record)
 	} else if err == nil {
 		var record ownerRecoveryRecord
-		if contract.DecodeOwnerRuntimeStrict(body, &record) != nil || record.ScopeSHA256 != scope || validateOwnerRecovery(record) != nil {
+		if contract.DecodeOwnerRuntimeStrict(body, &record) != nil || record.ScopeSHA256 != scope || record.AuthoritySHA256 != authority || validateOwnerRecovery(record) != nil {
 			err = ownerRecoveryRejected()
 		} else {
 			canonical, _ := json.Marshal(record)
@@ -197,7 +203,7 @@ func (s *ownerRecoveryState) copyRecord() ownerRecoveryRecord {
 }
 
 func validateOwnerRecovery(r ownerRecoveryRecord) error {
-	if r.Version != 2 || len(r.ScopeSHA256) != 64 || r.Attempts < 0 || r.Attempts > 5 || r.NextAttemptUnixMS < 0 || (r.Attempts == 0 && (r.NextAttemptUnixMS != 0 || r.Reservation != nil || r.OwnerPending != nil)) || (r.Attempts > 0 && r.NextAttemptUnixMS == 0) || (r.Unavailable && (r.Attempts != 5 || r.Reservation != nil)) {
+	if r.Version != 2 || len(r.ScopeSHA256) != 64 || len(r.AuthoritySHA256) != 64 || r.Attempts < 0 || r.Attempts > 5 || r.NextAttemptUnixMS < 0 || (r.Attempts == 0 && (r.NextAttemptUnixMS != 0 || r.Reservation != nil || r.OwnerPending != nil)) || (r.Attempts > 0 && r.NextAttemptUnixMS == 0) || (r.Unavailable && (r.Attempts != 5 || r.Reservation != nil)) {
 		return ownerRecoveryRejected()
 	}
 	if p := r.Reservation; p != nil {
@@ -233,7 +239,7 @@ func validateOwnerRecovery(r ownerRecoveryRecord) error {
 }
 
 func (s *ownerRecoveryState) commit(next ownerRecoveryRecord) error {
-	if s.failed || s.file == nil || s.file.lock == nil || next.ScopeSHA256 != s.record.ScopeSHA256 || validateOwnerRecovery(next) != nil {
+	if s.failed || s.file == nil || s.file.lock == nil || next.ScopeSHA256 != s.record.ScopeSHA256 || next.AuthoritySHA256 != s.record.AuthoritySHA256 || validateOwnerRecovery(next) != nil {
 		return ownerRecoveryRejected()
 	}
 	body, err := json.Marshal(next)
@@ -258,11 +264,12 @@ func (s *ownerRecoveryState) verifyCurrent() error {
 	if s.failed || s.file == nil || s.file.lock == nil {
 		return ownerRecoveryRejected()
 	}
-	if err := validateRecoveryDirectory(s.file.directory); err != nil {
+	authority, err := s.file.authoritySHA256()
+	if err != nil || authority != s.record.AuthoritySHA256 {
 		s.failed = true
-		return err
+		return ownerRecoveryRejected()
 	}
-	body, err := readPrivateRecoveryFile(s.file.path)
+	body, err := s.file.readFile()
 	if err != nil || !bytes.Equal(body, s.file.bytes) {
 		s.failed = true
 		return ownerRecoveryRejected()

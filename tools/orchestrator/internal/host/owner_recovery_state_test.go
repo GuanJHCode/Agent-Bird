@@ -351,3 +351,72 @@ func TestOriginalOwnerRecoveryExactReservationReplayDoesNotRewrite(t *testing.T)
 		t.Fatal("exact reservation replay rewrote persistent ledger")
 	}
 }
+
+func TestOriginalOwnerRecoveryRejectsReplacedDirectoryOrLock(t *testing.T) {
+	for _, kind := range []string{"directory", "lock"} {
+		t.Run(kind, func(t *testing.T) {
+			dir := privateRecoveryTestDirectory(t)
+			scope := strings.Repeat("a", 64)
+			s, err := openOwnerRecovery(dir, scope)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer s.close()
+			if _, err = s.reserveTransport(time.UnixMilli(100_000), "pending", 1, contract.OriginalOwnerTransport{PID: 10, Birth: "old"}); err != nil {
+				t.Fatal(err)
+			}
+			if err = s.beginTransportStart(); err != nil {
+				t.Fatal(err)
+			}
+			if err = s.recordTransportStarted(contract.OriginalOwnerTransport{PID: 20, Birth: "child"}); err != nil {
+				t.Fatal(err)
+			}
+			original, _ := os.ReadFile(s.file.path)
+			if kind == "directory" {
+				parked := dir + ".parked"
+				t.Cleanup(func() { _ = os.RemoveAll(parked) })
+				if err = os.Rename(dir, parked); err != nil {
+					t.Fatal(err)
+				}
+				if err = os.Mkdir(dir, 0700); err != nil {
+					t.Fatal(err)
+				}
+				if err = os.WriteFile(filepath.Join(dir, ".coordinator-recovery.json"), original, 0600); err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				lock := filepath.Join(dir, ".coordinator-recovery.lock")
+				if err = os.Rename(lock, lock+".parked"); err != nil {
+					t.Fatal(err)
+				}
+				if err = os.WriteFile(lock, nil, 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if clone, err := openOwnerRecovery(dir, scope); err == nil {
+				clone.close()
+				t.Error("cloned ledger accepted a different directory/flock authority")
+			}
+			if _, err = s.ticketPending(); err == nil {
+				t.Error("original authority followed a replacement directory/flock")
+			}
+			if _, err = s.reserveCoordinator(time.UnixMilli(200_000)); err == nil {
+				t.Error("replacement path accepted mutation")
+			}
+		})
+	}
+}
+
+func TestOriginalOwnerRecoveryUnsafeDirectoryDoesNotCreateLock(t *testing.T) {
+	dir := privateRecoveryTestDirectory(t)
+	if err := os.Chmod(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if opened, err := openOwnerRecovery(dir, strings.Repeat("a", 64)); err == nil {
+		opened.close()
+		t.Fatal("unsafe directory accepted")
+	}
+	if _, err := os.Lstat(filepath.Join(dir, recoveryLockName)); !os.IsNotExist(err) {
+		t.Fatal("unsafe directory rejection created a lock", err)
+	}
+}
