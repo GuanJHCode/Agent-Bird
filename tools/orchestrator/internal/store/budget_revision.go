@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -81,9 +82,12 @@ func (d *DB) ReviseBudget(ctx context.Context, command BudgetRevisionCommand) (B
 	defer d.mu.Unlock()
 	tx, err := d.sql.BeginTx(ctx, nil)
 	if err != nil {
-		return empty, err
+		return empty, mapBudgetRevisionConflict(err)
 	}
-	rollback := func(e error) (BudgetRevisionReceipt, error) { _ = tx.Rollback(); return empty, e }
+	rollback := func(e error) (BudgetRevisionReceipt, error) {
+		_ = tx.Rollback()
+		return empty, mapBudgetRevisionConflict(e)
+	}
 	var runID, controller, tokenHash, anchorGroup string
 	err = tx.QueryRowContext(ctx, `SELECT t.run_id,r.controller_thread,c.token_hash,tr.budget_group_id FROM tasks t JOIN runs r ON r.id=t.run_id JOIN run_control c ON c.run_id=r.id JOIN task_runtime tr ON tr.task_id=t.id WHERE t.id=?`, command.AnchorTaskID).Scan(&runID, &controller, &tokenHash, &anchorGroup)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -147,9 +151,16 @@ func (d *DB) ReviseBudget(ctx context.Context, command BudgetRevisionCommand) (B
 		return rollback(mapConflict(err))
 	}
 	if err = tx.Commit(); err != nil {
-		return empty, err
+		return empty, mapBudgetRevisionConflict(err)
 	}
 	return receipt, nil
+}
+
+func mapBudgetRevisionConflict(err error) error {
+	if err != nil && strings.Contains(err.Error(), "database is locked") {
+		return ErrConflict
+	}
+	return err
 }
 
 func validateBudgetRevisionSnapshot(ctx context.Context, tx *sql.Tx, runID string, req BudgetRevisionRequest, current int) error {
@@ -183,14 +194,14 @@ func validateBudgetRevisionSnapshot(ctx context.Context, tx *sql.Tx, runID strin
 			if err != nil {
 				return err
 			}
-			baselineAttempts, baselineAttemptMS, b.taskMS, b.segmentMS = latest.MaxAttempts, latest.AttemptMaxActiveMS, latest.TaskMaxActiveMS, latest.SegmentMaxActiveMS
+			b.taskAttempts, b.attemptMS, b.taskMS, b.segmentMS = latest.MaxAttempts, latest.AttemptMaxActiveMS, latest.TaskMaxActiveMS, latest.SegmentMaxActiveMS
 			b.groupAttempts, b.groupMS = latest.GroupMaxAttempts, latest.GroupMaxActiveMS
 		}
-		defaultSegment = min(baselineAttemptMS, defaultSegmentActiveMS)
-		if task.MaxAttempts > 16 || task.MaxAttempts < baselineAttempts || task.AttemptMaxActiveMS < baselineAttemptMS || task.TaskMaxActiveMS < b.taskMS || task.SegmentMaxActiveMS < b.segmentMS || task.MaxAttempts > req.GroupMaxAttempts || task.AttemptMaxActiveMS > task.TaskMaxActiveMS || task.TaskMaxActiveMS > req.GroupMaxActiveMS || task.SegmentMaxActiveMS > defaultSegment {
+		defaultSegment = min(task.AttemptMaxActiveMS, defaultSegmentActiveMS)
+		if req.GroupMaxAttempts < b.groupAttempts || req.GroupMaxActiveMS < b.groupMS || task.MaxAttempts > 16 || task.MaxAttempts < b.taskAttempts || task.AttemptMaxActiveMS < b.attemptMS || task.TaskMaxActiveMS < b.taskMS || task.SegmentMaxActiveMS < b.segmentMS || task.MaxAttempts > req.GroupMaxAttempts || task.AttemptMaxActiveMS > task.TaskMaxActiveMS || task.TaskMaxActiveMS > req.GroupMaxActiveMS || task.SegmentMaxActiveMS > defaultSegment {
 			return CodeError("budget_revision_invalid")
 		}
-		increased = increased || task.MaxAttempts > baselineAttempts || task.AttemptMaxActiveMS > baselineAttemptMS || task.TaskMaxActiveMS > b.taskMS || task.SegmentMaxActiveMS > b.segmentMS || req.GroupMaxAttempts > b.groupAttempts || req.GroupMaxActiveMS > b.groupMS
+		increased = increased || task.MaxAttempts > b.taskAttempts || task.AttemptMaxActiveMS > b.attemptMS || task.TaskMaxActiveMS > b.taskMS || task.SegmentMaxActiveMS > b.segmentMS || req.GroupMaxAttempts > b.groupAttempts || req.GroupMaxActiveMS > b.groupMS
 	}
 	if !increased {
 		return CodeError("budget_revision_no_increase")
