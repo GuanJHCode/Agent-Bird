@@ -185,7 +185,7 @@ func (e *ownerExecution) command(raw []byte) error {
 		e.mu.Unlock()
 		return recovery
 	}
-	if s != nil && (command.Permit.ControlRevision < s.permit.ControlRevision || (command.Kind == "launch" && command.Permit.CoordinatorEpoch < e.observedEpoch)) {
+	if s != nil && (command.Permit.ControlRevision < s.permit.ControlRevision || (command.Kind != "stop" && command.Permit.CoordinatorEpoch < e.observedEpoch)) {
 		e.mu.Unlock()
 		return rejectOwnerCommand(ownerCommandStale, errors.New("owner_execution_stale_command"))
 	}

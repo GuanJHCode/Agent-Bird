@@ -86,6 +86,15 @@ func TestOwnerCommandDispositionSeparatesStaleRecoveryAndLocalFailure(t *testing
 				if ownerCommandDisposition(e.command(ownerExecutionSignedLaunch(t, first, key))) != ownerCommandStale {
 					t.Fatal("revoked old epoch reopened admission")
 				}
+				terminal, signErr := contract.SignOwnerCommand(contract.OwnerCommand{Version: 1, Permit: first, Kind: "terminal", RequestID: "old-terminal", Body: json.RawMessage(`{"reason":"host_retired"}`)}, key)
+				if signErr != nil {
+					t.Fatal(signErr)
+				}
+				terminalRaw, _ := json.Marshal(terminal)
+				if ownerCommandDisposition(e.command(terminalRaw)) != ownerCommandStale || e.stopping {
+					t.Fatal("old terminal terminated recovering owner")
+				}
+
 			} else {
 				if kind == "local_failure" {
 					if !e.stopping || e.active || e.admitSignedLaunch {

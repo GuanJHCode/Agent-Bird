@@ -1,8 +1,11 @@
 package host
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -189,5 +192,87 @@ func TestOwnerAdmissionReceivedBeforeRenewalKeepsOriginalClaim(t *testing.T) {
 	e.run.workers.Wait()
 	if invoked.Load() != 1 {
 		t.Fatal("already admitted claim lost or duplicated", invoked.Load())
+	}
+}
+
+func TestOwnerAdmissionStoppedDuplicatePreservesStartingEvidence(t *testing.T) {
+	cfg, permit, key := ownerExecutionFixture(t)
+	e, err := newOwnerExecution(context.Background(), cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer e.run.cancel(context.Canceled)
+	if err = e.reconcile(context.Background(), permit); err != nil {
+		t.Fatal(err)
+	}
+	raw := ownerExecutionSignedLaunch(t, permit, key)
+	signed, err := contract.DecodeOwnerCommand(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var grant contract.LaunchCommand
+	if err = contract.DecodeOwnerRuntimeStrict(signed.Body, &grant); err != nil {
+		t.Fatal(err)
+	}
+	if duplicate, err := cfg.host.acceptGrant(grant); err != nil || duplicate {
+		t.Fatal("initial grant fixture", err)
+	}
+	a := store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID}
+	spool, err := cfg.host.spool(a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Persisted starting is deliberately uncertain; it is not original Wait or
+	// evidence that this repeated command never previously entered Start.
+	if err = spool.WriteMetadata("launch.json", map[string]any{"version": 1, "phase": "starting"}); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(cfg.host.spoolRoot, a.ID, a.SegmentID, "launch.json")
+	before, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	entered, release := make(chan struct{}), make(chan struct{})
+	var released atomic.Bool
+	defer func() {
+		if released.CompareAndSwap(false, true) {
+			close(release)
+		}
+	}()
+	e.acceptGrant = func(g contract.LaunchCommand) (bool, error) {
+		close(entered)
+		<-release
+		return cfg.host.acceptGrant(g)
+	}
+	done := make(chan error, 1)
+	go func() { done <- e.command(raw) }()
+	select {
+	case <-entered:
+	case <-time.After(time.Second):
+		t.Fatal("duplicate admission did not enter")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	e.beginStop(ctx, context.Canceled)
+	released.Store(true)
+	close(release)
+	select {
+	case err = <-done:
+		if ownerCommandDisposition(err) != ownerCommandStopped {
+			t.Fatal("stopped duplicate fabricated settlement", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("duplicate did not join")
+	}
+	if err = e.join(ctx); err != nil {
+		t.Fatal(err)
+	}
+	after, err := os.ReadFile(path)
+	if err != nil || !bytes.Equal(before, after) {
+		t.Fatal("duplicate changed prior starting evidence", err)
+	}
+	records, err := spool.Read()
+	if err != nil || len(records) != 0 {
+		t.Fatal("duplicate produced a false noStart event", err, records)
 	}
 }

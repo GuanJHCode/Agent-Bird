@@ -564,6 +564,32 @@ func TestOwnerExecutionRetainsSignedStopAfterTransportLoss(t *testing.T) {
 		t.Error("transport EOF stopped the original worker")
 	}
 	cancel()
+	next := permit
+	next.ExpectedControlRevision, next.ControlRevision = 1, 2
+	next.CoordinatorEpoch++
+	next.OldHost = &permit.NewHost
+	next.RequestID, next.PermitID = "renewal", "permit-2"
+	next, err = contract.SignOwnerControlPermit(next, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ownerCommandDisposition(e.command(ownerExecutionSignedLaunch(t, next, key))) != ownerCommandRecover {
+		t.Fatal("verified newer command did not revoke epoch")
+	}
+	terminal, err := contract.SignOwnerCommand(contract.OwnerCommand{Version: 1, Permit: permit, Kind: "terminal", RequestID: "old-terminal", Body: json.RawMessage(`{"reason":"host_retired"}`)}, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	staleRaw, _ := json.Marshal(terminal)
+	if ownerCommandDisposition(e.command(staleRaw)) != ownerCommandStale || e.stopping {
+		t.Fatal("old terminal terminated owner after newer epoch proof")
+	}
+	alive, stopAlive := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	if p.Wait(alive) == nil {
+		t.Fatal("stale terminal stopped original worker")
+	}
+	stopAlive()
+
 	body, _ := json.Marshal(contract.StopCommand{CommandID: "stop-command", SegmentID: a.SegmentID, Reason: "canceled", DeadlineUnixMS: time.Now().Add(time.Second).UnixMilli()})
 	command, err := contract.SignOwnerCommand(contract.OwnerCommand{Version: 1, Permit: permit, Kind: "stop", RequestID: "stop-command", Body: body}, key)
 	if err != nil {
