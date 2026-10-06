@@ -336,23 +336,24 @@ func testOriginalOwnerNativeSameTupleRecovery(t *testing.T, scenario string) {
 		defer func() { finalStop(); _ = final.Close() }()
 		go func() { _ = final.Serve(finalCtx) }()
 		next = final
-		// First pending carries the exact historical request to obtain its old
-		// epoch permit; the second drives a distinct renewal in the new epoch.
-		for replay := 0; replay != 2; replay++ {
-			connect, readErr := ipc.Read(control)
-			if readErr != nil || connect.Kind != ipc.KindOwnerTransportControl {
-				t.Fatalf("lost ACK reconnect %d: %s %v", replay, connect.Kind, readErr)
-			}
-			connReplay := dial(next)
-			defer connReplay.Close()
-			_ = connReplay.SetDeadline(time.Now().Add(5 * time.Second))
-			pendingReplay, pendingErr := ipc.Read(connReplay)
-			if pendingErr != nil || pendingReplay.Kind != ipc.KindOwnerHostPending || pendingReplay.Epoch != next.epoch {
-				t.Fatalf("lost ACK pending %d: %s %v", replay, pendingReplay.Kind, pendingErr)
-			}
-			if writeErr := ipc.Write(control, pendingReplay); writeErr != nil {
-				t.Fatal(writeErr)
-			}
+		// One fresh connection carries both exact historical replay and the
+		// distinct new-epoch renewal. Neither operation needs another Ensure.
+		if err = control.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
+			t.Fatal(err)
+		}
+		connect, readErr := ipc.Read(control)
+		if readErr != nil || connect.Kind != ipc.KindOwnerTransportControl {
+			t.Fatalf("lost ACK reconnect: %s %v", connect.Kind, readErr)
+		}
+		connReplay := dial(next)
+		defer connReplay.Close()
+		_ = connReplay.SetDeadline(time.Now().Add(5 * time.Second))
+		pendingReplay, pendingErr := ipc.Read(connReplay)
+		if pendingErr != nil || pendingReplay.Kind != ipc.KindOwnerHostPending || pendingReplay.Epoch != next.epoch {
+			t.Fatalf("lost ACK pending: %s %v", pendingReplay.Kind, pendingErr)
+		}
+		if writeErr := ipc.Write(control, pendingReplay); writeErr != nil {
+			t.Fatal(writeErr)
 		}
 	}
 	deadline = time.Now().Add(5 * time.Second)

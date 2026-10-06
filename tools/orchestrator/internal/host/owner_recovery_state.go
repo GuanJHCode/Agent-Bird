@@ -198,6 +198,48 @@ func (s *ownerRecoveryState) markTransportApplied(proofValue any) error {
 	return s.commit(next)
 }
 
+// Called only after ownerExecution has validated the permit chain and the
+// Coordinator has acknowledged this exact signed Applied. A new epoch renews
+// authority for the same retained child without changing its original Start.
+func (s *ownerRecoveryState) markTransportReconciledApplied(permit contract.OwnerControlPermit, applied contract.OwnerPermitApplied) error {
+	p := s.record.OwnerPending
+	if p == nil || p.NewHost == nil || (p.Phase != "attached" && p.Phase != "applied" && p.Phase != "activated") || permit.Validate() != nil || applied.Validate() != nil || permit.NewHost != *p.NewHost {
+		return ownerRecoveryRejected()
+	}
+	permitProof, err := ownerRecoveryProof(permit)
+	if err != nil {
+		return err
+	}
+	appliedPermitProof, err := ownerRecoveryProof(applied.Permit)
+	if err != nil || appliedPermitProof != permitProof {
+		return ownerRecoveryRejected()
+	}
+	appliedProof, err := ownerRecoveryProof(applied)
+	if err != nil {
+		return err
+	}
+	if permitProof == p.PermitSHA256 {
+		if p.Phase == "attached" {
+			return s.markTransportApplied(applied)
+		}
+		if appliedProof != p.AppliedSHA256 {
+			return ownerRecoveryRejected()
+		}
+		return s.verifyCurrent()
+	}
+	// Only a same-child renewal may replace a prior permit's Applied proof.
+	// The caller verifies its exact predecessor and signature; this ledger
+	// additionally preserves the initial pending tuple/request/start slot.
+	if permit.OldHost == nil || *permit.OldHost != *p.NewHost || permit.ExpectedControlRevision <= p.ExpectedControlRevision || permit.RequestID == p.RequestID {
+		return ownerRecoveryRejected()
+	}
+	next := s.copyRecord()
+	next.OwnerPending.Phase = "applied"
+	next.OwnerPending.PermitSHA256 = permitProof
+	next.OwnerPending.AppliedSHA256 = appliedProof
+	return s.commit(next)
+}
+
 func (s *ownerRecoveryState) markTransportActivated(proofValue any) error {
 	p := s.record.OwnerPending
 	if p == nil || (p.Phase != "applied" && p.Phase != "activated") || p.PermitSHA256 == "" || p.AppliedSHA256 == "" {

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"net"
 	"net/url"
 	"os"
 	"os/exec"
@@ -75,11 +76,20 @@ func TestNativeReplacementSurvivesOneCommittedReplyLoss(t *testing.T) {
 		t.Skip("native source-host fixture requires macOS")
 	}
 	for _, lostKind := range []string{"ticket", "attach", "applied", "activate"} {
-		t.Run(lostKind, func(t *testing.T) { nativeReplacementACKLoss(t, lostKind) })
+		t.Run(lostKind, func(t *testing.T) { nativeReplacementACKLoss(t, lostKind, false) })
 	}
 }
 
-func nativeReplacementACKLoss(t *testing.T, lostKind string) {
+func TestNativeReplacementReplyLossAcrossCoordinatorRestart(t *testing.T) {
+	if runtime.GOOS != "darwin" {
+		t.Skip("native source-host fixture requires macOS")
+	}
+	for _, lostKind := range []string{"ticket", "attach", "applied", "activate"} {
+		t.Run(lostKind, func(t *testing.T) { nativeReplacementACKLoss(t, lostKind, true) })
+	}
+}
+
+func nativeReplacementACKLoss(t *testing.T, lostKind string, restartCoordinator bool) {
 	t.Helper()
 	root, err := os.MkdirTemp("/private/tmp", "replacement-ack-loss-")
 	if err != nil {
@@ -118,7 +128,7 @@ func nativeReplacementACKLoss(t *testing.T, lostKind string) {
 	}
 	serveCtx, cancelServe := context.WithCancel(context.Background())
 	serveDone := make(chan error, 1)
-	go func() { serveDone <- s.Serve(serveCtx) }()
+	go func(server *Server, ctx context.Context, done chan<- error) { done <- server.Serve(ctx) }(s, serveCtx, serveDone)
 	stopped := false
 	stop := func() {
 		if stopped {
@@ -292,6 +302,50 @@ func nativeReplacementACKLoss(t *testing.T, lostKind string) {
 	case <-time.After(15 * time.Second):
 		t.Fatalf("replacement did not reach committed %s reply-loss point", lostKind)
 	}
+	if restartCoordinator {
+		oldEpoch := s.epoch
+		// Close sockets/storage before cancellation: cancel first would
+		// publish a normal signed shutdown fence instead of a hard restart.
+		if err = s.Close(); err != nil {
+			t.Fatal("hard close Coordinator", err)
+		}
+		cancelServe()
+		stopped = true // old Serve is consumed below; cleanup must not wait twice
+		select {
+		case err := <-serveDone:
+			if err != nil && !errors.Is(err, context.Canceled) && !errors.Is(err, net.ErrClosed) {
+				t.Fatal("old Coordinator Serve receipt", err)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatal("old Coordinator Serve did not finish")
+		}
+		restarted, err := NewCLIServer(state, false)
+		if err != nil {
+			t.Fatal("restart Coordinator", err)
+		}
+		s = restarted
+		stopped = false
+		serveCtx, cancelServe = context.WithCancel(context.Background())
+		defer cancelServe()
+		serveDone = make(chan error, 1)
+		go func(server *Server, ctx context.Context, done chan<- error) { done <- server.Serve(ctx) }(s, serveCtx, serveDone)
+		for deadline := time.Now().Add(5 * time.Second); ; {
+			readyCtx, cancel := context.WithTimeout(ctx, 150*time.Millisecond)
+			ready, readyErr := ipc.Call(readyCtx, filepath.Join(state, "coordinator.sock"), ipc.Envelope{Version: ipc.Version, Kind: ipc.KindReady, RequestID: "ack-loss-restarted"})
+			cancel()
+			if readyErr == nil && ready.Kind == ipc.KindResponse {
+				break
+			}
+			if time.Now().After(deadline) {
+				t.Fatal("restarted Coordinator not ready", readyErr)
+			}
+			time.Sleep(20 * time.Millisecond)
+		}
+		if s.epoch <= oldEpoch {
+			t.Fatal("Coordinator epoch did not advance")
+		}
+		t.Logf("hard-restarted Coordinator after committed %s reply loss: epoch %d -> %d", lostKind, oldEpoch, s.epoch)
+	}
 	ledgerPath := filepath.Join(state, "host-spool", binding.Scope.LaunchID, ".coordinator-recovery.json")
 	readLedger := func() replacementACKLedger {
 		t.Helper()
@@ -335,7 +389,11 @@ func nativeReplacementACKLoss(t *testing.T, lostKind string) {
 			}
 			var afterBinding string
 			var revision int
-			if err = db.QueryRowContext(ctx, `SELECT original_binding_json,control_revision FROM execution_owners WHERE run_id='replacement-ack-loss' AND is_current=1`).Scan(&afterBinding, &revision); err != nil || afterBinding != bindingJSON || revision != 2 {
+			wantRevision := 2
+			if restartCoordinator && lostKind != "ticket" {
+				wantRevision = 3
+			}
+			if err = db.QueryRowContext(ctx, `SELECT original_binding_json,control_revision FROM execution_owners WHERE run_id='replacement-ack-loss' AND is_current=1`).Scan(&afterBinding, &revision); err != nil || afterBinding != bindingJSON || revision != wantRevision {
 				t.Fatal("ACK repair changed binding/control revision", revision, err)
 			}
 			// Activate can already be durable/ready while its lost ACK is still

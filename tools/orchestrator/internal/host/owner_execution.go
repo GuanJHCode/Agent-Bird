@@ -182,6 +182,14 @@ func (e *ownerExecution) reconcile(ctx context.Context, permit contract.OwnerCon
 // It deliberately does not publish, apply, activate, or replace the active
 // execution session: the next fresh-epoch renewal remains responsible for that.
 func (e *ownerExecution) rememberHistoricalPermit(permit contract.OwnerControlPermit) error {
+	return e.rememberHistoricalPermitBound(permit, nil)
+}
+
+func (e *ownerExecution) rememberHistoricalReplacementPermit(permit contract.OwnerControlPermit, pending contract.OwnerTransportPending) error {
+	return e.rememberHistoricalPermitBound(permit, &pending)
+}
+
+func (e *ownerExecution) rememberHistoricalPermitBound(permit contract.OwnerControlPermit, pending *contract.OwnerTransportPending) error {
 	if contract.VerifyOwnerControlPermit(permit, e.cfg.coordinatorKey) != nil || permit.OwnerID != e.cfg.binding.Scope.OwnerID || permit.ScopeSHA256 != e.scopeHash || permit.OwnerIdentitySHA256 != e.identityHash {
 		return errors.New("owner_execution_permit_rejected")
 	}
@@ -197,8 +205,19 @@ func (e *ownerExecution) rememberHistoricalPermit(permit contract.OwnerControlPe
 		return errors.New("owner_execution_permit_rejected")
 	}
 	prior := e.last.permit
-	if permit.ControlRevision != prior.ControlRevision+1 || permit.ExpectedControlRevision != prior.ControlRevision || permit.CoordinatorEpoch < prior.CoordinatorEpoch || permit.OldHost == nil || *permit.OldHost != prior.NewHost || permit.NewHost != prior.NewHost {
+	if permit.ControlRevision != prior.ControlRevision+1 || permit.ExpectedControlRevision != prior.ControlRevision || permit.CoordinatorEpoch < prior.CoordinatorEpoch || permit.OldHost == nil || *permit.OldHost != prior.NewHost {
 		return errors.New("owner_execution_permit_rejected")
+	}
+	if pending == nil {
+		if permit.NewHost != prior.NewHost {
+			return errors.New("owner_execution_permit_rejected")
+		}
+	} else {
+		attach := contract.OwnerAttachRequest{ExpectedControlRevision: pending.ExpectedControlRevision, OldHost: pending.OldHost, NewHost: pending.NewHost, Pending: pending}
+		raw, _ := json.Marshal(attach)
+		if pending.Validate() != nil || pending.OldHost != prior.NewHost || permit.NewHost != pending.NewHost || permit.ExpectedControlRevision != pending.ExpectedControlRevision || permit.RequestID != pending.RequestID || permit.RequestSHA256 != hashText(string(raw)) {
+			return errors.New("owner_execution_permit_rejected")
+		}
 	}
 	e.last = &ownerExecutionSession{owner: e, permit: permit}
 	if permit.CoordinatorEpoch > e.observedEpoch {

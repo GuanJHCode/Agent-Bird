@@ -23,3 +23,13 @@ ROOT实现和验收（same-epoch单次reply-loss）：
 - 未闭合：pending ticket兑换/ACKloss加Coordinator hardrestart与session renewal、连续多次reply loss、原生五次预算耗尽和完整13秒cleanup故障矩阵、dead-owner seal/replay。此增量不作为B2/B3完整交付，不集成整个owner branch。
 
 Linux arm64受控Docker：原session47794 exit0，1顶层/6具名PASS；只读/无网络/nobody/无cap，未跑race/Provider/物理owner RPC链。CID2fd2940babc2c31b8d0adf45aadbf6de22bed34a58b6827c431a788ec3a8d6a2已按原ID删除且列表确认不存在。完整日志、binary哈希、原session与有效证据复用规则见 `../data/root-replacement-ack-receipt.json`。必要失败现场保留；ROOT精确核对新失败现场已登记actors均不存在，所有本批session终态。
+
+
+ROOT跨Coordinator重启增量（2026-10-07）：
+
+- 有效native RED43366中ticket成功，Attach丢失HostPending后offline、Applied因旧wake重复Ensure消耗slot、Activate因renewal Applied proof未更新失败。14670只暴露hardclose fixture错误，不算产品RED。
+- 三处生产变化：signed state按原pending/current签名tuple选择同child ticket或已Attach child token重连；historical replacement permit仅以exact pending request/body/slot与连续predecessor记chain、不启用旧epoch执行权；fresh renewal把permit/Applied proof成对持久更新，保留原StartSlot/request/child。等待当前generation fresh HostPending时忽略旧wake/offline/旧epoch，避免额外Ensure。
+- Attach71841、Applied/Activate26088和签名/slot/ledger/reopen纯测试50976已普通通过；稳定五文件生产与新增测试独立审查PASS。最终组合race有效52顶层/219具名PASS，0FAIL/0SKIP：复用v1 session28997中的Host45/201、CLI4/4；v2 session47159覆盖same-tuple1/4；v3 session30866覆盖sameepoch+crossrestart ACK2/10。v1整体FAIL：旧same-tuple fixture固定等两次connect，而同连接历史重放+新epoch renewal只需一次；ROOT定向SIGTERM收束旧测试child，parent/child皆FAIL，无Wait0成功声明。fixture改为一次connect并加5秒读deadline，重验v2通过。vet首次lostcancel告警后补显式context cancel，v2 vet通过；build/diffcheck通过。
+- 原生断言保留同owner、replacement直接child、原worker/attempt/segment/workrev/binding；pending request/StartSlot1、Attempts2/noReservation/activated不变。ticket跨restart revision2，已提交Attach/Applied/Activate跨restart revision3。race插桩范围与前述相同，不把另外build的public product binary算race。
+- Linux arm64真实Docker纯协议合同4顶层/23具名PASS，原session36588/container exit0；CID3bb170d3f743fd2d1e9711c8bd4da4d6ae84ca4f1915222bab9526347c49b5dc精确删除且inspect确认不存在。非Linux Provider/公开原生整链。完整hash/原session/复用边界在root-pending-epoch-receipt.json；七个RED/fixture现场的已登记21个PID均ESRCH，保留现场，不推断未登记历史。
+- B2仍缺ticket兑换ACKloss、连续丢回复与物理共享五次耗尽/13秒清理fault矩阵；B3 deadowner seal/replay仍OPEN。该本地里程碑尚未集成。
