@@ -29,6 +29,7 @@ func TestManagedCandidateFreezesWorkerChangesWithoutUserChanges(t *testing.T) {
 	}{
 		{name: "success"},
 		{name: "grok_review"},
+		{name: "indexed_review"},
 		{name: "undeclared", failed: true},
 		{name: "ignored", failed: true},
 		{name: "symlink", failed: true},
@@ -54,6 +55,13 @@ func TestManagedCandidateFreezesWorkerChangesWithoutUserChanges(t *testing.T) {
 			git(repo, "init", "-q", "-b", "main")
 			git(repo, "config", "user.name", "Candidate Test")
 			git(repo, "config", "user.email", "test@example.invalid")
+			if tc.name == "indexed_review" {
+				for i := 0; i < 65; i++ {
+					if err := os.WriteFile(filepath.Join(repo, fmt.Sprintf("context-%03d.txt", i)), []byte(strings.Repeat("é", 1100)), 0600); err != nil {
+						t.Fatal(err)
+					}
+				}
+			}
 			for _, name := range []string{"README", "obsolete.txt"} {
 				if err := os.WriteFile(filepath.Join(repo, name), []byte("base\n"), 0600); err != nil {
 					t.Fatal(err)
@@ -171,7 +179,11 @@ func TestManagedCandidateFreezesWorkerChangesWithoutUserChanges(t *testing.T) {
 				}
 				t.Setenv("GROK_HOME", home)
 			}
-			exerciseCandidateDelivery(t, root, repo, base, grant, result, git)
+			if tc.name == "indexed_review" {
+				exerciseIndexedCandidateDelivery(t, root, repo, base, grant, result, git)
+			} else {
+				exerciseCandidateDelivery(t, root, repo, base, grant, result, git)
+			}
 
 		})
 	}
@@ -262,8 +274,28 @@ func TestMain(m *testing.M) {
 				}
 			}
 			snapshot, err := os.ReadFile(input)
-			if err != nil || session == "" || !strings.Contains(string(snapshot), "worker implementation") || !strings.Contains(string(snapshot), "complete-tracked-text-base-and-candidate") {
+			if err != nil || session == "" || !strings.Contains(string(snapshot), "complete-tracked-text-base-and-candidate") || os.Getenv("GROK_INDEXED_FIXTURE") == "" && !strings.Contains(string(snapshot), "worker implementation") {
 				os.Exit(8)
+			}
+			if os.Getenv("GROK_INDEXED_FIXTURE") != "" {
+				_, raw, ok := strings.Cut(string(snapshot), "Host snapshot JSON:\n")
+				var supplied struct {
+					Chunks []struct {
+						Content, SHA256 string
+						Length          int
+					}
+				}
+				if !ok || json.Unmarshal([]byte(raw), &supplied) != nil || len(supplied.Chunks) == 0 {
+					os.Exit(9)
+				}
+				for _, chunk := range supplied.Chunks {
+					sum := sha256.Sum256([]byte(chunk.Content))
+					if len(chunk.Content) != chunk.Length || hex.EncodeToString(sum[:]) != chunk.SHA256 {
+						os.Exit(10)
+					}
+				}
+				sum := sha256.Sum256(snapshot)
+				body, _ = json.Marshal(map[string]string{"decision": decision, "summary": "consumed-prompt-sha256:" + hex.EncodeToString(sum[:])})
 			}
 			envelope := map[string]any{"type": "end", "stopReason": "end_turn", "sessionId": session, "structuredOutput": json.RawMessage(body)}
 			if mode == "review_unstructured" {

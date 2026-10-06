@@ -189,10 +189,10 @@ func readCandidateDelivery(grant contract.LaunchCommand, input *contract.Accepte
 // SourceTask input remains only a deterministic anchor; it cannot authorize an
 // indexed integration without the complete immutable shard vector.
 func readIndexedReviewCoverage(grant contract.LaunchCommand, action *adapter.ReviewIndex) (CandidateDelivery, error) {
-	if action == nil || grant.DependencyInputs == nil || len(grant.DependencyInputs.Inputs) != action.Shards {
+	if action == nil || grant.Input == nil || grant.DependencyInputs == nil || len(grant.DependencyInputs.Inputs) != action.Shards {
 		return CandidateDelivery{}, errors.New("candidate_review_coverage_missing")
 	}
-	var first CandidateDelivery
+	var first, anchor CandidateDelivery
 	seen := make(map[int]bool, action.Shards)
 	for _, input := range grant.DependencyInputs.Inputs {
 		delivery, err := readCandidateDelivery(grant, &input)
@@ -213,6 +213,9 @@ func readIndexedReviewCoverage(grant contract.LaunchCommand, action *adapter.Rev
 			return CandidateDelivery{}, errors.New("candidate_review_coverage_duplicate")
 		}
 		seen[ordinal] = true
+		if input.Event.TaskID == grant.Input.Event.TaskID {
+			anchor = delivery
+		}
 		if first.Version == 0 {
 			first = delivery
 			continue
@@ -226,10 +229,10 @@ func readIndexedReviewCoverage(grant contract.LaunchCommand, action *adapter.Rev
 			return CandidateDelivery{}, errors.New("candidate_review_coverage_missing")
 		}
 	}
-	if first.Version == 0 {
+	if first.Version == 0 || anchor.Version == 0 {
 		return CandidateDelivery{}, errors.New("candidate_review_coverage_missing")
 	}
-	return first, nil
+	return anchor, nil
 }
 
 func verifyIndexedAssignments(grant contract.LaunchCommand, action *adapter.ReviewIndex, index gitops.ReviewIndex) error {

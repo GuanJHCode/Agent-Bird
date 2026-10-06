@@ -42,7 +42,7 @@ func TestGrokReviewUsesPrivateBoundInput(t *testing.T) {
 
 func TestGrokIndexedReviewUsesOnlyAssignedChunksInPrivatePrompt(t *testing.T) {
 	root, _ := filepath.EvalSymlinks(t.TempDir())
-	chunk := gitops.ReviewIndexChunk{Ordinal: 2, Path: "a.txt", Side: "candidate", BlobOID: strings.Repeat("a", 40), WholeSHA256: strings.Repeat("b", 64), Length: 3, SHA256: strings.Repeat("c", 64), Content: "new"}
+	chunk := gitops.ReviewIndexChunk{Ordinal: 2, Path: "a.txt", Side: "candidate", Mode: "100755", BlobOID: strings.Repeat("a", 40), WholeSHA256: strings.Repeat("b", 64), Length: 3, SHA256: strings.Repeat("c", 64), Content: "new"}
 	index := gitops.ReviewIndex{Version: 1, Scope: "complete-tracked-text-base-and-candidate", CandidateReceiptSHA256: strings.Repeat("d", 64), Chunks: []gitops.ReviewIndexChunk{chunk}, Pages: []gitops.ReviewIndexPage{{Ordinal: 0, ChunkOrdinals: []int{2}}}}
 	result, _, _, err := prepareGrokIndexedPrompt(process.Command{Args: []string{"-p", "review"}}, index, []gitops.ReviewIndexChunk{chunk}, strings.Repeat("e", 64), filepath.Join(root, "scratch"))
 	if err != nil {
@@ -51,6 +51,9 @@ func TestGrokIndexedReviewUsesOnlyAssignedChunksInPrivatePrompt(t *testing.T) {
 	body, err := os.ReadFile(result.Args[1])
 	if err != nil || !strings.Contains(string(body), `"content":"new"`) || !strings.Contains(string(body), `"ordinal":2`) {
 		t.Fatalf("body=%s err=%v", body, err)
+	}
+	if !strings.Contains(string(body), "Review only the supplied assigned chunks") || strings.Contains(string(body), "Both base and candidate contents are provided") || !strings.Contains(string(body), `"mode":"100755"`) {
+		t.Fatal("partial review prompt misrepresented its scope or lost mode metadata")
 	}
 }
 func TestGrokReviewRejectsUnboundedOrAmbiguousInput(t *testing.T) {
