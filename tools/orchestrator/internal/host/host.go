@@ -1472,7 +1472,7 @@ func (h *Host) StopAll(ctx context.Context) {
 }
 
 // Private per-call observation is used only by bounded join tests.
-func (h *Host) stopAll(ctx context.Context, observe func(*hostStopOperation)) {
+func (h *Host) stopAll(ctx context.Context, observe func(*hostStopOperation)) error {
 	h.BeginStopAll(ctx)
 	h.stopMu.Lock()
 	ops := make([]*hostStopOperation, 0, len(h.stopIntents)+len(h.codexLeases))
@@ -1492,5 +1492,5 @@ func (h *Host) stopAll(ctx context.Context, observe func(*hostStopOperation)) {
 		}
 	}
 	h.stopMu.Unlock()
-	_ = h.joinHostStopOperations(ops, observe)
+	return h.joinHostStopOperations(ops, observe)
 }

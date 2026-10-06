@@ -44,6 +44,7 @@ type ownerExecution struct {
 	last              *ownerExecutionSession
 	changed           chan struct{}
 	recovery          chan error
+	fatal             chan error // cannot be dropped behind a recoverable notification
 	active            bool
 	admitSignedLaunch bool
 	observedEpoch     uint64
@@ -61,7 +62,7 @@ func newOwnerExecution(ctx context.Context, cfg ownerExecutionConfig) (*ownerExe
 	cfg.coordinatorKey = append(ed25519.PublicKey(nil), cfg.coordinatorKey...)
 	scopeHash, _ := contract.OriginalOwnerScopeSHA256(cfg.binding.Scope)
 	identityHash, _ := contract.OriginalOwnerIdentitySHA256(cfg.binding.Owner)
-	e := &ownerExecution{acceptGrant: cfg.host.acceptGrant, cfg: cfg, scopeHash: scopeHash, identityHash: identityHash, changed: make(chan struct{}), recovery: make(chan error, 1)}
+	e := &ownerExecution{acceptGrant: cfg.host.acceptGrant, cfg: cfg, scopeHash: scopeHash, identityHash: identityHash, changed: make(chan struct{}), recovery: make(chan error, 1), fatal: make(chan error, 1)}
 	// The runtime registers the first stop window before canceling execution.
 	// Transport/context loss is observed by that runtime, never inherited here.
 	runCtx, cancel := context.WithCancelCause(context.WithoutCancel(ctx))
@@ -269,6 +270,10 @@ func (e *ownerExecution) failAdmission(cause error) error {
 	// Seal admission immediately, but leave original worker cancellation to the
 	// runtime's beginStop so its first shared TERM deadline is registered first.
 	e.stopping, e.active, e.admitSignedLaunch = true, false, false
+	select {
+	case e.fatal <- cause:
+	default:
+	}
 	e.mu.Unlock()
 	return rejectOwnerCommand(ownerCommandLocalFailure, cause)
 }
@@ -276,6 +281,14 @@ func (e *ownerExecution) failAdmission(cause error) error {
 func (e *ownerExecution) offline(s *ownerExecutionSession, cause error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	// A late authentication/local failure is still fatal even when a newer
+	// session or an earlier recoverable notification already cleared this one.
+	if cause != nil && !ownerExecutionNeedsRecovery(cause) {
+		select {
+		case e.fatal <- cause:
+		default:
+		}
+	}
 	if e.session != s {
 		return
 	}
