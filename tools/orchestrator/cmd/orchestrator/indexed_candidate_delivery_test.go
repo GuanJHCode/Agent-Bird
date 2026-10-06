@@ -87,7 +87,7 @@ func exerciseIndexedCandidateDelivery(t *testing.T, root, repo, base string, sou
 		name := fmt.Sprintf("review-%d", ordinal)
 		payload := map[string]any{"provider": "grok-build", "provider_lock": lock, "profile": map[string]any{"version": 1, "role": "reviewer", "permission": "read-only", "timeout_ms": 15000, "grok_session_write": true}, "directory": filepath.Join(root, name), "prompt": "Review the explicitly assigned immutable chunks", "candidate_action": action("review", "validate", ordinal)}
 		grant, result, delivery := run(name, payload, input(checked, checkResult), nil)
-		if delivery.ReviewIndex == nil || gitops.ReviewIndexManifestSHA256(*delivery.ReviewIndex) != manifest {
+		if delivery.ReviewIndex == nil || gitops.ReviewIndexManifestSHA256(*delivery.ReviewIndex) != manifest || delivery.ReviewCoverage == nil || contract.ValidateIndexedReviewCoverage(*delivery.ReviewIndex, *delivery.ReviewCoverage) != nil || delivery.ReviewCoverage.GrantIntentSHA256 != grant.LaunchIntentHash || delivery.ReviewCoverage.AcceptedInputSHA256 != contract.IndexedReviewJSONSHA256(grant.Input) {
 			t.Fatal("shard rebuilt or substituted accepted manifest")
 		}
 		prompt, err := os.ReadFile(filepath.Join(root, "state", "host-spool", "indexed-"+name, grant.AttemptID, grant.SegmentID, "scratch", "review-input.txt"))
@@ -125,11 +125,92 @@ func exerciseIndexedCandidateDelivery(t *testing.T, root, repo, base string, sou
 	// Anchor the middle shard, so vector ordering cannot silently select shard0.
 	integrate := action("integrate", "review-1", 1)
 	integrate["dependency_input_version"] = 1
+	for _, kind := range []string{"missing_shard", "missing_proof", "missing_page", "duplicate_ordinal", "assignment", "consumer_input", "source_event", "validation", "candidate_order", "config", "provider_lock"} {
+		t.Run("reject_"+kind, func(t *testing.T) {
+			// Mutate a non-anchor accepted shard and rehash its envelope. The
+			// guard must reject the semantic inconsistency before any Git journal.
+			raw, _ := json.Marshal(vector)
+			var badVector contract.DependencyInputVector
+			if err := json.Unmarshal(raw, &badVector); err != nil {
+				t.Fatal(err)
+			}
+			entry := &badVector.Inputs[0]
+			raw, err := os.ReadFile(entry.Event.Artifact.Path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var d host.CandidateDelivery
+			if err = json.Unmarshal(raw, &d); err != nil {
+				t.Fatal(err)
+			}
+			switch kind {
+			case "missing_proof":
+				d.ReviewCoverage = nil
+			case "missing_page":
+				d.ReviewIndex.Pages = nil
+			case "duplicate_ordinal":
+				d.ReviewIndex.Chunks[1].Ordinal = 0
+			case "assignment":
+				d.ReviewCoverage.AssignmentSHA256 = strings.Repeat("a", 64)
+			case "consumer_input":
+				d.ReviewInputSHA256 = strings.Repeat("b", 64)
+			case "source_event":
+				d.InputEventID = "substituted"
+			case "validation":
+				d.Validation.CandidateOID = base
+			case "candidate_order":
+				d.Candidate.OrderedInputOIDs = append(d.Candidate.OrderedInputOIDs, base)
+			case "config":
+				d.ConfigGeneration = &contract.ConfigGenerationRef{SchemaVersion: 1, OwnerScopeSHA256: strings.Repeat("a", 64), GenerationID: strings.Repeat("b", 64), ManifestSHA256: strings.Repeat("c", 64), PackageVersion: "1.0.0"}
+			case "provider_lock":
+				d.ProviderLock.Binary.SHA256 = strings.Repeat("c", 64)
+			}
+			raw, _ = json.Marshal(d)
+			artifact := filepath.Join(root, "rejected-"+kind+".json")
+			if err = os.WriteFile(artifact, raw, 0600); err != nil {
+				t.Fatal(err)
+			}
+			digest := sha256.Sum256(raw)
+			entry.Event.PayloadHash = hex.EncodeToString(digest[:])
+			entry.Event.Artifact = &contract.ArtifactRef{Path: artifact, Size: int64(len(raw)), SHA256: entry.Event.PayloadHash}
+			if kind == "missing_shard" {
+				badVector.Inputs = badVector.Inputs[1:]
+			}
+			payload, _ := json.Marshal(map[string]any{"kind": "candidate", "directory": target, "candidate_action": integrate})
+			grant := contract.LaunchCommand{RunID: source.RunID, TaskID: "reject-" + kind, AttemptID: "attempt-reject-" + kind, SegmentID: "segment-reject-" + kind, CommandID: "cmd-" + kind, ReservationID: "reservation-" + kind, SlotToken: "slot-" + kind, WorkRevision: 1, PlanRevision: 1, GrantedActiveMS: 15000, AdapterPayload: payload, Input: &vector.Inputs[1], DependencyInputs: &badVector}
+			grant.LaunchIntentHash, err = contract.CandidateIntentHash(grant)
+			if err != nil {
+				t.Fatal(err)
+			}
+			inv, err := invocationForGrant(context.Background(), grant)
+			if err != nil {
+				t.Fatal(err)
+			}
+			spool := filepath.Join(root, "state", "host-spool", "reject-"+kind)
+			h, err := host.NewIPC(spool, "producer")
+			if err != nil {
+				t.Fatal(err)
+			}
+			out, launchErr := h.ExecuteLaunch(context.Background(), grant, inv)
+			if launchErr == nil && out.Status == "result_ready" {
+				t.Fatal("invalid coverage integrated")
+			}
+			if _, err = os.Stat(filepath.Join(spool, ".gitops-journal")); !os.IsNotExist(err) {
+				t.Fatalf("rejection created journal: %v", err)
+			}
+			if git(target, "rev-parse", "HEAD") != base || git(target, "status", "--porcelain") != "" {
+				t.Fatal("rejection changed target")
+			}
+		})
+		if t.Failed() {
+			t.FailNow()
+		}
+	}
 	_, _, integrated := run("integrate", map[string]any{"kind": "candidate", "directory": target, "candidate_action": integrate}, vector.Inputs[1], vector)
 	if integrated.Integration == nil || integrated.Integration.State != gitops.IntegrationIntegrated || git(target, "rev-parse", "HEAD") != checkedDelivery.Candidate.CandidateOID || git(repo, "rev-parse", "HEAD") != base {
 		t.Fatal("complete indexed review did not deliver exactly the frozen candidate")
 	}
-	if !reflect.DeepEqual(integrated.Candidate.OrderedInputOIDs, checkedDelivery.Candidate.OrderedInputOIDs) {
+	if integrated.DependencyInputsSHA256 != contract.IndexedReviewJSONSHA256(vector) || !reflect.DeepEqual(integrated.Candidate.OrderedInputOIDs, checkedDelivery.Candidate.OrderedInputOIDs) {
 		t.Fatal("integration changed ordered source identities")
 	}
 }

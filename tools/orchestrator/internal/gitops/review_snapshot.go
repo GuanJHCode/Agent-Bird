@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 )
 
 const (
@@ -32,34 +34,9 @@ const (
 	indexedReviewManifestLimit    = 1024 * 1024
 )
 
-type ReviewIndexChunk struct {
-	Ordinal     int    `json:"ordinal"`
-	Path        string `json:"path"`
-	Side        string `json:"side"`
-	Mode        string `json:"mode"`
-	BlobOID     string `json:"blob_oid"`
-	WholeSHA256 string `json:"whole_sha256"`
-	Offset      int    `json:"offset"`
-	Length      int    `json:"length"`
-	SHA256      string `json:"sha256"`
-	Content     string `json:"-"`
-}
-
-type ReviewIndexPage struct {
-	Ordinal       int   `json:"ordinal"`
-	ChunkOrdinals []int `json:"chunk_ordinals"`
-}
-
-type ReviewIndex struct {
-	Version                int                `json:"version"`
-	Scope                  string             `json:"scope"`
-	CandidateReceiptSHA256 string             `json:"candidate_receipt_sha256"`
-	BaseOID                string             `json:"base_oid"`
-	CandidateOID           string             `json:"candidate_oid"`
-	TreeOID                string             `json:"tree_oid"`
-	Chunks                 []ReviewIndexChunk `json:"chunks"`
-	Pages                  []ReviewIndexPage  `json:"pages"`
-}
+type ReviewIndexChunk = contract.IndexedReviewChunk
+type ReviewIndexPage = contract.IndexedReviewPage
+type ReviewIndex = contract.IndexedReviewManifest
 
 func reviewChunkDigest(b []byte) string {
 	h := sha256.Sum256(b)
@@ -85,9 +62,14 @@ func HydrateReviewChunks(ctx context.Context, receipt CandidateReceipt, chunks [
 	}
 	out := append([]ReviewIndexChunk(nil), chunks...)
 	byBlob := map[string][]int{}
+	retained := 0
 	for i := range out {
-		if out[i].Length < 0 || out[i].Offset < 0 || out[i].BlobOID == "" {
+		if out[i].Length < 0 || out[i].Length > indexedReviewChunkLimit || out[i].Offset < 0 || out[i].Offset > indexedReviewTextLimit || out[i].Length > indexedReviewTextLimit-out[i].Offset || out[i].BlobOID == "" {
 			return nil, fail(CodeInvalidInput, "review hydrate", fmt.Errorf("invalid chunk"))
+		}
+		retained += out[i].Length
+		if retained > 384*1024 {
+			return nil, fail(CodeInvalidInput, "review hydrate", fmt.Errorf("assigned text exceeds consumer limit"))
 		}
 		byBlob[out[i].BlobOID] = append(byBlob[out[i].BlobOID], i)
 	}
@@ -233,6 +215,9 @@ func CandidateReviewIndex(ctx context.Context, receipt CandidateReceipt, receipt
 	// durable metadata manifest rather than a second content store.
 	if raw, _ := json.Marshal(index); len(raw) > indexedReviewManifestLimit {
 		return ReviewIndex{}, fail(CodeInvalidInput, "review index", fmt.Errorf("manifest exceeds limit"))
+	}
+	if err := contract.ValidateIndexedReviewManifest(index); err != nil {
+		return ReviewIndex{}, fail(CodeInvalidInput, "review index", err)
 	}
 	return index, nil
 }
