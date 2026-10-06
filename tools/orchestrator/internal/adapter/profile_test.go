@@ -31,7 +31,7 @@ func TestAGYReviewerProfileUsesNativePlanAndTypedModel(t *testing.T) {
 	req := profileRequest(t, `{"version":1,"role":"reviewer","model":"gemini-3.8-flash-low","reasoning":"low","permission":"read-only","timeout_ms":9000}`)
 	req.Provider = ProviderAGY
 	req.Lock.Provider, req.Lock.Protocol = req.Provider, ProtocolID(req.Provider)
-	help := "--input-format --output-format --mode --model --effort"
+	help := "--input-format --output-format --mode --model --effort --json-schema"
 	if err := CheckCapabilities(req, help); err != nil {
 		t.Fatal(err)
 	}
@@ -213,7 +213,7 @@ func TestClaudeTypedProfilesDenyNativeDelegation(t *testing.T) {
 
 func TestClaudeTypedProfileRequiresNativeDelegationDenyCapability(t *testing.T) {
 	req := profileRequest(t, `{"version":1,"role":"reviewer","permission":"read-only","timeout_ms":9000}`)
-	base := "--input-format --output-format --permission-mode"
+	base := "--input-format --output-format --permission-mode --json-schema"
 	for _, help := range []string{base, base + " --disallowed-tools-extra"} {
 		if err := CheckCapabilities(req, help); err == nil {
 			t.Fatal("typed Claude accepted without native delegation deny capability")

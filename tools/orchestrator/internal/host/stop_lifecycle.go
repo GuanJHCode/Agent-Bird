@@ -57,5 +57,5 @@ func readStopTerminal(path, attemptID, segmentID string) (bool, error) {
 	if len(body) > 64*1024 || json.Unmarshal(body, &record) != nil || record.Version != 1 || record.AttemptID != attemptID || record.SegmentID != segmentID {
 		return false, errors.New("stop_lifecycle_record_invalid")
 	}
-	return record.Phase == "exited" || record.Phase == "unknown", nil
+	return record.Phase == "exited" || record.Phase == "not_started" || record.Phase == "unknown", nil
 }

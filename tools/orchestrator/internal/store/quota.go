@@ -7,7 +7,17 @@ import (
 )
 
 func (d *DB) storageAdmission(ctx context.Context, tx *sql.Tx, runID string, incoming int64, diagnostic bool) error {
-	if incoming < 0 {
+	diagnosticIncoming := int64(0)
+	if diagnostic {
+		diagnosticIncoming = incoming
+	}
+	return d.storageAdmissionSplit(ctx, tx, runID, incoming, diagnosticIncoming, diagnostic)
+}
+
+// storageAdmissionSplit reserves all physical growth against control/disk
+// limits while charging only diagnostic growth against progress limits.
+func (d *DB) storageAdmissionSplit(ctx context.Context, tx *sql.Tx, runID string, incoming, diagnosticIncoming int64, diagnostic bool) error {
+	if incoming < 0 || diagnosticIncoming < 0 || diagnosticIncoming > incoming {
 		return CodeError("control_spool_full")
 	}
 	available, err := d.storageAvailable(filepath.Dir(d.path))
@@ -39,7 +49,7 @@ func (d *DB) storageAdmission(ctx context.Context, tx *sql.Tx, runID string, inc
 	if exceeds(runBytes, d.runControlLimit) || exceeds(userBytes, d.userControlLimit) {
 		return CodeError("control_spool_full")
 	}
-	if diagnostic && (exceeds(runProgressBytes, d.runProgressLimit) || exceeds(userProgressBytes, d.userProgressLimit)) {
+	if diagnostic && (diagnosticIncoming > d.runProgressLimit || runProgressBytes > d.runProgressLimit-diagnosticIncoming || diagnosticIncoming > d.userProgressLimit || userProgressBytes > d.userProgressLimit-diagnosticIncoming) {
 		return CodeError("report_budget_exhausted")
 	}
 	return nil

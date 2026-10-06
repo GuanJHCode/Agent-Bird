@@ -1,14 +1,14 @@
 package host
 
 import (
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
 	"io"
 	"net"
 	"os"
@@ -82,7 +82,7 @@ func TestRunSourceStopsWhenOriginOwnerExits(t *testing.T) {
 		for len(kinds) < 5 {
 			eventEnvelope, eventErr := ipc.Read(conn)
 			if eventErr != nil {
-				serverDone <- eventErr
+				serverDone <- fmt.Errorf("owner-loss events=%v: %w", kinds, eventErr)
 				return
 			}
 			var event contract.Event
@@ -220,7 +220,8 @@ func TestRunSourceUDSLaunchAndDurableEventAck(t *testing.T) {
 				return
 			}
 		}
-		serverDone <- nil
+		disposition, _ := json.Marshal(contract.NewHostDisposition(hello, 7, "host_retired"))
+		serverDone <- ipc.Write(conn, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindHostDisposition, RequestID: "retired", Epoch: 7, Payload: disposition})
 	}()
 	birth, err := process.Birth(os.Getpid())
 	if err != nil {
@@ -231,7 +232,7 @@ func TestRunSourceUDSLaunchAndDurableEventAck(t *testing.T) {
 	defer cancel()
 	inv := launchInvocation{args: []string{serverPath, "-test.run=TestRunSourceUDSLaunchAndDurableEventAck"}, env: map[string]string{"G1_HOST_HELPER": "1", "G1_HOST_EXIT_MARKER": exitMarker}}
 	runErr := RunSource(ctx, SourceConfig{SocketPath: socket, SpoolRoot: filepath.Join(t.TempDir(), "spool"), ProducerID: "launch-1", Hello: hello, InvocationProvider: func(context.Context, contract.LaunchCommand) (contract.InvocationView, error) { return inv, nil }})
-	if !errors.Is(runErr, io.EOF) {
+	if runErr != nil {
 		t.Fatalf("run err=%v", runErr)
 	}
 	if err = <-serverDone; err != nil {
@@ -300,12 +301,17 @@ func TestRunSourceReplaysDurableSpoolBeforeNewLaunch(t *testing.T) {
 			serverDone <- readErr
 			return
 		}
+		var hello contract.HostHello
+		if err := json.Unmarshal(helloEnvelope.Payload, &hello); err != nil {
+			serverDone <- err
+			return
+		}
 		readyPayload, _ := json.Marshal(contract.HostReady{HostID: "launch-replay", CoordinatorEpoch: 8})
 		if err = ipc.Write(conn, ipc.Envelope{Version: 1, Kind: ipc.KindHostReady, RequestID: helloEnvelope.RequestID, Epoch: 8, Payload: readyPayload}); err != nil {
 			serverDone <- err
 			return
 		}
-		for sequence := int64(1); sequence <= 2; sequence++ {
+		for sequence := int64(1); sequence <= 1; sequence++ {
 			envelope, readErr := ipc.Read(conn)
 			if readErr != nil {
 				serverDone <- readErr
@@ -328,11 +334,12 @@ func TestRunSourceReplaysDurableSpoolBeforeNewLaunch(t *testing.T) {
 			return
 		}
 		var state contract.HostReconciled
-		if json.Unmarshal(reconciled.Payload, &state) != nil || state.ProducerID != "launch-replay" || state.PublishedThrough != 2 {
+		if json.Unmarshal(reconciled.Payload, &state) != nil || state.ProducerID != "launch-replay" || state.PublishedThrough != 1 {
 			serverDone <- errors.New("host_reconciled_mismatch")
 			return
 		}
-		serverDone <- nil
+		disposition, _ := json.Marshal(contract.NewHostDisposition(hello, 8, "host_retired"))
+		serverDone <- ipc.Write(conn, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindHostDisposition, RequestID: "retired", Epoch: 8, Payload: disposition})
 	}()
 	binary, err := filepath.EvalSymlinks(os.Args[0])
 	if err != nil {
@@ -348,7 +355,7 @@ func TestRunSourceReplaysDurableSpoolBeforeNewLaunch(t *testing.T) {
 	runErr := RunSource(ctx, SourceConfig{SocketPath: socket, SpoolRoot: root, ProducerID: "launch-replay", Hello: hello, InvocationProvider: func(context.Context, contract.LaunchCommand) (contract.InvocationView, error) {
 		return nil, errors.New("unexpected launch")
 	}})
-	if !errors.Is(runErr, io.EOF) {
+	if runErr != nil {
 		t.Fatalf("run err=%v", runErr)
 	}
 	if err = <-serverDone; err != nil {

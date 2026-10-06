@@ -11,15 +11,18 @@ binary=
 python=
 version=
 out=
+kind=full-native-hooks
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --binary) binary=${2-}; shift 2 ;;
     --python) python=${2-}; shift 2 ;;
     --version) version=${2-}; shift 2 ;;
     --out) out=${2-}; shift 2 ;;
+    --kind) kind=${2-}; shift 2 ;;
     *) usage ;;
   esac
 done
+case "$kind" in full-native-hooks|collect-only-hooks) : ;; *) echo "kind_invalid" >&2; exit 1 ;; esac
 [ -n "$binary" ] && [ -n "$python" ] && [ -n "$version" ] && [ -n "$out" ] || usage
 [ -f "$binary" ] && [ ! -L "$binary" ] || { echo "binary_missing_or_symlink" >&2; exit 1; }
 [ -f "$python" ] && [ ! -L "$python" ] && [ -x "$python" ] || { echo "python_missing_or_symlink" >&2; exit 1; }
@@ -38,6 +41,20 @@ fi
 repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/../../.." && pwd)
 plugin_source="$repo_root/plugins/codex-orchestrator"
 [ -f "$plugin_source/.codex-plugin/plugin.json" ] || { echo "plugin_source_missing" >&2; exit 1; }
+"$python" -B - "$repo_root" "$binary" "$python" "$kind" <<'PY'
+import os,pathlib,stat,sys
+repo,binary,interpreter,kind=sys.argv[1:]
+common=['.codex-plugin/plugin.json','defaults.json','skills/orchestrate/SKILL.md','scripts/invoke.sh','scripts/agent-bird-hook','scripts/agent-bird-agy-hook','hooks/agy-proposed-hooks.json']
+full=['scripts/native-product-bridge.py','lib/native_bridge/__init__.py','lib/native_bridge/bridge.py','lib/trial/auth_guard.py','lib/trial/auth_wire.py','lib/trial/rpc_policy.py']
+paths=[pathlib.Path(repo)/'plugins/codex-orchestrator'/p for p in common+(full if kind=='full-native-hooks' else [])]+[pathlib.Path(binary),pathlib.Path(interpreter)]
+if kind=='full-native-hooks':
+    names=['projectproxy_launchd_entrypoint','launch_activation','activation_service','proxy_transport','proxy_observer','owned_child_guard','owner_helper','auth_isolation','delivery_adapter','delivery_audit','receipt_store']
+    paths += [pathlib.Path(repo)/'runtime/native'/(name+'.py') for name in names]
+for path in paths:
+    if path.resolve()!=path:raise SystemExit('package_source_path_unsafe:'+str(path))
+    s=path.lstat()
+    if not stat.S_ISREG(s.st_mode) or s.st_nlink!=1 or s.st_uid not in (0,os.geteuid()) or stat.S_IMODE(s.st_mode)&0o022:raise SystemExit('package_source_file_unsafe:'+str(path))
+PY
 "$python" -B - "$plugin_source" <<'PY'
 import json, os, pathlib, sys
 root = pathlib.Path(sys.argv[1])
@@ -70,11 +87,27 @@ except (OSError, ValueError) as error:
     raise SystemExit("plugin_skills_invalid: " + str(error))
 PY
 mkdir -m 700 "$out/plugin"
-cp -R "$plugin_source"/. "$out/plugin/"
+# Explicit accepted producer closure, no arbitrary source discovery.
+for rel in .codex-plugin/plugin.json defaults.json skills/orchestrate/SKILL.md scripts/invoke.sh scripts/agent-bird-hook scripts/agent-bird-agy-hook hooks/agy-proposed-hooks.json; do
+  [ -f "$plugin_source/$rel" ] && [ ! -L "$plugin_source/$rel" ] || { echo "plugin_source_missing:$rel" >&2; exit 1; }
+  mkdir -m 700 -p "$out/plugin/$(dirname "$rel")"
+  cp "$plugin_source/$rel" "$out/plugin/$rel"
+  chmod 600 "$out/plugin/$rel"
+done
+if [ "$kind" = full-native-hooks ]; then
+  for rel in scripts/native-product-bridge.py lib/native_bridge/__init__.py lib/native_bridge/bridge.py lib/trial/auth_guard.py lib/trial/auth_wire.py lib/trial/rpc_policy.py; do
+    [ -f "$plugin_source/$rel" ] && [ ! -L "$plugin_source/$rel" ] || { echo "plugin_source_missing:$rel" >&2; exit 1; }
+    mkdir -m 700 -p "$out/plugin/$(dirname "$rel")"
+    cp "$plugin_source/$rel" "$out/plugin/$rel"
+    chmod 600 "$out/plugin/$rel"
+  done
+fi
 # Empty source directories have no manifest identity and would be retained as
 # unknown objects by the installer. Remove them only from this fresh package.
 find "$out/plugin" -depth -type d -empty ! -path "$out/plugin" -delete
-for executable in scripts/invoke.sh scripts/native-product-bridge.py; do
+executables="scripts/invoke.sh scripts/agent-bird-hook scripts/agent-bird-agy-hook"
+if [ "$kind" = full-native-hooks ]; then executables="$executables scripts/native-product-bridge.py"; fi
+for executable in $executables; do
   packaged_executable="$out/plugin/$executable"
   [ -f "$packaged_executable" ] && [ ! -L "$packaged_executable" ] || {
     echo "packaged_executable_unsafe:$executable" >&2
@@ -96,6 +129,7 @@ copy_runtime() {
   cp "$source_file" "$runtime/$target_name"
   chmod "$target_mode" "$runtime/$target_name"
 }
+if [ "$kind" = full-native-hooks ]; then
 copy_runtime "$repo_root/runtime/native/projectproxy_launchd_entrypoint.py" projectproxy_launchd_entrypoint.py 700
 copy_runtime "$repo_root/runtime/native/launch_activation.py" launch_activation.py 644
 copy_runtime "$repo_root/runtime/native/activation_service.py" activation_service.py 644
@@ -147,6 +181,11 @@ with open(path, "x", encoding="utf-8") as handle:
 os.chmod(path, 0o600)
 PY
 
+else
+  printf '%s\n' '{"version":2,"kind":"collect-only"}' > "$runtime/runtime-manifest.json"
+  chmod 600 "$runtime/runtime-manifest.json"
+fi
+
 "$python" -B - "$out/plugin/.codex-plugin/plugin.json" "$version" <<'PY'
 import json, os, sys
 path, version = sys.argv[1:]
@@ -161,6 +200,30 @@ with open(temporary, "x", encoding="utf-8") as handle:
     os.fsync(handle.fileno())
 os.chmod(temporary, 0o600)
 os.replace(temporary, path)
+PY
+
+"$python" -B - "$out/plugin" "$kind" "$version" <<'PY'
+import hashlib,json,os,pathlib,stat,sys
+root=pathlib.Path(sys.argv[1]);kind,version=sys.argv[2:]
+files=[]
+for current,dirs,names in os.walk(root,followlinks=False):
+    for name in dirs:
+        p=pathlib.Path(current)/name
+        if p.is_symlink() or stat.S_IMODE(p.stat().st_mode)!=0o700:raise SystemExit("payload_directory_unsafe")
+    for name in names:
+        p=pathlib.Path(current)/name;s=p.lstat()
+        if not stat.S_ISREG(s.st_mode) or s.st_nlink!=1 or s.st_uid!=os.geteuid():raise SystemExit("payload_file_unsafe")
+        files.append(dict(path=p.relative_to(root).as_posix(),sha256=hashlib.sha256(p.read_bytes()).hexdigest(),mode=stat.S_IMODE(s.st_mode)))
+files.sort(key=lambda x:x['path'])
+def write(name,value):
+    p=root/name
+    with p.open('x') as f:json.dump(value,f,indent=2,sort_keys=True);f.write("\n");f.flush();os.fsync(f.fileno())
+    p.chmod(0o600)
+write('payload-manifest.json',dict(schema_version=1,kind=kind,files=files))
+if kind=='collect-only-hooks':
+    hashes={x['path']:x['sha256'] for x in files}
+    hashes['payload-manifest.json']=hashlib.sha256((root/'payload-manifest.json').read_bytes()).hexdigest()
+    write('portable.json',dict(version=version,payload_schema=1,files=hashes))
 PY
 
 "$python" -B - "$out" "$version" <<'PY'

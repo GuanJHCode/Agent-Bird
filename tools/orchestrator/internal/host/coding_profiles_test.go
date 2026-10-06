@@ -44,7 +44,7 @@ printf '%s\n' '{"type":"text","data":"implemented"}'
 printf '%s\n' "{\"type\":\"end\",\"stopReason\":\"end_turn\",\"sessionId\":\"$session\"}"
 `
 			} else {
-				script += "printf '%s\\n' '{\"event\":\"result\",\"result\":{\"conversation_id\":\"fixture\",\"status\":\"SUCCESS\",\"response\":\"implemented\"}}'\n"
+				script += "printf '%s\\n' '{\"event\":\"init\",\"conversation_id\":\"fixture\"}' '{\"event\":\"result\",\"result\":{\"conversation_id\":\"fixture\",\"status\":\"SUCCESS\",\"response\":\"native aggregate commentary\",\"structured_output\":{\"version\":1,\"kind\":\"result\",\"text\":\"implemented\"}}}'\n"
 			}
 			binary := filepath.Join(root, "provider")
 			if err = os.WriteFile(binary, []byte(script), 0700); err != nil {

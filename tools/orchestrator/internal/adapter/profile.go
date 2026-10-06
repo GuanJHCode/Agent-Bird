@@ -71,7 +71,7 @@ func validateProfile(req Request) error {
 	if req.Lock == nil {
 		return errors.New("provider_lock_invalid")
 	}
-	if req.Session.ID != "" {
+	if req.Session.ID != "" && req.Continuation == nil {
 		return errors.New("profile_resume_not_verified")
 	}
 	if req.Provider == ProviderCodex {
@@ -123,6 +123,9 @@ func (i Invocation) ExecutionProfile() *ExecutionProfile {
 // CheckCapabilities checks only the flags needed by this exact request. Missing
 // flags are rejected, including versions whose capabilities are not established.
 func CheckCapabilities(req Request, help string) error {
+	if err := validateContinuation(req); err != nil {
+		return err
+	}
 	if err := validateProfile(req); err != nil {
 		return err
 	}
@@ -145,6 +148,9 @@ func CheckCapabilities(req Request, help string) error {
 	if req.Provider == ProviderCodex {
 		return errors.New("codex_trial_guard_not_ready")
 	}
+	if usesManagedTaskSchema(req) {
+		flags = append(flags, "--json-schema")
+	}
 	if usesCandidateReviewSchema(req) {
 		flags = append(flags, "--json-schema")
 		if req.Provider == ProviderGrok {
@@ -158,7 +164,11 @@ func CheckCapabilities(req Request, help string) error {
 		flags = append(flags, "--effort")
 	}
 	if req.Session.ID != "" {
-		flags = append(flags, "--resume")
+		if req.Provider == ProviderAGY {
+			flags = append(flags, "--conversation")
+		} else {
+			flags = append(flags, "--resume")
+		}
 	}
 	for _, flag := range flags {
 		// Match a whole option: --model must not establish support for --mode.

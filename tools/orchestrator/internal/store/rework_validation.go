@@ -44,11 +44,21 @@ type reworkArtifact struct {
 }
 
 func readReworkEvent(ctx context.Context, tx *sql.Tx, task *reworkTask, expected ReworkEvent, accepted bool) (contract.Event, reworkArtifact, error) {
+	return readReworkEventScope(ctx, tx, task, expected, accepted, true)
+}
+
+// Only a strict immutable decision may request historical scope; ordinary
+// QueueRework admission retains the original latest-attempt requirement.
+func readReworkEventScope(ctx context.Context, tx *sql.Tx, task *reworkTask, expected ReworkEvent, accepted, latest bool) (contract.Event, reworkArtifact, error) {
 	var e contract.Event
 	var artifact reworkArtifact
 	var body, slot, status, outcome, decision string
 	var rev int64
-	err := tx.QueryRowContext(ctx, `SELECT e.body_json,e.event_revision,e.action_slot,s.status,s.outcome,COALESCE(d.decision,'') FROM runtime_events e JOIN segment_runtime s ON s.segment_id=e.segment_id AND s.host_id=e.producer_id LEFT JOIN review_decisions d ON d.event_id=e.event_id AND d.event_revision=e.event_revision AND d.event_hash=e.payload_hash WHERE e.event_id=? AND e.task_id=? AND e.payload_hash=? AND e.segment_id=(SELECT z.id FROM segments z JOIN attempts a ON a.id=z.attempt_id WHERE a.task_id=e.task_id ORDER BY a.attempt_no DESC,z.segment_no DESC LIMIT 1)`, expected.EventID, task.id, expected.EventHash).Scan(&body, &rev, &slot, &status, &outcome, &decision)
+	query := `SELECT e.body_json,e.event_revision,e.action_slot,s.status,s.outcome,COALESCE(d.decision,'') FROM runtime_events e JOIN segment_runtime s ON s.segment_id=e.segment_id AND s.host_id=e.producer_id LEFT JOIN review_decisions d ON d.event_id=e.event_id AND d.event_revision=e.event_revision AND d.event_hash=e.payload_hash WHERE e.event_id=? AND e.task_id=? AND e.payload_hash=?`
+	if latest {
+		query += ` AND e.segment_id=(SELECT z.id FROM segments z JOIN attempts a ON a.id=z.attempt_id WHERE a.task_id=e.task_id ORDER BY a.attempt_no DESC,z.segment_no DESC LIMIT 1)`
+	}
+	err := tx.QueryRowContext(ctx, query, expected.EventID, task.id, expected.EventHash).Scan(&body, &rev, &slot, &status, &outcome, &decision)
 	if err != nil || rev != expected.EventRevision || status != "exited" || json.Unmarshal([]byte(body), &e) != nil || e.WorkRevision != task.revision || e.TaskID != task.id || e.PayloadHash != expected.EventHash {
 		return e, artifact, CodeError("rework_evidence_stale")
 	}

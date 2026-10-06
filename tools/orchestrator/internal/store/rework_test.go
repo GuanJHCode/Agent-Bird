@@ -22,6 +22,10 @@ type reworkFixture struct {
 // Use actual admission, scheduling, durable Host events and owner acceptance.
 // Only the Provider/Git receipt is a fixture in this store-level test.
 func newReworkFixture(t *testing.T) reworkFixture {
+	return newReworkFixtureWithConfig(t, nil)
+}
+
+func newReworkFixtureWithConfig(t *testing.T, ref *contract.ConfigGenerationRef) reworkFixture {
 	t.Helper()
 	ctx := context.Background()
 	dir := t.TempDir()
@@ -52,6 +56,12 @@ func newReworkFixture(t *testing.T) reworkFixture {
 				p["directory"] = "/private/repo"
 			}
 		}
+		if ref != nil {
+			p["config_generation"], p["config_model_source"] = ref, "not-applicable"
+			if profile, ok := p["profile"].(map[string]any); ok {
+				p["config_model_source"], profile["model"] = "saved-default", "a"
+			}
+		}
 		b, _ := json.Marshal(p)
 		return b
 	}
@@ -66,7 +76,7 @@ func newReworkFixture(t *testing.T) reworkFixture {
 		}
 		tasks = append(tasks, TaskSpec{ID: s, RunID: "run", MaxAttempts: 3, Dependencies: deps, AdapterPayload: payload(s, source)})
 	}
-	plan, err := db.SubmitPlan(ctx, PlanSpec{Run: RunSpec{ID: "run", ControllerThread: "owner", PlanRevision: 7, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth"}, Host: HostLaunchSpec{OriginContextID: "origin", HostGeneration: "gen", Executable: "/private/bin/orchestrator"}, Tasks: tasks})
+	plan, err := submitExistingConfigHistory(t, db, ctx, PlanSpec{Run: RunSpec{ID: "run", ControllerThread: "owner", PlanRevision: 7, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth"}, Host: HostLaunchSpec{OriginContextID: "origin", HostGeneration: "gen", Executable: "/private/bin/orchestrator"}, Tasks: tasks})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -87,7 +87,7 @@ func (d *DB) RebindOwner(ctx context.Context, spec RebindOwnerSpec) error {
 	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM segment_runtime s JOIN attempts a ON a.id=s.attempt_id JOIN tasks t ON t.id=a.task_id WHERE t.run_id=? AND s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown')`, spec.RunID).Scan(&active); err != nil || active != 0 {
 		return rollback(ErrConflict)
 	}
-	if _, err = tx.ExecContext(ctx, `INSERT INTO owner_rebinds(run_id,host_generation,origin_pid,origin_birth,attachment_proof_sha256,created_at) VALUES(?,?,?,?,?,?)`, spec.RunID, spec.HostGeneration, spec.OriginPID, spec.OriginBirth, strings.ToLower(spec.AttachmentProofSHA256), time.Now().UTC().Format(time.RFC3339Nano)); err != nil {
+	if _, err = tx.ExecContext(ctx, `INSERT INTO owner_rebinds(run_id,host_generation,old_host_generation,origin_pid,origin_birth,attachment_proof_sha256,created_at) VALUES(?,?,?,?,?,?,?)`, spec.RunID, spec.HostGeneration, oldGeneration, spec.OriginPID, spec.OriginBirth, strings.ToLower(spec.AttachmentProofSHA256), time.Now().UTC().Format(time.RFC3339Nano)); err != nil {
 		return rollback(mapConflict(err))
 	}
 	if _, err = tx.ExecContext(ctx, `UPDATE runs SET origin_pid=?,origin_birth=? WHERE id=?`, spec.OriginPID, spec.OriginBirth, spec.RunID); err != nil {
@@ -97,6 +97,15 @@ func (d *DB) RebindOwner(ctx context.Context, spec RebindOwnerSpec) error {
 		return rollback(err)
 	}
 	if _, err = tx.ExecContext(ctx, `UPDATE runtime_hosts SET host_generation=?,status='offline' WHERE launch_id IN (SELECT host_launch_id FROM task_runtime r JOIN tasks t ON t.id=r.task_id WHERE t.run_id=?)`, spec.HostGeneration, spec.RunID); err != nil {
+		return rollback(err)
+	}
+	// The business-owner transition and bridge revocation share this transaction.
+	// A CLAIMED attempt has not obtained output permission; EMITTING and later
+	// states remain conservative history and cannot gain a new permit once stale.
+	if _, err = tx.ExecContext(ctx, `UPDATE bridge_delivery_attempts SET state='STALE' WHERE binding_id IN (SELECT binding_id FROM bridge_bindings WHERE run_id=?) AND state='CLAIMED'`, spec.RunID); err != nil {
+		return rollback(err)
+	}
+	if _, err = tx.ExecContext(ctx, `UPDATE bridge_bindings SET status='STALE',hook_token_hash='' WHERE run_id=? AND status!='STALE'`, spec.RunID); err != nil {
 		return rollback(err)
 	}
 	return tx.Commit()

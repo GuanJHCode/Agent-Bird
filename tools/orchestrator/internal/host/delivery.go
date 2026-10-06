@@ -368,6 +368,8 @@ func (h *Host) prepareCandidateAction(ctx context.Context, grant contract.Launch
 			}
 			out.ReviewScope = "complete-tracked-text-base-and-candidate"
 			cmd, err = prepareAuthenticatedGrokCommand(ctx, cmd, profile, grant, scratch)
+		} else if action.Operation == "review" {
+			cmd, err = h.prepareCandidateReviewSandbox(ctx, cmd, profile, scratch, grant, reviewLock)
 		} else {
 			cmd, err = sandboxCommand(ctx, cmd, profile, scratch)
 		}
@@ -445,6 +447,15 @@ func (h *Host) prepareCandidateAction(ctx context.Context, grant contract.Launch
 		return finishCandidateDelivery(ctx, out, success, journal)
 	}
 	return cmd, finalize, closeJournal, nil
+}
+
+// The caller has authenticated the exact review lock and materialized/checked
+// the immutable candidate workspace. Kept separate for pure preparation tests.
+func (h *Host) prepareCandidateReviewSandbox(ctx context.Context, cmd process.Command, profile *adapter.ExecutionProfile, scratch string, grant contract.LaunchCommand, reviewLock *adapter.ProviderLock) (process.Command, error) {
+	if reviewLock != nil && reviewLock.Provider == adapter.ProviderAGY {
+		return h.sandboxProfileCommand(ctx, cmd, profile, scratch, grant)
+	}
+	return sandboxCommand(ctx, cmd, profile, scratch)
 }
 
 func checkDeliverySize(out CandidateDelivery) error {

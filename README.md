@@ -43,6 +43,8 @@ cd Agent-Bird
 
 [使用说明](docs/quick-start.md) · [安装与卸载](docs/installation.md) · [开发与验证](docs/development.md)
 
+本次源码交付的能力、验收范围及后续限制见 [2026-10-06 迭代说明](docs/iteration-20261006.md)。
+
 ## 支持范围
 
 | Provider | 只读分析 | 代码实现 / 候选审查 |

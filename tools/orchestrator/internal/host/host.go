@@ -26,26 +26,31 @@ import (
 const gracefulStopWindow = 10 * time.Second
 
 type Host struct {
-	db             *store.DB
-	spoolRoot      string
-	mu             sync.Mutex
-	active         map[string]*process.Handle
-	activeBySeg    map[string]*process.Handle
-	segmentCancels map[string]context.CancelFunc
-	producerID     string
-	sequenceMu     sync.Mutex
-	sequence       int64
-	sequenceLoaded bool
-	publishedPath  string
-	publishMu      sync.Mutex
-	ledgerMu       sync.Mutex
-	grantMu        sync.Mutex
-	reservations   map[string]time.Time
-	stopMu         sync.Mutex
-	stopRequested  map[string]bool
-	stopping       bool
-	eventReady     chan struct{}
-	progressSink   func(context.Context, contract.Event) error
+	db                *store.DB
+	spoolRoot         string
+	mu                sync.Mutex
+	active            map[string]*process.Handle
+	activeBySeg       map[string]*process.Handle
+	segmentCancels    map[string]context.CancelFunc
+	producerID        string
+	sequenceMu        sync.Mutex
+	sequence          int64
+	sequenceLoaded    bool
+	publishedPath     string
+	publishMu         sync.Mutex
+	ledgerMu          sync.Mutex
+	grantMu           sync.Mutex
+	reservations      map[string]time.Time
+	stopMu            sync.Mutex
+	stopRequested     map[string]bool
+	stopIntents       map[string]*segmentStopIntent
+	stopAllIntent     *segmentStopIntent
+	naturalGeneration uint64
+	stopping          bool
+	eventReady        chan struct{}
+	progressSink      func(context.Context, contract.Event) error
+	continuationOwner string
+	codexLeases       map[string]*codexHandleLease // CommandID; under stopMu + mu
 }
 
 func New(db *store.DB, spoolRoot string) (*Host, error) {
@@ -72,7 +77,7 @@ func newHost(db *store.DB, spoolRoot, producerID string) (*Host, error) {
 	if err := os.MkdirAll(spoolRoot, 0700); err != nil {
 		return nil, err
 	}
-	return &Host{db: db, spoolRoot: spoolRoot, active: map[string]*process.Handle{}, activeBySeg: map[string]*process.Handle{}, segmentCancels: map[string]context.CancelFunc{}, producerID: producerID, publishedPath: filepath.Join(spoolRoot, ".producer-published"), reservations: map[string]time.Time{}, stopRequested: map[string]bool{}, eventReady: make(chan struct{}, 1)}, nil
+	return &Host{db: db, spoolRoot: spoolRoot, active: map[string]*process.Handle{}, activeBySeg: map[string]*process.Handle{}, segmentCancels: map[string]context.CancelFunc{}, producerID: producerID, publishedPath: filepath.Join(spoolRoot, ".producer-published"), reservations: map[string]time.Time{}, stopRequested: map[string]bool{}, stopIntents: map[string]*segmentStopIntent{}, eventReady: make(chan struct{}, 1)}, nil
 }
 func (h *Host) spool(a store.Attempt) (*events.Spool, error) {
 	return events.Open(filepath.Join(h.spoolRoot, a.ID, a.SegmentID))
@@ -84,11 +89,40 @@ func (h *Host) spool(a store.Attempt) (*events.Spool, error) {
 // is consumed once and is retained until process restart so reconnects cannot
 // reset its active budget.
 func (h *Host) ExecuteLaunch(ctx context.Context, grant contract.LaunchCommand, inv contract.InvocationView) (contract.Result, error) {
+	return h.executeLaunch(ctx, grant, inv, codexExecuteControl{})
+}
+
+// The public entry always supplies zero control. Private per-call actor
+// coordination has no environment/request/wire selector or alternate launcher.
+func (h *Host) executeLaunch(ctx context.Context, grant contract.LaunchCommand, inv contract.InvocationView, control codexExecuteControl) (contract.Result, error) {
 	if grant.ReservationID == "" || grant.AttemptID == "" || grant.SegmentID == "" || grant.RunID == "" || grant.TaskID == "" || grant.GrantedActiveMS <= 0 || inv == nil || len(inv.Args()) == 0 || inv.Args()[0] == "" {
 		return contract.Result{}, errors.New("invalid_launch_grant")
 	}
-	if err := h.validateLaunchSession(grant); err != nil {
-		return contract.Result{}, err
+	managedInv, privateCodex := inv.(adapter.Invocation)
+	if privateCodex {
+		_, privateCodex = adapter.ManagedCodexDescriptorFor(managedInv)
+	}
+	if provider, ok := inv.(interface{ OutputProvider() string }); ok && provider.OutputProvider() == string(adapter.ProviderCodex) {
+		if mode, ok := inv.(interface {
+			TaskCompletionMode() adapter.TaskCompletionMode
+		}); ok && mode.TaskCompletionMode() == adapter.TaskCompletionV1 && !privateCodex {
+			return contract.Result{}, errors.New("codex_managed_invocation_required")
+		}
+	}
+	if privateCodex {
+		if grant.GrantedActiveMS > int64((1<<63-1)/time.Millisecond) {
+			return contract.Result{}, errors.New("invalid_launch_grant")
+		}
+	} else {
+		if control.beforeStart != nil || control.beforeSealFinalVerify != nil || control.actor != (codexActorCommand{}) {
+			return contract.Result{}, errors.New("codex_actor_control_invalid")
+		}
+		if err := h.validateLaunchSession(grant); err != nil {
+			return contract.Result{}, err
+		}
+		if err := h.recordContinuationOrigin(grant, inv); err != nil {
+			return contract.Result{}, err
+		}
 	}
 	now := time.Now()
 	budgetDeadline := now.Add(time.Duration(grant.GrantedActiveMS) * time.Millisecond)
@@ -131,7 +165,45 @@ func (h *Host) ExecuteLaunch(ctx context.Context, grant contract.LaunchCommand, 
 	if structured, ok := inv.(interface{ OutputProvider() string }); ok {
 		meta.outputProvider = structured.OutputProvider()
 	}
+	if completion, ok := inv.(interface {
+		TaskCompletionMode() adapter.TaskCompletionMode
+	}); ok {
+		meta.completionMode = completion.TaskCompletionMode()
+		if meta.completionMode != adapter.TaskCompletionNone && meta.completionMode != adapter.TaskCompletionV1 {
+			return contract.Result{}, errors.New("task_completion_mode_invalid")
+		}
+		if meta.completionMode == adapter.TaskCompletionV1 {
+			if profile == nil || (!privateCodex && meta.outputProvider != "claude-code" && meta.outputProvider != "antigravity-cli") {
+				return contract.Result{}, errors.New("task_completion_mode_invalid")
+			}
+			meta.requireSession = true
+		}
+	}
+	if privateCodex {
+		return h.executeManagedCodex(runCtx, grant, managedInv, meta, control)
+	}
+	if grant.Continuation != nil && (meta.outputProvider == "claude-code" || meta.outputProvider == "antigravity-cli") {
+		meta.expectedSessionID = grant.SessionID
+		meta.requireSession = true
+	}
+	if meta.outputProvider == "antigravity-cli" && meta.completionMode == adapter.TaskCompletionV1 {
+		p, decodeErr := adapter.DecodeInvocationPayload(grant.AdapterPayload)
+		if decodeErr == nil && p.ProviderLock != nil && p.ProviderLock.Binary.Version == agyHistoryVersion && p.ProviderLock.Binary.SHA256 == agyHistorySHA256 {
+			meta.agyHistoryGrant = &grant
+		}
+	}
 	cmd := invocationCommand(inv)
+	if meta.completionMode == adapter.TaskCompletionV1 {
+		// Clear both inherited and wrapped helper authority before sandbox
+		// preparation. The empty overrides also win in process mergeEnv.
+		env := cmd.Env[:0]
+		for _, entry := range cmd.Env {
+			if !strings.HasPrefix(entry, "ORCHESTRATOR_REPORT_EXECUTABLE=") && !strings.HasPrefix(entry, "ORCHESTRATOR_REPORT_CAPABILITY=") {
+				env = append(env, entry)
+			}
+		}
+		cmd.Env = append(env, "ORCHESTRATOR_REPORT_EXECUTABLE=", "ORCHESTRATOR_REPORT_CAPABILITY=")
+	}
 	if value, ok := inv.(interface {
 		CandidateAction() *adapter.CandidateAction
 	}); ok && value.CandidateAction() != nil {
@@ -163,6 +235,7 @@ func (h *Host) ExecuteLaunch(ctx context.Context, grant contract.LaunchCommand, 
 			}
 			scratch := filepath.Join(h.spoolRoot, grant.AttemptID, grant.SegmentID, "scratch")
 			var wrapped process.Command
+			cmd.Dir = prepared.Receipt.Worktree
 			if profile != nil && profile.GrokSessionWrite {
 				cmd.Dir = prepared.Receipt.Worktree
 				cmd, err = authorizeGrokEdits(cmd, profile, prepared)
@@ -170,7 +243,7 @@ func (h *Host) ExecuteLaunch(ctx context.Context, grant contract.LaunchCommand, 
 					wrapped, err = prepareAuthenticatedGrokCommand(ctx, cmd, profile, grant, scratch)
 				}
 			} else {
-				wrapped, err = sandboxCommand(ctx, cmd, profile, scratch)
+				wrapped, err = h.sandboxProfileCommand(ctx, cmd, profile, scratch, grant)
 			}
 			return wrapped, freeze, closeCandidate, err
 		}
@@ -185,10 +258,8 @@ func (h *Host) ExecuteLaunch(ctx context.Context, grant contract.LaunchCommand, 
 			return prepareAuthenticatedGrokCommand(ctx, cmd, profile, grant, filepath.Join(h.spoolRoot, grant.AttemptID, grant.SegmentID, "scratch"))
 		}
 	} else if profile != nil {
-		var err error
-		cmd, err = sandboxCommand(runCtx, cmd, profile, filepath.Join(h.spoolRoot, grant.AttemptID, grant.SegmentID, "scratch"))
-		if err != nil {
-			return contract.Result{}, err
+		meta.prepareProvider = func(ctx context.Context) (process.Command, error) {
+			return h.sandboxProfileCommand(ctx, cmd, profile, filepath.Join(h.spoolRoot, grant.AttemptID, grant.SegmentID, "scratch"), grant)
 		}
 	}
 	return h.execute(runCtx, store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID, Status: "running"}, grant.RunID, grant.TaskID, cmd, false, meta)
@@ -213,8 +284,14 @@ func (h *Host) Execute(ctx context.Context, a store.Attempt, runID, taskID strin
 }
 
 type launchMetadata struct {
+	agyHistoryGrant   *contract.LaunchCommand
+	completionMode    adapter.TaskCompletionMode
 	prepareProvider   func(context.Context) (process.Command, error)
+	afterWait         func(*process.Handle, context.Context, error)
+	afterNoStop       func(*process.Handle, context.Context)
+	beforeStopJoin    func(*hostStopOperation)
 	expectedSessionID string
+	requireSession    bool
 	integrationAction bool
 	structuredReview  bool
 	prepareAction     func(context.Context) (process.Command, actionFinalizer, func(), error)
@@ -230,14 +307,11 @@ type launchMetadata struct {
 
 func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID string, cmd process.Command, persistDB bool, meta launchMetadata) (contract.Result, error) {
 	defer h.clearStop(a.SegmentID)
-	if meta.prepareCandidate != nil || meta.freezeCandidate != nil || meta.prepareAction != nil || meta.prepareProvider != nil {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithCancel(ctx)
-		h.mu.Lock()
-		h.segmentCancels[a.SegmentID] = cancel
-		h.mu.Unlock()
-		defer func() { cancel(); h.mu.Lock(); delete(h.segmentCancels, a.SegmentID); h.mu.Unlock() }()
-	}
+	ctx, cancelSegment := context.WithCancel(ctx)
+	h.mu.Lock()
+	h.segmentCancels[a.SegmentID] = cancelSegment
+	h.mu.Unlock()
+	defer func() { cancelSegment(); h.mu.Lock(); delete(h.segmentCancels, a.SegmentID); h.mu.Unlock() }()
 
 	spool, err := h.spool(a)
 	if err != nil {
@@ -258,6 +332,8 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		}
 		cmd.Stdout = protocol
 		protocol.expectedSessionID = meta.expectedSessionID
+		protocol.requireSession = meta.requireSession
+		protocol.completionMode = meta.completionMode
 	}
 	eventCount := 0
 	lockActive := func() {
@@ -291,7 +367,29 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		h.finishAttempt(a.ID, "unknown", persistDB)
 		return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount, ArtifactPath: path, OutputHash: hashBytes(body)}, errors.Join(cause, artifactErr, eventErr, phaseErr)
 	}
+	finalizePrelaunchRejected := func(cause error) (contract.Result, error) {
+		// Only these preparation branches positively know Start was never
+		// entered. Preparation uncertainty and every starting/spawned path
+		// retain their existing conservative evidence.
+		if recordErr := h.recordLaunchFailed(a, runID, taskID, meta, cause); recordErr != nil {
+			h.finishAttempt(a.ID, "unknown", persistDB)
+			return contract.Result{Status: "unknown", ExitCode: -1, EventCount: eventCount}, errors.Join(cause, recordErr)
+		}
+		eventCount++
+		h.finishAttempt(a.ID, "failed", persistDB)
+		return contract.Result{Status: "failed", ExitCode: -1, EventCount: eventCount}, cause
+	}
 	finalizeStopped := func(identity *process.Identity, exit int, cause error) (contract.Result, error) {
+		if meta.agyHistoryGrant != nil {
+			// This closure is reached only after the existing original-Handle
+			// Stop/natural proof. Missing history cannot erase confirmed process
+			// facts: no successful seal means future continuation is refused.
+			if sealErr := h.captureAGYHistorySeal(*meta.agyHistoryGrant, identity, contract.EventStopped); sealErr != nil {
+				_ = spool.WriteMetadata("agy-history-seal-error.json", struct {
+					Code string `json:"code"`
+				}{"agy_history_seal_unavailable"})
+			}
+		}
 		if err = publishLaunchPhase(spool, "stopped", a, runID, taskID, cmd, identity, cause); err != nil {
 			h.finishAttempt(a.ID, "unknown", persistDB)
 			return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount}, err
@@ -323,7 +421,7 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		return contract.Result{Status: "unknown", ExitCode: -1, EventCount: eventCount}, err
 	}
 	if h.stopWasRequested(a.SegmentID) {
-		return finalizeStopped(nil, -1, context.Canceled)
+		return finalizePrelaunchRejected(context.Canceled)
 	}
 	if meta.prepareAction != nil {
 		meta.prepareCandidate = func(ctx context.Context) (process.Command, func(context.Context, string) ([]byte, error), func(), error) {
@@ -340,14 +438,14 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 				return finalizeCandidateUnknown(prepareErr, nil, -1)
 			}
 			if ctx.Err() != nil || h.stopWasRequested(a.SegmentID) {
-				return finalizeStopped(nil, -1, context.Canceled)
+				return finalizePrelaunchRejected(context.Canceled)
 			}
 			return contract.Result{Status: "failed", ExitCode: -1, EventCount: eventCount}, prepareErr
 		}
 		prepared.Stdout = cmd.Stdout
 		cmd, meta.freezeCandidate = prepared, freeze
 		if ctx.Err() != nil || h.stopWasRequested(a.SegmentID) {
-			return finalizeStopped(nil, -1, context.Canceled)
+			return finalizePrelaunchRejected(context.Canceled)
 		}
 	}
 	if meta.prepareProvider != nil {
@@ -357,15 +455,22 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 				return finalizeCandidateUnknown(prepareErr, nil, -1)
 			}
 			if ctx.Err() != nil || h.stopWasRequested(a.SegmentID) {
-				return finalizeStopped(nil, -1, context.Canceled)
+				return finalizePrelaunchRejected(context.Canceled)
 			}
 			return contract.Result{Status: "failed", ExitCode: -1, EventCount: eventCount}, prepareErr
 		}
 		prepared.Stdout = cmd.Stdout
 		cmd = prepared
 		if ctx.Err() != nil || h.stopWasRequested(a.SegmentID) {
-			return finalizeStopped(nil, -1, context.Canceled)
+			return finalizePrelaunchRejected(context.Canceled)
 		}
+	}
+	// Persist the uncertainty boundary before entering Start. A crash or any
+	// later failure cannot be reclassified from the older prepared phase as a
+	// never-started rejection, even if no spawned event became durable.
+	if err = publishLaunchPhase(spool, "starting", a, runID, taskID, cmd, nil, nil); err != nil {
+		h.finishAttempt(a.ID, "unknown", persistDB)
+		return contract.Result{Status: "unknown", ExitCode: -1, EventCount: eventCount}, err
 	}
 	p, err := process.Start(ctx, cmd)
 	if err != nil {
@@ -379,30 +484,34 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 	}
 	identity := p.Identity()
 	spawnedAt = time.Now()
+	if err = h.registerOwnedHandle(a.ID, a.SegmentID, p); err != nil {
+		return finalizeCandidateUnknown(err, &identity, p.ExitCode())
+	}
+	defer h.unregisterOwnedHandle(a.ID, a.SegmentID, p)
 	if err = publishLaunchPhase(spool, "spawned", a, runID, taskID, cmd, &identity, nil); err != nil {
 		stopCtx, stopCancel := context.WithTimeout(context.Background(), 2*time.Second)
-		_ = p.Stop(stopCtx)
+		_, _ = h.stopForExecution(a.SegmentID, p, stopCtx, true, nil)
 		stopCancel()
 		h.finishAttempt(a.ID, "unknown", persistDB)
 		return contract.Result{Status: "unknown", ExitCode: p.ExitCode(), EventCount: eventCount}, err
 	}
 	if err = appendPhase(contract.EventSpawned, hashText("spawned:"+a.SegmentID), &identity, nil, nil); err != nil {
 		stopCtx, stopCancel := context.WithTimeout(context.Background(), 2*time.Second)
-		_ = p.Stop(stopCtx)
+		_, _ = h.stopForExecution(a.SegmentID, p, stopCtx, true, nil)
 		stopCancel()
 		h.finishAttempt(a.ID, "unknown", persistDB)
 		return contract.Result{Status: "unknown", ExitCode: p.ExitCode(), EventCount: eventCount}, err
 	}
 	if err = publishLaunchPhase(spool, "running", a, runID, taskID, cmd, &identity, nil); err != nil {
 		stopCtx, stopCancel := context.WithTimeout(context.Background(), 2*time.Second)
-		_ = p.Stop(stopCtx)
+		_, _ = h.stopForExecution(a.SegmentID, p, stopCtx, true, nil)
 		stopCancel()
 		h.finishAttempt(a.ID, "unknown", persistDB)
 		return contract.Result{Status: "unknown", ExitCode: p.ExitCode(), EventCount: eventCount}, err
 	}
 	if err = appendPhase(contract.EventRunning, hashText("running:"+a.SegmentID), &identity, nil, nil); err != nil {
 		stopCtx, stopCancel := context.WithTimeout(context.Background(), 2*time.Second)
-		_ = p.Stop(stopCtx)
+		_, _ = h.stopForExecution(a.SegmentID, p, stopCtx, true, nil)
 		stopCancel()
 		h.finishAttempt(a.ID, "unknown", persistDB)
 		return contract.Result{Status: "unknown", ExitCode: p.ExitCode(), EventCount: eventCount}, err
@@ -413,27 +522,11 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 			return appendErr
 		}); err != nil {
 			stopCtx, stopCancel := context.WithTimeout(context.Background(), 2*time.Second)
-			_ = p.Stop(stopCtx)
+			_, _ = h.stopForExecution(a.SegmentID, p, stopCtx, true, nil)
 			stopCancel()
 			h.finishAttempt(a.ID, "unknown", persistDB)
 			return contract.Result{Status: "unknown", ExitCode: p.ExitCode(), EventCount: eventCount}, err
 		}
-	}
-	h.mu.Lock()
-	h.active[a.ID] = p
-	h.activeBySeg[a.SegmentID] = p
-	h.mu.Unlock()
-	defer func() {
-		h.mu.Lock()
-		delete(h.active, a.ID)
-		delete(h.activeBySeg, a.SegmentID)
-		h.mu.Unlock()
-		h.clearStop(a.SegmentID)
-	}()
-	if h.stopWasRequested(a.SegmentID) {
-		stopCtx, stopCancel := context.WithTimeout(context.Background(), 2*time.Second)
-		_ = p.Stop(stopCtx)
-		stopCancel()
 	}
 	// Progress is observational and bounded independently of the model budget.
 	// Stop the observer before publishing terminal events, so late snapshots
@@ -459,8 +552,8 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		close(progressStopped)
 	}
 	waitErr := p.Wait(ctx)
-	if waitErr == nil {
-		lockActive()
+	if meta.afterWait != nil {
+		meta.afterWait(p, ctx, waitErr)
 	}
 	close(progressDone)
 	var protocolSnapshots *protocolDiagnostics
@@ -477,13 +570,7 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		diagnostics.ProtocolSnapshots = protocolSnapshots
 		_ = spool.WriteMetadata("provider-diagnostics.json", diagnostics)
 	}
-	if waitErr != nil {
-		// The budget context already expired here. Protocol §6 still promises a
-		// graceful cancellation window, so Stop runs against a bounded fresh
-		// context instead of collapsing TERM straight into SIGKILL.
-		graceCtx, cancelGrace := context.WithTimeout(context.Background(), gracefulStopWindow)
-		stopErr := p.Stop(graceCtx)
-		cancelGrace()
+	finishJoinedStop := func(stopErr error) (contract.Result, error) {
 		if stopErr == nil {
 			lockActive()
 		}
@@ -508,13 +595,28 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		if protocol != nil {
 			_ = h.recordProgress(a, runID, taskID, meta, protocol, &identity, 20, started, interruptionReason(ctx, h.stopWasRequested(a.SegmentID), exit))
 		}
-		result, stoppedErr := finalizeStopped(&identity, exit, waitErr)
+		stopCause := waitErr
+		if stopCause == nil {
+			stopCause = context.Canceled
+		}
+		result, stoppedErr := finalizeStopped(&identity, exit, stopCause)
 		result.OutputHash = hashText(p.Output())
 		return result, stoppedErr
 	}
+	stopped, stopErr := h.stopForExecution(a.SegmentID, p, nil, waitErr != nil, meta.beforeStopJoin)
+	if stopped {
+		return finishJoinedStop(stopErr)
+	}
+	if meta.afterNoStop != nil {
+		meta.afterNoStop(p, ctx)
+	}
 	<-progressStopped
 	writeDiagnostics()
-	if err = p.ConfirmTreeExited(); err != nil {
+	proofErr := p.ConfirmTreeExited()
+	if stopped, stopErr = h.stopAfterNaturalProof(a.SegmentID, p, proofErr, meta.beforeStopJoin); stopped {
+		return finishJoinedStop(stopErr)
+	}
+	if err = proofErr; err != nil {
 		if phaseErr := publishLaunchPhase(spool, "unknown", a, runID, taskID, cmd, &identity, err); phaseErr != nil {
 			err = phaseErr
 		}
@@ -524,7 +626,17 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		h.finishAttempt(a.ID, "unknown", persistDB)
 		return contract.Result{Status: "unknown", ExitCode: p.ExitCode(), EventCount: eventCount, OutputHash: hashText(p.Output())}, err
 	}
+	lockActive()
 	if h.stopWasRequested(a.SegmentID) || p.ExitCode() < 0 {
+		// A stop can arrive after the natural tree observation. Its original
+		// result still governs the stop path; the earlier observation must not
+		// bypass a canceled or otherwise unproved stop scope.
+		if _, stopErr := h.stopForExecution(a.SegmentID, p, nil, false, meta.beforeStopJoin); stopErr != nil {
+			_ = publishLaunchPhase(spool, "unknown", a, runID, taskID, cmd, &identity, stopErr)
+			_ = appendPhase(contract.EventUnknown, hashText("unknown:"+a.SegmentID), &identity, nil, nil)
+			h.finishAttempt(a.ID, "unknown", persistDB)
+			return contract.Result{Status: "unknown", ExitCode: p.ExitCode(), EventCount: eventCount, OutputHash: hashText(p.Output())}, stopErr
+		}
 		if protocol != nil {
 			_ = h.recordProgress(a, runID, taskID, meta, protocol, &identity, 20, started, interruptionReason(ctx, h.stopWasRequested(a.SegmentID), p.ExitCode()))
 		}
@@ -538,6 +650,9 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 			kind, status = contract.EventFailed, "failed"
 		} else if terminal.Kind == "question" {
 			kind, status = contract.EventQuestion, "waiting_user"
+		}
+		if meta.completionMode == adapter.TaskCompletionV1 {
+			kind, status, terminal.Text, protocolErr = managedTerminalOutcome(protocol.provider, terminal, exit, protocolErr)
 		}
 		if meta.structuredReview {
 			// A schema request must return the native structured channel. Never
@@ -572,6 +687,14 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 			// Keep an actionable, bounded failure artifact in the durable event
 			// path. Never publish an earlier message as a partial final answer.
 			content = []byte(`{"status":"incomplete","reason":"provider_critical_event_too_large"}`)
+		}
+		if kind == contract.EventQuestion && meta.agyHistoryGrant != nil {
+			// Preserve the actual exit/settlement, but never publish an
+			// answerable Question without its proved segment's native state.
+			if sealErr := h.captureAGYHistorySeal(*meta.agyHistoryGrant, &identity, contract.EventQuestion); sealErr != nil {
+				kind, status, protocolErr = contract.EventFailed, "failed", sealErr
+				content = []byte(`{"status":"failed","reason":"agy_history_seal_unavailable"}`)
+			}
 		}
 		var artifact *contract.ArtifactRef
 		artifactPath := ""
@@ -674,6 +797,9 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 }
 
 func (h *Host) validateLaunchSession(grant contract.LaunchCommand) error {
+	if grant.Continuation != nil {
+		return h.validateTrustedContinuation(grant)
+	}
 	hasSession := grant.SessionKind != "" || grant.SessionID != ""
 	needsSession := grant.QuestionID != "" || grant.QuestionRevision != 0 || grant.Answer != ""
 	if needsSession && !hasSession {
@@ -743,6 +869,7 @@ func (h *Host) appendStructuredEvent(spool *events.Spool, runID, taskID string, 
 	}
 	if kind == contract.EventQuestion {
 		event.QuestionID = event.EventID + ":question"
+		event.QuestionKind = "technical"
 	}
 	if err := spool.Append(event); err != nil {
 		return contract.Event{}, err
@@ -809,7 +936,7 @@ func (h *Host) ensureLaunchUnknown(a store.Attempt, runID, taskID string, meta l
 		}
 	}
 	for _, event := range existing {
-		if event.Kind == contract.EventExited {
+		if event.Kind == contract.EventExited || event.Kind == contract.EventLaunchRejected {
 			return nil
 		}
 	}
@@ -829,8 +956,9 @@ func (h *Host) recordLaunchUnknown(a store.Attempt, runID, taskID string, meta l
 	return err
 }
 
-// recordLaunchFailed closes a grant rejected before its worker process was
-// spawned. UNKNOWN remains reserved for uncertain process ownership.
+// recordLaunchFailed is called only by this command's pre-Start refusal path.
+// It proves not_started without fabricating process exit. Cold-restart callers
+// use UNKNOWN unless the original terminal event is already durable.
 func (h *Host) recordLaunchFailed(a store.Attempt, runID, taskID string, meta launchMetadata, cause error) error {
 	defer h.clearStop(a.SegmentID)
 	spool, err := h.spool(a)
@@ -849,7 +977,7 @@ func (h *Host) recordLaunchFailed(a store.Attempt, runID, taskID string, meta la
 		}
 	}
 	for _, event := range existing {
-		if event.Kind == contract.EventExited {
+		if event.Kind == contract.EventExited || event.Kind == contract.EventLaunchRejected {
 			return nil
 		}
 	}
@@ -866,7 +994,7 @@ func (h *Host) recordLaunchFailed(a store.Attempt, runID, taskID string, meta la
 	var phase map[string]any
 	if err = spool.ReadMetadata("launch.json", &phase); err == nil {
 		previousPhase, _ := phase["phase"].(string)
-		if phase["process"] != nil || (previousPhase != "prepared" && previousPhase != "failed") {
+		if phase["process"] != nil || previousPhase != "prepared" {
 			return errors.New("launch_failure_state_conflict")
 		}
 	} else if !errors.Is(err, os.ErrNotExist) {
@@ -884,32 +1012,15 @@ func (h *Host) recordLaunchFailed(a store.Attempt, runID, taskID string, meta la
 	if err != nil {
 		return err
 	}
-	if _, recovering := cause.(recoveredLaunchFailure); recovering {
-		// The accepted grant ledger binds this segment directory to the original
-		// launch. An artifact can be durable before its first event is appended.
-		oldBody, oldCause, readErr := readRecoveredLaunchFailure(filepath.Join(segmentRoot, "launch-failure", "result-output.bin"))
-		if readErr == nil {
-			body, safeCause = oldBody, oldCause
-		} else if !errors.Is(readErr, os.ErrNotExist) {
-			return readErr
-		}
-	}
 	path, err := diagnostic.WriteArtifact(body)
 	if err != nil {
 		return err
 	}
 	artifact := &contract.ArtifactRef{ID: "launch-failure", Path: path, Size: int64(len(body)), SHA256: hashBytes(body)}
-	if err = publishLaunchPhase(spool, "failed", a, runID, taskID, process.Command{}, nil, safeCause); err != nil {
+	if err = publishLaunchPhase(spool, "not_started", a, runID, taskID, process.Command{}, nil, safeCause); err != nil {
 		return err
 	}
-	exit := -1
-	if _, err = h.appendPhaseEvent(spool, runID, taskID, a, meta, contract.EventFailed, artifact.SHA256, nil, &exit, artifact); err != nil {
-		return err
-	}
-	if err = publishLaunchPhase(spool, "exited", a, runID, taskID, process.Command{}, nil, safeCause); err != nil {
-		return err
-	}
-	_, err = h.appendPhaseEvent(spool, runID, taskID, a, meta, contract.EventExited, hashText("exited:"+a.SegmentID), nil, &exit, nil)
+	_, err = h.appendPhaseEvent(spool, runID, taskID, a, meta, contract.EventLaunchRejected, artifact.SHA256, nil, nil, artifact)
 	return err
 }
 
@@ -990,16 +1101,29 @@ func (h *Host) recoverDuplicateGrant(grant contract.LaunchCommand, epoch uint64)
 		if record.CommandID != grant.CommandID {
 			return errors.New("grant_event_identity_conflict")
 		}
-		if record.Kind == contract.EventExited {
+		if record.Kind == contract.EventExited || record.Kind == contract.EventLaunchRejected {
 			return nil
 		}
 	}
 	meta := launchMetadata{commandID: grant.CommandID, workRevision: grant.WorkRevision, executionEpoch: epoch}
 	if len(records) == 0 {
-		if err = h.recordLaunchFailed(a, grant.RunID, grant.TaskID, meta, recoveredLaunchFailure{}); err != nil {
+		// Preserve an older durable diagnostic, but it is not proof that this
+		// restarted Host never entered Start. Its outcome remains UNKNOWN.
+		path := filepath.Join(h.spoolRoot, a.ID, a.SegmentID, "launch-failure", "result-output.bin")
+		body, safeCause, readErr := readRecoveredLaunchFailure(path)
+		if readErr == nil {
+			if err = publishLaunchPhase(spool, "unknown", a, grant.RunID, grant.TaskID, process.Command{}, nil, safeCause); err != nil {
+				return err
+			}
+			ref := &contract.ArtifactRef{ID: "launch-failure", Path: path, Size: int64(len(body)), SHA256: hashBytes(body)}
+			_, err = h.appendPhaseEvent(spool, grant.RunID, grant.TaskID, a, meta, contract.EventUnknown, ref.SHA256, nil, nil, ref)
 			return err
 		}
-	} else if err = h.ensureLaunchUnknown(a, grant.RunID, grant.TaskID, meta, errors.New("recovered_incomplete_grant")); err != nil {
+		if !errors.Is(readErr, os.ErrNotExist) {
+			return readErr
+		}
+	}
+	if err = h.ensureLaunchUnknown(a, grant.RunID, grant.TaskID, meta, errors.New("recovered_incomplete_grant")); err != nil {
 		return err
 	}
 	return nil
@@ -1075,6 +1199,13 @@ func (h *Host) Ack(ctx context.Context, a store.Attempt) error {
 func hashText(s string) string { h := sha256.Sum256([]byte(s)); return hex.EncodeToString(h[:]) }
 
 func (h *Host) ExecuteInvocation(ctx context.Context, a store.Attempt, runID, taskID string, inv contract.InvocationView) (contract.Result, error) {
+	if provider, ok := inv.(interface{ OutputProvider() string }); ok && provider.OutputProvider() == string(adapter.ProviderCodex) {
+		if mode, ok := inv.(interface {
+			TaskCompletionMode() adapter.TaskCompletionMode
+		}); ok && mode.TaskCompletionMode() == adapter.TaskCompletionV1 {
+			return contract.Result{}, errors.New("codex_managed_launch_grant_required")
+		}
+	}
 	args := inv.Args()
 	if len(args) == 0 || args[0] == "" {
 		return contract.Result{}, errors.New("invocation_args_invalid")
@@ -1099,28 +1230,123 @@ func (h *Host) Cancel(ctx context.Context, a store.Attempt) error {
 // StopSegment stops only the process group owned by segment. It never signals
 // a caller-selected PID or a process outside the Host registry.
 func (h *Host) StopSegment(ctx context.Context, segmentID string) error {
+	return h.stopSegment(ctx, segmentID, nil, nil)
+}
+
+func (h *Host) stopSegment(ctx context.Context, segmentID string, afterRead func(), afterRegister func(*segmentStopIntent)) error {
 	if segmentID == "" {
 		return errors.New("segment_required")
 	}
-	h.stopMu.Lock()
-	terminal, err := h.segmentStopComplete(segmentID)
-	if err != nil || terminal || h.stopping {
+	capturedNow := time.Now()
+	var lookup *segmentStopIntent
+	transferred := false
+	defer func() {
+		if lookup != nil && lookup.cancel != nil && !transferred {
+			lookup.cancel()
+		}
+	}()
+	var terminal bool
+	var err error
+	observed := false
+	for {
+		h.stopMu.Lock()
+		if i := h.stopIntents[segmentID]; i != nil {
+			if i.terminal {
+				h.stopMu.Unlock()
+				return nil
+			}
+			if i.op != nil {
+				ops := h.codexSegmentStopOperationsLocked(segmentID, i)
+				h.stopMu.Unlock()
+				return h.joinHostStopOperations(ops, nil)
+			}
+		}
+		generation := h.naturalGeneration
+		// Saturate rather than allowing a generation ABA through wraparound.
+		if generation == ^uint64(0) {
+			h.stopMu.Unlock()
+			return process.ErrProcessTreeUnknown
+		}
 		h.stopMu.Unlock()
-		return err
+		if lookup == nil {
+			lookup = stopIntentAt(ctx, capturedNow)
+		}
+		if observed && lookup.ctx.Err() != nil {
+			return process.ErrProcessTreeUnknown
+		}
+		terminal, err = h.segmentStopComplete(segmentID)
+		observed = true
+		if afterRead != nil {
+			afterRead()
+		}
+		h.stopMu.Lock()
+		if h.naturalGeneration != generation {
+			h.stopMu.Unlock()
+			continue // same lookup deadline; consume current state before reread
+		}
+		if i := h.stopIntents[segmentID]; i != nil {
+			if i.terminal {
+				h.stopMu.Unlock()
+				return nil
+			}
+			if i.op != nil {
+				ops := h.codexSegmentStopOperationsLocked(segmentID, i)
+				h.stopMu.Unlock()
+				return h.joinHostStopOperations(ops, nil)
+			}
+		}
+		if err != nil || terminal {
+			h.stopMu.Unlock()
+			return err
+		}
+		// A stable first observation consumes its original intent even if its
+		// context already expired: bind UNKNOWN and cancel execution, rather
+		// than forgetting it and permitting a follower to create new grace.
+		break // stopMu remains held; lifecycle observation is generation-exact
 	}
-	h.stopRequested[segmentID] = true
-	h.stopMu.Unlock()
 	h.mu.Lock()
 	p := h.activeBySeg[segmentID]
 	cancel := h.segmentCancels[segmentID]
+	i := h.stopIntents[segmentID]
+	if i == nil {
+		if h.stopping {
+			i = &segmentStopIntent{ctx: h.stopAllIntent.ctx, deadline: h.stopAllIntent.deadline, expires: h.stopAllIntent.expires, bounded: h.stopAllIntent.bounded}
+		} else {
+			i = lookup
+			transferred = true
+		}
+		h.stopIntents[segmentID] = i
+	}
+	h.stopRequested[segmentID] = true
+	if p != nil {
+		h.bindStopLocked(segmentID, i, p, false)
+	}
+	ops := h.codexSegmentStopOperationsLocked(segmentID, i)
 	h.mu.Unlock()
+	h.stopMu.Unlock()
+	if afterRegister != nil {
+		afterRegister(i)
+	}
+	for _, operation := range ops {
+		h.startStop(operation)
+	}
 	if cancel != nil {
 		cancel()
 	}
-	if p == nil {
+	if len(ops) == 0 {
+		// No original handle is an intent, never process-exit evidence.
+		if cancel == nil {
+			terminal, err = h.segmentStopComplete(segmentID)
+			if terminal || err != nil {
+				if terminal {
+					h.clearStop(segmentID)
+				}
+				return err
+			}
+		}
 		return nil
 	}
-	return p.Stop(ctx)
+	return h.joinHostStopOperations(ops, nil)
 }
 
 func (h *Host) stopWasRequested(segmentID string) bool {
@@ -1131,34 +1357,103 @@ func (h *Host) stopWasRequested(segmentID string) bool {
 
 func (h *Host) clearStop(segmentID string) {
 	h.stopMu.Lock()
-	delete(h.stopRequested, segmentID)
-	h.stopMu.Unlock()
-}
-
-// StopAll is used when the source IPC connection ends. Each registered handle
-// is bounded by the caller's context; an unprovable tree stop remains unknown.
-func (h *Host) StopAll(ctx context.Context) {
-	h.stopMu.Lock()
-	h.stopping = true
-	h.stopMu.Unlock()
-	h.mu.Lock()
-	processes := make([]*process.Handle, 0, len(h.activeBySeg))
-	cancels := make([]context.CancelFunc, 0, len(h.segmentCancels))
-	for _, cancel := range h.segmentCancels {
-		cancels = append(cancels, cancel)
+	i := h.stopIntents[segmentID]
+	if i != nil && i.terminal {
+		h.mu.Lock()
+		occupied := h.activeBySeg[segmentID] != nil || h.segmentCancels[segmentID] != nil
+		h.mu.Unlock()
+		if occupied {
+			h.stopMu.Unlock()
+			return
+		}
+		h.advanceNaturalGenerationLocked()
 	}
-	seen := make(map[*process.Handle]struct{}, len(h.activeBySeg))
-	for _, p := range h.activeBySeg {
-		if _, ok := seen[p]; !ok {
-			seen[p] = struct{}{}
-			processes = append(processes, p)
+	if i != nil && i.op != nil {
+		select {
+		case <-i.op.done:
+		default:
+			i.op.retire = true
+			h.stopMu.Unlock()
+			return
 		}
 	}
+	delete(h.stopIntents, segmentID)
+	delete(h.stopRequested, segmentID)
+	h.stopMu.Unlock()
+	if i != nil && i.cancel != nil {
+		i.cancel()
+	}
+}
+
+// BeginStopAll registers the first global stop window and each original handle
+// before cancellation can wake workers. It starts operations without waiting.
+func (h *Host) BeginStopAll(ctx context.Context) {
+	h.stopMu.Lock()
+	h.stopping = true
+	if h.stopAllIntent == nil {
+		h.stopAllIntent = stopIntent(ctx)
+	}
+	h.mu.Lock()
+	ops := make([]*hostStopOperation, 0, len(h.activeBySeg))
+	cancels := make([]context.CancelFunc, 0, len(h.segmentCancels))
+	for segment, cancel := range h.segmentCancels {
+		if i := h.stopIntents[segment]; i != nil && i.terminal {
+			continue
+		}
+		cancels = append(cancels, cancel)
+		if h.stopIntents[segment] == nil {
+			h.stopIntents[segment] = &segmentStopIntent{ctx: h.stopAllIntent.ctx, deadline: h.stopAllIntent.deadline, expires: h.stopAllIntent.expires, bounded: h.stopAllIntent.bounded}
+		}
+		h.stopRequested[segment] = true
+	}
+	for segment, p := range h.activeBySeg {
+		i := h.stopIntents[segment]
+		if i != nil && i.terminal {
+			continue
+		}
+		if i == nil {
+			i = &segmentStopIntent{ctx: h.stopAllIntent.ctx, deadline: h.stopAllIntent.deadline, expires: h.stopAllIntent.expires, bounded: h.stopAllIntent.bounded}
+			h.stopIntents[segment] = i
+		}
+		h.stopRequested[segment] = true
+		ops = append(ops, h.bindStopLocked(segment, i, p, false))
+	}
+	for _, lease := range h.codexLeases {
+		if lease.cancel != nil {
+			cancels = append(cancels, lease.cancel)
+		}
+		ops = append(ops, h.codexSegmentStopOperationsLocked(lease.segment, h.stopIntents[lease.segment])...)
+	}
 	h.mu.Unlock()
+	h.stopMu.Unlock()
+	for _, op := range ops {
+		h.startStop(op)
+	}
 	for _, cancel := range cancels {
 		cancel()
 	}
-	for _, p := range processes {
-		_ = p.Stop(ctx)
+}
+
+// StopAll joins the operations registered by BeginStopAll, including their
+// existing KILL-confirmation stage. Reentry never creates another TERM window.
+func (h *Host) StopAll(ctx context.Context) {
+	h.stopAll(ctx, nil)
+}
+
+// Private per-call observation is used only by bounded join tests.
+func (h *Host) stopAll(ctx context.Context, observe func(*hostStopOperation)) {
+	h.BeginStopAll(ctx)
+	h.stopMu.Lock()
+	ops := make([]*hostStopOperation, 0, len(h.stopIntents)+len(h.codexLeases))
+	seen := map[*hostStopOperation]bool{}
+	for segment, i := range h.stopIntents {
+		for _, op := range h.codexSegmentStopOperationsLocked(segment, i) {
+			if !seen[op] {
+				seen[op] = true
+				ops = append(ops, op)
+			}
+		}
 	}
+	h.stopMu.Unlock()
+	_ = h.joinHostStopOperations(ops, observe)
 }

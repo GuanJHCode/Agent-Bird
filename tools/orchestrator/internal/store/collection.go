@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"strings"
 
@@ -31,6 +32,25 @@ func (d *DB) CollectionReceipt(ctx context.Context, task string, events []contra
 	if mode != "collect" || len(events) == 0 {
 		return "", "", nil
 	}
+	return collectionReceipt(ctx, d.sql, task, events)
+}
+
+// collectionReceipt accepts the existing DB or the bridge claim transaction.
+// Both paths use the same exact collection-v1 binding bytes and persisted proof.
+type collectionReceiptDB interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+}
+
+func collectionReceipt(ctx context.Context, db collectionReceiptDB, task string, events []contract.Event) (string, string, error) {
+	id, proof, raw, err := collectionReceiptParts(task, events)
+	if err != nil || id == "" {
+		return id, proof, err
+	}
+	_, err = db.ExecContext(ctx, `INSERT INTO collection_receipts(id,task_id,proof_hash,bindings_json) VALUES(?,?,?,?) ON CONFLICT(id) DO NOTHING`, id, task, proof, raw)
+	return id, proof, err
+}
+
+func collectionReceiptParts(task string, events []contract.Event) (string, string, string, error) {
 	bindings := make([]collectionBinding, 0, len(events))
 	for _, e := range events {
 		if e.ActionSlot != "" && e.Kind != "progress" {
@@ -38,16 +58,15 @@ func (d *DB) CollectionReceipt(ctx context.Context, task string, events []contra
 		}
 	}
 	if len(bindings) == 0 {
-		return "", "", nil
+		return "", "", "", nil
 	}
 	raw, err := json.Marshal(bindings)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	proof := runtimeHash("collection-v1\x00" + task + "\x00" + string(raw))
 	id := "collection-" + proof
-	_, err = d.sql.ExecContext(ctx, `INSERT INTO collection_receipts(id,task_id,proof_hash,bindings_json) VALUES(?,?,?,?) ON CONFLICT(id) DO NOTHING`, id, task, proof, string(raw))
-	return id, proof, err
+	return id, proof, string(raw), nil
 }
 func (d *DB) AckDelivery(ctx context.Context, task, id, historyProof, collectionProof string, decisions []AckDecision) error {
 	mode, err := d.DeliveryMode(ctx, task)

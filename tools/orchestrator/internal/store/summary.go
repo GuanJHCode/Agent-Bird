@@ -1,9 +1,9 @@
 package store
 
 import (
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"context"
 	"encoding/json"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 )
 
 // RunSummary is a read-only projection of the existing task database. Actions
@@ -17,16 +17,22 @@ type RunSummary struct {
 }
 
 type SummaryTask struct {
-	TaskID              string                   `json:"task_id"`
-	Status              string                   `json:"status"`
-	Group               string                   `json:"group"`
-	WorkRevision        int                      `json:"work_revision"`
-	ActiveSegments      int                      `json:"active_segments"`
-	AllowedActions      []string                 `json:"allowed_actions"`
-	ReviewableResult    *ReviewableResultBinding `json:"reviewable_result,omitempty"`
-	ResumeBlockedReason string                   `json:"resume_blocked_reason,omitempty"`
-	StopReason          string                   `json:"stop_reason,omitempty"`
-	LatestProgress      *contract.ArtifactRef    `json:"latest_progress,omitempty"`
+	TaskID              string                     `json:"task_id"`
+	Status              string                     `json:"status"`
+	Group               string                     `json:"group"`
+	WorkRevision        int                        `json:"work_revision"`
+	ActiveSegments      int                        `json:"active_segments"`
+	AllowedActions      []string                   `json:"allowed_actions"`
+	ReviewableResult    *ReviewableResultBinding   `json:"reviewable_result,omitempty"`
+	ResumeBlockedReason string                     `json:"resume_blocked_reason,omitempty"`
+	StopReason          string                     `json:"stop_reason,omitempty"`
+	LatestProgress      *contract.ArtifactRef      `json:"latest_progress,omitempty"`
+	ContinuationSource  *ContinuationSourceBinding `json:"continuation_source,omitempty"`
+}
+
+type ContinuationSourceBinding struct {
+	ReviewableResultBinding
+	SegmentID string `json:"segment_id"`
 }
 
 // ReviewableResultBinding recovers the existing immutable accept/reject tuple
@@ -117,6 +123,8 @@ WHERE t.run_id=(SELECT run_id FROM tasks WHERE id=?) ORDER BY t.id`, taskID)
 			if task.ActiveSegments == 0 {
 				if reviewRetryEligible {
 					task.AllowedActions = append(task.AllowedActions, "retry")
+				} else if p, _ := continuationPayload([]byte(adapterPayload)); p.Profile != nil && (p.Provider == "claude-code" || p.Provider == "antigravity-cli") && p.CandidateAction == nil {
+					// Resolve the trusted source after the bounded result rows close.
 				} else if restriction := resumeProfileRestriction([]byte(adapterPayload)); restriction == nil {
 					task.AllowedActions = append(task.AllowedActions, "resume")
 				} else {
@@ -136,5 +144,27 @@ WHERE t.run_id=(SELECT run_id FROM tasks WHERE id=?) ORDER BY t.id`, taskID)
 		summary.Counts[task.Group]++
 		summary.Tasks = append(summary.Tasks, task)
 	}
-	return summary, rows.Err()
+	if err := rows.Err(); err != nil {
+		return RunSummary{}, err
+	}
+	if err := rows.Close(); err != nil {
+		return RunSummary{}, err
+	}
+	for i := range summary.Tasks {
+		task := &summary.Tasks[i]
+		if task.Status != "interrupted" || task.ActiveSegments != 0 || task.ResumeBlockedReason != "" {
+			continue
+		}
+		source, typed, err := d.continuationSummary(ctx, task.TaskID)
+		if !typed {
+			continue
+		}
+		if err != nil {
+			task.ResumeBlockedReason = err.Error()
+			continue
+		}
+		task.ContinuationSource = source
+		task.AllowedActions = append(task.AllowedActions, "resume")
+	}
+	return summary, nil
 }

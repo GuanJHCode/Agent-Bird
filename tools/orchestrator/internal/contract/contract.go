@@ -34,17 +34,18 @@ type Event struct {
 }
 
 const (
-	EventPrepared = "prepared"
-	EventSpawned  = "spawned"
-	EventRunning  = "running"
-	EventProgress = "progress"
-	EventSession  = "session"
-	EventQuestion = "question"
-	EventResult   = "result"
-	EventExited   = "exited"
-	EventStopped  = "stopped"
-	EventFailed   = "failed"
-	EventUnknown  = "unknown"
+	EventPrepared       = "prepared"
+	EventSpawned        = "spawned"
+	EventRunning        = "running"
+	EventProgress       = "progress"
+	EventSession        = "session"
+	EventQuestion       = "question"
+	EventResult         = "result"
+	EventExited         = "exited"
+	EventStopped        = "stopped"
+	EventFailed         = "failed"
+	EventLaunchRejected = "launch_rejected"
+	EventUnknown        = "unknown"
 )
 
 type ProcessIdentity struct {
@@ -119,30 +120,52 @@ type AcceptedInput struct {
 }
 
 type LaunchCommand struct {
-	Input              *AcceptedInput  `json:"input,omitempty"`
-	PlanRevision       int             `json:"plan_revision,omitempty"`
-	CommandID          string          `json:"command_id"`
-	HostID             string          `json:"host_id"`
-	RunID              string          `json:"run_id"`
-	TaskID             string          `json:"task_id"`
-	AttemptID          string          `json:"attempt_id"`
-	SegmentID          string          `json:"segment_id"`
-	WorkRevision       int             `json:"work_revision"`
-	ExecutionEpoch     uint64          `json:"execution_epoch"`
-	SlotToken          string          `json:"slot_token"`
-	LaunchIntentHash   string          `json:"launch_intent_hash"`
-	ReservationID      string          `json:"reservation_id"`
-	BudgetGroupID      string          `json:"budget_group_id"`
-	GrantedActiveMS    int64           `json:"granted_active_ms"`
-	DeadlineUnixMS     int64           `json:"deadline_unix_ms"`
-	AdapterPayload     json.RawMessage `json:"adapter_payload,omitempty"`
-	QuestionID         string          `json:"question_id,omitempty"`
-	QuestionRevision   int             `json:"question_revision,omitempty"`
-	Answer             string          `json:"answer,omitempty"`
-	SessionKind        string          `json:"session_kind,omitempty"`
-	SessionID          string          `json:"session_id,omitempty"`
-	ReportCapabilityID string          `json:"report_capability_id"`
+	Continuation       *ContinuationRef `json:"continuation,omitempty"`
+	Input              *AcceptedInput   `json:"input,omitempty"`
+	PlanRevision       int              `json:"plan_revision,omitempty"`
+	CommandID          string           `json:"command_id"`
+	HostID             string           `json:"host_id"`
+	RunID              string           `json:"run_id"`
+	TaskID             string           `json:"task_id"`
+	AttemptID          string           `json:"attempt_id"`
+	SegmentID          string           `json:"segment_id"`
+	WorkRevision       int              `json:"work_revision"`
+	ExecutionEpoch     uint64           `json:"execution_epoch"`
+	SlotToken          string           `json:"slot_token"`
+	LaunchIntentHash   string           `json:"launch_intent_hash"`
+	ReservationID      string           `json:"reservation_id"`
+	BudgetGroupID      string           `json:"budget_group_id"`
+	GrantedActiveMS    int64            `json:"granted_active_ms"`
+	DeadlineUnixMS     int64            `json:"deadline_unix_ms"`
+	AdapterPayload     json.RawMessage  `json:"adapter_payload,omitempty"`
+	QuestionID         string           `json:"question_id,omitempty"`
+	QuestionRevision   int              `json:"question_revision,omitempty"`
+	Answer             string           `json:"answer,omitempty"`
+	SessionKind        string           `json:"session_kind,omitempty"`
+	SessionID          string           `json:"session_id,omitempty"`
+	ReportCapabilityID string           `json:"report_capability_id"`
 }
+
+// ContinuationRef is derived from durable owner decisions and trusted Host
+// initialization. It is never accepted in a submitted adapter payload.
+type ContinuationRef struct {
+	SourceKind               string `json:"source_kind"`
+	Version                  int    `json:"version"`
+	Mode                     string `json:"mode"`
+	SourceSegmentID          string `json:"source_segment_id"`
+	SourceEventID            string `json:"source_event_id"`
+	SourceEventRevision      int64  `json:"source_event_revision"`
+	SourceEventSHA256        string `json:"source_event_sha256"`
+	SessionEventID           string `json:"session_event_id"`
+	AdapterPayloadSHA256     string `json:"adapter_payload_sha256"`
+	OwnerContextID           string `json:"owner_context_id"`
+	WorkspaceSourceSegmentID string `json:"workspace_source_segment_id,omitempty"`
+}
+
+const (
+	ContinuationQuestion    = "question"
+	ContinuationInterrupted = "interrupted"
+)
 
 type ReportCapabilityRegistration struct {
 	CapabilityID   string `json:"capability_id"`

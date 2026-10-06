@@ -145,6 +145,7 @@ type appServerRPC struct {
 	pid        int
 	birth      string
 	done       chan error
+	stopped    chan struct{}
 	stopOnce   sync.Once
 	stopErr    error
 }
@@ -173,11 +174,16 @@ func startCodexAppServer(ctx context.Context) (*appServerRPC, func() error, erro
 		_ = cmd.Wait()
 		return nil, nil, codeError("app_server_start_failed")
 	}
-	rpc := &appServerRPC{stdin: stdin, stdout: stdout, cmd: cmd, pid: cmd.Process.Pid, birth: birth, done: make(chan error, 1), lines: bufio.NewScanner(stdout), nextID: 1}
-	go func() { rpc.done <- cmd.Wait() }()
+	rpc := &appServerRPC{stdin: stdin, stdout: stdout, cmd: cmd, pid: cmd.Process.Pid, birth: birth, done: make(chan error, 1), stopped: make(chan struct{}), lines: bufio.NewScanner(stdout), nextID: 1}
 	rpc.lines.Buffer(make([]byte, 4096), maxAppServerLine)
 	closeRPC := rpc.stop
-	go func() { <-ctx.Done(); _ = rpc.stop() }()
+	go func() {
+		select {
+		case <-ctx.Done():
+			_ = rpc.stop()
+		case <-rpc.stopped:
+		}
+	}()
 	initialized, err := rpc.Call(ctx, "initialize", map[string]any{"clientInfo": map[string]any{"name": "agent-bird", "version": "1"}, "capabilities": map[string]any{"experimentalApi": true}})
 	if err != nil {
 		_ = closeRPC()
@@ -194,57 +200,6 @@ func startCodexAppServer(ctx context.Context) (*appServerRPC, func() error, erro
 		return nil, func() error { return nil }, err
 	}
 	return rpc, closeRPC, nil
-}
-
-func (r *appServerRPC) stop() error {
-	r.stopOnce.Do(func() {
-		_ = r.stdin.Close()
-		_ = r.stdout.Close()
-		select {
-		case <-r.done:
-		case <-time.After(time.Second):
-			if now, err := process.Birth(r.pid); err != nil || now != r.birth {
-				r.stopErr = codeError("app_server_process_tree_unknown")
-				return
-			}
-			if err := syscall.Kill(-r.pid, syscall.SIGTERM); err != nil && err != syscall.ESRCH {
-				r.stopErr = codeError("app_server_process_tree_unknown")
-				return
-			}
-			select {
-			case <-r.done:
-			case <-time.After(time.Second):
-				_ = syscall.Kill(-r.pid, syscall.SIGKILL)
-				select {
-				case <-r.done:
-				case <-time.After(time.Second):
-					r.stopErr = codeError("app_server_process_tree_unknown")
-					return
-				}
-			}
-		}
-		if r.stopErr == nil && process.ConfirmGroupExited(r.pid) != nil {
-			if err := syscall.Kill(-r.pid, syscall.SIGTERM); err != nil && err != syscall.ESRCH {
-				r.stopErr = codeError("app_server_process_tree_unknown")
-				return
-			}
-			deadline := time.Now().Add(time.Second)
-			for process.ConfirmGroupExited(r.pid) != nil && time.Now().Before(deadline) {
-				time.Sleep(10 * time.Millisecond)
-			}
-			if process.ConfirmGroupExited(r.pid) != nil {
-				_ = syscall.Kill(-r.pid, syscall.SIGKILL)
-				deadline = time.Now().Add(time.Second)
-				for process.ConfirmGroupExited(r.pid) != nil && time.Now().Before(deadline) {
-					time.Sleep(10 * time.Millisecond)
-				}
-				if process.ConfirmGroupExited(r.pid) != nil {
-					r.stopErr = codeError("app_server_process_tree_unknown")
-				}
-			}
-		}
-	})
-	return r.stopErr
 }
 
 func (r *appServerRPC) notify(method string, params map[string]any) error {

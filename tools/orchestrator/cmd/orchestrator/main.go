@@ -80,7 +80,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return sourceHost(ctx, args[1:])
 	case "gitops-worker":
 		return runGitopsWorker(ctx, args[1:], stdout)
-	case "install", "doctor", "uninstall", "pin", "unpin":
+	case "install", "doctor", "uninstall", "pin", "unpin", "config-plan", "config-apply", "config-remove":
 		return runAdmin(args[0], args[1:], stdout)
 	case "ensure-running":
 		state, err := parseStateOnly(args[1:])
@@ -116,6 +116,8 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return reportEvent(ctx, args[1:], stdout)
 	case "native-bridge":
 		return runNativeBridge(ctx, args[1:], stdout, stderr)
+	case "bridge":
+		return bridgeEntry(ctx, args[1:], stdout, stderr)
 	case "recover-host":
 		return recoverHost(ctx, args[1:], stdout)
 	case "rebind-owner":
@@ -240,11 +242,23 @@ func runAdmin(operation string, args []string, stdout io.Writer) error {
 }
 
 func serve(parent context.Context, args []string, stderr io.Writer) error {
-	state, err := parseStateOnly(args)
+	fs := flag.NewFlagSet("serve", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	stateArg := fs.String("state-dir", "", "private state directory")
+	recovery := fs.Bool("recover-existing-host", false, "recover coordinator without clearing normal-exit fences")
+	if fs.Parse(args) != nil || fs.NArg() != 0 {
+		return codeError("invalid_args")
+	}
+	state, err := resolveState(*stateArg)
 	if err != nil {
 		return err
 	}
-	server, err := coordinator.NewServer(state)
+	var server *coordinator.Server
+	if *recovery {
+		server, err = coordinator.NewServerForRecovery(state)
+	} else {
+		server, err = coordinator.NewServer(state)
+	}
 	if err != nil {
 		return err
 	}
@@ -344,13 +358,35 @@ func submitWithPreparedControl(ctx context.Context, args []string, stdout io.Wri
 		_ = os.Remove(bootstrapPath)
 		return err
 	}
+	ref, pairErr := coordinator.ConfigGenerationForTasks(request.Tasks)
+	if pairErr != nil {
+		return pairErr
+	}
+	if ref != nil {
+		if request.OwnerMode != "local" {
+			return codeError("config_generation_local_owner_required")
+		}
+		scope, e := contract.ConfigGenerationOwnerScope(request.ControllerThread, request.OriginBirth)
+		if e != nil {
+			return e
+		}
+		if e = install.ValidateConfigGenerationSubmission(executable, scope, request.RunID, coordinator.ConfigTaskPlanDigest(request.RunID, request.PlanRevision, request.Tasks), configTaskUses(request.Tasks)); e != nil {
+			return e
+		}
+	}
 	pinned := make([]string, 0, len(request.Tasks))
 	for _, task := range request.Tasks {
+		if ref != nil {
+			continue
+		} // Exact v2 pins were durably converted from the original hold.
+
 		if _, pinErr := install.PinRunningVersion(executable, task.ID); pinErr != nil {
 			if os.Getenv("ORCHESTRATOR_ENABLE_TEST_FAKE") == "1" && pinErr.Error() == "running_package_invalid" {
 				continue
 			}
-			for _, taskID := range pinned { _ = install.UnpinRunningVersion(executable, taskID) }
+			for _, taskID := range pinned {
+				_ = install.UnpinRunningVersion(executable, taskID)
+			}
 			_ = os.Remove(controlPath)
 			_ = os.Remove(bootstrapPath)
 			return pinErr
@@ -359,7 +395,9 @@ func submitWithPreparedControl(ctx context.Context, args []string, stdout io.Wri
 	}
 	if onPrepared != nil {
 		if err = onPrepared(controlPath); err != nil {
-			for _, taskID := range pinned { _ = install.UnpinRunningVersion(executable, taskID) }
+			for _, taskID := range pinned {
+				_ = install.UnpinRunningVersion(executable, taskID)
+			}
 			_ = os.Remove(controlPath)
 			_ = os.Remove(bootstrapPath)
 			return err
@@ -370,7 +408,9 @@ func submitWithPreparedControl(ctx context.Context, args []string, stdout io.Wri
 	if err != nil {
 		var rejected remoteError
 		if errors.As(err, &rejected) {
-			for _, taskID := range pinned { _ = install.UnpinRunningVersion(executable, taskID) }
+			for _, taskID := range pinned {
+				_ = install.UnpinRunningVersion(executable, taskID)
+			}
 			_ = os.Remove(controlPath)
 			_ = os.Remove(bootstrapPath)
 			return err
@@ -767,6 +807,10 @@ func call(ctx context.Context, state string, kind ipc.Kind, payload any) (ipc.En
 }
 
 func ensureServer(ctx context.Context, state string) (map[string]any, error) {
+	return ensureServerMode(ctx, state, false)
+}
+
+func ensureServerMode(ctx context.Context, state string, recovery bool) (map[string]any, error) {
 	parent := ctx
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
@@ -811,7 +855,11 @@ func ensureServer(ctx context.Context, state string) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	command := exec.Command(executable, "serve", "--state-dir", state)
+	arguments := []string{"serve", "--state-dir", state}
+	if recovery {
+		arguments = append(arguments, "--recover-existing-host")
+	}
+	command := exec.Command(executable, arguments...)
 	command.Stdin, command.Stdout, command.Stderr = nil, logFile, logFile
 	command.Env = coordinatorEnvironment()
 	command.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
@@ -824,6 +872,11 @@ func ensureServer(ctx context.Context, state string) (map[string]any, error) {
 	ticker := time.NewTicker(20 * time.Millisecond)
 	defer ticker.Stop()
 	for {
+		if recovery {
+			if err := coordinator.CheckRecoveryAllowed(state, contract.HostHello{}); err != nil {
+				return nil, err
+			}
+		}
 		if value, readyErr := ready(); readyErr == nil {
 			return value, nil
 		} else if errors.Is(readyErr, ipc.ErrInvalidMessage) || errors.Is(readyErr, ipc.ErrMessageTooLarge) {
@@ -963,6 +1016,13 @@ func sourceHost(parent context.Context, args []string) error {
 	err = host.RunSource(ctx, host.SourceConfig{
 		SocketPath: bootstrap.SocketPath, SpoolRoot: bootstrap.SpoolRoot,
 		ProducerID: bootstrap.ProducerID, Hello: bootstrap.Hello,
+		EnsureCoordinator: func(ctx context.Context) error {
+			if err := coordinator.CheckRecoveryAllowed(state, bootstrap.Hello); err != nil {
+				return err
+			}
+			_, err := ensureServerMode(ctx, state, true)
+			return err
+		},
 		InvocationProvider: func(ctx context.Context, grant contract.LaunchCommand) (contract.InvocationView, error) {
 			var discriminator struct {
 				Kind string `json:"kind"`
@@ -1007,6 +1067,9 @@ func invocationForGrant(ctx context.Context, grant contract.LaunchCommand) (cont
 	if err != nil {
 		return nil, codeError("invalid_json")
 	}
+	if err = applyTrustedContinuationPrompt(grant, &payload); err != nil {
+		return nil, err
+	}
 	if action := payload.CandidateAction; action != nil {
 		if action.Version != 1 || grant.Input == nil || action.SourceTask != grant.Input.Event.TaskID || payload.CandidateWorkspace != nil || grant.SessionID != "" || payload.SessionID != "" || !filepath.IsAbs(payload.Directory) {
 			return nil, codeError("candidate_action_invalid")
@@ -1039,7 +1102,7 @@ func invocationForGrant(ctx context.Context, grant contract.LaunchCommand) (cont
 	if payload.Provider == string(adapter.ProviderCodex) || payload.BinaryVersion == adapter.CodexVersion || strings.EqualFold(payload.BinarySHA256, adapter.CodexSHA256) {
 		return nil, codeError("codex_trial_guard_not_ready")
 	}
-	if grant.Answer != "" {
+	if grant.Answer != "" && grant.Continuation == nil {
 		if grant.QuestionID == "" || grant.QuestionRevision < 1 || grant.SessionKind == "" || grant.SessionID == "" || payload.Kind == "fake" {
 			return nil, codeError("invalid_question_resume")
 		}
@@ -1053,6 +1116,7 @@ func invocationForGrant(ctx context.Context, grant contract.LaunchCommand) (cont
 	}
 	request := adapter.Request{Provider: adapter.Provider(payload.Provider), Binary: adapter.BinaryPin{Path: payload.BinaryPath, Version: payload.BinaryVersion, SHA256: payload.BinarySHA256}, CWD: payload.Directory, Prompt: payload.Prompt, Session: adapter.SessionRef{Kind: adapter.SessionKind(payload.SessionKind), ID: payload.SessionID}, Permission: adapter.Permission{Mode: payload.PermissionMode, Allow: payload.Allow, Deny: payload.Deny}, ExtraArgs: payload.ExtraArgs}
 	request.Profile, request.Lock, request.Workspace, request.Action = payload.Profile, payload.ProviderLock, payload.CandidateWorkspace, payload.CandidateAction
+	request.Continuation = grant.Continuation
 	if err := adapter.VerifyExecutable(request.Binary, request.Binary.Version); err != nil {
 		return nil, err
 	}
@@ -1085,10 +1149,8 @@ func waitForHost(ctx context.Context, state, launchID, launchToken string) error
 	for {
 		response, err := call(ctx, state, ipc.KindHostStatus, coordinator.HostStatusRequest{LaunchID: launchID, LaunchToken: launchToken})
 		if err == nil {
-			var status struct {
-				Status string `json:"status"`
-			}
-			if decode(response.Payload, &status) == nil && status.Status == "ready" {
+			var status contract.HostPresenceResponse
+			if decode(response.Payload, &status) == nil && status.Status == "ready" && status.Presence == "same_host_alive" {
 				return nil
 			}
 		}
@@ -1142,6 +1204,17 @@ func validHostBootstrap(state string, b hostBootstrap) bool {
 }
 
 func startSourceHost(executable, state string, bootstrap hostBootstrap) error {
+	return startSourceHostContext(context.Background(), executable, state, bootstrap)
+}
+
+func startSourceHostContext(parent context.Context, executable, state string, bootstrap hostBootstrap) error {
+	// The ensure caller passes its original observation/start/reconcile window.
+	// Bootstrap I/O may use the remaining time, never a fresh five seconds.
+	ctx, cancel := context.WithTimeout(parent, 5*time.Second)
+	defer cancel()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if !validHostBootstrap(state, bootstrap) {
 		return codeError("invalid_host_bootstrap")
 	}
@@ -1155,6 +1228,8 @@ func startSourceHost(executable, state string, bootstrap hostBootstrap) error {
 	}
 	defer reader.Close()
 	defer writer.Close()
+	stopClose := context.AfterFunc(ctx, func() { _ = writer.Close() })
+	defer stopClose()
 	command := exec.Command(executable, "source-host", "--state-dir", state, "--bootstrap-fd", "3")
 	command.ExtraFiles = []*os.File{reader}
 	command.Stdin = nil
@@ -1166,12 +1241,16 @@ func startSourceHost(executable, state string, bootstrap hostBootstrap) error {
 	command.Stdout, command.Stderr = logFile, logFile
 	command.Env = sourceEnvironment()
 	command.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	if err = ctx.Err(); err != nil {
+		return err
+	}
 	if err = command.Start(); err != nil {
 		return err
 	}
 	defer command.Process.Release()
 	_ = reader.Close()
-	if err = writer.SetWriteDeadline(time.Now().Add(5 * time.Second)); err != nil {
+	deadline, _ := ctx.Deadline()
+	if err = writer.SetWriteDeadline(deadline); err != nil {
 		return codeError("bootstrap_pipe_failed")
 	}
 	if _, err = writer.Write(data); err != nil {
@@ -1303,21 +1382,20 @@ func ensureSourceHost(ctx context.Context, state string, capability controlCapab
 	if err != nil {
 		return err
 	}
-	response, err := call(ctx, state, ipc.KindHostStatus, coordinator.HostStatusRequest{LaunchID: bootstrap.Hello.LaunchID, LaunchToken: bootstrap.Hello.LaunchToken})
-	if err == nil {
-		var status coordinator.StatusResponse
-		if decode(response.Payload, &status) == nil && status.Status == "ready" {
-			return nil
+	return ensureSourceHostPresence(ctx, func(ctx context.Context) (contract.HostPresenceResponse, error) {
+		var presence contract.HostPresenceResponse
+		response, err := call(ctx, state, ipc.KindHostStatus, coordinator.HostStatusRequest{LaunchID: bootstrap.Hello.LaunchID, LaunchToken: bootstrap.Hello.LaunchToken})
+		if err == nil {
+			err = decode(response.Payload, &presence)
 		}
-	}
-	executable, err := resolvedExecutable()
-	if err != nil {
-		return err
-	}
-	if err = startSourceHost(executable, state, bootstrap); err != nil {
-		return err
-	}
-	return waitForHost(ctx, state, bootstrap.Hello.LaunchID, bootstrap.Hello.LaunchToken)
+		return presence, err
+	}, func(ctx context.Context) error {
+		executable, err := resolvedExecutable()
+		if err != nil {
+			return err
+		}
+		return startSourceHostContext(ctx, executable, state, bootstrap)
+	})
 }
 
 func randomValue(prefix string) (string, error) {

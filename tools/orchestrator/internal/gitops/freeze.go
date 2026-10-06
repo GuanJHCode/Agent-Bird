@@ -36,10 +36,14 @@ type CandidateChange struct {
 // PreparedWorkspace is Host-local. It is deliberately not an operation
 // accepted by gitops-worker: a caller-supplied "exited" flag is not proof.
 type PreparedWorkspace struct {
-	Receipt    MaterializeReceipt
-	Binding    CandidateBinding
-	Paths      []string
-	PrivateRef string
+	Receipt              MaterializeReceipt
+	Binding              CandidateBinding
+	Paths                []string
+	PrivateRef           string
+	OwnerContextID       string
+	AdapterPayloadSHA256 string
+	CommonDirIdentity    DirectoryIdentity
+	RepoRootIdentity     DirectoryIdentity
 }
 
 func PrepareWorkspace(ctx context.Context, req MaterializeRequest, binding CandidateBinding, paths []string, ref string, journal Journal) (PreparedWorkspace, error) {
@@ -83,7 +87,15 @@ func PrepareWorkspace(ctx context.Context, req MaterializeRequest, binding Candi
 	if receipt.CommitOID != req.BaseOID || receipt.TreeOID != expectedTree {
 		return PreparedWorkspace{}, fail(CodeTargetDrift, "prepare", fmt.Errorf("materialized base mismatch"))
 	}
-	return PreparedWorkspace{Receipt: receipt, Binding: binding, Paths: append([]string(nil), paths...), PrivateRef: ref}, nil
+	commonIdentity, err := directoryIdentity(receipt.CommonDir)
+	if err != nil {
+		return PreparedWorkspace{}, err
+	}
+	repoIdentity, err := directoryIdentity(receipt.RepoRoot)
+	if err != nil {
+		return PreparedWorkspace{}, err
+	}
+	return PreparedWorkspace{Receipt: receipt, Binding: binding, Paths: append([]string(nil), paths...), PrivateRef: ref, CommonDirIdentity: commonIdentity, RepoRootIdentity: repoIdentity}, nil
 }
 
 // FreezeWorkspace commits only a fresh prepared workspace's declared changes.

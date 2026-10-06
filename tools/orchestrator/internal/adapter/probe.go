@@ -16,6 +16,19 @@ import (
 
 type probeBuffer struct{ bytes.Buffer }
 
+type probeFailure struct {
+	code  string
+	cause error
+}
+
+func (failure *probeFailure) Error() string {
+	return failure.code
+}
+
+func (failure *probeFailure) Unwrap() error {
+	return failure.cause
+}
+
 func (b *probeBuffer) Write(data []byte) (int, error) {
 	if len(data) > 64*1024-b.Len() {
 		return 0, errors.New("provider_probe_too_large")
@@ -40,7 +53,7 @@ func ProbeOutput(ctx context.Context, path string, args ...string) (string, erro
 		cmd.Stderr = &helpOutput
 	}
 	if err := cmd.Run(); err != nil {
-		return "", errors.New("provider_probe_failed")
+		return "", &probeFailure{code: "provider_probe_failed", cause: errors.Join(err, ctx.Err())}
 	}
 	if isHelp {
 		if output.Len()+helpOutput.Len() > 64*1024 {
@@ -75,7 +88,10 @@ func Probe(ctx context.Context, provider Provider, path string) (ProviderLock, e
 		return ProviderLock{}, err
 	}
 	version, err := ProbeOutput(ctx, path, "--version")
-	if err != nil || len(version) > 512 || strings.ContainsAny(version, "\r\n\x00") {
+	if err != nil {
+		return ProviderLock{}, &probeFailure{code: "binary_version_probe_failed", cause: err}
+	}
+	if len(version) > 512 || strings.ContainsAny(version, "\r\n\x00") {
 		return ProviderLock{}, errors.New("binary_version_probe_failed")
 	}
 	pin.Version = version

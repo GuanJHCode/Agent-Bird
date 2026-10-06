@@ -15,14 +15,20 @@ import (
 )
 
 type portableManifest struct {
-	Version string            `json:"version"`
-	Files   map[string]string `json:"files"`
+	Version       string            `json:"version"`
+	PayloadSchema int               `json:"payload_schema,omitempty"`
+	Files         map[string]string `json:"files"`
 }
 
 // InstallPortable normalizes a public plugin cache into an owner-only staging
 // directory, verifies every declared payload, and uses the existing immutable
 // installation/pin lifecycle. It never changes the plugin cache or old versions.
 func InstallPortable(source, destination, state string) (string, error) {
+	return installPortable(source, destination, state, nil)
+}
+
+// checkpoint is a private per-call coordinator used only by deterministic tests.
+func installPortable(source, destination, state string, checkpoint func(string, string) error) (string, error) {
 	source, err := canonicalManagedPath(source)
 	if err != nil {
 		return "", err
@@ -38,11 +44,28 @@ func InstallPortable(source, destination, state string) (string, error) {
 	var metadata portableManifest
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
-	if decoder.Decode(&metadata) != nil || decoder.Decode(&struct{}{}) != io.EOF || !versionPattern.MatchString(metadata.Version) || len(metadata.Files) < 3 || len(metadata.Files) > 64 {
+	if decoder.Decode(&metadata) != nil || decoder.Decode(&struct{}{}) != io.EOF || strictJSON(data, &metadata) != nil || !versionPattern.MatchString(metadata.Version) || len(metadata.Files) < 3 || len(metadata.Files) > 64 {
 		return "", errors.New("portable_manifest_invalid")
 	}
 	for _, required := range []string{"bin/codex-orchestrator", ".codex-plugin/plugin.json", "runtime/g0/runtime-manifest.json"} {
 		if metadata.Files[required] == "" {
+			return "", errors.New("portable_manifest_invalid")
+		}
+	}
+	if metadata.PayloadSchema != 0 && metadata.PayloadSchema != 1 {
+		return "", errors.New("portable_manifest_invalid")
+	}
+	if metadata.PayloadSchema == 1 {
+		kind, e := validatePayloadDirectory(source, false, true)
+		if e != nil || kind != "collect-only-hooks" || len(metadata.Files) != len(payloadPaths(kind))+1 {
+			return "", errors.New("portable_payload_invalid")
+		}
+		for rel := range payloadPaths(kind) {
+			if metadata.Files[rel] == "" {
+				return "", errors.New("portable_manifest_invalid")
+			}
+		}
+		if metadata.Files[payloadManifestName] == "" {
 			return "", errors.New("portable_manifest_invalid")
 		}
 	}
@@ -55,7 +78,7 @@ func InstallPortable(source, destination, state string) (string, error) {
 		if filepath.IsAbs(rel) || filepath.Clean(rel) != rel || rel == "." || strings.HasPrefix(rel, "../") || strings.Contains(rel, "\\") || !validHexDigest(want) {
 			return "", errors.New("portable_manifest_invalid")
 		}
-		if rel != "defaults.json" && rel != "bin/codex-orchestrator" && rel != ".codex-plugin/plugin.json" && rel != "runtime/g0/runtime-manifest.json" && rel != "scripts/invoke.sh" && rel != "skills/orchestrate/SKILL.md" {
+		if !portablePathAllowed(rel, metadata.PayloadSchema) {
 			return "", errors.New("portable_file_unsupported")
 		}
 		path := filepath.Join(source, rel)
@@ -68,7 +91,7 @@ func InstallPortable(source, destination, state string) (string, error) {
 		if rel == "bin/codex-orchestrator" {
 			limit = 512 * 1024 * 1024
 			mode = 0700
-		} else if rel == "scripts/invoke.sh" {
+		} else if rel == "scripts/invoke.sh" || rel == "scripts/agent-bird-hook" || rel == "scripts/agent-bird-agy-hook" {
 			mode = 0700
 		}
 		body, err := portableRead(path, limit)
@@ -99,11 +122,24 @@ func InstallPortable(source, destination, state string) (string, error) {
 	versionRoot := filepath.Join(destination, "versions", metadata.Version)
 	binary := filepath.Join(versionRoot, "bin", "codex-orchestrator")
 	if _, err = os.Lstat(versionRoot); errors.Is(err, os.ErrNotExist) {
+		if checkpoint != nil {
+			if err = checkpoint("version-absent", stage); err != nil {
+				return "", err
+			}
+		}
 		deadline := time.Now().Add(5 * time.Second)
 		for {
 			_, err = InstallPackage(InstallOptions{SourceRoot: stage, BinaryPath: filepath.Join(stage, "bin", "codex-orchestrator"), DestinationRoot: destination, DataRoot: state, Version: metadata.Version})
 			if err == nil || errors.Is(err, ErrVersionExists) {
 				break
+			}
+			if errors.Is(err, ErrInstallPublicationConflict) {
+				// Concurrent normalizers have different temporary SourceRoot paths.
+				// Existence only chooses the original committed-version validation
+				// below; Doctor and every declared payload hash must still pass.
+				if _, existingErr := os.Lstat(versionRoot); existingErr == nil {
+					break
+				}
 			}
 			if err.Error() != "install_locked" || !time.Now().Before(deadline) {
 				return "", err
@@ -154,7 +190,7 @@ func portableRead(path string, limit int64) ([]byte, error) {
 		return nil, errors.New("portable_file_unsafe")
 	}
 	stat, ok := info.Sys().(*syscall.Stat_t)
-	if !ok || int(stat.Uid) != os.Geteuid() {
+	if !ok || stat.Nlink != 1 || int(stat.Uid) != os.Geteuid() {
 		return nil, errors.New("portable_file_unsafe")
 	}
 	data, err := io.ReadAll(io.LimitReader(f, limit+1))
@@ -162,4 +198,16 @@ func portableRead(path string, limit int64) ([]byte, error) {
 		return nil, errors.New("portable_file_unsafe")
 	}
 	return data, nil
+}
+
+func portablePathAllowed(rel string, schema int) bool {
+	if schema == 1 {
+		_, ok := payloadPaths("collect-only-hooks")[rel]
+		return ok || rel == payloadManifestName
+	}
+	switch rel {
+	case "defaults.json", "bin/codex-orchestrator", ".codex-plugin/plugin.json", "runtime/g0/runtime-manifest.json", "scripts/invoke.sh", "skills/orchestrate/SKILL.md":
+		return true
+	}
+	return false
 }

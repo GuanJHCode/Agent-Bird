@@ -244,21 +244,16 @@ func taskDispatch(ctx context.Context, args []string, out io.Writer) error {
 		return err
 	}
 	runID := "bird-" + dispatchHash(ownerKey + "\x00" + req.RequestID)[:24]
-	expected := dispatchReservation{Version: 1, RequestSHA256: dispatchHash(string(raw)), ControllerThread: owner.ControllerThread, RunID: runID}
+	expected := dispatchReservation{Version: 2, RequestSHA256: dispatchHash(string(raw)), ControllerThread: owner.ControllerThread, RunID: runID}
 	record := filepath.Join(directory, "reservation.json")
 	handle := filepath.Join(directory, "handle.json")
 	checkpoint, h, err := loadDispatchCheckpoint(directory, state, expected)
 	if err != nil {
 		return err
 	}
-	if h != nil && (h.ControlFile != "" || h.Status != "submitting") {
-		if h.Status == "submitting" {
-			if err = taskFollowup(ctx, "reconcile", []string{"--handle", handle}, io.Discard); err != nil {
-				_ = json.NewEncoder(out).Encode(map[string]any{"version": 1, "status": "submitting", "handle": handle, "run_id": runID, "existing": true})
-				return err
-			}
-		}
-		return json.NewEncoder(out).Encode(map[string]any{"version": 1, "status": "existing", "handle": handle, "run_id": runID, "task_ids": h.TaskIDs, "existing": true})
+	handled, err := handleExistingDispatch(ctx, out, handle, runID, h, func() error { return taskFollowup(ctx, "reconcile", []string{"--handle", handle}, io.Discard) })
+	if handled || err != nil {
+		return err
 	}
 	planPath := filepath.Join(directory, "plan.json")
 	if checkpoint.Phase == "preparing" {
@@ -288,14 +283,19 @@ func taskDispatch(ctx context.Context, args []string, out io.Writer) error {
 		if err != nil {
 			return err
 		}
-		if err = prepareTaskWorkspaces(handle, plan.Tasks); err != nil {
-			return err
-		}
-		if err = preflightTasks(plan.Tasks); err != nil {
-			return err
-		}
-		if err = preflightProviders(ctx, plan.Tasks); err != nil {
-			return err
+		// Only legacy v1 reservations retain their already established preparation
+		// behavior. New v2 plans remain original inputs until the authenticated
+		// task consumer has published its durable install preparation-use hold.
+		if checkpoint.Version == 1 {
+			if err = prepareTaskWorkspaces(handle, plan.Tasks); err != nil {
+				return err
+			}
+			if err = preflightTasks(plan.Tasks); err != nil {
+				return err
+			}
+			if err = preflightProviders(ctx, plan.Tasks); err != nil {
+				return err
+			}
 		}
 		if _, err = os.Lstat(planPath); os.IsNotExist(err) {
 			err = writeExclusiveJSON(planPath, plan)
@@ -315,10 +315,25 @@ func taskDispatch(ctx context.Context, args []string, out io.Writer) error {
 			return err
 		}
 	}
-	// No handle, or a handle without a prepared control path, proves this v1
+	// No handle, or a handle without a prepared control path, proves this locked
 	// dispatch never crossed the durable pre-RPC barrier. Only this locked
 	// reservation can continue preparation; submitted/unknown work cannot.
-	return taskSubmitPrepared(ctx, "submit", []string{"--request", planPath, "--handle", handle, "--state-dir", state}, out, h != nil)
+	return taskSubmitWithConfigPreparation(ctx, "submit", []string{"--request", planPath, "--handle", handle, "--state-dir", state}, out, h != nil, configPreparationOptions{RequestSHA256: checkpoint.RequestSHA256, Legacy: checkpoint.Version == 1})
+}
+
+// A private preparation checkpoint is not authorization to submit again. The
+// original control route wins before any package/ref/pin preparation reads.
+func handleExistingDispatch(ctx context.Context, out io.Writer, handle, runID string, h *taskHandle, reconcile func() error) (bool, error) {
+	if h == nil || h.ControlFile == "" && h.Status == "submitting" {
+		return false, nil
+	}
+	if h.Status == "submitting" {
+		if err := reconcile(); err != nil {
+			_ = json.NewEncoder(out).Encode(map[string]any{"version": 1, "status": "submitting", "handle": handle, "run_id": runID, "existing": true})
+			return true, err
+		}
+	}
+	return true, json.NewEncoder(out).Encode(map[string]any{"version": 1, "status": "existing", "handle": handle, "run_id": runID, "task_ids": h.TaskIDs, "existing": true})
 }
 
 func loadDispatchCheckpoint(directory, state string, expected dispatchReservation) (dispatchReservation, *taskHandle, error) {
@@ -333,7 +348,7 @@ func loadDispatchCheckpoint(directory, state string, expected dispatchReservatio
 	if err := readPrivateJSON(record, &current); err != nil {
 		return current, nil, err
 	}
-	if current.Version != expected.Version || current.RequestSHA256 != expected.RequestSHA256 || current.ControllerThread != expected.ControllerThread || current.RunID != expected.RunID {
+	if (current.Version != expected.Version && current.Version != 1) || current.RequestSHA256 != expected.RequestSHA256 || current.ControllerThread != expected.ControllerThread || current.RunID != expected.RunID {
 		return current, nil, codeError("dispatch_request_conflict")
 	}
 	if current.Phase != "preparing" && current.Phase != "prepared" {

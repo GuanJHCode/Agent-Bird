@@ -1,7 +1,6 @@
 package store
 
 import (
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"context"
 	"crypto/sha256"
 	"crypto/subtle"
@@ -9,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"io"
 	"os"
 	"path/filepath"
@@ -40,7 +40,24 @@ func (d *DB) RegisterReportCapability(ctx context.Context, registration contract
 	if err = tx.QueryRowContext(ctx, `SELECT c.segment_id,c.producer_id,c.run_id,c.task_id,c.attempt_id,c.work_revision,c.token_hash,c.capability_dir,c.status,h.coordinator_epoch FROM report_capabilities c JOIN runtime_hosts h ON h.id=c.producer_id WHERE c.capability_id=? AND h.status IN ('ready','reconciling')`, registration.CapabilityID).Scan(&segmentID, &producerID, &runID, &taskID, &attemptID, &revision, &tokenHash, &capabilityDir, &status, &hostEpoch); err != nil || segmentID != registration.SegmentID || producerID != registration.ProducerID || runID != registration.RunID || taskID != registration.TaskID || attemptID != registration.AttemptID || revision != registration.WorkRevision || hostEpoch != registration.ExecutionEpoch {
 		return rollback(ErrConflict)
 	}
-	if status == "registered" {
+	if status == "revoked" && tokenHash == "" && capabilityDir == "" {
+		// A prelaunch rejection can revoke a never-registered pending row after
+		// the Host remembered its request. Bind only that empty/no-history row
+		// for reconcile ACKs; it remains revoked and grants no report authority.
+		result, bindErr := tx.ExecContext(ctx, `UPDATE report_capabilities SET token_hash=?,capability_dir=?,execution_epoch=? WHERE capability_id=? AND status='revoked' AND token_hash='' AND capability_dir='' AND used_bytes=0 AND NOT EXISTS(SELECT 1 FROM report_events e WHERE e.capability_id=report_capabilities.capability_id)`, strings.ToLower(registration.TokenHash), registration.CapabilityDir, registration.ExecutionEpoch, registration.CapabilityID)
+		if bindErr != nil {
+			return rollback(bindErr)
+		}
+		rows, rowsErr := result.RowsAffected()
+		if rowsErr != nil {
+			return rollback(rowsErr)
+		}
+		if rows != 1 {
+			return rollback(ErrConflict)
+		}
+		tokenHash, capabilityDir = strings.ToLower(registration.TokenHash), registration.CapabilityDir
+	}
+	if status == "registered" || status == "revoked" {
 		if tokenHash != strings.ToLower(registration.TokenHash) || capabilityDir != registration.CapabilityDir {
 			return rollback(ErrConflict)
 		}
@@ -185,7 +202,7 @@ func (d *DB) CommitReportEvent(ctx context.Context, spec ReportEventSpec) (contr
 	}
 	if spec.Kind == "question" {
 		var openQuestions int
-		if err = tx.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM runtime_questions WHERE task_id=? AND status IN ('open','resume_queued','resume_started')) + (SELECT COUNT(*) FROM report_events e JOIN report_capabilities c ON c.capability_id=e.capability_id WHERE c.task_id=? AND e.kind='question' AND e.delivery_status='pending_session')`, taskID, taskID).Scan(&openQuestions); err != nil || openQuestions != 0 {
+		if err = tx.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM runtime_questions q WHERE q.task_id=? AND q.status IN ('open','resume_queued','resume_started') AND NOT (q.status='resume_started' AND EXISTS(SELECT 1 FROM continuation_decisions d WHERE d.target_segment_id=? AND d.target_segment_id!=q.segment_id AND d.task_id=q.task_id AND d.attempt_id=q.attempt_id AND d.work_revision=q.work_revision AND d.question_id=q.question_id AND d.mode='question' AND d.status='claimed'))) + (SELECT COUNT(*) FROM report_events e JOIN report_capabilities c ON c.capability_id=e.capability_id WHERE c.task_id=? AND e.kind='question' AND e.delivery_status='pending_session')`, taskID, segmentID, taskID).Scan(&openQuestions); err != nil || openQuestions != 0 {
 			if err == nil {
 				err = CodeError("question_already_open")
 			}

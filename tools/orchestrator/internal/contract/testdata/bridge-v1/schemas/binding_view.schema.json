@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-bird-bridge-v1/binding_view",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "minimum": 0,
+      "const": 1
+    },
+    "binding_id": {
+      "type": "string"
+    },
+    "run_id": {
+      "type": "string"
+    },
+    "provider_id": {
+      "type": "string"
+    },
+    "native_session_id": {
+      "type": "string"
+    },
+    "owner_context_id": {
+      "type": "string"
+    },
+    "owner_pid": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "owner_birth": {
+      "type": "string"
+    },
+    "native_pid": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "native_birth": {
+      "type": "string"
+    },
+    "native_executable_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "owner_epoch": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "role": {
+      "type": "string",
+      "enum": [
+        "owner"
+      ]
+    },
+    "transport_mode": {
+      "type": "string",
+      "enum": [
+        "hook_pull"
+      ]
+    },
+    "manifest_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "PENDING_SESSION",
+        "SESSION_OBSERVED",
+        "ACTIVE",
+        "DETACHED",
+        "STALE"
+      ]
+    },
+    "candidate_observation_event_id": {
+      "type": "string"
+    },
+    "candidate_observation_hash": {
+      "type": "string"
+    },
+    "capability_file": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "binding_id",
+    "run_id",
+    "provider_id",
+    "native_session_id",
+    "owner_context_id",
+    "owner_pid",
+    "owner_birth",
+    "native_pid",
+    "native_birth",
+    "native_executable_sha256",
+    "owner_epoch",
+    "role",
+    "transport_mode",
+    "manifest_sha256",
+    "status",
+    "candidate_observation_event_id",
+    "candidate_observation_hash",
+    "capability_file"
+  ]
+}

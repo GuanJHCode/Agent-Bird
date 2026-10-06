@@ -315,7 +315,7 @@ func TestCLIForceRestartReplaysSpoolBeforeExplicitResume(t *testing.T) {
 		"run_id": "force-run", "controller_thread": "force-thread", "plan_revision": 1,
 		"origin_context_id": "force-origin", "origin_pid": os.Getpid(), "origin_birth": originBirth,
 		"host_generation": "force-generation",
-		"tasks":           []any{map[string]any{"id": "force-task", "max_attempts": 3, "completion_policy": "exit_success_fixture", "adapter": map[string]any{"kind": "fake", "args": []string{"/bin/sh", "-c", "if [ -e " + marker + " ]; then sleep 0.2; exit 0; else : > " + marker + "; sleep 30; fi"}, "directory": root}}},
+		"tasks":           []any{map[string]any{"id": "force-task", "max_attempts": 3, "completion_policy": "exit_success_fixture", "adapter": map[string]any{"kind": "fake", "args": []string{"/bin/sh", "-c", "if [ -e " + marker + " ]; then sleep 0.2; exit 0; else printf '%s\\n' \"$$\" > " + marker + "; sleep 30; fi"}, "directory": root}}},
 	}
 	requestPath := filepath.Join(root, "request.json")
 	data, _ := json.Marshal(request)
@@ -350,6 +350,27 @@ func TestCLIForceRestartReplaysSpoolBeforeExplicitResume(t *testing.T) {
 		case <-time.After(20 * time.Millisecond):
 		}
 	}
+	capability, err := loadControlCapability(submitted.ControlFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bootstrap, err := loadHostBootstrap(capability)
+	if err != nil {
+		t.Fatal(err)
+	}
+	originalHost := coreCLIReadHostIdentity(t, state, bootstrap.Hello.LaunchID)
+	workerBytes, err := os.ReadFile(marker)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var workerPID int
+	if _, err := fmt.Sscanf(string(workerBytes), "%d", &workerPID); err != nil {
+		t.Fatal(err)
+	}
+	workerBirth, err := process.Birth(workerPID)
+	if err != nil {
+		t.Fatal(err)
+	}
 	data, err = os.ReadFile(filepath.Join(state, "coordinator.pid"))
 	if err != nil {
 		t.Fatal(err)
@@ -371,6 +392,37 @@ func TestCLIForceRestartReplaysSpoolBeforeExplicitResume(t *testing.T) {
 	after := taskStatus(t, ctx, bin, state, "force-task", submitted.ControlFile)
 	if after.SegmentID != before.SegmentID || after.Status == "completed" {
 		t.Fatalf("force restart dispatched work: before=%#v after=%#v", before, after)
+	}
+	// A coordinator crash preserves the original living Source and worker.
+	// Public resume must reject active work, without spawning another Source.
+	output, resumeErr := exec.CommandContext(ctx, bin, "resume", "--state-dir", state, "--task-id", "force-task", "--work-revision", "1", "--control-file", submitted.ControlFile).CombinedOutput()
+	if resumeErr == nil || !strings.Contains(string(output), "conflict") {
+		t.Fatalf("active resume unexpectedly admitted: %s %v", output, resumeErr)
+	}
+	currentHost := coreCLIReadHostIdentity(t, state, bootstrap.Hello.LaunchID)
+	if currentHost.PID != originalHost.PID || currentHost.Birth != originalHost.Birth || currentHost.Epoch <= originalHost.Epoch || currentHost.Status != "ready" {
+		t.Fatalf("warm reconnect replaced Host: before=%+v after=%+v", originalHost, currentHost)
+	}
+	if birth, err := process.Birth(workerPID); err != nil || birth != workerBirth {
+		t.Fatalf("crash replaced original worker: %q %v", birth, err)
+	}
+	if log, err := os.ReadFile(filepath.Join(state, "source-host.log")); err != nil || strings.Contains(string(log), "host_recovery_state_busy") {
+		t.Fatalf("warm ensure spawned another Host: %s %v", log, err)
+	}
+	recovery := coreCLIReadRecovery(t, bootstrap)
+	if recovery.Attempts != 1 || recovery.Pending || recovery.NextAttemptUnixMS == 0 {
+		t.Fatalf("restart reservation was reset/repeated: %+v", recovery)
+	}
+	runBinary(t, ctx, bin, "stop", "--state-dir", state, "--task-id", "force-task", "--work-revision", "1", "--control-file", submitted.ControlFile)
+	for {
+		stopped := taskStatus(t, ctx, bin, state, "force-task", submitted.ControlFile)
+		if stopped.Status == "interrupted" && stopped.SegmentID == before.SegmentID && stopped.SegmentStatus == "exited" {
+			break
+		}
+		if ctx.Err() != nil {
+			t.Fatalf("explicit stop lacked original exit: %+v", stopped)
+		}
+		time.Sleep(20 * time.Millisecond)
 	}
 	runBinary(t, ctx, bin, "resume", "--state-dir", state, "--task-id", "force-task", "--work-revision", "1", "--control-file", submitted.ControlFile)
 	for {
@@ -637,6 +689,15 @@ func TestCLIOwnerExitRequiresVerifiedRebindBeforeResume(t *testing.T) {
 		case <-time.After(20 * time.Millisecond):
 		}
 	}
+	capability, err := loadControlCapability(submitted.ControlFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldBootstrap, err := loadHostBootstrap(capability)
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldRecovery := coreCLIReadRecovery(t, oldBootstrap)
 	newBirth, err := process.Birth(os.Getpid())
 	if err != nil {
 		t.Fatal(err)
@@ -725,6 +786,17 @@ func TestCLIOwnerExitRequiresVerifiedRebindBeforeResume(t *testing.T) {
 	}
 	runBinary(t, ctx, bin, "rebind-owner", "--state-dir", state, "--request", rebindPath)
 	runBinary(t, ctx, bin, "resume", "--state-dir", state, "--task-id", "rebind-task", "--work-revision", "1", "--control-file", submitted.ControlFile)
+	newBootstrap, err := loadHostBootstrap(capability)
+	if err != nil {
+		t.Fatal(err)
+	}
+	newRecovery := coreCLIReadRecovery(t, newBootstrap)
+	if newRecovery.ScopeSHA256 == oldRecovery.ScopeSHA256 || newRecovery.Attempts != oldRecovery.Attempts || newRecovery.NextAttemptUnixMS != oldRecovery.NextAttemptUnixMS || newRecovery.Pending != oldRecovery.Pending || newRecovery.Unavailable != oldRecovery.Unavailable {
+		t.Fatalf("owner transition lost retained recovery state: before=%+v after=%+v", oldRecovery, newRecovery)
+	}
+	if newRecovery.LastPID == oldRecovery.LastPID && newRecovery.LastBirth == oldRecovery.LastBirth {
+		t.Fatal("owner rebind did not authenticate a replacement Host")
+	}
 	for {
 		status := taskStatus(t, ctx, bin, state, "rebind-task", submitted.ControlFile)
 		if status.Status == "completed" {

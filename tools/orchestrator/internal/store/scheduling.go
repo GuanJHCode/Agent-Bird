@@ -1,11 +1,11 @@
 package store
 
 import (
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"time"
 )
 
@@ -36,7 +36,7 @@ func (d *DB) ClaimReady(ctx context.Context, hostID string, epoch uint64, slots 
 	if active >= slots {
 		return rollback(ErrNoSlot)
 	}
-	selected, err := selectReady(ctx, tx, launchID, limits)
+	selected, err := selectReady(ctx, tx, launchID, epoch, limits)
 	taskID, runID, taskStatus, budgetGroup := selected.taskID, selected.runID, selected.status, selected.group
 	workRevision, maxAttempts, maxActive, adapterPayload := selected.revision, selected.maxAttempts, selected.maxActive, selected.payload
 	if errors.Is(err, sql.ErrNoRows) {
@@ -50,6 +50,7 @@ func (d *DB) ClaimReady(ctx context.Context, hostID string, epoch uint64, slots 
 	}
 	var attemptID string
 	var attemptNo, segmentNo int
+	var binding *decisionAttemptBinding
 	if taskStatus == "resume_queued" {
 		if err = tx.QueryRowContext(ctx, `SELECT id,attempt_no FROM attempts WHERE task_id=? ORDER BY attempt_no DESC LIMIT 1`, taskID).Scan(&attemptID, &attemptNo); err != nil {
 			return rollback(err)
@@ -66,16 +67,36 @@ func (d *DB) ClaimReady(ctx context.Context, hostID string, epoch uint64, slots 
 		}
 		segmentNo++
 	} else {
-		if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM attempts a JOIN task_runtime r ON r.task_id=a.task_id WHERE r.budget_group_id=?`, budgetGroup).Scan(&attemptNo); err != nil {
+		var admitted int
+		if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM attempts a JOIN task_runtime r ON r.task_id=a.task_id WHERE r.budget_group_id=?`, budgetGroup).Scan(&admitted); err != nil {
 			return rollback(err)
 		}
-		if attemptNo >= maxAttempts || attemptNo >= 3 {
+		if admitted >= maxAttempts || admitted >= 3 {
 			return rollback(ErrAttemptLimit)
 		}
-		attemptNo++
+		attemptNo, err = nextTaskAttemptOrdinal(ctx, tx, taskID)
+		if err != nil {
+			return rollback(err)
+		}
+		var promise int
+		binding, promise, err = d.pendingDecisionBinding(ctx, tx, taskID, workRevision)
+		if err != nil {
+			return rollback(err)
+		}
+		if promise > 0 {
+			if promise < attemptNo {
+				return rollback(ErrConflict)
+			}
+			attemptNo = promise
+		}
 		attemptID, err = newID("attempt")
 		if err != nil {
 			return rollback(err)
+		}
+		if binding != nil {
+			if err = d.storageAdmission(ctx, tx, runID, int64(len(attemptID)), false); err != nil {
+				return rollback(err)
+			}
 		}
 		segmentNo = 1
 	}
@@ -104,6 +125,13 @@ func (d *DB) ClaimReady(ctx context.Context, hostID string, epoch uint64, slots 
 		return rollback(err)
 	}
 	grant := maxActive
+	if taskStatus == "resume_queued" {
+		attemptCharged, chargeErr := attemptChargedActiveMS(ctx, tx, attemptID)
+		if chargeErr != nil {
+			return rollback(chargeErr)
+		}
+		grant -= attemptCharged
+	}
 	if remaining := defaultGroupActiveMS - charged; grant > remaining {
 		grant = remaining
 	}
@@ -116,6 +144,9 @@ func (d *DB) ClaimReady(ctx context.Context, hostID string, epoch uint64, slots 
 	stamp := now.Format(time.RFC3339Nano)
 	if taskStatus != "resume_queued" {
 		if _, err = tx.ExecContext(ctx, `INSERT INTO attempts(id,task_id,attempt_no,status,created_at) VALUES(?,?,?,?,?)`, attemptID, taskID, attemptNo, "running", stamp); err != nil {
+			return rollback(err)
+		}
+		if err = consumeDecisionBinding(ctx, tx, binding, attemptID); err != nil {
 			return rollback(err)
 		}
 	} else if _, err = tx.ExecContext(ctx, `UPDATE attempts SET status='running' WHERE id=?`, attemptID); err != nil {
@@ -153,6 +184,9 @@ func (d *DB) ClaimReady(ctx context.Context, hostID string, epoch uint64, slots 
 			return rollback(err)
 		}
 	}
+	if err = d.bindContinuationGrant(ctx, tx, &command, false); err != nil {
+		return rollback(err)
+	}
 	if err = validateLaunchSize(command); err != nil {
 		return rollback(err)
 	}
@@ -160,6 +194,14 @@ func (d *DB) ClaimReady(ctx context.Context, hostID string, epoch uint64, slots 
 		return contract.LaunchCommand{}, err
 	}
 	return command, nil
+}
+
+// An attempt retains charges across resume segments. Unsettled reservations
+// remain fully charged; only a durable settlement proves unused time.
+func attemptChargedActiveMS(ctx context.Context, tx *sql.Tx, attemptID string) (int64, error) {
+	var charged int64
+	err := tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(CASE WHEN b.status='settled' THEN b.used_ms ELSE b.granted_ms END),0) FROM budget_runtime b JOIN segments s ON s.id=b.segment_id WHERE s.attempt_id=?`, attemptID).Scan(&charged)
+	return charged, err
 }
 
 // PendingLaunches returns crash-window grants without creating a new segment or
@@ -203,11 +245,17 @@ func (d *DB) PendingLaunches(ctx context.Context, hostID string, epoch uint64) (
 		if err = tx.QueryRowContext(ctx, `SELECT plan_revision FROM runs WHERE id=?`, command.RunID).Scan(&command.PlanRevision); err != nil {
 			return rollback(err)
 		}
+		if err = d.reconcileLegacyGrant(ctx, tx, command); err != nil {
+			return rollback(err)
+		}
 		if err = bindCandidateInput(ctx, tx, command, true); err != nil {
 			return rollback(err)
 		}
 		err = tx.QueryRowContext(ctx, `SELECT question_id,question_revision,session_kind,session_id,answer_text FROM runtime_questions WHERE task_id=? AND attempt_id=? AND status='resume_started' ORDER BY question_revision DESC LIMIT 1`, command.TaskID, command.AttemptID).Scan(&command.QuestionID, &command.QuestionRevision, &command.SessionKind, &command.SessionID, &command.Answer)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return rollback(err)
+		}
+		if err = d.bindContinuationGrant(ctx, tx, command, true); err != nil {
 			return rollback(err)
 		}
 		if err = validateLaunchSize(*command); err != nil {

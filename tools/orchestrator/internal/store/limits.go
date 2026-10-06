@@ -88,14 +88,14 @@ func resourceKeys(raw string) (string, string) {
 }
 
 type readyTask struct {
-	taskID, runID, status, group string
-	revision                     int
-	maxActive                    int64
-	maxAttempts                  int
-	payload                      string
+	taskID, runID, status, group, launchID string
+	revision                               int
+	maxActive                              int64
+	maxAttempts                            int
+	payload                                string
 }
 
-func selectReady(ctx context.Context, tx *sql.Tx, launchID string, limits ConcurrencyLimits) (readyTask, error) {
+func selectReady(ctx context.Context, tx *sql.Tx, launchID string, epoch uint64, limits ConcurrencyLimits) (readyTask, error) {
 	rows, err := tx.QueryContext(ctx, `SELECT r.adapter_payload FROM segment_runtime s JOIN attempts a ON a.id=s.attempt_id JOIN task_runtime r ON r.task_id=a.task_id WHERE s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown')`)
 	if err != nil {
 		return readyTask{}, err
@@ -116,14 +116,14 @@ func selectReady(ctx context.Context, tx *sql.Tx, launchID string, limits Concur
 	if err != nil {
 		return readyTask{}, err
 	}
-	rows, err = tx.QueryContext(ctx, `SELECT t.id,t.run_id,t.status,r.work_revision,r.budget_group_id,r.max_active_ms,t.max_attempts,r.adapter_payload FROM tasks t JOIN task_runtime r ON r.task_id=t.id WHERE r.host_launch_id=? AND t.status IN ('ready','resume_queued') ORDER BY r.ready_sequence`, launchID)
+	rows, err = tx.QueryContext(ctx, `SELECT t.id,t.run_id,t.status,r.work_revision,r.budget_group_id,r.max_active_ms,t.max_attempts,r.adapter_payload,r.host_launch_id FROM tasks t JOIN task_runtime r ON r.task_id=t.id JOIN runtime_hosts h ON h.launch_id=r.host_launch_id WHERE h.status='ready' AND h.coordinator_epoch=? AND t.status IN ('ready','resume_queued') ORDER BY r.ready_sequence`, epoch)
 	if err != nil {
 		return readyTask{}, err
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var task readyTask
-		if err = rows.Scan(&task.taskID, &task.runID, &task.status, &task.revision, &task.group, &task.maxActive, &task.maxAttempts, &task.payload); err != nil {
+		if err = rows.Scan(&task.taskID, &task.runID, &task.status, &task.revision, &task.group, &task.maxActive, &task.maxAttempts, &task.payload, &task.launchID); err != nil {
 			return readyTask{}, err
 		}
 		if err := checkTaskProvider(ctx, tx, task.taskID, nil); err != nil {
@@ -140,9 +140,47 @@ func selectReady(ctx context.Context, tx *sql.Tx, launchID string, limits Concur
 		if wmax == 0 {
 			wmax = limits.Global
 		}
-		if providers[p] < pmax && workspaces[w] < wmax {
-			return task, nil
+		if providers[p] >= pmax || workspaces[w] >= wmax {
+			continue
 		}
+		if task.status != "resume_queued" {
+			var attempts int
+			if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM attempts a JOIN task_runtime r ON r.task_id=a.task_id WHERE r.budget_group_id=?`, task.group).Scan(&attempts); err != nil {
+				return readyTask{}, err
+			}
+			if attempts >= task.maxAttempts || attempts >= 3 {
+				if task.launchID == launchID {
+					return readyTask{}, ErrAttemptLimit
+				}
+				continue
+			}
+		}
+		var charged int64
+		if err = tx.QueryRowContext(ctx, `SELECT COALESCE(SUM(CASE WHEN status='settled' THEN used_ms ELSE granted_ms END),0) FROM budget_runtime WHERE budget_group_id=?`, task.group).Scan(&charged); err != nil {
+			return readyTask{}, err
+		}
+		attemptRemaining := task.maxActive
+		if task.status == "resume_queued" {
+			var attemptID string
+			if err = tx.QueryRowContext(ctx, `SELECT id FROM attempts WHERE task_id=? ORDER BY attempt_no DESC LIMIT 1`, task.taskID).Scan(&attemptID); err != nil {
+				return readyTask{}, err
+			}
+			attemptCharged, chargeErr := attemptChargedActiveMS(ctx, tx, attemptID)
+			if chargeErr != nil {
+				return readyTask{}, chargeErr
+			}
+			attemptRemaining -= attemptCharged
+		}
+		if attemptRemaining <= 0 || defaultGroupActiveMS-charged <= 0 {
+			if task.launchID == launchID {
+				return readyTask{}, CodeError("budget_exhausted")
+			}
+			continue
+		}
+		if task.launchID != launchID {
+			return readyTask{}, sql.ErrNoRows
+		}
+		return task, nil
 	}
 	if err = rows.Err(); err != nil {
 		return readyTask{}, err

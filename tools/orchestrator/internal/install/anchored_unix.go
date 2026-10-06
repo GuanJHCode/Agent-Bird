@@ -217,6 +217,14 @@ func moveVerifiedDirectory(root *os.File, path string, expected directoryFileIde
 
 func captureKnownDirectories(root *os.File, value manifest) (map[string]directoryFileIdentity, error) {
 	known := map[string]bool{}
+	sealed := map[string]publicationDirectoryIdentity{}
+	for _, directory := range value.Directories {
+		if !publicationRelative(directory.Path) || !validPublicationDirectory(directory.Identity) {
+			return nil, errors.New("manifest_invalid")
+		}
+		known[directory.Path] = true
+		sealed[directory.Path] = directory.Identity
+	}
 	for _, file := range append(append([]manifestFile(nil), value.Files...), manifestFile{Path: "manifest.json"}) {
 		current := filepath.ToSlash(filepath.Dir(filepath.FromSlash(file.Path)))
 		for current != "." && current != "" {
@@ -234,6 +242,12 @@ func captureKnownDirectories(root *os.File, value manifest) (map[string]director
 			return nil, errors.New("installed_directory_unsafe")
 		}
 		stat := info.Sys().(*syscall.Stat_t)
+		if expected, exists := sealed[path]; exists {
+			id, identityErr := publicationDirectory(info)
+			if identityErr != nil || id != expected {
+				return nil, errors.New("installed_directory_changed")
+			}
+		}
 		result[path] = directoryFileIdentity{device: uint64(stat.Dev), inode: uint64(stat.Ino), mode: info.Mode()}
 	}
 	return result, nil

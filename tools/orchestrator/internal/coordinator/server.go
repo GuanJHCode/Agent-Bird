@@ -108,6 +108,12 @@ type ReworkRequest struct {
 	ControlToken     string `json:"control_token"`
 }
 
+type ResumeContinuationRequest struct {
+	store.ResumeContinuationSpec
+	ControllerThread string `json:"controller_thread"`
+	ControlToken     string `json:"control_token"`
+}
+
 type AnswerRequest struct {
 	TaskID           string `json:"task_id"`
 	ControllerThread string `json:"controller_thread"`
@@ -173,9 +179,12 @@ type ErrorResponse struct {
 }
 
 type hostSession struct {
-	id   string
-	conn net.Conn
-	mu   sync.Mutex
+	id         string
+	hello      contract.HostHello
+	conn       net.Conn
+	mu         sync.Mutex
+	dispatchMu sync.Mutex
+	failed     bool // guarded by dispatchMu; a failed transport cannot claim again
 }
 
 func (h *hostSession) send(message ipc.Envelope) error {
@@ -200,15 +209,41 @@ type Server struct {
 	idleExit           atomic.Bool
 	eventMu            sync.Mutex
 	eventSignal        chan struct{}
+	bridgeMu           sync.Mutex
+	bridgeConnections  map[net.Conn]struct{}
+	bridgeAdmission    chan struct{}
+	bridgeClosing      bool
+	bridgeWG           sync.WaitGroup
+	lifecycleMu        sync.Mutex
+	terminating        atomic.Bool
+	closed             atomic.Bool
 }
 
 func NewServer(stateDir string) (*Server, error) {
+	return newServer(stateDir, false)
+}
+
+// NewServerForRecovery never clears a durable normal-exit fence. The check is
+// made after acquiring the instance lock so an EOF cannot race Shutdown.
+func NewServerForRecovery(stateDir string) (*Server, error) {
+	return newServer(stateDir, true)
+}
+
+func newServer(stateDir string, recovery bool) (*Server, error) {
 	if err := instance.PrepareStateDir(stateDir); err != nil {
 		return nil, err
 	}
 	lock, err := instance.Acquire(stateDir)
 	if err != nil {
 		return nil, err
+	}
+	intent, err := readRestartIntent(stateDir)
+	if err != nil || (recovery && intent.Blocked) {
+		_ = lock.Close()
+		if err != nil {
+			return nil, err
+		}
+		return nil, store.CodeError("coordinator_shutdown")
 	}
 	db, err := store.Open(filepath.Join(stateDir, "state.db"))
 	if err != nil {
@@ -221,6 +256,11 @@ func NewServer(stateDir string) (*Server, error) {
 		return nil, err
 	}
 	if err = db.BeginCoordinatorEpoch(context.Background(), lock.Epoch()); err != nil {
+		_ = db.Close()
+		_ = lock.Close()
+		return nil, err
+	}
+	if err = db.RecoverBridgeDelivery(context.Background()); err != nil {
 		_ = db.Close()
 		_ = lock.Close()
 		return nil, err
@@ -254,7 +294,13 @@ func NewServer(stateDir string) (*Server, error) {
 		_ = lock.Close()
 		return nil, err
 	}
-	server := &Server{stateDir: stateDir, socket: socket, epoch: lock.Epoch(), lock: lock, db: db, listener: listener, hosts: make(map[string]*hostSession), idleTimeout: 30 * time.Second, eventSignal: make(chan struct{})}
+	server := &Server{stateDir: stateDir, socket: socket, epoch: lock.Epoch(), lock: lock, db: db, listener: listener, hosts: make(map[string]*hostSession), idleTimeout: 30 * time.Second, eventSignal: make(chan struct{}), bridgeConnections: make(map[net.Conn]struct{}), bridgeAdmission: make(chan struct{}, 32)}
+	if !recovery {
+		if err := clearGlobalRestartBlock(stateDir, lock.Epoch()); err != nil {
+			_ = server.Close()
+			return nil, err
+		}
+	}
 	server.releaseTaskPins()
 	return server, nil
 }
@@ -276,8 +322,16 @@ func (s *Server) notifyActionableEvent() {
 }
 
 func (s *Server) Serve(ctx context.Context) error {
+	stopBridgeCleanup := context.AfterFunc(ctx, s.closeBridgeConnections)
+	defer stopBridgeCleanup()
 	go func() {
 		<-ctx.Done()
+		if s.closed.Load() {
+			return
+		}
+		if s.beginLifecycleExit() == nil {
+			s.notifyLifecycleExit()
+		}
 		_ = s.listener.Close()
 	}()
 	go s.monitorIdle(ctx)
@@ -293,7 +347,7 @@ func (s *Server) Serve(ctx context.Context) error {
 			return err
 		}
 		s.mu.Lock()
-		if s.idleExit.Load() {
+		if s.idleExit.Load() || s.terminating.Load() {
 			s.mu.Unlock()
 			_ = conn.Close()
 			continue
@@ -334,8 +388,14 @@ func (s *Server) monitorIdle(ctx context.Context) {
 				since = time.Now()
 			} else if time.Since(since) >= s.idleTimeout {
 				s.idleExit.Store(true)
-				_ = s.listener.Close()
 				s.mu.Unlock()
+				if s.beginLifecycleExit() != nil {
+					s.idleExit.Store(false)
+					since = time.Time{}
+					continue
+				}
+				s.notifyLifecycleExit()
+				_ = s.listener.Close()
 				return
 			}
 		} else {
@@ -354,6 +414,9 @@ func (s *Server) monitorIdle(ctx context.Context) {
 // exit events. Work that cannot be confirmed before ctx expires remains
 // unknown and continues to occupy its reservation after restart.
 func (s *Server) Shutdown(ctx context.Context) error {
+	if err := s.beginLifecycleExit(); err != nil {
+		return err
+	}
 	active, err := s.db.ActiveTasks(context.Background())
 	if err != nil {
 		return err
@@ -370,6 +433,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 			_ = sendStop(host, s.epoch, dispatch.Command)
 		}
 	}
+	s.notifyLifecycleExit()
 	ticker := time.NewTicker(20 * time.Millisecond)
 	defer ticker.Stop()
 	for {
@@ -392,6 +456,12 @@ func (s *Server) Shutdown(ctx context.Context) error {
 func (s *Server) Close() error {
 	var result error
 	s.close.Do(func() {
+		s.closed.Store(true)
+		s.lifecycleMu.Lock()
+		defer s.lifecycleMu.Unlock()
+		_ = s.listener.Close()
+		s.closeBridgeConnections()
+		s.bridgeWG.Wait()
 		s.mu.Lock()
 		for _, host := range s.hosts {
 			_ = host.conn.Close()
@@ -422,7 +492,15 @@ func (s *Server) handleConnection(ctx context.Context, conn net.Conn) {
 		s.handleHost(ctx, conn, message)
 		return
 	}
+	if message.Kind == ipc.KindHostRecoveryScope {
+		s.handleHostRecoveryScope(ctx, conn, message)
+		return
+	}
 	defer conn.Close()
+	if bridgeKind(message.Kind) {
+		s.handleBridgeConnection(ctx, conn, message)
+		return
+	}
 	if message.Kind == ipc.KindHostProgress {
 		s.hostProgress(ctx, conn, message)
 		return
@@ -441,16 +519,86 @@ func (s *Server) handleConnection(ctx context.Context, conn net.Conn) {
 	s.handleControl(controlCtx, conn, message)
 }
 
+// Admission starts after the generic envelope frame has been decoded. It caps
+// bridge authorization and DB work, including a blocked bridge mutex wait.
+func (s *Server) handleBridgeConnection(parent context.Context, conn net.Conn, message ipc.Envelope) {
+	select {
+	case s.bridgeAdmission <- struct{}{}:
+		defer func() { <-s.bridgeAdmission }()
+	default:
+		_ = conn.SetWriteDeadline(time.Now().Add(100 * time.Millisecond))
+		_ = sendError(conn, message.RequestID, s.epoch, store.CodeError("bridge_busy"))
+		return
+	}
+	s.bridgeMu.Lock()
+	if s.bridgeClosing {
+		s.bridgeMu.Unlock()
+		_ = sendError(conn, message.RequestID, s.epoch, store.CodeError("bridge_busy"))
+		return
+	}
+	s.bridgeWG.Add(1)
+	s.bridgeConnections[conn] = struct{}{}
+	s.bridgeMu.Unlock()
+	defer func() {
+		_ = conn.Close()
+		s.bridgeMu.Lock()
+		delete(s.bridgeConnections, conn)
+		s.bridgeMu.Unlock()
+		s.bridgeWG.Done()
+	}()
+	var ctx context.Context
+	var cancel context.CancelFunc
+	if bridgeHookRole(message.Kind) {
+		ctx, cancel = context.WithTimeout(parent, 2*time.Second)
+	} else {
+		ctx, cancel = context.WithCancel(parent)
+	}
+	defer cancel()
+	watchDone := make(chan struct{})
+	go func() {
+		defer close(watchDone)
+		var probe [1]byte
+		_, _ = conn.Read(probe[:])
+		cancel()
+	}()
+	defer func() { _ = conn.Close(); <-watchDone }()
+	payload, err := s.bridgeRPC(ctx, conn, message.Kind, message.Payload)
+	responseKind := ipc.KindResponse
+	if err != nil {
+		responseKind = ipc.KindError
+		payload, _ = json.Marshal(ErrorResponse{Error: bridgeErrorCode(err)})
+	}
+	_ = conn.SetWriteDeadline(time.Now().Add(200 * time.Millisecond))
+	_ = ipc.Write(conn, ipc.Envelope{Version: ipc.Version, Kind: responseKind, RequestID: message.RequestID, Epoch: s.epoch, Payload: payload})
+}
+
+func bridgeHookRole(kind ipc.Kind) bool {
+	switch kind {
+	case ipc.KindBridgeIngest, ipc.KindBridgeClaim, ipc.KindBridgeBeginEmit, ipc.KindBridgeOffered:
+		return true
+	}
+	return false
+}
+
+func (s *Server) closeBridgeConnections() {
+	s.bridgeMu.Lock()
+	defer s.bridgeMu.Unlock()
+	s.bridgeClosing = true
+	for conn := range s.bridgeConnections {
+		_ = conn.Close()
+	}
+}
+
 func (s *Server) handleControl(ctx context.Context, conn net.Conn, message ipc.Envelope) {
 	var payload json.RawMessage
 	var err error
 	switch message.Kind {
-	case ipc.KindProviderControl, ipc.KindRecoverHost, ipc.KindOwnerBind, ipc.KindSubmit, ipc.KindRebindOwner, ipc.KindResume, ipc.KindRetry, ipc.KindRework, ipc.KindAccept, ipc.KindAnswer, ipc.KindStopTask, ipc.KindAck, ipc.KindCollect, ipc.KindWaitEvents, ipc.KindSummary, ipc.KindStatus:
+	case ipc.KindConfigGeneration, ipc.KindProviderControl, ipc.KindRecoverHost, ipc.KindOwnerBind, ipc.KindSubmit, ipc.KindRebindOwner, ipc.KindResume, ipc.KindResumeContinuation, ipc.KindRetry, ipc.KindRework, ipc.KindAccept, ipc.KindAnswer, ipc.KindStopTask, ipc.KindAck, ipc.KindCollect, ipc.KindWaitEvents, ipc.KindSummary, ipc.KindStatus:
 		ctx, err = s.authorizePeer(ctx, conn)
 	}
 	if err == nil {
 		switch message.Kind {
-		case ipc.KindProviderControl, ipc.KindRecoverHost, ipc.KindRebindOwner, ipc.KindResume, ipc.KindRetry, ipc.KindRework, ipc.KindAccept, ipc.KindAnswer:
+		case ipc.KindConfigGeneration, ipc.KindProviderControl, ipc.KindRecoverHost, ipc.KindRebindOwner, ipc.KindResume, ipc.KindResumeContinuation, ipc.KindRetry, ipc.KindRework, ipc.KindAccept, ipc.KindAnswer:
 			ancestry, _ := ctx.Value(peerAncestryKey{}).(map[int]string)
 			err = s.db.ValidateDispatchPeer(ctx, ancestry)
 		}
@@ -469,16 +617,19 @@ func (s *Server) handleControl(ctx context.Context, conn net.Conn, message ipc.E
 func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage) (json.RawMessage, error) {
 	switch kind {
 	case ipc.KindReady:
-		return json.Marshal(map[string]any{"status": "ready", "epoch": s.epoch, "capabilities": []string{"interruption_feedback_v1", "grok_readonly_v1", "session_provider_lifecycle_v1", "isolated_provider_coding_v1"}})
+		return json.Marshal(map[string]any{"status": "ready", "epoch": s.epoch, "capabilities": []string{"interruption_feedback_v1", "grok_readonly_v1", "session_provider_lifecycle_v1", "isolated_provider_coding_v1", "owned_config_generation_v1"}})
 	case ipc.KindOwnerBind:
 		return s.bindLocalOwner(ctx, raw)
 	case ipc.KindProviderControl:
 		return s.providerControl(ctx, raw)
+	case ipc.KindConfigGeneration:
+		return s.configGeneration(ctx, raw)
 	case ipc.KindSubmit:
 		var request SubmitRequest
 		if err := strictJSON(raw, &request); err != nil {
 			return nil, err
 		}
+		var configGuard *install.ConfigSubmissionGuard
 		if request.OwnerMode == "local" {
 			g, err := s.localOwner(ctx, request.OwnerCapability)
 			if err != nil {
@@ -487,10 +638,35 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 			if g.ControllerThread != request.ControllerThread || g.OriginContextID != request.OriginContextID || g.OriginPID != request.OriginPID || g.OriginBirth != request.OriginBirth || g.HostGeneration != request.HostGeneration {
 				return nil, store.CodeError("owner_capability_mismatch")
 			}
+			ref, err := ConfigGenerationForTasks(request.Tasks)
+			if err != nil {
+				return nil, err
+			}
+			if ref != nil {
+				exe, e := coordinatorConfigExecutable()
+				if e != nil {
+					return nil, e
+				}
+				configGuard, e = openConfigSubmission(request, exe, g)
+				if e != nil {
+					return nil, e
+				}
+				defer configGuard.Close()
+			}
+
 		} else if request.OwnerMode != "" && request.OwnerMode != "native" {
 			return nil, store.CodeError("owner_mode_invalid")
 		} else if err := s.db.ValidateOwnerRegistration(ctx); err != nil {
 			return nil, err
+		}
+		if request.OwnerMode != "local" {
+			ref, e := ConfigGenerationForTasks(request.Tasks)
+			if e != nil {
+				return nil, e
+			}
+			if ref != nil {
+				return nil, store.CodeError("config_generation_local_owner_required")
+			}
 		}
 		tasks := make([]store.TaskSpec, 0, len(request.Tasks))
 		for _, task := range request.Tasks {
@@ -500,7 +676,7 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 			}
 			tasks = append(tasks, store.TaskSpec{ID: task.ID, RunID: request.RunID, Dependencies: task.Dependencies, MaxAttempts: task.MaxAttempts, WorkRevision: task.WorkRevision, BudgetGroupID: task.BudgetGroupID, MaxActiveMS: task.MaxActiveMS, AdapterPayload: task.AdapterPayload, FallbackPayloads: task.Fallbacks, CompletionPolicy: policy, ExpectedArtifactSHA256: task.ExpectedArtifactSHA256})
 		}
-		receipt, err := s.db.SubmitPlan(ctx, store.PlanSpec{Run: store.RunSpec{DeliveryMode: request.DeliveryMode, ID: request.RunID, ControllerThread: request.ControllerThread, PlanRevision: request.PlanRevision, OriginContextID: request.OriginContextID, OriginPID: request.OriginPID, OriginBirth: request.OriginBirth}, Host: store.HostLaunchSpec{OriginContextID: request.OriginContextID, HostGeneration: request.HostGeneration, Executable: request.HostExecutable}, Tasks: tasks, LaunchID: request.LaunchID, LaunchToken: request.LaunchToken, ControlToken: request.ControlToken})
+		receipt, err := s.db.SubmitPlan(ctx, store.PlanSpec{ConfigSubmission: configGuard, Run: store.RunSpec{DeliveryMode: request.DeliveryMode, ID: request.RunID, ControllerThread: request.ControllerThread, PlanRevision: request.PlanRevision, OriginContextID: request.OriginContextID, OriginPID: request.OriginPID, OriginBirth: request.OriginBirth}, Host: store.HostLaunchSpec{OriginContextID: request.OriginContextID, HostGeneration: request.HostGeneration, Executable: request.HostExecutable}, Tasks: tasks, LaunchID: request.LaunchID, LaunchToken: request.LaunchToken, ControlToken: request.ControlToken})
 		if err != nil {
 			return nil, err
 		}
@@ -512,11 +688,7 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 		if err := strictJSON(raw, &request); err != nil {
 			return nil, err
 		}
-		status, err := s.db.HostLaunchStatus(ctx, request.LaunchID, request.LaunchToken)
-		if err != nil {
-			return nil, err
-		}
-		return json.Marshal(StatusResponse{Status: status})
+		return s.hostPresence(ctx, request)
 	case ipc.KindSummary:
 		var request TaskControlRequest
 		if err := strictJSON(raw, &request); err != nil {
@@ -607,6 +779,20 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 		}
 		s.dispatchAll()
 		return json.Marshal(StatusResponse{Status: "resume_queued"})
+	case ipc.KindResumeContinuation:
+		var request ResumeContinuationRequest
+		if err := strictJSON(raw, &request); err != nil {
+			return nil, err
+		}
+		if err := s.db.ValidateTaskOwner(ctx, request.TaskID, request.ControllerThread, request.ControlToken); err != nil {
+			return nil, err
+		}
+		receipt, err := s.db.QueueContinuation(ctx, request.ResumeContinuationSpec)
+		if err != nil {
+			return nil, err
+		}
+		s.dispatchAll()
+		return json.Marshal(receipt)
 	case ipc.KindRetry:
 		var request RetryRequest
 		if err := strictJSON(raw, &request); err != nil {
@@ -685,6 +871,10 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 		if err := strictJSON(raw, &request); err != nil {
 			return nil, err
 		}
+		// Owner transitions serialize with Host admission/scope proof. A proof
+		// cannot certify an owner generation while another rebind replaces it.
+		s.hostRegistrationMu.Lock()
+		defer s.hostRegistrationMu.Unlock()
 		if request.OwnerMode == "local" {
 			g, err := s.localOwner(ctx, request.OwnerCapability)
 			if err != nil {
@@ -749,7 +939,11 @@ func (s *Server) releaseTaskPins() {
 		return
 	}
 	for _, task := range tasks {
-		_ = install.UnpinRunningVersion(task.Executable, task.TaskID)
+		if task.ConfigGeneration != nil {
+			_ = s.db.ReleaseConfigTaskUse(context.Background(), task.Executable, task.RunID, task.TaskID, task.ConfigGeneration)
+		} else {
+			_ = install.UnpinRunningVersion(task.Executable, task.TaskID)
+		}
 	}
 }
 
@@ -764,7 +958,7 @@ func (s *Server) authorizeHostHello(ctx context.Context, conn net.Conn, hello co
 	if err != nil || pid != hello.PID {
 		return store.ErrHostRejected
 	}
-	ancestry, err := process.Ancestry(pid)
+	ancestry, err := process.AncestryContext(ctx, pid)
 	if err != nil || ancestry[pid] != hello.Birth {
 		return store.ErrHostRejected
 	}
@@ -813,33 +1007,50 @@ func (s *Server) handleHost(ctx context.Context, conn net.Conn, message ipc.Enve
 		_ = conn.Close()
 		return
 	}
-	hostID, err := s.registerHost(ctx, hello)
+	s.hostRegistrationMu.Lock()
+	if fenceErr := CheckRecoveryAllowed(s.stateDir, hello); fenceErr != nil {
+		s.hostRegistrationMu.Unlock()
+		if fenceErr.Error() == "coordinator_shutdown" {
+			_ = sendHostDisposition(&hostSession{id: hello.LaunchID, hello: hello, conn: conn}, s.epoch, "coordinator_exit")
+		} else {
+			_ = sendError(conn, message.RequestID, s.epoch, fenceErr)
+		}
+		_ = conn.Close()
+		return
+	}
+	if released, releasedErr := s.db.ReleasedHostIdentity(ctx, hello); released || releasedErr != nil {
+		s.hostRegistrationMu.Unlock()
+		if releasedErr == nil {
+			_ = sendHostDisposition(&hostSession{id: hello.LaunchID, hello: hello, conn: conn}, s.epoch, "host_retired")
+		} else {
+			_ = sendError(conn, message.RequestID, s.epoch, releasedErr)
+		}
+		_ = conn.Close()
+		return
+	}
+	hostID, err := s.registerHostLocked(ctx, hello)
 	if err != nil {
+		s.hostRegistrationMu.Unlock()
 		_ = sendError(conn, message.RequestID, s.epoch, err)
 		_ = conn.Close()
 		return
 	}
 	if err = s.db.BeginHostReconcile(context.Background(), hostID); err != nil {
+		s.hostRegistrationMu.Unlock()
 		_ = sendError(conn, message.RequestID, s.epoch, err)
 		_ = conn.Close()
 		return
 	}
-	session := &hostSession{id: hostID, conn: conn}
+	session := &hostSession{id: hostID, hello: hello, conn: conn}
 	s.mu.Lock()
 	s.hosts[hostID] = session
 	s.mu.Unlock()
+	s.hostRegistrationMu.Unlock()
+	wakeAfterExit := false
 	defer func() {
-		s.mu.Lock()
-		current := false
-		if s.hosts[hostID] == session {
-			delete(s.hosts, hostID)
-			current = true
+		if s.disconnectHost(session) || wakeAfterExit {
+			s.dispatchAll()
 		}
-		s.mu.Unlock()
-		if current {
-			_ = s.db.MarkHostOffline(context.Background(), hostID, s.epoch)
-		}
-		_ = conn.Close()
 	}()
 	ready, _ := json.Marshal(contract.HostReady{HostID: hostID, CoordinatorEpoch: s.epoch})
 	if err = session.send(ipc.Envelope{Version: ipc.Version, Kind: ipc.KindHostReady, RequestID: message.RequestID, Epoch: s.epoch, Payload: ready}); err != nil {
@@ -875,9 +1086,12 @@ func (s *Server) handleHost(ctx context.Context, conn net.Conn, message ipc.Enve
 	if err = s.db.FinishHostReconcile(context.Background(), hostID); err != nil {
 		return
 	}
-	if err = s.dispatch(session, true); err != nil {
+	s.dispatchPendingStops()
+	if changed, dispatchErr := s.dispatch(session, true); dispatchErr != nil && !dispatchBudgetRejected(dispatchErr) {
+		wakeAfterExit = changed
 		return
 	}
+	s.dispatchAll()
 	for {
 		incoming, readErr := ipc.Read(conn)
 		if readErr != nil || incoming.Epoch != s.epoch {
@@ -901,13 +1115,15 @@ func (s *Server) handleHost(ctx context.Context, conn net.Conn, message ipc.Enve
 		}
 		s.dispatchPendingStops()
 		s.retireCompletedHosts()
+		s.dispatchAll()
 		s.mu.Lock()
 		_, stillRegistered := s.hosts[session.id]
 		s.mu.Unlock()
 		if !stillRegistered {
 			return
 		}
-		if err = s.dispatch(session, false); err != nil {
+		if changed, dispatchErr := s.dispatch(session, false); dispatchErr != nil && !dispatchBudgetRejected(dispatchErr) {
+			wakeAfterExit = changed
 			return
 		}
 	}
@@ -957,35 +1173,45 @@ func (s *Server) commitHostEvent(session *hostSession, incoming ipc.Envelope) (b
 		_ = sendError(session.conn, incoming.RequestID, s.epoch, err)
 		return false, nil
 	}
-	if event.Kind == contract.EventSession || event.Kind == contract.EventQuestion || event.Kind == contract.EventResult || event.Kind == contract.EventFailed || event.Kind == contract.EventUnknown || event.Kind == contract.EventStopped {
+	if event.Kind == contract.EventSession || event.Kind == contract.EventQuestion || event.Kind == contract.EventResult || event.Kind == contract.EventFailed || event.Kind == contract.EventLaunchRejected || event.Kind == contract.EventUnknown || event.Kind == contract.EventStopped {
 		s.notifyActionableEvent()
 	}
 	body, _ := json.Marshal(ack)
 	return true, session.send(ipc.Envelope{Version: ipc.Version, Kind: ipc.KindDurableAck, RequestID: incoming.RequestID, Epoch: s.epoch, Payload: body})
 }
 
-func (s *Server) dispatch(session *hostSession, includePending bool) error {
+// Progress includes a durable claim or a successful offline transition, even
+// when its transport write fails. It never means that the worker has started.
+func (s *Server) dispatch(session *hostSession, includePending bool) (bool, error) {
+	session.dispatchMu.Lock()
+	defer session.dispatchMu.Unlock()
+	if session.failed {
+		return false, nil
+	}
+	progressed := false
 	if includePending {
 		pending, err := s.db.PendingLaunches(context.Background(), session.id, s.epoch)
 		if err != nil {
-			return err
+			return false, err
 		}
 		for _, command := range pending {
 			if err = sendLaunch(session, s.epoch, command); err != nil {
-				return err
+				return s.disconnectHostLocked(session), err
 			}
 		}
 	}
 	for {
 		command, err := s.db.ClaimReady(context.Background(), session.id, s.epoch, 0)
 		if errors.Is(err, store.ErrNoReady) || errors.Is(err, store.ErrNoSlot) {
-			return nil
+			return progressed, nil
 		}
 		if err != nil {
-			return err
+			return progressed, err
 		}
+		progressed = true
 		if err = sendLaunch(session, s.epoch, command); err != nil {
-			return err
+			s.disconnectHostLocked(session)
+			return progressed, err
 		}
 	}
 }
@@ -997,8 +1223,22 @@ func (s *Server) dispatchAll() {
 		hosts = append(hosts, host)
 	}
 	s.mu.Unlock()
-	for _, host := range hosts {
-		_ = s.dispatch(host, false)
+	s.dispatchAllHosts(hosts)
+}
+
+// Keep the bounded scan separate from the snapshot so its order is testable.
+func (s *Server) dispatchAllHosts(hosts []*hostSession) {
+	for pass := 0; pass < 32; pass++ {
+		progressed := false
+		for _, host := range hosts {
+			changed, _ := s.dispatch(host, false)
+			if changed {
+				progressed = true
+			}
+		}
+		if !progressed {
+			return
+		}
 	}
 }
 
@@ -1008,14 +1248,18 @@ func (s *Server) retireCompletedHosts() {
 		return
 	}
 	for _, id := range ids {
+		s.hostRegistrationMu.Lock()
 		if s.db.RetireHost(context.Background(), id) != nil {
+			s.hostRegistrationMu.Unlock()
 			continue
 		}
 		s.mu.Lock()
 		host := s.hosts[id]
 		delete(s.hosts, id)
 		s.mu.Unlock()
+		s.hostRegistrationMu.Unlock()
 		if host != nil {
+			_ = sendHostDisposition(host, s.epoch, "host_retired")
 			_ = host.conn.Close()
 		}
 	}

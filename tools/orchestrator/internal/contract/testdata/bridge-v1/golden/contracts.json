@@ -1,0 +1,285 @@
+{
+  "hook_event": {
+    "schema_version": 1,
+    "event_id": "hook-1",
+    "binding_id": "binding-1",
+    "owner_epoch": 4,
+    "provider_id": "claude",
+    "native_session_id": "session-1",
+    "native_event_id": null,
+    "kind": "turn_boundary",
+    "observed_at": "2026-10-03T00:00:00.123456789Z",
+    "metadata": {
+      "native_hook": "UserPromptSubmit"
+    }
+  },
+  "bind_request": {
+    "schema_version": 1,
+    "request_id": "request-1",
+    "run_id": "run-1",
+    "provider_id": "claude",
+    "native_pid": 123,
+    "native_birth": "birth-1",
+    "native_executable_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "transport_mode": "hook_pull",
+    "owner_mode": "local",
+    "owner_capability_file": "/private/owner.json",
+    "control_file": "/private/control.json",
+    "manifest_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "activate_request": {
+    "schema_version": 1,
+    "binding_id": "binding-1",
+    "owner_epoch": 4,
+    "request_id": "request-1",
+    "owner_mode": "local",
+    "owner_capability_file": "/private/owner.json",
+    "control_file": "/private/control.json",
+    "native_session_id": "session-1",
+    "observation_event_id": "hook-1",
+    "observation_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "ingest_request": {
+    "schema_version": 1,
+    "binding_id": "binding-1",
+    "owner_epoch": 4,
+    "request_id": "request-1",
+    "hook_capability": "PRIVATE_FIXTURE_HOOK_TOKEN",
+    "event": {
+      "schema_version": 1,
+      "event_id": "hook-1",
+      "binding_id": "binding-1",
+      "owner_epoch": 4,
+      "provider_id": "claude",
+      "native_session_id": "session-1",
+      "native_event_id": null,
+      "kind": "turn_boundary",
+      "observed_at": "2026-10-03T00:00:00.123456789Z",
+      "metadata": {
+        "native_hook": "UserPromptSubmit"
+      }
+    }
+  },
+  "claim_request": {
+    "schema_version": 1,
+    "binding_id": "binding-1",
+    "owner_epoch": 4,
+    "request_id": "request-1",
+    "hook_capability": "PRIVATE_FIXTURE_HOOK_TOKEN",
+    "native_hook": "SessionStart"
+  },
+  "emit_request": {
+    "schema_version": 1,
+    "binding_id": "binding-1",
+    "owner_epoch": 4,
+    "request_id": "request-1",
+    "batch_id": "batch-1",
+    "attempt_id": "attempt-1",
+    "claim_token": "PRIVATE_FIXTURE_CLAIM_TOKEN",
+    "render_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "wire_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "offered_request": {
+    "schema_version": 1,
+    "binding_id": "binding-1",
+    "owner_epoch": 4,
+    "request_id": "request-1",
+    "batch_id": "batch-1",
+    "attempt_id": "attempt-1",
+    "claim_token": "PRIVATE_FIXTURE_CLAIM_TOKEN",
+    "wire_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "receive_request": {
+    "schema_version": 1,
+    "binding_id": "binding-1",
+    "owner_epoch": 4,
+    "request_id": "request-1",
+    "owner_mode": "local",
+    "owner_capability_file": "/private/owner.json",
+    "control_file": "/private/control.json",
+    "batch_id": "batch-1",
+    "attempt_id": "attempt-1",
+    "render_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "redeliver_request": {
+    "schema_version": 1,
+    "binding_id": "binding-1",
+    "owner_epoch": 4,
+    "request_id": "request-1",
+    "owner_mode": "local",
+    "owner_capability_file": "/private/owner.json",
+    "control_file": "/private/control.json",
+    "batch_id": "batch-1",
+    "attempt_id": "attempt-1",
+    "reason": "owner_explicit_retry"
+  },
+  "status_request": {
+    "schema_version": 1,
+    "binding_id": "binding-1",
+    "owner_epoch": 4,
+    "request_id": "request-1",
+    "owner_mode": "local",
+    "owner_capability_file": "/private/owner.json",
+    "control_file": "/private/control.json",
+    "cursor": "cursor-1"
+  },
+  "unbind_request": {
+    "schema_version": 1,
+    "binding_id": "binding-1",
+    "owner_epoch": 4,
+    "request_id": "request-1",
+    "owner_mode": "local",
+    "owner_capability_file": "/private/owner.json",
+    "control_file": "/private/control.json"
+  },
+  "binding_view": {
+    "schema_version": 1,
+    "binding_id": "binding-1",
+    "run_id": "run-1",
+    "provider_id": "claude",
+    "native_session_id": "session-1",
+    "owner_context_id": "owner-1",
+    "owner_pid": 42,
+    "owner_birth": "owner-birth",
+    "native_pid": 123,
+    "native_birth": "birth-1",
+    "native_executable_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "owner_epoch": 4,
+    "role": "owner",
+    "transport_mode": "hook_pull",
+    "manifest_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "status": "ACTIVE",
+    "candidate_observation_event_id": "hook-1",
+    "candidate_observation_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "capability_file": "/private/binding.json"
+  },
+  "ingress_ack": {
+    "event_id": "hook-1",
+    "payload_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "committed": true,
+    "duplicate": false
+  },
+  "receive_receipt": {
+    "receipt_id": "receipt-1",
+    "batch_id": "batch-1",
+    "attempt_id": "attempt-1",
+    "render_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "received_at": "2026-10-03T00:00:01Z"
+  },
+  "attempt_view": {
+    "attempt_id": "attempt-1",
+    "state": "UNCERTAIN",
+    "allowed_next_actions": [
+      "received",
+      "redeliver"
+    ]
+  },
+  "status_view": {
+    "schema_version": 1,
+    "binding_id": "binding-1",
+    "owner_epoch": 4,
+    "cursor": "cursor-1",
+    "next_cursor": null,
+    "counts": {
+      "pending": 0,
+      "waiting_receipt": 0,
+      "uncertain": 1,
+      "pending_business_decision": 1
+    },
+    "batches": [
+      {
+        "batch_id": "batch-1",
+        "attempt_id": "attempt-1",
+        "render_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "wire_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "state": "UNCERTAIN",
+        "delivery_receipts": [
+          {
+            "task_id": "task-1",
+            "delivery_id": "delivery-1",
+            "proof_mode": "collect",
+            "proof_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            "event_ids": [
+              "event-1"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "batch": {
+    "schema_version": 1,
+    "batch_id": "batch-1",
+    "attempt_id": "attempt-1",
+    "binding_id": "binding-1",
+    "owner_epoch": 4,
+    "transport_mode": "hook_pull",
+    "render_sha256": "266d8aa0cc95ba9f4ead95f222df6ef782fddf1e3af0c9b617177a0314878f35",
+    "events": [
+      {
+        "event_id": "event-1",
+        "event_revision": 2,
+        "event_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "action_slot": "slot-1",
+        "task_id": "task-1",
+        "work_revision": 3,
+        "kind": "result",
+        "summary": "你好 \"review\"\n",
+        "artifact_ref": {
+          "id": "artifact-1",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        }
+      }
+    ],
+    "delivery_receipts": [
+      {
+        "task_id": "task-1",
+        "delivery_id": "delivery-1",
+        "proof_mode": "collect",
+        "proof_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "event_ids": [
+          "event-1"
+        ]
+      }
+    ]
+  },
+  "claim_reply": {
+    "batch": {
+      "schema_version": 1,
+      "batch_id": "batch-1",
+      "attempt_id": "attempt-1",
+      "binding_id": "binding-1",
+      "owner_epoch": 4,
+      "transport_mode": "hook_pull",
+      "render_sha256": "266d8aa0cc95ba9f4ead95f222df6ef782fddf1e3af0c9b617177a0314878f35",
+      "events": [
+        {
+          "event_id": "event-1",
+          "event_revision": 2,
+          "event_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "action_slot": "slot-1",
+          "task_id": "task-1",
+          "work_revision": 3,
+          "kind": "result",
+          "summary": "你好 \"review\"\n",
+          "artifact_ref": {
+            "id": "artifact-1",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        }
+      ],
+      "delivery_receipts": [
+        {
+          "task_id": "task-1",
+          "delivery_id": "delivery-1",
+          "proof_mode": "collect",
+          "proof_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "event_ids": [
+            "event-1"
+          ]
+        }
+      ]
+    },
+    "claim_token": "PRIVATE_FIXTURE_CLAIM_TOKEN"
+  }
+}

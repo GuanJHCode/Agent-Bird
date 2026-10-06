@@ -48,7 +48,7 @@ func currentLocalOwner(ctx context.Context) (coordinator.OwnerBindRequest, error
 	if _, _, err := taskProvider(managed.Provider); err != nil {
 		return req, codeError("current_owner_unavailable")
 	}
-	ancestry, err := process.Ancestry(os.Getpid())
+	ancestry, err := process.AncestryContext(ctx, os.Getpid())
 	if err != nil || managed.LauncherPID == os.Getpid() || ancestry[managed.LauncherPID] != managed.LauncherBirth {
 		return req, codeError("current_owner_unavailable")
 	}

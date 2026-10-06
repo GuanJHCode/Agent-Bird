@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-bird-bridge-v1/claim_request",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "minimum": 0,
+      "const": 1
+    },
+    "binding_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "owner_epoch": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "request_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "hook_capability": {
+      "type": "string",
+      "minLength": 1,
+      "x-secret": true
+    },
+    "native_hook": {
+      "type": "string",
+      "minLength": 1,
+      "enum": [
+        "PreInvocation",
+        "SessionStart",
+        "UserPromptSubmit"
+      ]
+    }
+  },
+  "required": [
+    "schema_version",
+    "binding_id",
+    "owner_epoch",
+    "request_id",
+    "hook_capability",
+    "native_hook"
+  ]
+}

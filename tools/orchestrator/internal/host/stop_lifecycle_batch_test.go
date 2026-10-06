@@ -45,8 +45,12 @@ func TestBatchStopLifecycleRetiresMarkersWithoutLosingPrelaunchStops(t *testing.
 			}
 			result, runErr := owner.ExecuteLaunch(context.Background(), grant, invocation)
 			if mode == "prelaunch-stop" || mode == "stop-all-before-launch" {
-				if result.Status != "interrupted" || runErr == nil {
+				if result.Status != "failed" || runErr == nil {
 					t.Fatalf("prelaunch stop lost: %+v %v", result, runErr)
+				}
+				records, err := owner.Collect(context.Background(), store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID})
+				if err != nil || len(records) != 2 || records[0].Kind != contract.EventPrepared || records[1].Kind != contract.EventLaunchRejected {
+					t.Fatalf("prelaunch stop invented worker exit: %+v %v", records, err)
 				}
 				if _, err := os.Stat(marker); !errors.Is(err, os.ErrNotExist) {
 					t.Fatalf("stopped launch executed: %v", err)

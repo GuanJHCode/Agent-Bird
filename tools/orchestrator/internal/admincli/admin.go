@@ -69,6 +69,22 @@ func Run(operation, requestPath string, stdout io.Writer) error {
 	var result any
 	var err error
 	switch operation {
+	case "config-plan":
+		var request install.ConfigPlanRequest
+		if err = install.ReadConfigRequest(requestPath, &request); err == nil {
+			result, err = install.PlanConfig(request)
+		}
+	case "config-apply", "config-remove":
+		var request struct {
+			PlanPath string `json:"plan_path"`
+		}
+		action := "apply"
+		if operation == "config-remove" {
+			action = "remove"
+		}
+		if err = install.ReadConfigRequest(requestPath, &request); err == nil {
+			result, err = install.ApplyConfigAction(request.PlanPath, action)
+		}
 	case "install":
 		var request InstallRequest
 		if err = readRequest(requestPath, &request); err == nil {

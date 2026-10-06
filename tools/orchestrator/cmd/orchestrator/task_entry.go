@@ -20,11 +20,7 @@ import (
 )
 
 // Task plans contain business scope, never owner/process or transport identity.
-type taskPlan struct {
-	RunID        string                    `json:"run_id"`
-	PlanRevision int                       `json:"plan_revision"`
-	Tasks        []coordinator.TaskRequest `json:"tasks"`
-}
+type taskPlan = coordinator.ConfigTaskPlan
 
 // A handle is routing metadata, not authority. The underlying CLI/service still
 // validates the control capability and owner for every operation. It is never
@@ -106,6 +102,10 @@ func taskSubmit(ctx context.Context, action string, args []string, out io.Writer
 
 // reusePreparing is internal to a locked, hash-verified dispatch reservation.
 func taskSubmitPrepared(ctx context.Context, action string, args []string, out io.Writer, reusePreparing bool) error {
+	return taskSubmitWithConfigPreparation(ctx, action, args, out, reusePreparing, configPreparationOptions{Legacy: reusePreparing})
+}
+
+func taskSubmitWithConfigPreparation(ctx context.Context, action string, args []string, out io.Writer, reusePreparing bool, options configPreparationOptions) error {
 	fs := flag.NewFlagSet("task "+action, flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	handle := fs.String("handle", "", "new private handle file; never reused")
@@ -200,13 +200,7 @@ func taskSubmitPrepared(ctx context.Context, action string, args []string, out i
 	if plan.RunID == "" || plan.PlanRevision < 1 {
 		return codeError("invalid_submit")
 	}
-	if err := prepareTaskWorkspaces(*handle, plan.Tasks); err != nil {
-		return err
-	}
-	if err := preflightTasks(plan.Tasks); err != nil {
-		return err
-	}
-	if err := preflightProviders(ctx, plan.Tasks); err != nil {
+	if err := preflightTaskPlanBeforeOwner(ctx, *handle, plan); err != nil {
 		return err
 	}
 	// Observe identity before reserving anything; never fall back to a shell PID.
@@ -234,25 +228,15 @@ func taskSubmitPrepared(ctx context.Context, action string, args []string, out i
 	if err = ownerBind(ctx, []string{"--current", "--state-dir", state}, &ownerOut); err != nil {
 		return err
 	}
-	var owner struct {
-		Version          int    `json:"version"`
-		OwnerMode        string `json:"owner_mode"`
-		OwnerCapability  string `json:"owner_capability"`
-		ControllerThread string `json:"controller_thread"`
-		OriginContextID  string `json:"origin_context_id"`
-		OriginPID        int    `json:"origin_pid"`
-		OriginBirth      string `json:"origin_birth"`
-		HostGeneration   string `json:"host_generation"`
-	}
+	var owner controllerOwnerGrant
 	if err = decode(ownerOut.Bytes(), &owner); err != nil {
 		return err
 	}
-	if err = resolveTaskModels(ctx, state, owner.OwnerCapability, plan.Tasks); err != nil {
+	prepared, err := prepareTaskPlanForOwner(ctx, state, *handle, plan, owner, options)
+	if err != nil {
 		return err
 	}
-	if err = preflightProviders(ctx, plan.Tasks); err != nil {
-		return err
-	}
+	plan = prepared.ResolvedPlan
 	// An interrupted submission leaves this reservation in place. Never infer
 	// from missing receipt/control that no launch happened, or silently resubmit.
 	if reusePreparing {
@@ -276,10 +260,8 @@ func taskSubmitPrepared(ctx context.Context, action string, args []string, out i
 	})
 	var rejected remoteError
 	if errors.As(submitErr, &rejected) {
-		h.Status = "rejected"
-		h.ControlFile = ""
-		if err = replacePrivateJSON(*handle, h); err != nil {
-			return err
+		if rejectedErr := recordRejectedConfigSubmission(*handle, &h, prepared); rejectedErr != nil {
+			return errors.Join(submitErr, rejectedErr)
 		}
 	}
 	var r struct {
@@ -403,6 +385,18 @@ func taskFollowup(ctx context.Context, action string, args []string, out io.Writ
 	timeoutMS := 30000
 	revision := 0
 	mutation := action == "accept" || action == "ack" || action == "answer" || action == "rework" || action == "recover-host"
+	// Typed resume has an explicit source decision; the observed-revision
+	// legacy form remains available through its original guarded branch.
+	typedResume := false
+	if action == "resume" {
+		for _, arg := range args {
+			if arg == "--request" || strings.HasPrefix(arg, "--request=") {
+				typedResume = true
+				mutation = true
+				break
+			}
+		}
+	}
 	if mutation {
 		fs.StringVar(&request, "request", "", "explicit owner decision JSON")
 	} else {
@@ -479,6 +473,9 @@ func taskFollowup(ctx context.Context, action string, args []string, out io.Writ
 	if mutation {
 		decision["control_file"], _ = json.Marshal(h.ControlFile)
 		return withTaskRequest(decision, func(p string) error {
+			if typedResume {
+				return resumeContinuation(ctx, []string{"--state-dir", h.StateDir, "--request", p}, out)
+			}
 			return run(ctx, []string{action, "--state-dir", h.StateDir, "--request", p}, out, io.Discard)
 		})
 	}

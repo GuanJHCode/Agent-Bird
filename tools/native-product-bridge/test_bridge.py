@@ -137,6 +137,16 @@ def events():
     ]
 
 
+def test_launch_rejected_diagnostic_survives_native_projection(tmp_path):
+    ledger = DeliveryLedger(tmp_path / "delivery")
+    rejection = {**events()[0], "kind": "launch_rejected"}
+    batch = ledger.prepare_and_claim(attachment(), "task-a", [rejection])
+    assert batch.envelope["events"][0]["kind"] == "result"
+    assert batch.envelope["events"][0]["payload_hash"] == rejection["payload_hash"]
+    assert batch.source_events[0]["kind"] == "launch_rejected"
+    assert batch.source_events[0]["event_id"] == rejection["event_id"]
+
+
 def make_control_file(root):
     state = root / "state"
     directory = state / "control"

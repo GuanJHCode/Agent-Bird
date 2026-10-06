@@ -58,11 +58,11 @@ func TestLaunchFailureCollectsSafeDiagnostic(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if len(got) != 2 || got[0].Kind != contract.EventFailed || got[1].Kind != contract.EventExited || got[0].Artifact == nil {
+			if len(got) != 1 || got[0].Kind != contract.EventLaunchRejected || got[0].Artifact == nil {
 				t.Fatalf("missing failed diagnostic: %#v", got)
 			}
 			e := got[0]
-			if e.Process != nil || e.ExitCode == nil || *e.ExitCode != -1 {
+			if e.Process != nil || e.ExitCode != nil || e.ActiveMS != 0 {
 				t.Fatalf("failure changed process outcome: %+v", e)
 			}
 			if e.Artifact.ID != "launch-failure" || e.Artifact.Path != filepath.Join(root, a.ID, a.SegmentID, "launch-failure", "result-output.bin") {
@@ -102,7 +102,7 @@ func TestLaunchFailureCollectsSafeDiagnostic(t *testing.T) {
 			if err = sp.ReadMetadata("launch.json", &launch); err != nil {
 				t.Fatal(err)
 			}
-			if launch["phase"] != "exited" || launch["cause_code"] != tc.code {
+			if launch["phase"] != "not_started" || launch["cause_code"] != tc.code {
 				t.Fatalf("lost safe cause on exit: %+v", launch)
 			}
 			if _, err = os.Stat(filepath.Join(root, a.ID, a.SegmentID, "result-output.bin")); !errors.Is(err, os.ErrNotExist) {
@@ -338,7 +338,7 @@ func TestLaunchFailureDiagnosticCannotBeAcceptedOrReleaseCandidateDependency(t *
 	if _, err = os.ReadFile(e.Artifact.Path); err != nil {
 		t.Fatalf("nested artifact lost after durable ACK/reopen: %v", err)
 	}
-	if e.Kind != contract.EventFailed {
+	if e.Kind != contract.EventLaunchRejected {
 		t.Fatalf("diagnostic became result: %+v", e)
 	}
 	_, err = db.ReviewResult(ctx, store.ReviewSpec{TaskID: "edit", WorkRevision: grant.WorkRevision, EventID: e.EventID, EventRevision: e.EventRevision, EventHash: e.PayloadHash, ActionSlot: e.ActionSlot, Decision: "accept", CommandID: "accept"})
@@ -371,7 +371,7 @@ func TestLaunchFailureAfterPreparedAndReplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(before) != 3 || before[0].Kind != contract.EventPrepared || before[1].Kind != contract.EventFailed || before[1].Artifact == nil || before[2].Kind != contract.EventExited {
+	if len(before) != 2 || before[0].Kind != contract.EventPrepared || before[1].Kind != contract.EventLaunchRejected || before[1].Artifact == nil {
 		t.Fatalf("prepared failure=%+v", before)
 	}
 	if err = h.recordLaunchFailed(a, "r", "t", meta, errors.New("invalid_json")); err != nil {
@@ -381,13 +381,13 @@ func TestLaunchFailureAfterPreparedAndReplay(t *testing.T) {
 	if err != nil || !reflect.DeepEqual(before, after) {
 		t.Fatalf("duplicate failure changed evidence: %v", err)
 	}
-	if err = sp.AckThrough(before[2].Sequence); err != nil {
+	if err = sp.AckThrough(before[1].Sequence); err != nil {
 		t.Fatal(err)
 	}
-	if err = sp.AckThrough(before[2].Sequence); err != nil {
+	if err = sp.AckThrough(before[1].Sequence); err != nil {
 		t.Fatal(err)
 	}
-	pending, err := sp.ReadAfter(before[2].Sequence)
+	pending, err := sp.ReadAfter(before[1].Sequence)
 	if err != nil || len(pending) != 0 {
 		t.Fatalf("ACK replay pending=%d err=%v", len(pending), err)
 	}
@@ -423,8 +423,8 @@ func TestLaunchFailureDoesNotReclassifyUnknown(t *testing.T) {
 	}
 }
 
-// A crash after artifact fsync and before failed event append must reuse the
-// original cause/hash, not loop forever conflicting with a new generic cause.
+// A crash after artifact fsync preserves the diagnostic and its original hash,
+// but a new Host cannot manufacture never-started or process-exit proof.
 func TestLaunchFailureRecoversArtifactBeforeFirstEvent(t *testing.T) {
 	for _, metadata := range []bool{false, true} {
 		t.Run(fmt.Sprint(metadata), func(t *testing.T) {
@@ -468,7 +468,7 @@ func TestLaunchFailureRecoversArtifactBeforeFirstEvent(t *testing.T) {
 				t.Fatalf("pre-event artifact recovery failed: %v", err)
 			}
 			records, err := restarted.Collect(context.Background(), a)
-			if err != nil || len(records) != 2 || records[0].Kind != contract.EventFailed || records[1].Kind != contract.EventExited || records[0].Artifact == nil {
+			if err != nil || len(records) != 1 || records[0].Kind != contract.EventUnknown || records[0].Artifact == nil {
 				t.Fatalf("recovered events=%+v err=%v", records, err)
 			}
 			body, err := os.ReadFile(path)
@@ -480,7 +480,7 @@ func TestLaunchFailureRecoversArtifactBeforeFirstEvent(t *testing.T) {
 				t.Fatal("recovery changed artifact binding")
 			}
 			var phase map[string]any
-			if err = sp.ReadMetadata("launch.json", &phase); err != nil || phase["phase"] != "exited" || phase["cause_code"] != "invocation_payload_invalid" {
+			if err = sp.ReadMetadata("launch.json", &phase); err != nil || phase["phase"] != "unknown" || phase["cause_code"] != "invocation_payload_invalid" {
 				t.Fatalf("recovery lost original cause: %+v %v", phase, err)
 			}
 			if err = restarted.recoverDuplicateGrant(grant, 2); err != nil {

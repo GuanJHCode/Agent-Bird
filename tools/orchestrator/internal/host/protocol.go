@@ -12,6 +12,7 @@ import (
 const providerEventLimit = 64 * 1024
 
 type protocolCollector struct {
+	completionMode    adapter.TaskCompletionMode
 	mu                sync.Mutex
 	provider          adapter.Provider
 	parser            *adapter.StreamParser
@@ -25,6 +26,7 @@ type protocolCollector struct {
 	terminal          *adapter.Event
 	sessionID         string
 	expectedSessionID string
+	requireSession    bool
 	message           []byte
 	droppedOversize   int
 	onSession         func(string, string) error
@@ -35,6 +37,106 @@ type protocolCollector struct {
 	completeLines     int64
 	partialText       string
 	partialTruncated  bool
+	sessionIdentity   protocolSessionIdentityDiagnostics
+}
+
+// These fixed slots describe parsed input, never accepted Session/terminal
+// authority. Noncanonical identities are represented only by length and hash.
+type protocolSessionIdentitySummary struct {
+	ByteLen int    `json:"byte_len"`
+	SHA256  string `json:"sha256"`
+	UUID    string `json:"uuid,omitempty"`
+}
+
+type protocolSessionIdentityObservation struct {
+	Phase     string                         `json:"phase"`
+	LineIndex int64                          `json:"line_index"`
+	Observed  protocolSessionIdentitySummary `json:"observed"`
+	Status    string                         `json:"status,omitempty"`
+	Reason    string                         `json:"reason,omitempty"`
+}
+
+type protocolSessionIdentityDiagnostics struct {
+	Expected      protocolSessionIdentitySummary      `json:"expected"`
+	FirstInit     *protocolSessionIdentityObservation `json:"first_init,omitempty"`
+	FirstTerminal *protocolSessionIdentityObservation `json:"first_terminal,omitempty"`
+	FirstMismatch *protocolSessionIdentityObservation `json:"first_mismatch,omitempty"`
+}
+
+func protocolIdentitySummary(value string, disclose bool) protocolSessionIdentitySummary {
+	result := protocolSessionIdentitySummary{ByteLen: len(value), SHA256: hashBytes([]byte(value))}
+	if disclose && len(value) == 36 {
+		for i := 0; i < len(value); i++ {
+			if i == 8 || i == 13 || i == 18 || i == 23 {
+				if value[i] != '-' {
+					return result
+				}
+			} else if !((value[i] >= '0' && value[i] <= '9') || (value[i] >= 'a' && value[i] <= 'f')) {
+				return result
+			}
+		}
+		result.UUID = value
+	}
+	return result
+}
+
+func copyProtocolIdentityObservation(value *protocolSessionIdentityObservation) *protocolSessionIdentityObservation {
+	if value == nil {
+		return nil
+	}
+	copy := *value
+	return &copy
+}
+
+// Called only under the existing Write lock, before the original guards. It
+// neither calls observers nor reparses raw frames after a fatal parser error.
+func (p *protocolCollector) observeSessionIdentity(event adapter.Event) {
+	if p.provider != adapter.ProviderAGY {
+		return
+	}
+	phase := ""
+	switch event.Kind {
+	case adapter.EventInit:
+		phase = "init"
+	case adapter.EventResult, adapter.EventQuestion:
+		phase = "result"
+	case adapter.EventProgress:
+		phase = "step_update"
+	default:
+		return
+	}
+	reason := ""
+	if p.expectedSessionID != "" && event.SessionID != "" && event.SessionID != p.expectedSessionID {
+		reason = "expected_drift"
+	} else if event.SessionID != "" && p.sessionID != "" && p.sessionID != event.SessionID {
+		reason = "within_segment_drift"
+	}
+	firstInit := phase == "init" && p.sessionIdentity.FirstInit == nil
+	firstTerminal := phase == "result" && p.sessionIdentity.FirstTerminal == nil
+	firstMismatch := reason != "" && p.sessionIdentity.FirstMismatch == nil
+	if !firstInit && !firstTerminal && !firstMismatch {
+		return
+	}
+	status := ""
+	switch event.Status {
+	case "SUCCESS", "ERROR", "CANCELED", "INTERRUPTED", "INVALID", "WAITING", "RUNNING":
+		status = event.Status
+	}
+	observation := protocolSessionIdentityObservation{
+		Phase: phase, LineIndex: p.completeLines,
+		Observed: protocolIdentitySummary(event.SessionID, true), Status: status,
+	}
+	if firstInit {
+		p.sessionIdentity.FirstInit = &observation
+	}
+	if firstTerminal {
+		p.sessionIdentity.FirstTerminal = &observation
+	}
+	if firstMismatch {
+		mismatch := observation
+		mismatch.Reason = reason
+		p.sessionIdentity.FirstMismatch = &mismatch
+	}
 }
 
 // protocolSnapshot is a read-only observation, not EOF or a business result.
@@ -42,15 +144,16 @@ type protocolCollector struct {
 // TreeConfirmed records the existing Stop proof that the owned group is gone,
 // independently of cmd.Wait/stdout completion (unlike ConfirmTreeExited).
 type protocolSnapshot struct {
-	Available            bool   `json:"available"`
-	TerminalSeen         bool   `json:"terminal_seen"`
-	ProtocolError        string `json:"protocol_error"`
-	ObserverFailed       bool   `json:"observer_failed"`
-	OversizedTail        bool   `json:"oversized_tail"`
-	DroppedOversizeLines int    `json:"dropped_oversize_lines"`
-	TailPending          bool   `json:"tail_pending"`
-	WaitComplete         bool   `json:"wait_complete"`
-	TreeConfirmed        bool   `json:"tree_confirmed"`
+	Available            bool                                `json:"available"`
+	TerminalSeen         bool                                `json:"terminal_seen"`
+	ProtocolError        string                              `json:"protocol_error"`
+	ObserverFailed       bool                                `json:"observer_failed"`
+	OversizedTail        bool                                `json:"oversized_tail"`
+	DroppedOversizeLines int                                 `json:"dropped_oversize_lines"`
+	TailPending          bool                                `json:"tail_pending"`
+	WaitComplete         bool                                `json:"wait_complete"`
+	TreeConfirmed        bool                                `json:"tree_confirmed"`
+	SessionIdentity      *protocolSessionIdentityDiagnostics `json:"session_identity,omitempty"`
 }
 
 type protocolDiagnostics struct {
@@ -68,11 +171,23 @@ func (p *protocolCollector) Snapshot() protocolSnapshot {
 		return protocolSnapshot{ProtocolError: "none"}
 	}
 	defer p.mu.Unlock()
+	var identity *protocolSessionIdentityDiagnostics
+	if p.provider == adapter.ProviderAGY {
+		// Detach all slots: a caller must not be able to mutate the collector
+		// through a snapshot, even while the original stream is still live.
+		identity = &protocolSessionIdentityDiagnostics{
+			Expected:      protocolIdentitySummary(p.expectedSessionID, false),
+			FirstInit:     copyProtocolIdentityObservation(p.sessionIdentity.FirstInit),
+			FirstTerminal: copyProtocolIdentityObservation(p.sessionIdentity.FirstTerminal),
+			FirstMismatch: copyProtocolIdentityObservation(p.sessionIdentity.FirstMismatch),
+		}
+	}
 	return protocolSnapshot{
 		Available: true, TerminalSeen: p.terminal != nil, ProtocolError: safeProtocolError(p.err),
 		ObserverFailed: p.observerErr != nil, OversizedTail: p.oversized,
 		DroppedOversizeLines: p.droppedOversize,
 		TailPending:          len(p.line) != 0 || p.oversized,
+		SessionIdentity:      identity,
 	}
 }
 
@@ -86,7 +201,7 @@ func safeProtocolError(err error) string {
 	case "event_invalid_json", "event_multiple_json", "event_status_invalid",
 		"event_session_id_invalid", "event_type_missing", "event_type_invalid", "event_subtype_invalid",
 		"provider_session_changed", "provider_multiple_terminal_events", "provider_critical_event_too_large",
-		"provider_session_duplicate", "provider_event_before_session", "provider_event_after_terminal":
+		"provider_session_duplicate", "provider_event_before_session", "provider_event_after_terminal", "provider_terminal_session_missing":
 		return code
 	default:
 		return "other"
@@ -206,6 +321,7 @@ func (p *protocolCollector) finishLine() {
 }
 
 func (p *protocolCollector) accept(event adapter.Event) {
+	p.observeSessionIdentity(event)
 	if p.expectedSessionID != "" && event.SessionID != "" && event.SessionID != p.expectedSessionID {
 		p.err = errors.New("provider_session_changed")
 		return
@@ -218,7 +334,7 @@ func (p *protocolCollector) accept(event adapter.Event) {
 		p.err = errors.New("provider_session_changed")
 		return
 	}
-	if p.provider == adapter.ProviderCodex {
+	if p.provider == adapter.ProviderCodex || p.requireSession {
 		switch event.Kind {
 		case adapter.EventInit:
 			if p.sessionObserved {
@@ -329,6 +445,9 @@ func (p *protocolCollector) Finish() (adapter.Event, string, error) {
 		return adapter.Event{}, p.sessionID, errors.New("provider_terminal_missing")
 	}
 	terminal := *p.terminal
+	if p.completionMode == adapter.TaskCompletionV1 && terminal.SessionID == "" {
+		return adapter.Event{}, p.sessionID, errors.New("provider_terminal_session_missing")
+	}
 	if terminal.Text == "" && (p.provider == adapter.ProviderGrok || p.provider == adapter.ProviderCodex) {
 		terminal.Text = string(p.message)
 	}

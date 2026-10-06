@@ -1,10 +1,14 @@
 package store
 
 import (
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
+	"strings"
+
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"time"
 )
 
@@ -19,19 +23,23 @@ type ActiveTask struct {
 }
 
 type ReleasableTask struct {
-	TaskID     string
-	Executable string
+	TaskID           string
+	RunID            string
+	Executable       string
+	ConfigGeneration *contract.ConfigGenerationRef
 }
 
-func (d *DB) ReleasableTasks(ctx context.Context) ([]ReleasableTask, error) {
-	rows, err := d.sql.QueryContext(ctx, `SELECT t.id,h.executable FROM tasks t
-	 JOIN task_runtime r ON r.task_id=t.id JOIN host_launches h ON h.id=r.host_launch_id
-	 WHERE (t.status IN ('completed','cancelled','budget_exhausted','blocked_dependency')
+const releasableTaskPredicate = `(t.status IN ('completed','cancelled','budget_exhausted','blocked_dependency')
 	        OR (t.status='failed' AND (SELECT COUNT(*) FROM attempts a JOIN task_runtime ar ON ar.task_id=a.task_id WHERE ar.budget_group_id=r.budget_group_id) >= MIN(t.max_attempts,3)))
 	 AND NOT EXISTS (SELECT 1 FROM segment_runtime s JOIN attempts a ON a.id=s.attempt_id WHERE a.task_id=t.id AND s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown'))
 	 AND NOT EXISTS (SELECT 1 FROM runtime_events e WHERE e.task_id=t.id AND e.delivery_status='pending')
 	 AND NOT EXISTS (SELECT 1 FROM report_events e JOIN report_capabilities c ON c.capability_id=e.capability_id WHERE c.task_id=t.id AND e.delivery_status IN ('pending','pending_session'))
-	 AND NOT EXISTS (SELECT 1 FROM runtime_questions q WHERE q.task_id=t.id AND q.status IN ('open','resume_queued','resume_started'))
+	 AND NOT EXISTS (SELECT 1 FROM runtime_questions q WHERE q.task_id=t.id AND q.status IN ('open','resume_queued','resume_started'))`
+
+func (d *DB) ReleasableTasks(ctx context.Context) ([]ReleasableTask, error) {
+	rows, err := d.sql.QueryContext(ctx, `SELECT t.id,t.run_id,h.executable,r.adapter_payload FROM tasks t
+	 JOIN task_runtime r ON r.task_id=t.id JOIN host_launches h ON h.id=r.host_launch_id
+	 WHERE `+releasableTaskPredicate+`
 	 ORDER BY t.id`)
 	if err != nil {
 		return nil, err
@@ -40,8 +48,25 @@ func (d *DB) ReleasableTasks(ctx context.Context) ([]ReleasableTask, error) {
 	var out []ReleasableTask
 	for rows.Next() {
 		var item ReleasableTask
-		if err = rows.Scan(&item.TaskID, &item.Executable); err != nil {
+		var payload []byte
+		if err = rows.Scan(&item.TaskID, &item.RunID, &item.Executable, &payload); err != nil {
 			return nil, err
+		}
+		var fields map[string]json.RawMessage
+		if json.Unmarshal(payload, &fields) != nil {
+			return nil, CodeError("invalid_adapter_payload")
+		}
+		paired := false
+		for key := range fields {
+			paired = paired || strings.EqualFold(key, "config_generation") || strings.EqualFold(key, "config_model_source")
+		}
+		if paired {
+			original, e := adapter.DecodeInvocationPayload(payload)
+			if e != nil || original.ConfigGeneration == nil {
+				return nil, CodeError("config_generation_invalid")
+			}
+			copy := *original.ConfigGeneration
+			item.ConfigGeneration = &copy
 		}
 		out = append(out, item)
 	}
@@ -77,11 +102,13 @@ func (d *DB) CompletelyIdle(ctx context.Context) (bool, error) {
 	return count == 0, err
 }
 
-func (d *DB) RetirableHosts(ctx context.Context) ([]string, error) {
-	rows, err := d.sql.QueryContext(ctx, `SELECT h.id FROM runtime_hosts h WHERE h.status='ready'
+const retirableHostPredicate = `h.status='ready'
 	 AND NOT EXISTS (SELECT 1 FROM task_runtime r JOIN tasks t ON t.id=r.task_id WHERE r.host_launch_id=h.launch_id AND t.status NOT IN ('completed','result_ready','cancelled','failed','budget_exhausted','blocked_dependency'))
 	 AND NOT EXISTS (SELECT 1 FROM report_events e JOIN report_capabilities c ON c.capability_id=e.capability_id WHERE c.producer_id=h.id AND e.delivery_status='pending_session')
- ORDER BY h.id`)
+	 AND NOT EXISTS (SELECT 1 FROM segment_runtime s WHERE s.host_id=h.id AND s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown'))`
+
+func (d *DB) RetirableHosts(ctx context.Context) ([]string, error) {
+	rows, err := d.sql.QueryContext(ctx, `SELECT h.id FROM runtime_hosts h WHERE `+retirableHostPredicate+` ORDER BY h.id`)
 	if err != nil {
 		return nil, err
 	}
@@ -105,8 +132,16 @@ func (d *DB) RetireHost(ctx context.Context, hostID string) error {
 		return err
 	}
 	rollback := func(e error) error { _ = tx.Rollback(); return e }
-	if _, err = tx.ExecContext(ctx, `UPDATE runtime_hosts SET status='released',updated_at=? WHERE id=? AND status='ready'`, time.Now().UTC().Format(time.RFC3339Nano), hostID); err != nil {
+	result, err := tx.ExecContext(ctx, `UPDATE runtime_hosts AS h SET status='released',updated_at=? WHERE h.id=? AND `+retirableHostPredicate, time.Now().UTC().Format(time.RFC3339Nano), hostID)
+	if err != nil {
 		return rollback(err)
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return rollback(err)
+	}
+	if changed != 1 {
+		return rollback(ErrConflict)
 	}
 	if _, err = tx.ExecContext(ctx, `UPDATE host_launches SET status='released' WHERE host_id=?`, hostID); err != nil {
 		return rollback(err)

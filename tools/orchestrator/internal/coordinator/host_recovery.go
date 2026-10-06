@@ -78,6 +78,10 @@ func hostIdentityExited(pid int, birth string) (bool, error) {
 func (s *Server) registerHost(ctx context.Context, hello contract.HostHello) (string, error) {
 	s.hostRegistrationMu.Lock()
 	defer s.hostRegistrationMu.Unlock()
+	return s.registerHostLocked(ctx, hello)
+}
+
+func (s *Server) registerHostLocked(ctx context.Context, hello contract.HostHello) (string, error) {
 	binding, err := s.db.HostBinding(ctx, hello.LaunchID)
 	if err != nil && !errors.Is(err, store.ErrNotFound) {
 		return "", err

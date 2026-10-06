@@ -63,7 +63,7 @@ func validateWorkspace(req Request) error {
 		}
 		return nil
 	}
-	if req.Workspace.Version != 1 || req.Profile == nil || req.Profile.Role != Implementer || req.Profile.Permission != WorkspaceWrite || req.Session.ID != "" {
+	if req.Workspace.Version != 1 || req.Profile == nil || req.Profile.Role != Implementer || req.Profile.Permission != WorkspaceWrite || (req.Session.ID != "" && req.Continuation == nil) {
 		return errors.New("candidate_workspace_profile_invalid")
 	}
 	return nil

@@ -1,12 +1,12 @@
 package host
 
 import (
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -29,7 +29,7 @@ type reportCapabilityFile struct {
 	ExecutionEpoch uint64 `json:"execution_epoch"`
 }
 
-func (h *Host) prepareReportCapability(ctx context.Context, cfg SourceConfig, grant contract.LaunchCommand, session *sourceSession) (string, error) {
+func (h *Host) prepareReportCapability(ctx context.Context, cfg SourceConfig, grant contract.LaunchCommand, session *sourceSession, remember func(contract.ReportCapabilityRegistration) error) (string, error) {
 	if grant.ReportCapabilityID == "" {
 		return "", errors.New("report_capability_missing")
 	}
@@ -75,6 +75,11 @@ func (h *Host) prepareReportCapability(ctx context.Context, cfg SourceConfig, gr
 		}
 	}
 	registration := contract.ReportCapabilityRegistration{CapabilityID: capability.CapabilityID, TokenHash: hashText(capability.Token), CapabilityDir: artifactDir, RunID: capability.RunID, TaskID: capability.TaskID, AttemptID: capability.AttemptID, SegmentID: capability.SegmentID, ProducerID: capability.ProducerID, WorkRevision: capability.WorkRevision, ExecutionEpoch: session.epoch}
+	// Remember the exact local binding before the request can commit and lose
+	// its ACK. Workers may start only after this registration is acknowledged.
+	if err := remember(registration); err != nil {
+		return "", err
+	}
 	if err := session.registerReportCapability(ctx, registration); err != nil {
 		return "", err
 	}
@@ -138,37 +143,35 @@ func writeReportCapability(path string, value reportCapabilityFile) error {
 }
 
 func (s *sourceSession) registerReportCapability(ctx context.Context, registration contract.ReportCapabilityRegistration) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	requestID := registration.CapabilityID
 	payload, _ := json.Marshal(registration)
-	ackChannel := make(chan frameResult, 1)
-	s.ackMu.Lock()
-	s.acks[requestID] = ackChannel
-	s.ackMu.Unlock()
-	defer func() { s.ackMu.Lock(); delete(s.acks, requestID); s.ackMu.Unlock() }()
-	if err := ipc.Write(s.conn, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindReportCapability, RequestID: requestID, Epoch: s.epoch, Payload: payload}); err != nil {
+	envelope, err := s.requestACK(ctx, ipc.KindReportCapability, requestID, payload, s.epoch)
+	if err != nil {
 		return err
 	}
-	select {
-	case frame := <-ackChannel:
-		if frame.err != nil || frame.envelope.Kind != ipc.KindDurableAck || frame.envelope.RequestID != requestID {
-			return errors.New("report_capability_ack_mismatch")
-		}
-		var ack contract.DurableAck
-		if decodePayload(frame.envelope.Payload, &ack) != nil || ack.Status != "durable" || ack.EventID != requestID || ack.PayloadHash != registration.TokenHash {
-			return errors.New("report_capability_ack_mismatch")
-		}
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
+	if envelope.Kind != ipc.KindDurableAck || envelope.RequestID != requestID || envelope.Epoch != s.epoch {
+		return errors.New("report_capability_ack_mismatch")
 	}
+	var ack contract.DurableAck
+	if decodePayload(envelope.Payload, &ack) != nil || ack.Status != "durable" || ack.EventID != requestID || ack.PayloadHash != registration.TokenHash {
+		return errors.New("report_capability_ack_mismatch")
+	}
+	return nil
 }
 
 type reportInvocation struct {
 	base             contract.InvocationView
 	reportPath       string
 	reportExecutable string
+}
+
+func reportCapabilityEnabled(inv contract.InvocationView) bool {
+	if completion, ok := inv.(interface {
+		TaskCompletionMode() adapter.TaskCompletionMode
+	}); ok && completion.TaskCompletionMode() == adapter.TaskCompletionV1 {
+		return false
+	}
+	return true
 }
 
 func (i reportInvocation) ExecutionProfile() *adapter.ExecutionProfile {
@@ -222,4 +225,13 @@ func (i reportInvocation) ExecutablePin() (string, string) {
 		return pinned.ExecutablePin()
 	}
 	return "", ""
+}
+
+func (i reportInvocation) TaskCompletionMode() adapter.TaskCompletionMode {
+	if value, ok := i.base.(interface {
+		TaskCompletionMode() adapter.TaskCompletionMode
+	}); ok {
+		return value.TaskCompletionMode()
+	}
+	return adapter.TaskCompletionNone
 }

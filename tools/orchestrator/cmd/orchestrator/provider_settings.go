@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"flag"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/install"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
 	"io"
@@ -52,6 +54,9 @@ func providerSettingsEntry(ctx context.Context, args []string, out io.Writer) er
 		return codeError("invalid_args")
 	}
 	action := args[0]
+	if action == "snapshot" {
+		return configGenerationEntry(ctx, args[1:], out)
+	}
 	if action != "enable" && action != "disable" && action != "status" && action != "model" && action != "default-model" {
 		return codeError("invalid_args")
 	}
@@ -167,6 +172,17 @@ func providerSettingsEntry(ctx context.Context, args []string, out io.Writer) er
 // Resolve before the final provider preflight. These concrete model values are
 // frozen into the submitted task; defaults are never consulted by running work.
 func resolveTaskModels(ctx context.Context, state, owner string, tasks []coordinator.TaskRequest) error {
+	return resolveTaskModelsWithConfig(ctx, tasks, nil, nil, func(ctx context.Context, provider string) (store.ProviderState, error) {
+		return providerSettingsCall(ctx, state, owner, provider, "status", nil)
+	})
+}
+
+type configProviderStatusReader func(context.Context, string) (store.ProviderState, error)
+
+func resolveTaskModelsWithConfig(ctx context.Context, tasks []coordinator.TaskRequest, ref *contract.ConfigGenerationRef, saved *install.ConfigSavedDefaults, status configProviderStatusReader) error {
+	if (ref == nil) != (saved == nil) || ref != nil && (ref.Validate() != nil || saved.Validate() != nil) {
+		return codeError("config_generation_invalid")
+	}
 	defaults := map[string]store.ProviderState{}
 	for i := range tasks {
 		raws := append([]json.RawMessage{tasks[i].AdapterPayload}, tasks[i].Fallbacks...)
@@ -175,12 +191,34 @@ func resolveTaskModels(ctx context.Context, state, owner string, tasks []coordin
 			if err != nil {
 				return err
 			}
+			if p.ConfigGeneration != nil || p.ConfigModelSource != "" {
+				return codeError("config_input_provenance_forbidden")
+			}
+			if ref != nil {
+				copy := *ref
+				p.ConfigGeneration = &copy
+				if p.Profile == nil {
+					p.ConfigModelSource = "not-applicable"
+				} else if p.Profile.CLIModelDefault {
+					p.ConfigModelSource = "cli-default"
+				} else if p.Profile.Model != "" {
+					p.ConfigModelSource = "explicit"
+				} else {
+					p.ConfigModelSource = "saved-default"
+				}
+			}
 			if p.Profile == nil {
+				if ref != nil {
+					raws[j], err = json.Marshal(p)
+					if err != nil {
+						return err
+					}
+				}
 				continue
 			}
 			setting, ok := defaults[p.Provider]
 			if !ok {
-				setting, err = providerSettingsCall(ctx, state, owner, p.Provider, "status", nil)
+				setting, err = status(ctx, p.Provider)
 				if err != nil {
 					return err
 				}
@@ -190,7 +228,17 @@ func resolveTaskModels(ctx context.Context, state, owner string, tasks []coordin
 				return codeError("provider_disabled")
 			}
 			if p.Profile.Model == "" && !p.Profile.CLIModelDefault {
-				p.Profile.Model = adapter.ModelID(setting.Model)
+				model := setting.Model
+				if ref != nil {
+					model, err = saved.Model(p.Provider)
+					if err != nil {
+						return err
+					}
+				}
+				p.Profile.Model = adapter.ModelID(model)
+			}
+			if ref != nil && p.ValidateConfigModelSource() != nil {
+				return codeError("config_model_source_invalid")
 			}
 			raws[j], err = json.Marshal(p)
 			if err != nil {

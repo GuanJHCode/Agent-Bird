@@ -171,15 +171,24 @@ func (d *DB) QueueRework(ctx context.Context, spec ReworkSpec) (ReworkReceipt, e
 	if len(encoded) > 256*1024 {
 		return empty, CodeError("rework_payload_too_large")
 	}
-	if err = d.storageAdmission(ctx, tx, run, int64(len(encoded)), false); err != nil {
+	var bindings []decisionAttemptBinding
+	cost := int64(len(encoded))
+	for _, task := range chain {
+		bindings = append(bindings, decisionAttemptBinding{slot: spec.ActionSlot, task: task.id, revision: receipt.TaskRevisions[task.id]})
+		cost += decisionBindingBytes(spec.ActionSlot, task.id, "")
+	}
+	if err = d.storageAdmission(ctx, tx, run, cost, false); err != nil {
 		return empty, err
 	}
-	var attempts int
-	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM attempts a JOIN task_runtime r ON r.task_id=a.task_id WHERE r.budget_group_id=?`, edit.group).Scan(&attempts); err != nil {
+	nextOrdinal, err := nextTaskAttemptOrdinal(ctx, tx, edit.id)
+	if err != nil {
 		return empty, err
 	}
-	if _, err = tx.ExecContext(ctx, `INSERT INTO retry_decisions(action_slot,task_id,work_revision,source_event_id,source_event_revision,source_event_hash,source_segment_id,next_attempt_no,use_next_fallback,command_id,created_at,revision_payload) VALUES(?,?,?,?,?,?,?,?,0,?,?,?)`, spec.ActionSlot, edit.id, edit.revision, spec.Review.EventID, spec.Review.EventRevision, spec.Review.EventHash, feedbackEvent.SegmentID, attempts+1, spec.CommandID, time.Now().UTC().Format(time.RFC3339Nano), string(encoded)); err != nil {
+	if _, err = tx.ExecContext(ctx, `INSERT INTO retry_decisions(action_slot,task_id,work_revision,source_event_id,source_event_revision,source_event_hash,source_segment_id,next_attempt_no,use_next_fallback,command_id,created_at,revision_payload) VALUES(?,?,?,?,?,?,?,?,0,?,?,?)`, spec.ActionSlot, edit.id, edit.revision, spec.Review.EventID, spec.Review.EventRevision, spec.Review.EventHash, feedbackEvent.SegmentID, nextOrdinal, spec.CommandID, time.Now().UTC().Format(time.RFC3339Nano), string(encoded)); err != nil {
 		return empty, mapConflict(err)
+	}
+	if err = insertDecisionBindings(ctx, tx, bindings); err != nil {
+		return empty, err
 	}
 	for _, task := range chain {
 		status := "queued"

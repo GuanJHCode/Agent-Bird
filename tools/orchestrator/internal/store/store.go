@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -30,6 +31,8 @@ const (
 )
 
 type DB struct {
+	configIdentity      contract.ConfigPreparationAuthority
+	configIdentityError error
 	sql                 *sql.DB
 	path                string
 	mu                  sync.Mutex
@@ -86,6 +89,7 @@ func Open(path string) (*DB, error) {
 	} else if err != nil || !info.Mode().IsRegular() || info.Mode().Perm() != 0600 || !storeOwned(info) {
 		return nil, CodeError("untrusted_database")
 	}
+	identity, identityErr := configStoreNodes(path)
 	u := &url.URL{Scheme: "file", Path: path}
 	u.RawQuery = "_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)"
 	d, err := sql.Open("sqlite", u.String())
@@ -95,7 +99,7 @@ func Open(path string) (*DB, error) {
 	d.SetMaxOpenConns(1)
 	d.SetMaxIdleConns(1)
 	out := &DB{
-		sql: d, path: path,
+		sql: d, path: path, configIdentity: identity, configIdentityError: identityErr,
 		runControlLimit: 16 * 1024 * 1024, userControlLimit: 128 * 1024 * 1024,
 		runProgressLimit: 12 * 1024 * 1024, userProgressLimit: 96 * 1024 * 1024,
 		reportControlLimit: 20 * 1024 * 1024, reportProgressLimit: 16 * 1024 * 1024,
@@ -109,6 +113,13 @@ func Open(path string) (*DB, error) {
 	if err := out.migrateRuntime(); err != nil {
 		d.Close()
 		return nil, err
+	}
+	if identityErr == nil {
+		now, e := configStoreNodes(path)
+		if e != nil || now != identity {
+			out.Close()
+			return nil, CodeError("untrusted_database")
+		}
 	}
 	return out, nil
 }
@@ -221,6 +232,13 @@ func (d *DB) StartAttempt(ctx context.Context, taskID, segmentID string) (Attemp
 		return Attempt{}, err
 	}
 	rollback := func(e error) (Attempt, error) { _ = tx.Rollback(); return Attempt{}, e }
+	var managed int
+	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM task_runtime WHERE task_id=?`, taskID).Scan(&managed); err != nil {
+		return rollback(err)
+	}
+	if managed != 0 {
+		return rollback(CodeError("managed_attempt_requires_claim"))
+	}
 	var status string
 	var depsJSON string
 	var max int
@@ -253,12 +271,16 @@ func (d *DB) StartAttempt(ctx context.Context, taskID, segmentID string) (Attemp
 	if count >= max || count >= 3 {
 		return rollback(ErrAttemptLimit)
 	}
+	nextOrdinal, err := nextTaskAttemptOrdinal(ctx, tx, taskID)
+	if err != nil {
+		return rollback(err)
+	}
 	id, err := newID("attempt")
 	if err != nil {
 		return rollback(err)
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	if _, err = tx.ExecContext(ctx, `INSERT INTO attempts(id,task_id,attempt_no,status,created_at) VALUES(?,?,?,?,?)`, id, taskID, count+1, "running", now); err != nil {
+	if _, err = tx.ExecContext(ctx, `INSERT INTO attempts(id,task_id,attempt_no,status,created_at) VALUES(?,?,?,?,?)`, id, taskID, nextOrdinal, "running", now); err != nil {
 		return rollback(err)
 	}
 	if _, err = tx.ExecContext(ctx, `INSERT INTO segments(id,attempt_id,segment_no,status,created_at) VALUES(?,?,?,?,?)`, segmentID, id, 1, "running", now); err != nil {
@@ -270,7 +292,7 @@ func (d *DB) StartAttempt(ctx context.Context, taskID, segmentID string) (Attemp
 	if err = tx.Commit(); err != nil {
 		return Attempt{}, err
 	}
-	return Attempt{ID: id, TaskID: taskID, SegmentID: segmentID, AttemptNo: count + 1, Status: "running"}, nil
+	return Attempt{ID: id, TaskID: taskID, SegmentID: segmentID, AttemptNo: nextOrdinal, Status: "running"}, nil
 }
 func (d *DB) StartSegment(ctx context.Context, attemptID, segmentID string) (Attempt, error) {
 	d.mu.Lock()

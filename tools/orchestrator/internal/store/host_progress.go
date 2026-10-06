@@ -71,8 +71,8 @@ func (d *DB) CommitHostProgress(ctx context.Context, event contract.Event, launc
 	err = tx.QueryRowContext(ctx, `SELECT
  COALESCE((SELECT total_bytes FROM storage_usage WHERE scope='run' AND scope_id=?),0),
  COALESCE((SELECT total_bytes FROM storage_usage WHERE scope='global' AND scope_id=''),0),
- (SELECT COUNT(*) FROM segment_runtime s JOIN attempts a ON a.id=s.attempt_id JOIN tasks t ON t.id=a.task_id WHERE t.run_id=? AND s.status!='exited'),
- (SELECT COUNT(*) FROM segment_runtime WHERE status!='exited')`, event.RunID, event.RunID).Scan(&runBytes, &userBytes, &runActive, &userActive)
+ (SELECT COUNT(*) FROM segment_runtime s JOIN attempts a ON a.id=s.attempt_id JOIN tasks t ON t.id=a.task_id WHERE t.run_id=? AND s.status NOT IN ('exited','not_started')),
+ (SELECT COUNT(*) FROM segment_runtime WHERE status NOT IN ('exited','not_started'))`, event.RunID, event.RunID).Scan(&runBytes, &userBytes, &runActive, &userActive)
 	if err != nil {
 		return err
 	}

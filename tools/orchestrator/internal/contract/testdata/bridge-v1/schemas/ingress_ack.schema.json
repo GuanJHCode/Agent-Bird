@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-bird-bridge-v1/ingress_ack",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "event_id": {
+      "type": "string"
+    },
+    "payload_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "committed": {
+      "type": "boolean"
+    },
+    "duplicate": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "event_id",
+    "payload_hash",
+    "committed",
+    "duplicate"
+  ]
+}

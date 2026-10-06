@@ -13,15 +13,22 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 COLD = ROOT / "g0-proxy-continuation" / "cold-start"
+REPO = Path(__file__).resolve().parents[3]
+BRIDGE = REPO / "tools" / "native-product-bridge"
 for directory in (COLD / "scripts", COLD / "tests", ROOT / "g0-tui-proxy" / "scripts", ROOT / "g0-auth-preserving-activation" / "scripts"):
     sys.path.insert(0, str(directory))
+sys.path.insert(0, str(BRIDGE))
 import activation_service
 import auth_isolation
 import proxy_transport
+from n02_owner_readiness_observer import observe_owner_ready
 from test_activation_service import digest, policy, private_json
 
 FIXTURES = COLD / "tests" / "fixtures"
 OWNER_HELPER = ROOT / "g0-completion" / "scripts" / "owner_helper.py"
+# Owner-ready observation watchdog starts at scenario origin. Pipeline has no
+# inherited outer 30s deadline; local_service_chain retains its own outer 30s.
+SCENARIO_WATCHDOG_S = 30.0
 
 
 def _write_client(path: Path, helper: bool) -> None:
@@ -102,8 +109,61 @@ async def _wait_process(process):
     return await asyncio.wait_for(process.wait(), 5)
 
 
+def _durable_owner_ready_bound(service, *, owner_pid):
+    """durable ready 必须存在且身份绑定本次 activation/owner 连接/lease，不看"文件在不在"。
+
+    链路侧顺序是确定的: proxy_transport 在把 thread/started 转发给 owner **之前** await sink,
+    sink 在同一个同步步骤里写 `ready-<lease>.json` 并登记 `_owner_leases`
+    (activation_service.py `_publish_ready`)。因此 owner 打印 owner-ready 时 durable 视图
+    要么已就绪、要么本协议判失败, 不存在"先读到行再补等 receipt"的窗口。
+    """
+    leases = list(service._owner_leases.values())
+    if len(leases) != 1:
+        return False
+    lease = leases[0]
+    path = service.receipt_dir / f"ready-{lease.lease_id}.json"
+    if not path.is_file():
+        return False
+    row = json.loads(path.read_text())
+    bound = row.get("owner_lease") or {}
+    record = service._record_for_lease(lease.lease_id)
+    return (row.get("activation_id") == service.activation_id
+            and row.get("lease_id") == lease.lease_id
+            and row.get("protocol_valid") is True
+            and (row.get("frontend") or {}).get("pid") == owner_pid
+            and bound.get("lease_id") == lease.lease_id
+            and bound.get("owner_connection_id") == lease.owner_connection_id
+            and bound.get("owner_thread_id") == lease.owner_thread_id
+            and bound.get("backend_pid") == lease.backend_pid
+            and record is not None
+            and record.get("pid") == lease.backend_pid
+            and record.get("birth") == lease.backend_birth)
+
+
+def _owner_failure_present(service, process):
+    """先行失败: 产品自有 failure receipt 已落, 或 owner 已带非零退出。"""
+    if (service.receipt_dir / "startup-failure.json").is_file():
+        return True
+    return process.returncode not in (None, 0)
+
+
+async def observe_owner_ready_line(process, service, *, owner_pid, origin, loop,
+                                   scenario_watchdog_s=SCENARIO_WATCHDOG_S):
+    """单一 readline、5s 软诊断、观察预算从 scenario 起点计。"""
+    return await observe_owner_ready(
+        readline=process.stdout.readline,
+        durable_ready=lambda: _durable_owner_ready_bound(service, owner_pid=owner_pid),
+        failure_present=lambda: _owner_failure_present(service, process),
+        expected_token="owner-ready",
+        soft_s=5.0,
+        watchdog_s=scenario_watchdog_s,
+        remaining_s=scenario_watchdog_s - (loop.time() - origin))
+
+
 def test_real_activation_owner_ready_helper_second_ws_and_owner_cleanup(tmp_path):
     async def run():
+        loop = asyncio.get_running_loop()
+        origin = loop.time()
         with tempfile.TemporaryDirectory(prefix="g0-auth-", dir="/private/tmp") as raw, ExitStack() as roots:
             root = Path(raw)
             public = root / "public.sock"
@@ -140,8 +200,10 @@ def test_real_activation_owner_ready_helper_second_ws_and_owner_cleanup(tmp_path
                     "expected_executable": executable, "executable_sha256": digest(binary), "profile_id": "a",
                 })
                 owner.stdin.write(b"go\n"); await owner.stdin.drain()
-                owner_line=await _line(owner)
-                assert owner_line == "owner-ready"
+                observation = await observe_owner_ready_line(
+                    owner, service, owner_pid=owner.pid, origin=origin, loop=loop)
+                assert observation.accepted is True
+                assert _durable_owner_ready_bound(service, owner_pid=owner.pid) is True
                 for _ in range(100):
                     if service._owner_leases: break
                     await asyncio.sleep(.01)
@@ -272,6 +334,8 @@ def _delivery_intent(thread_id: str) -> str:
 
 def test_real_activation_owner_helper_tool_output_notifications_and_negative_gate(tmp_path):
     async def run():
+        loop = asyncio.get_running_loop()
+        origin = loop.time()
         with tempfile.TemporaryDirectory(prefix="g0-owner-helper-", dir="/private/tmp") as raw, ExitStack() as roots:
             root = Path(raw)
             public = root / "public.sock"
@@ -297,7 +361,11 @@ def test_real_activation_owner_helper_tool_output_notifications_and_negative_gat
                 assert await _line(owner) == "ready"
                 birth, executable = proxy_transport._process_metadata(owner.pid)
                 private_json(grants / f"{owner.pid}.json", {"version": 1, "pid": owner.pid, "uid": os.getuid(), "birth": birth, "expected_executable": executable, "executable_sha256": digest(binary), "profile_id": "a"})
-                owner.stdin.write(b"go\n"); await owner.stdin.drain(); assert await _line(owner) == "owner-ready"
+                owner.stdin.write(b"go\n"); await owner.stdin.drain()
+                observation = await observe_owner_ready_line(
+                    owner, service, owner_pid=owner.pid, origin=origin, loop=loop)
+                assert observation.accepted is True
+                assert _durable_owner_ready_bound(service, owner_pid=owner.pid) is True
                 for _ in range(100):
                     if service._owner_leases: break
                     await asyncio.sleep(.01)

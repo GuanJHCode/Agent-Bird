@@ -17,6 +17,7 @@ import (
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
 )
 
 // controller start creates one managed process scope. It remains alive for the
@@ -31,8 +32,24 @@ func controllerEntry(ctx context.Context, args []string) error {
 	providerName := fs.String("provider", "", "claude, grok, or agy")
 	skillPath := fs.String("skill-path", "", "optional installed Agent Bird skill path for the launched CLI")
 	stateArg := fs.String("state-dir", "", "private runtime state directory")
+	bridgePlan := fs.String("bridge-plan", "", "explicit complete private hook_pull plan")
+	bridgeHandle := fs.String("bridge-handle", "", "new persistent private task handle")
 	if fs.Parse(args[1:]) != nil || *providerName == "" {
 		return codeError("invalid_args")
+	}
+	if (*bridgePlan == "") != (*bridgeHandle == "") || (*bridgePlan != "" && *providerName != "claude" && *providerName != "agy") {
+		return codeError("invalid_args")
+	}
+	var plan taskPlan
+	if *bridgePlan != "" {
+		var err error
+		plan, err = readControllerBridgePlan(*bridgePlan, *bridgeHandle)
+		if err != nil {
+			return err
+		}
+		if err = preflightProviders(ctx, plan.Tasks); err != nil {
+			return err
+		}
 	}
 	if *skillPath != "" {
 		if err := validateControllerSkill(*skillPath); err != nil {
@@ -85,8 +102,20 @@ func controllerEntry(ctx context.Context, args []string) error {
 	if _, err = ensureServer(lifetime, state); err != nil {
 		return err
 	}
-	if _, err = call(lifetime, state, ipc.KindOwnerBind, coordinator.OwnerBindRequest{ControllerThread: "managed-" + *providerName + "-" + scope, OriginPID: os.Getpid(), OriginBirth: launcherBirth}); err != nil {
+	ownerResponse, err := call(lifetime, state, ipc.KindOwnerBind, coordinator.OwnerBindRequest{ControllerThread: "managed-" + *providerName + "-" + scope, OriginPID: os.Getpid(), OriginBirth: launcherBirth})
+	if err != nil {
 		return err
+	}
+	var owner controllerOwnerGrant
+	if err = decode(ownerResponse.Payload, &owner); err != nil || owner.Version != 1 || owner.OwnerMode != "local" || owner.ControllerThread != "managed-"+*providerName+"-"+scope || owner.OriginPID != os.Getpid() || owner.OriginBirth != launcherBirth || owner.OwnerCapability == "" || owner.OriginContextID == "" || owner.HostGeneration == "" {
+		return codeError("controller_owner_receipt_invalid")
+	}
+	var handle taskHandle
+	if *bridgePlan != "" {
+		handle, err = submitControllerBridge(lifetime, state, *bridgeHandle, plan, owner, *providerName)
+		if err != nil {
+			return err
+		}
 	}
 	dir, err := os.MkdirTemp(state, "controller-")
 	if err != nil {
@@ -105,11 +134,22 @@ func controllerEntry(ctx context.Context, args []string) error {
 	}
 	cmd := exec.Command(cli, fs.Args()...)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
-	cmd.Env = environmentWith(environmentWithout(os.Environ(), "CODEX_THREAD_ID"), managedOwnerRequestEnv, requestPath)
+	cmd.Env = environmentWith(environmentWithout(controllerBridgeEnvironment(os.Environ()), "CODEX_THREAD_ID"), managedOwnerRequestEnv, requestPath)
 	cmd.Env = environmentWith(cmd.Env, "AGENT_BIRD_COMMAND", launcherPath)
 	cmd.Env = environmentWithout(cmd.Env, "AGENT_BIRD_SKILL")
 	cmd.Env = environmentWith(cmd.Env, "AGENT_BIRD_SKILL", *skillPath)
-	err = runControllerCLI(lifetime, cmd)
+	if *bridgePlan != "" {
+		cmd.Env = environmentWith(cmd.Env, bridgeBindingEnv, store.BridgeCapabilityPath(state, plan.RunID))
+		cmd.Env = environmentWith(cmd.Env, bridgeHandleEnv, *bridgeHandle)
+		err = runControllerCLI(lifetime, cmd, func(pid int, birth string) error {
+			return bindControllerBridge(lifetime, state, *bridgeHandle, handle, owner, pid, birth, *providerName)
+		})
+	} else {
+		err = runControllerCLI(lifetime, cmd)
+	}
+	if *bridgePlan != "" && err != nil {
+		controllerBridgeRecoveryNotice(*bridgeHandle, handle)
+	}
 	preserve = errors.Is(err, codeError("controller_process_tree_unknown"))
 	return err
 }
@@ -152,7 +192,10 @@ func environmentWithout(environment []string, key string) []string {
 	return result
 }
 
-func runControllerCLI(ctx context.Context, cmd *exec.Cmd) error {
+func runControllerCLI(ctx context.Context, cmd *exec.Cmd, afterStart ...func(int, string) error) error {
+	if len(afterStart) > 1 {
+		return codeError("invalid_args")
+	}
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	if err := cmd.Start(); err != nil {
 		return err
@@ -161,6 +204,17 @@ func runControllerCLI(ctx context.Context, cmd *exec.Cmd) error {
 	if err != nil {
 		go func() { _ = cmd.Wait() }()
 		return codeError("controller_process_tree_unknown")
+	}
+	// Registration runs after the actual Start and verified birth, before Wait.
+	if len(afterStart) == 1 {
+		if registrationErr := afterStart[0](cmd.Process.Pid, birth); registrationErr != nil {
+			done := make(chan error, 1)
+			go func() { done <- cmd.Wait() }()
+			if stopErr := stopControllerCLI(cmd.Process.Pid, birth, done); stopErr != nil {
+				return stopErr
+			}
+			return registrationErr
+		}
 	}
 	done := make(chan error, 1)
 	go func() { done <- cmd.Wait() }()

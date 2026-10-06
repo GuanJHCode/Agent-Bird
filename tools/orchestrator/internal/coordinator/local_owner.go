@@ -20,7 +20,7 @@ func (s *Server) authorizePeer(ctx context.Context, conn net.Conn) (context.Cont
 	if err != nil {
 		return ctx, err
 	}
-	ancestors, err := process.Ancestry(pid)
+	ancestors, err := process.AncestryContext(ctx, pid)
 	if err != nil {
 		return ctx, err
 	}

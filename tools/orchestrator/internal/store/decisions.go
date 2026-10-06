@@ -105,6 +105,9 @@ func (d *DB) AnswerQuestion(ctx context.Context, spec AnswerSpec) (string, error
 	if err = checkTaskProvider(ctx, tx, spec.TaskID, nil); err != nil {
 		return rollback(err)
 	}
+	if err = d.queueQuestionContinuation(ctx, tx, spec); err != nil {
+		return rollback(err)
+	}
 	sequence, err := takeReadySequence(ctx, tx)
 	if err != nil {
 		return rollback(err)
@@ -309,7 +312,11 @@ func (d *DB) QueueRetry(ctx context.Context, spec RetrySpec) (RetryReceipt, erro
 	if attempts >= maxAttempts || attempts >= 3 {
 		return rollback(ErrAttemptLimit)
 	}
-	if spec.NextAttemptNo != attempts+1 {
+	nextOrdinal, ordinalErr := nextTaskAttemptOrdinal(ctx, tx, spec.TaskID)
+	if ordinalErr != nil {
+		return rollback(ordinalErr)
+	}
+	if spec.NextAttemptNo != nextOrdinal {
 		return rollback(ErrConflict)
 	}
 	var sourceTask, sourceSegment, sourceHash, sourceSlot, sourceBody string
@@ -344,9 +351,9 @@ func (d *DB) QueueRetry(ctx context.Context, spec RetrySpec) (RetryReceipt, erro
 		if err != nil {
 			return rollback(err)
 		}
-		if err = d.storageAdmission(ctx, tx, sourceEvent.RunID, int64(len(revisionPayload)), false); err != nil {
-			return rollback(err)
-		}
+	}
+	if err = d.storageAdmission(ctx, tx, sourceEvent.RunID, int64(len(revisionPayload))+decisionBindingBytes(spec.ActionSlot, spec.TaskID, ""), false); err != nil {
+		return rollback(err)
 	}
 	adapterUpdate := ""
 	if spec.UseNextFallback {
@@ -371,6 +378,9 @@ func (d *DB) QueueRetry(ctx context.Context, spec RetrySpec) (RetryReceipt, erro
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	if _, err = tx.ExecContext(ctx, `INSERT INTO retry_decisions(action_slot,task_id,work_revision,source_event_id,source_event_revision,source_event_hash,source_segment_id,next_attempt_no,use_next_fallback,command_id,created_at,revision_payload) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`, spec.ActionSlot, spec.TaskID, spec.WorkRevision, spec.EventID, spec.EventRevision, spec.EventHash, spec.SegmentID, spec.NextAttemptNo, spec.UseNextFallback, spec.CommandID, now, revisionPayload); err != nil {
 		return rollback(mapConflict(err))
+	}
+	if err = insertDecisionBindings(ctx, tx, []decisionAttemptBinding{{slot: spec.ActionSlot, task: spec.TaskID, revision: spec.WorkRevision}}); err != nil {
+		return rollback(err)
 	}
 	if managed {
 		if _, err = tx.ExecContext(ctx, `UPDATE report_capabilities SET status='revoked' WHERE task_id=?`, spec.TaskID); err != nil {

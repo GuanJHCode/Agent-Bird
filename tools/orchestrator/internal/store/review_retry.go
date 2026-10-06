@@ -21,7 +21,7 @@ type reviewRetryDecision struct {
 
 func parseReviewRetry(raw string) (reviewRetryDecision, error) {
 	var v reviewRetryDecision
-	if json.Unmarshal([]byte(raw), &v) != nil || v.Kind != reviewRetryKind || !validDigest(v.AdapterSHA256) || !validDigest(v.InputSHA256) {
+	if strictDecisionJSON(raw, &v) != nil || v.Kind != reviewRetryKind || !validDigest(v.AdapterSHA256) || !validDigest(v.InputSHA256) {
 		return v, ErrConflict
 	}
 	return v, nil
@@ -50,8 +50,7 @@ func retryInputHash(input *contract.AcceptedInput) string {
 // The actual fresh directory is part of the normal bound launch intent.
 func prepareReviewRetryGrant(ctx context.Context, tx *sql.Tx, c *contract.LaunchCommand) (*reviewRetryDecision, error) {
 	var raw string
-	var expectedAttempt, actualAttempt int
-	err := tx.QueryRowContext(ctx, `SELECT d.revision_payload,d.next_attempt_no,a.attempt_no FROM retry_decisions d JOIN attempts a ON a.task_id=d.task_id AND d.next_attempt_no<=a.attempt_no WHERE a.id=? AND d.work_revision=? ORDER BY d.next_attempt_no DESC LIMIT 1`, c.AttemptID, c.WorkRevision).Scan(&raw, &expectedAttempt, &actualAttempt)
+	err := tx.QueryRowContext(ctx, `SELECT d.revision_payload FROM decision_attempt_bindings b JOIN retry_decisions d USING(action_slot) WHERE b.attempt_id=? AND b.task_id=? AND b.target_work_revision=?`, c.AttemptID, c.TaskID, c.WorkRevision).Scan(&raw)
 	if errors.Is(err, sql.ErrNoRows) || err == nil && raw == "" {
 		return nil, nil
 	}
@@ -67,13 +66,14 @@ func prepareReviewRetryGrant(ctx context.Context, tx *sql.Tx, c *contract.Launch
 	if discriminator.Kind != reviewRetryKind {
 		return nil, nil
 	}
-	if expectedAttempt != actualAttempt {
-		return nil, CodeError("candidate_review_retry_changed")
-	}
 	saved, err := parseReviewRetry(raw)
 	if err != nil {
 		return nil, err
 	}
+	return applyReviewRetryGrant(c, saved)
+}
+
+func applyReviewRetryGrant(c *contract.LaunchCommand, saved reviewRetryDecision) (*reviewRetryDecision, error) {
 	if saved.AdapterSHA256 != runtimeHash(string(c.AdapterPayload)) {
 		return nil, CodeError("candidate_review_retry_changed")
 	}

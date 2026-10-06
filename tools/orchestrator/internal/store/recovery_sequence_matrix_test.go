@@ -47,7 +47,7 @@ type resumeMatrix struct {
 	seq  int64
 }
 
-func newResumeMatrix(t *testing.T) *resumeMatrix {
+func newResumeMatrix(t *testing.T, attemptLimit int64) *resumeMatrix {
 	t.Helper()
 	ctx := context.Background()
 	path := filepath.Join(t.TempDir(), "state.db")
@@ -55,7 +55,7 @@ func newResumeMatrix(t *testing.T) *resumeMatrix {
 	if err != nil {
 		t.Fatal(err)
 	}
-	receipt, err := db.SubmitPlan(ctx, PlanSpec{Run: RunSpec{ID: "run", ControllerThread: "owner", PlanRevision: 1, OriginContextID: "origin", OriginPID: 1, OriginBirth: "owner"}, Host: HostLaunchSpec{OriginContextID: "origin", HostGeneration: "gen", Executable: "/private/bin/host"}, Tasks: []TaskSpec{{ID: "task", RunID: "run", MaxAttempts: 3, MaxActiveMS: 1000, AdapterPayload: []byte(`{}`)}}})
+	receipt, err := db.SubmitPlan(ctx, PlanSpec{Run: RunSpec{ID: "run", ControllerThread: "owner", PlanRevision: 1, OriginContextID: "origin", OriginPID: 1, OriginBirth: "owner"}, Host: HostLaunchSpec{OriginContextID: "origin", HostGeneration: "gen", Executable: "/private/bin/host"}, Tasks: []TaskSpec{{ID: "task", RunID: "run", MaxAttempts: 3, MaxActiveMS: attemptLimit, AdapterPayload: []byte(`{}`)}}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,7 +96,7 @@ func (m *resumeMatrix) send(ctx context.Context, t *testing.T, grant contract.La
 
 // interruptRound drives one segment through stopped+exited with a hard-coded
 // measured usage and asserts the segment-level settlement contract value.
-func (m *resumeMatrix) interruptRound(ctx context.Context, t *testing.T, grant contract.LaunchCommand, measured int64) {
+func (m *resumeMatrix) interruptRound(ctx context.Context, t *testing.T, grant contract.LaunchCommand, measured, expectedGrant int64) {
 	t.Helper()
 	for _, kind := range []string{contract.EventPrepared, contract.EventSpawned, contract.EventRunning, contract.EventStopped} {
 		m.send(ctx, t, grant, kind, 0)
@@ -107,8 +107,8 @@ func (m *resumeMatrix) interruptRound(ctx context.Context, t *testing.T, grant c
 	if err := m.db.sql.QueryRow(`SELECT status,used_ms,granted_ms FROM budget_runtime WHERE segment_id=?`, grant.SegmentID).Scan(&status, &used, &granted); err != nil {
 		t.Fatal(err)
 	}
-	if status != "settled" || used != measured || granted != 1000 {
-		t.Fatalf("round settlement: status=%s used=%d granted=%d want settled/%d/1000", status, used, granted, measured)
+	if status != "settled" || used != measured || granted != expectedGrant {
+		t.Fatalf("round settlement: status=%s used=%d granted=%d want settled/%d/%d", status, used, granted, measured, expectedGrant)
 	}
 }
 
@@ -127,13 +127,13 @@ func (m *resumeMatrix) taskStatus(ctx context.Context, t *testing.T) string {
 // is interrupted again, with per-segment ledgers.
 func TestRecoveryMatrixNextExplicitRoundAllowedAfterReinterruption(t *testing.T) {
 	ctx := context.Background()
-	m := newResumeMatrix(t)
+	m := newResumeMatrix(t, 3000)
 	defer m.db.Close()
 	first, err := m.db.ClaimReady(ctx, m.host, 1, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	m.interruptRound(ctx, t, first, 500)
+	m.interruptRound(ctx, t, first, 500, 3000)
 	if got := m.taskStatus(ctx, t); got != "interrupted" {
 		t.Fatalf("status=%s", got)
 	}
@@ -155,7 +155,7 @@ func TestRecoveryMatrixNextExplicitRoundAllowedAfterReinterruption(t *testing.T)
 	if err = m.db.QueueResume(ctx, "task", 1); !errors.Is(err, ErrConflict) {
 		t.Fatalf("dispatched-round resume err=%v", err)
 	}
-	m.interruptRound(ctx, t, second, 600)
+	m.interruptRound(ctx, t, second, 600, 2500)
 	// The contract allows the next explicit round after a new interruption.
 	if err = m.db.QueueResume(ctx, "task", 1); err != nil {
 		t.Fatalf("second explicit resume round rejected: %v", err)
@@ -179,11 +179,15 @@ func TestRecoveryMatrixNextExplicitRoundAllowedAfterReinterruption(t *testing.T)
 		status string
 		used   int64
 	}{}
-	for _, segmentID := range []string{first.SegmentID, second.SegmentID, third.SegmentID} {
+	for i, segmentID := range []string{first.SegmentID, second.SegmentID, third.SegmentID} {
 		var status string
 		var used int64
 		if err = m.db.sql.QueryRow(`SELECT status,used_ms FROM budget_runtime WHERE segment_id=?`, segmentID).Scan(&status, &used); err != nil {
 			t.Fatal(err)
+		}
+		_, _, granted := ledgerBudgetRow(t, m.db, segmentID)
+		if expected := []int64{3000, 2500, 1900}[i]; granted != expected {
+			t.Fatalf("round %d grant=%d want %d", i, granted, expected)
 		}
 		got = append(got, struct {
 			status string
@@ -208,12 +212,12 @@ func TestRecoveryMatrixNextExplicitRoundAllowedAfterReinterruption(t *testing.T)
 // once the replayed segment is interrupted again.
 func TestRecoveryMatrixCrashAfterResumeDispatchReplaysGuardedRound(t *testing.T) {
 	ctx := context.Background()
-	m := newResumeMatrix(t)
+	m := newResumeMatrix(t, 1000)
 	first, err := m.db.ClaimReady(ctx, m.host, 1, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	m.interruptRound(ctx, t, first, 500)
+	m.interruptRound(ctx, t, first, 500, 1000)
 	if err = m.db.QueueResume(ctx, "task", 1); err != nil {
 		t.Fatal(err)
 	}
@@ -221,7 +225,7 @@ func TestRecoveryMatrixCrashAfterResumeDispatchReplaysGuardedRound(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Simulated coordinator crash between dispatch and any host event.
+	// Persistent reopen between dispatch and any Host event; this is not OS crash evidence.
 	if err = m.db.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -249,7 +253,7 @@ func TestRecoveryMatrixCrashAfterResumeDispatchReplaysGuardedRound(t *testing.T)
 	if err = db.QueueResume(ctx, "task", 1); !errors.Is(err, ErrConflict) {
 		t.Fatalf("resume during replayed live round err=%v", err)
 	}
-	m.interruptRound(ctx, t, second, 250)
+	m.interruptRound(ctx, t, second, 250, 500)
 	if got := m.taskStatus(ctx, t); got != "interrupted" {
 		t.Fatalf("status=%s", got)
 	}
@@ -261,7 +265,7 @@ func TestRecoveryMatrixCrashAfterResumeDispatchReplaysGuardedRound(t *testing.T)
 	if status, used, granted := ledgerBudgetRow(t, db, first.SegmentID); status != "settled" || used != 500 || granted != 1000 {
 		t.Fatalf("round-1 row: status=%s used=%d granted=%d", status, used, granted)
 	}
-	if status, used, granted := ledgerBudgetRow(t, db, second.SegmentID); status != "settled" || used != 250 || granted != 1000 {
+	if status, used, granted := ledgerBudgetRow(t, db, second.SegmentID); status != "settled" || used != 250 || granted != 500 {
 		t.Fatalf("recovered row: status=%s used=%d granted=%d", status, used, granted)
 	}
 	if got := ledgerGroupCharged(t, db, "task"); got != 750 {
@@ -274,7 +278,7 @@ func TestRecoveryMatrixCrashAfterResumeDispatchReplaysGuardedRound(t *testing.T)
 // refusing until a real exited settles the round.
 func TestRecoveryMatrixUnknownIsNotResumable(t *testing.T) {
 	ctx := context.Background()
-	m := newResumeMatrix(t)
+	m := newResumeMatrix(t, 1000)
 	defer m.db.Close()
 	grant, err := m.db.ClaimReady(ctx, m.host, 1, 1)
 	if err != nil {

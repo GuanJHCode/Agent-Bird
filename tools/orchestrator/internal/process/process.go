@@ -45,16 +45,17 @@ type Identity struct {
 	StartedAt        string
 }
 type Handle struct {
-	cmd         *exec.Cmd
-	done        chan struct{}
-	mu          sync.Mutex
-	exit        int
-	waited      bool
-	output      []byte
-	outputLimit int
-	pgid        int
-	identity    Identity
-	stdout      io.Writer
+	duplexLaunch *DuplexLaunchState
+	cmd          *exec.Cmd
+	done         chan struct{}
+	mu           sync.Mutex
+	exit         int
+	waited       bool
+	output       []byte
+	outputLimit  int
+	pgid         int
+	identity     Identity
+	stdout       io.Writer
 }
 type captureWriter struct {
 	h      *Handle
@@ -82,24 +83,37 @@ func (w captureWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 func Start(ctx context.Context, spec Command) (*Handle, error) {
+	h, _, err := startCommand(ctx, spec, false, processBirth)
+	if err != nil {
+		return nil, err
+	}
+	return h, nil
+}
+
+// Both modes retain the same launcher and original Wait. birthLookup is a
+// per-launch observation seam; production always uses processBirth.
+func startCommand(ctx context.Context, spec Command, duplex bool, birthLookup func(int) (string, error)) (*Handle, *duplexStream, error) {
+	if duplex && (spec.Stdin != nil || spec.Stdout != nil) {
+		return nil, nil, CodeError("duplex_stdio_conflict")
+	}
 	if spec.Path == "" {
-		return nil, errors.New("command_path_required")
+		return nil, nil, errors.New("command_path_required")
 	}
 	select {
 	case <-ctx.Done():
-		return nil, ctx.Err()
+		return nil, nil, ctx.Err()
 	default:
 	}
 	if runtime.GOOS != "darwin" {
-		return nil, CodeError("unsupported_platform")
+		return nil, nil, CodeError("unsupported_platform")
 	}
 	resolved, err := filepath.EvalSymlinks(spec.Path)
 	if err != nil || !filepath.IsAbs(spec.Path) || resolved != spec.Path {
-		return nil, CodeError("command_path_untrusted")
+		return nil, nil, CodeError("command_path_untrusted")
 	}
 	digest, err := ExecutableDigest(ctx, spec.Path)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	cmd := exec.Command(spec.Path, spec.Args...)
 	cmd.Dir = spec.Dir
@@ -113,7 +127,23 @@ func Start(ctx context.Context, spec Command) (*Handle, error) {
 		cmd.Stdin = bytes.NewReader(append([]byte(nil), spec.Stdin...))
 	}
 	h := &Handle{cmd: cmd, done: make(chan struct{}), exit: -1, outputLimit: 1024 * 1024, stdout: spec.Stdout}
-	cmd.Stdout = captureWriter{h: h, stdout: true}
+	var pipes *duplexPipes
+	keepStream := false
+	if duplex {
+		pipes, err = newDuplexPipes()
+		if err != nil {
+			return nil, nil, err
+		}
+		defer func() {
+			_ = pipes.closeChildren()
+			if !keepStream {
+				_ = pipes.stream.Close()
+			}
+		}()
+		cmd.Stdin, cmd.Stdout = pipes.childRead, pipes.childWrite
+	} else {
+		cmd.Stdout = captureWriter{h: h, stdout: true}
+	}
 	cmd.Stderr = captureWriter{h: h}
 	// Recheck the provider after all wrappers/probes have been assembled. The
 	// wrapper executable's own identity is separate from the provider lock.
@@ -121,17 +151,35 @@ func Start(ctx context.Context, spec Command) (*Handle, error) {
 		canonical, pinErr := filepath.EvalSymlinks(spec.PinnedPath)
 		actual, hashErr := ExecutableDigest(ctx, spec.PinnedPath)
 		if pinErr != nil || canonical != spec.PinnedPath || hashErr != nil || !strings.EqualFold(actual, spec.PinnedSHA256) {
-			return nil, CodeError("binary_pin_mismatch")
+			return nil, nil, CodeError("binary_pin_mismatch")
 		}
 	}
 	if err := cmd.Start(); err != nil {
-		return nil, err
+		return nil, nil, err
+	}
+	// Duplex retains a single original monotonic spawn boundary, before any
+	// child-descriptor/birth observation or post-Start cleanup can take time.
+	if duplex {
+		spawnedAt := time.Now()
+		h.mu.Lock()
+		h.duplexLaunch = &DuplexLaunchState{SpawnedAt: spawnedAt}
+		h.mu.Unlock()
+	}
+	var pipeCloseErr error
+	if pipes != nil {
+		pipeCloseErr = pipes.closeChildren()
 	}
 	h.pgid = cmd.Process.Pid
-	h.identity = Identity{PID: cmd.Process.Pid, PGID: h.pgid, Executable: resolved, ExecutableSHA256: digest, StartedAt: time.Now().UTC().Format(time.RFC3339Nano)}
+	startedAt := ""
+	if duplex {
+		startedAt = h.duplexLaunch.SpawnedAt.UTC().Format(time.RFC3339Nano)
+	} else {
+		startedAt = time.Now().UTC().Format(time.RFC3339Nano)
+	}
+	h.identity = Identity{PID: cmd.Process.Pid, PGID: h.pgid, Executable: resolved, ExecutableSHA256: digest, StartedAt: startedAt}
 	// Keep the child waitable until its birth is captured: even a child that
 	// has already exited retains its PID and start time until Wait reaps it.
-	birth, birthErr := processBirth(cmd.Process.Pid)
+	birth, birthErr := birthLookup(cmd.Process.Pid)
 	if birthErr == nil {
 		h.identity.Birth, h.identity.BirthKnown = birth, true
 	}
@@ -152,13 +200,30 @@ func Start(ctx context.Context, spec Command) (*Handle, error) {
 		h.mu.Unlock()
 		close(h.done)
 	}()
-	if birthErr != nil {
+	if birthErr != nil || pipeCloseErr != nil {
+		if pipes != nil {
+			_ = pipes.stream.Close()
+		}
 		stopCtx, cancel := context.WithTimeout(context.Background(), time.Second)
-		_ = h.Stop(stopCtx)
+		stopResult := h.Stop(stopCtx)
+		if duplex {
+			completedAt := time.Now()
+			deadline, _ := stopCtx.Deadline()
+			h.mu.Lock()
+			h.duplexLaunch.StartupCleanup = &DuplexStartupCleanup{Context: stopCtx, Deadline: deadline, Result: stopResult, CompletedAt: completedAt}
+			h.mu.Unlock()
+		}
 		cancel()
-		return nil, CodeError("process_birth_unknown")
+		if birthErr != nil {
+			return h, nil, CodeError("process_birth_unknown")
+		}
+		return h, nil, errors.Join(CodeError("duplex_child_pipe_close_failed"), pipeCloseErr)
 	}
-	return h, nil
+	if pipes != nil {
+		keepStream = true
+		return h, pipes.stream, nil
+	}
+	return h, nil, nil
 }
 func (h *Handle) PID() int           { return h.cmd.Process.Pid }
 func (h *Handle) PGID() int          { return h.pgid }
@@ -194,46 +259,99 @@ func (h *Handle) ConfirmTreeExited() error {
 	return nil
 }
 
+// stopOperations is a per-call seam for the birth/signal race. Production
+// always binds the original observations; tests do not mutate global hooks.
+type stopOperations struct {
+	birth         func(int) (string, error)
+	signal        func(int, syscall.Signal) error
+	groupAlive    func(int) (bool, error)
+	waitGroupGone func(context.Context, int) bool
+}
+
+func nativeStopOperations() stopOperations {
+	return stopOperations{birth: processBirth, signal: syscall.Kill, groupAlive: processGroupAlive, waitGroupGone: waitProcessGroupGone}
+}
+
 func (h *Handle) Stop(ctx context.Context) error {
+	return h.stopWith(ctx, nativeStopOperations())
+}
+
+func (h *Handle) stopWith(ctx context.Context, ops stopOperations) error {
 	h.mu.Lock()
 	waited := h.waited
 	identity := h.identity
 	h.mu.Unlock()
 	if waited {
-		alive, err := processGroupAlive(h.pgid)
-		if err != nil || alive {
-			return ErrProcessTreeUnknown
-		}
-		return nil
+		return h.confirmStopped(ctx, ops)
 	}
 	if h.pgid <= 0 {
 		return ErrProcessTreeUnknown
 	}
-	birth, err := processBirth(identity.PID)
+	birth, err := ops.birth(identity.PID)
 	if err != nil || !identity.BirthKnown || birth != identity.Birth {
-		alive, groupErr := processGroupAlive(h.pgid)
-		if groupErr != nil || alive {
-			return ErrProcessTreeUnknown
-		}
-		return nil
+		return h.confirmStopped(ctx, ops)
 	}
-	if err := syscall.Kill(-h.pgid, syscall.SIGTERM); err != nil && !errors.Is(err, os.ErrProcessDone) {
+	if err := ops.signal(-h.pgid, syscall.SIGTERM); err != nil {
+		if errors.Is(err, syscall.ESRCH) || errors.Is(err, os.ErrProcessDone) {
+			// Another stop can end the owned group after our birth check.
+			// ESRCH is only a reason to seek proof, never proof by itself.
+			return h.confirmStopped(ctx, ops)
+		}
 		return ErrProcessTreeUnknown
 	}
-	if waitProcessGroupGone(ctx, h.pgid) {
-		return nil
+	if ops.waitGroupGone(ctx, h.pgid) {
+		return h.confirmStopped(ctx, ops)
 	}
-	birth, err = processBirth(identity.PID)
+	birth, err = ops.birth(identity.PID)
 	if err != nil || birth != identity.Birth {
 		return ErrProcessTreeUnknown
 	}
-	_ = syscall.Kill(-h.pgid, syscall.SIGKILL)
+	_ = ops.signal(-h.pgid, syscall.SIGKILL)
 	grace, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	if waitProcessGroupGone(grace, h.pgid) {
-		return nil
+	if ops.waitGroupGone(grace, h.pgid) {
+		return h.confirmStopped(grace, ops)
 	}
 	return ErrProcessTreeUnknown
+}
+
+// A numeric process-group observation cannot replace the original cmd.Wait.
+// Recheck absence after Wait, keeping all observations in the same bounded
+// stage. No Handle mutex is held across waits or OS observations. As before,
+// this proves the owned group only; macOS setsid escapes require containment.
+func (h *Handle) confirmStopped(ctx context.Context, ops stopOperations) error {
+	if ctx.Err() != nil || h.pgid <= 0 {
+		return ErrProcessTreeUnknown
+	}
+	alive, err := ops.groupAlive(h.pgid)
+	if ctx.Err() != nil || err != nil {
+		return ErrProcessTreeUnknown
+	}
+	// Another original stop may already have removed the leader while its
+	// group is still draining. Seek proof passively in this stage's remaining
+	// context; never signal a drifted identity or create another grace window.
+	if alive {
+		if _, bounded := ctx.Deadline(); !bounded || !ops.waitGroupGone(ctx, h.pgid) {
+			return ErrProcessTreeUnknown
+		}
+	}
+	if _, bounded := ctx.Deadline(); !bounded {
+		// Absence does not prove original Wait completion. Without a caller
+		// deadline, preserve UNKNOWN unless that proof is already ready.
+		select {
+		case <-h.done:
+		default:
+			return ErrProcessTreeUnknown
+		}
+	}
+	if h.Wait(ctx) != nil || ctx.Err() != nil {
+		return ErrProcessTreeUnknown
+	}
+	alive, err = ops.groupAlive(h.pgid)
+	if ctx.Err() != nil || err != nil || alive {
+		return ErrProcessTreeUnknown
+	}
+	return nil
 }
 
 // ConfirmGroupExited checks the OS group without sending a signal that can

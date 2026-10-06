@@ -1,14 +1,14 @@
 package store
 
 import (
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"context"
 	"crypto/subtle"
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"strings"
 	"time"
 )
@@ -174,6 +174,28 @@ func validatePlan(p PlanSpec) error {
 }
 
 func (d *DB) SubmitPlan(ctx context.Context, p PlanSpec) (SubmitReceipt, error) {
+	tasks, paired, e := configPlanTasks(p)
+	if e != nil {
+		return SubmitReceipt{}, e
+	}
+	if !paired {
+		return d.submitPlan(ctx, p, nil)
+	}
+	var receipt SubmitReceipt
+	e = p.ConfigSubmission.WithSubmission(p.Host.Executable, p.Run.ID, tasks, func(a contract.ConfigPreparationAuthority) error {
+		var err error
+		receipt, err = d.submitPlan(ctx, p, &a)
+		return err
+	})
+	return receipt, e
+}
+func (d *DB) submitPlan(ctx context.Context, p PlanSpec, authority *contract.ConfigPreparationAuthority) (SubmitReceipt, error) {
+	if p.Host.ExecutionOwnerMode == "" {
+		p.Host.ExecutionOwnerMode = "legacy"
+	}
+	if p.Host.ExecutionOwnerMode != "legacy" && p.Host.ExecutionOwnerMode != "supervised-v1" {
+		return SubmitReceipt{}, CodeError("execution_owner_mode_invalid")
+	}
 	if p.Run.DeliveryMode == "" {
 		p.Run.DeliveryMode = "native"
 	}
@@ -211,6 +233,18 @@ func (d *DB) SubmitPlan(ctx context.Context, p PlanSpec) (SubmitReceipt, error) 
 		return SubmitReceipt{}, err
 	}
 	rollback := func(e error) (SubmitReceipt, error) { _ = tx.Rollback(); return SubmitReceipt{}, e }
+	var abandoned int
+	if err = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM config_preparation_abandons WHERE run_id=?)`, p.Run.ID).Scan(&abandoned); err != nil {
+		return rollback(err)
+	}
+	if abandoned != 0 {
+		return rollback(CodeError("config_preparation_abandoned"))
+	}
+	if authority != nil {
+		if err = d.validateConfigAdmission(ctx, tx, p, *authority); err != nil {
+			return rollback(err)
+		}
+	}
 	for _, task := range p.Tasks {
 		for _, raw := range append([]json.RawMessage{task.AdapterPayload}, task.FallbackPayloads...) {
 			if err = checkProviderEnabled(ctx, tx, p.Run.ControllerThread, raw); err != nil {
@@ -229,7 +263,7 @@ func (d *DB) SubmitPlan(ctx context.Context, p PlanSpec) (SubmitReceipt, error) 
 	if _, err = tx.ExecContext(ctx, `INSERT INTO runs(id,controller_thread,plan_revision,origin_context_id,origin_pid,origin_birth,status,created_at,delivery_mode) VALUES(?,?,?,?,?,?,?,?,?)`, p.Run.ID, p.Run.ControllerThread, p.Run.PlanRevision, p.Run.OriginContextID, p.Run.OriginPID, p.Run.OriginBirth, "queued", now, p.Run.DeliveryMode); err != nil {
 		return rollback(mapConflict(err))
 	}
-	if _, err = tx.ExecContext(ctx, `INSERT INTO host_launches(id,token_hash,origin_context_id,host_generation,executable,status,created_at) VALUES(?,?,?,?,?,'reserved',?)`, launchID, runtimeHash(token), p.Host.OriginContextID, p.Host.HostGeneration, p.Host.Executable, now); err != nil {
+	if _, err = tx.ExecContext(ctx, `INSERT INTO host_launches(id,token_hash,origin_context_id,host_generation,executable,status,created_at,execution_owner_mode) VALUES(?,?,?,?,?,'reserved',?,?)`, launchID, runtimeHash(token), p.Host.OriginContextID, p.Host.HostGeneration, p.Host.Executable, now, p.Host.ExecutionOwnerMode); err != nil {
 		return rollback(err)
 	}
 	if _, err = tx.ExecContext(ctx, `INSERT INTO run_control(run_id,token_hash) VALUES(?,?)`, p.Run.ID, runtimeHash(controlToken)); err != nil {

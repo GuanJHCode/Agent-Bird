@@ -17,6 +17,7 @@ func pluginRun(ctx context.Context, args []string, out io.Writer) error {
 	fs := flag.NewFlagSet("plugin-run", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	source := fs.String("plugin-root", "", "installed Codex plugin root")
+	requestedState := fs.String("state-dir", "", "explicit private runtime state")
 	destination := fs.String("install-root", "", "private runtime installation")
 
 	if fs.Parse(args) != nil || *source == "" || fs.NArg() == 0 {
@@ -29,7 +30,7 @@ func pluginRun(ctx context.Context, args []string, out io.Writer) error {
 	if runtime.GOOS != "darwin" {
 		return codeError("portable_platform_unsupported")
 	}
-	state, err := resolveState("")
+	state, err := resolveState(*requestedState)
 	if err != nil {
 		return err
 	}
@@ -57,7 +58,7 @@ func pluginRun(ctx context.Context, args []string, out io.Writer) error {
 
 func pluginActionAllowed(action string) bool {
 	switch action {
-	case "provider", "check", "runtime-status", "preflight", "task", "routing", "owner-bind", "controller", "provider-probe", "provider-lock", "ensure-running", "submit", "status", "summary", "collect", "wait-events", "ack", "accept", "answer", "retry", "rework", "resume", "stop", "rebind-owner", "recover-host":
+	case "bridge", "config-plan", "config-apply", "config-remove", "provider", "check", "runtime-status", "preflight", "task", "routing", "owner-bind", "controller", "provider-probe", "provider-lock", "ensure-running", "submit", "status", "summary", "collect", "wait-events", "ack", "accept", "answer", "retry", "rework", "resume", "stop", "rebind-owner", "recover-host":
 		return true
 	default:
 		return false

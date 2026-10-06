@@ -1,14 +1,14 @@
 package host
 
 import (
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/events"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/events"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -603,7 +603,7 @@ func TestParallelLaunchesPublishOneProducerSequence(t *testing.T) {
 	}
 }
 
-func TestUnspawnedInvocationFailurePublishesFailedThenExited(t *testing.T) {
+func TestUnspawnedInvocationFailurePublishesRejectionWithoutExit(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "spool")
 	h, err := NewIPC(root, "launch-failure")
 	if err != nil {
@@ -617,7 +617,7 @@ func TestUnspawnedInvocationFailurePublishesFailedThenExited(t *testing.T) {
 	if err = h.PublishAll(context.Background(), sink, 3); err != nil {
 		t.Fatal(err)
 	}
-	if len(sink.events) != 2 || sink.events[0].Kind != contract.EventFailed || sink.events[1].Kind != contract.EventExited || sink.events[0].CommandID != "command-failure" || sink.events[0].ExecutionEpoch != 3 || sink.events[0].Process != nil {
+	if len(sink.events) != 1 || sink.events[0].Kind != contract.EventLaunchRejected || sink.events[0].CommandID != "command-failure" || sink.events[0].ExecutionEpoch != 3 || sink.events[0].Process != nil || sink.events[0].ExitCode != nil || sink.events[0].ActiveMS != 0 {
 		t.Fatalf("events=%#v", sink.events)
 	}
 }
@@ -649,7 +649,7 @@ func TestProducerSequenceRecoversOnlyFromDurableEvents(t *testing.T) {
 	if err = second.PublishAll(context.Background(), sink, 2); err != nil {
 		t.Fatal(err)
 	}
-	if len(sink.events) != 4 {
+	if len(sink.events) != 2 {
 		t.Fatalf("events=%#v", sink.events)
 	}
 	for index, event := range sink.events {
@@ -683,7 +683,7 @@ func TestGrantLedgerPreventsDuplicateExecutionAndClosesUnspawnedRecovery(t *test
 	if err = recovered.PublishAll(context.Background(), sink, 4); err != nil {
 		t.Fatal(err)
 	}
-	if len(sink.events) != 2 || sink.events[0].Kind != contract.EventFailed || sink.events[1].Kind != contract.EventExited {
+	if len(sink.events) != 1 || sink.events[0].Kind != contract.EventUnknown {
 		t.Fatalf("events=%#v", sink.events)
 	}
 	conflict := grant
@@ -813,10 +813,11 @@ func TestProtocolSnapshotAllowsStopWhileObserverIsBlocked(t *testing.T) {
 	if snapshot := collector.Snapshot(); snapshot.Available {
 		t.Fatal("snapshot claimed access while observer owns lock")
 	}
-	// The observer remains blocked throughout the unchanged Stop call. No EOF
-	// claim or diagnostic lock wait is required before terminating the group.
-	if err = p.Stop(ctx); err != nil {
-		t.Fatalf("owned fixture Stop err=%v", err)
+	// An expired Stop scope cannot prove original cmd.Wait while the output
+	// observer is blocked. UNKNOWN preserves the stronger tree-proof contract;
+	// it must not be substituted with process-group disappearance alone.
+	if err = p.Stop(ctx); !errors.Is(err, process.ErrProcessTreeUnknown) {
+		t.Fatalf("blocked original Wait received false exit proof: %v", err)
 	}
 	if snapshot := collector.Snapshot(); snapshot.Available {
 		t.Fatal("Stop was treated as collector EOF")
@@ -826,6 +827,9 @@ func TestProtocolSnapshotAllowsStopWhileObserverIsBlocked(t *testing.T) {
 	defer waitCancel()
 	if err = p.Wait(waitCtx); err != nil {
 		t.Fatal(err)
+	}
+	if err = p.ConfirmTreeExited(); err != nil {
+		t.Fatalf("observer release did not expose real original Wait/absence: %v", err)
 	}
 	if snapshot := collector.Snapshot(); !snapshot.Available || !snapshot.TerminalSeen {
 		t.Fatal("drained output unavailable after observer release")

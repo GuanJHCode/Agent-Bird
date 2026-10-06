@@ -1,9 +1,9 @@
 package store
 
 import (
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"context"
 	"encoding/json"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"path/filepath"
 	"testing"
 )
@@ -176,7 +176,7 @@ func TestProviderMigrationPreservesVersionSevenRuns(t *testing.T) {
 	if _, err = db.SubmitPlan(ctx, providerTestPlan("history", "owner", "grok-build")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = db.sql.Exec(`DROP TABLE provider_settings; UPDATE schema_meta SET version=7`); err != nil {
+	if _, err = db.sql.Exec(`DROP TABLE config_preparation_abandons; DROP TABLE decision_attempt_bindings; DROP TABLE owner_control_changes; DROP TABLE execution_owners; ALTER TABLE host_launches DROP COLUMN execution_owner_mode; ALTER TABLE owner_rebinds DROP COLUMN old_host_generation; DROP TABLE continuation_decisions; DROP TABLE attempt_provider_bindings; DROP TABLE bridge_delivery_attempts; DROP TABLE bridge_batch_items; DROP TABLE bridge_batches; DROP TABLE bridge_ingress; DROP TABLE bridge_bindings; ALTER TABLE schema_meta DROP COLUMN bridge_cutover_at; DROP TABLE provider_settings; UPDATE schema_meta SET version=7`); err != nil {
 		t.Fatal(err)
 	}
 	db.Close()

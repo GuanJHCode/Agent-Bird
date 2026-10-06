@@ -37,7 +37,7 @@ func exerciseCLICandidateDAG(t *testing.T, rework, retryReview bool, facade ...b
 	}
 	clean := false
 	defer func() {
-		if clean {
+		if clean && !t.Failed() {
 			_ = os.RemoveAll(root)
 		} else {
 			t.Logf("retained failed runtime: %s", root)
@@ -278,5 +278,6 @@ func exerciseCLICandidateDAG(t *testing.T, rework, retryReview bool, facade ...b
 	if git(repo, "rev-parse", "HEAD") != candidateOID || git(repo, "status", "--porcelain") != "" {
 		t.Fatal("final target differs from accepted candidate")
 	}
+	c04AssertCandidateReportCapabilitiesRemain(t, ctx, state)
 	clean = true
 }

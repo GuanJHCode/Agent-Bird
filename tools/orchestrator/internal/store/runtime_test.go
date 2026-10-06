@@ -406,6 +406,7 @@ func TestQuestionAnswerResumesSameAttemptOnce(t *testing.T) {
 	}
 	exit := 0
 	question.Sequence, question.EventID, question.Kind, question.PayloadHash, question.ExitCode = 2, hostID+":2", contract.EventExited, strings.Repeat("b", 64), &exit
+	question.ActiveMS = 100 // Settled measurement leaves room for the answer segment.
 	if _, err = db.CommitHostEvent(ctx, question); err != nil {
 		t.Fatal(err)
 	}
@@ -427,7 +428,7 @@ func TestQuestionAnswerResumesSameAttemptOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if resumed.AttemptID != grant.AttemptID || resumed.SegmentID == grant.SegmentID || resumed.Answer != "Use the narrow API." || resumed.SessionID != "conversation-1" || resumed.QuestionID != "question-1" {
+	if resumed.AttemptID != grant.AttemptID || resumed.SegmentID == grant.SegmentID || resumed.Answer != "Use the narrow API." || resumed.SessionID != "conversation-1" || resumed.QuestionID != "question-1" || resumed.GrantedActiveMS != 3_599_900 {
 		t.Fatalf("resumed=%#v initial=%#v", resumed, grant)
 	}
 	ackEvent(t, db, grant.TaskID, questionPage.Events[0], "handled")
@@ -851,6 +852,7 @@ func TestReportQuestionWaitsForTrustedHostSessionThenStopsAndResumes(t *testing.
 	exit := 0
 	sequence++
 	exited := contract.Event{Version: 1, ProducerID: hostID, EventID: fmt.Sprintf("host-session-%d", sequence), RunID: grant.RunID, TaskID: grant.TaskID, AttemptID: grant.AttemptID, SegmentID: grant.SegmentID, WorkRevision: 1, ExecutionEpoch: 1, CommandID: grant.CommandID, Sequence: sequence, Kind: contract.EventExited, PayloadHash: fmt.Sprintf("%064x", sequence), ExitCode: &exit}
+	exited.ActiveMS = 100 // Positive measurement preserves answer-segment budget.
 	if _, err = db.CommitHostEvent(ctx, exited); err != nil {
 		t.Fatal(err)
 	}
@@ -858,7 +860,7 @@ func TestReportQuestionWaitsForTrustedHostSessionThenStopsAndResumes(t *testing.
 		t.Fatalf("answer status=%q err=%v", status, answerErr)
 	}
 	resumed, err := db.ClaimReady(ctx, hostID, 1, 2)
-	if err != nil || resumed.AttemptID != grant.AttemptID || resumed.SessionKind != "conversation-id" || resumed.SessionID != "trusted-session-1" || resumed.Answer != "Use the narrow boundary." {
+	if err != nil || resumed.AttemptID != grant.AttemptID || resumed.SessionKind != "conversation-id" || resumed.SessionID != "trusted-session-1" || resumed.Answer != "Use the narrow boundary." || resumed.GrantedActiveMS != 3_599_900 {
 		t.Fatalf("resumed=%#v err=%v", resumed, err)
 	}
 }

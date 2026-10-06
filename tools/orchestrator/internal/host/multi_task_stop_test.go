@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/events"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
 	"os"
 	"path/filepath"
 	"strings"
@@ -116,8 +117,8 @@ func TestOwnerStopTargetsSingleSegmentAmongConcurrentTasks(t *testing.T) {
 	if pgid1 == pgid2 {
 		t.Fatalf("workers share process group %d; fixture must use separate groups", pgid1)
 	}
-	waitSegmentActive(t, h, grant1.SegmentID, 5*time.Second)
-	waitSegmentActive(t, h, grant2.SegmentID, 5*time.Second)
+	waitSegmentRunning(t, h, grant1, 5*time.Second)
+	waitSegmentRunning(t, h, grant2, 5*time.Second)
 
 	spool1, err := events.Open(filepath.Join(spoolRoot, grant1.AttemptID, grant1.SegmentID))
 	if err != nil {
@@ -272,18 +273,22 @@ func assertSegmentLedger(t *testing.T, label string, records []contract.Event, p
 	}
 }
 
-func waitSegmentActive(t *testing.T, h *Host, segmentID string, timeout time.Duration) {
+func waitSegmentRunning(t *testing.T, h *Host, grant contract.LaunchCommand, timeout time.Duration) {
 	t.Helper()
 	deadline := time.Now().Add(timeout)
 	for {
-		h.mu.Lock()
-		active := h.activeBySeg[segmentID] != nil
-		h.mu.Unlock()
-		if active {
+		// Registration now precedes the Running append so a concurrent stop
+		// always finds the actual handle. This isolation fixture needs the
+		// durable Running phase, not merely the registry lookup.
+		records, err := h.Collect(context.Background(), store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if containsKind(eventKinds(records), contract.EventRunning) {
 			return
 		}
 		if time.Now().After(deadline) {
-			t.Fatalf("segment %s did not become active within %v", segmentID, timeout)
+			t.Fatalf("segment %s did not persist Running within %v", grant.SegmentID, timeout)
 		}
 		time.Sleep(5 * time.Millisecond)
 	}

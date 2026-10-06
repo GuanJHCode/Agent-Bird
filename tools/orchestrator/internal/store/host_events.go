@@ -71,6 +71,22 @@ func (d *DB) CommitHostEvent(ctx context.Context, event contract.Event) (contrac
 		return rollback(err)
 	}
 	historical := currentRevision != segmentRevision || superseded != 0
+	var segmentStatus string
+	if err = tx.QueryRowContext(ctx, `SELECT status FROM segment_runtime WHERE segment_id=?`, event.SegmentID).Scan(&segmentStatus); err != nil {
+		return rollback(ErrConflict)
+	}
+	if event.Kind == contract.EventLaunchRejected {
+		if historical {
+			return rollback(ErrConflict)
+		}
+		if err = validateLaunchRejection(ctx, tx, event); err != nil {
+			return rollback(err)
+		}
+	} else if segmentStatus == "not_started" {
+		// Keep late authenticated records as internal history. They cannot create
+		// a session binding or change the already proved never-started terminal.
+		historical = true
+	}
 	var last int64
 	if err = tx.QueryRowContext(ctx, `SELECT COALESCE(MAX(sequence),0) FROM runtime_events WHERE producer_id=?`, event.ProducerID).Scan(&last); err != nil {
 		return rollback(err)
@@ -107,6 +123,11 @@ func (d *DB) CommitHostEvent(ctx context.Context, event contract.Event) (contrac
 		}
 	}
 	if !historical {
+		if event.Kind == contract.EventSession {
+			if err = d.freezeProviderBinding(ctx, tx, event); err != nil {
+				return rollback(err)
+			}
+		}
 		if err = applyEvent(ctx, tx, event); err != nil {
 			return rollback(err)
 		}
@@ -129,7 +150,16 @@ func canonicalHostEvent(body []byte) ([]byte, error) {
 }
 
 func applyEvent(ctx context.Context, tx *sql.Tx, event contract.Event) error {
+	var terminal string
+	if err := tx.QueryRowContext(ctx, `SELECT status FROM segment_runtime WHERE segment_id=?`, event.SegmentID).Scan(&terminal); err != nil {
+		return err
+	}
+	if terminal == "not_started" {
+		return nil
+	}
 	switch event.Kind {
+	case contract.EventLaunchRejected:
+		return applyLaunchRejection(ctx, tx, event)
 	case contract.EventPrepared, contract.EventSpawned, contract.EventRunning:
 		allowed := ""
 		switch event.Kind {
@@ -177,6 +207,9 @@ func applyEvent(ctx context.Context, tx *sql.Tx, event contract.Event) error {
 		}
 		return materializePendingReportQuestion(ctx, tx, event.SegmentID, event.SessionKind, event.SessionID)
 	case contract.EventQuestion:
+		if err := validateTypedQuestionBinding(ctx, tx, event); err != nil {
+			return err
+		}
 		if event.QuestionID == "" || event.QuestionRevision < 1 || event.SessionKind == "" || event.SessionID == "" {
 			return CodeError("invalid_question")
 		}
@@ -297,7 +330,7 @@ func applyExit(ctx context.Context, tx *sql.Tx, event contract.Event) error {
 	if err := tx.QueryRowContext(ctx, `SELECT outcome,reservation_id,status,(SELECT granted_ms FROM budget_runtime WHERE id=segment_runtime.reservation_id) FROM segment_runtime WHERE segment_id=?`, event.SegmentID).Scan(&outcome, &reservation, &segmentStatus, &grant); err != nil {
 		return err
 	}
-	if segmentStatus == "exited" {
+	if segmentStatus == "exited" || segmentStatus == "not_started" {
 		return nil
 	}
 	used := event.ActiveMS

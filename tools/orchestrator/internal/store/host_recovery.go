@@ -41,7 +41,7 @@ func (d *DB) InspectHostRecovery(ctx context.Context, taskID, controller, token 
 	}
 	var unsafe int
 	err = tx.QueryRowContext(ctx, `SELECT
- (SELECT COUNT(*) FROM segment_runtime s JOIN attempts a ON a.id=s.attempt_id JOIN tasks t ON t.id=a.task_id WHERE t.run_id=? AND s.status!='exited') +
+ (SELECT COUNT(*) FROM segment_runtime s JOIN attempts a ON a.id=s.attempt_id JOIN tasks t ON t.id=a.task_id WHERE t.run_id=? AND s.status NOT IN ('exited','not_started')) +
  (SELECT COUNT(*) FROM tasks WHERE run_id=? AND status IN ('ready','resume_queued','running','stopping','waiting_question')) +
  (SELECT COUNT(*) FROM stop_runtime WHERE host_id=? AND status='pending') +
  (SELECT COUNT(*) FROM runtime_questions q JOIN tasks t ON t.id=q.task_id WHERE t.run_id=? AND q.status IN ('open','answer_committed','resume_queued','resume_started')) +

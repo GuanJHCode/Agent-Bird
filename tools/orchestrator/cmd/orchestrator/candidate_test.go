@@ -180,6 +180,10 @@ func TestManagedCandidateFreezesWorkerChangesWithoutUserChanges(t *testing.T) {
 // Reuse the native test executable: first execution of a fresh unsigned shell
 // script can exceed the production 2s probe deadline under full-suite load.
 func TestMain(m *testing.M) {
+	if os.Getenv("C04_FIXTURE_PROVIDER") != "" {
+		c04NativeFixture()
+		return
+	}
 	mode := os.Getenv("CANDIDATE_FIXTURE_MODE")
 	if mode == "" {
 		os.Exit(m.Run())
@@ -316,7 +320,17 @@ func TestMain(m *testing.M) {
 		}
 	}
 	fmt.Println(`{"type":"system","subtype":"init","session_id":"candidate-fixture"}`)
-	fmt.Println(`{"type":"result","subtype":"success","session_id":"candidate-fixture","result":"implemented"}`)
+	terminal := map[string]any{"type": "result", "subtype": "success", "session_id": "candidate-fixture", "result": "implemented"}
+	for i, arg := range os.Args {
+		if arg == "--json-schema" && i+1 < len(os.Args) && strings.Contains(os.Args[i+1], `"technical_question"`) {
+			// Only ordinary managed implementation changed its completion
+			// contract. Candidate action/review fixtures retain their own shape.
+			terminal["structured_output"] = map[string]any{"version": 1, "kind": "result", "text": "implemented"}
+			terminal["result"] = "native aggregate commentary"
+		}
+	}
+	body, _ := json.Marshal(terminal)
+	fmt.Println(string(body))
 	if mode == "provider_nonzero" {
 		os.Exit(7)
 	}

@@ -107,6 +107,9 @@ func TestQueueResumeIsSingleShot(t *testing.T) {
 	for _, kind := range []string{contract.EventPrepared, contract.EventSpawned, contract.EventRunning, contract.EventStopped, contract.EventExited} {
 		sequence++
 		e := contract.Event{Version: 1, ProducerID: host, EventID: fmt.Sprint("e-", sequence), RunID: "run", TaskID: "task", AttemptID: grant.AttemptID, SegmentID: grant.SegmentID, CommandID: grant.CommandID, WorkRevision: 1, ExecutionEpoch: 1, Sequence: sequence, Kind: kind, PayloadHash: fmt.Sprint("hash-", sequence)}
+		if kind == contract.EventExited {
+			e.ActiveMS = 400 // Positive measurement leaves 600 for the same attempt.
+		}
 		if _, err = db.CommitHostEvent(ctx, e); err != nil {
 			t.Fatalf("%s: %v", kind, err)
 		}
@@ -125,8 +128,8 @@ func TestQueueResumeIsSingleShot(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if resumed.SegmentID == grant.SegmentID {
-		t.Fatal("resume reused the settled segment")
+	if resumed.SegmentID == grant.SegmentID || resumed.AttemptID != grant.AttemptID || resumed.GrantedActiveMS != 600 {
+		t.Fatalf("resume identity/budget=%+v want same attempt, new segment and 600", resumed)
 	}
 	if err = db.QueueResume(ctx, "task", 1); !errors.Is(err, ErrConflict) {
 		t.Fatalf("resume after dispatch: %v", err)
