@@ -21,3 +21,11 @@
 
 This evidence covers the Linux process/IPC milestone only. Coordinator real
 UDS authorization remains open; no claim is made for Linux Provider support.
+
+## Darwin regression
+
+On the macOS host, Go 1.26.8 ran the exact process regex
+`^(TestAncestryContextRealOSSelfAndCompatibility|TestAncestryContextRealOSParentChildAndGone|TestGroupQuiescentRequiresNoRunnableMembers|TestConfirmGroupExitedContextCancellationBoundsEPERMFallback)$`
+with `GOMAXPROCS=2`, isolated `GOCACHE`, `-count=1 -v -timeout=30s`.
+It passed (including ten group-state subtests); raw output and exit 0 are in
+`tasks/linux-identity/data/darwin-regression.log`.
