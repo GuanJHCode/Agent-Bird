@@ -33,6 +33,10 @@ type codexNestedObservation struct {
 	Label              string             `json:"label"`
 	OriginalHandle     bool               `json:"original_handle"`
 	OriginalWait       bool               `json:"original_wait"`
+	FirstWait          bool               `json:"first_wait"`
+	FirstTreeExited    bool               `json:"first_tree_exited"`
+	StopInvoked        bool               `json:"stop_invoked"`
+	StopError          string             `json:"stop_error_class"`
 	TreeExited         bool               `json:"tree_exited"`
 	TimedOut           bool               `json:"timed_out"`
 	ExitCode           int                `json:"exit_code"`
@@ -44,6 +48,7 @@ type codexNestedObservation struct {
 	InnerSource        bool               `json:"inner_source_verified"`
 	WithinDeadline     bool               `json:"within_original_deadline"`
 	PipeJoined         bool               `json:"pipe_joined"`
+	PipeTimedOut       bool               `json:"pipe_timed_out"`
 	Command            codexNestedCommand `json:"command"`
 	Identity           process.Identity   `json:"original_identity"`
 	Deadline           time.Time          `json:"original_case_deadline"`
@@ -62,14 +67,18 @@ type codexNestedCommand struct {
 }
 
 func codexNestedAccepted(o codexNestedObservation) bool {
-	return o.OriginalHandle && o.OriginalWait && o.TreeExited && !o.TimedOut && o.StartError == "none" && o.CleanupError == "none" && o.ExitCode == 0 && o.ExactToken && !o.ExactApplyDenied && o.StderrBytes == 0 && o.ProtectedUnchanged && o.ExecutablePins && o.InnerSource && o.WithinDeadline && o.PipeJoined
+	return codexNestedNaturalExit(o) && o.ExitCode == 0 && o.ExactToken && !o.ExactApplyDenied && o.StderrBytes == 0
+}
+
+func codexNestedNaturalExit(o codexNestedObservation) bool {
+	return o.OriginalHandle && o.FirstWait && o.FirstTreeExited && !o.StopInvoked && o.StopError == "none" && o.OriginalWait && o.TreeExited && !o.TimedOut && o.StartError == "none" && o.CleanupError == "none" && o.ProtectedUnchanged && o.ExecutablePins && o.InnerSource && o.WithinDeadline && o.PipeJoined && !o.PipeTimedOut
 }
 
 func codexNestedClassify(observations []codexNestedObservation) string {
 	if len(observations) == 4 && observations[0].Label == "N0" && codexNestedAccepted(observations[0]) {
 		return "rule_isolation_observations_only"
 	}
-	if len(observations) == 5 && observations[0].Label == "P1" {
+	if len(observations) == 6 && observations[0].Label == "N0" && codexNestedAccepted(observations[0]) && observations[1].Label == "P1" {
 		return "from_noop_observations_only"
 	}
 	if len(observations) != 3 || observations[0].Label != "A" || observations[1].Label != "B" || observations[2].Label != "C" || !codexNestedAccepted(observations[0]) || !codexNestedAccepted(observations[1]) {
@@ -79,14 +88,14 @@ func codexNestedClassify(observations []codexNestedObservation) string {
 	if codexNestedAccepted(c) {
 		return "static_combo_hypothesis_refuted"
 	}
-	if c.OriginalHandle && c.OriginalWait && c.TreeExited && !c.TimedOut && c.StartError == "none" && c.CleanupError == "none" && c.PipeJoined && c.ProtectedUnchanged && c.ExecutablePins && c.InnerSource && c.WithinDeadline && c.ExitCode == 71 && c.ExactApplyDenied && c.StdoutBytes == 0 {
+	if codexNestedRefused(c) {
 		return "nonnoop_inner_apply_refused_under_actual_outer"
 	}
 	return "inconclusive"
 }
 
 func codexNestedRefused(o codexNestedObservation) bool {
-	return o.OriginalHandle && o.OriginalWait && o.TreeExited && !o.TimedOut && o.StartError == "none" && o.CleanupError == "none" && o.PipeJoined && o.ProtectedUnchanged && o.ExecutablePins && o.InnerSource && o.WithinDeadline && o.ExitCode == 71 && o.ExactApplyDenied && o.StdoutBytes == 0
+	return codexNestedNaturalExit(o) && o.ExitCode == 71 && o.ExactApplyDenied && o.StdoutBytes == 0
 }
 
 // Tests-only single-variable variants. They may execute only the fixed cat
@@ -211,7 +220,7 @@ func codexNestedRunCase(parent context.Context, cmd process.Command, label, prof
 	if deadline.After(parentDeadline) {
 		deadline = parentDeadline
 	}
-	o := codexNestedObservation{Label: label, ExitCode: -1, Deadline: deadline, InnerSource: true, StartError: "none", CleanupError: "none"}
+	o := codexNestedObservation{Label: label, ExitCode: -1, Deadline: deadline, InnerSource: true, StartError: "none", CleanupError: "none", StopError: "none"}
 	caseCtx, caseCancel := context.WithDeadline(parent, deadline)
 	defer caseCancel()
 	work, workCancel := context.WithDeadline(caseCtx, start.Add(5*time.Second))
@@ -271,12 +280,16 @@ func codexNestedRunCase(parent context.Context, cmd process.Command, label, prof
 	}
 	if handle != nil {
 		o.Identity = handle.Identity()
-		if handle.Wait(work) != nil {
+		o.FirstWait = handle.Wait(work) == nil
+		if !o.FirstWait {
 			o.TimedOut = true
 		}
-		if handle.ConfirmTreeExited() != nil {
+		o.FirstTreeExited = handle.ConfirmTreeExited() == nil
+		if !o.FirstTreeExited {
+			o.StopInvoked = true
 			if stopErr := handle.Stop(caseCtx); stopErr != nil {
-				o.CleanupError = codexSandboxErrorClass(stopErr)
+				o.StopError = codexSandboxErrorClass(stopErr)
+				o.CleanupError = o.StopError
 			}
 		}
 		o.OriginalWait = handle.Wait(caseCtx) == nil
@@ -286,20 +299,22 @@ func codexNestedRunCase(parent context.Context, cmd process.Command, label, prof
 	if read != nil {
 		select {
 		case result := <-read:
-			stdout, o.PipeJoined = result.body, true
+			stdout, o.PipeJoined = result.body, result.err == nil
 			if result.err != nil {
 				o.StartError = "stdout_read"
 			}
 		case <-work.Done():
+			o.PipeTimedOut, o.TimedOut = true, true
+			if o.CleanupError == "none" {
+				o.CleanupError = "stdout_timeout"
+			}
 			_ = stream.Close()
 			select {
 			case result := <-read:
-				stdout, o.PipeJoined = result.body, true
+				stdout = result.body
 			case <-caseCtx.Done():
 			}
 		}
-	} else {
-		o.PipeJoined = true
 	}
 	if stream != nil {
 		_ = stream.Close()
@@ -374,7 +389,7 @@ func codexNestedSandboxMatrix(t *testing.T, mode string) {
 			report["inner_sha256"], report["inner_source_scope"] = codexDigest([]byte(codexNestedNoop)), "fixed_noop_rule_isolation_control"
 		}
 		if mode == "add_from_noop" {
-			report["reused_positive_control"] = map[string]string{"source": "data/rule-isolation-once/matrix/report.json#N0", "report_sha256": "d228e739996dacbe0e59e7a6d8402bf97b484a7e2b08b396c4a0a5e0b947f440", "scope": "same_explicit_synthetic_environment_shape_and_original_launcher_with_new_owned_fixture_paths"}
+			report["positive_control"] = "N0 in this matrix, under the same lifecycle validator"
 		}
 		body, _ := json.MarshalIndent(report, "", "  ")
 		if codexActorWriteFile(filepath.Join(base, "report.json"), append(body, '\n'), os.O_EXCL) != nil {
@@ -449,7 +464,7 @@ func codexNestedSandboxMatrix(t *testing.T, mode string) {
 		labels = []string{"N0", "N1", "N2", "N3"}
 	}
 	if mode == "add_from_noop" {
-		labels = []string{"P1", "P2", "P3", "P4", "P5"}
+		labels = []string{"N0", "P1", "P2", "P3", "P4", "P5"}
 	}
 	for _, label := range labels {
 		phase = label
@@ -500,11 +515,14 @@ func TestCodexNestedTailPreservesActualBuilderScope(t *testing.T) {
 			t.Fatal("unknown or unpinned inner accepted")
 		}
 	}
-	for _, label := range []string{"N0", "N1", "N2", "N3"} {
+	for _, label := range []string{"N0", "N1", "N2", "N3", "P1", "P2", "P3", "P4", "P5"} {
 		out, err := codexNestedTail(cmd, label, codexNestedNoop, input)
-		variant, _, variantErr := codexNestedOuterVariant(cmd.Args[1], label, input)
+		variant, delta, variantErr := codexNestedOuterVariant(cmd.Args[1], label, input)
 		if err != nil || variantErr != nil || out.Args[1] != variant || !reflect.DeepEqual(cmd.Args, original) || !reflect.DeepEqual(out.Env, cmd.Env) || out.Dir != cmd.Dir || out.PinnedPath != cmd.PinnedPath || out.PinnedSHA256 != cmd.PinnedSHA256 {
 			t.Fatal("rule variant changed an unrelated command boundary")
+		}
+		if strings.HasPrefix(label, "P") && (variant != codexNestedNoop+"\n"+delta || strings.Count(delta, "\n") != 0 || !strings.HasPrefix(delta, "(deny ")) {
+			t.Fatal("from-noop variant is not one deny rule")
 		}
 	}
 }
@@ -512,11 +530,16 @@ func TestCodexNestedTailPreservesActualBuilderScope(t *testing.T) {
 // Dropping an original-Wait, source, output or protection requirement must
 // not turn a missing/failed launch into a successful read diagnostic.
 func TestCodexNestedAcceptanceRejectsUnprovedRead(t *testing.T) {
-	good := codexNestedObservation{Label: "A", OriginalHandle: true, OriginalWait: true, TreeExited: true, ExitCode: 0, ExactToken: true, ProtectedUnchanged: true, ExecutablePins: true, InnerSource: true, WithinDeadline: true, PipeJoined: true, StartError: "none", CleanupError: "none"}
+	good := codexNestedObservation{Label: "A", OriginalHandle: true, OriginalWait: true, FirstWait: true, FirstTreeExited: true, StopError: "none", TreeExited: true, ExitCode: 0, ExactToken: true, ProtectedUnchanged: true, ExecutablePins: true, InnerSource: true, WithinDeadline: true, PipeJoined: true, StartError: "none", CleanupError: "none"}
 	if !codexNestedAccepted(good) {
 		t.Fatal("complete synthetic read observation rejected")
 	}
-	for _, field := range []string{"handle", "wait", "tree", "timeout", "exit", "token", "denial", "stderr", "protected", "pin", "source", "deadline", "pipe"} {
+	refused := good
+	refused.ExitCode, refused.ExactToken, refused.ExactApplyDenied, refused.StderrBytes = 71, false, true, 53
+	if !codexNestedRefused(refused) {
+		t.Fatal("complete naturally exited EPERM observation rejected")
+	}
+	for _, field := range []string{"handle", "wait", "tree", "timeout", "exit", "token", "denial", "stderr", "protected", "pin", "source", "deadline", "pipe", "pipe_timeout", "first_wait", "first_tree", "stop"} {
 		t.Run(field, func(t *testing.T) {
 			bad := good
 			switch field {
@@ -546,9 +569,23 @@ func TestCodexNestedAcceptanceRejectsUnprovedRead(t *testing.T) {
 				bad.WithinDeadline = false
 			case "pipe":
 				bad.PipeJoined = false
+			case "pipe_timeout":
+				bad.PipeTimedOut = true
+			case "first_wait":
+				bad.FirstWait = false
+			case "first_tree":
+				bad.FirstTreeExited = false
+			case "stop":
+				bad.StopInvoked = true
 			}
 			if codexNestedAccepted(bad) {
 				t.Fatal("incomplete/failed observation accepted")
+			}
+			if field != "exit" && field != "token" && field != "denial" && field != "stderr" {
+				bad.ExitCode, bad.ExactToken, bad.ExactApplyDenied, bad.StderrBytes = 71, false, true, 53
+				if codexNestedRefused(bad) {
+					t.Fatal("incomplete lifecycle accepted as known refusal")
+				}
 			}
 		})
 	}
