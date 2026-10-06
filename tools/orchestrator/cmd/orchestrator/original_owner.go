@@ -23,6 +23,8 @@ import (
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 )
 
+var initialOwnerStatusTimeout = 5 * time.Second
+
 // originalOwnerEntry accepts only the two inherited descriptors created by the
 // initial transport launcher.  In particular it has no token, key, socket or
 // recovery arguments: those would make the private owner re-creatable outside
@@ -62,6 +64,14 @@ func originalOwnerEntry(parent context.Context, args []string) error {
 			}
 			return invocationForGrant(ctx, grant)
 		},
+		EnsureCoordinator: func(ctx context.Context) error {
+			hello := contract.HostHello{LaunchID: bootstrap.Prepared.Intent.Scope.LaunchID, OriginContextID: bootstrap.Prepared.Intent.Scope.OriginalOriginContextID, OriginPID: bootstrap.Prepared.Intent.Scope.OriginalOriginPID, OriginBirth: bootstrap.Prepared.Intent.Scope.OriginalOriginBirth, HostGeneration: bootstrap.Prepared.Intent.Scope.HostGeneration, PID: bootstrap.Prepared.Intent.FirstHost.PID, Birth: bootstrap.Prepared.Intent.FirstHost.Birth, Executable: bootstrap.Prepared.Intent.Scope.Executable}
+			if err := coordinator.CheckRecoveryAllowed(bootstrap.StateDir, hello); err != nil {
+				return err
+			}
+			_, err := ensureServerMode(ctx, bootstrap.StateDir, true)
+			return err
+		},
 	})
 }
 
@@ -71,8 +81,13 @@ func originalOwnerEntry(parent context.Context, args []string) error {
 // behavior and tests.
 func runInitialOriginalOwner(ctx context.Context, bootstrap hostBootstrap) (bool, error) {
 	statusBody, _ := json.Marshal(coordinator.HostStatusRequest{LaunchID: bootstrap.Hello.LaunchID, LaunchToken: bootstrap.Hello.LaunchToken})
-	status, err := ipc.Call(ctx, bootstrap.SocketPath, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindHostStatus, RequestID: bootstrap.Hello.LaunchID + ":status", Payload: statusBody})
-	if err != nil || status.Kind != ipc.KindResponse {
+	statusCtx, cancelStatus := context.WithTimeout(ctx, initialOwnerStatusTimeout)
+	status, err := ipc.Call(statusCtx, bootstrap.SocketPath, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindHostStatus, RequestID: bootstrap.Hello.LaunchID + ":status", Payload: statusBody})
+	cancelStatus()
+	if err != nil {
+		return false, err
+	}
+	if status.Kind != ipc.KindResponse {
 		return false, errors.New("supervised_mode_unknown")
 	}
 	var presence contract.HostPresenceResponse
@@ -102,7 +117,7 @@ func runInitialOriginalOwner(ctx context.Context, bootstrap hostBootstrap) (bool
 		return false, err
 	}
 	if pending.Kind == ipc.KindHostReady {
-		return false, nil
+		return true, errors.New("initial_owner_unexpected_ready")
 	}
 	if pending.Kind != ipc.KindOwnerHostPending {
 		return false, errors.New("initial_owner_transport_rejected")

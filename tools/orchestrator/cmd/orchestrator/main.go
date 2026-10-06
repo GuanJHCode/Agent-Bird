@@ -1014,6 +1014,9 @@ func sourceHost(parent context.Context, args []string) error {
 	defer cancel()
 	supervised, runErr := runInitialOriginalOwner(ctx, bootstrap)
 	if runErr != nil {
+		if runErr == context.Canceled {
+			return nil
+		}
 		return runErr
 	}
 	if supervised {

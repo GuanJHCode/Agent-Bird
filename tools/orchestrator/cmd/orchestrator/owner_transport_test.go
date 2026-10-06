@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"io"
 	"net"
 	"os"
 	"os/exec"
@@ -47,6 +48,37 @@ func TestInitialOwnerWaitUsesOriginalCompletionChannel(t *testing.T) {
 	}
 	if err := waitInitialOwner(make(chan error), time.Now().Add(-time.Millisecond)); !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("expired bounded wait = %v", err)
+	}
+}
+
+func TestInitialOwnerStatusHasBoundedDeadline(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "coordinator.sock")
+	listener, err := net.Listen("unix", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	accepted := make(chan struct{})
+	go func() {
+		conn, acceptErr := listener.Accept()
+		if acceptErr == nil {
+			close(accepted)
+			defer conn.Close()
+			_, _ = io.ReadAll(conn)
+		}
+	}()
+	previous := initialOwnerStatusTimeout
+	initialOwnerStatusTimeout = 20 * time.Millisecond
+	defer func() { initialOwnerStatusTimeout = previous }()
+	_, err = runInitialOriginalOwner(context.Background(), hostBootstrap{SocketPath: path, Hello: contract.HostHello{LaunchID: "launch", LaunchToken: "token"}})
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("unresponsive HostStatus error = %v", err)
+	}
+	select {
+	case <-accepted:
+	default:
+		t.Fatal("status call did not reach listener")
 	}
 }
 

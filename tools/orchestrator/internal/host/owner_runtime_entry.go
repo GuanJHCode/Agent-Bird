@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
+	"time"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc"
@@ -18,6 +20,7 @@ type OriginalOwnerConfig struct {
 	Bootstrap          contract.OwnerRuntimeBootstrap
 	Control            *net.UnixConn
 	InvocationProvider func(context.Context, contract.LaunchCommand) (contract.InvocationView, error)
+	EnsureCoordinator  func(context.Context) error
 }
 
 var errOriginalOwnerRuntime = errors.New("original_owner_runtime_rejected")
@@ -80,6 +83,15 @@ func RunOriginalOwner(parent context.Context, cfg OriginalOwnerConfig) error {
 		return err
 	}
 	lifecycle := newOwnerRuntimeLifecycle(execution, cancel)
+	recoveryScope, err := originalOwnerRecoveryScope(bound.Binding.Scope, bound.Binding.Owner)
+	if err != nil {
+		return err
+	}
+	recovery, err := openOwnerRecovery(cfg.Bootstrap.SpoolRoot, recoveryScope)
+	if err != nil {
+		return err
+	}
+	defer recovery.close()
 	reader := lifecycle.readControl(ctx, 1, cfg.Control)
 	failures := lifecycle.watchFailures(ctx)
 	origin := lifecycle.watchOrigin(ctx, bound.Binding.Scope)
@@ -95,7 +107,13 @@ func RunOriginalOwner(parent context.Context, cfg OriginalOwnerConfig) error {
 		case <-lifecycle.wake:
 			// A transport notice is merely a hint.  Replacement is driven by the
 			// owner recovery ledger, never by this reader or a stale connection.
-			_, _ = lifecycle.takeNotice(1)
+			notice, ok := lifecycle.takeNotice(1)
+			if !ok || (!notice.offline && notice.pending == nil && notice.cause == nil) {
+				continue
+			}
+			if err = recoverInitialOwnerTransport(ctx, cfg, enrollment, execution, lifecycle, recovery, notice); err != nil {
+				cancel(err)
+			}
 		}
 	}
 	cause := context.Cause(ctx)
@@ -110,4 +128,78 @@ func RunOriginalOwner(parent context.Context, cfg OriginalOwnerConfig) error {
 		return nil
 	}
 	return cause
+}
+
+// recoverInitialOwnerTransport handles only the original physical source-host
+// tuple.  A replacement child has a different proof and remains a separate
+// driver.  The workflow is serial: reserve shared budget, re-establish the
+// Coordinator, then ask the existing parent transport to reconnect before any
+// fresh signed RPC can renew its permit.
+func recoverInitialOwnerTransport(ctx context.Context, cfg OriginalOwnerConfig, enrollment *ownerEnrollment, execution *ownerExecution, lifecycle *ownerRuntimeLifecycle, recovery *ownerRecoveryState, notice ownerRuntimeNotice) error {
+	if cfg.EnsureCoordinator == nil || (!notice.offline && notice.pending == nil && !ownerExecutionNeedsRecovery(notice.cause)) {
+		return errOriginalOwnerRuntime
+	}
+	when, err := recovery.reserveCoordinator(time.Now())
+	if err != nil {
+		return err
+	}
+	if delay := time.Until(when); delay > 0 {
+		timer := time.NewTimer(delay)
+		defer timer.Stop()
+		select {
+		case <-ctx.Done():
+			return context.Cause(ctx)
+		case <-timer.C:
+		}
+	}
+	if err = recovery.beginCoordinatorEnsure(); err != nil {
+		return err
+	}
+	if err = cfg.EnsureCoordinator(ctx); err != nil {
+		return err
+	}
+	if err = recovery.finishCoordinatorEnsure(); err != nil {
+		return err
+	}
+	execution.pausePublication()
+	control, _ := json.Marshal(contract.OwnerTransportControl{Version: 1, Action: "connect"})
+	if err = ipc.Write(cfg.Control, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindOwnerTransportControl, RequestID: "owner-reconnect", Payload: control}); err != nil {
+		return err
+	}
+	// The reader reports the authenticated pending session on the next wake.
+	for {
+		select {
+		case <-ctx.Done():
+			return context.Cause(ctx)
+		case <-time.After(5 * time.Second):
+			return errCoordinatorUnavailable
+		case <-lifecycle.wake:
+			next, ok := lifecycle.takeNotice(1)
+			if !ok || next.pending == nil {
+				continue
+			}
+		}
+		// A fresh state RPC proves the new Coordinator epoch.  It is legal only
+		// after the parent transport has completed its ordinary HostHello.
+		reply, callErr := enrollment.client.Call(ctx, 0, "state", cfg.Bootstrap.Prepared.Intent.RequestID, struct{}{})
+		if callErr != nil {
+			continue
+		}
+		var state contract.OwnerRuntimeState
+		if contract.DecodeOwnerRuntimeStrict(reply.Body, &state) != nil || state.Binding != execution.cfg.binding {
+			return errOriginalOwnerRuntime
+		}
+		old := state.Permit.NewHost
+		requestID := fmt.Sprintf("%s:renew:%d", state.Permit.PermitID, reply.CoordinatorEpoch)
+		attach := contract.OwnerAttachRequest{ExpectedControlRevision: state.Permit.ControlRevision, OldHost: old, NewHost: old}
+		reply, callErr = enrollment.client.Call(ctx, state.Permit.ControlRevision, "attach", requestID, attach)
+		if callErr != nil {
+			return callErr
+		}
+		permit, decodeErr := contract.DecodeOwnerControlPermit(reply.Body)
+		if decodeErr != nil {
+			return errOriginalOwnerRuntime
+		}
+		return execution.reconcile(ctx, permit)
+	}
 }
