@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 func frozenReviewReceipt(t *testing.T, d, base, candidateOID, tree string) CandidateReceipt {
@@ -184,5 +185,40 @@ func TestCandidateReviewSnapshotRejectsSubmodule(t *testing.T) {
 	receipt.Changes = []CandidateChange{{Path: "submodule", Mode: "160000", BlobOID: base}}
 	if _, err := CandidateReviewSnapshot(context.Background(), receipt); err == nil {
 		t.Fatal("submodule accepted")
+	}
+}
+
+func TestCandidateReviewIndexChunksCompleteUTF8TextWithoutLosingSides(t *testing.T) {
+	d, base := repo(t)
+	if err := os.WriteFile(filepath.Join(d, "same.txt"), []byte(strings.Repeat("é", 20000)), 0600); err != nil {
+		t.Fatal(err)
+	}
+	git(t, d, "add", "same.txt")
+	git(t, d, "commit", "-qm", "base")
+	base = git(t, d, "rev-parse", "HEAD")
+	if err := os.WriteFile(filepath.Join(d, "same.txt"), []byte(strings.Repeat("é", 20000)+"candidate"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	git(t, d, "add", "same.txt")
+	git(t, d, "commit", "-qm", "candidate")
+	candidateOID := git(t, d, "rev-parse", "HEAD")
+	receipt := frozenReviewReceipt(t, d, base, candidateOID, git(t, d, "rev-parse", "HEAD^{tree}"))
+	receipt.Changes = []CandidateChange{{Path: "same.txt", Mode: "100644", BlobOID: git(t, d, "rev-parse", candidateOID+":same.txt")}}
+
+	receiptHash := strings.Repeat("a", 64)
+	index, err := CandidateReviewIndex(context.Background(), receipt, receiptHash)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if index.Version != 1 || index.CandidateReceiptSHA256 != receiptHash || len(index.Chunks) < 3 || index.Chunks[0].Side != "base" || index.Chunks[len(index.Chunks)-1].Side != "candidate" {
+		t.Fatalf("index=%+v", index)
+	}
+	for _, chunk := range index.Chunks {
+		if chunk.Length < 1 || chunk.Length > indexedReviewChunkLimit || !utf8.ValidString(chunk.Content) || chunk.SHA256 != reviewChunkDigest([]byte(chunk.Content)) {
+			t.Fatalf("unsafe chunk=%+v", chunk)
+		}
+	}
+	if len(index.Pages) == 0 || len(index.Pages[0].ChunkOrdinals) > indexedReviewPageEntriesLimit {
+		t.Fatalf("pages=%+v", index.Pages)
 	}
 }

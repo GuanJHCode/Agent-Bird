@@ -118,6 +118,7 @@ func bindCandidateIntent(ctx context.Context, tx *sql.Tx, command *contract.Laun
 func validateCandidatePlan(tasks map[string]TaskSpec) error {
 	type kind struct {
 		Kind      string          `json:"kind"`
+		Provider  string          `json:"provider"`
 		Directory string          `json:"directory"`
 		Workspace json.RawMessage `json:"candidate_workspace"`
 		Action    *struct {
@@ -128,6 +129,12 @@ func validateCandidatePlan(tasks map[string]TaskSpec) error {
 			Target                 struct {
 				Worktree string `json:"worktree"`
 			} `json:"target"`
+			ReviewIndex *struct {
+				Version       int    `json:"version"`
+				Mode          string `json:"mode"`
+				Shards        int    `json:"shards"`
+				ReviewOrdinal int    `json:"review_ordinal"`
+			} `json:"review_index"`
 		} `json:"candidate_action"`
 	}
 	parsed := map[string]kind{}
@@ -177,16 +184,40 @@ func validateCandidatePlan(tasks map[string]TaskSpec) error {
 		previous := parsed[a.SourceTask]
 		switch a.Operation {
 		case "validate":
-			if p.Kind != "candidate" || previous.Kind != "" || len(previous.Workspace) == 0 || string(previous.Workspace) == "null" {
+			if a.ReviewIndex != nil || p.Kind != "candidate" || previous.Kind != "" || len(previous.Workspace) == 0 || string(previous.Workspace) == "null" {
 				return CodeError("invalid_candidate_dag")
 			}
 		case "review":
 			if p.Kind != "" || previous.Action == nil || previous.Action.Operation != "validate" {
 				return CodeError("invalid_candidate_dag")
 			}
+			if a.ReviewIndex != nil && (p.Provider != "grok" || a.ReviewIndex.Version != 1 || a.ReviewIndex.Mode != "indexed_candidate_review_v1" || a.ReviewIndex.Shards < 1 || a.ReviewIndex.Shards > 63 || a.ReviewIndex.ReviewOrdinal < 0 || a.ReviewIndex.ReviewOrdinal >= a.ReviewIndex.Shards) {
+				return CodeError("invalid_candidate_review_index")
+			}
 		case "integrate":
 			if p.Kind != "candidate" || previous.Action == nil || previous.Action.Operation != "review" {
 				return CodeError("invalid_candidate_dag")
+			}
+			if stringMustJSON(a.ReviewIndex) != stringMustJSON(previous.Action.ReviewIndex) {
+				return CodeError("candidate_review_index_changed")
+			}
+			if a.ReviewIndex != nil {
+				if a.DependencyInputVersion != 1 || len(task.Dependencies) != a.ReviewIndex.Shards {
+					return CodeError("candidate_review_index_coverage_invalid")
+				}
+				ordinals := make(map[int]bool, a.ReviewIndex.Shards)
+				for _, dependency := range task.Dependencies {
+					review := parsed[dependency]
+					if review.Action == nil || review.Action.Operation != "review" || stringMustJSON(review.Action.ReviewIndex) == "null" || review.Action.ReviewIndex.Shards != a.ReviewIndex.Shards || review.Action.ReviewIndex.Mode != a.ReviewIndex.Mode || ordinals[review.Action.ReviewIndex.ReviewOrdinal] {
+						return CodeError("candidate_review_index_coverage_invalid")
+					}
+					ordinals[review.Action.ReviewIndex.ReviewOrdinal] = true
+				}
+				for ordinal := 0; ordinal < a.ReviewIndex.Shards; ordinal++ {
+					if !ordinals[ordinal] {
+						return CodeError("candidate_review_index_coverage_invalid")
+					}
+				}
 			}
 		default:
 			return CodeError("invalid_candidate_dag")
@@ -194,3 +225,5 @@ func validateCandidatePlan(tasks map[string]TaskSpec) error {
 	}
 	return nil
 }
+
+func stringMustJSON(v any) string { raw, _ := json.Marshal(v); return string(raw) }

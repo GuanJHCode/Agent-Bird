@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 )
 
@@ -38,6 +39,20 @@ func TestGrokReviewUsesPrivateBoundInput(t *testing.T) {
 		t.Fatal("replaced input")
 	}
 }
+
+func TestGrokIndexedReviewUsesOnlyAssignedChunksInPrivatePrompt(t *testing.T) {
+	root, _ := filepath.EvalSymlinks(t.TempDir())
+	chunk := gitops.ReviewIndexChunk{Ordinal: 2, Path: "a.txt", Side: "candidate", BlobOID: strings.Repeat("a", 40), WholeSHA256: strings.Repeat("b", 64), Length: 3, SHA256: strings.Repeat("c", 64), Content: "new"}
+	index := gitops.ReviewIndex{Version: 1, Scope: "complete-tracked-text-base-and-candidate", CandidateReceiptSHA256: strings.Repeat("d", 64), Chunks: []gitops.ReviewIndexChunk{chunk}, Pages: []gitops.ReviewIndexPage{{Ordinal: 0, ChunkOrdinals: []int{2}}}}
+	result, _, _, err := prepareGrokIndexedPrompt(process.Command{Args: []string{"-p", "review"}}, index, []gitops.ReviewIndexChunk{chunk}, strings.Repeat("e", 64), filepath.Join(root, "scratch"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := os.ReadFile(result.Args[1])
+	if err != nil || !strings.Contains(string(body), `"content":"new"`) || !strings.Contains(string(body), `"ordinal":2`) {
+		t.Fatalf("body=%s err=%v", body, err)
+	}
+}
 func TestGrokReviewRejectsUnboundedOrAmbiguousInput(t *testing.T) {
 	for _, kind := range []string{"large", "invalid-json", "duplicate-prompt"} {
 		t.Run(kind, func(t *testing.T) {
@@ -45,7 +60,7 @@ func TestGrokReviewRejectsUnboundedOrAmbiguousInput(t *testing.T) {
 			cmd := process.Command{Args: []string{"-p", "brief"}}
 			snapshot := []byte(`{}`)
 			if kind == "large" {
-				snapshot = []byte(`{"content":"` + strings.Repeat("x", 256*1024) + `"}`)
+				snapshot = []byte(`{"content":"` + strings.Repeat("x", 384*1024) + `"}`)
 			}
 			if kind == "invalid-json" {
 				snapshot = []byte("not-json")

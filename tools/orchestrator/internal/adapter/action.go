@@ -10,6 +10,16 @@ type CandidateAction struct {
 	SourceTask             string          `json:"source_task"`
 	Command                []string        `json:"command,omitempty"`
 	Target                 CandidateTarget `json:"target"`
+	ReviewIndex            *ReviewIndex    `json:"review_index,omitempty"`
+}
+
+// ReviewIndex is an explicit finite review assignment. Legacy review actions
+// intentionally leave it nil and retain their existing byte-limited path.
+type ReviewIndex struct {
+	Version       int    `json:"version"`
+	Mode          string `json:"mode"`
+	Shards        int    `json:"shards"`
+	ReviewOrdinal int    `json:"review_ordinal"`
 }
 
 type CandidateTarget struct {

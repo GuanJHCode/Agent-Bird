@@ -29,6 +29,18 @@ func TestCoordinatorGrokProfileCompatibility(t *testing.T) {
 	}
 }
 
+func TestCoordinatorRequiresIndexedReviewCapabilityForPrimaryAndFallback(t *testing.T) {
+	indexed := json.RawMessage(`{"provider":"grok","candidate_action":{"version":1,"operation":"review","review_index":{"version":1,"mode":"indexed_candidate_review_v1","shards":3,"review_ordinal":0}}}`)
+	for _, task := range []coordinator.TaskRequest{{AdapterPayload: indexed}, {AdapterPayload: json.RawMessage(`{"provider":"claude-code"}`), Fallbacks: []json.RawMessage{indexed}}} {
+		if err := checkCoordinatorTasks([]string{"interruption_feedback_v1", "grok_readonly_v1"}, []coordinator.TaskRequest{task}); err == nil {
+			t.Fatal("old coordinator accepted indexed review")
+		}
+		if err := checkCoordinatorTasks([]string{"interruption_feedback_v1", "grok_readonly_v1", "indexed_candidate_review_v1"}, []coordinator.TaskRequest{task}); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
 func TestCoordinatorCodingRequiresMatchingRuntime(t *testing.T) {
 	for _, provider := range []string{"grok-build", "antigravity-cli"} {
 		raw := json.RawMessage(`{"provider":"` + provider + `","profile":{"role":"implementer","permission":"workspace-write"}}`)
