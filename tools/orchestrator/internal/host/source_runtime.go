@@ -389,6 +389,10 @@ func (r *livingSource) dispatchLaunch(grant contract.LaunchCommand) error {
 	if err != nil {
 		return err
 	}
+	return r.dispatchAcceptedLaunch(grant, duplicate)
+}
+
+func (r *livingSource) dispatchAcceptedLaunch(grant contract.LaunchCommand, duplicate bool) error {
 	r.workingMu.Lock()
 	if r.working[grant.CommandID] {
 		r.workingMu.Unlock()
@@ -399,6 +403,14 @@ func (r *livingSource) dispatchLaunch(grant contract.LaunchCommand) error {
 	r.workers.Add(1)
 	go r.execute(grant, duplicate)
 	return nil
+}
+
+// Only a caller that has not dispatched execution may make this no-Start
+// claim. A duplicate ledger record is not such proof and must not call it.
+func (r *livingSource) recordUnstartedGrant(grant contract.LaunchCommand, cause error) error {
+	a := store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID}
+	meta := launchMetadata{commandID: grant.CommandID, workRevision: grant.WorkRevision, executionEpoch: grant.ExecutionEpoch}
+	return r.host.recordLaunchFailed(a, grant.RunID, grant.TaskID, meta, cause)
 }
 
 func (r *livingSource) dispatchStop(stop contract.StopCommand) {

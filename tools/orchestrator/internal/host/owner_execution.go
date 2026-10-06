@@ -30,6 +30,9 @@ type ownerExecutionConfig struct {
 }
 
 type ownerExecution struct {
+	admissionFailure  error // guarded by mu; cleanup cannot hide a late durable failure
+	admissions        sync.WaitGroup
+	acceptGrant       func(contract.LaunchCommand) (bool, error)
 	run               *livingSource
 	cfg               ownerExecutionConfig
 	scopeHash         string
@@ -58,7 +61,7 @@ func newOwnerExecution(ctx context.Context, cfg ownerExecutionConfig) (*ownerExe
 	cfg.coordinatorKey = append(ed25519.PublicKey(nil), cfg.coordinatorKey...)
 	scopeHash, _ := contract.OriginalOwnerScopeSHA256(cfg.binding.Scope)
 	identityHash, _ := contract.OriginalOwnerIdentitySHA256(cfg.binding.Owner)
-	e := &ownerExecution{cfg: cfg, scopeHash: scopeHash, identityHash: identityHash, changed: make(chan struct{}), recovery: make(chan error, 1)}
+	e := &ownerExecution{acceptGrant: cfg.host.acceptGrant, cfg: cfg, scopeHash: scopeHash, identityHash: identityHash, changed: make(chan struct{}), recovery: make(chan error, 1)}
 	// The runtime registers the first stop window before canceling execution.
 	// Transport/context loss is observed by that runtime, never inherited here.
 	runCtx, cancel := context.WithCancelCause(context.WithoutCancel(ctx))
@@ -163,19 +166,38 @@ func (e *ownerExecution) reconcile(ctx context.Context, permit contract.OwnerCon
 func (e *ownerExecution) command(raw []byte) error {
 	command, err := contract.DecodeOwnerCommand(raw)
 	if err != nil {
-		return err
+		return rejectOwnerCommand(ownerCommandInvalid, err)
+	}
+	// A stale frame is harmless only after its full signature and this owner's
+	// immutable scope have been verified. Untrusted claimed epochs never revoke.
+	if command.Permit.OwnerID != e.cfg.binding.Scope.OwnerID || command.Permit.ScopeSHA256 != e.scopeHash || command.Permit.OwnerIdentitySHA256 != e.identityHash || contract.VerifyOwnerCommand(command, e.cfg.coordinatorKey, command.Permit) != nil {
+		return rejectOwnerCommand(ownerCommandInvalid, errors.New("owner_execution_command_rejected"))
 	}
 	e.mu.Lock()
 	s := e.last
+	if s != nil && command.Permit.CoordinatorEpoch > e.observedEpoch {
+		if e.stopping {
+			e.mu.Unlock()
+			return rejectOwnerCommand(ownerCommandStopped, errors.New("owner_execution_stopping"))
+		}
+		recovery := &ownerExecutionRecoveryError{cause: errors.New("owner_command_newer_epoch")}
+		e.observeEpochLocked(command.Permit.CoordinatorEpoch, recovery)
+		e.mu.Unlock()
+		return recovery
+	}
+	if s != nil && (command.Permit.ControlRevision < s.permit.ControlRevision || (command.Kind == "launch" && command.Permit.CoordinatorEpoch < e.observedEpoch)) {
+		e.mu.Unlock()
+		return rejectOwnerCommand(ownerCommandStale, errors.New("owner_execution_stale_command"))
+	}
 	if s == nil || contract.VerifyOwnerCommand(command, e.cfg.coordinatorKey, s.permit) != nil {
 		e.mu.Unlock()
-		return errors.New("owner_execution_command_rejected")
+		return rejectOwnerCommand(ownerCommandInvalid, errors.New("owner_execution_command_rejected"))
 	}
 	if command.Kind == "terminal" {
 		var terminal contract.OwnerTerminal
 		if err = contract.DecodeOwnerRuntimeStrict(command.Body, &terminal); err != nil {
 			e.mu.Unlock()
-			return err
+			return rejectOwnerCommand(ownerCommandInvalid, err)
 		}
 		e.stopping, e.active, e.admitSignedLaunch = true, false, false
 		e.mu.Unlock()
@@ -187,28 +209,68 @@ func (e *ownerExecution) command(raw []byte) error {
 		e.mu.Unlock()
 		var stop contract.StopCommand
 		if err = contract.DecodeOwnerRuntimeStrict(command.Body, &stop); err != nil {
-			return err
+			return rejectOwnerCommand(ownerCommandInvalid, err)
 		}
 		e.run.dispatchStop(stop)
 		return nil
 	}
-	if e.stopping || !e.admitSignedLaunch {
+	if e.stopping {
 		e.mu.Unlock()
-		return errors.New("owner_execution_not_active")
+		return rejectOwnerCommand(ownerCommandStopped, errors.New("owner_execution_stopping"))
+	}
+	if !e.admitSignedLaunch {
+		e.mu.Unlock()
+		return rejectOwnerCommand(ownerCommandInvalid, errors.New("owner_execution_not_active"))
 	}
 	if command.Kind == "launch" {
 		var grant contract.LaunchCommand
 		if err = contract.DecodeOwnerRuntimeStrict(command.Body, &grant); err == nil && (grant.RunID != e.cfg.binding.Scope.RunID || grant.HostID != e.cfg.binding.Scope.ProducerID) {
 			err = errors.New("owner_execution_command_rejected")
 		}
-		if err == nil {
-			err = e.run.dispatchLaunch(grant)
+		if err != nil {
+			e.mu.Unlock()
+			return rejectOwnerCommand(ownerCommandInvalid, err)
 		}
+		// Authentication is the admission linearization point. A later permit
+		// renewal cannot erase this already received durable claim. Slow disk I/O
+		// must not hold the stop/renewal lock or prevent registering original TERM.
+		e.admissions.Add(1)
 		e.mu.Unlock()
-		return err
+		defer e.admissions.Done()
+		duplicate, err := e.acceptGrant(grant)
+		if err != nil {
+			return e.failAdmission(err)
+		}
+		e.mu.Lock()
+		if e.stopping {
+			e.mu.Unlock()
+			if !duplicate {
+				if err = e.run.recordUnstartedGrant(grant, context.Canceled); err != nil {
+					return e.failAdmission(err)
+				}
+			}
+			return rejectOwnerCommand(ownerCommandStopped, errors.New("owner_execution_stopping"))
+		}
+		defer e.mu.Unlock()
+		// workers.Add remains under the stop fence. Once beginStop acquires mu,
+		// pending admissions can finish persistence but cannot create any worker.
+		return e.run.dispatchAcceptedLaunch(grant, duplicate)
 	}
+
 	e.mu.Unlock()
-	return errors.New("owner_execution_command_rejected")
+	return rejectOwnerCommand(ownerCommandInvalid, errors.New("owner_execution_command_rejected"))
+}
+
+func (e *ownerExecution) failAdmission(cause error) error {
+	e.mu.Lock()
+	if e.admissionFailure == nil {
+		e.admissionFailure = cause
+	}
+	// Seal admission immediately, but leave original worker cancellation to the
+	// runtime's beginStop so its first shared TERM deadline is registered first.
+	e.stopping, e.active, e.admitSignedLaunch = true, false, false
+	e.mu.Unlock()
+	return rejectOwnerCommand(ownerCommandLocalFailure, cause)
 }
 
 func (e *ownerExecution) offline(s *ownerExecutionSession, cause error) {
@@ -240,6 +302,11 @@ func (e *ownerExecution) revokeAdmission(s *ownerExecutionSession) {
 func (e *ownerExecution) observeEpoch(epoch uint64, cause error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	e.observeEpochLocked(epoch, cause)
+}
+
+// Caller holds admission mu, including when the proof is a signed command.
+func (e *ownerExecution) observeEpochLocked(epoch uint64, cause error) {
 	if epoch <= e.observedEpoch {
 		return
 	}
@@ -314,6 +381,27 @@ func (e *ownerExecution) beginStop(ctx context.Context, cause error) {
 	e.mu.Unlock()
 	e.run.host.BeginStopAll(ctx)
 	e.run.cancel(cause)
+}
+
+// join waits for both admitted writes and workers after beginStop sealed Add.
+// A timeout reports incomplete ownership instead of inventing an original Wait.
+func (e *ownerExecution) join(ctx context.Context) error {
+	e.mu.Lock()
+	stopping := e.stopping
+	e.mu.Unlock()
+	if !stopping {
+		return errors.New("owner_execution_not_stopping")
+	}
+	done := make(chan struct{})
+	go func() { e.admissions.Wait(); e.run.workers.Wait(); close(done) }()
+	select {
+	case <-done:
+		e.mu.Lock()
+		defer e.mu.Unlock()
+		return e.admissionFailure
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // Final flush is allowed over the last verified permit after transport EOF.
