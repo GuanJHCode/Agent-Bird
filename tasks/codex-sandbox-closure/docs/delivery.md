@@ -65,3 +65,25 @@ The one second-round invocation was `tmp/host-rules.test -test.run=^TestCodexNes
 `data/rule-isolation-once/matrix/report.json` SHA-256 `d228e739996dacbe0e59e7a6d8402bf97b484a7e2b08b396c4a0a5e0b947f440` retains the original observations and hash map. Each case retains `outer-original.sbpl`, `outer-variant.sbpl`, `rule-difference.json`, exact command and original output evidence. A separate readback confirmed N1–N3 each remove exactly one unique line with no other byte difference; N0 equals the declared noop control.
 
 The actor token was returned after this round. No further actor, unchanged retry, native Codex bootstrap or product permission fix was started. First-round failure and both binaries/evidence sets remain intact for ROOT review.
+
+## Third and final round: one restriction added to noop
+
+ROOT authorized this final discriminating round because none of the three individual deletions restored nested application. Each P case starts from exactly the previously successful noop outer and adds one independent deny. Inner remains noop and the only final command is the same fixed cat against an owned synthetic token. N0 was not rerun; its exact report hash and scope are referenced in the third report. The explicit synthetic environment shape and original launcher are the same, with fresh owned fixture paths.
+
+| Case | Sole added outer restriction | Original PID | Exit / output |
+| --- | --- | --- | --- |
+| P1 | `deny file-link` | 35721 | 71, stdout 0, exact apply EPERM |
+| P2 | Global `deny file-write*` | 35723 | 71, stdout 0, exact apply EPERM |
+| P3 | `deny file-read*` only for the literal owned control sentinel | 35725 | 71, stdout 0, exact apply EPERM |
+| P4 | `deny network*` | 35729 | 71, stdout 0, exact apply EPERM |
+| P5 | `deny file-write*` only for a fixed nonexistent path under the owned workspace | 35732 | 71, stdout 0, exact apply EPERM |
+
+All five independent restrictions reproduce rejection before cat executes. P5 additionally requires ENOENT before original Start and after original completion; the latter is included in the protection predicate and independently reconfirmed during report readback. Thus a write denial on an untouched, nonexistent target is enough to trigger the observed boundary. This supports a structural restriction on reapplying Seatbelt from an already restricted process on this machine, rather than failure caused by cat touching one protected file. It does not claim every conceivable macOS profile or kernel version behaves identically, and does not identify a private kernel check.
+
+Final focused pure gate: original Go PID 35632, Wait 0; 15 PASS / 0 FAIL / 0 SKIP. Final ordinary build: original PID 35652, Wait 0. `data/from-noop-preparation/freeze.json` binds all 607 stable recorded inputs and `tmp/host-from-noop.test` SHA-256 `9f0c686f26739b466a7a2fa5613f103d5f2041505da74196e9ddbe99ffd23447`.
+
+The sole third-round command was `tmp/host-from-noop.test -test.run=^TestCodexNestedFromNoopMatrixActor$ -test.v -test.timeout=65s`. Original parent PID 35714, Wait 0, group absent, no timeout, 2.403 seconds; 1 PASS / 0 FAIL / 0 SKIP for collecting five declared, owned refusal observations. Every original Handle/Wait/tree/pipe/deadline and source/protected/workspace/pin predicate passed. Model, account and turn calls remain zero.
+
+Original report: `data/from-noop-once/matrix/report.json`, SHA-256 `0930aaf8bac01711f8db0e46400825466adcd1a5371c5541be19c804c6b2f517`. Exact SBPL, single added-rule deltas, commands, outputs and metadata remain beside it. `variant-readback-audit.json` independently confirms each profile is noop plus precisely its sole added line and that P5 remains absent.
+
+The actor token was returned immediately after these observations. Per the ROOT stopping condition, rule trial-and-error ends here. No product guard was removed, no broader permission profile was proposed as a fix, and no native model run was started. The next decision belongs at the execution architecture boundary: a safe tool execution domain must avoid reapplying Seatbelt within this restricted worker inheritance chain while preserving all existing file and network protections. Its design, implementation and native Read acceptance are unfinished.

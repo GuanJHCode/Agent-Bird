@@ -69,6 +69,9 @@ func codexNestedClassify(observations []codexNestedObservation) string {
 	if len(observations) == 4 && observations[0].Label == "N0" && codexNestedAccepted(observations[0]) {
 		return "rule_isolation_observations_only"
 	}
+	if len(observations) == 5 && observations[0].Label == "P1" {
+		return "from_noop_observations_only"
+	}
 	if len(observations) != 3 || observations[0].Label != "A" || observations[1].Label != "B" || observations[2].Label != "C" || !codexNestedAccepted(observations[0]) || !codexNestedAccepted(observations[1]) {
 		return "inconclusive"
 	}
@@ -88,7 +91,25 @@ func codexNestedRefused(o codexNestedObservation) bool {
 
 // Tests-only single-variable variants. They may execute only the fixed cat
 // diagnostic below, and are never supplied to a Codex worker or product entry.
-func codexNestedOuterVariant(outer, label string) (string, string, error) {
+func codexNestedOuterVariant(outer, label, input string) (string, string, error) {
+	if strings.HasPrefix(label, "P") {
+		var added string
+		switch label {
+		case "P1":
+			added = "(deny file-link)"
+		case "P2":
+			added = "(deny file-write*)"
+		case "P3":
+			added = "(deny file-read* (literal " + quotedPath(filepath.Join(filepath.Dir(filepath.Dir(input)), "spool", "control-sentinel")) + "))"
+		case "P4":
+			added = "(deny network*)"
+		case "P5":
+			added = "(deny file-write* (literal " + quotedPath(filepath.Join(filepath.Dir(input), "never-created-write-target")) + "))"
+		default:
+			return "", "", errCodexStateFile
+		}
+		return codexNestedNoop + "\n" + added, added, nil
+	}
 	if label == "N0" {
 		return codexNestedNoop, "noop_control", nil
 	}
@@ -151,7 +172,7 @@ func codexNestedTail(cmd process.Command, label, inner, input string) (process.C
 		if codexDigest([]byte(inner)) != codexNestedInnerSHA {
 			return process.Command{}, errCodexStateFile
 		}
-	case "B", "N0", "N1", "N2", "N3":
+	case "B", "N0", "N1", "N2", "N3", "P1", "P2", "P3", "P4", "P5":
 		if inner != codexNestedNoop {
 			return process.Command{}, errCodexStateFile
 		}
@@ -160,9 +181,9 @@ func codexNestedTail(cmd process.Command, label, inner, input string) (process.C
 	}
 	if label != "A" {
 		outer := cmd.Args[1]
-		if strings.HasPrefix(label, "N") {
+		if strings.HasPrefix(label, "N") || strings.HasPrefix(label, "P") {
 			var err error
-			outer, _, err = codexNestedOuterVariant(outer, label)
+			outer, _, err = codexNestedOuterVariant(outer, label, input)
 			if err != nil {
 				return process.Command{}, err
 			}
@@ -210,15 +231,25 @@ func codexNestedRunCase(parent context.Context, cmd process.Command, label, prof
 		o.StartError = "preflight_rejected"
 		return o
 	}
-	if strings.HasPrefix(label, "N") {
-		variant, removed, err := codexNestedOuterVariant(originalOuter, label)
+	if strings.HasPrefix(label, "N") || strings.HasPrefix(label, "P") {
+		variant, removed, err := codexNestedOuterVariant(originalOuter, label, input)
 		if err != nil || variant != cmd.Args[1] {
 			o.StartError = "variant_rejected"
 			return o
 		}
-		difference, _ := json.MarshalIndent(map[string]string{"original_sha256": codexDigest([]byte(originalOuter)), "variant_sha256": codexDigest([]byte(variant)), "removed_rule": removed}, "", "  ")
+		deltaKey := "removed_rule"
+		if strings.HasPrefix(label, "P") {
+			originalOuter, deltaKey = codexNestedNoop, "added_rule"
+		}
+		difference, _ := json.MarshalIndent(map[string]string{"original_sha256": codexDigest([]byte(originalOuter)), "variant_sha256": codexDigest([]byte(variant)), deltaKey: removed}, "", "  ")
 		if codexActorWriteFile(filepath.Join(directory, "outer-original.sbpl"), []byte(originalOuter), os.O_EXCL) != nil || codexActorWriteFile(filepath.Join(directory, "outer-variant.sbpl"), []byte(variant), os.O_EXCL) != nil || codexActorWriteFile(filepath.Join(directory, "rule-difference.json"), append(difference, '\n'), os.O_EXCL) != nil {
 			o.StartError = "variant_evidence_failed"
+			return o
+		}
+	}
+	if label == "P5" {
+		if _, err := os.Lstat(filepath.Join(filepath.Dir(input), "never-created-write-target")); !os.IsNotExist(err) {
+			o.StartError = "absent_target_preflight"
 			return o
 		}
 	}
@@ -290,6 +321,10 @@ func codexNestedRunCase(parent context.Context, cmd process.Command, label, prof
 	}
 	after, snapshotErr := codexSandboxSnapshot(preserved)
 	o.ProtectedUnchanged = snapshotErr == nil && reflect.DeepEqual(before, after)
+	if label == "P5" {
+		_, err := os.Lstat(filepath.Join(filepath.Dir(input), "never-created-write-target"))
+		o.ProtectedUnchanged = o.ProtectedUnchanged && os.IsNotExist(err)
+	}
 	o.ExecutablePins = codexNestedPins(caseCtx, pins)
 	o.WithinDeadline = caseCtx.Err() == nil && time.Now().Before(deadline)
 	o.ElapsedMS = time.Since(start).Milliseconds()
@@ -302,14 +337,19 @@ func codexNestedRunCase(parent context.Context, cmd process.Command, label, prof
 
 // Explicit double opt-in. Default test runs do not execute OS helpers.
 func TestCodexNestedSandboxMatrixActor(t *testing.T) {
-	codexNestedSandboxMatrix(t, false)
+	codexNestedSandboxMatrix(t, "readonly")
 }
 
 func TestCodexNestedRuleIsolationMatrixActor(t *testing.T) {
-	codexNestedSandboxMatrix(t, true)
+	codexNestedSandboxMatrix(t, "remove_rules")
 }
 
-func codexNestedSandboxMatrix(t *testing.T, ruleIsolation bool) {
+func TestCodexNestedFromNoopMatrixActor(t *testing.T) {
+	codexNestedSandboxMatrix(t, "add_from_noop")
+}
+
+func codexNestedSandboxMatrix(t *testing.T, mode string) {
+	ruleIsolation := mode != "readonly"
 	if os.Getenv("C06_NESTED_OPT_IN") != codexNestedOptIn || os.Getenv("C06_NESTED_EVIDENCE_DIR") == "" {
 		t.Skip("explicit ROOT-owned no-model matrix only")
 	}
@@ -332,6 +372,9 @@ func codexNestedSandboxMatrix(t *testing.T, ruleIsolation bool) {
 		report := map[string]any{"version": 1, "phase": phase, "classification": codexNestedClassify(observations), "failed": t.Failed(), "cases": observations, "snapshot_before": before, "snapshot_after": after, "inner_sha256": codexNestedInnerSHA, "inner_source_scope": "fixed_upstream_legacy_readonly_composition_not_historical_profile_capture", "native_model_calls": 0, "native_turns": 0, "provider_executed": false, "public_entry": false, "rule_isolation": ruleIsolation, "executable_pins": pins}
 		if ruleIsolation {
 			report["inner_sha256"], report["inner_source_scope"] = codexDigest([]byte(codexNestedNoop)), "fixed_noop_rule_isolation_control"
+		}
+		if mode == "add_from_noop" {
+			report["reused_positive_control"] = map[string]string{"source": "data/rule-isolation-once/matrix/report.json#N0", "report_sha256": "d228e739996dacbe0e59e7a6d8402bf97b484a7e2b08b396c4a0a5e0b947f440", "scope": "same_explicit_synthetic_environment_shape_and_original_launcher_with_new_owned_fixture_paths"}
 		}
 		body, _ := json.MarshalIndent(report, "", "  ")
 		if codexActorWriteFile(filepath.Join(base, "report.json"), append(body, '\n'), os.O_EXCL) != nil {
@@ -405,6 +448,9 @@ func codexNestedSandboxMatrix(t *testing.T, ruleIsolation bool) {
 	if ruleIsolation {
 		labels = []string{"N0", "N1", "N2", "N3"}
 	}
+	if mode == "add_from_noop" {
+		labels = []string{"P1", "P2", "P3", "P4", "P5"}
+	}
 	for _, label := range labels {
 		phase = label
 		directory := filepath.Join(base, label)
@@ -456,7 +502,7 @@ func TestCodexNestedTailPreservesActualBuilderScope(t *testing.T) {
 	}
 	for _, label := range []string{"N0", "N1", "N2", "N3"} {
 		out, err := codexNestedTail(cmd, label, codexNestedNoop, input)
-		variant, _, variantErr := codexNestedOuterVariant(cmd.Args[1], label)
+		variant, _, variantErr := codexNestedOuterVariant(cmd.Args[1], label, input)
 		if err != nil || variantErr != nil || out.Args[1] != variant || !reflect.DeepEqual(cmd.Args, original) || !reflect.DeepEqual(out.Env, cmd.Env) || out.Dir != cmd.Dir || out.PinnedPath != cmd.PinnedPath || out.PinnedSHA256 != cmd.PinnedSHA256 {
 			t.Fatal("rule variant changed an unrelated command boundary")
 		}
