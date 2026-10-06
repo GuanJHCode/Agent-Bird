@@ -9,6 +9,8 @@ import (
 	"math"
 )
 
+const OriginalOwnerWireLimit = OriginalOwnerEnvelopeLimit - 256
+
 // OwnerCommand is a strict discriminated union. The entire launch (including
 // all dependency captures) is signed together with its exact control permit.
 // A transport forwards this object without acquiring business authority.
@@ -28,7 +30,7 @@ type OwnerTerminal struct {
 func ownerRawSHA(raw []byte) string { v := sha256.Sum256(raw); return hex.EncodeToString(v[:]) }
 func ownerWireSize(v any) bool {
 	raw, err := json.Marshal(v)
-	return err == nil && len(raw) <= OriginalOwnerEnvelopeLimit-256
+	return err == nil && len(raw) <= OriginalOwnerWireLimit
 }
 func ownerPrivateKeyValid(key ed25519.PrivateKey) bool {
 	return len(key) == ed25519.PrivateKeySize && bytes.Equal(ed25519.NewKeyFromSeed(key[:ed25519.SeedSize]), key)

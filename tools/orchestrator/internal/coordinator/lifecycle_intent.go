@@ -171,6 +171,9 @@ func (s *Server) beginLifecycleExit() error {
 }
 
 func sendHostDisposition(session *hostSession, epoch uint64, reason string) error {
+	if session.ownerPermit != nil {
+		return session.sendOwnerCommand("terminal", session.id+":disposition", contract.OwnerTerminal{Reason: reason})
+	}
 	value := contract.NewHostDisposition(session.hello, epoch, reason)
 	body, _ := json.Marshal(value)
 	// A peer that stopped reading cannot prevent a bounded lifecycle transition.

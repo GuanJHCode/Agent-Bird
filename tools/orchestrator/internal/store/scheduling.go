@@ -173,7 +173,7 @@ func (d *DB) ClaimReady(ctx context.Context, hostID string, epoch uint64, slots 
 	if err = d.bindContinuationGrant(ctx, tx, &command, false); err != nil {
 		return rollback(err)
 	}
-	if err = validateLaunchSize(command); err != nil {
+	if err = validateHostLaunchSize(ctx, tx, command); err != nil {
 		return rollback(err)
 	}
 	if err = d.persistCandidateGrant(ctx, tx, &command); err != nil {
@@ -248,7 +248,7 @@ func (d *DB) PendingLaunches(ctx context.Context, hostID string, epoch uint64) (
 		if err = d.bindContinuationGrant(ctx, tx, command, true); err != nil {
 			return rollback(err)
 		}
-		if err = validateLaunchSize(*command); err != nil {
+		if err = validateHostLaunchSize(ctx, tx, *command); err != nil {
 			return rollback(err)
 		}
 	}

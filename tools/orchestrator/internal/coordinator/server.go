@@ -3,6 +3,7 @@ package coordinator
 import (
 	"bytes"
 	"context"
+	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -180,12 +181,16 @@ type ErrorResponse struct {
 }
 
 type hostSession struct {
-	id         string
-	hello      contract.HostHello
-	conn       net.Conn
-	mu         sync.Mutex
-	dispatchMu sync.Mutex
-	failed     bool // guarded by dispatchMu; a failed transport cannot claim again
+	ownerPermit     *contract.OwnerControlPermit // immutable before dispatch publication
+	ownerKey        ed25519.PrivateKey
+	helloRequestID  string
+	transportClosed atomic.Bool
+	id              string
+	hello           contract.HostHello
+	conn            net.Conn
+	mu              sync.Mutex
+	dispatchMu      sync.Mutex
+	failed          bool // guarded by dispatchMu; a failed transport cannot claim again
 }
 
 func (h *hostSession) send(message ipc.Envelope) error {
@@ -205,6 +210,14 @@ type Server struct {
 	mu                 sync.Mutex
 	hostRegistrationMu sync.Mutex
 	hosts              map[string]*hostSession
+	ownerTransports    map[string]*hostSession // pending and active, guarded by mu
+	ownerAdmission     chan struct{}
+	ownerRPCMu         sync.Mutex
+	ownerRPCs          map[net.Conn]struct{}
+	ownerRPCWG         sync.WaitGroup
+	ownerListener      net.Listener
+	ownerSocket        string
+	ownerAcceptDone    chan struct{}
 	inFlight           int
 	close              sync.Once
 	idleTimeout        time.Duration
@@ -309,7 +322,13 @@ func newServer(stateDir string, recovery bool) (*Server, error) {
 		_ = lock.Close()
 		return nil, err
 	}
-	server := &Server{ownerKeys: ownerKeys, stateDir: stateDir, socket: socket, epoch: lock.Epoch(), lock: lock, db: db, listener: listener, hosts: make(map[string]*hostSession), idleTimeout: 30 * time.Second, eventSignal: make(chan struct{}), bridgeConnections: make(map[net.Conn]struct{}), bridgeAdmission: make(chan struct{}, 32)}
+	server := &Server{ownerKeys: ownerKeys, stateDir: stateDir, socket: socket, epoch: lock.Epoch(), lock: lock, db: db, listener: listener, hosts: make(map[string]*hostSession), ownerTransports: make(map[string]*hostSession), idleTimeout: 30 * time.Second, eventSignal: make(chan struct{}), bridgeConnections: make(map[net.Conn]struct{}), bridgeAdmission: make(chan struct{}, 32)}
+	server.ownerAdmission = make(chan struct{}, 32)
+	server.ownerRPCs = make(map[net.Conn]struct{})
+	if err = server.startOriginalOwnerListener(); err != nil {
+		_ = server.Close()
+		return nil, err
+	}
 	if !recovery {
 		if err := clearGlobalRestartBlock(stateDir, lock.Epoch()); err != nil {
 			_ = server.Close()
@@ -320,8 +339,9 @@ func newServer(stateDir string, recovery bool) (*Server, error) {
 	return server, nil
 }
 
-func (s *Server) SocketPath() string { return s.socket }
-func (s *Server) Epoch() uint64      { return s.epoch }
+func (s *Server) SocketPath() string      { return s.socket }
+func (s *Server) Epoch() uint64           { return s.epoch }
+func (s *Server) OwnerSocketPath() string { return s.ownerSocket }
 
 func (s *Server) currentEventSignal() <-chan struct{} {
 	s.eventMu.Lock()
@@ -503,16 +523,33 @@ func (s *Server) Close() error {
 		_ = s.listener.Close()
 		s.closeBridgeConnections()
 		s.bridgeWG.Wait()
+		if s.ownerListener != nil {
+			_ = s.ownerListener.Close()
+			<-s.ownerAcceptDone
+		}
+		s.ownerRPCMu.Lock()
+		for conn := range s.ownerRPCs {
+			_ = conn.Close()
+		}
+		s.ownerRPCMu.Unlock()
+		s.ownerRPCWG.Wait()
 		s.mu.Lock()
 		for _, host := range s.hosts {
 			_ = host.conn.Close()
 		}
+		for _, host := range s.ownerTransports {
+			_ = host.conn.Close()
+		}
+		s.ownerTransports = nil
 		s.hosts = nil
 		s.mu.Unlock()
 		if err := s.listener.Close(); err != nil && !errors.Is(err, net.ErrClosed) {
 			result = err
 		}
 		_ = os.Remove(s.socket)
+		if s.ownerSocket != "" {
+			_ = os.Remove(s.ownerSocket)
+		}
 		if err := s.db.Close(); result == nil {
 			result = err
 		}
@@ -1048,6 +1085,15 @@ func (s *Server) handleHost(ctx context.Context, conn net.Conn, message ipc.Enve
 		_ = conn.Close()
 		return
 	}
+	mode, err := s.db.ExecutionOwnerMode(ctx, hello.LaunchID)
+	if err != nil {
+		_ = conn.Close()
+		return
+	}
+	if mode == "supervised-v1" {
+		s.handleOriginalOwnerTransport(ctx, conn, message, hello)
+		return
+	}
 	s.hostRegistrationMu.Lock()
 	if fenceErr := CheckRecoveryAllowed(s.stateDir, hello); fenceErr != nil {
 		s.hostRegistrationMu.Unlock()
@@ -1307,11 +1353,17 @@ func (s *Server) retireCompletedHosts() {
 }
 
 func sendLaunch(session *hostSession, epoch uint64, command contract.LaunchCommand) error {
+	if session.ownerPermit != nil {
+		return session.sendOwnerCommand("launch", command.CommandID, command)
+	}
 	body, _ := json.Marshal(command)
 	return session.send(ipc.Envelope{Version: ipc.Version, Kind: ipc.KindLaunch, RequestID: command.CommandID, Epoch: epoch, Payload: body})
 }
 
 func sendStop(session *hostSession, epoch uint64, command contract.StopCommand) error {
+	if session.ownerPermit != nil {
+		return session.sendOwnerCommand("stop", command.CommandID, command)
+	}
 	body, _ := json.Marshal(command)
 	return session.send(ipc.Envelope{Version: ipc.Version, Kind: ipc.KindStop, RequestID: command.CommandID, Epoch: epoch, Payload: body})
 }

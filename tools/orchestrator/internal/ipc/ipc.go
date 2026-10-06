@@ -18,6 +18,11 @@ const (
 type Kind string
 
 const (
+	KindOwnerHostPending   Kind = "owner_host_pending"
+	KindOwnerPrepare       Kind = "owner_prepare"
+	KindOwnerRPC           Kind = "original_owner_rpc"
+	KindOwnerChallenge     Kind = "original_owner_challenge"
+	KindOwnerCommand       Kind = "original_owner_command"
 	KindHostHello          Kind = "host_hello"
 	KindHostRecoveryScope  Kind = "host_recovery_scope"
 	KindHostReady          Kind = "host_ready"

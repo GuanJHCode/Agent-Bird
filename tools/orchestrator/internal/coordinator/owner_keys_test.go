@@ -148,7 +148,7 @@ func TestOriginalOwnerPrivateKeyAndCredentialGuards(t *testing.T) {
 				raw, _ := json.Marshal(value)
 				err = os.WriteFile(ownerCredentialPath(state, scope), append(raw, '\n'), 0600)
 			case "foreign_scope":
-				required[0].Intent.Scope.OwnerID = "other-owner"
+				required[0].Intent.Scope.OriginalOriginBirth = "other-origin-birth"
 			}
 			if err != nil {
 				t.Fatal(err)

@@ -11,6 +11,7 @@ import (
 // Store calls do not acquire Server/session locks. Reader-exit Close happens
 // before this lock chain so a blocked writer can release dispatchMu.
 func (s *Server) disconnectHost(session *hostSession) bool {
+	session.transportClosed.Store(true)
 	// Close this reader's own transport before waiting for the dispatch lock.
 	// An in-flight send holds that lock; Close must first unblock its I/O.
 	// net.Conn permits concurrent Close/read/write. No failed state is read here.
@@ -30,11 +31,17 @@ func (s *Server) disconnectHostLocked(session *hostSession) bool {
 		return false
 	}
 	session.failed = true
+	session.transportClosed.Store(true)
 	_ = session.conn.Close()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.hosts[session.id] != session {
 		return false
+	}
+	if session.ownerPermit != nil {
+		err := s.db.FenceOriginalOwnerTransport(context.Background(), session.hello, s.epoch)
+		delete(s.hosts, session.id)
+		return err == nil
 	}
 	err := s.db.MarkHostOffline(context.Background(), session.id, s.epoch)
 	delete(s.hosts, session.id)

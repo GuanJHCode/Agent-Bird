@@ -273,6 +273,13 @@ func (k *originalOwnerKeys) aead() (cipher.AEAD, error) {
 func (k *originalOwnerKeys) credentialAAD(scopeHash string) []byte {
 	return []byte("original-owner-launch-credential-v1\x00" + k.id + "\x00" + scopeHash)
 }
+
+// Prepare allocates owner ID/incarnation only after this immutable launch
+// credential has been persisted. Normalize those two non-launch fields.
+func ownerCredentialScopeHash(scope contract.OriginalOwnerScope) (string, error) {
+	scope.OwnerID, scope.Incarnation = "launch-credential", 1
+	return contract.OriginalOwnerScopeSHA256(scope)
+}
 func (k *originalOwnerKeys) saveLaunchCredential(state string, scope contract.OriginalOwnerScope, token string) error {
 	if token == "" || len(token) > 1024 {
 		return store.CodeError("original_owner_credential_invalid")
@@ -290,7 +297,7 @@ func (k *originalOwnerKeys) saveLaunchCredential(state string, scope contract.Or
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	scopeHash, err := contract.OriginalOwnerScopeSHA256(scope)
+	scopeHash, err := ownerCredentialScopeHash(scope)
 	if err != nil {
 		return err
 	}
@@ -315,7 +322,7 @@ func (k *originalOwnerKeys) readLaunchCredential(state string, scope contract.Or
 		return "", store.CodeError("original_owner_credential_invalid")
 	}
 	canonical, _ := json.Marshal(value)
-	hash, err := contract.OriginalOwnerScopeSHA256(scope)
+	hash, err := ownerCredentialScopeHash(scope)
 	if err != nil || hash != value.ScopeSHA256 || !bytes.Equal(append(canonical, '\n'), body) {
 		return "", store.CodeError("original_owner_credential_invalid")
 	}

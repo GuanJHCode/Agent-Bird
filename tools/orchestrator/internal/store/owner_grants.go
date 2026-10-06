@@ -53,7 +53,7 @@ func (d *DB) ValidateOwnerGrant(ctx context.Context, g OwnerGrant) error {
 // Registered Host ancestry closes the interval before the first spawned event.
 // Historical identities remain excluded across rebind; PID reuse has a new birth.
 func (d *DB) IsWorkerAncestry(ctx context.Context, ancestors map[int]string) (bool, error) {
-	rows, err := d.sql.QueryContext(ctx, `SELECT pid,birth FROM runtime_hosts UNION SELECT DISTINCT json_extract(body_json,'$.process.pid'),json_extract(body_json,'$.process.birth') FROM runtime_events WHERE json_extract(body_json,'$.process.pid') IS NOT NULL`)
+	rows, err := d.sql.QueryContext(ctx, workerAncestrySQL)
 	if err != nil {
 		return false, err
 	}
