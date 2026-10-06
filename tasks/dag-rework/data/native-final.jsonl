@@ -1,0 +1,12 @@
+{"Time":"2026-10-06T18:01:40.57719+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator"}
+{"Time":"2026-10-06T18:01:41.265068+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Test":"TestCLIReworkCandidateDevelopmentDAG"}
+{"Time":"2026-10-06T18:01:41.265153+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Test":"TestCLIReworkCandidateDevelopmentDAG","Output":"=== RUN   TestCLIReworkCandidateDevelopmentDAG\n"}
+{"Time":"2026-10-06T18:01:50.269998+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Test":"TestCLIReworkCandidateDevelopmentDAG","Output":"--- PASS: TestCLIReworkCandidateDevelopmentDAG (9.00s)\n"}
+{"Time":"2026-10-06T18:01:50.270113+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Test":"TestCLIReworkCandidateDevelopmentDAG","Elapsed":9}
+{"Time":"2026-10-06T18:01:50.270151+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Test":"TestCLIVersionedDAGRework"}
+{"Time":"2026-10-06T18:01:50.270162+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Test":"TestCLIVersionedDAGRework","Output":"=== RUN   TestCLIVersionedDAGRework\n"}
+{"Time":"2026-10-06T18:02:00.574514+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Test":"TestCLIVersionedDAGRework","Output":"--- PASS: TestCLIVersionedDAGRework (10.30s)\n"}
+{"Time":"2026-10-06T18:02:00.574641+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Test":"TestCLIVersionedDAGRework","Elapsed":10.3}
+{"Time":"2026-10-06T18:02:00.574656+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Output":"PASS\n"}
+{"Time":"2026-10-06T18:02:00.576287+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Output":"ok  \tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator\t19.999s\n"}
+{"Time":"2026-10-06T18:02:00.576304+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Elapsed":19.999}

@@ -1,0 +1,121 @@
+=== RUN   TestDAGReworkRejectsUnknownVersionBeforeStateChange
+=== RUN   TestDAGReworkRejectsUnknownVersionBeforeStateChange/-1
+=== RUN   TestDAGReworkRejectsUnknownVersionBeforeStateChange/2
+--- PASS: TestDAGReworkRejectsUnknownVersionBeforeStateChange (0.12s)
+    --- PASS: TestDAGReworkRejectsUnknownVersionBeforeStateChange/-1 (0.07s)
+    --- PASS: TestDAGReworkRejectsUnknownVersionBeforeStateChange/2 (0.05s)
+=== RUN   TestDAGReworkVersionOneCannotFallBackToLegacyProof
+--- PASS: TestDAGReworkVersionOneCannotFallBackToLegacyProof (0.05s)
+=== RUN   TestDAGReworkRevisesOnlyDependentClosure
+--- PASS: TestDAGReworkRevisesOnlyDependentClosure (0.08s)
+=== RUN   TestDAGReworkCompletesNewVectorAndReplays
+=== RUN   TestDAGReworkCompletesNewVectorAndReplays/claude-code/claude-code
+=== RUN   TestDAGReworkCompletesNewVectorAndReplays/claude-code/antigravity-cli
+=== RUN   TestDAGReworkCompletesNewVectorAndReplays/antigravity-cli/claude-code
+=== RUN   TestDAGReworkCompletesNewVectorAndReplays/antigravity-cli/antigravity-cli
+--- PASS: TestDAGReworkCompletesNewVectorAndReplays (1.43s)
+    --- PASS: TestDAGReworkCompletesNewVectorAndReplays/claude-code/claude-code (0.37s)
+    --- PASS: TestDAGReworkCompletesNewVectorAndReplays/claude-code/antigravity-cli (0.36s)
+    --- PASS: TestDAGReworkCompletesNewVectorAndReplays/antigravity-cli/claude-code (0.36s)
+    --- PASS: TestDAGReworkCompletesNewVectorAndReplays/antigravity-cli/antigravity-cli (0.34s)
+=== RUN   TestDAGReworkMissingBindingNeverRepairs
+=== RUN   TestDAGReworkMissingBindingNeverRepairs/root
+=== RUN   TestDAGReworkMissingBindingNeverRepairs/non_source_descendant
+=== RUN   TestDAGReworkMissingBindingNeverRepairs/consumed
+--- PASS: TestDAGReworkMissingBindingNeverRepairs (0.23s)
+    --- PASS: TestDAGReworkMissingBindingNeverRepairs/root (0.07s)
+    --- PASS: TestDAGReworkMissingBindingNeverRepairs/non_source_descendant (0.07s)
+    --- PASS: TestDAGReworkMissingBindingNeverRepairs/consumed (0.09s)
+=== RUN   TestDAGReworkBoundaryAndProofDriftRefused
+=== RUN   TestDAGReworkBoundaryAndProofDriftRefused/boundary_payload
+=== RUN   TestDAGReworkBoundaryAndProofDriftRefused/closure_payload
+=== RUN   TestDAGReworkBoundaryAndProofDriftRefused/dependencies
+=== RUN   TestDAGReworkBoundaryAndProofDriftRefused/capture
+--- PASS: TestDAGReworkBoundaryAndProofDriftRefused (0.28s)
+    --- PASS: TestDAGReworkBoundaryAndProofDriftRefused/boundary_payload (0.07s)
+    --- PASS: TestDAGReworkBoundaryAndProofDriftRefused/closure_payload (0.07s)
+    --- PASS: TestDAGReworkBoundaryAndProofDriftRefused/dependencies (0.07s)
+    --- PASS: TestDAGReworkBoundaryAndProofDriftRefused/capture (0.07s)
+=== RUN   TestDAGReworkNonContentDependencyUsesOriginalCapture
+--- PASS: TestDAGReworkNonContentDependencyUsesOriginalCapture (0.09s)
+=== RUN   TestDAGReworkRejectsProviderOrScopeExpansionAtomically
+=== RUN   TestDAGReworkRejectsProviderOrScopeExpansionAtomically/disabled
+=== RUN   TestDAGReworkRejectsProviderOrScopeExpansionAtomically/codex
+=== RUN   TestDAGReworkRejectsProviderOrScopeExpansionAtomically/write_reviewer
+=== RUN   TestDAGReworkRejectsProviderOrScopeExpansionAtomically/unpinned
+=== RUN   TestDAGReworkRejectsProviderOrScopeExpansionAtomically/second_producer
+=== RUN   TestDAGReworkRejectsProviderOrScopeExpansionAtomically/integrated
+=== RUN   TestDAGReworkRejectsProviderOrScopeExpansionAtomically/oversize
+--- PASS: TestDAGReworkRejectsProviderOrScopeExpansionAtomically (0.36s)
+    --- PASS: TestDAGReworkRejectsProviderOrScopeExpansionAtomically/disabled (0.05s)
+    --- PASS: TestDAGReworkRejectsProviderOrScopeExpansionAtomically/codex (0.05s)
+    --- PASS: TestDAGReworkRejectsProviderOrScopeExpansionAtomically/write_reviewer (0.05s)
+    --- PASS: TestDAGReworkRejectsProviderOrScopeExpansionAtomically/unpinned (0.05s)
+    --- PASS: TestDAGReworkRejectsProviderOrScopeExpansionAtomically/second_producer (0.05s)
+    --- PASS: TestDAGReworkRejectsProviderOrScopeExpansionAtomically/integrated (0.05s)
+    --- PASS: TestDAGReworkRejectsProviderOrScopeExpansionAtomically/oversize (0.05s)
+=== RUN   TestDAGReworkTargetDriftRejectsAcceptWithoutReleasing
+=== RUN   TestDAGReworkTargetDriftRejectsAcceptWithoutReleasing/common_dir
+=== RUN   TestDAGReworkTargetDriftRejectsAcceptWithoutReleasing/ref
+=== RUN   TestDAGReworkTargetDriftRejectsAcceptWithoutReleasing/directory_identity
+=== RUN   TestDAGReworkTargetDriftRejectsAcceptWithoutReleasing/root_common_dir
+--- PASS: TestDAGReworkTargetDriftRejectsAcceptWithoutReleasing (0.63s)
+    --- PASS: TestDAGReworkTargetDriftRejectsAcceptWithoutReleasing/common_dir (0.18s)
+    --- PASS: TestDAGReworkTargetDriftRejectsAcceptWithoutReleasing/ref (0.17s)
+    --- PASS: TestDAGReworkTargetDriftRejectsAcceptWithoutReleasing/directory_identity (0.18s)
+    --- PASS: TestDAGReworkTargetDriftRejectsAcceptWithoutReleasing/root_common_dir (0.09s)
+=== RUN   TestDAGReworkLegacyPositiveHoldAndRetirement
+=== RUN   TestDAGReworkLegacyPositiveHoldAndRetirement/claim
+=== RUN   TestDAGReworkLegacyPositiveHoldAndRetirement/cancel
+=== RUN   TestDAGReworkLegacyPositiveHoldAndRetirement/disable
+--- PASS: TestDAGReworkLegacyPositiveHoldAndRetirement (0.23s)
+    --- PASS: TestDAGReworkLegacyPositiveHoldAndRetirement/claim (0.09s)
+    --- PASS: TestDAGReworkLegacyPositiveHoldAndRetirement/cancel (0.07s)
+    --- PASS: TestDAGReworkLegacyPositiveHoldAndRetirement/disable (0.07s)
+=== RUN   TestDAGReworkQuotaShortfallRollsBackWholeClosure
+--- PASS: TestDAGReworkQuotaShortfallRollsBackWholeClosure (0.09s)
+=== RUN   TestDAGReworkTargetReservationUsesRepositoryAndRef
+=== RUN   TestDAGReworkTargetReservationUsesRepositoryAndRef/ready_alias
+=== RUN   TestDAGReworkTargetReservationUsesRepositoryAndRef/unknown_alias
+=== RUN   TestDAGReworkTargetReservationUsesRepositoryAndRef/unknown_unresolved
+=== RUN   TestDAGReworkTargetReservationUsesRepositoryAndRef/different_ref
+--- PASS: TestDAGReworkTargetReservationUsesRepositoryAndRef (0.25s)
+    --- PASS: TestDAGReworkTargetReservationUsesRepositoryAndRef/ready_alias (0.06s)
+    --- PASS: TestDAGReworkTargetReservationUsesRepositoryAndRef/unknown_alias (0.06s)
+    --- PASS: TestDAGReworkTargetReservationUsesRepositoryAndRef/unknown_unresolved (0.06s)
+    --- PASS: TestDAGReworkTargetReservationUsesRepositoryAndRef/different_ref (0.07s)
+=== RUN   TestDAGReworkDispatchKeepsTargetReservationThroughUnknown
+--- PASS: TestDAGReworkDispatchKeepsTargetReservationThroughUnknown (0.51s)
+=== RUN   TestDAGReworkRejectsTwoIntegrationsForSameTarget
+--- PASS: TestDAGReworkRejectsTwoIntegrationsForSameTarget (0.05s)
+=== RUN   TestDAGReworkLaterLegacyDecisionCannotPoisonTargetPromise
+=== RUN   TestDAGReworkLaterLegacyDecisionCannotPoisonTargetPromise/intact
+=== RUN   TestDAGReworkLaterLegacyDecisionCannotPoisonTargetPromise/remove_version
+=== RUN   TestDAGReworkLaterLegacyDecisionCannotPoisonTargetPromise/bad_json
+=== RUN   TestDAGReworkLaterLegacyDecisionCannotPoisonTargetPromise/task_payload
+--- PASS: TestDAGReworkLaterLegacyDecisionCannotPoisonTargetPromise (0.38s)
+    --- PASS: TestDAGReworkLaterLegacyDecisionCannotPoisonTargetPromise/intact (0.13s)
+    --- PASS: TestDAGReworkLaterLegacyDecisionCannotPoisonTargetPromise/remove_version (0.07s)
+    --- PASS: TestDAGReworkLaterLegacyDecisionCannotPoisonTargetPromise/bad_json (0.07s)
+    --- PASS: TestDAGReworkLaterLegacyDecisionCannotPoisonTargetPromise/task_payload (0.11s)
+=== RUN   TestDAGReworkLegacyDifferentTargetRemainsIndependent
+=== RUN   TestDAGReworkLegacyDifferentTargetRemainsIndependent/v0
+=== RUN   TestDAGReworkLegacyDifferentTargetRemainsIndependent/v1
+--- PASS: TestDAGReworkLegacyDifferentTargetRemainsIndependent (0.76s)
+    --- PASS: TestDAGReworkLegacyDifferentTargetRemainsIndependent/v0 (0.38s)
+    --- PASS: TestDAGReworkLegacyDifferentTargetRemainsIndependent/v1 (0.38s)
+=== RUN   TestDAGReworkMalformedMarkerCannotEvadeBindingGuard
+=== RUN   TestDAGReworkMalformedMarkerCannotEvadeBindingGuard/remove_version
+=== RUN   TestDAGReworkMalformedMarkerCannotEvadeBindingGuard/bad_json
+--- PASS: TestDAGReworkMalformedMarkerCannotEvadeBindingGuard (0.13s)
+    --- PASS: TestDAGReworkMalformedMarkerCannotEvadeBindingGuard/remove_version (0.07s)
+    --- PASS: TestDAGReworkMalformedMarkerCannotEvadeBindingGuard/bad_json (0.06s)
+=== RUN   TestDAGReworkCorruptPromiseCannotDisappearFromDispatch
+=== RUN   TestDAGReworkCorruptPromiseCannotDisappearFromDispatch/remove_version
+=== RUN   TestDAGReworkCorruptPromiseCannotDisappearFromDispatch/bad_json
+=== RUN   TestDAGReworkCorruptPromiseCannotDisappearFromDispatch/task_payload
+--- PASS: TestDAGReworkCorruptPromiseCannotDisappearFromDispatch (0.30s)
+    --- PASS: TestDAGReworkCorruptPromiseCannotDisappearFromDispatch/remove_version (0.09s)
+    --- PASS: TestDAGReworkCorruptPromiseCannotDisappearFromDispatch/bad_json (0.09s)
+    --- PASS: TestDAGReworkCorruptPromiseCannotDisappearFromDispatch/task_payload (0.12s)
+PASS

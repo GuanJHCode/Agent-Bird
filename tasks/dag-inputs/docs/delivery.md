@@ -34,3 +34,7 @@ Integrated product `7e87e0e` / evidence `f587b18` retained the earlier retry/bud
 The integrated Linux arm64 Store binary ran six selected top-level tests / 24 named results, all PASS, zero FAIL/SKIP, in the existing isolated non-root Docker environment. This covers actual SQLite capture/reopen, migration/rollback, immutable/corrupt/drift rejection, one-byte quota/disk/frame rollback, duplicate plan admission and retry-copy evidence. Binary SHA256 `07bdeb4f4bf53313fbace37ad51d2d64e355ca1cf96ca739af6d99eba0830831`; raw SHA256 `fff20df9be403de44deaa6ddc4b432bd52c272b1b82e6d90e9a351926b00666e`. Owned CID `5460726027df25e78d95f82fd59d2f7170e0a1e3ba653aef69de40a257fecde3` is absent, exit0, no timeout/forced cleanup. Exact commands and restrictions are in `linux-capture-receipt.json`; reproduction is `../scripts/run-linux-capture.py`.
 
 This Linux check adds native database/filesystem evidence only. Provider execution and install support remain gated.
+
+## Subsequent closure milestone
+
+Task8 now supplies explicitly versioned single-producer dependent-closure rework on this vector contract; version 0 still refuses branched rework. See [Task8 scope and verification](../../dag-rework/docs/delivery.md). The original Task5 evidence above retains its original scope.

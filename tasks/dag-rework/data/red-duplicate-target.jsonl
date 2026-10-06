@@ -1,0 +1,9 @@
+{"Time":"2026-10-06T17:38:37.481638+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"}
+{"Time":"2026-10-06T17:38:38.110838+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestDAGReworkRejectsTwoIntegrationsForSameTarget"}
+{"Time":"2026-10-06T17:38:38.110892+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestDAGReworkRejectsTwoIntegrationsForSameTarget","Output":"=== RUN   TestDAGReworkRejectsTwoIntegrationsForSameTarget\n"}
+{"Time":"2026-10-06T17:38:38.179376+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestDAGReworkRejectsTwoIntegrationsForSameTarget","Output":"    dag_rework_test.go:658: same target promised twice \u003cnil\u003e\n"}
+{"Time":"2026-10-06T17:38:38.182296+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestDAGReworkRejectsTwoIntegrationsForSameTarget","Output":"--- FAIL: TestDAGReworkRejectsTwoIntegrationsForSameTarget (0.07s)\n"}
+{"Time":"2026-10-06T17:38:38.182313+08:00","Action":"fail","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestDAGReworkRejectsTwoIntegrationsForSameTarget","Elapsed":0.07}
+{"Time":"2026-10-06T17:38:38.182335+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Output":"FAIL\n"}
+{"Time":"2026-10-06T17:38:38.183012+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Output":"FAIL\tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store\t0.701s\n"}
+{"Time":"2026-10-06T17:38:38.183029+08:00","Action":"fail","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Elapsed":0.701}

@@ -1,0 +1,33 @@
+{
+  "source_commit": "44dd1e3ef58831feced081f5b8ccec9de769f4b9",
+  "source_dirty": "",
+  "command": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+    "test",
+    "-json",
+    "-count=1",
+    "-p",
+    "1",
+    "./cmd/orchestrator",
+    "-run",
+    "^(TestCLIVersionedDAGRework|TestCLIReworkCandidateDevelopmentDAG)$",
+    "-timeout=180s"
+  ],
+  "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/dag-rework/tools/orchestrator",
+  "exit": 0,
+  "seconds": 22.997822999954224,
+  "sha256": "0a43b46d282d4edf0552027d538926e9c1d367d4d8671a4e726a7d83392b741b",
+  "named": {
+    "pass": 2
+  },
+  "top": {
+    "pass": 2
+  },
+  "packages": [
+    {
+      "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+      "Action": "pass",
+      "Elapsed": 19.999
+    }
+  ]
+}

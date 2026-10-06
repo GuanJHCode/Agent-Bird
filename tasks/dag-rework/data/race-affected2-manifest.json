@@ -1,0 +1,34 @@
+{
+  "source_commit": "44dd1e3ef58831feced081f5b8ccec9de769f4b9",
+  "source_dirty": "",
+  "command": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+    "test",
+    "-json",
+    "-count=1",
+    "-p",
+    "1",
+    "-race",
+    "./internal/store",
+    "-timeout=12m",
+    "-run",
+    "^(TestDAGReworkRejectsUnknownVersionBeforeStateChange|TestDAGReworkVersionOneCannotFallBackToLegacyProof|TestDAGReworkRevisesOnlyDependentClosure|TestDAGReworkCompletesNewVectorAndReplays|TestDAGReworkMissingBindingNeverRepairs|TestDAGReworkBoundaryAndProofDriftRefused|TestDAGReworkNonContentDependencyUsesOriginalCapture|TestDAGReworkRejectsProviderOrScopeExpansionAtomically|TestDAGReworkTargetDriftRejectsAcceptWithoutReleasing|TestDAGReworkLegacyPositiveHoldAndRetirement|TestDAGReworkQuotaShortfallRollsBackWholeClosure|TestDAGReworkTargetReservationUsesRepositoryAndRef|TestDAGReworkDispatchKeepsTargetReservationThroughUnknown|TestDAGReworkRejectsTwoIntegrationsForSameTarget|TestDAGReworkLaterLegacyDecisionCannotPoisonTargetPromise|TestDAGReworkLegacyDifferentTargetRemainsIndependent|TestDAGReworkMalformedMarkerCannotEvadeBindingGuard|TestDAGReworkCorruptPromiseCannotDisappearFromDispatch|TestReworkRevisesWholeCandidateChainAndReplaysWithoutRepeating|TestReworkRejectsUnsafeOrStaleChangesAtomically|TestReworkLaunchReplayBindsRevisionPayload|TestReworkDecisionCannotReplayAsOrdinaryRetry|TestReworkFencesOldHostEventsButKeepsDurableReplay|TestReworkRejectsUnassociatedOldQuestion|TestReworkRevokesNewReportsButRetainsExactDurableACK|TestSubmitCannotForgeReworkLineage|TestReworkCannotQueueOversizedWorkerGrant|TestReviewCannotInjectOversizedDecisionIntoNextGrant|TestOversizedLaunchRollsBackReservation|TestReworkLateOldHostEventIsHistoricalAndACKable|TestDecisionBindingsReworkSuccessorsConsumeTheirLocalOrdinals|TestDecisionBindingsContinuationKeepsConsumedAttemptAndPromise|TestDecisionBindingsConcurrentDecisionAndClaimExactlyOnce|TestDecisionBindingsCASFailureRollsBackAttemptAndReservation|TestDecisionBindingsQuotaChecksCombinedRowsAndConsumeGrowth|TestTaskLocalOrdinalOverflowAndGapDoNotGrantCapacity|TestDecisionBindingV12MigrationKeepsHistoricalReceiptWithoutBackfill|TestDecisionBindingV12MigrationDDLFailureRollsBack|TestLegacyDecisionMalformedPayloadCannotBecomeInitialAdmission|TestDecisionBindingsQuotaChargesUTF8BytesInBothScopes)$"
+  ],
+  "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/dag-rework/tools/orchestrator",
+  "exit": 0,
+  "seconds": 200.03233313560486,
+  "sha256": "c5188cc897c7bced6425a3c140e7dae8709a3ef23555a17f10171a1e2739e5f4",
+  "named": {
+    "pass": 105
+  },
+  "top": {
+    "pass": 40
+  },
+  "packages": [
+    {
+      "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+      "Action": "pass",
+      "Elapsed": 195.726
+    }
+  ]
+}

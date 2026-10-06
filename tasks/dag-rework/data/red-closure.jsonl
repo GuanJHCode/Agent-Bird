@@ -1,0 +1,9 @@
+{"Time":"2026-10-06T17:08:13.681419+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"}
+{"Time":"2026-10-06T17:08:14.316132+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestDAGReworkRevisesOnlyDependentClosure"}
+{"Time":"2026-10-06T17:08:14.31618+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestDAGReworkRevisesOnlyDependentClosure","Output":"=== RUN   TestDAGReworkRevisesOnlyDependentClosure\n"}
+{"Time":"2026-10-06T17:08:14.368108+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestDAGReworkRevisesOnlyDependentClosure","Output":"    dag_rework_test.go:83: explicit closure authorization refused: rework_chain_unsupported\n"}
+{"Time":"2026-10-06T17:08:14.37043+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestDAGReworkRevisesOnlyDependentClosure","Output":"--- FAIL: TestDAGReworkRevisesOnlyDependentClosure (0.05s)\n"}
+{"Time":"2026-10-06T17:08:14.370447+08:00","Action":"fail","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestDAGReworkRevisesOnlyDependentClosure","Elapsed":0.05}
+{"Time":"2026-10-06T17:08:14.370474+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Output":"FAIL\n"}
+{"Time":"2026-10-06T17:08:14.371101+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Output":"FAIL\tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store\t0.689s\n"}
+{"Time":"2026-10-06T17:08:14.371125+08:00","Action":"fail","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Elapsed":0.69}

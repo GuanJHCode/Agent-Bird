@@ -1,0 +1,33 @@
+{
+  "source_commit": "44dd1e3ef58831feced081f5b8ccec9de769f4b9",
+  "source_dirty": "",
+  "command": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+    "test",
+    "-json",
+    "-count=1",
+    "-p",
+    "1",
+    "./internal/gitops",
+    "-run",
+    "^(TestIntegrationUsesCommonDirectoryOSLock|TestIntegrateTargetDriftIsUnknownAndDoesNotRetry|TestManagedIntegrationKeepsUncertainAfterTargetWasChanged|TestIntegrateRequiresReviewBindingAndUsesProtectedFastForward)$",
+    "-timeout=120s"
+  ],
+  "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/dag-rework/tools/orchestrator",
+  "exit": 0,
+  "seconds": 3.020139217376709,
+  "sha256": "1b3fd54593aed3e1bfa3886b2b3e8bf59c94d3cd63bed66b5c1ab266e7b506a3",
+  "named": {
+    "pass": 4
+  },
+  "top": {
+    "pass": 4
+  },
+  "packages": [
+    {
+      "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops",
+      "Action": "pass",
+      "Elapsed": 2.126
+    }
+  ]
+}
