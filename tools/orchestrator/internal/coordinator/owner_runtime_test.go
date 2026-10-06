@@ -28,7 +28,7 @@ func ownerRuntimeFixtureWithCancel(t *testing.T) (*Server, contract.HostHello, c
 	t.Cleanup(func() { cancel(); _ = s.Close() })
 	go func() { _ = s.Serve(ctx) }()
 	pid, birth, executable := testHostIdentity(t)
-	r, err := s.db.SubmitPlan(ctx, store.PlanSpec{Run: store.RunSpec{ID: "owner-runtime-run", ControllerThread: "controller", PlanRevision: 1, OriginContextID: "origin", OriginPID: pid, OriginBirth: birth}, Host: store.HostLaunchSpec{ExecutionOwnerMode: "supervised-v1", OriginContextID: "origin", HostGeneration: "gen", Executable: executable}, Tasks: []store.TaskSpec{{ID: "owner-runtime-task", RunID: "owner-runtime-run", MaxAttempts: 1}}})
+	r, err := s.db.SubmitPlan(ctx, store.PlanSpec{Run: store.RunSpec{ID: "owner-runtime-run", ControllerThread: "controller", PlanRevision: 1, OriginContextID: "origin", OriginPID: pid, OriginBirth: birth}, Host: store.HostLaunchSpec{ExecutionOwnerMode: "supervised-v1", OriginContextID: "origin", HostGeneration: "gen", Executable: executable}, Tasks: []store.TaskSpec{{ID: "owner-runtime-task", RunID: "owner-runtime-run", MaxAttempts: 1, CompletionPolicy: "exit_success_fixture", AdapterPayload: json.RawMessage(`{"kind":"fake"}`)}, {ID: "owner-runtime-dependent", RunID: "owner-runtime-run", Dependencies: []string{"owner-runtime-task"}, MaxAttempts: 1}}})
 	if err != nil {
 		t.Fatal(err)
 	}

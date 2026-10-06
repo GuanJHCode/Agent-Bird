@@ -185,6 +185,8 @@ type hostSession struct {
 	ownerKey        ed25519.PrivateKey
 	helloRequestID  string
 	transportClosed atomic.Bool
+	supervised      bool
+	terminalSent    bool // guarded by send mu
 	id              string
 	hello           contract.HostHello
 	conn            net.Conn
@@ -196,6 +198,16 @@ type hostSession struct {
 func (h *hostSession) send(message ipc.Envelope) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	if message.Kind == ipc.KindLaunch && h.terminalSent {
+		return store.ErrHostRejected
+	}
+	if message.Kind == ipc.KindHostDisposition {
+		h.terminalSent = true
+	}
+	if h.supervised {
+		_ = h.conn.SetWriteDeadline(time.Now().Add(2 * time.Second))
+		defer h.conn.SetWriteDeadline(time.Time{})
+	}
 	return ipc.Write(h.conn, message)
 }
 
@@ -518,8 +530,6 @@ func (s *Server) Close() error {
 	var result error
 	s.close.Do(func() {
 		s.closed.Store(true)
-		s.lifecycleMu.Lock()
-		defer s.lifecycleMu.Unlock()
 		_ = s.listener.Close()
 		s.closeBridgeConnections()
 		s.bridgeWG.Wait()
@@ -533,6 +543,12 @@ func (s *Server) Close() error {
 		}
 		s.ownerRPCMu.Unlock()
 		s.ownerRPCWG.Wait()
+		// RPCs can be waiting for registration while graceful exit waits for
+		// lifecycle. Drain with neither lock held, then use the common order.
+		s.hostRegistrationMu.Lock()
+		defer s.hostRegistrationMu.Unlock()
+		s.lifecycleMu.Lock()
+		defer s.lifecycleMu.Unlock()
 		s.mu.Lock()
 		for _, host := range s.hosts {
 			_ = host.conn.Close()
@@ -1272,23 +1288,38 @@ func (s *Server) commitHostEvent(session *hostSession, incoming ipc.Envelope) (b
 func (s *Server) dispatch(session *hostSession, includePending bool) (bool, error) {
 	session.dispatchMu.Lock()
 	defer session.dispatchMu.Unlock()
-	if session.failed {
+	if session.failed || s.terminating.Load() || s.closed.Load() {
 		return false, nil
 	}
 	progressed := false
 	if includePending {
+		s.lifecycleMu.Lock()
+		if s.terminating.Load() || s.closed.Load() {
+			s.lifecycleMu.Unlock()
+			return progressed, nil
+		}
 		pending, err := s.db.PendingLaunches(context.Background(), session.id, s.epoch)
+		s.lifecycleMu.Unlock()
 		if err != nil {
 			return false, err
 		}
 		for _, command := range pending {
+			if s.terminating.Load() || s.closed.Load() {
+				return progressed, nil
+			}
 			if err = sendLaunch(session, s.epoch, command); err != nil {
 				return s.disconnectHostLocked(session), err
 			}
 		}
 	}
 	for {
+		s.lifecycleMu.Lock()
+		if s.terminating.Load() || s.closed.Load() {
+			s.lifecycleMu.Unlock()
+			return progressed, nil
+		}
 		command, err := s.db.ClaimReady(context.Background(), session.id, s.epoch, 0)
+		s.lifecycleMu.Unlock()
 		if errors.Is(err, store.ErrNoReady) || errors.Is(err, store.ErrNoSlot) {
 			return progressed, nil
 		}
@@ -1296,6 +1327,9 @@ func (s *Server) dispatch(session *hostSession, includePending bool) (bool, erro
 			return progressed, err
 		}
 		progressed = true
+		if s.terminating.Load() || s.closed.Load() {
+			return progressed, nil
+		}
 		if err = sendLaunch(session, s.epoch, command); err != nil {
 			s.disconnectHostLocked(session)
 			return progressed, err

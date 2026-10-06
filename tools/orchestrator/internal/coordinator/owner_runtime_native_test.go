@@ -12,6 +12,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"syscall"
@@ -80,6 +81,12 @@ func TestOriginalOwnerRPCChild(t *testing.T) {
 			return
 		} else if err != nil {
 			t.Fatal(err)
+		}
+		if step.Kind == "identity" {
+			if err := encoder.Encode(ownerChildReply{Owner: owner}); err != nil {
+				t.Fatal(err)
+			}
+			continue
 		}
 		kind, revision := step.Kind, bound.Permit.ControlRevision
 		var body any = step.Body
@@ -241,11 +248,13 @@ func startOwnerRPCChild(t *testing.T, config ownerChildConfig) (func(ownerChildS
 }
 
 func TestOriginalOwnerNativeRPCActivationAndLostACK(t *testing.T) {
-	t.Run("delivered", func(t *testing.T) { testOriginalOwnerNativeRPC(t, false) })
-	t.Run("lost", func(t *testing.T) { testOriginalOwnerNativeRPC(t, true) })
+	for _, scenario := range []string{"delivered", "lost", "shutdown", "close"} {
+		t.Run(scenario, func(t *testing.T) { testOriginalOwnerNativeRPC(t, scenario) })
+	}
 }
 
-func testOriginalOwnerNativeRPC(t *testing.T, dropReply bool) {
+func testOriginalOwnerNativeRPC(t *testing.T, scenario string) {
+	dropReply := scenario == "lost"
 	s, hello, stopServe := ownerRuntimeFixtureWithCancel(t)
 	conn, err := net.Dial("unix", s.SocketPath())
 	if err != nil {
@@ -398,6 +407,97 @@ func testOriginalOwnerNativeRPC(t *testing.T, dropReply bool) {
 	}
 	event := contract.Event{Version: 1, ProducerID: grant.HostID, EventID: "prepared-event", RunID: grant.RunID, TaskID: grant.TaskID, AttemptID: grant.AttemptID, SegmentID: grant.SegmentID, WorkRevision: grant.WorkRevision, ExecutionEpoch: s.epoch, CommandID: grant.CommandID, Sequence: 1, Kind: contract.EventPrepared, PayloadHash: strings.Repeat("d", 64)}
 	body, _ = json.Marshal(event)
+	if scenario == "close" {
+		// Hold the first lock in beginLifecycleExit's documented order. A real
+		// authenticated request then waits for this registration barrier.
+		s.hostRegistrationMu.Lock()
+		got = step(ownerChildStep{Kind: "event", ID: "close-pending-event", Body: body, DropReply: true})
+		if got.Error != "" {
+			s.hostRegistrationMu.Unlock()
+			t.Fatal(got.Error)
+		}
+		closeDone := make(chan error, 1)
+		go func() { closeDone <- s.Close() }()
+		select {
+		case <-s.ownerAcceptDone:
+		case <-time.After(time.Second):
+			s.hostRegistrationMu.Unlock()
+			t.Fatal("Close did not stop owner admission")
+		}
+		lifecycleAvailable := make(chan struct{})
+		go func() { s.lifecycleMu.Lock(); s.lifecycleMu.Unlock(); close(lifecycleAvailable) }()
+		select {
+		case <-lifecycleAvailable:
+		case <-time.After(200 * time.Millisecond):
+			t.Error("Close holds lifecycle lock while waiting for RPC registration lock; graceful exit would deadlock")
+		}
+		s.hostRegistrationMu.Unlock()
+		select {
+		case err := <-closeDone:
+			if err != nil {
+				t.Error(err)
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatal("Close did not drain original RPC")
+		}
+		select {
+		case <-lifecycleAvailable:
+		case <-time.After(time.Second):
+			t.Fatal("lifecycle lock leaked")
+		}
+		readback, err := store.Open(filepath.Join(s.stateDir, "state.db"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		snapshot, err := readback.TaskSnapshot(context.Background(), grant.TaskID)
+		_ = readback.Close()
+		if err != nil || snapshot.SegmentStatus != "launch_requested" {
+			t.Errorf("RPC mutated after hard Close fence: %+v %v", snapshot, err)
+		}
+		finish()
+		return
+	}
+	if scenario == "shutdown" {
+		if got = step(ownerChildStep{Kind: "event", ID: "before-shutdown-prepared", Body: body}); got.Error != "" {
+			t.Fatal(got.Error)
+		}
+		stopServe()
+		// Consume pending command replays, then prove the signed terminal was
+		// delivered before these final protocol-fixture Result/Exited events.
+		for {
+			frame, err = ipc.Read(conn)
+			if err != nil {
+				t.Fatal(err)
+			}
+			terminal, err := contract.DecodeOwnerCommand(frame.Payload)
+			if err != nil || contract.VerifyOwnerCommand(terminal, s.ownerPublicKey(), bound.Permit) != nil {
+				t.Fatal("invalid shutdown command", err)
+			}
+			if terminal.Kind == "terminal" {
+				break
+			}
+		}
+		for index, kind := range []string{contract.EventResult, contract.EventExited} {
+			event.Kind, event.EventID, event.Sequence = kind, "final-"+kind, int64(index+2)
+			event.PayloadHash = strings.Repeat("e", 64)
+			if kind == contract.EventExited {
+				code := 0
+				event.ExitCode = &code
+				event.ActiveMS = 1
+			}
+			body, _ = json.Marshal(event)
+			if got = step(ownerChildStep{Kind: "event", ID: event.EventID, Body: body}); got.Error != "" {
+				t.Fatal("final event", got.Error)
+			}
+		}
+		s.dispatchAll() // Same entry used by late events and retry wakeups.
+		snapshot, err := s.db.TaskSnapshot(context.Background(), "owner-runtime-dependent")
+		if err != nil || snapshot.Status != "ready" || snapshot.AttemptID != "" {
+			t.Errorf("terminal was followed by a new dependency claim: %+v %v", snapshot, err)
+		}
+		finish()
+		return
+	}
 	wrongRevision := uint64(2)
 	if got = step(ownerChildStep{Kind: "event", ID: "wrong-revision", Body: body, Revision: &wrongRevision}); got.Error != "original_owner_rejected" {
 		t.Fatalf("wrong revision error=%q", got.Error)

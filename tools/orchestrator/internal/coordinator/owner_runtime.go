@@ -36,6 +36,12 @@ func (h *hostSession) sendOwnerCommand(kind, requestID string, value any) error 
 	// A non-reading transport must not hold the scheduler or lifecycle latch.
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	if kind == "launch" && h.terminalSent {
+		return store.ErrHostRejected
+	}
+	if kind == "terminal" {
+		h.terminalSent = true
+	}
 	_ = h.conn.SetWriteDeadline(time.Now().Add(2 * time.Second))
 	defer h.conn.SetWriteDeadline(time.Time{})
 	return ipc.Write(h.conn, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindOwnerCommand, RequestID: requestID, Epoch: command.Permit.CoordinatorEpoch, Payload: body})
@@ -95,7 +101,7 @@ func (s *Server) registerOriginalOwnerTransport(ctx context.Context, conn net.Co
 	if released, err := s.db.ReleasedHostIdentity(ctx, hello); err != nil || released {
 		return nil, pending, ownerRejected()
 	}
-	hostID, err := s.registerHostLocked(ctx, hello)
+	hostID, err := s.db.RegisterHost(ctx, hello, s.epoch)
 	if err != nil {
 		return nil, pending, err
 	}
@@ -109,7 +115,7 @@ func (s *Server) registerOriginalOwnerTransport(ctx context.Context, conn net.Co
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return nil, pending, err
 	}
-	session := &hostSession{id: hostID, hello: hello, conn: conn, helloRequestID: requestID}
+	session := &hostSession{id: hostID, hello: hello, conn: conn, helloRequestID: requestID, supervised: true}
 	s.mu.Lock()
 	if s.closed.Load() {
 		s.mu.Unlock()
@@ -332,6 +338,9 @@ func (s *Server) handleOriginalOwnerRPC(conn net.Conn) {
 // Caller serializes all owner CAS and event publication with registration.
 func (s *Server) originalOwnerRPC(ctx context.Context, kernelPID int, opening contract.OwnerRPCOpen, request contract.OwnerRPCRequest) (any, *hostSession, error) {
 	reject := func() (any, *hostSession, error) { return nil, nil, ownerRejected() }
+	if s.closed.Load() {
+		return reject()
+	}
 	state, err := s.db.InspectOriginalOwner(ctx, opening.OwnerID)
 	if err != nil {
 		return nil, nil, err
