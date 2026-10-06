@@ -194,6 +194,9 @@ func (r *ownerRuntimeLifecycle) publish(ctx context.Context) <-chan struct{} {
 			r.execution.mu.Unlock()
 			err = r.execution.run.host.PublishAll(ctx, session, session.permit.CoordinatorEpoch)
 			if err != nil {
+				if r.execution.obsoleteRejection(session, err) {
+					continue
+				}
 				if ctx.Err() != nil {
 					return
 				}

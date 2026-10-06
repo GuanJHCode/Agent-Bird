@@ -354,6 +354,28 @@ func (e *ownerExecution) available(ctx context.Context) (*ownerExecutionSession,
 	}
 }
 
+// The serial runtime workflow calls this BEFORE Attach (or reconnect), not
+// after receiving its reply. An in-flight old event can then be safely replayed
+// if the Coordinator commits a replacement before local permit installation.
+// Original signed claims/stop authority remain governed by the last permit.
+func (e *ownerExecution) pausePublication() {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.session, e.active = nil, false
+	close(e.changed)
+	e.changed = make(chan struct{})
+}
+
+func (e *ownerExecution) obsoleteRejection(session *ownerExecutionSession, err error) bool {
+	var semantic *ownerExecutionSemanticError
+	if !errors.As(err, &semantic) {
+		return false
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.session != session
+}
+
 func (e *ownerExecution) prepareReport(ctx context.Context, grant contract.LaunchCommand) (string, error) {
 	for {
 		s, err := e.available(ctx)
@@ -443,6 +465,13 @@ type ownerExecutionSession struct {
 // classified by its text or by a concurrent session replacement.
 type ownerExecutionRecoveryError struct{ cause error }
 
+// Only a fully verified, same-epoch Coordinator rejection gets this marker.
+// Authentication/ACK corruption and local I/O must never be discarded merely
+// because their original session was replaced while the call was in flight.
+type ownerExecutionSemanticError struct{ message string }
+
+func (e *ownerExecutionSemanticError) Error() string { return e.message }
+
 func (e *ownerExecutionRecoveryError) Error() string { return e.cause.Error() }
 func (e *ownerExecutionRecoveryError) Unwrap() error { return e.cause }
 func ownerExecutionNeedsRecovery(err error) bool {
@@ -477,7 +506,7 @@ func (s *ownerExecutionSession) call(ctx context.Context, kind, id string, body 
 			if kind == "activate" {
 				s.owner.revokeAdmission(s)
 			}
-			return reply, errors.New(reply.Error)
+			return reply, &ownerExecutionSemanticError{message: reply.Error}
 		} else if err == nil {
 			err = s.verifyReply(reply, id)
 		}

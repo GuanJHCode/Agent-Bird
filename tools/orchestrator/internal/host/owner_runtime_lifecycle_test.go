@@ -331,3 +331,110 @@ func TestOwnerRuntimeFatalRPCIsNotLostBehindRecoveryNotification(t *testing.T) {
 		t.Fatal("fatal error was converted to another Ensure", context.Cause(ctx))
 	}
 }
+
+func TestOwnerRuntimePublisherReplaysAfterSameEpochPermitReplacement(t *testing.T) {
+	for _, scenario := range []string{"signed_rejection", "attach_in_flight", "authentication_failure"} {
+		t.Run(scenario, func(t *testing.T) {
+			cfg, first, key := ownerExecutionFixture(t)
+			entered, release := make(chan struct{}), make(chan struct{})
+			var oldCalls, newCalls atomic.Int32
+			cfg.rpc = func(ctx context.Context, revision uint64, kind, id string, body any) (contract.OwnerRPCReply, error) {
+				reply := contract.OwnerRPCReply{Version: 1, OwnerID: first.OwnerID, CoordinatorEpoch: first.CoordinatorEpoch, RequestID: id}
+				var value any
+				switch kind {
+				case "event":
+					event := body.(contract.Event)
+					if revision == 1 {
+						if oldCalls.Add(1) == 1 {
+							close(entered)
+						}
+						select {
+						case <-release:
+						case <-ctx.Done():
+							return contract.OwnerRPCReply{}, ctx.Err()
+						}
+						if scenario == "authentication_failure" {
+							return contract.OwnerRPCReply{}, errors.New("original_owner_reply_rejected")
+						}
+						reply.Error = "original_owner_rejected"
+						return reply, errors.New(reply.Error)
+					}
+					newCalls.Add(1)
+					value = contract.DurableAck{ProducerID: event.ProducerID, EventID: event.EventID, PayloadHash: event.PayloadHash, AckedThrough: event.Sequence, Status: "durable"}
+				case "applied":
+					value = map[string]string{"status": "applied"}
+				case "activate":
+					value = map[string]string{"status": "active"}
+				default:
+					t.Error("unexpected RPC", kind)
+				}
+				reply.Body, _ = json.Marshal(value)
+				return reply, nil
+			}
+			e, err := newOwnerExecution(context.Background(), cfg)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer e.run.cancel(context.Canceled)
+			if err = e.reconcile(context.Background(), first); err != nil {
+				t.Fatal(err)
+			}
+			a := store.Attempt{ID: "attempt", TaskID: "task", SegmentID: "segment"}
+			spool, err := cfg.host.spool(a)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err = cfg.host.appendPhaseEvent(spool, "run", "task", a, launchMetadata{commandID: "command", workRevision: 1, executionEpoch: first.CoordinatorEpoch}, contract.EventPrepared, hashText("pending"), nil, nil, nil); err != nil {
+				t.Fatal(err)
+			}
+			ctx, cancel := context.WithCancelCause(context.Background())
+			defer cancel(context.Canceled)
+			r := newOwnerRuntimeLifecycle(e, cancel)
+			publisher := r.publish(ctx)
+			<-entered
+			if scenario == "attach_in_flight" {
+				e.pausePublication() // before the remote Attach can commit revision 2
+				close(release)
+			}
+			next := first
+			next.ExpectedControlRevision, next.ControlRevision = 1, 2
+			next.OldHost = &first.NewHost
+			next.NewHost.PID++
+			next.RequestID, next.PermitID = "replace", "permit-2"
+			next, err = contract.SignOwnerControlPermit(next, key)
+			if err != nil {
+				t.Fatal(err)
+			}
+			e.mu.Lock()
+			changed := e.changed
+			e.mu.Unlock()
+			reconciled := make(chan error, 1)
+			go func() { reconciled <- e.reconcile(ctx, next) }()
+			<-changed // verified revision 2 installed; PublishAll still waits for old RPC
+			if scenario != "attach_in_flight" {
+				close(release)
+			}
+			err = <-reconciled
+			if scenario != "authentication_failure" {
+				if err != nil || ctx.Err() != nil {
+					t.Error("obsolete signed rejection killed valid owner", err, context.Cause(ctx))
+				}
+				if cursor, err := cfg.host.readPublished(); err != nil || cursor != 1 || newCalls.Load() != 1 {
+					t.Error("new permit did not durably replay original event", cursor, err, newCalls.Load())
+				}
+			} else {
+				select {
+				case <-ctx.Done():
+				case <-time.After(time.Second):
+					t.Error("stale session concealed authentication failure")
+				}
+			}
+			cancel(context.Canceled)
+			select {
+			case <-publisher:
+			case <-time.After(time.Second):
+				t.Fatal("publisher failed to join")
+			}
+		})
+	}
+}
