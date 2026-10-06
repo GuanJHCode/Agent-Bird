@@ -37,18 +37,27 @@ func RunOwnerTransport(ctx context.Context, bootstrap contract.OwnerTransportBoo
 }
 
 func validateOwnerTransportProcess(ctx context.Context, b contract.OwnerTransportBootstrap) (contract.OriginalOwnerTransport, error) {
+	if b.Validate() != nil {
+		return contract.OriginalOwnerTransport{}, errOwnerTransportProtocol
+	}
+	return ownerProcessIdentity(ctx, b.StateDir, b.Intent.Scope, contract.OriginalOwnerTransport{PID: b.Owner.PID, Birth: b.Owner.Birth})
+}
+
+// Initial owners and replacement transports both inherit authority from an
+// exact live parent. Their signed protocol roles remain separate.
+func ownerProcessIdentity(ctx context.Context, stateDir string, scope contract.OriginalOwnerScope, parent contract.OriginalOwnerTransport) (contract.OriginalOwnerTransport, error) {
 	var zero contract.OriginalOwnerTransport
-	if b.Validate() != nil || b.Owner.PID != os.Getppid() {
+	if parent.PID != os.Getppid() {
 		return zero, errOwnerTransportProtocol
 	}
-	for _, p := range []contract.OriginalOwnerTransport{{PID: b.Owner.PID, Birth: b.Owner.Birth}, {PID: b.Intent.Scope.OriginalOriginPID, Birth: b.Intent.Scope.OriginalOriginBirth}} {
+	for _, p := range []contract.OriginalOwnerTransport{{PID: parent.PID, Birth: parent.Birth}, {PID: scope.OriginalOriginPID, Birth: scope.OriginalOriginBirth}} {
 		birth, err := process.BirthContext(ctx, p.PID)
 		if err != nil || birth != p.Birth {
 			return zero, errOwnerTransportProtocol
 		}
 	}
-	state, err := filepath.EvalSymlinks(b.StateDir)
-	if err != nil || state != b.StateDir {
+	state, err := filepath.EvalSymlinks(stateDir)
+	if err != nil || state != stateDir {
 		return zero, errOwnerTransportProtocol
 	}
 	info, err := os.Lstat(state)
@@ -61,11 +70,11 @@ func validateOwnerTransportProcess(ctx context.Context, b contract.OwnerTranspor
 		return zero, err
 	}
 	executable, err = filepath.EvalSymlinks(executable)
-	if err != nil || executable != b.Intent.Scope.Executable {
+	if err != nil || executable != scope.Executable {
 		return zero, errOwnerTransportProtocol
 	}
 	digest, err := process.ExecutableDigest(ctx, executable)
-	if err != nil || digest != b.Intent.Scope.ExecutableSHA256 {
+	if err != nil || digest != scope.ExecutableSHA256 {
 		return zero, errOwnerTransportProtocol
 	}
 	birth, err := process.BirthContext(ctx, os.Getpid())
