@@ -118,6 +118,9 @@ func DecodeOwnerCommand(raw []byte) (OwnerCommand, error) {
 	if err := decodeOwnerRuntime(raw, &c); err != nil {
 		return c, err
 	}
+	if _, ok := ownerHex(c.Signature, ed25519.SignatureSize); !ok {
+		return c, ownerInvalid()
+	}
 	return c, c.Validate()
 }
 
@@ -160,6 +163,9 @@ func DecodeOwnerChallenge(raw []byte) (OwnerChallenge, error) {
 	var c OwnerChallenge
 	if err := decodeOwnerRuntime(raw, &c); err != nil {
 		return c, err
+	}
+	if _, ok := ownerHex(c.Signature, ed25519.SignatureSize); !ok {
+		return c, ownerInvalid()
 	}
 	return c, c.Validate()
 }
@@ -232,6 +238,9 @@ func DecodeOwnerRPCRequest(raw []byte) (OwnerRPCRequest, error) {
 	if err := decodeOwnerRuntime(raw, &r); err != nil {
 		return r, err
 	}
+	if _, ok := ownerHex(r.Signature, ed25519.SignatureSize); !ok {
+		return r, ownerInvalid()
+	}
 	return r, r.Validate()
 }
 func OwnerRPCRequestSHA256(r OwnerRPCRequest) string { return ownerJSONHash(r) }
@@ -248,7 +257,7 @@ type OwnerRPCReply struct {
 }
 
 func (r OwnerRPCReply) Validate() error {
-	if r.Version != 1 || !ownerText(r.OwnerID, 256) || r.CoordinatorEpoch == 0 || r.CoordinatorEpoch > math.MaxInt64 || !ownerText(r.RequestID, 256) || !ownerDigest(r.RequestSHA256) || !json.Valid(r.Body) || bytes.Equal(bytes.TrimSpace(r.Body), []byte("null")) || (r.Error != "" && !ownerText(r.Error, 256)) || !ownerWireSize(r) {
+	if r.Version != 1 || !ownerText(r.OwnerID, 256) || r.CoordinatorEpoch == 0 || r.CoordinatorEpoch > math.MaxInt64 || !ownerText(r.RequestID, 256) || !ownerDigest(r.RequestSHA256) || !ownerOpaqueBodyValid(r.Body) || (r.Error != "" && !ownerText(r.Error, 256)) || !ownerWireSize(r) {
 		return ownerInvalid()
 	}
 	return nil
@@ -277,6 +286,9 @@ func DecodeOwnerRPCReply(raw []byte) (OwnerRPCReply, error) {
 	var r OwnerRPCReply
 	if err := decodeOwnerRuntime(raw, &r); err != nil {
 		return r, err
+	}
+	if _, ok := ownerHex(r.Signature, ed25519.SignatureSize); !ok {
+		return r, ownerInvalid()
 	}
 	return r, r.Validate()
 }

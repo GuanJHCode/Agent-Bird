@@ -253,3 +253,45 @@ func TestOriginalOwnerRPCDecodersPreserveRawBodiesAndRejectAliases(t *testing.T)
 		t.Fatal("reply lost request binding", err)
 	}
 }
+
+func TestOriginalOwnerWireDecodersRequireSignature(t *testing.T) {
+	b, p, key := ownerWirePermit(t)
+	command, _ := SignOwnerCommand(OwnerCommand{Version: 1, Permit: p, Kind: "terminal", RequestID: "terminal", Body: json.RawMessage(`{"reason":"host_retired"}`)}, key)
+	challenge, _ := SignOwnerChallenge(OwnerChallenge{Version: 1, OwnerID: b.Scope.OwnerID, CoordinatorEpoch: 3, CoordinatorKeyID: b.CoordinatorKeyID, Nonce: strings.Repeat("e", 64)}, key)
+	request, _ := SignOwnerRPCRequest(OwnerRPCRequest{Version: 1, OwnerID: b.Scope.OwnerID, ScopeSHA256: p.ScopeSHA256, OwnerIdentitySHA256: p.OwnerIdentitySHA256, CoordinatorEpoch: 3, ControlRevision: 1, RequestID: "event", Kind: "event", Nonce: challenge.Nonce, Body: json.RawMessage(`{}`)}, key)
+	reply, _ := SignOwnerRPCReply(OwnerRPCReply{Version: 1, OwnerID: b.Scope.OwnerID, CoordinatorEpoch: 3, RequestID: request.RequestID, RequestSHA256: OwnerRPCRequestSHA256(request), Body: json.RawMessage(`{}`)}, key)
+	for _, tc := range []struct {
+		name   string
+		value  any
+		decode func([]byte) error
+	}{
+		{"command", command, func(raw []byte) error { _, e := DecodeOwnerCommand(raw); return e }},
+		{"challenge", challenge, func(raw []byte) error { _, e := DecodeOwnerChallenge(raw); return e }},
+		{"request", request, func(raw []byte) error { _, e := DecodeOwnerRPCRequest(raw); return e }},
+		{"reply", reply, func(raw []byte) error { _, e := DecodeOwnerRPCReply(raw); return e }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			raw, _ := json.Marshal(tc.value)
+			if err := tc.decode(raw); err != nil {
+				t.Fatal("valid signed fixture", err)
+			}
+			var fields map[string]json.RawMessage
+			if err := json.Unmarshal(raw, &fields); err != nil {
+				t.Fatal(err)
+			}
+			fields["signature"] = json.RawMessage(`""`)
+			unsigned, _ := json.Marshal(fields)
+			if err := tc.decode(unsigned); err == nil {
+				t.Fatal("unsigned frame accepted by decoder")
+			}
+		})
+	}
+}
+
+func TestOriginalOwnerRPCReplySigningRejectsAmbiguousBody(t *testing.T) {
+	b, p, key := ownerWirePermit(t)
+	_, err := SignOwnerRPCReply(OwnerRPCReply{Version: 1, OwnerID: b.Scope.OwnerID, CoordinatorEpoch: 3, RequestID: "reply", RequestSHA256: p.RequestSHA256, Body: json.RawMessage(`{"status":"accepted","status":"rejected"}`)}, key)
+	if err == nil {
+		t.Fatal("signed reply admits ambiguous duplicate body")
+	}
+}
