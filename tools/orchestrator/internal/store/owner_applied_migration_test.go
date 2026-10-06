@@ -8,6 +8,9 @@ import (
 
 func downgradeOwnerAppliedSchema(t *testing.T, db *DB) {
 	t.Helper()
+	// Every historical fixture starts from a true old schema. This test helper
+	// deliberately strips v18 before advertising any earlier schema version.
+	downgradeBudgetRevisionSchema(t, db)
 	for _, stmt := range []string{
 		`UPDATE storage_usage SET total_bytes=total_bytes-8*(SELECT COUNT(*) FROM execution_owners e WHERE storage_usage.scope='global' OR (storage_usage.scope='run' AND e.run_id=storage_usage.scope_id))`,
 		`DROP TRIGGER owner_applied_hash_immutable`,
