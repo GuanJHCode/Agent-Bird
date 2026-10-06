@@ -123,6 +123,14 @@ func (s *Spool) ReadAfter(after int64) ([]contract.Event, error) {
 	return s.readEvents(after, false)
 }
 func (s *Spool) readEvents(after int64, history bool) ([]contract.Event, error) {
+	return s.readEventsWithOpener(after, history, openEventFile)
+}
+
+func openEventFile(path string) (*os.File, error) {
+	return os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+}
+
+func (s *Spool) readEventsWithOpener(after int64, history bool, open func(string) (*os.File, error)) ([]contract.Event, error) {
 	paths, err := filepath.Glob(filepath.Join(s.dir, "event-*.json"))
 	if err != nil {
 		return nil, err
@@ -144,7 +152,18 @@ func (s *Spool) readEvents(after int64, history bool) ([]contract.Event, error) 
 		if sequence <= after {
 			continue
 		}
-		file, err := os.OpenFile(p, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+		file, err := open(p)
+		if history && errors.Is(err, os.ErrNotExist) && filepath.Dir(p) == filepath.Clean(s.dir) {
+			// Another Spool instance can ACK after our directory snapshots.
+			// Archiving links and syncs the immutable same-name history before
+			// unlinking the active file. Open that copy once; do not skip the
+			// event or rescan a now-empty directory into false success.
+			activeErr := err
+			file, err = open(filepath.Join(s.dir, "archive", filepath.Base(p)))
+			if errors.Is(err, os.ErrNotExist) {
+				return nil, activeErr
+			}
+		}
 		if err != nil {
 			return nil, err
 		}
