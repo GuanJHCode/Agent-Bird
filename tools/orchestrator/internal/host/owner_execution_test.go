@@ -301,7 +301,7 @@ func TestOwnerExecutionReportLostACKRetainsBindingUntilReconcile(t *testing.T) {
 }
 
 func TestOwnerExecutionRPCFailureClassification(t *testing.T) {
-	for _, scenario := range []string{"signed_semantic", "signed_error_named_EOF", "higher_epoch", "lower_epoch", "transport_EOF", "invalid_signature", "canceled_parent"} {
+	for _, scenario := range []string{"signed_semantic", "signed_error_named_EOF", "higher_epoch", "canceled_higher_epoch", "canceled_activate_rejection", "lower_epoch", "transport_EOF", "invalid_signature", "canceled_parent"} {
 		t.Run(scenario, func(t *testing.T) {
 			cfg, permit, key := ownerExecutionFixture(t)
 			e, err := newOwnerExecution(context.Background(), cfg)
@@ -331,6 +331,17 @@ func TestOwnerExecutionRPCFailureClassification(t *testing.T) {
 					reply.CoordinatorEpoch++
 					reply.Error = "original_owner_rejected"
 					return reply, errors.New(reply.Error)
+				case "canceled_higher_epoch":
+					recoverable = true
+					cancel()
+					reply.CoordinatorEpoch++
+					reply.Error = "original_owner_rejected"
+					return reply, errors.New(reply.Error)
+				case "canceled_activate_rejection":
+					unchanged = true // RPC remains usable, but launch admission closes.
+					cancel()
+					reply.Error = "original_owner_rejected"
+					return reply, errors.New(reply.Error)
 				case "lower_epoch":
 					reply.CoordinatorEpoch--
 					return reply, nil
@@ -346,18 +357,22 @@ func TestOwnerExecutionRPCFailureClassification(t *testing.T) {
 				}
 				panic("unknown scenario")
 			}
-			err = s.status(ctx, "applied", "request", *e.applied, "applied")
+			kind := "applied"
+			if scenario == "canceled_activate_rejection" {
+				kind = "activate"
+			}
+			err = s.status(ctx, kind, "request", *e.applied, "applied")
 			if err == nil || ownerExecutionNeedsRecovery(err) != recoverable {
 				t.Fatal("wrong error classification", err)
 			}
 			if unchanged {
-				if e.session != s || !e.active || len(e.recovery) != 0 {
+				if e.session != s || (scenario != "canceled_activate_rejection" && !e.active) || len(e.recovery) != 0 {
 					t.Fatal("non-transport outcome requested recovery")
 				}
 			} else if e.session != nil || e.active || len(e.recovery) != 1 {
 				t.Fatal("transport or authentication failure did not reach runtime")
 			}
-			if scenario == "higher_epoch" || scenario == "lower_epoch" || scenario == "invalid_signature" {
+			if scenario == "higher_epoch" || scenario == "canceled_higher_epoch" || scenario == "canceled_activate_rejection" || scenario == "lower_epoch" || scenario == "invalid_signature" {
 				if e.command(ownerExecutionSignedLaunch(t, permit, key)) == nil {
 					e.run.workers.Wait()
 					t.Fatal("revoked epoch or authentication failure retained launch authority")
@@ -366,6 +381,56 @@ func TestOwnerExecutionRPCFailureClassification(t *testing.T) {
 			if scenario == "higher_epoch" {
 				if err := e.reconcile(context.Background(), permit); err == nil || e.session != nil {
 					t.Fatal("old permit reopened a session after newer epoch proof", err)
+				}
+			}
+		})
+	}
+}
+
+func TestOwnerExecutionProgressKeepsNetworkErrorsObservationalButFencesInvalidReplies(t *testing.T) {
+	for _, scenario := range []string{"EOF", "semantic", "invalid_signature", "malformed_ACK", "wrong_status"} {
+		t.Run(scenario, func(t *testing.T) {
+			cfg, permit, key := ownerExecutionFixture(t)
+			e, err := newOwnerExecution(context.Background(), cfg)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer e.run.cancel(context.Canceled)
+			if err = e.reconcile(context.Background(), permit); err != nil {
+				t.Fatal(err)
+			}
+			session := e.session
+			e.cfg.rpc = func(_ context.Context, _ uint64, _ string, id string, _ any) (contract.OwnerRPCReply, error) {
+				reply := contract.OwnerRPCReply{Version: 1, OwnerID: permit.OwnerID, CoordinatorEpoch: permit.CoordinatorEpoch, RequestID: id}
+				switch scenario {
+				case "EOF":
+					return contract.OwnerRPCReply{}, io.EOF
+				case "semantic":
+					reply.Error = "conflict"
+					return reply, errors.New(reply.Error)
+				case "invalid_signature":
+					return contract.OwnerRPCReply{}, errors.New("original_owner_reply_rejected")
+				case "malformed_ACK":
+					reply.Body = json.RawMessage(`{"status":"recorded","unknown":1}`)
+				case "wrong_status":
+					reply.Body = json.RawMessage(`{"status":"applied"}`)
+				}
+				return reply, nil
+			}
+			if err = e.progress(context.Background(), contract.Event{EventID: "progress"}); err == nil || ownerExecutionNeedsRecovery(err) {
+				t.Fatal("progress outcome was lost or converted to transient recovery", err)
+			}
+			if scenario == "EOF" || scenario == "semantic" {
+				if e.session != session || !e.admitSignedLaunch || len(e.recovery) != 0 {
+					t.Fatal("best-effort progress failure changed live authority")
+				}
+			} else {
+				if e.session != nil || e.admitSignedLaunch || len(e.recovery) != 1 {
+					t.Fatal("invalid progress reply retained live authority")
+				}
+				if e.command(ownerExecutionSignedLaunch(t, permit, key)) == nil {
+					e.run.workers.Wait()
+					t.Fatal("invalid progress reply allowed another launch")
 				}
 			}
 		})

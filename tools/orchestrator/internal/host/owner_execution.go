@@ -303,16 +303,7 @@ func (e *ownerExecution) progress(_ context.Context, event contract.Event) error
 	ctx, cancel := context.WithTimeout(e.run.ctx, time.Second)
 	defer cancel()
 	event.ExecutionEpoch = s.permit.CoordinatorEpoch
-	reply, err := e.cfg.rpc(ctx, s.permit.ControlRevision, "progress", event.EventID, event)
-	if reply.Version == 1 && reply.OwnerID == s.permit.OwnerID && reply.RequestID == event.EventID && reply.CoordinatorEpoch > s.permit.CoordinatorEpoch {
-		err = &ownerExecutionRecoveryError{cause: errCoordinatorUnavailable}
-		e.observeEpoch(reply.CoordinatorEpoch, err)
-		return err
-	}
-	if err != nil {
-		return err
-	}
-	return s.verifyStatus(reply, event.EventID, "recorded")
+	return s.status(ctx, "progress", event.EventID, event, "recorded")
 }
 
 func (e *ownerExecution) beginStop(ctx context.Context, cause error) {
@@ -371,9 +362,9 @@ func (s *ownerExecutionSession) call(ctx context.Context, kind, id string, body 
 	op, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 	reply, err := s.owner.cfg.rpc(op, s.permit.ControlRevision, kind, id, body)
-	if ctx.Err() != nil {
-		return reply, ctx.Err()
-	}
+	// A completed authenticated response remains authoritative even when the
+	// caller has concurrently canceled. Cancellation can explain a missing
+	// transport reply, never erase a signed revocation or a protocol failure.
 	if reply.Version == 1 && reply.OwnerID == s.permit.OwnerID && reply.RequestID == id {
 		if reply.CoordinatorEpoch > s.permit.CoordinatorEpoch {
 			err = &ownerExecutionRecoveryError{cause: errCoordinatorUnavailable}
@@ -389,7 +380,13 @@ func (s *ownerExecutionSession) call(ctx context.Context, kind, id string, body 
 		} else if err == nil {
 			err = s.verifyReply(reply, id)
 		}
-	} else if err != nil && reply.Version == 0 && transientSourceError(err) {
+	} else if err != nil && reply.Version == 0 && (transientSourceError(err) || errors.Is(err, context.Canceled)) {
+		if ctx.Err() != nil {
+			return reply, ctx.Err()
+		}
+		if kind == "progress" {
+			return reply, err
+		}
 		err = &ownerExecutionRecoveryError{cause: err}
 	} else if err == nil {
 		err = errors.New("owner_execution_reply_rejected")
