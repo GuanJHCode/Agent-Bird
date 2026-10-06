@@ -4,3 +4,9 @@
 - Boundaries: this worktree owns the F05 action, Git index, Host delivery, Store gates, and capability checks; no owner-runtime or schema migration changes.
 - Milestones: define the index and its receipt binding; use it in Host Grok preparation; gate indexed review/integration through Store and coordinator; add regression tests and verify with Go 1.26.8.
 - Frozen limits: 512 paths / 64KiB path bytes / 8MiB logical text / 32KiB chunks / 2048 chunks / 64 entries and 64KiB per page / 1..63 shards / 384KiB provider input / 1MiB manifests-artifacts / 8MiB Git blob reads.
+
+## Progress
+
+- `279853c`: index metadata, opt-in action, Grok prompt-file delivery, Store plan gate and coordinator capability gate.
+- `3f698c`: indexed integration reads every immutable dependency artifact, requires complete ordinal coverage, and rechecks assignment hashes before mutation. Git blob bytes now reach the index chunk collector through a journaled bounded stream.
+- Focused Git index and Host dependency/Grok tests pass; `go build ./...` and `go vet ./...` pass. The full managed three-shard mutation fixture and rejection matrix remain to be added.
