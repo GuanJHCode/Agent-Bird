@@ -56,6 +56,18 @@ func integrationScope(ctx context.Context, tx *sql.Tx, task string, requireCurre
 			return target, nil
 		}
 	}
+	if reserved == nil {
+		old, ok, err := legacyPendingIntegrationTarget(ctx, tx, current, p.CandidateAction.Target)
+		if err != nil {
+			return dagReworkTarget{}, err
+		}
+		if ok {
+			reserved = &old
+			if !requireCurrent {
+				return old, nil
+			}
+		}
+	}
 	input, err := integrationAcceptedInput(ctx, tx, current, p.CandidateAction.SourceTask)
 	if err != nil {
 		return dagReworkTarget{}, CodeError("rework_target_scope_unresolved")
@@ -306,6 +318,91 @@ func validateDAGTargetPromises(s dagReworkDecision) error {
 			return CodeError("rework_target_reserved")
 		}
 		keys[key] = true
+	}
+	return nil
+}
+
+// Legacy rework also saved an exact authorizing review. Recover its scope only
+// from that historical artifact and the complete original four-node proof.
+func legacyPendingIntegrationTarget(ctx context.Context, tx *sql.Tx, current decisionTaskScope, want adapter.CandidateTarget) (dagReworkTarget, bool, error) {
+	var slot string
+	err := tx.QueryRowContext(ctx, `SELECT action_slot FROM decision_attempt_bindings WHERE task_id=? AND target_work_revision=? AND attempt_id IS NULL AND retired=0`, current.id, current.revision).Scan(&slot)
+	if err == sql.ErrNoRows {
+		return dagReworkTarget{}, false, nil
+	}
+	if err != nil {
+		return dagReworkTarget{}, false, err
+	}
+	record, err := readAttemptDecision(ctx, tx, slot)
+	if err != nil {
+		return dagReworkTarget{}, false, err
+	}
+	kind, err := decisionRecordKind(record)
+	if err != nil || kind != "rework" {
+		return dagReworkTarget{}, false, CodeError("rework_target_scope_unresolved")
+	}
+	if _, err = reworkDecisionTargets(ctx, tx, record); err != nil {
+		return dagReworkTarget{}, false, err
+	}
+	var saved reworkDecision
+	if strictDecisionJSON(record.payload, &saved) != nil || saved.Receipt.TaskRevisions[current.id] != current.revision || string(saved.Adapters[current.id]) != current.payload {
+		return dagReworkTarget{}, false, ErrConflict
+	}
+	_, artifact, err := readReworkEventScope(ctx, tx, &reworkTask{id: saved.Spec.ReviewTaskID, revision: saved.Spec.ReviewWorkRevision}, saved.Spec.Review, false, false)
+	if err != nil {
+		return dagReworkTarget{}, false, err
+	}
+	var plan int
+	if err = tx.QueryRowContext(ctx, `SELECT plan_revision FROM runs WHERE id=?`, current.run).Scan(&plan); err != nil {
+		return dagReworkTarget{}, false, err
+	}
+	scope, err := targetFromArtifact(artifact, want, plan)
+	return scope, true, err
+}
+
+func admitLegacyReworkTarget(ctx context.Context, tx *sql.Tx, artifact reworkArtifact, want adapter.CandidateTarget, plan int) error {
+	rows, err := tx.QueryContext(ctx, `SELECT b.task_id,b.target_work_revision FROM decision_attempt_bindings b JOIN retry_decisions d USING(action_slot) JOIN task_runtime t ON t.task_id=b.task_id WHERE json_valid(d.revision_payload) AND json_extract(d.revision_payload,'$.request.version')=1 AND json_extract(t.adapter_payload,'$.candidate_action.operation')='integrate' AND b.retired=0 AND (b.attempt_id IS NULL OR EXISTS(SELECT 1 FROM segment_runtime s WHERE s.attempt_id=b.attempt_id AND s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown')))`)
+	if err != nil {
+		return err
+	}
+	type promise struct {
+		id       string
+		revision int
+	}
+	var promises []promise
+	for rows.Next() {
+		var p promise
+		if err = rows.Scan(&p.id, &p.revision); err != nil {
+			rows.Close()
+			return err
+		}
+		promises = append(promises, p)
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil || len(promises) == 0 {
+		return err
+	}
+	scope, err := targetFromArtifact(artifact, want, plan)
+	if err != nil {
+		return CodeError("rework_target_scope_unresolved")
+	}
+	for _, p := range promises {
+		record, err := dagDecisionForTask(ctx, tx, p.id, p.revision)
+		if err != nil || record == nil {
+			return CodeError("rework_target_scope_unresolved")
+		}
+		saved, err := parseDAGRework(record.payload)
+		if err != nil {
+			return err
+		}
+		other, ok := saved.Targets[p.id]
+		if !ok {
+			return ErrConflict
+		}
+		if scope.key() == other.key() {
+			return CodeError("rework_target_reserved")
+		}
 	}
 	return nil
 }

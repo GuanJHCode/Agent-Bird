@@ -156,12 +156,23 @@ func dagDecisionForTask(ctx context.Context, tx *sql.Tx, task string, revision i
 			rows.Close()
 			return nil, err
 		}
-		kind, e := decisionRecordKind(attemptDecisionRecord{payload: raw})
-		if e != nil {
+		// Only v1 membership participates in this guard. Preserve the legacy
+		// classifier/error path for old malformed decisions unrelated to v1.
+		var fields map[string]json.RawMessage
+		if json.Unmarshal([]byte(raw), &fields) != nil {
 			rows.Close()
-			return nil, e
+			return nil, errLegacyDecisionAmbiguous
 		}
-		if kind != dagReworkKind {
+		var request struct {
+			Version int `json:"version"`
+		}
+		var receipt struct {
+			Version int `json:"version"`
+		}
+		_ = json.Unmarshal(fields["request"], &request)
+		_ = json.Unmarshal(fields["receipt"], &receipt)
+		_, nodes := fields["nodes"]
+		if request.Version == 0 && receipt.Version == 0 && !nodes {
 			continue
 		}
 		s, e := parseDAGRework(raw)

@@ -140,6 +140,11 @@ func (d *DB) QueueRework(ctx context.Context, spec ReworkSpec) (ReworkReceipt, e
 	if validationEvent.RunID != run || !reworkBindingMatches(&validation.Binding, validationEvent, plan) || validation.Stage != "validate" || validation.Validation == nil || !validation.Validation.Passed || validation.InputEventID != oldEvent.EventID || validation.InputSHA256 != oldEvent.PayloadHash || feedback.InputSHA256 != validationEvent.PayloadHash || validation.ValidationDigest != feedback.ValidationDigest || !reflect.DeepEqual(validation.Candidate, old.Candidate) {
 		return empty, CodeError("rework_validation_mismatch")
 	}
+	// A later legacy decision cannot occupy a target already promised by an
+	// explicit DAG decision. With no v1 reservation the legacy path is unchanged.
+	if err = admitLegacyReworkTarget(ctx, tx, feedback, validate.action.Target, plan); err != nil {
+		return empty, err
+	}
 	context := adapter.ReworkContext{Version: 1, RunID: run, TaskID: edit.id, PreviousWorkRevision: edit.revision, PreviousCandidateOID: spec.CandidateOID, CandidateEventID: oldEvent.EventID, CandidateSHA256: oldEvent.PayloadHash, ReviewEventID: feedbackEvent.EventID, ReviewSHA256: feedbackEvent.PayloadHash, ReviewSummary: feedback.Review.Summary, Feedback: spec.Feedback, Acceptance: spec.Acceptance}
 	receipt := ReworkReceipt{Status: "rework_queued", TaskID: edit.id, WorkRevision: edit.revision + 1, CandidateOID: spec.CandidateOID, ReviewEventID: feedbackEvent.EventID, RevisionSHA256: context.Digest(), TaskRevisions: map[string]int{}}
 	decision := reworkDecision{Spec: canonical, Receipt: receipt, Context: context, Adapters: map[string]json.RawMessage{}}

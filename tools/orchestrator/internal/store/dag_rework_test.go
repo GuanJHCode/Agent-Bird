@@ -658,3 +658,160 @@ func TestDAGReworkRejectsTwoIntegrationsForSameTarget(t *testing.T) {
 		t.Fatalf("same target promised twice %v", err)
 	}
 }
+
+func dagIndependentLegacyChain(tasks []TaskSpec) []TaskSpec {
+	var additions []TaskSpec
+	for _, task := range tasks {
+		if task.ID != "edit" && task.ID != "validate" && task.ID != "review" && task.ID != "integrate" {
+			continue
+		}
+		task.ID = "legacy-" + task.ID
+		p, _ := adapter.DecodeInvocationPayload(task.AdapterPayload)
+		p.Directory = "/private/work/" + task.ID
+		if p.CandidateAction != nil {
+			p.CandidateAction.SourceTask = "legacy-" + p.CandidateAction.SourceTask
+			p.CandidateAction.DependencyInputVersion = 0
+			task.Dependencies = []string{p.CandidateAction.SourceTask}
+		}
+		task.AdapterPayload, _ = json.Marshal(p)
+		additions = append(additions, task)
+	}
+	return append(tasks, additions...)
+}
+
+func TestDAGReworkLaterLegacyDecisionCannotPoisonTargetPromise(t *testing.T) {
+	f := newDAGReworkFixture(t, adapter.ProviderClaude, adapter.ProviderClaude, dagIndependentLegacyChain)
+	ctx := context.Background()
+	var review contract.Event
+	for i := 0; i < 4; i++ {
+		g, err := f.db.ClaimReady(ctx, f.host, 1, 3)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if g.TaskID == "legacy-review" {
+			review = f.finish(t, g, true)
+			break
+		}
+		f.finish(t, g, false)
+	}
+	if review.TaskID == "" {
+		t.Fatal("legacy review did not execute")
+	}
+	page, err := f.db.CollectPending(ctx, "legacy-edit", "", 0, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var candidate contract.Event
+	for _, e := range page.Events {
+		if e.Kind == contract.EventResult {
+			candidate = e
+		}
+	}
+	legacy := ReworkSpec{TaskID: "legacy-edit", WorkRevision: 1, Candidate: reworkEventTuple(candidate), CandidateOID: strings.Repeat("b", 40), ReviewTaskID: "legacy-review", ReviewWorkRevision: 1, Review: reworkEventTuple(review), ActionSlot: review.ActionSlot, Feedback: "legacy repair", Acceptance: "legacy scope", CommandID: "legacy-rework"}
+	if _, err = f.db.QueueRework(ctx, reworkVersionSpec(t, f.spec, 1)); err != nil {
+		t.Fatal(err)
+	}
+	before := dagReworkState(t, f.db)
+	if _, err = f.db.QueueRework(ctx, legacy); err != CodeError("rework_target_reserved") || before != dagReworkState(t, f.db) {
+		t.Fatalf("later legacy poisoned reservation: %v", err)
+	}
+	// The original closure still proceeds after the rejected competing command.
+	g, err := f.db.ClaimReady(ctx, f.host, 1, 3)
+	if err != nil || g.TaskID != "edit" {
+		t.Fatalf("original closure blocked %+v %v", g, err)
+	}
+}
+
+func TestDAGReworkLegacyDifferentTargetRemainsIndependent(t *testing.T) {
+	for _, first := range []string{"v0", "v1"} {
+		t.Run(first, func(t *testing.T) {
+			f := newDAGReworkFixture(t, adapter.ProviderClaude, adapter.ProviderClaude, func(tasks []TaskSpec) []TaskSpec {
+				tasks = dagIndependentLegacyChain(tasks)
+				for i := range tasks {
+					if strings.HasPrefix(tasks[i].ID, "legacy-") {
+						p, _ := adapter.DecodeInvocationPayload(tasks[i].AdapterPayload)
+						if p.CandidateAction != nil {
+							p.CandidateAction.Target.Ref = "refs/heads/other"
+							tasks[i].AdapterPayload, _ = json.Marshal(p)
+						}
+					}
+				}
+				return tasks
+			})
+			ctx := context.Background()
+			var review contract.Event
+			for i := 0; i < 4; i++ {
+				g, err := f.db.ClaimReady(ctx, f.host, 1, 3)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if g.TaskID == "legacy-review" {
+					review = f.finish(t, g, true)
+					break
+				}
+				f.finish(t, g, false)
+			}
+			page, err := f.db.CollectPending(ctx, "legacy-edit", "", 0, false)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var candidate contract.Event
+			for _, e := range page.Events {
+				if e.Kind == contract.EventResult {
+					candidate = e
+				}
+			}
+			legacy := ReworkSpec{TaskID: "legacy-edit", WorkRevision: 1, Candidate: reworkEventTuple(candidate), CandidateOID: strings.Repeat("b", 40), ReviewTaskID: "legacy-review", ReviewWorkRevision: 1, Review: reworkEventTuple(review), ActionSlot: review.ActionSlot, Feedback: "legacy repair", Acceptance: "legacy scope", CommandID: "legacy-rework"}
+			requests := []ReworkSpec{legacy, reworkVersionSpec(t, f.spec, 1)}
+			if first == "v1" {
+				requests[0], requests[1] = requests[1], requests[0]
+			}
+			for _, spec := range requests {
+				if _, err = f.db.QueueRework(ctx, spec); err != nil {
+					t.Fatalf("different target cannot coexist: %v", err)
+				}
+			}
+			seen := map[string]bool{}
+			for i := 0; i < 10; i++ {
+				g, err := f.db.ClaimReady(ctx, f.host, 1, 3)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if g.WorkRevision != 2 || seen[g.TaskID] {
+					t.Fatalf("duplicate/wrong grant %+v", g)
+				}
+				seen[g.TaskID] = true
+				f.finish(t, g, false)
+			}
+			if !seen["integrate"] || !seen["legacy-integrate"] {
+				t.Fatal("independent integrations missing")
+			}
+		})
+	}
+}
+
+func TestDAGReworkMalformedMarkerCannotEvadeBindingGuard(t *testing.T) {
+	for _, corrupt := range []string{"remove_version", "bad_json"} {
+		t.Run(corrupt, func(t *testing.T) {
+			f := newDAGReworkFixture(t, adapter.ProviderClaude, adapter.ProviderClaude)
+			ctx := context.Background()
+			if _, err := f.db.QueueRework(ctx, reworkVersionSpec(t, f.spec, 1)); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := f.db.sql.Exec(`DELETE FROM decision_attempt_bindings`); err != nil {
+				t.Fatal(err)
+			}
+			query := `UPDATE retry_decisions SET revision_payload=json_remove(revision_payload,'$.request.version')`
+			if corrupt == "bad_json" {
+				query = `UPDATE retry_decisions SET revision_payload='{'`
+			}
+			if _, err := f.db.sql.Exec(query); err != nil {
+				t.Fatal(err)
+			}
+			before := dagReworkState(t, f.db)
+			if _, err := f.db.ClaimReady(ctx, f.host, 1, 3); err == nil || before != dagReworkState(t, f.db) {
+				t.Fatalf("malformed v1 became legacy initial grant %v", err)
+			}
+		})
+	}
+}
