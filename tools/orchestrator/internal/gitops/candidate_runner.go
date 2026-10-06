@@ -130,6 +130,59 @@ func freezeGit(ctx context.Context, dir string, stdin io.Reader, args ...string)
 	return result.Stdout, err
 }
 
+// candidateGitStream keeps Git object bytes out of the command-result cache.
+// process retains its existing bounded diagnostic capture while the supplied
+// writer consumes data incrementally under the same process/journal contract.
+func candidateGitStream(ctx context.Context, dir string, out io.Writer, args ...string) error {
+	env := []string{}
+	for _, entry := range os.Environ() {
+		key, _, _ := strings.Cut(entry, "=")
+		if !strings.HasPrefix(key, "GIT_") {
+			env = append(env, entry)
+		}
+	}
+	env = append(env, "GIT_NO_REPLACE_OBJECTS=1", "GIT_TERMINAL_PROMPT=0")
+	argv := append([]string{"--no-replace-objects", "-c", "maintenance.auto=false", "-c", "gc.auto=0", "-C", dir}, args...)
+	digest := DigestDetail(dir + "\x00" + strings.Join(argv, "\x00"))
+	journal, _ := ctx.Value(candidateJournalKey{}).(GitProcessJournal)
+	record := func(phase string, identity *process.Identity, exit int) error {
+		if journal == nil {
+			return nil
+		}
+		return journal.RecordGitProcess(context.Background(), GitProcessRecord{Phase: phase, CommandDigest: digest, Process: identity, ExitCode: exit})
+	}
+	if err := record("intent", nil, -1); err != nil {
+		return err
+	}
+	p, err := process.Start(ctx, process.Command{Path: "/usr/bin/git", Args: argv, Dir: dir, Env: env, ExactEnv: true, Stdout: out})
+	if err != nil {
+		return candidateStartFailure(err)
+	}
+	identity := p.Identity()
+	if err := record("spawned", &identity, -1); err != nil {
+		stopCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_ = p.Stop(stopCtx)
+		return err
+	}
+	if err := p.Wait(ctx); err != nil {
+		stopCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_ = p.Stop(stopCtx)
+	}
+	if err := p.ConfirmTreeExited(); err != nil {
+		_ = record("unknown", &identity, p.ExitCode())
+		return process.ErrProcessTreeUnknown
+	}
+	if err := record("exited", &identity, p.ExitCode()); err != nil {
+		return err
+	}
+	if p.ExitCode() != 0 {
+		return fail(CodeGitFailure, "candidate git", fmt.Errorf("git command failed"))
+	}
+	return nil
+}
+
 // Git extensions can execute code supplied by the worker with Host permissions.
 // Until their execution has a separate sandbox, reject them; never skip hooks.
 func candidateRepositoryAllowed(ctx context.Context, repo string) error {

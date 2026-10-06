@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"hash"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -130,31 +131,8 @@ func CandidateReviewIndex(ctx context.Context, receipt CandidateReceipt, receipt
 			if !side.ok {
 				continue
 			}
-			content, err := indexedReviewText(ctx, receipt.Worktree, side.entry)
-			if err != nil {
+			if err := appendIndexedReviewBlob(ctx, receipt.Worktree, path, side.name, side.entry, &index); err != nil {
 				return ReviewIndex{}, err
-			}
-			if len(content)+indexedTextBytes(index.Chunks) > indexedReviewTextLimit {
-				return ReviewIndex{}, fail(CodeInvalidInput, "review index", fmt.Errorf("logical text exceeds limit"))
-			}
-			whole := reviewChunkDigest(content)
-			for offset := 0; offset < len(content); {
-				end := offset + indexedReviewChunkLimit
-				if end > len(content) {
-					end = len(content)
-				}
-				for end > offset && !utf8.Valid(content[offset:end]) {
-					end--
-				}
-				if end == offset {
-					return ReviewIndex{}, fail(CodeUnknownObject, "review index", fmt.Errorf("invalid utf8 boundary"))
-				}
-				part := content[offset:end]
-				if len(index.Chunks) >= indexedReviewChunkCountLimit {
-					return ReviewIndex{}, fail(CodeInvalidInput, "review index", fmt.Errorf("too many chunks"))
-				}
-				index.Chunks = append(index.Chunks, ReviewIndexChunk{Ordinal: len(index.Chunks), Path: path, Side: side.name, Mode: side.entry.mode, BlobOID: side.entry.oid, WholeSHA256: whole, Offset: offset, Length: len(part), SHA256: reviewChunkDigest(part), Content: string(part)})
-				offset = end
 			}
 		}
 	}
@@ -181,6 +159,22 @@ func CandidateReviewIndex(ctx context.Context, receipt CandidateReceipt, receipt
 	return index, nil
 }
 
+func appendIndexedReviewBlob(ctx context.Context, repo, path, side string, entry reviewTreeEntry, index *ReviewIndex) error {
+	sizeText, err := freezeGit(ctx, repo, nil, "cat-file", "-s", entry.oid)
+	if err != nil {
+		return err
+	}
+	var size int
+	if _, err = fmt.Sscanf(strings.TrimSpace(sizeText), "%d", &size); err != nil || size < 0 || size > indexedReviewBlobReadLimit {
+		return fail(CodeInvalidInput, "review index", fmt.Errorf("blob exceeds read limit"))
+	}
+	c := indexedChunkCollector{path: path, side: side, entry: entry, index: index, expected: size, whole: sha256.New()}
+	if err := candidateGitStream(ctx, repo, &c, "cat-file", "blob", entry.oid); err != nil {
+		return err
+	}
+	return c.finish()
+}
+
 func indexedTextBytes(chunks []ReviewIndexChunk) int {
 	n := 0
 	for _, c := range chunks {
@@ -189,24 +183,74 @@ func indexedTextBytes(chunks []ReviewIndexChunk) int {
 	return n
 }
 
-func indexedReviewText(ctx context.Context, repo string, entry reviewTreeEntry) ([]byte, error) {
-	sizeText, err := freezeGit(ctx, repo, nil, "cat-file", "-s", entry.oid)
-	if err != nil {
-		return nil, err
+type indexedChunkCollector struct {
+	path, side             string
+	entry                  reviewTreeEntry
+	index                  *ReviewIndex
+	expected, seen, offset int
+	pending, prefix        []byte
+	whole                  hash.Hash
+	invalid                bool
+}
+
+func (c *indexedChunkCollector) Write(p []byte) (int, error) {
+	c.seen += len(p)
+	if c.seen > c.expected || c.seen+indexedTextBytes(c.index.Chunks) > indexedReviewTextLimit || strings.IndexByte(string(p), 0) >= 0 {
+		c.invalid = true
+		return len(p), nil
 	}
-	var size int
-	if _, err = fmt.Sscanf(strings.TrimSpace(sizeText), "%d", &size); err != nil || size < 0 || size > indexedReviewBlobReadLimit {
-		return nil, fail(CodeInvalidInput, "review index", fmt.Errorf("blob exceeds read limit"))
+	_, _ = c.whole.Write(p)
+	if len(c.prefix) < 64 {
+		n := 64 - len(c.prefix)
+		if n > len(p) {
+			n = len(p)
+		}
+		c.prefix = append(c.prefix, p[:n]...)
 	}
-	content, err := freezeGit(ctx, repo, nil, "cat-file", "blob", entry.oid)
-	if err != nil {
-		return nil, err
+	c.pending = append(c.pending, p...)
+	for len(c.pending) >= indexedReviewChunkLimit {
+		end := indexedReviewChunkLimit
+		for end > 0 && !utf8.Valid(c.pending[:end]) {
+			end--
+		}
+		if end == 0 {
+			c.invalid = true
+			return len(p), nil
+		}
+		if err := c.append(c.pending[:end]); err != nil {
+			c.invalid = true
+			return len(p), nil
+		}
+		c.pending = append(c.pending[:0], c.pending[end:]...)
 	}
-	b := []byte(content)
-	if len(b) != size || strings.Contains(content, "\x00") || !utf8.Valid(b) || strings.HasPrefix(content, "version https://git-lfs.github.com/spec/v1\n") {
-		return nil, fail(CodeUnknownObject, "review index", fmt.Errorf("unsupported tracked content"))
+	return len(p), nil
+}
+func (c *indexedChunkCollector) append(part []byte) error {
+	if len(c.index.Chunks) >= indexedReviewChunkCountLimit {
+		return fmt.Errorf("too many chunks")
 	}
-	return b, nil
+	c.index.Chunks = append(c.index.Chunks, ReviewIndexChunk{Ordinal: len(c.index.Chunks), Path: c.path, Side: c.side, Mode: c.entry.mode, BlobOID: c.entry.oid, Offset: c.offset, Length: len(part), SHA256: reviewChunkDigest(part), Content: string(part)})
+	c.offset += len(part)
+	return nil
+}
+func (c *indexedChunkCollector) finish() error {
+	if c.invalid || c.seen != c.expected || !utf8.Valid(c.pending) || strings.HasPrefix(string(c.prefix), "version https://git-lfs.github.com/spec/v1\n") {
+		return fail(CodeUnknownObject, "review index", fmt.Errorf("unsupported tracked content"))
+	}
+	if len(c.pending) > 0 {
+		if err := c.append(c.pending); err != nil {
+			return fail(CodeInvalidInput, "review index", err)
+		}
+	}
+	whole := hex.EncodeToString(c.whole.Sum(nil))
+	start := len(c.index.Chunks)
+	for start > 0 && c.index.Chunks[start-1].BlobOID == c.entry.oid && c.index.Chunks[start-1].Path == c.path && c.index.Chunks[start-1].Side == c.side {
+		start--
+	}
+	for i := start; i < len(c.index.Chunks); i++ {
+		c.index.Chunks[i].WholeSHA256 = whole
+	}
+	return nil
 }
 
 type reviewSnapshotBlob struct {

@@ -222,3 +222,28 @@ func TestCandidateReviewIndexChunksCompleteUTF8TextWithoutLosingSides(t *testing
 		t.Fatalf("pages=%+v", index.Pages)
 	}
 }
+
+func TestCandidateReviewIndexAcceptsLargeCompleteCandidateBeyondLegacySnapshotLimits(t *testing.T) {
+	d, base := repo(t)
+	changes := make([]CandidateChange, 0, 65)
+	for i := 0; i < 65; i++ {
+		path := fmt.Sprintf("indexed-%03d.txt", i)
+		if err := os.WriteFile(filepath.Join(d, path), []byte(strings.Repeat("é", 1100)), 0600); err != nil {
+			t.Fatal(err)
+		}
+		changes = append(changes, CandidateChange{Path: path, Mode: "100644"})
+	}
+	git(t, d, "add", ".")
+	git(t, d, "commit", "-qm", "large indexed candidate")
+	candidateOID := git(t, d, "rev-parse", "HEAD")
+	for i := range changes {
+		changes[i].BlobOID = git(t, d, "rev-parse", candidateOID+":"+changes[i].Path)
+	}
+	index, err := CandidateReviewIndex(context.Background(), CandidateReceipt{AttemptID: "attempt", RepoRoot: d, Worktree: d, CommonDir: CanonicalPath(filepath.Join(d, ".git")), BaseOID: base, CandidateOID: candidateOID, TreeOID: git(t, d, "rev-parse", "HEAD^{tree}"), Changes: changes}, strings.Repeat("f", 64))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(index.Chunks) < 65 || len(index.Pages) < 2 || index.Chunks[0].Length > indexedReviewChunkLimit {
+		t.Fatalf("index lacks complete large coverage: chunks=%d pages=%d", len(index.Chunks), len(index.Pages))
+	}
+}

@@ -138,6 +138,13 @@ func readAcceptedCandidate(grant contract.LaunchCommand) (CandidateDelivery, err
 		return out, err
 	}
 	input := grant.Input
+	return readCandidateDelivery(grant, input)
+}
+
+// readCandidateDelivery authenticates an accepted artifact against the exact
+// immutable vector entry before JSON decoding it.
+func readCandidateDelivery(grant contract.LaunchCommand, input *contract.AcceptedInput) (CandidateDelivery, error) {
+	var out CandidateDelivery
 	if input == nil || input.DecisionCommandID == "" || input.Event.RunID != grant.RunID || input.Event.Kind != contract.EventResult || input.Event.Artifact == nil {
 		return out, errors.New("candidate_input_missing")
 	}
@@ -176,6 +183,90 @@ func readAcceptedCandidate(grant contract.LaunchCommand) (CandidateDelivery, err
 		return out, errors.New("candidate_binding_mismatch")
 	}
 	return out, nil
+}
+
+// readIndexedReviewCoverage consumes every direct accepted review result. The
+// SourceTask input remains only a deterministic anchor; it cannot authorize an
+// indexed integration without the complete immutable shard vector.
+func readIndexedReviewCoverage(grant contract.LaunchCommand, action *adapter.ReviewIndex) (CandidateDelivery, error) {
+	if action == nil || grant.DependencyInputs == nil || len(grant.DependencyInputs.Inputs) != action.Shards {
+		return CandidateDelivery{}, errors.New("candidate_review_coverage_missing")
+	}
+	var first CandidateDelivery
+	seen := make(map[int]bool, action.Shards)
+	for _, input := range grant.DependencyInputs.Inputs {
+		delivery, err := readCandidateDelivery(grant, &input)
+		if err != nil {
+			return CandidateDelivery{}, err
+		}
+		var source struct {
+			Action *adapter.CandidateAction `json:"candidate_action"`
+		}
+		if json.Unmarshal(input.AdapterPayload, &source) != nil || source.Action == nil || source.Action.Operation != "review" || source.Action.ReviewIndex == nil || source.Action.ReviewIndex.Version != action.Version || source.Action.ReviewIndex.Mode != action.Mode || source.Action.ReviewIndex.Shards != action.Shards || source.Action.ReviewIndex.ReviewOrdinal < 0 || source.Action.ReviewIndex.ReviewOrdinal >= action.Shards {
+			return CandidateDelivery{}, errors.New("candidate_review_coverage_changed")
+		}
+		if delivery.Stage != "review" || delivery.Review == nil || delivery.Review.Decision != "approve" || delivery.Validation == nil || !delivery.Validation.Passed || delivery.ReviewIndex == nil || len(delivery.ReviewAssignmentSHA256) != 64 || delivery.ReviewScope != "complete-tracked-text-base-and-candidate" {
+			return CandidateDelivery{}, errors.New("candidate_review_coverage_incomplete")
+		}
+		ordinal := source.Action.ReviewIndex.ReviewOrdinal
+		if seen[ordinal] {
+			return CandidateDelivery{}, errors.New("candidate_review_coverage_duplicate")
+		}
+		seen[ordinal] = true
+		if first.Version == 0 {
+			first = delivery
+			continue
+		}
+		if delivery.CandidateReceiptSHA256 != first.CandidateReceiptSHA256 || delivery.Candidate.CandidateOID != first.Candidate.CandidateOID || delivery.Candidate.TreeOID != first.Candidate.TreeOID || delivery.Candidate.BaseOID != first.Candidate.BaseOID || delivery.ValidationDigest != first.ValidationDigest || !reflect.DeepEqual(delivery.Target, first.Target) || gitops.ReviewIndexManifestSHA256(*delivery.ReviewIndex) != gitops.ReviewIndexManifestSHA256(*first.ReviewIndex) {
+			return CandidateDelivery{}, errors.New("candidate_review_coverage_changed")
+		}
+	}
+	for ordinal := 0; ordinal < action.Shards; ordinal++ {
+		if !seen[ordinal] {
+			return CandidateDelivery{}, errors.New("candidate_review_coverage_missing")
+		}
+	}
+	if first.Version == 0 {
+		return CandidateDelivery{}, errors.New("candidate_review_coverage_missing")
+	}
+	return first, nil
+}
+
+func verifyIndexedAssignments(grant contract.LaunchCommand, action *adapter.ReviewIndex, index gitops.ReviewIndex) error {
+	seen := make(map[int]bool, action.Shards)
+	for _, input := range grant.DependencyInputs.Inputs {
+		delivery, err := readCandidateDelivery(grant, &input)
+		if err != nil {
+			return err
+		}
+		var source struct {
+			Action *adapter.CandidateAction `json:"candidate_action"`
+		}
+		if json.Unmarshal(input.AdapterPayload, &source) != nil || source.Action == nil || source.Action.ReviewIndex == nil {
+			return errors.New("candidate_review_assignment_changed")
+		}
+		ordinal := source.Action.ReviewIndex.ReviewOrdinal
+		if ordinal < 0 || ordinal >= action.Shards || seen[ordinal] {
+			return errors.New("candidate_review_assignment_changed")
+		}
+		seen[ordinal] = true
+		assigned := make([]gitops.ReviewIndexChunk, 0)
+		for _, chunk := range index.Chunks {
+			if chunk.Ordinal%action.Shards == ordinal {
+				assigned = append(assigned, chunk)
+			}
+		}
+		raw, err := json.Marshal(assigned)
+		if err != nil || hashBytes(raw) != delivery.ReviewAssignmentSHA256 {
+			return errors.New("candidate_review_assignment_changed")
+		}
+	}
+	for ordinal := 0; ordinal < action.Shards; ordinal++ {
+		if !seen[ordinal] {
+			return errors.New("candidate_review_assignment_changed")
+		}
+	}
+	return nil
 }
 
 // The model receives source identities and evidence, never coordinator/owner
@@ -236,8 +327,14 @@ func (h *Host) prepareCandidateAction(ctx context.Context, grant contract.Launch
 	if action == nil || action.Version != 1 || action.SourceTask != grant.Input.Event.TaskID || grant.SessionID != "" || grant.Answer != "" || !filepath.IsAbs(action.Target.Worktree) || !strings.HasPrefix(action.Target.Ref, "refs/heads/") {
 		return empty, nil, noop, errors.New("candidate_action_invalid")
 	}
-	if action.ReviewIndex != nil && (action.Operation != "review" || action.ReviewIndex.Version != 1 || action.ReviewIndex.Mode != "indexed_candidate_review_v1" || action.ReviewIndex.Shards < 1 || action.ReviewIndex.Shards > 63 || action.ReviewIndex.ReviewOrdinal < 0 || action.ReviewIndex.ReviewOrdinal >= action.ReviewIndex.Shards) {
+	if action.ReviewIndex != nil && (action.Operation != "review" && action.Operation != "integrate" || action.ReviewIndex.Version != 1 || action.ReviewIndex.Mode != "indexed_candidate_review_v1" || action.ReviewIndex.Shards < 1 || action.ReviewIndex.Shards > 63 || action.ReviewIndex.ReviewOrdinal < 0 || action.ReviewIndex.ReviewOrdinal >= action.ReviewIndex.Shards) {
 		return empty, nil, noop, errors.New("candidate_review_index_invalid")
+	}
+	if action.Operation == "integrate" && action.ReviewIndex != nil {
+		in, err = readIndexedReviewCoverage(grant, action.ReviewIndex)
+		if err != nil {
+			return empty, nil, noop, err
+		}
 	}
 	var source struct {
 		Kind      string                      `json:"kind"`
@@ -305,14 +402,7 @@ func (h *Host) prepareCandidateAction(ctx context.Context, grant contract.Launch
 			if err != nil || gitops.ReviewIndexManifestSHA256(index) != gitops.ReviewIndexManifestSHA256(*in.ReviewIndex) {
 				return fail(errors.New("candidate_review_index_changed"))
 			}
-			assigned := make([]gitops.ReviewIndexChunk, 0)
-			for _, chunk := range index.Chunks {
-				if chunk.Ordinal%action.ReviewIndex.Shards == action.ReviewIndex.ReviewOrdinal {
-					assigned = append(assigned, chunk)
-				}
-			}
-			assignment, _ := json.Marshal(assigned)
-			if hashBytes(assignment) != in.ReviewAssignmentSHA256 {
+			if err := verifyIndexedAssignments(grant, action.ReviewIndex, index); err != nil {
 				return fail(errors.New("candidate_review_assignment_changed"))
 			}
 		} else {
