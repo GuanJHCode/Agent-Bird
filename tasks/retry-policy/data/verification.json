@@ -1,0 +1,4082 @@
+{
+  "base_source_commit": "3ecc6dd3f129f25194d1255d3be0862f3d7be872",
+  "frozen_product_commit": "740324974aab278cdd9d2f0b6819e18b692dfcd7",
+  "environment": {
+    "go": "1.26.8",
+    "GOMAXPROCS": "2",
+    "GOCACHE": "tasks/retry-policy/tmp/gocache",
+    "cwd": "tools/orchestrator"
+  },
+  "source_timing": "Runs were performed before commit against the working tree. Final pure checks verify the relevant unchanged paths of the frozen commit. Actor runs preceded the policy FIFO exhausted-sibling fix and the CLI-only profile timeout fix; the single-task actor does not exercise those changed branches. No native Host/worker exit assertion is claimed.",
+  "summary": {
+    "normal": {
+      "artifacts": [
+        "final-store-fifo.json",
+        "final-legacy.json",
+        "final-public-bounds.json",
+        "final-legacy-migration.json",
+        "host-policy.json",
+        "coordinator-actor.json"
+      ],
+      "unique_named_counts": {
+        "pass": 154,
+        "fail": 0,
+        "skip": 0
+      },
+      "unique_top_level_counts": {
+        "pass": 55,
+        "fail": 0,
+        "skip": 0
+      }
+    },
+    "race": {
+      "artifacts": [
+        "final-store-legacy-race.json",
+        "final-public-bounds-race.json",
+        "final-legacy-migration-race.json",
+        "host-policy-race.json",
+        "coordinator-actor-race.json"
+      ],
+      "unique_named_counts": {
+        "pass": 154,
+        "fail": 0,
+        "skip": 0
+      },
+      "unique_top_level_counts": {
+        "pass": 55,
+        "fail": 0,
+        "skip": 0
+      }
+    }
+  },
+  "logs": [
+    {
+      "artifact": "final-build-bounds.log",
+      "process_exit_code": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "command": "go build ./..."
+    },
+    {
+      "artifact": "final-vet-bounds.log",
+      "process_exit_code": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "command": "go vet ./..."
+    },
+    {
+      "artifact": "final-vet-fixtures.log",
+      "process_exit_code": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "command": "go vet ./..."
+    }
+  ],
+  "checks": [
+    {
+      "artifact": "coordinator-actor-race.json",
+      "sha256": "39379ed9e714a738a20679bf949dd022f0e24d258207c6ef2f096b71eef8d99d",
+      "bytes": 1736,
+      "counts_including_parent_and_subtest": {
+        "pass": 1,
+        "fail": 0,
+        "skip": 0
+      },
+      "top_level_counts": {
+        "pass": 1,
+        "fail": 0,
+        "skip": 0
+      },
+      "packages": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator",
+          "action": "pass",
+          "elapsed_seconds": 2.933
+        }
+      ],
+      "tests": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator",
+          "name": "TestPolicyRetryActorWakesWithoutNewRequestAndKeepsHost",
+          "action": "pass",
+          "elapsed_seconds": 1.42
+        }
+      ],
+      "non_json_lines": 0,
+      "process_exit_code": 0,
+      "selection_replay_command": "go test -race -json -count=1 ./internal/coordinator -run '^(TestPolicyRetryActorWakesWithoutNewRequestAndKeepsHost)$'",
+      "command_scope": "replay of actual named top-level selection from JSON; exact historical shell argument ordering is not persisted here",
+      "validation_stage": "race"
+    },
+    {
+      "artifact": "coordinator-actor.json",
+      "sha256": "913d4145662cc0688ef394d0a4c74ab0f70672b84dd9ae2be40fc9f52ecb3bc1",
+      "bytes": 1736,
+      "counts_including_parent_and_subtest": {
+        "pass": 1,
+        "fail": 0,
+        "skip": 0
+      },
+      "top_level_counts": {
+        "pass": 1,
+        "fail": 0,
+        "skip": 0
+      },
+      "packages": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator",
+          "action": "pass",
+          "elapsed_seconds": 1.102
+        }
+      ],
+      "tests": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator",
+          "name": "TestPolicyRetryActorWakesWithoutNewRequestAndKeepsHost",
+          "action": "pass",
+          "elapsed_seconds": 0.45
+        }
+      ],
+      "non_json_lines": 0,
+      "process_exit_code": 0,
+      "selection_replay_command": "go test -json -count=1 ./internal/coordinator -run '^(TestPolicyRetryActorWakesWithoutNewRequestAndKeepsHost)$'",
+      "command_scope": "replay of actual named top-level selection from JSON; exact historical shell argument ordering is not persisted here",
+      "validation_stage": "normal"
+    },
+    {
+      "artifact": "final-dispatch-bounds.json",
+      "sha256": "4ca28b205f3114496386a3729e9b6e4bb728f3d1a90ce3b82eeb6f06e6d6c03e",
+      "bytes": 2711,
+      "counts_including_parent_and_subtest": {
+        "pass": 2,
+        "fail": 0,
+        "skip": 0
+      },
+      "top_level_counts": {
+        "pass": 2,
+        "fail": 0,
+        "skip": 0
+      },
+      "packages": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+          "action": "pass",
+          "elapsed_seconds": 0.961
+        }
+      ],
+      "tests": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+          "name": "TestConfigPreparationExecutionPolicyDriftCannotReuseCheckpoint",
+          "action": "pass",
+          "elapsed_seconds": 0.28
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+          "name": "TestDispatchPublicJSONExecutionPolicyReachesPlan",
+          "action": "pass",
+          "elapsed_seconds": 0
+        }
+      ],
+      "non_json_lines": 0,
+      "process_exit_code": 0,
+      "command_scope": "historical development output; exact shell arguments are not persisted here; named tests and package outcomes retained"
+    },
+    {
+      "artifact": "final-legacy-migration-race.json",
+      "sha256": "6185b8a219e13b2e6b32104e419acacfb2e45b7ad0234c4ede6e496d24859f91",
+      "bytes": 26921,
+      "counts_including_parent_and_subtest": {
+        "pass": 26,
+        "fail": 0,
+        "skip": 0
+      },
+      "top_level_counts": {
+        "pass": 18,
+        "fail": 0,
+        "skip": 0
+      },
+      "packages": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "action": "pass",
+          "elapsed_seconds": 71.606
+        }
+      ],
+      "tests": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestBridgeV9MigrationCreatesFiveTablesAndIsIdempotent",
+          "action": "pass",
+          "elapsed_seconds": 1.08
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestBridgeV8UpgradeFailureRollsBackDDLAndKeepsOldRows",
+          "action": "pass",
+          "elapsed_seconds": 5.07
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestStoreConfigAbandonMigration14",
+          "action": "pass",
+          "elapsed_seconds": 0.96
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestStoreConfigAbandonV13MigrationRollbackAndReopen",
+          "action": "pass",
+          "elapsed_seconds": 3.84
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestContinuationV9UpgradePreservesHistoryAndReopens",
+          "action": "pass",
+          "elapsed_seconds": 4.58
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestContinuationV9UpgradeFailureRollsBackNewBindingTable",
+          "action": "pass",
+          "elapsed_seconds": 3.74
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestCoreOwnerRebindProofRollsBackAndMigratesLegacyWithoutGuessing/rollback",
+          "action": "pass",
+          "elapsed_seconds": 0.94
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestCoreOwnerRebindProofRollsBackAndMigratesLegacyWithoutGuessing/legacy",
+          "action": "pass",
+          "elapsed_seconds": 4.34
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestCoreOwnerRebindProofRollsBackAndMigratesLegacyWithoutGuessing",
+          "action": "pass",
+          "elapsed_seconds": 5.27
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLegacyReviewRetrySecondDecisionBindsNewAttemptAfterV12",
+          "action": "pass",
+          "elapsed_seconds": 3.77
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLegacyReviewRetryConsumedTargetAuthenticatesSource/hash",
+          "action": "pass",
+          "elapsed_seconds": 1.11
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLegacyReviewRetryConsumedTargetAuthenticatesSource/slot",
+          "action": "pass",
+          "elapsed_seconds": 1.12
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLegacyReviewRetryConsumedTargetAuthenticatesSource/segment",
+          "action": "pass",
+          "elapsed_seconds": 1.12
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLegacyReviewRetryConsumedTargetAuthenticatesSource/producer",
+          "action": "pass",
+          "elapsed_seconds": 1.14
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLegacyReviewRetryConsumedTargetAuthenticatesSource/command",
+          "action": "pass",
+          "elapsed_seconds": 1.12
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLegacyReviewRetryConsumedTargetAuthenticatesSource/epoch",
+          "action": "pass",
+          "elapsed_seconds": 1.12
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLegacyReviewRetryConsumedTargetAuthenticatesSource",
+          "action": "pass",
+          "elapsed_seconds": 6.73
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLegacyReviewRetryPendingChecksHistoricalCommitments",
+          "action": "pass",
+          "elapsed_seconds": 3.66
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLegacyReviewRetrySameHashCompetingDecisionsRefuseGrant",
+          "action": "pass",
+          "elapsed_seconds": 3.69
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestDecisionBindingV12MigrationKeepsHistoricalReceiptWithoutBackfill",
+          "action": "pass",
+          "elapsed_seconds": 3.46
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestDecisionBindingV12MigrationDDLFailureRollsBack",
+          "action": "pass",
+          "elapsed_seconds": 3.12
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestOriginalOwnerV11MigrationPreservesLegacyRowsAndReopens",
+          "action": "pass",
+          "elapsed_seconds": 4
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestOriginalOwnerV11MigrationFailureRollsBackDDLAndVersion",
+          "action": "pass",
+          "elapsed_seconds": 3.49
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestProviderMigrationPreservesVersionSevenRuns",
+          "action": "pass",
+          "elapsed_seconds": 4.55
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestQuotaMigrationBackfillsReportAndRuntimeUsage",
+          "action": "pass",
+          "elapsed_seconds": 4.4
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestReworkMigrationFromFiveRollsBackOnFailure",
+          "action": "pass",
+          "elapsed_seconds": 4.7
+        }
+      ],
+      "non_json_lines": 0,
+      "process_exit_code": 0,
+      "selection_replay_command": "go test -race -json -count=1 ./internal/store -run '^(TestBridgeV9MigrationCreatesFiveTablesAndIsIdempotent|TestBridgeV8UpgradeFailureRollsBackDDLAndKeepsOldRows|TestStoreConfigAbandonMigration14|TestStoreConfigAbandonV13MigrationRollbackAndReopen|TestContinuationV9UpgradePreservesHistoryAndReopens|TestContinuationV9UpgradeFailureRollsBackNewBindingTable|TestCoreOwnerRebindProofRollsBackAndMigratesLegacyWithoutGuessing|TestLegacyReviewRetrySecondDecisionBindsNewAttemptAfterV12|TestLegacyReviewRetryConsumedTargetAuthenticatesSource|TestLegacyReviewRetryPendingChecksHistoricalCommitments|TestLegacyReviewRetrySameHashCompetingDecisionsRefuseGrant|TestDecisionBindingV12MigrationKeepsHistoricalReceiptWithoutBackfill|TestDecisionBindingV12MigrationDDLFailureRollsBack|TestOriginalOwnerV11MigrationPreservesLegacyRowsAndReopens|TestOriginalOwnerV11MigrationFailureRollsBackDDLAndVersion|TestProviderMigrationPreservesVersionSevenRuns|TestQuotaMigrationBackfillsReportAndRuntimeUsage|TestReworkMigrationFromFiveRollsBackOnFailure)$'",
+      "command_scope": "replay of actual named top-level selection from JSON; exact historical shell argument ordering is not persisted here",
+      "validation_stage": "race"
+    },
+    {
+      "artifact": "final-legacy-migration.json",
+      "sha256": "fc423b9967e04ed4ac6648585a47470436f60a369ee8efa33043718f8a361c48",
+      "bytes": 26919,
+      "counts_including_parent_and_subtest": {
+        "pass": 26,
+        "fail": 0,
+        "skip": 0
+      },
+      "top_level_counts": {
+        "pass": 18,
+        "fail": 0,
+        "skip": 0
+      },
+      "packages": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "action": "pass",
+          "elapsed_seconds": 2.459
+        }
+      ],
+      "tests": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestBridgeV9MigrationCreatesFiveTablesAndIsIdempotent",
+          "action": "pass",
+          "elapsed_seconds": 0.04
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestBridgeV8UpgradeFailureRollsBackDDLAndKeepsOldRows",
+          "action": "pass",
+          "elapsed_seconds": 0.12
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestStoreConfigAbandonMigration14",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestStoreConfigAbandonV13MigrationRollbackAndReopen",
+          "action": "pass",
+          "elapsed_seconds": 0.09
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestContinuationV9UpgradePreservesHistoryAndReopens",
+          "action": "pass",
+          "elapsed_seconds": 0.11
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestContinuationV9UpgradeFailureRollsBackNewBindingTable",
+          "action": "pass",
+          "elapsed_seconds": 0.09
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestCoreOwnerRebindProofRollsBackAndMigratesLegacyWithoutGuessing/rollback",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestCoreOwnerRebindProofRollsBackAndMigratesLegacyWithoutGuessing/legacy",
+          "action": "pass",
+          "elapsed_seconds": 0.11
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestCoreOwnerRebindProofRollsBackAndMigratesLegacyWithoutGuessing",
+          "action": "pass",
+          "elapsed_seconds": 0.13
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLegacyReviewRetrySecondDecisionBindsNewAttemptAfterV12",
+          "action": "pass",
+          "elapsed_seconds": 0.1
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLegacyReviewRetryConsumedTargetAuthenticatesSource/hash",
+          "action": "pass",
+          "elapsed_seconds": 0.04
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLegacyReviewRetryConsumedTargetAuthenticatesSource/slot",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLegacyReviewRetryConsumedTargetAuthenticatesSource/segment",
+          "action": "pass",
+          "elapsed_seconds": 0.04
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLegacyReviewRetryConsumedTargetAuthenticatesSource/producer",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLegacyReviewRetryConsumedTargetAuthenticatesSource/command",
+          "action": "pass",
+          "elapsed_seconds": 0.04
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLegacyReviewRetryConsumedTargetAuthenticatesSource/epoch",
+          "action": "pass",
+          "elapsed_seconds": 0.04
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLegacyReviewRetryConsumedTargetAuthenticatesSource",
+          "action": "pass",
+          "elapsed_seconds": 0.21
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLegacyReviewRetryPendingChecksHistoricalCommitments",
+          "action": "pass",
+          "elapsed_seconds": 0.1
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLegacyReviewRetrySameHashCompetingDecisionsRefuseGrant",
+          "action": "pass",
+          "elapsed_seconds": 0.11
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestDecisionBindingV12MigrationKeepsHistoricalReceiptWithoutBackfill",
+          "action": "pass",
+          "elapsed_seconds": 0.09
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestDecisionBindingV12MigrationDDLFailureRollsBack",
+          "action": "pass",
+          "elapsed_seconds": 0.08
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestOriginalOwnerV11MigrationPreservesLegacyRowsAndReopens",
+          "action": "pass",
+          "elapsed_seconds": 0.1
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestOriginalOwnerV11MigrationFailureRollsBackDDLAndVersion",
+          "action": "pass",
+          "elapsed_seconds": 0.09
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestProviderMigrationPreservesVersionSevenRuns",
+          "action": "pass",
+          "elapsed_seconds": 0.11
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestQuotaMigrationBackfillsReportAndRuntimeUsage",
+          "action": "pass",
+          "elapsed_seconds": 0.11
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestReworkMigrationFromFiveRollsBackOnFailure",
+          "action": "pass",
+          "elapsed_seconds": 0.12
+        }
+      ],
+      "non_json_lines": 0,
+      "process_exit_code": 0,
+      "selection_replay_command": "go test -json -count=1 ./internal/store -run '^(TestBridgeV9MigrationCreatesFiveTablesAndIsIdempotent|TestBridgeV8UpgradeFailureRollsBackDDLAndKeepsOldRows|TestStoreConfigAbandonMigration14|TestStoreConfigAbandonV13MigrationRollbackAndReopen|TestContinuationV9UpgradePreservesHistoryAndReopens|TestContinuationV9UpgradeFailureRollsBackNewBindingTable|TestCoreOwnerRebindProofRollsBackAndMigratesLegacyWithoutGuessing|TestLegacyReviewRetrySecondDecisionBindsNewAttemptAfterV12|TestLegacyReviewRetryConsumedTargetAuthenticatesSource|TestLegacyReviewRetryPendingChecksHistoricalCommitments|TestLegacyReviewRetrySameHashCompetingDecisionsRefuseGrant|TestDecisionBindingV12MigrationKeepsHistoricalReceiptWithoutBackfill|TestDecisionBindingV12MigrationDDLFailureRollsBack|TestOriginalOwnerV11MigrationPreservesLegacyRowsAndReopens|TestOriginalOwnerV11MigrationFailureRollsBackDDLAndVersion|TestProviderMigrationPreservesVersionSevenRuns|TestQuotaMigrationBackfillsReportAndRuntimeUsage|TestReworkMigrationFromFiveRollsBackOnFailure)$'",
+      "command_scope": "replay of actual named top-level selection from JSON; exact historical shell argument ordering is not persisted here",
+      "validation_stage": "normal"
+    },
+    {
+      "artifact": "final-legacy.json",
+      "sha256": "0794e1a07f1d8507aad665db3f07f51069c0b4095f10c6f52324ad654802b2d8",
+      "bytes": 56982,
+      "counts_including_parent_and_subtest": {
+        "pass": 53,
+        "fail": 0,
+        "skip": 0
+      },
+      "top_level_counts": {
+        "pass": 16,
+        "fail": 0,
+        "skip": 0
+      },
+      "packages": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "action": "pass",
+          "elapsed_seconds": 1.717
+        }
+      ],
+      "tests": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestSubmitPlanBudgetGroupAttemptCapacity/four_tasks_cannot_share_three_attempts",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestSubmitPlanBudgetGroupAttemptCapacity/two_tasks_cannot_share_one_attempt",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestSubmitPlanBudgetGroupAttemptCapacity/three_tasks_can_share_three_attempts",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestSubmitPlanBudgetGroupAttemptCapacity/four_tasks_with_default_groups",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestSubmitPlanBudgetGroupAttemptCapacity/four_tasks_with_explicit_independent_groups",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestSubmitPlanBudgetGroupAttemptCapacity",
+          "action": "pass",
+          "elapsed_seconds": 0.13
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestBudgetLifecycleTerminalPathsSettleIndependentLedger/normal",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestBudgetLifecycleTerminalPathsSettleIndependentLedger/deadline",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestBudgetLifecycleTerminalPathsSettleIndependentLedger/owner_stop",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestBudgetLifecycleTerminalPathsSettleIndependentLedger/running_failure",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestBudgetLifecycleTerminalPathsSettleIndependentLedger",
+          "action": "pass",
+          "elapsed_seconds": 0.11
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestBudgetLifecycleStartupFailureSettlesLaunchRequestedGrant",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestBudgetLifecycleUnknownRetainsReservationAcrossCoordinatorRestart",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestBudgetLifecycleTechnicalRetryAndFeedbackReworkAccumulate/technical_retry",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestBudgetLifecycleTechnicalRetryAndFeedbackReworkAccumulate/feedback_rework",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestBudgetLifecycleTechnicalRetryAndFeedbackReworkAccumulate",
+          "action": "pass",
+          "elapsed_seconds": 0.07
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestRetireHostRechecksRetryQueuedAfterEligibilityScan",
+          "action": "pass",
+          "elapsed_seconds": 0.04
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestRetireHostCannotReleaseReconcilingSession",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedSettlesOnlyNeverStartedGrantAtZeroAndReplays/invocation_rejected",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedSettlesOnlyNeverStartedGrantAtZeroAndReplays/workspace_rejected",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedSettlesOnlyNeverStartedGrantAtZeroAndReplays",
+          "action": "pass",
+          "elapsed_seconds": 0.06
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedCannotEraseStartedUnknownOrConflictingEvidence/spawned",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedCannotEraseStartedUnknownOrConflictingEvidence/running",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedCannotEraseStartedUnknownOrConflictingEvidence/session",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedCannotEraseStartedUnknownOrConflictingEvidence/result",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedCannotEraseStartedUnknownOrConflictingEvidence/question",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedCannotEraseStartedUnknownOrConflictingEvidence/unknown",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedCannotEraseStartedUnknownOrConflictingEvidence/process",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedCannotEraseStartedUnknownOrConflictingEvidence/epoch",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedCannotEraseStartedUnknownOrConflictingEvidence/command",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedCannotEraseStartedUnknownOrConflictingEvidence/segment",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedCannotEraseStartedUnknownOrConflictingEvidence/attempt",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedCannotEraseStartedUnknownOrConflictingEvidence/revision",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedCannotEraseStartedUnknownOrConflictingEvidence/run",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedCannotEraseStartedUnknownOrConflictingEvidence/usage",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedCannotEraseStartedUnknownOrConflictingEvidence/exit",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedCannotEraseStartedUnknownOrConflictingEvidence/artifact",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedCannotEraseStartedUnknownOrConflictingEvidence",
+          "action": "pass",
+          "elapsed_seconds": 0.44
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedContinuationRetainsEarlierChargesAndResolvesConsumedAnswer",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedPreservesLegacyFailedExitedAccounting",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedBridgeProjectionKeepsDiagnostic",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestReworkRejectsUnsafeOrStaleChangesAtomically/stale_candidate",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestReworkRejectsUnsafeOrStaleChangesAtomically/stale_feedback",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestReworkRejectsUnsafeOrStaleChangesAtomically/tampered_artifact",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestReworkRejectsUnsafeOrStaleChangesAtomically/budget",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestReworkRejectsUnsafeOrStaleChangesAtomically/active",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestReworkRejectsUnsafeOrStaleChangesAtomically/integration_started",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestReworkRejectsUnsafeOrStaleChangesAtomically/quota",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestReworkRejectsUnsafeOrStaleChangesAtomically/old_revision",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestReworkRejectsUnsafeOrStaleChangesAtomically",
+          "action": "pass",
+          "elapsed_seconds": 0.26
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestReworkCannotQueueOversizedWorkerGrant",
+          "action": "pass",
+          "elapsed_seconds": 0.04
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestSummaryReportFailureDoesNotAuthorizeRetryWithoutHostOutcome",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestSummaryUnknownRetainsSlotAndForbidsResume",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        }
+      ],
+      "non_json_lines": 0,
+      "process_exit_code": 0,
+      "selection_replay_command": "go test -json -count=1 ./internal/store -run '^(TestSubmitPlanBudgetGroupAttemptCapacity|TestBudgetLifecycleTerminalPathsSettleIndependentLedger|TestBudgetLifecycleStartupFailureSettlesLaunchRequestedGrant|TestBudgetLifecycleUnknownRetainsReservationAcrossCoordinatorRestart|TestBudgetLifecycleTechnicalRetryAndFeedbackReworkAccumulate|TestRetireHostRechecksRetryQueuedAfterEligibilityScan|TestRetireHostCannotReleaseReconcilingSession|TestLaunchRejectedSettlesOnlyNeverStartedGrantAtZeroAndReplays|TestLaunchRejectedCannotEraseStartedUnknownOrConflictingEvidence|TestLaunchRejectedContinuationRetainsEarlierChargesAndResolvesConsumedAnswer|TestLaunchRejectedPreservesLegacyFailedExitedAccounting|TestLaunchRejectedBridgeProjectionKeepsDiagnostic|TestReworkRejectsUnsafeOrStaleChangesAtomically|TestReworkCannotQueueOversizedWorkerGrant|TestSummaryReportFailureDoesNotAuthorizeRetryWithoutHostOutcome|TestSummaryUnknownRetainsSlotAndForbidsResume)$'",
+      "command_scope": "replay of actual named top-level selection from JSON; exact historical shell argument ordering is not persisted here",
+      "validation_stage": "normal"
+    },
+    {
+      "artifact": "final-public-bounds-race.json",
+      "sha256": "b2a0fc13bc461d8d1bd15d93791abe73247838f69a61155fbd5d95da6e00d02b",
+      "bytes": 19624,
+      "counts_including_parent_and_subtest": {
+        "pass": 17,
+        "fail": 0,
+        "skip": 0
+      },
+      "top_level_counts": {
+        "pass": 5,
+        "fail": 0,
+        "skip": 0
+      },
+      "packages": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "action": "pass",
+          "elapsed_seconds": 1.3820000000000001
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator",
+          "action": "pass",
+          "elapsed_seconds": 1.5190000000000001
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+          "action": "pass",
+          "elapsed_seconds": 1.921
+        }
+      ],
+      "tests": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/eagain",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/eintr",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/permission",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/mixed_exit",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/joined_timeout",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/cancelled",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/worker_command",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator",
+          "name": "TestExecutionPolicyCommitmentPreservesLegacyAndRejectsDrift",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+          "name": "TestConfigPreparationExecutionPolicyDriftCannotReuseCheckpoint",
+          "action": "pass",
+          "elapsed_seconds": 0.36
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+          "name": "TestDispatchRejectsBusinessErrorsBeforeAllocation/unknown-owner",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+          "name": "TestDispatchRejectsBusinessErrorsBeforeAllocation/missing-budget",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+          "name": "TestDispatchRejectsBusinessErrorsBeforeAllocation/explicit-provider",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+          "name": "TestDispatchRejectsBusinessErrorsBeforeAllocation/missing-file-scope",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+          "name": "TestDispatchRejectsBusinessErrorsBeforeAllocation/missing-grok-grant",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+          "name": "TestDispatchRejectsBusinessErrorsBeforeAllocation",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+          "name": "TestDispatchPublicJSONExecutionPolicyReachesPlan",
+          "action": "pass",
+          "elapsed_seconds": 0
+        }
+      ],
+      "non_json_lines": 0,
+      "process_exit_code": 0,
+      "selection_replay_command": "go test -race -json -count=1 ./internal/adapter ./internal/coordinator ./cmd/orchestrator -run '^(TestProbeOutputClassifiesOnlyUnstartedTransient|TestExecutionPolicyCommitmentPreservesLegacyAndRejectsDrift|TestConfigPreparationExecutionPolicyDriftCannotReuseCheckpoint|TestDispatchRejectsBusinessErrorsBeforeAllocation|TestDispatchPublicJSONExecutionPolicyReachesPlan)$'",
+      "command_scope": "replay of actual named top-level selection from JSON; exact historical shell argument ordering is not persisted here",
+      "validation_stage": "race"
+    },
+    {
+      "artifact": "final-public-bounds.json",
+      "sha256": "20fc65319b571767029ef3520fde2e95e6a46716bc99aff52c8d709f8e03dcf7",
+      "bytes": 19591,
+      "counts_including_parent_and_subtest": {
+        "pass": 17,
+        "fail": 0,
+        "skip": 0
+      },
+      "top_level_counts": {
+        "pass": 5,
+        "fail": 0,
+        "skip": 0
+      },
+      "packages": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "action": "pass",
+          "elapsed_seconds": 0.377
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator",
+          "action": "pass",
+          "elapsed_seconds": 0.439
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+          "action": "pass",
+          "elapsed_seconds": 0.698
+        }
+      ],
+      "tests": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/eagain",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/eintr",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/permission",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/mixed_exit",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/joined_timeout",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/cancelled",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/worker_command",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator",
+          "name": "TestExecutionPolicyCommitmentPreservesLegacyAndRejectsDrift",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+          "name": "TestConfigPreparationExecutionPolicyDriftCannotReuseCheckpoint",
+          "action": "pass",
+          "elapsed_seconds": 0.25
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+          "name": "TestDispatchRejectsBusinessErrorsBeforeAllocation/unknown-owner",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+          "name": "TestDispatchRejectsBusinessErrorsBeforeAllocation/missing-budget",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+          "name": "TestDispatchRejectsBusinessErrorsBeforeAllocation/explicit-provider",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+          "name": "TestDispatchRejectsBusinessErrorsBeforeAllocation/missing-file-scope",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+          "name": "TestDispatchRejectsBusinessErrorsBeforeAllocation/missing-grok-grant",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+          "name": "TestDispatchRejectsBusinessErrorsBeforeAllocation",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+          "name": "TestDispatchPublicJSONExecutionPolicyReachesPlan",
+          "action": "pass",
+          "elapsed_seconds": 0
+        }
+      ],
+      "non_json_lines": 0,
+      "process_exit_code": 0,
+      "selection_replay_command": "go test -json -count=1 ./internal/adapter ./internal/coordinator ./cmd/orchestrator -run '^(TestProbeOutputClassifiesOnlyUnstartedTransient|TestExecutionPolicyCommitmentPreservesLegacyAndRejectsDrift|TestConfigPreparationExecutionPolicyDriftCannotReuseCheckpoint|TestDispatchRejectsBusinessErrorsBeforeAllocation|TestDispatchPublicJSONExecutionPolicyReachesPlan)$'",
+      "command_scope": "replay of actual named top-level selection from JSON; exact historical shell argument ordering is not persisted here",
+      "validation_stage": "normal"
+    },
+    {
+      "artifact": "final-public.json",
+      "sha256": "1dc8f603ed9fb1fd668d1de065b1d0201bd89c350a27b035aca5636b2758818a",
+      "bytes": 13275,
+      "counts_including_parent_and_subtest": {
+        "pass": 11,
+        "fail": 0,
+        "skip": 0
+      },
+      "top_level_counts": {
+        "pass": 4,
+        "fail": 0,
+        "skip": 0
+      },
+      "packages": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "action": "pass",
+          "elapsed_seconds": 0.38
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator",
+          "action": "pass",
+          "elapsed_seconds": 0.603
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+          "action": "pass",
+          "elapsed_seconds": 0.798
+        }
+      ],
+      "tests": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/eagain",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/eintr",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/permission",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/mixed_exit",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/joined_timeout",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/cancelled",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/worker_command",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator",
+          "name": "TestExecutionPolicyCommitmentPreservesLegacyAndRejectsDrift",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+          "name": "TestConfigPreparationExecutionPolicyDriftCannotReuseCheckpoint",
+          "action": "pass",
+          "elapsed_seconds": 0.32
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+          "name": "TestDispatchPublicJSONExecutionPolicyReachesPlan",
+          "action": "pass",
+          "elapsed_seconds": 0
+        }
+      ],
+      "non_json_lines": 0,
+      "process_exit_code": 0,
+      "command_scope": "historical development output; exact shell arguments are not persisted here; named tests and package outcomes retained"
+    },
+    {
+      "artifact": "final-pure-race.json",
+      "sha256": "4aa3c724c1677583f2cdd6a616899281e278f5e952ec1315b60a217fdc29dc35",
+      "bytes": 46208,
+      "counts_including_parent_and_subtest": {
+        "pass": 44,
+        "fail": 0,
+        "skip": 0
+      },
+      "top_level_counts": {
+        "pass": 16,
+        "fail": 0,
+        "skip": 0
+      },
+      "packages": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "action": "pass",
+          "elapsed_seconds": 1.72
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator",
+          "action": "pass",
+          "elapsed_seconds": 1.443
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+          "action": "pass",
+          "elapsed_seconds": 1.9569999999999999
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "action": "pass",
+          "elapsed_seconds": 38.683
+        }
+      ],
+      "tests": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/eagain",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/eintr",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/permission",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/mixed_exit",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/joined_timeout",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/cancelled",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/worker_command",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicySegmentGrantAndContinuation",
+          "action": "pass",
+          "elapsed_seconds": 1.02
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator",
+          "name": "TestExecutionPolicyCommitmentPreservesLegacyAndRejectsDrift",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDistinctTaskAttemptCapsShareGroup",
+          "action": "pass",
+          "elapsed_seconds": 1.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/version",
+          "action": "pass",
+          "elapsed_seconds": 0.99
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/negative",
+          "action": "pass",
+          "elapsed_seconds": 0.98
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/group_attempts",
+          "action": "pass",
+          "elapsed_seconds": 0.97
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/task_attempts",
+          "action": "pass",
+          "elapsed_seconds": 0.98
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/group_time",
+          "action": "pass",
+          "elapsed_seconds": 1.01
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/task_time",
+          "action": "pass",
+          "elapsed_seconds": 1.01
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/attempt_time",
+          "action": "pass",
+          "elapsed_seconds": 0.99
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/segment",
+          "action": "pass",
+          "elapsed_seconds": 0.98
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/code",
+          "action": "pass",
+          "elapsed_seconds": 0.97
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+          "name": "TestConfigPreparationExecutionPolicyDriftCannotReuseCheckpoint",
+          "action": "pass",
+          "elapsed_seconds": 0.39
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+          "name": "TestDispatchPublicJSONExecutionPolicyReachesPlan",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/duplicate_code",
+          "action": "pass",
+          "elapsed_seconds": 1.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/zero_delay",
+          "action": "pass",
+          "elapsed_seconds": 1.08
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/too_many_delays",
+          "action": "pass",
+          "elapsed_seconds": 1.08
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission",
+          "action": "pass",
+          "elapsed_seconds": 13.1
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyMigrationKeepsLegacyReceiptAndPromise",
+          "action": "pass",
+          "elapsed_seconds": 3.71
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyMigrationRollbackRetainsVersion14",
+          "action": "pass",
+          "elapsed_seconds": 3.42
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyRetryDurableBackoffExactBinding",
+          "action": "pass",
+          "elapsed_seconds": 1.15
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyRetryPendingCapacityCannotBeStolen",
+          "action": "pass",
+          "elapsed_seconds": 1.01
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/running",
+          "action": "pass",
+          "elapsed_seconds": 0.98
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/unknown",
+          "action": "pass",
+          "elapsed_seconds": 0.98
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/failed",
+          "action": "pass",
+          "elapsed_seconds": 0.97
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/progress",
+          "action": "pass",
+          "elapsed_seconds": 0.98
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/code",
+          "action": "pass",
+          "elapsed_seconds": 0.97
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/worker",
+          "action": "pass",
+          "elapsed_seconds": 0.96
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/probe",
+          "action": "pass",
+          "elapsed_seconds": 0.95
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/question",
+          "action": "pass",
+          "elapsed_seconds": 0.95
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/started",
+          "action": "pass",
+          "elapsed_seconds": 0.98
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents",
+          "action": "pass",
+          "elapsed_seconds": 8.72
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyAdmissionDefaultsAndMixedGroup",
+          "action": "pass",
+          "elapsed_seconds": 0.93
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyTaskCumulativeBudgetStopsNewAttempts",
+          "action": "pass",
+          "elapsed_seconds": 1.05
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyUnknownRetainsBothTaskAndGroupReservation",
+          "action": "pass",
+          "elapsed_seconds": 0.97
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyRetryStopsAfterFiniteAuthorizedBackoff",
+          "action": "pass",
+          "elapsed_seconds": 1.06
+        }
+      ],
+      "non_json_lines": 0,
+      "process_exit_code": 0,
+      "command_scope": "historical development output; exact shell arguments are not persisted here; named tests and package outcomes retained"
+    },
+    {
+      "artifact": "final-store-fifo.json",
+      "sha256": "ad1d83ed2cd0c6ac769acd15703a12c8c7906c8773cedb053b457b55c7ab7488",
+      "bytes": 32924,
+      "counts_including_parent_and_subtest": {
+        "pass": 33,
+        "fail": 0,
+        "skip": 0
+      },
+      "top_level_counts": {
+        "pass": 12,
+        "fail": 0,
+        "skip": 0
+      },
+      "packages": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "action": "pass",
+          "elapsed_seconds": 1.671
+        }
+      ],
+      "tests": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicySegmentGrantAndContinuation",
+          "action": "pass",
+          "elapsed_seconds": 0.06
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDistinctTaskAttemptCapsShareGroup",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/version",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/negative",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/group_attempts",
+          "action": "pass",
+          "elapsed_seconds": 0.02
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/task_attempts",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/group_time",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/task_time",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/attempt_time",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/segment",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/code",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/duplicate_code",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/zero_delay",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/too_many_delays",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission",
+          "action": "pass",
+          "elapsed_seconds": 0.34
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyMigrationKeepsLegacyReceiptAndPromise",
+          "action": "pass",
+          "elapsed_seconds": 0.09
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyMigrationRollbackRetainsVersion14",
+          "action": "pass",
+          "elapsed_seconds": 0.08
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyRetryDurableBackoffExactBinding",
+          "action": "pass",
+          "elapsed_seconds": 0.04
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyRetryPendingCapacityCannotBeStolen",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/running",
+          "action": "pass",
+          "elapsed_seconds": 0.05
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/unknown",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/failed",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/progress",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/code",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/worker",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/probe",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/question",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/started",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents",
+          "action": "pass",
+          "elapsed_seconds": 0.27
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyAdmissionDefaultsAndMixedGroup",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyTaskCumulativeBudgetStopsNewAttempts",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyUnknownRetainsBothTaskAndGroupReservation",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyRetryStopsAfterFiniteAuthorizedBackoff",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        }
+      ],
+      "non_json_lines": 0,
+      "process_exit_code": 0,
+      "selection_replay_command": "go test -json -count=1 ./internal/store -run '^(TestExecutionPolicySegmentGrantAndContinuation|TestExecutionPolicyDistinctTaskAttemptCapsShareGroup|TestExecutionPolicyDefaultsAndBoundsAtAdmission|TestPolicyMigrationKeepsLegacyReceiptAndPromise|TestPolicyMigrationRollbackRetainsVersion14|TestPolicyRetryDurableBackoffExactBinding|TestPolicyRetryPendingCapacityCannotBeStolen|TestPolicyFailureFactsExcludeUnsafeEvents|TestExecutionPolicyAdmissionDefaultsAndMixedGroup|TestPolicyTaskCumulativeBudgetStopsNewAttempts|TestPolicyUnknownRetainsBothTaskAndGroupReservation|TestPolicyRetryStopsAfterFiniteAuthorizedBackoff)$'",
+      "command_scope": "replay of actual named top-level selection from JSON; exact historical shell argument ordering is not persisted here",
+      "validation_stage": "normal"
+    },
+    {
+      "artifact": "final-store-legacy-race.json",
+      "sha256": "07c3ababf65653f939bb420dcd70a738c760d74f7a208b90356460cf7a0bf719",
+      "bytes": 89184,
+      "counts_including_parent_and_subtest": {
+        "pass": 86,
+        "fail": 0,
+        "skip": 0
+      },
+      "top_level_counts": {
+        "pass": 28,
+        "fail": 0,
+        "skip": 0
+      },
+      "packages": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "action": "pass",
+          "elapsed_seconds": 86.305
+        }
+      ],
+      "tests": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestSubmitPlanBudgetGroupAttemptCapacity/four_tasks_cannot_share_three_attempts",
+          "action": "pass",
+          "elapsed_seconds": 0.96
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestSubmitPlanBudgetGroupAttemptCapacity/two_tasks_cannot_share_one_attempt",
+          "action": "pass",
+          "elapsed_seconds": 0.96
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestSubmitPlanBudgetGroupAttemptCapacity/three_tasks_can_share_three_attempts",
+          "action": "pass",
+          "elapsed_seconds": 1.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestSubmitPlanBudgetGroupAttemptCapacity/four_tasks_with_default_groups",
+          "action": "pass",
+          "elapsed_seconds": 1.04
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestSubmitPlanBudgetGroupAttemptCapacity/four_tasks_with_explicit_independent_groups",
+          "action": "pass",
+          "elapsed_seconds": 0.96
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestSubmitPlanBudgetGroupAttemptCapacity",
+          "action": "pass",
+          "elapsed_seconds": 4.95
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestBudgetLifecycleTerminalPathsSettleIndependentLedger/normal",
+          "action": "pass",
+          "elapsed_seconds": 1
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestBudgetLifecycleTerminalPathsSettleIndependentLedger/deadline",
+          "action": "pass",
+          "elapsed_seconds": 1
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestBudgetLifecycleTerminalPathsSettleIndependentLedger/owner_stop",
+          "action": "pass",
+          "elapsed_seconds": 1
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestBudgetLifecycleTerminalPathsSettleIndependentLedger/running_failure",
+          "action": "pass",
+          "elapsed_seconds": 1
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestBudgetLifecycleTerminalPathsSettleIndependentLedger",
+          "action": "pass",
+          "elapsed_seconds": 4
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestBudgetLifecycleStartupFailureSettlesLaunchRequestedGrant",
+          "action": "pass",
+          "elapsed_seconds": 0.98
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestBudgetLifecycleUnknownRetainsReservationAcrossCoordinatorRestart",
+          "action": "pass",
+          "elapsed_seconds": 1.1
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestBudgetLifecycleTechnicalRetryAndFeedbackReworkAccumulate/technical_retry",
+          "action": "pass",
+          "elapsed_seconds": 1.12
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestBudgetLifecycleTechnicalRetryAndFeedbackReworkAccumulate/feedback_rework",
+          "action": "pass",
+          "elapsed_seconds": 1.12
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestBudgetLifecycleTechnicalRetryAndFeedbackReworkAccumulate",
+          "action": "pass",
+          "elapsed_seconds": 2.24
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicySegmentGrantAndContinuation",
+          "action": "pass",
+          "elapsed_seconds": 1.08
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDistinctTaskAttemptCapsShareGroup",
+          "action": "pass",
+          "elapsed_seconds": 1.09
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/version",
+          "action": "pass",
+          "elapsed_seconds": 0.95
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/negative",
+          "action": "pass",
+          "elapsed_seconds": 0.94
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/group_attempts",
+          "action": "pass",
+          "elapsed_seconds": 1.04
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/task_attempts",
+          "action": "pass",
+          "elapsed_seconds": 1.1
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/group_time",
+          "action": "pass",
+          "elapsed_seconds": 1.1
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/task_time",
+          "action": "pass",
+          "elapsed_seconds": 0.95
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/attempt_time",
+          "action": "pass",
+          "elapsed_seconds": 0.96
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/segment",
+          "action": "pass",
+          "elapsed_seconds": 0.97
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/code",
+          "action": "pass",
+          "elapsed_seconds": 0.94
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/duplicate_code",
+          "action": "pass",
+          "elapsed_seconds": 1.07
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/zero_delay",
+          "action": "pass",
+          "elapsed_seconds": 1.06
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/too_many_delays",
+          "action": "pass",
+          "elapsed_seconds": 1.09
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission",
+          "action": "pass",
+          "elapsed_seconds": 13.16
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestRetireHostRechecksRetryQueuedAfterEligibilityScan",
+          "action": "pass",
+          "elapsed_seconds": 1.14
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestRetireHostCannotReleaseReconcilingSession",
+          "action": "pass",
+          "elapsed_seconds": 1.07
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedSettlesOnlyNeverStartedGrantAtZeroAndReplays/invocation_rejected",
+          "action": "pass",
+          "elapsed_seconds": 1.16
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedSettlesOnlyNeverStartedGrantAtZeroAndReplays/workspace_rejected",
+          "action": "pass",
+          "elapsed_seconds": 1.17
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedSettlesOnlyNeverStartedGrantAtZeroAndReplays",
+          "action": "pass",
+          "elapsed_seconds": 2.33
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedCannotEraseStartedUnknownOrConflictingEvidence/spawned",
+          "action": "pass",
+          "elapsed_seconds": 1.1
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedCannotEraseStartedUnknownOrConflictingEvidence/running",
+          "action": "pass",
+          "elapsed_seconds": 0.99
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedCannotEraseStartedUnknownOrConflictingEvidence/session",
+          "action": "pass",
+          "elapsed_seconds": 0.99
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedCannotEraseStartedUnknownOrConflictingEvidence/result",
+          "action": "pass",
+          "elapsed_seconds": 0.99
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedCannotEraseStartedUnknownOrConflictingEvidence/question",
+          "action": "pass",
+          "elapsed_seconds": 1.01
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedCannotEraseStartedUnknownOrConflictingEvidence/unknown",
+          "action": "pass",
+          "elapsed_seconds": 0.97
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedCannotEraseStartedUnknownOrConflictingEvidence/process",
+          "action": "pass",
+          "elapsed_seconds": 0.94
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedCannotEraseStartedUnknownOrConflictingEvidence/epoch",
+          "action": "pass",
+          "elapsed_seconds": 0.94
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedCannotEraseStartedUnknownOrConflictingEvidence/command",
+          "action": "pass",
+          "elapsed_seconds": 0.95
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedCannotEraseStartedUnknownOrConflictingEvidence/segment",
+          "action": "pass",
+          "elapsed_seconds": 0.95
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedCannotEraseStartedUnknownOrConflictingEvidence/attempt",
+          "action": "pass",
+          "elapsed_seconds": 0.95
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedCannotEraseStartedUnknownOrConflictingEvidence/revision",
+          "action": "pass",
+          "elapsed_seconds": 0.95
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedCannotEraseStartedUnknownOrConflictingEvidence/run",
+          "action": "pass",
+          "elapsed_seconds": 0.95
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedCannotEraseStartedUnknownOrConflictingEvidence/usage",
+          "action": "pass",
+          "elapsed_seconds": 0.96
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedCannotEraseStartedUnknownOrConflictingEvidence/exit",
+          "action": "pass",
+          "elapsed_seconds": 0.97
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedCannotEraseStartedUnknownOrConflictingEvidence/artifact",
+          "action": "pass",
+          "elapsed_seconds": 0.98
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedCannotEraseStartedUnknownOrConflictingEvidence",
+          "action": "pass",
+          "elapsed_seconds": 15.59
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedContinuationRetainsEarlierChargesAndResolvesConsumedAnswer",
+          "action": "pass",
+          "elapsed_seconds": 1.05
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedPreservesLegacyFailedExitedAccounting",
+          "action": "pass",
+          "elapsed_seconds": 0.98
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestLaunchRejectedBridgeProjectionKeepsDiagnostic",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyMigrationKeepsLegacyReceiptAndPromise",
+          "action": "pass",
+          "elapsed_seconds": 3.65
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyMigrationRollbackRetainsVersion14",
+          "action": "pass",
+          "elapsed_seconds": 3.19
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyRetryDurableBackoffExactBinding",
+          "action": "pass",
+          "elapsed_seconds": 1.14
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyRetryPendingCapacityCannotBeStolen",
+          "action": "pass",
+          "elapsed_seconds": 1.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/running",
+          "action": "pass",
+          "elapsed_seconds": 0.97
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/unknown",
+          "action": "pass",
+          "elapsed_seconds": 0.97
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/failed",
+          "action": "pass",
+          "elapsed_seconds": 0.97
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/progress",
+          "action": "pass",
+          "elapsed_seconds": 0.98
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/code",
+          "action": "pass",
+          "elapsed_seconds": 1
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/worker",
+          "action": "pass",
+          "elapsed_seconds": 1.01
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/probe",
+          "action": "pass",
+          "elapsed_seconds": 0.99
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/question",
+          "action": "pass",
+          "elapsed_seconds": 0.98
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/started",
+          "action": "pass",
+          "elapsed_seconds": 0.99
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents",
+          "action": "pass",
+          "elapsed_seconds": 8.86
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyAdmissionDefaultsAndMixedGroup",
+          "action": "pass",
+          "elapsed_seconds": 0.96
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyTaskCumulativeBudgetStopsNewAttempts",
+          "action": "pass",
+          "elapsed_seconds": 1.06
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyUnknownRetainsBothTaskAndGroupReservation",
+          "action": "pass",
+          "elapsed_seconds": 1.19
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyRetryStopsAfterFiniteAuthorizedBackoff",
+          "action": "pass",
+          "elapsed_seconds": 1.08
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestReworkRejectsUnsafeOrStaleChangesAtomically/stale_candidate",
+          "action": "pass",
+          "elapsed_seconds": 1.07
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestReworkRejectsUnsafeOrStaleChangesAtomically/stale_feedback",
+          "action": "pass",
+          "elapsed_seconds": 1.08
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestReworkRejectsUnsafeOrStaleChangesAtomically/tampered_artifact",
+          "action": "pass",
+          "elapsed_seconds": 1.07
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestReworkRejectsUnsafeOrStaleChangesAtomically/budget",
+          "action": "pass",
+          "elapsed_seconds": 1.06
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestReworkRejectsUnsafeOrStaleChangesAtomically/active",
+          "action": "pass",
+          "elapsed_seconds": 1.06
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestReworkRejectsUnsafeOrStaleChangesAtomically/integration_started",
+          "action": "pass",
+          "elapsed_seconds": 1.08
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestReworkRejectsUnsafeOrStaleChangesAtomically/quota",
+          "action": "pass",
+          "elapsed_seconds": 1.08
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestReworkRejectsUnsafeOrStaleChangesAtomically/old_revision",
+          "action": "pass",
+          "elapsed_seconds": 1.05
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestReworkRejectsUnsafeOrStaleChangesAtomically",
+          "action": "pass",
+          "elapsed_seconds": 8.57
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestReworkCannotQueueOversizedWorkerGrant",
+          "action": "pass",
+          "elapsed_seconds": 1.09
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestSummaryReportFailureDoesNotAuthorizeRetryWithoutHostOutcome",
+          "action": "pass",
+          "elapsed_seconds": 1
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestSummaryUnknownRetainsSlotAndForbidsResume",
+          "action": "pass",
+          "elapsed_seconds": 1
+        }
+      ],
+      "non_json_lines": 0,
+      "process_exit_code": 0,
+      "selection_replay_command": "go test -race -json -count=1 ./internal/store -run '^(TestSubmitPlanBudgetGroupAttemptCapacity|TestBudgetLifecycleTerminalPathsSettleIndependentLedger|TestBudgetLifecycleStartupFailureSettlesLaunchRequestedGrant|TestBudgetLifecycleUnknownRetainsReservationAcrossCoordinatorRestart|TestBudgetLifecycleTechnicalRetryAndFeedbackReworkAccumulate|TestExecutionPolicySegmentGrantAndContinuation|TestExecutionPolicyDistinctTaskAttemptCapsShareGroup|TestExecutionPolicyDefaultsAndBoundsAtAdmission|TestRetireHostRechecksRetryQueuedAfterEligibilityScan|TestRetireHostCannotReleaseReconcilingSession|TestLaunchRejectedSettlesOnlyNeverStartedGrantAtZeroAndReplays|TestLaunchRejectedCannotEraseStartedUnknownOrConflictingEvidence|TestLaunchRejectedContinuationRetainsEarlierChargesAndResolvesConsumedAnswer|TestLaunchRejectedPreservesLegacyFailedExitedAccounting|TestLaunchRejectedBridgeProjectionKeepsDiagnostic|TestPolicyMigrationKeepsLegacyReceiptAndPromise|TestPolicyMigrationRollbackRetainsVersion14|TestPolicyRetryDurableBackoffExactBinding|TestPolicyRetryPendingCapacityCannotBeStolen|TestPolicyFailureFactsExcludeUnsafeEvents|TestExecutionPolicyAdmissionDefaultsAndMixedGroup|TestPolicyTaskCumulativeBudgetStopsNewAttempts|TestPolicyUnknownRetainsBothTaskAndGroupReservation|TestPolicyRetryStopsAfterFiniteAuthorizedBackoff|TestReworkRejectsUnsafeOrStaleChangesAtomically|TestReworkCannotQueueOversizedWorkerGrant|TestSummaryReportFailureDoesNotAuthorizeRetryWithoutHostOutcome|TestSummaryUnknownRetainsSlotAndForbidsResume)$'",
+      "command_scope": "replay of actual named top-level selection from JSON; exact historical shell argument ordering is not persisted here",
+      "validation_stage": "race"
+    },
+    {
+      "artifact": "final-store.json",
+      "sha256": "3fab19c85afadaa5079ac69ab2c5408ca592192ab77f148ac0ef34df96717d7e",
+      "bytes": 32929,
+      "counts_including_parent_and_subtest": {
+        "pass": 33,
+        "fail": 0,
+        "skip": 0
+      },
+      "top_level_counts": {
+        "pass": 12,
+        "fail": 0,
+        "skip": 0
+      },
+      "packages": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "action": "pass",
+          "elapsed_seconds": 1.63
+        }
+      ],
+      "tests": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicySegmentGrantAndContinuation",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDistinctTaskAttemptCapsShareGroup",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/version",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/negative",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/group_attempts",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/task_attempts",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/group_time",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/task_time",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/attempt_time",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/segment",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/code",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/duplicate_code",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/zero_delay",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission/too_many_delays",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyDefaultsAndBoundsAtAdmission",
+          "action": "pass",
+          "elapsed_seconds": 0.34
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyMigrationKeepsLegacyReceiptAndPromise",
+          "action": "pass",
+          "elapsed_seconds": 0.09
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyMigrationRollbackRetainsVersion14",
+          "action": "pass",
+          "elapsed_seconds": 0.08
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyRetryDurableBackoffExactBinding",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyRetryPendingCapacityCannotBeStolen",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/running",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/unknown",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/failed",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/progress",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/code",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/worker",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/probe",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/question",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/started",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents",
+          "action": "pass",
+          "elapsed_seconds": 0.24
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyAdmissionDefaultsAndMixedGroup",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyTaskCumulativeBudgetStopsNewAttempts",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyUnknownRetainsBothTaskAndGroupReservation",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyRetryStopsAfterFiniteAuthorizedBackoff",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        }
+      ],
+      "non_json_lines": 0,
+      "process_exit_code": 0,
+      "command_scope": "historical development output; exact shell arguments are not persisted here; named tests and package outcomes retained"
+    },
+    {
+      "artifact": "green-budget.json",
+      "sha256": "8a01c3b021b248d58abb2a65392ca718b26ee613a677a3ed6e316c2a51280b82",
+      "bytes": 1635,
+      "counts_including_parent_and_subtest": {
+        "pass": 1,
+        "fail": 0,
+        "skip": 0
+      },
+      "top_level_counts": {
+        "pass": 1,
+        "fail": 0,
+        "skip": 0
+      },
+      "packages": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "action": "pass",
+          "elapsed_seconds": 0.765
+        }
+      ],
+      "tests": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicySegmentGrantAndContinuation",
+          "action": "pass",
+          "elapsed_seconds": 0.06
+        }
+      ],
+      "non_json_lines": 0,
+      "process_exit_code": 0,
+      "command_scope": "historical development output; exact shell arguments are not persisted here; named tests and package outcomes retained"
+    },
+    {
+      "artifact": "green-commitment.json",
+      "sha256": "55509539cf7f80110ebac395ea7754467d330cd4a34131f3ada1c27b5d2e5f7f",
+      "bytes": 3513,
+      "counts_including_parent_and_subtest": {
+        "pass": 2,
+        "fail": 0,
+        "skip": 0
+      },
+      "top_level_counts": {
+        "pass": 2,
+        "fail": 0,
+        "skip": 0
+      },
+      "packages": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator",
+          "action": "pass",
+          "elapsed_seconds": 0.639
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+          "action": "pass",
+          "elapsed_seconds": 0.727
+        }
+      ],
+      "tests": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator",
+          "name": "TestExecutionPolicyCommitmentPreservesLegacyAndRejectsDrift",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+          "name": "TestConfigPreparationExecutionPolicyDriftCannotReuseCheckpoint",
+          "action": "pass",
+          "elapsed_seconds": 0.26
+        }
+      ],
+      "non_json_lines": 0,
+      "process_exit_code": 0,
+      "command_scope": "historical development output; exact shell arguments are not persisted here; named tests and package outcomes retained"
+    },
+    {
+      "artifact": "green-core-final.json",
+      "sha256": "67427ac2e186db6fa74e20961f8600037aed0d58b536482ea251b14059783e09",
+      "bytes": 21654,
+      "counts_including_parent_and_subtest": {
+        "pass": 20,
+        "fail": 0,
+        "skip": 0
+      },
+      "top_level_counts": {
+        "pass": 6,
+        "fail": 0,
+        "skip": 0
+      },
+      "packages": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+          "action": "pass",
+          "elapsed_seconds": 0.537
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "action": "pass",
+          "elapsed_seconds": 0.683
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "action": "pass",
+          "elapsed_seconds": 1.316
+        }
+      ],
+      "tests": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicySegmentGrantAndContinuation",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyRetryDurableBackoffExactBinding",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyRetryPendingCapacityCannotBeStolen",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/running",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/unknown",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/failed",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/progress",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/code",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/worker",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/eagain",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/eintr",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/permission",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/cancelled",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/worker_command",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/probe",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/question",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/started",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents",
+          "action": "pass",
+          "elapsed_seconds": 0.25
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyAdmissionDefaultsAndMixedGroup",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        }
+      ],
+      "non_json_lines": 0,
+      "process_exit_code": 0,
+      "command_scope": "historical development output; exact shell arguments are not persisted here; named tests and package outcomes retained"
+    },
+    {
+      "artifact": "green-core.json",
+      "sha256": "3985127c19852ae3be00ec552592348d88e2909d3f1b878d94e60502cef178b7",
+      "bytes": 22247,
+      "counts_including_parent_and_subtest": {
+        "pass": 19,
+        "fail": 1,
+        "skip": 0
+      },
+      "top_level_counts": {
+        "pass": 5,
+        "fail": 1,
+        "skip": 0
+      },
+      "packages": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "action": "pass",
+          "elapsed_seconds": 1.023
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "action": "fail",
+          "elapsed_seconds": 1.035
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+          "action": "pass",
+          "elapsed_seconds": 0.375
+        }
+      ],
+      "tests": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicySegmentGrantAndContinuation",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyRetryDurableBackoffExactBinding",
+          "action": "fail",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyRetryPendingCapacityCannotBeStolen",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/running",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/unknown",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/failed",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/progress",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/code",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/worker",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/probe",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/question",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/started",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents",
+          "action": "pass",
+          "elapsed_seconds": 0.25
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/eagain",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/eintr",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/permission",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/cancelled",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/worker_command",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyAdmissionDefaultsAndMixedGroup",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        }
+      ],
+      "non_json_lines": 0,
+      "process_exit_code": 1,
+      "command_scope": "historical development output; exact shell arguments are not persisted here; named tests and package outcomes retained"
+    },
+    {
+      "artifact": "green-expanded.json",
+      "sha256": "0b0302e31dcd5e70c76c9de8cfe58d9b39465bcc5275bbf6533616cf50b40d44",
+      "bytes": 31668,
+      "counts_including_parent_and_subtest": {
+        "pass": 26,
+        "fail": 1,
+        "skip": 0
+      },
+      "top_level_counts": {
+        "pass": 12,
+        "fail": 1,
+        "skip": 0
+      },
+      "packages": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+          "action": "pass",
+          "elapsed_seconds": 0.989
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "action": "pass",
+          "elapsed_seconds": 1.295
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "action": "pass",
+          "elapsed_seconds": 0.371
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator",
+          "action": "fail",
+          "elapsed_seconds": 0.894
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+          "action": "fail",
+          "elapsed_seconds": 0
+        }
+      ],
+      "tests": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicySegmentGrantAndContinuation",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyMigrationKeepsLegacyReceiptAndPromise",
+          "action": "pass",
+          "elapsed_seconds": 0.09
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyMigrationRollbackRetainsVersion14",
+          "action": "pass",
+          "elapsed_seconds": 0.11
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyRetryDurableBackoffExactBinding",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyRetryPendingCapacityCannotBeStolen",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/running",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/unknown",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/failed",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/progress",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/code",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/worker",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/probe",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/question",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/started",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents",
+          "action": "pass",
+          "elapsed_seconds": 0.25
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyAdmissionDefaultsAndMixedGroup",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyTaskCumulativeBudgetStopsNewAttempts",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyUnknownRetainsBothTaskAndGroupReservation",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyRetryStopsAfterFiniteAuthorizedBackoff",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/eagain",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/eintr",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/permission",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/cancelled",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/worker_command",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator",
+          "name": "TestExecutionPolicyCommitmentPreservesLegacyAndRejectsDrift",
+          "action": "fail",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator",
+          "name": "TestPolicyRetryActorWakesWithoutNewRequestAndKeepsHost",
+          "action": "pass",
+          "elapsed_seconds": 0.44
+        }
+      ],
+      "non_json_lines": 0,
+      "process_exit_code": 1,
+      "command_scope": "historical development output; exact shell arguments are not persisted here; named tests and package outcomes retained"
+    },
+    {
+      "artifact": "green-policy.json",
+      "sha256": "65d62fc6997760147e9e01d095c5e642605a45304f62e0fa06032a542a0f952a",
+      "bytes": 14607,
+      "counts_including_parent_and_subtest": {
+        "pass": 13,
+        "fail": 1,
+        "skip": 0
+      },
+      "top_level_counts": {
+        "pass": 4,
+        "fail": 1,
+        "skip": 0
+      },
+      "packages": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "action": "fail",
+          "elapsed_seconds": 1.034
+        }
+      ],
+      "tests": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicySegmentGrantAndContinuation",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyRetryDurableBackoffExactBinding",
+          "action": "fail",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyRetryPendingCapacityCannotBeStolen",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/running",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/unknown",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/failed",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/progress",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/code",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/worker",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/probe",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/question",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/started",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents",
+          "action": "pass",
+          "elapsed_seconds": 0.25
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyAdmissionDefaultsAndMixedGroup",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        }
+      ],
+      "non_json_lines": 0,
+      "process_exit_code": 1,
+      "command_scope": "historical development output; exact shell arguments are not persisted here; named tests and package outcomes retained"
+    },
+    {
+      "artifact": "host-policy-race.json",
+      "sha256": "ceec1d14ef9b942073cbc79abd9c725a59d5d74c90b61dde7b0464d450ddb7c5",
+      "bytes": 23829,
+      "counts_including_parent_and_subtest": {
+        "pass": 24,
+        "fail": 0,
+        "skip": 0
+      },
+      "top_level_counts": {
+        "pass": 3,
+        "fail": 0,
+        "skip": 0
+      },
+      "packages": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "action": "pass",
+          "elapsed_seconds": 7.429
+        }
+      ],
+      "tests": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailurePolicyFactsSpoolAndStore/recovered_eagain",
+          "action": "pass",
+          "elapsed_seconds": 1.11
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailurePolicyFactsSpoolAndStore/recovered_eintr",
+          "action": "pass",
+          "elapsed_seconds": 1.16
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailurePolicyFactsSpoolAndStore/untyped_errno",
+          "action": "pass",
+          "elapsed_seconds": 1.08
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailurePolicyFactsSpoolAndStore/error_text",
+          "action": "pass",
+          "elapsed_seconds": 1.06
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailurePolicyFactsSpoolAndStore/permission",
+          "action": "pass",
+          "elapsed_seconds": 1.18
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailurePolicyFactsSpoolAndStore",
+          "action": "pass",
+          "elapsed_seconds": 5.59
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailureCollectsSafeDiagnostic/payload",
+          "action": "pass",
+          "elapsed_seconds": 0.02
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailureCollectsSafeDiagnostic/workspace",
+          "action": "pass",
+          "elapsed_seconds": 0.02
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailureCollectsSafeDiagnostic/workspace_prefix",
+          "action": "pass",
+          "elapsed_seconds": 0.02
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailureCollectsSafeDiagnostic/validation",
+          "action": "pass",
+          "elapsed_seconds": 0.02
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailureCollectsSafeDiagnostic/review",
+          "action": "pass",
+          "elapsed_seconds": 0.02
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailureCollectsSafeDiagnostic/integration",
+          "action": "pass",
+          "elapsed_seconds": 0.02
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailureCollectsSafeDiagnostic/input_changed",
+          "action": "pass",
+          "elapsed_seconds": 0.02
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailureCollectsSafeDiagnostic/target",
+          "action": "pass",
+          "elapsed_seconds": 0.02
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailureCollectsSafeDiagnostic/missing_invocation",
+          "action": "pass",
+          "elapsed_seconds": 0.02
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailureCollectsSafeDiagnostic/unknown",
+          "action": "pass",
+          "elapsed_seconds": 0.02
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailureCollectsSafeDiagnostic/prefix",
+          "action": "pass",
+          "elapsed_seconds": 0.02
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailureCollectsSafeDiagnostic/wrapped",
+          "action": "pass",
+          "elapsed_seconds": 0.02
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailureCollectsSafeDiagnostic/field",
+          "action": "pass",
+          "elapsed_seconds": 0.02
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailureCollectsSafeDiagnostic/nil",
+          "action": "pass",
+          "elapsed_seconds": 0.02
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailureCollectsSafeDiagnostic",
+          "action": "pass",
+          "elapsed_seconds": 0.26
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailureRecoversArtifactBeforeFirstEvent/false",
+          "action": "pass",
+          "elapsed_seconds": 0.02
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailureRecoversArtifactBeforeFirstEvent/true",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailureRecoversArtifactBeforeFirstEvent",
+          "action": "pass",
+          "elapsed_seconds": 0.05
+        }
+      ],
+      "non_json_lines": 0,
+      "process_exit_code": 0,
+      "selection_replay_command": "go test -race -json -count=1 ./internal/host -run '^(TestLaunchFailurePolicyFactsSpoolAndStore|TestLaunchFailureCollectsSafeDiagnostic|TestLaunchFailureRecoversArtifactBeforeFirstEvent)$'",
+      "command_scope": "replay of actual named top-level selection from JSON; exact historical shell argument ordering is not persisted here",
+      "validation_stage": "race"
+    },
+    {
+      "artifact": "host-policy.json",
+      "sha256": "cf24dffdb1698ca454db1455e0ff54fa4af6490c5e53b5f734c838c6a0aa3ff8",
+      "bytes": 23847,
+      "counts_including_parent_and_subtest": {
+        "pass": 24,
+        "fail": 0,
+        "skip": 0
+      },
+      "top_level_counts": {
+        "pass": 3,
+        "fail": 0,
+        "skip": 0
+      },
+      "packages": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "action": "pass",
+          "elapsed_seconds": 1.2469999999999999
+        }
+      ],
+      "tests": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailurePolicyFactsSpoolAndStore/recovered_eagain",
+          "action": "pass",
+          "elapsed_seconds": 0.05
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailurePolicyFactsSpoolAndStore/recovered_eintr",
+          "action": "pass",
+          "elapsed_seconds": 0.05
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailurePolicyFactsSpoolAndStore/untyped_errno",
+          "action": "pass",
+          "elapsed_seconds": 0.05
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailurePolicyFactsSpoolAndStore/error_text",
+          "action": "pass",
+          "elapsed_seconds": 0.05
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailurePolicyFactsSpoolAndStore/permission",
+          "action": "pass",
+          "elapsed_seconds": 0.05
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailurePolicyFactsSpoolAndStore",
+          "action": "pass",
+          "elapsed_seconds": 0.24
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailureCollectsSafeDiagnostic/payload",
+          "action": "pass",
+          "elapsed_seconds": 0.02
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailureCollectsSafeDiagnostic/workspace",
+          "action": "pass",
+          "elapsed_seconds": 0.02
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailureCollectsSafeDiagnostic/workspace_prefix",
+          "action": "pass",
+          "elapsed_seconds": 0.02
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailureCollectsSafeDiagnostic/validation",
+          "action": "pass",
+          "elapsed_seconds": 0.02
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailureCollectsSafeDiagnostic/review",
+          "action": "pass",
+          "elapsed_seconds": 0.02
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailureCollectsSafeDiagnostic/integration",
+          "action": "pass",
+          "elapsed_seconds": 0.02
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailureCollectsSafeDiagnostic/input_changed",
+          "action": "pass",
+          "elapsed_seconds": 0.02
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailureCollectsSafeDiagnostic/target",
+          "action": "pass",
+          "elapsed_seconds": 0.02
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailureCollectsSafeDiagnostic/missing_invocation",
+          "action": "pass",
+          "elapsed_seconds": 0.04
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailureCollectsSafeDiagnostic/unknown",
+          "action": "pass",
+          "elapsed_seconds": 0.02
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailureCollectsSafeDiagnostic/prefix",
+          "action": "pass",
+          "elapsed_seconds": 0.02
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailureCollectsSafeDiagnostic/wrapped",
+          "action": "pass",
+          "elapsed_seconds": 0.02
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailureCollectsSafeDiagnostic/field",
+          "action": "pass",
+          "elapsed_seconds": 0.02
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailureCollectsSafeDiagnostic/nil",
+          "action": "pass",
+          "elapsed_seconds": 0.02
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailureCollectsSafeDiagnostic",
+          "action": "pass",
+          "elapsed_seconds": 0.29
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailureRecoversArtifactBeforeFirstEvent/false",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailureRecoversArtifactBeforeFirstEvent/true",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "name": "TestLaunchFailureRecoversArtifactBeforeFirstEvent",
+          "action": "pass",
+          "elapsed_seconds": 0.06
+        }
+      ],
+      "non_json_lines": 0,
+      "process_exit_code": 0,
+      "selection_replay_command": "go test -json -count=1 ./internal/host -run '^(TestLaunchFailurePolicyFactsSpoolAndStore|TestLaunchFailureCollectsSafeDiagnostic|TestLaunchFailureRecoversArtifactBeforeFirstEvent)$'",
+      "command_scope": "replay of actual named top-level selection from JSON; exact historical shell argument ordering is not persisted here",
+      "validation_stage": "normal"
+    },
+    {
+      "artifact": "red-classification.json",
+      "sha256": "4f0c882d4d6909bb2681760c7b36221ead67f204f9381cc92a087bd41a4c4f73",
+      "bytes": 8294,
+      "counts_including_parent_and_subtest": {
+        "pass": 0,
+        "fail": 6,
+        "skip": 0
+      },
+      "top_level_counts": {
+        "pass": 0,
+        "fail": 1,
+        "skip": 0
+      },
+      "packages": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "action": "fail",
+          "elapsed_seconds": 0.373
+        }
+      ],
+      "tests": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/eagain",
+          "action": "fail",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/eintr",
+          "action": "fail",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/permission",
+          "action": "fail",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/cancelled",
+          "action": "fail",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/worker_command",
+          "action": "fail",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient",
+          "action": "fail",
+          "elapsed_seconds": 0
+        }
+      ],
+      "non_json_lines": 0,
+      "process_exit_code": 1,
+      "selection_replay_command": "go test -json -count=1 ./internal/adapter -run '^(TestProbeOutputClassifiesOnlyUnstartedTransient)$'",
+      "command_scope": "replay of actual named top-level selection from JSON; exact historical shell argument ordering is not persisted here",
+      "validation_stage": "red"
+    },
+    {
+      "artifact": "red-dispatch-attempt.json",
+      "sha256": "1ae70e2421be8816e4bd94e27f704a723e140e44b96cc1a9149f4d0ea8fd2016",
+      "bytes": 1985,
+      "counts_including_parent_and_subtest": {
+        "pass": 0,
+        "fail": 1,
+        "skip": 0
+      },
+      "top_level_counts": {
+        "pass": 0,
+        "fail": 1,
+        "skip": 0
+      },
+      "packages": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+          "action": "fail",
+          "elapsed_seconds": 0.688
+        }
+      ],
+      "tests": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+          "name": "TestDispatchPublicJSONExecutionPolicyReachesPlan",
+          "action": "fail",
+          "elapsed_seconds": 0
+        }
+      ],
+      "non_json_lines": 0,
+      "process_exit_code": 1,
+      "selection_replay_command": "go test -json -count=1 ./cmd/orchestrator -run '^(TestDispatchPublicJSONExecutionPolicyReachesPlan)$'",
+      "command_scope": "replay of actual named top-level selection from JSON; exact historical shell argument ordering is not persisted here",
+      "validation_stage": "red"
+    },
+    {
+      "artifact": "red-dispatch.json",
+      "sha256": "e23e43e20834c6fc40f7e7287646b571ba4843f16e045d91e52d3e4c1baf7dc0",
+      "bytes": 1941,
+      "counts_including_parent_and_subtest": {
+        "pass": 0,
+        "fail": 1,
+        "skip": 0
+      },
+      "top_level_counts": {
+        "pass": 0,
+        "fail": 1,
+        "skip": 0
+      },
+      "packages": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+          "action": "fail",
+          "elapsed_seconds": 0.69
+        }
+      ],
+      "tests": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+          "name": "TestDispatchPublicJSONExecutionPolicyReachesPlan",
+          "action": "fail",
+          "elapsed_seconds": 0
+        }
+      ],
+      "non_json_lines": 0,
+      "process_exit_code": 1,
+      "selection_replay_command": "go test -json -count=1 ./cmd/orchestrator -run '^(TestDispatchPublicJSONExecutionPolicyReachesPlan)$'",
+      "command_scope": "replay of actual named top-level selection from JSON; exact historical shell argument ordering is not persisted here",
+      "validation_stage": "red"
+    },
+    {
+      "artifact": "red-legacy-migration.json",
+      "sha256": "c14c7d90a53193d7f4d154b5f2d58075e94e468acd646684011a8f7b3b898990",
+      "bytes": 3231,
+      "counts_including_parent_and_subtest": {
+        "pass": 0,
+        "fail": 2,
+        "skip": 0
+      },
+      "top_level_counts": {
+        "pass": 0,
+        "fail": 2,
+        "skip": 0
+      },
+      "packages": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "action": "fail",
+          "elapsed_seconds": 0.708
+        }
+      ],
+      "tests": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestContinuationV9UpgradePreservesHistoryAndReopens",
+          "action": "fail",
+          "elapsed_seconds": 0.06
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestReworkMigrationFromFiveRollsBackOnFailure",
+          "action": "fail",
+          "elapsed_seconds": 0.06
+        }
+      ],
+      "non_json_lines": 0,
+      "process_exit_code": 1,
+      "selection_replay_command": "go test -json -count=1 ./internal/store -run '^(TestContinuationV9UpgradePreservesHistoryAndReopens|TestReworkMigrationFromFiveRollsBackOnFailure)$'",
+      "command_scope": "replay of actual named top-level selection from JSON; exact historical shell argument ordering is not persisted here",
+      "validation_stage": "red"
+    },
+    {
+      "artifact": "red-mixed-classification.json",
+      "sha256": "4fbc261ceec4cee29d0004f6cdc4b23606efe0b81a816b0118a4ad11b741530a",
+      "bytes": 9569,
+      "counts_including_parent_and_subtest": {
+        "pass": 5,
+        "fail": 3,
+        "skip": 0
+      },
+      "top_level_counts": {
+        "pass": 0,
+        "fail": 1,
+        "skip": 0
+      },
+      "packages": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "action": "fail",
+          "elapsed_seconds": 0.573
+        }
+      ],
+      "tests": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/eagain",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/eintr",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/permission",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/mixed_exit",
+          "action": "fail",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/joined_timeout",
+          "action": "fail",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/cancelled",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient/worker_command",
+          "action": "pass",
+          "elapsed_seconds": 0
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter",
+          "name": "TestProbeOutputClassifiesOnlyUnstartedTransient",
+          "action": "fail",
+          "elapsed_seconds": 0
+        }
+      ],
+      "non_json_lines": 0,
+      "process_exit_code": 1,
+      "selection_replay_command": "go test -json -count=1 ./internal/adapter -run '^(TestProbeOutputClassifiesOnlyUnstartedTransient)$'",
+      "command_scope": "replay of actual named top-level selection from JSON; exact historical shell argument ordering is not persisted here",
+      "validation_stage": "red"
+    },
+    {
+      "artifact": "red-policy-fifo.json",
+      "sha256": "a8cf92339758bef68b8d23ba3fa1f4b79ad9dc101a0952c2c10f9819df52de40",
+      "bytes": 2269,
+      "counts_including_parent_and_subtest": {
+        "pass": 0,
+        "fail": 1,
+        "skip": 0
+      },
+      "top_level_counts": {
+        "pass": 0,
+        "fail": 1,
+        "skip": 0
+      },
+      "packages": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "action": "fail",
+          "elapsed_seconds": 0.672
+        }
+      ],
+      "tests": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyRetryPendingCapacityCannotBeStolen",
+          "action": "fail",
+          "elapsed_seconds": 0.03
+        }
+      ],
+      "non_json_lines": 0,
+      "process_exit_code": 1,
+      "selection_replay_command": "go test -json -count=1 ./internal/store -run '^(TestPolicyRetryPendingCapacityCannotBeStolen)$'",
+      "command_scope": "replay of actual named top-level selection from JSON; exact historical shell argument ordering is not persisted here",
+      "validation_stage": "red"
+    },
+    {
+      "artifact": "red-retry.json",
+      "sha256": "72ccc5813d0a84bcb352fe8fcda04a6ef0174e2035ebeb2ec4ea824094bf72b9",
+      "bytes": 16219,
+      "counts_including_parent_and_subtest": {
+        "pass": 5,
+        "fail": 9,
+        "skip": 0
+      },
+      "top_level_counts": {
+        "pass": 2,
+        "fail": 3,
+        "skip": 0
+      },
+      "packages": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "action": "fail",
+          "elapsed_seconds": 0.802
+        }
+      ],
+      "tests": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicySegmentGrantAndContinuation",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyRetryDurableBackoffExactBinding",
+          "action": "fail",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyRetryPendingCapacityCannotBeStolen",
+          "action": "fail",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/running",
+          "action": "fail",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/unknown",
+          "action": "fail",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/failed",
+          "action": "fail",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/progress",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/code",
+          "action": "fail",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/worker",
+          "action": "fail",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/probe",
+          "action": "fail",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/question",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents/started",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestPolicyFailureFactsExcludeUnsafeEvents",
+          "action": "fail",
+          "elapsed_seconds": 0.26
+        },
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicyAdmissionDefaultsAndMixedGroup",
+          "action": "pass",
+          "elapsed_seconds": 0.03
+        }
+      ],
+      "non_json_lines": 0,
+      "process_exit_code": 1,
+      "command_scope": "historical development output; exact shell arguments are not persisted here; named tests and package outcomes retained"
+    },
+    {
+      "artifact": "red-store.json",
+      "sha256": "cf00dfac820644d87ea623f6e39aab50d1c9662bd58e10757b4f53f3323dc639",
+      "bytes": 1912,
+      "counts_including_parent_and_subtest": {
+        "pass": 0,
+        "fail": 1,
+        "skip": 0
+      },
+      "top_level_counts": {
+        "pass": 0,
+        "fail": 1,
+        "skip": 0
+      },
+      "packages": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "action": "fail",
+          "elapsed_seconds": 0.686
+        }
+      ],
+      "tests": [
+        {
+          "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "name": "TestExecutionPolicySegmentGrantAndContinuation",
+          "action": "fail",
+          "elapsed_seconds": 0.02
+        }
+      ],
+      "non_json_lines": 0,
+      "process_exit_code": 1,
+      "selection_replay_command": "go test -json -count=1 ./internal/store -run '^(TestExecutionPolicySegmentGrantAndContinuation)$'",
+      "command_scope": "replay of actual named top-level selection from JSON; exact historical shell argument ordering is not persisted here",
+      "validation_stage": "red"
+    }
+  ]
+}

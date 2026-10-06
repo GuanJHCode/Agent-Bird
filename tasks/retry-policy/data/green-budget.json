@@ -1,0 +1,8 @@
+{"Time":"2026-10-06T14:36:38.229492+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"}
+{"Time":"2026-10-06T14:36:38.934986+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestExecutionPolicySegmentGrantAndContinuation"}
+{"Time":"2026-10-06T14:36:38.935274+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestExecutionPolicySegmentGrantAndContinuation","Output":"=== RUN   TestExecutionPolicySegmentGrantAndContinuation\n"}
+{"Time":"2026-10-06T14:36:38.990022+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestExecutionPolicySegmentGrantAndContinuation","Output":"--- PASS: TestExecutionPolicySegmentGrantAndContinuation (0.06s)\n"}
+{"Time":"2026-10-06T14:36:38.990089+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestExecutionPolicySegmentGrantAndContinuation","Elapsed":0.06}
+{"Time":"2026-10-06T14:36:38.990358+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Output":"PASS\n"}
+{"Time":"2026-10-06T14:36:38.994804+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Output":"ok  \tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store\t0.765s\n"}
+{"Time":"2026-10-06T14:36:38.994921+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Elapsed":0.765}
