@@ -198,6 +198,9 @@ func (d *DB) ReviewResult(ctx context.Context, spec ReviewSpec) (string, error) 
 		return rollback(ErrConflict)
 	}
 	if spec.Decision == "accept" {
+		if err = validateIndexedResultAccept(ctx, tx, event); err != nil {
+			return rollback(err)
+		}
 		if err = validateDAGResultTarget(ctx, tx, event); err != nil {
 			return rollback(err)
 		}
