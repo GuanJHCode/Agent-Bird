@@ -132,7 +132,11 @@ func validateConfigGenerationSubmissionLocked(actualExecutable, authenticatedSco
 			if p.ConfigGeneration == nil || *p.ConfigGeneration != *ref || p.ValidateConfigModelSource() != nil {
 				return ErrConfigGenerationConflict
 			}
-			if p.Profile != nil {
+			// The unchanged manifest has no Grok saved default. Explicit Grok
+			// model selection and CLI default retain the same generation proof;
+			// other providers keep the existing supported-provider validation.
+			grokOwnModel := p.Provider == string(adapter.ProviderGrok) && (p.ConfigModelSource == "explicit" || p.ConfigModelSource == "cli-default")
+			if p.Profile != nil && !grokOwnModel {
 				model, e := m.SavedDefaults.Model(p.Provider)
 				if e != nil {
 					return e

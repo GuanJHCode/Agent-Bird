@@ -79,3 +79,50 @@ func TestIndexedReviewCoverageBindsExactAssignment(t *testing.T) {
 		t.Fatal("content serialized in manifest")
 	}
 }
+
+func TestIndexedReviewManifestCapacityBoundaries(t *testing.T) {
+	for _, kind := range []string{"2048_chunks_8MiB", "2049_chunks", "65_page_entries", "escaped_manifest_below_limit", "escaped_manifest_over_limit"} {
+		t.Run(kind, func(t *testing.T) {
+			m := indexedManifestFixture()
+			prototype := m.Chunks[0]
+			prototype.Length = 4096
+			count, entries := 2048, 64
+			valid := kind == "2048_chunks_8MiB" || kind == "escaped_manifest_below_limit"
+			switch kind {
+			case "2049_chunks":
+				count++
+				// Stay below the text budget to isolate the count guard.
+				prototype.Length = 1
+			case "65_page_entries":
+				entries = 65
+			case "escaped_manifest_below_limit":
+				prototype.Path = strings.Repeat("<", 5)
+			case "escaped_manifest_over_limit":
+				prototype.Path = strings.Repeat("<", 64)
+			}
+			m.Chunks, m.Pages = nil, nil
+			for i := 0; i < count; i++ {
+				chunk := prototype
+				chunk.Ordinal, chunk.Offset = i, i*chunk.Length
+				m.Chunks = append(m.Chunks, chunk)
+				if i%entries == 0 {
+					m.Pages = append(m.Pages, IndexedReviewPage{Ordinal: len(m.Pages)})
+				}
+				last := &m.Pages[len(m.Pages)-1]
+				last.ChunkOrdinals = append(last.ChunkOrdinals, i)
+			}
+			raw, err := json.Marshal(m)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if strings.HasPrefix(kind, "escaped_manifest_") {
+				if !strings.Contains(string(raw), `\u003c`) || (len(raw) <= 1024*1024) != valid {
+					t.Fatalf("fixture does not cross encoded manifest boundary: bytes=%d", len(raw))
+				}
+			}
+			if err := ValidateIndexedReviewManifest(m); (err == nil) != valid {
+				t.Fatalf("encoded bytes=%d validation=%v wantValid=%v", len(raw), err, valid)
+			}
+		})
+	}
+}

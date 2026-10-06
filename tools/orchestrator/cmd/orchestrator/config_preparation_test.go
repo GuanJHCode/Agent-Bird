@@ -210,7 +210,7 @@ func TestConfigPreparationFrozenReplayAcrossActiveSwitch(t *testing.T) {
 }
 
 func TestConfigPreparationRejectsUnsupportedBeforeAnyUse(t *testing.T) {
-	for _, kind := range []string{"grok-profile", "raw-gitops"} {
+	for _, kind := range []string{"grok-saved-empty", "grok-no-profile", "grok-ambiguous", "raw-gitops"} {
 		t.Run(kind, func(t *testing.T) {
 			dest, exe, state := configPreparedPackage(t)
 			scope, _ := contract.ConfigGenerationOwnerScope("controller", "birth")
@@ -220,10 +220,17 @@ func TestConfigPreparationRejectsUnsupportedBeforeAnyUse(t *testing.T) {
 			}
 			plan := configPlanFixture("run")
 			p := adapter.InvocationPayload{Kind: "gitops"}
-			if kind == "grok-profile" {
+			if strings.HasPrefix(kind, "grok-") {
 				p.Kind = "provider"
 				p.Provider = string(adapter.ProviderGrok)
-				p.Profile = &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: 1000, Model: "explicit"}
+				p.Profile = &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: 1000}
+				if kind == "grok-no-profile" {
+					p.Profile = nil
+				}
+				if kind == "grok-ambiguous" {
+					p.Profile.Model = "explicit"
+					p.Profile.CLIModelDefault = true
+				}
 			}
 			raw, _ := json.Marshal(p)
 			plan.Tasks[0].AdapterPayload = raw
@@ -504,5 +511,46 @@ func TestConfigPreparationExecutionPolicyDriftCannotReuseCheckpoint(t *testing.T
 	drifted.ResolvedPlan.Tasks[0].ExecutionPolicy = &changed
 	if err = coordinator.ValidateConfigPreparedStructure(drifted, *saved.Use); err == nil {
 		t.Fatal("changed receiver policy reused original PlanSHA")
+	}
+}
+
+func TestConfigPreparationGrokExplicitModelKeepsGeneration(t *testing.T) {
+	for _, cliDefault := range []bool{false, true} {
+		t.Run(fmt.Sprint(cliDefault), func(t *testing.T) {
+			_, exe, state := configPreparedPackage(t)
+			scope, _ := contract.ConfigGenerationOwnerScope("controller", "birth")
+			defaults := install.ConfigSavedDefaults{AGY: "a", Claude: "b"}
+			published, err := install.UpdateConfigGeneration(exe, scope, install.ConfigGenerationOperation{RequestID: "a", Action: "publish", SavedDefaults: &defaults})
+			if err != nil {
+				t.Fatal(err)
+			}
+			p := adapter.InvocationPayload{Provider: string(adapter.ProviderGrok), Profile: &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: 1000, Model: "grok-chosen"}}
+			want := "explicit"
+			if cliDefault {
+				p.Profile.Model = ""
+				p.Profile.CLIModelDefault = true
+				want = "cli-default"
+			}
+			raw, _ := json.Marshal(p)
+			plan := taskPlan{RunID: "grok-run", PlanRevision: 1, Tasks: []coordinator.TaskRequest{{ID: "grok-task", MaxAttempts: 1, AdapterPayload: raw, Fallbacks: []json.RawMessage{raw}}}}
+			got, err := prepareConfigTaskPlanFixture(context.Background(), state, exe, scope, plan, "", false, func(context.Context, string) (store.ProviderState, error) {
+				return store.ProviderState{Enabled: true, Model: "live-must-not-win"}, nil
+			}, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.Use == nil || got.Use.Ref == nil || *got.Use.Ref != *published.Ref {
+				t.Fatal("selected generation lost")
+			}
+			for _, body := range append([]json.RawMessage{got.ResolvedPlan.Tasks[0].AdapterPayload}, got.ResolvedPlan.Tasks[0].Fallbacks...) {
+				resolved, err := adapter.DecodeInvocationPayload(body)
+				if err != nil || resolved.ConfigModelSource != want || !reflect.DeepEqual(resolved.ConfigGeneration, published.Ref) || resolved.Profile.Model != p.Profile.Model || resolved.Profile.CLIModelDefault != cliDefault {
+					t.Fatal("Grok source changed", err)
+				}
+			}
+			if err = install.ValidateConfigGenerationSubmission(exe, scope, plan.RunID, got.ResolvedPlanSHA256, configTaskUses(got.ResolvedPlan.Tasks)); err != nil {
+				t.Fatal("selected preparation cannot be submitted", err)
+			}
+		})
 	}
 }

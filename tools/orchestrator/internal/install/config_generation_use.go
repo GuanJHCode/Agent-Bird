@@ -105,7 +105,10 @@ func configPreparationInputs(tasks []ConfigGenerationTaskUse, selected bool) err
 			if p.ConfigGeneration != nil || p.ConfigModelSource != "" {
 				return errors.New("config_input_provenance_forbidden")
 			}
-			if selected && (p.Provider == string(adapter.ProviderGrok) || p.Kind == "gitops" && p.CandidateAction == nil && p.CandidateWorkspace == nil) {
+			// Grok has no saved-default field in this generation schema. It may
+			// still bind the generation with an explicit model or CLI default.
+			grokUnsupported := p.Provider == string(adapter.ProviderGrok) && (p.Profile == nil || !adapter.ValidModelID(string(p.Profile.Model)) || p.Profile.CLIModelDefault && p.Profile.Model != "" || !p.Profile.CLIModelDefault && p.Profile.Model == "")
+			if selected && (grokUnsupported || p.Kind == "gitops" && p.CandidateAction == nil && p.CandidateWorkspace == nil) {
 				return errors.New("config_generation_subset_unsupported")
 			}
 		}

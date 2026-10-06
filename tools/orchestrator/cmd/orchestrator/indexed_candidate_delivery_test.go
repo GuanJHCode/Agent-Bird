@@ -19,6 +19,12 @@ import (
 
 func exerciseIndexedCandidateDelivery(t *testing.T, root, repo, base string, source contract.LaunchCommand, result contract.Result, git func(string, ...string) string) {
 	t.Helper()
+	var sourceConfig struct {
+		Config *contract.ConfigGenerationRef `json:"config_generation"`
+	}
+	if err := json.Unmarshal(source.AdapterPayload, &sourceConfig); err != nil {
+		t.Fatal(err)
+	}
 	target := filepath.Join(root, "indexed-target")
 	git(repo, "worktree", "add", "-b", "indexed-delivery", target, base)
 	input := func(g contract.LaunchCommand, r contract.Result) contract.AcceptedInput {
@@ -33,6 +39,14 @@ func exerciseIndexedCandidateDelivery(t *testing.T, root, repo, base string, sou
 	}
 	run := func(name string, payload map[string]any, accepted contract.AcceptedInput, vector *contract.DependencyInputVector) (contract.LaunchCommand, contract.Result, host.CandidateDelivery) {
 		t.Helper()
+		if sourceConfig.Config != nil {
+			payload["config_generation"] = sourceConfig.Config
+			payload["config_model_source"] = "not-applicable"
+			if profile, ok := payload["profile"].(map[string]any); ok {
+				profile["cli_model_default"] = true
+				payload["config_model_source"] = "cli-default"
+			}
+		}
 		body, _ := json.Marshal(payload)
 		grant := contract.LaunchCommand{RunID: source.RunID, TaskID: name, AttemptID: "attempt-" + name, SegmentID: "segment-" + name, CommandID: "command-" + name, ReservationID: "reservation-" + name, SlotToken: "slot-" + name, WorkRevision: 1, PlanRevision: 1, GrantedActiveMS: 15000, AdapterPayload: body, Input: &accepted, DependencyInputs: vector}
 		var err error
@@ -56,6 +70,9 @@ func exerciseIndexedCandidateDelivery(t *testing.T, root, repo, base string, sou
 		var delivery host.CandidateDelivery
 		if err = json.Unmarshal(raw, &delivery); err != nil {
 			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(delivery.ConfigGeneration, sourceConfig.Config) {
+			t.Fatal("stage lost selected config generation")
 		}
 		return grant, out, delivery
 	}
@@ -161,7 +178,7 @@ func exerciseIndexedCandidateDelivery(t *testing.T, root, repo, base string, sou
 			case "candidate_order":
 				d.Candidate.OrderedInputOIDs = append(d.Candidate.OrderedInputOIDs, base)
 			case "config":
-				d.ConfigGeneration = &contract.ConfigGenerationRef{SchemaVersion: 1, OwnerScopeSHA256: strings.Repeat("a", 64), GenerationID: strings.Repeat("b", 64), ManifestSHA256: strings.Repeat("c", 64), PackageVersion: "1.0.0"}
+				d.ConfigGeneration = &contract.ConfigGenerationRef{SchemaVersion: 1, OwnerScopeSHA256: strings.Repeat("a", 64), GenerationID: strings.Repeat("f", 64), ManifestSHA256: strings.Repeat("c", 64), PackageVersion: "1.0.0"}
 			case "provider_lock":
 				d.ProviderLock.Binary.SHA256 = strings.Repeat("c", 64)
 			}
@@ -176,7 +193,12 @@ func exerciseIndexedCandidateDelivery(t *testing.T, root, repo, base string, sou
 			if kind == "missing_shard" {
 				badVector.Inputs = badVector.Inputs[1:]
 			}
-			payload, _ := json.Marshal(map[string]any{"kind": "candidate", "directory": target, "candidate_action": integrate})
+			badPayload := map[string]any{"kind": "candidate", "directory": target, "candidate_action": integrate}
+			if sourceConfig.Config != nil {
+				badPayload["config_generation"] = sourceConfig.Config
+				badPayload["config_model_source"] = "not-applicable"
+			}
+			payload, _ := json.Marshal(badPayload)
 			grant := contract.LaunchCommand{RunID: source.RunID, TaskID: "reject-" + kind, AttemptID: "attempt-reject-" + kind, SegmentID: "segment-reject-" + kind, CommandID: "cmd-" + kind, ReservationID: "reservation-" + kind, SlotToken: "slot-" + kind, WorkRevision: 1, PlanRevision: 1, GrantedActiveMS: 15000, AdapterPayload: payload, Input: &vector.Inputs[1], DependencyInputs: &badVector}
 			grant.LaunchIntentHash, err = contract.CandidateIntentHash(grant)
 			if err != nil {

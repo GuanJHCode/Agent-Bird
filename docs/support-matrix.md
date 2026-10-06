@@ -7,7 +7,7 @@
 | Codex owner 绑定、任务派发、collect/ACK/accept | 已实现 |
 | 多任务、依赖 DAG、默认全局并发 2 | 已实现 |
 | 按会话开启/关闭 Provider | 已实现；关闭等待执行树退出确认 |
-| 代码修改的强制隔离与候选测试/审查/集成 | 三种 worker 共用托管流程；Claude/AGY 支持原生结构化审查；Grok 支持有界完整快照审查 |
+| 代码修改的强制隔离与候选测试/审查/集成 | 三种 worker 共用托管流程；Claude/AGY 支持原生结构化审查；Grok 支持有界完整快照及显式分块审查 |
 | Claude/Grok/AGY 主脑 | 显式 controller 启动入口；按托管进程归属，不冒充原生会话 ID |
 | 会话模型、保存默认、单次覆盖 | 已实现；由实际 CLI 能力决定可用模型 |
 | Grok | 1.0.34 只读及逐文件许可下的隔离编码/冻结/行为验收通过；需显式任务会话目录写授权；完整文本快照审查通过一次真实错误识别 |
@@ -30,3 +30,5 @@ Claude/AGY Hook 适配、Codex attached bridge 的源码和受控测试不等于
 候选开发拒绝 Git LFS/filter、自定义 hooks 等执行扩展。权限不足或输入不明确时明确阻塞，不自动修改用户全局 Git 或 Provider 配置。
 
 Grok 候选审查由 Host 提供完整 base/candidate Git 文本树，限制为 64 个文件、合计 128 KiB 内容、256 KiB JSON；超限、二进制、符号链接或 LFS 会阻止调用，不截断后继续。认证预检仅调用已锁定 CLI 的非生成 `models`，允许原生客户端续期登录；worker 沙箱不变。AGY 真实审查通过文件读取和错误识别；Grok 真实审查通过快照输入和错误识别。完整 Host 审查到集成另有受控进程回归，不能冒充所有真实模型的端到端验收。
+
+显式 `indexed_candidate_review_v1` 分块路径支持更大的不可变候选，容量、DAG字段与配置选择见[Provider运行时](provider-runtime.md#大候选分块审查)。本机受控Provider已验证65个以上文件、三分块实际prompt消费、Store逐阶段接受、Source Host恢复及最终Git合并；真实模型分块效果尚未验收。

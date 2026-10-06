@@ -36,3 +36,17 @@ typed Question/Answer 与显式中断 Resume 使用受信任的原会话和状�
 Codex 内部协议支持仍处于受保护接入阶段，公共 Worker 入口没有开放。真实范围和未完成项目见[支持矩阵](support-matrix.md)及[迭代说明](iteration-20261006.md)。
 
 详细字段见 [CLI 文档](../tools/orchestrator/README.md) 和插件 [Skill](../plugins/codex-orchestrator/skills/orchestrate/SKILL.md)。
+
+## 大候选分块审查
+
+需要 Coordinator 能力 `indexed_candidate_review_v1`。在 `candidate_action.review_index` 显式设置 `{"version":1,"mode":"indexed_candidate_review_v1","shards":3,"review_ordinal":0}`：validate 生成一次不可变清单，三个 Grok read-only review 分别使用 ordinal 0、1、2，且都依赖同一个 validate。integrate 直接依赖全部三个 review，设置 `dependency_input_version:1`，并让 `source_task` 与 `review_ordinal` 指向同一个审查分块。必须显式规划全部分块；不会自动增加任务或扩大额度。
+
+Host 只把每个分块指定的文本范围写入实际 prompt 文件。Store 接受结果和 Host 合并前都会验证清单、覆盖凭据、候选及配置来源；缺块、重复范围或来源变化会拒绝。合并使用已接受的清单，不重新生成清单。未声明 `review_index` 的任务继续使用原有快照限制。
+
+容量：最多512个路径、路径总字节64KiB、base/candidate两侧逻辑文本及一次建索引的Git blob读取总量8MiB、单块32KiB、最多2048块、每页最多64条且64KiB、最多63个review。每个实际模型输入含元数据与指导文本最多384KiB；单个清单/结果产物最多1MiB。二进制、符号链接、submodule、LFS及超限输入拒绝，不截断后报告完整覆盖。
+
+这些上限同时生效。每个 Grok 分块输入仍携带完整索引元数据；JSON 转义、任务提示词和固定指导文本也计入384KiB。符合1MiB清单上限的候选仍可能因实际输入过大而在审查前被拒绝，增加分块数不能缩小完整元数据。
+
+使用已发布 Bird 配置版本时，Grok profile 需显式填写 `model`，或设置 `cli_model_default:true`，两者互斥。配置准备流程绑定原 generation；当前保存的默认配置格式没有 Grok 字段，省略上述两项会在创建准备记录前拒绝。AGY/Claude/Codex 的默认配置语义保持原样。
+
+本机受控 Provider 验收覆盖真实 CLI、Store、Source Host 恢复、三分块实际文本消费和 Git 合并；这不代表真实模型的分块审查质量或其他平台原生验收。

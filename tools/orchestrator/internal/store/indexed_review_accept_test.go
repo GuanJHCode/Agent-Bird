@@ -15,10 +15,13 @@ import (
 
 // These are Store transaction fixtures, not native Git/provider acceptance.
 func TestIndexedAcceptChecksDurableSourceAndCoverage(t *testing.T) {
-	for _, kind := range []string{"valid_reopen", "validate_manifest", "validate_source", "review_missing", "review_grant", "review_input", "review_config", "review_manifest", "review_validation", "review_revision", "review_provider", "integrate_vector", "integrate_missing_proof"} {
+	for _, kind := range []string{"valid_reopen", "valid_config", "validate_manifest", "validate_source", "review_missing", "review_grant", "review_input", "review_config", "review_manifest", "review_validation", "review_revision", "review_provider", "integrate_vector", "integrate_missing_proof"} {
 		t.Run(kind, func(t *testing.T) {
 			ctx := context.Background()
 			path := filepath.Join(t.TempDir(), "state.db")
+			if err := os.Chmod(filepath.Dir(path), 0700); err != nil {
+				t.Fatal(err)
+			}
 			db, err := Open(path)
 			if err != nil {
 				t.Fatal(err)
@@ -35,11 +38,18 @@ func TestIndexedAcceptChecksDurableSourceAndCoverage(t *testing.T) {
 					tasks[i].AdapterPayload, _ = json.Marshal(p)
 				}
 			}
-			plan, err := db.SubmitPlan(ctx, PlanSpec{Run: RunSpec{ID: "run", ControllerThread: "owner", PlanRevision: 1, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth"}, Host: HostLaunchSpec{OriginContextID: "origin", HostGeneration: "gen", Executable: "/private/bin/orchestrator"}, Tasks: tasks})
+			spec := PlanSpec{Run: RunSpec{ID: "run", ControllerThread: "owner", PlanRevision: 1, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth"}, Host: HostLaunchSpec{OriginContextID: "origin", HostGeneration: "gen", Executable: "/private/bin/orchestrator"}, Tasks: tasks}
+			if kind == "valid_config" {
+				spec = bindIndexedConfigPlan(t, db, spec)
+			}
+			plan, err := db.SubmitPlan(ctx, spec)
+			if spec.ConfigSubmission != nil {
+				spec.ConfigSubmission.Close()
+			}
 			if err != nil {
 				t.Fatal(err)
 			}
-			hostID, err := db.RegisterHost(ctx, contract.HostHello{LaunchID: plan.LaunchID, LaunchToken: plan.LaunchToken, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth", HostGeneration: "gen", PID: 10, Birth: "host", Executable: "/private/bin/orchestrator"}, 1)
+			hostID, err := db.RegisterHost(ctx, contract.HostHello{LaunchID: plan.LaunchID, LaunchToken: plan.LaunchToken, OriginContextID: spec.Run.OriginContextID, OriginPID: spec.Run.OriginPID, OriginBirth: spec.Run.OriginBirth, HostGeneration: spec.Host.HostGeneration, PID: 10, Birth: "host", Executable: spec.Host.Executable}, 1)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -67,6 +77,9 @@ func TestIndexedAcceptChecksDurableSourceAndCoverage(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
+				if payload.ConfigGeneration != nil {
+					d["config_generation"] = payload.ConfigGeneration
+				}
 				switch g.TaskID {
 				case "edit":
 					d["candidate"] = gitops.CandidateReceipt{Binding: &binding, BaseOID: strings.Repeat("a", 40), CandidateOID: strings.Repeat("b", 40), TreeOID: strings.Repeat("c", 40), PrivateRef: "refs/private/candidate"}
@@ -93,7 +106,7 @@ func TestIndexedAcceptChecksDurableSourceAndCoverage(t *testing.T) {
 					if e != nil {
 						t.Fatal(e)
 					}
-					proof := &contract.IndexedReviewCoverage{Version: 1, ManifestSHA256: contract.IndexedReviewJSONSHA256(m), AssignmentSHA256: contract.IndexedReviewJSONSHA256(assigned), GrantIntentSHA256: g.LaunchIntentHash, AcceptedInputSHA256: contract.IndexedReviewJSONSHA256(g.Input), ConsumerInputSHA256: strings.Repeat("f", 64), ConsumerSnapshotSHA256: strings.Repeat("a", 64), Shards: ri.Shards, ReviewOrdinal: ri.ReviewOrdinal}
+					proof := &contract.IndexedReviewCoverage{Version: 1, ManifestSHA256: contract.IndexedReviewJSONSHA256(m), AssignmentSHA256: contract.IndexedReviewJSONSHA256(assigned), GrantIntentSHA256: g.LaunchIntentHash, AcceptedInputSHA256: contract.IndexedReviewJSONSHA256(g.Input), ConsumerInputSHA256: strings.Repeat("f", 64), ConsumerSnapshotSHA256: strings.Repeat("a", 64), Shards: ri.Shards, ReviewOrdinal: ri.ReviewOrdinal, ConfigGeneration: payload.ConfigGeneration}
 					d["review_coverage"], d["review_assignment_sha256"], d["review_input_sha256"], d["review_snapshot_sha256"] = proof, proof.AssignmentSHA256, proof.ConsumerInputSHA256, proof.ConsumerSnapshotSHA256
 				case "integrate":
 					d["stage"] = "integrate"
@@ -172,7 +185,7 @@ func TestIndexedAcceptChecksDurableSourceAndCoverage(t *testing.T) {
 				if err != nil {
 					t.Fatalf("%s accept: %v", g.TaskID, err)
 				}
-				if g.TaskID == "integrate" && kind == "valid_reopen" {
+				if g.TaskID == "integrate" && (kind == "valid_reopen" || kind == "valid_config") {
 					if err = os.Remove(artifact); err != nil {
 						t.Fatal(err)
 					}

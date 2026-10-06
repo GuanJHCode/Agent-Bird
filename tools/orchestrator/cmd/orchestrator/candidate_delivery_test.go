@@ -30,6 +30,7 @@ func exerciseCandidateDelivery(t *testing.T, root, repo, base string, source con
 		t.Helper()
 		body, _ := json.Marshal(payload)
 		grant := contract.LaunchCommand{RunID: source.RunID, TaskID: name, AttemptID: "attempt-" + name, SegmentID: "segment-" + name, CommandID: "command-" + name, ReservationID: "reservation-" + name, WorkRevision: 1, PlanRevision: 1, GrantedActiveMS: 15000, AdapterPayload: body, Input: input(from, r)}
+		grant.LaunchIntentHash, _ = contract.CandidateIntentHash(grant)
 		inv, err := invocationForGrant(context.Background(), grant)
 		if err != nil {
 			if len(wantError) > 0 && wantError[0] {

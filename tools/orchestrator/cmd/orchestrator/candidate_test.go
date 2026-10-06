@@ -30,6 +30,7 @@ func TestManagedCandidateFreezesWorkerChangesWithoutUserChanges(t *testing.T) {
 		{name: "success"},
 		{name: "grok_review"},
 		{name: "indexed_review"},
+		{name: "indexed_review_config"},
 		{name: "undeclared", failed: true},
 		{name: "ignored", failed: true},
 		{name: "symlink", failed: true},
@@ -55,7 +56,7 @@ func TestManagedCandidateFreezesWorkerChangesWithoutUserChanges(t *testing.T) {
 			git(repo, "init", "-q", "-b", "main")
 			git(repo, "config", "user.name", "Candidate Test")
 			git(repo, "config", "user.email", "test@example.invalid")
-			if tc.name == "indexed_review" {
+			if strings.HasPrefix(tc.name, "indexed_review") {
 				for i := 0; i < 65; i++ {
 					if err := os.WriteFile(filepath.Join(repo, fmt.Sprintf("context-%03d.txt", i)), []byte(strings.Repeat("é", 1100)), 0600); err != nil {
 						t.Fatal(err)
@@ -100,6 +101,16 @@ func TestManagedCandidateFreezesWorkerChangesWithoutUserChanges(t *testing.T) {
 				"profile":             map[string]any{"version": 1, "role": "implementer", "permission": "workspace-write", "timeout_ms": 15000},
 				"candidate_workspace": map[string]any{"version": 1, "repo_root": repo, "base_oid": base, "paths": []string{"README", "added.txt", "obsolete.txt"}},
 			})
+			if tc.name == "indexed_review_config" {
+				var configured map[string]any
+				if err := json.Unmarshal(payload, &configured); err != nil {
+					t.Fatal(err)
+				}
+				configured["config_generation"] = &contract.ConfigGenerationRef{SchemaVersion: 1, OwnerScopeSHA256: strings.Repeat("a", 64), GenerationID: strings.Repeat("b", 64), ManifestSHA256: strings.Repeat("c", 64), PackageVersion: "1.0.0"}
+				configured["config_model_source"] = "cli-default"
+				configured["profile"].(map[string]any)["cli_model_default"] = true
+				payload, _ = json.Marshal(configured)
+			}
 			grant := contract.LaunchCommand{RunID: fmt.Sprintf("fixture-%x", sha256.Sum256([]byte(root))), TaskID: "implement", AttemptID: "attempt", SegmentID: "segment", CommandID: "command", ReservationID: "reservation", WorkRevision: 1, PlanRevision: 1, GrantedActiveMS: 15000, AdapterPayload: payload}
 			inv, err := invocationForGrant(context.Background(), grant)
 			if err != nil {
@@ -179,7 +190,7 @@ func TestManagedCandidateFreezesWorkerChangesWithoutUserChanges(t *testing.T) {
 				}
 				t.Setenv("GROK_HOME", home)
 			}
-			if tc.name == "indexed_review" {
+			if strings.HasPrefix(tc.name, "indexed_review") {
 				exerciseIndexedCandidateDelivery(t, root, repo, base, grant, result, git)
 			} else {
 				exerciseCandidateDelivery(t, root, repo, base, grant, result, git)
@@ -197,11 +208,21 @@ func TestMain(m *testing.M) {
 		return
 	}
 	mode := os.Getenv("CANDIDATE_FIXTURE_MODE")
+	grokFixture := os.Getenv("GROK_REVIEW_FIXTURE") != ""
+	indexedFixture := os.Getenv("GROK_INDEXED_FIXTURE") != ""
+	// A single real source-host can run both providers. These copied test
+	// executables select their protocol by identity, never shared task env.
+	switch filepath.Base(os.Args[0]) {
+	case "indexed-claude-fixture":
+		mode, grokFixture, indexedFixture = "success", false, false
+	case "indexed-grok-fixture":
+		mode, grokFixture, indexedFixture = "review_approve", true, true
+	}
 	if mode == "" {
 		os.Exit(m.Run())
 	}
 	if len(os.Args) == 2 && os.Args[1] == "--version" {
-		if os.Getenv("GROK_REVIEW_FIXTURE") != "" {
+		if grokFixture {
 			fmt.Println("grok 1.0.34 (3736acbc8658)")
 			os.Exit(0)
 		}
@@ -212,7 +233,7 @@ func TestMain(m *testing.M) {
 		fmt.Println("--output-format --input-format --permission-mode --disallowed-tools --json-schema --prompt-file --session-id --output --model --allowed-tools --denied-tools --no-subagents --disable-web-search --leader-socket --tools --deny")
 		os.Exit(0)
 	}
-	if os.Getenv("GROK_REVIEW_FIXTURE") != "" && len(os.Args) == 2 && os.Args[1] == "models" {
+	if grokFixture && len(os.Args) == 2 && os.Args[1] == "models" {
 		fmt.Println("fixture model")
 		os.Exit(0)
 	}
@@ -261,7 +282,7 @@ func TestMain(m *testing.M) {
 			decision = "reject"
 		}
 		body, _ := json.Marshal(map[string]string{"decision": decision, "summary": "fixture independently inspected candidate"})
-		if os.Getenv("GROK_REVIEW_FIXTURE") != "" {
+		if grokFixture {
 			var input, session string
 			for i, arg := range os.Args {
 				if i+1 < len(os.Args) {
@@ -274,10 +295,10 @@ func TestMain(m *testing.M) {
 				}
 			}
 			snapshot, err := os.ReadFile(input)
-			if err != nil || session == "" || !strings.Contains(string(snapshot), "complete-tracked-text-base-and-candidate") || os.Getenv("GROK_INDEXED_FIXTURE") == "" && !strings.Contains(string(snapshot), "worker implementation") {
+			if err != nil || session == "" || !strings.Contains(string(snapshot), "complete-tracked-text-base-and-candidate") || !indexedFixture && !strings.Contains(string(snapshot), "worker implementation") {
 				os.Exit(8)
 			}
-			if os.Getenv("GROK_INDEXED_FIXTURE") != "" {
+			if indexedFixture {
 				_, raw, ok := strings.Cut(string(snapshot), "Host snapshot JSON:\n")
 				var supplied struct {
 					Chunks []struct {
@@ -333,6 +354,11 @@ func TestMain(m *testing.M) {
 	}
 	if err := os.Remove("obsolete.txt"); err != nil && !(reworking && os.IsNotExist(err)) {
 		os.Exit(3)
+	}
+	if filepath.Base(os.Args[0]) == "indexed-claude-fixture" {
+		if err := os.Rename("rename-before.txt", "rename-after.txt"); err != nil {
+			os.Exit(3)
+		}
 	}
 	switch mode {
 	case "undeclared":
