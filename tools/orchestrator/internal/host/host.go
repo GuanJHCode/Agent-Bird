@@ -317,6 +317,11 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 	h.segmentCancels[a.SegmentID] = cancelSegment
 	h.mu.Unlock()
 	defer func() { cancelSegment(); h.mu.Lock(); delete(h.segmentCancels, a.SegmentID); h.mu.Unlock() }()
+	// Preparatory Git/auth processes belong to this same Host, even when their
+	// post-Start observations fail before the model worker can be launched.
+	ctx = process.WithFailedStartOwner(ctx, func(p *process.Handle) error {
+		return h.stopFailedStart(a.SegmentID, p, meta.beforeStopJoin)
+	})
 
 	spool, err := h.spool(a)
 	if err != nil {

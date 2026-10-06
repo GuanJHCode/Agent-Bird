@@ -55,3 +55,61 @@ func TestCandidatePostStartErrorKeepsOriginalWaitAndUnknown(t *testing.T) {
 		t.Error("journal lost original started identity", j.records)
 	}
 }
+
+func TestCandidatePostStartErrorTransfersToLifecycleOwnerOnce(t *testing.T) {
+	p, err := process.Start(context.Background(), process.Command{Path: "/bin/sleep", Args: []string{"30"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		if p.Stop(ctx) != nil {
+			t.Error("original cleanup failed")
+		}
+	})
+	calls := 0
+	ctx := process.WithFailedStartOwner(context.Background(), func(got *process.Handle) error {
+		calls++
+		if got != p {
+			t.Error("transferred another Handle")
+		}
+		return process.ErrProcessTreeUnknown
+	})
+	_, err = candidateGitWithStart(ctx, t.TempDir(), nil, func(context.Context, process.Command) (*process.Handle, error) { return p, context.Canceled }, "status")
+	if calls != 1 || !errors.Is(err, process.ErrProcessTreeUnknown) {
+		t.Fatal("lifecycle handoff missing", calls, err)
+	}
+	probe, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+	if p.Wait(probe) == nil {
+		t.Fatal("candidate ran local cleanup after transferring ownership")
+	}
+}
+
+func TestCandidateErrorWrappingPreservesStandaloneHandleTransfer(t *testing.T) {
+	p, err := process.Start(context.Background(), process.Command{Path: "/bin/sleep", Args: []string{"30"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		if p.Stop(ctx) != nil {
+			t.Error("original cleanup failed")
+		}
+	})
+	err = process.CleanupFailedStart(context.Background(), p, -time.Second)
+	wrapped := fail(CodeGitFailure, "candidate prepare", errors.Join(process.ErrProcessTreeUnknown, err))
+	var transfer *process.FailedStartError
+	if !errors.As(wrapped, &transfer) {
+		t.Fatal("candidate error wrapping erased standalone Handle", wrapped)
+	}
+	got, receipt, ok := transfer.TakeHandle()
+	if !ok || got != p || receipt.StopError == nil || receipt.TreeError == nil {
+		t.Fatal("candidate transfer lost original cleanup", receipt)
+	}
+	if _, _, again := transfer.TakeHandle(); again {
+		t.Fatal("candidate transferred Handle twice")
+	}
+}

@@ -88,11 +88,8 @@ func candidateGitWithStart(ctx context.Context, dir string, stdin io.Reader, sta
 		if p != nil {
 			identity := p.Identity()
 			_ = record("unknown", &identity, p.ExitCode())
-			cleanup, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
-			stopErr := p.Stop(cleanup)
-			waitErr := p.Wait(cleanup)
-			return CommandResult{PID: p.PID(), ExitCode: p.ExitCode()}, errors.Join(process.ErrProcessTreeUnknown, stopErr, waitErr, p.ConfirmTreeExited())
+			cleanupErr := process.CleanupFailedStart(ctx, p, 10*time.Second)
+			return CommandResult{PID: p.PID(), ExitCode: p.ExitCode()}, errors.Join(process.ErrProcessTreeUnknown, cleanupErr)
 		}
 		return CommandResult{}, candidateStartFailure(err)
 	}

@@ -227,3 +227,52 @@ func TestHostRegistrationFailureCleansNewHandleWithoutReplacingOwner(t *testing.
 		t.Fatal("private cleanup stopped existing owner")
 	}
 }
+
+func TestHostPreparationPostStartFailureIsRetainedBeforeReturn(t *testing.T) {
+	h, err := NewIPC(filepath.Join(t.TempDir(), "spool"), "owner")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := process.Start(context.Background(), process.Command{Path: "/bin/sleep", Args: []string{"30"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		if p.Stop(ctx) != nil {
+			t.Error("original cleanup failed")
+		}
+	})
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+	defer cancel()
+	meta := launchMetadata{commandID: "command", workRevision: 1, executionEpoch: 1}
+	meta.prepareProvider = func(prepareCtx context.Context) (process.Command, error) {
+		h.BeginStopAll(ctx)
+		err := process.CleanupFailedStart(prepareCtx, p, 10*time.Millisecond)
+		return process.Command{}, errors.Join(process.ErrProcessTreeUnknown, err)
+	}
+	meta.startProcess = func(context.Context, process.Command) (*process.Handle, error) {
+		t.Fatal("failed preparation started worker")
+		return nil, nil
+	}
+	result, err := h.execute(context.Background(), store.Attempt{ID: "attempt", TaskID: "task", SegmentID: "segment"}, "run", "task", process.Command{Path: "/bin/sleep", Args: []string{"30"}}, false, meta)
+	if !errors.Is(err, process.ErrProcessTreeUnknown) || result.Status != "unknown" {
+		t.Fatal("preparation uncertainty lost", result, err)
+	}
+	h.stopMu.Lock()
+	op := h.failedStarts[p]
+	h.stopMu.Unlock()
+	if op == nil || op.handle != p {
+		t.Fatal("preparation returned without Host retaining original Handle")
+	}
+	joined := 0
+	h.stopAll(ctx, func(got *hostStopOperation) {
+		if got == op {
+			joined++
+		}
+	})
+	if joined != 1 {
+		t.Fatal("StopAll lost original preparation operation", joined)
+	}
+}

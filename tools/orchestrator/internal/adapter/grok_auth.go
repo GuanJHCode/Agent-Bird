@@ -29,11 +29,8 @@ func refreshGrokAuthWithStart(ctx context.Context, pin BinaryPin, env []string, 
 	p, err := start(probeCtx, process.Command{Path: pin.Path, Args: []string{"models"}, Env: environment, PinnedPath: pin.Path, PinnedSHA256: pin.SHA256})
 	if err != nil {
 		if p != nil {
-			cleanup, stop := context.WithTimeout(context.Background(), 2*time.Second)
-			defer stop()
-			stopErr := p.Stop(cleanup)
-			waitErr := p.Wait(cleanup)
-			return errors.Join(process.ErrProcessTreeUnknown, errors.New("grok_auth_preflight_start_failed"), stopErr, waitErr, p.ConfirmTreeExited())
+			cleanupErr := process.CleanupFailedStart(ctx, p, 2*time.Second)
+			return errors.Join(process.ErrProcessTreeUnknown, errors.New("grok_auth_preflight_start_failed"), cleanupErr)
 		}
 		return errors.Join(process.ErrProcessTreeUnknown, errors.New("grok_auth_preflight_start_failed"))
 	}

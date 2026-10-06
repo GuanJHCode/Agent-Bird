@@ -49,3 +49,38 @@ func TestGrokAuthPostStartErrorKeepsOriginalWait(t *testing.T) {
 		t.Error("auth probe returned without original cleanup")
 	}
 }
+
+func TestGrokAuthPostStartErrorTransfersToLifecycleOwnerOnce(t *testing.T) {
+	p, err := process.Start(context.Background(), process.Command{Path: "/bin/sleep", Args: []string{"30"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		if p.Stop(ctx) != nil {
+			t.Error("original cleanup failed")
+		}
+	})
+	digest, err := process.ExecutableDigest(context.Background(), "/bin/sleep")
+	if err != nil {
+		t.Fatal(err)
+	}
+	calls := 0
+	ctx := process.WithFailedStartOwner(context.Background(), func(got *process.Handle) error {
+		calls++
+		if got != p {
+			t.Error("transferred another Handle")
+		}
+		return process.ErrProcessTreeUnknown
+	})
+	err = refreshGrokAuthWithStart(ctx, BinaryPin{Path: "/bin/sleep", Version: "test", SHA256: digest}, nil, func(context.Context, process.Command) (*process.Handle, error) { return p, context.Canceled })
+	if calls != 1 || !errors.Is(err, process.ErrProcessTreeUnknown) {
+		t.Fatal("lifecycle handoff missing", calls, err)
+	}
+	probe, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+	if p.Wait(probe) == nil {
+		t.Fatal("auth probe ran local cleanup after transferring ownership")
+	}
+}
