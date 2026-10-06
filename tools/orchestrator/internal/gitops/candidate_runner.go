@@ -162,13 +162,20 @@ func candidateGitStream(ctx context.Context, dir string, out io.Writer, args ...
 	if err := record("spawned", &identity, -1); err != nil {
 		stopCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		_ = p.Stop(stopCtx)
+		if stopErr := p.Stop(stopCtx); stopErr != nil {
+			_ = record("unknown", &identity, p.ExitCode())
+			return process.ErrProcessTreeUnknown
+		}
 		return err
 	}
-	if err := p.Wait(ctx); err != nil {
+	waitErr := p.Wait(ctx)
+	if waitErr != nil {
 		stopCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		_ = p.Stop(stopCtx)
+		if stopErr := p.Stop(stopCtx); stopErr != nil {
+			_ = record("unknown", &identity, p.ExitCode())
+			return process.ErrProcessTreeUnknown
+		}
 	}
 	if err := p.ConfirmTreeExited(); err != nil {
 		_ = record("unknown", &identity, p.ExitCode())
@@ -176,6 +183,9 @@ func candidateGitStream(ctx context.Context, dir string, out io.Writer, args ...
 	}
 	if err := record("exited", &identity, p.ExitCode()); err != nil {
 		return err
+	}
+	if waitErr != nil {
+		return waitErr
 	}
 	if p.ExitCode() != 0 {
 		return fail(CodeGitFailure, "candidate git", fmt.Errorf("git command failed"))
