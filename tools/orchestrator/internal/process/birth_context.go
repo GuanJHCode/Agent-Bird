@@ -3,6 +3,7 @@ package process
 import (
 	"context"
 	"os/exec"
+	"runtime"
 	"strconv"
 	"strings"
 )
@@ -10,6 +11,9 @@ import (
 // BirthContext observes the same ps start-time field as Birth, while allowing
 // a bridge request to cancel and reap its owned ps subprocess.
 func BirthContext(ctx context.Context, pid int) (string, error) {
+	if runtime.GOOS == "linux" {
+		return linuxBirth(ctx, pid)
+	}
 	return birthContext(ctx, pid, func(ctx context.Context, pid int) ([]byte, error) {
 		return exec.CommandContext(ctx, "/bin/ps", "-o", "lstart=", "-p", strconv.Itoa(pid)).Output()
 	})

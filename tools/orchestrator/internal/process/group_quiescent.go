@@ -3,6 +3,7 @@ package process
 import (
 	"context"
 	"os/exec"
+	"runtime"
 	"strconv"
 	"strings"
 )
@@ -12,6 +13,9 @@ import (
 // must retain a waitable group leader while using this observation to stop the
 // group, and use ConfirmGroupExited after reaping for the final receipt.
 func GroupQuiescent(ctx context.Context, pgid int) (bool, error) {
+	if runtime.GOOS == "linux" {
+		return linuxGroupQuiescent(ctx, pgid)
+	}
 	if pgid <= 0 {
 		return false, ErrProcessTreeUnknown
 	}
@@ -25,6 +29,9 @@ func GroupQuiescent(ctx context.Context, pgid int) (bool, error) {
 // MatchWaitableGroupLeader also works for a zombie: Darwin's getpgid returns
 // ESRCH for it, although ps retains its group and the same Birth timestamp.
 func MatchWaitableGroupLeader(ctx context.Context, pid int, birth string) error {
+	if runtime.GOOS == "linux" {
+		return linuxMatchGroupLeader(ctx, pid, birth)
+	}
 	if pid <= 0 || birth == "" {
 		return ErrProcessTreeUnknown
 	}

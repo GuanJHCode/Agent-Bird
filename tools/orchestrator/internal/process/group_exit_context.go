@@ -3,6 +3,7 @@ package process
 import (
 	"context"
 	"os/exec"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -11,6 +12,13 @@ import (
 // ConfirmGroupExitedContext is the deadline-aware variant for callers that
 // need a bounded exit receipt. The legacy ConfirmGroupExited remains unchanged.
 func ConfirmGroupExitedContext(ctx context.Context, pgid int) error {
+	if runtime.GOOS == "linux" {
+		alive, err := linuxGroupAlive(ctx, pgid)
+		if ctx.Err() != nil || err != nil || alive {
+			return ErrProcessTreeUnknown
+		}
+		return nil
+	}
 	return confirmGroupExitedContext(ctx, pgid, syscall.Kill, func(queryCtx context.Context) ([]byte, error) {
 		return exec.CommandContext(queryCtx, "/bin/ps", "-axo", "pgid=").Output()
 	})

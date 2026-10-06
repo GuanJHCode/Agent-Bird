@@ -365,6 +365,9 @@ func ConfirmGroupExited(pgid int) error {
 }
 
 func processGroupAlive(pgid int) (bool, error) {
+	if runtime.GOOS == "linux" {
+		return linuxGroupAlive(context.Background(), pgid)
+	}
 	if pgid <= 0 {
 		return false, ErrProcessTreeUnknown
 	}
@@ -501,6 +504,9 @@ func ExecutableDigest(ctx context.Context, path string) (string, error) {
 }
 
 func processBirth(pid int) (string, error) {
+	if runtime.GOOS == "linux" {
+		return linuxBirth(context.Background(), pid)
+	}
 	if pid <= 0 {
 		return "", CodeError("process_birth_unknown")
 	}

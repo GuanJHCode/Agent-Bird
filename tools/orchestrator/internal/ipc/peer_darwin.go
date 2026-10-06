@@ -1,16 +1,13 @@
+//go:build darwin
+
 package ipc
 
 import (
-	"errors"
 	"net"
-	"runtime"
 	"syscall"
 )
 
 func PeerPID(conn net.Conn) (int, error) {
-	if runtime.GOOS != "darwin" {
-		return 0, errors.New("owner_peer_platform_unsupported")
-	}
 	socket, ok := conn.(*net.UnixConn)
 	if !ok {
 		return 0, ErrInvalidMessage

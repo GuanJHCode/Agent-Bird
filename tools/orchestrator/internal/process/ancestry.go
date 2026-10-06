@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -21,6 +22,9 @@ func Ancestry(pid int) (map[int]string, error) {
 // across all queries and at most two attempts. Caller cancellation takes priority
 // over the 64-node/64-second chain bound; no identity is cached across calls.
 func AncestryContext(ctx context.Context, pid int) (map[int]string, error) {
+	if runtime.GOOS == "linux" {
+		return linuxAncestryContext(ctx, pid)
+	}
 	return ancestryContext(ctx, pid, queryAncestry)
 }
 
