@@ -66,6 +66,9 @@ func codexNestedAccepted(o codexNestedObservation) bool {
 }
 
 func codexNestedClassify(observations []codexNestedObservation) string {
+	if len(observations) == 4 && observations[0].Label == "N0" && codexNestedAccepted(observations[0]) {
+		return "rule_isolation_observations_only"
+	}
 	if len(observations) != 3 || observations[0].Label != "A" || observations[1].Label != "B" || observations[2].Label != "C" || !codexNestedAccepted(observations[0]) || !codexNestedAccepted(observations[1]) {
 		return "inconclusive"
 	}
@@ -77,6 +80,34 @@ func codexNestedClassify(observations []codexNestedObservation) string {
 		return "nonnoop_inner_apply_refused_under_actual_outer"
 	}
 	return "inconclusive"
+}
+
+func codexNestedRefused(o codexNestedObservation) bool {
+	return o.OriginalHandle && o.OriginalWait && o.TreeExited && !o.TimedOut && o.StartError == "none" && o.CleanupError == "none" && o.PipeJoined && o.ProtectedUnchanged && o.ExecutablePins && o.InnerSource && o.WithinDeadline && o.ExitCode == 71 && o.ExactApplyDenied && o.StdoutBytes == 0
+}
+
+// Tests-only single-variable variants. They may execute only the fixed cat
+// diagnostic below, and are never supplied to a Codex worker or product entry.
+func codexNestedOuterVariant(outer, label string) (string, string, error) {
+	if label == "N0" {
+		return codexNestedNoop, "noop_control", nil
+	}
+	lines := strings.Split(outer, "\n")
+	index := -1
+	for i, line := range lines {
+		match := label == "N1" && line == "(deny file-link)" || label == "N2" && line == "(deny file-write*)" || label == "N3" && strings.HasPrefix(line, "(deny file-read* (subpath ")
+		if match {
+			if index != -1 {
+				return "", "", errCodexStateFile
+			}
+			index = i
+		}
+	}
+	if index == -1 {
+		return "", "", errCodexStateFile
+	}
+	removed := lines[index]
+	return strings.Join(append(lines[:index:index], lines[index+1:]...), "\n"), removed, nil
 }
 
 // Returns one fixed, independently blob-verified upstream legacy readonly
@@ -120,7 +151,7 @@ func codexNestedTail(cmd process.Command, label, inner, input string) (process.C
 		if codexDigest([]byte(inner)) != codexNestedInnerSHA {
 			return process.Command{}, errCodexStateFile
 		}
-	case "B":
+	case "B", "N0", "N1", "N2", "N3":
 		if inner != codexNestedNoop {
 			return process.Command{}, errCodexStateFile
 		}
@@ -128,7 +159,15 @@ func codexNestedTail(cmd process.Command, label, inner, input string) (process.C
 		return process.Command{}, errCodexStateFile
 	}
 	if label != "A" {
-		args = append([]string{cmd.Args[0], cmd.Args[1], "/usr/bin/sandbox-exec"}, args...)
+		outer := cmd.Args[1]
+		if strings.HasPrefix(label, "N") {
+			var err error
+			outer, _, err = codexNestedOuterVariant(outer, label)
+			if err != nil {
+				return process.Command{}, err
+			}
+		}
+		args = append([]string{cmd.Args[0], outer, "/usr/bin/sandbox-exec"}, args...)
 	}
 	cmd.Args = args
 	return cmd, nil
@@ -157,6 +196,7 @@ func codexNestedRunCase(parent context.Context, cmd process.Command, label, prof
 	work, workCancel := context.WithDeadline(caseCtx, start.Add(5*time.Second))
 	defer workCancel()
 	var err error
+	originalOuter := cmd.Args[1]
 	cmd, err = codexNestedTail(cmd, label, profile, input)
 	if err != nil {
 		o.StartError = "tail_rejected"
@@ -169,6 +209,18 @@ func codexNestedRunCase(parent context.Context, cmd process.Command, label, prof
 	if codexActorWriteFile(filepath.Join(directory, "command.json"), append(body, '\n'), os.O_EXCL) != nil || !codexNestedPins(work, pins) {
 		o.StartError = "preflight_rejected"
 		return o
+	}
+	if strings.HasPrefix(label, "N") {
+		variant, removed, err := codexNestedOuterVariant(originalOuter, label)
+		if err != nil || variant != cmd.Args[1] {
+			o.StartError = "variant_rejected"
+			return o
+		}
+		difference, _ := json.MarshalIndent(map[string]string{"original_sha256": codexDigest([]byte(originalOuter)), "variant_sha256": codexDigest([]byte(variant)), "removed_rule": removed}, "", "  ")
+		if codexActorWriteFile(filepath.Join(directory, "outer-original.sbpl"), []byte(originalOuter), os.O_EXCL) != nil || codexActorWriteFile(filepath.Join(directory, "outer-variant.sbpl"), []byte(variant), os.O_EXCL) != nil || codexActorWriteFile(filepath.Join(directory, "rule-difference.json"), append(difference, '\n'), os.O_EXCL) != nil {
+			o.StartError = "variant_evidence_failed"
+			return o
+		}
 	}
 	handle, stream, startErr := process.StartDuplex(work, cmd)
 	// Retain the original h+err before observing any failure or output.
@@ -250,6 +302,14 @@ func codexNestedRunCase(parent context.Context, cmd process.Command, label, prof
 
 // Explicit double opt-in. Default test runs do not execute OS helpers.
 func TestCodexNestedSandboxMatrixActor(t *testing.T) {
+	codexNestedSandboxMatrix(t, false)
+}
+
+func TestCodexNestedRuleIsolationMatrixActor(t *testing.T) {
+	codexNestedSandboxMatrix(t, true)
+}
+
+func codexNestedSandboxMatrix(t *testing.T, ruleIsolation bool) {
 	if os.Getenv("C06_NESTED_OPT_IN") != codexNestedOptIn || os.Getenv("C06_NESTED_EVIDENCE_DIR") == "" {
 		t.Skip("explicit ROOT-owned no-model matrix only")
 	}
@@ -266,9 +326,13 @@ func TestCodexNestedSandboxMatrixActor(t *testing.T) {
 	defer cancel()
 	var observations []codexNestedObservation
 	var before, after map[string]codexSandboxFingerprint
+	var pins map[string]string
 	phase := "prepare"
 	defer func() {
-		report := map[string]any{"version": 1, "phase": phase, "classification": codexNestedClassify(observations), "failed": t.Failed(), "cases": observations, "snapshot_before": before, "snapshot_after": after, "inner_sha256": codexNestedInnerSHA, "inner_source_scope": "fixed_upstream_legacy_readonly_composition_not_historical_profile_capture", "native_model_calls": 0, "native_turns": 0, "provider_executed": false, "public_entry": false}
+		report := map[string]any{"version": 1, "phase": phase, "classification": codexNestedClassify(observations), "failed": t.Failed(), "cases": observations, "snapshot_before": before, "snapshot_after": after, "inner_sha256": codexNestedInnerSHA, "inner_source_scope": "fixed_upstream_legacy_readonly_composition_not_historical_profile_capture", "native_model_calls": 0, "native_turns": 0, "provider_executed": false, "public_entry": false, "rule_isolation": ruleIsolation, "executable_pins": pins}
+		if ruleIsolation {
+			report["inner_sha256"], report["inner_source_scope"] = codexDigest([]byte(codexNestedNoop)), "fixed_noop_rule_isolation_control"
+		}
 		body, _ := json.MarshalIndent(report, "", "  ")
 		if codexActorWriteFile(filepath.Join(base, "report.json"), append(body, '\n'), os.O_EXCL) != nil {
 			t.Error("durable matrix report failed")
@@ -279,7 +343,7 @@ func TestCodexNestedSandboxMatrixActor(t *testing.T) {
 		t.Fatal("fixed upstream profile rejected")
 	}
 	pin := os.Getenv("C06_NESTED_PROVIDER_PATH")
-	pins := map[string]string{}
+	pins = map[string]string{}
 	for _, path := range []string{pin, "/usr/bin/sandbox-exec", "/bin/cat"} {
 		digest, err := process.ExecutableDigest(parent, path)
 		if err != nil {
@@ -337,14 +401,18 @@ func TestCodexNestedSandboxMatrixActor(t *testing.T) {
 	if err != nil {
 		t.Fatal("original synthetic snapshot failed")
 	}
-	for _, label := range []string{"A", "B", "C"} {
+	labels := []string{"A", "B", "C"}
+	if ruleIsolation {
+		labels = []string{"N0", "N1", "N2", "N3"}
+	}
+	for _, label := range labels {
 		phase = label
 		directory := filepath.Join(base, label)
 		if os.Mkdir(directory, 0700) != nil {
 			t.Fatal("fresh case evidence failed")
 		}
 		inner := profile
-		if label == "B" {
+		if label == "B" || ruleIsolation {
 			inner = codexNestedNoop
 		}
 		observation := codexNestedRunCase(parent, cmd, label, inner, input, directory, token, preserved, before, pins)
@@ -354,7 +422,11 @@ func TestCodexNestedSandboxMatrixActor(t *testing.T) {
 		if codexActorWriteFile(filepath.Join(directory, "observation.json"), append(body, '\n'), os.O_EXCL) != nil {
 			t.Fatal("original case evidence failed")
 		}
-		if err != nil || !codexNestedAccepted(observation) {
+		known := codexNestedAccepted(observation)
+		if ruleIsolation && label != "N0" {
+			known = known || codexNestedRefused(observation)
+		}
+		if err != nil || !known {
 			t.Fatalf("case %s failed: exit=%d apply_denied=%t wait=%t tree=%t preserved=%t", label, observation.ExitCode, observation.ExactApplyDenied, observation.OriginalWait, observation.TreeExited, observation.ProtectedUnchanged)
 		}
 	}
@@ -380,6 +452,13 @@ func TestCodexNestedTailPreservesActualBuilderScope(t *testing.T) {
 	for _, label := range []string{"unknown", "A", "C"} {
 		if _, err := codexNestedTail(cmd, label, codexNestedNoop, input); !errors.Is(err, errCodexStateFile) {
 			t.Fatal("unknown or unpinned inner accepted")
+		}
+	}
+	for _, label := range []string{"N0", "N1", "N2", "N3"} {
+		out, err := codexNestedTail(cmd, label, codexNestedNoop, input)
+		variant, _, variantErr := codexNestedOuterVariant(cmd.Args[1], label)
+		if err != nil || variantErr != nil || out.Args[1] != variant || !reflect.DeepEqual(cmd.Args, original) || !reflect.DeepEqual(out.Env, cmd.Env) || out.Dir != cmd.Dir || out.PinnedPath != cmd.PinnedPath || out.PinnedSHA256 != cmd.PinnedSHA256 {
+			t.Fatal("rule variant changed an unrelated command boundary")
 		}
 	}
 }
