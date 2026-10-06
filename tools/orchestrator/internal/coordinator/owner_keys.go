@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"golang.org/x/sys/unix"
 	"io"
 	"os"
 	"path/filepath"
@@ -81,8 +82,9 @@ func readOwnerPrivateFile(path string, limit int64) ([]byte, error) {
 // window. Keep the written descriptor open and authenticate both names against
 // that original inode before trusting the published identity.
 type ownerPublicationHooks struct {
-	before func(string) error
-	after  func() error
+	before       func(string) error
+	beforeRename func(string) error
+	after        func() error
 }
 
 func createOwnerPrivateFile(path string, value any) error {
@@ -160,12 +162,32 @@ func createOwnerPrivateFileWithHooks(path string, value any, hooks ownerPublicat
 	if err = verify(name); err != nil {
 		return err
 	}
+	if hooks.beforeRename != nil {
+		if err = hooks.beforeRename(name); err != nil {
+			return err
+		}
+	}
 	if err = ownerRenameNoReplace(int(dir.Fd()), filepath.Base(name), filepath.Base(path)); err != nil {
 		return err
 	}
+
 	if err = verify(path); err != nil {
+		// NOREPLACE proved this destination absent at publication. Roll back that
+		// newly published name through the original parent, never a replaced path.
+		removed := unix.Unlinkat(int(dir.Fd()), filepath.Base(path), 0)
+		if removed != nil && !errors.Is(removed, unix.ENOENT) {
+			return errors.Join(err, removed)
+		}
+		if synced := dir.Sync(); synced != nil {
+			return errors.Join(err, synced)
+		}
+		var final unix.Stat_t
+		if present := unix.Fstatat(int(dir.Fd()), filepath.Base(path), &final, unix.AT_SYMLINK_NOFOLLOW); !errors.Is(present, unix.ENOENT) {
+			return errors.Join(err, store.CodeError("owner_runtime_rollback_unconfirmed"))
+		}
 		return err
 	}
+
 	if err = dir.Sync(); err != nil {
 		return err
 	}

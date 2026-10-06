@@ -229,3 +229,35 @@ func TestOriginalOwnerKeyPublicationRejectsReplacedStagingInode(t *testing.T) {
 		t.Fatal("foreign staging inode published", err)
 	}
 }
+
+func TestOriginalOwnerKeyPublicationRollsBackPostVerifyReplacement(t *testing.T) {
+	state := ownerKeyTestState(t)
+	dir, err := ownerPrivateDirectory(state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "keys.json")
+	value := originalOwnerKeyFile{Version: 1, SignSeed: strings.Repeat("ab", 32), WrappingKey: strings.Repeat("cd", 32)}
+	foreign := value
+	foreign.SignSeed = strings.Repeat("ef", 32)
+	err = createOwnerPrivateFileWithHooks(path, value, ownerPublicationHooks{beforeRename: func(stage string) error {
+		if err := os.Rename(stage, stage+".original"); err != nil {
+			return err
+		}
+		body, _ := json.Marshal(foreign)
+		return os.WriteFile(stage, append(body, '\n'), 0600)
+	}})
+	if err == nil {
+		t.Fatal("post-verify staging replacement accepted")
+	}
+	if _, err = os.Lstat(path); !errors.Is(err, os.ErrNotExist) {
+		t.Fatal("failed publication retained foreign final for next startup", err)
+	}
+	reloaded, err := loadOriginalOwnerKeys(state, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Equal(reloaded.sign, ed25519.NewKeyFromSeed(bytes.Repeat([]byte{0xef}, 32))) {
+		t.Fatal("next startup adopted rejected foreign key")
+	}
+}
