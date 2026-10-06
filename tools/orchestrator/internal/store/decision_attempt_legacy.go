@@ -64,6 +64,10 @@ func recordTargetsRevision(r attemptDecisionRecord, task string, revision int) (
 	if err != nil {
 		return "", false, errLegacyDecisionAmbiguous
 	}
+	if kind == dagReworkKind {
+		saved, err := parseDAGRework(r.payload)
+		return kind, saved.Receipt.TaskRevisions[task] == revision, err
+	}
 	if kind != "rework" {
 		return kind, r.task == task && r.revision == revision, nil
 	}
@@ -75,6 +79,9 @@ func recordTargetsRevision(r attemptDecisionRecord, task string, revision int) (
 }
 
 func (d *DB) reconcileLegacyPendingTask(ctx context.Context, tx *sql.Tx, task string, revision int) error {
+	if found, err := guardDAGBinding(ctx, tx, task, revision, ""); found || err != nil {
+		return err
+	}
 	records, err := relevantAttemptDecisions(ctx, tx, task)
 	if err != nil {
 		return err
@@ -290,6 +297,9 @@ func (d *DB) reconcileLegacyDecisionScope(ctx context.Context, tx *sql.Tx, r att
 		return errLegacyDecisionAmbiguous
 	}
 	var scopes []decisionTaskScope
+	if kind == dagReworkKind {
+		return errLegacyDecisionAmbiguous
+	}
 	if kind == "rework" {
 		scopes, err = reworkDecisionTargets(ctx, tx, r)
 	} else {
@@ -386,6 +396,9 @@ func (d *DB) reconcileLegacyGrant(ctx context.Context, tx *sql.Tx, c *contract.L
 }
 
 func (d *DB) reconcileLegacyGrantScope(ctx context.Context, tx *sql.Tx, c *contract.LaunchCommand, resolving map[string]bool) error {
+	if found, err := guardDAGBinding(ctx, tx, c.TaskID, c.WorkRevision, c.AttemptID); found || err != nil {
+		return err
+	}
 	var revision int
 	err := tx.QueryRowContext(ctx, `SELECT target_work_revision FROM decision_attempt_bindings WHERE attempt_id=? AND task_id=?`, c.AttemptID, c.TaskID).Scan(&revision)
 	if err == nil {

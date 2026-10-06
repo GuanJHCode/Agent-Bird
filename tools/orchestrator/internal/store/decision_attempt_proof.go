@@ -243,6 +243,19 @@ func validatePendingBinding(ctx context.Context, tx *sql.Tx, b decisionAttemptBi
 	if err != nil {
 		return err
 	}
+	if kind == dagReworkKind {
+		if b.reservedMS <= 0 {
+			return ErrConflict
+		}
+		if _, err := guardDAGBinding(ctx, tx, b.task, b.revision, ""); err != nil {
+			return err
+		}
+		target, err := readDecisionTask(ctx, tx, b.task)
+		if err != nil || target.status != "ready" {
+			return ErrConflict
+		}
+		return pendingTaskUnoccupied(ctx, tx, b.task)
+	}
 	if kind != "rework" {
 		s, err := readDecisionTask(ctx, tx, b.task)
 		if err != nil || s.revision != b.revision {

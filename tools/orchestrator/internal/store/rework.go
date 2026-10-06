@@ -20,6 +20,7 @@ type ReworkEvent struct {
 }
 
 type ReworkSpec struct {
+	Version            int         `json:"version,omitempty"`
 	TaskID             string      `json:"task_id"`
 	WorkRevision       int         `json:"work_revision"`
 	Candidate          ReworkEvent `json:"candidate"`
@@ -34,6 +35,8 @@ type ReworkSpec struct {
 }
 
 type ReworkReceipt struct {
+	Version        int            `json:"version,omitempty"`
+	ClosureSHA256  string         `json:"closure_sha256,omitempty"`
 	Status         string         `json:"status"`
 	TaskID         string         `json:"task_id"`
 	WorkRevision   int            `json:"work_revision"`
@@ -54,6 +57,9 @@ type reworkDecision struct {
 
 func (d *DB) QueueRework(ctx context.Context, spec ReworkSpec) (ReworkReceipt, error) {
 	empty := ReworkReceipt{}
+	if spec.Version < 0 || spec.Version > 1 {
+		return empty, CodeError("invalid_rework_version")
+	}
 	if spec.TaskID == "" || spec.WorkRevision < 1 || spec.ReviewTaskID == "" || spec.ReviewWorkRevision < 1 || spec.ActionSlot == "" || spec.CommandID == "" || len(spec.CommandID) > 128 || !reworkOID(spec.CandidateOID) || strings.TrimSpace(spec.Feedback) == "" || strings.TrimSpace(spec.Acceptance) == "" || len(spec.Feedback) > 16*1024 || len(spec.Acceptance) > 16*1024 || strings.ContainsRune(spec.Feedback+spec.Acceptance, 0) {
 		return empty, CodeError("invalid_rework")
 	}
@@ -66,6 +72,9 @@ func (d *DB) QueueRework(ctx context.Context, spec ReworkSpec) (ReworkReceipt, e
 	spec.Review.EventHash = strings.ToLower(spec.Review.EventHash)
 	canonical := spec
 	canonical.CommandID = ""
+	if spec.Version == 1 {
+		return d.queueDAGRework(ctx, spec, canonical)
+	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	tx, err := d.sql.BeginTx(ctx, nil)

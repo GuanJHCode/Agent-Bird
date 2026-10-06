@@ -147,7 +147,7 @@ func executionGrantForBinding(ctx context.Context, tx *sql.Tx, task, attempt str
 		}
 		grant = min(grant, b.attemptMS-used)
 	}
-	if binding != nil && b.policy != nil {
+	if binding != nil && (b.policy != nil || binding.reservedMS > 0) {
 		if binding.task != task || binding.reservedMS <= 0 || binding.reservedMS > grant {
 			return 0, ErrConflict
 		}
@@ -171,21 +171,19 @@ func executionCapacity(ctx context.Context, tx *sql.Tx, task string, binding *de
 	if err = tx.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM attempts a JOIN task_runtime r ON r.task_id=a.task_id WHERE r.budget_group_id=?),(SELECT COUNT(*) FROM attempts WHERE task_id=?)`, b.group, task).Scan(&groupCount, &taskCount); err != nil {
 		return err
 	}
-	if b.policy != nil {
-		if err = tx.QueryRowContext(ctx, `SELECT COUNT(*),COALESCE(SUM(CASE WHEN b.task_id=? THEN 1 ELSE 0 END),0) FROM decision_attempt_bindings b JOIN task_runtime r ON r.task_id=b.task_id WHERE r.budget_group_id=? AND b.attempt_id IS NULL AND b.retired=0`, task, b.group).Scan(&pendingGroup, &pendingTask); err != nil {
+	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*),COALESCE(SUM(CASE WHEN b.task_id=? THEN 1 ELSE 0 END),0) FROM decision_attempt_bindings b JOIN task_runtime r ON r.task_id=b.task_id WHERE r.budget_group_id=? AND b.attempt_id IS NULL AND b.retired=0 AND (b.reserved_active_ms>0 OR ?=1)`, task, b.group, b.policy != nil).Scan(&pendingGroup, &pendingTask); err != nil {
+		return err
+	}
+	if binding != nil && (b.policy != nil || binding.reservedMS > 0) {
+		var own int
+		if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM decision_attempt_bindings WHERE action_slot=? AND task_id=? AND task_id=? AND target_work_revision=? AND attempt_id IS NULL AND retired=0 AND reserved_active_ms=?`, binding.slot, binding.task, task, binding.revision, binding.reservedMS).Scan(&own); err != nil {
 			return err
 		}
-		if binding != nil {
-			var own int
-			if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM decision_attempt_bindings WHERE action_slot=? AND task_id=? AND task_id=? AND target_work_revision=? AND attempt_id IS NULL AND retired=0`, binding.slot, binding.task, task, binding.revision).Scan(&own); err != nil {
-				return err
-			}
-			if own != 1 {
-				return ErrConflict
-			}
-			pendingGroup--
-			pendingTask--
+		if own != 1 {
+			return ErrConflict
 		}
+		pendingGroup--
+		pendingTask--
 	}
 	if groupCount+pendingGroup >= b.groupAttempts || (b.policy != nil && taskCount+pendingTask >= b.taskAttempts) {
 		return ErrAttemptLimit

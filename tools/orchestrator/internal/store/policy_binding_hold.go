@@ -43,7 +43,7 @@ func (d *DB) reserveDecisionBindings(ctx context.Context, tx *sql.Tx, bindings [
 		if err != nil {
 			return err
 		}
-		if budget.policy != nil {
+		if budget.policy != nil || binding.reserve {
 			if binding.attempt != "" {
 				return ErrConflict
 			}

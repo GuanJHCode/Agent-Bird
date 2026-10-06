@@ -28,6 +28,7 @@ type reworkTask struct {
 }
 
 type reworkArtifact struct {
+	Target           gitops.ReviewBinding    `json:"target"`
 	Stage            string                  `json:"stage"`
 	Binding          gitops.CandidateBinding `json:"binding"`
 	Candidate        gitops.CandidateReceipt `json:"candidate"`
@@ -70,24 +71,30 @@ func readReworkEventScope(ctx context.Context, tx *sql.Tx, task *reworkTask, exp
 		return e, artifact, CodeError("rework_review_not_rejected")
 	}
 	e.EventRevision, e.ActionSlot = rev, slot
+	artifact, err = readReworkArtifact(e)
+	return e, artifact, err
+}
+
+func readReworkArtifact(e contract.Event) (reworkArtifact, error) {
+	var artifact reworkArtifact
 	ref := e.Artifact
 	if ref == nil || !filepath.IsAbs(ref.Path) || ref.Size < 1 || ref.Size > 1024*1024 || ref.SHA256 != e.PayloadHash {
-		return e, artifact, CodeError("rework_artifact_invalid")
+		return artifact, CodeError("rework_artifact_invalid")
 	}
 	f, err := os.OpenFile(ref.Path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
 	if err != nil {
-		return e, artifact, CodeError("rework_artifact_invalid")
+		return artifact, CodeError("rework_artifact_invalid")
 	}
 	defer f.Close()
 	info, err := f.Stat()
 	if err != nil || !info.Mode().IsRegular() || info.Size() != ref.Size {
-		return e, artifact, CodeError("rework_artifact_invalid")
+		return artifact, CodeError("rework_artifact_invalid")
 	}
 	data, err := io.ReadAll(io.LimitReader(f, 1024*1024+1))
 	if err != nil || int64(len(data)) != ref.Size || runtimeHash(string(data)) != ref.SHA256 || json.Unmarshal(data, &artifact) != nil {
-		return e, artifact, CodeError("rework_artifact_invalid")
+		return artifact, CodeError("rework_artifact_invalid")
 	}
-	return e, artifact, nil
+	return artifact, nil
 }
 
 func loadReworkChain(ctx context.Context, tx *sql.Tx, taskID, reviewID string) ([]*reworkTask, string, int, error) {
@@ -224,7 +231,7 @@ func reworkBudgetsAndLifecycle(ctx context.Context, tx *sql.Tx, chain []*reworkT
 			return err
 		}
 		var pending int
-		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM decision_attempt_bindings b JOIN task_runtime r ON r.task_id=b.task_id JOIN task_execution_policies p ON p.task_id=b.task_id WHERE r.budget_group_id=? AND b.attempt_id IS NULL AND b.retired=0`, group).Scan(&pending); err != nil {
+		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM decision_attempt_bindings b JOIN task_runtime r ON r.task_id=b.task_id WHERE r.budget_group_id=? AND b.attempt_id IS NULL AND b.retired=0 AND b.reserved_active_ms>0`, group).Scan(&pending); err != nil {
 			return err
 		}
 		if attempts+pending+need > groupLimits[group] {

@@ -197,6 +197,11 @@ func (d *DB) ReviewResult(ctx context.Context, spec ReviewSpec) (string, error) 
 	if err = tx.QueryRowContext(ctx, `SELECT s.id FROM segments s JOIN attempts a ON a.id=s.attempt_id WHERE a.task_id=? ORDER BY a.attempt_no DESC,s.segment_no DESC LIMIT 1`, spec.TaskID).Scan(&latestSegment); err != nil || latestSegment != event.SegmentID {
 		return rollback(ErrConflict)
 	}
+	if spec.Decision == "accept" {
+		if err = validateDAGResultTarget(ctx, tx, event); err != nil {
+			return rollback(err)
+		}
+	}
 	if _, err = tx.ExecContext(ctx, `INSERT INTO review_decisions(action_slot,task_id,event_id,event_revision,event_hash,decision,command_id,created_at) VALUES(?,?,?,?,?,?,?,?)`, spec.ActionSlot, spec.TaskID, spec.EventID, spec.EventRevision, strings.ToLower(spec.EventHash), spec.Decision, spec.CommandID, time.Now().UTC().Format(time.RFC3339Nano)); err != nil {
 		return rollback(mapConflict(err))
 	}

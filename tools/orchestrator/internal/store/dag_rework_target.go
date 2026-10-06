@@ -1,0 +1,254 @@
+package store
+
+import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"reflect"
+
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
+)
+
+func targetFromArtifact(a reworkArtifact, want adapter.CandidateTarget, plan int) (dagReworkTarget, error) {
+	b := a.Target
+	if !filepath.IsAbs(a.Candidate.CommonDir) || filepath.Clean(a.Candidate.CommonDir) != a.Candidate.CommonDir || b.TargetWorktreeIdentity != want.Worktree || b.TargetRef != want.Ref || b.TargetBaseOID != want.BaseOID || b.FinalCandidateOID != a.Candidate.CandidateOID || b.PlanRevision != int64(plan) || b.TargetDirectoryIdentity.Device < 0 || b.TargetDirectoryIdentity.Inode <= 0 || b.TargetDirectoryIdentity.UID < 0 || !os.FileMode(b.TargetDirectoryIdentity.Mode).IsDir() || !reflect.DeepEqual(b.OrderedInputOIDs, a.Candidate.OrderedInputOIDs) {
+		return dagReworkTarget{}, CodeError("rework_target_proof_invalid")
+	}
+	b.OrderedInputOIDs = append([]string{}, b.OrderedInputOIDs...)
+	return dagReworkTarget{CommonDir: a.Candidate.CommonDir, Binding: b}, nil
+}
+func (t dagReworkTarget) key() string {
+	body, _ := json.Marshal([]string{t.CommonDir, t.Binding.TargetRef})
+	return runtimeHash(string(body))
+}
+func sameTargetReservation(a, b dagReworkTarget) bool {
+	return a.CommonDir == b.CommonDir && a.Binding.TargetWorktreeIdentity == b.Binding.TargetWorktreeIdentity && a.Binding.TargetRef == b.Binding.TargetRef && a.Binding.TargetBaseOID == b.Binding.TargetBaseOID && a.Binding.TargetDirectoryIdentity == b.Binding.TargetDirectoryIdentity && a.Binding.PlanRevision == b.Binding.PlanRevision
+}
+
+func integrationScope(ctx context.Context, tx *sql.Tx, task string, requireCurrent bool) (dagReworkTarget, error) {
+	current, err := readDecisionTask(ctx, tx, task)
+	if err != nil {
+		return dagReworkTarget{}, err
+	}
+	p, err := adapter.DecodeInvocationPayload([]byte(current.payload))
+	if err != nil || p.CandidateAction == nil || p.CandidateAction.Operation != "integrate" {
+		return dagReworkTarget{}, ErrConflict
+	}
+	r, err := dagDecisionForTask(ctx, tx, task, current.revision)
+	if err != nil {
+		return dagReworkTarget{}, err
+	}
+	var reserved *dagReworkTarget
+	if r != nil {
+		s, e := parseDAGRework(r.payload)
+		if e != nil {
+			return dagReworkTarget{}, e
+		}
+		target, ok := s.Targets[task]
+		if !ok {
+			return dagReworkTarget{}, ErrConflict
+		}
+		reserved = &target
+		if !requireCurrent {
+			return target, nil
+		}
+	}
+	input, err := integrationAcceptedInput(ctx, tx, current, p.CandidateAction.SourceTask)
+	if err != nil {
+		return dagReworkTarget{}, CodeError("rework_target_scope_unresolved")
+	}
+	_, a, err := readReworkEvent(ctx, tx, &reworkTask{id: input.Event.TaskID, revision: input.Event.WorkRevision}, reworkEventTuple(input.Event), true)
+	if err != nil || a.Stage != "review" || a.Review == nil || a.Review.Decision != "approve" {
+		return dagReworkTarget{}, CodeError("rework_target_scope_unresolved")
+	}
+	var plan int
+	if tx.QueryRowContext(ctx, `SELECT plan_revision FROM runs WHERE id=?`, current.run).Scan(&plan) != nil {
+		return dagReworkTarget{}, ErrConflict
+	}
+	scope, err := targetFromArtifact(a, p.CandidateAction.Target, plan)
+	if err != nil {
+		return scope, err
+	}
+	if reserved != nil && !sameTargetReservation(*reserved, scope) {
+		return scope, CodeError("rework_target_changed")
+	}
+	return scope, nil
+}
+
+// Includes pending rework promises and every integration with uncertain live
+// ownership. A legacy scope with no original Host proof blocks the v1 action
+// globally; raw payload paths cannot prove it belongs to a different repository.
+func integrationReservations(ctx context.Context, tx *sql.Tx) ([]string, error) {
+	rows, err := tx.QueryContext(ctx, `SELECT DISTINCT t.id FROM tasks t JOIN task_runtime r ON r.task_id=t.id WHERE json_extract(r.adapter_payload,'$.candidate_action.operation')='integrate' AND (t.status='ready' OR EXISTS(SELECT 1 FROM attempts a JOIN segment_runtime s ON s.attempt_id=a.id WHERE a.task_id=t.id AND s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown')) OR EXISTS(SELECT 1 FROM decision_attempt_bindings b WHERE b.task_id=t.id AND b.attempt_id IS NULL AND b.retired=0)) ORDER BY t.id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	ids := []string{}
+	for rows.Next() {
+		var id string
+		if err = rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+func admitDAGReworkTargets(ctx context.Context, tx *sql.Tx, s dagReworkDecision) error {
+	members := map[string]bool{}
+	keys := map[string]bool{}
+	for _, n := range s.Nodes {
+		members[n.TaskID] = true
+		if target, ok := s.Targets[n.TaskID]; ok {
+			keys[target.key()] = true
+		}
+	}
+	// Shared descendants already promised to another decision cannot be revised.
+	for id := range members {
+		var pending int
+		if tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM decision_attempt_bindings WHERE task_id=? AND attempt_id IS NULL AND retired=0`, id).Scan(&pending) != nil || pending != 0 {
+			return ErrConflict
+		}
+	}
+	ids, err := integrationReservations(ctx, tx)
+	if err != nil {
+		return err
+	}
+	for _, id := range ids {
+		if members[id] {
+			continue
+		}
+		scope, err := integrationScope(ctx, tx, id, false)
+		if err != nil {
+			return CodeError("rework_target_scope_unresolved")
+		}
+		if keys[scope.key()] {
+			return CodeError("rework_target_reserved")
+		}
+	}
+	return nil
+}
+
+func integrationDispatchAllowed(ctx context.Context, tx *sql.Tx, task readyTask) (bool, error) {
+	var p adapter.InvocationPayload
+	if json.Unmarshal([]byte(task.payload), &p) != nil || p.CandidateAction == nil || p.CandidateAction.Operation != "integrate" {
+		return true, nil
+	}
+	// Existing v0-only runs keep their previous compatibility contract.
+	var v1 int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM retry_decisions d WHERE json_valid(d.revision_payload) AND json_extract(d.revision_payload,'$.request.version')=1 AND EXISTS(SELECT 1 FROM decision_attempt_bindings b JOIN tasks t ON t.id=b.task_id WHERE b.action_slot=d.action_slot AND b.retired=0 AND (b.attempt_id IS NULL OR EXISTS(SELECT 1 FROM segment_runtime s WHERE s.attempt_id=b.attempt_id AND s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown'))))`).Scan(&v1); err != nil {
+		return false, err
+	}
+	if v1 == 0 {
+		return true, nil
+	}
+	own, err := integrationScope(ctx, tx, task.taskID, true)
+	if err != nil {
+		return false, err
+	}
+	ids, err := integrationReservations(ctx, tx)
+	if err != nil {
+		return false, err
+	}
+	for _, id := range ids {
+		if id == task.taskID {
+			continue
+		}
+		other, err := integrationScope(ctx, tx, id, false)
+		if err != nil {
+			return false, CodeError("rework_target_scope_unresolved")
+		}
+		if own.key() != other.key() {
+			continue
+		}
+		var active, pending int
+		var otherSeq, ownSeq sql.NullInt64
+		if tx.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM attempts a JOIN segment_runtime s ON s.attempt_id=a.id WHERE a.task_id=? AND s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown')),(SELECT COUNT(*) FROM decision_attempt_bindings b WHERE b.task_id=? AND b.attempt_id IS NULL AND b.retired=0),(SELECT ready_sequence FROM task_runtime WHERE task_id=?),(SELECT ready_sequence FROM task_runtime WHERE task_id=?)`, id, id, id, task.taskID).Scan(&active, &pending, &otherSeq, &ownSeq) != nil {
+			return false, ErrConflict
+		}
+		if active > 0 || pending > 0 && !otherSeq.Valid || otherSeq.Valid && ownSeq.Valid && otherSeq.Int64 < ownSeq.Int64 {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+func validateDAGResultTarget(ctx context.Context, tx *sql.Tx, e contract.Event) error {
+	r, err := dagDecisionForTask(ctx, tx, e.TaskID, e.WorkRevision)
+	if err != nil || r == nil {
+		return err
+	}
+	if _, err = guardDAGBinding(ctx, tx, e.TaskID, e.WorkRevision, e.AttemptID); err != nil {
+		return err
+	}
+	saved, err := parseDAGRework(r.payload)
+	if err != nil {
+		return err
+	}
+	a, err := readReworkArtifact(e)
+	if err != nil {
+		return err
+	}
+	if e.TaskID == saved.Spec.TaskID {
+		old, err := readReworkArtifactFromEvidence(ctx, tx, saved.Evidence[e.TaskID])
+		if err != nil {
+			return err
+		}
+		if a.Candidate.CommonDir != old.Candidate.CommonDir || a.Candidate.Binding == nil || a.Candidate.Binding.RevisionSHA256 != saved.Receipt.RevisionSHA256 {
+			return CodeError("rework_target_changed")
+		}
+		return nil
+	}
+	var raw json.RawMessage
+	for _, n := range saved.Nodes {
+		if n.TaskID == e.TaskID {
+			raw = n.Revised
+		}
+	}
+	p, err := adapter.DecodeInvocationPayload(raw)
+	if err != nil || p.CandidateAction == nil {
+		return ErrConflict
+	}
+	// Integration's final artifact is checked by its Host journal, and the input
+	// target was already checked atomically before creating its launch request.
+	if p.CandidateAction.Operation == "integrate" {
+		return nil
+	}
+	want, ok := saved.Targets[e.TaskID]
+	if !ok {
+		return ErrConflict
+	}
+	scope, err := targetFromArtifact(a, p.CandidateAction.Target, int(want.Binding.PlanRevision))
+	if err != nil {
+		return err
+	}
+	if !sameTargetReservation(want, scope) {
+		return CodeError("rework_target_changed")
+	}
+	return nil
+}
+func readReworkArtifactFromEvidence(ctx context.Context, tx *sql.Tx, p dagReworkEvidence) (reworkArtifact, error) {
+	_, a, err := readReworkEventScope(ctx, tx, &reworkTask{id: p.TaskID, revision: p.Revision}, p.Event, p.Accepted, false)
+	return a, err
+}
+
+// An active legacy integration must still match its original launch hash. The
+// current accepted source alone is insufficient if another revision intervened.
+func integrationAcceptedInput(ctx context.Context, tx *sql.Tx, current decisionTaskScope, source string) (contract.AcceptedInput, error) {
+	var c contract.LaunchCommand
+	err := tx.QueryRowContext(ctx, `SELECT s.command_id,s.host_id,t.run_id,t.id,s.attempt_id,s.segment_id,cap.work_revision,s.slot_token,s.launch_intent_hash,p.plan_revision FROM segment_runtime s JOIN attempts a ON a.id=s.attempt_id JOIN tasks t ON t.id=a.task_id JOIN runs p ON p.id=t.run_id JOIN report_capabilities cap ON cap.segment_id=s.segment_id AND cap.attempt_id=a.id AND cap.task_id=t.id WHERE t.id=? AND s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown')`, current.id).Scan(&c.CommandID, &c.HostID, &c.RunID, &c.TaskID, &c.AttemptID, &c.SegmentID, &c.WorkRevision, &c.SlotToken, &c.LaunchIntentHash, &c.PlanRevision)
+	if err == sql.ErrNoRows {
+		return acceptedCandidateInput(ctx, tx, current.run, source)
+	}
+	if err != nil {
+		return contract.AcceptedInput{}, err
+	}
+	c.AdapterPayload = json.RawMessage(current.payload)
+	if err = bindCandidateInputForDecision(ctx, tx, &c, true, nil); err != nil || c.Input == nil {
+		return contract.AcceptedInput{}, CodeError("rework_target_scope_unresolved")
+	}
+	return *c.Input, nil
+}

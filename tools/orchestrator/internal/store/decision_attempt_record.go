@@ -165,6 +165,19 @@ func decisionRecordKind(r attemptDecisionRecord) (string, error) {
 		_, err := parseReviewRetry(r.payload)
 		return reviewRetryKind, err
 	}
+	var discriminator struct {
+		Version int `json:"version"`
+	}
+	if raw, ok := fields["request"]; !ok || json.Unmarshal(raw, &discriminator) != nil {
+		return "", ErrConflict
+	}
+	if discriminator.Version == 1 {
+		_, err := parseDAGRework(r.payload)
+		return dagReworkKind, err
+	}
+	if discriminator.Version != 0 {
+		return "", ErrConflict
+	}
 	var saved reworkDecision
 	if _, ok := fields["request"]; !ok || strictDecisionJSON(r.payload, &saved) != nil {
 		return "", ErrConflict

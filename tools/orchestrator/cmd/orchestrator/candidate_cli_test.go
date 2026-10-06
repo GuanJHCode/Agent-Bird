@@ -26,7 +26,13 @@ func TestCLIReviewRetryCandidateDevelopmentDAG(t *testing.T) { exerciseCLICandid
 
 func TestCLITaskHandleReworkCandidateDAG(t *testing.T) { exerciseCLICandidateDAG(t, true, false, true) }
 
+func TestCLIVersionedDAGRework(t *testing.T) { exerciseCLICandidateDAGVersion(t, true, false, 1) }
+
 func exerciseCLICandidateDAG(t *testing.T, rework, retryReview bool, facade ...bool) {
+	exerciseCLICandidateDAGVersion(t, rework, retryReview, 0, facade...)
+}
+
+func exerciseCLICandidateDAGVersion(t *testing.T, rework, retryReview bool, version int, facade ...bool) {
 	root, err := os.MkdirTemp("/tmp", "candidate-cli-")
 	if err != nil {
 		t.Fatal(err)
@@ -101,7 +107,11 @@ func exerciseCLICandidateDAG(t *testing.T, rework, retryReview bool, facade ...b
 	}
 	target := map[string]string{"worktree": repo, "ref": "refs/heads/main", "base_oid": base}
 	action := func(operation, source string) map[string]any {
-		return map[string]any{"version": 1, "operation": operation, "source_task": source, "target": target}
+		a := map[string]any{"version": 1, "operation": operation, "source_task": source, "target": target}
+		if version == 1 {
+			a["dependency_input_version"] = 1
+		}
+		return a
 	}
 	check := action("validate", "implement")
 	check["command"] = []string{"/usr/bin/grep", "-q", "worker implementation", "README"}
@@ -110,6 +120,12 @@ func exerciseCLICandidateDAG(t *testing.T, rework, retryReview bool, facade ...b
 		map[string]any{"id": "validate", "dependencies": []string{"implement"}, "max_attempts": 3, "adapter": map[string]any{"kind": "candidate", "directory": filepath.Join(root, "validation"), "candidate_action": check}},
 		map[string]any{"id": "review", "dependencies": []string{"validate"}, "max_attempts": 3, "adapter": map[string]any{"provider": "claude-code", "provider_lock": lock, "profile": profile("reviewer", "read-only"), "directory": filepath.Join(root, "review"), "prompt": "independent review", "candidate_action": action("review", "validate")}},
 		map[string]any{"id": "integrate", "dependencies": []string{"review"}, "max_attempts": 3, "adapter": map[string]any{"kind": "candidate", "directory": repo, "candidate_action": action("integrate", "review")}},
+	}
+	if version == 1 {
+		audit := action("validate", "implement")
+		audit["command"] = []string{"/usr/bin/grep", "-q", "worker implementation", "README"}
+		tasks = append(tasks, map[string]any{"id": "audit", "dependencies": []string{"implement"}, "max_attempts": 3, "adapter": map[string]any{"kind": "candidate", "directory": filepath.Join(root, "audit"), "candidate_action": audit}})
+		tasks[2].(map[string]any)["dependencies"] = []string{"validate", "audit"}
 	}
 	birth, err := process.Birth(os.Getpid())
 	if err != nil {
@@ -152,6 +168,9 @@ func exerciseCLICandidateDAG(t *testing.T, rework, retryReview bool, facade ...b
 	sequence := []string{"implement", "validate", "review", "integrate"}
 	if rework {
 		sequence = []string{"implement", "validate", "review", "implement", "validate", "review", "integrate"}
+	}
+	if version == 1 {
+		sequence = []string{"implement", "validate", "audit", "review", "implement", "validate", "audit", "review", "integrate"}
 	}
 	if retryReview {
 		sequence = []string{"implement", "validate", "review", "review", "integrate"}
@@ -244,6 +263,14 @@ func exerciseCLICandidateDAG(t *testing.T, rework, retryReview bool, facade ...b
 				"candidate_oid": firstCandidate, "review_task_id": "review", "review_work_revision": 1,
 				"review":      map[string]any{"event_id": event.EventID, "event_revision": event.EventRevision, "event_hash": event.PayloadHash},
 				"action_slot": event.ActionSlot, "feedback": "Add the requested revised behavior", "acceptance": "ACCEPTANCE_MARKER: README must contain revised", "command_id": "rework-first"})
+			if version == 1 {
+				var request map[string]any
+				if err = readPrivateJSON(requestPath, &request); err != nil {
+					t.Fatal(err)
+				}
+				request["version"] = 1
+				write(request)
+			}
 			var firstReceipt []byte
 			for i := 0; i < 2; i++ {
 				var b []byte

@@ -14,6 +14,7 @@ type decisionAttemptBinding struct {
 	slot, task, attempt string
 	revision            int
 	reservedMS          int64
+	reserve             bool
 }
 
 func nextTaskAttemptOrdinal(ctx context.Context, tx *sql.Tx, task string) (int, error) {

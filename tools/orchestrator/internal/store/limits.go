@@ -152,13 +152,24 @@ func (d *DB) selectReady(ctx context.Context, tx *sql.Tx, launchID string, epoch
 		if eligible > time.Now().UnixMilli() {
 			continue
 		}
+		allowed, targetErr := integrationDispatchAllowed(ctx, tx, task)
+		if targetErr != nil {
+			return readyTask{}, targetErr
+		}
+		if !allowed {
+			continue
+		}
+		var positiveHold, groupHold int
+		if err = tx.QueryRowContext(ctx, `SELECT COUNT(*),COALESCE(SUM(CASE WHEN b.task_id=? THEN 1 ELSE 0 END),0) FROM decision_attempt_bindings b JOIN task_runtime r ON r.task_id=b.task_id WHERE r.budget_group_id=? AND b.attempt_id IS NULL AND b.retired=0 AND b.reserved_active_ms>0`, task.taskID, task.group).Scan(&groupHold, &positiveHold); err != nil {
+			return readyTask{}, err
+		}
 		var binding *decisionAttemptBinding
 		if task.status != "resume_queued" {
 			budget, readErr := readExecutionBudget(ctx, tx, task.taskID)
 			if readErr != nil {
 				return readyTask{}, readErr
 			}
-			if budget.policy != nil {
+			if budget.policy != nil || positiveHold > 0 {
 				binding, _, err = d.pendingDecisionBinding(ctx, tx, task.taskID, task.revision)
 				if err != nil {
 					return readyTask{}, err
@@ -170,7 +181,7 @@ func (d *DB) selectReady(ctx context.Context, tx *sql.Tx, launchID string, epoch
 					if readErr != nil {
 						return readyTask{}, readErr
 					}
-					if budget.policy == nil || e != ErrAttemptLimit {
+					if budget.policy == nil && groupHold == 0 || e != ErrAttemptLimit {
 						return readyTask{}, e
 					}
 					// A pending promise can make an older sibling ineligible.
@@ -194,7 +205,7 @@ func (d *DB) selectReady(ctx context.Context, tx *sql.Tx, launchID string, epoch
 				if readErr != nil {
 					return readyTask{}, readErr
 				}
-				if budget.policy == nil || e != CodeError("budget_exhausted") {
+				if budget.policy == nil && groupHold == 0 || e != CodeError("budget_exhausted") {
 					return readyTask{}, e
 				}
 				if blockedPolicy == nil {
