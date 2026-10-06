@@ -31,5 +31,13 @@
   `handled`, `waiting_user`, `stale`, and `rejected` close first-retry
   eligibility; an existing exact retry replay remains valid, and a revision
   itself never consumes the slot.
-- Constraint: do not change production code until ROOT confirms the shared
-  brief review has passed. Native CLI/process/sandbox checks remain ROOT-owned.
+- Shared brief review passed before production implementation. Native
+  CLI/process/sandbox checks remain ROOT-owned.
+
+ROOT接管与Store里程碑验收（2026-10-07）：
+
+- a42db2f之后ROOT独立发现groupcap可降低和segment受旧attemptcap误拒，worker7e8b770已以实际API RED→GREEN修复。ROOT补legacy拒绝，以及真实policy retry promise→修订→DB reopen→Claim原200ms hold，hash/payload/due/slot保持。不是用SQL伪造promise。
+- ROOT最后把owner token hash比较对齐既有ValidateTaskOwner的constant-time惯例；完整Store增量与最后鉴权小修分别独立审查PASS。ROOT是本WT唯一writer，两个实现worker已交回。
+- Mac normal98021/race2272各11top19named PASS，0fail/skip；最后鉴权小修由普通43049/race30716各1top7named覆盖，替代相同旧case、其余复用，不能累计算独立case。ROOT build/vet/gofmt-l/diffcheck通过。a42的fullStore95379 318top852named是修改前广泛回归，不当作最后API正确性的证明。
+- Docker Linux arm64同范围11top19named PASS、无skip。crossbuild99414 exit0；run terminal chunk8dc95c exit0，container exit0；精确CID5aba338ffa9baa05c8013b84d46f6014116723925f267573132f28522720fbe6已删除并inspect确认不存在。无账号/模型/native Provider，也未跑Linux race。
+- 原日志/session/hash与复用规则保存在data/root-store-milestone-receipt.json。此为schema/API/reader阶段，Host retention、ACK slot closure、lifecycle/summary有效预算投影、严格JSON public IPC/CLI及真实failed-root retry/interrupted resume仍须接入验收；完整F02未完成且本分支未集成。

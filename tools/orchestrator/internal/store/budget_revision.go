@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"crypto/subtle"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -96,7 +97,7 @@ func (d *DB) ReviseBudget(ctx context.Context, command BudgetRevisionCommand) (B
 	if err != nil {
 		return rollback(err)
 	}
-	if controller != command.Controller || tokenHash != runtimeHash(command.ControlToken) || anchorGroup != req.BudgetGroupID {
+	if controller != command.Controller || subtle.ConstantTimeCompare([]byte(tokenHash), []byte(runtimeHash(command.ControlToken))) != 1 || anchorGroup != req.BudgetGroupID {
 		return rollback(CodeError("owner_mismatch"))
 	}
 	// Replay is evaluated before CAS. A later revision must not invalidate the
