@@ -16,12 +16,12 @@
 |---|---|---|
 | AGY 1.2.16 | 同一会话两次 Question/Answer、三段预算结算及 SQLite 历史封存；限定文件内容访问；隔离候选实现、独立审查、Host 行为验证及精确 OID 集成 | 原生编辑工具 trace、完整公共写任务与中断续写流程 |
 | Claude Code 2.1.285 | 同一会话两次 Question/Answer、三段结算；限定原生 Read；隔离候选实现、独立审查、行为验证及精确 OID 集成 | 原生编辑工具 trace、所有公共写任务和故障恢复组合 |
-| Codex 0.154.0 | 配置读取、零 turn 握手及内部协议/本地进程 fixture 的限定验收 | 真实 Read/业务 turn 尚未完成，公共委派不可用 |
+| Codex 0.154.0 | 配置读取、零 turn 握手、同一原生 thread 两轮 Question 及关联状态封存；各自固定源码范围保留 | 完整第三段 Read 未完成，公共入口仍关闭 |
 
 以上结论来自各自固定源码及原生验收范围，不代表本次整合完成了所有原生场景。合成 fixture、普通 Go 测试和 parent race 不能替代 Provider 原始进程或其子进程的退出证明。
 
 ## 后续边界
 
-原始 execution supervisor 的 B2/B3 生命周期、Host 死亡后的真实 owner 接管、完整 crash/replay 矩阵、自动重试及完整 DAG 验收、跨平台支持仍需后续迭代。嵌套 sandbox 的实际限制保留为已知缺口。
+原始 execution supervisor 的 B2/B3 生命周期、Host 死亡后的真实 owner 接管、完整 crash/replay 矩阵、自动重试及完整 DAG 验收、跨平台支持仍需后续迭代。Codex 原生 Read 遇到 `sandbox_apply` 拒绝，实际规则与调用路径原因待定位；本机最小嵌套探针已成功。
 
 本轮复用未受变化影响的已通过证据，并执行必要的公开候选编译、定点回归和构建；没有重跑整模块 race 或全部 Store 组合。历史失败、明确 SKIP 与未验范围保留，不能据此宣称整体完成。
