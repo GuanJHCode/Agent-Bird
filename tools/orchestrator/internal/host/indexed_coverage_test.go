@@ -12,6 +12,40 @@ import (
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops"
 )
 
+func TestIndexedReviewTaskPromptDoesNotClaimCompleteSourceText(t *testing.T) {
+	grant := dependencyHostGrant(t)
+	grant.DependencyInputs = nil
+	grant.AdapterPayload = json.RawMessage(`{"provider":"grok-build","directory":"/private/reviews/candidate","candidate_action":{"version":1,"operation":"review","source_task":"z","review_index":{"version":1,"mode":"indexed_candidate_review_v1","shards":3,"review_ordinal":1}}}`)
+	raw, err := os.ReadFile(grant.Input.Event.Artifact.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var delivery CandidateDelivery
+	if err = json.Unmarshal(raw, &delivery); err != nil {
+		t.Fatal(err)
+	}
+	delivery.Stage = "validate"
+	delivery.Binding = *delivery.Candidate.Binding
+	delivery.Validation = &ValidationEvidence{Passed: true}
+	raw, err = json.Marshal(delivery)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = os.WriteFile(grant.Input.Event.Artifact.Path, raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	grant.Input.Event.PayloadHash = hashBytes(raw)
+	grant.Input.Event.Artifact.SHA256 = hashBytes(raw)
+	grant.Input.Event.Artifact.Size = int64(len(raw))
+	prompt, err := CandidateReviewPrompt(grant)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(prompt, "Use the complete immutable Git snapshot") || !strings.Contains(prompt, "exact assigned chunks") {
+		t.Fatalf("indexed task prompt misstates coverage: %s", prompt)
+	}
+}
+
 func TestIndexedCoveragePreservesDeclaredSourceAnchor(t *testing.T) {
 	grant := dependencyHostGrant(t)
 	grant.AdapterPayload = json.RawMessage(`{"candidate_action":{"version":1,"dependency_input_version":1,"operation":"integrate","source_task":"z"}}`)
