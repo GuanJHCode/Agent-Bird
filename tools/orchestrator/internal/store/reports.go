@@ -16,6 +16,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"golang.org/x/sys/unix"
 )
 
 func (d *DB) RegisterReportCapability(ctx context.Context, registration contract.ReportCapabilityRegistration) (contract.DurableAck, error) {
@@ -287,19 +289,19 @@ func validateReportPayload(kind string, raw json.RawMessage, capabilityDir strin
 		return contract.Event{}, CodeError("unsafe_report_artifact")
 	}
 	defer file.Close()
-	info, err := file.Stat()
-	stat, owned := infoSyscall(info)
-	if err != nil || !owned || !info.Mode().IsRegular() || info.Mode().Perm() != 0600 || stat.Uid != uint32(os.Geteuid()) || stat.Nlink != 1 || info.Size() != value.Size {
+	var stat unix.Stat_t
+	statErr := unix.Fstat(int(file.Fd()), &stat)
+	if statErr != nil || stat.Mode&unix.S_IFMT != unix.S_IFREG || stat.Mode&0777 != 0600 || stat.Uid != uint32(os.Geteuid()) || stat.Nlink != 1 || stat.Size != value.Size {
 		return contract.Event{}, CodeError("unsafe_report_artifact")
 	}
-	if info.Size() > 1024*1024 {
+	if stat.Size > 1024*1024 {
 		return contract.Event{}, CodeError("report_artifact_too_large")
 	}
 	hash := sha256.New()
 	n, err := io.Copy(hash, io.LimitReader(file, 1024*1024+1))
-	after, statErr := file.Stat()
-	afterStat, ok := infoSyscall(after)
-	if err != nil || statErr != nil || !ok || n != value.Size || after.Size() != info.Size() || after.Mode() != info.Mode() || afterStat.Mtimespec != stat.Mtimespec || afterStat.Ctimespec != stat.Ctimespec || hex.EncodeToString(hash.Sum(nil)) != strings.ToLower(value.SHA256) {
+	var afterStat unix.Stat_t
+	statErr = unix.Fstat(int(file.Fd()), &afterStat)
+	if err != nil || statErr != nil || n != value.Size || afterStat.Size != stat.Size || afterStat.Mode != stat.Mode || afterStat.Mtim != stat.Mtim || afterStat.Ctim != stat.Ctim || hex.EncodeToString(hash.Sum(nil)) != strings.ToLower(value.SHA256) {
 		return contract.Event{}, CodeError("report_artifact_hash_mismatch")
 	}
 	return event, nil
