@@ -216,6 +216,12 @@ func recoverInitialOwnerTransport(ctx context.Context, cfg OriginalOwnerConfig, 
 		if contract.DecodeOwnerRuntimeStrict(reply.Body, &state) != nil || state.Binding != execution.cfg.binding {
 			return errOriginalOwnerRuntime
 		}
+		// A transport-only EOF does not create a new Coordinator epoch.  Its
+		// existing permit is still the exact durable authority: replay applied /
+		// activate through reconcile and never manufacture an Attach revision.
+		if reply.CoordinatorEpoch == state.Permit.CoordinatorEpoch {
+			return execution.reconcile(ctx, state.Permit)
+		}
 		if renewal == nil {
 			old := state.Permit.NewHost
 			value := contract.OwnerAttachRequest{ExpectedControlRevision: state.Permit.ControlRevision, OldHost: old, NewHost: old}
@@ -232,6 +238,17 @@ func recoverInitialOwnerTransport(ctx context.Context, cfg OriginalOwnerConfig, 
 		permit, decodeErr := contract.DecodeOwnerControlPermit(reply.Body)
 		if decodeErr != nil {
 			return errOriginalOwnerRuntime
+		}
+		// An ACK-lost Attach can be replayed after a hard restart and returns its
+		// historical permit (old epoch).  Do not install that stale permit over
+		// the new challenge; clear only the local replay marker and issue a new
+		// same-tuple renewal on the current epoch.
+		if permit.CoordinatorEpoch < reply.CoordinatorEpoch {
+			if err = execution.rememberHistoricalPermit(permit); err != nil {
+				return err
+			}
+			renewal, requestID = nil, ""
+			continue
 		}
 		return execution.reconcile(ctx, permit)
 	}

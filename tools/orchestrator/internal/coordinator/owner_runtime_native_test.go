@@ -52,7 +52,7 @@ func TestOriginalOwnerRuntimeChild(t *testing.T) {
 		t.Fatal(err)
 	}
 	err = host.RunOriginalOwner(ctx, host.OriginalOwnerConfig{Bootstrap: bootstrap, Control: control, InvocationProvider: ownerRuntimeSleepInvocation, EnsureCoordinator: func(context.Context) error { return nil }})
-	if err != nil && !errors.Is(err, context.Canceled) {
+	if err != nil {
 		t.Fatal(err)
 	}
 }
@@ -60,7 +60,7 @@ func TestOriginalOwnerRuntimeChild(t *testing.T) {
 type ownerRuntimeSleep struct{ marker string }
 
 func (i ownerRuntimeSleep) Args() []string {
-	return []string{"/bin/sh", "-c", "echo $$ > \"$OWNER_RUNTIME_MARKER\"; exec /bin/sleep 30"}
+	return []string{"/bin/sh", "-c", "echo $$ >> \"$OWNER_RUNTIME_MARKER\"; exec /bin/sleep 30"}
 }
 func (ownerRuntimeSleep) WorkingDirectory() string { return "/private/tmp" }
 func (ownerRuntimeSleep) Stdin() []byte            { return nil }
@@ -132,7 +132,13 @@ func startRealOwnerRuntimeChild(t *testing.T, bootstrap contract.OwnerRuntimeBoo
 	return parent, child
 }
 
-func TestOriginalOwnerNativeSameTupleHardRestart(t *testing.T) {
+func TestOriginalOwnerNativeSameTupleRecovery(t *testing.T) {
+	for _, scenario := range []string{"same_epoch_eof", "hard_restart", "lost_attach_ack_restart"} {
+		t.Run(scenario, func(t *testing.T) { testOriginalOwnerNativeSameTupleRecovery(t, scenario) })
+	}
+}
+
+func testOriginalOwnerNativeSameTupleRecovery(t *testing.T, scenario string) {
 	s, hello, stop := ownerRuntimeFixtureWithCancel(t)
 	defer stop()
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
@@ -238,21 +244,49 @@ func TestOriginalOwnerNativeSameTupleHardRestart(t *testing.T) {
 	if workerPID <= 1 {
 		t.Fatal("controlled worker did not start")
 	}
+	markerLines, err := os.ReadFile(marker)
+	if err != nil || len(strings.Fields(string(markerLines))) != 1 {
+		t.Fatalf("worker Start count marker=%q err=%v", markerLines, err)
+	}
 	workerBirth, err := process.BirthContext(ctx, workerPID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = s.Close(); err != nil {
-		t.Fatal(err)
+	next := s
+	var attachCommitted chan struct{}
+	var nextStop context.CancelFunc
+	if scenario == "hard_restart" || scenario == "lost_attach_ack_restart" {
+		if err = s.Close(); err != nil {
+			t.Fatal(err)
+		}
+		stop() // hard path: Close before Serve cancel
+		next, err = NewServer(s.stateDir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		nextCtx, cancelNext := context.WithCancel(context.Background())
+		nextStop = cancelNext
+		defer func() { nextStop(); _ = next.Close() }()
+		go func() { _ = next.Serve(nextCtx) }()
+		if scenario == "lost_attach_ack_restart" {
+			attachCommitted = make(chan struct{})
+			var once sync.Once
+			next.ownerRPCReplyHook = func(request contract.OwnerRPCRequest) bool {
+				if request.Kind == "attach" {
+					once.Do(func() { close(attachCommitted) })
+					return true // commit happened; deliberately lose only its ACK
+				}
+				return false
+			}
+		}
+	} else {
+		// Only the Coordinator-to-transport socket is lost. The durable epoch
+		// stays unchanged, so recovery must replay the existing permit rather
+		// than manufacture an Attach renewal.
+		if err = conn.Close(); err != nil {
+			t.Fatal(err)
+		}
 	}
-	stop() // hard path: Close before Serve cancel
-	next, err := NewServer(s.stateDir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	nextCtx, nextStop := context.WithCancel(context.Background())
-	defer func() { nextStop(); _ = next.Close() }()
-	go func() { _ = next.Serve(nextCtx) }()
 	offline, _ := json.Marshal(contract.OwnerTransportControl{Version: 1, Action: "offline"})
 	if err = ipc.Write(control, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindOwnerTransportControl, RequestID: "offline", Payload: offline}); err != nil {
 		t.Fatal(err)
@@ -268,22 +302,76 @@ func TestOriginalOwnerNativeSameTupleHardRestart(t *testing.T) {
 	defer conn2.Close()
 	_ = conn2.SetDeadline(time.Now().Add(5 * time.Second))
 	pending2, err := ipc.Read(conn2)
-	if err != nil || pending2.Kind != ipc.KindOwnerHostPending || pending2.Epoch <= bound.Permit.CoordinatorEpoch {
+	if err != nil || pending2.Kind != ipc.KindOwnerHostPending {
 		t.Fatalf("renew pending %s %v", pending2.Kind, err)
+	}
+	if (scenario == "hard_restart" || scenario == "lost_attach_ack_restart") && pending2.Epoch <= bound.Permit.CoordinatorEpoch {
+		t.Fatalf("restart did not advance epoch: %d <= %d", pending2.Epoch, bound.Permit.CoordinatorEpoch)
+	}
+	if scenario == "same_epoch_eof" && pending2.Epoch != bound.Permit.CoordinatorEpoch {
+		t.Fatalf("socket EOF advanced epoch: %d != %d", pending2.Epoch, bound.Permit.CoordinatorEpoch)
 	}
 	if err = ipc.Write(control, pending2); err != nil {
 		t.Fatal(err)
 	}
+	if scenario == "lost_attach_ack_restart" {
+		select {
+		case <-attachCommitted:
+		case <-time.After(5 * time.Second):
+			t.Fatal("Attach did not commit before ACK loss")
+		}
+		committed, committedErr := next.db.OriginalOwnerControl(ctx, prepared.Intent.Scope.OwnerID, next.ownerPublicKey())
+		if committedErr != nil || committed.Permit.ControlRevision != 2 || committed.AppliedControlRevision != 1 {
+			t.Fatalf("lost ACK was not a durable unapplied Attach: %+v %v", committed, committedErr)
+		}
+		if err = next.Close(); err != nil {
+			t.Fatal(err)
+		}
+		nextStop()
+		final, finalErr := NewServer(s.stateDir)
+		if finalErr != nil {
+			t.Fatal(finalErr)
+		}
+		finalCtx, finalStop := context.WithCancel(context.Background())
+		defer func() { finalStop(); _ = final.Close() }()
+		go func() { _ = final.Serve(finalCtx) }()
+		next = final
+		// First pending carries the exact historical request to obtain its old
+		// epoch permit; the second drives a distinct renewal in the new epoch.
+		for replay := 0; replay != 2; replay++ {
+			connect, readErr := ipc.Read(control)
+			if readErr != nil || connect.Kind != ipc.KindOwnerTransportControl {
+				t.Fatalf("lost ACK reconnect %d: %s %v", replay, connect.Kind, readErr)
+			}
+			connReplay := dial(next)
+			defer connReplay.Close()
+			_ = connReplay.SetDeadline(time.Now().Add(5 * time.Second))
+			pendingReplay, pendingErr := ipc.Read(connReplay)
+			if pendingErr != nil || pendingReplay.Kind != ipc.KindOwnerHostPending || pendingReplay.Epoch != next.epoch {
+				t.Fatalf("lost ACK pending %d: %s %v", replay, pendingReplay.Kind, pendingErr)
+			}
+			if writeErr := ipc.Write(control, pendingReplay); writeErr != nil {
+				t.Fatal(writeErr)
+			}
+		}
+	}
 	deadline = time.Now().Add(5 * time.Second)
+	wantRevision := uint64(2)
+	if scenario == "same_epoch_eof" {
+		wantRevision = 1
+	}
+	if scenario == "lost_attach_ack_restart" {
+		wantRevision = 3
+	}
 	for time.Now().Before(deadline) {
 		state, e := next.db.OriginalOwnerControl(ctx, prepared.Intent.Scope.OwnerID, next.ownerPublicKey())
-		if e == nil && state.AppliedControlRevision == 2 && state.Permit.CoordinatorEpoch == next.epoch {
+		if e == nil && state.AppliedControlRevision == wantRevision && state.Permit.CoordinatorEpoch == next.epoch {
 			break
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
 	state, err := next.db.OriginalOwnerControl(ctx, prepared.Intent.Scope.OwnerID, next.ownerPublicKey())
-	if err != nil || state.AppliedControlRevision != 2 || state.Permit.NewHost != bound.Permit.NewHost {
+	if err != nil || state.AppliedControlRevision != wantRevision || state.Permit.NewHost != bound.Permit.NewHost {
 		t.Fatalf("same tuple renewal %+v %v", state, err)
 	}
 	deadline = time.Now().Add(5 * time.Second)
@@ -316,6 +404,9 @@ func TestOriginalOwnerNativeSameTupleHardRestart(t *testing.T) {
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("owner original Wait timeout")
+	}
+	if _, err = process.BirthContext(context.Background(), workerPID); err == nil {
+		t.Fatal("worker remained after owner cleanup")
 	}
 }
 
