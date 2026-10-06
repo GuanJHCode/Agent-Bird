@@ -1,6 +1,7 @@
 package coordinator
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"encoding/json"
@@ -120,7 +121,7 @@ func runOwnerTransportTestChild(t *testing.T, cfg ownerChildConfig, dec *json.De
 }
 
 func TestOriginalOwnerNativeTransportTicketAttachAndReplay(t *testing.T) {
-	for _, scenario := range []string{"replacement", "registered_worker"} {
+	for _, scenario := range []string{"replacement", "replay_reconnect", "replay_restart", "foreign_host"} {
 		t.Run(scenario, func(t *testing.T) { testOriginalOwnerNativeTransportTicket(t, scenario) })
 	}
 }
@@ -177,7 +178,7 @@ func testOriginalOwnerNativeTransportTicket(t *testing.T, scenario string) {
 		t.Fatal("old transport death missing", err)
 	}
 
-	if scenario == "registered_worker" {
+	if scenario == "foreign_host" {
 		other, err := s.db.SubmitPlan(ctx, store.PlanSpec{Run: store.RunSpec{ID: "other-run", ControllerThread: "other-controller", PlanRevision: 1, OriginContextID: "other-origin", OriginPID: hello.OriginPID, OriginBirth: hello.OriginBirth}, Host: store.HostLaunchSpec{OriginContextID: "other-origin", HostGeneration: "other-gen", Executable: hello.Executable}, Tasks: []store.TaskSpec{{ID: "other-task", RunID: "other-run", MaxAttempts: 1}}})
 		if err != nil {
 			t.Fatal(err)
@@ -192,7 +193,7 @@ func testOriginalOwnerNativeTransportTicket(t *testing.T, scenario string) {
 		got := step(ownerChildStep{Kind: "ticket", ID: pending.RequestID, Body: raw})
 		finish()
 		if got.Error == "" {
-			t.Fatal("registered worker child received transport ticket")
+			t.Fatal("foreign Host child received transport ticket")
 		}
 		return
 	}
@@ -244,10 +245,10 @@ func testOriginalOwnerNativeTransportTicket(t *testing.T, scenario string) {
 	}
 	_ = foreign.Close()
 
-	stopServe()
 	if err = s.Close(); err != nil {
 		t.Fatal(err)
 	}
+	stopServe()
 	sPending, err := NewServer(s.stateDir)
 	if err != nil {
 		t.Fatal(err)
@@ -279,12 +280,52 @@ func testOriginalOwnerNativeTransportTicket(t *testing.T, scenario string) {
 	if got := childCall(ownerChildStep{Kind: "exchange", ID: "exchange", Body: ticketRaw}); got.Error != "" {
 		t.Fatal("exchange ACK replay", got.Error)
 	}
+
+	// Model wall-clock expiry without waiting ten seconds: preserve the exact
+	// pending slot and redemption state, then prove rejection has no writes.
+	if scenario == "replacement" {
+		expired := ticket
+		expired.ExpiresUnixMS = time.Now().Add(-time.Second).UnixMilli()
+		expired, err = contract.SignOwnerTransportTicket(expired, s.ownerKeys.sign)
+		if err != nil {
+			t.Fatal(err)
+		}
+		s.hostRegistrationMu.Lock()
+		s.mu.Lock()
+		s.ownerTickets[ticket.OwnerID].ticket = expired
+		s.mu.Unlock()
+		s.hostRegistrationMu.Unlock()
+		expiredRaw, _ := json.Marshal(expired)
+		snapshot := hostHelloDBSnapshot(t, s)
+		retained, _ := s.ownerTicketSnapshot(ticket.OwnerID)
+		if got := childCall(ownerChildStep{Kind: "exchange", ID: "expired", Body: expiredRaw}); got.Error == "" {
+			t.Fatal("expired ticket redeemed")
+		}
+		rejected := childCall(ownerChildStep{Kind: "hello", ID: "expired-hello"})
+		var frame ipc.Envelope
+		if rejected.Error != "" || json.Unmarshal(rejected.Body, &frame) != nil || frame.Kind != ipc.KindError {
+			t.Fatal("expired ticket admitted HostHello", rejected.Error, frame.Kind)
+		}
+		after, _ := s.ownerTicketSnapshot(ticket.OwnerID)
+		if hostHelloDBSnapshot(t, s) != snapshot || after != retained {
+			t.Fatal("expired admission mutated DB or recovery slot")
+		}
+		ticket = getTicket()
+		ticketRaw, _ = json.Marshal(ticket)
+		if got := childCall(ownerChildStep{Kind: "exchange", ID: "reissued-expiry", Body: ticketRaw}); got.Error != "" {
+			t.Fatal("same child expiry reissue", got.Error)
+		}
+	}
 	before := hostHelloDBSnapshot(t, s)
 	readFrame := func(got ownerChildReply, want ipc.Kind) {
 		t.Helper()
 		var frame ipc.Envelope
 		if got.Error != "" || json.Unmarshal(got.Body, &frame) != nil || frame.Kind != want {
-			t.Fatalf("transport got %s %s want %s", got.Error, frame.Kind, want)
+			var failure ErrorResponse
+			if frame.Kind == ipc.KindError {
+				_ = json.Unmarshal(frame.Payload, &failure)
+			}
+			t.Fatalf("transport got %s %s (%s) want %s", got.Error, frame.Kind, failure.Error, want)
 		}
 	}
 	readFrame(childCall(ownerChildStep{Kind: "hello", ID: "replacement-hello"}), ipc.KindOwnerHostPending)
@@ -295,6 +336,75 @@ func testOriginalOwnerNativeTransportTicket(t *testing.T, scenario string) {
 	attachRaw, _ := json.Marshal(attach)
 	if got := step(ownerChildStep{Kind: "attach", ID: pending.RequestID, Body: attachRaw, DropReply: true}); got.Error != "" {
 		t.Fatal(got.Error)
+	}
+
+	if scenario == "replay_reconnect" || scenario == "replay_restart" {
+		// Wait for the lost-ACK transaction before tearing down its session/epoch.
+		var saved contract.OwnerRuntimeState
+		deadline := time.Now().Add(3 * time.Second)
+		for time.Now().Before(deadline) {
+			saved, err = s.db.OriginalOwnerControl(ctx, intent.Scope.OwnerID, s.ownerPublicKey())
+			if err == nil && saved.Permit.ControlRevision == 2 {
+				break
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+		if err != nil || saved.Permit.ControlRevision != 2 {
+			t.Fatal("lost Attach did not commit", err)
+		}
+		if scenario == "replay_restart" {
+			if err = s.Close(); err != nil {
+				t.Fatal(err)
+			}
+			stopServe()
+			next, err := NewServer(s.stateDir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			nextCtx, nextCancel := context.WithCancel(ctx)
+			defer nextCancel()
+			defer next.Close()
+			go func() { _ = next.Serve(nextCtx) }()
+			s = next
+			stopServe = nextCancel
+		}
+		readFrame(childCall(ownerChildStep{Kind: "hello", ID: "lost-attach-reconnect"}), ipc.KindOwnerHostPending)
+		snapshot := hostHelloDBSnapshot(t, s)
+		got := step(ownerChildStep{Kind: "attach", ID: pending.RequestID, Body: attachRaw})
+
+		// A signed owner request with drift still cannot reuse historical authority.
+		if got.Error == "" {
+			oldRevision := uint64(1)
+			for _, drift := range []string{"request", "body"} {
+				id, body := pending.RequestID, attachRaw
+				if drift == "request" {
+					id += "-drift"
+				} else {
+					changed := attach
+					changedPending := pending
+					changedPending.RecoverySlot++
+					changed.Pending = &changedPending
+					body, _ = json.Marshal(changed)
+				}
+				rejected := step(ownerChildStep{Kind: "attach", ID: id, Body: body, Revision: &oldRevision})
+				if rejected.Error == "" {
+					t.Fatal("historical Attach drift accepted", drift)
+				}
+			}
+		}
+		after, inspectErr := s.db.OriginalOwnerControl(ctx, intent.Scope.OwnerID, s.ownerPublicKey())
+		unchanged := hostHelloDBSnapshot(t, s) == snapshot
+		finish()
+		if got.Error != "" {
+			t.Fatal("durable Attach exact replay rejected", got.Error)
+		}
+		var replayed contract.OwnerControlPermit
+		savedBytes, _ := json.Marshal(saved.Permit)
+		afterBytes, _ := json.Marshal(after.Permit)
+		if contract.DecodeOwnerRuntimeStrict(got.Body, &replayed) != nil || !bytes.Equal(got.Body, savedBytes) || inspectErr != nil || !bytes.Equal(afterBytes, savedBytes) || !unchanged {
+			t.Fatal("historical replay drifted permit or state", inspectErr)
+		}
+		return
 	}
 	if got := step(ownerChildStep{Kind: "attach", ID: pending.RequestID, Body: attachRaw}); got.Error != "" {
 		t.Fatal("Attach ACK replay", got.Error)
@@ -309,12 +419,14 @@ func testOriginalOwnerNativeTransportTicket(t *testing.T, scenario string) {
 	}
 	readFrame(childCall(ownerChildStep{Kind: "read"}), ipc.KindHostReady)
 	readFrame(childCall(ownerChildStep{Kind: "read"}), ipc.KindOwnerCommand)
+	// Hard Close precedes Serve cancellation to model a crash, not signed
+	// normal shutdown (which deliberately fences this exact transport forever).
 	// Current child reconnects from Store authority even after epoch-local ticket
 	// memory is lost. It must renew the permit before regaining readiness.
-	stopServe()
 	if err = s.Close(); err != nil {
 		t.Fatal(err)
 	}
+	stopServe()
 	s2, err := NewServer(s.stateDir)
 	if err != nil {
 		t.Fatal(err)

@@ -246,12 +246,18 @@ func startOwnerRPCChild(t *testing.T, config ownerChildConfig) (func(ownerChildS
 	finished := false
 	t.Cleanup(func() {
 		_ = inWrite.Close()
-		_ = outRead.Close()
-		cancel()
 		if !finished {
-			err := <-done
+			var err error
+			select {
+			case err = <-done:
+			case <-time.After(5 * time.Second):
+				cancel()
+				err = <-done
+			}
 			t.Logf("failed-fixture cleanup original Wait=%v logs=%s", err, logs.String())
 		}
+		_ = outRead.Close()
+		cancel()
 	})
 	encoder, decoder := json.NewEncoder(inWrite), json.NewDecoder(outRead)
 	if err = encoder.Encode(config); err != nil {

@@ -417,6 +417,22 @@ func (s *Server) originalOwnerRPC(ctx context.Context, kernelPID int, opening co
 		if contract.DecodeOwnerRuntimeStrict(request.Body, &attach) != nil || request.ControlRevision != attach.ExpectedControlRevision || session == nil || !ownerOriginAlive(state.Intent.Scope) || s.terminating.Load() {
 			return reject()
 		}
+		if session.transportClosed.Load() || session.hello.PID != attach.NewHost.PID || session.hello.Birth != attach.NewHost.Birth {
+			return reject()
+		}
+		// A committed Attach is durable authority, including after its ACK and
+		// epoch-local ticket are lost. Return only the exact CURRENT signed
+		// permit and unchanged epoch/body; renewal remains a separate request.
+		// OriginalOwnerControl already checked scope, owner, key and current
+		// revision/tuple against the immutable Store records.
+		permit := current.Permit
+		if permit.ControlRevision > 1 && permit.ControlRevision-1 == attach.ExpectedControlRevision && permit.RequestID == request.RequestID && permit.RequestSHA256 == request.BodySHA256 && permit.OldHost != nil && *permit.OldHost == attach.OldHost && permit.NewHost == attach.NewHost {
+			binding, err := s.db.HostBinding(ctx, state.Intent.Scope.LaunchID)
+			if err != nil || binding.PID != attach.NewHost.PID || binding.Birth != attach.NewHost.Birth || (attach.OldHost != attach.NewHost && s.authenticateOwnerTransportChild(ctx, state, attach.NewHost) != nil) {
+				return reject()
+			}
+			return permit, nil, nil
+		}
 		if attach.OldHost != attach.NewHost {
 			if session.transportClosed.Load() || s.authenticateOwnerTransportChild(ctx, state, attach.NewHost) != nil {
 				return reject()
@@ -439,7 +455,7 @@ func (s *Server) originalOwnerRPC(ctx context.Context, kernelPID int, opening co
 			}
 			exited = &attach.OldHost
 		}
-		permit, err := s.db.CommitOriginalOwnerAttach(ctx, store.OriginalOwnerAttachSpec{OwnerID: request.OwnerID, ScopeSHA256: scopeHash, OwnerIdentitySHA256: identityHash, CoordinatorKeyID: s.ownerKeys.id, ExpectedControlRevision: attach.ExpectedControlRevision, OldHost: attach.OldHost, NewHost: attach.NewHost, Epoch: s.epoch, RequestID: request.RequestID, RequestSHA256: request.BodySHA256, Authentication: store.OriginalOwnerAttachAuthentication{Owner: auth, Host: session.hello, Epoch: s.epoch, ExitedHost: exited}}, s.ownerKeys.sign)
+		permit, err = s.db.CommitOriginalOwnerAttach(ctx, store.OriginalOwnerAttachSpec{OwnerID: request.OwnerID, ScopeSHA256: scopeHash, OwnerIdentitySHA256: identityHash, CoordinatorKeyID: s.ownerKeys.id, ExpectedControlRevision: attach.ExpectedControlRevision, OldHost: attach.OldHost, NewHost: attach.NewHost, Epoch: s.epoch, RequestID: request.RequestID, RequestSHA256: request.BodySHA256, Authentication: store.OriginalOwnerAttachAuthentication{Owner: auth, Host: session.hello, Epoch: s.epoch, ExitedHost: exited}}, s.ownerKeys.sign)
 		if err == nil && attach.Pending != nil {
 			s.mu.Lock()
 			s.ownerTickets[request.OwnerID].attached = true
