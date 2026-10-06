@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
@@ -36,6 +37,16 @@ type ownerRuntimeLifecycle struct {
 	cleanupOnce   sync.Once
 	cleanupResult error
 	cleanupDone   chan struct{}
+	children      []*ownerTransportChild
+}
+
+func (r *ownerRuntimeLifecycle) retainTransportChild(child *ownerTransportChild) {
+	if child == nil {
+		return
+	}
+	r.mu.Lock()
+	r.children = append(r.children, child)
+	r.mu.Unlock()
 }
 
 func newOwnerRuntimeLifecycle(e *ownerExecution, cancel context.CancelCauseFunc) *ownerRuntimeLifecycle {
@@ -233,7 +244,15 @@ func (r *ownerRuntimeLifecycle) stop(cause error, joins []<-chan struct{}) error
 	joinCtx, stopJoin := context.WithDeadline(context.Background(), started.Add(r.limits.join))
 	defer stopJoin()
 	e := r.execution
+	r.mu.Lock()
+	children := append([]*ownerTransportChild(nil), r.children...)
+	r.mu.Unlock()
 	e.beginStop(termCtx, cause)
+	for _, child := range children {
+		if child != nil && child.command != nil && child.command.Process != nil {
+			_ = child.command.Process.Signal(syscall.SIGTERM)
+		}
+	}
 	r.cancel(cause)
 	var background sync.WaitGroup
 	r.cleanupDone = make(chan struct{})
@@ -255,6 +274,11 @@ func (r *ownerRuntimeLifecycle) stop(cause error, joins []<-chan struct{}) error
 		}
 	}
 	result := errors.Join(wait(joinCtx, workers), wait(joinCtx, trees))
+	for _, child := range children {
+		if child != nil {
+			result = errors.Join(result, child.wait(joinCtx))
+		}
+	}
 	for _, done := range joins {
 		if done == nil {
 			continue
