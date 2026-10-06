@@ -27,4 +27,12 @@ Provider 启停与模型配置属于编排器自己的 SQLite 状态。缺少显
 
 继续使用原 handle 检查、收集和处理结果。ACK 只确认消息处置，accept 才是业务验收。恢复原任务需显式 owner 决策、正确 revision、剩余预算和已确认停止的旧执行树；不得将另一会话历史冒充原 Provider 会话。
 
+typed Question/Answer 与显式中断 Resume 使用受信任的原会话和状态封存，继续同一 attempt 并累计各 segment 的预算；它们不通过旧的无绑定 session 接口放开续接。AGY/Claude 已有同会话两轮问答的限定原生证据，公开写任务、中断续写及所有故障组合仍需分别验收。
+
+活着的 Source Host 可以在 Coordinator 重启后有界重连并重放原 spool。Host 已死亡而执行进程仍可能存活时，PID 或进程组 absence 不能补造原始 Wait 证明；未完成原 supervisor/接管能力前保留 UNKNOWN 所有权和预算预留。
+
+保存的 Bird 默认配置使用不可变 generation；任务准备、准入、引用释放绑定原 Store 和 owner。显式 abandon 只适用于未获准入的 preparation，不能用于释放已准入或提交结果不确定的任务引用。这不修改 Provider 自身的认证和全局配置。
+
+Codex 内部协议支持仍处于受保护接入阶段，公共 Worker 入口没有开放。真实范围和未完成项目见[支持矩阵](support-matrix.md)及[迭代说明](iteration-20261006.md)。
+
 详细字段见 [CLI 文档](../tools/orchestrator/README.md) 和插件 [Skill](../plugins/codex-orchestrator/skills/orchestrate/SKILL.md)。

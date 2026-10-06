@@ -1,5 +1,7 @@
 # 支持范围
 
+以下区分源码能力与真实运行证据。2026-10-06 迭代的原生结果绑定各自固定源码，详见[迭代验证范围](iteration-20261006.md)；它们不证明所有整合后场景、已安装版本或未列出的 Provider 组合。
+
 | 功能 | 状态 |
 |---|---|
 | Codex owner 绑定、任务派发、collect/ACK/accept | 已实现 |
@@ -9,13 +11,20 @@
 | Claude/Grok/AGY 主脑 | 显式 controller 启动入口；按托管进程归属，不冒充原生会话 ID |
 | 会话模型、保存默认、单次覆盖 | 已实现；由实际 CLI 能力决定可用模型 |
 | Grok | 1.0.34 只读及逐文件许可下的隔离编码/冻结/行为验收通过；需显式任务会话目录写授权；完整文本快照审查通过一次真实错误识别 |
-| AGY | 1.2.5 通过一次原生隔离编码及候选冻结；终端工具未建立原生验收 |
-| 原生会话 resume | typed profile 未验证，保持拒绝 |
-| 自动加预算/自动替换失败任务 | 不支持 |
+| AGY | 1.2.16 已验证同会话两次 Question/Answer、三段结算、SQLite 历史封存、限定文件内容访问及隔离候选开发链；编辑工具轨迹、完整公共写任务和中断续写仍未验收 |
+| Claude | 2.1.285 已验证同会话两次 Question/Answer、三段结算、限定原生 Read 及隔离候选开发链；编辑工具轨迹和完整故障恢复组合仍未验收 |
+| 技术问答与原会话续接 | 已有绑定原会话、版本和累计预算的 typed continuation；AGY/Claude 的两轮问答已有上述原生证据。显式中断 Resume 的实现与测试不等于所有写任务的真实续写通过 |
+| Codex Worker | 内部协议、状态封存及同线程两轮 Question 已有范围证据；完整第三段 Read 未完成，公共任务入口仍关闭 |
+| 活 Host 重连 | 已实现 Coordinator 重启后的有界重连及原 spool 重放；不等于 Host 死亡后可以接管任意存活执行进程 |
+| 安装与保存配置恢复 | 已实现不可变 generation、原 Store/owner 绑定、安装重放及未准入 preparation 的显式 abandon；异主、部分发布中断与其他平台仍待验收 |
+| 自动重试与预算策略 | 显式重试及累计硬预算已实现；通用预授权自动重试、策略化预算修订和自动替换失败任务尚未完成 |
+| 分支 DAG 返工 | 当前返工限定 Claude 四步线性链；一般 DAG 的派发支持不等于分支返工已实现 |
 
 Grok 只读内置工具限制为 read_file/list_dir/grep；编码增加文件编辑工具，禁用原生子任务和 web search，并传递 MCP 拒绝规则；真实 MCP 负向拒绝尚未完成原生验收。其 artifact 包含公开 assistant 文本，可能含过程说明，不能把最终回答匹配当成整个 artifact 精确匹配。
 
 本仓库的测试使用合成 fixture 和本地受控子进程。多 Provider 的真实模型并发、任意版本/模型组合和无监督长任务不由这些测试证明。真实 Provider 测试默认 opt-in，运行会消耗对应账号额度。
+
+Claude/AGY Hook 适配、Codex attached bridge 的源码和受控测试不等于真实下一轮或原生 TUI 消费已验收。Grok 自动回注尚未实现；显式 collect 只证明主动收集。完整崩溃/重放窗口、60 分钟双 Worker 组合及 Intel Mac/Linux/Windows 原生支持仍未完成。
 
 候选开发拒绝 Git LFS/filter、自定义 hooks 等执行扩展。权限不足或输入不明确时明确阻塞，不自动修改用户全局 Git 或 Provider 配置。
 
