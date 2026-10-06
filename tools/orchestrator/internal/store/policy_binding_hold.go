@@ -58,7 +58,7 @@ func (d *DB) reserveDecisionBindings(ctx context.Context, tx *sql.Tx, bindings [
 			if err = tx.QueryRowContext(ctx, `SELECT run_id FROM tasks WHERE id=?`, binding.task).Scan(&run); err != nil {
 				return err
 			}
-			if err = d.storageAdmission(ctx, tx, run, policyBindingHoldBytes, false); err != nil {
+			if err = d.storageAdmission(ctx, tx, run, decisionBindingBytes(binding.slot, binding.task, "")+policyBindingHoldBytes, false); err != nil {
 				return err
 			}
 		}
