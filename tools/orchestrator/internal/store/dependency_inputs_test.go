@@ -303,3 +303,20 @@ func TestDependencyVectorAdmissionRejectsUnsupportedEvidence(t *testing.T) {
 		}
 	}
 }
+
+func TestDependencyVectorDuplicatePlanRollsBackAdmission(t *testing.T) {
+	db, err := Open(filepath.Join(t.TempDir(), "state.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	tasks := []TaskSpec{{ID: "edit", RunID: "run", MaxAttempts: 1, AdapterPayload: json.RawMessage(`{"provider":"claude-code","candidate_workspace":{"version":1}}`)}, {ID: "join", RunID: "run", MaxAttempts: 1, Dependencies: []string{"edit", "edit"}, AdapterPayload: json.RawMessage(`{"kind":"candidate","candidate_action":{"version":1,"dependency_input_version":1,"operation":"validate","source_task":"edit","command":["/usr/bin/true"]}}`)}}
+	_, err = db.SubmitPlan(context.Background(), PlanSpec{Run: RunSpec{ID: "run", ControllerThread: "owner", PlanRevision: 1, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth"}, Host: HostLaunchSpec{OriginContextID: "origin", HostGeneration: "gen", Executable: "/private/bin/orchestrator"}, Tasks: tasks})
+	if err == nil || err.Error() != "candidate_dependency_inputs_invalid" {
+		t.Fatalf("duplicate dependency admitted: %v", err)
+	}
+	var count int
+	if err = db.sql.QueryRow(`SELECT (SELECT COUNT(*) FROM runs)+(SELECT COUNT(*) FROM tasks)+(SELECT COUNT(*) FROM host_launches)+(SELECT COUNT(*) FROM task_runtime)`).Scan(&count); err != nil || count != 0 {
+		t.Fatalf("partial plan=%d %v", count, err)
+	}
+}

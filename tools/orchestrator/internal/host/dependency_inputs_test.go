@@ -39,7 +39,7 @@ func dependencyHostGrant(t *testing.T) contract.LaunchCommand {
 }
 
 func TestDependencyVectorHostConsumesBeforeArtifactAccess(t *testing.T) {
-	for _, kind := range []string{"valid", "missing", "duplicate", "unsorted", "wrong_run", "missing_decision", "missing_source", "source_disagrees", "wrong_intent", "unexpected_legacy"} {
+	for _, kind := range []string{"valid", "missing", "duplicate", "unsorted", "wrong_run", "missing_decision", "missing_source", "source_disagrees", "wrong_intent", "unexpected_legacy", "artifact_hash_mismatch", "null_payload", "array_payload"} {
 		t.Run(kind, func(t *testing.T) {
 			c := dependencyHostGrant(t)
 			if kind != "valid" {
@@ -54,6 +54,12 @@ func TestDependencyVectorHostConsumesBeforeArtifactAccess(t *testing.T) {
 				c.DependencyInputs.Inputs[1] = c.DependencyInputs.Inputs[0]
 			case "unsorted":
 				c.DependencyInputs.Inputs[0], c.DependencyInputs.Inputs[1] = c.DependencyInputs.Inputs[1], c.DependencyInputs.Inputs[0]
+			case "null_payload":
+				c.DependencyInputs.Inputs[0].AdapterPayload = json.RawMessage(` null `)
+			case "array_payload":
+				c.DependencyInputs.Inputs[0].AdapterPayload = json.RawMessage(`[]`)
+			case "artifact_hash_mismatch":
+				c.DependencyInputs.Inputs[0].Event.Artifact.SHA256 = hashBytes([]byte("other artifact"))
 			case "wrong_run":
 				c.DependencyInputs.Inputs[0].Event.RunID = "other"
 			case "missing_decision":

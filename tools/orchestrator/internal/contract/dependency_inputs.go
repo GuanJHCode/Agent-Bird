@@ -70,9 +70,13 @@ func ValidateDependencyInputs(c LaunchCommand) error {
 	}
 	found := false
 	for i, input := range v.Inputs {
+		var sourcePayload map[string]json.RawMessage
+		if json.Unmarshal(input.AdapterPayload, &sourcePayload) != nil || sourcePayload == nil {
+			return invalid
+		}
 		e := input.Event
 		r := e.Artifact
-		if e.Version != 1 || e.RunID != c.RunID || e.TaskID == "" || e.TaskID == c.TaskID || e.AttemptID == "" || e.SegmentID == "" || e.WorkRevision < 1 || e.ProducerID == "" || e.EventID == "" || e.EventRevision < 1 || e.ActionSlot == "" || e.CommandID == "" || e.Sequence < 1 || e.Kind != EventResult || !digest(e.PayloadHash) || input.DecisionCommandID == "" || !json.Valid(input.AdapterPayload) || string(input.AdapterPayload) == "null" || r == nil || !filepath.IsAbs(r.Path) || r.Size < 1 || r.Size > 1024*1024 || !digest(r.SHA256) {
+		if e.Version != 1 || e.RunID != c.RunID || e.TaskID == "" || e.TaskID == c.TaskID || e.AttemptID == "" || e.SegmentID == "" || e.WorkRevision < 1 || e.ProducerID == "" || e.EventID == "" || e.EventRevision < 1 || e.ActionSlot == "" || e.CommandID == "" || e.Sequence < 1 || e.Kind != EventResult || !digest(e.PayloadHash) || input.DecisionCommandID == "" || r == nil || !filepath.IsAbs(r.Path) || r.Size < 1 || r.Size > 1024*1024 || !digest(r.SHA256) || r.SHA256 != e.PayloadHash {
 			return invalid
 		}
 		if i > 0 && v.Inputs[i-1].Event.TaskID >= e.TaskID {

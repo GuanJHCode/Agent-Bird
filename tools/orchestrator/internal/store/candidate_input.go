@@ -159,7 +159,15 @@ func validateCandidatePlan(tasks map[string]TaskSpec) error {
 			return CodeError("invalid_candidate_dag")
 		}
 		if a.DependencyInputVersion == 1 {
+			if len(task.Dependencies) < 1 || len(task.Dependencies) > 63 {
+				return CodeError("candidate_dependency_inputs_invalid")
+			}
+			seen := make(map[string]bool, len(task.Dependencies))
 			for _, dependency := range task.Dependencies {
+				if dependency == "" || seen[dependency] {
+					return CodeError("candidate_dependency_inputs_invalid")
+				}
+				seen[dependency] = true
 				predecessor, exists := tasks[dependency]
 				if !exists || predecessor.CompletionPolicy != "" && predecessor.CompletionPolicy != "owner_review" {
 					return CodeError("candidate_dependency_input_unsupported")
