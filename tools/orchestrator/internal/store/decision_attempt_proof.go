@@ -42,7 +42,8 @@ func validateOrdinaryDecisionPending(ctx context.Context, tx *sql.Tx, r attemptD
 	}
 	if r.origin == "policy" {
 		budget, e2 := readExecutionBudget(ctx, tx, task.id)
-		if e2 != nil || budget.policy == nil || budget.policy.Retry == nil || r.fallback || r.payload != "" || e.Kind != contract.EventLaunchRejected || !e.Failure.ValidPrelaunchProbe() {
+		candidatePolicy := managed && validateSavedPrelaunchReviewRetry(ctx, tx, r, task) == nil
+		if e2 != nil || budget.policy == nil || budget.policy.Retry == nil || r.fallback || (r.payload != "" && !candidatePolicy) || e.Kind != contract.EventLaunchRejected || !e.Failure.ValidPrelaunchProbe() {
 			return ErrConflict
 		}
 		body, e2 := budget.policy.CanonicalJSON()
@@ -77,7 +78,7 @@ func validateOrdinaryDecisionPending(ctx context.Context, tx *sql.Tx, r attemptD
 	if r.promise < next {
 		return ErrConflict
 	}
-	if managed {
+	if managed && r.origin != "policy" {
 		if err := validateSavedReviewRetry(ctx, tx, r, task, e); err != nil {
 			return err
 		}

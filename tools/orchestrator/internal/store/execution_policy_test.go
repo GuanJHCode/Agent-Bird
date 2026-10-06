@@ -149,3 +149,20 @@ func TestExecutionPolicyDefaultsAndBoundsAtAdmission(t *testing.T) {
 		})
 	}
 }
+
+func TestExecutionPolicyRetryRejectsCandidateStagesOtherThanReadonlyReview(t *testing.T) {
+	policy := &contract.ExecutionPolicy{Version: 1, GroupMaxAttempts: 2, GroupMaxActiveMS: 2_000, TaskMaxActiveMS: 1_000, SegmentMaxActiveMS: 1_000, Retry: &contract.RetryPolicy{Codes: []string{"probe_start_eagain"}, BackoffMS: []int64{1}}}
+	for name, raw := range map[string]json.RawMessage{
+		"implement":       json.RawMessage(`{"kind":"candidate","candidate_workspace":{"version":1}}`),
+		"validate":        json.RawMessage(`{"kind":"candidate","candidate_action":{"version":1,"operation":"validate","source_task":"edit","command":["/usr/bin/true"]}}`),
+		"integrate":       json.RawMessage(`{"kind":"candidate","candidate_action":{"version":1,"operation":"integrate","source_task":"review"}}`),
+		"writable_review": json.RawMessage(`{"provider":"claude-code","directory":"/private/repo","candidate_action":{"version":1,"operation":"review","source_task":"validate"},"provider_lock":{"version":1,"provider":"claude-code","protocol":"claude-stream-json-v1","binary":{"path":"/private/bin/claude","version":"test","sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}},"profile":{"version":1,"role":"reviewer","permission":"workspace_write","timeout_ms":1000}}`),
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := normalizeExecutionTask(TaskSpec{ID: name, MaxAttempts: 2, MaxActiveMS: 1_000, ExecutionPolicy: policy, AdapterPayload: raw})
+			if err == nil || err.Error() != "execution_policy_retry_stage_unsupported" {
+				t.Fatalf("candidate stage admitted: %v", err)
+			}
+		})
+	}
+}

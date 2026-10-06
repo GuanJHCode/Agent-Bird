@@ -33,7 +33,7 @@ func candidateManaged(raw []byte) bool {
 }
 func reviewRetryProfile(raw []byte) (adapter.InvocationPayload, error) {
 	p, err := adapter.DecodeInvocationPayload(raw)
-	if err != nil || p.Kind != "" || p.Provider != string(adapter.ProviderClaude) || p.CandidateWorkspace != nil || p.CandidateAction == nil || p.CandidateAction.Version != 1 || p.CandidateAction.Operation != "review" || len(p.CandidateAction.Command) != 0 || p.Profile == nil || p.Profile.Role != adapter.Reviewer || p.Profile.Permission != adapter.ReadOnly || p.ProviderLock == nil || p.BinaryPath != "" || p.BinaryVersion != "" || p.BinarySHA256 != "" || p.SessionID != "" || p.SessionKind != "" || len(p.Args) != 0 || !filepath.IsAbs(p.Directory) || filepath.Clean(p.Directory) != p.Directory || p.Directory == string(filepath.Separator) {
+	if err != nil || p.Kind != "" || (p.Provider != string(adapter.ProviderClaude) && p.Provider != string(adapter.ProviderGrok)) || p.CandidateWorkspace != nil || p.CandidateAction == nil || p.CandidateAction.Version != 1 || p.CandidateAction.Operation != "review" || len(p.CandidateAction.Command) != 0 || p.Profile == nil || p.Profile.Role != adapter.Reviewer || p.Profile.Permission != adapter.ReadOnly || p.ProviderLock == nil || p.BinaryPath != "" || p.BinaryVersion != "" || p.BinarySHA256 != "" || p.SessionID != "" || p.SessionKind != "" || len(p.Args) != 0 || !filepath.IsAbs(p.Directory) || filepath.Clean(p.Directory) != p.Directory || p.Directory == string(filepath.Separator) {
 		return p, CodeError("candidate_review_retry_unsupported")
 	}
 	_, err = adapter.BuildInvocation(adapter.Request{Provider: adapter.Provider(p.Provider), Binary: p.ProviderLock.Binary, CWD: p.Directory, Prompt: p.Prompt, Permission: adapter.Permission{Mode: p.PermissionMode, Allow: p.Allow, Deny: p.Deny}, ExtraArgs: p.ExtraArgs, Profile: p.Profile, Lock: p.ProviderLock, Action: p.CandidateAction})
@@ -119,11 +119,32 @@ func authorizeReviewRetry(ctx context.Context, tx *sql.Tx, spec RetrySpec, raw s
 	if questions != 0 {
 		return "", ErrConflict
 	}
-	if _, err = executionGrant(ctx, tx, spec.TaskID, ""); err != nil {
+	return reviewRetryDecisionForGrant(ctx, tx, &c, raw)
+}
+
+// The policy path reaches this only after the Host has proven an exact
+// never-started EAGAIN/EINTR. It reconstructs the original bound review input
+// before the new retry promise becomes visible.
+func authorizePrelaunchReviewRetry(ctx context.Context, tx *sql.Tx, e contract.Event, raw string) (string, error) {
+	if _, err := reviewRetryProfile([]byte(raw)); err != nil {
+		return "", err
+	}
+	var c contract.LaunchCommand
+	var hostStatus, originalPayload string
+	err := tx.QueryRowContext(ctx, `SELECT s.command_id,s.host_id,t.run_id,t.id,s.attempt_id,s.segment_id,r.work_revision,s.slot_token,s.launch_intent_hash,r.adapter_payload,p.plan_revision,h.status FROM segment_runtime s JOIN attempts a ON a.id=s.attempt_id JOIN tasks t ON t.id=a.task_id JOIN task_runtime r ON r.task_id=t.id JOIN runs p ON p.id=t.run_id JOIN runtime_hosts h ON h.id=s.host_id WHERE s.segment_id=? AND t.id=? AND s.host_id=? AND s.command_id=?`, e.SegmentID, e.TaskID, e.ProducerID, e.CommandID).Scan(&c.CommandID, &c.HostID, &c.RunID, &c.TaskID, &c.AttemptID, &c.SegmentID, &c.WorkRevision, &c.SlotToken, &c.LaunchIntentHash, &originalPayload, &c.PlanRevision, &hostStatus)
+	if err != nil || hostStatus != "ready" || c.WorkRevision != e.WorkRevision || c.AttemptID != e.AttemptID {
+		return "", ErrConflict
+	}
+	c.AdapterPayload = json.RawMessage(originalPayload)
+	return reviewRetryDecisionForGrant(ctx, tx, &c, raw)
+}
+
+func reviewRetryDecisionForGrant(ctx context.Context, tx *sql.Tx, c *contract.LaunchCommand, raw string) (string, error) {
+	if _, err := executionGrant(ctx, tx, c.TaskID, ""); err != nil {
 		return "", err
 	}
 	// Reconstruct the exact previous grant, including any previous retry directory.
-	if err = bindCandidateInput(ctx, tx, &c, true); err != nil {
+	if err := bindCandidateInput(ctx, tx, c, true); err != nil {
 		return "", err
 	}
 	if c.Input == nil {
@@ -139,4 +160,27 @@ func authorizeReviewRetry(ctx context.Context, tx *sql.Tx, spec RetrySpec, raw s
 	}
 	body, err := json.Marshal(reviewRetryDecision{Kind: reviewRetryKind, AdapterSHA256: runtimeHash(raw), InputSHA256: retryInputHash(c.Input), DependencyInputsSHA256: dependencyVectorHash(c.DependencyInputs)})
 	return string(body), err
+}
+
+func validateSavedPrelaunchReviewRetry(ctx context.Context, tx *sql.Tx, r attemptDecisionRecord, task decisionTaskScope) error {
+	saved, err := parseReviewRetry(r.payload)
+	if err != nil || saved.AdapterSHA256 != runtimeHash(task.payload) {
+		return ErrConflict
+	}
+	var c contract.LaunchCommand
+	var raw string
+	err = tx.QueryRowContext(ctx, `SELECT s.command_id,s.host_id,t.run_id,t.id,s.attempt_id,s.segment_id,r.work_revision,s.slot_token,s.launch_intent_hash,r.adapter_payload,p.plan_revision FROM segment_runtime s JOIN attempts a ON a.id=s.attempt_id JOIN tasks t ON t.id=a.task_id JOIN task_runtime r ON r.task_id=t.id JOIN runs p ON p.id=t.run_id WHERE s.segment_id=? AND t.id=?`, r.segment, task.id).Scan(&c.CommandID, &c.HostID, &c.RunID, &c.TaskID, &c.AttemptID, &c.SegmentID, &c.WorkRevision, &c.SlotToken, &c.LaunchIntentHash, &raw, &c.PlanRevision)
+	if err != nil || c.WorkRevision != task.revision {
+		return ErrConflict
+	}
+	c.AdapterPayload = json.RawMessage(raw)
+	if err = bindCandidateInput(ctx, tx, &c, true); err != nil || c.Input == nil || saved.InputSHA256 != retryInputHash(c.Input) || saved.DependencyInputsSHA256 != dependencyVectorHash(c.DependencyInputs) {
+		return ErrConflict
+	}
+	input := c.Input.Event
+	_, artifact, err := readReworkEvent(ctx, tx, &reworkTask{id: input.TaskID, revision: input.WorkRevision}, ReworkEvent{EventID: input.EventID, EventRevision: input.EventRevision, EventHash: input.PayloadHash}, true)
+	if err != nil || artifact.Stage != "validate" || artifact.Validation == nil || !artifact.Validation.Passed {
+		return ErrConflict
+	}
+	return nil
 }

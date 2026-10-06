@@ -136,6 +136,26 @@ func TestPreflightProvidersRetryPolicyRetainsStaticGuardsAndLegacyDynamicProbe(t
 	}
 }
 
+func TestPreflightProvidersRetryPolicyAllowsReadonlyCandidateReview(t *testing.T) {
+	root := privateTaskTemp(t)
+	task, marker := retryPolicyPreflightTask(t, root)
+	payload, err := adapter.DecodeInvocationPayload(task.AdapterPayload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload.CandidateAction = &adapter.CandidateAction{Version: 1, Operation: "review", SourceTask: "validate"}
+	task.AdapterPayload, err = json.Marshal(payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = preflightProviders(context.Background(), []coordinator.TaskRequest{task}); err != nil {
+		t.Fatalf("readonly candidate review rejected: %v", err)
+	}
+	if _, err = os.Stat(marker); !os.IsNotExist(err) {
+		t.Fatal("candidate review retry policy ran a dynamic probe")
+	}
+}
+
 func TestPreliminaryTaskPlanKeepsOriginalNestedRequest(t *testing.T) {
 	root := privateTaskTemp(t)
 	realDirectory := filepath.Join(root, "workspace")

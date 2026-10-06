@@ -44,8 +44,15 @@ func (d *DB) queuePolicyRetry(ctx context.Context, tx *sql.Tx, e contract.Event,
 	if err != nil {
 		return false, err
 	}
-	if state != "failed" || revision != e.WorkRevision || segment != "not_started" || attempt != "failed" || ordinal != latest || questions != 0 || candidateManaged([]byte(payload)) {
+	managed := candidateManaged([]byte(payload))
+	if state != "failed" || revision != e.WorkRevision || segment != "not_started" || attempt != "failed" || ordinal != latest || questions != 0 {
 		return false, nil
+	}
+	var revisionPayload string
+	if managed {
+		if revisionPayload, err = authorizePrelaunchReviewRetry(ctx, tx, e, payload); err != nil {
+			return false, nil
+		}
 	}
 	if index >= len(b.policy.Retry.BackoffMS) {
 		return false, nil
@@ -81,10 +88,10 @@ func (d *DB) queuePolicyRetry(ctx context.Context, tx *sql.Tx, e contract.Event,
 		return false, CodeError("retry_timestamp_overflow")
 	}
 	at := now.UnixMilli() + delay
-	if err = d.storageAdmission(ctx, tx, e.RunID, policyRetryStoredBytes(command, hash)+decisionBindingBytes(slot, e.TaskID, ""), false); err != nil {
+	if err = d.storageAdmission(ctx, tx, e.RunID, policyRetryStoredBytes(command, hash)+int64(len(revisionPayload))+decisionBindingBytes(slot, e.TaskID, ""), false); err != nil {
 		return false, err
 	}
-	if _, err = tx.ExecContext(ctx, `INSERT INTO retry_decisions(action_slot,task_id,work_revision,source_event_id,source_event_revision,source_event_hash,source_segment_id,next_attempt_no,use_next_fallback,command_id,created_at,revision_payload,origin,policy_sha256,eligible_at_unix_ms,backoff_index) VALUES(?,?,?,?,?,?,?,?,0,?,?,'','policy',?,?,?)`, slot, e.TaskID, e.WorkRevision, e.EventID, e.Sequence, e.PayloadHash, e.SegmentID, next, command, now.UTC().Format(time.RFC3339Nano), hash, at, index); err != nil {
+	if _, err = tx.ExecContext(ctx, `INSERT INTO retry_decisions(action_slot,task_id,work_revision,source_event_id,source_event_revision,source_event_hash,source_segment_id,next_attempt_no,use_next_fallback,command_id,created_at,revision_payload,origin,policy_sha256,eligible_at_unix_ms,backoff_index) VALUES(?,?,?,?,?,?,?,?,0,?,?,?,'policy',?,?,?)`, slot, e.TaskID, e.WorkRevision, e.EventID, e.Sequence, e.PayloadHash, e.SegmentID, next, command, now.UTC().Format(time.RFC3339Nano), revisionPayload, hash, at, index); err != nil {
 		return false, mapConflict(err)
 	}
 	if err = d.reserveDecisionBindings(ctx, tx, []decisionAttemptBinding{{slot: slot, task: e.TaskID, revision: e.WorkRevision}}); err != nil {

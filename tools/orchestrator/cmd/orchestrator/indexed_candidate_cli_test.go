@@ -116,7 +116,7 @@ func TestCLIIndexedCandidateDevelopmentDAG(t *testing.T) {
 		name := fmt.Sprintf("review-%d", i)
 		p := profile("reviewer", "read-only")
 		p["grok_session_write"] = true
-		tasks = append(tasks, map[string]any{"id": name, "dependencies": []string{"validate"}, "max_attempts": 1, "adapter": map[string]any{"provider": "grok-build", "provider_lock": grok, "profile": p, "directory": filepath.Join(root, name), "prompt": "Review assigned immutable chunks", "candidate_action": action("review", "validate", i)}})
+		tasks = append(tasks, map[string]any{"id": name, "dependencies": []string{"validate"}, "max_attempts": 2, "max_active_ms": 15000, "execution_policy": map[string]any{"version": 1, "group_max_attempts": 2, "group_max_active_ms": 30000, "task_max_active_ms": 30000, "segment_max_active_ms": 15000, "retry": map[string]any{"codes": []string{"probe_start_eagain", "probe_start_eintr"}, "backoff_ms": []int64{1}}}, "adapter": map[string]any{"provider": "grok-build", "provider_lock": grok, "profile": p, "directory": filepath.Join(root, name), "prompt": "Review assigned immutable chunks", "candidate_action": action("review", "validate", i)}})
 	}
 	integrate := action("integrate", "review-1", 1)
 	integrate["dependency_input_version"] = 1

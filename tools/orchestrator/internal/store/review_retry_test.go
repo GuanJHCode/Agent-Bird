@@ -38,6 +38,14 @@ func newReviewRetryFixtureWithConfig(t *testing.T, provider adapter.Provider, te
 }
 
 func newReviewRetryFixtureWithVector(t *testing.T, provider adapter.Provider, terminal string, ref *contract.ConfigGenerationRef, vector bool, sharedGroup ...bool) reviewRetryFixture {
+	return newReviewRetryFixtureWithOptions(t, provider, terminal, ref, vector, false, sharedGroup...)
+}
+
+func newReviewRetryPolicyFixture(t *testing.T, provider adapter.Provider, vector bool) reviewRetryFixture {
+	return newReviewRetryFixtureWithOptions(t, provider, "", nil, vector, true)
+}
+
+func newReviewRetryFixtureWithOptions(t *testing.T, provider adapter.Provider, terminal string, ref *contract.ConfigGenerationRef, vector, policy bool, sharedGroup ...bool) reviewRetryFixture {
 	t.Helper()
 	ctx := context.Background()
 	dir := t.TempDir()
@@ -48,6 +56,9 @@ func newReviewRetryFixtureWithVector(t *testing.T, provider adapter.Provider, te
 	t.Cleanup(func() { db.Close() })
 	lock := &adapter.ProviderLock{Version: 1, Provider: adapter.ProviderClaude, Protocol: adapter.ProtocolID(adapter.ProviderClaude), Binary: adapter.BinaryPin{Path: "/private/bin/claude", Version: "claude-test", SHA256: strings.Repeat("a", 64)}}
 	lock.Provider, lock.Protocol = provider, adapter.ProtocolID(provider)
+	if provider == adapter.ProviderGrok {
+		lock.Binary = adapter.BinaryPin{Path: "/private/bin/grok", Version: "grok 1.0.34 (3736acbc8658)", SHA256: strings.Repeat("a", 64)}
+	}
 	target := adapter.CandidateTarget{Worktree: "/private/repo", Ref: "refs/heads/main", BaseOID: strings.Repeat("a", 40)}
 	ids := []string{"edit", "validate", "review", "integrate"}
 	var tasks []TaskSpec
@@ -60,6 +71,12 @@ func newReviewRetryFixtureWithVector(t *testing.T, provider adapter.Provider, te
 		} else {
 			task.Dependencies = []string{ids[i-1]}
 			p.CandidateAction = &adapter.CandidateAction{Version: 1, Operation: id, SourceTask: ids[i-1], Target: target}
+			if provider == adapter.ProviderGrok {
+				p.CandidateAction.ReviewIndex = &adapter.ReviewIndex{Version: 1, Mode: "indexed_candidate_review_v1", Shards: 1, ReviewOrdinal: 0}
+				if id == "integrate" {
+					p.CandidateAction.DependencyInputVersion = 1
+				}
+			}
 			if id == "review" {
 				if vector {
 					p.CandidateAction.DependencyInputVersion = 1
@@ -68,6 +85,9 @@ func newReviewRetryFixtureWithVector(t *testing.T, provider adapter.Provider, te
 				p.Provider = string(provider)
 				p.ProviderLock = lock
 				p.Profile = &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: 180000}
+				if provider == adapter.ProviderGrok {
+					p.Profile.GrokSessionWrite = true
+				}
 				p.Prompt = "independently review"
 			} else {
 				p.Kind = "candidate"
@@ -81,6 +101,10 @@ func newReviewRetryFixtureWithVector(t *testing.T, provider adapter.Provider, te
 			if p.Profile != nil {
 				p.ConfigModelSource, p.Profile.Model = "saved-default", "a"
 			}
+		}
+		if id == "review" && policy {
+			task.MaxActiveMS = 500
+			task.ExecutionPolicy = &contract.ExecutionPolicy{Version: 1, GroupMaxAttempts: 3, GroupMaxActiveMS: 1_000, TaskMaxActiveMS: 600, SegmentMaxActiveMS: 200, Retry: &contract.RetryPolicy{Codes: []string{"probe_start_eagain", "probe_start_eintr"}, BackoffMS: []int64{1, 2}}}
 		}
 		task.AdapterPayload, _ = json.Marshal(p)
 		tasks = append(tasks, task)
@@ -152,6 +176,58 @@ func newReviewRetryFixtureWithVector(t *testing.T, provider adapter.Provider, te
 		}
 	}
 	return f
+}
+
+func TestPolicyRetryCandidateReviewPrelaunchPreservesFrozenInputs(t *testing.T) {
+	f := newReviewRetryPolicyFixture(t, adapter.ProviderClaude, true)
+	ctx := context.Background()
+	original := f.grant
+	e := contract.Event{Version: 1, ProducerID: f.host, EventID: "review-prelaunch", RunID: original.RunID, TaskID: original.TaskID, AttemptID: original.AttemptID, SegmentID: original.SegmentID, WorkRevision: original.WorkRevision, ExecutionEpoch: 1, CommandID: original.CommandID, Sequence: 5, Kind: contract.EventLaunchRejected, PayloadHash: strings.Repeat("a", 64), Artifact: &contract.ArtifactRef{ID: "launch-failure", Path: "/private/fixture/launch-failure/result-output.bin", Size: 100, SHA256: strings.Repeat("a", 64)}, Failure: &contract.FailureFacts{Version: 1, Stage: "prelaunch_probe", Code: "probe_start_eagain", WorkerState: "not_started", ProbeState: "not_started"}}
+	if _, err := f.db.CommitHostEvent(ctx, e); err != nil {
+		t.Fatal(err)
+	}
+	var queued int
+	if err := f.db.sql.QueryRow(`SELECT COUNT(*) FROM retry_decisions WHERE origin='policy'`).Scan(&queued); err != nil || queued != 1 {
+		tx, txErr := f.db.sql.BeginTx(ctx, nil)
+		if txErr == nil {
+			_, txErr = authorizePrelaunchReviewRetry(ctx, tx, e, string(original.AdapterPayload))
+			_ = tx.Rollback()
+		}
+		t.Fatalf("policy retry queued=%d err=%v authorization=%v", queued, err, txErr)
+	}
+	if _, err := f.db.sql.Exec(`UPDATE retry_decisions SET eligible_at_unix_ms=1 WHERE origin='policy'`); err != nil {
+		t.Fatal(err)
+	}
+	next, err := f.db.ClaimReady(ctx, f.host, 1, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldPayload, _ := adapter.DecodeInvocationPayload(original.AdapterPayload)
+	nextPayload, _ := adapter.DecodeInvocationPayload(next.AdapterPayload)
+	nextPayload.Directory = oldPayload.Directory
+	if next.WorkRevision != original.WorkRevision || !reflect.DeepEqual(next.Input, original.Input) || !reflect.DeepEqual(next.DependencyInputs, original.DependencyInputs) || !reflect.DeepEqual(nextPayload, oldPayload) {
+		t.Fatal("policy retry changed frozen candidate review grant")
+	}
+	var attempts, policies int
+	if err = f.db.sql.QueryRow(`SELECT COUNT(*),(SELECT COUNT(*) FROM retry_decisions WHERE origin='policy') FROM attempts WHERE task_id='review'`).Scan(&attempts, &policies); err != nil || attempts != 2 || policies != 1 {
+		t.Fatalf("attempts=%d policies=%d err=%v", attempts, policies, err)
+	}
+}
+
+func TestPolicyRetryIndexedCandidateReviewPrelaunchPreservesFrozenInputs(t *testing.T) {
+	lock := &adapter.ProviderLock{Version: 1, Provider: adapter.ProviderGrok, Protocol: adapter.ProtocolID(adapter.ProviderGrok), Binary: adapter.BinaryPin{Path: "/private/bin/grok", Version: "grok 1.0.34 (3736acbc8658)", SHA256: strings.Repeat("a", 64)}}
+	payload, err := json.Marshal(adapter.InvocationPayload{Provider: string(adapter.ProviderGrok), Directory: "/private/repo/review", ProviderLock: lock, Profile: &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, GrokSessionWrite: true, TimeoutMS: 180000}, CandidateAction: &adapter.CandidateAction{Version: 1, Operation: "review", SourceTask: "validate", Target: adapter.CandidateTarget{Worktree: "/private/repo", Ref: "refs/heads/main", BaseOID: strings.Repeat("a", 40)}, ReviewIndex: &adapter.ReviewIndex{Version: 1, Mode: "indexed_candidate_review_v1", Shards: 3, ReviewOrdinal: 2}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	command := contract.LaunchCommand{RunID: "run", TaskID: "review", AttemptID: "next", AdapterPayload: payload}
+	if _, err = applyReviewRetryGrant(&command, reviewRetryDecision{Kind: reviewRetryKind, AdapterSHA256: runtimeHash(string(payload)), InputSHA256: strings.Repeat("b", 64)}); err != nil {
+		t.Fatal(err)
+	}
+	next, err := adapter.DecodeInvocationPayload(command.AdapterPayload)
+	if err != nil || next.CandidateAction.ReviewIndex == nil || next.CandidateAction.ReviewIndex.ReviewOrdinal != 2 || next.CandidateAction.ReviewIndex.Shards != 3 {
+		t.Fatalf("indexed retry changed assignment: %+v %v", next.CandidateAction, err)
+	}
 }
 
 func TestCandidateReviewRetryUsesFreshBoundAttemptWithoutResettingBudget(t *testing.T) {

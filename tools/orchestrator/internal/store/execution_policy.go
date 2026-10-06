@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -65,11 +66,19 @@ func normalizeExecutionTask(task TaskSpec) (TaskSpec, error) {
 				}
 			}
 		}
+		if candidateManaged(task.AdapterPayload) {
+			if len(task.FallbackPayloads) != 0 {
+				return task, CodeError("execution_policy_retry_stage_unsupported")
+			}
+			if _, err := reviewRetryProfile(task.AdapterPayload); err != nil {
+				return task, CodeError("execution_policy_retry_stage_unsupported")
+			}
+		}
 		for _, payload := range append([]json.RawMessage{task.AdapterPayload}, task.FallbackPayloads...) {
 			var raw struct {
 				Kind string `json:"kind"`
 			}
-			if candidateManaged(payload) || (json.Unmarshal(payload, &raw) == nil && raw.Kind == "gitops") {
+			if (candidateManaged(payload) && !bytes.Equal(payload, task.AdapterPayload)) || (json.Unmarshal(payload, &raw) == nil && raw.Kind == "gitops") {
 				return task, CodeError("execution_policy_retry_stage_unsupported")
 			}
 		}
