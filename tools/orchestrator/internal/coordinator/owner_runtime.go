@@ -341,7 +341,7 @@ func (s *Server) handleOriginalOwnerRPC(conn net.Conn) {
 		return
 	}
 	body, _ = json.Marshal(reply)
-	if s.ownerRPCReplyHook != nil && s.ownerRPCReplyHook(request) {
+	if err == nil && s.ownerRPCReplyHook != nil && s.ownerRPCReplyHook(request) {
 		return
 	}
 	_ = ipc.Write(conn, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindResponse, RequestID: request.RequestID, Epoch: s.epoch, Payload: body})

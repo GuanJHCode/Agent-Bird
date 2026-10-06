@@ -203,34 +203,11 @@ func recoverCurrentOwnerTransport(ctx context.Context, cfg OriginalOwnerConfig, 
 	var renewal *contract.OwnerAttachRequest
 	var requestID string
 	for {
-		when, err := recovery.reserveCoordinator(time.Now())
-		if err != nil {
-			return err
-		}
-		if delay := time.Until(when); delay > 0 {
-			timer := time.NewTimer(delay)
-			select {
-			case <-ctx.Done():
-				timer.Stop()
-				return context.Cause(ctx)
-			case <-timer.C:
-			}
-		}
-		if err = recovery.beginCoordinatorEnsure(); err != nil {
-			return err
-		}
 		execution.pausePublication() // before Ensure/reconnect/Attach RPCs
-		err = cfg.EnsureCoordinator(ctx)
-		finishErr := recovery.finishCoordinatorEnsure()
-		if finishErr != nil {
-			return finishErr
-		}
-		if err != nil {
-			if transientSourceError(err) {
-				continue
-			}
+		if err := ensureOwnerRuntimeCoordinator(ctx, cfg, recovery); err != nil {
 			return err
 		}
+		var err error
 		control, _ := json.Marshal(contract.OwnerTransportControl{Version: 1, Action: "connect"})
 		if err = writeOwnerTransportFrame(ctx, transport.control, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindOwnerTransportControl, RequestID: "owner-reconnect", Payload: control}); err != nil {
 			// A failed local control write may have sent a partial frame. This
@@ -278,7 +255,10 @@ func recoverCurrentOwnerTransport(ctx context.Context, cfg OriginalOwnerConfig, 
 		// existing permit is still the exact durable authority: replay applied /
 		// activate through reconcile and never manufacture an Attach revision.
 		if reply.CoordinatorEpoch == state.Permit.CoordinatorEpoch {
-			return execution.reconcile(ctx, state.Permit)
+			if err = execution.reconcile(ctx, state.Permit); ownerExecutionNeedsRecovery(err) {
+				continue
+			}
+			return err
 		}
 		if renewal == nil {
 			old := state.Permit.NewHost
@@ -308,7 +288,10 @@ func recoverCurrentOwnerTransport(ctx context.Context, cfg OriginalOwnerConfig, 
 			renewal, requestID = nil, ""
 			continue
 		}
-		return execution.reconcile(ctx, permit)
+		if err = execution.reconcile(ctx, permit); ownerExecutionNeedsRecovery(err) {
+			continue
+		}
+		return err
 	}
 }
 
@@ -370,7 +353,7 @@ func recoverDeadOwnerTransportWithStart(ctx context.Context, cfg OriginalOwnerCo
 	execution.pausePublication()
 	// Ticket and Attach are independently signed by the existing owner key.
 	// The new child can exchange only this exact ticket for the escrowed token.
-	reply, err := enrollment.client.Call(ctx, current.ControlRevision, "ticket", pending.RequestID, pending)
+	reply, err := callPendingOwnerRPC(ctx, cfg, recovery, enrollment.client.Call, current.ControlRevision, "ticket", pending.RequestID, pending)
 	if err != nil {
 		return err
 	}
@@ -404,7 +387,7 @@ pendingSession:
 		}
 	}
 	attach := contract.OwnerAttachRequest{ExpectedControlRevision: current.ControlRevision, OldHost: pending.OldHost, NewHost: pending.NewHost, Pending: &pending}
-	reply, err = enrollment.client.Call(ctx, current.ControlRevision, "attach", pending.RequestID, attach)
+	reply, err = callPendingOwnerRPC(ctx, cfg, recovery, enrollment.client.Call, current.ControlRevision, "attach", pending.RequestID, attach)
 	if err != nil {
 		return err
 	}
@@ -415,8 +398,65 @@ pendingSession:
 	if err = recovery.markTransportAttached(permit); err != nil {
 		return err
 	}
-	if err = execution.reconcile(ctx, permit); err != nil {
-		return err
+	if err = execution.reconcile(ctx, permit); ownerExecutionNeedsRecovery(err) {
+		// The signed permit has installed this exact child as current. Keep
+		// its original Wait and durable stage; reconnect/replay uses the same
+		// shared budget as any other current-transport interruption.
+		return recoverCurrentOwnerTransport(ctx, cfg, enrollment, execution, lifecycle, recovery, transport, ownerRuntimeNotice{generation: transport.generation, cause: err})
 	}
-	return nil
+	return err
+}
+
+// Each retry preserves the exact ticket/attach request and the already-started
+// child. A verified application refusal is never retried by its error text.
+// Cross-epoch pending-session renewal is handled separately from these RPCs;
+// a signed refusal here remains fail closed.
+func callPendingOwnerRPC(ctx context.Context, cfg OriginalOwnerConfig, recovery *ownerRecoveryState, call ownerExecutionRPC, revision uint64, kind, id string, body any) (contract.OwnerRPCReply, error) {
+	for {
+		operation, cancel := context.WithTimeout(ctx, 2*time.Second)
+		reply, err := call(operation, revision, kind, id, body)
+		cancel()
+		if err == nil || reply.Version != 0 || !transientSourceError(err) {
+			return reply, err
+		}
+		if err = ensureOwnerRuntimeCoordinator(ctx, cfg, recovery); err != nil {
+			return contract.OwnerRPCReply{}, err
+		}
+	}
+}
+
+// Coordinator recovery and pending reply repair charge the same durable five
+// attempts. The transport's StartSlot and original Cmd/Wait are never replaced.
+func ensureOwnerRuntimeCoordinator(ctx context.Context, cfg OriginalOwnerConfig, recovery *ownerRecoveryState) error {
+	if cfg.EnsureCoordinator == nil {
+		return errOriginalOwnerRuntime
+	}
+	for {
+		if err := context.Cause(ctx); err != nil {
+			return err
+		}
+		when, err := recovery.reserveCoordinator(time.Now())
+		if err != nil {
+			return err
+		}
+		if delay := time.Until(when); delay > 0 {
+			timer := time.NewTimer(delay)
+			select {
+			case <-ctx.Done():
+				timer.Stop()
+				return context.Cause(ctx)
+			case <-timer.C:
+			}
+		}
+		if err = recovery.beginCoordinatorEnsure(); err != nil {
+			return err
+		}
+		err = cfg.EnsureCoordinator(ctx)
+		if finishErr := recovery.finishCoordinatorEnsure(); finishErr != nil {
+			return finishErr
+		}
+		if err == nil || !transientSourceError(err) {
+			return err
+		}
+	}
 }
