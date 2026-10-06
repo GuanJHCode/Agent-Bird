@@ -107,31 +107,35 @@ func linuxUID(ctx context.Context, pid int) (int, error) {
 	return 0, CodeError("process_birth_unknown")
 }
 func linuxExecutablePath(ctx context.Context, pid int) (string, error) {
-	b1, e := linuxBirth(ctx, pid)
+	return linuxExecutablePathWith(ctx, pid, linuxBirth, os.Readlink, filepath.EvalSymlinks, os.Stat)
+}
+func linuxExecutablePathWith(ctx context.Context, pid int, birth func(context.Context, int) (string, error), readlink func(string) (string, error), eval func(string) (string, error), stat func(string) (os.FileInfo, error)) (string, error) {
+	b1, e := birth(ctx, pid)
 	if e != nil {
 		return "", e
 	}
-	raw, e := os.Readlink(fmt.Sprintf("/proc/%d/exe", pid))
+	kernelPath := fmt.Sprintf("/proc/%d/exe", pid)
+	raw, e := readlink(kernelPath)
 	if e != nil || strings.HasSuffix(raw, " (deleted)") || !filepath.IsAbs(raw) {
 		return "", CodeError("process_executable_platform_unsupported")
 	}
-	p, e := filepath.EvalSymlinks(raw)
+	p, e := eval(raw)
 	if e != nil {
 		return "", CodeError("process_executable_platform_unsupported")
 	}
-	rawInfo, e := os.Stat(raw)
-	if e != nil || !rawInfo.Mode().IsRegular() {
+	kernelInfo, e := stat(kernelPath)
+	if e != nil || !kernelInfo.Mode().IsRegular() {
 		return "", CodeError("process_executable_platform_unsupported")
 	}
-	info, e := os.Stat(p)
-	if e != nil || !info.Mode().IsRegular() || !os.SameFile(rawInfo, info) {
+	info, e := stat(p)
+	if e != nil || !info.Mode().IsRegular() || !os.SameFile(kernelInfo, info) {
 		return "", CodeError("process_executable_platform_unsupported")
 	}
-	raw2, e := os.Readlink(fmt.Sprintf("/proc/%d/exe", pid))
+	raw2, e := readlink(kernelPath)
 	if e != nil || raw2 != raw {
 		return "", CodeError("process_executable_platform_unsupported")
 	}
-	b2, e := linuxBirth(ctx, pid)
+	b2, e := birth(ctx, pid)
 	if e != nil || b1 != b2 {
 		return "", CodeError("process_executable_platform_unsupported")
 	}
@@ -139,6 +143,27 @@ func linuxExecutablePath(ctx context.Context, pid int) (string, error) {
 }
 
 func linuxAncestryContext(ctx context.Context, pid int) (map[int]string, error) {
+	return linuxAncestryContextWith(ctx, pid, linuxObserveAncestor, linuxBoot)
+}
+func linuxObserveAncestor(ctx context.Context, pid int) (linuxStat, int, error) {
+	before, err := linuxStatFor(ctx, pid)
+	if err != nil {
+		return linuxStat{}, 0, err
+	}
+	uid, err := linuxUID(ctx, pid)
+	if err != nil {
+		return linuxStat{}, 0, err
+	}
+	after, err := linuxStatFor(ctx, pid)
+	if err != nil {
+		return linuxStat{}, 0, err
+	}
+	if before.start != after.start || before.ppid != after.ppid || before.pgid != after.pgid {
+		return linuxStat{}, 0, errors.New("process_ancestry_unknown")
+	}
+	return before, uid, nil
+}
+func linuxAncestryContextWith(ctx context.Context, pid int, observe func(context.Context, int) (linuxStat, int, error), boot func(context.Context) (string, error)) (map[int]string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 64*time.Second)
 	defer cancel()
 	if pid <= 0 {
@@ -156,27 +181,19 @@ func linuxAncestryContext(ctx context.Context, pid int) (map[int]string, error) 
 			return nil, errors.New("process_ancestry_invalid")
 		}
 		nctx, ncancel := context.WithTimeout(ctx, time.Second)
-		before, err := linuxStatFor(nctx, pid)
-		uid := 0
-		if err == nil {
-			uid, err = linuxUID(nctx, pid)
-		}
-		after := linuxStat{}
-		if err == nil {
-			after, err = linuxStatFor(nctx, pid)
-		}
+		before, uid, err := observe(nctx, pid)
 		ncancel()
-		if err != nil || before.start != after.start || before.ppid != after.ppid || before.pgid != after.pgid {
+		if err != nil {
 			return nil, errors.New("process_ancestry_unknown")
 		}
 		if uid != os.Geteuid() {
 			break
 		}
-		b, err := linuxBirth(ctx, pid)
+		bootID, err := boot(ctx)
 		if err != nil {
 			return nil, err
 		}
-		result[pid] = b
+		result[pid] = "linux:" + bootID + ":" + before.start
 		pid = before.ppid
 	}
 	return result, nil
