@@ -8,6 +8,7 @@ import (
 
 func downgradeDependencySchema(t *testing.T, db *DB) {
 	t.Helper()
+	downgradeOwnerAppliedSchema(t, db)
 	for _, stmt := range []string{`DROP TRIGGER quota_dependency_inputs_INSERT`, `DROP TRIGGER quota_dependency_inputs_UPDATE`, `DROP TRIGGER quota_dependency_inputs_DELETE`, `DROP TRIGGER dependency_inputs_pair_insert`, `DROP TRIGGER dependency_inputs_pair_update`, `ALTER TABLE segment_runtime DROP COLUMN dependency_inputs_sha256`, `ALTER TABLE segment_runtime DROP COLUMN dependency_inputs_json`, `UPDATE schema_meta SET version=15`} {
 		if _, err := db.sql.Exec(stmt); err != nil {
 			t.Fatal(err)

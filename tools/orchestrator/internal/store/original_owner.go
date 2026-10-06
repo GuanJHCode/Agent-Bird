@@ -38,13 +38,14 @@ type BindOriginalOwnerSpec struct {
 }
 
 type OriginalOwnerState struct {
-	Intent           contract.OriginalOwnerIntent
-	Phase            string
-	IsCurrent        bool
-	ControlRevision  uint64
-	CurrentHost      *contract.OriginalOwnerTransport
-	CoordinatorEpoch uint64
-	Binding          *contract.OriginalOwnerBinding
+	Intent                 contract.OriginalOwnerIntent
+	Phase                  string
+	IsCurrent              bool
+	ControlRevision        uint64
+	AppliedControlRevision uint64
+	CurrentHost            *contract.OriginalOwnerTransport
+	CoordinatorEpoch       uint64
+	Binding                *contract.OriginalOwnerBinding
 }
 
 type OriginalOwnerBindResult struct {
@@ -163,6 +164,9 @@ func (d *DB) CommitOriginalOwnerAttach(ctx context.Context, spec OriginalOwnerAt
 	n, err := result.RowsAffected()
 	if err != nil || n != 1 {
 		return contract.OwnerControlPermit{}, ErrConflict
+	}
+	if err = moveOwnerTransport(ctx, tx, i.Scope, spec.OldHost, spec.NewHost, spec.Epoch); err != nil {
+		return contract.OwnerControlPermit{}, err
 	}
 	if err = insertOriginalOwnerPermit(ctx, tx, i, p, body, hash, now); err != nil {
 		return contract.OwnerControlPermit{}, err
