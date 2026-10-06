@@ -181,7 +181,8 @@ type ErrorResponse struct {
 }
 
 type hostSession struct {
-	ownerPermit     *contract.OwnerControlPermit // immutable before dispatch publication
+	ownerPermit     *contract.OwnerControlPermit   // immutable before dispatch publication
+	ownerTicket     *contract.OwnerTransportTicket // immutable pending enrollment
 	ownerKey        ed25519.PrivateKey
 	helloRequestID  string
 	transportClosed atomic.Bool
@@ -222,7 +223,8 @@ type Server struct {
 	mu                 sync.Mutex
 	hostRegistrationMu sync.Mutex
 	hosts              map[string]*hostSession
-	ownerTransports    map[string]*hostSession // pending and active, guarded by mu
+	ownerTransports    map[string]*hostSession               // pending and active, guarded by mu
+	ownerTickets       map[string]*ownerTransportTicketState // mutation holds registration and mu
 	ownerAdmission     chan struct{}
 	ownerRPCMu         sync.Mutex
 	ownerRPCs          map[net.Conn]struct{}
@@ -1068,6 +1070,10 @@ func (s *Server) authorizeHostHello(ctx context.Context, conn net.Conn, hello co
 	}
 	if bindingErr == nil && binding.PID == pid && binding.Birth == hello.Birth {
 		delete(workerAncestry, pid)
+	}
+	if state, _, authErr := s.authorizedOwnerTransport(ctx, hello); authErr == nil {
+		delete(workerAncestry, pid)
+		delete(workerAncestry, state.Binding.Owner.PID)
 	}
 	worker, err := s.db.IsWorkerAncestry(ctx, workerAncestry)
 	if err != nil || worker {

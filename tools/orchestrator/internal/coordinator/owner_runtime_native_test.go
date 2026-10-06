@@ -26,6 +26,7 @@ import (
 )
 
 type ownerChildConfig struct {
+	Transport      bool
 	Socket         string
 	Prepared       contract.OwnerPrepared
 	BootstrapToken string
@@ -59,6 +60,10 @@ func TestOriginalOwnerRPCChild(t *testing.T) {
 	if err := decoder.Decode(&config); err != nil {
 		t.Fatal(err)
 	}
+	if config.Transport {
+		runOwnerTransportTestChild(t, config, decoder, encoder)
+		return
+	}
 	pub, key, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		t.Fatal(err)
@@ -75,12 +80,43 @@ func TestOriginalOwnerRPCChild(t *testing.T) {
 	client := ipc.OwnerClient{SocketPath: config.Socket, Intent: config.Prepared.Intent, Owner: owner, PrivateKey: key, CoordinatorKey: ed25519.PublicKey(coordinatorKey)}
 	var bound contract.OwnerBindReply
 	var applied contract.OwnerPermitApplied
+	var transportStep func(ownerChildStep) ownerChildReply
+	var transportFinish func()
+	defer func() {
+		if transportFinish != nil {
+			transportFinish()
+		}
+	}()
 	for {
 		var step ownerChildStep
 		if err := decoder.Decode(&step); errors.Is(err, io.EOF) {
 			return
 		} else if err != nil {
 			t.Fatal(err)
+		}
+		if step.Kind == "spawn_transport" {
+			if transportStep != nil {
+				t.Fatal("second transport Start")
+			}
+			childConfig := config
+			childConfig.Transport = true
+			childConfig.BootstrapToken = ""
+			transportStep, transportFinish = startOwnerRPCChild(t, childConfig)
+			reply := transportStep(ownerChildStep{Kind: "identity"})
+			if err := encoder.Encode(reply); err != nil {
+				t.Fatal(err)
+			}
+			continue
+		}
+		if step.Kind == "transport" {
+			var childStep ownerChildStep
+			if transportStep == nil || json.Unmarshal(step.Body, &childStep) != nil {
+				t.Fatal("missing transport step")
+			}
+			if err := encoder.Encode(transportStep(childStep)); err != nil {
+				t.Fatal(err)
+			}
+			continue
 		}
 		if step.Kind == "identity" {
 			if err := encoder.Encode(ownerChildReply{Owner: owner}); err != nil {
@@ -126,6 +162,18 @@ func TestOriginalOwnerRPCChild(t *testing.T) {
 			}
 			if contract.VerifyOriginalOwnerBinding(bound.Binding, client.CoordinatorKey) != nil || contract.VerifyOwnerControlPermit(bound.Permit, client.CoordinatorKey) != nil {
 				t.Fatal("invalid binding/permit")
+			}
+		}
+		if err == nil && !step.DropReply && kind == "state" {
+			var state contract.OwnerRuntimeState
+			if err = contract.DecodeOwnerRuntimeStrict(reply.Body, &state); err != nil {
+				t.Fatal(err)
+			}
+			bound = contract.OwnerBindReply{Binding: state.Binding, Permit: state.Permit}
+		}
+		if err == nil && !step.DropReply && kind == "attach" {
+			if err = contract.DecodeOwnerRuntimeStrict(reply.Body, &bound.Permit); err != nil {
+				t.Fatal(err)
 			}
 		}
 		if err = encoder.Encode(ownerChildReply{Error: errorCode(err), Body: reply.Body, Owner: owner}); err != nil {
@@ -243,6 +291,9 @@ func startOwnerRPCChild(t *testing.T, config ownerChildConfig) (func(ownerChildS
 			t.Fatal("owner child timed out")
 		}
 		t.Logf("owner child pid=%d original Wait=0, natural bootstrap EOF, no timeout/forced cleanup", cmd.Process.Pid)
+		if strings.Contains(logs.String(), "original Wait=") {
+			t.Logf("nested original child evidence:\n%s", logs.String())
+		}
 	}
 	return step, finish
 }

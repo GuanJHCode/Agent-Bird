@@ -41,6 +41,7 @@ type OwnerAttachRequest struct {
 	ExpectedControlRevision uint64                 `json:"expected_control_revision"`
 	OldHost                 OriginalOwnerTransport `json:"old_host"`
 	NewHost                 OriginalOwnerTransport `json:"new_host"`
+	Pending                 *OwnerTransportPending `json:"pending,omitempty"`
 }
 type OwnerRuntimeState struct {
 	Binding                OriginalOwnerBinding `json:"binding"`

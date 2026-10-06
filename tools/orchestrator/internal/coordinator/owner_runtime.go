@@ -101,12 +101,24 @@ func (s *Server) registerOriginalOwnerTransport(ctx context.Context, conn net.Co
 	if released, err := s.db.ReleasedHostIdentity(ctx, hello); err != nil || released {
 		return nil, pending, ownerRejected()
 	}
-	hostID, err := s.db.RegisterHost(ctx, hello, s.epoch)
-	if err != nil {
-		return nil, pending, err
-	}
-	if err = s.db.BeginHostReconcile(ctx, hostID); err != nil {
-		return nil, pending, err
+	var ticket *contract.OwnerTransportTicket
+	hostID := ""
+	binding, bindingErr := s.db.HostBinding(ctx, hello.LaunchID)
+	if bindingErr == nil && (binding.PID != hello.PID || binding.Birth != hello.Birth) {
+		state, admitted, err := s.authorizedOwnerTransport(ctx, hello)
+		if err != nil || admitted == nil {
+			return nil, pending, store.ErrHostRejected
+		}
+		hostID, ticket = state.Intent.Scope.ProducerID, admitted
+	} else {
+		var err error
+		hostID, err = s.db.RegisterHost(ctx, hello, s.epoch)
+		if err != nil {
+			return nil, pending, err
+		}
+		if err = s.db.BeginHostReconcile(ctx, hostID); err != nil {
+			return nil, pending, err
+		}
 	}
 	pending = contract.OwnerHostPending{Version: 1, HostID: hostID, CoordinatorEpoch: s.epoch, CoordinatorPublicKey: hex.EncodeToString(s.ownerPublicKey())}
 	owner, err := s.db.CurrentOriginalOwnerForLaunch(ctx, hello.LaunchID)
@@ -115,7 +127,7 @@ func (s *Server) registerOriginalOwnerTransport(ctx context.Context, conn net.Co
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return nil, pending, err
 	}
-	session := &hostSession{id: hostID, hello: hello, conn: conn, helloRequestID: requestID, supervised: true}
+	session := &hostSession{id: hostID, hello: hello, conn: conn, helloRequestID: requestID, supervised: true, ownerTicket: ticket}
 	s.mu.Lock()
 	if s.closed.Load() {
 		s.mu.Unlock()
@@ -267,7 +279,14 @@ func (s *Server) handleOriginalOwnerRPC(conn net.Conn) {
 	deadline, _ := ctx.Deadline()
 	_ = conn.SetDeadline(deadline)
 	message, err := ipc.Read(conn)
-	if err != nil || message.Kind != ipc.KindOwnerRPC {
+	if err != nil {
+		return
+	}
+	if message.Kind == ipc.KindOwnerTransportExchange {
+		s.exchangeOwnerTransportTicket(ctx, conn, message)
+		return
+	}
+	if message.Kind != ipc.KindOwnerRPC {
 		return
 	}
 	var opening contract.OwnerRPCOpen
@@ -382,12 +401,34 @@ func (s *Server) originalOwnerRPC(ctx context.Context, kernelPID int, opening co
 		}
 		return current, nil, nil
 	}
-	if request.Kind != "attach" && (request.ControlRevision != state.ControlRevision || state.CoordinatorEpoch != s.epoch) {
+	if request.Kind != "attach" && request.Kind != "ticket" && (request.ControlRevision != state.ControlRevision || state.CoordinatorEpoch != s.epoch) {
 		return reject()
+	}
+	if request.Kind == "ticket" {
+		var pending contract.OwnerTransportPending
+		if contract.DecodeOwnerRuntimeStrict(request.Body, &pending) != nil || request.ControlRevision != pending.ExpectedControlRevision || request.RequestID != pending.RequestID {
+			return reject()
+		}
+		ticket, err := s.issueOwnerTransportTicket(ctx, state, pending)
+		return ticket, nil, err
 	}
 	if request.Kind == "attach" {
 		var attach contract.OwnerAttachRequest
 		if contract.DecodeOwnerRuntimeStrict(request.Body, &attach) != nil || request.ControlRevision != attach.ExpectedControlRevision || session == nil || !ownerOriginAlive(state.Intent.Scope) || s.terminating.Load() {
+			return reject()
+		}
+		if attach.OldHost != attach.NewHost {
+			if session.transportClosed.Load() || s.authenticateOwnerTransportChild(ctx, state, attach.NewHost) != nil {
+				return reject()
+			}
+			entry, ok := s.ownerTicketSnapshot(request.OwnerID)
+			if attach.Pending == nil || session.ownerTicket == nil || !ok || !entry.redeemed || entry.ticket != *session.ownerTicket || entry.ticket.Pending != *attach.Pending || request.RequestID != attach.Pending.RequestID || attach.ExpectedControlRevision != attach.Pending.ExpectedControlRevision || attach.OldHost != attach.Pending.OldHost || attach.NewHost != attach.Pending.NewHost {
+				return reject()
+			}
+			if !entry.attached && contract.VerifyOwnerTransportTicket(entry.ticket, s.ownerPublicKey(), s.epoch, time.Now().UnixMilli()) != nil {
+				return reject()
+			}
+		} else if attach.Pending != nil {
 			return reject()
 		}
 		var exited *contract.OriginalOwnerTransport
@@ -399,6 +440,11 @@ func (s *Server) originalOwnerRPC(ctx context.Context, kernelPID int, opening co
 			exited = &attach.OldHost
 		}
 		permit, err := s.db.CommitOriginalOwnerAttach(ctx, store.OriginalOwnerAttachSpec{OwnerID: request.OwnerID, ScopeSHA256: scopeHash, OwnerIdentitySHA256: identityHash, CoordinatorKeyID: s.ownerKeys.id, ExpectedControlRevision: attach.ExpectedControlRevision, OldHost: attach.OldHost, NewHost: attach.NewHost, Epoch: s.epoch, RequestID: request.RequestID, RequestSHA256: request.BodySHA256, Authentication: store.OriginalOwnerAttachAuthentication{Owner: auth, Host: session.hello, Epoch: s.epoch, ExitedHost: exited}}, s.ownerKeys.sign)
+		if err == nil && attach.Pending != nil {
+			s.mu.Lock()
+			s.ownerTickets[request.OwnerID].attached = true
+			s.mu.Unlock()
+		}
 		return permit, nil, err
 	}
 	if request.Kind == "applied" || request.Kind == "activate" {
