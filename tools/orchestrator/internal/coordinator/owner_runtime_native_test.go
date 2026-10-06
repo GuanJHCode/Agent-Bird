@@ -12,9 +12,12 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -33,7 +36,7 @@ func TestOriginalOwnerRuntimeChild(t *testing.T) {
 	if os.Getenv("ORCHESTRATOR_OWNER_RUNTIME_CHILD") != "1" {
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer cancel()
 	control, err := ipc.TakeOwnerControlFD(4)
 	if err != nil {
@@ -54,20 +57,32 @@ func TestOriginalOwnerRuntimeChild(t *testing.T) {
 	}
 }
 
-type ownerRuntimeSleep struct{}
+type ownerRuntimeSleep struct{ marker string }
 
-func (ownerRuntimeSleep) Args() []string                 { return []string{"/bin/sleep", "30"} }
-func (ownerRuntimeSleep) WorkingDirectory() string       { return "/private/tmp" }
-func (ownerRuntimeSleep) Stdin() []byte                  { return nil }
-func (ownerRuntimeSleep) Environment() map[string]string { return map[string]string{} }
+func (i ownerRuntimeSleep) Args() []string {
+	return []string{"/bin/sh", "-c", "echo $$ > \"$OWNER_RUNTIME_MARKER\"; exec /bin/sleep 30"}
+}
+func (ownerRuntimeSleep) WorkingDirectory() string { return "/private/tmp" }
+func (ownerRuntimeSleep) Stdin() []byte            { return nil }
+func (i ownerRuntimeSleep) Environment() map[string]string {
+	return map[string]string{"OWNER_RUNTIME_MARKER": i.marker}
+}
 
 func ownerRuntimeSleepInvocation(context.Context, contract.LaunchCommand) (contract.InvocationView, error) {
-	return ownerRuntimeSleep{}, nil
+	return ownerRuntimeSleep{marker: os.Getenv("OWNER_RUNTIME_MARKER")}, nil
 }
 
 // startRealOwnerRuntimeChild gives recovery tests a real FD3/FD4 owner while
 // leaving the first transport connection under the test's control.
-func startRealOwnerRuntimeChild(t *testing.T, bootstrap contract.OwnerRuntimeBootstrap) (*net.UnixConn, *exec.Cmd, <-chan struct{}) {
+type realOwnerRuntimeChild struct {
+	command  *exec.Cmd
+	identity contract.OriginalOwnerTransport
+	done     chan struct{}
+	mu       sync.Mutex
+	waitErr  error
+}
+
+func startRealOwnerRuntimeChild(t *testing.T, bootstrap contract.OwnerRuntimeBootstrap, marker string) (*net.UnixConn, *realOwnerRuntimeChild) {
 	t.Helper()
 	parent, childFD, err := ipc.NewOwnerControlPair()
 	if err != nil {
@@ -77,20 +92,23 @@ func startRealOwnerRuntimeChild(t *testing.T, bootstrap contract.OwnerRuntimeBoo
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestOriginalOwnerRuntimeChild$", "-test.v")
-	cmd.Env = append(os.Environ(), "ORCHESTRATOR_OWNER_RUNTIME_CHILD=1")
+	cmd := exec.Command(os.Args[0], "-test.run=^TestOriginalOwnerRuntimeChild$", "-test.v")
+	cmd.Env = append(os.Environ(), "ORCHESTRATOR_OWNER_RUNTIME_CHILD=1", "OWNER_RUNTIME_MARKER="+marker)
 	cmd.ExtraFiles = []*os.File{reader, childFD}
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	cmd.Stdout, cmd.Stderr = os.Stderr, os.Stderr
 	if err = cmd.Start(); err != nil {
-		cancel()
 		t.Fatal(err)
 	}
 	_ = reader.Close()
 	_ = childFD.Close()
-	done := make(chan struct{})
-	go func() { _ = cmd.Wait(); cancel(); close(done) }()
+	identity := contract.OriginalOwnerTransport{PID: cmd.Process.Pid}
+	identity.Birth, err = process.BirthContext(context.Background(), identity.PID)
+	if err != nil || identity.Validate() != nil {
+		t.Fatal("owner child birth", err)
+	}
+	child := &realOwnerRuntimeChild{command: cmd, identity: identity, done: make(chan struct{})}
+	go func() { child.mu.Lock(); child.waitErr = cmd.Wait(); child.mu.Unlock(); close(child.done) }()
 	raw, _ := json.Marshal(bootstrap)
 	if err = writer.SetWriteDeadline(time.Now().Add(5 * time.Second)); err != nil {
 		t.Fatal(err)
@@ -104,13 +122,14 @@ func startRealOwnerRuntimeChild(t *testing.T, bootstrap contract.OwnerRuntimeBoo
 	t.Cleanup(func() {
 		_ = parent.Close()
 		select {
-		case <-done:
+		case <-child.done:
 		case <-time.After(5 * time.Second):
 			_ = cmd.Process.Kill()
-			<-done
+			<-child.done
+			t.Errorf("forced cleanup of original owner child")
 		}
 	})
-	return parent, cmd, done
+	return parent, child
 }
 
 func TestOriginalOwnerNativeSameTupleHardRestart(t *testing.T) {
@@ -155,16 +174,13 @@ func TestOriginalOwnerNativeSameTupleHardRestart(t *testing.T) {
 	}
 	prepared.RPCSocketPath = filepath.Join(stateDir, "owner.sock")
 	boot := contract.OwnerRuntimeBootstrap{Version: 1, StateDir: stateDir, SpoolRoot: filepath.Join(stateDir, "host-spool", hello.LaunchID), Prepared: prepared, BootstrapToken: token}
-	control, child, done := startRealOwnerRuntimeChild(t, boot)
-	birth, err := process.BirthContext(ctx, child.Process.Pid)
-	if err != nil {
-		t.Fatal(err)
-	}
+	marker := filepath.Join(t.TempDir(), "worker.pid")
+	control, child := startRealOwnerRuntimeChild(t, boot, marker)
 	boundFrame, err := ipc.Read(control)
 	if err != nil {
 		t.Fatal(err)
 	}
-	bound, err := host.VerifyInitialOwnerBound(boot, contract.OriginalOwnerTransport{PID: child.Process.Pid, Birth: birth}, boundFrame)
+	bound, err := host.VerifyInitialOwnerBound(boot, child.identity, boundFrame)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -190,6 +206,41 @@ func TestOriginalOwnerNativeSameTupleHardRestart(t *testing.T) {
 		s.mu.Unlock()
 		t.Logf("activate evidence host_status=%q transport_present=%t transport_closed=%t permit_epoch=%d revision=%d applied=%d", presence.Status, session != nil, session != nil && session.transportClosed.Load(), state.Permit.CoordinatorEpoch, state.Permit.ControlRevision, state.AppliedControlRevision)
 		t.Fatalf("initial activate %+v", state)
+	}
+	// This is the Coordinator's real signed launch frame, read from the
+	// original transport and forwarded unchanged to the owner FD4 reader.
+	var launch ipc.Envelope
+	for {
+		frame, readErr := ipc.Read(conn)
+		if readErr != nil {
+			t.Fatal(readErr)
+		}
+		if frame.Kind == ipc.KindOwnerCommand {
+			launch = frame
+			break
+		}
+	}
+	if err = ipc.Write(control, launch); err != nil {
+		t.Fatal(err)
+	}
+	deadline = time.Now().Add(5 * time.Second)
+	var workerPID int
+	for time.Now().Before(deadline) {
+		raw, readErr := os.ReadFile(marker)
+		if readErr == nil {
+			workerPID, _ = strconv.Atoi(strings.TrimSpace(string(raw)))
+			if workerPID > 1 {
+				break
+			}
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if workerPID <= 1 {
+		t.Fatal("controlled worker did not start")
+	}
+	workerBirth, err := process.BirthContext(ctx, workerPID)
+	if err != nil {
+		t.Fatal(err)
 	}
 	if err = s.Close(); err != nil {
 		t.Fatal(err)
@@ -235,12 +286,34 @@ func TestOriginalOwnerNativeSameTupleHardRestart(t *testing.T) {
 	if err != nil || state.AppliedControlRevision != 2 || state.Permit.NewHost != bound.Permit.NewHost {
 		t.Fatalf("same tuple renewal %+v %v", state, err)
 	}
+	deadline = time.Now().Add(5 * time.Second)
+	var presence store.HostPresenceSnapshot
+	for time.Now().Before(deadline) {
+		presence, err = next.db.InspectHostPresence(ctx, hello.LaunchID, hello.LaunchToken)
+		if err == nil && presence.Status == "ready" {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if err != nil || presence.Status != "ready" {
+		t.Fatalf("renewed transport not activated: %+v %v", presence, err)
+	}
+	if birth, birthErr := process.BirthContext(ctx, workerPID); birthErr != nil || birth != workerBirth {
+		t.Fatalf("worker changed across transport recovery pid=%d birth=%q err=%v", workerPID, birth, birthErr)
+	}
 	_ = control.Close()
-	if err = child.Process.Signal(syscall.SIGTERM); err != nil {
+	if err = child.command.Process.Signal(syscall.SIGTERM); err != nil {
 		t.Fatal(err)
 	}
 	select {
-	case <-done:
+	case <-child.done:
+		child.mu.Lock()
+		waitErr := child.waitErr
+		state := child.command.ProcessState
+		child.mu.Unlock()
+		if waitErr != nil || state == nil || state.ExitCode() != 0 {
+			t.Fatalf("owner graceful Wait err=%v state=%v", waitErr, state)
+		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("owner original Wait timeout")
 	}
