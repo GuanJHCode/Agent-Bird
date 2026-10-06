@@ -195,6 +195,7 @@ func (h *hostSession) send(message ipc.Envelope) error {
 }
 
 type Server struct {
+	ownerKeys          *originalOwnerKeys
 	stateDir           string
 	socket             string
 	epoch              uint64
@@ -251,6 +252,19 @@ func newServer(stateDir string, recovery bool) (*Server, error) {
 		_ = lock.Close()
 		return nil, err
 	}
+
+	owners, err := db.CurrentOriginalOwners(context.Background())
+	if err != nil {
+		_ = db.Close()
+		_ = lock.Close()
+		return nil, err
+	}
+	ownerKeys, err := loadOriginalOwnerKeys(stateDir, owners)
+	if err != nil {
+		_ = db.Close()
+		_ = lock.Close()
+		return nil, err
+	}
 	if err = loadStartupLimits(stateDir, db); err != nil {
 		_ = db.Close()
 		_ = lock.Close()
@@ -295,7 +309,7 @@ func newServer(stateDir string, recovery bool) (*Server, error) {
 		_ = lock.Close()
 		return nil, err
 	}
-	server := &Server{stateDir: stateDir, socket: socket, epoch: lock.Epoch(), lock: lock, db: db, listener: listener, hosts: make(map[string]*hostSession), idleTimeout: 30 * time.Second, eventSignal: make(chan struct{}), bridgeConnections: make(map[net.Conn]struct{}), bridgeAdmission: make(chan struct{}, 32)}
+	server := &Server{ownerKeys: ownerKeys, stateDir: stateDir, socket: socket, epoch: lock.Epoch(), lock: lock, db: db, listener: listener, hosts: make(map[string]*hostSession), idleTimeout: 30 * time.Second, eventSignal: make(chan struct{}), bridgeConnections: make(map[net.Conn]struct{}), bridgeAdmission: make(chan struct{}, 32)}
 	if !recovery {
 		if err := clearGlobalRestartBlock(stateDir, lock.Epoch()); err != nil {
 			_ = server.Close()
