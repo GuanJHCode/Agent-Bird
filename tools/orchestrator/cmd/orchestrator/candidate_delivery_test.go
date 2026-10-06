@@ -69,6 +69,25 @@ func exerciseCandidateDelivery(t *testing.T, root, repo, base string, source con
 	}
 	a := action("validate", source.TaskID)
 	a["command"] = []string{"/usr/bin/grep", "-q", "worker implementation", "README"}
+	// Exercise the actual Host validation/finalization path separately from the
+	// legacy review chain. The index must survive in the durable artifact, not
+	// merely exist in a helper return value.
+	indexed := action("validate", source.TaskID)
+	indexed["command"] = a["command"]
+	indexed["review_index"] = map[string]any{"version": 1, "mode": "indexed_candidate_review_v1", "shards": 3, "review_ordinal": 0}
+	_, indexedResult := run("indexed-check", map[string]any{"kind": "candidate", "directory": filepath.Join(root, "indexed-validation"), "candidate_action": indexed}, source, result)
+	indexedBody, err := os.ReadFile(indexedResult.ArtifactPath)
+	if err != nil || indexedResult.Status != "result_ready" {
+		t.Fatalf("indexed validation failed: %s %v", indexedBody, err)
+	}
+	var indexedEvidence, originalEvidence host.CandidateDelivery
+	originalBody, err := os.ReadFile(result.ArtifactPath)
+	if err != nil || json.Unmarshal(originalBody, &originalEvidence) != nil || json.Unmarshal(indexedBody, &indexedEvidence) != nil {
+		t.Fatal("cannot decode durable validation artifact")
+	}
+	if indexedEvidence.Stage != "validate" || indexedEvidence.Validation == nil || !indexedEvidence.Validation.Passed || indexedEvidence.ReviewIndex == nil || len(indexedEvidence.ReviewIndex.Chunks) == 0 || indexedEvidence.CandidateReceiptSHA256 == "" || indexedEvidence.CandidateReceiptSHA256 != originalEvidence.CandidateReceiptSHA256 || indexedEvidence.ReviewIndex.CandidateReceiptSHA256 != originalEvidence.CandidateReceiptSHA256 || indexedEvidence.InputSHA256 != result.OutputHash {
+		t.Fatalf("validation lost accepted manifest binding: %s", indexedBody)
+	}
 	checked, checkResult := run("check", map[string]any{"kind": "candidate", "directory": filepath.Join(root, "validation"), "candidate_action": a}, source, result)
 	if checkResult.Status != "result_ready" {
 		t.Fatalf("validation failed: %+v", checkResult)

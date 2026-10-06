@@ -158,6 +158,21 @@ func candidateGitStream(ctx context.Context, dir string, out io.Writer, args ...
 	if err != nil {
 		return candidateStartFailure(err)
 	}
+	return finishCandidateGitStream(ctx, p, record)
+}
+
+// The production caller always supplies the original process.Handle. The
+// narrow interface lets fault tests exercise uncertain Stop and Wait outcomes
+// without manufacturing process identities or signaling unrelated processes.
+type candidateStreamProcess interface {
+	Identity() process.Identity
+	ExitCode() int
+	Wait(context.Context) error
+	Stop(context.Context) error
+	ConfirmTreeExited() error
+}
+
+func finishCandidateGitStream(ctx context.Context, p candidateStreamProcess, record func(string, *process.Identity, int) error) error {
 	identity := p.Identity()
 	if err := record("spawned", &identity, -1); err != nil {
 		stopCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

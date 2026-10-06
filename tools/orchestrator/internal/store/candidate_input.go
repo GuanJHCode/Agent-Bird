@@ -182,6 +182,9 @@ func validateCandidatePlan(tasks map[string]TaskSpec) error {
 			}
 		}
 		previous := parsed[a.SourceTask]
+		if index := a.ReviewIndex; index != nil && (index.Version != 1 || index.Mode != "indexed_candidate_review_v1" || index.Shards < 1 || index.Shards > 63 || index.ReviewOrdinal < 0 || index.ReviewOrdinal >= index.Shards) {
+			return CodeError("invalid_candidate_review_index")
+		}
 		switch a.Operation {
 		case "validate":
 			if p.Kind != "candidate" || previous.Kind != "" || len(previous.Workspace) == 0 || string(previous.Workspace) == "null" {
@@ -191,8 +194,14 @@ func validateCandidatePlan(tasks map[string]TaskSpec) error {
 			if p.Kind != "" || previous.Action == nil || previous.Action.Operation != "validate" {
 				return CodeError("invalid_candidate_dag")
 			}
-			if a.ReviewIndex != nil && (p.Provider != "grok" || a.ReviewIndex.Version != 1 || a.ReviewIndex.Mode != "indexed_candidate_review_v1" || a.ReviewIndex.Shards < 1 || a.ReviewIndex.Shards > 63 || a.ReviewIndex.ReviewOrdinal < 0 || a.ReviewIndex.ReviewOrdinal >= a.ReviewIndex.Shards) {
+			if a.ReviewIndex != nil && p.Provider != "grok-build" {
 				return CodeError("invalid_candidate_review_index")
+			}
+			if (a.ReviewIndex == nil) != (previous.Action.ReviewIndex == nil) {
+				return CodeError("candidate_review_index_changed")
+			}
+			if a.ReviewIndex != nil && (a.ReviewIndex.Version != previous.Action.ReviewIndex.Version || a.ReviewIndex.Mode != previous.Action.ReviewIndex.Mode || a.ReviewIndex.Shards != previous.Action.ReviewIndex.Shards) {
+				return CodeError("candidate_review_index_changed")
 			}
 		case "integrate":
 			if p.Kind != "candidate" || previous.Action == nil || previous.Action.Operation != "review" {
@@ -208,7 +217,7 @@ func validateCandidatePlan(tasks map[string]TaskSpec) error {
 				ordinals := make(map[int]bool, a.ReviewIndex.Shards)
 				for _, dependency := range task.Dependencies {
 					review := parsed[dependency]
-					if review.Action == nil || review.Action.Operation != "review" || stringMustJSON(review.Action.ReviewIndex) == "null" || review.Action.ReviewIndex.Shards != a.ReviewIndex.Shards || review.Action.ReviewIndex.Mode != a.ReviewIndex.Mode || ordinals[review.Action.ReviewIndex.ReviewOrdinal] {
+					if review.Action == nil || review.Action.Operation != "review" || review.Action.SourceTask != previous.Action.SourceTask || review.Action.ReviewIndex == nil || review.Action.ReviewIndex.Version != a.ReviewIndex.Version || review.Action.ReviewIndex.Shards != a.ReviewIndex.Shards || review.Action.ReviewIndex.Mode != a.ReviewIndex.Mode || ordinals[review.Action.ReviewIndex.ReviewOrdinal] {
 						return CodeError("candidate_review_index_coverage_invalid")
 					}
 					ordinals[review.Action.ReviewIndex.ReviewOrdinal] = true

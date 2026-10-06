@@ -214,9 +214,23 @@ func TestCandidateReviewIndexChunksCompleteUTF8TextWithoutLosingSides(t *testing
 		t.Fatalf("index=%+v", index)
 	}
 	for _, chunk := range index.Chunks {
-		if chunk.Length < 1 || chunk.Length > indexedReviewChunkLimit || !utf8.ValidString(chunk.Content) || chunk.SHA256 != reviewChunkDigest([]byte(chunk.Content)) {
+		if chunk.Length < 1 || chunk.Length > indexedReviewChunkLimit || chunk.Content != "" {
 			t.Fatalf("unsafe chunk=%+v", chunk)
 		}
+	}
+	hydrated, err := HydrateReviewChunks(context.Background(), receipt, index.Chunks)
+	if err != nil {
+		t.Fatal(err)
+	}
+	contents := map[string]string{}
+	for _, chunk := range hydrated {
+		if !utf8.ValidString(chunk.Content) || len(chunk.Content) != chunk.Length || chunk.SHA256 != reviewChunkDigest([]byte(chunk.Content)) {
+			t.Fatalf("invalid hydrated chunk: %+v", chunk)
+		}
+		contents[chunk.Path+"/"+chunk.Side] += chunk.Content
+	}
+	if contents["same.txt/base"] != strings.Repeat("é", 20000) || contents["same.txt/candidate"] != strings.Repeat("é", 20000)+"candidate" {
+		t.Fatal("hydration lost original logical side bytes")
 	}
 	if len(index.Pages) == 0 || len(index.Pages[0].ChunkOrdinals) > indexedReviewPageEntriesLimit {
 		t.Fatalf("pages=%+v", index.Pages)
