@@ -106,8 +106,20 @@ func TestCandidateErrorWrappingPreservesStandaloneHandleTransfer(t *testing.T) {
 		t.Fatal("candidate error wrapping erased standalone Handle", wrapped)
 	}
 	got, receipt, ok := transfer.TakeHandle()
-	if !ok || got != p || receipt.StopError == nil || receipt.TreeError == nil {
+	if !ok || got != p || receipt.StopError == nil || receipt.Deadline.IsZero() || receipt.CompletedAt.Before(receipt.Deadline) {
 		t.Fatal("candidate transfer lost original cleanup", receipt)
+	}
+	// A late original Wait/tree proof may arrive after the first Stop failed.
+	// Preserve each fact separately; it must not erase that original failure.
+	if receipt.TreeError == nil && got.ConfirmTreeExited() != nil {
+		t.Fatal("receipt invented late tree proof")
+	}
+	if receipt.WaitError == nil {
+		proof, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+		defer cancel()
+		if got.Wait(proof) != nil {
+			t.Fatal("receipt invented original Wait")
+		}
 	}
 	if _, _, again := transfer.TakeHandle(); again {
 		t.Fatal("candidate transferred Handle twice")
