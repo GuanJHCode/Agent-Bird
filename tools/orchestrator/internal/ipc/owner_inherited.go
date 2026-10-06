@@ -114,14 +114,7 @@ func ownerControlConn(file *os.File) (*net.UnixConn, error) {
 	if err != nil || kind != syscall.SOCK_STREAM {
 		return nil, ErrInvalidMessage
 	}
-	local, err := syscall.Getsockname(fd)
-	localUnix, ok := local.(*syscall.SockaddrUnix)
-	if err != nil || !ok || localUnix.Name != "" {
-		return nil, ErrInvalidMessage
-	}
-	peer, err := syscall.Getpeername(fd)
-	peerUnix, ok := peer.(*syscall.SockaddrUnix)
-	if err != nil || !ok || peerUnix.Name != "" {
+	if !ownerControlUnnamed(fd) {
 		return nil, ErrInvalidMessage
 	}
 	conn, err := net.FileConn(file) // duplicates with CLOEXEC; caller closes file
