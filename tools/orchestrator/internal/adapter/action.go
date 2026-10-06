@@ -3,12 +3,13 @@ package adapter
 // CandidateAction is an owner-declared step in the existing DAG. SourceTask is
 // resolved only from the coordinator's accepted Host result, never raw prompt.
 type CandidateAction struct {
-	AutoDirectory bool            `json:"auto_directory,omitempty"`
-	Version       int             `json:"version"`
-	Operation     string          `json:"operation"`
-	SourceTask    string          `json:"source_task"`
-	Command       []string        `json:"command,omitempty"`
-	Target        CandidateTarget `json:"target"`
+	AutoDirectory          bool            `json:"auto_directory,omitempty"`
+	Version                int             `json:"version"`
+	DependencyInputVersion int             `json:"dependency_input_version,omitempty"`
+	Operation              string          `json:"operation"`
+	SourceTask             string          `json:"source_task"`
+	Command                []string        `json:"command,omitempty"`
+	Target                 CandidateTarget `json:"target"`
 }
 
 type CandidateTarget struct {

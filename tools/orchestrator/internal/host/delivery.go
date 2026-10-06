@@ -131,6 +131,9 @@ func (e *actionRejected) SafeArtifact() []byte { return e.body }
 
 func readAcceptedCandidate(grant contract.LaunchCommand) (CandidateDelivery, error) {
 	var out CandidateDelivery
+	if err := contract.ValidateDependencyInputs(grant); err != nil {
+		return out, err
+	}
 	input := grant.Input
 	if input == nil || input.DecisionCommandID == "" || input.Event.RunID != grant.RunID || input.Event.Kind != contract.EventResult || input.Event.Artifact == nil {
 		return out, errors.New("candidate_input_missing")

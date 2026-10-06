@@ -1,0 +1,101 @@
+package contract
+
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"path/filepath"
+)
+
+// CandidateIntentHash preserves the legacy three-field JSON byte contract.
+// The versioned vector extends that contract only for explicitly opted-in grants.
+func CandidateIntentHash(c LaunchCommand) (string, error) {
+	var body []byte
+	var err error
+	if c.DependencyInputs == nil {
+		body, err = json.Marshal(struct {
+			Plan    int
+			Payload json.RawMessage
+			Input   *AcceptedInput
+		}{c.PlanRevision, c.AdapterPayload, c.Input})
+	} else {
+		body, err = json.Marshal(struct {
+			Plan             int
+			Payload          json.RawMessage
+			Input            *AcceptedInput
+			DependencyInputs *DependencyInputVector
+		}{c.PlanRevision, c.AdapterPayload, c.Input, c.DependencyInputs})
+	}
+	if err != nil {
+		return "", err
+	}
+	hash := sha256.Sum256([]byte(c.RunID + "\x00" + c.TaskID + "\x00" + c.AttemptID + "\x00" + c.SegmentID + "\x00" + c.SlotToken + "\x00" + string(body)))
+	return hex.EncodeToString(hash[:]), nil
+}
+
+// ValidateDependencyInputs checks the evidence shape and source selection before
+// a Host accesses files or starts work. Store separately verifies the exact DAG
+// dependency set and current accepted tuples. This is not a signature verifier:
+// the grant must still arrive over the existing authenticated control channel.
+func ValidateDependencyInputs(c LaunchCommand) error {
+	if len(c.AdapterPayload) == 0 && c.DependencyInputs == nil {
+		return nil
+	}
+	var payload struct {
+		Action *struct {
+			Version      int    `json:"version"`
+			InputVersion int    `json:"dependency_input_version"`
+			Source       string `json:"source_task"`
+		} `json:"candidate_action"`
+	}
+	invalid := errors.New("candidate_dependency_inputs_invalid")
+	if json.Unmarshal(c.AdapterPayload, &payload) != nil {
+		return invalid
+	}
+	if payload.Action == nil || payload.Action.InputVersion == 0 {
+		if c.DependencyInputs != nil {
+			return invalid
+		}
+		return nil
+	}
+	a := payload.Action
+	v := c.DependencyInputs
+	if a.Version != 1 || a.InputVersion != 1 || v == nil || v.Version != 1 || len(v.Inputs) < 1 || len(v.Inputs) > 63 || c.Input == nil || c.PlanRevision < 1 {
+		return invalid
+	}
+	digest := func(s string) bool {
+		b, e := hex.DecodeString(s)
+		return e == nil && len(b) == 32 && hex.EncodeToString(b) == s
+	}
+	found := false
+	for i, input := range v.Inputs {
+		e := input.Event
+		r := e.Artifact
+		if e.Version != 1 || e.RunID != c.RunID || e.TaskID == "" || e.TaskID == c.TaskID || e.AttemptID == "" || e.SegmentID == "" || e.WorkRevision < 1 || e.ProducerID == "" || e.EventID == "" || e.EventRevision < 1 || e.ActionSlot == "" || e.CommandID == "" || e.Sequence < 1 || e.Kind != EventResult || !digest(e.PayloadHash) || input.DecisionCommandID == "" || !json.Valid(input.AdapterPayload) || string(input.AdapterPayload) == "null" || r == nil || !filepath.IsAbs(r.Path) || r.Size < 1 || r.Size > 1024*1024 || !digest(r.SHA256) {
+			return invalid
+		}
+		if i > 0 && v.Inputs[i-1].Event.TaskID >= e.TaskID {
+			return invalid
+		}
+		if e.TaskID == a.Source {
+			left, err := json.Marshal(input)
+			if err != nil {
+				return invalid
+			}
+			right, err := json.Marshal(c.Input)
+			if err != nil || string(left) != string(right) {
+				return invalid
+			}
+			found = true
+		}
+	}
+	if !found {
+		return invalid
+	}
+	hash, err := CandidateIntentHash(c)
+	if err != nil || hash != c.LaunchIntentHash {
+		return errors.New("candidate_input_changed")
+	}
+	return nil
+}

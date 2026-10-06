@@ -128,7 +128,7 @@ func validateSavedReviewRetryScope(ctx context.Context, tx *sql.Tx, r attemptDec
 			return ErrConflict
 		}
 	}
-	if c.Input == nil || saved.InputSHA256 != retryInputHash(c.Input) {
+	if c.Input == nil || saved.InputSHA256 != retryInputHash(c.Input) || saved.DependencyInputsSHA256 != dependencyVectorHash(c.DependencyInputs) {
 		return ErrConflict
 	}
 	input := c.Input.Event

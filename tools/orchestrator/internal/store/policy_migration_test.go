@@ -7,6 +7,7 @@ import (
 )
 
 func downgradePolicySchema(t *testing.T, db *DB) {
+	downgradeDependencySchema(t, db)
 	t.Helper()
 	for _, stmt := range []string{`DROP TRIGGER policy_binding_hold_immutable`, `DROP TRIGGER quota_policy_hold_INSERT`, `DROP TRIGGER quota_policy_hold_DELETE`, `DROP INDEX decision_attempt_pending_task`, `ALTER TABLE decision_attempt_bindings DROP COLUMN retired`, `ALTER TABLE decision_attempt_bindings DROP COLUMN reserved_active_ms`, `CREATE UNIQUE INDEX decision_attempt_pending_task ON decision_attempt_bindings(task_id) WHERE attempt_id IS NULL`, `DROP TABLE task_execution_policies`, `DROP TRIGGER quota_policy_retry_INSERT`, `DROP TRIGGER quota_policy_retry_DELETE`, `ALTER TABLE retry_decisions DROP COLUMN origin`, `ALTER TABLE retry_decisions DROP COLUMN policy_sha256`, `ALTER TABLE retry_decisions DROP COLUMN eligible_at_unix_ms`, `ALTER TABLE retry_decisions DROP COLUMN backoff_index`, `UPDATE schema_meta SET version=14`} {
 		if _, err := db.sql.Exec(stmt); err != nil {
@@ -38,7 +39,7 @@ func TestPolicyMigrationKeepsLegacyReceiptAndPromise(t *testing.T) {
 		t.Fatal(err)
 	}
 	var no, version, policies int
-	if err = db.sql.QueryRow(`SELECT attempt_no,(SELECT version FROM schema_meta),(SELECT COUNT(*) FROM task_execution_policies) FROM attempts WHERE id=?`, grant.AttemptID).Scan(&no, &version, &policies); err != nil || no != 2 || version != 15 || policies != 0 {
+	if err = db.sql.QueryRow(`SELECT attempt_no,(SELECT version FROM schema_meta),(SELECT COUNT(*) FROM task_execution_policies) FROM attempts WHERE id=?`, grant.AttemptID).Scan(&no, &version, &policies); err != nil || no != 2 || version != currentSchemaVersion || policies != 0 {
 		t.Fatalf("migration promise/auto policy changed %d/%d/%d %v", no, version, policies, err)
 	}
 }

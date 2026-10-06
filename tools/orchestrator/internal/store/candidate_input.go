@@ -29,9 +29,10 @@ func bindCandidateInputForDecision(ctx context.Context, tx *sql.Tx, command *con
 			Rework json.RawMessage `json:"rework"`
 		} `json:"candidate_workspace"`
 		Action *struct {
-			Version    int    `json:"version"`
-			Operation  string `json:"operation"`
-			SourceTask string `json:"source_task"`
+			Version                int    `json:"version"`
+			DependencyInputVersion int    `json:"dependency_input_version,omitempty"`
+			Operation              string `json:"operation"`
+			SourceTask             string `json:"source_task"`
 		} `json:"candidate_action"`
 	}
 	if json.Unmarshal(command.AdapterPayload, &payload) != nil {
@@ -55,49 +56,63 @@ func bindCandidateInputForDecision(ctx context.Context, tx *sql.Tx, command *con
 	if json.Unmarshal([]byte(depsJSON), &deps) != nil || !slices.Contains(deps, action.SourceTask) {
 		return CodeError("candidate_input_not_dependency")
 	}
-	var eventBody, sourcePayload, decision, actionSlot string
-	var eventRevision int64
-	err := tx.QueryRowContext(ctx, `SELECT e.body_json,r.adapter_payload,d.command_id,e.event_revision,e.action_slot FROM tasks t JOIN task_runtime r ON r.task_id=t.id JOIN review_decisions d ON d.task_id=t.id AND d.decision='accept' JOIN runtime_events e ON e.event_id=d.event_id AND e.event_revision=d.event_revision AND e.payload_hash=d.event_hash JOIN segment_runtime s ON s.segment_id=e.segment_id AND s.host_id=e.producer_id WHERE t.id=? AND t.run_id=? AND t.status='completed' AND s.status='exited' AND s.outcome='result' AND e.segment_id=(SELECT z.id FROM segments z JOIN attempts a ON a.id=z.attempt_id WHERE a.task_id=t.id ORDER BY a.attempt_no DESC,z.segment_no DESC LIMIT 1) ORDER BY e.sequence DESC LIMIT 1`, action.SourceTask, command.RunID).Scan(&eventBody, &sourcePayload, &decision, &eventRevision, &actionSlot)
+	input, err := acceptedCandidateInput(ctx, tx, command.RunID, action.SourceTask)
 	if err != nil {
-		return CodeError("candidate_input_not_accepted")
-	}
-	var event contract.Event
-	if json.Unmarshal([]byte(eventBody), &event) != nil || event.Kind != contract.EventResult || event.Artifact == nil || !validDigest(event.Artifact.SHA256) || event.Artifact.Size <= 0 || event.Artifact.Size > 1024*1024 {
-		return CodeError("candidate_input_invalid")
-	}
-	event.EventRevision, event.ActionSlot = eventRevision, actionSlot
-	var revision int
-	if err = tx.QueryRowContext(ctx, `SELECT work_revision FROM task_runtime WHERE task_id=?`, action.SourceTask).Scan(&revision); err != nil {
 		return err
 	}
-	if revision != event.WorkRevision {
+	command.Input = &input
+	if action.DependencyInputVersion < 0 || action.DependencyInputVersion > 1 {
+		return CodeError("candidate_dependency_inputs_invalid")
+	}
+	if action.DependencyInputVersion == 1 {
+		if err := bindDependencyInputs(ctx, tx, command, deps, replay, retry); err != nil {
+			return err
+		}
+	} else if command.DependencyInputs != nil {
 		return ErrConflict
 	}
-	command.Input = &contract.AcceptedInput{Event: event, AdapterPayload: json.RawMessage(sourcePayload), DecisionCommandID: decision}
+
 	if retry != nil && retry.InputSHA256 != retryInputHash(command.Input) {
 		return CodeError("candidate_review_retry_changed")
 	}
 	return bindCandidateIntent(ctx, tx, command, replay)
 }
 
+func acceptedCandidateInput(ctx context.Context, tx *sql.Tx, run, task string) (contract.AcceptedInput, error) {
+	var body, payload, decision, slot string
+	var revision int64
+	err := tx.QueryRowContext(ctx, `SELECT e.body_json,r.adapter_payload,d.command_id,e.event_revision,e.action_slot FROM tasks t JOIN task_runtime r ON r.task_id=t.id JOIN review_decisions d ON d.task_id=t.id AND d.decision='accept' JOIN runtime_events e ON e.event_id=d.event_id AND e.event_revision=d.event_revision AND e.payload_hash=d.event_hash JOIN segment_runtime s ON s.segment_id=e.segment_id AND s.host_id=e.producer_id WHERE t.id=? AND t.run_id=? AND t.status='completed' AND s.status='exited' AND s.outcome='result' AND e.segment_id=(SELECT z.id FROM segments z JOIN attempts a ON a.id=z.attempt_id WHERE a.task_id=t.id ORDER BY a.attempt_no DESC,z.segment_no DESC LIMIT 1) ORDER BY e.sequence DESC LIMIT 1`, task, run).Scan(&body, &payload, &decision, &revision, &slot)
+	if err != nil {
+		return contract.AcceptedInput{}, CodeError("candidate_input_not_accepted")
+	}
+	var event contract.Event
+	if json.Unmarshal([]byte(body), &event) != nil || event.Kind != contract.EventResult || event.Artifact == nil || !validDigest(event.Artifact.SHA256) || event.Artifact.Size <= 0 || event.Artifact.Size > 1024*1024 {
+		return contract.AcceptedInput{}, CodeError("candidate_input_invalid")
+	}
+	event.EventRevision, event.ActionSlot = revision, slot
+	var current int
+	if tx.QueryRowContext(ctx, `SELECT work_revision FROM task_runtime WHERE task_id=?`, task).Scan(&current) != nil || current != event.WorkRevision {
+		return contract.AcceptedInput{}, ErrConflict
+	}
+	return contract.AcceptedInput{Event: event, AdapterPayload: json.RawMessage(payload), DecisionCommandID: decision}, nil
+}
+
 func bindCandidateIntent(ctx context.Context, tx *sql.Tx, command *contract.LaunchCommand, replay bool) error {
-	// Execution epoch is transport ownership, not input identity. The event's
-	// persisted producer/revision/hash remains fixed across coordinator restart.
-	body, _ := json.Marshal(struct {
-		Plan    int
-		Payload json.RawMessage
-		Input   *contract.AcceptedInput
-	}{command.PlanRevision, command.AdapterPayload, command.Input})
-	hash := runtimeHash(command.RunID + "\x00" + command.TaskID + "\x00" + command.AttemptID + "\x00" + command.SegmentID + "\x00" + command.SlotToken + "\x00" + string(body))
+	hash, err := contract.CandidateIntentHash(*command)
+	if err != nil {
+		return err
+	}
 	if replay {
 		if hash != command.LaunchIntentHash {
 			return CodeError("candidate_input_changed")
 		}
-		return nil
+	} else {
+		command.LaunchIntentHash = hash
 	}
-	command.LaunchIntentHash = hash
-	_, err := tx.ExecContext(ctx, `UPDATE segment_runtime SET launch_intent_hash=? WHERE segment_id=?`, hash, command.SegmentID)
-	return err
+	if command.DependencyInputs != nil {
+		return contract.ValidateDependencyInputs(*command)
+	}
+	return nil
 }
 
 func validateCandidatePlan(tasks map[string]TaskSpec) error {
@@ -106,10 +121,11 @@ func validateCandidatePlan(tasks map[string]TaskSpec) error {
 		Directory string          `json:"directory"`
 		Workspace json.RawMessage `json:"candidate_workspace"`
 		Action    *struct {
-			Version    int    `json:"version"`
-			Operation  string `json:"operation"`
-			SourceTask string `json:"source_task"`
-			Target     struct {
+			Version                int    `json:"version"`
+			DependencyInputVersion int    `json:"dependency_input_version,omitempty"`
+			Operation              string `json:"operation"`
+			SourceTask             string `json:"source_task"`
+			Target                 struct {
 				Worktree string `json:"worktree"`
 			} `json:"target"`
 		} `json:"candidate_action"`
@@ -136,8 +152,19 @@ func validateCandidatePlan(tasks map[string]TaskSpec) error {
 			return CodeError("candidate_target_is_managed_workspace")
 		}
 		source, ok := tasks[a.SourceTask]
-		if a.Version != 1 || !ok || !slices.Contains(task.Dependencies, a.SourceTask) || task.CompletionPolicy != "" && task.CompletionPolicy != "owner_review" || source.CompletionPolicy != "" && source.CompletionPolicy != "owner_review" || len(task.FallbackPayloads) > 0 || len(source.FallbackPayloads) > 0 {
+		if a.Version != 1 || a.DependencyInputVersion < 0 || a.DependencyInputVersion > 1 || len(task.Dependencies) > 1 && a.DependencyInputVersion != 1 || !ok || !slices.Contains(task.Dependencies, a.SourceTask) || task.CompletionPolicy != "" && task.CompletionPolicy != "owner_review" || source.CompletionPolicy != "" && source.CompletionPolicy != "owner_review" || len(task.FallbackPayloads) > 0 || len(source.FallbackPayloads) > 0 {
+			if len(task.Dependencies) > 1 && a.DependencyInputVersion != 1 {
+				return CodeError("candidate_dependency_inputs_required")
+			}
 			return CodeError("invalid_candidate_dag")
+		}
+		if a.DependencyInputVersion == 1 {
+			for _, dependency := range task.Dependencies {
+				predecessor, exists := tasks[dependency]
+				if !exists || predecessor.CompletionPolicy != "" && predecessor.CompletionPolicy != "owner_review" {
+					return CodeError("candidate_dependency_input_unsupported")
+				}
+			}
 		}
 		previous := parsed[a.SourceTask]
 		switch a.Operation {

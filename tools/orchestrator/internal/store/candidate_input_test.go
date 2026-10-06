@@ -92,6 +92,15 @@ func TestCandidateInputBindsAcceptedHostResultAndReplay(t *testing.T) {
 				}
 			}
 			check(next)
+			legacyBody, _ := json.Marshal(struct {
+				Plan    int
+				Payload json.RawMessage
+				Input   *contract.AcceptedInput
+			}{next.PlanRevision, next.AdapterPayload, next.Input})
+			legacyHash := runtimeHash(next.RunID + "\x00" + next.TaskID + "\x00" + next.AttemptID + "\x00" + next.SegmentID + "\x00" + next.SlotToken + "\x00" + string(legacyBody))
+			if next.LaunchIntentHash != legacyHash {
+				t.Fatal("legacy candidate intent bytes changed")
+			}
 			pending, err := db.PendingLaunches(ctx, hostID, 1)
 			if err != nil || len(pending) != 1 {
 				t.Fatalf("pending=%d err=%v", len(pending), err)
@@ -125,5 +134,30 @@ func TestCandidatePlanRejectsInvalidInputBeforeReservingHost(t *testing.T) {
 				t.Fatal("poisoned ready task admitted into source Host")
 			}
 		})
+	}
+}
+
+// A second dependency is evidence, not merely a scheduling gate. Until the
+// action explicitly opts into the v1 dependency-input vector, admission must
+// refuse it instead of silently binding only source_task.
+func TestCandidatePlanRejectsUnversionedJoinBeforeReservingHost(t *testing.T) {
+	ctx := context.Background()
+	db, err := Open(filepath.Join(t.TempDir(), "state.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	tasks := []TaskSpec{
+		{ID: "edit", RunID: "run", MaxAttempts: 1, AdapterPayload: json.RawMessage(`{"provider":"claude-code","candidate_workspace":{"version":1}}`)},
+		{ID: "side", RunID: "run", MaxAttempts: 1, AdapterPayload: json.RawMessage(`{"provider":"claude-code","candidate_workspace":{"version":1}}`)},
+		{ID: "validate", RunID: "run", Dependencies: []string{"edit"}, MaxAttempts: 1, AdapterPayload: json.RawMessage(`{"kind":"candidate","candidate_action":{"version":1,"operation":"validate","command":["/usr/bin/true"],"source_task":"edit"}}`)},
+		{ID: "review", RunID: "run", Dependencies: []string{"validate", "side"}, MaxAttempts: 1, AdapterPayload: json.RawMessage(`{"provider":"claude-code","profile":{"version":1,"role":"reviewer","permission":"read-only"},"candidate_action":{"version":1,"operation":"review","source_task":"validate"}}`)},
+	}
+	if _, err = db.SubmitPlan(ctx, PlanSpec{Run: RunSpec{ID: "run", ControllerThread: "owner", PlanRevision: 1, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth"}, Host: HostLaunchSpec{OriginContextID: "origin", HostGeneration: "gen", Executable: "/private/bin/orchestrator"}, Tasks: tasks}); err == nil || err.Error() != "candidate_dependency_inputs_required" {
+		t.Fatalf("unversioned join admitted: %v", err)
+	}
+	var count int
+	if err = db.sql.QueryRow(`SELECT COUNT(*) FROM tasks`).Scan(&count); err != nil || count != 0 {
+		t.Fatalf("partial plan rows=%d err=%v", count, err)
 	}
 }

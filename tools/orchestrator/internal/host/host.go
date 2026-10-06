@@ -95,6 +95,9 @@ func (h *Host) ExecuteLaunch(ctx context.Context, grant contract.LaunchCommand, 
 // The public entry always supplies zero control. Private per-call actor
 // coordination has no environment/request/wire selector or alternate launcher.
 func (h *Host) executeLaunch(ctx context.Context, grant contract.LaunchCommand, inv contract.InvocationView, control codexExecuteControl) (contract.Result, error) {
+	if err := contract.ValidateDependencyInputs(grant); err != nil {
+		return contract.Result{}, err
+	}
 	if grant.ReservationID == "" || grant.AttemptID == "" || grant.SegmentID == "" || grant.RunID == "" || grant.TaskID == "" || grant.GrantedActiveMS <= 0 || inv == nil || len(inv.Args()) == 0 || inv.Args()[0] == "" {
 		return contract.Result{}, errors.New("invalid_launch_grant")
 	}
@@ -1036,6 +1039,9 @@ type grantLedgerRecord struct {
 }
 
 func (h *Host) acceptGrant(grant contract.LaunchCommand) (bool, error) {
+	if err := contract.ValidateDependencyInputs(grant); err != nil {
+		return false, err
+	}
 	if grant.CommandID == "" || grant.ReservationID == "" || grant.AttemptID == "" || grant.SegmentID == "" {
 		return false, errors.New("invalid_launch_grant")
 	}

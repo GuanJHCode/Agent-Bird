@@ -120,31 +120,39 @@ type AcceptedInput struct {
 	DecisionCommandID string          `json:"decision_command_id"`
 }
 
+// DependencyInputVector fixes every direct dependency accepted by a v1 join.
+// Input remains the content-bearing source selected by CandidateAction.
+type DependencyInputVector struct {
+	Version int             `json:"version"`
+	Inputs  []AcceptedInput `json:"inputs"`
+}
+
 type LaunchCommand struct {
-	Continuation       *ContinuationRef `json:"continuation,omitempty"`
-	Input              *AcceptedInput   `json:"input,omitempty"`
-	PlanRevision       int              `json:"plan_revision,omitempty"`
-	CommandID          string           `json:"command_id"`
-	HostID             string           `json:"host_id"`
-	RunID              string           `json:"run_id"`
-	TaskID             string           `json:"task_id"`
-	AttemptID          string           `json:"attempt_id"`
-	SegmentID          string           `json:"segment_id"`
-	WorkRevision       int              `json:"work_revision"`
-	ExecutionEpoch     uint64           `json:"execution_epoch"`
-	SlotToken          string           `json:"slot_token"`
-	LaunchIntentHash   string           `json:"launch_intent_hash"`
-	ReservationID      string           `json:"reservation_id"`
-	BudgetGroupID      string           `json:"budget_group_id"`
-	GrantedActiveMS    int64            `json:"granted_active_ms"`
-	DeadlineUnixMS     int64            `json:"deadline_unix_ms"`
-	AdapterPayload     json.RawMessage  `json:"adapter_payload,omitempty"`
-	QuestionID         string           `json:"question_id,omitempty"`
-	QuestionRevision   int              `json:"question_revision,omitempty"`
-	Answer             string           `json:"answer,omitempty"`
-	SessionKind        string           `json:"session_kind,omitempty"`
-	SessionID          string           `json:"session_id,omitempty"`
-	ReportCapabilityID string           `json:"report_capability_id"`
+	Continuation       *ContinuationRef       `json:"continuation,omitempty"`
+	Input              *AcceptedInput         `json:"input,omitempty"`
+	DependencyInputs   *DependencyInputVector `json:"dependency_inputs,omitempty"`
+	PlanRevision       int                    `json:"plan_revision,omitempty"`
+	CommandID          string                 `json:"command_id"`
+	HostID             string                 `json:"host_id"`
+	RunID              string                 `json:"run_id"`
+	TaskID             string                 `json:"task_id"`
+	AttemptID          string                 `json:"attempt_id"`
+	SegmentID          string                 `json:"segment_id"`
+	WorkRevision       int                    `json:"work_revision"`
+	ExecutionEpoch     uint64                 `json:"execution_epoch"`
+	SlotToken          string                 `json:"slot_token"`
+	LaunchIntentHash   string                 `json:"launch_intent_hash"`
+	ReservationID      string                 `json:"reservation_id"`
+	BudgetGroupID      string                 `json:"budget_group_id"`
+	GrantedActiveMS    int64                  `json:"granted_active_ms"`
+	DeadlineUnixMS     int64                  `json:"deadline_unix_ms"`
+	AdapterPayload     json.RawMessage        `json:"adapter_payload,omitempty"`
+	QuestionID         string                 `json:"question_id,omitempty"`
+	QuestionRevision   int                    `json:"question_revision,omitempty"`
+	Answer             string                 `json:"answer,omitempty"`
+	SessionKind        string                 `json:"session_kind,omitempty"`
+	SessionID          string                 `json:"session_id,omitempty"`
+	ReportCapabilityID string                 `json:"report_capability_id"`
 }
 
 // ContinuationRef is derived from durable owner decisions and trusted Host

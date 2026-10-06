@@ -14,14 +14,15 @@ import (
 const reviewRetryKind = "candidate_review_retry"
 
 type reviewRetryDecision struct {
-	Kind          string `json:"kind"`
-	AdapterSHA256 string `json:"adapter_sha256"`
-	InputSHA256   string `json:"input_sha256"`
+	DependencyInputsSHA256 string `json:"dependency_inputs_sha256,omitempty"`
+	Kind                   string `json:"kind"`
+	AdapterSHA256          string `json:"adapter_sha256"`
+	InputSHA256            string `json:"input_sha256"`
 }
 
 func parseReviewRetry(raw string) (reviewRetryDecision, error) {
 	var v reviewRetryDecision
-	if strictDecisionJSON(raw, &v) != nil || v.Kind != reviewRetryKind || !validDigest(v.AdapterSHA256) || !validDigest(v.InputSHA256) {
+	if strictDecisionJSON(raw, &v) != nil || v.Kind != reviewRetryKind || !validDigest(v.AdapterSHA256) || !validDigest(v.InputSHA256) || v.DependencyInputsSHA256 != "" && !validDigest(v.DependencyInputsSHA256) {
 		return v, ErrConflict
 	}
 	return v, nil
@@ -136,6 +137,6 @@ func authorizeReviewRetry(ctx context.Context, tx *sql.Tx, spec RetrySpec, raw s
 	if artifact.Stage != "validate" || artifact.Validation == nil || !artifact.Validation.Passed {
 		return "", CodeError("candidate_validation_required")
 	}
-	body, err := json.Marshal(reviewRetryDecision{Kind: reviewRetryKind, AdapterSHA256: runtimeHash(raw), InputSHA256: retryInputHash(c.Input)})
+	body, err := json.Marshal(reviewRetryDecision{Kind: reviewRetryKind, AdapterSHA256: runtimeHash(raw), InputSHA256: retryInputHash(c.Input), DependencyInputsSHA256: dependencyVectorHash(c.DependencyInputs)})
 	return string(body), err
 }

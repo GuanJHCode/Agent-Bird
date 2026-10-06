@@ -176,6 +176,10 @@ func (d *DB) ClaimReady(ctx context.Context, hostID string, epoch uint64, slots 
 	if err = validateLaunchSize(command); err != nil {
 		return rollback(err)
 	}
+	if err = d.persistCandidateGrant(ctx, tx, &command); err != nil {
+		return rollback(err)
+	}
+
 	if err = tx.Commit(); err != nil {
 		return contract.LaunchCommand{}, err
 	}

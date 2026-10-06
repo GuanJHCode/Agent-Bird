@@ -34,6 +34,10 @@ func newReviewRetryFixtureForProvider(t *testing.T, provider adapter.Provider, t
 }
 
 func newReviewRetryFixtureWithConfig(t *testing.T, provider adapter.Provider, terminal string, ref *contract.ConfigGenerationRef, sharedGroup ...bool) reviewRetryFixture {
+	return newReviewRetryFixtureWithVector(t, provider, terminal, ref, false, sharedGroup...)
+}
+
+func newReviewRetryFixtureWithVector(t *testing.T, provider adapter.Provider, terminal string, ref *contract.ConfigGenerationRef, vector bool, sharedGroup ...bool) reviewRetryFixture {
 	t.Helper()
 	ctx := context.Background()
 	dir := t.TempDir()
@@ -57,6 +61,10 @@ func newReviewRetryFixtureWithConfig(t *testing.T, provider adapter.Provider, te
 			task.Dependencies = []string{ids[i-1]}
 			p.CandidateAction = &adapter.CandidateAction{Version: 1, Operation: id, SourceTask: ids[i-1], Target: target}
 			if id == "review" {
+				if vector {
+					p.CandidateAction.DependencyInputVersion = 1
+					task.Dependencies = []string{"validate", "edit"}
+				}
 				p.Provider = string(provider)
 				p.ProviderLock = lock
 				p.Profile = &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: 180000}
@@ -113,7 +121,7 @@ func newReviewRetryFixtureWithConfig(t *testing.T, provider adapter.Provider, te
 				t.Fatal(err)
 			}
 			e.PayloadHash = runtimeHash(string(body))
-			e.Artifact = &contract.ArtifactRef{Path: path, Size: int64(len(body)), SHA256: e.PayloadHash}
+			e.Artifact = &contract.ArtifactRef{ID: id, Path: path, Size: int64(len(body)), SHA256: e.PayloadHash}
 		}
 		if _, err = db.CommitHostEvent(ctx, e); err != nil {
 			t.Fatal(err)

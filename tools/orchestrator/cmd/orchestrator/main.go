@@ -1063,6 +1063,9 @@ func (i localInvocation) Environment() map[string]string {
 }
 
 func invocationForGrant(ctx context.Context, grant contract.LaunchCommand) (contract.InvocationView, error) {
+	if err := contract.ValidateDependencyInputs(grant); err != nil {
+		return nil, err
+	}
 	payload, err := adapter.DecodeInvocationPayload(grant.AdapterPayload)
 	if err != nil {
 		return nil, codeError("invalid_json")
