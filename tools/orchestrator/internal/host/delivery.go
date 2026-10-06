@@ -327,7 +327,7 @@ func (h *Host) prepareCandidateAction(ctx context.Context, grant contract.Launch
 	if action == nil || action.Version != 1 || action.SourceTask != grant.Input.Event.TaskID || grant.SessionID != "" || grant.Answer != "" || !filepath.IsAbs(action.Target.Worktree) || !strings.HasPrefix(action.Target.Ref, "refs/heads/") {
 		return empty, nil, noop, errors.New("candidate_action_invalid")
 	}
-	if action.ReviewIndex != nil && (action.Operation != "review" && action.Operation != "integrate" || action.ReviewIndex.Version != 1 || action.ReviewIndex.Mode != "indexed_candidate_review_v1" || action.ReviewIndex.Shards < 1 || action.ReviewIndex.Shards > 63 || action.ReviewIndex.ReviewOrdinal < 0 || action.ReviewIndex.ReviewOrdinal >= action.ReviewIndex.Shards) {
+	if action.ReviewIndex != nil && (action.Operation != "validate" && action.Operation != "review" && action.Operation != "integrate" || action.ReviewIndex.Version != 1 || action.ReviewIndex.Mode != "indexed_candidate_review_v1" || action.ReviewIndex.Shards < 1 || action.ReviewIndex.Shards > 63 || action.ReviewIndex.ReviewOrdinal < 0 || action.ReviewIndex.ReviewOrdinal >= action.ReviewIndex.Shards) {
 		return empty, nil, noop, errors.New("candidate_review_index_invalid")
 	}
 	if action.Operation == "integrate" && action.ReviewIndex != nil {

@@ -184,7 +184,7 @@ func validateCandidatePlan(tasks map[string]TaskSpec) error {
 		previous := parsed[a.SourceTask]
 		switch a.Operation {
 		case "validate":
-			if a.ReviewIndex != nil || p.Kind != "candidate" || previous.Kind != "" || len(previous.Workspace) == 0 || string(previous.Workspace) == "null" {
+			if p.Kind != "candidate" || previous.Kind != "" || len(previous.Workspace) == 0 || string(previous.Workspace) == "null" {
 				return CodeError("invalid_candidate_dag")
 			}
 		case "review":

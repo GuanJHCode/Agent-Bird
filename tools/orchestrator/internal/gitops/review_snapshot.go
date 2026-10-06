@@ -79,6 +79,7 @@ func ReviewIndexManifestSHA256(index ReviewIndex) string {
 // HydrateReviewChunks reads only the immutable blob ranges assigned by an
 // accepted manifest. It never rebuilds an index or discovers paths.
 func HydrateReviewChunks(ctx context.Context, receipt CandidateReceipt, chunks []ReviewIndexChunk) ([]ReviewIndexChunk, error) {
+	ctx = context.WithValue(ctx, candidateRunnerKey{}, true)
 	if err := validateReviewSnapshotReceipt(ctx, receipt); err != nil {
 		return nil, err
 	}
@@ -150,6 +151,7 @@ func (c *hydrateCollector) Write(p []byte) (int, error) {
 // logical side even when their blob OIDs match. It rejects unsupported entries
 // rather than presenting partial coverage as complete.
 func CandidateReviewIndex(ctx context.Context, receipt CandidateReceipt, receiptSHA256 string) (ReviewIndex, error) {
+	ctx = context.WithValue(ctx, candidateRunnerKey{}, true)
 	if len(receiptSHA256) != 64 {
 		return ReviewIndex{}, fail(CodeInvalidInput, "review index", fmt.Errorf("invalid candidate receipt digest"))
 	}
@@ -308,7 +310,7 @@ func (c *indexedChunkCollector) append(part []byte) error {
 	if len(c.index.Chunks) >= indexedReviewChunkCountLimit {
 		return fmt.Errorf("too many chunks")
 	}
-	c.index.Chunks = append(c.index.Chunks, ReviewIndexChunk{Ordinal: len(c.index.Chunks), Path: c.path, Side: c.side, Mode: c.entry.mode, BlobOID: c.entry.oid, Offset: c.offset, Length: len(part), SHA256: reviewChunkDigest(part), Content: string(part)})
+	c.index.Chunks = append(c.index.Chunks, ReviewIndexChunk{Ordinal: len(c.index.Chunks), Path: c.path, Side: c.side, Mode: c.entry.mode, BlobOID: c.entry.oid, Offset: c.offset, Length: len(part), SHA256: reviewChunkDigest(part)})
 	c.offset += len(part)
 	return nil
 }
