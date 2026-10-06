@@ -123,8 +123,9 @@ func TestNativeReplacementExchangeReplyLoss(t *testing.T) {
 }
 
 type replacementACKFaultPlan struct {
-	losses  int
-	exhaust bool
+	losses    int
+	exhaust   bool
+	stopCause string
 }
 
 type replacementACKDroppedReply struct {
@@ -142,6 +143,17 @@ func TestNativeReplacementSharedFiveOperationBudget(t *testing.T) {
 	})
 }
 
+func TestNativeOwnerStopTriggersCleanUpStubbornWorker(t *testing.T) {
+	if runtime.GOOS != "darwin" {
+		t.Skip("native source-host fixture requires macOS")
+	}
+	for _, cause := range []string{"origin_loss", "authenticated_terminal"} {
+		t.Run(cause, func(t *testing.T) {
+			nativeReplacementACKLoss(t, "ticket", false, replacementACKFaultPlan{losses: 1, stopCause: cause})
+		})
+	}
+}
+
 func nativeReplacementACKLoss(t *testing.T, lostKind string, restartCoordinator bool, options ...replacementACKFaultPlan) {
 	t.Helper()
 	plan := replacementACKFaultPlan{losses: 1}
@@ -150,6 +162,9 @@ func nativeReplacementACKLoss(t *testing.T, lostKind string, restartCoordinator 
 	}
 	if plan.losses < 1 || plan.losses > 5 || (plan.exhaust && plan.losses != 5) {
 		t.Fatal("invalid fault plan")
+	}
+	if plan.stopCause != "" && (plan.exhaust || restartCoordinator || plan.losses != 1 || (plan.stopCause != "origin_loss" && plan.stopCause != "authenticated_terminal")) {
+		t.Fatal("invalid stop trigger")
 	}
 	root, err := os.MkdirTemp("/private/tmp", "replacement-ack-loss-")
 	if err != nil {
@@ -294,10 +309,33 @@ func nativeReplacementACKLoss(t *testing.T, lostKind string, restartCoordinator 
 	}
 	workerArgs := []string{fixture, marker, release}
 	termReceipt := filepath.Join(root, "worker-term.json")
-	if plan.exhaust {
+	if plan.exhaust || plan.stopCause != "" {
 		workerArgs = append(workerArgs, termReceipt)
 	}
 	request := map[string]any{"run_id": "replacement-ack-loss", "controller_thread": "replacement-ack-thread", "plan_revision": 1, "origin_context_id": "replacement-ack-origin", "origin_pid": os.Getpid(), "origin_birth": birth, "host_generation": "replacement-ack-generation", "delivery_mode": "collect", "tasks": []any{map[string]any{"id": "worker", "max_attempts": 1, "max_active_ms": 60000, "completion_policy": "owner_review", "adapter": map[string]any{"kind": "fake", "args": workerArgs, "directory": root}}}}
+	var origin *exec.Cmd
+	var originIdentity contract.OriginalOwnerTransport
+	originWaited := false
+	if plan.stopCause == "origin_loss" {
+		// A separate real origin lets the test retain its original Wait while
+		// leaving Coordinator and all execution actors untouched at trigger.
+		origin = exec.Command("/bin/sleep", "120")
+		if err = origin.Start(); err != nil {
+			t.Fatal("start controlled origin", err)
+		}
+		t.Cleanup(func() {
+			if !originWaited {
+				_ = origin.Process.Kill()
+				_ = origin.Wait()
+			}
+		})
+		originIdentity.PID = origin.Process.Pid
+		originIdentity.Birth, err = process.Birth(originIdentity.PID)
+		if err != nil || !replacementACKOwned(originIdentity, "/bin/sleep") {
+			t.Fatal("controlled origin identity", err)
+		}
+		request["origin_pid"], request["origin_birth"] = originIdentity.PID, originIdentity.Birth
+	}
 	requestPath := filepath.Join(root, "request.json")
 	raw, _ := json.Marshal(request)
 	if err = os.WriteFile(requestPath, raw, 0600); err != nil {
@@ -450,14 +488,21 @@ func nativeReplacementACKLoss(t *testing.T, lostKind string, restartCoordinator 
 			t.Fatal("reply retry started another child or changed pending slot")
 		}
 	}
-	if plan.exhaust {
-		deadline := lastDrop.at.Add(13 * time.Second)
+	var stopSession *hostSession
+	var beforeStopLedger []byte
+	assertBoundedStop := func(triggerAt time.Time) {
+		t.Helper()
+		deadline := triggerAt.Add(13 * time.Second)
+		wantAttempts := plan.losses + 1
+		if plan.exhaust {
+			wantAttempts = 5
+		}
 		var termAt time.Time
 		survivedTERM := false
 		for {
 			ledger := readLedger()
-			if ledger.Attempts != 5 || ledger.Pending.StartSlot != 1 || ledger.Pending.Host != pending.Host || ledger.Pending.RequestID != pending.RequestID || committedReplies.Load() != 5 {
-				t.Fatalf("exhaustion reset/expanded shared budget or replaced child: %+v replies=%d", ledger, committedReplies.Load())
+			if ledger.Attempts != wantAttempts || ledger.Pending.StartSlot != 1 || ledger.Pending.Host != pending.Host || ledger.Pending.RequestID != pending.RequestID || committedReplies.Load() != int32(wantAttempts) {
+				t.Fatalf("stop reset/expanded shared budget or replaced child: %+v replies=%d", ledger, committedReplies.Load())
 			}
 			if raw, err := os.ReadFile(termReceipt); err == nil && termAt.IsZero() {
 				var ns int64
@@ -473,11 +518,11 @@ func nativeReplacementACKLoss(t *testing.T, lostKind string, restartCoordinator 
 				allGone = allGone && errors.Is(syscall.Kill(actor.PID, 0), syscall.ESRCH)
 			}
 			if time.Now().After(deadline) {
-				t.Fatal("product exhaustion cleanup exceeded 13 seconds; fixture has not sent a signal")
+				t.Fatal("product cleanup exceeded 13 seconds; fixture has not signaled execution actors")
 			}
 			if allGone {
-				if !ledger.Unavailable || len(ledger.Reservation) != 0 || !survivedTERM || termAt.Before(lastDrop.at) || termAt.After(lastDrop.at.Add(2*time.Second)) {
-					t.Fatal("exhaustion has no product TERM/escalation/closed-budget proof", ledger.Unavailable, survivedTERM, termAt)
+				if ledger.Unavailable != plan.exhaust || len(ledger.Reservation) != 0 || !survivedTERM || termAt.Before(triggerAt) || termAt.After(triggerAt.Add(2*time.Second)) {
+					t.Fatal("stop has no product TERM/escalation/budget proof", ledger.Unavailable, survivedTERM, termAt)
 				}
 				break
 			}
@@ -496,24 +541,51 @@ func nativeReplacementACKLoss(t *testing.T, lostKind string, restartCoordinator 
 			if event.Kind == contract.EventExited {
 				exits++
 				if event.Process == nil || event.Process.PID != worker.PID || event.Process.Birth != worker.Birth || event.ExitCode == nil || *event.ExitCode == 0 {
-					t.Fatal("exhaustion lost original worker nonzero Wait receipt")
+					t.Fatal("stop lost original worker nonzero Wait receipt")
 				}
 			}
 		}
 		if exits != 1 {
-			t.Fatal("exhaustion did not record exactly one original worker exit", exits)
+			t.Fatal("stop did not record exactly one original worker exit", exits)
 		}
 		var afterMarker replacementACKWorkerMarker
 		if raw, err := os.ReadFile(marker); err != nil || json.Unmarshal(raw, &afterMarker) != nil || afterMarker != originalWorker {
-			t.Fatal("exhaustion replaced worker")
+			t.Fatal("stop replaced worker")
 		}
 		var attempts, segments int
 		if err := db.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM attempts WHERE task_id='worker'),(SELECT COUNT(*) FROM segments s JOIN attempts a ON a.id=s.attempt_id WHERE a.task_id='worker')`).Scan(&attempts, &segments); err != nil || attempts != 1 || segments != 1 {
-			t.Fatal("exhaustion redispatched worker", attempts, segments, err)
+			t.Fatal("stop redispatched worker", attempts, segments, err)
 		}
-		t.Logf("five operations exhausted; product TERM ignored for >=8s then original worker exited; owner/child/worker gone within %s without fixture signals", time.Since(lastDrop.at))
+		if plan.stopCause != "" {
+			// Backoff, every pending phase/proof and its original authority
+			// must survive terminal cleanup exactly, not only selected fields.
+			if after, err := os.ReadFile(ledgerPath); err != nil || !bytes.Equal(after, beforeStopLedger) {
+				t.Fatal("stop changed durable recovery authority", err)
+			}
+			stopSession.mu.Lock()
+			terminalSent := stopSession.terminalSent
+			stopSession.mu.Unlock()
+			if terminalSent != (plan.stopCause == "authenticated_terminal") {
+				t.Fatal("origin/terminal trigger evidence changed", terminalSent)
+			}
+			readyCtx, cancel := context.WithTimeout(ctx, time.Second)
+			ready, readyErr := ipc.Call(readyCtx, filepath.Join(state, "coordinator.sock"), ipc.Envelope{Version: ipc.Version, Kind: ipc.KindReady, RequestID: "stop-trigger-coordinator-still-live"})
+			cancel()
+			if readyErr != nil || ready.Kind != ipc.KindResponse || s.terminating.Load() {
+				t.Fatal("stop trigger was confounded by Coordinator shutdown", readyErr)
+			}
+			if plan.stopCause == "authenticated_terminal" {
+				if currentBirth, err := process.Birth(os.Getpid()); err != nil || currentBirth != birth {
+					t.Fatal("authenticated terminal lost original live origin", err)
+				}
+			}
+		}
+		t.Logf("stop cause=%q exhausted=%v; product TERM ignored for >=8s then original worker exited; owner/child/worker gone within %s without fixture cleanup signals", plan.stopCause, plan.exhaust, time.Since(triggerAt))
 		stop()
 		clean = true
+	}
+	if plan.exhaust {
+		assertBoundedStop(lastDrop.at)
 		return
 	}
 	// The required green behavior is a live, ready replacement and the same
@@ -568,6 +640,40 @@ func nativeReplacementACKLoss(t *testing.T, lostKind string, restartCoordinator 
 					t.Fatalf("ACK repair reset/duplicated recovery budget: %+v", ledger)
 				}
 				time.Sleep(10 * time.Millisecond)
+			}
+			if plan.stopCause != "" {
+				s.mu.Lock()
+				stopSession = s.hosts[binding.Scope.ProducerID]
+				s.mu.Unlock()
+				if stopSession == nil || stopSession.ownerPermit == nil || stopSession.hello.PID != pending.Host.PID || stopSession.hello.Birth != pending.Host.Birth {
+					t.Fatal("stop target is not activated replacement")
+				}
+				beforeStopLedger, err = os.ReadFile(ledgerPath)
+				if err != nil || !json.Valid(beforeStopLedger) {
+					t.Fatal("snapshot original recovery authority before stop", err)
+				}
+				triggerAt := time.Now()
+				if plan.stopCause == "origin_loss" {
+					if !replacementACKOwned(originIdentity, "/bin/sleep") {
+						t.Fatal("controlled origin changed before loss trigger")
+					}
+					if err = origin.Process.Kill(); err != nil {
+						t.Fatal("terminate controlled origin", err)
+					}
+					waitErr := origin.Wait()
+					originWaited = true
+					var exited *exec.ExitError
+					if !errors.As(waitErr, &exited) || !exited.Sys().(syscall.WaitStatus).Signaled() || exited.Sys().(syscall.WaitStatus).Signal() != syscall.SIGKILL || !errors.Is(syscall.Kill(originIdentity.PID, 0), syscall.ESRCH) {
+						t.Fatal("controlled origin lacks original killed Wait/reap", waitErr)
+					}
+				} else {
+					if err := sendHostDisposition(stopSession, s.epoch, "host_retired"); err != nil {
+						t.Fatal("write actual signed terminal frame", err)
+					}
+					t.Logf("signed terminal frame write completed after %s; receipt is proved by subsequent product TERM", time.Since(triggerAt))
+				}
+				assertBoundedStop(triggerAt)
+				return
 			}
 			if err = os.WriteFile(release, nil, 0600); err != nil {
 				t.Fatal(err)

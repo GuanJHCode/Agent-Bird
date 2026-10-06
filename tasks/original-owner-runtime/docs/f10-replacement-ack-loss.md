@@ -51,3 +51,12 @@ ROOT跨Coordinator重启增量（2026-10-07）：
 - 最终 race 原 session21982 exit0：4top16named、0fail/skip，包含既有同 epoch/跨重启四类 ACK-loss、exchange 两场景和新增两场景。go vet exit0（d99f9f），每场景实际构建产品 CLI 成功；稳定一文件测试独立审查 PASS。完整 hash/计数/自动清理耗时在 root-native-five-budget-receipt.json。
 - race 插桩只覆盖测试、inprocess Coordinator 和复制 worker；另 build 的产品 CLI/owner/transport 非 race。worker 的持久原退出记录与 actor ESRCH 分别记账，后者不称其原 Wait0。此 fixture 无持久 descendant subtree，不代表完整 Provider 进程树验收。
 - 所有原 session 终态；成功现场清理，v1 失败现场 4 个已登记 PID 均 ESRCH（root-native-five-v1-actor-audit.json），必要证据保留。未运行 Docker/真实模型。origin-loss/authenticated-terminal 与 blocked admission/publisher/disk 完整 13 秒矩阵、B3 及集成仍 OPEN。
+
+
+Origin loss 与 authenticated terminal 原生增量（2026-10-07）：
+
+- 两个 tests-only 场景复用 public build/submit 和实际 replacement activated 后的原 worker。origin 使用测试持有原 Cmd 的独立 /bin/sleep，仅 Kill 该 origin 并消费原 Wait（SIGKILL+reap）；terminal 通过现有 sendHostDisposition 发完整签名帧，不关闭 Coordinator 或控制 socket。
+- 两场景均只由产品向 stubborn worker 发 TERM，必须在 trigger 后 2 秒内记录；原 worker 忽略 TERM 后存活至少 8 秒，随后 owner/replacement/worker 必须在 trigger+13 秒内 ESRCH。保存唯一原 PID/birth 非零 Exited，marker、attempt/segment 均不替换。Coordinator 仍 ready/not terminating；retained session.terminalSent 在 origin 场景为 false、terminal 场景为 true，排除 shutdown/terminal 混因。
+- 独审指出主要字段相等不足以证明完整 recovery authority 未变。补为 activated/noReservation 后、trigger 前读取有效 canonical ledger bytes，actor 全退出后全文相等，覆盖 backoff、phase、proof、scope/authority。独审复核 PASS，生产未改。
+- 原普通51309与第一race30137均exit0，前者1top3named，后者Host4top10named+Coordinator2top6named。增强断言后的普通33214、race68259均exit0，各1top3named，0fail/skip；替代此前stop两个case，未受影响的Host与five-budget回归复用30137。最终有效race6top16named。原日志/SHA/各清理时长与替代规则在root-native-stop-triggers-receipt.json。最终vet3414b6/diffcheck通过，每场景实际build成功。
+- 所有原session终态，成功现场清理，无本增量failed现场/强制cleanup/Docker。无真实模型/Provider/TUI声明；另build产品非race，原owner/transport只能证明身份消失，不伪造其原Wait0；worker fixture无持久后代树。blocked admission/publisher/disk完整原生13秒矩阵、B3与集成仍OPEN。
