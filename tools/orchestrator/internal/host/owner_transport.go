@@ -149,6 +149,9 @@ func readOwnerTransportFrames(ctx context.Context, conn net.Conn) <-chan ownerTr
 }
 
 func writeOwnerTransportFrame(ctx context.Context, conn net.Conn, message ipc.Envelope) error {
+	if err := context.Cause(ctx); err != nil {
+		return err
+	}
 	deadline := time.Now().Add(5 * time.Second)
 	if end, ok := ctx.Deadline(); ok && end.Before(deadline) {
 		deadline = end
@@ -156,7 +159,28 @@ func writeOwnerTransportFrame(ctx context.Context, conn net.Conn, message ipc.En
 	if err := conn.SetWriteDeadline(deadline); err != nil {
 		return err
 	}
-	return ipc.Write(conn, message)
+	// A cancellation without a deadline must interrupt a full inherited
+	// socket immediately. A partial frame cannot safely reuse this channel.
+	stop := context.AfterFunc(ctx, func() { _ = conn.Close() })
+	defer stop()
+	err := ipc.Write(conn, message)
+	if err != nil {
+		// Write may have emitted only a frame prefix. Even a timeout with a
+		// live context must retire this stream before another frame is sent.
+		_ = conn.Close()
+	}
+	if cause := context.Cause(ctx); cause != nil {
+		return cause
+	}
+	if err != nil {
+		var timeout net.Error
+		if errors.As(err, &timeout) && timeout.Timeout() && !time.Now().Before(deadline) {
+			// The socket timer may fire before the context timer is scheduled.
+			return context.DeadlineExceeded
+		}
+		return err
+	}
+	return conn.SetWriteDeadline(time.Time{})
 }
 
 func runOwnerTransportLoop(parent context.Context, bootstrap contract.OwnerTransportBootstrap, identity contract.OriginalOwnerTransport, control *net.UnixConn) error {

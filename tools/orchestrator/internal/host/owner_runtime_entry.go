@@ -54,7 +54,7 @@ func RunOriginalOwner(parent context.Context, cfg OriginalOwnerConfig) error {
 	if err != nil {
 		return err
 	}
-	if err = ipc.Write(cfg.Control, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindOriginalOwnerBound, RequestID: cfg.Bootstrap.Prepared.Intent.RequestID, Epoch: bound.Permit.CoordinatorEpoch, Payload: body}); err != nil {
+	if err = writeOwnerTransportFrame(ctx, cfg.Control, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindOriginalOwnerBound, RequestID: cfg.Bootstrap.Prepared.Intent.RequestID, Epoch: bound.Permit.CoordinatorEpoch, Payload: body}); err != nil {
 		return err
 	}
 	directories, err := openOwnerRuntimeDirectories(cfg.Bootstrap)
@@ -208,10 +208,10 @@ func recoverInitialOwnerTransport(ctx context.Context, cfg OriginalOwnerConfig, 
 			return err
 		}
 		control, _ := json.Marshal(contract.OwnerTransportControl{Version: 1, Action: "connect"})
-		if err = ipc.Write(cfg.Control, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindOwnerTransportControl, RequestID: "owner-reconnect", Payload: control}); err != nil {
-			if transientSourceError(err) {
-				continue
-			}
+		if err = writeOwnerTransportFrame(ctx, cfg.Control, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindOwnerTransportControl, RequestID: "owner-reconnect", Payload: control}); err != nil {
+			// A failed local control write may have sent a partial frame. This
+			// inherited stream is retired; reconnecting the Coordinator does
+			// not create a fresh FD4 on which it would be safe to retry.
 			return err
 		}
 		// The reader reports the authenticated pending session on the next wake.
