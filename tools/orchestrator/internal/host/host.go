@@ -50,7 +50,8 @@ type Host struct {
 	eventReady        chan struct{}
 	progressSink      func(context.Context, contract.Event) error
 	continuationOwner string
-	codexLeases       map[string]*codexHandleLease // CommandID; under stopMu + mu
+	codexLeases       map[string]*codexHandleLease           // CommandID; under stopMu + mu
+	failedStarts      map[*process.Handle]*hostStopOperation // original ownership after Start error; under stopMu
 }
 
 func New(db *store.DB, spoolRoot string) (*Host, error) {
@@ -287,6 +288,7 @@ func (h *Host) Execute(ctx context.Context, a store.Attempt, runID, taskID strin
 }
 
 type launchMetadata struct {
+	startProcess      func(context.Context, process.Command) (*process.Handle, error)
 	agyHistoryGrant   *contract.LaunchCommand
 	completionMode    adapter.TaskCompletionMode
 	prepareProvider   func(context.Context) (process.Command, error)
@@ -475,19 +477,32 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		h.finishAttempt(a.ID, "unknown", persistDB)
 		return contract.Result{Status: "unknown", ExitCode: -1, EventCount: eventCount}, err
 	}
-	p, err := process.Start(ctx, cmd)
+	start := meta.startProcess
+	if start == nil {
+		start = process.Start
+	}
+	p, err := start(ctx, cmd)
 	if err != nil {
-		phaseErr := publishLaunchPhase(spool, "unknown", a, runID, taskID, cmd, nil, err)
-		_ = appendPhase(contract.EventUnknown, hashText("unknown:"+a.SegmentID), nil, nil, nil)
+		var identity *process.Identity
+		exit := -1
+		if p != nil {
+			original := p.Identity()
+			identity = &original
+			err = errors.Join(err, h.stopFailedStart(a.SegmentID, p, meta.beforeStopJoin))
+			exit = p.ExitCode()
+		}
+		phaseErr := publishLaunchPhase(spool, "unknown", a, runID, taskID, cmd, identity, err)
+		_ = appendPhase(contract.EventUnknown, hashText("unknown:"+a.SegmentID), identity, nil, nil)
 		h.finishAttempt(a.ID, "unknown", persistDB)
 		if phaseErr != nil {
-			return contract.Result{Status: "unknown", ExitCode: -1, EventCount: eventCount}, phaseErr
+			return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount}, phaseErr
 		}
-		return contract.Result{Status: "unknown", ExitCode: -1, EventCount: eventCount}, err
+		return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount}, err
 	}
 	identity := p.Identity()
 	spawnedAt = time.Now()
 	if err = h.registerOwnedHandle(a.ID, a.SegmentID, p); err != nil {
+		err = errors.Join(err, h.stopFailedStart(a.SegmentID, p, meta.beforeStopJoin))
 		return finalizeCandidateUnknown(err, &identity, p.ExitCode())
 	}
 	defer h.unregisterOwnedHandle(a.ID, a.SegmentID, p)
@@ -1432,6 +1447,9 @@ func (h *Host) BeginStopAll(ctx context.Context) {
 		}
 		ops = append(ops, h.codexSegmentStopOperationsLocked(lease.segment, h.stopIntents[lease.segment])...)
 	}
+	for _, op := range h.failedStarts {
+		ops = append(ops, op)
+	}
 	h.mu.Unlock()
 	h.stopMu.Unlock()
 	for _, op := range ops {
@@ -1460,6 +1478,12 @@ func (h *Host) stopAll(ctx context.Context, observe func(*hostStopOperation)) {
 				seen[op] = true
 				ops = append(ops, op)
 			}
+		}
+	}
+	for _, op := range h.failedStarts {
+		if !seen[op] {
+			seen[op] = true
+			ops = append(ops, op)
 		}
 	}
 	h.stopMu.Unlock()

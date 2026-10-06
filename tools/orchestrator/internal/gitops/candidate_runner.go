@@ -50,6 +50,10 @@ func (out *candidateOutput) Write(p []byte) (int, error) {
 }
 
 func candidateGit(ctx context.Context, dir string, stdin io.Reader, args ...string) (CommandResult, error) {
+	return candidateGitWithStart(ctx, dir, stdin, process.Start, args...)
+}
+
+func candidateGitWithStart(ctx context.Context, dir string, stdin io.Reader, start func(context.Context, process.Command) (*process.Handle, error), args ...string) (CommandResult, error) {
 	var input []byte
 	var err error
 	if stdin != nil {
@@ -79,8 +83,17 @@ func candidateGit(ctx context.Context, dir string, stdin io.Reader, args ...stri
 		return CommandResult{}, err
 	}
 	out := &candidateOutput{}
-	p, err := process.Start(ctx, process.Command{Path: "/usr/bin/git", Args: argv, Dir: dir, Env: env, ExactEnv: true, Stdin: input, Stdout: out})
+	p, err := start(ctx, process.Command{Path: "/usr/bin/git", Args: argv, Dir: dir, Env: env, ExactEnv: true, Stdin: input, Stdout: out})
 	if err != nil {
+		if p != nil {
+			identity := p.Identity()
+			_ = record("unknown", &identity, p.ExitCode())
+			cleanup, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			stopErr := p.Stop(cleanup)
+			waitErr := p.Wait(cleanup)
+			return CommandResult{PID: p.PID(), ExitCode: p.ExitCode()}, errors.Join(process.ErrProcessTreeUnknown, stopErr, waitErr, p.ConfirmTreeExited())
+		}
 		return CommandResult{}, candidateStartFailure(err)
 	}
 	identity := p.Identity()
