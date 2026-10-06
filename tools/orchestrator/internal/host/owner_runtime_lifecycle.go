@@ -49,6 +49,24 @@ func (r *ownerRuntimeLifecycle) retainTransportChild(child *ownerTransportChild)
 	r.mu.Unlock()
 }
 
+// Called only after the serial workflow has retired the same child's durable
+// reservation using its original Wait. Reaped historical children need neither
+// another signal nor another cleanup error when their successor later stops.
+func (r *ownerRuntimeLifecycle) forgetWaitedTransportChild(child *ownerTransportChild) error {
+	if !child.waited() {
+		return errOriginalOwnerRuntime
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for i, retained := range r.children {
+		if retained == child {
+			r.children = append(r.children[:i], r.children[i+1:]...)
+			return nil
+		}
+	}
+	return errOriginalOwnerRuntime
+}
+
 func newOwnerRuntimeLifecycle(e *ownerExecution, cancel context.CancelCauseFunc) *ownerRuntimeLifecycle {
 	return &ownerRuntimeLifecycle{execution: e, cancel: cancel, wake: make(chan struct{}, 1), limits: ownerRuntimeLimits{10 * time.Second, 11 * time.Second, 2 * time.Second, 13 * time.Second}}
 }

@@ -95,7 +95,8 @@ func TestOwnerRuntimeRecoveryRetainsPostStartFailureUntilOriginalWait(t *testing
 		}
 		return child, startErr
 	}
-	err = recoverDeadInitialTransportWithStart(ctx, cfg, nil, execution, lifecycle, recovery, current, start)
+	transport := &ownerRuntimeTransport{generation: 1, identity: current.NewHost}
+	err = recoverDeadOwnerTransportWithStart(ctx, cfg, nil, execution, lifecycle, recovery, transport, current, start)
 	if err == nil || child == nil {
 		t.Fatal("recovery did not propagate post-Start failure", err)
 	}

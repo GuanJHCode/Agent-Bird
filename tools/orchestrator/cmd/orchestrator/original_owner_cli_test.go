@@ -57,14 +57,22 @@ func runOriginalOwnerWorkerFixture() {
 // task adapter is a controlled worker; enrollment, signatures, process handles,
 // Store, spool publication and Coordinator shutdown are production paths.
 func TestCLIOriginalOwnerExecutesSignedWorker(t *testing.T) {
-	exerciseCLIOriginalOwner(t, false)
+	exerciseCLIOriginalOwner(t, 0, false)
 }
 
 func TestCLIOriginalOwnerReplacesDeadTransport(t *testing.T) {
-	exerciseCLIOriginalOwner(t, true)
+	exerciseCLIOriginalOwner(t, 1, false)
 }
 
-func exerciseCLIOriginalOwner(t *testing.T, killTransport bool) {
+func TestCLIOriginalOwnerReplacesConsecutiveDeadTransports(t *testing.T) {
+	exerciseCLIOriginalOwner(t, 2, false)
+}
+
+func TestCLIOriginalOwnerRenewsReplacementAfterCoordinatorRestart(t *testing.T) {
+	exerciseCLIOriginalOwner(t, 1, true)
+}
+
+func exerciseCLIOriginalOwner(t *testing.T, transportDeaths int, restartCoordinator bool) {
 	t.Helper()
 	root, err := os.MkdirTemp("/private/tmp", "owner-first-cli-")
 	if err != nil {
@@ -103,6 +111,7 @@ func exerciseCLIOriginalOwner(t *testing.T, killTransport bool) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() { _ = log.Close() })
 	server := exec.Command(bin, "serve", "--state-dir", state)
 	server.Env = append(os.Environ(), "ORCHESTRATOR_ENABLE_TEST_FAKE=1")
 	server.Stdout, server.Stderr = log, log
@@ -271,27 +280,28 @@ func exerciseCLIOriginalOwner(t *testing.T, killTransport bool) {
 	if err != nil || worker.ParentPID != binding.Owner.PID || worker.ParentPID == host.PID || chain[worker.PID] != worker.Birth || chain[binding.Owner.PID] != binding.Owner.Birth || chain[host.PID] != host.Birth {
 		t.Fatalf("worker did not belong to original owner: worker=%+v host=%+v err=%v", worker, host, err)
 	}
-	if killTransport {
+	currentTransport := contract.OriginalOwnerTransport{PID: host.PID, Birth: host.Birth}
+	for fault := 0; fault < transportDeaths; fault++ {
 		before := recoveryTaskStatus(t, ctx, bin, state, "worker", submitted.ControlFile)
-		if current, err := process.Birth(host.PID); err != nil || current != host.Birth {
-			t.Fatal("first transport identity changed before fault", err)
+		if current, err := process.Birth(currentTransport.PID); err != nil || current != currentTransport.Birth {
+			t.Fatal("transport identity changed before fault", err)
 		}
-		if err := syscall.Kill(host.PID, syscall.SIGKILL); err != nil {
+		if err := syscall.Kill(currentTransport.PID, syscall.SIGKILL); err != nil {
 			t.Fatal(err)
 		}
 		var recovered recoveryStatus
 		for deadline := time.Now().Add(20 * time.Second); ; {
 			recovered = recoveryTaskStatus(t, ctx, bin, state, "worker", submitted.ControlFile)
-			if recovered.HostPID != host.PID && recovered.HostStatus == "ready" {
+			if recovered.HostPID != currentTransport.PID && recovered.HostStatus == "ready" {
 				break
 			}
 			if recovered.Status == "failed" || recovered.Status == "unknown" || recovered.Status == "interrupted" || time.Now().After(deadline) {
-				t.Fatalf("live owner did not replace dead first transport: before=%+v after=%+v", before, recovered)
+				t.Fatalf("live owner did not replace dead transport %d: before=%+v after=%+v", fault+1, before, recovered)
 			}
 			time.Sleep(20 * time.Millisecond)
 		}
 		actors = append(actors, contract.OriginalOwnerTransport{PID: recovered.HostPID, Birth: recovered.HostBirth})
-		if gone, err := process.IdentityExitedContext(ctx, host.PID, host.Birth); err != nil || !gone {
+		if gone, err := process.IdentityExitedContext(ctx, currentTransport.PID, currentTransport.Birth); err != nil || !gone {
 			t.Fatal("original source transport was not proven exited", gone, err)
 		}
 		if recovered.AttemptID != before.AttemptID || recovered.SegmentID != before.SegmentID || recovered.WorkRevision != before.WorkRevision {
@@ -321,10 +331,114 @@ func exerciseCLIOriginalOwner(t *testing.T, killTransport bool) {
 		}
 		var revision int
 		var afterBinding string
-		if err := db.QueryRowContext(ctx, `SELECT control_revision,original_binding_json FROM execution_owners WHERE run_id='owner-cli-run' AND is_current=1`).Scan(&revision, &afterBinding); err != nil || revision != 2 || afterBinding != bindingJSON {
+		if err := db.QueryRowContext(ctx, `SELECT control_revision,original_binding_json FROM execution_owners WHERE run_id='owner-cli-run' AND is_current=1`).Scan(&revision, &afterBinding); err != nil || revision != 2+fault || afterBinding != bindingJSON {
 			t.Fatal("recovery did not retain original owner binding and one control transfer", err)
 		}
-		t.Log("dead first transport replaced once under original live owner; worker tuple and segment unchanged")
+		currentTransport = contract.OriginalOwnerTransport{PID: recovered.HostPID, Birth: recovered.HostBirth}
+		t.Logf("dead transport %d replaced under original live owner; worker tuple and segment unchanged", fault+1)
+	}
+	if restartCoordinator {
+		before := recoveryTaskStatus(t, ctx, bin, state, "worker", submitted.ControlFile)
+		// Kill and reap the original test-owned Coordinator without publishing a
+		// normal shutdown fence. Immediately restart with another owned Cmd.
+		if err := server.Process.Kill(); err != nil {
+			t.Fatal(err)
+		}
+		select {
+		case waitErr := <-wait:
+			stopped = true
+			var killed *exec.ExitError
+			if !errors.As(waitErr, &killed) {
+				t.Fatal("faulted Coordinator did not return original killed Wait", waitErr)
+			}
+			if status, ok := killed.Sys().(syscall.WaitStatus); !ok || !status.Signaled() || status.Signal() != syscall.SIGKILL {
+				t.Fatal("Coordinator fault did not yield original SIGKILL receipt", killed)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatal("faulted Coordinator original Wait timed out")
+		}
+		server = exec.Command(bin, "serve", "--state-dir", state)
+		server.Env = append(os.Environ(), "ORCHESTRATOR_ENABLE_TEST_FAKE=1")
+		server.Stdout, server.Stderr = log, log
+		if err := server.Start(); err != nil {
+			t.Fatal(err)
+		}
+		wait = make(chan error, 1)
+		go func(cmd *exec.Cmd, result chan<- error) { result <- cmd.Wait() }(server, wait)
+		stopped = false
+		for deadline := time.Now().Add(5 * time.Second); ; {
+			readyCtx, stopReady := context.WithTimeout(ctx, 150*time.Millisecond)
+			ready, readyErr := ipc.Call(readyCtx, filepath.Join(state, "coordinator.sock"), ipc.Envelope{Version: ipc.Version, Kind: ipc.KindReady, RequestID: "owner-cli-restarted"})
+			stopReady()
+			if readyErr == nil && ready.Kind == ipc.KindResponse {
+				break
+			}
+			if time.Now().After(deadline) {
+				t.Fatal("replacement Coordinator did not become ready", readyErr)
+			}
+			time.Sleep(20 * time.Millisecond)
+		}
+		var after recoveryStatus
+		for deadline := time.Now().Add(15 * time.Second); ; {
+			after = recoveryTaskStatus(t, ctx, bin, state, "worker", submitted.ControlFile)
+			var revision int
+			if err := db.QueryRowContext(ctx, `SELECT control_revision FROM execution_owners WHERE run_id='owner-cli-run' AND is_current=1`).Scan(&revision); err != nil {
+				t.Fatal(err)
+			}
+			if revision == transportDeaths+2 && after.HostStatus == "ready" {
+				break
+			}
+			if after.Status == "failed" || after.Status == "unknown" || after.Status == "interrupted" || time.Now().After(deadline) {
+				t.Fatalf("live replacement did not renew after Coordinator restart: before=%+v after=%+v revision=%d", before, after, revision)
+			}
+			time.Sleep(20 * time.Millisecond)
+		}
+		if after.HostPID != currentTransport.PID || after.HostBirth != currentTransport.Birth || after.AttemptID != before.AttemptID || after.SegmentID != before.SegmentID || after.WorkRevision != before.WorkRevision {
+			t.Fatal("Coordinator restart replaced a live transport or redispatched worker")
+		}
+		for _, actor := range []contract.OriginalOwnerTransport{currentTransport, {PID: binding.Owner.PID, Birth: binding.Owner.Birth}, {PID: worker.PID, Birth: worker.Birth}} {
+			if birth, err := process.BirthContext(ctx, actor.PID); err != nil || birth != actor.Birth {
+				t.Fatal("Coordinator restart lost original actor", err)
+			}
+		}
+		var afterMarker originalOwnerWorkerMarker
+		marker, err := os.ReadFile(markerPath)
+		if err != nil || json.Unmarshal(marker, &afterMarker) != nil || afterMarker != worker {
+			t.Fatal("Coordinator restart started another worker")
+		}
+		var afterBinding string
+		if err := db.QueryRowContext(ctx, `SELECT original_binding_json FROM execution_owners WHERE run_id='owner-cli-run' AND is_current=1`).Scan(&afterBinding); err != nil || afterBinding != bindingJSON {
+			t.Fatal("Coordinator restart changed original owner binding", err)
+		}
+		t.Log("Coordinator hard restart renewed the same replacement transport and original worker")
+	}
+	if transportDeaths > 0 {
+		wantAttempts := transportDeaths
+		if restartCoordinator {
+			wantAttempts++
+		}
+		for deadline := time.Now().Add(time.Second); ; {
+			var ledger struct {
+				Attempts     int             `json:"attempts"`
+				Reservation  json.RawMessage `json:"reservation"`
+				OwnerPending struct {
+					StartSlot int                             `json:"start_slot"`
+					Phase     string                          `json:"phase"`
+					NewHost   contract.OriginalOwnerTransport `json:"new_host"`
+				} `json:"owner_pending"`
+			}
+			raw, err := os.ReadFile(filepath.Join(bootstrap.SpoolRoot, ".coordinator-recovery.json"))
+			if err != nil || json.Unmarshal(raw, &ledger) != nil {
+				t.Fatal("runtime recovery ledger unavailable", err)
+			}
+			if ledger.Attempts == wantAttempts && len(ledger.Reservation) == 0 && ledger.OwnerPending.StartSlot == transportDeaths && ledger.OwnerPending.Phase == "activated" && ledger.OwnerPending.NewHost == currentTransport {
+				break
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("recovery budget or retained child drifted: %+v", ledger)
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
 	}
 	if err := os.WriteFile(releasePath, nil, 0600); err != nil {
 		t.Fatal(err)

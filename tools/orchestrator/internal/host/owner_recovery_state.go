@@ -215,8 +215,14 @@ func (s *ownerRecoveryState) markTransportActivated(proofValue any) error {
 	return s.commit(next)
 }
 func (s *ownerRecoveryState) reserveCoordinator(now time.Time) (time.Time, error) {
-	if p := s.record.OwnerPending; p != nil && p.Phase != "started" {
-		return time.Time{}, ownerRecoveryRejected()
+	if p := s.record.OwnerPending; p != nil {
+		switch p.Phase {
+		case "started", "attached", "applied", "activated":
+			// A known child keeps its original Start slot and all signed stage
+			// proofs while reconnect consumes the shared Coordinator budget.
+		default:
+			return time.Time{}, ownerRecoveryRejected()
+		}
 	}
 	next, when, err := s.reservation(now, "coordinator")
 	if err != nil {

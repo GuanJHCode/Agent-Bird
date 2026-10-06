@@ -27,6 +27,21 @@ type OriginalOwnerConfig struct {
 
 var errOriginalOwnerRuntime = errors.New("original_owner_runtime_rejected")
 
+// Only the serial owner workflow changes this current transport. A nil child
+// denotes the inherited first parent, for which the owner cannot invent Wait.
+// Every replacement retains the exact launcher object and every reader join.
+type ownerRuntimeTransport struct {
+	generation uint64
+	control    *net.UnixConn
+	identity   contract.OriginalOwnerTransport
+	child      *ownerTransportChild
+	readers    []<-chan struct{}
+}
+
+func (d *ownerRuntimeTransport) read(ctx context.Context, lifecycle *ownerRuntimeLifecycle) {
+	d.readers = append(d.readers, lifecycle.readControl(ctx, d.generation, d.control))
+}
+
 // RunOriginalOwner creates the sole execution owner for a prepared initial
 // transport.  It binds a memory-only owner key over a fresh kernel-authenticated
 // RPC, relays the signed binding to the initial transport, then starts the
@@ -108,7 +123,8 @@ func RunOriginalOwner(parent context.Context, cfg OriginalOwnerConfig) error {
 		}
 		return recovery.markTransportActivated(applied)
 	}
-	reader := lifecycle.readControl(ctx, 1, cfg.Control)
+	transport := &ownerRuntimeTransport{generation: 1, control: cfg.Control, identity: bound.Binding.FirstHost}
+	transport.read(ctx, lifecycle)
 	failures := lifecycle.watchFailures(ctx)
 	origin := lifecycle.watchOrigin(ctx, bound.Binding.Scope)
 	publisher := lifecycle.publish(ctx)
@@ -123,11 +139,11 @@ func RunOriginalOwner(parent context.Context, cfg OriginalOwnerConfig) error {
 		case <-lifecycle.wake:
 			// A transport notice is merely a hint.  Replacement is driven by the
 			// owner recovery ledger, never by this reader or a stale connection.
-			notice, ok := lifecycle.takeNotice(1)
+			notice, ok := lifecycle.takeNotice(transport.generation)
 			if !ok || (!notice.offline && notice.pending == nil && notice.cause == nil) {
 				continue
 			}
-			if err = recoverInitialOwnerTransport(ctx, cfg, enrollment, execution, lifecycle, recovery, notice); err != nil {
+			if err = recoverCurrentOwnerTransport(ctx, cfg, enrollment, execution, lifecycle, recovery, transport, notice); err != nil {
 				cancel(err)
 			}
 		}
@@ -136,7 +152,7 @@ func RunOriginalOwner(parent context.Context, cfg OriginalOwnerConfig) error {
 	if cause == nil {
 		cause = context.Canceled
 	}
-	cleanupErr := lifecycle.cleanup(cause, []<-chan struct{}{reader, failures, origin, publisher})
+	cleanupErr := lifecycle.cleanup(cause, append(transport.readers, failures, origin, publisher))
 	if cleanupErr != nil {
 		return errors.Join(cause, cleanupErr)
 	}
@@ -146,32 +162,40 @@ func RunOriginalOwner(parent context.Context, cfg OriginalOwnerConfig) error {
 	return cause
 }
 
-// recoverInitialOwnerTransport handles only the original physical source-host
-// tuple.  A replacement child has a different proof and remains a separate
-// driver.  The workflow is serial: reserve shared budget, re-establish the
-// Coordinator, then ask the existing parent transport to reconnect before any
-// fresh signed RPC can renew its permit.
-func recoverInitialOwnerTransport(ctx context.Context, cfg OriginalOwnerConfig, enrollment *ownerEnrollment, execution *ownerExecution, lifecycle *ownerRuntimeLifecycle, recovery *ownerRecoveryState, notice ownerRuntimeNotice) error {
+// Recovery always follows the current transport's generation, FD and physical
+// identity. Replacement children additionally require their original Wait
+// before the persistent Start reservation can be retired.
+func recoverCurrentOwnerTransport(ctx context.Context, cfg OriginalOwnerConfig, enrollment *ownerEnrollment, execution *ownerExecution, lifecycle *ownerRuntimeLifecycle, recovery *ownerRecoveryState, transport *ownerRuntimeTransport, notice ownerRuntimeNotice) error {
 	if cfg.EnsureCoordinator == nil || (!notice.offline && notice.pending == nil && !ownerExecutionNeedsRecovery(notice.cause)) {
 		return errOriginalOwnerRuntime
 	}
-	// The first transport is our parent, so an EOF alone proves nothing. Only a
-	// bounded PID/birth observation proving that exact tuple changed can enter
-	// the replacement-child path. Unknown and alive observations remain on the
-	// same-tuple reconnect path and can never Start a replacement.
-	if notice.offline {
-		execution.mu.Lock()
-		last := execution.last
-		execution.mu.Unlock()
-		if last != nil && last.permit.NewHost == execution.cfg.binding.FirstHost {
-			exited, observeErr := process.IdentityExitedContext(ctx, last.permit.NewHost.PID, last.permit.NewHost.Birth)
-			if observeErr != nil {
-				return observeErr
+	execution.mu.Lock()
+	last := execution.last
+	execution.mu.Unlock()
+	if last == nil || last.permit.NewHost != transport.identity || notice.generation != transport.generation ||
+		(transport.child == nil && transport.identity != execution.cfg.binding.FirstHost) {
+		return errOriginalOwnerRuntime
+	}
+	// Socket EOF is not an exit proof. Unknown observations fail closed; an
+	// alive tuple can only reconnect, never allocate a replacement Start.
+	exited, observeErr := process.IdentityExitedContext(ctx, transport.identity.PID, transport.identity.Birth)
+	if observeErr != nil {
+		return observeErr
+	}
+	if exited {
+		if transport.child != nil {
+			waitCtx, stopWait := context.WithTimeout(ctx, time.Second)
+			_ = transport.child.wait(waitCtx) // A killed transport has a real nonzero Wait.
+			stopWait()
+			if err := recovery.retireTransportAfterWait(transport.child); err != nil {
+				return err
 			}
-			if exited {
-				return recoverDeadInitialTransport(ctx, cfg, enrollment, execution, lifecycle, recovery, last.permit)
+			if err := lifecycle.forgetWaitedTransportChild(transport.child); err != nil {
+				return err
 			}
 		}
+		_ = transport.control.Close()
+		return recoverDeadOwnerTransport(ctx, cfg, enrollment, execution, lifecycle, recovery, transport, last.permit)
 	}
 	// This local value is deliberately retained across lost RPC replies.  The
 	// same request ID/revision/body is replayed after a new Coordinator epoch;
@@ -208,7 +232,7 @@ func recoverInitialOwnerTransport(ctx context.Context, cfg OriginalOwnerConfig, 
 			return err
 		}
 		control, _ := json.Marshal(contract.OwnerTransportControl{Version: 1, Action: "connect"})
-		if err = writeOwnerTransportFrame(ctx, cfg.Control, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindOwnerTransportControl, RequestID: "owner-reconnect", Payload: control}); err != nil {
+		if err = writeOwnerTransportFrame(ctx, transport.control, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindOwnerTransportControl, RequestID: "owner-reconnect", Payload: control}); err != nil {
 			// A failed local control write may have sent a partial frame. This
 			// inherited stream is retired; reconnecting the Coordinator does
 			// not create a fresh FD4 on which it would be safe to retry.
@@ -222,7 +246,7 @@ func recoverInitialOwnerTransport(ctx context.Context, cfg OriginalOwnerConfig, 
 		case <-time.After(5 * time.Second):
 			continue
 		case <-lifecycle.wake:
-			next, ok := lifecycle.takeNotice(1)
+			next, ok := lifecycle.takeNotice(transport.generation)
 			pending = ok && next.pending != nil
 		}
 		if !pending {
@@ -247,7 +271,7 @@ func recoverInitialOwnerTransport(ctx context.Context, cfg OriginalOwnerConfig, 
 			return callErr
 		}
 		var state contract.OwnerRuntimeState
-		if contract.DecodeOwnerRuntimeStrict(reply.Body, &state) != nil || state.Binding != execution.cfg.binding {
+		if contract.DecodeOwnerRuntimeStrict(reply.Body, &state) != nil || state.Binding != execution.cfg.binding || state.Permit.NewHost != transport.identity {
 			return errOriginalOwnerRuntime
 		}
 		// A transport-only EOF does not create a new Coordinator epoch.  Its
@@ -288,17 +312,17 @@ func recoverInitialOwnerTransport(ctx context.Context, cfg OriginalOwnerConfig, 
 	}
 }
 
-// recoverDeadInitialTransport creates one replacement only after the parent
+// recoverDeadOwnerTransport creates one replacement only after the current
 // transport's physical tuple is proven dead. The persistent reservation is
 // written before Start and the returned *exec.Cmd remains owned by the live
 // owner; no PID reconstruction can create another child.
-func recoverDeadInitialTransport(ctx context.Context, cfg OriginalOwnerConfig, enrollment *ownerEnrollment, execution *ownerExecution, lifecycle *ownerRuntimeLifecycle, recovery *ownerRecoveryState, current contract.OwnerControlPermit) error {
-	return recoverDeadInitialTransportWithStart(ctx, cfg, enrollment, execution, lifecycle, recovery, current, startOwnerTransport)
+func recoverDeadOwnerTransport(ctx context.Context, cfg OriginalOwnerConfig, enrollment *ownerEnrollment, execution *ownerExecution, lifecycle *ownerRuntimeLifecycle, recovery *ownerRecoveryState, transport *ownerRuntimeTransport, current contract.OwnerControlPermit) error {
+	return recoverDeadOwnerTransportWithStart(ctx, cfg, enrollment, execution, lifecycle, recovery, transport, current, startOwnerTransport)
 }
 
 // The private launch seam preserves the production recovery sequence while
 // exercising failures after the kernel has already created the owned child.
-func recoverDeadInitialTransportWithStart(ctx context.Context, cfg OriginalOwnerConfig, enrollment *ownerEnrollment, execution *ownerExecution, lifecycle *ownerRuntimeLifecycle, recovery *ownerRecoveryState, current contract.OwnerControlPermit, start func(context.Context, contract.OwnerTransportBootstrap, ownerRecoveryPending, []string) (*ownerTransportChild, error)) error {
+func recoverDeadOwnerTransportWithStart(ctx context.Context, cfg OriginalOwnerConfig, enrollment *ownerEnrollment, execution *ownerExecution, lifecycle *ownerRuntimeLifecycle, recovery *ownerRecoveryState, transport *ownerRuntimeTransport, current contract.OwnerControlPermit, start func(context.Context, contract.OwnerTransportBootstrap, ownerRecoveryPending, []string) (*ownerTransportChild, error)) error {
 	requestID := fmt.Sprintf("%s:transport:%d", current.PermitID, current.ControlRevision)
 	when, err := recovery.reserveTransport(time.Now(), requestID, current.ControlRevision, current.NewHost)
 	if err != nil {
@@ -336,6 +360,9 @@ func recoverDeadInitialTransportWithStart(ctx context.Context, cfg OriginalOwner
 	if err = recovery.recordTransportStarted(child.identity); err != nil {
 		return err
 	}
+	transport.generation++
+	transport.control, transport.identity, transport.child = child.control, child.identity, child
+	transport.read(ctx, lifecycle)
 	pending, err := recovery.ticketPending()
 	if err != nil {
 		return err
@@ -355,19 +382,25 @@ func recoverDeadInitialTransportWithStart(ctx context.Context, cfg OriginalOwner
 	if err = writeOwnerTransportFrame(ctx, child.control, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindOwnerTransportControl, RequestID: pending.RequestID, Payload: raw}); err != nil {
 		return err
 	}
-	// Generation fencing drops all notices from the dead parent reader before
-	// accepting this child-owned pending session.
-	reader := lifecycle.readControl(ctx, 2, child.control)
-	_ = reader // lifecycle owns the FD; cleanup cancellation closes it.
-	select {
-	case <-ctx.Done():
-		return context.Cause(ctx)
-	case <-time.After(5 * time.Second):
-		return errCoordinatorUnavailable
-	case <-lifecycle.wake:
-		notice, ok := lifecycle.takeNotice(2)
-		if !ok || notice.pending == nil {
+	// Ignore stale wake tokens while the generation fence excludes old readers.
+	deadline := time.NewTimer(5 * time.Second)
+	defer deadline.Stop()
+pendingSession:
+	for {
+		select {
+		case <-ctx.Done():
+			return context.Cause(ctx)
+		case <-deadline.C:
 			return errCoordinatorUnavailable
+		case <-lifecycle.wake:
+			notice, ok := lifecycle.takeNotice(transport.generation)
+			if !ok {
+				continue
+			}
+			if notice.pending == nil {
+				return errCoordinatorUnavailable
+			}
+			break pendingSession
 		}
 	}
 	attach := contract.OwnerAttachRequest{ExpectedControlRevision: current.ControlRevision, OldHost: pending.OldHost, NewHost: pending.NewHost, Pending: &pending}

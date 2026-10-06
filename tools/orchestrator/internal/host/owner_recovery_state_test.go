@@ -71,6 +71,86 @@ func TestOriginalOwnerRecoveryKeepsChildAcrossSharedFiveAttempts(t *testing.T) {
 	}
 }
 
+func TestOriginalOwnerRecoveryCoordinatorReservationPreservesEveryKnownChildStage(t *testing.T) {
+	for _, phase := range []string{"reserved", "starting", "unknown", "started", "attached", "applied", "activated"} {
+		t.Run(phase, func(t *testing.T) {
+			dir, scope := privateRecoveryTestDirectory(t), strings.Repeat("a", 64)
+			s, err := openOwnerRecovery(dir, scope)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() { s.close() }()
+			old := contract.OriginalOwnerTransport{PID: 10, Birth: "old"}
+			child := contract.OriginalOwnerTransport{PID: 20, Birth: "child"}
+			if _, err = s.reserveTransport(time.UnixMilli(100_000), "replace", 1, old); err != nil {
+				t.Fatal(err)
+			}
+			if phase != "reserved" {
+				if err = s.beginTransportStart(); err != nil {
+					t.Fatal(err)
+				}
+			}
+			known := phase == "started" || phase == "attached" || phase == "applied" || phase == "activated"
+			if known {
+				if err = s.recordTransportStarted(child); err != nil {
+					t.Fatal(err)
+				}
+			} else if phase == "unknown" {
+				if err = s.markTransportUnknown(); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if phase == "attached" || phase == "applied" || phase == "activated" {
+				permit := contract.OwnerControlPermit{RequestID: "replace", ExpectedControlRevision: 1, ControlRevision: 2, OldHost: &old, NewHost: child}
+				if err = s.markTransportAttached(permit); err != nil {
+					t.Fatal(err)
+				}
+			}
+			proof := map[string]string{"signed": "applied"}
+			if phase == "applied" || phase == "activated" {
+				if err = s.markTransportApplied(proof); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if phase == "activated" {
+				if err = s.markTransportActivated(proof); err != nil {
+					t.Fatal(err)
+				}
+			}
+			before, _ := json.Marshal(s.record.OwnerPending)
+			when, err := s.reserveCoordinator(time.UnixMilli(200_000))
+			if !known {
+				if err == nil || s.record.Attempts != 1 {
+					t.Fatal("unresolved Start allowed Ensure or charged another slot", err)
+				}
+				return
+			}
+			if err != nil || when.UnixMilli() != 202_000 || s.record.Attempts != 2 {
+				t.Fatal("known child blocked shared Coordinator recovery", when, err)
+			}
+			s.close()
+			s, err = openOwnerRecovery(dir, scope)
+			if err != nil {
+				t.Fatal(err)
+			}
+			again, err := s.reserveCoordinator(time.UnixMilli(200_100))
+			if err != nil || again != when || s.record.Attempts != 2 {
+				t.Fatal("reopen recharged Coordinator reservation", err)
+			}
+			if err = s.beginCoordinatorEnsure(); err != nil {
+				t.Fatal(err)
+			}
+			if err = s.finishCoordinatorEnsure(); err != nil {
+				t.Fatal(err)
+			}
+			after, _ := json.Marshal(s.record.OwnerPending)
+			if !bytes.Equal(before, after) || s.record.Attempts != 2 || s.record.Reservation != nil {
+				t.Fatal("Coordinator recovery changed child proof or refunded its budget")
+			}
+		})
+	}
+}
+
 func TestOriginalOwnerRecoveryPersistsReplacementStages(t *testing.T) {
 	dir := privateRecoveryTestDirectory(t)
 	s, err := openOwnerRecovery(dir, strings.Repeat("a", 64))
