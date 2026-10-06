@@ -26,3 +26,11 @@ The public invocation path, Host grant ledger, execution entry, and candidate ar
 - Original behavioral RED logs are retained: inherited implementation gaps, early Host/CLI boundaries, review findings, and malformed adapter objects. No failed log was replaced with a passing log.
 
 Tests use actual SQLite transactions and controlled files. They prove capture/replay/retry/quota/migration/consumer boundaries, not live Provider execution or complete F03. Branched closure rework, cross-Provider combination, and final target serialization remain later milestones. Intel Mac/Windows native verification remains unavailable by the user's current environment constraint.
+
+## Integrated environment checks
+
+Integrated product `7e87e0e` / evidence `f587b18` retained the earlier retry/budget behavior: 8 top-level / 35 named PASS, zero FAIL/SKIP across Store, Host and public CLI. Raw SHA256 `40074a304c8a77236b2ac0142b0ecf429135067955d369c4b4be6eadfe18eca3`; see `integration.jsonl` and `integration-readback.json`.
+
+The integrated Linux arm64 Store binary ran six selected top-level tests / 24 named results, all PASS, zero FAIL/SKIP, in the existing isolated non-root Docker environment. This covers actual SQLite capture/reopen, migration/rollback, immutable/corrupt/drift rejection, one-byte quota/disk/frame rollback, duplicate plan admission and retry-copy evidence. Binary SHA256 `07bdeb4f4bf53313fbace37ad51d2d64e355ca1cf96ca739af6d99eba0830831`; raw SHA256 `fff20df9be403de44deaa6ddc4b432bd52c272b1b82e6d90e9a351926b00666e`. Owned CID `5460726027df25e78d95f82fd59d2f7170e0a1e3ba653aef69de40a257fecde3` is absent, exit0, no timeout/forced cleanup. Exact commands and restrictions are in `linux-capture-receipt.json`; reproduction is `../scripts/run-linux-capture.py`.
+
+This Linux check adds native database/filesystem evidence only. Provider execution and install support remain gated.

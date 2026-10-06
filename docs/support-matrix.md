@@ -18,6 +18,7 @@
 | 活 Host 重连 | 已实现 Coordinator 重启后的有界重连及原 spool 重放；不等于 Host 死亡后可以接管任意存活执行进程 |
 | 安装与保存配置恢复 | 已实现不可变 generation、原 Store/owner 绑定、安装重放及未准入 preparation 的显式 abandon；异主、部分发布中断与其他平台仍待验收 |
 | 自动重试与预算策略 | 显式重试及累计硬预算已实现；通用预授权自动重试、策略化预算修订和自动替换失败任务尚未完成 |
+| 候选 DAG 多输入证据 | 已实现显式 v1 全依赖 capture、精确重放/审查重试、Host 前置校验与 quota 回滚；内容仍由单一 source_task 选择，见 [验收范围](../tasks/dag-inputs/docs/delivery.md) |
 | 分支 DAG 返工 | 当前返工限定 Claude 四步线性链；一般 DAG 的派发支持不等于分支返工已实现 |
 
 Grok 只读内置工具限制为 read_file/list_dir/grep；编码增加文件编辑工具，禁用原生子任务和 web search，并传递 MCP 拒绝规则；真实 MCP 负向拒绝尚未完成原生验收。其 artifact 包含公开 assistant 文本，可能含过程说明，不能把最终回答匹配当成整个 artifact 精确匹配。
