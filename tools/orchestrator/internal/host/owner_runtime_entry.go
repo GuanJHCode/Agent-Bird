@@ -320,6 +320,7 @@ func recoverDeadInitialTransport(ctx context.Context, cfg OriginalOwnerConfig, e
 	if err != nil {
 		return err
 	}
+	execution.pausePublication()
 	// Ticket and Attach are independently signed by the existing owner key.
 	// The new child can exchange only this exact ticket for the escrowed token.
 	reply, err := enrollment.client.Call(ctx, current.ControlRevision, "ticket", pending.RequestID, pending)
@@ -358,5 +359,20 @@ func recoverDeadInitialTransport(ctx context.Context, cfg OriginalOwnerConfig, e
 	if err != nil {
 		return errOriginalOwnerRuntime
 	}
-	return execution.reconcile(ctx, permit)
+	if err = recovery.markTransportAttached(permit); err != nil {
+		return err
+	}
+	if err = execution.reconcile(ctx, permit); err != nil {
+		return err
+	}
+	execution.mu.Lock()
+	applied := execution.applied
+	execution.mu.Unlock()
+	if applied == nil {
+		return errOriginalOwnerRuntime
+	}
+	if err = recovery.markTransportApplied(*applied); err != nil {
+		return err
+	}
+	return recovery.markTransportActivated(*applied)
 }

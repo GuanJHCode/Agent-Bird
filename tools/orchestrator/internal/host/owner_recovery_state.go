@@ -26,6 +26,8 @@ type ownerRecoveryPending struct {
 	OldHost                 contract.OriginalOwnerTransport  `json:"old_host"`
 	NewHost                 *contract.OriginalOwnerTransport `json:"new_host,omitempty"`
 	Phase                   string                           `json:"phase"`
+	PermitSHA256            string                           `json:"permit_sha256,omitempty"`
+	AppliedSHA256           string                           `json:"applied_sha256,omitempty"`
 }
 type ownerRecoveryRecord struct {
 	Version           int                       `json:"version"`
@@ -145,13 +147,72 @@ func (s *ownerRecoveryState) markTransportUnknown() error {
 }
 func (s *ownerRecoveryState) ticketPending() (contract.OwnerTransportPending, error) {
 	p := s.record.OwnerPending
-	if s.failed || s.file == nil || s.file.lock == nil || s.record.Unavailable || p == nil || p.Phase != "started" || p.NewHost == nil {
+	if s.failed || s.file == nil || s.file.lock == nil || s.record.Unavailable || p == nil || (p.Phase != "started" && p.Phase != "attached") || p.NewHost == nil {
 		return contract.OwnerTransportPending{}, ownerRecoveryRejected()
 	}
 	if err := s.verifyCurrent(); err != nil {
 		return contract.OwnerTransportPending{}, err
 	}
 	return contract.OwnerTransportPending{Version: 1, RecoverySlot: p.StartSlot, RequestID: p.RequestID, ExpectedControlRevision: p.ExpectedControlRevision, OldHost: p.OldHost, NewHost: *p.NewHost}, nil
+}
+
+func ownerRecoveryProof(value any) (string, error) {
+	body, err := json.Marshal(value)
+	if err != nil || len(body) > 4096 {
+		return "", ownerRecoveryRejected()
+	}
+	return hashText(string(body)), nil
+}
+
+func (s *ownerRecoveryState) markTransportAttached(permit contract.OwnerControlPermit) error {
+	p := s.record.OwnerPending
+	if p == nil || p.NewHost == nil || (p.Phase != "started" && p.Phase != "attached") || permit.RequestID != p.RequestID || permit.ExpectedControlRevision != p.ExpectedControlRevision || permit.OldHost == nil || *permit.OldHost != p.OldHost || permit.NewHost != *p.NewHost {
+		return ownerRecoveryRejected()
+	}
+	proof, err := ownerRecoveryProof(permit)
+	if err != nil {
+		return err
+	}
+	if p.Phase == "attached" {
+		if p.PermitSHA256 != proof {
+			return ownerRecoveryRejected()
+		}
+		return s.verifyCurrent()
+	}
+	next := s.copyRecord()
+	next.OwnerPending.Phase, next.OwnerPending.PermitSHA256 = "attached", proof
+	return s.commit(next)
+}
+
+func (s *ownerRecoveryState) markTransportApplied(proofValue any) error {
+	p := s.record.OwnerPending
+	if p == nil || p.Phase != "attached" || p.PermitSHA256 == "" {
+		return ownerRecoveryRejected()
+	}
+	proof, err := ownerRecoveryProof(proofValue)
+	if err != nil {
+		return err
+	}
+	next := s.copyRecord()
+	next.OwnerPending.Phase, next.OwnerPending.AppliedSHA256 = "applied", proof
+	return s.commit(next)
+}
+
+func (s *ownerRecoveryState) markTransportActivated(proofValue any) error {
+	p := s.record.OwnerPending
+	if p == nil || (p.Phase != "applied" && p.Phase != "activated") || p.PermitSHA256 == "" || p.AppliedSHA256 == "" {
+		return ownerRecoveryRejected()
+	}
+	proof, err := ownerRecoveryProof(proofValue)
+	if err != nil || proof != p.AppliedSHA256 {
+		return ownerRecoveryRejected()
+	}
+	if p.Phase == "activated" {
+		return s.verifyCurrent()
+	}
+	next := s.copyRecord()
+	next.OwnerPending.Phase = "activated"
+	return s.commit(next)
 }
 func (s *ownerRecoveryState) reserveCoordinator(now time.Time) (time.Time, error) {
 	if p := s.record.OwnerPending; p != nil && p.Phase != "started" {
@@ -223,6 +284,14 @@ func validateOwnerRecovery(r ownerRecoveryRecord) error {
 			}
 		case "started":
 			if p.NewHost == nil || p.NewHost.Validate() != nil || *p.NewHost == p.OldHost || (r.Reservation != nil && r.Reservation.Kind != "coordinator") {
+				return ownerRecoveryRejected()
+			}
+		case "attached":
+			if p.NewHost == nil || p.NewHost.Validate() != nil || len(p.PermitSHA256) != 64 || p.AppliedSHA256 != "" || (r.Reservation != nil && r.Reservation.Kind != "coordinator") {
+				return ownerRecoveryRejected()
+			}
+		case "applied", "activated":
+			if p.NewHost == nil || p.NewHost.Validate() != nil || len(p.PermitSHA256) != 64 || len(p.AppliedSHA256) != 64 || (r.Reservation != nil && r.Reservation.Kind != "coordinator") {
 				return ownerRecoveryRejected()
 			}
 		case "unknown":

@@ -71,6 +71,46 @@ func TestOriginalOwnerRecoveryKeepsChildAcrossSharedFiveAttempts(t *testing.T) {
 	}
 }
 
+func TestOriginalOwnerRecoveryPersistsReplacementStages(t *testing.T) {
+	dir := privateRecoveryTestDirectory(t)
+	s, err := openOwnerRecovery(dir, strings.Repeat("a", 64))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.close()
+	old := contract.OriginalOwnerTransport{PID: 10, Birth: "old"}
+	child := contract.OriginalOwnerTransport{PID: 20, Birth: "child"}
+	if _, err = s.reserveTransport(time.UnixMilli(100_000), "replace", 1, old); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.beginTransportStart(); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.recordTransportStarted(child); err != nil {
+		t.Fatal(err)
+	}
+	permit := contract.OwnerControlPermit{RequestID: "replace", ExpectedControlRevision: 1, ControlRevision: 2, OldHost: &old, NewHost: child}
+	// The ledger binds raw signed proof bytes; this unit deliberately only
+	// exercises its immutable state machine, not permit signature validation.
+	if err = s.markTransportAttached(permit); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.markTransportApplied(map[string]string{"signed": "applied"}); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.markTransportActivated(map[string]string{"signed": "applied"}); err != nil {
+		t.Fatal(err)
+	}
+	if got := s.record.OwnerPending; got == nil || got.Phase != "activated" || got.PermitSHA256 == "" || got.AppliedSHA256 == "" {
+		t.Fatalf("stages not durable: %+v", got)
+	}
+	s.close()
+	s, err = openOwnerRecovery(dir, strings.Repeat("a", 64))
+	if err != nil || s.record.OwnerPending == nil || s.record.OwnerPending.Phase != "activated" {
+		t.Fatalf("stages did not survive reopen: %+v %v", s.record, err)
+	}
+}
+
 func TestOriginalOwnerRecoveryRejectsCorruptOrChangedState(t *testing.T) {
 	for _, kind := range []string{"version", "foreign_scope", "slot", "missing_child", "starting_without_reservation", "unknown_with_child", "duplicate_field", "symlink", "hardlink", "public_mode"} {
 		t.Run(kind, func(t *testing.T) {

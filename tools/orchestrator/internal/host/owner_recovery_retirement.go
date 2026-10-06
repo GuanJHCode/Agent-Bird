@@ -39,7 +39,7 @@ func (s *ownerRecoveryState) retireTransportAfterWait(child *ownerTransportChild
 		if p.NewHost != nil {
 			return ownerRecoveryRejected()
 		}
-	case "started":
+	case "started", "attached", "applied", "activated":
 		if p.NewHost == nil || *p.NewHost != child.identity {
 			return ownerRecoveryRejected()
 		}
