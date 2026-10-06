@@ -98,6 +98,9 @@ func integrationReservations(ctx context.Context, tx *sql.Tx) ([]string, error) 
 	return ids, rows.Err()
 }
 func admitDAGReworkTargets(ctx context.Context, tx *sql.Tx, s dagReworkDecision) error {
+	if err := validateDAGTargetPromises(s); err != nil {
+		return err
+	}
 	members := map[string]bool{}
 	keys := map[string]bool{}
 	for _, n := range s.Nodes {
@@ -149,6 +152,10 @@ func integrationDispatchAllowed(ctx context.Context, tx *sql.Tx, task readyTask)
 	if err != nil {
 		return false, err
 	}
+	ownDecision, err := dagDecisionForTask(ctx, tx, task.taskID, task.revision)
+	if err != nil {
+		return false, err
+	}
 	ids, err := integrationReservations(ctx, tx)
 	if err != nil {
 		return false, err
@@ -169,7 +176,34 @@ func integrationDispatchAllowed(ctx context.Context, tx *sql.Tx, task readyTask)
 		if tx.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM attempts a JOIN segment_runtime s ON s.attempt_id=a.id WHERE a.task_id=? AND s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown')),(SELECT COUNT(*) FROM decision_attempt_bindings b WHERE b.task_id=? AND b.attempt_id IS NULL AND b.retired=0),(SELECT ready_sequence FROM task_runtime WHERE task_id=?),(SELECT ready_sequence FROM task_runtime WHERE task_id=?)`, id, id, id, task.taskID).Scan(&active, &pending, &otherSeq, &ownSeq) != nil {
 			return false, ErrConflict
 		}
-		if active > 0 || pending > 0 && !otherSeq.Valid || otherSeq.Valid && ownSeq.Valid && otherSeq.Int64 < ownSeq.Int64 {
+		if active > 0 {
+			return false, nil
+		}
+		if pending > 0 {
+			otherTask, err := readDecisionTask(ctx, tx, id)
+			if err != nil {
+				return false, err
+			}
+			otherDecision, err := dagDecisionForTask(ctx, tx, id, otherTask.revision)
+			if err != nil {
+				return false, err
+			}
+			if otherDecision != nil {
+				if ownDecision != nil {
+					return false, CodeError("rework_target_reserved")
+				}
+				return false, nil
+			}
+			if ownDecision != nil {
+				return false, CodeError("rework_target_reserved")
+			}
+			if !otherSeq.Valid {
+				return false, nil
+			}
+		}
+		// QueueRework refused pre-existing ready integrations before creating this
+		// promise. Later ordinary readiness cannot overtake the older reservation.
+		if ownDecision == nil && otherSeq.Valid && ownSeq.Valid && otherSeq.Int64 < ownSeq.Int64 {
 			return false, nil
 		}
 	}
@@ -251,4 +285,27 @@ func integrationAcceptedInput(ctx context.Context, tx *sql.Tx, current decisionT
 		return contract.AcceptedInput{}, CodeError("rework_target_scope_unresolved")
 	}
 	return *c.Input, nil
+}
+
+func validateDAGTargetPromises(s dagReworkDecision) error {
+	keys := map[string]bool{}
+	for _, node := range s.Nodes {
+		p, err := adapter.DecodeInvocationPayload(node.Original)
+		if err != nil {
+			return err
+		}
+		if p.CandidateAction == nil || p.CandidateAction.Operation != "integrate" {
+			continue
+		}
+		target, ok := s.Targets[node.TaskID]
+		if !ok {
+			return ErrConflict
+		}
+		key := target.key()
+		if keys[key] {
+			return CodeError("rework_target_reserved")
+		}
+		keys[key] = true
+	}
+	return nil
 }

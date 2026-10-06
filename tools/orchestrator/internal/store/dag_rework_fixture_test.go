@@ -21,9 +21,14 @@ type dagReworkFixture struct {
 	grants         map[string]contract.LaunchCommand
 	artifacts      map[string]map[string]any
 	mutateArtifact func(contract.LaunchCommand, map[string]any)
+	acceptResult   func(contract.LaunchCommand) bool
 }
 
 func newDAGReworkFixture(t *testing.T, implementer, reviewer adapter.Provider, options ...func([]TaskSpec) []TaskSpec) *dagReworkFixture {
+	return newConfiguredDAGReworkFixture(t, implementer, reviewer, nil, options...)
+}
+
+func newConfiguredDAGReworkFixture(t *testing.T, implementer, reviewer adapter.Provider, configure func(*dagReworkFixture), options ...func([]TaskSpec) []TaskSpec) *dagReworkFixture {
 	t.Helper()
 	ctx := context.Background()
 	dir := t.TempDir()
@@ -85,6 +90,9 @@ func newDAGReworkFixture(t *testing.T, implementer, reviewer adapter.Provider, o
 	if err != nil {
 		t.Fatal(err)
 	}
+	if configure != nil {
+		configure(f)
+	}
 	for steps := 0; steps < len(tasks); steps++ {
 		g, err := db.ClaimReady(ctx, f.host, 1, 2)
 		if err != nil {
@@ -113,7 +121,11 @@ func newDAGReworkFixture(t *testing.T, implementer, reviewer adapter.Provider, o
 // This is a Store protocol fixture: artifacts stand in for Host-owned Git
 // receipts. All events, exits, accepts, captures and budgets use real APIs.
 func (f *dagReworkFixture) finish(t *testing.T, g contract.LaunchCommand, reject bool) contract.Event {
-	return f.publish(t, g, reject, true)
+	accept := true
+	if f.acceptResult != nil {
+		accept = f.acceptResult(g)
+	}
+	return f.publish(t, g, reject, accept)
 }
 
 func (f *dagReworkFixture) publish(t *testing.T, g contract.LaunchCommand, reject, accept bool) contract.Event {

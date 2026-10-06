@@ -53,6 +53,9 @@ func parseDAGRework(raw string) (dagReworkDecision, error) {
 	if !seen[s.Spec.TaskID] || !seen[s.Spec.ReviewTaskID] || len(s.Targets) != targets {
 		return s, ErrConflict
 	}
+	if err := validateDAGTargetPromises(s); err != nil {
+		return s, err
+	}
 	return s, nil
 }
 

@@ -591,3 +591,70 @@ func TestDAGReworkTargetReservationUsesRepositoryAndRef(t *testing.T) {
 		})
 	}
 }
+
+func TestDAGReworkDispatchKeepsTargetReservationThroughUnknown(t *testing.T) {
+	f := newConfiguredDAGReworkFixture(t, adapter.ProviderClaude, adapter.ProviderClaude, func(f *dagReworkFixture) {
+		f.acceptResult = func(g contract.LaunchCommand) bool { return g.TaskID != "side-review" }
+	}, dagIndependentIntegration("/private/alias/../repo", "refs/heads/main"))
+	ctx := context.Background()
+	if _, err := f.db.QueueRework(ctx, reworkVersionSpec(t, f.spec, 1)); err != nil {
+		t.Fatal(err)
+	}
+	// The unrelated review becomes accepted after the closure reserves its target.
+	page, err := f.db.CollectPending(ctx, "side-review", "", 0, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var event contract.Event
+	for _, e := range page.Events {
+		if e.Kind == contract.EventResult {
+			event = e
+		}
+	}
+	if _, err = f.db.ReviewResult(ctx, ReviewSpec{TaskID: event.TaskID, WorkRevision: event.WorkRevision, EventID: event.EventID, EventRevision: event.EventRevision, EventHash: event.PayloadHash, ActionSlot: event.ActionSlot, Decision: "accept", CommandID: "accept-independent-after-rework"}); err != nil {
+		t.Fatal(err)
+	}
+	var integrated contract.LaunchCommand
+	for i := 0; i < 6; i++ {
+		g, err := f.db.ClaimReady(ctx, f.host, 1, 3)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if g.TaskID == "side-integrate" {
+			t.Fatal("later integration stole a queued target promise")
+		}
+		if g.TaskID == "integrate" {
+			integrated = g
+			break
+		}
+		f.finish(t, g, false)
+	}
+	if integrated.TaskID == "" {
+		t.Fatal("promised integration did not dispatch")
+	}
+	f.seq++
+	unknown := contract.Event{Version: 1, ProducerID: f.host, EventID: integrated.SegmentID + "-unknown", RunID: integrated.RunID, TaskID: integrated.TaskID, AttemptID: integrated.AttemptID, SegmentID: integrated.SegmentID, WorkRevision: integrated.WorkRevision, ExecutionEpoch: 1, CommandID: integrated.CommandID, Sequence: f.seq, Kind: contract.EventUnknown, PayloadHash: strings.Repeat("c", 64)}
+	if _, err = f.db.CommitHostEvent(ctx, unknown); err != nil {
+		t.Fatal(err)
+	}
+	before := dagReworkState(t, f.db)
+	if _, err = f.db.ClaimReady(ctx, f.host, 1, 3); err != ErrNoReady || before != dagReworkState(t, f.db) {
+		t.Fatalf("UNKNOWN lost exclusion: %v", err)
+	}
+}
+
+func TestDAGReworkRejectsTwoIntegrationsForSameTarget(t *testing.T) {
+	f := newDAGReworkFixture(t, adapter.ProviderClaude, adapter.ProviderClaude, func(tasks []TaskSpec) []TaskSpec {
+		for _, task := range tasks {
+			if task.ID == "integrate" {
+				task.ID = "second-integrate"
+				return append(tasks, task)
+			}
+		}
+		return tasks
+	})
+	before := dagReworkState(t, f.db)
+	if _, err := f.db.QueueRework(context.Background(), reworkVersionSpec(t, f.spec, 1)); err != CodeError("rework_target_reserved") || before != dagReworkState(t, f.db) {
+		t.Fatalf("same target promised twice %v", err)
+	}
+}
