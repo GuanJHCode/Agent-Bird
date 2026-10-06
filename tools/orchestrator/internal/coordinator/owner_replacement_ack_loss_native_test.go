@@ -89,6 +89,14 @@ func TestNativeReplacementReplyLossAcrossCoordinatorRestart(t *testing.T) {
 	}
 }
 
+func TestNativeReplacementExchangeReplyLoss(t *testing.T) {
+	if runtime.GOOS != "darwin" {
+		t.Skip("native source-host fixture requires macOS")
+	}
+	t.Run("same_epoch", func(t *testing.T) { nativeReplacementACKLoss(t, "exchange", false) })
+	t.Run("hard_restart", func(t *testing.T) { nativeReplacementACKLoss(t, "exchange", true) })
+}
+
 func nativeReplacementACKLoss(t *testing.T, lostKind string, restartCoordinator bool) {
 	t.Helper()
 	root, err := os.MkdirTemp("/private/tmp", "replacement-ack-loss-")
@@ -122,6 +130,13 @@ func nativeReplacementACKLoss(t *testing.T, lostKind string, restartCoordinator 
 	s.ownerRPCReplyHook = func(request contract.OwnerRPCRequest) bool {
 		if armed.Load() && request.Kind == lostKind && lost.CompareAndSwap(false, true) {
 			lostReply <- request
+			return true
+		}
+		return false
+	}
+	s.ownerTransportExchangeReplyHook = func(ticket contract.OwnerTransportTicket) bool {
+		if armed.Load() && lostKind == "exchange" && lost.CompareAndSwap(false, true) {
+			lostReply <- contract.OwnerRPCRequest{Kind: "exchange", ControlRevision: ticket.Pending.ExpectedControlRevision, RequestID: ticket.Pending.RequestID}
 			return true
 		}
 		return false
@@ -390,7 +405,7 @@ func nativeReplacementACKLoss(t *testing.T, lostKind string, restartCoordinator 
 			var afterBinding string
 			var revision int
 			wantRevision := 2
-			if restartCoordinator && lostKind != "ticket" {
+			if restartCoordinator && lostKind != "ticket" && lostKind != "exchange" {
 				wantRevision = 3
 			}
 			if err = db.QueryRowContext(ctx, `SELECT original_binding_json,control_revision FROM execution_owners WHERE run_id='replacement-ack-loss' AND is_current=1`).Scan(&afterBinding, &revision); err != nil || afterBinding != bindingJSON || revision != wantRevision {

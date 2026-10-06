@@ -372,28 +372,28 @@ func recoverDeadOwnerTransportWithStart(ctx context.Context, cfg OriginalOwnerCo
 	if err = writeOwnerTransportFrame(ctx, child.control, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindOwnerTransportControl, RequestID: pending.RequestID, Payload: raw}); err != nil {
 		return err
 	}
-	// Ignore stale wake tokens while the generation fence excludes old readers.
-	deadline := time.NewTimer(5 * time.Second)
-	defer deadline.Stop()
-pendingSession:
-	for {
-		select {
-		case <-ctx.Done():
-			return context.Cause(ctx)
-		case <-deadline.C:
-			return errCoordinatorUnavailable
-		case <-lifecycle.wake:
-			notice, ok := lifecycle.takeNotice(transport.generation)
-			if !ok {
+	attach := contract.OwnerAttachRequest{ExpectedControlRevision: current.ControlRevision, OldHost: pending.OldHost, NewHost: pending.NewHost, Pending: &pending}
+	if _, err = awaitOwnerTransportPending(ctx, lifecycle, transport.generation, ticket.CoordinatorEpoch); err != nil {
+		if !errors.Is(err, errCoordinatorUnavailable) {
+			return err
+		}
+		// Redemption may have succeeded while its credential reply was lost.
+		// Retain the original child/Wait/StartSlot and let only this owner
+		// reauthorize its connection within the shared recovery budget.
+		for {
+			if err = ensureOwnerRuntimeCoordinator(ctx, cfg, recovery); err != nil {
+				return err
+			}
+			err = repairPendingOwnerConnection(ctx, enrollment, execution, lifecycle, transport, current, pending, attach)
+			if ownerExecutionNeedsRecovery(err) {
 				continue
 			}
-			if notice.pending == nil {
-				return errCoordinatorUnavailable
+			if err != nil {
+				return err
 			}
-			break pendingSession
+			break
 		}
 	}
-	attach := contract.OwnerAttachRequest{ExpectedControlRevision: current.ControlRevision, OldHost: pending.OldHost, NewHost: pending.NewHost, Pending: &pending}
 	reply, err = callPendingOwnerRPCWithRepair(ctx, cfg, recovery, enrollment.client.Call, current.ControlRevision, "attach", pending.RequestID, attach, func(repairCtx context.Context) error {
 		return repairPendingOwnerConnection(repairCtx, enrollment, execution, lifecycle, transport, current, pending, attach)
 	})
@@ -457,8 +457,8 @@ func callPendingOwnerRPCWithRepair(ctx context.Context, cfg OriginalOwnerConfig,
 	}
 }
 
-// An epoch-local HostHello session can disappear while Attach is committed
-// but its ACK is unknown. Only signed state for this exact pending child can
+// An epoch-local HostHello session can disappear while credential redemption
+// or Attach is committed but its ACK is unknown. Only signed state for this exact pending child can
 // select token reconnect versus another ticket for the same original Start.
 func repairPendingOwnerConnection(ctx context.Context, enrollment *ownerEnrollment, execution *ownerExecution, lifecycle *ownerRuntimeLifecycle, transport *ownerRuntimeTransport, current contract.OwnerControlPermit, pending contract.OwnerTransportPending, attach contract.OwnerAttachRequest) error {
 	call := func(kind, id string, body any) (contract.OwnerRPCReply, error) {
@@ -477,9 +477,6 @@ func repairPendingOwnerConnection(ctx context.Context, enrollment *ownerEnrollme
 	var state contract.OwnerRuntimeState
 	if contract.DecodeOwnerRuntimeStrict(reply.Body, &state) != nil || state.Binding != execution.cfg.binding || contract.VerifyOwnerControlPermit(state.Permit, execution.cfg.coordinatorKey) != nil {
 		return errOriginalOwnerRuntime
-	}
-	if reply.CoordinatorEpoch == current.CoordinatorEpoch {
-		return nil
 	}
 	if reply.CoordinatorEpoch < current.CoordinatorEpoch || pending.NewHost != transport.identity {
 		return errOriginalOwnerRuntime

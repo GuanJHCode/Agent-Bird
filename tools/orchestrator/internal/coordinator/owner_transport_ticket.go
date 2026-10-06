@@ -141,6 +141,9 @@ func (s *Server) exchangeOwnerTransportTicket(ctx context.Context, conn net.Conn
 		_ = sendError(conn, message.RequestID, s.epoch, err)
 		return
 	}
+	if s.ownerTransportExchangeReplyHook != nil && s.ownerTransportExchangeReplyHook(ticket) {
+		return
+	}
 	body, _ := json.Marshal(credential)
 	_ = ipc.Write(conn, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindResponse, RequestID: message.RequestID, Epoch: s.epoch, Payload: body})
 }

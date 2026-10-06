@@ -236,20 +236,22 @@ type Server struct {
 	// ownerRPCReplyHook is a narrow test seam for simulating a reply lost after
 	// the durable owner mutation. Production never installs it.
 	ownerRPCReplyHook func(contract.OwnerRPCRequest) bool
-	inFlight          int
-	close             sync.Once
-	idleTimeout       time.Duration
-	idleExit          atomic.Bool
-	eventMu           sync.Mutex
-	eventSignal       chan struct{}
-	bridgeMu          sync.Mutex
-	bridgeConnections map[net.Conn]struct{}
-	bridgeAdmission   chan struct{}
-	bridgeClosing     bool
-	bridgeWG          sync.WaitGroup
-	lifecycleMu       sync.Mutex
-	terminating       atomic.Bool
-	closed            atomic.Bool
+	// Test-only loss after exact child credential redemption succeeds.
+	ownerTransportExchangeReplyHook func(contract.OwnerTransportTicket) bool
+	inFlight                        int
+	close                           sync.Once
+	idleTimeout                     time.Duration
+	idleExit                        atomic.Bool
+	eventMu                         sync.Mutex
+	eventSignal                     chan struct{}
+	bridgeMu                        sync.Mutex
+	bridgeConnections               map[net.Conn]struct{}
+	bridgeAdmission                 chan struct{}
+	bridgeClosing                   bool
+	bridgeWG                        sync.WaitGroup
+	lifecycleMu                     sync.Mutex
+	terminating                     atomic.Bool
+	closed                          atomic.Bool
 }
 
 func NewServer(stateDir string) (*Server, error) {
