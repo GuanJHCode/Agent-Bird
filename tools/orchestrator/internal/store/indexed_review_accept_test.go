@@ -3,8 +3,10 @@ package store
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -15,7 +17,7 @@ import (
 
 // These are Store transaction fixtures, not native Git/provider acceptance.
 func TestIndexedAcceptChecksDurableSourceAndCoverage(t *testing.T) {
-	for _, kind := range []string{"valid_reopen", "valid_config", "validate_manifest", "validate_source", "review_missing", "review_grant", "review_input", "review_config", "review_manifest", "review_validation", "review_revision", "review_provider", "integrate_vector", "integrate_missing_proof"} {
+	for _, kind := range []string{"valid_reopen", "valid_config", "valid_policy_retry", "validate_manifest", "validate_source", "review_missing", "review_grant", "review_input", "review_config", "review_manifest", "review_validation", "review_revision", "review_provider", "integrate_vector", "integrate_missing_proof"} {
 		t.Run(kind, func(t *testing.T) {
 			ctx := context.Background()
 			path := filepath.Join(t.TempDir(), "state.db")
@@ -29,12 +31,27 @@ func TestIndexedAcceptChecksDurableSourceAndCoverage(t *testing.T) {
 			defer func() { db.Close() }()
 			tasks := indexedPlanTasks(t)
 			lock := &adapter.ProviderLock{Version: 1, Provider: adapter.ProviderGrok, Protocol: adapter.ProtocolID(adapter.ProviderGrok), Binary: adapter.BinaryPin{Path: "/private/grok", Version: "1.0.34", SHA256: strings.Repeat("b", 64)}}
+			if kind == "valid_policy_retry" {
+				lock.Binary.Version = "grok 1.0.34 (3736acbc8658)"
+			}
 			for i := range tasks {
 				if strings.HasPrefix(tasks[i].ID, "r") {
 					var p map[string]any
 					_ = json.Unmarshal(tasks[i].AdapterPayload, &p)
 					p["provider_lock"] = lock
 					p["profile"] = &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly}
+					if kind == "valid_policy_retry" {
+						p["directory"] = "/private/review"
+						p["profile"].(*adapter.ExecutionProfile).GrokSessionWrite = true
+						p["profile"].(*adapter.ExecutionProfile).TimeoutMS = 180000
+						action := p["candidate_action"].(map[string]any)
+						action["target"] = adapter.CandidateTarget{Worktree: "/private/repo", Ref: "refs/heads/main", BaseOID: strings.Repeat("a", 40)}
+						action["dependency_input_version"] = 1
+						if tasks[i].ID == "r2" {
+							tasks[i].MaxAttempts = 3
+							tasks[i].ExecutionPolicy = &contract.ExecutionPolicy{Version: 1, Retry: &contract.RetryPolicy{Codes: []string{"probe_start_eagain"}, BackoffMS: []int64{5000, 20000}}}
+						}
+					}
 					tasks[i].AdapterPayload, _ = json.Marshal(p)
 				}
 			}
@@ -53,10 +70,52 @@ func TestIndexedAcceptChecksDurableSourceAndCoverage(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			var sequenceOffset int64
 			for step := 0; step < 6; step++ {
 				g, err := db.ClaimReady(ctx, hostID, 1, 2)
 				if err != nil {
 					t.Fatal(err)
+				}
+				if kind == "valid_policy_retry" && g.TaskID == "r2" {
+					original := g
+					fixture := budgetBatchFixture{db: db, host: hostID, grant: g, sequence: int64(2 * step)}
+					failure := policyRejection(&fixture, "probe_start_eagain")
+					if _, err = db.CommitHostEvent(ctx, failure); err != nil {
+						t.Fatal(err)
+					}
+					sequenceOffset++
+					var before, after string
+					var due, reopened int64
+					if err = db.sql.QueryRow(`SELECT revision_payload,eligible_at_unix_ms FROM retry_decisions WHERE task_id='r2'`).Scan(&before, &due); err != nil {
+						t.Fatal("indexed policy retry did not queue", err)
+					}
+					if _, err = db.CommitHostEvent(ctx, failure); err != nil {
+						t.Fatal("duplicate failure changed policy decision", err)
+					}
+					_ = db.Close()
+					db, err = Open(path)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if err = db.sql.QueryRow(`SELECT revision_payload,eligible_at_unix_ms FROM retry_decisions WHERE task_id='r2'`).Scan(&after, &reopened); err != nil || after != before || reopened != due {
+						t.Fatal("reopen changed retry authority or backoff", err)
+					}
+					if _, err = db.ClaimReady(ctx, hostID, 1, 2); !errors.Is(err, ErrNoReady) {
+						t.Fatal("retry bypassed durable backoff", err)
+					}
+					if _, err = db.sql.Exec(`UPDATE retry_decisions SET eligible_at_unix_ms=1 WHERE task_id='r2'`); err != nil {
+						t.Fatal(err)
+					}
+					g, err = db.ClaimReady(ctx, hostID, 1, 2)
+					if err != nil || g.TaskID != "r2" || g.AttemptID == original.AttemptID || g.WorkRevision != original.WorkRevision || !reflect.DeepEqual(g.Input, original.Input) || !reflect.DeepEqual(g.DependencyInputs, original.DependencyInputs) {
+						t.Fatal("indexed policy retry changed immutable inputs", err)
+					}
+					oldPayload, _ := adapter.DecodeInvocationPayload(original.AdapterPayload)
+					nextPayload, _ := adapter.DecodeInvocationPayload(g.AdapterPayload)
+					nextPayload.Directory = oldPayload.Directory
+					if !reflect.DeepEqual(oldPayload, nextPayload) {
+						t.Fatal("indexed retry changed assignment/config/provider")
+					}
 				}
 				binding := gitops.CandidateBinding{RunID: g.RunID, TaskID: g.TaskID, AttemptID: g.AttemptID, SegmentID: g.SegmentID, WorkRevision: g.WorkRevision, PlanRevision: g.PlanRevision}
 				d := map[string]any{"version": 1, "binding": binding}
@@ -113,7 +172,7 @@ func TestIndexedAcceptChecksDurableSourceAndCoverage(t *testing.T) {
 					d["dependency_inputs_sha256"] = contract.IndexedReviewJSONSHA256(g.DependencyInputs)
 					d["integration"] = map[string]any{"state": "integrated", "candidate_oid": strings.Repeat("b", 40), "target_head": strings.Repeat("b", 40)}
 				}
-				target := g.TaskID == "validate" && strings.HasPrefix(kind, "validate_") || g.TaskID == "r0" && strings.HasPrefix(kind, "review_") || g.TaskID == "integrate" && strings.HasPrefix(kind, "integrate_")
+				target := g.TaskID == "validate" && strings.HasPrefix(kind, "validate_") || g.TaskID == "r2" && strings.HasPrefix(kind, "review_") || g.TaskID == "integrate" && strings.HasPrefix(kind, "integrate_")
 				if target {
 					switch kind {
 					case "validate_manifest", "review_manifest":
@@ -148,7 +207,7 @@ func TestIndexedAcceptChecksDurableSourceAndCoverage(t *testing.T) {
 				if err = os.WriteFile(artifact, raw, 0600); err != nil {
 					t.Fatal(err)
 				}
-				e := contract.Event{Version: 1, ProducerID: hostID, EventID: g.TaskID + "-result", RunID: g.RunID, TaskID: g.TaskID, AttemptID: g.AttemptID, SegmentID: g.SegmentID, WorkRevision: g.WorkRevision, ExecutionEpoch: 1, CommandID: g.CommandID, Sequence: int64(2*step + 1), Kind: contract.EventResult, PayloadHash: runtimeHash(string(raw)), Artifact: &contract.ArtifactRef{ID: g.TaskID, Path: artifact, Size: int64(len(raw)), SHA256: runtimeHash(string(raw))}}
+				e := contract.Event{Version: 1, ProducerID: hostID, EventID: g.TaskID + "-result", RunID: g.RunID, TaskID: g.TaskID, AttemptID: g.AttemptID, SegmentID: g.SegmentID, WorkRevision: g.WorkRevision, ExecutionEpoch: 1, CommandID: g.CommandID, Sequence: int64(2*step+1) + sequenceOffset, Kind: contract.EventResult, PayloadHash: runtimeHash(string(raw)), Artifact: &contract.ArtifactRef{ID: g.TaskID, Path: artifact, Size: int64(len(raw)), SHA256: runtimeHash(string(raw))}}
 				if _, err = db.CommitHostEvent(ctx, e); err != nil {
 					t.Fatal(err)
 				}
@@ -162,8 +221,17 @@ func TestIndexedAcceptChecksDurableSourceAndCoverage(t *testing.T) {
 					t.Fatal(err)
 				}
 				page, err := db.CollectPending(ctx, g.TaskID, "", 0, false)
-				if err != nil || len(page.Events) != 1 {
-					t.Fatalf("pending=%+v err=%v", page, err)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if kind == "valid_policy_retry" && g.TaskID == "r2" {
+					if len(page.Events) != 2 || page.Events[0].Kind != contract.EventLaunchRejected || page.Events[0].AttemptID == g.AttemptID {
+						t.Fatalf("missing original failure history: %+v", page)
+					}
+					page.Events = page.Events[1:]
+				}
+				if len(page.Events) != 1 || page.Events[0].Kind != contract.EventResult || page.Events[0].AttemptID != g.AttemptID {
+					t.Fatalf("pending=%+v", page)
 				}
 				r := page.Events[0]
 				spec := ReviewSpec{TaskID: g.TaskID, WorkRevision: g.WorkRevision, EventID: r.EventID, EventRevision: r.EventRevision, EventHash: r.PayloadHash, ActionSlot: r.ActionSlot, Decision: "accept", CommandID: "accept-" + g.TaskID}

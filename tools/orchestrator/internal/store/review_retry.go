@@ -14,6 +14,7 @@ import (
 const reviewRetryKind = "candidate_review_retry"
 
 type reviewRetryDecision struct {
+	HostIdentitySHA256     string `json:"host_identity_sha256,omitempty"`
 	DependencyInputsSHA256 string `json:"dependency_inputs_sha256,omitempty"`
 	Kind                   string `json:"kind"`
 	AdapterSHA256          string `json:"adapter_sha256"`
@@ -22,7 +23,7 @@ type reviewRetryDecision struct {
 
 func parseReviewRetry(raw string) (reviewRetryDecision, error) {
 	var v reviewRetryDecision
-	if strictDecisionJSON(raw, &v) != nil || v.Kind != reviewRetryKind || !validDigest(v.AdapterSHA256) || !validDigest(v.InputSHA256) || v.DependencyInputsSHA256 != "" && !validDigest(v.DependencyInputsSHA256) {
+	if strictDecisionJSON(raw, &v) != nil || v.Kind != reviewRetryKind || !validDigest(v.AdapterSHA256) || !validDigest(v.InputSHA256) || v.DependencyInputsSHA256 != "" && !validDigest(v.DependencyInputsSHA256) || v.HostIdentitySHA256 != "" && !validDigest(v.HostIdentitySHA256) {
 		return v, ErrConflict
 	}
 	return v, nil
@@ -136,7 +137,42 @@ func authorizePrelaunchReviewRetry(ctx context.Context, tx *sql.Tx, e contract.E
 		return "", ErrConflict
 	}
 	c.AdapterPayload = json.RawMessage(originalPayload)
-	return reviewRetryDecisionForGrant(ctx, tx, &c, raw)
+	decision, err := reviewRetryDecisionForGrant(ctx, tx, &c, raw)
+	if err != nil {
+		return "", err
+	}
+	saved, err := parseReviewRetry(decision)
+	if err != nil {
+		return "", err
+	}
+	saved.HostIdentitySHA256, err = prelaunchReviewHostIdentity(ctx, tx, &c)
+	if err != nil {
+		return "", err
+	}
+	body, err := json.Marshal(saved)
+	return string(body), err
+}
+
+// HostID survives a physical rebind. Automatic retry authority does not: it
+// stays on the exact ready process, generation and business owner captured in
+// the same transaction as the failure. Epoch is excluded so the same physical
+// Host can reconnect to a restarted Coordinator without acquiring new scope.
+func prelaunchReviewHostIdentity(ctx context.Context, tx *sql.Tx, c *contract.LaunchCommand) (string, error) {
+	var identity struct {
+		HostID, LaunchID, ContextID, Generation, Executable string
+		PID, OriginPID                                      int
+		Birth, OriginBirth                                  string
+	}
+	var status, generation, executable, contextID string
+	err := tx.QueryRowContext(ctx, `SELECT h.id,h.launch_id,h.origin_context_id,h.host_generation,h.executable,h.pid,h.birth,r.origin_pid,r.origin_birth,h.status,l.host_generation,l.executable,l.origin_context_id FROM runtime_hosts h JOIN host_launches l ON l.id=h.launch_id JOIN task_runtime tr ON tr.host_launch_id=l.id JOIN tasks t ON t.id=tr.task_id JOIN runs r ON r.id=t.run_id WHERE h.id=? AND t.id=? AND r.id=?`, c.HostID, c.TaskID, c.RunID).Scan(&identity.HostID, &identity.LaunchID, &identity.ContextID, &identity.Generation, &identity.Executable, &identity.PID, &identity.Birth, &identity.OriginPID, &identity.OriginBirth, &status, &generation, &executable, &contextID)
+	if err != nil || status != "ready" || identity.Generation != generation || identity.Executable != executable || identity.ContextID != contextID || identity.PID <= 0 || identity.Birth == "" || identity.OriginPID <= 0 || identity.OriginBirth == "" {
+		return "", ErrConflict
+	}
+	body, err := json.Marshal(identity)
+	if err != nil {
+		return "", err
+	}
+	return runtimeHash("candidate-policy-host-v1\x00" + string(body)), nil
 }
 
 func reviewRetryDecisionForGrant(ctx context.Context, tx *sql.Tx, c *contract.LaunchCommand, raw string) (string, error) {
@@ -167,6 +203,9 @@ func validateSavedPrelaunchReviewRetry(ctx context.Context, tx *sql.Tx, r attemp
 	if err != nil || saved.AdapterSHA256 != runtimeHash(task.payload) {
 		return ErrConflict
 	}
+	if _, err = reviewRetryProfile([]byte(task.payload)); err != nil || !validDigest(saved.HostIdentitySHA256) {
+		return ErrConflict
+	}
 	var c contract.LaunchCommand
 	var raw string
 	err = tx.QueryRowContext(ctx, `SELECT s.command_id,s.host_id,t.run_id,t.id,s.attempt_id,s.segment_id,r.work_revision,s.slot_token,s.launch_intent_hash,r.adapter_payload,p.plan_revision FROM segment_runtime s JOIN attempts a ON a.id=s.attempt_id JOIN tasks t ON t.id=a.task_id JOIN task_runtime r ON r.task_id=t.id JOIN runs p ON p.id=t.run_id WHERE s.segment_id=? AND t.id=?`, r.segment, task.id).Scan(&c.CommandID, &c.HostID, &c.RunID, &c.TaskID, &c.AttemptID, &c.SegmentID, &c.WorkRevision, &c.SlotToken, &c.LaunchIntentHash, &raw, &c.PlanRevision)
@@ -174,6 +213,10 @@ func validateSavedPrelaunchReviewRetry(ctx context.Context, tx *sql.Tx, r attemp
 		return ErrConflict
 	}
 	c.AdapterPayload = json.RawMessage(raw)
+	hostIdentity, err := prelaunchReviewHostIdentity(ctx, tx, &c)
+	if err != nil || hostIdentity != saved.HostIdentitySHA256 {
+		return ErrConflict
+	}
 	if err = bindCandidateInput(ctx, tx, &c, true); err != nil || c.Input == nil || saved.InputSHA256 != retryInputHash(c.Input) || saved.DependencyInputsSHA256 != dependencyVectorHash(c.DependencyInputs) {
 		return ErrConflict
 	}

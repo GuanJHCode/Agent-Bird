@@ -100,6 +100,7 @@ Question 状态为 `open → answer_committed → resume_queued → resume_start
 - 使用单调时钟计活动时间；重启后根据持久账本保守恢复。休眠/系统时钟变更需单独用例，不能通过改系统时间延长预算。
 - Host 自主执行 hard deadline；协调器离线不取消这个上限。停止先用经过该 CLI/平台验证的温和取消，等待最多 10 秒，再终止已拥有的执行树；仍无法证实退出则 UNKNOWN，不能新开执行者。
 - 可预授权的瞬时错误 retry 初始退避为 5 秒、20 秒（最多三次attempt），`next_retry_at` 与尝试预占一起持久化；协调器重启不立即重复或清零退避。无法证明未运行的启动预占不得退回。业务失败/失败后重建上下文/审查返工消耗attempt，不能伪装为正常问答段。
+- 当前自动重试仅接受显式 `execution_policy.retry` 授权、可信 Host 证明 `not_started` 的 `probe_start_eagain` / `probe_start_eintr`。Claude/Grok 只读候选审查复用已接受验证产物、完整 dependency vector、配置/provider/index assignment，并绑定原 Host 的 PID/birth/generation 与 owner 身份；相同 Host 跨 Coordinator epoch 重连可继续，Host 被替换后旧决定不能消费。权限拒绝、UNKNOWN、已启动以及 candidate implement/validate/integrate 不进入该自动策略。
 - 技术问题以 question ID 提交并结束当前段。重复答案不能重复 segment；答案过时则拒绝。权限问题不走这个代答通道。
 
 macOS process group 不能囊括主动 setsid 的后代；Windows Job 可受嵌套/父 Job 约束。准入测试必须包含孙进程、终端关闭和 Host 崩溃；不支持的逃逸行为须在启动前拒绝相关 adapter/任务能力，检测到未知后台写入者时停止自动清理和恢复。

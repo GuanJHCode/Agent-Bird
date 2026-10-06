@@ -2,7 +2,7 @@
 
 Goal: F01后续阶段的一个真实垂直增量。在现有有限预授权retry基础上，让candidate review阶段同类未Start的probe EAGAIN/EINTR可安全重试，保持所有候选/DAG/预算契约。不是整个F01完成。
 
-Base: integration 32b717367f1a93ae93e5d90b18ee509ff47147c6，F03 dependency vector与单producer closure/F05已经稳定。独立分支feat/closure-candidate-review-retry-20261007；指定worker唯一writer，ROOT不写该WT。子Agent不得再派生，不能重做第一批或动Owner/Launch公共wire/schema。
+Base: integration 32b717367f1a93ae93e5d90b18ee509ff47147c6，F03 dependency vector与单producer closure/F05已经稳定。独立分支feat/closure-candidate-review-retry-20261007；实现worker交付 b976cf1 后已交还 ROOT 唯一写入权。子Agent不得再派生，不能重做第一批或动Owner/Launch公共wire/schema。
 
 冻结行为：
 - 仅显式带既有execution_policy.retry的candidate review（包括已稳定indexed review）与原失败事实prelaunch-probe且not_started；不扩失败stage/code，不把主worker Start失败/任何可能有副作用状态算noStart。
@@ -18,7 +18,7 @@ Base: integration 32b717367f1a93ae93e5d90b18ee509ff47147c6，F03 dependency vect
 
 ## 实施记录（worker）
 
-- 2026-10-07：仅允许带 `execution_policy.retry` 的 readonly candidate review（Claude 或已索引的 Grok review）进入 policy retry；candidate implement/validate/integrate、写权限 review、fallback 与 gitops 仍在 admission 拒绝。
+- 2026-10-07：仅允许带 `execution_policy.retry` 的 readonly candidate review（Claude 或 Grok review（普通与分块均为既有支持路径））进入 policy retry；candidate implement/validate/integrate、写权限 review、fallback 与 gitops 仍在 admission 拒绝。
 - `queuePolicyRetry` 对合法 review 将原始 grant 的 accepted input、完整 dependency vector、adapter digest（包含 index assignment）固定进既有 review-retry decision；Claim 使用原有 replay/binding 机制，不重新采样输入。普通 policy retry 的空 revision payload 不变。
 - 证据（原命令输出在本 agent session，无额外 JSON 文件）：
   - RED：`go test -count=1 ./internal/store -run '^TestPolicyRetryCandidateReviewPrelaunchPreservesFrozenInputs$'`，原实现失败 `execution_policy_retry_stage_unsupported`。
@@ -27,3 +27,13 @@ Base: integration 32b717367f1a93ae93e5d90b18ee509ff47147c6，F03 dependency vect
   - CLI preflight：3 项命名测试通过；`TestCLIIndexedCandidateDevelopmentDAG` 在三个 readonly indexed Grok review 都显式携带 retry policy 后通过，15.328s，证明公开 submit→grant→受控 review→integration 的正常链仍可达；`go build ./cmd/orchestrator` 与 `go vet ./internal/store ./cmd/orchestrator` 退出 0。
   - 受控 Host/Coordinator：3 项命名测试通过，Host `0.916s`、Coordinator `0.932s`，覆盖 trusted noStart facts、回放及同 Host wake。
 - 未验证：未触发真实 kernel EAGAIN/EINTR、未运行真实账号 Provider、Docker 或全包 native CLI；未生成测试 JSON session 文件。ROOT 负责最终 CLI/native 验收与集成。
+
+## ROOT 接管与最终验收
+
+- b976cf1 的实现证据未留原 JSON；worker自述不作为最终验收。ROOT独审发现同HostID rebind能消费旧重试，真实 `root-host-rebind-red.jsonl`（session80816 exit1）复现；新增私有 Host identity digest固定generation/PID/birth/owner tuple，Claim前核验。epoch刻意排除以允许原Host重连，无public DTO或schema变更。
+- 原“Grok必须indexed”审查意见已撤回：base原生支持legacy完整快照。ROOT同时验证Claude及legacy Grok真实Store policy链；indexed fixture通过r2实际失败入队、重复event、DB重开、不提前重试、新attempt冻结input/vector/assignment、三shard接受及整合。v2配置缺TimeoutMS、v3错误忽略原failure历史，均为fixture错误，不计产品RED；最终focused session40238 exit0，5顶层/24具名PASS。
+- identity新增真实BeginCoordinatorEpoch/RegisterHost四场景：same tuple可继续，新PID、同PID新birth、offline拒绝且无新attempt；原RebindOwner场景覆盖owner/generation变化。稳定Go代码两轮独立只读审查PASS。
+- ROOT完整Store session72077 exit0，310顶层/866具名PASS，0fail/0skip。race及公开CLI最终证据另附receipt，不沿用旧worker日志。
+- 当前不证明真实kernel EAGAIN/EINTR、真实模型、Linux Provider或Intel/Windows原生链。仅本F01垂直增量，不是F01–F13整体完成。
+
+最终验证：Store race session79833 exit0，48顶层/135具名PASS；串行公开CLI/Host/Coordinator race session55294 exit0，7顶层/12具名PASS（包含携带retry policy的实际三shard CLI整合链，未注入真实内核失败）。两批0fail/0skip；CLI测试内部build的受控产品binary不是race插桩，scope按实际编译边界记录。`go build ./...`、`go vet ./...`、`git diff --check`均0。原JSON的session、SHA与计数见 `../data/root-final-receipt.json`，不重复采用worker自述。所有本批ROOT测试取原终态，未创建Docker容器。

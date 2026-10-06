@@ -22,6 +22,7 @@ type reviewRetryFixture struct {
 	grant   contract.LaunchCommand
 	event   contract.Event
 	spec    RetrySpec
+	hello   contract.HostHello
 }
 
 func newReviewRetryFixture(t *testing.T, terminal string, sharedGroup ...bool) reviewRetryFixture {
@@ -71,12 +72,6 @@ func newReviewRetryFixtureWithOptions(t *testing.T, provider adapter.Provider, t
 		} else {
 			task.Dependencies = []string{ids[i-1]}
 			p.CandidateAction = &adapter.CandidateAction{Version: 1, Operation: id, SourceTask: ids[i-1], Target: target}
-			if provider == adapter.ProviderGrok {
-				p.CandidateAction.ReviewIndex = &adapter.ReviewIndex{Version: 1, Mode: "indexed_candidate_review_v1", Shards: 1, ReviewOrdinal: 0}
-				if id == "integrate" {
-					p.CandidateAction.DependencyInputVersion = 1
-				}
-			}
 			if id == "review" {
 				if vector {
 					p.CandidateAction.DependencyInputVersion = 1
@@ -116,11 +111,12 @@ func newReviewRetryFixtureWithOptions(t *testing.T, provider adapter.Provider, t
 	if err != nil {
 		t.Fatal(err)
 	}
-	h, err := db.RegisterHost(ctx, contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth", HostGeneration: "gen", PID: 10, Birth: "host", Executable: "/private/bin/orchestrator"}, 1)
+	hello := contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth", HostGeneration: "gen", PID: 10, Birth: "host", Executable: "/private/bin/orchestrator"}
+	h, err := db.RegisterHost(ctx, hello, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	f := reviewRetryFixture{db: db, host: h, control: receipt.ControlToken}
+	f := reviewRetryFixture{db: db, host: h, control: receipt.ControlToken, hello: hello}
 	var seq int64
 	for _, id := range ids[:3] {
 		g, err := db.ClaimReady(ctx, h, 1, 2)
@@ -179,10 +175,20 @@ func newReviewRetryFixtureWithOptions(t *testing.T, provider adapter.Provider, t
 }
 
 func TestPolicyRetryCandidateReviewPrelaunchPreservesFrozenInputs(t *testing.T) {
-	f := newReviewRetryPolicyFixture(t, adapter.ProviderClaude, true)
+	testPolicyReviewPrelaunchInputs(t, adapter.ProviderClaude, "probe_start_eagain")
+}
+
+func TestPolicyRetryLegacyGrokReviewPrelaunchPreservesFrozenInputs(t *testing.T) {
+	testPolicyReviewPrelaunchInputs(t, adapter.ProviderGrok, "probe_start_eintr")
+}
+
+func testPolicyReviewPrelaunchInputs(t *testing.T, provider adapter.Provider, code string) {
+	t.Helper()
+	f := newReviewRetryPolicyFixture(t, provider, true)
 	ctx := context.Background()
 	original := f.grant
-	e := contract.Event{Version: 1, ProducerID: f.host, EventID: "review-prelaunch", RunID: original.RunID, TaskID: original.TaskID, AttemptID: original.AttemptID, SegmentID: original.SegmentID, WorkRevision: original.WorkRevision, ExecutionEpoch: 1, CommandID: original.CommandID, Sequence: 5, Kind: contract.EventLaunchRejected, PayloadHash: strings.Repeat("a", 64), Artifact: &contract.ArtifactRef{ID: "launch-failure", Path: "/private/fixture/launch-failure/result-output.bin", Size: 100, SHA256: strings.Repeat("a", 64)}, Failure: &contract.FailureFacts{Version: 1, Stage: "prelaunch_probe", Code: "probe_start_eagain", WorkerState: "not_started", ProbeState: "not_started"}}
+	fixture := budgetBatchFixture{db: f.db, host: f.host, grant: original, sequence: 4}
+	e := policyRejection(&fixture, code)
 	if _, err := f.db.CommitHostEvent(ctx, e); err != nil {
 		t.Fatal(err)
 	}
@@ -214,7 +220,37 @@ func TestPolicyRetryCandidateReviewPrelaunchPreservesFrozenInputs(t *testing.T) 
 	}
 }
 
-func TestPolicyRetryIndexedCandidateReviewPrelaunchPreservesFrozenInputs(t *testing.T) {
+func TestPolicyRetryCandidateReviewRejectsReboundHost(t *testing.T) {
+	f := newReviewRetryPolicyFixture(t, adapter.ProviderClaude, true)
+	ctx := context.Background()
+	fixture := budgetBatchFixture{db: f.db, host: f.host, grant: f.grant, sequence: 4}
+	e := policyRejection(&fixture, "probe_start_eagain")
+	if _, err := f.db.CommitHostEvent(ctx, e); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.db.RebindOwner(ctx, RebindOwnerSpec{RunID: f.grant.RunID, OriginContextID: f.hello.OriginContextID, OriginPID: 2, OriginBirth: "new-owner", HostGeneration: "new-generation", AttachmentProofSHA256: strings.Repeat("b", 64)}); err != nil {
+		t.Fatal(err)
+	}
+	hello := f.hello
+	hello.OriginPID, hello.OriginBirth, hello.HostGeneration = 2, "new-owner", "new-generation"
+	hello.PID, hello.Birth = 20, "new-host"
+	host, err := f.db.RegisterHost(ctx, hello, 1)
+	if err != nil || host != f.host {
+		t.Fatal("fixture did not replace physical Host under the same HostID", host, err)
+	}
+	if _, err = f.db.sql.Exec(`UPDATE retry_decisions SET eligible_at_unix_ms=1 WHERE origin='policy'`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = f.db.ClaimReady(ctx, host, 1, 2); err == nil {
+		t.Fatal("replacement Host consumed original candidate policy retry")
+	}
+	var attempts int
+	if err = f.db.sql.QueryRow(`SELECT COUNT(*) FROM attempts WHERE task_id='review'`).Scan(&attempts); err != nil || attempts != 1 {
+		t.Fatal("rejected physical owner change consumed another attempt", attempts, err)
+	}
+}
+
+func TestReviewRetryGrantKeepsIndexedAssignment(t *testing.T) {
 	lock := &adapter.ProviderLock{Version: 1, Provider: adapter.ProviderGrok, Protocol: adapter.ProtocolID(adapter.ProviderGrok), Binary: adapter.BinaryPin{Path: "/private/bin/grok", Version: "grok 1.0.34 (3736acbc8658)", SHA256: strings.Repeat("a", 64)}}
 	payload, err := json.Marshal(adapter.InvocationPayload{Provider: string(adapter.ProviderGrok), Directory: "/private/repo/review", ProviderLock: lock, Profile: &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, GrokSessionWrite: true, TimeoutMS: 180000}, CandidateAction: &adapter.CandidateAction{Version: 1, Operation: "review", SourceTask: "validate", Target: adapter.CandidateTarget{Worktree: "/private/repo", Ref: "refs/heads/main", BaseOID: strings.Repeat("a", 40)}, ReviewIndex: &adapter.ReviewIndex{Version: 1, Mode: "indexed_candidate_review_v1", Shards: 3, ReviewOrdinal: 2}}})
 	if err != nil {
