@@ -2,13 +2,18 @@ package coordinator
 
 import (
 	"bytes"
+	"context"
+	"crypto/ed25519"
 	"encoding/json"
+	"errors"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestOriginalOwnerServerPersistsPrivateSigningKeys(t *testing.T) {
@@ -157,5 +162,70 @@ func TestOriginalOwnerPrivateKeyAndCredentialGuards(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestOriginalOwnerKeyPublicationCrashHelper(t *testing.T) {
+	state := os.Getenv("ORIGINAL_OWNER_KEY_CRASH_STATE")
+	if state == "" {
+		return
+	}
+	dir, err := ownerPrivateDirectory(state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	value := originalOwnerKeyFile{Version: 1, SignSeed: strings.Repeat("ab", 32), WrappingKey: strings.Repeat("cd", 32)}
+	err = createOwnerPrivateFileWithHooks(filepath.Join(dir, "keys.json"), value, ownerPublicationHooks{after: func() error { os.Exit(73); return nil }})
+	t.Fatal("crash boundary not reached", err)
+}
+
+func TestOriginalOwnerKeyPublicationCrashPreservesReadableIdentity(t *testing.T) {
+	state := ownerKeyTestState(t)
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, exe, "-test.run=^TestOriginalOwnerKeyPublicationCrashHelper$")
+	cmd.Env = append(os.Environ(), "ORIGINAL_OWNER_KEY_CRASH_STATE="+state)
+	err = cmd.Run()
+	var exit *exec.ExitError
+	if ctx.Err() != nil || !errors.As(err, &exit) || exit.ExitCode() != 73 {
+		t.Fatalf("fixture original Wait did not observe crash boundary: %v / %v", err, ctx.Err())
+	}
+	keys, err := loadOriginalOwnerKeys(state, nil)
+	if err != nil {
+		t.Fatalf("post-publication process crash destroyed key availability: %v", err)
+	}
+	expected := ed25519.NewKeyFromSeed(bytes.Repeat([]byte{0xab}, 32))
+	if !bytes.Equal(keys.sign, expected) {
+		t.Fatal("crash recovery regenerated identity")
+	}
+	t.Log("original helper Wait exit=73; no timeout; published identity preserved")
+}
+
+func TestOriginalOwnerKeyPublicationRejectsReplacedStagingInode(t *testing.T) {
+	state := ownerKeyTestState(t)
+	dir, err := ownerPrivateDirectory(state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "keys.json")
+	value := originalOwnerKeyFile{Version: 1, SignSeed: strings.Repeat("ab", 32), WrappingKey: strings.Repeat("cd", 32)}
+	err = createOwnerPrivateFileWithHooks(path, value, ownerPublicationHooks{before: func(stage string) error {
+		if err := os.Rename(stage, stage+".original"); err != nil {
+			return err
+		}
+		replacement := value
+		replacement.SignSeed = strings.Repeat("ef", 32)
+		body, _ := json.Marshal(replacement)
+		return os.WriteFile(stage, append(body, '\n'), 0600)
+	}})
+	if err == nil {
+		t.Fatal("foreign staging inode became signing authority")
+	}
+	if _, err = os.Lstat(path); !errors.Is(err, os.ErrNotExist) {
+		t.Fatal("foreign staging inode published", err)
 	}
 }

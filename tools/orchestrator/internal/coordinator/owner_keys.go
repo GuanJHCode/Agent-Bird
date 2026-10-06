@@ -77,9 +77,18 @@ func readOwnerPrivateFile(path string, limit int64) ([]byte, error) {
 	return body, nil
 }
 
-// Publication never replaces an existing identity. The coordinator instance
-// lock serializes legitimate writers; link also refuses a racing destination.
+// Publication uses one atomic, exclusive rename: there is no two-link crash
+// window. Keep the written descriptor open and authenticate both names against
+// that original inode before trusting the published identity.
+type ownerPublicationHooks struct {
+	before func(string) error
+	after  func() error
+}
+
 func createOwnerPrivateFile(path string, value any) error {
+	return createOwnerPrivateFileWithHooks(path, value, ownerPublicationHooks{})
+}
+func createOwnerPrivateFileWithHooks(path string, value any, hooks ownerPublicationHooks) error {
 	body, err := json.Marshal(value)
 	if err != nil {
 		return err
@@ -88,33 +97,82 @@ func createOwnerPrivateFile(path string, value any) error {
 	if len(body) > 4096 {
 		return store.CodeError("owner_runtime_file_too_large")
 	}
-	stage, err := os.CreateTemp(filepath.Dir(path), ".owner-runtime-*.new")
-	if err != nil {
-		return err
-	}
-	name := stage.Name()
-	defer os.Remove(name)
-	if _, err = stage.Write(body); err == nil {
-		err = stage.Sync()
-	}
-	if e := stage.Close(); err == nil {
-		err = e
-	}
-	if err != nil {
-		return err
-	}
-	if err = os.Link(name, path); err != nil {
-		return err
-	}
-	if err = os.Remove(name); err != nil {
-		return err
-	}
-	dir, err := os.Open(filepath.Dir(path))
+	parent := filepath.Dir(path)
+	dir, err := os.OpenFile(parent, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_DIRECTORY, 0)
 	if err != nil {
 		return err
 	}
 	defer dir.Close()
-	return dir.Sync()
+	anchor, err := dir.Stat()
+	if err != nil {
+		return err
+	}
+	st, ok := anchor.Sys().(*syscall.Stat_t)
+	if !ok || !anchor.IsDir() || anchor.Mode().Perm() != 0700 || st.Uid != uint32(os.Geteuid()) {
+		return store.CodeError("owner_runtime_directory_unsafe")
+	}
+	stage, err := os.CreateTemp(parent, ".owner-runtime-*.new")
+	if err != nil {
+		return err
+	}
+	defer stage.Close()
+	name := stage.Name()
+	original, err := stage.Stat()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if named, e := os.Lstat(name); e == nil && os.SameFile(original, named) {
+			_ = os.Remove(name)
+		}
+	}()
+	if _, err = stage.Write(body); err != nil {
+		return err
+	}
+	if err = stage.Sync(); err != nil {
+		return err
+	}
+	if hooks.before != nil {
+		if err = hooks.before(name); err != nil {
+			return err
+		}
+	}
+	verify := func(namedPath string) error {
+		currentParent, e := os.Lstat(parent)
+		if e != nil || !os.SameFile(anchor, currentParent) {
+			return store.CodeError("owner_runtime_directory_changed")
+		}
+		current, e := stage.Stat()
+		if e != nil {
+			return e
+		}
+		named, e := os.Lstat(namedPath)
+		stat, valid := current.Sys().(*syscall.Stat_t)
+		if e != nil || !os.SameFile(original, current) || !os.SameFile(current, named) || !valid || !current.Mode().IsRegular() || current.Mode().Perm() != 0600 || stat.Uid != uint32(os.Geteuid()) || stat.Nlink != 1 || current.Size() != int64(len(body)) {
+			return store.CodeError("owner_runtime_file_changed")
+		}
+		actual, e := io.ReadAll(io.NewSectionReader(stage, 0, int64(len(body)+1)))
+		if e != nil || !bytes.Equal(body, actual) {
+			return store.CodeError("owner_runtime_file_changed")
+		}
+		return nil
+	}
+	if err = verify(name); err != nil {
+		return err
+	}
+	if err = ownerRenameNoReplace(int(dir.Fd()), filepath.Base(name), filepath.Base(path)); err != nil {
+		return err
+	}
+	if err = verify(path); err != nil {
+		return err
+	}
+	if err = dir.Sync(); err != nil {
+		return err
+	}
+	if hooks.after != nil {
+		return hooks.after()
+	}
+	return nil
 }
 
 func loadOriginalOwnerKeys(state string, required []store.OriginalOwnerState) (*originalOwnerKeys, error) {
