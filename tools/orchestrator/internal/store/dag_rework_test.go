@@ -680,45 +680,63 @@ func dagIndependentLegacyChain(tasks []TaskSpec) []TaskSpec {
 }
 
 func TestDAGReworkLaterLegacyDecisionCannotPoisonTargetPromise(t *testing.T) {
-	f := newDAGReworkFixture(t, adapter.ProviderClaude, adapter.ProviderClaude, dagIndependentLegacyChain)
-	ctx := context.Background()
-	var review contract.Event
-	for i := 0; i < 4; i++ {
-		g, err := f.db.ClaimReady(ctx, f.host, 1, 3)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if g.TaskID == "legacy-review" {
-			review = f.finish(t, g, true)
-			break
-		}
-		f.finish(t, g, false)
-	}
-	if review.TaskID == "" {
-		t.Fatal("legacy review did not execute")
-	}
-	page, err := f.db.CollectPending(ctx, "legacy-edit", "", 0, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var candidate contract.Event
-	for _, e := range page.Events {
-		if e.Kind == contract.EventResult {
-			candidate = e
-		}
-	}
-	legacy := ReworkSpec{TaskID: "legacy-edit", WorkRevision: 1, Candidate: reworkEventTuple(candidate), CandidateOID: strings.Repeat("b", 40), ReviewTaskID: "legacy-review", ReviewWorkRevision: 1, Review: reworkEventTuple(review), ActionSlot: review.ActionSlot, Feedback: "legacy repair", Acceptance: "legacy scope", CommandID: "legacy-rework"}
-	if _, err = f.db.QueueRework(ctx, reworkVersionSpec(t, f.spec, 1)); err != nil {
-		t.Fatal(err)
-	}
-	before := dagReworkState(t, f.db)
-	if _, err = f.db.QueueRework(ctx, legacy); err != CodeError("rework_target_reserved") || before != dagReworkState(t, f.db) {
-		t.Fatalf("later legacy poisoned reservation: %v", err)
-	}
-	// The original closure still proceeds after the rejected competing command.
-	g, err := f.db.ClaimReady(ctx, f.host, 1, 3)
-	if err != nil || g.TaskID != "edit" {
-		t.Fatalf("original closure blocked %+v %v", g, err)
+	for _, corrupt := range []string{"intact", "remove_version", "bad_json"} {
+		t.Run(corrupt, func(t *testing.T) {
+			f := newDAGReworkFixture(t, adapter.ProviderClaude, adapter.ProviderClaude, dagIndependentLegacyChain)
+			ctx := context.Background()
+			var review contract.Event
+			for i := 0; i < 4; i++ {
+				g, err := f.db.ClaimReady(ctx, f.host, 1, 3)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if g.TaskID == "legacy-review" {
+					review = f.finish(t, g, true)
+					break
+				}
+				f.finish(t, g, false)
+			}
+			if review.TaskID == "" {
+				t.Fatal("legacy review did not execute")
+			}
+			page, err := f.db.CollectPending(ctx, "legacy-edit", "", 0, false)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var candidate contract.Event
+			for _, e := range page.Events {
+				if e.Kind == contract.EventResult {
+					candidate = e
+				}
+			}
+			legacy := ReworkSpec{TaskID: "legacy-edit", WorkRevision: 1, Candidate: reworkEventTuple(candidate), CandidateOID: strings.Repeat("b", 40), ReviewTaskID: "legacy-review", ReviewWorkRevision: 1, Review: reworkEventTuple(review), ActionSlot: review.ActionSlot, Feedback: "legacy repair", Acceptance: "legacy scope", CommandID: "legacy-rework"}
+			if _, err = f.db.QueueRework(ctx, reworkVersionSpec(t, f.spec, 1)); err != nil {
+				t.Fatal(err)
+			}
+			want := CodeError("rework_target_reserved")
+			if corrupt != "intact" {
+				query := `UPDATE retry_decisions SET revision_payload=json_remove(revision_payload,'$.request.version')`
+				if corrupt == "bad_json" {
+					query = `UPDATE retry_decisions SET revision_payload='{'`
+				}
+				if _, err = f.db.sql.Exec(query); err != nil {
+					t.Fatal(err)
+				}
+				want = CodeError("rework_target_scope_unresolved")
+			}
+			before := dagReworkState(t, f.db)
+			if _, err = f.db.QueueRework(ctx, legacy); err != want || before != dagReworkState(t, f.db) {
+				t.Fatalf("later legacy poisoned reservation: %v", err)
+			}
+			if corrupt != "intact" {
+				return
+			}
+			// The original closure still proceeds after the rejected competing command.
+			g, err := f.db.ClaimReady(ctx, f.host, 1, 3)
+			if err != nil || g.TaskID != "edit" {
+				t.Fatalf("original closure blocked %+v %v", g, err)
+			}
+		})
 	}
 }
 
@@ -811,6 +829,47 @@ func TestDAGReworkMalformedMarkerCannotEvadeBindingGuard(t *testing.T) {
 			before := dagReworkState(t, f.db)
 			if _, err := f.db.ClaimReady(ctx, f.host, 1, 3); err == nil || before != dagReworkState(t, f.db) {
 				t.Fatalf("malformed v1 became legacy initial grant %v", err)
+			}
+		})
+	}
+}
+
+func TestDAGReworkCorruptPromiseCannotDisappearFromDispatch(t *testing.T) {
+	for _, corrupt := range []string{"remove_version", "bad_json"} {
+		t.Run(corrupt, func(t *testing.T) {
+			f := newConfiguredDAGReworkFixture(t, adapter.ProviderClaude, adapter.ProviderClaude, func(f *dagReworkFixture) {
+				f.acceptResult = func(g contract.LaunchCommand) bool { return g.TaskID != "side-review" }
+			}, dagIndependentIntegration("/private/alias/../repo", "refs/heads/main"))
+			ctx := context.Background()
+			if _, err := f.db.QueueRework(ctx, reworkVersionSpec(t, f.spec, 1)); err != nil {
+				t.Fatal(err)
+			}
+			if g, err := f.db.ClaimReady(ctx, f.host, 1, 3); err != nil || g.TaskID != "edit" {
+				t.Fatalf("root grant %+v %v", g, err)
+			}
+			page, err := f.db.CollectPending(ctx, "side-review", "", 0, false)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var e contract.Event
+			for _, event := range page.Events {
+				if event.Kind == contract.EventResult {
+					e = event
+				}
+			}
+			if _, err = f.db.ReviewResult(ctx, ReviewSpec{TaskID: e.TaskID, WorkRevision: e.WorkRevision, EventID: e.EventID, EventRevision: e.EventRevision, EventHash: e.PayloadHash, ActionSlot: e.ActionSlot, Decision: "accept", CommandID: "later-independent-accept"}); err != nil {
+				t.Fatal(err)
+			}
+			query := `UPDATE retry_decisions SET revision_payload=json_remove(revision_payload,'$.request.version')`
+			if corrupt == "bad_json" {
+				query = `UPDATE retry_decisions SET revision_payload='{'`
+			}
+			if _, err = f.db.sql.Exec(query); err != nil {
+				t.Fatal(err)
+			}
+			before := dagReworkState(t, f.db)
+			if _, err = f.db.ClaimReady(ctx, f.host, 1, 3); err != CodeError("rework_target_scope_unresolved") || before != dagReworkState(t, f.db) {
+				t.Fatalf("corrupt promise disappeared: %v", err)
 			}
 		})
 	}

@@ -153,11 +153,11 @@ func integrationDispatchAllowed(ctx context.Context, tx *sql.Tx, task readyTask)
 		return true, nil
 	}
 	// Existing v0-only runs keep their previous compatibility contract.
-	var v1 int
-	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM retry_decisions d WHERE json_valid(d.revision_payload) AND json_extract(d.revision_payload,'$.request.version')=1 AND EXISTS(SELECT 1 FROM decision_attempt_bindings b JOIN tasks t ON t.id=b.task_id WHERE b.action_slot=d.action_slot AND b.retired=0 AND (b.attempt_id IS NULL OR EXISTS(SELECT 1 FROM segment_runtime s WHERE s.attempt_id=b.attempt_id AND s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown'))))`).Scan(&v1); err != nil {
+	reservations, err := outstandingDAGTargets(ctx, tx)
+	if err != nil {
 		return false, err
 	}
-	if v1 == 0 {
+	if len(reservations) == 0 {
 		return true, nil
 	}
 	own, err := integrationScope(ctx, tx, task.taskID, true)
@@ -361,48 +361,76 @@ func legacyPendingIntegrationTarget(ctx context.Context, tx *sql.Tx, current dec
 }
 
 func admitLegacyReworkTarget(ctx context.Context, tx *sql.Tx, artifact reworkArtifact, want adapter.CandidateTarget, plan int) error {
-	rows, err := tx.QueryContext(ctx, `SELECT b.task_id,b.target_work_revision FROM decision_attempt_bindings b JOIN retry_decisions d USING(action_slot) JOIN task_runtime t ON t.task_id=b.task_id WHERE json_valid(d.revision_payload) AND json_extract(d.revision_payload,'$.request.version')=1 AND json_extract(t.adapter_payload,'$.candidate_action.operation')='integrate' AND b.retired=0 AND (b.attempt_id IS NULL OR EXISTS(SELECT 1 FROM segment_runtime s WHERE s.attempt_id=b.attempt_id AND s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown')))`)
-	if err != nil {
-		return err
-	}
-	type promise struct {
-		id       string
-		revision int
-	}
-	var promises []promise
-	for rows.Next() {
-		var p promise
-		if err = rows.Scan(&p.id, &p.revision); err != nil {
-			rows.Close()
-			return err
-		}
-		promises = append(promises, p)
-	}
-	err = rows.Err()
-	rows.Close()
-	if err != nil || len(promises) == 0 {
+	reservations, err := outstandingDAGTargets(ctx, tx)
+	if err != nil || len(reservations) == 0 {
 		return err
 	}
 	scope, err := targetFromArtifact(artifact, want, plan)
 	if err != nil {
 		return CodeError("rework_target_scope_unresolved")
 	}
-	for _, p := range promises {
-		record, err := dagDecisionForTask(ctx, tx, p.id, p.revision)
-		if err != nil || record == nil {
-			return CodeError("rework_target_scope_unresolved")
-		}
-		saved, err := parseDAGRework(record.payload)
-		if err != nil {
-			return err
-		}
-		other, ok := saved.Targets[p.id]
-		if !ok {
-			return ErrConflict
-		}
+	for _, other := range reservations {
 		if scope.key() == other.key() {
 			return CodeError("rework_target_reserved")
 		}
 	}
 	return nil
+}
+
+// The binding is the durable reservation. A deleted/malformed JSON marker
+// cannot make that reservation disappear. Classify every outstanding decision
+// before deciding that the compatibility fast path contains only legacy work.
+func outstandingDAGTargets(ctx context.Context, tx *sql.Tx) (map[string]dagReworkTarget, error) {
+	rows, err := tx.QueryContext(ctx, `SELECT b.action_slot,b.task_id,b.target_work_revision,b.reserved_active_ms FROM decision_attempt_bindings b JOIN task_runtime t ON t.task_id=b.task_id WHERE json_extract(t.adapter_payload,'$.candidate_action.operation')='integrate' AND b.retired=0 AND (b.attempt_id IS NULL OR EXISTS(SELECT 1 FROM segment_runtime s WHERE s.attempt_id=b.attempt_id AND s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown')))`)
+	if err != nil {
+		return nil, err
+	}
+	var bindings []decisionAttemptBinding
+	for rows.Next() {
+		var b decisionAttemptBinding
+		if err = rows.Scan(&b.slot, &b.task, &b.revision, &b.reservedMS); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		bindings = append(bindings, b)
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]dagReworkTarget{}
+	for _, b := range bindings {
+		record, err := readAttemptDecision(ctx, tx, b.slot)
+		if err != nil {
+			return nil, CodeError("rework_target_scope_unresolved")
+		}
+		kind, err := decisionRecordKind(record)
+		if err != nil {
+			return nil, CodeError("rework_target_scope_unresolved")
+		}
+		switch kind {
+		case "rework":
+			var saved reworkDecision
+			if strictDecisionJSON(record.payload, &saved) != nil || saved.Spec.Version != 0 || saved.Receipt.Version != 0 || saved.Receipt.ClosureSHA256 != "" || saved.Receipt.TaskRevisions[b.task] != b.revision {
+				return nil, CodeError("rework_target_scope_unresolved")
+			}
+			if _, err = reworkDecisionTargets(ctx, tx, record); err != nil {
+				return nil, CodeError("rework_target_scope_unresolved")
+			}
+		case dagReworkKind:
+			saved, err := parseDAGRework(record.payload)
+			if err != nil || saved.Receipt.TaskRevisions[b.task] != b.revision || b.reservedMS <= 0 {
+				return nil, CodeError("rework_target_scope_unresolved")
+			}
+			target, ok := saved.Targets[b.task]
+			if !ok {
+				return nil, CodeError("rework_target_scope_unresolved")
+			}
+			out[b.task] = target
+		default:
+			return nil, CodeError("rework_target_scope_unresolved")
+		}
+	}
+	return out, nil
 }

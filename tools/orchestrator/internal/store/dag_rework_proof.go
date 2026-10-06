@@ -172,7 +172,7 @@ func dagDecisionForTask(ctx context.Context, tx *sql.Tx, task string, revision i
 		_ = json.Unmarshal(fields["request"], &request)
 		_ = json.Unmarshal(fields["receipt"], &receipt)
 		_, nodes := fields["nodes"]
-		if request.Version == 0 && receipt.Version == 0 && !nodes {
+		if request.Version != 1 && receipt.Version != 1 && !nodes {
 			continue
 		}
 		s, e := parseDAGRework(raw)

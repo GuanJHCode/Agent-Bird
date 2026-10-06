@@ -242,7 +242,7 @@ func TestDecisionBindingV12MigrationDDLFailureRollsBack(t *testing.T) {
 }
 
 func TestLegacyDecisionMalformedPayloadCannotBecomeInitialAdmission(t *testing.T) {
-	for _, raw := range []string{`{"kind":"unknown"}`, `{"request":null}`, `{"kind":"candidate_review_retry","kind":"candidate_review_retry"}`, `{"KIND":"candidate_review_retry"}`} {
+	for _, raw := range []string{`{"request":{"version":2}}`, `{"receipt":{"version":2}}`, `{"kind":"unknown"}`, `{"request":null}`, `{"kind":"candidate_review_retry","kind":"candidate_review_retry"}`, `{"KIND":"candidate_review_retry"}`} {
 		t.Run(raw, func(t *testing.T) {
 			f := newReworkFixture(t)
 			ctx := context.Background()
