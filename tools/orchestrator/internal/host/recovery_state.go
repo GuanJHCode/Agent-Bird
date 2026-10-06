@@ -60,16 +60,7 @@ func readPrivateRecoveryFile(path string) ([]byte, error) {
 	return body, nil
 }
 
-func openHostRecovery(directory, scope string, pid int, birth string) (*hostRecoveryState, error) {
-	return openHostRecoveryRecord(directory, scope, pid, birth, false)
-}
-
-// Only the Source's authenticated transition path may inspect a mismatched
-// scope. All other canonical/file/record checks remain identical.
-func openHostRecoveryRecord(directory, scope string, pid int, birth string, allowScopeTransition bool) (*hostRecoveryState, error) {
-	if scope == "" || pid <= 0 || birth == "" {
-		return nil, errors.New("host_recovery_state_unsafe")
-	}
+func lockHostRecovery(directory string) (*hostRecoveryState, error) {
 	if err := validateRecoveryDirectory(directory); err != nil {
 		return nil, err
 	}
@@ -88,6 +79,23 @@ func openHostRecoveryRecord(directory, scope string, pid int, birth string, allo
 		return nil, errors.New("host_recovery_state_busy")
 	}
 	state := &hostRecoveryState{directory: directory, path: filepath.Join(directory, ".coordinator-recovery.json"), lock: lock}
+	return state, nil
+}
+
+func openHostRecovery(directory, scope string, pid int, birth string) (*hostRecoveryState, error) {
+	return openHostRecoveryRecord(directory, scope, pid, birth, false)
+}
+
+// Only the Source's authenticated transition path may inspect a mismatched
+// scope. All other canonical/file/record checks remain identical.
+func openHostRecoveryRecord(directory, scope string, pid int, birth string, allowScopeTransition bool) (*hostRecoveryState, error) {
+	if scope == "" || pid <= 0 || birth == "" {
+		return nil, errors.New("host_recovery_state_unsafe")
+	}
+	state, err := lockHostRecovery(directory)
+	if err != nil {
+		return nil, err
+	}
 	body, err := readPrivateRecoveryFile(state.path)
 	if errors.Is(err, os.ErrNotExist) {
 		state.record = hostRecoveryRecord{Version: 1, ScopeSHA256: scope, LastPID: pid, LastBirth: birth}
@@ -134,6 +142,14 @@ func (s *hostRecoveryState) close() {
 }
 
 func (s *hostRecoveryState) persist() error {
+	body, err := json.Marshal(s.record)
+	if err != nil {
+		return err
+	}
+	return s.persistBytes(append(body, '\n'))
+}
+
+func (s *hostRecoveryState) persistBytes(body []byte) error {
 	if err := validateRecoveryDirectory(s.directory); err != nil {
 		return err
 	}
@@ -145,11 +161,6 @@ func (s *hostRecoveryState) persist() error {
 	} else if err != nil || !bytes.Equal(current, s.bytes) {
 		return errors.New("host_recovery_state_changed")
 	}
-	body, err := json.Marshal(s.record)
-	if err != nil {
-		return err
-	}
-	body = append(body, '\n')
 	stage, err := os.CreateTemp(s.directory, ".coordinator-recovery-*.new")
 	if err != nil {
 		return err
