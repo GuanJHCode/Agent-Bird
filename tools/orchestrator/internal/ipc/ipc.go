@@ -24,6 +24,7 @@ const (
 	KindOwnerChallenge         Kind = "original_owner_challenge"
 	KindOwnerCommand           Kind = "original_owner_command"
 	KindOwnerTransportExchange Kind = "original_owner_transport_exchange"
+	KindOwnerTransportControl  Kind = "original_owner_transport_control"
 	KindHostHello              Kind = "host_hello"
 	KindHostRecoveryScope      Kind = "host_recovery_scope"
 	KindHostReady              Kind = "host_ready"

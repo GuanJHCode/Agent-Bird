@@ -76,6 +76,8 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return providerControl(ctx, args[0], args[1:], stdout)
 	case "serve":
 		return serve(ctx, args[1:], stderr)
+	case "owner-transport":
+		return ownerTransportEntry(ctx, args[1:])
 	case "source-host":
 		return sourceHost(ctx, args[1:])
 	case "gitops-worker":
