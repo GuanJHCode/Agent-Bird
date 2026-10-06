@@ -17,6 +17,7 @@ import (
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
 )
 
 // Task plans contain business scope, never owner/process or transport identity.
@@ -336,6 +337,19 @@ func withTaskRequest(value any, fn func(string) error) error {
 
 func preflightProviders(ctx context.Context, tasks []coordinator.TaskRequest) error {
 	for _, task := range tasks {
+		deferDynamicProbe := false
+		if task.ExecutionPolicy != nil {
+			normalized, err := store.NormalizeExecutionTask(store.TaskSpec{
+				ExecutionPolicy: task.ExecutionPolicy,
+				MaxAttempts:     task.MaxAttempts,
+				MaxActiveMS:     task.MaxActiveMS,
+				AdapterPayload:  task.AdapterPayload,
+			})
+			if err != nil {
+				return err
+			}
+			deferDynamicProbe = normalized.ExecutionPolicy.Retry != nil
+		}
 		for _, raw := range append([]json.RawMessage{task.AdapterPayload}, task.Fallbacks...) {
 			p, err := adapter.DecodeInvocationPayload(raw)
 			if err != nil {
@@ -356,6 +370,9 @@ func preflightProviders(ctx context.Context, tasks []coordinator.TaskRequest) er
 			}
 			if err = adapter.VerifyExecutable(req.Binary, req.Binary.Version); err != nil {
 				return err
+			}
+			if deferDynamicProbe {
+				continue
 			}
 			actual, err := adapter.ProbeOutput(ctx, req.Binary.Path, "--version")
 			if err != nil {
