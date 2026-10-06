@@ -1,0 +1,23 @@
+[
+  {
+    "command": [
+      "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+      "test",
+      "-c",
+      "-o",
+      "../../tasks/linux-group-native/tmp/root-bin/process-darwin.test",
+      "./internal/process"
+    ],
+    "platform": "darwin",
+    "exit_code": 0
+  },
+  {
+    "command": [
+      "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+      "vet",
+      "./internal/process"
+    ],
+    "platform": "linux",
+    "exit_code": 0
+  }
+]

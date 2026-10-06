@@ -1,0 +1,15 @@
+=== RUN   TestLinuxNativeGroupLeaderGoneMemberLive
+    linux_group_native_test.go:165: live pid=12 pgid=12 birth=linux:3a92e1e9-2128-42bf-a73e-eab37bec3f14:122
+    linux_group_native_test.go:166: live pid=16 pgid=12 birth=linux:3a92e1e9-2128-42bf-a73e-eab37bec3f14:122
+    linux_group_native_test.go:168: original Wait pid=12 exit=0; stdout/stderr natural EOF; no forced cleanup
+    linux_group_native_test.go:180: leader original Wait complete; same-birth member keeps group nonquiescent/UNKNOWN
+    linux_group_native_test.go:182: original Wait pid=16 exit=0; stdout/stderr natural EOF; no forced cleanup
+    linux_group_native_test.go:186: both original Wait complete; final group absent
+--- PASS: TestLinuxNativeGroupLeaderGoneMemberLive (0.01s)
+=== RUN   TestLinuxNativeGroupZombieNeedsOriginalWait
+    linux_group_native_test.go:189: live pid=20 pgid=20 birth=linux:3a92e1e9-2128-42bf-a73e-eab37bec3f14:122
+    linux_group_native_test.go:213: same-birth unreaped Z leader is quiescent, group exit remains UNKNOWN
+    linux_group_native_test.go:214: original Wait pid=20 exit=0; stdout/stderr natural EOF; no forced cleanup
+    linux_group_native_test.go:218: original Wait reaped zombie; final group absent
+--- PASS: TestLinuxNativeGroupZombieNeedsOriginalWait (0.01s)
+PASS
