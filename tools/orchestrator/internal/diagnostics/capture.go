@@ -86,6 +86,7 @@ type Capture struct {
 	offsets     [3]uint64
 	pendingLoss [3]uint64
 	closed      bool
+	fatal       error
 	notify      chan struct{}
 }
 
@@ -150,6 +151,15 @@ func (c *Capture) Next(ctx context.Context) (Lease, error) {
 			return Lease{}, err
 		}
 		c.mu.Lock()
+		if err := ctx.Err(); err != nil {
+			c.mu.Unlock()
+			return Lease{}, err
+		}
+		if c.fatal != nil {
+			err := c.fatal
+			c.mu.Unlock()
+			return Lease{}, err
+		}
 		c.enqueueFinalLossLocked()
 		if len(c.queue) > 0 {
 			item := c.queue[0]
@@ -207,6 +217,17 @@ func (c *Capture) hasPendingLossLocked() bool {
 
 func (c *Capture) enqueueFinalLossLocked() {
 	if !c.closed {
+		return
+	}
+	required := uint64(0)
+	for _, stream := range []Stream{Stdout, Stderr} {
+		if c.pendingLoss[stream] != 0 && c.used < CaptureRecordCount {
+			required++
+		}
+	}
+	if required > math.MaxUint64-c.nextID {
+		c.fatal = ErrCaptureOverflow
+		c.signalLocked()
 		return
 	}
 	for _, stream := range []Stream{Stdout, Stderr} {

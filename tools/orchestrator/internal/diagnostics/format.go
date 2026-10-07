@@ -67,7 +67,43 @@ type chunk struct {
 	scopeHash string
 	sequence  uint64
 	segmentID string
-	records   []Record
+	raw       []byte
+	recordAt  int
+	count     int
+}
+
+type chunkIterator struct {
+	chunk     chunk
+	at, index int
+	ends      [3]uint64
+}
+
+func (c chunk) Iterator() chunkIterator { return chunkIterator{chunk: c, at: c.recordAt} }
+func (i *chunkIterator) Next() (Record, bool, error) {
+	if i.index == i.chunk.count {
+		return Record{}, false, nil
+	}
+	b := i.chunk.raw
+	if i.at+19 > len(b)-chunkTrailer {
+		return Record{}, false, ErrCorrupt
+	}
+	s := Stream(b[i.at])
+	off := binary.BigEndian.Uint64(b[i.at+1:])
+	lost := binary.BigEndian.Uint64(b[i.at+9:])
+	n := int(binary.BigEndian.Uint16(b[i.at+17:]))
+	i.at += 19
+	if (s != Stdout && s != Stderr) || n > RecordBytes || i.at+n > len(b)-chunkTrailer || lost > off || (n == 0 && lost == 0) || uint64(n) > ^uint64(0)-off {
+		return Record{}, false, ErrCorrupt
+	}
+	gapStart := off - lost
+	if i.ends[s] != 0 && gapStart != i.ends[s] {
+		return Record{}, false, ErrCorrupt
+	}
+	i.ends[s] = off + uint64(n)
+	data := b[i.at : i.at+n]
+	i.at += n
+	i.index++
+	return Record{Stream: s, SegmentID: i.chunk.segmentID, Offset: off, LostBefore: lost, Data: data}, true, nil
 }
 
 func encodeChunk(scopeHash string, sequence uint64, segmentID string, records []Record) ([]byte, error) {
@@ -146,29 +182,17 @@ func decodeChunk(raw []byte) (chunk, error) {
 	if count > (len(body)-offset)/(1+8+8+2) {
 		return chunk{}, ErrCorrupt
 	}
-	records := make([]Record, 0, count)
+	recordAt := offset
+	view := chunk{segmentID: segmentID, raw: raw, recordAt: recordAt, count: count}
+	it := view.Iterator()
 	for range count {
-		if offset+1+8+8+2 > len(body) {
+		if _, ok, err := it.Next(); err != nil || !ok {
 			return chunk{}, ErrCorrupt
 		}
-		stream := Stream(body[offset])
-		offset++
-		lengthOffset := offset + 16
-		recordOffset := binary.BigEndian.Uint64(body[offset:])
-		lost := binary.BigEndian.Uint64(body[offset+8:])
-		length := int(binary.BigEndian.Uint16(body[lengthOffset:]))
-		offset = lengthOffset + 2
-		if (stream != Stdout && stream != Stderr) || length > RecordBytes || offset+length > len(body) {
-			return chunk{}, ErrCorrupt
-		}
-		// The returned record borrows raw. Reader/Page owns raw until the caller
-		// consumes the page; copying here would retain a second chunk-sized body.
-		data := body[offset : offset+length]
-		offset += length
-		records = append(records, Record{Stream: stream, SegmentID: segmentID, Offset: recordOffset, LostBefore: lost, Data: data})
 	}
-	if offset != len(body) {
+	if it.at != len(body) {
 		return chunk{}, ErrCorrupt
 	}
-	return chunk{scopeHash: scopeHash, sequence: sequence, segmentID: segmentID, records: records}, nil
+	view.scopeHash, view.sequence = scopeHash, sequence
+	return view, nil
 }

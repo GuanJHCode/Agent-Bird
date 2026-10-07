@@ -45,7 +45,7 @@ func TestChunkRoundTripPreservesOffsetsLossAndBytes(t *testing.T) {
 	}
 	records := []Record{
 		{Stream: Stdout, SegmentID: "segment", Offset: 7, Data: []byte("stdout")},
-		{Stream: Stderr, SegmentID: "segment", Offset: 3, LostBefore: 9, Data: []byte{0, 1, 2}},
+		{Stream: Stderr, SegmentID: "segment", Offset: 9, LostBefore: 9, Data: []byte{0, 1, 2}},
 	}
 	raw, err := encodeChunk(hash, 42, "segment", records)
 	if err != nil {
@@ -58,12 +58,13 @@ func TestChunkRoundTripPreservesOffsetsLossAndBytes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.scopeHash != hash || got.sequence != 42 || got.segmentID != "segment" || len(got.records) != len(records) {
+	actual := collectRecords(t, got)
+	if got.scopeHash != hash || got.sequence != 42 || got.segmentID != "segment" || len(actual) != len(records) {
 		t.Fatalf("header=%+v", got)
 	}
 	for i := range records {
-		if got.records[i].Stream != records[i].Stream || got.records[i].SegmentID != records[i].SegmentID || got.records[i].Offset != records[i].Offset || got.records[i].LostBefore != records[i].LostBefore || !bytes.Equal(got.records[i].Data, records[i].Data) {
-			t.Fatalf("record %d got=%+v want=%+v", i, got.records[i], records[i])
+		if actual[i].Stream != records[i].Stream || actual[i].SegmentID != records[i].SegmentID || actual[i].Offset != records[i].Offset || actual[i].LostBefore != records[i].LostBefore || !bytes.Equal(actual[i].Data, records[i].Data) {
+			t.Fatalf("record %d got=%+v want=%+v", i, actual[i], records[i])
 		}
 	}
 }
@@ -105,7 +106,23 @@ func TestDecodedRecordDataBorrowsChunkBuffer(t *testing.T) {
 		t.Fatal("payload not in raw chunk")
 	}
 	raw[at] = 'P'
-	if string(decoded.records[0].Data) != "Payload" {
-		t.Fatalf("decoded payload was copied: %q", decoded.records[0].Data)
+	if string(collectRecords(t, decoded)[0].Data) != "Payload" {
+		t.Fatalf("decoded payload was copied")
+	}
+}
+
+func collectRecords(t *testing.T, value chunk) []Record {
+	t.Helper()
+	it := value.Iterator()
+	var out []Record
+	for {
+		r, ok, e := it.Next()
+		if e != nil {
+			t.Fatal(e)
+		}
+		if !ok {
+			return out
+		}
+		out = append(out, r)
 	}
 }

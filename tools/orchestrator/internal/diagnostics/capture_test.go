@@ -181,3 +181,17 @@ func TestCaptureRejectsInvalidSegment(t *testing.T) {
 		}
 	}
 }
+
+func TestCaptureFinalLossIDExhaustionFailsClosed(t *testing.T) {
+	c, err := NewCapture("segment-a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.nextID = math.MaxUint64 - 1
+	c.pendingLoss[Stdout], c.pendingLoss[Stderr] = 1, 1
+	c.offsets[Stdout], c.offsets[Stderr] = 1, 1
+	c.Close()
+	if _, err = c.Next(context.Background()); err != ErrCaptureOverflow {
+		t.Fatalf("final loss exhaustion=%v", err)
+	}
+}
