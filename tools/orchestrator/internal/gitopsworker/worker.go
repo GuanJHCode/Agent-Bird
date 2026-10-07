@@ -123,7 +123,7 @@ func Run(ctx context.Context, requestPath string, stdout io.Writer) error {
 		var request gitops.IntegrationRequest
 		if err = decode(envelope.Request, &request); err == nil {
 			request.Journal = journal
-			result, err = gitops.Integrate(ctx, request)
+			result, err = gitops.TrackedIntegrate(gitops.WithCandidateJournal(ctx, journal), request)
 		}
 	case "cleanup":
 		var request gitops.CleanupRequest
