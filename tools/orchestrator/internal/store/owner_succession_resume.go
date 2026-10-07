@@ -5,7 +5,6 @@ import (
 	"crypto/ed25519"
 	"crypto/subtle"
 	"database/sql"
-	"database/sql/driver"
 	"encoding/json"
 	"errors"
 	"strings"
@@ -116,16 +115,12 @@ func (d *DB) resumeOriginalOwner(ctx context.Context, request OriginalOwnerResum
 	defer d.mu.Unlock()
 	// Keep the physical lease until commit/rollback is resolved. A failed
 	// SQLite COMMIT can leave its transaction active after sql.Tx is done.
-	conn, err := d.sql.Conn(ctx)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return zero, err
 	}
-	defer conn.Close()
-	tx, err := conn.BeginTx(ctx, nil)
-	if err != nil {
-		return zero, err
-	}
-	defer tx.Rollback()
+	defer owned.close()
+	tx := owned.tx
 	if err = authenticateOwnerResumeTx(ctx, tx, request); err != nil {
 		return zero, err
 	}
@@ -202,13 +197,7 @@ func (d *DB) resumeOriginalOwner(ctx context.Context, request OriginalOwnerResum
 	if err = ownerOneRow(r, err); err != nil {
 		return zero, err
 	}
-	if err = tx.Commit(); err != nil {
-		cleanup, cancel := context.WithTimeout(context.Background(), time.Second)
-		defer cancel()
-		_, _ = conn.ExecContext(cleanup, "ROLLBACK")
-		// Never release an uncertain driver transaction back into the pool,
-		// including a failed rollback or a commit with an ambiguous outcome.
-		_ = conn.Raw(func(any) error { return driver.ErrBadConn })
+	if err = owned.commit(); err != nil {
 		return zero, err
 	}
 	return a, nil
@@ -261,13 +250,17 @@ func ownerSuccessionRebindChain(ctx context.Context, tx *sql.Tx, run, current, p
 }
 
 func ownerSuccessionQuiescent(ctx context.Context, tx *sql.Tx, run, launch, producer string) error {
+	return ownerSuccessionQuiescentExceptQueued(ctx, tx, run, launch, producer, "")
+}
+
+func ownerSuccessionQuiescentExceptQueued(ctx context.Context, tx *sql.Tx, run, launch, producer, queuedTask string) error {
 	var unsafe int
 	err := tx.QueryRowContext(ctx, `SELECT
  (SELECT COUNT(*) FROM segment_runtime s JOIN attempts a ON a.id=s.attempt_id JOIN tasks t ON t.id=a.task_id WHERE t.run_id=? AND s.status NOT IN ('exited','not_started')) +
- (SELECT COUNT(*) FROM tasks WHERE run_id=? AND status IN ('ready','resume_queued','running','stopping','waiting_question')) +
+ (SELECT COUNT(*) FROM tasks WHERE run_id=? AND status IN ('ready','resume_queued','running','stopping','waiting_question') AND NOT(id=? AND status='resume_queued')) +
  (SELECT COUNT(*) FROM stop_runtime WHERE host_id=? AND status='pending') +
  (SELECT COUNT(*) FROM runtime_questions q JOIN tasks t ON t.id=q.task_id WHERE t.run_id=? AND q.status IN ('open','answer_committed','resume_queued','resume_started')) +
- (SELECT COUNT(*) FROM task_runtime tr JOIN tasks t ON t.id=tr.task_id WHERE t.run_id=? AND tr.host_launch_id!=?)`, run, run, producer, run, run, launch).Scan(&unsafe)
+ (SELECT COUNT(*) FROM task_runtime tr JOIN tasks t ON t.id=tr.task_id WHERE t.run_id=? AND tr.host_launch_id!=?)`, run, run, queuedTask, producer, run, run, launch).Scan(&unsafe)
 	if err != nil {
 		return err
 	}

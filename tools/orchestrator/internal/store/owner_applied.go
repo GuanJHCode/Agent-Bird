@@ -49,7 +49,10 @@ func validateOwnerApplied(ctx context.Context, tx *sql.Tx, spec OriginalOwnerApp
 	if err = tx.QueryRowContext(ctx, `SELECT COALESCE(MAX(sequence),0) FROM runtime_events WHERE producer_id=?`, scope.ProducerID).Scan(&last); err != nil {
 		return row, "", err
 	}
-	if spec.Applied.Reconciled.PublishedThrough > last {
+	// A successor must reconcile the preserved producer cursor before a new
+	// permit is first applied. Once its exact signed receipt is durable, replay
+	// can follow later events; the stored applied_hash still fences that replay.
+	if spec.Applied.Reconciled.PublishedThrough > last || (row.state.SuccessionAuthorizationID != "" && row.state.AppliedControlRevision < row.state.ControlRevision && spec.Applied.Reconciled.PublishedThrough != last) {
 		return row, "", originalOwnerRejected()
 	}
 	body, _ := json.Marshal(spec.Applied)
@@ -61,11 +64,12 @@ func validateOwnerApplied(ctx context.Context, tx *sql.Tx, spec OriginalOwnerApp
 func (d *DB) CommitOriginalOwnerApplied(ctx context.Context, spec OriginalOwnerAppliedSpec, key ed25519.PublicKey) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer owned.close()
+	tx := owned.tx
 	row, hash, err := validateOwnerApplied(ctx, tx, spec, key)
 	if err != nil {
 		return err
@@ -94,17 +98,18 @@ func (d *DB) CommitOriginalOwnerApplied(ctx context.Context, spec OriginalOwnerA
 	if err = ownerOneRow(result, err); err != nil {
 		return err
 	}
-	return tx.Commit()
+	return owned.commit()
 }
 
 func (d *DB) ActivateOriginalOwner(ctx context.Context, spec OriginalOwnerAppliedSpec, key ed25519.PublicKey) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer owned.close()
+	tx := owned.tx
 	row, hash, err := validateOwnerApplied(ctx, tx, spec, key)
 	if err != nil {
 		return err
@@ -124,7 +129,7 @@ func (d *DB) ActivateOriginalOwner(ctx context.Context, spec OriginalOwnerApplie
 	if err = ownerOneRow(result, err); err != nil {
 		return err
 	}
-	return tx.Commit()
+	return owned.commit()
 }
 
 func ownerOneRow(result sql.Result, err error) error {

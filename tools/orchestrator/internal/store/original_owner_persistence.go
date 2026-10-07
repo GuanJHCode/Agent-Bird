@@ -65,8 +65,8 @@ func loadOriginalOwner(ctx context.Context, tx *sql.Tx, id string) (originalOwne
 	var row originalOwnerRow
 	var current int
 	var pid, hostPID sql.NullInt64
-	var birth, key, hostBirth, binding, hash sql.NullString
-	err := tx.QueryRowContext(ctx, `SELECT intent_json,phase,is_current,control_revision,applied_control_revision,current_host_pid,current_host_birth,coordinator_epoch,owner_pid,owner_birth,owner_public_key,original_binding_json,original_binding_hash,created_at,updated_at FROM execution_owners WHERE owner_id=?`, id).Scan(&row.intentJSON, &row.state.Phase, &current, &row.state.ControlRevision, &row.state.AppliedControlRevision, &hostPID, &hostBirth, &row.state.CoordinatorEpoch, &pid, &birth, &key, &binding, &hash, &row.created, &row.updated)
+	var birth, key, hostBirth, binding, hash, succession sql.NullString
+	err := tx.QueryRowContext(ctx, `SELECT intent_json,phase,is_current,control_revision,applied_control_revision,current_host_pid,current_host_birth,coordinator_epoch,owner_pid,owner_birth,owner_public_key,original_binding_json,original_binding_hash,created_at,updated_at,succession_authorization_id FROM execution_owners WHERE owner_id=?`, id).Scan(&row.intentJSON, &row.state.Phase, &current, &row.state.ControlRevision, &row.state.AppliedControlRevision, &hostPID, &hostBirth, &row.state.CoordinatorEpoch, &pid, &birth, &key, &binding, &hash, &row.created, &row.updated, &succession)
 	if errors.Is(err, sql.ErrNoRows) {
 		return row, ErrNotFound
 	}
@@ -78,6 +78,10 @@ func loadOriginalOwner(ctx context.Context, tx *sql.Tx, id string) (originalOwne
 		return row, originalOwnerRejected()
 	}
 	row.state.Intent = i
+	row.state.SuccessionAuthorizationID = succession.String
+	if (i.Scope.Incarnation == 1 && succession.Valid) || (i.Scope.Incarnation > 1 && (!succession.Valid || succession.String == "")) {
+		return row, originalOwnerRejected()
+	}
 	row.state.IsCurrent = current == 1
 	if row.state.Phase == "intended" {
 		if row.state.ControlRevision != 0 || pid.Valid || birth.Valid || key.Valid || hostPID.Valid || hostBirth.Valid || binding.Valid || hash.Valid {
@@ -118,6 +122,9 @@ func originalOwnerRowBytes(row originalOwnerRow) int64 {
 	cost := int64(72)
 	for _, s := range values {
 		cost += int64(len(s))
+	}
+	if row.state.SuccessionAuthorizationID != "" {
+		cost += 8 + int64(len(row.state.SuccessionAuthorizationID))
 	}
 	return cost
 }

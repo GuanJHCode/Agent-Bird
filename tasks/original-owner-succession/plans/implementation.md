@@ -145,3 +145,9 @@ Host spool/reconcile cursor path before adding any DTO; successor must carry
 forward the existing durable sequence and prove reconciliation rather than
 starting from one. Exact successor Applied/current Store MAX is the intended
 fence; initial and same-signer behavior require compatibility regression tests.
+
+## Store successor checkpoint
+
+Internal Prepare/Preview, authorized successor Bind, first Applied cursor and five leased owner transactions are implemented and scoped-validated; see docs/prepare-store-validation.md and data/root-prepare-receipt.json. Coordinator/CLI and recovery transition remain pending.
+
+Public supervised Resume must preserve the existing live Owner route (design same-signer restart acceptance). Its command receipt also needs exact replay; ordinary QueueResume alone is not idempotent. A live-owner receipt must never fabricate succession/death authority or reopen a SourceHost. Temporary offline transport queues work for its same signer to recover. The next immutable command representation must share global CommandID/full request hash conflict rules with schema25 succession authorizations.

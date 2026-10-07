@@ -38,14 +38,15 @@ type BindOriginalOwnerSpec struct {
 }
 
 type OriginalOwnerState struct {
-	Intent                 contract.OriginalOwnerIntent
-	Phase                  string
-	IsCurrent              bool
-	ControlRevision        uint64
-	AppliedControlRevision uint64
-	CurrentHost            *contract.OriginalOwnerTransport
-	CoordinatorEpoch       uint64
-	Binding                *contract.OriginalOwnerBinding
+	Intent                    contract.OriginalOwnerIntent
+	SuccessionAuthorizationID string
+	Phase                     string
+	IsCurrent                 bool
+	ControlRevision           uint64
+	AppliedControlRevision    uint64
+	CurrentHost               *contract.OriginalOwnerTransport
+	CoordinatorEpoch          uint64
+	Binding                   *contract.OriginalOwnerBinding
 }
 
 type OriginalOwnerBindResult struct {
@@ -253,11 +254,12 @@ func (d *DB) BindOriginalOwner(ctx context.Context, spec BindOriginalOwnerSpec, 
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return OriginalOwnerBindResult{}, err
 	}
-	defer tx.Rollback()
+	defer owned.close()
+	tx := owned.tx
 	row, err := loadOriginalOwner(ctx, tx, spec.Hello.Scope.OwnerID)
 	if err != nil {
 		return OriginalOwnerBindResult{}, err
@@ -288,12 +290,18 @@ func (d *DB) BindOriginalOwner(ctx context.Context, spec BindOriginalOwnerSpec, 
 	if row.state.Phase != "intended" || spec.Epoch < i.CoordinatorEpoch {
 		return OriginalOwnerBindResult{}, originalOwnerRejected()
 	}
-	var segments int
-	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM segment_runtime WHERE host_id=?`, i.Scope.ProducerID).Scan(&segments); err != nil {
-		return OriginalOwnerBindResult{}, err
-	}
-	if segments != 0 {
-		return OriginalOwnerBindResult{}, originalOwnerRejected()
+	if row.state.SuccessionAuthorizationID != "" {
+		if err = validateSuccessorOwnerBinding(ctx, tx, row); err != nil {
+			return OriginalOwnerBindResult{}, err
+		}
+	} else {
+		var segments int
+		if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM segment_runtime WHERE host_id=?`, i.Scope.ProducerID).Scan(&segments); err != nil {
+			return OriginalOwnerBindResult{}, err
+		}
+		if segments != 0 {
+			return OriginalOwnerBindResult{}, originalOwnerRejected()
+		}
 	}
 	b, err := contract.SignOriginalOwnerBinding(contract.OriginalOwnerBinding{Scope: i.Scope, Owner: spec.Hello.Owner, CoordinatorKeyID: i.CoordinatorKeyID, FirstHost: i.FirstHost, BindingRevision: 1}, key)
 	if err != nil {
@@ -346,7 +354,7 @@ func (d *DB) BindOriginalOwner(ctx context.Context, spec BindOriginalOwnerSpec, 
 	if err = insertOriginalOwnerPermit(ctx, tx, i, p, permitBody, permitHash, now); err != nil {
 		return OriginalOwnerBindResult{}, err
 	}
-	if err = tx.Commit(); err != nil {
+	if err = owned.commit(); err != nil {
 		return OriginalOwnerBindResult{}, err
 	}
 	return OriginalOwnerBindResult{Binding: b, Permit: p}, nil
