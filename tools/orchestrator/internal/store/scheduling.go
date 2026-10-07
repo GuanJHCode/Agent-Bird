@@ -157,6 +157,11 @@ func (d *DB) ClaimReady(ctx context.Context, hostID string, epoch uint64, slots 
 	if err = tx.QueryRowContext(ctx, `SELECT plan_revision FROM runs WHERE id=?`, runID).Scan(&command.PlanRevision); err != nil {
 		return rollback(err)
 	}
+	if taskStatus != "resume_queued" {
+		if err = d.reserveDiagnosticsForNewAttempt(ctx, tx, &command); err != nil {
+			return rollback(err)
+		}
+	}
 	if err = bindCandidateInput(ctx, tx, &command, false); err != nil {
 		return rollback(err)
 	}
@@ -233,6 +238,9 @@ func (d *DB) PendingLaunches(ctx context.Context, hostID string, epoch uint64) (
 	for index := range commands {
 		command := &commands[index]
 		if err = tx.QueryRowContext(ctx, `SELECT plan_revision FROM runs WHERE id=?`, command.RunID).Scan(&command.PlanRevision); err != nil {
+			return rollback(err)
+		}
+		if err = bindExistingDiagnostics(ctx, tx, command); err != nil {
 			return rollback(err)
 		}
 		if err = d.reconcileLegacyGrant(ctx, tx, command); err != nil {

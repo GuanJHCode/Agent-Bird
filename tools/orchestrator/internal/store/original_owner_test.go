@@ -19,6 +19,10 @@ type originalOwnerFixture struct {
 }
 
 func newOriginalOwnerFixture(t *testing.T) originalOwnerFixture {
+	return newOriginalOwnerFixtureWithDiagnostics(t, nil)
+}
+
+func newOriginalOwnerFixtureWithDiagnostics(t *testing.T, diagnostics *contract.DiagnosticsPolicy) originalOwnerFixture {
 	t.Helper()
 	db, err := Open(filepath.Join(t.TempDir(), "state.db"))
 	if err != nil {
@@ -29,6 +33,9 @@ func newOriginalOwnerFixture(t *testing.T) originalOwnerFixture {
 		t.Fatal(err)
 	}
 	p := providerTestPlan("owner-run", "controller", "grok-build")
+	for i := range p.Tasks {
+		p.Tasks[i].Diagnostics = diagnostics
+	}
 	p.Host.ExecutionOwnerMode = "supervised-v1"
 	r, err := db.SubmitPlan(context.Background(), p)
 	if err != nil {

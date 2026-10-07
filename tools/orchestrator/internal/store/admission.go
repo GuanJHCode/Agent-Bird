@@ -9,6 +9,7 @@ import (
 	"errors"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/diagnostics"
 	"strings"
 	"time"
 )
@@ -80,6 +81,12 @@ func validatePlan(p PlanSpec) error {
 		if task.Diagnostics != nil {
 			if err := task.Diagnostics.Validate(); err != nil {
 				return err
+			}
+			if task.Diagnostics.Mode == "detailed" {
+				body, _ := task.Diagnostics.CanonicalJSON()
+				if _, err := (diagnostics.Scope{Version: 1, RunID: p.Run.ID, TaskID: task.ID, AttemptID: "admission", ProducerID: "admission", PolicySHA256: runtimeHash(string(body))}).Hash(); err != nil {
+					return err
+				}
 			}
 		}
 		var err error

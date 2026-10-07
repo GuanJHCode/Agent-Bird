@@ -1,7 +1,9 @@
 # F02 public path and managed artifact contract
 
-ROOT owns integration shared modules. Base229dc15; schema18 still current.
-M1 is integrated and verified. The isolated output-tap worker owns process only.
+ROOT owns integration shared modules. Current base d8eb382/schema19.
+M1, process output tap and M2a consent/state foundation are integrated.
+M2b grant contract is isolated; ROOT owns Store binding. Any new durable
+structure after schema19 requires a new migration version.
 This document freezes
 the next implementation boundaries, not a completed feature.
 
@@ -43,7 +45,7 @@ reserve admission; pending raw data must not accidentally consume the 16MiB
 run control allowance. The 128KiB manifest pool is separate. Native flood/RSS
 acceptance must measure process memory rather than infer it from payload limits.
 
-## Schema19 shared ledger (ROOT only)
+## Shared ledger (ROOT only; schema19 foundation, remaining M3 migration pending)
 
 - task diagnostics policy: canonical immutable JSON + digest, task/run owner.
 - managed_artifact_reservations: exact run/task/attempt/producer, class and

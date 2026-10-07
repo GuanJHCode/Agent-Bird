@@ -40,6 +40,7 @@ type DB struct {
 	userControlLimit    int64
 	runProgressLimit    int64
 	userProgressLimit   int64
+	artifactLimit       int64
 	reportControlLimit  int64
 	reportProgressLimit int64
 	minFreeBytes        uint64
@@ -104,6 +105,7 @@ func Open(path string) (*DB, error) {
 		sql: d, path: path, configIdentity: identity, configIdentityError: identityErr,
 		runControlLimit: 16 * 1024 * 1024, userControlLimit: 128 * 1024 * 1024,
 		runProgressLimit: 12 * 1024 * 1024, userProgressLimit: 96 * 1024 * 1024,
+		artifactLimit:      2 * 1024 * 1024 * 1024,
 		reportControlLimit: 20 * 1024 * 1024, reportProgressLimit: 16 * 1024 * 1024,
 		minFreeBytes: 64 * 1024 * 1024, criticalDiskReserve: 1024 * 1024, sqliteWriteOverhead: 4 * 1024 * 1024,
 		storageAvailable: filesystemAvailable,

@@ -32,6 +32,10 @@ func newTypedContinuationFixtureTask(t *testing.T, provider adapter.Provider, ta
 }
 
 func newTypedContinuationFixtureWithConfig(t *testing.T, provider adapter.Provider, taskID string, ref *contract.ConfigGenerationRef) *typedContinuationFixture {
+	return newTypedContinuationFixtureWithDiagnostics(t, provider, taskID, ref, nil)
+}
+
+func newTypedContinuationFixtureWithDiagnostics(t *testing.T, provider adapter.Provider, taskID string, ref *contract.ConfigGenerationRef, diagnostics *contract.DiagnosticsPolicy) *typedContinuationFixture {
 	t.Helper()
 	f := &typedContinuationFixture{path: filepath.Join(t.TempDir(), "state.db"), sessionKind: "session-id", sessionID: "native-session"}
 	if provider == adapter.ProviderAGY {
@@ -67,7 +71,7 @@ func newTypedContinuationFixtureWithConfig(t *testing.T, provider adapter.Provid
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = f.db.Close() })
-	f.receipt, err = submitExistingConfigHistory(t, f.db, context.Background(), PlanSpec{Run: RunSpec{ID: "run", ControllerThread: "owner", PlanRevision: 1, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth"}, Host: HostLaunchSpec{OriginContextID: "origin", HostGeneration: "generation", Executable: "/private/bin/orchestrator"}, Tasks: []TaskSpec{{ID: taskID, RunID: "run", MaxAttempts: 3, MaxActiveMS: 1000, AdapterPayload: f.payload}}})
+	f.receipt, err = submitExistingConfigHistory(t, f.db, context.Background(), PlanSpec{Run: RunSpec{ID: "run", ControllerThread: "owner", PlanRevision: 1, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth"}, Host: HostLaunchSpec{OriginContextID: "origin", HostGeneration: "generation", Executable: "/private/bin/orchestrator"}, Tasks: []TaskSpec{{Diagnostics: diagnostics, ID: taskID, RunID: "run", MaxAttempts: 3, MaxActiveMS: 1000, AdapterPayload: f.payload}}})
 	if err != nil {
 		t.Fatal(err)
 	}

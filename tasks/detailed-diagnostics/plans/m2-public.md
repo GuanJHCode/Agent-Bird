@@ -108,3 +108,34 @@ and deletion/intake path before the complete2GiB allowance is claimed.
   resume_continuation and owner_runtime_wire tamper fixtures. Bind all reservation
   tuple fields and allowance in the same Store transaction; schema alone is not
   authorization. Canonical M1 segment ID uses fixed-width ordinal plus actual ID.
+
+
+## M2b reservation implementation contract
+
+ROOT owns integration Store and tests; contract worker owns its separate
+`diagnostics-grant-contract` worktree at d8eb382. No shared writer/test resources.
+Only new attempts may create a diagnostics reservation (20MiB+128KiB), and only
+from explicit canonical detailed task policy. Resume/replay bind the original
+attempt reservation, never create missing history or charge twice. Pure binding
+at bindCandidateInputForDecision covers historical review/retry/legacy intent
+reconstruction as well as dispatch. PendingLaunches binds before legacy grant
+reconciliation. Dispatch allows only reserved/active; future released-history
+proof policy must be separated from dispatch permission during M3.
+
+Global allowance is2GiB in this state DB. Count every nonreleased reservation,
+including other classes/legacy_pending, with overflow-safe sums. Disk admission
+counts all nonreleased unmaterialized commitments (reserved-retained), the new
+reservation, exact control-row metadata, SQLite write overhead and configured
+minimum/critical disk reserves. Retained bytes may only be established by later
+verified M3 materialization. No caller assertion releases that commitment.
+Control-row accounting remains separate and transactional. Errors are
+artifact_spool_full (logical allowance), storage_blocked (disk uncertainty/space)
+and diagnostics_grant_invalid (invalid persisted authority/binding).
+
+Before public Submit commits detailed tasks, validate run/task IDs against M1
+Scope's exact length/UTF8/NUL restrictions. Summary/omitted preserve legacy
+acceptance and bytes. Tests must cover real Submit/Claim/reopen/replay, stopped
+resume same reservation/next ordinal, explicit retry new attempt/reservation,
+rollback of execution/artifact/control rows, pending disk overcommit, corrupted
+persisted tuples, candidate input/vector and historical retry intent paths.
+This is still not full artifact-quota coverage until M3 migrates old writers.

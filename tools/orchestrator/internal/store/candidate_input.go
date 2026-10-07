@@ -24,6 +24,9 @@ func bindCandidateInput(ctx context.Context, tx *sql.Tx, command *contract.Launc
 // An explicit already-validated decision breaks the legacy reconciliation
 // cycle. Ordinary callers still resolve their exact committed binding above.
 func bindCandidateInputForDecision(ctx context.Context, tx *sql.Tx, command *contract.LaunchCommand, replay bool, retry *reviewRetryDecision) error {
+	if err := bindExistingDiagnostics(ctx, tx, command); err != nil {
+		return err
+	}
 	var payload struct {
 		Workspace *struct {
 			Rework json.RawMessage `json:"rework"`
