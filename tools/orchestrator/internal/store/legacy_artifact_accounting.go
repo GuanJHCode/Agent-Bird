@@ -1,12 +1,11 @@
 package store
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"math"
-	"strconv"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 )
@@ -35,44 +34,22 @@ END;`
 type legacyArtifactClaim struct {
 	class, id, run, capability, declaration, digest, state string
 	raw                                                    int64
+	absent                                                 bool
 }
 
 func legacyClaimFromBody(class, id, run, capability string, body []byte, excludeExited bool) legacyArtifactClaim {
-	claim := legacyArtifactClaim{class: class, id: id, run: run, capability: capability, state: "malformed", declaration: "{}", digest: runtimeHash("malformed:" + class + "\x00" + id)}
-	var event contract.Event
-	var top map[string]json.RawMessage
-	if json.Unmarshal(body, &event) != nil || json.Unmarshal(body, &top) != nil {
-		return claim
-	}
-	artifact, hasArtifact := top["artifact"]
-	if !hasArtifact || string(artifact) == "null" || (excludeExited && event.Kind == contract.EventExited) {
-		return claim
-	}
-	var fields map[string]json.RawMessage
-	if json.Unmarshal(artifact, &fields) != nil {
-		return claim
-	}
-	size, ok := fields["size"]
-	if !ok {
-		return claim
-	}
-	// Decode the original scalar: typed Event decoding silently turns an absent
-	// size into zero and cannot distinguish fractional or overflowing history.
-	var number json.Number
-	decoder := json.NewDecoder(bytes.NewReader(size))
-	decoder.UseNumber()
-	if decoder.Decode(&number) != nil || decoder.More() {
-		return claim
-	}
-	rawBytes, err := strconv.ParseInt(number.String(), 10, 64)
-	if err != nil || rawBytes < 0 {
-		return claim
-	}
-	raw, err := json.Marshal(event.Artifact)
+	// A malformed declaration stores its full original source body as an
+	// explicitly reversible sentinel. Its old control/raw charge is untouched.
+	claim := legacyArtifactClaim{class: class, id: id, run: run, capability: capability, state: "malformed", declaration: string(body), digest: runtimeHash(string(body))}
+	raw, size, absent, err := legacyDeclaration(body, excludeExited)
 	if err != nil {
 		return claim
 	}
-	claim.declaration, claim.digest, claim.raw, claim.state = string(raw), runtimeHash(string(raw)), rawBytes, "legacy_pending"
+	claim.absent = absent
+	if absent {
+		return claim
+	}
+	claim.declaration, claim.digest, claim.raw, claim.state = string(raw), runtimeHash(string(raw)), size, "legacy_pending"
 	return claim
 }
 func insertLegacyClaim(ctx context.Context, tx *sql.Tx, claim legacyArtifactClaim, admit bool, d *DB) error {
@@ -132,6 +109,17 @@ func runtimeLegacyRawBytes(column string) string {
 }
 
 func migrateLegacyArtifactAccounting(tx *sql.Tx, d *DB) error {
+	var invalid int
+	if err := tx.QueryRow(`SELECT COUNT(*) FROM storage_usage WHERE typeof(total_bytes)!='integer' OR typeof(progress_bytes)!='integer' OR total_bytes<0 OR progress_bytes<0 OR progress_bytes>total_bytes`).Scan(&invalid); err != nil {
+		return err
+	}
+	if invalid != 0 {
+		return CodeError("legacy_artifact_accounting_invalid")
+	}
+	if err := validateLegacySourceAccounting(tx); err != nil {
+		return err
+	}
+
 	if _, err := tx.Exec(`ALTER TABLE runtime_events ADD COLUMN legacy_artifact_claimed INTEGER NOT NULL DEFAULT 0 CHECK(typeof(legacy_artifact_claimed)='integer' AND legacy_artifact_claimed IN (0,1));`); err != nil {
 		return err
 	}
@@ -155,11 +143,8 @@ func migrateLegacyArtifactAccounting(tx *sql.Tx, d *DB) error {
 			continue
 		}
 		claim := legacyClaimFromBody("runtime", id, run, "", []byte(body), true)
-		if claim.state == "malformed" {
-			var e contract.Event
-			if json.Unmarshal([]byte(body), &e) == nil && (e.Artifact == nil || e.Kind == contract.EventExited) {
-				continue
-			}
+		if claim.absent {
+			continue
 		}
 		if err = insertLegacyClaim(context.Background(), tx, claim, false, d); err != nil {
 			rows.Close()
@@ -191,8 +176,7 @@ func migrateLegacyArtifactAccounting(tx *sql.Tx, d *DB) error {
 	if err = rebuildLegacyRuntimeTriggers(tx); err != nil {
 		return err
 	}
-	if _, err = tx.Exec(`CREATE TRIGGER runtime_legacy_artifact_claimed_immutable BEFORE UPDATE OF legacy_artifact_claimed ON runtime_events BEGIN SELECT RAISE(ABORT,'runtime_legacy_artifact_claim_immutable'); END;
-CREATE TRIGGER runtime_legacy_artifact_body_immutable BEFORE UPDATE OF body_json ON runtime_events WHEN OLD.legacy_artifact_claimed=1 AND COALESCE(json_extract(OLD.body_json,'$.artifact'),'') IS NOT COALESCE(json_extract(NEW.body_json,'$.artifact'),'') BEGIN SELECT RAISE(ABORT,'runtime_legacy_artifact_body_immutable'); END;`); err != nil {
+	if err = installLegacySourceGuards(tx); err != nil {
 		return err
 	}
 	return nil
@@ -232,11 +216,8 @@ func rebuildLegacyRuntimeTriggers(tx *sql.Tx) error {
 }
 
 func migrateLegacyReportRows(tx *sql.Tx, d *DB) error {
-	rows, err := tx.Query(`SELECT e.event_id,c.run_id,e.capability_id,e.body_json,e.accounted_bytes,
-	 EXISTS(SELECT 1 FROM managed_artifact_intakes i JOIN managed_artifact_refs f ON f.intake_id=i.id AND f.id=i.id AND f.slot='report' JOIN managed_artifact_reservations r ON r.id=f.reservation_id
-	 WHERE i.event_id=e.event_id AND i.capability_id=e.capability_id AND i.sequence=e.sequence AND i.kind=e.kind AND i.payload_hash=e.payload_hash
-	 AND i.phase='committed' AND f.reservation_id=i.reservation_id AND f.run_id=i.run_id AND r.state='active' AND r.retained_bytes=r.reserved_bytes AND r.class='report'
-	 AND json_valid(e.body_json) AND json_extract(e.body_json,'$.artifact.path')=json_extract(f.proof_json,'$.path') AND json_extract(e.body_json,'$.artifact.size')=json_extract(f.proof_json,'$.size') AND json_extract(e.body_json,'$.artifact.sha256')=json_extract(f.proof_json,'$.sha256'))
+	rows, err := tx.Query(`SELECT e.event_id,c.run_id,e.capability_id,e.body_json,e.accounted_bytes,CASE WHEN e.kind='question' AND e.delivery_status='pending_session' THEN 4096 ELSE 0 END,
+	 EXISTS(SELECT 1 FROM managed_artifact_intakes i WHERE i.event_id=e.event_id)
  FROM report_events e JOIN report_capabilities c ON c.capability_id=e.capability_id`)
 	if err != nil {
 		return err
@@ -244,23 +225,42 @@ func migrateLegacyReportRows(tx *sql.Tx, d *DB) error {
 	defer rows.Close()
 	for rows.Next() {
 		var id, run, cap, body string
-		var accounted int64
+		var accounted, reserve int64
 		var managed int
-		if err = rows.Scan(&id, &run, &cap, &body, &accounted, &managed); err != nil {
+		if err = rows.Scan(&id, &run, &cap, &body, &accounted, &reserve, &managed); err != nil {
 			return err
 		}
 		if managed != 0 {
+			valid, err := d.legacyReportHasOriginalProof(tx, id, cap, []byte(body))
+			if err != nil {
+				return err
+			}
+			if valid {
+				continue
+			}
+			// Preserve the old control charge when its claimed managed
+			// provenance cannot be reconstructed exactly.
+			claim := legacyArtifactClaim{class: "report", id: id, run: run, capability: cap, state: "malformed", declaration: body, digest: runtimeHash(body)}
+			if err := insertLegacyClaim(context.Background(), tx, claim, false, d); err != nil {
+				return err
+			}
 			continue
 		}
 		claim := legacyClaimFromBody("report", id, run, cap, []byte(body), false)
-		if claim.state == "malformed" {
-			var e contract.Event
-			if json.Unmarshal([]byte(body), &e) == nil && e.Artifact == nil {
-				continue
-			}
+		if claim.absent {
+			continue
 		}
-		if claim.state == "legacy_pending" && accounted < claim.raw {
+		if claim.state == "legacy_pending" && (accounted < int64(len(body))+reserve || claim.raw > accounted-int64(len(body))-reserve) {
 			return CodeError("legacy_artifact_accounting_invalid")
+		}
+		if claim.state == "legacy_pending" {
+			var sufficient bool
+			if err := tx.QueryRow(`SELECT used_bytes>=(SELECT COALESCE(SUM(accounted_bytes),0) FROM report_events WHERE capability_id=?) FROM report_capabilities WHERE capability_id=?`, cap, cap).Scan(&sufficient); err != nil {
+				return err
+			}
+			if !sufficient {
+				return CodeError("legacy_artifact_accounting_invalid")
+			}
 		}
 		if err = insertLegacyClaim(context.Background(), tx, claim, false, d); err != nil {
 			return err
@@ -287,13 +287,55 @@ func migrateLegacyReportRows(tx *sql.Tx, d *DB) error {
 	return rows.Err()
 }
 
+// Check the source portion before adding ledger metadata. Metadata growth must
+// never hide a deficient historical counter. Capability and progress counters
+// contain only these events; global/run totals also include unrelated metadata,
+// which is retained by applying exact deltas rather than reconstructed here.
+func validateLegacySourceAccounting(tx *sql.Tx) error {
+	// Schema21 also charged progress-owned ref and bridge metadata here.
+	refCost := "64"
+	for _, column := range []string{"id", "reservation_id", "run_id", "slot", "intake_id", "proof_json"} {
+		refCost += "+COALESCE(length(CAST(f." + column + " AS BLOB)),0)"
+	}
+	extra := " UNION ALL SELECT f.run_id,(" + refCost + "),(" + refCost + ") FROM managed_artifact_refs f JOIN managed_artifact_reservations r ON r.id=f.reservation_id WHERE f.manifest_bytes>0 AND r.class='progress'"
+	for _, table := range bridgeQuotaTables {
+		if table.progress {
+			extra += " UNION ALL SELECT " + table.runID("b") + "," + bridgeRowBytes("b", table) + "," + bridgeRowBytes("b", table) + " FROM " + table.name + " b"
+		}
+	}
+	queries := []string{
+		`SELECT COUNT(*) FROM report_capabilities c LEFT JOIN storage_usage u ON u.scope='capability' AND u.scope_id=c.capability_id
+ WHERE COALESCE(u.total_bytes,0)!=(SELECT COALESCE(SUM(accounted_bytes),0) FROM report_events WHERE capability_id=c.capability_id)
+ OR COALESCE(u.progress_bytes,0)!=(SELECT COALESCE(SUM(accounted_bytes),0) FROM report_events WHERE capability_id=c.capability_id AND kind='progress')`,
+		`WITH source(run_id,total,progress) AS (
+ SELECT t.run_id,` + managedHostRuntimeBytes("e.body_json") + `,0 FROM runtime_events e JOIN tasks t ON t.id=e.task_id
+ UNION ALL SELECT c.run_id,e.accounted_bytes,CASE WHEN e.kind='progress' THEN e.accounted_bytes ELSE 0 END FROM report_events e JOIN report_capabilities c ON c.capability_id=e.capability_id
+ UNION ALL SELECT t.run_id,p.accounted_bytes,p.accounted_bytes FROM host_progress p JOIN tasks t ON t.id=p.task_id` + extra + `
+ ), expected(scope,id,total,progress) AS (
+ SELECT 'global','',COALESCE(SUM(total),0),COALESCE(SUM(progress),0) FROM source
+ UNION ALL SELECT 'run',run_id,SUM(total),SUM(progress) FROM source GROUP BY run_id
+ ) SELECT COUNT(*) FROM expected e LEFT JOIN storage_usage u ON u.scope=e.scope AND u.scope_id=e.id
+ WHERE COALESCE(u.total_bytes,0)<e.total OR COALESCE(u.progress_bytes,0)!=e.progress`,
+	}
+	for _, query := range queries {
+		var invalid int
+		if err := tx.QueryRow(query).Scan(&invalid); err != nil {
+			return err
+		}
+		if invalid != 0 {
+			return CodeError("legacy_artifact_accounting_invalid")
+		}
+	}
+	return nil
+}
+
 func migrateLegacyProgressRows(tx *sql.Tx, d *DB) error {
 	rows, err := tx.Query(`SELECT p.event_id,t.run_id,p.body_json,p.accounted_bytes,
-	 EXISTS(SELECT 1 FROM managed_artifact_refs f JOIN managed_artifact_reservations r ON r.id=f.reservation_id JOIN managed_host_artifact_metadata m ON m.reservation_id=r.id AND m.run_id=r.run_id
-	 WHERE r.class='progress' AND r.state='active' AND r.retained_bytes=r.reserved_bytes AND f.intake_id IS NULL AND f.manifest_bytes>0
-	 AND r.run_id=t.run_id AND r.task_id=p.task_id AND r.scope_key=p.segment_id AND r.producer_id=json_extract(p.body_json,'$.producer_id')
+	 CASE WHEN json_valid(p.body_json) THEN EXISTS(SELECT 1 FROM managed_artifact_refs f JOIN managed_artifact_reservations r ON r.id=f.reservation_id JOIN managed_host_artifact_metadata m ON m.reservation_id=r.id AND m.run_id=r.run_id
+	 WHERE r.class='progress' AND r.state='active' AND r.retained_bytes>=json_extract(p.body_json,'$.artifact.size') AND r.retained_bytes<=r.reserved_bytes AND f.intake_id IS NULL AND f.manifest_bytes>0
+	 AND r.run_id=t.run_id AND f.run_id=r.run_id AND r.task_id=p.task_id AND r.attempt_id=json_extract(p.body_json,'$.attempt_id') AND r.scope_key=p.segment_id AND r.producer_id=json_extract(p.body_json,'$.producer_id') AND f.slot=CAST(p.sequence-1 AS TEXT)
 	 AND f.proof_json=json_extract(p.body_json,'$.artifact.host_artifact') AND json_extract(p.body_json,'$.artifact.path')=json_extract(f.proof_json,'$.proof.path')
-	 AND json_extract(p.body_json,'$.artifact.size')=json_extract(f.proof_json,'$.proof.size') AND json_extract(p.body_json,'$.artifact.sha256')=json_extract(f.proof_json,'$.proof.sha256'))
+	 AND json_extract(p.body_json,'$.artifact.size')=json_extract(f.proof_json,'$.proof.size') AND json_extract(p.body_json,'$.artifact.sha256')=json_extract(f.proof_json,'$.proof.sha256')) ELSE 0 END
  FROM host_progress p JOIN tasks t ON t.id=p.task_id`)
 	if err != nil {
 		return err
@@ -306,17 +348,23 @@ func migrateLegacyProgressRows(tx *sql.Tx, d *DB) error {
 		if err = rows.Scan(&id, &run, &body, &accounted, &managed); err != nil {
 			return err
 		}
-		if managed != 0 {
-			continue
-		}
 		claim := legacyClaimFromBody("progress", id, run, "", []byte(body), false)
-		if claim.state == "malformed" {
-			var e contract.Event
-			if json.Unmarshal([]byte(body), &e) == nil && e.Artifact == nil {
+		var event contract.Event
+		parsed := json.Unmarshal([]byte(body), &event) == nil
+		hasReceipt := parsed && event.Artifact != nil && event.Artifact.HostArtifact != nil
+		if managed != 0 && claim.state == "legacy_pending" && hasReceipt {
+			item, proofErr := authorizeHostArtifact(context.Background(), tx, d.path, event, true)
+			if proofErr == nil && item != nil {
 				continue
 			}
 		}
-		if claim.state == "legacy_pending" && accounted < claim.raw {
+		if hasReceipt {
+			claim = legacyArtifactClaim{class: "progress", id: id, run: run, state: "malformed", declaration: body, digest: runtimeHash(body)}
+		}
+		if claim.absent {
+			continue
+		}
+		if claim.state == "legacy_pending" && (accounted < int64(len(body)) || claim.raw > accounted-int64(len(body))) {
 			return CodeError("legacy_artifact_accounting_invalid")
 		}
 		if err = insertLegacyClaim(context.Background(), tx, claim, false, d); err != nil {
@@ -332,10 +380,89 @@ func migrateLegacyProgressRows(tx *sql.Tx, d *DB) error {
 }
 
 func rebuildLegacyControlAccounting(tx *sql.Tx) error {
-	// report/progress adjustments fired their existing UPDATE triggers. Runtime
-	// rows remain byte-for-byte, so remove only their frozen legacy raw portion.
+	// Report adjustments fired their existing UPDATE triggers. Host progress
+	// has no UPDATE quota trigger; explicitly split its two counters below.
+	// Runtime source bytes remain unchanged and their raw refund is frozen.
 	_, err := tx.Exec(`
 UPDATE storage_usage SET total_bytes=total_bytes-COALESCE((SELECT SUM(raw_bytes) FROM legacy_artifact_claims l WHERE l.state='legacy_pending' AND l.source_class='runtime' AND (storage_usage.scope='global' OR (storage_usage.scope='run' AND storage_usage.scope_id=l.run_id))),0);
 UPDATE storage_usage SET total_bytes=total_bytes-COALESCE((SELECT SUM(raw_bytes) FROM legacy_artifact_claims l WHERE l.state='legacy_pending' AND l.source_class='progress' AND (storage_usage.scope='global' OR (storage_usage.scope='run' AND storage_usage.scope_id=l.run_id))),0),progress_bytes=progress_bytes-COALESCE((SELECT SUM(raw_bytes) FROM legacy_artifact_claims l WHERE l.state='legacy_pending' AND l.source_class='progress' AND (storage_usage.scope='global' OR (storage_usage.scope='run' AND storage_usage.scope_id=l.run_id))),0)`)
 	return err
+}
+
+func installLegacySourceGuards(tx *sql.Tx) error {
+	if _, err := tx.Exec(`CREATE TRIGGER runtime_legacy_artifact_claimed_immutable BEFORE UPDATE OF legacy_artifact_claimed ON runtime_events BEGIN SELECT RAISE(ABORT,'runtime_legacy_artifact_claim_immutable'); END;
+CREATE TRIGGER runtime_legacy_artifact_binding BEFORE INSERT ON runtime_events
+WHEN NEW.legacy_artifact_claimed=1 AND (NEW.host_artifact_verified!=0 OR NOT EXISTS(
+ SELECT 1 FROM legacy_artifact_claims l JOIN tasks t ON t.id=NEW.task_id
+ WHERE l.source_class='runtime' AND l.source_id=NEW.event_id AND l.state='legacy_pending'
+ AND l.run_id=t.run_id AND l.raw_bytes=json_extract(NEW.body_json,'$.artifact.size')
+ AND json(l.declaration_json)=json(json_extract(NEW.body_json,'$.artifact'))
+ AND COALESCE(json_extract(NEW.body_json,'$.kind'),'')!='exited'))
+BEGIN SELECT RAISE(ABORT,'runtime_legacy_artifact_binding'); END;`); err != nil {
+		return err
+	}
+	for _, source := range []struct {
+		class, table string
+		identity     []string
+		accounted    bool
+	}{
+		{"runtime", "runtime_events", []string{"event_id", "producer_id", "task_id", "attempt_id", "segment_id"}, false},
+		{"report", "report_events", []string{"event_id", "capability_id", "sequence", "kind"}, true},
+		{"progress", "host_progress", []string{"event_id", "task_id", "segment_id", "sequence"}, true},
+	} {
+		changed := "0"
+		for _, column := range source.identity {
+			changed += " OR OLD." + column + " IS NOT NEW." + column
+		}
+		if source.accounted {
+			changed += " OR OLD.accounted_bytes IS NOT NEW.accounted_bytes"
+		}
+		changed += ` OR CASE WHEN l.state='malformed' THEN OLD.body_json IS NOT NEW.body_json
+ ELSE CASE WHEN json_valid(OLD.body_json) AND json_valid(NEW.body_json) THEN
+ (SELECT COUNT(*) FROM json_each(NEW.body_json) WHERE key='artifact')!=1 OR json(json_extract(OLD.body_json,'$.artifact')) IS NOT json(json_extract(NEW.body_json,'$.artifact')) ELSE 1 END END`
+		ddl := fmt.Sprintf(`CREATE TRIGGER legacy_%[1]s_source_update BEFORE UPDATE ON %[2]s
+ WHEN EXISTS(SELECT 1 FROM legacy_artifact_claims l WHERE l.source_class='%[1]s' AND l.source_id=OLD.event_id AND (%[3]s))
+ BEGIN SELECT RAISE(ABORT,'legacy_artifact_source_immutable'); END;
+ CREATE TRIGGER legacy_%[1]s_source_delete BEFORE DELETE ON %[2]s
+ WHEN EXISTS(SELECT 1 FROM legacy_artifact_claims l WHERE l.source_class='%[1]s' AND l.source_id=OLD.event_id AND l.state='malformed')
+ BEGIN SELECT RAISE(ABORT,'legacy_artifact_source_retained'); END;
+ CREATE TRIGGER legacy_%[1]s_source_late BEFORE INSERT ON legacy_artifact_claims
+ WHEN NEW.source_class='%[1]s' AND EXISTS(SELECT 1 FROM %[2]s WHERE event_id=NEW.source_id)
+ BEGIN SELECT RAISE(ABORT,'legacy_artifact_source_already_registered'); END;`, source.class, source.table, changed)
+		if _, err := tx.Exec(ddl); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// This is a data-only check: restoreManagedReportArtifact validates its exact
+// immutable descriptor/proof and scope but never opens or modifies a file.
+func (d *DB) legacyReportHasOriginalProof(tx *sql.Tx, id, capability string, body []byte) (bool, error) {
+	var event contract.Event
+	if json.Unmarshal(body, &event) != nil || event.Artifact == nil {
+		return false, nil
+	}
+	if _, _, absent, err := legacyDeclaration(body, false); err != nil || absent {
+		return false, nil
+	}
+	var sequence int64
+	var kind string
+	err := tx.QueryRow(`SELECT i.sequence,i.kind FROM managed_artifact_intakes i
+ JOIN managed_artifact_refs f ON f.intake_id=i.id AND f.id=i.id AND f.reservation_id=i.reservation_id AND f.run_id=i.run_id AND f.slot='report'
+ JOIN managed_artifact_reservations r ON r.id=i.reservation_id AND r.class='report' AND r.policy_sha256=''
+ JOIN report_capabilities c ON c.capability_id=i.capability_id AND r.run_id=c.run_id AND r.task_id=c.task_id AND r.attempt_id=c.attempt_id AND r.producer_id=c.producer_id
+ JOIN report_events e ON e.event_id=i.event_id AND e.capability_id=i.capability_id AND e.sequence=i.sequence AND e.kind=i.kind AND e.payload_hash=i.payload_hash
+ WHERE i.event_id=? AND i.capability_id=? AND i.run_id=c.run_id AND i.task_id=c.task_id AND f.run_id=c.run_id AND i.phase='committed'`, id, capability).Scan(&sequence, &kind)
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	original := *event.Artifact
+	if err = d.restoreManagedReportArtifact(context.Background(), tx, ReportEventSpec{CapabilityID: capability, Sequence: sequence, EventID: id, Kind: kind}, &event); err != nil {
+		return false, nil
+	}
+	return event.Artifact.Path == original.Path && event.Artifact.Size == original.Size && event.Artifact.SHA256 == original.SHA256, nil
 }

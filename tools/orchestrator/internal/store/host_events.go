@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"context"
 	"crypto/subtle"
 	"database/sql"
@@ -132,10 +133,10 @@ func (d *DB) commitHostEvent(ctx context.Context, event contract.Event, artifact
 		if claim.state == "malformed" && !historical {
 			return rollback(CodeError("legacy_artifact_unclassified"))
 		}
-		// A late, authenticated history replay records a declaration but never
+		// An authenticated legacy grant records its preexisting declaration, never
 		// claims new disk capacity.  It is intentionally allowed even when old
 		// history is already over limit or contains another malformed row.
-		if err = insertLegacyClaim(ctx, tx, claim, !historical, d); err != nil {
+		if err = insertLegacyClaim(ctx, tx, claim, false, d); err != nil {
 			return rollback(err)
 		}
 		if claim.state == "legacy_pending" {
@@ -326,10 +327,22 @@ func materializePendingReportQuestion(ctx context.Context, tx *sql.Tx, segmentID
 		return ErrConflict
 	}
 	event.SessionKind, event.SessionID = sessionKind, sessionID
-	bodyBytes, err := json.Marshal(event)
-	if err != nil {
+	// Keep historical and forward-compatible fields intact. Re-marshalling the
+	// typed Event would replace the immutable artifact declaration while merely
+	// filling in trusted session metadata.
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(body), &fields); err != nil {
 		return err
 	}
+	fields["session_kind"], _ = json.Marshal(sessionKind)
+	fields["session_id"], _ = json.Marshal(sessionID)
+	var encoded bytes.Buffer
+	encoder := json.NewEncoder(&encoded)
+	encoder.SetEscapeHTML(false)
+	if err := encoder.Encode(fields); err != nil {
+		return err
+	}
+	bodyBytes := bytes.TrimSuffix(encoded.Bytes(), []byte("\n"))
 	if _, err = tx.ExecContext(ctx, `UPDATE report_events SET body_json=?,delivery_status='pending' WHERE event_id=? AND delivery_status='pending_session'`, string(bodyBytes), eventID); err != nil {
 		return err
 	}

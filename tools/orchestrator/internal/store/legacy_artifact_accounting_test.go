@@ -36,6 +36,16 @@ func downgradeLegacyArtifactSchema(t *testing.T, db *DB) {
 		t.Fatal(err)
 	}
 	defer tx.Rollback()
+	for _, class := range []string{"runtime", "report", "progress"} {
+		for _, phase := range []string{"update", "delete", "late"} {
+			if _, err = tx.Exec("DROP TRIGGER IF EXISTS legacy_" + class + "_source_" + phase); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	if _, err = tx.Exec("DROP TRIGGER IF EXISTS runtime_legacy_artifact_binding"); err != nil {
+		t.Fatal(err)
+	}
 	// A schema22 fixture stores unmanaged legacy raw bytes in the immutable
 	// claim ledger, rather than in control usage.  Reconstruct the schema21
 	// counters before dropping that ledger so a later Open exercises one (not
@@ -45,6 +55,7 @@ UPDATE storage_usage SET total_bytes=total_bytes-COALESCE((SELECT SUM(64+length(
 UPDATE storage_usage SET total_bytes=total_bytes+COALESCE((SELECT SUM(raw_bytes) FROM legacy_artifact_claims l WHERE l.state='legacy_pending' AND l.source_class='runtime' AND (storage_usage.scope='global' OR (storage_usage.scope='run' AND storage_usage.scope_id=l.run_id))),0);
 UPDATE report_events SET accounted_bytes=accounted_bytes+COALESCE((SELECT raw_bytes FROM legacy_artifact_claims l WHERE l.source_class='report' AND l.source_id=report_events.event_id AND l.state='legacy_pending'),0);
 UPDATE report_capabilities SET used_bytes=used_bytes+COALESCE((SELECT SUM(raw_bytes) FROM legacy_artifact_claims l WHERE l.source_class='report' AND l.capability_id=report_capabilities.capability_id AND l.state='legacy_pending'),0);
+UPDATE storage_usage SET total_bytes=total_bytes+COALESCE((SELECT SUM(raw_bytes) FROM legacy_artifact_claims l WHERE l.state='legacy_pending' AND l.source_class='progress' AND (storage_usage.scope='global' OR (storage_usage.scope='run' AND storage_usage.scope_id=l.run_id))),0),progress_bytes=progress_bytes+COALESCE((SELECT SUM(raw_bytes) FROM legacy_artifact_claims l WHERE l.state='legacy_pending' AND l.source_class='progress' AND (storage_usage.scope='global' OR (storage_usage.scope='run' AND storage_usage.scope_id=l.run_id))),0);
 UPDATE host_progress SET accounted_bytes=accounted_bytes+COALESCE((SELECT raw_bytes FROM legacy_artifact_claims l WHERE l.source_class='progress' AND l.source_id=host_progress.event_id AND l.state='legacy_pending'),0);`); err != nil {
 		t.Fatal(err)
 	}

@@ -1,0 +1,137 @@
+=== RUN   TestLegacyPendingDecisionKeepsPromisedOrdinalGap
+--- PASS: TestLegacyPendingDecisionKeepsPromisedOrdinalGap (0.09s)
+=== RUN   TestLegacyConsumedOrdinaryGrantCannotGuessBinding
+--- PASS: TestLegacyConsumedOrdinaryGrantCannotGuessBinding (0.07s)
+=== RUN   TestLegacyCandidateGrantUsesExactIntentNotPromisedNumber
+--- PASS: TestLegacyCandidateGrantUsesExactIntentNotPromisedNumber (0.09s)
+=== RUN   TestLegacyPartlyConsumedReworkReconcilesAllFourTargets
+--- PASS: TestLegacyPartlyConsumedReworkReconcilesAllFourTargets (0.10s)
+=== RUN   TestLegacyReworkUnscopedAttemptRollsBackAllBindings
+--- PASS: TestLegacyReworkUnscopedAttemptRollsBackAllBindings (0.09s)
+=== RUN   TestLegacyReviewRetrySecondDecisionBindsNewAttemptAfterV12
+--- PASS: TestLegacyReviewRetrySecondDecisionBindsNewAttemptAfterV12 (0.30s)
+=== RUN   TestLegacyReviewRetryConsumedTargetAuthenticatesSource
+=== RUN   TestLegacyReviewRetryConsumedTargetAuthenticatesSource/hash
+=== RUN   TestLegacyReviewRetryConsumedTargetAuthenticatesSource/slot
+=== RUN   TestLegacyReviewRetryConsumedTargetAuthenticatesSource/segment
+=== RUN   TestLegacyReviewRetryConsumedTargetAuthenticatesSource/producer
+=== RUN   TestLegacyReviewRetryConsumedTargetAuthenticatesSource/command
+=== RUN   TestLegacyReviewRetryConsumedTargetAuthenticatesSource/epoch
+--- PASS: TestLegacyReviewRetryConsumedTargetAuthenticatesSource (0.48s)
+    --- PASS: TestLegacyReviewRetryConsumedTargetAuthenticatesSource/hash (0.08s)
+    --- PASS: TestLegacyReviewRetryConsumedTargetAuthenticatesSource/slot (0.08s)
+    --- PASS: TestLegacyReviewRetryConsumedTargetAuthenticatesSource/segment (0.08s)
+    --- PASS: TestLegacyReviewRetryConsumedTargetAuthenticatesSource/producer (0.08s)
+    --- PASS: TestLegacyReviewRetryConsumedTargetAuthenticatesSource/command (0.08s)
+    --- PASS: TestLegacyReviewRetryConsumedTargetAuthenticatesSource/epoch (0.08s)
+=== RUN   TestLegacyReviewRetryPendingChecksHistoricalCommitments
+--- PASS: TestLegacyReviewRetryPendingChecksHistoricalCommitments (0.30s)
+=== RUN   TestLegacyReviewRetrySameHashCompetingDecisionsRefuseGrant
+--- PASS: TestLegacyReviewRetrySameHashCompetingDecisionsRefuseGrant (0.29s)
+=== RUN   TestLegacyDecisionMalformedPayloadCannotBecomeInitialAdmission
+=== RUN   TestLegacyDecisionMalformedPayloadCannotBecomeInitialAdmission/{"request":{"version":2}}
+=== RUN   TestLegacyDecisionMalformedPayloadCannotBecomeInitialAdmission/{"receipt":{"version":2}}
+=== RUN   TestLegacyDecisionMalformedPayloadCannotBecomeInitialAdmission/{"kind":"unknown"}
+=== RUN   TestLegacyDecisionMalformedPayloadCannotBecomeInitialAdmission/{"request":null}
+=== RUN   TestLegacyDecisionMalformedPayloadCannotBecomeInitialAdmission/{"kind":"candidate_review_retry","kind":"candidate_review_retry"}
+=== RUN   TestLegacyDecisionMalformedPayloadCannotBecomeInitialAdmission/{"KIND":"candidate_review_retry"}
+--- PASS: TestLegacyDecisionMalformedPayloadCannotBecomeInitialAdmission (0.49s)
+    --- PASS: TestLegacyDecisionMalformedPayloadCannotBecomeInitialAdmission/{"request":{"version":2}} (0.08s)
+    --- PASS: TestLegacyDecisionMalformedPayloadCannotBecomeInitialAdmission/{"receipt":{"version":2}} (0.08s)
+    --- PASS: TestLegacyDecisionMalformedPayloadCannotBecomeInitialAdmission/{"kind":"unknown"} (0.08s)
+    --- PASS: TestLegacyDecisionMalformedPayloadCannotBecomeInitialAdmission/{"request":null} (0.07s)
+    --- PASS: TestLegacyDecisionMalformedPayloadCannotBecomeInitialAdmission/{"kind":"candidate_review_retry","kind":"candidate_review_retry"} (0.09s)
+    --- PASS: TestLegacyDecisionMalformedPayloadCannotBecomeInitialAdmission/{"KIND":"candidate_review_retry"} (0.09s)
+=== RUN   TestLegacyClaimRequiresOriginalIntegerSize
+=== RUN   TestLegacyClaimRequiresOriginalIntegerSize/string
+=== RUN   TestLegacyClaimRequiresOriginalIntegerSize/missing
+=== RUN   TestLegacyClaimRequiresOriginalIntegerSize/fractional
+=== RUN   TestLegacyClaimRequiresOriginalIntegerSize/negative
+=== RUN   TestLegacyClaimRequiresOriginalIntegerSize/overflow
+--- PASS: TestLegacyClaimRequiresOriginalIntegerSize (0.00s)
+    --- PASS: TestLegacyClaimRequiresOriginalIntegerSize/string (0.00s)
+    --- PASS: TestLegacyClaimRequiresOriginalIntegerSize/missing (0.00s)
+    --- PASS: TestLegacyClaimRequiresOriginalIntegerSize/fractional (0.00s)
+    --- PASS: TestLegacyClaimRequiresOriginalIntegerSize/negative (0.00s)
+    --- PASS: TestLegacyClaimRequiresOriginalIntegerSize/overflow (0.00s)
+=== RUN   TestLegacyArtifactMigrationSplitsRuntimeTerminalAndExited
+--- PASS: TestLegacyArtifactMigrationSplitsRuntimeTerminalAndExited (0.14s)
+=== RUN   TestLegacyArtifactMalformedBlocksReservationAndRollback
+--- PASS: TestLegacyArtifactMalformedBlocksReservationAndRollback (0.14s)
+=== RUN   TestLegacyArtifactClaimsBlockNewReservationAndOverflow
+--- PASS: TestLegacyArtifactClaimsBlockNewReservationAndOverflow (0.06s)
+=== RUN   TestLegacyRuntimeClaimFreezesRawClassificationAndArtifact
+--- PASS: TestLegacyRuntimeClaimFreezesRawClassificationAndArtifact (0.09s)
+=== RUN   TestLegacyArtifactMigrationSplitsProgressRawAndPreservesClaim
+--- PASS: TestLegacyArtifactMigrationSplitsProgressRawAndPreservesClaim (0.09s)
+=== RUN   TestLegacyMigrationExcludesPartiallyRetainedManagedProgress
+=== RUN   TestLegacyMigrationExcludesPartiallyRetainedManagedProgress/tiny
+=== RUN   TestLegacyMigrationExcludesPartiallyRetainedManagedProgress/large
+--- PASS: TestLegacyMigrationExcludesPartiallyRetainedManagedProgress (0.20s)
+    --- PASS: TestLegacyMigrationExcludesPartiallyRetainedManagedProgress/tiny (0.10s)
+    --- PASS: TestLegacyMigrationExcludesPartiallyRetainedManagedProgress/large (0.10s)
+=== RUN   TestLegacySourceOriginalDeclarationAndGuards
+=== RUN   TestLegacySourceOriginalDeclarationAndGuards/runtime/malformed=false
+=== RUN   TestLegacySourceOriginalDeclarationAndGuards/runtime/malformed=true
+=== RUN   TestLegacySourceOriginalDeclarationAndGuards/report/malformed=false
+=== RUN   TestLegacySourceOriginalDeclarationAndGuards/report/malformed=true
+=== RUN   TestLegacySourceOriginalDeclarationAndGuards/progress/malformed=false
+=== RUN   TestLegacySourceOriginalDeclarationAndGuards/progress/malformed=true
+--- PASS: TestLegacySourceOriginalDeclarationAndGuards (0.57s)
+    --- PASS: TestLegacySourceOriginalDeclarationAndGuards/runtime/malformed=false (0.09s)
+    --- PASS: TestLegacySourceOriginalDeclarationAndGuards/runtime/malformed=true (0.09s)
+    --- PASS: TestLegacySourceOriginalDeclarationAndGuards/report/malformed=false (0.09s)
+    --- PASS: TestLegacySourceOriginalDeclarationAndGuards/report/malformed=true (0.09s)
+    --- PASS: TestLegacySourceOriginalDeclarationAndGuards/progress/malformed=false (0.10s)
+    --- PASS: TestLegacySourceOriginalDeclarationAndGuards/progress/malformed=true (0.11s)
+=== RUN   TestLegacyProgressAndQuestionRoundTripPreservesCounters
+=== RUN   TestLegacyProgressAndQuestionRoundTripPreservesCounters/report
+=== RUN   TestLegacyProgressAndQuestionRoundTripPreservesCounters/progress
+--- PASS: TestLegacyProgressAndQuestionRoundTripPreservesCounters (0.28s)
+    --- PASS: TestLegacyProgressAndQuestionRoundTripPreservesCounters/report (0.13s)
+    --- PASS: TestLegacyProgressAndQuestionRoundTripPreservesCounters/progress (0.14s)
+=== RUN   TestLegacyMigrationRejectsInsufficientControlAtomically
+=== RUN   TestLegacyMigrationRejectsInsufficientControlAtomically/report-accounted
+=== RUN   TestLegacyMigrationRejectsInsufficientControlAtomically/progress-accounted
+=== RUN   TestLegacyMigrationRejectsInsufficientControlAtomically/capability-used
+=== RUN   TestLegacyMigrationRejectsInsufficientControlAtomically/capability-storage
+=== RUN   TestLegacyMigrationRejectsInsufficientControlAtomically/run-storage
+=== RUN   TestLegacyMigrationRejectsInsufficientControlAtomically/question-reserve
+--- PASS: TestLegacyMigrationRejectsInsufficientControlAtomically (0.60s)
+    --- PASS: TestLegacyMigrationRejectsInsufficientControlAtomically/report-accounted (0.11s)
+    --- PASS: TestLegacyMigrationRejectsInsufficientControlAtomically/progress-accounted (0.11s)
+    --- PASS: TestLegacyMigrationRejectsInsufficientControlAtomically/capability-used (0.10s)
+    --- PASS: TestLegacyMigrationRejectsInsufficientControlAtomically/capability-storage (0.09s)
+    --- PASS: TestLegacyMigrationRejectsInsufficientControlAtomically/run-storage (0.09s)
+    --- PASS: TestLegacyMigrationRejectsInsufficientControlAtomically/question-reserve (0.09s)
+=== RUN   TestLegacyQuestionSessionPreservesOriginalArtifactDeclaration
+--- PASS: TestLegacyQuestionSessionPreservesOriginalArtifactDeclaration (0.09s)
+=== RUN   TestLegacyManagedReportRequiresCompleteOriginalScope
+=== RUN   TestLegacyManagedReportRequiresCompleteOriginalScope/none
+=== RUN   TestLegacyManagedReportRequiresCompleteOriginalScope/scope_key
+=== RUN   TestLegacyManagedReportRequiresCompleteOriginalScope/run_id
+=== RUN   TestLegacyManagedReportRequiresCompleteOriginalScope/namespace_sha256
+--- PASS: TestLegacyManagedReportRequiresCompleteOriginalScope (0.37s)
+    --- PASS: TestLegacyManagedReportRequiresCompleteOriginalScope/none (0.09s)
+    --- PASS: TestLegacyManagedReportRequiresCompleteOriginalScope/scope_key (0.09s)
+    --- PASS: TestLegacyManagedReportRequiresCompleteOriginalScope/run_id (0.09s)
+    --- PASS: TestLegacyManagedReportRequiresCompleteOriginalScope/namespace_sha256 (0.09s)
+=== RUN   TestLegacyEscapedExitedDoesNotInventRawClaim
+--- PASS: TestLegacyEscapedExitedDoesNotInventRawClaim (0.09s)
+=== RUN   TestLegacyMigrationRejectsAmbiguousJSONClassification
+=== RUN   TestLegacyMigrationRejectsAmbiguousJSONClassification/duplicate_kind
+=== RUN   TestLegacyMigrationRejectsAmbiguousJSONClassification/duplicate_artifact
+=== RUN   TestLegacyMigrationRejectsAmbiguousJSONClassification/duplicate_size
+--- PASS: TestLegacyMigrationRejectsAmbiguousJSONClassification (0.27s)
+    --- PASS: TestLegacyMigrationRejectsAmbiguousJSONClassification/duplicate_kind (0.09s)
+    --- PASS: TestLegacyMigrationRejectsAmbiguousJSONClassification/duplicate_artifact (0.09s)
+    --- PASS: TestLegacyMigrationRejectsAmbiguousJSONClassification/duplicate_size (0.09s)
+=== RUN   TestLegacyCurrentSegmentTerminalRecordsExistingClaimOverAllowance
+--- PASS: TestLegacyCurrentSegmentTerminalRecordsExistingClaimOverAllowance (0.06s)
+=== RUN   TestLegacyHostReconcileWaitsForExistingWriter
+--- PASS: TestLegacyHostReconcileWaitsForExistingWriter (0.20s)
+=== RUN   TestQuotaMigrationBackfillsReportAndRuntimeUsage
+--- PASS: TestQuotaMigrationBackfillsReportAndRuntimeUsage (0.31s)
+=== RUN   TestReportQuestionWaitsForTrustedHostSessionThenStopsAndResumes
+--- PASS: TestReportQuestionWaitsForTrustedHostSessionThenStopsAndResumes (0.07s)
+PASS

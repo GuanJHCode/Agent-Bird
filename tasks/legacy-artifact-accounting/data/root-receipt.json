@@ -1,0 +1,151 @@
+{
+  "base": "15c676aee19e6bbef86d304a3cdcc52d18488f03",
+  "worker_milestone": "c79b0212b39186044b64f27691a0514681113d75",
+  "source_sha256": {
+    "tasks/legacy-artifact-accounting/scripts/run-linux.py": "c2f081d4cd1ef9363f890a006cee467666612ff9870b4f13e42060b51dc3a220",
+    "tools/orchestrator/go.mod": "de66f3a2bcfd7c31a74e2703979d7752bcbee350bf2300ccb7e203425b180b9f",
+    "tools/orchestrator/go.sum": "f1d01b4113f61f7212fb51fb291aa9af09ed586e88149bf6df1cced4fc0d92dd",
+    "tools/orchestrator/internal/store/dependency_input_migration_test.go": "310c3c390a16d4f12c8f1651eb44cd1597b0d50122f44dc0ec2dfdf95631835c",
+    "tools/orchestrator/internal/store/diagnostics_grant.go": "282ff433efd5507e0da344e59e4c982453102740271366662071a76f280d1aad",
+    "tools/orchestrator/internal/store/diagnostics_schema_test.go": "6f6931d6efe1dcd39466d6ac7b4f4d9b08af940a38c4fd0fdaae2fe89f58d331",
+    "tools/orchestrator/internal/store/host_artifact_intake_test.go": "fd53f62f41facfbd26dd7e25b406c1ba151368602932b354d20c3d50bd7d8de4",
+    "tools/orchestrator/internal/store/host_artifact_metadata_test.go": "dc9dc5f50ebf7c731d9796f1ecc06b492613bc261af65e872767a1d72aad2700",
+    "tools/orchestrator/internal/store/host_events.go": "84b98d023f888d7812eeb6dcfda1a9d483350065116f52df5b9b9aa07e4056b6",
+    "tools/orchestrator/internal/store/host_progress.go": "00b3b054d3aa08a3b5770d21ae3ef33b160338c6bb2f072d6abfed2a55041990",
+    "tools/orchestrator/internal/store/indexed_review_accept_test.go": "8510b535779cf70366a6721debe2e613c50f0620fc444753630d62fe26e8e9a0",
+    "tools/orchestrator/internal/store/legacy_artifact_accounting.go": "ba4db032d8aaf5b0ab3a69f8f5f91d66b1b57c1731320215bcf96d134e71d820",
+    "tools/orchestrator/internal/store/legacy_artifact_accounting_test.go": "fdcd86fb803977a68d16428147e8908fc81340e7f473cf12931904b2f67c84c5",
+    "tools/orchestrator/internal/store/legacy_artifact_json.go": "5bec7cc9d44b0250721bca84cff62d6dae25f2d372649f649cc3f9608f29d928",
+    "tools/orchestrator/internal/store/legacy_artifact_root_test.go": "3a775d8625e41d0bfd1890bd50c3db7570eaa2881dd6061f7c8ffd88633b1e4f",
+    "tools/orchestrator/internal/store/migrations.go": "2916bd65f9d4fbd41fec1ef99384a562392184fbbee24c13271408424196e8f0",
+    "tools/orchestrator/internal/store/quota_bench_test.go": "bec139ed2cec3bed257379cfbf040a3deb24348e7dada5e0955dde1bff1ccaf7",
+    "tools/orchestrator/internal/store/report_intake_schema_test.go": "22bc69f959811bd57c426ad7a68afffc9f91e17bbdc0c4e780d0778cb081f245"
+  },
+  "checks": [
+    {
+      "log": "root-final-store.jsonl",
+      "sha256": "9beb196db98b17d52788a7217b0b5adb83c99ae59964469204ae247e7f918c55",
+      "pass_named": 1210,
+      "pass_top": 428,
+      "fail_named": 0,
+      "fail_top": 0,
+      "skip_named": 0,
+      "skip_top": 0,
+      "package_terminal": [
+        {
+          "Time": "2026-10-07T21:56:02.749345+08:00",
+          "Action": "pass",
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "Elapsed": 124.955
+        }
+      ]
+    },
+    {
+      "log": "root-final-race.jsonl",
+      "sha256": "99734fa878d153c96e002c5be1779dc4cc41d373dabcebd936f30043903cb7ee",
+      "pass_named": 185,
+      "pass_top": 66,
+      "fail_named": 0,
+      "fail_top": 0,
+      "skip_named": 0,
+      "skip_top": 0,
+      "package_terminal": [
+        {
+          "Time": "2026-10-07T22:03:04.132235+08:00",
+          "Action": "pass",
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "Elapsed": 416.455
+        }
+      ]
+    },
+    {
+      "log": "root-contract-red.jsonl",
+      "sha256": "50e86a719faf0ce818500173d2350988ed37bbcf9692d67d06ad53a2173c984e",
+      "pass_named": 0,
+      "pass_top": 0,
+      "fail_named": 8,
+      "fail_top": 3,
+      "skip_named": 0,
+      "skip_top": 0,
+      "package_terminal": [
+        {
+          "Time": "2026-10-07T21:14:13.678853+08:00",
+          "Action": "fail",
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "Elapsed": 1.209
+        }
+      ]
+    },
+    {
+      "log": "root-expanded-red.jsonl",
+      "sha256": "b4ce92af0a5e3bb45c5c7affb24b9a36364a76f95b89c19c7bd8dd3e484056c4",
+      "pass_named": 57,
+      "pass_top": 23,
+      "fail_named": 8,
+      "fail_top": 3,
+      "skip_named": 0,
+      "skip_top": 0,
+      "package_terminal": [
+        {
+          "Time": "2026-10-07T21:32:18.954883+08:00",
+          "Action": "fail",
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "Elapsed": 7.122
+        }
+      ]
+    },
+    {
+      "log": "root-session-reserve-red.jsonl",
+      "sha256": "1481f411e32794a871665ded0854bdcea69eac9ad60e7f89cd0e8eafcebca06d",
+      "pass_named": 5,
+      "pass_top": 0,
+      "fail_named": 3,
+      "fail_top": 2,
+      "skip_named": 0,
+      "skip_top": 0,
+      "package_terminal": [
+        {
+          "Time": "2026-10-07T21:50:17.677531+08:00",
+          "Action": "fail",
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "Elapsed": 1.557
+        }
+      ]
+    },
+    {
+      "log": "root-session-reserve-green.jsonl",
+      "sha256": "8b7d9f1cc9f5a900f9ce55ca08b8bd4cc6cb368f06363a6875e1c7fb345e5f37",
+      "pass_named": 68,
+      "pass_top": 28,
+      "fail_named": 0,
+      "fail_top": 0,
+      "skip_named": 0,
+      "skip_top": 0,
+      "package_terminal": [
+        {
+          "Time": "2026-10-07T21:51:42.042661+08:00",
+          "Action": "pass",
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "Elapsed": 7.359
+        }
+      ]
+    }
+  ],
+  "vet_exit": 0,
+  "review": "independent reliability reviewer PASS after final question/session/reserve repair",
+  "linux": {
+    "receipt": "linux/legacy-root-final-receipt.json",
+    "pass_named": 68,
+    "pass_top": 28,
+    "fail": 0,
+    "skip": 0,
+    "cid": "a0be1d6226550043a494b09d31624b250c5646fdfb4104c8151ee312c8b3a7df",
+    "exit": 0,
+    "removed": true
+  },
+  "limitations": [
+    "F02 deletion/retention and flood/RSS/physical fault matrix remain open",
+    "No real Provider call, native TUI, or public CLI acceptance in this worktree",
+    "Final integration validation follows cherry-pick"
+  ]
+}
