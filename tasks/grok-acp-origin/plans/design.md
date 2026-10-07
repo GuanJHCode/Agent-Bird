@@ -41,3 +41,56 @@ ACPActivate is single-use for the original session after initial Prompt completi
 Five windows: pre-Claim has no attempt; CLAIMED/pre-Begin can use only no-send expiry; any failure after committed Begin but before receive commit is UNCERTAIN and never re-emits; receive-commit ACK loss is data-only exact replay. Completion observed locally but not committed is not a new recovery/send permission. Keep the original bridge batch/action/ACK semantics and owner-only business decisions.
 
 Migration correction after actual dependency inspection: a full five-table rebuild is unnecessary. SQLite system-library experiment showed parent-only generalized ALTER works with FK disabled before BEGIN, whereas defer_foreign_keys alone still failed COMMIT after parent DROP/recreate. This is design evidence only, not modernc acceptance. Schema23 must use the exact original single DB connection under startup/instance serialization, disable FK before the migration transaction, rebuild only bridge_bindings with original columns/rows and its two indexes/three quota triggers, add the attempt fields, and rebuild its three quota triggers for additive field accounting. Existing child FK and remaining quota triggers stay intact. Check foreign_key_check, original rows/hashes/schema objects/storage usage before commit; any injected error rolls the transaction back. Restore and verify foreign_keys=ON on every outcome. Validate on the repository's actual modernc driver/Go1.26.8 before adopting this path. This runs only after schema22 is stable and must not overwrite its trigger/accounting changes.
+
+## Launch and idempotency refinement (2026-10-07, ROOT)
+
+Origin profile v1 is explicitly readonly. Create fresh private HOME, GROK_HOME
+and TMPDIR beneath a 0700 per-launch directory; use ExactEnv and a fixed
+allowlist. Auth mode is explicit: `none` (all owned-actor acceptance) or
+`xai_api_key_env` (copy only the existing XAI_API_KEY when the request explicitly
+selects it). Never read or copy auth.json or reuse the user's Grok home. No
+OAuth, proxy, OIDC, inherited GROK_* or extra XAI_* environment in v1. The
+private home is not permission to modify the workspace or Coordinator files.
+No --session-id; the single original session/new response supplies the ID.
+
+The macOS profile denies filesystem writes except the launch's own ephemeral
+home/session/tmp directories, explicitly protects Coordinator/control/owner
+state from reads, and denies networking in auth_mode=none. Project capability
+sources (Grok/Claude-compatible configuration, hooks, MCP, plugins, agents)
+must be rejected before spawn; instruction text files alone confer no tool
+authority. Root --tools/--deny flags are not an assumed ACP control. Real Grok
+1.0.44 tool/profile qualification remains unverified and cannot be claimed from
+the owned actor. Official configuration/authentication/permission behavior was
+reviewed against https://docs.x.ai/build/settings and the xai-org/grok-build
+user guide; no real account/model execution is authorized during this task.
+
+RPC idempotency means equality of a canonical mutation tuple, not raw JSON
+serialization. Whitespace and object key order do not change a request's
+identity. Auth paths/proofs/secrets are checked independently and excluded from
+that tuple. All ACP RPCs require exact original controller peer PID/birth.
+
+- Bind: caller RID, persisted binding.request_id; exact stored mutation tuple
+  returns the same binding, any mismatch conflicts. No replacement session or
+  rebind for an old run.
+- Activate: SHA256 of the domain `acp-activate-v1` and binding/epoch/session.
+  Same ACTIVE session replays; different session conflicts.
+- Claim: caller RID (bounded); attempt ID derives from `acp-attempt-v1`,
+  binding/epoch/RID. Look up this attempt before choosing any source. Within
+  its lease, exact replay returns the original immutable batch and claim token.
+  Derive the token with domain-separated HMAC using the authenticated run
+  control token and persisted attempt/batch/session/render/prompt/deadline
+  tuple, storing only its hash. EXPIRED same RID always returns expired_no_send.
+- Begin: SHA256 of `acp-begin-v1`, binding/epoch/session/batch/attempt/render/
+  promptSHA/ordinal. CAS CLAIMED to EMITTING allocates the positive ordinal.
+  Same live original owner can replay the committed tuple; UNCERTAIN rejects.
+- Receive: separate `acp-receive-v1` tuple adds positive RPC ID, response hash,
+  bounded stopReason. Exact RECEIVED replay is data only; any different field
+  conflicts. First commit still requires live original child and EMITTING.
+
+A batch may contain receipts for several tasks. Begin/Receive bind its complete
+immutable batch and render, never a selected delivery ID. Canonical keys use a
+JSON array of the domain and typed tuple values before SHA256, avoiding delimiter
+ambiguity. RPC IDs and ordinals are positive signed 64-bit integers. Session ID
+is at most 512 UTF-8 bytes; stopReason at most 128. Schema23 also has a partial
+unique(binding_id,acp_rpc_request_id), preventing a response from settling two
+delivery attempts. Hook rows retain empty/null ACP fields.

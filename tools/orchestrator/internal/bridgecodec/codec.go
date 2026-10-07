@@ -41,10 +41,10 @@ func RenderHash(batch contract.BridgeBatch) (string, error) {
 	return hex.EncodeToString(sum[:]), nil
 }
 
-// WireBytes is the only public renderer. Claim and hook capabilities live in
+// WireBytes renders only hook_pull. Claim and hook capabilities live in
 // separate protected IPC types and are never serialized here.
 func WireBytes(batch contract.BridgeBatch, attemptID, providerID, nativeHook string) ([]byte, error) {
-	if !contract.BridgeEmitSupported(providerID, nativeHook) {
+	if batch.TransportMode != contract.BridgeTransportHookPull || !contract.BridgeEmitSupported(providerID, nativeHook) {
 		return nil, errors.New("bridge_mode_unsupported")
 	}
 	if attemptID == "" || batch.AttemptID != attemptID {
@@ -104,7 +104,7 @@ func validateBatch(batch contract.BridgeBatch) error {
 	if batch.SchemaVersion != 1 || batch.BatchID == "" || batch.BindingID == "" || batch.OwnerEpoch == 0 {
 		return errors.New("bridge_invalid_input")
 	}
-	if batch.TransportMode != contract.BridgeTransportHookPull {
+	if batch.TransportMode != contract.BridgeTransportHookPull && batch.TransportMode != contract.BridgeTransportGrokACP {
 		return errors.New("bridge_mode_unsupported")
 	}
 	if len(batch.Events) == 0 {

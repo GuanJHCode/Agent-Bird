@@ -1,0 +1,110 @@
+{
+  "source_sha256": {
+    "tools/orchestrator/go.mod": "de66f3a2bcfd7c31a74e2703979d7752bcbee350bf2300ccb7e203425b180b9f",
+    "tools/orchestrator/go.sum": "f1d01b4113f61f7212fb51fb291aa9af09ed586e88149bf6df1cced4fc0d92dd",
+    "tools/orchestrator/internal/bridgecodec/acp.go": "2dd676e4c526a2c191e8b9fd62070701e93f3bce89c0fba141c30b885dcd6b76",
+    "tools/orchestrator/internal/bridgecodec/acp_test.go": "888494bb0039273e1eb56ee31d24cae287074bd9538ff582b1306d3744d2b31d",
+    "tools/orchestrator/internal/bridgecodec/agy_test.go": "e863e5942db6f39c1d3b5fd4f9b844c142a2c7b860d11cd737e3d25bc5131966",
+    "tools/orchestrator/internal/bridgecodec/codec.go": "9b1a4985d6d24b1f2b98b79be52836477bb260caa28a70020ddd42f42b0b5805",
+    "tools/orchestrator/internal/bridgecodec/codec_test.go": "ea856f115436504d830723335c36f9feafc38ad7fc1437db84c85c51c53cce07",
+    "tools/orchestrator/internal/contract/acp_bridge.go": "303a56489e9fd188ea235dde9040a5bf6fb09608d71d2891bd8bf92c67d8886e",
+    "tools/orchestrator/internal/contract/acp_bridge_test.go": "7ffc0a7f61347a45a7a6b87a260c3162b00873465df71708c6444f73e41819eb",
+    "tools/orchestrator/internal/contract/acp_manifest.go": "35695a521b253f5acfa588d9b4d5a8255575b7eacb130b0e55f03d2c10b06e29",
+    "tools/orchestrator/internal/contract/acp_manifest_test.go": "0b0c715eb1adb58594ca65c0702da2a85eb0bd960f4f838a09261cd2a7a1bcaa",
+    "tools/orchestrator/internal/contract/agy_test.go": "c61632029c5e14caae12f8a782a43b2ea293ab7bd349507a77ad364b265f8c85",
+    "tools/orchestrator/internal/contract/bridge.go": "530076c9458a31c4a903453766e676828fb792da3454f61dac4de6544356c3ba",
+    "tools/orchestrator/internal/contract/bridge_test.go": "8fe006979372c8663d5d931bf6a532e79f0cbc3dd01bb59cfe4cb4176f057126",
+    "tools/orchestrator/internal/contract/config_generation.go": "fa2aa89dd9edcab6135d410aa65f97172d5da8579b817fa0b533a7a0ed04b55c",
+    "tools/orchestrator/internal/contract/config_preparation_authority.go": "901dacf8f1b58e29c883971d4fc3e65e863a0082ce16ac672a7e9b5471675155",
+    "tools/orchestrator/internal/contract/config_preparation_authority_test.go": "1af487d5954fec4ab72086a9760e646e3959cbe7609d50f4bcdf702a0ff683e6",
+    "tools/orchestrator/internal/contract/contract.go": "15fec3364a54e8cb91cfba7245c84d17bdce8725cf324d802073acab453a027f",
+    "tools/orchestrator/internal/contract/dependency_inputs.go": "a605ad6e749d925a552b75f6ce8692bacfbcdcdb9bad98abac5d572b30037287",
+    "tools/orchestrator/internal/contract/diagnostics.go": "eb1fb056efe7a175caad93b21ce18e5a9c26c9d99eaf79e9ae75e6bc744ba995",
+    "tools/orchestrator/internal/contract/diagnostics_legacy_test.go": "9aff3845ea2e86bb9009a8745781247bcff23eaca99d373b06ee7e65ad6074c2",
+    "tools/orchestrator/internal/contract/diagnostics_outcome_test.go": "eb59e297fcad8efea8c671d109638135c7207bed585ae2c7c4739868c2d6e358",
+    "tools/orchestrator/internal/contract/diagnostics_test.go": "1e4c04f2396bd22e8ab328b525b608783cc485b8d3986ecc6323fb2d0cb63a33",
+    "tools/orchestrator/internal/contract/execution_policy.go": "426fb40e6e8396dd8096f3f58517bb51406dbae6ef8f357bf1066922e2886d73",
+    "tools/orchestrator/internal/contract/host_artifact_receipt.go": "86abe48ff981ec619a22cbd005bec1248e5265c510274d3b375c33096b95b2e7",
+    "tools/orchestrator/internal/contract/host_artifact_receipt_test.go": "3219fbee97fe2da6bbe1f6992afc77c40e6e45cd835e67bc75bee7a3786b2b93",
+    "tools/orchestrator/internal/contract/host_artifacts.go": "42ffe7775305372dd1b4a499ae780e03726c15920c3ad58fc36e7153ccb2d1d6",
+    "tools/orchestrator/internal/contract/host_artifacts_test.go": "81adcbad0ee28b9ba5d3f69a820f922f1ec8148701f72420c81bcd67d1484a88",
+    "tools/orchestrator/internal/contract/host_lifecycle.go": "7ddd0c79ea6afa6f3cdb803b5dd19e33fa960e8804d61284dbbed7d2e2b1c472",
+    "tools/orchestrator/internal/contract/host_lifecycle_test.go": "5f1813718403083b6d6aa22701db88fadb6c441032686923d7d44a39ebafefb1",
+    "tools/orchestrator/internal/contract/host_recovery.go": "513569c0838624c0088923f7207b0372b0a0e818840e1fac04ec1cce19027239",
+    "tools/orchestrator/internal/contract/indexed_review.go": "cce79011bc19a3e748c7ccb67e7b90d1ae1bfa09fae62616c21fad9d61dc9b05",
+    "tools/orchestrator/internal/contract/indexed_review_test.go": "600ccc207fd5e5656b8e002cfe6eb4de9c938b2cef50fb302ef8ef74d1a03ea8",
+    "tools/orchestrator/internal/contract/original_owner.go": "2bacb624cb5ebf055a001ca17ea0f305c45db67df69400944c9471940ca90d62",
+    "tools/orchestrator/internal/contract/original_owner_test.go": "288554b441bc547761d729b764331a2018c7f400ac4e2b780e2f8e717ae95317",
+    "tools/orchestrator/internal/contract/owner_applied.go": "adec6865861cf41e6c1f95aa206d56c4ad09e918f7c3581c3d70c757e5aa1f6f",
+    "tools/orchestrator/internal/contract/owner_bootstrap.go": "9d0b015d41ea7487127c07da2500e9b6e98a3dc3e343a36f3602c066ddc98e54",
+    "tools/orchestrator/internal/contract/owner_bootstrap_test.go": "68c7748108f6fe76e36a25daff7555da9c9f15da7e864bf05f2131d02cb9d41a",
+    "tools/orchestrator/internal/contract/owner_runtime_decode.go": "a73140e34d7e6e8cb4d527867cc7a44ea932b41922b9a63668691e3cb370c2bb",
+    "tools/orchestrator/internal/contract/owner_runtime_rpc.go": "02f69c13b13b61307356b4d700668cf4f687a281fd649182239737e6634045f1",
+    "tools/orchestrator/internal/contract/owner_runtime_wire.go": "1bd9244dd347877ee31fac5ddc281c26b42e578ed5b475faa805dc6fb40abe0c",
+    "tools/orchestrator/internal/contract/owner_runtime_wire_test.go": "9e40a005b979eb1dbcd4403146b17f3ec2ecad843651d5ac959e4774ec59075c",
+    "tools/orchestrator/internal/contract/owner_transport_control.go": "d684ff3f62fa495a10734aceda5d6d56e8a07bc42aa172eb5ddddccf5aa992e0",
+    "tools/orchestrator/internal/contract/owner_transport_control_test.go": "c5d87195f45dc0ee966ce09ecf111885b385531f8220b397759e30a808d604bf",
+    "tools/orchestrator/internal/contract/owner_transport_ticket.go": "35c041312696c6acdcae93dcef79458700e3fe07d04207c6ca53e768d9b2c0bc",
+    "tools/orchestrator/internal/contract/owner_transport_ticket_test.go": "8806da2a60a19cf2b53179c83fe55166af1aec5e04ae4f90be9ed644a27b87a2",
+    "tools/orchestrator/internal/contract/testdata/acp-v1/requests.json": "5c3fb2d0e96e9b6b1ab091b812232d722a171f3aa194b66889550e65f6a6bcf1"
+  },
+  "tests": {
+    "contract-green": {
+      "top": {
+        "pass": 44
+      },
+      "named": {
+        "pass": 289
+      },
+      "terminal": [
+        {
+          "Time": "2026-10-07T22:45:31.087542+08:00",
+          "Action": "pass",
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+          "Elapsed": 1.8279999999999998
+        }
+      ]
+    },
+    "codec-green": {
+      "top": {
+        "pass": 11
+      },
+      "named": {
+        "pass": 11
+      },
+      "terminal": [
+        {
+          "Time": "2026-10-07T22:48:52.43661+08:00",
+          "Action": "pass",
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/bridgecodec",
+          "Elapsed": 1.6179999999999999
+        }
+      ]
+    },
+    "root-contract-codec-race": {
+      "top": {
+        "pass": 56
+      },
+      "named": {
+        "pass": 301
+      },
+      "terminal": [
+        {
+          "Time": "2026-10-07T22:51:31.688649+08:00",
+          "Action": "pass",
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/bridgecodec",
+          "Elapsed": 2.029
+        },
+        {
+          "Time": "2026-10-07T22:51:31.689461+08:00",
+          "Action": "pass",
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+          "Elapsed": 2.03
+        }
+      ]
+    }
+  },
+  "vet_exit": 0,
+  "independent_review": "contract and codec PASS; manifest constant self-checked against independent SHA256",
+  "red": "new API/renderer absent, compile failure; not a behavior regression"
+}
