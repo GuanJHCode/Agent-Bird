@@ -69,17 +69,18 @@ func PrepareStateDir(root string) (err error) {
 	}
 	parts := strings.Split(strings.TrimPrefix(root, string(filepath.Separator)), string(filepath.Separator))
 	ancestor, at := string(filepath.Separator), 0
-	for i, part := range parts {
-		next := filepath.Join(ancestor, part)
-		if _, e := os.Stat(next); e == nil {
-			ancestor, at = next, i+1
-			continue
-		}
-		break
-	}
 	ancestorInfo, ancestorErr := os.Stat(ancestor)
 	if ancestorErr != nil || !ancestorInfo.IsDir() {
 		return CodeError("untrusted_state_dir")
+	}
+	for i, part := range parts {
+		next := filepath.Join(ancestor, part)
+		observed, e := os.Stat(next)
+		if e == nil {
+			ancestor, ancestorInfo, at = next, observed, i+1
+			continue
+		}
+		break
 	}
 	prepareStateDirAfterAncestorStat()
 	parent, err := os.Open(ancestor)
