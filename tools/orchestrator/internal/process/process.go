@@ -24,16 +24,30 @@ func (e CodeError) Error() string { return string(e) }
 
 const ErrProcessTreeUnknown CodeError = "process_tree_unknown"
 
+// OutputStream identifies the child stream supplied to OutputObserver.
+type OutputStream uint8
+
+const (
+	OutputStdout OutputStream = 1
+	OutputStderr OutputStream = 2
+)
+
+// OutputObserver receives a borrowed, read-only slice only for the duration of
+// the callback. It must be non-blocking and safe for concurrent stdout/stderr
+// calls. Its result cannot affect child I/O.
+type OutputObserver func(OutputStream, []byte)
+
 type Command struct {
-	PinnedPath   string
-	PinnedSHA256 string
-	Path         string
-	Args         []string
-	Dir          string
-	Env          []string
-	ExactEnv     bool
-	Stdin        []byte
-	Stdout       io.Writer
+	PinnedPath    string
+	PinnedSHA256  string
+	Path          string
+	Args          []string
+	Dir           string
+	Env           []string
+	ExactEnv      bool
+	Stdin         []byte
+	Stdout        io.Writer
+	ObserveOutput OutputObserver `json:"-"`
 }
 type Identity struct {
 	PID              int
@@ -57,6 +71,7 @@ type Handle struct {
 	pgid            int
 	identity        Identity
 	stdout          io.Writer
+	outputObserver  OutputObserver
 }
 type captureWriter struct {
 	h      *Handle
@@ -80,7 +95,15 @@ func (w captureWriter) Write(p []byte) (int, error) {
 	if w.stdout {
 		downstream = w.h.stdout
 	}
+	observer := w.h.outputObserver
 	w.h.mu.Unlock()
+	if observer != nil {
+		stream := OutputStderr
+		if w.stdout {
+			stream = OutputStdout
+		}
+		observer(stream, p)
+	}
 	if downstream != nil {
 		_, _ = downstream.Write(p)
 	}
@@ -135,7 +158,7 @@ func startCommand(ctx context.Context, spec Command, duplex bool, birthLookup fu
 	if spec.Stdin != nil {
 		cmd.Stdin = bytes.NewReader(append([]byte(nil), spec.Stdin...))
 	}
-	h := &Handle{cmd: cmd, done: make(chan struct{}), exit: -1, outputLimit: 1024 * 1024, stdout: spec.Stdout}
+	h := &Handle{cmd: cmd, done: make(chan struct{}), exit: -1, outputLimit: 1024 * 1024, stdout: spec.Stdout, outputObserver: spec.ObserveOutput}
 	var pipes *duplexPipes
 	keepStream := false
 	if duplex {
@@ -143,6 +166,7 @@ func startCommand(ctx context.Context, spec Command, duplex bool, birthLookup fu
 		if err != nil {
 			return nil, nil, err
 		}
+		pipes.stream.outputObserver = h.outputObserver
 		defer func() {
 			_ = pipes.closeChildren()
 			if !keepStream {

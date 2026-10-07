@@ -23,13 +23,20 @@ func StartDuplex(ctx context.Context, spec Command) (*Handle, io.ReadWriteCloser
 }
 
 type duplexStream struct {
-	reader   *os.File
-	writer   *os.File
-	once     sync.Once
-	closeErr error
+	reader         *os.File
+	writer         *os.File
+	once           sync.Once
+	closeErr       error
+	outputObserver OutputObserver
 }
 
-func (s *duplexStream) Read(p []byte) (int, error)  { return s.reader.Read(p) }
+func (s *duplexStream) Read(p []byte) (int, error) {
+	n, err := s.reader.Read(p)
+	if n > 0 && s.outputObserver != nil {
+		s.outputObserver(OutputStdout, p[:n])
+	}
+	return n, err
+}
 func (s *duplexStream) Write(p []byte) (int, error) { return s.writer.Write(p) }
 
 // os.File.Close interrupts the original pollable pipe operations. Never take
