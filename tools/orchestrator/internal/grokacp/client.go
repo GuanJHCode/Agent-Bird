@@ -113,13 +113,11 @@ type Client struct {
 	sessionID       string
 	creatingSession bool
 	turnActive      bool
-	turnDenied      bool
 	nextID          uint64
 	pending         *pending
 	updates         chan Update
 	done            chan struct{}
 	joined          chan struct{}
-	failOnce        sync.Once
 }
 
 func New(ctx context.Context, stream io.ReadWriteCloser, limits Limits) (*Client, error) {
@@ -240,7 +238,6 @@ func (c *Client) Prompt(ctx context.Context, sessionID, text string) (Turn, erro
 		return Turn{}, ErrTurnActive
 	}
 	c.turnActive = true
-	c.turnDenied = false
 	c.mu.Unlock()
 	defer func() { c.mu.Lock(); c.turnActive = false; c.mu.Unlock() }()
 	params, _ := json.Marshal(struct {
@@ -287,10 +284,16 @@ func (c *Client) call(ctx context.Context, method string, params json.RawMessage
 	}
 	c.opMu.Lock()
 	defer c.opMu.Unlock()
-	if err := c.Err(); err != nil {
+	c.mu.Lock()
+	if c.err != nil {
+		err := c.err
+		c.mu.Unlock()
 		return response{}, err
 	}
-	c.mu.Lock()
+	if err := ctx.Err(); err != nil {
+		c.mu.Unlock()
+		return response{}, err
+	}
 	c.nextID++
 	if c.nextID == 0 {
 		c.mu.Unlock()
@@ -298,14 +301,6 @@ func (c *Client) call(ctx context.Context, method string, params json.RawMessage
 		return response{}, ErrProtocol
 	}
 	p := &pending{id: c.nextID, method: method, ch: make(chan response, 1)}
-	c.pending = p
-	c.mu.Unlock()
-	stop := context.AfterFunc(ctx, func() {
-		if c.cancelPending(p) {
-			c.fail(ErrUncertain)
-		}
-	})
-	defer stop()
 	frame, err := marshalFrame(struct {
 		JSONRPC string          `json:"jsonrpc"`
 		ID      uint64          `json:"id"`
@@ -313,58 +308,50 @@ func (c *Client) call(ctx context.Context, method string, params json.RawMessage
 		Params  json.RawMessage `json:"params"`
 	}{"2.0", p.id, method, params}, c.limits.FrameBytes)
 	if err != nil {
-		c.clearPending(p)
+		c.mu.Unlock()
 		return response{}, err
 	}
+	c.pending = p
+	c.mu.Unlock()
+	stop := context.AfterFunc(ctx, func() { c.cancelPending(p) })
+	defer stop()
 	if err := c.write(frame); err != nil {
-		c.clearPending(p)
 		c.fail(ErrUncertain)
-		return response{}, ErrUncertain
 	}
 	return c.waitPending(ctx, p)
 }
 
-// waitPending gives the response and cancellation a single ownership race on
-// pending. If response owns it first, a context that becomes ready before this
-// goroutine is scheduled cannot revoke that completed RPC.
+// Every admitted request gets exactly one outcome under mu. Only that request's
+// channel decides its result; a later client failure cannot revoke completion.
 func (c *Client) waitPending(ctx context.Context, p *pending) (response, error) {
+	var reply response
 	select {
-	case reply := <-p.ch:
-		return reply, reply.err
+	case reply = <-p.ch:
 	case <-ctx.Done():
-		if c.cancelPending(p) {
-			c.fail(ErrUncertain)
-			return response{}, ErrUncertain
-		}
-		select {
-		case reply := <-p.ch:
-			return reply, reply.err
-		case <-c.done:
-			return response{}, c.Err()
-		}
-	case <-c.done:
-		return response{}, c.Err()
+		c.cancelPending(p)
+		reply = <-p.ch
 	}
+	if reply.err != nil {
+		return response{}, reply.err
+	}
+	return reply, nil
 }
 
 // cancelPending returns true only for the request that still owns the pending
-// slot. A late cancellation has no authority over a completed or newer RPC.
+// slot and publishes its terminal outcome before releasing that slot. Closing
+// the stream happens outside mu, after both the outcome and done are visible.
 func (c *Client) cancelPending(p *pending) bool {
 	c.mu.Lock()
-	defer c.mu.Unlock()
 	if c.pending != p {
+		c.mu.Unlock()
 		return false
 	}
-	c.pending = nil
-	return true
-}
-
-func (c *Client) clearPending(p *pending) {
-	c.mu.Lock()
-	if c.pending == p {
-		c.pending = nil
-	}
+	closeStream := c.failLocked(ErrUncertain)
 	c.mu.Unlock()
+	if closeStream {
+		_ = c.stream.Close()
+	}
+	return true
 }
 
 func (c *Client) write(frame []byte) error {
@@ -454,23 +441,22 @@ func (c *Client) accept(raw []byte) error {
 		c.mu.Unlock()
 		return ErrProtocol
 	}
-	denied := p.denied
-	if p.method == "session/prompt" {
-		c.turnActive = false
-		c.turnDenied = false
-	}
-	c.pending = nil
-	c.mu.Unlock()
 	if hasError {
+		c.mu.Unlock()
 		c.fail(ErrUncertain)
 		return ErrUncertain
 	}
 	if p.method == "session/new" {
-		if err := c.bindSessionResult(fields["result"]); err != nil {
+		if err := c.bindSessionResultLocked(fields["result"]); err != nil {
+			c.mu.Unlock()
 			return err
 		}
 	}
-	p.ch <- response{result: append(json.RawMessage(nil), fields["result"]...), raw: append([]byte(nil), raw...), id: id, denied: denied}
+	// Queue the immutable result before releasing ownership. Prompt itself
+	// retains turnActive until its return; pending closes the permission window.
+	p.ch <- response{result: append(json.RawMessage(nil), fields["result"]...), raw: append([]byte(nil), raw...), id: id, denied: p.denied}
+	c.pending = nil
+	c.mu.Unlock()
 	return nil
 }
 
@@ -485,7 +471,7 @@ func sessionIDFromResult(fields map[string]json.RawMessage) (string, bool) {
 	return sessionID, true
 }
 
-func (c *Client) bindSessionResult(raw json.RawMessage) error {
+func (c *Client) bindSessionResultLocked(raw json.RawMessage) error {
 	fields, err := object(raw)
 	if err != nil {
 		return ErrProtocol
@@ -494,8 +480,6 @@ func (c *Client) bindSessionResult(raw json.RawMessage) error {
 	if !ok {
 		return ErrProtocol
 	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	if c.sessionID != "" || !c.creatingSession {
 		return ErrProtocol
 	}
@@ -518,7 +502,6 @@ func (c *Client) reverseRequest(id json.RawMessage, method string, params json.R
 		bound, active, p := c.sessionID, c.turnActive, c.pending
 		denied := ok && sessionID == bound && active && p != nil && p.method == "session/prompt"
 		if denied {
-			c.turnDenied = true
 			p.denied = true
 		}
 		c.mu.Unlock()
@@ -597,18 +580,27 @@ func (c *Client) fail(err error) {
 	if err == nil {
 		err = ErrClosed
 	}
-	c.failOnce.Do(func() {
-		c.mu.Lock()
-		c.err = err
-		p := c.pending
-		c.pending = nil
-		close(c.done)
-		c.mu.Unlock()
-		if p != nil {
-			p.ch <- response{err: err}
-		}
+	c.mu.Lock()
+	closeStream := c.failLocked(err)
+	c.mu.Unlock()
+	if closeStream {
 		_ = c.stream.Close()
-	})
+	}
+}
+
+// failLocked publishes a terminal error and the pending request's outcome as
+// one atomic state transition. The caller closes the stream after unlocking.
+func (c *Client) failLocked(err error) bool {
+	if c.err != nil {
+		return false
+	}
+	c.err = err
+	if p := c.pending; p != nil {
+		p.ch <- response{err: err}
+		c.pending = nil
+	}
+	close(c.done)
+	return true
 }
 
 func marshalFrame(value any, max int) ([]byte, error) {

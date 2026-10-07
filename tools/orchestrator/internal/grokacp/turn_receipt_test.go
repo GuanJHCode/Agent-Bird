@@ -20,7 +20,7 @@ func TestClientPromptReturnsExactCompletionReceipts(t *testing.T) {
 
 	prompt := "继续：\u4f60\u597d"
 	rawResponses := []string{
-		`{"jsonrpc":"2.0", "id":3,"result":{"stopReason":"end_turn"}}`,
+		" \t" + `{"jsonrpc":"2.0", "id":3,"result":{"stopReason":"end_turn"}}` + " \r",
 		`{"jsonrpc":"2.0","id":4,"result":{"stopReason":"end_turn"}}`,
 	}
 	actorDone := make(chan error, 1)

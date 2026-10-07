@@ -3,7 +3,9 @@ package grokacp
 import (
 	"bufio"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -102,11 +104,18 @@ func TestGrokACPStartDuplexOwnedActor(t *testing.T) {
 	if err != nil || sessionID != "fixture-session" {
 		t.Fatalf("NewSession id=%q err=%v", sessionID, err)
 	}
-	for _, text := range []string{"one", "two"} {
+	originalIdentity := handle.Identity()
+	for i, text := range []string{"one", "two"} {
 		turn, err := client.Prompt(ctx, sessionID, text)
-		if err != nil || turn.StopReason != "end_turn" {
+		wantID := uint64(i + 3)
+		wantResponse := fmt.Sprintf(`{"jsonrpc":"2.0","id":%d,"result":{"stopReason":"end_turn"}}`, wantID)
+		if err != nil || turn.StopReason != "end_turn" || turn.SessionID != sessionID || turn.RPCRequestID != wantID || turn.PromptSHA256 != fmt.Sprintf("%x", sha256.Sum256([]byte(text))) || turn.ResponseSHA256 != fmt.Sprintf("%x", sha256.Sum256([]byte(wantResponse))) {
 			t.Fatalf("Prompt(%q) turn=%#v err=%v", text, turn, err)
 		}
+		if handle.Identity() != originalIdentity {
+			t.Fatal("original process identity changed between ACP turns")
+		}
+		t.Logf("native_actor_receipt session=%q rpc_id=%d prompt_sha256=%s response_sha256=%s", turn.SessionID, turn.RPCRequestID, turn.PromptSHA256, turn.ResponseSHA256)
 	}
 	closer, ok := stream.(interface{ CloseWrite() error })
 	if !ok {

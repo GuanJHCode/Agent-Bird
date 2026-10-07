@@ -7,17 +7,45 @@
   ],
   "raw_go_test_terminal_events": {
     "ordinary": [
-      {"Time":"2026-10-07T22:19:37.890629+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp"},
-      {"Time":"2026-10-07T22:19:38.235755+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp","Elapsed":0.345}
+      {
+        "Time": "2026-10-07T22:19:37.890629+08:00",
+        "Action": "start",
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp"
+      },
+      {
+        "Time": "2026-10-07T22:19:38.235755+08:00",
+        "Action": "pass",
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp",
+        "Elapsed": 0.345
+      }
     ],
     "race": [
-      {"Time":"2026-10-07T22:19:44.295508+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp"},
-      {"Time":"2026-10-07T22:19:45.760577+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp","Elapsed":1.465}
+      {
+        "Time": "2026-10-07T22:19:44.295508+08:00",
+        "Action": "start",
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp"
+      },
+      {
+        "Time": "2026-10-07T22:19:45.760577+08:00",
+        "Action": "pass",
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp",
+        "Elapsed": 1.465
+      }
     ]
   },
   "top": {
-    "ordinary": {"pass": 21, "skip": 1, "fail": 0, "elapsed_seconds": 0.345},
-    "race": {"pass": 21, "skip": 1, "fail": 0, "elapsed_seconds": 1.465}
+    "ordinary": {
+      "pass": 21,
+      "skip": 1,
+      "fail": 0,
+      "elapsed_seconds": 0.345
+    },
+    "race": {
+      "pass": 21,
+      "skip": 1,
+      "fail": 0,
+      "elapsed_seconds": 1.465
+    }
   },
   "named": {
     "TestClientPromptReturnsExactCompletionReceipts": "pass",
@@ -34,7 +62,12 @@
     "TestClientRejectsPermissionAfterPromptCompletionWithoutRevokingReceipt": "pass"
   },
   "skip": [
-    {"test":"TestGrokACPStartDuplexOwnedActor","reason":"native process token required; GROKACP_NATIVE was intentionally not set"}
+    {
+      "test": "TestGrokACPStartDuplexOwnedActor",
+      "reason": "native process token required; GROKACP_NATIVE was intentionally not set"
+    }
   ],
-  "fail": []
+  "fail": [],
+  "superseded_by": "root-receipt.json",
+  "status": "historical pre-ROOT repair; not final acceptance"
 }

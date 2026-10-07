@@ -8,11 +8,17 @@ frame body. The latter excludes only the terminal NDJSON LF; JSON whitespace is
 therefore part of the digest.
 
 EOF, a truncated frame, JSON-RPC error, protocol error, permission denial, and
-cancellation return the zero `Turn` together with their existing error. They do
-not produce a completion receipt.
+cancellation that win before completion return the zero `Turn` with the error.
 
 Response acceptance and cancellation compete for the same pending request. A
 response that wins cannot be invalidated by a late context callback or poison a
 following RPC. Permission denial is frozen at response acceptance. A later
-permission request is unsolicited, closes the strict protocol, and does not
-revoke the receipt that was already returned.
+permission request is unsolicited and closes the strict protocol. A completed
+request retains its receipt even if its caller has not yet been scheduled to
+return it. Future calls observe the terminal client error.
+
+The original Prompt owns turnActive until it returns; pending closes only the
+permission window. All request outcomes, cancellation and terminal state are
+published under the same mutex. Each request channel receives exactly one
+outcome before its pending slot is released. The client done channel cannot
+override that result. Stream close runs after publication, outside the mutex.
