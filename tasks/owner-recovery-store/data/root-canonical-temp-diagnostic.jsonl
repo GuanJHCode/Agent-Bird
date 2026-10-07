@@ -1,0 +1,8 @@
+{"Time":"2026-10-08T07:26:03.652165+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"}
+{"Time":"2026-10-08T07:26:04.047667+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestAcceptedArtifactsConsumeTransactionalQuota"}
+{"Time":"2026-10-08T07:26:04.047731+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestAcceptedArtifactsConsumeTransactionalQuota","Output":"=== RUN   TestAcceptedArtifactsConsumeTransactionalQuota\n"}
+{"Time":"2026-10-08T07:26:04.203784+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestAcceptedArtifactsConsumeTransactionalQuota","Output":"--- PASS: TestAcceptedArtifactsConsumeTransactionalQuota (0.16s)\n"}
+{"Time":"2026-10-08T07:26:04.203833+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestAcceptedArtifactsConsumeTransactionalQuota","Elapsed":0.16}
+{"Time":"2026-10-08T07:26:04.203885+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Output":"PASS\n"}
+{"Time":"2026-10-08T07:26:04.204632+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Output":"ok  \tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store\t0.552s\n"}
+{"Time":"2026-10-08T07:26:04.204656+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Elapsed":0.552}

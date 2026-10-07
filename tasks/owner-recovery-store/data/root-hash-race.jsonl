@@ -1,0 +1,8 @@
+{"Time":"2026-10-08T07:28:17.538899+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"}
+{"Time":"2026-10-08T07:28:17.927336+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract","Test":"TestOriginalOwnerRecoveryScopePreservesV2Domain"}
+{"Time":"2026-10-08T07:28:17.927395+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract","Test":"TestOriginalOwnerRecoveryScopePreservesV2Domain","Output":"=== RUN   TestOriginalOwnerRecoveryScopePreservesV2Domain\n"}
+{"Time":"2026-10-08T07:28:17.933321+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract","Test":"TestOriginalOwnerRecoveryScopePreservesV2Domain","Output":"--- PASS: TestOriginalOwnerRecoveryScopePreservesV2Domain (0.01s)\n"}
+{"Time":"2026-10-08T07:28:17.933343+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract","Test":"TestOriginalOwnerRecoveryScopePreservesV2Domain","Elapsed":0.01}
+{"Time":"2026-10-08T07:28:17.933356+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract","Output":"PASS\n"}
+{"Time":"2026-10-08T07:28:18.9357+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract","Output":"ok  \tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract\t1.397s\n"}
+{"Time":"2026-10-08T07:28:18.935751+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract","Elapsed":1.397}
