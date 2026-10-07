@@ -28,7 +28,7 @@ Grok 只读内置工具限制为 read_file/list_dir/grep；编码增加文件编
 
 本仓库的测试使用合成 fixture 和本地受控子进程。多 Provider 的真实模型并发、任意版本/模型组合和无监督长任务不由这些测试证明。真实 Provider 测试默认 opt-in，运行会消耗对应账号额度。
 
-Claude/AGY Hook 适配、Codex attached bridge 的源码和受控测试不等于真实下一轮或原生 TUI 消费已验收。Grok 自动回注尚未实现；显式 collect 只证明主动收集。完整崩溃/重放窗口、60 分钟双 Worker 组合及 Intel Mac/Linux/Windows 完整原生支持仍未完成。Linux arm64 已在本机隔离容器验证报告文件准入、进程身份/祖先/executable/组观察、Unix socket 凭证及 Coordinator 本地 owner/worker 控制边界；补充原生验证已覆盖组长退出后存活成员，以及未回收僵尸的 UNKNOWN 边界（原 Wait/自然 pipe EOF），见 [进程组证据](../tasks/linux-group-native/docs/native.md)。Provider 执行、sandbox 和安装入口仍关闭，详见 [Linux 验收范围](../tasks/linux-identity/docs/coordinator-native.md)。
+Claude/AGY Hook 适配、Codex attached bridge 的源码和受控测试不等于真实下一轮或原生 TUI 消费已验收。Grok 自动回注尚未实现；显式 collect 只证明主动收集。完整崩溃/重放窗口、60 分钟双 Worker 组合及 Intel Mac/Linux/Windows 完整原生支持仍未完成。Linux arm64 已在本机隔离容器验证报告文件准入、进程身份/祖先/executable/组观察、Unix socket 凭证及 Coordinator 本地 owner/worker 控制边界；补充原生验证已覆盖组长退出后存活成员，以及未回收僵尸的 UNKNOWN 边界（原 Wait/自然 pipe EOF），见 [进程组证据](../tasks/linux-group-native/docs/native.md)。Linux `collect-only-hooks` 的 `plugin-run -- check` 已完成容器内真实打包/私有安装、Doctor及重复安装验收，见 [Linux 安装范围](../tasks/linux-portable-check/docs/acceptance.md)。其他portable action、Provider执行和sandbox仍关闭；进程/IPC范围见 [Linux 验收范围](../tasks/linux-identity/docs/coordinator-native.md)。
 
 候选开发拒绝 Git LFS/filter、自定义 hooks 等执行扩展。权限不足或输入不明确时明确阻塞，不自动修改用户全局 Git 或 Provider 配置。
 

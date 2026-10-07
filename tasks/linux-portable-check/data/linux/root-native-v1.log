@@ -1,0 +1,4 @@
+=== RUN   TestLinuxPortablePackageCheckNative
+    linux_portable_native_test.go:122: private installed directory /tmp/TestLinuxPortablePackageCheckNative3852011804/001/state stat /tmp/TestLinuxPortablePackageCheckNative3852011804/001/state: no such file or directory
+--- FAIL: TestLinuxPortablePackageCheckNative (0.58s)
+FAIL

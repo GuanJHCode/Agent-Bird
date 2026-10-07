@@ -1,0 +1,19 @@
+{
+  "time": "2026-10-07T21:48:43+0800",
+  "owned": [
+    {
+      "pid": 67512,
+      "ppid": 1,
+      "birth": "Wed Oct 7 21:42:47 2026",
+      "exe": "/private/var/folders/y_/9wqjj5ws6v9ggszdzytmxdlc0000gn/T/agy-cli-854569323/bin/codex-orchestrator"
+    }
+  ],
+  "actions": [
+    [
+      67512,
+      "SIGTERM+SIGCONT"
+    ]
+  ],
+  "remaining": [],
+  "original_wait_proven": false
+}

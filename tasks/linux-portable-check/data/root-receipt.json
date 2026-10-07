@@ -1,0 +1,65 @@
+{
+  "base": "2a7968aaea1ed4faa9f939a6554b28ce76c09d0f",
+  "production_commit": "ad62be9e5eef51c52bb2ccc8c0ae631ea341507e",
+  "source_sha256": {
+    "tools/orchestrator/cmd/orchestrator/plugin_run.go": "4a9c7906d4302e6148844eba7ba5cba30946422f487a3bdf2e346f4f1d40f447",
+    "tools/orchestrator/cmd/orchestrator/plugin_run_test.go": "47d81a32e2cf55b029bed6a00515ce5f23d070bb73cd08c190fc8099a993a205",
+    "tools/orchestrator/cmd/orchestrator/linux_portable_native_test.go": "5b3ea41151a3bc73b34f3c444aaf880e7a1e8a50406d74f45ce7d9f1f873e367",
+    "tools/orchestrator/internal/install/portable.go": "06b535f7c6715eb554a031908c98ce949268d59791921f014cf0eb8f2f51c898",
+    "tools/orchestrator/go.mod": "de66f3a2bcfd7c31a74e2703979d7752bcbee350bf2300ccb7e203425b180b9f",
+    "tools/orchestrator/go.sum": "f1d01b4113f61f7212fb51fb291aa9af09ed586e88149bf6df1cced4fc0d92dd",
+    "tasks/linux-portable-check/scripts/run-linux-portable-check.py": "fb6e4ac4398467ff25dcafb2859da79a49d93cf648a19e4ac7120e66f0e55a44"
+  },
+  "checks": [
+    {
+      "log": "root-install-full.jsonl",
+      "sha256": "17302c0b7c78faae36a9b233677a4d7d04d26c2f3f34aec79d518cf679de1f3b",
+      "pass_named": 345,
+      "pass_top": 109,
+      "fail_named": 0,
+      "fail_top": 0,
+      "skip_named": 1,
+      "skip_top": 1,
+      "package_terminal": [
+        {
+          "Time": "2026-10-07T22:00:45.16616+08:00",
+          "Action": "pass",
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/install",
+          "Elapsed": 39.024
+        }
+      ],
+      "skipped": [
+        "TestC11InstallPublicationCrashHelper"
+      ]
+    },
+    {
+      "log": "root-cli-focused.jsonl",
+      "sha256": "38a0b215ba1a7e4c33245bf1c8f54d7d88498db7b8cfc3a0259d4e8799bf4042",
+      "pass_named": 9,
+      "pass_top": 3,
+      "fail_named": 0,
+      "fail_top": 0,
+      "skip_named": 0,
+      "skip_top": 0,
+      "package_terminal": [
+        {
+          "Time": "2026-10-07T22:00:47.791448+08:00",
+          "Action": "pass",
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+          "Elapsed": 0.711
+        }
+      ],
+      "skipped": []
+    }
+  ],
+  "vet_exit": 0,
+  "linux_native_receipt": "linux/root-native-v2-receipt.json",
+  "original_wait_for_linux_cli_children": true,
+  "worker_timed_out_suites_pass": false,
+  "full_cli_suite_pass": false,
+  "full_cli_limitations": [
+    "worker full suite hit deadline; exact original child Wait not proven",
+    "two existing F10 resume-after-owner-exit regressions remain open"
+  ],
+  "review": "independent security reviewer PASS for ad62be9 product source; ROOT fixes only test harness/script"
+}
