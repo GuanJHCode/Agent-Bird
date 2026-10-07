@@ -14,3 +14,5 @@ Open: deadBoth+existinglease actualroute, separatepending successorHostsession+S
 
 共享DTO冻结：HostHello.ResumeCommandID可选字段是stale-start selector；HostIdentitySHA256清除selector保持v1，recovery scope不含selector。HostPresenceResponse.OwnerPhase/SuccessorCommandID由服务端填充。真实behaviorRED是selector改变identity/disposition，修后完整contract race {'pass': 291, 'fail': 0, 'skip': 0}。独立小delta审查PASS。新增Store OriginalOwnerResumeRequestSHA256纯wrapper供CLI核对回执，原hash校验/编码不变。
 后续状态约定：OwnerPhase=succession_pending仅无current且唯一未消费授权；intended/bound为current owner phase，SuccessorCommandID是其incoming授权命令（初代为空）。CLI successormode只有command精确一致+succession_pending+old_host_exited才一次coldstart，将同一command放Hello；intended/bound只等待、不创建另一signer。旧receipt与当前command不匹配只读返回原receipt。Coordinator新Host admission仍必须重新从durable launch解析并exact匹配，Presence本身不构成授权。
+
+Successor admission最终验收见admission-validation.md/root-admission-receipt.json。ROOT所有本批测试/容器terminal，无owned binary残留；Source冻结，等待合并CLI后的公开integration。文件handoff worker在独立tmp/owner-recovery-handoff实现，不在本批closure内。

@@ -19,9 +19,21 @@ func (s *Server) hostPresence(ctx context.Context, request HostStatusRequest) (j
 	if err != nil {
 		return nil, err
 	}
-	response := contract.HostPresenceResponse{Status: snapshot.Status, Presence: "unknown", ExecutionOwnerMode: snapshot.ExecutionOwnerMode}
+	response := contract.HostPresenceResponse{Status: snapshot.Status, Presence: "unknown", ExecutionOwnerMode: snapshot.ExecutionOwnerMode, OwnerPhase: snapshot.OwnerPhase, SuccessorCommandID: snapshot.SuccessorCommandID}
 	if !snapshot.Registered {
 		response.Presence = "unregistered"
+	} else if snapshot.ExecutionOwnerMode == "supervised-v1" {
+		// The legacy boolean helper also treats PID reuse as exit. A
+		// supervised cold-start selector requires positively observed exit;
+		// Reused/Unknown must never be presented as permission to start.
+		identity, observeErr := process.ObserveIdentityContext(ctx, snapshot.PID, snapshot.Birth)
+		if observeErr == nil && identity == process.IdentityExited {
+			response.Presence = "old_host_exited"
+		} else if observeErr == nil && identity == process.IdentityAlive {
+			if path, err := process.ExecutablePath(snapshot.PID); err == nil && path == snapshot.Executable {
+				response.Presence = "same_host_alive"
+			}
+		}
 	} else if exited, err := hostIdentityExited(snapshot.PID, snapshot.Birth); err == nil {
 		if exited {
 			response.Presence = "old_host_exited"

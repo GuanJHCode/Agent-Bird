@@ -3,6 +3,7 @@ package contract
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"testing"
 )
 
@@ -24,5 +25,12 @@ func TestHostResumeSelectorDoesNotChangePhysicalIdentityOrScope(t *testing.T) {
 	hello.Birth = "another-process"
 	if HostIdentitySHA256(hello) == want || disposition.AuthenticatedBy(hello) {
 		t.Fatal("physical birth is no longer bound")
+	}
+}
+
+func TestHostPresenceWithoutSuccessorKeepsLegacyWire(t *testing.T) {
+	body, err := json.Marshal(HostPresenceResponse{Status: "ready", Presence: "same_host_alive", ExecutionOwnerMode: "legacy"})
+	if err != nil || string(body) != `{"status":"ready","presence":"same_host_alive","execution_owner_mode":"legacy"}` {
+		t.Fatal("legacy presence changed", string(body), err)
 	}
 }

@@ -57,19 +57,46 @@ func TestOriginalOwnerRuntimeChild(t *testing.T) {
 	}
 }
 
-type ownerRuntimeSleep struct{ marker string }
+// A controlled worker from this test binary avoids shell aliases and platform
+// specific directories. Production process pin/canonical-path checks stay on.
+func TestOriginalOwnerRuntimeWorker(t *testing.T) {
+	if os.Getenv("ORCHESTRATOR_OWNER_RUNTIME_WORKER") != "1" {
+		return
+	}
+	marker := os.Getenv("OWNER_RUNTIME_MARKER")
+	f, err := os.OpenFile(marker, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = f.WriteString(strconv.Itoa(os.Getpid()) + "\n")
+	closeErr := f.Close()
+	if err != nil || closeErr != nil {
+		t.Fatal("worker marker", err, closeErr)
+	}
+	time.Sleep(30 * time.Second)
+}
+
+type ownerRuntimeSleep struct{ marker, binary string }
 
 func (i ownerRuntimeSleep) Args() []string {
-	return []string{"/bin/sh", "-c", "echo $$ >> \"$OWNER_RUNTIME_MARKER\"; exec /bin/sleep 30"}
+	return []string{i.binary, "-test.run=^TestOriginalOwnerRuntimeWorker$"}
 }
-func (ownerRuntimeSleep) WorkingDirectory() string { return "/private/tmp" }
-func (ownerRuntimeSleep) Stdin() []byte            { return nil }
+func (i ownerRuntimeSleep) WorkingDirectory() string { return filepath.Dir(i.marker) }
+func (ownerRuntimeSleep) Stdin() []byte              { return nil }
 func (i ownerRuntimeSleep) Environment() map[string]string {
-	return map[string]string{"OWNER_RUNTIME_MARKER": i.marker}
+	return map[string]string{"OWNER_RUNTIME_MARKER": i.marker, "ORCHESTRATOR_OWNER_RUNTIME_WORKER": "1"}
 }
 
 func ownerRuntimeSleepInvocation(context.Context, contract.LaunchCommand) (contract.InvocationView, error) {
-	return ownerRuntimeSleep{marker: os.Getenv("OWNER_RUNTIME_MARKER")}, nil
+	binary, err := os.Executable()
+	if err != nil {
+		return nil, err
+	}
+	binary, err = filepath.EvalSymlinks(binary)
+	if err != nil {
+		return nil, err
+	}
+	return ownerRuntimeSleep{marker: os.Getenv("OWNER_RUNTIME_MARKER"), binary: binary}, nil
 }
 
 // startRealOwnerRuntimeChild gives recovery tests a real FD3/FD4 owner while

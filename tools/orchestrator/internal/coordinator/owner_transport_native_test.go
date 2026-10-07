@@ -121,13 +121,18 @@ func runOwnerTransportTestChild(t *testing.T, cfg ownerChildConfig, dec *json.De
 }
 
 func TestOriginalOwnerNativeTransportTicketAttachAndReplay(t *testing.T) {
-	for _, scenario := range []string{"replacement", "replay_reconnect", "replay_restart", "foreign_host"} {
+	for _, scenario := range []string{"replacement", "replay_reconnect", "replay_restart", "foreign_host", "successor_replacement"} {
 		t.Run(scenario, func(t *testing.T) { testOriginalOwnerNativeTransportTicket(t, scenario) })
 	}
 }
 
 func testOriginalOwnerNativeTransportTicket(t *testing.T, scenario string) {
 	s, hello, stopServe := ownerRuntimeFixtureWithCancel(t)
+	if scenario == "successor_replacement" {
+		stopServe()
+		_ = s.Close()
+		s, hello = successorTransportFixture(t)
+	}
 	ctx := context.Background()
 	// First-bind is a Store fixture only. Subsequent ticket/credential/Hello/
 	// Attach are real private RPCs with fresh kernel peers and a real child tree.
@@ -135,14 +140,21 @@ func testOriginalOwnerNativeTransportTicket(t *testing.T, scenario string) {
 	oldIdentity := oldStep(ownerChildStep{Kind: "identity"}).Owner
 	old := hello
 	old.PID, old.Birth = oldIdentity.PID, oldIdentity.Birth
-	if _, err := s.db.RegisterHost(ctx, old, s.epoch); err != nil {
-		t.Fatal(err)
-	}
 	digest, err := process.ExecutableDigest(ctx, hello.Executable)
 	if err != nil {
 		t.Fatal(err)
 	}
-	scope, err := s.db.PreviewOriginalOwnerScope(ctx, old, s.epoch, digest)
+	var scope contract.OriginalOwnerScope
+	var admission store.SuccessorOwnerAdmission
+	if scenario == "successor_replacement" {
+		admission, err = s.db.ResolveSuccessorOwnerAdmission(ctx, old, s.epoch, digest)
+		scope = admission.Scope
+	} else {
+		if _, err = s.db.RegisterHost(ctx, old, s.epoch); err != nil {
+			t.Fatal(err)
+		}
+		scope, err = s.db.PreviewOriginalOwnerScope(ctx, old, s.epoch, digest)
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -151,7 +163,13 @@ func testOriginalOwnerNativeTransportTicket(t *testing.T, scenario string) {
 	}
 	bootstrap := strings.Repeat("a", 64)
 	hash, _ := contract.OriginalOwnerBootstrapSHA256(bootstrap)
-	intent, err := s.db.PrepareOriginalOwner(ctx, store.PrepareOriginalOwnerSpec{Host: old, Epoch: s.epoch, ExecutableSHA256: digest, BootstrapID: "transport-fixture", BootstrapTokenSHA256: hash, CoordinatorKeyID: s.ownerKeys.id, RequestID: "transport-intent", RequestSHA256: strings.Repeat("b", 64), StartupDeadlineUnixMS: time.Now().Add(20 * time.Second).UnixMilli()})
+	spec := store.PrepareOriginalOwnerSpec{Host: old, Epoch: s.epoch, ExecutableSHA256: digest, BootstrapID: "transport-fixture", BootstrapTokenSHA256: hash, CoordinatorKeyID: s.ownerKeys.id, RequestID: "transport-intent", RequestSHA256: strings.Repeat("b", 64), StartupDeadlineUnixMS: time.Now().Add(20 * time.Second).UnixMilli()}
+	var intent contract.OriginalOwnerIntent
+	if scenario == "successor_replacement" {
+		intent, err = s.db.PrepareSuccessorOwner(ctx, store.PrepareSuccessorOwnerSpec{PrepareOriginalOwnerSpec: spec, AuthorizationID: admission.AuthorizationID})
+	} else {
+		intent, err = s.db.PrepareOriginalOwner(ctx, spec)
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -418,7 +436,17 @@ func testOriginalOwnerNativeTransportTicket(t *testing.T, scenario string) {
 		}
 	}
 	readFrame(childCall(ownerChildStep{Kind: "read"}), ipc.KindHostReady)
-	readFrame(childCall(ownerChildStep{Kind: "read"}), ipc.KindOwnerCommand)
+	if scenario == "successor_replacement" {
+		// This scenario proves selector-free transport replacement, not task
+		// Resume: its synthetic interrupted predecessor has no prior attempt.
+		// Readiness and exact current transport still require Applied/Activate.
+		current, err := s.db.CurrentOriginalOwnerForLaunch(ctx, hello.LaunchID)
+		if err != nil || current.CurrentHost == nil || *current.CurrentHost != pending.NewHost || current.ControlRevision != 2 || current.AppliedControlRevision != 2 || current.Intent.Scope.Incarnation != 2 {
+			t.Fatal("successor replacement did not reach exact applied transport", current, err)
+		}
+	} else {
+		readFrame(childCall(ownerChildStep{Kind: "read"}), ipc.KindOwnerCommand)
+	}
 	// Hard Close precedes Serve cancellation to model a crash, not signed
 	// normal shutdown (which deliberately fences this exact transport forever).
 	// Current child reconnects from Store authority even after epoch-local ticket

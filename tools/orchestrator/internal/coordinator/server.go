@@ -182,19 +182,20 @@ type ErrorResponse struct {
 }
 
 type hostSession struct {
-	ownerPermit     *contract.OwnerControlPermit   // immutable before dispatch publication
-	ownerTicket     *contract.OwnerTransportTicket // immutable pending enrollment
-	ownerKey        ed25519.PrivateKey
-	helloRequestID  string
-	transportClosed atomic.Bool
-	supervised      bool
-	terminalSent    bool // guarded by send mu
-	id              string
-	hello           contract.HostHello
-	conn            net.Conn
-	mu              sync.Mutex
-	dispatchMu      sync.Mutex
-	failed          bool // guarded by dispatchMu; a failed transport cannot claim again
+	successorAuthorizationID string                         // private immutable selection; never decoded from HostHello
+	ownerPermit              *contract.OwnerControlPermit   // immutable before dispatch publication
+	ownerTicket              *contract.OwnerTransportTicket // immutable pending enrollment
+	ownerKey                 ed25519.PrivateKey
+	helloRequestID           string
+	transportClosed          atomic.Bool
+	supervised               bool
+	terminalSent             bool // guarded by send mu
+	id                       string
+	hello                    contract.HostHello
+	conn                     net.Conn
+	mu                       sync.Mutex
+	dispatchMu               sync.Mutex
+	failed                   bool // guarded by dispatchMu; a failed transport cannot claim again
 }
 
 func (h *hostSession) send(message ipc.Envelope) error {
@@ -214,26 +215,27 @@ func (h *hostSession) send(message ipc.Envelope) error {
 }
 
 type Server struct {
-	cliSupervised      bool
-	ownerKeys          *originalOwnerKeys
-	stateDir           string
-	socket             string
-	epoch              uint64
-	lock               *instance.Lock
-	db                 *store.DB
-	listener           net.Listener
-	mu                 sync.Mutex
-	hostRegistrationMu sync.Mutex
-	hosts              map[string]*hostSession
-	ownerTransports    map[string]*hostSession               // pending and active, guarded by mu
-	ownerTickets       map[string]*ownerTransportTicketState // mutation holds registration and mu
-	ownerAdmission     chan struct{}
-	ownerRPCMu         sync.Mutex
-	ownerRPCs          map[net.Conn]struct{}
-	ownerRPCWG         sync.WaitGroup
-	ownerListener      net.Listener
-	ownerSocket        string
-	ownerAcceptDone    chan struct{}
+	cliSupervised       bool
+	ownerKeys           *originalOwnerKeys
+	stateDir            string
+	socket              string
+	epoch               uint64
+	lock                *instance.Lock
+	db                  *store.DB
+	listener            net.Listener
+	mu                  sync.Mutex
+	hostRegistrationMu  sync.Mutex
+	hosts               map[string]*hostSession
+	ownerTransports     map[string]*hostSession               // pending and active, guarded by mu
+	successorTransports map[string]*hostSession               // uncommitted successor sessions; never dispatched
+	ownerTickets        map[string]*ownerTransportTicketState // mutation holds registration and mu
+	ownerAdmission      chan struct{}
+	ownerRPCMu          sync.Mutex
+	ownerRPCs           map[net.Conn]struct{}
+	ownerRPCWG          sync.WaitGroup
+	ownerListener       net.Listener
+	ownerSocket         string
+	ownerAcceptDone     chan struct{}
 	// ownerRPCReplyHook is a narrow test seam for simulating a reply lost after
 	// the durable owner mutation. Production never installs it.
 	ownerRPCReplyHook func(contract.OwnerRPCRequest) bool
@@ -356,6 +358,7 @@ func newServer(stateDir string, recovery bool) (*Server, error) {
 	}
 	server := &Server{ownerKeys: ownerKeys, stateDir: stateDir, socket: socket, epoch: lock.Epoch(), lock: lock, db: db, listener: listener, hosts: make(map[string]*hostSession), ownerTransports: make(map[string]*hostSession), idleTimeout: 30 * time.Second, eventSignal: make(chan struct{}), bridgeConnections: make(map[net.Conn]struct{}), bridgeAdmission: make(chan struct{}, 32)}
 	server.ownerAdmission = make(chan struct{}, 32)
+	server.successorTransports = make(map[string]*hostSession)
 	server.ownerRPCs = make(map[net.Conn]struct{})
 	if err = server.startOriginalOwnerListener(); err != nil {
 		_ = server.Close()
@@ -576,6 +579,10 @@ func (s *Server) Close() error {
 		for _, host := range s.ownerTransports {
 			_ = host.conn.Close()
 		}
+		for _, host := range s.successorTransports {
+			_ = host.conn.Close()
+		}
+		s.successorTransports = nil
 		s.ownerTransports = nil
 		s.hosts = nil
 		s.mu.Unlock()
@@ -1131,6 +1138,16 @@ func (s *Server) handleHost(ctx context.Context, conn net.Conn, message ipc.Enve
 		_ = conn.Close()
 		return
 	}
+	var helloFields map[string]json.RawMessage
+	_ = json.Unmarshal(message.Payload, &helloFields)
+	if _, present := helloFields["resume_command_id"]; present {
+		// A selector must be a nonempty exact string. The stricter owner
+		// decoder also rejects duplicate keys and invalid UTF-8 in this form.
+		if hello.ResumeCommandID == "" || contract.DecodeOwnerRuntimeStrict(message.Payload, &hello) != nil {
+			_ = conn.Close()
+			return
+		}
+	}
 	if err := s.authorizeHostHello(ctx, conn, hello); err != nil {
 		_ = sendError(conn, message.RequestID, s.epoch, store.ErrHostRejected)
 		_ = conn.Close()
@@ -1143,6 +1160,11 @@ func (s *Server) handleHost(ctx context.Context, conn net.Conn, message ipc.Enve
 	}
 	if mode == "supervised-v1" {
 		s.handleOriginalOwnerTransport(ctx, conn, message, hello)
+		return
+	}
+	if hello.ResumeCommandID != "" {
+		_ = sendError(conn, message.RequestID, s.epoch, store.ErrHostRejected)
+		_ = conn.Close()
 		return
 	}
 	s.hostRegistrationMu.Lock()

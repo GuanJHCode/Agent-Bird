@@ -11,6 +11,9 @@ import (
 // changing registration or reconciliation state. RegisterHost rechecks this binding.
 func (d *DB) ValidateHostHello(ctx context.Context, hello contract.HostHello) (RunOwnerBinding, error) {
 	var owner RunOwnerBinding
+	if hello.ResumeCommandID != "" && !validHostResumeSelector(hello.ResumeCommandID) {
+		return owner, ErrHostRejected
+	}
 	if hello.LaunchID == "" || hello.LaunchToken == "" || hello.OriginContextID == "" || hello.OriginPID <= 0 || hello.OriginBirth == "" || hello.HostGeneration == "" || hello.PID <= 0 || hello.Birth == "" || hello.Executable == "" {
 		return owner, ErrHostRejected
 	}

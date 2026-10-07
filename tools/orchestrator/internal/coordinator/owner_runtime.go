@@ -101,6 +101,33 @@ func (s *Server) registerOriginalOwnerTransport(ctx context.Context, conn net.Co
 	if released, err := s.db.ReleasedHostIdentity(ctx, hello); err != nil || released {
 		return nil, pending, ownerRejected()
 	}
+	currentOwner, currentErr := s.db.CurrentOriginalOwnerForLaunch(ctx, hello.LaunchID)
+	if currentErr != nil && !errors.Is(currentErr, store.ErrNotFound) {
+		return nil, pending, currentErr
+	}
+	if currentErr == nil && currentOwner.SuccessionAuthorizationID != "" && currentOwner.Intent.FirstHost == (contract.OriginalOwnerTransport{PID: hello.PID, Birth: hello.Birth}) && hello.ResumeCommandID == "" {
+		// Omission must not turn a successor FirstHost into an ordinary
+		// registration. Later owner-issued replacement transports still use
+		// their existing exact ticket/current-transport path without a selector.
+		return nil, pending, ownerRejected()
+	}
+	successionID := ""
+	if hello.ResumeCommandID != "" {
+		digest, err := process.ExecutableDigest(ctx, hello.Executable)
+		if err != nil {
+			return nil, pending, ownerRejected()
+		}
+		admission, err := s.db.ResolveSuccessorOwnerAdmission(ctx, hello, s.epoch, digest)
+		if err != nil {
+			return nil, pending, err
+		}
+		if admission.OwnerPhase != "bound" {
+			return s.registerSuccessorOwnerTransport(conn, requestID, hello, admission)
+		}
+		// Only this already-bound exact physical FirstHost can reconnect via
+		// ordinary registration; it cannot allocate another owner.
+		successionID = admission.AuthorizationID
+	}
 	var ticket *contract.OwnerTransportTicket
 	hostID := ""
 	binding, bindingErr := s.db.HostBinding(ctx, hello.LaunchID)
@@ -127,7 +154,7 @@ func (s *Server) registerOriginalOwnerTransport(ctx context.Context, conn net.Co
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return nil, pending, err
 	}
-	session := &hostSession{id: hostID, hello: hello, conn: conn, helloRequestID: requestID, supervised: true, ownerTicket: ticket}
+	session := &hostSession{id: hostID, hello: hello, conn: conn, helloRequestID: requestID, supervised: true, ownerTicket: ticket, successorAuthorizationID: successionID}
 	s.mu.Lock()
 	if s.closed.Load() {
 		s.mu.Unlock()
@@ -150,7 +177,7 @@ func (s *Server) prepareOriginalOwner(ctx context.Context, session *hostSession,
 		return zero, ownerRejected()
 	}
 	s.mu.Lock()
-	current := s.ownerTransports[session.id] == session
+	current := s.ownerTransports[session.id] == session || s.successorTransports[session.id] == session
 	s.mu.Unlock()
 	if !current || s.terminating.Load() {
 		return zero, ownerRejected()
@@ -172,7 +199,12 @@ func (s *Server) prepareOriginalOwner(ctx context.Context, session *hostSession,
 	if err != nil {
 		return zero, ownerRejected()
 	}
-	scope, err := s.db.PreviewOriginalOwnerScope(ctx, session.hello, s.epoch, digest)
+	var scope contract.OriginalOwnerScope
+	if session.successorAuthorizationID != "" {
+		scope, err = s.db.PreviewSuccessorOwnerScope(ctx, session.hello, s.epoch, digest, session.successorAuthorizationID)
+	} else {
+		scope, err = s.db.PreviewOriginalOwnerScope(ctx, session.hello, s.epoch, digest)
+	}
 	if err != nil {
 		return zero, err
 	}
@@ -181,7 +213,16 @@ func (s *Server) prepareOriginalOwner(ctx context.Context, session *hostSession,
 	}
 	canonical, _ := json.Marshal(prepare)
 	hash := sha256.Sum256(canonical)
-	intent, err := s.db.PrepareOriginalOwner(ctx, store.PrepareOriginalOwnerSpec{Host: session.hello, Epoch: s.epoch, ExecutableSHA256: digest, BootstrapID: prepare.BootstrapID, BootstrapTokenSHA256: prepare.BootstrapTokenSHA256, CoordinatorKeyID: s.ownerKeys.id, RequestID: request.RequestID, RequestSHA256: hex.EncodeToString(hash[:]), StartupDeadlineUnixMS: prepare.StartupDeadlineUnixMS})
+	spec := store.PrepareOriginalOwnerSpec{Host: session.hello, Epoch: s.epoch, ExecutableSHA256: digest, BootstrapID: prepare.BootstrapID, BootstrapTokenSHA256: prepare.BootstrapTokenSHA256, CoordinatorKeyID: s.ownerKeys.id, RequestID: request.RequestID, RequestSHA256: hex.EncodeToString(hash[:]), StartupDeadlineUnixMS: prepare.StartupDeadlineUnixMS}
+	var intent contract.OriginalOwnerIntent
+	if session.successorAuthorizationID != "" {
+		intent, err = s.db.PrepareSuccessorOwner(ctx, store.PrepareSuccessorOwnerSpec{PrepareOriginalOwnerSpec: spec, AuthorizationID: session.successorAuthorizationID})
+		if err == nil {
+			err = s.promoteSuccessorOwnerTransport(session)
+		}
+	} else {
+		intent, err = s.db.PrepareOriginalOwner(ctx, spec)
+	}
 	return contract.OwnerPrepared{Intent: intent, CoordinatorPublicKey: hex.EncodeToString(s.ownerPublicKey()), RPCSocketPath: s.ownerSocket}, err
 }
 
@@ -193,6 +234,9 @@ func (s *Server) disconnectOriginalOwnerTransport(session *hostSession) {
 	s.hostRegistrationMu.Lock()
 	defer s.hostRegistrationMu.Unlock()
 	s.mu.Lock()
+	if s.successorTransports[session.id] == session {
+		delete(s.successorTransports, session.id)
+	}
 	current := s.ownerTransports[session.id] == session
 	if current {
 		delete(s.ownerTransports, session.id)

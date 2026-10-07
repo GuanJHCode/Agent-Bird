@@ -14,6 +14,7 @@ type HostPresenceSnapshot struct {
 	PID                                    int
 	Birth                                  string
 	Registered                             bool
+	OwnerPhase, SuccessorCommandID         string
 }
 
 // InspectHostPresence authenticates a launch; an OS observation is still
@@ -21,11 +22,16 @@ type HostPresenceSnapshot struct {
 func (d *DB) InspectHostPresence(ctx context.Context, launchID, token string) (HostPresenceSnapshot, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	owned, err := d.beginOwnerTransaction(ctx)
+	if err != nil {
+		return HostPresenceSnapshot{}, err
+	}
+	defer owned.close()
 	var r HostPresenceSnapshot
 	var hash string
 	var pid sql.NullInt64
 	var birth sql.NullString
-	err := d.sql.QueryRowContext(ctx, `SELECT l.token_hash,l.status,l.executable,l.execution_owner_mode,h.pid,h.birth FROM host_launches l LEFT JOIN runtime_hosts h ON h.launch_id=l.id WHERE l.id=?`, launchID).Scan(&hash, &r.Status, &r.Executable, &r.ExecutionOwnerMode, &pid, &birth)
+	err = owned.tx.QueryRowContext(ctx, `SELECT l.token_hash,l.status,l.executable,l.execution_owner_mode,h.pid,h.birth FROM host_launches l LEFT JOIN runtime_hosts h ON h.launch_id=l.id WHERE l.id=?`, launchID).Scan(&hash, &r.Status, &r.Executable, &r.ExecutionOwnerMode, &pid, &birth)
 	if err != nil || token == "" || subtle.ConstantTimeCompare([]byte(hash), []byte(runtimeHash(token))) != 1 {
 		return HostPresenceSnapshot{}, ErrHostRejected
 	}
@@ -33,6 +39,12 @@ func (d *DB) InspectHostPresence(ctx context.Context, launchID, token string) (H
 		return HostPresenceSnapshot{}, CodeError("host_recovery_identity_unknown")
 	}
 	r.Registered, r.PID, r.Birth = pid.Valid, int(pid.Int64), birth.String
+	if r.ExecutionOwnerMode == "supervised-v1" {
+		r.OwnerPhase, r.SuccessorCommandID, err = ownerSuccessorPresenceTx(ctx, owned.tx, launchID)
+		if err != nil {
+			return HostPresenceSnapshot{}, err
+		}
+	}
 	return r, nil
 }
 
