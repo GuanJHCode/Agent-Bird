@@ -161,7 +161,9 @@ func decodeChunk(raw []byte) (chunk, error) {
 		if (stream != Stdout && stream != Stderr) || length > RecordBytes || offset+length > len(body) {
 			return chunk{}, ErrCorrupt
 		}
-		data := append([]byte(nil), body[offset:offset+length]...)
+		// The returned record borrows raw. Reader/Page owns raw until the caller
+		// consumes the page; copying here would retain a second chunk-sized body.
+		data := body[offset : offset+length]
 		offset += length
 		records = append(records, Record{Stream: stream, SegmentID: segmentID, Offset: recordOffset, LostBefore: lost, Data: data})
 	}

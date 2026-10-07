@@ -86,3 +86,26 @@ func TestChunkRejectsOversizeAndCorruptData(t *testing.T) {
 		t.Fatalf("corrupt chunk err=%v", err)
 	}
 }
+
+func TestDecodedRecordDataBorrowsChunkBuffer(t *testing.T) {
+	hash, err := testScope().Hash()
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := encodeChunk(hash, 1, "segment", []Record{{Stream: Stdout, SegmentID: "segment", Data: []byte("payload")}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	decoded, err := decodeChunk(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	at := bytes.Index(raw, []byte("payload"))
+	if at < 0 {
+		t.Fatal("payload not in raw chunk")
+	}
+	raw[at] = 'P'
+	if string(decoded.records[0].Data) != "Payload" {
+		t.Fatalf("decoded payload was copied: %q", decoded.records[0].Data)
+	}
+}
