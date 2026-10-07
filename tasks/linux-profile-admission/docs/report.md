@@ -105,3 +105,7 @@ physical power-loss or other native actor test was executed. These focused runs
 have zero skipped tests; they do not establish a broader UID/platform matrix.
 Independent review and integration belong to ROOT and were still pending when
 this implementation snapshot was delivered.
+
+## ROOT acceptance
+
+Independent source/evidence review PASS. ROOT independently parsed the three final Linux named results and Darwin52 named results, checked actual command exit codes, final source hashes, both container terminal/cleanup records, and both binary hashes. The two owned stage binaries and their now-empty stage directories were removed; evidence is retained in `data/root-acceptance.json`. This accepts only early platform rejection ordering.

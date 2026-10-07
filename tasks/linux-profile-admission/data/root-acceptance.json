@@ -1,0 +1,74 @@
+{
+  "snapshot": "49a83220c01e0bc61b19f5990e6fb2d1c94e3137",
+  "independent_review": "PASS",
+  "evidence": {
+    "red": {
+      "counts": {
+        "named": {
+          "run": 3,
+          "pass": 0,
+          "fail": 3,
+          "skip": 0
+        },
+        "top_level": {
+          "run": 1,
+          "pass": 0,
+          "fail": 1,
+          "skip": 0
+        },
+        "package": {
+          "run": 0,
+          "pass": 0,
+          "fail": 1,
+          "skip": 0
+        }
+      },
+      "cid": "21de7357c2f1e779a85ac4602c3bf1508ed4a5a243673a7a670667e2ede3218c",
+      "cleanup": {
+        "remove_exit_code": 0,
+        "inspect_absent_exit_code": 1,
+        "absent": true
+      },
+      "binary_sha256": "4d90dedced97cbab743983bbc2804a8489ca941d55bbc3cded5163fc9dabc61a"
+    },
+    "green": {
+      "counts": {
+        "named": {
+          "run": 3,
+          "pass": 3,
+          "fail": 0,
+          "skip": 0
+        },
+        "top_level": {
+          "run": 1,
+          "pass": 1,
+          "fail": 0,
+          "skip": 0
+        },
+        "package": {
+          "run": 0,
+          "pass": 1,
+          "fail": 0,
+          "skip": 0
+        }
+      },
+      "cid": "abc0c6a48304809f128ffd443086de6c35c96614c36fae71ad96ba772da3e3d2",
+      "cleanup": {
+        "remove_exit_code": 0,
+        "inspect_absent_exit_code": 1,
+        "absent": true
+      },
+      "binary_sha256": "cdba268aaaafc41acf54654b15bb351ef78c51eb4cf6f1f65c1a4d26230edae3"
+    }
+  },
+  "owned_binaries_removed": [
+    "tasks/linux-profile-admission/tmp/red/host.test",
+    "tasks/linux-profile-admission/tmp/green/host.test"
+  ],
+  "darwin": {
+    "pass": 52,
+    "fail": 0,
+    "skip": 0
+  },
+  "local_commands_verified": 3
+}
