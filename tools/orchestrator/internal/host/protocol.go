@@ -141,8 +141,8 @@ func (p *protocolCollector) observeSessionIdentity(event adapter.Event) {
 
 // protocolSnapshot is a read-only observation, not EOF or a business result.
 // WaitComplete records proof from Wait; false means no such proof was obtained.
-// TreeConfirmed records the existing Stop proof that the owned group is gone,
-// independently of cmd.Wait/stdout completion (unlike ConfirmTreeExited).
+// TreeConfirmed records group absence after the original Wait. Successful
+// ordinary Stop establishes both facts, including the original output copies.
 type protocolSnapshot struct {
 	Available            bool                                `json:"available"`
 	TerminalSeen         bool                                `json:"terminal_seen"`

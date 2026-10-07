@@ -1,0 +1,373 @@
+{
+  "base": "041d95578d1cb52e942374e74fe00aff08b60fcd",
+  "contract_worker_commit": "ec2d94d28faf587862a116be690b12ea54a92fb4",
+  "go": "go1.26.8 darwin/arm64",
+  "scope": "Ordinary Host detailed capture and observational Exited/summary failure; Codex duplex remains open",
+  "macos_host_full": {
+    "file": "root-host-full-v2.jsonl",
+    "session": 90344,
+    "command_exit": 0,
+    "sha256": "47b3c1608445494d973f576989d3b35750671b8628d51d05eb1cd763b80c45b3",
+    "packages": {
+      "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host": {
+        "top_pass": 399,
+        "named_pass": 1546,
+        "fail": [],
+        "skip": [
+          "TestAGYHistorySandboxFileAPIHelper",
+          "TestAGYHistorySandboxPermissions",
+          "TestManagedCodexSandboxCanonicalizationAPIActor",
+          "TestManagedCodexFinalCaptureActor",
+          "TestCodexNestedSandboxMatrixActor",
+          "TestCodexNestedRuleIsolationMatrixActor",
+          "TestCodexNestedFromNoopMatrixActor",
+          "TestManagedCodexRetainedPipeActor",
+          "TestManagedCodexActorHelperProcess",
+          "TestManagedCodexSandboxFileAPIHelperProcess",
+          "TestManagedCodexSandboxFileAPIActor",
+          "TestManagedCodexSandboxLinkAPIHelperProcess",
+          "TestManagedCodexSandboxLinkAPIActor",
+          "TestNativeCodingHost",
+          "TestNativeSchemaContract"
+        ],
+        "terminal": {
+          "Action": "pass",
+          "Elapsed": 254.263,
+          "Time": "2026-10-07T13:21:39.577366+08:00"
+        }
+      }
+    }
+  },
+  "macos_store_contract_full": {
+    "file": "root-full-v1.jsonl",
+    "session": 14972,
+    "command_exit": 1,
+    "sha256": "4e4bf9802546b5e69bc0dcd12e322a78c0a89a9bfcdf2832b71612a32462cf7e",
+    "packages": {
+      "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store": {
+        "top_pass": 370,
+        "named_pass": 1053,
+        "fail": [],
+        "skip": [],
+        "terminal": {
+          "Action": "pass",
+          "Elapsed": 65.566,
+          "Time": "2026-10-07T13:13:05.005038+08:00"
+        }
+      },
+      "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract": {
+        "top_pass": 36,
+        "named_pass": 250,
+        "fail": [],
+        "skip": [],
+        "terminal": {
+          "Action": "pass",
+          "Elapsed": 1.322,
+          "Time": "2026-10-07T13:12:00.759951+08:00"
+        }
+      }
+    }
+  },
+  "macos_host_final_race": {
+    "file": "root-host-final-race.jsonl",
+    "session": 90497,
+    "command_exit": 0,
+    "sha256": "ef101fe839a12b0f153527ad99b2b0056ddc4402628c2c2b85d0c20f10da7330",
+    "packages": {
+      "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host": {
+        "top_pass": 32,
+        "named_pass": 67,
+        "fail": [],
+        "skip": [],
+        "terminal": {
+          "Action": "pass",
+          "Elapsed": 51.78,
+          "Time": "2026-10-07T13:24:00.643266+08:00"
+        }
+      }
+    }
+  },
+  "macos_store_affected_race": {
+    "file": "root-store-contract-race.jsonl",
+    "session": 59042,
+    "command_exit": 0,
+    "sha256": "2131524b39c6a445f9c3e10d9b882ed76d3b615341c82ddbfc34273a52ca4c94",
+    "packages": {
+      "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store": {
+        "top_pass": 9,
+        "named_pass": 28,
+        "fail": [],
+        "skip": [],
+        "terminal": {
+          "Action": "pass",
+          "Elapsed": 44.566,
+          "Time": "2026-10-07T13:18:11.972744+08:00"
+        }
+      }
+    }
+  },
+  "macos_contract_final_full_race": {
+    "file": "root-contract-full-race.jsonl",
+    "session": 83730,
+    "command_exit": 0,
+    "sha256": "6bf4813f537d35a9367c7aed32638621dd514b6ff925991e948ab3aa8f2bc679",
+    "packages": {
+      "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract": {
+        "top_pass": 36,
+        "named_pass": 250,
+        "fail": [],
+        "skip": [],
+        "terminal": {
+          "Action": "pass",
+          "Elapsed": 1.9060000000000001,
+          "Time": "2026-10-07T13:21:16.455006+08:00"
+        }
+      }
+    }
+  },
+  "commands": {
+    "macos_host_full": "go test -json -count=1 -timeout=15m ./internal/host",
+    "macos_store_contract_full": {
+      "packages": [
+        "./internal/host",
+        "./internal/store",
+        "./internal/contract"
+      ],
+      "scope": "Full ordinary tests; reuse only passing Store/contract package results. Host superseded. Original timeout flag not retained in this receipt."
+    },
+    "macos_host_final_race": "go test -race -json -count=1 -timeout=5m -run '^(TestDiagnostic|TestProviderDiagnostics|TestTimeoutProtocolSnapshots|TestRealWaitNilStopInterleaving|TestExitedEventReportsMeasuredActiveTime|TestBatchOwnerStopAndNaturalResultHaveOneTerminalOutcome|TestLaunchFailurePreservesExistingTerminalEvidence)' ./internal/host",
+    "macos_store_affected_race": "go test -race -json -count=1 -run '^(TestDiagnosticsFailure|TestSummary|TestMeasuredSettlement)' ./internal/store ./internal/contract",
+    "macos_contract_final_full_race": "go test -race -json -count=1 ./internal/contract"
+  },
+  "evidence_reuse": "Full Host before final test-only BusyBox helper correction; final affected Host race + Linux cover the changed fixtures. Store, contract and production unchanged after their applicable verification. Store/contract full package PASS comes from a command whose Host package failed its now-corrected assertion.",
+  "negative_evidence": {
+    "ordinary_missing_capture_ignored_summary_error": {
+      "file": "ordinary-red.jsonl",
+      "session": 33240,
+      "command_exit": 1,
+      "sha256": "67961998257da3bcfff7b616456860319e41ab44bc6195c704ea939e1dd9db1a",
+      "packages": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host": {
+          "top_pass": 0,
+          "named_pass": 1,
+          "fail": [
+            "TestDiagnosticExecuteLaunchCapturesBothStreamsAndPreservesDefault/true",
+            "TestDiagnosticExecuteLaunchCapturesBothStreamsAndPreservesDefault",
+            "TestDiagnosticExecuteSummaryWriteFailureKeepsExitAndIsVisible"
+          ],
+          "skip": [],
+          "terminal": {
+            "Action": "fail",
+            "Elapsed": 0.962,
+            "Time": "2026-10-07T12:57:00.045737+08:00"
+          }
+        }
+      }
+    },
+    "null_bool_and_store_fixture_mismatch": {
+      "file": "outcome-v2.jsonl",
+      "session": 45440,
+      "command_exit": 1,
+      "sha256": "0935b60df62559d7a09859f4c21a35b26dffba60f2db7c58d873c6c48b097263",
+      "packages": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store": {
+          "top_pass": 2,
+          "named_pass": 7,
+          "fail": [
+            "TestDiagnosticsFailureProjectionDoesNotChangeOutcomeOrBudget/false",
+            "TestDiagnosticsFailureProjectionDoesNotChangeOutcomeOrBudget/true",
+            "TestDiagnosticsFailureProjectionDoesNotChangeOutcomeOrBudget"
+          ],
+          "skip": [],
+          "terminal": {
+            "Action": "fail",
+            "Elapsed": 1.017,
+            "Time": "2026-10-07T13:06:58.400635+08:00"
+          }
+        },
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract": {
+          "top_pass": 0,
+          "named_pass": 0,
+          "fail": [
+            "TestDiagnosticsFailureWireAndEventBoundary"
+          ],
+          "skip": [],
+          "terminal": {
+            "Action": "fail",
+            "Elapsed": 1.038,
+            "Time": "2026-10-07T13:06:58.421998+08:00"
+          }
+        }
+      }
+    },
+    "stale_host_stop_assertion": {
+      "file": "root-full-v1.jsonl",
+      "session": 14972,
+      "command_exit": 1,
+      "sha256": "4e4bf9802546b5e69bc0dcd12e322a78c0a89a9bfcdf2832b71612a32462cf7e",
+      "packages": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host": {
+          "top_pass": 398,
+          "named_pass": 1542,
+          "fail": [
+            "TestTimeoutProtocolSnapshotsDoNotAcceptTerminalOrExposeContent/terminal",
+            "TestTimeoutProtocolSnapshotsDoNotAcceptTerminalOrExposeContent/tail",
+            "TestTimeoutProtocolSnapshotsDoNotAcceptTerminalOrExposeContent/rejected",
+            "TestTimeoutProtocolSnapshotsDoNotAcceptTerminalOrExposeContent"
+          ],
+          "skip": [
+            "TestAGYHistorySandboxFileAPIHelper",
+            "TestAGYHistorySandboxPermissions",
+            "TestManagedCodexSandboxCanonicalizationAPIActor",
+            "TestManagedCodexFinalCaptureActor",
+            "TestCodexNestedSandboxMatrixActor",
+            "TestCodexNestedRuleIsolationMatrixActor",
+            "TestCodexNestedFromNoopMatrixActor",
+            "TestManagedCodexRetainedPipeActor",
+            "TestManagedCodexActorHelperProcess",
+            "TestManagedCodexSandboxFileAPIHelperProcess",
+            "TestManagedCodexSandboxFileAPIActor",
+            "TestManagedCodexSandboxLinkAPIHelperProcess",
+            "TestManagedCodexSandboxLinkAPIActor",
+            "TestNativeCodingHost",
+            "TestNativeSchemaContract"
+          ],
+          "terminal": {
+            "Action": "fail",
+            "Elapsed": 258.959,
+            "Time": "2026-10-07T13:16:18.399615+08:00"
+          }
+        }
+      }
+    }
+  },
+  "negative_evidence_limits": "Initial business Failed expectation and Store exit_success_fixture/owner_review mismatch were fixture assumptions, not product requirements. Linux v1 aliases and v2 BusyBox argv0 failures were fixture failures. See validation.md.",
+  "linux": {
+    "m2c-execution-host-v1": {
+      "session": 61092,
+      "compile_session": 34498,
+      "final": false,
+      "receipt": "linux/m2c-execution-host-v1-receipt.json",
+      "cid": "29148139bdd34953db3e0585f3ac2abdc4b6d8a13c848a011ec9ba96787c4337",
+      "exit": 1,
+      "top_pass": 28,
+      "named_pass": 47,
+      "fail": [
+        "TestProviderDiagnosticsDistinguishExactLimitFromDroppedOutput",
+        "TestProviderDiagnosticsDistinguishExactLimitFromDroppedOutput/exact_limit",
+        "TestProviderDiagnosticsDistinguishExactLimitFromDroppedOutput/one_byte_dropped",
+        "TestProviderDiagnosticsContainCountsWithoutToolInputs"
+      ],
+      "skip": [],
+      "oom": false,
+      "removed": true,
+      "image": "sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99",
+      "binary_sha256": "00305ec3997fbd8543161458ae2fcf2648f5b98e3fba85e9ecbd71ff8582aca0",
+      "log_sha256": "8772f61553abd8a9e9025e9529e75b5c550e6d7c1f35379056cd87b972a3cbd0"
+    },
+    "m2c-execution-host-v2": {
+      "session": 92925,
+      "compile_session": 32072,
+      "final": false,
+      "receipt": "linux/m2c-execution-host-v2-receipt.json",
+      "cid": "0bba281aa55500240af369b9eb1fee3f290d491ebc7eaf090acc573da674ee71",
+      "exit": 1,
+      "top_pass": 28,
+      "named_pass": 47,
+      "fail": [
+        "TestProviderDiagnosticsDistinguishExactLimitFromDroppedOutput",
+        "TestProviderDiagnosticsDistinguishExactLimitFromDroppedOutput/exact_limit",
+        "TestProviderDiagnosticsDistinguishExactLimitFromDroppedOutput/one_byte_dropped",
+        "TestProviderDiagnosticsContainCountsWithoutToolInputs"
+      ],
+      "skip": [],
+      "oom": false,
+      "removed": true,
+      "image": "sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99",
+      "binary_sha256": "3fd2b2c4e6913f258ca484c95b207c81bcc913e48c9c03908865f46ae982fcf7",
+      "log_sha256": "b06d97d79c0cea175d4767fb6f8188602c724ecffd9878457d60c06b3ee11add"
+    },
+    "m2c-execution-host-v3": {
+      "session": 57145,
+      "compile_session": 55436,
+      "final": true,
+      "receipt": "linux/m2c-execution-host-v3-receipt.json",
+      "cid": "10194958426bf64e425bfdf829d116e590eaf4905b5be4f756ff9b8bd361ce26",
+      "exit": 0,
+      "top_pass": 31,
+      "named_pass": 52,
+      "fail": [],
+      "skip": [],
+      "oom": false,
+      "removed": true,
+      "image": "sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99",
+      "binary_sha256": "4eb2836afda17cd627f52b3792bd9931218d0bb4b7efef2cd3b2a10e5e149278",
+      "log_sha256": "b1055affa89fe4b14eb980606478f21431e49f979d429bf8f91b5506cd03a3ed"
+    },
+    "m2c-execution-store-v1": {
+      "session": 58649,
+      "compile_session": 53010,
+      "final": true,
+      "receipt": "linux/m2c-execution-store-v1-receipt.json",
+      "cid": "87601470721a3966f737afd4c6c51f1136ebeb904ce6e2d1d9c171344ed29f61",
+      "exit": 0,
+      "top_pass": 9,
+      "named_pass": 28,
+      "fail": [],
+      "skip": [],
+      "oom": false,
+      "removed": true,
+      "image": "sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99",
+      "binary_sha256": "20d3534b9c321822c39fd014eb54bd8a2808a290c0b2204bfca498fc79ed6ab2",
+      "log_sha256": "eb7dc898617d2c617f680b24173f9d209f411341ce5814e1bbe4741c1175985b"
+    }
+  },
+  "final_checks": {
+    "build_session": 56724,
+    "build_exit": 0,
+    "vet_session": 20165,
+    "vet_exit": 0,
+    "production_unchanged_after_build_vet": true,
+    "independent_review": "Production, contract, Store and final fixtures PASS; latest BusyBox helper delta also PASS",
+    "diff_check": 0
+  },
+  "source_sha256": {
+    "tools/orchestrator/internal/contract/contract.go": "2256c28c67b0b1aaa0d45051b20cdbe5de48a32468ae7b107cfa246dd0a5fa52",
+    "tools/orchestrator/internal/contract/diagnostics_outcome_test.go": "eb59e297fcad8efea8c671d109638135c7207bed585ae2c7c4739868c2d6e358",
+    "tools/orchestrator/internal/host/diagnostics_execute_test.go": "e566a9c711256e326578a8f9bb57576b46465489690e4e660f45d7e6057be463",
+    "tools/orchestrator/internal/host/diagnostics_execution.go": "99774007bf165de7bf0dbe98471c1e6aafab9603b0a32774a8e25c0357b42059",
+    "tools/orchestrator/internal/host/host.go": "9b9bea1da1ce0e99ce4577f47fa18c0268929ddd49bf014e244d8ee9ee3b9fc7",
+    "tools/orchestrator/internal/host/host_test.go": "c1f133bb2993faa05730f3d9674bb6bb837b063678a16c02b460e2974a52b8a2",
+    "tools/orchestrator/internal/host/progress.go": "a7fa8500f938bef2879a846a546a2092d89fba06a39add5180f1abfceb24232b",
+    "tools/orchestrator/internal/host/protocol.go": "072fcd3412db3fff68de50bae574504babcd2c7b14cfd07ad7e2ca49893a2ab8",
+    "tools/orchestrator/internal/host/provider_capture_test.go": "d22130578720e00a42098f56de11d6f7655b6f69221c204f0eebfa5962629484",
+    "tools/orchestrator/internal/host/provider_diagnostics_test.go": "86afec2a53c074c58e7c8f68f0c1e378d3bafc81745f35622f8e9533046a3d34",
+    "tools/orchestrator/internal/store/diagnostics_outcome_test.go": "22643bcf11fdae86506df806c2622a890948073b686208fc3b6b579801680d50",
+    "tools/orchestrator/internal/store/host_events.go": "d29b1d06b68c61228d6b81d04d31693cad43c6ecb4ae9edb87009cf2ad2aec5c",
+    "tools/orchestrator/internal/store/summary.go": "1ebaa5282abd419266ac677af22c8a98e1d54428d18c455aa753a84f0d5546ba"
+  },
+  "unchanged_dependency_sha256": {
+    "tools/orchestrator/internal/host/diagnostics_driver.go": "c44c625a0d66899995f58b64f7bcdbbaa3731f5be5fe2a6d151cd62c6d1ac757",
+    "tools/orchestrator/internal/diagnostics/writer.go": "45ee8ae102343811cb98834fb744f9cb794e231fe6c1dc5a0240dcf3e403f65c",
+    "tools/orchestrator/internal/process/process.go": "ea73f14ed79d28cce7feeb41644665ee2797f4d0153a2880217c666857625f0c",
+    "tools/orchestrator/internal/process/duplex.go": "84f84983a8f65432d93dee0c51af9b96e143a595fb4687e6ca32695270a15322",
+    "tools/orchestrator/internal/host/stop_lifecycle.go": "c8b5a988294169ee4c1af7e9cf4a25671dad1ab3e066d42ce47de1147a718f02",
+    "tools/orchestrator/internal/host/codex_execute.go": "ce93876a35bc7d48a787b1bc2db3fdae38ea11d538b169833220c44a041a5a6b"
+  },
+  "not_complete": [
+    "Codex duplex same-reader EOF/drain and capture wiring",
+    "public read/ACK authorization and replay",
+    "M3 reservation activation, retained verification, all-writer artifact intake/delete, complete allowance",
+    "native flood/RSS and physical disk faults",
+    "real provider/account, installed CLI distribution acceptance",
+    "Intel Mac/Windows native checks deferred",
+    "remaining F01-F13"
+  ],
+  "cleanup": {
+    "all_test_sessions_terminal": true,
+    "all_owned_containers_removed": true,
+    "busybox_probe_containers": "--rm; subsequent name-filter inventory empty",
+    "logs_and_binaries": "retained as local evidence",
+    "unneeded_owned_temporary_files": "none created in this batch"
+  }
+}

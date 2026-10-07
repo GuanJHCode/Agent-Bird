@@ -17,20 +17,21 @@ type RunSummary struct {
 }
 
 type SummaryTask struct {
-	EffectiveBudget     *EffectiveBudgetSnapshot   `json:"effective_budget,omitempty"`
-	ExecutionPolicy     *contract.ExecutionPolicy  `json:"execution_policy,omitempty"`
-	NextRetryAtUnixMS   int64                      `json:"next_retry_at_unix_ms,omitempty"`
-	TaskID              string                     `json:"task_id"`
-	Status              string                     `json:"status"`
-	Group               string                     `json:"group"`
-	WorkRevision        int                        `json:"work_revision"`
-	ActiveSegments      int                        `json:"active_segments"`
-	AllowedActions      []string                   `json:"allowed_actions"`
-	ReviewableResult    *ReviewableResultBinding   `json:"reviewable_result,omitempty"`
-	ResumeBlockedReason string                     `json:"resume_blocked_reason,omitempty"`
-	StopReason          string                     `json:"stop_reason,omitempty"`
-	LatestProgress      *contract.ArtifactRef      `json:"latest_progress,omitempty"`
-	ContinuationSource  *ContinuationSourceBinding `json:"continuation_source,omitempty"`
+	DiagnosticsFailure  *contract.DiagnosticsFailure `json:"diagnostics_failure,omitempty"`
+	EffectiveBudget     *EffectiveBudgetSnapshot     `json:"effective_budget,omitempty"`
+	ExecutionPolicy     *contract.ExecutionPolicy    `json:"execution_policy,omitempty"`
+	NextRetryAtUnixMS   int64                        `json:"next_retry_at_unix_ms,omitempty"`
+	TaskID              string                       `json:"task_id"`
+	Status              string                       `json:"status"`
+	Group               string                       `json:"group"`
+	WorkRevision        int                          `json:"work_revision"`
+	ActiveSegments      int                          `json:"active_segments"`
+	AllowedActions      []string                     `json:"allowed_actions"`
+	ReviewableResult    *ReviewableResultBinding     `json:"reviewable_result,omitempty"`
+	ResumeBlockedReason string                       `json:"resume_blocked_reason,omitempty"`
+	StopReason          string                       `json:"stop_reason,omitempty"`
+	LatestProgress      *contract.ArtifactRef        `json:"latest_progress,omitempty"`
+	ContinuationSource  *ContinuationSourceBinding   `json:"continuation_source,omitempty"`
 }
 
 type ContinuationSourceBinding struct {
@@ -80,6 +81,11 @@ SELECT t.run_id,t.id,t.status,r.work_revision,
    AND e.segment_id=(SELECT z.id FROM segments z JOIN attempts latest ON latest.id=z.attempt_id WHERE latest.task_id=t.id ORDER BY latest.attempt_no DESC,z.segment_no DESC LIMIT 1)
   ORDER BY e.sequence DESC LIMIT 1),''),
  COALESCE((SELECT json_extract(e.body_json,'$.stop_reason') FROM runtime_events e WHERE e.task_id=t.id AND e.segment_id=(SELECT z.id FROM segments z JOIN attempts a ON a.id=z.attempt_id WHERE a.task_id=t.id ORDER BY a.attempt_no DESC,z.segment_no DESC LIMIT 1) AND json_extract(e.body_json,'$.kind')='stopped' ORDER BY e.sequence DESC LIMIT 1),''),
+ COALESCE((SELECT json_extract(e.body_json,'$.diagnostics_failure') FROM runtime_events e
+ JOIN segment_runtime sr ON sr.segment_id=e.segment_id AND sr.host_id=e.producer_id AND sr.attempt_id=e.attempt_id
+ WHERE e.task_id=t.id AND json_extract(e.body_json,'$.kind')='exited'
+ AND e.segment_id=(SELECT z.id FROM segments z JOIN attempts a ON a.id=z.attempt_id WHERE a.task_id=t.id ORDER BY a.attempt_no DESC,z.segment_no DESC LIMIT 1)
+ ORDER BY e.sequence ASC LIMIT 1),''),
  COALESCE((SELECT json_extract(e.body_json,'$.artifact') FROM host_progress e WHERE e.task_id=t.id AND json_extract(e.body_json,'$.work_revision')=r.work_revision AND e.segment_id=(SELECT z.id FROM segments z JOIN attempts a ON a.id=z.attempt_id WHERE a.task_id=t.id ORDER BY a.attempt_no DESC,z.segment_no DESC LIMIT 1) AND json_extract(e.body_json,'$.kind')='progress' ORDER BY e.sequence DESC LIMIT 1),'')
 FROM tasks t JOIN task_runtime r ON r.task_id=t.id
 WHERE t.run_id=(SELECT run_id FROM tasks WHERE id=?) ORDER BY t.id`, taskID)
@@ -93,12 +99,17 @@ WHERE t.run_id=(SELECT run_id FROM tasks WHERE id=?) ORDER BY t.id`, taskID)
 		var task SummaryTask
 		var attempts, maxAttempts, groupTasks int
 		var result, question, failure, technicalReviewFailure bool
-		var adapterPayload, reviewableResult, latestProgress string
-		if err := rows.Scan(&summary.RunID, &task.TaskID, &task.Status, &task.WorkRevision, &task.ActiveSegments, &attempts, &maxAttempts, &result, &question, &failure, &adapterPayload, &technicalReviewFailure, &groupTasks, &reviewableResult, &task.StopReason, &latestProgress); err != nil {
+		var adapterPayload, reviewableResult, latestProgress, diagnosticsFailure string
+		if err := rows.Scan(&summary.RunID, &task.TaskID, &task.Status, &task.WorkRevision, &task.ActiveSegments, &attempts, &maxAttempts, &result, &question, &failure, &adapterPayload, &technicalReviewFailure, &groupTasks, &reviewableResult, &task.StopReason, &diagnosticsFailure, &latestProgress); err != nil {
 			return RunSummary{}, err
 		}
 		if reviewableResult != "" && task.ActiveSegments == 0 {
 			if err := json.Unmarshal([]byte(reviewableResult), &task.ReviewableResult); err != nil {
+				return RunSummary{}, err
+			}
+		}
+		if diagnosticsFailure != "" {
+			if err := json.Unmarshal([]byte(diagnosticsFailure), &task.DiagnosticsFailure); err != nil {
 				return RunSummary{}, err
 			}
 		}

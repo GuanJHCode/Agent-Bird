@@ -64,6 +64,8 @@ func interruptionReason(ctx context.Context, requested bool, exit int) string {
 		return "deadline_exceeded"
 	case context.Canceled:
 		return "caller_cancelled"
+	case errDiagnosticsUnavailable:
+		return "diagnostics_unavailable"
 	}
 	if cause := context.Cause(ctx); cause != nil {
 		switch cause.Error() {

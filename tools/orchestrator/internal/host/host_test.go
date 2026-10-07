@@ -760,7 +760,7 @@ func TestTimeoutProtocolSnapshotsDoNotAcceptTerminalOrExposeContent(t *testing.T
 			if mode == "rejected" {
 				wantError = "event_status_invalid"
 			}
-			if before.TerminalSeen != (mode == "terminal") || after.TerminalSeen != (mode == "terminal") || before.TailPending != (mode == "tail") || after.TailPending != (mode == "tail") || before.WaitComplete || before.TreeConfirmed || after.WaitComplete || !after.TreeConfirmed || before.ProtocolError != wantError || after.ProtocolError != wantError {
+			if before.TerminalSeen != (mode == "terminal") || after.TerminalSeen != (mode == "terminal") || before.TailPending != (mode == "tail") || after.TailPending != (mode == "tail") || before.WaitComplete || before.TreeConfirmed || !after.WaitComplete || !after.TreeConfirmed || before.ProtocolError != wantError || after.ProtocolError != wantError {
 				t.Fatalf("incorrect safe snapshot: %s", body)
 			}
 			sink := &durableSink{}

@@ -3,6 +3,7 @@ package host
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +13,36 @@ import (
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
 )
+
+func TestProviderDiagnosticsOutputChild(t *testing.T) {
+	path := os.Getenv("PROVIDER_DIAGNOSTICS_OUTPUT_FILE")
+	if path == "" {
+		return
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		os.Exit(91)
+	}
+	_, err = io.Copy(os.Stdout, f)
+	closeErr := f.Close()
+	if err != nil || closeErr != nil {
+		os.Exit(92)
+	}
+	os.Exit(0)
+}
+
+func providerDiagnosticsOutputCommand(t *testing.T, payload string) process.Command {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "output.jsonl")
+	if err := os.WriteFile(path, []byte(payload), 0600); err != nil {
+		t.Fatal(err)
+	}
+	binary, err := filepath.EvalSymlinks(os.Args[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	return process.Command{Path: binary, Args: []string{"-test.run=^TestProviderDiagnosticsOutputChild$"}, Env: []string{"PROVIDER_DIAGNOSTICS_OUTPUT_FILE=" + path}}
+}
 
 func TestProviderDiagnosticsDistinguishExactLimitFromDroppedOutput(t *testing.T) {
 	line := func(value string) string { return value + strings.Repeat(" ", 255-len(value)) + "\n" }
@@ -32,10 +63,6 @@ func TestProviderDiagnosticsDistinguishExactLimitFromDroppedOutput(t *testing.T)
 			if extra {
 				payload += "\n"
 			}
-			path := filepath.Join(root, "output.jsonl")
-			if err := os.WriteFile(path, []byte(payload), 0600); err != nil {
-				t.Fatal(err)
-			}
 			spoolRoot := filepath.Join(root, "spool")
 			h, err := NewIPC(spoolRoot, "producer")
 			if err != nil {
@@ -43,7 +70,7 @@ func TestProviderDiagnosticsDistinguishExactLimitFromDroppedOutput(t *testing.T)
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
-			result, err := h.execute(ctx, store.Attempt{ID: "attempt", TaskID: "task", SegmentID: "segment"}, "run", "task", process.Command{Path: "/bin/cat", Args: []string{path}}, false, launchMetadata{commandID: "command", workRevision: 1, outputProvider: "claude-code"})
+			result, err := h.execute(ctx, store.Attempt{ID: "attempt", TaskID: "task", SegmentID: "segment"}, "run", "task", providerDiagnosticsOutputCommand(t, payload), false, launchMetadata{commandID: "command", workRevision: 1, outputProvider: "claude-code"})
 			if err != nil || result.Status != "result_ready" || result.ExitCode != 0 {
 				t.Fatalf("controlled stream did not finish: %+v %v", result, err)
 			}

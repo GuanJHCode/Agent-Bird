@@ -1,6 +1,7 @@
 package contract
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -49,6 +50,15 @@ func (d DiagnosticsFailure) Validate() error {
 	return nil
 }
 func (d *DiagnosticsFailure) UnmarshalJSON(raw []byte) error {
+	var fields map[string]json.RawMessage
+	if json.Unmarshal(raw, &fields) != nil || fields == nil {
+		return errors.New("diagnostics_failure_invalid")
+	}
+	for _, field := range fields {
+		if bytes.Equal(bytes.TrimSpace(field), []byte("null")) {
+			return errors.New("diagnostics_failure_invalid")
+		}
+	}
 	type plain DiagnosticsFailure
 	var v plain
 	if err := DecodeBridgeStrict(raw, &v); err != nil {

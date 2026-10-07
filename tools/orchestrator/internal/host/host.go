@@ -169,6 +169,12 @@ func (h *Host) executeLaunch(ctx context.Context, grant contract.LaunchCommand, 
 	runCtx, cancel := context.WithDeadlineCause(ctx, budgetDeadline, deadlineCause(deadlineReason))
 	defer cancel()
 	meta := launchMetadata{commandID: grant.CommandID, workRevision: grant.WorkRevision, executionEpoch: grant.ExecutionEpoch, questionRevision: grant.QuestionRevision}
+	if grant.Diagnostics != nil {
+		policy := *grant.Diagnostics
+		copy := grant
+		copy.Diagnostics = &policy
+		meta.diagnosticsGrant = &copy
+	}
 	if structured, ok := inv.(interface{ OutputProvider() string }); ok {
 		meta.outputProvider = structured.OutputProvider()
 	}
@@ -291,6 +297,7 @@ func (h *Host) Execute(ctx context.Context, a store.Attempt, runID, taskID strin
 }
 
 type launchMetadata struct {
+	diagnosticsGrant  *contract.LaunchCommand
 	startProcess      func(context.Context, process.Command) (*process.Handle, error)
 	agyHistoryGrant   *contract.LaunchCommand
 	completionMode    adapter.TaskCompletionMode
@@ -313,9 +320,10 @@ type launchMetadata struct {
 	questionRevision  int
 }
 
-func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID string, cmd process.Command, persistDB bool, meta launchMetadata) (contract.Result, error) {
+func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID string, cmd process.Command, persistDB bool, meta launchMetadata) (result contract.Result, returnedErr error) {
 	defer h.clearStop(a.SegmentID)
-	ctx, cancelSegment := context.WithCancel(ctx)
+	ctx, cancelCause := context.WithCancelCause(ctx)
+	cancelSegment := func() { cancelCause(context.Canceled) }
 	h.mu.Lock()
 	h.segmentCancels[a.SegmentID] = cancelSegment
 	h.mu.Unlock()
@@ -337,6 +345,7 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 	// settles the grant conservatively.
 	var spawnedAt time.Time
 	var activeMS int64
+	var diagnosticState executionDiagnostics
 	var protocol *protocolCollector
 	if meta.outputProvider != "" {
 		protocol, err = newProtocolCollector(meta.outputProvider)
@@ -359,6 +368,7 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 			fields := structuredEventFields{}
 			if kind == contract.EventExited {
 				fields.ActiveMS = activeMS
+				fields.DiagnosticsFailure = diagnosticState.failure()
 			}
 			event, appendErr := h.appendStructuredEvent(spool, runID, taskID, a, meta, kind, payloadHash, identity, exitCode, artifact, fields)
 			if appendErr == nil && event.Sequence > 0 {
@@ -478,6 +488,18 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 			return finalizePrelaunchRejected(context.Canceled)
 		}
 	}
+	if meta.diagnosticsGrant != nil {
+		g := *meta.diagnosticsGrant
+		if g.RunID != runID || g.TaskID != taskID || g.AttemptID != a.ID || g.SegmentID != a.SegmentID {
+			return finalizePrelaunchRejected(errDiagnosticAuthority)
+		}
+		diagnosticState.driver, err = h.openDetailedDiagnostics(ctx, g, diagnosticState.wakeExecution(cancelCause))
+		if err != nil {
+			return finalizePrelaunchRejected(err)
+		}
+		cmd.ObserveOutput = diagnosticState.driver.Observe
+	}
+	defer func() { returnedErr = errors.Join(returnedErr, diagnosticState.end(false, returnedErr)) }()
 	// Persist the uncertainty boundary before entering Start. A crash or any
 	// later failure cannot be reclassified from the older prepared phase as a
 	// never-started rejection, even if no spawned event became durable.
@@ -596,7 +618,9 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		diagnostics := providerDiagnostics(output)
 		diagnostics.Truncated = diagnostics.Truncated || captureTruncated
 		diagnostics.ProtocolSnapshots = protocolSnapshots
-		_ = spool.WriteMetadata("provider-diagnostics.json", diagnostics)
+		if writeErr := spool.WriteMetadata("provider-diagnostics.json", diagnostics); writeErr != nil && diagnosticState.summaryErr == nil {
+			diagnosticState.summaryErr = writeErr
+		}
 	}
 	finishJoinedStop := func(stopErr error) (contract.Result, error) {
 		if stopErr == nil {
@@ -605,8 +629,9 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		<-progressStopped
 		if protocol != nil {
 			snapshot := protocol.Snapshot()
-			// Stop proves the owned group is gone, not Wait completion or EOF.
-			// Keep wait_complete false without adding a new wait or process probe.
+			// Successful original Stop includes the original Wait and ordinary
+			// stdout/stderr copy completion; no second Wait or reader is needed.
+			snapshot.WaitComplete = stopErr == nil
 			snapshot.TreeConfirmed = stopErr == nil
 			protocolSnapshots.AfterStop = &snapshot
 			writeDiagnostics()
@@ -619,6 +644,7 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 			h.finishAttempt(a.ID, "unknown", persistDB)
 			return contract.Result{Status: "unknown", ExitCode: p.ExitCode(), EventCount: eventCount, OutputHash: hashText(p.Output())}, stopErr
 		}
+		_ = diagnosticState.end(true, nil)
 		exit := p.ExitCode()
 		if protocol != nil {
 			_ = h.recordProgress(a, runID, taskID, meta, protocol, &identity, 20, started, interruptionReason(ctx, h.stopWasRequested(a.SegmentID), exit))
@@ -655,6 +681,7 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		return contract.Result{Status: "unknown", ExitCode: p.ExitCode(), EventCount: eventCount, OutputHash: hashText(p.Output())}, err
 	}
 	lockActive()
+	_ = diagnosticState.end(true, nil)
 	if h.stopWasRequested(a.SegmentID) || p.ExitCode() < 0 {
 		// A stop can arrive after the natural tree observation. Its original
 		// result still governs the stop path; the earlier observation must not
@@ -873,12 +900,13 @@ func (h *Host) appendPhaseEvent(spool *events.Spool, runID, taskID string, a sto
 }
 
 type structuredEventFields struct {
-	Failure          *contract.FailureFacts
-	StopReason       string
-	QuestionRevision int
-	SessionKind      string
-	SessionID        string
-	ActiveMS         int64
+	DiagnosticsFailure *contract.DiagnosticsFailure
+	Failure            *contract.FailureFacts
+	StopReason         string
+	QuestionRevision   int
+	SessionKind        string
+	SessionID          string
+	ActiveMS           int64
 }
 
 func (h *Host) appendStructuredEvent(spool *events.Spool, runID, taskID string, a store.Attempt, meta launchMetadata, kind, payloadHash string, identity *process.Identity, exitCode *int, artifact *contract.ArtifactRef, fields structuredEventFields) (contract.Event, error) {
@@ -891,6 +919,7 @@ func (h *Host) appendStructuredEvent(spool *events.Spool, runID, taskID string, 
 	event := contract.Event{Version: 1, ProducerID: h.producerID, RunID: runID, TaskID: taskID, AttemptID: a.ID, SegmentID: a.SegmentID, WorkRevision: meta.workRevision, ExecutionEpoch: meta.executionEpoch, CommandID: meta.commandID, Sequence: sequence, Kind: kind, PayloadHash: payloadHash, ExitCode: exitCode, ActiveMS: fields.ActiveMS, Artifact: artifact, QuestionRevision: fields.QuestionRevision, SessionKind: fields.SessionKind, SessionID: fields.SessionID}
 	event.StopReason = fields.StopReason
 	event.Failure = fields.Failure
+	event.DiagnosticsFailure = fields.DiagnosticsFailure
 	if identity != nil {
 		event.Process = &contract.ProcessIdentity{PID: identity.PID, Birth: identity.Birth, PGID: identity.PGID}
 	}

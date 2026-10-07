@@ -12,6 +12,9 @@ import (
 )
 
 func (d *DB) CommitHostEvent(ctx context.Context, event contract.Event) (contract.DurableAck, error) {
+	if err := contract.ValidateDiagnosticsFailure(event); err != nil {
+		return contract.DurableAck{}, err
+	}
 	if event.Failure != nil && (event.Kind != contract.EventLaunchRejected || !event.Failure.ValidPrelaunchProbe()) {
 		return contract.DurableAck{}, CodeError("failure_facts_invalid")
 	}
@@ -23,7 +26,7 @@ func (d *DB) CommitHostEvent(ctx context.Context, event contract.Event) (contrac
 			return contract.DurableAck{}, CodeError("invalid_stop_reason")
 		}
 		switch event.StopReason {
-		case "owner_stop_requested", "deadline_exceeded", "caller_cancelled", "active_budget_exhausted", "profile_timeout", "task_deadline_exceeded", "process_signaled", "interrupted":
+		case "owner_stop_requested", "deadline_exceeded", "caller_cancelled", "active_budget_exhausted", "profile_timeout", "task_deadline_exceeded", "process_signaled", "interrupted", "diagnostics_unavailable":
 		default:
 			return contract.DurableAck{}, CodeError("invalid_stop_reason")
 		}
@@ -110,6 +113,12 @@ func (d *DB) CommitHostEvent(ctx context.Context, event contract.Event) (contrac
 	var storedHost, taskID, attemptID string
 	if err = tx.QueryRowContext(ctx, `SELECT host_id,(SELECT task_id FROM attempts WHERE id=segment_runtime.attempt_id),attempt_id FROM segment_runtime WHERE segment_id=? AND command_id=?`, event.SegmentID, event.CommandID).Scan(&storedHost, &taskID, &attemptID); err != nil || storedHost != event.ProducerID || taskID != event.TaskID || attemptID != event.AttemptID {
 		return rollback(ErrConflict)
+	}
+	if event.DiagnosticsFailure != nil && event.DiagnosticsFailure.Detailed || event.StopReason == "diagnostics_unavailable" {
+		bound := contract.LaunchCommand{RunID: event.RunID, TaskID: event.TaskID, AttemptID: event.AttemptID, SegmentID: event.SegmentID, HostID: event.ProducerID, CommandID: event.CommandID}
+		if err = bindExistingDiagnostics(ctx, tx, &bound); err != nil || bound.Diagnostics == nil {
+			return rollback(CodeError("diagnostics_failure_unauthorized"))
+		}
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	deliveryStatus := "pending"
