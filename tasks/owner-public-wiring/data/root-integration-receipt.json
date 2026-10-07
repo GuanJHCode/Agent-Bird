@@ -1,0 +1,15 @@
+{
+  "snapshot": "65573f2",
+  "integrated_build_exit": 0,
+  "native_existing_owner_race": {
+    "top_pass": 1,
+    "named_pass": 1,
+    "fail": 0,
+    "skip": 0,
+    "elapsed_seconds": 5.15
+  },
+  "limitations": [
+    "Controlled worker; no Provider/model calls",
+    "Precedes test-only cycle split18f3bcb and FS-only addition"
+  ]
+}
