@@ -91,7 +91,7 @@ type Capture struct {
 }
 
 func NewCapture(segmentID string) (*Capture, error) {
-	if len(segmentID) == 0 || len(segmentID) > 128 || !utf8.ValidString(segmentID) || bytesContainsNUL(segmentID) {
+	if !validSegmentID(segmentID) {
 		return nil, ErrInvalidSegment
 	}
 	return &Capture{segmentID: segmentID, leased: make(map[uint64]struct{}), notify: make(chan struct{})}, nil
@@ -110,7 +110,10 @@ func (c *Capture) Offer(stream Stream, data []byte) (CaptureReceipt, error) {
 		return CaptureReceipt{}, ErrCaptureClosed
 	}
 	index := int(stream)
-	recordsNeeded := uint64((len(data) + RecordBytes - 1) / RecordBytes)
+	recordsNeeded := uint64(len(data) / RecordBytes)
+	if len(data)%RecordBytes != 0 {
+		recordsNeeded++
+	}
 	if uint64(len(data)) > math.MaxUint64-c.offsets[index] || recordsNeeded > math.MaxUint64-c.nextID {
 		return CaptureReceipt{}, ErrCaptureOverflow
 	}
@@ -198,7 +201,7 @@ func (c *Capture) Done(lease Lease, appendErr error) error {
 	c.used--
 	c.enqueueFinalLossLocked()
 	c.signalLocked()
-	return appendErr
+	return errors.Join(appendErr, c.fatal)
 }
 
 // Close does not wait for a writer. Final loss records are queued only when a
@@ -253,6 +256,10 @@ func bytesContainsNUL(value string) bool {
 		}
 	}
 	return false
+}
+
+func validSegmentID(value string) bool {
+	return len(value) > 0 && len(value) <= 128 && utf8.ValidString(value) && !bytesContainsNUL(value)
 }
 
 func (c *Capture) signalLocked() {

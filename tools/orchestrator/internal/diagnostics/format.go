@@ -75,7 +75,27 @@ type chunk struct {
 type chunkIterator struct {
 	chunk     chunk
 	at, index int
-	ends      [3]uint64
+	ranges    recordRanges
+}
+
+// recordRanges validates each stream independently. The first retained record
+// may start after an evicted chunk; each later gap must start at the previous
+// record's exact end. Both writer and reader use this validation.
+type recordRanges struct {
+	seen [3]bool
+	ends [3]uint64
+}
+
+func (r *recordRanges) accept(stream Stream, offset, lost uint64, size int) error {
+	if (stream != Stdout && stream != Stderr) || size < 0 || size > RecordBytes || lost > offset || (size == 0 && lost == 0) || uint64(size) > ^uint64(0)-offset {
+		return ErrCorrupt
+	}
+	if r.seen[stream] && offset-lost != r.ends[stream] {
+		return ErrCorrupt
+	}
+	r.seen[stream] = true
+	r.ends[stream] = offset + uint64(size)
+	return nil
 }
 
 func (c chunk) Iterator() chunkIterator { return chunkIterator{chunk: c, at: c.recordAt} }
@@ -92,14 +112,12 @@ func (i *chunkIterator) Next() (Record, bool, error) {
 	lost := binary.BigEndian.Uint64(b[i.at+9:])
 	n := int(binary.BigEndian.Uint16(b[i.at+17:]))
 	i.at += 19
-	if (s != Stdout && s != Stderr) || n > RecordBytes || i.at+n > len(b)-chunkTrailer || lost > off || (n == 0 && lost == 0) || uint64(n) > ^uint64(0)-off {
+	if i.at+n > len(b)-chunkTrailer {
 		return Record{}, false, ErrCorrupt
 	}
-	gapStart := off - lost
-	if i.ends[s] != 0 && gapStart != i.ends[s] {
+	if err := i.ranges.accept(s, off, lost, n); err != nil {
 		return Record{}, false, ErrCorrupt
 	}
-	i.ends[s] = off + uint64(n)
 	data := b[i.at : i.at+n]
 	i.at += n
 	i.index++
@@ -107,20 +125,27 @@ func (i *chunkIterator) Next() (Record, bool, error) {
 }
 
 func encodeChunk(scopeHash string, sequence uint64, segmentID string, records []Record) ([]byte, error) {
-	if len(segmentID) == 0 || len(segmentID) > 128 || !utf8.ValidString(segmentID) || len(records) > 65535 {
+	if !validSegmentID(segmentID) || sequence == 0 || len(records) == 0 || len(records) > 65535 {
 		return nil, ErrCorrupt
+	}
+	if !validPolicyHash(scopeHash) {
+		return nil, ErrInvalidScope
 	}
 	scope, err := hex.DecodeString(scopeHash)
 	if err != nil || len(scope) != sha256.Size {
 		return nil, ErrInvalidScope
 	}
 	total := len(chunkMagic) + 2 + sha256.Size + 8 + 1 + len(segmentID) + 2 + chunkTrailer
+	var ranges recordRanges
 	for _, record := range records {
 		if (record.Stream != Stdout && record.Stream != Stderr) || record.SegmentID != segmentID || len(record.Data) > RecordBytes {
 			if len(record.Data) > RecordBytes {
 				return nil, ErrRecordTooLarge
 			}
 			return nil, ErrCorrupt
+		}
+		if err := ranges.accept(record.Stream, record.Offset, record.LostBefore, len(record.Data)); err != nil {
+			return nil, err
 		}
 		total += 1 + 8 + 8 + 2 + len(record.Data)
 		if total > ChunkBytes {
@@ -167,6 +192,9 @@ func decodeChunk(raw []byte) (chunk, error) {
 	offset += sha256.Size
 	sequence := binary.BigEndian.Uint64(body[offset:])
 	offset += 8
+	if sequence == 0 {
+		return chunk{}, ErrCorrupt
+	}
 	segmentLength := int(body[offset])
 	offset++
 	if segmentLength == 0 || segmentLength > 128 || offset+segmentLength+2 > len(body) {
@@ -174,12 +202,12 @@ func decodeChunk(raw []byte) (chunk, error) {
 	}
 	segmentID := string(body[offset : offset+segmentLength])
 	offset += segmentLength
-	if !utf8.ValidString(segmentID) {
+	if !validSegmentID(segmentID) {
 		return chunk{}, ErrCorrupt
 	}
 	count := int(binary.BigEndian.Uint16(body[offset:]))
 	offset += 2
-	if count > (len(body)-offset)/(1+8+8+2) {
+	if count == 0 || count > (len(body)-offset)/(1+8+8+2) {
 		return chunk{}, ErrCorrupt
 	}
 	recordAt := offset

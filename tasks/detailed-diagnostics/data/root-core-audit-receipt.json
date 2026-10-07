@@ -1,0 +1,75 @@
+{
+  "before": {
+    "commit": "ce7530113910ed9b33da0d72c58a6d9608fbfcc0",
+    "source_hashes": {
+      "capture.go": "77cd99c32a9eba4aceef5b9c85499166df3da2b4d9fbbd6aa47e323f849a2e3a",
+      "format.go": "aae0f744c4d6b29fab9a893dc257abf5e3238fd85dfb99cd5eefb2da10818523",
+      "capture_test.go": "695ba2062dc5874649791c3729e1d486a13245bb4ce9bd28a5630a725b773db6",
+      "format_test.go": "7890dec8a9a251677207574ef6c38ed17e29901380ab32f034d6c8a1030b40bf"
+    },
+    "chunk": "4fa8d6",
+    "exit": 1,
+    "sha256": "6a52028198c47c8b557ab017bd39aa376f3d25e983ab1d3ba183e4b08baf5375",
+    "pass": 6,
+    "fail": [
+      "TestRootFinalLossUsesEndOffset",
+      "TestRootCanceledNextDoesNotTakeQueuedRecord",
+      "TestRootCloseWaitsForPendingLossAfterAllSlotsLeased",
+      "TestRootCaptureOffsetOverflowFailsClosed",
+      "TestRootLeaseIDOverflowFailsClosed",
+      "TestRootDonePreservesAppendFailure"
+    ]
+  },
+  "repair1": {
+    "commit": "0ffd88269982a8f876a72bbca9b858450a5e9c99",
+    "source_hashes": {
+      "capture.go": "bf903afd883f32dcd6d270d741a5473c1b3c565de65a3379c95ea4ba68c89750",
+      "format.go": "84351d59a38c07369b62e89cec67df384eef721aa38645d0e1d7a25825e14325",
+      "capture_test.go": "bcc52eba84a63a74e2118d96e9604eae4c44cf4d39a7c6f08ed329ab8d15b3a9",
+      "format_test.go": "7890dec8a9a251677207574ef6c38ed17e29901380ab32f034d6c8a1030b40bf"
+    },
+    "chunk": "77235a",
+    "exit": 1,
+    "sha256": "e0ed35ac466a25a0881a8a0a8a6c1429dc9e772bfd317f9c291c00d7fc9e4147",
+    "pass": 10,
+    "fail": [
+      "TestRootCloseWaitsForPendingLossAfterAllSlotsLeased",
+      "TestRootCaptureOffsetOverflowFailsClosed",
+      "TestRootLeaseIDOverflowFailsClosed"
+    ]
+  },
+  "repair2": {
+    "commit": "a5b2cfcc5d4d87df53dc713bb5ebe3e629c515df",
+    "source_hashes": {
+      "tools/orchestrator/internal/diagnostics/capture.go": "bc6d36aaab0bc9f1c1365353646470e6918d32051f1a9b84fbf78e276771ab2c",
+      "tools/orchestrator/internal/diagnostics/capture_test.go": "79ab049ab6afb8d27e17c24c67239eca7e206dfebe31838053b775391ce3be44",
+      "tools/orchestrator/internal/diagnostics/format.go": "84351d59a38c07369b62e89cec67df384eef721aa38645d0e1d7a25825e14325",
+      "tools/orchestrator/internal/diagnostics/format_test.go": "7890dec8a9a251677207574ef6c38ed17e29901380ab32f034d6c8a1030b40bf"
+    },
+    "session": 95289,
+    "exit": 0,
+    "top_pass": 16,
+    "named_pass": 16,
+    "fail": [],
+    "sha256": "966d9a00205c45fffa1defe650f0a1adcbb2e3d7f22492c7c8f002665b3f933e"
+  },
+  "format_red": {
+    "commit": "a5b2cfcc5d4d87df53dc713bb5ebe3e629c515df",
+    "session": 32086,
+    "exit": 1,
+    "sha256": "e38592585240e85d2d498b734ac755db27c684ecee1b1e9fd8a9fd4feca7bb0c",
+    "fail": [
+      "TestRootChunkSemanticRanges/wrong_gap",
+      "TestRootChunkSemanticRanges/empty",
+      "TestRootChunkSemanticRanges/underflow",
+      "TestRootChunkSemanticRanges/overflow",
+      "TestRootChunkSemanticRanges/overlap",
+      "TestRootChunkSemanticRanges/missing_gap",
+      "TestRootChunkSemanticRanges",
+      "TestRootDecodeMetadataAllocationBound"
+    ],
+    "allocation_observation": [
+      "root_regression_test.go:82: decode bytes/op=131208 raw=38092 records=2000"
+    ]
+  }
+}

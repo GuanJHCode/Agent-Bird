@@ -1,0 +1,69 @@
+{
+  "base": "67952608f3cf371cc2080633422d0de662d1232a",
+  "scope": "M1a capture and chunk format only; no writer, ring, crash recovery, public read/ACK or managed quota delivered",
+  "red": {
+    "session": 64905,
+    "exit": 1,
+    "top_pass": 21,
+    "named_pass": 27,
+    "fail": [
+      "TestIndependentChunkSemanticRanges/overflow",
+      "TestIndependentChunkSemanticRanges/overlap",
+      "TestIndependentChunkSemanticRanges/missing_gap",
+      "TestIndependentChunkSemanticRanges/wrong_gap",
+      "TestIndependentChunkSemanticRanges/empty",
+      "TestIndependentChunkSemanticRanges/underflow",
+      "TestIndependentChunkSemanticRanges",
+      "TestIndependentChunkCannotAdvanceEmptyOrInvalidIdentity",
+      "TestIndependentDoneExposesFinalLossFatalAndAppendError"
+    ],
+    "skip": [],
+    "log": "tasks/detailed-diagnostics/data/root-core-final-red.jsonl",
+    "sha256": "ec3120b73f85f4cddd18ebfbf8e4fe3bfd2bfa6ec8092f436ccf382d53df035b",
+    "allocation_observation": [
+      "contract_regression_test.go:190: decode bytes/op=136 raw=38092 records=2000"
+    ]
+  },
+  "final": {
+    "session": 99038,
+    "exit": 0,
+    "top_pass": 24,
+    "named_pass": 36,
+    "fail": [],
+    "skip": [],
+    "log": "tasks/detailed-diagnostics/data/root-core-final-v2-race.jsonl",
+    "sha256": "f56c22f352f498b0a1cd93c1ee73d105958ae88ba2774bffae7a9196f1636b9b",
+    "allocation_observation": [
+      "contract_regression_test.go:221: decode bytes/op=144 raw=38092 records=2000"
+    ]
+  },
+  "vet": {
+    "chunk": "5fe33a",
+    "exit": 0
+  },
+  "diff_check": {
+    "chunk": "ab93fb",
+    "exit": 0
+  },
+  "source_sha256": {
+    "format_test.go": "f893c003311bd44f6d2461f096d1a6c4dc8cbb2d1766f21622f9f86e614b4d93",
+    "format.go": "647f45d76c2fa887c164046b9fc92a8c36b5b02efd6cc1eb0851b73b08263a14",
+    "contract_regression_test.go": "ce89219a6293cea058d4835883ca8a359a0269708a8d3bebd63d5fa84a388fb7",
+    "capture.go": "33799009543c73dfd9597bb2bfc3c473d8e715cf92c4e4e5400f6fcff4e1b036",
+    "capture_test.go": "1da5605473435f60151f3fe6c2a4aa6aab28cf8d0746630c6b6ca0bc78bdc48d"
+  },
+  "prior_final": {
+    "session": 48712,
+    "exit": 0,
+    "top_pass": 24,
+    "named_pass": 36,
+    "fail": [],
+    "skip": [],
+    "log": "tasks/detailed-diagnostics/data/root-core-final-race.jsonl",
+    "sha256": "4b45a2c0e0828513c547db4cbcc5744e4d6bd0736d17b3f9644fd41dbd4454b0",
+    "allocation_observation": [
+      "contract_regression_test.go:190: decode bytes/op=144 raw=38092 records=2000"
+    ]
+  },
+  "review": "PASS for final source; final test-only change uses observed wait boundary instead of fixed20ms deadline"
+}
