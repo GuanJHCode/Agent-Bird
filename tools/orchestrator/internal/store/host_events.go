@@ -105,9 +105,6 @@ func (d *DB) commitHostEvent(ctx context.Context, event contract.Event, artifact
 		if event.Artifact.Size < 0 || event.Artifact.Size > 1024*1024 {
 			return rollback(CodeError("artifact_too_large"))
 		}
-		if event.Artifact.HostArtifact == nil {
-			incoming += event.Artifact.Size
-		}
 	}
 	if err = d.storageAdmission(ctx, tx, event.RunID, incoming, false); err != nil {
 		return rollback(err)
@@ -129,13 +126,29 @@ func (d *DB) commitHostEvent(ctx context.Context, event contract.Event, artifact
 	if err = d.retainHostArtifact(ctx, tx, event, artifactGate, false); err != nil {
 		return rollback(err)
 	}
+	legacyClaimed := 0
+	if !artifactGate.verified && event.Artifact != nil && event.Kind != contract.EventExited {
+		claim := legacyClaimFromBody("runtime", event.EventID, event.RunID, "", body, true)
+		if claim.state == "malformed" && !historical {
+			return rollback(CodeError("legacy_artifact_unclassified"))
+		}
+		// A late, authenticated history replay records a declaration but never
+		// claims new disk capacity.  It is intentionally allowed even when old
+		// history is already over limit or contains another malformed row.
+		if err = insertLegacyClaim(ctx, tx, claim, !historical, d); err != nil {
+			return rollback(err)
+		}
+		if claim.state == "legacy_pending" {
+			legacyClaimed = 1
+		}
+	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	deliveryStatus := "pending"
 	if historical || event.Kind == contract.EventPrepared || event.Kind == contract.EventSpawned || event.Kind == contract.EventRunning || event.Kind == contract.EventSession || event.Kind == contract.EventExited {
 		deliveryStatus = "internal"
 	}
 	actionSlot := "action-" + runtimeHash(event.ProducerID + "\x00" + event.EventID)[:32]
-	if _, err = tx.ExecContext(ctx, `INSERT INTO runtime_events(event_id,producer_id,sequence,task_id,attempt_id,segment_id,payload_hash,body_json,event_revision,action_slot,delivery_status,created_at,host_artifact_verified) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, event.EventID, event.ProducerID, event.Sequence, event.TaskID, event.AttemptID, event.SegmentID, event.PayloadHash, string(body), event.Sequence, actionSlot, deliveryStatus, now, artifactGate.verified); err != nil {
+	if _, err = tx.ExecContext(ctx, `INSERT INTO runtime_events(event_id,producer_id,sequence,task_id,attempt_id,segment_id,payload_hash,body_json,event_revision,action_slot,delivery_status,created_at,host_artifact_verified,legacy_artifact_claimed) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, event.EventID, event.ProducerID, event.Sequence, event.TaskID, event.AttemptID, event.SegmentID, event.PayloadHash, string(body), event.Sequence, actionSlot, deliveryStatus, now, artifactGate.verified, legacyClaimed); err != nil {
 		return rollback(mapConflict(err))
 	}
 	if deliveryStatus == "pending" {

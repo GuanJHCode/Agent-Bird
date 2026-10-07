@@ -71,8 +71,12 @@ func TestDependencyMigrationLegacyPendingAndRollback(t *testing.T) {
 				t.Fatalf("legacy capture fabricated %v", err)
 			}
 			reopened.sql.QueryRow(`SELECT total_bytes FROM storage_usage WHERE scope='run' AND scope_id='run'`).Scan(&after)
-			if after != usage {
-				t.Fatal("migration changed usage")
+			var legacyRaw, legacyMetadata int64
+			if err = reopened.sql.QueryRow(`SELECT COALESCE(SUM(raw_bytes),0),COALESCE(SUM(64+length(CAST(source_class AS BLOB))+length(CAST(source_id AS BLOB))+length(CAST(run_id AS BLOB))+length(CAST(capability_id AS BLOB))+length(CAST(declaration_json AS BLOB))+length(CAST(declaration_sha256 AS BLOB))+length(CAST(state AS BLOB))),0) FROM legacy_artifact_claims WHERE state='legacy_pending'`).Scan(&legacyRaw, &legacyMetadata); err != nil {
+				t.Fatal(err)
+			}
+			if after != usage-legacyRaw+legacyMetadata {
+				t.Fatalf("migration control/raw split changed total: before=%d control=%d raw=%d metadata=%d", usage, after, legacyRaw, legacyMetadata)
 			}
 			pending, err := reopened.PendingLaunches(ctx, host, 1)
 			if !errors.Is(err, contract.ErrHostArtifactGrant) || len(pending) != 0 {

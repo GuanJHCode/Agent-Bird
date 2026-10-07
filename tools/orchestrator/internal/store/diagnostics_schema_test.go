@@ -95,6 +95,10 @@ func TestDiagnosticsV18MigrationPreservesLegacyWithoutConsent(t *testing.T) {
 	diagnosticsLegacyArtifact(t, db)
 	downgradeDiagnosticsSchema(t, db)
 	before := diagnosticsLegacySnapshot(t, db.sql)
+	expected := make(map[string]string, len(before))
+	for k, v := range before {
+		expected[k] = v
+	}
 	if err = db.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -107,8 +111,24 @@ func TestDiagnosticsV18MigrationPreservesLegacyWithoutConsent(t *testing.T) {
 		if err = db.sql.QueryRow(`SELECT version FROM schema_meta`).Scan(&version); err != nil || version != currentSchemaVersion {
 			t.Fatal(version, err)
 		}
-		if got := diagnosticsLegacySnapshot(t, db.sql); !reflect.DeepEqual(got, before) {
-			t.Fatalf("migration changed legacy state: %v / %v", got, before)
+		var claims, raw, metadata int
+		if err = db.sql.QueryRow(`SELECT COUNT(*),COALESCE(SUM(raw_bytes),0),COALESCE(SUM(64+length(CAST(source_class AS BLOB))+length(CAST(source_id AS BLOB))+length(CAST(run_id AS BLOB))+length(CAST(capability_id AS BLOB))+length(CAST(declaration_json AS BLOB))+length(CAST(declaration_sha256 AS BLOB))+length(CAST(state AS BLOB))),0) FROM legacy_artifact_claims WHERE state='legacy_pending'`).Scan(&claims, &raw, &metadata); err != nil || claims != 1 || raw != 42 {
+			t.Fatalf("legacy artifact not retained as accounting declaration: claims=%d raw=%d metadata=%d err=%v", claims, raw, metadata, err)
+		}
+		for _, key := range []string{"global_usage", "run_usage"} {
+			var usage []int64
+			if err = json.Unmarshal([]byte(before[key]), &usage); err != nil || len(usage) != 2 || usage[0] < int64(raw) {
+				t.Fatalf("legacy usage %s=%q: %v", key, before[key], err)
+			}
+			usage[0] += int64(metadata) - int64(raw)
+			encoded, marshalErr := json.Marshal(usage)
+			if marshalErr != nil {
+				t.Fatal(marshalErr)
+			}
+			expected[key] = string(encoded)
+		}
+		if got := diagnosticsLegacySnapshot(t, db.sql); !reflect.DeepEqual(got, expected) {
+			t.Fatalf("migration changed legacy state beyond control/raw split: %v / %v", got, expected)
 		}
 		for _, table := range []string{"task_diagnostics_policies", "managed_artifact_reservations", "diagnostic_delivery_state"} {
 			var count int

@@ -43,6 +43,7 @@ func TestHostArtifactDispatchPrechargesOfflineManifestBytes(t *testing.T) {
 // schema21's exact metadata charge; it does not rewrite candidate intent hashes.
 func downgradeHostMetadataSchema(t *testing.T, db *DB) {
 	t.Helper()
+	downgradeLegacyArtifactSchema(t, db)
 	tx, err := db.sql.Begin()
 	if err != nil {
 		t.Fatal(err)

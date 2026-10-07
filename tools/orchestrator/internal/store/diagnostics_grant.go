@@ -145,6 +145,13 @@ func (d *DB) managedArtifactAdmissionDisk(ctx context.Context, tx *sql.Tx, incom
 	if incoming < 0 || control < 0 {
 		return CodeError("artifact_spool_full")
 	}
+	var malformed int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM legacy_artifact_claims WHERE state='malformed'`).Scan(&malformed); err != nil {
+		return err
+	}
+	if malformed != 0 {
+		return CodeError("legacy_artifact_unclassified")
+	}
 	rows, err := tx.QueryContext(ctx, `SELECT reserved_bytes,retained_bytes FROM managed_artifact_reservations WHERE state!='released'`)
 	if err != nil {
 		return err
@@ -168,6 +175,29 @@ func (d *DB) managedArtifactAdmissionDisk(ctx context.Context, tx *sql.Tx, incom
 		return err
 	}
 	if err = rows.Close(); err != nil {
+		return err
+	}
+	legacyRows, err := tx.QueryContext(ctx, `SELECT raw_bytes FROM legacy_artifact_claims WHERE state='legacy_pending'`)
+	if err != nil {
+		return err
+	}
+	for legacyRows.Next() {
+		var raw int64
+		if err = legacyRows.Scan(&raw); err != nil {
+			legacyRows.Close()
+			return err
+		}
+		if raw < 0 || used > math.MaxInt64-raw {
+			legacyRows.Close()
+			return CodeError("artifact_spool_full")
+		}
+		used += raw
+	}
+	if err = legacyRows.Err(); err != nil {
+		legacyRows.Close()
+		return err
+	}
+	if err = legacyRows.Close(); err != nil {
 		return err
 	}
 	if incoming > d.artifactLimit || used > d.artifactLimit-incoming {

@@ -30,7 +30,11 @@ func TestIndexedAcceptChecksDurableSourceAndCoverage(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer func() { db.Close() }()
+			defer func() {
+				if db != nil {
+					_ = db.Close()
+				}
+			}()
 			tasks := indexedPlanTasks(t)
 			lock := &adapter.ProviderLock{Version: 1, Provider: adapter.ProviderGrok, Protocol: adapter.ProtocolID(adapter.ProviderGrok), Binary: adapter.BinaryPin{Path: "/private/grok", Version: "1.0.34", SHA256: strings.Repeat("b", 64)}}
 			if retryPolicy {

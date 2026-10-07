@@ -211,9 +211,9 @@ func TestHostArtifactLegacyRawRefundDoesNotChangeWhenRefArrives(t *testing.T) {
 		t.Fatal(err)
 	}
 	after, globalAfter := continuationQuotaUsage(t, db)
-	want := int64(len(raw)) + e.Artifact.Size
+	want := int64(len(raw)) // immutable legacy claim remains until explicit proof-based expiry
 	if before-after != want || globalBefore-globalAfter != want {
-		t.Fatal("later ref changed legacy raw refund", before-after, globalBefore-globalAfter, want, g.SegmentID)
+		t.Fatal("source delete refunded immutable legacy raw", before-after, globalBefore-globalAfter, want, g.SegmentID)
 	}
 }
 

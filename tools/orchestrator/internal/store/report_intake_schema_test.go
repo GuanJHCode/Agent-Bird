@@ -12,6 +12,7 @@ import (
 
 func downgradeReportIntakeSchema(t *testing.T, db *DB) {
 	t.Helper()
+	downgradeLegacyArtifactSchema(t, db)
 	tx, err := db.sql.Begin()
 	if err != nil {
 		t.Fatal(err)
@@ -47,6 +48,11 @@ func TestReportIntakeMigrationPreservesLegacyClaimsWithoutOwnership(t *testing.T
 	if _, err := db.sql.Exec(`INSERT INTO report_events(event_id,capability_id,sequence,kind,payload_hash,body_json,event_revision,action_slot,delivery_status,accounted_bytes,created_at) VALUES('legacy',?,1,'result','old',?,1,'legacy-action','pending',?,'before')`, g.ReportCapabilityID, string(raw), len(raw)+1234); err != nil {
 		t.Fatal(err)
 	}
+	// Historical writers advanced this per-capability counter with the event;
+	// preserve that invariant in the direct schema fixture.
+	if _, err := db.sql.Exec(`UPDATE report_capabilities SET used_bytes=used_bytes+? WHERE capability_id=?`, len(raw)+1234, g.ReportCapabilityID); err != nil {
+		t.Fatal(err)
+	}
 	var before int64
 	if err := db.sql.QueryRow(`SELECT total_bytes FROM storage_usage WHERE scope='global'`).Scan(&before); err != nil {
 		t.Fatal(err)
@@ -60,12 +66,12 @@ func TestReportIntakeMigrationPreservesLegacyClaimsWithoutOwnership(t *testing.T
 		if err != nil {
 			t.Fatal(err)
 		}
-		var version, rows int
+		var version, rows, claims int
 		var saved string
-		var after int64
-		err = opened.sql.QueryRow(`SELECT (SELECT version FROM schema_meta),(SELECT COUNT(*) FROM managed_artifact_intakes)+(SELECT COUNT(*) FROM managed_artifact_refs)+(SELECT COUNT(*) FROM managed_artifact_reservations),(SELECT body_json FROM report_events WHERE event_id='legacy'),(SELECT total_bytes FROM storage_usage WHERE scope='global')`).Scan(&version, &rows, &saved, &after)
-		if err != nil || version != currentSchemaVersion || rows != 0 || saved != string(raw) || after != before {
-			t.Fatal("migration invented authority or changed legacy bytes", version, rows, after, before, err)
+		var after, declared, metadata int64
+		err = opened.sql.QueryRow(`SELECT (SELECT version FROM schema_meta),(SELECT COUNT(*) FROM managed_artifact_intakes)+(SELECT COUNT(*) FROM managed_artifact_refs)+(SELECT COUNT(*) FROM managed_artifact_reservations),(SELECT COUNT(*) FROM legacy_artifact_claims WHERE source_class='report' AND source_id='legacy' AND state='legacy_pending'),(SELECT raw_bytes FROM legacy_artifact_claims WHERE source_class='report' AND source_id='legacy'),(SELECT body_json FROM report_events WHERE event_id='legacy'),(SELECT total_bytes FROM storage_usage WHERE scope='global'),(SELECT 64+length(CAST(source_class AS BLOB))+length(CAST(source_id AS BLOB))+length(CAST(run_id AS BLOB))+length(CAST(capability_id AS BLOB))+length(CAST(declaration_json AS BLOB))+length(CAST(declaration_sha256 AS BLOB))+length(CAST(state AS BLOB)) FROM legacy_artifact_claims WHERE source_class='report' AND source_id='legacy')`).Scan(&version, &rows, &claims, &declared, &saved, &after, &metadata)
+		if err != nil || version != currentSchemaVersion || rows != 0 || claims != 1 || declared != 1234 || saved != string(raw) || after != before-declared+metadata {
+			t.Fatal("migration invented authority or split legacy bytes incorrectly", version, rows, claims, declared, after, before, err)
 		}
 		if err = opened.Close(); err != nil {
 			t.Fatal(err)

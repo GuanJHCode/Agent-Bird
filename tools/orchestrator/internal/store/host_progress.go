@@ -71,9 +71,6 @@ func (d *DB) commitHostProgress(ctx context.Context, event contract.Event, launc
 		return err
 	}
 	incoming := int64(len(body))
-	if event.Artifact.HostArtifact == nil {
-		incoming += event.Artifact.Size
-	}
 	// Reserve control quota for every currently owned segment's terminal
 	// artifact (<=1 MiB) plus lifecycle envelopes. Diagnostic quota alone is
 	// insufficient when ordinary control records already approach the limit.
@@ -92,6 +89,15 @@ func (d *DB) commitHostProgress(ctx context.Context, event contract.Event, launc
 	}
 	if err = d.storageAdmission(ctx, tx, event.RunID, incoming, true); err != nil {
 		return err
+	}
+	if !artifactGate.verified {
+		claim := legacyClaimFromBody("progress", event.EventID, event.RunID, "", body, false)
+		if claim.state == "malformed" {
+			return CodeError("legacy_artifact_unclassified")
+		}
+		if err = insertLegacyClaim(ctx, tx, claim, true, d); err != nil {
+			return err
+		}
 	}
 	if _, err = tx.ExecContext(ctx, `INSERT INTO host_progress VALUES(?,?,?,?,?,?)`, event.EventID, event.TaskID, event.SegmentID, event.Sequence, string(body), incoming); err != nil {
 		return err
