@@ -179,9 +179,15 @@ func TestCancellationCannotEraseIntegratedResult(t *testing.T) {
 }
 
 func TestCandidateReviewInvalidWorkerEmitsV2Lifecycle(t *testing.T) {
-	if os.Getenv("F01_V2_LOCAL_WORKER") == "1" {
-		_, _ = os.Stdout.WriteString(`{"type":"system","subtype":"init","session_id":"review-session"}` + "\n")
-		_, _ = os.Stdout.WriteString(`{"type":"result","subtype":"success","session_id":"review-session","result":"ignored prose","structured_output":{"decision":"approve"}}` + "\n")
+	if mode := os.Getenv("F01_V2_LOCAL_WORKER"); mode != "" {
+		switch mode {
+		case "silent":
+		case "session":
+			_, _ = os.Stdout.WriteString(`{"type":"system","subtype":"init","session_id":"review-session"}` + "\n")
+			_, _ = os.Stdout.WriteString(`{"type":"result","subtype":"success","session_id":"review-session","result":"ignored prose","structured_output":{"decision":"approve"}}` + "\n")
+		default:
+			t.Fatalf("invalid controlled worker mode %q", mode)
+		}
 		os.Exit(0)
 	}
 	for _, session := range []bool{false, true} {
@@ -200,13 +206,8 @@ func testCandidateReviewInvalidWorkerLifecycle(t *testing.T, session bool) {
 		return nil, err
 	}
 	a := store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID}
-	cmd := process.Command{Path: "/usr/bin/true"}
+	cmd := reviewFailureWorkerCommand(t, session)
 	if session {
-		binary, err := filepath.EvalSymlinks(os.Args[0])
-		if err != nil {
-			t.Fatal(err)
-		}
-		cmd = process.Command{Path: binary, Args: []string{"-test.run=^TestCandidateReviewInvalidWorkerEmitsV2Lifecycle$"}, Env: []string{"F01_V2_LOCAL_WORKER=1"}}
 		meta.outputProvider = string(adapter.ProviderClaude)
 		meta.structuredReview = true
 	}
@@ -265,6 +266,21 @@ func testCandidateReviewInvalidWorkerLifecycle(t *testing.T, session bool) {
 	}
 }
 
+// Every F01 worker uses this test executable with a fixed helper mode; no
+// system utility or installed Provider binary is required.
+func reviewFailureWorkerCommand(t *testing.T, session bool) process.Command {
+	t.Helper()
+	binary, err := filepath.EvalSymlinks(os.Args[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	mode := "silent"
+	if session {
+		mode = "session"
+	}
+	return process.Command{Path: binary, Args: []string{"-test.run=^TestCandidateReviewInvalidWorkerEmitsV2Lifecycle$"}, Env: []string{"F01_V2_LOCAL_WORKER=" + mode}}
+}
+
 // Dependency artifacts and the invalid review are produced by actual local
 // workers. This exercises Store grants and retry without Provider/network calls.
 func managedReviewFailureFixture(t *testing.T) (*store.DB, *Host, contract.LaunchCommand) {
@@ -279,11 +295,13 @@ func managedReviewFailureFixture(t *testing.T) (*store.DB, *Host, contract.Launc
 	}
 	t.Cleanup(func() { db.Close() })
 	ctx := context.Background()
-	pinBody, err := os.ReadFile("/usr/bin/true")
+	worker := reviewFailureWorkerCommand(t, false)
+	pinBody, err := os.ReadFile(worker.Path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	lock := &adapter.ProviderLock{Version: 1, Provider: adapter.ProviderClaude, Protocol: adapter.ProtocolID(adapter.ProviderClaude), Binary: adapter.BinaryPin{Path: "/usr/bin/true", Version: "claude-test", SHA256: hashBytes(pinBody)}}
+	// This pin authenticates the controlled worker, not a qualified Claude CLI.
+	lock := &adapter.ProviderLock{Version: 1, Provider: adapter.ProviderClaude, Protocol: adapter.ProtocolID(adapter.ProviderClaude), Binary: adapter.BinaryPin{Path: worker.Path, Version: "controlled-test-worker", SHA256: hashBytes(pinBody)}}
 	var tasks []store.TaskSpec
 	for i, id := range []string{"edit", "validate", "review"} {
 		payload := adapter.InvocationPayload{Directory: filepath.Join(root, id)}
@@ -304,7 +322,7 @@ func managedReviewFailureFixture(t *testing.T) (*store.DB, *Host, contract.Launc
 				payload.Prompt = "controlled readonly review"
 			} else {
 				payload.Kind = "candidate"
-				payload.CandidateAction.Command = []string{"/usr/bin/true"}
+				payload.CandidateAction.Command = append([]string{worker.Path}, worker.Args...)
 			}
 		}
 		task.AdapterPayload, _ = json.Marshal(payload)
@@ -332,7 +350,7 @@ func managedReviewFailureFixture(t *testing.T) (*store.DB, *Host, contract.Launc
 		body, _ := json.Marshal(map[string]any{"stage": id, "validation": map[string]any{"passed": true}, "candidate": map[string]any{"candidate_oid": strings.Repeat("b", 40)}})
 		meta.finalizeAction = func(context.Context, string, int, bool) ([]byte, error) { return body, nil }
 		a := store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID}
-		if result, err := h.execute(ctx, a, grant.RunID, grant.TaskID, process.Command{Path: "/usr/bin/true"}, false, meta); err != nil || result.Status != "result_ready" {
+		if result, err := h.execute(ctx, a, grant.RunID, grant.TaskID, worker, false, meta); err != nil || result.Status != "result_ready" {
 			t.Fatal("dependency worker", result, err)
 		}
 		events, err := h.Collect(ctx, a)
