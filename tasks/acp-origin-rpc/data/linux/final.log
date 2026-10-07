@@ -1,0 +1,29 @@
+=== RUN   TestACPBridgeKindsRejectMalformedPayloadThroughRealSocket
+=== RUN   TestACPBridgeKindsRejectMalformedPayloadThroughRealSocket/acp_bridge_bind
+=== RUN   TestACPBridgeKindsRejectMalformedPayloadThroughRealSocket/acp_bridge_activate
+=== RUN   TestACPBridgeKindsRejectMalformedPayloadThroughRealSocket/acp_bridge_claim
+=== RUN   TestACPBridgeKindsRejectMalformedPayloadThroughRealSocket/acp_bridge_begin_emit
+=== RUN   TestACPBridgeKindsRejectMalformedPayloadThroughRealSocket/acp_bridge_received
+--- PASS: TestACPBridgeKindsRejectMalformedPayloadThroughRealSocket (0.14s)
+    --- PASS: TestACPBridgeKindsRejectMalformedPayloadThroughRealSocket/acp_bridge_bind (0.00s)
+    --- PASS: TestACPBridgeKindsRejectMalformedPayloadThroughRealSocket/acp_bridge_activate (0.00s)
+    --- PASS: TestACPBridgeKindsRejectMalformedPayloadThroughRealSocket/acp_bridge_claim (0.00s)
+    --- PASS: TestACPBridgeKindsRejectMalformedPayloadThroughRealSocket/acp_bridge_begin_emit (0.00s)
+    --- PASS: TestACPBridgeKindsRejectMalformedPayloadThroughRealSocket/acp_bridge_received (0.00s)
+=== RUN   TestACPBridgeFullFlowThroughOriginalUnixPeer
+--- PASS: TestACPBridgeFullFlowThroughOriginalUnixPeer (0.13s)
+=== RUN   TestACPBridgeOwnerCapabilityDoesNotAuthorizeDescendant
+--- PASS: TestACPBridgeOwnerCapabilityDoesNotAuthorizeDescendant (0.13s)
+=== RUN   TestACPBridgeEveryBoundRPCRejectsDescendantAndPrivateFileErrors
+=== RUN   TestACPBridgeEveryBoundRPCRejectsDescendantAndPrivateFileErrors/acp_bridge_activate
+=== RUN   TestACPBridgeEveryBoundRPCRejectsDescendantAndPrivateFileErrors/acp_bridge_claim
+=== RUN   TestACPBridgeEveryBoundRPCRejectsDescendantAndPrivateFileErrors/acp_bridge_begin_emit
+=== RUN   TestACPBridgeEveryBoundRPCRejectsDescendantAndPrivateFileErrors/acp_bridge_received
+--- PASS: TestACPBridgeEveryBoundRPCRejectsDescendantAndPrivateFileErrors (0.14s)
+    --- PASS: TestACPBridgeEveryBoundRPCRejectsDescendantAndPrivateFileErrors/acp_bridge_activate (0.01s)
+    --- PASS: TestACPBridgeEveryBoundRPCRejectsDescendantAndPrivateFileErrors/acp_bridge_claim (0.01s)
+    --- PASS: TestACPBridgeEveryBoundRPCRejectsDescendantAndPrivateFileErrors/acp_bridge_begin_emit (0.01s)
+    --- PASS: TestACPBridgeEveryBoundRPCRejectsDescendantAndPrivateFileErrors/acp_bridge_received (0.01s)
+=== RUN   TestACPBridgeSocketCancelReleasesAdmissionWhileStoreIsLocked
+--- PASS: TestACPBridgeSocketCancelReleasesAdmissionWhileStoreIsLocked (0.12s)
+PASS

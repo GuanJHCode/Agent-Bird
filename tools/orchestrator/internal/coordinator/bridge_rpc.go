@@ -20,7 +20,8 @@ func bridgeKind(kind ipc.Kind) bool {
 	case ipc.KindBridgeBind, ipc.KindBridgeActivate, ipc.KindBridgeIngest,
 		ipc.KindBridgeClaim, ipc.KindBridgeBeginEmit, ipc.KindBridgeOffered,
 		ipc.KindBridgeReceived, ipc.KindBridgeQueryBatch, ipc.KindBridgeRedeliver,
-		ipc.KindBridgeStatus, ipc.KindBridgeUnbind:
+		ipc.KindBridgeStatus, ipc.KindBridgeUnbind,
+		ipc.KindACPBridgeBind, ipc.KindACPBridgeActivate, ipc.KindACPBridgeClaim, ipc.KindACPBridgeBeginEmit, ipc.KindACPBridgeReceived:
 		return true
 	}
 	return false
@@ -74,6 +75,8 @@ func (s *Server) bridgeSenderContext(ctx context.Context, conn net.Conn, binding
 
 func (s *Server) bridgeRPC(ctx context.Context, conn net.Conn, kind ipc.Kind, raw json.RawMessage) (json.RawMessage, error) {
 	switch kind {
+	case ipc.KindACPBridgeBind, ipc.KindACPBridgeActivate, ipc.KindACPBridgeClaim, ipc.KindACPBridgeBeginEmit, ipc.KindACPBridgeReceived:
+		return s.acpBridgeRPC(ctx, conn, kind, raw)
 	case ipc.KindBridgeBind:
 		authorized, req, err := s.AuthorizeBridgeBind(ctx, conn, raw)
 		if err != nil {

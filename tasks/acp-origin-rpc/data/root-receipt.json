@@ -1,0 +1,174 @@
+{
+  "scope": "five owner-authenticated ACP Coordinator RPCs and real Unix socket behavior; public controller launch/session/prompt remains open",
+  "review": "independent production and test review PASS; two output-encoding/helper-skip misreadings verified and withdrawn",
+  "files": {
+    "tools/orchestrator/internal/coordinator/acp_bridge_rpc.go": "31b8c19d4539d461a76693bed5cc55a1a1518376da7c9e818adf047e78f9d431",
+    "tools/orchestrator/internal/coordinator/acp_bridge_rpc_test.go": "2ca18bea99219cf154d86a9cb16d1c1b0d88123160e269ec757bbeaa777a02f9",
+    "tools/orchestrator/internal/coordinator/bridge_rpc.go": "8dda27a89f049347a2e8c23b023b4a578bf64375cc7af4b6646289a406c080d6",
+    "tools/orchestrator/internal/ipc/ipc.go": "11ac62e8a68d14615979428c58400321a8ed69f788bb673780071e7a3db9514a",
+    "tasks/acp-origin-rpc/scripts/run-linux.py": "dcf9157bb6ba26a0eedbf12ae99c736bd86f9b802acdd88c9126e8d5659eadd0"
+  },
+  "tests": {
+    "root-route-green": {
+      "pass": 6,
+      "fail": 0,
+      "skip": 0,
+      "top_level_pass": 1,
+      "package_outcomes": [
+        {
+          "Time": "2026-10-08T00:00:41.74601+08:00",
+          "Action": "pass",
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator",
+          "Elapsed": 0.574
+        }
+      ]
+    },
+    "root-route-red": {
+      "pass": 0,
+      "fail": 6,
+      "skip": 0,
+      "top_level_pass": 0,
+      "package_outcomes": [
+        {
+          "Time": "2026-10-07T23:59:43.336614+08:00",
+          "Action": "fail",
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator",
+          "Elapsed": 0.846
+        }
+      ]
+    },
+    "root-hook-rpc-regression": {
+      "pass": 19,
+      "fail": 0,
+      "skip": 0,
+      "top_level_pass": 8,
+      "package_outcomes": [
+        {
+          "Time": "2026-10-08T00:05:24.359184+08:00",
+          "Action": "pass",
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator",
+          "Elapsed": 2.664
+        }
+      ]
+    },
+    "root-ipc-race": {
+      "pass": 21,
+      "fail": 0,
+      "skip": 0,
+      "top_level_pass": 9,
+      "package_outcomes": [
+        {
+          "Time": "2026-10-08T00:05:23.969265+08:00",
+          "Action": "pass",
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc",
+          "Elapsed": 1.967
+        }
+      ]
+    },
+    "root-rpc-race": {
+      "pass": 14,
+      "fail": 0,
+      "skip": 0,
+      "top_level_pass": 5,
+      "package_outcomes": [
+        {
+          "Time": "2026-10-08T00:05:15.320288+08:00",
+          "Action": "pass",
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator",
+          "Elapsed": 29.262
+        }
+      ]
+    },
+    "root-rpc-flow": {
+      "pass": 8,
+      "fail": 0,
+      "skip": 0,
+      "top_level_pass": 3,
+      "package_outcomes": [
+        {
+          "Time": "2026-10-08T00:03:02.21717+08:00",
+          "Action": "pass",
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator",
+          "Elapsed": 1.447
+        }
+      ]
+    }
+  },
+  "vet_exit": 0,
+  "linux": {
+    "label": "final",
+    "create_command": [
+      "docker",
+      "create",
+      "--pull=never",
+      "--init",
+      "--name",
+      "root-acp-rpc-final",
+      "--network",
+      "none",
+      "--read-only",
+      "--cap-drop",
+      "ALL",
+      "--security-opt",
+      "no-new-privileges",
+      "--user",
+      "65534:65534",
+      "--pids-limit",
+      "96",
+      "--memory",
+      "512m",
+      "--cpus",
+      "2",
+      "--tmpfs",
+      "/tmp:rw,noexec,nosuid,nodev,size=128m,mode=1777",
+      "--mount",
+      "type=bind,source=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/acp-origin-rpc/tasks/acp-origin-rpc/tmp/linux,target=/test,readonly",
+      "--entrypoint",
+      "/test/coordinator.test",
+      "sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99",
+      "-test.run=^TestACPBridge",
+      "-test.v",
+      "-test.count=1",
+      "-test.timeout=120s"
+    ],
+    "cid": "fc25583fd7017bb7c31c395cd5f7aee47834c12bd56d00fe97b3aa1bf13fbbe2",
+    "binary_sha256": "7ac3119905a2b2edc13f29e97dec4dc4c9e6d13c5bf1757749984074617a0154",
+    "state": {
+      "Status": "exited",
+      "Running": false,
+      "Paused": false,
+      "Restarting": false,
+      "OOMKilled": false,
+      "Dead": false,
+      "Pid": 0,
+      "ExitCode": 0,
+      "Error": "",
+      "StartedAt": "2026-10-07T16:08:02.384331708Z",
+      "FinishedAt": "2026-10-07T16:08:03.154608125Z"
+    },
+    "start_exit": 0,
+    "image": "sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99",
+    "pass_tests": [
+      "TestACPBridgeKindsRejectMalformedPayloadThroughRealSocket",
+      "TestACPBridgeKindsRejectMalformedPayloadThroughRealSocket/acp_bridge_bind",
+      "TestACPBridgeKindsRejectMalformedPayloadThroughRealSocket/acp_bridge_activate",
+      "TestACPBridgeKindsRejectMalformedPayloadThroughRealSocket/acp_bridge_claim",
+      "TestACPBridgeKindsRejectMalformedPayloadThroughRealSocket/acp_bridge_begin_emit",
+      "TestACPBridgeKindsRejectMalformedPayloadThroughRealSocket/acp_bridge_received",
+      "TestACPBridgeFullFlowThroughOriginalUnixPeer",
+      "TestACPBridgeOwnerCapabilityDoesNotAuthorizeDescendant",
+      "TestACPBridgeEveryBoundRPCRejectsDescendantAndPrivateFileErrors",
+      "TestACPBridgeEveryBoundRPCRejectsDescendantAndPrivateFileErrors/acp_bridge_activate",
+      "TestACPBridgeEveryBoundRPCRejectsDescendantAndPrivateFileErrors/acp_bridge_claim",
+      "TestACPBridgeEveryBoundRPCRejectsDescendantAndPrivateFileErrors/acp_bridge_begin_emit",
+      "TestACPBridgeEveryBoundRPCRejectsDescendantAndPrivateFileErrors/acp_bridge_received",
+      "TestACPBridgeSocketCancelReleasesAdmissionWhileStoreIsLocked"
+    ],
+    "fail_tests": [],
+    "skip_tests": [],
+    "log_sha256": "a511fcef40eecfe3eeac92c2a8012b3b5706ec72018ad3fe5e1e91be499fcc69",
+    "remove_exit": 0,
+    "post_remove_inspect_exit": 1,
+    "post_remove_inspect": "[]\nError: No such object: fc25583fd7017bb7c31c395cd5f7aee47834c12bd56d00fe97b3aa1bf13fbbe2\n"
+  }
+}
