@@ -199,6 +199,10 @@ func TestWorkerRoutesPrivateRefsAndComposeIntegrateCleanupChain(t *testing.T) {
 	if err = json.Unmarshal(integrated.Result, &integrationOutcome); err != nil || integrationOutcome.State != gitops.IntegrationIntegrated || git("rev-parse", "HEAD") != receipt.CandidateOID {
 		t.Fatalf("integration failed: %+v", integrated)
 	}
+	integrationJournal, err := os.ReadFile(filepath.Join(spool, "gitops-journal", digest("chain-integrate"), "events.jsonl"))
+	if err != nil || !strings.Contains(string(integrationJournal), `"kind":"git_process"`) || !strings.Contains(string(integrationJournal), `"phase":"spawned"`) || !strings.Contains(string(integrationJournal), `"phase":"exited"`) {
+		t.Fatalf("final integrate lacks original Git process receipt: %q err=%v", integrationJournal, err)
+	}
 
 	cleaned := runWorkerOperation(t, executable, spool, "chain-cleanup", "cleanup", map[string]any{
 		"root": composeWorktree, "candidate_receipt": receipt,
