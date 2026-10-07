@@ -6,7 +6,9 @@ package diagnostics
 import (
 	"context"
 	"errors"
+	"math"
 	"sync"
+	"unicode/utf8"
 )
 
 const (
@@ -24,10 +26,11 @@ const (
 )
 
 var (
-	ErrCaptureClosed  = errors.New("diagnostics_capture_closed")
-	ErrInvalidSegment = errors.New("diagnostics_invalid_segment")
-	ErrInvalidStream  = errors.New("diagnostics_invalid_stream")
-	ErrInvalidLease   = errors.New("diagnostics_invalid_lease")
+	ErrCaptureClosed   = errors.New("diagnostics_capture_closed")
+	ErrInvalidSegment  = errors.New("diagnostics_invalid_segment")
+	ErrInvalidStream   = errors.New("diagnostics_invalid_stream")
+	ErrInvalidLease    = errors.New("diagnostics_invalid_lease")
+	ErrCaptureOverflow = errors.New("diagnostics_capture_overflow")
 )
 
 type Stream uint8
@@ -84,7 +87,7 @@ type Capture struct {
 }
 
 func NewCapture(segmentID string) (*Capture, error) {
-	if len(segmentID) == 0 || len(segmentID) > 128 {
+	if len(segmentID) == 0 || len(segmentID) > 128 || !utf8.ValidString(segmentID) || bytesContainsNUL(segmentID) {
 		return nil, ErrInvalidSegment
 	}
 	return &Capture{segmentID: segmentID, leased: make(map[uint64]struct{}), notify: make(chan struct{})}, nil
@@ -103,6 +106,10 @@ func (c *Capture) Offer(stream Stream, data []byte) (CaptureReceipt, error) {
 		return CaptureReceipt{}, ErrCaptureClosed
 	}
 	index := int(stream)
+	recordsNeeded := uint64((len(data) + RecordBytes - 1) / RecordBytes)
+	if uint64(len(data)) > math.MaxUint64-c.offsets[index] || recordsNeeded > math.MaxUint64-c.nextID {
+		return CaptureReceipt{}, ErrCaptureOverflow
+	}
 	start := c.offsets[index]
 	receipt := CaptureReceipt{StartOffset: start}
 	for len(data) > 0 {
@@ -120,6 +127,9 @@ func (c *Capture) Offer(stream Stream, data []byte) (CaptureReceipt, error) {
 			continue
 		}
 		copyData := append([]byte(nil), part...)
+		if c.nextID == math.MaxUint64 {
+			return CaptureReceipt{}, ErrCaptureOverflow
+		}
 		c.nextID++
 		c.queue = append(c.queue, queuedRecord{id: c.nextID, record: Record{Stream: stream, SegmentID: c.segmentID, Offset: at, LostBefore: c.pendingLoss[index], Data: copyData}})
 		c.pendingLoss[index] = 0
@@ -146,7 +156,7 @@ func (c *Capture) Next(ctx context.Context) (Lease, error) {
 			c.mu.Unlock()
 			return Lease{capture: c, id: item.id, record: item.record}, nil
 		}
-		if c.closed {
+		if c.closed && !c.hasPendingLossLocked() {
 			c.mu.Unlock()
 			return Lease{}, ErrCaptureClosed
 		}
@@ -188,6 +198,10 @@ func (c *Capture) Close() {
 	c.mu.Unlock()
 }
 
+func (c *Capture) hasPendingLossLocked() bool {
+	return c.pendingLoss[Stdout] != 0 || c.pendingLoss[Stderr] != 0
+}
+
 func (c *Capture) enqueueFinalLossLocked() {
 	if !c.closed {
 		return
@@ -197,12 +211,24 @@ func (c *Capture) enqueueFinalLossLocked() {
 		if c.pendingLoss[index] == 0 || c.used == CaptureRecordCount {
 			continue
 		}
+		if c.nextID == math.MaxUint64 {
+			return
+		}
 		c.nextID++
 		loss := c.pendingLoss[index]
 		c.queue = append(c.queue, queuedRecord{id: c.nextID, record: Record{Stream: stream, SegmentID: c.segmentID, Offset: c.offsets[index], LostBefore: loss}})
 		c.pendingLoss[index] = 0
 		c.used++
 	}
+}
+
+func bytesContainsNUL(value string) bool {
+	for i := range value {
+		if value[i] == 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *Capture) signalLocked() {

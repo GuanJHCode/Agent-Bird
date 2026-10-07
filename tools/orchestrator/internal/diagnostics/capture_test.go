@@ -3,6 +3,7 @@ package diagnostics
 import (
 	"context"
 	"errors"
+	"math"
 	"testing"
 )
 
@@ -112,5 +113,71 @@ func TestCaptureNextPrioritizesCanceledContextAndReturnsAppendFailure(t *testing
 	appendErr := errors.New("append failed")
 	if err = c.Done(lease, appendErr); !errors.Is(err, appendErr) {
 		t.Fatalf("Done=%v", err)
+	}
+}
+
+func TestCaptureClosedWithOnlyLeasedRecordsWaitsForFinalLossCapacity(t *testing.T) {
+	c, err := NewCapture("segment-a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for range CaptureRecordCount {
+		if _, err = c.Offer(Stdout, []byte("x")); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err = c.Offer(Stdout, []byte("lost")); err != nil {
+		t.Fatal(err)
+	}
+	leases := make([]Lease, 0, CaptureRecordCount)
+	for range CaptureRecordCount {
+		l, e := c.Next(context.Background())
+		if e != nil {
+			t.Fatal(e)
+		}
+		leases = append(leases, l)
+	}
+	c.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err = c.Next(ctx); err != context.Canceled {
+		t.Fatalf("closed full loss=%v", err)
+	}
+	if err = c.Done(leases[0], nil); err != nil {
+		t.Fatal(err)
+	}
+	loss, err := c.Next(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loss.Record().LostBefore != 4 || loss.Record().Offset != uint64(CaptureRecordCount+4) {
+		t.Fatalf("loss=%+v", loss.Record())
+	}
+}
+
+func TestCaptureRejectsOverflowWithoutConsumingInput(t *testing.T) {
+	c, err := NewCapture("segment-a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.offsets[Stdout] = math.MaxUint64
+	if _, err = c.Offer(Stdout, []byte("x")); err != ErrCaptureOverflow {
+		t.Fatalf("offset overflow=%v", err)
+	}
+	if c.offsets[Stdout] != math.MaxUint64 || c.used != 0 {
+		t.Fatalf("mutated=%d used=%d", c.offsets[Stdout], c.used)
+	}
+	c.offsets[Stdout] = 0
+	c.nextID = math.MaxUint64
+	if _, err = c.Offer(Stdout, []byte("x")); err != ErrCaptureOverflow {
+		t.Fatalf("id overflow=%v", err)
+	}
+}
+
+func TestCaptureRejectsInvalidSegment(t *testing.T) {
+	for _, value := range []string{"", "a\x00b", string([]byte{0xff})} {
+		if _, err := NewCapture(value); err != ErrInvalidSegment {
+			t.Fatalf("segment %q err=%v", value, err)
+		}
 	}
 }
