@@ -13,19 +13,34 @@ import (
 func CandidateIntentHash(c LaunchCommand) (string, error) {
 	var body []byte
 	var err error
-	if c.DependencyInputs == nil {
+	if c.DependencyInputs == nil && c.Diagnostics == nil {
 		body, err = json.Marshal(struct {
 			Plan    int
 			Payload json.RawMessage
 			Input   *AcceptedInput
 		}{c.PlanRevision, c.AdapterPayload, c.Input})
-	} else {
+	} else if c.DependencyInputs != nil && c.Diagnostics == nil {
 		body, err = json.Marshal(struct {
 			Plan             int
 			Payload          json.RawMessage
 			Input            *AcceptedInput
 			DependencyInputs *DependencyInputVector
 		}{c.PlanRevision, c.AdapterPayload, c.Input, c.DependencyInputs})
+	} else if c.DependencyInputs == nil {
+		body, err = json.Marshal(struct {
+			Plan        int
+			Payload     json.RawMessage
+			Input       *AcceptedInput
+			Diagnostics *DiagnosticsGrant
+		}{c.PlanRevision, c.AdapterPayload, c.Input, c.Diagnostics})
+	} else {
+		body, err = json.Marshal(struct {
+			Plan             int
+			Payload          json.RawMessage
+			Input            *AcceptedInput
+			DependencyInputs *DependencyInputVector
+			Diagnostics      *DiagnosticsGrant
+		}{c.PlanRevision, c.AdapterPayload, c.Input, c.DependencyInputs, c.Diagnostics})
 	}
 	if err != nil {
 		return "", err
@@ -39,6 +54,11 @@ func CandidateIntentHash(c LaunchCommand) (string, error) {
 // dependency set and current accepted tuples. This is not a signature verifier:
 // the grant must still arrive over the existing authenticated control channel.
 func ValidateDependencyInputs(c LaunchCommand) error {
+	if c.Diagnostics != nil {
+		if err := c.Diagnostics.Validate(); err != nil {
+			return err
+		}
+	}
 	if len(c.AdapterPayload) == 0 && c.DependencyInputs == nil {
 		return nil
 	}

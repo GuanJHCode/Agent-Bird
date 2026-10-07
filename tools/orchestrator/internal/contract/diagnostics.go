@@ -48,14 +48,15 @@ func (p DiagnosticsPolicy) CanonicalJSON() ([]byte, error) {
 // Validate checks format and policy consistency only. The signed launch and
 // Store must separately prove reservation class, scope and durable admission.
 type DiagnosticsGrant struct {
-	Policy        DiagnosticsPolicy `json:"policy"`
-	PolicySHA256  string            `json:"policy_sha256"`
-	ReservationID string            `json:"reservation_id"`
+	Policy         DiagnosticsPolicy `json:"policy"`
+	PolicySHA256   string            `json:"policy_sha256"`
+	ReservationID  string            `json:"reservation_id"`
+	SegmentOrdinal int               `json:"segment_ordinal"`
 }
 
 func (g DiagnosticsGrant) Validate() error {
 	body, err := g.Policy.CanonicalJSON()
-	if err != nil || g.Policy.Mode != "detailed" || len(g.ReservationID) == 0 || len(g.ReservationID) > 128 {
+	if err != nil || g.Policy.Mode != "detailed" || len(g.ReservationID) == 0 || len(g.ReservationID) > 128 || g.SegmentOrdinal < 1 {
 		return errors.New("diagnostics_grant_invalid")
 	}
 	for _, r := range g.ReservationID {

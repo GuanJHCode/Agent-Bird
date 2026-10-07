@@ -128,6 +128,7 @@ type DependencyInputVector struct {
 }
 
 type LaunchCommand struct {
+	Diagnostics        *DiagnosticsGrant      `json:"diagnostics,omitempty"`
 	Continuation       *ContinuationRef       `json:"continuation,omitempty"`
 	Input              *AcceptedInput         `json:"input,omitempty"`
 	DependencyInputs   *DependencyInputVector `json:"dependency_inputs,omitempty"`

@@ -3,6 +3,8 @@ package contract
 import (
 	"bytes"
 	"crypto/ed25519"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -155,7 +157,10 @@ func TestOriginalOwnerCommandCoversDependencyVectorAndCanonicalJSON(t *testing.T
 	for _, id := range []string{"a", "z"} {
 		inputs = append(inputs, AcceptedInput{Event: Event{Version: 1, RunID: "run", TaskID: id, AttemptID: id + "-attempt", SegmentID: id + "-segment", WorkRevision: 1, ProducerID: "dependency-producer", EventID: id + "-event", EventRevision: 1, ActionSlot: id + "-slot", CommandID: id + "-command", Sequence: 1, Kind: EventResult, PayloadHash: strings.Repeat("a", 64), Artifact: &ArtifactRef{ID: id, Path: "/private/tmp/" + id, Size: 1, SHA256: strings.Repeat("a", 64)}}, AdapterPayload: json.RawMessage(`{"kind":"fake","prompt":"<accepted>"}`), DecisionCommandID: id + "-accept"})
 	}
-	grant := LaunchCommand{CommandID: "join-command", HostID: "producer", RunID: "run", TaskID: "join", AttemptID: "join-attempt", SegmentID: "join-segment", WorkRevision: 1, PlanRevision: 1, ExecutionEpoch: 3, SlotToken: "slot", GrantedActiveMS: 1000, AdapterPayload: json.RawMessage(`{"kind":"candidate","candidate_action":{"version":1,"dependency_input_version":1,"source_task":"a"}}`), Input: &inputs[0], DependencyInputs: &DependencyInputVector{Version: 1, Inputs: inputs}}
+	policy := DiagnosticsPolicy{Version: 1, Mode: "detailed"}
+	policyRaw, _ := policy.CanonicalJSON()
+	policySum := sha256.Sum256(policyRaw)
+	grant := LaunchCommand{CommandID: "join-command", HostID: "producer", RunID: "run", TaskID: "join", AttemptID: "join-attempt", SegmentID: "join-segment", WorkRevision: 1, PlanRevision: 1, ExecutionEpoch: 3, SlotToken: "slot", GrantedActiveMS: 1000, AdapterPayload: json.RawMessage(`{"kind":"candidate","candidate_action":{"version":1,"dependency_input_version":1,"source_task":"a"}}`), Input: &inputs[0], DependencyInputs: &DependencyInputVector{Version: 1, Inputs: inputs}, Diagnostics: &DiagnosticsGrant{Policy: policy, PolicySHA256: hex.EncodeToString(policySum[:]), ReservationID: "reservation", SegmentOrdinal: 1}}
 	grant.LaunchIntentHash, _ = CandidateIntentHash(grant)
 	body, _ := json.MarshalIndent(grant, "", " ")
 	command, err := SignOwnerCommand(OwnerCommand{Version: 1, Permit: p, Kind: "launch", RequestID: grant.CommandID, Body: body}, key)
@@ -177,10 +182,29 @@ func TestOriginalOwnerCommandCoversDependencyVectorAndCanonicalJSON(t *testing.T
 	copied.DependencyInputs.Inputs[1].DecisionCommandID = "foreign-accept"
 	copied.LaunchIntentHash, _ = CandidateIntentHash(copied)
 	changed, _ := json.Marshal(copied)
-	decoded.Body = changed
-	decoded.BodySHA256 = ownerRawSHA(changed)
-	if VerifyOwnerCommand(decoded, key.Public().(ed25519.PublicKey), p) == nil {
+	altered := decoded
+	altered.Body, altered.BodySHA256 = changed, ownerRawSHA(changed)
+	if VerifyOwnerCommand(altered, key.Public().(ed25519.PublicKey), p) == nil {
 		t.Fatal("non-source dependency tamper survived signature")
+	}
+	var baseline LaunchCommand
+	if err = DecodeOwnerRuntimeStrict(decoded.Body, &baseline); err != nil || baseline.Diagnostics.Validate() != nil || VerifyOwnerCommand(decoded, key.Public().(ed25519.PublicKey), p) != nil {
+		t.Fatal("baseline mutated", err)
+	}
+	for _, mutate := range []func(*LaunchCommand){func(g *LaunchCommand) { g.Diagnostics.ReservationID = "other" }, func(g *LaunchCommand) { g.Diagnostics.SegmentOrdinal++ }} {
+		changedGrant := copied
+		changedGrant = baseline
+		value := *baseline.Diagnostics
+		changedGrant.Diagnostics = &value
+		mutate(&changedGrant)
+		changedGrant.LaunchIntentHash, _ = CandidateIntentHash(changedGrant)
+		changed, _ := json.Marshal(changedGrant)
+		altered := decoded
+		altered.Body = changed
+		altered.BodySHA256 = ownerRawSHA(changed)
+		if VerifyOwnerCommand(altered, key.Public().(ed25519.PublicKey), p) == nil {
+			t.Fatal("diagnostics tamper survived signature")
+		}
 	}
 }
 
