@@ -2,7 +2,10 @@
 
 Base229dc15; process observer integrated at12cbaee. ROOT alone writes integration, schema19 and public contracts.
 M2a consent/config/admission and durable schema foundation are verified;
-Claim/Launch/Host/readACK and M3 remain unimplemented. See docs/m2a-validation.md.
+Claim/Launch reservation authority is verified in bb70c55 (M2b). Private Host
+capture driver and Writer.Abort are now under M2c foundation verification;
+ordinary/duplex execution hooks, public read/ACK and M3 remain unimplemented.
+See docs/m2a-validation.md and docs/m2b-validation.md.
 The process output observer is independently implemented in isolated
 `diagnostic-output-tap` at the same base. ROOT retains macOS/Docker native tokens.
 All F01–F13 requirements remain active; this does not waive managed artifacts,
@@ -139,3 +142,24 @@ resume same reservation/next ordinal, explicit retry new attempt/reservation,
 rollback of execution/artifact/control rows, pending disk overcommit, corrupted
 persisted tuples, candidate input/vector and historical retry intent paths.
 This is still not full artifact-quota coverage until M3 migrates old writers.
+
+
+## M2c driver boundary (not yet execution integration)
+
+Fixed attempt root is `.diagnostics`, not `diagnostics`; both scanner levels
+already skip hidden directories. Only the verified detailed grant and exact
+Host producer may open it, through pinned FD chains with exact0700 children.
+Writer.Abort discards dirty assembly and releases FDs without overwriting any
+manifest/pending transition. Reader uses existing unclean/recovery semantics.
+A Close error after its complete manifest was already committed is still an
+error to propagate, but does not retroactively prove lost raw data.
+
+The single execution owner chooses driver Finish only after original positive
+Wait/tree/drain proof and after resolving summary metadata errors. Every earlier
+return uses Abort. The first terminal choice is immutable; later calls join it,
+and caller timeout never fabricates consumer termination. Async failure disables
+Offer under its shared bounded state lock, notifies the owner once, and aborts
+the writer. Ordinary execution uses its local cancelSegment; managed Codex must
+use the local lease cancel in executeManagedCodex, which does not register the
+ordinary segmentCancels entry. This remains required Host wiring, not completed
+by the driver foundation. Full Writer syscall interruption is not claimed.

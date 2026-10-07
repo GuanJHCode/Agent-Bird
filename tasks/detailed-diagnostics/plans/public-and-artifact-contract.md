@@ -18,7 +18,8 @@ installed-config preparation digests and cannot change through budget revision.
 
 The producer is the stable host_launch ID, already used as runtime Host ID.
 The native public spool is state/host-spool/producer/attempt; diagnostics uses
-the fixed diagnostics child and M1's canonical scope-hash directory. Library
+the fixed `.diagnostics` child and M1's canonical scope-hash directory. The
+hidden child is excluded by the existing event-spool segment scanner. Library
 readers independently acquire the update lock; they do not need the writer
 lifetime lock. Store validates run_control/controller/task, attempt membership,
 original producer, immutable policy, reservation state and namespace before

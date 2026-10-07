@@ -1,0 +1,16 @@
+//go:build darwin || linux
+package diagnostics
+import ("context";"errors";"testing")
+func TestRootDroppedLeaseLegacyCloseRed(t *testing.T) {
+ root:=storageRoot(t); w:=storageWriter(t,root); c,_:=NewCapture("one")
+ if _,err:=c.Offer(Stdout,[]byte("lost"));err!=nil {t.Fatal(err)}
+ lease,err:=c.Next(context.Background());if err!=nil{t.Fatal(err)}
+ canceled,cancel:=context.WithCancel(context.Background());cancel()
+ appendErr:=w.Append(canceled,lease.Record())
+ if !errors.Is(appendErr,context.Canceled)||w.fatal!=nil {t.Fatal("not preaccept failure")}
+ if !errors.Is(c.Done(lease,appendErr),context.Canceled){t.Fatal("lease error lost")};c.Close()
+ if err=w.Close(context.Background());err!=nil{t.Fatal(err)}
+ r:=storageReader(t,root);page,err:=r.Read(context.Background(),PageCursor{},RecordBytes)
+ if err!=nil{t.Fatal(err)}
+ if page.Snapshot.Closed&&!page.Snapshot.Incomplete {t.Fatal("dropped first lease falsely complete after legacy Close")}
+}

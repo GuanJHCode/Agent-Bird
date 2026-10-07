@@ -1,0 +1,166 @@
+{
+  "base": "bb70c559a65b9811cc7294ee9e0111e0704e8b07",
+  "worker_head": "a96c7529662b16453a1a8483f641f69d3cb2ee39",
+  "go": "go1.26.8 darwin/arm64",
+  "macos_core": {
+    "session": 70247,
+    "exit": 0,
+    "file": "root-diagnostics-race.jsonl",
+    "sha256": "1d5da6c0c834683e9aaaee5ce1d625bd24b21ee0a2c06f63ed9ed41f3e0db8b0",
+    "top": 58,
+    "named": 114,
+    "fail": [],
+    "skip": [],
+    "terminal": [
+      {
+        "Time": "2026-10-07T12:46:02.558165+08:00",
+        "Action": "pass",
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/diagnostics",
+        "Elapsed": 21.399
+      }
+    ]
+  },
+  "macos_driver": {
+    "session": 35912,
+    "exit": 0,
+    "file": "root-driver-race-v2.jsonl",
+    "sha256": "f80f507af5ea59e7114b56962949235d1ff2189c8349682b4e99bfc52f03ae41",
+    "top": 10,
+    "named": 23,
+    "fail": [],
+    "skip": [],
+    "terminal": [
+      {
+        "Time": "2026-10-07T12:47:47.671231+08:00",
+        "Action": "pass",
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+        "Elapsed": 4.09
+      }
+    ]
+  },
+  "behavioral_red": {
+    "session": 68083,
+    "exit": 1,
+    "file": "legacy-close-red.jsonl",
+    "sha256": "881bac7ce066f3c8bdb019cdc58324d0f39fa3151895c1b8b458a192d8c96228",
+    "top": 0,
+    "named": 0,
+    "fail": [
+      "TestRootDroppedLeaseLegacyCloseRed",
+      "package"
+    ],
+    "skip": [],
+    "terminal": [
+      {
+        "Time": "2026-10-07T12:45:07.593353+08:00",
+        "Action": "fail",
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/diagnostics",
+        "Elapsed": 0.601
+      }
+    ]
+  },
+  "behavioral_red_scope": {
+    "exit": 1,
+    "source_sha256": "a5d661efc473c7ca499be230d54083544a00cba016aa62af0625dec1e26c841a",
+    "log_sha256": "881bac7ce066f3c8bdb019cdc58324d0f39fa3151895c1b8b458a192d8c96228",
+    "scope": "Rejected pre-M2c caller pattern; existing Writer.Close is not itself required to know a dropped preaccept lease"
+  },
+  "compile_red": {
+    "session": null,
+    "exit": 1,
+    "file": "compile-red.jsonl",
+    "sha256": "e8ff6ad31c8402f97eac9407e704e8c86186d363ea80753eff4e69e56246d63f",
+    "top": 0,
+    "named": 0,
+    "fail": [
+      "package"
+    ],
+    "skip": [],
+    "terminal": [
+      {
+        "Time": "2026-10-07T12:41:18.387755+08:00",
+        "Action": "fail",
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+        "Elapsed": 0,
+        "FailedBuild": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host [github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host.test]"
+      }
+    ]
+  },
+  "final_checks": {
+    "build_session": 46285,
+    "build_exit": 0,
+    "vet_session": 38822,
+    "vet_exit": 0,
+    "linux_host_compile_session": 45631,
+    "linux_core_compile_session": 14569
+  },
+  "independent_review": "Driver production, Writer.Abort contract, final fixtures and last concurrent accepted-lease proof PASS",
+  "not_complete": [
+    "Host ordinary and managed-Codex lifecycle hooks",
+    "summary metadata write failure projection",
+    "public read/ACK auth and replay",
+    "reservation activation, retained verification, M3 intake/delete/all writers",
+    "Host native flood/RSS and physical disk failures",
+    "Intel Mac/Windows native deferred"
+  ],
+  "linux": {
+    "m2c-core-v1": {
+      "session": 15098,
+      "exit": 0,
+      "top": 58,
+      "named": 114,
+      "cid": "99e884f91b6ae036dfb2d0740ea2898209b2887cf37cbc2b6a36201e441aa71f",
+      "oom": false,
+      "removed": true,
+      "log_sha256": "f33c4e3295d98695edeccb3be238c0577e99dd8072982c00968aca82ec7174f6",
+      "binary_sha256": "2568c286975bbbdcfce6c6259da5aaba727e23f1c9ef1cc14391b34d9e5f2331",
+      "receipt": "linux/m2c-core-v1-receipt.json",
+      "superseded": false
+    },
+    "m2c-driver-v2": {
+      "session": 74814,
+      "exit": 0,
+      "top": 10,
+      "named": 23,
+      "cid": "93f0fa0b872bb78cc0cd9806919c8ac90cfe11cf406698e95d15e2b50a2fa2bf",
+      "oom": false,
+      "removed": true,
+      "log_sha256": "3b31c2506fa49cd4352959e23415f51684b889c846e8031b89370a1b6f1153e4",
+      "binary_sha256": "ce26f21ec732dcae1574b32bc0419039c0370b5fd6f8f1f47e8a74dea55d0c67",
+      "receipt": "linux/m2c-driver-v2-receipt.json",
+      "superseded": false
+    },
+    "m2c-driver-v1": {
+      "session": 86814,
+      "exit": 0,
+      "top": 10,
+      "named": 23,
+      "cid": "f9a157027a3ec86c27901ed8576cdce883b04cc3877940079d4d2d503c1d4c32",
+      "oom": false,
+      "removed": true,
+      "log_sha256": "3b31c2506fa49cd4352959e23415f51684b889c846e8031b89370a1b6f1153e4",
+      "binary_sha256": "b9b7b91930cdf50ae761e6705ddccc46206f3e3fdd3511c916289a48bd485715",
+      "receipt": "linux/m2c-driver-v1-receipt.json",
+      "superseded": true
+    }
+  },
+  "source_sha256": {
+    "tools/orchestrator/internal/host/diagnostics_driver.go": "c44c625a0d66899995f58b64f7bcdbbaa3731f5be5fe2a6d151cd62c6d1ac757",
+    "tools/orchestrator/internal/host/diagnostics_driver_test.go": "f4bfc4682b3a17f83ae72bdca1752d6d4b897209cbf60c236b3cbb1ed444ece8",
+    "tools/orchestrator/internal/diagnostics/writer.go": "45ee8ae102343811cb98834fb744f9cb794e231fe6c1dc5a0240dcf3e403f65c",
+    "tools/orchestrator/internal/diagnostics/abort_test.go": "3f03db2298510049d6b286360142f3f4fc057207c7fadc6872a710466a9cfd2b"
+  },
+  "unchanged_dependency_sha256": {
+    "tools/orchestrator/internal/host/codex_state_file.go": "070f408935c1556d731ed9a0fe2784aaccd8551a32c17c3fea162c0d7925ea6a",
+    "tools/orchestrator/internal/host/source.go": "7c671444de0505aee5f948104272eac26445600cfd556ffa02ad6a959ca13323",
+    "tools/orchestrator/internal/diagnostics/capture.go": "f397e31bd83bba2c7be5129c74b956ffb8b33dc4a1cd4916460695d84ef1258d",
+    "tools/orchestrator/internal/diagnostics/reader.go": "8c03f293aee395bbd27447cac0c1db01b71d01b08ed0a4471315e98710c762ed"
+  },
+  "cleanup": {
+    "removed_owned_transient": "tools/orchestrator/internal/diagnostics/root_abort_red_test.go",
+    "archive": "data/legacy-close-red-source.go.txt",
+    "all_root_sessions_terminal": true,
+    "all_owned_containers_removed": true,
+    "tested_binaries_and_logs": "retained"
+  }
+}
