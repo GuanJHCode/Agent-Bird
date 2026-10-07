@@ -9,12 +9,14 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
 	"unsafe"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokorigin"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
@@ -32,13 +34,32 @@ func controllerEntry(ctx context.Context, args []string) error {
 	providerName := fs.String("provider", "", "claude, grok, or agy")
 	skillPath := fs.String("skill-path", "", "optional installed Agent Bird skill path for the launched CLI")
 	stateArg := fs.String("state-dir", "", "private runtime state directory")
-	bridgePlan := fs.String("bridge-plan", "", "explicit complete private hook_pull plan")
+	bridgePlan := fs.String("bridge-plan", "", "explicit complete private task plan")
 	bridgeHandle := fs.String("bridge-handle", "", "new persistent private task handle")
+	grokSessionWrite := fs.Bool("grok-session-write", false, "explicit controlled ACP session-write consent")
+	grokACPRequest := fs.String("grok-acp-request", "", "private pinned ACP origin request")
 	if fs.Parse(args[1:]) != nil || *providerName == "" {
 		return codeError("invalid_args")
 	}
-	if (*bridgePlan == "") != (*bridgeHandle == "") || (*bridgePlan != "" && *providerName != "claude" && *providerName != "agy") {
-		return codeError("invalid_args")
+	acpMode, err := controllerACPMode(*providerName, *bridgePlan, *bridgeHandle, *grokSessionWrite, *grokACPRequest, fs.Args())
+	if err != nil {
+		return err
+	}
+	var acpRequest grokorigin.Request
+	if acpMode {
+		acpRequest, err = grokorigin.ReadRequest(*grokACPRequest)
+		if err != nil {
+			return err
+		}
+		if runtime.GOOS != "darwin" {
+			return codeError("grokorigin_unsupported_platform")
+		}
+		if *skillPath != "" {
+			return codeError("controller_acp_skill_unsupported")
+		}
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, time.Duration(acpRequest.TotalTimeoutMS)*time.Millisecond)
+		defer cancel()
 	}
 	var plan taskPlan
 	if *bridgePlan != "" {
@@ -47,8 +68,10 @@ func controllerEntry(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
-		if err = preflightProviders(ctx, plan.Tasks); err != nil {
-			return err
+		if !acpMode {
+			if err = preflightProviders(ctx, plan.Tasks); err != nil {
+				return err
+			}
 		}
 	}
 	if *skillPath != "" {
@@ -56,17 +79,20 @@ func controllerEntry(ctx context.Context, args []string) error {
 			return err
 		}
 	}
-	_, executable, err := taskProvider(*providerName)
-	if err != nil {
-		return err
-	}
-	cli, err := exec.LookPath(executable)
-	if err != nil {
-		return codeError("provider_binary_not_found")
-	}
-	cli, err = filepath.EvalSymlinks(cli)
-	if err != nil || !filepath.IsAbs(cli) {
-		return codeError("provider_binary_not_found")
+	var cli string
+	if !acpMode {
+		_, executable, e := taskProvider(*providerName)
+		if e != nil {
+			return e
+		}
+		cli, err = exec.LookPath(executable)
+		if err != nil {
+			return codeError("provider_binary_not_found")
+		}
+		cli, err = filepath.EvalSymlinks(cli)
+		if err != nil || !filepath.IsAbs(cli) {
+			return codeError("provider_binary_not_found")
+		}
 	}
 	launcherPath, err := process.ExecutablePath(os.Getpid())
 	if err != nil {
@@ -80,11 +106,13 @@ func controllerEntry(ctx context.Context, args []string) error {
 	if err != nil {
 		return codeError("controller_origin_unverified")
 	}
-	if *skillPath == "" {
+	if !acpMode && *skillPath == "" {
 		*skillPath = filepath.Join(filepath.Dir(filepath.Dir(launcherPath)), "skills", "orchestrate", "SKILL.md")
 	}
-	if err := validateControllerSkill(*skillPath); err != nil {
-		return err
+	if !acpMode {
+		if err := validateControllerSkill(*skillPath); err != nil {
+			return err
+		}
 	}
 	scope, err := randomValue("managed-process")
 	if err != nil {
@@ -109,6 +137,9 @@ func controllerEntry(ctx context.Context, args []string) error {
 	var owner controllerOwnerGrant
 	if err = decode(ownerResponse.Payload, &owner); err != nil || owner.Version != 1 || owner.OwnerMode != "local" || owner.ControllerThread != "managed-"+*providerName+"-"+scope || owner.OriginPID != os.Getpid() || owner.OriginBirth != launcherBirth || owner.OwnerCapability == "" || owner.OriginContextID == "" || owner.HostGeneration == "" {
 		return codeError("controller_owner_receipt_invalid")
+	}
+	if acpMode {
+		return runControllerACP(lifetime, state, *bridgeHandle, plan, owner, acpRequest)
 	}
 	var handle taskHandle
 	if *bridgePlan != "" {

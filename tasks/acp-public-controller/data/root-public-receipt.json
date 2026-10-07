@@ -1,0 +1,751 @@
+{
+  "base_commit": "2cd520b571934a161e04d412151688183848ecf8",
+  "platform": "macOS arm64",
+  "go_version": "go1.26.8",
+  "source_sha256": {
+    "tools/orchestrator/README.md": "67eb7a9cfa7773dba82631d1a6d11173b3cae0041b44b366c3c094a9a5d37b3a",
+    "tools/orchestrator/cmd/orchestrator/controller.go": "f2cba76ccdd5b6c96b387392e848e9aff5156244d3aa43f11754c2919c5577df",
+    "tools/orchestrator/cmd/orchestrator/controller_acp.go": "8012992498045f768ce27305212e8f811b8ed1d81275ec4adb02972bedea9324",
+    "tools/orchestrator/cmd/orchestrator/controller_acp_claim_test.go": "8c50957b413de20918dff165239f7baf2811cf931aaa0572a5b6c0fcf731c1b7",
+    "tools/orchestrator/cmd/orchestrator/controller_acp_fault_test.go": "186d99706db7b01d95a1ac64622e437c39ad963105052fff925c002eccc3c1c6",
+    "tools/orchestrator/cmd/orchestrator/controller_acp_finish_test.go": "29b496e549d84db3480b09edcd182e7a45932718a1c984867cc7b444246a7c36",
+    "tools/orchestrator/cmd/orchestrator/controller_acp_metadata.go": "7949527358058f7851647e973971bccab6884ff1d0723c2377e522ee4855e188",
+    "tools/orchestrator/cmd/orchestrator/controller_acp_metadata_test.go": "4dcd2d6d873d48bc65b706ce258c11165582d09d1e769264634389f92e2e32e5",
+    "tools/orchestrator/cmd/orchestrator/controller_acp_native_test.go": "c391e3ef8050bd9e304cdb4458ae77fff97ce851afa26db7c01292156903f8c4",
+    "tools/orchestrator/cmd/orchestrator/controller_acp_record.go": "f237c62463a1c47db1ebc43645c5b70ed0a9ffb434597784e66127078d2f3d95",
+    "tools/orchestrator/cmd/orchestrator/controller_acp_record_test.go": "f4e112252c51c455e81346b1e8d3985f78e1eec55ef51f8f3f4d942445fe577b",
+    "tools/orchestrator/cmd/orchestrator/controller_acp_response.go": "e7e3282bd8c539fba7db359785ad4fad33b6c72d8ef4a2c72c965ffbf9d001f8",
+    "tools/orchestrator/cmd/orchestrator/controller_acp_response_test.go": "143d680e3c801d8c61dc8feb85eb917d9446a8977dd3733fdfbef5017c000e98",
+    "tools/orchestrator/cmd/orchestrator/controller_bridge.go": "44e52415c826d10a268763e1f2ef159d8263fd6f3db489914b0811d6ec23ea20",
+    "tools/orchestrator/cmd/orchestrator/main.go": "3b9567a754e9dbbfdc5cfea31fd9a4d6f08271d78641c51b98aa187333c86039",
+    "tools/orchestrator/cmd/orchestrator/testdata/acp-public/origin.go": "c2f819aa5fdbe623a52bc05d89b03136d394feb124cce977dda51eaccce271d1",
+    "tools/orchestrator/cmd/orchestrator/testdata/acp-public/worker.go": "c4675a31bdb2ce9fc7b0ff5c13661dbc733e242174086ed899fed0864b315b98",
+    "tools/orchestrator/internal/grokorigin/launcher.go": "173847cdb31e486c3042620a152974b596dee1db650d820f73b4073a0e4b2a40"
+  },
+  "evidence": {
+    "root-acp-inputs-race.jsonl": {
+      "sha256": "87f3821cefe0111fdaa3f17f74a25ae72621e36f62881448b04e3c23c8b77b25",
+      "packages": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator": {
+          "pass": {
+            "top": 6,
+            "named": 27
+          },
+          "fail": {
+            "top": 0,
+            "named": 0
+          },
+          "skip": {
+            "top": 0,
+            "named": 0
+          },
+          "terminal": [
+            {
+              "Time": "2026-10-08T01:18:39.353932+08:00",
+              "Action": "pass",
+              "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+              "Elapsed": 1.9489999999999998
+            }
+          ]
+        }
+      }
+    },
+    "root-acp-metadata-missing-api-red.jsonl": {
+      "sha256": "913d030de6c3f0e6fb642718651ca1ec7392b221aa1da339658b79732f5bd3c8",
+      "packages": {
+        "": {
+          "pass": {
+            "top": 0,
+            "named": 0
+          },
+          "fail": {
+            "top": 0,
+            "named": 0
+          },
+          "skip": {
+            "top": 0,
+            "named": 0
+          },
+          "terminal": []
+        },
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator": {
+          "pass": {
+            "top": 0,
+            "named": 0
+          },
+          "fail": {
+            "top": 0,
+            "named": 0
+          },
+          "skip": {
+            "top": 0,
+            "named": 0
+          },
+          "terminal": [
+            {
+              "Time": "2026-10-08T01:18:00.911225+08:00",
+              "Action": "fail",
+              "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+              "Elapsed": 0,
+              "FailedBuild": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator [github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator.test]"
+            }
+          ]
+        }
+      }
+    },
+    "root-completion-first-race.jsonl": {
+      "sha256": "68a197583c10b20b11c9a06bff28616f00de1c947a5c2a09df6f668473b95d1b",
+      "packages": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator": {
+          "pass": {
+            "top": 4,
+            "named": 12
+          },
+          "fail": {
+            "top": 0,
+            "named": 0
+          },
+          "skip": {
+            "top": 0,
+            "named": 0
+          },
+          "terminal": [
+            {
+              "Time": "2026-10-08T01:13:36.262843+08:00",
+              "Action": "pass",
+              "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+              "Elapsed": 1.883
+            }
+          ]
+        }
+      }
+    },
+    "root-completion-missing-api-red.jsonl": {
+      "sha256": "9f5a306b4dbe92ebca6f5696e60172b3670fdaf5dda10e6d6d502b9740cbb211",
+      "packages": {
+        "": {
+          "pass": {
+            "top": 0,
+            "named": 0
+          },
+          "fail": {
+            "top": 0,
+            "named": 0
+          },
+          "skip": {
+            "top": 0,
+            "named": 0
+          },
+          "terminal": []
+        },
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator": {
+          "pass": {
+            "top": 0,
+            "named": 0
+          },
+          "fail": {
+            "top": 0,
+            "named": 0
+          },
+          "skip": {
+            "top": 0,
+            "named": 0
+          },
+          "terminal": [
+            {
+              "Time": "2026-10-08T01:12:08.556413+08:00",
+              "Action": "fail",
+              "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+              "Elapsed": 0,
+              "FailedBuild": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator [github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator.test]"
+            }
+          ]
+        }
+      }
+    },
+    "root-finish-api-red.jsonl": {
+      "sha256": "6c7dce1d5c9877633d7dcefc1c82ce76f38c1f9dc84f80e59e82e9d4797172f7",
+      "packages": {
+        "": {
+          "pass": {
+            "top": 0,
+            "named": 0
+          },
+          "fail": {
+            "top": 0,
+            "named": 0
+          },
+          "skip": {
+            "top": 0,
+            "named": 0
+          },
+          "terminal": []
+        },
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator": {
+          "pass": {
+            "top": 0,
+            "named": 0
+          },
+          "fail": {
+            "top": 0,
+            "named": 0
+          },
+          "skip": {
+            "top": 0,
+            "named": 0
+          },
+          "terminal": [
+            {
+              "Time": "2026-10-08T01:54:34.620212+08:00",
+              "Action": "fail",
+              "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+              "Elapsed": 0,
+              "FailedBuild": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator [github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator.test]"
+            }
+          ]
+        }
+      }
+    },
+    "root-finish-behavior-red.jsonl": {
+      "sha256": "fe931f0ebf91157a1421d826619e3d3603fc914893c1cf9ca8aac5f6b24f04a2",
+      "packages": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator": {
+          "pass": {
+            "top": 0,
+            "named": 0
+          },
+          "fail": {
+            "top": 2,
+            "named": 2
+          },
+          "skip": {
+            "top": 0,
+            "named": 0
+          },
+          "terminal": [
+            {
+              "Time": "2026-10-08T01:55:31.47594+08:00",
+              "Action": "fail",
+              "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+              "Elapsed": 0.744
+            }
+          ]
+        }
+      }
+    },
+    "root-finish-first-race.jsonl": {
+      "sha256": "703a453146c80fea3891ca6324b2e10d33a2cea47ce8011cf93ed871f190612f",
+      "packages": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator": {
+          "pass": {
+            "top": 2,
+            "named": 2
+          },
+          "fail": {
+            "top": 0,
+            "named": 0
+          },
+          "skip": {
+            "top": 0,
+            "named": 0
+          },
+          "terminal": [
+            {
+              "Time": "2026-10-08T01:57:53.115493+08:00",
+              "Action": "pass",
+              "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+              "Elapsed": 1.812
+            }
+          ]
+        }
+      }
+    },
+    "root-hook-submit-baseline.jsonl": {
+      "sha256": "dde3ca48ae0cf363acb1759f8fbbf253fffee031ee5820c3154317cb04f0afa5",
+      "packages": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator": {
+          "pass": {
+            "top": 2,
+            "named": 2
+          },
+          "fail": {
+            "top": 0,
+            "named": 0
+          },
+          "skip": {
+            "top": 0,
+            "named": 0
+          },
+          "terminal": [
+            {
+              "Time": "2026-10-08T01:08:51.37492+08:00",
+              "Action": "pass",
+              "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+              "Elapsed": 5.585
+            }
+          ]
+        }
+      }
+    },
+    "root-hook-submit-refactor-race.jsonl": {
+      "sha256": "2eec6cd2ec171c5af97384ccfe802b5c1ba161aeee03ed05052d3d7674b3409f",
+      "packages": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator": {
+          "pass": {
+            "top": 3,
+            "named": 5
+          },
+          "fail": {
+            "top": 0,
+            "named": 0
+          },
+          "skip": {
+            "top": 0,
+            "named": 0
+          },
+          "terminal": [
+            {
+              "Time": "2026-10-08T01:10:13.300637+08:00",
+              "Action": "pass",
+              "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+              "Elapsed": 11.718
+            }
+          ]
+        }
+      }
+    },
+    "root-public-ackloss-signal-race.jsonl": {
+      "sha256": "831bdf0d714304dedfdbdfb05a88941ee5524a7361cff5bcdfff36c7dd260899",
+      "packages": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator": {
+          "pass": {
+            "top": 2,
+            "named": 2
+          },
+          "fail": {
+            "top": 0,
+            "named": 0
+          },
+          "skip": {
+            "top": 0,
+            "named": 0
+          },
+          "terminal": [
+            {
+              "Time": "2026-10-08T02:10:00.279538+08:00",
+              "Action": "pass",
+              "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+              "Elapsed": 6.905
+            }
+          ]
+        }
+      }
+    },
+    "root-public-closed-output-red.jsonl": {
+      "sha256": "d21423001526e474cc80cf3ecd5a4d81f541a88fcaa8de08bb07ed19ee197505",
+      "packages": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator": {
+          "pass": {
+            "top": 0,
+            "named": 0
+          },
+          "fail": {
+            "top": 1,
+            "named": 1
+          },
+          "skip": {
+            "top": 0,
+            "named": 0
+          },
+          "terminal": [
+            {
+              "Time": "2026-10-08T02:02:19.745581+08:00",
+              "Action": "fail",
+              "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+              "Elapsed": 7.474
+            }
+          ]
+        }
+      }
+    },
+    "root-public-final-native-race.jsonl": {
+      "sha256": "eb63f72b3616189f0010556df39c09674a8da4f3c4cece2073739f2e8f03199c",
+      "packages": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator": {
+          "pass": {
+            "top": 20,
+            "named": 130
+          },
+          "fail": {
+            "top": 0,
+            "named": 0
+          },
+          "skip": {
+            "top": 0,
+            "named": 0
+          },
+          "terminal": [
+            {
+              "Time": "2026-10-08T02:17:45.780737+08:00",
+              "Action": "pass",
+              "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+              "Elapsed": 49.446
+            }
+          ]
+        },
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokorigin": {
+          "pass": {
+            "top": 31,
+            "named": 137
+          },
+          "fail": {
+            "top": 0,
+            "named": 0
+          },
+          "skip": {
+            "top": 1,
+            "named": 1
+          },
+          "terminal": [
+            {
+              "Time": "2026-10-08T02:17:12.731049+08:00",
+              "Action": "pass",
+              "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokorigin",
+              "Elapsed": 16.396
+            }
+          ]
+        }
+      }
+    },
+    "root-public-flags-red.jsonl": {
+      "sha256": "066d5b2c0778f62c7867a1e36a54dc81381a0aac28acc35bc1ba8c61586dadfb",
+      "packages": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator": {
+          "pass": {
+            "top": 0,
+            "named": 0
+          },
+          "fail": {
+            "top": 1,
+            "named": 1
+          },
+          "skip": {
+            "top": 0,
+            "named": 0
+          },
+          "terminal": [
+            {
+              "Time": "2026-10-08T01:21:03.653236+08:00",
+              "Action": "fail",
+              "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+              "Elapsed": 0.778
+            }
+          ]
+        }
+      }
+    },
+    "root-public-full-acp-race.jsonl": {
+      "sha256": "6bbba54eeceb5cfc486899fbe3ca9b2b8a5b86d0abd93657ae9685f299890e00",
+      "packages": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator": {
+          "pass": {
+            "top": 17,
+            "named": 61
+          },
+          "fail": {
+            "top": 0,
+            "named": 0
+          },
+          "skip": {
+            "top": 0,
+            "named": 0
+          },
+          "terminal": [
+            {
+              "Time": "2026-10-08T02:12:43.531222+08:00",
+              "Action": "pass",
+              "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+              "Elapsed": 45.742
+            }
+          ]
+        }
+      }
+    },
+    "root-public-inputs-race.jsonl": {
+      "sha256": "0ce7228ad5b93573d453fb7b4b4092bec974f91f13e5de9cfa648b7a6da18b73",
+      "packages": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator": {
+          "pass": {
+            "top": 7,
+            "named": 28
+          },
+          "fail": {
+            "top": 0,
+            "named": 0
+          },
+          "skip": {
+            "top": 0,
+            "named": 0
+          },
+          "terminal": [
+            {
+              "Time": "2026-10-08T01:28:58.160204+08:00",
+              "Action": "pass",
+              "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+              "Elapsed": 1.899
+            }
+          ]
+        }
+      }
+    },
+    "root-public-native-first.jsonl": {
+      "sha256": "3bf68da9f2c0db5bb4872e1fb4fc56d1f6ed5bea5b7ce2bd2021bc7e89a1f4d1",
+      "packages": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator": {
+          "pass": {
+            "top": 0,
+            "named": 0
+          },
+          "fail": {
+            "top": 1,
+            "named": 1
+          },
+          "skip": {
+            "top": 0,
+            "named": 0
+          },
+          "terminal": [
+            {
+              "Time": "2026-10-08T01:43:08.192864+08:00",
+              "Action": "fail",
+              "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+              "Elapsed": 7.166
+            }
+          ]
+        }
+      }
+    },
+    "root-public-native-shortpath.jsonl": {
+      "sha256": "49a1605f15cc8166f3efbf35b55358f083dd7ae86bcb98be80d905f5432e68ec",
+      "packages": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator": {
+          "pass": {
+            "top": 0,
+            "named": 0
+          },
+          "fail": {
+            "top": 1,
+            "named": 1
+          },
+          "skip": {
+            "top": 0,
+            "named": 0
+          },
+          "terminal": [
+            {
+              "Time": "2026-10-08T01:46:17.98989+08:00",
+              "Action": "fail",
+              "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+              "Elapsed": 3.785
+            }
+          ]
+        }
+      }
+    },
+    "root-public-native-sql-fixed.jsonl": {
+      "sha256": "36910348c42effbb61692ec1c10c15849aceba07ef573aed1b45ee74bb7a5b44",
+      "packages": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator": {
+          "pass": {
+            "top": 1,
+            "named": 1
+          },
+          "fail": {
+            "top": 0,
+            "named": 0
+          },
+          "skip": {
+            "top": 0,
+            "named": 0
+          },
+          "terminal": [
+            {
+              "Time": "2026-10-08T02:01:40.220055+08:00",
+              "Action": "pass",
+              "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+              "Elapsed": 3.8209999999999997
+            }
+          ]
+        }
+      }
+    },
+    "root-public-output-first-race.jsonl": {
+      "sha256": "50dd8bedfdfa7ee914fc5d40de7ef223778f3c3a745d9ac52388afb590b06f17",
+      "packages": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator": {
+          "pass": {
+            "top": 2,
+            "named": 2
+          },
+          "fail": {
+            "top": 1,
+            "named": 1
+          },
+          "skip": {
+            "top": 0,
+            "named": 0
+          },
+          "terminal": [
+            {
+              "Time": "2026-10-08T02:02:48.196717+08:00",
+              "Action": "fail",
+              "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+              "Elapsed": 8.302
+            }
+          ]
+        }
+      }
+    },
+    "root-public-shared-launch-race.jsonl": {
+      "sha256": "c23314c9bd4f3807bb562decb852ff41a9fbf60150b8c23d323bb79da788cb21",
+      "packages": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator": {
+          "pass": {
+            "top": 4,
+            "named": 6
+          },
+          "fail": {
+            "top": 0,
+            "named": 0
+          },
+          "skip": {
+            "top": 0,
+            "named": 0
+          },
+          "terminal": [
+            {
+              "Time": "2026-10-08T02:13:38.044342+08:00",
+              "Action": "pass",
+              "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+              "Elapsed": 11.797
+            }
+          ]
+        },
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokorigin": {
+          "pass": {
+            "top": 19,
+            "named": 62
+          },
+          "fail": {
+            "top": 0,
+            "named": 0
+          },
+          "skip": {
+            "top": 7,
+            "named": 14
+          },
+          "terminal": [
+            {
+              "Time": "2026-10-08T02:13:28.038333+08:00",
+              "Action": "pass",
+              "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokorigin",
+              "Elapsed": 1.791
+            }
+          ]
+        }
+      }
+    },
+    "root-public-sparse-activate-red.jsonl": {
+      "sha256": "e62de0108ebb8e1ff5d92076c9a04b6ac9122eec4cf3d468232f9bc1913b6d8f",
+      "packages": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator": {
+          "pass": {
+            "top": 0,
+            "named": 0
+          },
+          "fail": {
+            "top": 1,
+            "named": 1
+          },
+          "skip": {
+            "top": 0,
+            "named": 0
+          },
+          "terminal": [
+            {
+              "Time": "2026-10-08T02:15:06.930489+08:00",
+              "Action": "fail",
+              "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+              "Elapsed": 3.576
+            }
+          ]
+        }
+      }
+    },
+    "root-public-sparse-response-race.jsonl": {
+      "sha256": "33c68bbe8ebf74ce96a85c24709fb7112a138b0396be4b000ee3c1a5692e982a",
+      "packages": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator": {
+          "pass": {
+            "top": 3,
+            "named": 69
+          },
+          "fail": {
+            "top": 0,
+            "named": 0
+          },
+          "skip": {
+            "top": 0,
+            "named": 0
+          },
+          "terminal": [
+            {
+              "Time": "2026-10-08T02:16:24.146641+08:00",
+              "Action": "pass",
+              "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+              "Elapsed": 8.52
+            }
+          ]
+        }
+      }
+    },
+    "root-public-windows-first.jsonl": {
+      "sha256": "2369be1454eac3f8684583a7ac6f9dd935936bda8f3115321883b18b2e5520e9",
+      "packages": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator": {
+          "pass": {
+            "top": 2,
+            "named": 8
+          },
+          "fail": {
+            "top": 0,
+            "named": 0
+          },
+          "skip": {
+            "top": 0,
+            "named": 0
+          },
+          "terminal": [
+            {
+              "Time": "2026-10-08T02:07:31.552614+08:00",
+              "Action": "pass",
+              "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+              "Elapsed": 33.004
+            }
+          ]
+        }
+      }
+    }
+  },
+  "final_native_log": "root-public-final-native-race.jsonl",
+  "go_vet_exit_code": 0,
+  "go_build_exit_code": 0,
+  "limits": [
+    "owned offline actors; no real provider/account/model",
+    "parent race plus ordinary compiled public child CLIs",
+    "source-overlay faults are not physical OS faults",
+    "one origin helper parent skip; actual native probe executed",
+    "known F10 B3 CLI failures excluded from scoped regression, remain open",
+    "completion retention/quota and full F01-F13 closure remain open"
+  ]
+}

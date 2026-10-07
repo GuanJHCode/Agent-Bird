@@ -11,6 +11,52 @@ program rejects an existing directory with broader permissions instead of
 changing it. Existing ancestor aliases such as macOS `/tmp` are resolved before
 deriving runtime paths; the state directory itself must not be a symlink.
 
+## Controlled Grok ACP origin
+
+On macOS, a new pinned ACP origin can receive protocol deliveries from an
+explicit task plan. Both flags are required; no native trailing arguments or
+`--skill-path` are accepted in this mode:
+
+```text
+orchestrator controller start --provider grok --state-dir /private/runtime \
+  --bridge-plan /private/plan.json --bridge-handle /private/new-handle.json \
+  --grok-session-write --grok-acp-request /private/origin-request.json
+```
+
+The request is a current-user, single-link regular `0600` file under canonical
+paths. Its ten required fields are `schema_version` (1), `binary`,
+`binary_sha256`, `binary_version`, `workspace`, `initial_prompt`,
+`operation_timeout_ms` (100–300000), `total_timeout_ms` (at least the operation
+timeout, at most 3600000), `origin_profile` (`readonly`), and `auth_mode`
+(`none` or `xai_api_key_env`). The initial prompt is at most 8192 UTF-8 bytes.
+The binary is verified before execution and launched with fixed
+`agent --no-leader stdio` arguments. Explicit API-key mode copies only
+`XAI_API_KEY`; the private origin does not inherit the caller's HOME/config.
+
+This origin owns a new session, not an attachment to an existing TUI. Its
+readonly sandbox seals workspace capability sources, denies process forks and
+workspace writes, and isolates private HOME/GROK_HOME/TMPDIR. Account-free mode
+also denies networking. Real Grok version/tool compatibility still requires
+separate qualification; current public acceptance uses owned offline actors.
+
+The original controller grant, process identity and session remain fixed.
+Begin commits before a single Prompt. A private durable completion precedes
+Receive; a lost Receive ACK permits one identical data-only replay. Protocol
+receipt never automatically accepts results or answers business questions.
+Public output contains bounded statuses; `.acp-origin.json` contains identity
+and recovery references, while claim tokens remain in protected runtime state.
+
+The total timeout bounds active work. Cancellation, broken output or protocol
+failure enters cleanup. If two bounded cleanup stages cannot prove the
+original process tree exited, `cleanup_pending` keeps the lifecycle owner alive
+past that timeout and waits without sending more RPCs or prompts. Forced
+external termination cannot provide that guarantee. Final metadata reports
+original exit/tree evidence; a failed metadata write is explicitly reported
+as `metadata_persisted=false`. Incomplete or uncertain sessions do not authorize
+automatic resend. Completion-file retention/GC is not implemented yet.
+
+## Task submission
+
 Submit an owner-only `0600` JSON file:
 
 ```text

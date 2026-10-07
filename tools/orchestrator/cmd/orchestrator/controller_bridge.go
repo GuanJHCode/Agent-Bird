@@ -52,10 +52,12 @@ func readControllerBridgePlan(planPath, handle string) (taskPlan, error) {
 	} else if !os.IsNotExist(err) {
 		return plan, err
 	}
-	if _, err := os.Lstat(handle + ".bridge-owner.json"); err == nil {
-		return plan, codeError("controller_bridge_metadata_exists")
-	} else if !os.IsNotExist(err) {
-		return plan, err
+	for _, suffix := range []string{".bridge-owner.json", ".acp-origin.json"} {
+		if _, err := os.Lstat(handle + suffix); err == nil {
+			return plan, codeError("controller_bridge_metadata_exists")
+		} else if !os.IsNotExist(err) {
+			return plan, err
+		}
 	}
 	ids := []string{}
 	for _, task := range plan.Tasks {
@@ -73,6 +75,24 @@ func submitControllerBridge(ctx context.Context, state, handle string, plan task
 	if hookcli.ProviderManifestSHA256(provider) == "" {
 		return taskHandle{}, codeError("bridge_provider_unknown")
 	}
+	var metadata controllerBridgeMetadata
+	return submitControllerPlan(ctx, state, handle, plan, owner, func(h taskHandle) error {
+		metadata = controllerBridgeMetadata{Version: 1, RunID: h.RunID, OwnerMode: "local", OwnerCapabilityFile: owner.OwnerCapability, BindingFile: store.BridgeCapabilityPath(state, h.RunID), ManifestSHA256: hookcli.ProviderManifestSHA256(provider)}
+		return writeControllerBridgeExclusive(handle+".bridge-owner.json", metadata)
+	}, func(h taskHandle) error {
+		next := metadata
+		next.ControlFile = h.ControlFile
+		if err := replaceControllerBridgeMetadata(handle+".bridge-owner.json", metadata, next); err != nil {
+			return err
+		}
+		metadata = next
+		return nil
+	})
+}
+
+// Transport callbacks add their own metadata without changing the original
+// owner grant, reservation, configuration fence or uncertain submit semantics.
+func submitControllerPlan(ctx context.Context, state, handle string, plan taskPlan, owner controllerOwnerGrant, beforeSubmit, onControlPrepared func(taskHandle) error) (taskHandle, error) {
 	h := taskHandle{Version: 1, RunID: plan.RunID, StateDir: state, Status: "submitting", TaskIDs: []string{}}
 	for _, task := range plan.Tasks {
 		h.TaskIDs = append(h.TaskIDs, task.ID)
@@ -94,11 +114,10 @@ func submitControllerBridge(ctx context.Context, state, handle string, plan task
 		}
 		return h, err
 	}
-	metadata := controllerBridgeMetadata{Version: 1, RunID: h.RunID, OwnerMode: "local", OwnerCapabilityFile: owner.OwnerCapability, BindingFile: store.BridgeCapabilityPath(state, h.RunID), ManifestSHA256: hookcli.ProviderManifestSHA256(provider)}
 	if _, err := readBridgeRequestFile(owner.OwnerCapability); err != nil {
 		return h, codeError("controller_owner_receipt_invalid")
 	}
-	if err := writeControllerBridgeExclusive(handle+".bridge-owner.json", metadata); err != nil {
+	if err := beforeSubmit(h); err != nil {
 		return h, err
 	}
 	req := coordinator.SubmitRequest{RunID: plan.RunID, PlanRevision: plan.PlanRevision, Tasks: plan.Tasks, OwnerMode: "local", DeliveryMode: "collect", OwnerCapability: owner.OwnerCapability, ControllerThread: owner.ControllerThread, OriginContextID: owner.OriginContextID, OriginPID: owner.OriginPID, OriginBirth: owner.OriginBirth, HostGeneration: owner.HostGeneration}
@@ -112,13 +131,7 @@ func submitControllerBridge(ctx context.Context, state, handle string, plan task
 			if _, err := readBridgeRequestFile(controlPath); err != nil {
 				return err
 			}
-			next := metadata
-			next.ControlFile = controlPath
-			if err := replaceControllerBridgeMetadata(handle+".bridge-owner.json", metadata, next); err != nil {
-				return err
-			}
-			metadata = next
-			return nil
+			return onControlPrepared(h)
 		})
 	})
 	var rejected remoteError

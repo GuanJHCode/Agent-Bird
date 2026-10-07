@@ -1547,6 +1547,10 @@ func errorCode(err error) string {
 	if err == nil {
 		return ""
 	}
+	var acpCleanup *controllerACPCleanupError
+	if errors.As(err, &acpCleanup) {
+		return acpCleanup.Error()
+	}
 	var coded codeError
 	if errors.As(err, &coded) {
 		return coded.Error()

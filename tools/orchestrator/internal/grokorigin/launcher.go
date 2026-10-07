@@ -55,6 +55,36 @@ func (*Launch) GoString() string             { return "grokorigin.Launch" }
 func (l *Launch) Identity() process.Identity { return l.identity }
 func (l *Launch) Client() *grokacp.Client    { return l.client }
 
+// ExitCode reports a terminal code only with the original Wait/tree proof.
+func (l *Launch) ExitCode() (int, error) {
+	if err := l.handle.ConfirmTreeExited(); err != nil {
+		return 0, err
+	}
+	return l.handle.ExitCode(), nil
+}
+
+// ConfirmTreeExited observes both original handles without sending a signal.
+// It permits a controller to retain ownership while cleanup is unresolved.
+func (p *Prepared) ConfirmTreeExited() error {
+	if p == nil {
+		return nil
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.closed {
+		return nil
+	}
+	if p.probe != nil {
+		if err := p.probe.ConfirmTreeExited(); err != nil {
+			return err
+		}
+	}
+	if p.launch != nil {
+		return p.launch.handle.ConfirmTreeExited()
+	}
+	return nil
+}
+
 func verifyOriginBinary(ctx context.Context, r Request) error {
 	canonical, err := filepath.EvalSymlinks(r.Binary)
 	before, e := os.Lstat(r.Binary)
