@@ -17,3 +17,5 @@ Go1.26.8，最终完整Store使用TMPDIR=/private/tmp。第一次完整运行误
 Linux CID10e0fd0c366a7058c278d152a69cdd20987b8f758e9ab5c62dcac4c8119d777d，network none/read-only/nonroot，exit0非OOM，精确rm/inspect absent；binary按receipt hash核验后删除。vet Store/contract与whole Go build均exit0。
 
 DB阶段至此验收；RPC/Host runtime接线仍在独立owner-recovery-rpc工作区，接线及其原生验收前不称B3/F10闭环。Bound未Applied死亡、preBind lost original Wait、pendingauth后origin rebind仍另有开放契约。
+
+集成9fb5e0b后18个sourcehash再次逐项匹配；整体Go build exit0（root-integrated-build.log）。Linux profile早拒绝变更已同在该集成快照；RPC运行时接线仍未合入。

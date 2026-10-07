@@ -74,5 +74,7 @@
     "tasks/owner-recovery-store/scripts/run-linux.py": "5e5bc998e0430282bd92d432bc1fb8902e55bcd8e9ea743185c822bf93d61102"
   },
   "vet_exit": 0,
-  "build_exit": 0
+  "build_exit": 0,
+  "integration_snapshot": "9fb5e0b",
+  "integrated_build_exit": 0
 }
