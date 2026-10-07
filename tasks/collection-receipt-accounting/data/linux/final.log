@@ -1,0 +1,39 @@
+=== RUN   TestCollectionReceiptAccountingPersistsUsageAndRejectsNewGrowth
+--- PASS: TestCollectionReceiptAccountingPersistsUsageAndRejectsNewGrowth (0.14s)
+=== RUN   TestCollectionReceiptAccountingMigratesHistoryExactlyOnce
+--- PASS: TestCollectionReceiptAccountingMigratesHistoryExactlyOnce (0.16s)
+=== RUN   TestCollectionReceiptAccountingTriggersRollbackAndImmutability
+--- PASS: TestCollectionReceiptAccountingTriggersRollbackAndImmutability (0.11s)
+=== RUN   TestCollectionReceiptAccountingConflictAndConcurrentReplay
+--- PASS: TestCollectionReceiptAccountingConflictAndConcurrentReplay (0.13s)
+=== RUN   TestCollectionReceiptAccountingMigrationFailureAtomic
+=== RUN   TestCollectionReceiptAccountingMigrationFailureAtomic/validated
+=== RUN   TestCollectionReceiptAccountingMigrationFailureAtomic/copied
+=== RUN   TestCollectionReceiptAccountingMigrationFailureAtomic/replaced
+=== RUN   TestCollectionReceiptAccountingMigrationFailureAtomic/backfilled
+=== RUN   TestCollectionReceiptAccountingMigrationFailureAtomic/triggers
+=== RUN   TestCollectionReceiptAccountingMigrationFailureAtomic/version
+=== RUN   TestCollectionReceiptAccountingMigrationFailureAtomic/commit
+--- PASS: TestCollectionReceiptAccountingMigrationFailureAtomic (1.11s)
+    --- PASS: TestCollectionReceiptAccountingMigrationFailureAtomic/validated (0.15s)
+    --- PASS: TestCollectionReceiptAccountingMigrationFailureAtomic/copied (0.15s)
+    --- PASS: TestCollectionReceiptAccountingMigrationFailureAtomic/replaced (0.16s)
+    --- PASS: TestCollectionReceiptAccountingMigrationFailureAtomic/backfilled (0.17s)
+    --- PASS: TestCollectionReceiptAccountingMigrationFailureAtomic/triggers (0.17s)
+    --- PASS: TestCollectionReceiptAccountingMigrationFailureAtomic/version (0.16s)
+    --- PASS: TestCollectionReceiptAccountingMigrationFailureAtomic/commit (0.16s)
+=== RUN   TestCollectionReceiptAccountingInvalidHistoryFailsClosed
+=== RUN   TestCollectionReceiptAccountingInvalidHistoryFailsClosed/orphan
+=== RUN   TestCollectionReceiptAccountingInvalidHistoryFailsClosed/null_id
+--- PASS: TestCollectionReceiptAccountingInvalidHistoryFailsClosed (0.26s)
+    --- PASS: TestCollectionReceiptAccountingInvalidHistoryFailsClosed/orphan (0.13s)
+    --- PASS: TestCollectionReceiptAccountingInvalidHistoryFailsClosed/null_id (0.12s)
+=== RUN   TestCollectionReceiptAccountingHookReusesExistingAtExactQuota
+=== RUN   TestCollectionReceiptAccountingHookReusesExistingAtExactQuota/false
+=== RUN   TestCollectionReceiptAccountingHookReusesExistingAtExactQuota/true
+--- PASS: TestCollectionReceiptAccountingHookReusesExistingAtExactQuota (0.27s)
+    --- PASS: TestCollectionReceiptAccountingHookReusesExistingAtExactQuota/false (0.13s)
+    --- PASS: TestCollectionReceiptAccountingHookReusesExistingAtExactQuota/true (0.14s)
+=== RUN   TestCollectionReceiptAccountingUpgradeSchema22Graph
+--- PASS: TestCollectionReceiptAccountingUpgradeSchema22Graph (0.27s)
+PASS

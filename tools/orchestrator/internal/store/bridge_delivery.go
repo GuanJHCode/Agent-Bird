@@ -745,11 +745,11 @@ func (d *DB) ClaimBridge(ctx context.Context, req contract.BridgeClaimRequest) (
 		}
 		for _, r := range batch.DeliveryReceipts {
 			group := bridgeReceiptGroup(selected, r.EventIDs)
-			_, _, raw, e := collectionReceiptParts(r.TaskID, group)
+			incoming, e := collectionReceiptIncoming(ctx, tx, r.TaskID, group)
 			if e != nil {
 				return empty, e
 			}
-			growth += bridgeBytes(r.DeliveryID, r.TaskID, r.ProofSHA256, raw)
+			growth += incoming
 		}
 	}
 	if err = d.storageAdmission(ctx, tx, b.view.RunID, growth, false); err != nil {

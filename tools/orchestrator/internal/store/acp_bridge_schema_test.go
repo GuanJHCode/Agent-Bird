@@ -36,8 +36,8 @@ func TestACPBridgeSchema23MigratesSchema22BridgeGraph(t *testing.T) {
 	}
 	defer db.Close()
 	var version int
-	if err := db.sql.QueryRow(`SELECT version FROM schema_meta`).Scan(&version); err != nil || version != 23 {
-		t.Fatalf("version=%d err=%v, want schema23", version, err)
+	if err := db.sql.QueryRow(`SELECT version FROM schema_meta`).Scan(&version); err != nil || version != currentSchemaVersion {
+		t.Fatalf("version=%d err=%v, want latest schema", version, err)
 	}
 	for _, column := range []string{"acp_session_id", "acp_turn_ordinal", "acp_rpc_request_id", "acp_response_sha256", "acp_stop_reason"} {
 		var found int
@@ -196,7 +196,7 @@ func TestACPBridgeSchema23FailureRollsBackEveryStageAndRestoresForeignKeys(t *te
 			}
 			defer reopened.Close()
 			var retriedVersion int
-			if err := reopened.sql.QueryRow(`SELECT version FROM schema_meta`).Scan(&retriedVersion); err != nil || retriedVersion != 23 {
+			if err := reopened.sql.QueryRow(`SELECT version FROM schema_meta`).Scan(&retriedVersion); err != nil || retriedVersion != currentSchemaVersion {
 				t.Fatalf("retry version=%d err=%v", retriedVersion, err)
 			}
 		})
@@ -322,6 +322,7 @@ func equalSchema23Objects(want, got map[string]string) bool {
 // shape mistakes in migration tests.
 func downgradeACPBridgeSchema23(t *testing.T, db *DB) {
 	t.Helper()
+	downgradeCollectionSchema24(t, db)
 	var version int
 	if err := db.sql.QueryRow(`SELECT version FROM schema_meta`).Scan(&version); err != nil {
 		t.Fatal(err)

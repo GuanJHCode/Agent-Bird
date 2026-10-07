@@ -87,7 +87,7 @@ func TestACPBridgeSchema23RestoreFailuresDiscardOriginalConnection(t *testing.T)
 			if err := db.sql.QueryRow(`PRAGMA foreign_keys`).Scan(&fk); err != nil || fk != 1 {
 				t.Fatalf("reopen FK=%d err=%v", fk, err)
 			}
-			if err := db.sql.QueryRow(`SELECT version FROM schema_meta`).Scan(&version); err != nil || version != 23 {
+			if err := db.sql.QueryRow(`SELECT version FROM schema_meta`).Scan(&version); err != nil || version != currentSchemaVersion {
 				t.Fatalf("reopen version=%d err=%v", version, err)
 			}
 		})
@@ -157,7 +157,7 @@ func TestACPBridgeSchema23ActualCommitFailureRollsBackAndRestores(t *testing.T) 
 		t.Fatal(err)
 	}
 	defer db.Close()
-	if err := db.sql.QueryRow(`SELECT version FROM schema_meta`).Scan(&version); err != nil || version != 23 {
+	if err := db.sql.QueryRow(`SELECT version FROM schema_meta`).Scan(&version); err != nil || version != currentSchemaVersion {
 		t.Fatalf("retry version=%d err=%v", version, err)
 	}
 }

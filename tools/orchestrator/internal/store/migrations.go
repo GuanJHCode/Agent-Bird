@@ -7,7 +7,7 @@ import (
 	"errors"
 )
 
-const currentSchemaVersion = 23
+const currentSchemaVersion = 24
 
 // Runtime migrations run under the coordinator instance lock (NewServer) and
 // one SQLite transaction. DDL, backfills and version publication commit together;
@@ -271,8 +271,24 @@ func (d *DB) migrateRuntimeWithForeignKeyOps(ops runtimeForeignKeyOps) (err erro
 			return CodeError("schema23_foreign_key_check_failed")
 		}
 	}
+	if version < 24 {
+		if err = migrateCollectionReceiptAccounting(tx); err != nil {
+			return err
+		}
+		if _, err = tx.Exec(`UPDATE schema_meta SET version=24`); err != nil {
+			return err
+		}
+		if err = collectionSchema24Stage("version"); err != nil {
+			return err
+		}
+	}
 	if needsSchema23 {
 		if err = schema23MigrationStage("commit"); err != nil {
+			return err
+		}
+	}
+	if version < 24 {
+		if err = collectionSchema24Stage("commit"); err != nil {
 			return err
 		}
 	}
