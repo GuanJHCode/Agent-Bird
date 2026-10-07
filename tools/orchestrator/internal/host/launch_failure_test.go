@@ -127,8 +127,8 @@ func TestLaunchFailurePreservesExistingTerminalEvidence(t *testing.T) {
 				t.Fatal(err)
 			}
 			meta := launchMetadata{commandID: "c", workRevision: 1, executionEpoch: 1}
-			path, err := sp.WriteArtifact([]byte("existing candidate or failure evidence"))
-			if err != nil {
+			path := filepath.Join(root, a.ID, a.SegmentID, "legacy-evidence.bin")
+			if err := os.WriteFile(path, []byte("existing candidate or failure evidence"), 0600); err != nil {
 				t.Fatal(err)
 			}
 			if _, err = h.appendPhaseEvent(sp, "r", "t", a, meta, kind, "existing-hash", nil, nil, nil); err != nil {
@@ -188,7 +188,7 @@ func TestLaunchFailureRejectsAmbiguousPartialEvidence(t *testing.T) {
 			meta := launchMetadata{commandID: "c", workRevision: 1, executionEpoch: 1}
 			switch mode {
 			case "artifact":
-				_, err = sp.WriteArtifact([]byte("keep"))
+				err = os.WriteFile(filepath.Join(root, a.ID, a.SegmentID, "legacy-evidence.bin"), []byte("keep"), 0600)
 			case "process":
 				_, err = h.appendPhaseEvent(sp, "r", "t", a, meta, contract.EventSpawned, "spawn", &process.Identity{PID: 123, PGID: 123, BirthKnown: true, Birth: "birth"}, nil, nil)
 			case "partial-result":
@@ -442,13 +442,12 @@ func TestLaunchFailureRecoversArtifactBeforeFirstEvent(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			diagnostic, err := events.Open(filepath.Join(root, "a", "s", "launch-failure"))
-			if err != nil {
+			original := []byte(`{"version":1,"kind":"launch_failure","stage":"prelaunch","cause_code":"invocation_payload_invalid"}`)
+			path := filepath.Join(root, "a", "s", "launch-failure", "result-output.bin")
+			if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 				t.Fatal(err)
 			}
-			original := []byte(`{"version":1,"kind":"launch_failure","stage":"prelaunch","cause_code":"invocation_payload_invalid"}`)
-			path, err := diagnostic.WriteArtifact(original)
-			if err != nil {
+			if err := os.WriteFile(path, original, 0600); err != nil {
 				t.Fatal(err)
 			}
 			if metadata {
@@ -575,13 +574,12 @@ func TestLaunchFailureRecoveryKeepsPartialTerminalUnknown(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	diagnostic, err := events.Open(filepath.Join(root, "a", "s", "launch-failure"))
-	if err != nil {
+	body := []byte(`{"version":1,"kind":"launch_failure","stage":"prelaunch","cause_code":"invocation_payload_invalid"}`)
+	path := filepath.Join(root, "a", "s", "launch-failure", "result-output.bin")
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		t.Fatal(err)
 	}
-	body := []byte(`{"version":1,"kind":"launch_failure","stage":"prelaunch","cause_code":"invocation_payload_invalid"}`)
-	path, err := diagnostic.WriteArtifact(body)
-	if err != nil {
+	if err := os.WriteFile(path, body, 0600); err != nil {
 		t.Fatal(err)
 	}
 	sum := sha256.Sum256(body)
