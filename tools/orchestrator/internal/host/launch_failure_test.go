@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/artifacts"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/events"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
@@ -94,8 +95,13 @@ func TestLaunchFailureCollectsSafeDiagnostic(t *testing.T) {
 			if err != nil || info.Mode().Perm() != 0600 {
 				t.Fatalf("artifact mode: %v %v", info, err)
 			}
-			if e.Artifact.HostArtifact == nil {
-				t.Fatal("missing managed failure receipt")
+			var desc artifacts.HostSlotDescriptor
+			var proof artifacts.Proof
+			if err = json.Unmarshal(e.Artifact.HostArtifact.Descriptor, &desc); err != nil || json.Unmarshal(e.Artifact.HostArtifact.Proof, &proof) != nil {
+				t.Fatalf("invalid managed failure receipt: %v", err)
+			}
+			if meta.artifactGrant == nil || desc.ReservationID != meta.artifactGrant.HostArtifacts.TerminalReservationID || desc.ScopeSHA256 != meta.artifactGrant.HostArtifacts.ScopeSHA256 || desc.Class != "terminal" || desc.Index != 0 || desc.Kind != "prelaunch" || artifacts.VerifyHostSlotAndCommit(context.Background(), root, desc, proof, func() error { return nil }) != nil {
+				t.Fatalf("failure receipt is not bound to its managed terminal slot: %+v", desc)
 			}
 		})
 	}
