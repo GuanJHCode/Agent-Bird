@@ -71,8 +71,8 @@ CREATE TABLE bridge_bindings_schema23(
 	}
 	for _, column := range []string{
 		`acp_session_id TEXT NOT NULL DEFAULT ''`,
-		`acp_turn_ordinal INTEGER CHECK(acp_turn_ordinal IS NULL OR acp_turn_ordinal>0)`,
-		`acp_rpc_request_id INTEGER CHECK(acp_rpc_request_id IS NULL OR acp_rpc_request_id>0)`,
+		`acp_turn_ordinal INTEGER CHECK(acp_turn_ordinal IS NULL OR (typeof(acp_turn_ordinal)='integer' AND acp_turn_ordinal>0))`,
+		`acp_rpc_request_id INTEGER CHECK(acp_rpc_request_id IS NULL OR (typeof(acp_rpc_request_id)='integer' AND acp_rpc_request_id>0))`,
 		`acp_response_sha256 TEXT NOT NULL DEFAULT ''`,
 		`acp_stop_reason TEXT NOT NULL DEFAULT ''`,
 	} {

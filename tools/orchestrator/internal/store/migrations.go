@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"errors"
 )
 
@@ -12,6 +13,17 @@ const currentSchemaVersion = 23
 // one SQLite transaction. DDL, backfills and version publication commit together;
 // rollback preserves the prior schema and data rather than guessing recovery.
 func (d *DB) migrateRuntime() (err error) {
+	return d.migrateRuntimeWithForeignKeyOps(runtimeForeignKeyOps{})
+}
+
+// Per-invocation dependencies let fault tests exercise failed driver operations
+// without global function replacement or a simulated successful PRAGMA.
+type runtimeForeignKeyOps struct {
+	enable func(context.Context, *sql.Conn) error
+	read   func(context.Context, *sql.Conn) (int, error)
+}
+
+func (d *DB) migrateRuntimeWithForeignKeyOps(ops runtimeForeignKeyOps) (err error) {
 	// bridge_bindings is the parent of four existing bridge tables. SQLite only
 	// permits the parent rebuild required by schema23 when FK enforcement is
 	// disabled before BEGIN; defer_foreign_keys is not a substitute.
@@ -42,7 +54,16 @@ func (d *DB) migrateRuntime() (err error) {
 			}
 		}
 		if foreignKeysDisabled {
-			err = errors.Join(err, restoreRuntimeForeignKeys(ctx, conn))
+			restoreErr := restoreRuntimeForeignKeys(ctx, conn, ops)
+			err = errors.Join(err, restoreErr)
+			if restoreErr != nil {
+				// Never return a connection with unverified FK enforcement to the
+				// pool. ErrBadConn makes database/sql discard this physical lease.
+				discardErr := conn.Raw(func(any) error { return driver.ErrBadConn })
+				if discardErr != nil && !errors.Is(discardErr, driver.ErrBadConn) && !errors.Is(discardErr, sql.ErrConnDone) {
+					err = errors.Join(err, discardErr)
+				}
+			}
 		}
 	}()
 	if needsSchema23 {
@@ -262,13 +283,26 @@ func (d *DB) migrateRuntime() (err error) {
 	return nil
 }
 
-func restoreRuntimeForeignKeys(ctx context.Context, conn *sql.Conn) error {
+func restoreRuntimeForeignKeys(ctx context.Context, conn *sql.Conn, ops runtimeForeignKeyOps) error {
 	hookErr := schema23MigrationStage("restore")
-	if _, err := conn.ExecContext(ctx, `PRAGMA foreign_keys=ON`); err != nil {
+	if ops.enable == nil {
+		ops.enable = func(ctx context.Context, conn *sql.Conn) error {
+			_, err := conn.ExecContext(ctx, `PRAGMA foreign_keys=ON`)
+			return err
+		}
+	}
+	if ops.read == nil {
+		ops.read = func(ctx context.Context, conn *sql.Conn) (int, error) {
+			var fk int
+			err := conn.QueryRowContext(ctx, `PRAGMA foreign_keys`).Scan(&fk)
+			return fk, err
+		}
+	}
+	if err := ops.enable(ctx, conn); err != nil {
 		return errors.Join(hookErr, err)
 	}
-	var foreignKeys int
-	if err := conn.QueryRowContext(ctx, `PRAGMA foreign_keys`).Scan(&foreignKeys); err != nil {
+	foreignKeys, err := ops.read(ctx, conn)
+	if err != nil {
 		return errors.Join(hookErr, err)
 	}
 	if foreignKeys != 1 {

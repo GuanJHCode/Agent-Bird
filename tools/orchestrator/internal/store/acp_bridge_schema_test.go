@@ -73,11 +73,29 @@ func TestACPBridgeSchema23MigratesSchema22BridgeGraph(t *testing.T) {
 	}
 	globalBeforeAttempt := schema23Usage(t, db.sql, "global", "")
 	runBeforeAttempt := schema23Usage(t, db.sql, "run", "run-界")
-	if _, err := db.sql.Exec(`INSERT INTO bridge_delivery_attempts(attempt_id,batch_id,binding_id,owner_epoch,attempt_no,claim_token_hash,state,deadline_at,sender_pid,sender_birth,created_at,acp_turn_ordinal) VALUES('acp-attempt-1','batch-acp','acp',2,1,?,'CLAIMED','later',12,'native-birth','now',1)`, strings.Repeat("f", 64)); err != nil {
+	if _, err := db.sql.Exec(`INSERT INTO bridge_delivery_attempts(attempt_id,batch_id,binding_id,owner_epoch,attempt_no,claim_token_hash,state,deadline_at,sender_pid,sender_birth,created_at) VALUES('acp-attempt-1','batch-acp','acp',2,1,?,'RECEIVED','later',12,'native-birth','now')`, strings.Repeat("f", 64)); err != nil {
 		t.Fatal(err)
 	}
 	globalBeforeACP := schema23Usage(t, db.sql, "global", "")
 	runBeforeACP := schema23Usage(t, db.sql, "run", "run-界")
+	if _, err := db.sql.Exec(`UPDATE bridge_delivery_attempts SET acp_turn_ordinal=1 WHERE attempt_id='acp-attempt-1'`); err != nil {
+		t.Fatal(err)
+	}
+	if got := schema23Usage(t, db.sql, "global", ""); got != globalBeforeACP+8 {
+		t.Fatalf("ordinal global growth=%d want=%d", got, globalBeforeACP+8)
+	}
+	if got := schema23Usage(t, db.sql, "run", "run-界"); got != runBeforeACP+8 {
+		t.Fatalf("ordinal run growth=%d want=%d", got, runBeforeACP+8)
+	}
+	if _, err := db.sql.Exec(`UPDATE bridge_delivery_attempts SET acp_turn_ordinal=NULL WHERE attempt_id='acp-attempt-1'`); err != nil {
+		t.Fatal(err)
+	}
+	if got := schema23Usage(t, db.sql, "global", ""); got != globalBeforeACP {
+		t.Fatalf("ordinal global reset=%d want=%d", got, globalBeforeACP)
+	}
+	if got := schema23Usage(t, db.sql, "run", "run-界"); got != runBeforeACP {
+		t.Fatalf("ordinal run reset=%d want=%d", got, runBeforeACP)
+	}
 	if _, err := db.sql.Exec(`UPDATE bridge_delivery_attempts SET acp_session_id='会',acp_rpc_request_id=9,acp_response_sha256='响应',acp_stop_reason='结束' WHERE attempt_id='acp-attempt-1'`); err != nil {
 		t.Fatal(err)
 	}
@@ -97,7 +115,7 @@ func TestACPBridgeSchema23MigratesSchema22BridgeGraph(t *testing.T) {
 	if got := schema23Usage(t, db.sql, "run", "run-界"); got != runBeforeACP {
 		t.Fatalf("run ACP reset=%d want=%d", got, runBeforeACP)
 	}
-	if _, err := db.sql.Exec(`UPDATE bridge_delivery_attempts SET acp_rpc_request_id=9 WHERE attempt_id='acp-attempt-1'`); err != nil {
+	if _, err := db.sql.Exec(`UPDATE bridge_delivery_attempts SET acp_turn_ordinal=1,acp_rpc_request_id=9 WHERE attempt_id='acp-attempt-1'`); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := db.sql.Exec(`UPDATE bridge_delivery_attempts SET acp_turn_ordinal=0 WHERE attempt_id='acp-attempt-1'`); err == nil {
@@ -185,7 +203,7 @@ func TestACPBridgeSchema23FailureRollsBackEveryStageAndRestoresForeignKeys(t *te
 	}
 }
 
-func TestACPBridgeSchema23JoinsRestoreFailureAfterRollback(t *testing.T) {
+func TestACPBridgeSchema23JoinsRestoreHookDiagnosticAfterRollback(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "state.db")
 	db, err := Open(path)
 	if err != nil {
