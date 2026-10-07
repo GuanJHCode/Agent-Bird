@@ -151,3 +151,22 @@ func TestPrepareStateDirRejectsAncestorSwap(t *testing.T) {
 		t.Fatal("ancestor swap accepted")
 	}
 }
+
+func TestPrepareStateDirRejectsFinalSameInodeSymlinkLeaf(t *testing.T) {
+	base := t.TempDir()
+	root := filepath.Join(base, "state")
+	held := root + "-held"
+	old := prepareStateDirBeforeFinalCheck
+	prepareStateDirBeforeFinalCheck = func() {
+		if err := os.Rename(root, held); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(held, root); err != nil {
+			t.Fatal(err)
+		}
+	}
+	defer func() { prepareStateDirBeforeFinalCheck = old }()
+	if err := PrepareStateDir(root); err == nil {
+		t.Fatal("same-inode symlink leaf accepted")
+	}
+}
