@@ -1,0 +1,145 @@
+{
+  "baseline-setup-1": {
+    "package": {
+      "pass": 0,
+      "fail": 1,
+      "skip": 0
+    },
+    "top": {
+      "pass": 0,
+      "fail": 0,
+      "skip": 0
+    },
+    "named": {
+      "pass": 0,
+      "fail": 0,
+      "skip": 0
+    },
+    "build_fail": 1
+  },
+  "baseline-setup-2": {
+    "package": {
+      "pass": 0,
+      "fail": 1,
+      "skip": 0
+    },
+    "top": {
+      "pass": 0,
+      "fail": 0,
+      "skip": 0
+    },
+    "named": {
+      "pass": 0,
+      "fail": 0,
+      "skip": 0
+    },
+    "build_fail": 1
+  },
+  "scaffold-compile-error": {
+    "package": {
+      "pass": 0,
+      "fail": 1,
+      "skip": 0
+    },
+    "top": {
+      "pass": 0,
+      "fail": 0,
+      "skip": 0
+    },
+    "named": {
+      "pass": 0,
+      "fail": 0,
+      "skip": 0
+    },
+    "build_fail": 1
+  },
+  "api-red": {
+    "package": {
+      "pass": 0,
+      "fail": 1,
+      "skip": 0
+    },
+    "top": {
+      "pass": 0,
+      "fail": 0,
+      "skip": 0
+    },
+    "named": {
+      "pass": 0,
+      "fail": 0,
+      "skip": 0
+    },
+    "build_fail": 1
+  },
+  "behavior-red": {
+    "package": {
+      "pass": 0,
+      "fail": 1,
+      "skip": 0
+    },
+    "top": {
+      "pass": 4,
+      "fail": 9,
+      "skip": 0
+    },
+    "named": {
+      "pass": 49,
+      "fail": 58,
+      "skip": 0
+    },
+    "build_fail": 0
+  },
+  "green-1": {
+    "package": {
+      "pass": 1,
+      "fail": 0,
+      "skip": 0
+    },
+    "top": {
+      "pass": 13,
+      "fail": 0,
+      "skip": 0
+    },
+    "named": {
+      "pass": 111,
+      "fail": 0,
+      "skip": 0
+    },
+    "build_fail": 0
+  },
+  "final-focused": {
+    "package": {
+      "pass": 1,
+      "fail": 0,
+      "skip": 0
+    },
+    "top": {
+      "pass": 30,
+      "fail": 0,
+      "skip": 0
+    },
+    "named": {
+      "pass": 216,
+      "fail": 0,
+      "skip": 5
+    },
+    "build_fail": 0,
+    "new_named": {
+      "pass": 116,
+      "fail": 0,
+      "skip": 5
+    },
+    "new_top": {
+      "pass": 15,
+      "fail": 0,
+      "skip": 0
+    },
+    "skip_tests": [
+      "TestOwnerRecoveryHandoffRejectsForeignUID/state",
+      "TestOwnerRecoveryHandoffRejectsForeignUID/spool",
+      "TestOwnerRecoveryHandoffRejectsForeignUID/launch",
+      "TestOwnerRecoveryHandoffRejectsForeignUID/lock",
+      "TestOwnerRecoveryHandoffRejectsForeignUID/ledger"
+    ]
+  }
+}
