@@ -1,0 +1,33 @@
+{
+  "head": "f771ee3bcf06085417d157f429e87f60b0f2494c",
+  "build_exit": 0,
+  "cli_package_terminal": [
+    {
+      "Time": "2026-10-07T22:07:46.353721+08:00",
+      "Action": "pass",
+      "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+      "Elapsed": 25.218
+    }
+  ],
+  "pass_named": 15,
+  "pass_top": 9,
+  "fail": [],
+  "skip": [],
+  "tests": [
+    "TestCLICandidateDevelopmentDAG",
+    "TestCLIIndexedCandidateDevelopmentDAG",
+    "TestCLIOriginalOwnerExecutesSignedWorker",
+    "TestPluginRunRejectsUnsupportedActionBeforeInstall",
+    "TestPortableRunPolicy",
+    "TestPluginRunAllowsOwnerScopedRouting",
+    "TestResolveStateCanonicalizesAncestorWithoutCreatingState",
+    "TestResolveStatePreservesPrivateLeafValidation",
+    "TestResolveStateRejectsBrokenParentAndNonDirectoryLeaf"
+  ],
+  "log_sha256": "152f844b6992ffa632d24294d3b76692486601229fba1d571fbaeb01a31a2616",
+  "scope": "race applies to parent Go test; public controlled CLI children use normal go build; no real Provider",
+  "source_receipts_matched": {
+    "legacy-artifact-accounting": 18,
+    "linux-portable-check": 7
+  }
+}

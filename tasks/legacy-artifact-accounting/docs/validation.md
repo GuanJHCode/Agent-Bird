@@ -28,3 +28,7 @@ Linux容器固定本地镜像，无网络、只读根、nobody、no caps、独�
 ## 未关闭范围
 
 仍未实现/验证 F02 全部保留与删除策略、永久tombstone、真实2GiB/flood/RSS及完整磁盘满/截断矩阵。Admission当前仍含线性扫描，未作吞吐保证。该WT没有真实Provider/native TUI或公开CLI验收；合入integration后继续受影响候选和公开路径验证。Intel Mac/Windows原生按用户可用环境延期。
+
+## 集成后的公开路径
+
+integration `f771ee3` 同时包含 Linux portable check、F12安全state目录、F04原Git进程跟踪及schema22。原18项legacy和7项Linux源码hash逐项相同。`go build ./...` 退出0；parent race的公开CLI选择9 top /15 named PASS，0 FAIL/SKIP，25.218s，包含原owner签名worker、普通候选DAG、indexed候选DAG、state路径和portable policy。CLI子进程使用普通构建，不声称子进程race覆盖。精确列表见 `../data/root-integrated-receipt.json`。现有两项F10死owner resume失败仍留在后续B3范围，没有用本次选择替代其验收。
