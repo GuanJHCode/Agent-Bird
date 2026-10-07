@@ -50,15 +50,7 @@ func ownerRecoveryRejected() error { return errors.New("owner_recovery_state_rej
 // The physical transport and Coordinator epoch may change. The original
 // signing process may not: a different owner/key must never reset this ledger.
 func originalOwnerRecoveryScope(scope contract.OriginalOwnerScope, owner contract.OriginalOwnerIdentity) (string, error) {
-	scopeHash, err := contract.OriginalOwnerScopeSHA256(scope)
-	if err != nil {
-		return "", err
-	}
-	identityHash, err := contract.OriginalOwnerIdentitySHA256(owner)
-	if err != nil {
-		return "", err
-	}
-	return hashText("original-owner-recovery-v2\x00" + scopeHash + "\x00" + identityHash), nil
+	return contract.OriginalOwnerRecoveryScopeSHA256(scope, owner)
 }
 func openOwnerRecovery(directory, scope string) (*ownerRecoveryState, error) {
 	digest, err := hex.DecodeString(scope)

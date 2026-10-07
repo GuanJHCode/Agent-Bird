@@ -149,6 +149,7 @@ func TestSuccessorAdmissionOldCommandCannotSelectLaterAuthorization(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
+	completeOwnerRecoveryHandoffForStoreTest(t, f.db, bs, b, pub)
 	if err = f.db.CommitOriginalOwnerApplied(ctx, successorOwnerApplied(t, bs, b, 0), pub); err != nil {
 		t.Fatal(err)
 	}

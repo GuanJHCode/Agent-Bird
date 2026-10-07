@@ -45,6 +45,9 @@ func validateOwnerApplied(ctx context.Context, tx *sql.Tx, spec OriginalOwnerApp
 	if string(one) != string(two) {
 		return row, "", originalOwnerRejected()
 	}
+	if err = requireOwnerRecoveryHandoffAppliedTx(ctx, tx, row); err != nil {
+		return row, "", err
+	}
 	var last int64
 	if err = tx.QueryRowContext(ctx, `SELECT COALESCE(MAX(sequence),0) FROM runtime_events WHERE producer_id=?`, scope.ProducerID).Scan(&last); err != nil {
 		return row, "", err

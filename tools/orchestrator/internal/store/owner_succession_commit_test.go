@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"database/sql"
+	"strings"
 	"testing"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
@@ -31,6 +32,7 @@ func TestOwnerSuccessionTransitionsDiscardFailedCommit(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
+				completeOwnerRecoveryHandoffForStoreTest(t, f.db, bindSpec, binding, pub)
 				var last int64
 				if err = f.db.sql.QueryRow(`SELECT MAX(sequence) FROM runtime_events WHERE producer_id=?`, intent.Scope.ProducerID).Scan(&last); err != nil {
 					t.Fatal(err)
@@ -65,7 +67,7 @@ func TestOwnerSuccessionTransitionsDiscardFailedCommit(t *testing.T) {
 				t.Fatal(err)
 			}
 			before := ownerSuccessionResumeSnapshot(t, f.db)
-			if err = operation(); err == nil {
+			if err = operation(); err == nil || !strings.Contains(err.Error(), "FOREIGN KEY") {
 				t.Fatal("deferred FK did not fail actual COMMIT")
 			}
 			external, err := sql.Open("sqlite", f.db.path)

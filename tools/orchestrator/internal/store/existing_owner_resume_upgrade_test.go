@@ -330,6 +330,7 @@ func TestExistingOwnerResumeUpgradeRemainsUsableBySuccessor(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	completeOwnerRecoveryHandoffForStoreTest(t, f.db, bindSpec, b, pub)
 	max := int64(originalOwnerSchemaCount(t, f.db.sql, `SELECT MAX(sequence) FROM runtime_events`))
 	applied := successorOwnerApplied(t, bindSpec, b, max)
 	if err = f.db.CommitOriginalOwnerApplied(ctx, applied, pub); err != nil {

@@ -18,7 +18,7 @@ func removeExistingOwnerResumeSchema26(db *DB) error {
 	if version <= 25 {
 		return nil
 	}
-	if version != 26 {
+	if version != 26 && version != 27 {
 		return fmt.Errorf("unsupported fixture schema %d", version)
 	}
 	if err := db.sql.QueryRow(`SELECT COUNT(*) FROM existing_owner_resume_commands`).Scan(&count); err != nil {
@@ -26,6 +26,9 @@ func removeExistingOwnerResumeSchema26(db *DB) error {
 	}
 	if count != 0 {
 		return errors.New("cannot erase existing owner resume history")
+	}
+	if err := removeOwnerRecoveryHandoffSchema27(db); err != nil {
+		return err
 	}
 	tx, err := db.sql.Begin()
 	if err != nil {
@@ -88,7 +91,7 @@ func TestExistingOwnerResumeSchemaMigrationPreservesAuthorizationAndRollsBack(t 
 				t.Fatal(err)
 			}
 			defer opened.Close()
-			if originalOwnerSchemaCount(t, opened.sql, `SELECT version FROM schema_meta`) != 26 || originalOwnerSchemaCount(t, opened.sql, `SELECT COUNT(*) FROM existing_owner_resume_commands`) != 0 || originalOwnerSchemaCount(t, opened.sql, `SELECT COUNT(*) FROM pragma_foreign_key_check`) != 0 {
+			if originalOwnerSchemaCount(t, opened.sql, `SELECT version FROM schema_meta`) != currentSchemaVersion || originalOwnerSchemaCount(t, opened.sql, `SELECT COUNT(*) FROM existing_owner_resume_commands`) != 0 || originalOwnerSchemaCount(t, opened.sql, `SELECT COUNT(*) FROM pragma_foreign_key_check`) != 0 {
 				t.Fatal("incorrect schema26 migration")
 			}
 			if ownerSuccessionResumeSnapshot(t, opened) != before {

@@ -109,6 +109,7 @@ func TestOwnerSuccessionPreparePublishesOnceAndPreservesHistory(t *testing.T) {
 	if b.Permit.ControlRevision != 1 || b.Binding.Scope.Incarnation != 2 {
 		t.Fatal("new owner inherited old control revision")
 	}
+	completeOwnerRecoveryHandoffForStoreTest(t, f.db, bindSpec, b, pub)
 	var last int64
 	if err = f.db.sql.QueryRow(`SELECT MAX(sequence) FROM runtime_events WHERE producer_id=?`, i.Scope.ProducerID).Scan(&last); err != nil || last == 0 {
 		t.Fatal("fixture omitted prior producer history", err)

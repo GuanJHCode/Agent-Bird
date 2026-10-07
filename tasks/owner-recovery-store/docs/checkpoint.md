@@ -1,0 +1,7 @@
+# Store handoff 实现检查点
+
+schema27与API生产独立审查PASS；新增17top129named普通测试PASS，包含相邻binding/current authentication、immutable proof/replay、precharged quota、实际deferredFK COMMIT清理、取消、迁移历史拒绝与epoch重启。实际RED覆盖旧Applied/Attach绕过和epoch1 Bind后epoch2 handoff卡死。
+
+此提交供后续RPC接线隔离开发。完整Store、race、Linux正在ROOT验收；不是最终通过声明。4处既有Store fixture显式补Store-level Coordinator facts，不代表真实FS CAS。真实Coordinator handler与Owner runtime未接，之前synthetic successor native fixture将在接线批次更新其前置条件。
+
+FS独立实现已经验收并在integration 53abc08/8d4d420；本分支尚不包含该两个提交。Bound未Applied死亡、preBind丢失original Wait、pendingauth→originrebind继续OPEN。

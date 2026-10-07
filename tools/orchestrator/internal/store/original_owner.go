@@ -112,6 +112,9 @@ func (d *DB) CommitOriginalOwnerAttach(ctx context.Context, spec OriginalOwnerAt
 	if err != nil || contract.VerifyOriginalOwnerBinding(*row.state.Binding, pub) != nil {
 		return contract.OwnerControlPermit{}, originalOwnerRejected()
 	}
+	if err = requireOwnerRecoveryHandoffAppliedTx(ctx, tx, row); err != nil {
+		return contract.OwnerControlPermit{}, err
+	}
 	replay, err := loadOriginalOwnerPermit(ctx, tx, spec.RequestID, pub)
 	if err == nil {
 		if replay.OwnerID != spec.OwnerID || replay.ScopeSHA256 != spec.ScopeSHA256 || replay.OwnerIdentitySHA256 != spec.OwnerIdentitySHA256 || replay.CoordinatorKeyID != spec.CoordinatorKeyID || replay.CoordinatorEpoch != spec.Epoch || replay.ExpectedControlRevision != spec.ExpectedControlRevision || replay.RequestSHA256 != spec.RequestSHA256 || replay.OldHost == nil || *replay.OldHost != spec.OldHost || replay.NewHost != spec.NewHost || *row.state.CurrentHost != authHost {
