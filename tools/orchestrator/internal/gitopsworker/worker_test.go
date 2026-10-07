@@ -185,6 +185,16 @@ func TestWorkerRoutesPrivateRefsAndComposeIntegrateCleanupChain(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	hookRoot := t.TempDir()
+	hookDir := filepath.Join(hookRoot, "final-hooks")
+	marker := filepath.Join(hookRoot, "post-merge-ran")
+	if err = os.Mkdir(hookDir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err = os.WriteFile(filepath.Join(hookDir, "post-merge"), []byte("#!/bin/sh\nprintf hook > '"+marker+"'\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	git("config", "core.hooksPath", hookDir)
 	integrated := runWorkerOperation(t, executable, spool, "chain-integrate", "integrate", map[string]any{
 		"repo_root": repo, "target_worktree": repo, "target_ref": "refs/heads/main",
 		"target_base_oid": base, "candidate_oid": receipt.CandidateOID,
@@ -202,6 +212,9 @@ func TestWorkerRoutesPrivateRefsAndComposeIntegrateCleanupChain(t *testing.T) {
 	integrationJournal, err := os.ReadFile(filepath.Join(spool, "gitops-journal", digest("chain-integrate"), "events.jsonl"))
 	if err != nil || !strings.Contains(string(integrationJournal), `"kind":"git_process"`) || !strings.Contains(string(integrationJournal), `"phase":"spawned"`) || !strings.Contains(string(integrationJournal), `"phase":"exited"`) {
 		t.Fatalf("final integrate lacks original Git process receipt: %q err=%v", integrationJournal, err)
+	}
+	if body, err := os.ReadFile(marker); err != nil || string(body) != "hook" {
+		t.Fatalf("final post-merge hook did not execute: %q %v", body, err)
 	}
 
 	cleaned := runWorkerOperation(t, executable, spool, "chain-cleanup", "cleanup", map[string]any{
