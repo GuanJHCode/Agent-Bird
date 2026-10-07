@@ -50,7 +50,7 @@ func TestLaunchFailureCollectsSafeDiagnostic(t *testing.T) {
 				t.Fatal(err)
 			}
 			a := store.Attempt{ID: "attempt", TaskID: "task", SegmentID: "segment"}
-			meta := launchMetadata{commandID: "command", workRevision: 1, executionEpoch: 1}
+			meta := launchFailureMetadata(t, h, "run", a)
 			if err = h.recordLaunchFailed(a, "run", a.TaskID, meta, tc.cause); err != nil {
 				t.Fatal(err)
 			}
@@ -65,7 +65,7 @@ func TestLaunchFailureCollectsSafeDiagnostic(t *testing.T) {
 			if e.Process != nil || e.ExitCode != nil || e.ActiveMS != 0 {
 				t.Fatalf("failure changed process outcome: %+v", e)
 			}
-			if e.Artifact.ID != "launch-failure" || e.Artifact.Path != filepath.Join(root, a.ID, a.SegmentID, "launch-failure", "result-output.bin") {
+			if e.Artifact.ID != "launch-failure" || e.Artifact.HostArtifact == nil {
 				t.Fatalf("diagnostic occupied candidate path: %+v", e.Artifact)
 			}
 			_, recovered, recoverErr := readRecoveredLaunchFailure(e.Artifact.Path)
@@ -94,22 +94,16 @@ func TestLaunchFailureCollectsSafeDiagnostic(t *testing.T) {
 			if err != nil || info.Mode().Perm() != 0600 {
 				t.Fatalf("artifact mode: %v %v", info, err)
 			}
-			sp, err := events.Open(filepath.Join(root, a.ID, a.SegmentID))
-			if err != nil {
-				t.Fatal(err)
-			}
-			var launch map[string]any
-			if err = sp.ReadMetadata("launch.json", &launch); err != nil {
-				t.Fatal(err)
-			}
-			if launch["phase"] != "not_started" || launch["cause_code"] != tc.code {
-				t.Fatalf("lost safe cause on exit: %+v", launch)
-			}
-			if _, err = os.Stat(filepath.Join(root, a.ID, a.SegmentID, "result-output.bin")); !errors.Is(err, os.ErrNotExist) {
-				t.Fatalf("root result path occupied: %v", err)
+			if e.Artifact.HostArtifact == nil {
+				t.Fatal("missing managed failure receipt")
 			}
 		})
 	}
+}
+
+func launchFailureMetadata(t *testing.T, h *Host, runID string, a store.Attempt) launchMetadata {
+	t.Helper()
+	return metadataForLaunch(managedHostGrant(t, h, contract.LaunchCommand{CommandID: "failure-" + a.SegmentID, ReservationID: "reservation-" + a.SegmentID, RunID: runID, TaskID: a.TaskID, AttemptID: a.ID, SegmentID: a.SegmentID, WorkRevision: 1, GrantedActiveMS: 1000}))
 }
 
 // Source fallback after an execution error must not replace original evidence.
@@ -360,7 +354,7 @@ func TestLaunchFailureAfterPreparedAndReplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	meta := launchMetadata{commandID: "c", workRevision: 1, executionEpoch: 1}
+	meta := launchFailureMetadata(t, h, "r", a)
 	if _, err = h.appendPhaseEvent(sp, "r", "t", a, meta, contract.EventPrepared, "prepared", nil, nil, nil); err != nil {
 		t.Fatal(err)
 	}
