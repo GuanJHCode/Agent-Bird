@@ -1,0 +1,17 @@
+=== RUN   TestOriginalOwnerSuccessorStartupNativeEpochAdvance
+    owner_successor_startup_native_test.go:120: prior canonical ledger SHA256=920f73225654c5ac78a4c9119736bf20ccb78b58b7f2eb74928461c2285194ff (newline included), attempts=0
+    owner_successor_startup_native_test.go:157: pause proof: Bind epoch=1 revision=1 Applied=0 handoff rows=0 FD4 fill=4096
+    owner_successor_startup_native_test.go:185: exact FD4 drain=4096; original Bound epoch=1; same HostPending epoch=2
+    owner_successor_startup_native_test.go:201: real handoff applied row=1 canonical next SHA256=a2989a1bdc5d21edfe19b61d38065a12950a8c684629834698f4acbc6e58bcd6 attempts=0
+    owner_successor_startup_native_test.go:228: real successor exited before epoch2 HostReady: control={Binding:{Scope:{Version:1 RunID:owner-runtime-run LaunchID:host-launch-42dfa949ad3b61af521853b4 ProducerID:host-launch-42dfa949ad3b61af521853b4 OwnerID:execution-owner-bb35a4f5ca5f7ac1d3d6f31d Incarnation:2 OriginalOriginContextID:origin OriginalOriginPID:4234 OriginalOriginBirth:Thu Oct  8 07:55:58 2026 HostGeneration:gen Executable:/private/tmp/go-build1543245080/b001/coordinator.test ExecutableSHA256:b2bd79cf1aeb299ac2cdf80b0e56fbad92b70f5e78c71d0b365dc26d81d0a943} Owner:{PID:4272 Birth:Thu Oct  8 07:55:58 2026 PublicKey:1180b7befd03fb49da3007dcbba28f0e54f0185199f0e3c06a6c252c8bf97799} CoordinatorKeyID:55f9981ce0d36ed79e81e495a716916d733e32e653ab338dac715052c5284237 FirstHost:{PID:4234 Birth:Thu Oct  8 07:55:58 2026} BindingRevision:1 BindingSHA256:2d3bbdc6575c07525eec2a0c189757e35403080eda51712b4c2330f227193743 Signature:5d0bee7eab74a1337e79d8f5394febe8f662d50005c1548d46cc0487f8293f598d0f9c43c50453fddaaf9fbf65c8c52bc36456dd9f1311f604124bea5e7bb102} Permit:{Version:1 Kind:attach OwnerID:execution-owner-bb35a4f5ca5f7ac1d3d6f31d ScopeSHA256:0a02089f275219cd4614c770680518538ea00fd3ee67659de953e8ea19b3cc7f OwnerIdentitySHA256:15e5b31ec3d705cb5b21a2eb36dd6dc2092c9726c9d3f8e81a1feb62812c5d2e CoordinatorKeyID:55f9981ce0d36ed79e81e495a716916d733e32e653ab338dac715052c5284237 CoordinatorEpoch:1 ExpectedControlRevision:0 ControlRevision:1 OldHost:<nil> NewHost:{PID:4234 Birth:Thu Oct  8 07:55:58 2026} RequestID:successor-prepare RequestSHA256:bbf825bf65bda631c56b871e0b8a10030449e5f4c66153877b17053e3e54b224 PermitID:owner-permit-dc1674d413fb51ffbec49354 Signature:1c2798e2f92823ab5ef7f98355e8c073fd5bd2498c246af2e8b48f58a6fd54f6d0940e40d161d484434394ec5308786f827f3615310063638a68faaf3c9ef603} AppliedControlRevision:0} err=<nil> presence={Status:reconciling Executable:/private/tmp/go-build1543245080/b001/coordinator.test ExecutionOwnerMode:supervised-v1 PID:4234 Birth:Thu Oct  8 07:55:58 2026 Registered:true OwnerPhase:bound SuccessorCommandID:successor-command} err=<nil>; child==== RUN   TestOriginalOwnerSuccessorStartupNativeChild
+            owner_successor_startup_native_test.go:95: real successor runtime coordinator_unavailable
+        --- FAIL: TestOriginalOwnerSuccessorStartupNativeChild (0.37s)
+        FAIL
+    owner_successor_startup_native_test.go:395: cleanup exact original Cmd PID=4272 Wait=exit status 1 state=exit status 1; raw child log:
+        === RUN   TestOriginalOwnerSuccessorStartupNativeChild
+            owner_successor_startup_native_test.go:95: real successor runtime coordinator_unavailable
+        --- FAIL: TestOriginalOwnerSuccessorStartupNativeChild (0.37s)
+        FAIL
+--- FAIL: TestOriginalOwnerSuccessorStartupNativeEpochAdvance (0.62s)
+FAIL
+FAIL	github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator	1.083s
