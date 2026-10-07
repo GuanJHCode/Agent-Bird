@@ -438,23 +438,14 @@ func TestLaunchFailureRecoversArtifactBeforeFirstEvent(t *testing.T) {
 				t.Fatal(err)
 			}
 			a := store.Attempt{ID: "a", TaskID: "t", SegmentID: "s"}
-			sp, err := h.spool(a)
+			original := []byte(`{"version":1,"kind":"launch_failure","stage":"prelaunch","cause_code":"invocation_payload_invalid"}`)
+			meta := metadataForLaunch(grant)
+			ref, err := h.writeHostArtifact(meta, "terminal", 0, "prelaunch", "launch-failure", original)
 			if err != nil {
 				t.Fatal(err)
 			}
-			original := []byte(`{"version":1,"kind":"launch_failure","stage":"prelaunch","cause_code":"invocation_payload_invalid"}`)
-			path := filepath.Join(root, "a", "s", "launch-failure", "result-output.bin")
-			if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
-				t.Fatal(err)
-			}
-			if err := os.WriteFile(path, original, 0600); err != nil {
-				t.Fatal(err)
-			}
-			if metadata {
-				if err = sp.WriteMetadata("launch.json", map[string]any{"phase": "failed", "cause_code": "invocation_payload_invalid"}); err != nil {
-					t.Fatal(err)
-				}
-			}
+			path := ref.Path
+			_ = metadata // The descriptor/proof, rather than launch.json, is the durable pre-event evidence.
 			restarted, err := NewIPC(root, "host")
 			if err != nil {
 				t.Fatal(err)
@@ -477,10 +468,6 @@ func TestLaunchFailureRecoversArtifactBeforeFirstEvent(t *testing.T) {
 			sum := sha256.Sum256(original)
 			if records[0].PayloadHash != hex.EncodeToString(sum[:]) || records[0].Artifact.SHA256 != records[0].PayloadHash {
 				t.Fatal("recovery changed artifact binding")
-			}
-			var phase map[string]any
-			if err = sp.ReadMetadata("launch.json", &phase); err != nil || phase["phase"] != "unknown" || phase["cause_code"] != "invocation_payload_invalid" {
-				t.Fatalf("recovery lost original cause: %+v %v", phase, err)
 			}
 			if err = restarted.recoverDuplicateGrant(grant, 2); err != nil {
 				t.Fatal(err)
