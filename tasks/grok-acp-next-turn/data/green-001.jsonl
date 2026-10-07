@@ -1,0 +1,8 @@
+{"Time":"2026-10-07T19:47:42.242297+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp"}
+{"Time":"2026-10-07T19:47:42.817625+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp","Test":"TestClientRunsTwoSequentialPromptsOnOneACPSession"}
+{"Time":"2026-10-07T19:47:42.817771+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp","Test":"TestClientRunsTwoSequentialPromptsOnOneACPSession","Output":"=== RUN   TestClientRunsTwoSequentialPromptsOnOneACPSession\n"}
+{"Time":"2026-10-07T19:47:42.818071+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp","Test":"TestClientRunsTwoSequentialPromptsOnOneACPSession","Output":"--- PASS: TestClientRunsTwoSequentialPromptsOnOneACPSession (0.00s)\n"}
+{"Time":"2026-10-07T19:47:42.818086+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp","Test":"TestClientRunsTwoSequentialPromptsOnOneACPSession","Elapsed":0}
+{"Time":"2026-10-07T19:47:42.818103+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp","Output":"PASS\n"}
+{"Time":"2026-10-07T19:47:42.818508+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp","Output":"ok  \tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp\t0.575s\n"}
+{"Time":"2026-10-07T19:47:42.818529+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp","Elapsed":0.576}

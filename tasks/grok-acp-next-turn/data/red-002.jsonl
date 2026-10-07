@@ -1,0 +1,9 @@
+{"Time":"2026-10-07T19:49:23.091615+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp"}
+{"Time":"2026-10-07T19:49:23.404791+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp","Test":"TestClientRejectsPromptForSessionItDidNotCreate"}
+{"Time":"2026-10-07T19:49:23.404844+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp","Test":"TestClientRejectsPromptForSessionItDidNotCreate","Output":"=== RUN   TestClientRejectsPromptForSessionItDidNotCreate\n"}
+{"Time":"2026-10-07T19:49:23.405129+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp","Test":"TestClientRejectsPromptForSessionItDidNotCreate","Output":"    client_test.go:186: foreign session prompt error = \u003cnil\u003e, want grokacp: state\n"}
+{"Time":"2026-10-07T19:49:23.405144+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp","Test":"TestClientRejectsPromptForSessionItDidNotCreate","Output":"--- FAIL: TestClientRejectsPromptForSessionItDidNotCreate (0.00s)\n"}
+{"Time":"2026-10-07T19:49:23.405149+08:00","Action":"fail","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp","Test":"TestClientRejectsPromptForSessionItDidNotCreate","Elapsed":0}
+{"Time":"2026-10-07T19:49:23.405159+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp","Output":"FAIL\n"}
+{"Time":"2026-10-07T19:49:23.405499+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp","Output":"FAIL\tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp\t0.314s\n"}
+{"Time":"2026-10-07T19:49:23.405512+08:00","Action":"fail","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp","Elapsed":0.314}
