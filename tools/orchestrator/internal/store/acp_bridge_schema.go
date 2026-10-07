@@ -2,6 +2,7 @@ package store
 
 import (
 	"database/sql"
+	"fmt"
 )
 
 // schema23MigrationHook is test-only fault injection for the committed
@@ -9,15 +10,18 @@ import (
 var schema23MigrationHook func(string) error
 
 func migrateACPBridgeSchema(tx *sql.Tx) error {
-	// The child quota triggers resolve bridge_bindings by name. Drop and recreate
-	// the complete bridge trigger set around the parent replacement so no trigger
-	// is compiled against the transiently absent parent table.
-	for _, table := range bridgeQuotaTables {
+	// Only the parent and attempt quota formulas change in schema23. Child
+	// triggers retain their original DDL and accounting semantics.
+	for _, name := range []string{"bridge_bindings", "bridge_delivery_attempts"} {
 		for _, op := range []string{"INSERT", "UPDATE", "DELETE"} {
-			if _, err := tx.Exec(`DROP TRIGGER quota_` + table.name + `_` + op); err != nil {
+			if _, err := tx.Exec(`DROP TRIGGER quota_` + name + `_` + op); err != nil {
 				return err
 			}
 		}
+	}
+	childTriggers, err := snapshotAndDropSchema23ChildQuotaTriggers(tx)
+	if err != nil {
+		return err
 	}
 	if err := schema23MigrationStage("create"); err != nil {
 		return err
@@ -60,10 +64,15 @@ CREATE TABLE bridge_bindings_schema23(
 	if _, err := tx.Exec(`CREATE UNIQUE INDEX bridge_one_live_binding ON bridge_bindings(run_id,owner_context_id) WHERE status IN ('PENDING_SESSION','SESSION_OBSERVED','ACTIVE'); CREATE UNIQUE INDEX bridge_binding_epoch ON bridge_bindings(run_id,owner_context_id,owner_epoch)`); err != nil {
 		return err
 	}
+	for _, trigger := range childTriggers {
+		if _, err := tx.Exec(trigger.ddl); err != nil {
+			return err
+		}
+	}
 	for _, column := range []string{
 		`acp_session_id TEXT NOT NULL DEFAULT ''`,
-		`acp_turn_ordinal INTEGER`,
-		`acp_rpc_request_id INTEGER`,
+		`acp_turn_ordinal INTEGER CHECK(acp_turn_ordinal IS NULL OR acp_turn_ordinal>0)`,
+		`acp_rpc_request_id INTEGER CHECK(acp_rpc_request_id IS NULL OR acp_rpc_request_id>0)`,
 		`acp_response_sha256 TEXT NOT NULL DEFAULT ''`,
 		`acp_stop_reason TEXT NOT NULL DEFAULT ''`,
 	} {
@@ -71,7 +80,10 @@ CREATE TABLE bridge_bindings_schema23(
 			return err
 		}
 	}
-	if _, err := tx.Exec(`CREATE UNIQUE INDEX bridge_acp_delivery_ordinal ON bridge_delivery_attempts(binding_id,acp_turn_ordinal) WHERE acp_turn_ordinal IS NOT NULL`); err != nil {
+	if _, err := tx.Exec(`CREATE UNIQUE INDEX bridge_acp_delivery_ordinal ON bridge_delivery_attempts(binding_id,acp_turn_ordinal) WHERE acp_turn_ordinal IS NOT NULL; CREATE UNIQUE INDEX bridge_acp_delivery_request ON bridge_delivery_attempts(binding_id,acp_rpc_request_id) WHERE acp_rpc_request_id IS NOT NULL`); err != nil {
+		return err
+	}
+	if err := bridgeQuotaTriggersWithTables(tx, bridgeQuotaTables, "bridge_bindings"); err != nil {
 		return err
 	}
 	if err := bridgeQuotaTriggers23(tx); err != nil {
@@ -80,7 +92,36 @@ CREATE TABLE bridge_bindings_schema23(
 	if err := schema23MigrationStage("trigger"); err != nil {
 		return err
 	}
-	return schema23MigrationStage("version")
+	return nil
+}
+
+type schema23TriggerDDL struct {
+	name string
+	ddl  string
+}
+
+// modernc validates child trigger bodies while bridge_bindings is absent.
+// Preserve their exact DDL rather than regenerating unrelated quota semantics.
+func snapshotAndDropSchema23ChildQuotaTriggers(tx *sql.Tx) ([]schema23TriggerDDL, error) {
+	names := []string{
+		"quota_bridge_ingress_INSERT", "quota_bridge_ingress_UPDATE", "quota_bridge_ingress_DELETE",
+		"quota_bridge_batches_INSERT", "quota_bridge_batches_UPDATE", "quota_bridge_batches_DELETE",
+		"quota_bridge_batch_items_INSERT", "quota_bridge_batch_items_UPDATE", "quota_bridge_batch_items_DELETE",
+	}
+	out := make([]schema23TriggerDDL, 0, len(names))
+	for _, name := range names {
+		var ddl string
+		if err := tx.QueryRow(`SELECT sql FROM sqlite_master WHERE type='trigger' AND name=?`, name).Scan(&ddl); err != nil {
+			return nil, fmt.Errorf("schema23 snapshot %s: %w", name, err)
+		}
+		out = append(out, schema23TriggerDDL{name: name, ddl: ddl})
+	}
+	for _, trigger := range out {
+		if _, err := tx.Exec(`DROP TRIGGER ` + trigger.name); err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
 }
 
 func schema23MigrationStage(stage string) error {

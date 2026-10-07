@@ -5,6 +5,13 @@ Scope: migrate schema22 to schema23 in Store only. The migration rebuilds only
 receipt columns and the partial delivery-ordinal index, recreates the affected
 quota triggers, and restores `foreign_keys=ON` after both commit and rollback.
 
+The actual modernc error when the parent was rebuilt with child triggers still
+installed was `error in trigger quota_bridge_ingress_INSERT: no such table:
+main.bridge_bindings`. Schema23 therefore snapshots, drops, and restores the
+exact DDL of only those nine child quota triggers; it does not regenerate their
+unrelated accounting through the shared helper. Only the parent and attempt
+trigger sets are rebuilt.
+
 Out of scope: ACP RPCs, controller/public APIs, native/provider tests, and
 changes to schema22 accounting behavior.
 

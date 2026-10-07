@@ -130,7 +130,7 @@ func bridgeQuotaTriggers23(tx *sql.Tx) error {
 			tables[i].numbers = append(append([]string(nil), tables[i].numbers...), "acp_turn_ordinal", "acp_rpc_request_id")
 		}
 	}
-	return bridgeQuotaTriggersWithTables(tx, tables)
+	return bridgeQuotaTriggersWithTables(tx, tables, "bridge_delivery_attempts")
 }
 
 func bridgeQuotaTriggersWithTables(tx *sql.Tx, tables []bridgeQuotaTable, names ...string) error {

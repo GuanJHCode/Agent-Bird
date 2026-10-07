@@ -68,14 +68,55 @@ func TestACPBridgeSchema23MigratesSchema22BridgeGraph(t *testing.T) {
 	if _, err := db.sql.Exec(`INSERT INTO bridge_batches(batch_id,binding_id,owner_epoch,content_bytes,render_sha256,created_at) VALUES('batch-acp','acp',2,x'01',?,'now')`, strings.Repeat("e", 64)); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.sql.Exec(`INSERT INTO bridge_delivery_attempts(attempt_id,batch_id,binding_id,owner_epoch,attempt_no,claim_token_hash,state,deadline_at,sender_pid,sender_birth,created_at,acp_turn_ordinal) VALUES('acp-attempt-1','batch-acp','acp',2,1,?,'CLAIMED','later',12,'native-birth','now',1)`, strings.Repeat("f", 64)); err != nil {
-		t.Fatal(err)
-	}
 	if _, err := db.sql.Exec(`INSERT INTO bridge_batches(batch_id,binding_id,owner_epoch,content_bytes,render_sha256,created_at) VALUES('batch-acp-2','acp',2,x'02',?,'now')`, strings.Repeat("e", 64)); err != nil {
 		t.Fatal(err)
 	}
+	globalBeforeAttempt := schema23Usage(t, db.sql, "global", "")
+	runBeforeAttempt := schema23Usage(t, db.sql, "run", "run-界")
+	if _, err := db.sql.Exec(`INSERT INTO bridge_delivery_attempts(attempt_id,batch_id,binding_id,owner_epoch,attempt_no,claim_token_hash,state,deadline_at,sender_pid,sender_birth,created_at,acp_turn_ordinal) VALUES('acp-attempt-1','batch-acp','acp',2,1,?,'CLAIMED','later',12,'native-birth','now',1)`, strings.Repeat("f", 64)); err != nil {
+		t.Fatal(err)
+	}
+	globalBeforeACP := schema23Usage(t, db.sql, "global", "")
+	runBeforeACP := schema23Usage(t, db.sql, "run", "run-界")
+	if _, err := db.sql.Exec(`UPDATE bridge_delivery_attempts SET acp_session_id='会',acp_rpc_request_id=9,acp_response_sha256='响应',acp_stop_reason='结束' WHERE attempt_id='acp-attempt-1'`); err != nil {
+		t.Fatal(err)
+	}
+	// UTF-8 text is 3+6+6 bytes; the nullable RPC integer adds 8 bytes.
+	if got := schema23Usage(t, db.sql, "global", ""); got != globalBeforeACP+23 {
+		t.Fatalf("global ACP update=%d want=%d", got, globalBeforeACP+23)
+	}
+	if got := schema23Usage(t, db.sql, "run", "run-界"); got != runBeforeACP+23 {
+		t.Fatalf("run ACP update=%d want=%d", got, runBeforeACP+23)
+	}
+	if _, err := db.sql.Exec(`UPDATE bridge_delivery_attempts SET acp_session_id='',acp_rpc_request_id=NULL,acp_response_sha256='',acp_stop_reason='' WHERE attempt_id='acp-attempt-1'`); err != nil {
+		t.Fatal(err)
+	}
+	if got := schema23Usage(t, db.sql, "global", ""); got != globalBeforeACP {
+		t.Fatalf("global ACP reset=%d want=%d", got, globalBeforeACP)
+	}
+	if got := schema23Usage(t, db.sql, "run", "run-界"); got != runBeforeACP {
+		t.Fatalf("run ACP reset=%d want=%d", got, runBeforeACP)
+	}
+	if _, err := db.sql.Exec(`UPDATE bridge_delivery_attempts SET acp_rpc_request_id=9 WHERE attempt_id='acp-attempt-1'`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.sql.Exec(`UPDATE bridge_delivery_attempts SET acp_turn_ordinal=0 WHERE attempt_id='acp-attempt-1'`); err == nil {
+		t.Fatal("non-positive ACP ordinal admitted")
+	}
 	if _, err := db.sql.Exec(`INSERT INTO bridge_delivery_attempts(attempt_id,batch_id,binding_id,owner_epoch,attempt_no,claim_token_hash,state,deadline_at,sender_pid,sender_birth,created_at,acp_turn_ordinal) VALUES('acp-attempt-duplicate','batch-acp-2','acp',2,1,?,'CLAIMED','later',12,'native-birth','now',1)`, strings.Repeat("f", 64)); err == nil {
 		t.Fatal("duplicate ACP ordinal admitted")
+	}
+	if _, err := db.sql.Exec(`INSERT INTO bridge_delivery_attempts(attempt_id,batch_id,binding_id,owner_epoch,attempt_no,claim_token_hash,state,deadline_at,sender_pid,sender_birth,created_at,acp_turn_ordinal,acp_rpc_request_id) VALUES('acp-attempt-duplicate-rpc','batch-acp-2','acp',2,1,?,'CLAIMED','later',12,'native-birth','now',2,9)`, strings.Repeat("f", 64)); err == nil {
+		t.Fatal("duplicate ACP request ID admitted")
+	}
+	if _, err := db.sql.Exec(`DELETE FROM bridge_delivery_attempts WHERE attempt_id='acp-attempt-1'`); err != nil {
+		t.Fatal(err)
+	}
+	if got := schema23Usage(t, db.sql, "global", ""); got != globalBeforeAttempt {
+		t.Fatalf("global ACP delete=%d want=%d", got, globalBeforeAttempt)
+	}
+	if got := schema23Usage(t, db.sql, "run", "run-界"); got != runBeforeAttempt {
+		t.Fatalf("run ACP delete=%d want=%d", got, runBeforeAttempt)
 	}
 	var fk int
 	if err := db.sql.QueryRow(`PRAGMA foreign_keys`).Scan(&fk); err != nil || fk != 1 {
@@ -84,14 +125,18 @@ func TestACPBridgeSchema23MigratesSchema22BridgeGraph(t *testing.T) {
 }
 
 func TestACPBridgeSchema23FailureRollsBackEveryStageAndRestoresForeignKeys(t *testing.T) {
-	for _, stage := range []string{"create", "copy", "drop", "rename", "recreate", "trigger", "version"} {
+	for _, stage := range []string{"create", "copy", "drop", "rename", "recreate", "trigger", "version", "fkcheck", "commit"} {
 		t.Run(stage, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "state.db")
 			db, err := Open(path)
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer db.Close()
+			defer func() {
+				if db != nil {
+					_ = db.Close()
+				}
+			}()
 			downgradeACPBridgeSchema23(t, db)
 			insertSchema22BridgeGraph(t, db.sql)
 			wantUsage := schema23Usage(t, db.sql, "global", "")
@@ -122,7 +167,50 @@ func TestACPBridgeSchema23FailureRollsBackEveryStageAndRestoresForeignKeys(t *te
 			if got := schema23Usage(t, db.sql, "global", ""); got != wantUsage {
 				t.Fatalf("usage=%d want=%d", got, wantUsage)
 			}
+			schema23MigrationHook = nil
+			if err := db.Close(); err != nil {
+				t.Fatal(err)
+			}
+			db = nil
+			reopened, err := Open(path)
+			if err != nil {
+				t.Fatalf("retry Open() = %v", err)
+			}
+			defer reopened.Close()
+			var retriedVersion int
+			if err := reopened.sql.QueryRow(`SELECT version FROM schema_meta`).Scan(&retriedVersion); err != nil || retriedVersion != 23 {
+				t.Fatalf("retry version=%d err=%v", retriedVersion, err)
+			}
 		})
+	}
+}
+
+func TestACPBridgeSchema23JoinsRestoreFailureAfterRollback(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "state.db")
+	db, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	downgradeACPBridgeSchema23(t, db)
+	insertSchema22BridgeGraph(t, db.sql)
+	schema23MigrationHook = func(stage string) error {
+		if stage == "commit" || stage == "restore" {
+			return errors.New("schema23 injected " + stage)
+		}
+		return nil
+	}
+	t.Cleanup(func() { schema23MigrationHook = nil })
+	err = db.migrateRuntime()
+	if err == nil || !strings.Contains(err.Error(), "schema23 injected commit") || !strings.Contains(err.Error(), "schema23 injected restore") {
+		t.Fatalf("joined migration/restore error = %v", err)
+	}
+	var version, foreignKeys int
+	if err := db.sql.QueryRow(`SELECT version FROM schema_meta`).Scan(&version); err != nil || version != 22 {
+		t.Fatalf("version=%d err=%v", version, err)
+	}
+	if err := db.sql.QueryRow(`PRAGMA foreign_keys`).Scan(&foreignKeys); err != nil || foreignKeys != 1 {
+		t.Fatalf("foreign_keys=%d err=%v", foreignKeys, err)
 	}
 }
 
@@ -245,7 +333,8 @@ func downgradeACPBridgeSchema23(t *testing.T, db *DB) {
 			}
 		}
 	}
-	if _, err := tx.Exec(`DROP INDEX bridge_acp_delivery_ordinal;
+	if _, err := tx.Exec(`DROP INDEX bridge_acp_delivery_request;
+DROP INDEX bridge_acp_delivery_ordinal;
 CREATE TABLE bridge_bindings_schema22(
   binding_id TEXT PRIMARY KEY, run_id TEXT NOT NULL REFERENCES runs(id), provider_id TEXT NOT NULL,
   native_session_id TEXT NOT NULL DEFAULT '', owner_context_id TEXT NOT NULL,

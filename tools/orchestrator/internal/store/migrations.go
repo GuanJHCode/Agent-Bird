@@ -1,5 +1,11 @@
 package store
 
+import (
+	"context"
+	"database/sql"
+	"errors"
+)
+
 const currentSchemaVersion = 23
 
 // Runtime migrations run under the coordinator instance lock (NewServer) and
@@ -9,8 +15,14 @@ func (d *DB) migrateRuntime() (err error) {
 	// bridge_bindings is the parent of four existing bridge tables. SQLite only
 	// permits the parent rebuild required by schema23 when FK enforcement is
 	// disabled before BEGIN; defer_foreign_keys is not a substitute.
+	ctx := context.Background()
+	conn, err := d.sql.Conn(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
 	var initialVersion int
-	if err = d.sql.QueryRow(`SELECT version FROM schema_meta`).Scan(&initialVersion); err != nil {
+	if err = conn.QueryRowContext(ctx, `SELECT version FROM schema_meta`).Scan(&initialVersion); err != nil {
 		return err
 	}
 	if initialVersion > currentSchemaVersion {
@@ -20,36 +32,36 @@ func (d *DB) migrateRuntime() (err error) {
 		return CodeError("schema_invalid")
 	}
 	needsSchema23 := initialVersion < 23
+	foreignKeysDisabled := false
+	var tx *sql.Tx
+	committed := false
+	defer func() {
+		if tx != nil && !committed {
+			if rollbackErr := tx.Rollback(); rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
+				err = errors.Join(err, rollbackErr)
+			}
+		}
+		if foreignKeysDisabled {
+			err = errors.Join(err, restoreRuntimeForeignKeys(ctx, conn))
+		}
+	}()
 	if needsSchema23 {
-		if _, err = d.sql.Exec(`PRAGMA foreign_keys=OFF`); err != nil {
+		if _, err = conn.ExecContext(ctx, `PRAGMA foreign_keys=OFF`); err != nil {
 			return err
 		}
+		foreignKeysDisabled = true
 		var foreignKeys int
-		if err = d.sql.QueryRow(`PRAGMA foreign_keys`).Scan(&foreignKeys); err != nil || foreignKeys != 0 {
+		if err = conn.QueryRowContext(ctx, `PRAGMA foreign_keys`).Scan(&foreignKeys); err != nil || foreignKeys != 0 {
 			if err == nil {
 				err = CodeError("schema23_foreign_keys_not_disabled")
 			}
 			return err
 		}
 	}
-	tx, err := d.sql.Begin()
+	tx, err = conn.BeginTx(ctx, nil)
 	if err != nil {
-		if needsSchema23 {
-			_ = restoreRuntimeForeignKeys(d)
-		}
 		return err
 	}
-	committed := false
-	defer func() {
-		if !committed {
-			_ = tx.Rollback()
-		}
-		if needsSchema23 {
-			if restoreErr := restoreRuntimeForeignKeys(d); err == nil && restoreErr != nil {
-				err = restoreErr
-			}
-		}
-	}()
 	var version int
 	if err = tx.QueryRow(`SELECT version FROM schema_meta`).Scan(&version); err != nil {
 		return err
@@ -224,12 +236,23 @@ func (d *DB) migrateRuntime() (err error) {
 		if _, err = tx.Exec(`UPDATE schema_meta SET version=23`); err != nil {
 			return err
 		}
+		if err = schema23MigrationStage("version"); err != nil {
+			return err
+		}
+		if err = schema23MigrationStage("fkcheck"); err != nil {
+			return err
+		}
 		var violations int
 		if err = tx.QueryRow(`SELECT COUNT(*) FROM pragma_foreign_key_check`).Scan(&violations); err != nil {
 			return err
 		}
 		if violations != 0 {
 			return CodeError("schema23_foreign_key_check_failed")
+		}
+	}
+	if needsSchema23 {
+		if err = schema23MigrationStage("commit"); err != nil {
+			return err
 		}
 	}
 	if err = tx.Commit(); err != nil {
@@ -239,16 +262,17 @@ func (d *DB) migrateRuntime() (err error) {
 	return nil
 }
 
-func restoreRuntimeForeignKeys(d *DB) error {
-	if _, err := d.sql.Exec(`PRAGMA foreign_keys=ON`); err != nil {
-		return err
+func restoreRuntimeForeignKeys(ctx context.Context, conn *sql.Conn) error {
+	hookErr := schema23MigrationStage("restore")
+	if _, err := conn.ExecContext(ctx, `PRAGMA foreign_keys=ON`); err != nil {
+		return errors.Join(hookErr, err)
 	}
 	var foreignKeys int
-	if err := d.sql.QueryRow(`PRAGMA foreign_keys`).Scan(&foreignKeys); err != nil {
-		return err
+	if err := conn.QueryRowContext(ctx, `PRAGMA foreign_keys`).Scan(&foreignKeys); err != nil {
+		return errors.Join(hookErr, err)
 	}
 	if foreignKeys != 1 {
-		return CodeError("schema23_foreign_keys_not_restored")
+		return errors.Join(hookErr, CodeError("schema23_foreign_keys_not_restored"))
 	}
-	return nil
+	return hookErr
 }
