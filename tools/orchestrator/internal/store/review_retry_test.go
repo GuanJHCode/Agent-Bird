@@ -47,9 +47,20 @@ func newReviewRetryPolicyFixture(t *testing.T, provider adapter.Provider, vector
 }
 
 func newReviewRetryFixtureWithOptions(t *testing.T, provider adapter.Provider, terminal string, ref *contract.ConfigGenerationRef, vector, policy bool, sharedGroup ...bool) reviewRetryFixture {
+	return newReviewRetryFixturePlan(t, provider, terminal, ref, vector, policy, nil, sharedGroup...)
+}
+
+func newReviewRetryFixturePlan(t *testing.T, provider adapter.Provider, terminal string, ref *contract.ConfigGenerationRef, vector, policy bool, decorate func([]TaskSpec) []TaskSpec, sharedGroup ...bool) reviewRetryFixture {
+	return newReviewRetryFixtureBound(t, provider, terminal, ref, vector, policy, decorate, nil, sharedGroup...)
+}
+
+func newReviewRetryFixtureBound(t *testing.T, provider adapter.Provider, terminal string, ref *contract.ConfigGenerationRef, vector, policy bool, decorate func([]TaskSpec) []TaskSpec, bind func(*DB, PlanSpec) PlanSpec, sharedGroup ...bool) reviewRetryFixture {
 	t.Helper()
 	ctx := context.Background()
 	dir := t.TempDir()
+	if err := os.Chmod(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
 	db, err := Open(filepath.Join(dir, "state.db"))
 	if err != nil {
 		t.Fatal(err)
@@ -107,11 +118,25 @@ func newReviewRetryFixtureWithOptions(t *testing.T, provider adapter.Provider, t
 	if len(sharedGroup) > 0 && sharedGroup[0] {
 		tasks = append(tasks, TaskSpec{ID: "side-task", RunID: "run", MaxAttempts: 3, BudgetGroupID: "review", Dependencies: []string{"validate"}})
 	}
-	receipt, err := submitExistingConfigHistory(t, db, ctx, PlanSpec{Run: RunSpec{ID: "run", ControllerThread: "owner", PlanRevision: 7, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth"}, Host: HostLaunchSpec{OriginContextID: "origin", HostGeneration: "gen", Executable: "/private/bin/orchestrator"}, Tasks: tasks})
+	if decorate != nil {
+		tasks = decorate(tasks)
+	}
+
+	plan := PlanSpec{Run: RunSpec{ID: "run", ControllerThread: "owner", PlanRevision: 7, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth"}, Host: HostLaunchSpec{OriginContextID: "origin", HostGeneration: "gen", Executable: "/private/bin/orchestrator"}, Tasks: tasks}
+	if bind != nil {
+		plan = bind(db, plan)
+		defer plan.ConfigSubmission.Close()
+	}
+	var receipt SubmitReceipt
+	if bind != nil {
+		receipt, err = db.SubmitPlan(ctx, plan)
+	} else {
+		receipt, err = submitExistingConfigHistory(t, db, ctx, plan)
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
-	hello := contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth", HostGeneration: "gen", PID: 10, Birth: "host", Executable: "/private/bin/orchestrator"}
+	hello := contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: plan.Run.OriginContextID, OriginPID: plan.Run.OriginPID, OriginBirth: plan.Run.OriginBirth, HostGeneration: plan.Host.HostGeneration, PID: 10, Birth: "host", Executable: plan.Host.Executable}
 	h, err := db.RegisterHost(ctx, hello, 1)
 	if err != nil {
 		t.Fatal(err)

@@ -1,0 +1,38 @@
+{
+  "runtime": "/private/tmp/indexed-cli-1454180180",
+  "scope": "recorded actors only; no signals sent",
+  "actors": [
+    {
+      "pid": 2711,
+      "observation": "ESRCH"
+    },
+    {
+      "pid": 2754,
+      "observation": "ESRCH"
+    },
+    {
+      "pid": 3204,
+      "observation": "ESRCH"
+    },
+    {
+      "pid": 5758,
+      "observation": "ESRCH"
+    },
+    {
+      "pid": 6490,
+      "observation": "ESRCH"
+    },
+    {
+      "pid": 6517,
+      "observation": "ESRCH"
+    },
+    {
+      "pid": 7173,
+      "observation": "ESRCH"
+    },
+    {
+      "pid": 7576,
+      "observation": "ESRCH"
+    }
+  ]
+}

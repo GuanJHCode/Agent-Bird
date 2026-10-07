@@ -706,12 +706,12 @@ func (s *Server) handleControl(ctx context.Context, conn net.Conn, message ipc.E
 	var payload json.RawMessage
 	var err error
 	switch message.Kind {
-	case ipc.KindConfigGeneration, ipc.KindProviderControl, ipc.KindRecoverHost, ipc.KindOwnerBind, ipc.KindSubmit, ipc.KindRebindOwner, ipc.KindResume, ipc.KindResumeContinuation, ipc.KindRetry, ipc.KindRework, ipc.KindAccept, ipc.KindAnswer, ipc.KindStopTask, ipc.KindAck, ipc.KindCollect, ipc.KindWaitEvents, ipc.KindSummary, ipc.KindStatus:
+	case ipc.KindBudgetRevise, ipc.KindConfigGeneration, ipc.KindProviderControl, ipc.KindRecoverHost, ipc.KindOwnerBind, ipc.KindSubmit, ipc.KindRebindOwner, ipc.KindResume, ipc.KindResumeContinuation, ipc.KindRetry, ipc.KindRework, ipc.KindAccept, ipc.KindAnswer, ipc.KindStopTask, ipc.KindAck, ipc.KindCollect, ipc.KindWaitEvents, ipc.KindSummary, ipc.KindStatus:
 		ctx, err = s.authorizePeer(ctx, conn)
 	}
 	if err == nil {
 		switch message.Kind {
-		case ipc.KindConfigGeneration, ipc.KindProviderControl, ipc.KindRecoverHost, ipc.KindRebindOwner, ipc.KindResume, ipc.KindResumeContinuation, ipc.KindRetry, ipc.KindRework, ipc.KindAccept, ipc.KindAnswer:
+		case ipc.KindBudgetRevise, ipc.KindConfigGeneration, ipc.KindProviderControl, ipc.KindRecoverHost, ipc.KindRebindOwner, ipc.KindResume, ipc.KindResumeContinuation, ipc.KindRetry, ipc.KindRework, ipc.KindAccept, ipc.KindAnswer:
 			ancestry, _ := ctx.Value(peerAncestryKey{}).(map[int]string)
 			err = s.db.ValidateDispatchPeer(ctx, ancestry)
 		}
@@ -735,6 +735,8 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 		return s.bindLocalOwner(ctx, raw)
 	case ipc.KindProviderControl:
 		return s.providerControl(ctx, raw)
+	case ipc.KindBudgetRevise:
+		return s.reviseBudget(ctx, raw)
 	case ipc.KindConfigGeneration:
 		return s.configGeneration(ctx, raw)
 	case ipc.KindSubmit:

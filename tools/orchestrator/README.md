@@ -57,6 +57,8 @@ orchestrator retry   --task-id <id> --work-revision <n> --control-file <path> \
   --event-id <failure-or-rejected-result-id> --event-revision <n> \
   --event-hash <sha256> --action-slot <slot> --segment-id <id> \
   --next-attempt <n> --command-id <stable-id> [--use-next-fallback]
+orchestrator budget-revise --task-id <anchor-in-group> --control-file <path> \
+  --request <absolute-0600-budget-revision.json>
 orchestrator stop    --task-id <id> --work-revision <n> --control-file <path>
 orchestrator resume  --task-id <id> --work-revision <n> --control-file <path>
 ```
@@ -118,6 +120,34 @@ It never selects an adapter outside the task's frozen fallback list and never
 resets the shared budget group. `answer` binds the exact question revision and
 resumes the same attempt in a new segment; repeating the same answer is
 idempotent.
+
+Tasks submitted with `execution_policy` expose an `effective_budget` object in
+`status` and `summary`: the group ID, current budget revision (initially zero),
+group attempt/time caps, and task attempt/attempt-time/task-time/segment-time
+caps. The summary's `execution_policy` remains the immutable original policy.
+Legacy tasks do not support budget revisions.
+
+`budget-revise` takes a complete absolute group snapshot, not increments. Its
+JSON fields are `budget_group_id`, explicit `expected_revision`, `command_id`,
+`group_max_attempts`, `group_max_active_ms`, and `tasks`. Include every group
+member with its current `task_id`, `work_revision`, `max_attempts`,
+`attempt_max_active_ms`, `task_max_active_ms`, and `segment_max_active_ms`.
+Obtain current values from `summary`; repeat unchanged caps and raise at least
+one within the admission limits. The request must be an owner-only regular file
+of at most 64 KiB, with no symlinks, hard links, unknown fields or duplicate keys.
+Controller credentials come only from `--control-file`. Repeating the same
+budget command and snapshot returns its original receipt, including after a
+later revision; changing that command's payload conflicts.
+
+An increase affects future grants and does not reset usage, pending reservations
+or active deadlines. It does not revive UNKNOWN or blocked dependencies or
+start a failed task. For a policy-failed task, retain its pending failure while
+deciding whether to increase the budget. Run `budget-revise`, then explicit
+`retry` on that failure slot, then ACK. Any earlier ACK (`handled`,
+`waiting_user`, `stale` or `rejected`) closes that slot for a first retry.
+An already recorded retry remains replayable by the same business tuple,
+including a duplicate delivery with a new command ID. Interrupted tasks still
+require explicit `resume`, which retains the attempt and its prior charges.
 
 Workers receive a segment-scoped report capability in
 `ORCHESTRATOR_REPORT_CAPABILITY` and the pinned binary path in

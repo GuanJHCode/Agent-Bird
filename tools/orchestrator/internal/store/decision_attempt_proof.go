@@ -105,7 +105,7 @@ func validateSavedReviewRetry(ctx context.Context, tx *sql.Tx, r attemptDecision
 // prove their unique decision ownership before creating a current binding.
 func validateSavedReviewRetryScope(ctx context.Context, tx *sql.Tx, r attemptDecisionRecord, task decisionTaskScope, e contract.Event, legacy bool) error {
 	saved, err := parseReviewRetry(r.payload)
-	if err != nil || r.fallback || e.Artifact != nil || e.Kind != contract.EventStopped && e.Kind != contract.EventFailed || saved.AdapterSHA256 != runtimeHash(task.payload) {
+	if err != nil || r.fallback || e.Kind != contract.EventStopped && e.Kind != contract.EventFailed || saved.AdapterSHA256 != runtimeHash(task.payload) {
 		return ErrConflict
 	}
 	if _, err = reviewRetryProfile([]byte(task.payload)); err != nil {
@@ -116,6 +116,18 @@ func validateSavedReviewRetryScope(ctx context.Context, tx *sql.Tx, r attemptDec
 	c.AdapterPayload = json.RawMessage(task.payload)
 	if err != nil || c.WorkRevision != task.revision {
 		return ErrConflict
+	}
+	if (e.Artifact != nil) != (saved.HostIdentitySHA256 != "") {
+		return ErrConflict
+	}
+	if e.Artifact != nil {
+		if legacy || !validDigest(saved.HostIdentitySHA256) || validateReviewFailure(ctx, tx, e) != nil {
+			return ErrConflict
+		}
+		identity, err := reviewRetryHostIdentity(ctx, tx, &c)
+		if err != nil || identity != saved.HostIdentitySHA256 {
+			return ErrConflict
+		}
 	}
 	original := c
 	if bindErr := bindCandidateInput(ctx, tx, &c, true); bindErr != nil {

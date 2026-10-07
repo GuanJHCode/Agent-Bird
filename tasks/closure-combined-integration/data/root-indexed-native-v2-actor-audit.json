@@ -1,0 +1,30 @@
+{
+  "runtime": "/private/tmp/indexed-cli-4114306803",
+  "scope": "only recorded actors; no signals sent; PID absence is not original Cmd.Wait",
+  "actors": [
+    {
+      "pid": 544,
+      "observation": "ESRCH"
+    },
+    {
+      "pid": 574,
+      "observation": "ESRCH"
+    },
+    {
+      "pid": 96742,
+      "observation": "ESRCH"
+    },
+    {
+      "pid": 96785,
+      "observation": "ESRCH"
+    },
+    {
+      "pid": 97238,
+      "observation": "ESRCH"
+    },
+    {
+      "pid": 99667,
+      "observation": "ESRCH"
+    }
+  ]
+}

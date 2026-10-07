@@ -101,6 +101,8 @@ Question 状态为 `open → answer_committed → resume_queued → resume_start
 - Host 自主执行 hard deadline；协调器离线不取消这个上限。停止先用经过该 CLI/平台验证的温和取消，等待最多 10 秒，再终止已拥有的执行树；仍无法证实退出则 UNKNOWN，不能新开执行者。
 - 可预授权的瞬时错误 retry 初始退避为 5 秒、20 秒（最多三次attempt），`next_retry_at` 与尝试预占一起持久化；协调器重启不立即重复或清零退避。无法证明未运行的启动预占不得退回。业务失败/失败后重建上下文/审查返工消耗attempt，不能伪装为正常问答段。
 - 当前自动重试仅接受显式 `execution_policy.retry` 授权、可信 Host 证明 `not_started` 的 `probe_start_eagain` / `probe_start_eintr`。Claude/Grok 只读候选审查复用已接受验证产物、完整 dependency vector、配置/provider/index assignment，并绑定原 Host 的 PID/birth/generation 与 owner 身份；相同 Host 跨 Coordinator epoch 重连可继续，Host 被替换后旧决定不能消费。权限拒绝、UNKNOWN、已启动以及 candidate implement/validate/integrate 不进入该自动策略。
+- 只读候选审查已经启动并以正数非零退出时，owner 可从原失败 action slot 显式 retry。带产物的此类失败仅接纳 Host 固定的 `candidate_review_invalid` 诊断：必须有同一进程的唯一 Failed/Exited 证据，校验原 spool 中的私有常规文件、精确内容及摘要，并在派发前重新核验原 Host 和冻结输入。其他审查结果或 UNKNOWN 不因此获得重试权限。
+- 显式审查 retry 只恢复其从未启动、没有历史决策 binding、所有祖先仍可完成的阻断下游；恢复为 queued 后仍等待原依赖的业务 accept。预算增额本身不恢复下游。配置任务还须在安装锁内验证原有配置 pin，缺失时整次拒绝且不重建；祖先的未处置事件或待执行 retry 会保留阻断后代的 pin，ACK 关闭重试机会后方可按终态规则释放。
 - 技术问题以 question ID 提交并结束当前段。重复答案不能重复 segment；答案过时则拒绝。权限问题不走这个代答通道。
 
 macOS process group 不能囊括主动 setsid 的后代；Windows Job 可受嵌套/父 Job 约束。准入测试必须包含孙进程、终端关闭和 Host 崩溃；不支持的逃逸行为须在启动前拒绝相关 adapter/任务能力，检测到未知后台写入者时停止自动清理和恢复。

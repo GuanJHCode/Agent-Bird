@@ -17,9 +17,11 @@ import (
 
 // These are Store transaction fixtures, not native Git/provider acceptance.
 func TestIndexedAcceptChecksDurableSourceAndCoverage(t *testing.T) {
-	for _, kind := range []string{"valid_reopen", "valid_config", "valid_policy_retry", "validate_manifest", "validate_source", "review_missing", "review_grant", "review_input", "review_config", "review_manifest", "review_validation", "review_revision", "review_provider", "integrate_vector", "integrate_missing_proof"} {
+	for _, kind := range []string{"valid_reopen", "valid_config", "valid_policy_retry", "valid_budget_revision", "valid_budget_migration", "validate_manifest", "validate_source", "review_missing", "review_grant", "review_input", "review_config", "review_manifest", "review_validation", "review_revision", "review_provider", "integrate_vector", "integrate_missing_proof"} {
 		t.Run(kind, func(t *testing.T) {
 			ctx := context.Background()
+			budget := strings.HasPrefix(kind, "valid_budget_")
+			retryPolicy := kind == "valid_policy_retry" || budget
 			path := filepath.Join(t.TempDir(), "state.db")
 			if err := os.Chmod(filepath.Dir(path), 0700); err != nil {
 				t.Fatal(err)
@@ -31,7 +33,7 @@ func TestIndexedAcceptChecksDurableSourceAndCoverage(t *testing.T) {
 			defer func() { db.Close() }()
 			tasks := indexedPlanTasks(t)
 			lock := &adapter.ProviderLock{Version: 1, Provider: adapter.ProviderGrok, Protocol: adapter.ProtocolID(adapter.ProviderGrok), Binary: adapter.BinaryPin{Path: "/private/grok", Version: "1.0.34", SHA256: strings.Repeat("b", 64)}}
-			if kind == "valid_policy_retry" {
+			if retryPolicy {
 				lock.Binary.Version = "grok 1.0.34 (3736acbc8658)"
 			}
 			for i := range tasks {
@@ -40,7 +42,7 @@ func TestIndexedAcceptChecksDurableSourceAndCoverage(t *testing.T) {
 					_ = json.Unmarshal(tasks[i].AdapterPayload, &p)
 					p["provider_lock"] = lock
 					p["profile"] = &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly}
-					if kind == "valid_policy_retry" {
+					if retryPolicy {
 						p["directory"] = "/private/review"
 						p["profile"].(*adapter.ExecutionProfile).GrokSessionWrite = true
 						p["profile"].(*adapter.ExecutionProfile).TimeoutMS = 180000
@@ -50,13 +52,17 @@ func TestIndexedAcceptChecksDurableSourceAndCoverage(t *testing.T) {
 						if tasks[i].ID == "r2" {
 							tasks[i].MaxAttempts = 3
 							tasks[i].ExecutionPolicy = &contract.ExecutionPolicy{Version: 1, Retry: &contract.RetryPolicy{Codes: []string{"probe_start_eagain"}, BackoffMS: []int64{5000, 20000}}}
+							if budget {
+								tasks[i].MaxActiveMS = 500
+								tasks[i].ExecutionPolicy = &contract.ExecutionPolicy{Version: 1, GroupMaxAttempts: 3, GroupMaxActiveMS: 1000, TaskMaxActiveMS: 600, SegmentMaxActiveMS: 200, Retry: &contract.RetryPolicy{Codes: []string{"probe_start_eagain"}, BackoffMS: []int64{60000, 120000}}}
+							}
 						}
 					}
 					tasks[i].AdapterPayload, _ = json.Marshal(p)
 				}
 			}
 			spec := PlanSpec{Run: RunSpec{ID: "run", ControllerThread: "owner", PlanRevision: 1, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth"}, Host: HostLaunchSpec{OriginContextID: "origin", HostGeneration: "gen", Executable: "/private/bin/orchestrator"}, Tasks: tasks}
-			if kind == "valid_config" {
+			if kind == "valid_config" || budget {
 				spec = bindIndexedConfigPlan(t, db, spec)
 			}
 			plan, err := db.SubmitPlan(ctx, spec)
@@ -76,7 +82,7 @@ func TestIndexedAcceptChecksDurableSourceAndCoverage(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if kind == "valid_policy_retry" && g.TaskID == "r2" {
+				if retryPolicy && g.TaskID == "r2" {
 					original := g
 					fixture := budgetBatchFixture{db: db, host: hostID, grant: g, sequence: int64(2 * step)}
 					failure := policyRejection(&fixture, "probe_start_eagain")
@@ -92,10 +98,24 @@ func TestIndexedAcceptChecksDurableSourceAndCoverage(t *testing.T) {
 					if _, err = db.CommitHostEvent(ctx, failure); err != nil {
 						t.Fatal("duplicate failure changed policy decision", err)
 					}
+					var promise indexedBudgetPromise
+					if budget {
+						promise = readIndexedBudgetPromise(t, db, original)
+						if kind == "valid_budget_migration" {
+							downgradeBudgetRevisionSchema(t, db)
+							assertIndexedBudgetSchema(t, db, 17)
+							if got := readIndexedBudgetPromise(t, db, original); got != promise {
+								t.Fatal("v17 fixture changed existing indexed promise")
+							}
+						}
+					}
 					_ = db.Close()
 					db, err = Open(path)
 					if err != nil {
 						t.Fatal(err)
+					}
+					if budget {
+						amendIndexedBudgetPromise(t, db, original, plan.ControlToken, promise)
 					}
 					if err = db.sql.QueryRow(`SELECT revision_payload,eligible_at_unix_ms FROM retry_decisions WHERE task_id='r2'`).Scan(&after, &reopened); err != nil || after != before || reopened != due {
 						t.Fatal("reopen changed retry authority or backoff", err)
@@ -109,6 +129,9 @@ func TestIndexedAcceptChecksDurableSourceAndCoverage(t *testing.T) {
 					g, err = db.ClaimReady(ctx, hostID, 1, 2)
 					if err != nil || g.TaskID != "r2" || g.AttemptID == original.AttemptID || g.WorkRevision != original.WorkRevision || !reflect.DeepEqual(g.Input, original.Input) || !reflect.DeepEqual(g.DependencyInputs, original.DependencyInputs) {
 						t.Fatal("indexed policy retry changed immutable inputs", err)
+					}
+					if budget {
+						assertIndexedBudgetClaim(t, db, original, g, promise)
 					}
 					oldPayload, _ := adapter.DecodeInvocationPayload(original.AdapterPayload)
 					nextPayload, _ := adapter.DecodeInvocationPayload(g.AdapterPayload)
@@ -224,7 +247,7 @@ func TestIndexedAcceptChecksDurableSourceAndCoverage(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if kind == "valid_policy_retry" && g.TaskID == "r2" {
+				if retryPolicy && g.TaskID == "r2" {
 					if len(page.Events) != 2 || page.Events[0].Kind != contract.EventLaunchRejected || page.Events[0].AttemptID == g.AttemptID {
 						t.Fatalf("missing original failure history: %+v", page)
 					}

@@ -95,7 +95,7 @@ func authorizeReviewRetry(ctx context.Context, tx *sql.Tx, spec RetrySpec, raw s
 	if _, err := reviewRetryProfile([]byte(raw)); err != nil {
 		return "", err
 	}
-	if spec.UseNextFallback || e.Artifact != nil || (e.Kind != contract.EventStopped && e.Kind != contract.EventFailed) || e.WorkRevision != spec.WorkRevision {
+	if spec.UseNextFallback || (e.Kind != contract.EventStopped && e.Kind != contract.EventFailed) || e.WorkRevision != spec.WorkRevision {
 		return "", CodeError("candidate_review_retry_unsupported")
 	}
 	var c contract.LaunchCommand
@@ -120,7 +120,25 @@ func authorizeReviewRetry(ctx context.Context, tx *sql.Tx, spec RetrySpec, raw s
 	if questions != 0 {
 		return "", ErrConflict
 	}
-	return reviewRetryDecisionForGrant(ctx, tx, &c, raw)
+	if e.Artifact != nil {
+		if err := validateReviewFailure(ctx, tx, e); err != nil {
+			return "", err
+		}
+	}
+	decision, err := reviewRetryDecisionForGrant(ctx, tx, &c, raw)
+	if err != nil || e.Artifact == nil {
+		return decision, err
+	}
+	saved, err := parseReviewRetry(decision)
+	if err != nil {
+		return "", err
+	}
+	saved.HostIdentitySHA256, err = reviewRetryHostIdentity(ctx, tx, &c)
+	if err != nil {
+		return "", err
+	}
+	body, err := json.Marshal(saved)
+	return string(body), err
 }
 
 // The policy path reaches this only after the Host has proven an exact
@@ -145,7 +163,7 @@ func authorizePrelaunchReviewRetry(ctx context.Context, tx *sql.Tx, e contract.E
 	if err != nil {
 		return "", err
 	}
-	saved.HostIdentitySHA256, err = prelaunchReviewHostIdentity(ctx, tx, &c)
+	saved.HostIdentitySHA256, err = reviewRetryHostIdentity(ctx, tx, &c)
 	if err != nil {
 		return "", err
 	}
@@ -153,11 +171,11 @@ func authorizePrelaunchReviewRetry(ctx context.Context, tx *sql.Tx, e contract.E
 	return string(body), err
 }
 
-// HostID survives a physical rebind. Automatic retry authority does not: it
+// HostID survives a physical rebind. Policy and diagnostic retry authority do not: each
 // stays on the exact ready process, generation and business owner captured in
 // the same transaction as the failure. Epoch is excluded so the same physical
 // Host can reconnect to a restarted Coordinator without acquiring new scope.
-func prelaunchReviewHostIdentity(ctx context.Context, tx *sql.Tx, c *contract.LaunchCommand) (string, error) {
+func reviewRetryHostIdentity(ctx context.Context, tx *sql.Tx, c *contract.LaunchCommand) (string, error) {
 	var identity struct {
 		HostID, LaunchID, ContextID, Generation, Executable string
 		PID, OriginPID                                      int
@@ -213,7 +231,7 @@ func validateSavedPrelaunchReviewRetry(ctx context.Context, tx *sql.Tx, r attemp
 		return ErrConflict
 	}
 	c.AdapterPayload = json.RawMessage(raw)
-	hostIdentity, err := prelaunchReviewHostIdentity(ctx, tx, &c)
+	hostIdentity, err := reviewRetryHostIdentity(ctx, tx, &c)
 	if err != nil || hostIdentity != saved.HostIdentitySHA256 {
 		return ErrConflict
 	}

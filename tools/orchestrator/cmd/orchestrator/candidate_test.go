@@ -203,6 +203,10 @@ func TestManagedCandidateFreezesWorkerChangesWithoutUserChanges(t *testing.T) {
 // Reuse the native test executable: first execution of a fresh unsigned shell
 // script can exceed the production 2s probe deadline under full-suite load.
 func TestMain(m *testing.M) {
+	if filepath.Base(os.Args[0]) == "budget-revision-worker-fixture" {
+		runBudgetRevisionWorkerFixture()
+		return
+	}
 	if filepath.Base(os.Args[0]) == "original-owner-worker-fixture" {
 		runOriginalOwnerWorkerFixture()
 		return
@@ -219,7 +223,7 @@ func TestMain(m *testing.M) {
 	switch filepath.Base(os.Args[0]) {
 	case "indexed-claude-fixture":
 		mode, grokFixture, indexedFixture = "success", false, false
-	case "indexed-grok-fixture":
+	case "indexed-grok-fixture", "indexed-grok-budget-fixture":
 		mode, grokFixture, indexedFixture = "review_approve", true, true
 	}
 	if mode == "" {
@@ -317,6 +321,21 @@ func TestMain(m *testing.M) {
 					sum := sha256.Sum256([]byte(chunk.Content))
 					if len(chunk.Content) != chunk.Length || hex.EncodeToString(sum[:]) != chunk.SHA256 {
 						os.Exit(10)
+					}
+				}
+				if filepath.Base(os.Args[0]) == "indexed-grok-budget-fixture" {
+					cwd, err := os.Getwd()
+					if err != nil {
+						os.Exit(12)
+					}
+					if filepath.Base(cwd) == "review-1" {
+						for end := time.Now().Add(30 * time.Second); time.Now().Before(end); {
+							if _, err := os.Stat(filepath.Join(cwd, "release-first")); err == nil {
+								os.Exit(7)
+							}
+							time.Sleep(10 * time.Millisecond)
+						}
+						os.Exit(13)
 					}
 				}
 				sum := sha256.Sum256(snapshot)

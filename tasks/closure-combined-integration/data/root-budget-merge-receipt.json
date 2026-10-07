@@ -1,0 +1,258 @@
+{
+  "status": "validated and independently reviewed for local budget merge",
+  "parents": [
+    "2e607ade8478626949a23278a3fd39122be97d2a",
+    "9adb91afb1e2d6272bef973f3b8a49ad5bbb4d68"
+  ],
+  "scope": "budget schema18 + original-owner/indexed integration; explicit diagnostic review retry and safe never-started downstream/config-pin restoration",
+  "evidence": [
+    {
+      "file": "root-budget-indexed-store-v3.jsonl",
+      "session": 73422,
+      "exit_code": 0,
+      "sha256": "1de718a25043257e4ab4269a0f5fcfa4d717ad0cf2931250b2350fb34f6662ba",
+      "packages": {
+        "store": {
+          "pass": 3,
+          "top_pass": 1
+        }
+      }
+    },
+    {
+      "file": "root-budget-indexed-native-v2.jsonl",
+      "session": 27997,
+      "exit_code": 1,
+      "sha256": "e6f8754ec92f82daa63953616b1abe988a3707cbbf38af57502e1193b463cc55",
+      "packages": {
+        "orchestrator": {
+          "fail": 1,
+          "top_pass": 0
+        }
+      }
+    },
+    {
+      "file": "root-review-diagnostic-red.jsonl",
+      "session": 58021,
+      "exit_code": 1,
+      "sha256": "ab1063b3467d63213fe2782b8d2c0aa07677c32c43ce212800fb4079cbd12199",
+      "packages": {
+        "store": {
+          "fail": 6,
+          "top_pass": 1,
+          "pass": 28
+        }
+      }
+    },
+    {
+      "file": "root-budget-indexed-native-v3.jsonl",
+      "session": 8245,
+      "exit_code": 1,
+      "sha256": "db2b9130e3c10a65f182643b542941005c6b53fc5eef4a4898ca01a6695c8f2b",
+      "packages": {
+        "orchestrator": {
+          "fail": 1,
+          "top_pass": 0
+        }
+      }
+    },
+    {
+      "file": "root-review-dependencies-red-v2.jsonl",
+      "session": 9870,
+      "exit_code": 1,
+      "sha256": "f94b9b02e1b15b5e1aeff02e30849c5319785ac28fe482737ccb268e50e82a04",
+      "packages": {
+        "store": {
+          "fail": 4,
+          "top_pass": 0,
+          "pass": 1
+        }
+      }
+    },
+    {
+      "file": "root-review-config-pin-red.jsonl",
+      "session": 73880,
+      "exit_code": 1,
+      "sha256": "2c9f8cf6e3e2a092d2e5dcde1fd9d7dadeef03d18b560e6bab5b346ea7a5de0f",
+      "packages": {
+        "store": {
+          "fail": 4,
+          "top_pass": 0
+        }
+      }
+    },
+    {
+      "file": "root-review-config-closure-red.jsonl",
+      "session": 25881,
+      "exit_code": 1,
+      "sha256": "709b3a11edc6b5a872dc6318735cdf4cd3daadc3628bdee97716eb63a30cedf8",
+      "packages": {
+        "store": {
+          "fail": 2,
+          "top_pass": 0
+        }
+      }
+    },
+    {
+      "file": "root-budget-merge-store-v2.jsonl",
+      "session": 66072,
+      "exit_code": 0,
+      "sha256": "8999d1182909b5a61a4c2f39d3795affee162fb884e1777f008d454ad3e95af3",
+      "packages": {
+        "store": {
+          "pass": 979,
+          "top_pass": 347
+        }
+      }
+    },
+    {
+      "file": "root-budget-merge-final-normal.jsonl",
+      "session": 3527,
+      "exit_code": 0,
+      "sha256": "83f1aba0c24c049fb1129c4b16b74878b9ad4d671fdb6d337dc3ff346b8a74d3",
+      "packages": {
+        "store": {
+          "pass": 201,
+          "top_pass": 70
+        }
+      }
+    },
+    {
+      "file": "root-budget-merge-final-race.jsonl",
+      "session": 36113,
+      "exit_code": 0,
+      "sha256": "93ff8772aea102bf8a1959f0fed98ebcbafa1bca8324fcb1d66ed195991802a5",
+      "packages": {
+        "store": {
+          "pass": 201,
+          "top_pass": 70
+        },
+        "install": {
+          "pass": 98,
+          "top_pass": 34
+        }
+      }
+    },
+    {
+      "file": "root-budget-indexed-native-v4.jsonl",
+      "session": 96151,
+      "exit_code": 0,
+      "sha256": "814953b30e0460dfe76ebfdc9c1007bb0d5604afdc42818b799716e74ffc99c8",
+      "packages": {
+        "orchestrator": {
+          "pass": 1,
+          "top_pass": 1
+        }
+      }
+    },
+    {
+      "file": "root-budget-merge-native-race.jsonl",
+      "session": 83827,
+      "exit_code": 0,
+      "sha256": "7be3008abb06e5dda5fd4646922ab2200d6a59b2abad5ec1a378d95c1b6d3451",
+      "packages": {
+        "process": {
+          "pass": 2,
+          "top_pass": 2
+        },
+        "host": {
+          "pass": 6,
+          "top_pass": 2
+        },
+        "coordinator": {
+          "pass": 5,
+          "top_pass": 5
+        },
+        "orchestrator": {
+          "pass": 27,
+          "top_pass": 8
+        }
+      }
+    }
+  ],
+  "normal_scope": "fullStore66072 precedes last empty-set proof guard; final-normal3527 and final-race36113 cover all affected branches after final source edit",
+  "review": "initial diagnostic/downstream/config-pin/closure drift BLOCKERS fixed with RED evidence; final candidate_retry_review PASS",
+  "build": {
+    "session": 29208,
+    "exit_code": 0,
+    "toolchain": "go1.26.8 darwin/arm64"
+  },
+  "vet": {
+    "session": 56327,
+    "exit_code": 0
+  },
+  "diffcheck": {
+    "chunk": "5e4810",
+    "exit_code": 0
+  },
+  "linux": {
+    "compile_session": 89071,
+    "compile_exit": 0,
+    "start_session": 70620,
+    "start_exit": 0,
+    "container": "9bcaca2a35f21acd6f34d64eea8772c51ec9bd46d7685a604d67a743719ee6f2",
+    "state": {
+      "Status": "exited",
+      "Running": false,
+      "Paused": false,
+      "Restarting": false,
+      "OOMKilled": false,
+      "Dead": false,
+      "Pid": 0,
+      "ExitCode": 0,
+      "Error": "",
+      "StartedAt": "2026-10-07T01:02:54.419236166Z",
+      "FinishedAt": "2026-10-07T01:02:55.624238083Z"
+    },
+    "removed": {
+      "cid": "9bcaca2a35f21acd6f34d64eea8772c51ec9bd46d7685a604d67a743719ee6f2",
+      "inspect_exit": 1,
+      "stderr": "Error: No such object: 9bcaca2a35f21acd6f34d64eea8772c51ec9bd46d7685a604d67a743719ee6f2\n",
+      "removed": true
+    },
+    "image": "sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99",
+    "top_pass": 3,
+    "named_pass": 19,
+    "failed": 0,
+    "skipped": 0,
+    "scope": "pure Store dependency plan/restoration and actual synthetic install/config-pin lifecycle; no Linux Provider/process.Start/race claim",
+    "binary_sha256": "ad721a282579760667a18db0d6c01a0bd21a3b5f6f614b0da49e31726b57b2a7"
+  },
+  "limits": [
+    "Controlled fake Provider and test native identity entry; no actual model/account or installed TUI claim.",
+    "Old indexed/review-retry CLI fixtures remain local owner; only the new explicit supervised assertion establishes that combined path.",
+    "Actual bound config-generation evidence is Store Install/Prepare/Submit; native config-generation submit still requires local owner.",
+    "Retained subset pins must have identical preparation hashes and remain inode/content identical under install lock; no persistent Store digest exists to detect offline consistent rewriting of every pin.",
+    "F01-F13 complete objective remains active; no install replacement, push or publication."
+  ],
+  "remaining_final_checks": [
+    "local merge commit"
+  ],
+  "race_totals": {
+    "top_pass": 121,
+    "named_pass": 339,
+    "fail": 0,
+    "skip": 0
+  },
+  "race_scope": "Go test packages and copied controlled worker helpers are instrumented. CLI fixtures separately go-build production CLI/Coordinator/owner without -race; their lifecycle/behavior assertions pass, not a claim of instrumentation inside those separate binaries.",
+  "runtime": "All original sessions terminal; Docker container removed and inspect absence confirmed; successful native runtimes cleaned by passing fixture, failed v2/v3 runtimes retained with recorded actors ESRCH and original Coordinator Wait0.",
+  "actor_audits": [
+    "root-indexed-native-v2-actor-audit.json",
+    "root-indexed-native-v3-actor-audit.json"
+  ],
+  "fixture_failures": "Initial Store/native compile mistakes, SQL policy_json fixture error and diagnostic test TempDir permissions are retained as fixture failures, not product RED or passing evidence.",
+  "remaining_capabilities": [
+    "F01 broader stage-safe retry",
+    "F02 opt-in detailed logs/public diagnostics/write-failure visibility",
+    "F03 multi-producer/compose/new-base/cross-provider",
+    "F04 isolated LFS/filter/hooks/signing",
+    "F05 actual model quality/platform verification",
+    "F06 ACP subsequent-turn reinjection",
+    "F07 Linux native runtime/install/distribution; Intel/Windows native environment deferred",
+    "F08 Codex public managed read/write/resume and real model pipeline",
+    "F09 public native write/interruption/resume/edit trace",
+    "F10 publisher/durable-write/descendant matrix and dead-owner seal/replay",
+    "F11 installed Hook to original TUI next-turn and crash windows",
+    "F12 interrupted config/install recovery and 60-minute dual-worker resource run",
+    "F13 remaining features/final reproducible package/isolated installation provenance"
+  ]
+}

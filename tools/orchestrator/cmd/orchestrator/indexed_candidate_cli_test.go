@@ -25,6 +25,14 @@ import (
 // Public CLI, real Coordinator/Store/source-host, real Git and sandbox, with
 // only the model replaced by protocol consumers of the actual prompt files.
 func TestCLIIndexedCandidateDevelopmentDAG(t *testing.T) {
+	exerciseCLIIndexedCandidateDAG(t, false)
+}
+
+func TestCLIIndexedReviewBudgetRevisionRetriesOriginalFailure(t *testing.T) {
+	exerciseCLIIndexedCandidateDAG(t, true)
+}
+
+func exerciseCLIIndexedCandidateDAG(t *testing.T, reviseBudget bool) {
 	root, err := os.MkdirTemp("/private/tmp", "indexed-cli-")
 	if err != nil {
 		t.Fatal(err)
@@ -66,7 +74,11 @@ func TestCLIIndexedCandidateDevelopmentDAG(t *testing.T) {
 		return map[string]any{"version": 1, "provider": provider, "protocol": protocol, "binary": map[string]string{"path": path, "version": version, "sha256": hex.EncodeToString(sum[:])}}
 	}
 	claude := lock("indexed-claude-fixture", "claude-code", "claude-stream-json-v1", "fixture-v1")
-	grok := lock("indexed-grok-fixture", "grok-build", "grok-streaming-json-v1", "grok 1.0.34 (3736acbc8658)")
+	grokFixture := "indexed-grok-fixture"
+	if reviseBudget {
+		grokFixture = "indexed-grok-budget-fixture"
+	}
+	grok := lock(grokFixture, "grok-build", "grok-streaming-json-v1", "grok 1.0.34 (3736acbc8658)")
 	git := func(args ...string) string {
 		t.Helper()
 		out, err := exec.Command("/usr/bin/git", append([]string{"-C", repo}, args...)...).CombinedOutput()
@@ -117,6 +129,14 @@ func TestCLIIndexedCandidateDevelopmentDAG(t *testing.T) {
 		p := profile("reviewer", "read-only")
 		p["grok_session_write"] = true
 		tasks = append(tasks, map[string]any{"id": name, "dependencies": []string{"validate"}, "max_attempts": 2, "max_active_ms": 15000, "execution_policy": map[string]any{"version": 1, "group_max_attempts": 2, "group_max_active_ms": 30000, "task_max_active_ms": 30000, "segment_max_active_ms": 15000, "retry": map[string]any{"codes": []string{"probe_start_eagain", "probe_start_eintr"}, "backoff_ms": []int64{1}}}, "adapter": map[string]any{"provider": "grok-build", "provider_lock": grok, "profile": p, "directory": filepath.Join(root, name), "prompt": "Review assigned immutable chunks", "candidate_action": action("review", "validate", i)}})
+		if reviseBudget && i == 1 {
+			task := tasks[len(tasks)-1].(map[string]any)
+			task["max_attempts"] = 1
+			policy := task["execution_policy"].(map[string]any)
+			policy["group_max_attempts"] = 1
+			delete(policy["retry"].(map[string]any), "backoff_ms")
+			task["adapter"].(map[string]any)["candidate_action"].(map[string]any)["dependency_input_version"] = 1
+		}
 	}
 	integrate := action("integrate", "review-1", 1)
 	integrate["dependency_input_version"] = 1
@@ -142,6 +162,11 @@ func TestCLIIndexedCandidateDevelopmentDAG(t *testing.T) {
 		t.Fatal(err)
 	}
 	delete(owner, "version")
+	if reviseBudget {
+		// Existing controlled-native identity gate, not a local-owner projection.
+		delete(owner, "owner_mode")
+		delete(owner, "owner_capability")
+	}
 	owner["run_id"], owner["plan_revision"], owner["delivery_mode"], owner["tasks"] = "indexed-development", 7, "collect", tasks
 	write(owner)
 	var submitted struct {
@@ -164,6 +189,9 @@ func TestCLIIndexedCandidateDevelopmentDAG(t *testing.T) {
 	chunkCount := 0
 	var accepted []contract.Event
 	for _, task := range []string{"implement", "validate", "review-0", "review-1", "review-2", "integrate"} {
+		if reviseBudget && task == "review-1" {
+			exerciseIndexedBudgetRetry(t, ctx, bin, state, root, submitted.ControlFile, cap.HostLaunchID, bootstrap)
+		}
 		for {
 			s := taskStatus(t, ctx, bin, state, task, submitted.ControlFile)
 			if s.Status == "result_ready" {
@@ -217,7 +245,7 @@ func TestCLIIndexedCandidateDevelopmentDAG(t *testing.T) {
 				t.Fatal("index omitted a logical side of the rename")
 			}
 		}
-		if task == "validate" {
+		if task == "validate" && !reviseBudget {
 			// Crash only the idle source-host after its original validation
 			// worker exited. Recovery must consume the same accepted artifact,
 			// not dispatch validation again or manufacture another manifest.

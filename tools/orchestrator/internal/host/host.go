@@ -589,7 +589,9 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		if protocolSnapshots == nil {
 			return
 		}
-		diagnostics := providerDiagnostics(p.Output())
+		output, captureTruncated := p.OutputSnapshot()
+		diagnostics := providerDiagnostics(output)
+		diagnostics.Truncated = diagnostics.Truncated || captureTruncated
 		diagnostics.ProtocolSnapshots = protocolSnapshots
 		_ = spool.WriteMetadata("provider-diagnostics.json", diagnostics)
 	}

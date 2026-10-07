@@ -17,6 +17,7 @@ type RunSummary struct {
 }
 
 type SummaryTask struct {
+	EffectiveBudget     *EffectiveBudgetSnapshot   `json:"effective_budget,omitempty"`
 	ExecutionPolicy     *contract.ExecutionPolicy  `json:"execution_policy,omitempty"`
 	NextRetryAtUnixMS   int64                      `json:"next_retry_at_unix_ms,omitempty"`
 	TaskID              string                     `json:"task_id"`
@@ -53,7 +54,12 @@ func (d *DB) SummarizeRun(ctx context.Context, taskID, controller, token string)
 	if err := d.ValidateTaskOwner(ctx, taskID, controller, token); err != nil {
 		return RunSummary{}, err
 	}
-	rows, err := d.sql.QueryContext(ctx, `
+	tx, e := d.sql.BeginTx(ctx, nil)
+	if e != nil {
+		return RunSummary{}, e
+	}
+	defer tx.Rollback()
+	rows, err := tx.QueryContext(ctx, `
 SELECT t.run_id,t.id,t.status,r.work_revision,
  (SELECT COUNT(*) FROM segment_runtime s JOIN attempts a ON a.id=s.attempt_id WHERE a.task_id=t.id AND s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown')),
  (SELECT COUNT(*) FROM attempts a JOIN task_runtime ar ON ar.task_id=a.task_id WHERE ar.budget_group_id=r.budget_group_id),t.max_attempts,
@@ -154,11 +160,6 @@ WHERE t.run_id=(SELECT run_id FROM tasks WHERE id=?) ORDER BY t.id`, taskID)
 	if err := rows.Close(); err != nil {
 		return RunSummary{}, err
 	}
-	tx, e := d.sql.BeginTx(ctx, nil)
-	if e != nil {
-		return RunSummary{}, e
-	}
-	defer tx.Rollback()
 	for i := range summary.Tasks {
 		task := &summary.Tasks[i]
 		b, e := readExecutionBudget(ctx, tx, task.TaskID)
@@ -169,6 +170,7 @@ WHERE t.run_id=(SELECT run_id FROM tasks WHERE id=?) ORDER BY t.id`, taskID)
 			continue
 		}
 		task.ExecutionPolicy = b.policy
+		task.EffectiveBudget = b.snapshot()
 		if e = tx.QueryRowContext(ctx, `SELECT COALESCE(MAX(d.eligible_at_unix_ms),0) FROM decision_attempt_bindings b JOIN retry_decisions d USING(action_slot) WHERE b.task_id=? AND b.attempt_id IS NULL AND b.retired=0`, task.TaskID).Scan(&task.NextRetryAtUnixMS); e != nil {
 			return RunSummary{}, e
 		}
@@ -179,6 +181,15 @@ WHERE t.run_id=(SELECT run_id FROM tasks WHERE id=?) ORDER BY t.id`, taskID)
 			}
 		}
 		task.AllowedActions = actions
+		if task.Status == "failed" {
+			open, err := hasOpenPolicyRetryAction(ctx, tx, task.TaskID)
+			if err != nil {
+				return RunSummary{}, err
+			}
+			if !open {
+				continue
+			}
+		}
 		if (task.Status == "failed" || task.Status == "interrupted") && task.ActiveSegments == 0 && policyRetryEligible[task.TaskID] && executionCapacity(ctx, tx, task.TaskID, nil) == nil {
 			if _, e = executionGrant(ctx, tx, task.TaskID, ""); e == nil {
 				task.AllowedActions = append(task.AllowedActions, "retry")

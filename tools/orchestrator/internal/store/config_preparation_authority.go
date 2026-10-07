@@ -194,60 +194,7 @@ func (d *DB) ReleaseConfigTaskUse(ctx context.Context, executable, run, task str
 		if !eligible {
 			return ErrConflict
 		}
-		original, e := configGrant(ctx, tx, u.Authority.OwnerGrantID)
-		if e != nil {
-			return e
-		}
-		var controller, origin, birth, generation string
-		var pid int
-		var payload []byte
-		e = tx.QueryRowContext(ctx, `SELECT v.controller_thread,v.origin_context_id,v.origin_pid,v.origin_birth,h.host_generation,r.adapter_payload FROM runs v JOIN tasks t ON t.run_id=v.id JOIN task_runtime r ON r.task_id=t.id JOIN host_launches h ON h.id=r.host_launch_id WHERE t.id=? AND v.id=?`, task, run).Scan(&controller, &origin, &pid, &birth, &generation, &payload)
-		if e != nil {
-			return e
-		}
-		submitted, e := configGrant(ctx, tx, origin)
-		if e != nil || submitted != original || controller != original.controller {
-			return install.ErrConfigPreparationStoreMismatch
-		}
-		v, e := adapter.DecodeInvocationPayload(payload)
-		if e != nil || v.ConfigGeneration == nil || ref == nil || *v.ConfigGeneration != *ref {
-			return install.ErrConfigPreparationStoreMismatch
-		}
-		scope, e := contract.ConfigGenerationOwnerScope(original.controller, original.birth)
-		if e != nil || ref.OwnerScopeSHA256 != scope {
-			return install.ErrConfigPreparationStoreMismatch
-		}
-		// An authenticated RebindOwner preserves the submit origin and writes each
-		// old->new generation edge. Validate the complete bounded chain, not ordinals.
-		seen := map[string]bool{}
-		tail := true
-		links := 0
-		for generation != origin {
-			if seen[generation] || links >= 64 {
-				return install.ErrConfigPreparationStoreMismatch
-			}
-			seen[generation] = true
-			links++
-			var old, proof, b string
-			var p int
-			e = tx.QueryRowContext(ctx, `SELECT old_host_generation,origin_pid,origin_birth,attachment_proof_sha256 FROM owner_rebinds WHERE run_id=? AND host_generation=?`, run, generation).Scan(&old, &p, &b, &proof)
-			if e != nil || old == "" || !validDigest(proof) || p <= 0 || b == "" || tail && (p != pid || b != birth) {
-				return install.ErrConfigPreparationStoreMismatch
-			}
-			tail = false
-			generation = old
-		}
-		if tail && (pid != original.pid || birth != original.birth) {
-			return install.ErrConfigPreparationStoreMismatch
-		}
-		var extra bool
-		if e = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM owner_rebinds WHERE run_id=? AND host_generation=?)`, run, origin).Scan(&extra); e != nil {
-			return e
-		}
-		if extra {
-			return install.ErrConfigPreparationStoreMismatch
-		}
-		if e = d.checkConfigStore(*u.Authority); e != nil {
+		if e = d.validateConfigTaskUse(ctx, tx, executable, run, task, ref, u); e != nil {
 			return e
 		}
 		if e = remove(); e != nil {
@@ -255,4 +202,72 @@ func (d *DB) ReleaseConfigTaskUse(ctx context.Context, executable, run, task str
 		}
 		return tx.Commit()
 	})
+}
+
+// Shared by pin retirement and retry retention while the install lock and
+// Store transaction are held in that order.
+func (d *DB) validateConfigTaskUse(ctx context.Context, tx *sql.Tx, executable, run, task string, ref *contract.ConfigGenerationRef, u install.ConfigPreparationUse) error {
+	if u.Authority == nil {
+		return install.ErrConfigPreparationStoreUnbound
+	}
+	if e := d.checkConfigStore(*u.Authority); e != nil {
+		return e
+	}
+	original, e := configGrant(ctx, tx, u.Authority.OwnerGrantID)
+	if e != nil {
+		return e
+	}
+	var controller, origin, birth, generation string
+	var pid int
+	var payload []byte
+	e = tx.QueryRowContext(ctx, `SELECT v.controller_thread,v.origin_context_id,v.origin_pid,v.origin_birth,h.host_generation,r.adapter_payload FROM runs v JOIN tasks t ON t.run_id=v.id JOIN task_runtime r ON r.task_id=t.id JOIN host_launches h ON h.id=r.host_launch_id WHERE t.id=? AND v.id=? AND h.executable=?`, task, run, executable).Scan(&controller, &origin, &pid, &birth, &generation, &payload)
+	if e != nil {
+		return e
+	}
+	submitted, e := configGrant(ctx, tx, origin)
+	if e != nil || submitted != original || controller != original.controller {
+		return install.ErrConfigPreparationStoreMismatch
+	}
+	v, e := adapter.DecodeInvocationPayload(payload)
+	if e != nil || v.ConfigGeneration == nil || ref == nil || *v.ConfigGeneration != *ref {
+		return install.ErrConfigPreparationStoreMismatch
+	}
+	scope, e := contract.ConfigGenerationOwnerScope(original.controller, original.birth)
+	if e != nil || ref.OwnerScopeSHA256 != scope {
+		return install.ErrConfigPreparationStoreMismatch
+	}
+	// An authenticated RebindOwner preserves the submit origin and writes each
+	// old->new generation edge. Validate the complete bounded chain, not ordinals.
+	seen := map[string]bool{}
+	tail := true
+	links := 0
+	for generation != origin {
+		if seen[generation] || links >= 64 {
+			return install.ErrConfigPreparationStoreMismatch
+		}
+		seen[generation] = true
+		links++
+		var old, proof, b string
+		var p int
+		e = tx.QueryRowContext(ctx, `SELECT old_host_generation,origin_pid,origin_birth,attachment_proof_sha256 FROM owner_rebinds WHERE run_id=? AND host_generation=?`, run, generation).Scan(&old, &p, &b, &proof)
+		if e != nil || old == "" || !validDigest(proof) || p <= 0 || b == "" || tail && (p != pid || b != birth) {
+			return install.ErrConfigPreparationStoreMismatch
+		}
+		tail = false
+		generation = old
+	}
+	if tail && (pid != original.pid || birth != original.birth) {
+		return install.ErrConfigPreparationStoreMismatch
+	}
+	var extra bool
+	if e = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM owner_rebinds WHERE run_id=? AND host_generation=?)`, run, origin).Scan(&extra); e != nil {
+		return e
+	}
+	if extra {
+		return install.ErrConfigPreparationStoreMismatch
+	}
+	if e = d.checkConfigStore(*u.Authority); e != nil {
+		return e
+	}
+	return nil
 }

@@ -91,6 +91,8 @@ func normalizeExecutionTask(task TaskSpec) (TaskSpec, error) {
 type executionBudget struct {
 	policy                                *contract.ExecutionPolicy
 	group                                 string
+	run                                   string
+	revision                              int
 	taskAttempts, groupAttempts           int
 	attemptMS, taskMS, groupMS, segmentMS int64
 }
@@ -98,25 +100,41 @@ type executionBudget struct {
 func readExecutionBudget(ctx context.Context, tx *sql.Tx, task string) (executionBudget, error) {
 	var b executionBudget
 	var raw string
-	err := tx.QueryRowContext(ctx, `SELECT t.max_attempts,r.max_active_ms,r.budget_group_id,COALESCE(p.body_json,'') FROM tasks t JOIN task_runtime r ON r.task_id=t.id LEFT JOIN task_execution_policies p ON p.task_id=t.id WHERE t.id=?`, task).Scan(&b.taskAttempts, &b.attemptMS, &b.group, &raw)
+	err := tx.QueryRowContext(ctx, `SELECT t.max_attempts,r.max_active_ms,r.budget_group_id,t.run_id,COALESCE(p.body_json,'') FROM tasks t JOIN task_runtime r ON r.task_id=t.id LEFT JOIN task_execution_policies p ON p.task_id=t.id WHERE t.id=?`, task).Scan(&b.taskAttempts, &b.attemptMS, &b.group, &b.run, &raw)
 	if err != nil {
 		return b, err
 	}
-	b.groupAttempts = min(b.taskAttempts, 3)
-	b.taskMS = math.MaxInt64
-	b.groupMS = defaultGroupActiveMS
-	b.segmentMS = b.attemptMS
-	if raw != "" {
-		var p contract.ExecutionPolicy
-		if json.Unmarshal([]byte(raw), &p) != nil {
-			return b, CodeError("execution_policy_invalid")
-		}
-		b.policy = &p
-		b.groupAttempts = p.GroupMaxAttempts
-		b.taskMS = p.TaskMaxActiveMS
-		b.groupMS = p.GroupMaxActiveMS
-		b.segmentMS = p.SegmentMaxActiveMS
+	base, err := readExecutionBudgetBaseline(b.taskAttempts, b.attemptMS, raw)
+	if err != nil {
+		return b, err
 	}
+	b.policy, b.groupAttempts, b.taskMS, b.groupMS, b.segmentMS = base.policy, base.groupAttempts, base.taskMS, base.groupMS, base.segmentMS
+	if b.policy != nil {
+		if err = tx.QueryRowContext(ctx, `SELECT COALESCE(MAX(revision),0) FROM budget_revisions WHERE run_id=? AND budget_group_id=?`, b.run, b.group).Scan(&b.revision); err != nil {
+			return b, err
+		}
+		if b.revision > 0 {
+			effective, e := readBudgetRevisionTask(ctx, tx, b.run, b.group, b.revision, task)
+			if e != nil {
+				return b, e
+			}
+			b.taskAttempts, b.attemptMS, b.taskMS, b.segmentMS = effective.MaxAttempts, effective.AttemptMaxActiveMS, effective.TaskMaxActiveMS, effective.SegmentMaxActiveMS
+			b.groupAttempts, b.groupMS = effective.GroupMaxAttempts, effective.GroupMaxActiveMS
+		}
+	}
+	return b, nil
+}
+
+func readExecutionBudgetBaseline(attempts int, attemptMS int64, raw string) (executionBudget, error) {
+	b := executionBudget{taskAttempts: attempts, attemptMS: attemptMS, groupAttempts: min(attempts, 3), taskMS: math.MaxInt64, groupMS: defaultGroupActiveMS, segmentMS: attemptMS}
+	if raw == "" {
+		return b, nil
+	}
+	var p contract.ExecutionPolicy
+	if json.Unmarshal([]byte(raw), &p) != nil {
+		return b, CodeError("execution_policy_invalid")
+	}
+	b.policy, b.groupAttempts, b.taskMS, b.groupMS, b.segmentMS = &p, p.GroupMaxAttempts, p.TaskMaxActiveMS, p.GroupMaxActiveMS, p.SegmentMaxActiveMS
 	return b, nil
 }
 func chargedTaskActiveMS(ctx context.Context, tx *sql.Tx, task string) (int64, error) {

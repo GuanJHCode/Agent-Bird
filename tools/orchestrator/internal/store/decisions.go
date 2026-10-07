@@ -268,7 +268,25 @@ type RetryReceipt struct {
 	UseNextFallback bool   `json:"use_next_fallback"`
 }
 
-func (d *DB) QueueRetry(ctx context.Context, spec RetrySpec) (RetryReceipt, error) {
+// This projects eligibility only. QueueRetry still checks the full source and
+// execution contract before creating a promise.
+func hasOpenPolicyRetryAction(ctx context.Context, tx *sql.Tx, taskID string) (bool, error) {
+	var open bool
+	err := tx.QueryRowContext(ctx, `WITH current_task AS (
+ SELECT t.id,r.work_revision,(SELECT s.id FROM segments s JOIN attempts a ON a.id=s.attempt_id WHERE a.task_id=t.id ORDER BY a.attempt_no DESC,s.segment_no DESC LIMIT 1) AS segment_id
+ FROM tasks t JOIN task_runtime r ON r.task_id=t.id WHERE t.id=?
+), sources AS (
+ SELECT e.event_id,e.action_slot,e.body_json,e.delivery_status FROM runtime_events e JOIN current_task c ON e.task_id=c.id AND e.segment_id=c.segment_id AND json_extract(e.body_json,'$.work_revision')=c.work_revision
+ UNION ALL
+ SELECT e.event_id,e.action_slot,e.body_json,e.delivery_status FROM report_events e JOIN report_capabilities cap ON cap.capability_id=e.capability_id JOIN current_task c ON cap.task_id=c.id AND cap.segment_id=c.segment_id AND cap.work_revision=c.work_revision
+)
+SELECT EXISTS(SELECT 1 FROM sources e WHERE e.delivery_status='pending'
+ AND NOT EXISTS(SELECT 1 FROM runtime_decisions d WHERE d.action_slot=e.action_slot)
+ AND (json_extract(e.body_json,'$.kind')='failed' OR (json_extract(e.body_json,'$.kind')='result' AND EXISTS(SELECT 1 FROM review_decisions d WHERE d.event_id=e.event_id AND d.decision='reject'))))`, taskID).Scan(&open)
+	return open, err
+}
+
+func (d *DB) queueRetry(ctx context.Context, spec RetrySpec, configProof *retryConfigProof) (RetryReceipt, error) {
 	empty := RetryReceipt{}
 	if spec.TaskID == "" || spec.WorkRevision < 1 || spec.EventID == "" || spec.EventRevision < 1 || !validDigest(spec.EventHash) || spec.ActionSlot == "" || spec.SegmentID == "" || spec.NextAttemptNo < 2 || spec.CommandID == "" || len(spec.CommandID) > 128 {
 		return empty, CodeError("invalid_retry")
@@ -282,6 +300,7 @@ func (d *DB) QueueRetry(ctx context.Context, spec RetrySpec) (RetryReceipt, erro
 	}
 	rollback := func(e error) (RetryReceipt, error) { _ = tx.Rollback(); return empty, e }
 	var revisionPayload string
+	var dependents []string
 	if err = tx.QueryRowContext(ctx, `SELECT revision_payload FROM retry_decisions WHERE action_slot=?`, spec.ActionSlot).Scan(&revisionPayload); err == nil && revisionPayload != "" {
 		if _, parseErr := parseReviewRetry(revisionPayload); parseErr != nil {
 			return rollback(ErrConflict)
@@ -331,12 +350,23 @@ func (d *DB) QueueRetry(ctx context.Context, spec RetrySpec) (RetryReceipt, erro
 		}
 		return rollback(err)
 	}
-	if err = executionCapacity(ctx, tx, spec.TaskID, nil); err != nil {
-		return rollback(err)
-	}
 	b, e := readExecutionBudget(ctx, tx, spec.TaskID)
 	if e != nil {
 		return rollback(e)
+	}
+	if b.policy != nil && status == "failed" {
+		// A policy-failed slot is disposed by any durable ACK. Legacy tasks
+		// keep their existing contract; exact retry replay returned above.
+		var acknowledged bool
+		if err = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM runtime_decisions WHERE action_slot=?)`, spec.ActionSlot).Scan(&acknowledged); err != nil {
+			return rollback(err)
+		}
+		if acknowledged {
+			return rollback(ErrConflict)
+		}
+	}
+	if err = executionCapacity(ctx, tx, spec.TaskID, nil); err != nil {
+		return rollback(err)
 	}
 	if b.policy != nil {
 		if _, e = executionGrant(ctx, tx, spec.TaskID, ""); e != nil {
@@ -402,6 +432,15 @@ func (d *DB) QueueRetry(ctx context.Context, spec RetrySpec) (RetryReceipt, erro
 	if err = checkTaskProvider(ctx, tx, spec.TaskID, replacement); err != nil {
 		return rollback(err)
 	}
+	if managed {
+		dependents, err = reviewRetryDependents(ctx, tx, spec.TaskID)
+		if err != nil {
+			return rollback(err)
+		}
+		if err = d.requireReviewRetryConfig(ctx, tx, spec.TaskID, dependents, configProof); err != nil {
+			return rollback(err)
+		}
+	}
 	sequence, err := takeReadySequence(ctx, tx)
 	if err != nil {
 		return rollback(err)
@@ -428,6 +467,16 @@ func (d *DB) QueueRetry(ctx context.Context, spec RetrySpec) (RetryReceipt, erro
 	}
 	if err != nil {
 		return rollback(err)
+	}
+	if len(dependents) > 0 {
+		if err = restoreReviewRetryDependents(ctx, tx, dependents); err != nil {
+			return rollback(err)
+		}
+	}
+	if configProof != nil {
+		if err = configProof.verify(); err != nil {
+			return rollback(err)
+		}
 	}
 	if err = tx.Commit(); err != nil {
 		return empty, err
