@@ -1,36 +1,102 @@
 {
   "base": "d43124e",
-  "toolchain": "go1.26.8",
-  "scope": "internal/grokacp and task evidence only",
-  "red": [
-    {"log":"red-001.jsonl","behavior":"missing transport API"},
-    {"log":"red-002.jsonl","behavior":"foreign session prompt was accepted"},
-    {"log":"red-003.jsonl","behavior":"foreign session update left connection open"},
-    {"log":"red-004.jsonl","behavior":"second session/new could queue behind first"},
-    {"log":"red-005.jsonl","behavior":"lone UTF-16 surrogate was silently accepted"}
-  ],
   "green": {
     "command": "TMPDIR=/private/tmp go test -count=1 -json ./internal/grokacp",
-    "log":"test-final.jsonl",
-    "sha256":"42c26d7729bf3cdb9a87f908e35e9470d857d9bc47cb33efda36bcd94f9f7879",
-    "named_pass":10,
-    "fail":0,
-    "skip":1,
-    "native_skip":"TestGrokACPStartDuplexOwnedActor requires GROKACP_NATIVE=1 and was not run"
+    "fail": 0,
+    "log": "test-final.jsonl",
+    "named_pass": 10,
+    "native_skip": "TestGrokACPStartDuplexOwnedActor requires GROKACP_NATIVE=1 and was not run",
+    "sha256": "42c26d7729bf3cdb9a87f908e35e9470d857d9bc47cb33efda36bcd94f9f7879",
+    "skip": 1
   },
+  "lifecycle_repair": {
+    "base_overlay": "a356461 with test-only ErrPermissionDenied compatibility symbol",
+    "green": {
+      "command": "TMPDIR=/private/tmp go test -json -count=1 ./internal/grokacp",
+      "fail": 0,
+      "log": "test-lifecycle-repair.jsonl",
+      "named_pass": 17,
+      "sha256": "e80ed982f11382565c9f79fc0b89e4f3559744fb3eb27739a56705bd30f04837",
+      "skip": 1
+    },
+    "native_actor": {
+      "command": "GROKACP_NATIVE=1 TMPDIR=/private/tmp go test -json [-race] -count=1 ./internal/grokacp -run ^TestGrokACPStartDuplexOwnedActor$",
+      "fail": 0,
+      "normal_log": "native-actor-repair-normal.jsonl",
+      "normal_named_pass": 1,
+      "normal_sha256": "376004ec8dc41cca5383c7cf79c4168e75376a0430743e99b2927e9202d6c792",
+      "provider": "controlled same-test-binary actor; no Grok/account/model",
+      "race_log": "native-actor-repair-race.jsonl",
+      "race_named_pass": 1,
+      "race_sha256": "3bf8045784e47e362463c280542ed64670eaab8a1009d4ad98f197fc11006456",
+      "skip": 0
+    },
+    "race": {
+      "command": "TMPDIR=/private/tmp go test -json -race -count=1 ./internal/grokacp",
+      "fail": 0,
+      "log": "race-lifecycle-repair.jsonl",
+      "named_pass": 17,
+      "sha256": "018d3c1826b92e9ddb3e3654354b19493f96cb0bd119b1affea3ac93573e08bd",
+      "skip": 1
+    },
+    "red": {
+      "log": "red-lifecycle-overlay.jsonl",
+      "observed": [
+        "second Initialize was not rejected before a second request",
+        "active prompt EOF returned io.EOF",
+        "RPC error returned ErrProtocol",
+        "foreign/object permission requests were accepted until later timeout"
+      ],
+      "sha256": "52c9483d2d45583cad7d8b9b51e13aa3472d3f6ffa8bc4bc2344b93eb1014789"
+    },
+    "vet": {
+      "command": "TMPDIR=/private/tmp go vet ./internal/grokacp",
+      "exit": 0,
+      "log": "vet-lifecycle-repair.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "not_run": [
+    "real Grok ACP",
+    "native StartDuplex actor",
+    "Docker"
+  ],
   "race": {
     "command": "TMPDIR=/private/tmp go test -race -count=1 -json ./internal/grokacp",
-    "log":"race-final.jsonl",
-    "sha256":"ffb896be5a450698253e20d2416c7588dc165c3218cecf1c9db0385f6ddf7ced",
-    "named_pass":10,
-    "fail":0,
-    "skip":1
+    "fail": 0,
+    "log": "race-final.jsonl",
+    "named_pass": 10,
+    "sha256": "ffb896be5a450698253e20d2416c7588dc165c3218cecf1c9db0385f6ddf7ced",
+    "skip": 1
   },
+  "red": [
+    {
+      "behavior": "missing transport API",
+      "log": "red-001.jsonl"
+    },
+    {
+      "behavior": "foreign session prompt was accepted",
+      "log": "red-002.jsonl"
+    },
+    {
+      "behavior": "foreign session update left connection open",
+      "log": "red-003.jsonl"
+    },
+    {
+      "behavior": "second session/new could queue behind first",
+      "log": "red-004.jsonl"
+    },
+    {
+      "behavior": "lone UTF-16 surrogate was silently accepted",
+      "log": "red-005.jsonl"
+    }
+  ],
+  "scope": "internal/grokacp and task evidence only",
+  "toolchain": "go1.26.8",
   "vet": {
     "command": "TMPDIR=/private/tmp go vet ./internal/grokacp",
-    "log":"vet-final.jsonl",
-    "sha256":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "exit":0
-  },
-  "not_run": ["real Grok ACP", "native StartDuplex actor", "Docker"]
+    "exit": 0,
+    "log": "vet-final.jsonl",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
 }

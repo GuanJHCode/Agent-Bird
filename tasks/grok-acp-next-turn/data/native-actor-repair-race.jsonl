@@ -1,0 +1,9 @@
+{"Time":"2026-10-07T20:11:49.77845+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp"}
+{"Time":"2026-10-07T20:11:50.100579+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp","Test":"TestGrokACPStartDuplexOwnedActor"}
+{"Time":"2026-10-07T20:11:50.100619+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp","Test":"TestGrokACPStartDuplexOwnedActor","Output":"=== RUN   TestGrokACPStartDuplexOwnedActor\n"}
+{"Time":"2026-10-07T20:11:51.114715+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp","Test":"TestGrokACPStartDuplexOwnedActor","Output":"    actor_test.go:133: native_actor_terminal session=\"fixture-session\" pid=41317 pgid=41317 birth_known=true exit=0 wait=true tree_exited=true\n"}
+{"Time":"2026-10-07T20:11:51.114759+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp","Test":"TestGrokACPStartDuplexOwnedActor","Output":"--- PASS: TestGrokACPStartDuplexOwnedActor (1.01s)\n"}
+{"Time":"2026-10-07T20:11:51.114785+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp","Test":"TestGrokACPStartDuplexOwnedActor","Elapsed":1.01}
+{"Time":"2026-10-07T20:11:51.114845+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp","Output":"PASS\n"}
+{"Time":"2026-10-07T20:11:52.121339+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp","Output":"ok  \tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp\t2.343s\n"}
+{"Time":"2026-10-07T20:11:52.121353+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp","Elapsed":2.343}
