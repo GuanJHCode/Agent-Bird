@@ -723,7 +723,7 @@ func (s *Server) handleControl(ctx context.Context, conn net.Conn, message ipc.E
 	}
 	if err == nil {
 		switch message.Kind {
-		case ipc.KindBudgetRevise, ipc.KindConfigGeneration, ipc.KindProviderControl, ipc.KindRecoverHost, ipc.KindRebindOwner, ipc.KindResume, ipc.KindResumeContinuation, ipc.KindRetry, ipc.KindRework, ipc.KindAccept, ipc.KindAnswer:
+		case ipc.KindBudgetRevise, ipc.KindConfigGeneration, ipc.KindProviderControl, ipc.KindRecoverHost, ipc.KindRebindOwner, ipc.KindResumeContinuation, ipc.KindRetry, ipc.KindRework, ipc.KindAccept, ipc.KindAnswer:
 			ancestry, _ := ctx.Value(peerAncestryKey{}).(map[int]string)
 			err = s.db.ValidateDispatchPeer(ctx, ancestry)
 		}
@@ -903,18 +903,7 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 		s.releaseTaskPins()
 		return json.Marshal(map[string]any{"version": 1, "status": "acknowledged", "delivery_id": request.DeliveryID})
 	case ipc.KindResume:
-		var request TaskControlRequest
-		if err := strictJSON(raw, &request); err != nil {
-			return nil, err
-		}
-		if err := s.db.ValidateTaskOwner(ctx, request.TaskID, request.ControllerThread, request.ControlToken); err != nil {
-			return nil, err
-		}
-		if err := s.db.QueueResume(ctx, request.TaskID, request.WorkRevision); err != nil {
-			return nil, err
-		}
-		s.dispatchAll()
-		return json.Marshal(StatusResponse{Status: "resume_queued"})
+		return s.resumeControl(ctx, raw)
 	case ipc.KindResumeContinuation:
 		var request ResumeContinuationRequest
 		if err := strictJSON(raw, &request); err != nil {

@@ -1,0 +1,20 @@
+=== RUN   TestWorkerPeerCannotUseMainAgentControlKinds
+--- PASS: TestWorkerPeerCannotUseMainAgentControlKinds (0.14s)
+=== RUN   TestUnidentifiedLaunchCannotEnrollThroughNativeSubmit
+--- PASS: TestUnidentifiedLaunchCannotEnrollThroughNativeSubmit (0.12s)
+=== RUN   TestUnidentifiedLaunchDefersUnboundPeerDispatchControls
+--- PASS: TestUnidentifiedLaunchDefersUnboundPeerDispatchControls (0.11s)
+=== RUN   TestOriginalOwnerResumeSocketReplayPrecedesUnrelatedMutableDispatchGate
+--- PASS: TestOriginalOwnerResumeSocketReplayPrecedesUnrelatedMutableDispatchGate (0.14s)
+=== RUN   TestOriginalOwnerResumeKeepsLiveOwnerAndReplaysAfterExit
+    owner_resume_test.go:211: owner child pid=12 original Wait=0, natural bootstrap EOF, no timeout/forced cleanup
+--- PASS: TestOriginalOwnerResumeKeepsLiveOwnerAndReplaysAfterExit (0.24s)
+=== RUN   TestOriginalOwnerResumeRejectsMissingCommandAndFreshForeignPeer
+    owner_resume_test.go:252: owner child pid=17 original Wait=0, natural bootstrap EOF, no timeout/forced cleanup
+--- PASS: TestOriginalOwnerResumeRejectsMissingCommandAndFreshForeignPeer (0.20s)
+=== RUN   TestOriginalOwnerResumeDeadOwnerCannotRetireLivingHost
+    owner_resume_test.go:256: owner child pid=21 original Wait=0, natural bootstrap EOF, no timeout/forced cleanup
+--- PASS: TestOriginalOwnerResumeDeadOwnerCannotRetireLivingHost (0.22s)
+=== RUN   TestOriginalOwnerResumePreservesLegacyEmptyCommandBehavior
+--- PASS: TestOriginalOwnerResumePreservesLegacyEmptyCommandBehavior (0.12s)
+PASS
