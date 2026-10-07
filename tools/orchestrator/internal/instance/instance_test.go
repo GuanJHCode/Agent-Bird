@@ -118,3 +118,36 @@ func TestPrepareStateDirAllowsExistingTmpAlias(t *testing.T) {
 		t.Fatalf("info=%v err=%v", info, err)
 	}
 }
+
+func TestPrepareStateDirRejectsLeafModeSwap(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "state")
+	if err := os.Mkdir(root, 0700); err != nil {
+		t.Fatal(err)
+	}
+	old := prepareStateDirAfterLeafLstat
+	prepareStateDirAfterLeafLstat = func() { _ = os.Chmod(root, 0755) }
+	defer func() { prepareStateDirAfterLeafLstat = old }()
+	if err := PrepareStateDir(root); err == nil {
+		t.Fatal("mode swap accepted")
+	}
+}
+func TestPrepareStateDirRejectsInsertedPublicSuffix(t *testing.T) {
+	base := t.TempDir()
+	root := filepath.Join(base, "mid", "state")
+	old := prepareStateDirBeforeOpenPart
+	prepareStateDirBeforeOpenPart = func() { _ = os.Mkdir(filepath.Join(base, "mid"), 0755) }
+	defer func() { prepareStateDirBeforeOpenPart = old }()
+	if err := PrepareStateDir(root); err == nil {
+		t.Fatal("public suffix accepted")
+	}
+}
+func TestPrepareStateDirRejectsAncestorSwap(t *testing.T) {
+	base, out := t.TempDir(), t.TempDir()
+	root := filepath.Join(base, "state")
+	old := prepareStateDirAfterAncestorStat
+	prepareStateDirAfterAncestorStat = func() { _ = os.Rename(base, base+"-old"); _ = os.Symlink(out, base) }
+	defer func() { prepareStateDirAfterAncestorStat = old }()
+	if err := PrepareStateDir(root); err == nil {
+		t.Fatal("ancestor swap accepted")
+	}
+}

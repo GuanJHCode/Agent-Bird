@@ -29,6 +29,10 @@ type Lock struct {
 // prepareStateDirBeforeCreate is test-only synchronization after the existing
 // ancestor is held and before any missing path component is created.
 var prepareStateDirBeforeCreate = func() {}
+var prepareStateDirAfterLeafLstat = func() {}
+var prepareStateDirAfterAncestorStat = func() {}
+var prepareStateDirBeforeOpenPart = func() {}
+var prepareStateDirBeforeFinalCheck = func() {}
 
 // PrepareStateDir creates a missing private directory, but never repairs an
 // existing directory by changing its permissions. Existing ancestor aliases
@@ -43,6 +47,7 @@ func PrepareStateDir(root string) (err error) {
 		if !info.IsDir() || info.Mode().Perm() != 0700 || !owned(info) {
 			return CodeError("untrusted_state_dir")
 		}
+		prepareStateDirAfterLeafLstat()
 		f, openErr := os.OpenFile(root, os.O_RDONLY|syscall.O_DIRECTORY|syscall.O_NOFOLLOW, 0)
 		if openErr != nil {
 			return CodeError("untrusted_state_dir")
@@ -54,7 +59,7 @@ func PrepareStateDir(root string) (err error) {
 		}()
 		opened, statErr := f.Stat()
 		current, pathErr := os.Lstat(root)
-		if statErr != nil || pathErr != nil || !os.SameFile(opened, current) {
+		if statErr != nil || pathErr != nil || !os.SameFile(info, opened) || !os.SameFile(opened, current) || !trustedDir(opened) {
 			return CodeError("untrusted_state_dir")
 		}
 		return nil
@@ -72,8 +77,18 @@ func PrepareStateDir(root string) (err error) {
 		}
 		break
 	}
+	ancestorInfo, ancestorErr := os.Stat(ancestor)
+	if ancestorErr != nil || !ancestorInfo.IsDir() {
+		return CodeError("untrusted_state_dir")
+	}
+	prepareStateDirAfterAncestorStat()
 	parent, err := os.Open(ancestor)
 	if err != nil {
+		return CodeError("untrusted_state_dir")
+	}
+	heldAncestor, ancestorStatErr := parent.Stat()
+	if ancestorStatErr != nil || !os.SameFile(ancestorInfo, heldAncestor) || !heldAncestor.IsDir() {
+		parent.Close()
 		return CodeError("untrusted_state_dir")
 	}
 	defer func() {
@@ -89,6 +104,7 @@ func PrepareStateDir(root string) (err error) {
 		if mkErr := unix.Mkdirat(int(parent.Fd()), part, 0700); mkErr != nil && !errors.Is(mkErr, unix.EEXIST) {
 			return CodeError("untrusted_state_dir")
 		}
+		prepareStateDirBeforeOpenPart()
 		fd, openErr := unix.Openat(int(parent.Fd()), part, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
 		if openErr != nil {
 			return CodeError("untrusted_state_dir")
@@ -96,7 +112,7 @@ func PrepareStateDir(root string) (err error) {
 		next := os.NewFile(uintptr(fd), part)
 		var named unix.Stat_t
 		held, statErr := next.Stat()
-		if statErr != nil || unix.Fstatat(int(parent.Fd()), part, &named, unix.AT_SYMLINK_NOFOLLOW) != nil || !sameDir(held, named) {
+		if statErr != nil || unix.Fstatat(int(parent.Fd()), part, &named, unix.AT_SYMLINK_NOFOLLOW) != nil || !sameDir(held, named) || !trustedDir(held) {
 			next.Close()
 			return CodeError("untrusted_state_dir")
 		}
@@ -106,12 +122,17 @@ func PrepareStateDir(root string) (err error) {
 		}
 		parent = next
 	}
+	prepareStateDirBeforeFinalCheck()
 	opened, statErr := parent.Stat()
-	current, pathErr := os.Stat(root)
-	if statErr != nil || pathErr != nil || !os.SameFile(opened, current) || opened.Mode().Perm() != 0700 || !owned(opened) {
+	current, pathErr := os.Lstat(root)
+	if statErr != nil || pathErr != nil || !os.SameFile(opened, current) || !trustedDir(opened) {
 		return CodeError("untrusted_state_dir")
 	}
 	return nil
+}
+
+func trustedDir(info os.FileInfo) bool {
+	return info.IsDir() && info.Mode().Perm() == 0700 && owned(info)
 }
 
 func sameDir(info os.FileInfo, st unix.Stat_t) bool {
