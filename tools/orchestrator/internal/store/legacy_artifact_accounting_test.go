@@ -31,6 +31,9 @@ func TestLegacyClaimRequiresOriginalIntegerSize(t *testing.T) {
 
 func downgradeLegacyArtifactSchema(t *testing.T, db *DB) {
 	t.Helper()
+	// Every fixture that advertises a pre-schema22 version must first remove
+	// the complete schema23 shape, not merely lower schema_meta.
+	downgradeACPBridgeSchema23(t, db)
 	tx, err := db.sql.Begin()
 	if err != nil {
 		t.Fatal(err)

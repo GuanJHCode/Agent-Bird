@@ -1,16 +1,55 @@
 package store
 
-const currentSchemaVersion = 22
+const currentSchemaVersion = 23
 
 // Runtime migrations run under the coordinator instance lock (NewServer) and
 // one SQLite transaction. DDL, backfills and version publication commit together;
 // rollback preserves the prior schema and data rather than guessing recovery.
-func (d *DB) migrateRuntime() error {
-	tx, err := d.sql.Begin()
-	if err != nil {
+func (d *DB) migrateRuntime() (err error) {
+	// bridge_bindings is the parent of four existing bridge tables. SQLite only
+	// permits the parent rebuild required by schema23 when FK enforcement is
+	// disabled before BEGIN; defer_foreign_keys is not a substitute.
+	var initialVersion int
+	if err = d.sql.QueryRow(`SELECT version FROM schema_meta`).Scan(&initialVersion); err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	if initialVersion > currentSchemaVersion {
+		return CodeError("schema_newer_than_binary")
+	}
+	if initialVersion < 1 {
+		return CodeError("schema_invalid")
+	}
+	needsSchema23 := initialVersion < 23
+	if needsSchema23 {
+		if _, err = d.sql.Exec(`PRAGMA foreign_keys=OFF`); err != nil {
+			return err
+		}
+		var foreignKeys int
+		if err = d.sql.QueryRow(`PRAGMA foreign_keys`).Scan(&foreignKeys); err != nil || foreignKeys != 0 {
+			if err == nil {
+				err = CodeError("schema23_foreign_keys_not_disabled")
+			}
+			return err
+		}
+	}
+	tx, err := d.sql.Begin()
+	if err != nil {
+		if needsSchema23 {
+			_ = restoreRuntimeForeignKeys(d)
+		}
+		return err
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+		if needsSchema23 {
+			if restoreErr := restoreRuntimeForeignKeys(d); err == nil && restoreErr != nil {
+				err = restoreErr
+			}
+		}
+	}()
 	var version int
 	if err = tx.QueryRow(`SELECT version FROM schema_meta`).Scan(&version); err != nil {
 		return err
@@ -178,5 +217,38 @@ func (d *DB) migrateRuntime() error {
 			return err
 		}
 	}
-	return tx.Commit()
+	if version < 23 {
+		if err = migrateACPBridgeSchema(tx); err != nil {
+			return err
+		}
+		if _, err = tx.Exec(`UPDATE schema_meta SET version=23`); err != nil {
+			return err
+		}
+		var violations int
+		if err = tx.QueryRow(`SELECT COUNT(*) FROM pragma_foreign_key_check`).Scan(&violations); err != nil {
+			return err
+		}
+		if violations != 0 {
+			return CodeError("schema23_foreign_key_check_failed")
+		}
+	}
+	if err = tx.Commit(); err != nil {
+		return err
+	}
+	committed = true
+	return nil
+}
+
+func restoreRuntimeForeignKeys(d *DB) error {
+	if _, err := d.sql.Exec(`PRAGMA foreign_keys=ON`); err != nil {
+		return err
+	}
+	var foreignKeys int
+	if err := d.sql.QueryRow(`PRAGMA foreign_keys`).Scan(&foreignKeys); err != nil {
+		return err
+	}
+	if foreignKeys != 1 {
+		return CodeError("schema23_foreign_keys_not_restored")
+	}
+	return nil
 }

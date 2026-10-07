@@ -119,7 +119,34 @@ func bridgeRowBytes(ref string, table bridgeQuotaTable) string {
 }
 
 func bridgeQuotaTriggers(tx *sql.Tx) error {
-	for _, table := range bridgeQuotaTables {
+	return bridgeQuotaTriggersWithTables(tx, bridgeQuotaTables)
+}
+
+func bridgeQuotaTriggers23(tx *sql.Tx) error {
+	tables := append([]bridgeQuotaTable(nil), bridgeQuotaTables...)
+	for i := range tables {
+		if tables[i].name == "bridge_delivery_attempts" {
+			tables[i].text = append(append([]string(nil), tables[i].text...), "acp_session_id", "acp_response_sha256", "acp_stop_reason")
+			tables[i].numbers = append(append([]string(nil), tables[i].numbers...), "acp_turn_ordinal", "acp_rpc_request_id")
+		}
+	}
+	return bridgeQuotaTriggersWithTables(tx, tables)
+}
+
+func bridgeQuotaTriggersWithTables(tx *sql.Tx, tables []bridgeQuotaTable, names ...string) error {
+	for _, table := range tables {
+		if len(names) != 0 {
+			found := false
+			for _, name := range names {
+				if table.name == name {
+					found = true
+					break
+				}
+			}
+			if !found {
+				continue
+			}
+		}
 		for _, op := range []string{"INSERT", "UPDATE", "DELETE"} {
 			var body strings.Builder
 			refs := []string{"NEW"}
