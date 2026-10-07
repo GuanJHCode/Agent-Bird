@@ -77,3 +77,36 @@ It must retain its current reservation. A future explicit pre-Bind retirement
 requires a still-owning FirstHost's original Cmd/Wait/tree proof or an equivalent
 durable supervisor contract. The bound-owner increment and two happy paths
 must not be called full intended-crash recovery or full B3 completion.
+
+## Store Resume transaction API
+
+The next increment introduces a canonical, bounded OriginalOwnerResumeRequest
+(task/controller/control-token/revision/command ID) and a separate trusted
+in-process observation. The Store computes its own domain-separated request
+hash; plaintext control tokens are never stored in the succession ledger.
+After authenticating current task capability, immutable command lookup precedes
+mutable task/owner/quota checks. Exact replay returns the original receipt and
+ready sequence without consuming a new sequence or touching budgets.
+
+A new commit validates the bound current owner's signed original binding and
+latest control permit, exact owner/current Host exit tuples, applied revision,
+current DB epoch, run origin and same or immediately rebound generation. All
+run segments must be exited/not_started, pending stops and unresolved questions
+must be absent, and no other launch may share the run. Reuse the existing
+QueueResume provider/profile, revision, active-segment and execution-budget
+checks inside the same transaction. Queue state, immutable authorization,
+retirement, offline transport fence and ready sequence commit together.
+Admission must cover the precise ledger charge and positive owner-row growth.
+
+Coordinator holds hostRegistrationMu and a lease on the existing recovery
+ledger through this transaction. It derives the path from its own stateDir and
+the durable LaunchID, never from a public path. Missing/busy/corrupt recovery
+state or any OwnerPending blocks; no empty recovery record is created. Preserve
+Unavailable, Attempts, NextAttempt and any safe coordinator reservation. The
+later successor scope transition preserves them verbatim.
+
+The existing IdentityExitedContext treats a different birth as proof that the
+old tuple is gone. This feature's stricter design rejects PID reuse, so it must
+use a classified observation (exited/alive/reused/unknown) without changing the
+existing helper's other callers. Kernel death evidence is not an original child
+Wait receipt and cannot clear OwnerPending or the intended pre-Bind gap.

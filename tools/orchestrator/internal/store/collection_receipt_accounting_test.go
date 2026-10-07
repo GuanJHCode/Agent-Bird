@@ -81,7 +81,7 @@ func TestCollectionReceiptAccountingMigratesHistoryExactlyOnce(t *testing.T) {
 			t.Fatal(err)
 		}
 		var version int
-		if err := db.sql.QueryRow(`SELECT version FROM schema_meta`).Scan(&version); err != nil || version != 24 {
+		if err := db.sql.QueryRow(`SELECT version FROM schema_meta`).Scan(&version); err != nil || version != currentSchemaVersion {
 			t.Errorf("version=%d err=%v", version, err)
 		}
 		if got := collectionUsage(t, db.sql, "global", ""); got != before+cost {
@@ -105,6 +105,7 @@ func TestCollectionReceiptAccountingMigratesHistoryExactlyOnce(t *testing.T) {
 // fixtures. Never lower only schema_meta and leave new triggers behind.
 func downgradeCollectionSchema24(t *testing.T, db *DB) {
 	t.Helper()
+	downgradeOwnerSuccessionSchema25(t, db)
 	var version int
 	if err := db.sql.QueryRow(`SELECT version FROM schema_meta`).Scan(&version); err != nil {
 		t.Fatal(err)
@@ -442,7 +443,7 @@ func TestCollectionReceiptAccountingUpgradeSchema22Graph(t *testing.T) {
 			t.Errorf("reopen%d run=%d want=%d", i, got, runBefore+cost)
 		}
 		var version, fk, rows, violations int
-		if err = db.sql.QueryRow(`SELECT version FROM schema_meta`).Scan(&version); err != nil || version != 24 {
+		if err = db.sql.QueryRow(`SELECT version FROM schema_meta`).Scan(&version); err != nil || version != currentSchemaVersion {
 			t.Errorf("version=%d err=%v", version, err)
 		}
 		if err = db.sql.QueryRow(`PRAGMA foreign_keys`).Scan(&fk); err != nil || fk != 1 {

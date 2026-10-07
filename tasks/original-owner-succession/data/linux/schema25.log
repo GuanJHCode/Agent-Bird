@@ -1,0 +1,139 @@
+=== RUN   TestCollectionReceiptAccountingMigratesHistoryExactlyOnce
+--- PASS: TestCollectionReceiptAccountingMigratesHistoryExactlyOnce (0.23s)
+=== RUN   TestCollectionReceiptAccountingMigrationFailureAtomic
+=== RUN   TestCollectionReceiptAccountingMigrationFailureAtomic/validated
+=== RUN   TestCollectionReceiptAccountingMigrationFailureAtomic/copied
+=== RUN   TestCollectionReceiptAccountingMigrationFailureAtomic/replaced
+=== RUN   TestCollectionReceiptAccountingMigrationFailureAtomic/backfilled
+=== RUN   TestCollectionReceiptAccountingMigrationFailureAtomic/triggers
+=== RUN   TestCollectionReceiptAccountingMigrationFailureAtomic/version
+=== RUN   TestCollectionReceiptAccountingMigrationFailureAtomic/commit
+--- PASS: TestCollectionReceiptAccountingMigrationFailureAtomic (1.45s)
+    --- PASS: TestCollectionReceiptAccountingMigrationFailureAtomic/validated (0.20s)
+    --- PASS: TestCollectionReceiptAccountingMigrationFailureAtomic/copied (0.19s)
+    --- PASS: TestCollectionReceiptAccountingMigrationFailureAtomic/replaced (0.21s)
+    --- PASS: TestCollectionReceiptAccountingMigrationFailureAtomic/backfilled (0.21s)
+    --- PASS: TestCollectionReceiptAccountingMigrationFailureAtomic/triggers (0.21s)
+    --- PASS: TestCollectionReceiptAccountingMigrationFailureAtomic/version (0.21s)
+    --- PASS: TestCollectionReceiptAccountingMigrationFailureAtomic/commit (0.22s)
+=== RUN   TestOriginalOwnerV11MigrationPreservesLegacyRowsAndReopens
+--- PASS: TestOriginalOwnerV11MigrationPreservesLegacyRowsAndReopens (0.56s)
+=== RUN   TestOriginalOwnerV11MigrationFailureRollsBackDDLAndVersion
+--- PASS: TestOriginalOwnerV11MigrationFailureRollsBackDDLAndVersion (0.44s)
+=== RUN   TestOriginalOwnerSchemaRetainsHistoricalOwnerAndSingleCurrentAcrossGenerations
+--- PASS: TestOriginalOwnerSchemaRetainsHistoricalOwnerAndSingleCurrentAcrossGenerations (0.13s)
+=== RUN   TestOriginalOwnerRuntimeAppliedActivationAndReplay
+--- PASS: TestOriginalOwnerRuntimeAppliedActivationAndReplay (0.13s)
+=== RUN   TestOriginalOwnerRuntimeAppliedRejectsDriftAndRollsBack
+=== RUN   TestOriginalOwnerRuntimeAppliedRejectsDriftAndRollsBack/signature
+=== RUN   TestOriginalOwnerRuntimeAppliedRejectsDriftAndRollsBack/foreign_owner
+=== RUN   TestOriginalOwnerRuntimeAppliedRejectsDriftAndRollsBack/wrong_host
+=== RUN   TestOriginalOwnerRuntimeAppliedRejectsDriftAndRollsBack/wrong_key
+=== RUN   TestOriginalOwnerRuntimeAppliedRejectsDriftAndRollsBack/cursor
+=== RUN   TestOriginalOwnerRuntimeAppliedRejectsDriftAndRollsBack/quota
+=== RUN   TestOriginalOwnerRuntimeAppliedRejectsDriftAndRollsBack/ignored_cas
+--- PASS: TestOriginalOwnerRuntimeAppliedRejectsDriftAndRollsBack (0.90s)
+    --- PASS: TestOriginalOwnerRuntimeAppliedRejectsDriftAndRollsBack/signature (0.13s)
+    --- PASS: TestOriginalOwnerRuntimeAppliedRejectsDriftAndRollsBack/foreign_owner (0.13s)
+    --- PASS: TestOriginalOwnerRuntimeAppliedRejectsDriftAndRollsBack/wrong_host (0.12s)
+    --- PASS: TestOriginalOwnerRuntimeAppliedRejectsDriftAndRollsBack/wrong_key (0.13s)
+    --- PASS: TestOriginalOwnerRuntimeAppliedRejectsDriftAndRollsBack/cursor (0.13s)
+    --- PASS: TestOriginalOwnerRuntimeAppliedRejectsDriftAndRollsBack/quota (0.13s)
+    --- PASS: TestOriginalOwnerRuntimeAppliedRejectsDriftAndRollsBack/ignored_cas (0.14s)
+=== RUN   TestOwnerSuccessionSchemaRejectsUnbackedRetirement
+--- PASS: TestOwnerSuccessionSchemaRejectsUnbackedRetirement (0.14s)
+=== RUN   TestOwnerSuccessionSchemaFreezesControlProof
+=== RUN   TestOwnerSuccessionSchemaFreezesControlProof/scope_hash='bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+=== RUN   TestOwnerSuccessionSchemaFreezesControlProof/coordinator_epoch=coordinator_epoch+1
+=== RUN   TestOwnerSuccessionSchemaFreezesControlProof/permit_json=json_set(permit_json,'$.permit_id','foreign')
+=== RUN   TestOwnerSuccessionSchemaFreezesControlProof/request_id='foreign'
+=== RUN   TestOwnerSuccessionSchemaFreezesControlProof/DELETE
+--- PASS: TestOwnerSuccessionSchemaFreezesControlProof (0.69s)
+    --- PASS: TestOwnerSuccessionSchemaFreezesControlProof/scope_hash='bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' (0.14s)
+    --- PASS: TestOwnerSuccessionSchemaFreezesControlProof/coordinator_epoch=coordinator_epoch+1 (0.13s)
+    --- PASS: TestOwnerSuccessionSchemaFreezesControlProof/permit_json=json_set(permit_json,'$.permit_id','foreign') (0.14s)
+    --- PASS: TestOwnerSuccessionSchemaFreezesControlProof/request_id='foreign' (0.14s)
+    --- PASS: TestOwnerSuccessionSchemaFreezesControlProof/DELETE (0.13s)
+=== RUN   TestOwnerSuccessionSchemaAcceptsCurrentEpochAfterOldOwnerExit
+--- PASS: TestOwnerSuccessionSchemaAcceptsCurrentEpochAfterOldOwnerExit (0.14s)
+=== RUN   TestOwnerSuccessionSchemaFreezesBoundIdentity
+=== RUN   TestOwnerSuccessionSchemaFreezesBoundIdentity/owner_pid=owner_pid+1
+=== RUN   TestOwnerSuccessionSchemaFreezesBoundIdentity/owner_birth='foreign'
+=== RUN   TestOwnerSuccessionSchemaFreezesBoundIdentity/owner_public_key='bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+=== RUN   TestOwnerSuccessionSchemaFreezesBoundIdentity/original_binding_json=json_set(original_binding_json,'$.owner.birth','foreign')
+=== RUN   TestOwnerSuccessionSchemaFreezesBoundIdentity/original_binding_hash='bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+--- PASS: TestOwnerSuccessionSchemaFreezesBoundIdentity (0.67s)
+    --- PASS: TestOwnerSuccessionSchemaFreezesBoundIdentity/owner_pid=owner_pid+1 (0.14s)
+    --- PASS: TestOwnerSuccessionSchemaFreezesBoundIdentity/owner_birth='foreign' (0.14s)
+    --- PASS: TestOwnerSuccessionSchemaFreezesBoundIdentity/owner_public_key='bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' (0.13s)
+    --- PASS: TestOwnerSuccessionSchemaFreezesBoundIdentity/original_binding_json=json_set(original_binding_json,'$.owner.birth','foreign') (0.12s)
+    --- PASS: TestOwnerSuccessionSchemaFreezesBoundIdentity/original_binding_hash='bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' (0.14s)
+=== RUN   TestOwnerSuccessionSchemaRejectsDriftedAuthorizationFacts
+=== RUN   TestOwnerSuccessionSchemaRejectsDriftedAuthorizationFacts/scope
+=== RUN   TestOwnerSuccessionSchemaRejectsDriftedAuthorizationFacts/epoch
+=== RUN   TestOwnerSuccessionSchemaRejectsDriftedAuthorizationFacts/sequence
+--- PASS: TestOwnerSuccessionSchemaRejectsDriftedAuthorizationFacts (0.38s)
+    --- PASS: TestOwnerSuccessionSchemaRejectsDriftedAuthorizationFacts/scope (0.14s)
+    --- PASS: TestOwnerSuccessionSchemaRejectsDriftedAuthorizationFacts/epoch (0.12s)
+    --- PASS: TestOwnerSuccessionSchemaRejectsDriftedAuthorizationFacts/sequence (0.13s)
+=== RUN   TestOwnerSuccessionSchemaNeverDeletesAnUnprovedOwner
+=== RUN   TestOwnerSuccessionSchemaNeverDeletesAnUnprovedOwner/false
+=== RUN   TestOwnerSuccessionSchemaNeverDeletesAnUnprovedOwner/true
+--- PASS: TestOwnerSuccessionSchemaNeverDeletesAnUnprovedOwner (0.25s)
+    --- PASS: TestOwnerSuccessionSchemaNeverDeletesAnUnprovedOwner/false (0.13s)
+    --- PASS: TestOwnerSuccessionSchemaNeverDeletesAnUnprovedOwner/true (0.12s)
+=== RUN   TestOwnerSuccessionSchemaFreezesOwnerIdentityAndRetiredHistory
+=== RUN   TestOwnerSuccessionSchemaFreezesOwnerIdentityAndRetiredHistory/incarnation=incarnation+1
+=== RUN   TestOwnerSuccessionSchemaFreezesOwnerIdentityAndRetiredHistory/intent_json=json_set(intent_json,'$.scope.host_generation','foreign')
+=== RUN   TestOwnerSuccessionSchemaFreezesOwnerIdentityAndRetiredHistory/bootstrap_id='foreign'
+=== RUN   TestOwnerSuccessionSchemaFreezesOwnerIdentityAndRetiredHistory/request_id='foreign'
+=== RUN   TestOwnerSuccessionSchemaFreezesOwnerIdentityAndRetiredHistory/created_at='foreign'
+=== RUN   TestOwnerSuccessionSchemaFreezesOwnerIdentityAndRetiredHistory/phase='bound'
+--- PASS: TestOwnerSuccessionSchemaFreezesOwnerIdentityAndRetiredHistory (0.78s)
+    --- PASS: TestOwnerSuccessionSchemaFreezesOwnerIdentityAndRetiredHistory/incarnation=incarnation+1 (0.12s)
+    --- PASS: TestOwnerSuccessionSchemaFreezesOwnerIdentityAndRetiredHistory/intent_json=json_set(intent_json,'$.scope.host_generation','foreign') (0.13s)
+    --- PASS: TestOwnerSuccessionSchemaFreezesOwnerIdentityAndRetiredHistory/bootstrap_id='foreign' (0.14s)
+    --- PASS: TestOwnerSuccessionSchemaFreezesOwnerIdentityAndRetiredHistory/request_id='foreign' (0.14s)
+    --- PASS: TestOwnerSuccessionSchemaFreezesOwnerIdentityAndRetiredHistory/created_at='foreign' (0.12s)
+    --- PASS: TestOwnerSuccessionSchemaFreezesOwnerIdentityAndRetiredHistory/phase='bound' (0.14s)
+=== RUN   TestOwnerSuccessionSchemaRejectsUnknownScopeVersion
+--- PASS: TestOwnerSuccessionSchemaRejectsUnknownScopeVersion (0.12s)
+=== RUN   TestOwnerSuccessionSchemaMigrationPreservesRowsAndRollsBack
+=== RUN   TestOwnerSuccessionSchemaMigrationPreservesRowsAndRollsBack/stage_
+=== RUN   TestOwnerSuccessionSchemaMigrationPreservesRowsAndRollsBack/stage_validated
+=== RUN   TestOwnerSuccessionSchemaMigrationPreservesRowsAndRollsBack/stage_objects
+=== RUN   TestOwnerSuccessionSchemaMigrationPreservesRowsAndRollsBack/stage_triggers
+=== RUN   TestOwnerSuccessionSchemaMigrationPreservesRowsAndRollsBack/stage_version
+=== RUN   TestOwnerSuccessionSchemaMigrationPreservesRowsAndRollsBack/stage_commit
+--- PASS: TestOwnerSuccessionSchemaMigrationPreservesRowsAndRollsBack (1.06s)
+    --- PASS: TestOwnerSuccessionSchemaMigrationPreservesRowsAndRollsBack/stage_ (0.16s)
+    --- PASS: TestOwnerSuccessionSchemaMigrationPreservesRowsAndRollsBack/stage_validated (0.18s)
+    --- PASS: TestOwnerSuccessionSchemaMigrationPreservesRowsAndRollsBack/stage_objects (0.18s)
+    --- PASS: TestOwnerSuccessionSchemaMigrationPreservesRowsAndRollsBack/stage_triggers (0.19s)
+    --- PASS: TestOwnerSuccessionSchemaMigrationPreservesRowsAndRollsBack/stage_version (0.19s)
+    --- PASS: TestOwnerSuccessionSchemaMigrationPreservesRowsAndRollsBack/stage_commit (0.16s)
+=== RUN   TestOwnerSuccessionSchemaRetainsUnprovedIntendedOwner
+--- PASS: TestOwnerSuccessionSchemaRetainsUnprovedIntendedOwner (0.11s)
+=== RUN   TestOwnerSuccessionSchemaAccountsUTF8AndImmutableAuthorization
+--- PASS: TestOwnerSuccessionSchemaAccountsUTF8AndImmutableAuthorization (0.14s)
+=== RUN   TestOwnerSuccessionSchemaRejectsForeignOrSkippedSuccessor
+=== RUN   TestOwnerSuccessionSchemaRejectsForeignOrSkippedSuccessor/authorization
+=== RUN   TestOwnerSuccessionSchemaRejectsForeignOrSkippedSuccessor/incarnation
+=== RUN   TestOwnerSuccessionSchemaRejectsForeignOrSkippedSuccessor/origin_context
+=== RUN   TestOwnerSuccessionSchemaRejectsForeignOrSkippedSuccessor/origin_pid
+=== RUN   TestOwnerSuccessionSchemaRejectsForeignOrSkippedSuccessor/origin_birth
+=== RUN   TestOwnerSuccessionSchemaRejectsForeignOrSkippedSuccessor/generation
+=== RUN   TestOwnerSuccessionSchemaRejectsForeignOrSkippedSuccessor/executable
+=== RUN   TestOwnerSuccessionSchemaRejectsForeignOrSkippedSuccessor/digest
+--- PASS: TestOwnerSuccessionSchemaRejectsForeignOrSkippedSuccessor (0.96s)
+    --- PASS: TestOwnerSuccessionSchemaRejectsForeignOrSkippedSuccessor/authorization (0.12s)
+    --- PASS: TestOwnerSuccessionSchemaRejectsForeignOrSkippedSuccessor/incarnation (0.14s)
+    --- PASS: TestOwnerSuccessionSchemaRejectsForeignOrSkippedSuccessor/origin_context (0.13s)
+    --- PASS: TestOwnerSuccessionSchemaRejectsForeignOrSkippedSuccessor/origin_pid (0.12s)
+    --- PASS: TestOwnerSuccessionSchemaRejectsForeignOrSkippedSuccessor/origin_birth (0.12s)
+    --- PASS: TestOwnerSuccessionSchemaRejectsForeignOrSkippedSuccessor/generation (0.11s)
+    --- PASS: TestOwnerSuccessionSchemaRejectsForeignOrSkippedSuccessor/executable (0.11s)
+    --- PASS: TestOwnerSuccessionSchemaRejectsForeignOrSkippedSuccessor/digest (0.12s)
+=== RUN   TestOwnerSuccessionSchemaRejectsUnprovenLegacyRetirement
+--- PASS: TestOwnerSuccessionSchemaRejectsUnprovenLegacyRetirement (0.15s)
+PASS

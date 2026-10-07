@@ -7,7 +7,7 @@ import (
 	"errors"
 )
 
-const currentSchemaVersion = 24
+const currentSchemaVersion = 25
 
 // Runtime migrations run under the coordinator instance lock (NewServer) and
 // one SQLite transaction. DDL, backfills and version publication commit together;
@@ -282,6 +282,17 @@ func (d *DB) migrateRuntimeWithForeignKeyOps(ops runtimeForeignKeyOps) (err erro
 			return err
 		}
 	}
+	if version < 25 {
+		if err = migrateOwnerSuccessionSchema(tx); err != nil {
+			return err
+		}
+		if _, err = tx.Exec(`UPDATE schema_meta SET version=25`); err != nil {
+			return err
+		}
+		if err = ownerSuccessionSchema25Stage("version"); err != nil {
+			return err
+		}
+	}
 	if needsSchema23 {
 		if err = schema23MigrationStage("commit"); err != nil {
 			return err
@@ -289,6 +300,11 @@ func (d *DB) migrateRuntimeWithForeignKeyOps(ops runtimeForeignKeyOps) (err erro
 	}
 	if version < 24 {
 		if err = collectionSchema24Stage("commit"); err != nil {
+			return err
+		}
+	}
+	if version < 25 {
+		if err = ownerSuccessionSchema25Stage("commit"); err != nil {
 			return err
 		}
 	}

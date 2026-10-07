@@ -3,8 +3,6 @@ package store
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
-	"strings"
 	"testing"
 )
 
@@ -124,23 +122,16 @@ func TestOriginalOwnerSchemaRetainsHistoricalOwnerAndSingleCurrentAcrossGenerati
 	next := i
 	next.Scope.OwnerID, next.Scope.Incarnation, next.Scope.HostGeneration = "future-owner", 2, "next-generation"
 	next.BootstrapID, next.RequestID = "future-bootstrap", "future-request"
-	body, err := json.Marshal(next)
-	if err != nil {
-		t.Fatal(err)
-	}
-	insert := func() error {
-		_, e := f.db.sql.Exec(`INSERT INTO execution_owners(owner_id,launch_id,run_id,producer_id,incarnation,bootstrap_id,bootstrap_token_hash,coordinator_key_id,request_id,request_hash,intent_json,phase,is_current,control_revision,coordinator_epoch,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,'intended',1,0,1,'now','now')`, next.Scope.OwnerID, next.Scope.LaunchID, next.Scope.RunID, next.Scope.ProducerID, next.Scope.Incarnation, next.BootstrapID, next.BootstrapTokenSHA256, next.CoordinatorKeyID, next.RequestID, next.RequestSHA256, string(body))
-		return e
-	}
-	if err := insert(); err == nil {
+	if err := insertOwnerSchemaSuccessor(f.db, next, nil); err == nil {
 		t.Fatal("another generation bypassed launch-wide current-owner uniqueness")
 	}
-	// Schema-only future transition fixture, not a B1 retire/adoption API or
-	// proof of physical quiescence. The original history must remain possible.
+	// This synthetic schema fixture supplies the required immutable authorization;
+	// it is not evidence of a real process exit or the public succession API.
+	authorization := insertOwnerSuccessionSchemaAuthorization(t, f.db, i, next)
 	if _, err := f.db.sql.Exec(`UPDATE execution_owners SET phase='retired',is_current=0 WHERE owner_id=?`, i.Scope.OwnerID); err != nil {
 		t.Fatal(err)
 	}
-	if err := insert(); err != nil {
+	if err := insertOwnerSchemaSuccessor(f.db, next, authorization); err != nil {
 		t.Fatal("schema permanently forbids legal later owner incarnation", err)
 	}
 	old, err := f.db.InspectOriginalOwner(context.Background(), i.Scope.OwnerID)
@@ -152,8 +143,10 @@ func TestOriginalOwnerSchemaRetainsHistoricalOwnerAndSingleCurrentAcrossGenerati
 	}
 	duplicate := next
 	duplicate.Scope.OwnerID, duplicate.BootstrapID, duplicate.RequestID = "duplicate-incarnation", "duplicate-bootstrap", "duplicate-request"
-	raw, _ := json.Marshal(duplicate)
-	if _, err := f.db.sql.Exec(`INSERT INTO execution_owners SELECT ?,launch_id,run_id,producer_id,incarnation,?,bootstrap_token_hash,coordinator_key_id,?,request_hash,?,'intended',0,NULL,NULL,NULL,0,NULL,NULL,coordinator_epoch,NULL,NULL,created_at,updated_at,0 FROM execution_owners WHERE owner_id=?`, duplicate.Scope.OwnerID, duplicate.BootstrapID, duplicate.RequestID, string(raw), next.Scope.OwnerID); err == nil || !strings.Contains(err.Error(), "UNIQUE") {
+	if err := insertOwnerSchemaSuccessor(f.db, duplicate, authorization); err == nil {
 		t.Fatal("caller could reuse an existing launch incarnation", err)
+	}
+	if originalOwnerSchemaCount(t, f.db.sql, `SELECT COUNT(*) FROM execution_owners`) != 2 {
+		t.Fatal("rejected duplicate mutated owner history")
 	}
 }
