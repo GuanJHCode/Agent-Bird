@@ -87,12 +87,14 @@ type response struct {
 	result json.RawMessage
 	raw    []byte
 	id     uint64
+	denied bool
 	err    error
 }
 
 type pending struct {
 	id     uint64
 	method string
+	denied bool
 	ch     chan response
 }
 
@@ -255,10 +257,7 @@ func (c *Client) Prompt(ctx context.Context, sessionID, text string) (Turn, erro
 	if err != nil {
 		return Turn{}, err
 	}
-	c.mu.Lock()
-	denied := c.turnDenied
-	c.mu.Unlock()
-	if denied {
+	if reply.denied {
 		return Turn{}, ErrPermissionDenied
 	}
 	fields, err := object(reply.result)
@@ -301,7 +300,11 @@ func (c *Client) call(ctx context.Context, method string, params json.RawMessage
 	p := &pending{id: c.nextID, method: method, ch: make(chan response, 1)}
 	c.pending = p
 	c.mu.Unlock()
-	stop := context.AfterFunc(ctx, func() { c.fail(ErrUncertain) })
+	stop := context.AfterFunc(ctx, func() {
+		if c.cancelPending(p) {
+			c.fail(ErrUncertain)
+		}
+	})
 	defer stop()
 	frame, err := marshalFrame(struct {
 		JSONRPC string          `json:"jsonrpc"`
@@ -318,15 +321,42 @@ func (c *Client) call(ctx context.Context, method string, params json.RawMessage
 		c.fail(ErrUncertain)
 		return response{}, ErrUncertain
 	}
+	return c.waitPending(ctx, p)
+}
+
+// waitPending gives the response and cancellation a single ownership race on
+// pending. If response owns it first, a context that becomes ready before this
+// goroutine is scheduled cannot revoke that completed RPC.
+func (c *Client) waitPending(ctx context.Context, p *pending) (response, error) {
 	select {
 	case reply := <-p.ch:
 		return reply, reply.err
 	case <-ctx.Done():
-		c.fail(ErrUncertain)
-		return response{}, ErrUncertain
+		if c.cancelPending(p) {
+			c.fail(ErrUncertain)
+			return response{}, ErrUncertain
+		}
+		select {
+		case reply := <-p.ch:
+			return reply, reply.err
+		case <-c.done:
+			return response{}, c.Err()
+		}
 	case <-c.done:
 		return response{}, c.Err()
 	}
+}
+
+// cancelPending returns true only for the request that still owns the pending
+// slot. A late cancellation has no authority over a completed or newer RPC.
+func (c *Client) cancelPending(p *pending) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.pending != p {
+		return false
+	}
+	c.pending = nil
+	return true
 }
 
 func (c *Client) clearPending(p *pending) {
@@ -424,6 +454,11 @@ func (c *Client) accept(raw []byte) error {
 		c.mu.Unlock()
 		return ErrProtocol
 	}
+	denied := p.denied
+	if p.method == "session/prompt" {
+		c.turnActive = false
+		c.turnDenied = false
+	}
 	c.pending = nil
 	c.mu.Unlock()
 	if hasError {
@@ -435,7 +470,7 @@ func (c *Client) accept(raw []byte) error {
 			return err
 		}
 	}
-	p.ch <- response{result: append(json.RawMessage(nil), fields["result"]...), raw: append([]byte(nil), raw...), id: id}
+	p.ch <- response{result: append(json.RawMessage(nil), fields["result"]...), raw: append([]byte(nil), raw...), id: id, denied: denied}
 	return nil
 }
 
@@ -480,10 +515,11 @@ func (c *Client) reverseRequest(id json.RawMessage, method string, params json.R
 		}
 		sessionID, ok := stringValue(fields["sessionId"])
 		c.mu.Lock()
-		bound, active := c.sessionID, c.turnActive
-		denied := ok && sessionID == bound && active
+		bound, active, p := c.sessionID, c.turnActive, c.pending
+		denied := ok && sessionID == bound && active && p != nil && p.method == "session/prompt"
 		if denied {
 			c.turnDenied = true
+			p.denied = true
 		}
 		c.mu.Unlock()
 		if !denied {

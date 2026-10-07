@@ -10,3 +10,9 @@ therefore part of the digest.
 EOF, a truncated frame, JSON-RPC error, protocol error, permission denial, and
 cancellation return the zero `Turn` together with their existing error. They do
 not produce a completion receipt.
+
+Response acceptance and cancellation compete for the same pending request. A
+response that wins cannot be invalidated by a late context callback or poison a
+following RPC. Permission denial is frozen at response acceptance. A later
+permission request is unsolicited, closes the strict protocol, and does not
+revoke the receipt that was already returned.
