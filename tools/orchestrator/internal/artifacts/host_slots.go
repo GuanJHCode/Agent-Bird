@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"os"
 	"strings"
 
 	"golang.org/x/sys/unix"
@@ -167,7 +168,7 @@ func materializeHostSlot(ctx context.Context, root string, d HostSlotDescriptor,
 			return proof, err
 		}
 	}
-	if err = n.publish("data.stage", "data.bin"); err != nil {
+	if err = n.publishHostFile(ctx, "data.stage", "data.bin", d.Size, d.SHA256, d.limit()); err != nil {
 		return proof, err
 	}
 	return n.hostSlotProof(ctx, d, raw, id)
@@ -209,6 +210,50 @@ func VerifyHostSlotAndCommit(ctx context.Context, root string, d HostSlotDescrip
 		return err
 	}
 	return commit()
+}
+
+// ReadVerifiedHostSlot reads a bounded, verified snapshot of an existing object.
+// It never takes the writer lock, creates files, or recovers partial publication.
+// Consumers may inspect these bytes while holding their own DB transaction, but
+// must use VerifyHostSlotAndCommit for new ownership/ref commitments.
+func ReadVerifiedHostSlot(ctx context.Context, root string, d HostSlotDescriptor, want Proof) (body []byte, err error) {
+	raw, err := d.Canonical()
+	if err != nil {
+		return nil, err
+	}
+	id, err := d.ObjectID()
+	if err != nil {
+		return nil, err
+	}
+	n, err := openHostObjectMode(root, id, false)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		err = errors.Join(err, n.close())
+		if err != nil {
+			body = nil
+		}
+	}()
+	if err = n.layout(d.limit()); err != nil {
+		return nil, err
+	}
+	for _, name := range []string{"intent.stage", "data.stage"} {
+		if _, e := n.stat(name); !errors.Is(e, unix.ENOENT) {
+			return nil, errors.Join(ErrUnsafe, e)
+		}
+	}
+	actual, body, err := n.hostSlotProofBody(ctx, d, raw, id)
+	if err != nil {
+		return nil, err
+	}
+	if actual != want {
+		return nil, ErrUnsafe
+	}
+	if err = ctx.Err(); err != nil {
+		return nil, err
+	}
+	return body, nil
 }
 
 func LoadHostSlot(ctx context.Context, root string, binding HostSlotBinding) (d HostSlotDescriptor, proof Proof, body []byte, err error) {
@@ -261,7 +306,7 @@ func loadHostSlot(ctx context.Context, root string, binding HostSlotBinding, ste
 		if recoverErr != nil || !ready {
 			return HostSlotDescriptor{}, Proof{}, nil, errors.Join(ErrContent, recoverErr)
 		}
-		if err = n.publish("data.stage", "data.bin"); err != nil {
+		if err = n.publishHostFile(ctx, "data.stage", "data.bin", d.Size, d.SHA256, d.limit()); err != nil {
 			return HostSlotDescriptor{}, Proof{}, nil, err
 		}
 	} else if e != nil {
@@ -331,7 +376,27 @@ func (n *object) ensureIntentLimit(ctx context.Context, body []byte, limit int64
 	if err = n.point("intent.stage:after-sync"); err != nil {
 		return err
 	}
-	return n.publish("intent.stage", "intent.json")
+	digest := sha256.Sum256(body)
+	return n.publishHostFile(ctx, "intent.stage", "intent.json", int64(len(body)), hex.EncodeToString(digest[:]), limit)
+}
+
+func (n *object) publishHostFile(ctx context.Context, from, to string, size int64, digest string, limit int64) error {
+	return n.publishChecked(from, to, limit, func(f *os.File, before unix.Stat_t) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if before.Size != size {
+			return ErrContent
+		}
+		h := sha256.New()
+		if _, err := io.Copy(h, io.LimitReader(f, size+1)); err != nil {
+			return err
+		}
+		if hex.EncodeToString(h.Sum(nil)) != digest {
+			return ErrContent
+		}
+		return ctx.Err()
+	})
 }
 
 func (n *object) writeHostStage(ctx context.Context, d HostSlotDescriptor, body []byte) (err error) {
@@ -370,7 +435,7 @@ func (n *object) writeHostStage(ctx context.Context, d HostSlotDescriptor, body 
 	return n.point("data.stage:after-sync")
 }
 
-func (n *object) recoverHostStage(ctx context.Context, d HostSlotDescriptor) (bool, error) {
+func (n *object) recoverHostStage(ctx context.Context, d HostSlotDescriptor) (ready bool, err error) {
 	before, err := n.verifyHostData(ctx, "data.stage", d)
 	if errors.Is(err, unix.ENOENT) {
 		return false, nil
@@ -382,7 +447,12 @@ func (n *object) recoverHostStage(ctx context.Context, d HostSlotDescriptor) (bo
 	if err != nil {
 		return false, err
 	}
-	defer f.Close()
+	defer func() {
+		err = errors.Join(err, f.Close())
+		if err != nil {
+			ready = false
+		}
+	}()
 	if !state(before, held) || n.verify(f, "data.stage", before, true, d.limit()) != nil {
 		return false, ErrUnsafe
 	}
@@ -401,12 +471,12 @@ func (n *object) recoverHostStage(ctx context.Context, d HostSlotDescriptor) (bo
 	return true, nil
 }
 
-func (n *object) verifyHostData(ctx context.Context, name string, d HostSlotDescriptor) (unix.Stat_t, error) {
+func (n *object) verifyHostData(ctx context.Context, name string, d HostSlotDescriptor) (before unix.Stat_t, err error) {
 	f, before, err := n.regular(name, unix.O_RDONLY, d.limit(), false)
 	if err != nil {
 		return before, err
 	}
-	defer f.Close()
+	defer func() { err = errors.Join(err, f.Close()) }()
 	if before.Size != d.Size {
 		return before, ErrContent
 	}

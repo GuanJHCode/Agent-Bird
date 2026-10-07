@@ -102,10 +102,11 @@ type ProcessIdentity struct {
 }
 
 type ArtifactRef struct {
-	ID     string `json:"id"`
-	Path   string `json:"path"`
-	Size   int64  `json:"size"`
-	SHA256 string `json:"sha256"`
+	ID           string               `json:"id"`
+	Path         string               `json:"path"`
+	Size         int64                `json:"size"`
+	SHA256       string               `json:"sha256"`
+	HostArtifact *HostArtifactReceipt `json:"host_artifact,omitempty"`
 }
 type Question struct {
 	ID       string

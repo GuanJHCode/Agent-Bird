@@ -407,13 +407,24 @@ func (n *object) publish(from, to string) error {
 	if from == "intent.stage" {
 		limit = manifestBytes
 	}
+	return n.publishChecked(from, to, limit, nil)
+}
+
+// validate sees the same held descriptor that is verified and renamed below.
+// Host slots use it to bind the published content to their immutable intent.
+func (n *object) publishChecked(from, to string, limit int64, validate func(*os.File, unix.Stat_t) error) (err error) {
 	f, before, err := n.regular(from, unix.O_RDONLY, limit, false)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { err = errors.Join(err, f.Close()) }()
 	if err = n.point(from + ":before-rename"); err != nil {
 		return err
+	}
+	if validate != nil {
+		if err = validate(f, before); err != nil {
+			return err
+		}
 	}
 	if err = n.verify(f, from, before, true, limit); err != nil {
 		return err

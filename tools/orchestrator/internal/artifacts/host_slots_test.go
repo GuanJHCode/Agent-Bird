@@ -308,3 +308,97 @@ func TestHostSlotPublicationRecoversEveryDurableBoundary(t *testing.T) {
 		})
 	}
 }
+
+// A new open during publication must not turn unverified staged bytes into an
+// immutable final object. The original descriptor remains the content authority.
+func TestHostSlotPublicationRejectsChangedStageBeforeOpening(t *testing.T) {
+	for _, from := range []string{"intent.stage", "data.stage"} {
+		t.Run(from, func(t *testing.T) {
+			root, body := hostSlotRoot(t), []byte("original slot content")
+			desc := hostSlot(t, "terminal", "terminal", 0, body)
+			id, _ := desc.ObjectID()
+			dir := filepath.Join(root, "managed-artifacts", id)
+			hit := false
+			proof, err := materializeHostSlot(context.Background(), root, desc, body, func(at string) error {
+				if at != from+":after-sync" {
+					return nil
+				}
+				hit = true
+				return os.WriteFile(filepath.Join(dir, from), []byte("foreign"), 0600)
+			})
+			if !hit || err == nil || proof != (Proof{}) {
+				t.Fatal("changed stage returned proof", hit, proof, err)
+			}
+			to := "data.bin"
+			if from == "intent.stage" {
+				to = "intent.json"
+			}
+			if _, err = os.Lstat(filepath.Join(dir, to)); !os.IsNotExist(err) {
+				t.Fatal("unverified stage became immutable", to, err)
+			}
+			if _, err = MaterializeHostSlot(context.Background(), root, desc, body); err != nil {
+				t.Fatal("same authorized bytes could not recover", err)
+			}
+		})
+	}
+}
+
+func TestHostSlotVerifiedSnapshotDoesNotAcquireWriterLock(t *testing.T) {
+	root := hostSlotRoot(t)
+	body := []byte("readonly evidence")
+	d := hostSlot(t, "terminal", "terminal", 0, body)
+	p, err := MaterializeHostSlot(context.Background(), root, d, body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The Store consumer may hold its DB mutex while a commit owns this lock.
+	// A snapshot must not wait for that writer, mutate, or manufacture authority.
+	err = VerifyHostSlotAndCommit(context.Background(), root, d, p, func() error {
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		defer cancel()
+		got, err := ReadVerifiedHostSlot(ctx, root, d, p)
+		if err != nil || string(got) != string(body) {
+			t.Fatal("snapshot waited on writer or changed bytes", string(got), err)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, mode := range []string{"proof", "replacement", "stage"} {
+		t.Run(mode, func(t *testing.T) {
+			root := hostSlotRoot(t)
+			p, err := MaterializeHostSlot(context.Background(), root, d, body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			switch mode {
+			case "proof":
+				p.Inode++
+			case "replacement":
+				if err = os.Rename(p.Path, p.Path+".old"); err != nil {
+					t.Fatal(err)
+				}
+				if err = os.WriteFile(p.Path, body, 0600); err != nil {
+					t.Fatal(err)
+				}
+				if err = os.Remove(p.Path + ".old"); err != nil {
+					t.Fatal(err)
+				}
+			case "stage":
+				if err = os.Rename(p.Path, filepath.Join(filepath.Dir(p.Path), "data.stage")); err != nil {
+					t.Fatal(err)
+				}
+			}
+			got, err := ReadVerifiedHostSlot(context.Background(), root, d, p)
+			if err == nil || got != nil {
+				t.Fatal("unverified snapshot returned bytes", string(got), err)
+			}
+			if mode == "stage" {
+				if _, err = os.Stat(p.Path); !errors.Is(err, os.ErrNotExist) {
+					t.Fatal("readonly consumer recovered publication", err)
+				}
+			}
+		})
+	}
+}
