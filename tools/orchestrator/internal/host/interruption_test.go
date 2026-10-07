@@ -29,6 +29,9 @@ func TestInterruptedProviderPublishesReasonAndIncompleteCheckpoint(t *testing.T)
 		os.Exit(0)
 	}
 	root := t.TempDir()
+	if err := os.Chmod(root, 0700); err != nil {
+		t.Fatal(err)
+	}
 	h, err := NewIPC(root, "producer")
 	if err != nil {
 		t.Fatal(err)
