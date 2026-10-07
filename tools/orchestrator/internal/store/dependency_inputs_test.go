@@ -12,7 +12,7 @@ import (
 
 // All prerequisites are real Store host events and owner decisions; neither a
 // completed task flag nor a worker report stands in for accepted/exited input.
-func dependencyFixture(t *testing.T) (*DB, string) {
+func dependencyFixture(t *testing.T, historical ...bool) (*DB, string) {
 	t.Helper()
 	ctx := context.Background()
 	db, err := Open(filepath.Join(t.TempDir(), "state.db"))
@@ -41,7 +41,14 @@ func dependencyFixture(t *testing.T) (*DB, string) {
 		if c.TaskID == "join" {
 			t.Fatal("join before acceptance")
 		}
-		e := contract.Event{Version: 1, ProducerID: host, EventID: c.TaskID + "-result", RunID: "run", TaskID: c.TaskID, AttemptID: c.AttemptID, SegmentID: c.SegmentID, WorkRevision: 1, ExecutionEpoch: 1, CommandID: c.CommandID, Sequence: int64(2*i + 1), Kind: contract.EventResult, PayloadHash: runtimeHash(c.TaskID), Artifact: &contract.ArtifactRef{ID: c.TaskID, Path: "/private/" + c.TaskID + ".json", Size: 1, SHA256: runtimeHash(c.TaskID)}}
+		var artifact *contract.ArtifactRef
+		if len(historical) > 0 && historical[0] {
+			historicalHostGrantForTest(t, db, &c)
+			artifact = &contract.ArtifactRef{ID: c.TaskID, Path: "/private/" + c.TaskID + ".json", Size: 1, SHA256: runtimeHash(c.TaskID)}
+		} else {
+			artifact = managedHostArtifactForTest(t, db, c, "terminal", 0, []byte(c.TaskID))
+		}
+		e := contract.Event{Version: 1, ProducerID: host, EventID: c.TaskID + "-result", RunID: "run", TaskID: c.TaskID, AttemptID: c.AttemptID, SegmentID: c.SegmentID, WorkRevision: 1, ExecutionEpoch: 1, CommandID: c.CommandID, Sequence: int64(2*i + 1), Kind: contract.EventResult, PayloadHash: runtimeHash(c.TaskID), Artifact: artifact}
 		if _, err = db.CommitHostEvent(ctx, e); err != nil {
 			t.Fatal(err)
 		}
@@ -216,6 +223,32 @@ func TestDependencyVectorExactQuotaAndSizeRollback(t *testing.T) {
 		t.Run(mode, func(t *testing.T) {
 			db, h := dependencyFixture(t)
 			initial := policyQuotaUsage(t, db)
+			// Path/proof lengths belong to each physical fixture's accepted inputs.
+			tx, err := db.sql.Begin()
+			if err != nil {
+				t.Fatal(err)
+			}
+			vector := contract.DependencyInputVector{Version: 1}
+			for _, id := range []string{"a", "m", "z"} {
+				input, err := acceptedCandidateInput(ctx, tx, "run", id)
+				if err != nil {
+					tx.Rollback()
+					t.Fatal(err)
+				}
+				vector.Inputs = append(vector.Inputs, input)
+			}
+			if err = tx.Rollback(); err != nil {
+				t.Fatal(err)
+			}
+			localRaw, err := json.Marshal(vector)
+			if err != nil {
+				t.Fatal(err)
+			}
+			growth := growth + int64(len(localRaw)-len(raw))
+			var outstanding int64
+			if err = db.sql.QueryRow(`SELECT (SELECT SUM(reserved_bytes-retained_bytes) FROM managed_artifact_reservations)+(SELECT SUM(reserved_bytes) FROM managed_host_artifact_metadata)-(SELECT COALESCE(SUM(manifest_bytes),0) FROM managed_artifact_refs)`).Scan(&outstanding); err != nil {
+				t.Fatal(err)
+			}
 			switch mode {
 			case "run":
 				db.runControlLimit = initial + growth - 1
@@ -223,7 +256,7 @@ func TestDependencyVectorExactQuotaAndSizeRollback(t *testing.T) {
 				db.userControlLimit = initial + growth - 1
 			case "disk":
 				db.storageAvailable = func(string) (uint64, error) {
-					return db.minFreeBytes + db.sqliteWriteOverhead + db.criticalDiskReserve + uint64(4*contract.HostArtifactReservedBytes+growth) - 1, nil
+					return db.minFreeBytes + db.sqliteWriteOverhead + db.criticalDiskReserve + uint64(outstanding+contract.HostArtifactReservedBytes+growth) - 1, nil
 				}
 			case "oversize":
 				payload, _ := json.Marshal(map[string]string{"prompt": strings.Repeat("x", 64*1024)})
@@ -257,7 +290,7 @@ func TestDependencyVectorExactQuotaAndSizeRollback(t *testing.T) {
 				db.userControlLimit++
 			case "disk":
 				db.storageAvailable = func(string) (uint64, error) {
-					return db.minFreeBytes + db.sqliteWriteOverhead + db.criticalDiskReserve + uint64(4*contract.HostArtifactReservedBytes+growth), nil
+					return db.minFreeBytes + db.sqliteWriteOverhead + db.criticalDiskReserve + uint64(outstanding+contract.HostArtifactReservedBytes+growth), nil
 				}
 			default:
 				return

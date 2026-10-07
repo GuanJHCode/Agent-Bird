@@ -123,12 +123,8 @@ func newReworkFixtureWithTasks(t *testing.T, ref *contract.ConfigGenerationRef, 
 			kind = contract.EventFailed
 		}
 		b, _ := json.Marshal(artifact)
-		path := filepath.Join(dir, stage+".json")
-		if err = os.WriteFile(path, b, 0600); err != nil {
-			t.Fatal(err)
-		}
 		seq++
-		e := contract.Event{Version: 1, ProducerID: h, EventID: stage + "-result", RunID: "run", TaskID: stage, AttemptID: grant.AttemptID, SegmentID: grant.SegmentID, WorkRevision: 1, ExecutionEpoch: 1, CommandID: grant.CommandID, Sequence: seq, Kind: kind, PayloadHash: runtimeHash(string(b)), Artifact: &contract.ArtifactRef{ID: stage, Path: path, Size: int64(len(b)), SHA256: runtimeHash(string(b))}}
+		e := contract.Event{Version: 1, ProducerID: h, EventID: stage + "-result", RunID: "run", TaskID: stage, AttemptID: grant.AttemptID, SegmentID: grant.SegmentID, WorkRevision: 1, ExecutionEpoch: 1, CommandID: grant.CommandID, Sequence: seq, Kind: kind, PayloadHash: runtimeHash(string(b)), Artifact: managedHostArtifactForTest(t, db, grant, "terminal", 0, b)}
 		if _, err = db.CommitHostEvent(ctx, e); err != nil {
 			t.Fatal(err)
 		}

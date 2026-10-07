@@ -331,7 +331,7 @@ func TestBudgetRevisionDoesNotReviveBlockedDependency(t *testing.T) {
 	child.Dependencies, child.BudgetGroupID = []string{"task"}, "task"
 	f, command := budgetRevisionRuntimeFixture(t, parent, child)
 	ctx := context.Background()
-	if _, err := f.db.CommitHostEvent(ctx, policyRejection(&f, "probe_start_eagain")); err != nil {
+	if _, err := f.db.CommitHostEvent(ctx, policyRejection(t, &f, "probe_start_eagain")); err != nil {
 		t.Fatal(err)
 	}
 	command.Request.Tasks = append(command.Request.Tasks, BudgetRevisionTask{TaskID: "child", WorkRevision: 1, MaxAttempts: 4, AttemptMaxActiveMS: 700, TaskMaxActiveMS: 900, SegmentMaxActiveMS: 400})

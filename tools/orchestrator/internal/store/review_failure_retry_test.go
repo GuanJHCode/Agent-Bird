@@ -33,13 +33,7 @@ func diagnosticReviewFixturePrepared(t *testing.T, provider adapter.Provider, pl
 	if err := os.Chmod(filepath.Dir(f.db.path), 0700); err != nil {
 		t.Fatal(err)
 	}
-	path := filepath.Join(filepath.Dir(f.db.path), "host-spool", f.hello.LaunchID, g.AttemptID, g.SegmentID, "result-output.bin")
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(path, []byte(reviewDiagnosticBody), 0600); err != nil {
-		t.Fatal(err)
-	}
+	ref := managedHostArtifactForTest(t, f.db, g, "terminal", 0, []byte(reviewDiagnosticBody))
 	e := contract.Event{Version: 1, ProducerID: f.host, RunID: g.RunID, TaskID: g.TaskID, AttemptID: g.AttemptID, SegmentID: g.SegmentID, WorkRevision: g.WorkRevision, ExecutionEpoch: 1, CommandID: g.CommandID, Process: &contract.ProcessIdentity{PID: 300, PGID: 300, Birth: "review-worker"}, Sequence: 4}
 	for _, kind := range []string{contract.EventPrepared, contract.EventSpawned, contract.EventRunning, contract.EventFailed, contract.EventExited} {
 		e.Sequence++
@@ -47,7 +41,7 @@ func diagnosticReviewFixturePrepared(t *testing.T, provider adapter.Provider, pl
 		if kind == contract.EventFailed || kind == contract.EventExited {
 			exit := 7
 			e.ExitCode, e.ActiveMS = &exit, 1
-			e.Artifact = &contract.ArtifactRef{ID: "result-output.bin", Path: path, Size: int64(len(reviewDiagnosticBody)), SHA256: runtimeHash(reviewDiagnosticBody)}
+			e.Artifact = ref
 			e.PayloadHash = e.Artifact.SHA256
 		}
 		if _, err := f.db.CommitHostEvent(context.Background(), e); err != nil {

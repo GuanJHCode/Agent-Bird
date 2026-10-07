@@ -10,7 +10,12 @@ func hostArtifactControlBytes(t *testing.T, db *DB, segment string) int64 {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return n
+	var metadata int64
+	err = db.sql.QueryRow(`SELECT COALESCE(SUM(64+length(CAST(m.reservation_id AS BLOB))+length(CAST(m.run_id AS BLOB))+m.reserved_bytes),0) FROM managed_host_artifact_metadata m JOIN managed_artifact_reservations r ON r.id=m.reservation_id WHERE (?='' OR r.scope_key=?)`, segment, segment).Scan(&metadata)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return n + metadata
 }
 
 // New identifiers have a prefix and 24 hex characters. Host grants use two
@@ -19,5 +24,6 @@ func nextHostArtifactControlBytes(run, task, producer, attempt string) int64 {
 	if attempt == "" {
 		attempt = "attempt-" + "012345678901234567890123"
 	}
-	return 2 * int64(64+len("artifact-reservation-")+24+len(run)+len(task)+len(attempt)+len(producer)+len("terminal")+len("segment-")+24+64+len("reserved")+30)
+	return 2*int64(64+len("artifact-reservation-")+24+len(run)+len(task)+len(attempt)+len(producer)+len("terminal")+len("segment-")+24+64+len("reserved")+30) +
+		2*int64(64+len("artifact-reservation-")+24+len(run)) + 22*1024
 }

@@ -310,7 +310,7 @@ func TestDeadlineNormalExitRaceKeepsTerminalConsistency(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		grant := contract.LaunchCommand{CommandID: fmt.Sprintf("race-command-%d", index), ReservationID: fmt.Sprintf("race-reservation-%d", index), RunID: "run", TaskID: fmt.Sprintf("task-%d", index), AttemptID: fmt.Sprintf("attempt-%d", index), SegmentID: fmt.Sprintf("segment-%d", index), WorkRevision: 1, GrantedActiveMS: 220}
+		grant := managedHostGrant(t, h, contract.LaunchCommand{CommandID: fmt.Sprintf("race-command-%d", index), ReservationID: fmt.Sprintf("race-reservation-%d", index), RunID: "run", TaskID: fmt.Sprintf("task-%d", index), AttemptID: fmt.Sprintf("attempt-%d", index), SegmentID: fmt.Sprintf("segment-%d", index), WorkRevision: 1, GrantedActiveMS: 220})
 		inv := launchInvocation{args: []string{"/bin/sh", "-c", fmt.Sprintf("sleep %.3f; echo raced-ok", float64(delayMS)/1000)}}
 		result, runErr := h.ExecuteLaunch(context.Background(), grant, inv)
 		sink := &durableSink{}
@@ -374,7 +374,7 @@ func TestRepeatedAndLateStopsDoNotDuplicateOrReviveTerminals(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	grant := contract.LaunchCommand{CommandID: "repeat-command", ReservationID: "repeat-reservation", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, GrantedActiveMS: 20_000}
+	grant := managedHostGrant(t, h, contract.LaunchCommand{CommandID: "repeat-command", ReservationID: "repeat-reservation", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, GrantedActiveMS: 20_000})
 	inv := launchInvocation{args: []string{"/bin/sh", "-c", "echo running; sleep 10; echo never"}}
 	done := make(chan contract.Result, 1)
 	go func() {
@@ -521,7 +521,7 @@ exit 0`
 		Path: "/bin/sh", Args: []string{"-c", script}, Dir: dir,
 		Env: []string{"G1_RELEASE_LEADER=" + releaseLeader, "G1_STOP_HOLDER=" + stopHolder,
 			"G1_HOLDER_READY=" + holderReady, "G1_HOLDER_DONE=" + holderDone},
-	}, false, launchMetadata{commandID: "hold-command", workRevision: 1, outputProvider: "claude-code"})
+	}, false, launchMetadata{commandID: "hold-command", workRevision: 1, outputProvider: "claude-code", artifactGrant: metadataForLaunch(managedHostGrant(t, h, contract.LaunchCommand{CommandID: "hold-command", RunID: "hold-run", TaskID: a.TaskID, AttemptID: a.ID, SegmentID: a.SegmentID, WorkRevision: 1})).artifactGrant})
 	if time.Since(started) > 35*time.Second {
 		t.Fatal("held-pipe decision exceeded execution and bounded stop windows")
 	}

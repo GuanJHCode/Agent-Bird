@@ -1046,7 +1046,7 @@ func sourceHost(parent context.Context, args []string) error {
 			if json.Unmarshal(grant.AdapterPayload, &discriminator) == nil && discriminator.Kind == "gitops" {
 				return gitopsworker.BuildInvocation(grant.AdapterPayload, executable, bootstrap.SpoolRoot, grant.CommandID)
 			}
-			return invocationForGrant(ctx, grant)
+			return invocationForGrant(ctx, grant, filepath.Join(state, "host-spool"))
 		},
 	})
 	if err == nil || errors.Is(err, context.Canceled) {
@@ -1078,7 +1078,7 @@ func (i localInvocation) Environment() map[string]string {
 	return out
 }
 
-func invocationForGrant(ctx context.Context, grant contract.LaunchCommand) (contract.InvocationView, error) {
+func invocationForGrant(ctx context.Context, grant contract.LaunchCommand, hostSpoolParent ...string) (contract.InvocationView, error) {
 	if err := contract.ValidateDependencyInputs(grant); err != nil {
 		return nil, err
 	}
@@ -1105,7 +1105,7 @@ func invocationForGrant(ctx context.Context, grant contract.LaunchCommand) (cont
 		if action.Operation != "review" || payload.Profile == nil || payload.Profile.Role != adapter.Reviewer || payload.Profile.Permission != adapter.ReadOnly {
 			return nil, codeError("candidate_action_invalid")
 		}
-		brief, err := host.CandidateReviewPrompt(grant)
+		brief, err := host.CandidateReviewPrompt(grant, hostSpoolParent...)
 		if err != nil {
 			return nil, err
 		}
@@ -1468,17 +1468,46 @@ func parseStateOnly(args []string) (string, error) {
 }
 
 func resolveState(value string) (string, error) {
-	if value != "" {
-		if !filepath.IsAbs(value) || filepath.Clean(value) != value {
-			return "", codeError("path_not_absolute")
+	if value == "" {
+		base, err := os.UserConfigDir()
+		if err != nil {
+			return "", err
 		}
-		return value, nil
+		value = filepath.Join(base, "OpenAI", "Codex Orchestrator")
 	}
-	base, err := os.UserConfigDir()
-	if err != nil {
+	if !filepath.IsAbs(value) || filepath.Clean(value) != value {
+		return "", codeError("path_not_absolute")
+	}
+	// Preserve the private state-directory boundary: the leaf itself cannot be
+	// a symlink. Resolve existing ancestors (including macOS /tmp and /var)
+	// once, before deriving DB, spool, socket or capability paths.
+	if info, err := os.Lstat(value); err == nil {
+		if info.Mode()&os.ModeSymlink != 0 {
+			return "", codeError("untrusted_state_dir")
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
 		return "", err
 	}
-	return filepath.Join(base, "OpenAI", "Codex Orchestrator"), nil
+	// Never EvalSymlinks on the leaf after inspecting it: if it is replaced
+	// meanwhile, PrepareStateDir must still see and reject that symlink.
+	parent := filepath.Dir(value)
+	suffix := []string{filepath.Base(value)}
+	for {
+		if _, err := os.Lstat(parent); err == nil {
+			real, err := filepath.EvalSymlinks(parent)
+			if err != nil {
+				return "", err
+			}
+			for i := len(suffix) - 1; i >= 0; i-- {
+				real = filepath.Join(real, suffix[i])
+			}
+			return real, nil
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return "", err
+		}
+		suffix = append(suffix, filepath.Base(parent))
+		parent = filepath.Dir(parent)
+	}
 }
 
 func resolvedExecutable() (string, error) {

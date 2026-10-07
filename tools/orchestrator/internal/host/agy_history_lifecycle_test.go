@@ -17,6 +17,8 @@ func TestAGYHistoryLifecycleSealsBeforeQuestion(t *testing.T) {
 	for _, state := range []string{"present", "missing", "symlink", "partial_stage", "sqlite_clean", "sqlite_sidecar"} {
 		t.Run(state, func(t *testing.T) {
 			h, cmd, profile, g, _ := agyHistoryFixture(t)
+			g.CommandID = "history-command-" + g.SegmentID
+			g = managedHostGrant(t, h, g)
 			if err := h.recordContinuationOrigin(g, nil); err != nil {
 				t.Fatal(err)
 			}
@@ -61,7 +63,7 @@ func TestAGYHistoryLifecycleSealsBeforeQuestion(t *testing.T) {
 				local.Args = append(local.Args, state)
 			}
 			var original *process.Handle
-			meta := launchMetadata{completionMode: adapter.TaskCompletionV1, requireSession: true, outputProvider: "antigravity-cli",
+			meta := launchMetadata{commandID: g.CommandID, artifactGrant: metadataForLaunch(g).artifactGrant, completionMode: adapter.TaskCompletionV1, requireSession: true, outputProvider: "antigravity-cli",
 				workRevision: 1, agyHistoryGrant: &g, afterWait: func(p *process.Handle, _ context.Context, _ error) { original = p }}
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			defer cancel()
@@ -118,6 +120,8 @@ func TestAGYHistoryLifecycleStopPreservesFactsWhenSealUnavailable(t *testing.T) 
 	for _, state := range []string{"present", "missing", "no_session", "sqlite_clean", "sqlite_sidecar"} {
 		t.Run(state, func(t *testing.T) {
 			h, cmd, profile, g, originalApp := agyHistoryFixture(t)
+			g.CommandID = "history-command-" + g.SegmentID
+			g = managedHostGrant(t, h, g)
 			if err := h.recordContinuationOrigin(g, nil); err != nil {
 				t.Fatal(err)
 			}
@@ -146,7 +150,7 @@ func TestAGYHistoryLifecycleStopPreservesFactsWhenSealUnavailable(t *testing.T) 
 				local.Args = append(local.Args, state)
 			}
 			var original *process.Handle
-			meta := launchMetadata{completionMode: adapter.TaskCompletionV1, requireSession: true, outputProvider: "antigravity-cli", workRevision: 1, agyHistoryGrant: &g,
+			meta := launchMetadata{commandID: g.CommandID, artifactGrant: metadataForLaunch(g).artifactGrant, completionMode: adapter.TaskCompletionV1, requireSession: true, outputProvider: "antigravity-cli", workRevision: 1, agyHistoryGrant: &g,
 				afterWait: func(p *process.Handle, _ context.Context, _ error) { original = p }}
 			ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 			defer cancel()
@@ -219,6 +223,8 @@ func TestAGYHistoryLifecycleStopPreservesFactsWhenSealUnavailable(t *testing.T) 
 
 func TestAGYHistoryLifecycleUnknownNeverSealsCompleteNativeState(t *testing.T) {
 	h, cmd, profile, g, originalApp := agyHistoryFixture(t)
+	g.CommandID = "history-command-" + g.SegmentID
+	g = managedHostGrant(t, h, g)
 	if err := h.recordContinuationOrigin(g, nil); err != nil {
 		t.Fatal(err)
 	}
@@ -236,7 +242,7 @@ func TestAGYHistoryLifecycleUnknownNeverSealsCompleteNativeState(t *testing.T) {
 	terminal := `{"event":"result","result":{"conversation_id":"` + session + `","status":"SUCCESS","response":"fixture commentary","structured_output":{"version":1,"kind":"technical_question","text":"fixture question"}}}`
 	local := process.Command{Path: "/bin/sh", Dir: cmd.Dir, Args: []string{"-c", `printf complete-state > "$1"; printf '%s\n' "$2" "$3"`, "owned-AGY-first-canceled-stop", path, init, terminal}}
 	var original *process.Handle
-	meta := launchMetadata{completionMode: adapter.TaskCompletionV1, requireSession: true, outputProvider: "antigravity-cli", workRevision: 1, agyHistoryGrant: &g,
+	meta := launchMetadata{commandID: g.CommandID, artifactGrant: metadataForLaunch(g).artifactGrant, completionMode: adapter.TaskCompletionV1, requireSession: true, outputProvider: "antigravity-cli", workRevision: 1, agyHistoryGrant: &g,
 		afterWait: func(p *process.Handle, _ context.Context, waitErr error) {
 			original = p
 			if waitErr != nil {

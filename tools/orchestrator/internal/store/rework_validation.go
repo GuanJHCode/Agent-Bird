@@ -71,15 +71,22 @@ func readReworkEventScope(ctx context.Context, tx *sql.Tx, task *reworkTask, exp
 		return e, artifact, CodeError("rework_review_not_rejected")
 	}
 	e.EventRevision, e.ActionSlot = rev, slot
-	artifact, err = readReworkArtifact(e)
+	artifact, err = readReworkArtifact(ctx, tx, e)
 	return e, artifact, err
 }
 
-func readReworkArtifact(e contract.Event) (reworkArtifact, error) {
+func readReworkArtifact(ctx context.Context, tx *sql.Tx, e contract.Event) (reworkArtifact, error) {
 	var artifact reworkArtifact
 	ref := e.Artifact
 	if ref == nil || !filepath.IsAbs(ref.Path) || ref.Size < 1 || ref.Size > 1024*1024 || ref.SHA256 != e.PayloadHash {
 		return artifact, CodeError("rework_artifact_invalid")
+	}
+	if e.Artifact.HostArtifact != nil {
+		body, err := readCommittedHostArtifact(ctx, tx, e, 1024*1024)
+		if err != nil || json.Unmarshal(body, &artifact) != nil {
+			return artifact, CodeError("rework_artifact_invalid")
+		}
+		return artifact, nil
 	}
 	f, err := os.OpenFile(ref.Path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
 	if err != nil {

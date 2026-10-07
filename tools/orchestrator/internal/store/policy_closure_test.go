@@ -33,7 +33,7 @@ func TestPolicyTerminalRejectionClosesOnlyItsDependents(t *testing.T) {
 				t.Fatal(err)
 			}
 			if mode == "backoff-exhausted" {
-				if _, err := f.db.CommitHostEvent(ctx, policyRejection(&f, "probe_start_eagain")); err != nil {
+				if _, err := f.db.CommitHostEvent(ctx, policyRejection(t, &f, "probe_start_eagain")); err != nil {
 					t.Fatal(err)
 				}
 				if _, err := f.db.sql.Exec(`UPDATE retry_decisions SET eligible_at_unix_ms=1`); err != nil {
@@ -45,7 +45,7 @@ func TestPolicyTerminalRejectionClosesOnlyItsDependents(t *testing.T) {
 				}
 				f.grant = g
 			}
-			e := policyRejection(&f, "probe_start_eagain")
+			e := policyRejection(t, &f, "probe_start_eagain")
 			if mode == "unclassified" {
 				e.Failure = nil
 			}
@@ -100,7 +100,7 @@ func TestPolicyPendingTimeCannotBeStolen(t *testing.T) {
 	}
 	f := newPolicyFixture(t, []TaskSpec{a, b})
 	ctx := context.Background()
-	if _, err := f.db.CommitHostEvent(ctx, policyRejection(&f, "probe_start_eagain")); err != nil {
+	if _, err := f.db.CommitHostEvent(ctx, policyRejection(t, &f, "probe_start_eagain")); err != nil {
 		t.Fatal(err)
 	}
 	g, err := f.db.ClaimReady(ctx, f.host, 1, 2)
@@ -141,7 +141,7 @@ func TestPolicyCancelRetiresPendingPromiseAndFreesTime(t *testing.T) {
 	}
 	f := newPolicyFixture(t, []TaskSpec{a, b})
 	ctx := context.Background()
-	if _, err := f.db.CommitHostEvent(ctx, policyRejection(&f, "probe_start_eagain")); err != nil {
+	if _, err := f.db.CommitHostEvent(ctx, policyRejection(t, &f, "probe_start_eagain")); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := f.db.RequestStop(ctx, "a", 1, "owner_stop_requested"); err != nil {
@@ -168,7 +168,7 @@ func TestPolicyProviderDisableRetiresRetryAndDependencies(t *testing.T) {
 			b.Dependencies = []string{"a"}
 			f := newPolicyFixture(t, []TaskSpec{a, b})
 			ctx := context.Background()
-			e := policyRejection(&f, "probe_start_eagain")
+			e := policyRejection(t, &f, "probe_start_eagain")
 			if when == "during-backoff" {
 				if _, err := f.db.CommitHostEvent(ctx, e); err != nil {
 					t.Fatal(err)
@@ -266,7 +266,7 @@ func TestPolicyOwnerStopBeforeRejectionCannotRestart(t *testing.T) {
 	if _, err := f.db.RequestStop(ctx, "a", 1, "owner_stop_requested"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := f.db.CommitHostEvent(ctx, policyRejection(&f, "probe_start_eagain")); err != nil {
+	if _, err := f.db.CommitHostEvent(ctx, policyRejection(t, &f, "probe_start_eagain")); err != nil {
 		t.Fatal(err)
 	}
 	var promises int
@@ -292,7 +292,7 @@ func TestPolicyHoldCannotGrowAfterAnotherAttemptRefunds(t *testing.T) {
 		t.Fatalf("second=%+v %v", second, err)
 	}
 	f.grant = second
-	if _, err = f.db.CommitHostEvent(ctx, policyRejection(&f, "probe_start_eagain")); err != nil {
+	if _, err = f.db.CommitHostEvent(ctx, policyRejection(t, &f, "probe_start_eagain")); err != nil {
 		t.Fatal(err)
 	}
 	f.grant = first

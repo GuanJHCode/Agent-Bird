@@ -15,7 +15,6 @@ import (
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/artifacts"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/events"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
 )
@@ -69,10 +68,6 @@ func TestLaunchFailureCollectsSafeDiagnostic(t *testing.T) {
 			if e.Artifact.ID != "launch-failure" || e.Artifact.HostArtifact == nil {
 				t.Fatalf("diagnostic occupied candidate path: %+v", e.Artifact)
 			}
-			_, recovered, recoverErr := readRecoveredLaunchFailure(e.Artifact.Path)
-			if recoverErr != nil || string(recovered) != tc.code {
-				t.Fatalf("diagnostic recovery: %s %v", recovered, recoverErr)
-			}
 			body, err := os.ReadFile(e.Artifact.Path)
 			if err != nil {
 				t.Fatal(err)
@@ -102,6 +97,14 @@ func TestLaunchFailureCollectsSafeDiagnostic(t *testing.T) {
 			}
 			if meta.artifactGrant == nil || desc.ReservationID != meta.artifactGrant.HostArtifacts.TerminalReservationID || desc.ScopeSHA256 != meta.artifactGrant.HostArtifacts.ScopeSHA256 || desc.Class != "terminal" || desc.Index != 0 || desc.Kind != "prelaunch" || artifacts.VerifyHostSlotAndCommit(context.Background(), root, desc, proof, func() error { return nil }) != nil {
 				t.Fatalf("failure receipt is not bound to its managed terminal slot: %+v", desc)
+			}
+			verifiedBody, recoverErr := artifacts.ReadVerifiedHostSlot(context.Background(), root, desc, proof)
+			if recoverErr != nil {
+				t.Fatal(recoverErr)
+			}
+			recovered, recoverErr := decodeRecoveredLaunchFailure(verifiedBody)
+			if recoverErr != nil || string(recovered) != tc.code {
+				t.Fatalf("diagnostic recovery: %s %v", recovered, recoverErr)
 			}
 		})
 	}
@@ -287,7 +290,8 @@ func (s launchFailureDBSink) SendEvent(ctx context.Context, _ uint64, e contract
 // An artifact must not upgrade failed status into an acceptable candidate.
 func TestLaunchFailureDiagnosticCannotBeAcceptedOrReleaseCandidateDependency(t *testing.T) {
 	ctx := context.Background()
-	db, err := store.Open(filepath.Join(t.TempDir(), "state.db"))
+	state := t.TempDir()
+	db, err := store.Open(filepath.Join(state, "state.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -307,13 +311,13 @@ func TestLaunchFailureDiagnosticCannotBeAcceptedOrReleaseCandidateDependency(t *
 	if err != nil {
 		t.Fatal(err)
 	}
-	spoolRoot := filepath.Join(t.TempDir(), "spool")
+	spoolRoot := filepath.Join(state, "host-spool", id)
 	h, err := NewIPC(spoolRoot, id)
 	if err != nil {
 		t.Fatal(err)
 	}
 	a := store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID}
-	if err = h.recordLaunchFailed(a, "r", a.TaskID, launchMetadata{commandID: grant.CommandID, workRevision: grant.WorkRevision, executionEpoch: 1}, errors.New("invalid_json")); err != nil {
+	if err = h.recordLaunchFailed(a, "r", a.TaskID, metadataForLaunch(grant), errors.New("invalid_json")); err != nil {
 		t.Fatal(err)
 	}
 	if err = h.PublishAll(ctx, launchFailureDBSink{db}, 1); err != nil {
@@ -507,24 +511,28 @@ func TestLaunchFailureRecoveryRejectsUntrustedDiagnostic(t *testing.T) {
 				t.Fatal(err)
 			}
 			a := store.Attempt{ID: "a", TaskID: "t", SegmentID: "s"}
-			if _, err = h.spool(a); err != nil {
+			validBody := []byte(valid)
+			ref, err := h.writeHostArtifact(metadataForLaunch(grant), "terminal", 0, "prelaunch", "launch-failure", validBody)
+			if err != nil {
 				t.Fatal(err)
 			}
-			dir := filepath.Join(root, "a", "s", "launch-failure")
-			if _, err = events.Open(dir); err != nil {
-				t.Fatal(err)
-			}
-			path := filepath.Join(dir, "result-output.bin")
+			path := ref.Path
 			target := path
 			if tc.symlink {
 				target = filepath.Join(t.TempDir(), "outside")
 			}
-			mode := os.FileMode(0600)
-			if tc.public {
-				mode = 0644
+			if tc.symlink {
+				if err = os.Remove(path); err != nil {
+					t.Fatal(err)
+				}
 			}
-			if err = os.WriteFile(target, []byte(tc.body), mode); err != nil {
+			if err = os.WriteFile(target, []byte(tc.body), 0600); err != nil {
 				t.Fatal(err)
+			}
+			if tc.public {
+				if err = os.Chmod(path, 0644); err != nil {
+					t.Fatal(err)
+				}
 			}
 			if tc.symlink {
 				if err = os.Symlink(target, path); err != nil {

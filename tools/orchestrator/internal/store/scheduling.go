@@ -198,7 +198,9 @@ func (d *DB) ClaimReady(ctx context.Context, hostID string, epoch uint64, slots 
 	if err = tx.QueryRowContext(ctx, `SELECT total_bytes FROM storage_usage WHERE scope='global' AND scope_id=''`).Scan(&controlAfter); err != nil {
 		return rollback(err)
 	}
-	if err = d.managedArtifactAdmission(ctx, tx, 0, controlAfter-controlBefore); err != nil {
+	// The manifest pool remains charged in control quota. Its not-yet-written
+	// physical bytes are already included in the outstanding metadata promise.
+	if err = d.managedArtifactAdmission(ctx, tx, 0, controlAfter-controlBefore-hostArtifactManifestReservationBytes); err != nil {
 		return rollback(err)
 	}
 

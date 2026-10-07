@@ -184,16 +184,12 @@ func (f *dagReworkFixture) publish(t *testing.T, g contract.LaunchCommand, rejec
 	if err != nil {
 		t.Fatal(err)
 	}
-	path := filepath.Join(f.dir, g.SegmentID+".json")
-	if err = os.WriteFile(path, raw, 0600); err != nil {
-		t.Fatal(err)
-	}
 	f.seq++
 	kind := contract.EventResult
 	if reject {
 		kind = contract.EventFailed
 	}
-	e := contract.Event{Version: 1, ProducerID: f.host, EventID: g.SegmentID + "-result", RunID: g.RunID, TaskID: g.TaskID, AttemptID: g.AttemptID, SegmentID: g.SegmentID, WorkRevision: g.WorkRevision, ExecutionEpoch: 1, CommandID: g.CommandID, Sequence: f.seq, Kind: kind, PayloadHash: runtimeHash(string(raw)), Artifact: &contract.ArtifactRef{ID: g.TaskID, Path: path, Size: int64(len(raw)), SHA256: runtimeHash(string(raw))}}
+	e := contract.Event{Version: 1, ProducerID: f.host, EventID: g.SegmentID + "-result", RunID: g.RunID, TaskID: g.TaskID, AttemptID: g.AttemptID, SegmentID: g.SegmentID, WorkRevision: g.WorkRevision, ExecutionEpoch: 1, CommandID: g.CommandID, Sequence: f.seq, Kind: kind, PayloadHash: runtimeHash(string(raw)), Artifact: managedHostArtifactForTest(t, f.db, g, "terminal", 0, raw)}
 	if _, err = f.db.CommitHostEvent(ctx, e); err != nil {
 		t.Fatal(err)
 	}

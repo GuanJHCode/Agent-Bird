@@ -28,7 +28,7 @@ func TestBatchStopIsolatesSameHostSiblingAndOtherHostIdentity(t *testing.T) {
 	done := []chan contract.Result{make(chan contract.Result, 1), make(chan contract.Result, 1), make(chan contract.Result, 1)}
 	for index, owner := range owners {
 		marker := filepath.Join(root, fmt.Sprint(index))
-		grant := contract.LaunchCommand{CommandID: "command-" + segments[index], ReservationID: "reservation-" + segments[index], RunID: "run", TaskID: segments[index], AttemptID: "attempt-" + segments[index], SegmentID: segments[index], WorkRevision: 1, GrantedActiveMS: 10000}
+		grant := managedHostGrant(t, owner, contract.LaunchCommand{CommandID: "command-" + segments[index], ReservationID: "reservation-" + segments[index], RunID: "run", TaskID: segments[index], AttemptID: "attempt-" + segments[index], SegmentID: segments[index], WorkRevision: 1, GrantedActiveMS: 10000})
 		go func() {
 			result, _ := owner.ExecuteLaunch(ctx, grant, launchInvocation{args: []string{"/bin/sh", "-c", `echo ready > "$MARKER"; while :; do sleep 0.02; done`}, env: map[string]string{"MARKER": marker}})
 			done[index] <- result
@@ -98,7 +98,7 @@ func TestBatchOwnerStopAndNaturalResultHaveOneTerminalOutcome(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 			marker := filepath.Join(root, "started")
-			grant := contract.LaunchCommand{CommandID: "command", ReservationID: "reservation", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, GrantedActiveMS: 3000}
+			grant := managedHostGrant(t, owner, contract.LaunchCommand{CommandID: "command", ReservationID: "reservation", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, GrantedActiveMS: 3000})
 			finished := make(chan contract.Result, 1)
 			go func() {
 				result, _ := owner.ExecuteLaunch(ctx, grant, launchInvocation{args: []string{"/bin/sh", "-c", `echo ready > "$MARKER"; sleep 0.04; echo result`}, env: map[string]string{"MARKER": marker}})

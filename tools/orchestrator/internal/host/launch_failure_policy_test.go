@@ -40,7 +40,7 @@ func TestLaunchFailurePolicyFactsSpoolAndStore(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			h, err := NewIPC(filepath.Join(root, "spool"), hostID)
+			h, err := NewIPC(filepath.Join(root, "host-spool", hostID), hostID)
 			if err != nil {
 				t.Fatal(err)
 			}

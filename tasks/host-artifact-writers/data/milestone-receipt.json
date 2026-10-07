@@ -1,0 +1,399 @@
+{
+  "status": "partial_milestone_not_full_F02_or_F01_F13",
+  "base": "d43124ee3f69697294d93fddcbc25e3e34c91155",
+  "checks": [
+    {
+      "path": "tasks/host-artifact-writers/data/artifacts-contract-race-v3.jsonl",
+      "sha256": "98d1d15b2c34ccfcb27076dc8ad932eeb5ffec9b98a3e354949cb60192506e41",
+      "packages": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/artifacts": {
+          "top": {
+            "pass": 19
+          },
+          "named": {
+            "pass": 65
+          },
+          "terminal": [
+            {
+              "Time": "2026-10-07T18:53:01.064336+08:00",
+              "Action": "pass",
+              "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/artifacts",
+              "Elapsed": 3.987
+            }
+          ],
+          "skipped": []
+        },
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract": {
+          "top": {
+            "pass": 42
+          },
+          "named": {
+            "pass": 282
+          },
+          "terminal": [
+            {
+              "Time": "2026-10-07T18:52:59.049605+08:00",
+              "Action": "pass",
+              "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+              "Elapsed": 1.972
+            }
+          ],
+          "skipped": []
+        }
+      }
+    },
+    {
+      "path": "tasks/host-artifact-writers/data/events-retired-writer.jsonl",
+      "sha256": "c79a7f308852f0882321217f3e9426faef89172b62689d2e9105f8418d4b54d1",
+      "packages": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/events": {
+          "top": {
+            "pass": 6
+          },
+          "named": {
+            "pass": 13
+          },
+          "terminal": [
+            {
+              "Time": "2026-10-07T19:09:38.634061+08:00",
+              "Action": "pass",
+              "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/events",
+              "Elapsed": 0.909
+            }
+          ],
+          "skipped": []
+        }
+      }
+    },
+    {
+      "path": "tasks/host-artifact-writers/data/store-host-cli-final.jsonl",
+      "sha256": "3fb2b368a1af790086b8c73119935f73bed9b693923c17487171647f95ec19b2",
+      "packages": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator": {
+          "top": {
+            "pass": 204,
+            "fail": 7,
+            "skip": 5
+          },
+          "named": {
+            "pass": 473,
+            "fail": 15,
+            "skip": 5
+          },
+          "terminal": [
+            {
+              "Time": "2026-10-07T19:43:01.508057+08:00",
+              "Action": "fail",
+              "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+              "Elapsed": 408.042
+            }
+          ],
+          "skipped": [
+            "TestB07InstalledConfigHookNextInputOriginalOwnerACK",
+            "TestB07InstalledClaudeConfigNextInputOriginalOwnerACK",
+            "TestDiagnosticsCLIHelperProcess",
+            "TestRealClaudeManagedCandidate",
+            "TestRealClaudeReviewerProfile"
+          ]
+        },
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host": {
+          "top": {
+            "pass": 404,
+            "skip": 16
+          },
+          "named": {
+            "pass": 1551,
+            "skip": 16
+          },
+          "terminal": [
+            {
+              "Time": "2026-10-07T19:40:41.152329+08:00",
+              "Action": "pass",
+              "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+              "Elapsed": 269.353
+            }
+          ],
+          "skipped": [
+            "TestAGYHistorySandboxFileAPIHelper",
+            "TestAGYHistorySandboxPermissions",
+            "TestManagedCodexSandboxCanonicalizationAPIActor",
+            "TestManagedCodexFinalCaptureActor",
+            "TestCodexNestedSandboxMatrixActor",
+            "TestCodexNestedRuleIsolationMatrixActor",
+            "TestCodexNestedFromNoopMatrixActor",
+            "TestManagedCodexRetainedPipeActor",
+            "TestManagedCodexDiagnosticActor",
+            "TestManagedCodexActorHelperProcess",
+            "TestManagedCodexSandboxFileAPIHelperProcess",
+            "TestManagedCodexSandboxFileAPIActor",
+            "TestManagedCodexSandboxLinkAPIHelperProcess",
+            "TestManagedCodexSandboxLinkAPIActor",
+            "TestNativeCodingHost",
+            "TestNativeSchemaContract"
+          ]
+        },
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store": {
+          "top": {
+            "pass": 413
+          },
+          "named": {
+            "pass": 1167
+          },
+          "terminal": [
+            {
+              "Time": "2026-10-07T19:38:32.224248+08:00",
+              "Action": "pass",
+              "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+              "Elapsed": 140.551
+            }
+          ],
+          "skipped": []
+        }
+      }
+    },
+    {
+      "path": "tasks/host-artifact-writers/data/store-consumers-final-race.jsonl",
+      "sha256": "a33fd274a349d449eb22f60cbdeddf6a052fd6f37a88b2df0c436942cdd158aa",
+      "packages": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store": {
+          "top": {
+            "pass": 30
+          },
+          "named": {
+            "pass": 88
+          },
+          "terminal": [
+            {
+              "Time": "2026-10-07T19:54:17.85533+08:00",
+              "Action": "pass",
+              "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+              "Elapsed": 274.285
+            }
+          ],
+          "skipped": []
+        }
+      }
+    },
+    {
+      "path": "tasks/host-artifact-writers/data/store-managed-race-v1.jsonl",
+      "sha256": "35a10fa5c428d98fb8270f1aba20b6b668086e840ba2f506d7e50ef5934cb3e0",
+      "packages": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store": {
+          "top": {
+            "pass": 27
+          },
+          "named": {
+            "pass": 95
+          },
+          "terminal": [
+            {
+              "Time": "2026-10-07T19:09:06.334009+08:00",
+              "Action": "pass",
+              "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+              "Elapsed": 189.916
+            }
+          ],
+          "skipped": []
+        }
+      }
+    },
+    {
+      "path": "tasks/host-artifact-writers/data/cli-managed-final-focused.jsonl",
+      "sha256": "697559e21329f6979a6e982d85b15ac8040cb540f3054d66d81d1e7287d00e40",
+      "packages": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator": {
+          "top": {
+            "pass": 7,
+            "fail": 2
+          },
+          "named": {
+            "pass": 37,
+            "fail": 2
+          },
+          "terminal": [
+            {
+              "Time": "2026-10-07T19:52:09.787038+08:00",
+              "Action": "fail",
+              "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+              "Elapsed": 71.729
+            }
+          ],
+          "skipped": []
+        }
+      }
+    },
+    {
+      "path": "tasks/host-artifact-writers/data/cli-candidate-path-final-race.jsonl",
+      "sha256": "d3dadb811220c6fe1cce7301a7aa7be738ec13047419047482fa4a57bbc20f50",
+      "packages": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator": {
+          "top": {
+            "pass": 5
+          },
+          "named": {
+            "pass": 35
+          },
+          "terminal": [
+            {
+              "Time": "2026-10-07T20:05:48.570011+08:00",
+              "Action": "pass",
+              "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+              "Elapsed": 53.66
+            }
+          ],
+          "skipped": []
+        }
+      }
+    },
+    {
+      "path": "tasks/host-artifact-writers/data/cli-state-path-final-race.jsonl",
+      "sha256": "f98e739b7a07a3af3b6446514c69cea0100f3bfbdfa2c88c0a2b0048e909774a",
+      "packages": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator": {
+          "top": {
+            "pass": 3
+          },
+          "named": {
+            "pass": 3
+          },
+          "terminal": [
+            {
+              "Time": "2026-10-07T19:56:41.687587+08:00",
+              "Action": "pass",
+              "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+              "Elapsed": 1.5939999999999999
+            }
+          ],
+          "skipped": []
+        }
+      }
+    },
+    {
+      "path": "tasks/host-artifact-writers/data/cli-resume-debug.jsonl",
+      "sha256": "bc508ae41b775f93b5c650a54b8021bcd0ab82ac82804900fc457d0ebc08c828",
+      "packages": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator": {
+          "top": {
+            "fail": 1
+          },
+          "named": {
+            "fail": 1
+          },
+          "terminal": [
+            {
+              "Time": "2026-10-07T19:55:20.699671+08:00",
+              "Action": "fail",
+              "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+              "Elapsed": 9.799
+            }
+          ],
+          "skipped": []
+        }
+      }
+    }
+  ],
+  "sources": {
+    "tools/orchestrator/cmd/orchestrator/candidate_delivery_test.go": "7a1c8998d29cee6a609732559fe23b9422a7cc0ba33f90aaad61a645e5fd6bd3",
+    "tools/orchestrator/cmd/orchestrator/candidate_test.go": "3a618b2bf8feb2bfcddbe6834d7617b9cf9525d191ddc50b337f12520f861211",
+    "tools/orchestrator/cmd/orchestrator/host_artifact_fixture_test.go": "b96ea74204bb497c789b5110614b95417815aed2a903b1fdd723d66354482646",
+    "tools/orchestrator/cmd/orchestrator/indexed_candidate_delivery_test.go": "796757daf013f4b1e5a5e06a0e999e3a6839f6355dc328b0078d57dad6c178c4",
+    "tools/orchestrator/cmd/orchestrator/main.go": "36c52c2a3c2fb14d917777a6898d32feba216b3c2796e63f8db09883c4c128da",
+    "tools/orchestrator/cmd/orchestrator/original_owner.go": "e7bc125d8cdf6b0d8f4f25acd9134175ed13dd43477f3d44f13439ffde4e594f",
+    "tools/orchestrator/cmd/orchestrator/state_path_test.go": "1dd34d40e0d12e8385ee5f12fc85b2c3319fe7fb890ddb2fa15999d63cd49588",
+    "tools/orchestrator/go.mod": "de66f3a2bcfd7c31a74e2703979d7752bcbee350bf2300ccb7e203425b180b9f",
+    "tools/orchestrator/go.sum": "f1d01b4113f61f7212fb51fb291aa9af09ed586e88149bf6df1cced4fc0d92dd",
+    "tools/orchestrator/internal/events/events.go": "912b56e04d4a73417851cbbec52c669d15e751cdad0ad3e483412df01332519e",
+    "tools/orchestrator/internal/host/agy_history_lifecycle_test.go": "f2236708ce20578d5d865b5cbdae1c4f5fb864a496328256ce92cd469e3e3cca",
+    "tools/orchestrator/internal/host/candidate_test.go": "3de816406127cd364368996bb7bac22475778113c0436c3db8888990868f2497",
+    "tools/orchestrator/internal/host/codex_execute.go": "97202b07eec4cfc7ac3cd9a424d2eed62f385b9adac71c9aa509f4d83e83688a",
+    "tools/orchestrator/internal/host/core_source_rejection_test.go": "b234f582d82192f98cda327e124f66b060ba496b3280928875604be35e974230",
+    "tools/orchestrator/internal/host/delivery.go": "5472c786faf71109dccff4bc89b4b224e077b9c16cb250c2545523a53cf6a381",
+    "tools/orchestrator/internal/host/dependency_inputs_test.go": "4986ecfe6dd43bd0ef0a97c6a2591f51d13a9e954b3f37116cd5dcb9aac43c26",
+    "tools/orchestrator/internal/host/host.go": "8aa15cd5af9fb18817cfa99b7b1566975fae4df6445b81bd32224f9360a041ac",
+    "tools/orchestrator/internal/host/host_artifact_consumer.go": "e9ebe32b835d3d461e52caa4601d912e57320962ddd593c168b0595374482569",
+    "tools/orchestrator/internal/host/host_artifact_consumers_test.go": "8f135421d258610e7aae27be934a526a0286de9b311de5c28a468c538109898c",
+    "tools/orchestrator/internal/host/host_artifact_writer.go": "4c2f0e66d6fe676b10d753115dcfbb4e88154f105649364050fd677aee6d72b9",
+    "tools/orchestrator/internal/host/host_artifact_writer_test.go": "4ba61c8456142a78037f3c151531334120d11dd2fb70fe4639fa961ef31e2abe",
+    "tools/orchestrator/internal/host/host_test.go": "2bc6ad643e5f3a9cb0dc01c01dbd58ffa0e3ca3c0369ef928834ec5a32743cfc",
+    "tools/orchestrator/internal/host/indexed_review.go": "1f44ebead37bb5898ee69d3e084d0437415ee48559283361098842764863105f",
+    "tools/orchestrator/internal/host/interruption_test.go": "09f14aaaf3ac098ba4af0f33f525c7f1983020d005da9887227274647c30e1ad",
+    "tools/orchestrator/internal/host/launch_failure.go": "f599daa20660105992634e230c1a0fb398bab24d62d139baaa9801a03a47ee21",
+    "tools/orchestrator/internal/host/launch_failure_policy_test.go": "0f01c564bd103b4e3c5f549b5e407313f66fd44ce660054d55e6ffc012882fac",
+    "tools/orchestrator/internal/host/launch_failure_test.go": "8d772d627f65c01ac481c39df6e6a317d3848a9ef4871778ce938b96ce0d1cc5",
+    "tools/orchestrator/internal/host/launch_rejected_test.go": "aeac03cee3817672e884d00b96462273249f58a690eead727384bd18c0d2534e",
+    "tools/orchestrator/internal/host/managed_report_boundary_test.go": "dc2542039421274cf890bec214d68c5aed5a8552806a3374b3c321aaeeb267a0",
+    "tools/orchestrator/internal/host/multi_task_stop_test.go": "afb303f44b055b73c2e279f2483fd7e727af4dec11bfcfef170c753002c6eb44",
+    "tools/orchestrator/internal/host/prelaunch_cancel_test.go": "3ee28d44dd6044deac4f799980bd9429264659053a806d71abed86ffc564839e",
+    "tools/orchestrator/internal/host/prelaunch_source_test.go": "9a3e4c73109904b4f2e388b25a11e68ce5388690a2f664137aee7b2d38a5a992",
+    "tools/orchestrator/internal/host/progress.go": "1ac61422b749b6eb507d8aa724857666a9b6f64ca921bfa5d2d83b0f44cfd23a",
+    "tools/orchestrator/internal/host/source_runtime.go": "5a342b920f52a1e9a26e3b21d239e8cc747ecb76c582f9ff8b7072c6ebf5d1a4",
+    "tools/orchestrator/internal/host/source_test.go": "aec98a4b0894462afa8e0bcda510217ff64967785e28552a5a0c69373ea40213",
+    "tools/orchestrator/internal/host/stop_isolation_batch_test.go": "a6fca59a4db252b776ee7f11b206b0e0d504c0eca6130ac90e2adc36016ffdbc",
+    "tools/orchestrator/internal/host/stop_result_race_test.go": "eedb4a2c660140e625ca18ab650541a2021f97a793fdc74086ca5751afb56a0d",
+    "tools/orchestrator/internal/host/stop_timing_test.go": "8c59107d1b187a7406d30a96398b70385c5d63700ce57252e3b2fc7d61ca53dd",
+    "tools/orchestrator/internal/store/budget_revision_lifecycle_test.go": "cb8173e12cbe9a3b31b7b1ee3aa8ef3034e678d29eb24cbaeec940a622f5931b",
+    "tools/orchestrator/internal/store/budget_revision_promise_test.go": "53d68536a9051a5a7dd2a4db30184414542d14ca47a6c13dfbd94ec99091bd1f",
+    "tools/orchestrator/internal/store/candidate_input_test.go": "e96d40500f20f85ca4ba30844361814959dcc72be302856e5b2c0935c6f09f96",
+    "tools/orchestrator/internal/store/candidate_session_test.go": "68433528d4b85a645fdb3f55214a91c821d2bb20308fd7eebd0cf8436fc4aadf",
+    "tools/orchestrator/internal/store/continuation_quota_test.go": "82338776655d83e3b07807a4f1b70398d6b1dde11a7e6cb7e0534ef044433127",
+    "tools/orchestrator/internal/store/dag_rework_fixture_test.go": "755cc4fc0ffcf26a45ad9c4f26d446e699b3f24638ce0061bc2c557b0b3b0cf2",
+    "tools/orchestrator/internal/store/dag_rework_target.go": "f68b40023d7dfd2328e84bb8969f6996a417dc75b642e04696e9286b60ec8442",
+    "tools/orchestrator/internal/store/dag_rework_test.go": "528f3a3b1b12493d8451ea0274aa7b428c42b6a0e004957458bf8db60865a917",
+    "tools/orchestrator/internal/store/decision_attempt_chain_test.go": "cc2750684934c1e1c1c108c23b6fedceae070bc44c76b305bfae8e0a7e8600ed",
+    "tools/orchestrator/internal/store/decision_attempt_review_fix_test.go": "ad702711e599eac7f5b0924da1fe55247ea90ef1b98dbb18a3105308617fb0a8",
+    "tools/orchestrator/internal/store/delivery_consistency_batch_test.go": "2e2cde8ee04bf5ff7c4add001ba6735912112f934823986fb486da88a93753aa",
+    "tools/orchestrator/internal/store/delivery_consistency_matrix_test.go": "14666da7e2671d582e1774211a07ee3f2a1a2e8888ac4eb88ae398365cc1dca7",
+    "tools/orchestrator/internal/store/dependency_input_migration_test.go": "c13c4f04f5b8abc574e3b9c88e3f759561e3c27da8bb73a414dc2ae04756ec07",
+    "tools/orchestrator/internal/store/dependency_inputs_test.go": "423d3367ebefa9e1265706908718f9c26b9fd74b9d144b1662372ddfad3ea0ca",
+    "tools/orchestrator/internal/store/diagnostics_grant.go": "77c34304db3bffc4586e16c92953823e280db1f4343181ed946d37ed776dd0ff",
+    "tools/orchestrator/internal/store/diagnostics_grant_test.go": "dc2d0e7be3536030aa391486c587244edc04e65ed0568e29ea83c4e3da0fbb14",
+    "tools/orchestrator/internal/store/diagnostics_schema_test.go": "a2e604110eaba77271868ed21dcf4452aa7d542105a0b8b63426f172b964bbe7",
+    "tools/orchestrator/internal/store/exit_acceptance_guard_test.go": "843e5090f89aa5bd715d8bcf3069d1fb20ab72054ba81667cf265f2a1cfa78be",
+    "tools/orchestrator/internal/store/host_artifact_accounting.go": "77b60a42d0eceecdec9fbc52dfd41ff96ae708cb5e83b21cd114fc052fbeabb1",
+    "tools/orchestrator/internal/store/host_artifact_accounting_test.go": "ddc25e50c58dab3affc44ce74bc20976a80dbc2f9562a4c58c627a9bf85b7771",
+    "tools/orchestrator/internal/store/host_artifact_consumer.go": "c80e930dec61081e11e357826dcedd66b43b5052506bc617e71dfcb53c006429",
+    "tools/orchestrator/internal/store/host_artifact_consumers_test.go": "9ec5d309ebdc09fc597b335426c9da1613cd7394074d4eab4598ed93c6265827",
+    "tools/orchestrator/internal/store/host_artifact_fixture_test.go": "0f4d8a85f993a4f721235cc365750a3d3691b3ee5f05221224b2b374bf20f5ec",
+    "tools/orchestrator/internal/store/host_artifact_grant.go": "979d19b36627b6a61c89eb8e48f0abf331832122402aa7221c2b1390540e82a1",
+    "tools/orchestrator/internal/store/host_artifact_grant_test.go": "9c90b4dc85535c7c40e74d860d01da9d296225da1fda4c50f07625e0383e8a48",
+    "tools/orchestrator/internal/store/host_artifact_intake.go": "d225903f97cec622a36694fbd4907169b964847b77b205a781ba1add83df7b5b",
+    "tools/orchestrator/internal/store/host_artifact_intake_test.go": "f21cba4edae7aac67fe1c8355c43974506c7bd4897829f016c000160442dee6e",
+    "tools/orchestrator/internal/store/host_artifact_metadata_schema.go": "013e93ee0ab3936951fd6601bae5ad378731dd3ecb388c3e4d6640002f52983c",
+    "tools/orchestrator/internal/store/host_artifact_metadata_test.go": "01a39f0cf0a5c4ec35b07298dfea39d2a6d6ab79d5b7ed1668c75f117854e505",
+    "tools/orchestrator/internal/store/host_artifact_migration_test.go": "8679c0aa46e9b7dd10c20add652c119e40a63bbae729188a7c6528aefcf1465a",
+    "tools/orchestrator/internal/store/host_events.go": "2e732939bf96b948783b6c408a3e51997ccf55100979af11c818df29a3788e40",
+    "tools/orchestrator/internal/store/host_progress.go": "839cb8a060b42b3fe8af7ed2d9fff01d58408790cbd999ac155561a42cc48e31",
+    "tools/orchestrator/internal/store/indexed_review_accept.go": "280023d7eb1f9cba8322233fc475d8e72d5169251260cfff1ff05a50138dbae1",
+    "tools/orchestrator/internal/store/indexed_review_accept_test.go": "4a7443d88912c378121dc31e4e0181bea125dab8b90f9005cd3cdb4802cba8a0",
+    "tools/orchestrator/internal/store/interruption_test.go": "b15c2c32796bea130853be1e9e1f2d5f1838c83653a775315d873fde8dd50d3d",
+    "tools/orchestrator/internal/store/launch_rejected_test.go": "5b7782b89d4303aa50d9508b0dacdc63c5d1dd78be0e2de8a3356b902553526b",
+    "tools/orchestrator/internal/store/migrations.go": "aeb3ec9ecb74fff0d29af23fc036265f128947081c06390a89a6c311f52504d8",
+    "tools/orchestrator/internal/store/not_started_consumers_test.go": "25878cc57ebe8d33f0876aa000ac6e37da9daba66518e1383ef89bd6b777f76e",
+    "tools/orchestrator/internal/store/policy_closure_test.go": "230652acbf73206760cb225847a6e6cb6de77439c06e6425763784e3a56cc0b3",
+    "tools/orchestrator/internal/store/policy_hold_quota_test.go": "a9b0c1deee4f81314b626b5800160991e19ff8006ec7af82a96363125e1d4877",
+    "tools/orchestrator/internal/store/policy_retry_test.go": "1b8255d68529f92f0c895388d01ca8a775d997d09c321f81f852e3d69538b1b4",
+    "tools/orchestrator/internal/store/policy_review_identity_test.go": "852985c09c32b1ec06bccccc30e24cef24b415ffd3a2a8275ec557334fc3166d",
+    "tools/orchestrator/internal/store/prelaunch_stop_rejection_test.go": "1971294750e31f0955cec2f3c8b4e6939258ebd15f966b2a25b97603b3d4bc50",
+    "tools/orchestrator/internal/store/quota_bench_test.go": "a9fadbacbbce8306b632363f6bbec0957a105d1a43982f034920715590695aad",
+    "tools/orchestrator/internal/store/report_intake_schema_test.go": "031594ad7006e55853d0f546f0b36030da7c8e7db6efe3b24148b6cd4da17fff",
+    "tools/orchestrator/internal/store/report_intake_state_test.go": "29ce5aa927fb7dd5694ed402448f3b97a9db83bbc74fdba844e5a4c99592d0c6",
+    "tools/orchestrator/internal/store/review_failure_retry.go": "d173c406ba78b1889de74f0d177526afd79772beab477a611ad7ea53ee3966d7",
+    "tools/orchestrator/internal/store/review_failure_retry_test.go": "2797dccdc27a5573b301b60a46abf8c741fa5c07fd9c4b81646c4b45733ba181",
+    "tools/orchestrator/internal/store/review_retry_test.go": "a7c16dee834bbf4b4fe022eca4c6ef432d87faa9733a5f553956028c2b6e14ee",
+    "tools/orchestrator/internal/store/rework_test.go": "978f952fec6917b6a910094ade5023c9b60c493aff116046d9510f6554a93074",
+    "tools/orchestrator/internal/store/rework_validation.go": "95cda053115bc3bf50ff207a6bb7317883f5357bce686ce30cdd207f9905c06f",
+    "tools/orchestrator/internal/store/runtime_test.go": "98c45f558f360f25fd023c220458cbaa66fe5716494a3b2f7b88582bf4865d44",
+    "tools/orchestrator/internal/store/scheduling.go": "aa4ff61fade5142697941611c53bf515548a91ea8145e27629c5a9e9ab5c800f",
+    "tools/orchestrator/internal/store/summary_binding_test.go": "5afefe00b3176e6e07c65d4804027894331690ce8fda5d0873d89c0e49b3ef8b",
+    "tools/orchestrator/internal/store/unknown_terminal_ordering_test.go": "fcef23fd550b1580e88a82001318daeb88bd73639328a5b57482426f6110743b"
+  },
+  "open": [
+    "Two public CLI owner-death/restart resume tests fail at initial_owner_transport_rejected; B3 sealed replay/retire/new incarnation remains open.",
+    "M3 legacy_pending, diagnostics retained/delete/tombstones and complete 2GiB/flood/RSS acceptance remain open.",
+    "Real Provider/account, Intel/Windows native, installed-copy replacement and release not performed."
+  ],
+  "linux_receipts": [
+    "tasks/host-artifact-writers/data/linux/writer-core-20261007-receipt.json",
+    "tasks/host-artifact-writers/data/linux/writer-store-20261007-receipt.json"
+  ]
+}

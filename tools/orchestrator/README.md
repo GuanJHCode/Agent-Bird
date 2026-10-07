@@ -8,7 +8,8 @@ The default state directory is
 `~/Library/Application Support/OpenAI/Codex Orchestrator`. Tests and isolated
 runs may pass an existing owner-only `0700` directory with `--state-dir`; the
 program rejects an existing directory with broader permissions instead of
-changing it.
+changing it. Existing ancestor aliases such as macOS `/tmp` are resolved before
+deriving runtime paths; the state directory itself must not be a symlink.
 
 Submit an owner-only `0600` JSON file:
 

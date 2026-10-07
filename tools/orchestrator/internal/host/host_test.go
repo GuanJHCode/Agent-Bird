@@ -114,6 +114,21 @@ func TestSubmitHostCollectAckAndExplicitResume(t *testing.T) {
 	if exited == nil || exited.AttemptID != attempt.ID || exited.SegmentID != attempt.SegmentID || exited.Process == nil || exited.Process.PID <= 0 || exited.Process.PGID <= 0 || exited.Process.Birth == "" {
 		t.Fatalf("managed lifecycle events=%#v", collected)
 	}
+	sp, err := h.spool(attempt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var launch map[string]any
+	if err = sp.ReadMetadata("launch.json", &launch); err != nil {
+		t.Fatal(err)
+	}
+	if launch["version"] != float64(1) || launch["phase"] != "exited" || launch["attempt_id"] != attempt.ID || launch["segment_id"] != attempt.SegmentID {
+		t.Fatalf("launch metadata=%#v", launch)
+	}
+	proc, ok := launch["process"].(map[string]any)
+	if !ok || proc["pid"] == nil || proc["pgid"] == nil || proc["executable_sha256"] == nil || proc["executable_sha256"] == "" || proc["birth_known"] != true || proc["birth"] == nil || proc["birth"] == "" {
+		t.Fatalf("process metadata=%#v", launch["process"])
+	}
 	if err = h.PublishAll(ctx, launchFailureDBSink{db}, 1); err != nil {
 		t.Fatal(err)
 	}
@@ -635,7 +650,7 @@ func TestUnspawnedInvocationFailurePublishesRejectionWithoutExit(t *testing.T) {
 		t.Fatal(err)
 	}
 	a := store.Attempt{ID: "attempt-failure", TaskID: "task-failure", SegmentID: "segment-failure"}
-	if err = h.recordLaunchFailed(a, "run-failure", a.TaskID, launchMetadata{commandID: "command-failure", executionEpoch: 3}, errors.New("provider body must not persist")); err != nil {
+	if err = h.recordLaunchFailed(a, "run-failure", a.TaskID, metadataForLaunch(managedHostGrant(t, h, contract.LaunchCommand{RunID: "run-failure", TaskID: a.TaskID, AttemptID: a.ID, SegmentID: a.SegmentID, CommandID: "command-failure", ExecutionEpoch: 3})), errors.New("provider body must not persist")); err != nil {
 		t.Fatal(err)
 	}
 	sink := &durableSink{}
@@ -654,7 +669,7 @@ func TestProducerSequenceRecoversOnlyFromDurableEvents(t *testing.T) {
 		t.Fatal(err)
 	}
 	a := store.Attempt{ID: "attempt-a", TaskID: "task-a", SegmentID: "segment-a"}
-	if err = first.recordLaunchFailed(a, "run", a.TaskID, launchMetadata{commandID: "command-a", executionEpoch: 1}, errors.New("unspawned")); err != nil {
+	if err = first.recordLaunchFailed(a, "run", a.TaskID, metadataForLaunch(managedHostGrant(t, first, contract.LaunchCommand{RunID: "run", TaskID: a.TaskID, AttemptID: a.ID, SegmentID: a.SegmentID, CommandID: "command-a", ExecutionEpoch: 1})), errors.New("unspawned")); err != nil {
 		t.Fatal(err)
 	}
 	// This is the unsafe legacy counter shape. It must not reserve sequence
@@ -667,7 +682,7 @@ func TestProducerSequenceRecoversOnlyFromDurableEvents(t *testing.T) {
 		t.Fatal(err)
 	}
 	b := store.Attempt{ID: "attempt-b", TaskID: "task-b", SegmentID: "segment-b"}
-	if err = second.recordLaunchFailed(b, "run", b.TaskID, launchMetadata{commandID: "command-b", executionEpoch: 2}, errors.New("unspawned")); err != nil {
+	if err = second.recordLaunchFailed(b, "run", b.TaskID, metadataForLaunch(managedHostGrant(t, second, contract.LaunchCommand{RunID: "run", TaskID: b.TaskID, AttemptID: b.ID, SegmentID: b.SegmentID, CommandID: "command-b", ExecutionEpoch: 2})), errors.New("unspawned")); err != nil {
 		t.Fatal(err)
 	}
 	sink := &durableSink{}

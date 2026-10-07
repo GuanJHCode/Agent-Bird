@@ -16,7 +16,7 @@ func TestLaunchRejectedHostRecoveryQuiescence(t *testing.T) {
 			f := newTypedContinuationFixture(t, adapter.ProviderAGY)
 			f.send(t, f.event(contract.EventPrepared))
 			if terminal == "not_started" {
-				f.send(t, rejectionEvent(f))
+				f.send(t, rejectionEvent(t, f))
 				assertRejectedLedger(t, f, "settled", 0)
 			} else {
 				f.send(t, f.event(contract.EventUnknown))
@@ -80,7 +80,7 @@ func TestLaunchRejectedProgressTerminalReserve(t *testing.T) {
 				f := newProgressTerminalFixture(t)
 				f.send(t, f.event(contract.EventPrepared))
 				if terminal == "not_started" {
-					f.send(t, rejectionEvent(f))
+					f.send(t, rejectionEvent(t, f))
 					assertRejectedLedger(t, f, "settled", 0)
 				} else {
 					f.send(t, f.event(contract.EventUnknown))
@@ -94,7 +94,8 @@ func TestLaunchRejectedProgressTerminalReserve(t *testing.T) {
 				f.send(t, f.event(contract.EventPrepared))
 				progress := f.event(contract.EventProgress)
 				progress.Sequence = 1
-				progress.Artifact = &contract.ArtifactRef{ID: "provider-progress", Path: "/private/progress.json", Size: 10, SHA256: progress.PayloadHash}
+				progress.Artifact = managedHostArtifactForTest(t, f.db, f.grant, "progress", 0, []byte("progress"))
+				progress.PayloadHash = progress.Artifact.SHA256
 				body, err := json.Marshal(progress)
 				if err != nil {
 					t.Fatal(err)
@@ -109,7 +110,7 @@ func TestLaunchRejectedProgressTerminalReserve(t *testing.T) {
 				}
 				// Room for this progress and one still-owned terminal artifact.
 				// A proved not_started segment needs no further artifact; UNKNOWN does.
-				limit := used + 2*1024*1024 + int64(len(body)) + progress.Artifact.Size + 1
+				limit := used + 2*1024*1024 + int64(len(body)) + hostArtifactRefCostForTest(t, progress) - 2 + 1
 				if scope == "run" {
 					f.db.runControlLimit = limit
 				} else {

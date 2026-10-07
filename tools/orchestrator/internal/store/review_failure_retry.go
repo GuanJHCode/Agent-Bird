@@ -73,6 +73,13 @@ func validateReviewFailure(ctx context.Context, tx *sql.Tx, e contract.Event) er
 	if tx.QueryRowContext(ctx, `SELECT file FROM pragma_database_list WHERE name='main'`).Scan(&database) != nil || !filepath.IsAbs(database) {
 		return bad
 	}
+	if e.Artifact.HostArtifact != nil {
+		body, err := readCommittedHostArtifact(ctx, tx, e, 256)
+		if err != nil {
+			return bad
+		}
+		return validateReviewFailureBody(body)
+	}
 	parts := []string{"host-spool", launch, e.AttemptID, e.SegmentID, "result-output.bin"}
 	for _, part := range parts {
 		if part == "" || part == "." || part == ".." || filepath.Base(part) != part {
@@ -109,6 +116,11 @@ func validateReviewFailure(ctx context.Context, tx *sql.Tx, e contract.Event) er
 	if err != nil || current.Dev != before.Dev || current.Ino != before.Ino || current.Size != before.Size || current.Mode != before.Mode || current.Uid != before.Uid || current.Nlink != 1 || current.Mtim != before.Mtim || current.Ctim != before.Ctim {
 		return bad
 	}
+	return validateReviewFailureBody(body)
+}
+
+func validateReviewFailureBody(body []byte) error {
+	bad := CodeError("candidate_review_retry_unsupported")
 	var diagnostic struct {
 		Status string `json:"status"`
 		Reason string `json:"reason"`

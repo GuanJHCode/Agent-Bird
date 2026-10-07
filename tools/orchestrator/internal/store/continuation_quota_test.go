@@ -140,6 +140,7 @@ func assertContinuationQuotaCounters(t *testing.T, db *DB) {
 	}
 	// Keep this independent of production cost helpers and quota triggers.
 	for _, query := range []string{
+		`SELECT COALESCE(SUM(64+length(CAST(reservation_id AS BLOB))+length(CAST(run_id AS BLOB))+reserved_bytes),0) FROM managed_host_artifact_metadata`,
 		`SELECT COALESCE(SUM(64+length(CAST(id AS BLOB))+length(CAST(run_id AS BLOB))+length(CAST(task_id AS BLOB))+length(CAST(attempt_id AS BLOB))+length(CAST(producer_id AS BLOB))+length(CAST(class AS BLOB))+length(CAST(scope_key AS BLOB))+length(CAST(policy_sha256 AS BLOB))+length(CAST(namespace_sha256 AS BLOB))+length(CAST(state AS BLOB))+length(CAST(created_at AS BLOB))),0) FROM managed_artifact_reservations`,
 		`SELECT COALESCE(SUM(64+length(CAST(id AS BLOB))+length(CAST(reservation_id AS BLOB))+length(CAST(run_id AS BLOB))+length(CAST(task_id AS BLOB))+length(CAST(capability_id AS BLOB))+length(CAST(event_id AS BLOB))+length(CAST(kind AS BLOB))+length(CAST(payload_hash AS BLOB))+2*length(CAST(descriptor_json AS BLOB))+length(CAST(phase AS BLOB))+length(CAST(created_at AS BLOB))),0) FROM managed_artifact_intakes`,
 		`SELECT COALESCE(SUM(64+length(CAST(id AS BLOB))+length(CAST(reservation_id AS BLOB))+length(CAST(run_id AS BLOB))+length(CAST(slot AS BLOB))+COALESCE(length(CAST(intake_id AS BLOB)),0)+length(CAST(proof_json AS BLOB))),0) FROM managed_artifact_refs`,

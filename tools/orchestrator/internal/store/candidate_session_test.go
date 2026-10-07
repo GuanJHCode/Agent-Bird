@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -49,13 +47,9 @@ func TestCandidateReviewNativeSessionPreservesOwnerAcceptChain(t *testing.T) {
 			// Store-level receipt uses the existing review delivery schema. The
 			// Host native structured-review decoder is unchanged by this test.
 			body, _ := json.Marshal(map[string]any{"version": 1, "stage": "review", "input_event_id": f.grant.Input.Event.EventID, "input_sha256": f.grant.Input.Event.PayloadHash, "owner_decision_id": f.grant.Input.DecisionCommandID, "candidate": map[string]any{"candidate_oid": strings.Repeat("b", 40)}, "validation": map[string]any{"passed": true}, "review": map[string]any{"decision": "approve", "summary": "accepted candidate independently reviewed"}})
-			path := filepath.Join(t.TempDir(), "review.json")
-			if err := os.WriteFile(path, body, 0600); err != nil {
-				t.Fatal(err)
-			}
 			e.Sequence++
 			e.Kind, e.EventID, e.PayloadHash = contract.EventResult, "review-result", runtimeHash(string(body))
-			e.Artifact = &contract.ArtifactRef{Path: path, Size: int64(len(body)), SHA256: e.PayloadHash}
+			e.Artifact = managedHostArtifactForTest(t, f.db, f.grant, "terminal", 0, body)
 			if _, err := f.db.CommitHostEvent(ctx, e); err != nil {
 				t.Fatal(err)
 			}

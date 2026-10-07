@@ -53,7 +53,7 @@ func TestBudgetRevisionRejectsLegacyPolicyWithoutMutatingBudget(t *testing.T) {
 func TestBudgetRevisionPreservesPendingPolicyRetryPromiseAcrossReopen(t *testing.T) {
 	f, command := budgetRevisionRuntimeFixture(t, policyTask("task", 3))
 	ctx := context.Background()
-	event := policyRejection(&f, "probe_start_eagain")
+	event := policyRejection(t, &f, "probe_start_eagain")
 	if _, err := f.db.CommitHostEvent(ctx, event); err != nil {
 		t.Fatal(err)
 	}

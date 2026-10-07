@@ -11,10 +11,10 @@ import (
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 )
 
-func rejectionEvent(f *typedContinuationFixture) contract.Event {
+func rejectionEvent(t *testing.T, f *typedContinuationFixture) contract.Event {
 	e := f.event("launch_rejected")
-	e.PayloadHash = strings.Repeat("d", 64)
-	e.Artifact = &contract.ArtifactRef{ID: "launch-failure", Path: "/private/fixture/launch-failure/result-output.bin", Size: 100, SHA256: e.PayloadHash}
+	e.Artifact = managedHostArtifactForTest(t, f.db, f.grant, "prelaunch", 0, []byte(`{"status":"launch_rejected","reason":"fixture_rejection"}`))
+	e.PayloadHash = e.Artifact.SHA256
 	return e
 }
 
@@ -38,7 +38,7 @@ func TestLaunchRejectedSettlesOnlyNeverStartedGrantAtZeroAndReplays(t *testing.T
 			if prepared {
 				f.send(t, f.event(contract.EventPrepared))
 			}
-			e := rejectionEvent(f)
+			e := rejectionEvent(t, f)
 			f.send(t, e)
 			assertRejectedLedger(t, f, "settled", 0)
 			if _, err := f.db.CommitHostEvent(context.Background(), e); err != nil {
@@ -96,7 +96,7 @@ func TestLaunchRejectedCannotEraseStartedUnknownOrConflictingEvidence(t *testing
 				q.SessionKind, q.SessionID = f.sessionKind, f.sessionID
 				f.send(t, q)
 			}
-			e := rejectionEvent(f)
+			e := rejectionEvent(t, f)
 			switch kind {
 			case "process":
 				e.Process = &contract.ProcessIdentity{PID: 10, Birth: "worker", PGID: 10}
@@ -145,7 +145,7 @@ func TestLaunchRejectedContinuationRetainsEarlierChargesAndResolvesConsumedAnswe
 	}
 	f.grant = g
 	f.send(t, f.event(contract.EventPrepared))
-	f.send(t, rejectionEvent(f))
+	f.send(t, rejectionEvent(t, f))
 	assertRejectedLedger(t, f, "settled", 0)
 	var total int64
 	var status string

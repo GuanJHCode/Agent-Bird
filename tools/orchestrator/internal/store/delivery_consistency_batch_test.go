@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -75,7 +76,8 @@ func TestDeliveryConsistencyBatchRejectsExpiredResultAndOldReworkCandidate(t *te
 			t.Run(testCase.name, func(t *testing.T) {
 				db, grant := quotaFixture(t)
 				result := contract.Event{Version: 1, ProducerID: grant.HostID, EventID: "result", RunID: grant.RunID, TaskID: grant.TaskID, AttemptID: grant.AttemptID, SegmentID: grant.SegmentID, WorkRevision: grant.WorkRevision, ExecutionEpoch: 1, CommandID: grant.CommandID, Sequence: 1, Kind: contract.EventResult, PayloadHash: strings.Repeat("a", 64)}
-				result.Artifact = &contract.ArtifactRef{ID: "diagnostic", Path: "incomplete.txt", Size: 12, SHA256: strings.Repeat("c", 64)}
+				result.Artifact = managedHostArtifactForTest(t, db, grant, "terminal", 0, []byte("incomplete"))
+				result.PayloadHash = result.Artifact.SHA256
 				if _, err := db.CommitHostEvent(context.Background(), result); err != nil {
 					t.Fatal(err)
 				}
@@ -107,7 +109,7 @@ func TestDeliveryConsistencyBatchRejectsExpiredResultAndOldReworkCandidate(t *te
 					t.Fatal(err)
 				}
 				var retained contract.Event
-				if err := json.Unmarshal([]byte(body), &retained); err != nil || retained.Artifact == nil || *retained.Artifact != *result.Artifact {
+				if err := json.Unmarshal([]byte(body), &retained); err != nil || retained.Artifact == nil || !reflect.DeepEqual(retained.Artifact, result.Artifact) {
 					t.Fatalf("diagnostic result lost: %+v %v", retained, err)
 				}
 			})

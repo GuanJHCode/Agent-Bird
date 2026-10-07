@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -282,11 +281,11 @@ func (h *Host) executeManagedCodex(ctx context.Context, g contract.LaunchCommand
 	var artifact *contract.ArtifactRef
 	path := ""
 	if len(content) > 0 {
-		path, err = spool.WriteArtifact(content)
+		artifact, err = h.writeHostArtifact(meta, "terminal", 0, "terminal", "result-output.bin", content)
 		if err != nil {
 			return unknown(err, &id)
 		}
-		artifact = &contract.ArtifactRef{ID: filepath.Base(path), Path: path, Size: int64(len(content)), SHA256: hashBytes(content)}
+		path = artifact.Path
 	}
 	fields := structuredEventFields{SessionKind: "session-id", SessionID: out.Binding.ThreadID}
 	if kind == contract.EventQuestion {

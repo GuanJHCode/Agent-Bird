@@ -412,7 +412,7 @@ func (r *livingSource) dispatchAcceptedLaunch(grant contract.LaunchCommand, dupl
 // claim. A duplicate ledger record is not such proof and must not call it.
 func (r *livingSource) recordUnstartedGrant(grant contract.LaunchCommand, cause error) error {
 	a := store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID}
-	meta := launchMetadata{commandID: grant.CommandID, workRevision: grant.WorkRevision, executionEpoch: grant.ExecutionEpoch}
+	meta := metadataForLaunch(grant)
 	return r.host.recordLaunchFailed(a, grant.RunID, grant.TaskID, meta, cause)
 }
 
@@ -465,9 +465,9 @@ func (r *livingSource) execute(grant contract.LaunchCommand, duplicate bool) {
 		prepareCtx, stopPrepare = context.WithDeadline(r.ctx, time.UnixMilli(grant.DeadlineUnixMS))
 	}
 	defer stopPrepare()
+	meta := metadataForLaunch(grant)
 	inv, err := r.cfg.InvocationProvider(prepareCtx, grant)
 	a := store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID}
-	meta := launchMetadata{commandID: grant.CommandID, workRevision: grant.WorkRevision, executionEpoch: grant.ExecutionEpoch}
 	// These failures precede this execution's call to ExecuteLaunch/Start.
 	// An uncertain preparation must still retain UNKNOWN, never zero-settle
 	// an ambiguous process/integration outcome as a proven no-start rejection.

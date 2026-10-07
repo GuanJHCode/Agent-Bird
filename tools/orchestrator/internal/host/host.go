@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/artifacts"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/events"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops"
@@ -99,6 +100,13 @@ func (h *Host) ExecuteLaunch(ctx context.Context, grant contract.LaunchCommand, 
 // The public entry always supplies zero control. Private per-call actor
 // coordination has no environment/request/wire selector or alternate launcher.
 func (h *Host) executeLaunch(ctx context.Context, grant contract.LaunchCommand, inv contract.InvocationView, control codexExecuteControl) (contract.Result, error) {
+	if err := contract.RequireHostArtifacts(grant); err != nil {
+		return contract.Result{}, err
+	}
+	if h.producerID != grant.HostID {
+		return contract.Result{}, contract.ErrHostArtifactGrant
+	}
+	meta := metadataForLaunch(grant)
 	if err := contract.ValidateDependencyInputs(grant); err != nil {
 		return contract.Result{}, err
 	}
@@ -168,13 +176,6 @@ func (h *Host) executeLaunch(ctx context.Context, grant contract.LaunchCommand, 
 	h.grantMu.Unlock()
 	runCtx, cancel := context.WithDeadlineCause(ctx, budgetDeadline, deadlineCause(deadlineReason))
 	defer cancel()
-	meta := launchMetadata{commandID: grant.CommandID, workRevision: grant.WorkRevision, executionEpoch: grant.ExecutionEpoch, questionRevision: grant.QuestionRevision}
-	if grant.Diagnostics != nil {
-		policy := *grant.Diagnostics
-		copy := grant
-		copy.Diagnostics = &policy
-		meta.diagnosticsGrant = &copy
-	}
 	if structured, ok := inv.(interface{ OutputProvider() string }); ok {
 		meta.outputProvider = structured.OutputProvider()
 	}
@@ -293,10 +294,11 @@ func invocationCommand(inv contract.InvocationView) process.Command {
 }
 
 func (h *Host) Execute(ctx context.Context, a store.Attempt, runID, taskID string, cmd process.Command) (contract.Result, error) {
-	return h.execute(ctx, a, runID, taskID, cmd, true, launchMetadata{})
+	return contract.Result{}, errors.New("managed_launch_grant_required")
 }
 
 type launchMetadata struct {
+	artifactGrant     *contract.LaunchCommand
 	diagnosticsGrant  *contract.LaunchCommand
 	startProcess      func(context.Context, process.Command) (*process.Handle, error)
 	agyHistoryGrant   *contract.LaunchCommand
@@ -380,10 +382,10 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 	}
 	finalizeCandidateUnknown := func(cause error, identity *process.Identity, exit int) (contract.Result, error) {
 		body := candidateFailure(cause)
-		path, artifactErr := spool.WriteArtifact(body)
-		var ref *contract.ArtifactRef
-		if artifactErr == nil {
-			ref = &contract.ArtifactRef{ID: filepath.Base(path), Path: path, Size: int64(len(body)), SHA256: hashBytes(body)}
+		ref, artifactErr := h.writeHostArtifact(meta, "terminal", 0, "terminal", "result-output.bin", body)
+		path := ""
+		if ref != nil {
+			path = ref.Path
 		}
 		eventErr := appendPhase(contract.EventUnknown, hashBytes(body), identity, nil, ref)
 		phaseErr := publishLaunchPhase(spool, "unknown", a, runID, taskID, cmd, identity, cause)
@@ -754,12 +756,12 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		var artifact *contract.ArtifactRef
 		artifactPath := ""
 		if len(content) > 0 {
-			artifactPath, err = spool.WriteArtifact(content)
+			artifact, err = h.writeHostArtifact(meta, "terminal", 0, "terminal", "result-output.bin", content)
 			if err != nil {
 				h.finishAttempt(a.ID, "unknown", persistDB)
 				return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount}, err
 			}
-			artifact = &contract.ArtifactRef{ID: filepath.Base(artifactPath), Path: artifactPath, Size: int64(len(content)), SHA256: hashBytes(content)}
+			artifactPath = artifact.Path
 		}
 		payloadHash := hashText(kind + ":" + a.SegmentID)
 		if artifact != nil {
@@ -817,12 +819,12 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		}
 	}
 	outHash := hashBytes(content)
-	artifactPath, err := spool.WriteArtifact(content)
+	artifact, err := h.writeHostArtifact(meta, "terminal", 0, "terminal", "result-output.bin", content)
 	if err != nil {
 		h.finishAttempt(a.ID, "unknown", persistDB)
 		return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount, OutputHash: outHash}, err
 	}
-	artifact := &contract.ArtifactRef{ID: filepath.Base(artifactPath), Path: artifactPath, Size: int64(len(content)), SHA256: outHash}
+	artifactPath := artifact.Path
 	terminalKind := contract.EventResult
 	if status == "failed" {
 		terminalKind = contract.EventFailed
@@ -1068,17 +1070,12 @@ func (h *Host) recordLaunchFailed(a store.Attempt, runID, taskID string, meta la
 	if err != nil {
 		return err
 	}
-	// Reuse the durable artifact writer without taking the candidate result
-	// filename in the segment root. This directory contains no event stream.
-	diagnostic, err := events.Open(filepath.Join(segmentRoot, "launch-failure"))
+	// A prelaunch refusal and a later terminal result compete for the same
+	// reserved physical slot; neither may create an alternative namespace.
+	artifact, err := h.writeHostArtifact(meta, "terminal", 0, "prelaunch", "launch-failure", body)
 	if err != nil {
 		return err
 	}
-	path, err := diagnostic.WriteArtifact(body)
-	if err != nil {
-		return err
-	}
-	artifact := &contract.ArtifactRef{ID: "launch-failure", Path: path, Size: int64(len(body)), SHA256: hashBytes(body)}
 	if err = publishLaunchPhase(spool, "not_started", a, runID, taskID, process.Command{}, nil, safeCause); err != nil {
 		return err
 	}
@@ -1169,21 +1166,40 @@ func (h *Host) recoverDuplicateGrant(grant contract.LaunchCommand, epoch uint64)
 		if record.CommandID != grant.CommandID {
 			return errors.New("grant_event_identity_conflict")
 		}
-		if record.Kind == contract.EventExited || record.Kind == contract.EventLaunchRejected {
+		if record.Kind == contract.EventExited || record.Kind == contract.EventLaunchRejected || record.Kind == contract.EventUnknown {
 			return nil
 		}
 	}
-	meta := launchMetadata{commandID: grant.CommandID, workRevision: grant.WorkRevision, executionEpoch: epoch}
-	if len(records) == 0 {
-		// Preserve an older durable diagnostic, but it is not proof that this
-		// restarted Host never entered Start. Its outcome remains UNKNOWN.
-		path := filepath.Join(h.spoolRoot, a.ID, a.SegmentID, "launch-failure", "result-output.bin")
-		body, safeCause, readErr := readRecoveredLaunchFailure(path)
+	meta := metadataForLaunch(grant)
+	meta.executionEpoch = epoch
+	{
+		// An original descriptor-bound artifact can be retained as evidence,
+		// but it never proves that this restarted Host did not enter Start.
+		binding, bindErr := h.artifactSlot(meta, "terminal", 0)
+		if bindErr != nil {
+			return bindErr
+		}
+		loadCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		desc, proof, body, readErr := artifacts.LoadHostSlot(loadCtx, h.spoolRoot, binding)
+		cancel()
 		if readErr == nil {
-			if err = publishLaunchPhase(spool, "unknown", a, grant.RunID, grant.TaskID, process.Command{}, nil, safeCause); err != nil {
+			id := "result-output.bin"
+			var cause error = errors.New("recovered_incomplete_grant")
+			if desc.Kind == "prelaunch" {
+				id = "launch-failure"
+				safeCause, decodeErr := decodeRecoveredLaunchFailure(body)
+				if decodeErr != nil {
+					return decodeErr
+				}
+				cause = safeCause
+			}
+			if err = publishLaunchPhase(spool, "unknown", a, grant.RunID, grant.TaskID, process.Command{}, nil, cause); err != nil {
 				return err
 			}
-			ref := &contract.ArtifactRef{ID: "launch-failure", Path: path, Size: int64(len(body)), SHA256: hashBytes(body)}
+			ref, refErr := hostArtifactReference(id, desc, proof)
+			if refErr != nil {
+				return refErr
+			}
 			_, err = h.appendPhaseEvent(spool, grant.RunID, grant.TaskID, a, meta, contract.EventUnknown, ref.SHA256, nil, nil, ref)
 			return err
 		}

@@ -32,7 +32,9 @@ func (d *DB) reserveHostArtifacts(ctx context.Context, tx *sql.Tx, c *contract.L
 	control := int64(0)
 	for _, pair := range [][2]string{{terminal, "terminal"}, {progress, "progress"}} {
 		control += storedBytes(pair[0], c.RunID, c.TaskID, c.AttemptID, c.HostID, pair[1], c.SegmentID, "", scope, "reserved", stamp)
+		control += storedBytes(pair[0], c.RunID)
 	}
+	control += hostArtifactManifestReservationBytes
 	if err = d.storageAdmission(ctx, tx, c.RunID, control, false); err != nil {
 		return err
 	}
@@ -46,6 +48,13 @@ func (d *DB) reserveHostArtifacts(ctx context.Context, tx *sql.Tx, c *contract.L
 		if _, err = tx.ExecContext(ctx, `INSERT INTO managed_artifact_reservations(id,run_id,task_id,attempt_id,producer_id,class,scope_key,policy_sha256,namespace_sha256,reserved_bytes,state,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,'reserved',?)`, slot.id, c.RunID, c.TaskID, c.AttemptID, c.HostID, slot.class, c.SegmentID, "", scope, slot.maximum, stamp); err != nil {
 			return mapConflict(err)
 		}
+		manifestBytes := int64(contract.HostArtifactManifestLimit)
+		if slot.class == "progress" {
+			manifestBytes *= contract.HostProgressArtifactSlots
+		}
+		if _, err = tx.ExecContext(ctx, `INSERT INTO managed_host_artifact_metadata(reservation_id,run_id,reserved_bytes) VALUES(?,?,?)`, slot.id, c.RunID, manifestBytes); err != nil {
+			return mapConflict(err)
+		}
 	}
 	c.HostArtifacts = &contract.HostArtifactGrant{Version: 1, TerminalReservationID: terminal, ProgressReservationID: progress, ScopeSHA256: scope}
 	return bindHostArtifacts(ctx, tx, c, true)
@@ -55,7 +64,7 @@ func (d *DB) reserveHostArtifacts(ctx context.Context, tx *sql.Tx, c *contract.L
 // Missing both historical rows preserves the old nil-grant intent; partial or
 // conflicting state is never repaired here. Live replay always requires rows.
 func bindHostArtifacts(ctx context.Context, tx *sql.Tx, c *contract.LaunchCommand, required bool) error {
-	rows, err := tx.QueryContext(ctx, `SELECT id,run_id,task_id,attempt_id,producer_id,class,scope_key,policy_sha256,namespace_sha256,reserved_bytes,retained_bytes,state FROM managed_artifact_reservations WHERE attempt_id=? AND scope_key=? AND class IN ('terminal','progress')`, c.AttemptID, c.SegmentID)
+	rows, err := tx.QueryContext(ctx, `SELECT r.id,r.run_id,r.task_id,r.attempt_id,r.producer_id,r.class,r.scope_key,r.policy_sha256,r.namespace_sha256,r.reserved_bytes,r.retained_bytes,r.state,COALESCE(m.reserved_bytes,-1) FROM managed_artifact_reservations r LEFT JOIN managed_host_artifact_metadata m ON m.reservation_id=r.id AND m.run_id=r.run_id WHERE r.attempt_id=? AND r.scope_key=? AND r.class IN ('terminal','progress')`, c.AttemptID, c.SegmentID)
 	if err != nil {
 		return err
 	}
@@ -64,8 +73,8 @@ func bindHostArtifacts(ctx context.Context, tx *sql.Tx, c *contract.LaunchComman
 	count := 0
 	for rows.Next() {
 		var id, run, task, attempt, producer, class, key, policy, scope, state string
-		var reserved, retained int64
-		if err = rows.Scan(&id, &run, &task, &attempt, &producer, &class, &key, &policy, &scope, &reserved, &retained, &state); err != nil {
+		var reserved, retained, metadata int64
+		if err = rows.Scan(&id, &run, &task, &attempt, &producer, &class, &key, &policy, &scope, &reserved, &retained, &state, &metadata); err != nil {
 			return err
 		}
 		if run != c.RunID || task != c.TaskID || attempt != c.AttemptID || producer != c.HostID || key != c.SegmentID || policy != "" || (state != "reserved" && state != "active") || retained < 0 || retained > reserved || count > 0 && g.ScopeSHA256 != scope {
@@ -74,12 +83,12 @@ func bindHostArtifacts(ctx context.Context, tx *sql.Tx, c *contract.LaunchComman
 		g.ScopeSHA256 = scope
 		switch class {
 		case "terminal":
-			if g.TerminalReservationID != "" || reserved != contract.HostTerminalArtifactBytes {
+			if g.TerminalReservationID != "" || reserved != contract.HostTerminalArtifactBytes || metadata != contract.HostArtifactManifestLimit {
 				return contract.ErrHostArtifactGrant
 			}
 			g.TerminalReservationID = id
 		case "progress":
-			if g.ProgressReservationID != "" || reserved != contract.HostProgressArtifactSlots*contract.HostProgressArtifactBytes {
+			if g.ProgressReservationID != "" || reserved != contract.HostProgressArtifactSlots*contract.HostProgressArtifactBytes || metadata != contract.HostProgressArtifactSlots*contract.HostArtifactManifestLimit {
 				return contract.ErrHostArtifactGrant
 			}
 			g.ProgressReservationID = id

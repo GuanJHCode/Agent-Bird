@@ -82,10 +82,13 @@ func TestIndexedAcceptChecksDurableSourceAndCoverage(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
+				if kind == "valid_budget_migration" && step <= 4 {
+					historicalHostGrantForTest(t, db, &g)
+				}
 				if retryPolicy && g.TaskID == "r2" {
 					original := g
 					fixture := budgetBatchFixture{db: db, host: hostID, grant: g, sequence: int64(2 * step)}
-					failure := policyRejection(&fixture, "probe_start_eagain")
+					failure := policyRejection(t, &fixture, "probe_start_eagain")
 					if _, err = db.CommitHostEvent(ctx, failure); err != nil {
 						t.Fatal(err)
 					}
@@ -139,9 +142,6 @@ func TestIndexedAcceptChecksDurableSourceAndCoverage(t *testing.T) {
 					if !reflect.DeepEqual(oldPayload, nextPayload) {
 						t.Fatal("indexed retry changed assignment/config/provider")
 					}
-				}
-				if kind == "valid_budget_migration" && strings.HasPrefix(g.TaskID, "r") && g.TaskID != "r2" {
-					legacyCandidateArtifactFixture(t, db, &g)
 				}
 				binding := gitops.CandidateBinding{RunID: g.RunID, TaskID: g.TaskID, AttemptID: g.AttemptID, SegmentID: g.SegmentID, WorkRevision: g.WorkRevision, PlanRevision: g.PlanRevision}
 				d := map[string]any{"version": 1, "binding": binding}
@@ -229,11 +229,18 @@ func TestIndexedAcceptChecksDurableSourceAndCoverage(t *testing.T) {
 					}
 				}
 				raw, _ := json.Marshal(d)
-				artifact := filepath.Join(t.TempDir(), g.TaskID+".json")
-				if err = os.WriteFile(artifact, raw, 0600); err != nil {
-					t.Fatal(err)
+				var ref *contract.ArtifactRef
+				if g.HostArtifacts == nil { // Explicit historical grant prepared before the artifact.
+					artifact := filepath.Join(t.TempDir(), g.TaskID+".json")
+					if err = os.WriteFile(artifact, raw, 0600); err != nil {
+						t.Fatal(err)
+					}
+					ref = &contract.ArtifactRef{ID: g.TaskID, Path: artifact, Size: int64(len(raw)), SHA256: runtimeHash(string(raw))}
+				} else {
+					ref = managedHostArtifactForTest(t, db, g, "terminal", 0, raw)
 				}
-				e := contract.Event{Version: 1, ProducerID: hostID, EventID: g.TaskID + "-result", RunID: g.RunID, TaskID: g.TaskID, AttemptID: g.AttemptID, SegmentID: g.SegmentID, WorkRevision: g.WorkRevision, ExecutionEpoch: 1, CommandID: g.CommandID, Sequence: int64(2*step+1) + sequenceOffset, Kind: contract.EventResult, PayloadHash: runtimeHash(string(raw)), Artifact: &contract.ArtifactRef{ID: g.TaskID, Path: artifact, Size: int64(len(raw)), SHA256: runtimeHash(string(raw))}}
+				artifact := ref.Path
+				e := contract.Event{Version: 1, ProducerID: hostID, EventID: g.TaskID + "-result", RunID: g.RunID, TaskID: g.TaskID, AttemptID: g.AttemptID, SegmentID: g.SegmentID, WorkRevision: g.WorkRevision, ExecutionEpoch: 1, CommandID: g.CommandID, Sequence: int64(2*step+1) + sequenceOffset, Kind: contract.EventResult, PayloadHash: runtimeHash(string(raw)), Artifact: ref}
 				if _, err = db.CommitHostEvent(ctx, e); err != nil {
 					t.Fatal(err)
 				}

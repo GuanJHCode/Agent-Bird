@@ -104,7 +104,7 @@ func TestManagedDirectHostClearsReportAuthorityBeforeSandbox(t *testing.T) {
 				if err = h.BindContinuationOwner("owner"); err != nil {
 					t.Fatal(err)
 				}
-				grant := contract.LaunchCommand{CommandID: "command", ReservationID: "reservation", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, PlanRevision: 1, ExecutionEpoch: 1, GrantedActiveMS: 3000, AdapterPayload: raw}
+				grant := managedHostGrant(t, h, contract.LaunchCommand{CommandID: "command", ReservationID: "reservation", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, PlanRevision: 1, ExecutionEpoch: 1, GrantedActiveMS: 3000, AdapterPayload: raw})
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				defer cancel()
 				result, runErr := h.ExecuteLaunch(ctx, grant, inv)

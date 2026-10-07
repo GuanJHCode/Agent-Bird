@@ -234,7 +234,7 @@ func validateDAGResultTarget(ctx context.Context, tx *sql.Tx, e contract.Event) 
 	if err != nil {
 		return err
 	}
-	a, err := readReworkArtifact(e)
+	a, err := readReworkArtifact(ctx, tx, e)
 	if err != nil {
 		return err
 	}

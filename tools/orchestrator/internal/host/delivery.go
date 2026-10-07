@@ -135,18 +135,18 @@ func (e *actionUncertain) SafeArtifact() []byte { return e.body }
 func (e *actionRejected) Error() string        { return "candidate_action_rejected" }
 func (e *actionRejected) SafeArtifact() []byte { return e.body }
 
-func readAcceptedCandidate(grant contract.LaunchCommand) (CandidateDelivery, error) {
+func readAcceptedCandidate(grant contract.LaunchCommand, hostSpoolParent ...string) (CandidateDelivery, error) {
 	var out CandidateDelivery
 	if err := contract.ValidateDependencyInputs(grant); err != nil {
 		return out, err
 	}
 	input := grant.Input
-	return readCandidateDelivery(grant, input)
+	return readCandidateDelivery(grant, input, hostSpoolParent...)
 }
 
 // readCandidateDelivery authenticates an accepted artifact against the exact
 // immutable vector entry before JSON decoding it.
-func readCandidateDelivery(grant contract.LaunchCommand, input *contract.AcceptedInput) (CandidateDelivery, error) {
+func readCandidateDelivery(grant contract.LaunchCommand, input *contract.AcceptedInput, hostSpoolParent ...string) (CandidateDelivery, error) {
 	var out CandidateDelivery
 	if input == nil || input.DecisionCommandID == "" || input.Event.RunID != grant.RunID || input.Event.Kind != contract.EventResult || input.Event.Artifact == nil {
 		return out, errors.New("candidate_input_missing")
@@ -155,18 +155,30 @@ func readCandidateDelivery(grant contract.LaunchCommand, input *contract.Accepte
 	if ref.Path == "" || !filepath.IsAbs(ref.Path) || len(ref.SHA256) != 64 || ref.Size < 1 || ref.Size > 1024*1024 {
 		return out, errors.New("candidate_input_invalid")
 	}
-	file, err := os.OpenFile(ref.Path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
-	if err != nil {
-		return out, err
-	}
-	defer file.Close()
-	info, err := file.Stat()
-	if err != nil || !info.Mode().IsRegular() || info.Size() != ref.Size {
-		return out, errors.New("candidate_input_changed")
-	}
-	body, err := io.ReadAll(io.LimitReader(file, 1024*1024+1))
-	if err != nil {
-		return out, err
+	var body []byte
+	var err error
+	if ref.HostArtifact != nil {
+		if len(hostSpoolParent) != 1 {
+			return out, errors.New("candidate_input_changed")
+		}
+		body, err = readManagedCandidateArtifact(input.Event, hostSpoolParent[0])
+		if err != nil {
+			return out, err
+		}
+	} else {
+		file, err := os.OpenFile(ref.Path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
+		if err != nil {
+			return out, err
+		}
+		defer file.Close()
+		info, err := file.Stat()
+		if err != nil || !info.Mode().IsRegular() || info.Size() != ref.Size {
+			return out, errors.New("candidate_input_changed")
+		}
+		body, err = io.ReadAll(io.LimitReader(file, 1024*1024+1))
+		if err != nil {
+			return out, err
+		}
 	}
 	if len(body) > 1024*1024 || hashBytes(body) != ref.SHA256 || ref.SHA256 != input.Event.PayloadHash {
 		return out, errors.New("candidate_input_changed")
@@ -190,8 +202,8 @@ func readCandidateDelivery(grant contract.LaunchCommand, input *contract.Accepte
 
 // The model receives source identities and evidence, never coordinator/owner
 // capabilities or a user-supplied replacement for the candidate receipt.
-func CandidateReviewPrompt(grant contract.LaunchCommand) (string, error) {
-	in, err := readAcceptedCandidate(grant)
+func CandidateReviewPrompt(grant contract.LaunchCommand, hostSpoolParent ...string) (string, error) {
+	in, err := readAcceptedCandidate(grant, hostSpoolParent...)
 	if err != nil {
 		return "", err
 	}
@@ -249,7 +261,7 @@ func candidateReviewProvider(grant contract.LaunchCommand) (adapter.Provider, er
 func (h *Host) prepareCandidateAction(ctx context.Context, grant contract.LaunchCommand, inv contract.InvocationView, action *adapter.CandidateAction, profile *adapter.ExecutionProfile) (process.Command, actionFinalizer, func(), error) {
 	empty := invocationCommand(inv)
 	noop := func() {}
-	in, err := readAcceptedCandidate(grant)
+	in, err := readAcceptedCandidate(grant, filepath.Dir(h.spoolRoot))
 	if err != nil {
 		return empty, nil, noop, err
 	}
@@ -260,7 +272,7 @@ func (h *Host) prepareCandidateAction(ctx context.Context, grant contract.Launch
 		return empty, nil, noop, errors.New("candidate_review_index_invalid")
 	}
 	if action.Operation == "integrate" && action.ReviewIndex != nil {
-		in, err = readIndexedReviewCoverage(grant, action.ReviewIndex)
+		in, err = readIndexedReviewCoverage(grant, action.ReviewIndex, filepath.Dir(h.spoolRoot))
 		if err != nil {
 			return empty, nil, noop, err
 		}

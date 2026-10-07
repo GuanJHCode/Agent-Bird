@@ -158,6 +158,7 @@ func TestCancellationCannotEraseIntegratedResult(t *testing.T) {
 	defer cancel()
 	body, _ := json.Marshal(CandidateDelivery{Version: 1, Stage: "integrate", Integration: &gitops.IntegrationOutcome{State: gitops.IntegrationIntegrated, TargetHEAD: "accepted-candidate"}})
 	meta := launchMetadata{commandID: "command", workRevision: 1, integrationAction: true, finalizeAction: func(context.Context, string, int, bool) ([]byte, error) { cancel(); return body, nil }}
+	meta.artifactGrant = metadataForLaunch(managedHostGrant(t, h, contract.LaunchCommand{RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", CommandID: "command", WorkRevision: 1})).artifactGrant
 	result, err := h.execute(ctx, store.Attempt{ID: "attempt", TaskID: "task", SegmentID: "segment"}, "run", "task", process.Command{Path: "/usr/bin/true"}, false, meta)
 	if result.Status != "unknown" || !errors.Is(err, gitops.ErrIntegrationUncertain) {
 		t.Fatalf("cancellation erased landed result: %+v %v", result, err)

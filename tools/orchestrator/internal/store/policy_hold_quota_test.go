@@ -24,7 +24,7 @@ func TestPolicyHoldQuotaAdmissionAndHistory(t *testing.T) {
 			// an independent identical-width fixture must reject one byte less.
 			reference := newPolicyFixture(t, []TaskSpec{policyTask("a", 3)})
 			before := policyQuotaUsage(t, reference.db)
-			referenceEvent := policyRejection(&reference, "probe_start_eagain")
+			referenceEvent := policyRejection(t, &reference, "probe_start_eagain")
 			if _, err := reference.db.CommitHostEvent(ctx, referenceEvent); err != nil {
 				t.Fatal(err)
 			}
@@ -37,16 +37,22 @@ func TestPolicyHoldQuotaAdmissionAndHistory(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			// Contract accounting: event bytes/artifact, policy decision metadata,
+			// Contract accounting: event envelope and immutable Host ref, policy metadata,
 			// legacy binding bytes, then exactly sixteen new hold-history bytes.
-			withoutHold := int64(len(body)) + referenceEvent.Artifact.Size + 24 + int64(len("policy")+len(command)+len(policySHA)) + 16 + int64(len(slot)+len("a"))
+			withoutHold := int64(len(body)) + hostArtifactRefCostForTest(t, referenceEvent) - 2 + 24 + int64(len("policy")+len(command)+len(policySHA)) + 16 + int64(len(slot)+len("a"))
 			if growth-withoutHold != 16 {
 				t.Fatalf("hold history cost=%d want16", growth-withoutHold)
 			}
 			f := newPolicyFixture(t, []TaskSpec{policyTask("a", 3)})
 			initial := policyQuotaUsage(t, f.db)
+			e := policyRejection(t, &f, "probe_start_eagain")
+			localBody, err := json.Marshal(e)
+			if err != nil {
+				t.Fatal(err)
+			}
+			// Physical inode/path fields can differ in encoded width between objects.
+			growth += int64(len(localBody)-len(body)) + hostArtifactRefCostForTest(t, e) - hostArtifactRefCostForTest(t, referenceEvent)
 			f.db.runControlLimit = initial + growth - 1
-			e := policyRejection(&f, "probe_start_eagain")
 			if _, err := f.db.CommitHostEvent(ctx, e); !errors.Is(err, CodeError("control_spool_full")) {
 				t.Fatalf("one-byte-short admission accepted: %v", err)
 			}
@@ -73,7 +79,7 @@ func TestPolicyHoldQuotaAdmissionAndHistory(t *testing.T) {
 					t.Fatalf("retiring a promise erased its stored history: %d/%d", got, stored)
 				}
 			} else {
-				f.db.runControlLimit += 1024
+				f.db.runControlLimit = stored + int64(len("attempt-")+24) + nextHostArtifactControlBytes("run", "a", f.host, "")
 				if _, err := f.db.sql.Exec(`UPDATE retry_decisions SET eligible_at_unix_ms=1`); err != nil {
 					t.Fatal(err)
 				}

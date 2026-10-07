@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"encoding/json"
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -36,13 +35,9 @@ func TestCandidateInputBindsAcceptedHostResultAndReplay(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			path := filepath.Join(t.TempDir(), "candidate.json")
 			body := []byte(`{"candidate":"immutable"}`)
-			if err = os.WriteFile(path, body, 0600); err != nil {
-				t.Fatal(err)
-			}
 			zero := 0
-			e := contract.Event{Version: 1, ProducerID: hostID, EventID: "edit-result", RunID: "run", TaskID: "edit", AttemptID: grant.AttemptID, SegmentID: grant.SegmentID, WorkRevision: 1, ExecutionEpoch: 1, CommandID: grant.CommandID, Sequence: 1, Kind: contract.EventResult, PayloadHash: runtimeHash(string(body)), Artifact: &contract.ArtifactRef{ID: "candidate", Path: path, Size: int64(len(body)), SHA256: runtimeHash(string(body))}}
+			e := contract.Event{Version: 1, ProducerID: hostID, EventID: "edit-result", RunID: "run", TaskID: "edit", AttemptID: grant.AttemptID, SegmentID: grant.SegmentID, WorkRevision: 1, ExecutionEpoch: 1, CommandID: grant.CommandID, Sequence: 1, Kind: contract.EventResult, PayloadHash: runtimeHash(string(body)), Artifact: managedHostArtifactForTest(t, db, grant, "terminal", 0, body)}
 			if _, err = db.CommitHostEvent(ctx, e); err != nil {
 				t.Fatal(err)
 			}

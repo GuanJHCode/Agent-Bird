@@ -145,7 +145,7 @@ func TestCoreUncommittedReportRegistrationReplaysAfterRealLaunchRejection(t *tes
 	if err != nil {
 		t.Fatal(err)
 	}
-	h, err := NewIPC(filepath.Join(root, "spool"), producer)
+	h, err := NewIPC(filepath.Join(root, "host-spool", producer), producer)
 	if err != nil {
 		t.Fatal(err)
 	}

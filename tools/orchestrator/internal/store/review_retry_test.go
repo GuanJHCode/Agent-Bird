@@ -55,6 +55,10 @@ func newReviewRetryFixturePlan(t *testing.T, provider adapter.Provider, terminal
 }
 
 func newReviewRetryFixtureBound(t *testing.T, provider adapter.Provider, terminal string, ref *contract.ConfigGenerationRef, vector, policy bool, decorate func([]TaskSpec) []TaskSpec, bind func(*DB, PlanSpec) PlanSpec, sharedGroup ...bool) reviewRetryFixture {
+	return newReviewRetryFixtureArtifactMode(t, provider, terminal, ref, vector, policy, decorate, bind, false, sharedGroup...)
+}
+
+func newReviewRetryFixtureArtifactMode(t *testing.T, provider adapter.Provider, terminal string, ref *contract.ConfigGenerationRef, vector, policy bool, decorate func([]TaskSpec) []TaskSpec, bind func(*DB, PlanSpec) PlanSpec, historical bool, sharedGroup ...bool) reviewRetryFixture {
 	t.Helper()
 	ctx := context.Background()
 	dir := t.TempDir()
@@ -151,6 +155,9 @@ func newReviewRetryFixtureBound(t *testing.T, provider adapter.Provider, termina
 		if g.TaskID != id {
 			t.Fatalf("task=%s want=%s", g.TaskID, id)
 		}
+		if historical {
+			historicalHostGrantForTest(t, db, &g)
+		}
 		seq++
 		e := contract.Event{Version: 1, ProducerID: h, EventID: id + "-result", RunID: g.RunID, TaskID: id, AttemptID: g.AttemptID, SegmentID: g.SegmentID, WorkRevision: g.WorkRevision, ExecutionEpoch: 1, CommandID: g.CommandID, Sequence: seq, Kind: contract.EventResult, PayloadHash: runtimeHash("stopped")}
 		if id == "review" {
@@ -161,12 +168,16 @@ func newReviewRetryFixtureBound(t *testing.T, provider adapter.Provider, termina
 			}
 		} else {
 			body, _ := json.Marshal(map[string]any{"stage": id, "validation": map[string]any{"passed": true}, "candidate": map[string]any{"candidate_oid": strings.Repeat("b", 40)}})
-			path := filepath.Join(dir, id+".json")
-			if err = os.WriteFile(path, body, 0600); err != nil {
-				t.Fatal(err)
-			}
 			e.PayloadHash = runtimeHash(string(body))
-			e.Artifact = &contract.ArtifactRef{ID: id, Path: path, Size: int64(len(body)), SHA256: e.PayloadHash}
+			if historical {
+				path := filepath.Join(dir, id+".json")
+				if err := os.WriteFile(path, body, 0600); err != nil {
+					t.Fatal(err)
+				}
+				e.Artifact = &contract.ArtifactRef{ID: id, Path: path, Size: int64(len(body)), SHA256: e.PayloadHash}
+			} else {
+				e.Artifact = managedHostArtifactForTest(t, db, g, "terminal", 0, body)
+			}
 		}
 		if _, err = db.CommitHostEvent(ctx, e); err != nil {
 			t.Fatal(err)
@@ -213,7 +224,7 @@ func testPolicyReviewPrelaunchInputs(t *testing.T, provider adapter.Provider, co
 	ctx := context.Background()
 	original := f.grant
 	fixture := budgetBatchFixture{db: f.db, host: f.host, grant: original, sequence: 4}
-	e := policyRejection(&fixture, code)
+	e := policyRejection(t, &fixture, code)
 	if _, err := f.db.CommitHostEvent(ctx, e); err != nil {
 		t.Fatal(err)
 	}
@@ -249,7 +260,7 @@ func TestPolicyRetryCandidateReviewRejectsReboundHost(t *testing.T) {
 	f := newReviewRetryPolicyFixture(t, adapter.ProviderClaude, true)
 	ctx := context.Background()
 	fixture := budgetBatchFixture{db: f.db, host: f.host, grant: f.grant, sequence: 4}
-	e := policyRejection(&fixture, "probe_start_eagain")
+	e := policyRejection(t, &fixture, "probe_start_eagain")
 	if _, err := f.db.CommitHostEvent(ctx, e); err != nil {
 		t.Fatal(err)
 	}

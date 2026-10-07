@@ -93,7 +93,7 @@ func TestHostArtifactPendingRejectsMissingAndReleasedAuthority(t *testing.T) {
 			} else {
 				// Simulate legacy absence/corrupt partial persistence. The public
 				// Store cannot delete these immutable reservation rows.
-				_, err = db.sql.Exec(`DROP TRIGGER artifact_reservation_retained`)
+				_, err = db.sql.Exec(`DROP TRIGGER artifact_reservation_retained; DROP TRIGGER host_artifact_metadata_retained; DELETE FROM managed_host_artifact_metadata`)
 				if err == nil {
 					keep := ""
 					if mode == "terminal-only" {
@@ -157,7 +157,7 @@ func TestHostArtifactHistoricalNilCannotAuthorizeLiveReplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = db.sql.Exec(`DROP TRIGGER artifact_reservation_retained; DELETE FROM managed_artifact_reservations`); err != nil {
+	if _, err = db.sql.Exec(`DROP TRIGGER host_artifact_metadata_retained; DELETE FROM managed_host_artifact_metadata; DROP TRIGGER artifact_reservation_retained; DELETE FROM managed_artifact_reservations`); err != nil {
 		t.Fatal(err)
 	}
 	g.HostArtifacts = nil

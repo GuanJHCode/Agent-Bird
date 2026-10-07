@@ -15,7 +15,7 @@ func TestPolicyReviewRetrySurvivesOnlySamePhysicalHostReconnect(t *testing.T) {
 			f := newReviewRetryPolicyFixture(t, adapter.ProviderClaude, true)
 			ctx := context.Background()
 			fixture := budgetBatchFixture{db: f.db, host: f.host, grant: f.grant, sequence: 4}
-			if _, err := f.db.CommitHostEvent(ctx, policyRejection(&fixture, "probe_start_eagain")); err != nil {
+			if _, err := f.db.CommitHostEvent(ctx, policyRejection(t, &fixture, "probe_start_eagain")); err != nil {
 				t.Fatal(err)
 			}
 			if err := f.db.BeginCoordinatorEpoch(ctx, 2); err != nil {

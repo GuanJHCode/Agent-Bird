@@ -306,41 +306,6 @@ func syncDir(dir string) error {
 	return f.Sync()
 }
 
-func (s *Spool) WriteArtifact(data []byte) (string, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	path := filepath.Join(s.dir, "result-output.bin")
-	fd, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL|syscall.O_NOFOLLOW, 0600)
-	if errors.Is(err, os.ErrExist) {
-		old, readErr := os.ReadFile(path)
-		if readErr == nil && bytes.Equal(old, data) {
-			return path, nil
-		}
-		return "", ErrConflict
-	}
-	if err != nil {
-		return "", err
-	}
-	if len(data) > 1024*1024 {
-		_ = fd.Close()
-		_ = os.Remove(path)
-		return "", CodeError("artifact_too_large")
-	}
-	if _, err = fd.Write(data); err == nil {
-		err = fd.Sync()
-	}
-	if closeErr := fd.Close(); err == nil {
-		err = closeErr
-	}
-	if err != nil {
-		return "", err
-	}
-	if err = syncDir(s.dir); err != nil {
-		return "", err
-	}
-	return path, nil
-}
-
 func (s *Spool) WriteMetadata(name string, value any) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

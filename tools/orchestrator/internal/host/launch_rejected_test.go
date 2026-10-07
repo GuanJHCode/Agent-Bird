@@ -18,7 +18,7 @@ func TestLaunchRejectedHostWritesOneDiagnosticWithoutFakeExit(t *testing.T) {
 		t.Fatal(err)
 	}
 	a := store.Attempt{ID: "a", TaskID: "t", SegmentID: "s"}
-	meta := launchMetadata{commandID: "c", workRevision: 1, executionEpoch: 1}
+	meta := metadataForLaunch(managedHostGrant(t, h, contract.LaunchCommand{RunID: "r", TaskID: a.TaskID, AttemptID: a.ID, SegmentID: a.SegmentID, CommandID: "c", WorkRevision: 1, ExecutionEpoch: 1}))
 	if err = h.recordLaunchFailed(a, "r", "t", meta, errors.New("candidate_input_changed")); err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +45,7 @@ func TestLaunchRejectedHostRefusesStartAttemptWindow(t *testing.T) {
 		t.Fatal(err)
 	}
 	a := store.Attempt{ID: "a", TaskID: "t", SegmentID: "s"}
-	meta := launchMetadata{commandID: "c", workRevision: 1, executionEpoch: 1}
+	meta := metadataForLaunch(managedHostGrant(t, h, contract.LaunchCommand{RunID: "r", TaskID: a.TaskID, AttemptID: a.ID, SegmentID: a.SegmentID, CommandID: "c", WorkRevision: 1, ExecutionEpoch: 1}))
 	spool, err := h.spool(a)
 	if err != nil {
 		t.Fatal(err)

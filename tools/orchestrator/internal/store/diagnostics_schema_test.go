@@ -79,6 +79,7 @@ func diagnosticsLegacySnapshot(t *testing.T, db *sql.DB) map[string]string {
 func diagnosticsLegacyArtifact(t *testing.T, db *DB) {
 	t.Helper()
 	g := diagnosticsLegacyGrant(t, db)
+	historicalHostGrantForTest(t, db, &g)
 	e := contract.Event{Version: 1, ProducerID: g.HostID, EventID: "legacy-artifact", RunID: g.RunID, TaskID: g.TaskID, AttemptID: g.AttemptID, SegmentID: g.SegmentID, WorkRevision: g.WorkRevision, ExecutionEpoch: g.ExecutionEpoch, CommandID: g.CommandID, Sequence: 1, Kind: contract.EventResult, PayloadHash: strings.Repeat("a", 64), Artifact: &contract.ArtifactRef{ID: "legacy", Path: "/private/legacy/result-output.bin", Size: 42, SHA256: strings.Repeat("a", 64)}}
 	if _, err := db.CommitHostEvent(context.Background(), e); err != nil {
 		t.Fatal(err)

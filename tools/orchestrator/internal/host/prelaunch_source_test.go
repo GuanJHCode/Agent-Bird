@@ -46,18 +46,19 @@ func TestSourceReplaysPreparedPrelaunchStopRejectionIntoExactStoreSettlement(t *
 	if err != nil {
 		t.Fatal(err)
 	}
-	spoolRoot := filepath.Join(root, "spool")
+	spoolRoot := filepath.Join(root, "host-spool", producer)
 	h, err := NewIPC(spoolRoot, producer)
 	if err != nil {
 		t.Fatal(err)
 	}
 	a := store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID}
 	entered := make(chan struct{})
-	meta := launchMetadata{commandID: grant.CommandID, workRevision: 1, executionEpoch: 1, prepareProvider: func(prepCtx context.Context) (process.Command, error) {
+	meta := metadataForLaunch(grant)
+	meta.prepareProvider = func(prepCtx context.Context) (process.Command, error) {
 		close(entered)
 		<-prepCtx.Done()
 		return process.Command{}, prepCtx.Err()
-	}}
+	}
 	prepared := make(chan error, 1)
 	go func() {
 		result, err := h.execute(ctx, a, grant.RunID, grant.TaskID, process.Command{Path: "/usr/bin/true"}, false, meta)

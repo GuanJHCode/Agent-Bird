@@ -18,7 +18,7 @@ func validateIndexedCandidateEvidence(d CandidateDelivery) error {
 
 // Every direct accepted shard is checked before opening an integration journal.
 // The declared source remains the anchor; no shard can stand in for the vector.
-func readIndexedReviewCoverage(grant contract.LaunchCommand, action *adapter.ReviewIndex) (CandidateDelivery, error) {
+func readIndexedReviewCoverage(grant contract.LaunchCommand, action *adapter.ReviewIndex, hostSpoolParent ...string) (CandidateDelivery, error) {
 	bad := errors.New("candidate_review_coverage_changed")
 	if action == nil || action.Version != 1 || action.Mode != "indexed_candidate_review_v1" || action.Shards < 1 || action.Shards > 63 || grant.Input == nil || grant.DependencyInputs == nil || len(grant.DependencyInputs.Inputs) != action.Shards {
 		return CandidateDelivery{}, bad
@@ -34,7 +34,7 @@ func readIndexedReviewCoverage(grant contract.LaunchCommand, action *adapter.Rev
 	var validationTask string
 	seen := make(map[int]bool, action.Shards)
 	for _, input := range grant.DependencyInputs.Inputs {
-		d, err := readCandidateDelivery(grant, &input)
+		d, err := readCandidateDelivery(grant, &input, hostSpoolParent...)
 		if err != nil {
 			return CandidateDelivery{}, err
 		}

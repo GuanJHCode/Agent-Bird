@@ -122,6 +122,8 @@ func TestQuotaMigrationBackfillsReportAndRuntimeUsage(t *testing.T) {
 		}
 	}
 	check()
+	// Strip later schema while its accounting triggers still exist.
+	downgradePolicySchema(t, db)
 	for _, table := range []string{"runtime_events", "report_events"} {
 		for _, op := range []string{"INSERT", "UPDATE", "DELETE"} {
 			if _, err := db.sql.Exec("DROP TRIGGER quota_" + table + "_" + op); err != nil {
@@ -130,7 +132,6 @@ func TestQuotaMigrationBackfillsReportAndRuntimeUsage(t *testing.T) {
 		}
 	}
 	// Recreate the actual v4 schema, including removal of the later v6 ledger.
-	downgradePolicySchema(t, db)
 	hostMetadata = 0 // Historical v4 had no managed Host reservations.
 	if _, err := db.sql.Exec(`DROP TABLE config_preparation_abandons; DROP TABLE decision_attempt_bindings; DROP TABLE owner_control_changes; DROP TABLE execution_owners; ALTER TABLE host_launches DROP COLUMN execution_owner_mode; ALTER TABLE owner_rebinds DROP COLUMN old_host_generation; DROP TABLE continuation_decisions; DROP TABLE attempt_provider_bindings; DROP TABLE bridge_delivery_attempts; DROP TABLE bridge_batch_items; DROP TABLE bridge_batches; DROP TABLE bridge_ingress; DROP TABLE bridge_bindings; ALTER TABLE schema_meta DROP COLUMN bridge_cutover_at; DROP TABLE provider_settings; DROP TABLE host_progress; DROP TRIGGER quota_rework_INSERT; DROP TRIGGER quota_rework_UPDATE; DROP TRIGGER quota_rework_DELETE; ALTER TABLE retry_decisions DROP COLUMN revision_payload; DROP TABLE storage_usage; UPDATE schema_meta SET version=4`); err != nil {
 		t.Fatal(err)

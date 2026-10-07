@@ -22,7 +22,7 @@ func downgradeDependencySchema(t *testing.T, db *DB) {
 func TestDependencyMigrationLegacyPendingAndRollback(t *testing.T) {
 	for _, fail := range []bool{false, true} {
 		t.Run(map[bool]string{false: "legacy", true: "rollback"}[fail], func(t *testing.T) {
-			db, host := dependencyFixture(t)
+			db, host := dependencyFixture(t, true)
 			ctx := context.Background()
 			// A v15 single-source pending grant has the exact historical three-field intent.
 			if _, err := db.sql.Exec(`UPDATE tasks SET dependencies_json='["z"]' WHERE id='join'; UPDATE task_runtime SET adapter_payload='{"kind":"candidate","candidate_action":{"version":1,"operation":"validate","command":["/usr/bin/true"],"source_task":"z"}}' WHERE task_id='join'`); err != nil {

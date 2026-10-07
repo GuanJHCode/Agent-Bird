@@ -173,6 +173,29 @@ func (d *DB) managedArtifactAdmissionDisk(ctx context.Context, tx *sql.Tx, incom
 	if incoming > d.artifactLimit || used > d.artifactLimit-incoming {
 		return CodeError("artifact_spool_full")
 	}
+	metadataRows, err := tx.QueryContext(ctx, `SELECT m.reserved_bytes,COALESCE((SELECT SUM(f.manifest_bytes) FROM managed_artifact_refs f WHERE f.reservation_id=r.id),0) FROM managed_host_artifact_metadata m JOIN managed_artifact_reservations r ON r.id=m.reservation_id WHERE r.state!='released'`)
+	if err != nil {
+		return err
+	}
+	for metadataRows.Next() {
+		var reserved, retained int64
+		if err = metadataRows.Scan(&reserved, &retained); err != nil {
+			metadataRows.Close()
+			return err
+		}
+		if reserved < 0 || retained < 0 || retained > reserved || outstanding > math.MaxInt64-(reserved-retained) {
+			metadataRows.Close()
+			return CodeError("artifact_spool_full")
+		}
+		outstanding += reserved - retained
+	}
+	if err = metadataRows.Err(); err != nil {
+		metadataRows.Close()
+		return err
+	}
+	if err = metadataRows.Close(); err != nil {
+		return err
+	}
 	available, err := d.storageAvailable(filepath.Dir(d.path))
 	if err != nil {
 		return CodeError("storage_blocked")

@@ -44,12 +44,19 @@ type indexedResultArtifact struct {
 	Integration *gitops.IntegrationOutcome `json:"integration"`
 }
 
-func readIndexedResultArtifact(e contract.Event) (indexedResultArtifact, error) {
+func readIndexedResultArtifact(ctx context.Context, tx *sql.Tx, e contract.Event) (indexedResultArtifact, error) {
 	var d indexedResultArtifact
 	bad := CodeError("candidate_indexed_result_invalid")
 	r := e.Artifact
 	if r == nil || !filepath.IsAbs(r.Path) || r.Size < 1 || r.Size > 1024*1024 || r.SHA256 != e.PayloadHash || !validDigest(r.SHA256) {
 		return d, bad
+	}
+	if e.Artifact.HostArtifact != nil {
+		body, err := readCommittedHostArtifact(ctx, tx, e, 1024*1024)
+		if err != nil || json.Unmarshal(body, &d) != nil {
+			return d, CodeError("candidate_indexed_result_invalid")
+		}
+		return d, nil
 	}
 	f, err := os.OpenFile(r.Path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
 	if err != nil {
@@ -105,7 +112,7 @@ func validateIndexedResultAccept(ctx context.Context, tx *sql.Tx, e contract.Eve
 
 func validateIndexedResult(ctx context.Context, tx *sql.Tx, e contract.Event, raw []byte) (indexedResultArtifact, error) {
 	bad := CodeError("candidate_indexed_result_invalid")
-	d, err := readIndexedResultArtifact(e)
+	d, err := readIndexedResultArtifact(ctx, tx, e)
 	if err != nil {
 		return d, err
 	}
@@ -130,7 +137,7 @@ func validateIndexedResult(ctx context.Context, tx *sql.Tx, e contract.Event, ra
 	if err != nil {
 		return d, err
 	}
-	source, err := readIndexedResultArtifact(input.Event)
+	source, err := readIndexedResultArtifact(ctx, tx, input.Event)
 	if err != nil {
 		return d, err
 	}

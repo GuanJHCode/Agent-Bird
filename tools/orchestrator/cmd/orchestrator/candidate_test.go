@@ -112,11 +112,12 @@ func TestManagedCandidateFreezesWorkerChangesWithoutUserChanges(t *testing.T) {
 				payload, _ = json.Marshal(configured)
 			}
 			grant := contract.LaunchCommand{RunID: fmt.Sprintf("fixture-%x", sha256.Sum256([]byte(root))), TaskID: "implement", AttemptID: "attempt", SegmentID: "segment", CommandID: "command", ReservationID: "reservation", WorkRevision: 1, PlanRevision: 1, GrantedActiveMS: 15000, AdapterPayload: payload}
+			grant = candidateHostGrant(t, grant, "launch")
 			inv, err := invocationForGrant(context.Background(), grant)
 			if err != nil {
 				t.Fatalf("managed implementer request rejected: %v", err)
 			}
-			h, err := host.NewIPC(filepath.Join(root, "state", "host-spool", "launch"), "producer")
+			h, err := host.NewIPC(filepath.Join(root, "state", "host-spool", grant.HostID), grant.HostID)
 			if err != nil {
 				t.Fatal(err)
 			}

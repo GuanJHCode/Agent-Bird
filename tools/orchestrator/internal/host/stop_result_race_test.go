@@ -58,7 +58,7 @@ func TestOwnerStopResultRaceKeepsSingleTerminalSettlement(t *testing.T) {
 			// stop is distinguishable from a natural exit at the OS level.
 			script := fmt.Sprintf("trap 'echo trapped >> %s; exit 0' TERM\necho $$ > %s\nsleep %.3f\necho owner-raced-ok",
 				shellQuote(marker), shellQuote(pidFile), item.exitAt.Seconds())
-			grant := contract.LaunchCommand{CommandID: "owner-race-command-" + item.name, ReservationID: "owner-race-reservation-" + item.name, RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, GrantedActiveMS: 30_000}
+			grant := managedHostGrant(t, h, contract.LaunchCommand{CommandID: "owner-race-command-" + item.name, ReservationID: "owner-race-reservation-" + item.name, RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, GrantedActiveMS: 30_000})
 			inv := launchInvocation{args: []string{"/bin/sh", "-c", script}}
 			runCtx, cancelRun := context.WithCancel(context.Background())
 			finished := make(chan struct{})

@@ -277,7 +277,7 @@ func TestRunSourceReplaysDurableSpoolBeforeNewLaunch(t *testing.T) {
 		t.Fatal(err)
 	}
 	a := store.Attempt{ID: "attempt-replay", TaskID: "task-replay", SegmentID: "segment-replay"}
-	if err = h.recordLaunchFailed(a, "run-replay", a.TaskID, launchMetadata{commandID: "command-replay", workRevision: 2, executionEpoch: 1}, errors.New("unspawned")); err != nil {
+	if err = h.recordLaunchFailed(a, "run-replay", a.TaskID, metadataForLaunch(managedHostGrant(t, h, contract.LaunchCommand{RunID: "run-replay", TaskID: a.TaskID, AttemptID: a.ID, SegmentID: a.SegmentID, CommandID: "command-replay", WorkRevision: 2, ExecutionEpoch: 1})), errors.New("unspawned")); err != nil {
 		t.Fatal(err)
 	}
 	socket := fmt.Sprintf("/tmp/g1-host-replay-%d.sock", os.Getpid())

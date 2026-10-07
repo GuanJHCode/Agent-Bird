@@ -28,11 +28,7 @@ func exerciseIndexedCandidateDelivery(t *testing.T, root, repo, base string, sou
 	target := filepath.Join(root, "indexed-target")
 	git(repo, "worktree", "add", "-b", "indexed-delivery", target, base)
 	input := func(g contract.LaunchCommand, r contract.Result) contract.AcceptedInput {
-		info, err := os.Stat(r.ArtifactPath)
-		if err != nil {
-			t.Fatal(err)
-		}
-		return contract.AcceptedInput{DecisionCommandID: "accept-" + g.TaskID, AdapterPayload: g.AdapterPayload, Event: contract.Event{Version: 1, ProducerID: "producer", RunID: g.RunID, TaskID: g.TaskID, AttemptID: g.AttemptID, SegmentID: g.SegmentID, WorkRevision: g.WorkRevision, Kind: contract.EventResult, EventID: "event-" + g.TaskID, EventRevision: 1, ActionSlot: "slot-" + g.TaskID, CommandID: g.CommandID, Sequence: 1, PayloadHash: r.OutputHash, Artifact: &contract.ArtifactRef{ID: g.TaskID, Path: r.ArtifactPath, SHA256: r.OutputHash, Size: info.Size()}}}
+		return candidateAcceptedInput(t, root, g, r)
 	}
 	action := func(op, from string, ordinal int) map[string]any {
 		return map[string]any{"version": 1, "operation": op, "source_task": from, "target": map[string]any{"worktree": target, "ref": "refs/heads/indexed-delivery", "base_oid": base}, "review_index": map[string]any{"version": 1, "mode": "indexed_candidate_review_v1", "shards": 3, "review_ordinal": ordinal}}
@@ -49,16 +45,17 @@ func exerciseIndexedCandidateDelivery(t *testing.T, root, repo, base string, sou
 		}
 		body, _ := json.Marshal(payload)
 		grant := contract.LaunchCommand{RunID: source.RunID, TaskID: name, AttemptID: "attempt-" + name, SegmentID: "segment-" + name, CommandID: "command-" + name, ReservationID: "reservation-" + name, SlotToken: "slot-" + name, WorkRevision: 1, PlanRevision: 1, GrantedActiveMS: 15000, AdapterPayload: body, Input: &accepted, DependencyInputs: vector}
+		grant = candidateHostGrant(t, grant, "indexed-"+name)
 		var err error
 		grant.LaunchIntentHash, err = contract.CandidateIntentHash(grant)
 		if err != nil {
 			t.Fatal(err)
 		}
-		inv, err := invocationForGrant(context.Background(), grant)
+		inv, err := invocationForGrant(context.Background(), grant, filepath.Join(root, "state", "host-spool"))
 		if err != nil {
 			t.Fatalf("%s invocation: %v", name, err)
 		}
-		h, err := host.NewIPC(filepath.Join(root, "state", "host-spool", "indexed-"+name), "producer")
+		h, err := host.NewIPC(filepath.Join(root, "state", "host-spool", grant.HostID), grant.HostID)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -144,8 +141,9 @@ func exerciseIndexedCandidateDelivery(t *testing.T, root, repo, base string, sou
 	integrate["dependency_input_version"] = 1
 	for _, kind := range []string{"missing_shard", "missing_proof", "missing_page", "duplicate_ordinal", "assignment", "consumer_input", "source_event", "validation", "candidate_order", "config", "provider_lock"} {
 		t.Run("reject_"+kind, func(t *testing.T) {
-			// Mutate a non-anchor accepted shard and rehash its envelope. The
-			// guard must reject the semantic inconsistency before any Git journal.
+			// Exercise historical data-only body mutations, which use the same
+			// semantic validator after reading. Modern positive shards above keep
+			// their original immutable receipts; those objects cannot be rewritten.
 			raw, _ := json.Marshal(vector)
 			var badVector contract.DependencyInputVector
 			if err := json.Unmarshal(raw, &badVector); err != nil {
@@ -200,22 +198,26 @@ func exerciseIndexedCandidateDelivery(t *testing.T, root, repo, base string, sou
 			}
 			payload, _ := json.Marshal(badPayload)
 			grant := contract.LaunchCommand{RunID: source.RunID, TaskID: "reject-" + kind, AttemptID: "attempt-reject-" + kind, SegmentID: "segment-reject-" + kind, CommandID: "cmd-" + kind, ReservationID: "reservation-" + kind, SlotToken: "slot-" + kind, WorkRevision: 1, PlanRevision: 1, GrantedActiveMS: 15000, AdapterPayload: payload, Input: &vector.Inputs[1], DependencyInputs: &badVector}
+			grant = candidateHostGrant(t, grant, "reject-"+kind)
 			grant.LaunchIntentHash, err = contract.CandidateIntentHash(grant)
 			if err != nil {
 				t.Fatal(err)
 			}
-			inv, err := invocationForGrant(context.Background(), grant)
+			inv, err := invocationForGrant(context.Background(), grant, filepath.Join(root, "state", "host-spool"))
 			if err != nil {
 				t.Fatal(err)
 			}
 			spool := filepath.Join(root, "state", "host-spool", "reject-"+kind)
-			h, err := host.NewIPC(spool, "producer")
+			h, err := host.NewIPC(spool, grant.HostID)
 			if err != nil {
 				t.Fatal(err)
 			}
 			out, launchErr := h.ExecuteLaunch(context.Background(), grant, inv)
 			if launchErr == nil && out.Status == "result_ready" {
 				t.Fatal("invalid coverage integrated")
+			}
+			if launchErr == nil || launchErr.Error() != "candidate_review_coverage_changed" {
+				t.Fatalf("did not reach indexed coverage validation: status=%s err=%v", out.Status, launchErr)
 			}
 			if _, err = os.Stat(filepath.Join(spool, ".gitops-journal")); !os.IsNotExist(err) {
 				t.Fatalf("rejection created journal: %v", err)

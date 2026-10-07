@@ -459,7 +459,7 @@ func TestDAGReworkQuotaShortfallRollsBackWholeClosure(t *testing.T) {
 	initial := policyQuotaUsage(t, f.db)
 	// An exact SQLite snapshot retains the same immutable artifact paths and event
 	// widths, so the reference API admission establishes an exact byte boundary.
-	path := filepath.Join(t.TempDir(), "reference.db")
+	path := filepath.Join(filepath.Dir(f.db.path), "reference.db")
 	if _, err := f.db.sql.Exec(`VACUUM INTO ?`, path); err != nil {
 		t.Fatal(err)
 	}
@@ -569,7 +569,11 @@ func TestDAGReworkTargetReservationUsesRepositoryAndRef(t *testing.T) {
 				}
 			}
 			if which == "unknown_unresolved" {
-				if err := os.Remove(filepath.Join(f.dir, f.grants["side-review"].SegmentID+".json")); err != nil {
+				var artifactPath string
+				if err := f.db.sql.QueryRow(`SELECT json_extract(body_json,'$.artifact.path') FROM runtime_events WHERE event_id=?`, f.grants["side-review"].SegmentID+"-result").Scan(&artifactPath); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Remove(artifactPath); err != nil {
 					t.Fatal(err)
 				}
 			}

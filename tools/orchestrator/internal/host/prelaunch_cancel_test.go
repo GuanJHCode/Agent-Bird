@@ -40,7 +40,7 @@ func TestPrelaunchPreparationCancellationDoesNotInventWorkerExit(t *testing.T) {
 					return cmd, nil
 				}
 			}
-			meta := launchMetadata{commandID: "command", workRevision: 1, executionEpoch: 1}
+			meta := metadataForLaunch(managedHostGrant(t, h, contract.LaunchCommand{RunID: "run", TaskID: a.TaskID, AttemptID: a.ID, SegmentID: a.SegmentID, CommandID: "command", WorkRevision: 1, ExecutionEpoch: 1}))
 			if mode[:9] == "candidate" {
 				meta.prepareCandidate = func(ctx context.Context) (process.Command, func(context.Context, string) ([]byte, error), func(), error) {
 					prepared, err := prepare(ctx)

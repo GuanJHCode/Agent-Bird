@@ -17,7 +17,11 @@ func downgradeReportIntakeSchema(t *testing.T, db *DB) {
 		t.Fatal(err)
 	}
 	defer tx.Rollback()
+	downgradeHostArtifactAccounting(t, tx)
 	downgradeHostArtifactGrants(t, tx)
+	if _, err = tx.Exec(`DROP TRIGGER artifact_host_ref_binding; DROP TABLE managed_host_artifact_metadata`); err != nil {
+		t.Fatal(err)
+	}
 	for _, table := range []string{"managed_artifact_refs", "managed_artifact_intakes"} {
 		var count int
 		if err = tx.QueryRow("SELECT COUNT(*) FROM " + table).Scan(&count); err != nil || count != 0 {

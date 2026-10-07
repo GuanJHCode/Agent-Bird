@@ -252,7 +252,7 @@ func TestReportIntakeDiskPromiseBoundary(t *testing.T) {
 		t.Fatal(err)
 	}
 	db.minFreeBytes, db.sqliteWriteOverhead, db.criticalDiskReserve = 64, 32, 20<<10
-	available := uint64(64 + 32 + prepared.spec.Size + contract.HostArtifactReservedBytes)
+	available := uint64(64 + 32 + prepared.spec.Size + contract.HostArtifactReservedBytes + hostArtifactManifestReservationBytes)
 	db.storageAvailable = func(string) (uint64, error) { return available, nil }
 	available--
 	if _, err = db.beginReportIntake(ctx, spec); !errors.Is(err, CodeError("storage_blocked")) {

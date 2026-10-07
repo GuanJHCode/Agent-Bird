@@ -50,8 +50,8 @@ func TestOwnerStopTargetsSingleSegmentAmongConcurrentTasks(t *testing.T) {
 		shellQuote(marker1), shellQuote(pidFile1), shellQuote(holdFile1))
 	script2 := fmt.Sprintf("trap 'echo signaled >> %s' TERM\necho $$ > %s\n(sleep 2.5 >/dev/null 2>&1) &\necho $! > %s\nsleep 4\necho task2-result",
 		shellQuote(marker2), shellQuote(pidFile2), shellQuote(holdFile2))
-	grant1 := contract.LaunchCommand{CommandID: "multi-command-1", ReservationID: "multi-reservation-1", RunID: "run", TaskID: "task-1", AttemptID: "attempt-1", SegmentID: "segment-1", WorkRevision: 1, GrantedActiveMS: 30_000}
-	grant2 := contract.LaunchCommand{CommandID: "multi-command-2", ReservationID: "multi-reservation-2", RunID: "run", TaskID: "task-2", AttemptID: "attempt-2", SegmentID: "segment-2", WorkRevision: 1, GrantedActiveMS: 30_000}
+	grant1 := managedHostGrant(t, h, contract.LaunchCommand{CommandID: "multi-command-1", ReservationID: "multi-reservation-1", RunID: "run", TaskID: "task-1", AttemptID: "attempt-1", SegmentID: "segment-1", WorkRevision: 1, GrantedActiveMS: 30_000})
+	grant2 := managedHostGrant(t, h, contract.LaunchCommand{CommandID: "multi-command-2", ReservationID: "multi-reservation-2", RunID: "run", TaskID: "task-2", AttemptID: "attempt-2", SegmentID: "segment-2", WorkRevision: 1, GrantedActiveMS: 30_000})
 
 	type execution struct {
 		taskID string

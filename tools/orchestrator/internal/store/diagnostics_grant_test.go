@@ -85,7 +85,7 @@ func TestDiagnosticsLaunchReservesOnlyExplicitDetailedAndReplays(t *testing.T) {
 				t.Fatal("not exactly one attempt reservation", reservations, deliveries)
 			}
 			var used int64
-			if err = db.sql.QueryRow(`SELECT total_bytes FROM storage_usage WHERE scope='global' AND scope_id=''`).Scan(&used); err != nil || used <= 0 || used >= 4096 {
+			if err = db.sql.QueryRow(`SELECT total_bytes FROM storage_usage WHERE scope='global' AND scope_id=''`).Scan(&used); err != nil || used <= hostArtifactManifestReservationBytes || used >= hostArtifactManifestReservationBytes+4096 {
 				t.Fatal("artifact allowance entered control quota or metadata omitted", used, err)
 			}
 			if err = db.Close(); err != nil {

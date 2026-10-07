@@ -931,7 +931,7 @@ func TestDeliveryMatrixProofDigestMismatchRejected(t *testing.T) {
 // only an exact match auto-completes.
 func TestDeliveryMatrixArtifactPolicyGate(t *testing.T) {
 	ctx := context.Background()
-	const expectedArtifact = "5f4dcc3b5aa765d61d8327deb882cf99" + "3d4f2e6a7b8c9d0e1f20314253647586" // 64 hex
+	expectedArtifact := runtimeHash("expected artifact")
 	for _, tc := range []struct {
 		name       string
 		artifact   *contract.ArtifactRef
@@ -949,6 +949,13 @@ func TestDeliveryMatrixArtifactPolicyGate(t *testing.T) {
 			f.commit(t, contract.EventResult, "art-result")
 			f.seq++
 			exit := contract.Event{Version: 1, ProducerID: f.hostID, EventID: "art-exit", RunID: "run", TaskID: "task", AttemptID: f.grant.AttemptID, SegmentID: f.grant.SegmentID, WorkRevision: 1, ExecutionEpoch: 1, CommandID: f.grant.CommandID, Sequence: f.seq, Kind: contract.EventExited, PayloadHash: strings.Repeat("9", 64), ActiveMS: 1000, Artifact: tc.artifact}
+			if tc.artifact != nil {
+				body := []byte("expected artifact")
+				if tc.name == "mismatched" {
+					body = []byte("different artifact")
+				}
+				exit.Artifact = managedHostArtifactForTest(t, f.db, f.grant, "terminal", 0, body)
+			}
 			exitZero := 0
 			exit.ExitCode = &exitZero
 			if _, err := f.db.CommitHostEvent(ctx, exit); err != nil {

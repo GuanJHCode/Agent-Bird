@@ -64,7 +64,7 @@ func originalOwnerEntry(parent context.Context, args []string) error {
 			if json.Unmarshal(grant.AdapterPayload, &discriminator) == nil && discriminator.Kind == "gitops" {
 				return gitopsworker.BuildInvocation(grant.AdapterPayload, bootstrap.Prepared.Intent.Scope.Executable, bootstrap.SpoolRoot, grant.CommandID)
 			}
-			return invocationForGrant(ctx, grant)
+			return invocationForGrant(ctx, grant, filepath.Join(bootstrap.StateDir, "host-spool"))
 		},
 		EnsureCoordinator: func(ctx context.Context) error {
 			hello := contract.HostHello{LaunchID: bootstrap.Prepared.Intent.Scope.LaunchID, OriginContextID: bootstrap.Prepared.Intent.Scope.OriginalOriginContextID, OriginPID: bootstrap.Prepared.Intent.Scope.OriginalOriginPID, OriginBirth: bootstrap.Prepared.Intent.Scope.OriginalOriginBirth, HostGeneration: bootstrap.Prepared.Intent.Scope.HostGeneration, PID: bootstrap.Prepared.Intent.FirstHost.PID, Birth: bootstrap.Prepared.Intent.FirstHost.Birth, Executable: bootstrap.Prepared.Intent.Scope.Executable}

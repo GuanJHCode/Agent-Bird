@@ -37,7 +37,7 @@ func TestLaunchRejectedAfterPrelaunchOwnerStopCompletesReservationAndStop(t *tes
 			}
 			// No spawned/process/session/result/UNKNOWN event has ever existed.
 			// The same authenticated grant positively attests Start was never entered.
-			e := rejectionEvent(f)
+			e := rejectionEvent(t, f)
 			_, err = f.db.CommitHostEvent(ctx, e)
 			readLedger()
 			if err != nil {
@@ -88,7 +88,7 @@ func TestPrelaunchStopRejectionRetainsContradictionsAndOtherPendingStops(t *test
 				t.Fatal(err)
 			}
 			before := hostRecoveryLedger(t, f.db)
-			if _, err = f.db.CommitHostEvent(ctx, rejectionEvent(f)); err == nil {
+			if _, err = f.db.CommitHostEvent(ctx, rejectionEvent(t, f)); err == nil {
 				t.Fatalf("%s stop projection erased reservation", mode)
 			}
 			if after := hostRecoveryLedger(t, f.db); after != before {
@@ -116,7 +116,7 @@ func TestPrelaunchStopRejectionRetainsContradictionsAndOtherPendingStops(t *test
 			t.Fatal(err)
 		}
 		f.grant = first
-		e := rejectionEvent(f)
+		e := rejectionEvent(t, f)
 		f.send(t, e)
 		f.send(t, e)
 		assertRejectedLedger(t, f, "settled", 0)
@@ -143,7 +143,7 @@ func TestPrelaunchStopRejectionPreservesEarlierContinuationCharges(t *testing.T)
 	if _, err = f.db.RequestStop(ctx, f.grant.TaskID, 1, "owner_stop"); err != nil {
 		t.Fatal(err)
 	}
-	f.send(t, rejectionEvent(f))
+	f.send(t, rejectionEvent(t, f))
 	assertRejectedLedger(t, f, "settled", 0)
 	var used int64
 	var status string

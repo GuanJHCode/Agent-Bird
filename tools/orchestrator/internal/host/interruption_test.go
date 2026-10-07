@@ -136,7 +136,7 @@ func TestLaunchInterruptionPreservesDeadlineSource(t *testing.T) {
 				t.Fatal(err)
 			}
 			inv := interruptionInvocation{launchInvocation: launchInvocation{args: []string{bin, "-test.run=^TestInterruptedProviderPublishesReasonAndIncompleteCheckpoint$"}, dir: root, env: map[string]string{"CBO_PROGRESS_FIXTURE": "1"}}, profile: &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: tc.profile}}
-			g := contract.LaunchCommand{ReservationID: "reservation", CommandID: "c", AttemptID: "a", SegmentID: "s", RunID: "r", TaskID: "t", GrantedActiveMS: tc.budget, DeadlineUnixMS: time.Now().Add(time.Duration(tc.deadline) * time.Millisecond).UnixMilli(), WorkRevision: 1}
+			g := managedHostGrant(t, h, contract.LaunchCommand{ReservationID: "reservation", CommandID: "c", AttemptID: "a", SegmentID: "s", RunID: "r", TaskID: "t", GrantedActiveMS: tc.budget, DeadlineUnixMS: time.Now().Add(time.Duration(tc.deadline) * time.Millisecond).UnixMilli(), WorkRevision: 1})
 			result, err := h.ExecuteLaunch(context.Background(), g, inv)
 			if !errors.Is(err, context.DeadlineExceeded) || result.Status != "interrupted" {
 				t.Fatalf("%+v %v", result, err)

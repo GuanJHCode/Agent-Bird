@@ -18,7 +18,7 @@ import (
 // then reopen the actual schema12 DDL. Migration must not invent bindings.
 func legacyReviewRetryThirdFixture(t *testing.T, consumed bool) (reviewRetryFixture, contract.LaunchCommand, RetrySpec, contract.LaunchCommand) {
 	t.Helper()
-	f := newReviewRetryFixture(t, contract.EventStopped)
+	f := newReviewRetryFixtureArtifactMode(t, adapter.ProviderClaude, contract.EventStopped, nil, false, false, nil, nil, true)
 	ctx := context.Background()
 	if _, err := f.db.QueueRetry(ctx, f.spec); err != nil {
 		t.Fatal(err)

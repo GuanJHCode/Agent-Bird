@@ -39,14 +39,25 @@ func newPolicyFixture(t *testing.T, tasks []TaskSpec) budgetBatchFixture {
 func policyTask(id string, attempts int) TaskSpec {
 	return TaskSpec{ID: id, RunID: "run", MaxAttempts: attempts, MaxActiveMS: 500, ExecutionPolicy: &contract.ExecutionPolicy{Version: 1, GroupMaxAttempts: 3, GroupMaxActiveMS: 1000, TaskMaxActiveMS: 600, SegmentMaxActiveMS: 200, Retry: &contract.RetryPolicy{Codes: []string{"probe_start_eagain", "probe_start_eintr"}, BackoffMS: []int64{5000, 20000}[:min(2, attempts-1)]}}}
 }
-func policyRejection(f *budgetBatchFixture, code string) contract.Event {
+func policyRejection(t *testing.T, f *budgetBatchFixture, code string) contract.Event {
+	t.Helper()
 	f.sequence++
-	return contract.Event{Version: 1, ProducerID: f.host, EventID: fmt.Sprintf("policy-%d", f.sequence), RunID: f.grant.RunID, TaskID: f.grant.TaskID, AttemptID: f.grant.AttemptID, SegmentID: f.grant.SegmentID, WorkRevision: f.grant.WorkRevision, ExecutionEpoch: 1, CommandID: f.grant.CommandID, Sequence: f.sequence, Kind: contract.EventLaunchRejected, PayloadHash: strings.Repeat("a", 64), Artifact: &contract.ArtifactRef{ID: "launch-failure", Path: "/private/fixture/launch-failure/result-output.bin", Size: 100, SHA256: strings.Repeat("a", 64)}, Failure: &contract.FailureFacts{Version: 1, Stage: "prelaunch_probe", Code: code, WorkerState: "not_started", ProbeState: "not_started"}}
+	body, err := json.Marshal(map[string]string{"status": "launch_rejected", "reason": code})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var artifact *contract.ArtifactRef
+	if f.grant.HostArtifacts == nil { // Only explicitly prepared pre-upgrade fixtures.
+		artifact = &contract.ArtifactRef{ID: "launch-failure", Path: "/private/historical/launch-failure", Size: int64(len(body)), SHA256: runtimeHash(string(body))}
+	} else {
+		artifact = managedHostArtifactForTest(t, f.db, f.grant, "prelaunch", 0, body)
+	}
+	return contract.Event{Version: 1, ProducerID: f.host, EventID: fmt.Sprintf("policy-%d", f.sequence), RunID: f.grant.RunID, TaskID: f.grant.TaskID, AttemptID: f.grant.AttemptID, SegmentID: f.grant.SegmentID, WorkRevision: f.grant.WorkRevision, ExecutionEpoch: 1, CommandID: f.grant.CommandID, Sequence: f.sequence, Kind: contract.EventLaunchRejected, PayloadHash: artifact.SHA256, Artifact: artifact, Failure: &contract.FailureFacts{Version: 1, Stage: "prelaunch_probe", Code: code, WorkerState: "not_started", ProbeState: "not_started"}}
 }
 func TestPolicyRetryDurableBackoffExactBinding(t *testing.T) {
 	f := newPolicyFixture(t, []TaskSpec{policyTask("task", 3)})
 	ctx := context.Background()
-	e := policyRejection(&f, "probe_start_eagain")
+	e := policyRejection(t, &f, "probe_start_eagain")
 	before := time.Now().UnixMilli()
 	if _, err := f.db.CommitHostEvent(ctx, e); err != nil {
 		t.Fatal(err)
@@ -103,7 +114,7 @@ func TestPolicyRetryPendingCapacityCannotBeStolen(t *testing.T) {
 	a.ExecutionPolicy.GroupMaxAttempts = 2
 	b.ExecutionPolicy.GroupMaxAttempts = 2
 	f := newPolicyFixture(t, []TaskSpec{a, b})
-	e := policyRejection(&f, "probe_start_eintr")
+	e := policyRejection(t, &f, "probe_start_eintr")
 	if _, err := f.db.CommitHostEvent(context.Background(), e); err != nil {
 		t.Fatal(err)
 	}
@@ -130,7 +141,7 @@ func TestPolicyFailureFactsExcludeUnsafeEvents(t *testing.T) {
 	for _, kind := range []string{"running", "unknown", "failed", "progress"} {
 		t.Run(kind, func(t *testing.T) {
 			f := newPolicyFixture(t, []TaskSpec{policyTask("task", 3)})
-			e := policyRejection(&f, "probe_start_eagain")
+			e := policyRejection(t, &f, "probe_start_eagain")
 			e.Kind = kind
 			if _, err := f.db.CommitHostEvent(context.Background(), e); err == nil {
 				t.Fatal("non-rejection accepted failure facts")
@@ -143,7 +154,7 @@ func TestPolicyFailureFactsExcludeUnsafeEvents(t *testing.T) {
 			if change == "started" {
 				f.start(t)
 			}
-			e := policyRejection(&f, "probe_start_eagain")
+			e := policyRejection(t, &f, "probe_start_eagain")
 			switch change {
 			case "code":
 				e.Failure.Code = "launch_failed"
@@ -252,7 +263,7 @@ func TestPolicyRetryStopsAfterFiniteAuthorizedBackoff(t *testing.T) {
 	f := newPolicyFixture(t, []TaskSpec{policyTask("task", 3)})
 	ctx := context.Background()
 	for i := 0; i < 3; i++ {
-		e := policyRejection(&f, "probe_start_eagain")
+		e := policyRejection(t, &f, "probe_start_eagain")
 		if _, err := f.db.CommitHostEvent(ctx, e); err != nil {
 			t.Fatal(err)
 		}

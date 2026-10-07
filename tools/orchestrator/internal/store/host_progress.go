@@ -33,7 +33,7 @@ func migrateHostProgress(tx *sql.Tx) error {
 
 // A separate authenticated stream: a rejected observation never consumes a
 // lifecycle sequence. Quota/epoch failures may be dropped by its producer.
-func (d *DB) CommitHostProgress(ctx context.Context, event contract.Event, launchID, token string, pid int, birth string) error {
+func (d *DB) commitHostProgress(ctx context.Context, event contract.Event, launchID, token string, pid int, birth string, artifactGate *hostArtifactGate) error {
 	if event.Kind != contract.EventProgress || event.Version != 1 || event.Sequence < 1 || event.Sequence > 21 || event.StopReason != "" || event.Artifact == nil || event.Artifact.ID != "provider-progress" || event.Artifact.Size < 1 || event.Artifact.Size > 64*1024 || !validDigest(event.PayloadHash) || event.PayloadHash != event.Artifact.SHA256 {
 		return CodeError("invalid_progress")
 	}
@@ -63,7 +63,17 @@ func (d *DB) CommitHostProgress(ctx context.Context, event contract.Event, launc
 	if err != sql.ErrNoRows {
 		return err
 	}
-	incoming := int64(len(body)) + event.Artifact.Size
+	var controlBefore int64
+	if err = tx.QueryRowContext(ctx, `SELECT total_bytes FROM storage_usage WHERE scope='global' AND scope_id=''`).Scan(&controlBefore); err != nil {
+		return err
+	}
+	if err = d.retainHostArtifact(ctx, tx, event, artifactGate, true); err != nil {
+		return err
+	}
+	incoming := int64(len(body))
+	if event.Artifact.HostArtifact == nil {
+		incoming += event.Artifact.Size
+	}
 	// Reserve control quota for every currently owned segment's terminal
 	// artifact (<=1 MiB) plus lifecycle envelopes. Diagnostic quota alone is
 	// insufficient when ordinary control records already approach the limit.
@@ -87,6 +97,9 @@ func (d *DB) CommitHostProgress(ctx context.Context, event contract.Event, launc
 		return err
 	}
 	if _, err = tx.ExecContext(ctx, `INSERT INTO delivery_order(event_id,task_id) VALUES(?,?)`, event.EventID, event.TaskID); err != nil {
+		return err
+	}
+	if err = d.hostArtifactCommitAdmission(ctx, tx, event.RunID, controlBefore, true); err != nil {
 		return err
 	}
 	return tx.Commit()

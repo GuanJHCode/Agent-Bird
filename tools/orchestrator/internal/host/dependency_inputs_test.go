@@ -97,7 +97,8 @@ func TestDependencyVectorExecuteRejectsBeforeReservation(t *testing.T) {
 	c.DependencyInputs = nil
 	// Expired deadline safely prevents any process even before the new guard.
 	c.DeadlineUnixMS = 1
-	h := &Host{}
+	h := &Host{producerID: "host"}
+	c = managedHostGrant(t, h, c)
 	_, err := h.ExecuteLaunch(context.Background(), c, launchInvocation{args: []string{"/nonexistent"}})
 	if err == nil || err.Error() != "candidate_dependency_inputs_invalid" {
 		t.Fatalf("vector did not fail at execution boundary: %v", err)

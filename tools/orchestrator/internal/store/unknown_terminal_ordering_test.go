@@ -13,9 +13,9 @@ import (
 // stronger evidence than the earlier loss of visibility. Both halves are
 // asserted here so the ordering is a pinned contract instead of an accident of
 // the outcome-stickiness update.
-const resurrectionArtifactSHA256 = "0f1e2d3c4b5a69788796a5b3c1d0e2f4" + "0f1e2d3c4b5a69788796a5b3c1d0e2f4"
+var resurrectionArtifactSHA256 = runtimeHash("expected artifact")
 
-const mismatchedArtifactSHA256 = "ff00ff00ff00ff00ff00ff00ff00ff00" + "ff00ff00ff00ff00ff00ff00ff00ff00"
+var mismatchedArtifactSHA256 = runtimeHash("different artifact")
 
 func TestUnknownSegmentSettlesOnlyOnVerifiedExit(t *testing.T) {
 	ctx := context.Background()
@@ -48,7 +48,11 @@ func TestUnknownSegmentSettlesOnlyOnVerifiedExit(t *testing.T) {
 					f.seq++
 					var artifact *contract.ArtifactRef
 					if digest != "" {
-						artifact = &contract.ArtifactRef{ID: "ru-art", Path: "/tmp/ru-diagnostic", Size: 12, SHA256: digest}
+						body := []byte("expected artifact")
+						if digest == mismatchedArtifactSHA256 {
+							body = []byte("different artifact")
+						}
+						artifact = managedHostArtifactForTest(t, f.db, f.grant, "terminal", 0, body)
 					}
 					e := contract.Event{Version: 1, ProducerID: f.hostID, EventID: "ru-exit", RunID: "run", TaskID: "task", AttemptID: f.grant.AttemptID, SegmentID: f.grant.SegmentID, WorkRevision: 1, ExecutionEpoch: 1, CommandID: f.grant.CommandID, Sequence: f.seq, Kind: contract.EventExited, PayloadHash: strings.Repeat("c", 64), ActiveMS: 1000, Artifact: artifact}
 					exitZero := 0

@@ -20,25 +20,23 @@ func exerciseCandidateDelivery(t *testing.T, root, repo, base string, source con
 	git(repo, "worktree", "add", "-b", "delivery", target, base)
 	targetSpec := map[string]any{"worktree": target, "ref": "refs/heads/delivery", "base_oid": base}
 	input := func(g contract.LaunchCommand, r contract.Result) *contract.AcceptedInput {
-		info, err := os.Stat(r.ArtifactPath)
-		if err != nil {
-			t.Fatal(err)
-		}
-		return &contract.AcceptedInput{DecisionCommandID: "accept-" + g.TaskID, AdapterPayload: g.AdapterPayload, Event: contract.Event{RunID: g.RunID, TaskID: g.TaskID, AttemptID: g.AttemptID, SegmentID: g.SegmentID, WorkRevision: g.WorkRevision, Kind: contract.EventResult, EventID: "event-" + g.TaskID, EventRevision: 1, PayloadHash: r.OutputHash, Artifact: &contract.ArtifactRef{Path: r.ArtifactPath, SHA256: r.OutputHash, Size: info.Size()}}}
+		accepted := candidateAcceptedInput(t, root, g, r)
+		return &accepted
 	}
 	run := func(name string, payload map[string]any, from contract.LaunchCommand, r contract.Result, wantError ...bool) (contract.LaunchCommand, contract.Result) {
 		t.Helper()
 		body, _ := json.Marshal(payload)
 		grant := contract.LaunchCommand{RunID: source.RunID, TaskID: name, AttemptID: "attempt-" + name, SegmentID: "segment-" + name, CommandID: "command-" + name, ReservationID: "reservation-" + name, WorkRevision: 1, PlanRevision: 1, GrantedActiveMS: 15000, AdapterPayload: body, Input: input(from, r)}
+		grant = candidateHostGrant(t, grant, "delivery-"+name)
 		grant.LaunchIntentHash, _ = contract.CandidateIntentHash(grant)
-		inv, err := invocationForGrant(context.Background(), grant)
+		inv, err := invocationForGrant(context.Background(), grant, filepath.Join(root, "state", "host-spool"))
 		if err != nil {
 			if len(wantError) > 0 && wantError[0] {
 				return grant, contract.Result{Status: "failed"}
 			}
 			t.Fatalf("%s invocation: %v", name, err)
 		}
-		h, err := host.NewIPC(filepath.Join(root, "state", "host-spool", "delivery-"+name), "producer")
+		h, err := host.NewIPC(filepath.Join(root, "state", "host-spool", grant.HostID), grant.HostID)
 		if err != nil {
 			t.Fatal(err)
 		}

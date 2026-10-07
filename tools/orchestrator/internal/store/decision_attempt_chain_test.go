@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -27,7 +25,6 @@ func reworkBindingChain(t *testing.T, missing bool) {
 	}
 	var candidate any
 	var prev contract.Event
-	dir := t.TempDir()
 	seq := int64(6) // The original three fixture segments each committed two events.
 	for i, stage := range []string{"edit", "validate", "review", "integrate"} {
 		if missing && stage == "integrate" {
@@ -83,12 +80,8 @@ func reworkBindingChain(t *testing.T, missing bool) {
 			artifact["review"] = map[string]any{"decision": "approve", "summary": "both operands validated"}
 		}
 		body, _ := json.Marshal(artifact)
-		path := filepath.Join(dir, stage+".json")
-		if err = os.WriteFile(path, body, 0600); err != nil {
-			t.Fatal(err)
-		}
 		seq++
-		e := contract.Event{Version: 1, ProducerID: f.host, EventID: "revision2-" + stage, RunID: g.RunID, TaskID: g.TaskID, AttemptID: g.AttemptID, SegmentID: g.SegmentID, WorkRevision: 2, ExecutionEpoch: 1, CommandID: g.CommandID, Sequence: seq, Kind: contract.EventResult, PayloadHash: runtimeHash(string(body)), Artifact: &contract.ArtifactRef{ID: stage, Path: path, Size: int64(len(body)), SHA256: runtimeHash(string(body))}}
+		e := contract.Event{Version: 1, ProducerID: f.host, EventID: "revision2-" + stage, RunID: g.RunID, TaskID: g.TaskID, AttemptID: g.AttemptID, SegmentID: g.SegmentID, WorkRevision: 2, ExecutionEpoch: 1, CommandID: g.CommandID, Sequence: seq, Kind: contract.EventResult, PayloadHash: runtimeHash(string(body)), Artifact: managedHostArtifactForTest(t, f.db, g, "terminal", 0, body)}
 		if _, err = f.db.CommitHostEvent(ctx, e); err != nil {
 			t.Fatal(err)
 		}

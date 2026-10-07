@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-func (d *DB) CommitHostEvent(ctx context.Context, event contract.Event) (contract.DurableAck, error) {
+func (d *DB) commitHostEvent(ctx context.Context, event contract.Event, artifactGate *hostArtifactGate) (contract.DurableAck, error) {
 	if err := contract.ValidateDiagnosticsFailure(event); err != nil {
 		return contract.DurableAck{}, err
 	}
@@ -105,13 +105,15 @@ func (d *DB) CommitHostEvent(ctx context.Context, event contract.Event) (contrac
 		if event.Artifact.Size < 0 || event.Artifact.Size > 1024*1024 {
 			return rollback(CodeError("artifact_too_large"))
 		}
-		incoming += event.Artifact.Size
+		if event.Artifact.HostArtifact == nil {
+			incoming += event.Artifact.Size
+		}
 	}
 	if err = d.storageAdmission(ctx, tx, event.RunID, incoming, false); err != nil {
 		return rollback(err)
 	}
-	var storedHost, taskID, attemptID string
-	if err = tx.QueryRowContext(ctx, `SELECT host_id,(SELECT task_id FROM attempts WHERE id=segment_runtime.attempt_id),attempt_id FROM segment_runtime WHERE segment_id=? AND command_id=?`, event.SegmentID, event.CommandID).Scan(&storedHost, &taskID, &attemptID); err != nil || storedHost != event.ProducerID || taskID != event.TaskID || attemptID != event.AttemptID {
+	var storedHost, taskID, attemptID, runID string
+	if err = tx.QueryRowContext(ctx, `SELECT s.host_id,a.task_id,s.attempt_id,t.run_id FROM segment_runtime s JOIN attempts a ON a.id=s.attempt_id JOIN tasks t ON t.id=a.task_id WHERE s.segment_id=? AND s.command_id=?`, event.SegmentID, event.CommandID).Scan(&storedHost, &taskID, &attemptID, &runID); err != nil || storedHost != event.ProducerID || taskID != event.TaskID || attemptID != event.AttemptID || runID != event.RunID {
 		return rollback(ErrConflict)
 	}
 	if event.DiagnosticsFailure != nil && event.DiagnosticsFailure.Detailed || event.StopReason == "diagnostics_unavailable" {
@@ -120,13 +122,20 @@ func (d *DB) CommitHostEvent(ctx context.Context, event contract.Event) (contrac
 			return rollback(CodeError("diagnostics_failure_unauthorized"))
 		}
 	}
+	var controlBefore int64
+	if err = tx.QueryRowContext(ctx, `SELECT total_bytes FROM storage_usage WHERE scope='global' AND scope_id=''`).Scan(&controlBefore); err != nil {
+		return rollback(err)
+	}
+	if err = d.retainHostArtifact(ctx, tx, event, artifactGate, false); err != nil {
+		return rollback(err)
+	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	deliveryStatus := "pending"
 	if historical || event.Kind == contract.EventPrepared || event.Kind == contract.EventSpawned || event.Kind == contract.EventRunning || event.Kind == contract.EventSession || event.Kind == contract.EventExited {
 		deliveryStatus = "internal"
 	}
 	actionSlot := "action-" + runtimeHash(event.ProducerID + "\x00" + event.EventID)[:32]
-	if _, err = tx.ExecContext(ctx, `INSERT INTO runtime_events(event_id,producer_id,sequence,task_id,attempt_id,segment_id,payload_hash,body_json,event_revision,action_slot,delivery_status,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`, event.EventID, event.ProducerID, event.Sequence, event.TaskID, event.AttemptID, event.SegmentID, event.PayloadHash, string(body), event.Sequence, actionSlot, deliveryStatus, now); err != nil {
+	if _, err = tx.ExecContext(ctx, `INSERT INTO runtime_events(event_id,producer_id,sequence,task_id,attempt_id,segment_id,payload_hash,body_json,event_revision,action_slot,delivery_status,created_at,host_artifact_verified) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, event.EventID, event.ProducerID, event.Sequence, event.TaskID, event.AttemptID, event.SegmentID, event.PayloadHash, string(body), event.Sequence, actionSlot, deliveryStatus, now, artifactGate.verified); err != nil {
 		return rollback(mapConflict(err))
 	}
 	if deliveryStatus == "pending" {
@@ -152,6 +161,13 @@ func (d *DB) CommitHostEvent(ctx context.Context, event contract.Event) (contrac
 				return rollback(err)
 			}
 		}
+	}
+	if artifactGate.verified {
+		if err = d.hostArtifactCommitAdmission(ctx, tx, event.RunID, controlBefore, false); err != nil {
+			return rollback(err)
+		}
+	} else if err = d.storageAdmission(ctx, tx, event.RunID, 0, false); err != nil {
+		return rollback(err)
 	}
 	if err = tx.Commit(); err != nil {
 		return contract.DurableAck{}, err
