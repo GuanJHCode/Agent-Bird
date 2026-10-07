@@ -353,6 +353,6 @@ func (w *Writer) Abort(ctx context.Context, cause error) (err error) {
 	w.closed = true
 	w.buffer = nil
 	w.dirty = false
-	err = errors.Join(w.aborted, w.ns.close())
-	return err
+	w.aborted = errors.Join(w.aborted, w.ns.close())
+	return w.aborted
 }
