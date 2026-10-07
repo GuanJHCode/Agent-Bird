@@ -1,0 +1,8 @@
+{"Time":"2026-10-08T04:39:39.686861+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host"}
+{"Time":"2026-10-08T04:39:40.148406+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host","Test":"TestCandidateReviewInvalidWorkerEmitsV2Lifecycle"}
+{"Time":"2026-10-08T04:39:40.148466+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host","Test":"TestCandidateReviewInvalidWorkerEmitsV2Lifecycle","Output":"=== RUN   TestCandidateReviewInvalidWorkerEmitsV2Lifecycle\n"}
+{"Time":"2026-10-08T04:39:40.588968+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host","Test":"TestCandidateReviewInvalidWorkerEmitsV2Lifecycle","Output":"--- PASS: TestCandidateReviewInvalidWorkerEmitsV2Lifecycle (0.44s)\n"}
+{"Time":"2026-10-08T04:39:40.588988+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host","Test":"TestCandidateReviewInvalidWorkerEmitsV2Lifecycle","Elapsed":0.44}
+{"Time":"2026-10-08T04:39:40.589006+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host","Output":"PASS\n"}
+{"Time":"2026-10-08T04:39:40.589762+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host","Output":"ok  \tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host\t0.903s\n"}
+{"Time":"2026-10-08T04:39:40.589778+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host","Elapsed":0.903}
