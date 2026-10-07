@@ -1,0 +1,82 @@
+{
+  "implementation_commit": "d20188a",
+  "source_sha256": {
+    "tools/orchestrator/internal/store/decisions.go": "db0bb88a086690f08bec2c92c953ffc784286bd1ea4a986209e63a909555aa33",
+    "tools/orchestrator/internal/store/existing_owner_resume.go": "d5766068ae259f92960a158ee8f517a694dd203df883e16d42e0beb34fad60a0",
+    "tools/orchestrator/internal/store/existing_owner_resume_boundary_test.go": "dfbbeb8a550e9c27bc2f3735742cc28f5345049ec6a68d5848c5385852ad02f2",
+    "tools/orchestrator/internal/store/existing_owner_resume_migration_test.go": "f98c78f6fd45c66c9a22d2556e107606d5d8a1364a43e3191a5578f6619b3e44",
+    "tools/orchestrator/internal/store/existing_owner_resume_schema.go": "0381055eb71de53c6770bbb636b335a82ab9a5d34adaad421538b4b54cbb9b55",
+    "tools/orchestrator/internal/store/existing_owner_resume_schema_test.go": "89ccd88c172a9f24c869a35e18147226a61434687d5ed60dd287f8d02d454a11",
+    "tools/orchestrator/internal/store/existing_owner_resume_test.go": "864fd0c384e94d0e594e2d9324a01c8d09093db3c7a1ae89b429444b77557a7f",
+    "tools/orchestrator/internal/store/existing_owner_resume_upgrade.go": "d50f37fdb390a5a696c0aac673d468e317f9dcadb8989ff9212872cfa495b337",
+    "tools/orchestrator/internal/store/existing_owner_resume_upgrade_test.go": "3b40a2a75a1d1af779fa40b22304ab3eabef979444783d3117404a50cceaef87",
+    "tools/orchestrator/internal/store/migrations.go": "ac3cd642ccb2c9b9ff8126c24646b0ba061ef01df1ec64da1695ce3e96970c72",
+    "tools/orchestrator/internal/store/owner_succession_resume.go": "88bb2a1935a10cbc31e2f81923b8bdac05da3eade25aa85dfce5af33c70ae05d",
+    "tools/orchestrator/internal/store/owner_succession_schema_test.go": "91c12afc0ec9f4382d30e3f39d4ac4365ffb6f972fe282e49ec44c84074e66ba",
+    "tasks/owner-public-resume/scripts/run-linux.py": "9efb82a02fd324dd5df625fbcb2c5cff592a30e558395fe74861bcab76742a24"
+  },
+  "macos": {
+    "root-store-full.jsonl": {
+      "sha256": "6e71cde404630e1e5b2875437bc6eeb26539acfb5079b450fcfc9439cb2f2403",
+      "terminal": {
+        "Time": "2026-10-08T05:36:13.242256+08:00",
+        "Action": "pass",
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Elapsed": 240.882
+      },
+      "named": {
+        "pass": 1669,
+        "fail": 0,
+        "skip": 0
+      },
+      "top": {
+        "pass": 525,
+        "fail": 0,
+        "skip": 0
+      }
+    },
+    "root-store-race.jsonl": {
+      "sha256": "144b615c46d90adbd2b1ee582aed3e861f17b84407c9f19253f51fd8b7f6618c",
+      "terminal": {
+        "Time": "2026-10-08T05:45:31.533141+08:00",
+        "Action": "pass",
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Elapsed": 793.738
+      },
+      "named": {
+        "pass": 209,
+        "fail": 0,
+        "skip": 0
+      },
+      "top": {
+        "pass": 43,
+        "fail": 0,
+        "skip": 0
+      }
+    }
+  },
+  "linux": {
+    "receipt_sha256": "6312aafad433b2db8ddca4d210fe2357384b114605ea9c3aedffd286cf96f457",
+    "cid": "0f57261eafb097a7683d7aa834033ba3c3895f0a3a54b73f23738859d546a585",
+    "top_pass": 43,
+    "named_pass": 209,
+    "fail": 0,
+    "skip": 0,
+    "exit": 0,
+    "removed": true,
+    "binary_removed_after_hash_check": true
+  },
+  "vet_exit": 0,
+  "build_exit": 0,
+  "independent_reviews": [
+    "schema26 DDL PASS",
+    "live API PASS",
+    "queued upgrade production PASS",
+    "final tests delta PASS"
+  ],
+  "limitations": [
+    "Private synthetic Store observations are not OS or public CLI acceptance.",
+    "Coordinator/successor Host admission/recovery scope/CLI journal wiring continues in owner-public-wiring.",
+    "Bind-before-ledger-scope crash and intended child-handle gap remain explicitly open."
+  ]
+}
