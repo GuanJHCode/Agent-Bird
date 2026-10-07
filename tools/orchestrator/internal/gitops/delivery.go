@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 )
 
 var ErrIntegrationUncertain = errors.New("integration_uncertain")
@@ -124,7 +125,8 @@ func ManagedIntegrate(ctx context.Context, req IntegrationRequest) (IntegrationO
 func TrackedIntegrate(ctx context.Context, req IntegrationRequest) (IntegrationOutcome, error) {
 	ctx = context.WithValue(ctx, candidateRunnerKey{}, true)
 	out, err := Integrate(ctx, req)
-	if out.State == IntegrationUncertain {
+	if out.State == IntegrationUncertain || errors.Is(err, process.ErrProcessTreeUnknown) {
+		out.State = IntegrationUncertain
 		return out, errors.Join(ErrIntegrationUncertain, err)
 	}
 	return out, err

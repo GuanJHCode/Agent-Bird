@@ -1,10 +1,10 @@
 package gitops
 
 import (
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 	"context"
 	"errors"
 	"fmt"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 	"os"
 	"path/filepath"
 	"strings"
@@ -56,6 +56,20 @@ func TestManagedIntegrationPreservesUnknownProcessOwnership(t *testing.T) {
 				t.Fatalf("unknown downgraded at Git step %d: %v", step, err)
 			}
 		})
+	}
+}
+
+func TestTrackedIntegrationPreservesUnknownProcessOwnership(t *testing.T) {
+	d, base := repo(t)
+	final, _ := candidate(t, d)
+	target := filepath.Join(t.TempDir(), "target")
+	git(t, d, "worktree", "add", "-b", "tracked-delivery", target, base)
+	review := reviewFor(t, target, base, final)
+	review.TargetRef = "refs/heads/tracked-delivery"
+	j := &unknownGitJournal{failAt: 1}
+	out, err := TrackedIntegrate(WithCandidateJournal(context.Background(), j), IntegrationRequest{RepoRoot: d, TargetWorktree: target, TargetRef: review.TargetRef, TargetBaseOID: base, CandidateOID: final, Review: review, Journal: &memoryJournal{}})
+	if j.count != 1 || out.State != IntegrationUncertain || !errors.Is(err, ErrIntegrationUncertain) || !errors.Is(err, process.ErrProcessTreeUnknown) {
+		t.Fatalf("tracked unknown=%+v count=%d err=%v", out, j.count, err)
 	}
 }
 

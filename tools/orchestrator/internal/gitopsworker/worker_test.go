@@ -216,6 +216,42 @@ func TestWorkerRoutesPrivateRefsAndComposeIntegrateCleanupChain(t *testing.T) {
 	if body, err := os.ReadFile(marker); err != nil || string(body) != "hook" {
 		t.Fatalf("final post-merge hook did not execute: %q %v", body, err)
 	}
+	var spawned, exited struct {
+		CommandDigest string `json:"command_digest"`
+		Process       struct {
+			PID   int    `json:"PID"`
+			Birth string `json:"Birth"`
+		} `json:"process"`
+	}
+	for _, line := range strings.Split(strings.TrimSpace(string(integrationJournal)), "\n") {
+		var record struct {
+			Kind  string          `json:"kind"`
+			Value json.RawMessage `json:"value"`
+		}
+		if json.Unmarshal([]byte(line), &record) != nil || record.Kind != "git_process" {
+			continue
+		}
+		var value struct {
+			Phase         string `json:"phase"`
+			CommandDigest string `json:"command_digest"`
+			Process       struct {
+				PID   int    `json:"PID"`
+				Birth string `json:"Birth"`
+			} `json:"process"`
+		}
+		if json.Unmarshal(record.Value, &value) != nil {
+			t.Fatal("invalid git receipt")
+		}
+		if value.Phase == "spawned" {
+			spawned.CommandDigest, spawned.Process.PID, spawned.Process.Birth = value.CommandDigest, value.Process.PID, value.Process.Birth
+		}
+		if value.Phase == "exited" {
+			exited.CommandDigest, exited.Process.PID, exited.Process.Birth = value.CommandDigest, value.Process.PID, value.Process.Birth
+		}
+	}
+	if spawned.CommandDigest == "" || spawned.CommandDigest != exited.CommandDigest || spawned.Process.PID <= 0 || spawned.Process.PID != exited.Process.PID || spawned.Process.Birth == "" || spawned.Process.Birth != exited.Process.Birth {
+		t.Fatalf("unpaired final Git receipt: spawned=%+v exited=%+v", spawned, exited)
+	}
 
 	cleaned := runWorkerOperation(t, executable, spool, "chain-cleanup", "cleanup", map[string]any{
 		"root": composeWorktree, "candidate_receipt": receipt,
