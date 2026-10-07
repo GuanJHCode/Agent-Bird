@@ -13,7 +13,19 @@ import (
 func CandidateIntentHash(c LaunchCommand) (string, error) {
 	var body []byte
 	var err error
-	if c.DependencyInputs == nil && c.Diagnostics == nil {
+	if c.HostArtifacts != nil {
+		if err := RequireHostArtifacts(c); err != nil {
+			return "", err
+		}
+		body, err = json.Marshal(struct {
+			Plan             int
+			Payload          json.RawMessage
+			Input            *AcceptedInput
+			DependencyInputs *DependencyInputVector `json:",omitempty"`
+			Diagnostics      *DiagnosticsGrant      `json:",omitempty"`
+			HostArtifacts    *HostArtifactGrant
+		}{c.PlanRevision, c.AdapterPayload, c.Input, c.DependencyInputs, c.Diagnostics, c.HostArtifacts})
+	} else if c.DependencyInputs == nil && c.Diagnostics == nil {
 		body, err = json.Marshal(struct {
 			Plan    int
 			Payload json.RawMessage
@@ -54,6 +66,11 @@ func CandidateIntentHash(c LaunchCommand) (string, error) {
 // dependency set and current accepted tuples. This is not a signature verifier:
 // the grant must still arrive over the existing authenticated control channel.
 func ValidateDependencyInputs(c LaunchCommand) error {
+	if c.HostArtifacts != nil {
+		if err := RequireHostArtifacts(c); err != nil {
+			return err
+		}
+	}
 	if c.Diagnostics != nil {
 		if err := c.Diagnostics.Validate(); err != nil {
 			return err

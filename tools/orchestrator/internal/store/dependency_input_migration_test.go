@@ -3,6 +3,9 @@ package store
 import (
 	"context"
 	"database/sql"
+	"errors"
+
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"testing"
 )
 
@@ -30,8 +33,8 @@ func TestDependencyMigrationLegacyPendingAndRollback(t *testing.T) {
 				t.Fatal(err)
 			}
 			var usage int64
-			db.sql.QueryRow(`SELECT total_bytes FROM storage_usage WHERE scope='run' AND scope_id='run'`).Scan(&usage)
 			downgradeDependencySchema(t, db)
+			db.sql.QueryRow(`SELECT total_bytes FROM storage_usage WHERE scope='run' AND scope_id='run'`).Scan(&usage)
 			if fail {
 				if _, err = db.sql.Exec(`CREATE TRIGGER dependency_inputs_pair_insert BEFORE INSERT ON segment_runtime BEGIN SELECT 1; END`); err != nil {
 					t.Fatal(err)
@@ -72,8 +75,12 @@ func TestDependencyMigrationLegacyPendingAndRollback(t *testing.T) {
 				t.Fatal("migration changed usage")
 			}
 			pending, err := reopened.PendingLaunches(ctx, host, 1)
-			if err != nil || len(pending) != 1 || pending[0].LaunchIntentHash != c.LaunchIntentHash || pending[0].DependencyInputs != nil {
-				t.Fatalf("legacy pending changed %+v %v", pending, err)
+			if !errors.Is(err, contract.ErrHostArtifactGrant) || len(pending) != 0 {
+				t.Fatalf("legacy pending gained live artifact authority %+v %v", pending, err)
+			}
+			var authority int
+			if err = reopened.sql.QueryRow(`SELECT COUNT(*) FROM managed_artifact_reservations`).Scan(&authority); err != nil || authority != 0 {
+				t.Fatal("legacy replay manufactured reservations", authority, err)
 			}
 		})
 	}

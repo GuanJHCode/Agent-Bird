@@ -192,7 +192,7 @@ func legacyCandidateMatches(ctx context.Context, tx *sql.Tx, proof legacyCandida
 			return false
 		}
 	}
-	return bindCandidateInputForDecision(ctx, tx, &c, true, retry) == nil
+	return bindCandidateInputForDecision(ctx, tx, &c, true, retry, candidateArtifactHistoricalProof) == nil
 }
 
 // Reproduce the original first segment, never an ordinal/timestamp neighbor,
@@ -326,7 +326,7 @@ func (d *DB) reconcileLegacyDecisionScope(ctx context.Context, tx *sql.Tx, r att
 		if tx.QueryRowContext(ctx, `SELECT plan_revision FROM runs WHERE id=?`, source.RunID).Scan(&source.PlanRevision) != nil {
 			return errLegacyDecisionAmbiguous
 		}
-		if bindCandidateInput(ctx, tx, &source, true) != nil {
+		if bindHistoricalCandidateInput(ctx, tx, &source) != nil {
 			if d.reconcileLegacyGrantScope(ctx, tx, &source, resolving) != nil || validateSavedReviewRetry(ctx, tx, r, scopes[0], e) != nil {
 				return errLegacyDecisionAmbiguous
 			}

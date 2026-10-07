@@ -43,7 +43,7 @@ func TestCoreSourcePreStartFailuresKeepNoStartAndUnknownDistinct(t *testing.T) {
 			session := &sourceSession{conn: client, epoch: 1}
 			session.initialize()
 			source.connections.set(session)
-			grant := contract.LaunchCommand{CommandID: "command", ReservationID: "reservation", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, GrantedActiveMS: 5000}
+			grant := withHostArtifactsForTest(t, contract.LaunchCommand{CommandID: "command", ReservationID: "reservation", RunID: "run", HostID: "producer", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, GrantedActiveMS: 5000})
 			want := contract.EventUnknown
 			if mode == "report_directory_unsafe" {
 				grant.ReportCapabilityID = "cap"
@@ -76,7 +76,7 @@ func TestCoreLivingSourceDuplicateKeepsNoStartOrStartingUncertainty(t *testing.T
 				calls.Add(1)
 				return nil, errors.New("invalid_json")
 			}}}
-			grant := contract.LaunchCommand{CommandID: "command", ReservationID: "reservation", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, GrantedActiveMS: 5000}
+			grant := withHostArtifactsForTest(t, contract.LaunchCommand{CommandID: "command", ReservationID: "reservation", RunID: "run", HostID: "producer", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, GrantedActiveMS: 5000})
 			a := store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID}
 			if mode == "launch_rejected" {
 				c02ProcessLaunchThroughReceive(t, source, grant, 1)

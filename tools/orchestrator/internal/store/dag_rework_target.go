@@ -293,7 +293,7 @@ func integrationAcceptedInput(ctx context.Context, tx *sql.Tx, current decisionT
 		return contract.AcceptedInput{}, err
 	}
 	c.AdapterPayload = json.RawMessage(current.payload)
-	if err = bindCandidateInputForDecision(ctx, tx, &c, true, nil); err != nil || c.Input == nil {
+	if err = bindCandidateInputForDecision(ctx, tx, &c, true, nil, candidateArtifactLive); err != nil || c.Input == nil {
 		return contract.AcceptedInput{}, CodeError("rework_target_scope_unresolved")
 	}
 	return *c.Input, nil

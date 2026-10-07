@@ -71,7 +71,7 @@ func TestDiagnosticsLaunchReservesOnlyExplicitDetailedAndReplays(t *testing.T) {
 				t.Fatal(err)
 			}
 			var reservations, deliveries int
-			if err = db.sql.QueryRow(`SELECT (SELECT COUNT(*) FROM managed_artifact_reservations),(SELECT COUNT(*) FROM diagnostic_delivery_state)`).Scan(&reservations, &deliveries); err != nil {
+			if err = db.sql.QueryRow(`SELECT (SELECT COUNT(*) FROM managed_artifact_reservations WHERE class='diagnostics'),(SELECT COUNT(*) FROM diagnostic_delivery_state)`).Scan(&reservations, &deliveries); err != nil {
 				t.Fatal(err)
 			}
 			if mode != "detailed" {
@@ -146,8 +146,9 @@ func TestDiagnosticsTypedResumeRetainsAttemptReservationAndAdvancesOrdinal(t *te
 					t.Fatal(err)
 				}
 			}
-			// Existing namespace may resume even when no new artifact promise fits.
-			f.db.artifactLimit = 1
+			// Diagnostics reuses its attempt reservation; the new segment needs
+			// another Host terminal/progress pair at the exact raw boundary.
+			f.db.artifactLimit = detailedArtifactReservationBytes + 2*contract.HostArtifactReservedBytes
 			next, err := f.db.ClaimReady(context.Background(), f.host, 1, 2)
 			if err != nil {
 				t.Fatal(err)
@@ -157,8 +158,8 @@ func TestDiagnosticsTypedResumeRetainsAttemptReservationAndAdvancesOrdinal(t *te
 				t.Fatal("resume changed existing scope/continuation", next)
 			}
 			var count int
-			if err = f.db.sql.QueryRow(`SELECT COUNT(*) FROM managed_artifact_reservations`).Scan(&count); err != nil || count != 1 {
-				t.Fatal("resume charged another namespace", count, err)
+			if err = f.db.sql.QueryRow(`SELECT COUNT(*) FROM managed_artifact_reservations`).Scan(&count); err != nil || count != 5 || next.HostArtifacts.TerminalReservationID == first.HostArtifacts.TerminalReservationID || next.HostArtifacts.ProgressReservationID == first.HostArtifacts.ProgressReservationID {
+				t.Fatal("resume lost diagnostics reuse or new Host slots", count, err)
 			}
 			pending, err := f.db.PendingLaunches(context.Background(), f.host, 1)
 			if err != nil || len(pending) != 1 {
@@ -298,7 +299,7 @@ func TestDiagnosticsReplayRejectsChangedOrMissingStoredAuthority(t *testing.T) {
 			}
 			var after int64
 			var count int
-			if err = db.sql.QueryRow(`SELECT (SELECT total_bytes FROM storage_usage WHERE scope='global' AND scope_id=''),(SELECT COUNT(*) FROM managed_artifact_reservations)`).Scan(&after, &count); err != nil || before != after || count != 1 {
+			if err = db.sql.QueryRow(`SELECT (SELECT total_bytes FROM storage_usage WHERE scope='global' AND scope_id=''),(SELECT COUNT(*) FROM managed_artifact_reservations)`).Scan(&after, &count); err != nil || before != after || count != 3 {
 				t.Fatal("replay manufactured replacement authority", before, after, count, err)
 			}
 		})
@@ -321,7 +322,7 @@ func TestDiagnosticsLaunchDiskPromisesPreventOvercommitAndRollBack(t *testing.T)
 	}
 	assertDiagnosticsReservation(t, db, first, 1)
 	var attempts, segments, budgets, reservations, deliveries int
-	if err = db.sql.QueryRow(`SELECT (SELECT COUNT(*) FROM attempts),(SELECT COUNT(*) FROM segments),(SELECT COUNT(*) FROM budget_runtime),(SELECT COUNT(*) FROM managed_artifact_reservations),(SELECT COUNT(*) FROM diagnostic_delivery_state)`).Scan(&attempts, &segments, &budgets, &reservations, &deliveries); err != nil || attempts != 1 || segments != 1 || budgets != 1 || reservations != 1 || deliveries != 1 {
+	if err = db.sql.QueryRow(`SELECT (SELECT COUNT(*) FROM attempts),(SELECT COUNT(*) FROM segments),(SELECT COUNT(*) FROM budget_runtime),(SELECT COUNT(*) FROM managed_artifact_reservations),(SELECT COUNT(*) FROM diagnostic_delivery_state)`).Scan(&attempts, &segments, &budgets, &reservations, &deliveries); err != nil || attempts != 1 || segments != 1 || budgets != 1 || reservations != 3 || deliveries != 1 {
 		t.Fatal("rejected Claim leaked rows", attempts, segments, budgets, reservations, deliveries, err)
 	}
 	var status string
@@ -410,7 +411,7 @@ func TestDiagnosticsDoesNotAuthorizeInterruptedCodexWithoutSeal(t *testing.T) {
 
 func TestDiagnosticsAllowanceExactBoundary(t *testing.T) {
 	db, h := diagnosticsLaunchFixture(t, "detailed", 2)
-	db.artifactLimit = detailedArtifactReservationBytes
+	db.artifactLimit = detailedArtifactReservationBytes + contract.HostArtifactReservedBytes
 	first, err := db.ClaimReady(context.Background(), h.LaunchID, 1, 2)
 	if err != nil {
 		t.Fatal("exact allowance rejected", err)

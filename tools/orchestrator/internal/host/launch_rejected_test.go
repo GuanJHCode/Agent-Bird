@@ -73,7 +73,7 @@ func TestLaunchRejectedColdRestartDoesNotInventNeverStartedProof(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			g := contract.LaunchCommand{CommandID: "c", ReservationID: "rsv", RunID: "r", TaskID: "t", AttemptID: "a", SegmentID: "s", WorkRevision: 1, GrantedActiveMS: 1000}
+			g := withHostArtifactsForTest(t, contract.LaunchCommand{CommandID: "c", ReservationID: "rsv", RunID: "r", HostID: "host", TaskID: "t", AttemptID: "a", SegmentID: "s", WorkRevision: 1, GrantedActiveMS: 1000})
 			if _, err = h.acceptGrant(g); err != nil {
 				t.Fatal(err)
 			}

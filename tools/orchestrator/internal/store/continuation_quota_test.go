@@ -247,10 +247,13 @@ func TestContinuationClaimChecksDecisionUpdateGrowth(t *testing.T) {
 				t.Error("fixture did not actually admit a continuation grant")
 			}
 			assertContinuationQuotaRefusedAtomically(t, f.db, before, err)
-			// The admitted segment-ID representation is32 bytes; the target plus
-			// queued->claimed grows by exactly33. Both scopes must accept that
-			// tight positive boundary after the earlier transaction rolled back.
-			setContinuationQuotaRemaining(t, f.db, scope, 33)
+			// The new segment adds its two Host reservations as well as the
+			// 32-byte target ID and queued->claimed state growth.
+			growth := 33 + nextHostArtifactControlBytes(f.grant.RunID, f.grant.TaskID, f.host, f.grant.AttemptID)
+			setContinuationQuotaRemaining(t, f.db, scope, growth-1)
+			_, err = f.db.ClaimReady(context.Background(), f.host, 1, 2)
+			assertContinuationQuotaRefusedAtomically(t, f.db, before, err)
+			setContinuationQuotaRemaining(t, f.db, scope, growth)
 			if grant, err = f.db.ClaimReady(context.Background(), f.host, 1, 2); err != nil || grant.Continuation == nil {
 				t.Fatalf("fitting claim growth refused: %+v %v", grant, err)
 			}
@@ -280,8 +283,8 @@ func TestContinuationShortIDsFitAndReplayDoesNotGrowQuota(t *testing.T) {
 		t.Fatalf("short decision claim: %+v %v", grant, err)
 	}
 	runClaimed, globalClaimed := continuationQuotaUsage(t, f.db)
-	// Only target_segment_id and queued(6)->claimed(7) grow here.
-	want := int64(len(grant.SegmentID) + 1)
+	// Include both new Host reservation rows, preserving the old promise.
+	want := int64(len(grant.SegmentID)+1) + hostArtifactControlBytes(t, f.db, grant.SegmentID)
 	if runClaimed-runAfter != want || globalClaimed-globalAfter != want {
 		t.Fatalf("actual claim delta run=%d global=%d want=%d", runClaimed-runAfter, globalClaimed-globalAfter, want)
 	}

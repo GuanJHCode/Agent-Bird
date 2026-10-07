@@ -735,6 +735,9 @@ func TestReportReplayBindsKindAndProgressCannotConsumeCriticalReserve(t *testing
 	if _, progressErr := db.CommitReportEvent(ctx, secondProgress); progressErr == nil || progressErr.Error() != "storage_blocked" {
 		t.Fatalf("progress disk reserve err=%v", progressErr)
 	}
+	// Critical reports may use the emergency reserve but must still leave
+	// the complete outstanding Host artifact promise available.
+	db.storageAvailable = func(string) (uint64, error) { return 10*1024 + uint64(contract.HostArtifactReservedBytes), nil }
 	artifactPath := filepath.Join(capabilityDir, "result.json")
 	artifactData := []byte("terminal-result")
 	if err = os.WriteFile(artifactPath, artifactData, 0o600); err != nil {

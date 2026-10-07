@@ -93,13 +93,14 @@ func TestCandidateInputBindsAcceptedHostResultAndReplay(t *testing.T) {
 			}
 			check(next)
 			legacyBody, _ := json.Marshal(struct {
-				Plan    int
-				Payload json.RawMessage
-				Input   *contract.AcceptedInput
-			}{next.PlanRevision, next.AdapterPayload, next.Input})
+				Plan          int
+				Payload       json.RawMessage
+				Input         *contract.AcceptedInput
+				HostArtifacts *contract.HostArtifactGrant
+			}{next.PlanRevision, next.AdapterPayload, next.Input, next.HostArtifacts})
 			legacyHash := runtimeHash(next.RunID + "\x00" + next.TaskID + "\x00" + next.AttemptID + "\x00" + next.SegmentID + "\x00" + next.SlotToken + "\x00" + string(legacyBody))
 			if next.LaunchIntentHash != legacyHash {
-				t.Fatal("legacy candidate intent bytes changed")
+				t.Fatal("new candidate intent omitted or changed Host authority")
 			}
 			pending, err := db.PendingLaunches(ctx, hostID, 1)
 			if err != nil || len(pending) != 1 {

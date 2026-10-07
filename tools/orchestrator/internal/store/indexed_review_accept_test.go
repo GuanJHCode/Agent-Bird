@@ -140,6 +140,9 @@ func TestIndexedAcceptChecksDurableSourceAndCoverage(t *testing.T) {
 						t.Fatal("indexed retry changed assignment/config/provider")
 					}
 				}
+				if kind == "valid_budget_migration" && strings.HasPrefix(g.TaskID, "r") && g.TaskID != "r2" {
+					legacyCandidateArtifactFixture(t, db, &g)
+				}
 				binding := gitops.CandidateBinding{RunID: g.RunID, TaskID: g.TaskID, AttemptID: g.AttemptID, SegmentID: g.SegmentID, WorkRevision: g.WorkRevision, PlanRevision: g.PlanRevision}
 				d := map[string]any{"version": 1, "binding": binding}
 				if g.Input != nil {

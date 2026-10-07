@@ -162,7 +162,7 @@ func TestC02SourceOfflineWorkerHardDeadlineContinuesDuringBackoff(t *testing.T) 
 			peerDone <- errors.New("reconcile_missing")
 			return
 		}
-		grant := contract.LaunchCommand{CommandID: "command", ReservationID: "reservation", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", GrantedActiveMS: 300}
+		grant := withHostArtifactsForTest(t, contract.LaunchCommand{CommandID: "command", ReservationID: "reservation", RunID: "run", HostID: hello.LaunchID, TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, GrantedActiveMS: 300})
 		body, _ := json.Marshal(grant)
 		if err := ipc.Write(conn, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindLaunch, RequestID: grant.CommandID, Epoch: 1, Payload: body}); err != nil {
 			peerDone <- err

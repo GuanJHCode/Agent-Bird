@@ -29,6 +29,11 @@ func ownerWirePermit(t *testing.T) (OriginalOwnerBinding, OwnerControlPermit, ed
 func TestOriginalOwnerCommandSignsFullUnionAndControl(t *testing.T) {
 	_, permit, key := ownerWirePermit(t)
 	body := json.RawMessage(`{"command_id":"launch-command","host_id":"producer","run_id":"run","task_id":"task","attempt_id":"attempt","segment_id":"segment","work_revision":1,"execution_epoch":3,"slot_token":"slot","launch_intent_hash":"digest","reservation_id":"reservation","budget_group_id":"budget","granted_active_ms":1000,"deadline_unix_ms":5000,"adapter_payload":{"kind":"fake","args":["/usr/bin/true"]},"report_capability_id":"report"}`)
+	var grant LaunchCommand
+	if err := json.Unmarshal(body, &grant); err != nil {
+		t.Fatal(err)
+	}
+	body, _ = json.Marshal(withHostArtifactsForTest(t, grant))
 	command, err := SignOwnerCommand(OwnerCommand{Version: 1, Permit: permit, Kind: "launch", RequestID: "launch-command", Body: body}, key)
 	if err != nil {
 		t.Fatal(err)
@@ -161,6 +166,7 @@ func TestOriginalOwnerCommandCoversDependencyVectorAndCanonicalJSON(t *testing.T
 	policyRaw, _ := policy.CanonicalJSON()
 	policySum := sha256.Sum256(policyRaw)
 	grant := LaunchCommand{CommandID: "join-command", HostID: "producer", RunID: "run", TaskID: "join", AttemptID: "join-attempt", SegmentID: "join-segment", WorkRevision: 1, PlanRevision: 1, ExecutionEpoch: 3, SlotToken: "slot", GrantedActiveMS: 1000, AdapterPayload: json.RawMessage(`{"kind":"candidate","candidate_action":{"version":1,"dependency_input_version":1,"source_task":"a"}}`), Input: &inputs[0], DependencyInputs: &DependencyInputVector{Version: 1, Inputs: inputs}, Diagnostics: &DiagnosticsGrant{Policy: policy, PolicySHA256: hex.EncodeToString(policySum[:]), ReservationID: "reservation", SegmentOrdinal: 1}}
+	grant = withHostArtifactsForTest(t, grant)
 	grant.LaunchIntentHash, _ = CandidateIntentHash(grant)
 	body, _ := json.MarshalIndent(grant, "", " ")
 	command, err := SignOwnerCommand(OwnerCommand{Version: 1, Permit: p, Kind: "launch", RequestID: grant.CommandID, Body: body}, key)

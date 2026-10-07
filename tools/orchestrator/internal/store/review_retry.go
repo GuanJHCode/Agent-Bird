@@ -198,7 +198,7 @@ func reviewRetryDecisionForGrant(ctx context.Context, tx *sql.Tx, c *contract.La
 		return "", err
 	}
 	// Reconstruct the exact previous grant, including any previous retry directory.
-	if err := bindCandidateInput(ctx, tx, c, true); err != nil {
+	if err := bindHistoricalCandidateInput(ctx, tx, c); err != nil {
 		return "", err
 	}
 	if c.Input == nil {
@@ -235,7 +235,7 @@ func validateSavedPrelaunchReviewRetry(ctx context.Context, tx *sql.Tx, r attemp
 	if err != nil || hostIdentity != saved.HostIdentitySHA256 {
 		return ErrConflict
 	}
-	if err = bindCandidateInput(ctx, tx, &c, true); err != nil || c.Input == nil || saved.InputSHA256 != retryInputHash(c.Input) || saved.DependencyInputsSHA256 != dependencyVectorHash(c.DependencyInputs) {
+	if err = bindHistoricalCandidateInput(ctx, tx, &c); err != nil || c.Input == nil || saved.InputSHA256 != retryInputHash(c.Input) || saved.DependencyInputsSHA256 != dependencyVectorHash(c.DependencyInputs) {
 		return ErrConflict
 	}
 	input := c.Input.Event

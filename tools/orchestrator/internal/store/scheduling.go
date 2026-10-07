@@ -36,6 +36,10 @@ func (d *DB) ClaimReady(ctx context.Context, hostID string, epoch uint64, slots 
 	if active >= slots {
 		return rollback(ErrNoSlot)
 	}
+	var controlBefore int64
+	if err = tx.QueryRowContext(ctx, `SELECT total_bytes FROM storage_usage WHERE scope='global' AND scope_id=''`).Scan(&controlBefore); err != nil {
+		return rollback(err)
+	}
 	selected, err := d.selectReady(ctx, tx, launchID, epoch, limits)
 	taskID, runID, taskStatus, budgetGroup := selected.taskID, selected.runID, selected.status, selected.group
 	workRevision, adapterPayload := selected.revision, selected.payload
@@ -162,6 +166,9 @@ func (d *DB) ClaimReady(ctx context.Context, hostID string, epoch uint64, slots 
 			return rollback(err)
 		}
 	}
+	if err = d.reserveHostArtifacts(ctx, tx, &command); err != nil {
+		return rollback(err)
+	}
 	if err = bindCandidateInput(ctx, tx, &command, false); err != nil {
 		return rollback(err)
 	}
@@ -182,6 +189,16 @@ func (d *DB) ClaimReady(ctx context.Context, hostID string, epoch uint64, slots 
 		return rollback(err)
 	}
 	if err = d.persistCandidateGrant(ctx, tx, &command); err != nil {
+		return rollback(err)
+	}
+
+	// Protect every outstanding raw promise plus the complete metadata growth
+	// of this dispatch, including input capture, diagnostics and continuation.
+	var controlAfter int64
+	if err = tx.QueryRowContext(ctx, `SELECT total_bytes FROM storage_usage WHERE scope='global' AND scope_id=''`).Scan(&controlAfter); err != nil {
+		return rollback(err)
+	}
+	if err = d.managedArtifactAdmission(ctx, tx, 0, controlAfter-controlBefore); err != nil {
 		return rollback(err)
 	}
 
@@ -241,6 +258,9 @@ func (d *DB) PendingLaunches(ctx context.Context, hostID string, epoch uint64) (
 			return rollback(err)
 		}
 		if err = bindExistingDiagnostics(ctx, tx, command); err != nil {
+			return rollback(err)
+		}
+		if err = bindHostArtifacts(ctx, tx, command, true); err != nil {
 			return rollback(err)
 		}
 		if err = d.reconcileLegacyGrant(ctx, tx, command); err != nil {

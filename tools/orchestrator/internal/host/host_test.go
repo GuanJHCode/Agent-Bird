@@ -661,7 +661,7 @@ func TestProducerSequenceRecoversOnlyFromDurableEvents(t *testing.T) {
 
 func TestGrantLedgerPreventsDuplicateExecutionAndClosesUnspawnedRecovery(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "spool")
-	grant := contract.LaunchCommand{CommandID: "command-ledger", ReservationID: "reservation-ledger", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 3, GrantedActiveMS: 1000}
+	grant := withHostArtifactsForTest(t, contract.LaunchCommand{CommandID: "command-ledger", ReservationID: "reservation-ledger", RunID: "run", HostID: "ledger-producer", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 3, GrantedActiveMS: 1000})
 	first, err := NewIPC(root, "ledger-producer")
 	if err != nil {
 		t.Fatal(err)

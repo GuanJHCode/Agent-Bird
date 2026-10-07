@@ -19,7 +19,7 @@ func assertPreparedReport(t *testing.T, db *DB) {
 	var phase, state string
 	var events, refs, reservations int
 	var retained int64
-	err := db.sql.QueryRow(`SELECT i.phase,r.state,r.retained_bytes,(SELECT COUNT(*) FROM report_events),(SELECT COUNT(*) FROM managed_artifact_refs),(SELECT COUNT(*) FROM managed_artifact_reservations) FROM managed_artifact_intakes i JOIN managed_artifact_reservations r ON r.id=i.reservation_id`).Scan(&phase, &state, &retained, &events, &refs, &reservations)
+	err := db.sql.QueryRow(`SELECT i.phase,r.state,r.retained_bytes,(SELECT COUNT(*) FROM report_events),(SELECT COUNT(*) FROM managed_artifact_refs),(SELECT COUNT(*) FROM managed_artifact_reservations WHERE class='report') FROM managed_artifact_intakes i JOIN managed_artifact_reservations r ON r.id=i.reservation_id`).Scan(&phase, &state, &retained, &events, &refs, &reservations)
 	if err != nil || phase != "prepared" || state != "reserved" || retained != 0 || events != 0 || refs != 0 || reservations != 1 {
 		t.Fatal("failed commit did not preserve exactly one intent", phase, state, retained, events, refs, reservations, err)
 	}
@@ -57,7 +57,7 @@ func TestReportIntakeReauthorizesAfterCopy(t *testing.T) {
 					t.Fatal("same immutable intake could not reauthorize in the new epoch", err)
 				}
 				var count, epoch int
-				if err = db.sql.QueryRow(`SELECT (SELECT COUNT(*) FROM managed_artifact_reservations),json_extract(body_json,'$.execution_epoch') FROM report_events`).Scan(&count, &epoch); err != nil || count != 1 || epoch != 2 {
+				if err = db.sql.QueryRow(`SELECT (SELECT COUNT(*) FROM managed_artifact_reservations WHERE class='report'),json_extract(body_json,'$.execution_epoch') FROM report_events`).Scan(&count, &epoch); err != nil || count != 1 || epoch != 2 {
 					t.Fatal(count, epoch, err)
 				}
 			} else {
@@ -123,7 +123,7 @@ func TestReportIntakeCompetingExactRequestsCommitOnce(t *testing.T) {
 		t.Fatal("original request did not join")
 	}
 	var events, refs, intakes, reservations int
-	err = db.sql.QueryRow(`SELECT (SELECT COUNT(*) FROM report_events),(SELECT COUNT(*) FROM managed_artifact_refs),(SELECT COUNT(*) FROM managed_artifact_intakes),(SELECT COUNT(*) FROM managed_artifact_reservations)`).Scan(&events, &refs, &intakes, &reservations)
+	err = db.sql.QueryRow(`SELECT (SELECT COUNT(*) FROM report_events),(SELECT COUNT(*) FROM managed_artifact_refs),(SELECT COUNT(*) FROM managed_artifact_intakes),(SELECT COUNT(*) FROM managed_artifact_reservations WHERE class='report')`).Scan(&events, &refs, &intakes, &reservations)
 	if err != nil || events != 1 || refs != 1 || intakes != 1 || reservations != 1 {
 		t.Fatal("same request charged or committed twice", events, refs, intakes, reservations, err)
 	}
@@ -210,7 +210,7 @@ func TestReportIntakeReservationLimitsAndPendingIdentity(t *testing.T) {
 				t.Fatal("invalid intake admitted")
 			}
 			var reservations, refs, events int
-			if err := db.sql.QueryRow(`SELECT (SELECT COUNT(*) FROM managed_artifact_reservations),(SELECT COUNT(*) FROM managed_artifact_refs),(SELECT COUNT(*) FROM report_events)`).Scan(&reservations, &refs, &events); err != nil {
+			if err := db.sql.QueryRow(`SELECT (SELECT COUNT(*) FROM managed_artifact_reservations WHERE class='report'),(SELECT COUNT(*) FROM managed_artifact_refs),(SELECT COUNT(*) FROM report_events)`).Scan(&reservations, &refs, &events); err != nil {
 				t.Fatal(err)
 			}
 			want := 0
@@ -252,7 +252,7 @@ func TestReportIntakeDiskPromiseBoundary(t *testing.T) {
 		t.Fatal(err)
 	}
 	db.minFreeBytes, db.sqliteWriteOverhead, db.criticalDiskReserve = 64, 32, 20<<10
-	available := uint64(64 + 32 + prepared.spec.Size)
+	available := uint64(64 + 32 + prepared.spec.Size + contract.HostArtifactReservedBytes)
 	db.storageAvailable = func(string) (uint64, error) { return available, nil }
 	available--
 	if _, err = db.beginReportIntake(ctx, spec); !errors.Is(err, CodeError("storage_blocked")) {
@@ -280,7 +280,7 @@ func TestReportIntakeDiskPromiseBoundary(t *testing.T) {
 		t.Fatal("new report borrowed an outstanding artifact promise", err)
 	}
 	available++
-	db.artifactLimit = prepared.spec.Size + incoming
+	db.artifactLimit = prepared.spec.Size + incoming + contract.HostArtifactReservedBytes
 	if err = db.managedReportArtifactAdmission(ctx, tx, incoming, metadata); err != nil {
 		t.Fatal("exact disk/raw allowance boundary rejected", err)
 	}

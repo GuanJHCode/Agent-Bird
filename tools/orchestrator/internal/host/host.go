@@ -1096,6 +1096,9 @@ type grantLedgerRecord struct {
 }
 
 func (h *Host) acceptGrant(grant contract.LaunchCommand) (bool, error) {
+	if err := contract.RequireHostArtifacts(grant); err != nil {
+		return false, err
+	}
 	if err := contract.ValidateDependencyInputs(grant); err != nil {
 		return false, err
 	}

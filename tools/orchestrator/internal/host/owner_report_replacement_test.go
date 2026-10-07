@@ -72,7 +72,7 @@ func testOwnerReportReplacement(t *testing.T, physical bool) {
 	if err = e.reconcile(ctx, first); err != nil {
 		t.Fatal(err)
 	}
-	grant := contract.LaunchCommand{CommandID: "command", ReservationID: "reservation", RunID: "run", HostID: "producer", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, PlanRevision: 1, ExecutionEpoch: first.CoordinatorEpoch, GrantedActiveMS: 2000, ReportCapabilityID: "capability"}
+	grant := withHostArtifactsForTest(t, contract.LaunchCommand{CommandID: "command", ReservationID: "reservation", RunID: "run", HostID: "producer", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, PlanRevision: 1, ExecutionEpoch: first.CoordinatorEpoch, GrantedActiveMS: 2000, ReportCapabilityID: "capability"})
 	done := make(chan error, 1)
 	if physical {
 		body, _ := json.Marshal(grant)

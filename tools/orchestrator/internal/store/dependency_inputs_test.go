@@ -96,7 +96,7 @@ func TestDependencyVectorCaptureReplayAndAccounting(t *testing.T) {
 	if err = db.sql.QueryRow(`SELECT total_bytes FROM storage_usage WHERE scope='run' AND scope_id='run'`).Scan(&after); err != nil {
 		t.Fatal(err)
 	}
-	if want := int64(16 + len(raw) + len(digest)); after-before != want {
+	if want := int64(16+len(raw)+len(digest)) + hostArtifactControlBytes(t, db, c.SegmentID); after-before != want {
 		t.Fatalf("capture accounting delta=%d want=%d", after-before, want)
 	}
 	if err = db.Close(); err != nil {
@@ -209,7 +209,7 @@ func TestDependencyVectorExactQuotaAndSizeRollback(t *testing.T) {
 	}
 	growth := policyQuotaUsage(t, reference) - before
 	raw, _ := json.Marshal(c.DependencyInputs)
-	if growth != int64(16+len(raw)+64) {
+	if growth != int64(16+len(raw)+64)+hostArtifactControlBytes(t, reference, c.SegmentID) {
 		t.Fatalf("wrong reference cost %d", growth)
 	}
 	for _, mode := range []string{"run", "global", "disk", "oversize", "unaccepted", "unexited"} {
@@ -223,7 +223,7 @@ func TestDependencyVectorExactQuotaAndSizeRollback(t *testing.T) {
 				db.userControlLimit = initial + growth - 1
 			case "disk":
 				db.storageAvailable = func(string) (uint64, error) {
-					return db.minFreeBytes + db.sqliteWriteOverhead + uint64(growth) - 1, nil
+					return db.minFreeBytes + db.sqliteWriteOverhead + db.criticalDiskReserve + uint64(4*contract.HostArtifactReservedBytes+growth) - 1, nil
 				}
 			case "oversize":
 				payload, _ := json.Marshal(map[string]string{"prompt": strings.Repeat("x", 64*1024)})
@@ -256,7 +256,9 @@ func TestDependencyVectorExactQuotaAndSizeRollback(t *testing.T) {
 			case "global":
 				db.userControlLimit++
 			case "disk":
-				db.storageAvailable = func(string) (uint64, error) { return db.minFreeBytes + db.sqliteWriteOverhead + uint64(growth), nil }
+				db.storageAvailable = func(string) (uint64, error) {
+					return db.minFreeBytes + db.sqliteWriteOverhead + db.criticalDiskReserve + uint64(4*contract.HostArtifactReservedBytes+growth), nil
+				}
 			default:
 				return
 			}
@@ -278,8 +280,8 @@ func TestDependencyVectorExactQuotaAndSizeRollback(t *testing.T) {
 			if _, err = db.sql.Exec(`DELETE FROM report_capabilities WHERE segment_id=?; DELETE FROM budget_runtime WHERE segment_id=?; DELETE FROM segment_runtime WHERE segment_id=?`, granted.SegmentID, granted.SegmentID, granted.SegmentID); err != nil {
 				t.Fatal(err)
 			}
-			if policyQuotaUsage(t, db) != initial {
-				t.Fatal("retention did not refund capture bytes")
+			if policyQuotaUsage(t, db) != initial+hostArtifactControlBytes(t, db, granted.SegmentID) {
+				t.Fatal("capture deletion changed retained Host obligations or failed to refund capture")
 			}
 		})
 	}

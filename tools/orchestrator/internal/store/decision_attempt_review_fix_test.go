@@ -173,10 +173,25 @@ func TestLegacyReviewRetryPendingChecksHistoricalCommitments(t *testing.T) {
 }
 
 func TestLegacyReviewRetrySameHashCompetingDecisionsRefuseGrant(t *testing.T) {
-	f, _, _, _ := legacyReviewRetryThirdFixture(t, true)
+	f, _, _, third := legacyReviewRetryThirdFixture(t, true)
 	before := continuationQuotaState(t, f.db)
-	if _, err := f.db.PendingLaunches(context.Background(), f.host, 1); !errors.Is(err, errLegacyDecisionAmbiguous) {
+	if _, err := f.db.PendingLaunches(context.Background(), f.host, 1); !errors.Is(err, contract.ErrHostArtifactGrant) {
 		t.Errorf("same-hash competing old decisions guessed target: %v", err)
+	}
+	// Missing artifact authority refuses live replay first. The independent
+	// historical proof must still reject competing decision ownership.
+	third.HostArtifacts = nil
+	if err := f.db.sql.QueryRow(`SELECT launch_intent_hash FROM segment_runtime WHERE segment_id=?`, third.SegmentID).Scan(&third.LaunchIntentHash); err != nil {
+		t.Fatal(err)
+	}
+	tx, err := f.db.sql.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = f.db.reconcileLegacyGrant(context.Background(), tx, &third)
+	_ = tx.Rollback()
+	if !errors.Is(err, errLegacyDecisionAmbiguous) {
+		t.Fatal("competing historical commitments were not refused", err)
 	}
 	if continuationQuotaState(t, f.db) != before {
 		t.Error("ambiguous consumed history advanced ledger")

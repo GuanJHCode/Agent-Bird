@@ -72,7 +72,7 @@ func TestRunSourceStopsWhenOriginOwnerExits(t *testing.T) {
 			serverDone <- errors.New("host_reconciled_missing")
 			return
 		}
-		grant := contract.LaunchCommand{CommandID: "origin-command", ReservationID: "origin-reservation", RunID: "origin-run", TaskID: "origin-task", AttemptID: "origin-attempt", SegmentID: "origin-segment", GrantedActiveMS: 10_000}
+		grant := withHostArtifactsForTest(t, contract.LaunchCommand{CommandID: "origin-command", ReservationID: "origin-reservation", RunID: "origin-run", TaskID: "origin-task", AttemptID: "origin-attempt", SegmentID: "origin-segment", HostID: "origin-launch", WorkRevision: 1, GrantedActiveMS: 10_000})
 		grantPayload, _ := json.Marshal(grant)
 		if writeErr := ipc.Write(conn, ipc.Envelope{Version: 1, Kind: ipc.KindLaunch, RequestID: grant.CommandID, Epoch: 11, Payload: grantPayload}); writeErr != nil {
 			serverDone <- writeErr
@@ -187,7 +187,7 @@ func TestRunSourceUDSLaunchAndDurableEventAck(t *testing.T) {
 			serverDone <- errors.New("host_reconciled_missing")
 			return
 		}
-		grant := contract.LaunchCommand{CommandID: "command-1", ReservationID: "reservation-1", RunID: "run-1", TaskID: "task-1", AttemptID: "attempt-1", SegmentID: "segment-1", GrantedActiveMS: 1500}
+		grant := withHostArtifactsForTest(t, contract.LaunchCommand{CommandID: "command-1", ReservationID: "reservation-1", RunID: "run-1", TaskID: "task-1", AttemptID: "attempt-1", SegmentID: "segment-1", HostID: "launch-1", WorkRevision: 1, GrantedActiveMS: 1500})
 		grantPayload, _ := json.Marshal(grant)
 		if err = ipc.Write(conn, ipc.Envelope{Version: 1, Kind: ipc.KindLaunch, RequestID: grant.CommandID, Epoch: 7, Payload: grantPayload}); err != nil {
 			serverDone <- err

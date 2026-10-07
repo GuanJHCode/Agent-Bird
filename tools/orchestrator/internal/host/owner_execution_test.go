@@ -70,7 +70,7 @@ func ownerExecutionFixture(t *testing.T) (ownerExecutionConfig, contract.OwnerCo
 
 func ownerExecutionSignedLaunch(t *testing.T, permit contract.OwnerControlPermit, key ed25519.PrivateKey) []byte {
 	t.Helper()
-	grant := contract.LaunchCommand{CommandID: "command", ReservationID: "reservation", RunID: "run", HostID: "producer", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, PlanRevision: 1, ExecutionEpoch: permit.CoordinatorEpoch, GrantedActiveMS: 1000}
+	grant := withHostArtifactsForTest(t, contract.LaunchCommand{CommandID: "command", ReservationID: "reservation", RunID: "run", HostID: "producer", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, PlanRevision: 1, ExecutionEpoch: permit.CoordinatorEpoch, GrantedActiveMS: 1000})
 	body, _ := json.Marshal(grant)
 	command, err := contract.SignOwnerCommand(contract.OwnerCommand{Version: 1, Permit: permit, Kind: "launch", RequestID: grant.CommandID, Body: body}, key)
 	if err != nil {
@@ -787,7 +787,7 @@ func TestOwnerExecutionOnlyAdmitsActivatedExactSignedScopeAndDeduplicates(t *tes
 	if e.run.cfg.Hello.LaunchToken != "" {
 		t.Fatal("owner execution received launch credential")
 	}
-	grant := contract.LaunchCommand{CommandID: "command", ReservationID: "reservation", RunID: "run", HostID: "producer", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, PlanRevision: 1, ExecutionEpoch: permit.CoordinatorEpoch, GrantedActiveMS: 1000}
+	grant := withHostArtifactsForTest(t, contract.LaunchCommand{CommandID: "command", ReservationID: "reservation", RunID: "run", HostID: "producer", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, PlanRevision: 1, ExecutionEpoch: permit.CoordinatorEpoch, GrantedActiveMS: 1000})
 	sign := func(g contract.LaunchCommand) []byte {
 		body, _ := json.Marshal(g)
 		command, err := contract.SignOwnerCommand(contract.OwnerCommand{Version: 1, Permit: permit, Kind: "launch", RequestID: g.CommandID, Body: body}, key)
@@ -818,6 +818,7 @@ func TestOwnerExecutionOnlyAdmitsActivatedExactSignedScopeAndDeduplicates(t *tes
 	}
 	foreign := grant
 	foreign.RunID = "foreign"
+	foreign = withHostArtifactsForTest(t, foreign)
 	if err = e.command(sign(foreign)); err == nil {
 		t.Fatal("cross-scope signed launch accepted")
 	}

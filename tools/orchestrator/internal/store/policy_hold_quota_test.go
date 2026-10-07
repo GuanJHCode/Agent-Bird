@@ -81,8 +81,8 @@ func TestPolicyHoldQuotaAdmissionAndHistory(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if got := policyQuotaUsage(t, f.db); got != stored+int64(len(g.AttemptID)) {
-					t.Fatalf("consuming promise lost history or double-charged hold: %d/%d", got, stored+int64(len(g.AttemptID)))
+				if got := policyQuotaUsage(t, f.db); got != stored+int64(len(g.AttemptID))+hostArtifactControlBytes(t, f.db, g.SegmentID) {
+					t.Fatalf("consuming promise lost history or double-charged hold: %d/%d", got, stored+int64(len(g.AttemptID))+hostArtifactControlBytes(t, f.db, g.SegmentID))
 				}
 			}
 			var hold int64

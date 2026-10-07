@@ -67,7 +67,7 @@ func (c OwnerCommand) Validate() error {
 	switch c.Kind {
 	case "launch":
 		var body LaunchCommand
-		if DecodeOwnerRuntimeStrict(c.Body, &body) != nil || body.CommandID != c.RequestID || body.ExecutionEpoch != c.Permit.CoordinatorEpoch || body.HostID == "" || body.RunID == "" || body.TaskID == "" || body.AttemptID == "" || body.SegmentID == "" || body.WorkRevision < 1 || body.GrantedActiveMS < 1 || ValidateDependencyInputs(body) != nil {
+		if DecodeOwnerRuntimeStrict(c.Body, &body) != nil || body.CommandID != c.RequestID || body.ExecutionEpoch != c.Permit.CoordinatorEpoch || body.HostID == "" || body.RunID == "" || body.TaskID == "" || body.AttemptID == "" || body.SegmentID == "" || body.WorkRevision < 1 || body.GrantedActiveMS < 1 || RequireHostArtifacts(body) != nil || ValidateDependencyInputs(body) != nil {
 			return ownerInvalid()
 		}
 	case "stop":

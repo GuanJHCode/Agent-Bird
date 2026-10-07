@@ -23,7 +23,7 @@ func dependencyHostGrant(t *testing.T) contract.LaunchCommand {
 	if err = os.WriteFile(path, body, 0600); err != nil {
 		t.Fatal(err)
 	}
-	c := contract.LaunchCommand{CommandID: "command", ReservationID: "reservation", RunID: "run", TaskID: "join", AttemptID: "attempt", SegmentID: "segment", SlotToken: "slot", PlanRevision: 7, GrantedActiveMS: 1000, AdapterPayload: json.RawMessage(`{"kind":"candidate","candidate_action":{"version":1,"dependency_input_version":1,"operation":"validate","source_task":"z"}}`)}
+	c := withHostArtifactsForTest(t, contract.LaunchCommand{CommandID: "command", ReservationID: "reservation", RunID: "run", HostID: "host", TaskID: "join", AttemptID: "attempt", SegmentID: "segment", SlotToken: "slot", WorkRevision: 1, PlanRevision: 7, GrantedActiveMS: 1000, AdapterPayload: json.RawMessage(`{"kind":"candidate","candidate_action":{"version":1,"dependency_input_version":1,"operation":"validate","source_task":"z"}}`)})
 	c.DependencyInputs = &contract.DependencyInputVector{Version: 1}
 	for _, id := range []string{"a", "m", "z"} {
 		e := contract.Event{Version: 1, ProducerID: "host", RunID: "run", TaskID: id, AttemptID: "source-attempt", SegmentID: "source-segment", WorkRevision: 1, EventID: id + "-result", EventRevision: 1, ActionSlot: "accept-slot-" + id, CommandID: "source-command", Sequence: 1, Kind: contract.EventResult, PayloadHash: hashBytes(body), Artifact: &contract.ArtifactRef{ID: id, Path: path, Size: int64(len(body)), SHA256: hashBytes(body)}}

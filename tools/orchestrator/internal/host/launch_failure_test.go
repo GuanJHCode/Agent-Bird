@@ -429,7 +429,7 @@ func TestLaunchFailureRecoversArtifactBeforeFirstEvent(t *testing.T) {
 	for _, metadata := range []bool{false, true} {
 		t.Run(fmt.Sprint(metadata), func(t *testing.T) {
 			root := filepath.Join(t.TempDir(), "spool")
-			grant := contract.LaunchCommand{CommandID: "c", ReservationID: "reservation", RunID: "r", TaskID: "t", AttemptID: "a", SegmentID: "s", WorkRevision: 1, GrantedActiveMS: 1000}
+			grant := withHostArtifactsForTest(t, contract.LaunchCommand{CommandID: "c", ReservationID: "reservation", RunID: "r", HostID: "host", TaskID: "t", AttemptID: "a", SegmentID: "s", WorkRevision: 1, GrantedActiveMS: 1000})
 			h, err := NewIPC(root, "host")
 			if err != nil {
 				t.Fatal(err)
@@ -516,7 +516,7 @@ func TestLaunchFailureRecoveryRejectsUntrustedDiagnostic(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			grant := contract.LaunchCommand{CommandID: "c", ReservationID: "reservation", RunID: "r", TaskID: "t", AttemptID: "a", SegmentID: "s", WorkRevision: 1, GrantedActiveMS: 1000}
+			grant := withHostArtifactsForTest(t, contract.LaunchCommand{CommandID: "c", ReservationID: "reservation", RunID: "r", HostID: "host", TaskID: "t", AttemptID: "a", SegmentID: "s", WorkRevision: 1, GrantedActiveMS: 1000})
 			if _, err = h.acceptGrant(grant); err != nil {
 				t.Fatal(err)
 			}
@@ -566,7 +566,7 @@ func TestLaunchFailureRecoveryKeepsPartialTerminalUnknown(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	grant := contract.LaunchCommand{CommandID: "c", ReservationID: "reservation", RunID: "r", TaskID: "t", AttemptID: "a", SegmentID: "s", WorkRevision: 1, GrantedActiveMS: 1000}
+	grant := withHostArtifactsForTest(t, contract.LaunchCommand{CommandID: "c", ReservationID: "reservation", RunID: "r", HostID: "host", TaskID: "t", AttemptID: "a", SegmentID: "s", WorkRevision: 1, GrantedActiveMS: 1000})
 	if _, err = h.acceptGrant(grant); err != nil {
 		t.Fatal(err)
 	}

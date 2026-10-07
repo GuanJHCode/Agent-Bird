@@ -22,7 +22,7 @@ func ownerQueuedCommand(t *testing.T, permit contract.OwnerControlPermit, key ed
 	t.Helper()
 	var value any = contract.StopCommand{CommandID: id, SegmentID: "segment-" + id, Reason: "owner_stop_requested", DeadlineUnixMS: 123456789}
 	if kind == "launch" {
-		value = contract.LaunchCommand{CommandID: id, ReservationID: "reservation-" + id, RunID: "run", HostID: "producer", TaskID: "task-" + id, AttemptID: "attempt-" + id, SegmentID: "segment-" + id, WorkRevision: 1, PlanRevision: 1, ExecutionEpoch: permit.CoordinatorEpoch, GrantedActiveMS: 1000}
+		value = withHostArtifactsForTest(t, contract.LaunchCommand{CommandID: id, ReservationID: "reservation-" + id, RunID: "run", HostID: "producer", TaskID: "task-" + id, AttemptID: "attempt-" + id, SegmentID: "segment-" + id, WorkRevision: 1, PlanRevision: 1, ExecutionEpoch: permit.CoordinatorEpoch, GrantedActiveMS: 1000})
 	}
 	body, _ := json.Marshal(value)
 	command, err := contract.SignOwnerCommand(contract.OwnerCommand{Version: 1, Permit: permit, Kind: kind, RequestID: id, Body: body}, key)

@@ -108,7 +108,8 @@ func TestDecisionBindingsQuotaChecksCombinedRowsAndConsumeGrowth(t *testing.T) {
 			if _, err := f.db.QueueRework(context.Background(), f.spec); err != nil {
 				t.Fatal("tight positive quota", err)
 			}
-			setContinuationQuotaRemaining(t, f.db, scope, 31)
+			growth := 32 + nextHostArtifactControlBytes(f.edit.RunID, f.edit.TaskID, f.host, "")
+			setContinuationQuotaRemaining(t, f.db, scope, growth-1)
 			before = continuationQuotaState(t, f.db)
 			if _, err := f.db.ClaimReady(context.Background(), f.host, 1, 2); !errors.Is(err, CodeError("control_spool_full")) {
 				t.Fatalf("consume growth err=%v", err)
@@ -116,7 +117,7 @@ func TestDecisionBindingsQuotaChecksCombinedRowsAndConsumeGrowth(t *testing.T) {
 			if continuationQuotaState(t, f.db) != before {
 				t.Fatal("consume quota refusal advanced attempts/reservations")
 			}
-			setContinuationQuotaRemaining(t, f.db, scope, 32)
+			setContinuationQuotaRemaining(t, f.db, scope, growth)
 			if _, err := f.db.ClaimReady(context.Background(), f.host, 1, 2); err != nil {
 				t.Fatal("exact consume growth", err)
 			}
@@ -269,7 +270,7 @@ func TestDecisionBindingsQuotaChargesUTF8BytesInBothScopes(t *testing.T) {
 	if err := db.sql.QueryRow(`SELECT SUM(length(CAST(body_json AS BLOB))) FROM runtime_events`).Scan(&expected); err != nil {
 		t.Fatal(err)
 	}
-	expected += 16 + int64(len(spec.ActionSlot)) + int64(len(spec.TaskID))
+	expected += 16 + int64(len(spec.ActionSlot)) + int64(len(spec.TaskID)) + hostArtifactControlBytes(t, db, "")
 	run, global := continuationQuotaUsage(t, db)
 	if run != expected || global != expected {
 		t.Fatalf("UTF8 charge run=%d global=%d expected=%d", run, global, expected)

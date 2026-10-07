@@ -18,12 +18,46 @@ func bindCandidateInput(ctx context.Context, tx *sql.Tx, command *contract.Launc
 	if retryErr != nil {
 		return retryErr
 	}
-	return bindCandidateInputForDecision(ctx, tx, command, replay, retry)
+	return bindCandidateInputForDecision(ctx, tx, command, replay, retry, candidateArtifactLive)
 }
+
+// Reconstruct an already-issued candidate only as evidence for a decision.
+// The historical nil-grant branch still compares the original intent hash;
+// ClaimReady and PendingLaunches must use the live binder above.
+func bindHistoricalCandidateInput(ctx context.Context, tx *sql.Tx, command *contract.LaunchCommand) error {
+	retry, err := prepareReviewRetryGrant(ctx, tx, command)
+	if err != nil {
+		return err
+	}
+	return bindCandidateInputForDecision(ctx, tx, command, true, retry, candidateArtifactHistoricalProof)
+}
+
+type candidateArtifactUse int
+
+const (
+	candidateArtifactLive candidateArtifactUse = iota
+	candidateArtifactHistoricalProof
+)
 
 // An explicit already-validated decision breaks the legacy reconciliation
 // cycle. Ordinary callers still resolve their exact committed binding above.
-func bindCandidateInputForDecision(ctx context.Context, tx *sql.Tx, command *contract.LaunchCommand, replay bool, retry *reviewRetryDecision) error {
+func bindCandidateInputForDecision(ctx context.Context, tx *sql.Tx, command *contract.LaunchCommand, replay bool, retry *reviewRetryDecision, use candidateArtifactUse) error {
+	if use != candidateArtifactLive && use != candidateArtifactHistoricalProof || use == candidateArtifactHistoricalProof && !replay {
+		return ErrConflict
+	}
+	if err := bindHostArtifacts(ctx, tx, command, use != candidateArtifactHistoricalProof); err != nil {
+		return err
+	}
+	if err := bindCandidateInputContent(ctx, tx, command, replay, retry); err != nil {
+		return err
+	}
+	if use == candidateArtifactHistoricalProof && command.HostArtifacts == nil {
+		return bindCandidateIntent(ctx, tx, command, true)
+	}
+	return nil
+}
+
+func bindCandidateInputContent(ctx context.Context, tx *sql.Tx, command *contract.LaunchCommand, replay bool, retry *reviewRetryDecision) error {
 	if err := bindExistingDiagnostics(ctx, tx, command); err != nil {
 		return err
 	}

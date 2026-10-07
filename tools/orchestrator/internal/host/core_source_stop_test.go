@@ -29,7 +29,7 @@ func TestCoreLivingSourceCleanupRegistersOriginalSharedStop(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			grant := contract.LaunchCommand{CommandID: "command", ReservationID: "reservation", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, GrantedActiveMS: 5000}
+			grant := withHostArtifactsForTest(t, contract.LaunchCommand{CommandID: "command", ReservationID: "reservation", RunID: "run", HostID: hello.LaunchID, TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, GrantedActiveMS: 5000})
 			leaderRelease := filepath.Join(h.spoolRoot, "leader-release")
 			childRelease := filepath.Join(h.spoolRoot, "child-release")
 			t.Cleanup(func() {

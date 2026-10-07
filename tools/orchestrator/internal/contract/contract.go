@@ -174,6 +174,7 @@ type DependencyInputVector struct {
 }
 
 type LaunchCommand struct {
+	HostArtifacts      *HostArtifactGrant     `json:"host_artifacts,omitempty"`
 	Diagnostics        *DiagnosticsGrant      `json:"diagnostics,omitempty"`
 	Continuation       *ContinuationRef       `json:"continuation,omitempty"`
 	Input              *AcceptedInput         `json:"input,omitempty"`

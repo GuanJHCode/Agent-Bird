@@ -59,7 +59,7 @@ func TestC02LivingSourceProcessesRunningAndCompletedDuplicateWithoutInvocationOr
 			t.Error("owned duplicate fixture worker did not join")
 		}
 	})
-	grant := contract.LaunchCommand{CommandID: "command", ReservationID: "reservation", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, GrantedActiveMS: 5000}
+	grant := withHostArtifactsForTest(t, contract.LaunchCommand{CommandID: "command", ReservationID: "reservation", RunID: "run", HostID: "producer", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, GrantedActiveMS: 5000})
 	c02ProcessLaunchThroughReceive(t, source, grant, 1)
 	var original *process.Handle
 	for original == nil {

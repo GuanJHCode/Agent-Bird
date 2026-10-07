@@ -130,14 +130,14 @@ func validateSavedReviewRetryScope(ctx context.Context, tx *sql.Tx, r attemptDec
 		}
 	}
 	original := c
-	if bindErr := bindCandidateInput(ctx, tx, &c, true); bindErr != nil {
+	if bindErr := bindHistoricalCandidateInput(ctx, tx, &c); bindErr != nil {
 		var bound int
 		if !legacy || tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM decision_attempt_bindings WHERE attempt_id=?`, c.AttemptID).Scan(&bound) != nil || bound != 0 {
 			return ErrConflict
 		}
 		c = original
 		retry, retryErr := applyReviewRetryGrant(&c, saved)
-		if retryErr != nil || bindCandidateInputForDecision(ctx, tx, &c, true, retry) != nil {
+		if retryErr != nil || bindCandidateInputForDecision(ctx, tx, &c, true, retry, candidateArtifactHistoricalProof) != nil {
 			return ErrConflict
 		}
 	}
