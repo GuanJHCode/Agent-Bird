@@ -9,12 +9,134 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
 )
+
+type resumeOutputWriterFunc func([]byte) (int, error)
+
+func (write resumeOutputWriterFunc) Write(body []byte) (int, error) { return write(body) }
+
+func TestResumeCLIOutputFailureKeepsPending(t *testing.T) {
+	for _, scenario := range []struct {
+		name  string
+		write func([]byte) (int, error)
+		want  error
+	}{
+		{"epipe", func([]byte) (int, error) { return 0, syscall.EPIPE }, syscall.EPIPE},
+		{"enospc", func([]byte) (int, error) { return 0, syscall.ENOSPC }, syscall.ENOSPC},
+		{"short_zero_nil", func([]byte) (int, error) { return 0, nil }, io.ErrShortWrite},
+		{"short_partial_nil", func(body []byte) (int, error) { return len(body) - 1, nil }, io.ErrShortWrite},
+		{"full_with_error", func(body []byte) (int, error) { return len(body), syscall.EPIPE }, syscall.EPIPE},
+	} {
+		t.Run(scenario.name, func(t *testing.T) {
+			state, path, cap := resumeCLIFixture(t)
+			var first string
+			var raw []byte
+			calls := 0
+			deps := resumeControlDependencies{requireCoordinator: func(context.Context, string) error { return nil }, call: func(_ context.Context, _ string, kind ipc.Kind, value any) (ipc.Envelope, error) {
+				if kind != ipc.KindResume {
+					t.Fatal("unexpected mutable gate")
+				}
+				req := value.(coordinator.ResumeRequest)
+				calls++
+				if first == "" {
+					first = req.CommandID
+				} else if req.CommandID != first {
+					t.Fatalf("output retry changed command: %q -> %q", first, req.CommandID)
+				}
+				raw = resumeCLIReceipt(t, req, cap, "existing_owner")
+				return ipc.Envelope{Payload: raw}, nil
+			}}
+			err := resumeControl(context.Background(), state, path, "task", 2, "", false, resumeOutputWriterFunc(scenario.write), deps)
+			if !errors.Is(err, scenario.want) {
+				t.Fatalf("err=%v want=%v", err, scenario.want)
+			}
+			body, err := os.ReadFile(filepath.Join(state, "resume-requests", resumeJournalName(first)))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var pending resumeJournalRequest
+			if json.Unmarshal(body, &pending) != nil || pending.State != "pending" {
+				t.Fatalf("output failure completed journal: %s", body)
+			}
+			selected, err := selectResumeJournalRequest(state, path, "task", 2, "")
+			if err != nil || selected.CommandID != first {
+				t.Fatalf("implicit pending=%+v err=%v", selected, err)
+			}
+			var out bytes.Buffer
+			if err = resumeControl(context.Background(), state, path, "task", 2, "", false, &out, deps); err != nil {
+				t.Fatal(err)
+			}
+			if calls != 2 || !bytes.Equal(out.Bytes(), append(append([]byte(nil), raw...), '\n')) {
+				t.Fatalf("calls=%d output=%s", calls, out.String())
+			}
+			completed, err := selectResumeJournalRequest(state, path, "task", 2, first)
+			if err != nil || completed.State != "completed" {
+				t.Fatalf("completed=%+v err=%v", completed, err)
+			}
+		})
+	}
+}
+
+func TestResumeCLIOutputCompleteFailureReturnsError(t *testing.T) {
+	state, path, cap := resumeCLIFixture(t)
+	var first string
+	var raw []byte
+	deps := resumeControlDependencies{requireCoordinator: func(context.Context, string) error { return nil }, call: func(_ context.Context, _ string, kind ipc.Kind, value any) (ipc.Envelope, error) {
+		if kind != ipc.KindResume {
+			t.Fatal("unexpected mutable gate")
+		}
+		req := value.(coordinator.ResumeRequest)
+		if first == "" {
+			first = req.CommandID
+		} else if req.CommandID != first {
+			t.Fatalf("completion retry changed command: %q -> %q", first, req.CommandID)
+		}
+		raw = resumeCLIReceipt(t, req, cap, "existing_owner")
+		return ipc.Envelope{Payload: raw}, nil
+	}}
+	var out bytes.Buffer
+	unknown := filepath.Join(state, "resume-requests", "owned-output-fault")
+	writer := resumeOutputWriterFunc(func(body []byte) (int, error) {
+		n, err := out.Write(body)
+		if err != nil {
+			return n, err
+		}
+		// The real complete scan must fail closed after a successful output.
+		if err = os.WriteFile(unknown, []byte("owned test fault"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		return n, nil
+	})
+	err := resumeControl(context.Background(), state, path, "task", 2, "", false, writer, deps)
+	if err == nil || !bytes.Equal(out.Bytes(), append(append([]byte(nil), raw...), '\n')) {
+		t.Fatalf("err=%v output=%s", err, out.String())
+	}
+	body, err := os.ReadFile(filepath.Join(state, "resume-requests", resumeJournalName(first)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var pending resumeJournalRequest
+	if json.Unmarshal(body, &pending) != nil || pending.State != "pending" {
+		t.Fatalf("failed complete changed journal: %s", body)
+	}
+	if err = os.Remove(unknown); err != nil {
+		t.Fatal(err)
+	}
+	out.Reset()
+	if err = resumeControl(context.Background(), state, path, "task", 2, "", false, &out, deps); err != nil {
+		t.Fatal(err)
+	}
+	completed, err := selectResumeJournalRequest(state, path, "task", 2, first)
+	if err != nil || completed.State != "completed" {
+		t.Fatalf("completed=%+v err=%v", completed, err)
+	}
+}
 
 func resumeCLIFixture(t *testing.T) (string, string, controlCapability) {
 	t.Helper()

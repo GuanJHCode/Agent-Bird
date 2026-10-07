@@ -109,11 +109,15 @@ func resumeControl(ctx context.Context, state, controlFile, taskID string, revis
 			}
 		}
 	}
-	if err = completeResumeJournalRequest(state, journal); err != nil {
+	body := append(response.Payload, '\n')
+	n, err := out.Write(body)
+	if err != nil {
 		return err
 	}
-	_, err = out.Write(append(response.Payload, '\n'))
-	return err
+	if n != len(body) {
+		return io.ErrShortWrite
+	}
+	return completeResumeJournalRequest(state, journal)
 }
 
 func legacyResumeControl(ctx context.Context, state string, capability controlCapability, request coordinator.ResumeRequest, deps resumeControlDependencies) (ipc.Envelope, error) {

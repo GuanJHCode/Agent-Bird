@@ -11,3 +11,5 @@
 严格 capability 的本批含义是调用现有 loadControlCapability 成功先于 journal，不顺带修改其跨 action 既有读取实现；receipt 单独严格解码。旧 legacy fallback 不声称 RPC 幂等，journal 不替代 current Store capability 鉴权。
 
 完成：五步实现/普通 focused 验证结束，六 Go 文件冻结；独立 CLI 审查、race/native/Linux/full 验收交 ROOT。最终准确计数及限制见 `../docs/report.md`，源码 SHA256 见 `../data/source-sha256.json`。
+
+独审 delta：ROOT 修订输出顺序为完整 out.Write 后 complete。实际 journal 故障 writer RED 7 named FAIL → CLI/successor 最终 135 named PASS；short write nil 返回 io.ErrShortWrite；输出错误不调用 complete，complete 错误仍返回且不清理记录。仅两文件源码 delta，证据与剩余验收见报告。

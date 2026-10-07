@@ -122,5 +122,41 @@
       "TestResumeJournalRejectsForeignOwnership/lock",
       "TestResumeJournalRejectsForeignOwnership/record"
     ]
+  },
+  "output-red": {
+    "package": {
+      "pass": 0,
+      "fail": 1,
+      "skip": 0
+    },
+    "top": {
+      "pass": 0,
+      "fail": 2,
+      "skip": 0
+    },
+    "named": {
+      "pass": 0,
+      "fail": 7,
+      "skip": 0
+    },
+    "build_fail": 0
+  },
+  "output-final": {
+    "package": {
+      "pass": 1,
+      "fail": 0,
+      "skip": 0
+    },
+    "top": {
+      "pass": 12,
+      "fail": 0,
+      "skip": 0
+    },
+    "named": {
+      "pass": 135,
+      "fail": 0,
+      "skip": 0
+    },
+    "build_fail": 0
   }
 }
