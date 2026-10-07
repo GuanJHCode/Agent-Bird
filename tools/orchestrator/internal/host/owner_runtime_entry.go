@@ -47,6 +47,12 @@ func (d *ownerRuntimeTransport) read(ctx context.Context, lifecycle *ownerRuntim
 // RPC, relays the signed binding to the initial transport, then starts the
 // control reader before applied/activate can admit work.
 func RunOriginalOwner(parent context.Context, cfg OriginalOwnerConfig) error {
+	return runOriginalOwner(parent, cfg, nil)
+}
+
+// initialize is private to native fault fixtures. It runs before any reader or
+// dispatcher starts; the public runtime never supplies an initializer.
+func runOriginalOwner(parent context.Context, cfg OriginalOwnerConfig, initialize func(*ownerExecution)) error {
 	if cfg.Control == nil || cfg.InvocationProvider == nil || cfg.Bootstrap.Validate() != nil {
 		return errOriginalOwnerRuntime
 	}
@@ -99,7 +105,6 @@ func RunOriginalOwner(parent context.Context, cfg OriginalOwnerConfig) error {
 	if err != nil {
 		return err
 	}
-	lifecycle := newOwnerRuntimeLifecycle(execution, cancel)
 	recoveryScope, err := originalOwnerRecoveryScope(bound.Binding.Scope, bound.Binding.Owner)
 	if err != nil {
 		return err
@@ -123,6 +128,11 @@ func RunOriginalOwner(parent context.Context, cfg OriginalOwnerConfig) error {
 		}
 		return recovery.markTransportActivated(applied)
 	}
+	if initialize != nil {
+		initialize(execution)
+	}
+	// Fallible initialization must finish before creating lifecycle workers.
+	lifecycle := newOwnerRuntimeLifecycle(execution, cancel)
 	transport := &ownerRuntimeTransport{generation: 1, control: cfg.Control, identity: bound.Binding.FirstHost}
 	transport.read(ctx, lifecycle)
 	failures := lifecycle.watchFailures(ctx)

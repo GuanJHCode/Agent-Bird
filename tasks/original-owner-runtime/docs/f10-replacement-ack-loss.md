@@ -69,3 +69,12 @@ The original FD4 reader synchronously waited in acceptGrant, so a later signed t
 ROOT normal validation: session 67159 exit 0, 38 top-level / 104 named tests; Host race session 93670 exit 0, 37 / 100. No failures or skips in these final reports. Build, vet and diff check session 90466 exit 0. Independent production and test reviews PASS; only gofmt followed review. Receipt: data/root-command-queues-receipt.json.
 
 These tests include real signed control socketpairs and existing native same-tuple recovery. They do not yet prove an actual owner process exits within 13 seconds while admission remains blocked. The full B2 fault matrix, process-tree proof, B3 sealing and combined integration remain open.
+
+
+## Native permanently blocked admission (2026-10-07)
+
+The private runtime initializer is installed after fallible recovery initialization and before lifecycle workers/readers. Public RunOriginalOwner passes nil. Moving lifecycle construction past recovery initialization also avoids leaving dispatch workers on early initialization failure. No public configuration, wire or product environment fault switch was added.
+
+A real test-binary owner child enrolls over actual OwnerRPC and inherited FD3/FD4. Its private acceptGrant boundary emits an FD5 receipt then blocks permanently, with no release/context path. A real Coordinator signs coordinator_exit on Serve cancellation; the parent authenticates and forwards the unchanged terminal frame. The owner returns terminal plus DeadlineExceeded; its original sole Cmd.Wait records exit 1 without a signal, then ESRCH, in 11.011s normal / 11.022s race. No provider, worker or durable grant/noStart was invented. This models an uninterruptible admission boundary; it is not physical filesystem fault injection or full worker-tree acceptance.
+
+Normal session98757: 1 top/1 named PASS. Race19035: 2 top/5 named PASS, including existing same-tuple recovery. Build/vet/diffcheck69345 PASS. Independent two-file review PASS. Pure Linux arm64 queue tests: 4 top/6 named PASS; container86f7647f3eca1d170c13fa9879b8ad68c6ad5a1d34d5febcc46ca9dea2506064 exited0, notOOM, removed and inspect confirms absent. No Linux native owner/Provider/race claim. See data/root-native-blocked-admission-receipt.json. All original sessions terminal; success runtimes removed; no acceptance-time fixture kill. Native publisher/durable-write matrix, descendants, B3 and integration remain open.
