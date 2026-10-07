@@ -1,0 +1,7 @@
+--- FAIL: TestClientBindsNewSessionBeforeFollowingUpdate (0.00s)
+    lifecycle_repair_test.go:248: update = grokacp.Update{SessionID:"", Kind:"", Text:"", Raw:json.RawMessage(nil)}
+--- FAIL: TestClientAcceptBindsNewSessionBeforeNextFrame (0.00s)
+    lifecycle_repair_test.go:335: following update = grokacp: protocol
+FAIL
+FAIL	github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp	0.377s
+FAIL

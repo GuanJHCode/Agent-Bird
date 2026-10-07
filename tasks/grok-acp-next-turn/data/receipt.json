@@ -92,6 +92,43 @@
     }
   ],
   "scope": "internal/grokacp and task evidence only",
+  "session_bind_repair": {
+    "green": {
+      "command": "TMPDIR=/private/tmp go test -json -count=1 ./internal/grokacp",
+      "fail": 0,
+      "log": "test-session-bind-repair.jsonl",
+      "named_pass": 20,
+      "sha256": "90d1ca719931b3ceb9b2f61de987054223118460914ace2c3124b14ef5f43eb8",
+      "skip": 1
+    },
+    "native_not_rerun": "no native token; repair affects pure reader dispatcher only",
+    "race": {
+      "command": "TMPDIR=/private/tmp go test -json -race -count=1 ./internal/grokacp",
+      "fail": 0,
+      "log": "race-session-bind-repair.jsonl",
+      "named_pass": 20,
+      "sha256": "b1f373193ac62fc05fbabc9e59ca4b18604657b83e9cacf19e664d585dbecfcd",
+      "skip": 1
+    },
+    "red_session_bind": {
+      "base_overlay": "a356461 plus test-compat pending.method field",
+      "behavior": "session/new result did not bind before next session/update",
+      "log": "red-session-bind-overlay.jsonl",
+      "sha256": "89d04cb42fd5a0d81f9832be7f4d0e96521cc2fc296b9dce3b6fc7df024e5cb2"
+    },
+    "red_unknown_no_params": {
+      "base_overlay": "06ebcd6 plus test-compat pending.method field",
+      "behavior": "unknown reverse request without params closed instead of method-not-found",
+      "log": "red-reverse-no-params-overlay.jsonl",
+      "sha256": "b4a78785678c209a0e26b72494e12769f3115e247f8e321179122c1dda58eae9"
+    },
+    "vet": {
+      "command": "TMPDIR=/private/tmp go vet ./internal/grokacp",
+      "exit": 0,
+      "log": "vet-session-bind-repair.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
   "toolchain": "go1.26.8",
   "vet": {
     "command": "TMPDIR=/private/tmp go vet ./internal/grokacp",

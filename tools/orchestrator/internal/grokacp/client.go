@@ -77,8 +77,9 @@ type response struct {
 }
 
 type pending struct {
-	id uint64
-	ch chan response
+	id     uint64
+	method string
+	ch     chan response
 }
 
 // Client owns exactly one reader. All outbound writes are serialized and all
@@ -194,14 +195,18 @@ func (c *Client) NewSession(ctx context.Context, cwd string) (string, error) {
 		c.fail(ErrProtocol)
 		return "", ErrProtocol
 	}
-	var sessionID string
-	if json.Unmarshal(fields["sessionId"], &sessionID) != nil || sessionID == "" || !utf8.ValidString(sessionID) {
+	sessionID, ok := sessionIDFromResult(fields)
+	if !ok {
 		c.fail(ErrProtocol)
 		return "", ErrProtocol
 	}
 	c.mu.Lock()
-	c.sessionID = sessionID
+	bound := c.sessionID
 	c.mu.Unlock()
+	if bound != sessionID {
+		c.fail(ErrProtocol)
+		return "", ErrProtocol
+	}
 	return sessionID, nil
 }
 
@@ -271,7 +276,7 @@ func (c *Client) call(ctx context.Context, method string, params json.RawMessage
 		c.fail(ErrProtocol)
 		return nil, ErrProtocol
 	}
-	p := &pending{id: c.nextID, ch: make(chan response, 1)}
+	p := &pending{id: c.nextID, method: method, ch: make(chan response, 1)}
 	c.pending = p
 	c.mu.Unlock()
 	stop := context.AfterFunc(ctx, func() { c.fail(ErrUncertain) })
@@ -402,9 +407,42 @@ func (c *Client) accept(raw []byte) error {
 	if hasError {
 		c.fail(ErrUncertain)
 		return ErrUncertain
-	} else {
-		p.ch <- response{result: append(json.RawMessage(nil), fields["result"]...)}
 	}
+	if p.method == "session/new" {
+		if err := c.bindSessionResult(fields["result"]); err != nil {
+			return err
+		}
+	}
+	p.ch <- response{result: append(json.RawMessage(nil), fields["result"]...)}
+	return nil
+}
+
+func sessionIDFromResult(fields map[string]json.RawMessage) (string, bool) {
+	if fields["sessionId"] == nil {
+		return "", false
+	}
+	var sessionID string
+	if json.Unmarshal(fields["sessionId"], &sessionID) != nil || sessionID == "" || !utf8.ValidString(sessionID) {
+		return "", false
+	}
+	return sessionID, true
+}
+
+func (c *Client) bindSessionResult(raw json.RawMessage) error {
+	fields, err := object(raw)
+	if err != nil {
+		return ErrProtocol
+	}
+	sessionID, ok := sessionIDFromResult(fields)
+	if !ok {
+		return ErrProtocol
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.sessionID != "" || !c.creatingSession {
+		return ErrProtocol
+	}
+	c.sessionID = sessionID
 	return nil
 }
 
@@ -412,23 +450,26 @@ func (c *Client) reverseRequest(id json.RawMessage, method string, params json.R
 	if !validRPCID(id) {
 		return ErrProtocol
 	}
-	fields, err := object(params)
-	if err != nil {
-		return ErrProtocol
-	}
-	sessionID, ok := stringValue(fields["sessionId"])
-	c.mu.Lock()
-	bound, active := c.sessionID, c.turnActive
-	if method == "session/request_permission" && ok && sessionID == bound && active {
-		c.turnDenied = true
-	}
-	denied := method == "session/request_permission" && ok && sessionID == bound && active
-	c.mu.Unlock()
-	if method == "session/request_permission" && !denied {
-		return ErrProtocol
+	permission := method == "session/request_permission"
+	if permission {
+		fields, err := object(params)
+		if err != nil {
+			return ErrProtocol
+		}
+		sessionID, ok := stringValue(fields["sessionId"])
+		c.mu.Lock()
+		bound, active := c.sessionID, c.turnActive
+		denied := ok && sessionID == bound && active
+		if denied {
+			c.turnDenied = true
+		}
+		c.mu.Unlock()
+		if !denied {
+			return ErrProtocol
+		}
 	}
 	var body any
-	if method == "session/request_permission" {
+	if permission {
 		body = struct {
 			JSONRPC string          `json:"jsonrpc"`
 			ID      json.RawMessage `json:"id"`

@@ -1,0 +1,5 @@
+--- FAIL: TestClientReturnsMethodNotFoundForUnknownReverseRequestWithoutParams (0.00s)
+    lifecycle_repair_test.go:312: EOF
+FAIL
+FAIL	github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp	0.579s
+FAIL
