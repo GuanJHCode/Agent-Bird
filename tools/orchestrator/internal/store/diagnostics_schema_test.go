@@ -16,6 +16,7 @@ import (
 // preserve. DROP TABLE removes its own triggers as part of SQLite's DDL.
 func downgradeDiagnosticsSchema(t *testing.T, db *DB) {
 	t.Helper()
+	downgradeReportIntakeSchema(t, db)
 	tx, err := db.sql.Begin()
 	if err != nil {
 		t.Fatal(err)
@@ -102,7 +103,7 @@ func TestDiagnosticsV18MigrationPreservesLegacyWithoutConsent(t *testing.T) {
 			t.Fatal(err)
 		}
 		var version int
-		if err = db.sql.QueryRow(`SELECT version FROM schema_meta`).Scan(&version); err != nil || version != 19 {
+		if err = db.sql.QueryRow(`SELECT version FROM schema_meta`).Scan(&version); err != nil || version != currentSchemaVersion {
 			t.Fatal(version, err)
 		}
 		if got := diagnosticsLegacySnapshot(t, db.sql); !reflect.DeepEqual(got, before) {

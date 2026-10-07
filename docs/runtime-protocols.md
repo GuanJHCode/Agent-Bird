@@ -112,6 +112,7 @@ macOS process group 不能囊括主动 setsid 的后代；Windows Job 可受嵌�
 - 默认使用本机用户作用域 IPC：macOS Unix socket、Windows Named Pipe，限定当前用户访问并校验实例握手。不给远程监听，不需要 MCP。
 - 任务辅助命令获得随机 attempt 能力；控制命令拥有工作流控制能力，二者不互通。能力仅本工具内部作用域，不是底层 CLI 账号材料；不放入模型可复制的全局配置。禁止任意路径读取和跨 attempt 事件。
 - 单个控制事件上限 64 KiB；大报告写登记的 artifact，通过 ID/hash 引用。Host 流式排空 stdout/stderr，过滤器缓冲有上限；未知原始行默认不落盘。
+- worker report 的 question/result/failure 附件≤1MiB，先在事务中验证原 capability/sequence/payload 并持久预占，再在锁外从登记的私有目录有界复制；重新打开并核验原对象、持其写锁，二次验证权限后同事务提交 event/ref/retained bytes 才 ACK。源文件仍归 worker，精确已提交重放不再读取源；复制或提交失败保留原 intake 和预占供原请求恢复。raw bytes 与 control metadata 分账，终态报告可用故障处理预留空间，但仍满足 min-free、SQLite 余量和全部未物化空间承诺；progress 不获得该权限。旧报告保持旧计费且迁移不授予文件权限，所有 Host 写入点及完整2GiB约束仍待接入。
 - 显式 detailed 日志使用独立 diagnostics-read/diagnostics-ack，不复用业务 collect/ack。每次 Store 事务核对 run-control、controller、task 及原 attempt/producer/policy/reservation；原执行离线不撤销数据权限。reading fence 后锁外读文件，再核验并持久化完整页面才返回。expected_revision、request ID 和 ACK cursor 共同区分重放与新读；ACK 不改变业务状态或释放产物额度。
 - 诊断页 raw payload≤32KiB、持久页面≤60KiB、完整 raw-JSON IPC≤64KiB，外层 request ID 限 ASCII128 字节。rolling gap 随完整 receipt 绑定；永久读取失败形成可重放/ACK 的 unavailable 页且 cursor 不前进，取消或提交失败保留原 reading 请求恢复。后续删除必须在同一事务确认 phase=idle 并 CAS reservation，reading/pending 都阻止删除；当前不提供自动清理或公开删除入口。
 - 初始默认：每 attempt 结构化诊断日志 20 MiB，超出滚动截断并标记；每 run 控制 spool 16 MiB，用户控制事件总额度 128 MiB。artifact 初始用户额度 2 GiB，可配置；不把整个 worktree 大小等同于可随意丢弃日志。

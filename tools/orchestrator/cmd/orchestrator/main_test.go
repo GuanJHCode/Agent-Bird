@@ -570,7 +570,17 @@ func TestCLIWorkerReportUsesSegmentCapability(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = os.RemoveAll(root) })
+	root, err = filepath.EvalSymlinks(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if t.Failed() {
+			t.Log("retained report fixture:", root)
+			return
+		}
+		_ = os.RemoveAll(root)
+	})
 	state, bin := filepath.Join(root, "state"), filepath.Join(root, "orchestrator")
 	t.Cleanup(func() {
 		if _, statErr := os.Stat(filepath.Join(state, "coordinator.pid")); statErr == nil {
@@ -586,6 +596,14 @@ func TestCLIWorkerReportUsesSegmentCapability(t *testing.T) {
 	artifactHash := sha256.Sum256(artifactBody)
 	worker := filepath.Join(root, "worker.sh")
 	script := "#!/bin/sh\nset -eu\ndir=$(dirname \"$ORCHESTRATOR_REPORT_CAPABILITY\")\nartifact=$dir/result.txt\nrequest=$dir/report.json\nprintf 'reported\\n' > \"$artifact\"\nchmod 600 \"$artifact\"\nprintf '%s\\n' '{\"version\":1,\"event_id\":\"worker-result-1\",\"sequence\":1,\"kind\":\"result\",\"payload\":{\"status\":\"completed\",\"artifact\":{\"id\":\"result.txt\",\"path\":\"'\"$artifact\"'\",\"size\":9,\"sha256\":\"" + fmt.Sprintf("%x", artifactHash) + "\"}}}' > \"$request\"\nchmod 600 \"$request\"\n\"$ORCHESTRATOR_REPORT_EXECUTABLE\" report --capability-file \"$ORCHESTRATOR_REPORT_CAPABILITY\" --request \"$request\"\n"
+	// Both invocations use the public CLI while the original worker is live.
+	// The second one must replay its durable ACK without reopening the source.
+	marker := filepath.Join(root, "report-replayed")
+	script = strings.TrimSuffix(script, "\n") + " > \"$dir/first-ack.json\"\n" +
+		"rm \"$artifact\"\n" +
+		"\"$ORCHESTRATOR_REPORT_EXECUTABLE\" report --capability-file \"$ORCHESTRATOR_REPORT_CAPABILITY\" --request \"$request\" > \"$dir/second-ack.json\"\n" +
+		"cmp \"$dir/first-ack.json\" \"$dir/second-ack.json\"\n" +
+		"printf '%s\\n' \"$artifact\" > '" + marker + "'\n"
 	if err = os.WriteFile(worker, []byte(script), 0700); err != nil {
 		t.Fatal(err)
 	}
@@ -610,8 +628,14 @@ func TestCLIWorkerReportUsesSegmentCapability(t *testing.T) {
 	if err = json.Unmarshal(runBinary(t, ctx, bin, "submit", "--state-dir", state, "--request", requestPath), &submitted); err != nil {
 		t.Fatal(err)
 	}
+	lastStatus := ""
 	for {
-		if status := taskStatus(t, ctx, bin, state, "report-task", submitted.ControlFile); status.Status == "completed" {
+		status := taskStatus(t, ctx, bin, state, "report-task", submitted.ControlFile)
+		if status.Status != lastStatus {
+			t.Logf("report task state: %+v", status)
+			lastStatus = status.Status
+		}
+		if status.Status == "completed" {
 			break
 		}
 		select {
@@ -626,14 +650,32 @@ func TestCLIWorkerReportUsesSegmentCapability(t *testing.T) {
 	if err = json.Unmarshal(runBinary(t, ctx, bin, "collect", "--state-dir", state, "--task-id", "report-task", "--control-file", submitted.ControlFile), &collection); err != nil {
 		t.Fatal(err)
 	}
-	found := false
+	canonicalState, err := filepath.EvalSymlinks(state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	source, err := os.ReadFile(marker)
+	if err != nil {
+		t.Fatal("worker did not complete exact public report replay", err)
+	}
+	if _, err = os.Lstat(strings.TrimSpace(string(source))); !errors.Is(err, os.ErrNotExist) {
+		t.Fatal("provider source was not removed", err)
+	}
+	found := 0
 	for _, event := range collection.Events {
 		if event.EventID == "worker-result-1" && strings.HasPrefix(event.ProducerID, "report-capability-") && event.Artifact != nil && event.Artifact.SHA256 == fmt.Sprintf("%x", artifactHash) {
-			found = true
+			found++
+			if !strings.HasPrefix(event.Artifact.Path, filepath.Join(canonicalState, "managed-artifacts")+string(filepath.Separator)) || event.Artifact.Size != int64(len(artifactBody)) {
+				t.Fatalf("report did not commit a managed artifact: %#v", event.Artifact)
+			}
+			retained, readErr := os.ReadFile(event.Artifact.Path)
+			if readErr != nil || string(retained) != string(artifactBody) {
+				t.Fatalf("managed report did not survive source removal: %q, %v", retained, readErr)
+			}
 		}
 	}
-	if !found {
-		t.Fatalf("durable worker report missing: %#v", collection.Events)
+	if found != 1 {
+		t.Fatalf("expected one durable worker report, got %d: %#v", found, collection.Events)
 	}
 }
 

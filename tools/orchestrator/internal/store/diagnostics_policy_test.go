@@ -38,7 +38,7 @@ func TestDiagnosticsPolicyAdmissionPersistsExplicitConsentOnly(t *testing.T) {
 			}
 			defer db.Close()
 			var version, count int
-			if err = db.sql.QueryRow(`SELECT version FROM schema_meta`).Scan(&version); err != nil || version != 19 {
+			if err = db.sql.QueryRow(`SELECT version FROM schema_meta`).Scan(&version); err != nil || version != currentSchemaVersion {
 				t.Fatalf("diagnostics schema=%d err=%v", version, err)
 			}
 			if err = db.sql.QueryRow(`SELECT COUNT(*) FROM task_diagnostics_policies`).Scan(&count); err != nil {

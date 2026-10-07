@@ -131,6 +131,17 @@ func (d *DB) reserveDiagnosticsForNewAttempt(ctx context.Context, tx *sql.Tx, c 
 // also consume the disk promise; checking only this new reservation would let
 // concurrent tasks promise the same free space. M3 must verify retained_bytes.
 func (d *DB) managedArtifactAdmission(ctx context.Context, tx *sql.Tx, incoming, control int64) error {
+	return d.managedArtifactAdmissionDisk(ctx, tx, incoming, control, d.criticalDiskReserve)
+}
+
+// Non-progress reports are critical terminal/question records. They may use
+// the emergency reserve, while still honoring minimum free space, every
+// outstanding artifact promise and the complete raw-byte allowance.
+func (d *DB) managedReportArtifactAdmission(ctx context.Context, tx *sql.Tx, incoming, control int64) error {
+	return d.managedArtifactAdmissionDisk(ctx, tx, incoming, control, 0)
+}
+
+func (d *DB) managedArtifactAdmissionDisk(ctx context.Context, tx *sql.Tx, incoming, control int64, protectedDisk uint64) error {
 	if incoming < 0 || control < 0 {
 		return CodeError("artifact_spool_full")
 	}
@@ -167,7 +178,7 @@ func (d *DB) managedArtifactAdmission(ctx context.Context, tx *sql.Tx, incoming,
 		return CodeError("storage_blocked")
 	}
 	required := uint64(0)
-	for _, part := range []uint64{d.minFreeBytes, d.criticalDiskReserve, d.sqliteWriteOverhead, uint64(outstanding), uint64(incoming), uint64(control)} {
+	for _, part := range []uint64{d.minFreeBytes, protectedDisk, d.sqliteWriteOverhead, uint64(outstanding), uint64(incoming), uint64(control)} {
 		if required > math.MaxUint64-part {
 			return CodeError("storage_blocked")
 		}

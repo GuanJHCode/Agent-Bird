@@ -102,8 +102,9 @@ func assertContinuationQuotaRefusedAtomically(t *testing.T, db *DB, before strin
 }
 
 // Independently recompute these single-run fixtures from actual stored rows.
-// All Host events in this fixture have no artifacts; the report's accounted
-// bytes include its real question artifact. Integer columns each charge8.
+// All Host events in this fixture have no artifacts. Managed report raw bytes
+// have a separate reservation; control usage includes its durable metadata and
+// the physical intake descriptor. Continuation integer columns each charge8.
 func assertContinuationQuotaCounters(t *testing.T, db *DB) {
 	t.Helper()
 	var expected int64
@@ -133,6 +134,18 @@ func assertContinuationQuotaCounters(t *testing.T, db *DB) {
 		rows.Close()
 		var charged int64
 		if err = db.sql.QueryRow(`SELECT COALESCE(SUM(` + strings.Join(parts, "+") + `),0) FROM "` + table + `"`).Scan(&charged); err != nil {
+			t.Fatal(err)
+		}
+		expected += charged
+	}
+	// Keep this independent of production cost helpers and quota triggers.
+	for _, query := range []string{
+		`SELECT COALESCE(SUM(64+length(CAST(id AS BLOB))+length(CAST(run_id AS BLOB))+length(CAST(task_id AS BLOB))+length(CAST(attempt_id AS BLOB))+length(CAST(producer_id AS BLOB))+length(CAST(class AS BLOB))+length(CAST(scope_key AS BLOB))+length(CAST(policy_sha256 AS BLOB))+length(CAST(namespace_sha256 AS BLOB))+length(CAST(state AS BLOB))+length(CAST(created_at AS BLOB))),0) FROM managed_artifact_reservations`,
+		`SELECT COALESCE(SUM(64+length(CAST(id AS BLOB))+length(CAST(reservation_id AS BLOB))+length(CAST(run_id AS BLOB))+length(CAST(task_id AS BLOB))+length(CAST(capability_id AS BLOB))+length(CAST(event_id AS BLOB))+length(CAST(kind AS BLOB))+length(CAST(payload_hash AS BLOB))+2*length(CAST(descriptor_json AS BLOB))+length(CAST(phase AS BLOB))+length(CAST(created_at AS BLOB))),0) FROM managed_artifact_intakes`,
+		`SELECT COALESCE(SUM(64+length(CAST(id AS BLOB))+length(CAST(reservation_id AS BLOB))+length(CAST(run_id AS BLOB))+length(CAST(slot AS BLOB))+COALESCE(length(CAST(intake_id AS BLOB)),0)+length(CAST(proof_json AS BLOB))),0) FROM managed_artifact_refs`,
+	} {
+		var charged int64
+		if err := db.sql.QueryRow(query).Scan(&charged); err != nil {
 			t.Fatal(err)
 		}
 		expected += charged

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
@@ -98,9 +99,11 @@ func runOriginalOwner(parent context.Context, cfg OriginalOwnerConfig, initializ
 		binding:        bound.Binding,
 		privateKey:     enrollment.client.PrivateKey,
 		coordinatorKey: enrollment.client.CoordinatorKey,
-		reportSocket:   cfg.Bootstrap.Prepared.RPCSocketPath,
-		invocation:     cfg.InvocationProvider,
-		rpc:            enrollment.client.Call,
+		// Worker report tokens authorize only the public report endpoint.
+		// Registration and owner lifecycle stay on the signed RPC client below.
+		reportSocket: filepath.Join(cfg.Bootstrap.StateDir, "coordinator.sock"),
+		invocation:   cfg.InvocationProvider,
+		rpc:          enrollment.client.Call,
 	})
 	if err != nil {
 		return err

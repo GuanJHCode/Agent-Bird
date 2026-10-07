@@ -116,8 +116,19 @@ commands also accept `--state-dir` for the original private runtime.
 
 Each page retains at most32KiB raw data; escaped metadata is paginated so the
 persisted envelope is at most60KiB and the complete IPC response at most64KiB.
-Rolling loss is explicit in the receipt's `gap`. Public deletion/intake and the
-complete managed-artifact allowance remain under implementation.
+Rolling loss is explicit in the receipt's `gap`. Public deletion, Host artifact
+slots and the complete managed-artifact allowance remain under implementation.
+
+Worker `report` question/result/failure artifacts are limited to1MiB and copied
+from the registered private capability directory into private managed storage
+before durable ACK. The source remains worker-owned. An exact report replay
+returns the original ACK even after the source is removed; collection refers to
+the retained copy. Each intake reserves raw bytes once, separately from control
+metadata, and revalidates current authority and the original copy before commit.
+An interrupted intake retains its reservation for the same request to recover.
+Progress reports retain their existing control quota and cannot consume the
+critical disk reserve. Historical reports keep their previous accounting; this
+does not yet establish coverage of every writer by the2GiB artifact allowance.
 
 `collect` returns bounded pages of owner-facing question/result/failure/unknown/stop
 events. Follow `next_cursor` until it is absent; the cursor remains valid if an

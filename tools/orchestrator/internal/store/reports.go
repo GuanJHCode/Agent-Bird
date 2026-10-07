@@ -102,14 +102,10 @@ type ReportEventSpec struct {
 
 var reportIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
 
-func (d *DB) CommitReportEvent(ctx context.Context, spec ReportEventSpec) (contract.DurableAck, error) {
-	if spec.CapabilityID == "" || spec.Token == "" || !reportIDPattern.MatchString(spec.EventID) || spec.Sequence < 1 || len(spec.Payload) == 0 || len(spec.Payload) > 60*1024 || !json.Valid(spec.Payload) {
-		return contract.DurableAck{}, CodeError("invalid_report_event")
+func (d *DB) commitReportEventPrepared(ctx context.Context, spec ReportEventSpec, intake *reportIntake) (contract.DurableAck, error) {
+	if err := d.bridgeLockContext(ctx); err != nil {
+		return contract.DurableAck{}, err
 	}
-	if spec.Kind != "progress" && spec.Kind != "question" && spec.Kind != "result" && spec.Kind != "failure" {
-		return contract.DurableAck{}, CodeError("invalid_report_kind")
-	}
-	d.mu.Lock()
 	defer d.mu.Unlock()
 	tx, err := d.sql.BeginTx(ctx, nil)
 	if err != nil {
@@ -149,14 +145,23 @@ func (d *DB) CommitReportEvent(ctx context.Context, spec ReportEventSpec) (contr
 			return rollback(ErrEventSequence)
 		}
 	}
-	var event contract.Event
-	if duplicate {
-		event, err = decodeReportPayload(spec.Kind, canonicalPayload)
-	} else {
-		event, err = validateReportPayload(spec.Kind, canonicalPayload, capabilityDir)
-	}
+	event, err := decodeReportPayload(spec.Kind, canonicalPayload)
 	if err != nil {
 		return rollback(err)
+	}
+	var intakeControl int64
+	if duplicate {
+		if err = d.restoreManagedReportArtifact(ctx, tx, spec, &event); err != nil {
+			return rollback(err)
+		}
+	} else if event.Artifact != nil {
+		if intake == nil {
+			return rollback(CodeError("artifact_intake_invalid"))
+		}
+		if intakeControl, err = d.validateReportIntakeCompletion(ctx, tx, spec, intake); err != nil {
+			return rollback(err)
+		}
+		event.Artifact.Path, event.Artifact.SHA256 = intake.proof.Path, intake.proof.SHA256
 	}
 	event.Version, event.ProducerID, event.EventID = 1, spec.CapabilityID, spec.EventID
 	event.RunID, event.TaskID, event.AttemptID, event.SegmentID = runID, taskID, attemptID, segmentID
@@ -183,13 +188,13 @@ func (d *DB) CommitReportEvent(ctx context.Context, spec ReportEventSpec) (contr
 	}
 	diagnostic := spec.Kind == "progress"
 	accountedBytes := int64(len(body))
-	if event.Artifact != nil {
+	if event.Artifact != nil && intake == nil {
 		accountedBytes += event.Artifact.Size
 	}
 	if spec.Kind == "question" && event.SessionID == "" {
 		accountedBytes += 4096
 	}
-	if err = d.storageAdmission(ctx, tx, runID, accountedBytes, diagnostic); err != nil {
+	if err = d.storageAdmission(ctx, tx, runID, accountedBytes+intakeControl, diagnostic); err != nil {
 		return rollback(err)
 	}
 	delivery := "pending"
@@ -227,6 +232,11 @@ func (d *DB) CommitReportEvent(ctx context.Context, spec ReportEventSpec) (contr
 			return rollback(err)
 		}
 		if err = ensureQuestionStop(ctx, tx, event); err != nil {
+			return rollback(err)
+		}
+	}
+	if intake != nil {
+		if err = commitReportIntake(ctx, tx, intake); err != nil {
 			return rollback(err)
 		}
 	}
