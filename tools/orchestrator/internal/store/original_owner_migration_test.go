@@ -19,10 +19,7 @@ func originalOwnerSchemaCount(t *testing.T, db *sql.DB, query string) int {
 
 func TestOriginalOwnerV11MigrationPreservesLegacyRowsAndReopens(t *testing.T) {
 	f := newOriginalOwnerFixture(t)
-	ctx := context.Background()
-	if _, err := f.db.ClaimReady(ctx, f.prepare.Host.LaunchID, 1, 1); err != nil {
-		t.Fatal(err)
-	}
+	historicalOwnerClaim(t, f)
 	var before string
 	if err := f.db.sql.QueryRow(`SELECT group_concat(id||':'||pid||':'||birth||':'||coordinator_epoch) FROM runtime_hosts`).Scan(&before); err != nil {
 		t.Fatal(err)
@@ -156,7 +153,7 @@ func TestOriginalOwnerSchemaRetainsHistoricalOwnerAndSingleCurrentAcrossGenerati
 	duplicate := next
 	duplicate.Scope.OwnerID, duplicate.BootstrapID, duplicate.RequestID = "duplicate-incarnation", "duplicate-bootstrap", "duplicate-request"
 	raw, _ := json.Marshal(duplicate)
-	if _, err := f.db.sql.Exec(`INSERT INTO execution_owners SELECT ?,launch_id,run_id,producer_id,incarnation,?,bootstrap_token_hash,coordinator_key_id,?,request_hash,?,'intended',0,NULL,NULL,NULL,0,NULL,NULL,coordinator_epoch,NULL,NULL,created_at,updated_at FROM execution_owners WHERE owner_id=?`, duplicate.Scope.OwnerID, duplicate.BootstrapID, duplicate.RequestID, string(raw), next.Scope.OwnerID); err == nil || !strings.Contains(err.Error(), "UNIQUE") {
+	if _, err := f.db.sql.Exec(`INSERT INTO execution_owners SELECT ?,launch_id,run_id,producer_id,incarnation,?,bootstrap_token_hash,coordinator_key_id,?,request_hash,?,'intended',0,NULL,NULL,NULL,0,NULL,NULL,coordinator_epoch,NULL,NULL,created_at,updated_at,0 FROM execution_owners WHERE owner_id=?`, duplicate.Scope.OwnerID, duplicate.BootstrapID, duplicate.RequestID, string(raw), next.Scope.OwnerID); err == nil || !strings.Contains(err.Error(), "UNIQUE") {
 		t.Fatal("caller could reuse an existing launch incarnation", err)
 	}
 }

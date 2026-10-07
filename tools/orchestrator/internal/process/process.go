@@ -82,12 +82,17 @@ func (w captureWriter) Write(p []byte) (int, error) {
 	}
 	return len(p), nil
 }
+
+// Start returns the original Handle whenever cmd.Start succeeded, including
+// observation errors afterwards. Callers must retain and clean up a non-nil
+// Handle even when err is non-nil; an error alone is not no-start evidence.
 func Start(ctx context.Context, spec Command) (*Handle, error) {
-	h, _, err := startCommand(ctx, spec, false, processBirth)
-	if err != nil {
-		return nil, err
-	}
-	return h, nil
+	return startWithBirth(ctx, spec, processBirth)
+}
+
+func startWithBirth(ctx context.Context, spec Command, birthLookup func(int) (string, error)) (*Handle, error) {
+	h, _, err := startCommand(ctx, spec, false, birthLookup)
+	return h, err
 }
 
 // Both modes retain the same launcher and original Wait. birthLookup is a
@@ -204,16 +209,16 @@ func startCommand(ctx context.Context, spec Command, duplex bool, birthLookup fu
 		if pipes != nil {
 			_ = pipes.stream.Close()
 		}
-		stopCtx, cancel := context.WithTimeout(context.Background(), time.Second)
-		stopResult := h.Stop(stopCtx)
 		if duplex {
+			stopCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+			stopResult := h.Stop(stopCtx)
 			completedAt := time.Now()
 			deadline, _ := stopCtx.Deadline()
 			h.mu.Lock()
 			h.duplexLaunch.StartupCleanup = &DuplexStartupCleanup{Context: stopCtx, Deadline: deadline, Result: stopResult, CompletedAt: completedAt}
 			h.mu.Unlock()
+			cancel()
 		}
-		cancel()
 		if birthErr != nil {
 			return h, nil, CodeError("process_birth_unknown")
 		}

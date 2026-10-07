@@ -4,11 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"io"
 	"math"
 	"os"
-	"path/filepath"
-	"syscall"
 	"time"
 )
 
@@ -26,38 +23,14 @@ type hostRecoveryRecord struct {
 }
 
 type hostRecoveryState struct {
-	directory string
-	path      string
-	lock      *os.File
-	record    hostRecoveryRecord
-	bytes     []byte
-}
-
-func validateRecoveryDirectory(path string) error {
-	info, err := os.Lstat(path)
-	identity, ok := infoSyscall(info)
-	if err != nil || !ok || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 || info.Mode().Perm() != 0700 || identity.Uid != uint32(os.Geteuid()) {
-		return errors.New("host_recovery_state_unsafe")
-	}
-	return nil
-}
-
-func readPrivateRecoveryFile(path string) ([]byte, error) {
-	file, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-	info, err := file.Stat()
-	identity, ok := infoSyscall(info)
-	if err != nil || !ok || !info.Mode().IsRegular() || info.Mode().Perm() != 0600 || identity.Uid != uint32(os.Geteuid()) || identity.Nlink != 1 || info.Size() < 1 || info.Size() > 4096 {
-		return nil, errors.New("host_recovery_state_unsafe")
-	}
-	body, err := io.ReadAll(io.LimitReader(file, 4097))
-	if err != nil || int64(len(body)) != info.Size() {
-		return nil, errors.New("host_recovery_state_unsafe")
-	}
-	return body, nil
+	directory     string
+	directoryFile *os.File
+	path          string
+	lock          *os.File
+	record        hostRecoveryRecord
+	bytes         []byte
+	// Private per-ledger observation seam; production leaves it nil.
+	afterReadOpen func() error
 }
 
 func openHostRecovery(directory, scope string, pid int, birth string) (*hostRecoveryState, error) {
@@ -70,25 +43,11 @@ func openHostRecoveryRecord(directory, scope string, pid int, birth string, allo
 	if scope == "" || pid <= 0 || birth == "" {
 		return nil, errors.New("host_recovery_state_unsafe")
 	}
-	if err := validateRecoveryDirectory(directory); err != nil {
+	state, err := lockHostRecovery(directory)
+	if err != nil {
 		return nil, err
 	}
-	lock, err := os.OpenFile(filepath.Join(directory, ".coordinator-recovery.lock"), os.O_RDWR|os.O_CREATE|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0600)
-	if err != nil {
-		return nil, errors.New("host_recovery_state_unsafe")
-	}
-	info, err := lock.Stat()
-	identity, ok := infoSyscall(info)
-	if err != nil || !ok || !info.Mode().IsRegular() || info.Mode().Perm() != 0600 || identity.Uid != uint32(os.Geteuid()) || identity.Nlink != 1 {
-		_ = lock.Close()
-		return nil, errors.New("host_recovery_state_unsafe")
-	}
-	if err := syscall.Flock(int(lock.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
-		_ = lock.Close()
-		return nil, errors.New("host_recovery_state_busy")
-	}
-	state := &hostRecoveryState{directory: directory, path: filepath.Join(directory, ".coordinator-recovery.json"), lock: lock}
-	body, err := readPrivateRecoveryFile(state.path)
+	body, err := state.readFile()
 	if errors.Is(err, os.ErrNotExist) {
 		state.record = hostRecoveryRecord{Version: 1, ScopeSHA256: scope, LastPID: pid, LastBirth: birth}
 		err = state.persist()
@@ -125,58 +84,12 @@ func (s *hostRecoveryState) transitionScope(prior, next string) error {
 	return nil
 }
 
-func (s *hostRecoveryState) close() {
-	if s.lock != nil {
-		_ = syscall.Flock(int(s.lock.Fd()), syscall.LOCK_UN)
-		_ = s.lock.Close()
-		s.lock = nil
-	}
-}
-
 func (s *hostRecoveryState) persist() error {
-	if err := validateRecoveryDirectory(s.directory); err != nil {
-		return err
-	}
-	current, err := readPrivateRecoveryFile(s.path)
-	if s.bytes == nil {
-		if !errors.Is(err, os.ErrNotExist) {
-			return errors.New("host_recovery_state_changed")
-		}
-	} else if err != nil || !bytes.Equal(current, s.bytes) {
-		return errors.New("host_recovery_state_changed")
-	}
 	body, err := json.Marshal(s.record)
 	if err != nil {
 		return err
 	}
-	body = append(body, '\n')
-	stage, err := os.CreateTemp(s.directory, ".coordinator-recovery-*.new")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(stage.Name())
-	if _, err = stage.Write(body); err == nil {
-		err = stage.Sync()
-	}
-	if closeErr := stage.Close(); err == nil {
-		err = closeErr
-	}
-	if err == nil {
-		err = os.Rename(stage.Name(), s.path)
-	}
-	if err != nil {
-		return err
-	}
-	directory, err := os.Open(s.directory)
-	if err != nil {
-		return err
-	}
-	err = directory.Sync()
-	_ = directory.Close()
-	if err == nil {
-		s.bytes = body
-	}
-	return err
+	return s.persistBytes(append(body, '\n'))
 }
 
 func (s *hostRecoveryState) reserve(now time.Time) (time.Time, error) {

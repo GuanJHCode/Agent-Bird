@@ -39,7 +39,7 @@ func originalOwnerRuntimeScope(ctx context.Context, tx *sql.Tx, h contract.HostH
 	err := tx.QueryRowContext(ctx, `SELECT r.id,l.id,h.id,r.origin_context_id,r.origin_pid,r.origin_birth,l.host_generation,l.executable,l.token_hash,l.execution_owner_mode,l.status,h.pid,h.birth,h.coordinator_epoch,h.status,(SELECT epoch FROM coordinator WHERE id=1)
  FROM host_launches l JOIN runtime_hosts h ON h.id=l.host_id AND h.launch_id=l.id JOIN task_runtime tr ON tr.host_launch_id=l.id JOIN tasks t ON t.id=tr.task_id JOIN runs r ON r.id=t.run_id
  WHERE l.id=? AND l.origin_context_id=r.origin_context_id AND h.origin_context_id=l.origin_context_id AND h.host_generation=l.host_generation AND h.executable=l.executable LIMIT 1`, h.LaunchID).Scan(&s.RunID, &s.LaunchID, &s.ProducerID, &s.OriginalOriginContextID, &s.OriginalOriginPID, &s.OriginalOriginBirth, &s.HostGeneration, &s.Executable, &token, &mode, &launchStatus, &transport.PID, &transport.Birth, &hostEpoch, &hostStatus, &actualEpoch)
-	if err != nil || epoch == 0 || epoch != actualEpoch || hostEpoch != epoch || mode != "supervised-v1" || launchStatus == "released" || (hostStatus != "ready" && hostStatus != "reconciling") || h.OriginContextID != s.OriginalOriginContextID || h.OriginPID != s.OriginalOriginPID || h.OriginBirth != s.OriginalOriginBirth || h.HostGeneration != s.HostGeneration || h.Executable != s.Executable || h.LaunchToken == "" || subtle.ConstantTimeCompare([]byte(token), []byte(runtimeHash(h.LaunchToken))) != 1 || (contract.OriginalOwnerTransport{PID: h.PID, Birth: h.Birth}).Validate() != nil {
+	if err != nil || epoch == 0 || epoch != actualEpoch || hostEpoch != epoch || mode != "supervised-v1" || launchStatus == "released" || (hostStatus != "ready" && hostStatus != "reconciling" && !(hostStatus == "offline" && !currentPhysical)) || h.OriginContextID != s.OriginalOriginContextID || h.OriginPID != s.OriginalOriginPID || h.OriginBirth != s.OriginalOriginBirth || h.HostGeneration != s.HostGeneration || h.Executable != s.Executable || h.LaunchToken == "" || subtle.ConstantTimeCompare([]byte(token), []byte(runtimeHash(h.LaunchToken))) != 1 || (contract.OriginalOwnerTransport{PID: h.PID, Birth: h.Birth}).Validate() != nil {
 		return s, transport, originalOwnerRejected()
 	}
 	if currentPhysical && transport != (contract.OriginalOwnerTransport{PID: h.PID, Birth: h.Birth}) {
@@ -66,7 +66,7 @@ func loadOriginalOwner(ctx context.Context, tx *sql.Tx, id string) (originalOwne
 	var current int
 	var pid, hostPID sql.NullInt64
 	var birth, key, hostBirth, binding, hash sql.NullString
-	err := tx.QueryRowContext(ctx, `SELECT intent_json,phase,is_current,control_revision,current_host_pid,current_host_birth,coordinator_epoch,owner_pid,owner_birth,owner_public_key,original_binding_json,original_binding_hash,created_at,updated_at FROM execution_owners WHERE owner_id=?`, id).Scan(&row.intentJSON, &row.state.Phase, &current, &row.state.ControlRevision, &hostPID, &hostBirth, &row.state.CoordinatorEpoch, &pid, &birth, &key, &binding, &hash, &row.created, &row.updated)
+	err := tx.QueryRowContext(ctx, `SELECT intent_json,phase,is_current,control_revision,applied_control_revision,current_host_pid,current_host_birth,coordinator_epoch,owner_pid,owner_birth,owner_public_key,original_binding_json,original_binding_hash,created_at,updated_at FROM execution_owners WHERE owner_id=?`, id).Scan(&row.intentJSON, &row.state.Phase, &current, &row.state.ControlRevision, &row.state.AppliedControlRevision, &hostPID, &hostBirth, &row.state.CoordinatorEpoch, &pid, &birth, &key, &binding, &hash, &row.created, &row.updated)
 	if errors.Is(err, sql.ErrNoRows) {
 		return row, ErrNotFound
 	}
@@ -115,7 +115,7 @@ func originalOwnerRowBytes(row originalOwnerRow) int64 {
 		hostBirth = row.state.CurrentHost.Birth
 	}
 	values := []string{i.Scope.OwnerID, i.Scope.LaunchID, i.Scope.RunID, i.Scope.ProducerID, i.BootstrapID, i.BootstrapTokenSHA256, i.CoordinatorKeyID, i.RequestID, i.RequestSHA256, row.intentJSON, row.state.Phase, row.owner.Birth, row.owner.PublicKey, hostBirth, row.bindingJSON, row.bindingHash, row.created, row.updated}
-	cost := int64(64)
+	cost := int64(72)
 	for _, s := range values {
 		cost += int64(len(s))
 	}

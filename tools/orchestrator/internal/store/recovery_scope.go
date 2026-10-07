@@ -10,10 +10,10 @@ import (
 )
 
 type HostPresenceSnapshot struct {
-	Status, Executable string
-	PID                int
-	Birth              string
-	Registered         bool
+	Status, Executable, ExecutionOwnerMode string
+	PID                                    int
+	Birth                                  string
+	Registered                             bool
 }
 
 // InspectHostPresence authenticates a launch; an OS observation is still
@@ -25,7 +25,7 @@ func (d *DB) InspectHostPresence(ctx context.Context, launchID, token string) (H
 	var hash string
 	var pid sql.NullInt64
 	var birth sql.NullString
-	err := d.sql.QueryRowContext(ctx, `SELECT l.token_hash,l.status,l.executable,h.pid,h.birth FROM host_launches l LEFT JOIN runtime_hosts h ON h.launch_id=l.id WHERE l.id=?`, launchID).Scan(&hash, &r.Status, &r.Executable, &pid, &birth)
+	err := d.sql.QueryRowContext(ctx, `SELECT l.token_hash,l.status,l.executable,l.execution_owner_mode,h.pid,h.birth FROM host_launches l LEFT JOIN runtime_hosts h ON h.launch_id=l.id WHERE l.id=?`, launchID).Scan(&hash, &r.Status, &r.Executable, &r.ExecutionOwnerMode, &pid, &birth)
 	if err != nil || token == "" || subtle.ConstantTimeCompare([]byte(hash), []byte(runtimeHash(token))) != 1 {
 		return HostPresenceSnapshot{}, ErrHostRejected
 	}

@@ -89,6 +89,10 @@ type livingSource struct {
 	working       map[string]bool
 	publisherDone <-chan struct{}
 	reports       sourceReportRegistry
+	prepareReport func(context.Context, contract.LaunchCommand) (string, error)
+	// Original-owner runtime must register its shared TERM window before
+	// cancellation. Legacy source behavior continues to use cancel directly.
+	failure func(error)
 }
 
 func runLivingSource(parent context.Context, cfg SourceConfig, h *Host) error {
@@ -366,34 +370,76 @@ func (r *livingSource) receive(s *sourceSession) error {
 				return errors.New("invalid_launch_command")
 			}
 			grant.ExecutionEpoch = s.epoch
-			duplicate, err := r.host.acceptGrant(grant)
-			if err != nil {
+			if err := r.dispatchLaunch(grant); err != nil {
 				return err
 			}
-			r.workingMu.Lock()
-			if r.working[grant.CommandID] {
-				r.workingMu.Unlock()
-				continue
-			}
-			r.working[grant.CommandID] = true
-			r.workingMu.Unlock()
-			r.workers.Add(1)
-			go r.execute(grant, duplicate)
 		case ipc.KindStop:
 			var stop contract.StopCommand
 			if decodePayload(envelope.Payload, &stop) != nil || stop.SegmentID == "" {
 				return errors.New("invalid_stop_command")
 			}
-			stopCtx := r.ctx
-			cancel := func() {}
-			if stop.DeadlineUnixMS > 0 {
-				stopCtx, cancel = context.WithDeadline(r.ctx, time.UnixMilli(stop.DeadlineUnixMS))
-			}
-			_ = r.host.StopSegment(stopCtx, stop.SegmentID)
-			cancel()
+			r.dispatchStop(stop)
 		default:
 			return errors.New("unsupported_host_message")
 		}
+	}
+}
+
+// Authentication belongs to the input transport. This shared execution path
+// preserves the caller's verified grant, including its signed execution epoch.
+func (r *livingSource) dispatchLaunch(grant contract.LaunchCommand) error {
+	duplicate, err := r.host.acceptGrant(grant)
+	if err != nil {
+		return err
+	}
+	return r.dispatchAcceptedLaunch(grant, duplicate)
+}
+
+func (r *livingSource) dispatchAcceptedLaunch(grant contract.LaunchCommand, duplicate bool) error {
+	r.workingMu.Lock()
+	if r.working[grant.CommandID] {
+		r.workingMu.Unlock()
+		return nil
+	}
+	r.working[grant.CommandID] = true
+	r.workingMu.Unlock()
+	r.workers.Add(1)
+	go r.execute(grant, duplicate)
+	return nil
+}
+
+// Only a caller that has not dispatched execution may make this no-Start
+// claim. A duplicate ledger record is not such proof and must not call it.
+func (r *livingSource) recordUnstartedGrant(grant contract.LaunchCommand, cause error) error {
+	a := store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID}
+	meta := launchMetadata{commandID: grant.CommandID, workRevision: grant.WorkRevision, executionEpoch: grant.ExecutionEpoch}
+	return r.host.recordLaunchFailed(a, grant.RunID, grant.TaskID, meta, cause)
+}
+
+func (r *livingSource) dispatchStop(stop contract.StopCommand) {
+	stopCtx := r.ctx
+	cancel := func() {}
+	if stop.DeadlineUnixMS > 0 {
+		stopCtx, cancel = context.WithDeadline(r.ctx, time.UnixMilli(stop.DeadlineUnixMS))
+	}
+	_ = r.host.StopSegment(stopCtx, stop.SegmentID)
+	cancel()
+}
+
+func (r *livingSource) prepareExecutionReport(ctx context.Context, grant contract.LaunchCommand) (string, error) {
+	if r.prepareReport != nil {
+		return r.prepareReport(ctx, grant)
+	}
+	for {
+		s, err := r.connections.available(ctx)
+		if err != nil {
+			return "", err
+		}
+		path, err := r.host.prepareReportCapability(ctx, r.cfg, grant, s, r.reports.remember)
+		if err == nil || !transientSourceError(err) {
+			return path, err
+		}
+		s.fail(err)
 	}
 }
 
@@ -402,7 +448,11 @@ func (r *livingSource) execute(grant contract.LaunchCommand, duplicate bool) {
 	defer func() { r.workingMu.Lock(); delete(r.working, grant.CommandID); r.workingMu.Unlock() }()
 	reportError := func(err error) {
 		if err != nil {
-			r.cancel(err)
+			if r.failure != nil {
+				r.failure(err)
+			} else {
+				r.cancel(err)
+			}
 		}
 	}
 	if duplicate {
@@ -435,22 +485,10 @@ func (r *livingSource) execute(grant contract.LaunchCommand, duplicate bool) {
 		return
 	}
 	if grant.ReportCapabilityID != "" && reportCapabilityEnabled(inv) {
-		var path string
-		for {
-			s, err := r.connections.available(prepareCtx)
-			if err != nil {
-				reportError(recordPreparationFailure(err))
-				return
-			}
-			path, err = r.host.prepareReportCapability(prepareCtx, r.cfg, grant, s, r.reports.remember)
-			if err == nil {
-				break
-			}
-			if !transientSourceError(err) {
-				reportError(recordPreparationFailure(err))
-				return
-			}
-			s.fail(err)
+		path, err := r.prepareExecutionReport(prepareCtx, grant)
+		if err != nil {
+			reportError(recordPreparationFailure(err))
+			return
 		}
 		inv = reportInvocation{base: inv, reportPath: path, reportExecutable: r.cfg.Hello.Executable}
 	}

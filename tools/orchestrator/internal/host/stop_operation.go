@@ -118,6 +118,50 @@ func joinStop(op *hostStopOperation, observe func(*hostStopOperation)) error {
 	return op.err
 }
 
+// A failed Start can still have an original process, including when normal
+// segment registration is unavailable. Keep that ownership separately so it
+// cannot overwrite another segment Handle or be erased by clearStop. Failed
+// proof remains latched: StopAll joins this same operation without new grace.
+func (h *Host) stopFailedStart(segment string, p *process.Handle, observe func(*hostStopOperation)) error {
+	h.stopMu.Lock()
+	if h.failedStarts == nil {
+		h.failedStarts = make(map[*process.Handle]*hostStopOperation)
+	}
+	op := h.failedStarts[p]
+	if op == nil {
+		i := h.stopIntents[segment]
+		if i != nil && i.terminal {
+			i = nil
+		}
+		if i == nil && h.stopping {
+			i = h.stopAllIntent
+		}
+		if i == nil {
+			i = stopIntent(context.Background())
+			op = h.bindStopLocked(segment, i, p, false)
+		} else if i.op != nil && i.op.handle == p {
+			op = i.op
+		} else {
+			// A foreign operation owns its Handle and cancellation. Inherit
+			// only its original absolute window for this separate process.
+			private := &segmentStopIntent{ctx: i.ctx, deadline: i.deadline, expires: i.expires, bounded: i.bounded}
+			op = h.bindStopLocked(segment, private, p, true)
+		}
+		h.failedStarts[p] = op
+	}
+	h.stopMu.Unlock()
+	h.startStop(op)
+	err := joinStop(op, observe)
+	if err == nil {
+		h.stopMu.Lock()
+		if h.failedStarts[p] == op {
+			delete(h.failedStarts, p)
+		}
+		h.stopMu.Unlock()
+	}
+	return err
+}
+
 // Register before cancellation can wake execute. All map/handle operations
 // are short; no process probe, signal, wait or callback occurs under these locks.
 func (h *Host) registerOwnedHandle(attempt, segment string, p *process.Handle) error {

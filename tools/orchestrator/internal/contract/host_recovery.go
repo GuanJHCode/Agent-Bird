@@ -30,6 +30,7 @@ type HostRecoveryScopeAck struct {
 }
 
 type HostPresenceResponse struct {
-	Status   string `json:"status"`
-	Presence string `json:"presence"`
+	Status             string `json:"status"`
+	Presence           string `json:"presence"`
+	ExecutionOwnerMode string `json:"execution_owner_mode"`
 }

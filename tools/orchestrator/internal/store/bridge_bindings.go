@@ -66,7 +66,7 @@ func bridgeEqualHash(stored, secret string) bool {
 }
 
 func bridgeWorkerTx(ctx context.Context, tx *sql.Tx, ancestry map[int]string) (bool, error) {
-	rows, err := tx.QueryContext(ctx, `SELECT pid,birth FROM runtime_hosts UNION SELECT DISTINCT json_extract(body_json,'$.process.pid'),json_extract(body_json,'$.process.birth') FROM runtime_events WHERE json_extract(body_json,'$.process.pid') IS NOT NULL`)
+	rows, err := tx.QueryContext(ctx, workerAncestrySQL)
 	if err != nil {
 		return false, err
 	}

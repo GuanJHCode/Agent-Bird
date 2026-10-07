@@ -1,0 +1,62 @@
+{
+  "base": "919890824489c7657cb867ddd1b3450f36d3c3df",
+  "scope": "Tests-only native shared-five recovery budget acceptance; production b994afc unchanged",
+  "evidence": [
+    {
+      "file": "root-native-five-budget-v1.jsonl",
+      "session": 84139,
+      "tool_exit": 1,
+      "counts": {
+        "fail": 2,
+        "pass": 1,
+        "top_fail": 1
+      },
+      "sha256": "f158c0ebaf0fd3c76dc0ea779f2732585872aa65d89ce25aa14527be9b4e57c6",
+      "cleanup": [
+        "owner_replacement_ack_loss_native_test.go:141: five operations exhausted; product TERM ignored for >=8s then original worker exited; owner/child/worker gone within 10.19642825s without fixture signals"
+      ]
+    },
+    {
+      "file": "root-native-five-budget-v2.jsonl",
+      "session": 48200,
+      "tool_exit": 0,
+      "counts": {
+        "pass": 3,
+        "top_pass": 1
+      },
+      "sha256": "355ecb4a1292476b29750631c7eb5b57501bfbb0d741bd17ef08b25d02ca21f8",
+      "cleanup": [
+        "owner_replacement_ack_loss_native_test.go:141: five operations exhausted; product TERM ignored for >=8s then original worker exited; owner/child/worker gone within 10.20025875s without fixture signals"
+      ]
+    },
+    {
+      "file": "root-native-five-final-race.jsonl",
+      "session": 21982,
+      "tool_exit": 0,
+      "counts": {
+        "pass": 16,
+        "top_pass": 4
+      },
+      "sha256": "0ca9435a8b5cd75362476fa0afd16fbc0af6197c53c7a4437611b461a83dee31",
+      "cleanup": [
+        "owner_replacement_ack_loss_native_test.go:141: five operations exhausted; product TERM ignored for >=8s then original worker exited; owner/child/worker gone within 10.324997583s without fixture signals"
+      ]
+    }
+  ],
+  "v1_failure": "Fixture ready window 15s was shorter than fifth operation 16s backoff; exhaustion scenario passed. Test-only 30s window, partial TERM receipt retry, and strict deadline-before-success check applied before v2/race. v1 is not a product RED or overall PASS.",
+  "review": "Independent code-reviewer PASS on stable one-file test diff; ROOT verified original terminal and JSON counts.",
+  "vet": {
+    "exit": 0,
+    "chunk": "d99f9f"
+  },
+  "build": "Each scenario builds the actual public CLI using go build; all final scenarios passed.",
+  "race_scope": "Test/inprocess Coordinator/copied controlled worker are instrumented. Separately built CLI/owner/transport are normal binaries.",
+  "cleanup": "Successful native runtime directories removed by fixture. v1 retained runtime actor audit: root-native-five-v1-actor-audit.json; four recorded PIDs ESRCH. All original test sessions terminal; no Docker used.",
+  "limits": [
+    "Darwin arm64 controlled worker only; no actual Provider/model/TUI/Linux native claim.",
+    "Original worker has unique durable exact PID/birth nonzero Exited receipt plus ESRCH. Owner/transport disappearance does not prove their original Cmd.Wait0.",
+    "No persistent worker descendant subtree in this fixture.",
+    "Origin-loss/authenticated-terminal and blocked-admission/publisher/disk full 13s fault matrix still OPEN.",
+    "B3 dead-owner seal/data-only replay, integration and remaining F01-F13 still OPEN."
+  ]
+}

@@ -165,9 +165,7 @@ func TestOriginalOwnerBindRejectsIdentityAndAuthorityDrift(t *testing.T) {
 			case "malformed_signer":
 				key[0] ^= 1
 			case "before_worker":
-				if _, err := f.db.ClaimReady(ctx, i.Scope.ProducerID, 1, 1); err != nil {
-					t.Fatal(err)
-				}
+				historicalOwnerClaim(t, f)
 			}
 			before := originalOwnerSnapshot(t, f)
 			if _, err := f.db.BindOriginalOwner(ctx, s, key); err == nil {

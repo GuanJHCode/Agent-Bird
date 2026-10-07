@@ -19,7 +19,7 @@ func (s *Server) hostPresence(ctx context.Context, request HostStatusRequest) (j
 	if err != nil {
 		return nil, err
 	}
-	response := contract.HostPresenceResponse{Status: snapshot.Status, Presence: "unknown"}
+	response := contract.HostPresenceResponse{Status: snapshot.Status, Presence: "unknown", ExecutionOwnerMode: snapshot.ExecutionOwnerMode}
 	if !snapshot.Registered {
 		response.Presence = "unregistered"
 	} else if exited, err := hostIdentityExited(snapshot.PID, snapshot.Birth); err == nil {

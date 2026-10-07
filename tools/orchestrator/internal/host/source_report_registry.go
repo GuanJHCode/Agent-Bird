@@ -59,9 +59,9 @@ func (r *sourceReportRegistry) snapshot() []contract.ReportCapabilityRegistratio
 	sort.Slice(result, func(i, j int) bool { return result[i].CapabilityID < result[j].CapabilityID })
 	return result
 }
-func (r *sourceReportRegistry) replay(ctx context.Context, session *sourceSession) error {
+func (r *sourceReportRegistry) replay(ctx context.Context, session reportRegistrar) error {
 	for _, binding := range r.snapshot() {
-		binding.ExecutionEpoch = session.epoch
+		binding.ExecutionEpoch = session.reportEpoch()
 		if err := session.registerReportCapability(ctx, binding); err != nil {
 			return err
 		}

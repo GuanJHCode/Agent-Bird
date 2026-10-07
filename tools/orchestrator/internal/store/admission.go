@@ -389,9 +389,9 @@ func (d *DB) RegisterHost(ctx context.Context, hello contract.HostHello, epoch u
 		return "", err
 	}
 	rollback := func(e error) (string, error) { _ = tx.Rollback(); return "", e }
-	var tokenHash, origin, generation, executable string
+	var tokenHash, origin, generation, executable, ownerMode string
 	var existing sql.NullString
-	if err = tx.QueryRowContext(ctx, `SELECT token_hash,origin_context_id,host_generation,executable,host_id FROM host_launches WHERE id=?`, hello.LaunchID).Scan(&tokenHash, &origin, &generation, &executable, &existing); err != nil {
+	if err = tx.QueryRowContext(ctx, `SELECT token_hash,origin_context_id,host_generation,executable,host_id,execution_owner_mode FROM host_launches WHERE id=?`, hello.LaunchID).Scan(&tokenHash, &origin, &generation, &executable, &existing, &ownerMode); err != nil {
 		return rollback(ErrHostRejected)
 	}
 	want := runtimeHash(hello.LaunchToken)
@@ -413,17 +413,28 @@ func (d *DB) RegisterHost(ctx context.Context, hello contract.HostHello, epoch u
 			return rollback(ErrHostRejected)
 		}
 		if pid != hello.PID || birth != hello.Birth {
+			if ownerMode == "supervised-v1" {
+				return rollback(ErrHostRejected)
+			}
 			var active int
 			if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM segment_runtime WHERE host_id=? AND status IN ('launch_requested','prepared','spawned','running','stopping','unknown')`, hostID).Scan(&active); err != nil || (active != 0 && hostStatus != "reconcile_authorized") {
 				return rollback(ErrHostRejected)
 			}
 		}
 	}
+	status := "ready"
+	if ownerMode == "supervised-v1" {
+		status = "reconciling"
+		var actualEpoch uint64
+		if err = tx.QueryRowContext(ctx, `SELECT epoch FROM coordinator WHERE id=1`).Scan(&actualEpoch); err != nil || actualEpoch != epoch {
+			return rollback(ErrHostRejected)
+		}
+	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	if _, err = tx.ExecContext(ctx, `INSERT INTO runtime_hosts(id,launch_id,origin_context_id,host_generation,pid,birth,executable,coordinator_epoch,status,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET pid=excluded.pid,birth=excluded.birth,executable=excluded.executable,coordinator_epoch=excluded.coordinator_epoch,status='ready',updated_at=excluded.updated_at`, hostID, hello.LaunchID, hello.OriginContextID, hello.HostGeneration, hello.PID, hello.Birth, hello.Executable, epoch, "ready", now); err != nil {
+	if _, err = tx.ExecContext(ctx, `INSERT INTO runtime_hosts(id,launch_id,origin_context_id,host_generation,pid,birth,executable,coordinator_epoch,status,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET pid=excluded.pid,birth=excluded.birth,executable=excluded.executable,coordinator_epoch=excluded.coordinator_epoch,status=excluded.status,updated_at=excluded.updated_at`, hostID, hello.LaunchID, hello.OriginContextID, hello.HostGeneration, hello.PID, hello.Birth, hello.Executable, epoch, status, now); err != nil {
 		return rollback(err)
 	}
-	if _, err = tx.ExecContext(ctx, `UPDATE host_launches SET host_id=?,status='ready' WHERE id=?`, hostID, hello.LaunchID); err != nil {
+	if _, err = tx.ExecContext(ctx, `UPDATE host_launches SET host_id=?,status=? WHERE id=?`, hostID, status, hello.LaunchID); err != nil {
 		return rollback(err)
 	}
 	if err = tx.Commit(); err != nil {
@@ -480,8 +491,15 @@ func (d *DB) FinishHostReconcile(ctx context.Context, hostID string) error {
 		return err
 	}
 	rollback := func(e error) error { _ = tx.Rollback(); return e }
-	if _, err = tx.ExecContext(ctx, `UPDATE runtime_hosts SET status='ready' WHERE id=? AND status='reconciling'`, hostID); err != nil {
+	// Keep the first statement a write, so SQLite waits for an existing writer
+	// instead of attempting to upgrade a stale read snapshot. The predicate
+	// still excludes supervised Hosts atomically, before any readiness change.
+	result, err := tx.ExecContext(ctx, `UPDATE runtime_hosts SET status='ready' WHERE id=? AND status IN ('reconciling','ready') AND EXISTS(SELECT 1 FROM host_launches l WHERE l.id=runtime_hosts.launch_id AND l.execution_owner_mode='legacy')`, hostID)
+	if err != nil {
 		return rollback(err)
+	}
+	if n, e := result.RowsAffected(); e != nil || n != 1 {
+		return rollback(ErrHostRejected)
 	}
 	if _, err = tx.ExecContext(ctx, `UPDATE host_launches SET status='ready' WHERE host_id=?`, hostID); err != nil {
 		return rollback(err)

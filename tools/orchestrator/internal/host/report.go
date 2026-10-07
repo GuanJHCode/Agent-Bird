@@ -29,7 +29,17 @@ type reportCapabilityFile struct {
 	ExecutionEpoch uint64 `json:"execution_epoch"`
 }
 
-func (h *Host) prepareReportCapability(ctx context.Context, cfg SourceConfig, grant contract.LaunchCommand, session *sourceSession, remember func(contract.ReportCapabilityRegistration) error) (string, error) {
+// Registration can use a legacy session or a verified original-owner RPC.
+// This interface carries no HostHello credential or generic unsigned ACK path.
+type reportRegistrar interface {
+	reportEpoch() uint64
+	registerReportCapability(context.Context, contract.ReportCapabilityRegistration) error
+}
+
+func (s *sourceSession) reportEpoch() uint64 { return s.epoch }
+
+func (h *Host) prepareReportCapability(ctx context.Context, cfg SourceConfig, grant contract.LaunchCommand, session reportRegistrar, remember func(contract.ReportCapabilityRegistration) error) (string, error) {
+	epoch := session.reportEpoch()
 	if grant.ReportCapabilityID == "" {
 		return "", errors.New("report_capability_missing")
 	}
@@ -55,7 +65,7 @@ func (h *Host) prepareReportCapability(ctx context.Context, cfg SourceConfig, gr
 		if _, err = rand.Read(tokenBytes); err != nil {
 			return "", err
 		}
-		capability = reportCapabilityFile{Version: 1, SocketPath: cfg.SocketPath, CapabilityID: grant.ReportCapabilityID, Token: "report-token-" + hex.EncodeToString(tokenBytes), RunID: grant.RunID, TaskID: grant.TaskID, AttemptID: grant.AttemptID, SegmentID: grant.SegmentID, ProducerID: h.producerID, WorkRevision: grant.WorkRevision, ExecutionEpoch: session.epoch}
+		capability = reportCapabilityFile{Version: 1, SocketPath: cfg.SocketPath, CapabilityID: grant.ReportCapabilityID, Token: "report-token-" + hex.EncodeToString(tokenBytes), RunID: grant.RunID, TaskID: grant.TaskID, AttemptID: grant.AttemptID, SegmentID: grant.SegmentID, ProducerID: h.producerID, WorkRevision: grant.WorkRevision, ExecutionEpoch: epoch}
 		if err = writeReportCapability(path, capability); err != nil {
 			return "", err
 		}
@@ -63,7 +73,7 @@ func (h *Host) prepareReportCapability(ctx context.Context, cfg SourceConfig, gr
 	if capability.Version != 1 || capability.SocketPath != cfg.SocketPath || capability.CapabilityID != grant.ReportCapabilityID || capability.RunID != grant.RunID || capability.TaskID != grant.TaskID || capability.AttemptID != grant.AttemptID || capability.SegmentID != grant.SegmentID || capability.ProducerID != h.producerID || capability.WorkRevision != grant.WorkRevision || capability.Token == "" {
 		return "", errors.New("report_capability_conflict")
 	}
-	capability.ExecutionEpoch = session.epoch
+	capability.ExecutionEpoch = epoch
 	artifactDir := dir
 	var profile struct {
 		Profile json.RawMessage `json:"profile"`
@@ -74,7 +84,7 @@ func (h *Host) prepareReportCapability(ctx context.Context, cfg SourceConfig, gr
 			return "", err
 		}
 	}
-	registration := contract.ReportCapabilityRegistration{CapabilityID: capability.CapabilityID, TokenHash: hashText(capability.Token), CapabilityDir: artifactDir, RunID: capability.RunID, TaskID: capability.TaskID, AttemptID: capability.AttemptID, SegmentID: capability.SegmentID, ProducerID: capability.ProducerID, WorkRevision: capability.WorkRevision, ExecutionEpoch: session.epoch}
+	registration := contract.ReportCapabilityRegistration{CapabilityID: capability.CapabilityID, TokenHash: hashText(capability.Token), CapabilityDir: artifactDir, RunID: capability.RunID, TaskID: capability.TaskID, AttemptID: capability.AttemptID, SegmentID: capability.SegmentID, ProducerID: capability.ProducerID, WorkRevision: capability.WorkRevision, ExecutionEpoch: epoch}
 	// Remember the exact local binding before the request can commit and lose
 	// its ACK. Workers may start only after this registration is acknowledged.
 	if err := remember(registration); err != nil {

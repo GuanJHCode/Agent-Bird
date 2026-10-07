@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"crypto/ed25519"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -64,13 +65,13 @@ func TestOriginalOwnerQuotaChargesCompleteRowsAndCombinedBindGrowth(t *testing.T
 		t.Fatal(err)
 	}
 	before := originalOwnerUsed(t, probe)
-	if before != originalOwnerCountStoredText(t, probe, "execution_owners", 64) {
+	if before != originalOwnerCountStoredText(t, probe, "execution_owners", 72) {
 		t.Fatal("intent quota omits stored values")
 	}
 	if _, err := probe.db.BindOriginalOwner(ctx, probe.bindSpec(intent), probe.key); err != nil {
 		t.Fatal(err)
 	}
-	owner := originalOwnerCountStoredText(t, probe, "execution_owners", 64)
+	owner := originalOwnerCountStoredText(t, probe, "execution_owners", 72)
 	journal := originalOwnerCountStoredText(t, probe, "owner_control_changes", 48)
 	if originalOwnerUsed(t, probe) != owner+journal {
 		t.Fatal("binding or journal storage escaped admission counters")
@@ -254,7 +255,14 @@ func TestOriginalOwnerLegacyAndExistingWorkersCannotAcquireOwner(t *testing.T) {
 					t.Fatal(err)
 				}
 			} else {
+				// Recreate a historical pre-B2 row; the live B2 API now forbids this state.
+				if _, err := f.db.sql.Exec(`UPDATE host_launches SET execution_owner_mode='legacy'; UPDATE runtime_hosts SET status='ready'`); err != nil {
+					t.Fatal(err)
+				}
 				if _, err := f.db.ClaimReady(ctx, f.prepare.Host.LaunchID, 1, 1); err != nil {
+					t.Fatal(err)
+				}
+				if _, err := f.db.sql.Exec(`UPDATE host_launches SET execution_owner_mode='supervised-v1'`); err != nil {
 					t.Fatal(err)
 				}
 			}
@@ -273,6 +281,13 @@ func TestOriginalOwnerLegacyAndExistingWorkersCannotAcquireOwner(t *testing.T) {
 func TestOriginalOwnerOperationsDoNotAlterBusinessLedgers(t *testing.T) {
 	f, i, b := originalOwnerBound(t)
 	ctx := context.Background()
+	apply := appliedFixture(t, f, b)
+	if err := f.db.CommitOriginalOwnerApplied(ctx, apply, f.key.Public().(ed25519.PublicKey)); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.db.ActivateOriginalOwner(ctx, apply, f.key.Public().(ed25519.PublicKey)); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := f.db.ClaimReady(ctx, i.Scope.ProducerID, 1, 1); err != nil {
 		t.Fatal(err)
 	}

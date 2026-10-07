@@ -13,6 +13,10 @@ import (
 // prompt, session, permission override, credential read or copy is performed by
 // Bird. Workers still run under the unchanged filesystem sandbox afterwards.
 func RefreshGrokAuth(ctx context.Context, pin BinaryPin, env []string) error {
+	return refreshGrokAuthWithStart(ctx, pin, env, process.Start)
+}
+
+func refreshGrokAuthWithStart(ctx context.Context, pin BinaryPin, env []string, start func(context.Context, process.Command) (*process.Handle, error)) error {
 	if err := VerifyExecutable(pin, pin.Version); err != nil {
 		return err
 	}
@@ -22,8 +26,12 @@ func RefreshGrokAuth(ctx context.Context, pin BinaryPin, env []string) error {
 	probeCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	environment := append(append([]string{}, env...), "GROK_DISABLE_AUTOUPDATER=1")
-	p, err := process.Start(probeCtx, process.Command{Path: pin.Path, Args: []string{"models"}, Env: environment, PinnedPath: pin.Path, PinnedSHA256: pin.SHA256})
+	p, err := start(probeCtx, process.Command{Path: pin.Path, Args: []string{"models"}, Env: environment, PinnedPath: pin.Path, PinnedSHA256: pin.SHA256})
 	if err != nil {
+		if p != nil {
+			cleanupErr := process.CleanupFailedStart(ctx, p, 2*time.Second)
+			return errors.Join(process.ErrProcessTreeUnknown, errors.New("grok_auth_preflight_start_failed"), cleanupErr)
+		}
 		return errors.Join(process.ErrProcessTreeUnknown, errors.New("grok_auth_preflight_start_failed"))
 	}
 	waitErr := p.Wait(probeCtx)

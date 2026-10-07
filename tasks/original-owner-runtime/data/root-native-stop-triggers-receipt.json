@@ -1,0 +1,102 @@
+{
+  "base": "3500cf697ff02b19adf8cef5965369ce984614ff",
+  "scope": "Tests-only actual public CLI/replacement owner cleanup on real origin loss or signed terminal; production b994afc unchanged",
+  "evidence": [
+    {
+      "file": "root-native-stop-triggers-v1.jsonl",
+      "session": 51309,
+      "tool_exit": 0,
+      "counts": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator": {
+          "pass": 3,
+          "top_pass": 1
+        }
+      },
+      "sha256": "3e1fc68901db2cb6ab37ce1437dfc748c97ea0c3c6977a39e0e0978ff1f36db7",
+      "cleanup": [
+        "owner_replacement_ack_loss_native_test.go:152: stop cause=\"origin_loss\" exhausted=false; product TERM ignored for >=8s then original worker exited; owner/child/worker gone within 10.223196416s without fixture cleanup signals",
+        "owner_replacement_ack_loss_native_test.go:152: stop cause=\"authenticated_terminal\" exhausted=false; product TERM ignored for >=8s then original worker exited; owner/child/worker gone within 10.188703s without fixture cleanup signals"
+      ]
+    },
+    {
+      "file": "root-native-stop-triggers-final-race.jsonl",
+      "session": 30137,
+      "tool_exit": 0,
+      "counts": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host": {
+          "pass": 10,
+          "top_pass": 4
+        },
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator": {
+          "pass": 6,
+          "top_pass": 2
+        }
+      },
+      "sha256": "135a746c39da158c8a718c015ff0403cdcd7ba344257b85c9060e2951f39d516",
+      "cleanup": [
+        "owner_replacement_ack_loss_native_test.go:142: stop cause=\"\" exhausted=true; product TERM ignored for >=8s then original worker exited; owner/child/worker gone within 10.330017625s without fixture cleanup signals",
+        "owner_replacement_ack_loss_native_test.go:152: stop cause=\"origin_loss\" exhausted=false; product TERM ignored for >=8s then original worker exited; owner/child/worker gone within 10.374128291s without fixture cleanup signals",
+        "owner_replacement_ack_loss_native_test.go:152: stop cause=\"authenticated_terminal\" exhausted=false; product TERM ignored for >=8s then original worker exited; owner/child/worker gone within 10.302988375s without fixture cleanup signals"
+      ]
+    },
+    {
+      "file": "root-native-stop-triggers-v2.jsonl",
+      "session": 33214,
+      "tool_exit": 0,
+      "counts": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator": {
+          "pass": 3,
+          "top_pass": 1
+        }
+      },
+      "sha256": "94aed12306fd890165a806d675a65f22b080737ddd6f9fb164cbb6bd5e6ea97e",
+      "cleanup": [
+        "owner_replacement_ack_loss_native_test.go:152: stop cause=\"origin_loss\" exhausted=false; product TERM ignored for >=8s then original worker exited; owner/child/worker gone within 10.2642115s without fixture cleanup signals",
+        "owner_replacement_ack_loss_native_test.go:152: stop cause=\"authenticated_terminal\" exhausted=false; product TERM ignored for >=8s then original worker exited; owner/child/worker gone within 10.205461083s without fixture cleanup signals"
+      ]
+    },
+    {
+      "file": "root-native-stop-triggers-final-v2-race.jsonl",
+      "session": 68259,
+      "tool_exit": 0,
+      "counts": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator": {
+          "pass": 3,
+          "top_pass": 1
+        }
+      },
+      "sha256": "2f72dda59ecf6dc9fe95a44d649a07fc75eaa83818d5d1c86a1ef7017274ebf9",
+      "cleanup": [
+        "owner_replacement_ack_loss_native_test.go:152: stop cause=\"origin_loss\" exhausted=false; product TERM ignored for >=8s then original worker exited; owner/child/worker gone within 10.482546833s without fixture cleanup signals",
+        "owner_replacement_ack_loss_native_test.go:152: stop cause=\"authenticated_terminal\" exhausted=false; product TERM ignored for >=8s then original worker exited; owner/child/worker gone within 10.312880542s without fixture cleanup signals"
+      ]
+    }
+  ],
+  "effective_final": {
+    "normal": "33214: Coordinator 1 top / 3 named; full ledger bytes checked",
+    "race": "Host 4 top / 10 named and shared-five Coordinator 1 top / 3 named from 30137 unchanged; stop triggers 1 top / 3 named replaced by 68259. Total effective 6 top / 16 named, zero fail/skip.",
+    "supersession": "51309 and 30137 stop-trigger results passed selected-field assertions but predate added full-ledger snapshot. Replaced affected two cases; no production failure."
+  },
+  "review": "Independent reviewer initially blocked incomplete ledger-invariance assertion. Added full pre-trigger activated/no-reservation ledger bytes snapshot and post-actor-exit exact comparison; final static review PASS.",
+  "vet": {
+    "exit": 0,
+    "chunk": "3414b6"
+  },
+  "build": "Each selected native scenario built public CLI successfully; product code unchanged.",
+  "proofs": [
+    "Controlled origin uses original exec.Cmd and Wait proving SIGKILL/reap. No fixture signal to owner/replacement/worker before acceptance.",
+    "Terminal uses existing Coordinator sendHostDisposition -> signed OwnerCommand -> socket write. No terminal ACK exists; product TERM/cleanup proves downstream consumption.",
+    "Coordinator stays ready and not terminating. Retained session terminalSent false for origin loss and true for authenticated terminal.",
+    "Product TERM within 2s of trigger; same worker survives at least 8s after TERM; owner/child/worker ESRCH before strict trigger+13s.",
+    "Original worker unique exact PID/birth nonzero durable Exited; one attempt/segment and marker unchanged.",
+    "Entire V2 recovery ledger bytes, including backoff/pending/proofs/authority, unchanged after both stop triggers."
+  ],
+  "cleanup": "All original sessions terminal exit0. Successful runtime directories removed by fixture; no forced cleanup or retained failed runtime in this increment. No Docker used.",
+  "limits": [
+    "Darwin arm64 controlled worker, no Provider/model/UI/Linux native claim.",
+    "Test/inprocess Coordinator/copied worker race instrumented; separately built product CLI/owner/transport are normal binaries.",
+    "Owner/transport ESRCH is not their exposed original Cmd.Wait receipt.",
+    "Worker has no persistent descendant subtree; broad Provider tree handling not proved here.",
+    "Blocked admission/publisher/disk physical fault matrix, B3 dead-owner seal/data-only replay and integration remain OPEN."
+  ]
+}

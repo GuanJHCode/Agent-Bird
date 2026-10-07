@@ -50,6 +50,10 @@ func (out *candidateOutput) Write(p []byte) (int, error) {
 }
 
 func candidateGit(ctx context.Context, dir string, stdin io.Reader, args ...string) (CommandResult, error) {
+	return candidateGitWithStart(ctx, dir, stdin, process.Start, args...)
+}
+
+func candidateGitWithStart(ctx context.Context, dir string, stdin io.Reader, start func(context.Context, process.Command) (*process.Handle, error), args ...string) (CommandResult, error) {
 	var input []byte
 	var err error
 	if stdin != nil {
@@ -79,8 +83,14 @@ func candidateGit(ctx context.Context, dir string, stdin io.Reader, args ...stri
 		return CommandResult{}, err
 	}
 	out := &candidateOutput{}
-	p, err := process.Start(ctx, process.Command{Path: "/usr/bin/git", Args: argv, Dir: dir, Env: env, ExactEnv: true, Stdin: input, Stdout: out})
+	p, err := start(ctx, process.Command{Path: "/usr/bin/git", Args: argv, Dir: dir, Env: env, ExactEnv: true, Stdin: input, Stdout: out})
 	if err != nil {
+		if p != nil {
+			identity := p.Identity()
+			_ = record("unknown", &identity, p.ExitCode())
+			cleanupErr := process.CleanupFailedStart(ctx, p, 10*time.Second)
+			return CommandResult{PID: p.PID(), ExitCode: p.ExitCode()}, errors.Join(process.ErrProcessTreeUnknown, cleanupErr)
+		}
 		return CommandResult{}, candidateStartFailure(err)
 	}
 	identity := p.Identity()
@@ -134,6 +144,10 @@ func freezeGit(ctx context.Context, dir string, stdin io.Reader, args ...string)
 // process retains its existing bounded diagnostic capture while the supplied
 // writer consumes data incrementally under the same process/journal contract.
 func candidateGitStream(ctx context.Context, dir string, out io.Writer, args ...string) error {
+	return candidateGitStreamWithStart(ctx, dir, out, process.Start, args...)
+}
+
+func candidateGitStreamWithStart(ctx context.Context, dir string, out io.Writer, start func(context.Context, process.Command) (*process.Handle, error), args ...string) error {
 	env := []string{}
 	for _, entry := range os.Environ() {
 		key, _, _ := strings.Cut(entry, "=")
@@ -154,8 +168,14 @@ func candidateGitStream(ctx context.Context, dir string, out io.Writer, args ...
 	if err := record("intent", nil, -1); err != nil {
 		return err
 	}
-	p, err := process.Start(ctx, process.Command{Path: "/usr/bin/git", Args: argv, Dir: dir, Env: env, ExactEnv: true, Stdout: out})
+	p, err := start(ctx, process.Command{Path: "/usr/bin/git", Args: argv, Dir: dir, Env: env, ExactEnv: true, Stdout: out})
 	if err != nil {
+		if p != nil {
+			identity := p.Identity()
+			_ = record("unknown", &identity, p.ExitCode())
+			cleanupErr := process.CleanupFailedStart(ctx, p, 10*time.Second)
+			return errors.Join(process.ErrProcessTreeUnknown, cleanupErr)
+		}
 		return candidateStartFailure(err)
 	}
 	return finishCandidateGitStream(ctx, p, record)

@@ -3,6 +3,7 @@ package coordinator
 import (
 	"bytes"
 	"context"
+	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -180,21 +181,40 @@ type ErrorResponse struct {
 }
 
 type hostSession struct {
-	id         string
-	hello      contract.HostHello
-	conn       net.Conn
-	mu         sync.Mutex
-	dispatchMu sync.Mutex
-	failed     bool // guarded by dispatchMu; a failed transport cannot claim again
+	ownerPermit     *contract.OwnerControlPermit   // immutable before dispatch publication
+	ownerTicket     *contract.OwnerTransportTicket // immutable pending enrollment
+	ownerKey        ed25519.PrivateKey
+	helloRequestID  string
+	transportClosed atomic.Bool
+	supervised      bool
+	terminalSent    bool // guarded by send mu
+	id              string
+	hello           contract.HostHello
+	conn            net.Conn
+	mu              sync.Mutex
+	dispatchMu      sync.Mutex
+	failed          bool // guarded by dispatchMu; a failed transport cannot claim again
 }
 
 func (h *hostSession) send(message ipc.Envelope) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	if message.Kind == ipc.KindLaunch && h.terminalSent {
+		return store.ErrHostRejected
+	}
+	if message.Kind == ipc.KindHostDisposition {
+		h.terminalSent = true
+	}
+	if h.supervised {
+		_ = h.conn.SetWriteDeadline(time.Now().Add(2 * time.Second))
+		defer h.conn.SetWriteDeadline(time.Time{})
+	}
 	return ipc.Write(h.conn, message)
 }
 
 type Server struct {
+	cliSupervised      bool
+	ownerKeys          *originalOwnerKeys
 	stateDir           string
 	socket             string
 	epoch              uint64
@@ -204,20 +224,34 @@ type Server struct {
 	mu                 sync.Mutex
 	hostRegistrationMu sync.Mutex
 	hosts              map[string]*hostSession
-	inFlight           int
-	close              sync.Once
-	idleTimeout        time.Duration
-	idleExit           atomic.Bool
-	eventMu            sync.Mutex
-	eventSignal        chan struct{}
-	bridgeMu           sync.Mutex
-	bridgeConnections  map[net.Conn]struct{}
-	bridgeAdmission    chan struct{}
-	bridgeClosing      bool
-	bridgeWG           sync.WaitGroup
-	lifecycleMu        sync.Mutex
-	terminating        atomic.Bool
-	closed             atomic.Bool
+	ownerTransports    map[string]*hostSession               // pending and active, guarded by mu
+	ownerTickets       map[string]*ownerTransportTicketState // mutation holds registration and mu
+	ownerAdmission     chan struct{}
+	ownerRPCMu         sync.Mutex
+	ownerRPCs          map[net.Conn]struct{}
+	ownerRPCWG         sync.WaitGroup
+	ownerListener      net.Listener
+	ownerSocket        string
+	ownerAcceptDone    chan struct{}
+	// ownerRPCReplyHook is a narrow test seam for simulating a reply lost after
+	// the durable owner mutation. Production never installs it.
+	ownerRPCReplyHook func(contract.OwnerRPCRequest) bool
+	// Test-only loss after exact child credential redemption succeeds.
+	ownerTransportExchangeReplyHook func(contract.OwnerTransportTicket) bool
+	inFlight                        int
+	close                           sync.Once
+	idleTimeout                     time.Duration
+	idleExit                        atomic.Bool
+	eventMu                         sync.Mutex
+	eventSignal                     chan struct{}
+	bridgeMu                        sync.Mutex
+	bridgeConnections               map[net.Conn]struct{}
+	bridgeAdmission                 chan struct{}
+	bridgeClosing                   bool
+	bridgeWG                        sync.WaitGroup
+	lifecycleMu                     sync.Mutex
+	terminating                     atomic.Bool
+	closed                          atomic.Bool
 }
 
 func NewServer(stateDir string) (*Server, error) {
@@ -228,6 +262,17 @@ func NewServer(stateDir string) (*Server, error) {
 // made after acquiring the instance lock so an EOF cannot race Shutdown.
 func NewServerForRecovery(stateDir string) (*Server, error) {
 	return newServer(stateDir, true)
+}
+
+// NewCLIServer selects the durable supervised owner mode for native CLI
+// submissions.  NewServer remains legacy by default so embedders and existing
+// tests do not silently change their source-host protocol.
+func NewCLIServer(stateDir string, recovery bool) (*Server, error) {
+	s, err := newServer(stateDir, recovery)
+	if err == nil {
+		s.cliSupervised = true
+	}
+	return s, err
 }
 
 func newServer(stateDir string, recovery bool) (*Server, error) {
@@ -248,6 +293,19 @@ func newServer(stateDir string, recovery bool) (*Server, error) {
 	}
 	db, err := store.Open(filepath.Join(stateDir, "state.db"))
 	if err != nil {
+		_ = lock.Close()
+		return nil, err
+	}
+
+	owners, err := db.CurrentOriginalOwners(context.Background())
+	if err != nil {
+		_ = db.Close()
+		_ = lock.Close()
+		return nil, err
+	}
+	ownerKeys, err := loadOriginalOwnerKeys(stateDir, owners)
+	if err != nil {
+		_ = db.Close()
 		_ = lock.Close()
 		return nil, err
 	}
@@ -295,7 +353,13 @@ func newServer(stateDir string, recovery bool) (*Server, error) {
 		_ = lock.Close()
 		return nil, err
 	}
-	server := &Server{stateDir: stateDir, socket: socket, epoch: lock.Epoch(), lock: lock, db: db, listener: listener, hosts: make(map[string]*hostSession), idleTimeout: 30 * time.Second, eventSignal: make(chan struct{}), bridgeConnections: make(map[net.Conn]struct{}), bridgeAdmission: make(chan struct{}, 32)}
+	server := &Server{ownerKeys: ownerKeys, stateDir: stateDir, socket: socket, epoch: lock.Epoch(), lock: lock, db: db, listener: listener, hosts: make(map[string]*hostSession), ownerTransports: make(map[string]*hostSession), idleTimeout: 30 * time.Second, eventSignal: make(chan struct{}), bridgeConnections: make(map[net.Conn]struct{}), bridgeAdmission: make(chan struct{}, 32)}
+	server.ownerAdmission = make(chan struct{}, 32)
+	server.ownerRPCs = make(map[net.Conn]struct{})
+	if err = server.startOriginalOwnerListener(); err != nil {
+		_ = server.Close()
+		return nil, err
+	}
 	if !recovery {
 		if err := clearGlobalRestartBlock(stateDir, lock.Epoch()); err != nil {
 			_ = server.Close()
@@ -306,8 +370,9 @@ func newServer(stateDir string, recovery bool) (*Server, error) {
 	return server, nil
 }
 
-func (s *Server) SocketPath() string { return s.socket }
-func (s *Server) Epoch() uint64      { return s.epoch }
+func (s *Server) SocketPath() string      { return s.socket }
+func (s *Server) Epoch() uint64           { return s.epoch }
+func (s *Server) OwnerSocketPath() string { return s.ownerSocket }
 
 func (s *Server) currentEventSignal() <-chan struct{} {
 	s.eventMu.Lock()
@@ -484,21 +549,42 @@ func (s *Server) Close() error {
 	var result error
 	s.close.Do(func() {
 		s.closed.Store(true)
-		s.lifecycleMu.Lock()
-		defer s.lifecycleMu.Unlock()
 		_ = s.listener.Close()
 		s.closeBridgeConnections()
 		s.bridgeWG.Wait()
+		if s.ownerListener != nil {
+			_ = s.ownerListener.Close()
+			<-s.ownerAcceptDone
+		}
+		s.ownerRPCMu.Lock()
+		for conn := range s.ownerRPCs {
+			_ = conn.Close()
+		}
+		s.ownerRPCMu.Unlock()
+		s.ownerRPCWG.Wait()
+		// RPCs can be waiting for registration while graceful exit waits for
+		// lifecycle. Drain with neither lock held, then use the common order.
+		s.hostRegistrationMu.Lock()
+		defer s.hostRegistrationMu.Unlock()
+		s.lifecycleMu.Lock()
+		defer s.lifecycleMu.Unlock()
 		s.mu.Lock()
 		for _, host := range s.hosts {
 			_ = host.conn.Close()
 		}
+		for _, host := range s.ownerTransports {
+			_ = host.conn.Close()
+		}
+		s.ownerTransports = nil
 		s.hosts = nil
 		s.mu.Unlock()
 		if err := s.listener.Close(); err != nil && !errors.Is(err, net.ErrClosed) {
 			result = err
 		}
 		_ = os.Remove(s.socket)
+		if s.ownerSocket != "" {
+			_ = os.Remove(s.ownerSocket)
+		}
 		if err := s.db.Close(); result == nil {
 			result = err
 		}
@@ -703,7 +789,11 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 			}
 			tasks = append(tasks, store.TaskSpec{ID: task.ID, RunID: request.RunID, Dependencies: task.Dependencies, ExecutionPolicy: task.ExecutionPolicy, MaxAttempts: task.MaxAttempts, WorkRevision: task.WorkRevision, BudgetGroupID: task.BudgetGroupID, MaxActiveMS: task.MaxActiveMS, AdapterPayload: task.AdapterPayload, FallbackPayloads: task.Fallbacks, CompletionPolicy: policy, ExpectedArtifactSHA256: task.ExpectedArtifactSHA256})
 		}
-		receipt, err := s.db.SubmitPlan(ctx, store.PlanSpec{ConfigSubmission: configGuard, Run: store.RunSpec{DeliveryMode: request.DeliveryMode, ID: request.RunID, ControllerThread: request.ControllerThread, PlanRevision: request.PlanRevision, OriginContextID: request.OriginContextID, OriginPID: request.OriginPID, OriginBirth: request.OriginBirth}, Host: store.HostLaunchSpec{OriginContextID: request.OriginContextID, HostGeneration: request.HostGeneration, Executable: request.HostExecutable}, Tasks: tasks, LaunchID: request.LaunchID, LaunchToken: request.LaunchToken, ControlToken: request.ControlToken})
+		mode := "legacy"
+		if s.cliSupervised && request.OwnerMode != "local" {
+			mode = "supervised-v1"
+		}
+		receipt, err := s.db.SubmitPlan(ctx, store.PlanSpec{ConfigSubmission: configGuard, Run: store.RunSpec{DeliveryMode: request.DeliveryMode, ID: request.RunID, ControllerThread: request.ControllerThread, PlanRevision: request.PlanRevision, OriginContextID: request.OriginContextID, OriginPID: request.OriginPID, OriginBirth: request.OriginBirth}, Host: store.HostLaunchSpec{ExecutionOwnerMode: mode, OriginContextID: request.OriginContextID, HostGeneration: request.HostGeneration, Executable: request.HostExecutable}, Tasks: tasks, LaunchID: request.LaunchID, LaunchToken: request.LaunchToken, ControlToken: request.ControlToken})
 		if err != nil {
 			return nil, err
 		}
@@ -1002,6 +1092,10 @@ func (s *Server) authorizeHostHello(ctx context.Context, conn net.Conn, hello co
 	if bindingErr == nil && binding.PID == pid && binding.Birth == hello.Birth {
 		delete(workerAncestry, pid)
 	}
+	if state, _, authErr := s.authorizedOwnerTransport(ctx, hello); authErr == nil {
+		delete(workerAncestry, pid)
+		delete(workerAncestry, state.Binding.Owner.PID)
+	}
 	worker, err := s.db.IsWorkerAncestry(ctx, workerAncestry)
 	if err != nil || worker {
 		return store.ErrHostRejected
@@ -1032,6 +1126,15 @@ func (s *Server) handleHost(ctx context.Context, conn net.Conn, message ipc.Enve
 	if err := s.authorizeHostHello(ctx, conn, hello); err != nil {
 		_ = sendError(conn, message.RequestID, s.epoch, store.ErrHostRejected)
 		_ = conn.Close()
+		return
+	}
+	mode, err := s.db.ExecutionOwnerMode(ctx, hello.LaunchID)
+	if err != nil {
+		_ = conn.Close()
+		return
+	}
+	if mode == "supervised-v1" {
+		s.handleOriginalOwnerTransport(ctx, conn, message, hello)
 		return
 	}
 	s.hostRegistrationMu.Lock()
@@ -1212,23 +1315,38 @@ func (s *Server) commitHostEvent(session *hostSession, incoming ipc.Envelope) (b
 func (s *Server) dispatch(session *hostSession, includePending bool) (bool, error) {
 	session.dispatchMu.Lock()
 	defer session.dispatchMu.Unlock()
-	if session.failed {
+	if session.failed || s.terminating.Load() || s.closed.Load() {
 		return false, nil
 	}
 	progressed := false
 	if includePending {
+		s.lifecycleMu.Lock()
+		if s.terminating.Load() || s.closed.Load() {
+			s.lifecycleMu.Unlock()
+			return progressed, nil
+		}
 		pending, err := s.db.PendingLaunches(context.Background(), session.id, s.epoch)
+		s.lifecycleMu.Unlock()
 		if err != nil {
 			return false, err
 		}
 		for _, command := range pending {
+			if s.terminating.Load() || s.closed.Load() {
+				return progressed, nil
+			}
 			if err = sendLaunch(session, s.epoch, command); err != nil {
 				return s.disconnectHostLocked(session), err
 			}
 		}
 	}
 	for {
+		s.lifecycleMu.Lock()
+		if s.terminating.Load() || s.closed.Load() {
+			s.lifecycleMu.Unlock()
+			return progressed, nil
+		}
 		command, err := s.db.ClaimReady(context.Background(), session.id, s.epoch, 0)
+		s.lifecycleMu.Unlock()
 		if errors.Is(err, store.ErrNoReady) || errors.Is(err, store.ErrNoSlot) {
 			return progressed, nil
 		}
@@ -1236,6 +1354,9 @@ func (s *Server) dispatch(session *hostSession, includePending bool) (bool, erro
 			return progressed, err
 		}
 		progressed = true
+		if s.terminating.Load() || s.closed.Load() {
+			return progressed, nil
+		}
 		if err = sendLaunch(session, s.epoch, command); err != nil {
 			s.disconnectHostLocked(session)
 			return progressed, err
@@ -1293,11 +1414,17 @@ func (s *Server) retireCompletedHosts() {
 }
 
 func sendLaunch(session *hostSession, epoch uint64, command contract.LaunchCommand) error {
+	if session.ownerPermit != nil {
+		return session.sendOwnerCommand("launch", command.CommandID, command)
+	}
 	body, _ := json.Marshal(command)
 	return session.send(ipc.Envelope{Version: ipc.Version, Kind: ipc.KindLaunch, RequestID: command.CommandID, Epoch: epoch, Payload: body})
 }
 
 func sendStop(session *hostSession, epoch uint64, command contract.StopCommand) error {
+	if session.ownerPermit != nil {
+		return session.sendOwnerCommand("stop", command.CommandID, command)
+	}
 	body, _ := json.Marshal(command)
 	return session.send(ipc.Envelope{Version: ipc.Version, Kind: ipc.KindStop, RequestID: command.CommandID, Epoch: epoch, Payload: body})
 }
