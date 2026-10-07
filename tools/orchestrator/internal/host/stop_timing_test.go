@@ -33,7 +33,7 @@ while :; do sleep 0.05; done`
 	if err != nil {
 		t.Fatal(err)
 	}
-	grant := contract.LaunchCommand{CommandID: "grace-command", ReservationID: "grace-reservation", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, GrantedActiveMS: 150}
+	grant := managedHostGrant(t, h, contract.LaunchCommand{CommandID: "grace-command", ReservationID: "grace-reservation", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, GrantedActiveMS: 150})
 	inv := launchInvocation{args: []string{"/bin/sh", "-c", script}, env: map[string]string{"G1_TERM_MARKER": marker}}
 	started := time.Now()
 	result, runErr := h.ExecuteLaunch(context.Background(), grant, inv)
@@ -70,7 +70,7 @@ while :; do sleep 0.05; done`
 	if err != nil {
 		t.Fatal(err)
 	}
-	grant := contract.LaunchCommand{CommandID: "escalation-command", ReservationID: "escalation-reservation", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, GrantedActiveMS: 200}
+	grant := managedHostGrant(t, h, contract.LaunchCommand{CommandID: "escalation-command", ReservationID: "escalation-reservation", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, GrantedActiveMS: 200})
 	inv := launchInvocation{args: []string{"/bin/sh", "-c", script}, env: map[string]string{"G1_IGNORE_MARKER": marker}}
 	started := time.Now()
 	result, runErr := h.ExecuteLaunch(context.Background(), grant, inv)
@@ -126,7 +126,7 @@ func TestDescendantHoldingPipesSameGroupNeverReportsResult(t *testing.T) {
  while [ ! -e "$G1_STOP_HOLDER" ] && [ "$i" -lt 600 ]; do sleep 0.05; i=$((i+1)); done
  : > "$G1_HOLDER_DONE"
 ) & echo $! > "$G1_HOLD_PID_FILE"; echo lead-exit; exit 0`
-	grant := contract.LaunchCommand{CommandID: "pipe-command", ReservationID: "pipe-reservation", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, GrantedActiveMS: 300}
+	grant := managedHostGrant(t, h, contract.LaunchCommand{CommandID: "pipe-command", ReservationID: "pipe-reservation", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, GrantedActiveMS: 300})
 	inv := launchInvocation{args: []string{"/bin/sh", "-c", script}, env: map[string]string{"G1_HOLD_PID_FILE": pidFile, "G1_STOP_HOLDER": stopHolder, "G1_HOLDER_DONE": holderDone}}
 	started := time.Now()
 	result, runErr := h.ExecuteLaunch(context.Background(), grant, inv)
@@ -213,7 +213,7 @@ func TestEscapedDescendantHoldingPipesCannotProduceResult(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	grant := contract.LaunchCommand{CommandID: "escape-command", ReservationID: "escape-reservation", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, GrantedActiveMS: 400}
+	grant := managedHostGrant(t, h, contract.LaunchCommand{CommandID: "escape-command", ReservationID: "escape-reservation", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, GrantedActiveMS: 400})
 	inv := launchInvocation{args: []string{binary, "-test.run=TestEscapedDescendantHoldingPipesCannotProduceResult"}, env: map[string]string{"G1_ESCAPE_ROLE": "leader", "G1_ESCAPE_PID_FILE": pidFile, "G1_STOP_HOLDER": stopHolder, "G1_HOLDER_DONE": holderDone}}
 	result, runErr := h.ExecuteLaunch(context.Background(), grant, inv)
 	body, readErr := os.ReadFile(pidFile)
