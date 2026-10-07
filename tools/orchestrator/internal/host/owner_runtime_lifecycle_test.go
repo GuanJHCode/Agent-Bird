@@ -279,10 +279,10 @@ func TestOwnerRuntimeCleanupBoundsBlockedAdmissionAndPublisher(t *testing.T) {
 				<-entered
 				done = commandDone
 			} else {
-				e.run.host.publishMu.Lock()
+				e.run.host.publishMu.lock(context.Background())
 				published := make(chan struct{})
 				done = published
-				go func() { <-release; e.run.host.publishMu.Unlock(); close(published) }()
+				go func() { <-release; e.run.host.publishMu.unlock(); close(published) }()
 			}
 			started := time.Now()
 			err = r.cleanup(context.Canceled, nil)

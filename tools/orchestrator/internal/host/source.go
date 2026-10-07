@@ -15,8 +15,36 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
+
+// A publisher can be stuck in a local write or a non-returning sink. Waiting
+// for its serialization token must still obey shutdown's original deadline.
+// No helper goroutine outlives a cancelled waiter. The zero value is ready.
+type publicationGate struct {
+	once  sync.Once
+	token chan struct{}
+}
+
+func (g *publicationGate) lock(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	g.once.Do(func() { g.token = make(chan struct{}, 1) })
+	select {
+	case g.token <- struct{}{}:
+		if err := ctx.Err(); err != nil {
+			g.unlock()
+			return err
+		}
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (g *publicationGate) unlock() { <-g.token }
 
 // EventSink is the control-plane half of the source Host protocol. SendEvent
 // must return only after the coordinator has durably committed the event.
@@ -74,8 +102,10 @@ func (h *Host) PublishAll(ctx context.Context, sink EventSink, epoch uint64) err
 	if h.producerID == "" || sink == nil {
 		return errors.New("ipc_sink_required")
 	}
-	h.publishMu.Lock()
-	defer h.publishMu.Unlock()
+	if err := h.publishMu.lock(ctx); err != nil {
+		return err
+	}
+	defer h.publishMu.unlock()
 	entries, err := h.spoolEntries()
 	if err != nil {
 		return err

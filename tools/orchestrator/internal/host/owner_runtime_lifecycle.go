@@ -69,7 +69,10 @@ func (r *ownerRuntimeLifecycle) forgetWaitedTransportChild(child *ownerTransport
 }
 
 func newOwnerRuntimeLifecycle(e *ownerExecution, cancel context.CancelCauseFunc) *ownerRuntimeLifecycle {
-	r := &ownerRuntimeLifecycle{execution: e, cancel: cancel, wake: make(chan struct{}, 1), limits: ownerRuntimeLimits{10 * time.Second, 11 * time.Second, 2 * time.Second, 13 * time.Second}}
+	// The external 13s bound includes returning from RunOriginalOwner and the
+	// original owner's process exit/Wait. Reserve the final second for those
+	// steps instead of spending the whole contract inside cleanup.
+	r := &ownerRuntimeLifecycle{execution: e, cancel: cancel, wake: make(chan struct{}, 1), limits: ownerRuntimeLimits{10 * time.Second, 11 * time.Second, 2 * time.Second, 12 * time.Second}}
 	if e != nil {
 		r.commands = newOwnerCommandDispatcher(r)
 	}

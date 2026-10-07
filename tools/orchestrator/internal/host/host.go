@@ -37,7 +37,7 @@ type Host struct {
 	sequence          int64
 	sequenceLoaded    bool
 	publishedPath     string
-	publishMu         sync.Mutex
+	publishMu         publicationGate
 	ledgerMu          sync.Mutex
 	grantMu           sync.Mutex
 	reservations      map[string]time.Time
@@ -52,6 +52,9 @@ type Host struct {
 	continuationOwner string
 	codexLeases       map[string]*codexHandleLease           // CommandID; under stopMu + mu
 	failedStarts      map[*process.Handle]*hostStopOperation // original ownership after Start error; under stopMu
+	// Private observation boundary, fixed before execution starts. Production
+	// leaves it nil; tests can distinguish durable append from caller return.
+	afterSpoolAppend func(contract.Event)
 }
 
 func New(db *store.DB, spoolRoot string) (*Host, error) {
@@ -900,6 +903,9 @@ func (h *Host) appendStructuredEvent(spool *events.Spool, runID, taskID string, 
 	}
 	if err := spool.Append(event); err != nil {
 		return contract.Event{}, err
+	}
+	if h.afterSpoolAppend != nil {
+		h.afterSpoolAppend(event)
 	}
 	// The sequence becomes visible only after the event file and its directory
 	// entry are durable. A crash can replay an event, but cannot reserve a hole.

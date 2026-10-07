@@ -10,7 +10,9 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"syscall"
 	"testing"
@@ -18,23 +20,26 @@ import (
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/events"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
 )
 
 type nativeAdmissionReceipt struct {
-	Stage     string `json:"stage"`
-	CommandID string `json:"command_id,omitempty"`
-	Terminal  bool   `json:"terminal,omitempty"`
-	Reason    string `json:"reason,omitempty"`
-	Deadline  bool   `json:"deadline,omitempty"`
+	Stage     string          `json:"stage"`
+	CommandID string          `json:"command_id,omitempty"`
+	Terminal  bool            `json:"terminal,omitempty"`
+	Reason    string          `json:"reason,omitempty"`
+	Deadline  bool            `json:"deadline,omitempty"`
+	Event     *contract.Event `json:"event,omitempty"`
 }
 
 // Only this test binary recognizes the fixture switch. Product arguments,
 // configuration and environment gain no fault-injection capability.
 func TestOwnerNativeAdmissionChild(t *testing.T) {
-	if os.Getenv("ORCHESTRATOR_TEST_BLOCKED_ADMISSION") != "1" {
+	mode := os.Getenv("ORCHESTRATOR_TEST_BLOCKED_ADMISSION")
+	if mode != "1" && mode != "publisher" && mode != "durable" {
 		return
 	}
 	control, err := ipc.TakeOwnerControlFD(4)
@@ -57,10 +62,59 @@ func TestOwnerNativeAdmissionChild(t *testing.T) {
 		Bootstrap: bootstrap,
 		Control:   control,
 		InvocationProvider: func(context.Context, contract.LaunchCommand) (contract.InvocationView, error) {
+			if mode != "1" {
+				executable, err := os.Executable()
+				if err != nil {
+					return nil, err
+				}
+				return launchInvocation{args: []string{executable, "-test.run=^TestOwnerNativeStubbornTreeChild$"}, dir: bootstrap.StateDir, env: map[string]string{"ORCHESTRATOR_TEST_OWNER_TREE": "leader", "ORCHESTRATOR_TEST_OWNER_TREE_DIR": bootstrap.StateDir}}, nil
+			}
 			_ = os.WriteFile(filepath.Join(bootstrap.StateDir, "unexpected-provider"), []byte("invoked"), 0600)
 			return nil, errors.New("unexpected provider invocation")
 		},
 	}, func(e *ownerExecution) {
+		if mode != "1" {
+			if mode == "durable" {
+				e.run.host.afterSpoolAppend = func(event contract.Event) {
+					if event.Kind != contract.EventExited {
+						return
+					}
+					if err := encoder.Encode(nativeAdmissionReceipt{Stage: "durable_exit_blocked", CommandID: event.CommandID, Event: &event}); err != nil {
+						panic(err)
+					}
+					// The actual append (file and directory sync) has returned;
+					// the caller cannot finish or notify the publisher. There
+					// is no release/context path and no physical fsync claim.
+					select {}
+				}
+			}
+			rpc := e.cfg.rpc
+			e.cfg.rpc = func(ctx context.Context, revision uint64, kind, id string, body any) (contract.OwnerRPCReply, error) {
+				reply, err := rpc(ctx, revision, kind, id, body)
+				if event, ok := body.(contract.Event); ok && kind == "event" && event.Kind == contract.EventRunning && err == nil && reply.Error == "" {
+					var ack contract.DurableAck
+					if contract.DecodeOwnerRuntimeStrict(reply.Body, &ack) != nil || ack.Status != "durable" || ack.ProducerID != event.ProducerID || ack.EventID != event.EventID || ack.PayloadHash != event.PayloadHash || ack.AckedThrough < event.Sequence {
+						return reply, errors.New("fixture did not receive matching durable Running ACK")
+					}
+					stage := "publisher_entered"
+					if mode == "durable" {
+						stage = "durable_running"
+					}
+					if err := encoder.Encode(nativeAdmissionReceipt{Stage: stage, CommandID: event.CommandID, Event: &event}); err != nil {
+						return reply, err
+					}
+					// Actual publisher holds its serialization lock. The real
+					// signed durable reply has returned; this private wrapper
+					// never returns, even on cancellation. Not a network or
+					// physical filesystem failure simulation.
+					if mode == "publisher" {
+						select {}
+					}
+				}
+				return reply, err
+			}
+			return
+		}
 		e.acceptGrant = func(grant contract.LaunchCommand) (bool, error) {
 			if err := encoder.Encode(nativeAdmissionReceipt{Stage: "admission_entered", CommandID: grant.CommandID}); err != nil {
 				return false, err
@@ -81,9 +135,21 @@ func TestOwnerNativeAdmissionChild(t *testing.T) {
 }
 
 func TestOwnerNativeTerminalBoundsPermanentlyBlockedAdmission(t *testing.T) {
+	testOwnerNativeTerminalBoundsPermanentFault(t, "1")
+}
+
+func TestOwnerNativeTerminalBoundsPermanentlyBlockedPublisher(t *testing.T) {
+	testOwnerNativeTerminalBoundsPermanentFault(t, "publisher")
+}
+
+func TestOwnerNativeTerminalBoundsPermanentlyBlockedDurableReturn(t *testing.T) {
+	testOwnerNativeTerminalBoundsPermanentFault(t, "durable")
+}
+
+func testOwnerNativeTerminalBoundsPermanentFault(t *testing.T, mode string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	state, err := os.MkdirTemp("/private/tmp", "owner-admission-")
+	state, err := os.MkdirTemp("/private/tmp", "owner-fault-"+mode+"-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -190,7 +256,7 @@ func TestOwnerNativeTerminalBoundsPermanentlyBlockedAdmission(t *testing.T) {
 		_ = childProof.Close()
 	})
 	cmd := exec.Command(executable, "-test.run=^TestOwnerNativeAdmissionChild$", "-test.v")
-	cmd.Env = append(os.Environ(), "ORCHESTRATOR_TEST_BLOCKED_ADMISSION=1")
+	cmd.Env = append(os.Environ(), "ORCHESTRATOR_TEST_BLOCKED_ADMISSION="+mode)
 	cmd.ExtraFiles = []*os.File{reader, childFD, childProof}
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	var output bytes.Buffer
@@ -264,12 +330,60 @@ func TestOwnerNativeTerminalBoundsPermanentlyBlockedAdmission(t *testing.T) {
 	decoder := json.NewDecoder(proof)
 	_ = proof.SetReadDeadline(time.Now().Add(5 * time.Second))
 	var entered nativeAdmissionReceipt
-	if err := decoder.Decode(&entered); err != nil || entered.Stage != "admission_entered" || entered.CommandID != launch.RequestID {
-		t.Fatal("real owner did not block at admission", entered, err)
+	expectedStage := "admission_entered"
+	if mode == "publisher" {
+		expectedStage = "publisher_entered"
+	}
+	if mode == "durable" {
+		expectedStage = "durable_running"
+	}
+	if err := decoder.Decode(&entered); err != nil || entered.Stage != expectedStage || entered.CommandID != launch.RequestID {
+		t.Fatal("real owner did not reach permanent fault", entered, err)
 	}
 	before, err := db.TaskSnapshot(ctx, "admission-task")
-	if err != nil || before.AttemptID == "" || before.SegmentID == "" || before.Process != nil {
+	if err != nil || before.AttemptID == "" || before.SegmentID == "" || (mode == "1" && before.Process != nil) {
 		t.Fatal("missing original reserved claim", before, err)
+	}
+	var tree nativeOwnerTree
+	if mode != "1" {
+		if entered.Event == nil || entered.Event.Process == nil || before.Process == nil || *before.Process != *entered.Event.Process {
+			t.Fatal("publisher was not processing the real Running worker", entered, before)
+		}
+		nativeOwnerPoll(t, 5*time.Second, func() bool {
+			body, err := os.ReadFile(filepath.Join(state, "worker-tree.json"))
+			return err == nil && json.Unmarshal(body, &tree) == nil && tree.Leader == before.Process.PID && tree.Child > 0
+		}, "stubborn worker tree readiness")
+		tree.LeaderBirth, err = process.BirthContext(ctx, tree.Leader)
+		if err != nil || tree.LeaderBirth != before.Process.Birth {
+			t.Fatal("worker identity drift", tree, err)
+		}
+		tree.ChildBirth, err = process.BirthContext(ctx, tree.Child)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ancestors, err := process.AncestryContext(ctx, tree.Child)
+		childGroup, groupErr := syscall.Getpgid(tree.Child)
+		if err != nil || ancestors[tree.Leader] != tree.LeaderBirth || ancestors[cmd.Process.Pid] != ownerBirth || groupErr != nil || childGroup != before.Process.PGID {
+			t.Fatal("worker tree is not owned by original owner/group", ancestors, childGroup, err, groupErr)
+		}
+		if err := nativeOwnerWriteJSON(filepath.Join(state, "actor-identities.json"), struct {
+			Owner contract.OriginalOwnerTransport `json:"owner"`
+			Tree  nativeOwnerTree                 `json:"tree"`
+		}{contract.OriginalOwnerTransport{PID: cmd.Process.Pid, Birth: ownerBirth}, tree}); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() {
+			for _, actor := range []struct {
+				pid   int
+				birth string
+			}{{tree.Leader, tree.LeaderBirth}, {tree.Child, tree.ChildBirth}} {
+				observed, err := process.BirthContext(context.Background(), actor.pid)
+				if err == nil && observed == actor.birth {
+					_ = syscall.Kill(actor.pid, syscall.SIGKILL)
+					t.Error("forced cleanup of recorded worker; not acceptance evidence", actor.pid)
+				}
+			}
+		})
 	}
 	// Serve cancellation emits the product-signed terminal before closing its
 	// listener. Do not close Server or signal/release the owner during acceptance.
@@ -280,7 +394,31 @@ func TestOwnerNativeTerminalBoundsPermanentlyBlockedAdmission(t *testing.T) {
 	if err := contract.DecodeOwnerRuntimeStrict(terminal.Body, &disposition); err != nil || disposition.Reason != "coordinator_exit" {
 		t.Fatal("wrong terminal trigger", disposition, err)
 	}
+	if mode != "1" {
+		nativeOwnerPoll(t, 2*time.Second, func() bool {
+			leader, lerr := os.ReadFile(filepath.Join(state, "leader-term.json"))
+			child, cerr := os.ReadFile(filepath.Join(state, "descendant-term.json"))
+			var ltime, ctime int64
+			return lerr == nil && cerr == nil && json.Unmarshal(leader, &ltime) == nil && json.Unmarshal(child, &ctime) == nil && ltime >= started.UnixNano() && ctime >= started.UnixNano()
+		}, "product TERM reached both original worker and descendant")
+		time.Sleep(time.Until(started.Add(8 * time.Second)))
+		for _, actor := range []struct {
+			pid   int
+			birth string
+		}{{tree.Leader, tree.LeaderBirth}, {tree.Child, tree.ChildBirth}} {
+			observed, err := process.BirthContext(ctx, actor.pid)
+			if err != nil || observed != actor.birth {
+				t.Fatal("stubborn tree did not survive TERM grace", actor, err)
+			}
+		}
+	}
 	_ = proof.SetReadDeadline(started.Add(13 * time.Second))
+	var durable nativeAdmissionReceipt
+	if mode == "durable" {
+		if err := decoder.Decode(&durable); err != nil || durable.Stage != "durable_exit_blocked" || durable.CommandID != launch.RequestID || durable.Event == nil || durable.Event.Kind != contract.EventExited || durable.Event.Process == nil || *durable.Event.Process != *before.Process {
+			t.Fatal("did not reach actual post-Append Exited boundary", durable, err)
+		}
+	}
 	var returned nativeAdmissionReceipt
 	if err := decoder.Decode(&returned); err != nil || returned.Stage != "owner_returned" || !returned.Terminal || returned.Reason != "coordinator_exit" || !returned.Deadline {
 		t.Fatal("bounded owner return lost terminal or incomplete admission", returned, err)
@@ -298,14 +436,150 @@ func TestOwnerNativeTerminalBoundsPermanentlyBlockedAdmission(t *testing.T) {
 	if !errors.Is(syscall.Kill(cmd.Process.Pid, 0), syscall.ESRCH) {
 		t.Fatal("original owner still exists after original Wait")
 	}
-	for _, path := range []string{filepath.Join(state, "unexpected-provider"), filepath.Join(bootstrap.SpoolRoot, ".grants")} {
-		if _, err := os.Lstat(path); !errors.Is(err, os.ErrNotExist) {
-			t.Fatal("blocked admission invented provider/durable admission", path, err)
+	if mode == "1" {
+		for _, path := range []string{filepath.Join(state, "unexpected-provider"), filepath.Join(bootstrap.SpoolRoot, ".grants")} {
+			if _, err := os.Lstat(path); !errors.Is(err, os.ErrNotExist) {
+				t.Fatal("blocked admission invented provider/durable admission", path, err)
+			}
+		}
+	} else {
+		for _, pid := range []int{tree.Leader, tree.Child} {
+			if !errors.Is(syscall.Kill(pid, 0), syscall.ESRCH) {
+				t.Fatal("original worker tree survived product cleanup", pid)
+			}
+		}
+		spool, err := events.Open(filepath.Join(bootstrap.SpoolRoot, before.AttemptID, before.SegmentID))
+		if err != nil {
+			t.Fatal(err)
+		}
+		records, err := spool.Read()
+		if err != nil {
+			t.Fatal(err)
+		}
+		running, exited := 0, 0
+		var originalExit contract.Event
+		for _, event := range records {
+			if event.Kind == contract.EventRunning {
+				running++
+			}
+			if event.Kind == contract.EventExited {
+				originalExit = event
+				exited++
+				if event.Process == nil || *event.Process != *before.Process || event.ExitCode == nil || *event.ExitCode != -int(syscall.SIGKILL) {
+					t.Fatal("local Exited lost original Wait or identity", event)
+				}
+			}
+		}
+		if running != 1 || exited != 1 {
+			t.Fatal("missing or duplicate local Running/Exited", records)
+		}
+		var committed int
+		if err := db.SQL().QueryRowContext(ctx, `SELECT COUNT(*) FROM runtime_events WHERE segment_id=? AND json_extract(body_json,'$.kind')=?`, before.SegmentID, contract.EventExited).Scan(&committed); err != nil {
+			t.Fatal(err)
+		}
+		if mode == "publisher" && committed != 0 {
+			t.Fatal("permanent publisher unexpectedly committed Exited", committed)
+		}
+		if mode == "durable" {
+			var body string
+			var persisted contract.Event
+			if committed != 1 {
+				t.Fatal("final flush did not commit unique original Exited", committed)
+			}
+			if err := db.SQL().QueryRowContext(ctx, `SELECT body_json FROM runtime_events WHERE event_id=?`, originalExit.EventID).Scan(&body); err != nil {
+				t.Fatal(err)
+			}
+			if json.Unmarshal([]byte(body), &persisted) != nil || !reflect.DeepEqual(persisted, originalExit) || !reflect.DeepEqual(*durable.Event, originalExit) {
+				t.Fatal("durable-return/flush changed original Exited", originalExit, persisted, durable)
+			}
+			if acked, err := spool.AckedThrough(); err != nil || acked < originalExit.Sequence {
+				t.Fatal("final flush lacks durable ACK", acked, err)
+			}
 		}
 	}
 	after, err := db.TaskSnapshot(ctx, "admission-task")
-	if err != nil || after.AttemptID != before.AttemptID || after.SegmentID != before.SegmentID || after.Process != nil {
+	if err != nil || after.AttemptID != before.AttemptID || after.SegmentID != before.SegmentID || (mode == "1" && after.Process != nil) || (mode != "1" && (after.Process == nil || *after.Process != *before.Process)) {
 		t.Fatal("blocked claim changed execution identity", after, err)
 	}
-	t.Logf("original owner pid=%d birth=%s Wait=exit1 non-signaled terminal=coordinator_exit incomplete_admission=true elapsed=%s", cmd.Process.Pid, ownerBirth, elapsed)
+	t.Logf("fault=%s original owner pid=%d birth=%s Wait=exit1 non-signaled terminal=coordinator_exit incomplete=true elapsed=%s tree=%+v", mode, cmd.Process.Pid, ownerBirth, elapsed, tree)
+}
+
+type nativeOwnerTree struct {
+	Leader      int    `json:"leader"`
+	Child       int    `json:"child"`
+	LeaderBirth string `json:"leader_birth,omitempty"`
+	ChildBirth  string `json:"child_birth,omitempty"`
+}
+
+func nativeOwnerPoll(t *testing.T, duration time.Duration, predicate func() bool, reason string) {
+	t.Helper()
+	deadline := time.Now().Add(duration)
+	for time.Now().Before(deadline) {
+		if predicate() {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatal(reason)
+}
+
+func nativeOwnerWriteJSON(path string, value any) error {
+	body, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(path+".tmp", body, 0600); err != nil {
+		return err
+	}
+	return os.Rename(path+".tmp", path)
+}
+
+// Same-group descendants remain alive until the product escalates TERM to KILL.
+// There is no release file, test signal or normal exit inside the 13s window.
+func TestOwnerNativeStubbornTreeChild(t *testing.T) {
+	role := os.Getenv("ORCHESTRATOR_TEST_OWNER_TREE")
+	if role != "leader" && role != "descendant" {
+		return
+	}
+	state := os.Getenv("ORCHESTRATOR_TEST_OWNER_TREE_DIR")
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, syscall.SIGTERM)
+	defer signal.Stop(signals)
+	childDone := make(chan error, 1)
+	if role == "leader" {
+		executable, err := os.Executable()
+		if err != nil {
+			t.Fatal(err)
+		}
+		child := exec.Command(executable, "-test.run=^TestOwnerNativeStubbornTreeChild$")
+		child.Env = append(os.Environ(), "ORCHESTRATOR_TEST_OWNER_TREE=descendant")
+		if err := child.Start(); err != nil {
+			t.Fatal(err)
+		}
+		go func() { childDone <- child.Wait() }()
+		nativeOwnerPoll(t, 5*time.Second, func() bool {
+			data, err := os.ReadFile(filepath.Join(state, "descendant-ready.json"))
+			var pid int
+			return err == nil && json.Unmarshal(data, &pid) == nil && pid == child.Process.Pid
+		}, "descendant readiness")
+		if err := nativeOwnerWriteJSON(filepath.Join(state, "worker-tree.json"), nativeOwnerTree{Leader: os.Getpid(), Child: child.Process.Pid}); err != nil {
+			t.Fatal(err)
+		}
+	} else {
+		if err := nativeOwnerWriteJSON(filepath.Join(state, "descendant-ready.json"), os.Getpid()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for {
+		select {
+		case <-signals:
+			if err := nativeOwnerWriteJSON(filepath.Join(state, role+"-term.json"), time.Now().UnixNano()); err != nil {
+				t.Fatal(err)
+			}
+		case err := <-childDone:
+			t.Fatal("descendant exited before product group stop", err)
+		case <-time.After(5 * time.Minute):
+			t.Fatal("fixture exceeded maximum lifetime")
+		}
+	}
 }
