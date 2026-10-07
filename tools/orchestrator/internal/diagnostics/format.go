@@ -1,0 +1,165 @@
+package diagnostics
+
+import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/binary"
+	"encoding/hex"
+	"errors"
+	"unicode/utf8"
+)
+
+var (
+	ErrInvalidScope   = errors.New("diagnostics_invalid_scope")
+	ErrRecordTooLarge = errors.New("diagnostics_record_too_large")
+	ErrChunkFull      = errors.New("diagnostics_chunk_full")
+	ErrCorrupt        = errors.New("diagnostics_corrupt")
+)
+
+// Scope names the one authority a detailed attempt log may represent. The
+// hash is canonical binary framing, rather than delimiter concatenation.
+type Scope struct {
+	Version      uint16
+	RunID        string
+	TaskID       string
+	AttemptID    string
+	ProducerID   string
+	PolicySHA256 string
+}
+
+func (s Scope) Hash() (string, error) {
+	if s.Version != 1 || !validScopeID(s.RunID) || !validScopeID(s.TaskID) || !validScopeID(s.AttemptID) || !validScopeID(s.ProducerID) || !validPolicyHash(s.PolicySHA256) {
+		return "", ErrInvalidScope
+	}
+	var b bytes.Buffer
+	_ = binary.Write(&b, binary.BigEndian, s.Version)
+	for _, value := range []string{s.RunID, s.TaskID, s.AttemptID, s.ProducerID, s.PolicySHA256} {
+		_ = binary.Write(&b, binary.BigEndian, uint16(len(value)))
+		_, _ = b.WriteString(value)
+	}
+	sum := sha256.Sum256(b.Bytes())
+	return hex.EncodeToString(sum[:]), nil
+}
+
+func validScopeID(value string) bool {
+	return len(value) > 0 && len(value) <= 256 && utf8.ValidString(value) && !bytes.ContainsRune([]byte(value), 0)
+}
+
+func validPolicyHash(value string) bool {
+	if len(value) != 64 {
+		return false
+	}
+	for _, c := range value {
+		if c < '0' || c > '9' && c < 'a' || c > 'f' {
+			return false
+		}
+	}
+	return true
+}
+
+const (
+	chunkVersion = uint16(1)
+	chunkMagic   = "DGCHNK01"
+	chunkTrailer = sha256.Size
+)
+
+type chunk struct {
+	scopeHash string
+	sequence  uint64
+	segmentID string
+	records   []Record
+}
+
+func encodeChunk(scopeHash string, sequence uint64, segmentID string, records []Record) ([]byte, error) {
+	if len(segmentID) == 0 || len(segmentID) > 128 || !utf8.ValidString(segmentID) || len(records) > 65535 {
+		return nil, ErrCorrupt
+	}
+	scope, err := hex.DecodeString(scopeHash)
+	if err != nil || len(scope) != sha256.Size {
+		return nil, ErrInvalidScope
+	}
+	var b bytes.Buffer
+	b.Grow(64)
+	b.WriteString(chunkMagic)
+	_ = binary.Write(&b, binary.BigEndian, chunkVersion)
+	b.Write(scope)
+	_ = binary.Write(&b, binary.BigEndian, sequence)
+	b.WriteByte(byte(len(segmentID)))
+	b.WriteString(segmentID)
+	_ = binary.Write(&b, binary.BigEndian, uint16(len(records)))
+	for _, record := range records {
+		if (record.Stream != Stdout && record.Stream != Stderr) || record.SegmentID != segmentID || len(record.Data) > RecordBytes {
+			if len(record.Data) > RecordBytes {
+				return nil, ErrRecordTooLarge
+			}
+			return nil, ErrCorrupt
+		}
+		b.WriteByte(byte(record.Stream))
+		_ = binary.Write(&b, binary.BigEndian, record.Offset)
+		_ = binary.Write(&b, binary.BigEndian, record.LostBefore)
+		_ = binary.Write(&b, binary.BigEndian, uint16(len(record.Data)))
+		b.Write(record.Data)
+		if b.Len()+chunkTrailer > ChunkBytes {
+			return nil, ErrChunkFull
+		}
+	}
+	sum := sha256.Sum256(b.Bytes())
+	b.Write(sum[:])
+	return b.Bytes(), nil
+}
+
+func decodeChunk(raw []byte) (chunk, error) {
+	if len(raw) < len(chunkMagic)+2+sha256.Size+8+1+2+chunkTrailer || len(raw) > ChunkBytes {
+		return chunk{}, ErrCorrupt
+	}
+	body, trailer := raw[:len(raw)-chunkTrailer], raw[len(raw)-chunkTrailer:]
+	sum := sha256.Sum256(body)
+	if !bytes.Equal(sum[:], trailer) || string(body[:len(chunkMagic)]) != chunkMagic {
+		return chunk{}, ErrCorrupt
+	}
+	offset := len(chunkMagic)
+	version := binary.BigEndian.Uint16(body[offset:])
+	offset += 2
+	if version != chunkVersion {
+		return chunk{}, ErrCorrupt
+	}
+	scopeHash := hex.EncodeToString(body[offset : offset+sha256.Size])
+	offset += sha256.Size
+	sequence := binary.BigEndian.Uint64(body[offset:])
+	offset += 8
+	segmentLength := int(body[offset])
+	offset++
+	if segmentLength == 0 || segmentLength > 128 || offset+segmentLength+2 > len(body) {
+		return chunk{}, ErrCorrupt
+	}
+	segmentID := string(body[offset : offset+segmentLength])
+	offset += segmentLength
+	if !utf8.ValidString(segmentID) {
+		return chunk{}, ErrCorrupt
+	}
+	count := int(binary.BigEndian.Uint16(body[offset:]))
+	offset += 2
+	records := make([]Record, 0, count)
+	for range count {
+		if offset+1+8+8+2 > len(body) {
+			return chunk{}, ErrCorrupt
+		}
+		stream := Stream(body[offset])
+		offset++
+		lengthOffset := offset + 16
+		recordOffset := binary.BigEndian.Uint64(body[offset:])
+		lost := binary.BigEndian.Uint64(body[offset+8:])
+		length := int(binary.BigEndian.Uint16(body[lengthOffset:]))
+		offset = lengthOffset + 2
+		if (stream != Stdout && stream != Stderr) || length > RecordBytes || offset+length > len(body) {
+			return chunk{}, ErrCorrupt
+		}
+		data := append([]byte(nil), body[offset:offset+length]...)
+		offset += length
+		records = append(records, Record{Stream: stream, SegmentID: segmentID, Offset: recordOffset, LostBefore: lost, Data: data})
+	}
+	if offset != len(body) {
+		return chunk{}, ErrCorrupt
+	}
+	return chunk{scopeHash: scopeHash, sequence: sequence, segmentID: segmentID, records: records}, nil
+}
