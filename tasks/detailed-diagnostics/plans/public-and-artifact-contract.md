@@ -1,7 +1,8 @@
 # F02 public path and managed artifact contract
 
-ROOT owns integration shared modules. Base bd5bd8e; schema18 still current.
-The isolated M1 worker owns internal/diagnostics only. This document freezes
+ROOT owns integration shared modules. Base229dc15; schema18 still current.
+M1 is integrated and verified. The isolated output-tap worker owns process only.
+This document freezes
 the next implementation boundaries, not a completed feature.
 
 ## Public policy and read boundary
@@ -45,10 +46,14 @@ acceptance must measure process memory rather than infer it from payload limits.
 ## Schema19 shared ledger (ROOT only)
 
 - task diagnostics policy: canonical immutable JSON + digest, task/run owner.
-- managed_artifact_reservations: exact run/task/attempt/segment/producer, class,
+- managed_artifact_reservations: exact run/task/attempt/producer, class and
+  class-specific scope key,
   max bytes, fixed relative slot allowance, namespace identity, state and actual
   retained bytes. Detailed namespace reserves 20MiB+128KiB once per attempt;
   resume reuses it and retry reserves a new namespace. No release on ACK alone.
+  Diagnostics uses the fixed attempt scope key; it must not bind a single
+  mutable segment. Segment membership belongs to existing segments and object
+  refs. Terminal/progress scope keys will instead identify their exact segment.
 - managed_artifact_refs: physical object to runtime/report/progress/log reference;
   duplicate Exited/result references must not double charge the same object.
 - diagnostic pending/last-ACK row: bounded one pending delivery + last receipt

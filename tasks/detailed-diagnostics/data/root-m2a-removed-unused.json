@@ -1,0 +1,7 @@
+{
+  "removed_path": "tasks/detailed-diagnostics/data/linux-m2a/store-linux-arm64.test",
+  "sha256": "5585014c4a38fc9c69348f107aee2605bdd99260d12a7d1ed828b68911d16663",
+  "reason": "ROOT-owned superseded crosscompile output; no Linux run used this v1 binary. v2 tested binary and all logs retained.",
+  "compile_session": 59196,
+  "compile_exit": 0
+}

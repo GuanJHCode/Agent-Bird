@@ -57,7 +57,8 @@ type RunSpec struct {
 	OriginBirth          string
 }
 type TaskSpec struct {
-	ExecutionPolicy        *contract.ExecutionPolicy `json:"execution_policy,omitempty"`
+	Diagnostics            *contract.DiagnosticsPolicy `json:"diagnostics,omitempty"`
+	ExecutionPolicy        *contract.ExecutionPolicy   `json:"execution_policy,omitempty"`
 	ID, RunID              string
 	Dependencies           []string
 	MaxAttempts            int
@@ -207,6 +208,9 @@ func (d *DB) CreateRun(ctx context.Context, s RunSpec) error {
 	return nil
 }
 func (d *DB) CreateTask(ctx context.Context, s TaskSpec) error {
+	if s.Diagnostics != nil {
+		return CodeError("diagnostics_managed_task_required")
+	}
 	if s.ExecutionPolicy != nil {
 		return CodeError("execution_policy_managed_task_required")
 	}

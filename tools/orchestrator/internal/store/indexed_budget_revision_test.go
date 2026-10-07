@@ -28,14 +28,14 @@ func readIndexedBudgetPromise(t *testing.T, db *DB, original contract.LaunchComm
 func assertIndexedBudgetSchema(t *testing.T, db *DB, want int) {
 	t.Helper()
 	var version, tables int
-	if err := db.sql.QueryRow(`SELECT (SELECT version FROM schema_meta),(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('budget_revisions','budget_revision_receipts'))`).Scan(&version, &tables); err != nil || version != want || want == 17 && tables != 0 || want == 18 && tables != 2 {
+	if err := db.sql.QueryRow(`SELECT (SELECT version FROM schema_meta),(SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('budget_revisions','budget_revision_receipts'))`).Scan(&version, &tables); err != nil || version != want || want == 17 && tables != 0 || want >= 18 && tables != 2 {
 		t.Fatal("indexed budget migration boundary", version, tables, err)
 	}
 }
 
 func amendIndexedBudgetPromise(t *testing.T, db *DB, original contract.LaunchCommand, token string, before indexedBudgetPromise) {
 	t.Helper()
-	assertIndexedBudgetSchema(t, db, 18)
+	assertIndexedBudgetSchema(t, db, currentSchemaVersion)
 	payload, err := adapter.DecodeInvocationPayload(original.AdapterPayload)
 	if err != nil || payload.ConfigGeneration == nil || payload.CandidateAction == nil || payload.CandidateAction.ReviewIndex == nil || original.DependencyInputs == nil || len(original.DependencyInputs.Inputs) == 0 || original.Input == nil || before.Held != 200 || before.Granted != 200 || before.Used != 0 || before.Due <= 0 || before.PolicyHash == "" || before.DecisionHash != before.PolicyHash {
 		t.Fatal("fixture omitted config/index/vector/original budget", before, err)

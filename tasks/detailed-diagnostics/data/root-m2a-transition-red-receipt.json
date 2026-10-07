@@ -1,0 +1,16 @@
+{
+  "command": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+    "test",
+    "-json",
+    "-count=1",
+    "-run",
+    "^TestDiagnosticsDeliveryStatePreventsPendingReplacementAndRevisionReuse$",
+    "./internal/store"
+  ],
+  "exit": 1,
+  "removed_only": "diagnostic_delivery_transition trigger",
+  "source_without_guard_sha256": "6687368e16a8930bf3090b03fde985daaf582b6c76bee46de2fa9041640baa3f",
+  "restored_source_sha256": "30a6c3ee24dcbd34b2412b7823a73735963d7792b2ae4321c596cf7caec0cc2c",
+  "log_sha256": "86a0675b43e2f2c554d69b5769046e809f37fa4154bb98653f0703e3ea12c7f9"
+}

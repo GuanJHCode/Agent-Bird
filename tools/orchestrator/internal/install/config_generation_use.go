@@ -97,6 +97,11 @@ func BeginConfigPreparationForTasks(executable, scope, runID, requestSHA string,
 
 func configPreparationInputs(tasks []ConfigGenerationTaskUse, selected bool) error {
 	for _, task := range tasks {
+		if task.Diagnostics != nil {
+			if err := task.Diagnostics.Validate(); err != nil {
+				return err
+			}
+		}
 		for _, raw := range append([]json.RawMessage{task.AdapterPayload}, task.Fallbacks...) {
 			p, err := adapter.DecodeInvocationPayload(raw)
 			if err != nil {

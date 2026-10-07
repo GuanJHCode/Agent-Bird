@@ -1,0 +1,203 @@
+{
+  "base": "12cbaeed783d289e7ea0cccdc9eeda89b6b6b320",
+  "go": "go1.26.8 darwin/arm64",
+  "macos_final": {
+    "session": 65522,
+    "exit": 0,
+    "file": "root-m2a-affected-race-v2.jsonl",
+    "sha256": "fe85be63c8da59d0870d031d97cdc69d100bf04aeb3cddfa9941639b5570d69b",
+    "packages": {
+      "orchestrator": {
+        "top": 23,
+        "named": 64,
+        "fail": [],
+        "skip": [],
+        "terminal": [
+          {
+            "Time": "2026-10-07T12:04:32.872238+08:00",
+            "Action": "pass",
+            "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+            "Elapsed": 48.262
+          }
+        ]
+      },
+      "coordinator": {
+        "top": 8,
+        "named": 21,
+        "fail": [],
+        "skip": [],
+        "terminal": [
+          {
+            "Time": "2026-10-07T12:03:41.802931+08:00",
+            "Action": "pass",
+            "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator",
+            "Elapsed": 12.645
+          }
+        ]
+      },
+      "install": {
+        "top": 1,
+        "named": 1,
+        "fail": [],
+        "skip": [],
+        "terminal": [
+          {
+            "Time": "2026-10-07T12:03:26.085139+08:00",
+            "Action": "pass",
+            "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/install",
+            "Elapsed": 1.909
+          }
+        ]
+      },
+      "store": {
+        "top": 28,
+        "named": 45,
+        "fail": [],
+        "skip": [],
+        "terminal": [
+          {
+            "Time": "2026-10-07T12:03:23.70714+08:00",
+            "Action": "pass",
+            "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+            "Elapsed": 142.68
+          }
+        ]
+      }
+    }
+  },
+  "full_baseline_before_final_guards": {
+    "session": 40020,
+    "exit": 0,
+    "file": "root-m2a-store-install-full-v1.jsonl",
+    "sha256": "cca2828fc9295216a7718d102179a83f47c091a133f5e53cb94afdd3cd6c83a7",
+    "packages": {
+      "install": {
+        "top": 108,
+        "named": 341,
+        "fail": [],
+        "skip": [
+          "TestC11InstallPublicationCrashHelper"
+        ],
+        "terminal": [
+          {
+            "Time": "2026-10-07T11:53:06.479782+08:00",
+            "Action": "pass",
+            "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/install",
+            "Elapsed": 48.323
+          }
+        ]
+      },
+      "store": {
+        "top": 352,
+        "named": 989,
+        "fail": [],
+        "skip": [],
+        "terminal": [
+          {
+            "Time": "2026-10-07T11:53:28.021352+08:00",
+            "Action": "pass",
+            "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+            "Elapsed": 69.865
+          }
+        ]
+      }
+    }
+  },
+  "behavioral_red": [
+    {
+      "session": 35237,
+      "exit": 1,
+      "receipt": "data/root-m2a-transition-red-receipt.json"
+    },
+    {
+      "session": 91117,
+      "exit": 1,
+      "file": "root-m2a-initial-red.jsonl",
+      "sha256": "ca84142275335e0fae8c4e84657b6993e6c94b664980c54ebff0c34cf570c412",
+      "packages": {
+        "store": {
+          "top": 0,
+          "named": 0,
+          "fail": [
+            "TestDiagnosticsDeliveryStatePreventsPendingReplacementAndRevisionReuse",
+            "TestDiagnosticsDeliveryStartsWithoutHistory/reading",
+            "TestDiagnosticsDeliveryStartsWithoutHistory/pending",
+            "TestDiagnosticsDeliveryStartsWithoutHistory/revision",
+            "TestDiagnosticsDeliveryStartsWithoutHistory/ack",
+            "TestDiagnosticsDeliveryStartsWithoutHistory/cursor",
+            "TestDiagnosticsDeliveryStartsWithoutHistory",
+            "TestDiagnosticsLedgerRejectsFractionalAccounting/reserved",
+            "TestDiagnosticsLedgerRejectsFractionalAccounting/retained",
+            "TestDiagnosticsLedgerRejectsFractionalAccounting",
+            "package"
+          ],
+          "skip": [],
+          "terminal": [
+            {
+              "Time": "2026-10-07T12:00:24.35035+08:00",
+              "Action": "fail",
+              "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+              "Elapsed": 0.766
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "linux_final": {
+    "session": 74845,
+    "exit": 0,
+    "crosscompile_session": 5523,
+    "crosscompile_exit": 0,
+    "top": 8,
+    "named": 18,
+    "fail": [],
+    "skip": [],
+    "cid": "0bad2ba757630dda30108528bb8b89d9c99f5694e172f33b19f1cdae979e0dc0",
+    "oom": false,
+    "removed": true,
+    "log_sha256": "98383bd558e243499d5685bf75fabb8b94eb074f4df5bc65127f447d386f183c",
+    "binary_sha256": "2420c04dc04b165c04fdc614865a5c44cdd0ac116eaaef7af5dbe828c5823a3d",
+    "receipt": "data/linux-m2a/m2a-v2-receipt.json"
+  },
+  "final_checks": {
+    "build_session": 60601,
+    "build_exit": 0,
+    "vet_session": 28546,
+    "vet_exit": 0,
+    "diff_check": "1c0f8c exit0",
+    "gofmt": "583da5: 22 files clean"
+  },
+  "independent_review": "M2a public/config/admission + UPDATE guard + INSERT/type guard PASS; no source changed after final review",
+  "source_sha256": {
+    "tools/orchestrator/cmd/orchestrator/config_preparation.go": "cfa5d1a943aa344f310a0379951f1b1f88a13a5e534a79669fd3f7c32d3c07d0",
+    "tools/orchestrator/cmd/orchestrator/diagnostics_policy_test.go": "bd4b00e4e5c23b826c15ead43a5728db8724ec5779c568fbbcc081670ce17b16",
+    "tools/orchestrator/cmd/orchestrator/preflight.go": "7280f8b64bb12e9cf90c4026a0b2e4394f4e100b90e686dbc04eb43d0bd85898",
+    "tools/orchestrator/cmd/orchestrator/task_preliminary_preflight.go": "1a82a9831f8448a4c4c854c89f0bf00cbc00cade0a4bfc751abeadc577b359ae",
+    "tools/orchestrator/internal/coordinator/config_generation.go": "4a39bfa44bf719a1d932a14822e6634dbea3b636c511e35826f6a0497c5e6b2f",
+    "tools/orchestrator/internal/coordinator/diagnostics_policy_test.go": "f57439a357645b27c908d7dd2c339826c74451771b9d7bd18f6ec0155007478d",
+    "tools/orchestrator/internal/coordinator/execution_policy_json.go": "4c60b4e0f9ef2f6df29518633d9c37f045e39c75a8606f8c68df96c514356c44",
+    "tools/orchestrator/internal/coordinator/server.go": "61b80eed9ef51309f8b1420c0297f31ec7fe6e49b2a450b2c44c77cb34d74a77",
+    "tools/orchestrator/internal/install/config_generation_submission.go": "8a738662e421e606bc49587b8e5d1f07839e04c38ececd25aa18cf6ae14facd3",
+    "tools/orchestrator/internal/install/config_generation_use.go": "fc50e2d2bc769dce28c722100e661ef0159917027a8b41b0ae4d697caa3d9b2a",
+    "tools/orchestrator/internal/install/config_preparation_authority.go": "c9e1084e21935ea72c6bb8ff263018352c83442f68efc35b58993cd5a389993f",
+    "tools/orchestrator/internal/install/diagnostics_policy_test.go": "6a5d422fb3e3a29eda6cd14301494c0793ee5ae1f0a05dae40dbec9d9bea3be9",
+    "tools/orchestrator/internal/store/admission.go": "872ff5eceb5b57157369eed277f2681d30d2be16012a2323e1b6063280380fec",
+    "tools/orchestrator/internal/store/budget_revision_schema_test.go": "87f65d319b86307c5085708df583c0fbdfe0dc4a0a5062da3e951d6921a799c1",
+    "tools/orchestrator/internal/store/config_preparation_authority.go": "e06339b5457123ab0ef35fff276432c80042409e3b8c3608883a41d74b2c440e",
+    "tools/orchestrator/internal/store/diagnostics_policy_test.go": "c9506bc94b4184172b1c5e5279dbd8d7c01a2b7b13beee0046da95a66c8d5c8b",
+    "tools/orchestrator/internal/store/diagnostics_schema.go": "5753cb7c0c661fd1bd417c1fb9e1ee2cefbf3840aba5f1f48049ca814f6e4281",
+    "tools/orchestrator/internal/store/diagnostics_schema_test.go": "b055ef35c8e1c7fdf9598959bdc459ef42c9646ceb8c64f207f4ed1e45914cbd",
+    "tools/orchestrator/internal/store/indexed_budget_revision_test.go": "c24a475615c7f72422738e769b3203c1efb715e312a4de4f9c4c2cbc0ead9a2b",
+    "tools/orchestrator/internal/store/migrations.go": "e5a2a714984954ff936da4575fa5fe8d1c87e72ddf8277304dd7f691ade1419f",
+    "tools/orchestrator/internal/store/owner_applied_migration_test.go": "1ccb6313096aef2da45d977334ae5e11bf3c0b569cf7c379550790eda15a5022",
+    "tools/orchestrator/internal/store/store.go": "9464f9380b8a2cf895ab5df63d0c03611adf1efcf75b6266246e8978944b3e5d"
+  },
+  "not_complete": [
+    "Claim/Launch diagnostics grant",
+    "Host ordinary/duplex capture and persistence",
+    "public read/ACK authentication and replay",
+    "artifact total allowance/intake/delete",
+    "flood/RSS and physical disk failures"
+  ]
+}

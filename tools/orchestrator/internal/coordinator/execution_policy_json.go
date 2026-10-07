@@ -35,6 +35,9 @@ func (t *TaskRequest) UnmarshalJSON(raw []byte) error {
 		if dec.Decode(&value) != nil {
 			return errors.New("invalid_task_request")
 		}
+		if key == "diagnostics" && bytes.Equal(bytes.TrimSpace(value), []byte("null")) {
+			return errors.New("invalid_task_request")
+		}
 	}
 	if _, err = dec.Token(); err != nil {
 		return err

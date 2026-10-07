@@ -24,17 +24,18 @@ import (
 )
 
 type TaskRequest struct {
-	ExecutionPolicy        *contract.ExecutionPolicy `json:"execution_policy,omitempty"`
-	ID                     string                    `json:"id"`
-	Dependencies           []string                  `json:"dependencies,omitempty"`
-	MaxAttempts            int                       `json:"max_attempts"`
-	WorkRevision           int                       `json:"work_revision,omitempty"`
-	BudgetGroupID          string                    `json:"budget_group_id,omitempty"`
-	MaxActiveMS            int64                     `json:"max_active_ms,omitempty"`
-	AdapterPayload         json.RawMessage           `json:"adapter"`
-	Fallbacks              []json.RawMessage         `json:"fallbacks,omitempty"`
-	CompletionPolicy       string                    `json:"completion_policy,omitempty"`
-	ExpectedArtifactSHA256 string                    `json:"expected_artifact_sha256,omitempty"`
+	Diagnostics            *contract.DiagnosticsPolicy `json:"diagnostics,omitempty"`
+	ExecutionPolicy        *contract.ExecutionPolicy   `json:"execution_policy,omitempty"`
+	ID                     string                      `json:"id"`
+	Dependencies           []string                    `json:"dependencies,omitempty"`
+	MaxAttempts            int                         `json:"max_attempts"`
+	WorkRevision           int                         `json:"work_revision,omitempty"`
+	BudgetGroupID          string                      `json:"budget_group_id,omitempty"`
+	MaxActiveMS            int64                       `json:"max_active_ms,omitempty"`
+	AdapterPayload         json.RawMessage             `json:"adapter"`
+	Fallbacks              []json.RawMessage           `json:"fallbacks,omitempty"`
+	CompletionPolicy       string                      `json:"completion_policy,omitempty"`
+	ExpectedArtifactSHA256 string                      `json:"expected_artifact_sha256,omitempty"`
 }
 
 type SubmitRequest struct {
@@ -789,7 +790,7 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 			if policy == "" {
 				policy = "owner_review"
 			}
-			tasks = append(tasks, store.TaskSpec{ID: task.ID, RunID: request.RunID, Dependencies: task.Dependencies, ExecutionPolicy: task.ExecutionPolicy, MaxAttempts: task.MaxAttempts, WorkRevision: task.WorkRevision, BudgetGroupID: task.BudgetGroupID, MaxActiveMS: task.MaxActiveMS, AdapterPayload: task.AdapterPayload, FallbackPayloads: task.Fallbacks, CompletionPolicy: policy, ExpectedArtifactSHA256: task.ExpectedArtifactSHA256})
+			tasks = append(tasks, store.TaskSpec{Diagnostics: task.Diagnostics, ID: task.ID, RunID: request.RunID, Dependencies: task.Dependencies, ExecutionPolicy: task.ExecutionPolicy, MaxAttempts: task.MaxAttempts, WorkRevision: task.WorkRevision, BudgetGroupID: task.BudgetGroupID, MaxActiveMS: task.MaxActiveMS, AdapterPayload: task.AdapterPayload, FallbackPayloads: task.Fallbacks, CompletionPolicy: policy, ExpectedArtifactSHA256: task.ExpectedArtifactSHA256})
 		}
 		mode := "legacy"
 		if s.cliSupervised && request.OwnerMode != "local" {

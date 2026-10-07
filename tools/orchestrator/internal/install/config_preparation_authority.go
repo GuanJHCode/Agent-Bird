@@ -121,6 +121,10 @@ func OpenConfigSubmissionGuard(executable, scope, run, plan string, tasks []Conf
 	copied := make([]ConfigGenerationTaskUse, len(tasks))
 	for i, t := range tasks {
 		copied[i] = t
+		if t.Diagnostics != nil {
+			policy := *t.Diagnostics
+			copied[i].Diagnostics = &policy
+		}
 		copied[i].Dependencies = append([]string(nil), t.Dependencies...)
 		copied[i].AdapterPayload = append(json.RawMessage(nil), t.AdapterPayload...)
 		copied[i].Fallbacks = nil
@@ -333,17 +337,18 @@ func ReadConfigPreparationAuthority(executable, scope, run string) (*contract.Co
 // different dependency, budget, completion or artifact constraints.
 func ConfigSubmissionPlanDigest(run string, tasks []ConfigGenerationTaskUse) string {
 	type task struct {
-		ExecutionPolicy        *contract.ExecutionPolicy `json:"execution_policy,omitempty"`
-		ID                     string                    `json:"id"`
-		Dependencies           []string                  `json:"dependencies,omitempty"`
-		MaxAttempts            int                       `json:"max_attempts"`
-		WorkRevision           int                       `json:"work_revision,omitempty"`
-		BudgetGroupID          string                    `json:"budget_group_id,omitempty"`
-		MaxActiveMS            int64                     `json:"max_active_ms,omitempty"`
-		AdapterPayload         json.RawMessage           `json:"adapter"`
-		Fallbacks              []json.RawMessage         `json:"fallbacks,omitempty"`
-		CompletionPolicy       string                    `json:"completion_policy,omitempty"`
-		ExpectedArtifactSHA256 string                    `json:"expected_artifact_sha256,omitempty"`
+		Diagnostics            *contract.DiagnosticsPolicy `json:"diagnostics,omitempty"`
+		ExecutionPolicy        *contract.ExecutionPolicy   `json:"execution_policy,omitempty"`
+		ID                     string                      `json:"id"`
+		Dependencies           []string                    `json:"dependencies,omitempty"`
+		MaxAttempts            int                         `json:"max_attempts"`
+		WorkRevision           int                         `json:"work_revision,omitempty"`
+		BudgetGroupID          string                      `json:"budget_group_id,omitempty"`
+		MaxActiveMS            int64                       `json:"max_active_ms,omitempty"`
+		AdapterPayload         json.RawMessage             `json:"adapter"`
+		Fallbacks              []json.RawMessage           `json:"fallbacks,omitempty"`
+		CompletionPolicy       string                      `json:"completion_policy,omitempty"`
+		ExpectedArtifactSHA256 string                      `json:"expected_artifact_sha256,omitempty"`
 	}
 	if len(tasks) == 0 {
 		return ""
@@ -354,7 +359,7 @@ func ConfigSubmissionPlanDigest(run string, tasks []ConfigGenerationTaskUse) str
 		if t.PlanRevision != revision {
 			return ""
 		}
-		out[i] = task{t.ExecutionPolicy, t.TaskID, t.Dependencies, t.MaxAttempts, t.WorkRevision, t.BudgetGroupID, t.MaxActiveMS, t.AdapterPayload, t.Fallbacks, t.CompletionPolicy, t.ExpectedArtifactSHA256}
+		out[i] = task{t.Diagnostics, t.ExecutionPolicy, t.TaskID, t.Dependencies, t.MaxAttempts, t.WorkRevision, t.BudgetGroupID, t.MaxActiveMS, t.AdapterPayload, t.Fallbacks, t.CompletionPolicy, t.ExpectedArtifactSHA256}
 	}
 	raw, _ := json.Marshal(struct {
 		RunID        string `json:"run_id"`

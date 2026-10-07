@@ -20,7 +20,7 @@ Base: integration bd5bd8e, schema18. ROOT owns integration and physical macOS/Do
 2. Schema19 is reserved for F02 only. Freeze exact policy/accounting/delivery DTOs and migrations, then wire real Store/Coordinator/CLI/Host, including managed duplex stdout. Native controlled CLI proves default privacy and detailed opt-in, resume/retry/UNKNOWN, ACK-loss and final error projection. Do not merge B3 schema work concurrently.
 3. Complete registered artifact allowance, deletion/reconciliation and low-disk/retention matrix; native flood/RSS and full affected integration/review. Preserve runtime protocol resource thresholds. Linux native process/provider coverage is reported separately from pure store/capture tests.
 
-Current status: explicit policy/grant contract is integrated at0283064. M1a capture/chunk format has passed ROOT regression/race checks and independent review; M1b writer/rolling/recovery/Reader is not implemented. No public detailed capture/read/ACK or artifact quota feature is delivered. Artifact mapping confirmed existing ArtifactRef accounting and indexed manifest embedding; there is no general artifact GC. Complete F01-F13 goal remains active.
+Current status: policy/grant contract0283064 and full private M1 storage229dc15 are integrated. Final M1 Mac race and Docker Linux each passed54 top/110 named checks, with independent review. ROOT now implements M2 on integration; the isolated diagnostic-output-tap worker owns only process output observation. No public detailed capture/read/ACK or artifact quota feature is delivered yet. Artifact mapping confirmed existing ArtifactRef accounting and indexed manifest embedding; general artifact GC remains M3. Complete F01-F13 goal remains active.
 
 ## Contract review corrections (ROOT decisions)
 

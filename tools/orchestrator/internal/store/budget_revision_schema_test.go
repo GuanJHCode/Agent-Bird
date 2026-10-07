@@ -13,7 +13,7 @@ import (
 
 // TestBudgetRevisionSchema18CreatesImmutableLedger locks the persistence
 // boundary for explicit owner-authorized budget amendments.  A new database
-// must expose schema 18 and the append-only ledger/receipt tables before any
+// must expose the current schema and append-only ledger/receipt tables before any
 // command can be accepted.
 func TestBudgetRevisionSchema18CreatesImmutableLedger(t *testing.T) {
 	db, err := Open(t.TempDir() + "/state.db")
@@ -26,8 +26,8 @@ func TestBudgetRevisionSchema18CreatesImmutableLedger(t *testing.T) {
 	if err = db.sql.QueryRowContext(context.Background(), `SELECT version FROM schema_meta`).Scan(&version); err != nil {
 		t.Fatal(err)
 	}
-	if version != 18 {
-		t.Fatalf("schema version=%d want 18", version)
+	if version != currentSchemaVersion {
+		t.Fatalf("schema version=%d want %d", version, currentSchemaVersion)
 	}
 	for _, table := range []string{"budget_revisions", "budget_revision_receipts"} {
 		var exists int
@@ -306,6 +306,7 @@ func TestBudgetRevisionRequiresCompleteSharedSnapshotAndPreservesActiveLedger(t 
 
 func downgradeBudgetRevisionSchema(t *testing.T, db *DB) {
 	t.Helper()
+	downgradeDiagnosticsSchema(t, db)
 	for _, stmt := range []string{
 		`DROP TRIGGER IF EXISTS budget_revision_receipts_append_only`,
 		`DROP TRIGGER IF EXISTS budget_revision_receipts_immutable`,
@@ -340,7 +341,7 @@ func TestBudgetRevisionV17MigrationPreservesRowsAndIsImmutable(t *testing.T) {
 	}
 	defer db.Close()
 	var version, runs int
-	if err = db.sql.QueryRow(`SELECT (SELECT version FROM schema_meta),(SELECT COUNT(*) FROM runs WHERE id='r')`).Scan(&version, &runs); err != nil || version != 18 || runs != 1 {
+	if err = db.sql.QueryRow(`SELECT (SELECT version FROM schema_meta),(SELECT COUNT(*) FROM runs WHERE id='r')`).Scan(&version, &runs); err != nil || version != currentSchemaVersion || runs != 1 {
 		t.Fatalf("upgrade=%d runs=%d err=%v", version, runs, err)
 	}
 	if _, err = db.sql.Exec(`INSERT INTO budget_revisions(run_id,budget_group_id,revision,command_id,request_json,created_at) VALUES('r','g',1,'cmd','{}','now')`); err != nil {
@@ -387,7 +388,7 @@ func TestBudgetRevisionV17MigrationRollbackAndTooNewRejection(t *testing.T) {
 	if err = raw.QueryRow(`SELECT total_bytes FROM storage_usage WHERE scope='global' AND scope_id=''`).Scan(&after); err != nil || after != before {
 		t.Fatalf("usage changed %d/%d %v", before, after, err)
 	}
-	if _, err = raw.Exec(`DROP TABLE budget_revision_receipts; UPDATE schema_meta SET version=19`); err != nil {
+	if _, err = raw.Exec(`DROP TABLE budget_revision_receipts; UPDATE schema_meta SET version=?`, currentSchemaVersion+1); err != nil {
 		t.Fatal(err)
 	}
 	if err = raw.Close(); err != nil {

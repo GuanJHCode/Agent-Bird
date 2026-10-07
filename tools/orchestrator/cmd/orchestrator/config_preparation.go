@@ -50,7 +50,7 @@ func configPreparedDigest(p configPreparedPlan) string {
 func configTaskUses(tasks []coordinator.TaskRequest) []install.ConfigGenerationTaskUse {
 	uses := make([]install.ConfigGenerationTaskUse, len(tasks))
 	for i, t := range tasks {
-		uses[i] = install.ConfigGenerationTaskUse{ExecutionPolicy: t.ExecutionPolicy, TaskID: t.ID, AdapterPayload: t.AdapterPayload, Fallbacks: t.Fallbacks}
+		uses[i] = install.ConfigGenerationTaskUse{Diagnostics: t.Diagnostics, ExecutionPolicy: t.ExecutionPolicy, TaskID: t.ID, AdapterPayload: t.AdapterPayload, Fallbacks: t.Fallbacks}
 	}
 	return uses
 }

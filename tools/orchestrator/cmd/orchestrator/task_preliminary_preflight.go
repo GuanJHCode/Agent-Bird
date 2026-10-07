@@ -12,6 +12,13 @@ func preflightTaskPlanBeforeOwner(ctx context.Context, handle string, plan taskP
 	plan.Tasks = slices.Clone(plan.Tasks)
 	for i := range plan.Tasks {
 		task := &plan.Tasks[i]
+		if task.Diagnostics != nil {
+			if err := task.Diagnostics.Validate(); err != nil {
+				return err
+			}
+			policy := *task.Diagnostics
+			task.Diagnostics = &policy
+		}
 		task.Dependencies = slices.Clone(task.Dependencies)
 		task.AdapterPayload = slices.Clone(task.AdapterPayload)
 		task.Fallbacks = slices.Clone(task.Fallbacks)

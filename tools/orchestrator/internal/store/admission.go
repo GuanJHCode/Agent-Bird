@@ -77,6 +77,11 @@ func validatePlan(p PlanSpec) error {
 	groupActive := make(map[string]int64)
 	groupPolicy := make(map[string]bool)
 	for _, task := range p.Tasks {
+		if task.Diagnostics != nil {
+			if err := task.Diagnostics.Validate(); err != nil {
+				return err
+			}
+		}
 		var err error
 		task, err = normalizeExecutionTask(task)
 		if err != nil {
@@ -342,6 +347,19 @@ func (d *DB) submitPlan(ctx context.Context, p PlanSpec, authority *contract.Con
 				return rollback(e)
 			}
 			if _, e = tx.ExecContext(ctx, `INSERT INTO task_execution_policies(task_id,run_id,body_json,policy_sha256) VALUES(?,?,?,?)`, task.ID, p.Run.ID, string(body), hash); e != nil {
+				return rollback(e)
+			}
+		}
+		if task.Diagnostics != nil {
+			body, e := task.Diagnostics.CanonicalJSON()
+			if e != nil {
+				return rollback(e)
+			}
+			hash := runtimeHash(string(body))
+			if e = d.storageAdmission(ctx, tx, p.Run.ID, int64(64+len(task.ID)+len(p.Run.ID)+len(body)+len(hash)), false); e != nil {
+				return rollback(e)
+			}
+			if _, e = tx.ExecContext(ctx, `INSERT INTO task_diagnostics_policies(task_id,run_id,body_json,policy_sha256) VALUES(?,?,?,?)`, task.ID, p.Run.ID, string(body), hash); e != nil {
 				return rollback(e)
 			}
 		}
