@@ -29,7 +29,7 @@ func TestBatchStopLifecycleRetiresMarkersWithoutLosingPrelaunchStops(t *testing.
 			if err != nil {
 				t.Fatal(err)
 			}
-			grant := contract.LaunchCommand{CommandID: "command", ReservationID: "reservation", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, GrantedActiveMS: 5000}
+			grant := managedHostGrant(t, owner, contract.LaunchCommand{CommandID: "command", ReservationID: "reservation", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, GrantedActiveMS: 5000})
 			marker := filepath.Join(root, "executed")
 			invocation := launchInvocation{args: []string{"/usr/bin/touch", marker}}
 			if mode == "prelaunch-stop" {
@@ -79,6 +79,7 @@ func TestBatchStopLifecycleKeepsUnknownAndInvocationFailureEvidence(t *testing.T
 				t.Fatal(err)
 			}
 			attempt := store.Attempt{ID: "attempt", TaskID: "task", SegmentID: "segment"}
+			meta := metadataForLaunch(managedHostGrant(t, owner, contract.LaunchCommand{CommandID: "command", ReservationID: "reservation", RunID: "run", TaskID: "task", AttemptID: attempt.ID, SegmentID: attempt.SegmentID, WorkRevision: 1, GrantedActiveMS: 5000}))
 			if phase == "unknown" {
 				spool, err := owner.spool(attempt)
 				if err != nil {
@@ -91,11 +92,11 @@ func TestBatchStopLifecycleKeepsUnknownAndInvocationFailureEvidence(t *testing.T
 				if err := owner.StopSegment(context.Background(), attempt.SegmentID); err != nil {
 					t.Fatal(err)
 				}
-				if err := owner.recordLaunchFailed(attempt, "run", "task", launchMetadata{commandID: "command", workRevision: 1}, errors.New("invocation_unavailable")); err != nil {
+				if err := owner.recordLaunchFailed(attempt, "run", "task", meta, errors.New("invocation_unavailable")); err != nil {
 					t.Fatal(err)
 				}
 			} else {
-				if _, err := owner.execute(context.Background(), attempt, "run", "task", process.Command{Path: "/usr/bin/true"}, false, launchMetadata{}); err != nil {
+				if _, err := owner.execute(context.Background(), attempt, "run", "task", process.Command{Path: "/usr/bin/true"}, false, meta); err != nil {
 					t.Fatal(err)
 				}
 			}
