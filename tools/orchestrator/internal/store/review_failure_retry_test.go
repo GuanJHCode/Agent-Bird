@@ -290,31 +290,14 @@ func TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			f := diagnosticReviewFixtureBody(t, adapter.ProviderGrok, nil, nil, reviewDiagnosticV2Body, 0)
 			ctx := context.Background()
-			rows, err := f.db.sql.Query(`SELECT body_json FROM runtime_events WHERE segment_id=? ORDER BY sequence`, f.grant.SegmentID)
-			if err != nil {
-				t.Fatal(err)
-			}
-			var events []contract.Event
-			for rows.Next() {
-				var raw string
-				var e contract.Event
-				if err := rows.Scan(&raw); err != nil {
-					t.Fatal(err)
-				}
-				if err := json.Unmarshal([]byte(raw), &e); err != nil {
-					t.Fatal(err)
-				}
-				events = append(events, e)
-			}
-			if err := rows.Err(); err != nil {
-				t.Fatal(err)
-			}
-			rows.Close()
+			events := reviewLifecycleEventsForTest(t, f)
+			var err error
 			index := map[string]int{"prepared": 0, "spawned": 1, "running": 2, "failed": 3, "exited": 4}
 			if strings.HasPrefix(name, "missing_") {
 				_, err = f.db.sql.Exec(`DELETE FROM runtime_events WHERE event_id=?`, events[index[strings.TrimPrefix(name, "missing_")]].EventID)
 			} else {
 				i := 1
+				reorder := false
 				switch name {
 				case "prepared_process":
 					events[0].Process = events[1].Process
@@ -325,11 +308,14 @@ func TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle(t *testing.T) {
 				case "exit_process":
 					events[4].Process.PID++
 				case "order_prepared":
-					events[0].Sequence = events[2].Sequence
+					events[0], events[1] = events[1], events[0]
+					reorder = true
 				case "order_spawned":
-					events[1].Sequence = events[3].Sequence
+					events[1], events[2] = events[2], events[1]
+					reorder = true
 				case "order_running":
-					events[2].Sequence = events[3].Sequence
+					events = []contract.Event{events[2], events[0], events[1], events[3], events[4]}
+					reorder = true
 				case "sequence_collision":
 					events[1].Sequence = events[0].Sequence
 				case "run":
@@ -360,37 +346,43 @@ func TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle(t *testing.T) {
 					events[3].ExitCode = &value
 					events[4].ExitCode = &value
 				default:
-					var extra contract.Event
+					extra := events[2]
+					insertAt := 3 // Unsupported kinds are otherwise coherent, during Running.
 					if strings.HasPrefix(name, "duplicate_") {
 						extra = events[index[strings.TrimPrefix(name, "duplicate_")]]
-						extra.Sequence = events[4].Sequence + 10
-					} else {
-						extra = events[2]
+						insertAt = len(events)
+					} else if strings.HasPrefix(name, "session_") {
 						extra.Kind = contract.EventSession
-						extra.SessionKind = "session-id"
-						extra.SessionID = "session"
+						extra.SessionKind, extra.SessionID = "session-id", "session"
+						// A real protocol terminal preserves this same session identity.
+						events[3].SessionKind, events[3].SessionID = extra.SessionKind, extra.SessionID
 						if name == "session_before_running" {
-							extra.Sequence = events[1].Sequence + 1
-						} else if strings.HasPrefix(name, "session_") && name != "session_after_failed" {
-							identity := *extra.Process
-							identity.Birth = "other"
-							extra.Process = &identity
-							extra.Sequence = events[2].Sequence + 1
+							insertAt = 2
 						} else {
-							extra.Sequence = events[3].Sequence + 1
+							insertAt = 4
 						}
-						if name == "question" || name == "result" || name == "stopped" || name == "unknown" {
-							extra.Kind = name
-						}
+					} else {
+						extra.Kind = name
 					}
 					extra.EventID = "extra-" + name
 					raw, _ := json.Marshal(extra)
 					_, err = f.db.sql.Exec(`INSERT INTO runtime_events(event_id,producer_id,sequence,task_id,attempt_id,segment_id,payload_hash,body_json,delivery_status,created_at) SELECT ?,producer_id,?,task_id,attempt_id,segment_id,payload_hash,?,delivery_status,created_at FROM runtime_events WHERE event_id=?`, extra.EventID, events[4].Sequence+100, string(raw), events[2].EventID)
+					if err != nil {
+						t.Fatal(err)
+					}
+					events = append(events, contract.Event{})
+					copy(events[insertAt+1:], events[insertAt:len(events)-1])
+					events[insertAt] = extra
+					reorder = true
 				}
-				for _, e := range events {
-					raw, _ := json.Marshal(e)
-					if _, updateErr := f.db.sql.Exec(`UPDATE runtime_events SET body_json=? WHERE event_id=?`, string(raw), e.EventID); updateErr != nil {
-						t.Fatal(updateErr)
+				if reorder {
+					rewriteReviewLifecycleOrderForTest(t, f, events)
+				} else {
+					for _, e := range events {
+						raw, _ := json.Marshal(e)
+						if _, updateErr := f.db.sql.Exec(`UPDATE runtime_events SET body_json=? WHERE event_id=?`, string(raw), e.EventID); updateErr != nil {
+							t.Fatal(updateErr)
+						}
 					}
 				}
 			}
@@ -462,14 +454,28 @@ func TestCandidateReviewDiagnosticV2RejectsSessionEvidence(t *testing.T) {
 				e.ExitCode = &value
 			case "artifact":
 				e.Artifact = f.event.Artifact
-			case "before_running":
-				e.Sequence -= 2
-			case "after_failed":
-				e.Sequence += 2
+			case "before_running", "after_failed":
+				events := reviewLifecycleEventsForTest(t, f)
+				var ordered []contract.Event
+				for _, event := range events {
+					if event.Kind != contract.EventSession {
+						ordered = append(ordered, event)
+					}
+				}
+				insertAt := 2
+				if name == "after_failed" {
+					insertAt = 4
+				}
+				ordered = append(ordered, contract.Event{})
+				copy(ordered[insertAt+1:], ordered[insertAt:len(ordered)-1])
+				ordered[insertAt] = e
+				rewriteReviewLifecycleOrderForTest(t, f, ordered)
 			}
-			body, _ := json.Marshal(e)
-			if _, err := f.db.sql.Exec(`UPDATE runtime_events SET body_json=? WHERE event_id=?`, string(body), e.EventID); err != nil {
-				t.Fatal(err)
+			if name != "before_running" && name != "after_failed" {
+				body, _ := json.Marshal(e)
+				if _, err := f.db.sql.Exec(`UPDATE runtime_events SET body_json=? WHERE event_id=?`, string(body), e.EventID); err != nil {
+					t.Fatal(err)
+				}
 			}
 			if _, err := f.db.QueueRetry(context.Background(), f.spec); err == nil {
 				t.Fatal("invalid session evidence authorized retry")
@@ -513,5 +519,104 @@ func TestCandidateReviewDiagnosticV2RejectsDuplicateSession(t *testing.T) {
 	}
 	if _, err := f.db.QueueRetry(context.Background(), f.spec); err == nil {
 		t.Fatal("duplicate session authorized v2 retry")
+	}
+}
+
+func reviewLifecycleEventsForTest(t *testing.T, f reviewRetryFixture) []contract.Event {
+	t.Helper()
+	rows, err := f.db.sql.Query(`SELECT body_json FROM runtime_events WHERE segment_id=? ORDER BY sequence`, f.grant.SegmentID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var events []contract.Event
+	for rows.Next() {
+		var raw string
+		var event contract.Event
+		if err := rows.Scan(&raw); err != nil {
+			t.Fatal(err)
+		}
+		if err := json.Unmarshal([]byte(raw), &event); err != nil {
+			t.Fatal(err)
+		}
+		events = append(events, event)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	return events
+}
+
+// Persist the requested order with unique, increasing producer sequence in both
+// SQL and body. Phase/kind/session-position cases must not pass via a collision
+// or stale SQL row order instead of their intended violated constraint.
+func rewriteReviewLifecycleOrderForTest(t *testing.T, f reviewRetryFixture, events []contract.Event) {
+	t.Helper()
+	// Move all rows out of their original range before assigning new positions,
+	// so swaps never collide with the producer/sequence UNIQUE constraint.
+	for i, event := range events {
+		if _, err := f.db.sql.Exec(`UPDATE runtime_events SET sequence=? WHERE event_id=?`, 1000+i, event.EventID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	start := events[0].Sequence
+	for _, event := range events {
+		if event.Sequence < start {
+			start = event.Sequence
+		}
+	}
+	for i, event := range events {
+		event.Sequence = start + int64(i)
+		body, err := json.Marshal(event)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := f.db.sql.Exec(`UPDATE runtime_events SET sequence=?,body_json=? WHERE event_id=?`, event.Sequence, string(body), event.EventID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	rows, err := f.db.sql.Query(`SELECT sequence,body_json FROM runtime_events WHERE segment_id=? ORDER BY sequence`, f.grant.SegmentID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	var previous int64
+	count := 0
+	seen := map[string]bool{}
+	for rows.Next() {
+		var sequence int64
+		var raw string
+		var event contract.Event
+		if err := rows.Scan(&sequence, &raw); err != nil {
+			t.Fatal(err)
+		}
+		if err := json.Unmarshal([]byte(raw), &event); err != nil {
+			t.Fatal(err)
+		}
+		if sequence != event.Sequence || sequence <= previous || seen[event.EventID] {
+			t.Fatal("phase fixture lost coherent unique sequence", event)
+		}
+		if event.ProducerID != f.event.ProducerID || event.RunID != f.event.RunID || event.TaskID != f.event.TaskID || event.AttemptID != f.event.AttemptID || event.SegmentID != f.event.SegmentID || event.CommandID != f.event.CommandID || event.WorkRevision != f.event.WorkRevision {
+			t.Fatal("phase fixture changed identity tuple", event)
+		}
+		if event.Kind == contract.EventPrepared {
+			if event.Process != nil {
+				t.Fatal("phase fixture changed Prepared process", event)
+			}
+		} else if !reflect.DeepEqual(event.Process, f.event.Process) {
+			t.Fatal("phase fixture changed process identity", event)
+		}
+		if event.EventID != events[count].EventID {
+			t.Fatal("phase fixture lost requested SQL order", event)
+		}
+		count++
+		previous = sequence
+		seen[event.EventID] = true
+	}
+	if count != len(events) {
+		t.Fatal("phase fixture lost events", count, len(events))
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
 	}
 }
