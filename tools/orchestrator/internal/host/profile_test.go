@@ -165,7 +165,8 @@ func TestLaunchRechecksProviderPinAfterInvocationWasBuilt(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			_, err = h.ExecuteLaunch(context.Background(), contract.LaunchCommand{RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", ReservationID: "reservation", CommandID: "command", GrantedActiveMS: 1000}, reportInvocation{base: inv})
+			grant := managedHostGrant(t, h, contract.LaunchCommand{RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", ReservationID: "reservation", CommandID: "command", GrantedActiveMS: 1000})
+			_, err = h.ExecuteLaunch(context.Background(), grant, reportInvocation{base: inv})
 			if err == nil || err.Error() != "binary_pin_mismatch" {
 				t.Fatalf("replaced provider not refused at launch: %v", err)
 			}
@@ -180,7 +181,8 @@ func TestHostRejectsUnmanagedWriteBeforeExecution(t *testing.T) {
 		t.Fatal(err)
 	}
 	inv := profiledInvocation{launchInvocation: launchInvocation{args: []string{"/usr/bin/true"}, dir: root}, profile: adapter.ExecutionProfile{Version: 1, Role: adapter.Implementer, Permission: adapter.WorkspaceWrite, TimeoutMS: 1000}}
-	_, err = h.ExecuteLaunch(context.Background(), contract.LaunchCommand{CommandID: "c", ReservationID: "r", RunID: "r", TaskID: "t", AttemptID: "a", SegmentID: "s", WorkRevision: 1, GrantedActiveMS: 1000}, inv)
+	grant := managedHostGrant(t, h, contract.LaunchCommand{CommandID: "c", ReservationID: "r", RunID: "r", TaskID: "t", AttemptID: "a", SegmentID: "s", WorkRevision: 1, GrantedActiveMS: 1000})
+	_, err = h.ExecuteLaunch(context.Background(), grant, inv)
 	if err == nil || err.Error() != "managed_workspace_required" {
 		t.Fatalf("unmanaged host write: %v", err)
 	}

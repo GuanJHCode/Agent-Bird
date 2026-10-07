@@ -1,9 +1,9 @@
 package host
 
 import (
+	"context"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
-	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -42,7 +42,8 @@ func TestAutomaticWorkspacePreservesFailedAttemptAndAllocatesRetry(t *testing.T)
 	}
 	inv := automaticWriteInvocation{profiledInvocation: profiledInvocation{launchInvocation: launchInvocation{args: []string{"/usr/bin/false"}, dir: directory}, profile: adapter.ExecutionProfile{Version: 1, Role: adapter.Implementer, Permission: adapter.WorkspaceWrite, TimeoutMS: 10000}}, workspace: &adapter.CandidateWorkspace{Version: 1, RepoRoot: repo, BaseOID: base, Paths: []string{"file"}, AutoDirectory: true}}
 	for _, attempt := range []string{"first", "retry"} {
-		_, err = h.ExecuteLaunch(context.Background(), contract.LaunchCommand{CommandID: attempt, ReservationID: attempt, RunID: "run", TaskID: "task", AttemptID: attempt, SegmentID: attempt, WorkRevision: 1, PlanRevision: 1, GrantedActiveMS: 10000}, inv)
+		grant := managedHostGrant(t, h, contract.LaunchCommand{CommandID: attempt, ReservationID: attempt, RunID: "run", TaskID: "task", AttemptID: attempt, SegmentID: attempt, WorkRevision: 1, PlanRevision: 1, GrantedActiveMS: 10000})
+		_, err = h.ExecuteLaunch(context.Background(), grant, inv)
 		if err != nil {
 			t.Fatalf("attempt %s: %v", attempt, err)
 		}

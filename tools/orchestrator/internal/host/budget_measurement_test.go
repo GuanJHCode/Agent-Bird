@@ -26,7 +26,7 @@ while :; do sleep 0.05; done`, 400},
 			if err != nil {
 				t.Fatal(err)
 			}
-			grant := contract.LaunchCommand{CommandID: "measure-command-" + tc.name, ReservationID: "measure-reservation-" + tc.name, RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, GrantedActiveMS: tc.grantMS}
+			grant := managedHostGrant(t, h, contract.LaunchCommand{CommandID: "measure-command-" + tc.name, ReservationID: "measure-reservation-" + tc.name, RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, GrantedActiveMS: tc.grantMS})
 			inv := launchInvocation{args: []string{"/bin/sh", "-c", tc.script}}
 			_, _ = h.ExecuteLaunch(context.Background(), grant, inv)
 			sink := &durableSink{}

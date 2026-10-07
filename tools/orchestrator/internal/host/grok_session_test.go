@@ -153,7 +153,7 @@ func TestGrokHostLaunchUsesAuthorizedSession(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	grant := contract.LaunchCommand{CommandID: root, ReservationID: "reservation", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, GrantedActiveMS: 5000}
+	grant := managedHostGrant(t, h, contract.LaunchCommand{CommandID: "grok-" + hashBytes([]byte(root))[:16], ReservationID: "reservation", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, GrantedActiveMS: 5000})
 	socket := filepath.Join("/private/tmp", "codex-grok-"+grokSessionID(grant))
 	t.Cleanup(func() {
 		if err := os.Remove(socket); err != nil && !os.IsNotExist(err) {

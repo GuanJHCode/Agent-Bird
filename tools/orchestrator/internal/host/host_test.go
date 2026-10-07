@@ -85,28 +85,12 @@ func TestSubmitHostCollectAckAndExplicitResume(t *testing.T) {
 		_, _ = os.Stdout.WriteString("synthetic-result\n")
 		return
 	}
-	db, err := store.Open(filepath.Join(t.TempDir(), "state.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	db, h, grant := managedStoreHostFixture(t, "run", "task")
 	defer db.Close()
 	ctx := context.Background()
-	if err = db.CreateRun(ctx, store.RunSpec{ID: "run", ControllerThread: "thread", PlanRevision: 1, OriginContextID: "test", OriginPID: os.Getpid(), OriginBirth: "birth"}); err != nil {
-		t.Fatal(err)
-	}
-	if err = db.CreateTask(ctx, store.TaskSpec{ID: "task", RunID: "run", MaxAttempts: 3}); err != nil {
-		t.Fatal(err)
-	}
-	attempt, err := db.StartAttempt(ctx, "task", "segment-1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	h, err := New(db, filepath.Join(t.TempDir(), "spool"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	attempt := store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID}
 	cmd := process.Command{Path: func() string { p, _ := filepath.EvalSymlinks(os.Args[0]); return p }(), Args: []string{"-test.run=TestSubmitHostCollectAckAndExplicitResume"}, Env: []string{"G1_HOST_HELPER=1"}}
-	result, err := h.Execute(ctx, attempt, "run", "task", cmd)
+	result, err := h.ExecuteLaunch(ctx, grant, launchInvocation{args: append([]string{cmd.Path}, cmd.Args...), env: map[string]string{"G1_HOST_HELPER": "1"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,38 +101,69 @@ func TestSubmitHostCollectAckAndExplicitResume(t *testing.T) {
 	if err != nil || !strings.Contains(string(artifact), "synthetic-result\n") {
 		t.Fatalf("artifact=%q err=%v", artifact, err)
 	}
-	if _, err = h.Collect(ctx, attempt); err != nil {
-		t.Fatal(err)
-	}
-	sp, err := events.Open(filepath.Join(filepath.Dir(result.ArtifactPath)))
+	collected, err := h.Collect(ctx, attempt)
 	if err != nil {
 		t.Fatal(err)
 	}
-	var launch map[string]any
-	if err = sp.ReadMetadata("launch.json", &launch); err != nil {
+	var exited *contract.Event
+	for i := range collected {
+		if collected[i].Kind == contract.EventExited {
+			exited = &collected[i]
+		}
+	}
+	if exited == nil || exited.AttemptID != attempt.ID || exited.SegmentID != attempt.SegmentID || exited.Process == nil || exited.Process.PID <= 0 || exited.Process.PGID <= 0 || exited.Process.Birth == "" {
+		t.Fatalf("managed lifecycle events=%#v", collected)
+	}
+	if err = h.PublishAll(ctx, launchFailureDBSink{db}, 1); err != nil {
 		t.Fatal(err)
-	}
-	if launch["version"] != float64(1) || launch["phase"] != "exited" || launch["attempt_id"] != attempt.ID || launch["segment_id"] != attempt.SegmentID {
-		t.Fatalf("launch metadata=%#v", launch)
-	}
-	proc, ok := launch["process"].(map[string]any)
-	if !ok || proc["pid"] == nil || proc["pgid"] == nil || proc["executable_sha256"] == "" || proc["birth_known"] != true || proc["birth"] == "" {
-		t.Fatalf("process metadata=%#v", launch["process"])
 	}
 	if err = h.Ack(ctx, attempt); err != nil {
 		t.Fatal(err)
 	}
-	next, err := db.StartSegment(ctx, attempt.ID, "segment-2")
+}
+
+func TestManagedStoreResumeClaimsNewSegmentAfterStoppedExit(t *testing.T) {
+	db, h, first := managedStoreHostFixture(t, "resume-run", "resume-task")
+	defer db.Close()
+	ctx := context.Background()
+	marker := filepath.Join(t.TempDir(), "started")
+	done := make(chan error, 1)
+	go func() {
+		_, err := h.ExecuteLaunch(ctx, first, launchInvocation{args: []string{"/bin/sh", "-c", `echo ready > "$MARKER"; while :; do sleep 0.02; done`}, env: map[string]string{"MARKER": marker}})
+		done <- err
+	}()
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		if _, err := os.Stat(marker); err == nil {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("worker did not start")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if err := h.StopSegment(context.Background(), first.SegmentID); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-done; err == nil {
+		t.Fatal("stopped launch unexpectedly succeeded")
+	}
+	if err := h.PublishAll(ctx, launchFailureDBSink{db}, 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueueResume(ctx, first.TaskID, first.WorkRevision); err != nil {
+		t.Fatal(err)
+	}
+	second, err := db.ClaimReady(ctx, first.HostID, 1, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx2, cancel := context.WithTimeout(ctx, 2*time.Second)
-	defer cancel()
-	if _, err = h.Execute(ctx2, next, "run", "task", cmd); err != nil {
-		t.Fatal(err)
+	if second.AttemptID != first.AttemptID || second.SegmentID == first.SegmentID || second.HostArtifacts == nil || second.HostArtifacts.TerminalReservationID == first.HostArtifacts.TerminalReservationID || second.HostArtifacts.ProgressReservationID == first.HostArtifacts.ProgressReservationID {
+		t.Fatalf("resume grant did not allocate an independent managed slot: first=%+v second=%+v", first, second)
 	}
-	if err = h.Ack(ctx, next); err != nil {
-		t.Fatal(err)
+	result, err := h.ExecuteLaunch(ctx, second, launchInvocation{args: []string{"/bin/sh", "-c", "echo resumed"}})
+	if err != nil || result.Status != "result_ready" {
+		t.Fatalf("resumed result=%+v err=%v", result, err)
 	}
 }
 
@@ -156,34 +171,18 @@ func TestAckKeepsSpoolWhenDatabaseCommitFails(t *testing.T) {
 	if os.Getenv("G1_HOST_HELPER") == "1" {
 		return
 	}
-	db, err := store.Open(filepath.Join(t.TempDir(), "state.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	db, h, grant := managedStoreHostFixture(t, "run-ack", "task-ack")
 	ctx := context.Background()
-	if err = db.CreateRun(ctx, store.RunSpec{ID: "run-ack", ControllerThread: "thread", PlanRevision: 1, OriginContextID: "test", OriginPID: os.Getpid(), OriginBirth: "birth"}); err != nil {
-		t.Fatal(err)
-	}
-	if err = db.CreateTask(ctx, store.TaskSpec{ID: "task-ack", RunID: "run-ack", MaxAttempts: 3}); err != nil {
-		t.Fatal(err)
-	}
-	a, err := db.StartAttempt(ctx, "task-ack", "segment-1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	spoolRoot := filepath.Join(t.TempDir(), "spool")
-	h, err := New(db, spoolRoot)
-	if err != nil {
-		t.Fatal(err)
-	}
+	a := store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID}
+	spoolRoot := h.spoolRoot
 	cmd := process.Command{Path: func() string { p, _ := filepath.EvalSymlinks(os.Args[0]); return p }(), Args: []string{"-test.run=TestAckKeepsSpoolWhenDatabaseCommitFails"}, Env: []string{"G1_HOST_HELPER=1"}}
-	if _, err = h.Execute(ctx, a, "run-ack", "task-ack", cmd); err != nil {
+	if _, err := h.ExecuteLaunch(ctx, grant, launchInvocation{args: append([]string{cmd.Path}, cmd.Args...), env: map[string]string{"G1_HOST_HELPER": "1"}}); err != nil {
 		t.Fatal(err)
 	}
-	if err = db.Close(); err != nil {
+	if err := db.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if err = h.Ack(ctx, a); err == nil {
+	if err := h.Ack(ctx, a); err == nil {
 		t.Fatal("expected database failure")
 	}
 	s, err := events.Open(filepath.Join(spoolRoot, a.ID, a.SegmentID))
@@ -197,6 +196,44 @@ func TestAckKeepsSpoolWhenDatabaseCommitFails(t *testing.T) {
 	if acked != 0 {
 		t.Fatalf("spool ack advanced to %d", acked)
 	}
+}
+
+// managedStoreHostFixture exercises the same SubmitPlan/RegisterHost/ClaimReady
+// lifecycle as a coordinator. The test Host still owns only its private spool.
+func managedStoreHostFixture(t *testing.T, runID, taskID string) (*store.DB, *Host, contract.LaunchCommand) {
+	t.Helper()
+	root := t.TempDir()
+	db, err := store.Open(filepath.Join(root, "state.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	receipt, err := db.SubmitPlan(ctx, store.PlanSpec{
+		Run:   store.RunSpec{ID: runID, ControllerThread: "thread", PlanRevision: 1, OriginContextID: "test", OriginPID: os.Getpid(), OriginBirth: "birth"},
+		Host:  store.HostLaunchSpec{OriginContextID: "test", HostGeneration: "generation", Executable: "/private/fixture/host"},
+		Tasks: []store.TaskSpec{{ID: taskID, RunID: runID, MaxAttempts: 3, MaxActiveMS: 5000}},
+	})
+	if err != nil {
+		db.Close()
+		t.Fatal(err)
+	}
+	hostID, err := db.RegisterHost(ctx, contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: "test", OriginPID: os.Getpid(), OriginBirth: "birth", HostGeneration: "generation", PID: os.Getpid(), Birth: "host", Executable: "/private/fixture/host"}, 1)
+	if err != nil {
+		db.Close()
+		t.Fatal(err)
+	}
+	grant, err := db.ClaimReady(ctx, hostID, 1, 1)
+	if err != nil {
+		db.Close()
+		t.Fatal(err)
+	}
+	h, err := New(db, filepath.Join(root, "host-spool", hostID))
+	if err != nil {
+		db.Close()
+		t.Fatal(err)
+	}
+	h.producerID = hostID
+	return db, h, grant
 }
 
 type launchInvocation struct {

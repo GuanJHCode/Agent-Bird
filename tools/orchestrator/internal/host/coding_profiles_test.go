@@ -116,7 +116,7 @@ func runCodingHost(t *testing.T, root string, provider adapter.Provider, pin ada
 	if err != nil {
 		t.Fatal(err)
 	}
-	grant := contract.LaunchCommand{CommandID: root, ReservationID: "coding", RunID: "coding", TaskID: "implement", AttemptID: "first", SegmentID: "first", WorkRevision: 1, PlanRevision: 1, GrantedActiveMS: budget}
+	grant := managedHostGrant(t, h, contract.LaunchCommand{CommandID: "coding-" + hashBytes([]byte(root))[:16], ReservationID: "coding", RunID: "coding", TaskID: "implement", AttemptID: "first", SegmentID: "first", WorkRevision: 1, PlanRevision: 1, GrantedActiveMS: budget})
 	result, err := h.ExecuteLaunch(context.Background(), grant, reportInvocation{base: inv})
 	if err != nil || result.Status != "result_ready" || result.ExitCode != 0 {
 		t.Fatalf("result=%+v err=%v", result, err)
@@ -211,7 +211,7 @@ exit 1
 		t.Fatal(err)
 	}
 	for _, attempt := range []string{"first", "retry"} {
-		grant := contract.LaunchCommand{CommandID: attempt, ReservationID: attempt, RunID: "coding-" + hashBytes([]byte(root))[:16], TaskID: "implement", AttemptID: attempt, SegmentID: attempt, WorkRevision: 1, PlanRevision: 1, GrantedActiveMS: 5000}
+		grant := managedHostGrant(t, h, contract.LaunchCommand{CommandID: attempt, ReservationID: attempt, RunID: "coding-" + hashBytes([]byte(root))[:16], TaskID: "implement", AttemptID: attempt, SegmentID: attempt, WorkRevision: 1, PlanRevision: 1, GrantedActiveMS: 5000})
 		socket := filepath.Join("/private/tmp", "codex-grok-"+grokSessionID(grant))
 		if _, err := os.Lstat(socket); !os.IsNotExist(err) {
 			t.Fatalf("fixture socket already exists: %v", err)
