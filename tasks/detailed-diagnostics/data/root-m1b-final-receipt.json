@@ -1,0 +1,99 @@
+{
+  "base": "a708acd63aa0d9232256b69498f86459331278e1",
+  "scope": "F02 M1b private storage only; public M2/M3 still open",
+  "source_sha256": {
+    "tools/orchestrator/internal/diagnostics/capture.go": "f397e31bd83bba2c7be5129c74b956ffb8b33dc4a1cd4916460695d84ef1258d",
+    "tools/orchestrator/internal/diagnostics/capture_test.go": "1da5605473435f60151f3fe6c2a4aa6aab28cf8d0746630c6b6ca0bc78bdc48d",
+    "tools/orchestrator/internal/diagnostics/concurrency_test.go": "936027f6c7d23b05a5b4f52890b800b9b4ccd48c8812a69ceab9b88e17b7603e",
+    "tools/orchestrator/internal/diagnostics/contract_regression_test.go": "ce89219a6293cea058d4835883ca8a359a0269708a8d3bebd63d5fa84a388fb7",
+    "tools/orchestrator/internal/diagnostics/format.go": "647f45d76c2fa887c164046b9fc92a8c36b5b02efd6cc1eb0851b73b08263a14",
+    "tools/orchestrator/internal/diagnostics/format_test.go": "f893c003311bd44f6d2461f096d1a6c4dc8cbb2d1766f21622f9f86e614b4d93",
+    "tools/orchestrator/internal/diagnostics/manifest.go": "3e70d33dcc3a2b6bc737474785244c698d8a1bc370a22955b4e155fd98263419",
+    "tools/orchestrator/internal/diagnostics/manifest_test.go": "0d1ca352b99c5ef8f9269d2f3d0629e64ceee5f6116a43f898b78ccda6b6128b",
+    "tools/orchestrator/internal/diagnostics/native_lock_test.go": "ed90a237db5b90d49da6d37a2e81e15a34f42c96e88079bae8e7bf0660e637f2",
+    "tools/orchestrator/internal/diagnostics/private_fs.go": "e81be6c7b22f022052fbdc58766a2887576cf6970bda877b87b017c26f99f54c",
+    "tools/orchestrator/internal/diagnostics/private_fs_test.go": "8ac9f3298e9513d789de1d75c4724cce9f93081447a7f154248a7e4203ceae90",
+    "tools/orchestrator/internal/diagnostics/reader.go": "8c03f293aee395bbd27447cac0c1db01b71d01b08ed0a4471315e98710c762ed",
+    "tools/orchestrator/internal/diagnostics/recovery_floor_test.go": "ac7191ba1d29c94441ab544c4dafea03c561d546c3bbc4246291af9b9ddd4785",
+    "tools/orchestrator/internal/diagnostics/recovery_test.go": "c954cadbd9de79907e3a7de155ae65a93cf97cf85130226433cc1b3e50c025b5",
+    "tools/orchestrator/internal/diagnostics/rename_darwin.go": "6dadb6c1913d295a49a7eb3029c3b3c01df165070457989c5b193e158938aa85",
+    "tools/orchestrator/internal/diagnostics/rename_linux.go": "bff552b601fd83c15a7c7a23c80c75bc1d204bbdbf24e018b90de5fbfa734416",
+    "tools/orchestrator/internal/diagnostics/storage.go": "5bb335a23df6dae6afd3124582fc89902ea0db052a8ce92e99c6247b4716f5dc",
+    "tools/orchestrator/internal/diagnostics/storage_test.go": "8d1151335cd04c1617d39afb963e9ec3c2b10357a45b75443625dd8c5cfad911",
+    "tools/orchestrator/internal/diagnostics/writer.go": "351c9284dcdb64f25a83b69e848e4d8953ad39d98398ea6eb85d08e0ed3d4ae5"
+  },
+  "macos": {
+    "session_id": 98373,
+    "exit_code": 0,
+    "command": "TMPDIR=/private/tmp go test -race -json -count=1 ./internal/diagnostics",
+    "go": "go1.26.8 darwin/arm64",
+    "top_pass": 54,
+    "named_pass": 110,
+    "fail": [],
+    "skip": [],
+    "elapsed_seconds": 20.897,
+    "log": "tasks/detailed-diagnostics/data/root-m1b-race-v3.jsonl",
+    "log_sha256": "3a3d53dc6bcfc03982c7a84d6111ac62905baefdcab8d69d5653fcc6332c88cc"
+  },
+  "linux": {
+    "session_id": 82221,
+    "exit_code": 0,
+    "top_pass": 54,
+    "named_pass": 110,
+    "fail": [],
+    "skip": [],
+    "receipt": "tasks/detailed-diagnostics/data/linux-m1b/m1b-v3-receipt.json",
+    "log_sha256": "0fb58f12674f4e85c80f4c34acc1c6742f66253a28771fc1e8716f4f1ca9ca47",
+    "binary_sha256": "620c2ee1e073f189e03f15326dbd3fe4b6b4ae4774a82c9dc843ebcd74c27b53",
+    "cid": "2f45e0a11442eed854d295ef45b285f67b321b25d4d1d62183f2c68e893fe80b",
+    "removed": true
+  },
+  "cross_compile": {
+    "chunk_id": "4d8035",
+    "exit_code": 0,
+    "command": "GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go test -c ./internal/diagnostics"
+  },
+  "build": {
+    "session_id": 15421,
+    "exit_code": 0,
+    "command": "go build ./..."
+  },
+  "vet": {
+    "chunk_id": "45496b",
+    "exit_code": 0,
+    "command": "go vet ./..."
+  },
+  "behavioral_red": [
+    {
+      "session_id": 26347,
+      "exit_code": 1,
+      "log": "tasks/detailed-diagnostics/data/root-absent-target-red.jsonl",
+      "finding": "ordinary rename overwrote target created after final absence check"
+    },
+    {
+      "session_id": 66776,
+      "exit_code": 1,
+      "log": "tasks/detailed-diagnostics/data/root-recovery-floor-red.jsonl",
+      "finding": "known captured end was lost on rollback; abandoned segment reused"
+    },
+    {
+      "session_id": 54933,
+      "exit_code": 1,
+      "log": "tasks/detailed-diagnostics/data/root-partial-append-red.jsonl",
+      "finding": "partially accepted record followed by lock timeout could Close complete"
+    }
+  ],
+  "review": {
+    "private_fs_native_and_fault_fixture": "PASS linux_process_worker",
+    "manifest_writer_reader_and_recovery_floor": "PASS candidate_retry_review",
+    "partial_append_delta": "PASS candidate_retry_review"
+  },
+  "limitations": [
+    "No public Store/Host/Coordinator/CLI integration; schema remains18",
+    "No managed artifact allowance/intake/deletion integration",
+    "Controlled fault-phase injection is not physical disk-full, fsync-failure or power-loss acceptance",
+    "No Linux race, Intel Mac or Windows native check",
+    "No provider/model account calls, installation replacement, push or release",
+    "Same-owner private directory trust; not isolation from malicious same-UID mutations after final identity checks"
+  ]
+}

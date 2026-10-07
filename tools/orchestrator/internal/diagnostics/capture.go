@@ -52,9 +52,9 @@ type Record struct {
 	SegmentID  string
 	Offset     uint64
 	LostBefore uint64
-	// Data is immutable by contract. Records decoded from a chunk borrow the
-	// reader-owned page buffer and must not be retained or modified after that
-	// page is consumed. Lease.Record has the same borrow-only rule until Done.
+	// Data from a chunk iterator borrows its raw buffer. Lease.Record borrows
+	// capture storage until Done. Public Reader pages instead own their copied
+	// Data, which remains valid across subsequent reads.
 	Data []byte
 }
 
