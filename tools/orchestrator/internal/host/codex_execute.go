@@ -19,8 +19,9 @@ import (
 // The managed backend never attaches a legacy stdout collector. The original
 // handle is leased before Start; every returned handle, including h+err, is
 // attached to that lease before any phase/RPC/binding operation can fail.
-func (h *Host) executeManagedCodex(ctx context.Context, g contract.LaunchCommand, inv adapter.Invocation, meta launchMetadata, control codexExecuteControl) (contract.Result, error) {
-	ctx, cancel := context.WithCancel(ctx)
+func (h *Host) executeManagedCodex(ctx context.Context, g contract.LaunchCommand, inv adapter.Invocation, meta launchMetadata, control codexExecuteControl) (result contract.Result, returnedErr error) {
+	ctx, cancelCause := context.WithCancelCause(ctx)
+	cancel := func() { cancelCause(context.Canceled) }
 	lease, err := h.reserveCodexHandleLease(g, cancel)
 	if err != nil {
 		cancel()
@@ -37,7 +38,11 @@ func (h *Host) executeManagedCodex(ctx context.Context, g contract.LaunchCommand
 	}
 	cmd := process.Command{}
 	count := 0
+	var diagnosticState executionDiagnostics
 	appendEvent := func(kind string, id *process.Identity, exit *int, artifact *contract.ArtifactRef, fields structuredEventFields) error {
+		if kind == contract.EventExited {
+			fields.DiagnosticsFailure = diagnosticState.failure()
+		}
 		hash := hashText(kind + ":" + g.SegmentID)
 		if artifact != nil && kind != contract.EventExited {
 			hash = artifact.SHA256
@@ -74,6 +79,16 @@ func (h *Host) executeManagedCodex(ctx context.Context, g contract.LaunchCommand
 	if ctx.Err() != nil || h.stopWasRequested(g.SegmentID) {
 		return reject(context.Canceled)
 	}
+	if meta.diagnosticsGrant != nil {
+		frozen := meta.diagnosticsGrant
+		if frozen.Diagnostics == nil || frozen.RunID != g.RunID || frozen.TaskID != g.TaskID || frozen.AttemptID != g.AttemptID || frozen.SegmentID != g.SegmentID || frozen.HostID != g.HostID || frozen.CommandID != g.CommandID {
+			return reject(errDiagnosticAuthority)
+		}
+		policy := *frozen.Diagnostics
+		g.Diagnostics = &policy
+	} else if g.Diagnostics != nil {
+		return reject(errDiagnosticAuthority)
+	}
 	// Session selectors alone never authorize a legacy continuation. The typed
 	// decision below must restore the exact original protected/sealed chain.
 	if g.Continuation == nil && (g.SessionKind != "" || g.SessionID != "" || g.QuestionID != "" || g.QuestionRevision != 0 || g.Answer != "") {
@@ -103,6 +118,14 @@ func (h *Host) executeManagedCodex(ctx context.Context, g contract.LaunchCommand
 	if ctx.Err() != nil || h.stopWasRequested(g.SegmentID) || codexVerifyActorCommand(ctx, control.actor) != nil || codexVerifyManagedReferences(ctx, prepared) != nil || prepared.Previous == nil && codexVerifyInitialPrepared(ctx, prepared) != nil || prepared.Previous != nil && h.codexVerifyRestoredState(ctx, prepared) != nil {
 		return reject(errCodexStateFile)
 	}
+	diagnosticState.driver, err = h.openDetailedDiagnostics(ctx, g, diagnosticState.wakeExecution(cancelCause))
+	if err != nil {
+		return reject(err)
+	}
+	if diagnosticState.driver != nil {
+		cmd.ObserveOutput = diagnosticState.driver.Observe
+	}
+	defer func() { returnedErr = errors.Join(returnedErr, diagnosticState.end(false, returnedErr)) }()
 	if err = h.enterCodexLeaseStart(lease); err != nil {
 		return reject(err)
 	}
@@ -213,6 +236,16 @@ func (h *Host) executeManagedCodex(ctx context.Context, g contract.LaunchCommand
 	if activeMS < 0 {
 		return unknown(process.ErrProcessTreeUnknown, &id)
 	}
+	// The original process is proved regardless of the RPC outcome. A late
+	// logging abort cannot reclassify that outcome as caller cancellation.
+	diagnosticState.proved.Store(true)
+	if diagnosticState.driver != nil {
+		if client.ReadEOF() {
+			_ = diagnosticState.end(true, nil)
+		} else {
+			_ = diagnosticState.end(false, errors.New("codex_stdout_incomplete"))
+		}
+	}
 	ownerStopped := ctx.Err() != nil || h.stopWasRequested(g.SegmentID)
 	if !ownerStopped && runErr == nil && h.codexVerifyBoundThread(ctx, prepared, bound) != nil {
 		runErr = errCodexStateFile
@@ -282,7 +315,8 @@ func (h *Host) runManagedCodexTurn(ctx context.Context, client *codexrpc.Client,
 	var bound codexBoundThread
 	prompt := strings.TrimSuffix(p.Descriptor.Prompt, "\n\n"+adapter.ManagedTaskInstruction())
 	out, err := codexsession.Run(ctx, client, p.Projection, codexsession.Options{
-		CWD: p.Origin.Workspace, OwnedHome: p.Layout.Home.Path,
+		RequireStdoutEOF: g.Diagnostics != nil,
+		CWD:              p.Origin.Workspace, OwnedHome: p.Layout.Home.Path,
 		PlatformFamily: "unix", PlatformOS: "macos", Prompt: prompt, ResumeThreadID: p.Descriptor.ResumeThreadID,
 		OnThread: func(callbackCtx context.Context, binding codexsession.ThreadBinding) error {
 			var err error

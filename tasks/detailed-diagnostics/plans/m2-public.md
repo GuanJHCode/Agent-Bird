@@ -3,8 +3,10 @@
 Base229dc15; process observer integrated at12cbaee. ROOT alone writes integration, schema19 and public contracts.
 M2a consent/config/admission and durable schema foundation are verified;
 Claim/Launch reservation authority is verified in bb70c55 (M2b). Private Host
-capture driver and Writer.Abort are now under M2c foundation verification;
-ordinary/duplex execution hooks, public read/ACK and M3 remain unimplemented.
+capture driver and Writer.Abort are verified in041d955; ordinary execution and
+failure projection are verified in177769b. Managed Codex original-reader drain
+and capture are verified in `tasks/diagnostic-codex-integration/docs/validation.md`.
+Public read/ACK and M3 remain unimplemented.
 See docs/m2a-validation.md and docs/m2b-validation.md.
 The process output observer is independently implemented in isolated
 `diagnostic-output-tap` at the same base. ROOT retains macOS/Docker native tokens.

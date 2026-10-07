@@ -5,9 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -49,12 +51,15 @@ func TestClientConcurrentCloseWriteWaitsForOneOperation(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	release := make(chan struct{})
+	var releaseOnce sync.Once
+	releaseWrite := func() { releaseOnce.Do(func() { close(release) }) }
 	stream := &pipeHalfStream{reader: toClient, writer: fromClient, entered: make(chan struct{}), release: release}
 	c, err := New(ctx, stream, Limits{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
+		releaseWrite()
 		cancel()
 		_ = c.Close()
 		_ = fromPeer.Close()
@@ -74,12 +79,87 @@ func TestClientConcurrentCloseWriteWaitsForOneOperation(t *testing.T) {
 		t.Fatalf("second CloseWrite returned before the shared operation: %v", err)
 	case <-time.After(20 * time.Millisecond):
 	}
-	close(release)
+	releaseWrite()
 	if err := <-first; err != nil {
 		t.Fatal(err)
 	}
 	if err := <-second; err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestClientCloseWriteErrorRacesOriginalEOFAndFullClose(t *testing.T) {
+	for _, eof := range []bool{false, true} {
+		t.Run(fmt.Sprint(eof), func(t *testing.T) {
+			c, stdin, stdout, ctx := halfPipeFixture(t)
+			s := c.stream.(*pipeHalfStream)
+			release := make(chan struct{})
+			var releaseOnce sync.Once
+			releaseWrite := func() { releaseOnce.Do(func() { close(release) }) }
+			t.Cleanup(releaseWrite)
+			s.entered, s.release = make(chan struct{}), release
+			// Force a real Close error while the other direction stays live.
+			if err := s.writer.Close(); err != nil {
+				t.Fatal(err)
+			}
+			first := make(chan error, 1)
+			second := make(chan error, 1)
+			go func() { first <- c.CloseWrite() }()
+			select {
+			case <-s.entered:
+			case <-ctx.Done():
+				t.Fatal("half-close never entered original operation")
+			}
+			go func() { second <- c.CloseWrite() }()
+			var full chan error
+			if eof {
+				if err := stdout.Close(); err != nil {
+					t.Fatal(err)
+				}
+				select {
+				case <-c.Done():
+				case <-ctx.Done():
+					t.Fatal("original reader did not observe EOF")
+				}
+				full = make(chan error, 1)
+				go func() { full <- c.Close() }()
+			}
+			releaseWrite()
+			want := error(ErrIO)
+			if eof {
+				want = nil
+			}
+			for _, result := range []<-chan error{first, second} {
+				select {
+				case err := <-result:
+					if !errors.Is(err, want) {
+						t.Fatalf("shared half-close=%v want %v", err, want)
+					}
+				case <-ctx.Done():
+					t.Fatal("shared half-close did not join")
+				}
+			}
+			if full != nil {
+				select {
+				case err := <-full:
+					if err != nil {
+						t.Fatal(err)
+					}
+				case <-ctx.Done():
+					t.Fatal("racing full Close did not join")
+				}
+			}
+			if c.ReadEOF() != eof {
+				t.Fatal("Close error fabricated or lost original EOF")
+			}
+			if !eof && !errors.Is(c.Err(), ErrIO) {
+				t.Fatal("underlying Close error escaped transport classification")
+			}
+			var b [1]byte
+			if n, err := stdin.Read(b[:]); n != 0 || err != io.EOF {
+				t.Fatalf("stdin not closed: %d %v", n, err)
+			}
+		})
 	}
 }
 
@@ -163,7 +243,7 @@ func (s *pipeHalfStream) Close() error {
 	return s.closeErr
 }
 
-func halfPipeFixture(t *testing.T) (*Client, *os.File, *os.File, context.Context) {
+func halfPipeFixture(t *testing.T, limits ...Limits) (*Client, *os.File, *os.File, context.Context) {
 	t.Helper()
 	toClient, fromPeer, err := os.Pipe()
 	if err != nil {
@@ -177,7 +257,11 @@ func halfPipeFixture(t *testing.T) (*Client, *os.File, *os.File, context.Context
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	stream := &pipeHalfStream{reader: toClient, writer: fromClient}
-	c, err := New(ctx, stream, Limits{})
+	l := Limits{}
+	if len(limits) != 0 {
+		l = limits[0]
+	}
+	c, err := New(ctx, stream, l)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -185,9 +269,27 @@ func halfPipeFixture(t *testing.T) (*Client, *os.File, *os.File, context.Context
 		cancel()
 		_ = c.Close()
 		_ = fromPeer.Close()
-		_ = fromClient.Close()
+		_ = toPeer.Close()
 	})
 	return c, toPeer, fromPeer, ctx
+}
+
+func TestClientReadEOFLatchesBeforeOversizeClassification(t *testing.T) {
+	c, _, stdout, ctx := halfPipeFixture(t, Limits{FrameBytes: 16})
+	if _, err := io.WriteString(stdout, strings.Repeat("x", 18)); err != nil {
+		t.Fatal(err)
+	}
+	if err := stdout.Close(); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-c.Done():
+	case <-ctx.Done():
+		t.Fatal("oversize EOF did not finish")
+	}
+	if !c.ReadEOF() || !errors.Is(c.Err(), ErrFrameLimit) {
+		t.Fatalf("raw EOF lost during oversize classification: eof=%v err=%v", c.ReadEOF(), c.Err())
+	}
 }
 
 func TestClientCloseWriteDeliversEOFAndDrainsLateFrames(t *testing.T) {

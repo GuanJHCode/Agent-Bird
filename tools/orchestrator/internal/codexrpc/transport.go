@@ -151,16 +151,27 @@ func (c *Client) CloseWrite() error {
 	}
 
 	c.mu.Lock()
+	if closeErr != nil && c.readEOF && c.err == nil {
+		// ReadEOF precedes classification of the final bytes. Let the
+		// original reader publish EOF versus an invalid final frame before
+		// treating a racing closed writer as an independent I/O failure.
+		terminal := c.done
+		c.mu.Unlock()
+		<-terminal
+		c.mu.Lock()
+	}
 	if closeErr != nil && c.readEOF && errors.Is(c.err, io.EOF) {
 		closeErr = nil
 	}
-	c.closeWriteErr = closeErr
-	c.closingWrite = false
-	close(done)
 	c.mu.Unlock()
 	if closeErr != nil {
 		c.fail(closeErr)
 	}
+	c.mu.Lock()
+	c.closeWriteErr = closeErr
+	c.closingWrite = false
+	close(done)
+	c.mu.Unlock()
 	return closeErr
 }
 
@@ -495,6 +506,11 @@ func (c *Client) readPump() {
 	var body []byte
 	for {
 		part, err := reader.ReadSlice('\n')
+		if errors.Is(err, io.EOF) {
+			c.mu.Lock()
+			c.readEOF = true
+			c.mu.Unlock()
+		}
 		if len(body)+len(part) > c.limits.FrameBytes+1 {
 			c.fail(ErrFrameLimit)
 			return
@@ -504,11 +520,6 @@ func (c *Client) readPump() {
 			continue
 		}
 		if err != nil {
-			if errors.Is(err, io.EOF) {
-				c.mu.Lock()
-				c.readEOF = true
-				c.mu.Unlock()
-			}
 			if len(body) > c.limits.FrameBytes {
 				c.fail(ErrFrameLimit)
 			} else if len(body) > 0 {

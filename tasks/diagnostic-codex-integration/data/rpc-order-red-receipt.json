@@ -1,0 +1,16 @@
+{
+  "source": "tools/orchestrator/internal/codexrpc/transport.go",
+  "source_sha256": "bb8f4ca8ef9a6ee1339d2a12fea47aa2787c4bdd961541006f454dec624da9b0",
+  "mutations": {
+    "eof-classification": {
+      "overlay": "tasks/diagnostic-codex-integration/tmp/order-red/eof-classification-overlay.json",
+      "archive": "tasks/diagnostic-codex-integration/data/eof-classification-old.go.txt",
+      "sha256": "25de019ab23aab199cf5f21c77d7ff89747b6673601b141321e01bad5e4bb021"
+    },
+    "failure-publication": {
+      "overlay": "tasks/diagnostic-codex-integration/tmp/order-red/failure-publication-overlay.json",
+      "archive": "tasks/diagnostic-codex-integration/data/failure-publication-old.go.txt",
+      "sha256": "50e3e804a515294f2dcef25b7e853763e7c58f788f8c87e0415d296599b9d1b8"
+    }
+  }
+}

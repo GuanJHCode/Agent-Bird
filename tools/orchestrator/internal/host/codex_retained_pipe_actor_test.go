@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -17,6 +18,7 @@ import (
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/codexsession"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/diagnostics"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
 	"golang.org/x/sys/unix"
@@ -39,10 +41,48 @@ func TestManagedCodexRetainedPipeActor(t *testing.T) {
 	if err != nil || len(root.Parents) == 0 || root.Parents[len(root.Parents)-1].Mode != 0700 {
 		t.Fatal("canonical original owned evidence directory required")
 	}
+	root = codexActorSuiteRoot(t, root, "retained")
+	providerPath := os.Getenv("C06_MANAGED_ACTOR_PROVIDER_PATH")
+	if providerPath == "" {
+		providerPath = codexActorProviderPath
+	}
 	for _, name := range []string{"two_questions", "malformed", "permission", "segment_stop", "stop_all", "first_canceled_unknown"} {
-		if !t.Run(name, func(t *testing.T) { codexRunRetainedPipeActor(t, root, name) }) {
+		if !t.Run(name, func(t *testing.T) { codexRunRetainedPipeActor(t, root, name, false, providerPath) }) {
 			// Includes unproved original Wait/tree/Execute join. Do not launch
 			// another case after a failed lifecycle/cleanup assertion.
+			t.Fatal("actor case failed; subsequent cases not started")
+		}
+	}
+}
+
+func codexActorSuiteRoot(t *testing.T, root codexStateRoot, name string) codexStateRoot {
+	t.Helper()
+	path := filepath.Join(root.Path, name)
+	if err := os.Mkdir(path, 0700); err != nil {
+		t.Fatal("fresh suite directory required", err)
+	}
+	result, err := codexAnchorStateRoot(context.Background(), path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return result
+}
+
+func TestManagedCodexDiagnosticActor(t *testing.T) {
+	if os.Getenv("C06_MANAGED_ACTOR_OPT_IN") != codexActorOptIn || os.Getenv("C06_MANAGED_ACTOR_EVIDENCE_DIR") == "" {
+		t.Skip("ROOT reviewed double opt-in detailed diagnostic actor")
+	}
+	root, err := codexAnchorStateRoot(context.Background(), os.Getenv("C06_MANAGED_ACTOR_EVIDENCE_DIR"))
+	if err != nil || len(root.Parents) == 0 || root.Parents[len(root.Parents)-1].Mode != 0700 {
+		t.Fatal("canonical original owned evidence directory required")
+	}
+	root = codexActorSuiteRoot(t, root, "diagnostic")
+	providerPath := os.Getenv("C06_MANAGED_ACTOR_PROVIDER_PATH")
+	if !codexCanonicalPath(providerPath) {
+		t.Fatal("explicit canonical pinned provider path required; binary is hashed, not executed")
+	}
+	for _, name := range []string{"immutable_grant", "two_questions", "malformed", "permission", "segment_stop", "stop_all", "first_canceled_unknown", "diagnostics_failure"} {
+		if !t.Run(name, func(t *testing.T) { codexRunRetainedPipeActor(t, root, name, true, providerPath) }) {
 			t.Fatal("actor case failed; subsequent cases not started")
 		}
 	}
@@ -67,6 +107,7 @@ func TestManagedCodexActorHelperProcess(t *testing.T) {
 	if err != nil {
 		os.Exit(92)
 	}
+	fmt.Fprint(os.Stderr, "owned actor stderr\n")
 	if err := codexActorProtocol(ctx, os.Stdin, os.Stdout, os.Getenv("CODEX_HOME"), cwd, os.Args[len(os.Args)-1], os.Getpid()); err != nil {
 		os.Exit(92)
 	}
@@ -342,7 +383,7 @@ type codexActorSegmentEvidence struct {
 	EventKinds                           []string
 }
 
-func codexRunRetainedPipeActor(t *testing.T, evidence codexStateRoot, name string) {
+func codexRunRetainedPipeActor(t *testing.T, evidence codexStateRoot, name string, detailed bool, providerPath string) {
 	t.Helper()
 	base := filepath.Join(evidence.Path, name)
 	if os.Mkdir(base, 0700) != nil {
@@ -375,14 +416,18 @@ func codexRunRetainedPipeActor(t *testing.T, evidence codexStateRoot, name strin
 	if err != nil {
 		t.Fatal("helper digest")
 	}
-	providerSHA, err := process.ExecutableDigest(ctx, codexActorProviderPath)
+	providerSHA, err := process.ExecutableDigest(ctx, providerPath)
 	if err != nil || providerSHA != adapter.CodexSHA256 {
 		t.Fatal("original provider pin must independently match; no provider execution")
 	}
 	profile := adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, CLIModelDefault: true, TimeoutMS: 60000}
-	lock := adapter.ProviderLock{Version: 1, Provider: adapter.ProviderCodex, Protocol: adapter.ProtocolID(adapter.ProviderCodex), Binary: adapter.BinaryPin{Path: codexActorProviderPath, SHA256: adapter.CodexSHA256, Version: adapter.CodexVersion}}
+	lock := adapter.ProviderLock{Version: 1, Provider: adapter.ProviderCodex, Protocol: adapter.ProtocolID(adapter.ProviderCodex), Binary: adapter.BinaryPin{Path: providerPath, SHA256: adapter.CodexSHA256, Version: adapter.CodexVersion}}
 	payload, _ := json.Marshal(adapter.InvocationPayload{Kind: "provider", Provider: string(adapter.ProviderCodex), Directory: cwd, Prompt: "synthetic readonly task", Profile: &profile, ProviderLock: &lock})
 	g := contract.LaunchCommand{RunID: "actor-run", TaskID: "actor-task", AttemptID: "actor-attempt", SegmentID: "segment-1", WorkRevision: 1, PlanRevision: 1, CommandID: "command-1", HostID: "actor-host", ExecutionEpoch: 1, ReservationID: "reservation-1", GrantedActiveMS: 60000, AdapterPayload: payload}
+	if detailed {
+		g.HostID = "actor-producer"
+		g.Diagnostics = diagnosticGrant().Diagnostics
+	}
 	inv, err := adapter.BuildManagedCodexInvocation(adapter.Request{Provider: adapter.ProviderCodex, Binary: lock.Binary, Lock: &lock, Profile: &profile, CWD: cwd, Prompt: "synthetic readonly task"})
 	if err != nil {
 		t.Fatal("private invocation fixture")
@@ -410,7 +455,7 @@ func codexRunRetainedPipeActor(t *testing.T, evidence codexStateRoot, name strin
 		switch name {
 		case "malformed", "permission":
 			scenario = name
-		case "segment_stop", "stop_all":
+		case "segment_stop", "stop_all", "diagnostics_failure":
 			scenario = "hold"
 		case "first_canceled_unknown":
 			scenario = "unknown"
@@ -418,8 +463,48 @@ func codexRunRetainedPipeActor(t *testing.T, evidence codexStateRoot, name strin
 		if cycle == 2 {
 			scenario = "result"
 		}
+		if name == "immutable_grant" {
+			scenario = "result"
+		}
 		records, result, runErr, observation := codexActorOneSegment(t, ctx, h, g, inv, codexActorCommand{Path: helper, SHA256: helperSHA, Scenario: scenario}, name)
 		segments = append(segments, observation)
+		if detailed {
+			page := readNativeDiagnosticPage(t, h, g)
+			var stdout, stderr string
+			for _, record := range page.Records {
+				if record.Stream == diagnostics.Stdout {
+					stdout += string(record.Data)
+				} else {
+					stderr += string(record.Data)
+				}
+			}
+			complete := page.Snapshot.Closed && !page.Snapshot.Incomplete
+			mustAbort := name == "malformed" || name == "first_canceled_unknown" || name == "diagnostics_failure"
+			successful := name == "two_questions" || name == "immutable_grant"
+			if successful && !complete || mustAbort && complete || !complete && !page.Snapshot.Incomplete {
+				t.Fatalf("incorrect original raw completion: %+v", page.Snapshot)
+			}
+			if successful && (!strings.Contains(stdout, `"method":"turn/completed"`) || !strings.Contains(stderr, "owned actor stderr\n")) {
+				t.Fatal("original stdout/stderr missing")
+			}
+			for _, e := range records {
+				// Permission/cancel can race a genuine pipe EOF; the RPC tests
+				// independently distinguish EOF from forced close. Either path
+				// must project the same capture state on the original exit.
+				if e.Kind == contract.EventExited && (e.DiagnosticsFailure != nil) == complete {
+					t.Fatal("raw capture failure not reflected on original Exited")
+				}
+				if name == "diagnostics_failure" && e.Kind == contract.EventStopped && e.StopReason != "diagnostics_unavailable" {
+					t.Fatal("storage cancellation cause lost")
+				}
+			}
+		}
+		if name == "immutable_grant" {
+			if runErr != nil || result.Status != "result_ready" || !observation.OriginalWait || !observation.TreeAbsent || observation.ExitCode != 0 || !observation.SessionBeforeTurn || !codexActorHasEvent(records, contract.EventResult) {
+				t.Fatal("validated diagnostic snapshot did not govern the original execution")
+			}
+			break
+		}
 		if name != "two_questions" {
 			if name == "malformed" || name == "permission" {
 				if runErr == nil || result.Status != "failed" || codexActorHasEvent(records, contract.EventQuestion) || codexActorHasEvent(records, contract.EventResult) || !codexActorHasEvent(records, contract.EventFailed) {
@@ -461,6 +546,9 @@ func codexRunRetainedPipeActor(t *testing.T, evidence codexStateRoot, name strin
 		ref := &contract.ContinuationRef{Version: 1, Mode: contract.ContinuationQuestion, SourceKind: "host", SourceSegmentID: g.SegmentID, SourceEventID: question.EventID, SourceEventRevision: question.Sequence, SourceEventSHA256: question.PayloadHash, SessionEventID: initialSession, AdapterPayloadSHA256: codexDigest(g.AdapterPayload), OwnerContextID: "actor-owner"}
 		g.SegmentID, g.CommandID, g.ReservationID = fmt.Sprintf("segment-%d", cycle+2), fmt.Sprintf("command-%d", cycle+2), fmt.Sprintf("reservation-%d", cycle+2)
 		g.ExecutionEpoch++
+		if detailed {
+			g.Diagnostics.SegmentOrdinal++
+		}
 		g.SessionKind, g.SessionID, g.QuestionID, g.QuestionRevision, g.Answer, g.Continuation = "session-id", codexActorThreadID, question.QuestionID, question.QuestionRevision, "next synthetic readonly answer", ref
 		inv, err = adapter.BuildManagedCodexInvocation(adapter.Request{Provider: adapter.ProviderCodex, Binary: lock.Binary, Lock: &lock, Profile: &profile, CWD: cwd, Prompt: g.Answer, Session: adapter.SessionRef{Kind: adapter.SessionID, ID: g.SessionID}, Continuation: ref})
 		if err != nil {
@@ -584,7 +672,14 @@ func codexActorOneSegment(t *testing.T, parentCtx context.Context, h *Host, g co
 		}
 	}()
 	go func() {
-		result, err := h.executeLaunch(ctx, g, inv, codexExecuteControl{actor: actor})
+		grant := g
+		control := codexExecuteControl{actor: actor}
+		if testCase == "immutable_grant" {
+			mutable := *g.Diagnostics
+			grant.Diagnostics = &mutable
+			control.beforeStart = func() { mutable.PolicySHA256 = strings.Repeat("f", 64); mutable.SegmentOrdinal = 99 }
+		}
+		result, err := h.executeLaunch(ctx, grant, inv, control)
 		done <- returned{result, err}
 	}()
 	for p == nil {
@@ -615,6 +710,18 @@ func codexActorOneSegment(t *testing.T, parentCtx context.Context, h *Host, g co
 	observation.SessionBeforeTurn = err == nil && codexActorHasEvent(events, contract.EventSession) && statErr == nil && threadInfo.Mode().IsRegular() && threadInfo.Mode().Perm() == 0600
 	if !observation.SessionBeforeTurn {
 		t.Fatal("turn reached before original durable protected binding/Session")
+	}
+	fault := ""
+	if testCase == "diagnostics_failure" {
+		scope, _, err := diagnosticLaunchScope(h.producerID, g)
+		if err != nil {
+			t.Fatal(err)
+		}
+		namespace, _ := scope.Hash()
+		fault = filepath.Join(h.spoolRoot, g.AttemptID, ".diagnostics", namespace, "manifest.stage")
+		if err := os.Mkdir(fault, 0700); err != nil {
+			t.Fatal(err)
+		}
 	}
 	if codexActorWriteMarker(home, id.PID, "turn-release") != nil {
 		t.Fatal("actual child turn release")
@@ -663,6 +770,11 @@ func codexActorOneSegment(t *testing.T, parentCtx context.Context, h *Host, g co
 	observation.OriginalWait = p.Wait(parentCtx) == nil
 	observation.TreeAbsent = p.ConfirmTreeExited() == nil
 	observation.ExitCode = p.ExitCode()
+	if fault != "" {
+		if err := os.Remove(fault); err != nil {
+			t.Fatal(err)
+		}
+	}
 	stderr := p.Output()
 	observation.StderrBytes, observation.StderrSHA256 = len(stderr), codexDigest([]byte(stderr))
 	events, err = spool.Read()

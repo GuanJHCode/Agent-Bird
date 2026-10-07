@@ -80,11 +80,15 @@ tested binaries remain local evidence; compact receipts are committed.
 
 ## Remaining scope
 
-Codex duplex is not wired: `codexsession.Run` closes the RPC client, whose failure
+At this ordinary-Host milestone, Codex duplex was not wired: `codexsession.Run` closes the RPC client, whose failure
 path closes stdout before necessarily observing EOF. Child Wait proves stderr
 and process completion, not that the sole RPC stdout reader drained. A future
 same-reader shutdown/drain receipt must precede any complete raw-log claim; no
 second stdout reader or duplicate observer is permitted.
+
+Subsequent Codex capture and same-reader drain verification is recorded in
+`tasks/diagnostic-codex-integration/docs/validation.md`; it supersedes the Codex
+gap above, with the native and synthetic boundaries stated there.
 
 Public read/ACK authorization and replay, reservation activation/retained
 verification, all-writer artifact intake/delete and the complete 2 GiB allowance,

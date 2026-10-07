@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -27,6 +28,9 @@ type ThreadBinding struct {
 // OnThread is a trusted cooperative callback: it must respond to its original
 // context. Run never detaches it or claims to forcibly terminate Go code.
 type Options struct {
+	// RequireStdoutEOF preserves the original RPC reader through stdin EOF.
+	// It changes no permission or output acceptance rules.
+	RequireStdoutEOF                                                   bool
 	CWD, OwnedHome, PlatformFamily, PlatformOS, Prompt, ResumeThreadID string
 	OnThread                                                           func(context.Context, ThreadBinding) error
 }
@@ -134,21 +138,39 @@ func Run(ctx context.Context, client *codexrpc.Client, projection *codexconfig.P
 	if err = launch("initialize", init); err != nil {
 		return s.out, err
 	}
+	events := client.Events()
+	writeClosed := false
+	acceptClosedEvents := func() error {
+		if runCtx.Err() != nil {
+			return runCtx.Err()
+		}
+		if options.RequireStdoutEOF && client.ReadEOF() && errors.Is(client.Err(), io.EOF) {
+			// Receiving ok=false is the barrier: every buffered event before
+			// the reader's EOF has already passed through this same reducer.
+			events = nil
+			return nil
+		}
+		s.noteFailure("transport", "events_closed", "")
+		return ErrProtocol
+	}
 	for {
 		if runCtx.Err() != nil {
 			return s.out, runCtx.Err()
+		}
+		if events == nil && job == nil && s.terminal == nil {
+			s.noteFailure("transport", "events_closed", "")
+			return s.out, ErrProtocol
 		}
 		if s.terminal != nil && job == nil {
 			// A matched reply cannot jump over already queued permission/error
 			// events. Drain them with the same original context before finishing.
 			select {
-			case event, ok := <-client.Events():
+			case event, ok := <-events:
 				if !ok {
-					if runCtx.Err() != nil {
-						return s.out, runCtx.Err()
+					if err = acceptClosedEvents(); err != nil {
+						return s.out, err
 					}
-					s.noteFailure("transport", "events_closed", "")
-					return s.out, ErrProtocol
+					continue
 				}
 				if err = s.event(event); err != nil {
 					return s.out, err
@@ -156,7 +178,10 @@ func Run(ctx context.Context, client *codexrpc.Client, projection *codexconfig.P
 				continue
 			default:
 			}
-			if client.Err() != nil {
+			if events == nil {
+				return s.finish()
+			}
+			if client.Err() != nil && !(options.RequireStdoutEOF && client.ReadEOF() && errors.Is(client.Err(), io.EOF)) {
 				if runCtx.Err() != nil {
 					return s.out, runCtx.Err()
 				}
@@ -166,18 +191,31 @@ func Run(ctx context.Context, client *codexrpc.Client, projection *codexconfig.P
 			if runCtx.Err() != nil {
 				return s.out, runCtx.Err()
 			}
-			return s.finish()
+			if !options.RequireStdoutEOF {
+				return s.finish()
+			}
+			if !writeClosed {
+				if err = client.CloseWrite(); err != nil {
+					if runCtx.Err() != nil {
+						return s.out, runCtx.Err()
+					}
+					s.noteFailure("transport", "close_write", "")
+					return s.out, ErrProtocol
+				}
+				writeClosed = true
+			}
+			// Block in the normal event/context select below; no polling,
+			// raw drain or second stdout consumer can skip a late refusal.
 		}
 		select {
 		case <-runCtx.Done():
 			return s.out, runCtx.Err()
-		case event, ok := <-client.Events():
+		case event, ok := <-events:
 			if !ok {
-				if runCtx.Err() != nil {
-					return s.out, runCtx.Err()
+				if err = acceptClosedEvents(); err != nil {
+					return s.out, err
 				}
-				s.noteFailure("transport", "events_closed", "")
-				return s.out, ErrProtocol
+				continue
 			}
 			if err = s.event(event); err != nil {
 				return s.out, err
@@ -208,13 +246,13 @@ func Run(ctx context.Context, client *codexrpc.Client, projection *codexconfig.P
 					return s.out, runCtx.Err()
 				}
 				select {
-				case event, ok := <-client.Events():
+				case event, ok := <-events:
 					if !ok {
-						if runCtx.Err() != nil {
-							return s.out, runCtx.Err()
+						if err = acceptClosedEvents(); err != nil {
+							return s.out, err
 						}
-						s.noteFailure("transport", "events_closed", "")
-						return s.out, ErrProtocol
+						draining = false
+						continue
 					}
 					if err = s.event(event); err != nil {
 						return s.out, err
