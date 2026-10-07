@@ -259,7 +259,7 @@ func reconcileCurrentOwnerTransport(ctx context.Context, cfg OriginalOwnerConfig
 		}
 		// It is legal only
 		// after the parent transport has completed its ordinary HostHello.
-		reply, callErr := enrollment.client.Call(ctx, last.permit.ControlRevision, "state", cfg.Bootstrap.Prepared.Intent.RequestID, struct{}{})
+		reply, callErr := callOwnerRuntimeOperation(ctx, enrollment.client.Call, last.permit.ControlRevision, "state", cfg.Bootstrap.Prepared.Intent.RequestID, struct{}{})
 		if callErr != nil {
 			if transientSourceError(callErr) {
 				continue
@@ -285,7 +285,7 @@ func reconcileCurrentOwnerTransport(ctx context.Context, cfg OriginalOwnerConfig
 			renewal = &value
 			requestID = fmt.Sprintf("%s:renew:%d", state.Permit.PermitID, reply.CoordinatorEpoch)
 		}
-		reply, callErr = enrollment.client.Call(ctx, renewal.ExpectedControlRevision, "attach", requestID, *renewal)
+		reply, callErr = callOwnerRuntimeOperation(ctx, enrollment.client.Call, renewal.ExpectedControlRevision, "attach", requestID, *renewal)
 		if callErr != nil {
 			if transientSourceError(callErr) {
 				continue
