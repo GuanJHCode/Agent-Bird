@@ -147,6 +147,9 @@ type HostHello struct {
 	PID             int    `json:"pid"`
 	Birth           string `json:"birth"`
 	Executable      string `json:"executable"`
+	// ResumeCommandID selects an already-authorized succession. It is not
+	// authority and never changes the physical identity or recovery scope.
+	ResumeCommandID string `json:"resume_command_id,omitempty"`
 }
 
 type HostReady struct {

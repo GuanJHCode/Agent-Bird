@@ -62,6 +62,12 @@ type OriginalOwnerSuccessionAuthorization struct {
 	CreatedAt                  string                          `json:"created_at"`
 }
 
+// OriginalOwnerResumeRequestSHA256 lets the CLI verify an authenticated receipt
+// against the same canonical request used by both durable Resume modes.
+func OriginalOwnerResumeRequestSHA256(r OriginalOwnerResumeRequest) (string, error) {
+	return originalOwnerResumeHash(r)
+}
+
 func originalOwnerResumeHash(r OriginalOwnerResumeRequest) (string, error) {
 	if r.TaskID == "" || r.ControllerThread == "" || r.ControlToken == "" || r.WorkRevision < 1 || r.CommandID == "" || len(r.CommandID) > 128 || !utf8.ValidString(r.CommandID) || strings.ContainsRune(r.CommandID, 0) || strings.TrimSpace(r.CommandID) != r.CommandID {
 		return "", CodeError("owner_resume_invalid")

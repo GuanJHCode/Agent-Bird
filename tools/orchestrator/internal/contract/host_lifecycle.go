@@ -43,6 +43,7 @@ func (d HostDisposition) AuthenticatedBy(hello HostHello) bool {
 // launch scope that intentionally excludes mutable PID/birth identities.
 func HostIdentitySHA256(hello HostHello) string {
 	hello.LaunchToken = ""
+	hello.ResumeCommandID = ""
 	body, _ := json.Marshal(hello)
 	digest := sha256.Sum256(body)
 	return hex.EncodeToString(digest[:])

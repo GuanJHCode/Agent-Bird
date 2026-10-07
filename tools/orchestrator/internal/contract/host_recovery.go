@@ -33,4 +33,6 @@ type HostPresenceResponse struct {
 	Status             string `json:"status"`
 	Presence           string `json:"presence"`
 	ExecutionOwnerMode string `json:"execution_owner_mode"`
+	OwnerPhase         string `json:"owner_phase,omitempty"`
+	SuccessorCommandID string `json:"successor_command_id,omitempty"`
 }
