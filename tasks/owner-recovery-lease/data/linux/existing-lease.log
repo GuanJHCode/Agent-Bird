@@ -1,0 +1,433 @@
+=== RUN   TestOriginalOwnerRecoveryRenewalPreservesOriginalStart
+=== RUN   TestOriginalOwnerRecoveryRenewalPreservesOriginalStart/attached
+=== RUN   TestOriginalOwnerRecoveryRenewalPreservesOriginalStart/applied
+=== RUN   TestOriginalOwnerRecoveryRenewalPreservesOriginalStart/activated
+--- PASS: TestOriginalOwnerRecoveryRenewalPreservesOriginalStart (0.01s)
+    --- PASS: TestOriginalOwnerRecoveryRenewalPreservesOriginalStart/attached (0.00s)
+    --- PASS: TestOriginalOwnerRecoveryRenewalPreservesOriginalStart/applied (0.00s)
+    --- PASS: TestOriginalOwnerRecoveryRenewalPreservesOriginalStart/activated (0.00s)
+=== RUN   TestOwnerRecoveryLeasePreservesBudgetAndHoldsOriginalLock
+=== RUN   TestOwnerRecoveryLeasePreservesBudgetAndHoldsOriginalLock/initial
+=== RUN   TestOwnerRecoveryLeasePreservesBudgetAndHoldsOriginalLock/spent
+=== RUN   TestOwnerRecoveryLeasePreservesBudgetAndHoldsOriginalLock/reserved_coordinator
+=== RUN   TestOwnerRecoveryLeasePreservesBudgetAndHoldsOriginalLock/spent_five
+=== RUN   TestOwnerRecoveryLeasePreservesBudgetAndHoldsOriginalLock/reserved_five
+=== RUN   TestOwnerRecoveryLeasePreservesBudgetAndHoldsOriginalLock/exhausted
+--- PASS: TestOwnerRecoveryLeasePreservesBudgetAndHoldsOriginalLock (0.01s)
+    --- PASS: TestOwnerRecoveryLeasePreservesBudgetAndHoldsOriginalLock/initial (0.00s)
+    --- PASS: TestOwnerRecoveryLeasePreservesBudgetAndHoldsOriginalLock/spent (0.00s)
+    --- PASS: TestOwnerRecoveryLeasePreservesBudgetAndHoldsOriginalLock/reserved_coordinator (0.00s)
+    --- PASS: TestOwnerRecoveryLeasePreservesBudgetAndHoldsOriginalLock/spent_five (0.00s)
+    --- PASS: TestOwnerRecoveryLeasePreservesBudgetAndHoldsOriginalLock/reserved_five (0.00s)
+    --- PASS: TestOwnerRecoveryLeasePreservesBudgetAndHoldsOriginalLock/exhausted (0.00s)
+=== RUN   TestOwnerRecoveryLeaseRejectsReplacedIdentityPermanently
+=== RUN   TestOwnerRecoveryLeaseRejectsReplacedIdentityPermanently/state
+=== RUN   TestOwnerRecoveryLeaseRejectsReplacedIdentityPermanently/spool
+=== RUN   TestOwnerRecoveryLeaseRejectsReplacedIdentityPermanently/launch
+=== RUN   TestOwnerRecoveryLeaseRejectsReplacedIdentityPermanently/lock
+=== RUN   TestOwnerRecoveryLeaseRejectsReplacedIdentityPermanently/record
+--- PASS: TestOwnerRecoveryLeaseRejectsReplacedIdentityPermanently (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsReplacedIdentityPermanently/state (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsReplacedIdentityPermanently/spool (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsReplacedIdentityPermanently/launch (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsReplacedIdentityPermanently/lock (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsReplacedIdentityPermanently/record (0.00s)
+=== RUN   TestOwnerRecoveryLeaseRejectsUnsafeDirectoryAndLaunch
+=== RUN   TestOwnerRecoveryLeaseRejectsUnsafeDirectoryAndLaunch/relative_state
+=== RUN   TestOwnerRecoveryLeaseRejectsUnsafeDirectoryAndLaunch/unclean_state
+=== RUN   TestOwnerRecoveryLeaseRejectsUnsafeDirectoryAndLaunch/root_state
+=== RUN   TestOwnerRecoveryLeaseRejectsUnsafeDirectoryAndLaunch/dot
+=== RUN   TestOwnerRecoveryLeaseRejectsUnsafeDirectoryAndLaunch/dotdot
+=== RUN   TestOwnerRecoveryLeaseRejectsUnsafeDirectoryAndLaunch/slash
+=== RUN   TestOwnerRecoveryLeaseRejectsUnsafeDirectoryAndLaunch/backslash
+=== RUN   TestOwnerRecoveryLeaseRejectsUnsafeDirectoryAndLaunch/nul
+=== RUN   TestOwnerRecoveryLeaseRejectsUnsafeDirectoryAndLaunch/foreign_producer
+=== RUN   TestOwnerRecoveryLeaseRejectsUnsafeDirectoryAndLaunch/state_symlink
+=== RUN   TestOwnerRecoveryLeaseRejectsUnsafeDirectoryAndLaunch/spool_symlink
+=== RUN   TestOwnerRecoveryLeaseRejectsUnsafeDirectoryAndLaunch/launch_symlink
+=== RUN   TestOwnerRecoveryLeaseRejectsUnsafeDirectoryAndLaunch/state_mode
+=== RUN   TestOwnerRecoveryLeaseRejectsUnsafeDirectoryAndLaunch/spool_mode
+=== RUN   TestOwnerRecoveryLeaseRejectsUnsafeDirectoryAndLaunch/launch_mode
+--- PASS: TestOwnerRecoveryLeaseRejectsUnsafeDirectoryAndLaunch (0.01s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsUnsafeDirectoryAndLaunch/relative_state (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsUnsafeDirectoryAndLaunch/unclean_state (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsUnsafeDirectoryAndLaunch/root_state (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsUnsafeDirectoryAndLaunch/dot (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsUnsafeDirectoryAndLaunch/dotdot (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsUnsafeDirectoryAndLaunch/slash (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsUnsafeDirectoryAndLaunch/backslash (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsUnsafeDirectoryAndLaunch/nul (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsUnsafeDirectoryAndLaunch/foreign_producer (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsUnsafeDirectoryAndLaunch/state_symlink (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsUnsafeDirectoryAndLaunch/spool_symlink (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsUnsafeDirectoryAndLaunch/launch_symlink (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsUnsafeDirectoryAndLaunch/state_mode (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsUnsafeDirectoryAndLaunch/spool_mode (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsUnsafeDirectoryAndLaunch/launch_mode (0.00s)
+=== RUN   TestOwnerRecoveryLeaseNeverCreatesMissingAuthority
+=== RUN   TestOwnerRecoveryLeaseNeverCreatesMissingAuthority/state
+=== RUN   TestOwnerRecoveryLeaseNeverCreatesMissingAuthority/spool
+=== RUN   TestOwnerRecoveryLeaseNeverCreatesMissingAuthority/launch
+=== RUN   TestOwnerRecoveryLeaseNeverCreatesMissingAuthority/lock
+=== RUN   TestOwnerRecoveryLeaseNeverCreatesMissingAuthority/record
+--- PASS: TestOwnerRecoveryLeaseNeverCreatesMissingAuthority (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseNeverCreatesMissingAuthority/state (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseNeverCreatesMissingAuthority/spool (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseNeverCreatesMissingAuthority/launch (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseNeverCreatesMissingAuthority/lock (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseNeverCreatesMissingAuthority/record (0.00s)
+=== RUN   TestOwnerRecoveryLeaseRejectsPendingAndUncertainCoordinator
+=== RUN   TestOwnerRecoveryLeaseRejectsPendingAndUncertainCoordinator/reserved
+=== RUN   TestOwnerRecoveryLeaseRejectsPendingAndUncertainCoordinator/starting
+=== RUN   TestOwnerRecoveryLeaseRejectsPendingAndUncertainCoordinator/unknown
+=== RUN   TestOwnerRecoveryLeaseRejectsPendingAndUncertainCoordinator/started
+=== RUN   TestOwnerRecoveryLeaseRejectsPendingAndUncertainCoordinator/attached
+=== RUN   TestOwnerRecoveryLeaseRejectsPendingAndUncertainCoordinator/applied
+=== RUN   TestOwnerRecoveryLeaseRejectsPendingAndUncertainCoordinator/activated
+=== RUN   TestOwnerRecoveryLeaseRejectsPendingAndUncertainCoordinator/coordinator_starting
+--- PASS: TestOwnerRecoveryLeaseRejectsPendingAndUncertainCoordinator (0.01s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsPendingAndUncertainCoordinator/reserved (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsPendingAndUncertainCoordinator/starting (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsPendingAndUncertainCoordinator/unknown (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsPendingAndUncertainCoordinator/started (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsPendingAndUncertainCoordinator/attached (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsPendingAndUncertainCoordinator/applied (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsPendingAndUncertainCoordinator/activated (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsPendingAndUncertainCoordinator/coordinator_starting (0.00s)
+=== RUN   TestOwnerRecoveryLeaseRejectsUnauthenticatedRecord
+=== RUN   TestOwnerRecoveryLeaseRejectsUnauthenticatedRecord/scope
+=== RUN   TestOwnerRecoveryLeaseRejectsUnauthenticatedRecord/identity
+=== RUN   TestOwnerRecoveryLeaseRejectsUnauthenticatedRecord/authority
+=== RUN   TestOwnerRecoveryLeaseRejectsUnauthenticatedRecord/noncanonical
+=== RUN   TestOwnerRecoveryLeaseRejectsUnauthenticatedRecord/duplicate
+=== RUN   TestOwnerRecoveryLeaseRejectsUnauthenticatedRecord/truncated
+=== RUN   TestOwnerRecoveryLeaseRejectsUnauthenticatedRecord/empty
+=== RUN   TestOwnerRecoveryLeaseRejectsUnauthenticatedRecord/limit
+=== RUN   TestOwnerRecoveryLeaseRejectsUnauthenticatedRecord/oversized
+=== RUN   TestOwnerRecoveryLeaseRejectsUnauthenticatedRecord/record_mode
+=== RUN   TestOwnerRecoveryLeaseRejectsUnauthenticatedRecord/lock_mode
+=== RUN   TestOwnerRecoveryLeaseRejectsUnauthenticatedRecord/record_hardlink
+=== RUN   TestOwnerRecoveryLeaseRejectsUnauthenticatedRecord/lock_hardlink
+=== RUN   TestOwnerRecoveryLeaseRejectsUnauthenticatedRecord/record_symlink
+=== RUN   TestOwnerRecoveryLeaseRejectsUnauthenticatedRecord/lock_symlink
+--- PASS: TestOwnerRecoveryLeaseRejectsUnauthenticatedRecord (0.01s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsUnauthenticatedRecord/scope (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsUnauthenticatedRecord/identity (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsUnauthenticatedRecord/authority (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsUnauthenticatedRecord/noncanonical (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsUnauthenticatedRecord/duplicate (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsUnauthenticatedRecord/truncated (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsUnauthenticatedRecord/empty (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsUnauthenticatedRecord/limit (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsUnauthenticatedRecord/oversized (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsUnauthenticatedRecord/record_mode (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsUnauthenticatedRecord/lock_mode (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsUnauthenticatedRecord/record_hardlink (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsUnauthenticatedRecord/lock_hardlink (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsUnauthenticatedRecord/record_symlink (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsUnauthenticatedRecord/lock_symlink (0.00s)
+=== RUN   TestOwnerRecoveryLeaseRejectsLateMutationPermanently
+=== RUN   TestOwnerRecoveryLeaseRejectsLateMutationPermanently/record_bytes
+=== RUN   TestOwnerRecoveryLeaseRejectsLateMutationPermanently/record_mtime
+=== RUN   TestOwnerRecoveryLeaseRejectsLateMutationPermanently/record_mode
+=== RUN   TestOwnerRecoveryLeaseRejectsLateMutationPermanently/lock_mode
+=== RUN   TestOwnerRecoveryLeaseRejectsLateMutationPermanently/record_link
+=== RUN   TestOwnerRecoveryLeaseRejectsLateMutationPermanently/lock_link
+--- PASS: TestOwnerRecoveryLeaseRejectsLateMutationPermanently (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsLateMutationPermanently/record_bytes (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsLateMutationPermanently/record_mtime (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsLateMutationPermanently/record_mode (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsLateMutationPermanently/lock_mode (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsLateMutationPermanently/record_link (0.00s)
+    --- PASS: TestOwnerRecoveryLeaseRejectsLateMutationPermanently/lock_link (0.00s)
+=== RUN   TestOwnerRecoveryLeaseRejectsSymlinkAboveState
+--- PASS: TestOwnerRecoveryLeaseRejectsSymlinkAboveState (0.00s)
+=== RUN   TestOriginalOwnerRecoveryRetiresKnownNoStart
+=== RUN   TestOriginalOwnerRecoveryRetiresKnownNoStart/reserved
+=== RUN   TestOriginalOwnerRecoveryRetiresKnownNoStart/reserved/scope
+=== RUN   TestOriginalOwnerRecoveryRetiresKnownNoStart/reserved/slot
+=== RUN   TestOriginalOwnerRecoveryRetiresKnownNoStart/reserved/request
+=== RUN   TestOriginalOwnerRecoveryRetiresKnownNoStart/reserved/revision
+=== RUN   TestOriginalOwnerRecoveryRetiresKnownNoStart/reserved/old
+=== RUN   TestOriginalOwnerRecoveryRetiresKnownNoStart/reserved/phase
+=== RUN   TestOriginalOwnerRecoveryRetiresKnownNoStart/starting
+=== RUN   TestOriginalOwnerRecoveryRetiresKnownNoStart/starting/scope
+=== RUN   TestOriginalOwnerRecoveryRetiresKnownNoStart/starting/slot
+=== RUN   TestOriginalOwnerRecoveryRetiresKnownNoStart/starting/request
+=== RUN   TestOriginalOwnerRecoveryRetiresKnownNoStart/starting/revision
+=== RUN   TestOriginalOwnerRecoveryRetiresKnownNoStart/starting/old
+=== RUN   TestOriginalOwnerRecoveryRetiresKnownNoStart/starting/phase
+--- PASS: TestOriginalOwnerRecoveryRetiresKnownNoStart (0.04s)
+    --- PASS: TestOriginalOwnerRecoveryRetiresKnownNoStart/reserved (0.02s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresKnownNoStart/reserved/scope (0.00s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresKnownNoStart/reserved/slot (0.00s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresKnownNoStart/reserved/request (0.00s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresKnownNoStart/reserved/revision (0.00s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresKnownNoStart/reserved/old (0.00s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresKnownNoStart/reserved/phase (0.00s)
+    --- PASS: TestOriginalOwnerRecoveryRetiresKnownNoStart/starting (0.02s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresKnownNoStart/starting/scope (0.00s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresKnownNoStart/starting/slot (0.00s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresKnownNoStart/starting/request (0.00s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresKnownNoStart/starting/revision (0.00s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresKnownNoStart/starting/old (0.00s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresKnownNoStart/starting/phase (0.00s)
+=== RUN   TestOriginalOwnerRecoveryRetiresOnlyOriginalWait
+=== RUN   TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/starting
+=== RUN   TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/starting/scope
+=== RUN   TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/starting/slot
+=== RUN   TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/starting/request
+=== RUN   TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/starting/revision
+=== RUN   TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/starting/old
+=== RUN   TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/starting/identity
+=== NAME  TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/starting
+    owner_recovery_retirement_test.go:273: retired original native child: pid=12 phase=starting original_Wait=0 attempts_before=1
+=== RUN   TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/unknown
+=== RUN   TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/unknown/scope
+=== RUN   TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/unknown/slot
+=== RUN   TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/unknown/request
+=== RUN   TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/unknown/revision
+=== RUN   TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/unknown/old
+=== RUN   TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/unknown/identity
+=== NAME  TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/unknown
+    owner_recovery_retirement_test.go:273: retired original native child: pid=16 phase=unknown original_Wait=0 attempts_before=1
+=== RUN   TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/started
+=== RUN   TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/started/scope
+=== RUN   TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/started/slot
+=== RUN   TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/started/request
+=== RUN   TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/started/revision
+=== RUN   TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/started/old
+=== RUN   TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/started/identity
+=== NAME  TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/started
+    owner_recovery_retirement_test.go:273: retired original native child: pid=20 phase=started original_Wait=0 attempts_before=1
+=== RUN   TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/coordinator
+=== RUN   TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/coordinator/scope
+=== RUN   TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/coordinator/slot
+=== RUN   TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/coordinator/request
+=== RUN   TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/coordinator/revision
+=== RUN   TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/coordinator/old
+=== RUN   TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/coordinator/identity
+=== NAME  TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/coordinator
+    owner_recovery_retirement_test.go:273: retired original native child: pid=24 phase=coordinator original_Wait=0 attempts_before=2
+=== RUN   TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/exhausted
+=== RUN   TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/exhausted/scope
+=== RUN   TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/exhausted/slot
+=== RUN   TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/exhausted/request
+=== RUN   TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/exhausted/revision
+=== RUN   TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/exhausted/old
+=== RUN   TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/exhausted/identity
+=== NAME  TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/exhausted
+    owner_recovery_retirement_test.go:273: retired original native child: pid=28 phase=exhausted original_Wait=0 attempts_before=5
+=== RUN   TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/poison
+=== RUN   TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/poison/scope
+=== RUN   TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/poison/slot
+=== RUN   TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/poison/request
+=== RUN   TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/poison/revision
+=== RUN   TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/poison/old
+=== RUN   TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/poison/identity
+--- PASS: TestOriginalOwnerRecoveryRetiresOnlyOriginalWait (0.20s)
+    --- PASS: TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/starting (0.04s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/starting/scope (0.00s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/starting/slot (0.00s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/starting/request (0.00s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/starting/revision (0.00s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/starting/old (0.00s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/starting/identity (0.00s)
+    --- PASS: TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/unknown (0.03s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/unknown/scope (0.00s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/unknown/slot (0.00s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/unknown/request (0.00s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/unknown/revision (0.00s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/unknown/old (0.00s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/unknown/identity (0.00s)
+    --- PASS: TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/started (0.03s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/started/scope (0.00s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/started/slot (0.00s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/started/request (0.00s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/started/revision (0.00s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/started/old (0.00s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/started/identity (0.00s)
+    --- PASS: TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/coordinator (0.03s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/coordinator/scope (0.00s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/coordinator/slot (0.00s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/coordinator/request (0.00s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/coordinator/revision (0.00s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/coordinator/old (0.00s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/coordinator/identity (0.00s)
+    --- PASS: TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/exhausted (0.03s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/exhausted/scope (0.00s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/exhausted/slot (0.00s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/exhausted/request (0.00s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/exhausted/revision (0.00s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/exhausted/old (0.00s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/exhausted/identity (0.00s)
+    --- PASS: TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/poison (0.04s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/poison/scope (0.00s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/poison/slot (0.00s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/poison/request (0.00s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/poison/revision (0.00s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/poison/old (0.00s)
+        --- PASS: TestOriginalOwnerRecoveryRetiresOnlyOriginalWait/poison/identity (0.00s)
+=== RUN   TestOriginalOwnerRecoveryKeepsChildAcrossSharedFiveAttempts
+--- PASS: TestOriginalOwnerRecoveryKeepsChildAcrossSharedFiveAttempts (0.00s)
+=== RUN   TestOriginalOwnerRecoveryCoordinatorReservationPreservesEveryKnownChildStage
+=== RUN   TestOriginalOwnerRecoveryCoordinatorReservationPreservesEveryKnownChildStage/reserved
+=== RUN   TestOriginalOwnerRecoveryCoordinatorReservationPreservesEveryKnownChildStage/starting
+=== RUN   TestOriginalOwnerRecoveryCoordinatorReservationPreservesEveryKnownChildStage/unknown
+=== RUN   TestOriginalOwnerRecoveryCoordinatorReservationPreservesEveryKnownChildStage/started
+=== RUN   TestOriginalOwnerRecoveryCoordinatorReservationPreservesEveryKnownChildStage/attached
+=== RUN   TestOriginalOwnerRecoveryCoordinatorReservationPreservesEveryKnownChildStage/applied
+=== RUN   TestOriginalOwnerRecoveryCoordinatorReservationPreservesEveryKnownChildStage/activated
+--- PASS: TestOriginalOwnerRecoveryCoordinatorReservationPreservesEveryKnownChildStage (0.00s)
+    --- PASS: TestOriginalOwnerRecoveryCoordinatorReservationPreservesEveryKnownChildStage/reserved (0.00s)
+    --- PASS: TestOriginalOwnerRecoveryCoordinatorReservationPreservesEveryKnownChildStage/starting (0.00s)
+    --- PASS: TestOriginalOwnerRecoveryCoordinatorReservationPreservesEveryKnownChildStage/unknown (0.00s)
+    --- PASS: TestOriginalOwnerRecoveryCoordinatorReservationPreservesEveryKnownChildStage/started (0.00s)
+    --- PASS: TestOriginalOwnerRecoveryCoordinatorReservationPreservesEveryKnownChildStage/attached (0.00s)
+    --- PASS: TestOriginalOwnerRecoveryCoordinatorReservationPreservesEveryKnownChildStage/applied (0.00s)
+    --- PASS: TestOriginalOwnerRecoveryCoordinatorReservationPreservesEveryKnownChildStage/activated (0.00s)
+=== RUN   TestOriginalOwnerRecoveryPersistsReplacementStages
+--- PASS: TestOriginalOwnerRecoveryPersistsReplacementStages (0.00s)
+=== RUN   TestOriginalOwnerRecoveryRejectsCorruptOrChangedState
+=== RUN   TestOriginalOwnerRecoveryRejectsCorruptOrChangedState/version
+=== RUN   TestOriginalOwnerRecoveryRejectsCorruptOrChangedState/foreign_scope
+=== RUN   TestOriginalOwnerRecoveryRejectsCorruptOrChangedState/slot
+=== RUN   TestOriginalOwnerRecoveryRejectsCorruptOrChangedState/missing_child
+=== RUN   TestOriginalOwnerRecoveryRejectsCorruptOrChangedState/starting_without_reservation
+=== RUN   TestOriginalOwnerRecoveryRejectsCorruptOrChangedState/unknown_with_child
+=== RUN   TestOriginalOwnerRecoveryRejectsCorruptOrChangedState/duplicate_field
+=== RUN   TestOriginalOwnerRecoveryRejectsCorruptOrChangedState/symlink
+=== RUN   TestOriginalOwnerRecoveryRejectsCorruptOrChangedState/hardlink
+=== RUN   TestOriginalOwnerRecoveryRejectsCorruptOrChangedState/public_mode
+--- PASS: TestOriginalOwnerRecoveryRejectsCorruptOrChangedState (0.00s)
+    --- PASS: TestOriginalOwnerRecoveryRejectsCorruptOrChangedState/version (0.00s)
+    --- PASS: TestOriginalOwnerRecoveryRejectsCorruptOrChangedState/foreign_scope (0.00s)
+    --- PASS: TestOriginalOwnerRecoveryRejectsCorruptOrChangedState/slot (0.00s)
+    --- PASS: TestOriginalOwnerRecoveryRejectsCorruptOrChangedState/missing_child (0.00s)
+    --- PASS: TestOriginalOwnerRecoveryRejectsCorruptOrChangedState/starting_without_reservation (0.00s)
+    --- PASS: TestOriginalOwnerRecoveryRejectsCorruptOrChangedState/unknown_with_child (0.00s)
+    --- PASS: TestOriginalOwnerRecoveryRejectsCorruptOrChangedState/duplicate_field (0.00s)
+    --- PASS: TestOriginalOwnerRecoveryRejectsCorruptOrChangedState/symlink (0.00s)
+    --- PASS: TestOriginalOwnerRecoveryRejectsCorruptOrChangedState/hardlink (0.00s)
+    --- PASS: TestOriginalOwnerRecoveryRejectsCorruptOrChangedState/public_mode (0.00s)
+=== RUN   TestOriginalOwnerRecoveryStartingAndUnknownNeverStartAgain
+=== RUN   TestOriginalOwnerRecoveryStartingAndUnknownNeverStartAgain/starting
+=== RUN   TestOriginalOwnerRecoveryStartingAndUnknownNeverStartAgain/unknown
+=== RUN   TestOriginalOwnerRecoveryStartingAndUnknownNeverStartAgain/started
+--- PASS: TestOriginalOwnerRecoveryStartingAndUnknownNeverStartAgain (0.00s)
+    --- PASS: TestOriginalOwnerRecoveryStartingAndUnknownNeverStartAgain/starting (0.00s)
+    --- PASS: TestOriginalOwnerRecoveryStartingAndUnknownNeverStartAgain/unknown (0.00s)
+    --- PASS: TestOriginalOwnerRecoveryStartingAndUnknownNeverStartAgain/started (0.00s)
+=== RUN   TestOriginalOwnerRecoverySharesFlockAndPreservesLegacyBytes
+--- PASS: TestOriginalOwnerRecoverySharesFlockAndPreservesLegacyBytes (0.00s)
+=== RUN   TestOriginalOwnerRecoveryTicketReadsRejectLedgerDrift
+=== RUN   TestOriginalOwnerRecoveryTicketReadsRejectLedgerDrift/deleted
+=== RUN   TestOriginalOwnerRecoveryTicketReadsRejectLedgerDrift/replaced
+=== RUN   TestOriginalOwnerRecoveryTicketReadsRejectLedgerDrift/corrupt
+=== RUN   TestOriginalOwnerRecoveryTicketReadsRejectLedgerDrift/hardlink
+=== RUN   TestOriginalOwnerRecoveryTicketReadsRejectLedgerDrift/public_mode
+--- PASS: TestOriginalOwnerRecoveryTicketReadsRejectLedgerDrift (0.00s)
+    --- PASS: TestOriginalOwnerRecoveryTicketReadsRejectLedgerDrift/deleted (0.00s)
+    --- PASS: TestOriginalOwnerRecoveryTicketReadsRejectLedgerDrift/replaced (0.00s)
+    --- PASS: TestOriginalOwnerRecoveryTicketReadsRejectLedgerDrift/corrupt (0.00s)
+    --- PASS: TestOriginalOwnerRecoveryTicketReadsRejectLedgerDrift/hardlink (0.00s)
+    --- PASS: TestOriginalOwnerRecoveryTicketReadsRejectLedgerDrift/public_mode (0.00s)
+=== RUN   TestOriginalOwnerRecoveryExactReservationReplayDoesNotRewrite
+--- PASS: TestOriginalOwnerRecoveryExactReservationReplayDoesNotRewrite (0.00s)
+=== RUN   TestOriginalOwnerRecoveryRejectsReplacedDirectoryOrLock
+=== RUN   TestOriginalOwnerRecoveryRejectsReplacedDirectoryOrLock/directory
+=== RUN   TestOriginalOwnerRecoveryRejectsReplacedDirectoryOrLock/lock
+--- PASS: TestOriginalOwnerRecoveryRejectsReplacedDirectoryOrLock (0.00s)
+    --- PASS: TestOriginalOwnerRecoveryRejectsReplacedDirectoryOrLock/directory (0.00s)
+    --- PASS: TestOriginalOwnerRecoveryRejectsReplacedDirectoryOrLock/lock (0.00s)
+=== RUN   TestOriginalOwnerRecoveryUnsafeDirectoryDoesNotCreateLock
+--- PASS: TestOriginalOwnerRecoveryUnsafeDirectoryDoesNotCreateLock (0.00s)
+=== RUN   TestOwnerRuntimeDirectoriesCreatePrivateAnchoredSpool
+--- PASS: TestOwnerRuntimeDirectoriesCreatePrivateAnchoredSpool (0.00s)
+=== RUN   TestOwnerRuntimeDirectoriesRejectUnsafeAncestorsBeforeSpoolWrites
+=== RUN   TestOwnerRuntimeDirectoriesRejectUnsafeAncestorsBeforeSpoolWrites/state_mode
+=== RUN   TestOwnerRuntimeDirectoriesRejectUnsafeAncestorsBeforeSpoolWrites/parent_symlink
+=== RUN   TestOwnerRuntimeDirectoriesRejectUnsafeAncestorsBeforeSpoolWrites/parent_file
+=== RUN   TestOwnerRuntimeDirectoriesRejectUnsafeAncestorsBeforeSpoolWrites/parent_mode
+=== RUN   TestOwnerRuntimeDirectoriesRejectUnsafeAncestorsBeforeSpoolWrites/launch_symlink
+=== RUN   TestOwnerRuntimeDirectoriesRejectUnsafeAncestorsBeforeSpoolWrites/launch_file
+=== RUN   TestOwnerRuntimeDirectoriesRejectUnsafeAncestorsBeforeSpoolWrites/launch_mode
+--- PASS: TestOwnerRuntimeDirectoriesRejectUnsafeAncestorsBeforeSpoolWrites (0.00s)
+    --- PASS: TestOwnerRuntimeDirectoriesRejectUnsafeAncestorsBeforeSpoolWrites/state_mode (0.00s)
+    --- PASS: TestOwnerRuntimeDirectoriesRejectUnsafeAncestorsBeforeSpoolWrites/parent_symlink (0.00s)
+    --- PASS: TestOwnerRuntimeDirectoriesRejectUnsafeAncestorsBeforeSpoolWrites/parent_file (0.00s)
+    --- PASS: TestOwnerRuntimeDirectoriesRejectUnsafeAncestorsBeforeSpoolWrites/parent_mode (0.00s)
+    --- PASS: TestOwnerRuntimeDirectoriesRejectUnsafeAncestorsBeforeSpoolWrites/launch_symlink (0.00s)
+    --- PASS: TestOwnerRuntimeDirectoriesRejectUnsafeAncestorsBeforeSpoolWrites/launch_file (0.00s)
+    --- PASS: TestOwnerRuntimeDirectoriesRejectUnsafeAncestorsBeforeSpoolWrites/launch_mode (0.00s)
+=== RUN   TestOwnerRuntimeDirectoriesRejectPathReplacement
+=== RUN   TestOwnerRuntimeDirectoriesRejectPathReplacement/state
+=== RUN   TestOwnerRuntimeDirectoriesRejectPathReplacement/parent
+=== RUN   TestOwnerRuntimeDirectoriesRejectPathReplacement/launch
+--- PASS: TestOwnerRuntimeDirectoriesRejectPathReplacement (0.00s)
+    --- PASS: TestOwnerRuntimeDirectoriesRejectPathReplacement/state (0.00s)
+    --- PASS: TestOwnerRuntimeDirectoriesRejectPathReplacement/parent (0.00s)
+    --- PASS: TestOwnerRuntimeDirectoriesRejectPathReplacement/launch (0.00s)
+=== RUN   TestOriginalOwnerRecoveryPublicationRejectsStageDrift
+=== RUN   TestOriginalOwnerRecoveryPublicationRejectsStageDrift/before_verify/replacement
+=== RUN   TestOriginalOwnerRecoveryPublicationRejectsStageDrift/before_verify/hardlink
+=== RUN   TestOriginalOwnerRecoveryPublicationRejectsStageDrift/before_verify/content
+=== RUN   TestOriginalOwnerRecoveryPublicationRejectsStageDrift/before_rename/replacement
+=== RUN   TestOriginalOwnerRecoveryPublicationRejectsStageDrift/before_rename/hardlink
+=== RUN   TestOriginalOwnerRecoveryPublicationRejectsStageDrift/before_rename/content
+--- PASS: TestOriginalOwnerRecoveryPublicationRejectsStageDrift (0.00s)
+    --- PASS: TestOriginalOwnerRecoveryPublicationRejectsStageDrift/before_verify/replacement (0.00s)
+    --- PASS: TestOriginalOwnerRecoveryPublicationRejectsStageDrift/before_verify/hardlink (0.00s)
+    --- PASS: TestOriginalOwnerRecoveryPublicationRejectsStageDrift/before_verify/content (0.00s)
+    --- PASS: TestOriginalOwnerRecoveryPublicationRejectsStageDrift/before_rename/replacement (0.00s)
+    --- PASS: TestOriginalOwnerRecoveryPublicationRejectsStageDrift/before_rename/hardlink (0.00s)
+    --- PASS: TestOriginalOwnerRecoveryPublicationRejectsStageDrift/before_rename/content (0.00s)
+=== RUN   TestOriginalOwnerRecoveryReadRejectsDetachedLedger
+=== RUN   TestOriginalOwnerRecoveryReadRejectsDetachedLedger/ticket
+=== RUN   TestOriginalOwnerRecoveryReadRejectsDetachedLedger/mutation
+--- PASS: TestOriginalOwnerRecoveryReadRejectsDetachedLedger (0.00s)
+    --- PASS: TestOriginalOwnerRecoveryReadRejectsDetachedLedger/ticket (0.00s)
+    --- PASS: TestOriginalOwnerRecoveryReadRejectsDetachedLedger/mutation (0.00s)
+=== RUN   TestRecoveryAttemptsPersistAcrossAuthorizedPIDChange
+--- PASS: TestRecoveryAttemptsPersistAcrossAuthorizedPIDChange (0.00s)
+=== RUN   TestRecoveryReservationsAreFiniteAndNeverResetOnSuccess
+--- PASS: TestRecoveryReservationsAreFiniteAndNeverResetOnSuccess (0.00s)
+=== RUN   TestRecoveryRecordRejectsForeignMalformedAndLinkedInputs
+=== RUN   TestRecoveryRecordRejectsForeignMalformedAndLinkedInputs/scope
+=== RUN   TestRecoveryRecordRejectsForeignMalformedAndLinkedInputs/malformed
+=== RUN   TestRecoveryRecordRejectsForeignMalformedAndLinkedInputs/symlink
+=== RUN   TestRecoveryRecordRejectsForeignMalformedAndLinkedInputs/hardlink
+=== RUN   TestRecoveryRecordRejectsForeignMalformedAndLinkedInputs/public-mode
+--- PASS: TestRecoveryRecordRejectsForeignMalformedAndLinkedInputs (0.00s)
+    --- PASS: TestRecoveryRecordRejectsForeignMalformedAndLinkedInputs/scope (0.00s)
+    --- PASS: TestRecoveryRecordRejectsForeignMalformedAndLinkedInputs/malformed (0.00s)
+    --- PASS: TestRecoveryRecordRejectsForeignMalformedAndLinkedInputs/symlink (0.00s)
+    --- PASS: TestRecoveryRecordRejectsForeignMalformedAndLinkedInputs/hardlink (0.00s)
+    --- PASS: TestRecoveryRecordRejectsForeignMalformedAndLinkedInputs/public-mode (0.00s)
+=== RUN   TestRecoveryRecordRefusesConcurrentWriter
+--- PASS: TestRecoveryRecordRefusesConcurrentWriter (0.00s)
+=== RUN   TestRecoveryRejectsFutureTimestampWithoutChangingReservedLedger
+=== RUN   TestRecoveryRejectsFutureTimestampWithoutChangingReservedLedger/pending
+=== RUN   TestRecoveryRejectsFutureTimestampWithoutChangingReservedLedger/consumed
+--- PASS: TestRecoveryRejectsFutureTimestampWithoutChangingReservedLedger (0.00s)
+    --- PASS: TestRecoveryRejectsFutureTimestampWithoutChangingReservedLedger/pending (0.00s)
+    --- PASS: TestRecoveryRejectsFutureTimestampWithoutChangingReservedLedger/consumed (0.00s)
+=== RUN   TestRecoveryRejectsClockRollbackAfterConsumedAttempt
+--- PASS: TestRecoveryRejectsClockRollbackAfterConsumedAttempt (0.00s)
+=== RUN   TestRecoveryPendingRestartsKeepAuthorizedWindowAndCount
+--- PASS: TestRecoveryPendingRestartsKeepAuthorizedWindowAndCount (0.00s)
+=== RUN   TestRecoveryBackoffDurationUsesValidatedOriginAndElapsedOnly
+=== RUN   TestRecoveryBackoffDurationUsesValidatedOriginAndElapsedOnly/persisted-1s-window
+=== RUN   TestRecoveryBackoffDurationUsesValidatedOriginAndElapsedOnly/persisted-16s-window
+=== RUN   TestRecoveryBackoffDurationUsesValidatedOriginAndElapsedOnly/persistence-consumed-window
+=== RUN   TestRecoveryBackoffDurationUsesValidatedOriginAndElapsedOnly/old-pending-window-elapsed
+=== RUN   TestRecoveryBackoffDurationUsesValidatedOriginAndElapsedOnly/negative-elapsed-cannot-extend-window
+--- PASS: TestRecoveryBackoffDurationUsesValidatedOriginAndElapsedOnly (0.00s)
+    --- PASS: TestRecoveryBackoffDurationUsesValidatedOriginAndElapsedOnly/persisted-1s-window (0.00s)
+    --- PASS: TestRecoveryBackoffDurationUsesValidatedOriginAndElapsedOnly/persisted-16s-window (0.00s)
+    --- PASS: TestRecoveryBackoffDurationUsesValidatedOriginAndElapsedOnly/persistence-consumed-window (0.00s)
+    --- PASS: TestRecoveryBackoffDurationUsesValidatedOriginAndElapsedOnly/old-pending-window-elapsed (0.00s)
+    --- PASS: TestRecoveryBackoffDurationUsesValidatedOriginAndElapsedOnly/negative-elapsed-cannot-extend-window (0.00s)
+=== RUN   TestRecoveryExpiredDurationCannotOverflowIntoFuture
+--- PASS: TestRecoveryExpiredDurationCannotOverflowIntoFuture (0.00s)
+PASS
