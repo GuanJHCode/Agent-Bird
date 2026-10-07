@@ -70,6 +70,7 @@ func nativeDiagnosticLaunch(t *testing.T, mode string) (*Host, contract.LaunchCo
 	g.WorkRevision = 1
 	g.PlanRevision = 1
 	g.GrantedActiveMS = 15000
+	g = managedHostGrant(t, h, g)
 	bin, err := filepath.EvalSymlinks(os.Args[0])
 	if err != nil {
 		t.Fatal(err)
@@ -398,7 +399,9 @@ func TestDiagnosticExecuteReturnedHandleErrorRetainsOriginalCleanup(t *testing.T
 		return p, want
 	}
 	a := store.Attempt{ID: g.AttemptID, TaskID: g.TaskID, SegmentID: g.SegmentID}
-	result, err := h.execute(context.Background(), a, g.RunID, g.TaskID, invocationCommand(inv), false, launchMetadata{commandID: g.CommandID, workRevision: g.WorkRevision, diagnosticsGrant: &g, startProcess: start})
+	meta := metadataForLaunch(g)
+	meta.startProcess = start
+	result, err := h.execute(context.Background(), a, g.RunID, g.TaskID, invocationCommand(inv), false, meta)
 	if !errors.Is(err, want) || result.Status != "unknown" {
 		t.Fatalf("post-Start error changed evidence: %+v %v", result, err)
 	}

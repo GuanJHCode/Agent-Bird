@@ -19,14 +19,23 @@ func withHostArtifactsForTest(t *testing.T, grant contract.LaunchCommand) contra
 	}
 	grant.HostArtifacts = &contract.HostArtifactGrant{
 		Version:               1,
-		TerminalReservationID: "terminal-reservation",
-		ProgressReservationID: "progress-reservation",
+		TerminalReservationID: "terminal-" + scope[:32],
+		ProgressReservationID: "progress-" + scope[:32],
 		ScopeSHA256:           scope,
 	}
 	if err := contract.RequireHostArtifacts(grant); err != nil {
 		t.Fatal(err)
 	}
 	return grant
+}
+
+func managedHostGrant(t *testing.T, h *Host, grant contract.LaunchCommand) contract.LaunchCommand {
+	t.Helper()
+	grant.HostID = h.producerID
+	if grant.WorkRevision < 1 {
+		grant.WorkRevision = 1
+	}
+	return withHostArtifactsForTest(t, grant)
 }
 
 func TestHostArtifactAdmissionRequiresLiveGrantBeforeLedger(t *testing.T) {

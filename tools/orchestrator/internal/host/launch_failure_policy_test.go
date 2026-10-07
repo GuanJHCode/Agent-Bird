@@ -45,7 +45,7 @@ func TestLaunchFailurePolicyFactsSpoolAndStore(t *testing.T) {
 				t.Fatal(err)
 			}
 			attempt := store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID}
-			meta := launchMetadata{commandID: grant.CommandID, workRevision: 1, executionEpoch: 1}
+			meta := metadataForLaunch(grant)
 			if err = h.recordLaunchFailed(attempt, "run", "task", meta, tc.cause); err != nil {
 				t.Fatal(err)
 			}

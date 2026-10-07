@@ -51,7 +51,7 @@ func TestNormalLeaderExitWithSurvivingProcessGroupStaysUnknown(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	grant := contract.LaunchCommand{CommandID: "orphan-command", ReservationID: "orphan-reservation", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", GrantedActiveMS: 2000}
+	grant := managedHostGrant(t, h, contract.LaunchCommand{CommandID: "orphan-command", ReservationID: "orphan-reservation", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", GrantedActiveMS: 2000})
 	inv := launchInvocation{args: []string{binary, "-test.run=TestNormalLeaderExitWithSurvivingProcessGroupStaysUnknown"}, env: map[string]string{"G1_ORPHAN_LEADER": "1", "G1_ORPHAN_PID_FILE": pidFile}}
 	result, runErr := h.ExecuteLaunch(context.Background(), grant, inv)
 	childBody, readErr := os.ReadFile(pidFile)
@@ -269,7 +269,7 @@ func TestStructuredProviderTerminalControlsOutcome(t *testing.T) {
 			if newErr != nil {
 				t.Fatal(newErr)
 			}
-			grant := contract.LaunchCommand{CommandID: "structured-command-" + tc.mode, ReservationID: "structured-reservation-" + tc.mode, RunID: "run", TaskID: "task-" + tc.mode, AttemptID: "attempt-" + tc.mode, SegmentID: "segment-" + tc.mode, WorkRevision: index + 1, GrantedActiveMS: 2000}
+			grant := managedHostGrant(t, h, contract.LaunchCommand{CommandID: "structured-command-" + tc.mode, ReservationID: "structured-reservation-" + tc.mode, RunID: "run", TaskID: "task-" + tc.mode, AttemptID: "attempt-" + tc.mode, SegmentID: "segment-" + tc.mode, WorkRevision: index + 1, GrantedActiveMS: 2000})
 			inv := providerInvocation{launchInvocation: launchInvocation{args: []string{path, "-test.run=TestStructuredProviderTerminalControlsOutcome"}, env: map[string]string{"G1_STRUCTURED_HELPER": tc.mode}}, provider: tc.provider}
 			result, runErr := h.ExecuteLaunch(context.Background(), grant, inv)
 			if runErr != nil {
@@ -335,7 +335,7 @@ func TestProviderSessionIsPublishedBeforeTerminalAndBindsResume(t *testing.T) {
 		t.Fatal(err)
 	}
 	release := filepath.Join(t.TempDir(), "release")
-	grant := contract.LaunchCommand{CommandID: "session-command", ReservationID: "session-reservation", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment-1", WorkRevision: 1, GrantedActiveMS: 3000}
+	grant := managedHostGrant(t, h, contract.LaunchCommand{CommandID: "session-command", ReservationID: "session-reservation", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment-1", WorkRevision: 1, GrantedActiveMS: 3000})
 	inv := providerInvocation{launchInvocation: launchInvocation{args: []string{path, "-test.run=TestProviderSessionIsPublishedBeforeTerminalAndBindsResume"}, env: map[string]string{"G1_SESSION_HELPER": "1", "G1_SESSION_RELEASE": release}}, provider: "claude-code"}
 	type execution struct {
 		result contract.Result
@@ -384,6 +384,7 @@ func TestProviderSessionIsPublishedBeforeTerminalAndBindsResume(t *testing.T) {
 	resume.Answer = "continue"
 	resume.SessionKind = "session-id"
 	resume.SessionID = "forged-session"
+	resume = managedHostGrant(t, h, resume)
 	if _, err = h.ExecuteLaunch(context.Background(), resume, inv); err == nil || err.Error() != "resume_session_mismatch" {
 		t.Fatalf("mismatched resume err=%v", err)
 	}
@@ -421,7 +422,7 @@ func TestExecuteLaunchConsumesReservationAndUsesBoundedGrant(t *testing.T) {
 	// exit delay is not task work; keep race detection but omit that artificial
 	// delay from the 1.5s production grant exercised below.
 	inv := launchInvocation{args: []string{path, "-test.run=TestExecuteLaunchConsumesReservationAndUsesBoundedGrant"}, env: map[string]string{"G1_HOST_HELPER": "1", "GORACE": os.Getenv("GORACE") + " atexit_sleep_ms=0"}}
-	grant := contract.LaunchCommand{ReservationID: "reservation-1", RunID: "grant-run", TaskID: "grant-task", AttemptID: attempt.ID, SegmentID: attempt.SegmentID, GrantedActiveMS: 1500, DeadlineUnixMS: time.Now().Add(2 * time.Second).UnixMilli()}
+	grant := managedHostGrant(t, h, contract.LaunchCommand{CommandID: "grant-command", ReservationID: "reservation-1", RunID: "grant-run", TaskID: "grant-task", AttemptID: attempt.ID, SegmentID: attempt.SegmentID, GrantedActiveMS: 1500, DeadlineUnixMS: time.Now().Add(2 * time.Second).UnixMilli()})
 	result, err := h.ExecuteLaunch(ctx, grant, inv)
 	if err != nil {
 		t.Fatal(err)
@@ -448,7 +449,7 @@ func TestStoppedLaunchPublishesStoppedThenExitedWithoutUnknown(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	grant := contract.LaunchCommand{CommandID: "stop-command", ReservationID: "stop-reservation", RunID: "stop-run", TaskID: "stop-task", AttemptID: "stop-attempt", SegmentID: "stop-segment", GrantedActiveMS: 10_000, WorkRevision: 1, ExecutionEpoch: 4}
+	grant := managedHostGrant(t, h, contract.LaunchCommand{CommandID: "stop-command", ReservationID: "stop-reservation", RunID: "stop-run", TaskID: "stop-task", AttemptID: "stop-attempt", SegmentID: "stop-segment", GrantedActiveMS: 10_000, WorkRevision: 1, ExecutionEpoch: 4})
 	inv := launchInvocation{args: []string{path, "-test.run=TestStoppedLaunchPublishesStoppedThenExitedWithoutUnknown"}, env: map[string]string{"G1_STOP_HELPER": "1"}}
 	type execution struct {
 		result contract.Result
@@ -526,7 +527,7 @@ func TestIPCSourcePublishesOnlyAfterDurableAck(t *testing.T) {
 		t.Fatal(err)
 	}
 	inv := launchInvocation{args: []string{path, "-test.run=TestIPCSourcePublishesOnlyAfterDurableAck"}, env: map[string]string{"G1_HOST_HELPER": "1"}}
-	grant := contract.LaunchCommand{ReservationID: "ipc-reservation", RunID: "ipc-run", TaskID: "ipc-task", AttemptID: "ipc-attempt", SegmentID: "ipc-segment", GrantedActiveMS: 1500}
+	grant := managedHostGrant(t, h, contract.LaunchCommand{CommandID: "ipc-command", ReservationID: "ipc-reservation", RunID: "ipc-run", TaskID: "ipc-task", AttemptID: "ipc-attempt", SegmentID: "ipc-segment", GrantedActiveMS: 1500})
 	if _, err = h.ExecuteLaunch(context.Background(), grant, inv); err != nil {
 		t.Fatal(err)
 	}
@@ -572,6 +573,9 @@ func TestParallelLaunchesPublishOneProducerSequence(t *testing.T) {
 	grants := []contract.LaunchCommand{
 		{CommandID: "parallel-a", ReservationID: "reservation-a", RunID: "run", TaskID: "task-a", AttemptID: "attempt-a", SegmentID: "segment-a", GrantedActiveMS: 2000, WorkRevision: 4},
 		{CommandID: "parallel-b", ReservationID: "reservation-b", RunID: "run", TaskID: "task-b", AttemptID: "attempt-b", SegmentID: "segment-b", GrantedActiveMS: 2000, WorkRevision: 5},
+	}
+	for index := range grants {
+		grants[index] = managedHostGrant(t, h, grants[index])
 	}
 	results := make(chan error, len(grants))
 	for _, grant := range grants {
