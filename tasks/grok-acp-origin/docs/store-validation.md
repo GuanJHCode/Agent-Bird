@@ -1,0 +1,7 @@
+# ACP Store acceptance
+
+ROOT repaired and completed the initial Bind/Claim WIP. Strict ACP owner-only local entry points bind the original child/session with no Hook capability. Deterministic request/attempt IDs and HMAC claim tokens preserve exact replay. Only Begin allocates the ordinal and durably authorizes emission; Receive atomically binds exact session/RPC/prompt/response hashes and stop reason. UNCERTAIN cannot resend or settle; only already-RECEIVED exact replay survives child exit. Schema24 provides missing-only collection accounting. All Hook paths reject ACP and vice versa. Protocol receipt does not change business acceptance.
+
+Behavioral RED retained for invalid Bind RID, Claim canonical replay/proofs/ordinal/expiry, Hook owner boundary, and duplicate receipt quota prediction. Final full Store ordinary tests and targeted race passed, then additional test-only cross-mode/concurrent Begin/Receive coverage passed ordinary/race. Production did not change after the full suite. Counts/source hashes are in `../data/root-store-receipt.json`; Store vet exited 0. Independent reliability review passed. Fixtures own /bin/cat children, close stdin and assert original Cmd.Wait returned 0; no real Provider/account/model execution.
+
+Coordinator RPC registration, original public controller launch/sandbox/owned ACP actor five-window acceptance remain separate. The Store tests do not establish a working public Grok integration or model qualification.

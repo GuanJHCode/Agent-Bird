@@ -246,6 +246,13 @@ func (d *DB) BindBridge(ctx context.Context, req contract.BridgeBindRequest) (co
 	if req.OwnerMode != owner.OwnerMode {
 		return empty, CodeError("owner_mode_invalid")
 	}
+	var acpBindings int
+	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM bridge_bindings WHERE run_id=? AND transport_mode='grok_acp_push_v1'`, req.RunID).Scan(&acpBindings); err != nil {
+		return empty, err
+	}
+	if acpBindings != 0 {
+		return empty, ErrConflict
+	}
 	var mode, created, cutover string
 	err = tx.QueryRowContext(ctx, `SELECT r.delivery_mode,r.created_at,m.bridge_cutover_at FROM runs r CROSS JOIN schema_meta m WHERE r.id=?`, req.RunID).Scan(&mode, &created, &cutover)
 	if err != nil {

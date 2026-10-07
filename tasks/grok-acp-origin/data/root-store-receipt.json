@@ -1,0 +1,179 @@
+{
+  "scope": "ACP Store Bind/Activate/Claim/Begin/Receive and Hook transport separation; no public controller or real Provider qualification",
+  "review": "independent reliability review PASS, added cross-mode/concurrent Begin/Receive tests subsequently; production unchanged",
+  "files": {
+    "tools/orchestrator/internal/store/acp_bridge_bindings.go": "ff4c18dd2292a4c0da92b98eeffb2d98a7ed60e23b9073f796bef6b527c560d6",
+    "tools/orchestrator/internal/store/acp_bridge_delivery.go": "99b4b299a16bb117c12f7855348c77b1775202716882f793e61b564de7f68ed8",
+    "tools/orchestrator/internal/store/acp_bridge_receipts.go": "a19b5ea96059846ff47f8f35508c058ffe80c4a82748409c4cba572d9e2c5ce0",
+    "tools/orchestrator/internal/store/acp_bridge_flow_test.go": "c3dd6d9efe7840939118534ba57d2f97145d8729c241c2b7d149835009216176",
+    "tools/orchestrator/internal/store/acp_bridge_boundaries_test.go": "813f6d9683eadaa6cb4496f5fb4af4a37b57264866e98766342baca5596acc6b",
+    "tools/orchestrator/internal/store/bridge_bindings.go": "96527850b854784d0806aae843859ffadefd10875eaba56aca1d7a9064fffac4",
+    "tools/orchestrator/internal/store/bridge_delivery.go": "0e8b8c1f0cb6f7abc1a4199d4678560e9fb9f1090f62044f978ae178c443ba46",
+    "tools/orchestrator/internal/store/bridge_historical.go": "fa188c77a7dc0886cf428ed32d2c5e6d76d4f7ed9d25ce57a0ea188899686fc2",
+    "tools/orchestrator/internal/store/bridge_ingress.go": "953c48c8104d9bde30eb7054779979920f292adecda220a533ca5265254cd5c8"
+  },
+  "tests": {
+    "root-store-boundaries-red": {
+      "pass": 22,
+      "fail": 2,
+      "skip": 0,
+      "top_level_pass": 11,
+      "package_outcomes": [
+        {
+          "Time": "2026-10-07T23:47:47.2401+08:00",
+          "Action": "fail",
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "Elapsed": 6.684
+        }
+      ]
+    },
+    "root-store-boundaries-race": {
+      "pass": 43,
+      "fail": 0,
+      "skip": 0,
+      "top_level_pass": 29,
+      "package_outcomes": [
+        {
+          "Time": "2026-10-07T23:52:07.649059+08:00",
+          "Action": "pass",
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "Elapsed": 143.244
+        }
+      ]
+    },
+    "root-store-full": {
+      "pass": 1277,
+      "fail": 0,
+      "skip": 0,
+      "top_level_pass": 456,
+      "package_outcomes": [
+        {
+          "Time": "2026-10-07T23:55:40.530198+08:00",
+          "Action": "pass",
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "Elapsed": 182.083
+        }
+      ]
+    },
+    "root-store-cross-mode": {
+      "pass": 15,
+      "fail": 0,
+      "skip": 0,
+      "top_level_pass": 3,
+      "package_outcomes": [
+        {
+          "Time": "2026-10-07T23:55:21.584048+08:00",
+          "Action": "pass",
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "Elapsed": 2.362
+        }
+      ]
+    },
+    "root-store-cross-mode-race": {
+      "pass": 15,
+      "fail": 0,
+      "skip": 0,
+      "top_level_pass": 3,
+      "package_outcomes": [
+        {
+          "Time": "2026-10-07T23:56:11.639732+08:00",
+          "Action": "pass",
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "Elapsed": 16.086
+        }
+      ]
+    },
+    "root-boundary-green": {
+      "pass": 8,
+      "fail": 0,
+      "skip": 0,
+      "top_level_pass": 6,
+      "package_outcomes": [
+        {
+          "Time": "2026-10-07T23:12:53.454651+08:00",
+          "Action": "pass",
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "Elapsed": 3.379
+        }
+      ],
+      "path": "tasks/acp-origin-store/data/root-boundary-green.jsonl.gz"
+    },
+    "root-claim-green": {
+      "pass": 3,
+      "fail": 0,
+      "skip": 0,
+      "top_level_pass": 3,
+      "package_outcomes": [
+        {
+          "Time": "2026-10-07T23:06:35.552055+08:00",
+          "Action": "pass",
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "Elapsed": 1.45
+        }
+      ],
+      "path": "tasks/acp-origin-store/data/root-claim-green.jsonl.gz"
+    },
+    "root-claim-red": {
+      "pass": 0,
+      "fail": 3,
+      "skip": 0,
+      "top_level_pass": 0,
+      "package_outcomes": [
+        {
+          "Time": "2026-10-07T23:03:42.051255+08:00",
+          "Action": "fail",
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "Elapsed": 1.446
+        }
+      ],
+      "path": "tasks/acp-origin-store/data/root-claim-red.jsonl.gz"
+    },
+    "root-hook-boundary-red": {
+      "pass": 0,
+      "fail": 1,
+      "skip": 0,
+      "top_level_pass": 0,
+      "package_outcomes": [
+        {
+          "Time": "2026-10-07T23:12:15.497703+08:00",
+          "Action": "fail",
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "Elapsed": 0.919
+        }
+      ],
+      "path": "tasks/acp-origin-store/data/root-hook-boundary-red.jsonl.gz"
+    },
+    "root-receive-red": {
+      "pass": 0,
+      "fail": 0,
+      "skip": 0,
+      "top_level_pass": 0,
+      "package_outcomes": [
+        {
+          "Time": "2026-10-07T23:08:30.639688+08:00",
+          "Action": "fail",
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "Elapsed": 0,
+          "FailedBuild": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store [github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store.test]"
+        }
+      ],
+      "path": "tasks/acp-origin-store/data/root-receive-red.jsonl.gz"
+    },
+    "root-receive-green": {
+      "pass": 7,
+      "fail": 0,
+      "skip": 0,
+      "top_level_pass": 5,
+      "package_outcomes": [
+        {
+          "Time": "2026-10-07T23:10:22.86499+08:00",
+          "Action": "pass",
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+          "Elapsed": 3.152
+        }
+      ],
+      "path": "tasks/acp-origin-store/data/root-receive-green.jsonl.gz"
+    }
+  },
+  "vet_exit": 0
+}

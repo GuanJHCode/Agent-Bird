@@ -23,6 +23,9 @@ func bridgeHookTx(ctx context.Context, tx *sql.Tx, bindingID, token string, epoc
 	if err != nil {
 		return b, err
 	}
+	if b.view.TransportMode != contract.BridgeTransportHookPull {
+		return b, CodeError("bridge_mode_unsupported")
+	}
 	p, ok := ctx.Value(bridgeHookKey{}).(BridgeHookProof)
 	if !ok || p.BindingID != bindingID || p.HookToken != token || !bridgeEqualHash(b.HookHash, token) {
 		return b, CodeError("owner_capability_invalid")
@@ -218,6 +221,9 @@ func (d *DB) ActivateBridge(ctx context.Context, req contract.BridgeActivateRequ
 	if req.OwnerMode != owner.OwnerMode || b.view.OwnerContextID != owner.OwnerContextID {
 		return empty, CodeError("owner_mismatch")
 	}
+	if b.view.TransportMode != contract.BridgeTransportHookPull {
+		return empty, CodeError("bridge_mode_unsupported")
+	}
 	if b.view.OwnerEpoch != req.OwnerEpoch {
 		return empty, CodeError("invalid_epoch")
 	}
@@ -273,6 +279,9 @@ func (d *DB) UnbindBridge(ctx context.Context, req contract.BridgeUnbindRequest)
 	}
 	if req.OwnerMode != owner.OwnerMode || b.view.OwnerContextID != owner.OwnerContextID {
 		return CodeError("owner_mismatch")
+	}
+	if b.view.TransportMode != contract.BridgeTransportHookPull {
+		return CodeError("bridge_mode_unsupported")
 	}
 	if b.view.OwnerEpoch != req.OwnerEpoch {
 		return CodeError("invalid_epoch")

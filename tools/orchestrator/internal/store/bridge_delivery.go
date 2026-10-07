@@ -127,7 +127,7 @@ func bridgeStoredSecretSafe(ctx context.Context, tx *sql.Tx, run, binding string
 	for _, pattern := range []struct {
 		prefix string
 		hex    int
-	}{{"owner-token-", 24}, {"control-token-", 24}, {"report-token-", 64}, {"hook-", 24}, {"bridge-claim-", 64}} {
+	}{{"owner-token-", 24}, {"control-token-", 24}, {"report-token-", 64}, {"hook-", 24}, {"bridge-claim-", 64}, {"acp-claim-", 64}} {
 		width := len(pattern.prefix) + pattern.hex
 		for i := 0; i+width <= len(raw); i++ {
 			if string(raw[i:i+len(pattern.prefix)]) != pattern.prefix {
@@ -220,6 +220,9 @@ func bridgeCurrentOwnerTx(ctx context.Context, tx *sql.Tx, id string, epoch uint
 	}
 	if mode != p.OwnerMode || b.view.OwnerContextID != p.OwnerContextID || b.view.OwnerPID != p.OwnerPID || b.view.OwnerBirth != p.OwnerBirth {
 		return empty, CodeError("owner_mismatch")
+	}
+	if b.view.TransportMode != contract.BridgeTransportHookPull {
+		return empty, CodeError("bridge_mode_unsupported")
 	}
 	if epoch != b.view.OwnerEpoch {
 		return empty, CodeError("invalid_epoch")
@@ -426,16 +429,22 @@ func bridgeFitsProvider(b contract.BridgeBatch, provider string) error {
 	return nil
 }
 func bridgeLoadBatchTx(ctx context.Context, tx *sql.Tx, batchID, attemptID string) (contract.BridgeBatch, []byte, error) {
+	return bridgeLoadBatchTransportTx(ctx, tx, batchID, attemptID, contract.BridgeTransportHookPull)
+}
+
+func bridgeLoadBatchTransportTx(ctx context.Context, tx *sql.Tx, batchID, attemptID, transport string) (contract.BridgeBatch, []byte, error) {
 	var b contract.BridgeBatch
 	var content, events, receipts []byte
-	err := tx.QueryRowContext(ctx, "SELECT binding_id,owner_epoch,content_bytes,render_sha256,events_json,receipts_json FROM bridge_batches WHERE batch_id=?", batchID).Scan(&b.BindingID, &b.OwnerEpoch, &content, &b.RenderSHA256, &events, &receipts)
+	err := tx.QueryRowContext(ctx, "SELECT x.binding_id,x.owner_epoch,x.content_bytes,x.render_sha256,x.events_json,x.receipts_json,b.transport_mode FROM bridge_batches x JOIN bridge_bindings b ON b.binding_id=x.binding_id WHERE x.batch_id=?", batchID).Scan(&b.BindingID, &b.OwnerEpoch, &content, &b.RenderSHA256, &events, &receipts, &b.TransportMode)
 	if err != nil {
 		return b, nil, err
 	}
 	b.SchemaVersion = 1
 	b.BatchID = batchID
 	b.AttemptID = attemptID
-	b.TransportMode = "hook_pull"
+	if b.TransportMode != transport {
+		return b, nil, CodeError("bridge_mode_unsupported")
+	}
 	if json.Unmarshal(events, &b.Events) != nil || json.Unmarshal(receipts, &b.DeliveryReceipts) != nil {
 		return b, nil, CodeError("bridge_source_changed")
 	}

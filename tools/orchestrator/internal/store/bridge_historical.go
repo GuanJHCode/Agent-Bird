@@ -41,6 +41,9 @@ func bridgeOwnerForHistoricalTx(ctx context.Context, tx *sql.Tx, bindingID strin
 	if requestMode != owner.OwnerMode || b.view.OwnerContextID != owner.OwnerContextID {
 		return empty, CodeError("owner_mismatch")
 	}
+	if b.view.TransportMode != "hook_pull" {
+		return empty, CodeError("bridge_mode_unsupported")
+	}
 	if b.view.OwnerEpoch != ownerEpoch {
 		return empty, CodeError("invalid_epoch")
 	}
