@@ -1,0 +1,15 @@
+--- FAIL: TestClientInitializeAdmitsOnlyOneInFlightRequest (1.00s)
+    lifecycle_repair_test.go:58: second Initialize() = grokacp: uncertain, want grokacp: state
+--- FAIL: TestClientPromptEOFAndRemoteErrorAreUncertainAndClose (0.00s)
+    --- FAIL: TestClientPromptEOFAndRemoteErrorAreUncertainAndClose/eof (0.00s)
+        lifecycle_repair_test.go:126: Prompt() = EOF, want grokacp: uncertain
+    --- FAIL: TestClientPromptEOFAndRemoteErrorAreUncertainAndClose/remote_error (0.00s)
+        lifecycle_repair_test.go:126: Prompt() = grokacp: protocol, want grokacp: uncertain
+--- FAIL: TestClientRejectsForeignOrMalformedPermissionRequest (2.00s)
+    --- FAIL: TestClientRejectsForeignOrMalformedPermissionRequest/foreign_session (1.00s)
+        lifecycle_repair_test.go:187: Prompt() = grokacp: uncertain, want grokacp: protocol
+    --- FAIL: TestClientRejectsForeignOrMalformedPermissionRequest/object_id (1.00s)
+        lifecycle_repair_test.go:187: Prompt() = grokacp: uncertain, want grokacp: protocol
+FAIL
+FAIL	github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp	3.381s
+FAIL
