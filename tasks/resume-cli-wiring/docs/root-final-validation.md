@@ -1,0 +1,10 @@
+# CLI Resume ROOT最终验收
+
+实现1520397+stdout修复622cf978，六Go文件与worker最终manifest完全一致，ROOT source/evidence见data/root-final-receipt.json。独立初审发现Write前complete会丢implicit重放，真实2top7named RED；现完整无错误Write后才complete，short nil为ErrShortWrite，失败保留pending，同ID重放；独立deltaPASS。
+
+- macOS affectedrace：22top155named PASS0FAIL/skip3.207s；本次新范围12top135named，另外20个旧单元断言。journal库未改，其此前mac/Linux/foreignUID独立证据复用，不机械再跑UIDskip。
+- Docker Linux同22top155named PASS0FAIL/skip；exit0非OOM，CID6878f5fc88462a7a634d7e633572bea7a47ad69ed5c98cdf349a89a79a4dca29精确rm/absent，binarySHA核对后已删。首次runner在create之后因未建data/linux失败，容器83de5ef6eeee10897d2db660c32af117589d875a445f665a70fd0a0dcbdcd0cb从未start；ROOT核对exactmount/name/entrypoint/state后精确rm，setup失败receipt保留，runner现先mkdir。该失败不是产品测试RED。
+- 实际macOS native race TestCLIBudgetRevisionResumesInterruptedWorkerWithinSameAttempt：1topPASS0FAIL/skip6.717s，真实CLI stop→预算revision→原owner/原attempt新segment Resume，保留已消耗charge且剩余grant降低；Coordinator原Wait0，测试无retained root日志。该case使用受控Go worker而非真实Provider。
+- 最终vet ./cmd/orchestrator exit0。整体build由public wiring集成验证补齐。
+
+当前分支不含ROOT最新successor admission；受控callback新owner helper+filesystem/journal单元证据不能替代新owner公开端到端。需要合入后复核整库build和受影响native入口。恢复scope handoff及Bind未Applied死亡窗口仍OPEN。无Provider/model/account/user installation/push/release。

@@ -1,0 +1,311 @@
+=== RUN   TestBootstrapV2DiskHasNoTokenFields
+--- PASS: TestBootstrapV2DiskHasNoTokenFields (0.00s)
+=== RUN   TestBootstrapControlReconstructionAndLegacyReadOnly
+=== RUN   TestBootstrapControlReconstructionAndLegacyReadOnly/missing-token
+=== RUN   TestBootstrapControlReconstructionAndLegacyReadOnly/wrong-id
+=== RUN   TestBootstrapControlReconstructionAndLegacyReadOnly/token-in-metadata
+=== RUN   TestBootstrapControlReconstructionAndLegacyReadOnly/v1-in-metadata
+--- PASS: TestBootstrapControlReconstructionAndLegacyReadOnly (0.00s)
+    --- PASS: TestBootstrapControlReconstructionAndLegacyReadOnly/missing-token (0.00s)
+    --- PASS: TestBootstrapControlReconstructionAndLegacyReadOnly/wrong-id (0.00s)
+    --- PASS: TestBootstrapControlReconstructionAndLegacyReadOnly/token-in-metadata (0.00s)
+    --- PASS: TestBootstrapControlReconstructionAndLegacyReadOnly/v1-in-metadata (0.00s)
+=== RUN   TestCoreEnsureSourcePresenceNeverSpawnsAliveOrUnprovedHost
+=== RUN   TestCoreEnsureSourcePresenceNeverSpawnsAliveOrUnprovedHost/alive_reconciles
+=== RUN   TestCoreEnsureSourcePresenceNeverSpawnsAliveOrUnprovedHost/unknown
+=== RUN   TestCoreEnsureSourcePresenceNeverSpawnsAliveOrUnprovedHost/inspection_error
+=== RUN   TestCoreEnsureSourcePresenceNeverSpawnsAliveOrUnprovedHost/canceled
+--- PASS: TestCoreEnsureSourcePresenceNeverSpawnsAliveOrUnprovedHost (0.02s)
+    --- PASS: TestCoreEnsureSourcePresenceNeverSpawnsAliveOrUnprovedHost/alive_reconciles (0.02s)
+    --- PASS: TestCoreEnsureSourcePresenceNeverSpawnsAliveOrUnprovedHost/unknown (0.00s)
+    --- PASS: TestCoreEnsureSourcePresenceNeverSpawnsAliveOrUnprovedHost/inspection_error (0.00s)
+    --- PASS: TestCoreEnsureSourcePresenceNeverSpawnsAliveOrUnprovedHost/canceled (0.00s)
+=== RUN   TestCoreEnsureSourcePresenceColdStartIsOnceWithinOriginalWindow
+=== RUN   TestCoreEnsureSourcePresenceColdStartIsOnceWithinOriginalWindow/unregistered
+=== RUN   TestCoreEnsureSourcePresenceColdStartIsOnceWithinOriginalWindow/old_host_exited
+--- PASS: TestCoreEnsureSourcePresenceColdStartIsOnceWithinOriginalWindow (0.09s)
+    --- PASS: TestCoreEnsureSourcePresenceColdStartIsOnceWithinOriginalWindow/unregistered (0.05s)
+    --- PASS: TestCoreEnsureSourcePresenceColdStartIsOnceWithinOriginalWindow/old_host_exited (0.04s)
+=== RUN   TestCoreSourceStartupRejectsCanceledOriginalWindowBeforeLaunch
+--- PASS: TestCoreSourceStartupRejectsCanceledOriginalWindowBeforeLaunch (0.00s)
+=== RUN   TestResumeCLIOutputFailureKeepsPending
+=== RUN   TestResumeCLIOutputFailureKeepsPending/epipe
+=== RUN   TestResumeCLIOutputFailureKeepsPending/enospc
+=== RUN   TestResumeCLIOutputFailureKeepsPending/short_zero_nil
+=== RUN   TestResumeCLIOutputFailureKeepsPending/short_partial_nil
+=== RUN   TestResumeCLIOutputFailureKeepsPending/full_with_error
+--- PASS: TestResumeCLIOutputFailureKeepsPending (0.00s)
+    --- PASS: TestResumeCLIOutputFailureKeepsPending/epipe (0.00s)
+    --- PASS: TestResumeCLIOutputFailureKeepsPending/enospc (0.00s)
+    --- PASS: TestResumeCLIOutputFailureKeepsPending/short_zero_nil (0.00s)
+    --- PASS: TestResumeCLIOutputFailureKeepsPending/short_partial_nil (0.00s)
+    --- PASS: TestResumeCLIOutputFailureKeepsPending/full_with_error (0.00s)
+=== RUN   TestResumeCLIOutputCompleteFailureReturnsError
+--- PASS: TestResumeCLIOutputCompleteFailureReturnsError (0.00s)
+=== RUN   TestResumeCLIReceiptStrict
+=== RUN   TestResumeCLIReceiptStrict/existing_owner
+=== RUN   TestResumeCLIReceiptStrict/successor
+=== RUN   TestResumeCLIReceiptStrict/sequence_negative
+=== RUN   TestResumeCLIReceiptStrict/unknown
+=== RUN   TestResumeCLIReceiptStrict/null_launch_id
+=== RUN   TestResumeCLIReceiptStrict/null_work_revision
+=== RUN   TestResumeCLIReceiptStrict/missing_control_revision
+=== RUN   TestResumeCLIReceiptStrict/missing_mode
+=== RUN   TestResumeCLIReceiptStrict/run
+=== RUN   TestResumeCLIReceiptStrict/owner_empty
+=== RUN   TestResumeCLIReceiptStrict/epoch_zero
+=== RUN   TestResumeCLIReceiptStrict/missing_work_revision
+=== RUN   TestResumeCLIReceiptStrict/null_run_id
+=== RUN   TestResumeCLIReceiptStrict/missing_ready_sequence
+=== RUN   TestResumeCLIReceiptStrict/null_created_at
+=== RUN   TestResumeCLIReceiptStrict/missing_status
+=== RUN   TestResumeCLIReceiptStrict/mode
+=== RUN   TestResumeCLIReceiptStrict/null_control_revision
+=== RUN   TestResumeCLIReceiptStrict/null_mode
+=== RUN   TestResumeCLIReceiptStrict/null_command_id
+=== RUN   TestResumeCLIReceiptStrict/missing_coordinator_epoch
+=== RUN   TestResumeCLIReceiptStrict/null_coordinator_epoch
+=== RUN   TestResumeCLIReceiptStrict/missing_created_at
+=== RUN   TestResumeCLIReceiptStrict/missing_version
+=== RUN   TestResumeCLIReceiptStrict/hash
+=== RUN   TestResumeCLIReceiptStrict/existing_auth
+=== RUN   TestResumeCLIReceiptStrict/null_ready_sequence
+=== RUN   TestResumeCLIReceiptStrict/null_task_id
+=== RUN   TestResumeCLIReceiptStrict/missing_owner_id
+=== RUN   TestResumeCLIReceiptStrict/revision
+=== RUN   TestResumeCLIReceiptStrict/successor_no_auth
+=== RUN   TestResumeCLIReceiptStrict/successor_empty_auth
+=== RUN   TestResumeCLIReceiptStrict/null_version
+=== RUN   TestResumeCLIReceiptStrict/null_status
+=== RUN   TestResumeCLIReceiptStrict/null_request_sha256
+=== RUN   TestResumeCLIReceiptStrict/missing_task_id
+=== RUN   TestResumeCLIReceiptStrict/task
+=== RUN   TestResumeCLIReceiptStrict/time_offset
+=== RUN   TestResumeCLIReceiptStrict/existing_empty_auth
+=== RUN   TestResumeCLIReceiptStrict/version
+=== RUN   TestResumeCLIReceiptStrict/missing_launch_id
+=== RUN   TestResumeCLIReceiptStrict/missing_run_id
+=== RUN   TestResumeCLIReceiptStrict/missing_request_sha256
+=== RUN   TestResumeCLIReceiptStrict/null_owner_id
+=== RUN   TestResumeCLIReceiptStrict/status
+=== RUN   TestResumeCLIReceiptStrict/command
+=== RUN   TestResumeCLIReceiptStrict/sequence_zero
+=== RUN   TestResumeCLIReceiptStrict/time_noncanonical
+=== RUN   TestResumeCLIReceiptStrict/successor_null_auth
+=== RUN   TestResumeCLIReceiptStrict/time_zero
+=== RUN   TestResumeCLIReceiptStrict/missing_command_id
+=== RUN   TestResumeCLIReceiptStrict/launch
+=== RUN   TestResumeCLIReceiptStrict/control_zero
+=== RUN   TestResumeCLIReceiptStrict/duplicate
+=== RUN   TestResumeCLIReceiptStrict/case_alias
+=== RUN   TestResumeCLIReceiptStrict/trailing
+=== RUN   TestResumeCLIReceiptStrict/oversize
+=== RUN   TestResumeCLIReceiptStrict/cap_run_empty
+=== RUN   TestResumeCLIReceiptStrict/v1_available_scope
+--- PASS: TestResumeCLIReceiptStrict (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/existing_owner (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/successor (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/sequence_negative (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/unknown (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/null_launch_id (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/null_work_revision (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/missing_control_revision (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/missing_mode (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/run (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/owner_empty (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/epoch_zero (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/missing_work_revision (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/null_run_id (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/missing_ready_sequence (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/null_created_at (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/missing_status (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/mode (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/null_control_revision (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/null_mode (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/null_command_id (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/missing_coordinator_epoch (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/null_coordinator_epoch (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/missing_created_at (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/missing_version (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/hash (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/existing_auth (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/null_ready_sequence (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/null_task_id (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/missing_owner_id (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/revision (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/successor_no_auth (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/successor_empty_auth (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/null_version (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/null_status (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/null_request_sha256 (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/missing_task_id (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/task (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/time_offset (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/existing_empty_auth (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/version (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/missing_launch_id (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/missing_run_id (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/missing_request_sha256 (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/null_owner_id (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/status (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/command (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/sequence_zero (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/time_noncanonical (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/successor_null_auth (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/time_zero (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/missing_command_id (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/launch (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/control_zero (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/duplicate (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/case_alias (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/trailing (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/oversize (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/cap_run_empty (0.00s)
+    --- PASS: TestResumeCLIReceiptStrict/v1_available_scope (0.00s)
+=== RUN   TestResumeCLILocalAdmission
+=== RUN   TestResumeCLILocalAdmission/implicit_completed_new_id
+=== RUN   TestResumeCLILocalAdmission/explicit_new_with_pending
+=== RUN   TestResumeCLILocalAdmission/ambiguity_before_rpc
+=== RUN   TestResumeCLILocalAdmission/conflict_before_rpc
+=== RUN   TestResumeCLILocalAdmission/corrupt_before_rpc
+=== RUN   TestResumeCLILocalAdmission/cap_missing
+=== RUN   TestResumeCLILocalAdmission/cap_symlink
+=== RUN   TestResumeCLILocalAdmission/cap_bad_version
+=== RUN   TestResumeCLILocalAdmission/cap_empty_controller
+=== RUN   TestResumeCLILocalAdmission/cap_empty_token
+=== RUN   TestResumeCLILocalAdmission/cap_relative_bootstrap
+=== RUN   TestResumeCLILocalAdmission/cap_missing_launch
+--- PASS: TestResumeCLILocalAdmission (0.00s)
+    --- PASS: TestResumeCLILocalAdmission/implicit_completed_new_id (0.00s)
+    --- PASS: TestResumeCLILocalAdmission/explicit_new_with_pending (0.00s)
+    --- PASS: TestResumeCLILocalAdmission/ambiguity_before_rpc (0.00s)
+    --- PASS: TestResumeCLILocalAdmission/conflict_before_rpc (0.00s)
+    --- PASS: TestResumeCLILocalAdmission/corrupt_before_rpc (0.00s)
+    --- PASS: TestResumeCLILocalAdmission/cap_missing (0.00s)
+    --- PASS: TestResumeCLILocalAdmission/cap_symlink (0.00s)
+    --- PASS: TestResumeCLILocalAdmission/cap_bad_version (0.00s)
+    --- PASS: TestResumeCLILocalAdmission/cap_empty_controller (0.00s)
+    --- PASS: TestResumeCLILocalAdmission/cap_empty_token (0.00s)
+    --- PASS: TestResumeCLILocalAdmission/cap_relative_bootstrap (0.00s)
+    --- PASS: TestResumeCLILocalAdmission/cap_missing_launch (0.00s)
+=== RUN   TestResumeCLIJournalAndReceiptFlow
+=== RUN   TestResumeCLIJournalAndReceiptFlow/ack_loss
+=== RUN   TestResumeCLIJournalAndReceiptFlow/invalid_receipt
+=== RUN   TestResumeCLIJournalAndReceiptFlow/host_error
+=== RUN   TestResumeCLIJournalAndReceiptFlow/capability_before_journal
+=== RUN   TestResumeCLIJournalAndReceiptFlow/coordinator_before_journal
+=== RUN   TestResumeCLIJournalAndReceiptFlow/existing_raw_explicit_replay_without_bootstrap
+--- PASS: TestResumeCLIJournalAndReceiptFlow (0.00s)
+    --- PASS: TestResumeCLIJournalAndReceiptFlow/ack_loss (0.00s)
+    --- PASS: TestResumeCLIJournalAndReceiptFlow/invalid_receipt (0.00s)
+    --- PASS: TestResumeCLIJournalAndReceiptFlow/host_error (0.00s)
+    --- PASS: TestResumeCLIJournalAndReceiptFlow/capability_before_journal (0.00s)
+    --- PASS: TestResumeCLIJournalAndReceiptFlow/coordinator_before_journal (0.00s)
+    --- PASS: TestResumeCLIJournalAndReceiptFlow/existing_raw_explicit_replay_without_bootstrap (0.00s)
+=== RUN   TestResumeCLILegacyFallback
+=== RUN   TestResumeCLILegacyFallback/implicit
+=== RUN   TestResumeCLILegacyFallback/explicit
+=== RUN   TestResumeCLILegacyFallback/other_error
+=== RUN   TestResumeCLILegacyFallback/local_unsupported
+=== RUN   TestResumeCLILegacyFallback/blocked
+=== RUN   TestResumeCLILegacyFallback/invalid_legacy
+--- PASS: TestResumeCLILegacyFallback (0.00s)
+    --- PASS: TestResumeCLILegacyFallback/implicit (0.00s)
+    --- PASS: TestResumeCLILegacyFallback/explicit (0.00s)
+    --- PASS: TestResumeCLILegacyFallback/other_error (0.00s)
+    --- PASS: TestResumeCLILegacyFallback/local_unsupported (0.00s)
+    --- PASS: TestResumeCLILegacyFallback/blocked (0.00s)
+    --- PASS: TestResumeCLILegacyFallback/invalid_legacy (0.00s)
+=== RUN   TestResumeCLICommandIDFlags
+=== RUN   TestResumeCLICommandIDFlags/resume
+=== RUN   TestResumeCLICommandIDFlags/stop_task
+=== RUN   TestResumeCLICommandIDFlags/summary
+=== RUN   TestResumeCLICommandIDFlags/collect
+--- PASS: TestResumeCLICommandIDFlags (0.00s)
+    --- PASS: TestResumeCLICommandIDFlags/resume (0.00s)
+    --- PASS: TestResumeCLICommandIDFlags/stop_task (0.00s)
+    --- PASS: TestResumeCLICommandIDFlags/summary (0.00s)
+    --- PASS: TestResumeCLICommandIDFlags/collect (0.00s)
+=== RUN   TestResumeCLIHighLevelNoBootstrap
+=== RUN   TestResumeCLIHighLevelNoBootstrap/implicit
+=== RUN   TestResumeCLIHighLevelNoBootstrap/explicit
+=== RUN   TestResumeCLIHighLevelNoBootstrap/empty
+=== RUN   TestResumeCLIHighLevelNoBootstrap/typed_extra
+=== RUN   TestResumeCLIHighLevelNoBootstrap/typed_resume_keeps_bootstrap_gate
+=== RUN   TestResumeCLIHighLevelNoBootstrap/collect_keeps_bootstrap_gate
+--- PASS: TestResumeCLIHighLevelNoBootstrap (0.00s)
+    --- PASS: TestResumeCLIHighLevelNoBootstrap/implicit (0.00s)
+    --- PASS: TestResumeCLIHighLevelNoBootstrap/explicit (0.00s)
+    --- PASS: TestResumeCLIHighLevelNoBootstrap/empty (0.00s)
+    --- PASS: TestResumeCLIHighLevelNoBootstrap/typed_extra (0.00s)
+    --- PASS: TestResumeCLIHighLevelNoBootstrap/typed_resume_keeps_bootstrap_gate (0.00s)
+    --- PASS: TestResumeCLIHighLevelNoBootstrap/collect_keeps_bootstrap_gate (0.00s)
+=== RUN   TestResumeSuccessorPresence
+=== RUN   TestResumeSuccessorPresence/one_start
+=== RUN   TestResumeSuccessorPresence/old_receipt
+=== RUN   TestResumeSuccessorPresence/old_receipt_current_original
+=== RUN   TestResumeSuccessorPresence/intended_alive
+=== RUN   TestResumeSuccessorPresence/bound_ready
+=== RUN   TestResumeSuccessorPresence/intended_dead
+=== RUN   TestResumeSuccessorPresence/bound_dead
+=== RUN   TestResumeSuccessorPresence/unknown
+=== RUN   TestResumeSuccessorPresence/reused
+=== RUN   TestResumeSuccessorPresence/unregistered
+=== RUN   TestResumeSuccessorPresence/wrong_phase
+=== RUN   TestResumeSuccessorPresence/pending_alive
+=== RUN   TestResumeSuccessorPresence/original_deadline
+=== RUN   TestResumeSuccessorPresence/start_failure
+=== RUN   TestResumeSuccessorPresence/canceled_no_inspect
+=== RUN   TestResumeSuccessorPresence/inspect_consumed_deadline
+=== RUN   TestResumeSuccessorPresence/default_five_second_budget
+--- PASS: TestResumeSuccessorPresence (0.18s)
+    --- PASS: TestResumeSuccessorPresence/one_start (0.07s)
+    --- PASS: TestResumeSuccessorPresence/old_receipt (0.00s)
+    --- PASS: TestResumeSuccessorPresence/old_receipt_current_original (0.00s)
+    --- PASS: TestResumeSuccessorPresence/intended_alive (0.03s)
+    --- PASS: TestResumeSuccessorPresence/bound_ready (0.00s)
+    --- PASS: TestResumeSuccessorPresence/intended_dead (0.00s)
+    --- PASS: TestResumeSuccessorPresence/bound_dead (0.00s)
+    --- PASS: TestResumeSuccessorPresence/unknown (0.00s)
+    --- PASS: TestResumeSuccessorPresence/reused (0.00s)
+    --- PASS: TestResumeSuccessorPresence/unregistered (0.00s)
+    --- PASS: TestResumeSuccessorPresence/wrong_phase (0.00s)
+    --- PASS: TestResumeSuccessorPresence/pending_alive (0.00s)
+    --- PASS: TestResumeSuccessorPresence/original_deadline (0.07s)
+    --- PASS: TestResumeSuccessorPresence/start_failure (0.00s)
+    --- PASS: TestResumeSuccessorPresence/canceled_no_inspect (0.00s)
+    --- PASS: TestResumeSuccessorPresence/inspect_consumed_deadline (0.01s)
+    --- PASS: TestResumeSuccessorPresence/default_five_second_budget (0.00s)
+=== RUN   TestResumeSuccessorCanceledBootstrap
+--- PASS: TestResumeSuccessorCanceledBootstrap (0.00s)
+=== RUN   TestResumeSuccessorPresenceStrict
+=== RUN   TestResumeSuccessorPresenceStrict/null_phase
+=== RUN   TestResumeSuccessorPresenceStrict/null_selector
+=== RUN   TestResumeSuccessorPresenceStrict/missing_pending_selector
+=== RUN   TestResumeSuccessorPresenceStrict/wrong_owner_mode
+=== RUN   TestResumeSuccessorPresenceStrict/unknown
+=== RUN   TestResumeSuccessorPresenceStrict/duplicate
+=== RUN   TestResumeSuccessorPresenceStrict/missing_phase
+--- PASS: TestResumeSuccessorPresenceStrict (0.00s)
+    --- PASS: TestResumeSuccessorPresenceStrict/null_phase (0.00s)
+    --- PASS: TestResumeSuccessorPresenceStrict/null_selector (0.00s)
+    --- PASS: TestResumeSuccessorPresenceStrict/missing_pending_selector (0.00s)
+    --- PASS: TestResumeSuccessorPresenceStrict/wrong_owner_mode (0.00s)
+    --- PASS: TestResumeSuccessorPresenceStrict/unknown (0.00s)
+    --- PASS: TestResumeSuccessorPresenceStrict/duplicate (0.00s)
+    --- PASS: TestResumeSuccessorPresenceStrict/missing_phase (0.00s)
+=== RUN   TestResumeSuccessorBootstrapSelector
+=== RUN   TestResumeSuccessorBootstrapSelector/launch_mismatch
+--- PASS: TestResumeSuccessorBootstrapSelector (0.02s)
+    --- PASS: TestResumeSuccessorBootstrapSelector/launch_mismatch (0.00s)
+=== RUN   TestTaskSubmitRejectsOwnerOverrides
+--- PASS: TestTaskSubmitRejectsOwnerOverrides (0.00s)
+=== RUN   TestTaskSubmitExistingHandleNeverResubmits
+--- PASS: TestTaskSubmitExistingHandleNeverResubmits (0.00s)
+=== RUN   TestTaskRunMissingWorkspaceDoesNotBindOrCreateHandle
+--- PASS: TestTaskRunMissingWorkspaceDoesNotBindOrCreateHandle (0.00s)
+=== RUN   TestTaskHandleScopeRejectsForeignTaskBeforeReadingControl
+--- PASS: TestTaskHandleScopeRejectsForeignTaskBeforeReadingControl (0.00s)
+=== RUN   TestTaskHandleNeverAcceptsControlOverride
+--- PASS: TestTaskHandleNeverAcceptsControlOverride (0.00s)
+PASS
