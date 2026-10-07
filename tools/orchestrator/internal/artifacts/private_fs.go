@@ -223,9 +223,19 @@ func openObject(root, id string) (n *object, err error) {
 	return openObjectMode(root, id, true)
 }
 func openObjectMode(root, id string, create bool) (n *object, err error) {
+	return openObjectModeRoot(root, id, create, false)
+}
+
+// Host spool roots are runtime-owned capability namespaces, unlike the report
+// intake anchor whose parent may be readable. Keep that stricter policy local
+// to Host slots so existing report behavior remains unchanged.
+func openHostObjectMode(root, id string, create bool) (n *object, err error) {
+	return openObjectModeRoot(root, id, create, true)
+}
+func openObjectModeRoot(root, id string, create, ownerOnlyRoot bool) (n *object, err error) {
 	// The DB parent may be readable; all newly created artifact namespaces
 	// remain owner-only. A parent writable by other users is never accepted.
-	c, err := openAnchor(root, false)
+	c, err := openAnchor(root, ownerOnlyRoot)
 	if err != nil {
 		return nil, err
 	}

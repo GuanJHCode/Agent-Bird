@@ -102,6 +102,10 @@ func (d HostSlotDescriptor) Canonical() ([]byte, error) {
 }
 
 func MaterializeHostSlot(ctx context.Context, root string, d HostSlotDescriptor, body []byte) (proof Proof, err error) {
+	return materializeHostSlot(ctx, root, d, body, nil)
+}
+
+func materializeHostSlot(ctx context.Context, root string, d HostSlotDescriptor, body []byte, step func(string) error) (proof Proof, err error) {
 	raw, err := d.Canonical()
 	if err != nil {
 		return proof, err
@@ -120,7 +124,7 @@ func MaterializeHostSlot(ctx context.Context, root string, d HostSlotDescriptor,
 	if err != nil {
 		return proof, err
 	}
-	n, err := openObject(root, id)
+	n, err := openHostObjectMode(root, id, true)
 	if err != nil {
 		return proof, err
 	}
@@ -130,6 +134,7 @@ func MaterializeHostSlot(ctx context.Context, root string, d HostSlotDescriptor,
 			proof = Proof{}
 		}
 	}()
+	n.step = step
 	if err = n.lock(ctx); err != nil {
 		return proof, err
 	}
@@ -151,8 +156,11 @@ func MaterializeHostSlot(ctx context.Context, root string, d HostSlotDescriptor,
 		return proof, statErr
 	}
 	ready, err := n.recoverHostStage(ctx, d)
-	if err != nil {
+	if err != nil && !errors.Is(err, ErrContent) {
 		return proof, err
+	}
+	if errors.Is(err, ErrContent) {
+		ready = false
 	}
 	if !ready {
 		if err = n.writeHostStage(ctx, d, body); err != nil {
@@ -174,7 +182,7 @@ func VerifyHostSlotAndCommit(ctx context.Context, root string, d HostSlotDescrip
 	if err != nil {
 		return err
 	}
-	n, err := openObjectMode(root, id, false)
+	n, err := openHostObjectMode(root, id, false)
 	if err != nil {
 		return err
 	}
@@ -204,6 +212,10 @@ func VerifyHostSlotAndCommit(ctx context.Context, root string, d HostSlotDescrip
 }
 
 func LoadHostSlot(ctx context.Context, root string, binding HostSlotBinding) (d HostSlotDescriptor, proof Proof, body []byte, err error) {
+	return loadHostSlot(ctx, root, binding, nil)
+}
+
+func loadHostSlot(ctx context.Context, root string, binding HostSlotBinding, step func(string) error) (d HostSlotDescriptor, proof Proof, body []byte, err error) {
 	if err = binding.Validate(); err != nil {
 		return d, proof, body, err
 	}
@@ -211,7 +223,7 @@ func LoadHostSlot(ctx context.Context, root string, binding HostSlotBinding) (d 
 	if err != nil {
 		return d, proof, body, err
 	}
-	n, err := openObjectMode(root, id, false)
+	n, err := openHostObjectMode(root, id, false)
 	if err != nil {
 		return d, proof, body, err
 	}
@@ -221,6 +233,7 @@ func LoadHostSlot(ctx context.Context, root string, binding HostSlotBinding) (d 
 			d, proof, body = HostSlotDescriptor{}, Proof{}, nil
 		}
 	}()
+	n.step = step
 	if err = n.lock(ctx); err != nil {
 		return d, proof, body, err
 	}
@@ -257,18 +270,14 @@ func LoadHostSlot(ctx context.Context, root string, binding HostSlotBinding) (d 
 	if _, e := n.stat("data.stage"); !errors.Is(e, unix.ENOENT) {
 		return HostSlotDescriptor{}, Proof{}, nil, ErrUnsafe
 	}
-	proof, err = n.hostSlotProof(ctx, d, canonical, id)
-	if err != nil {
-		return HostSlotDescriptor{}, Proof{}, nil, err
-	}
-	body, err = n.read("data.bin", d.Size)
+	proof, body, err = n.hostSlotProofBody(ctx, d, canonical, id)
 	if err != nil {
 		return HostSlotDescriptor{}, Proof{}, nil, err
 	}
 	return d, proof, body, nil
 }
 
-func (n *object) ensureIntentLimit(ctx context.Context, body []byte, limit int64) error {
+func (n *object) ensureIntentLimit(ctx context.Context, body []byte, limit int64) (err error) {
 	got, err := n.read("intent.json", limit)
 	if err == nil {
 		if !bytes.Equal(got, body) {
@@ -291,32 +300,62 @@ func (n *object) ensureIntentLimit(ctx context.Context, body []byte, limit int64
 	if err != nil {
 		return err
 	}
-	defer f.Close()
-	if err = f.Truncate(0); err == nil {
-		_, err = f.Write(body)
+	defer func() { err = errors.Join(err, f.Close()) }()
+	if err = ctx.Err(); err != nil {
+		return err
 	}
-	if err == nil {
-		err = f.Sync()
-	}
-	if err != nil {
+	if err = n.point("intent.stage:before-truncate"); err != nil {
 		return err
 	}
 	if err = n.verify(f, "intent.stage", before, false, limit); err != nil {
 		return err
 	}
-	return n.publish("intent.stage", "intent.json")
-}
-
-func (n *object) writeHostStage(ctx context.Context, d HostSlotDescriptor, body []byte) error {
-	f, before, err := n.regular("data.stage", unix.O_RDWR, d.limit(), true)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
 	if err = f.Truncate(0); err != nil {
 		return err
 	}
 	if _, err = f.Write(body); err != nil {
+		return err
+	}
+	if err = n.point("intent.stage:after-write"); err != nil {
+		return err
+	}
+	if err = n.verify(f, "intent.stage", before, false, limit); err != nil {
+		return err
+	}
+	if err = ctx.Err(); err != nil {
+		return err
+	}
+	if err = f.Sync(); err != nil {
+		return err
+	}
+	if err = n.point("intent.stage:after-sync"); err != nil {
+		return err
+	}
+	return n.publish("intent.stage", "intent.json")
+}
+
+func (n *object) writeHostStage(ctx context.Context, d HostSlotDescriptor, body []byte) (err error) {
+	f, before, err := n.regular("data.stage", unix.O_RDWR, d.limit(), true)
+	if err != nil {
+		return err
+	}
+	defer func() { err = errors.Join(err, f.Close()) }()
+	if err = ctx.Err(); err != nil {
+		return err
+	}
+	if err = n.point("data.stage:before-truncate"); err != nil {
+		return err
+	}
+	if err = n.verify(f, "data.stage", before, false, d.limit()); err != nil {
+		return err
+	}
+	if err = f.Truncate(0); err != nil {
+		return err
+	}
+	if _, err = f.Write(body); err != nil {
+		return err
+	}
+	if err = n.point("data.stage:after-write"); err != nil {
 		return err
 	}
 	if err = ctx.Err(); err != nil {
@@ -325,23 +364,38 @@ func (n *object) writeHostStage(ctx context.Context, d HostSlotDescriptor, body 
 	if err = n.verify(f, "data.stage", before, false, d.limit()); err != nil {
 		return err
 	}
-	return f.Sync()
+	if err = f.Sync(); err != nil {
+		return err
+	}
+	return n.point("data.stage:after-sync")
 }
 
 func (n *object) recoverHostStage(ctx context.Context, d HostSlotDescriptor) (bool, error) {
-	_, err := n.verifyHostData(ctx, "data.stage", d)
+	before, err := n.verifyHostData(ctx, "data.stage", d)
 	if errors.Is(err, unix.ENOENT) {
 		return false, nil
 	}
 	if err != nil {
 		return false, err
 	}
-	f, _, err := n.regular("data.stage", unix.O_RDONLY, d.limit(), false)
+	f, held, err := n.regular("data.stage", unix.O_RDONLY, d.limit(), false)
 	if err != nil {
 		return false, err
 	}
 	defer f.Close()
+	if !state(before, held) || n.verify(f, "data.stage", before, true, d.limit()) != nil {
+		return false, ErrUnsafe
+	}
+	if err = n.point("data.stage:before-recover-sync"); err != nil {
+		return false, err
+	}
 	if err = f.Sync(); err != nil {
+		return false, err
+	}
+	if err = n.point("data.stage:after-recover-sync"); err != nil {
+		return false, err
+	}
+	if err = n.verify(f, "data.stage", before, true, d.limit()); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -373,25 +427,62 @@ func (n *object) verifyHostData(ctx context.Context, name string, d HostSlotDesc
 }
 
 func (n *object) hostSlotProof(ctx context.Context, d HostSlotDescriptor, raw []byte, id string) (Proof, error) {
+	proof, _, err := n.hostSlotProofBody(ctx, d, raw, id)
+	return proof, err
+}
+
+// hostSlotProofBody reads the exact file handle whose post-read namespace
+// identity is used in Proof. Load must not verify one opening and return bytes
+// from a later opening: an attacker could replace the named file between them.
+func (n *object) hostSlotProofBody(ctx context.Context, d HostSlotDescriptor, raw []byte, id string) (Proof, []byte, error) {
 	intentBefore, err := n.stat("intent.json")
 	if err != nil {
-		return Proof{}, err
+		return Proof{}, nil, err
 	}
 	got, err := n.read("intent.json", MaxHostSlotManifestBytes)
 	if err != nil || !bytes.Equal(got, raw) {
-		return Proof{}, ErrConflict
+		return Proof{}, nil, ErrConflict
 	}
-	before, err := n.verifyHostData(ctx, "data.bin", d)
+	before, body, err := n.readHostData(ctx, "data.bin", d)
 	if err != nil {
-		return Proof{}, err
+		return Proof{}, nil, err
 	}
 	intentAfter, err := n.stat("intent.json")
 	if err != nil || !state(intentBefore, intentAfter) {
-		return Proof{}, ErrUnsafe
+		return Proof{}, nil, ErrUnsafe
 	}
 	if err = n.verify(n.lockFile, "writer.lock", n.lockID, true, 0); err != nil {
-		return Proof{}, err
+		return Proof{}, nil, err
 	}
 	digest := sha256.Sum256(raw)
-	return Proof{IntakeID: id, DescriptorSHA256: hex.EncodeToString(digest[:]), Path: n.path + "/data.bin", SHA256: d.SHA256, Size: d.Size, Device: uint64(before.Dev), Inode: uint64(before.Ino), RootDevice: uint64(n.ids[0].Dev), RootInode: uint64(n.ids[0].Ino), ParentDevice: uint64(n.ids[1].Dev), ParentInode: uint64(n.ids[1].Ino), DirectoryDevice: uint64(n.ids[2].Dev), DirectoryInode: uint64(n.ids[2].Ino), IntentDevice: uint64(intentBefore.Dev), IntentInode: uint64(intentBefore.Ino), LockDevice: uint64(n.lockID.Dev), LockInode: uint64(n.lockID.Ino)}, nil
+	return Proof{IntakeID: id, DescriptorSHA256: hex.EncodeToString(digest[:]), Path: n.path + "/data.bin", SHA256: d.SHA256, Size: d.Size, Device: uint64(before.Dev), Inode: uint64(before.Ino), RootDevice: uint64(n.ids[0].Dev), RootInode: uint64(n.ids[0].Ino), ParentDevice: uint64(n.ids[1].Dev), ParentInode: uint64(n.ids[1].Ino), DirectoryDevice: uint64(n.ids[2].Dev), DirectoryInode: uint64(n.ids[2].Ino), IntentDevice: uint64(intentBefore.Dev), IntentInode: uint64(intentBefore.Ino), LockDevice: uint64(n.lockID.Dev), LockInode: uint64(n.lockID.Ino)}, body, nil
+}
+
+func (n *object) readHostData(ctx context.Context, name string, d HostSlotDescriptor) (before unix.Stat_t, body []byte, err error) {
+	f, before, err := n.regular(name, unix.O_RDONLY, d.limit(), false)
+	if err != nil {
+		return before, nil, err
+	}
+	defer func() { err = errors.Join(err, f.Close()) }()
+	if before.Size != d.Size {
+		return before, nil, ErrContent
+	}
+	body = make([]byte, d.Size)
+	if _, err = io.ReadFull(f, body); err != nil {
+		return before, nil, err
+	}
+	if err = n.point(name + ":after-read"); err != nil {
+		return before, nil, err
+	}
+	if err = n.verify(f, name, before, true, d.limit()); err != nil {
+		return before, nil, err
+	}
+	if err = ctx.Err(); err != nil {
+		return before, nil, err
+	}
+	sum := sha256.Sum256(body)
+	if hex.EncodeToString(sum[:]) != d.SHA256 {
+		return before, nil, ErrContent
+	}
+	return before, body, nil
 }
