@@ -1,0 +1,5 @@
+# Classified process identity for successor admission
+
+ROOT sole writer, base2d32bf9. Existing IdentityExitedContext intentionally treats reused PID/different birth as old tuple gone. New successor contract requires positive process exit and rejects PID reuse. Add ObserveIdentityContext returning a typed unknown/alive/exited/reused classification, preserving existing helper semantics and its one-second/caller cancellation bound. Only ESRCH on kernel probe resolves exited; birth mismatch is reused, failed observation and permissions stay unknown. Reuse one private observation implementation, not divergent algorithms. Neither API is an original process Handle/Wait/tree receipt and neither authorizes clearing recovery OwnerPending.
+
+Test complete injected observation matrix including cancellation after each probe/birth and failed birth followed by exit; add real owned live/reaped child and synthetic old birth classification (explicitly not a real PID reuse). Preserve unchanged legacy tests. Run focused ordinary/race and Linux same cases, vet/build, independent review. Coordinator caller remains subsequent work.
