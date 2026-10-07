@@ -1,0 +1,9 @@
+{"Time":"2026-10-08T07:30:28.203361+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"}
+{"Time":"2026-10-08T07:30:28.574829+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract","Test":"TestOwnerRecoveryRPCIdentityAndEnvelope"}
+{"Time":"2026-10-08T07:30:28.574919+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract","Test":"TestOwnerRecoveryRPCIdentityAndEnvelope","Output":"=== RUN   TestOwnerRecoveryRPCIdentityAndEnvelope\n"}
+{"Time":"2026-10-08T07:30:28.575944+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract","Test":"TestOwnerRecoveryRPCIdentityAndEnvelope","Output":"    owner_recovery_rpc_test.go:20: private handoff kind rejected original_owner_invalid\n"}
+{"Time":"2026-10-08T07:30:28.575961+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract","Test":"TestOwnerRecoveryRPCIdentityAndEnvelope","Output":"--- FAIL: TestOwnerRecoveryRPCIdentityAndEnvelope (0.00s)\n"}
+{"Time":"2026-10-08T07:30:28.575968+08:00","Action":"fail","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract","Test":"TestOwnerRecoveryRPCIdentityAndEnvelope","Elapsed":0}
+{"Time":"2026-10-08T07:30:28.575978+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract","Output":"FAIL\n"}
+{"Time":"2026-10-08T07:30:28.576431+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract","Output":"FAIL\tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract\t0.373s\n"}
+{"Time":"2026-10-08T07:30:28.576448+08:00","Action":"fail","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract","Elapsed":0.373}

@@ -75,7 +75,11 @@ func ownerKeyTestState(t *testing.T) string {
 			t.Error(err)
 		}
 	})
-	return path
+	canonical, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return canonical
 }
 
 func ownerKeyTestScope() contract.OriginalOwnerScope {

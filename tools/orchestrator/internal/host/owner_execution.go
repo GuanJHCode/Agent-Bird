@@ -27,6 +27,7 @@ type ownerExecutionConfig struct {
 	reportSocket   string
 	invocation     func(context.Context, contract.LaunchCommand) (contract.InvocationView, error)
 	rpc            ownerExecutionRPC
+	verifyRecovery func() error
 	onApplied      func(contract.OwnerControlPermit, contract.OwnerPermitApplied) error
 	onActivated    func(contract.OwnerControlPermit, contract.OwnerPermitApplied) error
 }
@@ -141,6 +142,13 @@ func (e *ownerExecution) reconcile(ctx context.Context, permit contract.OwnerCon
 	}
 	// ACK loss must retain these exact signed bytes even if later worker events
 	// advance the local publication cursor before the next reconciliation.
+	if e.cfg.verifyRecovery != nil {
+		if err := e.cfg.verifyRecovery(); err != nil {
+			e.revokeAdmission(s)
+			e.offline(s, err)
+			return err
+		}
+	}
 	if err := s.status(ctx, "applied", permit.PermitID+":applied", *e.applied, "applied"); err != nil {
 		return err
 	}
@@ -161,6 +169,13 @@ func (e *ownerExecution) reconcile(ctx context.Context, permit contract.OwnerCon
 	// a new permit or shutdown revokes this admission, not reply arrival order.
 	e.admitSignedLaunch = true
 	e.mu.Unlock()
+	if e.cfg.verifyRecovery != nil {
+		if err := e.cfg.verifyRecovery(); err != nil {
+			e.revokeAdmission(s)
+			e.offline(s, err)
+			return err
+		}
+	}
 	if err := s.status(ctx, "activate", permit.PermitID+":activate", *e.applied, "active"); err != nil {
 		return err
 	}

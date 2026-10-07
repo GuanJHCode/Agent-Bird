@@ -79,6 +79,9 @@ func runOriginalOwner(parent context.Context, cfg OriginalOwnerConfig, initializ
 	if err = writeOwnerTransportFrame(ctx, cfg.Control, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindOriginalOwnerBound, RequestID: cfg.Bootstrap.Prepared.Intent.RequestID, Epoch: bound.Permit.CoordinatorEpoch, Payload: body}); err != nil {
 		return err
 	}
+	if err = enrollment.handoffRecoveryWith(ctx, bound, enrollment.client.Call); err != nil {
+		return err
+	}
 	directories, err := openOwnerRuntimeDirectories(cfg.Bootstrap)
 	if err != nil {
 		return err
@@ -108,15 +111,12 @@ func runOriginalOwner(parent context.Context, cfg OriginalOwnerConfig, initializ
 	if err != nil {
 		return err
 	}
-	recoveryScope, err := originalOwnerRecoveryScope(bound.Binding.Scope, bound.Binding.Owner)
+	recovery, closeRecovery, err := openBoundOwnerRecovery(cfg.Bootstrap.StateDir, cfg.Bootstrap.SpoolRoot, bound)
 	if err != nil {
 		return err
 	}
-	recovery, err := openOwnerRecovery(cfg.Bootstrap.SpoolRoot, recoveryScope)
-	if err != nil {
-		return err
-	}
-	defer recovery.close()
+	defer closeRecovery()
+	execution.cfg.verifyRecovery = recovery.verifyCurrent
 	// Replacement-stage writes occur immediately after each durable signed RPC,
 	// so Applied commit and Activate ACK-loss remain distinguishable on disk.
 	execution.cfg.onApplied = func(permit contract.OwnerControlPermit, applied contract.OwnerPermitApplied) error {

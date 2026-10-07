@@ -196,7 +196,7 @@ func (r OwnerRPCRequest) Validate() error {
 		if r.ControlRevision != 0 {
 			return ownerInvalid()
 		}
-	case "attach", "applied", "activate", "event", "report_capability", "progress", "ticket", "state":
+	case "attach", "applied", "activate", "event", "report_capability", "progress", "ticket", "state", "recovery_scope":
 		if r.ControlRevision == 0 {
 			return ownerInvalid()
 		}

@@ -448,6 +448,9 @@ func (s *Server) originalOwnerRPC(ctx context.Context, kernelPID int, opening co
 		}
 		return current, nil, nil
 	}
+	if request.Kind == "recovery_scope" {
+		return s.originalOwnerRecoveryRPC(ctx, state, current, auth, session, request)
+	}
 	if request.Kind != "attach" && request.Kind != "ticket" && (request.ControlRevision != state.ControlRevision || state.CoordinatorEpoch != s.epoch) {
 		return reject()
 	}
