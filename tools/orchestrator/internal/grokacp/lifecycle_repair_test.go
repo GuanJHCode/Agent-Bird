@@ -73,6 +73,7 @@ func TestClientPromptEOFAndRemoteErrorAreUncertainAndClose(t *testing.T) {
 		response string
 	}{
 		{name: "eof", response: ""},
+		{name: "truncated", response: `{"jsonrpc":"2.0","id":3,"result":{"stopReason":"end_turn"}`},
 		{name: "remote_error", response: `{"jsonrpc":"2.0","id":3,"error":{"code":-32000,"message":"failed"}}` + "\n"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -123,8 +124,12 @@ func TestClientPromptEOFAndRemoteErrorAreUncertainAndClose(t *testing.T) {
 			}()
 			client, sessionID := initializedSession(t, ctx, clientWire)
 			defer client.Close()
-			if _, err := client.Prompt(ctx, sessionID, "continue"); !errors.Is(err, ErrUncertain) {
+			turn, err := client.Prompt(ctx, sessionID, "continue")
+			if !errors.Is(err, ErrUncertain) {
 				t.Fatalf("Prompt() = %v, want %v", err, ErrUncertain)
+			}
+			if turn != (Turn{}) {
+				t.Fatalf("uncertain response returned receipt = %#v", turn)
 			}
 			select {
 			case <-client.Done():
@@ -184,8 +189,12 @@ func TestClientRejectsForeignOrMalformedPermissionRequest(t *testing.T) {
 			}()
 			client, sessionID := initializedSession(t, ctx, clientWire)
 			defer client.Close()
-			if _, err := client.Prompt(ctx, sessionID, "continue"); !errors.Is(err, ErrProtocol) {
+			turn, err := client.Prompt(ctx, sessionID, "continue")
+			if !errors.Is(err, ErrProtocol) {
 				t.Fatalf("Prompt() = %v, want %v", err, ErrProtocol)
+			}
+			if turn != (Turn{}) {
+				t.Fatalf("invalid permission request returned receipt = %#v", turn)
 			}
 			if err := <-actorDone; err != nil {
 				t.Fatal(err)

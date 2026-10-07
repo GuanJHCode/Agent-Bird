@@ -1,0 +1,36 @@
+{
+  "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp",
+  "toolchain": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+  "commands": [
+    "go test -json -count=1 -timeout=3m ./internal/grokacp",
+    "go test -race -json -count=1 -timeout=3m ./internal/grokacp"
+  ],
+  "raw_go_test_terminal_events": {
+    "ordinary": [
+      {"Time":"2026-10-07T22:07:42.167842+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp"},
+      {"Time":"2026-10-07T22:07:42.569656+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp","Elapsed":0.402}
+    ],
+    "race": [
+      {"Time":"2026-10-07T22:07:46.459949+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp"},
+      {"Time":"2026-10-07T22:07:47.886133+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/grokacp","Elapsed":1.426}
+    ]
+  },
+  "top": {
+    "ordinary": {"pass": 17, "skip": 1, "fail": 0, "elapsed_seconds": 0.402},
+    "race": {"pass": 17, "skip": 1, "fail": 0, "elapsed_seconds": 1.426}
+  },
+  "named": {
+    "TestClientPromptReturnsExactCompletionReceipts": "pass",
+    "TestClientPromptEOFAndRemoteErrorAreUncertainAndClose/eof": "pass",
+    "TestClientPromptEOFAndRemoteErrorAreUncertainAndClose/truncated": "pass",
+    "TestClientPromptEOFAndRemoteErrorAreUncertainAndClose/remote_error": "pass",
+    "TestClientRejectsForeignOrMalformedPermissionRequest/foreign_session": "pass",
+    "TestClientRejectsForeignOrMalformedPermissionRequest/object_id": "pass",
+    "TestClientCancelsReversePermissionRequest": "pass",
+    "TestClientTreatsCancellationAfterPromptWriteAsUncertain": "pass"
+  },
+  "skip": [
+    {"test":"TestGrokACPStartDuplexOwnedActor","reason":"native process token required; GROKACP_NATIVE was intentionally not set"}
+  ],
+  "fail": []
+}

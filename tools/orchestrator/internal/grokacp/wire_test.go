@@ -80,8 +80,12 @@ func TestClientCancelsReversePermissionRequest(t *testing.T) {
 	}()
 	client, sessionID := initializedSession(t, ctx, clientWire)
 	defer client.Close()
-	if _, err := client.Prompt(ctx, sessionID, "continue"); !errors.Is(err, ErrPermissionDenied) {
+	turn, err := client.Prompt(ctx, sessionID, "continue")
+	if !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("Prompt() error = %v, want %v", err, ErrPermissionDenied)
+	}
+	if turn != (Turn{}) {
+		t.Fatalf("permission denial returned receipt = %#v", turn)
 	}
 	if err := <-actorDone; err != nil {
 		t.Fatalf("actor = %v", err)
@@ -201,16 +205,29 @@ func TestClientTreatsCancellationAfterPromptWriteAsUncertain(t *testing.T) {
 	client, sessionID := initializedSession(t, ctx, clientWire)
 	defer client.Close()
 	turnCtx, stop := context.WithCancel(ctx)
-	result := make(chan error, 1)
-	go func() { _, err := client.Prompt(turnCtx, sessionID, "late"); result <- err }()
+	result := make(chan struct {
+		turn Turn
+		err  error
+	}, 1)
+	go func() {
+		turn, err := client.Prompt(turnCtx, sessionID, "late")
+		result <- struct {
+			turn Turn
+			err  error
+		}{turn, err}
+	}()
 	select {
 	case <-promptRead:
 	case <-ctx.Done():
 		t.Fatal("actor never received prompt")
 	}
 	stop()
-	if err := <-result; !errors.Is(err, ErrUncertain) {
-		t.Fatalf("Prompt() cancellation error = %v, want %v", err, ErrUncertain)
+	got := <-result
+	if !errors.Is(got.err, ErrUncertain) {
+		t.Fatalf("Prompt() cancellation error = %v, want %v", got.err, ErrUncertain)
+	}
+	if got.turn != (Turn{}) {
+		t.Fatalf("cancellation returned receipt = %#v", got.turn)
 	}
 	select {
 	case <-client.Done():

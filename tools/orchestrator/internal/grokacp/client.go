@@ -7,6 +7,8 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
@@ -62,7 +64,17 @@ var (
 	ErrPermissionDenied = &TransportError{"permission_denied"}
 )
 
-type Turn struct{ StopReason string }
+// Turn is the completion receipt for one successful session/prompt RPC.
+// Hashes are lowercase hexadecimal SHA-256 digests. PromptSHA256 covers the
+// canonical UTF-8 prompt text; ResponseSHA256 covers the complete JSON-RPC
+// response body exactly as read, excluding only its NDJSON line feed.
+type Turn struct {
+	SessionID      string
+	RPCRequestID   uint64
+	PromptSHA256   string
+	ResponseSHA256 string
+	StopReason     string
+}
 
 type Update struct {
 	SessionID string
@@ -73,6 +85,8 @@ type Update struct {
 
 type response struct {
 	result json.RawMessage
+	raw    []byte
+	id     uint64
 	err    error
 }
 
@@ -148,11 +162,11 @@ func (c *Client) Initialize(ctx context.Context) error {
 	c.initializing = true
 	c.mu.Unlock()
 	defer func() { c.mu.Lock(); c.initializing = false; c.mu.Unlock() }()
-	result, err := c.call(ctx, "initialize", json.RawMessage(`{"protocolVersion":1,"clientCapabilities":{}}`))
+	reply, err := c.call(ctx, "initialize", json.RawMessage(`{"protocolVersion":1,"clientCapabilities":{}}`))
 	if err != nil {
 		return err
 	}
-	fields, err := object(result)
+	fields, err := object(reply.result)
 	if err != nil || !only(fields, "protocolVersion", "agentCapabilities", "agentInfo", "authMethods", "_meta") || !isInteger(fields["protocolVersion"], 1) {
 		c.fail(ErrProtocol)
 		return ErrProtocol
@@ -186,11 +200,11 @@ func (c *Client) NewSession(ctx context.Context, cwd string) (string, error) {
 		CWD        string `json:"cwd"`
 		MCPServers []any  `json:"mcpServers"`
 	}{cwd, []any{}})
-	result, err := c.call(ctx, "session/new", params)
+	reply, err := c.call(ctx, "session/new", params)
 	if err != nil {
 		return "", err
 	}
-	fields, err := object(result)
+	fields, err := object(reply.result)
 	if err != nil || fields["sessionId"] == nil {
 		c.fail(ErrProtocol)
 		return "", ErrProtocol
@@ -237,7 +251,7 @@ func (c *Client) Prompt(ctx context.Context, sessionID, text string) (Turn, erro
 		Type string `json:"type"`
 		Text string `json:"text"`
 	}{{Type: "text", Text: text}}})
-	result, err := c.call(ctx, "session/prompt", params)
+	reply, err := c.call(ctx, "session/prompt", params)
 	if err != nil {
 		return Turn{}, err
 	}
@@ -247,7 +261,7 @@ func (c *Client) Prompt(ctx context.Context, sessionID, text string) (Turn, erro
 	if denied {
 		return Turn{}, ErrPermissionDenied
 	}
-	fields, err := object(result)
+	fields, err := object(reply.result)
 	if err != nil || !only(fields, "stopReason", "_meta") || fields["stopReason"] == nil {
 		c.fail(ErrProtocol)
 		return Turn{}, ErrProtocol
@@ -257,24 +271,32 @@ func (c *Client) Prompt(ctx context.Context, sessionID, text string) (Turn, erro
 		c.fail(ErrProtocol)
 		return Turn{}, ErrProtocol
 	}
-	return Turn{StopReason: stopReason}, nil
+	promptSum := sha256.Sum256([]byte(text))
+	responseSum := sha256.Sum256(reply.raw)
+	return Turn{
+		SessionID:      sessionID,
+		RPCRequestID:   reply.id,
+		PromptSHA256:   hex.EncodeToString(promptSum[:]),
+		ResponseSHA256: hex.EncodeToString(responseSum[:]),
+		StopReason:     stopReason,
+	}, nil
 }
 
-func (c *Client) call(ctx context.Context, method string, params json.RawMessage) (json.RawMessage, error) {
+func (c *Client) call(ctx context.Context, method string, params json.RawMessage) (response, error) {
 	if err := ctx.Err(); err != nil {
-		return nil, err
+		return response{}, err
 	}
 	c.opMu.Lock()
 	defer c.opMu.Unlock()
 	if err := c.Err(); err != nil {
-		return nil, err
+		return response{}, err
 	}
 	c.mu.Lock()
 	c.nextID++
 	if c.nextID == 0 {
 		c.mu.Unlock()
 		c.fail(ErrProtocol)
-		return nil, ErrProtocol
+		return response{}, ErrProtocol
 	}
 	p := &pending{id: c.nextID, method: method, ch: make(chan response, 1)}
 	c.pending = p
@@ -289,21 +311,21 @@ func (c *Client) call(ctx context.Context, method string, params json.RawMessage
 	}{"2.0", p.id, method, params}, c.limits.FrameBytes)
 	if err != nil {
 		c.clearPending(p)
-		return nil, err
+		return response{}, err
 	}
 	if err := c.write(frame); err != nil {
 		c.clearPending(p)
 		c.fail(ErrUncertain)
-		return nil, ErrUncertain
+		return response{}, ErrUncertain
 	}
 	select {
 	case reply := <-p.ch:
-		return reply.result, reply.err
+		return reply, reply.err
 	case <-ctx.Done():
 		c.fail(ErrUncertain)
-		return nil, ErrUncertain
+		return response{}, ErrUncertain
 	case <-c.done:
-		return nil, c.Err()
+		return response{}, c.Err()
 	}
 }
 
@@ -413,7 +435,7 @@ func (c *Client) accept(raw []byte) error {
 			return err
 		}
 	}
-	p.ch <- response{result: append(json.RawMessage(nil), fields["result"]...)}
+	p.ch <- response{result: append(json.RawMessage(nil), fields["result"]...), raw: append([]byte(nil), raw...), id: id}
 	return nil
 }
 
