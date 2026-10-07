@@ -58,7 +58,7 @@ func codexOriginFixture(t *testing.T) (*Host, contract.LaunchCommand, adapter.In
 	if err != nil {
 		t.Fatal(err)
 	}
-	g := contract.LaunchCommand{RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "initial", WorkRevision: 1, PlanRevision: 1, CommandID: "command", HostID: "host", ExecutionEpoch: 1, AdapterPayload: payload}
+	g := withHostArtifactsForTest(t, contract.LaunchCommand{RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "initial", WorkRevision: 1, PlanRevision: 1, CommandID: "command", HostID: "producer", ExecutionEpoch: 1, AdapterPayload: payload})
 	// This is the real spool API's safe owned preparation, not a process proof.
 	if _, err := h.spool(store.Attempt{ID: g.AttemptID, SegmentID: g.SegmentID}); err != nil {
 		t.Fatal(err)

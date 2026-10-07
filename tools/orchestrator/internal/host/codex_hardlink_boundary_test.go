@@ -99,6 +99,7 @@ func codexHardlinkFixture(t *testing.T, resume bool) (*Host, contract.LaunchComm
 	g.Continuation = &contract.ContinuationRef{Version: 1, Mode: contract.ContinuationQuestion, SourceKind: "host", SourceSegmentID: g.SegmentID, SourceEventID: q.EventID, SourceEventRevision: q.Sequence, SourceEventSHA256: q.PayloadHash, SessionEventID: bound.Session.EventID, AdapterPayloadSHA256: codexDigest(g.AdapterPayload), OwnerContextID: "owner"}
 	g.SegmentID, g.CommandID, g.ExecutionEpoch = "second", "second-command", 2
 	g.QuestionID, g.QuestionRevision, g.Answer, g.SessionKind, g.SessionID = q.QuestionID, 1, "Read the authorized file.", "session-id", b.ThreadID
+	g = managedHostGrant(t, h, g)
 	inv, err = adapter.BuildManagedCodexInvocation(adapter.Request{Provider: adapter.ProviderCodex, Binary: p.Origin.Lock.Binary, Lock: &p.Origin.Lock, Profile: &p.Origin.Profile, CWD: p.Origin.Workspace, Prompt: g.Answer, Session: adapter.SessionRef{Kind: adapter.SessionID, ID: g.SessionID}, Continuation: g.Continuation})
 	if err != nil {
 		t.Fatal(err)
