@@ -431,26 +431,9 @@ func TestExecuteLaunchConsumesReservationAndUsesBoundedGrant(t *testing.T) {
 	if os.Getenv("G1_HOST_HELPER") == "1" {
 		return
 	}
-	db, err := store.Open(filepath.Join(t.TempDir(), "state.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	db, h, grant := managedStoreHostFixture(t, "grant-run", "grant-task")
 	defer db.Close()
 	ctx := context.Background()
-	if err = db.CreateRun(ctx, store.RunSpec{ID: "grant-run", ControllerThread: "thread", PlanRevision: 1, OriginContextID: "test", OriginPID: os.Getpid(), OriginBirth: "birth"}); err != nil {
-		t.Fatal(err)
-	}
-	if err = db.CreateTask(ctx, store.TaskSpec{ID: "grant-task", RunID: "grant-run", MaxAttempts: 3}); err != nil {
-		t.Fatal(err)
-	}
-	attempt, err := db.StartAttempt(ctx, "grant-task", "grant-segment")
-	if err != nil {
-		t.Fatal(err)
-	}
-	h, err := New(db, filepath.Join(t.TempDir(), "spool"))
-	if err != nil {
-		t.Fatal(err)
-	}
 	path, err := filepath.EvalSymlinks(os.Args[0])
 	if err != nil {
 		t.Fatal(err)
@@ -459,7 +442,8 @@ func TestExecuteLaunchConsumesReservationAndUsesBoundedGrant(t *testing.T) {
 	// exit delay is not task work; keep race detection but omit that artificial
 	// delay from the 1.5s production grant exercised below.
 	inv := launchInvocation{args: []string{path, "-test.run=TestExecuteLaunchConsumesReservationAndUsesBoundedGrant"}, env: map[string]string{"G1_HOST_HELPER": "1", "GORACE": os.Getenv("GORACE") + " atexit_sleep_ms=0"}}
-	grant := managedHostGrant(t, h, contract.LaunchCommand{CommandID: "grant-command", ReservationID: "reservation-1", RunID: "grant-run", TaskID: "grant-task", AttemptID: attempt.ID, SegmentID: attempt.SegmentID, GrantedActiveMS: 1500, DeadlineUnixMS: time.Now().Add(2 * time.Second).UnixMilli()})
+	grant.GrantedActiveMS = 1500
+	grant.DeadlineUnixMS = time.Now().Add(2 * time.Second).UnixMilli()
 	result, err := h.ExecuteLaunch(ctx, grant, inv)
 	if err != nil {
 		t.Fatal(err)

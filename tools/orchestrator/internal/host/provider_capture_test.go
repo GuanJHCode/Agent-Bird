@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
 )
@@ -70,7 +71,10 @@ func TestProviderDiagnosticsDistinguishExactLimitFromDroppedOutput(t *testing.T)
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
-			result, err := h.execute(ctx, store.Attempt{ID: "attempt", TaskID: "task", SegmentID: "segment"}, "run", "task", providerDiagnosticsOutputCommand(t, payload), false, launchMetadata{commandID: "command", workRevision: 1, outputProvider: "claude-code"})
+			grant := managedHostGrant(t, h, contract.LaunchCommand{CommandID: "command", ReservationID: "reservation", RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, GrantedActiveMS: 5000})
+			meta := metadataForLaunch(grant)
+			meta.outputProvider = "claude-code"
+			result, err := h.execute(ctx, store.Attempt{ID: "attempt", TaskID: "task", SegmentID: "segment"}, "run", "task", providerDiagnosticsOutputCommand(t, payload), false, meta)
 			if err != nil || result.Status != "result_ready" || result.ExitCode != 0 {
 				t.Fatalf("controlled stream did not finish: %+v %v", result, err)
 			}

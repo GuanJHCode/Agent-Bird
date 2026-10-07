@@ -1,11 +1,11 @@
 package host
 
 import (
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -45,7 +45,9 @@ func TestInterruptedProviderPublishesReasonAndIncompleteCheckpoint(t *testing.T)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	a := store.Attempt{ID: "a", TaskID: "task", SegmentID: "s"}
-	result, err := h.execute(ctx, a, "run", "task", process.Command{Path: bin, Args: []string{"-test.run=^TestInterruptedProviderPublishesReasonAndIncompleteCheckpoint$"}, Env: []string{"CBO_PROGRESS_FIXTURE=1"}}, false, launchMetadata{commandID: "c", workRevision: 1, outputProvider: "claude-code"})
+	meta := metadataForLaunch(managedHostGrant(t, h, contract.LaunchCommand{CommandID: "c", ReservationID: "reservation", RunID: "run", TaskID: "task", AttemptID: a.ID, SegmentID: a.SegmentID, WorkRevision: 1, GrantedActiveMS: 2000}))
+	meta.outputProvider = "claude-code"
+	result, err := h.execute(ctx, a, "run", "task", process.Command{Path: bin, Args: []string{"-test.run=^TestInterruptedProviderPublishesReasonAndIncompleteCheckpoint$"}, Env: []string{"CBO_PROGRESS_FIXTURE=1"}}, false, meta)
 	if !errors.Is(err, context.DeadlineExceeded) || result.Status != "interrupted" || result.ArtifactPath != "" {
 		t.Fatalf("%+v %v", result, err)
 	}
