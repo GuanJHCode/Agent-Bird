@@ -1,0 +1,2 @@
+overlay_exit=1
+command=go test -count=1 -run ^TestPrepareStateDirRejectsSymlinkInsertedAfterAncestorOpen$ -json ./internal/instance
