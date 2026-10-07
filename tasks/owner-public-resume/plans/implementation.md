@@ -1,0 +1,29 @@
+# Public supervised Resume closure
+
+Base125aaa4. ROOT owns this worktree. Accepted predecessors: schema25/Store succession, leased transitions, existing-only recovery lease, typed kernel observation. Parent design: tasks/original-owner-succession/plans/design.md. Scope remains whole F01–F13; this plan only advances F10 B3. No Provider/model/account, installation, push/release.
+
+## 1. Durable live-owner command and queued succession upgrade
+
+Schema26 adds immutable existing_owner_resume_commands. Fields: command_id/request_hash/run_id/task_id/launch_id/owner_id/last_segment_id/created_at (8 text), work_revision/control_revision/coordinator_epoch/ready_sequence/segment_count (5 integers,40 fixed bytes). Record the task's existing segment count and most recent segment ID ordered by attempt_no,segment_no; no segments yields zero/empty. All base FK plus composite(owner_id,control_revision) to immutable control history. Unique(task_id,ready_sequence). INSERT guard rechecks current bound/applied owner, scope/run/task/launch/revision, supervised nonreleased launch, queued exact readyseq, current DB epoch>=owner/control epoch, and exact segment snapshot. UPDATE/DELETE forbidden. Bidirectional INSERT triggers enforce CommandID uniqueness across this table and schema25 authorization ledger. No historical live rows fabricated or schema25 table rebuild. Quota accounting and Go admission use identical40+UTF8 bytes.
+
+Unified authenticated read lookup explicitly queries both tables; two hits is corruption, differing canonical full-request hash conflicts, exact hit returns original immutable mode before mutable gates/quota. Existing schema25 rows map to successor receipts without backfill. Private APIs must also reject a command owned by the opposite mode; cannot retarget the same CommandID.
+
+ResumeExistingOriginalOwner accepts Coordinator-private Alive observation (exact owner tuple, canonical observation time, current origin,epoch,pin). Verify current bound binding/latest fully applied signed permit and physical Host DB tuple; immutable scope/current origin/generation exact. Current epoch may exceed old permit epoch. Host may be temporarily offline. Reuse QueueResume task policy/provider/revision/active/budget checks and commit one queue allocation+immutable receipt via owned physical transaction. No recovery ledger or owner/Host mutation and no SourceHost startup.
+
+Ruling: a committed existing-owner command may lose its owner before claim. Old CommandID must remain read-only existing_owner forever. A NEW CommandID with Owner AND Host specifically Exited (Unknown/Reused reject), held valid existing recovery lease, unchanged live receipt task/revision/launch/owner/readyseq plus segment snapshot, and all successor gates may reuse that queued ready sequence. It must not queue again or consume/reset budget. Factor shared read-only resume task admission so the queued path rechecks provider/profile/active/budget. Authorization+retire+offline still commit together, and only its own authorized queued target is exempted from run-wide quiescence. If snapshot changed or current queued sequence has no matching live receipt, reject.
+
+TDD and acceptance: direct DDL constraints/migration rollback and existing auth preservation, precise UTF8 quota, no mutable replay side effects, concurrent/cross-mode IDs, auth rotation/restart, all rejection facts, queue→ownerdeath→newcommand reuse and snapshot refusal, actual Store lifecycle/late SQL and COMMIT/cancel faults. Update downgrade26 helpers before existing25 helper, refusing nonempty live history; keep entire older migration chain valid. Ordinary focused/full Store, scoped race with a sufficient explicit total timeout, offline Linux, vet/build, independent review. Synthetic Store observations are not OS proof.
+
+## 2. Coordinator authorization and successor session
+
+Dedicated ResumeRequest with stable CommandID in supervised mode. Exact authenticated replay before mutable observations or Host startup. hostRegistrationMu→live origin/caller ancestry→typed owner observation; Alive routes existing owner only, Exited requires current Host Exited and existing-only lease held through Store commit; Reused/Unknown reject. Live offline transport waits for same signer recovery. New successor HostHello uses private pending transport/session, kernel/pin/ancestry and durable authorization; no caller AuthorizationID, no early RegisterHost or overwriting current session. Preview/credential escrow/Prepare atomically publishes new physical tuple; Bind/Applied/Activate retain historical cursor.
+
+## 3. Signed recovery scope transition and CLI request journal
+
+Before opening old recovery ledger under new identity, owner uses signed Coordinator RPC deriving immediately retired predecessor/current binding via authorization. Scope-only change preserves authority/attempts/backoff/unavailable/safe coordinator reservation; any OwnerPending or uncertain coordinator start blocks. No manufactured Wait/UNKNOWN clearing. Lost/rejected RPC ACK cannot reset or pre-authorize file mutation.
+
+Public CLI optional --command-id; generated command must be durably0600 recorded (control-file reference/task/revision/id, no token) before Resume RPC, with exclusive file + parent fsync. Exact replay precedes Summary mutable gates and ensureSourceHost. Only successor receipt permits dedicated new SourceHost startup; existing_owner never starts another signer. High-level task followup must preserve this route.
+
+## 4. Native acceptance
+
+Original live owner across Coordinator restart reuses original signer/transport; old owner+Host real exit creates incarnation+1 and resumes with preserved producer cursor/attempt/budget. Actual public CLI happy paths plus commit/ACK loss/concurrent/start/bind/applied windows. Pre-Bind child handle loss and pending authorization followed by origin rebind remain explicit gaps until independently solved; no unsafe timeout abandonment.

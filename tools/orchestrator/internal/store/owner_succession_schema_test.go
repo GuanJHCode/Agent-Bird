@@ -231,6 +231,7 @@ func insertOwnerSchemaSuccessor(db *DB, next contract.OriginalOwnerIntent, autho
 
 func downgradeOwnerSuccessionSchema25(t *testing.T, db *DB) {
 	t.Helper()
+	downgradeExistingOwnerResumeSchema26(t, db)
 	var version int
 	if err := db.sql.QueryRow(`SELECT version FROM schema_meta`).Scan(&version); err != nil {
 		t.Fatal(err)

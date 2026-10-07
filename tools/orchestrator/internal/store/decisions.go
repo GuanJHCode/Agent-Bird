@@ -28,40 +28,8 @@ func (d *DB) QueueResume(ctx context.Context, taskID string, workRevision int) e
 // queueResumeTx preserves the legacy queue/budget checks so authenticated owner
 // retirement and queue admission can commit in the same transaction.
 func (d *DB) queueResumeTx(ctx context.Context, tx *sql.Tx, taskID string, workRevision int) (int64, error) {
-	var err error
-	var status, adapterPayload string
-	var revision int
-	if err = tx.QueryRowContext(ctx, `SELECT t.status,r.work_revision,r.adapter_payload FROM tasks t JOIN task_runtime r ON r.task_id=t.id WHERE t.id=?`, taskID).Scan(&status, &revision, &adapterPayload); err != nil {
-		return 0, ErrNotFound
-	}
-	if err = checkTaskProvider(ctx, tx, taskID, nil); err != nil {
+	if err := resumeAdmissionTx(ctx, tx, taskID, workRevision, "interrupted"); err != nil {
 		return 0, err
-	}
-	if err := resumeProfileRestriction([]byte(adapterPayload)); err != nil {
-		return 0, err
-	}
-	if revision != workRevision || status != "interrupted" {
-		return 0, ErrConflict
-	}
-	var active int
-	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM segment_runtime s JOIN attempts a ON a.id=s.attempt_id WHERE a.task_id=? AND s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown')`, taskID).Scan(&active); err != nil || active != 0 {
-		if err == nil {
-			err = ErrConflict
-		}
-		return 0, err
-	}
-	b, e := readExecutionBudget(ctx, tx, taskID)
-	if e != nil {
-		return 0, e
-	}
-	if b.policy != nil {
-		var attemptID string
-		if e = tx.QueryRowContext(ctx, `SELECT id FROM attempts WHERE task_id=? ORDER BY attempt_no DESC LIMIT 1`, taskID).Scan(&attemptID); e != nil {
-			return 0, e
-		}
-		if _, e = executionGrant(ctx, tx, taskID, attemptID); e != nil {
-			return 0, e
-		}
 	}
 	sequence, err := takeReadySequence(ctx, tx)
 	if err != nil {
@@ -74,6 +42,47 @@ func (d *DB) queueResumeTx(ctx context.Context, tx *sql.Tx, taskID string, workR
 		return 0, err
 	}
 	return sequence, nil
+}
+
+// Shared read-only admission for a new queue and a proved unclaimed live queue.
+// Rechecking allowance never resets or consumes its existing execution budget.
+func resumeAdmissionTx(ctx context.Context, tx *sql.Tx, taskID string, workRevision int, requiredStatus string) error {
+	var err error
+	var status, adapterPayload string
+	var revision int
+	if err = tx.QueryRowContext(ctx, `SELECT t.status,r.work_revision,r.adapter_payload FROM tasks t JOIN task_runtime r ON r.task_id=t.id WHERE t.id=?`, taskID).Scan(&status, &revision, &adapterPayload); err != nil {
+		return ErrNotFound
+	}
+	if err = checkTaskProvider(ctx, tx, taskID, nil); err != nil {
+		return err
+	}
+	if err := resumeProfileRestriction([]byte(adapterPayload)); err != nil {
+		return err
+	}
+	if revision != workRevision || status != requiredStatus {
+		return ErrConflict
+	}
+	var active int
+	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM segment_runtime s JOIN attempts a ON a.id=s.attempt_id WHERE a.task_id=? AND s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown')`, taskID).Scan(&active); err != nil || active != 0 {
+		if err == nil {
+			err = ErrConflict
+		}
+		return err
+	}
+	b, e := readExecutionBudget(ctx, tx, taskID)
+	if e != nil {
+		return e
+	}
+	if b.policy != nil {
+		var attemptID string
+		if e = tx.QueryRowContext(ctx, `SELECT id FROM attempts WHERE task_id=? ORDER BY attempt_no DESC LIMIT 1`, taskID).Scan(&attemptID); e != nil {
+			return e
+		}
+		if _, e = executionGrant(ctx, tx, taskID, attemptID); e != nil {
+			return e
+		}
+	}
+	return nil
 }
 
 type AnswerSpec struct {

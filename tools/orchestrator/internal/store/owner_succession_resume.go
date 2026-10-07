@@ -124,6 +124,11 @@ func (d *DB) resumeOriginalOwner(ctx context.Context, request OriginalOwnerResum
 	if err = authenticateOwnerResumeTx(ctx, tx, request); err != nil {
 		return zero, err
 	}
+	if _, liveErr := loadExistingOwnerResume(ctx, tx, request.CommandID); liveErr == nil {
+		return zero, ErrConflict
+	} else if !errors.Is(liveErr, ErrNotFound) {
+		return zero, liveErr
+	}
 	prior, err := loadOwnerSuccessionCommand(ctx, tx, request.CommandID)
 	if err == nil {
 		if prior.RequestSHA256 != hash {
@@ -162,7 +167,15 @@ func (d *DB) resumeOriginalOwner(ctx context.Context, request OriginalOwnerResum
 	if err != nil {
 		return zero, err
 	}
-	if err = ownerSuccessionQuiescent(ctx, tx, a.RunID, a.LaunchID, i.Scope.ProducerID); err != nil {
+	queuedSequence, err := ownerSuccessionQueuedResume(ctx, tx, request, row)
+	if err != nil {
+		return zero, err
+	}
+	queuedTask := ""
+	if queuedSequence != 0 {
+		queuedTask = request.TaskID
+	}
+	if err = ownerSuccessionQuiescentExceptQueued(ctx, tx, a.RunID, a.LaunchID, i.Scope.ProducerID, queuedTask); err != nil {
 		return zero, err
 	}
 	a.AuthorizationID, a.CreatedAt, err = allocate()
@@ -178,9 +191,12 @@ func (d *DB) resumeOriginalOwner(ctx context.Context, request OriginalOwnerResum
 	if err = d.storageAdmission(ctx, tx, a.RunID, incoming, false); err != nil {
 		return zero, err
 	}
-	a.ReadySequence, err = d.queueResumeTx(ctx, tx, request.TaskID, request.WorkRevision)
-	if err != nil {
-		return zero, err
+	a.ReadySequence = queuedSequence
+	if queuedSequence == 0 {
+		a.ReadySequence, err = d.queueResumeTx(ctx, tx, request.TaskID, request.WorkRevision)
+		if err != nil {
+			return zero, err
+		}
 	}
 	if err = insertOwnerSuccessionAuthorization(ctx, tx, a); err != nil {
 		return zero, err
