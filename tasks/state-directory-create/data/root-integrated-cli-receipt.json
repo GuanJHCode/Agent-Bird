@@ -1,0 +1,13 @@
+{
+  "source_commit": "9db0cbe",
+  "instance_source_hashes_match": true,
+  "command": "PATH=<Go1.26.8>:$PATH TMPDIR=/private/tmp go test -race -count=1 -json ./cmd/orchestrator -run ^(TestResolveState.*|TestCLIOriginalOwnerExecutesSignedWorker|TestCLICandidateDevelopmentDAG|TestCLIIndexedCandidateDevelopmentDAG)$",
+  "exit_code": 0,
+  "counts": {
+    "named_pass": 6,
+    "top_pass": 6,
+    "package_pass": 1
+  },
+  "raw_sha256": "a7d7c92a2a935ae41a0076110699bf7652bffd04246007dd4c13c7bbd6b5a8e6",
+  "limits": "CLI-spawned Go binaries are ordinary builds; only test parent is race instrumented. Two separate dead-owner resume tests remain unresolved F10."
+}
