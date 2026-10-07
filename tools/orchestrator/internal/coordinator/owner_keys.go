@@ -260,6 +260,11 @@ type originalOwnerCredential struct {
 }
 
 func ownerCredentialPath(state string, scope contract.OriginalOwnerScope) string {
+	// Callers validate the normalized scope before accessing this path.
+	hash, _ := ownerCredentialScopeHash(scope)
+	return filepath.Join(state, "owner-runtime", "launch-v2-"+hash+".json")
+}
+func legacyOwnerCredentialPath(state string, scope contract.OriginalOwnerScope) string {
 	sum := sha256.Sum256([]byte(scope.LaunchID))
 	return filepath.Join(state, "owner-runtime", "launch-"+hex.EncodeToString(sum[:])+".json")
 }
@@ -284,21 +289,39 @@ func (k *originalOwnerKeys) saveLaunchCredential(state string, scope contract.Or
 	if token == "" || len(token) > 1024 {
 		return store.CodeError("original_owner_credential_invalid")
 	}
+	scopeHash, err := ownerCredentialScopeHash(scope)
+	if err != nil {
+		return err
+	}
 	path := ownerCredentialPath(state, scope)
 	if _, err := os.Lstat(path); err == nil {
-		old, err := k.readLaunchCredential(state, scope)
+		value, old, err := k.readLaunchCredentialFile(path)
 		if err != nil {
 			return err
 		}
-		if old != token {
+		if value.ScopeSHA256 != scopeHash || old != token {
 			return store.ErrConflict
 		}
 		return nil
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	scopeHash, err := ownerCredentialScopeHash(scope)
-	if err != nil {
+	legacy := legacyOwnerCredentialPath(state, scope)
+	if _, err = os.Lstat(legacy); err == nil {
+		value, old, e := k.readLaunchCredentialFile(legacy)
+		if e != nil {
+			return e
+		}
+		if value.ScopeSHA256 == scopeHash {
+			if old != token {
+				return store.ErrConflict
+			}
+			// Preserve ciphertext and AAD; exclusive publication leaves v1 intact.
+			return createOwnerPrivateFile(path, value)
+		}
+		// A valid predecessor scope is never authority for this new scope. The
+		// authenticated caller supplied token independently; keep v1 untouched.
+	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
 	aead, err := k.aead()
@@ -313,28 +336,52 @@ func (k *originalOwnerKeys) saveLaunchCredential(state string, scope contract.Or
 	return createOwnerPrivateFile(path, originalOwnerCredential{Version: 1, ScopeSHA256: scopeHash, Nonce: hex.EncodeToString(nonce), Ciphertext: hex.EncodeToString(sealed)})
 }
 func (k *originalOwnerKeys) readLaunchCredential(state string, scope contract.OriginalOwnerScope) (string, error) {
-	body, err := readOwnerPrivateFile(ownerCredentialPath(state, scope), 4096)
+	hash, err := ownerCredentialScopeHash(scope)
 	if err != nil {
+		return "", store.CodeError("original_owner_credential_invalid")
+	}
+	path := ownerCredentialPath(state, scope)
+	if _, err = os.Lstat(path); errors.Is(err, os.ErrNotExist) {
+		path = legacyOwnerCredentialPath(state, scope)
+	} else if err != nil {
 		return "", store.CodeError("original_owner_credential_unavailable")
 	}
-	var value originalOwnerCredential
-	if contract.DecodeBridgeStrict(body, &value) != nil || value.Version != 1 {
+	value, token, err := k.readLaunchCredentialFile(path)
+	if err != nil {
+		return "", err
+	}
+	if value.ScopeSHA256 != hash {
 		return "", store.CodeError("original_owner_credential_invalid")
 	}
+	return token, nil
+}
+
+// Authenticate even a legacy predecessor's declared scope before considering
+// it for migration. Callers separately require the expected scope for reads.
+func (k *originalOwnerKeys) readLaunchCredentialFile(path string) (originalOwnerCredential, string, error) {
+	var value originalOwnerCredential
+	body, err := readOwnerPrivateFile(path, 4096)
+	if err != nil {
+		return value, "", store.CodeError("original_owner_credential_unavailable")
+	}
+	if contract.DecodeBridgeStrict(body, &value) != nil || value.Version != 1 {
+		return value, "", store.CodeError("original_owner_credential_invalid")
+	}
 	canonical, _ := json.Marshal(value)
-	hash, err := ownerCredentialScopeHash(scope)
-	if err != nil || hash != value.ScopeSHA256 || !bytes.Equal(append(canonical, '\n'), body) {
-		return "", store.CodeError("original_owner_credential_invalid")
+	hash := value.ScopeSHA256
+	hashBytes, err := hex.DecodeString(hash)
+	if err != nil || len(hashBytes) != 32 || hex.EncodeToString(hashBytes) != hash || !bytes.Equal(append(canonical, '\n'), body) {
+		return value, "", store.CodeError("original_owner_credential_invalid")
 	}
 	nonce, e1 := hex.DecodeString(value.Nonce)
 	sealed, e2 := hex.DecodeString(value.Ciphertext)
 	aead, err := k.aead()
 	if e1 != nil || e2 != nil || err != nil || len(nonce) != aead.NonceSize() || len(sealed) > 1040 {
-		return "", store.CodeError("original_owner_credential_invalid")
+		return value, "", store.CodeError("original_owner_credential_invalid")
 	}
 	plain, err := aead.Open(nil, nonce, sealed, k.credentialAAD(hash))
 	if err != nil || len(plain) == 0 || len(plain) > 1024 {
-		return "", store.CodeError("original_owner_credential_invalid")
+		return value, "", store.CodeError("original_owner_credential_invalid")
 	}
-	return string(plain), nil
+	return value, string(plain), nil
 }

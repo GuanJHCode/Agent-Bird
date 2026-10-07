@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net"
-	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -99,9 +99,9 @@ func TestOriginalOwnerInvalidPrepareDoesNotWriteCredential(t *testing.T) {
 	if err != nil || response.Kind != ipc.KindError {
 		t.Fatal("invalid Prepare accepted", err)
 	}
-	path := ownerCredentialPath(s.stateDir, contract.OriginalOwnerScope{LaunchID: hello.LaunchID})
-	if _, err = os.Lstat(path); !os.IsNotExist(err) {
-		t.Fatal("invalid Prepare published credential before validation", err)
+	credentials, err := filepath.Glob(filepath.Join(s.stateDir, "owner-runtime", "launch-*.json"))
+	if err != nil || len(credentials) != 0 {
+		t.Fatal("invalid Prepare published credential before validation", credentials, err)
 	}
 	if _, err = s.db.CurrentOriginalOwnerForLaunch(context.Background(), hello.LaunchID); err != store.ErrNotFound {
 		t.Fatal("invalid Prepare allocated owner", err)
