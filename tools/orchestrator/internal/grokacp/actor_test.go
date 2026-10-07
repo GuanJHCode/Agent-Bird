@@ -73,8 +73,24 @@ func TestGrokACPStartDuplexOwnedActor(t *testing.T) {
 	defer cancel()
 	handle, stream, err := process.StartDuplex(ctx, process.Command{Path: binary, Args: []string{"-test.run=^TestGrokACPActor$"}, ExactEnv: true, Env: []string{"GROKACP_NATIVE_ACTOR=1"}})
 	if err != nil || handle == nil || stream == nil {
+		if stream != nil {
+			_ = stream.Close()
+		}
+		if handle != nil {
+			cleanupCtx, cleanup := context.WithTimeout(context.Background(), time.Second)
+			_ = handle.Stop(cleanupCtx)
+			_ = handle.Wait(cleanupCtx)
+			cleanup()
+		}
 		t.Fatalf("StartDuplex handle=%v stream=%v err=%v", handle, stream, err)
 	}
+	t.Cleanup(func() {
+		_ = stream.Close()
+		cleanupCtx, cleanup := context.WithTimeout(context.Background(), time.Second)
+		defer cleanup()
+		_ = handle.Stop(cleanupCtx)
+		_ = handle.Wait(cleanupCtx)
+	})
 	client, err := New(ctx, stream, Limits{})
 	if err != nil {
 		t.Fatal(err)
@@ -92,13 +108,27 @@ func TestGrokACPStartDuplexOwnedActor(t *testing.T) {
 			t.Fatalf("Prompt(%q) turn=%#v err=%v", text, turn, err)
 		}
 	}
-	if err := client.Close(); err != nil {
+	closer, ok := stream.(interface{ CloseWrite() error })
+	if !ok {
+		t.Fatal("duplex stream lacks CloseWrite")
+	}
+	if err := closer.CloseWrite(); err != nil {
 		t.Fatal(err)
+	}
+	select {
+	case <-client.Done():
+	case <-ctx.Done():
+		t.Fatal("same ACP reader did not reach EOF after CloseWrite")
 	}
 	if err := handle.Wait(ctx); err != nil || handle.ExitCode() != 0 {
 		t.Fatalf("original Wait error=%v exit=%d", err, handle.ExitCode())
 	}
+	if err := client.Close(); err != nil {
+		t.Fatal(err)
+	}
 	if err := handle.ConfirmTreeExited(); err != nil {
 		t.Fatalf("original process tree = %v", err)
 	}
+	identity := handle.Identity()
+	t.Logf("native_actor_terminal session=%q pid=%d pgid=%d birth_known=%t exit=%d wait=true tree_exited=true", sessionID, identity.PID, identity.PGID, identity.BirthKnown, handle.ExitCode())
 }

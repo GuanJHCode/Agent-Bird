@@ -80,12 +80,8 @@ func TestClientCancelsReversePermissionRequest(t *testing.T) {
 	}()
 	client, sessionID := initializedSession(t, ctx, clientWire)
 	defer client.Close()
-	turn, err := client.Prompt(ctx, sessionID, "continue")
-	if err != nil {
-		t.Fatalf("Prompt() error = %v", err)
-	}
-	if turn.StopReason != "end_turn" {
-		t.Fatalf("StopReason = %q", turn.StopReason)
+	if _, err := client.Prompt(ctx, sessionID, "continue"); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("Prompt() error = %v, want %v", err, ErrPermissionDenied)
 	}
 	if err := <-actorDone; err != nil {
 		t.Fatalf("actor = %v", err)

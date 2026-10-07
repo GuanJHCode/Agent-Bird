@@ -49,16 +49,17 @@ func (e *TransportError) Is(target error) bool {
 }
 
 var (
-	ErrConstructor = &TransportError{"invalid_constructor"}
-	ErrLimits      = &TransportError{"invalid_limits"}
-	ErrProtocol    = &TransportError{"protocol"}
-	ErrFrameLimit  = &TransportError{"frame_limit"}
-	ErrUpdateLimit = &TransportError{"update_queue_limit"}
-	ErrClosed      = &TransportError{"closed"}
-	ErrUncertain   = &TransportError{"uncertain"}
-	ErrTurnActive  = &TransportError{"turn_active"}
-	ErrState       = &TransportError{"state"}
-	ErrPayload     = &TransportError{"payload"}
+	ErrConstructor      = &TransportError{"invalid_constructor"}
+	ErrLimits           = &TransportError{"invalid_limits"}
+	ErrProtocol         = &TransportError{"protocol"}
+	ErrFrameLimit       = &TransportError{"frame_limit"}
+	ErrUpdateLimit      = &TransportError{"update_queue_limit"}
+	ErrClosed           = &TransportError{"closed"}
+	ErrUncertain        = &TransportError{"uncertain"}
+	ErrTurnActive       = &TransportError{"turn_active"}
+	ErrState            = &TransportError{"state"}
+	ErrPayload          = &TransportError{"payload"}
+	ErrPermissionDenied = &TransportError{"permission_denied"}
 )
 
 type Turn struct{ StopReason string }
@@ -91,9 +92,11 @@ type Client struct {
 	opMu            sync.Mutex
 	err             error
 	initialized     bool
+	initializing    bool
 	sessionID       string
 	creatingSession bool
 	turnActive      bool
+	turnDenied      bool
 	nextID          uint64
 	pending         *pending
 	updates         chan Update
@@ -137,11 +140,13 @@ func (c *Client) Initialize(ctx context.Context) error {
 		return ErrPayload
 	}
 	c.mu.Lock()
-	if c.initialized {
+	if c.initialized || c.initializing {
 		c.mu.Unlock()
 		return ErrState
 	}
+	c.initializing = true
 	c.mu.Unlock()
+	defer func() { c.mu.Lock(); c.initializing = false; c.mu.Unlock() }()
 	result, err := c.call(ctx, "initialize", json.RawMessage(`{"protocolVersion":1,"clientCapabilities":{}}`))
 	if err != nil {
 		return err
@@ -214,6 +219,7 @@ func (c *Client) Prompt(ctx context.Context, sessionID, text string) (Turn, erro
 		return Turn{}, ErrTurnActive
 	}
 	c.turnActive = true
+	c.turnDenied = false
 	c.mu.Unlock()
 	defer func() { c.mu.Lock(); c.turnActive = false; c.mu.Unlock() }()
 	params, _ := json.Marshal(struct {
@@ -229,6 +235,12 @@ func (c *Client) Prompt(ctx context.Context, sessionID, text string) (Turn, erro
 	result, err := c.call(ctx, "session/prompt", params)
 	if err != nil {
 		return Turn{}, err
+	}
+	c.mu.Lock()
+	denied := c.turnDenied
+	c.mu.Unlock()
+	if denied {
+		return Turn{}, ErrPermissionDenied
 	}
 	fields, err := object(result)
 	if err != nil || !only(fields, "stopReason", "_meta") || fields["stopReason"] == nil {
@@ -330,7 +342,14 @@ func (c *Client) readPump() {
 			if len(body) != 0 {
 				c.fail(ErrUncertain)
 			} else {
-				c.fail(io.EOF)
+				c.mu.Lock()
+				active := c.turnActive
+				c.mu.Unlock()
+				if active {
+					c.fail(ErrUncertain)
+				} else {
+					c.fail(io.EOF)
+				}
 			}
 			return
 		}
@@ -381,14 +400,33 @@ func (c *Client) accept(raw []byte) error {
 	c.pending = nil
 	c.mu.Unlock()
 	if hasError {
-		p.ch <- response{err: ErrProtocol}
+		c.fail(ErrUncertain)
+		return ErrUncertain
 	} else {
 		p.ch <- response{result: append(json.RawMessage(nil), fields["result"]...)}
 	}
 	return nil
 }
 
-func (c *Client) reverseRequest(id json.RawMessage, method string, _ json.RawMessage) error {
+func (c *Client) reverseRequest(id json.RawMessage, method string, params json.RawMessage) error {
+	if !validRPCID(id) {
+		return ErrProtocol
+	}
+	fields, err := object(params)
+	if err != nil {
+		return ErrProtocol
+	}
+	sessionID, ok := stringValue(fields["sessionId"])
+	c.mu.Lock()
+	bound, active := c.sessionID, c.turnActive
+	if method == "session/request_permission" && ok && sessionID == bound && active {
+		c.turnDenied = true
+	}
+	denied := method == "session/request_permission" && ok && sessionID == bound && active
+	c.mu.Unlock()
+	if method == "session/request_permission" && !denied {
+		return ErrProtocol
+	}
 	var body any
 	if method == "session/request_permission" {
 		body = struct {
@@ -645,4 +683,17 @@ func isInteger(raw json.RawMessage, want int) bool {
 func uintID(raw json.RawMessage) (uint64, bool) {
 	got, err := strconv.ParseUint(string(raw), 10, 64)
 	return got, err == nil && got != 0
+}
+
+func validRPCID(raw json.RawMessage) bool {
+	raw = bytes.TrimSpace(raw)
+	if len(raw) == 0 || bytes.Equal(raw, []byte("null")) {
+		return false
+	}
+	if raw[0] == '"' {
+		_, ok := stringValue(raw)
+		return ok
+	}
+	_, err := strconv.ParseInt(string(raw), 10, 64)
+	return err == nil
 }
