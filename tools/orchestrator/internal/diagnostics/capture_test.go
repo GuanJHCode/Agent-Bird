@@ -2,6 +2,7 @@ package diagnostics
 
 import (
 	"context"
+	"errors"
 	"testing"
 )
 
@@ -80,7 +81,7 @@ func TestCaptureCloseEmitsExactFinalLossWithoutExtraCapacity(t *testing.T) {
 		t.Fatal(err)
 	}
 	record := lease.Record()
-	if record.Stream != Stderr || record.Offset != uint64(CaptureRecordCount) || record.LostBefore != 4 || len(record.Data) != 0 {
+	if record.Stream != Stderr || record.Offset != uint64(CaptureRecordCount+4) || record.LostBefore != 4 || len(record.Data) != 0 {
 		t.Fatalf("final loss=%+v", record)
 	}
 	if err = c.Done(lease, nil); err != nil {
@@ -88,5 +89,28 @@ func TestCaptureCloseEmitsExactFinalLossWithoutExtraCapacity(t *testing.T) {
 	}
 	if _, err = c.Next(context.Background()); err != ErrCaptureClosed {
 		t.Fatalf("closed drain err=%v", err)
+	}
+}
+
+func TestCaptureNextPrioritizesCanceledContextAndReturnsAppendFailure(t *testing.T) {
+	c, err := NewCapture("segment-a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = c.Offer(Stdout, []byte("x")); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err = c.Next(ctx); err != context.Canceled {
+		t.Fatalf("canceled Next=%v", err)
+	}
+	lease, err := c.Next(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	appendErr := errors.New("append failed")
+	if err = c.Done(lease, appendErr); !errors.Is(err, appendErr) {
+		t.Fatalf("Done=%v", err)
 	}
 }

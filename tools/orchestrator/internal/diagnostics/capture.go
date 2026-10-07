@@ -133,10 +133,14 @@ func (c *Capture) Offer(stream Stream, data []byte) (CaptureReceipt, error) {
 
 func (c *Capture) Next(ctx context.Context) (Lease, error) {
 	for {
+		if err := ctx.Err(); err != nil {
+			return Lease{}, err
+		}
 		c.mu.Lock()
 		c.enqueueFinalLossLocked()
 		if len(c.queue) > 0 {
 			item := c.queue[0]
+			c.queue[0] = queuedRecord{} // release the backing-array payload reference
 			c.queue = c.queue[1:]
 			c.leased[item.id] = struct{}{}
 			c.mu.Unlock()
@@ -171,7 +175,7 @@ func (c *Capture) Done(lease Lease, appendErr error) error {
 	c.used--
 	c.enqueueFinalLossLocked()
 	c.signalLocked()
-	return nil
+	return appendErr
 }
 
 // Close does not wait for a writer. Final loss records are queued only when a
@@ -195,7 +199,7 @@ func (c *Capture) enqueueFinalLossLocked() {
 		}
 		c.nextID++
 		loss := c.pendingLoss[index]
-		c.queue = append(c.queue, queuedRecord{id: c.nextID, record: Record{Stream: stream, SegmentID: c.segmentID, Offset: c.offsets[index] - loss, LostBefore: loss}})
+		c.queue = append(c.queue, queuedRecord{id: c.nextID, record: Record{Stream: stream, SegmentID: c.segmentID, Offset: c.offsets[index], LostBefore: loss}})
 		c.pendingLoss[index] = 0
 		c.used++
 	}

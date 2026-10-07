@@ -78,8 +78,21 @@ func encodeChunk(scopeHash string, sequence uint64, segmentID string, records []
 	if err != nil || len(scope) != sha256.Size {
 		return nil, ErrInvalidScope
 	}
+	total := len(chunkMagic) + 2 + sha256.Size + 8 + 1 + len(segmentID) + 2 + chunkTrailer
+	for _, record := range records {
+		if (record.Stream != Stdout && record.Stream != Stderr) || record.SegmentID != segmentID || len(record.Data) > RecordBytes {
+			if len(record.Data) > RecordBytes {
+				return nil, ErrRecordTooLarge
+			}
+			return nil, ErrCorrupt
+		}
+		total += 1 + 8 + 8 + 2 + len(record.Data)
+		if total > ChunkBytes {
+			return nil, ErrChunkFull
+		}
+	}
 	var b bytes.Buffer
-	b.Grow(64)
+	b.Grow(total)
 	b.WriteString(chunkMagic)
 	_ = binary.Write(&b, binary.BigEndian, chunkVersion)
 	b.Write(scope)
@@ -88,20 +101,11 @@ func encodeChunk(scopeHash string, sequence uint64, segmentID string, records []
 	b.WriteString(segmentID)
 	_ = binary.Write(&b, binary.BigEndian, uint16(len(records)))
 	for _, record := range records {
-		if (record.Stream != Stdout && record.Stream != Stderr) || record.SegmentID != segmentID || len(record.Data) > RecordBytes {
-			if len(record.Data) > RecordBytes {
-				return nil, ErrRecordTooLarge
-			}
-			return nil, ErrCorrupt
-		}
 		b.WriteByte(byte(record.Stream))
 		_ = binary.Write(&b, binary.BigEndian, record.Offset)
 		_ = binary.Write(&b, binary.BigEndian, record.LostBefore)
 		_ = binary.Write(&b, binary.BigEndian, uint16(len(record.Data)))
 		b.Write(record.Data)
-		if b.Len()+chunkTrailer > ChunkBytes {
-			return nil, ErrChunkFull
-		}
 	}
 	sum := sha256.Sum256(b.Bytes())
 	b.Write(sum[:])
@@ -139,6 +143,9 @@ func decodeChunk(raw []byte) (chunk, error) {
 	}
 	count := int(binary.BigEndian.Uint16(body[offset:]))
 	offset += 2
+	if count > (len(body)-offset)/(1+8+8+2) {
+		return chunk{}, ErrCorrupt
+	}
 	records := make([]Record, 0, count)
 	for range count {
 		if offset+1+8+8+2 > len(body) {
