@@ -1,0 +1,6 @@
+# github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host
+package github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host
+	imports github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator from owner_admission_native_test.go
+	imports github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host from owner_resume.go: import cycle not allowed in test
+FAIL	github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host [setup failed]
+FAIL
