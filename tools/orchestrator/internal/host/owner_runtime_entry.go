@@ -144,7 +144,15 @@ func runOriginalOwner(parent context.Context, cfg OriginalOwnerConfig, initializ
 	// Reconcile on the same serial owner workflow only after the FD4 reader is
 	// live, so a signed launch queued across the Activate reply is retained.
 	if err = execution.reconcile(ctx, bound.Permit); err != nil {
-		cancel(err)
+		// A successor's handoff can finish under a later Coordinator epoch
+		// than its immutable Bind permit. Keep this exact owner and transport
+		// while the existing renewal workflow advances that permit.
+		if bound.Binding.Scope.Incarnation > 1 && ownerExecutionNeedsRecovery(err) {
+			err = reconcileCurrentOwnerTransport(ctx, cfg, enrollment, execution, lifecycle, recovery, transport, true)
+		}
+		if err != nil {
+			cancel(err)
+		}
 	}
 	for ctx.Err() == nil {
 		select {
@@ -213,8 +221,9 @@ func recoverCurrentOwnerTransport(ctx context.Context, cfg OriginalOwnerConfig, 
 	return reconcileCurrentOwnerTransport(ctx, cfg, enrollment, execution, lifecycle, recovery, transport, false)
 }
 
-// connected is true only after this workflow consumed the current child's
-// fresh HostPending. Renewal on that connection needs no second Ensure slot.
+// connected is true after a fresh HostPending or a successor handoff RPC
+// authenticated this exact current session. The first state/renewal on that
+// connection needs no additional Ensure slot.
 func reconcileCurrentOwnerTransport(ctx context.Context, cfg OriginalOwnerConfig, enrollment *ownerEnrollment, execution *ownerExecution, lifecycle *ownerRuntimeLifecycle, recovery *ownerRecoveryState, transport *ownerRuntimeTransport, connected bool) error {
 	// This local value is deliberately retained across lost RPC replies.  The
 	// same request ID/revision/body is replayed after a new Coordinator epoch;
