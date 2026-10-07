@@ -3,35 +3,71 @@ package contract
 import (
 	"context"
 	"encoding/json"
+	"errors"
 )
 
 type Event struct {
-	Failure          *FailureFacts    `json:"failure,omitempty"`
-	Version          int              `json:"version"`
-	ProducerID       string           `json:"producer_id,omitempty"`
-	EventID          string           `json:"event_id,omitempty"`
-	EventRevision    int64            `json:"event_revision,omitempty"`
-	ActionSlot       string           `json:"action_slot,omitempty"`
-	RunID            string           `json:"run_id"`
-	TaskID           string           `json:"task_id"`
-	AttemptID        string           `json:"attempt_id"`
-	SegmentID        string           `json:"segment_id"`
-	WorkRevision     int              `json:"work_revision,omitempty"`
-	ExecutionEpoch   uint64           `json:"execution_epoch,omitempty"`
-	CommandID        string           `json:"command_id,omitempty"`
-	Sequence         int64            `json:"sequence"`
-	Kind             string           `json:"kind"`
-	PayloadHash      string           `json:"payload_hash"`
-	Process          *ProcessIdentity `json:"process,omitempty"`
-	ExitCode         *int             `json:"exit_code,omitempty"`
-	Artifact         *ArtifactRef     `json:"artifact,omitempty"`
-	ActiveMS         int64            `json:"active_ms,omitempty"`
-	QuestionID       string           `json:"question_id,omitempty"`
-	QuestionRevision int              `json:"question_revision,omitempty"`
-	QuestionKind     string           `json:"question_kind,omitempty"`
-	SessionKind      string           `json:"session_kind,omitempty"`
-	SessionID        string           `json:"session_id,omitempty"`
-	StopReason       string           `json:"stop_reason,omitempty"`
+	DiagnosticsFailure *DiagnosticsFailure `json:"diagnostics_failure,omitempty"`
+	Failure            *FailureFacts       `json:"failure,omitempty"`
+	Version            int                 `json:"version"`
+	ProducerID         string              `json:"producer_id,omitempty"`
+	EventID            string              `json:"event_id,omitempty"`
+	EventRevision      int64               `json:"event_revision,omitempty"`
+	ActionSlot         string              `json:"action_slot,omitempty"`
+	RunID              string              `json:"run_id"`
+	TaskID             string              `json:"task_id"`
+	AttemptID          string              `json:"attempt_id"`
+	SegmentID          string              `json:"segment_id"`
+	WorkRevision       int                 `json:"work_revision,omitempty"`
+	ExecutionEpoch     uint64              `json:"execution_epoch,omitempty"`
+	CommandID          string              `json:"command_id,omitempty"`
+	Sequence           int64               `json:"sequence"`
+	Kind               string              `json:"kind"`
+	PayloadHash        string              `json:"payload_hash"`
+	Process            *ProcessIdentity    `json:"process,omitempty"`
+	ExitCode           *int                `json:"exit_code,omitempty"`
+	Artifact           *ArtifactRef        `json:"artifact,omitempty"`
+	ActiveMS           int64               `json:"active_ms,omitempty"`
+	QuestionID         string              `json:"question_id,omitempty"`
+	QuestionRevision   int                 `json:"question_revision,omitempty"`
+	QuestionKind       string              `json:"question_kind,omitempty"`
+	SessionKind        string              `json:"session_kind,omitempty"`
+	SessionID          string              `json:"session_id,omitempty"`
+	StopReason         string              `json:"stop_reason,omitempty"`
+}
+
+type DiagnosticsFailure struct {
+	Version  int  `json:"version"`
+	Summary  bool `json:"summary,omitempty"`
+	Detailed bool `json:"detailed,omitempty"`
+}
+
+func (d DiagnosticsFailure) Validate() error {
+	if d.Version != 1 || (!d.Summary && !d.Detailed) {
+		return errors.New("diagnostics_failure_invalid")
+	}
+	return nil
+}
+func (d *DiagnosticsFailure) UnmarshalJSON(raw []byte) error {
+	type plain DiagnosticsFailure
+	var v plain
+	if err := DecodeBridgeStrict(raw, &v); err != nil {
+		return errors.New("diagnostics_failure_invalid")
+	}
+	if err := DiagnosticsFailure(v).Validate(); err != nil {
+		return err
+	}
+	*d = DiagnosticsFailure(v)
+	return nil
+}
+func ValidateDiagnosticsFailure(e Event) error {
+	if e.DiagnosticsFailure == nil {
+		return nil
+	}
+	if e.Kind != EventExited {
+		return errors.New("diagnostics_failure_invalid")
+	}
+	return e.DiagnosticsFailure.Validate()
 }
 
 const (
