@@ -20,6 +20,9 @@ func sandboxCommand(ctx context.Context, cmd process.Command, profile *adapter.E
 }
 
 func (h *Host) sandboxProfileCommand(ctx context.Context, cmd process.Command, profile *adapter.ExecutionProfile, scratch string, g contract.LaunchCommand) (process.Command, error) {
+	if runtime.GOOS != "darwin" {
+		return cmd, errors.New("profile_sandbox_unsupported")
+	}
 	history := ""
 	agyHistory := agyHistoryScope{}
 	p, err := adapter.DecodeInvocationPayload(g.AdapterPayload)

@@ -1,0 +1,57 @@
+[
+  {
+    "name": "regression",
+    "argv": [
+      "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+      "test",
+      "-count=1",
+      "-json",
+      "-run",
+      "^(TestClaudeHistoryPreparationRetainsOriginalConfigAndTranscriptIdentity|TestAGYHistoryResumeRejectsMissingCompletedSegmentSeal|TestAGYHistoryPreparationRetainsOriginalRootsAndReadonlyReferences|TestAGYHistoryRejectsDanglingOriginalDirectories|TestAGYHistoryConfigAbsenceKeepsDefaultsAndAllowsOnlyMutableIndex|TestAGYHistoryPreparationRejectsConfigAndScopeDrift|TestAGYHistorySealBindsExactCompletedSegmentAndNativeBytes|TestAGYHistoryAtomicSaveUsesNextSegmentsOwnSeal|TestAGYHistorySealNeverOverwritesCompletedOrPartialReceipt)$",
+      "./internal/host"
+    ],
+    "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/linux-profile-admission/tools/orchestrator",
+    "environment": {
+      "TMPDIR": "/private/tmp",
+      "GOTOOLCHAIN": "local",
+      "GOPROXY": "off",
+      "GOSUMDB": "off"
+    },
+    "exit_code": 0
+  },
+  {
+    "name": "vet-darwin",
+    "argv": [
+      "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+      "vet",
+      "./internal/host"
+    ],
+    "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/linux-profile-admission/tools/orchestrator",
+    "environment": {
+      "TMPDIR": "/private/tmp",
+      "GOTOOLCHAIN": "local",
+      "GOPROXY": "off",
+      "GOSUMDB": "off"
+    },
+    "exit_code": 0
+  },
+  {
+    "name": "vet-linux",
+    "argv": [
+      "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+      "vet",
+      "./internal/host"
+    ],
+    "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/linux-profile-admission/tools/orchestrator",
+    "environment": {
+      "TMPDIR": "/private/tmp",
+      "GOTOOLCHAIN": "local",
+      "GOPROXY": "off",
+      "GOSUMDB": "off",
+      "GOOS": "linux",
+      "GOARCH": "arm64",
+      "CGO_ENABLED": "0"
+    },
+    "exit_code": 0
+  }
+]

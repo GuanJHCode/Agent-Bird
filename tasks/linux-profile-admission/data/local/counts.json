@@ -1,0 +1,20 @@
+{
+  "named": {
+    "run": 52,
+    "pass": 52,
+    "fail": 0,
+    "skip": 0
+  },
+  "top_level": {
+    "run": 9,
+    "pass": 9,
+    "fail": 0,
+    "skip": 0
+  },
+  "package": {
+    "run": 0,
+    "pass": 1,
+    "fail": 0,
+    "skip": 0
+  }
+}

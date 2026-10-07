@@ -1,0 +1,188 @@
+{
+  "stage": "green",
+  "baseline": "92e4b49ab724916445816a84d4f28bc576bf671e",
+  "selector": "^TestLinuxProfileAdmissionRejectsBeforeHistory$",
+  "image": "sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99",
+  "source_sha256": {
+    "tools/orchestrator/internal/host/profile.go": "27170d6b4971ea87ef1fc508cda43702b0a8e94d28531e1f6934f1b801c15dc7",
+    "tools/orchestrator/internal/host/profile_linux_admission_test.go": "a5e68808023c68b36a9e8bb6abc6191c5bfd8e80d2908cc6d4d4e0bbb26d7fab"
+  },
+  "binary_sha256": "cdba268aaaafc41acf54654b15bb351ef78c51eb4cf6f1f65c1a4d26230edae3",
+  "container_name": "root-linux-profile-green-cdba268aaaaf",
+  "container_id": "abc0c6a48304809f128ffd443086de6c35c96614c36fae71ad96ba772da3e3d2",
+  "state": {
+    "Status": "exited",
+    "Running": false,
+    "Paused": false,
+    "Restarting": false,
+    "OOMKilled": false,
+    "Dead": false,
+    "Pid": 0,
+    "ExitCode": 0,
+    "Error": "",
+    "StartedAt": "2026-10-07T23:29:11.325558963Z",
+    "FinishedAt": "2026-10-07T23:29:11.417745922Z"
+  },
+  "counts": {
+    "named": {
+      "run": 3,
+      "pass": 3,
+      "fail": 0,
+      "skip": 0
+    },
+    "top_level": {
+      "run": 1,
+      "pass": 1,
+      "fail": 0,
+      "skip": 0
+    },
+    "package": {
+      "run": 0,
+      "pass": 1,
+      "fail": 0,
+      "skip": 0
+    }
+  },
+  "expected_outcome_observed": true,
+  "cleanup": {
+    "remove_exit_code": 0,
+    "inspect_absent_exit_code": 1,
+    "absent": true
+  },
+  "commands": [
+    {
+      "name": "go-version",
+      "argv": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "version"
+      ],
+      "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/linux-profile-admission/tools/orchestrator",
+      "exit_code": 0
+    },
+    {
+      "name": "image-inspect",
+      "argv": [
+        "docker",
+        "image",
+        "inspect",
+        "sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99"
+      ],
+      "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/linux-profile-admission/tools/orchestrator",
+      "exit_code": 0
+    },
+    {
+      "name": "build",
+      "argv": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "test",
+        "-c",
+        "-o",
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/linux-profile-admission/tasks/linux-profile-admission/tmp/green/host.test",
+        "./internal/host"
+      ],
+      "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/linux-profile-admission/tools/orchestrator",
+      "exit_code": 0
+    },
+    {
+      "name": "create",
+      "argv": [
+        "docker",
+        "create",
+        "--name",
+        "root-linux-profile-green-cdba268aaaaf",
+        "--pull=never",
+        "--network",
+        "none",
+        "--read-only",
+        "--cap-drop",
+        "ALL",
+        "--security-opt",
+        "no-new-privileges",
+        "--user",
+        "65534:65534",
+        "--init",
+        "--tmpfs",
+        "/tmp:rw,nosuid,nodev,mode=1777,size=268435456",
+        "--env",
+        "TMPDIR=/tmp",
+        "--env",
+        "HOME=/tmp",
+        "--mount",
+        "type=bind,src=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/linux-profile-admission/tasks/linux-profile-admission/tmp/green,dst=/tests,readonly",
+        "--entrypoint",
+        "/tests/host.test",
+        "sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99",
+        "-test.run",
+        "^TestLinuxProfileAdmissionRejectsBeforeHistory$",
+        "-test.v",
+        "-test.count=1",
+        "-test.timeout=30s"
+      ],
+      "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/linux-profile-admission/tools/orchestrator",
+      "exit_code": 0
+    },
+    {
+      "name": "start",
+      "argv": [
+        "docker",
+        "start",
+        "--attach",
+        "abc0c6a48304809f128ffd443086de6c35c96614c36fae71ad96ba772da3e3d2"
+      ],
+      "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/linux-profile-admission/tools/orchestrator",
+      "exit_code": 0
+    },
+    {
+      "name": "raw",
+      "argv": [
+        "docker",
+        "logs",
+        "abc0c6a48304809f128ffd443086de6c35c96614c36fae71ad96ba772da3e3d2"
+      ],
+      "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/linux-profile-admission/tools/orchestrator",
+      "exit_code": 0
+    },
+    {
+      "name": "inspect",
+      "argv": [
+        "docker",
+        "inspect",
+        "abc0c6a48304809f128ffd443086de6c35c96614c36fae71ad96ba772da3e3d2"
+      ],
+      "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/linux-profile-admission/tools/orchestrator",
+      "exit_code": 0
+    },
+    {
+      "name": "test2json",
+      "argv": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "tool",
+        "test2json",
+        "-p",
+        "internal/host"
+      ],
+      "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/linux-profile-admission/tools/orchestrator",
+      "exit_code": 0
+    },
+    {
+      "name": "remove",
+      "argv": [
+        "docker",
+        "rm",
+        "abc0c6a48304809f128ffd443086de6c35c96614c36fae71ad96ba772da3e3d2"
+      ],
+      "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/linux-profile-admission/tools/orchestrator",
+      "exit_code": 0
+    },
+    {
+      "name": "inspect-absent",
+      "argv": [
+        "docker",
+        "inspect",
+        "abc0c6a48304809f128ffd443086de6c35c96614c36fae71ad96ba772da3e3d2"
+      ],
+      "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/linux-profile-admission/tools/orchestrator",
+      "exit_code": 1
+    }
+  ]
+}

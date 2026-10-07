@@ -1,0 +1,24 @@
+=== RUN   TestLinuxProfileAdmissionRejectsBeforeHistory
+=== RUN   TestLinuxProfileAdmissionRejectsBeforeHistory/claude-code
+    profile_linux_admission_test.go:36: refused command was rewritten: got {PinnedPath: PinnedSHA256: Path:/unexecuted/claude-fixture Args:[--output-format stream-json] Dir:/tmp/TestLinuxProfileAdmissionRejectsBeforeHistoryclaude-code3932975761/001 Env:[CLAUDE_CODE_SKIP_PROMPT_HISTORY=0 AUTH_SOURCE_SENTINEL=unchanged CLAUDE_CONFIG_DIR=/tmp/TestLinuxProfileAdmissionRejectsBeforeHistoryclaude-code3932975761/001/config CLAUDE_CODE_PROJECT_DIR_NAME=agent-bird-20ecb8f6193722bdc1e3999c59df21e2f29b7c0c3c67dd5b] ExactEnv:false Stdin:[] Stdout:<nil> ObserveOutput:<nil>}; want {PinnedPath: PinnedSHA256: Path:/unexecuted/claude-fixture Args:[--output-format stream-json] Dir:/tmp/TestLinuxProfileAdmissionRejectsBeforeHistoryclaude-code3932975761/001 Env:[CLAUDE_CONFIG_DIR=/tmp/TestLinuxProfileAdmissionRejectsBeforeHistoryclaude-code3932975761/001/config CLAUDE_CODE_SKIP_PROMPT_HISTORY=0 AUTH_SOURCE_SENTINEL=unchanged] ExactEnv:false Stdin:[] Stdout:<nil> ObserveOutput:<nil>}
+    profile_linux_admission_test.go:50: refused call changed fixture entry "config"
+    profile_linux_admission_test.go:50: refused call changed fixture entry "spool"
+    profile_linux_admission_test.go:55: refused call created fixture entry "config/projects"
+    profile_linux_admission_test.go:55: refused call created fixture entry "config/projects/agent-bird-20ecb8f6193722bdc1e3999c59df21e2f29b7c0c3c67dd5b"
+    profile_linux_admission_test.go:55: refused call created fixture entry "spool/attempt/first/provider-history.json"
+    profile_linux_admission_test.go:55: refused call created fixture entry "spool/attempt"
+    profile_linux_admission_test.go:55: refused call created fixture entry "spool/attempt/first"
+=== RUN   TestLinuxProfileAdmissionRejectsBeforeHistory/antigravity-cli
+    profile_linux_admission_test.go:36: refused command was rewritten: got {PinnedPath: PinnedSHA256: Path:/pinned/agy Args:[--output-format stream-json --input-format stream-json --mode plan --app_data_dir agent-bird-20ecb8f6193722bdc1e3999c59df21e2f29b7c0c3c67dd5b] Dir:/tmp/TestLinuxProfileAdmissionRejectsBeforeHistoryantigravity-cli2915381488/001 Env:[HOME=/tmp/TestLinuxProfileAdmissionRejectsBeforeHistoryantigravity-cli2915381488/001/home AUTH_SOURCE_SENTINEL=unchanged] ExactEnv:false Stdin:[] Stdout:<nil> ObserveOutput:<nil>}; want {PinnedPath: PinnedSHA256: Path:/pinned/agy Args:[--output-format stream-json --input-format stream-json --mode plan] Dir:/tmp/TestLinuxProfileAdmissionRejectsBeforeHistoryantigravity-cli2915381488/001 Env:[HOME=/tmp/TestLinuxProfileAdmissionRejectsBeforeHistoryantigravity-cli2915381488/001/home AUTH_SOURCE_SENTINEL=unchanged] ExactEnv:false Stdin:[] Stdout:<nil> ObserveOutput:<nil>}
+    profile_linux_admission_test.go:55: refused call created fixture entry "spool/attempt/first"
+    profile_linux_admission_test.go:55: refused call created fixture entry "home/.gemini/agent-bird-20ecb8f6193722bdc1e3999c59df21e2f29b7c0c3c67dd5b"
+    profile_linux_admission_test.go:55: refused call created fixture entry "home/.gemini/agent-bird-20ecb8f6193722bdc1e3999c59df21e2f29b7c0c3c67dd5b/keybindings.json"
+    profile_linux_admission_test.go:55: refused call created fixture entry "home/.gemini/agent-bird-20ecb8f6193722bdc1e3999c59df21e2f29b7c0c3c67dd5b/cache"
+    profile_linux_admission_test.go:55: refused call created fixture entry "home/.gemini/agent-bird-20ecb8f6193722bdc1e3999c59df21e2f29b7c0c3c67dd5b/cache/default_project_id.txt"
+    profile_linux_admission_test.go:55: refused call created fixture entry "spool/attempt"
+    profile_linux_admission_test.go:55: refused call created fixture entry "spool/attempt/first/provider-history.json"
+    profile_linux_admission_test.go:55: refused call created fixture entry "home/.gemini/agent-bird-20ecb8f6193722bdc1e3999c59df21e2f29b7c0c3c67dd5b/settings.json"
+--- FAIL: TestLinuxProfileAdmissionRejectsBeforeHistory (0.01s)
+    --- FAIL: TestLinuxProfileAdmissionRejectsBeforeHistory/claude-code (0.00s)
+    --- FAIL: TestLinuxProfileAdmissionRejectsBeforeHistory/antigravity-cli (0.00s)
+FAIL

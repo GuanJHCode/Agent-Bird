@@ -1,0 +1,66 @@
+[
+    {
+        "Id": "sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99",
+        "RepoTags": [
+            "redis:7-alpine"
+        ],
+        "RepoDigests": [
+            "redis@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99"
+        ],
+        "Parent": "",
+        "Comment": "buildkit.dockerfile.v0",
+        "Created": "2026-05-07T17:39:54.062865523Z",
+        "DockerVersion": "",
+        "Author": "",
+        "Architecture": "arm64",
+        "Variant": "v8",
+        "Os": "linux",
+        "Size": 16790804,
+        "GraphDriver": {
+            "Data": null,
+            "Name": "overlayfs"
+        },
+        "RootFS": {
+            "Type": "layers",
+            "Layers": [
+                "sha256:e553266e9961960d0d998d56a5d13d3f8b9555c7ec6acfe10f3d53796905d8ee",
+                "sha256:ac2dffe5d7e4bd0f3fefd4cee0923afdcdbdb498f5e38be5be9564e767d96ec0",
+                "sha256:0f685dbfeec6f1865856719efee347a7f394d1e815778849a31b5940730e17c7",
+                "sha256:178f906f09b9759c58d79a22aea82102e4fc9f1895b20dfa512250e5f2b13409",
+                "sha256:b4361404010bb62f7d9c6dfc9ff1c1025141e8024f3c8353704f835f028657bb",
+                "sha256:5f70bf18a086007016e948b04aed3b82103a36bea41755b6cddfaf10ace3c6ef",
+                "sha256:ae3faf9e1a603e622dfd9e7b8b912dd44e0fa704a8d383668f62f77ae53874bc"
+            ]
+        },
+        "Metadata": {
+            "LastTagTime": "2026-07-07T04:28:38.116464418Z"
+        },
+        "Descriptor": {
+            "mediaType": "application/vnd.oci.image.index.v1+json",
+            "digest": "sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99",
+            "size": 10205
+        },
+        "Config": {
+            "Cmd": [
+                "redis-server"
+            ],
+            "Entrypoint": [
+                "docker-entrypoint.sh"
+            ],
+            "Env": [
+                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "REDIS_VERSION=7.4.9"
+            ],
+            "ExposedPorts": {
+                "6379/tcp": {}
+            },
+            "Labels": null,
+            "OnBuild": null,
+            "User": "",
+            "Volumes": {
+                "/data": {}
+            },
+            "WorkingDir": "/data"
+        }
+    }
+]

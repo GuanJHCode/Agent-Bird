@@ -1,0 +1,7 @@
+=== RUN   TestLinuxProfileAdmissionRejectsBeforeHistory
+=== RUN   TestLinuxProfileAdmissionRejectsBeforeHistory/claude-code
+=== RUN   TestLinuxProfileAdmissionRejectsBeforeHistory/antigravity-cli
+--- PASS: TestLinuxProfileAdmissionRejectsBeforeHistory (0.00s)
+    --- PASS: TestLinuxProfileAdmissionRejectsBeforeHistory/claude-code (0.00s)
+    --- PASS: TestLinuxProfileAdmissionRejectsBeforeHistory/antigravity-cli (0.00s)
+PASS

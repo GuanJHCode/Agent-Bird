@@ -1,0 +1,15 @@
+{"Action":"start","Package":"internal/host"}
+{"Action":"run","Package":"internal/host","Test":"TestLinuxProfileAdmissionRejectsBeforeHistory"}
+{"Action":"output","Package":"internal/host","Test":"TestLinuxProfileAdmissionRejectsBeforeHistory","Output":"=== RUN   TestLinuxProfileAdmissionRejectsBeforeHistory\n"}
+{"Action":"run","Package":"internal/host","Test":"TestLinuxProfileAdmissionRejectsBeforeHistory/claude-code"}
+{"Action":"output","Package":"internal/host","Test":"TestLinuxProfileAdmissionRejectsBeforeHistory/claude-code","Output":"=== RUN   TestLinuxProfileAdmissionRejectsBeforeHistory/claude-code\n"}
+{"Action":"run","Package":"internal/host","Test":"TestLinuxProfileAdmissionRejectsBeforeHistory/antigravity-cli"}
+{"Action":"output","Package":"internal/host","Test":"TestLinuxProfileAdmissionRejectsBeforeHistory/antigravity-cli","Output":"=== RUN   TestLinuxProfileAdmissionRejectsBeforeHistory/antigravity-cli\n"}
+{"Action":"output","Package":"internal/host","Test":"TestLinuxProfileAdmissionRejectsBeforeHistory","Output":"--- PASS: TestLinuxProfileAdmissionRejectsBeforeHistory (0.00s)\n"}
+{"Action":"output","Package":"internal/host","Test":"TestLinuxProfileAdmissionRejectsBeforeHistory/claude-code","Output":"    --- PASS: TestLinuxProfileAdmissionRejectsBeforeHistory/claude-code (0.00s)\n"}
+{"Action":"pass","Package":"internal/host","Test":"TestLinuxProfileAdmissionRejectsBeforeHistory/claude-code"}
+{"Action":"output","Package":"internal/host","Test":"TestLinuxProfileAdmissionRejectsBeforeHistory/antigravity-cli","Output":"    --- PASS: TestLinuxProfileAdmissionRejectsBeforeHistory/antigravity-cli (0.00s)\n"}
+{"Action":"pass","Package":"internal/host","Test":"TestLinuxProfileAdmissionRejectsBeforeHistory/antigravity-cli"}
+{"Action":"pass","Package":"internal/host","Test":"TestLinuxProfileAdmissionRejectsBeforeHistory"}
+{"Action":"output","Package":"internal/host","Output":"PASS\n"}
+{"Action":"pass","Package":"internal/host"}
