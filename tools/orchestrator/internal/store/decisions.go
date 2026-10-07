@@ -18,52 +18,62 @@ func (d *DB) QueueResume(ctx context.Context, taskID string, workRevision int) e
 	if err != nil {
 		return err
 	}
-	rollback := func(e error) error { _ = tx.Rollback(); return e }
+	defer tx.Rollback()
+	if _, err = d.queueResumeTx(ctx, tx, taskID, workRevision); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// queueResumeTx preserves the legacy queue/budget checks so authenticated owner
+// retirement and queue admission can commit in the same transaction.
+func (d *DB) queueResumeTx(ctx context.Context, tx *sql.Tx, taskID string, workRevision int) (int64, error) {
+	var err error
 	var status, adapterPayload string
 	var revision int
 	if err = tx.QueryRowContext(ctx, `SELECT t.status,r.work_revision,r.adapter_payload FROM tasks t JOIN task_runtime r ON r.task_id=t.id WHERE t.id=?`, taskID).Scan(&status, &revision, &adapterPayload); err != nil {
-		return rollback(ErrNotFound)
+		return 0, ErrNotFound
 	}
 	if err = checkTaskProvider(ctx, tx, taskID, nil); err != nil {
-		return rollback(err)
+		return 0, err
 	}
 	if err := resumeProfileRestriction([]byte(adapterPayload)); err != nil {
-		return rollback(err)
+		return 0, err
 	}
 	if revision != workRevision || status != "interrupted" {
-		return rollback(ErrConflict)
+		return 0, ErrConflict
 	}
 	var active int
 	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM segment_runtime s JOIN attempts a ON a.id=s.attempt_id WHERE a.task_id=? AND s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown')`, taskID).Scan(&active); err != nil || active != 0 {
 		if err == nil {
 			err = ErrConflict
 		}
-		return rollback(err)
+		return 0, err
 	}
 	b, e := readExecutionBudget(ctx, tx, taskID)
 	if e != nil {
-		return rollback(e)
+		return 0, e
 	}
 	if b.policy != nil {
 		var attemptID string
 		if e = tx.QueryRowContext(ctx, `SELECT id FROM attempts WHERE task_id=? ORDER BY attempt_no DESC LIMIT 1`, taskID).Scan(&attemptID); e != nil {
-			return rollback(e)
+			return 0, e
 		}
 		if _, e = executionGrant(ctx, tx, taskID, attemptID); e != nil {
-			return rollback(e)
+			return 0, e
 		}
 	}
 	sequence, err := takeReadySequence(ctx, tx)
 	if err != nil {
-		return rollback(err)
+		return 0, err
 	}
 	if _, err = tx.ExecContext(ctx, `UPDATE tasks SET status='resume_queued' WHERE id=?`, taskID); err != nil {
-		return rollback(err)
+		return 0, err
 	}
 	if _, err = tx.ExecContext(ctx, `UPDATE task_runtime SET ready_sequence=? WHERE task_id=?`, sequence, taskID); err != nil {
-		return rollback(err)
+		return 0, err
 	}
-	return tx.Commit()
+	return sequence, nil
 }
 
 type AnswerSpec struct {
