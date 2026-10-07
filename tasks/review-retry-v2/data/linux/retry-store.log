@@ -1,0 +1,281 @@
+=== RUN   TestCandidateReviewNativeSessionPreservesOwnerAcceptChain
+=== RUN   TestCandidateReviewNativeSessionPreservesOwnerAcceptChain/antigravity-cli
+=== RUN   TestCandidateReviewNativeSessionPreservesOwnerAcceptChain/claude-code
+--- PASS: TestCandidateReviewNativeSessionPreservesOwnerAcceptChain (0.33s)
+    --- PASS: TestCandidateReviewNativeSessionPreservesOwnerAcceptChain/antigravity-cli (0.17s)
+    --- PASS: TestCandidateReviewNativeSessionPreservesOwnerAcceptChain/claude-code (0.15s)
+=== RUN   TestCandidateReviewNativeSessionDoesNotAuthorizeContinuation
+=== RUN   TestCandidateReviewNativeSessionDoesNotAuthorizeContinuation/antigravity-cli
+=== RUN   TestCandidateReviewNativeSessionDoesNotAuthorizeContinuation/antigravity-cli/question
+=== RUN   TestCandidateReviewNativeSessionDoesNotAuthorizeContinuation/antigravity-cli/stopped
+=== RUN   TestCandidateReviewNativeSessionDoesNotAuthorizeContinuation/claude-code
+=== RUN   TestCandidateReviewNativeSessionDoesNotAuthorizeContinuation/claude-code/question
+=== RUN   TestCandidateReviewNativeSessionDoesNotAuthorizeContinuation/claude-code/stopped
+--- PASS: TestCandidateReviewNativeSessionDoesNotAuthorizeContinuation (0.56s)
+    --- PASS: TestCandidateReviewNativeSessionDoesNotAuthorizeContinuation/antigravity-cli (0.30s)
+        --- PASS: TestCandidateReviewNativeSessionDoesNotAuthorizeContinuation/antigravity-cli/question (0.17s)
+        --- PASS: TestCandidateReviewNativeSessionDoesNotAuthorizeContinuation/antigravity-cli/stopped (0.13s)
+    --- PASS: TestCandidateReviewNativeSessionDoesNotAuthorizeContinuation/claude-code (0.25s)
+        --- PASS: TestCandidateReviewNativeSessionDoesNotAuthorizeContinuation/claude-code/question (0.13s)
+        --- PASS: TestCandidateReviewNativeSessionDoesNotAuthorizeContinuation/claude-code/stopped (0.12s)
+=== RUN   TestCandidateReviewDiagnosticFailureExplicitRetry
+=== RUN   TestCandidateReviewDiagnosticFailureExplicitRetry/claude-code
+=== RUN   TestCandidateReviewDiagnosticFailureExplicitRetry/grok-build
+--- PASS: TestCandidateReviewDiagnosticFailureExplicitRetry (0.30s)
+    --- PASS: TestCandidateReviewDiagnosticFailureExplicitRetry/claude-code (0.15s)
+    --- PASS: TestCandidateReviewDiagnosticFailureExplicitRetry/grok-build (0.15s)
+=== RUN   TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence
+=== RUN   TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/content
+=== RUN   TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/hash
+=== RUN   TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/size
+=== RUN   TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/oversize
+=== RUN   TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/path
+=== RUN   TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/id
+=== RUN   TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/symlink
+=== RUN   TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/parent_symlink
+=== RUN   TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/mode
+=== RUN   TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/hardlink
+=== RUN   TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/unknown_field
+=== RUN   TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/duplicate_field
+=== RUN   TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/case_field
+=== RUN   TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/other_code
+=== RUN   TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/successful_result
+=== RUN   TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/exit_zero
+=== RUN   TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/exit_negative
+=== RUN   TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/no_process
+=== RUN   TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/no_exited
+=== RUN   TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/exit_process
+=== RUN   TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/exit_artifact
+=== RUN   TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/exit_code
+=== RUN   TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/exit_sequence
+=== RUN   TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/result
+=== RUN   TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/unknown
+=== RUN   TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/stopped
+=== RUN   TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/host_offline
+--- PASS: TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence (3.56s)
+    --- PASS: TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/content (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/hash (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/size (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/oversize (0.14s)
+    --- PASS: TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/path (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/id (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/symlink (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/parent_symlink (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/mode (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/hardlink (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/unknown_field (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/duplicate_field (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/case_field (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/other_code (0.14s)
+    --- PASS: TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/successful_result (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/exit_zero (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/exit_negative (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/no_process (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/no_exited (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/exit_process (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/exit_artifact (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/exit_code (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/exit_sequence (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/result (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/unknown (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/stopped (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticRetryRejectsUnsafeEvidence/host_offline (0.13s)
+=== RUN   TestCandidateReviewDiagnosticRetryRechecksEvidenceBeforeClaim
+=== RUN   TestCandidateReviewDiagnosticRetryRechecksEvidenceBeforeClaim/artifact
+=== RUN   TestCandidateReviewDiagnosticRetryRechecksEvidenceBeforeClaim/host
+--- PASS: TestCandidateReviewDiagnosticRetryRechecksEvidenceBeforeClaim (0.27s)
+    --- PASS: TestCandidateReviewDiagnosticRetryRechecksEvidenceBeforeClaim/artifact (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticRetryRechecksEvidenceBeforeClaim/host (0.14s)
+=== RUN   TestCandidateReviewDiagnosticV2ExplicitRetry
+=== RUN   TestCandidateReviewDiagnosticV2ExplicitRetry/claude-code/exit=0/session=false
+=== RUN   TestCandidateReviewDiagnosticV2ExplicitRetry/claude-code/exit=0/session=true
+=== RUN   TestCandidateReviewDiagnosticV2ExplicitRetry/claude-code/exit=7/session=false
+=== RUN   TestCandidateReviewDiagnosticV2ExplicitRetry/claude-code/exit=7/session=true
+=== RUN   TestCandidateReviewDiagnosticV2ExplicitRetry/grok-build/exit=0/session=false
+=== RUN   TestCandidateReviewDiagnosticV2ExplicitRetry/grok-build/exit=0/session=true
+=== RUN   TestCandidateReviewDiagnosticV2ExplicitRetry/grok-build/exit=7/session=false
+=== RUN   TestCandidateReviewDiagnosticV2ExplicitRetry/grok-build/exit=7/session=true
+--- PASS: TestCandidateReviewDiagnosticV2ExplicitRetry (1.18s)
+    --- PASS: TestCandidateReviewDiagnosticV2ExplicitRetry/claude-code/exit=0/session=false (0.16s)
+    --- PASS: TestCandidateReviewDiagnosticV2ExplicitRetry/claude-code/exit=0/session=true (0.15s)
+    --- PASS: TestCandidateReviewDiagnosticV2ExplicitRetry/claude-code/exit=7/session=false (0.16s)
+    --- PASS: TestCandidateReviewDiagnosticV2ExplicitRetry/claude-code/exit=7/session=true (0.14s)
+    --- PASS: TestCandidateReviewDiagnosticV2ExplicitRetry/grok-build/exit=0/session=false (0.14s)
+    --- PASS: TestCandidateReviewDiagnosticV2ExplicitRetry/grok-build/exit=0/session=true (0.14s)
+    --- PASS: TestCandidateReviewDiagnosticV2ExplicitRetry/grok-build/exit=7/session=false (0.14s)
+    --- PASS: TestCandidateReviewDiagnosticV2ExplicitRetry/grok-build/exit=7/session=true (0.14s)
+=== RUN   TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle
+=== RUN   TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/missing_prepared
+=== RUN   TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/missing_spawned
+=== RUN   TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/missing_running
+=== RUN   TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/missing_failed
+=== RUN   TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/missing_exited
+=== RUN   TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/duplicate_prepared
+=== RUN   TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/duplicate_spawned
+=== RUN   TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/duplicate_running
+=== RUN   TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/duplicate_failed
+=== RUN   TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/duplicate_exited
+=== RUN   TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/prepared_process
+=== RUN   TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/spawned_process
+=== RUN   TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/running_process
+=== RUN   TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/exit_process
+=== RUN   TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/order_prepared
+=== RUN   TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/order_spawned
+=== RUN   TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/order_running
+=== RUN   TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/sequence_collision
+=== RUN   TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/run
+=== RUN   TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/task
+=== RUN   TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/attempt
+=== RUN   TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/segment
+=== RUN   TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/command
+=== RUN   TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/work_revision
+=== RUN   TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/producer
+=== RUN   TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/exit_hash
+=== RUN   TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/failed_hash
+=== RUN   TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/exit_artifact
+=== RUN   TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/exit_code
+=== RUN   TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/negative_exit
+=== RUN   TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/session_before_running
+=== RUN   TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/session_after_failed
+=== RUN   TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/question
+=== RUN   TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/result
+=== RUN   TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/stopped
+=== RUN   TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/unknown
+--- PASS: TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle (4.94s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/missing_prepared (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/missing_spawned (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/missing_running (0.14s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/missing_failed (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/missing_exited (0.14s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/duplicate_prepared (0.14s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/duplicate_spawned (0.14s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/duplicate_running (0.14s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/duplicate_failed (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/duplicate_exited (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/prepared_process (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/spawned_process (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/running_process (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/exit_process (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/order_prepared (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/order_spawned (0.15s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/order_running (0.12s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/sequence_collision (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/run (0.14s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/task (0.14s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/attempt (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/segment (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/command (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/work_revision (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/producer (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/exit_hash (0.14s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/failed_hash (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/exit_artifact (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/exit_code (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/negative_exit (0.15s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/session_before_running (0.14s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/session_after_failed (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/question (0.16s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/result (0.16s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/stopped (0.17s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle/unknown (0.15s)
+=== RUN   TestCandidateReviewDiagnosticRejectsWrongWriterVersion
+=== RUN   TestCandidateReviewDiagnosticRejectsWrongWriterVersion/1
+=== RUN   TestCandidateReviewDiagnosticRejectsWrongWriterVersion/0
+=== RUN   TestCandidateReviewDiagnosticRejectsWrongWriterVersion/3
+=== RUN   TestCandidateReviewDiagnosticRejectsWrongWriterVersion/-2
+=== RUN   TestCandidateReviewDiagnosticRejectsWrongWriterVersion/2.0
+=== RUN   TestCandidateReviewDiagnosticRejectsWrongWriterVersion/"2"
+=== RUN   TestCandidateReviewDiagnosticRejectsWrongWriterVersion/null
+=== RUN   TestCandidateReviewDiagnosticRejectsWrongWriterVersion/true
+--- PASS: TestCandidateReviewDiagnosticRejectsWrongWriterVersion (1.13s)
+    --- PASS: TestCandidateReviewDiagnosticRejectsWrongWriterVersion/1 (0.15s)
+    --- PASS: TestCandidateReviewDiagnosticRejectsWrongWriterVersion/0 (0.15s)
+    --- PASS: TestCandidateReviewDiagnosticRejectsWrongWriterVersion/3 (0.15s)
+    --- PASS: TestCandidateReviewDiagnosticRejectsWrongWriterVersion/-2 (0.14s)
+    --- PASS: TestCandidateReviewDiagnosticRejectsWrongWriterVersion/2.0 (0.14s)
+    --- PASS: TestCandidateReviewDiagnosticRejectsWrongWriterVersion/"2" (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticRejectsWrongWriterVersion/null (0.13s)
+    --- PASS: TestCandidateReviewDiagnosticRejectsWrongWriterVersion/true (0.15s)
+=== RUN   TestCandidateReviewDiagnosticLegacyKeepsOriginalLifecycleRules
+=== RUN   TestCandidateReviewDiagnosticLegacyKeepsOriginalLifecycleRules/missing_prepared
+=== RUN   TestCandidateReviewDiagnosticLegacyKeepsOriginalLifecycleRules/missing_spawned
+--- PASS: TestCandidateReviewDiagnosticLegacyKeepsOriginalLifecycleRules (0.27s)
+    --- PASS: TestCandidateReviewDiagnosticLegacyKeepsOriginalLifecycleRules/missing_prepared (0.15s)
+    --- PASS: TestCandidateReviewDiagnosticLegacyKeepsOriginalLifecycleRules/missing_spawned (0.12s)
+=== RUN   TestCandidateReviewDiagnosticV2RejectsSessionEvidence
+=== RUN   TestCandidateReviewDiagnosticV2RejectsSessionEvidence/process
+=== RUN   TestCandidateReviewDiagnosticV2RejectsSessionEvidence/no_process
+=== RUN   TestCandidateReviewDiagnosticV2RejectsSessionEvidence/identity
+=== RUN   TestCandidateReviewDiagnosticV2RejectsSessionEvidence/other_identity
+=== RUN   TestCandidateReviewDiagnosticV2RejectsSessionEvidence/other_kind
+=== RUN   TestCandidateReviewDiagnosticV2RejectsSessionEvidence/exit
+=== RUN   TestCandidateReviewDiagnosticV2RejectsSessionEvidence/artifact
+=== RUN   TestCandidateReviewDiagnosticV2RejectsSessionEvidence/before_running
+=== RUN   TestCandidateReviewDiagnosticV2RejectsSessionEvidence/after_failed
+--- PASS: TestCandidateReviewDiagnosticV2RejectsSessionEvidence (1.33s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsSessionEvidence/process (0.15s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsSessionEvidence/no_process (0.15s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsSessionEvidence/identity (0.15s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsSessionEvidence/other_identity (0.15s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsSessionEvidence/other_kind (0.15s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsSessionEvidence/exit (0.15s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsSessionEvidence/artifact (0.15s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsSessionEvidence/before_running (0.15s)
+    --- PASS: TestCandidateReviewDiagnosticV2RejectsSessionEvidence/after_failed (0.15s)
+=== RUN   TestCandidateReviewDiagnosticV2RejectsDuplicateSession
+--- PASS: TestCandidateReviewDiagnosticV2RejectsDuplicateSession (0.15s)
+=== RUN   TestCandidateReviewRetryUsesFreshBoundAttemptWithoutResettingBudget
+=== RUN   TestCandidateReviewRetryUsesFreshBoundAttemptWithoutResettingBudget/stopped
+=== RUN   TestCandidateReviewRetryUsesFreshBoundAttemptWithoutResettingBudget/failed
+--- PASS: TestCandidateReviewRetryUsesFreshBoundAttemptWithoutResettingBudget (0.27s)
+    --- PASS: TestCandidateReviewRetryUsesFreshBoundAttemptWithoutResettingBudget/stopped (0.15s)
+    --- PASS: TestCandidateReviewRetryUsesFreshBoundAttemptWithoutResettingBudget/failed (0.12s)
+=== RUN   TestCandidateReviewResumeRejectedBeforeQueue
+--- PASS: TestCandidateReviewResumeRejectedBeforeQueue (0.14s)
+=== RUN   TestCandidateReviewRetryRejectsUnsafeStateAtomically
+=== RUN   TestCandidateReviewRetryRejectsUnsafeStateAtomically/unknown
+=== RUN   TestCandidateReviewRetryRejectsUnsafeStateAtomically/active
+=== RUN   TestCandidateReviewRetryRejectsUnsafeStateAtomically/attempt_budget
+=== RUN   TestCandidateReviewRetryRejectsUnsafeStateAtomically/active_budget
+=== RUN   TestCandidateReviewRetryRejectsUnsafeStateAtomically/session
+=== RUN   TestCandidateReviewRetryRejectsUnsafeStateAtomically/writable
+=== RUN   TestCandidateReviewRetryRejectsUnsafeStateAtomically/other_provider
+=== RUN   TestCandidateReviewRetryRejectsUnsafeStateAtomically/missing_lock
+=== RUN   TestCandidateReviewRetryRejectsUnsafeStateAtomically/validation_not_accepted
+=== RUN   TestCandidateReviewRetryRejectsUnsafeStateAtomically/validation_tampered
+=== RUN   TestCandidateReviewRetryRejectsUnsafeStateAtomically/fallback
+=== RUN   TestCandidateReviewRetryRejectsUnsafeStateAtomically/rejected_review
+--- PASS: TestCandidateReviewRetryRejectsUnsafeStateAtomically (1.64s)
+    --- PASS: TestCandidateReviewRetryRejectsUnsafeStateAtomically/unknown (0.12s)
+    --- PASS: TestCandidateReviewRetryRejectsUnsafeStateAtomically/active (0.14s)
+    --- PASS: TestCandidateReviewRetryRejectsUnsafeStateAtomically/attempt_budget (0.13s)
+    --- PASS: TestCandidateReviewRetryRejectsUnsafeStateAtomically/active_budget (0.13s)
+    --- PASS: TestCandidateReviewRetryRejectsUnsafeStateAtomically/session (0.14s)
+    --- PASS: TestCandidateReviewRetryRejectsUnsafeStateAtomically/writable (0.14s)
+    --- PASS: TestCandidateReviewRetryRejectsUnsafeStateAtomically/other_provider (0.14s)
+    --- PASS: TestCandidateReviewRetryRejectsUnsafeStateAtomically/missing_lock (0.14s)
+    --- PASS: TestCandidateReviewRetryRejectsUnsafeStateAtomically/validation_not_accepted (0.14s)
+    --- PASS: TestCandidateReviewRetryRejectsUnsafeStateAtomically/validation_tampered (0.14s)
+    --- PASS: TestCandidateReviewRetryRejectsUnsafeStateAtomically/fallback (0.14s)
+    --- PASS: TestCandidateReviewRetryRejectsUnsafeStateAtomically/rejected_review (0.14s)
+=== RUN   TestCandidateReviewRetryRejectsChangedDecisionAndInput
+--- PASS: TestCandidateReviewRetryRejectsChangedDecisionAndInput (0.14s)
+=== RUN   TestCandidateReviewSummaryOffersRetryInsteadOfResume
+--- PASS: TestCandidateReviewSummaryOffersRetryInsteadOfResume (0.13s)
+=== RUN   TestCandidateReviewRetryRevokesReportsButKeepsDuplicateACK
+--- PASS: TestCandidateReviewRetryRevokesReportsButKeepsDuplicateACK (0.12s)
+=== RUN   TestCandidateReviewRetryRejectsOldPendingQuestion
+--- PASS: TestCandidateReviewRetryRejectsOldPendingQuestion (0.13s)
+=== RUN   TestCandidateReviewRetryThirdAttemptKeepsOriginalScopeAndBudget
+--- PASS: TestCandidateReviewRetryThirdAttemptKeepsOriginalScopeAndBudget (0.13s)
+=== RUN   TestCandidateReviewRetryPreservesNondefaultSegmentCap
+--- PASS: TestCandidateReviewRetryPreservesNondefaultSegmentCap (0.13s)
+=== RUN   TestCandidateReviewRetryRejectsSharedGroupBeforeAnotherTaskCanClaimOrdinal
+--- PASS: TestCandidateReviewRetryRejectsSharedGroupBeforeAnotherTaskCanClaimOrdinal (0.13s)
+=== RUN   TestCandidateReviewRetryFencesEarlierSegmentOfRetiredAttempt
+--- PASS: TestCandidateReviewRetryFencesEarlierSegmentOfRetiredAttempt (0.13s)
+=== RUN   TestCandidateReviewRetryTaskLocalPromiseSurvivesOtherRun
+--- PASS: TestCandidateReviewRetryTaskLocalPromiseSurvivesOtherRun (0.13s)
+=== RUN   TestCandidateReviewRetryReadyHostKeepsGlobalFIFOOrdinal
+--- PASS: TestCandidateReviewRetryReadyHostKeepsGlobalFIFOOrdinal (0.13s)
+PASS
