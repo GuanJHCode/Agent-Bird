@@ -27,8 +27,18 @@ func InstallPortable(source, destination, state string) (string, error) {
 	return installPortable(source, destination, state, nil)
 }
 
+// InstallPortableCollectOnly accepts only the closed collect-only portable
+// payload format. Callers use it where a platform exposes no native runtime.
+func InstallPortableCollectOnly(source, destination, state string) (string, error) {
+	return installPortableWithPolicy(source, destination, state, true, nil)
+}
+
 // checkpoint is a private per-call coordinator used only by deterministic tests.
 func installPortable(source, destination, state string, checkpoint func(string, string) error) (string, error) {
+	return installPortableWithPolicy(source, destination, state, false, checkpoint)
+}
+
+func installPortableWithPolicy(source, destination, state string, strictCollectOnly bool, checkpoint func(string, string) error) (string, error) {
 	source, err := canonicalManagedPath(source)
 	if err != nil {
 		return "", err
@@ -54,6 +64,9 @@ func installPortable(source, destination, state string, checkpoint func(string, 
 	}
 	if metadata.PayloadSchema != 0 && metadata.PayloadSchema != 1 {
 		return "", errors.New("portable_manifest_invalid")
+	}
+	if strictCollectOnly && metadata.PayloadSchema != 1 {
+		return "", errors.New("portable_payload_invalid")
 	}
 	if metadata.PayloadSchema == 1 {
 		kind, e := validatePayloadDirectory(source, false, true)

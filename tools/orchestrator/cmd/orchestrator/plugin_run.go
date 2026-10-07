@@ -24,11 +24,8 @@ func pluginRun(ctx context.Context, args []string, out io.Writer) error {
 		return codeError("invalid_args")
 	}
 	action := fs.Arg(0)
-	if !pluginActionAllowed(action) {
-		return codeError("portable_action_unsupported")
-	}
-	if runtime.GOOS != "darwin" {
-		return codeError("portable_platform_unsupported")
+	if err := portableRunPolicy(runtime.GOOS, action); err != nil {
+		return err
 	}
 	state, err := resolveState(*requestedState)
 	if err != nil {
@@ -41,7 +38,12 @@ func pluginRun(ctx context.Context, args []string, out io.Writer) error {
 		}
 		*destination = filepath.Join(home, "OpenAI", "Codex Bird Packages")
 	}
-	binary, err := install.InstallPortable(*source, *destination, state)
+	var binary string
+	if runtime.GOOS == "linux" {
+		binary, err = install.InstallPortableCollectOnly(*source, *destination, state)
+	} else {
+		binary, err = install.InstallPortable(*source, *destination, state)
+	}
 	if err != nil {
 		return err
 	}
@@ -54,6 +56,25 @@ func pluginRun(ctx context.Context, args []string, out io.Writer) error {
 	// Replace the transient plugin-cache process. The durable runtime is outside
 	// Codex's cache and keeps the existing installed-version pin lifecycle.
 	return syscall.Exec(binary, append([]string{binary}, fs.Args()...), os.Environ())
+}
+
+// portableRunPolicy is deliberately pure so platform admission can be unit
+// tested without representing that test as native Linux execution.
+func portableRunPolicy(platform, action string) error {
+	switch platform {
+	case "darwin":
+		if pluginActionAllowed(action) {
+			return nil
+		}
+		return codeError("portable_action_unsupported")
+	case "linux":
+		if action == "check" {
+			return nil
+		}
+		return codeError("portable_action_unsupported")
+	default:
+		return codeError("portable_platform_unsupported")
+	}
 }
 
 func pluginActionAllowed(action string) bool {

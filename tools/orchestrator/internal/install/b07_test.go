@@ -168,7 +168,7 @@ func TestB07PortableHookClosurePrivateRepeatable(t *testing.T) {
 	os.WriteFile(filepath.Join(source, "portable.json"), body, 0600)
 	dest := filepath.Join(root, "installed")
 	for i := 0; i < 2; i++ {
-		binary, err := InstallPortable(source, dest, filepath.Join(root, "state"))
+		binary, err := InstallPortableCollectOnly(source, dest, filepath.Join(root, "state"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -181,6 +181,45 @@ func TestB07PortableHookClosurePrivateRepeatable(t *testing.T) {
 		if err != nil || info.Mode().Perm() != 0700 {
 			t.Fatal("hook mode")
 		}
+	}
+	report, err := Doctor(dest)
+	if err != nil || !report.Healthy {
+		t.Fatalf("Doctor() = %v, %+v", err, report)
+	}
+}
+
+func TestB07StrictPortableRejectsBeforeDestination(t *testing.T) {
+	for _, change := range []string{"legacy", "full-native", "invalid-payload"} {
+		t.Run(change, func(t *testing.T) {
+			root := t.TempDir()
+			source := b07Payload(t, root)
+			metadata := portableManifest{Version: "1.0.0", PayloadSchema: 1, Files: map[string]string{}}
+			for rel := range payloadPaths("collect-only-hooks") {
+				metadata.Files[rel], _ = hashFile(filepath.Join(source, rel))
+			}
+			metadata.Files[payloadManifestName], _ = hashFile(filepath.Join(source, payloadManifestName))
+			switch change {
+			case "legacy":
+				metadata.PayloadSchema = 0
+			case "full-native":
+				body, _ := os.ReadFile(filepath.Join(source, payloadManifestName))
+				body = bytes.Replace(body, []byte(`"collect-only-hooks"`), []byte(`"full-native-hooks"`), 1)
+				os.WriteFile(filepath.Join(source, payloadManifestName), body, 0600)
+				metadata.Files[payloadManifestName], _ = hashFile(filepath.Join(source, payloadManifestName))
+			case "invalid-payload":
+				os.WriteFile(filepath.Join(source, "scripts", "agent-bird-hook"), []byte("changed"), 0700)
+				metadata.Files["scripts/agent-bird-hook"], _ = hashFile(filepath.Join(source, "scripts", "agent-bird-hook"))
+			}
+			body, _ := json.Marshal(metadata)
+			os.WriteFile(filepath.Join(source, "portable.json"), body, 0600)
+			dest := filepath.Join(root, "installed")
+			if _, err := InstallPortableCollectOnly(source, dest, filepath.Join(root, "state")); err == nil {
+				t.Fatal("strict portable package installed")
+			}
+			if _, err := os.Lstat(dest); !os.IsNotExist(err) {
+				t.Fatal("rejection created destination")
+			}
+		})
 	}
 }
 

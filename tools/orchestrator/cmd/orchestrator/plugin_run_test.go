@@ -13,6 +13,29 @@ func TestPluginRunRejectsUnsupportedActionBeforeInstall(t *testing.T) {
 	}
 }
 
+func TestPortableRunPolicy(t *testing.T) {
+	tests := []struct {
+		name     string
+		platform string
+		action   string
+		want     error
+	}{
+		{name: "linux check", platform: "linux", action: "check"},
+		{name: "linux provider", platform: "linux", action: "provider", want: codeError("portable_action_unsupported")},
+		{name: "linux unknown", platform: "linux", action: "unknown", want: codeError("portable_action_unsupported")},
+		{name: "darwin provider", platform: "darwin", action: "provider"},
+		{name: "darwin unknown", platform: "darwin", action: "unknown", want: codeError("portable_action_unsupported")},
+		{name: "windows", platform: "windows", action: "check", want: codeError("portable_platform_unsupported")},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := portableRunPolicy(test.platform, test.action); got != test.want {
+				t.Fatalf("portableRunPolicy(%q, %q) = %v, want %v", test.platform, test.action, got, test.want)
+			}
+		})
+	}
+}
+
 func TestPluginRunAllowsOwnerScopedRouting(t *testing.T) {
 	if !pluginActionAllowed("routing") {
 		t.Fatal("portable routing entry was not allowlisted")
