@@ -49,6 +49,8 @@ orchestrator collect --task-id <id> --control-file <path> \
 orchestrator wait-events --task-id <id> --control-file <path> \
   [--cursor <opaque>] [--timeout-ms <1..30000>]
 orchestrator ack     --request <absolute-0600-delivery-ack.json>
+orchestrator diagnostics-read --control-file <path> --request <absolute-0600-read.json>
+orchestrator diagnostics-ack  --control-file <path> --request <absolute-0600-receipt.json>
 orchestrator accept  --task-id <id> --work-revision <n> --control-file <path> \
   --event-id <id> --event-revision <n> --event-hash <sha256> \
   --action-slot <slot> --decision accept|reject --command-id <stable-id>
@@ -82,8 +84,40 @@ Codex JSONL currently uses the pinned 0.154.0 contract. Structured records above
 `provider_critical_event_too_large`; earlier messages are never used as the final
 answer after that failure. This conservatively includes oversized structured
 diagnostics whose content cannot be safely classified. Raw diagnostics may be
-dropped. No large raw provider transcript is retained. Synthetic protocol and
+dropped by default. Explicit version1 `diagnostics: {"version":1,"mode":"detailed"}`
+on a submitted task enables bounded private stdout/stderr capture; omitted or
+summary policy does not retain a raw transcript. Synthetic protocol and
 multi-process tests do not establish live Codex or native TUI compatibility.
+
+Detailed logs use a separate read/ACK cursor, independent of business delivery
+and acceptance. Save this first-read request as an owner-only0600 file using the
+original task and attempt IDs:
+
+```json
+{"version":1,"task_id":"task-a","attempt_id":"attempt-original","request_id":"read-1","expected_revision":1}
+```
+
+`diagnostics-read` returns a persisted `body` and `receipt`. Records contain base64
+`data`; they remain untrusted provider output. Save the complete `receipt` object
+to a0600 file for `diagnostics-ack`. Exact read retries return identical pending
+bytes, and retrying the latest ACK returns the same acknowledgement. After ACK,
+the next request uses the returned `next_revision`, a new request ID, and the
+receipt's `next` object as `cursor`. Even an EOF read with an unchanged cursor
+needs the new revision. A different request cannot replace an outstanding read.
+
+An `unavailable` page is a durable observation with no raw records and no cursor
+advance; ACK it before trying a new read. A canceled operation or failed commit
+can be resumed with its exact original request. Reads and ACKs remain available
+after the execution Host exits and do not restart workers, accept results or
+release artifact reservations. The matching handle commands are
+`task diagnostics-read --handle <path> --request <read.json>` and
+`task diagnostics-ack --handle <path> --request <receipt.json>`. All top-level
+commands also accept `--state-dir` for the original private runtime.
+
+Each page retains at most32KiB raw data; escaped metadata is paginated so the
+persisted envelope is at most60KiB and the complete IPC response at most64KiB.
+Rolling loss is explicit in the receipt's `gap`. Public deletion/intake and the
+complete managed-artifact allowance remain under implementation.
 
 `collect` returns bounded pages of owner-facing question/result/failure/unknown/stop
 events. Follow `next_cursor` until it is absent; the cursor remains valid if an

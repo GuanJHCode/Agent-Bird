@@ -132,6 +132,8 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
 		return taskControl(ctx, ipc.KindStopTask, args[1:], stdout)
 	case "ack":
 		return acknowledge(ctx, args[1:], stdout)
+	case "diagnostics-read", "diagnostics-ack":
+		return diagnosticsCLI(ctx, args[0], args[1:], stdout)
 	default:
 		return codeError("invalid_args")
 	}

@@ -31,13 +31,19 @@ business collect/ack decision path. A persisted pending body contains attempt,
 server-assigned monotonic request revision, original client request ID, delivery
 ID, start/end cursors, explicit eviction gap, bounded records and metadata.
 The receipt hashes those canonical body bytes, NOT a self-referential envelope
-containing its own hash. The persisted full serialized body+receipt is <=64KiB;
-raw bytes per page <=32KiB. Replay returns the exact stored envelope. A different
+containing its own hash. The persisted full serialized body+receipt is <=60KiB;
+the measured complete raw-JSON IPC response is <=64KiB and raw bytes per page
+<=32KiB. Replay returns the exact stored envelope. A different
 request/cursor cannot replace a pending page. ACK binds attempt/revision/id/hash
 and cursor/gap receipt fields in one transaction, retains only the latest ACK
 for exact duplicate idempotency, and rejects older ACKs as stale without
 changing execution decisions, grants or task status. An EOF page can be ACKed
-then reread from the same next cursor when new data arrives.
+then reread from the same next cursor when new data arrives. Each read also
+carries expected_revision>=1: initial1 with no cursor, or next_revision with the
+last ACK cursor. Reading/pending require the exact original tuple. Old EOF
+requests cannot mint new pages after their revision was consumed. Non-context
+read failures persist a bounded unavailable page with unchanged cursor for
+replay/ACK; cancellation or commit failure keeps the reading fence.
 
 The 20MiB bound concerns bounded retained file lengths plus the full pending
 serialized delivery, not filesystem allocation units or SQLite WAL duplication.
@@ -103,13 +109,15 @@ Proceed with the stated default: explicit run-control-owner deletion only; no
 automatic TTL or opportunistic purge. Incorporate any later user correction.
 No existing data is deleted while implementing/testing this feature.
 
-Deletion must reject active/UNKNOWN writers, pending delivery, running-dependent,
+Deletion must reject active/UNKNOWN writers, reading or pending delivery, running-dependent,
 review/retry/rework or accepted-input references. ACK alone is not permission to
 erase historical output used by summary and later rework. Freeze the explicit
 historical-expiry/receipt semantics before exposing delete; all consumers must
 return a deliberate expired state, never a missing-file success. Native tests must
 also cover stale grant/reopen versus namespace deletion fencing.
 
+BeginDeletion requires phase=idle and CASes reservation state in one transaction;
+BeginRead validates readable reservation state while setting its reading fence.
 The Store records deletion intent first; private reconciler checks the exact
 namespace/regular-file/owner/nlink/inode/hash and writer/update locks, unlinks and
 syncs parent directories, then completes the intent and releases charge. A crash

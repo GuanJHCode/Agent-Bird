@@ -1,0 +1,8 @@
+{
+  "go_pid": 11268,
+  "test_pid": 11302,
+  "test_command": "/private/tmp/go-build4192380942/b128/store.test -test.paniconexit0 -test.v=test2json -test.count=1 -test.timeout=10m0s",
+  "direct_children": [],
+  "reason": "Stop obsolete fixture snapshot; replace incomplete full Store race with final full normal and affected race. Diagnostics package result remains reusable if terminal pass.",
+  "signal": "SIGINT"
+}

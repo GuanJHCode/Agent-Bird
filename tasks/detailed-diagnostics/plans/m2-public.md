@@ -6,7 +6,9 @@ Claim/Launch reservation authority is verified in bb70c55 (M2b). Private Host
 capture driver and Writer.Abort are verified in041d955; ordinary execution and
 failure projection are verified in177769b. Managed Codex original-reader drain
 and capture are verified in `tasks/diagnostic-codex-integration/docs/validation.md`.
-Public read/ACK and M3 remain unimplemented.
+Public read/ACK is implemented; current acceptance evidence is recorded in
+`tasks/diagnostic-public-read-ack/docs/validation.md`. M3 reservation activation,
+retained verification, all-writer intake and deletion remain unimplemented.
 See docs/m2a-validation.md and docs/m2b-validation.md.
 The process output observer is independently implemented in isolated
 `diagnostic-output-tap` at the same base. ROOT retains macOS/Docker native tokens.
@@ -55,18 +57,25 @@ retention, physical-fault or flood/RSS acceptance.
   page before any response. A different request cannot replace reading/pending.
   An interrupted read may resume the same request; no uncommitted body has been
   exposed. The reading fence also prevents deletion racing file reads.
+- expected_revision>=1 is a CAS against Store-assigned revision. Initial1 omits
+  cursor; subsequent idle reads require next_revision and last ACK cursor.
+  Reading/pending only admit their full original tuple, so old EOF requests
+  cannot become new reads when the cursor remains unchanged.
 - Canonical envelope has a receipt hash over its body without its own hash.
   It binds attempt, revision, delivery ID, request ID, cursors and eviction gap.
-  Full serialized bytes<=64KiB and raw payload<=32KiB. M1's page bounds alone
+  Persisted payload<=60KiB, actual complete raw-JSON IPC response<=64KiB and raw
+  payload<=32KiB. Measure with bounded transport ID/epoch. M1's page bounds alone
   are insufficient when escaped segment names inflate JSON; size must be checked
   before Store persistence and pagination must still make progress.
 - Exact pending read replay returns identical bytes. ACK validates the complete
   receipt in one transaction, advances only this diagnostics cursor/revision,
   and saves the latest receipt for exact duplicate idempotency. Older ACK is
   stale; no execution status, decision, grant or report row changes.
-- Read failures retain visible incomplete/unavailable state. Fenced failures
-  require exact-request recovery/cleanup; absence of pending bytes is never
-  proof that an in-flight read may be deleted.
+- Non-context Reader failures persist a replayable unavailable page with empty
+  records and unchanged cursor, allowing exact ACK. Cancellation or failed commit
+  retains reading for exact-request recovery; no timeout-based fence removal.
+  BeginDeletion must require phase=idle and CAS reservation state in the same TX;
+  absence of pending bytes never proves an in-flight read may be deleted.
 
 ## Capture and ownership
 

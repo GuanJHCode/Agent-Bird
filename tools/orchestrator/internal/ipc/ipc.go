@@ -49,6 +49,8 @@ const (
 	KindCollect                Kind = "collect"
 	KindWaitEvents             Kind = "wait_events"
 	KindAck                    Kind = "ack"
+	KindDiagnosticsRead        Kind = "diagnostics_read"
+	KindDiagnosticsAck         Kind = "diagnostics_ack"
 	KindResume                 Kind = "resume"
 	KindResumeContinuation     Kind = "resume_continuation"
 	KindRetry                  Kind = "retry"

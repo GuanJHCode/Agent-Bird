@@ -17,7 +17,8 @@
 | Codex Worker | 内部协议、状态封存及同线程两轮 Question 已有范围证据；完整第三段 Read 未完成，公共任务入口仍关闭 |
 | 活 Host 重连 | 已实现 Coordinator 重启后的有界重连及原 spool 重放；不等于 Host 死亡后可以接管任意存活执行进程 |
 | 安装与保存配置恢复 | 已实现不可变 generation、原 Store/owner 绑定、安装重放及未准入 preparation 的显式 abandon；异主、部分发布中断与其他平台仍待验收 |
-| 自动重试与预算策略 | 已实现显式重试、累计硬预算及启动前 probe EAGAIN/EINTR 的有限预授权重试，含 Claude/Grok 只读候选审查（普通与分块）；审查重试固定原 Host 身份与候选输入。其他阶段自动重试、预算 revision 增额和详细日志仍未完成 |
+| 自动重试与预算策略 | 已实现显式重试、累计硬预算及启动前 probe EAGAIN/EINTR 的有限预授权重试，含 Claude/Grok 只读候选审查（普通与分块）；审查重试固定原 Host 身份与候选输入。预算 revision 增额已完成本地受控 CLI 验收；其他阶段自动重试仍未完成 |
+| 详细诊断日志 | 已实现显式 detailed 授权、普通 Host / managed Codex 捕获，以及独立 read/ACK；[公开读取验收](../tasks/diagnostic-public-read-ack/docs/validation.md)覆盖 Mac IPC/CLI 和 Docker Linux core/Store。完整受管 artifact 准入/删除、原生洪峰/RSS及物理故障验收仍未完成 |
 | 候选 DAG 多输入证据 | 已实现显式 v1 全依赖 capture、精确重放/审查重试、Host 前置校验与 quota 回滚；内容仍由单一 source_task 选择，见 [验收范围](../tasks/dag-inputs/docs/delivery.md) |
 | 分支 DAG 返工 | 已实现显式 v1 单 producer dependent closure、原输入/边界证明、固定预算及目标预约；v0 保持 Claude 四步线性链。Claude／AGY组合已做 Store 协议验证，真实模型组合与多 producer联合返工仍未闭环，见 [范围与证据](../tasks/dag-rework/docs/delivery.md) |
 

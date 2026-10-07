@@ -90,8 +90,17 @@ func (r *Reader) Close() error {
 	return r.ns.close()
 }
 
-func (r *Reader) Read(ctx context.Context, cursor PageCursor, maxRaw int) (page Page, err error) {
+func (r *Reader) Read(ctx context.Context, cursor PageCursor, maxRaw int) (Page, error) {
+	return r.ReadBounded(ctx, cursor, maxRaw, 64)
+}
+
+// ReadBounded permits a public envelope to reduce escaped metadata without
+// losing the exact next-record cursor. The original Read keeps its64-record cap.
+func (r *Reader) ReadBounded(ctx context.Context, cursor PageCursor, maxRaw, maxRecords int) (page Page, err error) {
 	if maxRaw < 1 || maxRaw > RecordBytes {
+		return page, ErrRecordTooLarge
+	}
+	if maxRecords < 1 || maxRecords > 64 {
 		return page, ErrRecordTooLarge
 	}
 	if err = r.gate.enter(ctx); err != nil {
@@ -147,7 +156,7 @@ func (r *Reader) Read(ctx context.Context, cursor PageCursor, maxRaw int) (page 
 		cursor = next
 	}
 	payload := make([]byte, 0, maxRaw)
-	page.Records = make([]Record, 0, 64)
+	page.Records = make([]Record, 0, maxRecords)
 	for {
 		if err = ctx.Err(); err != nil {
 			return Page{}, err
@@ -195,7 +204,7 @@ func (r *Reader) Read(ctx context.Context, cursor PageCursor, maxRaw int) (page 
 			if consumed > 0 && consumed >= len(record.Data) {
 				return Page{}, ErrInvalidCursor
 			}
-			if len(page.Records) == 64 || len(payload) == maxRaw {
+			if len(page.Records) == maxRecords || len(payload) == maxRaw {
 				page.Next = PageCursor{ScopeSHA256: r.hash, ChunkSequence: c.sequence, RecordOffset: position, DataOffset: consumed}
 				return page, nil
 			}
@@ -222,7 +231,7 @@ func (r *Reader) Read(ctx context.Context, cursor PageCursor, maxRaw int) (page 
 			return page, nil
 		}
 		cursor = PageCursor{ScopeSHA256: r.hash, ChunkSequence: c.sequence + 1}
-		if len(page.Records) == 64 || len(payload) == maxRaw {
+		if len(page.Records) == maxRecords || len(payload) == maxRaw {
 			page.Next = cursor
 			return page, nil
 		}

@@ -112,6 +112,8 @@ macOS process group 不能囊括主动 setsid 的后代；Windows Job 可受嵌�
 - 默认使用本机用户作用域 IPC：macOS Unix socket、Windows Named Pipe，限定当前用户访问并校验实例握手。不给远程监听，不需要 MCP。
 - 任务辅助命令获得随机 attempt 能力；控制命令拥有工作流控制能力，二者不互通。能力仅本工具内部作用域，不是底层 CLI 账号材料；不放入模型可复制的全局配置。禁止任意路径读取和跨 attempt 事件。
 - 单个控制事件上限 64 KiB；大报告写登记的 artifact，通过 ID/hash 引用。Host 流式排空 stdout/stderr，过滤器缓冲有上限；未知原始行默认不落盘。
+- 显式 detailed 日志使用独立 diagnostics-read/diagnostics-ack，不复用业务 collect/ack。每次 Store 事务核对 run-control、controller、task 及原 attempt/producer/policy/reservation；原执行离线不撤销数据权限。reading fence 后锁外读文件，再核验并持久化完整页面才返回。expected_revision、request ID 和 ACK cursor 共同区分重放与新读；ACK 不改变业务状态或释放产物额度。
+- 诊断页 raw payload≤32KiB、持久页面≤60KiB、完整 raw-JSON IPC≤64KiB，外层 request ID 限 ASCII128 字节。rolling gap 随完整 receipt 绑定；永久读取失败形成可重放/ACK 的 unavailable 页且 cursor 不前进，取消或提交失败保留原 reading 请求恢复。后续删除必须在同一事务确认 phase=idle 并 CAS reservation，reading/pending 都阻止删除；当前不提供自动清理或公开删除入口。
 - 初始默认：每 attempt 结构化诊断日志 20 MiB，超出滚动截断并标记；每 run 控制 spool 16 MiB，用户控制事件总额度 128 MiB。artifact 初始用户额度 2 GiB，可配置；不把整个 worktree 大小等同于可随意丢弃日志。
 - 控制记录优先于诊断日志，初始保留至少 64 MiB 控制/故障处理余量。近满时停止新派发、清理无 pin 且到期材料、削减可丢日志；不能驱逐待回调/恢复产物。
 - event/spawn/delete 意图未能 durable 提交即不能 ACK/启动/删除。运行中存储失败时排空输出避免管道卡死，停止新的写入步骤，并通过已有控制余量记录 `storage_blocked` 后终止已拥有执行；恢复后对账。磁盘彻底不可写时不能承诺写下新错误，必须保留原已提交状态并在重启时识别未收尾执行。

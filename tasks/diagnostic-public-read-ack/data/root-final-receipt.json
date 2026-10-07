@@ -1,0 +1,336 @@
+{
+  "version": 1,
+  "milestone": "Public diagnostics read, exact replay and ACK",
+  "date": "2026-10-07",
+  "integration_base": "e71ec8caaec016466c616fe72fe51c236ea3c0ce",
+  "toolchain": "Go 1.26.8 darwin/arm64",
+  "environment": {
+    "TMPDIR": "/private/tmp"
+  },
+  "source_sha256": {
+    "tools/orchestrator/cmd/orchestrator/diagnostics_read.go": "a7df47d20591227c04c6dfbdee857772c45de6dbbd9f577d7f66e4b3f55e704a",
+    "tools/orchestrator/cmd/orchestrator/diagnostics_read_test.go": "0fdf9b9a8f8c0ab6f2e76cb9b8fed2801317e86a194a4ee68af59558b36f2e6d",
+    "tools/orchestrator/cmd/orchestrator/main.go": "e85c3ead8cd2823dd58e26837d166616cc067c2aad98fee50550a6bd0e09fba7",
+    "tools/orchestrator/cmd/orchestrator/task_entry.go": "d15fe3beb3baab42df90158c067d732189d794b011b5de2e16ca9e6c7d44821f",
+    "tools/orchestrator/go.mod": "de66f3a2bcfd7c31a74e2703979d7752bcbee350bf2300ccb7e203425b180b9f",
+    "tools/orchestrator/go.sum": "f1d01b4113f61f7212fb51fb291aa9af09ed586e88149bf6df1cced4fc0d92dd",
+    "tools/orchestrator/internal/coordinator/collection_test.go": "371624ae79d1c79ded781b777bfed1bca40f35ded53b2d2461f8cca212cb7bfc",
+    "tools/orchestrator/internal/coordinator/diagnostics_read.go": "20a224bbb732af2edeaa9313bff22b7d8ffc2e9b4eb15ede2430c257283eb393",
+    "tools/orchestrator/internal/coordinator/diagnostics_read_test.go": "2f0e6b10841c2a26c749f6af6f26addc1605e71bd67697680de7c0be37dee0e0",
+    "tools/orchestrator/internal/coordinator/local_owner_test.go": "80c5500e4d53b486745b1640fa6e54d78f2857a235072e2be8fe0ac5368d665e",
+    "tools/orchestrator/internal/coordinator/server.go": "bccbe8dc4cf47bbdfdc2c90c80c48bd0002b9a1cba9c31a3ca51a78f044a4b90",
+    "tools/orchestrator/internal/diagnostics/private_fs.go": "e81be6c7b22f022052fbdc58766a2887576cf6970bda877b87b017c26f99f54c",
+    "tools/orchestrator/internal/diagnostics/reader.go": "4a9f31df59ed2969f657a1cbd9bf93522cb498be50be2b4234dd9b14add2a91b",
+    "tools/orchestrator/internal/diagnostics/reader_limit_test.go": "e5d423e77fe68f9774b408e148d9349bd22b7aa956fb5caff48dd63d1338c8ea",
+    "tools/orchestrator/internal/ipc/ipc.go": "10f390b6f41871f593390f52e3b707aa05decbfb1e104a47fd2cca163a474fee",
+    "tools/orchestrator/internal/store/bridge_context.go": "81c5b1731e2908557e4e60fa4685f1e90098ebae0ab88ffca2213b70c6a1d5e0",
+    "tools/orchestrator/internal/store/diagnostics_read.go": "b2c8d6af9fd2740fae1a6c5ba86b790436c93a69ad9ad56387c0eab72b8541d3",
+    "tools/orchestrator/internal/store/diagnostics_read_page.go": "2d64898007e8045e84f3bb6535f929b2b232e59cb3c619a1af62d8af9659304c",
+    "tools/orchestrator/internal/store/diagnostics_read_state_test.go": "acc54a0222c027940e5ea3dd86ebf288a07b20e24e19501f59cc951c3d2e12e9",
+    "tools/orchestrator/internal/store/diagnostics_read_test.go": "988ac20faac44db2b2ecbc179012d7e6ec4c80e0c48a3b4dd848141d00af9870",
+    "tools/orchestrator/internal/store/diagnostics_read_types.go": "4e0a82d1ea4a06b5859ad5241c87aa25a17382bc199f4e1a571d5c13bd5a05b1"
+  },
+  "test_runs": [
+    {
+      "log": "tasks/diagnostic-public-read-ack/data/store-full-final-v2.jsonl",
+      "sha256": "d3164d7837fdad9aa411072262c76afe91d0ddab50406d4524b15537a2e516d3",
+      "session": "25252",
+      "command": "go test -json -count=1 -timeout=5m ./internal/store",
+      "exit_code": 0,
+      "packages": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store": {
+          "top_pass": 383,
+          "named_pass": 1095,
+          "failed_tests": [],
+          "skipped_tests": [],
+          "package_action": "pass",
+          "elapsed_seconds": 70.19
+        }
+      }
+    },
+    {
+      "log": "tasks/diagnostic-public-read-ack/data/public-final-v2-race.jsonl",
+      "sha256": "d745bb7a5e06a445b0f0f014b83461e5126daa4d0f0ff18dfe2da08088f90b7e",
+      "session": "35673",
+      "command": "go test -p 1 -race -json -count=1 -timeout=3m -run ^Test(Diagnostics(Public|ACK|ReadRequest|CLIRejects)|WorkerPeerCannotUseMainAgentControlKinds|CollectionReceiptDoesNotAcceptBusinessResult) ./internal/store ./internal/coordinator ./cmd/orchestrator",
+      "exit_code": 0,
+      "packages": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store": {
+          "top_pass": 13,
+          "named_pass": 42,
+          "failed_tests": [],
+          "skipped_tests": [],
+          "package_action": "pass",
+          "elapsed_seconds": 43.129
+        },
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator": {
+          "top_pass": 3,
+          "named_pass": 3,
+          "failed_tests": [],
+          "skipped_tests": [],
+          "package_action": "pass",
+          "elapsed_seconds": 8.226
+        },
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator": {
+          "top_pass": 2,
+          "named_pass": 11,
+          "failed_tests": [],
+          "skipped_tests": [],
+          "package_action": "pass",
+          "elapsed_seconds": 10.178
+        }
+      }
+    },
+    {
+      "log": "tasks/diagnostic-public-read-ack/data/store-mutex-green.jsonl",
+      "sha256": "d93e122162f3d49aa2a32fd93c79f420137d31f876977dd513840244b7866d5e",
+      "session": "33499",
+      "command": "go test -race -json -count=1 -run ^TestDiagnosticsPublicCancellationDoesNotWaitForDatabaseMutex$ ./internal/store",
+      "exit_code": 0,
+      "packages": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store": {
+          "top_pass": 1,
+          "named_pass": 4,
+          "failed_tests": [],
+          "skipped_tests": [],
+          "package_action": "pass",
+          "elapsed_seconds": 7.114
+        }
+      }
+    },
+    {
+      "log": "tasks/diagnostic-public-read-ack/data/diagnostics-store-full-race.jsonl",
+      "sha256": "b567c3f205155b309788273759a14ee20946756e27a76838dbeca51f4eefb815",
+      "session": "25626",
+      "exit_code": 1,
+      "packages": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/diagnostics": {
+          "top_pass": 59,
+          "named_pass": 115,
+          "failed_tests": [],
+          "skipped_tests": [],
+          "package_action": "pass",
+          "elapsed_seconds": 20.707
+        }
+      },
+      "scope_note": "Reuse only the completed diagnostics package. Store was interrupted; its partial passes are not acceptance evidence.",
+      "test_selection": "Full diagnostics and Store packages, uncached race; exact original invocation flags not retained in this receipt."
+    }
+  ],
+  "behavioral_red": [
+    {
+      "log": "tasks/diagnostic-public-read-ack/data/reader-limit-red.jsonl",
+      "sha256": "d2f9447df95f041cb117d4daf51330527e4bfb7c7e53c87e2289805f23f92657",
+      "session": "28424",
+      "exit_code": 1,
+      "packages": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/diagnostics": {
+          "top_pass": 0,
+          "named_pass": 0,
+          "failed_tests": [
+            "TestReaderRecordLimitKeepsExactContinuation"
+          ],
+          "skipped_tests": [],
+          "package_action": "fail",
+          "elapsed_seconds": 0.699
+        }
+      },
+      "selection_note": "Recorded package and test selection; original invocation flag details were not retained in this receipt."
+    },
+    {
+      "log": "tasks/diagnostic-public-read-ack/data/store-read-red.jsonl",
+      "sha256": "0d72ca6717f8059f5da4cd4d221598ef26467b32390cffa6c86c4d6e810a5a83",
+      "session": "9348",
+      "exit_code": 1,
+      "packages": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store": {
+          "top_pass": 1,
+          "named_pass": 7,
+          "failed_tests": [
+            "TestDiagnosticsPublicReadPersistsReplayAndACKWithoutBusinessMutation"
+          ],
+          "skipped_tests": [],
+          "package_action": "fail",
+          "elapsed_seconds": 0.858
+        }
+      },
+      "selection_note": "Recorded package and test selection; original invocation flag details were not retained in this receipt."
+    },
+    {
+      "log": "tasks/diagnostic-public-read-ack/data/ipc-red.jsonl",
+      "sha256": "392e8b62d81b3d56b4e5f724d117332b79b52c71b46dd51a1e17de3cf7e97dbc",
+      "session": "14124",
+      "exit_code": 1,
+      "packages": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator": {
+          "top_pass": 0,
+          "named_pass": 0,
+          "failed_tests": [
+            "TestDiagnosticsPublicIPCReadAndACKFromOfflineExecution"
+          ],
+          "skipped_tests": [],
+          "package_action": "fail",
+          "elapsed_seconds": 0.908
+        }
+      },
+      "selection_note": "Recorded package and test selection; original invocation flag details were not retained in this receipt."
+    },
+    {
+      "log": "tasks/diagnostic-public-read-ack/data/cli-red.jsonl",
+      "sha256": "ae23d0508f687d26de6fa89d3f1b844f10824739dc6a6714d5f2f99c72cff774",
+      "session": "31810",
+      "exit_code": 1,
+      "packages": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator": {
+          "top_pass": 0,
+          "named_pass": 0,
+          "failed_tests": [
+            "TestDiagnosticsPublicCLIReadAfterOriginalHostExitAndLostACK"
+          ],
+          "skipped_tests": [],
+          "package_action": "fail",
+          "elapsed_seconds": 0.961
+        }
+      },
+      "selection_note": "Recorded package and test selection; original invocation flag details were not retained in this receipt."
+    },
+    {
+      "log": "tasks/diagnostic-public-read-ack/data/store-mutex-red.jsonl",
+      "sha256": "7296ae29c7bff9fce3cd1ea96b99b2d90196f33ddcd58d21aeb6ad276998025f",
+      "session": "11071",
+      "command": "go test -json -count=1 -run ^TestDiagnosticsPublicCancellationDoesNotWaitForDatabaseMutex$ ./internal/store",
+      "exit_code": 1,
+      "packages": {
+        "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store": {
+          "top_pass": 0,
+          "named_pass": 0,
+          "failed_tests": [
+            "TestDiagnosticsPublicCancellationDoesNotWaitForDatabaseMutex/begin",
+            "TestDiagnosticsPublicCancellationDoesNotWaitForDatabaseMutex/finish",
+            "TestDiagnosticsPublicCancellationDoesNotWaitForDatabaseMutex/ack",
+            "TestDiagnosticsPublicCancellationDoesNotWaitForDatabaseMutex"
+          ],
+          "skipped_tests": [],
+          "package_action": "fail",
+          "elapsed_seconds": 3.932
+        }
+      }
+    }
+  ],
+  "linux": [
+    {
+      "receipt": "tasks/diagnostic-public-read-ack/data/linux/public-read-core-v1-receipt.json",
+      "sha256": "b37f51abd0a9c1fd903f115255012776e844cb2a4ec3e12a9e9be6f96c2911df",
+      "cid": "516952e0b51d2020e6f3fc93ffba06ef060c843be25300bef1fe747aadd5261e",
+      "exit_code": 0,
+      "top_pass": 59,
+      "named_pass": 115,
+      "failed_tests": [],
+      "skipped_tests": [],
+      "removed_and_absent": true,
+      "final": true
+    },
+    {
+      "receipt": "tasks/diagnostic-public-read-ack/data/linux/public-read-store-v1-receipt.json",
+      "sha256": "4fb39d0b759319f6bf440f8ad27e8d98552b468211833faa8b932c30b9258db9",
+      "cid": "fa88a599a20448559514620f92d381408410f9cb04af61fc8373f62fc6625592",
+      "exit_code": 1,
+      "top_pass": 11,
+      "named_pass": 37,
+      "failed_tests": [
+        "TestDiagnosticsPublicReadPersistsReplayAndACKWithoutBusinessMutation"
+      ],
+      "skipped_tests": [],
+      "removed_and_absent": true,
+      "final": false
+    },
+    {
+      "receipt": "tasks/diagnostic-public-read-ack/data/linux/public-read-store-v2-receipt.json",
+      "sha256": "fbf8f4a621d0a80695da5254ad0e7079df71451b78f2eda759fd9c4ec8567e1b",
+      "cid": "a6466d26a7dc9e7ce591d50dbd86cc8cb07eb051fc93194ad41696a79f5e8fdb",
+      "exit_code": 0,
+      "top_pass": 12,
+      "named_pass": 38,
+      "failed_tests": [],
+      "skipped_tests": [],
+      "removed_and_absent": true,
+      "final": false
+    },
+    {
+      "receipt": "tasks/diagnostic-public-read-ack/data/linux/public-read-store-v3-receipt.json",
+      "sha256": "3383f93d2be0e83e10655f82372a20a1aac4659634bbf4e6fec9ad56950b76c2",
+      "cid": "6887325ec0c1bb9d9d8b5f6f1a9f406e95b674ec053783b448ae1d7453a7c549",
+      "exit_code": 0,
+      "top_pass": 13,
+      "named_pass": 42,
+      "failed_tests": [],
+      "skipped_tests": [],
+      "removed_and_absent": true,
+      "final": true
+    }
+  ],
+  "final_commands": [
+    {
+      "command": "go build ./...",
+      "session": "11126",
+      "exit_code": 0,
+      "log": "tasks/diagnostic-public-read-ack/data/build-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": "go vet ./...",
+      "session": "85710",
+      "exit_code": 0,
+      "log": "tasks/diagnostic-public-read-ack/data/vet-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": "GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go test -c -o ../../tasks/diagnostic-public-read-ack/data/store-linux-v3.test ./internal/store",
+      "session": "79545",
+      "exit_code": 0,
+      "binary_sha256": "8ef63af9d015b9c55a1da1736c43e49a135fce194f65aad9ffdf4dd1aa04cba0",
+      "log": "tasks/diagnostic-public-read-ack/data/linux-compile-v3.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "native_cli_observations": [
+    "diagnostics_read_test.go:261: original_host_pid=20678 original_host_wait=0 cli_children_wait=0 lost_ack=durable_unread original_attempt=attempt-c6ad51aae951b3fae45839b4"
+  ],
+  "review": {
+    "reviewer": "/root/codex_diagnostic_review",
+    "production_store_reader": "PASS",
+    "production_coordinator_cli": "PASS",
+    "final_fixture_and_mutex_increment": "PASS",
+    "execution": "ROOT ran tests; reviewer performed static review and read RED/GREEN evidence.",
+    "corrected_claim": "Socket disconnect after durable reading fence; no assertion of instruction-level entry into flock retry."
+  },
+  "retained_failure_evidence": [
+    {
+      "path": "tasks/diagnostic-public-read-ack/data/store-full-race-interruption.json",
+      "sha256": "db009c3f04442235baca716e3806c1a3634047a32266ad31d1323074e5f485fe",
+      "note": "Original Store test PID interrupted; combined command exit1, Store package not accepted."
+    },
+    {
+      "path": "tasks/diagnostic-public-read-ack/data/store-lifecycle-alias-old.go.txt",
+      "sha256": "4d33b634bad41930b69b03f91fdd57d3c0e9078a3f28f47feed6cfd5addcf4c1",
+      "note": "Old fixture cursor alias; Linux v1 failed. Production replay logic unchanged by fixture correction."
+    }
+  ],
+  "resources": {
+    "all_task_sessions_terminal": true,
+    "owned_containers": "All four exact CIDs removed and absence confirmed in receipts.",
+    "temporary_files": "No additional disposable files created by final verification; logs, tested binaries and RED evidence retained.",
+    "native_helpers": "Real original controlled helper Wait and every CLI child Wait are asserted; fixture data uses real Writer."
+  },
+  "limits": [
+    "Not a real Provider or complete Source Host capture lifecycle.",
+    "No Linux race, Provider/sandbox/install or Linux native CLI acceptance.",
+    "No precise instruction-interleaving claim inside Reader flock retry or DB mutex polling.",
+    "No guarantee of interruption of a blocked kernel filesystem syscall.",
+    "No M3 reservation activation, retained-byte verification, all-writer intake/delete or full 2GiB managed-artifact enforcement.",
+    "Native flood/RSS/physical fault checks remain open.",
+    "Intel Mac and Windows native acceptance deferred for lack of environments.",
+    "No model/account call, installed replacement, push or release.",
+    "F02 and full F01-F13 goal remain active."
+  ]
+}
