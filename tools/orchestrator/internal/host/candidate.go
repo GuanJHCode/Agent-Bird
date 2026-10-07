@@ -110,7 +110,11 @@ func candidateFailure(err error) []byte {
 	if errors.As(err, &ge) {
 		code = string(ge.Code)
 	}
-	body, _ := json.Marshal(map[string]string{"status": "failed", "reason": "candidate_freeze_failed", "code": code})
+	diagnostic := map[string]any{"status": "failed", "reason": "candidate_freeze_failed", "code": code}
+	if code == "candidate_review_invalid" {
+		diagnostic["writer_version"] = 2
+	}
+	body, _ := json.Marshal(diagnostic)
 	return body
 }
 

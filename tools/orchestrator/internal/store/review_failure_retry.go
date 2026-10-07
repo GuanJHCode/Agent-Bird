@@ -17,7 +17,7 @@ import (
 // never-started proof or permission to retry a writable candidate stage.
 func validateReviewFailure(ctx context.Context, tx *sql.Tx, e contract.Event) error {
 	bad := CodeError("candidate_review_retry_unsupported")
-	if e.Kind != contract.EventFailed || e.Process == nil || e.Process.PID <= 0 || e.Process.PGID <= 0 || e.Process.Birth == "" || e.ExitCode == nil || *e.ExitCode <= 0 || e.Artifact == nil {
+	if e.Kind != contract.EventFailed || e.Process == nil || e.Process.PID <= 0 || e.Process.PGID <= 0 || e.Process.Birth == "" || e.ExitCode == nil || *e.ExitCode < 0 || e.Artifact == nil {
 		return bad
 	}
 	var launch, status, outcome, database string
@@ -73,12 +73,22 @@ func validateReviewFailure(ctx context.Context, tx *sql.Tx, e contract.Event) er
 	if tx.QueryRowContext(ctx, `SELECT file FROM pragma_database_list WHERE name='main'`).Scan(&database) != nil || !filepath.IsAbs(database) {
 		return bad
 	}
+	validateBody := func(body []byte) error {
+		version, err := validateReviewFailureBody(body)
+		if err != nil || version == 0 && *e.ExitCode <= 0 {
+			return bad
+		}
+		if version == 2 {
+			return validateReviewFailureV2Lifecycle(ctx, tx, e)
+		}
+		return nil
+	}
 	if e.Artifact.HostArtifact != nil {
 		body, err := readCommittedHostArtifact(ctx, tx, e, 256)
 		if err != nil {
 			return bad
 		}
-		return validateReviewFailureBody(body)
+		return validateBody(body)
 	}
 	parts := []string{"host-spool", launch, e.AttemptID, e.SegmentID, "result-output.bin"}
 	for _, part := range parts {
@@ -116,17 +126,87 @@ func validateReviewFailure(ctx context.Context, tx *sql.Tx, e contract.Event) er
 	if err != nil || current.Dev != before.Dev || current.Ino != before.Ino || current.Size != before.Size || current.Mode != before.Mode || current.Uid != before.Uid || current.Nlink != 1 || current.Mtim != before.Mtim || current.Ctim != before.Ctim {
 		return bad
 	}
-	return validateReviewFailureBody(body)
+	return validateBody(body)
 }
 
-func validateReviewFailureBody(body []byte) error {
+func validateReviewFailureBody(body []byte) (int, error) {
 	bad := CodeError("candidate_review_retry_unsupported")
 	var diagnostic struct {
-		Status string `json:"status"`
-		Reason string `json:"reason"`
-		Code   string `json:"code"`
+		Status        string          `json:"status"`
+		Reason        string          `json:"reason"`
+		Code          string          `json:"code"`
+		WriterVersion json.RawMessage `json:"writer_version"`
 	}
 	if strictDecisionJSON(string(body), &diagnostic) != nil || diagnostic.Status != "failed" || diagnostic.Reason != "candidate_freeze_failed" || diagnostic.Code != "candidate_review_invalid" {
+		return 0, bad
+	}
+	if diagnostic.WriterVersion == nil {
+		return 0, nil
+	}
+	var version int
+	if json.Unmarshal(diagnostic.WriterVersion, &version) != nil || version != 2 {
+		return 0, bad
+	}
+	return version, nil
+}
+
+// v2 is selected only after reading the authenticated diagnostic. Legacy
+// history retains its original proof rules; it cannot acquire v2 authority.
+func validateReviewFailureV2Lifecycle(ctx context.Context, tx *sql.Tx, failed contract.Event) error {
+	bad := CodeError("candidate_review_retry_unsupported")
+	rows, err := tx.QueryContext(ctx, `SELECT body_json FROM runtime_events WHERE segment_id=? ORDER BY sequence`, failed.SegmentID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	kinds := []string{contract.EventPrepared, contract.EventSpawned, contract.EventRunning, contract.EventFailed, contract.EventExited}
+	phase, sequence := 0, int64(0)
+	sessions := 0
+	for rows.Next() {
+		var raw string
+		var event contract.Event
+		if rows.Scan(&raw) != nil || json.Unmarshal([]byte(raw), &event) != nil || event.Sequence <= sequence || event.RunID != failed.RunID || event.TaskID != failed.TaskID || event.AttemptID != failed.AttemptID || event.SegmentID != failed.SegmentID || event.CommandID != failed.CommandID || event.WorkRevision != failed.WorkRevision || event.ProducerID != failed.ProducerID {
+			return bad
+		}
+		sequence = event.Sequence
+		if event.Kind == contract.EventSession {
+			sessions++
+			// Host installs the session observer after Running, and closes its
+			// output stream before emitting the terminal failure.
+			if sessions != 1 || phase != 3 || !reflect.DeepEqual(event.Process, failed.Process) || event.Artifact != nil || event.ExitCode != nil || event.SessionKind == "" || event.SessionID == "" || event.SessionKind != failed.SessionKind || event.SessionID != failed.SessionID {
+				return bad
+			}
+			continue
+		}
+		if phase >= len(kinds) || event.Kind != kinds[phase] {
+			return bad
+		}
+		phase++
+		switch event.Kind {
+		case contract.EventPrepared:
+			if event.Process != nil || event.Artifact != nil || event.ExitCode != nil {
+				return bad
+			}
+		case contract.EventSpawned, contract.EventRunning:
+			if !reflect.DeepEqual(event.Process, failed.Process) || event.Artifact != nil || event.ExitCode != nil {
+				return bad
+			}
+		case contract.EventFailed:
+			if event.EventID != failed.EventID || event.Sequence != failed.Sequence || event.PayloadHash != failed.PayloadHash || event.PayloadHash != failed.Artifact.SHA256 || !reflect.DeepEqual(event.Artifact, failed.Artifact) || !reflect.DeepEqual(event.Process, failed.Process) || event.ExitCode == nil || *event.ExitCode != *failed.ExitCode {
+				return bad
+			}
+		case contract.EventExited:
+			// Exited hashes its lifecycle marker, not the diagnostic body, and
+			// retains the actual worker exit (including zero for schema errors).
+			if event.PayloadHash != runtimeHash("exited:"+failed.SegmentID) || !reflect.DeepEqual(event.Artifact, failed.Artifact) || !reflect.DeepEqual(event.Process, failed.Process) || event.ExitCode == nil || *event.ExitCode != *failed.ExitCode {
+				return bad
+			}
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if phase != len(kinds) {
 		return bad
 	}
 	return nil

@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -27,22 +28,45 @@ func diagnosticReviewFixture(t *testing.T, provider adapter.Provider, decorate .
 
 func diagnosticReviewFixturePrepared(t *testing.T, provider adapter.Provider, plan func([]TaskSpec) []TaskSpec, bind func(*DB, PlanSpec) PlanSpec) reviewRetryFixture {
 	t.Helper()
+	return diagnosticReviewFixtureBody(t, provider, plan, bind, reviewDiagnosticBody, 7)
+}
+
+func diagnosticReviewFixtureBody(t *testing.T, provider adapter.Provider, plan func([]TaskSpec) []TaskSpec, bind func(*DB, PlanSpec) PlanSpec, body string, exitCode int, session ...bool) reviewRetryFixture {
+	t.Helper()
 	f := newReviewRetryFixtureBound(t, provider, "", nil, true, true, plan, bind)
 	g := f.grant
 	// testing.TempDir subdirectories do not establish the runtime 0700 contract.
 	if err := os.Chmod(filepath.Dir(f.db.path), 0700); err != nil {
 		t.Fatal(err)
 	}
-	ref := managedHostArtifactForTest(t, f.db, g, "terminal", 0, []byte(reviewDiagnosticBody))
+	ref := managedHostArtifactForTest(t, f.db, g, "terminal", 0, []byte(body))
 	e := contract.Event{Version: 1, ProducerID: f.host, RunID: g.RunID, TaskID: g.TaskID, AttemptID: g.AttemptID, SegmentID: g.SegmentID, WorkRevision: g.WorkRevision, ExecutionEpoch: 1, CommandID: g.CommandID, Process: &contract.ProcessIdentity{PID: 300, PGID: 300, Birth: "review-worker"}, Sequence: 4}
-	for _, kind := range []string{contract.EventPrepared, contract.EventSpawned, contract.EventRunning, contract.EventFailed, contract.EventExited} {
+	kinds := []string{contract.EventPrepared, contract.EventSpawned, contract.EventRunning, contract.EventFailed, contract.EventExited}
+	if len(session) > 0 && session[0] {
+		kinds = []string{contract.EventPrepared, contract.EventSpawned, contract.EventRunning, contract.EventSession, contract.EventFailed, contract.EventExited}
+	}
+	for _, kind := range kinds {
 		e.Sequence++
 		e.Kind, e.EventID, e.PayloadHash = kind, "diagnostic-"+kind, runtimeHash(kind)
+		if body != reviewDiagnosticBody {
+			if kind == contract.EventPrepared {
+				e.Process = nil
+			} else {
+				e.Process = &contract.ProcessIdentity{PID: 300, PGID: 300, Birth: "review-worker"}
+			}
+		}
+		if kind == contract.EventSession {
+			e.SessionKind = "session-id"
+			e.SessionID = "review-session"
+		}
 		if kind == contract.EventFailed || kind == contract.EventExited {
-			exit := 7
+			exit := exitCode
 			e.ExitCode, e.ActiveMS = &exit, 1
 			e.Artifact = ref
 			e.PayloadHash = e.Artifact.SHA256
+			if kind == contract.EventExited && body != reviewDiagnosticBody {
+				e.PayloadHash = runtimeHash("exited:" + g.SegmentID)
+			}
 		}
 		if _, err := f.db.CommitHostEvent(context.Background(), e); err != nil {
 			t.Fatal(kind, err)
@@ -237,5 +261,257 @@ func TestCandidateReviewDiagnosticRetryRechecksEvidenceBeforeClaim(t *testing.T)
 				t.Fatal("rejected claim consumed an attempt", count, err)
 			}
 		})
+	}
+}
+
+const reviewDiagnosticV2Body = `{"code":"candidate_review_invalid","reason":"candidate_freeze_failed","status":"failed","writer_version":2}`
+
+func TestCandidateReviewDiagnosticV2ExplicitRetry(t *testing.T) {
+	for _, provider := range []adapter.Provider{adapter.ProviderClaude, adapter.ProviderGrok} {
+		for _, exit := range []int{0, 7} {
+			for _, session := range []bool{false, true} {
+				t.Run(fmt.Sprintf("%s/exit=%d/session=%t", provider, exit, session), func(t *testing.T) {
+					f := diagnosticReviewFixtureBody(t, provider, nil, nil, reviewDiagnosticV2Body, exit, session)
+					if _, err := f.db.QueueRetry(context.Background(), f.spec); err != nil {
+						t.Fatal("complete v2 lifecycle rejected", err)
+					}
+					if _, err := f.db.ClaimReady(context.Background(), f.host, 1, 2); err != nil {
+						t.Fatal("v2 retry failed claim revalidation", err)
+					}
+				})
+			}
+		}
+	}
+}
+
+func TestCandidateReviewDiagnosticV2RejectsInvalidLifecycle(t *testing.T) {
+	cases := []string{"missing_prepared", "missing_spawned", "missing_running", "missing_failed", "missing_exited", "duplicate_prepared", "duplicate_spawned", "duplicate_running", "duplicate_failed", "duplicate_exited", "prepared_process", "spawned_process", "running_process", "exit_process", "order_prepared", "order_spawned", "order_running", "sequence_collision", "run", "task", "attempt", "segment", "command", "work_revision", "producer", "exit_hash", "failed_hash", "exit_artifact", "exit_code", "negative_exit", "session_before_running", "session_after_failed", "question", "result", "stopped", "unknown"}
+	for _, name := range cases {
+		t.Run(name, func(t *testing.T) {
+			f := diagnosticReviewFixtureBody(t, adapter.ProviderGrok, nil, nil, reviewDiagnosticV2Body, 0)
+			ctx := context.Background()
+			rows, err := f.db.sql.Query(`SELECT body_json FROM runtime_events WHERE segment_id=? ORDER BY sequence`, f.grant.SegmentID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var events []contract.Event
+			for rows.Next() {
+				var raw string
+				var e contract.Event
+				if err := rows.Scan(&raw); err != nil {
+					t.Fatal(err)
+				}
+				if err := json.Unmarshal([]byte(raw), &e); err != nil {
+					t.Fatal(err)
+				}
+				events = append(events, e)
+			}
+			if err := rows.Err(); err != nil {
+				t.Fatal(err)
+			}
+			rows.Close()
+			index := map[string]int{"prepared": 0, "spawned": 1, "running": 2, "failed": 3, "exited": 4}
+			if strings.HasPrefix(name, "missing_") {
+				_, err = f.db.sql.Exec(`DELETE FROM runtime_events WHERE event_id=?`, events[index[strings.TrimPrefix(name, "missing_")]].EventID)
+			} else {
+				i := 1
+				switch name {
+				case "prepared_process":
+					events[0].Process = events[1].Process
+				case "spawned_process":
+					events[1].Process.Birth = "other"
+				case "running_process":
+					events[2].Process = nil
+				case "exit_process":
+					events[4].Process.PID++
+				case "order_prepared":
+					events[0].Sequence = events[2].Sequence
+				case "order_spawned":
+					events[1].Sequence = events[3].Sequence
+				case "order_running":
+					events[2].Sequence = events[3].Sequence
+				case "sequence_collision":
+					events[1].Sequence = events[0].Sequence
+				case "run":
+					events[i].RunID = "other"
+				case "task":
+					events[i].TaskID = "other"
+				case "attempt":
+					events[i].AttemptID = "other"
+				case "segment":
+					events[i].SegmentID = "other"
+				case "command":
+					events[i].CommandID = "other"
+				case "work_revision":
+					events[i].WorkRevision++
+				case "producer":
+					events[i].ProducerID = "other"
+				case "exit_hash":
+					events[4].PayloadHash = events[3].PayloadHash
+				case "failed_hash":
+					events[3].PayloadHash = runtimeHash("other")
+				case "exit_artifact":
+					events[4].Artifact.ID = "other"
+				case "exit_code":
+					value := 7
+					events[4].ExitCode = &value
+				case "negative_exit":
+					value := -1
+					events[3].ExitCode = &value
+					events[4].ExitCode = &value
+				default:
+					var extra contract.Event
+					if strings.HasPrefix(name, "duplicate_") {
+						extra = events[index[strings.TrimPrefix(name, "duplicate_")]]
+						extra.Sequence = events[4].Sequence + 10
+					} else {
+						extra = events[2]
+						extra.Kind = contract.EventSession
+						extra.SessionKind = "session-id"
+						extra.SessionID = "session"
+						if name == "session_before_running" {
+							extra.Sequence = events[1].Sequence + 1
+						} else if strings.HasPrefix(name, "session_") && name != "session_after_failed" {
+							identity := *extra.Process
+							identity.Birth = "other"
+							extra.Process = &identity
+							extra.Sequence = events[2].Sequence + 1
+						} else {
+							extra.Sequence = events[3].Sequence + 1
+						}
+						if name == "question" || name == "result" || name == "stopped" || name == "unknown" {
+							extra.Kind = name
+						}
+					}
+					extra.EventID = "extra-" + name
+					raw, _ := json.Marshal(extra)
+					_, err = f.db.sql.Exec(`INSERT INTO runtime_events(event_id,producer_id,sequence,task_id,attempt_id,segment_id,payload_hash,body_json,delivery_status,created_at) SELECT ?,producer_id,?,task_id,attempt_id,segment_id,payload_hash,?,delivery_status,created_at FROM runtime_events WHERE event_id=?`, extra.EventID, events[4].Sequence+100, string(raw), events[2].EventID)
+				}
+				for _, e := range events {
+					raw, _ := json.Marshal(e)
+					if _, updateErr := f.db.sql.Exec(`UPDATE runtime_events SET body_json=? WHERE event_id=?`, string(raw), e.EventID); updateErr != nil {
+						t.Fatal(updateErr)
+					}
+				}
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := f.db.QueueRetry(ctx, f.spec); err == nil {
+				t.Fatal("invalid v2 lifecycle authorized retry")
+			}
+			var decisions, attempts int
+			if err := f.db.sql.QueryRow(`SELECT (SELECT COUNT(*) FROM retry_decisions),(SELECT COUNT(*) FROM attempts WHERE task_id='review')`).Scan(&decisions, &attempts); err != nil || decisions != 0 || attempts != 1 {
+				t.Fatal("rejection mutated retry budget", decisions, attempts, err)
+			}
+		})
+	}
+}
+
+func TestCandidateReviewDiagnosticRejectsWrongWriterVersion(t *testing.T) {
+	for _, value := range []string{`1`, `0`, `3`, `-2`, `2.0`, `"2"`, `null`, `true`} {
+		t.Run(value, func(t *testing.T) {
+			body := strings.Replace(reviewDiagnosticV2Body, `"writer_version":2`, `"writer_version":`+value, 1)
+			f := diagnosticReviewFixtureBody(t, adapter.ProviderGrok, nil, nil, body, 7)
+			if _, err := f.db.QueueRetry(context.Background(), f.spec); err == nil {
+				t.Fatal("invalid writer version authorized retry")
+			}
+		})
+	}
+}
+
+func TestCandidateReviewDiagnosticLegacyKeepsOriginalLifecycleRules(t *testing.T) {
+	for _, kind := range []string{contract.EventPrepared, contract.EventSpawned} {
+		t.Run("missing_"+kind, func(t *testing.T) {
+			f := diagnosticReviewFixture(t, adapter.ProviderGrok)
+			if _, err := f.db.sql.Exec(`DELETE FROM runtime_events WHERE event_id=?`, "diagnostic-"+kind); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := f.db.QueueRetry(context.Background(), f.spec); err != nil {
+				t.Fatal("legacy history silently required v2 proof", err)
+			}
+		})
+	}
+}
+
+func TestCandidateReviewDiagnosticV2RejectsSessionEvidence(t *testing.T) {
+	for _, name := range []string{"process", "no_process", "identity", "other_identity", "other_kind", "exit", "artifact", "before_running", "after_failed"} {
+		t.Run(name, func(t *testing.T) {
+			f := diagnosticReviewFixtureBody(t, adapter.ProviderClaude, nil, nil, reviewDiagnosticV2Body, 0, true)
+			var raw string
+			var e contract.Event
+			if err := f.db.sql.QueryRow(`SELECT body_json FROM runtime_events WHERE event_id='diagnostic-session'`).Scan(&raw); err != nil {
+				t.Fatal(err)
+			}
+			if err := json.Unmarshal([]byte(raw), &e); err != nil {
+				t.Fatal(err)
+			}
+			switch name {
+			case "process":
+				e.Process.Birth = "other"
+			case "no_process":
+				e.Process = nil
+			case "identity":
+				e.SessionID = ""
+			case "other_identity":
+				e.SessionID = "another-session"
+			case "other_kind":
+				e.SessionKind = "thread-id"
+			case "exit":
+				value := 0
+				e.ExitCode = &value
+			case "artifact":
+				e.Artifact = f.event.Artifact
+			case "before_running":
+				e.Sequence -= 2
+			case "after_failed":
+				e.Sequence += 2
+			}
+			body, _ := json.Marshal(e)
+			if _, err := f.db.sql.Exec(`UPDATE runtime_events SET body_json=? WHERE event_id=?`, string(body), e.EventID); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := f.db.QueueRetry(context.Background(), f.spec); err == nil {
+				t.Fatal("invalid session evidence authorized retry")
+			}
+		})
+	}
+}
+
+func TestCandidateReviewDiagnosticV2RejectsDuplicateSession(t *testing.T) {
+	f := diagnosticReviewFixtureBody(t, adapter.ProviderClaude, nil, nil, reviewDiagnosticV2Body, 0, true)
+	// Preserve increasing producer sequence while adding a second session in
+	// the running interval; rejection must inspect multiplicity, not ordering.
+	for _, kind := range []string{contract.EventExited, contract.EventFailed} {
+		var raw string
+		var e contract.Event
+		if err := f.db.sql.QueryRow(`SELECT body_json FROM runtime_events WHERE event_id=?`, "diagnostic-"+kind).Scan(&raw); err != nil {
+			t.Fatal(err)
+		}
+		if err := json.Unmarshal([]byte(raw), &e); err != nil {
+			t.Fatal(err)
+		}
+		e.Sequence++
+		body, _ := json.Marshal(e)
+		if _, err := f.db.sql.Exec(`UPDATE runtime_events SET sequence=?,body_json=? WHERE event_id=?`, e.Sequence, string(body), e.EventID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var raw string
+	var session contract.Event
+	if err := f.db.sql.QueryRow(`SELECT body_json FROM runtime_events WHERE event_id='diagnostic-session'`).Scan(&raw); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal([]byte(raw), &session); err != nil {
+		t.Fatal(err)
+	}
+	session.Sequence++
+	session.EventID = "second-session"
+	body, _ := json.Marshal(session)
+	if _, err := f.db.sql.Exec(`INSERT INTO runtime_events(event_id,producer_id,sequence,task_id,attempt_id,segment_id,payload_hash,body_json,delivery_status,created_at) SELECT ?,producer_id,?,task_id,attempt_id,segment_id,payload_hash,?,delivery_status,created_at FROM runtime_events WHERE event_id='diagnostic-session'`, session.EventID, session.Sequence, string(body)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.db.QueueRetry(context.Background(), f.spec); err == nil {
+		t.Fatal("duplicate session authorized v2 retry")
 	}
 }
