@@ -10,11 +10,13 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -38,6 +40,41 @@ func TestDuplexOSHelper(t *testing.T) {
 	case "held":
 		_, _ = os.Stdout.WriteString("ready\n")
 		select {}
+	case "exact-env":
+		value, present := os.LookupEnv("GIT_DIR")
+		if !present {
+			value = "unset"
+		}
+		_, _ = os.Stdout.WriteString(value)
+	case "drain-leader":
+		terminated := make(chan os.Signal, 1)
+		signal.Notify(terminated, syscall.SIGTERM)
+		child := exec.Command(os.Args[0], "-test.run=^TestDuplexOSHelper$")
+		child.Env = []string{"C06_DUPLEX_HELPER=drain-child", "C03_RELEASE=" + os.Getenv("C03_RELEASE"), "C03_CHILD_READY=" + os.Getenv("C03_CHILD_READY"), "C03_CHILD_TERM=" + os.Getenv("C03_CHILD_TERM")}
+		if err := child.Start(); err != nil {
+			os.Exit(13)
+		}
+		go func() { _ = child.Wait() }()
+		<-terminated
+	case "drain-child":
+		terminated := make(chan os.Signal, 1)
+		signal.Notify(terminated, syscall.SIGTERM)
+		if err := os.WriteFile(os.Getenv("C03_CHILD_READY"), []byte("ready"), 0600); err != nil {
+			os.Exit(14)
+		}
+		for {
+			select {
+			case <-terminated:
+				if err := os.WriteFile(os.Getenv("C03_CHILD_TERM"), []byte("received"), 0600); err != nil {
+					os.Exit(15)
+				}
+			default:
+			}
+			if _, err := os.Stat(os.Getenv("C03_RELEASE")); err == nil {
+				os.Exit(0)
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
 	case "stderr":
 		_, _ = os.Stdout.WriteString("stdout-exclusive-marker")
 		_, _ = os.Stderr.Write(bytes.Repeat([]byte("e"), 2<<20))
@@ -57,6 +94,52 @@ func TestDuplexOSHelper(t *testing.T) {
 			os.Exit(4)
 		}
 		_ = os.WriteFile(os.Getenv("C06_DUPLEX_CHILD_PID"), []byte(fmt.Sprint(child.Process.Pid)), 0600)
+	case "term-ignore":
+		signal.Ignore(syscall.SIGTERM)
+		if err := os.WriteFile(os.Getenv("G1_ESC_MARKER"), []byte("ready"), 0600); err != nil {
+			os.Exit(7)
+		}
+		for {
+			time.Sleep(time.Hour)
+		}
+	case "term-tree":
+		signal.Ignore(syscall.SIGTERM)
+		child := exec.Command(os.Args[0], "-test.run=^TestDuplexOSHelper$")
+		child.Env = []string{"C06_DUPLEX_HELPER=term-ignore", "G1_ESC_MARKER=" + os.Getenv("G1_TREE_CHILD_MARKER")}
+		if err := child.Start(); err != nil {
+			os.Exit(10)
+		}
+		go func() { _ = child.Wait() }()
+		ready := false
+		deadline := time.Now().Add(5 * time.Second)
+		for time.Now().Before(deadline) {
+			if body, err := os.ReadFile(os.Getenv("G1_TREE_CHILD_MARKER")); err == nil && string(body) == "ready" {
+				ready = true
+				break
+			}
+			time.Sleep(time.Millisecond)
+		}
+		if !ready {
+			os.Exit(11)
+		}
+		if err := os.WriteFile(os.Getenv("G1_ESC_MARKER"), []byte(strconv.Itoa(child.Process.Pid)), 0600); err != nil {
+			os.Exit(12)
+		}
+		for {
+			time.Sleep(time.Hour)
+		}
+	case "term-clean":
+		terminated := make(chan os.Signal, 1)
+		signal.Notify(terminated, syscall.SIGTERM)
+		defer signal.Stop(terminated)
+		if err := os.WriteFile(os.Getenv("G1_ESC_MARKER"), []byte("started"), 0600); err != nil {
+			os.Exit(8)
+		}
+		<-terminated
+		time.Sleep(300 * time.Millisecond)
+		if err := os.WriteFile(os.Getenv("G1_ESC_MARKER"), []byte("started\ndone"), 0600); err != nil {
+			os.Exit(9)
+		}
 	case "rpc":
 		scanner := bufio.NewScanner(os.Stdin)
 		scanner.Buffer(make([]byte, 4096), 1<<20)
@@ -87,8 +170,8 @@ func TestDuplexOSHelper(t *testing.T) {
 
 func duplexCommand(t *testing.T, mode string) Command {
 	t.Helper()
-	if runtime.GOOS != "darwin" {
-		t.Skip("original process authority is macOS only")
+	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
+		t.Skip("original process authority is unsupported on this platform")
 	}
 	binary, err := filepath.EvalSymlinks(os.Args[0])
 	if err != nil {

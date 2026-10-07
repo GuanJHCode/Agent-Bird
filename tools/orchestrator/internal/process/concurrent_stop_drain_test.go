@@ -165,19 +165,11 @@ func TestC03StopUnboundedContextAcceptsAlreadyReapedAbsentGroup(t *testing.T) {
 
 func TestC03StopRealOwnedGroupDrainsAfterLeaderReapWithoutNewSignal(t *testing.T) {
 	dir := t.TempDir()
-	childScript := filepath.Join(dir, "child.sh")
 	release := filepath.Join(dir, "release")
 	childReady, childTerm := filepath.Join(dir, "child-ready"), filepath.Join(dir, "child-term")
-	script := `trap ': > "$C03_CHILD_TERM"; while [ ! -e "$C03_RELEASE" ]; do /bin/sleep 0.01; done; exit 0' TERM
-: > "$C03_CHILD_READY"
-while [ ! -e "$C03_RELEASE" ]; do /bin/sleep 0.01; done`
-	if err := os.WriteFile(childScript, []byte(script), 0600); err != nil {
-		t.Fatal(err)
-	}
-	leaderScript := `trap 'exit 0' TERM
-/bin/sh "$C03_CHILD_SCRIPT" >/dev/null 2>&1 &
-while [ ! -e "$C03_RELEASE" ]; do /bin/sleep 0.01; done`
-	h, err := Start(context.Background(), Command{Path: "/bin/sh", Args: []string{"-c", leaderScript}, Env: []string{"C03_CHILD_SCRIPT=" + childScript, "C03_RELEASE=" + release, "C03_CHILD_READY=" + childReady, "C03_CHILD_TERM=" + childTerm}})
+	spec := duplexCommand(t, "drain-leader")
+	spec.Env = append(spec.Env, "C03_RELEASE="+release, "C03_CHILD_READY="+childReady, "C03_CHILD_TERM="+childTerm)
+	h, err := Start(context.Background(), spec)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -102,7 +102,7 @@ func TestC03StopNegativeProofControls(t *testing.T) {
 }
 
 func TestC03StopRealOwnedGroupESRCHAfterConcurrentReap(t *testing.T) {
-	h, err := Start(context.Background(), Command{Path: "/bin/sleep", Args: []string{"30"}})
+	h, err := Start(context.Background(), duplexCommand(t, "held"))
 	if err != nil {
 		t.Fatal(err)
 	}

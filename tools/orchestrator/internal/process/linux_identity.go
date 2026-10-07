@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -238,8 +239,30 @@ func linuxGroupScan(ctx context.Context, pgid int) (bool, bool, error) {
 	return found, running, nil
 }
 func linuxGroupAlive(ctx context.Context, pgid int) (bool, error) {
-	f, _, e := linuxGroupScan(ctx, pgid)
-	return f, e
+	return linuxGroupAliveWith(ctx, pgid, syscall.Kill)
+}
+func linuxGroupAliveWith(ctx context.Context, pgid int, probe func(int, syscall.Signal) error) (bool, error) {
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
+	if pgid <= 0 {
+		return false, ErrProcessTreeUnknown
+	}
+	// The kernel includes unreaped zombies in group membership. Unlike a
+	// /proc listing, this observation cannot miss a member forked while an
+	// unrelated listed PID exits. Quiescence still needs the conservative
+	// /proc scan; absence and original Wait remain separate proofs.
+	err := probe(-pgid, 0)
+	if cancelled := ctx.Err(); cancelled != nil {
+		return false, cancelled
+	}
+	if err == nil {
+		return true, nil
+	}
+	if errors.Is(err, syscall.ESRCH) {
+		return false, nil
+	}
+	return false, ErrProcessTreeUnknown
 }
 func linuxGroupQuiescent(ctx context.Context, pgid int) (bool, error) {
 	f, r, e := linuxGroupScan(ctx, pgid)

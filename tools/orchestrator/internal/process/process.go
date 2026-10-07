@@ -113,7 +113,7 @@ func startCommand(ctx context.Context, spec Command, duplex bool, birthLookup fu
 		return nil, nil, ctx.Err()
 	default:
 	}
-	if runtime.GOOS != "darwin" {
+	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
 		return nil, nil, CodeError("unsupported_platform")
 	}
 	resolved, err := filepath.EvalSymlinks(spec.Path)

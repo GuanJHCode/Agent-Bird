@@ -2,8 +2,10 @@ package process
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -15,10 +17,9 @@ import (
 func TestStopEscalatesToSIGKILLWhenChildIgnoresTermination(t *testing.T) {
 	dir := t.TempDir()
 	marker := filepath.Join(dir, "marker")
-	script := `trap '' TERM
-echo ready >> "$G1_ESC_MARKER"
-while :; do sleep 0.05; done`
-	h, err := Start(context.Background(), Command{Path: "/bin/sh", Args: []string{"-c", script}, Env: []string{"G1_ESC_MARKER=" + marker}})
+	spec := duplexCommand(t, "term-ignore")
+	spec.Env = append(spec.Env, "G1_ESC_MARKER="+marker)
+	h, err := Start(context.Background(), spec)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,10 +47,9 @@ while :; do sleep 0.05; done`
 func TestStopWaitsForBoundedGracefulCleanup(t *testing.T) {
 	dir := t.TempDir()
 	marker := filepath.Join(dir, "marker")
-	script := `trap 'echo trapped >> "$G1_ESC_MARKER"; sleep 0.3; echo done >> "$G1_ESC_MARKER"; exit 0' TERM
-echo started >> "$G1_ESC_MARKER"
-while :; do sleep 0.05; done`
-	h, err := Start(context.Background(), Command{Path: "/bin/sh", Args: []string{"-c", script}, Env: []string{"G1_ESC_MARKER=" + marker}})
+	spec := duplexCommand(t, "term-clean")
+	spec.Env = append(spec.Env, "G1_ESC_MARKER="+marker)
+	h, err := Start(context.Background(), spec)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,4 +95,62 @@ func waitEscalationMarker(t *testing.T, path, marker string) {
 		time.Sleep(10 * time.Millisecond)
 	}
 	t.Fatalf("worker did not install its TERM trap: marker=%q", marker)
+}
+
+func TestStopEscalatesOwnedPersistentDescendantTree(t *testing.T) {
+	dir := t.TempDir()
+	marker := filepath.Join(dir, "leader-ready")
+	childMarker := filepath.Join(dir, "child-ready")
+	spec := duplexCommand(t, "term-tree")
+	spec.Env = append(spec.Env, "G1_ESC_MARKER="+marker, "G1_TREE_CHILD_MARKER="+childMarker)
+	h, err := Start(context.Background(), spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	registerEscalationCleanup(t, h)
+	var child int
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		raw, readErr := os.ReadFile(marker)
+		if readErr == nil {
+			child, err = strconv.Atoi(string(raw))
+			if err == nil && child > 0 {
+				break
+			}
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	if child <= 0 {
+		t.Fatal("original child did not start a persistent descendant")
+	}
+	observation, cancelObservation := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancelObservation()
+	identity := h.Identity()
+	childBirth, err := BirthContext(observation, child)
+	if err != nil {
+		t.Fatal(err)
+	}
+	chain, err := AncestryContext(observation, child)
+	pgid, groupErr := syscall.Getpgid(child)
+	if err != nil || chain[identity.PID] != identity.Birth || groupErr != nil || pgid != identity.PGID {
+		t.Fatal("unproven original descendant/group", chain, pgid, err, groupErr)
+	}
+	stopCtx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+	defer cancel()
+	started := time.Now()
+	if err := h.Stop(stopCtx); err != nil {
+		t.Fatal("product did not clear original tree", err)
+	}
+	if elapsed := time.Since(started); elapsed < 250*time.Millisecond || elapsed > 1500*time.Millisecond {
+		t.Fatal("incorrect TERM/KILL bound", elapsed)
+	}
+	verify, cancelVerify := context.WithTimeout(context.Background(), time.Second)
+	defer cancelVerify()
+	if h.Wait(verify) != nil || h.ExitCode() != -int(syscall.SIGKILL) || h.ConfirmTreeExited() != nil {
+		t.Fatal("missing original Wait/KILL/group proof", h.ExitCode())
+	}
+	if exited, err := IdentityExitedContext(verify, child, childBirth); err != nil || !exited || !errors.Is(syscall.Kill(child, 0), syscall.ESRCH) {
+		t.Fatal("original descendant still exists", child, exited, err)
+	}
+	t.Logf("leader pid=%d birth=%s original Wait=-SIGKILL; descendant pid=%d birth=%s same-pgid=%d ESRCH; product Stop only", identity.PID, identity.Birth, child, childBirth, pgid)
 }

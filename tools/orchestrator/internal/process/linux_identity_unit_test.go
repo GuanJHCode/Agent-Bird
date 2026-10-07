@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 )
 
@@ -99,5 +100,69 @@ func TestLinuxParseStatRejectsMalformedOrUntrustedValues(t *testing.T) {
 		if _, err := linuxParseStat([]byte(value)); err == nil {
 			t.Fatalf("accepted %q", value)
 		}
+	}
+}
+
+func TestLinuxGroupAliveUsesKernelGroupProof(t *testing.T) {
+	for _, scenario := range []string{"alive", "gone", "permission_unknown", "io_unknown", "cancel_before", "cancel_at_probe", "invalid_group"} {
+		t.Run(scenario, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			pgid := 424242
+			if scenario == "invalid_group" {
+				pgid = 0
+			}
+			if scenario == "cancel_before" {
+				cancel()
+			}
+			calls := 0
+			found, err := linuxGroupAliveWith(ctx, pgid, func(pid int, signal syscall.Signal) error {
+				calls++
+				if pid != -424242 || signal != 0 {
+					t.Fatal("not an observational group probe", pid, signal)
+				}
+				switch scenario {
+				case "alive":
+					return nil
+				case "gone":
+					return syscall.ESRCH
+				case "permission_unknown":
+					return syscall.EPERM
+				case "io_unknown":
+					return syscall.EIO
+				case "cancel_at_probe":
+					cancel()
+					return syscall.ESRCH
+				default:
+					t.Fatal("invalid/cancelled probe executed")
+					return nil
+				}
+			})
+			switch scenario {
+			case "alive":
+				if !found || err != nil || calls != 1 {
+					t.Fatal("kernel live group lost", found, err, calls)
+				}
+			case "gone":
+				if found || err != nil || calls != 1 {
+					t.Fatal("kernel ESRCH not accepted", found, err, calls)
+				}
+			case "cancel_before", "cancel_at_probe":
+				wantCalls := 0
+				if scenario == "cancel_at_probe" {
+					wantCalls = 1
+				}
+				if err == nil || found || calls != wantCalls {
+					t.Fatal("cancellation invented group absence", found, err, calls)
+				}
+			default:
+				if err == nil || found {
+					t.Fatal("unknown group observation invented absence", found, err)
+				}
+				if scenario == "invalid_group" && calls != 0 {
+					t.Fatal("invalid group was probed")
+				}
+			}
+		})
 	}
 }
