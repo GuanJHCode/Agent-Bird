@@ -135,7 +135,7 @@ func TestPrepareStateDirRejectsInsertedPublicSuffix(t *testing.T) {
 	base := t.TempDir()
 	root := filepath.Join(base, "mid", "state")
 	old := prepareStateDirBeforeOpenPart
-	prepareStateDirBeforeOpenPart = func() { _ = os.Mkdir(filepath.Join(base, "mid"), 0755) }
+	prepareStateDirBeforeOpenPart = func() { _ = os.Mkdir(filepath.Join(base, "mid"), 0700); _ = os.Chmod(filepath.Join(base, "mid"), 0755) }
 	defer func() { prepareStateDirBeforeOpenPart = old }()
 	if err := PrepareStateDir(root); err == nil {
 		t.Fatal("public suffix accepted")
