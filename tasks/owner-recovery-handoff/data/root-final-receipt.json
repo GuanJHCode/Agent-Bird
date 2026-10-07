@@ -1,0 +1,33 @@
+{
+  "base": "28ba02b3c73868d1de0c8bdbd08866d147d4b3cc",
+  "independent_review": "PASS",
+  "macos_race": {
+    "top_pass": 30,
+    "named_pass": 216,
+    "named_fail": 0,
+    "named_skip": 5,
+    "elapsed_seconds": 6.374
+  },
+  "linux_nonroot": {
+    "named_pass": 216,
+    "named_fail": 0,
+    "named_skip": 5
+  },
+  "linux_chown": {
+    "named_pass": 6,
+    "named_fail": 0,
+    "named_skip": 0
+  },
+  "source_sha256": {
+    "tools/orchestrator/internal/host/owner_recovery_handoff.go": "da163b88845c458fd95675e5ef63cb843bc851c5863fa3388d7a361817cccef6",
+    "tools/orchestrator/internal/host/owner_recovery_handoff_test.go": "109d4db6f0c24abd002cf59c13651ea46019fd0e6363e4c98041f3af88a6d557",
+    "tasks/owner-recovery-handoff/scripts/run-linux.py": "5e5bc998e0430282bd92d432bc1fb8902e55bcd8e9ea743185c822bf93d61102"
+  },
+  "linux_containers": [
+    "341a8875dea7a715f0859048b59b3baaacee2605ad318616f5c6ed240c25e512",
+    "0fa0d73b6bcad03dd05059992fbab32b44f3c100540ae806066ec85646e677c9"
+  ],
+  "linux_binary_sha256": "4b74d2b788b751184824b2259074bef8c473b37632e312fadcf7ec4a1794f0cb",
+  "owned_binary_removed": true,
+  "vet_exit": 0
+}
