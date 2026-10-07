@@ -397,6 +397,10 @@ func preflightProviders(ctx context.Context, tasks []coordinator.TaskRequest) er
 }
 
 func taskFollowup(ctx context.Context, action string, args []string, out io.Writer) error {
+	return taskFollowupWithRunner(ctx, action, args, out, run)
+}
+
+func taskFollowupWithRunner(ctx context.Context, action string, args []string, out io.Writer, runner func(context.Context, []string, io.Writer, io.Writer) error) error {
 	fs := flag.NewFlagSet("task "+action, flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	path := fs.String("handle", "", "original task handle")
@@ -404,6 +408,7 @@ func taskFollowup(ctx context.Context, action string, args []string, out io.Writ
 	includeDiagnostics := false
 	timeoutMS := 30000
 	revision := 0
+	commandID := ""
 	mutation := action == "accept" || action == "ack" || action == "answer" || action == "rework" || action == "recover-host"
 	// Typed resume has an explicit source decision; the observed-revision
 	// legacy form remains available through its original guarded branch.
@@ -431,8 +436,20 @@ func taskFollowup(ctx context.Context, action string, args []string, out io.Writ
 		if action == "resume" || action == "stop" {
 			fs.IntVar(&revision, "work-revision", 0, "observed revision")
 		}
+		if action == "resume" {
+			fs.StringVar(&commandID, "command-id", "", "stable owner Resume command id")
+		}
 	}
 	if fs.Parse(args) != nil || fs.NArg() != 0 || *path == "" || (mutation && request == "") || timeoutMS < 1 || timeoutMS > 30000 || (action == "wait" && includeDiagnostics) {
+		return codeError("invalid_args")
+	}
+	explicitCommand := false
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == "command-id" {
+			explicitCommand = true
+		}
+	})
+	if explicitCommand && !validResumeJournalCommandID(commandID) {
 		return codeError("invalid_args")
 	}
 	if err := privateHandleParent(*path); err != nil {
@@ -478,14 +495,17 @@ func taskFollowup(ctx context.Context, action string, args []string, out io.Writ
 	if cap.RunID != h.RunID {
 		return codeError("task_handle_scope_mismatch")
 	}
-	// Bind the route to its original runtime as well as its run; never guess a
-	// default state directory when continuing from another conversation.
-	b, err := loadHostBootstrap(cap)
-	if err != nil {
-		return err
-	}
-	if b.SocketPath != filepath.Join(h.StateDir, "coordinator.sock") {
-		return codeError("task_handle_scope_mismatch")
+	// Ordinary Resume authenticates against the handle's exact runtime and
+	// validates the immutable receipt's launch scope. Existing-owner replay
+	// must not depend on mutable bootstrap availability.
+	if action != "resume" || typedResume {
+		b, err := loadHostBootstrap(cap)
+		if err != nil {
+			return err
+		}
+		if b.SocketPath != filepath.Join(h.StateDir, "coordinator.sock") {
+			return codeError("task_handle_scope_mismatch")
+		}
 	}
 	if action == "reconcile" {
 		return reconcileTaskHandle(ctx, *path, h, cap, out)
@@ -496,7 +516,7 @@ func taskFollowup(ctx context.Context, action string, args []string, out io.Writ
 			if typedResume {
 				return resumeContinuation(ctx, []string{"--state-dir", h.StateDir, "--request", p}, out)
 			}
-			return run(ctx, []string{action, "--state-dir", h.StateDir, "--request", p}, out, io.Discard)
+			return runner(ctx, []string{action, "--state-dir", h.StateDir, "--request", p}, out, io.Discard)
 		})
 	}
 	if action == "inspect" {
@@ -518,5 +538,8 @@ func taskFollowup(ctx context.Context, action string, args []string, out io.Writ
 	if revision != 0 {
 		forwarded = append(forwarded, "--work-revision", strconv.Itoa(revision))
 	}
-	return run(ctx, forwarded, out, io.Discard)
+	if explicitCommand {
+		forwarded = append(forwarded, "--command-id", commandID)
+	}
+	return runner(ctx, forwarded, out, io.Discard)
 }

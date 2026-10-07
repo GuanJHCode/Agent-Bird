@@ -1,0 +1,8 @@
+{
+  "tools/orchestrator/cmd/orchestrator/main.go": "4d621c465f1c7c27e15fc427c15c694225593a3ce1c3d08d2b23e02273d99195",
+  "tools/orchestrator/cmd/orchestrator/task_entry.go": "67edf8d90fca0d938d43545bcba7095e6e5e6ed0d2f137aca71b1c370aea93d3",
+  "tools/orchestrator/cmd/orchestrator/resume_control.go": "7bde26a09a49f7e41fb6f4604e96ab938883c0d8013810d245c14148062d5c1e",
+  "tools/orchestrator/cmd/orchestrator/resume_control_test.go": "707bf379b362f8dca614886b3d1b664ab73345cdf963d3a67667ac726c8690e6",
+  "tools/orchestrator/cmd/orchestrator/successor_presence.go": "23ca346de96dc6ec2c5943a58a98169ce9cfed3960dc91040d9a19e4e3726af0",
+  "tools/orchestrator/cmd/orchestrator/successor_presence_test.go": "a0a556905962f8b73fb2c0d5af90ed500fd5251e6526c1f6d7bef8a3832b65f4"
+}

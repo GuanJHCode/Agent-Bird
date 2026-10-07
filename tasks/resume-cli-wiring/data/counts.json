@@ -1,0 +1,126 @@
+{
+  "api-red": {
+    "package": {
+      "pass": 0,
+      "fail": 1,
+      "skip": 0
+    },
+    "top": {
+      "pass": 0,
+      "fail": 0,
+      "skip": 0
+    },
+    "named": {
+      "pass": 0,
+      "fail": 0,
+      "skip": 0
+    },
+    "build_fail": 1
+  },
+  "behavior-red": {
+    "package": {
+      "pass": 0,
+      "fail": 1,
+      "skip": 0
+    },
+    "top": {
+      "pass": 1,
+      "fail": 6,
+      "skip": 0
+    },
+    "named": {
+      "pass": 14,
+      "fail": 82,
+      "skip": 0
+    },
+    "build_fail": 0
+  },
+  "green-1": {
+    "package": {
+      "pass": 1,
+      "fail": 0,
+      "skip": 0
+    },
+    "top": {
+      "pass": 7,
+      "fail": 0,
+      "skip": 0
+    },
+    "named": {
+      "pass": 97,
+      "fail": 0,
+      "skip": 0
+    },
+    "build_fail": 0
+  },
+  "cancel-red": {
+    "package": {
+      "pass": 0,
+      "fail": 1,
+      "skip": 0
+    },
+    "top": {
+      "pass": 9,
+      "fail": 1,
+      "skip": 0
+    },
+    "named": {
+      "pass": 124,
+      "fail": 1,
+      "skip": 0
+    },
+    "build_fail": 0
+  },
+  "green-2": {
+    "package": {
+      "pass": 1,
+      "fail": 0,
+      "skip": 0
+    },
+    "top": {
+      "pass": 10,
+      "fail": 0,
+      "skip": 0
+    },
+    "named": {
+      "pass": 125,
+      "fail": 0,
+      "skip": 0
+    },
+    "build_fail": 0
+  },
+  "final-focused": {
+    "package": {
+      "pass": 1,
+      "fail": 0,
+      "skip": 0
+    },
+    "top": {
+      "pass": 33,
+      "fail": 0,
+      "skip": 0
+    },
+    "named": {
+      "pass": 206,
+      "fail": 0,
+      "skip": 4
+    },
+    "build_fail": 0,
+    "new_named": {
+      "pass": 128,
+      "fail": 0,
+      "skip": 0
+    },
+    "new_top": {
+      "pass": 10,
+      "fail": 0,
+      "skip": 0
+    },
+    "skip_tests": [
+      "TestResumeJournalRejectsForeignOwnership/state",
+      "TestResumeJournalRejectsForeignOwnership/directory",
+      "TestResumeJournalRejectsForeignOwnership/lock",
+      "TestResumeJournalRejectsForeignOwnership/record"
+    ]
+  }
+}

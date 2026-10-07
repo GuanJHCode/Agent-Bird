@@ -448,6 +448,15 @@ type controlCapability struct {
 }
 
 func taskControl(ctx context.Context, kind ipc.Kind, args []string, stdout io.Writer) error {
+	return taskControlWithResumeDependencies(ctx, kind, args, stdout, resumeControlDependencies{
+		requireCoordinator:  requireInterruptionCoordinator,
+		call:                call,
+		ensureLegacyHost:    ensureSourceHost,
+		ensureSuccessorHost: ensureSuccessorSourceHost,
+	})
+}
+
+func taskControlWithResumeDependencies(ctx context.Context, kind ipc.Kind, args []string, stdout io.Writer, resumeDeps resumeControlDependencies) error {
 	fs := flag.NewFlagSet(string(kind), flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	stateArg := fs.String("state-dir", "", "private state directory")
@@ -456,40 +465,35 @@ func taskControl(ctx context.Context, kind ipc.Kind, args []string, stdout io.Wr
 	revision := fs.Int("work-revision", 0, "work revision")
 	cursor := fs.String("cursor", "", "opaque delivery cursor")
 	includeDiagnostics := fs.Bool("include-diagnostics", false, "include durable progress diagnostics")
+	commandID := ""
+	if kind == ipc.KindResume {
+		fs.StringVar(&commandID, "command-id", "", "stable owner Resume command id")
+	}
 	if fs.Parse(args) != nil || *taskID == "" || *controlFile == "" || fs.NArg() != 0 || (kind != ipc.KindCollect && (*cursor != "" || *includeDiagnostics)) {
 		return codeError("invalid_args")
 	}
 	if (kind == ipc.KindResume || kind == ipc.KindStopTask) && *revision < 1 {
 		return codeError("invalid_args")
 	}
+	explicitCommand := false
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == "command-id" {
+			explicitCommand = true
+		}
+	})
+	if explicitCommand && !validResumeJournalCommandID(commandID) {
+		return codeError("invalid_args")
+	}
 	state, err := resolveState(*stateArg)
 	if err != nil {
 		return err
 	}
+	if kind == ipc.KindResume {
+		return resumeControl(ctx, state, *controlFile, *taskID, *revision, commandID, explicitCommand, stdout, resumeDeps)
+	}
 	capability, err := loadControlCapability(*controlFile)
 	if err != nil {
 		return err
-	}
-	if kind == ipc.KindResume {
-		if err = requireInterruptionCoordinator(ctx, state); err != nil {
-			return err
-		}
-		response, queryErr := call(ctx, state, ipc.KindSummary, coordinator.TaskControlRequest{TaskID: *taskID, ControllerThread: capability.ControllerThread, ControlToken: capability.ControlToken})
-		if queryErr != nil {
-			return queryErr
-		}
-		var summary store.RunSummary
-		if err = decode(response.Payload, &summary); err != nil {
-			return err
-		}
-		for _, task := range summary.Tasks {
-			if task.TaskID == *taskID && task.ResumeBlockedReason != "" {
-				return codeError(task.ResumeBlockedReason)
-			}
-		}
-		if err = ensureSourceHost(ctx, state, capability); err != nil {
-			return err
-		}
 	}
 	control := coordinator.TaskControlRequest{TaskID: *taskID, ControllerThread: capability.ControllerThread, ControlToken: capability.ControlToken, WorkRevision: *revision}
 	request := any(control)
