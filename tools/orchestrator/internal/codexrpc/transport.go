@@ -41,24 +41,33 @@ type writeJob struct {
 	reply   chan error
 }
 
+type closeWriter interface {
+	CloseWrite() error
+}
+
 // Client owns one reader, one writer, and a join goroutine. There are no
 // per-operation dispatch goroutines; context callbacks only cancel owned jobs.
 type Client struct {
-	stream       io.ReadWriteCloser
-	limits       Limits
-	mu           sync.Mutex
-	err          error
-	next         uint64
-	pending      map[string]*callState
-	remote       map[ID]*Request
-	consumed     map[ID]struct{}
-	responders   int
-	jobs         map[*writeJob]struct{}
-	out          chan *writeJob
-	events       chan Event
-	done, joined chan struct{}
-	wg           sync.WaitGroup
-	callbacks    sync.WaitGroup
+	stream        io.ReadWriteCloser
+	limits        Limits
+	mu            sync.Mutex
+	err           error
+	writeClosed   bool
+	readEOF       bool
+	closingWrite  bool
+	closeWrite    chan struct{}
+	closeWriteErr error
+	next          uint64
+	pending       map[string]*callState
+	remote        map[ID]*Request
+	consumed      map[ID]struct{}
+	responders    int
+	jobs          map[*writeJob]struct{}
+	out           chan *writeJob
+	events        chan Event
+	done, joined  chan struct{}
+	wg            sync.WaitGroup
+	callbacks     sync.WaitGroup
 }
 
 // New takes ownership only on success. The supplied Close must be idempotent,
@@ -93,6 +102,67 @@ func New(ctx context.Context, stream io.ReadWriteCloser, limits Limits) (*Client
 func (c *Client) Events() <-chan Event  { return c.events }
 func (c *Client) Done() <-chan struct{} { return c.done }
 func (c *Client) Err() error            { c.mu.Lock(); defer c.mu.Unlock(); return c.err }
+func (c *Client) ReadEOF() bool         { c.mu.Lock(); defer c.mu.Unlock(); return c.readEOF }
+
+// CloseWrite freezes new outbound frames and closes only the owned stream's
+// write side. A natural reader EOF wins a race with the underlying close.
+func (c *Client) CloseWrite() error {
+	c.mu.Lock()
+	if c.closingWrite {
+		done := c.closeWrite
+		c.mu.Unlock()
+		<-done
+		c.mu.Lock()
+		err := c.closeWriteErr
+		c.mu.Unlock()
+		return err
+	}
+	if c.writeClosed {
+		err := c.closeWriteErr
+		c.mu.Unlock()
+		return err
+	}
+	if c.err != nil {
+		if c.readEOF && errors.Is(c.err, io.EOF) {
+			c.writeClosed = true
+			c.mu.Unlock()
+			return nil
+		}
+		err := c.err
+		c.mu.Unlock()
+		return err
+	}
+	if len(c.jobs) != 0 || len(c.pending) != 0 {
+		c.mu.Unlock()
+		return ErrPending
+	}
+	c.writeClosed = true
+	c.closingWrite = true
+	c.closeWrite = make(chan struct{})
+	done := c.closeWrite
+	c.mu.Unlock()
+
+	writer, ok := c.stream.(closeWriter)
+	var closeErr error
+	if !ok {
+		closeErr = ErrIO
+	} else if err := writer.CloseWrite(); err != nil {
+		closeErr = ErrIO
+	}
+
+	c.mu.Lock()
+	if closeErr != nil && c.readEOF && errors.Is(c.err, io.EOF) {
+		closeErr = nil
+	}
+	c.closeWriteErr = closeErr
+	c.closingWrite = false
+	close(done)
+	c.mu.Unlock()
+	if closeErr != nil {
+		c.fail(closeErr)
+	}
+	return closeErr
+}
 
 // Close interrupts the stream and joins all owned pump/dispatch goroutines.
 func (c *Client) Close() error { c.fail(ErrClosed); <-c.joined; return nil }
@@ -199,6 +269,10 @@ func (c *Client) Call(ctx context.Context, method string, params json.RawMessage
 		err := c.err
 		c.mu.Unlock()
 		return nil, err
+	}
+	if c.writeClosed {
+		c.mu.Unlock()
+		return nil, ErrClosed
 	}
 	if err := ctx.Err(); err != nil {
 		c.mu.Unlock()
@@ -308,6 +382,10 @@ func (c *Client) send(ctx context.Context, body []byte, request *Request) error 
 		err := c.err
 		c.mu.Unlock()
 		return err
+	}
+	if c.writeClosed {
+		c.mu.Unlock()
+		return ErrClosed
 	}
 	if err := ctx.Err(); err != nil {
 		c.mu.Unlock()
@@ -426,6 +504,11 @@ func (c *Client) readPump() {
 			continue
 		}
 		if err != nil {
+			if errors.Is(err, io.EOF) {
+				c.mu.Lock()
+				c.readEOF = true
+				c.mu.Unlock()
+			}
 			if len(body) > c.limits.FrameBytes {
 				c.fail(ErrFrameLimit)
 			} else if len(body) > 0 {

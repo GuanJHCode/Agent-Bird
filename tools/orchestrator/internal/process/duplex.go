@@ -25,6 +25,8 @@ func StartDuplex(ctx context.Context, spec Command) (*Handle, io.ReadWriteCloser
 type duplexStream struct {
 	reader         *os.File
 	writer         *os.File
+	writeOnce      sync.Once
+	writeErr       error
 	once           sync.Once
 	closeErr       error
 	outputObserver OutputObserver
@@ -39,10 +41,17 @@ func (s *duplexStream) Read(p []byte) (int, error) {
 }
 func (s *duplexStream) Write(p []byte) (int, error) { return s.writer.Write(p) }
 
+// CloseWrite closes only the child stdin side. It deliberately retains stdout
+// so the owner can drain the original process output through EOF.
+func (s *duplexStream) CloseWrite() error {
+	s.writeOnce.Do(func() { s.writeErr = s.writer.Close() })
+	return s.writeErr
+}
+
 // os.File.Close interrupts the original pollable pipe operations. Never take
 // an I/O lock or wait for the child here: Read and Write may both be blocked.
 func (s *duplexStream) Close() error {
-	s.once.Do(func() { s.closeErr = errors.Join(s.writer.Close(), s.reader.Close()) })
+	s.once.Do(func() { s.closeErr = errors.Join(s.CloseWrite(), s.reader.Close()) })
 	return s.closeErr
 }
 

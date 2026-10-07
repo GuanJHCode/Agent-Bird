@@ -54,6 +54,7 @@ var (
 	ErrEventLimit      = &TransportError{"event_queue_limit"}
 	ErrConsumedLimit   = &TransportError{"consumed_request_limit"}
 	ErrWriterLimit     = &TransportError{"writer_queue_limit"}
+	ErrPending         = &TransportError{"pending_write"}
 	ErrIDLimit         = &TransportError{"id_limit"}
 	ErrMethodLimit     = &TransportError{"method_limit"}
 	ErrIncompleteFrame = &TransportError{"incomplete_frame"}

@@ -1,0 +1,5 @@
+--- FAIL: TestDuplexStreamCloseWriteClosesOnlyStdinAndRetainsStdoutTail (0.00s)
+    half_close_test.go:26: duplex stream does not support runtime half-close
+FAIL
+FAIL	github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process	0.376s
+FAIL
