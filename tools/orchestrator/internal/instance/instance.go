@@ -83,7 +83,7 @@ func PrepareStateDir(root string) (err error) {
 		break
 	}
 	prepareStateDirAfterAncestorStat()
-	parent, err := os.Open(ancestor)
+	parent, err := os.OpenFile(ancestor, os.O_RDONLY|syscall.O_DIRECTORY|syscall.O_NONBLOCK, 0)
 	if err != nil {
 		return CodeError("untrusted_state_dir")
 	}

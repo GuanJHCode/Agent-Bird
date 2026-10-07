@@ -1,3 +1,11 @@
-# Evidence
+# F12 state-directory creation milestone
 
-Command outputs and JSON test logs for F12 are stored here during validation.
+`PrepareStateDir` now binds the original observed ancestor to an open directory FD, creates missing components with mkdirat/openat and NOFOLLOW, rechecks each private component and final path identity, and never repairs existing permissions. Existing `/tmp` aliases remain accepted. Opening the original ancestor uses O_DIRECTORY|O_NONBLOCK, so replacement with a FIFO cannot hang before identity validation.
+
+ROOT retained effective RED for the old MkdirAll symlink redirect, four later identity/mode/symlink races using a compilable old-source overlay, and the FIFO blocking case. The four-race overlay source is preserved as data/original-with-seams.go.txt; it changes only test synchronization around the original implementation. Tests now check fixture mutation errors and use exclusively owned unique temporary directories. The first worker review-fix.jsonl actually failed; its earlier PASS statement is explicitly withdrawn.
+
+Final macOS arm64 race: 12 top-level / 14 named PASS, zero fail/skip. Final Linux arm64 Docker: 12 / 14 PASS, zero fail/skip, exit0 and no OOM. The exact final container 7e2fea1773d045acbef5c4ed11586eeef54b2c896e1d87383543d49f2cd1ff31 was removed and inspect confirmed absent; the preceding a256a01a… container also terminated and was removed. Package vet passed. Full ordinary also passed before the test-only unique-temp correction; race and Linux full package reran after that correction. Raw logs, source hashes and commands are in data/root-receipt.json and data/linux/*-receipt.json.
+
+Independent security review found a test cleanup bug: an old fixture could remove a predictable /tmp directory. It was corrected to MkdirTemp plus owned-parent-only cleanup and re-reviewed PASS. No remaining blocker was reported in the scoped creation code/tests. Earlier test runs did not retain evidence of what existed at that old path, so they do not establish its prior contents.
+
+This completes the directory-creation subtask only. Configuration publishing/recovery, later path operations, long-duration resource tests and the rest of F01–F13 remain open. No real Provider/account calls, installed-copy replacement, push/release, or intentional existing-data deletion occurred. Intel Mac/Windows native checks remain deferred.
