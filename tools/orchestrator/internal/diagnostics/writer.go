@@ -10,6 +10,8 @@ import (
 	"errors"
 )
 
+var ErrAborted = errors.New("diagnostics_aborted")
+
 // Writer owns the namespace's exclusive writer lock until Close. Append copies
 // at most one record into one flat chunk assembly; callers may then release the
 // capture lease. Only durable Flush records are visible to independent readers.
@@ -31,6 +33,7 @@ type Writer struct {
 	dirty     bool
 	closed    bool
 	fatal     error
+	aborted   error
 }
 
 func OpenWriter(ctx context.Context, root string, scope Scope) (w *Writer, err error) {
@@ -328,4 +331,28 @@ func (w *Writer) Close(ctx context.Context) (err error) {
 	}
 	w.m = next
 	return nil
+}
+
+// Abort releases writer ownership without publishing buffered data or a closed
+// manifest. The next open observes the durable Closed=false state as unclean.
+func (w *Writer) Abort(ctx context.Context, cause error) (err error) {
+	if err = w.gate.enter(ctx); err != nil {
+		return err
+	}
+	defer w.gate.leave()
+	if w.aborted != nil {
+		return w.aborted
+	}
+	if w.closed {
+		return ErrClosed
+	}
+	if cause == nil {
+		cause = ErrAborted
+	}
+	w.aborted = errors.Join(cause, w.fatal)
+	w.closed = true
+	w.buffer = nil
+	w.dirty = false
+	err = errors.Join(w.aborted, w.ns.close())
+	return err
 }
