@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"syscall"
+	"time"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops"
 )
@@ -122,6 +123,13 @@ func Run(ctx context.Context, requestPath string, stdout io.Writer) error {
 	case "integrate":
 		var request gitops.IntegrationRequest
 		if err = decode(envelope.Request, &request); err == nil {
+			if err = syscall.Flock(int(journal.file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+				break
+			}
+			// Held until journal.close: serialize observation with every Git side effect.
+			if err = journal.integrationPreflight(ctx); err != nil {
+				break
+			}
 			request.Journal = journal
 			result, err = gitops.TrackedIntegrate(gitops.WithCandidateJournal(ctx, journal), request)
 		}
@@ -136,6 +144,90 @@ func Run(ctx context.Context, requestPath string, stdout io.Writer) error {
 		return err
 	}
 	return json.NewEncoder(stdout).Encode(map[string]any{"version": 1, "status": "ok", "operation": envelope.Operation, "result": result})
+}
+
+// integrationPreflight refuses replay after an integration intent or an
+// unclosed original Git process. Completed preflight Git records remain usable.
+func (j *durableJournal) integrationPreflight(ctx context.Context) error {
+	bad := errors.New("gitops_journal_unsafe")
+	f, err := os.OpenFile(j.file.Name(), os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	held, heldErr := j.file.Stat()
+	if err != nil || heldErr != nil || !info.Mode().IsRegular() || info.Mode().Perm() != 0600 || !os.SameFile(info, held) || info.Size() > 16*1024*1024 {
+		return bad
+	}
+	body, err := io.ReadAll(io.LimitReader(f, 16*1024*1024+1))
+	if err != nil {
+		return err
+	}
+	if int64(len(body)) != info.Size() || len(body) > 16*1024*1024 || len(body) > 0 && body[len(body)-1] != '\n' {
+		return bad
+	}
+	var pending *gitops.GitProcessRecord
+	for _, line := range bytes.Split(bytes.TrimSuffix(body, []byte("\n")), []byte("\n")) {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if len(body) == 0 {
+			break
+		}
+		var record struct {
+			Version int             `json:"version"`
+			Kind    string          `json:"kind"`
+			Value   json.RawMessage `json:"value"`
+		}
+		if decode(line, &record) != nil || record.Version != 1 || record.Kind == "" || len(record.Value) == 0 {
+			return bad
+		}
+		if record.Kind == "integration_intent" {
+			return gitops.ErrIntegrationUncertain
+		}
+		if record.Kind != "git_process" {
+			continue
+		}
+		var p gitops.GitProcessRecord
+		if decode(record.Value, &p) != nil || len(p.CommandDigest) != 64 {
+			return bad
+		}
+		if _, err := hex.DecodeString(p.CommandDigest); err != nil {
+			return bad
+		}
+		switch p.Phase {
+		case "intent":
+			if pending != nil || p.Process != nil {
+				return bad
+			}
+			pending = &p
+		case "spawned":
+			if pending == nil || pending.Phase != "intent" || pending.CommandDigest != p.CommandDigest || p.Process == nil || p.Process.PID <= 0 || p.Process.PGID != p.Process.PID || !p.Process.BirthKnown || p.Process.Birth == "" || !filepath.IsAbs(p.Process.Executable) || len(p.Process.ExecutableSHA256) != 64 {
+				return bad
+			}
+			if _, err := hex.DecodeString(p.Process.ExecutableSHA256); err != nil {
+				return bad
+			}
+			if _, err := time.Parse(time.RFC3339Nano, p.Process.StartedAt); err != nil {
+				return bad
+			}
+			pending = &p
+		case "exited":
+			if pending == nil || pending.Phase != "spawned" || pending.CommandDigest != p.CommandDigest || p.Process == nil || *pending.Process != *p.Process {
+				return bad
+			}
+			pending = nil
+		case "unknown":
+			return gitops.ErrIntegrationUncertain
+		default:
+			return bad
+		}
+	}
+	if pending != nil {
+		return gitops.ErrIntegrationUncertain
+	}
+	return nil
 }
 
 type durableJournal struct {

@@ -16,6 +16,7 @@ import (
 )
 
 type candidateRunnerKey struct{}
+type trackedIntegrationRunnerKey struct{}
 type candidateJournalKey struct{}
 
 type GitProcessRecord struct {
@@ -71,6 +72,13 @@ func candidateGitWithStart(ctx context.Context, dir string, stdin io.Reader, sta
 	}
 	env = append(env, "GIT_NO_REPLACE_OBJECTS=1", "GIT_TERMINAL_PROMPT=0")
 	argv := append([]string{"--no-replace-objects", "-c", "maintenance.auto=false", "-c", "gc.auto=0", "-C", dir}, args...)
+	if tracked, _ := ctx.Value(trackedIntegrationRunnerKey{}).(bool); tracked {
+		// Final integration retains the normal Git configuration/environment,
+		// including environment-provided hooks and signing. Share only process
+		// ownership, bounded output and journal handling with candidate Git.
+		env = os.Environ()
+		argv = append([]string{"-C", dir}, args...)
+	}
 	commandDigest := DigestDetail(dir + "\x00" + strings.Join(argv, "\x00"))
 	journal, _ := ctx.Value(candidateJournalKey{}).(GitProcessJournal)
 	record := func(phase string, identity *process.Identity, exit int) error {

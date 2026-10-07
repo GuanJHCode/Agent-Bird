@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 )
 
 func TestIntegrationRejectsCollisionFromEarlierCandidateCommit(t *testing.T) {

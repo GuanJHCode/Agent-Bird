@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 )
 
@@ -123,7 +124,7 @@ func ManagedIntegrate(ctx context.Context, req IntegrationRequest) (IntegrationO
 // configuration. Candidate extension admission is deliberately not applied:
 // final integration must retain the repository's normal Git behavior.
 func TrackedIntegrate(ctx context.Context, req IntegrationRequest) (IntegrationOutcome, error) {
-	ctx = context.WithValue(ctx, candidateRunnerKey{}, true)
+	ctx = context.WithValue(ctx, trackedIntegrationRunnerKey{}, true)
 	out, err := Integrate(ctx, req)
 	if out.State == IntegrationUncertain || errors.Is(err, process.ErrProcessTreeUnknown) {
 		out.State = IntegrationUncertain

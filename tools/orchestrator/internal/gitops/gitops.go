@@ -4,7 +4,6 @@
 package gitops
 
 import (
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -18,6 +17,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 )
 
 const (
@@ -335,7 +336,9 @@ func noSymlinkComponents(path string) error {
 }
 
 func run(ctx context.Context, dir string, args ...string) (CommandResult, error) {
-	if managed, _ := ctx.Value(candidateRunnerKey{}).(bool); managed {
+	managed, _ := ctx.Value(candidateRunnerKey{}).(bool)
+	tracked, _ := ctx.Value(trackedIntegrationRunnerKey{}).(bool)
+	if managed || tracked {
 		result, err := candidateGit(ctx, dir, nil, args...)
 		result.Stdout = strings.TrimSpace(result.Stdout)
 		return result, err
