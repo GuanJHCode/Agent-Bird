@@ -38,6 +38,7 @@ type ownerRuntimeLifecycle struct {
 	cleanupResult error
 	cleanupDone   chan struct{}
 	children      []*ownerTransportChild
+	commands      *ownerCommandDispatcher
 }
 
 func (r *ownerRuntimeLifecycle) retainTransportChild(child *ownerTransportChild) {
@@ -68,7 +69,11 @@ func (r *ownerRuntimeLifecycle) forgetWaitedTransportChild(child *ownerTransport
 }
 
 func newOwnerRuntimeLifecycle(e *ownerExecution, cancel context.CancelCauseFunc) *ownerRuntimeLifecycle {
-	return &ownerRuntimeLifecycle{execution: e, cancel: cancel, wake: make(chan struct{}, 1), limits: ownerRuntimeLimits{10 * time.Second, 11 * time.Second, 2 * time.Second, 13 * time.Second}}
+	r := &ownerRuntimeLifecycle{execution: e, cancel: cancel, wake: make(chan struct{}, 1), limits: ownerRuntimeLimits{10 * time.Second, 11 * time.Second, 2 * time.Second, 13 * time.Second}}
+	if e != nil {
+		r.commands = newOwnerCommandDispatcher(r)
+	}
+	return r
 }
 
 func (r *ownerRuntimeLifecycle) activateGeneration(generation uint64) {
@@ -129,7 +134,10 @@ func (r *ownerRuntimeLifecycle) readControl(ctx context.Context, generation uint
 					lost(errOwnerTransportProtocol)
 					return
 				}
-				err = r.execution.command(frame.Payload)
+				err = r.execution.commandScheduled(frame.Payload, func(job *ownerCommandJob) bool {
+					job.generation = generation
+					return r.commands.enqueue(job)
+				})
 				switch ownerCommandDisposition(err) {
 				case ownerCommandOK, ownerCommandStale, ownerCommandStopped:
 				case ownerCommandRecover:
@@ -266,6 +274,10 @@ func (r *ownerRuntimeLifecycle) stop(cause error, joins []<-chan struct{}) error
 	children := append([]*ownerTransportChild(nil), r.children...)
 	r.mu.Unlock()
 	e.beginStop(termCtx, cause)
+	if r.commands != nil {
+		r.commands.close()
+		joins = append(joins, r.commands.launchDone, r.commands.stopDone)
+	}
 	for _, child := range children {
 		if child != nil && child.command != nil && child.command.Process != nil {
 			_ = child.command.Process.Signal(syscall.SIGTERM)

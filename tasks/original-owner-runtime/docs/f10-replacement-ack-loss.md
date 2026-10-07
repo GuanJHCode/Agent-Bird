@@ -60,3 +60,12 @@ Origin loss 与 authenticated terminal 原生增量（2026-10-07）：
 - 独审指出主要字段相等不足以证明完整 recovery authority 未变。补为 activated/noReservation 后、trigger 前读取有效 canonical ledger bytes，actor 全退出后全文相等，覆盖 backoff、phase、proof、scope/authority。独审复核 PASS，生产未改。
 - 原普通51309与第一race30137均exit0，前者1top3named，后者Host4top10named+Coordinator2top6named。增强断言后的普通33214、race68259均exit0，各1top3named，0fail/skip；替代此前stop两个case，未受影响的Host与five-budget回归复用30137。最终有效race6top16named。原日志/SHA/各清理时长与替代规则在root-native-stop-triggers-receipt.json。最终vet3414b6/diffcheck通过，每场景实际build成功。
 - 所有原session终态，成功现场清理，无本增量failed现场/强制cleanup/Docker。无真实模型/Provider/TUI声明；另build产品非race，原owner/transport只能证明身份消失，不伪造其原Wait0；worker fixture无持久后代树。blocked admission/publisher/disk完整原生13秒矩阵、B3与集成仍OPEN。
+
+
+## Authenticated control remains responsive during durable admission
+
+The original FD4 reader synchronously waited in acceptGrant, so a later signed terminal could not start cleanup. TestOwnerRuntimeTerminalInterruptsBlockedAdmission reproduced this (session 8410, exit 1). Authentication remains at receipt; launch and stop now use two lifecycle-wide lanes, each with at most 32 running/queued jobs. Normalized business identity coalesces exact in-flight replay across transport generations and coordinator epochs. Only authenticated overload seals admission; it does not invent durable noStart or refund a reservation. Accepted jobs drain through original admission/duplicate/stop paths.
+
+ROOT normal validation: session 67159 exit 0, 38 top-level / 104 named tests; Host race session 93670 exit 0, 37 / 100. No failures or skips in these final reports. Build, vet and diff check session 90466 exit 0. Independent production and test reviews PASS; only gofmt followed review. Receipt: data/root-command-queues-receipt.json.
+
+These tests include real signed control socketpairs and existing native same-tuple recovery. They do not yet prove an actual owner process exits within 13 seconds while admission remains blocked. The full B2 fault matrix, process-tree proof, B3 sealing and combined integration remain open.

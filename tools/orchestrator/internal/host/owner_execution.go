@@ -34,6 +34,7 @@ type ownerExecutionConfig struct {
 type ownerExecution struct {
 	admissionFailure  error // guarded by mu; cleanup cannot hide a late durable failure
 	admissions        sync.WaitGroup
+	pendingCommands   map[string]string // async business identity -> canonical hash; guarded by mu
 	acceptGrant       func(contract.LaunchCommand) (bool, error)
 	run               *livingSource
 	cfg               ownerExecutionConfig
@@ -227,6 +228,12 @@ func (e *ownerExecution) rememberHistoricalPermitBound(permit contract.OwnerCont
 }
 
 func (e *ownerExecution) command(raw []byte) error {
+	return e.commandScheduled(raw, nil)
+}
+
+// Authentication and accounting remain synchronous. Only already-authorized
+// disk/stop work may leave the control reader, through its bounded scheduler.
+func (e *ownerExecution) commandScheduled(raw []byte, schedule func(*ownerCommandJob) bool) error {
 	command, err := contract.DecodeOwnerCommand(raw)
 	if err != nil {
 		return rejectOwnerCommand(ownerCommandInvalid, err)
@@ -269,13 +276,25 @@ func (e *ownerExecution) command(raw []byte) error {
 	// A transport outage cannot erase stop authority for the latest verified
 	// permit or the original Handle.
 	if command.Kind == "stop" {
-		e.mu.Unlock()
 		var stop contract.StopCommand
 		if err = contract.DecodeOwnerRuntimeStrict(command.Body, &stop); err != nil {
+			e.mu.Unlock()
 			return rejectOwnerCommand(ownerCommandInvalid, err)
 		}
-		e.run.dispatchStop(stop)
-		return nil
+		if schedule == nil {
+			e.mu.Unlock()
+			e.run.dispatchStop(stop)
+			return nil
+		}
+		if e.stopping {
+			e.mu.Unlock()
+			return rejectOwnerCommand(ownerCommandStopped, errors.New("owner_execution_stopping"))
+		}
+		body, _ := json.Marshal(stop)
+		return e.scheduleCommandAndUnlock("stop", stop.CommandID, hashBytes(body), func() error {
+			e.run.dispatchStop(stop)
+			return nil
+		}, schedule)
 	}
 	if e.stopping {
 		e.mu.Unlock()
@@ -294,38 +313,95 @@ func (e *ownerExecution) command(raw []byte) error {
 			e.mu.Unlock()
 			return rejectOwnerCommand(ownerCommandInvalid, err)
 		}
-		// Authentication is the admission linearization point. A later permit
-		// renewal cannot erase this already received durable claim. Slow disk I/O
-		// must not hold the stop/renewal lock or prevent registering original TERM.
-		e.admissions.Add(1)
-		e.mu.Unlock()
-		defer e.admissions.Done()
-		duplicate, err := e.acceptGrant(grant)
-		if err != nil {
-			return e.failAdmission(err)
-		}
-		e.mu.Lock()
-		if e.stopping {
-			e.mu.Unlock()
-			if !duplicate {
-				if err = e.run.recordUnstartedGrant(grant, context.Canceled); err != nil {
-					return e.failAdmission(err)
-				}
-			}
-			return rejectOwnerCommand(ownerCommandStopped, errors.New("owner_execution_stopping"))
-		}
-		defer e.mu.Unlock()
-		// workers.Add remains under the stop fence. Once beginStop acquires mu,
-		// pending admissions can finish persistence but cannot create any worker.
-		return e.run.dispatchAcceptedLaunch(grant, duplicate)
+		// Match acceptGrant's durable identity across renewed control epochs.
+		identityGrant := grant
+		identityGrant.ExecutionEpoch = 0
+		body, _ := json.Marshal(identityGrant)
+		return e.scheduleCommandAndUnlock("launch", grant.CommandID, hashBytes(body), func() error {
+			return e.acceptCommandGrant(grant)
+		}, schedule)
 	}
 
 	e.mu.Unlock()
 	return rejectOwnerCommand(ownerCommandInvalid, errors.New("owner_execution_command_rejected"))
 }
 
+func (e *ownerExecution) acceptCommandGrant(grant contract.LaunchCommand) error {
+	duplicate, err := e.acceptGrant(grant)
+	if err != nil {
+		return e.failAdmission(err)
+	}
+	e.mu.Lock()
+	if e.stopping {
+		e.mu.Unlock()
+		if !duplicate {
+			if err = e.run.recordUnstartedGrant(grant, context.Canceled); err != nil {
+				return e.failAdmission(err)
+			}
+		}
+		return rejectOwnerCommand(ownerCommandStopped, errors.New("owner_execution_stopping"))
+	}
+	defer e.mu.Unlock()
+	// The original authenticated grant survives renewal and disk delay, but
+	// workers.Add cannot cross the global stop fence.
+	return e.run.dispatchAcceptedLaunch(grant, duplicate)
+}
+
+// Called with mu held; it always unlocks. Add and queue acceptance are one
+// admission point, before beginStop may seal all future work. Queue refusal
+// changes no durable grant, reservation or original worker ownership.
+func (e *ownerExecution) scheduleCommandAndUnlock(kind, id, hash string, work func() error, schedule func(*ownerCommandJob) bool) error {
+	key := kind + ":" + id
+	if schedule != nil {
+		if prior, exists := e.pendingCommands[key]; exists {
+			if prior != hash {
+				err := e.failAdmissionLocked(errors.New("owner_command_identity_conflict"))
+				e.mu.Unlock()
+				return err
+			}
+			e.mu.Unlock()
+			return nil
+		}
+		if e.pendingCommands == nil {
+			e.pendingCommands = make(map[string]string)
+		}
+		e.pendingCommands[key] = hash
+	}
+	e.admissions.Add(1)
+	job := &ownerCommandJob{kind: kind, execute: work}
+	job.finish = func() {
+		e.mu.Lock()
+		defer e.mu.Unlock()
+		if schedule != nil {
+			delete(e.pendingCommands, key)
+		}
+		if job.release != nil {
+			job.release() // queue counters share this same admission lock
+		}
+		e.admissions.Done()
+	}
+	if schedule == nil {
+		e.mu.Unlock()
+		return job.run()
+	}
+	if !schedule(job) {
+		delete(e.pendingCommands, key)
+		e.admissions.Done()
+		err := e.failAdmissionLocked(errors.New("owner_control_queue_full"))
+		e.mu.Unlock()
+		return err
+	}
+	e.mu.Unlock()
+	return nil
+}
+
 func (e *ownerExecution) failAdmission(cause error) error {
 	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.failAdmissionLocked(cause)
+}
+
+func (e *ownerExecution) failAdmissionLocked(cause error) error {
 	if e.admissionFailure == nil {
 		e.admissionFailure = cause
 	}
@@ -336,7 +412,6 @@ func (e *ownerExecution) failAdmission(cause error) error {
 	case e.fatal <- cause:
 	default:
 	}
-	e.mu.Unlock()
 	return rejectOwnerCommand(ownerCommandLocalFailure, cause)
 }
 

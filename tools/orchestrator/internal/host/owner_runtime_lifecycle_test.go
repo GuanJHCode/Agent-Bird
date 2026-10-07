@@ -151,6 +151,106 @@ func TestOwnerRuntimeTerminalBypassesPendingNotice(t *testing.T) {
 	}
 }
 
+func TestOwnerRuntimeTerminalInterruptsBlockedAdmission(t *testing.T) {
+	testOwnerRuntimeControlInterruptsBlockedAdmission(t, "terminal")
+}
+
+func TestOwnerRuntimeStopInterruptsBlockedAdmission(t *testing.T) {
+	testOwnerRuntimeControlInterruptsBlockedAdmission(t, "stop")
+}
+
+func testOwnerRuntimeControlInterruptsBlockedAdmission(t *testing.T, kind string) {
+	t.Helper()
+	cfg, permit, key := ownerExecutionFixture(t)
+	var starts atomic.Int32
+	cfg.invocation = func(context.Context, contract.LaunchCommand) (contract.InvocationView, error) {
+		starts.Add(1)
+		return nil, errors.New("unexpected provider after terminal")
+	}
+	e, err := newOwnerExecution(context.Background(), cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = e.reconcile(context.Background(), permit); err != nil {
+		t.Fatal(err)
+	}
+	entered, release := make(chan struct{}), make(chan struct{})
+	e.acceptGrant = func(grant contract.LaunchCommand) (bool, error) {
+		close(entered)
+		<-release
+		return cfg.host.acceptGrant(grant)
+	}
+	ctx, cancel := context.WithCancelCause(context.Background())
+	r := newOwnerRuntimeLifecycle(e, cancel)
+	a, b := ownerRuntimeControlPair(t)
+	done := r.readControl(ctx, 1, a)
+	defer func() {
+		joinCtx, stop := context.WithTimeout(context.Background(), time.Second)
+		defer stop()
+		e.beginStop(joinCtx, context.Canceled)
+		close(release)
+		cancel(context.Canceled)
+		if err := e.join(joinCtx); err != nil {
+			t.Error("join released admission", err)
+		}
+		select {
+		case <-done:
+		case <-joinCtx.Done():
+			t.Error("control reader did not join")
+		}
+	}()
+	if err := ipc.Write(b, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindOwnerCommand, RequestID: "command", Epoch: permit.CoordinatorEpoch, Payload: ownerExecutionSignedLaunch(t, permit, key)}); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-entered:
+	case <-time.After(time.Second):
+		t.Fatal("signed launch did not enter durable admission")
+	}
+	stopDeadline := time.Now().Add(10 * time.Second).Truncate(time.Millisecond)
+	body, _ := json.Marshal(contract.OwnerTerminal{Reason: "host_retired"})
+	if kind == "stop" {
+		body, _ = json.Marshal(contract.StopCommand{CommandID: "retire", SegmentID: "segment", DeadlineUnixMS: stopDeadline.UnixMilli(), Reason: "owner_stop_requested"})
+	}
+	terminal, err := contract.SignOwnerCommand(contract.OwnerCommand{Version: 1, Permit: permit, Kind: kind, RequestID: "retire", Body: body}, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := json.Marshal(terminal)
+	if err = ipc.Write(b, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindOwnerCommand, RequestID: "retire", Epoch: permit.CoordinatorEpoch, Payload: raw}); err != nil {
+		t.Fatal(err)
+	}
+	if kind == "terminal" {
+		select {
+		case <-ctx.Done():
+			if ownerCommandDisposition(context.Cause(ctx)) != ownerCommandTerminal {
+				t.Fatal("terminal lost its authenticated cause", context.Cause(ctx))
+			}
+		case <-time.After(time.Second):
+			t.Fatal("authenticated terminal blocked behind durable admission")
+		}
+	} else {
+		for deadline := time.Now().Add(time.Second); ; time.Sleep(time.Millisecond) {
+			cfg.host.stopMu.Lock()
+			intent := cfg.host.stopIntents["segment"]
+			registered := intent != nil && intent.deadline.Equal(stopDeadline)
+			cfg.host.stopMu.Unlock()
+			if registered {
+				break
+			}
+			if time.Now().After(deadline) {
+				t.Fatal("authenticated stop blocked or lost original deadline behind admission")
+			}
+		}
+		if ctx.Err() != nil {
+			t.Fatal("segment stop canceled entire owner")
+		}
+	}
+	if starts.Load() != 0 {
+		t.Fatal("blocked admission started a worker")
+	}
+}
+
 func TestOwnerRuntimeCleanupBoundsBlockedAdmissionAndPublisher(t *testing.T) {
 	for _, blocked := range []string{"admission", "publisher"} {
 		t.Run(blocked, func(t *testing.T) {
