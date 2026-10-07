@@ -68,3 +68,53 @@ func TestAcquireEpochIsExclusiveAndIncrements(t *testing.T) {
 		t.Fatalf("epoch=%d", second.Epoch())
 	}
 }
+
+func TestPrepareStateDirRejectsSymlinkInsertedAfterAncestorOpen(t *testing.T) {
+	base, outside := t.TempDir(), t.TempDir()
+	root := filepath.Join(base, "missing", "state")
+	old := prepareStateDirBeforeCreate
+	prepareStateDirBeforeCreate = func() {
+		if err := os.Symlink(outside, filepath.Join(base, "missing")); err != nil {
+			t.Fatal(err)
+		}
+	}
+	defer func() { prepareStateDirBeforeCreate = old }()
+	if err := PrepareStateDir(root); err == nil {
+		t.Fatal("symlink replacement accepted")
+	}
+	if _, err := os.Stat(filepath.Join(outside, "state")); !os.IsNotExist(err) {
+		t.Fatalf("created outside state: %v", err)
+	}
+}
+func TestPrepareStateDirRejectsSymlinkLeafAndRegularFile(t *testing.T) {
+	base := t.TempDir()
+	for _, name := range []string{"file", "link"} {
+		t.Run(name, func(t *testing.T) {
+			path := filepath.Join(base, name)
+			var err error
+			if name == "file" {
+				err = os.WriteFile(path, []byte("x"), 0600)
+			} else {
+				err = os.Symlink(base, path)
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err = PrepareStateDir(path); err == nil {
+				t.Fatal("unsafe leaf accepted")
+			}
+		})
+	}
+}
+
+func TestPrepareStateDirAllowsExistingTmpAlias(t *testing.T) {
+	root := filepath.Join("/tmp", "agent-bird-state-"+filepath.Base(t.TempDir()))
+	defer os.RemoveAll(root)
+	if err := PrepareStateDir(root); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(root)
+	if err != nil || !info.IsDir() || info.Mode().Perm() != 0700 {
+		t.Fatalf("info=%v err=%v", info, err)
+	}
+}
