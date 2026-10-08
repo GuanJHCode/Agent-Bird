@@ -5,6 +5,8 @@ import (
 	"crypto/ed25519"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -16,23 +18,23 @@ import (
 func pendingAuthorizationRebindFixture(t *testing.T, initial bool) (originalOwnerFixture, PrepareSuccessorOwnerSpec, OriginalOwnerResumeRequest) {
 	t.Helper()
 	ctx := context.Background()
+	if !initial {
+		f, ps, _ := ownerSuccessionPrepareFixture(t, true)
+		req := OriginalOwnerResumeRequest{TaskID: "owner-run-task", ControllerThread: "controller", ControlToken: "resume-test-control-token", WorkRevision: 1, CommandID: "resume-command-界"}
+		return f, ps, req
+	}
 	var f originalOwnerFixture
 	var req OriginalOwnerResumeRequest
 	var obs OriginalOwnerSuccessionObservation
 	var a OriginalOwnerSuccessionAuthorization
 	var err error
-	if initial {
-		var facts InitialOwnerRecoveryFacts
-		f, req, obs, facts = initialOwnerStoreFixture(t)
-		pub := f.key.Public().(ed25519.PublicKey)
-		if _, err = f.db.PrepareInitialOwnerRecovery(ctx, req, obs, facts, pub); err != nil {
-			t.Fatal(err)
-		}
-		a, err = f.db.FinalizeInitialOwnerRecovery(ctx, req, obs, facts, pub)
-	} else {
-		f, req, obs = ownerSuccessionResumeFixture(t)
-		a, err = f.db.ResumeOriginalOwner(ctx, req, obs, f.key.Public().(ed25519.PublicKey))
+	var facts InitialOwnerRecoveryFacts
+	f, req, obs, facts = initialOwnerStoreFixture(t)
+	pub := f.key.Public().(ed25519.PublicKey)
+	if _, err = f.db.PrepareInitialOwnerRecovery(ctx, req, obs, facts, pub); err != nil {
+		t.Fatal(err)
 	}
+	a, err = f.db.FinalizeInitialOwnerRecovery(ctx, req, obs, facts, pub)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,7 +100,11 @@ func TestPendingAuthorizationRebindPreservesReceiptAndInitialReservation(t *test
 				t.Fatal(err)
 			}
 			completeOwnerRecoveryHandoffForStoreTest(t, f.db, bs, b, pub)
-			applied := successorOwnerApplied(t, bs, b, 0)
+			var published int64
+			if err = f.db.sql.QueryRow(`SELECT COALESCE(MAX(sequence),0) FROM runtime_events WHERE producer_id=?`, i.Scope.ProducerID).Scan(&published); err != nil {
+				t.Fatal(err)
+			}
+			applied := successorOwnerApplied(t, bs, b, published)
 			if err = f.db.CommitOriginalOwnerApplied(ctx, applied, pub); err != nil {
 				t.Fatal(err)
 			}
@@ -159,6 +165,42 @@ func TestPendingAuthorizationRebindRejectsInexactReplayAndConsumedTarget(t *test
 			}
 			if before != ownerSuccessionResumeSnapshot(t, f.db) {
 				t.Fatal("rejected rebind mutated state")
+			}
+		})
+	}
+}
+
+func TestPendingAuthorizationRebindPinsInitialRootAndPreparedSource(t *testing.T) {
+	for _, mode := range []string{"prepared", "replaced_root"} {
+		t.Run(mode, func(t *testing.T) {
+			f, req, obs, facts := initialOwnerStoreFixture(t)
+			ctx, pub := context.Background(), f.key.Public().(ed25519.PublicKey)
+			if _, err := f.db.PrepareInitialOwnerRecovery(ctx, req, obs, facts, pub); err != nil {
+				t.Fatal(err)
+			}
+			if mode == "replaced_root" {
+				if _, err := f.db.FinalizeInitialOwnerRecovery(ctx, req, obs, facts, pub); err != nil {
+					t.Fatal(err)
+				}
+				root := filepath.Dir(f.db.path)
+				moved := root + "-original"
+				if err := os.Rename(root, moved); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Mkdir(root, 0700); err != nil {
+					t.Fatal(err)
+				}
+				t.Cleanup(func() {
+					_ = os.Remove(root)
+					_ = os.Rename(moved, root)
+				})
+			}
+			before := ownerSuccessionResumeSnapshot(t, f.db)
+			if err := f.db.RebindOwner(ctx, authorizationRebindSpec(f, 1)); err == nil {
+				t.Fatal("initial source/root authority drift accepted", mode)
+			}
+			if before != ownerSuccessionResumeSnapshot(t, f.db) {
+				t.Fatal("rejected initial rebind mutated state")
 			}
 		})
 	}
