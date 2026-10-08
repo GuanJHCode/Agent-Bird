@@ -13,6 +13,9 @@ state regressions also passed (`data/ordinary.jsonl`, 56 JSON records, exit 0):
 durable state commit, runtime DAG, question answer, budget CAS and interrupted
 resume, original-owner initial and attach, provider control, and rework.
 
+The same selection passed with `-race` (`data/race.jsonl`, 56 JSON records,
+exit 0).
+
 The source SHA-256 values were recorded before the race run in the commit
 history and can be regenerated with:
 
