@@ -95,6 +95,9 @@ func (s *Server) registerOriginalOwnerTransport(ctx context.Context, conn net.Co
 	if s.closed.Load() || s.terminating.Load() {
 		return nil, pending, ownerRejected()
 	}
+	if err := s.db.CheckInitialOwnerAdmissionRoot(ctx, hello); err != nil {
+		return nil, pending, err
+	}
 	if err := CheckRecoveryAllowed(s.stateDir, hello); err != nil {
 		return nil, pending, err
 	}

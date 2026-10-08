@@ -48,7 +48,7 @@ func (s *Server) resumeControlLocked(ctx context.Context, request ResumeRequest)
 			return nil, false, err
 		}
 		if found {
-			body, err := json.Marshal(ResumeResponse{Version: 1, Status: "resume_queued", OriginalOwnerResumeReceipt: r})
+			body, err := json.Marshal(ResumeResponse{Version: 1, Status: ownerResumeStatus(r), OriginalOwnerResumeReceipt: r})
 			return body, false, err
 		}
 	}
@@ -118,7 +118,21 @@ func (s *Server) resumeControlLocked(ctx context.Context, request ResumeRequest)
 		if err = observeResumeExited(ctx, *state.CurrentHost, "owner_resume_host_alive"); err != nil {
 			return nil, false, err
 		}
-		if state.AppliedControlRevision == 0 && state.SuccessionAuthorizationID != "" {
+		if state.AppliedControlRevision == 0 && state.SuccessionAuthorizationID == "" {
+			now := time.Now().UTC().Format(time.RFC3339Nano)
+			a, e := s.resumeInitialOwnerRecovery(ctx, req, store.OriginalOwnerSuccessionObservation{OwnerID: state.Intent.Scope.OwnerID, Owner: owner, Host: *state.CurrentHost, Origin: target.Origin, Epoch: s.epoch, ExecutableSHA256: digest, OwnerExitedAt: now, HostExitedAt: now})
+			if e != nil {
+				return nil, false, e
+			}
+			var found bool
+			receipt, found, err = s.db.LookupOriginalOwnerResume(ctx, req)
+			if err != nil || !found || receipt.AuthorizationID != a.AuthorizationID || receipt.Mode != "initial_ready" {
+				if err == nil {
+					err = ownerRejected()
+				}
+				return nil, false, err
+			}
+		} else if state.AppliedControlRevision == 0 && state.SuccessionAuthorizationID != "" {
 			now := time.Now().UTC().Format(time.RFC3339Nano)
 			a, e := s.resumeBoundOwnerAbandonment(ctx, req, store.OriginalOwnerSuccessionObservation{OwnerID: state.Intent.Scope.OwnerID, Owner: owner, Host: *state.CurrentHost, Origin: target.Origin, Epoch: s.epoch, ExecutableSHA256: digest, OwnerExitedAt: now, HostExitedAt: now})
 			if e != nil {
@@ -170,7 +184,7 @@ func (s *Server) resumeControlLocked(ctx context.Context, request ResumeRequest)
 	if err != nil {
 		return nil, false, err
 	}
-	body, err := json.Marshal(ResumeResponse{Version: 1, Status: "resume_queued", OriginalOwnerResumeReceipt: receipt})
+	body, err := json.Marshal(ResumeResponse{Version: 1, Status: ownerResumeStatus(receipt), OriginalOwnerResumeReceipt: receipt})
 	return body, receipt.Mode == "existing_owner", err
 }
 
@@ -249,4 +263,65 @@ func observeResumeExited(ctx context.Context, identity contract.OriginalOwnerTra
 		return store.CodeError(aliveCode)
 	}
 	return nil
+}
+
+func ownerResumeStatus(receipt store.OriginalOwnerResumeReceipt) string {
+	if receipt.Mode == "initial_ready" {
+		return "initial_ready"
+	}
+	return "resume_queued"
+}
+
+func (s *Server) resumeInitialOwnerRecovery(ctx context.Context, request store.OriginalOwnerResumeRequest, observed store.OriginalOwnerSuccessionObservation) (store.OriginalOwnerSuccessionAuthorization, error) {
+	var zero store.OriginalOwnerSuccessionAuthorization
+	resolved, err := s.db.ResolveInitialOwnerRecovery(ctx, request, observed, s.ownerPublicKey())
+	if err != nil {
+		return zero, err
+	}
+	lease, err := host.OpenInitialOwnerRecoveryPublication(s.stateDir, resolved.RootAuthority, resolved.Binding.Scope, resolved.Binding.Owner, resolved.Proof)
+	if err != nil {
+		return zero, err
+	}
+	defer lease.Close()
+	facts, err := lease.Facts()
+	if err != nil {
+		return zero, err
+	}
+	proof, err := s.db.PrepareInitialOwnerRecovery(ctx, request, observed, facts, s.ownerPublicKey())
+	if err != nil {
+		return zero, err
+	}
+	if err = lease.PublishPrepared(proof); err != nil {
+		return zero, err
+	}
+	if err = observeResumeExited(ctx, observed.Owner, "owner_resume_owner_alive"); err != nil {
+		return zero, err
+	}
+	if err = observeResumeExited(ctx, observed.Host, "owner_resume_host_alive"); err != nil {
+		return zero, err
+	}
+	origin, e := process.ObserveIdentityContext(ctx, observed.Origin.OriginPID, observed.Origin.OriginBirth)
+	if e != nil || origin != process.IdentityAlive {
+		return zero, store.CodeError("owner_resume_origin_unknown")
+	}
+	if err = lease.ValidatePublished(); err != nil {
+		return zero, err
+	}
+	after, err := lease.Facts()
+	if err != nil {
+		return zero, err
+	}
+	if after != facts {
+		return zero, ownerRejected()
+	}
+	authorization, err := s.db.FinalizeInitialOwnerRecovery(ctx, request, observed, facts, s.ownerPublicKey())
+	if err != nil {
+		return zero, err
+	}
+	// Commit may already be durable. Never return launch authority after a
+	// post-commit root/file identity drift; replay will recheck admission pins.
+	if err = lease.ValidatePublished(); err != nil {
+		return zero, store.CodeError("owner_initial_recovery_uncertain")
+	}
+	return authorization, nil
 }

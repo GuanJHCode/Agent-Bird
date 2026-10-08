@@ -30,7 +30,7 @@ func validateResumeReceipt(raw []byte, request coordinator.ResumeRequest, capabi
 	required := []string{"version", "status", "mode", "command_id", "request_sha256", "run_id", "task_id", "launch_id", "owner_id", "work_revision", "control_revision", "coordinator_epoch", "ready_sequence", "created_at"}
 	switch response.Mode {
 	case "existing_owner":
-	case "successor":
+	case "successor", "initial_ready":
 		required = append(required, "authorization_id")
 		if response.AuthorizationID == "" {
 			return coordinator.ResumeResponse{}, invalid
@@ -43,7 +43,11 @@ func validateResumeReceipt(raw []byte, request coordinator.ResumeRequest, capabi
 	}
 	hash, err := store.OriginalOwnerResumeRequestSHA256(store.OriginalOwnerResumeRequest{TaskID: request.TaskID, ControllerThread: request.ControllerThread, ControlToken: request.ControlToken, WorkRevision: request.WorkRevision, CommandID: request.CommandID})
 	created, timeErr := time.Parse(time.RFC3339Nano, response.CreatedAt)
-	if err != nil || response.Version != 1 || response.Status != "resume_queued" || response.RequestSHA256 != hash {
+	expectedStatus := "resume_queued"
+	if response.Mode == "initial_ready" {
+		expectedStatus = "initial_ready"
+	}
+	if err != nil || response.Version != 1 || response.Status != expectedStatus || response.RequestSHA256 != hash {
 		return coordinator.ResumeResponse{}, invalid
 	}
 	if response.CommandID != request.CommandID || response.TaskID != request.TaskID || response.WorkRevision != request.WorkRevision || capability.RunID == "" || response.RunID != capability.RunID || response.LaunchID == "" || (capability.HostLaunchID != "" && response.LaunchID != capability.HostLaunchID) {
@@ -103,7 +107,7 @@ func resumeControl(ctx context.Context, state, controlFile, taskID string, revis
 		if validateErr != nil {
 			return validateErr
 		}
-		if receipt.Mode == "successor" {
+		if receipt.Mode == "successor" || receipt.Mode == "initial_ready" {
 			if err = deps.ensureSuccessorHost(ctx, state, capability, receipt); err != nil {
 				return err
 			}
