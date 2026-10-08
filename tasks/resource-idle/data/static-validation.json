@@ -1,0 +1,13 @@
+{
+  "source": "6080a77",
+  "independent_static_review": "PASS",
+  "reviewed": "freeze/copy, exact lifecycle, idle timing, original Wait, cleanup and query-completion retirement deadline",
+  "python_guard": {
+    "tests": 1,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0
+  },
+  "native_runs": 0,
+  "native_blocker": "waiting for resource-soak session86189 to release native resources"
+}
