@@ -61,13 +61,14 @@ func (d *DB) migrateRuntimeWithForeignKeyOps(ops runtimeForeignKeyOps) (err erro
 	foreignKeysDisabled := false
 	var tx *sql.Tx
 	committed := false
+	connectionDiscarded := false
 	defer func() {
-		if tx != nil && !committed {
+		if tx != nil && !committed && !connectionDiscarded {
 			if rollbackErr := tx.Rollback(); rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
 				err = errors.Join(err, rollbackErr)
 			}
 		}
-		if foreignKeysDisabled {
+		if foreignKeysDisabled && !connectionDiscarded {
 			restoreErr := restoreRuntimeForeignKeys(ctx, conn, ops)
 			err = errors.Join(err, restoreErr)
 			if restoreErr != nil {
@@ -389,7 +390,12 @@ func (d *DB) migrateRuntimeWithForeignKeyOps(ops runtimeForeignKeyOps) (err erro
 		}
 	}
 
-	if err = tx.Commit(); err != nil {
+	// sql.Tx is done after a failed COMMIT even when SQLite keeps the physical
+	// transaction open. Reuse the audited rollback/discard path; a discarded
+	// lease needs no FK restoration and must never return to the pool.
+	owned := ownerTransaction{conn: conn, tx: tx}
+	if err = owned.commit(); err != nil {
+		connectionDiscarded = owned.state == ownerTransactionDiscarded
 		return err
 	}
 	committed = true
