@@ -1,0 +1,9 @@
+{
+  "integration_commit": "7e95e84",
+  "source_files_matched": 41,
+  "public_combination_named": {
+    "pass": 3
+  },
+  "prior_store_host_race_linux_build_vet": "reused identical Go sources; resource changes are scripts/evidence only",
+  "limitations": "historical F12 RSS/idle/offline candidate51b8e3a; not resource qualification of schema29"
+}
