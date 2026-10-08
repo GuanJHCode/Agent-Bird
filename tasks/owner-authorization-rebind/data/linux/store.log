@@ -1,0 +1,57 @@
+=== RUN   TestPendingAuthorizationRebindMigrationBackfillsOrRollsBack
+=== RUN   TestPendingAuthorizationRebindMigrationBackfillsOrRollsBack/ordinary
+=== RUN   TestPendingAuthorizationRebindMigrationBackfillsOrRollsBack/initial
+=== RUN   TestPendingAuthorizationRebindMigrationBackfillsOrRollsBack/missing_link
+=== RUN   TestPendingAuthorizationRebindMigrationBackfillsOrRollsBack/fork
+=== RUN   TestPendingAuthorizationRebindMigrationBackfillsOrRollsBack/consumed_drift
+=== RUN   TestPendingAuthorizationRebindMigrationBackfillsOrRollsBack/quota
+--- PASS: TestPendingAuthorizationRebindMigrationBackfillsOrRollsBack (3.51s)
+    --- PASS: TestPendingAuthorizationRebindMigrationBackfillsOrRollsBack/ordinary (1.23s)
+    --- PASS: TestPendingAuthorizationRebindMigrationBackfillsOrRollsBack/initial (0.40s)
+    --- PASS: TestPendingAuthorizationRebindMigrationBackfillsOrRollsBack/missing_link (0.42s)
+    --- PASS: TestPendingAuthorizationRebindMigrationBackfillsOrRollsBack/fork (0.62s)
+    --- PASS: TestPendingAuthorizationRebindMigrationBackfillsOrRollsBack/consumed_drift (0.47s)
+    --- PASS: TestPendingAuthorizationRebindMigrationBackfillsOrRollsBack/quota (0.35s)
+=== RUN   TestPendingAuthorizationRebindQuotaHopLimitAndSealedProof
+=== RUN   TestPendingAuthorizationRebindQuotaHopLimitAndSealedProof/quota_short_false
+=== RUN   TestPendingAuthorizationRebindQuotaHopLimitAndSealedProof/quota_short_true
+=== RUN   TestPendingAuthorizationRebindQuotaHopLimitAndSealedProof/hop_and_immutable
+    owner_authorization_rebind_migration_test.go:243: SEARCH a USING INDEX sqlite_autoindex_owner_succession_authorizations_1 (authorization_id=?)
+    owner_authorization_rebind_migration_test.go:243: CORRELATED SCALAR SUBQUERY 4
+    owner_authorization_rebind_migration_test.go:243: SEARCH p USING INDEX sqlite_autoindex_owner_succession_rebind_proofs_1 (authorization_id=?)
+    owner_authorization_rebind_migration_test.go:243: SEARCH r USING INDEX sqlite_autoindex_owner_rebinds_1 (run_id=? AND host_generation=?) LEFT-JOIN
+    owner_authorization_rebind_migration_test.go:243: SEARCH prior USING INDEX sqlite_autoindex_owner_succession_rebind_proofs_1 (authorization_id=? AND hop=?) LEFT-JOIN
+    owner_authorization_rebind_migration_test.go:243: SEARCH head USING INDEX sqlite_autoindex_owner_succession_rebind_proofs_1 (authorization_id=? AND hop=?) LEFT-JOIN
+    owner_authorization_rebind_migration_test.go:243: CORRELATED SCALAR SUBQUERY 5
+    owner_authorization_rebind_migration_test.go:243: SEARCH n USING COVERING INDEX sqlite_autoindex_owner_succession_rebind_proofs_1 (authorization_id=?)
+    owner_authorization_rebind_migration_test.go:243: CORRELATED SCALAR SUBQUERY 3
+    owner_authorization_rebind_migration_test.go:243: SEARCH n USING COVERING INDEX sqlite_autoindex_owner_succession_rebind_proofs_1 (authorization_id=?)
+--- PASS: TestPendingAuthorizationRebindQuotaHopLimitAndSealedProof (1.29s)
+    --- PASS: TestPendingAuthorizationRebindQuotaHopLimitAndSealedProof/quota_short_false (0.34s)
+    --- PASS: TestPendingAuthorizationRebindQuotaHopLimitAndSealedProof/quota_short_true (0.47s)
+    --- PASS: TestPendingAuthorizationRebindQuotaHopLimitAndSealedProof/hop_and_immutable (0.48s)
+=== RUN   TestPendingAuthorizationRebindPreservesReceiptAndInitialReservation
+=== RUN   TestPendingAuthorizationRebindPreservesReceiptAndInitialReservation/initial_false
+=== RUN   TestPendingAuthorizationRebindPreservesReceiptAndInitialReservation/initial_true
+--- PASS: TestPendingAuthorizationRebindPreservesReceiptAndInitialReservation (0.86s)
+    --- PASS: TestPendingAuthorizationRebindPreservesReceiptAndInitialReservation/initial_false (0.44s)
+    --- PASS: TestPendingAuthorizationRebindPreservesReceiptAndInitialReservation/initial_true (0.42s)
+=== RUN   TestPendingAuthorizationRebindRejectsInexactReplayAndConsumedTarget
+=== RUN   TestPendingAuthorizationRebindRejectsInexactReplayAndConsumedTarget/origin_pid
+=== RUN   TestPendingAuthorizationRebindRejectsInexactReplayAndConsumedTarget/origin_birth
+=== RUN   TestPendingAuthorizationRebindRejectsInexactReplayAndConsumedTarget/old_generation
+=== RUN   TestPendingAuthorizationRebindRejectsInexactReplayAndConsumedTarget/intended
+=== RUN   TestPendingAuthorizationRebindRejectsInexactReplayAndConsumedTarget/bound
+--- PASS: TestPendingAuthorizationRebindRejectsInexactReplayAndConsumedTarget (1.76s)
+    --- PASS: TestPendingAuthorizationRebindRejectsInexactReplayAndConsumedTarget/origin_pid (0.33s)
+    --- PASS: TestPendingAuthorizationRebindRejectsInexactReplayAndConsumedTarget/origin_birth (0.34s)
+    --- PASS: TestPendingAuthorizationRebindRejectsInexactReplayAndConsumedTarget/old_generation (0.38s)
+    --- PASS: TestPendingAuthorizationRebindRejectsInexactReplayAndConsumedTarget/intended (0.37s)
+    --- PASS: TestPendingAuthorizationRebindRejectsInexactReplayAndConsumedTarget/bound (0.34s)
+=== RUN   TestPendingAuthorizationRebindPinsInitialRootAndPreparedSource
+=== RUN   TestPendingAuthorizationRebindPinsInitialRootAndPreparedSource/prepared
+=== RUN   TestPendingAuthorizationRebindPinsInitialRootAndPreparedSource/replaced_root
+--- PASS: TestPendingAuthorizationRebindPinsInitialRootAndPreparedSource (1.18s)
+    --- PASS: TestPendingAuthorizationRebindPinsInitialRootAndPreparedSource/prepared (0.53s)
+    --- PASS: TestPendingAuthorizationRebindPinsInitialRootAndPreparedSource/replaced_root (0.65s)
+PASS

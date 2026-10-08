@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
@@ -81,6 +82,58 @@ func removeOwnerAuthorizationRebindSchema30(db *DB) error {
 		return err
 	}
 	return tx.Commit()
+}
+
+func TestPendingAuthorizationRebindMigrationFailedCommitDiscardsLease(t *testing.T) {
+	f, _, _ := pendingAuthorizationRebindFixture(t, false)
+	if err := removeOwnerAuthorizationRebindSchema30(f.db); err != nil {
+		t.Fatal(err)
+	}
+	legacyPendingAuthorizationRebind(t, f, 1)
+	before := ownerSuccessionResumeSnapshot(t, f.db)
+	if _, err := f.db.sql.Exec(`CREATE TABLE schema30_commit_fault(parent TEXT REFERENCES runs(id) DEFERRABLE INITIALLY DEFERRED);
+ CREATE TRIGGER fail_schema30_commit AFTER UPDATE OF version ON schema_meta WHEN NEW.version=30
+ BEGIN INSERT INTO schema30_commit_fault VALUES('missing-parent'); END`); err != nil {
+		t.Fatal(err)
+	}
+	err := f.db.migrateRuntime()
+	if err == nil || !strings.Contains(err.Error(), "FOREIGN KEY") {
+		t.Fatal("did not reach actual deferred FK COMMIT failure", err)
+	}
+	external, err := sql.Open("sqlite", "file:"+f.db.path+"?mode=ro")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer external.Close()
+	inspect := func(db *sql.DB) (int, int, int) {
+		var version, objects, faults int
+		if err := db.QueryRow(`SELECT (SELECT version FROM schema_meta),(SELECT COUNT(*) FROM sqlite_master WHERE name='owner_succession_rebind_proofs'),(SELECT COUNT(*) FROM schema30_commit_fault)`).Scan(&version, &objects, &faults); err != nil {
+			t.Fatal(err)
+		}
+		return version, objects, faults
+	}
+	ev, eo, ef := inspect(external)
+	pv, po, pf := inspect(f.db.sql)
+	t.Logf("actual deferred FK COMMIT: external version/objects/fault=%d/%d/%d; pool=%d/%d/%d", ev, eo, ef, pv, po, pf)
+	if ev != 29 || eo != 0 || ef != 0 || pv != 29 || po != 0 || pf != 0 {
+		t.Fatal("failed COMMIT returned uncommitted schema30 physical connection to pool")
+	}
+	if before != ownerSuccessionResumeSnapshot(t, f.db) || before != ownerSuccessionResumeTablesSnapshot(t, &DB{sql: external}, "runs", "run_control", "owner_rebinds", "execution_owners", "owner_control_changes", "owner_succession_authorizations", "tasks", "task_runtime", "runtime_meta", "runtime_hosts", "host_launches", "attempts", "segments", "segment_runtime", "stop_runtime", "runtime_questions", "budget_runtime", "task_execution_policies", "storage_usage") {
+		t.Fatal("failed COMMIT changed business history or quota")
+	}
+	var fk int
+	if err = f.db.sql.QueryRow(`PRAGMA foreign_keys`).Scan(&fk); err != nil || fk != 1 {
+		t.Fatal("reused connection lost FK", fk, err)
+	}
+	if _, err = f.db.sql.Exec(`DROP TRIGGER fail_schema30_commit`); err != nil {
+		t.Fatal(err)
+	}
+	if err = f.db.migrateRuntime(); err != nil {
+		t.Fatal("same Store could not retry migration", err)
+	}
+	if originalOwnerSchemaCount(t, f.db.sql, `SELECT version FROM schema_meta`) != 30 || originalOwnerSchemaCount(t, f.db.sql, `SELECT COUNT(*) FROM owner_succession_rebind_proofs`) != 1 {
+		t.Fatal("retry lost exact historical derivation")
+	}
 }
 
 // Emulate schema29's authenticated Store rebind commit. These are synthetic

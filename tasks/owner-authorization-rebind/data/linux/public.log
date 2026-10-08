@@ -1,0 +1,27 @@
+=== RUN   TestPublicPendingInitialAuthorizationRebindRecovers
+    public_owner_succession_native_test.go:420: controlled CLI/worker binary sha256=60059d40856ac44a1e5f4b9ce052f9ad8a226d4c2d78cb10304799a36e93cddc
+    public_owner_succession_native_test.go:538: owned Coordinator ready after 438.460709ms
+    public_owner_succession_native_test.go:576: old-origin public CLI submit PID=25 original Wait=2 error=exit status 2
+    public_owner_succession_native_test.go:597: initial Bind-only submit status=queued_host_unavailable original Wait=controlled CLI original Wait exit2 stderr={"error":"source_host_start_timeout","status":"error","version":1}
+    public_owner_succession_native_test.go:631: inc1 owner original Wait={Kind:owner PID:43 ExitCode:0 WaitError:}
+    public_owner_succession_native_test.go:631: inc1 first_host original Wait={Kind:first_host PID:35 ExitCode:0 WaitError:}
+    public_owner_succession_native_test.go:628: old-origin public CLI resume PID=49 original Wait=2 error=exit status 2
+    public_owner_succession_native_test.go:628: old origin PID=20 original Wait=<nil>
+    public_owner_succession_native_test.go:628: first rebind original Wait=exit status 2; bootstrap replacement stderr={"error":"open /private/tmp/public-owner-succession-1518346368/state/host-bootstrap/.host-launch-9670c9c4887e29056a534fd9f51522cf76bb.json.replace-b37a993c7dd617e46c0900f56bf3bc7e0639: permission denied","status":"error","version":1}
+    public_owner_succession_native_test.go:631: actual worker original Exited: segment=segment-baee8d946706bcdb2949ce5d process=&{PID:106 Birth:linux:57cb8c20-7fd9-4da7-bfc8-c6b8e170f58c:2583 PGID:106} exit=0
+    public_owner_succession_native_test.go:631: inc2 owner original Wait={Kind:owner PID:96 ExitCode:0 WaitError:}
+    public_owner_succession_native_test.go:631: inc2 first_host original Wait={Kind:first_host PID:89 ExitCode:0 WaitError:}
+    public_owner_succession_native_test.go:631: public initial Bind-before-ledger recovered: ready_sequence=1 grant=30000 attempt=attempt-3825477703b43c6796a44ea4 segment=segment-baee8d946706bcdb2949ce5d
+    public_owner_succession_native_test.go:482: Coordinator original Cmd PID=13 Wait=<nil> state=exit status 0
+    public_owner_succession_native_test.go:512: original Cmd Wait record first_host-35.json: {"kind":"first_host","pid":35,"exit_code":0,"wait_error":""}
+    public_owner_succession_native_test.go:512: original Cmd Wait record owner-43.json: {"kind":"owner","pid":43,"exit_code":0,"wait_error":""}
+    public_owner_succession_native_test.go:512: original Cmd Wait record first_host-89.json: {"kind":"first_host","pid":89,"exit_code":0,"wait_error":""}
+    public_owner_succession_native_test.go:512: original Cmd Wait record owner-96.json: {"kind":"owner","pid":96,"exit_code":0,"wait_error":""}
+    public_owner_succession_native_test.go:512: original Cmd Wait record owner-43.json: {"kind":"owner","pid":43,"exit_code":0,"wait_error":""}
+    public_owner_succession_native_test.go:512: original Cmd Wait record first_host-89.json: {"kind":"first_host","pid":89,"exit_code":0,"wait_error":""}
+    public_owner_succession_native_test.go:512: original Cmd Wait record owner-96.json: {"kind":"owner","pid":96,"exit_code":0,"wait_error":""}
+    public_owner_succession_native_test.go:525: raw source-host.log:
+    public_owner_succession_native_test.go:525: raw coordinator.log:
+        {"error":"coordinator_busy","status":"error","version":1}
+--- PASS: TestPublicPendingInitialAuthorizationRebindRecovers (11.93s)
+PASS
