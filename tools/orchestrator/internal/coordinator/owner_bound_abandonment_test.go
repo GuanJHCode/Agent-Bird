@@ -1,9 +1,9 @@
 package coordinator
 
 import (
+	"bytes"
 	"context"
-	"crypto/ed25519"
-	"encoding/hex"
+	"database/sql"
 	"encoding/json"
 	"net"
 	"os"
@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
@@ -62,106 +63,239 @@ func TestBoundOwnerAbandonmentHostChild(t *testing.T) {
 	if err = os.WriteFile(os.Getenv("BOUND_ABANDONMENT_PREPARED"), frame.Payload, 0600); err != nil {
 		t.Fatal(err)
 	}
-	signals := make(chan os.Signal, 1)
-	signal.Notify(signals, syscall.SIGTERM, syscall.SIGINT)
-	defer signal.Stop(signals)
-	<-signals
+	var prepared contract.OwnerPrepared
+	if err = contract.DecodeOwnerRuntimeStrict(frame.Payload, &prepared); err != nil {
+		t.Fatal(err)
+	}
+	step, finish := startOwnerRPCChild(t, ownerChildConfig{Socket: os.Getenv("BOUND_ABANDONMENT_OWNER_SOCKET"), Prepared: prepared, BootstrapToken: token})
+	ownerFinished := false
+	finishOwned := func() {
+		if !ownerFinished {
+			ownerFinished = true
+			finish()
+		}
+	}
+	defer finishOwned()
+	reply := step(ownerChildStep{Kind: "bind", ID: prepared.Intent.RequestID})
+	if reply.Error != "" {
+		t.Fatal("authenticated child Owner Bind", reply.Error)
+	}
+	marker := os.Getenv("BOUND_ABANDONMENT_PREPARED")
+	if err = os.WriteFile(marker+".bound", reply.Body, 0600); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM)
+	defer cancel()
+	for {
+		if _, err = os.Stat(marker + ".finish-owner"); err == nil && !ownerFinished {
+			finishOwned()
+			if err = os.WriteFile(marker+".owner-exited", []byte("original Cmd.Wait=0\n"), 0600); err != nil {
+				t.Fatal(err)
+			}
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(5 * time.Millisecond):
+		}
+	}
 }
 
-func TestBoundOwnerAbandonmentPublicResumeAfterActualOwnerAndHostWait(t *testing.T) {
-	s, hello := successorTransportFixture(t)
-	ctx := context.Background()
+func boundAbandonmentHost(t *testing.T, s *Server, hello contract.HostHello) (contract.OwnerBindReply, func(), func()) {
+	t.Helper()
 	marker := filepath.Join(t.TempDir(), "prepared.json")
 	helloJSON, err := json.Marshal(hello)
 	if err != nil {
 		t.Fatal(err)
 	}
-	hostCmd := exec.Command(os.Args[0], "-test.run=^TestBoundOwnerAbandonmentHostChild$", "-test.v")
-	hostCmd.Env = append(os.Environ(), "BOUND_ABANDONMENT_HOST_CHILD=1", "BOUND_ABANDONMENT_HOST_HELLO="+string(helloJSON), "BOUND_ABANDONMENT_SOCKET="+s.SocketPath(), "BOUND_ABANDONMENT_PREPARED="+marker)
-	hostCmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
-	if err = hostCmd.Start(); err != nil {
-		t.Fatal(err)
-	}
-	hostWaited := false
-	t.Cleanup(func() {
-		if !hostWaited {
-			_ = hostCmd.Process.Kill()
-			_ = hostCmd.Wait()
-		}
-	})
-	hostBirth, err := process.Birth(hostCmd.Process.Pid)
+	cmd := exec.Command(os.Args[0], "-test.run=^TestBoundOwnerAbandonmentHostChild$", "-test.v")
+	cmd.Env = append(os.Environ(), "BOUND_ABANDONMENT_HOST_CHILD=1", "BOUND_ABANDONMENT_HOST_HELLO="+string(helloJSON), "BOUND_ABANDONMENT_SOCKET="+s.SocketPath(), "BOUND_ABANDONMENT_OWNER_SOCKET="+s.OwnerSocketPath(), "BOUND_ABANDONMENT_PREPARED="+marker)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	log, err := os.OpenFile(marker+".log", os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
 	if err != nil {
 		t.Fatal(err)
 	}
-	var prepared contract.OwnerPrepared
+	cmd.Stdout, cmd.Stderr = log, log
+	if err = cmd.Start(); err != nil {
+		log.Close()
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+	finished := false
+	stop := func() {
+		t.Helper()
+		if finished {
+			return
+		}
+		_ = cmd.Process.Signal(syscall.SIGTERM)
+		select {
+		case err := <-done:
+			finished = true
+			t.Logf("actual Host PID=%d original Cmd.Wait=%v state=%v", cmd.Process.Pid, err, cmd.ProcessState)
+		case <-time.After(5 * time.Second):
+			_ = cmd.Process.Kill()
+			err := <-done
+			finished = true
+			t.Errorf("forced Host cleanup original Wait=%v", err)
+		}
+	}
+	// Registered immediately after Start: every failure retains the sole Cmd.Wait.
+	t.Cleanup(func() {
+		stop()
+		log.Close()
+		body, _ := os.ReadFile(marker + ".log")
+		t.Logf("original Host output: %s", body)
+	})
+	var bound contract.OwnerBindReply
 	for end := time.Now().Add(5 * time.Second); ; {
-		raw, readErr := os.ReadFile(marker)
-		if readErr == nil && contract.DecodeOwnerRuntimeStrict(raw, &prepared) == nil {
+		raw, readErr := os.ReadFile(marker + ".bound")
+		if readErr == nil && contract.DecodeOwnerRuntimeStrict(raw, &bound) == nil {
 			break
 		}
 		if time.Now().After(end) {
-			_ = hostCmd.Process.Kill()
-			_ = hostCmd.Wait()
 			t.Fatal("real Host did not Prepare", readErr)
 		}
 		time.Sleep(5 * time.Millisecond)
 	}
-	ownerCmd := exec.Command("/bin/sleep", "30")
-	if err = ownerCmd.Start(); err != nil {
-		t.Fatal(err)
-	}
-	ownerWaited := false
-	t.Cleanup(func() {
-		if !ownerWaited {
-			_ = ownerCmd.Process.Kill()
-			_ = ownerCmd.Wait()
+	finishOwner := func() {
+		t.Helper()
+		if err := os.WriteFile(marker+".finish-owner", []byte("finish\n"), 0600); err != nil {
+			t.Fatal(err)
 		}
-	})
-	ownerBirth, err := process.Birth(ownerCmd.Process.Pid)
-	if err != nil {
-		t.Fatal(err)
+		for end := time.Now().Add(5 * time.Second); ; {
+			if body, err := os.ReadFile(marker + ".owner-exited"); err == nil && string(body) == "original Cmd.Wait=0\n" {
+				return
+			}
+			if time.Now().After(end) {
+				t.Fatal("FirstHost did not retain original Owner Wait")
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
 	}
-	pin, err := process.ExecutableDigest(ctx, hello.Executable)
-	if err != nil {
-		t.Fatal(err)
+	return bound, finishOwner, stop
+}
+
+// Historical incarnation 1 is fixture data. Both current processes are real:
+// Host Prepare authenticates the Unix peer, and Owner Bind authenticates its
+// peer, executable, signed challenge and in-memory private key. No fabricated
+// OriginalOwnerAuthentication or SQL death status enters the current flow.
+func TestBoundOwnerAbandonmentPublicResumeAfterActualOwnerAndHostWait(t *testing.T) {
+	for _, phase := range []string{"no_intent", "prepared_prior", "prepared_next", "applied_current"} {
+		t.Run(phase, func(t *testing.T) {
+			s, hello := successorTransportFixture(t)
+			ctx := context.Background()
+			bound, finishOwner, stopHost := boundAbandonmentHost(t, s, hello)
+			state, err := s.db.InspectOriginalOwner(ctx, bound.Binding.Scope.OwnerID)
+			if err != nil || state.AppliedControlRevision != 0 {
+				t.Fatal("unexpected Applied", err)
+			}
+			path, priorBytes := successorStartupPriorLedger(t, s, hello)
+			finishOwner()
+			stopHost()
+			req := ResumeRequest{TaskControlRequest: TaskControlRequest{TaskID: "owner-runtime-task", ControllerThread: "controller", ControlToken: strings.Repeat("d", 64), WorkRevision: 1}, CommandID: "bound-abandonment-" + phase}
+			storeReq := store.OriginalOwnerResumeRequest{TaskID: req.TaskID, ControllerThread: req.ControllerThread, ControlToken: req.ControlToken, WorkRevision: req.WorkRevision, CommandID: req.CommandID}
+			now := time.Now().UTC().Format(time.RFC3339Nano)
+			observation := store.OriginalOwnerSuccessionObservation{OwnerID: state.Intent.Scope.OwnerID, Owner: contract.OriginalOwnerTransport{PID: bound.Binding.Owner.PID, Birth: bound.Binding.Owner.Birth}, Host: *state.CurrentHost, Origin: store.RunOwnerBinding{OriginContextID: hello.OriginContextID, OriginPID: hello.OriginPID, OriginBirth: hello.OriginBirth}, Epoch: s.epoch, ExecutableSHA256: state.Intent.Scope.ExecutableSHA256, OwnerExitedAt: now, HostExitedAt: now}
+			if err = observeResumeExited(ctx, observation.Owner, "still_alive"); err != nil {
+				t.Fatal(err)
+			}
+			if err = observeResumeExited(ctx, observation.Host, "still_alive"); err != nil {
+				t.Fatal(err)
+			}
+			external, err := sql.Open("sqlite", filepath.Join(s.stateDir, "state.db"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer external.Close()
+			var sequence int64
+			if err = external.QueryRow(`SELECT ready_sequence FROM task_runtime WHERE task_id=?`, req.TaskID).Scan(&sequence); err != nil {
+				t.Fatal(err)
+			}
+			if phase != "no_intent" {
+				resolved, err := s.db.ResolveBoundOwnerAbandonment(ctx, storeReq, observation, s.ownerPublicKey())
+				if err != nil {
+					t.Fatal(err)
+				}
+				lease, err := host.OpenExistingOwnerRecoveryHandoff(s.stateDir, resolved.PriorBinding.Scope, resolved.PriorBinding.Owner, resolved.Binding.Scope, resolved.Binding.Owner, nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+				t.Cleanup(lease.Close)
+				facts, err := lease.Facts()
+				if err != nil {
+					t.Fatal(err)
+				}
+				proof, err := s.db.PrepareBoundOwnerAbandonment(ctx, storeReq, observation, ownerRecoveryStoreFacts(facts), s.ownerPublicKey())
+				if err != nil {
+					t.Fatal(err)
+				}
+				if phase != "prepared_prior" {
+					if err = lease.CommitPrepared(ownerRecoveryFileProof(proof)); err != nil {
+						t.Fatal(err)
+					}
+				}
+				if phase == "applied_current" {
+					if _, err = s.db.ApplyBoundOwnerAbandonment(ctx, storeReq, observation, ownerRecoveryStoreFacts(facts), s.ownerPublicKey()); err != nil {
+						t.Fatal(err)
+					}
+				}
+				lease.Close()
+			}
+			var proofs, handoffs, applied int
+			if err = external.QueryRow(`SELECT (SELECT COUNT(*) FROM owner_bound_abandonments),(SELECT COUNT(*) FROM owner_recovery_scope_handoffs),COALESCE((SELECT MAX(applied) FROM owner_recovery_scope_handoffs),0)`).Scan(&proofs, &handoffs, &applied); err != nil {
+				t.Fatal(err)
+			}
+			expectedProofs, expectedApplied := 1, 0
+			if phase == "no_intent" {
+				expectedProofs = 0
+			}
+			if phase == "applied_current" {
+				expectedApplied = 1
+			}
+			if proofs != expectedProofs || handoffs != expectedProofs || applied != expectedApplied {
+				t.Fatal("wrong durable checkpoint", proofs, handoffs, applied)
+			}
+			before, _ := os.ReadFile(path)
+			if (phase == "no_intent" || phase == "prepared_prior") != bytes.Equal(before, priorBytes) {
+				t.Fatal("wrong FS checkpoint")
+			}
+			body, _ := json.Marshal(req)
+			resumeCtx := context.WithValue(ctx, peerAncestryKey{}, map[int]string{hello.OriginPID: hello.OriginBirth})
+			response, err := s.control(resumeCtx, ipc.KindResume, body)
+			if err != nil {
+				t.Fatal("public Resume", err)
+			}
+			var got ResumeResponse
+			if json.Unmarshal(response, &got) != nil || got.CommandID != req.CommandID || got.Mode != "successor" || got.ReadySequence != sequence {
+				t.Fatal("receipt changed reservation", string(response))
+			}
+			after, info := recoveryRPCRead(t, path)
+			var oldRecord, newRecord map[string]any
+			if json.Unmarshal(priorBytes, &oldRecord) != nil || json.Unmarshal(after, &newRecord) != nil {
+				t.Fatal("bad ledger")
+			}
+			scope, _ := contract.OriginalOwnerRecoveryScopeSHA256(bound.Binding.Scope, bound.Binding.Owner)
+			if newRecord["scope_sha256"] != scope {
+				t.Fatal("skipped adjacent scope")
+			}
+			oldRecord["scope_sha256"] = scope
+			oldJSON, _ := json.Marshal(oldRecord)
+			newJSON, _ := json.Marshal(newRecord)
+			if !bytes.Equal(oldJSON, newJSON) {
+				t.Fatal("scope handoff changed authority/budget")
+			}
+			if replay, err := s.control(resumeCtx, ipc.KindResume, body); err != nil || !bytes.Equal(response, replay) {
+				t.Fatal("exact public replay", err)
+			}
+			again, againInfo := recoveryRPCRead(t, path)
+			if !bytes.Equal(after, again) || !os.SameFile(info, againInfo) || !info.ModTime().Equal(againInfo.ModTime()) {
+				t.Fatal("reply replay rewrote file")
+			}
+			if err = external.QueryRow(`SELECT COUNT(*) FROM owner_succession_authorizations WHERE abandoned_owner_id=?`, observation.OwnerID).Scan(&proofs); err != nil || proofs != 1 {
+				t.Fatal("not one successor authorization", proofs, err)
+			}
+			t.Logf("authenticated real Owner/Host exited; checkpoint=%s, preserved ready_sequence=%d, public successor receipt=%s", phase, sequence, response)
+		})
 	}
-	key := ed25519.NewKeyFromSeed([]byte(strings.Repeat("n", 32)))
-	owner := contract.OriginalOwnerIdentity{PID: ownerCmd.Process.Pid, Birth: ownerBirth, PublicKey: hex.EncodeToString(key.Public().(ed25519.PublicKey))}
-	auth := store.OriginalOwnerAuthentication{Owner: owner, OriginPID: hello.OriginPID, OriginBirth: hello.OriginBirth, ExecutableSHA256: pin}
-	bound, err := s.db.BindOriginalOwner(ctx, store.BindOriginalOwnerSpec{Hello: contract.OriginalOwnerHello{Scope: prepared.Intent.Scope, BootstrapID: prepared.Intent.BootstrapID, BootstrapToken: strings.Repeat("e", 64), Owner: owner, FirstHost: contract.OriginalOwnerTransport{PID: hostCmd.Process.Pid, Birth: hostBirth}, CoordinatorKeyID: prepared.Intent.CoordinatorKeyID}, Host: contract.HostHello{LaunchID: hello.LaunchID, LaunchToken: hello.LaunchToken, OriginContextID: hello.OriginContextID, OriginPID: hello.OriginPID, OriginBirth: hello.OriginBirth, HostGeneration: hello.HostGeneration, PID: hostCmd.Process.Pid, Birth: hostBirth, Executable: hello.Executable}, Epoch: s.epoch, Authenticated: auth}, s.ownerKeys.sign)
-	if err != nil || bound.Permit.ControlRevision != 1 {
-		t.Fatal("bound never-applied successor", err)
-	}
-	path, _ := successorStartupPriorLedger(t, s, hello)
-	if err = ownerCmd.Process.Signal(syscall.SIGTERM); err != nil {
-		t.Fatal(err)
-	}
-	ownerWait := ownerCmd.Wait()
-	ownerWaited = true
-	if ownerCmd.ProcessState == nil || ownerCmd.ProcessState.ExitCode() == 0 || ownerWait == nil {
-		t.Fatal("original Owner Cmd.Wait did not observe termination", ownerWait, ownerCmd.ProcessState)
-	}
-	if err = hostCmd.Process.Signal(syscall.SIGKILL); err != nil {
-		t.Fatal(err)
-	}
-	hostWait := hostCmd.Wait()
-	hostWaited = true
-	if hostCmd.ProcessState == nil || hostCmd.ProcessState.ExitCode() == 0 || hostWait == nil {
-		t.Fatal("original Host Cmd.Wait did not observe termination", hostWait, hostCmd.ProcessState)
-	}
-	req := ResumeRequest{TaskControlRequest: TaskControlRequest{TaskID: "owner-runtime-task", ControllerThread: "controller", ControlToken: strings.Repeat("d", 64), WorkRevision: 1}, CommandID: "bound-abandonment-resume"}
-	body, _ := json.Marshal(req)
-	resumeCtx := context.WithValue(context.Background(), peerAncestryKey{}, map[int]string{hello.OriginPID: hello.OriginBirth})
-	response, err := s.control(resumeCtx, ipc.KindResume, body)
-	if err != nil {
-		t.Fatal("public Resume rejected actual exited bound successor", err)
-	}
-	var got ResumeResponse
-	if err = json.Unmarshal(response, &got); err != nil || got.CommandID != req.CommandID || got.Mode != "successor" {
-		t.Fatal("public Resume receipt", string(response), got, err)
-	}
-	if raw, err := os.ReadFile(path); err != nil || len(raw) == 0 {
-		t.Fatal("held predecessor ledger missing after handoff", err)
-	}
-	t.Logf("actual Owner Cmd.Wait=%v state=%v; Host Cmd.Wait=%v state=%v; public Resume=%s", ownerWait, ownerCmd.ProcessState, hostWait, hostCmd.ProcessState, response)
 }

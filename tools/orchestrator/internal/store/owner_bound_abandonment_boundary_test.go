@@ -194,3 +194,42 @@ func TestBoundOwnerAbandonmentExactCombinedQuota(t *testing.T) {
 		})
 	}
 }
+
+func TestBoundOwnerAbandonmentRetainsFirstProofAcrossEpoch(t *testing.T) {
+	for _, phase := range []string{"prepared", "applied"} {
+		t.Run(phase, func(t *testing.T) {
+			f, req, obs, _, facts := boundAbandonmentFixture(t)
+			ctx := context.Background()
+			key := f.key.Public().(ed25519.PublicKey)
+			if _, err := f.db.PrepareBoundOwnerAbandonment(ctx, req, obs, facts, key); err != nil {
+				t.Fatal(err)
+			}
+			if phase == "applied" {
+				if _, err := f.db.ApplyBoundOwnerAbandonment(ctx, req, obs, facts, key); err != nil {
+					t.Fatal(err)
+				}
+			}
+			before := ownerSuccessionResumeTablesSnapshot(t, f.db, "owner_bound_abandonments", "task_runtime", "runtime_meta", "budget_runtime")
+			if err := f.db.BeginCoordinatorEpoch(ctx, 2); err != nil {
+				t.Fatal(err)
+			}
+			fresh := obs
+			fresh.Epoch = 2
+			fresh.OwnerExitedAt = "2026-10-08T03:00:00Z"
+			fresh.HostExitedAt = fresh.OwnerExitedAt
+			if _, err := f.db.PrepareBoundOwnerAbandonment(ctx, req, fresh, facts, key); err != nil {
+				t.Fatal("fresh prepare replay", err)
+			}
+			if _, err := f.db.ApplyBoundOwnerAbandonment(ctx, req, fresh, facts, key); err != nil {
+				t.Fatal("fresh apply", err)
+			}
+			a, err := f.db.ResumeBoundOwnerAbandonment(ctx, req, fresh, facts, key)
+			if err != nil || a.OwnerExitedAt != obs.OwnerExitedAt || a.HostExitedAt != obs.HostExitedAt || a.CoordinatorEpoch != 2 {
+				t.Fatal("proof timestamps/epoch changed", a, err)
+			}
+			if before != ownerSuccessionResumeTablesSnapshot(t, f.db, "owner_bound_abandonments", "task_runtime", "runtime_meta", "budget_runtime") {
+				t.Fatal("epoch replay rewrote proof/reservation")
+			}
+		})
+	}
+}
