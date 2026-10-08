@@ -91,6 +91,7 @@ def main():
        if q and q['status']=='result_ready' and json.loads(q['body_json']).get('exit_code')==0:break
        time.sleep(.05)
       if not q:raise Fail('durable Exited0')
+      if live(c['ids']['worker'], ps()): raise Fail('worker not reaped')
       got=call(c,'collect','--state-dir',str(state),'--task-id',r['task_id'],'--control-file',r['control_file']);e=[x for x in got['events'] if x['kind']=='result']
       if len(e)!=1: raise Fail('result')
       e=e[0]
@@ -109,6 +110,7 @@ def main():
         time.sleep(.05)
        else:raise Fail('no natural idle exit')
       if c['server'].wait(timeout=1)!=0:raise Fail('coordinator wait')
+      if any(live(c['ids'][role], ps()) for role in ('owner','host','worker')): raise Fail('enrolled product identity remained')
       s.update(result='passed',idle_window={'first_idle_monotonic':first,'last_busy_monotonic':last,'idle_to_exit_seconds':time.monotonic()-first,'samples':len(samples)})
     except BaseException as e:s['error']=repr(e)
     finally:
@@ -117,9 +119,14 @@ def main():
       for name in ('controller','server'):
        p=c.get(name)
        if p and p.poll() is None:p.terminate();signals.append(name);p.wait(timeout=15)
-      s['cleanup']={'identity_signals':signals,'controller_original_wait':c.get('controller').returncode if c.get('controller') else None,'coordinator_original_wait':c.get('server').returncode if c.get('server') else None}
+      remaining=[]
+      try:
+       rows=ps()
+       remaining=[v for v in c['ids'].values() if live(v, rows)]
+      except BaseException as e: remaining=[{'observation_error':repr(e)}]
+      s['cleanup']={'identity_signals':signals,'remaining':remaining,'controller_original_wait':c.get('controller').returncode if c.get('controller') else None,'coordinator_original_wait':c.get('server').returncode if c.get('server') else None}
       s['pins_end']={k:soak.pin(v) for k,v in dst.items()};s['source_hashes_end']={k:digest(v) for k,v in src.items()}
-      if signals or s['pins_end']!=pins or any(s['source_hashes_end'][k]!=f[k] for k in src):s['result']='failed'
+      if signals or s['cleanup']['remaining'] or s['pins_end']!=pins or any(s['source_hashes_end'][k]!=f[k] for k in src):s['result']='failed'
       soak.atomic(a.out/'summary.json',s)
     print(json.dumps({'result':s['result'],'output':str(a.out)}));return 0 if s['result']=='passed' else 1
 if __name__=='__main__':raise SystemExit(main())
