@@ -1,0 +1,6 @@
+# github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator [github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator.test]
+cmd/orchestrator/public_owner_succession_native_test.go:180:24: undefined: runInitialOriginalOwnerWithWaitObserver
+cmd/orchestrator/public_owner_succession_native_test.go:180:94: undefined: initialOwnerWaitObservation
+cmd/orchestrator/public_owner_succession_native_test.go:229:28: undefined: initialOwnerWaitObservation
+cmd/orchestrator/public_owner_succession_native_test.go:230:71: unknown field observer in struct literal of type initialOwnerChild
+cmd/orchestrator/public_owner_succession_native_test.go:230:95: undefined: initialOwnerWaitObservation

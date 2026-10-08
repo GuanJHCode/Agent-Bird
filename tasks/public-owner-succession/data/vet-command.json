@@ -1,0 +1,8 @@
+{
+  "argv": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+    "vet",
+    "./cmd/orchestrator"
+  ],
+  "exit_code": 0
+}

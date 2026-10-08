@@ -1,0 +1,27 @@
+{
+  "cleanup-diagnostic.jsonl": {
+    "pass": 0,
+    "fail": 1,
+    "skip": 0
+  },
+  "final.jsonl": {
+    "pass": 1,
+    "fail": 1,
+    "skip": 0
+  },
+  "observer-green.jsonl": {
+    "pass": 1,
+    "fail": 0,
+    "skip": 0
+  },
+  "observer-red.jsonl": {
+    "pass": 0,
+    "fail": 1,
+    "skip": 0
+  },
+  "public-flow-1.jsonl": {
+    "pass": 1,
+    "fail": 0,
+    "skip": 0
+  }
+}

@@ -204,6 +204,13 @@ func TestManagedCandidateFreezesWorkerChangesWithoutUserChanges(t *testing.T) {
 // Reuse the native test executable: first execution of a fresh unsigned shell
 // script can exceed the production 2s probe deadline under full-suite load.
 func TestMain(m *testing.M) {
+	if filepath.Base(os.Args[0]) == "public-owner-succession-cli-fixture" {
+		runPublicOwnerSuccessionFixture()
+		return
+	}
+	if filepath.Base(os.Args[0]) == "public-owner-succession-wait-fixture" {
+		os.Exit(17)
+	}
 	if filepath.Base(os.Args[0]) == "budget-revision-worker-fixture" {
 		runBudgetRevisionWorkerFixture()
 		return

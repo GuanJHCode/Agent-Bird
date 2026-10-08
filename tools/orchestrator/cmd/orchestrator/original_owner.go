@@ -82,6 +82,12 @@ func originalOwnerEntry(parent context.Context, args []string) error {
 // response is deliberately left to RunSource, preserving the established CLI
 // behavior and tests.
 func runInitialOriginalOwner(ctx context.Context, bootstrap hostBootstrap) (bool, error) {
+	return runInitialOriginalOwnerWithWaitObserver(ctx, bootstrap, nil)
+}
+
+// The private observer runs on the sole original waiter; callers must keep it
+// bounded. The production entrypoint supplies nil.
+func runInitialOriginalOwnerWithWaitObserver(ctx context.Context, bootstrap hostBootstrap, observer func(initialOwnerWaitObservation)) (bool, error) {
 	statusBody, _ := json.Marshal(coordinator.HostStatusRequest{LaunchID: bootstrap.Hello.LaunchID, LaunchToken: bootstrap.Hello.LaunchToken})
 	statusCtx, cancelStatus := context.WithTimeout(ctx, initialOwnerStatusTimeout)
 	status, err := ipc.Call(statusCtx, bootstrap.SocketPath, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindHostStatus, RequestID: bootstrap.Hello.LaunchID + ":status", Payload: statusBody})
@@ -182,7 +188,7 @@ func runInitialOriginalOwner(ctx context.Context, bootstrap hostBootstrap) (bool
 	if err = child.Start(); err != nil {
 		return true, err
 	}
-	owned := &initialOwnerChild{command: child, done: make(chan error, 1)}
+	owned := &initialOwnerChild{command: child, done: make(chan error, 1), observer: observer}
 	retire := func(cause error) error {
 		return errors.Join(cause, owned.retire(initialOwnerDeadline(ctx, startupDeadline)))
 	}
@@ -238,13 +244,28 @@ func runInitialOriginalOwner(ctx context.Context, bootstrap hostBootstrap) (bool
 // reconstructs a PID and it never calls Wait before the caller has completed
 // its one birth observation.
 type initialOwnerChild struct {
-	command *exec.Cmd
-	done    chan error
-	once    sync.Once
+	command  *exec.Cmd
+	done     chan error
+	once     sync.Once
+	observer func(initialOwnerWaitObservation)
+}
+
+type initialOwnerWaitObservation struct {
+	PID          int
+	ProcessState *os.ProcessState
+	WaitError    error
 }
 
 func (c *initialOwnerChild) startWait() {
-	c.once.Do(func() { go func() { c.done <- c.command.Wait() }() })
+	c.once.Do(func() {
+		go func() {
+			err := c.command.Wait()
+			if c.observer != nil {
+				c.observer(initialOwnerWaitObservation{PID: c.command.Process.Pid, ProcessState: c.command.ProcessState, WaitError: err})
+			}
+			c.done <- err
+		}()
+	})
 }
 
 func (c *initialOwnerChild) retire(deadline time.Time) error {

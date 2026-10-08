@@ -1,0 +1,38 @@
+{
+  "SELECT id,status FROM runtime_hosts": [
+    [
+      "host-launch-4851914bc0abdf19848b54eb21743d622573",
+      "released"
+    ]
+  ],
+  "SELECT id,status FROM host_launches": [
+    [
+      "host-launch-4851914bc0abdf19848b54eb21743d622573",
+      "released"
+    ]
+  ],
+  "SELECT id,status,work_revision FROM tasks": {
+    "query_error": "no such column: work_revision"
+  },
+  "SELECT phase,is_current,incarnation,control_revision,applied_control_revision FROM execution_owners": [
+    [
+      "retired",
+      0,
+      1,
+      1,
+      1
+    ],
+    [
+      "bound",
+      1,
+      2,
+      1,
+      1
+    ]
+  ],
+  "SELECT status FROM runs": [
+    [
+      "queued"
+    ]
+  ]
+}
