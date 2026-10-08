@@ -2,6 +2,7 @@
 """Task-private resource acceptance; never builds or invokes a real provider."""
 from __future__ import annotations
 import argparse
+import datetime
 import hashlib
 import json
 import os
@@ -188,7 +189,83 @@ def validate_running(ctx, states, rows):
         if identity['role'] in ('owner', 'host', 'coordinator') and not identity_alive(identity, rows):
             raise Failure(f'{identity["role"]} exited early')
 
-def measure(ctx, db, stats_paths, start_ns, duration, smoke):
+def identity_reaped(identity, rows):
+    observed = subprocess.run(['/bin/ps', '-o', 'lstart=', '-p', str(identity['pid'])], capture_output=True, text=True, timeout=2)
+    if observed.returncode == 1 and not observed.stdout.strip() and not observed.stderr.strip():
+        return True
+    if observed.returncode or not observed.stdout.strip() or len(observed.stdout.strip().splitlines()) != 1:
+        raise Failure('process death observation UNKNOWN')
+    if observed.stdout.strip() != identity['birth']:
+        return True
+    row = rows.get(identity['pid'])
+    if row is None or row['argv'] != identity['argv']:
+        raise Failure('process identity observation disagrees')
+    return False  # Same-identity zombie is not reaped.
+
+
+def pending_tail_fact(ctx, db, task, stats, rows, worker_duration, report_every):
+    entries = db.execute("""SELECT a.id AS attempt_id,s.segment_id,s.status,t.status AS task_status
+        FROM tasks t JOIN attempts a ON a.task_id=t.id JOIN segment_runtime s ON s.attempt_id=a.id WHERE t.id=?""", (task,)).fetchall()
+    if len(entries) != 1:
+        raise Failure('resource tail changed attempt/segment count')
+    entry = dict(entries[0])
+    if entry['status'] != 'exited' or entry['task_status'] != 'result_ready' or stats['status'] != 'completed':
+        return None
+    if sum(phase['seconds'] for phase in stats['phases']) != worker_duration or stats['reports'] != worker_duration // report_every:
+        raise Failure('worker did not complete frozen duration and report count')
+    events = db.execute("""SELECT event_id,producer_id,body_json,delivery_status,created_at
+        FROM runtime_events WHERE task_id=? AND attempt_id=? AND segment_id=?
+        AND json_extract(body_json,'$.kind') IN ('running','result','exited') ORDER BY sequence""",
+        (task, entry['attempt_id'], entry['segment_id'])).fetchall()
+    facts = {}
+    for event in events:
+        value = dict(event)
+        body = json.loads(value['body_json'])
+        if body['kind'] in facts:
+            raise Failure('duplicate tail lifecycle event')
+        facts[body['kind']] = value
+    if set(facts) != {'running', 'result', 'exited'}:
+        return None
+    started = json.loads(facts['running']['body_json'])
+    exited = json.loads(facts['exited']['body_json'])
+    identity = ctx['workers'][task]
+    if len({e['producer_id'] for e in facts.values()}) != 1 or exited.get('exit_code') != 0 or exited.get('process') != started.get('process') or exited['process']['pid'] != identity['pid'] or exited['process']['birth'] != identity['birth'] or facts['result']['delivery_status'] != 'pending':
+        raise Failure('tail lacks exact pending result and original worker Exited0')
+    if not identity_reaped(identity, rows):
+        return None
+    return {'segment': entry, 'events': facts, 'worker_stats': stats}
+
+
+def validate_pending_tail(ctx, db, stats, rows, worker_deadline_ns, worker_duration, report_every):
+    if ctx['server'].poll() is not None:
+        raise Failure('original Coordinator exited during tail')
+    baseline = ctx.setdefault('tail_baseline', {})
+    for task, worker_stats in zip(TASKS, stats):
+        fact = pending_tail_fact(ctx, db, task, worker_stats, rows, worker_duration, report_every)
+        if fact is None:
+            if time.time_ns() > worker_deadline_ns + THRESHOLDS['worker_completion_grace_seconds'] * 1_000_000_000 or worker_stats['status'] not in ('running', 'completed'):
+                raise Failure('worker completion exceeded bounded tail transition')
+            continue
+        if task in baseline and baseline[task] != fact:
+            raise Failure('exact pending tail event or segment changed')
+        baseline[task] = fact
+    completed_at = None
+    if len(baseline) == len(TASKS):
+        completed_at = max(datetime.datetime.fromisoformat(f['events']['exited']['created_at']).timestamp() for f in baseline.values())
+    for identity in ctx['identities'].values():
+        if identity['role'] == 'coordinator':
+            if not identity_alive(identity, rows):
+                raise Failure('Coordinator identity changed during tail')
+        elif identity['role'] in ('owner', 'host'):
+            gone = identity_reaped(identity, rows)
+            # All exact completion events may arrive between two samples. Do
+            # not infer an early death merely from a pending DB observation;
+            # the five-second transition must close the complete proof.
+            if completed_at is not None and not gone and time.time() > completed_at + THRESHOLDS['owner_retirement_seconds']:
+                raise Failure('Owner/Host did not naturally retire after completion')
+
+
+def measure(ctx, db, stats_paths, start_ns, duration, worker_duration, report_every, smoke):
     peak = 0
     cpu_first, cpu_last = {}, {}
     partial = ctx['out'] / 'samples.jsonl.partial'
@@ -198,10 +275,14 @@ def measure(ctx, db, stats_paths, start_ns, duration, smoke):
             if delay > 0:
                 time.sleep(delay)
             rows = process_table()
-            validate_running(ctx, task_states(db), rows)
             stats = [load(p) for p in stats_paths]
-            if any(s['status'] not in ('waiting', 'running') for s in stats):
-                raise Failure('worker fixture failed early')
+            worker_deadline_ns = start_ns + worker_duration * 1_000_000_000
+            if time.time_ns() < worker_deadline_ns:
+                validate_running(ctx, task_states(db), rows)
+                if any(s['status'] not in ('waiting', 'running') for s in stats):
+                    raise Failure('worker fixture failed early')
+            else:
+                validate_pending_tail(ctx, db, stats, rows, worker_deadline_ns, worker_duration, report_every)
             sample = product_sample(ctx, stats, rows)
             sample['tick'] = tick
             peak = max(peak, sample['charged_product_rss_kib'])
@@ -220,6 +301,10 @@ def measure(ctx, db, stats_paths, start_ns, duration, smoke):
     remaining = (start_ns + duration * 1_000_000_000 - time.time_ns()) / 1e9
     if remaining > 0:
         time.sleep(remaining)
+    validate_pending_tail(ctx, db, [load(p) for p in stats_paths], process_table(), start_ns + worker_duration * 1_000_000_000, worker_duration, report_every)
+    if len(ctx.get('tail_baseline', {})) != len(TASKS):
+        raise Failure('tail completion proof missing at measurement deadline')
+    atomic(ctx['out'] / 'pending-tail.json', ctx['tail_baseline'])
     os.replace(partial, ctx['out'] / 'samples.jsonl')
     sync_dir(ctx['out'])
     return {'samples': duration,
@@ -329,7 +414,7 @@ def cleanup(ctx, failed):
     result['unregistered_private_processes'] = [r for pid, r in rows.items() if pid not in known and any(r['argv'] == str(exe) or r['argv'].startswith(str(exe) + ' ') for exe in (ctx['candidate'], ctx['worker']))]
     return result
 
-def verify_emissions(ctx, stats_paths, receipt_paths, duration, phase_seconds, rate, giant_every, report_every):
+def verify_emissions(ctx, stats_paths, receipt_paths, worker_duration, phase_seconds, rate, giant_every, report_every):
     all_stats = []
     for stats_path, receipt_path in zip(stats_paths, receipt_paths):
         stats = load(stats_path)
@@ -376,7 +461,7 @@ def main():
     raw.mkdir(mode=0o700)
     tmp = pathlib.Path('/private/tmp') / ('resource-soak-' + uuid.uuid4().hex[:12])
     tmp.mkdir(mode=0o700)
-    duration, phase_seconds, rate, giant_every, report_every = (20, 6, 4096, 3, 2) if args.smoke else (3600, 1200, 1048576, 30, 10)
+    duration, worker_duration, phase_seconds, rate, giant_every, report_every = (20, 16, 6, 4096, 3, 2) if args.smoke else (3600, THRESHOLDS['worker_duration_seconds'], 1200, 1048576, 30, 10)
     ctx = {'out': args.out, 'raw': raw, 'candidate': candidate, 'worker': worker, 'state': tmp / 'state', 'calls': 0, 'workers': {}, 'identities': {}, 'env': {'PATH': '/usr/bin:/bin:/usr/sbin:/sbin', 'LANG': 'C', 'LC_ALL': 'C', 'TMPDIR': str(tmp), 'ORCHESTRATOR_ENABLE_TEST_FAKE': '1'}}
     summary = {'mode': 'smoke' if args.smoke else 'formal', 'result': 'failed', 'frozen': expected, 'pins_start': pins, 'state_root': str(tmp), 'limitations': ['fake adapter drain, no real Provider parser/model', 'Owner/Host retirement observed by exact identity; original handle evidence reused from native lifecycle acceptance', 'measurement ps/SQLite/Python scaffolding excluded; report helpers conservatively charged'], 'started_unix_ns': time.time_ns()}
     db = None
@@ -399,8 +484,8 @@ def main():
         start_path = tmp / 'shared-start.json'
         tasks = []
         for task, stats_path, receipt_path in zip(TASKS, stats_paths, receipt_paths):
-            argv = [str(worker), '--id', task, '--seconds', str(duration), '--phase-seconds', str(phase_seconds), '--bytes-per-second', str(rate), '--giant-line-bytes', str(THRESHOLDS['giant_line_bytes']), '--giant-line-every', str(giant_every), '--critical-every', str(report_every), '--stats-file', str(stats_path), '--start-file', str(start_path), '--receipt-file', str(receipt_path)]
-            tasks.append({'id': task, 'max_attempts': 1, 'max_active_ms': (duration + 60) * 1000, 'completion_policy': 'owner_review', 'adapter': {'kind': 'fake', 'args': argv, 'directory': str(tmp)}})
+            argv = [str(worker), '--id', task, '--seconds', str(worker_duration), '--phase-seconds', str(phase_seconds), '--bytes-per-second', str(rate), '--giant-line-bytes', str(THRESHOLDS['giant_line_bytes']), '--giant-line-every', str(giant_every), '--critical-every', str(report_every), '--stats-file', str(stats_path), '--start-file', str(start_path), '--receipt-file', str(receipt_path)]
+            tasks.append({'id': task, 'max_attempts': 1, 'max_active_ms': (worker_duration + 60) * 1000, 'completion_policy': 'owner_review', 'adapter': {'kind': 'fake', 'args': argv, 'directory': str(tmp)}})
         request = {k: v for k, v in owner.items() if k not in ('version', 'owner_capability')}
         request.update(run_id='resource-' + uuid.uuid4().hex, plan_revision=1, owner_mode='native', delivery_mode='collect', tasks=tasks)
         request_path = tmp / 'submit.json'
@@ -411,9 +496,9 @@ def main():
         establish(ctx, db, stats_paths)
         start_ns = time.time_ns() + 500_000_000
         atomic(start_path, {'unix_ns': start_ns})
-        summary.update(measure(ctx, db, stats_paths, start_ns, duration, args.smoke))
+        summary.update(measure(ctx, db, stats_paths, start_ns, duration, worker_duration, report_every, args.smoke))
         finish_tasks(ctx, db)
-        stats = verify_emissions(ctx, stats_paths, receipt_paths, duration, phase_seconds, rate, giant_every, report_every)
+        stats = verify_emissions(ctx, stats_paths, receipt_paths, worker_duration, phase_seconds, rate, giant_every, report_every)
         summary.update(finalize_rss(ctx['out'] / 'samples.jsonl', stats, args.smoke))
         summary['helper_cpu_seconds'] = sum(s['helper_cpu_ns'] for s in stats) / 1e9
         summary['result'] = 'passed'

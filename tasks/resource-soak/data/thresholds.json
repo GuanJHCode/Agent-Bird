@@ -16,5 +16,8 @@
   "rss_window_range_limit_mib": 8,
   "rss_window_seconds": 300,
   "rss_phase_warmup_seconds": 300,
-  "unknown_burst_seconds": 1200
+  "unknown_burst_seconds": 1200,
+  "worker_duration_seconds": 3540,
+  "worker_completion_grace_seconds": 5,
+  "owner_retirement_seconds": 13
 }
