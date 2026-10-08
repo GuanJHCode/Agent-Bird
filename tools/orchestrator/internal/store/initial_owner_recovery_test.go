@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -18,7 +19,13 @@ import (
 // filesystem publication and original-process Wait use separate Host/CLI tests.
 func initialOwnerStoreFixture(t *testing.T) (originalOwnerFixture, OriginalOwnerResumeRequest, OriginalOwnerSuccessionObservation, InitialOwnerRecoveryFacts) {
 	t.Helper()
-	f := newOriginalOwnerFixtureWithPlan(t, nil, func(p *PlanSpec) {
+	// testing.TempDir's numbered directory uses 0777 subject to umask. Pin the
+	// production-required private root before Open captures its identity.
+	root := t.TempDir()
+	if err := os.Chmod(root, 0700); err != nil {
+		t.Fatal(err)
+	}
+	f := newOriginalOwnerFixtureWithPlanAtPath(t, nil, func(p *PlanSpec) {
 		other := p.Tasks[0]
 		other.ID = "other-ready"
 		p.Tasks = append(p.Tasks, other)
@@ -26,7 +33,7 @@ func initialOwnerStoreFixture(t *testing.T) (originalOwnerFixture, OriginalOwner
 		dependent.ID = "dependent"
 		dependent.Dependencies = []string{p.Tasks[0].ID}
 		p.Tasks = append(p.Tasks, dependent)
-	})
+	}, filepath.Join(root, "state.db"))
 	ctx := context.Background()
 	pub := f.key.Public().(ed25519.PublicKey)
 	i, err := f.db.PrepareOriginalOwner(ctx, f.prepare)

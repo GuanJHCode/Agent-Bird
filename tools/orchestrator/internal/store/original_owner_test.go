@@ -28,7 +28,12 @@ func newOriginalOwnerFixtureWithDiagnostics(t *testing.T, diagnostics *contract.
 
 func newOriginalOwnerFixtureWithPlan(t *testing.T, diagnostics *contract.DiagnosticsPolicy, configure func(*PlanSpec)) originalOwnerFixture {
 	t.Helper()
-	db, err := Open(filepath.Join(t.TempDir(), "state.db"))
+	return newOriginalOwnerFixtureWithPlanAtPath(t, diagnostics, configure, filepath.Join(t.TempDir(), "state.db"))
+}
+
+func newOriginalOwnerFixtureWithPlanAtPath(t *testing.T, diagnostics *contract.DiagnosticsPolicy, configure func(*PlanSpec), path string) originalOwnerFixture {
+	t.Helper()
+	db, err := Open(path)
 	if err != nil {
 		t.Fatal(err)
 	}
