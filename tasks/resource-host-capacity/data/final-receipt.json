@@ -1,0 +1,20 @@
+{
+  "source_commit": "fd38dc4",
+  "native_session": 17637,
+  "native_exit": 0,
+  "final_independent_review": "PASS",
+  "root_raw_recomputation": "formal-canonical-20261008/root-verification.json",
+  "candidate_sha256": "c07a62478f7bede76652a90fcfd37a7ccfe193cc36125053886a0d6d5d140b5d",
+  "source_sha256": {
+    "candidate": "c07a62478f7bede76652a90fcfd37a7ccfe193cc36125053886a0d6d5d140b5d",
+    "controller": "94c9f6a009b15a244474a63aab2e22a10d514a9a76837ad823f980a954ae93e8",
+    "idle": "b771c29740af8961db7f223a5171fc8eed00c83726ed9f531f8137029d7c5a3b",
+    "idle_thresholds": "032077794ef0c3c40a7cac8577d645a7c4c98937dd099f76eca06584d6174603",
+    "runner": "54fb49f2a5691b92f176e3d6ce0ca4e421ff913b420496cb4ae6bceefbe80a64",
+    "soak": "96710cab2cd6ba0d26eeb8e11de7c8290c89895ca62bf28e9903f82f7608a95d",
+    "soak_thresholds": "dc76311c66fbfd139fbed12a68a4b658515f492dbe35bf650a259a998145f552",
+    "thresholds": "cda5be35c522d6243805674da115755d5f99badfa202d0881ac616418def72da",
+    "worker": "f835c657ec3f87a672f1d84dadd5ca55e9a378ac9d4101afa8aa28b714bc4ca3"
+  },
+  "production_change": false
+}

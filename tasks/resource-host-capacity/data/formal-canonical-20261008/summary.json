@@ -1,0 +1,311 @@
+{
+  "cleanup": {
+    "controller_waits": [
+      {
+        "controller_original_wait": 0,
+        "errors": [],
+        "identity_signals": []
+      },
+      {
+        "controller_original_wait": 0,
+        "errors": [],
+        "identity_signals": []
+      },
+      {
+        "controller_original_wait": 0,
+        "errors": [],
+        "identity_signals": []
+      },
+      {
+        "controller_original_wait": 0,
+        "errors": [],
+        "identity_signals": []
+      },
+      {
+        "controller_original_wait": 0,
+        "errors": [],
+        "identity_signals": []
+      }
+    ],
+    "errors": [],
+    "product": {
+      "coordinator_original_wait": 0,
+      "errors": [],
+      "identity_signals": [],
+      "remaining": []
+    }
+  },
+  "elapsed_seconds": 30.125678541022353,
+  "fifth_original_wait": 2,
+  "frozen": {
+    "candidate_commit": "a88f45b",
+    "candidate_path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/integration/tasks/resource-host-capacity/tmp/schema29-build/candidate",
+    "harness_commit": "fd38dc4ff42cdbde458fc8b7c606af6686f1c0b1",
+    "scope": "four Host controlled native30sec, fifth admission rejection; not formal60",
+    "source_sha256": {
+      "candidate": "c07a62478f7bede76652a90fcfd37a7ccfe193cc36125053886a0d6d5d140b5d",
+      "controller": "94c9f6a009b15a244474a63aab2e22a10d514a9a76837ad823f980a954ae93e8",
+      "idle": "b771c29740af8961db7f223a5171fc8eed00c83726ed9f531f8137029d7c5a3b",
+      "idle_thresholds": "032077794ef0c3c40a7cac8577d645a7c4c98937dd099f76eca06584d6174603",
+      "runner": "54fb49f2a5691b92f176e3d6ce0ca4e421ff913b420496cb4ae6bceefbe80a64",
+      "soak": "96710cab2cd6ba0d26eeb8e11de7c8290c89895ca62bf28e9903f82f7608a95d",
+      "soak_thresholds": "dc76311c66fbfd139fbed12a68a4b658515f492dbe35bf650a259a998145f552",
+      "thresholds": "cda5be35c522d6243805674da115755d5f99badfa202d0881ac616418def72da",
+      "worker": "f835c657ec3f87a672f1d84dadd5ca55e9a378ac9d4101afa8aa28b714bc4ca3"
+    },
+    "thresholds": {
+      "host_retire_seconds": 13,
+      "hosts": 4,
+      "product_actors": 9,
+      "ready": 2,
+      "rss_limit_mib": 128,
+      "running": 2,
+      "sample_seconds": 1,
+      "schema_version": 1,
+      "window_seconds": 30
+    }
+  },
+  "helper_allowance_bytes": 14090240,
+  "inventory_unchanged": true,
+  "limitations": [
+    "controlled TEST_FAKE public path, not native bridge capability or real Provider/model",
+    "bounded four-Host window, not formal60 flood qualification",
+    "Owner/Host exact retirement, original Wait evidence reused from native lifecycle tests"
+  ],
+  "peak_charged_rss_mib": 119.296875,
+  "pins_end": {
+    "candidate": {
+      "dev": 16777234,
+      "ino": 199012324,
+      "mode": 320,
+      "sha256": "c07a62478f7bede76652a90fcfd37a7ccfe193cc36125053886a0d6d5d140b5d",
+      "size": 20315698
+    },
+    "controller": {
+      "dev": 16777234,
+      "ino": 199012326,
+      "mode": 320,
+      "sha256": "94c9f6a009b15a244474a63aab2e22a10d514a9a76837ad823f980a954ae93e8",
+      "size": 8041
+    },
+    "idle": {
+      "dev": 16777234,
+      "ino": 199012329,
+      "mode": 320,
+      "sha256": "b771c29740af8961db7f223a5171fc8eed00c83726ed9f531f8137029d7c5a3b",
+      "size": 27745
+    },
+    "idle_thresholds": {
+      "dev": 16777234,
+      "ino": 199012330,
+      "mode": 320,
+      "sha256": "032077794ef0c3c40a7cac8577d645a7c4c98937dd099f76eca06584d6174603",
+      "size": 161
+    },
+    "runner": {
+      "dev": 16777234,
+      "ino": 199012325,
+      "mode": 320,
+      "sha256": "54fb49f2a5691b92f176e3d6ce0ca4e421ff913b420496cb4ae6bceefbe80a64",
+      "size": 24517
+    },
+    "soak": {
+      "dev": 16777234,
+      "ino": 199012331,
+      "mode": 320,
+      "sha256": "96710cab2cd6ba0d26eeb8e11de7c8290c89895ca62bf28e9903f82f7608a95d",
+      "size": 24713
+    },
+    "soak_thresholds": {
+      "dev": 16777234,
+      "ino": 199012332,
+      "mode": 320,
+      "sha256": "dc76311c66fbfd139fbed12a68a4b658515f492dbe35bf650a259a998145f552",
+      "size": 594
+    },
+    "thresholds": {
+      "dev": 16777234,
+      "ino": 199012328,
+      "mode": 320,
+      "sha256": "cda5be35c522d6243805674da115755d5f99badfa202d0881ac616418def72da",
+      "size": 156
+    },
+    "worker": {
+      "dev": 16777234,
+      "ino": 199012327,
+      "mode": 320,
+      "sha256": "f835c657ec3f87a672f1d84dadd5ca55e9a378ac9d4101afa8aa28b714bc4ca3",
+      "size": 245
+    }
+  },
+  "pins_start": {
+    "candidate": {
+      "dev": 16777234,
+      "ino": 199012324,
+      "mode": 320,
+      "sha256": "c07a62478f7bede76652a90fcfd37a7ccfe193cc36125053886a0d6d5d140b5d",
+      "size": 20315698
+    },
+    "controller": {
+      "dev": 16777234,
+      "ino": 199012326,
+      "mode": 320,
+      "sha256": "94c9f6a009b15a244474a63aab2e22a10d514a9a76837ad823f980a954ae93e8",
+      "size": 8041
+    },
+    "idle": {
+      "dev": 16777234,
+      "ino": 199012329,
+      "mode": 320,
+      "sha256": "b771c29740af8961db7f223a5171fc8eed00c83726ed9f531f8137029d7c5a3b",
+      "size": 27745
+    },
+    "idle_thresholds": {
+      "dev": 16777234,
+      "ino": 199012330,
+      "mode": 320,
+      "sha256": "032077794ef0c3c40a7cac8577d645a7c4c98937dd099f76eca06584d6174603",
+      "size": 161
+    },
+    "runner": {
+      "dev": 16777234,
+      "ino": 199012325,
+      "mode": 320,
+      "sha256": "54fb49f2a5691b92f176e3d6ce0ca4e421ff913b420496cb4ae6bceefbe80a64",
+      "size": 24517
+    },
+    "soak": {
+      "dev": 16777234,
+      "ino": 199012331,
+      "mode": 320,
+      "sha256": "96710cab2cd6ba0d26eeb8e11de7c8290c89895ca62bf28e9903f82f7608a95d",
+      "size": 24713
+    },
+    "soak_thresholds": {
+      "dev": 16777234,
+      "ino": 199012332,
+      "mode": 320,
+      "sha256": "dc76311c66fbfd139fbed12a68a4b658515f492dbe35bf650a259a998145f552",
+      "size": 594
+    },
+    "thresholds": {
+      "dev": 16777234,
+      "ino": 199012328,
+      "mode": 320,
+      "sha256": "cda5be35c522d6243805674da115755d5f99badfa202d0881ac616418def72da",
+      "size": 156
+    },
+    "worker": {
+      "dev": 16777234,
+      "ino": 199012327,
+      "mode": 320,
+      "sha256": "f835c657ec3f87a672f1d84dadd5ca55e9a378ac9d4101afa8aa28b714bc4ca3",
+      "size": 245
+    }
+  },
+  "private_state": "/private/tmp/resource-host-capacity-59d4595d1015/state",
+  "result": "passed",
+  "retirement": {
+    "host-0": {
+      "deadline": 729797.896816833,
+      "first_gone": 729784.947435,
+      "identity": {
+        "argv": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/resource-host-capacity/tasks/resource-host-capacity/data/formal-canonical-20261008/bin/candidate source-host --state-dir /private/tmp/resource-host-capacity-59d4595d1015/state --bootstrap-fd 3",
+        "birth": "Thu Oct  8 17:09:53 2026",
+        "pid": 20130,
+        "role": "host-0"
+      },
+      "pending_observed_at": 729784.896816833
+    },
+    "host-1": {
+      "deadline": 729798.135098416,
+      "first_gone": 729785.184798041,
+      "identity": {
+        "argv": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/resource-host-capacity/tasks/resource-host-capacity/data/formal-canonical-20261008/bin/candidate source-host --state-dir /private/tmp/resource-host-capacity-59d4595d1015/state --bootstrap-fd 3",
+        "birth": "Thu Oct  8 17:09:54 2026",
+        "pid": 20143,
+        "role": "host-1"
+      },
+      "pending_observed_at": 729785.135098416
+    },
+    "host-2": {
+      "deadline": 729798.343331875,
+      "first_gone": 729785.440711375,
+      "identity": {
+        "argv": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/resource-host-capacity/tasks/resource-host-capacity/data/formal-canonical-20261008/bin/candidate source-host --state-dir /private/tmp/resource-host-capacity-59d4595d1015/state --bootstrap-fd 3",
+        "birth": "Thu Oct  8 17:09:55 2026",
+        "pid": 20158,
+        "role": "host-2"
+      },
+      "pending_observed_at": 729785.343331875
+    },
+    "host-3": {
+      "deadline": 729798.569230958,
+      "first_gone": 729785.699152333,
+      "identity": {
+        "argv": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/resource-host-capacity/tasks/resource-host-capacity/data/formal-canonical-20261008/bin/candidate source-host --state-dir /private/tmp/resource-host-capacity-59d4595d1015/state --bootstrap-fd 3",
+        "birth": "Thu Oct  8 17:09:55 2026",
+        "pid": 20172,
+        "role": "host-3"
+      },
+      "pending_observed_at": 729785.569230958
+    },
+    "owner-0": {
+      "deadline": 729797.896816833,
+      "first_gone": 729784.941076791,
+      "identity": {
+        "argv": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/resource-host-capacity/tasks/resource-host-capacity/data/formal-canonical-20261008/bin/candidate original-owner --bootstrap-fd 3 --control-fd 4",
+        "birth": "Thu Oct  8 17:09:53 2026",
+        "pid": 20131,
+        "role": "owner-0"
+      },
+      "pending_observed_at": 729784.896816833
+    },
+    "owner-1": {
+      "deadline": 729798.135098416,
+      "first_gone": 729785.182541333,
+      "identity": {
+        "argv": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/resource-host-capacity/tasks/resource-host-capacity/data/formal-canonical-20261008/bin/candidate original-owner --bootstrap-fd 3 --control-fd 4",
+        "birth": "Thu Oct  8 17:09:54 2026",
+        "pid": 20144,
+        "role": "owner-1"
+      },
+      "pending_observed_at": 729785.135098416
+    },
+    "owner-2": {
+      "deadline": 729798.343331875,
+      "first_gone": 729785.438517166,
+      "identity": {
+        "argv": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/resource-host-capacity/tasks/resource-host-capacity/data/formal-canonical-20261008/bin/candidate original-owner --bootstrap-fd 3 --control-fd 4",
+        "birth": "Thu Oct  8 17:09:55 2026",
+        "pid": 20159,
+        "role": "owner-2"
+      },
+      "pending_observed_at": 729785.343331875
+    },
+    "owner-3": {
+      "deadline": 729798.569230958,
+      "first_gone": 729785.696421041,
+      "identity": {
+        "argv": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/resource-host-capacity/tasks/resource-host-capacity/data/formal-canonical-20261008/bin/candidate original-owner --bootstrap-fd 3 --control-fd 4",
+        "birth": "Thu Oct  8 17:09:55 2026",
+        "pid": 20173,
+        "role": "owner-3"
+      },
+      "pending_observed_at": 729785.569230958
+    }
+  },
+  "rss_passed": true,
+  "samples": 31,
+  "source_hashes_end": {
+    "candidate": "c07a62478f7bede76652a90fcfd37a7ccfe193cc36125053886a0d6d5d140b5d",
+    "controller": "94c9f6a009b15a244474a63aab2e22a10d514a9a76837ad823f980a954ae93e8",
+    "idle": "b771c29740af8961db7f223a5171fc8eed00c83726ed9f531f8137029d7c5a3b",
+    "idle_thresholds": "032077794ef0c3c40a7cac8577d645a7c4c98937dd099f76eca06584d6174603",
+    "runner": "54fb49f2a5691b92f176e3d6ce0ca4e421ff913b420496cb4ae6bceefbe80a64",
+    "soak": "96710cab2cd6ba0d26eeb8e11de7c8290c89895ca62bf28e9903f82f7608a95d",
+    "soak_thresholds": "dc76311c66fbfd139fbed12a68a4b658515f492dbe35bf650a259a998145f552",
+    "thresholds": "cda5be35c522d6243805674da115755d5f99badfa202d0881ac616418def72da",
+    "worker": "f835c657ec3f87a672f1d84dadd5ca55e9a378ac9d4101afa8aa28b714bc4ca3"
+  }
+}

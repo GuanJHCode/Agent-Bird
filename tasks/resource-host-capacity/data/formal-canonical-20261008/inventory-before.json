@@ -1,0 +1,47 @@
+{
+  "attempts": {
+    "count": 2,
+    "sha256": "0b21af49158dfc00876383a760d11febf81930761e3076ed1da19f2fc253d0e8"
+  },
+  "execution_owners": {
+    "count": 4,
+    "sha256": "3d8bcd2cb5f53d2b4d76e7f2b7b60216692a389f1dc901e385ea99f2395dfa3a"
+  },
+  "host_launches": {
+    "count": 4,
+    "sha256": "07d19298948de1ab7a205004a2b7ceb1b02b403be843cf4e96de8452a488a667"
+  },
+  "next_ready_sequence": 5,
+  "owner_grants": {
+    "count": 5,
+    "sha256": "19d3a55d5ba0e2392914d217fe8aa3c878496ff3993124c221c7bfdc42ecd6f9"
+  },
+  "runs": {
+    "count": 4,
+    "sha256": "ef57fe6a2f220dd6cd4a09f9bc2801f0a9fbed88ebeb6d5711717abfd4fd8e5d"
+  },
+  "runtime_hosts": {
+    "count": 4,
+    "sha256": "963fe41fefc29b4fed5d2eb4360fd44d9cc59355fd193ebfa1d74434212ed3e3"
+  },
+  "runtime_meta": {
+    "count": 1,
+    "sha256": "8572ae3e8555d6aa3f09df95ea3d23e6995b0ab9e21266be5a2da9af27757508"
+  },
+  "segment_runtime": {
+    "count": 2,
+    "sha256": "63a4efd3c7f637dcfc0e1ba4d5cb8e2c131e3e1ee7e5aab3e1136f693263a944"
+  },
+  "segments": {
+    "count": 2,
+    "sha256": "5989a78e7c336a130d0885e6d72a939254520d59f0f3baa5bd4ae5846ae52433"
+  },
+  "task_runtime": {
+    "count": 4,
+    "sha256": "dd36e60323afa624beae871fc4bb3481ac999097c7dcc6391fc9da19bb81b52e"
+  },
+  "tasks": {
+    "count": 4,
+    "sha256": "6fd47054562196c369e96c15f5dbc305e5bc57736e5ccec0411393e3147f0c36"
+  }
+}
