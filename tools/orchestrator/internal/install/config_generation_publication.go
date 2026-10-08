@@ -234,6 +234,31 @@ func generationCheck(checkpoint func(string) error, point string) error {
 	return nil
 }
 
+// Before a publication has its stage seal, the saved active identity is the
+// first mutation barrier. A restarted intent may need to restore its manifest,
+// but it must not create that manifest after a foreign replacement of active.
+// Once a stage exists, commitActive validates the new sealed identity instead.
+func (g *generationOwner) verifyUnstagedPublicationActive(i configGenerationIntent) error {
+	if i.Next == nil {
+		return nil
+	}
+	_, _, staged, err := generationOriginalRecord(g.owner, "stage.json", generationRecordLimit)
+	if err != nil || staged {
+		return err
+	}
+	body, identity, err := publicationReadAt(g.owner, "active.json", generationRecordLimit)
+	if i.PreviousIdentity == nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return ErrConfigGenerationConflict
+		}
+		return g.validate()
+	}
+	if err != nil || identity != *i.PreviousIdentity || publicationBytesDigest(body) != i.PreviousSHA256 {
+		return ErrConfigGenerationConflict
+	}
+	return g.validate()
+}
+
 func updateConfigGenerationImpl(executable, scope string, r ConfigGenerationOperation, checkpoint func(string) error) (ConfigGenerationReceipt, error) {
 	if !generationHash(scope) || !validConfigOperation(scope, r) {
 		return ConfigGenerationReceipt{}, generationInvalid()
@@ -251,7 +276,14 @@ func updateConfigGenerationImpl(executable, scope string, r ConfigGenerationOper
 	if err != nil {
 		return ConfigGenerationReceipt{}, err
 	}
-	g, err := openGenerationOwner(pkg.DestinationRoot, scope, true)
+	// An existing owner must be validated without initializing optional
+	// directories. In particular, a rejected replay must not turn a legacy
+	// owner without uses/abandoned into a different tree before its immutable
+	// pending intent and active identity have been checked.
+	g, err := openGenerationOwner(pkg.DestinationRoot, scope, false)
+	if errors.Is(err, os.ErrNotExist) {
+		g, err = openGenerationOwner(pkg.DestinationRoot, scope, true)
+	}
 	if err != nil {
 		return ConfigGenerationReceipt{}, err
 	}
@@ -371,6 +403,9 @@ func updateConfigGenerationImpl(executable, scope string, r ConfigGenerationOper
 		return ConfigGenerationReceipt{}, err
 	}
 	if err = generationCheck(checkpoint, "intent"); err != nil {
+		return ConfigGenerationReceipt{}, err
+	}
+	if err = g.verifyUnstagedPublicationActive(intent); err != nil {
 		return ConfigGenerationReceipt{}, err
 	}
 	if r.Action == "publish" {

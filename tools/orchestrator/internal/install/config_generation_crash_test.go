@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -146,6 +147,24 @@ func configCrashTree(t *testing.T, root string) map[string]configCrashEntry {
 		t.Fatal(err)
 	}
 	return out
+}
+
+func configCrashTreeDiff(before, after map[string]configCrashEntry) string {
+	for name, want := range before {
+		got, ok := after[name]
+		if !ok {
+			return fmt.Sprintf("removed %s: %#v", name, want)
+		}
+		if !reflect.DeepEqual(want, got) {
+			return fmt.Sprintf("changed %s: before=%#v after=%#v", name, want, got)
+		}
+	}
+	for name, got := range after {
+		if _, ok := before[name]; !ok {
+			return fmt.Sprintf("created %s: %#v", name, got)
+		}
+	}
+	return "unknown tree difference"
 }
 
 type configCrashFixture struct {
@@ -395,8 +414,9 @@ func TestConfigGenerationPublicationProcessCrashConflicts(t *testing.T) {
 					t.Fatal("wrong conflict result", err)
 				}
 			}
-			if !reflect.DeepEqual(before, configCrashTree(t, f.destination)) {
-				t.Fatal("rejected replay changed preserved evidence", kind, err)
+			after := configCrashTree(t, f.destination)
+			if !reflect.DeepEqual(before, after) {
+				t.Fatal("rejected replay changed preserved evidence", kind, err, configCrashTreeDiff(before, after))
 			}
 			t.Logf("exact conflict kind=%s error=%v", kind, err)
 		})

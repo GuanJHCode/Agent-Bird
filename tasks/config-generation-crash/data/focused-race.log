@@ -1,0 +1,58 @@
+=== RUN   TestConfigGenerationPublicationProcessCrashReplay
+=== RUN   TestConfigGenerationPublicationProcessCrashReplay/intent
+    config_generation_crash_test.go:305: original helper binary sha256=75a6b778b4543cd73e86e537a263e7a278ac7104dd1dfa3277b05a56689542a0
+    config_generation_crash_test.go:305: original Cmd PID=96300 checkpoint=intent Wait=signal: killed signal=killed
+    config_generation_crash_test.go:248: raw original helper PID=96300:
+        === RUN   TestConfigGenerationPublicationCrashHelper
+=== RUN   TestConfigGenerationPublicationProcessCrashReplay/manifest
+    config_generation_crash_test.go:305: original helper binary sha256=75a6b778b4543cd73e86e537a263e7a278ac7104dd1dfa3277b05a56689542a0
+    config_generation_crash_test.go:305: original Cmd PID=96302 checkpoint=manifest Wait=signal: killed signal=killed
+    config_generation_crash_test.go:248: raw original helper PID=96302:
+        === RUN   TestConfigGenerationPublicationCrashHelper
+=== RUN   TestConfigGenerationPublicationProcessCrashReplay/active
+    config_generation_crash_test.go:305: original helper binary sha256=75a6b778b4543cd73e86e537a263e7a278ac7104dd1dfa3277b05a56689542a0
+    config_generation_crash_test.go:305: original Cmd PID=96303 checkpoint=active Wait=signal: killed signal=killed
+    config_generation_crash_test.go:248: raw original helper PID=96303:
+        === RUN   TestConfigGenerationPublicationCrashHelper
+=== RUN   TestConfigGenerationPublicationProcessCrashReplay/receipt
+    config_generation_crash_test.go:305: original helper binary sha256=75a6b778b4543cd73e86e537a263e7a278ac7104dd1dfa3277b05a56689542a0
+    config_generation_crash_test.go:305: original Cmd PID=96304 checkpoint=receipt Wait=signal: killed signal=killed
+    config_generation_crash_test.go:248: raw original helper PID=96304:
+        === RUN   TestConfigGenerationPublicationCrashHelper
+--- PASS: TestConfigGenerationPublicationProcessCrashReplay (1.74s)
+    --- PASS: TestConfigGenerationPublicationProcessCrashReplay/intent (0.43s)
+    --- PASS: TestConfigGenerationPublicationProcessCrashReplay/manifest (0.44s)
+    --- PASS: TestConfigGenerationPublicationProcessCrashReplay/active (0.42s)
+    --- PASS: TestConfigGenerationPublicationProcessCrashReplay/receipt (0.45s)
+=== RUN   TestConfigGenerationPublicationProcessCrashConflicts
+=== RUN   TestConfigGenerationPublicationProcessCrashConflicts/changed_request
+    config_generation_crash_test.go:376: original helper binary sha256=75a6b778b4543cd73e86e537a263e7a278ac7104dd1dfa3277b05a56689542a0
+    config_generation_crash_test.go:376: original Cmd PID=96305 checkpoint=intent Wait=signal: killed signal=killed
+    config_generation_crash_test.go:421: exact conflict kind=changed_request error=config_generation_conflict
+    config_generation_crash_test.go:248: raw original helper PID=96305:
+        === RUN   TestConfigGenerationPublicationCrashHelper
+=== RUN   TestConfigGenerationPublicationProcessCrashConflicts/foreign_scope_expected
+    config_generation_crash_test.go:376: original helper binary sha256=75a6b778b4543cd73e86e537a263e7a278ac7104dd1dfa3277b05a56689542a0
+    config_generation_crash_test.go:376: original Cmd PID=96306 checkpoint=intent Wait=signal: killed signal=killed
+    config_generation_crash_test.go:421: exact conflict kind=foreign_scope_expected error=config_generation_invalid
+    config_generation_crash_test.go:248: raw original helper PID=96306:
+        === RUN   TestConfigGenerationPublicationCrashHelper
+=== RUN   TestConfigGenerationPublicationProcessCrashConflicts/active_inode_drift
+    config_generation_crash_test.go:376: original helper binary sha256=75a6b778b4543cd73e86e537a263e7a278ac7104dd1dfa3277b05a56689542a0
+    config_generation_crash_test.go:376: original Cmd PID=96307 checkpoint=intent Wait=signal: killed signal=killed
+    config_generation_crash_test.go:421: exact conflict kind=active_inode_drift error=config_generation_conflict
+    config_generation_crash_test.go:248: raw original helper PID=96307:
+        === RUN   TestConfigGenerationPublicationCrashHelper
+=== RUN   TestConfigGenerationPublicationProcessCrashConflicts/malformed_stage
+    config_generation_crash_test.go:376: original helper binary sha256=75a6b778b4543cd73e86e537a263e7a278ac7104dd1dfa3277b05a56689542a0
+    config_generation_crash_test.go:376: original Cmd PID=96308 checkpoint=active Wait=signal: killed signal=killed
+    config_generation_crash_test.go:421: exact conflict kind=malformed_stage error=config_generation_invalid
+    config_generation_crash_test.go:248: raw original helper PID=96308:
+        === RUN   TestConfigGenerationPublicationCrashHelper
+--- PASS: TestConfigGenerationPublicationProcessCrashConflicts (1.12s)
+    --- PASS: TestConfigGenerationPublicationProcessCrashConflicts/changed_request (0.29s)
+    --- PASS: TestConfigGenerationPublicationProcessCrashConflicts/foreign_scope_expected (0.25s)
+    --- PASS: TestConfigGenerationPublicationProcessCrashConflicts/active_inode_drift (0.28s)
+    --- PASS: TestConfigGenerationPublicationProcessCrashConflicts/malformed_stage (0.31s)
+PASS
+ok  	github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/install	4.251s

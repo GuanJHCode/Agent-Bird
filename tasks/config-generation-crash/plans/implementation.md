@@ -23,9 +23,16 @@ This is process crash evidence, not power-loss or public supervised CLI coverage
       request, pending consumer/uninstall refusal, Doctor complete tree unchanged,
       exact replay/ref/revision2, preserve existing manifest/history/active inode
       where applicable, second replay immutable, healthy final Doctor.
-- [ ] Independent crash fixtures for changed request, foreign-scope Expected,
+- [x] Independent crash fixtures for changed request, foreign-scope Expected,
       active inode drift, malformed stage; each rejection preserves actual tree.
-- [ ] Run first actual focused selector honestly: first PASS is new evidence,
-      not manufactured RED. Preserve setup/behavior failures separately.
-- [ ] Format, focused ordinary/race and vet, actual counts, original Wait and
-      retained roots/cleanup. Freeze report/hash/commit for ROOT independent review.
+- [x] Run first actual focused selector honestly: it exercised all eight
+      subcases and recorded every original Cmd/Wait. Replay passed for all
+      four phases and three conflict variants; `active_inode_drift` revealed
+      a production write after its conflict result. See
+      `docs/focused-failure.md` and `data/focused-actual.log`.
+- [x] Keep the preserved-tree assertion. The repair opens existing owners
+      read-only before creation and checks an unstaged intent's original
+      active identity before writing its manifest.
+- [x] Format and run the focused ordinary selector once after the final repair,
+      then its race and vet checks. Record actual counts, original Wait and
+      retained roots/cleanup before independent review.
