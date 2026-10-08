@@ -1,0 +1,7 @@
+{
+  "verdict": "failed before measurement",
+  "reason": "noncanonical sys.executable rejected by process.startCommand; launch prepared then UNKNOWN with no process identity",
+  "fixture_fix": "fd38dc4 canonical Path(sys.executable).resolve(strict=True)",
+  "production_guard_changed": false,
+  "cleanup": "controller Wait0; Coordinator cleanup TERM then Wait0; no remaining"
+}

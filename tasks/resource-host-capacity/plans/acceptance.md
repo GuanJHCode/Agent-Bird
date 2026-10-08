@@ -1,4 +1,4 @@
-# Four-source Host acceptance contract (not executed)
+# Four-source Host acceptance contract
 
 Use the frozen candidate from integration a88f45b (schema29) and private controlled origins/workers. This is an additional four-Host capacity/RSS window, not a replacement for the independent3600s two-worker run or the two1200s flood phases.
 
@@ -7,4 +7,4 @@ Use the frozen candidate from integration a88f45b (schema29) and private control
 - A fifth distinct origin attempts public submit while four launches remain occupied. Before issuing that command, register kernel fork observation for existing actors and the known public CLI helper. A stopped pre-exec helper may be used solely to close observer registration's startup gap; after its in-place exec, no fork/newHost/newOwner is allowed. Require typed admission_deferred and original CLI Wait/error receipt, then exact unchanged run/launch/runtime_host/execution_owner/task/attempt/segment inventories and next_ready_sequence. Measure/charge short-lived helper peak from its owned wait/rusage; conservatively backfill that allowance rather than relying only on1s snapshots.
 - Release active workers, verify each exact running/result/Exited0 and OS reaping, collect/accept, then wait for queued workers to actually start before releasing their gates. All four tasks must complete; all original Owner/Host identities must naturally disappear, and all owned controllers and Coordinator must return original Wait0. Any cleanup error, signal, unidentified private product actor or remaining owned descendant fails acceptance.
 
-Independent contract review requested continuous9actor/source presence and no transient fifth spawn; both are mandatory above. ROOT runner be7d3ab is statically reviewed; native evidence and success claim do not yet exist. Keep resource measurements isolated from Go/native test load.
+Independent contract review requested continuous9actor/source presence and no transient fifth spawn; both are mandatory above. ROOT runner be7d3ab is statically reviewed; final fd38dc4 native evidence is recorded in docs/final-validation.md. Keep resource measurements isolated from Go/native test load.
