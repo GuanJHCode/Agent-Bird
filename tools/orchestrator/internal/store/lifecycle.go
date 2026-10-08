@@ -229,6 +229,9 @@ func (d *DB) RequestStop(ctx context.Context, taskID string, workRevision int, r
 }
 
 func requestStopTx(ctx context.Context, tx *sql.Tx, taskID string, workRevision int, reason string) (StopDispatch, error) {
+	if err := initialOwnerRunFence(ctx, tx, taskID); err != nil {
+		return StopDispatch{}, err
+	}
 	var err error
 	rollback := func(e error) (StopDispatch, error) { return StopDispatch{}, e }
 	var status string

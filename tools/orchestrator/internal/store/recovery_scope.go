@@ -22,7 +22,7 @@ type HostPresenceSnapshot struct {
 func (d *DB) InspectHostPresence(ctx context.Context, launchID, token string) (HostPresenceSnapshot, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	owned, err := d.beginOwnerTransaction(ctx)
+	owned, err := d.beginInitialOwnerTransaction(ctx, "launch", launchID, false)
 	if err != nil {
 		return HostPresenceSnapshot{}, err
 	}
@@ -44,6 +44,9 @@ func (d *DB) InspectHostPresence(ctx context.Context, launchID, token string) (H
 		if err != nil {
 			return HostPresenceSnapshot{}, err
 		}
+	}
+	if err = owned.finishInitialRead(); err != nil {
+		return HostPresenceSnapshot{}, err
 	}
 	return r, nil
 }

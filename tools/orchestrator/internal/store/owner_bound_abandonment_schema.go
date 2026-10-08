@@ -20,7 +20,7 @@ var ownerBoundAbandonmentTextColumns = []string{"owner_id", "inbound_authorizati
 // The only substitute for an Applied predecessor is its immutable, exact death
 // proof plus the completed adjacent filesystem handoff. Ordinary owners keep
 // the existing Applied requirement.
-const abandonedPredecessorSQL = `EXISTS(SELECT 1 FROM owner_bound_abandonments d JOIN owner_recovery_scope_handoffs h ON h.owner_id=d.owner_id
+const abandonedPredecessorSchema28SQL = `EXISTS(SELECT 1 FROM owner_bound_abandonments d JOIN owner_recovery_scope_handoffs h ON h.owner_id=d.owner_id
  WHERE d.owner_id=p.owner_id AND a.abandoned_owner_id=d.owner_id AND h.applied=1
  AND d.inbound_authorization_id=p.succession_authorization_id AND d.binding_hash=p.original_binding_hash
  AND d.control_revision=p.control_revision AND p.applied_control_revision=0
@@ -28,6 +28,8 @@ const abandonedPredecessorSQL = `EXISTS(SELECT 1 FROM owner_bound_abandonments d
  AND d.work_revision=a.work_revision AND d.ready_sequence=a.ready_sequence
  AND d.owner_pid=p.owner_pid AND d.owner_birth=p.owner_birth AND d.host_pid=p.current_host_pid AND d.host_birth=p.current_host_birth
  AND NOT EXISTS(SELECT 1 FROM owner_control_changes c WHERE c.owner_id=p.owner_id AND c.applied_hash IS NOT NULL))`
+
+var abandonedPredecessorSQL = strings.Replace(abandonedPredecessorSchema28SQL, "d.inbound_authorization_id=p.succession_authorization_id", "d.inbound_authorization_id=p.succession_authorization_id AND a.initial_proof_id IS (SELECT inbound.initial_proof_id FROM owner_succession_authorizations inbound WHERE inbound.authorization_id=d.inbound_authorization_id)", 1)
 
 func migrateOwnerBoundAbandonmentSchema(tx *sql.Tx) error {
 	_, err := tx.Exec(`CREATE TABLE owner_bound_abandonments(
@@ -104,7 +106,7 @@ func migrateOwnerBoundAbandonmentSchema(tx *sql.Tx) error {
 	if strings.Count(current, old) != 1 {
 		return CodeError("owner_bound_abandonment_schema_mismatch")
 	}
-	current = strings.Replace(current, old, "((a.abandoned_owner_id IS NULL AND "+old+") OR "+abandonedPredecessorSQL+")", 1)
+	current = strings.Replace(current, old, "((a.abandoned_owner_id IS NULL AND "+old+") OR "+abandonedPredecessorSchema28SQL+")", 1)
 	if _, err = tx.Exec(`DROP TRIGGER owner_recovery_handoff_current`); err != nil {
 		return err
 	}

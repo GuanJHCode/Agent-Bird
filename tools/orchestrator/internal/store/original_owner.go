@@ -259,7 +259,7 @@ func (d *DB) BindOriginalOwner(ctx context.Context, spec BindOriginalOwnerSpec, 
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	owned, err := d.beginOwnerTransaction(ctx)
+	owned, err := d.beginInitialOwnerTransaction(ctx, "owner", spec.Hello.Scope.OwnerID, false)
 	if err != nil {
 		return OriginalOwnerBindResult{}, err
 	}

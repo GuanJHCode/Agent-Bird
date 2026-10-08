@@ -131,7 +131,7 @@ func loadRecoveryHandoffTx(ctx context.Context, tx *sql.Tx, row, prior originalO
 func (d *DB) ResolveOriginalOwnerRecoveryHandoff(ctx context.Context, s OwnerRecoveryHandoffSpec, key ed25519.PublicKey) (OwnerRecoveryHandoffContext, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	owned, err := d.beginOwnerTransaction(ctx)
+	owned, err := d.beginInitialOwnerTransaction(ctx, "owner", s.OwnerID, false)
 	if err != nil {
 		return OwnerRecoveryHandoffContext{}, err
 	}
@@ -149,7 +149,7 @@ func (d *DB) prepareOriginalOwnerRecoveryHandoff(ctx context.Context, s OwnerRec
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	owned, err := d.beginOwnerTransaction(ctx)
+	owned, err := d.beginInitialOwnerTransaction(ctx, "owner", s.OwnerID, false)
 	if err != nil {
 		return zero, err
 	}
@@ -200,7 +200,7 @@ func (d *DB) ApplyOriginalOwnerRecoveryHandoff(ctx context.Context, s OwnerRecov
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	owned, err := d.beginOwnerTransaction(ctx)
+	owned, err := d.beginInitialOwnerTransaction(ctx, "owner", s.OwnerID, false)
 	if err != nil {
 		return zero, err
 	}

@@ -26,12 +26,16 @@ type successorOwnerPreview struct {
 func (d *DB) PreviewSuccessorOwnerScope(ctx context.Context, host contract.HostHello, epoch uint64, digest, authorizationID string) (contract.OriginalOwnerScope, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginInitialOwnerTransaction(ctx, "authorization", authorizationID, false)
 	if err != nil {
 		return contract.OriginalOwnerScope{}, err
 	}
-	defer tx.Rollback()
+	defer owned.close()
+	tx := owned.tx
 	preview, err := successorOwnerPreviewTx(ctx, tx, host, epoch, digest, authorizationID)
+	if err == nil {
+		err = owned.finishInitialRead()
+	}
 	return preview.scope, err
 }
 
@@ -46,7 +50,15 @@ func successorOwnerPredecessor(ctx context.Context, tx *sql.Tx, a OriginalOwnerS
 		return p, originalOwnerRejected()
 	}
 	if a.AbandonedOwnerID == "" {
-		if p.state.AppliedControlRevision != p.state.ControlRevision {
+		if a.InitialProofID != "" {
+			var valid int
+			if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM execution_owners p JOIN owner_succession_authorizations a ON a.authorization_id=? WHERE p.owner_id=? AND `+initialPredecessorSQL, a.AuthorizationID, p.state.Intent.Scope.OwnerID).Scan(&valid); err != nil {
+				return p, err
+			}
+			if valid != 1 {
+				return p, originalOwnerRejected()
+			}
+		} else if p.state.AppliedControlRevision != p.state.ControlRevision {
 			return p, originalOwnerRejected()
 		}
 	} else {
@@ -62,6 +74,9 @@ func successorOwnerPredecessor(ctx context.Context, tx *sql.Tx, a OriginalOwnerS
 }
 
 func successorOwnerReservation(ctx context.Context, tx *sql.Tx, a OriginalOwnerSuccessionAuthorization, producer string) error {
+	if a.InitialProofID != "" {
+		return initialOwnerReservation(ctx, tx, a, producer)
+	}
 	var valid int
 	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM tasks t JOIN task_runtime tr ON tr.task_id=t.id WHERE t.id=? AND t.run_id=? AND t.status='resume_queued' AND tr.work_revision=? AND tr.host_launch_id=? AND tr.ready_sequence=?`, a.TaskID, a.RunID, a.WorkRevision, a.LaunchID, a.ReadySequence).Scan(&valid); err != nil {
 		return err
@@ -168,7 +183,7 @@ func (d *DB) prepareSuccessorOwner(ctx context.Context, spec PrepareSuccessorOwn
 	var zero contract.OriginalOwnerIntent
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	owned, err := d.beginOwnerTransaction(ctx)
+	owned, err := d.beginInitialOwnerTransaction(ctx, "authorization", spec.AuthorizationID, false)
 	if err != nil {
 		return zero, err
 	}

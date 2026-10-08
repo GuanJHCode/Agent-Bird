@@ -67,7 +67,7 @@ func validateOwnerApplied(ctx context.Context, tx *sql.Tx, spec OriginalOwnerApp
 func (d *DB) CommitOriginalOwnerApplied(ctx context.Context, spec OriginalOwnerAppliedSpec, key ed25519.PublicKey) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	owned, err := d.beginOwnerTransaction(ctx)
+	owned, err := d.beginInitialOwnerTransaction(ctx, "owner", spec.Applied.Permit.OwnerID, false)
 	if err != nil {
 		return err
 	}
@@ -101,13 +101,18 @@ func (d *DB) CommitOriginalOwnerApplied(ctx context.Context, spec OriginalOwnerA
 	if err = ownerOneRow(result, err); err != nil {
 		return err
 	}
+	if row.state.SuccessionAuthorizationID != "" {
+		if _, err = tx.ExecContext(ctx, `UPDATE owner_initial_recoveries SET phase='activated' WHERE phase='finalized' AND owner_id=(SELECT initial_proof_id FROM owner_succession_authorizations WHERE authorization_id=?)`, row.state.SuccessionAuthorizationID); err != nil {
+			return err
+		}
+	}
 	return owned.commit()
 }
 
 func (d *DB) ActivateOriginalOwner(ctx context.Context, spec OriginalOwnerAppliedSpec, key ed25519.PublicKey) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	owned, err := d.beginOwnerTransaction(ctx)
+	owned, err := d.beginInitialOwnerTransaction(ctx, "owner", spec.Applied.Permit.OwnerID, false)
 	if err != nil {
 		return err
 	}

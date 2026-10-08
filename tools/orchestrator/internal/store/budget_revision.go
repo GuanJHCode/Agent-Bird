@@ -143,6 +143,9 @@ func (d *DB) ReviseBudget(ctx context.Context, command BudgetRevisionCommand) (B
 	if !errors.Is(err, sql.ErrNoRows) {
 		return rollback(err)
 	}
+	if err = initialOwnerRunFence(ctx, tx, command.AnchorTaskID); err != nil {
+		return rollback(err)
+	}
 	var collision int
 	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM budget_revisions WHERE run_id=? AND command_id=?`, runID, req.CommandID).Scan(&collision); err != nil {
 		return rollback(err)
