@@ -176,6 +176,7 @@ func exerciseOriginalOwnerSuccessorStartupNative(t *testing.T, rejectSession boo
 	t.Cleanup(func() { stopNext(); _ = next.Close() })
 	var traceMu sync.Mutex
 	var requests []contract.OwnerRPCRequest
+	activateSeen := make(chan struct{}, 1)
 	releaseACK := make(chan struct{})
 	var releaseOnce sync.Once
 	release := func() { releaseOnce.Do(func() { close(releaseACK) }) }
@@ -184,6 +185,12 @@ func exerciseOriginalOwnerSuccessorStartupNative(t *testing.T, rejectSession boo
 		traceMu.Lock()
 		requests = append(requests, request)
 		traceMu.Unlock()
+		if request.Kind == "activate" {
+			select {
+			case activateSeen <- struct{}{}:
+			default:
+			}
+		}
 		if rejectSession && request.Kind == "recovery_scope" {
 			select {
 			case <-releaseACK:
@@ -297,6 +304,15 @@ func exerciseOriginalOwnerSuccessorStartupNative(t *testing.T, rejectSession boo
 			t.Fatalf("same-tuple startup did not reach revision2/Applied/HostReady: control=%+v err=%v presence=%+v err=%v", state, e, presence, pe)
 		}
 		time.Sleep(5 * time.Millisecond)
+	}
+	// Store readiness commits before the reply hook records Activate. Wait for
+	// that observation so scheduler preemption cannot produce a partial trace.
+	if !rejectSession {
+		select {
+		case <-activateSeen:
+		case <-time.After(time.Second):
+			t.Fatal("ready owner never reached successful Activate reply hook")
+		}
 	}
 	traceMu.Lock()
 	observed := append([]contract.OwnerRPCRequest(nil), requests...)
