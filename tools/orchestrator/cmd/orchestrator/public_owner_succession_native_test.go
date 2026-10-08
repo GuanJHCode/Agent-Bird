@@ -548,6 +548,7 @@ func testPublicOwnerSuccessionDeadBothResumesSameAttempt(t *testing.T, abandonBo
 	var submitBody []byte
 	if initial {
 		cmd := exec.CommandContext(ctx, cli, "submit", "--state-dir", state, "--request", requestPath)
+		cmd.Env = append(os.Environ(), "ORCHESTRATOR_ENABLE_TEST_FAKE=1")
 		var stderr bytes.Buffer
 		cmd.Stderr = &stderr
 		submitBody, err = cmd.Output()
