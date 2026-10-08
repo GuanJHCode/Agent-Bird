@@ -54,7 +54,7 @@ def inventory(db):
 
 def private_entries(state):
     result = {}
-    for directory in ('controls', 'bootstraps', 'owners'):
+    for directory in ('control', 'host-bootstrap', 'owners'):
         parent = state / directory
         if not parent.exists():
             continue
