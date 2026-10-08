@@ -1,0 +1,44 @@
+=== RUN   TestInitialOwnerPublicationCrashHelper
+    owner_initial_publication_crash_test.go:29: subprocess-only publication crash helper
+--- SKIP: TestInitialOwnerPublicationCrashHelper (0.05s)
+=== RUN   TestInitialOwnerPublicationSurvivesPublisherSIGKILL
+=== RUN   TestInitialOwnerPublicationSurvivesPublisherSIGKILL/before_publish
+    owner_initial_publication_crash_test.go:116: publisher PID=11 original Wait state=signal: killed output==== RUN   TestInitialOwnerPublicationCrashHelper
+=== RUN   TestInitialOwnerPublicationSurvivesPublisherSIGKILL/after_publish
+    owner_initial_publication_crash_test.go:116: publisher PID=16 original Wait state=signal: killed output==== RUN   TestInitialOwnerPublicationCrashHelper
+--- PASS: TestInitialOwnerPublicationSurvivesPublisherSIGKILL (2.39s)
+    --- PASS: TestInitialOwnerPublicationSurvivesPublisherSIGKILL/before_publish (1.43s)
+    --- PASS: TestInitialOwnerPublicationSurvivesPublisherSIGKILL/after_publish (0.93s)
+=== RUN   TestInitialOwnerPublicationReplaysOneBoundStage
+=== RUN   TestInitialOwnerPublicationReplaysOneBoundStage/stage_opened
+=== RUN   TestInitialOwnerPublicationReplaysOneBoundStage/before_stage_sync
+=== RUN   TestInitialOwnerPublicationReplaysOneBoundStage/before_publish
+=== RUN   TestInitialOwnerPublicationReplaysOneBoundStage/after_publish
+=== RUN   TestInitialOwnerPublicationReplaysOneBoundStage/directory_synced
+--- PASS: TestInitialOwnerPublicationReplaysOneBoundStage (3.45s)
+    --- PASS: TestInitialOwnerPublicationReplaysOneBoundStage/stage_opened (0.90s)
+    --- PASS: TestInitialOwnerPublicationReplaysOneBoundStage/before_stage_sync (0.67s)
+    --- PASS: TestInitialOwnerPublicationReplaysOneBoundStage/before_publish (0.54s)
+    --- PASS: TestInitialOwnerPublicationReplaysOneBoundStage/after_publish (0.59s)
+    --- PASS: TestInitialOwnerPublicationReplaysOneBoundStage/directory_synced (0.76s)
+=== RUN   TestInitialOwnerPublicationRejectsAuthorityAndForeignState
+=== RUN   TestInitialOwnerPublicationRejectsAuthorityAndForeignState/root_before_open
+=== RUN   TestInitialOwnerPublicationRejectsAuthorityAndForeignState/database_before_open
+=== RUN   TestInitialOwnerPublicationRejectsAuthorityAndForeignState/prepared_lock_missing
+=== RUN   TestInitialOwnerPublicationRejectsAuthorityAndForeignState/proof_stage_drift
+=== RUN   TestInitialOwnerPublicationRejectsAuthorityAndForeignState/foreign_stage
+=== RUN   TestInitialOwnerPublicationRejectsAuthorityAndForeignState/foreign_ledger
+=== RUN   TestInitialOwnerPublicationRejectsAuthorityAndForeignState/spent_ledger
+=== RUN   TestInitialOwnerPublicationRejectsAuthorityAndForeignState/root_before_publish
+=== RUN   TestInitialOwnerPublicationRejectsAuthorityAndForeignState/database_before_publish
+--- PASS: TestInitialOwnerPublicationRejectsAuthorityAndForeignState (5.70s)
+    --- PASS: TestInitialOwnerPublicationRejectsAuthorityAndForeignState/root_before_open (0.53s)
+    --- PASS: TestInitialOwnerPublicationRejectsAuthorityAndForeignState/database_before_open (0.61s)
+    --- PASS: TestInitialOwnerPublicationRejectsAuthorityAndForeignState/prepared_lock_missing (0.60s)
+    --- PASS: TestInitialOwnerPublicationRejectsAuthorityAndForeignState/proof_stage_drift (0.69s)
+    --- PASS: TestInitialOwnerPublicationRejectsAuthorityAndForeignState/foreign_stage (0.70s)
+    --- PASS: TestInitialOwnerPublicationRejectsAuthorityAndForeignState/foreign_ledger (0.55s)
+    --- PASS: TestInitialOwnerPublicationRejectsAuthorityAndForeignState/spent_ledger (0.69s)
+    --- PASS: TestInitialOwnerPublicationRejectsAuthorityAndForeignState/root_before_publish (0.50s)
+    --- PASS: TestInitialOwnerPublicationRejectsAuthorityAndForeignState/database_before_publish (0.81s)
+PASS

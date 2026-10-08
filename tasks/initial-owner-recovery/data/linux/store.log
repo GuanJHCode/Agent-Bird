@@ -1,0 +1,37 @@
+=== RUN   TestInitialOwnerRecoveryMigrationRejectsAlteredSchemaAtomically
+--- PASS: TestInitialOwnerRecoveryMigrationRejectsAlteredSchemaAtomically (1.81s)
+=== RUN   TestInitialOwnerRecoveryPreservesQueueThroughNeverAppliedChain
+--- PASS: TestInitialOwnerRecoveryPreservesQueueThroughNeverAppliedChain (0.87s)
+=== RUN   TestInitialOwnerRecoveryEscrowAndCommitFailure
+=== RUN   TestInitialOwnerRecoveryEscrowAndCommitFailure/prepare
+=== RUN   TestInitialOwnerRecoveryEscrowAndCommitFailure/finalize
+--- PASS: TestInitialOwnerRecoveryEscrowAndCommitFailure (1.76s)
+    --- PASS: TestInitialOwnerRecoveryEscrowAndCommitFailure/prepare (1.03s)
+    --- PASS: TestInitialOwnerRecoveryEscrowAndCommitFailure/finalize (0.73s)
+=== RUN   TestInitialOwnerRecoveryRejectsPreparedDriftAndCollision
+=== RUN   TestInitialOwnerRecoveryRejectsPreparedDriftAndCollision/command
+=== RUN   TestInitialOwnerRecoveryRejectsPreparedDriftAndCollision/task
+=== RUN   TestInitialOwnerRecoveryRejectsPreparedDriftAndCollision/work_revision
+=== RUN   TestInitialOwnerRecoveryRejectsPreparedDriftAndCollision/token
+=== RUN   TestInitialOwnerRecoveryRejectsPreparedDriftAndCollision/snapshot
+=== RUN   TestInitialOwnerRecoveryRejectsPreparedDriftAndCollision/facts
+=== RUN   TestInitialOwnerRecoveryRejectsPreparedDriftAndCollision/phase_and_command
+=== RUN   TestInitialOwnerRecoveryRejectsPreparedDriftAndCollision/authority_case
+--- PASS: TestInitialOwnerRecoveryRejectsPreparedDriftAndCollision (5.15s)
+    --- PASS: TestInitialOwnerRecoveryRejectsPreparedDriftAndCollision/command (0.55s)
+    --- PASS: TestInitialOwnerRecoveryRejectsPreparedDriftAndCollision/task (0.72s)
+    --- PASS: TestInitialOwnerRecoveryRejectsPreparedDriftAndCollision/work_revision (0.56s)
+    --- PASS: TestInitialOwnerRecoveryRejectsPreparedDriftAndCollision/token (0.55s)
+    --- PASS: TestInitialOwnerRecoveryRejectsPreparedDriftAndCollision/snapshot (0.62s)
+    --- PASS: TestInitialOwnerRecoveryRejectsPreparedDriftAndCollision/facts (0.65s)
+    --- PASS: TestInitialOwnerRecoveryRejectsPreparedDriftAndCollision/phase_and_command (0.73s)
+    --- PASS: TestInitialOwnerRecoveryRejectsPreparedDriftAndCollision/authority_case (0.76s)
+=== RUN   TestInitialOwnerRecoveryRejectsReplacedDatabaseAndPoolRecreation
+--- PASS: TestInitialOwnerRecoveryRejectsReplacedDatabaseAndPoolRecreation (0.58s)
+=== RUN   TestInitialOwnerRecoveryReservesCommandAcrossRunsAndModes
+=== RUN   TestInitialOwnerRecoveryReservesCommandAcrossRunsAndModes/successor
+=== RUN   TestInitialOwnerRecoveryReservesCommandAcrossRunsAndModes/existing_owner
+--- PASS: TestInitialOwnerRecoveryReservesCommandAcrossRunsAndModes (1.25s)
+    --- PASS: TestInitialOwnerRecoveryReservesCommandAcrossRunsAndModes/successor (0.70s)
+    --- PASS: TestInitialOwnerRecoveryReservesCommandAcrossRunsAndModes/existing_owner (0.55s)
+PASS

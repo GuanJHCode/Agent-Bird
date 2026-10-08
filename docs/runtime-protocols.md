@@ -30,6 +30,8 @@ Run Host 按来源工作流启动和复用，绑定 `origin_context_id/host_gene
 
 该特例先在同一事务写不可变死亡证明与完整计费的相邻 scope handoff intent，随后在 existing-only 文件锁内完成 scope-only CAS、DB Applied 标记，最后原子提交下一代授权、退休旧 Owner 和 Host offline fence。完整文件摘要、原 authority、pending/不确定 start 门禁保留；不能跳过中间 incarnation。恢复复用入站授权的原 ready sequence、attempt 和预算，重放保留首次死亡观察时间，同时重新核验当前权限与进程状态。typed 退出不是原 `Cmd.Wait` 回执，不能用它清理未确认的后代或 OwnerPending；初代 Bind-before-ledger、pre-Bind 丢失原 handle 和 pending 授权后的 origin rebind 仍不在本特例范围内。
 
+初代 Bind-before-ledger 使用独立 schema29 协议，不套用 existing-only 继任路径：只接受当前 inc1、Bound 且从未 Applied、整 run 零 attempt 的精确双死亡。先固定原 Store root/数据库身份、完整有界 task/queue/budget snapshot、不可变文件事实与授权模板，并计入实际 run/global control-byte escrow；prepared proof 持久化后才能发布 canonical zero ledger。发布在原私有目录/锁下采用唯一 stage、精确前缀恢复、file fsync→无覆盖 rename→身份内容复核→directory fsync，拒绝外来节点或身份漂移。随后提交 initial_ready 授权，保留原 ready/queued 与 FIFO；marker 经 never-Applied 继任链传播，首次 signed Applied 与 proof activated 在同一事务完成。未激活时 stop/新预算 revision 受 run fence 约束；重放不换 command/proof/授权身份。root pin 在固定物理连接后、事务前及提交后检查，不能解释为同 UID 恶意 ABA 或断电保证。pre-Bind 丢失原 child handle、pending authorization 后 origin rebind 仍待处理。
+
 完全空闲定义为无运行/可执行任务、待决策问题、待回调、在途交付、清理到期动作和 UNKNOWN 所有权。空闲 30 秒防抖后退出，启动请求与退出在单实例状态机中对账，不能丢掉退出窗口的新任务。
 
 ## 3. 启动账本与全局配额
