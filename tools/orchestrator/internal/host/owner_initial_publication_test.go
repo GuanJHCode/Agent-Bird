@@ -161,7 +161,7 @@ func TestInitialOwnerPublicationReplaysOneBoundStage(t *testing.T) {
 }
 
 func TestInitialOwnerPublicationRejectsAuthorityAndForeignState(t *testing.T) {
-	for _, mode := range []string{"root_before_open", "database_before_open", "prepared_lock_missing", "foreign_stage", "foreign_ledger", "spent_ledger", "root_before_publish", "database_before_publish"} {
+	for _, mode := range []string{"root_before_open", "database_before_open", "prepared_lock_missing", "proof_stage_drift", "foreign_stage", "foreign_ledger", "spent_ledger", "root_before_publish", "database_before_publish"} {
 		t.Run(mode, func(t *testing.T) {
 			f := newInitialPublicationFixture(t)
 			if mode == "root_before_open" || mode == "database_before_open" {
@@ -200,6 +200,17 @@ func TestInitialOwnerPublicationRejectsAuthorityAndForeignState(t *testing.T) {
 				if err := os.Remove(filepath.Join(dir, recoveryLockName)); err != nil {
 					t.Fatal(err)
 				}
+			case "proof_stage_drift":
+				l.Close()
+				l = f.open(t, &proof)
+				proof.StageName = ".initial-owner-" + strings.Repeat("0", 64) + ".new"
+				if err := l.PublishPrepared(proof); err == nil {
+					t.Fatal("changed prepared stage accepted")
+				}
+				if _, err := os.Lstat(filepath.Join(dir, proof.StageName)); !os.IsNotExist(err) {
+					t.Fatal("foreign proof stage touched", err)
+				}
+				return
 			case "foreign_stage":
 				if err := os.WriteFile(filepath.Join(dir, proof.StageName), []byte("foreign"), 0600); err != nil {
 					t.Fatal(err)

@@ -32,6 +32,7 @@ type InitialOwnerRecoveryPublication struct {
 	published  bool
 	failed     bool
 	// Private crash seam, never selected through an environment or public flag.
+	stageName       string
 	publicationHook func(string, *os.File) error
 }
 
@@ -116,6 +117,25 @@ func OpenInitialOwnerRecoveryPublication(stateDir string, authority store.StoreR
 	if err = l.verifyRoot(); err != nil {
 		return nil, err
 	}
+	// Existing entries may be the result of a prior create whose parent fsync
+	// failed. Confirm all three namespace levels before Facts can be persisted.
+	if err = l.file.lock.Sync(); err != nil {
+		return nil, err
+	}
+	for _, directory := range l.dirs.files {
+		if err = l.verifyRoot(); err != nil {
+			return nil, err
+		}
+		if err = l.file.verifyAuthorityPath(); err != nil {
+			return nil, err
+		}
+		if err = directory.Sync(); err != nil {
+			return nil, err
+		}
+	}
+	if err = l.verifyRoot(); err != nil {
+		return nil, err
+	}
 	authorityHash, err := l.file.authoritySHA256()
 	if err != nil {
 		return nil, err
@@ -168,6 +188,7 @@ func OpenInitialOwnerRecoveryPublication(stateDir string, authority store.StoreR
 			return nil, ownerRecoveryRejected()
 		}
 		l.facts = expected
+		l.stageName = prepared.StageName
 	}
 	if err = l.verify(); err != nil {
 		return nil, err
@@ -278,6 +299,10 @@ func (l *InitialOwnerRecoveryPublication) PublishPrepared(proof store.InitialOwn
 	if proof.Facts != l.facts || !initialOwnerStageName(proof.StageName) || (proof.Phase != "prepared" && proof.Phase != "finalized" && proof.Phase != "activated") {
 		return ownerRecoveryRejected()
 	}
+	if l.stageName != "" && l.stageName != proof.StageName {
+		return ownerRecoveryRejected()
+	}
+	l.stageName = proof.StageName
 	if l.published {
 		return l.file.directoryFile.Sync()
 	}
