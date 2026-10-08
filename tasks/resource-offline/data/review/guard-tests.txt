@@ -1,0 +1,7 @@
+test_broken_controller_cleanup_does_not_skip_coordinator_wait (test_resource_offline.OfflineGuards.test_broken_controller_cleanup_does_not_skip_coordinator_wait) ... ok
+test_pending_evidence_requires_same_segment_and_exit_zero (test_resource_offline.OfflineGuards.test_pending_evidence_requires_same_segment_and_exit_zero) ... ok
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.003s
+
+OK

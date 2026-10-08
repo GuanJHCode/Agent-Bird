@@ -1,0 +1,104 @@
+{
+  "cleanup": {
+    "controller_original_wait": 0,
+    "coordinator_original_wait": 0,
+    "errors": [],
+    "identity_signals": [],
+    "remaining": []
+  },
+  "cpu_percent_one_core": 0.48,
+  "elapsed": 300.0639131249627,
+  "frozen": {
+    "candidate_commit": "51b8e3a40c950a176e84606558f7d6dcf27056f8",
+    "candidate_sha256": "41663f7ce224494bc529f0695540cca9a5591bd8d92df5c7557ee29143d49819",
+    "controller_sha256": "9c1bf1d7c9adf3834039383e462c59a9a2bd3b5eb92b39f8d7aee05964b109ef",
+    "resource_soak_sha256": "96710cab2cd6ba0d26eeb8e11de7c8290c89895ca62bf28e9903f82f7608a95d",
+    "resource_soak_thresholds_sha256": "dc76311c66fbfd139fbed12a68a4b658515f492dbe35bf650a259a998145f552",
+    "reviewed_runner_commit": "efb64f71144416d82af4f1cb6b027d1e69dd74fe",
+    "runner_sha256": "234a6d6f08aa74ec3a031d43c22a679fe8700cf9e251f31db819277248dfd7d7",
+    "thresholds": {
+      "cpu_percent_one_core": 1,
+      "host_exit_seconds": 13,
+      "offline_seconds": 300,
+      "rss_limit_mib": 64,
+      "sample_seconds": 1,
+      "schema_version": 1
+    }
+  },
+  "limitations": [
+    "controlled fake worker, no real Provider/model",
+    "Owner/Host observed by exact identity; no new original-Wait claim for those actors",
+    "not idle30s or four-Host acceptance"
+  ],
+  "peak_rss_mib": 35.078125,
+  "pins_end": {
+    "candidate_sha256": {
+      "dev": 16777234,
+      "ino": 198754094,
+      "mode": 320,
+      "sha256": "41663f7ce224494bc529f0695540cca9a5591bd8d92df5c7557ee29143d49819",
+      "size": 20175714
+    },
+    "controller_sha256": {
+      "dev": 16777234,
+      "ino": 198754111,
+      "mode": 320,
+      "sha256": "9c1bf1d7c9adf3834039383e462c59a9a2bd3b5eb92b39f8d7aee05964b109ef",
+      "size": 3273
+    },
+    "resource_soak_sha256": {
+      "dev": 16777234,
+      "ino": 198754112,
+      "mode": 320,
+      "sha256": "96710cab2cd6ba0d26eeb8e11de7c8290c89895ca62bf28e9903f82f7608a95d",
+      "size": 24713
+    },
+    "resource_soak_thresholds_sha256": {
+      "dev": 16777234,
+      "ino": 198754113,
+      "mode": 320,
+      "sha256": "dc76311c66fbfd139fbed12a68a4b658515f492dbe35bf650a259a998145f552",
+      "size": 594
+    }
+  },
+  "pins_start": {
+    "candidate_sha256": {
+      "dev": 16777234,
+      "ino": 198754094,
+      "mode": 320,
+      "sha256": "41663f7ce224494bc529f0695540cca9a5591bd8d92df5c7557ee29143d49819",
+      "size": 20175714
+    },
+    "controller_sha256": {
+      "dev": 16777234,
+      "ino": 198754111,
+      "mode": 320,
+      "sha256": "9c1bf1d7c9adf3834039383e462c59a9a2bd3b5eb92b39f8d7aee05964b109ef",
+      "size": 3273
+    },
+    "resource_soak_sha256": {
+      "dev": 16777234,
+      "ino": 198754112,
+      "mode": 320,
+      "sha256": "96710cab2cd6ba0d26eeb8e11de7c8290c89895ca62bf28e9903f82f7608a95d",
+      "size": 24713
+    },
+    "resource_soak_thresholds_sha256": {
+      "dev": 16777234,
+      "ino": 198754113,
+      "mode": 320,
+      "sha256": "dc76311c66fbfd139fbed12a68a4b658515f492dbe35bf650a259a998145f552",
+      "size": 594
+    }
+  },
+  "result": "passed",
+  "samples": 301,
+  "source_hashes_end": {
+    "candidate_sha256": "41663f7ce224494bc529f0695540cca9a5591bd8d92df5c7557ee29143d49819",
+    "controller_sha256": "9c1bf1d7c9adf3834039383e462c59a9a2bd3b5eb92b39f8d7aee05964b109ef",
+    "resource_soak_sha256": "96710cab2cd6ba0d26eeb8e11de7c8290c89895ca62bf28e9903f82f7608a95d",
+    "resource_soak_thresholds_sha256": "dc76311c66fbfd139fbed12a68a4b658515f492dbe35bf650a259a998145f552",
+    "runner_sha256": "234a6d6f08aa74ec3a031d43c22a679fe8700cf9e251f31db819277248dfd7d7"
+  },
+  "state_preserved": "/private/tmp/resource-offline-f33d735b5966/state"
+}
