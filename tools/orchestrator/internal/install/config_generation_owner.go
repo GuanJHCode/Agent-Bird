@@ -23,6 +23,29 @@ type generationOwner struct {
 
 var generationDirectories = []string{"generations", "requests", "preparations", "uses", "abandoned"}
 
+// generationOwnerExists distinguishes a missing owner (which publication may
+// initialize) from a damaged existing owner missing a required child. It is
+// deliberately read-only so rejection cannot repair or mutate foreign state.
+func generationOwnerExists(root, scope string) (bool, error) {
+	r, c, err := generationOwnedRoot(root, false)
+	if errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	defer r.Close()
+	defer c.Close()
+	owner, err := generationDirectory(c, scope, false)
+	if errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, owner.Close()
+}
+
 func openGenerationOwner(root, scope string, create bool) (*generationOwner, error) {
 	if !generationHash(scope) {
 		return nil, generationInvalid()

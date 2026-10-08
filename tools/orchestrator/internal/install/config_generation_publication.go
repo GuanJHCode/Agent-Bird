@@ -282,7 +282,13 @@ func updateConfigGenerationImpl(executable, scope string, r ConfigGenerationOper
 	// pending intent and active identity have been checked.
 	g, err := openGenerationOwner(pkg.DestinationRoot, scope, false)
 	if errors.Is(err, os.ErrNotExist) {
-		g, err = openGenerationOwner(pkg.DestinationRoot, scope, true)
+		exists, existsErr := generationOwnerExists(pkg.DestinationRoot, scope)
+		if existsErr != nil {
+			return ConfigGenerationReceipt{}, existsErr
+		}
+		if !exists {
+			g, err = openGenerationOwner(pkg.DestinationRoot, scope, true)
+		}
 	}
 	if err != nil {
 		return ConfigGenerationReceipt{}, err

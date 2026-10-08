@@ -33,6 +33,9 @@ This is process crash evidence, not power-loss or public supervised CLI coverage
 - [x] Keep the preserved-tree assertion. The repair opens existing owners
       read-only before creation and checks an unstaged intent's original
       active identity before writing its manifest.
+- [x] Review repair: create only when the owner itself is absent, fail closed
+      when an existing owner lacks required directories, and cover a valid
+      active-stage seal followed by same-bytes active inode replacement.
 - [x] Format and run the focused ordinary selector once after the final repair,
       then its race and vet checks. Record actual counts, original Wait and
       retained roots/cleanup before independent review.

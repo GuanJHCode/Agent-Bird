@@ -1,0 +1,71 @@
+=== RUN   TestConfigGenerationPublicationProcessCrashReplay
+=== RUN   TestConfigGenerationPublicationProcessCrashReplay/intent
+    config_generation_crash_test.go:305: original helper binary sha256=fa11fdc775e92d8f6fb826d98a13b946607b0b1bdff8e33bffddc7544836bc1f
+    config_generation_crash_test.go:305: original Cmd PID=12 checkpoint=intent Wait=signal: killed signal=killed
+    config_generation_crash_test.go:248: raw original helper PID=12:
+        === RUN   TestConfigGenerationPublicationCrashHelper
+=== RUN   TestConfigGenerationPublicationProcessCrashReplay/manifest
+    config_generation_crash_test.go:305: original helper binary sha256=fa11fdc775e92d8f6fb826d98a13b946607b0b1bdff8e33bffddc7544836bc1f
+    config_generation_crash_test.go:305: original Cmd PID=16 checkpoint=manifest Wait=signal: killed signal=killed
+    config_generation_crash_test.go:248: raw original helper PID=16:
+        === RUN   TestConfigGenerationPublicationCrashHelper
+=== RUN   TestConfigGenerationPublicationProcessCrashReplay/active
+    config_generation_crash_test.go:305: original helper binary sha256=fa11fdc775e92d8f6fb826d98a13b946607b0b1bdff8e33bffddc7544836bc1f
+    config_generation_crash_test.go:305: original Cmd PID=20 checkpoint=active Wait=signal: killed signal=killed
+    config_generation_crash_test.go:248: raw original helper PID=20:
+        === RUN   TestConfigGenerationPublicationCrashHelper
+=== RUN   TestConfigGenerationPublicationProcessCrashReplay/receipt
+    config_generation_crash_test.go:305: original helper binary sha256=fa11fdc775e92d8f6fb826d98a13b946607b0b1bdff8e33bffddc7544836bc1f
+    config_generation_crash_test.go:305: original Cmd PID=24 checkpoint=receipt Wait=signal: killed signal=killed
+    config_generation_crash_test.go:248: raw original helper PID=24:
+        === RUN   TestConfigGenerationPublicationCrashHelper
+--- PASS: TestConfigGenerationPublicationProcessCrashReplay (0.55s)
+    --- PASS: TestConfigGenerationPublicationProcessCrashReplay/intent (0.18s)
+    --- PASS: TestConfigGenerationPublicationProcessCrashReplay/manifest (0.12s)
+    --- PASS: TestConfigGenerationPublicationProcessCrashReplay/active (0.12s)
+    --- PASS: TestConfigGenerationPublicationProcessCrashReplay/receipt (0.12s)
+=== RUN   TestConfigGenerationPublicationProcessCrashConflicts
+=== RUN   TestConfigGenerationPublicationProcessCrashConflicts/changed_request
+    config_generation_crash_test.go:376: original helper binary sha256=fa11fdc775e92d8f6fb826d98a13b946607b0b1bdff8e33bffddc7544836bc1f
+    config_generation_crash_test.go:376: original Cmd PID=28 checkpoint=intent Wait=signal: killed signal=killed
+    config_generation_crash_test.go:425: exact conflict kind=changed_request error=config_generation_conflict
+    config_generation_crash_test.go:248: raw original helper PID=28:
+        === RUN   TestConfigGenerationPublicationCrashHelper
+=== RUN   TestConfigGenerationPublicationProcessCrashConflicts/foreign_scope_expected
+    config_generation_crash_test.go:376: original helper binary sha256=fa11fdc775e92d8f6fb826d98a13b946607b0b1bdff8e33bffddc7544836bc1f
+    config_generation_crash_test.go:376: original Cmd PID=32 checkpoint=intent Wait=signal: killed signal=killed
+    config_generation_crash_test.go:425: exact conflict kind=foreign_scope_expected error=config_generation_invalid
+    config_generation_crash_test.go:248: raw original helper PID=32:
+        === RUN   TestConfigGenerationPublicationCrashHelper
+=== RUN   TestConfigGenerationPublicationProcessCrashConflicts/active_inode_drift
+    config_generation_crash_test.go:376: original helper binary sha256=fa11fdc775e92d8f6fb826d98a13b946607b0b1bdff8e33bffddc7544836bc1f
+    config_generation_crash_test.go:376: original Cmd PID=36 checkpoint=intent Wait=signal: killed signal=killed
+    config_generation_crash_test.go:425: exact conflict kind=active_inode_drift error=config_generation_conflict
+    config_generation_crash_test.go:248: raw original helper PID=36:
+        === RUN   TestConfigGenerationPublicationCrashHelper
+=== RUN   TestConfigGenerationPublicationProcessCrashConflicts/sealed_active_inode_drift
+    config_generation_crash_test.go:376: original helper binary sha256=fa11fdc775e92d8f6fb826d98a13b946607b0b1bdff8e33bffddc7544836bc1f
+    config_generation_crash_test.go:376: original Cmd PID=41 checkpoint=active Wait=signal: killed signal=killed
+    config_generation_crash_test.go:425: exact conflict kind=sealed_active_inode_drift error=config_generation_conflict
+    config_generation_crash_test.go:248: raw original helper PID=41:
+        === RUN   TestConfigGenerationPublicationCrashHelper
+=== RUN   TestConfigGenerationPublicationProcessCrashConflicts/missing_required_directory
+    config_generation_crash_test.go:376: original helper binary sha256=fa11fdc775e92d8f6fb826d98a13b946607b0b1bdff8e33bffddc7544836bc1f
+    config_generation_crash_test.go:376: original Cmd PID=45 checkpoint=intent Wait=signal: killed signal=killed
+    config_generation_crash_test.go:425: exact conflict kind=missing_required_directory error=no such file or directory
+    config_generation_crash_test.go:248: raw original helper PID=45:
+        === RUN   TestConfigGenerationPublicationCrashHelper
+=== RUN   TestConfigGenerationPublicationProcessCrashConflicts/malformed_stage
+    config_generation_crash_test.go:376: original helper binary sha256=fa11fdc775e92d8f6fb826d98a13b946607b0b1bdff8e33bffddc7544836bc1f
+    config_generation_crash_test.go:376: original Cmd PID=49 checkpoint=active Wait=signal: killed signal=killed
+    config_generation_crash_test.go:425: exact conflict kind=malformed_stage error=config_generation_invalid
+    config_generation_crash_test.go:248: raw original helper PID=49:
+        === RUN   TestConfigGenerationPublicationCrashHelper
+--- PASS: TestConfigGenerationPublicationProcessCrashConflicts (0.57s)
+    --- PASS: TestConfigGenerationPublicationProcessCrashConflicts/changed_request (0.09s)
+    --- PASS: TestConfigGenerationPublicationProcessCrashConflicts/foreign_scope_expected (0.10s)
+    --- PASS: TestConfigGenerationPublicationProcessCrashConflicts/active_inode_drift (0.09s)
+    --- PASS: TestConfigGenerationPublicationProcessCrashConflicts/sealed_active_inode_drift (0.10s)
+    --- PASS: TestConfigGenerationPublicationProcessCrashConflicts/missing_required_directory (0.10s)
+    --- PASS: TestConfigGenerationPublicationProcessCrashConflicts/malformed_stage (0.10s)
+PASS

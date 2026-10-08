@@ -366,11 +366,11 @@ func TestConfigGenerationPublicationProcessCrashReplay(t *testing.T) {
 }
 
 func TestConfigGenerationPublicationProcessCrashConflicts(t *testing.T) {
-	for _, kind := range []string{"changed_request", "foreign_scope_expected", "active_inode_drift", "malformed_stage"} {
+	for _, kind := range []string{"changed_request", "foreign_scope_expected", "active_inode_drift", "sealed_active_inode_drift", "missing_required_directory", "malformed_stage"} {
 		t.Run(kind, func(t *testing.T) {
 			f := newConfigCrashFixture(t)
 			point := "intent"
-			if kind == "malformed_stage" {
+			if kind == "malformed_stage" || kind == "sealed_active_inode_drift" {
 				point = "active"
 			}
 			f.crash(t, point)
@@ -387,7 +387,7 @@ func TestConfigGenerationPublicationProcessCrashConflicts(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-			case "active_inode_drift":
+			case "active_inode_drift", "sealed_active_inode_drift":
 				path := filepath.Join(ownerRoot, "active.json")
 				raw, err := os.ReadFile(path)
 				if err != nil {
@@ -397,6 +397,10 @@ func TestConfigGenerationPublicationProcessCrashConflicts(t *testing.T) {
 					t.Fatal(err)
 				}
 				if err = os.Rename(path+".foreign", path); err != nil {
+					t.Fatal(err)
+				}
+			case "missing_required_directory":
+				if err := os.RemoveAll(filepath.Join(ownerRoot, "generations")); err != nil {
 					t.Fatal(err)
 				}
 			case "malformed_stage":
@@ -409,7 +413,7 @@ func TestConfigGenerationPublicationProcessCrashConflicts(t *testing.T) {
 			if err == nil {
 				t.Fatal("conflicting crash replay accepted", kind)
 			}
-			if kind == "changed_request" || kind == "active_inode_drift" {
+			if kind == "changed_request" || kind == "active_inode_drift" || kind == "sealed_active_inode_drift" {
 				if !errors.Is(err, ErrConfigGenerationConflict) {
 					t.Fatal("wrong conflict result", err)
 				}
