@@ -1,0 +1,7 @@
+=== RUN   TestSupervisedInstalledConfigPublicEntry
+    supervised_config_entry_test.go:121: public submission did not consume its pinned installed generation through a supervised owner: mode="legacy" payload={"config_generation":{"schema_version":1,"owner_scope_sha256":"2448cd5c11c6c2c5895fd97a6a04cd25d17c8bda479a32a0074193ae1391ba6d","generation_id":"65ad89c40c24de533de0751ca5dff243a6c873f5570336652437c8d07312e025","manifest_sha256":"dee9195cee40af5f7eabfcba0965f463f5f3e95d6f988de8efb8fc4cfcdfe769","package_version":"1.0.0"},"config_model_source":"saved-default","profile":{"version":1,"role":"reviewer","model":"claude-model","permission":"read-only","timeout_ms":5000},"provider_lock":{"version":1,"provider":"claude-code","protocol":"claude-stream-json-v1","binary":{"path":"/private/tmp/supervised-config-entry-3615385813/claude","version":"fixture-v1","sha256":"644f406a2a42017d974dd7a9b2e3c0edf233dc0d59d88139f17f9e94fd9f5e0f"}},"kind":"","directory":"/private/tmp/supervised-config-entry-3615385813","provider":"claude-code","prompt":"controlled local fixture"} err=<nil>
+    supervised_config_entry_test.go:39: retained supervised installed-config fixture: /private/tmp/supervised-config-entry-3615385813
+--- FAIL: TestSupervisedInstalledConfigPublicEntry (5.10s)
+FAIL
+FAIL	github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator	6.067s
+FAIL
