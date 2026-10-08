@@ -1,0 +1,89 @@
+{
+  "cleanup": {
+    "coordinator_original_wait": 0,
+    "identity_signals": [],
+    "remaining": [],
+    "unregistered_private_processes": [],
+    "worker_stop": [
+      {
+        "error": "Failure('stop exited 2: b\\'{\"error\":\"conflict\",\"status\":\"error\",\"version\":1}\\\\n\\'')"
+      },
+      {
+        "error": "Failure('stop exited 2: b\\'{\"error\":\"conflict\",\"status\":\"error\",\"version\":1}\\\\n\\'')"
+      }
+    ]
+  },
+  "error": "Failure('RSS growth exceeded frozen window tolerance')",
+  "finished_unix_ns": 1791447732105704000,
+  "frozen": {
+    "candidate_sha256": "41663f7ce224494bc529f0695540cca9a5591bd8d92df5c7557ee29143d49819",
+    "runner_sha256": "f454a45248f9ca60599f50fb828da362eb7d266035f74eab2d0bd0da0e509190",
+    "thresholds": {
+      "burst_seconds": 1200,
+      "bytes_per_second_per_worker": 1048576,
+      "critical_event_interval_seconds": 10,
+      "critical_event_max_bytes": 4096,
+      "giant_line_bytes": 4194304,
+      "giant_line_interval_seconds": 30,
+      "offline_cpu_percent_of_one_core": 1,
+      "offline_rss_limit_mib": 64,
+      "offline_seconds": 300,
+      "owner_retirement_seconds": 13,
+      "product_rss_limit_mib": 128,
+      "rss_phase_warmup_seconds": 300,
+      "rss_window_range_limit_mib": 8,
+      "rss_window_seconds": 300,
+      "sample_interval_seconds": 1,
+      "schema_version": 1,
+      "total_duration_seconds": 3600,
+      "two_worker_seconds": 600,
+      "unknown_burst_seconds": 1200,
+      "worker_completion_grace_seconds": 5,
+      "worker_duration_seconds": 3540
+    },
+    "worker_sha256": "4539447e2840320b5a6116db00894ff8ae8cec00143fd263b3ccf623dc6b7489"
+  },
+  "limitations": [
+    "fake adapter drain, no real Provider parser/model",
+    "Owner/Host retirement observed by exact identity; original handle evidence reused from native lifecycle acceptance",
+    "measurement ps/SQLite/Python scaffolding excluded; report helpers conservatively charged"
+  ],
+  "mode": "formal",
+  "pins_end": {
+    "candidate": {
+      "dev": 16777234,
+      "ino": 198777171,
+      "mode": 320,
+      "sha256": "41663f7ce224494bc529f0695540cca9a5591bd8d92df5c7557ee29143d49819",
+      "size": 20175714
+    },
+    "worker": {
+      "dev": 16777234,
+      "ino": 198777172,
+      "mode": 320,
+      "sha256": "4539447e2840320b5a6116db00894ff8ae8cec00143fd263b3ccf623dc6b7489",
+      "size": 28630002
+    }
+  },
+  "pins_start": {
+    "candidate": {
+      "dev": 16777234,
+      "ino": 198777171,
+      "mode": 320,
+      "sha256": "41663f7ce224494bc529f0695540cca9a5591bd8d92df5c7557ee29143d49819",
+      "size": 20175714
+    },
+    "worker": {
+      "dev": 16777234,
+      "ino": 198777172,
+      "mode": 320,
+      "sha256": "4539447e2840320b5a6116db00894ff8ae8cec00143fd263b3ccf623dc6b7489",
+      "size": 28630002
+    }
+  },
+  "result": "failed",
+  "sampled_cpu_seconds": 25.540000000000003,
+  "samples": 3600,
+  "started_unix_ns": 1791444128866151000,
+  "state_root": "/private/tmp/resource-soak-9d4e8e5985a1"
+}
