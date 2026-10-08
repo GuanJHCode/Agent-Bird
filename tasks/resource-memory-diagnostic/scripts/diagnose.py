@@ -31,17 +31,18 @@ def read_module(name, path):
     return value
 
 
-def observe_system(ctx, tick):
+def observe_system(ctx, tick, boundary=False):
     """External observation helpers have separate original wait4 receipts."""
     soak = ctx['soak']
-    commands = [['/usr/bin/vm_stat'], ['/usr/sbin/sysctl', '-n', 'vm.swapusage']]
-    if tick in (0, 300, 600, 1100):
+    commands = [] if boundary else [['/usr/bin/vm_stat'], ['/usr/sbin/sysctl', '-n', 'vm.swapusage']]
+    if boundary:
         rows = soak.process_table()
         for identity in ctx['identities'].values():
             if identity['role'] in ('coordinator', 'host', 'owner') and soak.identity_alive(identity, rows):
                 commands.append(['/usr/bin/vmmap', '-summary', str(identity['pid'])])
     for index, command in enumerate(commands):
-        prefix = ctx['out'] / 'system' / f'{tick:04d}-{index}'
+        kind = 'vmmap' if boundary else 'system'
+        prefix = ctx['out'] / 'system' / f'{tick:04d}-{kind}-{index}'
         out = os.open(str(prefix) + '.stdout', os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         err = os.open(str(prefix) + '.stderr', os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         started = time.time_ns()
@@ -124,8 +125,8 @@ def main():
                    'vmmap/vm_stat observers may perturb timing; no forced GC or artificial memory pressure',
                    'controlled fake adapter, no Provider/model/account', 'shortened phase durations cannot exclude hour-only behavior']}
     db = None
-    pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-    observer = None
+    pool = concurrent.futures.ThreadPoolExecutor(max_workers=2)
+    observers = {'system': None, 'vmmap': None}
     try:
         stdout = os.fdopen(os.open(ctx['raw'] / 'server.stdout', os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600), 'wb')
         stderr = os.fdopen(os.open(ctx['raw'] / 'server.stderr', os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600), 'wb')
@@ -184,10 +185,15 @@ def main():
                 samples.append(sample)
                 raw.write(json.dumps(sample, separators=(',', ':')) + '\n')
                 raw.flush()
-                if tick % 10 == 0 and (observer is None or observer.done()):
-                    if observer is not None:
-                        observer.result()
-                    observer = pool.submit(observe_system, ctx, tick)
+                for kind, due in (('system', tick % 10 == 0), ('vmmap', tick in (0, 300, 600, 1100))):
+                    if not due:
+                        continue
+                    previous = observers[kind]
+                    if previous is not None:
+                        if not previous.done():
+                            raise RuntimeError(kind + ' observer exceeded its bounded sampling interval')
+                        previous.result()
+                    observers[kind] = pool.submit(observe_system, ctx, tick, kind == 'vmmap')
         remaining = (start_ns + PLAN['duration_seconds'] * 1_000_000_000 - time.time_ns()) / 1e9
         if remaining > 0:
             time.sleep(remaining)
@@ -204,11 +210,13 @@ def main():
     except BaseException as error:
         summary['error'] = repr(error)
     finally:
-        try:
-            if observer is not None:
-                observer.result(timeout=25)
-        except BaseException as error:
-            summary['observer_error'] = repr(error)
+        for kind, observer in observers.items():
+            try:
+                if observer is not None:
+                    observer.result(timeout=15)
+            except BaseException as error:
+                summary.setdefault('observer_errors', {})[kind] = repr(error)
+                summary['result'] = 'failed'
         pool.shutdown(wait=True)
         if db is not None:
             try:
