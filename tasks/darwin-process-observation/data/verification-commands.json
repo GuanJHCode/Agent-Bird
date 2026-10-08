@@ -1,0 +1,34 @@
+[
+  {
+    "name": "race",
+    "command": [
+      "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+      "test",
+      "-race",
+      "-count=1",
+      "-json",
+      "./internal/process",
+      "-run",
+      "^(TestDarwin(Native|Observations)|TestAncestryContextRealOS|TestIdentityExitProofUsesRealLiveAndReapedChild|TestIdentityObservationClassifiesOwnedNativeChild|TestOwnedProcessCapturesAndStopsRealChild|TestStopDoesNotClaimExitedLeaderProcessGroupWasCleared|TestC03StopRealOwnedGroup)"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "vet",
+    "command": [
+      "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+      "vet",
+      "./internal/process"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "build",
+    "command": [
+      "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+      "build",
+      "./..."
+    ],
+    "exit": 0
+  }
+]
