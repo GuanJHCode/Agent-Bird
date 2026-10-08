@@ -204,6 +204,14 @@ func TestManagedCandidateFreezesWorkerChangesWithoutUserChanges(t *testing.T) {
 // Reuse the native test executable: first execution of a fresh unsigned shell
 // script can exceed the production 2s probe deadline under full-suite load.
 func TestMain(m *testing.M) {
+	if filepath.Base(os.Args[0]) == "supervised-config-worker-fixture" {
+		runSupervisedConfigWorkerFixture()
+		return
+	}
+	if filepath.Base(os.Args[0]) == "codex-orchestrator" && strings.Contains(filepath.ToSlash(os.Args[0]), "/supervised-config-entry-") {
+		runSupervisedConfigEntryFixture()
+		return
+	}
 	if filepath.Base(os.Args[0]) == "public-owner-succession-cli-fixture" {
 		runPublicOwnerSuccessionFixture()
 		return

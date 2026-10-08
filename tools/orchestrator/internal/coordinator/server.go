@@ -816,7 +816,7 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 			tasks = append(tasks, store.TaskSpec{Diagnostics: task.Diagnostics, ID: task.ID, RunID: request.RunID, Dependencies: task.Dependencies, ExecutionPolicy: task.ExecutionPolicy, MaxAttempts: task.MaxAttempts, WorkRevision: task.WorkRevision, BudgetGroupID: task.BudgetGroupID, MaxActiveMS: task.MaxActiveMS, AdapterPayload: task.AdapterPayload, FallbackPayloads: task.Fallbacks, CompletionPolicy: policy, ExpectedArtifactSHA256: task.ExpectedArtifactSHA256})
 		}
 		mode := "legacy"
-		if s.cliSupervised && request.OwnerMode != "local" {
+		if s.cliSupervised && (request.OwnerMode != "local" || configGuard != nil) {
 			mode = "supervised-v1"
 		}
 		receipt, err := s.db.SubmitPlan(ctx, store.PlanSpec{ConfigSubmission: configGuard, Run: store.RunSpec{DeliveryMode: request.DeliveryMode, ID: request.RunID, ControllerThread: request.ControllerThread, PlanRevision: request.PlanRevision, OriginContextID: request.OriginContextID, OriginPID: request.OriginPID, OriginBirth: request.OriginBirth}, Host: store.HostLaunchSpec{ExecutionOwnerMode: mode, OriginContextID: request.OriginContextID, HostGeneration: request.HostGeneration, Executable: request.HostExecutable}, Tasks: tasks, LaunchID: request.LaunchID, LaunchToken: request.LaunchToken, ControlToken: request.ControlToken})

@@ -24,6 +24,7 @@ func TestLocalOwnerBindingDoesNotRequireNativeReturnTransport(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer server.Close()
+	server.cliSupervised = true // Only authenticated config pins opt local submissions into supervised mode.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go server.Serve(ctx)
@@ -51,6 +52,10 @@ func TestLocalOwnerBindingDoesNotRequireNativeReturnTransport(t *testing.T) {
 	decodePayload(t, response, &submitted)
 	if submitted.Status != "queued" {
 		t.Fatalf("submit=%s", response.Payload)
+	}
+	var mode string
+	if err = server.db.SQL().QueryRow(`SELECT execution_owner_mode FROM host_launches WHERE id=?`, submitted.LaunchID).Scan(&mode); err != nil || mode != "legacy" {
+		t.Fatal("non-config local admission changed mode", mode, err)
 	}
 	request["run_id"] = "spoof"
 	request["controller_thread"] = "other"
