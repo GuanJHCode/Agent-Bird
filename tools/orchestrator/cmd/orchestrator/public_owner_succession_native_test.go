@@ -427,7 +427,13 @@ func testPublicOwnerSuccessionDeadBothResumesSameAttempt(t *testing.T, abandonBo
 			t.Fatal(err)
 		}
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 70*time.Second)
+	fixtureTimeout, readyTimeout := 70*time.Second, 15*time.Second
+	if pendingRebind {
+		// A cold race SQLite schema30 migration exceeded the old15s setup
+		// window before any Owner existed. Keep lifecycle deadlines unchanged.
+		fixtureTimeout, readyTimeout = 120*time.Second, 60*time.Second
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), fixtureTimeout)
 	defer cancel()
 	logPath := filepath.Join(root, "serve.log")
 	log, err := os.OpenFile(logPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
@@ -530,7 +536,7 @@ func testPublicOwnerSuccessionDeadBothResumesSameAttempt(t *testing.T, abandonBo
 	// five-second fixture setup window. This is separate from Owner startup
 	// and its unchanged thirteen-second original-Wait retirement contract.
 	readyStarted := time.Now()
-	for end := readyStarted.Add(15 * time.Second); ; {
+	for end := readyStarted.Add(readyTimeout); ; {
 		readyCtx, stopReady := context.WithTimeout(ctx, 150*time.Millisecond)
 		response, readyErr := ipc.Call(readyCtx, filepath.Join(state, "coordinator.sock"), ipc.Envelope{Version: ipc.Version, Kind: ipc.KindReady, RequestID: "public-succession-ready"})
 		stopReady()
