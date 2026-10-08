@@ -180,7 +180,7 @@ def public_call(ctx, *args):
 
 def idle_count(db):
     # Same durable predicate as Store.CompletelyIdle. In-flight IPC is excluded
-    # by waiting for the final public accept's original CLI process first.
+    # by waiting for the final public ACK's original CLI process first.
     return db.execute("""SELECT
       (SELECT COUNT(*) FROM segment_runtime WHERE status IN ('launch_requested','prepared','spawned','running','stopping','unknown')) +
       (SELECT COUNT(*) FROM tasks WHERE status IN ('queued','ready','resume_queued','running','stopping','unknown','waiting_question','interrupted','result_ready')) +
@@ -229,10 +229,26 @@ def measure(ctx, db, baseline):
         '--event-revision', str(event['event_revision']), '--event-hash', event['payload_hash'],
         '--action-slot', event['action_slot'], '--decision', 'accept', '--command-id', 'idle-accept')
     accept_wait = time.monotonic()
+    # Acceptance records the review decision; delivery remains pending until
+    # the public ACK consumes this exact collection proof and event tuple.
+    ack_request = ctx['release'].parent / 'delivery-ack.json'
+    ctx['soak'].atomic(ack_request, {
+        'version': 1, 'task_id': ctx['task_id'], 'control_file': ctx['control_file'],
+        'delivery_id': collection['delivery_id'],
+        'collection_proof_sha256': collection['collection_proof_sha256'],
+        'decisions': [{'event_id': event['event_id'], 'event_revision': event['event_revision'],
+            'event_hash': event['payload_hash'], 'action_slot': event['action_slot'],
+            'decision': 'handled', 'command_id': 'idle-delivery-ack'}]})
+    ack_started = time.monotonic()
+    acknowledgement = public_call(ctx, 'ack', '--state-dir', str(ctx['state']),
+                                  '--request', str(ack_request))
+    ack_wait = time.monotonic()
+    if acknowledgement.get('status') != 'acknowledged':
+        raise Failure('public delivery ACK was not acknowledged')
     coordinator = ctx['identities'][str(ctx['server'].pid)]
-    first_idle, last_busy, last_alive = None, accept_started, None
+    first_idle, last_busy, last_alive = None, ack_started, None
     observed, departed = [], None
-    end = accept_wait + THRESHOLDS['latest_exit_seconds'] + 2
+    end = ack_wait + THRESHOLDS['latest_exit_seconds'] + 2
     with private_output(ctx['out'] / 'idle-samples.jsonl') as raw:
         while time.monotonic() < end:
             now = time.monotonic()
@@ -244,6 +260,7 @@ def measure(ctx, db, baseline):
             if not present and status is None:
                 status = ctx['server'].poll()
             sample = {'monotonic': now, 'since_accept_seconds': now-accept_started,
+                      'since_ack_seconds': now-ack_started,
                       'nonidle_count': count, 'coordinator_identity_present': present,
                       'original_wait': status}
             observed.append(sample)
@@ -274,6 +291,7 @@ def measure(ctx, db, baseline):
     if any(identity_present(i, rows) for i in ctx['identities'].values() if i['role'] in ('owner','host','worker')):
         raise Failure('enrolled product process remained after idle debounce')
     return {'idle_window': {'accept_started': accept_started, 'accept_original_wait_at': accept_wait,
+            'ack_started': ack_started, 'ack_original_wait_at': ack_wait,
             'last_busy_observed': last_busy, 'first_idle_observed': first_idle,
             'last_alive_observed': last_alive, 'exit_observed': departed,
             'idle_to_exit_seconds': departed-first_idle}, 'sample_count': len(observed),
