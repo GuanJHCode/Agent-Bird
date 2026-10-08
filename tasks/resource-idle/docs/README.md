@@ -1,14 +1,11 @@
-# F12 idle30 fixture
-The runner is limited to the fixed integration candidate path and requires a full
-freeze manifest covering candidate, runner, controller, reused soak module and
-threshold files. Each source is copied from one no-follow FD into a new 0700
-output directory; copied executables are 0500. No candidate is started during
-preparation.
+# F12 idle30 controlled acceptance
 
-It submits through public owner-bind/submit with one gated fake worker, enrolls
-exact PID/birth/argv identities, requires durable Exited0 and reaping, then uses
-public collect/accept. It records the equivalent of CompletelyIdle continuously.
-Coordinator remains expected during the debounce: exit before 29 seconds after
-the first idle observation, after 32 seconds, a nonzero original Wait, residual
-identity, pin drift, or any cleanup signal is a failure. State and raw receipts
-remain on failure. This is neither offline pending-delivery nor four-Host proof.
+ROOT replaced the unexecuted7686b1a draft using the reviewed resource-offline setup, exact lifecycle join, private FD copy and independent cleanup paths. The old draft had a missing runner-copy destination, literal newline output, weak lifecycle matches and incomplete failure cleanup; it is not acceptance evidence.
+
+The new runner requires an absolute candidate and new absolute output, plus a frozen manifest covering candidate, runner, controller, both helper source/thresholds and idle thresholds. It retains a source copy and start/end pins. Use the same integration candidate41663f7c for this batch; no user installation is involved.
+
+One controlled origin submits a gated fake worker through public owner-bind/submit. Before gate release, enroll exact signed Owner/Host and worker PID/birth identities; pending proof joins the one attempt/segment and exact running/result/Exited0. Public collect/accept clears pending. No further product IPC is issued during idle observation.
+
+From the first CompletelyIdle-equivalent durable observation, require the original Coordinator Popen still alive at >=29 seconds and naturally exited/reaped with Wait0 by32 seconds. Record accept-start/accept-Wait, last busy, first idle, last live and exit timestamps; these expose sampling/IPC uncertainty around the production30s+250ms polling boundary. Preserve full JSONL samples. There must be no busy interruption, leftover product actor, pin drift, cleanup error or cleanup signal. Controlled origin remains alive through the measurement and exits by stdin EOF in cleanup.
+
+Owner/Host have exact-identity exit evidence; their original-Wait evidence is reused from prior native lifecycle tests, not newly claimed here. This proves neither offline300s nor four-Host capacity/RSS. Current work is static only; native execution is0 pending long-soak resource release.
