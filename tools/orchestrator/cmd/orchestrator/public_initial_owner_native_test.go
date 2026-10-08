@@ -15,7 +15,7 @@ import (
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 )
 
-func exercisePublicInitialRecovery(t *testing.T, ctx context.Context, cli, state, control string, bootstrap hostBootstrap, db *sql.DB, initial contract.OriginalOwnerBinding, trigger, marker, release string, actors *[]contract.OriginalOwnerTransport) {
+func exercisePublicInitialRecovery(t *testing.T, ctx context.Context, cli, state, control string, bootstrap hostBootstrap, db *sql.DB, initial contract.OriginalOwnerBinding, trigger, marker, release string, actors *[]contract.OriginalOwnerTransport, resume func([]string) []byte) {
 	t.Helper()
 	for _, item := range []struct {
 		kind  string
@@ -51,7 +51,12 @@ func exercisePublicInitialRecovery(t *testing.T, ctx context.Context, cli, state
 		t.Fatal(err)
 	}
 	args := []string{"resume", "--state-dir", state, "--task-id", "worker", "--control-file", control, "--work-revision", "1", "--command-id", "public-initial-recovery"}
-	body := runBinary(t, ctx, cli, args...)
+	var body []byte
+	if resume == nil {
+		body = runBinary(t, ctx, cli, args...)
+	} else {
+		body = resume(args)
+	}
 	var receipt struct {
 		Mode, Status    string
 		ReadySequence   int64  `json:"ready_sequence"`
