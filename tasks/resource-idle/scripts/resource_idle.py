@@ -63,11 +63,13 @@ def main():
       c['server']=subprocess.Popen([str(c['bin']),'serve','--state-dir',str(state)],env=env,stdin=subprocess.DEVNULL,stdout=output(raw/'server.stdout'),stderr=output(raw/'server.stderr'));remember(c,c['server'].pid,'coordinator')
       end=time.monotonic()+15
       while not (state/'coordinator.sock').exists():
-       if c['server'].poll()!=None or time.monotonic()>end:raise Fail('server startup');time.sleep(.05)
+       if c['server'].poll()!=None or time.monotonic()>end: raise Fail('server startup')
+       time.sleep(.05)
       c['controller']=subprocess.Popen([sys.executable,str(dst['controller_sha256']),'--candidate',str(c['bin']),'--state',str(state),'--work',str(work),'--ready',str(ready),'--helper',str(dst['resource_soak_sha256']),'--raw',str(raw/'controller'),'--run-id','idle-'+uuid.uuid4().hex],env=env,stdin=subprocess.PIPE,stdout=output(raw/'origin.stdout'),stderr=output(raw/'origin.stderr'));remember(c,c['controller'].pid,'controller')
       end=time.monotonic()+20
       while not ready.exists():
-       if c['controller'].poll()!=None or time.monotonic()>end:raise Fail('controller');time.sleep(.05)
+       if c['controller'].poll()!=None or time.monotonic()>end: raise Fail('controller')
+       time.sleep(.05)
       r=json.loads(ready.read_text());db=sqlite3.connect((state/'state.db').as_uri()+'?mode=ro',uri=True);db.row_factory=sqlite3.Row;db.execute('PRAGMA query_only=ON')
       # Enrollment, gated release, durable Exited0, collect and accept are deliberately explicit.
       row=None;end=time.monotonic()+20
@@ -86,7 +88,9 @@ def main():
        time.sleep(.05)
       if not q:raise Fail('durable Exited0')
       got=call(c,'collect','--state-dir',str(state),'--task-id',r['task_id'],'--control-file',r['control_file']);e=[x for x in got['events'] if x['kind']=='result']
-      if len(e)!=1:raise Fail('result');e=e[0];call(c,'accept','--state-dir',str(state),'--task-id',r['task_id'],'--control-file',r['control_file'],'--work-revision','1','--event-id',e['event_id'],'--event-revision',str(e['event_revision']),'--event-hash',e['payload_hash'],'--action-slot',e['action_slot'],'--decision','accept','--command-id','resource-idle-accept');at=time.monotonic()
+      if len(e)!=1: raise Fail('result')
+      e=e[0]
+      call(c,'accept','--state-dir',str(state),'--task-id',r['task_id'],'--control-file',r['control_file'],'--work-revision','1','--event-id',e['event_id'],'--event-revision',str(e['event_revision']),'--event-hash',e['payload_hash'],'--action-slot',e['action_slot'],'--decision','accept','--command-id','resource-idle-accept');at=time.monotonic()
       c['controller'].stdin.close()
       if c['controller'].wait(timeout=13)!=0:raise Fail('controller wait')
       samples=[];first=None;last=at
