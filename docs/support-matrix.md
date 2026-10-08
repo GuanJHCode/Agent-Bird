@@ -16,6 +16,7 @@
 | 技术问答与原会话续接 | 已有绑定原会话、版本和累计预算的 typed continuation；AGY/Claude 的两轮问答已有上述原生证据。显式中断 Resume 的实现与测试不等于所有写任务的真实续写通过 |
 | Codex Worker | 内部协议、状态封存及同线程两轮 Question 已有范围证据；完整第三段 Read 未完成，公共任务入口仍关闭 |
 | 活 Host 重连 | 已实现 Coordinator 重启后的有界重连及原 spool 重放；不等于 Host 死亡后可以接管任意存活执行进程 |
+| 原 Owner／Host 死亡后的恢复 | [公开恢复验收](../tasks/owner-bound-abandonment/docs/final-validation.md)覆盖 macOS arm64／Docker Linux deadBoth、successor Bound 后从未 Applied 即死亡、相邻 scope handoff 与 inc3 同 attempt／队列／预算恢复；初始 Bind 前后无账本窗口、丢失原 child handle 及 pending authorization 后 origin rebind 仍未闭环 |
 | 安装与保存配置恢复 | 已实现不可变 generation、原 Store/owner 绑定、安装重放及未准入 preparation 的显式 abandon；[配置发布崩溃验收](../tasks/config-generation-crash/docs/integrated-validation.md)覆盖 Mac arm64 / Docker Linux 四阶段真实 SIGKILL、精确重放、异主/身份漂移拒绝和损坏目录不重建。supervised 公共配置入口、60 分钟资源组合及其他平台仍待验收 |
 | 自动重试与预算策略 | 已实现显式重试、累计硬预算及启动前 probe EAGAIN/EINTR 的有限预授权重试，含 Claude/Grok 只读候选审查（普通与分块）；审查重试固定原 Host 身份与候选输入。预算 revision 增额已完成本地受控 CLI 验收；其他阶段自动重试仍未完成 |
 | 详细诊断日志 | 已实现显式 detailed 授权、普通 Host / managed Codex 捕获，以及独立 read/ACK；[公开读取验收](../tasks/diagnostic-public-read-ack/docs/validation.md)覆盖 Mac IPC/CLI 和 Docker Linux core/Store。完整受管 artifact 准入/删除、原生洪峰/RSS及物理故障验收仍未完成 |
