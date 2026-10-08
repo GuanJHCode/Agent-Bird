@@ -1,0 +1,26 @@
+{
+  "integration_head": "dd5f977863b05e8cb1a79d0ff95bba1943f55e2d",
+  "accepted_source": "1619153",
+  "all_12_source_hashes_match": true,
+  "regression": {
+    "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator": {
+      "top": 3,
+      "named": 7,
+      "fail": 0,
+      "skip": 0,
+      "elapsed": 4.74
+    },
+    "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host": {
+      "top": 3,
+      "named": 20,
+      "fail": 0,
+      "skip": 0,
+      "elapsed": 0.545
+    }
+  },
+  "regression_sha256": "ef92423672e8b0efe515c1bcedfbc27b6d88961163343bb7732a0789e2f22ef0",
+  "whole_build_exit": 0,
+  "host_cli_vet_exit": 0,
+  "active_sessions": 0,
+  "owned_containers": 0
+}

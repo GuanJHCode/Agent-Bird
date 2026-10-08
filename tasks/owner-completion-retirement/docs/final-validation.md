@@ -27,3 +27,7 @@ Linux 使用固定本地镜像、禁网、只读 root、非 root、cap-drop ALL�
 - 两次 Mac race public 在5s Coordinator 准备窗失败，Owner尚未创建，原 Coordinator Wait为SIGTERM，不能冒充 graceful0。文件 root-retirement-reset-final-race（仅其CLI部分）及 root-public-reset-race-recheck 保留。相同 binary 的独立原进程采样定位 SQLite schema migration，socket出现耗时4.445s。测试准备窗调整至15s后最终真正ready耗时5.165s，随后完整流程及所有原Wait通过；生产迁移和70s总context/13s退休契约未变。
 - 所有失败 fixture 保留，不删除来源不明进程/文件。额外诊断 fresh state 已在原 Popen Wait0 后移除，sample/符号化和JSON回执保留。没有强行将失败日志改为通过。
 - 用户要求本小功能完成后停止：schema28 bound abandonment仍tests-only8b9e214；F12 crash草稿07ccd23未编译/测试/审查、未合入。完整剩余提示词在根任务 docs/continuation-prompts.md。
+
+## 集成终验
+
+85c2203（公开原 Wait fixture）与 dd5f977（修复）已本地合入 feat/capability-closure-20261006；12 项 source SHA 与验收快照逐项一致。集成后定向回归 Host3顶层/20具名、CLI3顶层/7具名全部PASS、0FAIL/SKIP，整库build和host/CLI vet均exit0。原日志、统计、hash见 data/integrated-{regression.jsonl,receipt.json}。未推送/发布；当前无运行测试或本任务容器。
