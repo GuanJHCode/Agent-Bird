@@ -132,7 +132,7 @@ def main():
             'id': args.task_id, 'max_attempts': 1, 'max_active_ms': 120000, 'completion_policy': 'owner_review',
             'execution_policy': {'version': 1, 'group_max_attempts': 1, 'group_max_active_ms': 120000,
                                  'task_max_active_ms': 120000, 'segment_max_active_ms': 120000},
-            'adapter': {'kind': 'fake', 'args': [sys.executable, str(args.worker), str(args.work / 'worker-release')],
+            'adapter': {'kind': 'fake', 'args': [str(pathlib.Path(sys.executable).resolve(strict=True)), str(args.worker), str(args.work / 'worker-release')],
                         'directory': str(args.work)}}])
         submit = args.work / 'submit.json'
         soak.atomic(submit, request)
