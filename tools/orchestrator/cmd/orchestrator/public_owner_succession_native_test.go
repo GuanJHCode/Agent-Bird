@@ -3,8 +3,11 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/ed25519"
+	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -44,6 +47,12 @@ func runPublicOwnerSuccessionFixture() {
 		err = publicSuccessionOwnedHostLauncher(os.Args[2:])
 	case "public-succession-owned-host":
 		err = publicSuccessionOwnedHost(os.Args[2:])
+	case "original-owner":
+		if trigger := os.Getenv("PUBLIC_SUCCESSION_BOUND_ABANDONMENT"); trigger != "" && fileExists(trigger) {
+			err = publicSuccessionBoundAbandonmentOriginalOwner(os.Args[2:])
+		} else {
+			err = run(context.Background(), os.Args[1:], os.Stdout, os.Stderr)
+		}
 	default:
 		err = run(context.Background(), os.Args[1:], os.Stdout, os.Stderr)
 	}
@@ -57,6 +66,91 @@ func runPublicOwnerSuccessionFixture() {
 		_ = json.NewEncoder(os.Stderr).Encode(map[string]any{"version": 1, "status": "error", "error": errorCode(err)})
 		os.Exit(2)
 	}
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
+// publicSuccessionBoundAbandonmentOriginalOwner is a test-binary-only role.
+// Its trigger is created immediately before the inc2 public Resume and removed
+// after that role has durably Bound, so inc1 and inc3 execute originalOwnerEntry.
+func publicSuccessionBoundAbandonmentOriginalOwner(args []string) error {
+	trigger := os.Getenv("PUBLIC_SUCCESSION_BOUND_ABANDONMENT")
+	if _, err := os.Stat(trigger); err != nil {
+		return fmt.Errorf("bound-abandonment trigger: %w", err)
+	}
+	fs := flag.NewFlagSet("fixture-bound-abandonment-owner", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	bootstrapFD := fs.Int("bootstrap-fd", -1, "")
+	controlFD := fs.Int("control-fd", -1, "")
+	if fs.Parse(args) != nil || fs.NArg() != 0 || *bootstrapFD != 3 || *controlFD != 4 {
+		return errors.New("fixture bound-abandonment owner args")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	control, err := ipc.TakeOwnerControlFD(*controlFD)
+	if err != nil {
+		return err
+	}
+	defer control.Close()
+	raw, err := ipc.ReadOwnerBootstrapPipe(ctx, *bootstrapFD)
+	if err != nil {
+		return err
+	}
+	bootstrap, err := contract.DecodeOwnerRuntimeBootstrap(raw)
+	if err != nil {
+		return err
+	}
+	if bootstrap.Prepared.Intent.Scope.Incarnation != 2 {
+		return fmt.Errorf("bound-abandonment expected inc2, got %d", bootstrap.Prepared.Intent.Scope.Incarnation)
+	}
+	birth, err := process.BirthContext(ctx, os.Getpid())
+	if err != nil {
+		return err
+	}
+	public, private, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		return err
+	}
+	coordinatorKey, err := hex.DecodeString(bootstrap.Prepared.CoordinatorPublicKey)
+	if err != nil {
+		return err
+	}
+	owner := contract.OriginalOwnerIdentity{PID: os.Getpid(), Birth: birth, PublicKey: hex.EncodeToString(public)}
+	client := ipc.OwnerClient{SocketPath: bootstrap.Prepared.RPCSocketPath, Intent: bootstrap.Prepared.Intent, Owner: owner, PrivateKey: private, CoordinatorKey: ed25519.PublicKey(coordinatorKey)}
+	intent := bootstrap.Prepared.Intent
+	reply, err := client.Call(ctx, 0, "bind", intent.RequestID, contract.OriginalOwnerHello{Scope: intent.Scope, BootstrapID: intent.BootstrapID, BootstrapToken: bootstrap.BootstrapToken, Owner: owner, FirstHost: intent.FirstHost, CoordinatorKeyID: intent.CoordinatorKeyID})
+	if err != nil {
+		return err
+	}
+	var wire struct {
+		Binding json.RawMessage `json:"binding"`
+		Permit  json.RawMessage `json:"permit"`
+	}
+	if err := contract.DecodeOwnerRuntimeStrict(reply.Body, &wire); err != nil {
+		return err
+	}
+	binding, err := contract.DecodeOriginalOwnerBinding(wire.Binding)
+	if err != nil {
+		return err
+	}
+	permit, err := contract.DecodeOwnerControlPermit(wire.Permit)
+	if err != nil {
+		return err
+	}
+	body, err := json.Marshal(contract.OwnerBindReply{Binding: binding, Permit: permit})
+	if err != nil {
+		return err
+	}
+	if err = control.SetWriteDeadline(time.Now().Add(time.Second)); err != nil {
+		return err
+	}
+	if err = ipc.Write(control, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindOriginalOwnerBound, RequestID: intent.RequestID, Epoch: permit.CoordinatorEpoch, Payload: body}); err != nil {
+		return err
+	}
+	return os.WriteFile(trigger+".finished", []byte("bound\n"), 0600)
 }
 
 // The controlled launcher retains the registered FirstHost's original Cmd.
@@ -266,6 +360,17 @@ func TestPublicOwnerSuccessionWaitObserverUsesOriginalHandleOnce(t *testing.T) {
 }
 
 func TestPublicOwnerSuccessionDeadBothResumesSameAttempt(t *testing.T) {
+	testPublicOwnerSuccessionDeadBothResumesSameAttempt(t, false)
+}
+
+func TestPublicOwnerSuccessionBoundNeverAppliedResumesAtInc3(t *testing.T) {
+	// The fixture intentionally starts several real child processes. Keep the
+	// race detector enabled while removing only its process-exit delay.
+	t.Setenv("GORACE", os.Getenv("GORACE")+" atexit_sleep_ms=0")
+	testPublicOwnerSuccessionDeadBothResumesSameAttempt(t, true)
+}
+
+func testPublicOwnerSuccessionDeadBothResumesSameAttempt(t *testing.T, abandonBound bool) {
 	root, err := os.MkdirTemp("/private/tmp", "public-owner-succession-")
 	if err != nil {
 		t.Fatal(err)
@@ -306,6 +411,11 @@ func TestPublicOwnerSuccessionDeadBothResumesSameAttempt(t *testing.T) {
 	}
 	server := exec.Command(cli, "serve", "--state-dir", state)
 	server.Env = append(os.Environ(), "ORCHESTRATOR_ENABLE_TEST_FAKE=1")
+	boundAbandonment := filepath.Join(root, "bound-abandonment")
+	if abandonBound {
+		t.Setenv("PUBLIC_SUCCESSION_BOUND_ABANDONMENT", boundAbandonment)
+		server.Env = append(server.Env, "PUBLIC_SUCCESSION_BOUND_ABANDONMENT="+boundAbandonment)
+	}
 	server.Stdout, server.Stderr = log, log
 	if err := server.Start(); err != nil {
 		t.Fatal(err)
@@ -481,23 +591,85 @@ func TestPublicOwnerSuccessionDeadBothResumesSameAttempt(t *testing.T) {
 		t.Fatal("original origin changed before Resume", err)
 	}
 	const commandID = "public-dead-both-successor"
+	if abandonBound {
+		if err := os.WriteFile(boundAbandonment, nil, 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
 	resumeArgs := []string{"resume", "--state-dir", state, "--task-id", "worker", "--control-file", submitted.ControlFile, "--work-revision", "1", "--command-id", commandID}
-	resumeBody := runBinary(t, ctx, cli, resumeArgs...)
+	var resumeBody []byte
+	if abandonBound {
+		command := exec.CommandContext(ctx, cli, resumeArgs...)
+		command.Env = append(os.Environ(), "ORCHESTRATOR_ENABLE_TEST_FAKE=1")
+		var resumeErr error
+		resumeBody, resumeErr = command.CombinedOutput()
+		if resumeErr == nil || !bytes.Contains(resumeBody, []byte(`"error":"owner_resume_pending_blocked"`)) {
+			t.Fatal("first public Resume did not expose the bound-never-Applied pending state", resumeErr, string(resumeBody))
+		}
+	} else {
+		resumeBody = runBinary(t, ctx, cli, resumeArgs...)
+	}
 	var receipt struct {
 		Mode, CommandID string
+		ReadySequence   int64 `json:"ready_sequence"`
 	}
 	var receiptFields map[string]json.RawMessage
-	if err := json.Unmarshal(resumeBody, &receiptFields); err != nil {
-		t.Fatal(err)
-	}
-	_ = json.Unmarshal(receiptFields["mode"], &receipt.Mode)
-	_ = json.Unmarshal(receiptFields["command_id"], &receipt.CommandID)
-	if receipt.Mode != "successor" || receipt.CommandID != commandID {
-		t.Fatal("public Resume did not return exact successor receipt", string(resumeBody))
+	if !abandonBound {
+		if err := json.Unmarshal(resumeBody, &receiptFields); err != nil {
+			t.Fatal(err)
+		}
+		_ = json.Unmarshal(receiptFields["mode"], &receipt.Mode)
+		_ = json.Unmarshal(receiptFields["command_id"], &receipt.CommandID)
+		_ = json.Unmarshal(receiptFields["ready_sequence"], &receipt.ReadySequence)
+		if receipt.Mode != "successor" || receipt.CommandID != commandID {
+			t.Fatal("public Resume did not return exact successor receipt", string(resumeBody))
+		}
 	}
 	newBinding := publicSuccessionBinding(t, db)
 	if newBinding.Scope.Incarnation != 2 || newBinding.Scope.RunID != oldBinding.Scope.RunID || newBinding.Scope.LaunchID != oldBinding.Scope.LaunchID || newBinding.Owner == oldBinding.Owner || newBinding.FirstHost == oldBinding.FirstHost {
 		t.Fatal("public Resume did not create adjacent real successor", newBinding)
+	}
+	if abandonBound {
+		for end := time.Now().Add(8 * time.Second); ; {
+			if raw, err := os.ReadFile(boundAbandonment + ".finished"); err == nil && bytes.Equal(raw, []byte("bound\n")) {
+				break
+			}
+			if time.Now().After(end) {
+				t.Fatal("bound-never-Applied test owner did not finish signed Bind")
+			}
+			time.Sleep(20 * time.Millisecond)
+		}
+		if err := os.Remove(boundAbandonment); err != nil {
+			t.Fatal(err)
+		}
+		if err := db.QueryRow(`SELECT ready_sequence FROM owner_succession_authorizations WHERE command_id=?`, commandID).Scan(&receipt.ReadySequence); err != nil || receipt.ReadySequence <= 0 {
+			t.Fatal("bound-never-Applied first Resume lacks durable ready sequence", receipt.ReadySequence, err)
+		}
+		boundOwnerWait := publicSuccessionReadWait(t, state, "owner", newBinding.Owner.PID)
+		boundHostWait := publicSuccessionReadWait(t, state, "first_host", newBinding.FirstHost.PID)
+		if boundOwnerWait.ExitCode != 0 || boundOwnerWait.WaitError != "" {
+			t.Fatal("bound-never-Applied Owner original Wait failed", boundOwnerWait)
+		}
+		if boundHostWait.ExitCode != 0 || boundHostWait.WaitError != "" {
+			t.Fatal("bound-never-Applied FirstHost original Wait changed", boundHostWait)
+		}
+		t.Logf("bound-never-Applied inc2 Owner original Wait=%+v; FirstHost original Wait=%+v", boundOwnerWait, boundHostWait)
+		secondCommandID := "public-bound-abandonment-successor"
+		secondBody := runBinary(t, ctx, cli, "resume", "--state-dir", state, "--task-id", "worker", "--control-file", submitted.ControlFile, "--work-revision", "1", "--command-id", secondCommandID)
+		var secondReceipt struct {
+			Mode          string `json:"mode"`
+			CommandID     string `json:"command_id"`
+			ReadySequence int64  `json:"ready_sequence"`
+		}
+		if err := json.Unmarshal(secondBody, &secondReceipt); err != nil || secondReceipt.Mode != "successor" || secondReceipt.CommandID != secondCommandID || secondReceipt.ReadySequence != receipt.ReadySequence {
+			t.Fatal("second public Resume did not return successor receipt", string(secondBody), err)
+		}
+		t.Logf("bound-never-Applied inc2->inc3 preserved ready sequence=%d", receipt.ReadySequence)
+		thirdBinding := publicSuccessionBinding(t, db)
+		if thirdBinding.Scope.Incarnation != 3 || thirdBinding.Scope.RunID != newBinding.Scope.RunID || thirdBinding.Scope.LaunchID != newBinding.Scope.LaunchID {
+			t.Fatal("bound-never-Applied resume did not create inc3", thirdBinding)
+		}
+		newBinding = thirdBinding
 	}
 	actors = append(actors, newBinding.FirstHost, contract.OriginalOwnerTransport{PID: newBinding.Owner.PID, Birth: newBinding.Owner.Birth})
 	secondWorker := publicSuccessionWorker(t, marker+".retry")
@@ -534,8 +706,10 @@ func TestPublicOwnerSuccessionDeadBothResumesSameAttempt(t *testing.T) {
 	if !bytes.Equal(a, b) {
 		t.Fatal("successor changed non-scope recovery fields")
 	}
-	if replay := runBinary(t, ctx, cli, resumeArgs...); !bytes.Equal(replay, resumeBody) {
-		t.Fatal("stable command did not replay immutable receipt", string(replay))
+	if !abandonBound {
+		if replay := runBinary(t, ctx, cli, resumeArgs...); !bytes.Equal(replay, resumeBody) {
+			t.Fatal("stable command did not replay immutable receipt", string(replay))
+		}
 	}
 	if got := publicSuccessionWorker(t, marker+".retry"); got != secondWorker {
 		t.Fatal("Resume replay replaced worker")
@@ -580,7 +754,7 @@ func TestPublicOwnerSuccessionDeadBothResumesSameAttempt(t *testing.T) {
 		}
 	}
 	t.Logf("successor Owner original Wait=%+v; successor FirstHost original Wait=%+v", newOwnerWait, newHostWait)
-	t.Logf("public stable Resume/collect/accept completed inc2 same attempt=%s new segment=%s; retained charge=%d grant=%d next grant=%d", after.AttemptID, after.SegmentID, used, grant, newGrant)
+	t.Logf("public stable Resume/collect/accept completed inc%d same attempt=%s new segment=%s; retained charge=%d grant=%d next grant=%d", newBinding.Scope.Incarnation, after.AttemptID, after.SegmentID, used, grant, newGrant)
 	clean = true
 }
 
@@ -637,7 +811,7 @@ func publicSuccessionAncestry(t *testing.T, ctx context.Context, worker original
 func publicSuccessionReadWait(t *testing.T, state, kind string, pid int) publicSuccessionWait {
 	t.Helper()
 	path := filepath.Join(state, "public-succession-waits", kind+"-"+strconv.Itoa(pid)+".json")
-	for end := time.Now().Add(13 * time.Second); ; {
+	for end := time.Now().Add(18 * time.Second); ; {
 		raw, err := os.ReadFile(path)
 		var observed publicSuccessionWait
 		if err == nil && json.Unmarshal(raw, &observed) == nil && observed.Kind == kind && observed.PID == pid {
