@@ -63,7 +63,7 @@ func (d *DB) ResolveSuccessorOwnerAdmission(ctx context.Context, hello contract.
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	owned, err := d.beginOwnerTransaction(ctx)
+	owned, err := d.beginInitialOwnerTransaction(ctx, "launch", hello.LaunchID, false)
 	if err != nil {
 		return zero, err
 	}

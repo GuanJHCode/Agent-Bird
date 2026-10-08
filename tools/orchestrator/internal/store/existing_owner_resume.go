@@ -54,7 +54,11 @@ func loadExistingOwnerResume(ctx context.Context, tx *sql.Tx, command string) (e
 }
 
 func ownerSuccessionResumeReceipt(a OriginalOwnerSuccessionAuthorization) OriginalOwnerResumeReceipt {
-	return OriginalOwnerResumeReceipt{Mode: "successor", CommandID: a.CommandID, RequestSHA256: a.RequestSHA256, RunID: a.RunID, TaskID: a.TaskID, LaunchID: a.LaunchID, OwnerID: a.PredecessorOwnerID, AuthorizationID: a.AuthorizationID, WorkRevision: a.WorkRevision, ControlRevision: a.PredecessorControlRevision, CoordinatorEpoch: a.CoordinatorEpoch, ReadySequence: a.ReadySequence, CreatedAt: a.CreatedAt}
+	mode := "successor"
+	if a.InitialProofID != "" {
+		mode = "initial_ready"
+	}
+	return OriginalOwnerResumeReceipt{Mode: mode, CommandID: a.CommandID, RequestSHA256: a.RequestSHA256, RunID: a.RunID, TaskID: a.TaskID, LaunchID: a.LaunchID, OwnerID: a.PredecessorOwnerID, AuthorizationID: a.AuthorizationID, WorkRevision: a.WorkRevision, ControlRevision: a.PredecessorControlRevision, CoordinatorEpoch: a.CoordinatorEpoch, ReadySequence: a.ReadySequence, CreatedAt: a.CreatedAt}
 }
 
 func loadOriginalOwnerResume(ctx context.Context, tx *sql.Tx, command string) (OriginalOwnerResumeReceipt, bool, error) {
@@ -89,7 +93,7 @@ func (d *DB) LookupOriginalOwnerResume(ctx context.Context, request OriginalOwne
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	owned, err := d.beginOwnerTransaction(ctx)
+	owned, err := d.beginInitialOwnerTransaction(ctx, "command", request.CommandID, false)
 	if err != nil {
 		return zero, false, err
 	}
@@ -103,6 +107,9 @@ func (d *DB) LookupOriginalOwnerResume(ctx context.Context, request OriginalOwne
 	}
 	if found && r.RequestSHA256 != hash {
 		return zero, false, ErrConflict
+	}
+	if err = owned.finishInitialRead(); err != nil {
+		return zero, false, err
 	}
 	return r, found, nil
 }
@@ -137,6 +144,9 @@ func (d *DB) resumeExistingOriginalOwner(ctx context.Context, request OriginalOw
 			return zero, ErrConflict
 		}
 		return prior, nil
+	}
+	if err = initialOwnerCommandReserved(ctx, tx, request.CommandID); err != nil {
+		return zero, err
 	}
 	if len(key) != ed25519.PublicKeySize || observed.OwnerID == "" || observed.Owner.Validate() != nil || !successionObservationTime(observed.OwnerAliveAt) {
 		return zero, originalOwnerRejected()

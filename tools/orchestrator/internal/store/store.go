@@ -94,7 +94,9 @@ func Open(path string) (*DB, error) {
 	}
 	identity, identityErr := configStoreNodes(path)
 	u := &url.URL{Scheme: "file", Path: path}
-	u.RawQuery = "_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)"
+	// Open created the private file explicitly. Reconnecting a discarded pool
+	// lease may reopen it, but must never silently recreate a missing database.
+	u.RawQuery = "mode=rw&_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)"
 	d, err := sql.Open("sqlite", u.String())
 	if err != nil {
 		return nil, err

@@ -17,7 +17,7 @@ func removeOwnerBoundAbandonmentSchema28(db *DB) error {
 	if version < 28 {
 		return nil
 	}
-	if version != 28 {
+	if version != 28 && version != 29 {
 		return fmt.Errorf("unsupported abandonment schema %d", version)
 	}
 	if err := db.sql.QueryRow(`SELECT COUNT(*) FROM owner_bound_abandonments`).Scan(&count); err != nil {
@@ -25,6 +25,9 @@ func removeOwnerBoundAbandonmentSchema28(db *DB) error {
 	}
 	if count != 0 {
 		return errors.New("cannot erase owner abandonment history")
+	}
+	if err := removeInitialOwnerRecoverySchema29(db); err != nil {
+		return err
 	}
 	tx, err := db.sql.Begin()
 	if err != nil {
@@ -35,7 +38,7 @@ func removeOwnerBoundAbandonmentSchema28(db *DB) error {
 	if err = tx.QueryRow(`SELECT sql FROM sqlite_master WHERE name='owner_recovery_handoff_current'`).Scan(&current); err != nil {
 		return err
 	}
-	old := "((a.abandoned_owner_id IS NULL AND p.applied_control_revision=p.control_revision) OR " + abandonedPredecessorSQL + ")"
+	old := "((a.abandoned_owner_id IS NULL AND p.applied_control_revision=p.control_revision) OR " + abandonedPredecessorSchema28SQL + ")"
 	if strings.Count(current, old) != 1 {
 		return errors.New("unexpected handoff schema")
 	}

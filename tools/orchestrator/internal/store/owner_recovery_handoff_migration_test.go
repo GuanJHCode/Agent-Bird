@@ -18,7 +18,7 @@ func removeOwnerRecoveryHandoffSchema27(db *DB) error {
 	if version < 27 {
 		return nil
 	}
-	if version != 27 && version != 28 {
+	if version != 27 && version != 28 && version != 29 {
 		return fmt.Errorf("unsupported handoff fixture schema %d", version)
 	}
 	if err := db.sql.QueryRow(`SELECT COUNT(*) FROM owner_recovery_scope_handoffs`).Scan(&count); err != nil {

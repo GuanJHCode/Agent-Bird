@@ -38,6 +38,7 @@ type OriginalOwnerSuccessionObservation struct {
 }
 
 type OriginalOwnerSuccessionAuthorization struct {
+	InitialProofID             string                          `json:"initial_proof_id,omitempty"`
 	AbandonedOwnerID           string                          `json:"abandoned_owner_id,omitempty"`
 	AuthorizationID            string                          `json:"authorization_id"`
 	CommandID                  string                          `json:"command_id"`
@@ -144,6 +145,9 @@ func (d *DB) resumeOriginalOwner(ctx context.Context, request OriginalOwnerResum
 		return prior, nil
 	}
 	if !errors.Is(err, ErrNotFound) {
+		return zero, err
+	}
+	if err = initialOwnerCommandReserved(ctx, tx, request.CommandID); err != nil {
 		return zero, err
 	}
 	if len(key) != ed25519.PublicKeySize || observed.OwnerID == "" || observed.Owner.Validate() != nil || observed.Host.Validate() != nil || !successionObservationTime(observed.OwnerExitedAt) || !successionObservationTime(observed.HostExitedAt) {

@@ -19,9 +19,10 @@ const (
 // ownerTransaction keeps a physical lease until the owner transition has a
 // resolved outcome. Callers hold DB.mu; helpers receive only its sql.Tx.
 type ownerTransaction struct {
-	conn  *sql.Conn
-	tx    *sql.Tx
-	state ownerTransactionState
+	conn          *sql.Conn
+	tx            *sql.Tx
+	state         ownerTransactionState
+	rootAuthority *StoreRootAuthority
 }
 
 func (d *DB) beginOwnerTransaction(ctx context.Context) (*ownerTransaction, error) {
@@ -59,6 +60,9 @@ func (t *ownerTransaction) commit() error {
 	err := t.tx.Commit()
 	if err == nil {
 		t.state = ownerTransactionCommitted
+		if t.rootAuthority != nil && t.rootAuthority.Validate() != nil {
+			return CodeError("owner_initial_recovery_uncertain")
+		}
 		return nil
 	}
 	// sql.Tx is already done even when SQLite's failed COMMIT leaves an

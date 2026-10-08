@@ -75,6 +75,9 @@ func resolveBoundOwnerAbandonmentTx(ctx context.Context, tx *sql.Tx, req Origina
 		return r, err
 	}
 
+	if err := initialOwnerCommandReserved(ctx, tx, req.CommandID); err != nil {
+		return r, err
+	}
 	if len(key) != ed25519.PublicKeySize || obs.Owner.Validate() != nil || obs.Host.Validate() != nil || !successionObservationTime(obs.OwnerExitedAt) || !successionObservationTime(obs.HostExitedAt) {
 		return reject()
 	}
@@ -104,7 +107,11 @@ func resolveBoundOwnerAbandonmentTx(ctx context.Context, tx *sql.Tx, req Origina
 	if err = validateSuccessorOwnerBinding(ctx, tx, row); err != nil {
 		return r, err
 	}
-	if err = resumeAdmissionTx(ctx, tx, req.TaskID, req.WorkRevision, "resume_queued"); err != nil {
+	if inbound.InitialProofID != "" {
+		if err = initialOwnerReservation(ctx, tx, inbound, s.ProducerID); err != nil {
+			return r, err
+		}
+	} else if err = resumeAdmissionTx(ctx, tx, req.TaskID, req.WorkRevision, "resume_queued"); err != nil {
 		return r, err
 	}
 	prior, err := successorOwnerPredecessor(ctx, tx, inbound)
@@ -123,6 +130,7 @@ func resolveBoundOwnerAbandonmentTx(ctx context.Context, tx *sql.Tx, req Origina
 	if target.SuccessorOrigin != inbound.SuccessorOrigin || target.SuccessorHostGeneration != inbound.SuccessorHostGeneration || target.SuccessorExecutable != inbound.SuccessorExecutable || target.SuccessorExecutableSHA256 != inbound.SuccessorExecutableSHA256 {
 		return reject()
 	}
+	target.InitialProofID = inbound.InitialProofID
 	r.target = target
 	r.handoff = OwnerRecoveryHandoffContext{PriorBinding: *prior.state.Binding, Binding: *row.state.Binding}
 	r.handoff.Proof, err = loadRecoveryHandoffTx(ctx, tx, row, prior)
@@ -164,7 +172,7 @@ func resolveBoundOwnerAbandonmentTx(ctx context.Context, tx *sql.Tx, req Origina
 func (d *DB) ResolveBoundOwnerAbandonment(ctx context.Context, req OriginalOwnerResumeRequest, obs OriginalOwnerSuccessionObservation, key ed25519.PublicKey) (OwnerRecoveryHandoffContext, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	owned, err := d.beginOwnerTransaction(ctx)
+	owned, err := d.beginInitialOwnerTransaction(ctx, "owner", obs.OwnerID, false)
 	if err != nil {
 		return OwnerRecoveryHandoffContext{}, err
 	}
@@ -180,7 +188,7 @@ func (d *DB) prepareBoundOwnerAbandonment(ctx context.Context, req OriginalOwner
 	var zero OwnerRecoveryHandoffProof
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	owned, err := d.beginOwnerTransaction(ctx)
+	owned, err := d.beginInitialOwnerTransaction(ctx, "owner", obs.OwnerID, false)
 	if err != nil {
 		return zero, err
 	}
@@ -234,7 +242,7 @@ func (d *DB) ApplyBoundOwnerAbandonment(ctx context.Context, req OriginalOwnerRe
 	var zero OwnerRecoveryHandoffProof
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	owned, err := d.beginOwnerTransaction(ctx)
+	owned, err := d.beginInitialOwnerTransaction(ctx, "owner", obs.OwnerID, false)
 	if err != nil {
 		return zero, err
 	}
@@ -268,7 +276,7 @@ func (d *DB) ResumeBoundOwnerAbandonment(ctx context.Context, req OriginalOwnerR
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	owned, err := d.beginOwnerTransaction(ctx)
+	owned, err := d.beginInitialOwnerTransaction(ctx, "owner", obs.OwnerID, false)
 	if err != nil {
 		return zero, err
 	}

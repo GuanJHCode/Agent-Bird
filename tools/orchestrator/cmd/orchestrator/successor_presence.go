@@ -80,7 +80,7 @@ func ensureSuccessorSourceHostWith(ctx context.Context, state string, capability
 	if err != nil {
 		return err
 	}
-	if receipt.Mode != "successor" || receipt.CommandID == "" || bootstrap.Hello.LaunchID != receipt.LaunchID || !validHostBootstrap(state, bootstrap) {
+	if (receipt.Mode != "successor" && receipt.Mode != "initial_ready") || receipt.CommandID == "" || bootstrap.Hello.LaunchID != receipt.LaunchID || !validHostBootstrap(state, bootstrap) {
 		return codeError("invalid_host_bootstrap")
 	}
 	return ensureSuccessorSourceHostPresence(ctx, receipt.CommandID, func(ctx context.Context) (contract.HostPresenceResponse, error) {

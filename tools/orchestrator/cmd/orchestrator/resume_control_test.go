@@ -163,8 +163,11 @@ func resumeCLIReceipt(t *testing.T, req coordinator.ResumeRequest, cap controlCa
 		t.Fatal(err)
 	}
 	r := coordinator.ResumeResponse{Version: 1, Status: "resume_queued", OriginalOwnerResumeReceipt: store.OriginalOwnerResumeReceipt{Mode: mode, CommandID: req.CommandID, RequestSHA256: hash, RunID: cap.RunID, TaskID: req.TaskID, LaunchID: "launch", OwnerID: "owner", WorkRevision: req.WorkRevision, ControlRevision: 2, CoordinatorEpoch: 3, ReadySequence: 4, CreatedAt: "2026-10-08T03:04:05.123Z"}}
-	if mode == "successor" {
+	if mode == "successor" || mode == "initial_ready" {
 		r.AuthorizationID = "authorization"
+	}
+	if mode == "initial_ready" {
+		r.Status = "initial_ready"
 	}
 	body, err := json.Marshal(r)
 	if err != nil {
@@ -176,7 +179,7 @@ func resumeCLIReceipt(t *testing.T, req coordinator.ResumeRequest, cap controlCa
 func TestResumeCLIReceiptStrict(t *testing.T) {
 	_, _, cap := resumeCLIFixture(t)
 	req := coordinator.ResumeRequest{TaskControlRequest: coordinator.TaskControlRequest{TaskID: "task", ControllerThread: cap.ControllerThread, ControlToken: cap.ControlToken, WorkRevision: 2}, CommandID: "command"}
-	for _, mode := range []string{"existing_owner", "successor"} {
+	for _, mode := range []string{"existing_owner", "successor", "initial_ready"} {
 		t.Run(mode, func(t *testing.T) {
 			if got, err := validateResumeReceipt(resumeCLIReceipt(t, req, cap, mode), req, cap); err != nil || got.Mode != mode {
 				t.Fatalf("receipt=%+v err=%v", got, err)
@@ -368,7 +371,7 @@ func TestResumeCLILocalAdmission(t *testing.T) {
 }
 
 func TestResumeCLIJournalAndReceiptFlow(t *testing.T) {
-	for _, failure := range []string{"ack_loss", "invalid_receipt", "host_error"} {
+	for _, failure := range []string{"ack_loss", "invalid_receipt", "host_error", "initial_host_error"} {
 		t.Run(failure, func(t *testing.T) {
 			state, path, cap := resumeCLIFixture(t)
 			var first string
@@ -376,6 +379,9 @@ func TestResumeCLIJournalAndReceiptFlow(t *testing.T) {
 			mode := "existing_owner"
 			if failure == "host_error" {
 				mode = "successor"
+			}
+			if failure == "initial_host_error" {
+				mode = "initial_ready"
 			}
 			deps := resumeControlDependencies{
 				requireCoordinator: func(context.Context, string) error { return nil },
@@ -413,7 +419,7 @@ func TestResumeCLIJournalAndReceiptFlow(t *testing.T) {
 				},
 				ensureLegacyHost: func(context.Context, string, controlCapability) error { t.Fatal("legacy host used"); return nil },
 				ensureSuccessorHost: func(context.Context, string, controlCapability, coordinator.ResumeResponse) error {
-					if failure != "host_error" {
+					if failure != "host_error" && failure != "initial_host_error" {
 						t.Fatal("existing host inspected")
 					}
 					if calls == 1 {

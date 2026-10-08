@@ -75,7 +75,7 @@ func ownerSuccessionResumeTablesSnapshot(t *testing.T, db *DB, tables ...string)
 			// Schema28 adds only a NULL reference to old rows; ignore that absent
 			// evidence when comparing historical migration snapshots.
 			for j := len(columns) - 1; j >= 0; j-- {
-				if columns[j] == "abandoned_owner_id" && values[j] == nil {
+				if (columns[j] == "abandoned_owner_id" || columns[j] == "initial_proof_id") && values[j] == nil {
 					values = append(values[:j], values[j+1:]...)
 				}
 			}

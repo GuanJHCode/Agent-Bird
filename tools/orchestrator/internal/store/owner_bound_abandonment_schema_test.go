@@ -14,8 +14,8 @@ func TestOwnerBoundAbandonmentSchemaStartsWithoutInventedProof(t *testing.T) {
 	if err := f.db.sql.QueryRow(`SELECT version FROM schema_meta`).Scan(&version); err != nil {
 		t.Fatal(err)
 	}
-	if version != 28 {
-		t.Fatalf("bound abandonment schema version=%d want 28", version)
+	if version != currentSchemaVersion {
+		t.Fatalf("bound abandonment schema version=%d want %d", version, currentSchemaVersion)
 	}
 	if err := f.db.sql.QueryRow(`SELECT COUNT(*) FROM owner_bound_abandonments`).Scan(&proofs); err != nil || proofs != 0 {
 		t.Fatal("fresh schema invented abandonment proof", proofs, err)
