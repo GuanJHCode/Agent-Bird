@@ -1,0 +1,12 @@
+{
+  "source_commit": "43eb5b4",
+  "integration_commit": "a8f36b46e5b350485ad307f9d27ea393f98dbd5f",
+  "hashes": {
+    "tasks/resource-offline/scripts/resource_offline.py": "234a6d6f08aa74ec3a031d43c22a679fe8700cf9e251f31db819277248dfd7d7",
+    "tasks/resource-offline/scripts/controller.py": "9c1bf1d7c9adf3834039383e462c59a9a2bd3b5eb92b39f8d7aee05964b109ef",
+    "tasks/resource-offline/scripts/test_resource_offline.py": "6137e720b6a27ac4d578550f2fab8414d51ff2eaa947b834e7a50c451934b3bc",
+    "tasks/resource-offline/data/thresholds.json": "678c15c953cbdc9e165cdcd1822858a35fc2a30aef4eb6d8715552c81152baea"
+  },
+  "product_source_unchanged_from": "51b8e3a",
+  "validation": "native 301samples and unchanged source evidence reused; no duplicate Go run for test-only integration"
+}
