@@ -72,6 +72,13 @@ func ownerSuccessionResumeTablesSnapshot(t *testing.T, db *DB, tables ...string)
 				rows.Close()
 				t.Fatal(err)
 			}
+			// Schema28 adds only a NULL reference to old rows; ignore that absent
+			// evidence when comparing historical migration snapshots.
+			for j := len(columns) - 1; j >= 0; j-- {
+				if columns[j] == "abandoned_owner_id" && values[j] == nil {
+					values = append(values[:j], values[j+1:]...)
+				}
+			}
 			body, err := json.Marshal(values)
 			if err != nil {
 				rows.Close()

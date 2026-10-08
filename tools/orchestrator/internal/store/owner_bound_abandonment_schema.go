@@ -6,6 +6,15 @@ import (
 	"strings"
 )
 
+var ownerBoundAbandonmentSchema28Hook func(string) error
+
+func ownerBoundAbandonmentSchema28Stage(stage string) error {
+	if ownerBoundAbandonmentSchema28Hook != nil {
+		return ownerBoundAbandonmentSchema28Hook(stage)
+	}
+	return nil
+}
+
 var ownerBoundAbandonmentTextColumns = []string{"owner_id", "inbound_authorization_id", "run_id", "task_id", "launch_id", "producer_id", "binding_hash", "scope_hash", "permit_hash", "owner_birth", "owner_exit_proof", "owner_exited_at", "host_birth", "host_exit_proof", "host_exited_at", "origin_context_id", "origin_birth", "host_generation", "executable", "executable_sha256", "last_segment_id", "created_at"}
 
 // The only substitute for an Applied predecessor is its immutable, exact death
@@ -83,6 +92,9 @@ func migrateOwnerBoundAbandonmentSchema(tx *sql.Tx) error {
 	if err != nil {
 		return err
 	}
+	if err = ownerBoundAbandonmentSchema28Stage("objects"); err != nil {
+		return err
+	}
 	// Upgrade only the known schema27 predicate; never guess at an altered schema.
 	var current string
 	if err = tx.QueryRow(`SELECT sql FROM sqlite_master WHERE type='trigger' AND name='owner_recovery_handoff_current'`).Scan(&current); err != nil {
@@ -108,5 +120,16 @@ func migrateOwnerBoundAbandonmentSchema(tx *sql.Tx) error {
 			return err
 		}
 	}
+	if err = ownerBoundAbandonmentSchema28Stage("triggers"); err != nil {
+		return err
+	}
+	var bad int
+	if err = tx.QueryRow(`SELECT COUNT(*) FROM pragma_foreign_key_check`).Scan(&bad); err != nil {
+		return err
+	}
+	if bad != 0 {
+		return CodeError("owner_bound_abandonment_foreign_key_check_failed")
+	}
+
 	return nil
 }

@@ -322,6 +322,9 @@ func (d *DB) migrateRuntimeWithForeignKeyOps(ops runtimeForeignKeyOps) (err erro
 		if _, err = tx.Exec(`UPDATE schema_meta SET version=28`); err != nil {
 			return err
 		}
+		if err = ownerBoundAbandonmentSchema28Stage("version"); err != nil {
+			return err
+		}
 	}
 
 	if needsSchema23 {
@@ -349,6 +352,12 @@ func (d *DB) migrateRuntimeWithForeignKeyOps(ops runtimeForeignKeyOps) (err erro
 			return err
 		}
 	}
+	if version < 28 {
+		if err = ownerBoundAbandonmentSchema28Stage("commit"); err != nil {
+			return err
+		}
+	}
+
 	if err = tx.Commit(); err != nil {
 		return err
 	}

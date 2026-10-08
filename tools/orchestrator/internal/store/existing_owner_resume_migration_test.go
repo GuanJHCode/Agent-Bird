@@ -18,7 +18,7 @@ func removeExistingOwnerResumeSchema26(db *DB) error {
 	if version <= 25 {
 		return nil
 	}
-	if version != 26 && version != 27 {
+	if version != 26 && version != 27 && version != 28 {
 		return fmt.Errorf("unsupported fixture schema %d", version)
 	}
 	if err := db.sql.QueryRow(`SELECT COUNT(*) FROM existing_owner_resume_commands`).Scan(&count); err != nil {

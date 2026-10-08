@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"crypto/ed25519"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -19,7 +18,7 @@ func removeOwnerRecoveryHandoffSchema27(db *DB) error {
 	if version < 27 {
 		return nil
 	}
-	if version != 27 {
+	if version != 27 && version != 28 {
 		return fmt.Errorf("unsupported handoff fixture schema %d", version)
 	}
 	if err := db.sql.QueryRow(`SELECT COUNT(*) FROM owner_recovery_scope_handoffs`).Scan(&count); err != nil {
@@ -27,6 +26,9 @@ func removeOwnerRecoveryHandoffSchema27(db *DB) error {
 	}
 	if count != 0 {
 		return errors.New("cannot erase owner recovery handoff history")
+	}
+	if err := removeOwnerBoundAbandonmentSchema28(db); err != nil {
+		return err
 	}
 	tx, err := db.sql.Begin()
 	if err != nil {
@@ -79,7 +81,7 @@ func TestOwnerRecoveryHandoffSchemaMigrationPreservesAndRollsBack(t *testing.T) 
 				t.Fatal(err)
 			}
 			defer opened.Close()
-			if originalOwnerSchemaCount(t, opened.sql, `SELECT version FROM schema_meta`) != 27 || originalOwnerSchemaCount(t, opened.sql, `SELECT COUNT(*) FROM owner_recovery_scope_handoffs`) != 0 || originalOwnerSchemaCount(t, opened.sql, `SELECT COUNT(*) FROM pragma_foreign_key_check`) != 0 {
+			if originalOwnerSchemaCount(t, opened.sql, `SELECT version FROM schema_meta`) != currentSchemaVersion || originalOwnerSchemaCount(t, opened.sql, `SELECT COUNT(*) FROM owner_recovery_scope_handoffs`) != 0 || originalOwnerSchemaCount(t, opened.sql, `SELECT COUNT(*) FROM pragma_foreign_key_check`) != 0 {
 				t.Fatal("bad migration")
 			}
 			if ownerSuccessionResumeSnapshot(t, opened) != before {
@@ -161,10 +163,14 @@ func TestOwnerRecoveryHandoffSchemaMigrationRejectsUnprovenSuccessorHistory(t *t
 				if _, err := f.db.sql.Exec(`UPDATE tasks SET status='interrupted' WHERE id='owner-run-task'`); err != nil {
 					t.Fatal(err)
 				}
-				scope := b.Binding.Scope
-				request := OriginalOwnerResumeRequest{TaskID: "owner-run-task", ControllerThread: "controller", ControlToken: "resume-test-control-token", WorkRevision: 1, CommandID: "historical-next-successor"}
-				observation := OriginalOwnerSuccessionObservation{OwnerID: s.OwnerID, Owner: contract.OriginalOwnerTransport{PID: b.Binding.Owner.PID, Birth: b.Binding.Owner.Birth}, Host: b.Binding.FirstHost, Origin: RunOwnerBinding{OriginContextID: scope.OriginalOriginContextID, OriginPID: scope.OriginalOriginPID, OriginBirth: scope.OriginalOriginBirth}, Epoch: 1, ExecutableSHA256: scope.ExecutableSHA256, OwnerExitedAt: "2026-10-08T00:00:00Z", HostExitedAt: "2026-10-08T00:00:00Z"}
-				if _, err := f.db.ResumeOriginalOwner(ctx, request, observation, f.key.Public().(ed25519.PublicKey)); err != nil {
+				state, err := f.db.InspectOriginalOwner(ctx, s.OwnerID)
+				if err != nil {
+					t.Fatal(err)
+				}
+				// Historical schema26 fixture: use the old DDL columns, not a
+				// schema28 API against an intentionally downgraded database.
+				insertOwnerSuccessionSchemaAuthorization(t, f.db, state.Intent, state.Intent)
+				if _, err = f.db.sql.Exec(`UPDATE execution_owners SET phase='retired',is_current=0 WHERE owner_id=?`, s.OwnerID); err != nil {
 					t.Fatal(err)
 				}
 			}

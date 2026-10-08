@@ -64,6 +64,17 @@ func resolveBoundOwnerAbandonmentTx(ctx context.Context, tx *sql.Tx, req Origina
 	if err := authenticateOwnerResumeTx(ctx, tx, req); err != nil {
 		return r, err
 	}
+	if _, err := loadExistingOwnerResume(ctx, tx, req.CommandID); err == nil {
+		return r, ErrConflict
+	} else if !errors.Is(err, ErrNotFound) {
+		return r, err
+	}
+	if _, err := loadOwnerSuccessionCommand(ctx, tx, req.CommandID); err == nil {
+		return r, ErrConflict
+	} else if !errors.Is(err, ErrNotFound) {
+		return r, err
+	}
+
 	if len(key) != ed25519.PublicKeySize || obs.Owner.Validate() != nil || obs.Host.Validate() != nil || !successionObservationTime(obs.OwnerExitedAt) || !successionObservationTime(obs.HostExitedAt) {
 		return reject()
 	}
@@ -163,6 +174,9 @@ func (d *DB) ResolveBoundOwnerAbandonment(ctx context.Context, req OriginalOwner
 }
 
 func (d *DB) PrepareBoundOwnerAbandonment(ctx context.Context, req OriginalOwnerResumeRequest, obs OriginalOwnerSuccessionObservation, facts OwnerRecoveryHandoffFacts, key ed25519.PublicKey) (OwnerRecoveryHandoffProof, error) {
+	return d.prepareBoundOwnerAbandonment(ctx, req, obs, facts, key, originalOwnerNow)
+}
+func (d *DB) prepareBoundOwnerAbandonment(ctx context.Context, req OriginalOwnerResumeRequest, obs OriginalOwnerSuccessionObservation, facts OwnerRecoveryHandoffFacts, key ed25519.PublicKey, now func() string) (OwnerRecoveryHandoffProof, error) {
 	var zero OwnerRecoveryHandoffProof
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -189,7 +203,10 @@ func (d *DB) PrepareBoundOwnerAbandonment(ctx context.Context, req OriginalOwner
 		}
 		return *r.handoff.Proof, nil
 	}
-	r.proof.CreatedAt = originalOwnerNow()
+	r.proof.CreatedAt = now()
+	if !successionObservationTime(r.proof.CreatedAt) {
+		return zero, originalOwnerRejected()
+	}
 	cost := r.proof.bytes()
 	if r.handoff.Proof == nil {
 		cost += recoveryHandoffBytes(r.row, r.prior, facts, r.proof.CreatedAt)
