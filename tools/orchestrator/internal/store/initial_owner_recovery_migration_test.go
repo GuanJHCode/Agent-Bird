@@ -1,9 +1,11 @@
 package store
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
+	"testing"
 )
 
 // Historical fixtures may remove empty additive evidence, never real proof.
@@ -74,4 +76,52 @@ func removeInitialOwnerRecoverySchema29(db *DB) error {
 		return err
 	}
 	return tx.Commit()
+}
+
+func TestInitialOwnerRecoveryMigrationRejectsAlteredSchemaAtomically(t *testing.T) {
+	f := newOriginalOwnerFixture(t)
+	if err := removeInitialOwnerRecoverySchema29(f.db); err != nil {
+		t.Fatal(err)
+	}
+	var saved string
+	if err := f.db.sql.QueryRow(`SELECT sql FROM sqlite_master WHERE type='trigger' AND name='owner_succession_authorizations_predecessor'`).Scan(&saved); err != nil {
+		t.Fatal(err)
+	}
+	altered := strings.Replace(saved, "t.status='resume_queued'", "t.status IN ('resume_queued')", 1)
+	if altered == saved {
+		t.Fatal("missing schema28 fixture predicate")
+	}
+	if _, err := f.db.sql.Exec(`DROP TRIGGER owner_succession_authorizations_predecessor;` + altered); err != nil {
+		t.Fatal(err)
+	}
+	path := f.db.path
+	if err := f.db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	opened, err := Open(path)
+	if err != CodeError("owner_initial_recovery_schema_mismatch") {
+		if opened != nil {
+			opened.Close()
+		}
+		t.Fatal("altered trigger was guessed", err)
+	}
+	raw, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer raw.Close()
+	if originalOwnerSchemaCount(t, raw, `SELECT version FROM schema_meta`) != 28 || originalOwnerSchemaCount(t, raw, `SELECT COUNT(*) FROM sqlite_master WHERE name='owner_initial_recoveries'`) != 0 || originalOwnerSchemaCount(t, raw, `SELECT COUNT(*) FROM pragma_table_info('owner_succession_authorizations') WHERE name='initial_proof_id'`) != 0 {
+		t.Fatal("partial schema29 objects escaped failed migration")
+	}
+	if _, err = raw.Exec(`DROP TRIGGER owner_succession_authorizations_predecessor;` + saved); err != nil {
+		t.Fatal(err)
+	}
+	opened, err = Open(path)
+	if err != nil {
+		t.Fatal("valid schema28 retry failed", err)
+	}
+	defer opened.Close()
+	if originalOwnerSchemaCount(t, opened.sql, `SELECT version FROM schema_meta`) != 29 || originalOwnerSchemaCount(t, opened.sql, `SELECT COUNT(*) FROM owner_initial_recoveries`) != 0 || originalOwnerSchemaCount(t, opened.sql, `SELECT COUNT(*) FROM pragma_foreign_key_check`) != 0 {
+		t.Fatal("migration invented proof or invalid references")
+	}
 }
