@@ -118,36 +118,53 @@ func (s *Server) resumeControlLocked(ctx context.Context, request ResumeRequest)
 		if err = observeResumeExited(ctx, *state.CurrentHost, "owner_resume_host_alive"); err != nil {
 			return nil, false, err
 		}
-		lease, e := host.OpenExistingOwnerRecoveryLease(s.stateDir, state.Intent.Scope, state.Binding.Owner)
-		if e != nil {
-			return nil, false, e
-		}
-		defer lease.Close()
-		if err = lease.ValidateSuccession(); err != nil {
-			return nil, false, err
-		}
-		if err = observeResumeExited(ctx, owner, "owner_resume_owner_alive"); err != nil {
-			return nil, false, err
-		}
-		if err = observeResumeExited(ctx, *state.CurrentHost, "owner_resume_host_alive"); err != nil {
-			return nil, false, err
-		}
-		if err = lease.ValidateSuccession(); err != nil {
-			return nil, false, err
-		}
-		now := time.Now().UTC().Format(time.RFC3339Nano)
-		a, e := s.db.ResumeOriginalOwner(ctx, req, store.OriginalOwnerSuccessionObservation{OwnerID: state.Intent.Scope.OwnerID, Owner: owner, Host: *state.CurrentHost, Origin: target.Origin, Epoch: s.epoch, ExecutableSHA256: digest, OwnerExitedAt: now, HostExitedAt: now}, s.ownerPublicKey())
-		if e != nil {
-			return nil, false, e
-		}
-		// Use the same authenticated mapping as all future replay calls.
-		var found bool
-		receipt, found, err = s.db.LookupOriginalOwnerResume(ctx, req)
-		if err != nil || !found || receipt.AuthorizationID != a.AuthorizationID {
-			if err == nil {
-				err = ownerRejected()
+		if state.AppliedControlRevision == 0 && state.SuccessionAuthorizationID != "" {
+			now := time.Now().UTC().Format(time.RFC3339Nano)
+			a, e := s.resumeBoundOwnerAbandonment(ctx, req, store.OriginalOwnerSuccessionObservation{OwnerID: state.Intent.Scope.OwnerID, Owner: owner, Host: *state.CurrentHost, Origin: target.Origin, Epoch: s.epoch, ExecutableSHA256: digest, OwnerExitedAt: now, HostExitedAt: now})
+			if e != nil {
+				return nil, false, e
 			}
-			return nil, false, err
+			var found bool
+			receipt, found, err = s.db.LookupOriginalOwnerResume(ctx, req)
+			if err != nil || !found || receipt.AuthorizationID != a.AuthorizationID {
+				if err == nil {
+					err = ownerRejected()
+				}
+				return nil, false, err
+			}
+		} else {
+			lease, e := host.OpenExistingOwnerRecoveryLease(s.stateDir, state.Intent.Scope, state.Binding.Owner)
+			if e != nil {
+				return nil, false, e
+			}
+			defer lease.Close()
+			if err = lease.ValidateSuccession(); err != nil {
+				return nil, false, err
+			}
+			if err = observeResumeExited(ctx, owner, "owner_resume_owner_alive"); err != nil {
+				return nil, false, err
+			}
+			if err = observeResumeExited(ctx, *state.CurrentHost, "owner_resume_host_alive"); err != nil {
+				return nil, false, err
+			}
+			if err = lease.ValidateSuccession(); err != nil {
+				return nil, false, err
+			}
+			now := time.Now().UTC().Format(time.RFC3339Nano)
+			observation := store.OriginalOwnerSuccessionObservation{OwnerID: state.Intent.Scope.OwnerID, Owner: owner, Host: *state.CurrentHost, Origin: target.Origin, Epoch: s.epoch, ExecutableSHA256: digest, OwnerExitedAt: now, HostExitedAt: now}
+			a, e := s.db.ResumeOriginalOwner(ctx, req, observation, s.ownerPublicKey())
+			if e != nil {
+				return nil, false, e
+			}
+			// Use the same authenticated mapping as all future replay calls.
+			var found bool
+			receipt, found, err = s.db.LookupOriginalOwnerResume(ctx, req)
+			if err != nil || !found || receipt.AuthorizationID != a.AuthorizationID {
+				if err == nil {
+					err = ownerRejected()
+				}
+				return nil, false, err
+			}
 		}
 	}
 	if err != nil {
@@ -155,6 +172,72 @@ func (s *Server) resumeControlLocked(ctx context.Context, request ResumeRequest)
 	}
 	body, err := json.Marshal(ResumeResponse{Version: 1, Status: "resume_queued", OriginalOwnerResumeReceipt: receipt})
 	return body, receipt.Mode == "existing_owner", err
+}
+
+// resumeBoundOwnerAbandonment retires only the current successor that bound
+// but never applied.  The recovery-file lock remains held across every Store
+// phase so a verified predecessor ledger cannot be swapped between the
+// durable intent, its file CAS, the applied marker, and final retirement.
+func (s *Server) resumeBoundOwnerAbandonment(ctx context.Context, request store.OriginalOwnerResumeRequest, observed store.OriginalOwnerSuccessionObservation) (store.OriginalOwnerSuccessionAuthorization, error) {
+	var zero store.OriginalOwnerSuccessionAuthorization
+	resolved, err := s.db.ResolveBoundOwnerAbandonment(ctx, request, observed, s.ownerPublicKey())
+	if err != nil {
+		return zero, err
+	}
+	var saved *host.OwnerRecoveryHandoffProof
+	if resolved.Proof != nil {
+		proof := ownerRecoveryFileProof(*resolved.Proof)
+		saved = &proof
+	}
+	lease, err := host.OpenExistingOwnerRecoveryHandoff(s.stateDir, resolved.PriorBinding.Scope, resolved.PriorBinding.Owner, resolved.Binding.Scope, resolved.Binding.Owner, saved)
+	if err != nil {
+		return zero, err
+	}
+	defer lease.Close()
+	facts, err := lease.Facts()
+	if err != nil {
+		return zero, err
+	}
+	proof, err := s.db.PrepareBoundOwnerAbandonment(ctx, request, observed, ownerRecoveryStoreFacts(facts), s.ownerPublicKey())
+	if err != nil {
+		return zero, err
+	}
+	if err = lease.CommitPrepared(ownerRecoveryFileProof(proof)); err != nil {
+		return zero, err
+	}
+	after, err := lease.Facts()
+	if err != nil || after != facts {
+		if err != nil {
+			return zero, err
+		}
+		return zero, ownerRejected()
+	}
+	// Re-observe both exact identities after persistence.  Store facts never
+	// turn a stale observation into a death proof.
+	if err = observeResumeExited(ctx, observed.Owner, "owner_resume_owner_alive"); err != nil {
+		return zero, err
+	}
+	if err = observeResumeExited(ctx, observed.Host, "owner_resume_host_alive"); err != nil {
+		return zero, err
+	}
+	proof, err = s.db.ApplyBoundOwnerAbandonment(ctx, request, observed, ownerRecoveryStoreFacts(after), s.ownerPublicKey())
+	if err != nil {
+		return zero, err
+	}
+	if !proof.Applied {
+		return zero, ownerRejected()
+	}
+	if err = lease.CommitPrepared(ownerRecoveryFileProof(proof)); err != nil {
+		return zero, err
+	}
+	finalFacts, err := lease.Facts()
+	if err != nil || finalFacts != facts {
+		if err != nil {
+			return zero, err
+		}
+		return zero, ownerRejected()
+	}
+	return s.db.ResumeBoundOwnerAbandonment(ctx, request, observed, ownerRecoveryStoreFacts(finalFacts), s.ownerPublicKey())
 }
 
 func observeResumeExited(ctx context.Context, identity contract.OriginalOwnerTransport, aliveCode string) error {
