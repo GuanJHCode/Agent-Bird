@@ -77,6 +77,8 @@ func (d *DB) beginInitialOwnerTransaction(ctx context.Context, selector, value s
 	fail := func(e error) (*ownerTransaction, error) { _ = conn.Close(); return nil, e }
 	var query string
 	switch selector {
+	case "run":
+		query = `SELECT facts_json FROM owner_initial_recoveries WHERE run_id=?`
 	case "owner":
 		query = `SELECT p.facts_json FROM owner_initial_recoveries p JOIN execution_owners o ON o.launch_id=p.launch_id WHERE o.owner_id=?`
 	case "launch":

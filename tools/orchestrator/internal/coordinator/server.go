@@ -1024,13 +1024,15 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 		if err != nil || binding.OriginContextID != request.OriginContextID {
 			return nil, store.ErrConflict
 		}
-		if birth, birthErr := process.Birth(binding.OriginPID); birthErr == nil && birth == binding.OriginBirth {
+		current, observeErr := process.ObserveIdentityContext(ctx, binding.OriginPID, binding.OriginBirth)
+		replayOnly := binding.OriginPID == request.OriginPID && binding.OriginBirth == request.OriginBirth
+		if observeErr != nil || (replayOnly && current != process.IdentityAlive) || (!replayOnly && current != process.IdentityExited) {
 			return nil, store.ErrConflict
 		}
-		if birth, birthErr := process.Birth(request.OriginPID); birthErr != nil || birth != request.OriginBirth {
+		if next, birthErr := process.ObserveIdentityContext(ctx, request.OriginPID, request.OriginBirth); birthErr != nil || next != process.IdentityAlive {
 			return nil, store.ErrConflict
 		}
-		if err = s.db.RebindOwner(ctx, store.RebindOwnerSpec{RunID: request.RunID, OriginContextID: request.OriginContextID, OriginPID: request.OriginPID, OriginBirth: request.OriginBirth, HostGeneration: request.HostGeneration, AttachmentProofSHA256: request.AttachmentProofSHA256}); err != nil {
+		if err = s.db.RebindOwner(ctx, store.RebindOwnerSpec{RunID: request.RunID, OriginContextID: request.OriginContextID, OriginPID: request.OriginPID, OriginBirth: request.OriginBirth, HostGeneration: request.HostGeneration, AttachmentProofSHA256: request.AttachmentProofSHA256, ReplayOnly: replayOnly}); err != nil {
 			return nil, err
 		}
 		return json.Marshal(map[string]any{"version": 1, "status": "owner_rebound", "run_id": request.RunID, "origin_context_id": request.OriginContextID, "host_generation": request.HostGeneration})

@@ -96,12 +96,16 @@ func validateSuccessorOwnerBinding(ctx context.Context, tx *sql.Tx, row original
 	if err != nil {
 		return err
 	}
+	target, err := effectiveSuccessorTargetTx(ctx, tx, a)
+	if err != nil {
+		return err
+	}
 	s := row.state.Intent.Scope
 	wanted := p.state.Intent.Scope
 	wanted.OwnerID, wanted.Incarnation = s.OwnerID, p.state.Intent.Scope.Incarnation+1
-	wanted.OriginalOriginContextID, wanted.OriginalOriginPID, wanted.OriginalOriginBirth = a.SuccessorOrigin.OriginContextID, a.SuccessorOrigin.OriginPID, a.SuccessorOrigin.OriginBirth
-	wanted.HostGeneration, wanted.Executable, wanted.ExecutableSHA256 = a.SuccessorHostGeneration, a.SuccessorExecutable, a.SuccessorExecutableSHA256
-	if s != wanted || row.state.Intent.FirstHost == a.Host || row.state.Intent.CoordinatorEpoch < a.CoordinatorEpoch {
+	wanted.OriginalOriginContextID, wanted.OriginalOriginPID, wanted.OriginalOriginBirth = target.Origin.OriginContextID, target.Origin.OriginPID, target.Origin.OriginBirth
+	wanted.HostGeneration, wanted.Executable, wanted.ExecutableSHA256 = target.Generation, a.SuccessorExecutable, a.SuccessorExecutableSHA256
+	if s != wanted || row.state.Intent.FirstHost == a.Host || row.state.Intent.CoordinatorEpoch < a.CoordinatorEpoch || row.state.Intent.CoordinatorEpoch < target.DerivationEpoch {
 		return originalOwnerRejected()
 	}
 	return successorOwnerReservation(ctx, tx, a, s.ProducerID)
@@ -114,6 +118,10 @@ func successorOwnerPreviewTx(ctx context.Context, tx *sql.Tx, h contract.HostHel
 		return result, err
 	}
 	result.authorization = a
+	target, err := effectiveSuccessorTargetTx(ctx, tx, a)
+	if err != nil {
+		return result, err
+	}
 	p, err := successorOwnerPredecessor(ctx, tx, a)
 	if err != nil {
 		return result, err
@@ -130,7 +138,7 @@ func successorOwnerPreviewTx(ctx context.Context, tx *sql.Tx, h contract.HostHel
 		return result, err
 	}
 	wantedHost := contract.OriginalOwnerTransport{PID: h.PID, Birth: h.Birth}
-	if epoch == 0 || epoch != currentEpoch || epoch < a.CoordinatorEpoch || mode != "supervised-v1" || launchStatus == "released" || producer != p.state.Intent.Scope.ProducerID || h.LaunchID != a.LaunchID || h.LaunchToken == "" || subtle.ConstantTimeCompare([]byte(token), []byte(runtimeHash(h.LaunchToken))) != 1 || origin != a.SuccessorOrigin || h.OriginContextID != origin.OriginContextID || h.OriginPID != origin.OriginPID || h.OriginBirth != origin.OriginBirth || h.HostGeneration != generation || generation != a.SuccessorHostGeneration || h.Executable != executable || executable != a.SuccessorExecutable || digest != a.SuccessorExecutableSHA256 || hostOrigin != origin.OriginContextID || hostGeneration != generation || hostExecutable != executable || wantedHost.Validate() != nil || wantedHost == a.Host {
+	if epoch == 0 || epoch != currentEpoch || epoch < a.CoordinatorEpoch || epoch < target.DerivationEpoch || mode != "supervised-v1" || launchStatus == "released" || producer != p.state.Intent.Scope.ProducerID || h.LaunchID != a.LaunchID || h.LaunchToken == "" || subtle.ConstantTimeCompare([]byte(token), []byte(runtimeHash(h.LaunchToken))) != 1 || origin != target.Origin || h.OriginContextID != origin.OriginContextID || h.OriginPID != origin.OriginPID || h.OriginBirth != origin.OriginBirth || h.HostGeneration != generation || generation != target.Generation || h.Executable != executable || executable != a.SuccessorExecutable || digest != a.SuccessorExecutableSHA256 || hostOrigin != origin.OriginContextID || hostGeneration != generation || hostExecutable != executable || wantedHost.Validate() != nil || wantedHost == a.Host {
 		return result, originalOwnerRejected()
 	}
 	s := p.state.Intent.Scope

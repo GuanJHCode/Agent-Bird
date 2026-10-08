@@ -90,12 +90,16 @@ func resolveRecoveryHandoffTx(ctx context.Context, tx *sql.Tx, s OwnerRecoveryHa
 	if contract.VerifyOriginalOwnerBinding(*prior.state.Binding, key) != nil || recoveryHandoffPermit(ctx, tx, prior, key) != nil || recoveryHandoffPermit(ctx, tx, row, key) != nil {
 		return reject()
 	}
+	target, err := effectiveSuccessorTargetTx(ctx, tx, a)
+	if err != nil {
+		return result, row, prior, err
+	}
 	wanted := prior.state.Intent.Scope
 	scope := row.state.Intent.Scope
 	wanted.OwnerID, wanted.Incarnation = scope.OwnerID, wanted.Incarnation+1
-	wanted.OriginalOriginContextID, wanted.OriginalOriginPID, wanted.OriginalOriginBirth = a.SuccessorOrigin.OriginContextID, a.SuccessorOrigin.OriginPID, a.SuccessorOrigin.OriginBirth
-	wanted.HostGeneration, wanted.Executable, wanted.ExecutableSHA256 = a.SuccessorHostGeneration, a.SuccessorExecutable, a.SuccessorExecutableSHA256
-	if scope != wanted || row.state.Intent.CoordinatorEpoch < a.CoordinatorEpoch {
+	wanted.OriginalOriginContextID, wanted.OriginalOriginPID, wanted.OriginalOriginBirth = target.Origin.OriginContextID, target.Origin.OriginPID, target.Origin.OriginBirth
+	wanted.HostGeneration, wanted.Executable, wanted.ExecutableSHA256 = target.Generation, a.SuccessorExecutable, a.SuccessorExecutableSHA256
+	if scope != wanted || row.state.Intent.CoordinatorEpoch < a.CoordinatorEpoch || row.state.Intent.CoordinatorEpoch < target.DerivationEpoch {
 		return reject()
 	}
 	result.PriorBinding, result.Binding = *prior.state.Binding, *row.state.Binding
