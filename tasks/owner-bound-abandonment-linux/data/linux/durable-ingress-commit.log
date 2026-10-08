@@ -1,0 +1,31 @@
+=== RUN   TestDurableIngressDiscardFailedCommit
+=== RUN   TestDurableIngressDiscardFailedCommit/host_event
+=== RUN   TestDurableIngressDiscardFailedCommit/report_event
+=== RUN   TestDurableIngressDiscardFailedCommit/submit_plan
+--- PASS: TestDurableIngressDiscardFailedCommit (0.71s)
+    --- PASS: TestDurableIngressDiscardFailedCommit/host_event (0.20s)
+    --- PASS: TestDurableIngressDiscardFailedCommit/report_event (0.15s)
+    --- PASS: TestDurableIngressDiscardFailedCommit/submit_plan (0.36s)
+=== RUN   TestReportReconnectRevokedBindingUpdatesOnlyEpochAndRetainsGuards
+=== RUN   TestReportReconnectRevokedBindingUpdatesOnlyEpochAndRetainsGuards/token
+=== RUN   TestReportReconnectRevokedBindingUpdatesOnlyEpochAndRetainsGuards/directory
+=== RUN   TestReportReconnectRevokedBindingUpdatesOnlyEpochAndRetainsGuards/owner
+=== RUN   TestReportReconnectRevokedBindingUpdatesOnlyEpochAndRetainsGuards/task
+=== RUN   TestReportReconnectRevokedBindingUpdatesOnlyEpochAndRetainsGuards/attempt
+=== RUN   TestReportReconnectRevokedBindingUpdatesOnlyEpochAndRetainsGuards/segment
+=== RUN   TestReportReconnectRevokedBindingUpdatesOnlyEpochAndRetainsGuards/revision
+=== RUN   TestReportReconnectRevokedBindingUpdatesOnlyEpochAndRetainsGuards/old-epoch
+--- PASS: TestReportReconnectRevokedBindingUpdatesOnlyEpochAndRetainsGuards (0.16s)
+    --- PASS: TestReportReconnectRevokedBindingUpdatesOnlyEpochAndRetainsGuards/token (0.00s)
+    --- PASS: TestReportReconnectRevokedBindingUpdatesOnlyEpochAndRetainsGuards/directory (0.00s)
+    --- PASS: TestReportReconnectRevokedBindingUpdatesOnlyEpochAndRetainsGuards/owner (0.00s)
+    --- PASS: TestReportReconnectRevokedBindingUpdatesOnlyEpochAndRetainsGuards/task (0.00s)
+    --- PASS: TestReportReconnectRevokedBindingUpdatesOnlyEpochAndRetainsGuards/attempt (0.00s)
+    --- PASS: TestReportReconnectRevokedBindingUpdatesOnlyEpochAndRetainsGuards/segment (0.00s)
+    --- PASS: TestReportReconnectRevokedBindingUpdatesOnlyEpochAndRetainsGuards/revision (0.00s)
+    --- PASS: TestReportReconnectRevokedBindingUpdatesOnlyEpochAndRetainsGuards/old-epoch (0.00s)
+=== RUN   TestRuntimePersistsDAGSlotsEventsAndExplicitResume
+--- PASS: TestRuntimePersistsDAGSlotsEventsAndExplicitResume (0.38s)
+=== RUN   TestReportReplayBindsKindAndProgressCannotConsumeCriticalReserve
+--- PASS: TestReportReplayBindsKindAndProgressCannotConsumeCriticalReserve (0.19s)
+PASS
