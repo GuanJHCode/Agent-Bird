@@ -176,11 +176,12 @@ func (d *DB) ReleaseConfigTaskUse(ctx context.Context, executable, run, task str
 	return install.ReleaseConfigTaskUseWithStore(executable, run, task, ref, func(u install.ConfigPreparationUse, remove func() error) error {
 		d.mu.Lock()
 		defer d.mu.Unlock()
-		tx, e := d.sql.BeginTx(ctx, nil)
+		owned, e := d.beginOwnerTransaction(ctx)
 		if e != nil {
 			return e
 		}
-		defer tx.Rollback()
+		defer owned.close()
+		tx := owned.tx
 		if u.Authority == nil {
 			return install.ErrConfigPreparationStoreUnbound
 		}
@@ -200,7 +201,7 @@ func (d *DB) ReleaseConfigTaskUse(ctx context.Context, executable, run, task str
 		if e = remove(); e != nil {
 			return e
 		}
-		return tx.Commit()
+		return owned.commit()
 	})
 }
 

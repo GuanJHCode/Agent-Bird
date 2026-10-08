@@ -104,11 +104,12 @@ func (d *DB) CommitConfigAbandon(ctx context.Context, current OwnerGrant, guard 
 	err = guard.WithOriginalUse(func(u install.ConfigPreparationUse) error {
 		d.mu.Lock()
 		defer d.mu.Unlock()
-		tx, e := d.sql.BeginTx(ctx, nil)
+		owned, e := d.beginOwnerTransaction(ctx)
 		if e != nil {
 			return e
 		}
-		defer tx.Rollback()
+		defer owned.close()
+		tx := owned.tx
 		if e = d.authenticateConfigAbandon(ctx, tx, current, u); e != nil {
 			return e
 		}
@@ -121,7 +122,7 @@ func (d *DB) CommitConfigAbandon(ctx context.Context, current OwnerGrant, guard 
 				return install.ErrConfigAbandonConflict
 			}
 			out = *original
-			return tx.Commit()
+			return owned.commit()
 		}
 		var exists int
 		if e = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM runs WHERE id=?)`, u.RunID).Scan(&exists); e != nil {
@@ -155,7 +156,7 @@ func (d *DB) CommitConfigAbandon(ctx context.Context, current OwnerGrant, guard 
 		if e = d.checkConfigStore(*u.Authority); e != nil {
 			return e
 		}
-		return tx.Commit()
+		return owned.commit()
 	})
 	return out, err
 }

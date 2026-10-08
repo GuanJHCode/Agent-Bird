@@ -1,0 +1,745 @@
+diff --git a/tools/orchestrator/internal/store/acp_bridge_bindings.go b/tools/orchestrator/internal/store/acp_bridge_bindings.go
+index 029b67c..97174a9 100644
+--- a/tools/orchestrator/internal/store/acp_bridge_bindings.go
++++ b/tools/orchestrator/internal/store/acp_bridge_bindings.go
+@@ -44,11 +44,12 @@ func (d *DB) BindACPBridge(ctx context.Context, req contract.ACPBindRequest) (co
+ 		return empty, err
+ 	}
+ 	defer d.mu.Unlock()
+-	tx, err := d.sql.BeginTx(ctx, nil)
++	owned, err := d.beginOwnerTransaction(ctx)
+ 	if err != nil {
+ 		return empty, err
+ 	}
+-	defer tx.Rollback()
++	defer owned.close()
++	tx := owned.tx
+ 	owner, err := acpOwnerTx(ctx, tx, req.RunID)
+ 	if err != nil {
+ 		return empty, err
+@@ -91,7 +92,7 @@ func (d *DB) BindACPBridge(ctx context.Context, req contract.ACPBindRequest) (co
+ 	if err != nil {
+ 		return empty, mapConflict(err)
+ 	}
+-	if err = tx.Commit(); err != nil {
++	if err = owned.commit(); err != nil {
+ 		return empty, err
+ 	}
+ 	return row, nil
+@@ -106,11 +107,12 @@ func (d *DB) ActivateACPBridge(ctx context.Context, req contract.ACPActivateRequ
+ 		return empty, err
+ 	}
+ 	defer d.mu.Unlock()
+-	tx, err := d.sql.BeginTx(ctx, nil)
++	owned, err := d.beginOwnerTransaction(ctx)
+ 	if err != nil {
+ 		return empty, err
+ 	}
+-	defer tx.Rollback()
++	defer owned.close()
++	tx := owned.tx
+ 	b, _, err := acpBindingOwnerTx(ctx, tx, req.BridgeOwnerRequest)
+ 	if err != nil {
+ 		return empty, err
+@@ -153,7 +155,7 @@ func (d *DB) ActivateACPBridge(ctx context.Context, req contract.ACPActivateRequ
+ 	if n, e := result.RowsAffected(); e != nil || n != 1 {
+ 		return empty, CodeError("bridge_session_mismatch")
+ 	}
+-	if err = tx.Commit(); err != nil {
++	if err = owned.commit(); err != nil {
+ 		return empty, err
+ 	}
+ 	return b.view, nil
+diff --git a/tools/orchestrator/internal/store/acp_bridge_delivery.go b/tools/orchestrator/internal/store/acp_bridge_delivery.go
+index ab1d985..d348297 100644
+--- a/tools/orchestrator/internal/store/acp_bridge_delivery.go
++++ b/tools/orchestrator/internal/store/acp_bridge_delivery.go
+@@ -125,11 +125,12 @@ func (d *DB) ClaimACPBridge(ctx context.Context, req contract.ACPClaimRequest) (
+ 		return empty, err
+ 	}
+ 	defer d.mu.Unlock()
+-	tx, err := d.sql.BeginTx(ctx, nil)
++	owned, err := d.beginOwnerTransaction(ctx)
+ 	if err != nil {
+ 		return empty, err
+ 	}
+-	defer tx.Rollback()
++	defer owned.close()
++	tx := owned.tx
+ 	b, owner, err := acpBindingOwnerTx(ctx, tx, req.BridgeOwnerRequest)
+ 	if err != nil {
+ 		return empty, err
+@@ -157,7 +158,7 @@ func (d *DB) ClaimACPBridge(ctx context.Context, req contract.ACPClaimRequest) (
+ 			if err = d.acpExpireClaimTx(ctx, tx, b, existing); err != nil {
+ 				return empty, err
+ 			}
+-			if err = tx.Commit(); err != nil {
++			if err = owned.commit(); err != nil {
+ 				return empty, err
+ 			}
+ 			return empty, CodeError("bridge_claim_expired_no_send")
+@@ -302,7 +303,7 @@ func (d *DB) ClaimACPBridge(ctx context.Context, req contract.ACPClaimRequest) (
+ 	if _, err = tx.ExecContext(ctx, `INSERT INTO bridge_delivery_attempts(attempt_id,batch_id,binding_id,owner_epoch,attempt_no,claim_token_hash,state,deadline_at,sender_pid,sender_birth,wire_bytes,wire_sha256,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, a.id, a.batchID, a.bindingID, a.ownerEpoch, a.attemptNo, a.tokenHash, a.state, a.deadline, a.senderPID, a.senderBirth, a.wire, a.wireHash, nowText); err != nil {
+ 		return empty, mapConflict(err)
+ 	}
+-	if err = tx.Commit(); err != nil {
++	if err = owned.commit(); err != nil {
+ 		return empty, err
+ 	}
+ 	return contract.ACPClaimReply{Batch: batch, ClaimToken: token, NativeSessionID: b.view.NativeSessionID, TurnOrdinal: ordinal, PromptText: string(prompt), PromptSHA256: a.wireHash}, nil
+diff --git a/tools/orchestrator/internal/store/acp_bridge_receipts.go b/tools/orchestrator/internal/store/acp_bridge_receipts.go
+index 4e50dfe..5121f80 100644
+--- a/tools/orchestrator/internal/store/acp_bridge_receipts.go
++++ b/tools/orchestrator/internal/store/acp_bridge_receipts.go
+@@ -64,11 +64,12 @@ func (d *DB) BeginACPBridgeEmit(ctx context.Context, req contract.ACPBeginReques
+ 		return err
+ 	}
+ 	defer d.mu.Unlock()
+-	tx, err := d.sql.BeginTx(ctx, nil)
++	owned, err := d.beginOwnerTransaction(ctx)
+ 	if err != nil {
+ 		return err
+ 	}
+-	defer tx.Rollback()
++	defer owned.close()
++	tx := owned.tx
+ 	b, _, err := acpBindingOwnerTx(ctx, tx, req.BridgeOwnerRequest)
+ 	if err != nil {
+ 		return err
+@@ -103,7 +104,7 @@ func (d *DB) BeginACPBridgeEmit(ctx context.Context, req contract.ACPBeginReques
+ 		if err = d.acpExpireClaimTx(ctx, tx, b, a.bridgeAttempt); err != nil {
+ 			return err
+ 		}
+-		if err = tx.Commit(); err != nil {
++		if err = owned.commit(); err != nil {
+ 			return err
+ 		}
+ 		return CodeError("bridge_claim_expired_no_send")
+@@ -132,7 +133,7 @@ func (d *DB) BeginACPBridgeEmit(ctx context.Context, req contract.ACPBeginReques
+ 	if n, e := result.RowsAffected(); e != nil || n != 1 {
+ 		return CodeError("bridge_claim_expired_no_send")
+ 	}
+-	return tx.Commit()
++	return owned.commit()
+ }
+ 
+ func (d *DB) ReceiveACPBridge(ctx context.Context, req contract.ACPReceiveRequest) (contract.BridgeReceiveReceipt, error) {
+@@ -144,11 +145,12 @@ func (d *DB) ReceiveACPBridge(ctx context.Context, req contract.ACPReceiveReques
+ 		return empty, err
+ 	}
+ 	defer d.mu.Unlock()
+-	tx, err := d.sql.BeginTx(ctx, nil)
++	owned, err := d.beginOwnerTransaction(ctx)
+ 	if err != nil {
+ 		return empty, err
+ 	}
+-	defer tx.Rollback()
++	defer owned.close()
++	tx := owned.tx
+ 	b, _, err := acpBindingOwnerTx(ctx, tx, req.BridgeOwnerRequest)
+ 	if err != nil {
+ 		return empty, err
+@@ -204,7 +206,7 @@ func (d *DB) ReceiveACPBridge(ctx context.Context, req contract.ACPReceiveReques
+ 	if n, e := result.RowsAffected(); e != nil || n != 1 {
+ 		return empty, CodeError("bridge_receive_state")
+ 	}
+-	if err = tx.Commit(); err != nil {
++	if err = owned.commit(); err != nil {
+ 		return empty, err
+ 	}
+ 	return receipt, nil
+diff --git a/tools/orchestrator/internal/store/bridge_bindings.go b/tools/orchestrator/internal/store/bridge_bindings.go
+index 997d619..7f83a23 100644
+--- a/tools/orchestrator/internal/store/bridge_bindings.go
++++ b/tools/orchestrator/internal/store/bridge_bindings.go
+@@ -234,11 +234,12 @@ func (d *DB) BindBridge(ctx context.Context, req contract.BridgeBindRequest) (co
+ 		return empty, err
+ 	}
+ 	defer d.mu.Unlock()
+-	tx, err := d.sql.BeginTx(ctx, nil)
++	owned, err := d.beginOwnerTransaction(ctx)
+ 	if err != nil {
+ 		return empty, err
+ 	}
+-	defer tx.Rollback()
++	defer owned.close()
++	tx := owned.tx
+ 	owner, err := bridgeOwnerTx(ctx, tx, req.RunID)
+ 	if err != nil {
+ 		return empty, err
+@@ -276,7 +277,7 @@ func (d *DB) BindBridge(ctx context.Context, req contract.BridgeBindRequest) (co
+ 			if err = bridgeBindingPublicSafe(ctx, tx, old.view); err != nil {
+ 				return empty, err
+ 			}
+-			_ = tx.Rollback()
++			owned.close()
+ 			return old.view, nil
+ 		}
+ 		var pending int
+@@ -316,7 +317,7 @@ func (d *DB) BindBridge(ctx context.Context, req contract.BridgeBindRequest) (co
+ 	if err = writeBridgeCapability(path, id, epoch, token); err != nil {
+ 		return empty, err
+ 	}
+-	if err = tx.Commit(); err != nil {
++	if err = owned.commit(); err != nil {
+ 		return empty, err
+ 	}
+ 	return row, nil
+diff --git a/tools/orchestrator/internal/store/bridge_delivery.go b/tools/orchestrator/internal/store/bridge_delivery.go
+index b128197..5e1de9b 100644
+--- a/tools/orchestrator/internal/store/bridge_delivery.go
++++ b/tools/orchestrator/internal/store/bridge_delivery.go
+@@ -517,11 +517,12 @@ func (d *DB) ClaimBridge(ctx context.Context, req contract.BridgeClaimRequest) (
+ 		return empty, err
+ 	}
+ 	defer d.mu.Unlock()
+-	tx, err := d.sql.BeginTx(ctx, nil)
++	owned, err := d.beginOwnerTransaction(ctx)
+ 	if err != nil {
+ 		return empty, err
+ 	}
+-	defer tx.Rollback()
++	defer owned.close()
++	tx := owned.tx
+ 	b, err := bridgeHookTx(ctx, tx, req.BindingID, req.HookCapability, req.OwnerEpoch)
+ 	if err != nil {
+ 		return empty, err
+@@ -569,7 +570,7 @@ func (d *DB) ClaimBridge(ctx context.Context, req contract.BridgeClaimRequest) (
+ 				if n != 1 {
+ 					return empty, CodeError("bridge_claim_pending")
+ 				}
+-				if err = tx.Commit(); err != nil {
++				if err = owned.commit(); err != nil {
+ 					return empty, err
+ 				}
+ 			}
+@@ -594,7 +595,7 @@ func (d *DB) ClaimBridge(ctx context.Context, req contract.BridgeClaimRequest) (
+ 				if n != 1 {
+ 					return empty, CodeError("bridge_claim_pending")
+ 				}
+-				if err = tx.Commit(); err != nil {
++				if err = owned.commit(); err != nil {
+ 					return empty, err
+ 				}
+ 			}
+@@ -647,7 +648,7 @@ func (d *DB) ClaimBridge(ctx context.Context, req contract.BridgeClaimRequest) (
+ 				if n != 1 {
+ 					return empty, CodeError("bridge_claim_pending")
+ 				}
+-				if err = tx.Commit(); err != nil {
++				if err = owned.commit(); err != nil {
+ 					return empty, err
+ 				}
+ 				return batch, nil
+@@ -787,7 +788,7 @@ func (d *DB) ClaimBridge(ctx context.Context, req contract.BridgeClaimRequest) (
+ 	if err != nil {
+ 		return empty, mapConflict(err)
+ 	}
+-	if err = tx.Commit(); err != nil {
++	if err = owned.commit(); err != nil {
+ 		return empty, err
+ 	}
+ 	return batch, nil
+@@ -814,11 +815,12 @@ func (d *DB) RecoverBridgeDelivery(ctx context.Context) error {
+ 		return err
+ 	}
+ 	defer d.mu.Unlock()
+-	tx, err := d.sql.BeginTx(ctx, nil)
++	owned, err := d.beginOwnerTransaction(ctx)
+ 	if err != nil {
+ 		return err
+ 	}
+-	defer tx.Rollback()
++	defer owned.close()
++	tx := owned.tx
+ 	rows, err := tx.QueryContext(ctx, "SELECT a.attempt_id,b.run_id,a.updated_at,a.claim_token_hash FROM bridge_delivery_attempts a JOIN bridge_bindings b ON b.binding_id=a.binding_id WHERE a.state='EMITTING'")
+ 	if err != nil {
+ 		return err
+@@ -855,7 +857,7 @@ func (d *DB) RecoverBridgeDelivery(ctx context.Context) error {
+ 			return CodeError("bridge_emit_state")
+ 		}
+ 	}
+-	return tx.Commit()
++	return owned.commit()
+ }
+ 
+ func bridgeSendBindingTx(ctx context.Context, tx *sql.Tx, id string, epoch uint64) (bridgeBinding, BridgeSenderProof, error) {
+@@ -893,11 +895,12 @@ func (d *DB) BeginBridgeEmit(ctx context.Context, req contract.BridgeEmitRequest
+ 		return err
+ 	}
+ 	defer d.mu.Unlock()
+-	tx, err := d.sql.BeginTx(ctx, nil)
++	owned, err := d.beginOwnerTransaction(ctx)
+ 	if err != nil {
+ 		return err
+ 	}
+-	defer tx.Rollback()
++	defer owned.close()
++	tx := owned.tx
+ 	b, sender, err := bridgeSendBindingTx(ctx, tx, req.BindingID, req.OwnerEpoch)
+ 	if err != nil {
+ 		return err
+@@ -948,7 +951,7 @@ func (d *DB) BeginBridgeEmit(ctx context.Context, req contract.BridgeEmitRequest
+ 	if err = bridgeBeginEmitCAS(ctx, tx, now, a, sender); err != nil {
+ 		return err
+ 	}
+-	return tx.Commit()
++	return owned.commit()
+ }
+ func bridgeBeginEmitCAS(ctx context.Context, tx *sql.Tx, now string, a bridgeAttempt, sender BridgeSenderProof) error {
+ 	result, err := tx.ExecContext(ctx, "UPDATE bridge_delivery_attempts SET state='EMITTING',updated_at=? WHERE attempt_id=? AND state='CLAIMED' AND deadline_at>? AND claim_token_hash=? AND sender_pid=? AND sender_birth=? AND wire_sha256=?", now, a.id, now, a.tokenHash, sender.PeerPID, sender.PeerBirth, a.wireHash)
+@@ -969,11 +972,12 @@ func (d *DB) MarkBridgeOffered(ctx context.Context, req contract.BridgeOfferedRe
+ 		return err
+ 	}
+ 	defer d.mu.Unlock()
+-	tx, err := d.sql.BeginTx(ctx, nil)
++	owned, err := d.beginOwnerTransaction(ctx)
+ 	if err != nil {
+ 		return err
+ 	}
+-	defer tx.Rollback()
++	defer owned.close()
++	tx := owned.tx
+ 	b, sender, err := bridgeSendBindingTx(ctx, tx, req.BindingID, req.OwnerEpoch)
+ 	if err != nil {
+ 		return err
+@@ -1030,7 +1034,7 @@ func (d *DB) MarkBridgeOffered(ctx context.Context, req contract.BridgeOfferedRe
+ 	if n != 1 {
+ 		return CodeError("bridge_emit_state")
+ 	}
+-	return tx.Commit()
++	return owned.commit()
+ }
+ func bridgeHistoricalReceiveTx(ctx context.Context, tx *sql.Tx, req contract.BridgeReceiveRequest) (bridgeBinding, error) {
+ 	return bridgeOwnerForHistoricalTx(ctx, tx, req.BindingID, req.OwnerEpoch, req.OwnerMode, bridgeHistoryReceive)
+@@ -1062,11 +1066,12 @@ func (d *DB) ReceiveBridge(ctx context.Context, req contract.BridgeReceiveReques
+ 		return empty, err
+ 	}
+ 	defer d.mu.Unlock()
+-	tx, err := d.sql.BeginTx(ctx, nil)
++	owned, err := d.beginOwnerTransaction(ctx)
+ 	if err != nil {
+ 		return empty, err
+ 	}
+-	defer tx.Rollback()
++	defer owned.close()
++	tx := owned.tx
+ 	b, err := bridgeHistoricalReceiveTx(ctx, tx, req)
+ 	if err != nil {
+ 		return empty, err
+@@ -1117,7 +1122,7 @@ func (d *DB) ReceiveBridge(ctx context.Context, req contract.BridgeReceiveReques
+ 	if n != 1 {
+ 		return empty, CodeError("bridge_receive_state")
+ 	}
+-	if err = tx.Commit(); err != nil {
++	if err = owned.commit(); err != nil {
+ 		return empty, err
+ 	}
+ 	return receipt, nil
+@@ -1160,11 +1165,12 @@ func (d *DB) RedeliverBridge(ctx context.Context, req contract.BridgeRedeliverRe
+ 		return empty, err
+ 	}
+ 	defer d.mu.Unlock()
+-	tx, err := d.sql.BeginTx(ctx, nil)
++	owned, err := d.beginOwnerTransaction(ctx)
+ 	if err != nil {
+ 		return empty, err
+ 	}
+-	defer tx.Rollback()
++	defer owned.close()
++	tx := owned.tx
+ 	b, err := bridgeCurrentOwnerTx(ctx, tx, req.BindingID, req.OwnerEpoch, req.OwnerMode)
+ 	if err != nil {
+ 		return empty, err
+@@ -1221,7 +1227,7 @@ func (d *DB) RedeliverBridge(ctx context.Context, req contract.BridgeRedeliverRe
+ 	if err != nil {
+ 		return empty, mapConflict(err)
+ 	}
+-	if err = tx.Commit(); err != nil {
++	if err = owned.commit(); err != nil {
+ 		return empty, err
+ 	}
+ 	return view, nil
+@@ -1309,11 +1315,12 @@ func (d *DB) BridgeStatus(ctx context.Context, req contract.BridgeStatusRequest)
+ 		return empty, err
+ 	}
+ 	defer d.mu.Unlock()
+-	tx, err := d.sql.BeginTx(ctx, nil)
++	owned, err := d.beginOwnerTransaction(ctx)
+ 	if err != nil {
+ 		return empty, err
+ 	}
+-	defer tx.Rollback()
++	defer owned.close()
++	tx := owned.tx
+ 	b, err := bridgeOwnerForHistoricalTx(ctx, tx, req.BindingID, req.OwnerEpoch, req.OwnerMode, bridgeHistoryStatus)
+ 	if err != nil {
+ 		return empty, err
+@@ -1381,7 +1388,7 @@ func (d *DB) BridgeStatus(ctx context.Context, req contract.BridgeStatusRequest)
+ 	if err = bridgePublicSafe(ctx, view); err != nil {
+ 		return empty, err
+ 	}
+-	if err = tx.Commit(); err != nil {
++	if err = owned.commit(); err != nil {
+ 		return empty, err
+ 	}
+ 	return view, nil
+diff --git a/tools/orchestrator/internal/store/bridge_ingress.go b/tools/orchestrator/internal/store/bridge_ingress.go
+index 46ed9a5..daa8d98 100644
+--- a/tools/orchestrator/internal/store/bridge_ingress.go
++++ b/tools/orchestrator/internal/store/bridge_ingress.go
+@@ -94,11 +94,12 @@ func (d *DB) IngestHook(ctx context.Context, req contract.BridgeIngestRequest) (
+ 		return ack, err
+ 	}
+ 	defer d.mu.Unlock()
+-	tx, err := d.sql.BeginTx(ctx, nil)
++	owned, err := d.beginOwnerTransaction(ctx)
+ 	if err != nil {
+ 		return ack, err
+ 	}
+-	defer tx.Rollback()
++	defer owned.close()
++	tx := owned.tx
+ 	b, err := bridgeHookTx(ctx, tx, req.BindingID, req.HookCapability, req.OwnerEpoch)
+ 	if err != nil {
+ 		return ack, err
+@@ -116,7 +117,7 @@ func (d *DB) IngestHook(ctx context.Context, req contract.BridgeIngestRequest) (
+ 		if oldHash != hash || !bytes.Equal(oldRaw, raw) {
+ 			return ack, ErrConflict
+ 		}
+-		if err = tx.Commit(); err != nil {
++		if err = owned.commit(); err != nil {
+ 			return ack, err
+ 		}
+ 		return contract.BridgeIngressAck{EventID: event.EventID, PayloadHash: hash, Committed: true, Duplicate: true}, nil
+@@ -170,7 +171,7 @@ func (d *DB) IngestHook(ctx context.Context, req contract.BridgeIngestRequest) (
+ 			return ack, err
+ 		}
+ 	}
+-	if err = tx.Commit(); err != nil {
++	if err = owned.commit(); err != nil {
+ 		return ack, err
+ 	}
+ 	return contract.BridgeIngressAck{EventID: event.EventID, PayloadHash: hash, Committed: true}, nil
+@@ -202,11 +203,12 @@ func (d *DB) ActivateBridge(ctx context.Context, req contract.BridgeActivateRequ
+ 		return empty, err
+ 	}
+ 	defer d.mu.Unlock()
+-	tx, err := d.sql.BeginTx(ctx, nil)
++	owned, err := d.beginOwnerTransaction(ctx)
+ 	if err != nil {
+ 		return empty, err
+ 	}
+-	defer tx.Rollback()
++	defer owned.close()
++	tx := owned.tx
+ 	b, err := scanBridgeBinding(tx.QueryRowContext(ctx, bridgeSelect+` WHERE binding_id=?`, req.BindingID))
+ 	if errors.Is(err, sql.ErrNoRows) {
+ 		return empty, CodeError("bridge_no_active_binding")
+@@ -247,7 +249,7 @@ func (d *DB) ActivateBridge(ctx context.Context, req contract.BridgeActivateRequ
+ 		}
+ 		b.view.Status = "ACTIVE"
+ 	}
+-	if err = tx.Commit(); err != nil {
++	if err = owned.commit(); err != nil {
+ 		return empty, err
+ 	}
+ 	return b.view, nil
+@@ -261,11 +263,12 @@ func (d *DB) UnbindBridge(ctx context.Context, req contract.BridgeUnbindRequest)
+ 		return err
+ 	}
+ 	defer d.mu.Unlock()
+-	tx, err := d.sql.BeginTx(ctx, nil)
++	owned, err := d.beginOwnerTransaction(ctx)
+ 	if err != nil {
+ 		return err
+ 	}
+-	defer tx.Rollback()
++	defer owned.close()
++	tx := owned.tx
+ 	b, err := scanBridgeBinding(tx.QueryRowContext(ctx, bridgeSelect+` WHERE binding_id=?`, req.BindingID))
+ 	if errors.Is(err, sql.ErrNoRows) {
+ 		return CodeError("bridge_no_active_binding")
+@@ -295,7 +298,7 @@ func (d *DB) UnbindBridge(ctx context.Context, req contract.BridgeUnbindRequest)
+ 	if _, err = tx.ExecContext(ctx, `UPDATE bridge_delivery_attempts SET state='STALE' WHERE binding_id=? AND state='CLAIMED'`, req.BindingID); err != nil {
+ 		return err
+ 	}
+-	if err = tx.Commit(); err != nil {
++	if err = owned.commit(); err != nil {
+ 		return err
+ 	}
+ 	_ = osRemoveBridgeFile(b.view.CapabilityFile)
+diff --git a/tools/orchestrator/internal/store/collection.go b/tools/orchestrator/internal/store/collection.go
+index a73934c..3780d0e 100644
+--- a/tools/orchestrator/internal/store/collection.go
++++ b/tools/orchestrator/internal/store/collection.go
+@@ -30,11 +30,12 @@ func (d *DB) CollectionReceipt(ctx context.Context, task string, events []contra
+ 		return "", "", err
+ 	}
+ 	defer d.mu.Unlock()
+-	tx, err := d.sql.BeginTx(ctx, nil)
++	owned, err := d.beginOwnerTransaction(ctx)
+ 	if err != nil {
+ 		return "", "", err
+ 	}
+-	defer tx.Rollback()
++	defer owned.close()
++	tx := owned.tx
+ 	var run, mode string
+ 	if err = tx.QueryRowContext(ctx, `SELECT r.id,r.delivery_mode FROM runs r JOIN tasks t ON t.run_id=r.id WHERE t.id=?`, task).Scan(&run, &mode); err != nil {
+ 		return "", "", err
+@@ -55,7 +56,7 @@ func (d *DB) CollectionReceipt(ctx context.Context, task string, events []contra
+ 	if err != nil {
+ 		return "", "", err
+ 	}
+-	if err = tx.Commit(); err != nil {
++	if err = owned.commit(); err != nil {
+ 		return "", "", err
+ 	}
+ 	return id, proof, nil
+diff --git a/tools/orchestrator/internal/store/config_abandon.go b/tools/orchestrator/internal/store/config_abandon.go
+index 07fd57a..55937b2 100644
+--- a/tools/orchestrator/internal/store/config_abandon.go
++++ b/tools/orchestrator/internal/store/config_abandon.go
+@@ -104,11 +104,12 @@ func (d *DB) CommitConfigAbandon(ctx context.Context, current OwnerGrant, guard
+ 	err = guard.WithOriginalUse(func(u install.ConfigPreparationUse) error {
+ 		d.mu.Lock()
+ 		defer d.mu.Unlock()
+-		tx, e := d.sql.BeginTx(ctx, nil)
++		owned, e := d.beginOwnerTransaction(ctx)
+ 		if e != nil {
+ 			return e
+ 		}
+-		defer tx.Rollback()
++		defer owned.close()
++		tx := owned.tx
+ 		if e = d.authenticateConfigAbandon(ctx, tx, current, u); e != nil {
+ 			return e
+ 		}
+@@ -121,7 +122,7 @@ func (d *DB) CommitConfigAbandon(ctx context.Context, current OwnerGrant, guard
+ 				return install.ErrConfigAbandonConflict
+ 			}
+ 			out = *original
+-			return tx.Commit()
++			return owned.commit()
+ 		}
+ 		var exists int
+ 		if e = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM runs WHERE id=?)`, u.RunID).Scan(&exists); e != nil {
+@@ -155,7 +156,7 @@ func (d *DB) CommitConfigAbandon(ctx context.Context, current OwnerGrant, guard
+ 		if e = d.checkConfigStore(*u.Authority); e != nil {
+ 			return e
+ 		}
+-		return tx.Commit()
++		return owned.commit()
+ 	})
+ 	return out, err
+ }
+diff --git a/tools/orchestrator/internal/store/config_preparation_authority.go b/tools/orchestrator/internal/store/config_preparation_authority.go
+index b163ab1..2a68928 100644
+--- a/tools/orchestrator/internal/store/config_preparation_authority.go
++++ b/tools/orchestrator/internal/store/config_preparation_authority.go
+@@ -176,11 +176,12 @@ func (d *DB) ReleaseConfigTaskUse(ctx context.Context, executable, run, task str
+ 	return install.ReleaseConfigTaskUseWithStore(executable, run, task, ref, func(u install.ConfigPreparationUse, remove func() error) error {
+ 		d.mu.Lock()
+ 		defer d.mu.Unlock()
+-		tx, e := d.sql.BeginTx(ctx, nil)
++		owned, e := d.beginOwnerTransaction(ctx)
+ 		if e != nil {
+ 			return e
+ 		}
+-		defer tx.Rollback()
++		defer owned.close()
++		tx := owned.tx
+ 		if u.Authority == nil {
+ 			return install.ErrConfigPreparationStoreUnbound
+ 		}
+@@ -200,7 +201,7 @@ func (d *DB) ReleaseConfigTaskUse(ctx context.Context, executable, run, task str
+ 		if e = remove(); e != nil {
+ 			return e
+ 		}
+-		return tx.Commit()
++		return owned.commit()
+ 	})
+ }
+ 
+diff --git a/tools/orchestrator/internal/store/delivery.go b/tools/orchestrator/internal/store/delivery.go
+index c8ae310..5041e1a 100644
+--- a/tools/orchestrator/internal/store/delivery.go
++++ b/tools/orchestrator/internal/store/delivery.go
+@@ -1,12 +1,12 @@
+ package store
+ 
+ import (
+-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
+ 	"context"
+ 	"crypto/subtle"
+ 	"database/sql"
+ 	"encoding/json"
+ 	"errors"
++	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
+ 	"strconv"
+ 	"strings"
+ 	"time"
+@@ -128,18 +128,20 @@ func (d *DB) AckDecisions(ctx context.Context, taskID, deliveryID, historyProofS
+ 	decisionsHash := runtimeHash(string(encoded))
+ 	d.mu.Lock()
+ 	defer d.mu.Unlock()
+-	tx, err := d.sql.BeginTx(ctx, nil)
++	owned, err := d.beginOwnerTransaction(ctx)
+ 	if err != nil {
+ 		return err
+ 	}
+-	rollback := func(e error) error { _ = tx.Rollback(); return e }
++	defer owned.close()
++	tx := owned.tx
++	rollback := func(e error) error { owned.close(); return e }
+ 	var storedTask, storedProof, storedDecisions string
+ 	err = tx.QueryRowContext(ctx, `SELECT task_id,history_proof_sha256,decisions_hash FROM delivery_receipts WHERE delivery_id=?`, deliveryID).Scan(&storedTask, &storedProof, &storedDecisions)
+ 	if err == nil {
+ 		if storedTask != taskID || storedProof != strings.ToLower(historyProofSHA256) || storedDecisions != decisionsHash {
+ 			return rollback(ErrConflict)
+ 		}
+-		_ = tx.Rollback()
++		owned.close()
+ 		return nil
+ 	}
+ 	if !errors.Is(err, sql.ErrNoRows) {
+@@ -153,7 +155,7 @@ func (d *DB) AckDecisions(ctx context.Context, taskID, deliveryID, historyProofS
+ 	if _, err = tx.ExecContext(ctx, `INSERT INTO delivery_receipts(delivery_id,task_id,history_proof_sha256,decisions_hash,created_at) VALUES(?,?,?,?,?)`, deliveryID, taskID, strings.ToLower(historyProofSHA256), decisionsHash, time.Now().UTC().Format(time.RFC3339Nano)); err != nil {
+ 		return rollback(mapConflict(err))
+ 	}
+-	return tx.Commit()
++	return owned.commit()
+ }
+ 
+ func applyAckDecision(ctx context.Context, tx *sql.Tx, taskID string, decision AckDecision) error {
+diff --git a/tools/orchestrator/internal/store/diagnostics_read.go b/tools/orchestrator/internal/store/diagnostics_read.go
+index 5bef740..75a2a4d 100644
+--- a/tools/orchestrator/internal/store/diagnostics_read.go
++++ b/tools/orchestrator/internal/store/diagnostics_read.go
+@@ -127,11 +127,12 @@ func (d *DB) beginDiagnosticsRead(ctx context.Context, controller, token string,
+ 		return fence, nil, err
+ 	}
+ 	defer d.mu.Unlock()
+-	tx, err := d.sql.BeginTx(ctx, nil)
++	owned, err := d.beginOwnerTransaction(ctx)
+ 	if err != nil {
+ 		return fence, nil, err
+ 	}
+-	defer tx.Rollback()
++	defer owned.close()
++	tx := owned.tx
+ 	row, err := authorizeDiagnostics(ctx, tx, request.TaskID, request.AttemptID, controller, token)
+ 	if err != nil {
+ 		return fence, nil, err
+@@ -161,7 +162,7 @@ func (d *DB) beginDiagnosticsRead(ctx context.Context, controller, token string,
+ 	if _, err = tx.ExecContext(ctx, `UPDATE diagnostic_delivery_state SET phase='reading',reading_revision=next_revision,next_revision=next_revision+1,reading_request_json=? WHERE attempt_id=?`, raw, request.AttemptID); err != nil {
+ 		return fence, nil, err
+ 	}
+-	if err = tx.Commit(); err != nil {
++	if err = owned.commit(); err != nil {
+ 		return fence, nil, err
+ 	}
+ 	return fence, nil, nil
+@@ -194,11 +195,12 @@ func (d *DB) readDiagnostics(ctx context.Context, controller, token string, requ
+ 		return nil, err
+ 	}
+ 	defer d.mu.Unlock()
+-	tx, err := d.sql.BeginTx(ctx, nil)
++	owned, err := d.beginOwnerTransaction(ctx)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	defer tx.Rollback()
++	defer owned.close()
++	tx := owned.tx
+ 	row, err := authorizeDiagnostics(ctx, tx, request.TaskID, request.AttemptID, controller, token)
+ 	if err != nil {
+ 		return nil, err
+@@ -222,7 +224,7 @@ func (d *DB) readDiagnostics(ctx context.Context, controller, token string, requ
+ 	if _, err = tx.ExecContext(ctx, `UPDATE diagnostic_delivery_state SET phase='pending',pending_envelope=?,pending_control_bytes=? WHERE attempt_id=?`, page, control, request.AttemptID); err != nil {
+ 		return nil, err
+ 	}
+-	if err = tx.Commit(); err != nil {
++	if err = owned.commit(); err != nil {
+ 		return nil, err
+ 	}
+ 	return append([]byte(nil), page...), nil
+@@ -245,11 +247,12 @@ func (d *DB) AckDiagnostics(ctx context.Context, controller, token string, recei
+ 		return empty, err
+ 	}
+ 	defer d.mu.Unlock()
+-	tx, err := d.sql.BeginTx(ctx, nil)
++	owned, err := d.beginOwnerTransaction(ctx)
+ 	if err != nil {
+ 		return empty, err
+ 	}
+-	defer tx.Rollback()
++	defer owned.close()
++	tx := owned.tx
+ 	i := receipt.Identity
+ 	row, err := authorizeDiagnostics(ctx, tx, i.TaskID, i.AttemptID, controller, token)
+ 	if err != nil {
+@@ -294,7 +297,7 @@ func (d *DB) AckDiagnostics(ctx context.Context, controller, token string, recei
+ 	if _, err = tx.ExecContext(ctx, `UPDATE diagnostic_delivery_state SET phase='idle',reading_revision=0,reading_request_json='',pending_envelope=X'',pending_control_bytes=0,last_ack_json=?,acked_cursor_json=? WHERE attempt_id=?`, string(raw), string(cursor), i.AttemptID); err != nil {
+ 		return empty, err
+ 	}
+-	if err = tx.Commit(); err != nil {
++	if err = owned.commit(); err != nil {
+ 		return empty, err
+ 	}
+ 	return result, nil
+diff --git a/tools/orchestrator/internal/store/host_progress.go b/tools/orchestrator/internal/store/host_progress.go
+index da03ab5..46626ac 100644
+--- a/tools/orchestrator/internal/store/host_progress.go
++++ b/tools/orchestrator/internal/store/host_progress.go
+@@ -43,11 +43,12 @@ func (d *DB) commitHostProgress(ctx context.Context, event contract.Event, launc
+ 	}
+ 	d.mu.Lock()
+ 	defer d.mu.Unlock()
+-	tx, err := d.sql.BeginTx(ctx, nil)
++	owned, err := d.beginOwnerTransaction(ctx)
+ 	if err != nil {
+ 		return err
+ 	}
+-	defer tx.Rollback()
++	defer owned.close()
++	tx := owned.tx
+ 	var hash string
+ 	if err = tx.QueryRowContext(ctx, `SELECT l.token_hash FROM host_launches l JOIN runtime_hosts h ON h.launch_id=l.id JOIN segment_runtime s ON s.host_id=h.id JOIN attempts a ON a.id=s.attempt_id JOIN tasks t ON t.id=a.task_id JOIN task_runtime r ON r.task_id=t.id WHERE l.id=? AND h.id=? AND h.pid=? AND h.birth=? AND h.status='ready' AND h.coordinator_epoch=? AND s.segment_id=? AND s.command_id=? AND a.id=? AND a.task_id=? AND t.run_id=? AND r.work_revision=? AND s.status IN ('prepared','spawned','running','stopping')`, launchID, event.ProducerID, pid, birth, event.ExecutionEpoch, event.SegmentID, event.CommandID, event.AttemptID, event.TaskID, event.RunID, event.WorkRevision).Scan(&hash); err != nil || subtle.ConstantTimeCompare([]byte(hash), []byte(runtimeHash(token))) != 1 {
+ 		return ErrHostRejected
+@@ -108,5 +109,5 @@ func (d *DB) commitHostProgress(ctx context.Context, event contract.Event, launc
+ 	if err = d.hostArtifactCommitAdmission(ctx, tx, event.RunID, controlBefore, true); err != nil {
+ 		return err
+ 	}
+-	return tx.Commit()
++	return owned.commit()
+ }
+diff --git a/tools/orchestrator/internal/store/report_intake.go b/tools/orchestrator/internal/store/report_intake.go
+index 008b845..fd03058 100644
+--- a/tools/orchestrator/internal/store/report_intake.go
++++ b/tools/orchestrator/internal/store/report_intake.go
+@@ -57,11 +57,12 @@ func (d *DB) beginReportIntake(ctx context.Context, spec ReportEventSpec) (out *
+ 		return nil, err
+ 	}
+ 	defer d.mu.Unlock()
+-	tx, err := d.sql.BeginTx(ctx, nil)
++	owned, err := d.beginOwnerTransaction(ctx)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	defer tx.Rollback()
++	defer owned.close()
++	tx := owned.tx
+ 	a, status, err := intakeAuthority(ctx, tx, spec.CapabilityID, spec.Token)
+ 	if err != nil {
+ 		return nil, err
+@@ -152,7 +153,7 @@ func (d *DB) beginReportIntake(ctx context.Context, spec ReportEventSpec) (out *
+ 	if _, err = tx.ExecContext(ctx, `INSERT INTO managed_artifact_intakes(id,reservation_id,run_id,task_id,capability_id,sequence,event_id,kind,payload_hash,descriptor_json,phase,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,'prepared',?)`, out.id, out.reservation, a.run, a.task, spec.CapabilityID, spec.Sequence, spec.EventID, spec.Kind, hash, out.descriptor, stamp); err != nil {
+ 		return nil, err
+ 	}
+-	if err = tx.Commit(); err != nil {
++	if err = owned.commit(); err != nil {
+ 		return nil, err
+ 	}
+ 	return out, nil

@@ -30,11 +30,12 @@ func (d *DB) CollectionReceipt(ctx context.Context, task string, events []contra
 		return "", "", err
 	}
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return "", "", err
 	}
-	defer tx.Rollback()
+	defer owned.close()
+	tx := owned.tx
 	var run, mode string
 	if err = tx.QueryRowContext(ctx, `SELECT r.id,r.delivery_mode FROM runs r JOIN tasks t ON t.run_id=r.id WHERE t.id=?`, task).Scan(&run, &mode); err != nil {
 		return "", "", err
@@ -55,7 +56,7 @@ func (d *DB) CollectionReceipt(ctx context.Context, task string, events []contra
 	if err != nil {
 		return "", "", err
 	}
-	if err = tx.Commit(); err != nil {
+	if err = owned.commit(); err != nil {
 		return "", "", err
 	}
 	return id, proof, nil

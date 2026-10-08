@@ -64,11 +64,12 @@ func (d *DB) BeginACPBridgeEmit(ctx context.Context, req contract.ACPBeginReques
 		return err
 	}
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer owned.close()
+	tx := owned.tx
 	b, _, err := acpBindingOwnerTx(ctx, tx, req.BridgeOwnerRequest)
 	if err != nil {
 		return err
@@ -103,7 +104,7 @@ func (d *DB) BeginACPBridgeEmit(ctx context.Context, req contract.ACPBeginReques
 		if err = d.acpExpireClaimTx(ctx, tx, b, a.bridgeAttempt); err != nil {
 			return err
 		}
-		if err = tx.Commit(); err != nil {
+		if err = owned.commit(); err != nil {
 			return err
 		}
 		return CodeError("bridge_claim_expired_no_send")
@@ -132,7 +133,7 @@ func (d *DB) BeginACPBridgeEmit(ctx context.Context, req contract.ACPBeginReques
 	if n, e := result.RowsAffected(); e != nil || n != 1 {
 		return CodeError("bridge_claim_expired_no_send")
 	}
-	return tx.Commit()
+	return owned.commit()
 }
 
 func (d *DB) ReceiveACPBridge(ctx context.Context, req contract.ACPReceiveRequest) (contract.BridgeReceiveReceipt, error) {
@@ -144,11 +145,12 @@ func (d *DB) ReceiveACPBridge(ctx context.Context, req contract.ACPReceiveReques
 		return empty, err
 	}
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return empty, err
 	}
-	defer tx.Rollback()
+	defer owned.close()
+	tx := owned.tx
 	b, _, err := acpBindingOwnerTx(ctx, tx, req.BridgeOwnerRequest)
 	if err != nil {
 		return empty, err
@@ -204,7 +206,7 @@ func (d *DB) ReceiveACPBridge(ctx context.Context, req contract.ACPReceiveReques
 	if n, e := result.RowsAffected(); e != nil || n != 1 {
 		return empty, CodeError("bridge_receive_state")
 	}
-	if err = tx.Commit(); err != nil {
+	if err = owned.commit(); err != nil {
 		return empty, err
 	}
 	return receipt, nil

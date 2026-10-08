@@ -1,12 +1,12 @@
 package store
 
 import (
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"context"
 	"crypto/subtle"
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"strconv"
 	"strings"
 	"time"
@@ -128,18 +128,20 @@ func (d *DB) AckDecisions(ctx context.Context, taskID, deliveryID, historyProofS
 	decisionsHash := runtimeHash(string(encoded))
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return err
 	}
-	rollback := func(e error) error { _ = tx.Rollback(); return e }
+	defer owned.close()
+	tx := owned.tx
+	rollback := func(e error) error { owned.close(); return e }
 	var storedTask, storedProof, storedDecisions string
 	err = tx.QueryRowContext(ctx, `SELECT task_id,history_proof_sha256,decisions_hash FROM delivery_receipts WHERE delivery_id=?`, deliveryID).Scan(&storedTask, &storedProof, &storedDecisions)
 	if err == nil {
 		if storedTask != taskID || storedProof != strings.ToLower(historyProofSHA256) || storedDecisions != decisionsHash {
 			return rollback(ErrConflict)
 		}
-		_ = tx.Rollback()
+		owned.close()
 		return nil
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
@@ -153,7 +155,7 @@ func (d *DB) AckDecisions(ctx context.Context, taskID, deliveryID, historyProofS
 	if _, err = tx.ExecContext(ctx, `INSERT INTO delivery_receipts(delivery_id,task_id,history_proof_sha256,decisions_hash,created_at) VALUES(?,?,?,?,?)`, deliveryID, taskID, strings.ToLower(historyProofSHA256), decisionsHash, time.Now().UTC().Format(time.RFC3339Nano)); err != nil {
 		return rollback(mapConflict(err))
 	}
-	return tx.Commit()
+	return owned.commit()
 }
 
 func applyAckDecision(ctx context.Context, tx *sql.Tx, taskID string, decision AckDecision) error {

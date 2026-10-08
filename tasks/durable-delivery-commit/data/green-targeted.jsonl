@@ -1,0 +1,8 @@
+{"Time":"2026-10-08T12:30:50.006098+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"}
+{"Time":"2026-10-08T12:30:50.395189+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestDurableDeliveryDiscardFailedCommit"}
+{"Time":"2026-10-08T12:30:50.395268+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestDurableDeliveryDiscardFailedCommit","Output":"=== RUN   TestDurableDeliveryDiscardFailedCommit\n"}
+{"Time":"2026-10-08T12:30:50.611649+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestDurableDeliveryDiscardFailedCommit","Output":"--- PASS: TestDurableDeliveryDiscardFailedCommit (0.22s)\n"}
+{"Time":"2026-10-08T12:30:50.61168+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestDurableDeliveryDiscardFailedCommit","Elapsed":0.22}
+{"Time":"2026-10-08T12:30:50.611694+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Output":"PASS\n"}
+{"Time":"2026-10-08T12:30:50.612501+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Output":"ok  \tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store\t0.606s\n"}
+{"Time":"2026-10-08T12:30:50.612519+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Elapsed":0.606}

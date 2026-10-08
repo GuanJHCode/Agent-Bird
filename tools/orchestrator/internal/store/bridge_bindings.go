@@ -234,11 +234,12 @@ func (d *DB) BindBridge(ctx context.Context, req contract.BridgeBindRequest) (co
 		return empty, err
 	}
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return empty, err
 	}
-	defer tx.Rollback()
+	defer owned.close()
+	tx := owned.tx
 	owner, err := bridgeOwnerTx(ctx, tx, req.RunID)
 	if err != nil {
 		return empty, err
@@ -276,7 +277,7 @@ func (d *DB) BindBridge(ctx context.Context, req contract.BridgeBindRequest) (co
 			if err = bridgeBindingPublicSafe(ctx, tx, old.view); err != nil {
 				return empty, err
 			}
-			_ = tx.Rollback()
+			owned.close()
 			return old.view, nil
 		}
 		var pending int
@@ -316,7 +317,7 @@ func (d *DB) BindBridge(ctx context.Context, req contract.BridgeBindRequest) (co
 	if err = writeBridgeCapability(path, id, epoch, token); err != nil {
 		return empty, err
 	}
-	if err = tx.Commit(); err != nil {
+	if err = owned.commit(); err != nil {
 		return empty, err
 	}
 	return row, nil

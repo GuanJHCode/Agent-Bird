@@ -44,11 +44,12 @@ func (d *DB) BindACPBridge(ctx context.Context, req contract.ACPBindRequest) (co
 		return empty, err
 	}
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return empty, err
 	}
-	defer tx.Rollback()
+	defer owned.close()
+	tx := owned.tx
 	owner, err := acpOwnerTx(ctx, tx, req.RunID)
 	if err != nil {
 		return empty, err
@@ -91,7 +92,7 @@ func (d *DB) BindACPBridge(ctx context.Context, req contract.ACPBindRequest) (co
 	if err != nil {
 		return empty, mapConflict(err)
 	}
-	if err = tx.Commit(); err != nil {
+	if err = owned.commit(); err != nil {
 		return empty, err
 	}
 	return row, nil
@@ -106,11 +107,12 @@ func (d *DB) ActivateACPBridge(ctx context.Context, req contract.ACPActivateRequ
 		return empty, err
 	}
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return empty, err
 	}
-	defer tx.Rollback()
+	defer owned.close()
+	tx := owned.tx
 	b, _, err := acpBindingOwnerTx(ctx, tx, req.BridgeOwnerRequest)
 	if err != nil {
 		return empty, err
@@ -153,7 +155,7 @@ func (d *DB) ActivateACPBridge(ctx context.Context, req contract.ACPActivateRequ
 	if n, e := result.RowsAffected(); e != nil || n != 1 {
 		return empty, CodeError("bridge_session_mismatch")
 	}
-	if err = tx.Commit(); err != nil {
+	if err = owned.commit(); err != nil {
 		return empty, err
 	}
 	return b.view, nil

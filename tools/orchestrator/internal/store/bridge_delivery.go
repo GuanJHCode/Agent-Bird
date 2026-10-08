@@ -517,11 +517,12 @@ func (d *DB) ClaimBridge(ctx context.Context, req contract.BridgeClaimRequest) (
 		return empty, err
 	}
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return empty, err
 	}
-	defer tx.Rollback()
+	defer owned.close()
+	tx := owned.tx
 	b, err := bridgeHookTx(ctx, tx, req.BindingID, req.HookCapability, req.OwnerEpoch)
 	if err != nil {
 		return empty, err
@@ -569,7 +570,7 @@ func (d *DB) ClaimBridge(ctx context.Context, req contract.BridgeClaimRequest) (
 				if n != 1 {
 					return empty, CodeError("bridge_claim_pending")
 				}
-				if err = tx.Commit(); err != nil {
+				if err = owned.commit(); err != nil {
 					return empty, err
 				}
 			}
@@ -594,7 +595,7 @@ func (d *DB) ClaimBridge(ctx context.Context, req contract.BridgeClaimRequest) (
 				if n != 1 {
 					return empty, CodeError("bridge_claim_pending")
 				}
-				if err = tx.Commit(); err != nil {
+				if err = owned.commit(); err != nil {
 					return empty, err
 				}
 			}
@@ -647,7 +648,7 @@ func (d *DB) ClaimBridge(ctx context.Context, req contract.BridgeClaimRequest) (
 				if n != 1 {
 					return empty, CodeError("bridge_claim_pending")
 				}
-				if err = tx.Commit(); err != nil {
+				if err = owned.commit(); err != nil {
 					return empty, err
 				}
 				return batch, nil
@@ -787,7 +788,7 @@ func (d *DB) ClaimBridge(ctx context.Context, req contract.BridgeClaimRequest) (
 	if err != nil {
 		return empty, mapConflict(err)
 	}
-	if err = tx.Commit(); err != nil {
+	if err = owned.commit(); err != nil {
 		return empty, err
 	}
 	return batch, nil
@@ -814,11 +815,12 @@ func (d *DB) RecoverBridgeDelivery(ctx context.Context) error {
 		return err
 	}
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer owned.close()
+	tx := owned.tx
 	rows, err := tx.QueryContext(ctx, "SELECT a.attempt_id,b.run_id,a.updated_at,a.claim_token_hash FROM bridge_delivery_attempts a JOIN bridge_bindings b ON b.binding_id=a.binding_id WHERE a.state='EMITTING'")
 	if err != nil {
 		return err
@@ -855,7 +857,7 @@ func (d *DB) RecoverBridgeDelivery(ctx context.Context) error {
 			return CodeError("bridge_emit_state")
 		}
 	}
-	return tx.Commit()
+	return owned.commit()
 }
 
 func bridgeSendBindingTx(ctx context.Context, tx *sql.Tx, id string, epoch uint64) (bridgeBinding, BridgeSenderProof, error) {
@@ -893,11 +895,12 @@ func (d *DB) BeginBridgeEmit(ctx context.Context, req contract.BridgeEmitRequest
 		return err
 	}
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer owned.close()
+	tx := owned.tx
 	b, sender, err := bridgeSendBindingTx(ctx, tx, req.BindingID, req.OwnerEpoch)
 	if err != nil {
 		return err
@@ -948,7 +951,7 @@ func (d *DB) BeginBridgeEmit(ctx context.Context, req contract.BridgeEmitRequest
 	if err = bridgeBeginEmitCAS(ctx, tx, now, a, sender); err != nil {
 		return err
 	}
-	return tx.Commit()
+	return owned.commit()
 }
 func bridgeBeginEmitCAS(ctx context.Context, tx *sql.Tx, now string, a bridgeAttempt, sender BridgeSenderProof) error {
 	result, err := tx.ExecContext(ctx, "UPDATE bridge_delivery_attempts SET state='EMITTING',updated_at=? WHERE attempt_id=? AND state='CLAIMED' AND deadline_at>? AND claim_token_hash=? AND sender_pid=? AND sender_birth=? AND wire_sha256=?", now, a.id, now, a.tokenHash, sender.PeerPID, sender.PeerBirth, a.wireHash)
@@ -969,11 +972,12 @@ func (d *DB) MarkBridgeOffered(ctx context.Context, req contract.BridgeOfferedRe
 		return err
 	}
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer owned.close()
+	tx := owned.tx
 	b, sender, err := bridgeSendBindingTx(ctx, tx, req.BindingID, req.OwnerEpoch)
 	if err != nil {
 		return err
@@ -1030,7 +1034,7 @@ func (d *DB) MarkBridgeOffered(ctx context.Context, req contract.BridgeOfferedRe
 	if n != 1 {
 		return CodeError("bridge_emit_state")
 	}
-	return tx.Commit()
+	return owned.commit()
 }
 func bridgeHistoricalReceiveTx(ctx context.Context, tx *sql.Tx, req contract.BridgeReceiveRequest) (bridgeBinding, error) {
 	return bridgeOwnerForHistoricalTx(ctx, tx, req.BindingID, req.OwnerEpoch, req.OwnerMode, bridgeHistoryReceive)
@@ -1062,11 +1066,12 @@ func (d *DB) ReceiveBridge(ctx context.Context, req contract.BridgeReceiveReques
 		return empty, err
 	}
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return empty, err
 	}
-	defer tx.Rollback()
+	defer owned.close()
+	tx := owned.tx
 	b, err := bridgeHistoricalReceiveTx(ctx, tx, req)
 	if err != nil {
 		return empty, err
@@ -1117,7 +1122,7 @@ func (d *DB) ReceiveBridge(ctx context.Context, req contract.BridgeReceiveReques
 	if n != 1 {
 		return empty, CodeError("bridge_receive_state")
 	}
-	if err = tx.Commit(); err != nil {
+	if err = owned.commit(); err != nil {
 		return empty, err
 	}
 	return receipt, nil
@@ -1160,11 +1165,12 @@ func (d *DB) RedeliverBridge(ctx context.Context, req contract.BridgeRedeliverRe
 		return empty, err
 	}
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return empty, err
 	}
-	defer tx.Rollback()
+	defer owned.close()
+	tx := owned.tx
 	b, err := bridgeCurrentOwnerTx(ctx, tx, req.BindingID, req.OwnerEpoch, req.OwnerMode)
 	if err != nil {
 		return empty, err
@@ -1221,7 +1227,7 @@ func (d *DB) RedeliverBridge(ctx context.Context, req contract.BridgeRedeliverRe
 	if err != nil {
 		return empty, mapConflict(err)
 	}
-	if err = tx.Commit(); err != nil {
+	if err = owned.commit(); err != nil {
 		return empty, err
 	}
 	return view, nil
@@ -1309,11 +1315,12 @@ func (d *DB) BridgeStatus(ctx context.Context, req contract.BridgeStatusRequest)
 		return empty, err
 	}
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return empty, err
 	}
-	defer tx.Rollback()
+	defer owned.close()
+	tx := owned.tx
 	b, err := bridgeOwnerForHistoricalTx(ctx, tx, req.BindingID, req.OwnerEpoch, req.OwnerMode, bridgeHistoryStatus)
 	if err != nil {
 		return empty, err
@@ -1381,7 +1388,7 @@ func (d *DB) BridgeStatus(ctx context.Context, req contract.BridgeStatusRequest)
 	if err = bridgePublicSafe(ctx, view); err != nil {
 		return empty, err
 	}
-	if err = tx.Commit(); err != nil {
+	if err = owned.commit(); err != nil {
 		return empty, err
 	}
 	return view, nil

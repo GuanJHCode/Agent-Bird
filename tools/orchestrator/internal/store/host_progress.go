@@ -43,11 +43,12 @@ func (d *DB) commitHostProgress(ctx context.Context, event contract.Event, launc
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer owned.close()
+	tx := owned.tx
 	var hash string
 	if err = tx.QueryRowContext(ctx, `SELECT l.token_hash FROM host_launches l JOIN runtime_hosts h ON h.launch_id=l.id JOIN segment_runtime s ON s.host_id=h.id JOIN attempts a ON a.id=s.attempt_id JOIN tasks t ON t.id=a.task_id JOIN task_runtime r ON r.task_id=t.id WHERE l.id=? AND h.id=? AND h.pid=? AND h.birth=? AND h.status='ready' AND h.coordinator_epoch=? AND s.segment_id=? AND s.command_id=? AND a.id=? AND a.task_id=? AND t.run_id=? AND r.work_revision=? AND s.status IN ('prepared','spawned','running','stopping')`, launchID, event.ProducerID, pid, birth, event.ExecutionEpoch, event.SegmentID, event.CommandID, event.AttemptID, event.TaskID, event.RunID, event.WorkRevision).Scan(&hash); err != nil || subtle.ConstantTimeCompare([]byte(hash), []byte(runtimeHash(token))) != 1 {
 		return ErrHostRejected
@@ -108,5 +109,5 @@ func (d *DB) commitHostProgress(ctx context.Context, event contract.Event, launc
 	if err = d.hostArtifactCommitAdmission(ctx, tx, event.RunID, controlBefore, true); err != nil {
 		return err
 	}
-	return tx.Commit()
+	return owned.commit()
 }

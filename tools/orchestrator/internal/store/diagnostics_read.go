@@ -127,11 +127,12 @@ func (d *DB) beginDiagnosticsRead(ctx context.Context, controller, token string,
 		return fence, nil, err
 	}
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return fence, nil, err
 	}
-	defer tx.Rollback()
+	defer owned.close()
+	tx := owned.tx
 	row, err := authorizeDiagnostics(ctx, tx, request.TaskID, request.AttemptID, controller, token)
 	if err != nil {
 		return fence, nil, err
@@ -161,7 +162,7 @@ func (d *DB) beginDiagnosticsRead(ctx context.Context, controller, token string,
 	if _, err = tx.ExecContext(ctx, `UPDATE diagnostic_delivery_state SET phase='reading',reading_revision=next_revision,next_revision=next_revision+1,reading_request_json=? WHERE attempt_id=?`, raw, request.AttemptID); err != nil {
 		return fence, nil, err
 	}
-	if err = tx.Commit(); err != nil {
+	if err = owned.commit(); err != nil {
 		return fence, nil, err
 	}
 	return fence, nil, nil
@@ -194,11 +195,12 @@ func (d *DB) readDiagnostics(ctx context.Context, controller, token string, requ
 		return nil, err
 	}
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback()
+	defer owned.close()
+	tx := owned.tx
 	row, err := authorizeDiagnostics(ctx, tx, request.TaskID, request.AttemptID, controller, token)
 	if err != nil {
 		return nil, err
@@ -222,7 +224,7 @@ func (d *DB) readDiagnostics(ctx context.Context, controller, token string, requ
 	if _, err = tx.ExecContext(ctx, `UPDATE diagnostic_delivery_state SET phase='pending',pending_envelope=?,pending_control_bytes=? WHERE attempt_id=?`, page, control, request.AttemptID); err != nil {
 		return nil, err
 	}
-	if err = tx.Commit(); err != nil {
+	if err = owned.commit(); err != nil {
 		return nil, err
 	}
 	return append([]byte(nil), page...), nil
@@ -245,11 +247,12 @@ func (d *DB) AckDiagnostics(ctx context.Context, controller, token string, recei
 		return empty, err
 	}
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return empty, err
 	}
-	defer tx.Rollback()
+	defer owned.close()
+	tx := owned.tx
 	i := receipt.Identity
 	row, err := authorizeDiagnostics(ctx, tx, i.TaskID, i.AttemptID, controller, token)
 	if err != nil {
@@ -294,7 +297,7 @@ func (d *DB) AckDiagnostics(ctx context.Context, controller, token string, recei
 	if _, err = tx.ExecContext(ctx, `UPDATE diagnostic_delivery_state SET phase='idle',reading_revision=0,reading_request_json='',pending_envelope=X'',pending_control_bytes=0,last_ack_json=?,acked_cursor_json=? WHERE attempt_id=?`, string(raw), string(cursor), i.AttemptID); err != nil {
 		return empty, err
 	}
-	if err = tx.Commit(); err != nil {
+	if err = owned.commit(); err != nil {
 		return empty, err
 	}
 	return result, nil

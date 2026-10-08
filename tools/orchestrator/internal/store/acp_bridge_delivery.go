@@ -125,11 +125,12 @@ func (d *DB) ClaimACPBridge(ctx context.Context, req contract.ACPClaimRequest) (
 		return empty, err
 	}
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return empty, err
 	}
-	defer tx.Rollback()
+	defer owned.close()
+	tx := owned.tx
 	b, owner, err := acpBindingOwnerTx(ctx, tx, req.BridgeOwnerRequest)
 	if err != nil {
 		return empty, err
@@ -157,7 +158,7 @@ func (d *DB) ClaimACPBridge(ctx context.Context, req contract.ACPClaimRequest) (
 			if err = d.acpExpireClaimTx(ctx, tx, b, existing); err != nil {
 				return empty, err
 			}
-			if err = tx.Commit(); err != nil {
+			if err = owned.commit(); err != nil {
 				return empty, err
 			}
 			return empty, CodeError("bridge_claim_expired_no_send")
@@ -302,7 +303,7 @@ func (d *DB) ClaimACPBridge(ctx context.Context, req contract.ACPClaimRequest) (
 	if _, err = tx.ExecContext(ctx, `INSERT INTO bridge_delivery_attempts(attempt_id,batch_id,binding_id,owner_epoch,attempt_no,claim_token_hash,state,deadline_at,sender_pid,sender_birth,wire_bytes,wire_sha256,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, a.id, a.batchID, a.bindingID, a.ownerEpoch, a.attemptNo, a.tokenHash, a.state, a.deadline, a.senderPID, a.senderBirth, a.wire, a.wireHash, nowText); err != nil {
 		return empty, mapConflict(err)
 	}
-	if err = tx.Commit(); err != nil {
+	if err = owned.commit(); err != nil {
 		return empty, err
 	}
 	return contract.ACPClaimReply{Batch: batch, ClaimToken: token, NativeSessionID: b.view.NativeSessionID, TurnOrdinal: ordinal, PromptText: string(prompt), PromptSHA256: a.wireHash}, nil

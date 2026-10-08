@@ -57,11 +57,12 @@ func (d *DB) beginReportIntake(ctx context.Context, spec ReportEventSpec) (out *
 		return nil, err
 	}
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback()
+	defer owned.close()
+	tx := owned.tx
 	a, status, err := intakeAuthority(ctx, tx, spec.CapabilityID, spec.Token)
 	if err != nil {
 		return nil, err
@@ -152,7 +153,7 @@ func (d *DB) beginReportIntake(ctx context.Context, spec ReportEventSpec) (out *
 	if _, err = tx.ExecContext(ctx, `INSERT INTO managed_artifact_intakes(id,reservation_id,run_id,task_id,capability_id,sequence,event_id,kind,payload_hash,descriptor_json,phase,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,'prepared',?)`, out.id, out.reservation, a.run, a.task, spec.CapabilityID, spec.Sequence, spec.EventID, spec.Kind, hash, out.descriptor, stamp); err != nil {
 		return nil, err
 	}
-	if err = tx.Commit(); err != nil {
+	if err = owned.commit(); err != nil {
 		return nil, err
 	}
 	return out, nil

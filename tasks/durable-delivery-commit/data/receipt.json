@@ -1,0 +1,27 @@
+{
+  "go": "go1.26.8 darwin/arm64",
+  "tmpdir": "/private/tmp",
+  "commands": [
+    {"name":"first_fixture_error","command":"go test -count=1 -run '^TestDurableDeliveryDiscardFailedCommit$' ./internal/store -json","exit":1,"raw":"red.jsonl","records":9,"note":"fixture snapshot referenced absent bridge_receipts table; not treated as RED"},
+    {"name":"baseline_red","command":"go test -count=1 -run '^TestDurableDeliveryDiscardFailedCommit$' ./internal/store -json","exit":1,"raw":"red-baseline.jsonl","records":9,"note":"production patch temporarily reversed; external=true pool=false"},
+    {"name":"targeted_green","command":"go test -count=1 -run '^TestDurableDeliveryDiscardFailedCommit$' ./internal/store -json","exit":0,"raw":"green-targeted.jsonl","records":8},
+    {"name":"ordinary","command":"go test -count=1 -run '^(TestDurableDeliveryDiscardFailedCommit|TestBridgeClaimReceiptAndReceiveDoNotChangeBusiness|TestReportIntakeReauthorizesAfterCopy|TestDiagnosticsPublicReadPersistsReplayAndACKWithoutBusinessMutation|TestStoreConfigAbandonQuotaCountsActualUTF8)$' ./internal/store -json","exit":0,"raw":"ordinary.jsonl","records":44},
+    {"name":"race","command":"go test -race -count=1 -run '^(TestDurableDeliveryDiscardFailedCommit|TestBridgeClaimReceiptAndReceiveDoNotChangeBusiness|TestReportIntakeReauthorizesAfterCopy|TestDiagnosticsPublicReadPersistsReplayAndACKWithoutBusinessMutation|TestStoreConfigAbandonQuotaCountsActualUTF8)$' ./internal/store -json","exit":0,"raw":"race.jsonl","records":44}
+  ],
+  "sha256": {
+    "acp_bridge_bindings.go":"22c27d430af1ba274897a59b59cd43402f4f02a91deaede16f67d776cf697506",
+    "acp_bridge_delivery.go":"5407b4da257fa14e1a994f94f231dc9135626dd18c2520379686b30a8f2d3d2e",
+    "acp_bridge_receipts.go":"8b234e5da0e38156239c2a3a73820a6acb5952f6d491e172db96b75638a6038b",
+    "bridge_bindings.go":"8ca6989c51c614ee4c9467daaaca6608c32f06dbf8e68b511ec5dae16f543021",
+    "bridge_ingress.go":"69749fcffdc2766295549410d606caae77717166c9d6b0e50371c4d4c8f530aa",
+    "bridge_delivery.go":"77b105666f23a687b1eb8515cb31811d34f05051388a9ae2ded23e6d031705b2",
+    "report_intake.go":"f2ec9889e22fd1f13fa4c18d57f5810865483eadb9cad0cb3f65910d4ff7c4e6",
+    "host_progress.go":"17c0a1a0b290b9ae40ff6e7185e5768459074c6fddb1ba547a52ce27e602f518",
+    "diagnostics_read.go":"477eed1001f409360a42468e4cf19bdbb3862468b3ad21983f3db06777c0f6a6",
+    "config_abandon.go":"ecb80f45d3d300cb7cf7c6fb8a79f2776bdb4efa4f0f45ba2c725410562d5df0",
+    "config_preparation_authority.go":"c2606433b385e906c3e035fe59cab673c441ef7c5e9d902d257e46f9df098559",
+    "collection.go":"0988d190494e47010f860f4505b6b0b45f3536195ae69830985668395cd9bd9d",
+    "delivery.go":"07aae8fd5f77bb4876975b175c49753f62985838dbdae189a57232ca80c07f5b",
+    "durable_delivery_commit_test.go":"15644bbf6727d421bee7a596e9b0ccc4e5d1461078fd81458ca5a881ee1b9110"
+  }
+}

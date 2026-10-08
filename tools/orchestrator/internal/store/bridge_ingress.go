@@ -94,11 +94,12 @@ func (d *DB) IngestHook(ctx context.Context, req contract.BridgeIngestRequest) (
 		return ack, err
 	}
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return ack, err
 	}
-	defer tx.Rollback()
+	defer owned.close()
+	tx := owned.tx
 	b, err := bridgeHookTx(ctx, tx, req.BindingID, req.HookCapability, req.OwnerEpoch)
 	if err != nil {
 		return ack, err
@@ -116,7 +117,7 @@ func (d *DB) IngestHook(ctx context.Context, req contract.BridgeIngestRequest) (
 		if oldHash != hash || !bytes.Equal(oldRaw, raw) {
 			return ack, ErrConflict
 		}
-		if err = tx.Commit(); err != nil {
+		if err = owned.commit(); err != nil {
 			return ack, err
 		}
 		return contract.BridgeIngressAck{EventID: event.EventID, PayloadHash: hash, Committed: true, Duplicate: true}, nil
@@ -170,7 +171,7 @@ func (d *DB) IngestHook(ctx context.Context, req contract.BridgeIngestRequest) (
 			return ack, err
 		}
 	}
-	if err = tx.Commit(); err != nil {
+	if err = owned.commit(); err != nil {
 		return ack, err
 	}
 	return contract.BridgeIngressAck{EventID: event.EventID, PayloadHash: hash, Committed: true}, nil
@@ -202,11 +203,12 @@ func (d *DB) ActivateBridge(ctx context.Context, req contract.BridgeActivateRequ
 		return empty, err
 	}
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return empty, err
 	}
-	defer tx.Rollback()
+	defer owned.close()
+	tx := owned.tx
 	b, err := scanBridgeBinding(tx.QueryRowContext(ctx, bridgeSelect+` WHERE binding_id=?`, req.BindingID))
 	if errors.Is(err, sql.ErrNoRows) {
 		return empty, CodeError("bridge_no_active_binding")
@@ -247,7 +249,7 @@ func (d *DB) ActivateBridge(ctx context.Context, req contract.BridgeActivateRequ
 		}
 		b.view.Status = "ACTIVE"
 	}
-	if err = tx.Commit(); err != nil {
+	if err = owned.commit(); err != nil {
 		return empty, err
 	}
 	return b.view, nil
@@ -261,11 +263,12 @@ func (d *DB) UnbindBridge(ctx context.Context, req contract.BridgeUnbindRequest)
 		return err
 	}
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer owned.close()
+	tx := owned.tx
 	b, err := scanBridgeBinding(tx.QueryRowContext(ctx, bridgeSelect+` WHERE binding_id=?`, req.BindingID))
 	if errors.Is(err, sql.ErrNoRows) {
 		return CodeError("bridge_no_active_binding")
@@ -295,7 +298,7 @@ func (d *DB) UnbindBridge(ctx context.Context, req contract.BridgeUnbindRequest)
 	if _, err = tx.ExecContext(ctx, `UPDATE bridge_delivery_attempts SET state='STALE' WHERE binding_id=? AND state='CLAIMED'`, req.BindingID); err != nil {
 		return err
 	}
-	if err = tx.Commit(); err != nil {
+	if err = owned.commit(); err != nil {
 		return err
 	}
 	_ = osRemoveBridgeFile(b.view.CapabilityFile)
