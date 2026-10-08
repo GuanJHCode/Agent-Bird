@@ -80,7 +80,11 @@ def main():
       if not row:raise Fail('running receipt')
       ev=db.execute("SELECT body_json FROM runtime_events WHERE task_id=? AND attempt_id=? AND segment_id=? AND producer_id=? AND json_extract(body_json,'$.kind')='running'",(r['task_id'],row['id'],row['segment_id'],row['host_id'])).fetchone();w=json.loads(ev[0])['process'];remember(c,w['pid'],'worker')
       own=db.execute("SELECT owner_pid,owner_birth,current_host_pid,current_host_birth FROM execution_owners WHERE run_id=? AND launch_id=? AND is_current=1 AND phase='bound'",(r['run_id'],row['host_launch_id'])).fetchone()
-      if not own:raise Fail('bound owner');remember(c,own['owner_pid'],'owner');remember(c,own['current_host_pid'],'host');soak.atomic(a.out/'identities.json',c['ids']);soak.atomic(work/'worker-release',b'release\\n')
+      if not own: raise Fail('bound owner')
+      remember(c, own['owner_pid'], 'owner')
+      remember(c, own['current_host_pid'], 'host')
+      soak.atomic(a.out / 'identities.json', c['ids'])
+      soak.atomic(work / 'worker-release', b'release\n')
       end=time.monotonic()+20
       while time.monotonic()<end:
        q=db.execute("SELECT t.status,e.body_json FROM tasks t JOIN attempts a ON a.task_id=t.id JOIN segment_runtime x ON x.attempt_id=a.id JOIN runtime_events e ON e.task_id=t.id AND e.attempt_id=a.id AND e.segment_id=x.segment_id WHERE t.id=? AND json_extract(e.body_json,'$.kind')='exited'",(r['task_id'],)).fetchone()
