@@ -2,7 +2,6 @@ package process
 
 import (
 	"context"
-	"os/exec"
 	"runtime"
 	"strconv"
 	"strings"
@@ -19,7 +18,7 @@ func GroupQuiescent(ctx context.Context, pgid int) (bool, error) {
 	if pgid <= 0 {
 		return false, ErrProcessTreeUnknown
 	}
-	out, err := exec.CommandContext(ctx, "/bin/ps", "-axo", "pid=,pgid=,stat=").Output()
+	out, err := queryProcessGroups(ctx, "pid=,pgid=,stat=", pgid)
 	if err != nil || len(out) > 1024*1024 {
 		return false, ErrProcessTreeUnknown
 	}
@@ -35,7 +34,7 @@ func MatchWaitableGroupLeader(ctx context.Context, pid int, birth string) error 
 	if pid <= 0 || birth == "" {
 		return ErrProcessTreeUnknown
 	}
-	out, err := exec.CommandContext(ctx, "/bin/ps", "-o", "pgid=,lstart=", "-p", strconv.Itoa(pid)).Output()
+	out, err := queryAncestry(ctx, "pgid=,lstart=", pid)
 	if err != nil || len(out) > 4096 {
 		return ErrProcessTreeUnknown
 	}

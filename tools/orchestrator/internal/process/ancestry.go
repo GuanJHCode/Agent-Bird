@@ -25,10 +25,17 @@ func AncestryContext(ctx context.Context, pid int) (map[int]string, error) {
 	if runtime.GOOS == "linux" {
 		return linuxAncestryContext(ctx, pid)
 	}
-	return ancestryContext(ctx, pid, queryAncestry)
+	query := queryAncestry
+	if native := nativeAncestryQuery(); native != nil {
+		query = native
+	}
+	return ancestryContext(ctx, pid, query)
 }
 
 func queryAncestry(ctx context.Context, fields string, pid int) ([]byte, error) {
+	if out, handled, err := nativeProcessIdentity(ctx, fields, pid); handled {
+		return out, err
+	}
 	return exec.CommandContext(ctx, "/bin/ps", "-o", fields, "-p", strconv.Itoa(pid)).Output()
 }
 

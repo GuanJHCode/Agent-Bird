@@ -2,7 +2,6 @@ package process
 
 import (
 	"context"
-	"os/exec"
 	"runtime"
 	"strconv"
 	"strings"
@@ -20,7 +19,7 @@ func ConfirmGroupExitedContext(ctx context.Context, pgid int) error {
 		return nil
 	}
 	return confirmGroupExitedContext(ctx, pgid, syscall.Kill, func(queryCtx context.Context) ([]byte, error) {
-		return exec.CommandContext(queryCtx, "/bin/ps", "-axo", "pgid=").Output()
+		return queryProcessGroups(queryCtx, "pgid=", pgid)
 	})
 }
 
