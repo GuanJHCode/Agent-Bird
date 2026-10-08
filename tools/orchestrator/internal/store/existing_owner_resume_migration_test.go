@@ -11,9 +11,6 @@ import (
 
 // Test-only historical snapshot preparation. Never erase an accepted command.
 func removeExistingOwnerResumeSchema26(db *DB) error {
-	if err := removeInitialOwnerRecoverySchema29(db); err != nil {
-		return err
-	}
 	var version, count int
 	if err := db.sql.QueryRow(`SELECT version FROM schema_meta`).Scan(&version); err != nil {
 		return err
@@ -21,7 +18,7 @@ func removeExistingOwnerResumeSchema26(db *DB) error {
 	if version <= 25 {
 		return nil
 	}
-	if version != 26 && version != 27 && version != 28 {
+	if version != 26 && version != 27 && version != 28 && version != 29 {
 		return fmt.Errorf("unsupported fixture schema %d", version)
 	}
 	if err := db.sql.QueryRow(`SELECT COUNT(*) FROM existing_owner_resume_commands`).Scan(&count); err != nil {

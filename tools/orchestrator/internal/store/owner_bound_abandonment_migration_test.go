@@ -10,9 +10,6 @@ import (
 
 // Only empty additive evidence may be removed by historical migration fixtures.
 func removeOwnerBoundAbandonmentSchema28(db *DB) error {
-	if err := removeInitialOwnerRecoverySchema29(db); err != nil {
-		return err
-	}
 	var version, count int
 	if err := db.sql.QueryRow(`SELECT version FROM schema_meta`).Scan(&version); err != nil {
 		return err
@@ -20,7 +17,7 @@ func removeOwnerBoundAbandonmentSchema28(db *DB) error {
 	if version < 28 {
 		return nil
 	}
-	if version != 28 {
+	if version != 28 && version != 29 {
 		return fmt.Errorf("unsupported abandonment schema %d", version)
 	}
 	if err := db.sql.QueryRow(`SELECT COUNT(*) FROM owner_bound_abandonments`).Scan(&count); err != nil {
@@ -28,6 +25,9 @@ func removeOwnerBoundAbandonmentSchema28(db *DB) error {
 	}
 	if count != 0 {
 		return errors.New("cannot erase owner abandonment history")
+	}
+	if err := removeInitialOwnerRecoverySchema29(db); err != nil {
+		return err
 	}
 	tx, err := db.sql.Begin()
 	if err != nil {
