@@ -1,0 +1,22 @@
+{
+  "result": "passed",
+  "checked_by": "ROOT independent raw recomputation",
+  "samples": 236,
+  "idle_to_exit_seconds": 30.054533332935534,
+  "last_alive_after_idle_seconds": 29.904281749972142,
+  "ack_original_wait": 0,
+  "cleanup": {
+    "controller_original_wait": 0,
+    "coordinator_original_wait": 0,
+    "errors": [],
+    "identity_signals": [],
+    "remaining": []
+  },
+  "candidate_sha256": "41663f7ce224494bc529f0695540cca9a5591bd8d92df5c7557ee29143d49819",
+  "runner_sha256": "b771c29740af8961db7f223a5171fc8eed00c83726ed9f531f8137029d7c5a3b",
+  "limitations": [
+    "controlled fake worker, no real Provider/model",
+    "Owner/Host observed by exact identity; no new original-Wait claim for those actors",
+    "not offline300s or four-Host acceptance"
+  ]
+}

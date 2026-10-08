@@ -1,0 +1,21 @@
+{
+  "candidate_sha256": "41663f7ce224494bc529f0695540cca9a5591bd8d92df5c7557ee29143d49819",
+  "runner_sha256": "b771c29740af8961db7f223a5171fc8eed00c83726ed9f531f8137029d7c5a3b",
+  "controller_sha256": "b25ac04ccacf496e58bb6a55e2ad35f18949ce6b22ecde5523a184e7dd5445e0",
+  "idle_thresholds_sha256": "032077794ef0c3c40a7cac8577d645a7c4c98937dd099f76eca06584d6174603",
+  "resource_soak_sha256": "96710cab2cd6ba0d26eeb8e11de7c8290c89895ca62bf28e9903f82f7608a95d",
+  "resource_soak_thresholds_sha256": "dc76311c66fbfd139fbed12a68a4b658515f492dbe35bf650a259a998145f552",
+  "candidate_path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/integration/tasks/resource-soak/tmp/native-build/candidate",
+  "candidate_source": "51b8e3a",
+  "harness_commit": "1cf8e9290b2b077268c1a51d12396732fcce69a9",
+  "platform": "macOS-26.3.1-arm64-arm-64bit-Mach-O",
+  "thresholds": {
+    "schema_version": 1,
+    "idle_debounce_seconds": 30,
+    "earliest_exit_seconds": 29,
+    "latest_exit_seconds": 32,
+    "observation_interval_seconds": 0.05,
+    "host_retire_seconds": 13
+  },
+  "scope": "controlled public collect/accept/ACK then 30-second idle retirement; previous omitted-ACK failure retained"
+}

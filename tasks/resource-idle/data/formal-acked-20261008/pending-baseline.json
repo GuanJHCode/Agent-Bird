@@ -1,0 +1,172 @@
+{
+  "events": {
+    "exited": {
+      "body": {
+        "active_ms": 627,
+        "artifact": {
+          "host_artifact": {
+            "descriptor": {
+              "class": "terminal",
+              "index": 0,
+              "kind": "terminal",
+              "reservation_id": "artifact-reservation-e1ec643ec009e7c453ae7aa4",
+              "scope_sha256": "55dcf940c625f8a1c998c9edd91d049f2df1c5b47376907f86a3c45c5b51a43b",
+              "sha256": "358c1f02ceb6b8a13be1a21b370ed6e1dc34a688650f0bbe87fa7f6c982390cd",
+              "size": 9,
+              "version": 1
+            },
+            "proof": {
+              "descriptor_sha256": "229a2d746e3687c482c3436a1e3b60cb9ddf41b82c9eb9d2721e3d43f04a9332",
+              "device": 16777234,
+              "directory_device": 16777234,
+              "directory_inode": 198938814,
+              "inode": 198938817,
+              "intake_id": "host-slot-v1-a518867ed8ffc35c1472c5698e47a46894daac05ae00ec872ff84e1c34f79b3f",
+              "intent_device": 16777234,
+              "intent_inode": 198938816,
+              "lock_device": 16777234,
+              "lock_inode": 198938815,
+              "parent_device": 16777234,
+              "parent_inode": 198938813,
+              "path": "/private/tmp/resource-idle-6a69928a9a82/state/host-spool/host-launch-5b55988e2419350e2ed69fe90f2a7bb2ebc7/managed-artifacts/host-slot-v1-a518867ed8ffc35c1472c5698e47a46894daac05ae00ec872ff84e1c34f79b3f/data.bin",
+              "root_device": 16777234,
+              "root_inode": 198938775,
+              "sha256": "358c1f02ceb6b8a13be1a21b370ed6e1dc34a688650f0bbe87fa7f6c982390cd",
+              "size": 9
+            },
+            "version": 1
+          },
+          "id": "result-output.bin",
+          "path": "/private/tmp/resource-idle-6a69928a9a82/state/host-spool/host-launch-5b55988e2419350e2ed69fe90f2a7bb2ebc7/managed-artifacts/host-slot-v1-a518867ed8ffc35c1472c5698e47a46894daac05ae00ec872ff84e1c34f79b3f/data.bin",
+          "sha256": "358c1f02ceb6b8a13be1a21b370ed6e1dc34a688650f0bbe87fa7f6c982390cd",
+          "size": 9
+        },
+        "attempt_id": "attempt-16aa84b8ec58926070aef4ec",
+        "command_id": "command-fd9cf3b54da658b51ff951e4",
+        "event_id": "host-launch-5b55988e2419350e2ed69fe90f2a7bb2ebc7:5",
+        "execution_epoch": 1,
+        "exit_code": 0,
+        "kind": "exited",
+        "payload_hash": "5981a32b23cf0fe816f6d1e5df8643065c331dbc7b142f87e21501b8f0560624",
+        "process": {
+          "birth": "Thu Oct  8 16:35:29 2026",
+          "pgid": 2338,
+          "pid": 2338
+        },
+        "producer_id": "host-launch-5b55988e2419350e2ed69fe90f2a7bb2ebc7",
+        "run_id": "idle-c25309edbd7644e383ecb2518b091839",
+        "segment_id": "segment-e75c577c2b1b15c4336c4b06",
+        "sequence": 5,
+        "task_id": "idle-task",
+        "version": 1,
+        "work_revision": 1
+      },
+      "body_sha256": "76c4004f52754b676f37a21d24cbe834dee23bc6ef144b423d47e16834f4aef3",
+      "delivery_status": "internal",
+      "event_id": "host-launch-5b55988e2419350e2ed69fe90f2a7bb2ebc7:5"
+    },
+    "result": {
+      "body": {
+        "artifact": {
+          "host_artifact": {
+            "descriptor": {
+              "class": "terminal",
+              "index": 0,
+              "kind": "terminal",
+              "reservation_id": "artifact-reservation-e1ec643ec009e7c453ae7aa4",
+              "scope_sha256": "55dcf940c625f8a1c998c9edd91d049f2df1c5b47376907f86a3c45c5b51a43b",
+              "sha256": "358c1f02ceb6b8a13be1a21b370ed6e1dc34a688650f0bbe87fa7f6c982390cd",
+              "size": 9,
+              "version": 1
+            },
+            "proof": {
+              "descriptor_sha256": "229a2d746e3687c482c3436a1e3b60cb9ddf41b82c9eb9d2721e3d43f04a9332",
+              "device": 16777234,
+              "directory_device": 16777234,
+              "directory_inode": 198938814,
+              "inode": 198938817,
+              "intake_id": "host-slot-v1-a518867ed8ffc35c1472c5698e47a46894daac05ae00ec872ff84e1c34f79b3f",
+              "intent_device": 16777234,
+              "intent_inode": 198938816,
+              "lock_device": 16777234,
+              "lock_inode": 198938815,
+              "parent_device": 16777234,
+              "parent_inode": 198938813,
+              "path": "/private/tmp/resource-idle-6a69928a9a82/state/host-spool/host-launch-5b55988e2419350e2ed69fe90f2a7bb2ebc7/managed-artifacts/host-slot-v1-a518867ed8ffc35c1472c5698e47a46894daac05ae00ec872ff84e1c34f79b3f/data.bin",
+              "root_device": 16777234,
+              "root_inode": 198938775,
+              "sha256": "358c1f02ceb6b8a13be1a21b370ed6e1dc34a688650f0bbe87fa7f6c982390cd",
+              "size": 9
+            },
+            "version": 1
+          },
+          "id": "result-output.bin",
+          "path": "/private/tmp/resource-idle-6a69928a9a82/state/host-spool/host-launch-5b55988e2419350e2ed69fe90f2a7bb2ebc7/managed-artifacts/host-slot-v1-a518867ed8ffc35c1472c5698e47a46894daac05ae00ec872ff84e1c34f79b3f/data.bin",
+          "sha256": "358c1f02ceb6b8a13be1a21b370ed6e1dc34a688650f0bbe87fa7f6c982390cd",
+          "size": 9
+        },
+        "attempt_id": "attempt-16aa84b8ec58926070aef4ec",
+        "command_id": "command-fd9cf3b54da658b51ff951e4",
+        "event_id": "host-launch-5b55988e2419350e2ed69fe90f2a7bb2ebc7:4",
+        "execution_epoch": 1,
+        "exit_code": 0,
+        "kind": "result",
+        "payload_hash": "358c1f02ceb6b8a13be1a21b370ed6e1dc34a688650f0bbe87fa7f6c982390cd",
+        "process": {
+          "birth": "Thu Oct  8 16:35:29 2026",
+          "pgid": 2338,
+          "pid": 2338
+        },
+        "producer_id": "host-launch-5b55988e2419350e2ed69fe90f2a7bb2ebc7",
+        "run_id": "idle-c25309edbd7644e383ecb2518b091839",
+        "segment_id": "segment-e75c577c2b1b15c4336c4b06",
+        "sequence": 4,
+        "task_id": "idle-task",
+        "version": 1,
+        "work_revision": 1
+      },
+      "body_sha256": "6a422adcd0f32e41a85218fd2d78f4ca1bb9e69a3616a73298c2f49335464611",
+      "delivery_status": "pending",
+      "event_id": "host-launch-5b55988e2419350e2ed69fe90f2a7bb2ebc7:4"
+    },
+    "running": {
+      "body": {
+        "attempt_id": "attempt-16aa84b8ec58926070aef4ec",
+        "command_id": "command-fd9cf3b54da658b51ff951e4",
+        "event_id": "host-launch-5b55988e2419350e2ed69fe90f2a7bb2ebc7:3",
+        "execution_epoch": 1,
+        "kind": "running",
+        "payload_hash": "6c0751b649fce1f401d568efcc8e134189d3f54789be7b6c3d69bd81ba4ea088",
+        "process": {
+          "birth": "Thu Oct  8 16:35:29 2026",
+          "pgid": 2338,
+          "pid": 2338
+        },
+        "producer_id": "host-launch-5b55988e2419350e2ed69fe90f2a7bb2ebc7",
+        "run_id": "idle-c25309edbd7644e383ecb2518b091839",
+        "segment_id": "segment-e75c577c2b1b15c4336c4b06",
+        "sequence": 3,
+        "task_id": "idle-task",
+        "version": 1,
+        "work_revision": 1
+      },
+      "body_sha256": "fedce079390507291509df6072d64f63ec34dff2a0176d67057aa1692ac3e630",
+      "delivery_status": "internal",
+      "event_id": "host-launch-5b55988e2419350e2ed69fe90f2a7bb2ebc7:3"
+    }
+  },
+  "row": {
+    "attempt_id": "attempt-16aa84b8ec58926070aef4ec",
+    "attempt_no": 1,
+    "host_id": "host-launch-5b55988e2419350e2ed69fe90f2a7bb2ebc7",
+    "host_launch_id": "host-launch-5b55988e2419350e2ed69fe90f2a7bb2ebc7",
+    "segment_id": "segment-e75c577c2b1b15c4336c4b06",
+    "segment_status": "exited",
+    "task_status": "result_ready"
+  },
+  "worker": {
+    "birth": "Thu Oct  8 16:35:29 2026",
+    "pgid": 2338,
+    "pid": 2338
+  }
+}

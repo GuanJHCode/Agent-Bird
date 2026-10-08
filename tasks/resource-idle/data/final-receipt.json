@@ -1,0 +1,11 @@
+{
+  "source_commit": "1cf8e92",
+  "native_session": 17917,
+  "native_exit": 0,
+  "increment_review": "PASS",
+  "final_independent_review": "PASS",
+  "root_verification": "formal-acked-20261008/root-verification.json",
+  "previous_failure": "formal-20261008/summary.json",
+  "reused_guard": "6080a77 deadline query completion guard; 1 PASS",
+  "no_product_change": true
+}

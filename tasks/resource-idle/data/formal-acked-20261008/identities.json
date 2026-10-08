@@ -1,0 +1,32 @@
+{
+  "2317": {
+    "argv": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/resource-idle/tasks/resource-idle/data/formal-acked-20261008/bin/candidate serve --state-dir /private/tmp/resource-idle-6a69928a9a82/state",
+    "birth": "Thu Oct  8 16:35:27 2026",
+    "pid": 2317,
+    "role": "coordinator"
+  },
+  "2327": {
+    "argv": "/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/resource-idle/tasks/resource-idle/data/formal-acked-20261008/bin/controller.py --candidate /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/resource-idle/tasks/resource-idle/data/formal-acked-20261008/bin/candidate --state /private/tmp/resource-idle-6a69928a9a82/state --work /private/tmp/resource-idle-6a69928a9a82 --ready /private/tmp/resource-idle-6a69928a9a82/controller-ready.json --helper /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/resource-idle/tasks/resource-idle/data/formal-acked-20261008/lib/resource-soak/scripts/resource_soak.py --raw /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/resource-idle/tasks/resource-idle/data/formal-acked-20261008/raw/controller --run-id idle-c25309edbd7644e383ecb2518b091839",
+    "birth": "Thu Oct  8 16:35:28 2026",
+    "pid": 2327,
+    "role": "controller"
+  },
+  "2336": {
+    "argv": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/resource-idle/tasks/resource-idle/data/formal-acked-20261008/bin/candidate source-host --state-dir /private/tmp/resource-idle-6a69928a9a82/state --bootstrap-fd 3",
+    "birth": "Thu Oct  8 16:35:29 2026",
+    "pid": 2336,
+    "role": "host"
+  },
+  "2337": {
+    "argv": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/resource-idle/tasks/resource-idle/data/formal-acked-20261008/bin/candidate original-owner --bootstrap-fd 3 --control-fd 4",
+    "birth": "Thu Oct  8 16:35:29 2026",
+    "pid": 2337,
+    "role": "owner"
+  },
+  "2338": {
+    "argv": "/bin/sh -c while [ ! -f \"$1\" ]; do /bin/sleep 0.02; done; printf idle-task idle-worker /private/tmp/resource-idle-6a69928a9a82/worker-release",
+    "birth": "Thu Oct  8 16:35:29 2026",
+    "pid": 2338,
+    "role": "worker"
+  }
+}
