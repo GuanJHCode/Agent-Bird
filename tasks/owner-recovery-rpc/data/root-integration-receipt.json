@@ -1,0 +1,8 @@
+{
+  "integration_head": "a692dbac3f48a368dce555932100e63de530e546",
+  "build_command": "TMPDIR=/private/tmp PATH=<pinned Go1.26.8>:$PATH go build ./...",
+  "build_exit": 0,
+  "build_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "source_hashes_checked": 16,
+  "native_resources": "handed to isolated public-owner-succession worker; no integration native rerun because this integration does not change the tested 15 Go source files"
+}

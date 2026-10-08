@@ -22,3 +22,5 @@ The Linux raw regex counts include nested child stdout. The missing-session nega
 Both offline Linux containers exited zero, were not OOM-killed, and were removed by exact CID with subsequent absent inspection. Both temporary test binaries were removed only after matching their receipt SHA256. Final contract/Coordinator/Host vet and whole-module build exited zero. Native real successor startup uses the original Cmd Wait, confirms epoch2/revision2/Applied2/HostReady, unchanged Owner and FirstHost tuples and zero new recovery slots; the missing-session child is expected to exit1 without forced cleanup.
 
 This closes the private live-successor handoff/runtime milestone. The predecessor in that native fixture is trusted Store history, so this does not claim actual public CLI deadBoth Resume. Bound-never-Applied abandonment, initial Bind before any ledger, preBind lost-handle recovery, pending-authorization origin rebind, real Providers, installation and unavailable Intel/Windows qualification remain separate work.
+
+Integration a692dba matches all 16 manifest hashes; whole-module integrated build exits zero. See data/root-integration-receipt.json.
