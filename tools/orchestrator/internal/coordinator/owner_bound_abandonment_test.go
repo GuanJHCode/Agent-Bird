@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -61,7 +62,10 @@ func TestBoundOwnerAbandonmentHostChild(t *testing.T) {
 	if err = os.WriteFile(os.Getenv("BOUND_ABANDONMENT_PREPARED"), frame.Payload, 0600); err != nil {
 		t.Fatal(err)
 	}
-	select {}
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, syscall.SIGTERM, syscall.SIGINT)
+	defer signal.Stop(signals)
+	<-signals
 }
 
 func TestBoundOwnerAbandonmentPublicResumeAfterActualOwnerAndHostWait(t *testing.T) {
@@ -78,6 +82,13 @@ func TestBoundOwnerAbandonmentPublicResumeAfterActualOwnerAndHostWait(t *testing
 	if err = hostCmd.Start(); err != nil {
 		t.Fatal(err)
 	}
+	hostWaited := false
+	t.Cleanup(func() {
+		if !hostWaited {
+			_ = hostCmd.Process.Kill()
+			_ = hostCmd.Wait()
+		}
+	})
 	hostBirth, err := process.Birth(hostCmd.Process.Pid)
 	if err != nil {
 		t.Fatal(err)
@@ -90,7 +101,7 @@ func TestBoundOwnerAbandonmentPublicResumeAfterActualOwnerAndHostWait(t *testing
 		}
 		if time.Now().After(end) {
 			_ = hostCmd.Process.Kill()
-			_, _ = hostCmd.Process.Wait()
+			_ = hostCmd.Wait()
 			t.Fatal("real Host did not Prepare", readErr)
 		}
 		time.Sleep(5 * time.Millisecond)
@@ -99,18 +110,17 @@ func TestBoundOwnerAbandonmentPublicResumeAfterActualOwnerAndHostWait(t *testing
 	if err = ownerCmd.Start(); err != nil {
 		t.Fatal(err)
 	}
+	ownerWaited := false
+	t.Cleanup(func() {
+		if !ownerWaited {
+			_ = ownerCmd.Process.Kill()
+			_ = ownerCmd.Wait()
+		}
+	})
 	ownerBirth, err := process.Birth(ownerCmd.Process.Pid)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() {
-		for _, cmd := range []*exec.Cmd{ownerCmd, hostCmd} {
-			if cmd.ProcessState == nil {
-				_ = cmd.Process.Kill()
-				_, _ = cmd.Process.Wait()
-			}
-		}
-	})
 	pin, err := process.ExecutableDigest(ctx, hello.Executable)
 	if err != nil {
 		t.Fatal(err)
@@ -126,14 +136,16 @@ func TestBoundOwnerAbandonmentPublicResumeAfterActualOwnerAndHostWait(t *testing
 	if err = ownerCmd.Process.Signal(syscall.SIGTERM); err != nil {
 		t.Fatal(err)
 	}
-	ownerWait := func() error { return ownerCmd.Wait() }()
+	ownerWait := ownerCmd.Wait()
+	ownerWaited = true
 	if ownerCmd.ProcessState == nil || ownerCmd.ProcessState.ExitCode() == 0 || ownerWait == nil {
 		t.Fatal("original Owner Cmd.Wait did not observe termination", ownerWait, ownerCmd.ProcessState)
 	}
-	if err = hostCmd.Process.Signal(syscall.SIGTERM); err != nil {
+	if err = hostCmd.Process.Signal(syscall.SIGKILL); err != nil {
 		t.Fatal(err)
 	}
-	hostWait := func() error { return hostCmd.Wait() }()
+	hostWait := hostCmd.Wait()
+	hostWaited = true
 	if hostCmd.ProcessState == nil || hostCmd.ProcessState.ExitCode() == 0 || hostWait == nil {
 		t.Fatal("original Host Cmd.Wait did not observe termination", hostWait, hostCmd.ProcessState)
 	}
