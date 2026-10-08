@@ -1,6 +1,6 @@
 # Private signed recovery-scope handoff wiring
 
-Dependencies: Store5e5cbb4 (production review PASS, full/race verification pending), FS31b9158/da9a6df (accepted macOS race/Linux/UID). ROOT owns this worktree. No real Provider/model/account/install/push/release.
+Dependencies: Store5e5cbb4 (accepted full 547top1813named/race 33top164named/Linux), FS31b9158/da9a6df (accepted macOS race/Linux/UID). ROOT owns this worktree. No real Provider/model/account/install/push/release.
 
 - Add private signed `recovery_scope` RPC with fixed version-only body. Derive stable RequestID from bound recovery hash. No caller ancestry, path, authorization or prior scope.
 - Under registration serialization, authenticate exact live bound owner and current Host, derive predecessor from Store, hold existing FS handoff lease across DB Prepare → scope-only CAS → DB Apply. Verify applied proof against next bytes before reply. Never dispatch through this method.

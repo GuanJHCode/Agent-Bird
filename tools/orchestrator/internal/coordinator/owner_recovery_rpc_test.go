@@ -19,11 +19,13 @@ import (
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
 )
 
 // The historical owner is trusted Store fixture data; the successor is a real
 // signing child. Its handoff traverses the actual private socket, DB and files.
 type recoveryRPCFixture struct {
+	hello  contract.HostHello
 	server *Server
 	step   func(ownerChildStep) ownerChildReply
 	finish func()
@@ -33,8 +35,17 @@ type recoveryRPCFixture struct {
 }
 
 func newRecoveryRPCFixture(t *testing.T) recoveryRPCFixture {
+	return newRecoveryRPCFixtureMode(t, false)
+}
+func newRecoveryRPCFixtureMode(t *testing.T, initial bool) recoveryRPCFixture {
 	t.Helper()
-	s, h := successorTransportFixture(t)
+	var s *Server
+	var h contract.HostHello
+	if initial {
+		s, h = ownerRuntimeFixture(t)
+	} else {
+		s, h = successorTransportFixture(t)
+	}
 	c, frame := successorTransportConnect(t, s, h)
 	if frame.Kind != ipc.KindOwnerHostPending {
 		t.Fatal(frame.Kind)
@@ -62,6 +73,9 @@ func newRecoveryRPCFixture(t *testing.T) recoveryRPCFixture {
 	if err = contract.DecodeOwnerRuntimeStrict(reply.Body, &bound); err != nil {
 		t.Fatal(err)
 	}
+	if initial {
+		return recoveryRPCFixture{hello: h, server: s, step: step, finish: finish, bound: bound, path: filepath.Join(s.stateDir, "host-spool", h.LaunchID, ".coordinator-recovery.json")}
+	}
 	external, err := sql.Open("sqlite", filepath.Join(s.stateDir, "state.db"))
 	if err != nil {
 		t.Fatal(err)
@@ -75,26 +89,33 @@ func newRecoveryRPCFixture(t *testing.T) recoveryRPCFixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	dir := filepath.Join(s.stateDir, "host-spool", h.LaunchID)
-	if err = os.MkdirAll(dir, 0700); err != nil {
+	path, raw := recoveryRPCPriorLedgerFixture(t, s.stateDir, *prior.Binding)
+	return recoveryRPCFixture{hello: h, server: s, step: step, finish: finish, bound: bound, path: path, prior: raw}
+}
+
+// This writes trusted historical fixture state, not a real prior owner runtime.
+func recoveryRPCPriorLedgerFixture(t *testing.T, stateDir string, prior contract.OriginalOwnerBinding) (string, []byte) {
+	t.Helper()
+	dir := filepath.Join(stateDir, "host-spool", prior.Scope.LaunchID)
+	if err := os.MkdirAll(dir, 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err = os.Chmod(filepath.Join(s.stateDir, "host-spool"), 0700); err != nil {
+	if err := os.Chmod(filepath.Join(stateDir, "host-spool"), 0700); err != nil {
 		t.Fatal(err)
 	}
 	lock := filepath.Join(dir, ".coordinator-recovery.lock")
-	if err = os.WriteFile(lock, nil, 0600); err != nil {
+	if err := os.WriteFile(lock, nil, 0600); err != nil {
 		t.Fatal(err)
 	}
 	var d, l syscall.Stat_t
-	if err = syscall.Stat(dir, &d); err != nil {
+	if err := syscall.Stat(dir, &d); err != nil {
 		t.Fatal(err)
 	}
-	if err = syscall.Stat(lock, &l); err != nil {
+	if err := syscall.Stat(lock, &l); err != nil {
 		t.Fatal(err)
 	}
 	a := sha256.Sum256([]byte(fmt.Sprintf("original-owner-recovery-authority-v2\x00%d:%d:%d:%d", d.Dev, d.Ino, l.Dev, l.Ino)))
-	scope, _ := contract.OriginalOwnerRecoveryScopeSHA256(prior.Binding.Scope, prior.Binding.Owner)
+	scope, _ := contract.OriginalOwnerRecoveryScopeSHA256(prior.Scope, prior.Owner)
 	// Field order is deliberately the frozen on-disk v2 canonical layout.
 	record := struct {
 		Version     int    `json:"version"`
@@ -107,15 +128,15 @@ func newRecoveryRPCFixture(t *testing.T) recoveryRPCFixture {
 	raw, _ := json.Marshal(record)
 	raw = append(raw, '\n')
 	path := filepath.Join(dir, ".coordinator-recovery.json")
-	if err = os.WriteFile(path, raw, 0600); err != nil {
+	if err := os.WriteFile(path, raw, 0600); err != nil {
 		t.Fatal(err)
 	}
-	lease, err := host.OpenExistingOwnerRecoveryLease(s.stateDir, prior.Binding.Scope, prior.Binding.Owner)
+	lease, err := host.OpenExistingOwnerRecoveryLease(stateDir, prior.Scope, prior.Owner)
 	if err != nil {
 		t.Fatal("fixture is not a valid existing recovery ledger", err)
 	}
 	lease.Close()
-	return recoveryRPCFixture{s, step, finish, bound, path, raw}
+	return path, raw
 }
 func (f recoveryRPCFixture) handoff(t *testing.T) ownerChildReply {
 	t.Helper()
@@ -338,5 +359,165 @@ func TestOwnerRecoveryRPCNativeRejectsUnsafeOrRolledBackLedger(t *testing.T) {
 			}
 			f.finish()
 		})
+	}
+}
+
+func TestOwnerRecoveryRPCNativeRejectsInitialOrAbsentPhysicalSession(t *testing.T) {
+	for _, scenario := range []string{"initial", "closed_session", "physical_drift"} {
+		t.Run(scenario, func(t *testing.T) {
+			f := newRecoveryRPCFixtureMode(t, scenario == "initial")
+			db := f.rawDB(t)
+			before, _ := os.ReadFile(f.path)
+			if scenario == "closed_session" {
+				f.server.mu.Lock()
+				session := f.server.ownerTransports[f.hello.LaunchID]
+				f.server.mu.Unlock()
+				if session == nil {
+					t.Fatal("missing fixture session")
+				}
+				session.conn.Close()
+				waitSuccessorTransportState(t, f.server, f.hello.LaunchID, false, false)
+			}
+			if scenario == "physical_drift" {
+				if _, err := db.Exec(`UPDATE runtime_hosts SET pid=pid+1 WHERE id=?`, f.hello.LaunchID); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if got := f.handoff(t); got.Error == "" {
+				t.Fatal("unbound physical session admitted", scenario)
+			}
+			after, err := os.ReadFile(f.path)
+			if scenario == "initial" {
+				if !os.IsNotExist(err) {
+					t.Fatal("initial handoff created ledger", err)
+				}
+			} else if err != nil || !bytes.Equal(before, after) {
+				t.Fatal("rejected physical session changed ledger", err)
+			}
+			var count int
+			if err = db.QueryRow(`SELECT COUNT(*) FROM owner_recovery_scope_handoffs`).Scan(&count); err != nil || count != 0 {
+				t.Fatal("rejection wrote intent", count, err)
+			}
+			f.finish()
+		})
+	}
+}
+
+func TestOwnerRecoveryRPCNativeOldBindPermitSurvivesCoordinatorEpoch(t *testing.T) {
+	for _, stage := range []string{"before_prepare", "prepared_next"} {
+		t.Run(stage, func(t *testing.T) {
+			f := newRecoveryRPCFixture(t)
+			db := f.rawDB(t)
+			if stage == "prepared_next" {
+				if _, err := db.Exec(`CREATE TRIGGER handoff_epoch_apply_failure BEFORE UPDATE OF applied ON owner_recovery_scope_handoffs BEGIN SELECT RAISE(ABORT,'fixture'); END`); err != nil {
+					t.Fatal(err)
+				}
+				if got := f.handoff(t); got.Error == "" {
+					t.Fatal("prepared next fixture did not interrupt apply")
+				}
+				var count, applied int
+				if err := db.QueryRow(`SELECT COUNT(*),COALESCE(MAX(applied),0) FROM owner_recovery_scope_handoffs`).Scan(&count, &applied); err != nil || count != 1 || applied != 0 {
+					t.Fatal("fixture did not reach prepared handoff", count, applied, err)
+				}
+				raw, _ := recoveryRPCRead(t, f.path)
+				var prior, current map[string]any
+				if json.Unmarshal(f.prior, &prior) != nil || json.Unmarshal(raw, &current) != nil {
+					t.Fatal("invalid prepared ledger")
+				}
+				scope, _ := contract.OriginalOwnerRecoveryScopeSHA256(f.bound.Binding.Scope, f.bound.Binding.Owner)
+				if current["scope_sha256"] != scope {
+					t.Fatal("prepared ledger did not reach successor scope")
+				}
+				prior["scope_sha256"] = scope
+				want, _ := json.Marshal(prior)
+				got, _ := json.Marshal(current)
+				if !bytes.Equal(want, got) {
+					t.Fatal("prepared handoff changed non-scope ledger fields")
+				}
+				if _, err := db.Exec(`DROP TRIGGER handoff_epoch_apply_failure`); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if stage == "before_prepare" {
+				var count int
+				raw, _ := recoveryRPCRead(t, f.path)
+				if err := db.QueryRow(`SELECT COUNT(*) FROM owner_recovery_scope_handoffs`).Scan(&count); err != nil || count != 0 || !bytes.Equal(raw, f.prior) {
+					t.Fatal("fixture no longer has untouched prior ledger", count, err)
+				}
+			}
+			oldEpoch := f.server.epoch
+			if err := f.server.Close(); err != nil {
+				t.Fatal(err)
+			}
+			next, err := NewServer(f.server.stateDir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			defer next.Close()
+			go func() { _ = next.Serve(ctx) }()
+			f.server = next
+			_, frame := successorTransportConnect(t, next, f.hello)
+			if frame.Kind != ipc.KindOwnerHostPending || next.epoch <= oldEpoch {
+				t.Fatal("same physical host did not reconnect in new epoch", frame.Kind, next.epoch)
+			}
+			state, err := next.db.InspectOriginalOwner(ctx, f.bound.Binding.Scope.OwnerID)
+			if err != nil || state.ControlRevision != 1 || state.CoordinatorEpoch != oldEpoch {
+				t.Fatal("fixture rewrote old permit", state, err)
+			}
+			if got := f.handoff(t); got.Error != "" {
+				t.Fatal("old Bind/current RPC epoch handoff failed", got.Error)
+			}
+			attach := contract.OwnerAttachRequest{ExpectedControlRevision: 1, OldHost: f.bound.Binding.FirstHost, NewHost: f.bound.Binding.FirstHost}
+			raw, _ := json.Marshal(attach)
+			if got := f.step(ownerChildStep{Kind: "attach", ID: "startup-epoch-renew", Body: raw}); got.Error != "" {
+				t.Fatal("same tuple renewal after handoff failed", got.Error)
+			}
+			if got := f.step(ownerChildStep{Kind: "applied", ID: "startup-epoch-applied"}); got.Error != "" {
+				t.Fatal(got.Error)
+			}
+			state, err = next.db.InspectOriginalOwner(ctx, f.bound.Binding.Scope.OwnerID)
+			if err != nil || state.ControlRevision != 2 || state.AppliedControlRevision != 2 || state.CoordinatorEpoch != next.epoch || *state.CurrentHost != f.bound.Binding.FirstHost {
+				t.Fatal("renewed owner/host mismatch", state, err)
+			}
+			f.finish()
+		})
+	}
+}
+
+// The transport-ticket test deliberately fixtures FirstBind in Store. Complete
+// that same fixture's new filesystem/Store handoff precondition explicitly;
+// this helper is not evidence of signed recovery RPC or original-owner startup.
+func completeRecoveryHandoffTransportFixture(t *testing.T, s *Server, spec store.OwnerRecoveryHandoffSpec) {
+	t.Helper()
+	ctx := context.Background()
+	resolved, err := s.db.ResolveOriginalOwnerRecoveryHandoff(ctx, spec, s.ownerPublicKey())
+	if err != nil {
+		t.Fatal(err)
+	}
+	recoveryRPCPriorLedgerFixture(t, s.stateDir, resolved.PriorBinding)
+	lease, err := host.OpenExistingOwnerRecoveryHandoff(s.stateDir, resolved.PriorBinding.Scope, resolved.PriorBinding.Owner, resolved.Binding.Scope, resolved.Binding.Owner, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lease.Close()
+	facts, err := lease.Facts()
+	if err != nil {
+		t.Fatal(err)
+	}
+	proof, err := s.db.PrepareOriginalOwnerRecoveryHandoff(ctx, spec, ownerRecoveryStoreFacts(facts), s.ownerPublicKey())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = lease.CommitPrepared(ownerRecoveryFileProof(proof)); err != nil {
+		t.Fatal(err)
+	}
+	proof, err = s.db.ApplyOriginalOwnerRecoveryHandoff(ctx, spec, ownerRecoveryStoreFacts(facts), s.ownerPublicKey())
+	if err != nil || !proof.Applied {
+		t.Fatal("fixture handoff not applied", err)
+	}
+	if err = lease.CommitPrepared(ownerRecoveryFileProof(proof)); err != nil {
+		t.Fatal(err)
 	}
 }

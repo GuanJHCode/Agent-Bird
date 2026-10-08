@@ -181,6 +181,9 @@ func testOriginalOwnerNativeTransportTicket(t *testing.T, scenario string) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if scenario == "successor_replacement" {
+		completeRecoveryHandoffTransportFixture(t, s, store.OwnerRecoveryHandoffSpec{OwnerID: intent.Scope.OwnerID, Host: old, Epoch: s.epoch, Authentication: auth})
+	}
 	revision := uint64(1)
 	if got := step(ownerChildStep{Kind: "state", ID: "initial-state", Revision: &revision}); got.Error != "" {
 		t.Fatal(got.Error)

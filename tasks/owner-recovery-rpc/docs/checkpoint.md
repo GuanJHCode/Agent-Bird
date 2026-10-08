@@ -4,6 +4,6 @@ Server production独审PASS：strict version-only request、deterministic reques
 
 Host接线独审PASS（不含随后发现的startup epoch问题）：最多3次原absolute deadline内的unsigned transient被动RPC；无Ensure/预算刷新；ACK后successor existing-only打开current账本；Applied/Activate前verifyCurrent且失败撤销admission/offline。真实旧无gate RED和首次遗漏撤销RED均保留，已修。普通29named通过后补长期lease budget写入与5s operation cap；最新日志见root-runtime-budget-green。
 
-已确认新P1未修：successor Bind epoch1→handoff epoch2后仍用old permit初始reconcile，而runOriginalOwner直接cancel NeedsRecovery；需successor专用初始recovery走现same-tuple state/Attach续签，不能新建Host。现有reconcileCurrentOwnerTransport的state/attach RPC缺operation deadline，同批限定timeout并保持Attach exact replay。必须实际RunOriginalOwner/Unix/owned-child验收，此检查点不代表runtime整体通过。
+已根据真实RunOriginalOwner RED修复startup epoch问题：e8bd061为state/attach加2s单次deadline，5c2fc7f仅successor首次recoverable reconcile走同进程same-tuple续签，首轮不Ensure。实际runtime happy与post-handoff session消失边界已通过worker标准测试，ROOT独审/最终稳定源码race/Linux仍在进行，不提前宣称整体验收。
 
-仍缺server initial-owner/closed session/current-host漂移/epoch2完整正例、原有synthetic successor replacement fixture前置handoff，以及actual CLI deadBoth→inc2同attempt新segment闭环。完整module/native/race/Linux待最终源码稳定后执行。
+server initial-owner/closed session/current-host漂移/epoch2正例及原有synthetic successor replacement fixture前置handoff已补测试，受影响native/race/Linux验证进行中。actual CLI deadBoth→inc2同attempt新segment仍待闭环，另有bound未Applied死亡、preBind丢失原Wait与pending授权后origin rebind缺口。
