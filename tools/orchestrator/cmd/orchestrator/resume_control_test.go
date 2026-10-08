@@ -38,9 +38,6 @@ func TestResumeCLIOutputFailureKeepsPending(t *testing.T) {
 			var first string
 			var raw []byte
 			calls := 0
-			if failure == "initial_host_error" {
-				mode = "initial_ready"
-			}
 			deps := resumeControlDependencies{requireCoordinator: func(context.Context, string) error { return nil }, call: func(_ context.Context, _ string, kind ipc.Kind, value any) (ipc.Envelope, error) {
 				if kind != ipc.KindResume {
 					t.Fatal("unexpected mutable gate")
@@ -382,6 +379,9 @@ func TestResumeCLIJournalAndReceiptFlow(t *testing.T) {
 			mode := "existing_owner"
 			if failure == "host_error" {
 				mode = "successor"
+			}
+			if failure == "initial_host_error" {
+				mode = "initial_ready"
 			}
 			deps := resumeControlDependencies{
 				requireCoordinator: func(context.Context, string) error { return nil },
