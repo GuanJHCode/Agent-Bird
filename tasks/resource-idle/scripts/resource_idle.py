@@ -191,7 +191,30 @@ def idle_count(db):
       (SELECT COUNT(*) FROM decision_attempt_bindings WHERE attempt_id IS NULL AND retired=0)""").fetchone()[0]
 
 
+def observe_retirement(ctx, rows):
+    now = time.monotonic()
+    deadline = ctx['pending_observed_at'] + THRESHOLDS['host_retire_seconds']
+    retired = ctx.setdefault('retirement', {})
+    for identity in ctx['identities'].values():
+        if identity['role'] not in ('owner', 'host'):
+            continue
+        record = retired.setdefault(identity['role'], {'identity': identity, 'last_alive': None, 'first_gone': None})
+        present = identity_present(identity, rows)
+        if present:
+            if record['first_gone'] is not None:
+                raise Failure('retired identity returned')
+            record['last_alive'] = now
+            if now > deadline:
+                raise Failure('Owner/Host exceeded frozen retirement interval')
+        elif record['first_gone'] is None:
+            record['first_gone'] = now
+            if now > deadline:
+                raise Failure('Owner/Host disappearance not proved within retirement interval')
+    return retired
+
+
 def measure(ctx, db, baseline):
+    observe_retirement(ctx, process_table())
     if idle_count(db) == 0:
         raise Failure('pending baseline unexpectedly idle')
     common = ('--state-dir', str(ctx['state']), '--task-id', ctx['task_id'],
@@ -215,6 +238,7 @@ def measure(ctx, db, baseline):
             now = time.monotonic()
             count = idle_count(db)
             rows = process_table()
+            observe_retirement(ctx, rows)
             status = ctx['server'].poll()
             present = identity_present(coordinator, rows)
             if not present and status is None:
@@ -252,7 +276,8 @@ def measure(ctx, db, baseline):
     return {'idle_window': {'accept_started': accept_started, 'accept_original_wait_at': accept_wait,
             'last_busy_observed': last_busy, 'first_idle_observed': first_idle,
             'last_alive_observed': last_alive, 'exit_observed': departed,
-            'idle_to_exit_seconds': departed-first_idle}, 'sample_count': len(observed)}
+            'idle_to_exit_seconds': departed-first_idle}, 'sample_count': len(observed),
+            'pending_observed_at': ctx['pending_observed_at'], 'retirement': ctx['retirement']}
 
 
 def cleanup_child(result, process, role, graceful_seconds, close_stdin=False):
@@ -451,6 +476,7 @@ def main():
             raise Failure('original worker not reaped')
         if facts['worker'] != started_worker:
             raise Failure('pending result is not the enrolled gated worker')
+        ctx['pending_observed_at'] = time.monotonic()
         soak.atomic(args.out / 'pending-baseline.json', facts)
         summary.update(measure(ctx, db, facts))
         summary['result'] = 'passed'
