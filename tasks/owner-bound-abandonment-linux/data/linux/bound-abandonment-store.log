@@ -1,0 +1,113 @@
+=== RUN   TestBoundOwnerAbandonmentRejectsChangedAuthorityAndReservation
+=== RUN   TestBoundOwnerAbandonmentRejectsChangedAuthorityAndReservation/token
+=== RUN   TestBoundOwnerAbandonmentRejectsChangedAuthorityAndReservation/command_collision
+=== RUN   TestBoundOwnerAbandonmentRejectsChangedAuthorityAndReservation/task_revision
+=== RUN   TestBoundOwnerAbandonmentRejectsChangedAuthorityAndReservation/host
+=== RUN   TestBoundOwnerAbandonmentRejectsChangedAuthorityAndReservation/origin
+=== RUN   TestBoundOwnerAbandonmentRejectsChangedAuthorityAndReservation/epoch
+=== RUN   TestBoundOwnerAbandonmentRejectsChangedAuthorityAndReservation/digest
+=== RUN   TestBoundOwnerAbandonmentRejectsChangedAuthorityAndReservation/key
+=== RUN   TestBoundOwnerAbandonmentRejectsChangedAuthorityAndReservation/historical_applied
+=== RUN   TestBoundOwnerAbandonmentRejectsChangedAuthorityAndReservation/cancelled
+=== RUN   TestBoundOwnerAbandonmentRejectsChangedAuthorityAndReservation/ready_sequence
+=== RUN   TestBoundOwnerAbandonmentRejectsChangedAuthorityAndReservation/snapshot_after_proof
+--- PASS: TestBoundOwnerAbandonmentRejectsChangedAuthorityAndReservation (1.90s)
+    --- PASS: TestBoundOwnerAbandonmentRejectsChangedAuthorityAndReservation/token (0.22s)
+    --- PASS: TestBoundOwnerAbandonmentRejectsChangedAuthorityAndReservation/command_collision (0.15s)
+    --- PASS: TestBoundOwnerAbandonmentRejectsChangedAuthorityAndReservation/task_revision (0.18s)
+    --- PASS: TestBoundOwnerAbandonmentRejectsChangedAuthorityAndReservation/host (0.19s)
+    --- PASS: TestBoundOwnerAbandonmentRejectsChangedAuthorityAndReservation/origin (0.18s)
+    --- PASS: TestBoundOwnerAbandonmentRejectsChangedAuthorityAndReservation/epoch (0.15s)
+    --- PASS: TestBoundOwnerAbandonmentRejectsChangedAuthorityAndReservation/digest (0.13s)
+    --- PASS: TestBoundOwnerAbandonmentRejectsChangedAuthorityAndReservation/key (0.15s)
+    --- PASS: TestBoundOwnerAbandonmentRejectsChangedAuthorityAndReservation/historical_applied (0.14s)
+    --- PASS: TestBoundOwnerAbandonmentRejectsChangedAuthorityAndReservation/cancelled (0.13s)
+    --- PASS: TestBoundOwnerAbandonmentRejectsChangedAuthorityAndReservation/ready_sequence (0.13s)
+    --- PASS: TestBoundOwnerAbandonmentRejectsChangedAuthorityAndReservation/snapshot_after_proof (0.15s)
+=== RUN   TestBoundOwnerAbandonmentAtomicQuotaAndCommit
+=== RUN   TestBoundOwnerAbandonmentAtomicQuotaAndCommit/quota
+=== RUN   TestBoundOwnerAbandonmentAtomicQuotaAndCommit/prepare
+=== RUN   TestBoundOwnerAbandonmentAtomicQuotaAndCommit/apply
+=== RUN   TestBoundOwnerAbandonmentAtomicQuotaAndCommit/resume
+--- PASS: TestBoundOwnerAbandonmentAtomicQuotaAndCommit (0.70s)
+    --- PASS: TestBoundOwnerAbandonmentAtomicQuotaAndCommit/quota (0.18s)
+    --- PASS: TestBoundOwnerAbandonmentAtomicQuotaAndCommit/prepare (0.16s)
+    --- PASS: TestBoundOwnerAbandonmentAtomicQuotaAndCommit/apply (0.17s)
+    --- PASS: TestBoundOwnerAbandonmentAtomicQuotaAndCommit/resume (0.18s)
+=== RUN   TestBoundOwnerAbandonmentConcurrentFinalization
+--- PASS: TestBoundOwnerAbandonmentConcurrentFinalization (0.16s)
+=== RUN   TestBoundOwnerAbandonmentExactCombinedQuota
+=== RUN   TestBoundOwnerAbandonmentExactCombinedQuota/-1
+=== RUN   TestBoundOwnerAbandonmentExactCombinedQuota/0
+--- PASS: TestBoundOwnerAbandonmentExactCombinedQuota (0.40s)
+    --- PASS: TestBoundOwnerAbandonmentExactCombinedQuota/-1 (0.13s)
+    --- PASS: TestBoundOwnerAbandonmentExactCombinedQuota/0 (0.14s)
+=== RUN   TestOwnerBoundAbandonmentMigrationAtomicAndEmpty
+=== RUN   TestOwnerBoundAbandonmentMigrationAtomicAndEmpty/#00
+=== RUN   TestOwnerBoundAbandonmentMigrationAtomicAndEmpty/objects
+=== RUN   TestOwnerBoundAbandonmentMigrationAtomicAndEmpty/triggers
+=== RUN   TestOwnerBoundAbandonmentMigrationAtomicAndEmpty/version
+=== RUN   TestOwnerBoundAbandonmentMigrationAtomicAndEmpty/commit
+--- PASS: TestOwnerBoundAbandonmentMigrationAtomicAndEmpty (1.25s)
+    --- PASS: TestOwnerBoundAbandonmentMigrationAtomicAndEmpty/#00 (0.18s)
+    --- PASS: TestOwnerBoundAbandonmentMigrationAtomicAndEmpty/objects (0.22s)
+    --- PASS: TestOwnerBoundAbandonmentMigrationAtomicAndEmpty/triggers (0.22s)
+    --- PASS: TestOwnerBoundAbandonmentMigrationAtomicAndEmpty/version (0.23s)
+    --- PASS: TestOwnerBoundAbandonmentMigrationAtomicAndEmpty/commit (0.24s)
+=== RUN   TestOwnerBoundAbandonmentSchemaStartsWithoutInventedProof
+--- PASS: TestOwnerBoundAbandonmentSchemaStartsWithoutInventedProof (0.14s)
+=== RUN   TestOwnerBoundAbandonmentSchemaAccountsFreezesAndSeals
+--- PASS: TestOwnerBoundAbandonmentSchemaAccountsFreezesAndSeals (0.14s)
+=== RUN   TestOwnerBoundAbandonmentSchemaRejectsDrift
+=== RUN   TestOwnerBoundAbandonmentSchemaRejectsDrift/inbound_authorization_id
+=== RUN   TestOwnerBoundAbandonmentSchemaRejectsDrift/run_id
+=== RUN   TestOwnerBoundAbandonmentSchemaRejectsDrift/task_id
+=== RUN   TestOwnerBoundAbandonmentSchemaRejectsDrift/launch_id
+=== RUN   TestOwnerBoundAbandonmentSchemaRejectsDrift/producer_id
+=== RUN   TestOwnerBoundAbandonmentSchemaRejectsDrift/binding_hash
+=== RUN   TestOwnerBoundAbandonmentSchemaRejectsDrift/scope_hash
+=== RUN   TestOwnerBoundAbandonmentSchemaRejectsDrift/permit_hash
+=== RUN   TestOwnerBoundAbandonmentSchemaRejectsDrift/owner_birth
+=== RUN   TestOwnerBoundAbandonmentSchemaRejectsDrift/host_birth
+=== RUN   TestOwnerBoundAbandonmentSchemaRejectsDrift/origin_birth
+=== RUN   TestOwnerBoundAbandonmentSchemaRejectsDrift/host_generation
+=== RUN   TestOwnerBoundAbandonmentSchemaRejectsDrift/executable_sha256
+=== RUN   TestOwnerBoundAbandonmentSchemaRejectsDrift/last_segment_id
+=== RUN   TestOwnerBoundAbandonmentSchemaRejectsDrift/control_revision
+=== RUN   TestOwnerBoundAbandonmentSchemaRejectsDrift/owner_pid
+=== RUN   TestOwnerBoundAbandonmentSchemaRejectsDrift/host_pid
+=== RUN   TestOwnerBoundAbandonmentSchemaRejectsDrift/coordinator_epoch
+=== RUN   TestOwnerBoundAbandonmentSchemaRejectsDrift/work_revision
+=== RUN   TestOwnerBoundAbandonmentSchemaRejectsDrift/ready_sequence
+=== RUN   TestOwnerBoundAbandonmentSchemaRejectsDrift/segment_count
+--- PASS: TestOwnerBoundAbandonmentSchemaRejectsDrift (3.34s)
+    --- PASS: TestOwnerBoundAbandonmentSchemaRejectsDrift/inbound_authorization_id (0.14s)
+    --- PASS: TestOwnerBoundAbandonmentSchemaRejectsDrift/run_id (0.16s)
+    --- PASS: TestOwnerBoundAbandonmentSchemaRejectsDrift/task_id (0.21s)
+    --- PASS: TestOwnerBoundAbandonmentSchemaRejectsDrift/launch_id (0.16s)
+    --- PASS: TestOwnerBoundAbandonmentSchemaRejectsDrift/producer_id (0.16s)
+    --- PASS: TestOwnerBoundAbandonmentSchemaRejectsDrift/binding_hash (0.18s)
+    --- PASS: TestOwnerBoundAbandonmentSchemaRejectsDrift/scope_hash (0.17s)
+    --- PASS: TestOwnerBoundAbandonmentSchemaRejectsDrift/permit_hash (0.18s)
+    --- PASS: TestOwnerBoundAbandonmentSchemaRejectsDrift/owner_birth (0.17s)
+    --- PASS: TestOwnerBoundAbandonmentSchemaRejectsDrift/host_birth (0.15s)
+    --- PASS: TestOwnerBoundAbandonmentSchemaRejectsDrift/origin_birth (0.13s)
+    --- PASS: TestOwnerBoundAbandonmentSchemaRejectsDrift/host_generation (0.14s)
+    --- PASS: TestOwnerBoundAbandonmentSchemaRejectsDrift/executable_sha256 (0.14s)
+    --- PASS: TestOwnerBoundAbandonmentSchemaRejectsDrift/last_segment_id (0.14s)
+    --- PASS: TestOwnerBoundAbandonmentSchemaRejectsDrift/control_revision (0.18s)
+    --- PASS: TestOwnerBoundAbandonmentSchemaRejectsDrift/owner_pid (0.18s)
+    --- PASS: TestOwnerBoundAbandonmentSchemaRejectsDrift/host_pid (0.14s)
+    --- PASS: TestOwnerBoundAbandonmentSchemaRejectsDrift/coordinator_epoch (0.14s)
+    --- PASS: TestOwnerBoundAbandonmentSchemaRejectsDrift/work_revision (0.15s)
+    --- PASS: TestOwnerBoundAbandonmentSchemaRejectsDrift/ready_sequence (0.15s)
+    --- PASS: TestOwnerBoundAbandonmentSchemaRejectsDrift/segment_count (0.17s)
+=== RUN   TestBoundOwnerAbandonmentPreservesReservationAndReplays
+=== RUN   TestBoundOwnerAbandonmentPreservesReservationAndReplays/no_intent
+=== RUN   TestBoundOwnerAbandonmentPreservesReservationAndReplays/prepared
+=== RUN   TestBoundOwnerAbandonmentPreservesReservationAndReplays/applied
+--- PASS: TestBoundOwnerAbandonmentPreservesReservationAndReplays (0.47s)
+    --- PASS: TestBoundOwnerAbandonmentPreservesReservationAndReplays/no_intent (0.17s)
+    --- PASS: TestBoundOwnerAbandonmentPreservesReservationAndReplays/prepared (0.16s)
+    --- PASS: TestBoundOwnerAbandonmentPreservesReservationAndReplays/applied (0.13s)
+PASS
