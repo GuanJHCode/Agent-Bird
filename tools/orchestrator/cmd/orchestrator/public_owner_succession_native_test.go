@@ -103,8 +103,12 @@ func publicSuccessionBoundAbandonmentOriginalOwner(args []string) error {
 	if err != nil {
 		return err
 	}
-	if bootstrap.Prepared.Intent.Scope.Incarnation != 2 {
-		return fmt.Errorf("bound-abandonment expected inc2, got %d", bootstrap.Prepared.Intent.Scope.Incarnation)
+	wantedIncarnation := uint64(2)
+	if content, err := os.ReadFile(trigger); err == nil && string(content) == "initial\n" {
+		wantedIncarnation = 1
+	}
+	if bootstrap.Prepared.Intent.Scope.Incarnation != wantedIncarnation {
+		return fmt.Errorf("bound-abandonment expected inc%d, got %d", wantedIncarnation, bootstrap.Prepared.Intent.Scope.Incarnation)
 	}
 	birth, err := process.BirthContext(ctx, os.Getpid())
 	if err != nil {
@@ -360,17 +364,22 @@ func TestPublicOwnerSuccessionWaitObserverUsesOriginalHandleOnce(t *testing.T) {
 }
 
 func TestPublicOwnerSuccessionDeadBothResumesSameAttempt(t *testing.T) {
-	testPublicOwnerSuccessionDeadBothResumesSameAttempt(t, false)
+	testPublicOwnerSuccessionDeadBothResumesSameAttempt(t, false, false)
 }
 
 func TestPublicOwnerSuccessionBoundNeverAppliedResumesAtInc3(t *testing.T) {
 	// The fixture intentionally starts several real child processes. Keep the
 	// race detector enabled while removing only its process-exit delay.
 	t.Setenv("GORACE", os.Getenv("GORACE")+" atexit_sleep_ms=0")
-	testPublicOwnerSuccessionDeadBothResumesSameAttempt(t, true)
+	testPublicOwnerSuccessionDeadBothResumesSameAttempt(t, true, false)
 }
 
-func testPublicOwnerSuccessionDeadBothResumesSameAttempt(t *testing.T, abandonBound bool) {
+func TestPublicInitialOwnerBoundBeforeLedgerRecovers(t *testing.T) {
+	t.Setenv("GORACE", os.Getenv("GORACE")+" atexit_sleep_ms=0")
+	testPublicOwnerSuccessionDeadBothResumesSameAttempt(t, false, true)
+}
+
+func testPublicOwnerSuccessionDeadBothResumesSameAttempt(t *testing.T, abandonBound, initial bool) {
 	root, err := os.MkdirTemp("/private/tmp", "public-owner-succession-")
 	if err != nil {
 		t.Fatal(err)
@@ -397,6 +406,9 @@ func testPublicOwnerSuccessionDeadBothResumesSameAttempt(t *testing.T, abandonBo
 	}
 	t.Logf("controlled CLI/worker binary sha256=%x", sha256.Sum256(image))
 	cli, worker := filepath.Join(root, "public-owner-succession-cli-fixture"), filepath.Join(root, "budget-revision-worker-fixture")
+	if initial {
+		worker = filepath.Join(root, "original-owner-worker-fixture")
+	}
 	for _, path := range []string{cli, worker} {
 		if err := os.WriteFile(path, image, 0700); err != nil {
 			t.Fatal(err)
@@ -412,9 +424,14 @@ func testPublicOwnerSuccessionDeadBothResumesSameAttempt(t *testing.T, abandonBo
 	server := exec.Command(cli, "serve", "--state-dir", state)
 	server.Env = append(os.Environ(), "ORCHESTRATOR_ENABLE_TEST_FAKE=1")
 	boundAbandonment := filepath.Join(root, "bound-abandonment")
-	if abandonBound {
+	if abandonBound || initial {
 		t.Setenv("PUBLIC_SUCCESSION_BOUND_ABANDONMENT", boundAbandonment)
 		server.Env = append(server.Env, "PUBLIC_SUCCESSION_BOUND_ABANDONMENT="+boundAbandonment)
+	}
+	if initial {
+		if err := os.WriteFile(boundAbandonment, []byte("initial\n"), 0600); err != nil {
+			t.Fatal(err)
+		}
 	}
 	server.Stdout, server.Stderr = log, log
 	if err := server.Start(); err != nil {
@@ -528,9 +545,29 @@ func testPublicOwnerSuccessionDeadBothResumesSameAttempt(t *testing.T, abandonBo
 	var submitted struct {
 		ControlFile string `json:"control_file"`
 	}
-	if err := json.Unmarshal(runBinary(t, ctx, cli, "submit", "--state-dir", state, "--request", requestPath), &submitted); err != nil {
-		t.Fatal(err)
+	var submitBody []byte
+	if initial {
+		cmd := exec.CommandContext(ctx, cli, "submit", "--state-dir", state, "--request", requestPath)
+		var stderr bytes.Buffer
+		cmd.Stderr = &stderr
+		submitBody, err = cmd.Output()
+		var receipt struct {
+			Status string `json:"status"`
+		}
+		if e := json.Unmarshal(submitBody, &receipt); e != nil || (receipt.Status != "queued" && receipt.Status != "queued_host_unavailable") {
+			t.Fatal("initial public submit receipt", string(submitBody), stderr.String(), e, err)
+		}
+		if err != nil && receipt.Status != "queued_host_unavailable" {
+			t.Fatal("unexpected submit failure", err, stderr.String())
+		}
+		t.Logf("initial Bind-only submit status=%s original Wait=%v stderr=%s", receipt.Status, err, stderr.String())
+	} else {
+		submitBody = runBinary(t, ctx, cli, "submit", "--state-dir", state, "--request", requestPath)
 	}
+	if err := json.Unmarshal(submitBody, &submitted); err != nil || submitted.ControlFile == "" {
+		t.Fatal("missing recoverable submit control", err)
+	}
+
 	capability, err := loadControlCapability(submitted.ControlFile)
 	if err != nil {
 		t.Fatal(err)
@@ -550,6 +587,11 @@ func testPublicOwnerSuccessionDeadBothResumesSameAttempt(t *testing.T, abandonBo
 		t.Fatal("initial public binding", oldBinding.Scope)
 	}
 	actors = append(actors, oldBinding.FirstHost, contract.OriginalOwnerTransport{PID: oldBinding.Owner.PID, Birth: oldBinding.Owner.Birth})
+	if initial {
+		exercisePublicInitialRecovery(t, ctx, cli, state, submitted.ControlFile, bootstrap, db, oldBinding, boundAbandonment, marker, release, &actors)
+		clean = true
+		return
+	}
 	firstWorker := publicSuccessionWorker(t, marker)
 	actors = append(actors, contract.OriginalOwnerTransport{PID: firstWorker.PID, Birth: firstWorker.Birth})
 	publicSuccessionAncestry(t, ctx, firstWorker, oldBinding)
