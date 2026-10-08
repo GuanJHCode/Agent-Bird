@@ -42,8 +42,21 @@ func successorOwnerPredecessor(ctx context.Context, tx *sql.Tx, a OriginalOwnerS
 	}
 	s := p.state.Intent.Scope
 	hash, err := contract.OriginalOwnerScopeSHA256(s)
-	if err != nil || p.state.IsCurrent || p.state.Phase != "retired" || p.state.Binding == nil || p.state.CurrentHost == nil || s.RunID != a.RunID || s.LaunchID != a.LaunchID || s.Incarnation != a.PredecessorIncarnation || s.Incarnation >= math.MaxInt64 || p.state.ControlRevision != a.PredecessorControlRevision || p.state.AppliedControlRevision != p.state.ControlRevision || hash != a.PredecessorScopeSHA256 || p.owner.PID != a.Owner.PID || p.owner.Birth != a.Owner.Birth || *p.state.CurrentHost != a.Host || p.state.CoordinatorEpoch > a.CoordinatorEpoch {
+	if err != nil || p.state.IsCurrent || p.state.Phase != "retired" || p.state.Binding == nil || p.state.CurrentHost == nil || s.RunID != a.RunID || s.LaunchID != a.LaunchID || s.Incarnation != a.PredecessorIncarnation || s.Incarnation >= math.MaxInt64 || p.state.ControlRevision != a.PredecessorControlRevision || hash != a.PredecessorScopeSHA256 || p.owner.PID != a.Owner.PID || p.owner.Birth != a.Owner.Birth || *p.state.CurrentHost != a.Host || p.state.CoordinatorEpoch > a.CoordinatorEpoch {
 		return p, originalOwnerRejected()
+	}
+	if a.AbandonedOwnerID == "" {
+		if p.state.AppliedControlRevision != p.state.ControlRevision {
+			return p, originalOwnerRejected()
+		}
+	} else {
+		var valid int
+		if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM execution_owners p JOIN owner_succession_authorizations a ON a.authorization_id=? WHERE p.owner_id=? AND `+abandonedPredecessorSQL, a.AuthorizationID, p.state.Intent.Scope.OwnerID).Scan(&valid); err != nil {
+			return p, err
+		}
+		if valid != 1 {
+			return p, originalOwnerRejected()
+		}
 	}
 	return p, nil
 }

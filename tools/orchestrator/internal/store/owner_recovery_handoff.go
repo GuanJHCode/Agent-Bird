@@ -177,19 +177,14 @@ func (d *DB) prepareOriginalOwnerRecoveryHandoff(ctx context.Context, s OwnerRec
 	if !successionObservationTime(created) {
 		return zero, originalOwnerRejected()
 	}
-	i := row.state.Intent.Scope
-	texts := []string{i.OwnerID, row.state.SuccessionAuthorizationID, i.RunID, i.LaunchID, i.ProducerID, prior.state.Intent.Scope.OwnerID, f.PriorScopeSHA256, f.ScopeSHA256, f.PriorRecordSHA256, f.RecordSHA256, f.AuthoritySHA256, prior.bindingHash, row.bindingHash, created}
-	cost := int64(32)
-	for _, text := range texts {
-		cost += int64(len(text))
-	}
-	if err = d.storageAdmission(ctx, tx, i.RunID, cost, false); err != nil {
+
+	if err = d.storageAdmission(ctx, tx, row.state.Intent.Scope.RunID, recoveryHandoffBytes(row, prior, f, created), false); err != nil {
 		return zero, err
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO owner_recovery_scope_handoffs(owner_id,authorization_id,run_id,launch_id,producer_id,predecessor_owner_id,prior_scope_hash,scope_hash,prior_record_hash,record_hash,authority_hash,prior_binding_hash,binding_hash,created_at,predecessor_control_revision,control_revision,coordinator_epoch,applied) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0)`, texts[0], texts[1], texts[2], texts[3], texts[4], texts[5], texts[6], texts[7], texts[8], texts[9], texts[10], texts[11], texts[12], texts[13], prior.state.ControlRevision, 1, s.Epoch)
-	if err != nil {
+	if err = insertRecoveryHandoffTx(ctx, tx, row, prior, f, s.Epoch, created); err != nil {
 		return zero, err
 	}
+
 	if err = owned.commit(); err != nil {
 		return zero, err
 	}
@@ -254,4 +249,21 @@ func requireOwnerRecoveryHandoffAppliedTx(ctx context.Context, tx *sql.Tx, row o
 		return CodeError("owner_recovery_handoff_not_applied")
 	}
 	return nil
+}
+
+func recoveryHandoffTexts(row, prior originalOwnerRow, f OwnerRecoveryHandoffFacts, created string) []string {
+	i := row.state.Intent.Scope
+	return []string{i.OwnerID, row.state.SuccessionAuthorizationID, i.RunID, i.LaunchID, i.ProducerID, prior.state.Intent.Scope.OwnerID, f.PriorScopeSHA256, f.ScopeSHA256, f.PriorRecordSHA256, f.RecordSHA256, f.AuthoritySHA256, prior.bindingHash, row.bindingHash, created}
+}
+func recoveryHandoffBytes(row, prior originalOwnerRow, f OwnerRecoveryHandoffFacts, created string) int64 {
+	cost := int64(32)
+	for _, text := range recoveryHandoffTexts(row, prior, f, created) {
+		cost += int64(len(text))
+	}
+	return cost
+}
+func insertRecoveryHandoffTx(ctx context.Context, tx *sql.Tx, row, prior originalOwnerRow, f OwnerRecoveryHandoffFacts, epoch uint64, created string) error {
+	texts := recoveryHandoffTexts(row, prior, f, created)
+	_, err := tx.ExecContext(ctx, `INSERT INTO owner_recovery_scope_handoffs(owner_id,authorization_id,run_id,launch_id,producer_id,predecessor_owner_id,prior_scope_hash,scope_hash,prior_record_hash,record_hash,authority_hash,prior_binding_hash,binding_hash,created_at,predecessor_control_revision,control_revision,coordinator_epoch,applied) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0)`, texts[0], texts[1], texts[2], texts[3], texts[4], texts[5], texts[6], texts[7], texts[8], texts[9], texts[10], texts[11], texts[12], texts[13], prior.state.ControlRevision, 1, epoch)
+	return err
 }

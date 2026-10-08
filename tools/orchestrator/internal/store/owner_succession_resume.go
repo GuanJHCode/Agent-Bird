@@ -38,6 +38,7 @@ type OriginalOwnerSuccessionObservation struct {
 }
 
 type OriginalOwnerSuccessionAuthorization struct {
+	AbandonedOwnerID           string                          `json:"abandoned_owner_id,omitempty"`
 	AuthorizationID            string                          `json:"authorization_id"`
 	CommandID                  string                          `json:"command_id"`
 	RequestSHA256              string                          `json:"request_sha256"`
