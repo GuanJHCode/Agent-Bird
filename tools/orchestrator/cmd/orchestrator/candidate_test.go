@@ -204,6 +204,10 @@ func TestManagedCandidateFreezesWorkerChangesWithoutUserChanges(t *testing.T) {
 // Reuse the native test executable: first execution of a fresh unsigned shell
 // script can exceed the production 2s probe deadline under full-suite load.
 func TestMain(m *testing.M) {
+	if filepath.Base(os.Args[0]) == "resource-memory-diagnostic-cli-fixture" {
+		runResourceMemoryDiagnosticFixture()
+		return
+	}
 	if filepath.Base(os.Args[0]) == "resource-soak-worker-fixture" {
 		runResourceSoakWorkerFixture()
 		return
