@@ -1,0 +1,44 @@
+[
+  {
+    "name": "build",
+    "command": [
+      "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+      "build",
+      "./..."
+    ],
+    "exit": 0
+  },
+  {
+    "name": "vet",
+    "command": [
+      "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+      "vet",
+      "./internal/store",
+      "./cmd/orchestrator"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "candidate",
+    "command": [
+      "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+      "build",
+      "-o",
+      "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/integration/tasks/resource-soak/tmp/integrated-build/candidate",
+      "./cmd/orchestrator"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "worker",
+    "command": [
+      "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+      "test",
+      "-c",
+      "-o",
+      "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/integration/tasks/resource-soak/tmp/integrated-build/resource-soak-worker-fixture",
+      "./cmd/orchestrator"
+    ],
+    "exit": 0
+  }
+]

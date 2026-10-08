@@ -1,0 +1,85 @@
+{
+  "cleanup": {
+    "coordinator_original_wait": 0,
+    "identity_signals": [],
+    "remaining": [],
+    "unregistered_private_processes": [],
+    "worker_stop": []
+  },
+  "final_helper_allowance_bytes": 27082752,
+  "finished_unix_ns": 1791434602234725000,
+  "five_minute_median_kib": {
+    "0": 82568.0
+  },
+  "frozen": {
+    "candidate_sha256": "84d938c199343a847f3e69d96241b5a52dcb832ccd8381b9881d308f307f2c0a",
+    "runner_sha256": "96710cab2cd6ba0d26eeb8e11de7c8290c89895ca62bf28e9903f82f7608a95d",
+    "thresholds": {
+      "burst_seconds": 1200,
+      "bytes_per_second_per_worker": 1048576,
+      "critical_event_interval_seconds": 10,
+      "critical_event_max_bytes": 4096,
+      "giant_line_bytes": 4194304,
+      "giant_line_interval_seconds": 30,
+      "offline_cpu_percent_of_one_core": 1,
+      "offline_rss_limit_mib": 64,
+      "offline_seconds": 300,
+      "product_rss_limit_mib": 128,
+      "rss_phase_warmup_seconds": 300,
+      "rss_window_range_limit_mib": 8,
+      "rss_window_seconds": 300,
+      "sample_interval_seconds": 1,
+      "schema_version": 1,
+      "total_duration_seconds": 3600,
+      "two_worker_seconds": 600,
+      "unknown_burst_seconds": 1200
+    },
+    "worker_sha256": "7b68554ccda2e3cfc723859c98665136665fceb2097c05bc230272e0c213d071"
+  },
+  "growth_check": "not assessed in smoke",
+  "helper_cpu_seconds": 0.170251,
+  "limitations": [
+    "fake adapter drain, no real Provider parser/model",
+    "Owner/Host retirement observed by exact identity; original handle evidence reused from native lifecycle acceptance",
+    "measurement ps/SQLite/Python scaffolding excluded; report helpers conservatively charged"
+  ],
+  "mode": "smoke",
+  "peak_charged_rss_mib": 103.390625,
+  "pins_end": {
+    "candidate": {
+      "dev": 16777234,
+      "ino": 198369611,
+      "mode": 320,
+      "sha256": "84d938c199343a847f3e69d96241b5a52dcb832ccd8381b9881d308f307f2c0a",
+      "size": 20152834
+    },
+    "worker": {
+      "dev": 16777234,
+      "ino": 198369612,
+      "mode": 320,
+      "sha256": "7b68554ccda2e3cfc723859c98665136665fceb2097c05bc230272e0c213d071",
+      "size": 28556130
+    }
+  },
+  "pins_start": {
+    "candidate": {
+      "dev": 16777234,
+      "ino": 198369611,
+      "mode": 320,
+      "sha256": "84d938c199343a847f3e69d96241b5a52dcb832ccd8381b9881d308f307f2c0a",
+      "size": 20152834
+    },
+    "worker": {
+      "dev": 16777234,
+      "ino": 198369612,
+      "mode": 320,
+      "sha256": "7b68554ccda2e3cfc723859c98665136665fceb2097c05bc230272e0c213d071",
+      "size": 28556130
+    }
+  },
+  "result": "passed",
+  "sampled_cpu_seconds": 0.15999999999999995,
+  "samples": 20,
+  "started_unix_ns": 1791434579193449000,
+  "state_root": "/private/tmp/resource-soak-38ccf98c3c72"
+}

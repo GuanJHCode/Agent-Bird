@@ -1,0 +1,35 @@
+[
+  {
+    "command": [
+      "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+      "test",
+      "-count=1",
+      "-json",
+      "./cmd/orchestrator",
+      "-run",
+      "^TestResourceSoakLinesHaveExactWireShape$"
+    ],
+    "exit": 0
+  },
+  {
+    "command": [
+      "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+      "build",
+      "-o",
+      "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/resource-soak/tasks/resource-soak/tmp/root-build/candidate",
+      "./cmd/orchestrator"
+    ],
+    "exit": 0
+  },
+  {
+    "command": [
+      "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+      "test",
+      "-c",
+      "-o",
+      "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/resource-soak/tasks/resource-soak/tmp/root-build/resource-soak-worker-fixture",
+      "./cmd/orchestrator"
+    ],
+    "exit": 0
+  }
+]

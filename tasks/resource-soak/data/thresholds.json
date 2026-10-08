@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "total_duration_seconds": 3600,
+  "sample_interval_seconds": 1,
+  "two_worker_seconds": 600,
+  "burst_seconds": 1200,
+  "bytes_per_second_per_worker": 1048576,
+  "giant_line_bytes": 4194304,
+  "giant_line_interval_seconds": 30,
+  "critical_event_interval_seconds": 10,
+  "critical_event_max_bytes": 4096,
+  "product_rss_limit_mib": 128,
+  "offline_seconds": 300,
+  "offline_rss_limit_mib": 64,
+  "offline_cpu_percent_of_one_core": 1,
+  "rss_window_range_limit_mib": 8,
+  "rss_window_seconds": 300,
+  "rss_phase_warmup_seconds": 300,
+  "unknown_burst_seconds": 1200
+}

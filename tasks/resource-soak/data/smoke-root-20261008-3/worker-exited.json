@@ -1,0 +1,122 @@
+{
+  "worker-a": {
+    "active_ms": 21115,
+    "artifact": {
+      "host_artifact": {
+        "descriptor": {
+          "class": "terminal",
+          "index": 0,
+          "kind": "terminal",
+          "reservation_id": "artifact-reservation-6fa6c1bc2d2485498a38e083",
+          "scope_sha256": "27507c1342f007c69f39fe7d102cdb41e3f3be85643431ddcabc41d8889b40ab",
+          "sha256": "60cbed36cbffa3cb3429c34cca0e4f877b0b43d00709f6e13b15831f27ae267f",
+          "size": 1048576,
+          "version": 1
+        },
+        "proof": {
+          "descriptor_sha256": "205434437852b341b6c2012bdcc52081b96ce9e9682362f69525d87261d91b9d",
+          "device": 16777234,
+          "directory_device": 16777234,
+          "directory_inode": 198369812,
+          "inode": 198369818,
+          "intake_id": "host-slot-v1-96856b97da3579c62d39c7dcea436f77be08cf29382b51b88f8dd5c6fa2b6b0d",
+          "intent_device": 16777234,
+          "intent_inode": 198369816,
+          "lock_device": 16777234,
+          "lock_inode": 198369815,
+          "parent_device": 16777234,
+          "parent_inode": 198369810,
+          "path": "/private/tmp/resource-soak-38ccf98c3c72/state/host-spool/host-launch-462ba0c4c89d17414db1e9346ad05413044a/managed-artifacts/host-slot-v1-96856b97da3579c62d39c7dcea436f77be08cf29382b51b88f8dd5c6fa2b6b0d/data.bin",
+          "root_device": 16777234,
+          "root_inode": 198369646,
+          "sha256": "60cbed36cbffa3cb3429c34cca0e4f877b0b43d00709f6e13b15831f27ae267f",
+          "size": 1048576
+        },
+        "version": 1
+      },
+      "id": "result-output.bin",
+      "path": "/private/tmp/resource-soak-38ccf98c3c72/state/host-spool/host-launch-462ba0c4c89d17414db1e9346ad05413044a/managed-artifacts/host-slot-v1-96856b97da3579c62d39c7dcea436f77be08cf29382b51b88f8dd5c6fa2b6b0d/data.bin",
+      "sha256": "60cbed36cbffa3cb3429c34cca0e4f877b0b43d00709f6e13b15831f27ae267f",
+      "size": 1048576
+    },
+    "attempt_id": "attempt-6f034556d6d3d7c6bce35f79",
+    "command_id": "command-a598c3213fab11a5b7bcb8f1",
+    "event_id": "host-launch-462ba0c4c89d17414db1e9346ad05413044a:10",
+    "execution_epoch": 1,
+    "exit_code": 0,
+    "kind": "exited",
+    "payload_hash": "78e8c3d83a07e77dd50b52aff47201e62665b6ebf1f2fbcb7e9746c44b548cac",
+    "process": {
+      "birth": "Thu Oct  8 12:43:00 2026",
+      "pgid": 80797,
+      "pid": 80797
+    },
+    "producer_id": "host-launch-462ba0c4c89d17414db1e9346ad05413044a",
+    "run_id": "resource-3adb7bbfe90e441bbaeb1c669258b4af",
+    "segment_id": "segment-4ac423219468c80556616e43",
+    "sequence": 10,
+    "task_id": "worker-a",
+    "version": 1,
+    "work_revision": 1
+  },
+  "worker-b": {
+    "active_ms": 21072,
+    "artifact": {
+      "host_artifact": {
+        "descriptor": {
+          "class": "terminal",
+          "index": 0,
+          "kind": "terminal",
+          "reservation_id": "artifact-reservation-32ff90ee69a33fc183a36146",
+          "scope_sha256": "6000ab904a41f0aae4cdc1a455a5ba0d2e97b1ce47b08f39dbf785ac7d65835b",
+          "sha256": "60cbed36cbffa3cb3429c34cca0e4f877b0b43d00709f6e13b15831f27ae267f",
+          "size": 1048576,
+          "version": 1
+        },
+        "proof": {
+          "descriptor_sha256": "c855e26ae0178c322ccd833477aa76245bc679f9c99b86a49e790fab867d9df1",
+          "device": 16777234,
+          "directory_device": 16777234,
+          "directory_inode": 198369811,
+          "inode": 198369817,
+          "intake_id": "host-slot-v1-077dc001e8faa75d9eddf6a45b9bc54f376a50fe2e1c6821a40d34ebcc83908f",
+          "intent_device": 16777234,
+          "intent_inode": 198369814,
+          "lock_device": 16777234,
+          "lock_inode": 198369813,
+          "parent_device": 16777234,
+          "parent_inode": 198369810,
+          "path": "/private/tmp/resource-soak-38ccf98c3c72/state/host-spool/host-launch-462ba0c4c89d17414db1e9346ad05413044a/managed-artifacts/host-slot-v1-077dc001e8faa75d9eddf6a45b9bc54f376a50fe2e1c6821a40d34ebcc83908f/data.bin",
+          "root_device": 16777234,
+          "root_inode": 198369646,
+          "sha256": "60cbed36cbffa3cb3429c34cca0e4f877b0b43d00709f6e13b15831f27ae267f",
+          "size": 1048576
+        },
+        "version": 1
+      },
+      "id": "result-output.bin",
+      "path": "/private/tmp/resource-soak-38ccf98c3c72/state/host-spool/host-launch-462ba0c4c89d17414db1e9346ad05413044a/managed-artifacts/host-slot-v1-077dc001e8faa75d9eddf6a45b9bc54f376a50fe2e1c6821a40d34ebcc83908f/data.bin",
+      "sha256": "60cbed36cbffa3cb3429c34cca0e4f877b0b43d00709f6e13b15831f27ae267f",
+      "size": 1048576
+    },
+    "attempt_id": "attempt-401090b3675c2762af133211",
+    "command_id": "command-0d3341f3cb9a0e45d0caf602",
+    "event_id": "host-launch-462ba0c4c89d17414db1e9346ad05413044a:9",
+    "execution_epoch": 1,
+    "exit_code": 0,
+    "kind": "exited",
+    "payload_hash": "d821aa64558338844144e4b4cfb889161e597b46e47b5ff7c895491921e29c3c",
+    "process": {
+      "birth": "Thu Oct  8 12:43:00 2026",
+      "pgid": 80807,
+      "pid": 80807
+    },
+    "producer_id": "host-launch-462ba0c4c89d17414db1e9346ad05413044a",
+    "run_id": "resource-3adb7bbfe90e441bbaeb1c669258b4af",
+    "segment_id": "segment-cd33507b6768cb1bb88e013c",
+    "sequence": 9,
+    "task_id": "worker-b",
+    "version": 1,
+    "work_revision": 1
+  }
+}
