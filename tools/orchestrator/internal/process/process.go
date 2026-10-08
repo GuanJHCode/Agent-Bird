@@ -425,7 +425,7 @@ func processGroupAlive(pgid int) (bool, error) {
 }
 
 func processGroupListed(pgid int) (bool, error) {
-	out, err := exec.Command("/bin/ps", "-axo", "pgid=").Output()
+	out, err := queryProcessGroups(context.Background(), "pgid=", pgid)
 	if err != nil || len(out) > 1024*1024 {
 		return false, ErrProcessTreeUnknown
 	}
@@ -544,21 +544,7 @@ func ExecutableDigest(ctx context.Context, path string) (string, error) {
 }
 
 func processBirth(pid int) (string, error) {
-	if runtime.GOOS == "linux" {
-		return linuxBirth(context.Background(), pid)
-	}
-	if pid <= 0 {
-		return "", CodeError("process_birth_unknown")
-	}
-	out, err := exec.Command("/bin/ps", "-o", "lstart=", "-p", strconv.Itoa(pid)).Output()
-	if err != nil {
-		return "", CodeError("process_birth_unknown")
-	}
-	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
-	if len(lines) != 1 || strings.TrimSpace(lines[0]) == "" {
-		return "", CodeError("process_birth_unknown")
-	}
-	return strings.TrimSpace(lines[0]), nil
+	return BirthContext(context.Background(), pid)
 }
 
 // Birth returns the kernel-reported macOS process start time for pid.

@@ -1,0 +1,7 @@
+# Darwin observation without periodic subprocesses
+
+Resource acceptance found that macOS identity watchers fork `/bin/ps` every 200ms. One-second sampling misses short children and offline operation cannot meet the no-periodic-child contract. Replace observation with existing x/sys Darwin kernel APIs, without changing public identity strings or dropping UNKNOWN/UID/deadline checks. Tests-only 800cd14 gives actual sandbox process-fork-denied RED, not a compiler failure.
+
+Keep the existing ancestry reducer and its before/after identity observations. Native queries provide the same limited numeric fields and C-locale lstart text. Apple ps uses `p_starttime.tv_sec`, local time and `%c` (https://github.com/apple-oss-distributions/adv_cmds/blob/main/ps/print.c). Only C/POSIX/C UTF-8 locale families use the native formatter; other locale formats retain the previous ps fallback. Unrepresentable TZ also falls back. No normalization of previously persisted identities and no new model/sandbox permission.
+
+Group listing and zombie membership come from a bounded kernel process snapshot, with at most two attempts on concurrent table growth and context checks around each syscall. Invalid/truncated/oversized tables and missing identities fail closed. Linux paths remain unchanged; no Intel native claim. A live no-fork sandbox child, existing identity/ancestry/group tests and focused original-Handle lifecycle evidence verify the change. Rebuild/freeze resource candidate after independent review; old 315-second aborted soak remains failed/incomplete.

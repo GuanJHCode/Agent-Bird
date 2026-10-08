@@ -2,20 +2,18 @@ package process
 
 import (
 	"context"
-	"os/exec"
 	"runtime"
-	"strconv"
 	"strings"
 )
 
-// BirthContext observes the same ps start-time field as Birth, while allowing
-// a bridge request to cancel and reap its owned ps subprocess.
+// BirthContext preserves the existing start-time identity. Darwin C-locale
+// observations query the kernel directly; fallback subprocesses remain owned.
 func BirthContext(ctx context.Context, pid int) (string, error) {
 	if runtime.GOOS == "linux" {
 		return linuxBirth(ctx, pid)
 	}
 	return birthContext(ctx, pid, func(ctx context.Context, pid int) ([]byte, error) {
-		return exec.CommandContext(ctx, "/bin/ps", "-o", "lstart=", "-p", strconv.Itoa(pid)).Output()
+		return queryAncestry(ctx, "lstart=", pid)
 	})
 }
 

@@ -6,9 +6,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
+	"strconv"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -16,9 +18,13 @@ import (
 
 func TestDarwinObservationForkDeniedHelper(t *testing.T) {
 	if os.Getenv("DARWIN_OBSERVATION_HELPER") != "1" {
-		return
+		t.Skip("owned helper only")
 	}
-	pid, golden := os.Getpid(), os.Getenv("DARWIN_OBSERVATION_BIRTH")
+	var golden string
+	if err := json.NewDecoder(os.Stdin).Decode(&golden); err != nil {
+		panic(err)
+	}
+	pid := os.Getpid()
 	birth, birthErr := Birth(pid)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -30,58 +36,48 @@ func TestDarwinObservationForkDeniedHelper(t *testing.T) {
 	stop()
 	_, cancelledErr := BirthContext(cancelled, pid)
 	ok := birthErr == nil && birth == golden && contextErr == nil && contextBirth == golden && ancestryErr == nil && ancestry[pid] == golden && leaderErr == nil && quietErr == nil && !quiet && cancelledErr != nil
-	_ = json.NewEncoder(os.Stdout).Encode(map[string]any{"ok": ok, "birth": birth, "context_birth": contextBirth, "ancestry_self": ancestry[pid], "quiescent": quiet, "cancelled_error": textErr(cancelledErr)})
+	result := map[string]any{"ok": ok, "pid": pid, "golden": golden, "birth": birth, "birth_error": fmt.Sprint(birthErr), "context_birth": contextBirth, "context_error": fmt.Sprint(contextErr), "ancestry_self": ancestry[pid], "ancestry_error": fmt.Sprint(ancestryErr), "leader_error": fmt.Sprint(leaderErr), "quiescent": quiet, "quiescent_error": fmt.Sprint(quietErr), "cancelled_error": fmt.Sprint(cancelledErr)}
+	_ = json.NewEncoder(os.Stdout).Encode(result)
 	if !ok {
 		os.Exit(2)
 	}
-}
-
-func textErr(err error) string {
-	if err == nil {
-		return ""
-	}
-	return err.Error()
+	os.Exit(0)
 }
 
 func TestDarwinObservationsDoNotForkAfterSandbox(t *testing.T) {
-	if os.Getenv("DARWIN_OBSERVATION_HELPER") == "1" {
-		return
-	}
-	golden, err := Birth(os.Getpid())
-	if err != nil || golden == "" {
-		t.Fatal(err)
-	}
-	data := filepath.Join("..", "..", "..", "..", "tasks", "darwin-process-observation", "data")
-	if err := os.MkdirAll(data, 0700); err != nil {
-		t.Fatal(err)
-	}
-	raw := filepath.Join(data, "sandbox-exec-raw.json")
-	_ = os.Remove(raw)
-	cmd := exec.Command("/usr/bin/sandbox-exec", "-p", "(version 1)(allow default)(deny process-fork)", os.Args[0], "-test.run=^TestDarwinObservationForkDeniedHelper$")
-	cmd.Env = append(os.Environ(), "LANG=C", "LC_ALL=C", "DARWIN_OBSERVATION_HELPER=1", "DARWIN_OBSERVATION_BIRTH="+golden)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "/usr/bin/sandbox-exec", "-p", "(version 1)(allow default)(deny process-fork)", os.Args[0], "-test.run=^TestDarwinObservationForkDeniedHelper$")
+	cmd.Env = append(os.Environ(), "LANG=C", "LC_ALL=C", "DARWIN_OBSERVATION_HELPER=1")
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	var stdout bytes.Buffer
-	cmd.Stdout = &stdout
-	if err := cmd.Start(); err != nil {
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	input, err := cmd.StdinPipe()
+	if err != nil {
 		t.Fatal(err)
 	}
-	runErr := cmd.Wait()
-	out := stdout.Bytes()
-	if err := os.WriteFile(raw, out, 0600); err != nil {
+	if err = cmd.Start(); err != nil {
 		t.Fatal(err)
 	}
-	if runErr != nil {
-		t.Fatalf("fork-denied helper: %v raw=%s", runErr, out)
+	// The parent obtains an independent ps golden for the actual waiting child.
+	// Only the sandboxed child is forbidden to fork; no parent birth is substituted.
+	goldenCmd := exec.CommandContext(ctx, "/bin/ps", "-o", "lstart=", "-p", strconv.Itoa(cmd.Process.Pid))
+	goldenCmd.Env = append(os.Environ(), "LANG=C", "LC_ALL=C")
+	raw, goldenErr := goldenCmd.Output()
+	golden := strings.TrimSpace(string(raw))
+	sendErr := json.NewEncoder(input).Encode(golden)
+	_ = input.Close()
+	waitErr := cmd.Wait()
+	t.Logf("child_pid=%d original_wait=%v golden=%q raw=%s stderr=%s", cmd.Process.Pid, waitErr, golden, stdout.Bytes(), stderr.Bytes())
+	if goldenErr != nil || sendErr != nil || golden == "" || waitErr != nil {
+		t.Fatalf("golden=%v send=%v wait=%v", goldenErr, sendErr, waitErr)
 	}
 	var got struct {
-		OK             bool
-		Birth          string
-		ContextBirth   string `json:"context_birth"`
-		AncestrySelf   string `json:"ancestry_self"`
-		Quiescent      bool
-		CancelledError string `json:"cancelled_error"`
+		OK     bool
+		Birth  string
+		Golden string
 	}
-	if err := json.Unmarshal(out, &got); err != nil || !got.OK || got.Birth != golden || got.ContextBirth != golden || got.AncestrySelf != golden || got.Quiescent || got.CancelledError == "" {
-		t.Fatalf("helper=%s err=%v", out, err)
+	if err = json.Unmarshal(stdout.Bytes(), &got); err != nil || !got.OK || got.Birth != golden || got.Golden != golden {
+		t.Fatalf("helper=%s decode=%v", stdout.Bytes(), err)
 	}
 }
