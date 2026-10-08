@@ -77,7 +77,7 @@ func removeOwnerAuthorizationRebindSchema30(db *DB) error {
 			return err
 		}
 	}
-	if _, err = tx.Exec(`DROP VIEW owner_succession_effective_targets; DROP TABLE owner_succession_rebind_proofs; DROP INDEX owner_succession_run; UPDATE schema_meta SET version=29`); err != nil {
+	if _, err = tx.Exec(`DROP VIEW owner_succession_effective_targets; DROP TABLE owner_succession_rebind_proofs; DROP INDEX owner_succession_run; DROP INDEX owner_rebind_old_generation; UPDATE schema_meta SET version=29`); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -115,7 +115,7 @@ func legacyPendingAuthorizationRebind(t *testing.T, f originalOwnerFixture, hop 
 }
 
 func TestPendingAuthorizationRebindMigrationBackfillsOrRollsBack(t *testing.T) {
-	for _, mode := range []string{"ordinary", "initial", "missing_link", "consumed_drift", "quota"} {
+	for _, mode := range []string{"ordinary", "initial", "missing_link", "fork", "consumed_drift", "quota"} {
 		t.Run(mode, func(t *testing.T) {
 			f, ps, req := pendingAuthorizationRebindFixture(t, mode == "initial")
 			if mode == "consumed_drift" {
@@ -128,6 +128,11 @@ func TestPendingAuthorizationRebindMigrationBackfillsOrRollsBack(t *testing.T) {
 			}
 			legacyPendingAuthorizationRebind(t, f, 1)
 			legacyPendingAuthorizationRebind(t, f, 2)
+			if mode == "fork" {
+				if _, err := f.db.sql.Exec(`INSERT INTO owner_rebinds SELECT run_id,'foreign-branch',origin_pid,origin_birth,attachment_proof_sha256,created_at,old_host_generation FROM owner_rebinds WHERE host_generation='replacement-generation-1'`); err != nil {
+					t.Fatal(err)
+				}
+			}
 			if mode == "missing_link" {
 				if _, err := f.db.sql.Exec(`DELETE FROM owner_rebinds WHERE host_generation='replacement-generation-1'`); err != nil {
 					t.Fatal(err)
@@ -204,7 +209,7 @@ func TestPendingAuthorizationRebindQuotaHopLimitAndSealedProof(t *testing.T) {
 		})
 	}
 	t.Run("hop_and_immutable", func(t *testing.T) {
-		f, _, _ := pendingAuthorizationRebindFixture(t, false)
+		f, ps, _ := pendingAuthorizationRebindFixture(t, false)
 		for hop := 1; hop <= 64; hop++ {
 			if err := f.db.RebindOwner(context.Background(), authorizationRebindSpec(f, hop)); err != nil {
 				t.Fatal(hop, err)
@@ -222,6 +227,29 @@ func TestPendingAuthorizationRebindQuotaHopLimitAndSealedProof(t *testing.T) {
 		}
 		if before != ownerSuccessionResumeSnapshot(t, f.db) || proofs != ownerSuccessionResumeTablesSnapshot(t, f.db, "owner_succession_rebind_proofs") {
 			t.Fatal("rejected chain changed history")
+		}
+		rows, err := f.db.sql.Query(`EXPLAIN QUERY PLAN SELECT origin_pid FROM owner_succession_effective_targets WHERE authorization_id=?`, ps.AuthorizationID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer rows.Close()
+		indexed := false
+		for rows.Next() {
+			var id, parent, unused int
+			var detail string
+			if err = rows.Scan(&id, &parent, &unused, &detail); err != nil {
+				t.Fatal(err)
+			}
+			t.Log(detail)
+			if strings.Contains(detail, "SCAN a") {
+				t.Fatal("single authorization scans all history", detail)
+			}
+			if strings.Contains(detail, "SEARCH a USING INDEX") && strings.Contains(detail, "authorization_id=?") {
+				indexed = true
+			}
+		}
+		if err = rows.Err(); err != nil || !indexed {
+			t.Fatal("missing authorization PK plan", err)
 		}
 	})
 }

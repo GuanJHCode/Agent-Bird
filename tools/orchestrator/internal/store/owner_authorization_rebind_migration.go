@@ -8,7 +8,7 @@ import (
 
 // Schema29 allowed an origin transition to strand an immutable authorization.
 // Adopt only its complete existing authenticated chain, never guessed history.
-func (d *DB) backfillOwnerAuthorizationRebinds(ctx context.Context, tx *sql.Tx) error {
+func (d *DB) backfillOwnerAuthorizationRebinds(ctx context.Context, tx *sql.Tx, root *StoreRootAuthority) error {
 	rows, err := tx.QueryContext(ctx, `SELECT run_id FROM owner_rebinds UNION SELECT run_id FROM owner_succession_authorizations UNION SELECT run_id FROM execution_owners WHERE is_current=1 AND (phase='intended' OR applied_control_revision=0)`)
 	if err != nil {
 		return err
@@ -52,8 +52,7 @@ func (d *DB) backfillOwnerAuthorizationRebinds(ctx context.Context, tx *sql.Tx) 
 					return err
 				}
 				var facts InitialOwnerRecoveryFacts
-				authority, e := d.initialOwnerRootAuthority()
-				if e != nil || json.Unmarshal([]byte(body), &facts) != nil || !facts.valid() || facts.Root != authority.Nodes() {
+				if root == nil || json.Unmarshal([]byte(body), &facts) != nil || !facts.valid() || facts.Root != root.Nodes() {
 					return CodeError("owner_initial_recovery_root_invalid")
 				}
 			}
@@ -127,6 +126,13 @@ func historicalOwnerAuthorizationRebinds(ctx context.Context, tx *sql.Tx, a Orig
 			return nil, reject
 		}
 		if r.OldGeneration == "" || r.OldGeneration == current || r.PID <= 0 || r.Birth == "" || !recoveryHandoffDigest(r.Proof) || r.Created == "" {
+			return nil, reject
+		}
+		var outgoing int
+		if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM owner_rebinds WHERE run_id=? AND old_host_generation=?`, a.RunID, r.OldGeneration).Scan(&outgoing); err != nil {
+			return nil, err
+		}
+		if outgoing != 1 {
 			return nil, reject
 		}
 		if len(backward) == 0 && (r.PID != origin.OriginPID || r.Birth != origin.OriginBirth) {

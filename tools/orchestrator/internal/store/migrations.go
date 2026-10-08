@@ -43,6 +43,20 @@ func (d *DB) migrateRuntimeWithForeignKeyOps(ops runtimeForeignKeyOps) (err erro
 	if initialVersion < 1 {
 		return CodeError("schema_invalid")
 	}
+	var rebindRoot *StoreRootAuthority
+	if initialVersion == 29 {
+		var pendingInitial int
+		if err = conn.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM owner_succession_authorizations a WHERE a.initial_proof_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM execution_owners o WHERE o.succession_authorization_id=a.authorization_id))`).Scan(&pendingInitial); err != nil {
+			return err
+		}
+		if pendingInitial != 0 {
+			a, e := d.initialOwnerRootAuthority()
+			if e != nil {
+				return e
+			}
+			rebindRoot = &a
+		}
+	}
 	needsSchema23 := initialVersion < 23
 	foreignKeysDisabled := false
 	var tx *sql.Tx
@@ -336,7 +350,7 @@ func (d *DB) migrateRuntimeWithForeignKeyOps(ops runtimeForeignKeyOps) (err erro
 		}
 	}
 	if version < 30 {
-		if err = d.migrateOwnerAuthorizationRebindSchema(tx); err != nil {
+		if err = d.migrateOwnerAuthorizationRebindSchema(tx, rebindRoot); err != nil {
 			return err
 		}
 		if _, err = tx.Exec(`UPDATE schema_meta SET version=30`); err != nil {
@@ -379,6 +393,11 @@ func (d *DB) migrateRuntimeWithForeignKeyOps(ops runtimeForeignKeyOps) (err erro
 		return err
 	}
 	committed = true
+	if rebindRoot != nil {
+		if err = rebindRoot.Validate(); err != nil {
+			return CodeError("owner_initial_recovery_uncertain")
+		}
+	}
 	return nil
 }
 

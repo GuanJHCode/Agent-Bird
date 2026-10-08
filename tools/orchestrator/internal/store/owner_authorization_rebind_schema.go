@@ -10,25 +10,36 @@ import (
 var ownerRebindTextColumns = []string{"run_id", "host_generation", "old_host_generation", "origin_birth", "attachment_proof_sha256", "created_at"}
 var ownerAuthorizationRebindTextColumns = []string{"authorization_id", "run_id", "launch_id", "old_host_generation", "host_generation", "origin_context_id", "origin_birth", "attachment_proof_sha256", "source_created_at"}
 
+// Nonrecursive projection lets SQLite push authorization_id into the PK lookup.
+// Each correlated scan visits at most64 indexed proofs, including source and
+// adjacent-hop checks; COUNT alone cannot certify a complete chain.
 const ownerAuthorizationRebindView = `CREATE VIEW owner_succession_effective_targets AS
-WITH RECURSIVE chain(authorization_id,run_id,launch_id,hop,origin_context_id,origin_pid,origin_birth,host_generation,derivation_epoch) AS (
- SELECT authorization_id,run_id,launch_id,0,successor_origin_context_id,successor_origin_pid,successor_origin_birth,successor_host_generation,coordinator_epoch FROM owner_succession_authorizations
- UNION ALL
- SELECT p.authorization_id,p.run_id,p.launch_id,p.hop,p.origin_context_id,p.origin_pid,p.origin_birth,p.host_generation,p.derivation_epoch
- FROM chain c JOIN owner_succession_rebind_proofs p ON p.authorization_id=c.authorization_id AND p.hop=c.hop+1
- JOIN owner_rebinds r ON r.run_id=p.run_id AND r.host_generation=p.host_generation
- WHERE c.hop<64 AND p.run_id=c.run_id AND p.launch_id=c.launch_id AND p.old_host_generation=c.host_generation
- AND p.origin_context_id=c.origin_context_id AND p.derivation_epoch>=c.derivation_epoch
- AND r.old_host_generation=p.old_host_generation AND r.origin_pid=p.origin_pid AND r.origin_birth=p.origin_birth
- AND r.attachment_proof_sha256=p.attachment_proof_sha256 AND r.created_at=p.source_created_at)
-SELECT * FROM chain c WHERE c.hop=(SELECT COUNT(*) FROM owner_succession_rebind_proofs p WHERE p.authorization_id=c.authorization_id)`
+SELECT a.authorization_id,a.run_id,a.launch_id,COALESCE(head.hop,0) AS hop,
+ COALESCE(head.origin_context_id,a.successor_origin_context_id) AS origin_context_id,
+ COALESCE(head.origin_pid,a.successor_origin_pid) AS origin_pid,
+ COALESCE(head.origin_birth,a.successor_origin_birth) AS origin_birth,
+ COALESCE(head.host_generation,a.successor_host_generation) AS host_generation,
+ COALESCE(head.derivation_epoch,a.coordinator_epoch) AS derivation_epoch
+FROM owner_succession_authorizations a LEFT JOIN owner_succession_rebind_proofs head
+ ON head.authorization_id=a.authorization_id AND head.hop=(SELECT COUNT(*) FROM owner_succession_rebind_proofs n WHERE n.authorization_id=a.authorization_id)
+WHERE (head.hop IS NOT NULL OR NOT EXISTS(SELECT 1 FROM owner_succession_rebind_proofs n WHERE n.authorization_id=a.authorization_id))
+AND NOT EXISTS(SELECT 1 FROM owner_succession_rebind_proofs p
+ LEFT JOIN owner_rebinds r ON r.run_id=p.run_id AND r.host_generation=p.host_generation
+ LEFT JOIN owner_succession_rebind_proofs prior ON prior.authorization_id=p.authorization_id AND prior.hop=p.hop-1
+ WHERE p.authorization_id=a.authorization_id AND (
+ p.run_id!=a.run_id OR p.launch_id!=a.launch_id OR p.origin_context_id!=a.successor_origin_context_id
+ OR p.host_generation=a.successor_host_generation OR p.derivation_epoch<a.coordinator_epoch
+ OR r.run_id IS NULL OR r.old_host_generation!=p.old_host_generation OR r.origin_pid!=p.origin_pid OR r.origin_birth!=p.origin_birth
+ OR r.attachment_proof_sha256!=p.attachment_proof_sha256 OR r.created_at!=p.source_created_at
+ OR (p.hop=1 AND p.old_host_generation!=a.successor_host_generation)
+ OR (p.hop>1 AND (prior.hop IS NULL OR p.old_host_generation!=prior.host_generation OR p.derivation_epoch<prior.derivation_epoch))))`
 
 func ownerAuthorizationRebindTriggerChange() (string, string) {
 	old := `SELECT 1 FROM owner_succession_authorizations a JOIN execution_owners p ON p.owner_id=a.predecessor_owner_id`
 	return old, old + ` JOIN owner_succession_effective_targets target ON target.authorization_id=a.authorization_id`
 }
 
-func (d *DB) migrateOwnerAuthorizationRebindSchema(tx *sql.Tx) error {
+func (d *DB) migrateOwnerAuthorizationRebindSchema(tx *sql.Tx, root *StoreRootAuthority) error {
 	_, err := tx.Exec(`CREATE TABLE owner_succession_rebind_proofs(
  authorization_id TEXT NOT NULL REFERENCES owner_succession_authorizations(authorization_id),
  run_id TEXT NOT NULL REFERENCES runs(id), launch_id TEXT NOT NULL REFERENCES host_launches(id),
@@ -41,6 +52,7 @@ func (d *DB) migrateOwnerAuthorizationRebindSchema(tx *sql.Tx) error {
  derivation_epoch INTEGER NOT NULL CHECK(derivation_epoch>0), source_created_at TEXT NOT NULL CHECK(length(source_created_at)>0),
  PRIMARY KEY(authorization_id,hop), UNIQUE(authorization_id,old_host_generation), UNIQUE(authorization_id,host_generation),
  FOREIGN KEY(run_id,host_generation) REFERENCES owner_rebinds(run_id,host_generation));
+ CREATE INDEX owner_rebind_old_generation ON owner_rebinds(run_id,old_host_generation);
  CREATE INDEX owner_succession_run ON owner_succession_authorizations(run_id);
  CREATE INDEX owner_succession_rebind_source ON owner_succession_rebind_proofs(run_id,host_generation);
  CREATE TRIGGER owner_succession_rebind_no_update BEFORE UPDATE ON owner_succession_rebind_proofs BEGIN SELECT RAISE(ABORT,'owner_succession_rebind_immutable'); END;
@@ -117,5 +129,5 @@ func (d *DB) migrateOwnerAuthorizationRebindSchema(tx *sql.Tx) error {
 			}
 		}
 	}
-	return d.backfillOwnerAuthorizationRebinds(context.Background(), tx)
+	return d.backfillOwnerAuthorizationRebinds(context.Background(), tx, root)
 }
