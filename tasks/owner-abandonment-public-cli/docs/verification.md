@@ -15,10 +15,10 @@ scope change, worker ancestry, and public collect/accept retirement.
 Executed with Go pinned at `tasks/g0-macos/data/go/bin/go` and `TMPDIR=/private/tmp`:
 
 - Ordinary: 1 test, 0 failures, exit 0; source SHA-256
-  `dd68db16e8e5d5b645cd9dfe4ab23bb83a6ce4ad3901eaa23e27ecbe71e55e59`.
+  `bcfede82321b2183e6f13ad5e55331ae05523f7f1838a5d04d269a456f475b74`.
   Full raw output: `data/public-bound-abandonment-ordinary.log`.
 - Race: 1 test, 0 failures, exit 0; source SHA-256
-  `e6861436f64d09e41d02153f3ccff5ffa1b40d825af84d1046e99daad5714db6`.
+  `ea92cff5a0217939c7fac7c29b50ccea4c9879e766f7c59dadd343a57783698c`.
   Full raw output: `data/public-bound-abandonment-race.log`.
 
 The test retains the established 13-second original-`Cmd.Wait` observation
