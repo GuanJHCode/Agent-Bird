@@ -41,11 +41,13 @@ func (d *DB) commitHostEvent(ctx context.Context, event contract.Event, artifact
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return contract.DurableAck{}, err
 	}
-	rollback := func(e error) (contract.DurableAck, error) { _ = tx.Rollback(); return contract.DurableAck{}, e }
+	defer owned.close()
+	tx := owned.tx
+	rollback := func(e error) (contract.DurableAck, error) { owned.close(); return contract.DurableAck{}, e }
 	var registeredEpoch uint64
 	// A rebound Host must replay its durable spool before it is marked ready
 	// for new dispatch. Those replay events still belong to the newly verified
@@ -61,7 +63,7 @@ func (d *DB) commitHostEvent(ctx context.Context, event contract.Event, artifact
 		if oldID != event.EventID || oldHash != event.PayloadHash || oldErr != nil || newErr != nil || subtle.ConstantTimeCompare(oldCanonical, newCanonical) != 1 {
 			return rollback(ErrEventSequence)
 		}
-		_ = tx.Rollback()
+		owned.close()
 		return contract.DurableAck{ProducerID: event.ProducerID, AckedThrough: event.Sequence, EventID: event.EventID, PayloadHash: event.PayloadHash, Status: "durable"}, nil
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
@@ -183,7 +185,7 @@ func (d *DB) commitHostEvent(ctx context.Context, event contract.Event, artifact
 	} else if err = d.storageAdmission(ctx, tx, event.RunID, 0, false); err != nil {
 		return rollback(err)
 	}
-	if err = tx.Commit(); err != nil {
+	if err = owned.commit(); err != nil {
 		return contract.DurableAck{}, err
 	}
 	return contract.DurableAck{ProducerID: event.ProducerID, AckedThrough: event.Sequence, EventID: event.EventID, PayloadHash: event.PayloadHash, Status: "durable"}, nil

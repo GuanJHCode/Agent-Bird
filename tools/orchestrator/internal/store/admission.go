@@ -20,11 +20,13 @@ func (d *DB) BeginCoordinatorEpoch(ctx context.Context, epoch uint64) error {
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return err
 	}
-	rollback := func(e error) error { _ = tx.Rollback(); return e }
+	defer owned.close()
+	tx := owned.tx
+	rollback := func(e error) error { owned.close(); return e }
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	if _, err = tx.ExecContext(ctx, `INSERT INTO coordinator(id,epoch,updated_at) VALUES(1,?,?) ON CONFLICT(id) DO UPDATE SET epoch=excluded.epoch,updated_at=excluded.updated_at`, epoch, now); err != nil {
 		return rollback(err)
@@ -35,7 +37,7 @@ func (d *DB) BeginCoordinatorEpoch(ctx context.Context, epoch uint64) error {
 	if _, err = tx.ExecContext(ctx, `UPDATE host_launches SET status='offline' WHERE status='ready'`); err != nil {
 		return rollback(err)
 	}
-	return tx.Commit()
+	return owned.commit()
 }
 
 func validateInvocationPayload(raw json.RawMessage) error {
@@ -254,11 +256,13 @@ func (d *DB) submitPlan(ctx context.Context, p PlanSpec, authority *contract.Con
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return SubmitReceipt{}, err
 	}
-	rollback := func(e error) (SubmitReceipt, error) { _ = tx.Rollback(); return SubmitReceipt{}, e }
+	defer owned.close()
+	tx := owned.tx
+	rollback := func(e error) (SubmitReceipt, error) { owned.close(); return SubmitReceipt{}, e }
 	var abandoned int
 	if err = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM config_preparation_abandons WHERE run_id=?)`, p.Run.ID).Scan(&abandoned); err != nil {
 		return rollback(err)
@@ -371,7 +375,7 @@ func (d *DB) submitPlan(ctx context.Context, p PlanSpec, authority *contract.Con
 			}
 		}
 	}
-	if err = tx.Commit(); err != nil {
+	if err = owned.commit(); err != nil {
 		return SubmitReceipt{}, err
 	}
 	return SubmitReceipt{LaunchID: launchID, LaunchToken: token, ControlToken: controlToken}, nil
@@ -409,11 +413,13 @@ func (d *DB) RegisterHost(ctx context.Context, hello contract.HostHello, epoch u
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return "", err
 	}
-	rollback := func(e error) (string, error) { _ = tx.Rollback(); return "", e }
+	defer owned.close()
+	tx := owned.tx
+	rollback := func(e error) (string, error) { owned.close(); return "", e }
 	var tokenHash, origin, generation, executable, ownerMode string
 	var existing sql.NullString
 	if err = tx.QueryRowContext(ctx, `SELECT token_hash,origin_context_id,host_generation,executable,host_id,execution_owner_mode FROM host_launches WHERE id=?`, hello.LaunchID).Scan(&tokenHash, &origin, &generation, &executable, &existing, &ownerMode); err != nil {
@@ -462,7 +468,7 @@ func (d *DB) RegisterHost(ctx context.Context, hello contract.HostHello, epoch u
 	if _, err = tx.ExecContext(ctx, `UPDATE host_launches SET host_id=?,status=? WHERE id=?`, hostID, status, hello.LaunchID); err != nil {
 		return rollback(err)
 	}
-	if err = tx.Commit(); err != nil {
+	if err = owned.commit(); err != nil {
 		return "", err
 	}
 	return hostID, nil
@@ -494,28 +500,32 @@ func (d *DB) AuthorizeHostRebind(ctx context.Context, launchID string, pid int, 
 func (d *DB) BeginHostReconcile(ctx context.Context, hostID string) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return err
 	}
-	rollback := func(e error) error { _ = tx.Rollback(); return e }
+	defer owned.close()
+	tx := owned.tx
+	rollback := func(e error) error { owned.close(); return e }
 	if _, err = tx.ExecContext(ctx, `UPDATE runtime_hosts SET status='reconciling' WHERE id=?`, hostID); err != nil {
 		return rollback(err)
 	}
 	if _, err = tx.ExecContext(ctx, `UPDATE host_launches SET status='reconciling' WHERE host_id=?`, hostID); err != nil {
 		return rollback(err)
 	}
-	return tx.Commit()
+	return owned.commit()
 }
 
 func (d *DB) FinishHostReconcile(ctx context.Context, hostID string) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return err
 	}
-	rollback := func(e error) error { _ = tx.Rollback(); return e }
+	defer owned.close()
+	tx := owned.tx
+	rollback := func(e error) error { owned.close(); return e }
 	// Keep the first statement a write, so SQLite waits for an existing writer
 	// instead of attempting to upgrade a stale read snapshot. The predicate
 	// still excludes supervised Hosts atomically, before any readiness change.
@@ -529,7 +539,7 @@ func (d *DB) FinishHostReconcile(ctx context.Context, hostID string) error {
 	if _, err = tx.ExecContext(ctx, `UPDATE host_launches SET status='ready' WHERE host_id=?`, hostID); err != nil {
 		return rollback(err)
 	}
-	return tx.Commit()
+	return owned.commit()
 }
 
 func (d *DB) HostLaunchStatus(ctx context.Context, launchID, token string) (string, error) {
@@ -549,11 +559,13 @@ func (d *DB) HostLaunchStatus(ctx context.Context, launchID, token string) (stri
 func (d *DB) MarkHostOffline(ctx context.Context, hostID string, epoch uint64) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return err
 	}
-	rollback := func(e error) error { _ = tx.Rollback(); return e }
+	defer owned.close()
+	tx := owned.tx
+	rollback := func(e error) error { owned.close(); return e }
 	result, err := tx.ExecContext(ctx, `UPDATE runtime_hosts SET status='offline',updated_at=? WHERE id=? AND coordinator_epoch=? AND status='ready'`, time.Now().UTC().Format(time.RFC3339Nano), hostID, epoch)
 	if err != nil {
 		return rollback(err)
@@ -564,5 +576,5 @@ func (d *DB) MarkHostOffline(ctx context.Context, hostID string, epoch uint64) e
 			return rollback(err)
 		}
 	}
-	return tx.Commit()
+	return owned.commit()
 }

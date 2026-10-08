@@ -31,11 +31,13 @@ func (d *DB) RegisterReportCapability(ctx context.Context, registration contract
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	ownerTx, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return contract.DurableAck{}, err
 	}
-	rollback := func(e error) (contract.DurableAck, error) { _ = tx.Rollback(); return contract.DurableAck{}, e }
+	defer ownerTx.close()
+	tx := ownerTx.tx
+	rollback := func(e error) (contract.DurableAck, error) { ownerTx.close(); return contract.DurableAck{}, e }
 	var segmentID, producerID, runID, taskID, attemptID, tokenHash, capabilityDir, status string
 	var revision int
 	var hostEpoch uint64
@@ -66,7 +68,7 @@ func (d *DB) RegisterReportCapability(ctx context.Context, registration contract
 		if _, err = tx.ExecContext(ctx, `UPDATE report_capabilities SET execution_epoch=? WHERE capability_id=?`, registration.ExecutionEpoch, registration.CapabilityID); err != nil {
 			return rollback(err)
 		}
-		if err = tx.Commit(); err != nil {
+		if err = ownerTx.commit(); err != nil {
 			return contract.DurableAck{}, err
 		}
 		return contract.DurableAck{ProducerID: producerID, EventID: registration.CapabilityID, PayloadHash: tokenHash, Status: "durable"}, nil
@@ -77,7 +79,7 @@ func (d *DB) RegisterReportCapability(ctx context.Context, registration contract
 	if _, err = tx.ExecContext(ctx, `UPDATE report_capabilities SET token_hash=?,capability_dir=?,execution_epoch=?,status='registered' WHERE capability_id=?`, strings.ToLower(registration.TokenHash), registration.CapabilityDir, registration.ExecutionEpoch, registration.CapabilityID); err != nil {
 		return rollback(err)
 	}
-	if err = tx.Commit(); err != nil {
+	if err = ownerTx.commit(); err != nil {
 		return contract.DurableAck{}, err
 	}
 	return contract.DurableAck{ProducerID: producerID, EventID: registration.CapabilityID, PayloadHash: strings.ToLower(registration.TokenHash), Status: "durable"}, nil
@@ -107,11 +109,13 @@ func (d *DB) commitReportEventPrepared(ctx context.Context, spec ReportEventSpec
 		return contract.DurableAck{}, err
 	}
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return contract.DurableAck{}, err
 	}
-	rollback := func(e error) (contract.DurableAck, error) { _ = tx.Rollback(); return contract.DurableAck{}, e }
+	defer owned.close()
+	tx := owned.tx
+	rollback := func(e error) (contract.DurableAck, error) { owned.close(); return contract.DurableAck{}, e }
 	var tokenHash, capabilityDir, runID, taskID, attemptID, segmentID, producerID, status string
 	var revision int
 	var epoch uint64
@@ -183,7 +187,7 @@ func (d *DB) commitReportEventPrepared(ctx context.Context, spec ReportEventSpec
 		if oldErr != nil || newErr != nil || subtle.ConstantTimeCompare(oldCanonical, newCanonical) != 1 {
 			return rollback(ErrConflict)
 		}
-		_ = tx.Rollback()
+		owned.close()
 		return contract.DurableAck{ProducerID: spec.CapabilityID, AckedThrough: spec.Sequence, EventID: spec.EventID, PayloadHash: payloadHash, Status: "durable"}, nil
 	}
 	diagnostic := spec.Kind == "progress"
@@ -240,7 +244,7 @@ func (d *DB) commitReportEventPrepared(ctx context.Context, spec ReportEventSpec
 			return rollback(err)
 		}
 	}
-	if err = tx.Commit(); err != nil {
+	if err = owned.commit(); err != nil {
 		return contract.DurableAck{}, err
 	}
 	return contract.DurableAck{ProducerID: spec.CapabilityID, AckedThrough: spec.Sequence, EventID: spec.EventID, PayloadHash: payloadHash, Status: "durable"}, nil
