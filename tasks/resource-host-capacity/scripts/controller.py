@@ -63,9 +63,14 @@ def main():
         if stopped:
             until = time.monotonic() + 5
             while True:
-                got, status = os.waitpid(pid, os.WUNTRACED | os.WNOHANG)
+                got, status, usage = os.wait4(pid, os.WUNTRACED | os.WNOHANG)
                 if got:
                     if not os.WIFSTOPPED(status) or os.WSTOPSIG(status) != signal.SIGSTOP:
+                        if os.WIFEXITED(status) or os.WIFSIGNALED(status):
+                            del children[pid]  # Already terminally waited; never signal this PID again.
+                            soak.atomic(pathlib.Path(str(prefix) + '.wait.json'), {
+                                'pid': pid, 'argv': command, 'original_wait': os.waitstatus_to_exitcode(status),
+                                'wait_status': status, 'max_rss_bytes': usage.ru_maxrss, 'premature_exit': True})
                         raise RuntimeError('pre-exec helper failed to stop')
                     break
                 if time.monotonic() > until:

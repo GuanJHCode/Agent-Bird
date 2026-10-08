@@ -262,11 +262,31 @@ def complete(ctx, db):
             raise Failure('controlled workers did not complete')
         time.sleep(.03)
     facts = []
-    for item in ctx['origins'][:4]:
+    ctx['retirement'] = {}
+
+    def observe_retirement():
+        rows = idle.process_table()
+        for record in ctx['retirement'].values():
+            present = idle.identity_present(record['identity'], rows)
+            now = time.monotonic()
+            if present and record['first_gone'] is not None:
+                raise Failure('retired identity returned')
+            if not present and record['first_gone'] is None:
+                record['first_gone'] = now
+            if record['first_gone'] is None and now > record['deadline'] or record['first_gone'] is not None and record['first_gone'] > record['deadline']:
+                raise Failure('retirement not proved within13s of pending proof')
+
+    for index, item in enumerate(ctx['origins'][:4]):
         value = idle.pending_facts(db, item['run_id'], item['task_id'])
         if value is None or value['worker'] != item['running']['process'] or idle.identity_present(value['worker'], idle.process_table(), require_argv=False):
             raise Failure('pending result lost original worker tuple or reaping')
         facts.append(value)
+        anchor = time.monotonic()
+        for identity in ctx['identities'].values():
+            if identity['role'] in ('owner-' + str(index), 'host-' + str(index)):
+                ctx['retirement'][identity['role']] = {'identity': identity, 'pending_observed_at': anchor,
+                    'deadline': anchor + TH['host_retire_seconds'], 'first_gone': None}
+        observe_retirement()
         common = ('--state-dir', str(ctx['state']), '--task-id', item['task_id'], '--control-file', item['reply']['control_file'])
         collection = idle.public_call(ctx, 'collect', *common)
         events = [e for e in collection['events'] if e['kind'] == 'result']
@@ -287,18 +307,10 @@ def complete(ctx, db):
     soak.atomic(ctx['out'] / 'worker-exits.json', facts)
     if idle.idle_count(db) != 0:
         raise Failure('completed and acknowledged runs are not durably idle')
-    until = time.monotonic() + TH['host_retire_seconds']
-    actors = [i for i in ctx['identities'].values() if i['role'] == 'worker' or i['role'].startswith(('host-', 'owner-'))]
     while True:
-        rows = idle.process_table()
-        remaining = [i for i in actors if idle.identity_present(i, rows)]
-        now = time.monotonic()
-        if not remaining:
-            if now > until:
-                raise Failure('retirement proof completed after deadline')
+        observe_retirement()
+        if all(r['first_gone'] is not None for r in ctx['retirement'].values()):
             break
-        if now > until:
-            raise Failure('product actors did not retire naturally')
         time.sleep(.05)
     if ctx['server'].wait(timeout=35) != 0:
         raise Failure('Coordinator did not return natural original Wait0')
@@ -401,8 +413,12 @@ def main():
     except BaseException as error:
         summary['error'] = repr(error)
     finally:
+        summary['retirement'] = ctx.get('retirement', {})
         if db is not None:
-            db.close()
+            try:
+                db.close()
+            except BaseException as error:
+                summary.update(result='failed', database_close_error=repr(error))
         try:
             summary['cleanup'] = cleanup(ctx)
             c = summary['cleanup']
