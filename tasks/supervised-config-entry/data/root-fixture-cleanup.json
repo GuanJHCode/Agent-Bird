@@ -1,0 +1,18 @@
+[
+  {
+    "pid": 33164,
+    "expected": "/bin/sh /private/tmp/supervised-config-entry-3739734449/claude",
+    "observed": "/bin/sh /private/tmp/supervised-config-entry-3739734449/claude",
+    "original_wait_available": false,
+    "post_term_ps_exit": 1,
+    "post_term_command": ""
+  },
+  {
+    "pid": 39989,
+    "expected": "/private/tmp/supervised-config-entry-2356375460/installed/versions/1.0.0/bin/codex-orchestrator serve --state-dir /private/tmp/supervised-config-entry-2356375460/state",
+    "observed": "/private/tmp/supervised-config-entry-2356375460/installed/versions/1.0.0/bin/codex-orchestrator serve --state-dir /private/tmp/supervised-config-entry-2356375460/state",
+    "original_wait_available": false,
+    "post_term_ps_exit": 1,
+    "post_term_command": ""
+  }
+]
