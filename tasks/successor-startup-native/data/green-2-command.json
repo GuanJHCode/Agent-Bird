@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+    "test",
+    "-count=1",
+    "-json",
+    "-run",
+    "^TestOriginalOwnerSuccessorStartupNative(EpochAdvance|RejectsMissingSession)$",
+    "./internal/coordinator"
+  ],
+  "exit_code": 0
+}

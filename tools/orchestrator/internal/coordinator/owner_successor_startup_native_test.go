@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -31,7 +32,7 @@ import (
 // runtime. No product env or hook can select this pause point.
 func TestOriginalOwnerSuccessorStartupNativeChild(t *testing.T) {
 	if os.Getenv("SUCCESSOR_STARTUP_NATIVE_CHILD") != "1" {
-		return
+		t.Skip("child process helper")
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer cancel()
@@ -97,6 +98,15 @@ func TestOriginalOwnerSuccessorStartupNativeChild(t *testing.T) {
 }
 
 func TestOriginalOwnerSuccessorStartupNativeEpochAdvance(t *testing.T) {
+	exerciseOriginalOwnerSuccessorStartupNative(t, false)
+}
+
+func TestOriginalOwnerSuccessorStartupNativeRejectsMissingSession(t *testing.T) {
+	exerciseOriginalOwnerSuccessorStartupNative(t, true)
+}
+
+func exerciseOriginalOwnerSuccessorStartupNative(t *testing.T, rejectSession bool) {
+	t.Helper()
 	s, hello := successorTransportFixture(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
@@ -164,6 +174,24 @@ func TestOriginalOwnerSuccessorStartupNativeEpochAdvance(t *testing.T) {
 	}
 	nextCtx, stopNext := context.WithCancel(context.Background())
 	t.Cleanup(func() { stopNext(); _ = next.Close() })
+	var traceMu sync.Mutex
+	var requests []contract.OwnerRPCRequest
+	releaseACK := make(chan struct{})
+	var releaseOnce sync.Once
+	release := func() { releaseOnce.Do(func() { close(releaseACK) }) }
+	defer release()
+	next.ownerRPCReplyHook = func(request contract.OwnerRPCRequest) bool {
+		traceMu.Lock()
+		requests = append(requests, request)
+		traceMu.Unlock()
+		if rejectSession && request.Kind == "recovery_scope" {
+			select {
+			case <-releaseACK:
+			case <-ctx.Done():
+			}
+		}
+		return false
+	}
 	go func() { _ = next.Serve(nextCtx) }()
 	second, epochPending := successorTransportConnect(t, next, hello)
 	if epochPending.Kind != ipc.KindOwnerHostPending || epochPending.Epoch <= pending.Epoch {
@@ -212,7 +240,44 @@ func TestOriginalOwnerSuccessorStartupNativeEpochAdvance(t *testing.T) {
 		}
 		time.Sleep(5 * time.Millisecond)
 	}
-	for end := time.Now().Add(5 * time.Second); ; {
+	if rejectSession {
+		if err := second.Close(); err != nil {
+			t.Fatal(err)
+		}
+		for end := time.Now().Add(time.Second); ; {
+			next.mu.Lock()
+			absent := next.ownerTransports[hello.LaunchID] == nil
+			next.mu.Unlock()
+			if absent {
+				break
+			}
+			if time.Now().After(end) {
+				t.Fatal("closed epoch2 session remained registered")
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
+		release()
+		t.Log("applied handoff ACK released only after exact epoch2 Host session removal")
+		select {
+		case <-child.done:
+			child.mu.Lock()
+			waitErr, processState := child.waitErr, child.command.ProcessState
+			child.mu.Unlock()
+			logs, _ := os.ReadFile(logPath)
+			var exitErr *exec.ExitError
+			if !errors.As(waitErr, &exitErr) || processState == nil || processState.ExitCode() != 1 || !strings.Contains(string(logs), "original_owner_rejected") {
+				t.Fatalf("missing session did not reject real runtime: original Wait=%v state=%v logs=%s", waitErr, processState, logs)
+			}
+			state, err := next.db.OriginalOwnerControl(ctx, prepared.Intent.Scope.OwnerID, next.ownerPublicKey())
+			if err != nil || state.Permit.ControlRevision != 1 || state.Permit.CoordinatorEpoch != 1 || state.AppliedControlRevision != 0 {
+				t.Fatal("rejected startup changed control permit", state, err)
+			}
+			t.Logf("session rejected; original Owner PID=%d Cmd Wait=exit status 1; no control revision advanced", child.identity.PID)
+		case <-time.After(3 * time.Second):
+			t.Fatal("rejected original Owner did not naturally return Wait")
+		}
+	}
+	for end := time.Now().Add(5 * time.Second); !rejectSession; {
 		state, e := next.db.OriginalOwnerControl(ctx, prepared.Intent.Scope.OwnerID, next.ownerPublicKey())
 		presence, pe := next.db.InspectHostPresence(ctx, hello.LaunchID, hello.LaunchToken)
 		if e == nil && pe == nil && state.Permit.ControlRevision == 2 && state.AppliedControlRevision == 2 && state.Permit.CoordinatorEpoch == epochPending.Epoch && presence.Status == "ready" {
@@ -232,6 +297,41 @@ func TestOriginalOwnerSuccessorStartupNativeEpochAdvance(t *testing.T) {
 			t.Fatalf("same-tuple startup did not reach revision2/Applied/HostReady: control=%+v err=%v presence=%+v err=%v", state, e, presence, pe)
 		}
 		time.Sleep(5 * time.Millisecond)
+	}
+	traceMu.Lock()
+	observed := append([]contract.OwnerRPCRequest(nil), requests...)
+	traceMu.Unlock()
+	seenState, seenAttach, seenApplied, seenActivate := false, false, false, false
+	for _, request := range observed {
+		t.Logf("real successful signed RPC kind=%s epoch=%d revision=%d", request.Kind, request.CoordinatorEpoch, request.ControlRevision)
+		if request.CoordinatorEpoch != 2 {
+			t.Fatal("epoch2 startup used another RPC epoch", request.Kind, request.CoordinatorEpoch)
+		}
+		switch request.Kind {
+		case "state":
+			if request.ControlRevision == 1 && !seenAttach {
+				seenState = true
+			}
+		case "attach":
+			var attach contract.OwnerAttachRequest
+			if !seenState || seenAttach || request.ControlRevision != 1 || contract.DecodeOwnerRuntimeStrict(request.Body, &attach) != nil || attach.ExpectedControlRevision != 1 || attach.OldHost != verified.Permit.NewHost || attach.NewHost != verified.Permit.NewHost || attach.Pending != nil {
+				t.Fatal("startup Attach did not renew the same tuple once", request.Kind, request.ControlRevision)
+			}
+			seenAttach = true
+		case "applied":
+			if !seenAttach || request.ControlRevision != 2 {
+				t.Fatal("Applied preceded valid Attach", request.Kind, request.ControlRevision)
+			}
+			seenApplied = true
+		case "activate":
+			if !seenApplied || request.ControlRevision != 2 {
+				t.Fatal("Activate preceded Applied", request.Kind, request.ControlRevision)
+			}
+			seenActivate = true
+		}
+	}
+	if !seenState || (!rejectSession && (!seenAttach || !seenApplied || !seenActivate)) || (rejectSession && (seenAttach || seenApplied || seenActivate)) {
+		t.Fatal("real signed startup sequence incomplete or admitted missing session")
 	}
 	if err := external.QueryRow(`SELECT COUNT(*) FROM owner_recovery_scope_handoffs WHERE applied=1`).Scan(&handoffs); err != nil || handoffs != 1 {
 		t.Fatal("runtime did not complete handoff", handoffs, err)
@@ -256,11 +356,15 @@ func TestOriginalOwnerSuccessorStartupNativeEpochAdvance(t *testing.T) {
 			t.Fatal("startup called Ensure or worker invocation", suffix, err)
 		}
 	}
-	if birth, err := process.Birth(child.identity.PID); err != nil || birth != child.identity.Birth {
+	if birth, err := process.Birth(child.identity.PID); !rejectSession && (err != nil || birth != child.identity.Birth) {
 		t.Fatal("original Owner tuple changed", err)
 	}
 	if birth, err := process.Birth(hello.PID); err != nil || birth != hello.Birth {
 		t.Fatal("original FirstHost tuple changed", err)
+	}
+	if rejectSession {
+		t.Log("rejected startup preserved handoff scope/budget; Ensure=0; no invocation or replacement Start")
+		return
 	}
 	_ = second.SetDeadline(time.Now().Add(time.Second))
 	if err := child.command.Process.Signal(syscall.SIGTERM); err != nil {
