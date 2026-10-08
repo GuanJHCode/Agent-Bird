@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
@@ -147,8 +148,45 @@ func ownerCurrentProcessIdentity(ctx context.Context, stateDir string, scope con
 }
 
 type ownerTransportFrame struct {
-	message ipc.Envelope
-	err     error
+	message   ipc.Envelope
+	err       error
+	bytesRead int
+}
+
+type ownerFrameReader struct {
+	io.Reader
+	bytesRead int
+}
+
+func (r *ownerFrameReader) Read(p []byte) (int, error) {
+	n, err := r.Reader.Read(p)
+	r.bytesRead += n
+	return n, err
+}
+
+// Only the initial parent owns the child's original Wait. This error preserves
+// the transport failure until that parent proves a successful child exit.
+type initialOwnerControlReset struct{ cause error }
+
+func (e *initialOwnerControlReset) Error() string { return e.cause.Error() }
+func (e *initialOwnerControlReset) Unwrap() error { return e.cause }
+
+func IsInitialOwnerControlReset(err error) bool {
+	_, ok := err.(*initialOwnerControlReset)
+	return ok
+}
+
+func ownerTransportControlReadError(frame ownerTransportFrame, initial bool) error {
+	if errors.Is(frame.err, io.EOF) {
+		if frame.bytesRead != 0 {
+			return io.ErrUnexpectedEOF
+		}
+		return nil
+	}
+	if initial && frame.bytesRead == 0 && errors.Is(frame.err, syscall.ECONNRESET) {
+		return &initialOwnerControlReset{cause: frame.err}
+	}
+	return frame.err
 }
 
 func readOwnerTransportFrames(ctx context.Context, conn net.Conn) <-chan ownerTransportFrame {
@@ -158,9 +196,10 @@ func readOwnerTransportFrames(ctx context.Context, conn net.Conn) <-chan ownerTr
 		stop := context.AfterFunc(ctx, func() { _ = conn.Close() })
 		defer stop()
 		for {
-			message, err := ipc.Read(conn)
+			reader := &ownerFrameReader{Reader: conn}
+			message, err := ipc.Read(reader)
 			select {
-			case frames <- ownerTransportFrame{message, err}:
+			case frames <- ownerTransportFrame{message: message, err: err, bytesRead: reader.bytesRead}:
 			case <-ctx.Done():
 				return
 			}
@@ -262,10 +301,7 @@ func runOwnerTransportLoopWithInitial(parent context.Context, bootstrap contract
 			return ctx.Err()
 		case read := <-controlFrames:
 			if read.err != nil {
-				if errors.Is(read.err, io.EOF) {
-					return nil
-				}
-				return read.err
+				return ownerTransportControlReadError(read, initial != nil)
 			}
 			frame := read.message
 			request, err := contract.DecodeOwnerTransportControl(frame.Payload)

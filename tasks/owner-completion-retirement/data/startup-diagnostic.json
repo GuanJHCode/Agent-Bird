@@ -1,0 +1,10 @@
+{
+  "root": "/private/tmp/owner-retirement-startup-nab45tut",
+  "binary_sha256": "7073aa6a2a24033f6b926a679ba6daa470a5b9775359d8b35b9bfa235d3f4be7",
+  "pid": 83366,
+  "sample_exit": 0,
+  "socket_created": true,
+  "elapsed": 4.445016958983615,
+  "wait_exit": 0,
+  "process_reaped": true
+}

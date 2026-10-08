@@ -598,16 +598,23 @@ func (e *ownerExecution) join(ctx context.Context) error {
 // Only the living owner's private RPC can submit it; the runtime supplies the
 // original shutdown deadline, including its final at-most-two-second window.
 func (e *ownerExecution) flush(ctx context.Context) error {
+	s, err := e.flushEvents(ctx)
+	if err != nil || s == nil {
+		return err
+	}
+	return e.run.reports.replay(ctx, s)
+}
+
+// A completed retirement still owes every durable event ACK, but a released
+// Host cannot register report capabilities for workers that have all exited.
+func (e *ownerExecution) flushEvents(ctx context.Context) (*ownerExecutionSession, error) {
 	e.mu.Lock()
 	s := e.last
 	e.mu.Unlock()
 	if s == nil {
-		return nil
+		return nil, nil
 	}
-	if err := e.run.host.PublishAll(ctx, s, s.permit.CoordinatorEpoch); err != nil {
-		return err
-	}
-	return e.run.reports.replay(ctx, s)
+	return s, e.run.host.PublishAll(ctx, s, s.permit.CoordinatorEpoch)
 }
 
 type ownerExecutionSession struct {

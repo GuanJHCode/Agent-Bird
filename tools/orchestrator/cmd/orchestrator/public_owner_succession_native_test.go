@@ -381,11 +381,16 @@ func TestPublicOwnerSuccessionDeadBothResumesSameAttempt(t *testing.T) {
 			}
 		}
 	})
-	for end := time.Now().Add(5 * time.Second); ; {
+	// A cold race-instrumented SQLite migration can consume the previous
+	// five-second fixture setup window. This is separate from Owner startup
+	// and its unchanged thirteen-second original-Wait retirement contract.
+	readyStarted := time.Now()
+	for end := readyStarted.Add(15 * time.Second); ; {
 		readyCtx, stopReady := context.WithTimeout(ctx, 150*time.Millisecond)
 		response, readyErr := ipc.Call(readyCtx, filepath.Join(state, "coordinator.sock"), ipc.Envelope{Version: ipc.Version, Kind: ipc.KindReady, RequestID: "public-succession-ready"})
 		stopReady()
 		if readyErr == nil && response.Kind == ipc.KindResponse {
+			t.Logf("owned Coordinator ready after %s", time.Since(readyStarted))
 			break
 		}
 		if time.Now().After(end) {
@@ -561,19 +566,18 @@ func TestPublicOwnerSuccessionDeadBothResumesSameAttempt(t *testing.T) {
 	runBinary(t, ctx, cli, "accept", "--state-dir", state, "--task-id", "worker", "--work-revision", "1", "--control-file", submitted.ControlFile,
 		"--event-id", result.EventID, "--event-revision", strconv.FormatInt(result.EventRevision, 10), "--event-hash", result.PayloadHash, "--action-slot", result.ActionSlot, "--decision", "accept", "--command-id", "public-succession-accept")
 	publicSuccessionStatus(t, ctx, cli, state, submitted.ControlFile, "completed", "exited")
-	// Retire the owned runtime while its Coordinator can still serve shutdown
-	// protocol. Do not confuse Coordinator-first transport loss with graceful
-	// Owner/FirstHost retirement or accept an arbitrary nonzero cleanup exit.
-	if actual, err := process.Birth(newBinding.Owner.PID); err != nil || actual != newBinding.Owner.Birth {
-		t.Fatal("successor Owner identity changed before cleanup Signal", err)
-	}
-	if err := syscall.Kill(newBinding.Owner.PID, syscall.SIGTERM); err != nil {
-		t.Fatal(err)
-	}
+	// Completed work triggers authenticated host_retired while Coordinator is
+	// still alive. Observe its natural original Wait, without racing a signal
+	// against a process that may already have retired successfully.
 	newOwnerWait := publicSuccessionReadWait(t, state, "owner", newBinding.Owner.PID)
 	newHostWait := publicSuccessionReadWait(t, state, "first_host", newBinding.FirstHost.PID)
 	if newOwnerWait.ExitCode != 0 || newOwnerWait.WaitError != "" || newHostWait.ExitCode != 0 || newHostWait.WaitError != "" {
 		t.Fatal("successor runtime graceful original Wait failed", newOwnerWait, newHostWait)
+	}
+	for _, pid := range []int{newBinding.Owner.PID, newBinding.FirstHost.PID} {
+		if err := syscall.Kill(pid, 0); !errors.Is(err, syscall.ESRCH) {
+			t.Fatal("retired successor original Wait did not reap process", pid, err)
+		}
 	}
 	t.Logf("successor Owner original Wait=%+v; successor FirstHost original Wait=%+v", newOwnerWait, newHostWait)
 	t.Logf("public stable Resume/collect/accept completed inc2 same attempt=%s new segment=%s; retained charge=%d grant=%d next grant=%d", after.AttemptID, after.SegmentID, used, grant, newGrant)

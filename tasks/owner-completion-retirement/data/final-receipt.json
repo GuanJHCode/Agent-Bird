@@ -1,0 +1,75 @@
+{
+  "scope": "completed Owner retirement plus initial FD4 reset gated by original successful Wait",
+  "reviews": [
+    "completion cleanup PASS",
+    "natural original Wait fixture PASS",
+    "Linux reset delta PASS",
+    "cold race Coordinator preparation window review PASS"
+  ],
+  "build_vet": {
+    "whole_build_exit": 0,
+    "host_cli_vet_exit": 0
+  },
+  "mac": {
+    "host": {
+      "file": "root-retirement-reset-final-race.jsonl",
+      "top": 53,
+      "named": 165,
+      "fail": 0,
+      "skip": 0,
+      "elapsed": 75.775,
+      "sha256": "5c24d0984ed857d41a0808d94b55efe4768c88952957a328424ce23a3984cb32"
+    },
+    "cli": {
+      "file": "root-cli-reset-final-race.jsonl",
+      "top": 9,
+      "named": 13,
+      "fail": 0,
+      "skip": 0,
+      "elapsed": 52.72,
+      "sha256": "46374b40b2073df27f6cd31305bce0a7e781c12578d7c817665323b433d9d607"
+    }
+  },
+  "source_sha256": {
+    "tasks/owner-completion-retirement/scripts/run-linux.py": "09ca42cecbd55c68c7a08794ddf301ce77f7d796d9c6f7a009cff076cce9e0af",
+    "tools/orchestrator/cmd/orchestrator/candidate_test.go": "45e2b6cb44a9f47ac03645972038a71e1742721e41a307ee4776f655b861b01c",
+    "tools/orchestrator/cmd/orchestrator/original_owner.go": "d16caf79c4f7df08316c8aebc4f5bd2ffbdf5643bec60f94c99fb96a27f94872",
+    "tools/orchestrator/cmd/orchestrator/original_owner_close_test.go": "857f6a83f588b8b119c5e2efd411a2ab4786faefcfbf8aefeca1466074ad793d",
+    "tools/orchestrator/cmd/orchestrator/public_owner_succession_native_test.go": "852a8e4151259627de4851257513d7192af191c635c8841b34b366f6a5eca905",
+    "tools/orchestrator/internal/host/owner_completed_retirement_test.go": "bbc80f8c9372e58e552776fbe8bcfde881b5aa1669778efbb41c6fdbc40ed5c9",
+    "tools/orchestrator/internal/host/owner_execution.go": "f8aa1ad854b5664fdf4f2a910fbd2d6ae9725b9ff8d66a86dbba8936cb93ccc4",
+    "tools/orchestrator/internal/host/owner_runtime_entry.go": "88656557bd8b2877d043fc6fa2e2192849b94b9e27bc5e872749c25b05a153c1",
+    "tools/orchestrator/internal/host/owner_runtime_lifecycle.go": "9229773be0e6cad7bd2c4682bd14539bdef412557ce9f5564e39639d6d8c9383",
+    "tools/orchestrator/internal/host/owner_runtime_lifecycle_test.go": "6fcb4a62d8b3bc32c232224aaa49747fc80054fdebca90d246ad3ab937b3aeeb",
+    "tools/orchestrator/internal/host/owner_transport.go": "dc58089db0036917c3db184c253624cb2e220675ec68eafd4f11092751034953",
+    "tools/orchestrator/internal/host/owner_transport_close_test.go": "3d9500c97d1bbd8fddb9cfdc0a9798a3b7ca670c97039eef16a09ce14c94ec4a"
+  },
+  "linux": {
+    "host-reset-green": {
+      "named": 28,
+      "fail": 0,
+      "skip": 0,
+      "receipt": "linux/host-reset-green-receipt.json",
+      "binary_sha256": "faffca7a5802c97b9678dfb30351636a8bf763bf08c3b21c398cf8e94284826e",
+      "binary_deleted_after_hash": true,
+      "cid": "c52ef6d9573d241a2e3eaedc12b254bd5d2c760b1fe7ae00c32554a98fcc3b00",
+      "container_removed": true
+    },
+    "public-cli-final": {
+      "named": 7,
+      "fail": 0,
+      "skip": 0,
+      "receipt": "linux/public-cli-final-receipt.json",
+      "binary_sha256": "8c951977be915d91fe077bdd50e84d16106aaeaba583fb0d90e271871f4bf2be",
+      "binary_deleted_after_hash": true,
+      "cid": "f6b5c774bcc1ce8ddeb14f76155f0690eaf164d62042d3be36f7bd7b3a8a8290",
+      "container_removed": true
+    }
+  },
+  "cleanup": {
+    "diagnostic_root_removed": "/private/tmp/owner-retirement-startup-nab45tut",
+    "failed_fixtures_retained": true,
+    "owned_linux_binaries_removed": true,
+    "active_sessions": 0
+  }
+}

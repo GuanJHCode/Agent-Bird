@@ -328,6 +328,12 @@ func (r *ownerRuntimeLifecycle) stop(cause error, joins []<-chan struct{}) error
 	}
 	flushCtx, stopFlush := context.WithDeadline(context.Background(), deadline)
 	defer stopFlush()
-	flushed := launch(func() error { return e.flush(flushCtx) })
+	flushed := launch(func() error {
+		if completedOwnerRetirement(cause) {
+			_, err := e.flushEvents(flushCtx)
+			return err
+		}
+		return e.flush(flushCtx)
+	})
 	return errors.Join(result, wait(flushCtx, flushed))
 }

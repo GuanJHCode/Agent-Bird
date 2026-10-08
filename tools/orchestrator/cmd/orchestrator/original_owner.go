@@ -230,6 +230,9 @@ func runInitialOriginalOwnerWithWaitObserver(ctx context.Context, bootstrap host
 	transport := contract.OwnerTransportBootstrap{Version: 1, StateDir: runtimeBootstrap.StateDir, Intent: prepared.Intent, Owner: bound.Binding.Owner}
 	transport.CoordinatorPublicKey = prepared.CoordinatorPublicKey
 	if err = host.RunInitialOwnerTransport(ctx, host.InitialOwnerTransportConfig{Bootstrap: transport, Control: parentControl, Connection: conn, Pending: pending, InitialToken: bootstrap.Hello.LaunchToken}); err != nil && !errors.Is(err, context.Canceled) {
+		if host.IsInitialOwnerControlReset(err) {
+			return true, owned.waitControlClose(ctx, err, 13*time.Second)
+		}
 		return true, retire(err)
 	}
 	select {
@@ -266,6 +269,32 @@ func (c *initialOwnerChild) startWait() {
 			c.done <- err
 		}()
 	})
+}
+
+// A frame-boundary reset on the inherited control reader is only a possible
+// normal exit. Preserve every other failure and consume the sole original
+// waiter exactly once. A live child still follows bounded TERM/KILL cleanup.
+func (c *initialOwnerChild) waitControlClose(ctx context.Context, cause error, window time.Duration) error {
+	timer := time.NewTimer(window)
+	defer timer.Stop()
+	select {
+	case err := <-c.done:
+		if err != nil {
+			return errors.Join(cause, err)
+		}
+		if ctx.Err() != nil {
+			return errors.Join(cause, ctx.Err())
+		}
+		if c.command.ProcessState == nil || !c.command.ProcessState.Success() {
+			return errors.Join(cause, errors.New("initial_owner_wait_unsuccessful"))
+		}
+		return nil
+	case <-ctx.Done():
+		cause = errors.Join(cause, ctx.Err())
+	case <-timer.C:
+		cause = errors.Join(cause, context.DeadlineExceeded)
+	}
+	return errors.Join(cause, c.retire(time.Now().Add(time.Second)))
 }
 
 func (c *initialOwnerChild) retire(deadline time.Time) error {

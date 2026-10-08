@@ -6,6 +6,8 @@ import (
 	"errors"
 	"io"
 	"net"
+	"os"
+	"path/filepath"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -346,6 +348,10 @@ func TestOwnerRuntimeOriginObservationHonorsDeadlineAndCancellation(t *testing.T
 }
 
 func TestOwnerRuntimeCleanupJoinsOriginalWorkerAndIsSingleLatch(t *testing.T) {
+	if os.Getenv("OWNER_CLEANUP_JOIN_HELPER") == "1" {
+		time.Sleep(30 * time.Second)
+		return
+	}
 	cfg, permit, _ := ownerExecutionFixture(t)
 	e, err := newOwnerExecution(context.Background(), cfg)
 	if err != nil {
@@ -354,7 +360,12 @@ func TestOwnerRuntimeCleanupJoinsOriginalWorkerAndIsSingleLatch(t *testing.T) {
 	if err = e.reconcile(context.Background(), permit); err != nil {
 		t.Fatal(err)
 	}
-	p, err := process.Start(context.Background(), process.Command{Path: "/bin/sleep", Args: []string{"30"}})
+	binary, err := filepath.EvalSymlinks(os.Args[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	command := process.Command{Path: binary, Args: []string{"-test.run=^TestOwnerRuntimeCleanupJoinsOriginalWorkerAndIsSingleLatch$"}, Env: []string{"OWNER_CLEANUP_JOIN_HELPER=1"}}
+	p, err := process.Start(context.Background(), command)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -371,7 +382,7 @@ func TestOwnerRuntimeCleanupJoinsOriginalWorkerAndIsSingleLatch(t *testing.T) {
 		t.Fatal(err)
 	}
 	identity := p.Identity()
-	if err = publishLaunchPhase(spool, "running", a, "run", "task", process.Command{Path: "/bin/sleep"}, &identity, nil); err != nil {
+	if err = publishLaunchPhase(spool, "running", a, "run", "task", command, &identity, nil); err != nil {
 		t.Fatal(err)
 	}
 	if err = cfg.host.registerOwnedHandle(a.ID, a.SegmentID, p); err != nil {

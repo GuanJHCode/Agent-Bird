@@ -177,10 +177,16 @@ func runOriginalOwner(parent context.Context, cfg OriginalOwnerConfig, initializ
 	if cleanupErr != nil {
 		return errors.Join(cause, cleanupErr)
 	}
-	if errors.Is(cause, context.Canceled) {
+	if errors.Is(cause, context.Canceled) || completedOwnerRetirement(cause) {
 		return nil
 	}
 	return cause
+}
+
+// Only the exact typed disposition produced after signed terminal validation
+// is a completed retirement. Error text or a joined failure is not authority.
+func completedOwnerRetirement(cause error) bool {
+	return cause == sourceTerminalDisposition("host_retired")
 }
 
 // Recovery always follows the current transport's generation, FD and physical
