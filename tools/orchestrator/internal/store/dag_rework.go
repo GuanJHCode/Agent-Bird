@@ -16,11 +16,12 @@ func (d *DB) queueDAGRework(ctx context.Context, spec, canonical ReworkSpec) (Re
 	empty := ReworkReceipt{}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return empty, err
 	}
-	defer tx.Rollback()
+	defer owned.close()
+	tx := owned.tx
 	var previous string
 	err = tx.QueryRowContext(ctx, `SELECT revision_payload FROM retry_decisions WHERE action_slot=?`, spec.ActionSlot).Scan(&previous)
 	if err == nil {
@@ -171,7 +172,7 @@ func (d *DB) queueDAGRework(ctx context.Context, spec, canonical ReworkSpec) (Re
 			return empty, err
 		}
 	}
-	if err = tx.Commit(); err != nil {
+	if err = owned.commit(); err != nil {
 		return empty, err
 	}
 	return saved.Receipt, nil

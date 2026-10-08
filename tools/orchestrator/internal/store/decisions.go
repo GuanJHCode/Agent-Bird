@@ -14,15 +14,16 @@ import (
 func (d *DB) QueueResume(ctx context.Context, taskID string, workRevision int) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer owned.close()
+	tx := owned.tx
 	if _, err = d.queueResumeTx(ctx, tx, taskID, workRevision); err != nil {
 		return err
 	}
-	return tx.Commit()
+	return owned.commit()
 }
 
 // queueResumeTx preserves the legacy queue/budget checks so authenticated owner
@@ -99,11 +100,13 @@ func (d *DB) AnswerQuestion(ctx context.Context, spec AnswerSpec) (string, error
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return "", err
 	}
-	rollback := func(e error) (string, error) { _ = tx.Rollback(); return "", e }
+	defer owned.close()
+	tx := owned.tx
+	rollback := func(e error) (string, error) { owned.close(); return "", e }
 	var taskStatus, questionStatus, answerHash, segmentID string
 	var workRevision, questionRevision int
 	if err = tx.QueryRowContext(ctx, `SELECT t.status,r.work_revision,q.question_revision,q.status,q.answer_hash,q.segment_id FROM runtime_questions q JOIN tasks t ON t.id=q.task_id JOIN task_runtime r ON r.task_id=t.id WHERE q.question_id=? AND q.task_id=?`, spec.QuestionID, spec.TaskID).Scan(&taskStatus, &workRevision, &questionRevision, &questionStatus, &answerHash, &segmentID); err != nil {
@@ -115,7 +118,7 @@ func (d *DB) AnswerQuestion(ctx context.Context, spec AnswerSpec) (string, error
 	}
 	if questionStatus != "open" {
 		if answerHash == wantHash {
-			_ = tx.Rollback()
+			owned.close()
 			return questionStatus, nil
 		}
 		return rollback(ErrConflict)
@@ -153,7 +156,7 @@ func (d *DB) AnswerQuestion(ctx context.Context, spec AnswerSpec) (string, error
 	if _, err = tx.ExecContext(ctx, `UPDATE task_runtime SET ready_sequence=? WHERE task_id=?`, sequence, spec.TaskID); err != nil {
 		return rollback(err)
 	}
-	if err = tx.Commit(); err != nil {
+	if err = owned.commit(); err != nil {
 		return "", err
 	}
 	return "resume_queued", nil
@@ -176,11 +179,13 @@ func (d *DB) ReviewResult(ctx context.Context, spec ReviewSpec) (string, error) 
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return "", err
 	}
-	rollback := func(e error) (string, error) { _ = tx.Rollback(); return "", e }
+	defer owned.close()
+	tx := owned.tx
+	rollback := func(e error) (string, error) { owned.close(); return "", e }
 	// The slot is derived from producer+event content, so a replay is only the
 	// same decision when the stored task and event match as well.
 	var previousDecision, eventHash, storedTask, storedEvent string
@@ -190,7 +195,7 @@ func (d *DB) ReviewResult(ctx context.Context, spec ReviewSpec) (string, error) 
 		if previousDecision != spec.Decision || eventHash != strings.ToLower(spec.EventHash) || eventRevision != spec.EventRevision || storedTask != spec.TaskID || storedEvent != spec.EventID {
 			return rollback(ErrConflict)
 		}
-		_ = tx.Rollback()
+		owned.close()
 		return previousDecision + "ed", nil
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
@@ -257,7 +262,7 @@ func (d *DB) ReviewResult(ctx context.Context, spec ReviewSpec) (string, error) 
 			}
 		}
 	}
-	if err = tx.Commit(); err != nil {
+	if err = owned.commit(); err != nil {
 		return "", err
 	}
 	return status, nil
@@ -313,11 +318,13 @@ func (d *DB) queueRetry(ctx context.Context, spec RetrySpec, configProof *retryC
 	spec.EventHash = strings.ToLower(spec.EventHash)
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return empty, err
 	}
-	rollback := func(e error) (RetryReceipt, error) { _ = tx.Rollback(); return empty, e }
+	defer owned.close()
+	tx := owned.tx
+	rollback := func(e error) (RetryReceipt, error) { owned.close(); return empty, e }
 	var revisionPayload string
 	var dependents []string
 	if err = tx.QueryRowContext(ctx, `SELECT revision_payload FROM retry_decisions WHERE action_slot=?`, spec.ActionSlot).Scan(&revisionPayload); err == nil && revisionPayload != "" {
@@ -341,7 +348,7 @@ func (d *DB) queueRetry(ctx context.Context, spec RetrySpec, configProof *retryC
 		if existing.TaskID != spec.TaskID || existing.WorkRevision != spec.WorkRevision || existing.EventID != spec.EventID || eventRevision != spec.EventRevision || eventHash != spec.EventHash || existing.SegmentID != spec.SegmentID || existing.NextAttemptNo != spec.NextAttemptNo || existing.UseNextFallback != spec.UseNextFallback {
 			return rollback(ErrConflict)
 		}
-		_ = tx.Rollback()
+		owned.close()
 		return existing, nil
 	}
 	if !errors.Is(existingErr, sql.ErrNoRows) {
@@ -497,7 +504,7 @@ func (d *DB) queueRetry(ctx context.Context, spec RetrySpec, configProof *retryC
 			return rollback(err)
 		}
 	}
-	if err = tx.Commit(); err != nil {
+	if err = owned.commit(); err != nil {
 		return empty, err
 	}
 	return RetryReceipt{Status: "retry_queued", TaskID: spec.TaskID, WorkRevision: spec.WorkRevision, EventID: spec.EventID, ActionSlot: spec.ActionSlot, SegmentID: spec.SegmentID, NextAttemptNo: spec.NextAttemptNo, UseNextFallback: spec.UseNextFallback}, nil

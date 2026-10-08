@@ -237,11 +237,13 @@ func (d *DB) StartAttempt(ctx context.Context, taskID, segmentID string) (Attemp
 	if taskID == "" || segmentID == "" {
 		return Attempt{}, CodeError("invalid_attempt")
 	}
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return Attempt{}, err
 	}
-	rollback := func(e error) (Attempt, error) { _ = tx.Rollback(); return Attempt{}, e }
+	defer owned.close()
+	tx := owned.tx
+	rollback := func(e error) (Attempt, error) { owned.close(); return Attempt{}, e }
 	var managed int
 	if err = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM task_runtime WHERE task_id=?`, taskID).Scan(&managed); err != nil {
 		return rollback(err)
@@ -299,7 +301,7 @@ func (d *DB) StartAttempt(ctx context.Context, taskID, segmentID string) (Attemp
 	if _, err = tx.ExecContext(ctx, `UPDATE tasks SET status='running' WHERE id=?`, taskID); err != nil {
 		return rollback(err)
 	}
-	if err = tx.Commit(); err != nil {
+	if err = owned.commit(); err != nil {
 		return Attempt{}, err
 	}
 	return Attempt{ID: id, TaskID: taskID, SegmentID: segmentID, AttemptNo: nextOrdinal, Status: "running"}, nil
@@ -307,11 +309,13 @@ func (d *DB) StartAttempt(ctx context.Context, taskID, segmentID string) (Attemp
 func (d *DB) StartSegment(ctx context.Context, attemptID, segmentID string) (Attempt, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return Attempt{}, err
 	}
-	rollback := func(e error) (Attempt, error) { _ = tx.Rollback(); return Attempt{}, e }
+	defer owned.close()
+	tx := owned.tx
+	rollback := func(e error) (Attempt, error) { owned.close(); return Attempt{}, e }
 	var taskID, status string
 	var attemptNo int
 	if err = tx.QueryRowContext(ctx, `SELECT task_id,status,attempt_no FROM attempts WHERE id=?`, attemptID).Scan(&taskID, &status, &attemptNo); err != nil {
@@ -334,7 +338,7 @@ func (d *DB) StartSegment(ctx context.Context, attemptID, segmentID string) (Att
 	if _, err = tx.ExecContext(ctx, `UPDATE attempts SET status='running' WHERE id=?`, attemptID); err != nil {
 		return rollback(err)
 	}
-	if err = tx.Commit(); err != nil {
+	if err = owned.commit(); err != nil {
 		return Attempt{}, err
 	}
 	return Attempt{ID: attemptID, TaskID: taskID, SegmentID: segmentID, AttemptNo: attemptNo, Status: "running"}, nil

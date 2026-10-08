@@ -104,12 +104,14 @@ func (d *DB) ReviseBudget(ctx context.Context, command BudgetRevisionCommand) (B
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return empty, mapBudgetRevisionConflict(err)
 	}
+	defer owned.close()
+	tx := owned.tx
 	rollback := func(e error) (BudgetRevisionReceipt, error) {
-		_ = tx.Rollback()
+		owned.close()
 		return empty, mapBudgetRevisionConflict(e)
 	}
 	var runID, controller, tokenHash, anchorGroup string
@@ -135,7 +137,7 @@ func (d *DB) ReviseBudget(ctx context.Context, command BudgetRevisionCommand) (B
 		if json.Unmarshal([]byte(savedReceipt), &receipt) != nil {
 			return rollback(ErrConflict)
 		}
-		_ = tx.Rollback()
+		owned.close()
 		return receipt, nil
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
@@ -174,7 +176,7 @@ func (d *DB) ReviseBudget(ctx context.Context, command BudgetRevisionCommand) (B
 	if _, err = tx.ExecContext(ctx, `INSERT INTO budget_revision_receipts(run_id,command_id,request_json,receipt_json,created_at) VALUES(?,?,?,?,?)`, runID, req.CommandID, requestJSON, receiptJSON, now); err != nil {
 		return rollback(mapConflict(err))
 	}
-	if err = tx.Commit(); err != nil {
+	if err = owned.commit(); err != nil {
 		return empty, mapBudgetRevisionConflict(err)
 	}
 	return receipt, nil

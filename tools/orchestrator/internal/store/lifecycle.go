@@ -159,11 +159,13 @@ func (d *DB) RetirableHosts(ctx context.Context) ([]string, error) {
 func (d *DB) RetireHost(ctx context.Context, hostID string) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return err
 	}
-	rollback := func(e error) error { _ = tx.Rollback(); return e }
+	defer owned.close()
+	tx := owned.tx
+	rollback := func(e error) error { owned.close(); return e }
 	result, err := tx.ExecContext(ctx, `UPDATE runtime_hosts AS h SET status='released',updated_at=? WHERE h.id=? AND `+retirableHostPredicate, time.Now().UTC().Format(time.RFC3339Nano), hostID)
 	if err != nil {
 		return rollback(err)
@@ -178,17 +180,19 @@ func (d *DB) RetireHost(ctx context.Context, hostID string) error {
 	if _, err = tx.ExecContext(ctx, `UPDATE host_launches SET status='released' WHERE host_id=?`, hostID); err != nil {
 		return rollback(err)
 	}
-	return tx.Commit()
+	return owned.commit()
 }
 
 func (d *DB) MarkStoppingUnknown(ctx context.Context) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return err
 	}
-	rollback := func(e error) error { _ = tx.Rollback(); return e }
+	defer owned.close()
+	tx := owned.tx
+	rollback := func(e error) error { owned.close(); return e }
 	if _, err = tx.ExecContext(ctx, `UPDATE segment_runtime SET status='unknown' WHERE status='stopping'`); err != nil {
 		return rollback(err)
 	}
@@ -201,7 +205,7 @@ func (d *DB) MarkStoppingUnknown(ctx context.Context) error {
 	if _, err = tx.ExecContext(ctx, `UPDATE stop_runtime SET status='unknown' WHERE status IN ('pending','accepted')`); err != nil {
 		return rollback(err)
 	}
-	return tx.Commit()
+	return owned.commit()
 }
 
 func (d *DB) RequestStop(ctx context.Context, taskID string, workRevision int, reason string) (StopDispatch, error) {
@@ -210,16 +214,18 @@ func (d *DB) RequestStop(ctx context.Context, taskID string, workRevision int, r
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return StopDispatch{}, err
 	}
-	rollback := func(e error) (StopDispatch, error) { _ = tx.Rollback(); return StopDispatch{}, e }
+	defer owned.close()
+	tx := owned.tx
+	rollback := func(e error) (StopDispatch, error) { owned.close(); return StopDispatch{}, e }
 	dispatch, err := requestStopTx(ctx, tx, taskID, workRevision, reason)
 	if err != nil {
 		return rollback(err)
 	}
-	return dispatch, tx.Commit()
+	return dispatch, owned.commit()
 }
 
 func requestStopTx(ctx context.Context, tx *sql.Tx, taskID string, workRevision int, reason string) (StopDispatch, error) {

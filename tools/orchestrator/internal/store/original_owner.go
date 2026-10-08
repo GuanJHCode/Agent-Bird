@@ -85,11 +85,12 @@ func (d *DB) CommitOriginalOwnerAttach(ctx context.Context, spec OriginalOwnerAt
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return contract.OwnerControlPermit{}, err
 	}
-	defer tx.Rollback()
+	defer owned.close()
+	tx := owned.tx
 	row, err := loadOriginalOwner(ctx, tx, spec.OwnerID)
 	if err != nil {
 		return contract.OwnerControlPermit{}, err
@@ -175,7 +176,7 @@ func (d *DB) CommitOriginalOwnerAttach(ctx context.Context, spec OriginalOwnerAt
 	if err = insertOriginalOwnerPermit(ctx, tx, i, p, body, hash, now); err != nil {
 		return contract.OwnerControlPermit{}, err
 	}
-	if err = tx.Commit(); err != nil {
+	if err = owned.commit(); err != nil {
 		return contract.OwnerControlPermit{}, err
 	}
 	return p, nil
@@ -184,11 +185,12 @@ func (d *DB) CommitOriginalOwnerAttach(ctx context.Context, spec OriginalOwnerAt
 func (d *DB) PrepareOriginalOwner(ctx context.Context, spec PrepareOriginalOwnerSpec) (contract.OriginalOwnerIntent, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return contract.OriginalOwnerIntent{}, err
 	}
-	defer tx.Rollback()
+	defer owned.close()
+	tx := owned.tx
 	scope, host, err := originalOwnerRuntimeScope(ctx, tx, spec.Host, spec.Epoch, true)
 	if err != nil {
 		return contract.OriginalOwnerIntent{}, err
@@ -246,7 +248,7 @@ func (d *DB) PrepareOriginalOwner(ctx context.Context, spec PrepareOriginalOwner
 	if err != nil {
 		return contract.OriginalOwnerIntent{}, mapConflict(err)
 	}
-	if err = tx.Commit(); err != nil {
+	if err = owned.commit(); err != nil {
 		return contract.OriginalOwnerIntent{}, err
 	}
 	return i, nil

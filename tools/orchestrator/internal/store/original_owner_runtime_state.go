@@ -17,11 +17,12 @@ const workerAncestrySQL = `SELECT pid,birth FROM runtime_hosts
 func (d *DB) FenceOriginalOwnerTransport(ctx context.Context, host contract.HostHello, epoch uint64) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer owned.close()
+	tx := owned.tx
 	result, err := tx.ExecContext(ctx, `UPDATE runtime_hosts SET status='reconciling' WHERE launch_id=? AND pid=? AND birth=? AND coordinator_epoch=? AND status IN ('ready','reconciling') AND EXISTS(SELECT 1 FROM host_launches l WHERE l.id=runtime_hosts.launch_id AND l.execution_owner_mode='supervised-v1' AND l.status IN ('ready','reconciling'))`, host.LaunchID, host.PID, host.Birth, epoch)
 	if err != nil {
 		return err
@@ -36,7 +37,7 @@ func (d *DB) FenceOriginalOwnerTransport(ctx context.Context, host contract.Host
 	if _, err = tx.ExecContext(ctx, `UPDATE host_launches SET status='reconciling' WHERE id=? AND status IN ('ready','reconciling')`, host.LaunchID); err != nil {
 		return err
 	}
-	return tx.Commit()
+	return owned.commit()
 }
 
 func (d *DB) ExecutionOwnerMode(ctx context.Context, launchID string) (string, error) {

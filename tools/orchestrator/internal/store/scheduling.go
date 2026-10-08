@@ -12,11 +12,13 @@ import (
 func (d *DB) ClaimReady(ctx context.Context, hostID string, epoch uint64, slots int) (contract.LaunchCommand, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return contract.LaunchCommand{}, err
 	}
-	rollback := func(e error) (contract.LaunchCommand, error) { _ = tx.Rollback(); return contract.LaunchCommand{}, e }
+	defer owned.close()
+	tx := owned.tx
+	rollback := func(e error) (contract.LaunchCommand, error) { owned.close(); return contract.LaunchCommand{}, e }
 	var launchID string
 	var registeredEpoch uint64
 	if err = tx.QueryRowContext(ctx, `SELECT h.launch_id,h.coordinator_epoch FROM runtime_hosts h JOIN host_launches l ON l.id=h.launch_id WHERE h.id=? AND h.status='ready' AND (l.execution_owner_mode='legacy' OR EXISTS(SELECT 1 FROM execution_owners e WHERE e.launch_id=l.id AND e.is_current=1 AND e.phase='bound' AND e.control_revision=e.applied_control_revision AND e.current_host_pid=h.pid AND e.current_host_birth=h.birth AND e.coordinator_epoch=h.coordinator_epoch))`, hostID).Scan(&launchID, &registeredEpoch); err != nil || registeredEpoch != epoch {
@@ -204,7 +206,7 @@ func (d *DB) ClaimReady(ctx context.Context, hostID string, epoch uint64, slots 
 		return rollback(err)
 	}
 
-	if err = tx.Commit(); err != nil {
+	if err = owned.commit(); err != nil {
 		return contract.LaunchCommand{}, err
 	}
 	return command, nil
@@ -224,11 +226,13 @@ func attemptChargedActiveMS(ctx context.Context, tx *sql.Tx, attemptID string) (
 func (d *DB) PendingLaunches(ctx context.Context, hostID string, epoch uint64) ([]contract.LaunchCommand, error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return nil, err
 	}
-	rollback := func(e error) ([]contract.LaunchCommand, error) { _ = tx.Rollback(); return nil, e }
+	defer owned.close()
+	tx := owned.tx
+	rollback := func(e error) ([]contract.LaunchCommand, error) { owned.close(); return nil, e }
 	var registered uint64
 	if err = tx.QueryRowContext(ctx, `SELECT h.coordinator_epoch FROM runtime_hosts h JOIN host_launches l ON l.id=h.launch_id WHERE h.id=? AND h.status='ready' AND (l.execution_owner_mode='legacy' OR EXISTS(SELECT 1 FROM execution_owners e WHERE e.launch_id=l.id AND e.is_current=1 AND e.phase='bound' AND e.control_revision=e.applied_control_revision AND e.current_host_pid=h.pid AND e.current_host_birth=h.birth AND e.coordinator_epoch=h.coordinator_epoch))`, hostID).Scan(&registered); err != nil || registered != epoch {
 		return rollback(ErrHostRejected)
@@ -282,7 +286,7 @@ func (d *DB) PendingLaunches(ctx context.Context, hostID string, epoch uint64) (
 			return rollback(err)
 		}
 	}
-	if err = tx.Commit(); err != nil {
+	if err = owned.commit(); err != nil {
 		return nil, err
 	}
 	return commands, nil

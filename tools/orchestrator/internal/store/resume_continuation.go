@@ -34,11 +34,13 @@ func (d *DB) QueueContinuation(ctx context.Context, s ResumeContinuationSpec) (C
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return ContinuationReceipt{}, err
 	}
-	fail := func(e error) (ContinuationReceipt, error) { _ = tx.Rollback(); return ContinuationReceipt{}, e }
+	defer owned.close()
+	tx := owned.tx
+	fail := func(e error) (ContinuationReceipt, error) { owned.close(); return ContinuationReceipt{}, e }
 	var r ContinuationReceipt
 	var command, event, hash, slot string
 	var rev int
@@ -49,7 +51,7 @@ func (d *DB) QueueContinuation(ctx context.Context, s ResumeContinuationSpec) (C
 			return fail(ErrConflict)
 		}
 		r.Version, r.Status = 1, "resume_queued"
-		_ = tx.Rollback()
+		owned.close()
 		return r, nil
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
@@ -115,7 +117,7 @@ func (d *DB) QueueContinuation(ctx context.Context, s ResumeContinuationSpec) (C
 		return fail(err)
 	}
 	r = ContinuationReceipt{Version: 1, Status: "resume_queued", DecisionID: "continuation-" + runtimeHash(e.EventID + "\x00" + e.ActionSlot)[:32], TaskID: s.TaskID, AttemptID: e.AttemptID, SourceSegmentID: e.SegmentID}
-	if err = tx.Commit(); err != nil {
+	if err = owned.commit(); err != nil {
 		return ContinuationReceipt{}, err
 	}
 	return r, nil

@@ -1,11 +1,11 @@
 package store
 
 import (
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
 )
 
 type ProviderState struct {
@@ -34,11 +34,12 @@ func (d *DB) ProviderControl(ctx context.Context, thread, provider, action strin
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return empty, err
 	}
-	defer tx.Rollback()
+	defer owned.close()
+	tx := owned.tx
 	before, err := providerStateTx(ctx, tx, thread, provider)
 	if err != nil {
 		return empty, err
@@ -98,7 +99,7 @@ func (d *DB) ProviderControl(ctx context.Context, thread, provider, action strin
 	if err != nil {
 		return empty, err
 	}
-	return result, tx.Commit()
+	return result, owned.commit()
 }
 func providerStateTx(ctx context.Context, tx *sql.Tx, thread, provider string) (ProviderState, error) {
 	state := ProviderState{Provider: provider, Enabled: true, Status: "enabled"}

@@ -62,11 +62,13 @@ func (d *DB) RebindOwner(ctx context.Context, spec RebindOwnerSpec) error {
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	tx, err := d.sql.BeginTx(ctx, nil)
+	owned, err := d.beginOwnerTransaction(ctx)
 	if err != nil {
 		return err
 	}
-	rollback := func(e error) error { _ = tx.Rollback(); return e }
+	defer owned.close()
+	tx := owned.tx
+	rollback := func(e error) error { owned.close(); return e }
 	var origin, oldGeneration string
 	if err = tx.QueryRowContext(ctx, `SELECT r.origin_context_id,h.host_generation FROM runs r JOIN tasks t ON t.run_id=r.id JOIN task_runtime tr ON tr.task_id=t.id JOIN host_launches h ON h.id=tr.host_launch_id WHERE r.id=? LIMIT 1`, spec.RunID).Scan(&origin, &oldGeneration); err != nil || origin != spec.OriginContextID {
 		return rollback(ErrConflict)
@@ -77,7 +79,7 @@ func (d *DB) RebindOwner(ctx context.Context, spec RebindOwnerSpec) error {
 		if proof != strings.ToLower(spec.AttachmentProofSHA256) {
 			return rollback(ErrConflict)
 		}
-		_ = tx.Rollback()
+		owned.close()
 		return nil
 	}
 	if !errors.Is(err, sql.ErrNoRows) || oldGeneration == spec.HostGeneration {
@@ -108,5 +110,5 @@ func (d *DB) RebindOwner(ctx context.Context, spec RebindOwnerSpec) error {
 	if _, err = tx.ExecContext(ctx, `UPDATE bridge_bindings SET status='STALE',hook_token_hash='' WHERE run_id=? AND status!='STALE'`, spec.RunID); err != nil {
 		return rollback(err)
 	}
-	return tx.Commit()
+	return owned.commit()
 }
