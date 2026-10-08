@@ -1,0 +1,15 @@
+{
+  "argv": [
+    "/usr/bin/vmmap",
+    "-summary",
+    "24571"
+  ],
+  "cpu_seconds": 1.415895,
+  "finished_unix_ns": 1791452136614636000,
+  "forced": false,
+  "max_rss_bytes": 43237376,
+  "original_wait": 0,
+  "pid": 24613,
+  "scope": "excluded external diagnostic observer, not product helper",
+  "started_unix_ns": 1791452134121951000
+}

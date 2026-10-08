@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "/usr/bin/vm_stat"
+  ],
+  "cpu_seconds": 0.003818,
+  "finished_unix_ns": 1791452174024684000,
+  "forced": false,
+  "max_rss_bytes": 1228800,
+  "original_wait": 0,
+  "pid": 24928,
+  "scope": "excluded external diagnostic observer, not product helper",
+  "started_unix_ns": 1791452174001788000
+}

@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "collect",
+    "--state-dir",
+    "/private/tmp/resource-memory-3d296e3fa24e/state",
+    "--task-id",
+    "worker-b",
+    "--control-file",
+    "/private/tmp/resource-memory-3d296e3fa24e/state/control/run-58a6ceab5962a93d538eba486768896e2421.json"
+  ],
+  "original_wait": 0
+}
