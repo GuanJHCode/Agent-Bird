@@ -14,10 +14,10 @@ scope change, worker ancestry, and public collect/accept retirement.
 
 Executed with Go pinned at `tasks/g0-macos/data/go/bin/go` and `TMPDIR=/private/tmp`:
 
-- Ordinary: 1 test, 0 failures, exit 0; source SHA-256
+- Ordinary: 1 test, 0 failures, exit 0; test binary SHA-256
   `bcfede82321b2183e6f13ad5e55331ae05523f7f1838a5d04d269a456f475b74`.
   Full raw output: `data/public-bound-abandonment-ordinary.log`.
-- Race: 1 test, 0 failures, exit 0; source SHA-256
+- Race: 1 test, 0 failures, exit 0; test binary SHA-256
   `ea92cff5a0217939c7fac7c29b50ccea4c9879e766f7c59dadd343a57783698c`.
   Full raw output: `data/public-bound-abandonment-race.log`.
 
@@ -25,3 +25,5 @@ The test retains the established 13-second original-`Cmd.Wait` observation
 window. `GORACE` only adds `atexit_sleep_ms=0` for the race run, preserving
 race instrumentation while avoiding detector exit sleeps in the real-child
 fixture.
+
+Final test source SHA-256: `0ea0194f6e3c03ebcaba157a3bcd48bb7f8afa8f6038651faf3332b8363a3222`. ROOT independently reran the old public deadBoth branch: one PASS, zero failures/skips (`data/root-old-public-receipt.json`). Linux new public inc3 test: one PASS, zero failures/skips, original Wait records and exact container cleanup in `tasks/owner-completion-retirement/data/linux/bound-abandonment-public-cli-receipt.json`.

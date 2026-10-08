@@ -1,0 +1,22 @@
+=== RUN   TestPublicOwnerSuccessionBoundNeverAppliedResumesAtInc3
+    public_owner_succession_native_test.go:398: controlled CLI/worker binary sha256=8cc99dffa8060a0caf405ca5cb5854a6ba04d1031230c4e8bce9657c0c37d3fd
+    public_owner_succession_native_test.go:503: owned Coordinator ready after 285.703708ms
+    public_owner_succession_native_test.go:562: actual worker original Exited: segment=segment-d83c967b4b293c2ec6c0be3c process=&{PID:47 Birth:linux:f13d1038-49af-44c7-ae85-7c53c8e7df98:475 PGID:47} exit=-15
+    public_owner_succession_native_test.go:583: old Owner original Wait={Kind:owner PID:37 ExitCode:0 WaitError:}; old FirstHost original Wait={Kind:first_host PID:30 ExitCode:0 WaitError:}
+    public_owner_succession_native_test.go:666: bound-never-Applied inc2 Owner original Wait={Kind:owner PID:115 ExitCode:0 WaitError:}; FirstHost original Wait={Kind:first_host PID:107 ExitCode:0 WaitError:}
+    public_owner_succession_native_test.go:680: bound-never-Applied inc2->inc3 preserved ready sequence=2
+    public_owner_succession_native_test.go:746: actual worker original Exited: segment=segment-f9bdf9e695fd445baf3aba8b process=&{PID:150 Birth:linux:f13d1038-49af-44c7-ae85-7c53c8e7df98:553 PGID:150} exit=0
+    public_owner_succession_native_test.go:781: successor Owner original Wait={Kind:owner PID:137 ExitCode:0 WaitError:}; successor FirstHost original Wait={Kind:first_host PID:129 ExitCode:0 WaitError:}
+    public_owner_succession_native_test.go:782: public stable Resume/collect/accept completed inc3 same attempt=attempt-09b17772ab18e5640c262be1 new segment=segment-f9bdf9e695fd445baf3aba8b; retained charge=206 grant=30000 next grant=29794
+    public_owner_succession_native_test.go:447: Coordinator original Cmd PID=13 Wait=<nil> state=exit status 0
+    public_owner_succession_native_test.go:477: original Cmd Wait record first_host-30.json: {"kind":"first_host","pid":30,"exit_code":0,"wait_error":""}
+    public_owner_succession_native_test.go:477: original Cmd Wait record owner-37.json: {"kind":"owner","pid":37,"exit_code":0,"wait_error":""}
+    public_owner_succession_native_test.go:477: original Cmd Wait record first_host-129.json: {"kind":"first_host","pid":129,"exit_code":0,"wait_error":""}
+    public_owner_succession_native_test.go:477: original Cmd Wait record owner-137.json: {"kind":"owner","pid":137,"exit_code":0,"wait_error":""}
+    public_owner_succession_native_test.go:477: original Cmd Wait record owner-37.json: {"kind":"owner","pid":37,"exit_code":0,"wait_error":""}
+    public_owner_succession_native_test.go:477: original Cmd Wait record owner-115.json: {"kind":"owner","pid":115,"exit_code":0,"wait_error":""}
+    public_owner_succession_native_test.go:477: original Cmd Wait record first_host-129.json: {"kind":"first_host","pid":129,"exit_code":0,"wait_error":""}
+    public_owner_succession_native_test.go:477: original Cmd Wait record owner-137.json: {"kind":"owner","pid":137,"exit_code":0,"wait_error":""}
+    public_owner_succession_native_test.go:490: raw source-host.log:
+--- PASS: TestPublicOwnerSuccessionBoundNeverAppliedResumesAtInc3 (1.70s)
+PASS
