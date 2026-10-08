@@ -109,3 +109,14 @@ func initialOwnerRunFence(ctx context.Context, tx *sql.Tx, task string) error {
 	}
 	return nil
 }
+
+func initialOwnerCommandReserved(ctx context.Context, tx *sql.Tx, command string) error {
+	var count int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM owner_initial_recoveries WHERE command_id=?`, command).Scan(&count); err != nil {
+		return err
+	}
+	if count != 0 {
+		return ErrConflict
+	}
+	return nil
+}

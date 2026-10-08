@@ -320,3 +320,67 @@ func TestInitialOwnerRecoveryRejectsReplacedDatabaseAndPoolRecreation(t *testing
 		t.Fatal("new database created", err)
 	}
 }
+
+func TestInitialOwnerRecoveryReservesCommandAcrossRunsAndModes(t *testing.T) {
+	for _, mode := range []string{"successor", "existing_owner"} {
+		t.Run(mode, func(t *testing.T) {
+			f, req, obs, facts := initialOwnerStoreFixture(t)
+			ctx := context.Background()
+			pub := f.key.Public().(ed25519.PublicKey)
+			if _, err := f.db.PrepareInitialOwnerRecovery(ctx, req, obs, facts, pub); err != nil {
+				t.Fatal(err)
+			}
+			plan := providerTestPlan("other-run", "other-controller", "grok-build")
+			plan.Host.ExecutionOwnerMode = "supervised-v1"
+			submitted, err := f.db.SubmitPlan(ctx, plan)
+			if err != nil {
+				t.Fatal(err)
+			}
+			other := f
+			other.prepare.Host = contract.HostHello{LaunchID: submitted.LaunchID, LaunchToken: submitted.LaunchToken, OriginContextID: plan.Run.OriginContextID, OriginPID: plan.Run.OriginPID, OriginBirth: plan.Run.OriginBirth, HostGeneration: plan.Host.HostGeneration, PID: 707, Birth: "other-host", Executable: plan.Host.Executable}
+			other.prepare.RequestID = "other-prepare"
+			other.prepare.BootstrapID = "other-bootstrap"
+			if _, err = f.db.RegisterHost(ctx, other.prepare.Host, 1); err != nil {
+				t.Fatal(err)
+			}
+			i, err := f.db.PrepareOriginalOwner(ctx, other.prepare)
+			if err != nil {
+				t.Fatal(err)
+			}
+			b, err := f.db.BindOriginalOwner(ctx, other.bindSpec(i), f.key)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err = f.db.CommitOriginalOwnerApplied(ctx, appliedFixture(t, other, b), pub); err != nil {
+				t.Fatal(err)
+			}
+			if _, err = f.db.sql.Exec(`UPDATE tasks SET status='interrupted' WHERE run_id='other-run'`); err != nil {
+				t.Fatal(err)
+			}
+			otherReq := OriginalOwnerResumeRequest{TaskID: plan.Tasks[0].ID, ControllerThread: plan.Run.ControllerThread, ControlToken: submitted.ControlToken, WorkRevision: 1, CommandID: req.CommandID}
+			otherObs := obs
+			otherObs.OwnerID = i.Scope.OwnerID
+			otherObs.Host = i.FirstHost
+			otherObs.Owner = contract.OriginalOwnerTransport{PID: b.Binding.Owner.PID, Birth: b.Binding.Owner.Birth}
+			otherObs.Origin = RunOwnerBinding{OriginContextID: i.Scope.OriginalOriginContextID, OriginPID: i.Scope.OriginalOriginPID, OriginBirth: i.Scope.OriginalOriginBirth}
+			operation := func() error {
+				if mode == "successor" {
+					_, e := f.db.ResumeOriginalOwner(ctx, otherReq, otherObs, pub)
+					return e
+				}
+				_, e := f.db.ResumeExistingOriginalOwner(ctx, otherReq, OriginalOwnerLiveObservation{OwnerID: otherObs.OwnerID, Owner: otherObs.Owner, Origin: otherObs.Origin, Epoch: otherObs.Epoch, ExecutableSHA256: otherObs.ExecutableSHA256, OwnerAliveAt: otherObs.OwnerExitedAt}, pub)
+				return e
+			}
+			if err = operation(); err != ErrConflict {
+				t.Fatal("reserved command stolen", mode, err)
+			}
+			otherReq.CommandID = "unrelated-command"
+			if err = operation(); err != nil {
+				t.Fatal("unrelated recovery over-fenced", mode, err)
+			}
+			if _, err = f.db.FinalizeInitialOwnerRecovery(ctx, req, obs, facts, pub); err != nil {
+				t.Fatal("original prepared command lost", mode, err)
+			}
+		})
+	}
+}

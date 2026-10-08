@@ -75,6 +75,9 @@ func resolveBoundOwnerAbandonmentTx(ctx context.Context, tx *sql.Tx, req Origina
 		return r, err
 	}
 
+	if err := initialOwnerCommandReserved(ctx, tx, req.CommandID); err != nil {
+		return r, err
+	}
 	if len(key) != ed25519.PublicKeySize || obs.Owner.Validate() != nil || obs.Host.Validate() != nil || !successionObservationTime(obs.OwnerExitedAt) || !successionObservationTime(obs.HostExitedAt) {
 		return reject()
 	}

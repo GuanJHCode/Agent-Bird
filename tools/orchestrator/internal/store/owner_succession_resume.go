@@ -147,6 +147,9 @@ func (d *DB) resumeOriginalOwner(ctx context.Context, request OriginalOwnerResum
 	if !errors.Is(err, ErrNotFound) {
 		return zero, err
 	}
+	if err = initialOwnerCommandReserved(ctx, tx, request.CommandID); err != nil {
+		return zero, err
+	}
 	if len(key) != ed25519.PublicKeySize || observed.OwnerID == "" || observed.Owner.Validate() != nil || observed.Host.Validate() != nil || !successionObservationTime(observed.OwnerExitedAt) || !successionObservationTime(observed.HostExitedAt) {
 		return zero, originalOwnerRejected()
 	}

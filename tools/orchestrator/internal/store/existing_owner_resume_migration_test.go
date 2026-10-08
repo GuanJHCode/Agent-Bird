@@ -11,6 +11,9 @@ import (
 
 // Test-only historical snapshot preparation. Never erase an accepted command.
 func removeExistingOwnerResumeSchema26(db *DB) error {
+	if err := removeInitialOwnerRecoverySchema29(db); err != nil {
+		return err
+	}
 	var version, count int
 	if err := db.sql.QueryRow(`SELECT version FROM schema_meta`).Scan(&version); err != nil {
 		return err

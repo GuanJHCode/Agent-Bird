@@ -65,6 +65,20 @@ func migrateInitialOwnerRecoverySchema(tx *sql.Tx) error {
 	if err != nil {
 		return err
 	}
+	_, err = tx.Exec(`CREATE TRIGGER owner_initial_command_reserve BEFORE INSERT ON owner_initial_recoveries
+ WHEN EXISTS(SELECT 1 FROM existing_owner_resume_commands WHERE command_id=NEW.command_id)
+ OR EXISTS(SELECT 1 FROM owner_succession_authorizations WHERE command_id=NEW.command_id)
+ BEGIN SELECT RAISE(ABORT,'owner_resume_command_reserved'); END;
+ CREATE TRIGGER owner_initial_command_existing BEFORE INSERT ON existing_owner_resume_commands
+ WHEN EXISTS(SELECT 1 FROM owner_initial_recoveries WHERE command_id=NEW.command_id)
+ BEGIN SELECT RAISE(ABORT,'owner_resume_command_reserved'); END;
+ CREATE TRIGGER owner_initial_command_succession BEFORE INSERT ON owner_succession_authorizations
+ WHEN EXISTS(SELECT 1 FROM owner_initial_recoveries p WHERE p.command_id=NEW.command_id
+ AND (NEW.authorization_id IS NOT p.authorization_id OR NEW.initial_proof_id IS NOT p.owner_id OR NEW.predecessor_owner_id IS NOT p.owner_id))
+ BEGIN SELECT RAISE(ABORT,'owner_resume_command_reserved'); END;`)
+	if err != nil {
+		return err
+	}
 	// Freeze every authorization field except its final Coordinator epoch.
 	// The integer epoch has fixed quota cost and may advance after a restart.
 	match := ""
@@ -97,13 +111,7 @@ func migrateInitialOwnerRecoverySchema(tx *sql.Tx) error {
 		return err
 	}
 	// Upgrade exact known schema28 predicates; unexpected schemas fail closed.
-	changes := []struct{ name, old, replacement string }{
-		{"owner_succession_authorizations_predecessor", "t.status='resume_queued'", `((NEW.initial_proof_id IS NULL AND t.status='resume_queued') OR (NEW.initial_proof_id IS NOT NULL AND t.status='ready' AND EXISTS(SELECT 1 FROM owner_initial_recoveries z WHERE z.owner_id=NEW.initial_proof_id AND z.run_id=NEW.run_id AND z.task_id=NEW.task_id AND z.launch_id=NEW.launch_id AND ((z.phase='prepared' AND p.owner_id=z.owner_id AND NEW.authorization_id=z.authorization_id AND NEW.command_id=z.command_id AND NEW.request_hash=z.request_hash AND p.incarnation=1 AND p.applied_control_revision=0) OR (z.phase='finalized' AND p.succession_authorization_id IS NOT NULL AND EXISTS(SELECT 1 FROM owner_succession_authorizations inbound WHERE inbound.authorization_id=p.succession_authorization_id AND inbound.initial_proof_id=z.owner_id))))))`},
-		{"owner_recovery_handoff_current", "(a.abandoned_owner_id IS NULL AND p.applied_control_revision=p.control_revision)", "(a.abandoned_owner_id IS NULL AND a.initial_proof_id IS NULL AND p.applied_control_revision=p.control_revision) OR " + initialPredecessorSQL},
-		{"owner_recovery_handoff_current", "d.inbound_authorization_id=p.succession_authorization_id", "d.inbound_authorization_id=p.succession_authorization_id AND a.initial_proof_id IS (SELECT inbound.initial_proof_id FROM owner_succession_authorizations inbound WHERE inbound.authorization_id=d.inbound_authorization_id)"},
-		{"owner_bound_abandonment_current", "t.status='resume_queued'", `((a.initial_proof_id IS NULL AND t.status='resume_queued') OR (a.initial_proof_id IS NOT NULL AND t.status='ready' AND EXISTS(SELECT 1 FROM owner_initial_recoveries z WHERE z.owner_id=a.initial_proof_id AND z.phase='finalized' AND z.run_id=a.run_id AND z.task_id=a.task_id AND z.launch_id=a.launch_id)))`},
-		{"owner_bound_abandonment_authorization", "d.task_id=NEW.task_id", "NEW.initial_proof_id IS (SELECT inbound.initial_proof_id FROM owner_succession_authorizations inbound WHERE inbound.authorization_id=d.inbound_authorization_id) AND d.task_id=NEW.task_id"},
-	}
+	changes := initialOwnerTriggerChanges()
 	for _, c := range changes {
 		var body string
 		if err = tx.QueryRow(`SELECT sql FROM sqlite_master WHERE type='trigger' AND name=?`, c.name).Scan(&body); err != nil {
@@ -160,4 +168,14 @@ func migrateInitialOwnerRecoverySchema(tx *sql.Tx) error {
 		return CodeError("owner_initial_recovery_foreign_key_check_failed")
 	}
 	return nil
+}
+
+func initialOwnerTriggerChanges() []struct{ name, old, replacement string } {
+	return []struct{ name, old, replacement string }{
+		{"owner_succession_authorizations_predecessor", "t.status='resume_queued'", `((NEW.initial_proof_id IS NULL AND t.status='resume_queued') OR (NEW.initial_proof_id IS NOT NULL AND t.status='ready' AND EXISTS(SELECT 1 FROM owner_initial_recoveries z WHERE z.owner_id=NEW.initial_proof_id AND z.run_id=NEW.run_id AND z.task_id=NEW.task_id AND z.launch_id=NEW.launch_id AND ((z.phase='prepared' AND p.owner_id=z.owner_id AND NEW.authorization_id=z.authorization_id AND NEW.command_id=z.command_id AND NEW.request_hash=z.request_hash AND p.incarnation=1 AND p.applied_control_revision=0) OR (z.phase='finalized' AND p.succession_authorization_id IS NOT NULL AND EXISTS(SELECT 1 FROM owner_succession_authorizations inbound WHERE inbound.authorization_id=p.succession_authorization_id AND inbound.initial_proof_id=z.owner_id))))))`},
+		{"owner_recovery_handoff_current", "(a.abandoned_owner_id IS NULL AND p.applied_control_revision=p.control_revision)", "(a.abandoned_owner_id IS NULL AND a.initial_proof_id IS NULL AND p.applied_control_revision=p.control_revision) OR " + initialPredecessorSQL},
+		{"owner_recovery_handoff_current", "d.inbound_authorization_id=p.succession_authorization_id", "d.inbound_authorization_id=p.succession_authorization_id AND a.initial_proof_id IS (SELECT inbound.initial_proof_id FROM owner_succession_authorizations inbound WHERE inbound.authorization_id=d.inbound_authorization_id)"},
+		{"owner_bound_abandonment_current", "t.status='resume_queued'", `((a.initial_proof_id IS NULL AND t.status='resume_queued') OR (a.initial_proof_id IS NOT NULL AND t.status='ready' AND EXISTS(SELECT 1 FROM owner_initial_recoveries z WHERE z.owner_id=a.initial_proof_id AND z.phase='finalized' AND z.run_id=a.run_id AND z.task_id=a.task_id AND z.launch_id=a.launch_id)))`},
+		{"owner_bound_abandonment_authorization", "d.task_id=NEW.task_id", "NEW.initial_proof_id IS (SELECT inbound.initial_proof_id FROM owner_succession_authorizations inbound WHERE inbound.authorization_id=d.inbound_authorization_id) AND d.task_id=NEW.task_id"},
+	}
 }
