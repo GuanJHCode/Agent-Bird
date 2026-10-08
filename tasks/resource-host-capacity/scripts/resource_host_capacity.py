@@ -295,12 +295,12 @@ def complete(ctx, db):
         event = events[0]
         idle.public_call(ctx, 'accept', *common, '--work-revision', '1', '--event-id', event['event_id'],
             '--event-revision', str(event['event_revision']), '--event-hash', event['payload_hash'],
-            '--action-slot', event['action_slot'], '--decision', 'accept', '--command-id', 'capacity-accept')
+            '--action-slot', event['action_slot'], '--decision', 'accept', '--command-id', 'capacity-accept-' + item['task_id'])
         request = item['work'] / 'delivery-ack.json'
         soak.atomic(request, {'version': 1, 'task_id': item['task_id'], 'control_file': item['reply']['control_file'],
             'delivery_id': collection['delivery_id'], 'collection_proof_sha256': collection['collection_proof_sha256'],
             'decisions': [{'event_id': event['event_id'], 'event_revision': event['event_revision'],
-                'event_hash': event['payload_hash'], 'action_slot': event['action_slot'], 'decision': 'handled', 'command_id': 'capacity-ack'}]})
+                'event_hash': event['payload_hash'], 'action_slot': event['action_slot'], 'decision': 'handled', 'command_id': 'capacity-ack-' + item['task_id']}]})
         reply = idle.public_call(ctx, 'ack', '--state-dir', str(ctx['state']), '--request', str(request))
         if reply.get('status') != 'acknowledged':
             raise Failure('completion delivery not acknowledged')
