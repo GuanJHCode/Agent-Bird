@@ -1,0 +1,7 @@
+{
+  "failed_batch": "root-coordinator-final-race.jsonl",
+  "reason": "5m total test timeout, no assertion failure before timeout",
+  "observed_at": "2026-10-08T08:15:45.190645+08:00",
+  "observation_note": "After timeout and before fresh native batch, a filtered ps observed no remaining coordinator.test actors; interrupted children have no parent original Wait assertion. A fresh batch was started before this receipt write.",
+  "verification": "Prior filtered ps result was empty; see tool output. Do not interpret later fresh test actors as timed-out children."
+}

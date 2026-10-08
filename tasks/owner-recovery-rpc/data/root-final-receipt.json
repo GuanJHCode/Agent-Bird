@@ -1,0 +1,114 @@
+{
+  "checked_at": "2026-10-08T09:25:54.845648+08:00",
+  "head": "594ae2e84d8d4f38dbc0f9d45ce23f093cbe04a0",
+  "toolchain": "pinned Go1.26.8; macOS arm64; Linux arm64 offline Docker",
+  "source_sha256": {
+    "tools/orchestrator/internal/contract/owner_recovery_rpc.go": "3e6a5fdce2228d8a8cd8a3cecf4df2f49956fe7e641653e7875b23feab4ed57a",
+    "tools/orchestrator/internal/contract/owner_recovery_rpc_test.go": "804d06cc0095d38a69f7019acfbbc8565d7c76add3e627ad00f54467989fbb54",
+    "tools/orchestrator/internal/contract/owner_runtime_wire.go": "75d3138e2514231e71890fce3e78c3d3c69abca7c6ef0a750f75f6507c43387b",
+    "tools/orchestrator/internal/coordinator/owner_keys_test.go": "49a836ac3355e14d5ce4a2bc13943d4bbee49e19b0075c12e2aea8fee3221f37",
+    "tools/orchestrator/internal/coordinator/owner_recovery_rpc.go": "7a2b56582b8e2d52a9938af5307c65d858c93873d2022610102a2a3b2457d297",
+    "tools/orchestrator/internal/coordinator/owner_recovery_rpc_test.go": "15456214bb05daccc34207601a4026d8b286dea10070e4bc6755212300802a93",
+    "tools/orchestrator/internal/coordinator/owner_runtime.go": "d46152add914df2592fe72e08756e256706e01167a549e97858b137baeeb0bca",
+    "tools/orchestrator/internal/coordinator/owner_successor_startup_native_test.go": "03e982d189502f8494f5c9b529df169eb5c40a0cc83baa25722c04322966052a",
+    "tools/orchestrator/internal/coordinator/owner_transport_native_test.go": "f695ae2c67811835fea798ee1c383801b8ea77971e9362a4ff9e88a3c0f0c8bf",
+    "tools/orchestrator/internal/host/owner_execution.go": "117fd305c7c09be15fd906d7b7427645cbf977abec79dea8a98011413c7dc9ce",
+    "tools/orchestrator/internal/host/owner_recovery_rpc.go": "65c6b59ee9e9bbdce17ea7b6ed953281b64d0c04326ff88eb4adcd8df39f1376",
+    "tools/orchestrator/internal/host/owner_recovery_rpc_test.go": "888893ca62e9318d4928bb36c9d4142121d4a5af418fbdb8eccce2380c8f423b",
+    "tools/orchestrator/internal/host/owner_runtime_entry.go": "aef7383be6c50fee88ca52f51644b8a1f20441a3b0ec139c8336b58709736fcb",
+    "tools/orchestrator/internal/host/owner_runtime_rpc_deadline.go": "d3aa27aaeca8e7db01539e6fa66ad573a6a4e471cc38f085171ace60b1230be8",
+    "tools/orchestrator/internal/host/owner_runtime_rpc_deadline_test.go": "65091370ebe02c11bf747f30be5b9cdd1ace520957ed8928d6ba72bcfab00f46",
+    "tasks/owner-recovery-rpc/scripts/run-linux.py": "9b37dab5d40f4a3e109545900e47394d9bcca743be941edc4b5a6911e7a30cb6"
+  },
+  "checks": [
+    {
+      "file": "root-host-contract-race.jsonl",
+      "command_description": "TMPDIR=/private/tmp go test -race -count=1 -json -run ^Test(OwnerRecoveryRPC|OwnerExecutionRechecksRecoveryBeforeAppliedAndActivate|OwnerRuntimeControlRPC) ./internal/host ./internal/contract",
+      "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract",
+      "top": 1,
+      "named": {
+        "pass": 1
+      },
+      "elapsed": 1.625,
+      "sha256": "2183754d6e6b3bd250f0b46134d06a2e2cb32196352e9876d3baa64c3fff820f"
+    },
+    {
+      "file": "root-host-contract-race.jsonl",
+      "command_description": "TMPDIR=/private/tmp go test -race -count=1 -json -run ^Test(OwnerRecoveryRPC|OwnerExecutionRechecksRecoveryBeforeAppliedAndActivate|OwnerRuntimeControlRPC) ./internal/host ./internal/contract",
+      "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+      "top": 10,
+      "named": {
+        "pass": 37
+      },
+      "elapsed": 6.625,
+      "sha256": "2183754d6e6b3bd250f0b46134d06a2e2cb32196352e9876d3baa64c3fff820f"
+    },
+    {
+      "file": "root-host-runtime-race.jsonl",
+      "command_description": "TMPDIR=/private/tmp go test -race -count=1 -timeout=5m -json -run ^Test(OwnerRuntime|OwnerExecution|OwnerNativeTerminal|RunOriginalOwner|InitialTransportPinsSelf) ./internal/host",
+      "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+      "top": 38,
+      "named": {
+        "pass": 107
+      },
+      "elapsed": 70.506,
+      "sha256": "3b17881e3c139929826ce2c54521c954fadf9f97ca3a2012d376e1281835796d"
+    },
+    {
+      "file": "root-coordinator-handoff-race.jsonl",
+      "command_description": "TMPDIR=/private/tmp go test -race -count=1 -timeout=10m -json -run ^Test(OwnerRecoveryRPCNative|OriginalOwnerSuccessorStartupNative) ./internal/coordinator",
+      "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator",
+      "top": 9,
+      "named": {
+        "pass": 30,
+        "skip": 1
+      },
+      "elapsed": 99.424,
+      "sha256": "3d1d4a18b6211b1992c479d64723cd919d6e99fb25a9105b0a91c18a04df04bd"
+    },
+    {
+      "file": "root-coordinator-admission-fault-race.jsonl",
+      "command_description": "TMPDIR=/private/tmp go test -race -count=1 -timeout=15m -json -run admission+NativeReplacement+NativeOwnerStopTriggersCleanUpStubbornWorker ./internal/coordinator",
+      "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator",
+      "top": 28,
+      "named": {
+        "pass": 56
+      },
+      "elapsed": 587.522,
+      "sha256": "e29e94b0327498e9374178cf9e5aca4e171acb8b7e76566ff35451d109fe7947"
+    },
+    {
+      "file": "root-native-final-matrix.jsonl",
+      "command_description": "TMPDIR=/private/tmp go test -count=1 -json -run ^Test(OwnerRecoveryRPCNative|OriginalOwnerNativeTransportTicketAttachAndReplay) ./internal/coordinator",
+      "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator",
+      "top": 7,
+      "named": {
+        "pass": 34
+      },
+      "elapsed": 17.69,
+      "sha256": "3cff2d126f07360f333fb385253f8d51504b79cd1ed2b4f4810c96a1bf0ece19"
+    }
+  ],
+  "linux": [
+    "data/linux/host-unit-receipt.json",
+    "data/linux/coordinator-receipt.json"
+  ],
+  "failed_batch": {
+    "file": "root-coordinator-final-race.jsonl",
+    "package_exit": 1,
+    "reason": "5m aggregate timeout; retained. Final acceptance uses two completed uncached batches above."
+  },
+  "review": "production server/Host/deadline/epoch fix and final test deltas independently reviewed PASS",
+  "limitations": [
+    "Native fixture predecessor is trusted Store data, not public CLI actualdeadBoth proof.",
+    "Bound-never-Applied abandonment, initial Bind before ledger, preBind lost original handle, pending origin rebind remain separate.",
+    "No Provider/model/account, user installation, Intel Mac or Windows qualification."
+  ],
+  "exact_selectors": {
+    "host": "^Test(OwnerRecoveryRPC|OwnerExecutionRechecksRecoveryBeforeAppliedAndActivate|OwnerRuntimeControlRPC)",
+    "host_runtime": "^Test(OwnerRuntime|OwnerExecution|OwnerNativeTerminal|RunOriginalOwner|InitialTransportPinsSelf)",
+    "coordinator_handoff": "^Test(OwnerRecoveryRPCNative|OriginalOwnerSuccessorStartupNative)",
+    "coordinator_admission_faults": "^Test(SuccessorTransport|SuccessorPresence|OriginalOwnerResume|OriginalOwnerNativeTransportTicketAttachAndReplay|OriginalOwnerNativeSameTupleRecovery|OriginalOwnerNativeRPCActivationAndLostACK|OriginalOwnerSupervisedHostDoesNotExposeLegacyReady|OriginalOwnerInvalidPrepareDoesNotWriteCredential|OriginalOwnerRejectedReplacementLeavesDurableStateUntouched|WorkerPeerCannotUseMainAgentControlKinds|UnidentifiedLaunchDefersUnboundPeerDispatchControls|NativeReplacement|NativeOwnerStopTriggersCleanUpStubbornWorker)",
+    "coordinator_linux": "^Test(SuccessorTransport|SuccessorPresence|OriginalOwnerResume|OriginalOwnerNativeTransportTicketAttachAndReplay|OriginalOwnerNativeSameTupleRecovery|OriginalOwnerNativeRPCActivationAndLostACK|OriginalOwnerSupervisedHostDoesNotExposeLegacyReady|OriginalOwnerInvalidPrepareDoesNotWriteCredential|OriginalOwnerRejectedReplacementLeavesDurableStateUntouched|WorkerPeerCannotUseMainAgentControlKinds|UnidentifiedLaunchDefersUnboundPeerDispatchControls|OwnerRecoveryRPCNative|OriginalOwnerSuccessorStartupNative)"
+  }
+}
