@@ -26,7 +26,7 @@ Run Host 按来源工作流启动和复用，绑定 `origin_context_id/host_gene
 
 来源 submit 在创建 Host 前先经协调器事务预占 `host_launch_id/host_slot`，创建使用已登记的启动意图及屏障，存活身份确认后才返回成功。启动中/Host身份UNKNOWN都占上限，确认退出或证明从未启动才释放；并发submit不能先spawn后计数。来源submit崩溃则对该意图查证，协调器不能借自己的环境补开Host。
 
-显式 `Resume` 对 supervised Owner 的恢复要求稳定 `CommandID`、当前控制能力、精确 task/revision、剩余预算和已确认退出的旧执行树。普通继任仍要求原 Owner 已完成 Applied。特例仅允许已有入站继任授权的 current bound Owner：从未有任何 control Applied、当前 Owner 与 Host 的精确 PID/birth 均为 typed `IdentityExited`，来源仍存活且固定 executable/配置与原预留匹配。
+显式 `Resume` 对 supervised Owner 的恢复要求稳定 `CommandID`、当前控制能力、精确 task/revision、剩余预算和已确认退出的旧执行树。普通继任仍要求原 Owner 已完成 Applied。特例仅允许已有入站继任授权的 current bound Owner：从未有任何 control Applied、当前 Owner 与 Host 的精确 PID/birth 均为 typed `IdentityExited`，来源仍存活，固定 executable 与原预留匹配。
 
 该特例先在同一事务写不可变死亡证明与完整计费的相邻 scope handoff intent，随后在 existing-only 文件锁内完成 scope-only CAS、DB Applied 标记，最后原子提交下一代授权、退休旧 Owner 和 Host offline fence。完整文件摘要、原 authority、pending/不确定 start 门禁保留；不能跳过中间 incarnation。恢复复用入站授权的原 ready sequence、attempt 和预算，重放保留首次死亡观察时间，同时重新核验当前权限与进程状态。typed 退出不是原 `Cmd.Wait` 回执，不能用它清理未确认的后代或 OwnerPending；初代 Bind-before-ledger、pre-Bind 丢失原 handle 和 pending 授权后的 origin rebind 仍不在本特例范围内。
 
