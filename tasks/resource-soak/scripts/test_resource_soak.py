@@ -59,9 +59,30 @@ class ResourceAcceptanceGuards(unittest.TestCase):
             with self.assertRaisesRegex(soak.Failure, 'pending tail'):
                 soak.validate_pending_tail(ctx, db, stats, {}, time.time_ns()-1, 3540, 10)
             ctx['tail_baseline'] = {}
+            ctx['identities'] = {'owner': {'pid': 999, 'birth': 'owner', 'argv': '/fixture owner', 'role': 'owner'}}
+            stats[0]['status'] = 'running'
+            with self.assertRaisesRegex(soak.Failure, 'before complete durable'):
+                soak.validate_pending_tail(ctx, db, stats, {}, time.time_ns()-1, 3540, 10)
+            ctx['identities'] = {}
             stats[0]['status'] = 'stopped'
             with self.assertRaisesRegex(soak.Failure, 'completion'):
                 soak.validate_pending_tail(ctx, db, stats, {}, time.time_ns()-6_000_000_000, 3540, 10)
+
+    def test_frozen_worker_emissions_use_3540_seconds(self):
+        with tempfile.TemporaryDirectory(prefix='resource-emissions-', dir='/private/tmp') as tmp:
+            root = pathlib.Path(tmp)
+            stats_paths, receipt_paths = [], []
+            for task in soak.TASKS:
+                stats_path, receipt_path = root / (task+'.stats'), root / (task+'.receipts')
+                stats_path.write_text(json.dumps({'status':'completed', 'reports':354, 'phases':[
+                    {'seconds':1200,'giants':40,'stdout_bytes':796917760,'stderr_bytes':629145600},
+                    {'seconds':1200,'giants':40,'stdout_bytes':796917760,'stderr_bytes':629145600},
+                    {'seconds':1140,'giants':0,'stdout_bytes':0,'stderr_bytes':0}]}))
+                receipt_path.write_text(''.join(json.dumps({'original_wait':0,'ack':{'status':'durable','acked_through':n}})+'\n' for n in range(1,355)))
+                stats_paths.append(stats_path)
+                receipt_paths.append(receipt_path)
+            result = soak.verify_emissions({'out':root},stats_paths,receipt_paths,3540,1200,1048576,30,10)
+            self.assertEqual([s['reports'] for s in result],[354,354])
 
     def test_late_helper_maximum_recharges_early_product_peak(self):
         with tempfile.TemporaryDirectory(prefix='resource-soak-rss-', dir='/private/tmp') as tmp:

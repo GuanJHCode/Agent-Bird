@@ -258,9 +258,9 @@ def validate_pending_tail(ctx, db, stats, rows, worker_deadline_ns, worker_durat
                 raise Failure('Coordinator identity changed during tail')
         elif identity['role'] in ('owner', 'host'):
             gone = identity_reaped(identity, rows)
-            # All exact completion events may arrive between two samples. Do
-            # not infer an early death merely from a pending DB observation;
-            # the five-second transition must close the complete proof.
+            # Only a complete exact durable proof permits actor retirement.
+            if completed_at is None and gone:
+                raise Failure('Owner/Host retired before complete durable worker proof')
             if completed_at is not None and not gone and time.time() > completed_at + THRESHOLDS['owner_retirement_seconds']:
                 raise Failure('Owner/Host did not naturally retire after completion')
 
@@ -421,10 +421,10 @@ def verify_emissions(ctx, stats_paths, receipt_paths, worker_duration, phase_sec
         if stats['status'] != 'completed':
             raise Failure('worker did not finish full logical duration')
         receipts = [json.loads(line) for line in receipt_path.read_text().splitlines()]
-        if len(receipts) != duration // report_every or stats['reports'] != len(receipts):
+        if len(receipts) != worker_duration // report_every or stats['reports'] != len(receipts):
             raise Failure('missing independent durable report ACKs')
         for phase, p in enumerate(stats['phases']):
-            count = min(phase_seconds, max(0, duration - phase * phase_seconds)) if phase < 2 else max(0, duration - 2 * phase_seconds)
+            count = min(phase_seconds, max(0, worker_duration - phase * phase_seconds)) if phase < 2 else max(0, worker_duration - 2 * phase_seconds)
             giants = sum((i + 1) % giant_every == 0 for i in range(phase * phase_seconds, phase * phase_seconds + count)) if phase < 2 else 0
             expected = count * rate + giants * THRESHOLDS['giant_line_bytes'] if phase < 2 else 0
             if p['seconds'] != count or p['giants'] != giants or p['stdout_bytes'] + p['stderr_bytes'] != expected:
