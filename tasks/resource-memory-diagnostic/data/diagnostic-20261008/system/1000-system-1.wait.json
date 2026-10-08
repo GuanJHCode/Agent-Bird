@@ -1,0 +1,15 @@
+{
+  "argv": [
+    "/usr/sbin/sysctl",
+    "-n",
+    "vm.swapusage"
+  ],
+  "cpu_seconds": 0.003306,
+  "finished_unix_ns": 1791453134082364000,
+  "forced": false,
+  "max_rss_bytes": 1228800,
+  "original_wait": 0,
+  "pid": 35165,
+  "scope": "excluded external diagnostic observer, not product helper",
+  "started_unix_ns": 1791453134057177000
+}

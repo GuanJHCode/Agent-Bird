@@ -1,0 +1,74 @@
+[
+  {
+    "helper_cpu_ns": 2149014000,
+    "helper_max_rss_bytes": 23052288,
+    "phases": [
+      {
+        "giants": 10,
+        "reports": 30,
+        "seconds": 300,
+        "stderr_bytes": 157286400,
+        "stderr_sha256": "3fe7a409705ef7c588850438a020b3e8d892405fe7aa76b746b61d4c8c2650d1",
+        "stdout_bytes": 199229440,
+        "stdout_sha256": "fcd2b4ca2856673f1165414721437a7491d7f9ba916449540c07372aa66b4e83"
+      },
+      {
+        "giants": 10,
+        "reports": 30,
+        "seconds": 300,
+        "stderr_bytes": 157286400,
+        "stderr_sha256": "79886e8ea0f18044ca651ca11d0f281cc559f0a0283ddc70e69f1b660c80a9fd",
+        "stdout_bytes": 199229440,
+        "stdout_sha256": "18df75e961d3fed6e79468c6a04e4d17b3eacdde7c98ae0cba0f50c1e442b763"
+      },
+      {
+        "giants": 0,
+        "reports": 54,
+        "seconds": 540,
+        "stderr_bytes": 0,
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_bytes": 0,
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ],
+    "pid": 24593,
+    "reports": 114,
+    "status": "completed"
+  },
+  {
+    "helper_cpu_ns": 2100159000,
+    "helper_max_rss_bytes": 23166976,
+    "phases": [
+      {
+        "giants": 10,
+        "reports": 30,
+        "seconds": 300,
+        "stderr_bytes": 157286400,
+        "stderr_sha256": "3fe7a409705ef7c588850438a020b3e8d892405fe7aa76b746b61d4c8c2650d1",
+        "stdout_bytes": 199229440,
+        "stdout_sha256": "fcd2b4ca2856673f1165414721437a7491d7f9ba916449540c07372aa66b4e83"
+      },
+      {
+        "giants": 10,
+        "reports": 30,
+        "seconds": 300,
+        "stderr_bytes": 157286400,
+        "stderr_sha256": "79886e8ea0f18044ca651ca11d0f281cc559f0a0283ddc70e69f1b660c80a9fd",
+        "stdout_bytes": 199229440,
+        "stdout_sha256": "18df75e961d3fed6e79468c6a04e4d17b3eacdde7c98ae0cba0f50c1e442b763"
+      },
+      {
+        "giants": 0,
+        "reports": 54,
+        "seconds": 540,
+        "stderr_bytes": 0,
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_bytes": 0,
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ],
+    "pid": 24594,
+    "reports": 114,
+    "status": "completed"
+  }
+]

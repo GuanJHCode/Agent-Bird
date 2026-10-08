@@ -1,0 +1,10 @@
+{
+  "argv": [
+    "owner-bind",
+    "--state-dir",
+    "/private/tmp/resource-memory-3d296e3fa24e/state",
+    "--request",
+    "/private/tmp/resource-memory-3d296e3fa24e/owner.json"
+  ],
+  "original_wait": 0
+}

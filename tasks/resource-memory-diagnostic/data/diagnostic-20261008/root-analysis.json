@@ -1,0 +1,780 @@
+{
+  "sample_count": 1200,
+  "ticks_contiguous": true,
+  "pins_match": true,
+  "hashes_match": true,
+  "cleanup": {
+    "coordinator_original_wait": 0,
+    "identity_signals": [],
+    "remaining": [],
+    "unregistered_private_processes": [],
+    "worker_stop": []
+  },
+  "peak_mib": 122.40625,
+  "phases": {
+    "0-300": {
+      "source-host-24585": {
+        "count": 60,
+        "rss_mib_median": 12.15625,
+        "rss_mib_range": [
+          10.203125,
+          18.3125
+        ],
+        "num_gc": [
+          2,
+          4
+        ],
+        "heap_alloc_mib": {
+          "first": 3.1459503173828125,
+          "last": 2.5961380004882812,
+          "min": 2.567779541015625,
+          "max": 3.2006454467773438
+        },
+        "heap_inuse_mib": {
+          "first": 5.09375,
+          "last": 4.3828125,
+          "min": 4.375,
+          "max": 5.125
+        },
+        "heap_idle_mib": {
+          "first": 6.3125,
+          "last": 7.0234375,
+          "min": 6.28125,
+          "max": 7.03125
+        },
+        "heap_released_mib": {
+          "first": 5.703125,
+          "last": 6.6015625,
+          "min": 5.6171875,
+          "max": 6.6015625
+        },
+        "sys_mib": {
+          "first": 17.68970489501953,
+          "last": 17.72095489501953,
+          "min": 17.68970489501953,
+          "max": 17.72095489501953
+        }
+      },
+      "original-owner-24586": {
+        "count": 60,
+        "rss_mib_median": 15.2890625,
+        "rss_mib_range": [
+          13.90625,
+          30.890625
+        ],
+        "num_gc": [
+          6,
+          8
+        ],
+        "heap_alloc_mib": {
+          "first": 6.025634765625,
+          "last": 5.8926849365234375,
+          "min": 5.128990173339844,
+          "max": 7.5986328125
+        },
+        "heap_inuse_mib": {
+          "first": 8.3515625,
+          "last": 8.09375,
+          "min": 7.5,
+          "max": 9.765625
+        },
+        "heap_idle_mib": {
+          "first": 6.8984375,
+          "last": 7.09375,
+          "min": 5.453125,
+          "max": 7.75
+        },
+        "heap_released_mib": {
+          "first": 0.546875,
+          "last": 4.921875,
+          "min": 0.546875,
+          "max": 4.921875
+        },
+        "sys_mib": {
+          "first": 22.23657989501953,
+          "last": 23.00220489501953,
+          "min": 22.23657989501953,
+          "max": 23.00220489501953
+        }
+      },
+      "serve-24571": {
+        "count": 60,
+        "rss_mib_median": 22.421875,
+        "rss_mib_range": [
+          17.265625,
+          32.90625
+        ],
+        "num_gc": [
+          6,
+          10
+        ],
+        "heap_alloc_mib": {
+          "first": 4.430877685546875,
+          "last": 3.0393447875976562,
+          "min": 2.8279647827148438,
+          "max": 5.019218444824219
+        },
+        "heap_inuse_mib": {
+          "first": 6.6796875,
+          "last": 5.453125,
+          "min": 5.0703125,
+          "max": 7.28125
+        },
+        "heap_idle_mib": {
+          "first": 8.1953125,
+          "last": 9.359375,
+          "min": 7.5703125,
+          "max": 9.359375
+        },
+        "heap_released_mib": {
+          "first": 6.8359375,
+          "last": 6.6953125,
+          "min": 6.6328125,
+          "max": 6.8359375
+        },
+        "sys_mib": {
+          "first": 22.73657989501953,
+          "last": 22.75220489501953,
+          "min": 22.73657989501953,
+          "max": 22.75220489501953
+        }
+      }
+    },
+    "300-600": {
+      "source-host-24585": {
+        "count": 60,
+        "rss_mib_median": 11.75,
+        "rss_mib_range": [
+          6.90625,
+          17.484375
+        ],
+        "num_gc": [
+          4,
+          6
+        ],
+        "heap_alloc_mib": {
+          "first": 2.5985107421875,
+          "last": 2.617584228515625,
+          "min": 2.5690765380859375,
+          "max": 2.6295700073242188
+        },
+        "heap_inuse_mib": {
+          "first": 4.3828125,
+          "last": 4.390625,
+          "min": 4.3671875,
+          "max": 4.3984375
+        },
+        "heap_idle_mib": {
+          "first": 7.0234375,
+          "last": 7.015625,
+          "min": 7.0078125,
+          "max": 7.0390625
+        },
+        "heap_released_mib": {
+          "first": 6.6015625,
+          "last": 6.5234375,
+          "min": 6.5234375,
+          "max": 6.6015625
+        },
+        "sys_mib": {
+          "first": 17.72095489501953,
+          "last": 18.25220489501953,
+          "min": 17.72095489501953,
+          "max": 18.25220489501953
+        }
+      },
+      "original-owner-24586": {
+        "count": 60,
+        "rss_mib_median": 14.2109375,
+        "rss_mib_range": [
+          9.796875,
+          19.9375
+        ],
+        "num_gc": [
+          8,
+          10
+        ],
+        "heap_alloc_mib": {
+          "first": 5.961265563964844,
+          "last": 6.71307373046875,
+          "min": 5.1326141357421875,
+          "max": 6.71307373046875
+        },
+        "heap_inuse_mib": {
+          "first": 8.1640625,
+          "last": 8.8125,
+          "min": 7.4765625,
+          "max": 8.8515625
+        },
+        "heap_idle_mib": {
+          "first": 7.0234375,
+          "last": 6.375,
+          "min": 6.3359375,
+          "max": 7.7421875
+        },
+        "heap_released_mib": {
+          "first": 4.921875,
+          "last": 4.75,
+          "min": 4.75,
+          "max": 5.0703125
+        },
+        "sys_mib": {
+          "first": 23.00220489501953,
+          "last": 23.01782989501953,
+          "min": 23.00220489501953,
+          "max": 23.01782989501953
+        }
+      },
+      "serve-24571": {
+        "count": 60,
+        "rss_mib_median": 18.5859375,
+        "rss_mib_range": [
+          13.34375,
+          26.25
+        ],
+        "num_gc": [
+          10,
+          13
+        ],
+        "heap_alloc_mib": {
+          "first": 3.1450881958007812,
+          "last": 3.7445831298828125,
+          "min": 2.9121627807617188,
+          "max": 4.967376708984375
+        },
+        "heap_inuse_mib": {
+          "first": 5.515625,
+          "last": 5.7734375,
+          "min": 5.140625,
+          "max": 6.96875
+        },
+        "heap_idle_mib": {
+          "first": 9.296875,
+          "last": 8.9140625,
+          "min": 7.71875,
+          "max": 9.546875
+        },
+        "heap_released_mib": {
+          "first": 6.6953125,
+          "last": 7.046875,
+          "min": 6.671875,
+          "max": 7.046875
+        },
+        "sys_mib": {
+          "first": 22.75220489501953,
+          "last": 22.76782989501953,
+          "min": 22.75220489501953,
+          "max": 22.76782989501953
+        }
+      }
+    },
+    "600-900": {
+      "source-host-24585": {
+        "count": 60,
+        "rss_mib_median": 9.0859375,
+        "rss_mib_range": [
+          6.625,
+          14.625
+        ],
+        "num_gc": [
+          6,
+          9
+        ],
+        "heap_alloc_mib": {
+          "first": 2.6210098266601562,
+          "last": 2.5825881958007812,
+          "min": 2.569671630859375,
+          "max": 2.6304168701171875
+        },
+        "heap_inuse_mib": {
+          "first": 4.390625,
+          "last": 4.375,
+          "min": 4.375,
+          "max": 4.390625
+        },
+        "heap_idle_mib": {
+          "first": 7.015625,
+          "last": 7.03125,
+          "min": 6.984375,
+          "max": 7.03125
+        },
+        "heap_released_mib": {
+          "first": 6.5234375,
+          "last": 6.53125,
+          "min": 6.4375,
+          "max": 6.578125
+        },
+        "sys_mib": {
+          "first": 18.25220489501953,
+          "last": 18.25220489501953,
+          "min": 18.25220489501953,
+          "max": 18.25220489501953
+        }
+      },
+      "original-owner-24586": {
+        "count": 60,
+        "rss_mib_median": 11.34375,
+        "rss_mib_range": [
+          9.375,
+          17.0
+        ],
+        "num_gc": [
+          11,
+          13
+        ],
+        "heap_alloc_mib": {
+          "first": 5.1336822509765625,
+          "last": 5.8841094970703125,
+          "min": 5.12847900390625,
+          "max": 6.7090301513671875
+        },
+        "heap_inuse_mib": {
+          "first": 7.4375,
+          "last": 7.9609375,
+          "min": 7.4375,
+          "max": 8.6953125
+        },
+        "heap_idle_mib": {
+          "first": 7.78125,
+          "last": 7.2265625,
+          "min": 6.4921875,
+          "max": 7.78125
+        },
+        "heap_released_mib": {
+          "first": 5.046875,
+          "last": 5.0703125,
+          "min": 4.9140625,
+          "max": 5.1171875
+        },
+        "sys_mib": {
+          "first": 23.01782989501953,
+          "last": 23.01782989501953,
+          "min": 23.01782989501953,
+          "max": 23.01782989501953
+        }
+      },
+      "serve-24571": {
+        "count": 60,
+        "rss_mib_median": 18.2421875,
+        "rss_mib_range": [
+          13.453125,
+          24.203125
+        ],
+        "num_gc": [
+          13,
+          16
+        ],
+        "heap_alloc_mib": {
+          "first": 3.8621292114257812,
+          "last": 4.503807067871094,
+          "min": 2.9433441162109375,
+          "max": 4.970115661621094
+        },
+        "heap_inuse_mib": {
+          "first": 5.84375,
+          "last": 6.5,
+          "min": 5.171875,
+          "max": 6.921875
+        },
+        "heap_idle_mib": {
+          "first": 8.84375,
+          "last": 8.15625,
+          "min": 7.703125,
+          "max": 9.4921875
+        },
+        "heap_released_mib": {
+          "first": 7.046875,
+          "last": 6.5703125,
+          "min": 6.5703125,
+          "max": 7.046875
+        },
+        "sys_mib": {
+          "first": 22.76782989501953,
+          "last": 23.03345489501953,
+          "min": 22.76782989501953,
+          "max": 23.03345489501953
+        }
+      }
+    },
+    "900-1140": {
+      "source-host-24585": {
+        "count": 48,
+        "rss_mib_median": 9.4375,
+        "rss_mib_range": [
+          7.296875,
+          14.53125
+        ],
+        "num_gc": [
+          9,
+          11
+        ],
+        "heap_alloc_mib": {
+          "first": 2.5851287841796875,
+          "last": 2.5775375366210938,
+          "min": 2.565521240234375,
+          "max": 2.627838134765625
+        },
+        "heap_inuse_mib": {
+          "first": 4.375,
+          "last": 4.359375,
+          "min": 4.359375,
+          "max": 4.390625
+        },
+        "heap_idle_mib": {
+          "first": 7.03125,
+          "last": 7.046875,
+          "min": 7.015625,
+          "max": 7.046875
+        },
+        "heap_released_mib": {
+          "first": 6.53125,
+          "last": 6.5703125,
+          "min": 6.515625,
+          "max": 6.609375
+        },
+        "sys_mib": {
+          "first": 18.25220489501953,
+          "last": 18.25220489501953,
+          "min": 18.25220489501953,
+          "max": 18.25220489501953
+        }
+      },
+      "original-owner-24586": {
+        "count": 48,
+        "rss_mib_median": 11.734375,
+        "rss_mib_range": [
+          9.953125,
+          16.984375
+        ],
+        "num_gc": [
+          13,
+          15
+        ],
+        "heap_alloc_mib": {
+          "first": 5.952476501464844,
+          "last": 5.870155334472656,
+          "min": 5.125640869140625,
+          "max": 6.7045135498046875
+        },
+        "heap_inuse_mib": {
+          "first": 8.046875,
+          "last": 7.9765625,
+          "min": 7.46875,
+          "max": 8.671875
+        },
+        "heap_idle_mib": {
+          "first": 7.140625,
+          "last": 7.2109375,
+          "min": 6.515625,
+          "max": 7.75
+        },
+        "heap_released_mib": {
+          "first": 5.0703125,
+          "last": 4.84375,
+          "min": 4.84375,
+          "max": 5.0703125
+        },
+        "sys_mib": {
+          "first": 23.01782989501953,
+          "last": 23.01782989501953,
+          "min": 23.01782989501953,
+          "max": 23.01782989501953
+        }
+      },
+      "serve-24571": {
+        "count": 48,
+        "rss_mib_median": 19.296875,
+        "rss_mib_range": [
+          15.234375,
+          24.484375
+        ],
+        "num_gc": [
+          16,
+          19
+        ],
+        "heap_alloc_mib": {
+          "first": 4.6410980224609375,
+          "last": 3.7596511840820312,
+          "min": 2.9161376953125,
+          "max": 4.982002258300781
+        },
+        "heap_inuse_mib": {
+          "first": 6.6640625,
+          "last": 5.796875,
+          "min": 5.1171875,
+          "max": 7.0703125
+        },
+        "heap_idle_mib": {
+          "first": 7.9921875,
+          "last": 8.828125,
+          "min": 7.5859375,
+          "max": 9.5078125
+        },
+        "heap_released_mib": {
+          "first": 6.5703125,
+          "last": 6.8984375,
+          "min": 6.5703125,
+          "max": 6.9609375
+        },
+        "sys_mib": {
+          "first": 23.03345489501953,
+          "last": 23.03345489501953,
+          "min": 23.03345489501953,
+          "max": 23.03345489501953
+        }
+      }
+    },
+    "1140-1200": {
+      "source-host-24585": {
+        "count": 1,
+        "rss_mib_median": 9.5625,
+        "rss_mib_range": [
+          9.5625,
+          9.5625
+        ],
+        "num_gc": [
+          11,
+          11
+        ],
+        "heap_alloc_mib": {
+          "first": 2.6506729125976562,
+          "last": 2.6506729125976562,
+          "min": 2.6506729125976562,
+          "max": 2.6506729125976562
+        },
+        "heap_inuse_mib": {
+          "first": 4.421875,
+          "last": 4.421875,
+          "min": 4.421875,
+          "max": 4.421875
+        },
+        "heap_idle_mib": {
+          "first": 7.046875,
+          "last": 7.046875,
+          "min": 7.046875,
+          "max": 7.046875
+        },
+        "heap_released_mib": {
+          "first": 6.5390625,
+          "last": 6.5390625,
+          "min": 6.5390625,
+          "max": 6.5390625
+        },
+        "sys_mib": {
+          "first": 18.25220489501953,
+          "last": 18.25220489501953,
+          "min": 18.25220489501953,
+          "max": 18.25220489501953
+        }
+      },
+      "original-owner-24586": {
+        "count": 1,
+        "rss_mib_median": 11.734375,
+        "rss_mib_range": [
+          11.734375,
+          11.734375
+        ],
+        "num_gc": [
+          16,
+          16
+        ],
+        "heap_alloc_mib": {
+          "first": 10.995979309082031,
+          "last": 10.995979309082031,
+          "min": 10.995979309082031,
+          "max": 10.995979309082031
+        },
+        "heap_inuse_mib": {
+          "first": 13.1953125,
+          "last": 13.1953125,
+          "min": 13.1953125,
+          "max": 13.1953125
+        },
+        "heap_idle_mib": {
+          "first": 6.0859375,
+          "last": 6.0859375,
+          "min": 6.0859375,
+          "max": 6.0859375
+        },
+        "heap_released_mib": {
+          "first": 3.90625,
+          "last": 3.90625,
+          "min": 3.90625,
+          "max": 3.90625
+        },
+        "sys_mib": {
+          "first": 27.01782989501953,
+          "last": 27.01782989501953,
+          "min": 27.01782989501953,
+          "max": 27.01782989501953
+        }
+      },
+      "serve-24571": {
+        "count": 12,
+        "rss_mib_median": 20.3046875,
+        "rss_mib_range": [
+          17.140625,
+          32.359375
+        ],
+        "num_gc": [
+          21,
+          22
+        ],
+        "heap_alloc_mib": {
+          "first": 4.608360290527344,
+          "last": 3.9780502319335938,
+          "min": 3.0251312255859375,
+          "max": 5.2457275390625
+        },
+        "heap_inuse_mib": {
+          "first": 6.9375,
+          "last": 5.9765625,
+          "min": 5.2265625,
+          "max": 7.453125
+        },
+        "heap_idle_mib": {
+          "first": 7.65625,
+          "last": 8.6484375,
+          "min": 7.171875,
+          "max": 9.3984375
+        },
+        "heap_released_mib": {
+          "first": 4.53125,
+          "last": 6.296875,
+          "min": 4.4140625,
+          "max": 6.515625
+        },
+        "sys_mib": {
+          "first": 23.03345489501953,
+          "last": 23.03345489501953,
+          "min": 23.03345489501953,
+          "max": 23.03345489501953
+        }
+      }
+    }
+  },
+  "observers": {
+    "count": 252,
+    "exit_counts": {
+      "0": 252
+    },
+    "forced": [],
+    "max_seconds": 3.55468
+  },
+  "vm_stat_delta_pages": {
+    "Pages free": 523,
+    "Pages active": -30357,
+    "Pages inactive": -34535,
+    "Pages speculative": 6671,
+    "Pages throttled": 0,
+    "Pages wired down": -29841,
+    "Pages purgeable": -12321,
+    "\"Translation faults\"": 58594487,
+    "Pages copy-on-write": 2306874,
+    "Pages zero filled": 21387811,
+    "Pages reactivated": 19736401,
+    "Pages purged": 3501844,
+    "File-backed pages": -23148,
+    "Anonymous pages": -35073,
+    "Pages stored in compressor": 200022,
+    "Pages occupied by compressor": 87361,
+    "Decompressions": 17484398,
+    "Compressions": 18880237,
+    "Pageins": 1368393,
+    "Pageouts": 16413,
+    "Swapins": 71745,
+    "Swapouts": 86624
+  },
+  "swap": {
+    "first": "total = 15360.00M  used = 13760.00M  free = 1600.00M  (encrypted)",
+    "last": "total = 14336.00M  used = 13925.38M  free = 410.62M  (encrypted)"
+  },
+  "vmmap_totals": {
+    "0300-vmmap-1": [
+      "Physical footprint:         22.4M",
+      "Physical footprint (peak):  24.3M",
+      "TOTAL                              2.9G   206.9M    5185K    17.3M       0K      16K       0K     1973",
+      "TOTAL                             603.0M         0K         0K      2480K        905        86K      2394K     97%      22"
+    ],
+    "1100-vmmap-2": [
+      "Physical footprint:         14.5M",
+      "Physical footprint (peak):  14.5M",
+      "TOTAL                              2.8G   128.3M    3121K    11.5M       0K      16K       0K     1948",
+      "TOTAL                             562.0M         0K         0K      2112K        906        86K      2026K     96%      16"
+    ],
+    "1100-vmmap-0": [
+      "Physical footprint:         32.5M",
+      "Physical footprint (peak):  32.5M",
+      "TOTAL                              2.8G   134.8M    15.0M    17.5M       0K      16K       0K     1974",
+      "TOTAL                             568.0M         0K         0K      2224K        906        86K      2138K     97%      15"
+    ],
+    "0000-vmmap-0": [
+      "Physical footprint:         31.1M",
+      "Physical footprint (peak):  31.1M",
+      "TOTAL                              2.8G   232.0M    18.6M    12.5M       0K      16K       0K     1966",
+      "TOTAL                             568.0M         0K         0K      2224K        906        86K      2138K     97%      15"
+    ],
+    "0600-vmmap-1": [
+      "Physical footprint:         22.4M",
+      "Physical footprint (peak):  24.3M",
+      "TOTAL                              2.9G   153.1M    3361K    19.2M       0K      16K       0K     1974",
+      "TOTAL                             603.0M         0K         0K      2480K        905        86K      2394K     97%      22"
+    ],
+    "0000-vmmap-2": [
+      "Physical footprint:         14.0M",
+      "Physical footprint (peak):  14.0M",
+      "TOTAL                              2.8G   214.5M    5345K    8992K       0K      16K       0K     1930",
+      "TOTAL                             562.0M       272K       272K      1840K        906        86K      2026K     96%      16"
+    ],
+    "0300-vmmap-0": [
+      "Physical footprint:         31.6M",
+      "Physical footprint (peak):  31.7M",
+      "TOTAL                              2.8G   212.7M    8849K    23.0M       0K      16K       0K     1967",
+      "TOTAL                             568.0M         0K         0K      2224K        906        86K      2138K     97%      15"
+    ],
+    "0300-vmmap-2": [
+      "Physical footprint:         14.3M",
+      "Physical footprint (peak):  14.3M",
+      "TOTAL                              2.8G   203.8M    2753K    11.6M       0K      16K       0K     1944",
+      "TOTAL                             562.0M         0K         0K      2112K        906        86K      2026K     96%      16"
+    ],
+    "1100-vmmap-1": [
+      "Physical footprint:         22.6M",
+      "Physical footprint (peak):  24.3M",
+      "TOTAL                              2.9G   135.0M    9585K    13.2M       0K      16K       0K     1974",
+      "TOTAL                             603.0M         0K         0K      2480K        905        86K      2394K     97%      22"
+    ],
+    "0000-vmmap-1": [
+      "Physical footprint:         24.2M",
+      "Physical footprint (peak):  24.2M",
+      "TOTAL                              2.8G   231.0M    20.5M    3808K       0K      16K       0K     1965",
+      "TOTAL                             603.0M       720K       720K      1760K        905        86K      2394K     97%      22"
+    ],
+    "0600-vmmap-2": [
+      "Physical footprint:         14.4M",
+      "Physical footprint (peak):  14.4M",
+      "TOTAL                              2.8G   151.5M    2753K    11.7M       0K      16K       0K     1948",
+      "TOTAL                             562.0M         0K         0K      2112K        906        86K      2026K     96%      16"
+    ],
+    "0600-vmmap-0": [
+      "Physical footprint:         32.0M",
+      "Physical footprint (peak):  32.0M",
+      "TOTAL                              2.8G   152.8M    2001K    30.0M       0K      16K       0K     1972",
+      "TOTAL                             568.0M         0K         0K      2224K        906        86K      2138K     97%      15"
+    ]
+  },
+  "vmmap_roles": {
+    "0600-vmmap-2.wait": "host",
+    "0000-vmmap-2.wait": "host",
+    "0300-vmmap-2.wait": "host",
+    "1100-vmmap-2.wait": "host",
+    "0600-vmmap-0.wait": "coordinator",
+    "0000-vmmap-0.wait": "coordinator",
+    "1100-vmmap-1.wait": "owner",
+    "0300-vmmap-0.wait": "coordinator",
+    "0600-vmmap-1.wait": "owner",
+    "0000-vmmap-1.wait": "owner",
+    "0300-vmmap-1.wait": "owner",
+    "1100-vmmap-0.wait": "coordinator"
+  }
+}
