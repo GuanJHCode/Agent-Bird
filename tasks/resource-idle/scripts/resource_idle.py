@@ -192,7 +192,6 @@ def idle_count(db):
 
 
 def observe_retirement(ctx, rows):
-    now = time.monotonic()
     deadline = ctx['pending_observed_at'] + THRESHOLDS['host_retire_seconds']
     retired = ctx.setdefault('retirement', {})
     for identity in ctx['identities'].values():
@@ -200,6 +199,7 @@ def observe_retirement(ctx, rows):
             continue
         record = retired.setdefault(identity['role'], {'identity': identity, 'last_alive': None, 'first_gone': None})
         present = identity_present(identity, rows)
+        now = time.monotonic()  # evidence-completion time, never query-start time
         if present:
             if record['first_gone'] is not None:
                 raise Failure('retired identity returned')
@@ -483,6 +483,8 @@ def main():
     except BaseException as e:
         summary['error'] = repr(e)
     finally:
+        summary['pending_observed_at'] = ctx.get('pending_observed_at')
+        summary['retirement'] = ctx.get('retirement', {})
         if db is not None:
             try:
                 db.close()
