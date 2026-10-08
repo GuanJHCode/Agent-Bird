@@ -14,6 +14,14 @@ scope change, worker ancestry, and public collect/accept retirement.
 
 Executed with Go pinned at `tasks/g0-macos/data/go/bin/go` and `TMPDIR=/private/tmp`:
 
-- `go test -count=1 ./cmd/orchestrator -run '^TestPublicOwnerSuccessionBoundNeverAppliedResumesAtInc3$' -v` — PASS
-- `go test -count=1 ./cmd/orchestrator -run '^TestPublicOwnerSuccessionDeadBothResumesSameAttempt$' -v` — PASS
-- `go test -race -count=1 ./cmd/orchestrator -run '^TestPublicOwnerSuccessionBoundNeverAppliedResumesAtInc3$' -v` — PASS
+- Ordinary: 1 test, 0 failures, exit 0; source SHA-256
+  `dd68db16e8e5d5b645cd9dfe4ab23bb83a6ce4ad3901eaa23e27ecbe71e55e59`.
+  Full raw output: `data/public-bound-abandonment-ordinary.log`.
+- Race: 1 test, 0 failures, exit 0; source SHA-256
+  `e6861436f64d09e41d02153f3ccff5ffa1b40d825af84d1046e99daad5714db6`.
+  Full raw output: `data/public-bound-abandonment-race.log`.
+
+The test retains the established 13-second original-`Cmd.Wait` observation
+window. `GORACE` only adds `atexit_sleep_ms=0` for the race run, preserving
+race instrumentation while avoiding detector exit sleeps in the real-child
+fixture.

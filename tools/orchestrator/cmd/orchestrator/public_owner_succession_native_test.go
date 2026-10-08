@@ -645,6 +645,16 @@ func testPublicOwnerSuccessionDeadBothResumesSameAttempt(t *testing.T, abandonBo
 		if err := db.QueryRow(`SELECT ready_sequence FROM owner_succession_authorizations WHERE command_id=?`, commandID).Scan(&receipt.ReadySequence); err != nil || receipt.ReadySequence <= 0 {
 			t.Fatal("bound-never-Applied first Resume lacks durable ready sequence", receipt.ReadySequence, err)
 		}
+		var phase string
+		var current int
+		var applied, control uint64
+		if err := db.QueryRow(`SELECT phase,is_current,applied_control_revision,control_revision FROM execution_owners WHERE owner_id=?`, newBinding.Scope.OwnerID).Scan(&phase, &current, &applied, &control); err != nil || phase != "bound" || current != 1 || applied != 0 || control != 1 {
+			t.Fatal("inc2 was not current bound-never-Applied", phase, current, applied, control, err)
+		}
+		var appliedHashes int
+		if err := db.QueryRow(`SELECT COUNT(*) FROM owner_control_changes WHERE owner_id=? AND applied_hash IS NOT NULL`, newBinding.Scope.OwnerID).Scan(&appliedHashes); err != nil || appliedHashes != 0 {
+			t.Fatal("inc2 unexpectedly has Applied control hash", appliedHashes, err)
+		}
 		boundOwnerWait := publicSuccessionReadWait(t, state, "owner", newBinding.Owner.PID)
 		boundHostWait := publicSuccessionReadWait(t, state, "first_host", newBinding.FirstHost.PID)
 		if boundOwnerWait.ExitCode != 0 || boundOwnerWait.WaitError != "" {
@@ -664,10 +674,25 @@ func testPublicOwnerSuccessionDeadBothResumesSameAttempt(t *testing.T, abandonBo
 		if err := json.Unmarshal(secondBody, &secondReceipt); err != nil || secondReceipt.Mode != "successor" || secondReceipt.CommandID != secondCommandID || secondReceipt.ReadySequence != receipt.ReadySequence {
 			t.Fatal("second public Resume did not return successor receipt", string(secondBody), err)
 		}
+		if replay := runBinary(t, ctx, cli, "resume", "--state-dir", state, "--task-id", "worker", "--control-file", submitted.ControlFile, "--work-revision", "1", "--command-id", secondCommandID); !bytes.Equal(replay, secondBody) {
+			t.Fatal("second stable command did not replay immutable receipt", string(replay))
+		}
 		t.Logf("bound-never-Applied inc2->inc3 preserved ready sequence=%d", receipt.ReadySequence)
 		thirdBinding := publicSuccessionBinding(t, db)
 		if thirdBinding.Scope.Incarnation != 3 || thirdBinding.Scope.RunID != newBinding.Scope.RunID || thirdBinding.Scope.LaunchID != newBinding.Scope.LaunchID {
 			t.Fatal("bound-never-Applied resume did not create inc3", thirdBinding)
+		}
+		var abandoned int
+		if err := db.QueryRow(`SELECT COUNT(*) FROM owner_bound_abandonments WHERE owner_id=?`, newBinding.Scope.OwnerID).Scan(&abandoned); err != nil || abandoned != 1 {
+			t.Fatal("inc2 bound abandonment missing", abandoned, err)
+		}
+		var abandonedOwner string
+		if err := db.QueryRow(`SELECT abandoned_owner_id FROM owner_succession_authorizations WHERE command_id=?`, secondCommandID).Scan(&abandonedOwner); err != nil || abandonedOwner != newBinding.Scope.OwnerID {
+			t.Fatal("inc3 authorization did not point at inc2 abandonment", abandonedOwner, newBinding.Scope.OwnerID, err)
+		}
+		var handoffPredecessor, priorScope, successorScope string
+		if err := db.QueryRow(`SELECT predecessor_owner_id,prior_scope_hash,scope_hash FROM owner_recovery_scope_handoffs WHERE owner_id=?`, thirdBinding.Scope.OwnerID).Scan(&handoffPredecessor, &priorScope, &successorScope); err != nil || handoffPredecessor != newBinding.Scope.OwnerID || priorScope == successorScope {
+			t.Fatal("inc3 handoff did not remain adjacent to inc2", handoffPredecessor, newBinding.Scope.OwnerID, priorScope, successorScope, err)
 		}
 		newBinding = thirdBinding
 	}
@@ -811,7 +836,7 @@ func publicSuccessionAncestry(t *testing.T, ctx context.Context, worker original
 func publicSuccessionReadWait(t *testing.T, state, kind string, pid int) publicSuccessionWait {
 	t.Helper()
 	path := filepath.Join(state, "public-succession-waits", kind+"-"+strconv.Itoa(pid)+".json")
-	for end := time.Now().Add(18 * time.Second); ; {
+	for end := time.Now().Add(13 * time.Second); ; {
 		raw, err := os.ReadFile(path)
 		var observed publicSuccessionWait
 		if err == nil && json.Unmarshal(raw, &observed) == nil && observed.Kind == kind && observed.PID == pid {
