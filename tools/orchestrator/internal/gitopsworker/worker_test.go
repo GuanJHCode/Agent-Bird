@@ -239,6 +239,7 @@ func TestBuildAndRunMaterializeUsesDurableSourceJournal(t *testing.T) {
 	if info, err := os.Stat(journal); err != nil || info.Mode().Perm() != 0600 || info.Size() == 0 {
 		t.Fatalf("journal info=%v err=%v", info, err)
 	}
+	assertMaterializeGitProcessJournal(t, journal)
 }
 
 func TestWorkerRoutesPrivateRefsAndComposeIntegrateCleanupChain(t *testing.T) {

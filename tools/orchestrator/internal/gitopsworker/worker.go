@@ -128,7 +128,7 @@ func Run(ctx context.Context, requestPath string, stdout io.Writer) error {
 	case "materialize":
 		var request gitops.MaterializeRequest
 		if err = decode(envelope.Request, &request); err == nil {
-			result, err = gitops.Materialize(ctx, request, journal)
+			result, err = gitops.ManagedMaterialize(gitops.WithCandidateJournal(ctx, journal), request, journal)
 		}
 	case "integrate":
 		var request gitops.IntegrationRequest
