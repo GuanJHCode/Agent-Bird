@@ -1,0 +1,12 @@
+{
+  "command": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+    "test",
+    "-count=1",
+    "-json",
+    "./internal/store",
+    "-run",
+    "^TestValidationToolReleaseRequiresOriginalHostAndTerminal$"
+  ],
+  "exit_code": 0
+}
