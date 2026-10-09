@@ -39,6 +39,7 @@ type BindOriginalOwnerSpec struct {
 
 type OriginalOwnerState struct {
 	Intent                    contract.OriginalOwnerIntent
+	BaseIntent                *contract.OriginalOwnerIntent
 	SuccessionAuthorizationID string
 	Phase                     string
 	IsCurrent                 bool
@@ -47,6 +48,13 @@ type OriginalOwnerState struct {
 	CurrentHost               *contract.OriginalOwnerTransport
 	CoordinatorEpoch          uint64
 	Binding                   *contract.OriginalOwnerBinding
+	LaunchAttempt             *contract.OriginalOwnerLaunchAttempt
+	LaunchReceipt             *contract.OriginalOwnerLaunchReceipt
+}
+
+type OriginalOwnerLaunchExit struct {
+	Code   *int
+	Signal string
 }
 
 type OriginalOwnerBindResult struct {
