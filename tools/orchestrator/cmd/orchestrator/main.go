@@ -287,6 +287,7 @@ func submitWithPreparedControl(ctx context.Context, args []string, stdout io.Wri
 	fs.SetOutput(io.Discard)
 	stateArg := fs.String("state-dir", "", "private state directory")
 	requestPath := fs.String("request", "", "owner-only JSON request")
+	sourceControlFile := fs.String("source-control-file", "", "source integration owner-only control capability")
 	ownerLaunchProtocol := fs.Int("owner-launch-protocol", 1, "original owner launch protocol (1 or 2)")
 	if fs.Parse(args) != nil || *requestPath == "" || fs.NArg() != 0 || (*ownerLaunchProtocol != 1 && *ownerLaunchProtocol != 2) {
 		return codeError("invalid_args")
@@ -298,6 +299,21 @@ func submitWithPreparedControl(ctx context.Context, args []string, stdout io.Wri
 	var request coordinator.SubmitRequest
 	if err = readPrivateJSON(*requestPath, &request); err != nil {
 		return err
+	}
+	if request.NewBaseAuthorization != nil || request.NewBaseRework != nil && (request.LaunchID != "" || request.LaunchToken != "" || request.ControlToken != "") {
+		return codeError("invalid_submit_credentials")
+	}
+	if request.NewBaseRework != nil {
+		if *sourceControlFile == "" {
+			return codeError("source_control_required")
+		}
+		cap, e := loadControlCapability(*sourceControlFile)
+		if e != nil {
+			return e
+		}
+		request.NewBaseAuthorization = &store.NewBaseAuthorization{ControllerThread: cap.ControllerThread, ControlToken: cap.ControlToken}
+	} else if *sourceControlFile != "" {
+		return codeError("invalid_args")
 	}
 	if request.OwnerLaunchProtocol != 0 && request.OwnerLaunchProtocol != 2 {
 		return codeError("invalid_args")
@@ -340,30 +356,68 @@ func submitWithPreparedControl(ctx context.Context, args []string, stdout io.Wri
 	if err = requireTaskCoordinator(ctx, state, request.Tasks); err != nil {
 		return err
 	}
-	launchID, err := randomValue("host-launch")
-	if err != nil {
-		return err
+	var launchID, launchToken, controlToken, bootstrapPath, controlPath string
+	var bootstrap hostBootstrap
+	prepared, e := loadNewBasePrepared(state, request, *ownerLaunchProtocol)
+	if e != nil {
+		return e
 	}
-	launchToken, err := randomValue("host-token")
-	if err != nil {
-		return err
-	}
-	controlToken, err := randomValue("control-token")
-	if err != nil {
-		return err
-	}
-	bootstrap := hostBootstrap{Version: 2, SocketPath: filepath.Join(state, "coordinator.sock"), SpoolRoot: filepath.Join(state, "host-spool", launchID), ProducerID: launchID, Hello: contract.HostHello{LaunchID: launchID, LaunchToken: launchToken, OriginContextID: request.OriginContextID, OriginPID: request.OriginPID, OriginBirth: request.OriginBirth, HostGeneration: request.HostGeneration, Executable: executable}}
-	if *ownerLaunchProtocol == 2 {
-		bootstrap.OwnerLaunchProtocol = 2
-	}
-	bootstrapPath, err := writeBootstrap(state, bootstrap)
-	if err != nil {
-		return err
-	}
-	controlPath, err := writeControlCapability(state, request.RunID, request.ControllerThread, controlToken, bootstrapPath, launchID, launchToken)
-	if err != nil {
-		_ = os.Remove(bootstrapPath)
-		return err
+	if prepared != "" {
+		cap, e := loadControlCapability(prepared)
+		if e != nil {
+			return e
+		}
+		bootstrap, e = loadHostBootstrap(cap)
+		if e != nil {
+			return e
+		}
+		launchID, launchToken, controlToken, bootstrapPath, controlPath = cap.HostLaunchID, cap.HostLaunchToken, cap.ControlToken, cap.BootstrapPath, prepared
+	} else {
+		launchID, err = randomValue("host-launch")
+		if err != nil {
+			return err
+		}
+		launchToken, err = randomValue("host-token")
+		if err != nil {
+			return err
+		}
+		controlToken, err = randomValue("control-token")
+		if err != nil {
+			return err
+		}
+		bootstrap = hostBootstrap{Version: 2, SocketPath: filepath.Join(state, "coordinator.sock"), SpoolRoot: filepath.Join(state, "host-spool", launchID), ProducerID: launchID, Hello: contract.HostHello{LaunchID: launchID, LaunchToken: launchToken, OriginContextID: request.OriginContextID, OriginPID: request.OriginPID, OriginBirth: request.OriginBirth, HostGeneration: request.HostGeneration, Executable: executable}}
+		if *ownerLaunchProtocol == 2 {
+			bootstrap.OwnerLaunchProtocol = 2
+		}
+		bootstrapPath, err = writeBootstrap(state, bootstrap)
+		if err != nil {
+			return err
+		}
+		controlPath, err = writeControlCapability(state, request.RunID, request.ControllerThread, controlToken, bootstrapPath, launchID, launchToken)
+		if err != nil {
+			_ = os.Remove(bootstrapPath)
+			return err
+		}
+
+		if request.NewBaseRework != nil {
+			saved, e := publishNewBasePrepared(state, request, *ownerLaunchProtocol, controlPath)
+			if e != nil {
+				return e
+			}
+			if saved != controlPath {
+				_ = os.Remove(controlPath)
+				_ = os.Remove(bootstrapPath)
+				cap, e := loadControlCapability(saved)
+				if e != nil {
+					return e
+				}
+				bootstrap, e = loadHostBootstrap(cap)
+				if e != nil {
+					return e
+				}
+				launchID, launchToken, controlToken, bootstrapPath, controlPath = cap.HostLaunchID, cap.HostLaunchToken, cap.ControlToken, cap.BootstrapPath, saved
+			}
+		}
 	}
 	ref, pairErr := coordinator.ConfigGenerationForTasks(request.Tasks)
 	if pairErr != nil {
@@ -394,8 +448,10 @@ func submitWithPreparedControl(ctx context.Context, args []string, stdout io.Wri
 			for _, taskID := range pinned {
 				_ = install.UnpinRunningVersion(executable, taskID)
 			}
-			_ = os.Remove(controlPath)
-			_ = os.Remove(bootstrapPath)
+			if request.NewBaseRework == nil {
+				_ = os.Remove(controlPath)
+				_ = os.Remove(bootstrapPath)
+			}
 			return pinErr
 		}
 		pinned = append(pinned, task.ID)
@@ -405,8 +461,10 @@ func submitWithPreparedControl(ctx context.Context, args []string, stdout io.Wri
 			for _, taskID := range pinned {
 				_ = install.UnpinRunningVersion(executable, taskID)
 			}
-			_ = os.Remove(controlPath)
-			_ = os.Remove(bootstrapPath)
+			if request.NewBaseRework == nil {
+				_ = os.Remove(controlPath)
+				_ = os.Remove(bootstrapPath)
+			}
 			return err
 		}
 	}
@@ -418,8 +476,10 @@ func submitWithPreparedControl(ctx context.Context, args []string, stdout io.Wri
 			for _, taskID := range pinned {
 				_ = install.UnpinRunningVersion(executable, taskID)
 			}
-			_ = os.Remove(controlPath)
-			_ = os.Remove(bootstrapPath)
+			if request.NewBaseRework == nil {
+				_ = os.Remove(controlPath)
+				_ = os.Remove(bootstrapPath)
+			}
 			return err
 		}
 		_ = startSourceHost(executable, state, bootstrap)
@@ -430,7 +490,17 @@ func submitWithPreparedControl(ctx context.Context, args []string, stdout io.Wri
 	if err = decode(response.Payload, &receipt); err != nil || receipt.LaunchID != launchID || receipt.LaunchToken != launchToken || receipt.ControlToken != controlToken {
 		return codeError("submit_receipt_mismatch")
 	}
-	if err = startSourceHost(executable, state, bootstrap); err != nil {
+	startHost := func() error { return startSourceHost(executable, state, bootstrap) }
+	if request.NewBaseRework != nil {
+		startHost = func() error {
+			cap, e := loadControlCapability(controlPath)
+			if e != nil {
+				return e
+			}
+			return ensureSourceHost(ctx, state, cap)
+		}
+	}
+	if err = startHost(); err != nil {
 		_ = json.NewEncoder(stdout).Encode(map[string]any{"version": 1, "status": "queued_host_unavailable", "run_id": request.RunID, "control_file": controlPath})
 		return codeError("source_host_start_failed")
 	}

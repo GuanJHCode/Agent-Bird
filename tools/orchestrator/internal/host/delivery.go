@@ -58,6 +58,15 @@ func newCompositionManifest(grant contract.LaunchCommand, inputs []contract.Acce
 		if c.RepoRoot != m.RepoRoot || c.CommonDir != m.CommonDir || c.BaseOID != m.BaseOID || c.RepoRootIdentity != m.RepoRootIdentity || c.CommonDirIdentity != m.CommonDirIdentity || c.CandidateOID == "" {
 			return nil, errors.New("composition_source_mismatch")
 		}
+		sourceDigest := ""
+		if c.Binding != nil {
+			sourceDigest = c.Binding.NewBaseSHA256
+		}
+		if i == 0 {
+			m.Binding.NewBaseSHA256 = sourceDigest
+		} else if m.Binding.NewBaseSHA256 != sourceDigest {
+			return nil, errors.New("composition_lineage_mismatch")
+		}
 		source, err := adapter.DecodeInvocationPayload(in.AdapterPayload)
 		if err != nil || validateCandidateSourceProvider(source.ProviderLock, source.Provider) != nil {
 			return nil, errors.New("composition_source_invalid")

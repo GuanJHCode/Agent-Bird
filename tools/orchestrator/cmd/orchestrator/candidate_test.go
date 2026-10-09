@@ -466,11 +466,22 @@ func TestMain(m *testing.M) {
 			}
 			prompt = content[0].Text
 		}
-		if prompt != "controlled implementation\n\n"+adapter.ManagedTaskInstruction() {
+		newGeneration := strings.Contains(prompt, "Owner-authorized new generation.")
+		if newGeneration && (!strings.Contains(prompt, "NEW_BASE_FEEDBACK_MARKER") || !strings.Contains(prompt, "NEW_BASE_ACCEPTANCE_MARKER")) {
+			os.Exit(11)
+		}
+		if !newGeneration && prompt != "controlled implementation\n\n"+adapter.ManagedTaskInstruction() {
 			os.Exit(11)
 		}
 		name := strings.TrimPrefix(mode, "compose-") + ".txt"
-		if err := os.WriteFile(name, []byte(mode+"\n"), 0600); err != nil {
+		content := mode + "\n"
+		if newGeneration {
+			content = mode + "-generation-two\n"
+			if strings.Contains(prompt, "NEW_BASE_THIRD_MARKER") {
+				content = mode + "-generation-three\n"
+			}
+		}
+		if err := os.WriteFile(name, []byte(content), 0600); err != nil {
 			os.Exit(3)
 		}
 		if agyFixture {

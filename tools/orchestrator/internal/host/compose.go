@@ -108,6 +108,13 @@ func (h *Host) prepareComposeAction(ctx context.Context, grant contract.LaunchCo
 		if delivery.Stage != "" || delivery.Composition != nil || c.Binding == nil || c.Binding.TaskID != input.Event.TaskID || c.AttemptID != input.Event.AttemptID || c.PlanRevision != int64(grant.PlanRevision) || len(delivery.CandidateReceiptSHA256) != 64 || c.RepoRoot != source.CandidateWorkspace.RepoRoot || c.BaseOID != source.CandidateWorkspace.BaseOID || !compositionSourceWorktree(source.Directory, sourceGrant, source.CandidateWorkspace.AutoDirectory, c.Worktree) || c.PrivateRef == "" || c.PrivateRefExpectedOID != c.CandidateOID {
 			return fail(errors.New("candidate_compose_source_invalid"))
 		}
+		if n := source.CandidateWorkspace.NewBaseRework; n != nil {
+			if n.Validate(grant.RunID, input.Event.TaskID, source.CandidateWorkspace.BaseOID) != nil || c.Binding.NewBaseSHA256 != n.Digest() {
+				return fail(errors.New("candidate_new_base_binding_invalid"))
+			}
+		} else if c.Binding.NewBaseSHA256 != "" {
+			return fail(errors.New("candidate_new_base_binding_invalid"))
+		}
 		if err := gitops.ValidateCandidatePrivateRef(ctx, c); err != nil {
 			return fail(err)
 		}
@@ -182,6 +189,7 @@ func (h *Host) prepareComposeAction(ctx context.Context, grant contract.LaunchCo
 			return uncertain()
 		}
 		binding := gitops.CandidateBinding{RunID: grant.RunID, TaskID: grant.TaskID, AttemptID: grant.AttemptID, SegmentID: grant.SegmentID, WorkRevision: grant.WorkRevision, PlanRevision: grant.PlanRevision}
+		binding.NewBaseSHA256 = manifest.Binding.NewBaseSHA256
 		receipt.Binding = &binding
 		receipt.Files = nil
 		manifest.Binding = binding

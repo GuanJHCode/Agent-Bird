@@ -24,3 +24,11 @@ Independent c9d01ba review found and implementation corrected:
 5. Competing legacy integration scopes read artifacts only in the pre-admission read-only gate. The owned write transaction recomputes exact durable reservation facts and rejects missing/changed scope snapshots; it never calls `integrationScope`/file reading in the F03 admission path.
 
 `store-reservation-01`: 2 top-level / 14 named PASS. `store-reservation-02`: concurrent two distinct source-event submissions yield one successor + one target refusal; ordinary matching target admission/dispatch refused, distinct ref allowed, UNKNOWN cannot release and queued cancel releases. 1 top-level / 1 named PASS. Final race/build/vet and public three-generation verification are still pending.
+
+## Public CLI / Host milestone
+
+`public-04` 2 top-level / 2 named PASS (0 failures/skips): real public `submit --source-control-file` admits generations two and three, each creates fresh Claude/AGY protocol fixture candidates, ordered compose, validation, review and integration on the exact preceding TargetHEAD. Fixtures consume the actual managed instructions and require feedback/acceptance markers. Continuous third-generation admission authenticates the second generation's receipt lineage and exercises target release after accepted integration. Old run/task/attempt/segment/event/decision/budget histories are fingerprinted unchanged; original dirty checkout bytes/status/HEAD stay exact. Public replay returns the same prepared control file. Producer Host refuses a stale integrated HEAD using existing common-lock target validation.
+
+Host binds `new_base_sha256` into producer candidate receipts, enforces one common digest across ordered sources, and binds that digest into composed receipts/manifests that downstream stages preserve. Existing fields remain `omitempty` and legacy producer receipts retain their byte contract.
+
+All public failures remain retained separately: `public-01` missing fixture origin birth; `public-02` and `public-diagnostic-01` full-vs-redacted producer receipt digest mismatch; `public-03` completed both generations but extra drift fixture omitted ReservationID. These are not counted as final passes. Failed native runtimes remain at their logged `/private/tmp/new-base-cli-*` paths pending owned cleanup; original Coordinator Wait ran during cleanup.
