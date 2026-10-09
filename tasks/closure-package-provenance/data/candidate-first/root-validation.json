@@ -1,0 +1,20 @@
+{
+  "tested_source": "a68a901ec57e4d96200ee20f48eae6e5969e8a95",
+  "orchestrator_tree": "27aa641629f5c07fd0f8726684c16eb7e4040611",
+  "actual_commands": 12,
+  "all_exit_zero": true,
+  "all_stderr_empty": true,
+  "package_files": 28,
+  "installed_files": 28,
+  "source_mapping_count": 24,
+  "binary_sha256": "60a679b730775bcab7a66d978c32c1df16c083a0d202f7d994a22f74c90b5f29",
+  "receipt_sha256": "81d2bdc4755354cab04e20ab6ad05aab966bbb9ab245ccd072e8b55573a397fe",
+  "package_manifest_sha256": "0b00dda95d0062c76afd2b6bd6af55db7a0aa74d0c8aeca083cda015e634b880",
+  "review": {
+    "source": "3168e07",
+    "verdict": "PASS",
+    "reviewer": "new_base_store_review"
+  },
+  "uninstall_removed": true,
+  "data_preserved": true
+}

@@ -1,0 +1,11 @@
+{
+  "tested_source": "a68a901ec57e4d96200ee20f48eae6e5969e8a95",
+  "merged_source": "cd398b58148a9c8a3aeb3138028c6651f1c968aa",
+  "input_git_objects_identical": {
+    "tools/orchestrator": "27aa641629f5c07fd0f8726684c16eb7e4040611",
+    "plugins/codex-orchestrator": "dbd308afc5bb0d93d579aae6e237c1e053dce029",
+    "runtime/native": "74b7ed8f5c75519b1710f3e78f6ebb2f4446f467",
+    "tasks/g1-g4-delivery/scripts/package-plugin.sh": "cbe22f7f37e4e953319d53e7e73df6a19cc9cf99"
+  },
+  "evidence_reused": "only task/product documentation and evidence changed after actual acceptance"
+}

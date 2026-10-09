@@ -1,0 +1,24 @@
+{
+  "removed": [
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/closure-package-provenance/tasks/closure-package-provenance/tmp/candidate-first/orchestrator-a",
+      "sha256": "60a679b730775bcab7a66d978c32c1df16c083a0d202f7d994a22f74c90b5f29",
+      "bytes": 20961954
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/closure-package-provenance/tasks/closure-package-provenance/tmp/candidate-first/orchestrator-b",
+      "sha256": "60a679b730775bcab7a66d978c32c1df16c083a0d202f7d994a22f74c90b5f29",
+      "bytes": 20961954
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/closure-package-provenance/tasks/closure-package-provenance/tmp/candidate-first/package-b",
+      "files": 28,
+      "bytes": 21384024,
+      "verified_against": "receipt.package_files"
+    }
+  ],
+  "exact_work_path_actor_absent": true,
+  "kept_package": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/closure-package-provenance/tasks/closure-package-provenance/tmp/candidate-first/package-a",
+  "kept_data": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/closure-package-provenance/tasks/closure-package-provenance/tmp/candidate-first/runtime-data",
+  "reason": "redundant copies only; installed version already removed by accepted public uninstall"
+}
