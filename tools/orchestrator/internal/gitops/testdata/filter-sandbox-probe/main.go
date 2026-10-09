@@ -3,11 +3,13 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"syscall"
 	"time"
 )
 
@@ -18,7 +20,9 @@ type outcome struct {
 }
 
 func result(err error) outcome {
-	o := outcome{Allowed: err == nil, Denied: os.IsPermission(err)}
+	// net.OpError adds a wrapper that os.IsPermission does not recursively
+	// inspect. Keep the oracle at the actual errno, never the error string.
+	o := outcome{Allowed: err == nil, Denied: errors.Is(err, syscall.EPERM) || errors.Is(err, syscall.EACCES)}
 	if err != nil {
 		o.Error = err.Error()
 	}
