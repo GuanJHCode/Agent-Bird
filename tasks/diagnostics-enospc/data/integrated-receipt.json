@@ -1,0 +1,10 @@
+{
+  "integration_commit": "8305afef04e76b3ccae93b2674173407c09f6b04",
+  "tested_source": "28b108b47e1c53b3073f2933d32da0edc39599ee",
+  "orchestrator_tree": "38a74274e6e6b12f12ed02392633556925d5800d",
+  "files_verified": {
+    "tools/orchestrator/internal/diagnostics/enospc_linux_test.go": "1ae508c62fa51a71b913524fa3893b03c8575da39f20be6fc2ed8a8290b2fb4d",
+    "tools/orchestrator/internal/host/diagnostics_enospc_linux_test.go": "e5d1a136592fc305bfb26007aa4d785714b39a2e8b5990ffea615a17105d37d4"
+  },
+  "evidence": "final-receipt.json; identical full orchestrator tree, no repeated tests"
+}
