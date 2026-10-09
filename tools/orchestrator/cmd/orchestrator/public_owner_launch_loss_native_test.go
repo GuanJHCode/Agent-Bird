@@ -242,13 +242,11 @@ func TestPublicOwnerLaunchCoordinatorLossUnknown(t *testing.T) {
 		t.Fatal("local owner bind", err)
 	}
 	request := map[string]any{"owner_mode": "local", "owner_capability": local.OwnerCapability, "run_id": "protocol2-loss-run", "controller_thread": "loss-controller", "plan_revision": 1, "origin_context_id": local.OriginContextID, "origin_pid": origin.command.Process.Pid, "origin_birth": birth, "host_generation": local.HostGeneration, "delivery_mode": "collect", "tasks": []any{map[string]any{"id": "worker", "max_attempts": 1, "max_active_ms": 30000, "completion_policy": "owner_review", "execution_policy": contract.ExecutionPolicy{Version: 1, GroupMaxAttempts: 1, GroupMaxActiveMS: 60000, TaskMaxActiveMS: 60000, SegmentMaxActiveMS: 30000}, "adapter": map[string]any{"kind": "fake", "args": []string{cli}, "directory": root}}}}
-	submitReply := origin.call(t, []string{"submit", "--owner-launch-protocol", "2", "--state-dir", state, "--request", write("submit.json", request)})
-	var submitted struct {
-		Status      string `json:"status"`
-		ControlFile string `json:"control_file"`
-	}
-	if err = json.Unmarshal(submitReply.Stdout, &submitted); err != nil || submitReply.ExitCode != 2 || submitted.Status != "queued_host_unavailable" || submitted.ControlFile == "" {
-		t.Fatalf("submit did not retain public control: exit=%d stdout=%s stderr=%s err=%v", submitReply.ExitCode, submitReply.Stdout, submitReply.Stderr, err)
+	// Start the public action through the original source, but do not wait for
+	// its Host-ready timeout: Owner's empty-bootstrap deadline can expire in
+	// that same window. Kill only after the signed marker and durable snapshot.
+	if err = json.NewEncoder(origin.input).Encode([]string{"submit", "--owner-launch-protocol", "2", "--state-dir", state, "--request", write("submit.json", request)}); err != nil {
+		t.Fatal(err)
 	}
 	for end := time.Now().Add(20 * time.Second); ; {
 		if _, e := os.Stat(marker); e == nil {
@@ -305,6 +303,21 @@ func TestPublicOwnerLaunchCoordinatorLossUnknown(t *testing.T) {
 	}
 	if err = os.WriteFile(gate, nil, 0600); err != nil {
 		t.Fatal(err)
+	}
+	if err = origin.output.SetReadDeadline(time.Now().Add(35 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	var submitReply publicOriginReply
+	if err = origin.decoder.Decode(&submitReply); err != nil {
+		t.Fatal("controlled submit reply after Coordinator loss", err)
+	}
+	t.Logf("old-origin public CLI submit PID=%d original Wait=%d error=%s", submitReply.PID, submitReply.ExitCode, submitReply.WaitError)
+	var submitted struct {
+		Status      string `json:"status"`
+		ControlFile string `json:"control_file"`
+	}
+	if err = json.Unmarshal(submitReply.Stdout, &submitted); err != nil || submitReply.ExitCode != 2 || submitted.Status != "queued_host_unavailable" || submitted.ControlFile == "" {
+		t.Fatalf("submit did not retain public control: exit=%d stdout=%s stderr=%s err=%v", submitReply.ExitCode, submitReply.Stdout, submitReply.Stderr, err)
 	}
 	hostWait := publicSuccessionReadWait(t, state, "first_host", observed.Attempt.EffectiveIntent.FirstHost.PID)
 	if hostWait.ExitCode == 0 || hostWait.WaitError == "" {
