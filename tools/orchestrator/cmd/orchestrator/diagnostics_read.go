@@ -17,11 +17,13 @@ import (
 )
 
 type diagnosticsCLIInput struct {
-	read    store.DiagnosticsReadRequest
-	delete  store.DiagnosticsDeleteRequest
-	receipt store.DiagnosticsReceipt
-	task    string
-	kind    ipc.Kind
+	read             store.DiagnosticsReadRequest
+	retentionRequest store.DiagnosticsRetentionPlanRequest
+	retentionPlan    store.DiagnosticsRetentionPlan
+	delete           store.DiagnosticsDeleteRequest
+	receipt          store.DiagnosticsReceipt
+	task             string
+	kind             ipc.Kind
 }
 
 func diagnosticsCLIError(err error) error {
@@ -90,7 +92,17 @@ func loadDiagnosticsCLIInput(action, path string) (in diagnosticsCLIInput, err e
 	if err != nil {
 		return in, err
 	}
-	if action == "diagnostics-read" {
+	if action == "diagnostics-retention-plan" {
+		in.kind = ipc.KindDiagnosticsRetentionPlan
+		if err = json.Unmarshal(raw, &in.retentionRequest); err != nil {
+			return in, codeError("diagnostics_retention_request_invalid")
+		}
+	} else if action == "diagnostics-retention-apply" {
+		in.kind = ipc.KindDiagnosticsRetentionApply
+		if err = json.Unmarshal(raw, &in.retentionPlan); err != nil {
+			return in, codeError("diagnostics_retention_plan_invalid")
+		}
+	} else if action == "diagnostics-read" {
 		in.kind = ipc.KindDiagnosticsRead
 		if err = json.Unmarshal(raw, &in.read); err != nil {
 			return in, codeError("diagnostics_request_invalid")
@@ -116,7 +128,17 @@ func loadDiagnosticsCLIInput(action, path string) (in diagnosticsCLIInput, err e
 
 func performDiagnosticsCLI(ctx context.Context, state string, capability controlCapability, in diagnosticsCLIInput, out io.Writer) error {
 	var payload any
-	if in.kind == ipc.KindDiagnosticsRead {
+	if in.kind == ipc.KindDiagnosticsRetentionPlan {
+		if capability.RunID != in.retentionRequest.RunID {
+			return codeError("diagnostics_retention_scope_mismatch")
+		}
+		payload = coordinator.DiagnosticsRetentionPlanRequest{ControllerThread: capability.ControllerThread, ControlToken: capability.ControlToken, Request: in.retentionRequest}
+	} else if in.kind == ipc.KindDiagnosticsRetentionApply {
+		if capability.RunID != in.retentionPlan.RunID {
+			return codeError("diagnostics_retention_scope_mismatch")
+		}
+		payload = coordinator.DiagnosticsRetentionApplyRequest{ControllerThread: capability.ControllerThread, ControlToken: capability.ControlToken, Plan: in.retentionPlan}
+	} else if in.kind == ipc.KindDiagnosticsRead {
 		payload = coordinator.DiagnosticsReadRequest{ControllerThread: capability.ControllerThread, ControlToken: capability.ControlToken, Request: in.read}
 	} else if in.kind == ipc.KindDiagnosticsDelete {
 		payload = coordinator.DiagnosticsDeleteRequest{ControllerThread: capability.ControllerThread, ControlToken: capability.ControlToken, Request: in.delete}

@@ -14,15 +14,22 @@ import (
 )
 
 type DiagnosticsDeleteRequest struct {
-	Version          int    `json:"version"`
-	TaskID           string `json:"task_id"`
-	AttemptID        string `json:"attempt_id"`
-	RequestID        string `json:"request_id"`
-	ExpectedRevision int64  `json:"expected_revision"`
+	Version          int                        `json:"version"`
+	TaskID           string                     `json:"task_id"`
+	AttemptID        string                     `json:"attempt_id"`
+	RequestID        string                     `json:"request_id"`
+	ExpectedRevision int64                      `json:"expected_revision"`
+	Retention        *DiagnosticsRetentionGuard `json:"retention,omitempty"`
 }
 
 func (r DiagnosticsDeleteRequest) Validate() error {
-	return (DiagnosticsReadRequest{Version: r.Version, TaskID: r.TaskID, AttemptID: r.AttemptID, RequestID: r.RequestID, ExpectedRevision: r.ExpectedRevision}).Validate()
+	if err := (DiagnosticsReadRequest{Version: r.Version, TaskID: r.TaskID, AttemptID: r.AttemptID, RequestID: r.RequestID, ExpectedRevision: r.ExpectedRevision}).Validate(); err != nil {
+		return err
+	}
+	if r.Retention != nil {
+		return r.Retention.Validate()
+	}
+	return nil
 }
 func (r *DiagnosticsDeleteRequest) UnmarshalJSON(raw []byte) error {
 	type plain DiagnosticsDeleteRequest
@@ -210,6 +217,9 @@ func (d *DB) diagnosticDeletionSnapshot(ctx context.Context, controller, token s
 		if err != nil {
 			return x, err
 		}
+		if err = validateDiagnosticRetention(ctx, owned.tx, row, x.factsJSON, request.Retention); err != nil {
+			return x, err
+		}
 		body, _ := json.Marshal(x.root.Nodes())
 		x.rootJSON = string(body)
 		// A request ID is scoped to a run, even across two distinct namespaces.
@@ -269,6 +279,9 @@ func (d *DB) prepareDiagnosticDeletion(ctx context.Context, controller, token st
 	}
 	if facts != x.factsJSON {
 		return ErrConflict
+	}
+	if err = validateDiagnosticRetention(ctx, owned.tx, row, facts, x.request.Retention); err != nil {
+		return err
 	}
 	admissionBytes := x.controlBytes + int64(len("deleting")-len(row.reservationState))
 	if err = d.storageAdmission(ctx, owned.tx, row.scope.RunID, admissionBytes, false); err != nil {
@@ -342,6 +355,11 @@ func (d *DB) DeleteDiagnostics(ctx context.Context, controller, token string, re
 	})
 }
 func (d *DB) deleteDiagnostics(ctx context.Context, controller, token string, request DiagnosticsDeleteRequest, open openDiagnosticDeletion) ([]byte, error) {
+	// Own the optional guard before validation, marshaling or any callback.
+	if request.Retention != nil {
+		guard := *request.Retention
+		request.Retention = &guard
+	}
 	if err := request.Validate(); err != nil {
 		return nil, err
 	}
