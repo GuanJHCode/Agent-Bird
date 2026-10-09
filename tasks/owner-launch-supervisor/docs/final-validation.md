@@ -1,6 +1,6 @@
 # F10 Coordinator-owned launch attempts
 
-Status: scoped acceptance PASS on production `0874ede`; local integration receipt is recorded separately. The complete F01–F13 programme remains open.
+Status: scoped acceptance PASS on production `0874ede`, locally integrated by `31dabd0`. All 22 changed production hashes and the complete orchestrator tree match the tested source; see `data/integrated-receipt.json`. The complete F01–F13 programme remains open.
 
 ## Implemented scope
 
