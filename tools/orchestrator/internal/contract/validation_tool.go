@@ -99,9 +99,38 @@ func RequireValidationTool(c LaunchCommand, toolSHA string) error {
 	if c.ValidationTool == nil || c.ValidationTool.Validate() != nil || c.ValidationTool.ToolSHA256 != toolSHA {
 		return ErrValidationToolGrant
 	}
+	if c.HostArtifacts == nil || c.ValidationTool.ReservationID == c.HostArtifacts.TerminalReservationID || c.ValidationTool.ReservationID == c.HostArtifacts.ProgressReservationID {
+		return ErrValidationToolGrant
+	}
 	scope, err := ValidationToolScopeSHA256(c, toolSHA)
 	if err != nil || scope != c.ValidationTool.ScopeSHA256 {
 		return ErrValidationToolGrant
 	}
 	return nil
+}
+
+func validateValidationToolAttachment(c LaunchCommand) error {
+	var payload struct {
+		Kind   string `json:"kind"`
+		Action *struct {
+			Operation string `json:"operation"`
+			SHA256    string `json:"command_sha256"`
+		} `json:"candidate_action"`
+	}
+	if len(c.AdapterPayload) != 0 && json.Unmarshal(c.AdapterPayload, &payload) != nil {
+		if c.ValidationTool != nil {
+			return ErrValidationToolGrant
+		}
+		return nil // Preserve the old decoder's responsibility for legacy bytes.
+	}
+	if payload.Action == nil || payload.Action.SHA256 == "" {
+		if c.ValidationTool != nil {
+			return ErrValidationToolGrant
+		}
+		return nil
+	}
+	if payload.Kind != "candidate" || payload.Action.Operation != "validate" || RequireHostArtifacts(c) != nil {
+		return ErrValidationToolGrant
+	}
+	return RequireValidationTool(c, payload.Action.SHA256)
 }
