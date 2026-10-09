@@ -1,0 +1,13 @@
+{
+  "source": "e3948a1889fa3ecc1624a20542cafd0ebfe8d1bf",
+  "cid": "d32eb4e3c08ef9e86e786944a4b9a28b4149975bb6aa5a85ea3f5d93d7363d18",
+  "raw_sha256": "cfb8f627df16a70e00897b0553d2465f967f656ee4380e3f3b252890e058ade5",
+  "pass_top": 1,
+  "pass_named": 4,
+  "fail": 0,
+  "skip": 0,
+  "second_inspect_exit": 1,
+  "second_inspect_stderr": "Error: No such object: d32eb4e3c08ef9e86e786944a4b9a28b4149975bb6aa5a85ea3f5d93d7363d18\n",
+  "binary_sha256": "e5acd0018de08f7fc98f2264c3980bc6c42df43615c3bd79869ddabfb8cae554",
+  "owned_binary_removed": true
+}

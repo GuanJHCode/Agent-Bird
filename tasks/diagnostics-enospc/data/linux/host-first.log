@@ -1,0 +1,5 @@
+=== RUN   TestDiagnosticExecuteRealENOSPCKeepsOriginalOwnership
+    diagnostics_enospc_linux_test.go:69: Host tmpfs filled with 2072576 bytes after durable Running
+    diagnostics_enospc_linux_test.go:116: original_wait=0 tree_confirmed=true termination_tail=true result=unknown committed_last=running reopened_history_unchanged=true
+--- PASS: TestDiagnosticExecuteRealENOSPCKeepsOriginalOwnership (0.05s)
+PASS

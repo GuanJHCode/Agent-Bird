@@ -1,0 +1,20 @@
+{
+  "command": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+    "test",
+    "-c",
+    "-o",
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/diagnostics-enospc/tasks/diagnostics-enospc/tmp/host.test",
+    "./internal/host"
+  ],
+  "exit": 0,
+  "base": "e3948a1889fa3ecc1624a20542cafd0ebfe8d1bf",
+  "test_sha256": "e5d1a136592fc305bfb26007aa4d785714b39a2e8b5990ffea615a17105d37d4",
+  "environment": {
+    "GOOS": "linux",
+    "GOARCH": "arm64",
+    "CGO_ENABLED": "0",
+    "TMPDIR": "/private/tmp"
+  },
+  "binary_sha256": "49cdc95dcf712b4c6f9d2ec57a46f485d668d3001373a866402b37f8a11c911c"
+}
