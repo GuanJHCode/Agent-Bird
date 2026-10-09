@@ -255,6 +255,10 @@ func TestMain(m *testing.M) {
 		runProtocol2NativeFixture()
 		return
 	}
+	if filepath.Base(os.Args[0]) == "protocol2-loss-cli-fixture" {
+		runProtocol2LossFixture()
+		return
+	}
 	if os.Getenv("C04_FIXTURE_PROVIDER") != "" {
 		c04NativeFixture()
 		return
