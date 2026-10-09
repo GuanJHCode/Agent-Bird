@@ -231,6 +231,9 @@ func (d *DB) CommitPreBindRetryAdmission(ctx context.Context, admission PreBindR
 	if current.OwnerID != admission.OwnerID || current.ExpectedAttemptSHA256 != admission.ExpectedAttemptSHA256 || current.OldFirstHost != admission.OldFirstHost || current.Recovery != admission.Recovery || admission.Prepare.Host != admission.NewHost || admission.Prepare.Epoch != admission.Epoch || admission.Prepare.ExecutableSHA256 != admission.Supervisor.ExecutableSHA256 || admission.Prepare.CoordinatorKeyID != row.state.Intent.CoordinatorKeyID || admission.Prepare.BootstrapID == row.state.Intent.BootstrapID || admission.Prepare.RequestID == row.state.Intent.RequestID {
 		return contract.OwnerPrepared{}, ErrConflict
 	}
+	if err = requirePublishedOwnerTx(ctx, owned.tx, row.state.Intent.Scope.RunID); err != nil {
+		return contract.OwnerPrepared{}, err
+	}
 	effective := row.state.Intent
 	effective.FirstHost = contract.OriginalOwnerTransport{PID: admission.NewHost.PID, Birth: admission.NewHost.Birth}
 	effective.BootstrapID = admission.Prepare.BootstrapID
@@ -308,6 +311,9 @@ func (d *DB) PrepareSupervisedOriginalOwner(ctx context.Context, spec PrepareOri
 	tx := owned.tx
 	scope, host, err := originalOwnerRuntimeScope(ctx, tx, spec.Host, spec.Epoch, true)
 	if err != nil {
+		return contract.OwnerPrepared{}, err
+	}
+	if err = requirePublishedOwnerTx(ctx, tx, scope.RunID); err != nil {
 		return contract.OwnerPrepared{}, err
 	}
 	scope.ExecutableSHA256 = spec.ExecutableSHA256
@@ -409,6 +415,9 @@ func (d *DB) prepareSupervisedSuccessorOwner(ctx context.Context, spec PrepareOr
 	tx := owned.tx
 	p, err := successorOwnerPreviewTx(ctx, tx, spec.Host, spec.Epoch, spec.ExecutableSHA256, authorizationID)
 	if err != nil {
+		return contract.OwnerPrepared{}, err
+	}
+	if err = requirePublishedOwnerTx(ctx, tx, p.scope.RunID); err != nil {
 		return contract.OwnerPrepared{}, err
 	}
 	if supervisor.Validate() != nil || supervisor.Epoch != spec.Epoch || supervisor.ExecutableSHA256 != spec.ExecutableSHA256 {
@@ -682,6 +691,9 @@ func (d *DB) recordOwnerLaunch(ctx context.Context, ownerID, expected string, su
 	defer owned.close()
 	row, err := loadOriginalOwner(ctx, owned.tx, ownerID)
 	if err != nil {
+		return contract.OriginalOwnerLaunchReceipt{}, err
+	}
+	if err = requirePublishedOwnerTx(ctx, owned.tx, row.state.Intent.Scope.RunID); err != nil {
 		return contract.OriginalOwnerLaunchReceipt{}, err
 	}
 	a, prior, err := loadOwnerLaunch(ctx, owned.tx, ownerID)

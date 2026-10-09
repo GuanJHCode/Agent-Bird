@@ -104,6 +104,9 @@ func (d *DB) CommitOriginalOwnerAttach(ctx context.Context, spec OriginalOwnerAt
 		return contract.OwnerControlPermit{}, err
 	}
 	i := row.state.Intent
+	if err = requirePublishedOwnerTx(ctx, tx, i.Scope.RunID); err != nil {
+		return contract.OwnerControlPermit{}, err
+	}
 	if !row.state.IsCurrent || row.state.Phase != "bound" || row.state.CurrentHost == nil || !originalOwnerMatchesAuthentication(i.Scope, row.owner, spec.Authentication.Owner) {
 		return contract.OwnerControlPermit{}, originalOwnerRejected()
 	}
@@ -203,6 +206,9 @@ func (d *DB) PrepareOriginalOwner(ctx context.Context, spec PrepareOriginalOwner
 	if err != nil {
 		return contract.OriginalOwnerIntent{}, err
 	}
+	if err = requirePublishedOwnerTx(ctx, tx, scope.RunID); err != nil {
+		return contract.OriginalOwnerIntent{}, err
+	}
 	scope.ExecutableSHA256 = spec.ExecutableSHA256
 	var id string
 	err = tx.QueryRowContext(ctx, `SELECT owner_id FROM execution_owners WHERE request_id=?`, spec.RequestID).Scan(&id)
@@ -278,6 +284,9 @@ func (d *DB) BindOriginalOwner(ctx context.Context, spec BindOriginalOwnerSpec, 
 		return OriginalOwnerBindResult{}, err
 	}
 	i := row.state.Intent
+	if err = requirePublishedOwnerTx(ctx, tx, i.Scope.RunID); err != nil {
+		return OriginalOwnerBindResult{}, err
+	}
 	base := i
 	if row.state.BaseIntent != nil {
 		base = *row.state.BaseIntent

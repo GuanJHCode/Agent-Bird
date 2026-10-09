@@ -77,6 +77,9 @@ func (d *DB) CommitOriginalOwnerApplied(ctx context.Context, spec OriginalOwnerA
 	if err != nil {
 		return err
 	}
+	if err = requirePublishedOwnerTx(ctx, tx, row.state.Intent.Scope.RunID); err != nil {
+		return err
+	}
 	var old sql.NullString
 	if err = tx.QueryRowContext(ctx, `SELECT applied_hash FROM owner_control_changes WHERE owner_id=? AND revision=?`, spec.Applied.Permit.OwnerID, row.state.ControlRevision).Scan(&old); err != nil {
 		return err
@@ -120,6 +123,9 @@ func (d *DB) ActivateOriginalOwner(ctx context.Context, spec OriginalOwnerApplie
 	tx := owned.tx
 	row, hash, err := validateOwnerApplied(ctx, tx, spec, key)
 	if err != nil {
+		return err
+	}
+	if err = requirePublishedOwnerTx(ctx, tx, row.state.Intent.Scope.RunID); err != nil {
 		return err
 	}
 	var saved sql.NullString

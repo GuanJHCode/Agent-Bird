@@ -451,10 +451,13 @@ func (d *DB) RegisterHost(ctx context.Context, hello contract.HostHello, epoch u
 	if subtle.ConstantTimeCompare([]byte(tokenHash), []byte(want)) != 1 || origin != hello.OriginContextID || generation != hello.HostGeneration || executable != hello.Executable {
 		return rollback(ErrHostRejected)
 	}
+	var runID, originBirth string
 	var originPID int
-	var originBirth string
-	if err = tx.QueryRowContext(ctx, `SELECT r.origin_pid,r.origin_birth FROM runs r JOIN tasks t ON t.run_id=r.id JOIN task_runtime tr ON tr.task_id=t.id WHERE tr.host_launch_id=? LIMIT 1`, hello.LaunchID).Scan(&originPID, &originBirth); err != nil || originPID != hello.OriginPID || originBirth != hello.OriginBirth {
+	if err = tx.QueryRowContext(ctx, `SELECT r.id,r.origin_pid,r.origin_birth FROM runs r JOIN tasks t ON t.run_id=r.id JOIN task_runtime tr ON tr.task_id=t.id WHERE tr.host_launch_id=? LIMIT 1`, hello.LaunchID).Scan(&runID, &originPID, &originBirth); err != nil || originPID != hello.OriginPID || originBirth != hello.OriginBirth {
 		return rollback(ErrHostRejected)
+	}
+	if err = requirePublishedOwnerTx(ctx, tx, runID); err != nil {
+		return rollback(err)
 	}
 	hostID := existing.String
 	if !existing.Valid || hostID == "" {
@@ -508,7 +511,19 @@ func (d *DB) HostBinding(ctx context.Context, launchID string) (HostBinding, err
 func (d *DB) AuthorizeHostRebind(ctx context.Context, launchID string, pid int, birth string) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	result, err := d.sql.ExecContext(ctx, `UPDATE runtime_hosts SET status='reconcile_authorized',updated_at=? WHERE launch_id=? AND pid=? AND birth=? AND status='offline'`, time.Now().UTC().Format(time.RFC3339Nano), launchID, pid, birth)
+	owned, err := d.beginOwnerTransaction(ctx)
+	if err != nil {
+		return err
+	}
+	defer owned.close()
+	var runID string
+	if err = owned.tx.QueryRowContext(ctx, `SELECT t.run_id FROM task_runtime tr JOIN tasks t ON t.id=tr.task_id WHERE tr.host_launch_id=? LIMIT 1`, launchID).Scan(&runID); err != nil {
+		return ErrHostRejected
+	}
+	if err = requirePublishedOwnerTx(ctx, owned.tx, runID); err != nil {
+		return err
+	}
+	result, err := owned.tx.ExecContext(ctx, `UPDATE runtime_hosts SET status='reconcile_authorized',updated_at=? WHERE launch_id=? AND pid=? AND birth=? AND status='offline'`, time.Now().UTC().Format(time.RFC3339Nano), launchID, pid, birth)
 	if err != nil {
 		return err
 	}
@@ -516,7 +531,7 @@ func (d *DB) AuthorizeHostRebind(ctx context.Context, launchID string, pid int, 
 	if changed != 1 {
 		return ErrHostRejected
 	}
-	return nil
+	return owned.commit()
 }
 
 func (d *DB) BeginHostReconcile(ctx context.Context, hostID string) error {
@@ -529,6 +544,13 @@ func (d *DB) BeginHostReconcile(ctx context.Context, hostID string) error {
 	defer owned.close()
 	tx := owned.tx
 	rollback := func(e error) error { owned.close(); return e }
+	var runID string
+	if err = tx.QueryRowContext(ctx, `SELECT t.run_id FROM runtime_hosts h JOIN task_runtime tr ON tr.host_launch_id=h.launch_id JOIN tasks t ON t.id=tr.task_id WHERE h.id=? LIMIT 1`, hostID).Scan(&runID); err != nil {
+		return rollback(ErrHostRejected)
+	}
+	if err = requirePublishedOwnerTx(ctx, tx, runID); err != nil {
+		return rollback(err)
+	}
 	if _, err = tx.ExecContext(ctx, `UPDATE runtime_hosts SET status='reconciling' WHERE id=?`, hostID); err != nil {
 		return rollback(err)
 	}
@@ -548,6 +570,13 @@ func (d *DB) FinishHostReconcile(ctx context.Context, hostID string) error {
 	defer owned.close()
 	tx := owned.tx
 	rollback := func(e error) error { owned.close(); return e }
+	var runID string
+	if err = tx.QueryRowContext(ctx, `SELECT t.run_id FROM runtime_hosts h JOIN task_runtime tr ON tr.host_launch_id=h.launch_id JOIN tasks t ON t.id=tr.task_id WHERE h.id=? LIMIT 1`, hostID).Scan(&runID); err != nil {
+		return rollback(ErrHostRejected)
+	}
+	if err = requirePublishedOwnerTx(ctx, tx, runID); err != nil {
+		return rollback(err)
+	}
 	// Keep the first statement a write, so SQLite waits for an existing writer
 	// instead of attempting to upgrade a stale read snapshot. The predicate
 	// still excludes supervised Hosts atomically, before any readiness change.

@@ -9,9 +9,16 @@ authority-reducing offline/fence paths remain ungated.
 | scheduler claim and pending resend | `ClaimReady`, `PendingLaunches` | implemented |
 | task stop | `RequestStop` | implemented |
 | delivery acknowledgement | `AckDecisions`, `AckDelivery` | implemented |
-| decisions | resume, continuation, retry, rework, review, answer | resume/continuation/rework/review/answer implemented; retry pending |
-| budget/new-base | budget revision and new-base authorization | pending |
-| host/recovery | register, rebind, coordinator epoch, reconcile, recovery scope | pending |
-| original owner execution | prepare, bind, applied, activate | pending |
-| bridge/ACP | bridge owner transaction and ACP receipts | pending |
-| diagnostics | acknowledgement, delete and retention apply item delete | pending |
+| decisions | resume, continuation, retry, rework, review, answer | implemented (`QueueRetry` checks the task in its write transaction) |
+| budget/new-base | budget revision and new-base authorization | implemented |
+| host/recovery | register, rebind, reconcile begin/finish, recovery scope | implemented; coordinator epoch remains allowed to fence/offline and preserves publication rows |
+| original owner execution | prepare, bind, applied, activate, supervised launch receipts | implemented |
+| bridge/ACP | bridge owner transaction and ACP receipts | implemented through `bridgeOwnerTx`/`acpOwnerTx` |
+| diagnostics | acknowledgement, delete and retention apply item delete | implemented: snapshot, prepare, and final delete transactions each recheck; retention calls the same per-item delete path |
+
+The gate runs in the mutation's own SQLite transaction. The covered write entry
+points use `requirePublishedOwnerTx` or `requirePublishedTaskTx` only after
+resolving the authoritative run/task in that transaction, before their first
+state change. Read-only status, collection, wait, diagnostics read, and
+authority-reducing offline/fence paths remain observable while publication is
+pending.

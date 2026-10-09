@@ -70,6 +70,9 @@ func authorizeNewBase(ctx context.Context, tx *sql.Tx, p PlanSpec) (string, erro
 	if err != nil || controller != p.NewBaseAuthorization.ControllerThread || controller != p.Run.ControllerThread || subtle.ConstantTimeCompare([]byte(token), []byte(runtimeHash(p.NewBaseAuthorization.ControlToken))) != 1 {
 		return "", CodeError("owner_mismatch")
 	}
+	if err = requirePublishedOwnerTx(ctx, tx, run); err != nil {
+		return "", err
+	}
 	return run, nil
 }
 

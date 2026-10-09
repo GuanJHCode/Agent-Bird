@@ -79,6 +79,9 @@ func (d *DB) AuthorizeRecoveryScope(ctx context.Context, hello contract.HostHell
 	if err != nil || hello.LaunchToken == "" || subtle.ConstantTimeCompare([]byte(tokenHash), []byte(runtimeHash(hello.LaunchToken))) != 1 || origin != hello.OriginContextID || generation == "" || generation != hello.HostGeneration || executable != hello.Executable || originPID != hello.OriginPID || originBirth != hello.OriginBirth || status != "offline" || proof.OldPID <= 1 || proof.OldBirth == "" {
 		return RecoveryScopeProof{}, ErrHostRejected
 	}
+	if err = requirePublishedOwnerTx(ctx, tx, run); err != nil {
+		return RecoveryScopeProof{}, err
+	}
 	var unsafe int
 	err = tx.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM segment_runtime s JOIN attempts a ON a.id=s.attempt_id JOIN tasks t ON t.id=a.task_id WHERE t.run_id=? AND s.status NOT IN ('exited','not_started')) + (SELECT COUNT(*) FROM stop_runtime WHERE host_id=? AND status='pending')`, run, hostID).Scan(&unsafe)
 	if err != nil {
