@@ -38,6 +38,6 @@
 
 ## 清理与未完成范围
 
-四个精确 Linux CID 均由原 attach 终态后 finally 删除，ROOT 再次 inspect 得到 No such；仅凭原 terminal、文件 UID/nlink/inode/hash 确认后删除本轮四个 crossbinary，共 75,051,518 bytes。raw/expected/command/exit 和清理 receipt 保留。Mac stage 的 10 个已归属 fixture 根逐一 absent；公开失败 DB/bootstrap/request/log 现场保留，已结束的两份重复 binary 有单独诚实清理回执。未清未知归属内容。
+四个精确 Linux CID 均由原 attach 终态后 finally 删除，ROOT 再次 inspect 得到 No such；仅凭原 terminal、文件 UID/inode/hash 确认后删除本轮四个 crossbinary，共 75,051,518 bytes。raw/expected/command/exit 和清理 receipt 保留。Mac stage 的 10 个已归属 fixture 根逐一 absent；公开失败 DB/bootstrap/request/log 现场保留，已结束的两份重复 binary 有单独诚实清理回执。未清未知归属内容。
 
 本轮没有真实 Provider/model/account 调用、用户安装替换或推送/发布。没有 Intel Mac/Windows 原生、物理断电、整盘故障、真实模型/TUI/Hook 资格；F12 Formal60 仍 FAILED，旧资源样本不为该候选背书。F01–F13 整体仍未完成。
