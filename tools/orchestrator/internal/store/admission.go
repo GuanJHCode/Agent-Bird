@@ -10,6 +10,7 @@ import (
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/diagnostics"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -234,8 +235,18 @@ func (d *DB) submitPlan(ctx context.Context, p PlanSpec, authority *contract.Con
 	if err := validatePlan(p); err != nil {
 		return SubmitReceipt{}, err
 	}
+	source, err := d.prepareNewBaseSource(ctx, p)
+	if err != nil {
+		return SubmitReceipt{}, err
+	}
+	if source != nil {
+		available, e := d.storageAvailable(filepath.Dir(d.path))
+		if e != nil {
+			return SubmitReceipt{}, CodeError("storage_blocked")
+		}
+		ctx = context.WithValue(ctx, admissionStorageAvailableKey{}, available)
+	}
 	launchID, token, controlToken := p.LaunchID, p.LaunchToken, p.ControlToken
-	var err error
 	if launchID == "" {
 		launchID, err = newID("host-launch")
 		if err != nil {
@@ -263,6 +274,14 @@ func (d *DB) submitPlan(ctx context.Context, p PlanSpec, authority *contract.Con
 	defer owned.close()
 	tx := owned.tx
 	rollback := func(e error) (SubmitReceipt, error) { owned.close(); return SubmitReceipt{}, e }
+	derived, replay, e := d.admitNewBase(ctx, tx, &p, source)
+	if e != nil {
+		return rollback(e)
+	}
+	if replay != nil {
+		owned.close()
+		return *replay, nil
+	}
 	var abandoned int
 	if err = tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM config_preparation_abandons WHERE run_id=?)`, p.Run.ID).Scan(&abandoned); err != nil {
 		return rollback(err)
@@ -374,6 +393,9 @@ func (d *DB) submitPlan(ctx context.Context, p PlanSpec, authority *contract.Con
 				return rollback(e)
 			}
 		}
+	}
+	if err = d.retainNewBase(ctx, tx, p, derived); err != nil {
+		return rollback(err)
 	}
 	if err = owned.commit(); err != nil {
 		return SubmitReceipt{}, err

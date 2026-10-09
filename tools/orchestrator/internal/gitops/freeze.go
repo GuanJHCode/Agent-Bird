@@ -24,6 +24,7 @@ type CandidateBinding struct {
 	WorkRevision   int    `json:"work_revision"`
 	PlanRevision   int    `json:"plan_revision"`
 	RevisionSHA256 string `json:"revision_sha256,omitempty"`
+	NewBaseSHA256  string `json:"new_base_sha256,omitempty"`
 }
 
 type CandidateChange struct {

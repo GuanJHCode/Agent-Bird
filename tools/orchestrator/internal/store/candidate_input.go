@@ -87,7 +87,8 @@ func bindCandidateInputContent(ctx context.Context, tx *sql.Tx, command *contrac
 	}
 	var payload struct {
 		Workspace *struct {
-			Rework json.RawMessage `json:"rework"`
+			Rework        json.RawMessage `json:"rework"`
+			NewBaseRework json.RawMessage `json:"new_base_rework"`
 		} `json:"candidate_workspace"`
 		Action *struct {
 			Version                int      `json:"version"`
@@ -100,8 +101,11 @@ func bindCandidateInputContent(ctx context.Context, tx *sql.Tx, command *contrac
 	if json.Unmarshal(command.AdapterPayload, &payload) != nil {
 		return ErrConflict
 	}
+	if err := bindNewBaseProducer(ctx, tx, command); err != nil {
+		return err
+	}
 	if payload.Action == nil {
-		if payload.Workspace != nil && len(payload.Workspace.Rework) > 0 && string(payload.Workspace.Rework) != "null" {
+		if payload.Workspace != nil && (len(payload.Workspace.Rework) > 0 && string(payload.Workspace.Rework) != "null" || len(payload.Workspace.NewBaseRework) > 0 && string(payload.Workspace.NewBaseRework) != "null") {
 			return bindCandidateIntent(ctx, tx, command, replay)
 		}
 		return nil
