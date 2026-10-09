@@ -88,11 +88,19 @@ func (s *Server) diagnosticsControl(ctx context.Context, kind ipc.Kind, raw json
 		return json.Marshal(result)
 	}
 	if kind == ipc.KindDiagnosticsRetentionApply {
-		var r DiagnosticsRetentionApplyRequest
+		var r struct {
+			ControllerThread string                             `json:"controller_thread"`
+			ControlToken     string                             `json:"control_token"`
+			Plan             store.DiagnosticsRetentionPlanWire `json:"plan"`
+		}
 		if contract.DecodeBridgeStrict(raw, &r) != nil {
 			return nil, store.CodeError("diagnostics_request_invalid")
 		}
-		result, err := s.db.ApplyDiagnosticsRetention(ctx, r.ControllerThread, r.ControlToken, r.Plan)
+		plan, err := r.Plan.ValidatedPlan()
+		if err != nil {
+			return nil, diagnosticsControlError(err)
+		}
+		result, err := s.db.ApplyDiagnosticsRetention(ctx, r.ControllerThread, r.ControlToken, plan)
 		if err != nil {
 			return nil, diagnosticsControlError(err)
 		}

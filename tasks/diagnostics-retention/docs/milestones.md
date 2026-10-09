@@ -22,3 +22,14 @@ plan先run auth，SQL最多64task，输出items0..8，canonical+CLI newline总<=
 每个 candidate（包括 excluded）均试算实际 cursor、digest 和 CLI newline；超限回退该 candidate 全部计数与 item，不推进 cursor。Validate/apply 同为 canonical JSON + newline <=8192。
 
 原 retention-review-red 中容量夹具尚未达到目标也保留，不称其为分页机制证据；retention-review-red-02 的 exact8192 业务断言失败，retention-page-red-03 的真实64task/长 excluded cursor 触发原 plan_invalid。retention-review-green 2top/4named PASS（0FAIL/0SKIP），覆盖真实重连、excluded cursor 与 canonical8192拒绝。公开 CLI/完整 apply 与最终 race 仍待完成。
+
+
+## 完整 apply / 公共 CLI 里程碑
+
+新增 whole-plan JSON freeze 回归发现 map 不被现有 bridge 精确字段扫描器支持；retention-apply-bounds-01 与真实 retention-public-red 保留。固定 reason wire DTO 支持同一 JSON 形状，Plan 的 map Marshal/digest 不变，不放宽全局 parser。Wire 自身严格拒绝 null（包含 count:null）；缺失/null Excluded 拒绝，{} 保留；完整字段扫描继续拒绝 unknown/case/duplicate，显式0计数由 Plan.Validate 拒绝。
+
+retention-wire-apply-green 中 second segment synthetic fixture 少 budget row 导致失败，保留原始报告；retention-wire-apply-green-02 的 3top/18named 全部通过，覆盖512个真实认证 late events、513拒绝、65536/65537 bounded body、全部required segment和 max、wholeplan auth/order/hash、部分成功 exact replay、cancel 和调用者 mutation。多segment额外生命周期是显式合成fixture，不声称真实worker启动。
+
+同一个 epoch 用例现在覆盖更常见路径：原segment Running/Result 已入库，重连到epoch2后首次 Exited入库、完成原attempt；原 launch epoch仍1。旧 RED/green记录的late Exited仍只说明对应边界。
+
+retention-public-green：1top/1named PASS；真实独立CLI child调用 plan、保存其原样 stdout(含newline)、apply、exact replay；6个畸形 Excluded 请求经真实Coordinator IPC均拒绝且无delete intent。原Host身份fixture的确切原Wait0在任何数据读取/删除前完成，CLI children真实Wait0；事件是受控Store fixture，无真实provider。Wire presence追加矩阵与最终定向race待完成，ROOT独立build/vet/审查待汇总。
