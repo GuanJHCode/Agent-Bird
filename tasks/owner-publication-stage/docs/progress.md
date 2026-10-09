@@ -12,3 +12,10 @@
 生产第一里程碑：Snapshot/PreparePublication/PublishPublication/VerifyPublication与Windows unsupported stub已实现。Publish要求同lease成功Prepare和同expected bytes；新双SHA稳定stage、bounded4096目录扫描、fresh拒绝旧/未知stage、replay唯一stage与exactprefix补余字节；所有切片前检查read后尺寸和FD/named身份。expected已在final且stageabsent只Sync/readback，无新inode。Verify检查held final/root、file+dirSync与stageabsent。旧PublishStable暂为fresh-only过渡wrapper，不允许无journal采用stage，待ROOT切换后删除。
 
 stage-legacy-red 1top/4named FAIL（3子例+父例），旧random/64hex/unknown被旧实现忽略；原raw保留。stage-core-green 1top4named PASS，stage-api-green 3top16named PASS0F/S；后者含Stat后增长拒绝且不panic、深冻结Snapshot/expected bytes、replay stage保留、Mode/UID-nlink/inode/root final检查。UID差异未用特权伪造，实际mode/nlink/soft+hard link分支有oracle。真实SIGKILL尚未验，不称完整stage完成。
+
+
+第二里程碑：ROOT已接入新API，经授权fast-forward d557c2a，仅删除hostbootstrap旧PublishStable（旧Publish供recover-host保留），测试fresh guard改直接Prepare。增加expected尺寸先限界后复制和零值/未held lease拒绝。
+
+stage-native-01 3top10named PASS0F/S：8个真实child由原Process handle SIGKILL，每个原Cmd.Wait明确SIGKILL且ConfirmGroupExitedContext成功；同一stage inode至多1，created首次O_EXCL后第二次在原inodestage_stated杀掉（不伪称再次create），partial/fileSync/preRename各重复杀2次，最终exactprefix补余、rename同inode、Verify stageabsent。4个native根+无actor的cleanup guard根均pending0/removedtrue；UNKNOWN/failed guard返回不清理。原badStage prefix/inode/mode/links/growth保留，普通异常只清本次新建同inode。
+
+stage-boundary-01 1top9named PASS0F/S，含其他launch稳定stage不干扰/不改写、同launch另一expected拒绝、4097entry failclosed、超64KiB expected/零值lease拒绝、new/error清理 vs replay/replacement保留。ROOT Store scratch/nativepublic链独立证据不由此冒称。下一最后focused race与Windows leaf编译。

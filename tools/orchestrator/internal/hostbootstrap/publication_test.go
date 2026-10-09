@@ -6,6 +6,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,6 +20,10 @@ func publicationFixture(t *testing.T) (*Lease, []byte, []byte, MetadataV2, strin
 	if e := os.Chmod(state, 0700); e != nil {
 		t.Fatal(e)
 	}
+	return publicationFixtureAt(t, state)
+}
+func publicationFixtureAt(t *testing.T, state string) (*Lease, []byte, []byte, MetadataV2, string) {
+	t.Helper()
 	if e := os.Mkdir(filepath.Join(state, "host-bootstrap"), 0700); e != nil {
 		t.Fatal(e)
 	}
@@ -49,12 +55,12 @@ func publicationFixture(t *testing.T) (*Lease, []byte, []byte, MetadataV2, strin
 func TestPublicationLegacyStageRefusal(t *testing.T) {
 	for _, name := range []string{".launch.json.replace-" + strings.Repeat("a", 32), ".publication-" + strings.Repeat("a", 64), ".publication-unknown"} {
 		t.Run(name, func(t *testing.T) {
-			l, prior, expected, m, state := publicationFixture(t)
+			l, prior, expected, _, state := publicationFixture(t)
 			stage := filepath.Join(state, "host-bootstrap", name)
 			if e := os.WriteFile(stage, expected, 0600); e != nil {
 				t.Fatal(e)
 			}
-			if e := l.PublishStable(m); e == nil {
+			if e := l.PreparePublication(expected, false); e == nil {
 				t.Fatal("fresh/unowned stage silently adopted/ignored")
 			}
 			final, e := os.ReadFile(filepath.Join(state, "host-bootstrap", "launch.json"))
@@ -220,6 +226,107 @@ func TestPublicationStageDriftAndPrefixRejection(t *testing.T) {
 				if e != nil || !bytes.Equal(body, prior) {
 					t.Fatal("failure changed final", kind, e)
 				}
+			}
+		})
+	}
+}
+
+func TestPublicationOwnershipBoundsAndOrdinaryFailure(t *testing.T) {
+	for _, kind := range []string{"same_launch_other_stage", "other_launch_stage", "directory_limit", "large_expected", "zero_lease", "new_error_cleanup", "replay_error_preserved", "replacement_preserved"} {
+		t.Run(kind, func(t *testing.T) {
+			l, prior, expected, _, state := publicationFixture(t)
+			dir := filepath.Join(state, "host-bootstrap")
+			stage := filepath.Join(dir, l.publicationName(expected))
+			switch kind {
+			case "same_launch_other_stage":
+				foreign := filepath.Join(dir, ".publication-"+publicationHash([]byte("launch"))+"-"+strings.Repeat("f", 64))
+				if e := os.WriteFile(foreign, expected, 0600); e != nil {
+					t.Fatal(e)
+				}
+				if e := l.PreparePublication(expected, true); e == nil {
+					t.Fatal("foreign same-launch expected adopted")
+				}
+				if _, e := os.Lstat(foreign); e != nil {
+					t.Fatal("foreign evidence removed", e)
+				}
+			case "other_launch_stage":
+				other := filepath.Join(dir, ".publication-"+publicationHash([]byte("other-launch"))+"-"+strings.Repeat("f", 64))
+				if e := os.WriteFile(other, expected, 0600); e != nil {
+					t.Fatal(e)
+				}
+				if e := l.PreparePublication(expected, false); e != nil {
+					t.Fatal("other attributed launch blocks this one", e)
+				}
+				if e := l.PublishPublication(expected, publicationHash(prior)); e != nil {
+					t.Fatal(e)
+				}
+				body, e := os.ReadFile(other)
+				if e != nil || !bytes.Equal(body, expected) {
+					t.Fatal("other-launch stage touched", e)
+				}
+				return
+			case "directory_limit":
+				for i := 0; i < publicationDirectoryLimit; i++ {
+					if e := os.WriteFile(filepath.Join(dir, fmt.Sprintf("unrelated-%04d", i)), nil, 0600); e != nil {
+						t.Fatal(e)
+					}
+				}
+				if e := l.PreparePublication(expected, false); e == nil || e.Error() != "host_bootstrap_publication_stage_limit" {
+					t.Fatal("unbounded enumeration", e)
+				}
+			case "large_expected":
+				if e := l.PreparePublication(bytes.Repeat([]byte("x"), MaxBytes+1), false); e == nil {
+					t.Fatal("oversize expected accepted")
+				}
+			case "zero_lease":
+				if e := new(Lease).PreparePublication(expected, false); e == nil {
+					t.Fatal("no held root/lease accepted")
+				}
+			default:
+				replay := kind == "replay_error_preserved"
+				if replay {
+					if e := os.WriteFile(stage, expected[:len(expected)/4], 0600); e != nil {
+						t.Fatal(e)
+					}
+				}
+				if e := l.PreparePublication(expected, replay); e != nil {
+					t.Fatal(e)
+				}
+				e := l.publishPublication(expected, publicationHash(prior), func(point string) error {
+					if kind == "replacement_preserved" && point == "created" {
+						if e := os.Rename(stage, stage+"-old"); e != nil {
+							return e
+						}
+						if e := os.WriteFile(stage, expected[:1], 0600); e != nil {
+							return e
+						}
+						return errors.New("controlled identity replacement")
+					}
+					if point == "partial_write" {
+						return errors.New("controlled ordinary failure")
+					}
+					return nil
+				})
+				if e == nil {
+					t.Fatal("ordinary failure not injected")
+				}
+				_, e = os.Lstat(stage)
+				if kind == "new_error_cleanup" {
+					if !os.IsNotExist(e) {
+						t.Fatal("owned new stage leaked", e)
+					}
+				} else if e != nil {
+					t.Fatal("existing/replacement stage erased", e)
+				}
+				if kind == "replacement_preserved" {
+					if _, e = os.Lstat(stage + "-old"); e != nil {
+						t.Fatal("moved original inode lost", e)
+					}
+				}
+			}
+			body, e := os.ReadFile(filepath.Join(dir, "launch.json"))
+			if e != nil || !bytes.Equal(body, prior) {
+				t.Fatal("refusal/error changed final", e)
 			}
 		})
 	}

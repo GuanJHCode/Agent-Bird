@@ -1,0 +1,17 @@
+{
+  "command": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+    "-C",
+    "tools/orchestrator",
+    "test",
+    "-json",
+    "-count=1",
+    "./internal/hostbootstrap",
+    "-run",
+    "^TestPublicationOwnershipBoundsAndOrdinaryFailure$"
+  ],
+  "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/owner-publication-stage",
+  "head": "d557c2a6e9ee94c84c5bbcc7ac63068c109a194a",
+  "dirty": " M tools/orchestrator/internal/hostbootstrap/lease.go\n M tools/orchestrator/internal/hostbootstrap/lease_windows.go\n M tools/orchestrator/internal/hostbootstrap/publication.go\n M tools/orchestrator/internal/hostbootstrap/publication_test.go\n?? tools/orchestrator/internal/hostbootstrap/publication_native_test.go\n",
+  "go_version": "go version go1.26.8 darwin/arm64"
+}

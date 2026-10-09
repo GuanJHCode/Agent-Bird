@@ -325,24 +325,6 @@ func (l *Lease) Publish(metadata MetadataV2) error {
 	return nil
 }
 
-// PublishStable is a compilation transition for old draft callers. It cannot
-// adopt an existing stage; authenticated replay must use the explicit API.
-func (l *Lease) PublishStable(metadata MetadataV2) error {
-	raw, err := json.Marshal(metadata)
-	if err != nil {
-		return err
-	}
-	raw = append(raw, '\n')
-	prior, err := l.Snapshot()
-	if err != nil {
-		return err
-	}
-	if err = l.PreparePublication(raw, false); err != nil {
-		return err
-	}
-	sum := sha256.Sum256(prior)
-	return l.PublishPublication(raw, hex.EncodeToString(sum[:]))
-}
 func (l *Lease) WriteRecoveryIntent(value any) error {
 	if err := l.Unchanged(); err != nil {
 		return err
