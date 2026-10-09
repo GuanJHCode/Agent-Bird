@@ -11,7 +11,7 @@
 
 Raw named Store evidence: `data/store-red.*` (expected failing behavior before implementation) and `data/store-green-03.*` (15 named passes, 0 failures/skips; 4 top-level tests). Diagnostics/failures remain under distinct filenames. No entire Store suite was run.
 
-Public CLI/Host/Git milestone remains in progress. ROOT owns independent review and integration. No real provider/model/account, installation replacement, network pull, push or release.
+Public CLI/Host/Git milestone is completed below. ROOT owns independent review and integration. No real provider/model/account, installation replacement, network pull, push or release.
 
 ## Review corrections / durable target reservation
 
@@ -23,7 +23,7 @@ Independent c9d01ba review found and implementation corrected:
 4. Source accepted completion releases only with current accepted/exited/settled proof; other terminal release uses existing `releasableTaskPredicate`, retaining UNKNOWN, retry/resume and ancestor holds. Release participates in Host-event, accept and queued-cancel transactions. It can also be rechecked during later admission.
 5. Competing legacy integration scopes read artifacts only in the pre-admission read-only gate. The owned write transaction recomputes exact durable reservation facts and rejects missing/changed scope snapshots; it never calls `integrationScope`/file reading in the F03 admission path.
 
-`store-reservation-01`: 2 top-level / 14 named PASS. `store-reservation-02`: concurrent two distinct source-event submissions yield one successor + one target refusal; ordinary matching target admission/dispatch refused, distinct ref allowed, UNKNOWN cannot release and queued cancel releases. 1 top-level / 1 named PASS. Final race/build/vet and public three-generation verification are still pending.
+`store-reservation-01`: 2 top-level / 14 named PASS. `store-reservation-02`: concurrent two distinct source-event submissions yield one successor + one target refusal; ordinary matching target admission/dispatch refused, distinct ref allowed, UNKNOWN cannot release and queued cancel releases. 1 top-level / 1 named PASS. Final race/build/vet and public three-generation verification are recorded below.
 
 ## Public CLI / Host milestone
 
@@ -31,7 +31,7 @@ Independent c9d01ba review found and implementation corrected:
 
 Host binds `new_base_sha256` into producer candidate receipts, enforces one common digest across ordered sources, and binds that digest into composed receipts/manifests that downstream stages preserve. Existing fields remain `omitempty` and legacy producer receipts retain their byte contract.
 
-All public failures remain retained separately: `public-01` missing fixture origin birth; `public-02` and `public-diagnostic-01` full-vs-redacted producer receipt digest mismatch; `public-03` completed both generations but extra drift fixture omitted ReservationID. These are not counted as final passes. Failed native runtimes remain at their logged `/private/tmp/new-base-cli-*` paths pending owned cleanup; original Coordinator Wait ran during cleanup.
+All public failures remain retained separately: `public-01` missing fixture origin birth; `public-02` and `public-diagnostic-01` full-vs-redacted producer receipt digest mismatch; `public-03` completed both generations but extra drift fixture omitted ReservationID. These are not counted as final passes. Failed native DB/request/log/Git scenes remain at their logged `/private/tmp/new-base-cli-*` paths; only 16 owned copied binaries were removed after exact-path actor/hash/pin/module checks. Original Coordinator Wait=0 is retained in each failure raw log.
 
 ## Queued ordinary integration review correction
 
@@ -50,3 +50,13 @@ Prepared metadata now follows bootstrap/control directory Sync, state directory 
 `public-barrier`: 1 top-level / 5 named PASS, 0 failure/skip. Per-call Sync callbacks inject each of the four failures, record exact ordering, assert no marker before the first three barriers and verify original-identity recovery after the already-linked final-stage failure. Real directory Sync is used for nonfailed barriers and recovery. Physical power loss is not tested.
 
 The final public runtime test has explicit `NEW_BASE_NATIVE_RACE=1` opt-in: its nested orchestrator build adds `-race`, so Coordinator and Host processes are instrumented too. Without this option only the parent test/provider fixture build is instrumented.
+
+## Final validation and handoff
+
+Source is fixed at `5cbd657`, including integration `039c0d4` (F10 IPC, F04 journal-backed materialize and F02 Linux ENOSPC tests). Final public runtime race is 4 top-level / 8 named PASS, Host race is 2 top-level / 5 named PASS, module build and related vet exit 0. Store final focused race is 4 top-level / 13 named PASS; three unchanged migration tests passed within the explicitly failed first race batch and are reused individually. `data/actual-counts.json` excludes package pass records, includes all retained failures and hashes each stdout/stderr.
+
+ROOT independently reviewed Store `127e399` PASS, Host/public `9bbbc31` scope plus prepared barrier `5cbd657` increment PASS and independently parsed final raw. No additional Store or native checks followed these stable results.
+
+Owned cleanup removed exactly 16 copied binaries (337,920,352 bytes), retaining all failed DB/requests/control/bootstrap/log/Git worktrees. The first early owner-binding failure had no durable provider pin; cleanup additionally verified all three identical fixture copies, exact logged owned names and expected Go module. No actor was signalled. Empty accidentally nested artifact directories were removed. Cleanup evidence is `data/owned-binary-cleanup.json`.
+
+See `docs/final-validation.md` for public use and remaining environmental limits. ROOT owns final integration and product/support documentation. No active test sessions or pending child-side implementation remain.
