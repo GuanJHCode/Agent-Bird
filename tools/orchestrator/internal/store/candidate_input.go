@@ -14,13 +14,9 @@ import (
 // Worker report_events are deliberately excluded. Replays recompute the same
 // immutable tuple and must match the durable launch intent, not latest guesses.
 func bindCandidateInput(ctx context.Context, tx *sql.Tx, command *contract.LaunchCommand, replay bool) error {
-	var retry *reviewRetryDecision
-	if !isV2Compose(command.AdapterPayload) {
-		var retryErr error
-		retry, retryErr = prepareReviewRetryGrant(ctx, tx, command)
-		if retryErr != nil {
-			return retryErr
-		}
+	retry, retryErr := prepareReviewRetryGrant(ctx, tx, command)
+	if retryErr != nil {
+		return retryErr
 	}
 	return bindCandidateInputForDecision(ctx, tx, command, replay, retry, candidateArtifactLive)
 }
@@ -28,26 +24,33 @@ func bindCandidateInput(ctx context.Context, tx *sql.Tx, command *contract.Launc
 func isV2Compose(raw json.RawMessage) bool {
 	var payload struct {
 		Action *struct {
-			Version                int    `json:"version"`
-			DependencyInputVersion int    `json:"dependency_input_version"`
-			Operation              string `json:"operation"`
-			SourceTask             string `json:"source_task"`
+			Version                int      `json:"version"`
+			DependencyInputVersion int      `json:"dependency_input_version"`
+			Operation              string   `json:"operation"`
+			SourceTask             string   `json:"source_task"`
+			OrderedSourceTasks     []string `json:"ordered_source_tasks"`
 		} `json:"candidate_action"`
 	}
-	return json.Unmarshal(raw, &payload) == nil && payload.Action != nil && payload.Action.Version == 2 && payload.Action.DependencyInputVersion == 2 && payload.Action.Operation == "compose" && payload.Action.SourceTask == ""
+	if json.Unmarshal(raw, &payload) != nil || payload.Action == nil || payload.Action.Version != 2 || payload.Action.DependencyInputVersion != 2 || payload.Action.Operation != "compose" || payload.Action.SourceTask != "" || len(payload.Action.OrderedSourceTasks) < 2 || len(payload.Action.OrderedSourceTasks) > 63 {
+		return false
+	}
+	seen := make(map[string]bool, len(payload.Action.OrderedSourceTasks))
+	for _, task := range payload.Action.OrderedSourceTasks {
+		if task == "" || seen[task] {
+			return false
+		}
+		seen[task] = true
+	}
+	return true
 }
 
 // Reconstruct an already-issued candidate only as evidence for a decision.
 // The historical nil-grant branch still compares the original intent hash;
 // ClaimReady and PendingLaunches must use the live binder above.
 func bindHistoricalCandidateInput(ctx context.Context, tx *sql.Tx, command *contract.LaunchCommand) error {
-	var retry *reviewRetryDecision
-	if !isV2Compose(command.AdapterPayload) {
-		var err error
-		retry, err = prepareReviewRetryGrant(ctx, tx, command)
-		if err != nil {
-			return err
-		}
+	retry, err := prepareReviewRetryGrant(ctx, tx, command)
+	if err != nil {
+		return err
 	}
 	return bindCandidateInputForDecision(ctx, tx, command, true, retry, candidateArtifactHistoricalProof)
 }
