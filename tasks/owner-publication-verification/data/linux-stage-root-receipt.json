@@ -1,0 +1,26 @@
+{
+  "source": "a4246de",
+  "fixed_leaf_source": "56845145c92fab64cce934885c1163698740dc5d",
+  "same_hostbootstrap_tree": "deece2ff8de41e53f6d44e724bbcb84d076aca0f",
+  "linux_named_pass": 31,
+  "linux_top_pass": 6,
+  "fail": 0,
+  "skip": 0,
+  "raw_sha256": "dc8c5ac34b38ba2894501584629c97b7b933a598e031da677cfeadb01b40554e",
+  "sigkill_original_wait_tree_count": 8,
+  "exact_cid": "27799cffa1c1ea9f7ca1fd250bd808b9606ae3b5ceeca393a27f0ede1a45af11",
+  "independent_inspect": {
+    "exit": 1,
+    "stdout": "[]\n",
+    "stderr": "Error: No such object: 27799cffa1c1ea9f7ca1fd250bd808b9606ae3b5ceeca393a27f0ede1a45af11\n"
+  },
+  "binary": {
+    "path": "tasks/owner-publication-verification/tmp/linux-stage/stage.test",
+    "sha256": "500f40be2c51fe6108a787cd89d2f0d99d7fb73467190123a5dfe746549a59dc",
+    "size": 5130220,
+    "inode": 200241726,
+    "uid": 501,
+    "mode": "0o755",
+    "removed": true
+  }
+}

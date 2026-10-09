@@ -1,0 +1,76 @@
+=== RUN   TestPublicationNativeSIGKILLExactStageReplay
+=== RUN   TestPublicationNativeSIGKILLExactStageReplay/created
+    publication_native_test.go:194: checkpoint=created original_pid=12 original_wait=SIGKILL tree=exited
+    publication_native_test.go:194: checkpoint=stage_stated original_pid=16 original_wait=SIGKILL tree=exited
+    publication_native_test.go:102: owned_root=/private/tmp/agent-bird-publication-stage-3687892297 pending=0 failed=false removed=true cleanup_error=<nil>
+=== RUN   TestPublicationNativeSIGKILLExactStageReplay/partial_write
+    publication_native_test.go:194: checkpoint=partial_write original_pid=20 original_wait=SIGKILL tree=exited
+    publication_native_test.go:194: checkpoint=partial_write original_pid=24 original_wait=SIGKILL tree=exited
+    publication_native_test.go:102: owned_root=/private/tmp/agent-bird-publication-stage-3753756176 pending=0 failed=false removed=true cleanup_error=<nil>
+=== RUN   TestPublicationNativeSIGKILLExactStageReplay/file_synced
+    publication_native_test.go:194: checkpoint=file_synced original_pid=28 original_wait=SIGKILL tree=exited
+    publication_native_test.go:194: checkpoint=file_synced original_pid=32 original_wait=SIGKILL tree=exited
+    publication_native_test.go:102: owned_root=/private/tmp/agent-bird-publication-stage-1455222630 pending=0 failed=false removed=true cleanup_error=<nil>
+=== RUN   TestPublicationNativeSIGKILLExactStageReplay/pre_rename
+    publication_native_test.go:194: checkpoint=pre_rename original_pid=36 original_wait=SIGKILL tree=exited
+    publication_native_test.go:194: checkpoint=pre_rename original_pid=40 original_wait=SIGKILL tree=exited
+    publication_native_test.go:102: owned_root=/private/tmp/agent-bird-publication-stage-3223584269 pending=0 failed=false removed=true cleanup_error=<nil>
+--- PASS: TestPublicationNativeSIGKILLExactStageReplay (0.16s)
+    --- PASS: TestPublicationNativeSIGKILLExactStageReplay/created (0.06s)
+    --- PASS: TestPublicationNativeSIGKILLExactStageReplay/partial_write (0.04s)
+    --- PASS: TestPublicationNativeSIGKILLExactStageReplay/file_synced (0.03s)
+    --- PASS: TestPublicationNativeSIGKILLExactStageReplay/pre_rename (0.03s)
+=== RUN   TestPublicationNativeCleanupRetainsUnknown
+    publication_native_test.go:102: owned_root=/private/tmp/agent-bird-publication-stage-3326144966 pending=0 failed=false removed=true cleanup_error=<nil>
+--- PASS: TestPublicationNativeCleanupRetainsUnknown (0.00s)
+=== RUN   TestPublicationLegacyStageRefusal
+=== RUN   TestPublicationLegacyStageRefusal/.launch.json.replace-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+=== RUN   TestPublicationLegacyStageRefusal/.publication-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+=== RUN   TestPublicationLegacyStageRefusal/.publication-unknown
+--- PASS: TestPublicationLegacyStageRefusal (0.00s)
+    --- PASS: TestPublicationLegacyStageRefusal/.launch.json.replace-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa (0.00s)
+    --- PASS: TestPublicationLegacyStageRefusal/.publication-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa (0.00s)
+    --- PASS: TestPublicationLegacyStageRefusal/.publication-unknown (0.00s)
+=== RUN   TestPublicationFrozenBytesAndExactReplay
+--- PASS: TestPublicationFrozenBytesAndExactReplay (0.01s)
+=== RUN   TestPublicationStageDriftAndPrefixRejection
+=== RUN   TestPublicationStageDriftAndPrefixRejection/fresh_existing
+=== RUN   TestPublicationStageDriftAndPrefixRejection/wrong_prefix
+=== RUN   TestPublicationStageDriftAndPrefixRejection/oversize
+=== RUN   TestPublicationStageDriftAndPrefixRejection/hardlink
+=== RUN   TestPublicationStageDriftAndPrefixRejection/symlink
+=== RUN   TestPublicationStageDriftAndPrefixRejection/grow_after_stat
+=== RUN   TestPublicationStageDriftAndPrefixRejection/mode_drift
+=== RUN   TestPublicationStageDriftAndPrefixRejection/inode_drift
+=== RUN   TestPublicationStageDriftAndPrefixRejection/final_drift
+=== RUN   TestPublicationStageDriftAndPrefixRejection/wrong_prior
+--- PASS: TestPublicationStageDriftAndPrefixRejection (0.01s)
+    --- PASS: TestPublicationStageDriftAndPrefixRejection/fresh_existing (0.00s)
+    --- PASS: TestPublicationStageDriftAndPrefixRejection/wrong_prefix (0.00s)
+    --- PASS: TestPublicationStageDriftAndPrefixRejection/oversize (0.00s)
+    --- PASS: TestPublicationStageDriftAndPrefixRejection/hardlink (0.00s)
+    --- PASS: TestPublicationStageDriftAndPrefixRejection/symlink (0.00s)
+    --- PASS: TestPublicationStageDriftAndPrefixRejection/grow_after_stat (0.00s)
+    --- PASS: TestPublicationStageDriftAndPrefixRejection/mode_drift (0.00s)
+    --- PASS: TestPublicationStageDriftAndPrefixRejection/inode_drift (0.00s)
+    --- PASS: TestPublicationStageDriftAndPrefixRejection/final_drift (0.00s)
+    --- PASS: TestPublicationStageDriftAndPrefixRejection/wrong_prior (0.00s)
+=== RUN   TestPublicationOwnershipBoundsAndOrdinaryFailure
+=== RUN   TestPublicationOwnershipBoundsAndOrdinaryFailure/same_launch_other_stage
+=== RUN   TestPublicationOwnershipBoundsAndOrdinaryFailure/other_launch_stage
+=== RUN   TestPublicationOwnershipBoundsAndOrdinaryFailure/directory_limit
+=== RUN   TestPublicationOwnershipBoundsAndOrdinaryFailure/large_expected
+=== RUN   TestPublicationOwnershipBoundsAndOrdinaryFailure/zero_lease
+=== RUN   TestPublicationOwnershipBoundsAndOrdinaryFailure/new_error_cleanup
+=== RUN   TestPublicationOwnershipBoundsAndOrdinaryFailure/replay_error_preserved
+=== RUN   TestPublicationOwnershipBoundsAndOrdinaryFailure/replacement_preserved
+--- PASS: TestPublicationOwnershipBoundsAndOrdinaryFailure (0.08s)
+    --- PASS: TestPublicationOwnershipBoundsAndOrdinaryFailure/same_launch_other_stage (0.00s)
+    --- PASS: TestPublicationOwnershipBoundsAndOrdinaryFailure/other_launch_stage (0.00s)
+    --- PASS: TestPublicationOwnershipBoundsAndOrdinaryFailure/directory_limit (0.08s)
+    --- PASS: TestPublicationOwnershipBoundsAndOrdinaryFailure/large_expected (0.00s)
+    --- PASS: TestPublicationOwnershipBoundsAndOrdinaryFailure/zero_lease (0.00s)
+    --- PASS: TestPublicationOwnershipBoundsAndOrdinaryFailure/new_error_cleanup (0.00s)
+    --- PASS: TestPublicationOwnershipBoundsAndOrdinaryFailure/replay_error_preserved (0.00s)
+    --- PASS: TestPublicationOwnershipBoundsAndOrdinaryFailure/replacement_preserved (0.00s)
+PASS
