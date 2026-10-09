@@ -83,6 +83,7 @@ func ValidateDependencyInputs(c LaunchCommand) error {
 		Action *struct {
 			Version      int      `json:"version"`
 			InputVersion int      `json:"dependency_input_version"`
+			Operation    string   `json:"operation"`
 			Source       string   `json:"source_task"`
 			Ordered      []string `json:"ordered_source_tasks"`
 		} `json:"candidate_action"`
@@ -104,7 +105,7 @@ func ValidateDependencyInputs(c LaunchCommand) error {
 		return e == nil && len(b) == 32 && hex.EncodeToString(b) == s
 	}
 	if a.Version == 2 && a.InputVersion == 2 {
-		if v == nil || v.Version != 2 || len(v.Inputs) < 2 || len(v.Inputs) > 63 || len(a.Ordered) != len(v.Inputs) || a.Source != "" || c.Input != nil || c.PlanRevision < 1 {
+		if a.Operation != "compose" || v == nil || v.Version != 2 || len(v.Inputs) < 2 || len(v.Inputs) > 63 || len(a.Ordered) != len(v.Inputs) || a.Source != "" || c.Input != nil || c.PlanRevision < 1 {
 			return invalid
 		}
 		seen := make(map[string]bool, len(a.Ordered))

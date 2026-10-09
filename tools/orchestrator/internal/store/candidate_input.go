@@ -204,7 +204,7 @@ func validateCandidatePlan(tasks map[string]TaskSpec) error {
 			return CodeError("candidate_target_is_managed_workspace")
 		}
 		if a.Version == 2 && a.DependencyInputVersion == 2 && a.Operation == "compose" {
-			if a.SourceTask != "" || p.Kind != "candidate" || len(task.Dependencies) < 2 || len(task.Dependencies) > 63 || len(a.OrderedSourceTasks) != len(task.Dependencies) || len(task.FallbackPayloads) > 0 {
+			if a.SourceTask != "" || p.Kind != "candidate" || task.CompletionPolicy != "" && task.CompletionPolicy != "owner_review" || len(task.Dependencies) < 2 || len(task.Dependencies) > 63 || len(a.OrderedSourceTasks) != len(task.Dependencies) || len(task.FallbackPayloads) > 0 {
 				return CodeError("candidate_dependency_inputs_invalid")
 			}
 			seen := make(map[string]bool, len(task.Dependencies))

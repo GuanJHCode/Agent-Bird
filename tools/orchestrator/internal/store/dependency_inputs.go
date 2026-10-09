@@ -135,7 +135,7 @@ func bindOrderedDependencyInputs(ctx context.Context, tx *sql.Tx, c *contract.La
 	} else {
 		vector = &contract.DependencyInputVector{Version: 2, Inputs: make([]contract.AcceptedInput, 0, len(ordered))}
 	}
-	if vector.Version != 2 || len(vector.Inputs) != 0 && len(vector.Inputs) != len(ordered) {
+	if vector == nil || vector.Version != 2 || (replay && len(vector.Inputs) != len(ordered)) {
 		return ErrConflict
 	}
 	for i, task := range ordered {
