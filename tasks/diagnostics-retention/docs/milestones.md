@@ -40,3 +40,8 @@ retention-public-green：1top/1named PASS；真实独立CLI child调用 plan、�
 clean61daae6上的retention-final-race exit0：12top64named PASS，0FAIL/0SKIP（不含package pass）。Store10top62named、新CLI1top1named、原physical deletion crash1top1named。stdout SHA256=`62a72acd4398396cda20094ae911098a8b24c11fb333a65af19c391ce48a2ac0`，stderr为空。包括追加Wire presence矩阵、全部F02定向回归和原manual删除/实际FK COMMIT失败恢复。公开计划stdout810bytes（含newline），原样0600保存后真实apply/replay；原Host身份fixture Wait0及每CLIchild原Wait0。原crash helper Run/Wait为明确exit91，原计划物理lease replay/VerifyRemoved通过。
 
 生产及oracle独立审查/ROOT wholebuild+vet为ROOT所有权，当前等待固定61daae6增量结果。未运行全Store/全仓；未触及安装、Hook注册、真实provider/model/account、push/release。
+
+
+## 交接
+
+ROOT已报告61daae6增量独审PASS、final wholebuild/vet exit0，无源码delta要求。本WT交回ROOT，子任务不再写入或追加测试。Linux补验由ROOT另行隔离执行，本子任务不据此声明Linux已验。源码位置ipc.go已核并修正文档。

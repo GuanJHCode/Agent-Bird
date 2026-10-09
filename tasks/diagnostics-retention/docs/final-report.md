@@ -1,6 +1,6 @@
 # F02 显式 diagnostics retention
 
-已实现受限 plan → 保存 JSON → apply → exact replay 垂直链。生产源码固定 `61daae64482a6a8aca4e0d4a1374bba50c9e57bf`；本任务定向 race 12top/64named PASS，0FAIL/0SKIP。ROOT 负责固定源码独立审查和 wholebuild/vet；此报告不替代其集成验收。
+已实现受限 plan → 保存 JSON → apply → exact replay 垂直链。生产源码固定 `61daae64482a6a8aca4e0d4a1374bba50c9e57bf`；本任务定向 race 12top/64named PASS，0FAIL/0SKIP。ROOT 已报告固定61daae6增量独审PASS、final wholebuild/vet exit0；其原始验证与集成报告由ROOT持有。
 
 ## 行为与边界
 
@@ -15,7 +15,7 @@
 
 ## 源码位置
 
-`tools/orchestrator/internal/store/diagnostics_retention{,_types}.go` 实现planner/vector/whole-plan apply/wire；`diagnostics_delete.go` 只增加optional guard与两处fresh重核。`internal/coordinator/diagnostics_read.go`、`internal/ipc/types.go`、`cmd/orchestrator/diagnostics_read.go`、`main.go`、`coordinator/server.go` 接线和capability；`tools/orchestrator/README.md`说明公开命令。测试为Store `diagnostics_retention_test.go`与CLI `diagnostics_read_test.go`；原physical deletion/FK COMMIT/crash测试复用。
+`tools/orchestrator/internal/store/diagnostics_retention{,_types}.go` 实现planner/vector/whole-plan apply/wire；`diagnostics_delete.go` 只增加optional guard与两处fresh重核。`internal/coordinator/diagnostics_read.go`、`internal/ipc/ipc.go`、`cmd/orchestrator/diagnostics_read.go`、`main.go`、`coordinator/server.go` 接线和capability；`tools/orchestrator/README.md`说明公开命令。测试为Store `diagnostics_retention_test.go`与CLI `diagnostics_read_test.go`；原physical deletion/FK COMMIT/crash测试复用。
 
 ## 有效证据
 
