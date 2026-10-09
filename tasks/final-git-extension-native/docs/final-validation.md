@@ -1,0 +1,11 @@
+# Native final Git hook and interruption acceptance
+
+The existing final TrackedIntegrate behavior is verified on macOS arm64. Test source a1f3098 passed independent review; integration source12a79dc contains F01's completed validation-start recovery. No production code was changed by this F04 batch.
+
+Native ordinary: 2 top-level / 5 named PASS, zero FAIL/SKIP, exit0. After merging F01, the same two tests ran with -race: 2 top / 5 named PASS, zero FAIL/SKIP, exit0; gitops vet exit0 with empty output. Race raw SHA256 `0b9a51c71a652133e4767816c4d9edb22312eb6947fd864e2e1092eb982edd4a`. The merge changed no test source; no whole build or unrelated suite was repeated.
+
+A real post-merge hook's parent PID matches the unique spawned/exited Git identity and command digest. Normal hook execution yields integrated. Both a hook that writes a tracked file and one that writes then exits7 preserve the changed HEAD/content and produce integration_uncertain; observed Git itself exited0, so the post-check is essential. Cancellation occurs after the actual hook has entered sleep: original merge Stop/Wait/tree completes, the returned result remains uncertain, then a separate fresh Git observation confirms the resulting candidate HEAD and clean status. This is not a claim that a canceled context successfully completed internal post-checks. No retry merge is started.
+
+Each fixture clears inherited Git overrides and isolates HOME/XDG, system/global config and hooks in its owned directory. Cleanup requires successful tests, no unknown journal and all started Git processes exited. Otherwise the exact root is retained. ROOT independently checked all eight successful fixture roots absent after proof-based cleanup; receipts contain paths. No extra binaries were produced.
+
+The journal is an in-memory implementation of the persistence callback contract, not a durable disk-fault experiment. Evidence covers final Git behavior only. Explicit config/hook/tool pins, public candidate filter/LFS and their review-view round-trip remain outstanding. Fast-forward makes no commit and this does not establish signing support. No real provider/model/account, user installation replacement, push or release.

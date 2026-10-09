@@ -1,0 +1,17 @@
+{
+  "source": "a1f309816130bb425d7b190a571125808149deaf",
+  "argv": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+    "test",
+    "-count=1",
+    "-timeout=90s",
+    "-json",
+    "./internal/gitops",
+    "-run",
+    "^TestTrackedIntegrateNative"
+  ],
+  "native_enabled": true,
+  "exit_code": 0,
+  "elapsed_seconds": 8.804702043533325,
+  "stdout_sha256": "7e379c8eca90c32458fe2508dca3db04f0c63e8b7059c592c29bc541995c4423"
+}
