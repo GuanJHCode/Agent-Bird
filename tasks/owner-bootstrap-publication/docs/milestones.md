@@ -6,3 +6,12 @@
 - 无真实Provider/model/account、安装替换或push/release；没有后台actor/test session，Go测试原调用已结束。下一步是schema35journal/quota/事务gate与server新RPC完整串接，不可把当前重构当direct IPC恢复完成。
 
 - 追加只读架构复核确认旧随机stage在mid-write SIGKILL后可累积，不能直接供新server协议重试。冻结稳定journal-derived stage、expected prefix严格补写、单份scratch预付与finalize释放；未知旧stage保留拒绝。完整约束已追加plan；尚未实现或运行新crash检查。
+
+
+## ROOT journal/root/quota修复
+
+固定362e8d4局部独审4个BLOCK由ROOT接管journal/Coordinator，两独立WT继续全gate和stage。Store先完成prior hash+canonical expected+完整old/new/proof/root事实持久，FK owner_rebinds、同事务prepare和finalize当前owner/唯一launch/代际验证，root物理连接pre/post检查；mutable仅pending→published。journal128字节固定reserve含published最大表示，完整UTF8 bytes+created在变更前计费，额外一份len(expected) scratch，发布finalize原子释放一次。旧RebindOwner在pending期间也拒绝；exact replay不二次计费/退款。
+
+journal-authority-red实际1top3named FAIL，owner与state-root变更都误finalized；SHA37d146f8cc1926fec85eb4e4c91e08b41b83e3ea365d966e5de3ed580772ddf6。修后green01同1top3namedPASS。quota-commit01为fixture未建run usage行却直接Scan导致FAIL（不是生产RED），改COALESCE后02实际2top6namedPASS，含exact/short和prepare/finalize真实deferredFK COMMIT后pool/external一致回滚。均是已记录dirty源码定向检查，不是整链/race/独审完成。原FAIL与command/exit保留。
+
+Coordinator尚未切换新lease API，Store schema35草稿尚未进入integration。外层F02已集成6742796，F10不能提前标记完成。

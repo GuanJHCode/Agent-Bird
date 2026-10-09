@@ -4,7 +4,9 @@ import (
 	"context"
 	"crypto/subtle"
 	"database/sql"
+	"encoding/json"
 	"errors"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/hostbootstrap"
 	"strings"
 )
 
@@ -72,13 +74,20 @@ func (d *DB) rebindOwnerWithPublication(ctx context.Context, spec RebindOwnerSpe
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	owned, err := d.beginInitialOwnerTransaction(ctx, "run", spec.RunID, false)
+	owned, err := d.beginInitialOwnerTransaction(ctx, "run", spec.RunID, publication != nil)
 	if err != nil {
 		return err
 	}
 	defer owned.close()
 	tx := owned.tx
 	rollback := func(e error) error { owned.close(); return e }
+	if publication == nil {
+		if err = requirePublishedOwnerTx(ctx, tx, spec.RunID); err != nil {
+			return rollback(err)
+		}
+	} else if publication.Facts.Root != owned.rootAuthority.Nodes() {
+		return rollback(ErrConflict)
+	}
 	origin, oldGeneration, err := ownerRebindTargetTx(ctx, tx, spec.RunID)
 	if err != nil || origin.OriginContextID != spec.OriginContextID {
 		return rollback(ErrConflict)
@@ -98,6 +107,9 @@ func (d *DB) rebindOwnerWithPublication(ctx context.Context, spec RebindOwnerSpe
 	}
 	if !errors.Is(err, sql.ErrNoRows) || spec.ReplayOnly || oldGeneration == spec.HostGeneration {
 		return rollback(ErrConflict)
+	}
+	if err = requirePublishedOwnerTx(ctx, tx, spec.RunID); err != nil {
+		return rollback(err)
 	}
 	var blocked int
 	if err = tx.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM owner_initial_recoveries WHERE run_id=? AND phase='prepared')+(SELECT COUNT(*) FROM execution_owners WHERE run_id=? AND is_current=1 AND (phase='intended' OR (phase='bound' AND (applied_control_revision=0 OR applied_control_revision!=control_revision))))`, spec.RunID, spec.RunID).Scan(&blocked); err != nil {
@@ -120,7 +132,17 @@ func (d *DB) rebindOwnerWithPublication(ctx context.Context, spec RebindOwnerSpe
 		if err = publication.validate(spec); err != nil {
 			return rollback(err)
 		}
-		incoming += publication.bytes()
+		launch, executable, e := publicationLaunchTx(ctx, tx, spec.RunID)
+		if e != nil || launch != publication.LaunchID || publication.Facts.OldPID != origin.OriginPID || publication.Facts.OldBirth != origin.OriginBirth || publication.Facts.OldGeneration != oldGeneration {
+			return rollback(ErrConflict)
+		}
+		var metadata hostbootstrap.MetadataV2
+		if json.Unmarshal(publication.BootstrapJSON, &metadata) != nil || metadata.Hello.Executable != executable {
+			return rollback(ErrConflict)
+		}
+		publication.CreatedAt = row.Created
+		publication.ScratchBytes = int64(len(publication.BootstrapJSON))
+		incoming += publication.bytes() + publication.ScratchBytes
 	}
 	var derived ownerAuthorizationRebindProof
 	if a != nil {
@@ -138,7 +160,7 @@ func (d *DB) rebindOwnerWithPublication(ctx context.Context, spec RebindOwnerSpe
 	}
 	if publication != nil {
 		publication.CreatedAt = row.Created
-		if _, err = tx.ExecContext(ctx, `INSERT INTO owner_rebind_publications(run_id,host_generation,launch_id,expected_sha256,bootstrap_json,state,created_at) VALUES(?,?,?,?,?,'pending',?)`, publication.RunID, publication.HostGeneration, publication.LaunchID, publication.ExpectedSHA256, string(publication.BootstrapJSON), publication.CreatedAt); err != nil {
+		if _, err = tx.ExecContext(ctx, `INSERT INTO owner_rebind_publications(run_id,host_generation,launch_id,prior_sha256,expected_sha256,bootstrap_json,facts_json,state,created_at,scratch_bytes) VALUES(?,?,?,?,?,?,?,'pending',?,?)`, publication.RunID, publication.HostGeneration, publication.LaunchID, publication.PriorSHA256, publication.ExpectedSHA256, string(publication.BootstrapJSON), publication.factsJSON(), publication.CreatedAt, publication.ScratchBytes); err != nil {
 			return rollback(mapConflict(err))
 		}
 	}
@@ -164,6 +186,11 @@ func (d *DB) rebindOwnerWithPublication(ctx context.Context, spec RebindOwnerSpe
 	}
 	if _, err = tx.ExecContext(ctx, `UPDATE bridge_bindings SET status='STALE',hook_token_hash='' WHERE run_id=? AND status!='STALE'`, spec.RunID); err != nil {
 		return rollback(err)
+	}
+	if publication != nil {
+		if err = owned.rootAuthority.Validate(); err != nil {
+			return rollback(err)
+		}
 	}
 	return owned.commit()
 }

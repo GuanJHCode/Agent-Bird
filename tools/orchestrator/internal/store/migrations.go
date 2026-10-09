@@ -393,24 +393,10 @@ func (d *DB) migrateRuntimeWithForeignKeyOps(ops runtimeForeignKeyOps) (err erro
 		}
 	}
 	if version < 35 {
-		if _, err = tx.Exec(`CREATE TABLE owner_rebind_publications(
- run_id TEXT NOT NULL REFERENCES runs(id), host_generation TEXT NOT NULL,
- launch_id TEXT NOT NULL REFERENCES host_launches(id), expected_sha256 TEXT NOT NULL,
- bootstrap_json TEXT NOT NULL, state TEXT NOT NULL CHECK(state IN ('pending','published')),
- created_at TEXT NOT NULL, published_at TEXT,
- PRIMARY KEY(run_id,host_generation)
-);
-CREATE UNIQUE INDEX owner_rebind_publication_one_pending ON owner_rebind_publications(run_id) WHERE state='pending';
-CREATE TRIGGER owner_rebind_publication_immutable BEFORE UPDATE ON owner_rebind_publications
- WHEN NEW.run_id!=OLD.run_id OR NEW.host_generation!=OLD.host_generation OR NEW.launch_id!=OLD.launch_id OR NEW.expected_sha256!=OLD.expected_sha256 OR NEW.bootstrap_json!=OLD.bootstrap_json OR NEW.created_at!=OLD.created_at OR (OLD.state='published' AND NEW.state!=OLD.state)
- BEGIN SELECT RAISE(ABORT,'owner_rebind_publication_immutable'); END;
-CREATE TRIGGER owner_rebind_publication_no_delete BEFORE DELETE ON owner_rebind_publications BEGIN SELECT RAISE(ABORT,'owner_rebind_publication_immutable'); END;
-CREATE TRIGGER quota_owner_rebind_publication_insert AFTER INSERT ON owner_rebind_publications BEGIN
- INSERT OR IGNORE INTO storage_usage VALUES('global','',0,0); INSERT OR IGNORE INTO storage_usage VALUES('run',NEW.run_id,0,0);
- UPDATE storage_usage SET total_bytes=total_bytes+32+length(NEW.run_id)+length(NEW.host_generation)+length(NEW.launch_id)+length(NEW.expected_sha256)+length(NEW.bootstrap_json)+length(NEW.created_at) WHERE (scope='global' AND scope_id='') OR (scope='run' AND scope_id=NEW.run_id);
-END;
-CREATE TRIGGER quota_owner_rebind_publication_update AFTER UPDATE ON owner_rebind_publications BEGIN SELECT CASE WHEN NEW.state!=OLD.state AND NEW.state='published' THEN 1 ELSE RAISE(ABORT,'owner_rebind_publication_immutable') END; END;
-UPDATE schema_meta SET version=35`); err != nil {
+		if err = migrateOwnerPublicationSchema(tx); err != nil {
+			return err
+		}
+		if _, err = tx.Exec(`UPDATE schema_meta SET version=35`); err != nil {
 			return err
 		}
 	}
