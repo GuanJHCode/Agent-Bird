@@ -16,7 +16,7 @@ func removeNewBaseSchema33Tx(tx *sql.Tx) error {
 	if n != 0 {
 		return errors.New("cannot erase new base lineage")
 	}
-	_, err := tx.Exec(`DROP TABLE new_base_lineage; UPDATE schema_meta SET version=32`)
+	_, err := tx.Exec(`DROP TABLE new_base_target_reservations; DROP TABLE new_base_lineage; UPDATE schema_meta SET version=32`)
 	return err
 }
 func TestNewBaseMigrationPreservesAndRefusesErasure(t *testing.T) {

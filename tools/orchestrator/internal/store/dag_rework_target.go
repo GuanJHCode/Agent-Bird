@@ -128,6 +128,15 @@ func admitDAGReworkTargets(ctx context.Context, tx *sql.Tx, s dagReworkDecision)
 			return ErrConflict
 		}
 	}
+	reservations, e := activeNewBaseTargets(ctx, tx)
+	if e != nil {
+		return e
+	}
+	for _, target := range reservations {
+		if keys[target.key()] {
+			return CodeError("new_base_target_reserved")
+		}
+	}
 	ids, err := integrationReservations(ctx, tx)
 	if err != nil {
 		return err
@@ -152,6 +161,17 @@ func integrationDispatchAllowed(ctx context.Context, tx *sql.Tx, task readyTask)
 	if json.Unmarshal([]byte(task.payload), &p) != nil || p.CandidateAction == nil || p.CandidateAction.Operation != "integrate" {
 		return true, nil
 	}
+	if allowed, err := newBaseIntegrationDispatchAllowed(ctx, tx, task); err != nil || !allowed {
+		return allowed, err
+	}
+	var newBaseRun int
+	if tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM new_base_lineage WHERE run_id=?)`, task.runID).Scan(&newBaseRun) != nil {
+		return false, ErrConflict
+	}
+	if newBaseRun != 0 {
+		return true, nil
+	}
+
 	// Existing v0-only runs keep their previous compatibility contract.
 	reservations, err := outstandingDAGTargets(ctx, tx)
 	if err != nil {

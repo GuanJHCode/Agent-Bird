@@ -52,6 +52,14 @@ func cloneWorkspace(value *CandidateWorkspace) *CandidateWorkspace {
 		r := *value.Rework
 		copy.Rework = &r
 	}
+	if value.NewBaseRework != nil {
+		c := *value.NewBaseRework
+		c.TaskMap = make(map[string]string, len(value.NewBaseRework.TaskMap))
+		for k, v := range value.NewBaseRework.TaskMap {
+			c.TaskMap[k] = v
+		}
+		copy.NewBaseRework = &c
+	}
 	return &copy
 }
 

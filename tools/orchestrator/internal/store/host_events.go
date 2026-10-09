@@ -185,6 +185,9 @@ func (d *DB) commitHostEvent(ctx context.Context, event contract.Event, artifact
 	} else if err = d.storageAdmission(ctx, tx, event.RunID, 0, false); err != nil {
 		return rollback(err)
 	}
+	if err = refreshNewBaseTargets(ctx, tx); err != nil {
+		return rollback(err)
+	}
 	if err = owned.commit(); err != nil {
 		return contract.DurableAck{}, err
 	}

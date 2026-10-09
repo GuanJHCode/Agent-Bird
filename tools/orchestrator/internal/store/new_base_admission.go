@@ -22,21 +22,25 @@ type newBaseAdmission struct {
 
 func newBaseRequestHash(p PlanSpec) string {
 	body, _ := json.Marshal(struct {
-		Run      RunSpec
-		Host     HostLaunchSpec
-		Tasks    []TaskSpec
-		LaunchID string
-		Spec     *NewBaseReworkSpec
-	}{p.Run, p.Host, p.Tasks, p.LaunchID, p.NewBaseRework})
+		Run                RunSpec
+		Host               HostLaunchSpec
+		Tasks              []TaskSpec
+		LaunchID           string
+		Spec               *NewBaseReworkSpec
+		ExecutionOwnerMode string
+	}{p.Run, p.Host, p.Tasks, p.LaunchID, p.NewBaseRework, p.Host.ExecutionOwnerMode})
 	return runtimeHash(string(body))
 }
 
 func (d *DB) admitNewBase(ctx context.Context, tx *sql.Tx, p *PlanSpec, g *newBaseSource) (*newBaseAdmission, *SubmitReceipt, error) {
+	if err := refreshNewBaseTargets(ctx, tx); err != nil {
+		return nil, nil, err
+	}
 	if g == nil {
 		if p.NewBaseAuthorization != nil {
 			return nil, nil, CodeError("new_base_request_invalid")
 		}
-		return nil, nil, nil
+		return nil, nil, ordinaryNewBaseTargetAdmission(ctx, tx, *p)
 	}
 	run, err := authorizeNewBase(ctx, tx, *p)
 	if err != nil {
@@ -93,7 +97,7 @@ func (d *DB) admitNewBase(ctx context.Context, tx *sql.Tx, p *PlanSpec, g *newBa
 	candidateTask := g.tasks[candidate.Event.TaskID]
 	candidate = g.inputs[candidateTask.action.SourceTask]
 	brief, _ := json.Marshal([]string{p.NewBaseRework.Feedback, p.NewBaseRework.Acceptance})
-	c := adapter.NewBaseReworkContext{Version: 1, SourceRunID: g.run, SourceIntegrationTaskID: root.Event.TaskID, IntegrationEventID: root.Event.EventID, IntegrationSHA256: root.Event.PayloadHash, CandidateEventID: candidate.Event.EventID, CandidateSHA256: candidate.Event.PayloadHash, ReviewEventID: review.Event.EventID, ReviewSHA256: review.Event.PayloadHash, IntegratedHEAD: integration.Integration.TargetHEAD, TargetWorktree: integration.Integration.TargetWorktree, TargetRef: g.tasks[root.Event.TaskID].action.Target.Ref, RunID: p.Run.ID, TaskMap: p.NewBaseRework.TaskMap, Feedback: p.NewBaseRework.Feedback, Acceptance: p.NewBaseRework.Acceptance, BriefSHA256: runtimeHash(string(brief))}
+	c := adapter.NewBaseReworkContext{Version: 1, SourceCommonDir: integration.Candidate.CommonDir, TargetDirectoryIdentity: adapter.NewBaseTargetIdentity(integration.Target.TargetDirectoryIdentity), SourceRunID: g.run, SourceIntegrationTaskID: root.Event.TaskID, IntegrationEventID: root.Event.EventID, IntegrationSHA256: root.Event.PayloadHash, CandidateEventID: candidate.Event.EventID, CandidateSHA256: candidate.Event.PayloadHash, ReviewEventID: review.Event.EventID, ReviewSHA256: review.Event.PayloadHash, IntegratedHEAD: integration.Integration.TargetHEAD, TargetWorktree: integration.Integration.TargetWorktree, TargetRef: g.tasks[root.Event.TaskID].action.Target.Ref, RunID: p.Run.ID, TaskMap: p.NewBaseRework.TaskMap, Feedback: p.NewBaseRework.Feedback, Acceptance: p.NewBaseRework.Acceptance, BriefSHA256: runtimeHash(string(brief))}
 	if integration.Composition != nil {
 		c.CompositionSHA256 = integration.Composition.ManifestSHA256
 	}
@@ -232,17 +236,34 @@ func validateNewBaseDerivation(ctx context.Context, tx *sql.Tx, p PlanSpec, g *n
 	if tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM host_launches WHERE id=? OR token_hash=?) OR EXISTS(SELECT 1 FROM run_control WHERE token_hash=?) OR EXISTS(SELECT 1 FROM runs WHERE id=?)`, p.LaunchID, runtimeHash(p.LaunchToken), runtimeHash(p.ControlToken), p.Run.ID).Scan(&reused) != nil || reused != 0 {
 		return bad
 	}
+	targets, e := activeNewBaseTargets(ctx, tx)
+	if e != nil {
+		return e
+	}
+	sourceKey := dagReworkTarget{CommonDir: integrated.Candidate.CommonDir, Binding: integrated.Target}.key()
+	for _, target := range targets {
+		if target.key() == sourceKey {
+			return CodeError("new_base_target_reserved")
+		}
+	}
 	ids, err := integrationReservations(ctx, tx)
 	if err != nil {
 		return err
 	}
 	key := dagReworkTarget{CommonDir: integrated.Candidate.CommonDir, Binding: integrated.Target}.key()
+	if len(ids) != len(g.reservations) {
+		return CodeError("rework_target_scope_changed")
+	}
 	for _, id := range ids {
-		scope, e := integrationScope(ctx, tx, id, false)
-		if e != nil {
+		saved, ok := g.reservations[id]
+		if !ok {
+			return CodeError("rework_target_scope_changed")
+		}
+		facts, e := integrationReservationFacts(ctx, tx, id)
+		if e != nil || facts != saved.Facts {
 			return CodeError("rework_target_scope_unresolved")
 		}
-		if scope.key() == key {
+		if saved.Target.key() == key {
 			return CodeError("rework_target_reserved")
 		}
 	}
@@ -265,7 +286,10 @@ func (d *DB) retainNewBase(ctx context.Context, tx *sql.Tx, p PlanSpec, a *newBa
 		return err
 	}
 	_, err := tx.ExecContext(ctx, `INSERT INTO new_base_lineage(run_id,source_run_id,source_task_id,source_event_id,source_event_revision,source_event_hash,command_id,request_sha256,context_json,launch_id,launch_token_hash,control_token_hash,created_at,admission_bytes) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, p.Run.ID, a.source.run, s.SourceIntegrationTaskID, s.SourceEvent.EventID, s.SourceEvent.EventRevision, s.SourceEvent.EventHash, s.CommandID, a.requestHash, string(body), p.LaunchID, runtimeHash(p.LaunchToken), runtimeHash(p.ControlToken), now, a.admissionBytes)
-	return mapConflict(err)
+	if err != nil {
+		return mapConflict(err)
+	}
+	return d.retainNewBaseTarget(ctx, tx, p, a)
 }
 
 // Bind source authorization to every new producer grant, including replay.

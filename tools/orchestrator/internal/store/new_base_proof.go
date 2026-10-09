@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+
 	"crypto/subtle"
 	"database/sql"
 	"encoding/json"
@@ -45,13 +46,19 @@ type newBaseDelivery struct {
 	Integration            *gitops.IntegrationOutcome  `json:"integration,omitempty"`
 	Composition            *gitops.CompositionManifest `json:"composition,omitempty"`
 }
+type newBaseReservationGate struct {
+	Target dagReworkTarget
+	Facts  string
+}
+
 type newBaseSource struct {
-	run      string
-	plan     int
-	tasks    map[string]*reworkTask
-	payloads map[string]json.RawMessage
-	inputs   map[string]contract.AcceptedInput
-	bodies   map[string][]byte
+	reservations map[string]newBaseReservationGate
+	run          string
+	plan         int
+	tasks        map[string]*reworkTask
+	payloads     map[string]json.RawMessage
+	inputs       map[string]contract.AcceptedInput
+	bodies       map[string][]byte
 }
 
 func authorizeNewBase(ctx context.Context, tx *sql.Tx, p PlanSpec) (string, error) {
@@ -110,6 +117,22 @@ func (d *DB) prepareNewBaseSource(ctx context.Context, p PlanSpec) (*newBaseSour
 	}
 	if err = validateNewBaseProof(ctx, tx, gate); err != nil {
 		return nil, err
+	}
+	gate.reservations = map[string]newBaseReservationGate{}
+	ids, e := integrationReservations(ctx, tx)
+	if e != nil {
+		return nil, e
+	}
+	for _, id := range ids {
+		scope, e := integrationScope(ctx, tx, id, false)
+		if e != nil {
+			return nil, CodeError("rework_target_scope_unresolved")
+		}
+		facts, e := integrationReservationFacts(ctx, tx, id)
+		if e != nil {
+			return nil, e
+		}
+		gate.reservations[id] = newBaseReservationGate{Target: scope, Facts: facts}
 	}
 	return gate, nil
 }
@@ -207,7 +230,7 @@ func validateNewBaseProof(ctx context.Context, tx *sql.Tx, g *newBaseSource) err
 		if tx.QueryRowContext(ctx, `SELECT b.status FROM segment_runtime s JOIN budget_runtime b ON b.id=s.reservation_id AND b.segment_id=s.segment_id WHERE s.segment_id=?`, e.SegmentID).Scan(&settled) != nil || settled != "settled" {
 			return bad
 		}
-		if !reworkOID(a.Candidate.CandidateOID) || !reworkOID(a.Candidate.TreeOID) || a.Candidate.Binding == nil || a.Candidate.Binding.RunID != g.run || a.Candidate.Binding.PlanRevision != g.plan || a.Candidate.PlanRevision != int64(g.plan) || a.Candidate.PrivateRef == "" || a.Candidate.PrivateRefExpectedOID != a.Candidate.CandidateOID {
+		if !reworkOID(a.Candidate.CandidateOID) || !reworkOID(a.Candidate.TreeOID) || a.Candidate.Binding == nil || a.Candidate.Binding.RunID != g.run || a.Candidate.Binding.PlanRevision != g.plan || a.Candidate.PlanRevision != int64(g.plan) || a.Candidate.PrivateRef == "" || a.Candidate.PrivateRefExpectedOID != a.Candidate.CandidateOID || !validDigest(a.CandidateReceiptSHA256) {
 			return bad
 		}
 		if t.workspace != nil {
@@ -262,8 +285,7 @@ func validateNewBaseProof(ctx context.Context, tx *sql.Tx, g *newBaseSource) err
 					d := deliveries[in.Event.TaskID]
 					sp, _ := adapter.DecodeInvocationPayload(in.AdapterPayload)
 					pin, _ := json.Marshal(sp.ProviderLock)
-					receipt, _ := json.Marshal(d.Candidate)
-					if src.TaskID != in.Event.TaskID || src.EventID != in.Event.EventID || src.EventSHA256 != in.Event.PayloadHash || src.DecisionCommandID != in.DecisionCommandID || src.CandidateOID != d.Candidate.CandidateOID || src.CandidateReceiptSHA256 != runtimeHash(string(receipt)) || src.ProviderLockSHA256 != runtimeHash(string(pin)) || src.AdapterPayloadSHA256 != runtimeHash(string(in.AdapterPayload)) || src.ArtifactSHA256 != in.Event.PayloadHash || d.Candidate.RepoRoot != a.Candidate.RepoRoot || d.Candidate.CommonDir != a.Candidate.CommonDir || d.Candidate.BaseOID != a.Candidate.BaseOID || d.Candidate.RepoRootIdentity != a.Candidate.RepoRootIdentity || d.Candidate.CommonDirIdentity != a.Candidate.CommonDirIdentity {
+					if src.TaskID != in.Event.TaskID || src.EventID != in.Event.EventID || src.EventSHA256 != in.Event.PayloadHash || src.DecisionCommandID != in.DecisionCommandID || src.CandidateOID != d.Candidate.CandidateOID || src.CandidateReceiptSHA256 != d.CandidateReceiptSHA256 || src.ProviderLockSHA256 != runtimeHash(string(pin)) || src.AdapterPayloadSHA256 != runtimeHash(string(in.AdapterPayload)) || src.ArtifactSHA256 != in.Event.PayloadHash || d.Candidate.RepoRoot != a.Candidate.RepoRoot || d.Candidate.CommonDir != a.Candidate.CommonDir || d.Candidate.BaseOID != a.Candidate.BaseOID || d.Candidate.RepoRootIdentity != a.Candidate.RepoRootIdentity || d.Candidate.CommonDirIdentity != a.Candidate.CommonDirIdentity {
 						return bad
 					}
 				}
