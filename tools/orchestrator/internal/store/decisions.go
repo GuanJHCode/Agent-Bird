@@ -337,6 +337,9 @@ func (d *DB) queueRetry(ctx context.Context, spec RetrySpec, configProof *retryC
 	defer owned.close()
 	tx := owned.tx
 	rollback := func(e error) (RetryReceipt, error) { owned.close(); return empty, e }
+	if err = requirePublishedTaskTx(ctx, tx, spec.TaskID); err != nil {
+		return rollback(err)
+	}
 	var revisionPayload string
 	var dependents []string
 	if err = tx.QueryRowContext(ctx, `SELECT revision_payload FROM retry_decisions WHERE action_slot=?`, spec.ActionSlot).Scan(&revisionPayload); err == nil && revisionPayload != "" {

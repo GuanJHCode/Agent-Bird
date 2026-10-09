@@ -132,6 +132,9 @@ func (d *DB) resumeOriginalOwner(ctx context.Context, request OriginalOwnerResum
 	if err = authenticateOwnerResumeTx(ctx, tx, request); err != nil {
 		return zero, err
 	}
+	if err = requirePublishedTaskTx(ctx, tx, request.TaskID); err != nil {
+		return zero, err
+	}
 	if _, liveErr := loadExistingOwnerResume(ctx, tx, request.CommandID); liveErr == nil {
 		return zero, ErrConflict
 	} else if !errors.Is(liveErr, ErrNotFound) {

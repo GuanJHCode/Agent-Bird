@@ -135,6 +135,9 @@ func (d *DB) resumeExistingOriginalOwner(ctx context.Context, request OriginalOw
 	if err = authenticateOwnerResumeTx(ctx, tx, request); err != nil {
 		return zero, err
 	}
+	if err = requirePublishedTaskTx(ctx, tx, request.TaskID); err != nil {
+		return zero, err
+	}
 	prior, found, err := loadOriginalOwnerResume(ctx, tx, request.CommandID)
 	if err != nil {
 		return zero, err

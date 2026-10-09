@@ -204,6 +204,9 @@ func (d *DB) diagnosticDeletionSnapshot(ctx context.Context, controller, token s
 	if err != nil {
 		return x, err
 	}
+	if err = requirePublishedOwnerTx(ctx, owned.tx, row.scope.RunID); err != nil {
+		return x, err
+	}
 	x, err = loadDiagnosticDeletion(ctx, owned.tx, row)
 	if errors.Is(err, sql.ErrNoRows) {
 		if row.reservationState != "reserved" && row.reservationState != "active" {
@@ -270,6 +273,9 @@ func (d *DB) prepareDiagnosticDeletion(ctx context.Context, controller, token st
 	if err != nil {
 		return err
 	}
+	if err = requirePublishedOwnerTx(ctx, owned.tx, row.scope.RunID); err != nil {
+		return err
+	}
 	if row.scope != x.row.scope || row.reservation != x.row.reservation || row.namespace != x.row.namespace || (row.reservationState != "reserved" && row.reservationState != "active") || row.phase != "idle" || row.nextRevision != x.request.ExpectedRevision {
 		return ErrConflict
 	}
@@ -315,6 +321,9 @@ func (d *DB) finalizeDiagnosticDeletion(ctx context.Context, controller, token s
 	}
 	row, err := authorizeDiagnosticsIdentity(ctx, owned.tx, x.request.TaskID, x.request.AttemptID, controller, token)
 	if err != nil {
+		return nil, err
+	}
+	if err = requirePublishedOwnerTx(ctx, owned.tx, row.scope.RunID); err != nil {
 		return nil, err
 	}
 	current, err := loadDiagnosticDeletion(ctx, owned.tx, row)
