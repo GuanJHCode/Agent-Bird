@@ -134,19 +134,78 @@ func (p DiagnosticsRetentionPlan) Validate() error {
 	}
 	return nil
 }
-func (p *DiagnosticsRetentionPlan) UnmarshalJSON(b []byte) error {
-	type plain DiagnosticsRetentionPlan
+
+// DiagnosticsRetentionPlanWire has the same JSON representation as Plan.
+// Its fixed reason fields let the exact-key bridge scanner validate the entire
+// envelope without adding general map acceptance to existing protocols.
+type DiagnosticsRetentionPlanWire struct {
+	Version                int                                 `json:"version"`
+	RunID                  string                              `json:"run_id"`
+	RequestID              string                              `json:"request_id"`
+	TerminalReceivedBefore string                              `json:"terminal_received_before"`
+	Limit                  int                                 `json:"limit"`
+	AfterTaskID            string                              `json:"after_task_id,omitempty"`
+	Items                  []DiagnosticsDeleteRequest          `json:"items"`
+	Excluded               *diagnosticsRetentionExclusionsWire `json:"excluded"`
+	Scanned                int                                 `json:"scanned"`
+	NextAfterTaskID        string                              `json:"next_after_task_id,omitempty"`
+	PlanSHA256             string                              `json:"plan_sha256,omitempty"`
+}
+type diagnosticsRetentionExclusionsWire struct {
+	NoAttempt        *int `json:"diagnostics_no_attempt,omitempty"`
+	NotEnabled       *int `json:"diagnostics_not_enabled,omitempty"`
+	GrantInvalid     *int `json:"diagnostics_grant_invalid,omitempty"`
+	NotTerminal      *int `json:"diagnostics_delete_not_terminal,omitempty"`
+	Unavailable      *int `json:"diagnostics_unavailable,omitempty"`
+	NotExpired       *int `json:"diagnostics_not_expired,omitempty"`
+	StateInvalid     *int `json:"diagnostics_state_invalid,omitempty"`
+	EvidenceInvalid  *int `json:"diagnostics_retention_evidence_invalid,omitempty"`
+	EvidenceTooLarge *int `json:"diagnostics_retention_evidence_too_large,omitempty"`
+}
+
+func (w *DiagnosticsRetentionPlanWire) UnmarshalJSON(b []byte) error {
+	type plain DiagnosticsRetentionPlanWire
 	var v plain
+	// Also called by the Coordinator's outer bridge decoder: null anywhere
+	// must fail, not turn a present count:null into an absent reason.
 	if len(b) > diagnosticsRetentionPlanBytes || strictDiagnosticsJSON(b, &v) != nil {
 		return CodeError("diagnostics_retention_plan_invalid")
 	}
-	n := DiagnosticsRetentionPlan(v)
-	if e := n.Validate(); e != nil {
+	*w = DiagnosticsRetentionPlanWire(v)
+	return nil
+}
+func (w DiagnosticsRetentionPlanWire) ValidatedPlan() (DiagnosticsRetentionPlan, error) {
+	p := DiagnosticsRetentionPlan{Version: w.Version, RunID: w.RunID, RequestID: w.RequestID, TerminalReceivedBefore: w.TerminalReceivedBefore, Limit: w.Limit, AfterTaskID: w.AfterTaskID, Items: w.Items, Scanned: w.Scanned, NextAfterTaskID: w.NextAfterTaskID, PlanSHA256: w.PlanSHA256}
+	if w.Excluded == nil {
+		return p, CodeError("diagnostics_retention_plan_invalid")
+	}
+	x := w.Excluded
+	p.Excluded = map[string]int{}
+	for _, entry := range []struct {
+		code  string
+		count *int
+	}{
+		{"diagnostics_no_attempt", x.NoAttempt}, {"diagnostics_not_enabled", x.NotEnabled}, {"diagnostics_grant_invalid", x.GrantInvalid}, {"diagnostics_delete_not_terminal", x.NotTerminal}, {"diagnostics_unavailable", x.Unavailable}, {"diagnostics_not_expired", x.NotExpired}, {"diagnostics_state_invalid", x.StateInvalid}, {"diagnostics_retention_evidence_invalid", x.EvidenceInvalid}, {"diagnostics_retention_evidence_too_large", x.EvidenceTooLarge},
+	} {
+		if entry.count != nil {
+			p.Excluded[entry.code] = *entry.count
+		}
+	}
+	return p, p.Validate()
+}
+func (p *DiagnosticsRetentionPlan) UnmarshalJSON(b []byte) error {
+	var w DiagnosticsRetentionPlanWire
+	if e := json.Unmarshal(b, &w); e != nil {
+		return e
+	}
+	n, e := w.ValidatedPlan()
+	if e != nil {
 		return e
 	}
 	*p = n
 	return nil
 }
+
 func retentionExclusion(code string) bool {
 	switch code {
 	case "diagnostics_no_attempt", "diagnostics_not_enabled", "diagnostics_grant_invalid", "diagnostics_delete_not_terminal", "diagnostics_unavailable", "diagnostics_not_expired", "diagnostics_state_invalid", "diagnostics_retention_evidence_invalid", "diagnostics_retention_evidence_too_large":

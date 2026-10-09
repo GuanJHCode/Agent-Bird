@@ -53,7 +53,10 @@ func TestDiagnosticsPublicCLIReadAfterOriginalHostExitAndLostACK(t *testing.T) {
 func TestDiagnosticsPublicCLIDeleteAfterOwnerCompletion(t *testing.T) {
 	testDiagnosticsPublicCLI(t, true)
 }
-func testDiagnosticsPublicCLI(t *testing.T, deleteCompleted bool) {
+func TestDiagnosticsPublicCLIRetentionSavedPlanAndReplay(t *testing.T) {
+	testDiagnosticsPublicCLI(t, true, true)
+}
+func testDiagnosticsPublicCLI(t *testing.T, deleteCompleted bool, retention ...bool) {
 	root, err := os.MkdirTemp("/private/tmp", "diag-cli-")
 	if err != nil {
 		t.Fatal(err)
@@ -289,19 +292,64 @@ func testDiagnosticsPublicCLI(t *testing.T, deleteCompleted bool) {
 		t.Fatal("data access restarted or finalized execution", attempts, segments, events, err)
 	}
 	if deleteCompleted {
-		deleteFile := filepath.Join(root, "delete.json")
-		deletion := store.DiagnosticsDeleteRequest{Version: 1, TaskID: g.TaskID, AttemptID: g.AttemptID, RequestID: "delete-1", ExpectedRevision: result.NextRevision}
-		if err = writeExclusiveJSON(deleteFile, deletion); err != nil {
-			t.Fatal(err)
+		if len(retention) > 0 && retention[0] {
+			planRequest := store.DiagnosticsRetentionPlanRequest{Version: 1, RunID: g.RunID, RequestID: "retention-1", TerminalReceivedBefore: time.Now().UTC().Format(time.RFC3339Nano), Limit: 8}
+			planFile := filepath.Join(root, "retention-request.json")
+			if err = writeExclusiveJSON(planFile, planRequest); err != nil {
+				t.Fatal(err)
+			}
+			stdout := invoke("diagnostics-retention-plan", "--state-dir", state, "--control-file", control, "--request", planFile)
+			if len(stdout) > 8192 || stdout[len(stdout)-1] != '\n' {
+				t.Fatal("plan stdout cannot be saved as apply input", len(stdout))
+			}
+			saved := filepath.Join(root, "retention-plan.json")
+			if err = os.WriteFile(saved, stdout, 0600); err != nil {
+				t.Fatal(err)
+			}
+			var retentionPlan store.DiagnosticsRetentionPlan
+			if err = json.Unmarshal(stdout, &retentionPlan); err != nil || len(retentionPlan.Items) != 1 || retentionPlan.Items[0].ExpectedRevision != result.NextRevision {
+				t.Fatalf("saved public plan invalid %s %v", stdout, err)
+			}
+			// Exercise the Coordinator's real outer exact-key wire scanner as well
+			// as the CLI/store plan decoder. No malformed item may reach deletion.
+			for _, shape := range []string{`null`, `{"diagnostics_no_attempt":null}`, `{"diagnostics_no_attempt":0}`, `{"unknown":1}`, `{"Diagnostics_no_attempt":1}`, `{"diagnostics_no_attempt":1,"diagnostics_no_attempt":1}`} {
+				wire, _ := json.Marshal(coordinator.DiagnosticsRetentionApplyRequest{ControllerThread: "controller", ControlToken: accepted.ControlToken, Plan: retentionPlan})
+				bad := strings.Replace(string(wire), `"excluded":{}`, `"excluded":`+shape, 1)
+				reply, e := ipc.Call(ctx, server.SocketPath(), ipc.Envelope{Version: 1, Kind: ipc.KindDiagnosticsRetentionApply, RequestID: "bad-plan", Payload: json.RawMessage(bad)})
+				if e != nil || reply.Kind != ipc.KindError {
+					t.Fatal("invalid outer plan accepted", shape, reply, e)
+				}
+				var n int
+				if e = db.SQL().QueryRow(`SELECT count(*) FROM diagnostic_deletions`).Scan(&n); e != nil || n != 0 {
+					t.Fatal("malformed plan crossed first deletion", shape, n, e)
+				}
+			}
+			applyArgs := []string{"diagnostics-retention-apply", "--state-dir", state, "--control-file", control, "--request", saved}
+			deleted := invoke(applyArgs...)
+			if again := invoke(applyArgs...); !bytes.Equal(deleted, again) {
+				t.Fatal("exact saved plan replay changed bytes")
+			}
+			var response store.DiagnosticsRetentionApplyResult
+			if json.Unmarshal(deleted, &response) != nil || len(response.Items) != 1 || response.Items[0].Status != "deleted" || response.Items[0].Result == nil || response.Items[0].Result.ReleasedReservationBytes != 20*1024*1024+128*1024 {
+				t.Fatalf("invalid public retention deletion %s", deleted)
+			}
+			t.Logf("retention_plan_stdout_bytes=%d saved_exact_stdout=true apply_and_replay=true plan_sha256=%s", len(stdout), retentionPlan.PlanSHA256)
+		} else {
+			deleteFile := filepath.Join(root, "delete.json")
+			deletion := store.DiagnosticsDeleteRequest{Version: 1, TaskID: g.TaskID, AttemptID: g.AttemptID, RequestID: "delete-1", ExpectedRevision: result.NextRevision}
+			if err = writeExclusiveJSON(deleteFile, deletion); err != nil {
+				t.Fatal(err)
+			}
+			deleted := invoke("diagnostics-delete", "--state-dir", state, "--control-file", control, "--request", deleteFile)
+			if again := invoke("task", "diagnostics-delete", "--handle", handle, "--request", deleteFile); !bytes.Equal(deleted, again) {
+				t.Fatal("delete replay changed bytes")
+			}
+			var response store.DiagnosticsDeleteResult
+			if json.Unmarshal(deleted, &response) != nil || response.Status != "deleted" || response.RemovedLogicalBytes <= 0 || response.ReleasedReservationBytes != 20*1024*1024+128*1024 {
+				t.Fatalf("invalid public deletion %s", deleted)
+			}
 		}
-		deleted := invoke("diagnostics-delete", "--state-dir", state, "--control-file", control, "--request", deleteFile)
-		if again := invoke("task", "diagnostics-delete", "--handle", handle, "--request", deleteFile); !bytes.Equal(deleted, again) {
-			t.Fatal("delete replay changed bytes")
-		}
-		var response store.DiagnosticsDeleteResult
-		if json.Unmarshal(deleted, &response) != nil || response.Status != "deleted" || response.RemovedLogicalBytes <= 0 || response.ReleasedReservationBytes != 20*1024*1024+128*1024 {
-			t.Fatalf("invalid public deletion %s", deleted)
-		}
+
 		var out bytes.Buffer
 		if err = run(ctx, readArgs, &out, &out); err == nil || err.Error() != "diagnostics_expired" || out.Len() != 0 {
 			t.Fatal("deleted public read did not expire", err, out.String())
