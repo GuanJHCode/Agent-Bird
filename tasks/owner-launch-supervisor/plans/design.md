@@ -1,6 +1,6 @@
 # F10 Coordinator-owned pre-Bind launch attempts
 
-Status: isolated implementation and targeted validation in progress; initial base `a011561`, verified cross-provider fixtures from `97c8c6a` retained.
+Status: scoped implementation and targeted validation passed on production0874ede; initial base `a011561`, verified cross-provider fixtures from `97c8c6a` retained.
 ROOT owns runtime/IPC integration. A separate worker will own contract/Store in a
 separate worktree. Integration remains unchanged until the final review and relevant validation pass.
 

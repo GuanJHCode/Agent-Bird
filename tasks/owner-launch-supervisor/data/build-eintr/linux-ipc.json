@@ -1,0 +1,22 @@
+{
+  "source": "0874edeb0b3cd7d216aaf71e5bb464788044f329",
+  "command": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+    "test",
+    "-c",
+    "-o",
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/owner-launch-supervisor/tasks/owner-launch-supervisor/tmp/linux/ipc-eintr.test",
+    "./internal/ipc"
+  ],
+  "exit": 0,
+  "env": {
+    "GOOS": "linux",
+    "GOARCH": "arm64",
+    "CGO_ENABLED": "0"
+  },
+  "stdout_bytes": 0,
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderr_bytes": 0,
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "binary_sha256": "e45698b15b5a905743a6ff159e09f3b509e947e391eb697b165dec47dc7d9546"
+}

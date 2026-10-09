@@ -1,6 +1,6 @@
 # F10 Coordinator-owned launch attempts
 
-Status: candidate only; not integrated. The complete F01–F13 programme remains open.
+Status: scoped acceptance PASS on production `0874ede`; local integration receipt is recorded separately. The complete F01–F13 programme remains open.
 
 ## Implemented scope
 
@@ -25,12 +25,18 @@ The immutable v2 attempt/receipt domain permits one pre-Bind replacement FirstHo
 - macOS final native race batch: pre-Bind retry and legacy initial Bind recovery PASS. Coordinator-loss failed before SIGKILL because the fixture awaited submit's five-second Host-ready timeout and Owner had already recorded its real Wait. Raw preserved in `native-final-race.*`.
 - First fixture timing correction 4d2fff5 failed differently: still-live submit polling automatically started a replacement Coordinator after SIGKILL; manually started second Coordinator returned busy. Correct UNKNOWN proof did not qualify missing original Wait/cleanup. `coordinator-loss-final-race.*` remains FAIL. ROOT preserved the failure DB, authenticated `stop_task` directly on the existing socket (task was ready with zero attempts), and observed natural idle exit. No PID signal/new Coordinator was used; the missing original Wait is not invented. `data/native/auto-restart-cleanup.json` records this cleanup.
 - Fixture 998845d cancels and joins public submit polling after signed ACK, receives its real original CLI Wait/control, and only then kills original Coordinator. Independent static fixture review PASS. Linux delta 1 top-level/named PASS and exact owned container/binary cleanup is retained in `loss-polling*` / `root-loss-polling-cleanup.json`.
-- Latest Mac delta still FAIL: `invalid_ipc_message` before Start (one prepared receipt, no child), raw `coordinator-loss-polling-race.*`. This repeats the earlier intermittent FD-handoff symptom; its cause remains unproved and blocks integration. An isolated owner-launch-fd-diagnostic worktree is investigating the exact syscall/validation point, not claiming success from repeated runs.
+- The pre-fix Mac delta also failed: `invalid_ipc_message` before Start (one prepared receipt, no child), raw `coordinator-loss-polling-race.*`. This repeated the earlier intermittent FD-handoff symptom and blocked integration at that point. The subsequent directed syscall investigation is recorded below; it did not rely on repeated native PASS results.
 - Three latest failed Mac fixture copied binaries were removed only after all task-specific executable paths were absent from a process snapshot and hashes matched durable attempt executable pins. Requests, DBs, source logs and original Wait files remain. See `data/native/final-race-failure-cleanup.json`.
 
-## Pending acceptance
+## Final interruption repair and acceptance
 
-Identify/fix the intermittent Mac descriptor-handoff failure with targeted regression, repeat only affected validation and review, then source-consistent local integration. No current integration claim is made. Full proof loader and quota have independent PASS on db4c267; any later IPC change needs its own review and affected checks.
+Production `0874ede` fixes a demonstrated Darwin fault: real signal injection caused empty descriptor `Poll(0)` to return `-1/EINTR`, which was incorrectly mapped to invalid IPC. Finite-burst real-signal RED/GREEN and the temporary syscall-stage diagnostic are preserved in [FD diagnosis](fd-interruption.md). It also retries recvmsg EINTR inside the same RawConn callback, preserving readiness edges. Both retries are bounded; continuous signal flooding can still reject safely. No payload is read, no readiness guard is relaxed, and temporary stage messages are absent from production.
+
+Final affected Mac race: IPC **5 top-level /17 named PASS**, public pre-Bind recovery and Coordinator-loss UNKNOWN **2 top-level/named PASS**, all zero failures/skips. Final Linux: the same IPC **5/17 PASS** and native **2/2 PASS**, exact container cleanup independently confirmed. Final whole build and related four-package vet exit0; unchanged Store/contract vet and Store/legacy evidence above are reused. ROOT independently parsed raw outcomes and verified 22 changed production Go hashes plus the complete orchestrator tree in `data/final-receipt.json`.
+
+Fixed-snapshot independent review: Store/runtime/quota/proof `db4c267` PASS, cancellation fixture `998845d` PASS, final IPC `0874ede` PASS. The signal regression cannot guarantee every future run receives EINTR at that exact syscall; the retained actual old-code RED and stage trace establish this defect. Historical generic native failures have no syscall trace, so not every old failure is attributed to it.
+
+The acceptance is limited to explicit protocol2 supervised launch and one same-scope pre-Bind retry, while a lost final supervisor remains UNKNOWN. It does not establish arbitrary multi-crash recovery, cross-version/direct-IPC global publication CAS, latest-candidate resource limits, real Provider/model quality, installed Hook/TUI behavior, physical power-loss durability, or F01–F13 overall completion.
 
 The initial proof RED was observed in tool output but not saved as an artifact. An accidentally broad Store run on the worker's older d380 baseline was interrupted (exit130, 444 top-level /1494 named terminal events, 148 FAIL); it lacks ROOT's schema32 fixture/updated quota-oracle changes and is not acceptance evidence. Raw remains in data/proof; the final focused race and migration evidence is scoped above.
 
