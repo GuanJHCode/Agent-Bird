@@ -1,0 +1,83 @@
+{
+  "production_source": "e50bf47e9e3099b964d81f9c5af5a85d44f0995d",
+  "module_tree": "1f24b1c61243c02f15f6c87e03cfe902ece81bf4",
+  "applicable_mac_race": {
+    "store": {
+      "source": "efc5e9f",
+      "top": 3,
+      "named": 13,
+      "fail": 0,
+      "skip": 0,
+      "raw": "bind-publication-final-race.stdout.jsonl",
+      "whole_batch_exit": 1,
+      "raw_sha256": "9c04ba7519449cc175218979db9a9514cba381543e9ab1dcc33c0aa54768717c"
+    },
+    "coordinator": {
+      "source": "e50bf47",
+      "top": 6,
+      "named": 8,
+      "fail": 0,
+      "skip": 0,
+      "raw": "bind-publication-delta-race.stdout.jsonl",
+      "whole_batch_exit": 0,
+      "raw_sha256": "7bc48bbe877f33a88afb4408495cf4621bb1383535bf3b662b6e62578fad2d7c"
+    }
+  },
+  "commands": {
+    "bind-build": {
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "build",
+        "./..."
+      ],
+      "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/owner-grant-publication",
+      "head": "efc5e9f83b6ca862716f6de24e7cf035b6956f7c",
+      "dirty": "",
+      "go_version": "go version go1.26.8 darwin/arm64"
+    },
+    "bind-vet": {
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "vet",
+        "./internal/store",
+        "./internal/coordinator"
+      ],
+      "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/owner-grant-publication",
+      "head": "efc5e9f83b6ca862716f6de24e7cf035b6956f7c",
+      "dirty": "",
+      "go_version": "go version go1.26.8 darwin/arm64"
+    },
+    "bind-build-delta": {
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "build",
+        "./..."
+      ],
+      "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/owner-grant-publication",
+      "head": "e50bf47e9e3099b964d81f9c5af5a85d44f0995d",
+      "dirty": "",
+      "go_version": "go version go1.26.8 darwin/arm64"
+    },
+    "bind-vet-delta": {
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "vet",
+        "./internal/coordinator"
+      ],
+      "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/owner-grant-publication",
+      "head": "e50bf47e9e3099b964d81f9c5af5a85d44f0995d",
+      "dirty": "",
+      "go_version": "go version go1.26.8 darwin/arm64"
+    }
+  },
+  "linux": "pending separate isolated owner-grant-linux worker",
+  "independent_review": "efc5e9f BLOCK canonical alias only; e50bf47 delta review pending"
+}
