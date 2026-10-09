@@ -1,0 +1,13 @@
+{
+  "cid": "a1e69fb93e8ddd0ef71db2983b5a0a267e4ccd3147ec0556a2ceafc3430689ea",
+  "actual_exit": 0,
+  "top": 3,
+  "named": 13,
+  "fail": 0,
+  "skip": 0,
+  "raw_sha256": "f980b92384226cdfb3581fbde13312155b5265e37c9244a81e36b0a907076f8f",
+  "post_cleanup_inspect_exit": 1,
+  "post_cleanup_inspect_stderr": "Error: No such object: a1e69fb93e8ddd0ef71db2983b5a0a267e4ccd3147ec0556a2ceafc3430689ea\n",
+  "removed_owned_binary": "tasks/owner-launch-supervisor/tmp/ipc-linux.test",
+  "binary_sha256": "ba3890e367455d4c69df7e57da05e69e397d301fa053431ee53efd311e236d64"
+}
