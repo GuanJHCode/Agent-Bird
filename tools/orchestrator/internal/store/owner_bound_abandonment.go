@@ -126,8 +126,12 @@ func resolveBoundOwnerAbandonmentTx(ctx context.Context, tx *sql.Tx, req Origina
 	if err != nil {
 		return r, err
 	}
-	// Origin rebind while an authorization is pending remains a separate contract.
-	if target.SuccessorOrigin != inbound.SuccessorOrigin || target.SuccessorHostGeneration != inbound.SuccessorHostGeneration || target.SuccessorExecutable != inbound.SuccessorExecutable || target.SuccessorExecutableSHA256 != inbound.SuccessorExecutableSHA256 {
+	// Derivation changes the target, never the inbound immutable receipt.
+	inboundTarget, err := effectiveSuccessorTargetTx(ctx, tx, inbound)
+	if err != nil {
+		return r, err
+	}
+	if obs.Epoch < inboundTarget.DerivationEpoch || target.SuccessorOrigin != inboundTarget.Origin || target.SuccessorHostGeneration != inboundTarget.Generation || target.SuccessorExecutable != inbound.SuccessorExecutable || target.SuccessorExecutableSHA256 != inbound.SuccessorExecutableSHA256 {
 		return reject()
 	}
 	target.InitialProofID = inbound.InitialProofID

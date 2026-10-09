@@ -1,0 +1,19 @@
+{
+  "source": "b75409c",
+  "store_race": {
+    "top_pass": 7,
+    "named_pass": 30,
+    "fail": 0,
+    "skip": 0,
+    "elapsed_seconds": 472.684
+  },
+  "history": {
+    "top_pass": 3,
+    "named_pass": 15,
+    "fail": 0,
+    "skip": 0
+  },
+  "build_exit": 0,
+  "vet_exit": 0,
+  "note": "ROOT parsed named Test terminal actions, excluding package. Agent reported counts incorrectly; corrected here."
+}

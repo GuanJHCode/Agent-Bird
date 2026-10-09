@@ -7,7 +7,7 @@ import (
 	"errors"
 )
 
-const currentSchemaVersion = 29
+const currentSchemaVersion = 30
 
 // Runtime migrations run under the coordinator instance lock (NewServer) and
 // one SQLite transaction. DDL, backfills and version publication commit together;
@@ -43,17 +43,32 @@ func (d *DB) migrateRuntimeWithForeignKeyOps(ops runtimeForeignKeyOps) (err erro
 	if initialVersion < 1 {
 		return CodeError("schema_invalid")
 	}
+	var rebindRoot *StoreRootAuthority
+	if initialVersion == 29 {
+		var pendingInitial int
+		if err = conn.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM owner_succession_authorizations a WHERE a.initial_proof_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM execution_owners o WHERE o.succession_authorization_id=a.authorization_id))`).Scan(&pendingInitial); err != nil {
+			return err
+		}
+		if pendingInitial != 0 {
+			a, e := d.initialOwnerRootAuthority()
+			if e != nil {
+				return e
+			}
+			rebindRoot = &a
+		}
+	}
 	needsSchema23 := initialVersion < 23
 	foreignKeysDisabled := false
 	var tx *sql.Tx
 	committed := false
+	connectionDiscarded := false
 	defer func() {
-		if tx != nil && !committed {
+		if tx != nil && !committed && !connectionDiscarded {
 			if rollbackErr := tx.Rollback(); rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
 				err = errors.Join(err, rollbackErr)
 			}
 		}
-		if foreignKeysDisabled {
+		if foreignKeysDisabled && !connectionDiscarded {
 			restoreErr := restoreRuntimeForeignKeys(ctx, conn, ops)
 			err = errors.Join(err, restoreErr)
 			if restoreErr != nil {
@@ -335,6 +350,14 @@ func (d *DB) migrateRuntimeWithForeignKeyOps(ops runtimeForeignKeyOps) (err erro
 			return err
 		}
 	}
+	if version < 30 {
+		if err = d.migrateOwnerAuthorizationRebindSchema(tx, rebindRoot); err != nil {
+			return err
+		}
+		if _, err = tx.Exec(`UPDATE schema_meta SET version=30`); err != nil {
+			return err
+		}
+	}
 
 	if needsSchema23 {
 		if err = schema23MigrationStage("commit"); err != nil {
@@ -367,10 +390,20 @@ func (d *DB) migrateRuntimeWithForeignKeyOps(ops runtimeForeignKeyOps) (err erro
 		}
 	}
 
-	if err = tx.Commit(); err != nil {
+	// sql.Tx is done after a failed COMMIT even when SQLite keeps the physical
+	// transaction open. Reuse the audited rollback/discard path; a discarded
+	// lease needs no FK restoration and must never return to the pool.
+	owned := ownerTransaction{conn: conn, tx: tx}
+	if err = owned.commit(); err != nil {
+		connectionDiscarded = owned.state == ownerTransactionDiscarded
 		return err
 	}
 	committed = true
+	if rebindRoot != nil {
+		if err = rebindRoot.Validate(); err != nil {
+			return CodeError("owner_initial_recovery_uncertain")
+		}
+	}
 	return nil
 }
 

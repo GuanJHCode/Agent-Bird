@@ -43,6 +43,8 @@ type publicSuccessionWait struct {
 func runPublicOwnerSuccessionFixture() {
 	var err error
 	switch os.Args[1] {
+	case "public-succession-origin":
+		err = runPublicRebindOrigin()
 	case "source-host":
 		err = publicSuccessionOwnedHostLauncher(os.Args[2:])
 	case "public-succession-owned-host":
@@ -279,6 +281,12 @@ func publicSuccessionOwnedHost(args []string) error {
 		return err
 	}
 	bootstrap.Hello.PID, bootstrap.Hello.Birth, bootstrap.Hello.Executable = os.Getpid(), birth, executable
+	// A real FirstHost exits before Prepare; its launcher still performs the
+	// sole original Cmd.Wait. No Owner process or reservation is created.
+	if pause := os.Getenv("PUBLIC_SUCCESSION_BEFORE_PREPARE"); pause != "" && fileExists(pause) {
+		body, _ := json.Marshal(contract.OriginalOwnerTransport{PID: os.Getpid(), Birth: birth})
+		return os.WriteFile(pause+".finished", body, 0600)
+	}
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer cancel()
 	var observationErr error
@@ -364,22 +372,27 @@ func TestPublicOwnerSuccessionWaitObserverUsesOriginalHandleOnce(t *testing.T) {
 }
 
 func TestPublicOwnerSuccessionDeadBothResumesSameAttempt(t *testing.T) {
-	testPublicOwnerSuccessionDeadBothResumesSameAttempt(t, false, false)
+	testPublicOwnerSuccessionDeadBothResumesSameAttempt(t, false, false, false)
 }
 
 func TestPublicOwnerSuccessionBoundNeverAppliedResumesAtInc3(t *testing.T) {
 	// The fixture intentionally starts several real child processes. Keep the
 	// race detector enabled while removing only its process-exit delay.
 	t.Setenv("GORACE", os.Getenv("GORACE")+" atexit_sleep_ms=0")
-	testPublicOwnerSuccessionDeadBothResumesSameAttempt(t, true, false)
+	testPublicOwnerSuccessionDeadBothResumesSameAttempt(t, true, false, false)
 }
 
 func TestPublicInitialOwnerBoundBeforeLedgerRecovers(t *testing.T) {
 	t.Setenv("GORACE", os.Getenv("GORACE")+" atexit_sleep_ms=0")
-	testPublicOwnerSuccessionDeadBothResumesSameAttempt(t, false, true)
+	testPublicOwnerSuccessionDeadBothResumesSameAttempt(t, false, true, false)
 }
 
-func testPublicOwnerSuccessionDeadBothResumesSameAttempt(t *testing.T, abandonBound, initial bool) {
+func TestPublicPendingInitialAuthorizationRebindRecovers(t *testing.T) {
+	t.Setenv("GORACE", os.Getenv("GORACE")+" atexit_sleep_ms=0")
+	testPublicOwnerSuccessionDeadBothResumesSameAttempt(t, false, true, true)
+}
+
+func testPublicOwnerSuccessionDeadBothResumesSameAttempt(t *testing.T, abandonBound, initial, pendingRebind bool) {
 	root, err := os.MkdirTemp("/private/tmp", "public-owner-succession-")
 	if err != nil {
 		t.Fatal(err)
@@ -414,7 +427,13 @@ func testPublicOwnerSuccessionDeadBothResumesSameAttempt(t *testing.T, abandonBo
 			t.Fatal(err)
 		}
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 70*time.Second)
+	fixtureTimeout, readyTimeout := 70*time.Second, 15*time.Second
+	if pendingRebind {
+		// A cold race SQLite schema30 migration exceeded the old15s setup
+		// window before any Owner existed. Keep lifecycle deadlines unchanged.
+		fixtureTimeout, readyTimeout = 120*time.Second, 60*time.Second
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), fixtureTimeout)
 	defer cancel()
 	logPath := filepath.Join(root, "serve.log")
 	log, err := os.OpenFile(logPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
@@ -423,6 +442,11 @@ func testPublicOwnerSuccessionDeadBothResumesSameAttempt(t *testing.T, abandonBo
 	}
 	server := exec.Command(cli, "serve", "--state-dir", state)
 	server.Env = append(os.Environ(), "ORCHESTRATOR_ENABLE_TEST_FAKE=1")
+	beforePrepare := filepath.Join(root, "before-prepare")
+	if pendingRebind {
+		t.Setenv("PUBLIC_SUCCESSION_BEFORE_PREPARE", beforePrepare)
+		server.Env = append(server.Env, "PUBLIC_SUCCESSION_BEFORE_PREPARE="+beforePrepare)
+	}
 	boundAbandonment := filepath.Join(root, "bound-abandonment")
 	if abandonBound || initial {
 		t.Setenv("PUBLIC_SUCCESSION_BOUND_ABANDONMENT", boundAbandonment)
@@ -512,7 +536,7 @@ func testPublicOwnerSuccessionDeadBothResumesSameAttempt(t *testing.T, abandonBo
 	// five-second fixture setup window. This is separate from Owner startup
 	// and its unchanged thirteen-second original-Wait retirement contract.
 	readyStarted := time.Now()
-	for end := readyStarted.Add(15 * time.Second); ; {
+	for end := readyStarted.Add(readyTimeout); ; {
 		readyCtx, stopReady := context.WithTimeout(ctx, 150*time.Millisecond)
 		response, readyErr := ipc.Call(readyCtx, filepath.Join(state, "coordinator.sock"), ipc.Envelope{Version: ipc.Version, Kind: ipc.KindReady, RequestID: "public-succession-ready"})
 		stopReady()
@@ -525,12 +549,18 @@ func testPublicOwnerSuccessionDeadBothResumesSameAttempt(t *testing.T, abandonBo
 		}
 		time.Sleep(20 * time.Millisecond)
 	}
-	birth, err := process.Birth(os.Getpid())
+	var origin *publicRebindOrigin
+	originPID := os.Getpid()
+	if pendingRebind {
+		origin = startPublicRebindOrigin(t, ctx, cli)
+		originPID = origin.command.Process.Pid
+	}
+	birth, err := process.Birth(originPID)
 	if err != nil {
 		t.Fatal(err)
 	}
 	request := map[string]any{"run_id": "public-succession-run", "controller_thread": "public-succession-controller", "plan_revision": 1,
-		"origin_context_id": "public-succession-origin", "origin_pid": os.Getpid(), "origin_birth": birth, "host_generation": "public-succession-generation", "delivery_mode": "collect",
+		"origin_context_id": "public-succession-origin", "origin_pid": originPID, "origin_birth": birth, "host_generation": "public-succession-generation", "delivery_mode": "collect",
 		"tasks": []any{map[string]any{"id": "worker", "max_attempts": 1, "max_active_ms": 30000, "completion_policy": "owner_review",
 			"execution_policy": contract.ExecutionPolicy{Version: 1, GroupMaxAttempts: 1, GroupMaxActiveMS: 60000, TaskMaxActiveMS: 60000, SegmentMaxActiveMS: 30000},
 			"adapter":          map[string]any{"kind": "fake", "args": []string{worker, marker, release}, "directory": root}}}}
@@ -547,11 +577,20 @@ func testPublicOwnerSuccessionDeadBothResumesSameAttempt(t *testing.T, abandonBo
 	}
 	var submitBody []byte
 	if initial {
-		cmd := exec.CommandContext(ctx, cli, "submit", "--state-dir", state, "--request", requestPath)
-		cmd.Env = append(os.Environ(), "ORCHESTRATOR_ENABLE_TEST_FAKE=1")
 		var stderr bytes.Buffer
-		cmd.Stderr = &stderr
-		submitBody, err = cmd.Output()
+		if pendingRebind {
+			reply := origin.call(t, []string{"submit", "--state-dir", state, "--request", requestPath})
+			submitBody = reply.Stdout
+			stderr.Write(reply.Stderr)
+			if reply.ExitCode != 0 {
+				err = fmt.Errorf("controlled CLI original Wait exit%d", reply.ExitCode)
+			}
+		} else {
+			cmd := exec.CommandContext(ctx, cli, "submit", "--state-dir", state, "--request", requestPath)
+			cmd.Env = append(os.Environ(), "ORCHESTRATOR_ENABLE_TEST_FAKE=1")
+			cmd.Stderr = &stderr
+			submitBody, err = cmd.Output()
+		}
 		var receipt struct {
 			Status string `json:"status"`
 		}
@@ -584,12 +623,18 @@ func testPublicOwnerSuccessionDeadBothResumesSameAttempt(t *testing.T, abandonBo
 	}
 	defer db.Close()
 	oldBinding := publicSuccessionBinding(t, db)
-	if oldBinding.Scope.Incarnation != 1 || oldBinding.Scope.OriginalOriginPID != os.Getpid() || oldBinding.Scope.OriginalOriginBirth != birth {
+	if oldBinding.Scope.Incarnation != 1 || oldBinding.Scope.OriginalOriginPID != originPID || oldBinding.Scope.OriginalOriginBirth != birth {
 		t.Fatal("initial public binding", oldBinding.Scope)
 	}
 	actors = append(actors, oldBinding.FirstHost, contract.OriginalOwnerTransport{PID: oldBinding.Owner.PID, Birth: oldBinding.Owner.Birth})
 	if initial {
-		exercisePublicInitialRecovery(t, ctx, cli, state, submitted.ControlFile, bootstrap, db, oldBinding, boundAbandonment, marker, release, &actors)
+		var resume func([]string) []byte
+		if pendingRebind {
+			resume = func(args []string) []byte {
+				return exercisePublicPendingAuthorizationRebind(t, ctx, cli, state, submitted.ControlFile, db, origin, beforePrepare, args)
+			}
+		}
+		exercisePublicInitialRecovery(t, ctx, cli, state, submitted.ControlFile, bootstrap, db, oldBinding, boundAbandonment, marker, release, &actors, resume)
 		clean = true
 		return
 	}

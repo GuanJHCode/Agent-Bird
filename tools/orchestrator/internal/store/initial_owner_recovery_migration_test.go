@@ -17,7 +17,7 @@ func removeInitialOwnerRecoverySchema29(db *DB) error {
 	if version < 29 {
 		return nil
 	}
-	if version != 29 {
+	if version != 29 && version != 30 {
 		return fmt.Errorf("unsupported initial recovery schema %d", version)
 	}
 	if err := db.sql.QueryRow(`SELECT (SELECT COUNT(*) FROM owner_initial_recoveries)+(SELECT COUNT(*) FROM owner_succession_authorizations WHERE initial_proof_id IS NOT NULL)`).Scan(&count); err != nil {
@@ -25,6 +25,9 @@ func removeInitialOwnerRecoverySchema29(db *DB) error {
 	}
 	if count != 0 {
 		return errors.New("cannot erase initial recovery history")
+	}
+	if err := removeOwnerAuthorizationRebindSchema30(db); err != nil {
+		return err
 	}
 	tx, err := db.sql.Begin()
 	if err != nil {
@@ -121,7 +124,7 @@ func TestInitialOwnerRecoveryMigrationRejectsAlteredSchemaAtomically(t *testing.
 		t.Fatal("valid schema28 retry failed", err)
 	}
 	defer opened.Close()
-	if originalOwnerSchemaCount(t, opened.sql, `SELECT version FROM schema_meta`) != 29 || originalOwnerSchemaCount(t, opened.sql, `SELECT COUNT(*) FROM owner_initial_recoveries`) != 0 || originalOwnerSchemaCount(t, opened.sql, `SELECT COUNT(*) FROM pragma_foreign_key_check`) != 0 {
+	if originalOwnerSchemaCount(t, opened.sql, `SELECT version FROM schema_meta`) != currentSchemaVersion || originalOwnerSchemaCount(t, opened.sql, `SELECT COUNT(*) FROM owner_initial_recoveries`) != 0 || originalOwnerSchemaCount(t, opened.sql, `SELECT COUNT(*) FROM pragma_foreign_key_check`) != 0 {
 		t.Fatal("migration invented proof or invalid references")
 	}
 }
