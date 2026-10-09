@@ -1,0 +1,15 @@
+=== RUN   TestStorageRealENOSPCPublicationRecovery
+=== RUN   TestStorageRealENOSPCPublicationRecovery/phase1
+    enospc_linux_test.go:64: bounded tmpfs filled with 2084864 bytes
+    enospc_linux_test.go:104: phase=1 real_write_enospc=true recovery_while_full=enospc retained="old" incomplete=true
+=== RUN   TestStorageRealENOSPCPublicationRecovery/phase2
+    enospc_linux_test.go:64: bounded tmpfs filled with 2084864 bytes
+    enospc_linux_test.go:104: phase=2 real_write_enospc=true recovery_while_full=enospc retained="old" incomplete=true
+=== RUN   TestStorageRealENOSPCPublicationRecovery/phase3
+    enospc_linux_test.go:64: bounded tmpfs filled with 2084864 bytes
+    enospc_linux_test.go:104: phase=3 real_write_enospc=true recovery_while_full=enospc retained="oldnext" incomplete=true
+--- PASS: TestStorageRealENOSPCPublicationRecovery (0.02s)
+    --- PASS: TestStorageRealENOSPCPublicationRecovery/phase1 (0.01s)
+    --- PASS: TestStorageRealENOSPCPublicationRecovery/phase2 (0.01s)
+    --- PASS: TestStorageRealENOSPCPublicationRecovery/phase3 (0.01s)
+PASS
