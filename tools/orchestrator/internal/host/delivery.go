@@ -86,14 +86,15 @@ func newCompositionManifest(grant contract.LaunchCommand, inputs []contract.Acce
 		if c.RepoRoot != m.RepoRoot || c.CommonDir != m.CommonDir || c.BaseOID != m.BaseOID || c.CandidateOID == "" {
 			return nil, errors.New("composition_source_mismatch")
 		}
-		lockHash := ""
-		if deliveries[i].ProviderLock != nil {
-			raw, err := json.Marshal(deliveries[i].ProviderLock)
-			if err != nil {
-				return nil, err
-			}
-			lockHash = hashBytes(raw)
+		source, err := adapter.DecodeInvocationPayload(in.AdapterPayload)
+		if err != nil || validateCandidateSourceProvider(source.ProviderLock, source.Provider) != nil {
+			return nil, errors.New("composition_source_invalid")
 		}
+		rawLock, err := json.Marshal(source.ProviderLock)
+		if err != nil {
+			return nil, err
+		}
+		lockHash := hashBytes(rawLock)
 		m.Sources = append(m.Sources, CompositionSource{TaskID: in.Event.TaskID, EventID: in.Event.EventID, EventSHA256: in.Event.PayloadHash, DecisionCommandID: in.DecisionCommandID, CandidateOID: c.CandidateOID, CandidateReceiptSHA256: deliveries[i].CandidateReceiptSHA256, ProviderLockSHA256: lockHash})
 		m.OrderedInputOIDs = append(m.OrderedInputOIDs, c.CandidateOID)
 	}
