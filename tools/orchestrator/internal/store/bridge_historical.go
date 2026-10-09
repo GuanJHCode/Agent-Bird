@@ -38,6 +38,11 @@ func bridgeOwnerForHistoricalTx(ctx context.Context, tx *sql.Tx, bindingID strin
 	if err != nil {
 		return empty, err
 	}
+	if op == bridgeHistoryReceive {
+		if err = requirePublishedOwnerTx(ctx, tx, b.view.RunID); err != nil {
+			return empty, err
+		}
+	}
 	if requestMode != owner.OwnerMode || b.view.OwnerContextID != owner.OwnerContextID {
 		return empty, CodeError("owner_mismatch")
 	}

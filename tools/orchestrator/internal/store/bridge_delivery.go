@@ -214,7 +214,7 @@ func bridgeCurrentOwnerTx(ctx context.Context, tx *sql.Tx, id string, epoch uint
 	if err != nil {
 		return empty, err
 	}
-	p, err := bridgeOwnerTx(ctx, tx, b.view.RunID)
+	p, err := bridgePublishedOwnerTx(ctx, tx, b.view.RunID)
 	if err != nil {
 		return empty, err
 	}

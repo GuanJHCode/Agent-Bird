@@ -83,6 +83,9 @@ func (d *DB) QueueRework(ctx context.Context, spec ReworkSpec) (ReworkReceipt, e
 	}
 	defer owned.close()
 	tx := owned.tx
+	if err = requirePublishedTaskTx(ctx, tx, spec.TaskID); err != nil {
+		return empty, err
+	}
 	var previous string
 	err = tx.QueryRowContext(ctx, `SELECT revision_payload FROM retry_decisions WHERE action_slot=?`, spec.ActionSlot).Scan(&previous)
 	if err == nil {
@@ -104,9 +107,6 @@ func (d *DB) QueueRework(ctx context.Context, spec ReworkSpec) (ReworkReceipt, e
 	}
 	chain, run, plan, err := loadReworkChain(ctx, tx, spec.TaskID, spec.ReviewTaskID)
 	if err != nil {
-		return empty, err
-	}
-	if err = requirePublishedOwnerTx(ctx, tx, run); err != nil {
 		return empty, err
 	}
 	edit, validate, review := chain[0], chain[1], chain[2]

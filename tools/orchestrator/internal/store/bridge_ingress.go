@@ -216,7 +216,7 @@ func (d *DB) ActivateBridge(ctx context.Context, req contract.BridgeActivateRequ
 	if err != nil {
 		return empty, err
 	}
-	owner, err := bridgeOwnerTx(ctx, tx, b.view.RunID)
+	owner, err := bridgePublishedOwnerTx(ctx, tx, b.view.RunID)
 	if err != nil {
 		return empty, err
 	}

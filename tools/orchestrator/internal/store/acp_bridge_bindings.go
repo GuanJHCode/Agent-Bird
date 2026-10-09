@@ -25,7 +25,7 @@ func acpStoreRequest[T any](req T, decode func([]byte) (T, error)) error {
 // ACP uses the original controller itself as the authenticated sender. Unlike
 // hook_pull, no descendant and no capability file can authorize this path.
 func acpOwnerTx(ctx context.Context, tx *sql.Tx, run string) (BridgeOwnerProof, error) {
-	p, err := bridgeOwnerTx(ctx, tx, run)
+	p, err := bridgePublishedOwnerTx(ctx, tx, run)
 	if err != nil {
 		return p, err
 	}
