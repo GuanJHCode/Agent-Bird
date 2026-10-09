@@ -1,0 +1,31 @@
+{
+  "source": "a9b1ec0a12703023d5827c582899074dcec18c29",
+  "command": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+    "test",
+    "-count=1",
+    "-json",
+    "./internal/gitops",
+    "-run",
+    "^TestFilterSandboxDarwinFeasibility$"
+  ],
+  "exit_code": 1,
+  "sha256": {
+    "stdout.jsonl": "c8c42717d52665df1f285b9fe41af3a559e841684c5d77cd6e7d7af17dda0b75",
+    "stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "terminal_events": [
+    {
+      "Test": "TestFilterSandboxDarwinFeasibility/positive_control",
+      "Action": "pass"
+    },
+    {
+      "Test": "TestFilterSandboxDarwinFeasibility/isolated_round_trip",
+      "Action": "fail"
+    },
+    {
+      "Test": "TestFilterSandboxDarwinFeasibility",
+      "Action": "fail"
+    }
+  ]
+}
