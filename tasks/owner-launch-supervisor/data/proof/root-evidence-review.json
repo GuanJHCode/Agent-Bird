@@ -1,0 +1,38 @@
+{
+  "reviewer": "ROOT",
+  "candidate": "49cd4fa4e16a99db90ff19f7709c2f19bbb82e79",
+  "worker_base": "d38065a",
+  "notes": [
+    "Named counts exclude package terminal events.",
+    "Interrupted broad run is not acceptance evidence; latest ROOT fixture and quota oracle updates are absent from that worker branch."
+  ],
+  "files": [
+    {
+      "name": "owner-launch-proof-green.stdout",
+      "sha256": "706a4b5dd3b2489c774685ada59b284fbe84d22546e89683b5fc011ebc8543cd",
+      "exit": 0,
+      "top": 2,
+      "named": 10,
+      "terminal": {
+        "pass": 10
+      },
+      "diagnostics": {}
+    },
+    {
+      "name": "owner-launch-proof.stdout",
+      "sha256": "9056c7b5376357133961537fc06fb43f91d9830666c00410c2e329094b3c51f5",
+      "exit": 130,
+      "top": 444,
+      "named": 1494,
+      "terminal": {
+        "pass": 1346,
+        "fail": 148
+      },
+      "diagnostics": {
+        "unsupported schema fixture": 125,
+        "other": 18,
+        "old quota oracle": 1
+      }
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "command": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+    "test",
+    "-count=1",
+    "-timeout=240s",
+    "-json",
+    "./internal/contract",
+    "-run",
+    "^Test(OriginalOwnerLaunchAttemptAndReceiptBindEffectiveIntent|OwnerRuntimeBootstrapV1BytesAndV2ReceiptBoundary|OriginalOwnerBindingAuthenticatesImmutableIdentity)$"
+  ],
+  "exit": 0,
+  "top": 3,
+  "named": 3,
+  "results": {
+    "pass": 3
+  },
+  "raw_sha256": "1e99fb65d35084102ee38f8b51e6b8c0d8ad79cce6aeb124435bd1b0431508fa",
+  "stderr_bytes": 0
+}
