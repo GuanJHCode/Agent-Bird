@@ -25,7 +25,7 @@ type localOwnerPublication struct {
 }
 
 func ownerGrantNode(info os.FileInfo, mode os.FileMode, directory bool) bool {
-	if info == nil || info.Mode().Perm() != mode || info.IsDir() != directory || !directory && !info.Mode().IsRegular() {
+	if info == nil || info.Mode().Perm() != mode || info.Mode()&(os.ModeSetuid|os.ModeSetgid|os.ModeSticky) != 0 || info.IsDir() != directory || !directory && !info.Mode().IsRegular() {
 		return false
 	}
 	st, ok := info.Sys().(*syscall.Stat_t)
@@ -35,6 +35,15 @@ func ownerGrantNode(info os.FileInfo, mode os.FileMode, directory bool) bool {
 func (p *localOwnerPublication) validateDirectory() error {
 	invalid := store.CodeError("owner_path_untrusted")
 	if p.authority.Validate() != nil || p.root == nil || p.owners == nil {
+		return invalid
+	}
+	rootInfo, err := p.root.Stat(".")
+	if err != nil || !ownerGrantNode(rootInfo, 0700, true) {
+		return invalid
+	}
+	rootStat, ok := rootInfo.Sys().(*syscall.Stat_t)
+	expectedRoot := p.authority.Nodes()
+	if !ok || uint64(rootStat.Dev) != expectedRoot.StateDevice || uint64(rootStat.Ino) != expectedRoot.StateInode {
 		return invalid
 	}
 	named, err := p.root.Lstat("owners")
@@ -74,7 +83,7 @@ func (p *localOwnerPublication) validateFile(complete bool) error {
 		}
 	}
 	after, err := p.file.Stat()
-	if err != nil || !os.SameFile(after, held) || after.Size() != held.Size() || !after.ModTime().Equal(held.ModTime()) || !bytes.Equal(body, p.expected[:len(body)]) {
+	if err != nil || !ownerGrantNode(after, 0600, false) || !os.SameFile(after, held) || after.Size() != held.Size() || !after.ModTime().Equal(held.ModTime()) || !bytes.Equal(body, p.expected[:len(body)]) {
 		return invalid
 	}
 	return nil
