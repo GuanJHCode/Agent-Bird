@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host"
 )
@@ -422,12 +423,35 @@ func TestMain(m *testing.M) {
 	if mode == "compose-a" || mode == "compose-b" {
 		managedSchema := false
 		for i, arg := range os.Args {
-			if arg == "--json-schema" && i+1 < len(os.Args) && strings.Contains(os.Args[i+1], `"technical_question"`) {
+			if arg == "--json-schema" && i+1 < len(os.Args) && os.Args[i+1] == adapter.ManagedTaskSchema() {
 				managedSchema = true
 			}
 		}
 		input, err := io.ReadAll(io.LimitReader(os.Stdin, 1024*1024))
-		if err != nil || !managedSchema || !strings.Contains(string(input), "Agent Bird managed completion v1.") {
+		var envelope struct {
+			Message struct {
+				Content json.RawMessage `json:"content"`
+			} `json:"message"`
+		}
+		if err != nil || json.Unmarshal(input, &envelope) != nil || !managedSchema {
+			os.Exit(11)
+		}
+		var prompt string
+		if agyFixture {
+			if json.Unmarshal(envelope.Message.Content, &prompt) != nil {
+				os.Exit(11)
+			}
+		} else {
+			var content []struct {
+				Type string `json:"type"`
+				Text string `json:"text"`
+			}
+			if json.Unmarshal(envelope.Message.Content, &content) != nil || len(content) != 1 || content[0].Type != "text" {
+				os.Exit(11)
+			}
+			prompt = content[0].Text
+		}
+		if prompt != "controlled implementation\n\n"+adapter.ManagedTaskInstruction() {
 			os.Exit(11)
 		}
 		name := strings.TrimPrefix(mode, "compose-") + ".txt"

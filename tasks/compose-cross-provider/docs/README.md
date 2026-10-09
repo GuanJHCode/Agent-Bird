@@ -9,7 +9,9 @@ The test proves the B,A source order; each manifest source's provider-lock and
 adapter-payload SHA-256 values are derived from its accepted input; the review
 uses its own lock; and downstream receipts retain the same composed commit.
 
-The raw JSON test stream, stderr, and exit status are in `../data/`.
+The raw JSON test stream, stderr, and exit status are in `../data/`. The
+`-structured-contract` files are the latest run; earlier evidence remains
+alongside them unchanged.
 
 The earlier Grok fixture investigation failed at the current production
 `TaskCompletionV1` admission boundary. Its same-name raw output was overwritten
