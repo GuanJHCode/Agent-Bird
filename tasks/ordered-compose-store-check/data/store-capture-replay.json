@@ -1,0 +1,13 @@
+{
+  "base_commit": "8be04d246bd2145f2533e59547c74d3554e62975",
+  "go": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+  "go_version": "go1.26.8",
+  "tmpdir": "/private/tmp",
+  "named_test": "TestOrderedComposeStoreCaptureAndPendingReplay",
+  "command": "go test -count=1 ./internal/store -run ^TestOrderedComposeStoreCaptureAndPendingReplay$",
+  "exit": 1,
+  "result": "legacy_decision_binding_ambiguous",
+  "stage": "ClaimReady(compose) after both producer result/exited/owner-accept events",
+  "source_location": "internal/store/scheduling.go pendingDecisionBinding -> internal/store/decision_attempt_legacy.go reconcileLegacyPendingTask",
+  "scope_note": "The failure precedes candidate_input.go and dependency_inputs.go v2 binding; no permitted local-file change can admit the compose attempt."
+}
