@@ -40,6 +40,9 @@ func (d *DB) QueueContinuation(ctx context.Context, s ResumeContinuationSpec) (C
 	}
 	defer owned.close()
 	tx := owned.tx
+	if err = requirePublishedTaskTx(ctx, tx, s.TaskID); err != nil {
+		return ContinuationReceipt{}, err
+	}
 	fail := func(e error) (ContinuationReceipt, error) { owned.close(); return ContinuationReceipt{}, e }
 	var r ContinuationReceipt
 	var command, event, hash, slot string
@@ -62,9 +65,6 @@ func (d *DB) QueueContinuation(ctx context.Context, s ResumeContinuationSpec) (C
 	err = tx.QueryRowContext(ctx, `SELECT t.status,r.work_revision,r.adapter_payload,t.run_id FROM tasks t JOIN task_runtime r ON r.task_id=t.id WHERE t.id=?`, s.TaskID).Scan(&status, &currentRev, &raw, &run)
 	if err != nil {
 		return fail(ErrNotFound)
-	}
-	if err = requirePublishedOwnerTx(ctx, tx, run); err != nil {
-		return fail(err)
 	}
 	if status != "interrupted" || currentRev != s.WorkRevision {
 		return fail(ErrConflict)

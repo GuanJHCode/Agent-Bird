@@ -22,6 +22,9 @@ func (d *DB) queueDAGRework(ctx context.Context, spec, canonical ReworkSpec) (Re
 	}
 	defer owned.close()
 	tx := owned.tx
+	if err = requirePublishedTaskTx(ctx, tx, spec.TaskID); err != nil {
+		return empty, err
+	}
 	var previous string
 	err = tx.QueryRowContext(ctx, `SELECT revision_payload FROM retry_decisions WHERE action_slot=?`, spec.ActionSlot).Scan(&previous)
 	if err == nil {

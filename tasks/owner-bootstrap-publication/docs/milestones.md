@@ -34,3 +34,10 @@ publication-public02实际1top1namedPASS/0F/S，SHAc29682cb1bda9d704b3130fdd9a70
 ## 真实固定历史源码协议拒绝
 
 复用已验F13 source3bd025e packageA里的原production binary（SHA c9a09e7c1bde01c20145294ed2f702a15b91bb10138908fadb6cf951470628ba），未复制当前testbinary冒充旧版本，未重新build/install。publication-compat01为1top3namedPASS0F/S：旧Coordinator schema34+新CLI子进程原Wait2 coordinator_upgrade_required；新Coordinator schema35+原旧CLI子进程Wait2 protocol_required（旧CLI真实持FSlease不死锁）。两侧bootstrap字节不变、run/rebind仍0，原旧server process.Handle Stop/Wait0/tree确认；newServer Serve join。CLI输入是有效client形状、刻意未入库的fixture权限；本用例证明前置协议拒绝和无Store mutation，不声明成功跨版本rebind或已发布产品兼容。
+
+
+## 固定62集成race与第二轮独审
+
+publication-integrated-race01使用clean62c9e4e三包Store/Coordinator/CLI、固定旧binary env（源码内sha强校验），原tool terminal exit0，44named全PASS0F/S。这批不含任何hostbootstrap测试（stage单独最终race6top31named），Store实际耗时344.204s，未扩大全量。独审同时找出漏successor/initial/handoff/bound authority gate、DAGv1、continuation/rework early-replay，以及bridge共享auth误阻historical query/status；因此仍BLOCK，不能以此race替代完整契约。ROOT已在gateWT补部分9行并交可靠stageworker接管剩余修复+定向矩阵；原62在测期间无源码修改。
+
+复用未受delta影响的已验source，修复后只测受影响gate/public；不重复全Store。前任gateworker额外全Store命令无原终态/exit/raw内容，ROOT只读核原PID已不在，不补造Wait/通过，partial evidence另存de19375。

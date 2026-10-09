@@ -202,6 +202,9 @@ func (d *DB) prepareBoundOwnerAbandonment(ctx context.Context, req OriginalOwner
 	if err != nil {
 		return zero, err
 	}
+	if err = requirePublishedOwnerTx(ctx, tx, r.row.state.Intent.Scope.RunID); err != nil {
+		return zero, err
+	}
 	priorScope, _ := contract.OriginalOwnerRecoveryScopeSHA256(r.prior.state.Intent.Scope, r.prior.owner)
 	if !facts.valid() || facts.PriorScopeSHA256 != priorScope || facts.ScopeSHA256 != r.proof.ScopeHash {
 		return zero, originalOwnerRejected()
@@ -256,6 +259,9 @@ func (d *DB) ApplyBoundOwnerAbandonment(ctx context.Context, req OriginalOwnerRe
 	if err != nil {
 		return zero, err
 	}
+	if err = requirePublishedOwnerTx(ctx, tx, r.row.state.Intent.Scope.RunID); err != nil {
+		return zero, err
+	}
 	if !r.durable || r.handoff.Proof == nil || r.handoff.Proof.Facts != facts {
 		return zero, originalOwnerRejected()
 	}
@@ -287,6 +293,9 @@ func (d *DB) ResumeBoundOwnerAbandonment(ctx context.Context, req OriginalOwnerR
 	defer owned.close()
 	tx := owned.tx
 	if err = authenticateOwnerResumeTx(ctx, tx, req); err != nil {
+		return zero, err
+	}
+	if err = requirePublishedTaskTx(ctx, tx, req.TaskID); err != nil {
 		return zero, err
 	}
 	if _, err = loadExistingOwnerResume(ctx, tx, req.CommandID); err == nil {

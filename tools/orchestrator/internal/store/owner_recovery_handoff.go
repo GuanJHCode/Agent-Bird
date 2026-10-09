@@ -163,6 +163,9 @@ func (d *DB) prepareOriginalOwnerRecoveryHandoff(ctx context.Context, s OwnerRec
 	if err != nil {
 		return zero, err
 	}
+	if err = requirePublishedOwnerTx(ctx, tx, row.state.Intent.Scope.RunID); err != nil {
+		return zero, err
+	}
 	if resolved.Proof != nil {
 		if resolved.Proof.Facts != f {
 			return zero, ErrConflict
@@ -212,6 +215,9 @@ func (d *DB) ApplyOriginalOwnerRecoveryHandoff(ctx context.Context, s OwnerRecov
 	tx := owned.tx
 	resolved, row, _, err := resolveRecoveryHandoffTx(ctx, tx, s, key)
 	if err != nil {
+		return zero, err
+	}
+	if err = requirePublishedOwnerTx(ctx, tx, row.state.Intent.Scope.RunID); err != nil {
 		return zero, err
 	}
 	if resolved.Proof == nil || resolved.Proof.Facts != f {
