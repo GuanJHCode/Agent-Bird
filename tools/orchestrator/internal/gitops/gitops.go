@@ -140,11 +140,20 @@ type CandidateReceipt struct {
 // and that its managed ref, commit and tree have not drifted.
 func ValidateCandidatePrivateRef(ctx context.Context, receipt CandidateReceipt) error {
 	ctx = context.WithValue(ctx, candidateRunnerKey{}, true)
-	if err := candidateRepositoryAllowed(ctx, receipt.RepoRoot); err != nil {
-		return err
-	}
 	if receipt.RepoRoot == "" || receipt.CommonDir == "" || receipt.Worktree == "" || receipt.WorktreeIdentity == "" || receipt.PrivateRef == "" || receipt.PrivateRefExpectedOID == "" || receipt.RepoRootIdentity == (DirectoryIdentity{}) || receipt.CommonDirIdentity == (DirectoryIdentity{}) || receipt.RootIdentity == (DirectoryIdentity{}) {
 		return fail(CodeInvalidInput, "candidate private ref", fmt.Errorf("incomplete receipt"))
+	}
+	if !filepath.IsAbs(receipt.RepoRoot) || !filepath.IsAbs(receipt.CommonDir) || !filepath.IsAbs(receipt.Worktree) || receipt.RepoRoot != CanonicalPath(receipt.RepoRoot) || receipt.CommonDir != CanonicalPath(receipt.CommonDir) || receipt.Worktree != CanonicalPath(receipt.Worktree) || receipt.WorktreeIdentity != receipt.Worktree {
+		return fail(CodeIdentityChanged, "candidate private ref", fmt.Errorf("non-canonical receipt path"))
+	}
+	if identity, e := directoryIdentity(receipt.RepoRoot); e != nil || !sameDirectoryIdentity(identity, receipt.RepoRootIdentity) {
+		return fail(CodeIdentityChanged, "candidate private ref", e)
+	}
+	if identity, e := directoryIdentity(receipt.CommonDir); e != nil || !sameDirectoryIdentity(identity, receipt.CommonDirIdentity) {
+		return fail(CodeIdentityChanged, "candidate private ref", e)
+	}
+	if identity, e := directoryIdentity(receipt.Worktree); e != nil || !sameDirectoryIdentity(identity, receipt.RootIdentity) {
+		return fail(CodeIdentityChanged, "candidate private ref", e)
 	}
 	if err := validatePrivateRef(receipt.PrivateRef); err != nil {
 		return err
@@ -161,24 +170,25 @@ func ValidateCandidatePrivateRef(ctx context.Context, receipt CandidateReceipt) 
 	if root != CanonicalPath(receipt.RepoRoot) || common != CanonicalPath(receipt.CommonDir) {
 		return fail(CodeIdentityChanged, "candidate private ref", fmt.Errorf("repository changed"))
 	}
-	if identity, e := directoryIdentity(root); e != nil || !sameDirectoryIdentity(identity, receipt.RepoRootIdentity) {
-		return fail(CodeIdentityChanged, "candidate private ref", e)
-	}
-	if identity, e := directoryIdentity(common); e != nil || !sameDirectoryIdentity(identity, receipt.CommonDirIdentity) {
-		return fail(CodeIdentityChanged, "candidate private ref", e)
-	}
 	worktree, worktreeCommon, err := validateRepo(ctx, receipt.Worktree)
 	if err != nil || worktree != CanonicalPath(receipt.Worktree) || receipt.WorktreeIdentity != worktree || worktreeCommon != common {
 		return fail(CodeIdentityChanged, "candidate private ref", err)
 	}
-	if identity, e := directoryIdentity(worktree); e != nil || !sameDirectoryIdentity(identity, receipt.RootIdentity) {
-		return fail(CodeIdentityChanged, "candidate private ref", e)
+	if err := candidateRepositoryAllowed(ctx, root); err != nil {
+		return err
 	}
 	if err = validateOIDInRepo(ctx, root, receipt.BaseOID); err != nil {
 		return err
 	}
 	if err = validateOIDInRepo(ctx, root, receipt.CandidateOID); err != nil {
 		return err
+	}
+	ancestor, err := mergeAncestor(ctx, root, receipt.BaseOID, receipt.CandidateOID)
+	if err != nil || !ancestor {
+		if err == nil {
+			err = fmt.Errorf("candidate does not descend from base")
+		}
+		return fail(CodeTargetDrift, "candidate private ref", err)
 	}
 	ref, exists, err := privateRefOID(ctx, root, receipt.PrivateRef)
 	if err != nil || !exists || ref != receipt.PrivateRefExpectedOID || ref != receipt.CandidateOID {
@@ -794,7 +804,17 @@ func ComposeCandidate(ctx context.Context, req CandidateCompositionRequest, jour
 		}
 		result, mergeErr := run(ctx, req.Worktree, "merge", "--no-ff", "--no-commit", "--no-autostash", "--no-overwrite-ignore", input)
 		if mergeErr != nil || result.ExitCode != 0 {
-			return CandidateReceipt{}, fail(CodeComposeConflict, "compose dependency merge", mergeErr)
+			if errors.Is(mergeErr, process.ErrProcessTreeUnknown) {
+				return CandidateReceipt{}, mergeErr
+			}
+			unmerged, checkErr := gitRecords(ctx, req.Worktree, "diff", "--name-only", "--diff-filter=U")
+			if checkErr != nil {
+				return CandidateReceipt{}, checkErr
+			}
+			if result.ExitCode == 1 && strings.TrimSpace(unmerged) != "" {
+				return CandidateReceipt{}, fail(CodeComposeConflict, "compose dependency merge", mergeErr)
+			}
+			return CandidateReceipt{}, fail(CodeGitFailure, "compose dependency merge", mergeErr)
 		}
 		result, mergeErr = run(ctx, req.Worktree, "commit", "--no-edit", "-m", "G3 candidate composition")
 		if mergeErr != nil || result.ExitCode != 0 {
@@ -850,14 +870,13 @@ func ComposeCandidate(ctx context.Context, req CandidateCompositionRequest, jour
 // every Git invocation a tracked candidate invocation.
 func ManagedComposeCandidate(ctx context.Context, req CandidateCompositionRequest, journal CandidateJournal) (CandidateReceipt, error) {
 	ctx = context.WithValue(ctx, candidateRunnerKey{}, true)
-	if processJournal, ok := journal.(GitProcessJournal); ok {
-		ctx = WithCandidateJournal(ctx, processJournal)
+	processJournal, ok := journal.(GitProcessJournal)
+	if !ok {
+		return CandidateReceipt{}, fail(CodeInvalidInput, "compose", fmt.Errorf("missing git process journal"))
 	}
+	ctx = WithCandidateJournal(ctx, processJournal)
 	if len(req.OrderedInputOIDs) == 0 || len(req.OrderedInputOIDs) > 63 {
 		return CandidateReceipt{}, fail(CodeInvalidInput, "compose", fmt.Errorf("ordered inputs must contain 1..63 entries"))
-	}
-	if err := candidateRepositoryAllowed(ctx, req.RepoRoot); err != nil {
-		return CandidateReceipt{}, err
 	}
 	root, common, err := validateRepo(ctx, req.RepoRoot)
 	if err != nil {
@@ -868,7 +887,14 @@ func ManagedComposeCandidate(ctx context.Context, req CandidateCompositionReques
 		return CandidateReceipt{}, err
 	}
 	defer releaseIntegrationLock(lock)
-	if latest, e := directoryIdentity(common); e != nil || latest == (DirectoryIdentity{}) {
+	commonIdentity, e := directoryIdentity(common)
+	if e != nil || commonIdentity == (DirectoryIdentity{}) {
+		return CandidateReceipt{}, fail(CodeIdentityChanged, "compose", e)
+	}
+	if err := candidateRepositoryAllowed(ctx, root); err != nil {
+		return CandidateReceipt{}, err
+	}
+	if latest, e := directoryIdentity(common); e != nil || !sameDirectoryIdentity(latest, commonIdentity) {
 		return CandidateReceipt{}, fail(CodeIdentityChanged, "compose", e)
 	}
 	if len(req.SourcePins) != 0 {

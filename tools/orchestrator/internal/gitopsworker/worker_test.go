@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 )
 
 type workerResponse struct {
@@ -103,6 +104,24 @@ func TestIntegrationPreflightRejectsUnfinishedGitLedger(t *testing.T) {
 				t.Fatalf("err=%v wantReject=%t", err, tc.want)
 			}
 		})
+	}
+}
+
+func TestComposePreflightRejectsExistingCandidateLedgerAsUncertain(t *testing.T) {
+	root := t.TempDir()
+	if err := os.Chmod(root, 0700); err != nil {
+		t.Fatal(err)
+	}
+	j, err := openJournal(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer j.close()
+	if err = j.append("candidate_intent", map[string]any{"attempt_id": "already-started"}); err != nil {
+		t.Fatal(err)
+	}
+	if err = j.composePreflight(context.Background()); !errors.Is(err, process.ErrProcessTreeUnknown) {
+		t.Fatalf("candidate replay was not uncertain: %v", err)
 	}
 }
 

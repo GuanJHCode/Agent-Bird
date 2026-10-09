@@ -273,8 +273,13 @@ func (j *durableJournal) composePreflight(ctx context.Context) error {
 		return err
 	}
 	defer f.Close()
+	info, err := f.Stat()
+	held, heldErr := j.file.Stat()
+	if err != nil || heldErr != nil || !info.Mode().IsRegular() || info.Mode().Perm() != 0600 || !os.SameFile(info, held) || info.Size() > 16*1024*1024 {
+		return errors.New("gitops_journal_unsafe")
+	}
 	body, err := io.ReadAll(io.LimitReader(f, 16*1024*1024+1))
-	if err != nil || len(body) > 16*1024*1024 {
+	if err != nil || int64(len(body)) != info.Size() || len(body) > 16*1024*1024 || len(body) > 0 && body[len(body)-1] != '\n' {
 		return errors.New("gitops_journal_unsafe")
 	}
 	for _, line := range bytes.Split(bytes.TrimSuffix(body, []byte("\n")), []byte("\n")) {
@@ -285,9 +290,11 @@ func (j *durableJournal) composePreflight(ctx context.Context) error {
 			return err
 		}
 		var record struct {
-			Kind string `json:"kind"`
+			Version int             `json:"version"`
+			Kind    string          `json:"kind"`
+			Value   json.RawMessage `json:"value"`
 		}
-		if decode(line, &record) != nil {
+		if decode(line, &record) != nil || record.Version != 1 || record.Kind == "" || len(record.Value) == 0 {
 			return errors.New("gitops_journal_unsafe")
 		}
 		switch record.Kind {
