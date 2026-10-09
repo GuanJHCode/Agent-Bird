@@ -24,6 +24,11 @@ def git(*args):
 if git('rev-parse', 'HEAD') != expected_source or git('status', '--porcelain'):
     raise SystemExit('source must be the requested clean snapshot')
 os.umask(0o077)
+for parent in (task / 'data', task / 'tmp'):
+    parent.mkdir(mode=0o700, exist_ok=True)
+    info = parent.lstat()
+    if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid() or stat.S_IMODE(info.st_mode) != 0o700:
+        raise SystemExit('task output parent must be an owner-only directory')
 evidence = task / 'data' / label
 work = task / 'tmp' / label
 evidence.mkdir(mode=0o700)
@@ -71,6 +76,48 @@ def inventory(root):
             raise RuntimeError('unexpected artifact: ' + str(p))
         out[p.relative_to(root).as_posix()] = {'sha256': sha(p), 'mode': stat.S_IMODE(info.st_mode)}
     return out
+def expected_plugin(binary, version):
+    # Independent, fixed package contract; never derive this list from the
+    # package script or its self-generated manifest.
+    plugin_files = [
+        '.codex-plugin/plugin.json', 'defaults.json', 'skills/orchestrate/SKILL.md',
+        'scripts/invoke.sh', 'scripts/agent-bird-hook', 'scripts/agent-bird-agy-hook',
+        'hooks/agy-proposed-hooks.json', 'scripts/native-product-bridge.py',
+        'lib/native_bridge/__init__.py', 'lib/native_bridge/bridge.py',
+        'lib/trial/auth_guard.py', 'lib/trial/auth_wire.py', 'lib/trial/rpc_policy.py',
+    ]
+    runtime_files = [
+        'activation_service.py', 'auth_isolation.py', 'delivery_adapter.py',
+        'delivery_audit.py', 'launch_activation.py', 'owned_child_guard.py',
+        'owner_helper.py', 'projectproxy_launchd_entrypoint.py',
+        'proxy_observer.py', 'proxy_transport.py', 'receipt_store.py',
+    ]
+    expected, sources = {}, {}
+    def derived(rel, value, mode=0o600, sort_keys=True, ensure_ascii=True):
+        raw = (json.dumps(value, indent=2, sort_keys=sort_keys, ensure_ascii=ensure_ascii) + '\n').encode()
+        expected[rel] = {'sha256': hashlib.sha256(raw).hexdigest(), 'mode': mode}
+    for rel in plugin_files:
+        source = repo / 'plugins/codex-orchestrator' / rel
+        sources[rel] = {'source': str(source.relative_to(repo)), 'sha256': sha(source)}
+        if rel == '.codex-plugin/plugin.json':
+            value = json.loads(source.read_text())
+            value['version'] = version
+            derived(rel, value, sort_keys=False, ensure_ascii=False)
+        else:
+            expected[rel] = {'sha256': sha(source), 'mode': 0o700 if rel.startswith('scripts/') else 0o600}
+    runtime_records = []
+    for name in runtime_files:
+        source = repo / 'runtime/native' / name
+        rel = 'runtime/g0/' + name
+        mode = 0o700 if name == 'projectproxy_launchd_entrypoint.py' else 0o644
+        sources[rel] = {'source': str(source.relative_to(repo)), 'sha256': sha(source)}
+        expected[rel] = {'sha256': sha(source), 'mode': mode}
+        runtime_records.append({'logical_id': name[:-3], 'path': name, 'sha256': sha(source), 'mode': mode})
+    expected['bin/codex-orchestrator'] = {'sha256': sha(binary), 'mode': 0o700}
+    derived('runtime/g0/runtime-manifest.json', {'version': 1, 'interpreter': {'path': str(python), 'sha256': sha(python)}, 'files': runtime_records})
+    payload = [{'path': rel, **value} for rel, value in sorted(expected.items())]
+    derived('payload-manifest.json', {'schema_version': 1, 'kind': 'full-native-hooks', 'files': payload})
+    return expected, sources
 version = '0.1.0-closure.' + expected_source[:12]
 receipt = {'source': expected_source, 'tree': git('rev-parse', 'HEAD^{tree}'),
            'orchestrator_tree': git('rev-parse', 'HEAD:tools/orchestrator'),
@@ -79,6 +126,8 @@ receipt = {'source': expected_source, 'tree': git('rev-parse', 'HEAD^{tree}'),
            'commands': commands, 'accepted': False}
 try:
     receipt['go_version'] = run('go-version', [go, 'version']).decode().strip()
+    if receipt['go_version'] != 'go version go1.26.8 darwin/arm64':
+        raise RuntimeError('acceptance requires pinned Go1.26.8 darwin/arm64')
     run('go-mod-verify', [go, 'mod', 'verify'], repo / 'tools/orchestrator')
     for suffix in ('a', 'b'):
         run('build-' + suffix, [go, 'build', '-trimpath', '-buildvcs=false', '-o', work / ('orchestrator-' + suffix), './cmd/orchestrator'], repo / 'tools/orchestrator')
@@ -96,6 +145,11 @@ try:
         raise RuntimeError('package bytes/modes differ')
     receipt['package_files'] = first
     plugin = work / 'package-a/plugin'
+    expected_payload, source_mapping = expected_plugin(binary, version)
+    if inventory(plugin) != expected_payload:
+        raise RuntimeError('package does not equal the independent source closure')
+    receipt['source_mapping'] = source_mapping
+    receipt['expected_payload'] = expected_payload
     package = json.loads((work / 'package-a/package-manifest.json').read_text())
     if package['version'] != version or package['binary_path'] != 'plugin/bin/codex-orchestrator':
         raise RuntimeError('package identity differs')
@@ -121,7 +175,9 @@ try:
     if installed['version_root'] != str(installed_root) or installed['binary_sha256'] != receipt['binary_sha256']:
         raise RuntimeError('installed identity mismatch')
     before = inventory(installed_root)
-    for rel, value in inventory(plugin).items():
+    if set(before) != set(expected_payload) | {'manifest.json'}:
+        raise RuntimeError('installed closure has missing or extra files')
+    for rel, value in expected_payload.items():
         if before.get(rel) != value:
             raise RuntimeError('installed payload mismatch: ' + rel)
     installed_binary = installed_root / 'bin/codex-orchestrator'
