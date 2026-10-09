@@ -1,120 +1,65 @@
-# F03-A：有序双候选组合设计（待契约冻结）
+# F03：有序候选组合设计（契约已冻结）
 
-状态：仅设计；不授权实现。基线为 `f7db2e8`，调查到的已有底层能力是
-`gitops.ComposeCandidate` 与 `gitopsworker` 的 `compose` 路由。F02 的 diagnostics
-删除变更与本设计没有共享写入权；先冻结以下公共合同后才可实现。
+状态：design-only；实现负责人为单一 F03 writer。本修订基于 `f7db2e8` 的现有契约和 Git 路径；当前 worktree HEAD 是 `f5c3a49`。F02 对 `internal/store/candidate_input.go` 的 historical-mode 改动是冻结交叉面：F03 不触及该路径、schema migration、segment 新字段或 F02 的文件。
 
-## 目标和边界
+## 已定目标与边界
 
-一个公开 DAG 的两个 producer 从同一 `base_oid` 生成、完成并经 owner accept 后，
-由一个显式 compose task 依声明顺序把两项候选合成为冻结 commit。后续
-`validate → review → integrate` 只消费该 compose task 的 accepted result，最终
-integration 指向当前 target，且验证的 candidate、private ref、所有输入 OID 与
-composition manifest 一一对应。
+一个 `compose` action 接受同一仓库、同一 common-dir、同一 base 的 2..63 个已 owner-accept producer candidate，严格按声明顺序组合出冻结的 candidate commit。公开 fixture 固定两个 source，并刻意用反字典序 `[B,A]`。compose 是 Git 动作，不是模型动作：没有也不得伪造为任一 producer 的 `ProviderLock`。冲突保留现有 Git journal、owned worktree 和 private ref，返回可操作失败；owner 另行显式安排冲突任务，不自动调用模型、不盲重试。
 
-本期只覆盖 clean、独立的两个 producer；冲突停止 compose 并保留 journal/ref/
-worktree，不做自动冲突解决。保留既有 input event、accepted evidence、provider lock、
-candidate receipt、repo common-dir/base、配额、UNKNOWN 与 original Wait 语义。没有
-post-integration rework。
+之后的 `validate → review → integrate` 保持单 `SourceTask` 的 v1 contract；source 是 compose task 的 accepted result。它们必须能认证其 candidate 来自合法 composition，但不禁止既有 review 携带额外依赖验证证据。无 post-integration rework，不调用真实 model/account，不安装或发布。
 
-## 新合同：显式 v2，不重写 v1
+## Action 与输入合同
 
-`candidate_action.version=2` 与 `dependency_input_version=2` 必须同时出现才选择
-v2。v1 action 或未声明版本仍走当前单 `SourceTask` / task-ID 字典序 vector 和既有
-`CandidateIntentHash` 字节合同；不得排序后将 v2 数据伪装成 v1，也不得修改历史
-v1 vector/hash/replay。
+v1 的 action、字典序 `DependencyInputVector{Version:1}`、`CandidateIntentHash` 的既有字节分支及 replay 完全不变。
 
-v2 的 action 增加 `ordered_source_tasks: []string`。它是语义顺序，必须与 task 的
-direct dependencies 同集合、同长度、无空值、无重复，长度为 2..63；本 F03-A 的
-验收固定为两个且故意采用反字典序。Store 按此数组装配
-`DependencyInputVector{Version:2}`，并在 replay/retry 逐项比较 task id、完整
-`AcceptedInput` 的 canonical JSON，而不是按 task id 排序。
+仅当 `candidate_action.version=2` 和 `dependency_input_version=2` 同时出现时启用 composition：
 
-`operation="compose"` 只在 v2 合法：`SourceTask` 必须为空，producer 必须是 direct
-dependencies 且 owner-review completed/accepted。`validate`、`review`、`integrate`
-继续需要恰好一个 `SourceTask`，该 task 必须是 compose task 并且是其 direct
-dependency；它们不得重新直接引用两个 producer。由此 `Input` 始终是单一、内容承载
-的 compose accepted result，而 v2 vector 是 compose 自己的输入证据。
+- operation 必须为 `compose`；`source_task` 为空，`ordered_source_tasks` 长度 2..63、无空值和重复。
+- `ordered_source_tasks` 与 task 的 direct dependencies 是相同集合；数组顺序是语义，不排序。每个 source 必须是 owner-review completed/accepted producer。
+- Store 按该数组捕获 `DependencyInputVector{Version:2}`，每一项为已有的完整 `AcceptedInput`（accepted event、adapter payload、decision command ID）。重试、续段和 replay 逐项比较 task ID 与 canonical JSON，不能重新按 task ID 排序。
+- v2 compose 的 `Input` 为 nil；不存在“主 source”。`CandidateIntentHash` 已包含 `DependencyInputs`，因此自然绑定 v2 vector；不为 v2 创造另一套 hash body。
 
-需新增 canonical `CompositionManifest`，至少包含版本、run/task/attempt/segment、
-repo root/common-dir identity、base OID、声明顺序的 source task IDs、对应 accepted
-event identity/SHA/decision command ID、同序 producer candidate OIDs、compose candidate
-OID/tree OID/private ref、plan revision、以及 canonical manifest SHA。不得从分支名或
-最新工作区推断任何字段。
+Store 的事务只做现有 accepted-input vector/payload/hash 的捕获和 launch-intent 绑定。它不知道 compose 输出的 CandidateOID/tree/privateRef，绝不在 grant 事务内持久化 manifest 或做 filesystem/Git 操作。仍使用既有 vector persistence 与 wire 限制；不新增 schema migration、segment 字段、配额桶或 host-artifact reservation。`internal/store/candidate_input.go` 的 historical-mode 交叉改动由 ROOT/F02 完成；F03 不写该文件，并在其稳定后只从现有 binder 接口接入 v2。
 
-## Store、计费和认证
+## CompositionManifest 与 Host 认证
 
-Store 在现有 bind 流程中新增 v2 分支：先验证 DAG 和 action 版本/operation，再按
-`ordered_source_tasks` 捕获所有 `acceptedCandidateInput`。每项 producer payload 必须
-是可验证的 candidate delivery，且 repo/common-dir/base OID 相同；candidate receipt
-的 ordered input OIDs 必须能认证 producer candidate OID。任一不一致、重复、缺失、
-未 accept、base 漂移或历史 capture 改变均拒绝，不启动 Host。
+新增有界 `CompositionManifest`（versioned）和 `CandidateDelivery` 的 composition variant。它们随 compose 的既有、最多 1 MiB Host terminal artifact 写出，并由 result event 的 artifact SHA 认证；不增加 reservation，复用该 segment 已授予的 terminal artifact quota。
 
-为保证 crash/retry 不会重新组合，新增 segment runtime 的
-`composition_manifest_json` 与 `composition_manifest_sha256`（或等价的独立、以
-segment ID 键控的持久表）。写 grant 的同一事务持久化 v2 vector、canonical manifest
-和其 SHA；`storageAdmission` 计入 raw vector、manifest 和 hash 的实际新增字节，仍受
-现有 64KiB wire/存储限制。`CandidateIntentHash` 新增仅在 action/version=2 的独立
-canonical body，绑定 vector 与 manifest SHA；v1 的三字段及其已有扩展分支原样保留。
+Manifest 不嵌入至多 63 个完整 1 MiB artifacts。它包含：run/task/attempt/segment/work revision/plan revision，repo root identity、common-dir identity、base OID，声明顺序的 source task ID 与 candidate OID；以及每项 source 的 accepted event identity、payload SHA、decision command ID、source delivery SHA、source candidate receipt SHA 和其 provider-lock 摘要。它还保存同序 OID、compose CandidateOID、TreeOID、PrivateRef 与 PrivateRefExpectedOID，以及 canonical manifest SHA。source 的精确 payload、accepted event 与 receipt 仍由 v2 vector 中的 `AcceptedInput` 和其 event artifact 引用提供；manifest 只引用和摘要它们。
 
-Host 读取 compose grant 时必须重新验证 vector、manifest hash、每个 accepted event
-artifact SHA 和 decision ID，重解 producer delivery 并比较 base/repo/common-dir/OID。
-compose 的 `CandidateReceipt` 和 manifest 写入受管理的 Host artifact；结果 event 的
-artifact hash 认证该字节。下游 `readAcceptedCandidate` 必须验证 compose manifest、
-receipt、private ref expected OID、candidate/tree/ordered OIDs 的相等性，不能只信任
-`Input` 的单一 artifact。这样 validate/review/integrate 的既有 provider-lock 和 target
-binding 仍从 compose receipt 取得，且 `OrderedInputOIDs` 一直保留声明顺序。
+Host 在任何 Git 改变前依次：验证 launch intent/vector；读取每个 source 的物理 artifact（managed artifact 走 `readManagedCandidateArtifact`，其他文件用 `O_NOFOLLOW` 路径）；核对 event artifact SHA；解码 producer `CandidateDelivery`；核对 accepted owner decision、receipt SHA、provider-lock 摘要、binding、repo/root identity、common-dir 与 base；并验证 producer private ref 仍解析到 receipt 的 expected candidate OID。任一项不匹配即在启动 worker 前拒绝。
 
-## Host 调用和恢复
+`gitops.ComposeCandidate` 目前返回的 `CandidateReceipt.Binding` 为 nil；Host 在解析 worker 成功输出后必须补入本 compose segment 的 `CandidateBinding`，并把同一 binding 放进 `CandidateDelivery.Binding`。Host 同时重新认证 compose receipt 的 repo/common-dir/base、ordered OIDs、candidate/tree、private ref 和 expected OID，再写 manifest 与 delivery。这使 receipt 的身份不借用 producer binding。
 
-compose 是 Host 的无模型候选动作。它使用现有受控 Git worker 路径调用
-`gitops.ComposeCandidate`：request 取已认证的 repo root、专用 compose worktree、
-attempt ID、base OID、manifest 的 ordered OIDs、plan revision 和仅由 Host 派生的 private
-ref；不让 payload 指定 journal/ref 路径。复用现有 `CandidateJournal` 的 create intent、
-freeze、private-ref pin、worktree identity、UNKNOWN 与 cleanup 记录。它不 materialize
-target，也不调用 integration。
+后继 `readCandidateDelivery`/`readAcceptedCandidate` 对 compose source 除原有 artifact hash 与 binding 检查外，验证 delivery 的 composition manifest SHA、其每项摘要与 receipt 一致，private ref 解析到 expected OID，且 candidate/tree/ordered OIDs 与 manifest 相等。validate 把 composition delivery 原样复制进自己的 delivery；review 和 integrate 继续逐层复制。review 的 `ProviderLock` 仍是 review 自己的 lock，不能用 compose 或 producer lock 替代。这样单-source v1 后继合同保持不变，同时 provenance 一直可追溯。
 
-compose 成功后把 receipt/manifest 作为一个 candidate result 交给现有 owner accept；
-其后 validate 物化 frozen compose candidate，review 绑定 validate evidence，integrate
-按现有 protected target contract 只快进/整合该 final candidate。任何 source receipt、
-manifest、target base、plan/work revision 或 provider lock 变化都使旧 review/integration
-证据失效。失败、取消和 UNKNOWN 保持原 journal 和 original Wait 恢复路径，不能用
-cleanup 删除仍被 downstream/owner decision pin 的 private ref。
+## 受跟踪的 Git 执行、恢复与失败
 
-公开 fixture 使用受控 fake Provider 与 Git fixture，不调用真实 model/account；它要验证
-worker request 的 repo/common-dir/base/private ref、受控 accepted artifacts 和实际 Git
-ancestor/tree，不将合成的 mock receipt 当作 Host 行为证据。
+Host 不能在 `delivery.go` 直接调用 `gitops.ComposeCandidate`。它在 v2 compose 的 `prepareCandidateAction` 分支构造经认证的 `gitops.CandidateCompositionRequest`，调用 `gitopsworker.BuildInvocation` 生成私有 request，并把该 invocation 转为 `process.Command` 交回 `Host.execute`。实际子进程经现有 `process.Start`、Host stop/UNKNOWN 状态机和原始 handle 的 `Wait` 路径运行；finalizer 只在该 tracked process 终止并产生输出后解析 receipt。不得创建未受跟踪的 goroutine、直接 `Run`，或绕过 original-Wait/取消恢复语义。
 
-## 实现归属（冻结后）
+实际 Git primitive 和 worker route 已存在：`internal/gitops/gitops.go:CandidateCompositionRequest/ComposeCandidate`，`internal/gitopsworker/worker.go` 的 `compose` case，及 `gitopsworker.BuildInvocation` 的私有 request/journal。F03 仅把它们接到 Host；request 使用 Host 认证的 repo root、dedicated automatic worktree、attempt ID、base、ordered OIDs、plan revision 和 Host 派生 private ref，payload 不得提供 journal/ref/worktree。已有 `CandidateJournal` 的 candidate intent、ref intent、freeze receipt、UNKNOWN 和 cleanup 记录继续是唯一恢复依据。compose 不 materialize target、不 integrate。
 
-| 负责人 | 唯一文件/责任 |
+组合冲突或 Git 失败不自动 cleanup 已持久化的 journal/ref/worktree；失败 artifact 使用既有受控错误码（冲突须可区分），由 owner 创建一个明确的后续冲突处理 task。恢复先按 durable journal 与 private-ref expected OID 对账；不重新组合，也不删除仍可能被 owner 或 downstream pin 的 ref。
+
+## 最小实现位置与验收
+
+F03 是一个 writer，完整实现由同一负责人完成，避免机械按 Store/Host 分拆：
+
+| 位置 | 最小职责 |
 | --- | --- |
-| F03-A Store | `internal/contract/dependency_inputs.go`, `contract.go`, `internal/adapter/action.go`, `internal/store/candidate_input.go`, `dependency_inputs.go` 及对应 migration/persistence tests：v2 wire、intent/hash、顺序/replay/计费。 |
-| F03-A Host | `internal/host/delivery.go`（必要时专属 compose helper 与 tests）：认证 manifest，调用 existing Compose primitive，交付 compose receipt，保持 lifecycle。 |
-| Gitops | 不改 `internal/gitops`/`gitopsworker`，除非独立审查证明现有 request/journal 无法承载已认证字段；其公共行为已有受控 Git 证据。 |
-| F02 | diagnostics explicit delete 的独立文件和测试；不得修改上述 v2 action/vector 合同。 |
+| `internal/adapter/action.go` | v2 action 的 `ordered_source_tasks` 解码/复制。 |
+| `internal/contract/dependency_inputs.go`、`contract.go` | v2 validation 保持 v1 hash；manifest/delivery contract 的严格校验。 |
+| `internal/store/dependency_inputs.go`（及稳定后的既有 binder 接口） | v2 按声明顺序 capture/replay 与既有 vector persistence；不写 F02 所有的 `candidate_input.go`，不做 Git/manifest persistence。 |
+| `internal/host/delivery.go`（可加专属 compose helper） | pre-Git 认证、tracked worker command、receipt 补 binding、terminal delivery 与后继 provenance 验证。 |
+| `internal/gitops`、`internal/gitopsworker` | 不改 primitive 或 route，除非实现中发现已认证 request 不能表达必需字段；先报告该缺口。 |
 
-## 最小验证矩阵
+必要测试仅覆盖可观察的新行为，并复用已有 `gitops` compose/unit worker 与 candidate lifecycle 证据：
 
-1. 正例：A/B 同 base、均 accepted，声明 `[B,A]`（反字典序）；compose receipt 的
-   `OrderedInputOIDs`、manifest、private ref 与 Git graph 同序且候选包含两项提交；随后
-   validate/review/integrate 到 target。
-2. 反例：同一集合但 action 顺序与 vector/manifest 不一致，或 replay 将 `[B,A]` 改为
-   `[A,B]`，必须在 Store 拒绝，不能启动 Git。
-3. 反例：任一 producer 未 accept、candidate/base/common-dir 不同，或其 artifact/receipt
-   SHA 被替换，必须拒绝。
-4. 反例：compose worktree/ref/receipt 在 crash 或 UNKNOWN 后身份变化，恢复仅按已有
-   journal 对账；不重新合成、不删除 pin。
-5. 兼容：已有 v1 单 source 与 v1 字典序多依赖历史向量的 intent hash、replay 和测试
-   保持不变。
+1. 正例：A/B 同 base、accepted，声明 `[B,A]`；Host 以 tracked worker compose，产物 receipt/manifest/graph 的 `OrderedInputOIDs` 同序，private ref 指向 CandidateOID；随后的 validate/review/integrate 成功消费该合法 composition。
+2. 反例：同集合改为 `[A,B]`、vector 重排或 replay 改序，在 Store 拒绝且未启动 Git。
+3. 反例：任一 source 未 accept，artifact/receipt/provider-lock 摘要、binding、repo/common-dir/base 或 private-ref OID 不符，在 Host 的任何 Git 变更前拒绝。
+4. 反例：composition receipt 缺 Host 补 binding，或 manifest/candidate/tree/private ref 被替换，后继单-source action 拒绝。
+5. 反例：冲突、crash 或 UNKNOWN 后恢复只按 journal 对账，保留 owned worktree/ref，不重跑 compose。
+6. 兼容：现有 v1 单 source 和 v1 多依赖字典序 vector 的 hash/replay tests 原样通过。
 
-## 待产品/契约裁决
-
-1. v2 compose 是否只接受两个 producer，还是开放 2..63；设计采用 2..63、首个公开
-   fixture 固定两个。
-2. compose 冲突是终态 reject，还是要生成显式、人工指定的冲突解决 task；本设计选择
-   前者，后者不能暗含在 compose。
-3. manifest 应内嵌在 `DependencyInputVector` 还是独立 segment 字段；本设计建议独立
-   字段避免改变 v1 vector 的 canonical bytes，并要求明确 schema/migration 评审。
-4. validate/review/integrate 是否允许 v2 vector 额外携带 producer evidence；本设计禁止，
-   它们只依赖 compose task，避免它们绕过 compose receipt。
+仍真实缺失的信息：当前 `gitopsworker.BuildInvocation` 的 caller-to-`process.Command` 适配点在现有 Host action 分支中尚未实现，且 compose 输出到 finalizer 的严格 stdout envelope/大小限制需要在实现时以 worker 实际编码确认；这不是待产品裁决，不阻塞上述冻结合同。
