@@ -78,8 +78,8 @@ func (d *DB) InspectPreBindHostRecovery(ctx context.Context, taskID, controller,
 	err = tx.QueryRowContext(ctx, `SELECT t.run_id,tr.work_revision,h.id,r.origin_context_id,r.origin_pid,r.origin_birth,h.host_generation,h.executable,rh.pid,rh.birth,rh.status
  FROM tasks t JOIN task_runtime tr ON tr.task_id=t.id JOIN runs r ON r.id=t.run_id JOIN host_launches h ON h.id=tr.host_launch_id JOIN runtime_hosts rh ON rh.id=h.host_id
  JOIN execution_owners o ON o.launch_id=h.id AND o.is_current=1 AND o.phase='intended'
- JOIN owner_launch_attempts a ON a.owner_id=o.owner_id
-	 WHERE t.id=? AND a.attempt_no IN (1,2) AND a.phase IN ('prepared_not_started','not_started_final','waited')`, taskID).Scan(&result.RunID, &current, &result.LaunchID, &result.OriginContextID, &result.OriginPID, &result.OriginBirth, &result.HostGeneration, &result.Executable, &result.PID, &result.Birth, &result.Status)
+ JOIN owner_launch_heads lh ON lh.owner_id=o.owner_id JOIN owner_launch_attempts a ON a.owner_id=lh.owner_id AND a.attempt_no=lh.attempt_no
+	 WHERE t.id=? AND a.attempt_no IN (1,2) AND lh.phase IN ('prepared_not_started','not_started_final','waited')`, taskID).Scan(&result.RunID, &current, &result.LaunchID, &result.OriginContextID, &result.OriginPID, &result.OriginBirth, &result.HostGeneration, &result.Executable, &result.PID, &result.Birth, &result.Status)
 	if err != nil || revision < 1 || current != revision {
 		return HostRecovery{}, CodeError("host_recovery_unavailable")
 	}

@@ -4,10 +4,27 @@ import (
 	"context"
 	"crypto/ed25519"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 )
+
+func insertOwnerLaunchHead(ctx context.Context, tx *sql.Tx, owner string, attempt int, phase, hash, now string) error {
+	_, err := tx.ExecContext(ctx, `INSERT INTO owner_launch_heads(owner_id,attempt_no,phase,latest_receipt_hash,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(owner_id) DO UPDATE SET attempt_no=excluded.attempt_no,phase=excluded.phase,latest_receipt_hash=excluded.latest_receipt_hash,updated_at=excluded.updated_at`, owner, attempt, phase, hash, now)
+	return mapConflict(err)
+}
+
+func supervisorPublic(key ed25519.PrivateKey) (string, error) {
+	p, err := originalOwnerSigningPublic(key, "")
+	if err == nil {
+		return hex.EncodeToString(p), nil
+	}
+	if len(key) != ed25519.PrivateKeySize {
+		return "", originalOwnerRejected()
+	}
+	return hex.EncodeToString(key.Public().(ed25519.PublicKey)), nil
+}
 
 // PreBindRetryAdmission is a credential-free, read-only selection.  The
 // Coordinator fills Supervisor and Prepare only after authenticating both
@@ -218,8 +235,12 @@ func (d *DB) CommitPreBindRetryAdmission(ctx context.Context, admission PreBindR
 	if err = d.storageAdmission(ctx, owned.tx, row.state.Intent.Scope.RunID, escrow, false); err != nil {
 		return contract.OwnerPrepared{}, err
 	}
-	if _, err = owned.tx.ExecContext(ctx, `INSERT INTO owner_launch_attempts(owner_id,run_id,attempt_no,attempt_hash,base_intent_json,attempt_json,supervisor_epoch,supervisor_pid,supervisor_birth,supervisor_nonce,supervisor_executable_hash,phase,latest_receipt_hash,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, admission.OwnerID, row.state.Intent.Scope.RunID, 2, next.AttemptSHA256, row.intentJSON, body, admission.Supervisor.Epoch, admission.Supervisor.PID, admission.Supervisor.Birth, admission.Supervisor.Nonce, admission.Supervisor.ExecutableSHA256, receipt.Phase, receipt.ReceiptSHA256, now, now); err != nil {
+	pubText, _ := supervisorPublic(key)
+	if _, err = owned.tx.ExecContext(ctx, `INSERT INTO owner_launch_attempts(owner_id,run_id,attempt_no,attempt_hash,base_intent_json,attempt_json,supervisor_epoch,supervisor_pid,supervisor_birth,supervisor_nonce,supervisor_executable_hash,supervisor_public_key,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, admission.OwnerID, row.state.Intent.Scope.RunID, 2, next.AttemptSHA256, row.intentJSON, body, admission.Supervisor.Epoch, admission.Supervisor.PID, admission.Supervisor.Birth, admission.Supervisor.Nonce, admission.Supervisor.ExecutableSHA256, pubText, now); err != nil {
 		return contract.OwnerPrepared{}, mapConflict(err)
+	}
+	if err = insertOwnerLaunchHead(ctx, owned.tx, admission.OwnerID, 2, receipt.Phase, receipt.ReceiptSHA256, now); err != nil {
+		return contract.OwnerPrepared{}, err
 	}
 	var n int
 	if err = owned.tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM owner_launch_receipts WHERE owner_id=?`, admission.OwnerID).Scan(&n); err != nil {
@@ -322,9 +343,13 @@ func (d *DB) PrepareSupervisedOriginalOwner(ctx context.Context, spec PrepareOri
 	if err != nil {
 		return contract.OwnerPrepared{}, mapConflict(err)
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO owner_launch_attempts(owner_id,run_id,attempt_no,attempt_hash,base_intent_json,attempt_json,supervisor_epoch,supervisor_pid,supervisor_birth,supervisor_nonce,supervisor_executable_hash,phase,latest_receipt_hash,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, scope.OwnerID, scope.RunID, 1, a.AttemptSHA256, body, abody, supervisor.Epoch, supervisor.PID, supervisor.Birth, supervisor.Nonce, supervisor.ExecutableSHA256, r.Phase, r.ReceiptSHA256, now, now)
+	pubText, _ := supervisorPublic(key)
+	_, err = tx.ExecContext(ctx, `INSERT INTO owner_launch_attempts(owner_id,run_id,attempt_no,attempt_hash,base_intent_json,attempt_json,supervisor_epoch,supervisor_pid,supervisor_birth,supervisor_nonce,supervisor_executable_hash,supervisor_public_key,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, scope.OwnerID, scope.RunID, 1, a.AttemptSHA256, body, abody, supervisor.Epoch, supervisor.PID, supervisor.Birth, supervisor.Nonce, supervisor.ExecutableSHA256, pubText, now)
 	if err != nil {
 		return contract.OwnerPrepared{}, mapConflict(err)
+	}
+	if err = insertOwnerLaunchHead(ctx, tx, scope.OwnerID, 1, r.Phase, r.ReceiptSHA256, now); err != nil {
+		return contract.OwnerPrepared{}, err
 	}
 	_, err = tx.ExecContext(ctx, `INSERT INTO owner_launch_receipts(owner_id,run_id,receipt_no,attempt_hash,phase,receipt_json,receipt_hash,created_at) VALUES(?,?,?,?,?,?,?,?)`, scope.OwnerID, scope.RunID, 1, a.AttemptSHA256, r.Phase, rbody, r.ReceiptSHA256, now)
 	if err != nil {
@@ -390,8 +415,12 @@ func (d *DB) prepareSupervisedSuccessorOwner(ctx context.Context, spec PrepareOr
 	if err != nil {
 		return contract.OwnerPrepared{}, mapConflict(err)
 	}
-	_, err = tx.ExecContext(ctx, `INSERT INTO owner_launch_attempts(owner_id,run_id,attempt_no,attempt_hash,base_intent_json,attempt_json,supervisor_epoch,supervisor_pid,supervisor_birth,supervisor_nonce,supervisor_executable_hash,phase,latest_receipt_hash,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, s.OwnerID, s.RunID, 1, a.AttemptSHA256, body, abody, supervisor.Epoch, supervisor.PID, supervisor.Birth, supervisor.Nonce, supervisor.ExecutableSHA256, r.Phase, r.ReceiptSHA256, now, now)
+	pubText, _ := supervisorPublic(key)
+	_, err = tx.ExecContext(ctx, `INSERT INTO owner_launch_attempts(owner_id,run_id,attempt_no,attempt_hash,base_intent_json,attempt_json,supervisor_epoch,supervisor_pid,supervisor_birth,supervisor_nonce,supervisor_executable_hash,supervisor_public_key,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, s.OwnerID, s.RunID, 1, a.AttemptSHA256, body, abody, supervisor.Epoch, supervisor.PID, supervisor.Birth, supervisor.Nonce, supervisor.ExecutableSHA256, pubText, now)
 	if err != nil {
+		return contract.OwnerPrepared{}, err
+	}
+	if err = insertOwnerLaunchHead(ctx, tx, s.OwnerID, 1, r.Phase, r.ReceiptSHA256, now); err != nil {
 		return contract.OwnerPrepared{}, err
 	}
 	_, err = tx.ExecContext(ctx, `INSERT INTO owner_launch_receipts(owner_id,run_id,receipt_no,attempt_hash,phase,receipt_json,receipt_hash,created_at) VALUES(?,?,?,?,?,?,?,?)`, s.OwnerID, s.RunID, 1, a.AttemptSHA256, r.Phase, rbody, r.ReceiptSHA256, now)
@@ -408,8 +437,8 @@ func (d *DB) prepareSupervisedSuccessorOwner(ctx context.Context, spec PrepareOr
 }
 
 func loadOwnerLaunch(ctx context.Context, tx *sql.Tx, ownerID string) (contract.OriginalOwnerLaunchAttempt, contract.OriginalOwnerLaunchReceipt, error) {
-	var body, base, hash, receiptBody, receiptHash string
-	err := tx.QueryRowContext(ctx, `SELECT attempt_json,base_intent_json,attempt_hash,(SELECT receipt_json FROM owner_launch_receipts r WHERE r.owner_id=a.owner_id AND r.attempt_hash=a.attempt_hash ORDER BY receipt_no DESC LIMIT 1),(SELECT receipt_hash FROM owner_launch_receipts r WHERE r.owner_id=a.owner_id AND r.attempt_hash=a.attempt_hash ORDER BY receipt_no DESC LIMIT 1) FROM owner_launch_attempts a WHERE owner_id=? ORDER BY attempt_no DESC LIMIT 1`, ownerID).Scan(&body, &base, &hash, &receiptBody, &receiptHash)
+	var body, base, ownerBase, hash, receiptBody, receiptHash, publicText string
+	err := tx.QueryRowContext(ctx, `SELECT a.attempt_json,a.base_intent_json,o.intent_json,a.attempt_hash,(SELECT receipt_json FROM owner_launch_receipts r WHERE r.owner_id=a.owner_id AND r.attempt_hash=a.attempt_hash ORDER BY receipt_no DESC LIMIT 1),h.latest_receipt_hash,a.supervisor_public_key FROM owner_launch_heads h JOIN owner_launch_attempts a ON a.owner_id=h.owner_id AND a.attempt_no=h.attempt_no JOIN execution_owners o ON o.owner_id=a.owner_id WHERE a.owner_id=?`, ownerID).Scan(&body, &base, &ownerBase, &hash, &receiptBody, &receiptHash, &publicText)
 	if errors.Is(err, sql.ErrNoRows) {
 		return contract.OriginalOwnerLaunchAttempt{}, contract.OriginalOwnerLaunchReceipt{}, ErrNotFound
 	}
@@ -421,11 +450,40 @@ func loadOwnerLaunch(ctx context.Context, tx *sql.Tx, ownerID string) (contract.
 		return a, contract.OriginalOwnerLaunchReceipt{}, originalOwnerRejected()
 	}
 	baseBody, _ := originalOwnerBody(a.BaseIntent)
-	if baseBody != base {
+	if baseBody != base || base != ownerBase {
 		return a, contract.OriginalOwnerLaunchReceipt{}, originalOwnerRejected()
 	}
 	var r contract.OriginalOwnerLaunchReceipt
-	if contract.DecodeOwnerRuntimeStrict([]byte(receiptBody), &r) != nil || r.Validate() != nil || r.ReceiptSHA256 != receiptHash {
+	pub, decodeErr := hex.DecodeString(publicText)
+	if decodeErr != nil || len(pub) != ed25519.PublicKeySize {
+		return a, contract.OriginalOwnerLaunchReceipt{}, originalOwnerRejected()
+	}
+	key := ed25519.PublicKey(pub)
+	id, idErr := contract.OriginalOwnerKeyID(key)
+	if idErr != nil || id != a.BaseIntent.CoordinatorKeyID || contract.DecodeOwnerRuntimeStrict([]byte(receiptBody), &r) != nil || r.Validate() != nil || r.ReceiptSHA256 != receiptHash || contract.VerifyOriginalOwnerLaunchReceipt(r, key, a) != nil {
+		return a, r, originalOwnerRejected()
+	}
+	rows, e := tx.QueryContext(ctx, `SELECT receipt_json,receipt_hash FROM owner_launch_receipts WHERE owner_id=? AND attempt_hash=? ORDER BY receipt_no`, ownerID, a.AttemptSHA256)
+	if e != nil {
+		return a, r, e
+	}
+	defer rows.Close()
+	prior := ""
+	for rows.Next() {
+		var raw, got string
+		if e = rows.Scan(&raw, &got); e != nil {
+			return a, r, e
+		}
+		var each contract.OriginalOwnerLaunchReceipt
+		if contract.DecodeOwnerRuntimeStrict([]byte(raw), &each) != nil || each.ReceiptSHA256 != got || each.PriorReceiptSHA256 != prior || contract.VerifyOriginalOwnerLaunchReceipt(each, key, a) != nil {
+			return a, r, originalOwnerRejected()
+		}
+		prior = got
+	}
+	if e = rows.Err(); e != nil || prior != receiptHash {
+		if e != nil {
+			return a, r, e
+		}
 		return a, r, originalOwnerRejected()
 	}
 	return a, r, nil
@@ -493,7 +551,7 @@ func (d *DB) recordOwnerLaunch(ctx context.Context, ownerID, expected string, su
 	if err = owned.tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM owner_launch_receipts WHERE owner_id=?`, ownerID).Scan(&n); err != nil {
 		return r, err
 	}
-	result, err := owned.tx.ExecContext(ctx, `UPDATE owner_launch_attempts SET phase=?,latest_receipt_hash=?,updated_at=? WHERE owner_id=? AND attempt_hash=? AND phase=?`, phase, r.ReceiptSHA256, now, ownerID, expected, prior.Phase)
+	result, err := owned.tx.ExecContext(ctx, `UPDATE owner_launch_heads SET phase=?,latest_receipt_hash=?,updated_at=? WHERE owner_id=? AND attempt_no=(SELECT attempt_no FROM owner_launch_attempts WHERE owner_id=? AND attempt_hash=?) AND phase=?`, phase, r.ReceiptSHA256, now, ownerID, ownerID, expected, prior.Phase)
 	if err != nil {
 		return r, err
 	}
