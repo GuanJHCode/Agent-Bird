@@ -32,3 +32,13 @@ Independent c9d01ba review found and implementation corrected:
 Host binds `new_base_sha256` into producer candidate receipts, enforces one common digest across ordered sources, and binds that digest into composed receipts/manifests that downstream stages preserve. Existing fields remain `omitempty` and legacy producer receipts retain their byte contract.
 
 All public failures remain retained separately: `public-01` missing fixture origin birth; `public-02` and `public-diagnostic-01` full-vs-redacted producer receipt digest mismatch; `public-03` completed both generations but extra drift fixture omitted ReservationID. These are not counted as final passes. Failed native runtimes remain at their logged `/private/tmp/new-base-cli-*` paths pending owned cleanup; original Coordinator Wait ran during cleanup.
+
+## Queued ordinary integration review correction
+
+F03's competition snapshot now includes ordinary queued and resume_queued integrate tasks before a review artifact exists. Matching refs with unresolved common-repository proof refuse in the read-only gate; distinct durable refs remain independent. Existing ordinary DAG enumeration is unchanged. Authenticated new-generation runs are excluded from this ordinary scope snapshot and use their persistent tickets instead: each ticket is checked against immutable context/run/task/base/path/ref/inode/key, missing/orphan/corrupt tickets fail closed, and released rows must still satisfy the terminal release proof.
+
+`store-queue-red` retained 1 top-level / 3 named FAIL before the fix. `store-queue-green` 1 top-level / 4 named PASS covers queued, durable resume_queued enumeration and distinct-ref independence. The resume protocol itself is covered by the existing resume suites; this regression directly supplies its durable queue state.
+
+`store-final-race` is a failed batch, not an overall PASS: the expanded scope initially included a prepared successor itself and blocked exact replay. Its unchanged schema33 migration, old owner-launch migration and pending-auth actual COMMIT tests each passed and remain applicable. `store-final-race-02` is also retained FAIL: corruption injection dropped only the identity trigger and was correctly stopped by the existing release-proof trigger. The fixture now drops both only within its rolled-back corruption transaction; production guards were not weakened.
+
+`store-final-race-03`: 4 top-level / 13 named PASS, 0 failure/skip. It reruns only the affected exact replay, mode-only conflict, byte oracle/quota, actual COMMIT rollback, concurrent target hold/release, reverse queued admission and missing/corrupt ticket checks. Unaffected historical migration evidence from the failed earlier batch is reused individually.

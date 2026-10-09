@@ -27,12 +27,7 @@ func refreshNewBaseTargets(ctx context.Context, tx *sql.Tx) error {
 }
 func (d *DB) retainNewBaseTarget(ctx context.Context, tx *sql.Tx, p PlanSpec, a *newBaseAdmission) error {
 	c := a.context
-	target := dagReworkTarget{CommonDir: c.SourceCommonDir}
-	target.Binding.TargetWorktreeIdentity = c.TargetWorktree
-	target.Binding.TargetRef = c.TargetRef
-	target.Binding.TargetBaseOID = c.IntegratedHEAD
-	target.Binding.TargetDirectoryIdentity = gitops.DirectoryIdentity(c.TargetDirectoryIdentity)
-	target.Binding.PlanRevision = int64(p.Run.PlanRevision)
+	target := newBaseContextTarget(c, p.Run.PlanRevision)
 	raw, _ := json.Marshal(target)
 	stamp := time.Now().UTC().Format("2006-01-02T15:04:05.000000000Z")
 	task := c.TaskMap[c.SourceIntegrationTaskID]
@@ -47,25 +42,49 @@ func (d *DB) retainNewBaseTarget(ctx context.Context, tx *sql.Tx, p PlanSpec, a 
 	_, err := tx.ExecContext(ctx, `INSERT INTO new_base_target_reservations(run_id,task_id,target_key,target_json,status,created_at,updated_at)VALUES(?,?,?,?,'reserved',?,?)`, p.Run.ID, task, target.key(), string(raw), stamp, stamp)
 	return mapConflict(err)
 }
+
+// Authenticate every ticket against immutable lineage, including released history.
+// Missing/mutated tickets must not disappear when ordinary scope enumeration
+// excludes already authenticated new generations.
 func activeNewBaseTargets(ctx context.Context, tx *sql.Tx) (map[string]dagReworkTarget, error) {
-	rows, err := tx.QueryContext(ctx, `SELECT task_id,target_json FROM new_base_target_reservations WHERE status='reserved' ORDER BY task_id`)
+	var orphan int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM new_base_target_reservations n WHERE NOT EXISTS(SELECT 1 FROM new_base_lineage l WHERE l.run_id=n.run_id)`).Scan(&orphan); err != nil {
+		return nil, err
+	}
+	if orphan != 0 {
+		return nil, CodeError("new_base_target_reservation_invalid")
+	}
+	rows, err := tx.QueryContext(ctx, `SELECT l.run_id,l.context_json,u.plan_revision,COALESCE(n.task_id,''),COALESCE(n.target_json,''),COALESCE(n.target_key,''),COALESCE(n.status,''),EXISTS(SELECT 1 FROM tasks t JOIN task_runtime r ON r.task_id=t.id WHERE t.id=n.task_id AND `+newBaseTargetReleaseSQL+`) FROM new_base_lineage l JOIN runs u ON u.id=l.run_id LEFT JOIN new_base_target_reservations n ON n.run_id=l.run_id ORDER BY l.run_id`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	out := map[string]dagReworkTarget{}
 	for rows.Next() {
-		var task, raw string
+		var run, contextRaw, task, raw, key, status string
+		var plan, releasable int
 		var target dagReworkTarget
-		if err = rows.Scan(&task, &raw); err != nil {
+		var c adapter.NewBaseReworkContext
+		if err = rows.Scan(&run, &contextRaw, &plan, &task, &raw, &key, &status, &releasable); err != nil {
 			return nil, err
 		}
-		if json.Unmarshal([]byte(raw), &target) != nil {
-			return nil, ErrConflict
+		if json.Unmarshal([]byte(raw), &target) != nil || json.Unmarshal([]byte(contextRaw), &c) != nil || c.RunID != run || c.TaskMap[c.SourceIntegrationTaskID] != task || key != target.key() || !sameTargetReservation(target, newBaseContextTarget(c, plan)) || (status != "reserved" && status != "released") || (status == "released" && releasable == 0) {
+			return nil, CodeError("new_base_target_reservation_invalid")
 		}
-		out[task] = target
+		if status == "reserved" {
+			out[task] = target
+		}
 	}
 	return out, rows.Err()
+}
+func newBaseContextTarget(c adapter.NewBaseReworkContext, plan int) dagReworkTarget {
+	target := dagReworkTarget{CommonDir: c.SourceCommonDir}
+	target.Binding.TargetWorktreeIdentity = c.TargetWorktree
+	target.Binding.TargetRef = c.TargetRef
+	target.Binding.TargetBaseOID = c.IntegratedHEAD
+	target.Binding.TargetDirectoryIdentity = gitops.DirectoryIdentity(c.TargetDirectoryIdentity)
+	target.Binding.PlanRevision = int64(plan)
+	return target
 }
 
 // Ordinary plan paths cannot prove that two different target paths use distinct

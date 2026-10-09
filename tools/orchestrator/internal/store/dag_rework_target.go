@@ -94,7 +94,18 @@ func integrationScope(ctx context.Context, tx *sql.Tx, task string, requireCurre
 // ownership. A legacy scope with no original Host proof blocks the v1 action
 // globally; raw payload paths cannot prove it belongs to a different repository.
 func integrationReservations(ctx context.Context, tx *sql.Tx) ([]string, error) {
-	rows, err := tx.QueryContext(ctx, `SELECT DISTINCT t.id FROM tasks t JOIN task_runtime r ON r.task_id=t.id WHERE json_extract(r.adapter_payload,'$.candidate_action.operation')='integrate' AND (t.status='ready' OR EXISTS(SELECT 1 FROM attempts a JOIN segment_runtime s ON s.attempt_id=a.id WHERE a.task_id=t.id AND s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown')) OR EXISTS(SELECT 1 FROM decision_attempt_bindings b WHERE b.task_id=t.id AND b.attempt_id IS NULL AND b.retired=0)) ORDER BY t.id`)
+	return integrationReservationIDs(ctx, tx, false, "")
+}
+
+// A new generation cannot overtake earlier ordinary integration queue entries.
+// Different refs are durably disjoint; matching refs with unresolved common
+// repository scope fail closed in the read-only source gate. Legacy ordinary
+// DAG admission and dispatch retain their existing enumeration contract.
+func newBaseIntegrationReservations(ctx context.Context, tx *sql.Tx, ref string) ([]string, error) {
+	return integrationReservationIDs(ctx, tx, true, ref)
+}
+func integrationReservationIDs(ctx context.Context, tx *sql.Tx, includeQueued bool, ref string) ([]string, error) {
+	rows, err := tx.QueryContext(ctx, `SELECT DISTINCT t.id FROM tasks t JOIN task_runtime r ON r.task_id=t.id WHERE json_extract(r.adapter_payload,'$.candidate_action.operation')='integrate' AND (?=0 OR (NOT EXISTS(SELECT 1 FROM new_base_lineage l WHERE l.run_id=t.run_id) AND COALESCE(json_extract(r.adapter_payload,'$.candidate_action.target.ref'),'') IN ('',?))) AND (t.status='ready' OR (? AND t.status IN ('queued','resume_queued')) OR EXISTS(SELECT 1 FROM attempts a JOIN segment_runtime s ON s.attempt_id=a.id WHERE a.task_id=t.id AND s.status IN ('launch_requested','prepared','spawned','running','stopping','unknown')) OR EXISTS(SELECT 1 FROM decision_attempt_bindings b WHERE b.task_id=t.id AND b.attempt_id IS NULL AND b.retired=0)) ORDER BY t.id`, includeQueued, ref, includeQueued)
 	if err != nil {
 		return nil, err
 	}

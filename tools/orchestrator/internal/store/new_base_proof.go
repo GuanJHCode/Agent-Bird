@@ -119,7 +119,11 @@ func (d *DB) prepareNewBaseSource(ctx context.Context, p PlanSpec) (*newBaseSour
 		return nil, err
 	}
 	gate.reservations = map[string]newBaseReservationGate{}
-	ids, e := integrationReservations(ctx, tx)
+	sourcePayload, e := adapter.DecodeInvocationPayload(gate.payloads[s.SourceIntegrationTaskID])
+	if e != nil {
+		return nil, e
+	}
+	ids, e := newBaseIntegrationReservations(ctx, tx, sourcePayload.CandidateAction.Target.Ref)
 	if e != nil {
 		return nil, e
 	}

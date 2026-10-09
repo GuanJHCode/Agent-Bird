@@ -246,7 +246,7 @@ func validateNewBaseDerivation(ctx context.Context, tx *sql.Tx, p PlanSpec, g *n
 			return CodeError("new_base_target_reserved")
 		}
 	}
-	ids, err := integrationReservations(ctx, tx)
+	ids, err := newBaseIntegrationReservations(ctx, tx, integrated.Target.TargetRef)
 	if err != nil {
 		return err
 	}

@@ -382,3 +382,85 @@ func TestNewBaseTargetReservationMatrix(t *testing.T) {
 		t.Fatalf("queued cancel leaked hold=%d %v", held, err)
 	}
 }
+
+// Ordinary admission must establish queue order before a later generation can
+// reserve the same target, even before its review input exists.
+func TestNewBaseRespectsEarlierQueuedIntegration(t *testing.T) {
+	for _, status := range []string{"queued", "resume_queued", "independent_ref"} {
+		t.Run(status, func(t *testing.T) {
+			db, next := newBaseFixture(t)
+			_, ordinary := newBaseFixtureOnDB(t, db, "ordinary-")
+			ordinary.NewBaseRework = nil
+			ordinary.NewBaseAuthorization = nil
+			if status == "independent_ref" {
+				for i, task := range ordinary.Tasks {
+					a, _ := adapter.DecodeInvocationPayload(task.AdapterPayload)
+					if a.CandidateAction != nil {
+						a.CandidateAction.Target.Ref = "refs/heads/independent"
+						ordinary.Tasks[i].AdapterPayload, _ = json.Marshal(a)
+					}
+				}
+			}
+			if _, err := db.SubmitPlan(context.Background(), ordinary); err != nil {
+				t.Fatal(err)
+			}
+			integrate := ordinary.Tasks[len(ordinary.Tasks)-1].ID
+			var actual string
+			if err := db.sql.QueryRow(`SELECT status FROM tasks WHERE id=?`, integrate).Scan(&actual); err != nil || actual != "queued" {
+				t.Fatalf("ordinary integrate status=%s: %v", actual, err)
+			}
+			if status == "resume_queued" {
+				// Exercise enumeration of the durable continuation queue state. The
+				// continuation protocol itself is covered by the existing resume suite.
+				if _, err := db.sql.Exec(`UPDATE tasks SET status='resume_queued' WHERE id=?`, integrate); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if status == "independent_ref" {
+				if _, err := db.SubmitPlan(context.Background(), next); err != nil {
+					t.Fatalf("durably different ref incorrectly deferred: %v", err)
+				}
+				return
+			}
+			before := newBaseSourceSnapshot(t, db)
+			if _, err := db.SubmitPlan(context.Background(), next); !errors.Is(err, CodeError("rework_target_scope_unresolved")) && !errors.Is(err, CodeError("rework_target_reserved")) {
+				t.Fatalf("later generation overtook %s ordinary integrate: %v", status, err)
+			}
+			if after := newBaseSourceSnapshot(t, db); after != before {
+				t.Fatal("refused successor mutated durable history")
+			}
+			var retained int
+			if err := db.sql.QueryRow(`SELECT COUNT(*) FROM new_base_lineage`).Scan(&retained); err != nil || retained != 0 {
+				t.Fatalf("refused successor retained lineage=%d: %v", retained, err)
+			}
+		})
+	}
+}
+
+func TestNewBaseReservationIntegrity(t *testing.T) {
+	for _, kind := range []string{"missing", "changed_key"} {
+		t.Run(kind, func(t *testing.T) {
+			db, next := newBaseFixture(t)
+			if _, err := db.SubmitPlan(context.Background(), next); err != nil {
+				t.Fatal(err)
+			}
+			tx, err := db.sql.Begin()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer tx.Rollback()
+			// Simulate corrupt durable state without weakening production triggers.
+			if kind == "missing" {
+				_, err = tx.Exec(`DROP TRIGGER immutable_new_base_target_delete;DELETE FROM new_base_target_reservations`)
+			} else {
+				_, err = tx.Exec(`DROP TRIGGER immutable_new_base_target_identity;DROP TRIGGER new_base_target_release_proof;UPDATE new_base_target_reservations SET target_key=?`, strings.Repeat("f", 64))
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err = activeNewBaseTargets(context.Background(), tx); !errors.Is(err, CodeError("new_base_target_reservation_invalid")) {
+				t.Fatalf("corrupt %s ticket was ignored: %v", kind, err)
+			}
+		})
+	}
+}
