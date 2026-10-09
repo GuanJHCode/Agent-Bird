@@ -7,7 +7,7 @@
 | 位置 | 实际用途与失败处置 |
 |---|---|
 | store.go:migrate | Open阶段基础schema初始化DDL，失败由Open立即关闭整个sql.DB并返回，不会将该DB交给运行中的调用方。 |
-| owner_transaction.go:commit | 所有现有运行期写事务共同出口；持有物理sql.Conn，COMMIT失败后独立background bounded ROLLBACK，再无条件ErrBadConn丢弃，不能将失败COMMIT后仍active的SQLite连接还池。 |
+| owner_transaction.go:commit | 所有显式BeginTx的运行期写事务共同出口；持有物理sql.Conn，COMMIT失败后独立background bounded ROLLBACK，再无条件ErrBadConn丢弃，不能将失败COMMIT后仍active的SQLite连接还池。 |
 | config_abandon.go:ConfigAbandonFence | 只读取/认证已存fence；不创建absence proof、不写DB、不unlink。真实CommitConfigAbandon写路径用ownerTransaction。 |
 | snapshot.go:TaskSnapshot | 只读任务/事件/预算快照，失败返回error；无DB写入或额度释放。 |
 | summary.go:SummarizeRun | 只读run/task/预算/重试资格；executionCapacity和executionGrant仅查询，不提交reservation。后续continuationSummary另开只读快照。 |
@@ -18,4 +18,4 @@
 
 已有真实延迟FK COMMIT失败、外部连接/池连接回滚、FK重新启用与额度守恒证据，按适用范围复用`tasks/validation-tool-quota/docs/milestone.md`及该任务原raw，以及owner/config迁移原证据；此次没有重跑或声称每个读API都进行了COMMIT故障注入。
 
-剩余边界：三个仍直接Commit的只读入口和其他直接Rollback读快照没有统一的物理连接不确定处置；当前不涉及未提交业务写入泄漏，但取消/IO错误下的连接可用性未在本审计动态验证。未提供直接SQLite篡改、任意driver故障或物理断电保证。后续需要实际失败证据时再最小修复，不以静态搜索宣称所有连接错误路径已验收。
+剩余边界：本清单只覆盖显式事务，不涵盖`d.sql.ExecContext`等自动提交写及其故障处置；例如admission.go的Host离线标记、limits.go配置、owner_grants.go授权记录和store.go若干旧写入口仍存在自动提交，不能凭此清单声称全部运行期写操作COMMIT失败均已关闭。三个仍直接Commit的只读入口和其他直接Rollback读快照没有统一的物理连接不确定处置；当前不涉及未提交业务写入泄漏，但取消/IO错误下的连接可用性未在本审计动态验证。未提供直接SQLite篡改、任意driver故障或物理断电保证。后续需要实际失败证据时再最小修复，不以静态搜索宣称所有连接错误路径已验收。
