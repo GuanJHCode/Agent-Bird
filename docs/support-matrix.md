@@ -32,7 +32,7 @@ Grok 只读内置工具限制为 read_file/list_dir/grep；编码增加文件编
 
 Claude/AGY Hook 适配、Codex attached bridge 的源码和受控测试不等于真实下一轮或原生 TUI 消费已验收。Grok 显式 ACP controller 已完成[公开受控 actor 同会话回注验收](../tasks/acp-public-controller/docs/validation.md)，包括原会话下一次 Prompt、不可变 completion、ACK 丢失与 uncertain 门禁；真实 Grok/model/tools 资格和任意已有 TUI 附着不由此证明。显式 collect 仍只证明主动收集。完整崩溃/重放窗口、60 分钟双 Worker 组合及 Intel Mac/Linux/Windows 完整原生支持仍未完成。Linux arm64 已在本机隔离容器验证报告文件准入、进程身份/祖先/executable/组观察、Unix socket 凭证及 Coordinator 本地 owner/worker 控制边界；补充原生验证已覆盖组长退出后存活成员，以及未回收僵尸的 UNKNOWN 边界（原 Wait/自然 pipe EOF），见 [进程组证据](../tasks/linux-group-native/docs/native.md)。Linux `collect-only-hooks` 的 `plugin-run -- check` 已完成容器内真实打包/私有安装、Doctor及重复安装验收，见 [Linux 安装范围](../tasks/linux-portable-check/docs/acceptance.md)。其他portable action、Provider执行和sandbox仍关闭；进程/IPC范围见 [Linux 验收范围](../tasks/linux-identity/docs/coordinator-native.md)。
 
-候选开发拒绝 Git LFS/filter、自定义 hooks 等执行扩展。权限不足或输入不明确时明确阻塞，不自动修改用户全局 Git 或 Provider 配置。
+候选开发拒绝 Git LFS/filter、自定义 hooks 等执行扩展。[materialize worker 路径验收](../tasks/materialize-worker-isolation/docs/final-validation.md)已关闭绕过受管 Git 的入口，Mac 定向普通/race 验证扩展拒绝和原进程 journal；隔离扩展执行仍未实现。权限不足或输入不明确时明确阻塞，不自动修改用户全局 Git 或 Provider 配置。
 
 Grok 候选审查由 Host 提供完整 base/candidate Git 文本树，限制为 64 个文件、合计 128 KiB 内容、256 KiB JSON；超限、二进制、符号链接或 LFS 会阻止调用，不截断后继续。认证预检仅调用已锁定 CLI 的非生成 `models`，允许原生客户端续期登录；worker 沙箱不变。AGY 真实审查通过文件读取和错误识别；Grok 真实审查通过快照输入和错误识别。完整 Host 审查到集成另有受控进程回归，不能冒充所有真实模型的端到端验收。
 
