@@ -15,6 +15,22 @@ func insertOwnerLaunchHead(ctx context.Context, tx *sql.Tx, owner string, attemp
 	return mapConflict(err)
 }
 
+func ownerLaunchBytes(fixed int64, values ...string) int64 {
+	for _, value := range values {
+		fixed += int64(len(value))
+	}
+	return fixed
+}
+
+func ownerLaunchFirstAdmission(row originalOwnerRow, attemptBody, receiptBody, owner, run, attemptHash, phase, receiptHash, public, now string, supervisor contract.OriginalOwnerLaunchSupervisor) int64 {
+	reserve := int64(3 * (contract.OriginalOwnerEnvelopeLimit + 512))
+	return originalOwnerRowBytes(row) +
+		ownerLaunchBytes(72, owner, run, attemptHash, row.intentJSON, attemptBody, supervisor.Birth, supervisor.Nonce, supervisor.ExecutableSHA256, public, now) +
+		ownerLaunchBytes(24, owner, phase, receiptHash, now) +
+		ownerLaunchBytes(40, owner, run, attemptHash, phase, receiptBody, receiptHash, now) +
+		ownerLaunchBytes(16, owner, run) + reserve
+}
+
 func supervisorPublic(key ed25519.PrivateKey) (string, error) {
 	p, err := originalOwnerSigningPublic(key, "")
 	if err == nil {
@@ -339,14 +355,15 @@ func (d *DB) PrepareSupervisedOriginalOwner(ctx context.Context, spec PrepareOri
 		return contract.OwnerPrepared{}, err
 	}
 	now := originalOwnerNow()
-	if err = d.storageAdmission(ctx, tx, scope.RunID, int64(len(body)+len(abody)+len(rbody)+512)+3*(contract.OriginalOwnerEnvelopeLimit+512), false); err != nil {
+	pubText, _ := supervisorPublic(key)
+	rowForQuota := originalOwnerRow{state: OriginalOwnerState{Intent: i, Phase: "intended", IsCurrent: true, CoordinatorEpoch: i.CoordinatorEpoch}, intentJSON: body, created: now, updated: now}
+	if err = d.storageAdmission(ctx, tx, scope.RunID, ownerLaunchFirstAdmission(rowForQuota, abody, rbody, scope.OwnerID, scope.RunID, a.AttemptSHA256, r.Phase, r.ReceiptSHA256, pubText, now, supervisor), false); err != nil {
 		return contract.OwnerPrepared{}, err
 	}
 	_, err = tx.ExecContext(ctx, `INSERT INTO execution_owners(owner_id,launch_id,run_id,producer_id,incarnation,bootstrap_id,bootstrap_token_hash,coordinator_key_id,request_id,request_hash,intent_json,phase,is_current,control_revision,coordinator_epoch,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,'intended',1,0,?,?,?)`, scope.OwnerID, scope.LaunchID, scope.RunID, scope.ProducerID, scope.Incarnation, i.BootstrapID, i.BootstrapTokenSHA256, i.CoordinatorKeyID, i.RequestID, i.RequestSHA256, body, i.CoordinatorEpoch, now, now)
 	if err != nil {
 		return contract.OwnerPrepared{}, mapConflict(err)
 	}
-	pubText, _ := supervisorPublic(key)
 	_, err = tx.ExecContext(ctx, `INSERT INTO owner_launch_attempts(owner_id,run_id,attempt_no,attempt_hash,base_intent_json,attempt_json,supervisor_epoch,supervisor_pid,supervisor_birth,supervisor_nonce,supervisor_executable_hash,supervisor_public_key,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`, scope.OwnerID, scope.RunID, 1, a.AttemptSHA256, body, abody, supervisor.Epoch, supervisor.PID, supervisor.Birth, supervisor.Nonce, supervisor.ExecutableSHA256, pubText, now)
 	if err != nil {
 		return contract.OwnerPrepared{}, mapConflict(err)
