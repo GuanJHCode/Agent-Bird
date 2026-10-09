@@ -39,6 +39,22 @@ func TestPreBindRetryAdmissionCommitsSecondAttemptAndMovesHost(t *testing.T) {
 	if prepared.LaunchAttempt == nil || prepared.LaunchAttempt.Attempt != 2 || prepared.Intent.FirstHost.PID != newHost.PID {
 		t.Fatalf("retry not prepared: %#v", prepared)
 	}
+	if _, err = f.db.RecordOriginalOwnerLaunchStartIntent(ctx, prepared.Intent.Scope.OwnerID, prepared.LaunchAttempt.AttemptSHA256, a.Supervisor, f.key); err != nil {
+		t.Fatal(err)
+	}
+	bindSpec := f.bindSpec(prepared.Intent)
+	bindSpec.Host = newHost
+	bindSpec.Hello.BootstrapToken = strings.Repeat("cd", 32)
+	if _, err = f.db.RecordOriginalOwnerLaunchStarted(ctx, prepared.Intent.Scope.OwnerID, prepared.LaunchAttempt.AttemptSHA256, a.Supervisor, contract.OriginalOwnerTransport{PID: bindSpec.Hello.Owner.PID, Birth: bindSpec.Hello.Owner.Birth}, true, f.key); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = f.db.BindOriginalOwner(ctx, bindSpec, f.key); err != nil {
+		t.Fatalf("retry effective Bind: %v", err)
+	}
+	bound, err := f.db.InspectOriginalOwner(ctx, prepared.Intent.Scope.OwnerID)
+	if err != nil || bound.Intent != prepared.Intent || bound.BaseIntent == nil || *bound.BaseIntent != first.Intent {
+		t.Fatalf("bound effective projection: %#v %v", bound, err)
+	}
 	state, err := f.db.InspectOriginalOwnerLaunch(ctx, first.Intent.Scope.OwnerID)
 	if err != nil || state.BaseIntent == nil || *state.BaseIntent != first.Intent || state.Intent != prepared.Intent {
 		t.Fatalf("immutable base/effective projection: %#v %v", state, err)

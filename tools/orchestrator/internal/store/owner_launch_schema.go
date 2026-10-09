@@ -18,6 +18,9 @@ CREATE TABLE owner_launch_heads(
  owner_id TEXT PRIMARY KEY REFERENCES execution_owners(owner_id), attempt_no INTEGER NOT NULL CHECK(attempt_no IN (1,2)),
  phase TEXT NOT NULL CHECK(phase IN ('prepared_not_started','starting','started_wait_owned','waited','not_started_final')), latest_receipt_hash TEXT NOT NULL CHECK(length(latest_receipt_hash)=64), updated_at TEXT NOT NULL,
  FOREIGN KEY(owner_id,attempt_no) REFERENCES owner_launch_attempts(owner_id,attempt_no));
+CREATE TABLE owner_launch_escrows(
+ owner_id TEXT NOT NULL, attempt_no INTEGER NOT NULL, run_id TEXT NOT NULL REFERENCES runs(id), reserved_bytes INTEGER NOT NULL CHECK(reserved_bytes>0),
+ PRIMARY KEY(owner_id,attempt_no), FOREIGN KEY(owner_id,attempt_no) REFERENCES owner_launch_attempts(owner_id,attempt_no));
 CREATE TABLE owner_launch_receipts(
  owner_id TEXT NOT NULL REFERENCES execution_owners(owner_id), run_id TEXT NOT NULL REFERENCES runs(id), receipt_no INTEGER NOT NULL CHECK(receipt_no>0), attempt_hash TEXT NOT NULL CHECK(length(attempt_hash)=64), phase TEXT NOT NULL,
  receipt_json TEXT NOT NULL CHECK(json_valid(receipt_json)), receipt_hash TEXT NOT NULL UNIQUE CHECK(length(receipt_hash)=64), created_at TEXT NOT NULL, PRIMARY KEY(owner_id,receipt_no));
@@ -60,6 +63,19 @@ CREATE INDEX owner_launch_attempts_run_phase ON owner_launch_attempts(run_id,att
 				return err
 			}
 		}
+	}
+	// Escrow accounts retained upper bounds for attempt2's three remaining
+	// receipts.  Receipt rows covered by it deliberately do not charge again.
+	if _, err = tx.Exec(`CREATE TRIGGER quota_owner_launch_escrows_INSERT AFTER INSERT ON owner_launch_escrows BEGIN
+ INSERT INTO storage_usage VALUES('global','',NEW.reserved_bytes,0) ON CONFLICT(scope,scope_id) DO UPDATE SET total_bytes=total_bytes+excluded.total_bytes;
+ INSERT INTO storage_usage VALUES('run',NEW.run_id,NEW.reserved_bytes,0) ON CONFLICT(scope,scope_id) DO UPDATE SET total_bytes=total_bytes+excluded.total_bytes; END;
+CREATE TRIGGER quota_owner_launch_escrows_DELETE AFTER DELETE ON owner_launch_escrows BEGIN
+ UPDATE storage_usage SET total_bytes=total_bytes-OLD.reserved_bytes WHERE scope='global' AND scope_id=''; UPDATE storage_usage SET total_bytes=total_bytes-OLD.reserved_bytes WHERE scope='run' AND scope_id=OLD.run_id; END;
+DROP TRIGGER quota_owner_launch_receipts_INSERT;
+CREATE TRIGGER quota_owner_launch_receipts_INSERT AFTER INSERT ON owner_launch_receipts WHEN NOT EXISTS(SELECT 1 FROM owner_launch_escrows e JOIN owner_launch_attempts a ON a.owner_id=e.owner_id AND a.attempt_no=e.attempt_no WHERE e.owner_id=NEW.owner_id AND a.attempt_hash=NEW.attempt_hash) BEGIN
+ INSERT INTO storage_usage VALUES('global','',40+length(CAST(NEW.owner_id AS BLOB))+length(CAST(NEW.run_id AS BLOB))+length(CAST(NEW.attempt_hash AS BLOB))+length(CAST(NEW.phase AS BLOB))+length(CAST(NEW.receipt_json AS BLOB))+length(CAST(NEW.receipt_hash AS BLOB))+length(CAST(NEW.created_at AS BLOB)),0) ON CONFLICT(scope,scope_id) DO UPDATE SET total_bytes=total_bytes+excluded.total_bytes;
+ INSERT INTO storage_usage VALUES('run',NEW.run_id,40+length(CAST(NEW.owner_id AS BLOB))+length(CAST(NEW.run_id AS BLOB))+length(CAST(NEW.attempt_hash AS BLOB))+length(CAST(NEW.phase AS BLOB))+length(CAST(NEW.receipt_json AS BLOB))+length(CAST(NEW.receipt_hash AS BLOB))+length(CAST(NEW.created_at AS BLOB)),0) ON CONFLICT(scope,scope_id) DO UPDATE SET total_bytes=total_bytes+excluded.total_bytes; END;`); err != nil {
+		return err
 	}
 	return nil
 }

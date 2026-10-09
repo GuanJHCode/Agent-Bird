@@ -90,7 +90,19 @@ func loadOriginalOwner(ctx context.Context, tx *sql.Tx, id string) (originalOwne
 		return row, nil
 	}
 	b, err := contract.DecodeOriginalOwnerBinding([]byte(binding.String))
-	if err != nil || !binding.Valid || !hash.Valid || originalOwnerHash([]byte(binding.String)) != hash.String || b.Scope != i.Scope || b.CoordinatorKeyID != i.CoordinatorKeyID || b.FirstHost != i.FirstHost || !pid.Valid || !birth.Valid || !key.Valid || b.Owner != (contract.OriginalOwnerIdentity{PID: int(pid.Int64), Birth: birth.String, PublicKey: key.String}) || !hostPID.Valid || !hostBirth.Valid || row.state.ControlRevision == 0 {
+	if err != nil || !binding.Valid || !hash.Valid || originalOwnerHash([]byte(binding.String)) != hash.String || b.Scope != i.Scope || b.CoordinatorKeyID != i.CoordinatorKeyID || !pid.Valid || !birth.Valid || !key.Valid || b.Owner != (contract.OriginalOwnerIdentity{PID: int(pid.Int64), Birth: birth.String, PublicKey: key.String}) || !hostPID.Valid || !hostBirth.Valid || row.state.ControlRevision == 0 {
+		return row, originalOwnerRejected()
+	}
+	// execution_owners keeps only the immutable base.  A v2 binding instead
+	// names the explicit effective attempt; never compare its replacement host
+	// against that base transport.
+	if a, _, launchErr := loadOwnerLaunch(ctx, tx, id); launchErr == nil {
+		if a.BaseIntent != i || b.LaunchAttemptSHA256 != a.AttemptSHA256 || b.FirstHost != a.EffectiveIntent.FirstHost {
+			return row, originalOwnerRejected()
+		}
+		row.state.BaseIntent = &i
+		row.state.Intent = a.EffectiveIntent
+	} else if !errors.Is(launchErr, ErrNotFound) || b.FirstHost != i.FirstHost || b.LaunchAttemptSHA256 != "" {
 		return row, originalOwnerRejected()
 	}
 	row.owner = b.Owner

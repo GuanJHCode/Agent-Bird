@@ -231,7 +231,7 @@ func (d *DB) CommitPreBindRetryAdmission(ctx context.Context, admission PreBindR
 	now := originalOwnerNow()
 	// Reserve this immutable attempt and every remaining receipt before a new
 	// Start can be called.  The escrow is deliberately retained.
-	escrow := int64(len(body) + len(receiptBody) + 3*(contract.OriginalOwnerEnvelopeLimit+512) + 1024)
+	escrow := int64(len(body) + len(receiptBody) + 4096 + 3*(contract.OriginalOwnerEnvelopeLimit+512))
 	if err = d.storageAdmission(ctx, owned.tx, row.state.Intent.Scope.RunID, escrow, false); err != nil {
 		return contract.OwnerPrepared{}, err
 	}
@@ -247,6 +247,9 @@ func (d *DB) CommitPreBindRetryAdmission(ctx context.Context, admission PreBindR
 		return contract.OwnerPrepared{}, err
 	}
 	if _, err = owned.tx.ExecContext(ctx, `INSERT INTO owner_launch_receipts(owner_id,run_id,receipt_no,attempt_hash,phase,receipt_json,receipt_hash,created_at) VALUES(?,?,?,?,?,?,?,?)`, admission.OwnerID, row.state.Intent.Scope.RunID, n+1, next.AttemptSHA256, receipt.Phase, receiptBody, receipt.ReceiptSHA256, now); err != nil {
+		return contract.OwnerPrepared{}, mapConflict(err)
+	}
+	if _, err = owned.tx.ExecContext(ctx, `INSERT INTO owner_launch_escrows(owner_id,attempt_no,run_id,reserved_bytes) VALUES(?,?,?,?)`, admission.OwnerID, 2, row.state.Intent.Scope.RunID, 3*(contract.OriginalOwnerEnvelopeLimit+512)); err != nil {
 		return contract.OwnerPrepared{}, mapConflict(err)
 	}
 	if err = moveOwnerTransport(ctx, owned.tx, row.state.Intent.Scope, admission.OldFirstHost, effective.FirstHost, admission.Epoch); err != nil {
