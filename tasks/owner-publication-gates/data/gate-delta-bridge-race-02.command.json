@@ -1,0 +1,18 @@
+{
+  "command": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+    "-C",
+    "tools/orchestrator",
+    "test",
+    "-json",
+    "-race",
+    "-count=1",
+    "./internal/store",
+    "-run",
+    "^TestPendingPublicationBridgeObservationBoundary$"
+  ],
+  "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/owner-publication-gates",
+  "head": "fe3bbd55fdb6cfae3bcf668334d055a3286b4261",
+  "dirty": "?? tasks/owner-publication-gates/scripts/run-gate-delta.py\n?? tools/orchestrator/internal/store/owner_publication_gate_delta_test.go\n",
+  "go_version": "go version go1.26.8 darwin/arm64"
+}
