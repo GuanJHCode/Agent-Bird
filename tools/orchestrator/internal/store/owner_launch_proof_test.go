@@ -160,10 +160,31 @@ func TestLoadOwnerLaunchRejectsCorruptV2FactMatrix(t *testing.T) {
 				}
 			},
 		},
+		{
+			name: "unknown receipt column aliases latest signed attempt",
+			corrupt: func(t *testing.T, f originalOwnerFixture, owner string) {
+				t.Helper()
+				if _, err := f.db.sql.Exec(`DROP TRIGGER immutable_owner_launch_receipts_update; UPDATE owner_launch_receipts SET attempt_hash=? WHERE owner_id=? AND receipt_no=2`, strings.Repeat("e", 64), owner); err != nil {
+					t.Fatal(err)
+				}
+			},
+		},
+		{
+			name: "attempt receipts are globally interleaved",
+			corrupt: func(t *testing.T, f originalOwnerFixture, owner string) {
+				t.Helper()
+				if _, err := f.db.sql.Exec(`DROP TRIGGER immutable_owner_launch_receipts_update; UPDATE owner_launch_receipts SET receipt_no=9 WHERE owner_id=? AND receipt_no=3; UPDATE owner_launch_receipts SET receipt_no=3 WHERE owner_id=? AND receipt_no=2; UPDATE owner_launch_receipts SET receipt_no=2 WHERE owner_id=? AND receipt_no=4; UPDATE owner_launch_receipts SET receipt_no=4 WHERE owner_id=? AND receipt_no=9`, owner, owner, owner, owner); err != nil {
+					t.Fatal(err)
+				}
+			},
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			f, owner := ownerLaunchProofTwoAttemptFixture(t)
+			if tc.name == "attempt receipts are globally interleaved" {
+				f, owner = ownerLaunchProofTwoAttemptWithTerminalFirstFixture(t)
+			}
 			tc.corrupt(t, f, owner)
 			requireOwnerLaunchRejected(t, f, owner)
 		})
@@ -189,6 +210,40 @@ func ownerLaunchProofTwoAttemptFixture(t *testing.T) (originalOwnerFixture, stri
 	a.Prepare = f.prepare
 	a.Prepare.Host = nextHost
 	a.Prepare.BootstrapID, a.Prepare.RequestID = "proof-retry-bootstrap", "proof-retry-request"
+	a.Prepare.BootstrapTokenSHA256, _ = contract.OriginalOwnerBootstrapSHA256(strings.Repeat("cd", 32))
+	a.Prepare.RequestSHA256 = strings.Repeat("d", 64)
+	a.Prepare.StartupDeadlineUnixMS = time.Now().Add(time.Minute).UnixMilli()
+	if _, err = f.db.CommitPreBindRetryAdmission(ctx, a, first.Intent.FirstHost, f.key); err != nil {
+		t.Fatal(err)
+	}
+	return f, first.Intent.Scope.OwnerID
+}
+
+func ownerLaunchProofTwoAttemptWithTerminalFirstFixture(t *testing.T) (originalOwnerFixture, string) {
+	t.Helper()
+	f := newOriginalOwnerFixture(t)
+	ctx := context.Background()
+	first, err := f.db.PrepareSupervisedOriginalOwner(ctx, f.prepare, "", ownerLaunchSupervisor(f), f.key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = f.db.RecordOriginalOwnerLaunchStartIntent(ctx, first.Intent.Scope.OwnerID, first.LaunchAttempt.AttemptSHA256, first.LaunchAttempt.Supervisor, f.key); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = f.db.RecordOriginalOwnerLaunchNoStart(ctx, first.Intent.Scope.OwnerID, first.LaunchAttempt.AttemptSHA256, first.LaunchAttempt.Supervisor, f.key); err != nil {
+		t.Fatal(err)
+	}
+	nextHost := f.prepare.Host
+	nextHost.PID, nextHost.Birth = 303, "proof-terminal-retry-host"
+	a, err := f.db.ResolvePreBindRetryAdmission(ctx, nextHost, 1, f.prepare.ExecutableSHA256)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.Supervisor = ownerLaunchSupervisor(f)
+	a.Supervisor.PID, a.Supervisor.Birth, a.Supervisor.Nonce = 701, "proof-terminal-retry-supervisor", strings.Repeat("b", 64)
+	a.Prepare = f.prepare
+	a.Prepare.Host = nextHost
+	a.Prepare.BootstrapID, a.Prepare.RequestID = "proof-terminal-retry-bootstrap", "proof-terminal-retry-request"
 	a.Prepare.BootstrapTokenSHA256, _ = contract.OriginalOwnerBootstrapSHA256(strings.Repeat("cd", 32))
 	a.Prepare.RequestSHA256 = strings.Repeat("d", 64)
 	a.Prepare.StartupDeadlineUnixMS = time.Now().Add(time.Minute).UnixMilli()

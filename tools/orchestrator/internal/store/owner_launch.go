@@ -523,7 +523,7 @@ func loadOwnerLaunch(ctx context.Context, tx *sql.Tx, ownerID string) (contract.
 			return contract.OriginalOwnerLaunchAttempt{}, contract.OriginalOwnerLaunchReceipt{}, originalOwnerRejected()
 		}
 		baseBody, bodyErr := originalOwnerBody(a.BaseIntent)
-		if a.Validate() != nil || number != len(attempts)+1 || int(a.Attempt) != number || a.AttemptSHA256 != hash || bodyErr != nil || baseBody != base || base != ownerBase || run != a.BaseIntent.Scope.RunID || a.Supervisor.Epoch != epoch || a.Supervisor.PID != pid || a.Supervisor.Birth != birth || a.Supervisor.Nonce != nonce || a.Supervisor.ExecutableSHA256 != executable || decodeErr != nil || len(key) != ed25519.PublicKeySize {
+		if a.Validate() != nil || a.BaseIntent.Scope.OwnerID != ownerID || number != len(attempts)+1 || int(a.Attempt) != number || a.AttemptSHA256 != hash || bodyErr != nil || baseBody != base || base != ownerBase || run != a.BaseIntent.Scope.RunID || a.Supervisor.Epoch != epoch || a.Supervisor.PID != pid || a.Supervisor.Birth != birth || a.Supervisor.Nonce != nonce || a.Supervisor.ExecutableSHA256 != executable || decodeErr != nil || len(key) != ed25519.PublicKeySize {
 			return contract.OriginalOwnerLaunchAttempt{}, contract.OriginalOwnerLaunchReceipt{}, originalOwnerRejected()
 		}
 		keyID, keyErr := contract.OriginalOwnerKeyID(key)
@@ -536,6 +536,10 @@ func loadOwnerLaunch(ctx context.Context, tx *sql.Tx, ownerID string) (contract.
 		return contract.OriginalOwnerLaunchAttempt{}, contract.OriginalOwnerLaunchReceipt{}, originalOwnerRejected()
 	}
 	if headAttempt == 2 && (attempts[1].a.BaseIntent != attempts[0].a.BaseIntent || attempts[1].a.BaseIntent.CoordinatorKeyID != attempts[0].a.BaseIntent.CoordinatorKeyID) {
+		return contract.OriginalOwnerLaunchAttempt{}, contract.OriginalOwnerLaunchReceipt{}, originalOwnerRejected()
+	}
+	var escrowFacts int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM owner_launch_escrows WHERE owner_id=?`, ownerID).Scan(&escrowFacts); err != nil || escrowFacts != len(attempts) {
 		return contract.OriginalOwnerLaunchAttempt{}, contract.OriginalOwnerLaunchReceipt{}, originalOwnerRejected()
 	}
 	for index, fact := range attempts {
@@ -552,21 +556,25 @@ func loadOwnerLaunch(ctx context.Context, tx *sql.Tx, ownerID string) (contract.
 	}
 	defer rows.Close()
 	sequence := 1
+	lastAttempt := 0
 	for rows.Next() {
-		var number, index int
+		var number int
+		index := -1
 		var run, attemptHash, phase, body, hash string
 		if err = rows.Scan(&number, &run, &attemptHash, &phase, &body, &hash); err != nil || number != sequence {
 			return contract.OriginalOwnerLaunchAttempt{}, contract.OriginalOwnerLaunchReceipt{}, originalOwnerRejected()
 		}
 		sequence++
-		for index = range attempts {
-			if attempts[index].a.AttemptSHA256 == attemptHash {
+		for candidate := range attempts {
+			if attempts[candidate].a.AttemptSHA256 == attemptHash {
+				index = candidate
 				break
 			}
 		}
-		if index == len(attempts) || run != attempts[index].a.BaseIntent.Scope.RunID || len(receipts[index]) == 4 {
+		if index < 0 || index < lastAttempt || run != attempts[index].a.BaseIntent.Scope.RunID || len(receipts[index]) == 4 {
 			return contract.OriginalOwnerLaunchAttempt{}, contract.OriginalOwnerLaunchReceipt{}, originalOwnerRejected()
 		}
+		lastAttempt = index
 		var r contract.OriginalOwnerLaunchReceipt
 		prior := ""
 		if len(receipts[index]) != 0 {
