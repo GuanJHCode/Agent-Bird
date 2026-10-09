@@ -24,6 +24,7 @@ import (
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/coordinator"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitopsworker"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/hostbootstrap"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/install"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/instance"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc"
@@ -990,24 +991,8 @@ type hostBootstrap struct {
 
 // hostBootstrapMetadataV2 is the token-free disk contract, distinct from the
 // in-memory/v1 wire object. Strict decoding rejects injected token fields.
-type hostBootstrapMetadataV2 struct {
-	OwnerLaunchProtocol int               `json:"owner_launch_protocol,omitempty"`
-	Version             int               `json:"version"`
-	SocketPath          string            `json:"socket_path"`
-	SpoolRoot           string            `json:"spool_root"`
-	ProducerID          string            `json:"producer_id"`
-	Hello               hostHelloMetadata `json:"hello"`
-}
-type hostHelloMetadata struct {
-	LaunchID        string `json:"launch_id"`
-	OriginContextID string `json:"origin_context_id"`
-	OriginPID       int    `json:"origin_pid"`
-	OriginBirth     string `json:"origin_birth"`
-	HostGeneration  string `json:"host_generation"`
-	PID             int    `json:"pid"`
-	Birth           string `json:"birth"`
-	Executable      string `json:"executable"`
-}
+type hostBootstrapMetadataV2 = hostbootstrap.MetadataV2
+type hostHelloMetadata = hostbootstrap.HelloMetadata
 
 func bootstrapMetadata(b hostBootstrap) hostBootstrapMetadataV2 {
 	h := b.Hello
@@ -1269,7 +1254,7 @@ func waitForHost(ctx context.Context, state, launchID, launchToken string) error
 	}
 }
 
-const maxBootstrapBytes = 64 * 1024
+const maxBootstrapBytes = hostbootstrap.MaxBytes
 
 // readBootstrapFD consumes the inherited pipe before any Host/Worker starts.
 // Close-on-exec is set immediately; even error paths close the descriptor.
