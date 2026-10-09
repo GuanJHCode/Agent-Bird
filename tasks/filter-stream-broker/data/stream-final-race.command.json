@@ -1,0 +1,19 @@
+{
+  "command": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+    "-C",
+    "tools/orchestrator",
+    "test",
+    "-json",
+    "-race",
+    "-count=1",
+    "./internal/gitfilter",
+    "./internal/host",
+    "-run",
+    "^(TestStreamExecutor.*|TestValidationSealedToolPinAndBoundary)$"
+  ],
+  "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-stream-broker",
+  "head": "1ec0cb5393d95be43899db8d6a2f80cf98bfd3fc",
+  "dirty": "",
+  "go_version": "go version go1.26.8 darwin/arm64"
+}
