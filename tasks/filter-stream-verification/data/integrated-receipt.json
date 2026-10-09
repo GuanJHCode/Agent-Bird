@@ -1,0 +1,8 @@
+{
+  "integration_merge": "a31c832339d550b658c8c2e61878f88d5c73c0e5",
+  "module_tree": "5e7ee63252d7d3062ee2259297fcd20df5666129",
+  "same_as_source": "1ec0cb5393d95be43899db8d6a2f80cf98bfd3fc",
+  "production_test_review": "PASS",
+  "evidence": "root-receipt.json",
+  "public_filter": "still rejected; durable broker/Store/Git view propagation pending"
+}
