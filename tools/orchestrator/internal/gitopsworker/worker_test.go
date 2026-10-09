@@ -439,3 +439,54 @@ func workerIntegrationChain(t *testing.T, environment bool) {
 		}
 	}
 }
+
+func TestComposeWorkerRefusesBusyJournalAsUncertain(t *testing.T) {
+	root := t.TempDir()
+	if err := os.Chmod(root, 0700); err != nil {
+		t.Fatal(err)
+	}
+	binary, err := filepath.EvalSymlinks(os.Args[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	work := filepath.Join(root, "compose")
+	payload, _ := json.Marshal(map[string]any{"kind": "gitops", "operation": "compose", "request": map[string]any{"repo_root": root, "worktree": work}})
+	inv, err := BuildInvocation(payload, binary, root, "busy-compose")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var envelope requestEnvelope
+	if err = readPrivateJSON(inv.Args()[3], &envelope); err != nil {
+		t.Fatal(err)
+	}
+	owner, err := openJournal(envelope.JournalRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer owner.close()
+	if err = syscall.Flock(int(owner.file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		t.Fatal(err)
+	}
+	before, err := os.ReadFile(owner.file.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var output bytes.Buffer
+	err = Run(context.Background(), inv.Args()[3], &output)
+	var response struct {
+		Version   int    `json:"version"`
+		Status    string `json:"status"`
+		Operation string `json:"operation"`
+		Code      string `json:"code"`
+	}
+	if !errors.Is(err, process.ErrProcessTreeUnknown) || json.Unmarshal(output.Bytes(), &response) != nil || response.Status != "error" || response.Code != "compose_uncertain" {
+		t.Fatalf("live journal owner reported as definite failure: %v %s", err, output.Bytes())
+	}
+	after, err := os.ReadFile(owner.file.Name())
+	if err != nil || !bytes.Equal(before, after) {
+		t.Fatal("busy replay changed journal", err)
+	}
+	if _, err = os.Lstat(work); !os.IsNotExist(err) {
+		t.Fatal("busy replay created worktree", err)
+	}
+}

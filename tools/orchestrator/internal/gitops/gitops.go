@@ -815,6 +815,10 @@ func ComposeCandidate(ctx context.Context, req CandidateCompositionRequest, jour
 			if errors.Is(mergeErr, process.ErrProcessTreeUnknown) {
 				return CandidateReceipt{}, mergeErr
 			}
+			var exitErr *exec.ExitError
+			if result.ExitCode != 1 || ctx.Err() != nil || (!IsCode(mergeErr, CodeGitFailure) && !errors.As(mergeErr, &exitErr)) {
+				return CandidateReceipt{}, fail(CodeGitFailure, "compose dependency merge", mergeErr)
+			}
 			unmerged, checkErr := gitRecords(ctx, req.Worktree, "diff", "--name-only", "--diff-filter=U")
 			if checkErr != nil {
 				return CandidateReceipt{}, checkErr
@@ -938,7 +942,8 @@ func mergeAncestor(ctx context.Context, repo, ancestor, descendant string) (bool
 	if err == nil && result.ExitCode == 0 {
 		return true, nil
 	}
-	if result.ExitCode == 1 {
+	var exitErr *exec.ExitError
+	if result.ExitCode == 1 && ctx.Err() == nil && !errors.Is(err, process.ErrProcessTreeUnknown) && (IsCode(err, CodeGitFailure) || errors.As(err, &exitErr)) {
 		return false, nil
 	}
 	if err != nil {

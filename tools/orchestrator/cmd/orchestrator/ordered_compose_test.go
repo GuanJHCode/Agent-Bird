@@ -5,16 +5,20 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/events"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitopsworker"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 )
 
 // Actual managed producers, original Host worker Wait, Git composition and v1
@@ -122,6 +126,35 @@ func TestOrderedComposeHostDeliveryChain(t *testing.T) {
 		t.Fatal("rejected producer changed Git state")
 	}
 	git(repo, "update-ref", producerRefs["B"], oids["B"], base)
+	// A competing worker's durable journal is an UNKNOWN owner, never a safe
+	// failed attempt, even when this worker itself performs no Git mutation.
+	busyKey := sha256.Sum256([]byte("command-busy-compose"))
+	busyDir := filepath.Join(root, "state", "host-spool", "host-busy-compose", "gitops-journal", hex.EncodeToString(busyKey[:]))
+	busyJournal, e := gitopsworker.OpenJournal(busyDir)
+	if e != nil {
+		t.Fatal(e)
+	}
+	busyFile, e := os.OpenFile(filepath.Join(busyDir, "events.jsonl"), os.O_RDWR, 0600)
+	if e != nil {
+		_ = busyJournal.Close()
+		t.Fatal(e)
+	}
+	if e = syscall.Flock(int(busyFile.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); e != nil {
+		_ = busyFile.Close()
+		_ = busyJournal.Close()
+		t.Fatal(e)
+	}
+	_, busyResult, busyErr := launch("busy-compose", composePayload, nil, vector)
+	_ = syscall.Flock(int(busyFile.Fd()), syscall.LOCK_UN)
+	_ = busyFile.Close()
+	_ = busyJournal.Close()
+	busyBody, e := os.ReadFile(busyResult.ArtifactPath)
+	if busyResult.Status != "unknown" || !errors.Is(busyErr, process.ErrProcessTreeUnknown) || e != nil || !strings.Contains(string(busyBody), `"code":"compose_uncertain"`) {
+		t.Fatalf("busy journal lost UNKNOWN: %+v %v %s", busyResult, busyErr, busyBody)
+	}
+	if git(repo, "worktree", "list", "--porcelain") != beforeWorktrees {
+		t.Fatal("busy journal reran Git")
+	}
 	composed, composedResult := ready("compose", composePayload, nil, vector)
 	d := decode(composedResult)
 	want := []string{oids["B"], oids["A"]}

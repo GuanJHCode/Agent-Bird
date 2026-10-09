@@ -104,7 +104,11 @@ func Run(ctx context.Context, requestPath string, stdout io.Writer) error {
 	case "compose":
 		var request gitops.CandidateCompositionRequest
 		if err = decode(envelope.Request, &request); err == nil {
-			if err = syscall.Flock(int(journal.file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err == nil {
+			if err = syscall.Flock(int(journal.file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+				// Another worker may already own side effects for this command.
+				// Failure to acquire its journal cannot prove a definite failure.
+				err = errors.Join(process.ErrProcessTreeUnknown, err)
+			} else {
 				err = journal.composePreflight(ctx)
 			}
 			if err == nil {

@@ -1,0 +1,107 @@
+{
+  "final/mac-race.jsonl": {
+    "sha256": "63b6589c233ba3eb9da6ceb1bd218f19874f41e4a7a429a9d1efeeaa8fdbb721",
+    "top": 5,
+    "named": 15,
+    "pass": 15,
+    "fail": 0,
+    "skip": 0,
+    "packages": [
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+        "Action": "pass",
+        "Elapsed": 1.716
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops",
+        "Action": "pass",
+        "Elapsed": 1.55
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Action": "pass",
+        "Elapsed": 28.163
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+        "Action": "pass",
+        "Elapsed": 34.021
+      }
+    ],
+    "exit": 0
+  },
+  "final/uncertainty-race.jsonl": {
+    "sha256": "94c4b89150b77be43c4e0bafe1bdce25afe02d91df8a60215a0201ed83c04df9",
+    "top": 3,
+    "named": 3,
+    "pass": 3,
+    "fail": 0,
+    "skip": 0,
+    "packages": [
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitopsworker",
+        "Action": "pass",
+        "Elapsed": 1.984
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops",
+        "Action": "pass",
+        "Elapsed": 2.1
+      },
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+        "Action": "pass",
+        "Elapsed": 12.499
+      }
+    ],
+    "exit": 0
+  },
+  "host-chain/store-decision-final.jsonl": {
+    "sha256": "21026b4939b38517af2be33b6da0daba8e2236ce4fbbccde62e95eaa07fd47dc",
+    "top": 2,
+    "named": 4,
+    "pass": 4,
+    "fail": 0,
+    "skip": 0,
+    "packages": [
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store",
+        "Action": "pass",
+        "Elapsed": 1.67
+      }
+    ],
+    "exit": 0
+  },
+  "host-chain/public-lock.jsonl": {
+    "sha256": "3c24c16bea435f1869aea1189e3ba7a21207395816a73b37edd98f2570d477bc",
+    "top": 1,
+    "named": 1,
+    "pass": 1,
+    "fail": 0,
+    "skip": 0,
+    "packages": [
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator",
+        "Action": "pass",
+        "Elapsed": 16.346
+      }
+    ],
+    "exit": 0
+  },
+  "git-boundary/candidate-lock.jsonl": {
+    "sha256": "4d9e801047d0806d4f7205e72c4aafb3d49d83fe77ada82d5d301be43ecbe268",
+    "top": 1,
+    "named": 5,
+    "pass": 5,
+    "fail": 0,
+    "skip": 0,
+    "packages": [
+      {
+        "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops",
+        "Action": "pass",
+        "Elapsed": 0.477
+      }
+    ],
+    "exit": 0
+  }
+}
