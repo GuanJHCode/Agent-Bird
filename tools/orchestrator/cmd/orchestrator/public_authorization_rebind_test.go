@@ -124,7 +124,7 @@ func (o *publicRebindOrigin) close(t *testing.T) {
 func publicRebindSnapshot(t *testing.T, db *sql.DB) string {
 	t.Helper()
 	var result []any
-	for _, table := range []string{"runs", "host_launches", "runtime_hosts", "owner_rebinds", "owner_succession_rebind_proofs", "owner_succession_authorizations", "owner_initial_recoveries", "execution_owners", "tasks", "task_runtime", "runtime_meta", "attempts", "segments", "budget_runtime", "storage_usage"} {
+	for _, table := range []string{"runs", "host_launches", "runtime_hosts", "owner_rebinds", "owner_succession_rebind_proofs", "owner_succession_authorizations", "owner_initial_recoveries", "execution_owners", "tasks", "task_runtime", "runtime_meta", "attempts", "segments", "budget_runtime"} {
 		rows, err := db.Query("SELECT * FROM " + table + " ORDER BY 1,2")
 		if err != nil {
 			t.Fatal(err)
@@ -250,10 +250,32 @@ func exercisePublicPendingAuthorizationRebind(t *testing.T, ctx context.Context,
 	if content, e := os.ReadFile(capability.BootstrapPath); e != nil || !bytes.Equal(content, bootstrapBefore) {
 		t.Fatal("failed bootstrap write changed old bytes", e)
 	}
+	usage := func() int64 {
+		t.Helper()
+		var n int64
+		if e := db.QueryRow(`SELECT total_bytes FROM storage_usage WHERE scope='run' AND scope_id='public-succession-run'`).Scan(&n); e != nil {
+			t.Fatal(e)
+		}
+		return n
+	}
+	var phase string
+	var scratch, expectedBytes int64
+	if err = db.QueryRow(`SELECT state,scratch_bytes,length(CAST(bootstrap_json AS BLOB)) FROM owner_rebind_publications WHERE run_id='public-succession-run'`).Scan(&phase, &scratch, &expectedBytes); err != nil || phase != "pending" || scratch != expectedBytes || scratch <= 0 {
+		t.Fatal("missing pending publication scratch", phase, scratch, expectedBytes, err)
+	}
+	pendingUsage := usage()
 	snapshot := publicRebindSnapshot(t, db)
 	runBinary(t, ctx, cli, "rebind-owner", "--state-dir", state, "--request", rebind)
 	if snapshot != publicRebindSnapshot(t, db) {
-		t.Fatal("same live origin replay changed DB or quota")
+		t.Fatal("publication repair changed business history")
+	}
+	if err = db.QueryRow(`SELECT state,scratch_bytes FROM owner_rebind_publications WHERE run_id='public-succession-run'`).Scan(&phase, &expectedBytes); err != nil || phase != "published" || expectedBytes != 0 || pendingUsage-usage() != scratch {
+		t.Fatal("publication scratch not released exactly", phase, expectedBytes, err)
+	}
+	publishedUsage := usage()
+	runBinary(t, ctx, cli, "rebind-owner", "--state-dir", state, "--request", rebind)
+	if snapshot != publicRebindSnapshot(t, db) || usage() != publishedUsage {
+		t.Fatal("published replay changed business history/quota")
 	}
 	rebound, err := loadHostBootstrap(capability)
 	if err != nil || rebound.Hello.OriginPID != os.Getpid() || rebound.Hello.OriginBirth != newBirth || rebound.Hello.HostGeneration != grant.HostGeneration {

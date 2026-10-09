@@ -1,0 +1,4 @@
+[
+  "TestLocalOwnerLegacyRebindRequiresPublicationProtocol",
+  "TestOwnerPublicationDirectIPCReplayAndRestart"
+]

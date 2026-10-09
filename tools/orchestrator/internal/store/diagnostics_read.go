@@ -271,6 +271,9 @@ func (d *DB) AckDiagnostics(ctx context.Context, controller, token string, recei
 	if !row.matches(i) {
 		return empty, ErrConflict
 	}
+	if err = requirePublishedOwnerTx(ctx, tx, row.scope.RunID); err != nil {
+		return empty, err
+	}
 	result := DiagnosticsAckResult{Version: 1, Status: "acknowledged", Receipt: receipt, NextRevision: i.Revision + 1}
 	if row.lastACK == string(raw) {
 		return result, nil

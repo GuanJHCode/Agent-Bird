@@ -1,0 +1,25 @@
+{
+  "source": "f08d3528b809f6b309ec81f64b41e885464d8751",
+  "dirty": "",
+  "top_pass": 1,
+  "named_pass": 1,
+  "fail": 0,
+  "skip": 0,
+  "raw_sha256": "00712b9fbc3711cfa0786e9cd0d2c084ba7dfe77daa0d6e80a9a1bb4f4b5efdf",
+  "exact_cid": "d5efcd0025ae5ac9d81bf8ab2cdf2ac7fb02b122e5d3d09b7598ce3ca9e1783a",
+  "independent_inspect": {
+    "exit": 1,
+    "stdout": "[]\n",
+    "stderr": "Error: No such object: d5efcd0025ae5ac9d81bf8ab2cdf2ac7fb02b122e5d3d09b7598ce3ca9e1783a\n"
+  },
+  "binary": {
+    "path": "tasks/owner-publication-verification/tmp/linux-public/public.test",
+    "sha256": "f09c7c37b47926b13487d2d1c0e63dbdd4a00822df39eb3d4d41da8a189f2485",
+    "size": 29209037,
+    "inode": 200256567,
+    "device": 16777234,
+    "uid": 501,
+    "mode": "0o755",
+    "removed": true
+  }
+}

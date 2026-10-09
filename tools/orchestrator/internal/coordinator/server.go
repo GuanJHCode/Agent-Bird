@@ -738,12 +738,12 @@ func (s *Server) handleControl(ctx context.Context, conn net.Conn, message ipc.E
 		if err == nil {
 			ctx, err = s.authorizePeer(ctx, conn)
 		}
-	case ipc.KindBudgetRevise, ipc.KindConfigGeneration, ipc.KindProviderControl, ipc.KindRecoverHost, ipc.KindOwnerBind, ipc.KindSubmit, ipc.KindRebindOwner, ipc.KindResume, ipc.KindResumeContinuation, ipc.KindRetry, ipc.KindRework, ipc.KindAccept, ipc.KindAnswer, ipc.KindStopTask, ipc.KindAck, ipc.KindCollect, ipc.KindWaitEvents, ipc.KindSummary, ipc.KindStatus:
+	case ipc.KindBudgetRevise, ipc.KindConfigGeneration, ipc.KindProviderControl, ipc.KindRecoverHost, ipc.KindOwnerBind, ipc.KindSubmit, ipc.KindRebindOwner, ipc.KindRebindOwnerPublished, ipc.KindResume, ipc.KindResumeContinuation, ipc.KindRetry, ipc.KindRework, ipc.KindAccept, ipc.KindAnswer, ipc.KindStopTask, ipc.KindAck, ipc.KindCollect, ipc.KindWaitEvents, ipc.KindSummary, ipc.KindStatus:
 		ctx, err = s.authorizePeer(ctx, conn)
 	}
 	if err == nil {
 		switch message.Kind {
-		case ipc.KindBudgetRevise, ipc.KindConfigGeneration, ipc.KindProviderControl, ipc.KindRecoverHost, ipc.KindRebindOwner, ipc.KindResumeContinuation, ipc.KindRetry, ipc.KindRework, ipc.KindAccept, ipc.KindAnswer:
+		case ipc.KindBudgetRevise, ipc.KindConfigGeneration, ipc.KindProviderControl, ipc.KindRecoverHost, ipc.KindRebindOwnerPublished, ipc.KindResumeContinuation, ipc.KindRetry, ipc.KindRework, ipc.KindAccept, ipc.KindAnswer:
 			ancestry, _ := ctx.Value(peerAncestryKey{}).(map[int]string)
 			err = s.db.ValidateDispatchPeer(ctx, ancestry)
 		}
@@ -767,7 +767,7 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 	case ipc.KindDiagnosticsRead, ipc.KindDiagnosticsAck, ipc.KindDiagnosticsDelete, ipc.KindDiagnosticsRetentionPlan, ipc.KindDiagnosticsRetentionApply:
 		return s.diagnosticsControl(ctx, kind, raw)
 	case ipc.KindReady:
-		return json.Marshal(map[string]any{"status": "ready", "epoch": s.epoch, "capabilities": []string{"interruption_feedback_v1", "grok_readonly_v1", "indexed_candidate_review_v1", "session_provider_lifecycle_v1", "isolated_provider_coding_v1", "owned_config_generation_v1", "diagnostics_read_ack_v1", "diagnostics_delete_v1", "diagnostics_retention_v1"}})
+		return json.Marshal(map[string]any{"status": "ready", "epoch": s.epoch, "capabilities": []string{"interruption_feedback_v1", "grok_readonly_v1", "indexed_candidate_review_v1", "session_provider_lifecycle_v1", "isolated_provider_coding_v1", "owned_config_generation_v1", "diagnostics_read_ack_v1", "diagnostics_delete_v1", "diagnostics_retention_v1", "owner_rebind_publication_v1"}})
 	case ipc.KindOwnerBind:
 		return s.bindLocalOwner(ctx, raw)
 	case ipc.KindProviderControl:
@@ -1015,14 +1015,12 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 		}
 		return json.Marshal(ack)
 	case ipc.KindRebindOwner:
+		return nil, store.CodeError("owner_rebind_publication_protocol_required")
+	case ipc.KindRebindOwnerPublished:
 		var request RebindOwnerRequest
 		if err := strictJSON(raw, &request); err != nil {
 			return nil, err
 		}
-		// Owner transitions serialize with Host admission/scope proof. A proof
-		// cannot certify an owner generation while another rebind replaces it.
-		s.hostRegistrationMu.Lock()
-		defer s.hostRegistrationMu.Unlock()
 		if request.OwnerMode == "local" {
 			g, err := s.localOwner(ctx, request.OwnerCapability)
 			if err != nil {
@@ -1036,22 +1034,7 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 		} else if request.OwnerMode != "" && request.OwnerMode != "native" {
 			return nil, store.CodeError("owner_mode_invalid")
 		}
-		binding, err := s.db.ValidateRunOwner(ctx, request.RunID, request.ControllerThread, request.ControlToken)
-		if err != nil || binding.OriginContextID != request.OriginContextID {
-			return nil, store.ErrConflict
-		}
-		current, observeErr := process.ObserveIdentityContext(ctx, binding.OriginPID, binding.OriginBirth)
-		replayOnly := binding.OriginPID == request.OriginPID && binding.OriginBirth == request.OriginBirth
-		if observeErr != nil || (replayOnly && current != process.IdentityAlive) || (!replayOnly && current != process.IdentityExited) {
-			return nil, store.ErrConflict
-		}
-		if next, birthErr := process.ObserveIdentityContext(ctx, request.OriginPID, request.OriginBirth); birthErr != nil || next != process.IdentityAlive {
-			return nil, store.ErrConflict
-		}
-		if err = s.db.RebindOwner(ctx, store.RebindOwnerSpec{RunID: request.RunID, OriginContextID: request.OriginContextID, OriginPID: request.OriginPID, OriginBirth: request.OriginBirth, HostGeneration: request.HostGeneration, AttachmentProofSHA256: request.AttachmentProofSHA256, ReplayOnly: replayOnly}); err != nil {
-			return nil, err
-		}
-		return json.Marshal(map[string]any{"version": 1, "status": "owner_rebound", "run_id": request.RunID, "origin_context_id": request.OriginContextID, "host_generation": request.HostGeneration})
+		return s.rebindOwnerPublished(ctx, request)
 	case ipc.KindStopTask:
 		var request TaskControlRequest
 		if err := strictJSON(raw, &request); err != nil {

@@ -40,6 +40,9 @@ func (d *DB) QueueContinuation(ctx context.Context, s ResumeContinuationSpec) (C
 	}
 	defer owned.close()
 	tx := owned.tx
+	if err = requirePublishedTaskTx(ctx, tx, s.TaskID); err != nil {
+		return ContinuationReceipt{}, err
+	}
 	fail := func(e error) (ContinuationReceipt, error) { owned.close(); return ContinuationReceipt{}, e }
 	var r ContinuationReceipt
 	var command, event, hash, slot string

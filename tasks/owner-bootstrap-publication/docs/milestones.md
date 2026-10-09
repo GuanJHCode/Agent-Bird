@@ -1,0 +1,50 @@
+# Server bootstrap publication milestones
+
+- Plan9d1e20c冻结新kind/server发布/schema35独立pending journal；只读架构调查否决status-only，因为Coordinator启动/reconcile/owner activate会覆盖hoststatus。实施须事务内重核所有authority gate，不只Coordinator预检查。
+- 生产准备5ee718d→07028a4只共享token-free metadata与FD-relative lease，cmd wrapper保留capability/token/path校验和codeError类型。原lease身份/权限/Sync/lock算法保留，旧CLI仍原流程；没有新RPC/schema/pending实现，尚未合入integration。
+- ROOT首shared-lease-01编译FAIL（漏time import），没有运行测试，不算业务RED。07028a4修复后shared-lease-02定向旧lease+token-free reconstruction：3top11namedPASS、0FAIL/SKIP、exit0，原stdout SHA66ff0dda0cd2dbfdbfaa9430e8811b9e9fc9e3d6029e8a6802b6131f68ce4395。fixed07028a4独立reviewer PASS；未重复全仓/原生长链/race，这些等完整协议最后相关修改后再验。
+- 无真实Provider/model/account、安装替换或push/release；没有后台actor/test session，Go测试原调用已结束。下一步是schema35journal/quota/事务gate与server新RPC完整串接，不可把当前重构当direct IPC恢复完成。
+
+- 追加只读架构复核确认旧随机stage在mid-write SIGKILL后可累积，不能直接供新server协议重试。冻结稳定journal-derived stage、expected prefix严格补写、单份scratch预付与finalize释放；未知旧stage保留拒绝。完整约束已追加plan；尚未实现或运行新crash检查。
+
+
+## ROOT journal/root/quota修复
+
+固定362e8d4局部独审4个BLOCK由ROOT接管journal/Coordinator，两独立WT继续全gate和stage。Store先完成prior hash+canonical expected+完整old/new/proof/root事实持久，FK owner_rebinds、同事务prepare和finalize当前owner/唯一launch/代际验证，root物理连接pre/post检查；mutable仅pending→published。journal128字节固定reserve含published最大表示，完整UTF8 bytes+created在变更前计费，额外一份len(expected) scratch，发布finalize原子释放一次。旧RebindOwner在pending期间也拒绝；exact replay不二次计费/退款。
+
+journal-authority-red实际1top3named FAIL，owner与state-root变更都误finalized；SHA37d146f8cc1926fec85eb4e4c91e08b41b83e3ea365d966e5de3ed580772ddf6。修后green01同1top3namedPASS。quota-commit01为fixture未建run usage行却直接Scan导致FAIL（不是生产RED），改COALESCE后02实际2top6namedPASS，含exact/short和prepare/finalize真实deferredFK COMMIT后pool/external一致回滚。均是已记录dirty源码定向检查，不是整链/race/独审完成。原FAIL与command/exit保留。
+
+Coordinator尚未切换新lease API，Store schema35草稿尚未进入integration。外层F02已集成6742796，F10不能提前标记完成。
+
+
+## Coordinator新API与direct IPC
+
+merge hostbootstrap生产460b7af为10067e4，ROOT接通先认证run、rooted resolve、lease→registration→Store锁序。fresh验证原owner tuple/executable与prior原bytes；pending只用原journal bytes且prior/expected CAS；published必须named expected/hash及无stage，同事务Finalize root/current scope后再次FS/root复核才能receipt。新direct真实IPC用真实/bin/cat旧origin原Wait0、读只bootstrap目录故障→pending、Coordinator关闭/重开不自动finalize、双客户端exact repair、published后替回prior拒绝；旧RPC在持lease下立即protocol_required。publication-ipc01实际2top2namedPASS0F/S/exit0，原记录为dirty源码；旧fake PID测试只保留旧RPC明确拒绝，不冒充owner进程证明。
+
+旧public pending-authorization rebind测试的quota不变断言按新合同改为：business history保持，pending→published仅退款恰好scratch，已published再次replay才全部quota不变。尚未运行此新public oracle；未宣称原生链完成。
+
+
+## local公开链真实RED与修复
+
+publication-public01用实际CLI/Coordinator/初始Owner/FirstHost证明新接线遗漏local请求OriginContextID：旧helper从bootstrap补字段，移到server后本地请求为空，导致合法请求在DB前conflict（1top1namedFAIL，SHA1834ff6c7b531db1bf41074f3612bbb11908a845f0373d1dbb610da97dabf08b）。ROOT先只读原fixtureDB+token-free bootstrap比对定位；修复server仅在已认证local空context时从run取原context，native及显式context仍严格匹配；CLI允许该省略字段但要求receipt非空、run/launch/generation匹配。
+
+publication-public02实际1top1namedPASS/0F/S，SHAc29682cb1bda9d704b3130fdd9a706199323668afaaf1132653dbc00d03d7d67；原失败目录仍保留，原Coordinator Wait0、inc1 Owner/FirstHost Wait0；成功链inc1/inc2所有原Wait0且已清原fixture。原预期初始submit与beforePrepare resume exit2、读只目录发布permission denied exit2均是断点Oracle，不冒称所有child exit0。仍需完整gate合并后最终race/审查。
+
+
+## 真实固定历史源码协议拒绝
+
+复用已验F13 source3bd025e packageA里的原production binary（SHA c9a09e7c1bde01c20145294ed2f702a15b91bb10138908fadb6cf951470628ba），未复制当前testbinary冒充旧版本，未重新build/install。publication-compat01为1top3namedPASS0F/S：旧Coordinator schema34+新CLI子进程原Wait2 coordinator_upgrade_required；新Coordinator schema35+原旧CLI子进程Wait2 protocol_required（旧CLI真实持FSlease不死锁）。两侧bootstrap字节不变、run/rebind仍0，原旧server process.Handle Stop/Wait0/tree确认；newServer Serve join。CLI输入是有效client形状、刻意未入库的fixture权限；本用例证明前置协议拒绝和无Store mutation，不声明成功跨版本rebind或已发布产品兼容。
+
+
+## 固定62集成race与第二轮独审
+
+publication-integrated-race01使用clean62c9e4e三包Store/Coordinator/CLI、固定旧binary env（源码内sha强校验），原tool terminal exit0，44named全PASS0F/S。这批不含任何hostbootstrap测试（stage单独最终race6top31named），Store实际耗时344.204s，未扩大全量。独审同时找出漏successor/initial/handoff/bound authority gate、DAGv1、continuation/rework early-replay，以及bridge共享auth误阻historical query/status；因此仍BLOCK，不能以此race替代完整契约。ROOT已在gateWT补部分9行并交可靠stageworker接管剩余修复+定向矩阵；原62在测期间无源码修改。
+
+复用未受delta影响的已验source，修复后只测受影响gate/public；不重复全Store。前任gateworker额外全Store命令无原终态/exit/raw内容，ROOT只读核原PID已不在，不补造Wait/通过，partial evidence另存de19375。
+
+
+## 最终 gate 与公开链增量闭合
+
+生产 fe3bbd5 补齐 successor/initial/handoff/bound 的事务 gate、DAG v1 与 continuation/rework replay 早返；Bridge 保留认证 Query/Status/Unbind，只有增加执行权的路径受 pending gate。生产独审 PASS。最终 gate 测试 e90e449 独审 PASS：复用 final-race 中独立通过的 queued subtree 1top5named，结合修正 ACP Bind 必填路径后的 bridge-race02 1top10named；原 final-race 整批仍 exit1/13PASS2FAIL，不能改判。合成 pending 仅测试 gate predicate，不是有效 journal/进程证明。原失败时未记录 untracked test 源码哈希，后续仅 ACP fixture 修改的来源绑定强度有限，已公开此限制。
+
+ROOT clean b9a1d8 最终公开增量 race 为 2top2namedPASS/0FAIL/SKIP/exit0，SHA71ad7323507319f18dd309ff5bec257962737e5574ee5e4a116c135217b95eb4。原 origin Wait0、公开 inc1/inc2 Owner/FirstHost 与 Coordinator 原 Wait0；预期 submit/resume/FS 故障 CLI exit2 保留。测试与 gate 文档已合并，生产相对 b9 未变化。最终 Linux、build/vet、独立清理回执与总验收在 tasks/owner-publication-verification。

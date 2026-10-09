@@ -66,7 +66,7 @@ func TestLocalOwnerBindingDoesNotRequireNativeReturnTransport(t *testing.T) {
 	}
 }
 
-func TestLocalOwnerExplicitRebindPreservesRunContext(t *testing.T) {
+func TestLocalOwnerLegacyRebindRequiresPublicationProtocol(t *testing.T) {
 	root, err := os.MkdirTemp("/tmp", "local-rebind-")
 	if err != nil {
 		t.Fatal(err)
@@ -90,11 +90,16 @@ func TestLocalOwnerExplicitRebindPreservesRunContext(t *testing.T) {
 	bound := callServer(t, server.SocketPath(), ipc.KindOwnerBind, OwnerBindRequest{ControllerThread: "master", OriginPID: os.Getpid(), OriginBirth: birth})
 	var owner map[string]any
 	decodePayload(t, bound, &owner)
-	rebound := callServer(t, server.SocketPath(), ipc.KindRebindOwner, map[string]any{"run_id": "run", "controller_thread": "master", "control_token": receipt.ControlToken, "origin_context_id": "original", "origin_pid": os.Getpid(), "origin_birth": birth, "host_generation": owner["host_generation"], "owner_mode": "local", "owner_capability": owner["owner_capability"]})
-	var result map[string]any
-	decodePayload(t, rebound, &result)
-	if result["origin_context_id"] != "original" || result["status"] != "owner_rebound" {
-		t.Fatalf("context changed: %#v", result)
+	rebound, err := ipc.Call(ctx, server.SocketPath(), ipc.Envelope{Version: 1, Kind: ipc.KindRebindOwner, RequestID: "legacy-rebind", Payload: jsonBytes(t, map[string]any{"run_id": "run", "controller_thread": "master", "control_token": receipt.ControlToken, "origin_context_id": "original", "origin_pid": os.Getpid(), "origin_birth": birth, "host_generation": owner["host_generation"], "owner_mode": "local", "owner_capability": owner["owner_capability"]})})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rebound.Kind != ipc.KindError || !strings.Contains(string(rebound.Payload), "owner_rebind_publication_protocol_required") {
+		t.Fatalf("old RPC accepted: %s", rebound.Payload)
+	}
+	var count int
+	if err = server.db.SQL().QueryRow(`SELECT COUNT(*) FROM owner_rebinds`).Scan(&count); err != nil || count != 0 {
+		t.Fatal("old RPC mutated owner", count, err)
 	}
 }
 

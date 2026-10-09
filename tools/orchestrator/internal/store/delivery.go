@@ -135,6 +135,9 @@ func (d *DB) AckDecisions(ctx context.Context, taskID, deliveryID, historyProofS
 	defer owned.close()
 	tx := owned.tx
 	rollback := func(e error) error { owned.close(); return e }
+	if err = requirePublishedTaskTx(ctx, tx, taskID); err != nil {
+		return rollback(err)
+	}
 	var storedTask, storedProof, storedDecisions string
 	err = tx.QueryRowContext(ctx, `SELECT task_id,history_proof_sha256,decisions_hash FROM delivery_receipts WHERE delivery_id=?`, deliveryID).Scan(&storedTask, &storedProof, &storedDecisions)
 	if err == nil {

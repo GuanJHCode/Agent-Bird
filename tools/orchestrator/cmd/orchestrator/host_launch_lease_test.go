@@ -5,6 +5,8 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"os"
 	"path/filepath"
@@ -64,7 +66,8 @@ func TestHostLaunchLeasePreservesChangedFiles(t *testing.T) {
 					t.Fatal(err)
 				}
 			case "lock_replaced":
-				path := filepath.Join(l.paths[1], l.lock.Name())
+				digest := sha256.Sum256([]byte(c.HostLaunchID))
+				path := filepath.Join(state, "host-recovery", hex.EncodeToString(digest[:])+".lock")
 				if err = os.Rename(path, path+".saved"); err != nil {
 					t.Fatal(err)
 				}

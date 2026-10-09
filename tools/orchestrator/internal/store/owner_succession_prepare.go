@@ -202,6 +202,9 @@ func (d *DB) prepareSuccessorOwner(ctx context.Context, spec PrepareSuccessorOwn
 		return zero, err
 	}
 	scope := preview.scope
+	if err = requirePublishedOwnerTx(ctx, tx, scope.RunID); err != nil {
+		return zero, err
+	}
 	now := ""
 	if preview.current == nil {
 		scope.OwnerID, now, err = allocate()
