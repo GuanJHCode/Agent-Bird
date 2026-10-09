@@ -1,0 +1,932 @@
+{
+  "count_definition": "top tests without slash; named includes top and subtests; excludes package pass",
+  "batches": [
+    {
+      "name": "contract-process-green",
+      "source": "c3c25f19c71061b47407c8db276b9eefc455504d",
+      "source_dirty": " M tools/orchestrator/internal/adapter/action.go\n M tools/orchestrator/internal/adapter/payload.go\n M tools/orchestrator/internal/contract/execution_policy.go\n M tools/orchestrator/internal/process/process.go\n?? tasks/validation-start-retry/scripts/\n?? tools/orchestrator/internal/adapter/validation_retry.go\n?? tools/orchestrator/internal/adapter/validation_retry_test.go\n?? tools/orchestrator/internal/contract/validation_failure_test.go\n?? tools/orchestrator/internal/process/never_started.go\n?? tools/orchestrator/internal/process/never_started_test.go\n",
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-count=1",
+        "-json",
+        "./internal/process",
+        "./internal/contract",
+        "./internal/adapter",
+        "-run",
+        "^(TestNeverStartedProofOriginAndOwnership|TestValidationStartFailureFactsRemainDistinct|TestValidationCommandPinScope)$"
+      ],
+      "exit": 0,
+      "top": {
+        "pass": 3
+      },
+      "named": {
+        "pass": 23
+      },
+      "stdout_sha256": "1f62a68567f80f300cabdd8e912fc9df924e62b39ed2b8aeec97cb954232a77c",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "contract-process-red",
+      "source": "c3c25f19c71061b47407c8db276b9eefc455504d",
+      "source_dirty": "?? tasks/validation-start-retry/scripts/\n?? tools/orchestrator/internal/adapter/validation_retry_test.go\n?? tools/orchestrator/internal/contract/validation_failure_test.go\n?? tools/orchestrator/internal/process/never_started_test.go\n",
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-count=1",
+        "-json",
+        "./internal/process",
+        "./internal/contract",
+        "./internal/adapter",
+        "-run",
+        "^(TestNeverStartedProofOriginAndOwnership|TestValidationStartFailureFactsRemainDistinct|TestValidationCommandPinScope)$"
+      ],
+      "exit": 1,
+      "top": {
+        "fail": 1
+      },
+      "named": {
+        "pass": 4,
+        "fail": 2
+      },
+      "stdout_sha256": "c306efa242835f1ebc80254992f44dabb52e2edcd1b4f3f2652275b701a6428c",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "final-runtime-race",
+      "source": "d663785d7f3a8828686af066ad5c36f8519afdba",
+      "source_dirty": "",
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-race",
+        "-count=1",
+        "-json",
+        "./internal/host",
+        "./internal/store",
+        "-run",
+        "^TestValidation(Retry|Tool|LiveStart|Sealed|StartControl)"
+      ],
+      "exit": 0,
+      "top": {
+        "pass": 15
+      },
+      "named": {
+        "pass": 81
+      },
+      "stdout_sha256": "ad273f45cfaee6627b2e999ec4a2a23d0a207cff35bf3636ac34f4c766eb8c42",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "host-boundary-green-03",
+      "source": "132b174dc0c093fe692c6675bab13f055a75a8e3",
+      "source_dirty": " M tasks/validation-start-retry/plans/implementation.md\n M tools/orchestrator/internal/host/host.go\n M tools/orchestrator/internal/host/host_artifact_writer.go\n M tools/orchestrator/internal/host/profile.go\n M tools/orchestrator/internal/host/validation_start.go\n M tools/orchestrator/internal/host/validation_start_test.go\n M tools/orchestrator/internal/host/validation_tool.go\n M tools/orchestrator/internal/store/candidate_input.go\n M tools/orchestrator/internal/store/dag_rework_target.go\n M tools/orchestrator/internal/store/decision_attempt_legacy.go\n M tools/orchestrator/internal/store/decision_attempt_proof.go\n M tools/orchestrator/internal/store/decision_attempt_record.go\n M tools/orchestrator/internal/store/execution_policy.go\n M tools/orchestrator/internal/store/host_artifact_intake.go\n M tools/orchestrator/internal/store/host_events.go\n M tools/orchestrator/internal/store/policy_retry.go\n M tools/orchestrator/internal/store/review_retry.go\n?? tools/orchestrator/internal/host/validation_tool_journal.go\n?? tools/orchestrator/internal/store/validation_retry.go\n?? tools/orchestrator/internal/store/validation_retry_test.go\n",
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-count=1",
+        "-json",
+        "./internal/host",
+        "-run",
+        "^TestValidationSealedToolPinAndBoundary$"
+      ],
+      "exit": 0,
+      "top": {
+        "pass": 1
+      },
+      "named": {
+        "pass": 8
+      },
+      "stdout_sha256": "866c77069088fa7a1b7e3bf8e864721857483335066984273d3d6f9f8028e40b",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "host-control-green",
+      "source": "84e82a8f6a62630f1f9b78af8223a6af6aaf90e8",
+      "source_dirty": " M tools/orchestrator/internal/host/codex_actor_control.go\n M tools/orchestrator/internal/host/host.go\n M tools/orchestrator/internal/host/validation_start_test.go\n",
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-count=1",
+        "-json",
+        "./internal/host",
+        "-run",
+        "^TestValidationStartControlRejectsOrdinaryGrant$"
+      ],
+      "exit": 0,
+      "top": {
+        "pass": 1
+      },
+      "named": {
+        "pass": 1
+      },
+      "stdout_sha256": "9fc38adb7ef25dd28c8d3d5711aa38c0e1cb87f8e4cf7d5d6cd9e138d8a6de5a",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "host-control-red",
+      "source": "84e82a8f6a62630f1f9b78af8223a6af6aaf90e8",
+      "source_dirty": " M tools/orchestrator/internal/host/validation_start_test.go\n",
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-count=1",
+        "-json",
+        "./internal/host",
+        "-run",
+        "^TestValidationStartControlRejectsOrdinaryGrant$"
+      ],
+      "exit": 1,
+      "top": {},
+      "named": {},
+      "stdout_sha256": "fecdd5f26707e9cd500c28ca8d063516f924932513a877d11dfe180065456f47",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "host-green-02",
+      "source": "c3c25f19c71061b47407c8db276b9eefc455504d",
+      "source_dirty": " M tools/orchestrator/internal/adapter/action.go\n M tools/orchestrator/internal/adapter/payload.go\n M tools/orchestrator/internal/contract/execution_policy.go\n M tools/orchestrator/internal/host/delivery.go\n M tools/orchestrator/internal/host/host.go\n M tools/orchestrator/internal/host/profile.go\n M tools/orchestrator/internal/process/process.go\n?? tasks/validation-start-retry/scripts/\n?? tools/orchestrator/internal/adapter/validation_retry.go\n?? tools/orchestrator/internal/adapter/validation_retry_test.go\n?? tools/orchestrator/internal/contract/validation_failure_test.go\n?? tools/orchestrator/internal/host/validation_start.go\n?? tools/orchestrator/internal/host/validation_start_test.go\n?? tools/orchestrator/internal/host/validation_tool.go\n?? tools/orchestrator/internal/process/never_started.go\n?? tools/orchestrator/internal/process/never_started_test.go\n",
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-count=1",
+        "-json",
+        "./internal/host",
+        "-run",
+        "^(TestValidationLiveStartProofPublicationAndRecovery|TestValidationSealedToolPinAndBoundary|TestLaunchRejectedHostRefusesStartAttemptWindow|TestLaunchRejectedColdRestartDoesNotInventNeverStartedProof|TestHostPostStartErrorStopsOriginalHandleAndStaysUnknown)$"
+      ],
+      "exit": 0,
+      "top": {
+        "pass": 5
+      },
+      "named": {
+        "pass": 23
+      },
+      "stdout_sha256": "389a078ebb0cd47cf2bd02b7bd6159785ad5d82df02adbc33fc2dec2b8c3b95c",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "host-green",
+      "source": "c3c25f19c71061b47407c8db276b9eefc455504d",
+      "source_dirty": " M tools/orchestrator/internal/adapter/action.go\n M tools/orchestrator/internal/adapter/payload.go\n M tools/orchestrator/internal/contract/execution_policy.go\n M tools/orchestrator/internal/host/delivery.go\n M tools/orchestrator/internal/host/host.go\n M tools/orchestrator/internal/host/profile.go\n M tools/orchestrator/internal/process/process.go\n?? tasks/validation-start-retry/scripts/\n?? tools/orchestrator/internal/adapter/validation_retry.go\n?? tools/orchestrator/internal/adapter/validation_retry_test.go\n?? tools/orchestrator/internal/contract/validation_failure_test.go\n?? tools/orchestrator/internal/host/validation_start.go\n?? tools/orchestrator/internal/host/validation_start_test.go\n?? tools/orchestrator/internal/host/validation_tool.go\n?? tools/orchestrator/internal/process/never_started.go\n?? tools/orchestrator/internal/process/never_started_test.go\n",
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-count=1",
+        "-json",
+        "./internal/host",
+        "-run",
+        "^(TestValidationLiveStartProofPublicationAndRecovery|TestValidationSealedToolPinAndBoundary|TestLaunchRejectedHostRefusesStartAttemptWindow|TestLaunchRejectedColdRestartDoesNotInventNeverStartedProof|TestHostPostStartErrorStopsOriginalHandleAndStaysUnknown)$"
+      ],
+      "exit": 1,
+      "top": {
+        "pass": 4,
+        "fail": 1
+      },
+      "named": {
+        "pass": 21,
+        "fail": 2
+      },
+      "stdout_sha256": "5706d976fbcde40117244be9abf9a5af28c1e6dce3bd040172a5fdc792c52f94",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "host-red",
+      "source": "c3c25f19c71061b47407c8db276b9eefc455504d",
+      "source_dirty": " M tools/orchestrator/internal/adapter/action.go\n M tools/orchestrator/internal/adapter/payload.go\n M tools/orchestrator/internal/contract/execution_policy.go\n M tools/orchestrator/internal/process/process.go\n?? tasks/validation-start-retry/scripts/\n?? tools/orchestrator/internal/adapter/validation_retry.go\n?? tools/orchestrator/internal/adapter/validation_retry_test.go\n?? tools/orchestrator/internal/contract/validation_failure_test.go\n?? tools/orchestrator/internal/host/validation_start_test.go\n?? tools/orchestrator/internal/process/never_started.go\n?? tools/orchestrator/internal/process/never_started_test.go\n",
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-count=1",
+        "-json",
+        "./internal/host",
+        "-run",
+        "^(TestValidationLiveStartProofPublicationAndRecovery|TestValidationSealedToolPinAndBoundary)$"
+      ],
+      "exit": 1,
+      "top": {},
+      "named": {},
+      "stdout_sha256": "770fe35d85248f5a80f464cb6de71a9a3c3763da55c4aeec1ddf5edd62df10ff",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "integrated-store-host-01",
+      "source": "b04643a480b055b77fd01dbcdeda94784fb9fda6",
+      "source_dirty": " M tasks/validation-start-retry/plans/implementation.md\n M tools/orchestrator/internal/host/host.go\n M tools/orchestrator/internal/host/host_artifact_writer.go\n M tools/orchestrator/internal/host/profile.go\n M tools/orchestrator/internal/host/validation_start.go\n M tools/orchestrator/internal/host/validation_start_test.go\n M tools/orchestrator/internal/host/validation_tool.go\n M tools/orchestrator/internal/store/candidate_input.go\n M tools/orchestrator/internal/store/dag_rework_target.go\n M tools/orchestrator/internal/store/decision_attempt_legacy.go\n M tools/orchestrator/internal/store/decision_attempt_proof.go\n M tools/orchestrator/internal/store/decision_attempt_record.go\n M tools/orchestrator/internal/store/execution_policy.go\n M tools/orchestrator/internal/store/host_artifact_intake.go\n M tools/orchestrator/internal/store/host_events.go\n M tools/orchestrator/internal/store/policy_retry.go\n M tools/orchestrator/internal/store/review_retry.go\n?? tools/orchestrator/internal/host/validation_tool_journal.go\n?? tools/orchestrator/internal/store/validation_retry.go\n?? tools/orchestrator/internal/store/validation_retry_test.go\n",
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-count=1",
+        "-json",
+        "./internal/store",
+        "./internal/host",
+        "-run",
+        "^(TestValidationRetryFrozenQueueClaimReplay|TestValidationRetryPolicyStageScope|TestValidationRetryBoundMissingAuthority|TestValidationRetryAdmissionRollbackAndProtection|TestPolicyRetryCandidateReviewPrelaunchPreservesFrozenInputs|TestValidationLiveStartProofPublicationAndRecovery|TestValidationSealedToolPinAndBoundary|TestValidationToolCleanupJournalIdentity)$"
+      ],
+      "exit": 1,
+      "top": {
+        "pass": 7,
+        "fail": 1
+      },
+      "named": {
+        "pass": 47,
+        "fail": 8
+      },
+      "stdout_sha256": "cb99fa02dfc0f1261d7d998091b32b03278d66e49fa171bd8ea58711627aadb3",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "milestone-host-green",
+      "source": "c3c25f19c71061b47407c8db276b9eefc455504d",
+      "source_dirty": " M tools/orchestrator/internal/adapter/action.go\n M tools/orchestrator/internal/adapter/payload.go\n M tools/orchestrator/internal/contract/execution_policy.go\n M tools/orchestrator/internal/host/delivery.go\n M tools/orchestrator/internal/host/host.go\n M tools/orchestrator/internal/host/profile.go\n M tools/orchestrator/internal/process/process.go\n?? tasks/validation-start-retry/scripts/\n?? tools/orchestrator/internal/adapter/validation_retry.go\n?? tools/orchestrator/internal/adapter/validation_retry_test.go\n?? tools/orchestrator/internal/contract/validation_failure_test.go\n?? tools/orchestrator/internal/host/validation_start.go\n?? tools/orchestrator/internal/host/validation_start_test.go\n?? tools/orchestrator/internal/host/validation_tool.go\n?? tools/orchestrator/internal/process/never_started.go\n?? tools/orchestrator/internal/process/never_started_test.go\n",
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-count=1",
+        "-json",
+        "./internal/process",
+        "./internal/adapter",
+        "./internal/contract",
+        "./internal/host",
+        "-run",
+        "^(TestNeverStartedProofOriginAndOwnership|TestValidationStartFailureFactsRemainDistinct|TestValidationCommandPinScope|TestValidationLiveStartProofPublicationAndRecovery|TestValidationSealedToolPinAndBoundary|TestLaunchRejectedHostRefusesStartAttemptWindow|TestLaunchRejectedColdRestartDoesNotInventNeverStartedProof|TestHostPostStartErrorStopsOriginalHandleAndStaysUnknown)$"
+      ],
+      "exit": 0,
+      "top": {
+        "pass": 8
+      },
+      "named": {
+        "pass": 49
+      },
+      "stdout_sha256": "4baf0d887f105df6183bf7fb02d896b50dc56dd8410ae96fa405f4d9350e3f1a",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "native-chain-01",
+      "source": "b5899d2f3add4576b1115a4fac86fd72962c1855",
+      "source_dirty": "?? tools/orchestrator/internal/host/testdata/\n?? tools/orchestrator/internal/host/validation_retry_native_darwin_test.go\n",
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-count=1",
+        "-json",
+        "./internal/host",
+        "-run",
+        "^(TestValidationRetryActualHostGitQueueAndNextAttempt|TestValidationSealedActualProfileHasPositiveControls)$"
+      ],
+      "exit": 1,
+      "top": {},
+      "named": {},
+      "stdout_sha256": "443c70eb3e732940ba280d5c87923762d1e971e57ce365a11bed9170a8c2a2e9",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "native-chain-02",
+      "source": "b5899d2f3add4576b1115a4fac86fd72962c1855",
+      "source_dirty": "?? tools/orchestrator/internal/host/testdata/\n?? tools/orchestrator/internal/host/validation_retry_native_darwin_test.go\n",
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-count=1",
+        "-json",
+        "./internal/host",
+        "-run",
+        "^(TestValidationRetryActualHostGitQueueAndNextAttempt|TestValidationSealedActualProfileHasPositiveControls)$"
+      ],
+      "exit": 1,
+      "top": {},
+      "named": {},
+      "stdout_sha256": "54c5112ee8be53175d0b5d60233d8ca6945eb099d9b73192bbf7d6c9f7507d80",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "native-chain-03",
+      "source": "b5899d2f3add4576b1115a4fac86fd72962c1855",
+      "source_dirty": "?? tools/orchestrator/internal/host/testdata/\n?? tools/orchestrator/internal/host/validation_retry_native_darwin_test.go\n",
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-count=1",
+        "-json",
+        "./internal/host",
+        "-run",
+        "^(TestValidationRetryActualHostGitQueueAndNextAttempt|TestValidationSealedActualProfileHasPositiveControls)$"
+      ],
+      "exit": 1,
+      "top": {},
+      "named": {},
+      "stdout_sha256": "563c6060610161257737618b8d74a475424ac11fc68650604d876221d74669be",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "native-chain-04",
+      "source": "b5899d2f3add4576b1115a4fac86fd72962c1855",
+      "source_dirty": "?? tools/orchestrator/internal/host/testdata/\n?? tools/orchestrator/internal/host/validation_retry_native_darwin_test.go\n",
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-count=1",
+        "-json",
+        "./internal/host",
+        "-run",
+        "^(TestValidationRetryActualHostGitQueueAndNextAttempt|TestValidationSealedActualProfileHasPositiveControls)$"
+      ],
+      "exit": 1,
+      "top": {
+        "fail": 1,
+        "pass": 1
+      },
+      "named": {
+        "fail": 1,
+        "pass": 3
+      },
+      "stdout_sha256": "4fbc209fec6cb9fc2fd2c87f0e961b53fc8b32a83c9b1094805b9beb6d9b374f",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "native-chain-green-05",
+      "source": "b5899d2f3add4576b1115a4fac86fd72962c1855",
+      "source_dirty": "?? tools/orchestrator/internal/host/testdata/\n?? tools/orchestrator/internal/host/validation_retry_native_darwin_test.go\n",
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-count=1",
+        "-json",
+        "./internal/host",
+        "-run",
+        "^TestValidationRetryActualHostGitQueueAndNextAttempt$"
+      ],
+      "exit": 0,
+      "top": {
+        "pass": 1
+      },
+      "named": {
+        "pass": 1
+      },
+      "stdout_sha256": "32981471b751c846015ffb3b99b9494d6e43ddf50c8c0a9bff96fb7d439c0a87",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "native-chain-green-06",
+      "source": "b5899d2f3add4576b1115a4fac86fd72962c1855",
+      "source_dirty": " M tools/orchestrator/internal/store/validation_retry_test.go\n?? tools/orchestrator/internal/host/testdata/\n?? tools/orchestrator/internal/host/validation_retry_native_darwin_test.go\n",
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-count=1",
+        "-json",
+        "./internal/host",
+        "-run",
+        "^TestValidationRetryActualHostGitQueueAndNextAttempt$"
+      ],
+      "exit": 1,
+      "top": {
+        "fail": 1
+      },
+      "named": {
+        "fail": 1
+      },
+      "stdout_sha256": "f68f477edce23b58f39c9943b9303c30e130cc7e763cb723a7dd4e49d11b4e6b",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "native-chain-green-07",
+      "source": "b5899d2f3add4576b1115a4fac86fd72962c1855",
+      "source_dirty": " M tools/orchestrator/internal/store/validation_retry_test.go\n?? tools/orchestrator/internal/host/testdata/\n?? tools/orchestrator/internal/host/validation_retry_native_darwin_test.go\n",
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-count=1",
+        "-json",
+        "./internal/host",
+        "-run",
+        "^TestValidationRetryActualHostGitQueueAndNextAttempt$"
+      ],
+      "exit": 0,
+      "top": {
+        "pass": 1
+      },
+      "named": {
+        "pass": 1
+      },
+      "stdout_sha256": "a9db5fa0494c92957a7e29d9254181ae7c2fce24796a44f5855d9402b0600a47",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "native-cleanup-01",
+      "source": "d663785d7f3a8828686af066ad5c36f8519afdba",
+      "source_dirty": " M tools/orchestrator/internal/host/validation_retry_native_darwin_test.go\n?? tasks/validation-start-retry/docs/usage-and-limits.md\n",
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-race",
+        "-count=1",
+        "-json",
+        "./internal/host",
+        "-run",
+        "^(TestValidationNativeCleanupRetainsUnprovedOriginalHandle|TestValidationRetryActualHostGitQueueAndNextAttempt|TestValidationSealedActualProfileHasPositiveControls)$"
+      ],
+      "exit": 0,
+      "top": {
+        "pass": 3
+      },
+      "named": {
+        "pass": 5
+      },
+      "stdout_sha256": "14235fc81212656d60993fcc515c3d373c2bad91cfc3e21a7dddbbbf7d0cea61",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "native-final-focused",
+      "source": "b5899d2f3add4576b1115a4fac86fd72962c1855",
+      "source_dirty": " M tools/orchestrator/internal/store/validation_retry_test.go\n?? tools/orchestrator/internal/host/testdata/\n?? tools/orchestrator/internal/host/validation_retry_native_darwin_test.go\n",
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-count=1",
+        "-json",
+        "./internal/host",
+        "./internal/store",
+        "-run",
+        "^(TestValidationRetryActualHostGitQueueAndNextAttempt|TestValidationRetryFrozenQueueClaimReplay/physical_rebind_before_intake)$"
+      ],
+      "exit": 1,
+      "top": {
+        "fail": 1
+      },
+      "named": {
+        "fail": 1
+      },
+      "stdout_sha256": "9d34e8db278e2536f926eb91c84e74f72fd23d02bd89d808f53503176dbaf29f",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "native-profile-cleanup-02",
+      "source": "40123afe08bc95ea67e26ee96159f2e13709863e",
+      "source_dirty": " M tools/orchestrator/internal/host/validation_retry_native_darwin_test.go\n?? tasks/validation-start-retry/docs/usage-and-limits.md\n",
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-race",
+        "-count=1",
+        "-json",
+        "./internal/host",
+        "-run",
+        "^TestValidationSealedActualProfileHasPositiveControls$"
+      ],
+      "exit": 0,
+      "top": {
+        "pass": 1
+      },
+      "named": {
+        "pass": 3
+      },
+      "stdout_sha256": "a5f39c7bfa8f5797f7c0cfdee4f1d98392ecff2a7e12bd7628081cd565517402",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "sealed-prepare-red",
+      "source": "1e2af6cde7157f6a0a59e67c9ff030f1e61bf6df",
+      "source_dirty": " M tools/orchestrator/internal/host/validation_start_test.go\n M tools/orchestrator/internal/store/validation_retry_test.go\n",
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-count=1",
+        "-json",
+        "./internal/host",
+        "-run",
+        "^TestValidationToolSealedPrepareFailureTerminates$"
+      ],
+      "exit": 1,
+      "top": {
+        "fail": 1
+      },
+      "named": {
+        "fail": 3
+      },
+      "stdout_sha256": "fbe187a20cc5e2a599aa0e37ef3d11220e38416f0aeec72521315d511b15ade2",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "sealed-security-red",
+      "source": "c3c25f19c71061b47407c8db276b9eefc455504d",
+      "source_dirty": " M tools/orchestrator/internal/adapter/action.go\n M tools/orchestrator/internal/adapter/payload.go\n M tools/orchestrator/internal/contract/execution_policy.go\n M tools/orchestrator/internal/host/delivery.go\n M tools/orchestrator/internal/host/host.go\n M tools/orchestrator/internal/host/profile.go\n M tools/orchestrator/internal/process/process.go\n?? tasks/validation-start-retry/scripts/\n?? tools/orchestrator/internal/adapter/validation_retry.go\n?? tools/orchestrator/internal/adapter/validation_retry_test.go\n?? tools/orchestrator/internal/contract/validation_failure_test.go\n?? tools/orchestrator/internal/host/validation_start.go\n?? tools/orchestrator/internal/host/validation_start_test.go\n?? tools/orchestrator/internal/host/validation_tool.go\n?? tools/orchestrator/internal/process/never_started.go\n?? tools/orchestrator/internal/process/never_started_test.go\n",
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-count=1",
+        "-json",
+        "./internal/host",
+        "-run",
+        "^TestValidationSealedToolPinAndBoundary$/(fake_native|writable_sealed)$"
+      ],
+      "exit": 1,
+      "top": {
+        "fail": 1
+      },
+      "named": {
+        "fail": 3
+      },
+      "stdout_sha256": "2de53066c24fda8fcf9e1a7b16be35f693a31bdde07125aa1b36bca2471fad60",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "source-artifact-red",
+      "source": "1e2af6cde7157f6a0a59e67c9ff030f1e61bf6df",
+      "source_dirty": " M tools/orchestrator/internal/store/validation_retry_test.go\n",
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-count=1",
+        "-json",
+        "./internal/store",
+        "-run",
+        "^TestValidationRetryFrozenQueueClaimReplay/valid_replay$"
+      ],
+      "exit": 1,
+      "top": {
+        "fail": 1
+      },
+      "named": {
+        "fail": 2
+      },
+      "stdout_sha256": "5e08fdea3d0a27ccfd7c268bf84f554f9589cadad17fd6bd025576865cfe05c5",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "source-prepare-green",
+      "source": "1e2af6cde7157f6a0a59e67c9ff030f1e61bf6df",
+      "source_dirty": " M tools/orchestrator/internal/host/host.go\n M tools/orchestrator/internal/host/validation_start_test.go\n M tools/orchestrator/internal/store/validation_retry.go\n M tools/orchestrator/internal/store/validation_retry_test.go\n",
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-count=1",
+        "-json",
+        "./internal/store",
+        "./internal/host",
+        "-run",
+        "^(TestValidationRetryFrozenQueueClaimReplay|TestValidationToolSealedPrepareFailureTerminates)$"
+      ],
+      "exit": 0,
+      "top": {
+        "pass": 2
+      },
+      "named": {
+        "pass": 14
+      },
+      "stdout_sha256": "53002ae5a380c76c8c41f7849cd913ebd096c06ee9dd4aa5ea3e79fc3e21fdf2",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "store-bound-red",
+      "source": "287471ae0b47f291f4ab2549778391597bdda12f",
+      "source_dirty": " M tools/orchestrator/internal/store/candidate_input.go\n M tools/orchestrator/internal/store/dag_rework_target.go\n M tools/orchestrator/internal/store/decision_attempt_legacy.go\n M tools/orchestrator/internal/store/decision_attempt_proof.go\n M tools/orchestrator/internal/store/decision_attempt_record.go\n M tools/orchestrator/internal/store/execution_policy.go\n M tools/orchestrator/internal/store/host_artifact_intake.go\n M tools/orchestrator/internal/store/host_events.go\n M tools/orchestrator/internal/store/policy_retry.go\n M tools/orchestrator/internal/store/review_retry.go\n?? tools/orchestrator/internal/store/validation_retry.go\n?? tools/orchestrator/internal/store/validation_retry_test.go\n",
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-count=1",
+        "-json",
+        "./internal/store",
+        "-run",
+        "^TestValidationRetryBoundMissingAuthority$"
+      ],
+      "exit": 1,
+      "top": {
+        "fail": 1
+      },
+      "named": {
+        "pass": 2,
+        "fail": 2
+      },
+      "stdout_sha256": "7e11e0727d57d20c06ee5b2216486f6fc1340f5deb27a33087ee28192b4a4ebb",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "store-chain-01",
+      "source": "03e054623ed617ddfdb1d30c0aaf16437b15bc9d",
+      "source_dirty": " M tools/orchestrator/internal/store/candidate_input.go\n M tools/orchestrator/internal/store/dag_rework_target.go\n M tools/orchestrator/internal/store/decision_attempt_legacy.go\n M tools/orchestrator/internal/store/decision_attempt_proof.go\n M tools/orchestrator/internal/store/decision_attempt_record.go\n M tools/orchestrator/internal/store/execution_policy.go\n M tools/orchestrator/internal/store/host_artifact_intake.go\n M tools/orchestrator/internal/store/host_events.go\n M tools/orchestrator/internal/store/policy_retry.go\n M tools/orchestrator/internal/store/review_retry.go\n?? tools/orchestrator/internal/store/validation_retry.go\n?? tools/orchestrator/internal/store/validation_retry_test.go\n",
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-count=1",
+        "-json",
+        "./internal/store",
+        "-run",
+        "^(TestValidationRetryFrozenQueueClaimReplay|TestPolicyRetryCandidateReviewPrelaunchPreservesFrozenInputs)$"
+      ],
+      "exit": 1,
+      "top": {
+        "pass": 1,
+        "fail": 1
+      },
+      "named": {
+        "pass": 9,
+        "fail": 2
+      },
+      "stdout_sha256": "42b80649454e565aec9c1dc3c905d2142042150031e23003806c2d6ec5b2869d",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "store-chain-02",
+      "source": "03e054623ed617ddfdb1d30c0aaf16437b15bc9d",
+      "source_dirty": " M tools/orchestrator/internal/store/candidate_input.go\n M tools/orchestrator/internal/store/dag_rework_target.go\n M tools/orchestrator/internal/store/decision_attempt_legacy.go\n M tools/orchestrator/internal/store/decision_attempt_proof.go\n M tools/orchestrator/internal/store/decision_attempt_record.go\n M tools/orchestrator/internal/store/execution_policy.go\n M tools/orchestrator/internal/store/host_artifact_intake.go\n M tools/orchestrator/internal/store/host_events.go\n M tools/orchestrator/internal/store/policy_retry.go\n M tools/orchestrator/internal/store/review_retry.go\n?? tools/orchestrator/internal/store/validation_retry.go\n?? tools/orchestrator/internal/store/validation_retry_test.go\n",
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-count=1",
+        "-json",
+        "./internal/store",
+        "-run",
+        "^(TestValidationRetryFrozenQueueClaimReplay|TestValidationRetryPolicyStageScope|TestPolicyRetryCandidateReviewPrelaunchPreservesFrozenInputs)$"
+      ],
+      "exit": 0,
+      "top": {
+        "pass": 3
+      },
+      "named": {
+        "pass": 19
+      },
+      "stdout_sha256": "c0e277f94663cd14dbb1f89f06856f3340f0d2fb95ad14eabc2f058e6f855fe9",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "store-chain-diagnostic-01",
+      "source": "03e054623ed617ddfdb1d30c0aaf16437b15bc9d",
+      "source_dirty": " M tools/orchestrator/internal/store/candidate_input.go\n M tools/orchestrator/internal/store/dag_rework_target.go\n M tools/orchestrator/internal/store/decision_attempt_legacy.go\n M tools/orchestrator/internal/store/decision_attempt_proof.go\n M tools/orchestrator/internal/store/decision_attempt_record.go\n M tools/orchestrator/internal/store/execution_policy.go\n M tools/orchestrator/internal/store/host_artifact_intake.go\n M tools/orchestrator/internal/store/host_events.go\n M tools/orchestrator/internal/store/policy_retry.go\n M tools/orchestrator/internal/store/review_retry.go\n?? tools/orchestrator/internal/store/validation_retry.go\n?? tools/orchestrator/internal/store/validation_retry_test.go\n",
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-count=1",
+        "-json",
+        "./internal/store",
+        "-run",
+        "^TestValidationRetryFrozenQueueClaimReplay/valid_replay$"
+      ],
+      "exit": 1,
+      "top": {
+        "fail": 1
+      },
+      "named": {
+        "fail": 2
+      },
+      "stdout_sha256": "55d850276798e2ae5843eecfda58351c47fd44611c2d091b11b13293332213dc",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "store-facts-green-03",
+      "source": "132b174dc0c093fe692c6675bab13f055a75a8e3",
+      "source_dirty": " M tasks/validation-start-retry/plans/implementation.md\n M tools/orchestrator/internal/host/host.go\n M tools/orchestrator/internal/host/host_artifact_writer.go\n M tools/orchestrator/internal/host/profile.go\n M tools/orchestrator/internal/host/validation_start.go\n M tools/orchestrator/internal/host/validation_start_test.go\n M tools/orchestrator/internal/host/validation_tool.go\n M tools/orchestrator/internal/store/candidate_input.go\n M tools/orchestrator/internal/store/dag_rework_target.go\n M tools/orchestrator/internal/store/decision_attempt_legacy.go\n M tools/orchestrator/internal/store/decision_attempt_proof.go\n M tools/orchestrator/internal/store/decision_attempt_record.go\n M tools/orchestrator/internal/store/execution_policy.go\n M tools/orchestrator/internal/store/host_artifact_intake.go\n M tools/orchestrator/internal/store/host_events.go\n M tools/orchestrator/internal/store/policy_retry.go\n M tools/orchestrator/internal/store/review_retry.go\n?? tools/orchestrator/internal/host/validation_tool_journal.go\n?? tools/orchestrator/internal/store/validation_retry.go\n?? tools/orchestrator/internal/store/validation_retry_test.go\n",
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-count=1",
+        "-json",
+        "./internal/store",
+        "-run",
+        "^TestValidationStartFactsRequirePinnedActionAuthority$"
+      ],
+      "exit": 0,
+      "top": {
+        "pass": 1
+      },
+      "named": {
+        "pass": 4
+      },
+      "stdout_sha256": "791c624c7688f1c2b5839b2e38b58d56ff52997f06f2ae75e391a8a0e160d7fb",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "store-guard-green-02",
+      "source": "132b174dc0c093fe692c6675bab13f055a75a8e3",
+      "source_dirty": " M tasks/validation-start-retry/plans/implementation.md\n M tools/orchestrator/internal/host/host.go\n M tools/orchestrator/internal/host/host_artifact_writer.go\n M tools/orchestrator/internal/host/profile.go\n M tools/orchestrator/internal/host/validation_start.go\n M tools/orchestrator/internal/host/validation_start_test.go\n M tools/orchestrator/internal/host/validation_tool.go\n M tools/orchestrator/internal/store/candidate_input.go\n M tools/orchestrator/internal/store/dag_rework_target.go\n M tools/orchestrator/internal/store/decision_attempt_legacy.go\n M tools/orchestrator/internal/store/decision_attempt_proof.go\n M tools/orchestrator/internal/store/decision_attempt_record.go\n M tools/orchestrator/internal/store/execution_policy.go\n M tools/orchestrator/internal/store/host_artifact_intake.go\n M tools/orchestrator/internal/store/host_events.go\n M tools/orchestrator/internal/store/policy_retry.go\n M tools/orchestrator/internal/store/review_retry.go\n?? tools/orchestrator/internal/host/validation_tool_journal.go\n?? tools/orchestrator/internal/store/validation_retry.go\n?? tools/orchestrator/internal/store/validation_retry_test.go\n",
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-count=1",
+        "-json",
+        "./internal/store",
+        "-run",
+        "^(TestValidationStartFactsRequirePinnedActionAuthority|TestValidationRetryFrozenQueueClaimReplay|TestValidationRetryAdmissionRollbackAndProtection)$"
+      ],
+      "exit": 1,
+      "top": {
+        "pass": 2,
+        "fail": 1
+      },
+      "named": {
+        "pass": 19,
+        "fail": 2
+      },
+      "stdout_sha256": "c8a0c116c01d490e0024c5e0962849a973e10145772185d6387f5b551c6fb990",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "store-milestone-01",
+      "source": "287471ae0b47f291f4ab2549778391597bdda12f",
+      "source_dirty": " M tasks/validation-start-retry/plans/implementation.md\n M tools/orchestrator/internal/store/candidate_input.go\n M tools/orchestrator/internal/store/dag_rework_target.go\n M tools/orchestrator/internal/store/decision_attempt_legacy.go\n M tools/orchestrator/internal/store/decision_attempt_proof.go\n M tools/orchestrator/internal/store/decision_attempt_record.go\n M tools/orchestrator/internal/store/execution_policy.go\n M tools/orchestrator/internal/store/host_artifact_intake.go\n M tools/orchestrator/internal/store/host_events.go\n M tools/orchestrator/internal/store/policy_retry.go\n M tools/orchestrator/internal/store/review_retry.go\n?? tools/orchestrator/internal/store/validation_retry.go\n?? tools/orchestrator/internal/store/validation_retry_test.go\n",
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-count=1",
+        "-json",
+        "./internal/store",
+        "-run",
+        "^(TestValidationRetryFrozenQueueClaimReplay|TestValidationRetryPolicyStageScope|TestValidationRetryBoundMissingAuthority|TestValidationRetryAdmissionRollbackAndProtection|TestPolicyRetryCandidateReviewPrelaunchPreservesFrozenInputs)$"
+      ],
+      "exit": 1,
+      "top": {
+        "pass": 3,
+        "fail": 2
+      },
+      "named": {
+        "pass": 25,
+        "fail": 4
+      },
+      "stdout_sha256": "67aabcd925d51f05b4509c62466a07b52385559a588dd864ae77e9f173006a0b",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "store-physical-cold",
+      "source": "b5899d2f3add4576b1115a4fac86fd72962c1855",
+      "source_dirty": " M tools/orchestrator/internal/store/validation_retry_test.go\n?? tools/orchestrator/internal/host/testdata/\n?? tools/orchestrator/internal/host/validation_retry_native_darwin_test.go\n",
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-count=1",
+        "-json",
+        "./internal/store",
+        "-run",
+        "^TestValidationRetryFrozenQueueClaimReplay$/^physical_rebind_before_intake$"
+      ],
+      "exit": 0,
+      "top": {
+        "pass": 1
+      },
+      "named": {
+        "pass": 2
+      },
+      "stdout_sha256": "2f7874266dac19a0689f26b5de8925572c990a560dbf4e93e7b508c1875c053d",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "store-policy-green-02",
+      "source": "03e054623ed617ddfdb1d30c0aaf16437b15bc9d",
+      "source_dirty": " M tools/orchestrator/internal/store/candidate_input.go\n M tools/orchestrator/internal/store/dag_rework_target.go\n M tools/orchestrator/internal/store/decision_attempt_legacy.go\n M tools/orchestrator/internal/store/decision_attempt_proof.go\n M tools/orchestrator/internal/store/decision_attempt_record.go\n M tools/orchestrator/internal/store/execution_policy.go\n M tools/orchestrator/internal/store/host_artifact_intake.go\n M tools/orchestrator/internal/store/host_events.go\n M tools/orchestrator/internal/store/policy_retry.go\n M tools/orchestrator/internal/store/review_retry.go\n?? tools/orchestrator/internal/store/validation_retry.go\n?? tools/orchestrator/internal/store/validation_retry_test.go\n",
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-count=1",
+        "-json",
+        "./internal/store",
+        "-run",
+        "^TestValidationRetryPolicyStageScope$"
+      ],
+      "exit": 0,
+      "top": {
+        "pass": 1
+      },
+      "named": {
+        "pass": 8
+      },
+      "stdout_sha256": "57ce4732137a0fcdf5e301a55b28733820fe25358947666eee9e1439900dcdeb",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "store-policy-green",
+      "source": "03e054623ed617ddfdb1d30c0aaf16437b15bc9d",
+      "source_dirty": " M tools/orchestrator/internal/store/dag_rework_target.go\n M tools/orchestrator/internal/store/decision_attempt_legacy.go\n M tools/orchestrator/internal/store/decision_attempt_proof.go\n M tools/orchestrator/internal/store/decision_attempt_record.go\n M tools/orchestrator/internal/store/execution_policy.go\n M tools/orchestrator/internal/store/host_artifact_intake.go\n M tools/orchestrator/internal/store/host_events.go\n M tools/orchestrator/internal/store/policy_retry.go\n M tools/orchestrator/internal/store/review_retry.go\n?? tools/orchestrator/internal/store/validation_retry.go\n?? tools/orchestrator/internal/store/validation_retry_test.go\n",
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-count=1",
+        "-json",
+        "./internal/store",
+        "-run",
+        "^TestValidationRetryPolicyStageScope$"
+      ],
+      "exit": 1,
+      "top": {},
+      "named": {},
+      "stdout_sha256": "2ce4812593d70a1af0640d5a472ee5ddc75dd59d2fb49d8b8baea4e1a428fe17",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "store-policy-red-02",
+      "source": "03e054623ed617ddfdb1d30c0aaf16437b15bc9d",
+      "source_dirty": "?? tools/orchestrator/internal/store/validation_retry_test.go\n",
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-count=1",
+        "-json",
+        "./internal/store",
+        "-run",
+        "^TestValidationRetryPolicyStageScope$"
+      ],
+      "exit": 1,
+      "top": {
+        "fail": 1
+      },
+      "named": {
+        "fail": 2,
+        "pass": 6
+      },
+      "stdout_sha256": "dcdab6424ee6b5ac1f0725e7441380fcaa38beb61b392f597c7456305c080eeb",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "store-policy-red",
+      "source": "03e054623ed617ddfdb1d30c0aaf16437b15bc9d",
+      "source_dirty": "?? tools/orchestrator/internal/store/validation_retry_test.go\n",
+      "command": [
+        "--",
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-count=1",
+        "-json",
+        "./internal/store",
+        "-run",
+        "^TestValidationRetryPolicyStageScope$"
+      ],
+      "exit": null,
+      "top": {},
+      "named": {},
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 # F01 里程碑记录
 
-contract/process/Host 已完成；Store/公开完整链尚未实现，未声明 F01 完成。
+本文保留各阶段原始状态与失败；当前受限 F01 vertical slice 已完成，最终范围与有效证据见 [final-report.md](final-report.md)。
 
 - typed proof 固定原 cmd.Start 边界、Context/完整 Command，单次消费；已启动 Handle 保留原 Wait/Stop。
 - Host 发布独立 validation_start 事实，执行 private sealed native 入口；冷恢复不重建 live proof。
