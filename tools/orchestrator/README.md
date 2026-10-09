@@ -255,6 +255,22 @@ the Source Host materializes a private request and invokes the same binary's
 internal `gitops-worker`. Package administration uses owner-only request files
 with `install`, `doctor`, `uninstall`, `pin`, and `unpin`.
 
+An owner-reviewed DAG can compose 2..63 accepted producer candidates from the
+same repository and base. The task's direct dependencies must equal the declared
+source set; the action preserves order rather than sorting it:
+
+```json
+{"kind":"candidate","directory":"/owned/compose","candidate_action":{"version":2,"dependency_input_version":2,"operation":"compose","ordered_source_tasks":["B","A"]}}
+```
+
+Each source requires a current Host receipt with complete repository/common-dir
+and workspace identities. Composition has no provider lock of its own. Its
+accepted result can be the `source_task` of a normal v1 validation, then review
+and integration. Conflicts retain the private workspace and journal and report
+`compose_conflict`; uncertain ownership reports `compose_uncertain`/UNKNOWN.
+Neither outcome automatically reruns Git or invokes a model. See the
+[validation scope](../../tasks/ordered-candidate-compose/docs/final-validation.md).
+
 Opening or querying an interrupted run does not resume it. `resume` starts a
 new segment only after the old execution tree has a durable stopped/exited
 record. The coordinator exits after 30 seconds of complete inactivity; a later

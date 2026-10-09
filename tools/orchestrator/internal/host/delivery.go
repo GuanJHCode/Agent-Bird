@@ -38,6 +38,79 @@ type ReviewEvidence struct {
 	Summary  string `json:"summary"`
 }
 
+// CompositionManifest records bounded references to the already authenticated
+// producer artifacts. It intentionally does not embed their (up to 1 MiB)
+// bodies; the v2 dependency vector remains the exact physical handoff.
+type CompositionManifest struct {
+	Version               int                      `json:"version"`
+	RunID                 string                   `json:"run_id"`
+	TaskID                string                   `json:"task_id"`
+	AttemptID             string                   `json:"attempt_id"`
+	SegmentID             string                   `json:"segment_id"`
+	WorkRevision          int                      `json:"work_revision"`
+	PlanRevision          int                      `json:"plan_revision"`
+	Binding               gitops.CandidateBinding  `json:"binding"`
+	RepoRoot              string                   `json:"repo_root"`
+	CommonDir             string                   `json:"common_dir"`
+	RootIdentity          gitops.DirectoryIdentity `json:"root_identity"`
+	RepoRootIdentity      gitops.DirectoryIdentity `json:"repo_root_identity"`
+	CommonDirIdentity     gitops.DirectoryIdentity `json:"common_dir_identity"`
+	BaseOID               string                   `json:"base_oid"`
+	Sources               []CompositionSource      `json:"sources"`
+	OrderedInputOIDs      []string                 `json:"ordered_input_oids"`
+	CandidateOID          string                   `json:"candidate_oid,omitempty"`
+	TreeOID               string                   `json:"tree_oid,omitempty"`
+	PrivateRef            string                   `json:"private_ref,omitempty"`
+	PrivateRefExpectedOID string                   `json:"private_ref_expected_oid,omitempty"`
+	ManifestSHA256        string                   `json:"manifest_sha256"`
+}
+
+type CompositionSource struct {
+	TaskID                 string `json:"task_id"`
+	EventID                string `json:"event_id"`
+	EventSHA256            string `json:"event_sha256"`
+	DecisionCommandID      string `json:"decision_command_id"`
+	CandidateOID           string `json:"candidate_oid"`
+	CandidateReceiptSHA256 string `json:"candidate_receipt_sha256"`
+	ProviderLockSHA256     string `json:"provider_lock_sha256"`
+	AdapterPayloadSHA256   string `json:"adapter_payload_sha256"`
+	ArtifactSHA256         string `json:"artifact_sha256"`
+}
+
+func newCompositionManifest(grant contract.LaunchCommand, inputs []contract.AcceptedInput, deliveries []CandidateDelivery) (*CompositionManifest, error) {
+	if len(inputs) < 2 || len(inputs) != len(deliveries) {
+		return nil, errors.New("composition_manifest_invalid")
+	}
+	m := &CompositionManifest{Version: 1, RunID: grant.RunID, TaskID: grant.TaskID, AttemptID: grant.AttemptID, SegmentID: grant.SegmentID, WorkRevision: grant.WorkRevision, PlanRevision: grant.PlanRevision}
+	for i, in := range inputs {
+		c := deliveries[i].Candidate
+		if i == 0 {
+			m.RepoRoot, m.CommonDir, m.BaseOID = c.RepoRoot, c.CommonDir, c.BaseOID
+			m.RepoRootIdentity, m.CommonDirIdentity = c.RepoRootIdentity, c.CommonDirIdentity
+		}
+		if c.RepoRoot != m.RepoRoot || c.CommonDir != m.CommonDir || c.BaseOID != m.BaseOID || c.RepoRootIdentity != m.RepoRootIdentity || c.CommonDirIdentity != m.CommonDirIdentity || c.CandidateOID == "" {
+			return nil, errors.New("composition_source_mismatch")
+		}
+		source, err := adapter.DecodeInvocationPayload(in.AdapterPayload)
+		if err != nil || validateCandidateSourceProvider(source.ProviderLock, source.Provider) != nil {
+			return nil, errors.New("composition_source_invalid")
+		}
+		rawLock, err := json.Marshal(source.ProviderLock)
+		if err != nil {
+			return nil, err
+		}
+		lockHash := hashBytes(rawLock)
+		m.Sources = append(m.Sources, CompositionSource{TaskID: in.Event.TaskID, EventID: in.Event.EventID, EventSHA256: in.Event.PayloadHash, DecisionCommandID: in.DecisionCommandID, CandidateOID: c.CandidateOID, CandidateReceiptSHA256: deliveries[i].CandidateReceiptSHA256, ProviderLockSHA256: lockHash, AdapterPayloadSHA256: hashBytes(in.AdapterPayload), ArtifactSHA256: in.Event.Artifact.SHA256})
+		m.OrderedInputOIDs = append(m.OrderedInputOIDs, c.CandidateOID)
+	}
+	raw, err := json.Marshal(m)
+	if err != nil {
+		return nil, err
+	}
+	m.ManifestSHA256 = hashBytes(raw)
+	return m, nil
+}
+
 // decodeCandidateReview accepts exactly one value from the provider's native
 // structured terminal envelope. The prompt's prose channel is never decoded.
 func decodeCandidateReview(text string) (ReviewEvidence, error) {
@@ -75,6 +148,39 @@ type CandidateDelivery struct {
 	Review                 *ReviewEvidence                 `json:"review,omitempty"`
 	Target                 gitops.ReviewBinding            `json:"target"`
 	Integration            *gitops.IntegrationOutcome      `json:"integration,omitempty"`
+	Composition            *CompositionManifest            `json:"composition,omitempty"`
+}
+
+func validateCompositionDelivery(out CandidateDelivery) error {
+	m := out.Composition
+	if m == nil {
+		if out.Stage == "compose" {
+			return errors.New("composition_manifest_missing")
+		}
+		return nil
+	}
+	c := out.Candidate
+	if m.Version != 1 || c.Binding == nil || m.Binding != *c.Binding || c.AttemptID != m.AttemptID || c.PlanRevision != int64(m.PlanRevision) || m.ManifestSHA256 == "" || m.AttemptID != m.Binding.AttemptID || m.SegmentID != m.Binding.SegmentID || m.WorkRevision != m.Binding.WorkRevision || m.RunID != m.Binding.RunID || m.TaskID != m.Binding.TaskID || m.PlanRevision != m.Binding.PlanRevision || m.RepoRoot != c.RepoRoot || m.CommonDir != c.CommonDir || m.BaseOID != c.BaseOID || m.CandidateOID != c.CandidateOID || m.TreeOID != c.TreeOID || m.PrivateRef != c.PrivateRef || m.PrivateRefExpectedOID != c.PrivateRefExpectedOID || m.RootIdentity != c.RootIdentity || m.RepoRootIdentity != c.RepoRootIdentity || m.CommonDirIdentity != c.CommonDirIdentity || len(m.Sources) < 2 || len(m.Sources) > 63 || len(m.Sources) != len(m.OrderedInputOIDs) || !reflect.DeepEqual(m.OrderedInputOIDs, c.OrderedInputOIDs) {
+		return errors.New("composition_manifest_invalid")
+	}
+	receipt, err := json.Marshal(c)
+	if err != nil || out.CandidateReceiptSHA256 != hashBytes(receipt) {
+		return errors.New("composition_receipt_changed")
+	}
+	seen := make(map[string]bool, len(m.Sources))
+	for i, source := range m.Sources {
+		if source.TaskID == "" || seen[source.TaskID] || source.EventID == "" || len(source.EventSHA256) != 64 || source.DecisionCommandID == "" || source.CandidateOID != m.OrderedInputOIDs[i] || len(source.CandidateReceiptSHA256) != 64 || len(source.ProviderLockSHA256) != 64 || len(source.AdapterPayloadSHA256) != 64 || source.ArtifactSHA256 != source.EventSHA256 {
+			return errors.New("composition_manifest_invalid")
+		}
+		seen[source.TaskID] = true
+	}
+	copy := *m
+	copy.ManifestSHA256 = ""
+	raw, err := json.Marshal(copy)
+	if err != nil || hashBytes(raw) != m.ManifestSHA256 {
+		return errors.New("composition_manifest_invalid")
+	}
+	return nil
 }
 
 func validateCandidateSourceProvider(lock *adapter.ProviderLock, provider string) error {
@@ -197,6 +303,9 @@ func readCandidateDelivery(grant contract.LaunchCommand, input *contract.Accepte
 	} else if out.Binding.RunID != grant.RunID || out.Binding.TaskID != input.Event.TaskID || out.Binding.AttemptID != input.Event.AttemptID || out.Binding.SegmentID != input.Event.SegmentID || out.Binding.WorkRevision != input.Event.WorkRevision || out.Binding.PlanRevision != grant.PlanRevision {
 		return out, errors.New("candidate_binding_mismatch")
 	}
+	if err := validateCompositionDelivery(out); err != nil {
+		return out, err
+	}
 	return out, nil
 }
 
@@ -261,6 +370,9 @@ func candidateReviewProvider(grant contract.LaunchCommand) (adapter.Provider, er
 func (h *Host) prepareCandidateAction(ctx context.Context, grant contract.LaunchCommand, inv contract.InvocationView, action *adapter.CandidateAction, profile *adapter.ExecutionProfile) (process.Command, actionFinalizer, func(), error) {
 	empty := invocationCommand(inv)
 	noop := func() {}
+	if action != nil && action.Version == 2 && action.DependencyInputVersion == 2 && action.Operation == "compose" {
+		return h.prepareComposeAction(ctx, grant, inv, action)
+	}
 	in, err := readAcceptedCandidate(grant, filepath.Dir(h.spoolRoot))
 	if err != nil {
 		return empty, nil, noop, err
@@ -310,7 +422,21 @@ func (h *Host) prepareCandidateAction(ctx context.Context, grant contract.Launch
 	var reviewLock *adapter.ProviderLock
 	switch action.Operation {
 	case "validate":
-		if source.Kind != "" || validateCandidateSourceProvider(source.Lock, source.Provider) != nil || source.Profile == nil || source.Profile.Role != adapter.Implementer || source.Workspace == nil || in.Stage != "" || profile != nil || len(action.Command) == 0 || len(action.Command) > 64 {
+		composeSource := source.Kind == "candidate" && source.Action != nil && source.Action.Version == 2 && source.Action.DependencyInputVersion == 2 && source.Action.Operation == "compose" && in.Stage == "compose" && in.Composition != nil && source.Lock == nil && source.Provider == "" && source.Profile == nil && source.Workspace == nil
+		if composeSource {
+			if len(source.Action.OrderedSourceTasks) != len(in.Composition.Sources) {
+				composeSource = false
+			} else {
+				for i, task := range source.Action.OrderedSourceTasks {
+					if task != in.Composition.Sources[i].TaskID {
+						composeSource = false
+						break
+					}
+				}
+			}
+		}
+		legacySource := source.Kind == "" && validateCandidateSourceProvider(source.Lock, source.Provider) == nil && source.Profile != nil && source.Profile.Role == adapter.Implementer && source.Workspace != nil && in.Stage == ""
+		if (!composeSource && !legacySource) || profile != nil || len(action.Command) == 0 || len(action.Command) > 64 {
 			return empty, nil, noop, errors.New("candidate_validation_source_invalid")
 		}
 	case "review":
@@ -350,6 +476,12 @@ func (h *Host) prepareCandidateAction(ctx context.Context, grant contract.Launch
 	closeJournal := func() { _ = journal.Close() }
 	fail := func(err error) (process.Command, actionFinalizer, func(), error) {
 		return empty, nil, closeJournal, err
+	}
+	// Authenticate the original composition pin before any downstream Git action.
+	if in.Composition != nil {
+		if err := gitops.ValidateCandidatePrivateRef(gitops.WithCandidateJournal(ctx, journal), c); err != nil {
+			return fail(err)
+		}
 	}
 	if action.Operation == "integrate" && source.Lock.Provider == adapter.ProviderGrok {
 		if in.ReviewScope != "complete-tracked-text-base-and-candidate" || len(in.ReviewInputSHA256) != 64 || len(in.ReviewSnapshotSHA256) != 64 {

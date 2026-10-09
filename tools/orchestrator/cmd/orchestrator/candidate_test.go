@@ -204,6 +204,14 @@ func TestManagedCandidateFreezesWorkerChangesWithoutUserChanges(t *testing.T) {
 // Reuse the native test executable: first execution of a fresh unsigned shell
 // script can exceed the production 2s probe deadline under full-suite load.
 func TestMain(m *testing.M) {
+	// Exercise the same private worker route when the Host pins this test binary.
+	if len(os.Args) > 1 && os.Args[1] == "gitops-worker" {
+		if err := run(context.Background(), os.Args[1:], os.Stdout, os.Stderr); err != nil {
+			_ = json.NewEncoder(os.Stderr).Encode(map[string]any{"status": "error", "error": errorCode(err)})
+			os.Exit(2)
+		}
+		os.Exit(0)
+	}
 	if filepath.Base(os.Args[0]) == "resource-memory-diagnostic-cli-fixture" {
 		runResourceMemoryDiagnosticFixture()
 		return
@@ -286,7 +294,7 @@ func TestMain(m *testing.M) {
 		}
 	}
 	for i, arg := range os.Args {
-		if (mode == "success" || reworking || mode == "retry_review") && arg == "--permission-mode" && i+1 < len(os.Args) && os.Args[i+1] == "plan" {
+		if (mode == "success" || reworking || mode == "retry_review" || mode == "compose-public") && arg == "--permission-mode" && i+1 < len(os.Args) && os.Args[i+1] == "plan" {
 			if mode == "retry_review" {
 				cwd, err := os.Getwd()
 				if err != nil {
@@ -387,6 +395,30 @@ func TestMain(m *testing.M) {
 		}
 		result, _ := json.Marshal(envelope)
 		fmt.Println(string(result))
+		os.Exit(0)
+	}
+	if mode == "compose-public" {
+		input, err := io.ReadAll(io.LimitReader(os.Stdin, 1024*1024))
+		if err != nil {
+			os.Exit(3)
+		}
+		if strings.Contains(string(input), "COMPOSE_FIXTURE_A") {
+			mode = "compose-a"
+		}
+		if strings.Contains(string(input), "COMPOSE_FIXTURE_B") {
+			mode = "compose-b"
+		}
+		if mode == "compose-public" {
+			os.Exit(3)
+		}
+	}
+	if mode == "compose-a" || mode == "compose-b" {
+		name := strings.TrimPrefix(mode, "compose-") + ".txt"
+		if err := os.WriteFile(name, []byte(mode+"\n"), 0600); err != nil {
+			os.Exit(3)
+		}
+		fmt.Println(`{"type":"system","subtype":"init","session_id":"compose-fixture"}`)
+		fmt.Println(`{"type":"result","subtype":"success","session_id":"compose-fixture","result":"implemented","structured_output":{"version":1,"kind":"result","text":"implemented"}}`)
 		os.Exit(0)
 	}
 	content := "worker implementation\n"

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 )
 
 type requestEnvelope struct {
@@ -103,7 +104,16 @@ func Run(ctx context.Context, requestPath string, stdout io.Writer) error {
 	case "compose":
 		var request gitops.CandidateCompositionRequest
 		if err = decode(envelope.Request, &request); err == nil {
-			result, err = gitops.ComposeCandidate(ctx, request, journal)
+			if err = syscall.Flock(int(journal.file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+				// Another worker may already own side effects for this command.
+				// Failure to acquire its journal cannot prove a definite failure.
+				err = errors.Join(process.ErrProcessTreeUnknown, err)
+			} else {
+				err = journal.composePreflight(ctx)
+			}
+			if err == nil {
+				result, err = gitops.ManagedComposeCandidate(gitops.WithCandidateJournal(ctx, journal), request, journal)
+			}
 		}
 	case "create_private_ref":
 		var request gitops.PrivateRefRequest
@@ -141,9 +151,34 @@ func Run(ctx context.Context, requestPath string, stdout io.Writer) error {
 		}
 	}
 	if err != nil {
+		if envelope.Operation == "compose" {
+			// Compose is the only operation whose caller needs a durable, safe
+			// classification after a non-zero worker exit. Never serialize an
+			// arbitrary error (which may contain a repository path or Git output).
+			_ = json.NewEncoder(stdout).Encode(map[string]any{"version": 1, "status": "error", "operation": "compose", "code": composeErrorCode(err)})
+		}
 		return err
 	}
+	if envelope.Operation == "compose" {
+		// The journal owns the complete inventory for safe cleanup. The public
+		// receipt is deliberately bounded for the Host terminal artifact.
+		if receipt, ok := result.(gitops.CandidateReceipt); ok {
+			receipt.Files = nil
+			result = receipt
+		}
+	}
 	return json.NewEncoder(stdout).Encode(map[string]any{"version": 1, "status": "ok", "operation": envelope.Operation, "result": result})
+}
+
+func composeErrorCode(err error) string {
+	if errors.Is(err, process.ErrProcessTreeUnknown) || errors.Is(err, gitops.ErrIntegrationUncertain) {
+		return "compose_uncertain"
+	}
+	var gitErr *gitops.Error
+	if errors.As(err, &gitErr) {
+		return string(gitErr.Code)
+	}
+	return "candidate_compose_failed"
 }
 
 // integrationPreflight refuses replay after an integration intent or an
@@ -226,6 +261,50 @@ func (j *durableJournal) integrationPreflight(ctx context.Context) error {
 	}
 	if pending != nil {
 		return gitops.ErrIntegrationUncertain
+	}
+	return nil
+}
+
+// composePreflight refuses replay of any previous composition attempt. A
+// partially recorded candidate action is ownership-unknown: retain the
+// worktree/ref and make the owner reconcile it explicitly.
+func (j *durableJournal) composePreflight(ctx context.Context) error {
+	if err := j.integrationPreflight(ctx); err != nil {
+		return process.ErrProcessTreeUnknown
+	}
+	f, err := os.OpenFile(j.file.Name(), os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	held, heldErr := j.file.Stat()
+	if err != nil || heldErr != nil || !info.Mode().IsRegular() || info.Mode().Perm() != 0600 || !os.SameFile(info, held) || info.Size() > 16*1024*1024 {
+		return errors.New("gitops_journal_unsafe")
+	}
+	body, err := io.ReadAll(io.LimitReader(f, 16*1024*1024+1))
+	if err != nil || int64(len(body)) != info.Size() || len(body) > 16*1024*1024 || len(body) > 0 && body[len(body)-1] != '\n' {
+		return errors.New("gitops_journal_unsafe")
+	}
+	for _, line := range bytes.Split(bytes.TrimSuffix(body, []byte("\n")), []byte("\n")) {
+		if len(line) == 0 {
+			continue
+		}
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		var record struct {
+			Version int             `json:"version"`
+			Kind    string          `json:"kind"`
+			Value   json.RawMessage `json:"value"`
+		}
+		if decode(line, &record) != nil || record.Version != 1 || record.Kind == "" || len(record.Value) == 0 {
+			return errors.New("gitops_journal_unsafe")
+		}
+		switch record.Kind {
+		case "candidate_intent", "candidate_ref_intent", "candidate_receipt":
+			return process.ErrProcessTreeUnknown
+		}
 	}
 	return nil
 }

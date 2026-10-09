@@ -8,12 +8,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 )
 
@@ -30,6 +32,10 @@ func TestCLIVersionedDAGRework(t *testing.T) { exerciseCLICandidateDAGVersion(t,
 
 func exerciseCLICandidateDAG(t *testing.T, rework, retryReview bool, facade ...bool) {
 	exerciseCLICandidateDAGVersion(t, rework, retryReview, 0, facade...)
+}
+
+func TestCLIOrderedCandidateComposition(t *testing.T) {
+	exerciseCLICandidateDAGVersion(t, false, false, 2)
 }
 
 func exerciseCLICandidateDAGVersion(t *testing.T, rework, retryReview bool, version int, facade ...bool) {
@@ -58,7 +64,11 @@ func exerciseCLICandidateDAGVersion(t *testing.T, rework, retryReview bool, vers
 	if out, err := exec.Command("go", "build", "-o", bin, ".").CombinedOutput(); err != nil {
 		t.Fatalf("build: %s %v", out, err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	deadline := 90 * time.Second
+	if version == 2 {
+		deadline = 150 * time.Second
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), deadline)
 	defer cancel()
 	git := func(dir string, args ...string) string {
 		t.Helper()
@@ -93,6 +103,9 @@ func exerciseCLICandidateDAGVersion(t *testing.T, rework, retryReview bool, vers
 	}
 	sum := sha256.Sum256(body)
 	mode := "success"
+	if version == 2 {
+		mode = "compose-public"
+	}
 	if rework {
 		mode = "rework"
 	}
@@ -108,7 +121,7 @@ func exerciseCLICandidateDAGVersion(t *testing.T, rework, retryReview bool, vers
 	target := map[string]string{"worktree": repo, "ref": "refs/heads/main", "base_oid": base}
 	action := func(operation, source string) map[string]any {
 		a := map[string]any{"version": 1, "operation": operation, "source_task": source, "target": target}
-		if version == 1 {
+		if version >= 1 {
 			a["dependency_input_version"] = 1
 		}
 		return a
@@ -126,6 +139,18 @@ func exerciseCLICandidateDAGVersion(t *testing.T, rework, retryReview bool, vers
 		audit["command"] = []string{"/usr/bin/grep", "-q", "worker implementation", "README"}
 		tasks = append(tasks, map[string]any{"id": "audit", "dependencies": []string{"implement"}, "max_attempts": 3, "adapter": map[string]any{"kind": "candidate", "directory": filepath.Join(root, "audit"), "candidate_action": audit}})
 		tasks[2].(map[string]any)["dependencies"] = []string{"validate", "audit"}
+	}
+	if version == 2 {
+		producer := func(id string) any {
+			return map[string]any{"id": id, "max_attempts": 1, "adapter": map[string]any{"provider": "claude-code", "provider_lock": lock, "profile": profile("implementer", "workspace-write"), "directory": filepath.Join(root, "producer-"+id), "prompt": "COMPOSE_FIXTURE_" + id, "candidate_workspace": map[string]any{"version": 1, "repo_root": repo, "base_oid": base, "paths": []string{strings.ToLower(id) + ".txt"}}}}
+		}
+		check := action("validate", "compose")
+		check["command"] = []string{"/usr/bin/grep", "-q", "compose-a", "a.txt"}
+		tasks = []any{producer("A"), producer("B"),
+			map[string]any{"id": "compose", "dependencies": []string{"A", "B"}, "max_attempts": 1, "adapter": map[string]any{"kind": "candidate", "directory": filepath.Join(root, "compose"), "candidate_action": map[string]any{"version": 2, "dependency_input_version": 2, "operation": "compose", "ordered_source_tasks": []string{"B", "A"}}}},
+			map[string]any{"id": "validate", "dependencies": []string{"compose"}, "max_attempts": 1, "adapter": map[string]any{"kind": "candidate", "directory": filepath.Join(root, "validation"), "candidate_action": check}},
+			tasks[2], tasks[3],
+		}
 	}
 	birth, err := process.Birth(os.Getpid())
 	if err != nil {
@@ -175,6 +200,11 @@ func exerciseCLICandidateDAGVersion(t *testing.T, rework, retryReview bool, vers
 	if retryReview {
 		sequence = []string{"implement", "validate", "review", "review", "integrate"}
 	}
+	if version == 2 {
+		sequence = []string{"A", "B", "compose", "validate", "review", "integrate"}
+	}
+	composedSources := map[string]string{}
+	compositionHash := ""
 	retriedReview := false
 	for _, task := range sequence {
 		interruptedReview := retryReview && !retriedReview && task == "review"
@@ -231,6 +261,27 @@ func exerciseCLICandidateDAGVersion(t *testing.T, rework, retryReview bool, vers
 		}
 		if err = json.Unmarshal(data, &artifact); err != nil {
 			t.Fatal(err)
+		}
+		if version == 2 {
+			if task == "A" || task == "B" {
+				composedSources[task] = artifact.Candidate.OID
+				candidateOID = artifact.Candidate.OID
+			} else {
+				var composed host.CandidateDelivery
+				if json.Unmarshal(data, &composed) != nil || composed.Composition == nil {
+					t.Fatal("missing public composition manifest")
+				}
+				m := composed.Composition
+				if len(m.Sources) != 2 || m.Sources[0].TaskID != "B" || m.Sources[1].TaskID != "A" || !reflect.DeepEqual(m.OrderedInputOIDs, []string{composedSources["B"], composedSources["A"]}) {
+					t.Fatal("public compose lost declaration order")
+				}
+				if task == "compose" {
+					candidateOID = artifact.Candidate.OID
+					compositionHash = m.ManifestSHA256
+				} else if m.ManifestSHA256 != compositionHash {
+					t.Fatal("public downstream changed composition")
+				}
+			}
 		}
 		if task == "implement" {
 			candidateOID = artifact.Candidate.OID
@@ -304,6 +355,11 @@ func exerciseCLICandidateDAGVersion(t *testing.T, rework, retryReview bool, vers
 	}
 	if git(repo, "rev-parse", "HEAD") != candidateOID || git(repo, "status", "--porcelain") != "" {
 		t.Fatal("final target differs from accepted candidate")
+	}
+	if version == 2 {
+		if git(repo, "show", "HEAD:a.txt") != "compose-a" || git(repo, "show", "HEAD:b.txt") != "compose-b" {
+			t.Fatal("public integration lost source changes")
+		}
 	}
 	c04AssertCandidateReportCapabilitiesRemain(t, ctx, state)
 	clean = true

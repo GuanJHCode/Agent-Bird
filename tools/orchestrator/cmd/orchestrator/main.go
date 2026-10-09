@@ -1085,6 +1085,12 @@ func invocationForGrant(ctx context.Context, grant contract.LaunchCommand, hostS
 		return nil, err
 	}
 	if action := payload.CandidateAction; action != nil {
+		if action.Version == 2 && action.DependencyInputVersion == 2 && action.Operation == "compose" {
+			if grant.Input != nil || action.SourceTask != "" || len(action.OrderedSourceTasks) < 2 || payload.Kind != "candidate" || payload.Provider != "" || payload.Profile != nil || payload.ProviderLock != nil || payload.CandidateWorkspace != nil || payload.BinaryPath != "" || len(payload.Args) != 0 || len(payload.ExtraArgs) != 0 || !filepath.IsAbs(payload.Directory) {
+				return nil, codeError("candidate_action_invalid")
+			}
+			return localInvocation{args: []string{"/usr/bin/true"}, dir: payload.Directory, action: action}, nil
+		}
 		if action.Version != 1 || grant.Input == nil || action.SourceTask != grant.Input.Event.TaskID || payload.CandidateWorkspace != nil || grant.SessionID != "" || payload.SessionID != "" || !filepath.IsAbs(payload.Directory) {
 			return nil, codeError("candidate_action_invalid")
 		}

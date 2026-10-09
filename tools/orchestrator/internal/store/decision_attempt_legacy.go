@@ -35,6 +35,9 @@ func relevantAttemptDecisions(ctx context.Context, tx *sql.Tx, task string) ([]a
 		if payload.CandidateAction == nil {
 			break
 		}
+		if isV2Compose(json.RawMessage(root.payload)) {
+			break
+		}
 		root, err = readDecisionTask(ctx, tx, payload.CandidateAction.SourceTask)
 		if err != nil {
 			return nil, errLegacyDecisionAmbiguous

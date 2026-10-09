@@ -1,0 +1,6 @@
+$ docker image inspect sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99 --format {{json .Config}}
+{"ExposedPorts":{"6379/tcp":{}},"Env":["PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin","REDIS_VERSION=7.4.9"],"Entrypoint":["docker-entrypoint.sh"],"Cmd":["redis-server"],"Volumes":{"/data":{}},"WorkingDir":"/data"}
+$ docker run --rm --pull=never ... /bin/sh -c git-capability-and-private-tmp-probe
+usrbin-git=no
+path-git=no
+private-tmp=yes

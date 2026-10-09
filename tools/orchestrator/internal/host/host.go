@@ -467,7 +467,11 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 			}
 			return contract.Result{Status: "failed", ExitCode: -1, EventCount: eventCount}, prepareErr
 		}
-		prepared.Stdout = cmd.Stdout
+		// Provider protocols keep priority; a local action can supply its own
+		// bounded stdout sink (compose must exclude stderr from its envelope).
+		if cmd.Stdout != nil {
+			prepared.Stdout = cmd.Stdout
+		}
 		cmd, meta.freezeCandidate = prepared, freeze
 		if ctx.Err() != nil || h.stopWasRequested(a.SegmentID) {
 			return finalizePrelaunchRejected(context.Canceled)

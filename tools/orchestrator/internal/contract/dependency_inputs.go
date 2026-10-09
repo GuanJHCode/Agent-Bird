@@ -81,9 +81,11 @@ func ValidateDependencyInputs(c LaunchCommand) error {
 	}
 	var payload struct {
 		Action *struct {
-			Version      int    `json:"version"`
-			InputVersion int    `json:"dependency_input_version"`
-			Source       string `json:"source_task"`
+			Version      int      `json:"version"`
+			InputVersion int      `json:"dependency_input_version"`
+			Operation    string   `json:"operation"`
+			Source       string   `json:"source_task"`
+			Ordered      []string `json:"ordered_source_tasks"`
 		} `json:"candidate_action"`
 	}
 	invalid := errors.New("candidate_dependency_inputs_invalid")
@@ -98,12 +100,34 @@ func ValidateDependencyInputs(c LaunchCommand) error {
 	}
 	a := payload.Action
 	v := c.DependencyInputs
-	if a.Version != 1 || a.InputVersion != 1 || v == nil || v.Version != 1 || len(v.Inputs) < 1 || len(v.Inputs) > 63 || c.Input == nil || c.PlanRevision < 1 {
-		return invalid
-	}
 	digest := func(s string) bool {
 		b, e := hex.DecodeString(s)
 		return e == nil && len(b) == 32 && hex.EncodeToString(b) == s
+	}
+	if a.Version == 2 && a.InputVersion == 2 {
+		if a.Operation != "compose" || v == nil || v.Version != 2 || len(v.Inputs) < 2 || len(v.Inputs) > 63 || len(a.Ordered) != len(v.Inputs) || a.Source != "" || c.Input != nil || c.PlanRevision < 1 {
+			return invalid
+		}
+		seen := make(map[string]bool, len(a.Ordered))
+		for i, input := range v.Inputs {
+			e, r := input.Event, input.Event.Artifact
+			if a.Ordered[i] == "" || seen[a.Ordered[i]] || e.Version != 1 || e.RunID != c.RunID || e.TaskID != a.Ordered[i] || e.TaskID == c.TaskID || e.AttemptID == "" || e.SegmentID == "" || e.WorkRevision < 1 || e.ProducerID == "" || e.EventID == "" || e.EventRevision < 1 || e.ActionSlot == "" || e.CommandID == "" || e.Sequence < 1 || e.Kind != EventResult || !digest(e.PayloadHash) || input.DecisionCommandID == "" || r == nil || !filepath.IsAbs(r.Path) || r.Size < 1 || r.Size > 1024*1024 || !digest(r.SHA256) || r.SHA256 != e.PayloadHash {
+				return invalid
+			}
+			seen[a.Ordered[i]] = true
+			var sourcePayload map[string]json.RawMessage
+			if json.Unmarshal(input.AdapterPayload, &sourcePayload) != nil || sourcePayload == nil {
+				return invalid
+			}
+		}
+		hash, err := CandidateIntentHash(c)
+		if err != nil || hash != c.LaunchIntentHash {
+			return errors.New("candidate_input_changed")
+		}
+		return nil
+	}
+	if a.Version != 1 || a.InputVersion != 1 || v == nil || v.Version != 1 || len(v.Inputs) < 1 || len(v.Inputs) > 63 || c.Input == nil || c.PlanRevision < 1 {
+		return invalid
 	}
 	found := false
 	for i, input := range v.Inputs {

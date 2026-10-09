@@ -103,6 +103,66 @@ func bindDependencyInputs(ctx context.Context, tx *sql.Tx, c *contract.LaunchCom
 	return nil
 }
 
+// bindOrderedDependencyInputs is the v2 compose-only capture path. Its order is
+// declared by the owner and therefore must never be canonicalized by task ID.
+func bindOrderedDependencyInputs(ctx context.Context, tx *sql.Tx, c *contract.LaunchCommand, deps, ordered []string, replay bool, retry *reviewRetryDecision) error {
+	if len(deps) < 2 || len(deps) > 63 || len(ordered) != len(deps) {
+		return ErrConflict
+	}
+	available := make(map[string]bool, len(deps))
+	for _, dep := range deps {
+		if dep == "" || available[dep] {
+			return ErrConflict
+		}
+		available[dep] = true
+	}
+	for _, dep := range ordered {
+		if dep == "" || !available[dep] {
+			return ErrConflict
+		}
+		delete(available, dep)
+	}
+	if len(available) != 0 {
+		return ErrConflict
+	}
+	var vector *contract.DependencyInputVector
+	if replay {
+		var err error
+		vector, err = loadDependencyInputs(ctx, tx, c.SegmentID)
+		if err != nil {
+			return err
+		}
+	} else {
+		vector = &contract.DependencyInputVector{Version: 2, Inputs: make([]contract.AcceptedInput, 0, len(ordered))}
+	}
+	if vector == nil || vector.Version != 2 || (replay && len(vector.Inputs) != len(ordered)) {
+		return ErrConflict
+	}
+	for i, task := range ordered {
+		current, err := acceptedCandidateInput(ctx, tx, c.RunID, task)
+		if err != nil {
+			return err
+		}
+		if !replay {
+			vector.Inputs = append(vector.Inputs, current)
+			continue
+		}
+		old, err := json.Marshal(vector.Inputs[i])
+		if err != nil {
+			return err
+		}
+		fresh, err := json.Marshal(current)
+		if err != nil || vector.Inputs[i].Event.TaskID != task || string(old) != string(fresh) {
+			return CodeError("candidate_dependency_input_changed")
+		}
+	}
+	c.DependencyInputs = vector
+	if retry != nil && retry.DependencyInputsSHA256 != dependencyVectorHash(vector) {
+		return CodeError("candidate_review_retry_changed")
+	}
+	return nil
+}
+
 // The complete added footprint is admitted once, inside the original claim
 // transaction, after all bindings and the 64 KiB wire-size check succeed.
 func (d *DB) persistCandidateGrant(ctx context.Context, tx *sql.Tx, c *contract.LaunchCommand) error {

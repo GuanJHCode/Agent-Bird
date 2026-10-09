@@ -1,0 +1,225 @@
+[
+    {
+        "Id": "0860c9cba920a6ca297ff96dbd7b61e9082460fe95f78967bae705482b2f70e9",
+        "Created": "2026-10-09T03:10:51.316108169Z",
+        "Path": "/bin/sh",
+        "Args": [
+            "-c",
+            "if test -x /usr/bin/git; then echo usrbin-git=yes; else echo usrbin-git=no; fi; if command -v git; then git --version; else echo path-git=no; fi; if test -d /private/tmp; then echo private-tmp=yes; else echo private-tmp=no; fi"
+        ],
+        "State": {
+            "Status": "exited",
+            "Running": false,
+            "Paused": false,
+            "Restarting": false,
+            "OOMKilled": false,
+            "Dead": false,
+            "Pid": 0,
+            "ExitCode": 0,
+            "Error": "",
+            "StartedAt": "2026-10-09T03:10:51.397804544Z",
+            "FinishedAt": "2026-10-09T03:10:51.488267377Z"
+        },
+        "Image": "sha256:06e4a2020436c7159246a18960e51cb799681ab176d88fbb57c1a3849dda4f9f",
+        "ResolvConfPath": "/var/lib/docker/containers/0860c9cba920a6ca297ff96dbd7b61e9082460fe95f78967bae705482b2f70e9/resolv.conf",
+        "HostnamePath": "/var/lib/docker/containers/0860c9cba920a6ca297ff96dbd7b61e9082460fe95f78967bae705482b2f70e9/hostname",
+        "HostsPath": "/var/lib/docker/containers/0860c9cba920a6ca297ff96dbd7b61e9082460fe95f78967bae705482b2f70e9/hosts",
+        "LogPath": "/var/lib/docker/containers/0860c9cba920a6ca297ff96dbd7b61e9082460fe95f78967bae705482b2f70e9/0860c9cba920a6ca297ff96dbd7b61e9082460fe95f78967bae705482b2f70e9-json.log",
+        "Name": "/root-ordered-compose-image-preflight-freqtrade",
+        "RestartCount": 0,
+        "Driver": "overlayfs",
+        "Platform": "linux",
+        "MountLabel": "",
+        "ProcessLabel": "",
+        "AppArmorProfile": "",
+        "ExecIDs": null,
+        "HostConfig": {
+            "Binds": null,
+            "ContainerIDFile": "",
+            "LogConfig": {
+                "Type": "json-file",
+                "Config": {}
+            },
+            "NetworkMode": "none",
+            "PortBindings": {},
+            "RestartPolicy": {
+                "Name": "no",
+                "MaximumRetryCount": 0
+            },
+            "AutoRemove": false,
+            "VolumeDriver": "",
+            "VolumesFrom": null,
+            "ConsoleSize": [
+                0,
+                0
+            ],
+            "CapAdd": null,
+            "CapDrop": [
+                "ALL"
+            ],
+            "CgroupnsMode": "private",
+            "Dns": [],
+            "DnsOptions": [],
+            "DnsSearch": [],
+            "ExtraHosts": null,
+            "GroupAdd": null,
+            "IpcMode": "private",
+            "Cgroup": "",
+            "Links": null,
+            "OomScoreAdj": 0,
+            "PidMode": "",
+            "Privileged": false,
+            "PublishAllPorts": false,
+            "ReadonlyRootfs": true,
+            "SecurityOpt": [
+                "no-new-privileges"
+            ],
+            "Tmpfs": {
+                "/private/tmp": "rw,exec,nosuid,nodev,size=384m,mode=1777",
+                "/tmp": "rw,noexec,nosuid,nodev,size=128m,mode=1777"
+            },
+            "UTSMode": "",
+            "UsernsMode": "",
+            "ShmSize": 67108864,
+            "Runtime": "runc",
+            "Isolation": "",
+            "CpuShares": 0,
+            "Memory": 805306368,
+            "NanoCpus": 2000000000,
+            "CgroupParent": "",
+            "BlkioWeight": 0,
+            "BlkioWeightDevice": [],
+            "BlkioDeviceReadBps": [],
+            "BlkioDeviceWriteBps": [],
+            "BlkioDeviceReadIOps": [],
+            "BlkioDeviceWriteIOps": [],
+            "CpuPeriod": 0,
+            "CpuQuota": 0,
+            "CpuRealtimePeriod": 0,
+            "CpuRealtimeRuntime": 0,
+            "CpusetCpus": "",
+            "CpusetMems": "",
+            "Devices": [],
+            "DeviceCgroupRules": null,
+            "DeviceRequests": null,
+            "MemoryReservation": 0,
+            "MemorySwap": 1610612736,
+            "MemorySwappiness": null,
+            "OomKillDisable": null,
+            "PidsLimit": 96,
+            "Ulimits": [],
+            "CpuCount": 0,
+            "CpuPercent": 0,
+            "IOMaximumIOps": 0,
+            "IOMaximumBandwidth": 0,
+            "MaskedPaths": [
+                "/proc/asound",
+                "/proc/acpi",
+                "/proc/interrupts",
+                "/proc/kcore",
+                "/proc/keys",
+                "/proc/latency_stats",
+                "/proc/timer_list",
+                "/proc/timer_stats",
+                "/proc/sched_debug",
+                "/proc/scsi",
+                "/sys/firmware",
+                "/sys/devices/virtual/powercap"
+            ],
+            "ReadonlyPaths": [
+                "/proc/bus",
+                "/proc/fs",
+                "/proc/irq",
+                "/proc/sys",
+                "/proc/sysrq-trigger"
+            ],
+            "Init": true
+        },
+        "GraphDriver": {
+            "Data": null,
+            "Name": "overlayfs"
+        },
+        "Mounts": [],
+        "Config": {
+            "Hostname": "0860c9cba920",
+            "Domainname": "",
+            "User": "65534:65534",
+            "AttachStdin": false,
+            "AttachStdout": true,
+            "AttachStderr": true,
+            "Tty": false,
+            "OpenStdin": false,
+            "StdinOnce": false,
+            "Env": [
+                "TMPDIR=/private/tmp",
+                "PATH=/home/ftuser/.local/bin:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "PYTHON_VERSION=3.14.5",
+                "PYTHON_SHA256=7e32597b99e5d9a39abed35de4693fa169df3e5850d4c334337ffd6a19a36db6",
+                "LANG=C.UTF-8",
+                "LC_ALL=C.UTF-8",
+                "PYTHONDONTWRITEBYTECODE=1",
+                "PYTHONFAULTHANDLER=1",
+                "FT_APP_ENV=docker"
+            ],
+            "Cmd": [
+                "-c",
+                "if test -x /usr/bin/git; then echo usrbin-git=yes; else echo usrbin-git=no; fi; if command -v git; then git --version; else echo path-git=no; fi; if test -d /private/tmp; then echo private-tmp=yes; else echo private-tmp=no; fi"
+            ],
+            "Image": "sha256:06e4a2020436c7159246a18960e51cb799681ab176d88fbb57c1a3849dda4f9f",
+            "Volumes": null,
+            "WorkingDir": "/freqtrade",
+            "Entrypoint": [
+                "/bin/sh"
+            ],
+            "OnBuild": null,
+            "Labels": {}
+        },
+        "NetworkSettings": {
+            "Bridge": "",
+            "SandboxID": "",
+            "SandboxKey": "",
+            "Ports": {},
+            "HairpinMode": false,
+            "LinkLocalIPv6Address": "",
+            "LinkLocalIPv6PrefixLen": 0,
+            "SecondaryIPAddresses": null,
+            "SecondaryIPv6Addresses": null,
+            "EndpointID": "",
+            "Gateway": "",
+            "GlobalIPv6Address": "",
+            "GlobalIPv6PrefixLen": 0,
+            "IPAddress": "",
+            "IPPrefixLen": 0,
+            "IPv6Gateway": "",
+            "MacAddress": "",
+            "Networks": {
+                "none": {
+                    "IPAMConfig": null,
+                    "Links": null,
+                    "Aliases": null,
+                    "MacAddress": "",
+                    "DriverOpts": null,
+                    "GwPriority": 0,
+                    "NetworkID": "c83ddac13189af45425d544b568cf44ba98d11a6d918bafdb88c1b792ce1a990",
+                    "EndpointID": "",
+                    "Gateway": "",
+                    "IPAddress": "",
+                    "IPPrefixLen": 0,
+                    "IPv6Gateway": "",
+                    "GlobalIPv6Address": "",
+                    "GlobalIPv6PrefixLen": 0,
+                    "DNSNames": null
+                }
+            }
+        },
+        "ImageManifestDescriptor": {
+            "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+            "digest": "sha256:2440a34a310efc51510a813efc8fceb8a2d7fbe13e1aa539c4cccb4d1a8665d7",
+            "size": 2632,
+            "platform": {
+                "architecture": "arm64",
+                "os": "linux"
+            }
+        }
+    }
+]

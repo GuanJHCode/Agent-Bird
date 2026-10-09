@@ -157,3 +157,20 @@ func TestCandidatePlanRejectsUnversionedJoinBeforeReservingHost(t *testing.T) {
 		t.Fatalf("partial plan rows=%d err=%v", count, err)
 	}
 }
+
+func TestCandidatePlanAcceptsV2ComposeWithDeclaredOrder(t *testing.T) {
+	ctx := context.Background()
+	db, err := Open(filepath.Join(t.TempDir(), "state.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	producer := func(id string) TaskSpec {
+		return TaskSpec{ID: id, RunID: "run", MaxAttempts: 1, AdapterPayload: json.RawMessage(`{"provider":"claude-code","profile":{"version":1,"role":"implementer","permission":"workspace-write"},"candidate_workspace":{"version":1}}`)}
+	}
+	compose := TaskSpec{ID: "compose", RunID: "run", Dependencies: []string{"a", "z"}, MaxAttempts: 1, AdapterPayload: json.RawMessage(`{"kind":"candidate","candidate_action":{"version":2,"dependency_input_version":2,"operation":"compose","ordered_source_tasks":["z","a"]}}`)}
+	_, err = db.SubmitPlan(ctx, PlanSpec{Run: RunSpec{ID: "run", ControllerThread: "owner", PlanRevision: 1, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth"}, Host: HostLaunchSpec{OriginContextID: "origin", HostGeneration: "gen", Executable: "/private/bin/orchestrator"}, Tasks: []TaskSpec{producer("a"), producer("z"), compose}})
+	if err != nil {
+		t.Fatalf("v2 compose rejected: %v", err)
+	}
+}

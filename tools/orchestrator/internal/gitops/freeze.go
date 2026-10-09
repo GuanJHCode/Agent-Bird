@@ -111,7 +111,7 @@ func FreezeWorkspace(ctx context.Context, prepared PreparedWorkspace, journal Ca
 	if journal == nil || r.AttemptID == "" || r.AttemptID != prepared.Binding.AttemptID || r.PlanRevision != int64(prepared.Binding.PlanRevision) {
 		return CandidateReceipt{}, fail(CodeInvalidInput, "freeze", fmt.Errorf("unbound prepared workspace"))
 	}
-	lock, err := acquireIntegrationLock(r.CommonDir)
+	lock, err := acquireCandidateLock(ctx, r.CommonDir)
 	if err != nil {
 		return CandidateReceipt{}, err
 	}
@@ -126,6 +126,12 @@ func FreezeWorkspace(ctx context.Context, prepared PreparedWorkspace, journal Ca
 	}
 	if common != r.CommonDir {
 		return CandidateReceipt{}, fail(CodeIdentityChanged, "freeze", fmt.Errorf("repository changed"))
+	}
+	if identity, e := directoryIdentity(r.RepoRoot); e != nil || !sameDirectoryIdentity(identity, prepared.RepoRootIdentity) {
+		return CandidateReceipt{}, fail(CodeIdentityChanged, "freeze", e)
+	}
+	if identity, e := directoryIdentity(common); e != nil || !sameDirectoryIdentity(identity, prepared.CommonDirIdentity) {
+		return CandidateReceipt{}, fail(CodeIdentityChanged, "freeze", e)
 	}
 	head, err := rev(ctx, r.Worktree, "HEAD")
 	if err != nil {
@@ -215,7 +221,7 @@ func FreezeWorkspace(ctx context.Context, prepared PreparedWorkspace, journal Ca
 	if err = PrivateRef(ctx, r.RepoRoot, prepared.PrivateRef, "", candidate); err != nil {
 		return CandidateReceipt{}, err
 	}
-	receipt := CandidateReceipt{AttemptID: r.AttemptID, RepoRoot: r.RepoRoot, Worktree: r.Worktree, CommonDir: r.CommonDir, BaseOID: r.CommitOID, CandidateOID: candidate, TreeOID: tree, OrderedInputOIDs: []string{r.CommitOID}, RootIdentity: r.RootIdentity, WorktreeIdentity: r.WorktreeIdentity, Files: postFiles, PlanRevision: r.PlanRevision, PrivateRef: prepared.PrivateRef, PrivateRefExpectedOID: candidate, Binding: &prepared.Binding, Changes: changes}
+	receipt := CandidateReceipt{AttemptID: r.AttemptID, RepoRoot: r.RepoRoot, Worktree: r.Worktree, CommonDir: r.CommonDir, BaseOID: r.CommitOID, CandidateOID: candidate, TreeOID: tree, OrderedInputOIDs: []string{r.CommitOID}, RootIdentity: r.RootIdentity, WorktreeIdentity: r.WorktreeIdentity, RepoRootIdentity: prepared.RepoRootIdentity, CommonDirIdentity: prepared.CommonDirIdentity, Files: postFiles, PlanRevision: r.PlanRevision, PrivateRef: prepared.PrivateRef, PrivateRefExpectedOID: candidate, Binding: &prepared.Binding, Changes: changes}
 	if err = journal.RecordCandidateFreeze(ctx, receipt); err != nil {
 		return CandidateReceipt{}, err
 	}
@@ -352,7 +358,7 @@ func CandidateArtifact(providerResult string, receipt CandidateReceipt) ([]byte,
 // contain paths outside prepared.Paths; all variable-length identities are known.
 func CheckCandidateArtifactBudget(prepared PreparedWorkspace, providerResult string) error {
 	r := prepared.Receipt
-	bound := CandidateReceipt{Binding: &prepared.Binding, AttemptID: r.AttemptID, RepoRoot: r.RepoRoot, Worktree: r.Worktree, CommonDir: r.CommonDir, BaseOID: r.CommitOID, CandidateOID: strings.Repeat("f", 64), TreeOID: strings.Repeat("f", 64), OrderedInputOIDs: []string{r.CommitOID}, RootIdentity: r.RootIdentity, WorktreeIdentity: r.WorktreeIdentity, PlanRevision: r.PlanRevision, PrivateRef: prepared.PrivateRef, PrivateRefExpectedOID: strings.Repeat("f", 64)}
+	bound := CandidateReceipt{Binding: &prepared.Binding, AttemptID: r.AttemptID, RepoRoot: r.RepoRoot, Worktree: r.Worktree, CommonDir: r.CommonDir, BaseOID: r.CommitOID, CandidateOID: strings.Repeat("f", 64), TreeOID: strings.Repeat("f", 64), OrderedInputOIDs: []string{r.CommitOID}, RootIdentity: r.RootIdentity, WorktreeIdentity: r.WorktreeIdentity, RepoRootIdentity: prepared.RepoRootIdentity, CommonDirIdentity: prepared.CommonDirIdentity, PlanRevision: r.PlanRevision, PrivateRef: prepared.PrivateRef, PrivateRefExpectedOID: strings.Repeat("f", 64)}
 	for _, path := range prepared.Paths {
 		bound.Changes = append(bound.Changes, CandidateChange{Path: path, Mode: "100755", BlobOID: strings.Repeat("f", 64), Deleted: true})
 	}
