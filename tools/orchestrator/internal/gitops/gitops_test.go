@@ -318,6 +318,33 @@ func TestComposeCandidateMergesIndependentBranchesIntoFrozenCommit(t *testing.T)
 	}
 }
 
+func TestComposeCandidateClassifiesRealMergeConflictAndRetainsWorktree(t *testing.T) {
+	d, base := repo(t)
+	g := func(args ...string) string { return git(t, d, args...) }
+	g("switch", "-c", "conflict-a")
+	if err := os.WriteFile(filepath.Join(d, "README"), []byte("a\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	g("add", "README")
+	g("commit", "-qm", "a")
+	a := g("rev-parse", "HEAD")
+	g("switch", "-c", "conflict-b", base)
+	if err := os.WriteFile(filepath.Join(d, "README"), []byte("b\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	g("add", "README")
+	g("commit", "-qm", "b")
+	b := g("rev-parse", "HEAD")
+	work := filepath.Join(t.TempDir(), "conflicted-compose")
+	_, err := ComposeCandidate(context.Background(), CandidateCompositionRequest{RepoRoot: d, Worktree: work, AttemptID: "conflict", BaseOID: base, OrderedInputOIDs: []string{a, b}, PlanRevision: 1, PrivateRef: "refs/orchestrator/g3/conflict"}, &memoryJournal{})
+	if err == nil || !IsCode(err, CodeComposeConflict) {
+		t.Fatalf("got %v", err)
+	}
+	if _, statErr := os.Stat(work); statErr != nil {
+		t.Fatalf("conflict worktree removed: %v", statErr)
+	}
+}
+
 func TestPrivateRefRequiresManagedNamespaceAndCompareAndSwap(t *testing.T) {
 	d, base := repo(t)
 	candidateOID, _ := candidate(t, d)
@@ -360,6 +387,11 @@ func TestValidateCandidatePrivateRefRequiresExactPinnedOID(t *testing.T) {
 	receipt := CandidateReceipt{RepoRoot: root, CommonDir: common, Worktree: root, WorktreeIdentity: root, BaseOID: oid, CandidateOID: oid, TreeOID: git(t, d, "rev-parse", "HEAD^{tree}"), RootIdentity: rootIdentity, RepoRootIdentity: rootIdentity, CommonDirIdentity: commonIdentity, PrivateRef: ref, PrivateRefExpectedOID: oid}
 	if err := ValidateCandidatePrivateRef(context.Background(), receipt); err != nil {
 		t.Fatalf("pinned ref rejected: %v", err)
+	}
+	replaced := receipt
+	replaced.CommonDirIdentity.Inode++
+	if err := ValidateCandidatePrivateRef(context.Background(), replaced); err == nil || !IsCode(err, CodeIdentityChanged) {
+		t.Fatalf("replaced common directory identity accepted: %v", err)
 	}
 	receipt.PrivateRefExpectedOID = strings.Repeat("f", 40)
 	if err := ValidateCandidatePrivateRef(context.Background(), receipt); err == nil {
