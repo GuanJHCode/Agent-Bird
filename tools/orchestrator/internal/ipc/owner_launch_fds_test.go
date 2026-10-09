@@ -1,6 +1,7 @@
 package ipc
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
@@ -136,5 +137,77 @@ func TestOwnerLaunchDescriptorHandoff(t *testing.T) {
 				t.Fatal("closed handoff can be launched again")
 			}
 		})
+	}
+}
+
+// A framed OwnerLaunch request precedes the SCM_RIGHTS marker on the same
+// stream in production.  This exercises that exact ordering using the normal
+// io.Reader frame path before recvmsg consumes the marker and rights.
+func TestOwnerLaunchDescriptorHandoffAfterFramedRequest(t *testing.T) {
+	for attempt := 0; attempt < 256; attempt++ {
+		transport, endpoint, err := NewOwnerControlPair()
+		if err != nil {
+			t.Fatal(err)
+		}
+		peer, err := TakeOwnerControlFD(ownerInheritedDup(t, endpoint))
+		endpoint.Close()
+		if err != nil {
+			transport.Close()
+			t.Fatal(err)
+		}
+		r, w, err := os.Pipe()
+		if err != nil {
+			transport.Close()
+			peer.Close()
+			t.Fatal(err)
+		}
+		control, child, err := NewOwnerControlPair()
+		if err != nil {
+			transport.Close()
+			peer.Close()
+			r.Close()
+			w.Close()
+			t.Fatal(err)
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		frame := Envelope{Version: Version, Kind: KindOwnerLaunch, RequestID: "owner:launch", Epoch: 7, Payload: []byte(`{"owner_id":"owner","attempt_sha256":"digest"}`)}
+		if err = Write(transport, frame); err == nil {
+			err = SendOwnerLaunchFDs(ctx, transport, r, child)
+		}
+		if err != nil {
+			cancel()
+			transport.Close()
+			peer.Close()
+			r.Close()
+			w.Close()
+			control.Close()
+			child.Close()
+			t.Fatal(err)
+		}
+		got, err := Read(peer)
+		if err != nil || got.Version != frame.Version || got.Kind != frame.Kind || got.RequestID != frame.RequestID || got.Epoch != frame.Epoch || !bytes.Equal(got.Payload, frame.Payload) {
+			cancel()
+			transport.Close()
+			peer.Close()
+			r.Close()
+			w.Close()
+			control.Close()
+			child.Close()
+			t.Fatalf("attempt %d frame=%+v err=%v", attempt, got, err)
+		}
+		handoff, err := ReceiveOwnerLaunchFDs(ctx, peer)
+		cancel()
+		transport.Close()
+		peer.Close()
+		r.Close()
+		w.Close()
+		control.Close()
+		child.Close()
+		if err != nil {
+			t.Fatalf("attempt %d descriptor handoff: %v", attempt, err)
+		}
+		if err = handoff.Close(); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
