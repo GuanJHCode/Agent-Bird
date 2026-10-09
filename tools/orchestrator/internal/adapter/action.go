@@ -8,6 +8,7 @@ type CandidateAction struct {
 	DependencyInputVersion int             `json:"dependency_input_version,omitempty"`
 	Operation              string          `json:"operation"`
 	SourceTask             string          `json:"source_task"`
+	OrderedSourceTasks     []string        `json:"ordered_source_tasks,omitempty"`
 	Command                []string        `json:"command,omitempty"`
 	Target                 CandidateTarget `json:"target"`
 	ReviewIndex            *ReviewIndex    `json:"review_index,omitempty"`
@@ -34,6 +35,7 @@ func (i Invocation) CandidateAction() *CandidateAction {
 	}
 	copy := *i.action
 	copy.Command = append([]string(nil), i.action.Command...)
+	copy.OrderedSourceTasks = append([]string(nil), i.action.OrderedSourceTasks...)
 	if i.action.ReviewIndex != nil {
 		index := *i.action.ReviewIndex
 		copy.ReviewIndex = &index

@@ -66,10 +66,11 @@ func bindCandidateInputContent(ctx context.Context, tx *sql.Tx, command *contrac
 			Rework json.RawMessage `json:"rework"`
 		} `json:"candidate_workspace"`
 		Action *struct {
-			Version                int    `json:"version"`
-			DependencyInputVersion int    `json:"dependency_input_version,omitempty"`
-			Operation              string `json:"operation"`
-			SourceTask             string `json:"source_task"`
+			Version                int      `json:"version"`
+			DependencyInputVersion int      `json:"dependency_input_version,omitempty"`
+			Operation              string   `json:"operation"`
+			SourceTask             string   `json:"source_task"`
+			OrderedSourceTasks     []string `json:"ordered_source_tasks"`
 		} `json:"candidate_action"`
 	}
 	if json.Unmarshal(command.AdapterPayload, &payload) != nil {
@@ -82,16 +83,22 @@ func bindCandidateInputContent(ctx context.Context, tx *sql.Tx, command *contrac
 		return nil
 	}
 	action := payload.Action
-	if action.Version != 1 || action.SourceTask == "" || (action.Operation != "validate" && action.Operation != "review" && action.Operation != "integrate") {
-		return CodeError("invalid_candidate_action")
-	}
 	var depsJSON string
 	if err := tx.QueryRowContext(ctx, `SELECT dependencies_json FROM tasks WHERE id=? AND run_id=?`, command.TaskID, command.RunID).Scan(&depsJSON); err != nil {
 		return err
 	}
 	var deps []string
-	if json.Unmarshal([]byte(depsJSON), &deps) != nil || !slices.Contains(deps, action.SourceTask) {
+	if json.Unmarshal([]byte(depsJSON), &deps) != nil {
 		return CodeError("candidate_input_not_dependency")
+	}
+	if action.Version == 2 && action.DependencyInputVersion == 2 && action.Operation == "compose" && action.SourceTask == "" {
+		if err := bindOrderedDependencyInputs(ctx, tx, command, deps, action.OrderedSourceTasks, replay, retry); err != nil {
+			return err
+		}
+		return bindCandidateIntent(ctx, tx, command, replay)
+	}
+	if action.Version != 1 || action.SourceTask == "" || (action.Operation != "validate" && action.Operation != "review" && action.Operation != "integrate") || !slices.Contains(deps, action.SourceTask) {
+		return CodeError("invalid_candidate_action")
 	}
 	input, err := acceptedCandidateInput(ctx, tx, command.RunID, action.SourceTask)
 	if err != nil {
@@ -159,10 +166,11 @@ func validateCandidatePlan(tasks map[string]TaskSpec) error {
 		Directory string          `json:"directory"`
 		Workspace json.RawMessage `json:"candidate_workspace"`
 		Action    *struct {
-			Version                int    `json:"version"`
-			DependencyInputVersion int    `json:"dependency_input_version,omitempty"`
-			Operation              string `json:"operation"`
-			SourceTask             string `json:"source_task"`
+			Version                int      `json:"version"`
+			DependencyInputVersion int      `json:"dependency_input_version,omitempty"`
+			Operation              string   `json:"operation"`
+			SourceTask             string   `json:"source_task"`
+			OrderedSourceTasks     []string `json:"ordered_source_tasks"`
 			Target                 struct {
 				Worktree string `json:"worktree"`
 			} `json:"target"`
@@ -194,6 +202,28 @@ func validateCandidatePlan(tasks map[string]TaskSpec) error {
 		a := p.Action
 		if a.Target.Worktree != "" && managedWorkspaces[filepath.Clean(a.Target.Worktree)] {
 			return CodeError("candidate_target_is_managed_workspace")
+		}
+		if a.Version == 2 && a.DependencyInputVersion == 2 && a.Operation == "compose" {
+			if a.SourceTask != "" || p.Kind != "candidate" || len(task.Dependencies) < 2 || len(task.Dependencies) > 63 || len(a.OrderedSourceTasks) != len(task.Dependencies) || len(task.FallbackPayloads) > 0 {
+				return CodeError("candidate_dependency_inputs_invalid")
+			}
+			seen := make(map[string]bool, len(task.Dependencies))
+			for _, dependency := range task.Dependencies {
+				if dependency == "" || seen[dependency] || tasks[dependency].CompletionPolicy != "" && tasks[dependency].CompletionPolicy != "owner_review" || len(tasks[dependency].FallbackPayloads) > 0 {
+					return CodeError("candidate_dependency_input_unsupported")
+				}
+				seen[dependency] = true
+			}
+			for _, source := range a.OrderedSourceTasks {
+				if source == "" || !seen[source] {
+					return CodeError("candidate_dependency_inputs_invalid")
+				}
+				delete(seen, source)
+			}
+			if len(seen) != 0 {
+				return CodeError("candidate_dependency_inputs_invalid")
+			}
+			continue
 		}
 		source, ok := tasks[a.SourceTask]
 		if a.Version != 1 || a.DependencyInputVersion < 0 || a.DependencyInputVersion > 1 || len(task.Dependencies) > 1 && a.DependencyInputVersion != 1 || !ok || !slices.Contains(task.Dependencies, a.SourceTask) || task.CompletionPolicy != "" && task.CompletionPolicy != "owner_review" || source.CompletionPolicy != "" && source.CompletionPolicy != "owner_review" || len(task.FallbackPayloads) > 0 || len(source.FallbackPayloads) > 0 {
