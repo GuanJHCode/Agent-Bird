@@ -299,6 +299,15 @@ func submitWithPreparedControl(ctx context.Context, args []string, stdout io.Wri
 	if err = readPrivateJSON(*requestPath, &request); err != nil {
 		return err
 	}
+	if request.OwnerLaunchProtocol != 0 && request.OwnerLaunchProtocol != 2 {
+		return codeError("invalid_args")
+	}
+	if request.OwnerLaunchProtocol == 2 {
+		*ownerLaunchProtocol = 2
+	}
+	if *ownerLaunchProtocol == 2 {
+		request.OwnerLaunchProtocol = 2
+	}
 	if err = preflightTasks(request.Tasks); err != nil {
 		return err
 	}
