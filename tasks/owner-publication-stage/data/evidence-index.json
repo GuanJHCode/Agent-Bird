@@ -1,0 +1,233 @@
+[
+  {
+    "label": "stage-api-green",
+    "exit": 0,
+    "named": {
+      "pass": 16,
+      "fail": 0,
+      "skip": 0
+    },
+    "top": {
+      "pass": 3,
+      "fail": 0,
+      "skip": 0
+    },
+    "stdout_sha256": "690d16eb13c03731110b574689d24d70e16f565ee4f7132e7c8d5785157e1e76",
+    "stderr_bytes": 0,
+    "command": {
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-json",
+        "-count=1",
+        "./internal/hostbootstrap",
+        "-run",
+        "^TestPublication(LegacyStageRefusal|FrozenBytesAndExactReplay|StageDriftAndPrefixRejection)$"
+      ],
+      "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/owner-publication-stage",
+      "head": "1215fd734836022673f5f2fd02693ca64ab980ec",
+      "dirty": " M tools/orchestrator/internal/hostbootstrap/lease.go\n?? tasks/owner-publication-stage/\n?? tools/orchestrator/internal/hostbootstrap/lease_windows.go\n?? tools/orchestrator/internal/hostbootstrap/publication.go\n?? tools/orchestrator/internal/hostbootstrap/publication_test.go\n",
+      "go_version": "go version go1.26.8 darwin/arm64"
+    }
+  },
+  {
+    "label": "stage-boundary-01",
+    "exit": 0,
+    "named": {
+      "pass": 9,
+      "fail": 0,
+      "skip": 0
+    },
+    "top": {
+      "pass": 1,
+      "fail": 0,
+      "skip": 0
+    },
+    "stdout_sha256": "e3e838f39fb95fbfe7a937c7554a6c802189263e366b1030e74846c8b2f41dc5",
+    "stderr_bytes": 0,
+    "command": {
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-json",
+        "-count=1",
+        "./internal/hostbootstrap",
+        "-run",
+        "^TestPublicationOwnershipBoundsAndOrdinaryFailure$"
+      ],
+      "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/owner-publication-stage",
+      "head": "d557c2a6e9ee94c84c5bbcc7ac63068c109a194a",
+      "dirty": " M tools/orchestrator/internal/hostbootstrap/lease.go\n M tools/orchestrator/internal/hostbootstrap/lease_windows.go\n M tools/orchestrator/internal/hostbootstrap/publication.go\n M tools/orchestrator/internal/hostbootstrap/publication_test.go\n?? tools/orchestrator/internal/hostbootstrap/publication_native_test.go\n",
+      "go_version": "go version go1.26.8 darwin/arm64"
+    }
+  },
+  {
+    "label": "stage-core-green",
+    "exit": 0,
+    "named": {
+      "pass": 4,
+      "fail": 0,
+      "skip": 0
+    },
+    "top": {
+      "pass": 1,
+      "fail": 0,
+      "skip": 0
+    },
+    "stdout_sha256": "162dc8beb950edd5c3789758e6687ac48712397a02aca2c535b986ddd2d825d3",
+    "stderr_bytes": 0,
+    "command": {
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-json",
+        "-count=1",
+        "./internal/hostbootstrap",
+        "-run",
+        "^TestPublicationLegacyStageRefusal$"
+      ],
+      "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/owner-publication-stage",
+      "head": "1215fd734836022673f5f2fd02693ca64ab980ec",
+      "dirty": " M tools/orchestrator/internal/hostbootstrap/lease.go\n?? tasks/owner-publication-stage/\n?? tools/orchestrator/internal/hostbootstrap/lease_windows.go\n?? tools/orchestrator/internal/hostbootstrap/publication.go\n?? tools/orchestrator/internal/hostbootstrap/publication_test.go\n",
+      "go_version": "go version go1.26.8 darwin/arm64"
+    }
+  },
+  {
+    "label": "stage-final-race",
+    "exit": 0,
+    "named": {
+      "pass": 31,
+      "fail": 0,
+      "skip": 0
+    },
+    "top": {
+      "pass": 6,
+      "fail": 0,
+      "skip": 0
+    },
+    "stdout_sha256": "4cc782bfc231bdffba218ca8815e48d9e4150db1a2f24ff6dcac03ba803a9346",
+    "stderr_bytes": 0,
+    "command": {
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-race",
+        "-json",
+        "-count=1",
+        "./internal/hostbootstrap",
+        "-run",
+        "^TestPublication(LegacyStageRefusal|FrozenBytesAndExactReplay|StageDriftAndPrefixRejection|OwnershipBoundsAndOrdinaryFailure|NativeSIGKILLExactStageReplay|NativeCleanupRetainsUnknown)$"
+      ],
+      "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/owner-publication-stage",
+      "head": "56845145c92fab64cce934885c1163698740dc5d",
+      "dirty": "",
+      "go_version": "go version go1.26.8 darwin/arm64"
+    }
+  },
+  {
+    "label": "stage-legacy-red",
+    "exit": 1,
+    "named": {
+      "pass": 0,
+      "fail": 4,
+      "skip": 0
+    },
+    "top": {
+      "pass": 0,
+      "fail": 1,
+      "skip": 0
+    },
+    "stdout_sha256": "c82c9f00839d69fae085839ad4f96ad8446ab1603864490e26d77bc11a12dc8b",
+    "stderr_bytes": 0,
+    "command": {
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-json",
+        "-count=1",
+        "./internal/hostbootstrap",
+        "-run",
+        "^TestPublicationLegacyStageRefusal$"
+      ],
+      "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/owner-publication-stage",
+      "head": "1215fd734836022673f5f2fd02693ca64ab980ec",
+      "dirty": "?? tasks/owner-publication-stage/\n?? tools/orchestrator/internal/hostbootstrap/publication_test.go\n",
+      "go_version": "go version go1.26.8 darwin/arm64"
+    }
+  },
+  {
+    "label": "stage-native-01",
+    "exit": 0,
+    "named": {
+      "pass": 10,
+      "fail": 0,
+      "skip": 0
+    },
+    "top": {
+      "pass": 3,
+      "fail": 0,
+      "skip": 0
+    },
+    "stdout_sha256": "e026368f79c86f0f6f0ad12f25378064574a801c0a91ee0795398ae6a9cb2333",
+    "stderr_bytes": 0,
+    "command": {
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-json",
+        "-count=1",
+        "./internal/hostbootstrap",
+        "-run",
+        "^TestPublication(NativeSIGKILLExactStageReplay|NativeCleanupRetainsUnknown|LegacyStageRefusal)$"
+      ],
+      "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/owner-publication-stage",
+      "head": "d557c2a6e9ee94c84c5bbcc7ac63068c109a194a",
+      "dirty": " M tools/orchestrator/internal/hostbootstrap/lease.go\n M tools/orchestrator/internal/hostbootstrap/lease_windows.go\n M tools/orchestrator/internal/hostbootstrap/publication_test.go\n?? tools/orchestrator/internal/hostbootstrap/publication_native_test.go\n",
+      "go_version": "go version go1.26.8 darwin/arm64"
+    }
+  },
+  {
+    "label": "stage-windows-leaf",
+    "exit": 0,
+    "named": {
+      "pass": 0,
+      "fail": 0,
+      "skip": 0
+    },
+    "top": {
+      "pass": 0,
+      "fail": 0,
+      "skip": 0
+    },
+    "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderr_bytes": 0,
+    "command": {
+      "command": [
+        "env",
+        "GOOS=windows",
+        "GOARCH=amd64",
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "build",
+        "./internal/hostbootstrap"
+      ],
+      "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/owner-publication-stage",
+      "head": "56845145c92fab64cce934885c1163698740dc5d",
+      "dirty": "",
+      "go_version": "go version go1.26.8 darwin/arm64"
+    }
+  }
+]

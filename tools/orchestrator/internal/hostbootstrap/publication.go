@@ -40,6 +40,15 @@ func (l *Lease) publicationName(expected []byte) string {
 	return ".publication-" + publicationHash([]byte(l.launchID)) + "-" + publicationHash(expected)
 }
 func (l *Lease) publicationBytes(expected []byte) ([]byte, error) {
+	if l == nil || len(l.paths) != 3 || len(l.dirs) != 3 || l.lock == nil {
+		return nil, Error("host_launch_lease_changed")
+	}
+	if err := l.validate(); err != nil {
+		return nil, err
+	}
+	if len(expected) < 1 || len(expected) > MaxBytes {
+		return nil, Error("invalid_host_bootstrap")
+	}
 	raw := append([]byte(nil), expected...)
 	var m MetadataV2
 	if len(raw) < 1 || len(raw) > MaxBytes || decodeMetadata(raw, &m) != nil || m.Version != 2 || m.OwnerLaunchProtocol != 0 && m.OwnerLaunchProtocol != 2 || m.ProducerID != l.launchID || m.Hello.LaunchID != l.launchID || m.SocketPath != l.paths[0]+"/coordinator.sock" || m.SpoolRoot != l.paths[0]+"/host-spool/"+l.launchID {
