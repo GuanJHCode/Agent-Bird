@@ -262,6 +262,9 @@ func (d *DB) ReviewResult(ctx context.Context, spec ReviewSpec) (string, error) 
 			}
 		}
 	}
+	if err = refreshNewBaseTargets(ctx, tx); err != nil {
+		return rollback(err)
+	}
 	if err = owned.commit(); err != nil {
 		return "", err
 	}

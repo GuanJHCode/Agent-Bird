@@ -42,6 +42,18 @@ func (h *Host) prepareCandidate(ctx context.Context, grant contract.LaunchComman
 		}
 		binding.RevisionSHA256 = r.Digest()
 	}
+	if n := spec.NewBaseRework; n != nil {
+		if spec.Rework != nil {
+			return nil, func() {}, nil, errors.New("candidate_new_base_binding_invalid")
+		}
+		if err := n.Validate(grant.RunID, grant.TaskID, spec.BaseOID); err != nil {
+			return nil, func() {}, nil, err
+		}
+		if err := gitops.ValidateNewBaseTarget(ctx, spec.RepoRoot, n.TargetWorktree, n.TargetRef, n.IntegratedHEAD, n.SourceCommonDir, gitops.DirectoryIdentity(n.TargetDirectoryIdentity)); err != nil {
+			return nil, func() {}, nil, err
+		}
+		binding.NewBaseSHA256 = n.Digest()
+	}
 	key := hashText(grant.RunID + "\x00" + grant.TaskID + "\x00" + grant.AttemptID + "\x00" + sourceGrant.SegmentID)
 	journal, err := gitopsworker.OpenJournal(filepath.Join(h.spoolRoot, ".gitops-journal", key))
 	if err != nil {
@@ -70,6 +82,11 @@ func (h *Host) prepareCandidate(ctx context.Context, grant contract.LaunchComman
 	}
 	prepared.Binding.SegmentID = grant.SegmentID
 	return func(ctx context.Context, providerResult string) ([]byte, error) {
+		if n := spec.NewBaseRework; n != nil {
+			if err := gitops.ValidateNewBaseTarget(ctx, spec.RepoRoot, n.TargetWorktree, n.TargetRef, n.IntegratedHEAD, n.SourceCommonDir, gitops.DirectoryIdentity(n.TargetDirectoryIdentity)); err != nil {
+				return nil, err
+			}
+		}
 		if len(providerResult) > 512*1024 {
 			return nil, errors.New("candidate_provider_result_too_large")
 		}

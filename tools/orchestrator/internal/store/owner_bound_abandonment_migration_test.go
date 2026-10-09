@@ -17,7 +17,7 @@ func removeOwnerBoundAbandonmentSchema28(db *DB) error {
 	if version < 28 {
 		return nil
 	}
-	if version != 28 && version != 29 && version != 30 && version != 31 && version != 32 {
+	if version != 28 && version != 29 && version != 30 && version != 31 && version != 32 && version != 33 {
 		return fmt.Errorf("unsupported abandonment schema %d", version)
 	}
 	if err := db.sql.QueryRow(`SELECT COUNT(*) FROM owner_bound_abandonments`).Scan(&count); err != nil {

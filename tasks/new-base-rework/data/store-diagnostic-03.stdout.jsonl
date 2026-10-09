@@ -1,0 +1,13 @@
+{"Time":"2026-10-09T13:24:26.166462+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"}
+{"Time":"2026-10-09T13:24:26.627648+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestNewBaseAdmissionMatrix"}
+{"Time":"2026-10-09T13:24:26.627705+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestNewBaseAdmissionMatrix","Output":"=== RUN   TestNewBaseAdmissionMatrix\n"}
+{"Time":"2026-10-09T13:24:26.627734+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestNewBaseAdmissionMatrix/valid_replay"}
+{"Time":"2026-10-09T13:24:26.627743+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestNewBaseAdmissionMatrix/valid_replay","Output":"=== RUN   TestNewBaseAdmissionMatrix/valid_replay\n"}
+{"Time":"2026-10-09T13:24:26.910685+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestNewBaseAdmissionMatrix/valid_replay","Output":"    new_base_test.go:169: new_base_source_proof_invalid: proof-line-306\n"}
+{"Time":"2026-10-09T13:24:26.915334+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestNewBaseAdmissionMatrix/valid_replay","Output":"--- FAIL: TestNewBaseAdmissionMatrix/valid_replay (0.29s)\n"}
+{"Time":"2026-10-09T13:24:26.915355+08:00","Action":"fail","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestNewBaseAdmissionMatrix/valid_replay","Elapsed":0.29}
+{"Time":"2026-10-09T13:24:26.915435+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestNewBaseAdmissionMatrix","Output":"--- FAIL: TestNewBaseAdmissionMatrix (0.29s)\n"}
+{"Time":"2026-10-09T13:24:26.915441+08:00","Action":"fail","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Test":"TestNewBaseAdmissionMatrix","Elapsed":0.29}
+{"Time":"2026-10-09T13:24:26.915462+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Output":"FAIL\n"}
+{"Time":"2026-10-09T13:24:26.9164+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Output":"FAIL\tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store\t0.750s\n"}
+{"Time":"2026-10-09T13:24:26.916414+08:00","Action":"fail","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Elapsed":0.75}
