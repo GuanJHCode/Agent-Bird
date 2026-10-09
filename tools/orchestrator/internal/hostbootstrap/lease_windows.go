@@ -14,7 +14,6 @@ func (*Lease) Read() (MetadataV2, error)               { return MetadataV2{}, Er
 func (*Lease) Snapshot() ([]byte, error)               { return nil, Error("host_bootstrap_unsupported") }
 func (*Lease) Unchanged() error                        { return Error("host_bootstrap_unsupported") }
 func (*Lease) Publish(MetadataV2) error                { return Error("host_bootstrap_unsupported") }
-func (*Lease) PublishStable(MetadataV2) error          { return Error("host_bootstrap_unsupported") }
 func (*Lease) PreparePublication([]byte, bool) error   { return Error("host_bootstrap_unsupported") }
 func (*Lease) PublishPublication([]byte, string) error { return Error("host_bootstrap_unsupported") }
 func (*Lease) VerifyPublication([]byte) error          { return Error("host_bootstrap_unsupported") }
