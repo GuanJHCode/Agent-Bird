@@ -59,7 +59,7 @@ func (b OwnerRuntimeBootstrap) Validate() error {
 	seen := map[string]bool{}
 	for _, value := range b.Environment {
 		key, _, ok := strings.Cut(value, "=")
-		if !ok || key == "" || strings.ContainsAny(key, "\x00\r\n=") || strings.ContainsAny(value, "\x00\r\n") || strings.HasPrefix(key, "ORCHESTRATOR_") || seen[key] {
+		if !ok || key == "" || strings.ContainsAny(key, "\x00\r\n=") || strings.ContainsAny(value, "\x00\r\n") || (strings.HasPrefix(key, "ORCHESTRATOR_") && key != "ORCHESTRATOR_ENABLE_TEST_FAKE") || seen[key] {
 			return ownerInvalid()
 		}
 		seen[key] = true
