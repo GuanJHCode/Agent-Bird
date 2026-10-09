@@ -30,8 +30,19 @@ type DiagnosticsDeleteRequest struct {
 	Request          store.DiagnosticsDeleteRequest `json:"request"`
 }
 
+type DiagnosticsRetentionPlanRequest struct {
+	ControllerThread string                                `json:"controller_thread"`
+	ControlToken     string                                `json:"control_token"`
+	Request          store.DiagnosticsRetentionPlanRequest `json:"request"`
+}
+type DiagnosticsRetentionApplyRequest struct {
+	ControllerThread string                         `json:"controller_thread"`
+	ControlToken     string                         `json:"control_token"`
+	Plan             store.DiagnosticsRetentionPlan `json:"plan"`
+}
+
 func diagnosticsControlKind(kind ipc.Kind) bool {
-	return kind == ipc.KindDiagnosticsRead || kind == ipc.KindDiagnosticsAck || kind == ipc.KindDiagnosticsDelete
+	return kind == ipc.KindDiagnosticsRead || kind == ipc.KindDiagnosticsAck || kind == ipc.KindDiagnosticsDelete || kind == ipc.KindDiagnosticsRetentionPlan || kind == ipc.KindDiagnosticsRetentionApply
 }
 
 func diagnosticsControlError(err error) error {
@@ -65,6 +76,29 @@ func (s *Server) handleDiagnosticsConnection(ctx context.Context, conn net.Conn,
 }
 
 func (s *Server) diagnosticsControl(ctx context.Context, kind ipc.Kind, raw json.RawMessage) (json.RawMessage, error) {
+	if kind == ipc.KindDiagnosticsRetentionPlan {
+		var r DiagnosticsRetentionPlanRequest
+		if contract.DecodeBridgeStrict(raw, &r) != nil {
+			return nil, store.CodeError("diagnostics_request_invalid")
+		}
+		result, err := s.db.PlanDiagnosticsRetention(ctx, r.ControllerThread, r.ControlToken, r.Request)
+		if err != nil {
+			return nil, diagnosticsControlError(err)
+		}
+		return json.Marshal(result)
+	}
+	if kind == ipc.KindDiagnosticsRetentionApply {
+		var r DiagnosticsRetentionApplyRequest
+		if contract.DecodeBridgeStrict(raw, &r) != nil {
+			return nil, store.CodeError("diagnostics_request_invalid")
+		}
+		result, err := s.db.ApplyDiagnosticsRetention(ctx, r.ControllerThread, r.ControlToken, r.Plan)
+		if err != nil {
+			return nil, diagnosticsControlError(err)
+		}
+		return json.Marshal(result)
+	}
+
 	if kind == ipc.KindDiagnosticsRead {
 		var request DiagnosticsReadRequest
 		if contract.DecodeBridgeStrict(raw, &request) != nil {
