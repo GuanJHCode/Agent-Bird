@@ -29,7 +29,11 @@ work = task / 'tmp' / label
 evidence.mkdir(mode=0o700)
 work.mkdir(mode=0o700)
 env = os.environ.copy()
-env.update(TMPDIR='/private/tmp', GOTOOLCHAIN='local', GOPROXY='off', GOSUMDB='off')
+build_environment = dict(TMPDIR='/private/tmp', GOTMPDIR='/private/tmp', GOTOOLCHAIN='local',
+                         GOPROXY='off', GOSUMDB='off', GOENV='off', GOWORK='off', GOFLAGS='',
+                         GOOS='darwin', GOARCH='arm64', GOARM64='v8.0', CGO_ENABLED='0', GOEXPERIMENT='',
+                         PATH=str(go.parent) + ':/usr/bin:/bin:/usr/sbin:/sbin')
+env.update(build_environment)
 commands = []
 def run(name, argv, cwd=repo):
     argv = [str(x) for x in argv]
@@ -71,10 +75,11 @@ version = '0.1.0-closure.' + expected_source[:12]
 receipt = {'source': expected_source, 'tree': git('rev-parse', 'HEAD^{tree}'),
            'orchestrator_tree': git('rev-parse', 'HEAD:tools/orchestrator'),
            'version': version, 'go': str(go), 'python': str(python), 'python_sha256': sha(python),
-           'platform': platform.platform(), 'environment': {k: env[k] for k in ('TMPDIR', 'GOTOOLCHAIN', 'GOPROXY', 'GOSUMDB')},
+           'platform': platform.platform(), 'environment': build_environment,
            'commands': commands, 'accepted': False}
 try:
     receipt['go_version'] = run('go-version', [go, 'version']).decode().strip()
+    run('go-mod-verify', [go, 'mod', 'verify'], repo / 'tools/orchestrator')
     for suffix in ('a', 'b'):
         run('build-' + suffix, [go, 'build', '-trimpath', '-buildvcs=false', '-o', work / ('orchestrator-' + suffix), './cmd/orchestrator'], repo / 'tools/orchestrator')
     binary = work / 'orchestrator-a'
