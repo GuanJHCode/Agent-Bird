@@ -17,7 +17,11 @@ import (
 
 func publicationFixture(t *testing.T) (originalOwnerFixture, RebindOwnerSpec, OwnerRebindPublication) {
 	t.Helper()
-	f := newOriginalOwnerFixture(t)
+	root := t.TempDir()
+	if err := os.Chmod(root, 0700); err != nil {
+		t.Fatal(err)
+	}
+	f := newOriginalOwnerFixtureWithPlanAtPath(t, nil, nil, filepath.Join(root, "state.db"))
 	spec := authorizationRebindSpec(f, 1)
 	h := f.prepare.Host
 	r, err := f.db.ResolveOwnerRebindPublication(context.Background(), spec)
