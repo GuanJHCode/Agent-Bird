@@ -212,21 +212,12 @@ func rebindOwner(ctx context.Context, args []string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
-	bootstrap, err := loadHostBootstrap(capability)
-	if err != nil {
-		return err
-	}
-	if bootstrap.Version != 2 {
+	if capability.Version != 2 {
 		return codeError("legacy_bootstrap_rebind_unsupported")
 	}
 	request := coordinator.RebindOwnerRequest{RunID: capability.RunID, ControllerThread: capability.ControllerThread, ControlToken: capability.ControlToken, OriginContextID: verified.OriginContextID, OriginPID: verified.OriginPID, OriginBirth: verified.OriginBirth, HostGeneration: verified.HostGeneration, AttachmentProofSHA256: verified.AttachmentProofSHA256}
-	response, err := call(ctx, state, ipc.KindRebindOwner, request)
+	response, err := rebindHostBootstrap(ctx, state, capability, request)
 	if err != nil {
-		return err
-	}
-	bootstrap.Hello.OriginPID, bootstrap.Hello.OriginBirth = verified.OriginPID, verified.OriginBirth
-	bootstrap.Hello.OriginContextID, bootstrap.Hello.HostGeneration = verified.OriginContextID, verified.HostGeneration
-	if err = replacePrivateJSON(capability.BootstrapPath, bootstrapMetadata(bootstrap)); err != nil {
 		return err
 	}
 	_, err = stdout.Write(append(response.Payload, '\n'))
