@@ -19,3 +19,5 @@
 4个本任务 Linux 容器均终态exit0/nonOOM、按精确CID删除且ROOT再次inspect确认不存在。4个owned测试二进制经build/receipt SHA一致核验后删除；原始日志、receipt和必要测试源码保留。见 `data/linux/root-verification.json` 与 `data/final-receipt.json`。
 
 保留失败：旧schema30迁移测试成功重试后仍硬编码version30，修为currentSchemaVersion且原proof数量断言保留；旧3项FS普通证据不能证明实际partial unlink，最终夹具已修。全量Store、自动TTL、其他artifact删除、2GiB/洪峰/最新候选资源资格、物理断电、同UID恶意ABA、Intel Mac/Windows原生均未在本批验收。无真实模型/账号、用户安装替换、推送或发布。
+
+本地集成：merge `7b94272`；14个生产Go SHA逐项匹配，整个 `tools/orchestrator` 源码与已验收 `31bace8` 一致。合入后公开 `TestDiagnosticsPublicCLIDeleteAfterOwnerCompletion` 1 PASS/0F/S，原始 `integrated-public.jsonl` 与 `integrated-receipt.json` 已保留。未重复不受影响的全套测试。
