@@ -8,4 +8,6 @@ The isolated actor may read its own executable/system runtime and read/write its
 
 Actor compilation uses a canonical pinned Go executable, exact offline build environment, and private HOME/cache/GOPATH/TMPDIR within the owned fixture. All original build and actor handles are waited and their trees checked before removing that fixture. The outer `go test` command retains its ordinary shared compilation cache; this evidence does not claim the toolchain itself is sandboxed or that no shared tool cache is used.
 
+Darwin loader diagnostic: the restrictive policy aborts before main even for Apple's `/usr/bin/true`; adding only `file-read-data (literal "/")` changes original Wait from SIGABRT to exit 0. The resulting scope explicitly permits listing the filesystem root directory, plus global file metadata and the listed public OS runtime paths. It does not permit recursively reading `/` or listing the protected fixture directories. This is a local single-variable observation, not a claim about every macOS loader/version.
+
 Store exact source, command, toolchain, raw go test JSON/stderr and exit/counts. Do not run providers/models, alter user installation or use external network. Review the stable snapshot before accepting this limited evidence. Keep failed raw output; clean only the task-owned binaries after original Wait/tree completion.

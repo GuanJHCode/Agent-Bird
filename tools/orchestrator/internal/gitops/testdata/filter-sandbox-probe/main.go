@@ -31,6 +31,8 @@ func main() {
 	}
 	scratch, tcp, unix := os.Args[1], os.Args[2], os.Args[3]
 	checks := map[string]outcome{}
+	_, rootErr := os.ReadDir("/")
+	checks["root_list"] = result(rootErr)
 	for i, name := range []string{"worktree", "common_git", "host_state", "external"} {
 		path := os.Args[4+i]
 		_, err := os.Stat(path)

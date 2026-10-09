@@ -154,7 +154,7 @@ func TestFilterSandboxDarwinFeasibility(t *testing.T) {
 			}
 		}
 	}
-	allChecks := []string{"worktree_read", "worktree_write", "worktree_stat", "worktree_list", "common_git_read", "common_git_write", "common_git_stat", "common_git_list", "host_state_read", "host_state_write", "host_state_stat", "host_state_list", "external_read", "external_write", "external_stat", "external_list", "scratch_read", "scratch_write", "hardlink", "scratch_symlink", "symlink_read", "symlink_write", "tcp_connect", "unix_connect", "fork_exec"}
+	allChecks := []string{"worktree_read", "worktree_write", "worktree_stat", "worktree_list", "common_git_read", "common_git_write", "common_git_stat", "common_git_list", "host_state_read", "host_state_write", "host_state_stat", "host_state_list", "external_read", "external_write", "external_stat", "external_list", "scratch_read", "scratch_write", "hardlink", "scratch_symlink", "symlink_read", "symlink_write", "tcp_connect", "unix_connect", "fork_exec", "root_list"}
 	run := func(t *testing.T, label string, isolated bool, input []byte) []byte {
 		t.Helper()
 		scratch := filepath.Join(root, label)
@@ -166,6 +166,11 @@ func TestFilterSandboxDarwinFeasibility(t *testing.T) {
 		command := process.Command{Path: actor, PinnedPath: actor, PinnedSHA256: actorSHA, Args: args, Dir: scratch, Env: []string{"PATH=/usr/bin:/bin", "HOME=" + scratch, "TMPDIR=" + scratch, "XDG_CACHE_HOME=" + scratch}, ExactEnv: true, Stdin: input, Stdout: &stdout}
 		if isolated {
 			rules := []string{"(version 1)", "(allow default)", "(deny file-read*)", "(deny file-write*)", "(deny file-link)", "(deny network*)", "(deny process-fork)", `(allow file-read* (subpath "/System") (subpath "/usr/lib"))`, `(allow file-read* (subpath "/private/preboot/Cryptexes/OS"))`, `(allow file-read-metadata)`, `(allow file-read* file-write* (literal "/dev/null"))`, `(allow file-read* (literal "/dev/random") (literal "/dev/urandom"))`, "(allow file-read* (literal " + strconv.Quote(actor) + "))", "(allow file-read* file-write* (subpath " + strconv.Quote(scratch) + "))"}
+			// This literal permission lets this Darwin loader open its canonical
+			// root directory. It allows listing /, never recursive content reads.
+			// The owned loader-01 single-variable probe records -6 without it
+			// and original Wait 0 with it, even for Apple's /usr/bin/true.
+			rules = append(rules, `(allow file-read-data (literal "/"))`)
 			policy := strings.Join(rules, "\n")
 			t.Logf("label=%s profile=%s", label, policy)
 			command.Path = "/usr/bin/sandbox-exec"
@@ -210,7 +215,7 @@ func TestFilterSandboxDarwinFeasibility(t *testing.T) {
 		t.Logf("label=%s checks=%s", label, raw)
 		for _, name := range allChecks {
 			o, present := checks[name]
-			wantAllowed := !isolated || name == "scratch_read" || name == "scratch_write" || name == "scratch_symlink" || strings.HasSuffix(name, "_stat")
+			wantAllowed := !isolated || name == "scratch_read" || name == "scratch_write" || name == "scratch_symlink" || name == "root_list" || strings.HasSuffix(name, "_stat")
 			if !present || o.Allowed != wantAllowed || !wantAllowed && !o.Denied {
 				t.Errorf("%s kernel permission mismatch: %+v wantAllowed=%v", name, o, wantAllowed)
 			}
