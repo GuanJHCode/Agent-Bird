@@ -198,6 +198,9 @@ func (d *DB) PrepareInitialOwnerRecovery(ctx context.Context, req OriginalOwnerR
 	if err != nil {
 		return zero, err
 	}
+	if err = requirePublishedOwnerTx(ctx, owned.tx, r.row.state.Intent.Scope.RunID); err != nil {
+		return zero, err
+	}
 	scope, _ := contract.OriginalOwnerRecoveryScopeSHA256(r.row.state.Intent.Scope, r.row.owner)
 	if !facts.valid() || facts.Root != owned.rootAuthority.Nodes() || facts.ScopeSHA256 != scope {
 		return zero, originalOwnerRejected()
@@ -261,6 +264,9 @@ func (d *DB) FinalizeInitialOwnerRecovery(ctx context.Context, req OriginalOwner
 	defer owned.close()
 	tx := owned.tx
 	if err = authenticateOwnerResumeTx(ctx, tx, req); err != nil {
+		return zero, err
+	}
+	if err = requirePublishedTaskTx(ctx, tx, req.TaskID); err != nil {
 		return zero, err
 	}
 	if prior, e := loadOwnerSuccessionCommand(ctx, tx, req.CommandID); e == nil {

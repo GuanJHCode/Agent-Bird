@@ -103,9 +103,6 @@ func bridgePeerAncestry(ctx context.Context, tx *sql.Tx, pid int, birth string) 
 }
 
 func bridgeOwnerTx(ctx context.Context, tx *sql.Tx, runID string) (BridgeOwnerProof, error) {
-	if err := requirePublishedOwnerTx(ctx, tx, runID); err != nil {
-		return BridgeOwnerProof{}, err
-	}
 	p, ok := ctx.Value(bridgeOwnerKey{}).(BridgeOwnerProof)
 	if !ok || p.RunID != runID || p.ControllerThread == "" || p.ControlToken == "" || p.OwnerContextID == "" {
 		return p, CodeError("owner_mismatch")
@@ -152,6 +149,19 @@ func bridgeOwnerTx(ctx context.Context, tx *sql.Tx, runID string) (BridgeOwnerPr
 		}
 	} else {
 		return p, CodeError("owner_mode_invalid")
+	}
+	return p, nil
+}
+
+// Mutations authenticate the current owner before checking publication. Historical
+// observation and authority reduction use bridgeOwnerTx without this extra gate.
+func bridgePublishedOwnerTx(ctx context.Context, tx *sql.Tx, runID string) (BridgeOwnerProof, error) {
+	p, err := bridgeOwnerTx(ctx, tx, runID)
+	if err != nil {
+		return p, err
+	}
+	if err = requirePublishedOwnerTx(ctx, tx, runID); err != nil {
+		return p, err
 	}
 	return p, nil
 }
@@ -243,7 +253,7 @@ func (d *DB) BindBridge(ctx context.Context, req contract.BridgeBindRequest) (co
 	}
 	defer owned.close()
 	tx := owned.tx
-	owner, err := bridgeOwnerTx(ctx, tx, req.RunID)
+	owner, err := bridgePublishedOwnerTx(ctx, tx, req.RunID)
 	if err != nil {
 		return empty, err
 	}
