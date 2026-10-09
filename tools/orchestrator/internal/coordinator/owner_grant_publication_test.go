@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -20,7 +21,11 @@ import (
 func TestOwnerGrantPublicationFailureDoesNotAuthorize(t *testing.T) {
 	for _, failure := range []string{"file_publication", "deferred_commit"} {
 		t.Run(failure, func(t *testing.T) {
-			root := t.TempDir()
+			root, err := os.MkdirTemp("/private/tmp", "bind-pub-")
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { _ = os.RemoveAll(root) })
 			s, err := NewServer(filepath.Join(root, "state"))
 			if err != nil {
 				t.Fatal(err)
@@ -79,6 +84,20 @@ func TestOwnerGrantPublicationFailureDoesNotAuthorize(t *testing.T) {
 					}
 				}
 			}
+			connectionID := func() string {
+				t.Helper()
+				c, e := s.db.SQL().Conn(ctx)
+				if e != nil {
+					t.Fatal(e)
+				}
+				defer c.Close()
+				var id string
+				if e = c.Raw(func(v any) error { id = fmt.Sprintf("%p", v); return nil }); e != nil {
+					t.Fatal(e)
+				}
+				return id
+			}
+			beforeConnection := connectionID()
 			response, err := ipc.Call(ctx, s.SocketPath(), ipc.Envelope{Version: 1, Kind: ipc.KindOwnerBind, RequestID: "fault", Payload: raw})
 			if err != nil || response.Kind != ipc.KindError {
 				t.Fatalf("bind did not reject fault: kind=%s err=%v", response.Kind, err)
@@ -102,6 +121,9 @@ func TestOwnerGrantPublicationFailureDoesNotAuthorize(t *testing.T) {
 			} else {
 				if len(entries) != 1 {
 					t.Errorf("failed COMMIT must retain exact published but unauthorized file, got %d", len(entries))
+				}
+				if connectionID() == beforeConnection {
+					t.Error("failed COMMIT reused original physical connection")
 				}
 				if count(s.db.SQL(), "owner_bind_fault_child") != 0 || count(external, "owner_bind_fault_child") != 0 {
 					t.Error("failed COMMIT leaked transaction")
