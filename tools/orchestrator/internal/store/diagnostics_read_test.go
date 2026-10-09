@@ -17,6 +17,7 @@ import (
 type diagnosticsReadFixture struct {
 	db      *DB
 	grant   contract.LaunchCommand
+	hello   contract.HostHello
 	token   string
 	root    string
 	writer  *diagnostics.Writer
@@ -42,6 +43,7 @@ func newDiagnosticsReadFixture(t *testing.T) *diagnosticsReadFixture {
 	}
 	f.token = r.ControlToken
 	h := contract.HostHello{LaunchID: r.LaunchID, LaunchToken: r.LaunchToken, OriginContextID: "origin", OriginPID: 7, OriginBirth: "birth", HostGeneration: "generation", PID: 101, Birth: "host-birth", Executable: "/private/tmp/orchestrator"}
+	f.hello = h
 	if _, err = db.RegisterHost(ctx, h, 1); err != nil {
 		t.Fatal(err)
 	}
