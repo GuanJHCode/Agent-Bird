@@ -60,27 +60,26 @@ func (l *hostLaunchLease) read(c controlCapability) (hostBootstrap, error) {
 }
 
 func rebindHostBootstrap(ctx context.Context, state string, c controlCapability, req coordinator.RebindOwnerRequest) (ipc.Envelope, error) {
-	l, err := openHostLaunchLease(ctx, state, c)
+	// The server owns both the bootstrap lease and its publication.  This CLI
+	// deliberately never opens the bootstrap directory for a rebind.
+	ready, err := ensureServer(ctx, state)
 	if err != nil {
 		return ipc.Envelope{}, err
 	}
-	defer l.close()
-	b, err := l.read(c)
-	if err != nil {
-		return ipc.Envelope{}, err
+	caps, _ := ready["capabilities"].([]string)
+	found := false
+	for _, cap := range caps {
+		if cap == "owner_rebind_publication_v1" {
+			found = true
+			break
+		}
 	}
-	if req.OwnerMode == "local" {
-		req.OriginContextID = b.Hello.OriginContextID
-	}
-	if req.OriginContextID != b.Hello.OriginContextID {
-		return ipc.Envelope{}, codeError("host_launch_binding_mismatch")
-	}
-	if err = l.unchanged(); err != nil {
-		return ipc.Envelope{}, err
+	if !found {
+		return ipc.Envelope{}, codeError("coordinator_upgrade_required")
 	}
 	rpc, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	response, err := call(rpc, state, ipc.KindRebindOwner, req)
+	response, err := call(rpc, state, ipc.KindRebindOwnerPublished, req)
 	if err != nil {
 		return ipc.Envelope{}, err
 	}
@@ -90,16 +89,11 @@ func rebindHostBootstrap(ctx context.Context, state string, c controlCapability,
 		RunID           string `json:"run_id"`
 		OriginContextID string `json:"origin_context_id"`
 		HostGeneration  string `json:"host_generation"`
+		LaunchID        string `json:"launch_id"`
+		BootstrapSHA256 string `json:"bootstrap_sha256"`
 	}
-	if decode(response.Payload, &receipt) != nil || receipt.Version != 1 || receipt.Status != "owner_rebound" || receipt.RunID != c.RunID || receipt.OriginContextID != req.OriginContextID || receipt.HostGeneration != req.HostGeneration {
+	if decode(response.Payload, &receipt) != nil || receipt.Version != 1 || receipt.Status != "owner_rebound" || receipt.RunID != c.RunID || receipt.LaunchID != c.HostLaunchID || receipt.BootstrapSHA256 == "" || receipt.OriginContextID != req.OriginContextID || receipt.HostGeneration != req.HostGeneration {
 		return ipc.Envelope{}, codeError("invalid_rebind_response")
-	}
-	if err = ctx.Err(); err != nil {
-		return ipc.Envelope{}, err
-	}
-	b.Hello.OriginPID, b.Hello.OriginBirth, b.Hello.OriginContextID, b.Hello.HostGeneration = req.OriginPID, req.OriginBirth, req.OriginContextID, req.HostGeneration
-	if err = l.publish(b); err != nil {
-		return ipc.Envelope{}, err
 	}
 	return response, nil
 }

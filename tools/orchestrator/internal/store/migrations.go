@@ -7,7 +7,7 @@ import (
 	"errors"
 )
 
-const currentSchemaVersion = 34
+const currentSchemaVersion = 35
 
 // Runtime migrations run under the coordinator instance lock (NewServer) and
 // one SQLite transaction. DDL, backfills and version publication commit together;
@@ -389,6 +389,23 @@ func (d *DB) migrateRuntimeWithForeignKeyOps(ops runtimeForeignKeyOps) (err erro
 			return err
 		}
 		if _, err = tx.Exec(`UPDATE schema_meta SET version=34`); err != nil {
+			return err
+		}
+	}
+	if version < 35 {
+		if _, err = tx.Exec(`CREATE TABLE owner_rebind_publications(
+ run_id TEXT NOT NULL REFERENCES runs(id), host_generation TEXT NOT NULL,
+ launch_id TEXT NOT NULL REFERENCES host_launches(id), expected_sha256 TEXT NOT NULL,
+ bootstrap_json TEXT NOT NULL, state TEXT NOT NULL CHECK(state IN ('pending','published')),
+ created_at TEXT NOT NULL, published_at TEXT,
+ PRIMARY KEY(run_id,host_generation)
+);
+CREATE UNIQUE INDEX owner_rebind_publication_one_pending ON owner_rebind_publications(run_id) WHERE state='pending';
+CREATE TRIGGER owner_rebind_publication_immutable BEFORE UPDATE ON owner_rebind_publications
+ WHEN NEW.run_id!=OLD.run_id OR NEW.host_generation!=OLD.host_generation OR NEW.launch_id!=OLD.launch_id OR NEW.expected_sha256!=OLD.expected_sha256 OR NEW.bootstrap_json!=OLD.bootstrap_json OR NEW.created_at!=OLD.created_at OR (OLD.state='published' AND NEW.state!=OLD.state)
+ BEGIN SELECT RAISE(ABORT,'owner_rebind_publication_immutable'); END;
+CREATE TRIGGER owner_rebind_publication_no_delete BEFORE DELETE ON owner_rebind_publications BEGIN SELECT RAISE(ABORT,'owner_rebind_publication_immutable'); END;
+UPDATE schema_meta SET version=35`); err != nil {
 			return err
 		}
 	}
