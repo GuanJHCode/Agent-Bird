@@ -111,7 +111,7 @@ func FreezeWorkspace(ctx context.Context, prepared PreparedWorkspace, journal Ca
 	if journal == nil || r.AttemptID == "" || r.AttemptID != prepared.Binding.AttemptID || r.PlanRevision != int64(prepared.Binding.PlanRevision) {
 		return CandidateReceipt{}, fail(CodeInvalidInput, "freeze", fmt.Errorf("unbound prepared workspace"))
 	}
-	lock, err := acquireIntegrationLock(r.CommonDir)
+	lock, err := acquireCandidateLock(ctx, r.CommonDir)
 	if err != nil {
 		return CandidateReceipt{}, err
 	}

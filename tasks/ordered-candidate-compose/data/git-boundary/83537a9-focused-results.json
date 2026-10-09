@@ -1,0 +1,19 @@
+{
+  "commit": "83537a9",
+  "go": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+  "tmpdir": "/private/tmp",
+  "commands": [
+    {
+      "command": "go test -count=1 -run 'TestComposeCandidate|TestValidateCandidatePrivateRef|TestCandidatePreservesUnknownGitOwnership' -v ./internal/gitops",
+      "exit_code": 0,
+      "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops",
+      "result": "PASS"
+    },
+    {
+      "command": "go test -count=1 -run 'TestIntegrationPreflight|TestWorkerIntegrationChecksOriginalJournalBeforeGit|TestWorkerRoutesPrivateRefsAndComposeIntegrateCleanupChain' -v ./internal/gitopsworker",
+      "exit_code": 0,
+      "package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitopsworker",
+      "result": "PASS"
+    }
+  ]
+}

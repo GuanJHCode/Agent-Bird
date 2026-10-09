@@ -3,12 +3,14 @@ package host
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
@@ -103,7 +105,7 @@ func (h *Host) prepareComposeAction(ctx context.Context, grant contract.LaunchCo
 		}
 		c := delivery.Candidate
 		sourceGrant := contract.LaunchCommand{RunID: grant.RunID, TaskID: input.Event.TaskID, AttemptID: input.Event.AttemptID, SegmentID: input.Event.SegmentID}
-		if delivery.Stage != "" || delivery.Composition != nil || c.Binding == nil || c.Binding.TaskID != input.Event.TaskID || c.AttemptID != input.Event.AttemptID || c.PlanRevision != int64(grant.PlanRevision) || len(delivery.CandidateReceiptSHA256) != 64 || c.RepoRoot != source.CandidateWorkspace.RepoRoot || c.BaseOID != source.CandidateWorkspace.BaseOID || c.Worktree != candidateDirectory(source.Directory, sourceGrant, source.CandidateWorkspace.AutoDirectory) || c.PrivateRef == "" || c.PrivateRefExpectedOID != c.CandidateOID {
+		if delivery.Stage != "" || delivery.Composition != nil || c.Binding == nil || c.Binding.TaskID != input.Event.TaskID || c.AttemptID != input.Event.AttemptID || c.PlanRevision != int64(grant.PlanRevision) || len(delivery.CandidateReceiptSHA256) != 64 || c.RepoRoot != source.CandidateWorkspace.RepoRoot || c.BaseOID != source.CandidateWorkspace.BaseOID || !compositionSourceWorktree(source.Directory, sourceGrant, source.CandidateWorkspace.AutoDirectory, c.Worktree) || c.PrivateRef == "" || c.PrivateRefExpectedOID != c.CandidateOID {
 			return fail(errors.New("candidate_compose_source_invalid"))
 		}
 		if err := gitops.ValidateCandidatePrivateRef(ctx, c); err != nil {
@@ -208,4 +210,25 @@ func (h *Host) prepareComposeAction(ctx context.Context, grant contract.LaunchCo
 		return json.Marshal(out)
 	}
 	return cmd, finalize, closeJournal, nil
+}
+
+// A continued producer keeps its original automatic workspace even though its
+// accepted event belongs to a later segment. The authenticated Host receipt
+// supplies the original inode; the payload constrains its workspace namespace.
+func compositionSourceWorktree(base string, grant contract.LaunchCommand, automatic bool, actual string) bool {
+	if !filepath.IsAbs(base) || filepath.Clean(base) != base {
+		return false
+	}
+	if !automatic {
+		return actual == base
+	}
+	if actual == candidateDirectory(base, grant, true) {
+		return true
+	}
+	suffix, ok := strings.CutPrefix(actual, base+".attempt-")
+	if !ok || len(suffix) != 24 {
+		return false
+	}
+	decoded, err := hex.DecodeString(suffix)
+	return err == nil && len(decoded) == 12 && hex.EncodeToString(decoded) == suffix
 }

@@ -3,19 +3,21 @@ package store
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"path/filepath"
 	"testing"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 )
 
-func TestOrderedComposeStoreCaptureAndPendingReplay(t *testing.T) {
+func newOrderedComposeStoreFixture(t *testing.T) (*DB, string) {
+	t.Helper()
 	ctx := context.Background()
 	db, err := Open(filepath.Join(t.TempDir(), "state.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer db.Close()
+	t.Cleanup(func() { _ = db.Close() })
 	producer := func(id string) TaskSpec {
 		return TaskSpec{ID: id, RunID: "run", MaxAttempts: 1, AdapterPayload: json.RawMessage(`{"provider":"claude-code","profile":{"version":1,"role":"implementer","permission":"workspace-write"},"candidate_workspace":{"version":1}}`)}
 	}
@@ -56,6 +58,12 @@ func TestOrderedComposeStoreCaptureAndPendingReplay(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	return db, host
+}
+
+func TestOrderedComposeStoreCaptureAndPendingReplay(t *testing.T) {
+	ctx := context.Background()
+	db, host := newOrderedComposeStoreFixture(t)
 	g, err := db.ClaimReady(ctx, host, 1, 2)
 	if err != nil {
 		t.Fatal(err)
@@ -92,5 +100,53 @@ func TestOrderedComposeStoreCaptureAndPendingReplay(t *testing.T) {
 	}
 	if attemptsAfter != attempts || quotaAfter != quotaBefore {
 		t.Fatalf("replay drift attempts=%d/%d quota=%d/%d", attemptsAfter, attempts, quotaAfter, quotaBefore)
+	}
+}
+
+// Synthetic old/corrupt decision rows exercise the same immutable authority
+// checks as other candidate stages; they never grant compose a retry policy.
+func TestOrderedComposePreservesDecisionAuthority(t *testing.T) {
+	for _, phase := range []string{"pending", "consumed_without_proof"} {
+		t.Run(phase, func(t *testing.T) {
+			ctx := context.Background()
+			db, host := newOrderedComposeStoreFixture(t)
+			var grant contract.LaunchCommand
+			var err error
+			if phase == "consumed_without_proof" {
+				grant, err = db.ClaimReady(ctx, host, 1, 2)
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			var sourceSegment string
+			if err = db.sql.QueryRow(`SELECT s.id FROM segments s JOIN attempts a ON a.id=s.attempt_id WHERE a.task_id='a'`).Scan(&sourceSegment); err != nil {
+				t.Fatal(err)
+			}
+			if _, err = db.sql.Exec(`INSERT INTO retry_decisions(action_slot,task_id,work_revision,source_event_id,source_event_revision,source_event_hash,source_segment_id,next_attempt_no,use_next_fallback,command_id,created_at) VALUES('compose-decision','compose',1,'a-result',1,?,?,2,0,'compose-retry','2026-10-09T00:00:00Z')`, runtimeHash("a"), sourceSegment); err != nil {
+				t.Fatal(err)
+			}
+			if phase == "pending" {
+				if _, err = db.sql.Exec(`INSERT INTO decision_attempt_bindings(action_slot,task_id,target_work_revision,attempt_id,reserved_active_ms) VALUES('compose-decision','compose',1,NULL,1000)`); err != nil {
+					t.Fatal(err)
+				}
+			} else {
+				if _, err = db.sql.Exec(`INSERT INTO decision_attempt_bindings(action_slot,task_id,target_work_revision,attempt_id,reserved_active_ms) VALUES('compose-decision','compose',1,?,0); DELETE FROM decision_attempt_bindings WHERE action_slot='compose-decision'`, grant.AttemptID); err != nil {
+					t.Fatal(err)
+				}
+			}
+			before := continuationQuotaState(t, db)
+			if phase == "pending" {
+				if _, err = db.ClaimReady(ctx, host, 1, 2); err == nil {
+					t.Fatal("compose bypassed pending decision authentication")
+				}
+			} else {
+				if _, err = db.PendingLaunches(ctx, host, 1); !errors.Is(err, errLegacyDecisionAmbiguous) {
+					t.Fatalf("lost consumed proof accepted: %v", err)
+				}
+			}
+			if continuationQuotaState(t, db) != before {
+				t.Fatal("refused decision changed attempt, budget, quota, vector or binding")
+			}
+		})
 	}
 }

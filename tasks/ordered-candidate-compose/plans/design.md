@@ -71,3 +71,5 @@ F03 是一个 writer，完整实现由同一负责人完成，避免机械按 St
 Host 使用单独最多 1 MiB 的 stdout 接收 worker envelope，避免把 stderr 的 CLI error envelope 混作结果。冲突返回 `compose_conflict`，不确定进程/产物返回 `compose_uncertain` 并保留 UNKNOWN；二者均保留 journal/worktree，不自动 retry 或清理。完整库存留在 worker journal，公开 compose receipt 删除 `Files` 后由 Host 补自身 binding、计算 receipt SHA；producer 的旧 `CandidateReceiptSHA256` 仍指向完整 journal receipt，其 artifact 内省略 Files 的旧合同保持不变。
 
 Store 初次实现用跳过 decision reconciliation 来绕开 `source_task` 为空，已被独审拒绝。正确修复必须将严格合法 v2 compose 视为单源 decision predecessor 链的根，保留所有 pending/consumed/retry/revision/budget 检查，不增加授权旁路。
+
+公开并行生产者验证又复现：两个 `FreezeWorkspace` 竞争 common-dir 锁时，旧 nonblocking acquire 令一个 producer 失败。候选专用 `acquireCandidateLock` 保留单一锁 FD/inode 和 common identity，仅对真实 flock busy 等待，最多 10 秒且可取消；不重试 Git，不先写 candidate intent。每轮和获得锁后复核身份，替换立即拒绝。`FreezeWorkspace` 和 `ManagedComposeCandidate` 使用该等待；final integration/cleanup 继续原 fail-fast 合同。

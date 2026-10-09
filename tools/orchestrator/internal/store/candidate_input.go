@@ -23,6 +23,7 @@ func bindCandidateInput(ctx context.Context, tx *sql.Tx, command *contract.Launc
 
 func isV2Compose(raw json.RawMessage) bool {
 	var payload struct {
+		Kind   string `json:"kind"`
 		Action *struct {
 			Version                int      `json:"version"`
 			DependencyInputVersion int      `json:"dependency_input_version"`
@@ -31,7 +32,7 @@ func isV2Compose(raw json.RawMessage) bool {
 			OrderedSourceTasks     []string `json:"ordered_source_tasks"`
 		} `json:"candidate_action"`
 	}
-	if json.Unmarshal(raw, &payload) != nil || payload.Action == nil || payload.Action.Version != 2 || payload.Action.DependencyInputVersion != 2 || payload.Action.Operation != "compose" || payload.Action.SourceTask != "" || len(payload.Action.OrderedSourceTasks) < 2 || len(payload.Action.OrderedSourceTasks) > 63 {
+	if json.Unmarshal(raw, &payload) != nil || payload.Kind != "candidate" || payload.Action == nil || payload.Action.Version != 2 || payload.Action.DependencyInputVersion != 2 || payload.Action.Operation != "compose" || payload.Action.SourceTask != "" || len(payload.Action.OrderedSourceTasks) < 2 || len(payload.Action.OrderedSourceTasks) > 63 {
 		return false
 	}
 	seen := make(map[string]bool, len(payload.Action.OrderedSourceTasks))
@@ -277,7 +278,9 @@ func validateCandidatePlan(tasks map[string]TaskSpec) error {
 		}
 		switch a.Operation {
 		case "validate":
-			if p.Kind != "candidate" || previous.Kind != "" || len(previous.Workspace) == 0 || string(previous.Workspace) == "null" {
+			composeSource := previous.Kind == "candidate" && isV2Compose(source.AdapterPayload)
+			producerSource := previous.Kind == "" && previous.Action == nil && len(previous.Workspace) > 0 && string(previous.Workspace) != "null"
+			if p.Kind != "candidate" || (!composeSource && !producerSource) {
 				return CodeError("invalid_candidate_dag")
 			}
 		case "review":

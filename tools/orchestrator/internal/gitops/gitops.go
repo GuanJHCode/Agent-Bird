@@ -603,7 +603,7 @@ func operationInProgress(ctx context.Context, repo string) bool {
 	return false
 }
 
-func acquireIntegrationLock(common string) (*os.File, error) {
+func openIntegrationLock(common string) (*os.File, error) {
 	if common == "" {
 		return nil, fail(CodeInvalidInput, "lock", fmt.Errorf("missing common dir"))
 	}
@@ -618,7 +618,7 @@ func acquireIntegrationLock(common string) (*os.File, error) {
 	if st, e := os.Lstat(lockPath); e == nil && st.Mode()&os.ModeSymlink != 0 {
 		return nil, fail(CodeUnknownObject, "lock", fmt.Errorf("lock path is symlink"))
 	}
-	f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR|syscall.O_NOFOLLOW, 0600)
+	f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0600)
 	if err != nil {
 		return nil, err
 	}
@@ -628,13 +628,21 @@ func acquireIntegrationLock(common string) (*os.File, error) {
 		_ = f.Close()
 		return nil, fail(CodeIdentityChanged, "lock", fmt.Errorf("lock inode changed"))
 	}
-	if lockStat, ok := fileInfo.Sys().(*syscall.Stat_t); !ok || lockStat.Nlink != 1 || int64(lockStat.Uid) != int64(os.Getuid()) || fileInfo.Mode().Perm() != 0600 {
+	if lockStat, ok := fileInfo.Sys().(*syscall.Stat_t); !ok || !fileInfo.Mode().IsRegular() || lockStat.Nlink != 1 || int64(lockStat.Uid) != int64(os.Getuid()) || fileInfo.Mode().Perm() != 0600 {
 		_ = f.Close()
 		return nil, fail(CodeUnknownObject, "lock", fmt.Errorf("lock ownership or mode"))
 	}
 	if latest, e := directoryIdentity(common); e != nil || !sameDirectoryIdentity(latest, commonIdentity) {
 		_ = f.Close()
 		return nil, fail(CodeIdentityChanged, "lock", fmt.Errorf("common directory changed"))
+	}
+	return f, nil
+}
+
+func acquireIntegrationLock(common string) (*os.File, error) {
+	f, err := openIntegrationLock(common)
+	if err != nil {
+		return nil, err
 	}
 	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
 		_ = f.Close()
@@ -882,7 +890,7 @@ func ManagedComposeCandidate(ctx context.Context, req CandidateCompositionReques
 	if err != nil {
 		return CandidateReceipt{}, err
 	}
-	lock, err := acquireIntegrationLock(common)
+	lock, err := acquireCandidateLock(ctx, common)
 	if err != nil {
 		return CandidateReceipt{}, err
 	}
