@@ -1,0 +1,89 @@
+{
+  "source": "3bd025e9816c95c6a06d5fe775e25b19199b73cb",
+  "source_tree": "b87fba7b5fb203676b5f073c76a50d3fff326cd4",
+  "orchestrator_tree": "5bd9e03e660b8b5ab8f4197bc8fcf22ce4878729",
+  "version": "0.1.0-closure.3bd025e9816c",
+  "binary_sha256": "c9a09e7c1bde01c20145294ed2f702a15b91bb10138908fadb6cf951470628ba",
+  "package_manifest_sha256": "9e4065cce26f8e8ce7045ca7d3e7803a6a156d68e50d7c5c8f99755d3caf0154",
+  "package_files": 28,
+  "source_files": 24,
+  "installed_files": 28,
+  "original_commands": [
+    {
+      "name": "go-version",
+      "exit": 0,
+      "stdout_sha256": "2a108602dfb6c84352966f25ca6d598d3711bad8845923baf6308b1dd09d06a1",
+      "stderr_bytes": 0
+    },
+    {
+      "name": "go-mod-verify",
+      "exit": 0,
+      "stdout_sha256": "b4537ed75f533f993f371954de47e42a793b8e5b0587577de7e27fb3e50696bd",
+      "stderr_bytes": 0
+    },
+    {
+      "name": "build-a",
+      "exit": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0
+    },
+    {
+      "name": "build-b",
+      "exit": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0
+    },
+    {
+      "name": "go-build-info",
+      "exit": 0,
+      "stdout_sha256": "7c91d3cc14c7848ceec013713d00a03eae6a12a827ec4e313458119644f3e05f",
+      "stderr_bytes": 0
+    },
+    {
+      "name": "package-a",
+      "exit": 0,
+      "stdout_sha256": "98b5336312439a150228916bf14793d7028ef103ff7965d047018ae71b607b12",
+      "stderr_bytes": 0
+    },
+    {
+      "name": "package-b",
+      "exit": 0,
+      "stdout_sha256": "083f7f2da3b90ac2936b03e7af9f5c806226015daf177df9a641b4bbc22b607d",
+      "stderr_bytes": 0
+    },
+    {
+      "name": "install-first",
+      "exit": 0,
+      "stdout_sha256": "f3a6a23beedd760abe4c940295ecb32ee87399000d501e995c7ed73976c96fc7",
+      "stderr_bytes": 0
+    },
+    {
+      "name": "install-replay",
+      "exit": 0,
+      "stdout_sha256": "f3a6a23beedd760abe4c940295ecb32ee87399000d501e995c7ed73976c96fc7",
+      "stderr_bytes": 0
+    },
+    {
+      "name": "doctor-installed",
+      "exit": 0,
+      "stdout_sha256": "edb41d8db23cb3d31148f1fdf4386fd7dba0b6416d461271f5c19d68004c346d",
+      "stderr_bytes": 0
+    },
+    {
+      "name": "uninstall-owned",
+      "exit": 0,
+      "stdout_sha256": "5819c65f4d28b655406a88355379deb293f0ace27185f263aedffa3fd3a8ce3a",
+      "stderr_bytes": 0
+    },
+    {
+      "name": "doctor-after-uninstall",
+      "exit": 0,
+      "stdout_sha256": "3c32dd46cd058ed730759cede9678928039606071c76447e7a9bd8a600424a06",
+      "stderr_bytes": 0
+    }
+  ],
+  "retained_package": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/validation-package/tasks/closure-package-provenance/tmp/validation-start-20261009/package-a",
+  "go_version": "go version go1.26.8 darwin/arm64",
+  "python_sha256": "760d13aa43656d9e51bcbc1847088691a035f9dc37030070f1d4993f55d4e689",
+  "data_preserved": true
+}
