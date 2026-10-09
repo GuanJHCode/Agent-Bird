@@ -26,7 +26,7 @@
 | Build/vet | clean `f08d352` whole `go build ./...`，Store/Coordinator/hostbootstrap/IPC/CLI vet；final test-only `7aee652` Store vet，均 exit0 | f08、b9、7a 与最终 c9 的全部非 test Go 模块文件 manifest 相同，未重复 whole build |
 | Windows leaf | `go build ./internal/hostbootstrap` exit0 | 仅交叉构建；不是 Windows 原生验收 |
 
-`c9` 合并只增加测试和证据；ROOT 比较全部非 `_test.go` 的模块文件对象，manifest SHA `3c23e6ef353474b823067e97c34ba234f06ec217601e967b41242180971bdd3a`。stage 与 gate 生产/测试、Linux runner 的独立审查分别 PASS（`5684514`、`fe3bbd5` / `e90e449`、`d191fd3`）。journal/Coordinator 最终审查单独记录，不能由测试通过代替。
+`c9` 合并只增加测试和证据；ROOT 比较全部非 `_test.go` 的模块文件对象，manifest SHA `3c23e6ef353474b823067e97c34ba234f06ec217601e967b41242180971bdd3a`。stage 与 gate 生产/测试、Linux runner 的独立审查分别 PASS（`5684514`、`fe3bbd5` / `e90e449`、`d191fd3`）。journal/root/COMMIT/scratch 与 Coordinator/CLI 已在固定 `62c9e4e` 独立审查，其当时整体 BLOCK 仅为后续 gate 遗漏；reviewer 确认这两部分无遗留 blocker。结合上述增量复审，本轮生产/测试/runner 独审均 PASS。
 
 ## 失败与证据限制
 

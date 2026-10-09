@@ -329,6 +329,7 @@
     "production_gate": "fe3bbd55fdb6cfae3bcf668334d055a3286b4261 PASS",
     "stage": "56845145c92fab64cce934885c1163698740dc5d PASS",
     "gate_oracle": "e90e4498bd2b185d7f410346076bdec160a2c340 PASS",
-    "linux_runner": "d191fd3 PASS"
+    "linux_runner": "d191fd3 PASS",
+    "journal_coordinator": "62c9e4e925cca3ba565129428c55d29fa6a66bc2 scoped PASS; historical whole review blocked only on later fixed gates"
   }
 }
