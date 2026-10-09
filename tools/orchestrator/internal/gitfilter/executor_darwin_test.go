@@ -1,0 +1,327 @@
+//go:build darwin
+
+package gitfilter
+
+import (
+	"bytes"
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"io"
+	"net"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
+)
+
+type fixture struct {
+	root, empty, external string
+	tool                  Tool
+	retain                bool
+}
+
+func digest(b []byte) string { s := sha256.Sum256(b); return hex.EncodeToString(s[:]) }
+func newFixture(t *testing.T) *fixture {
+	t.Helper()
+	cwd, e := os.Getwd()
+	if e != nil {
+		t.Fatal(e)
+	}
+	base := filepath.Clean(filepath.Join(cwd, "../../../../tasks/filter-stream-broker/tmp"))
+	root, e := os.MkdirTemp(base, "executor-")
+	if e != nil {
+		t.Fatal(e)
+	}
+	f := &fixture{root: root}
+	t.Cleanup(func() {
+		if f.retain {
+			t.Logf("retained_unknown_root=%s", root)
+			return
+		}
+		_ = filepath.WalkDir(root, func(p string, d os.DirEntry, e error) error {
+			if e == nil && d.IsDir() {
+				_ = os.Chmod(p, 0700)
+			}
+			return e
+		})
+		if e := os.RemoveAll(root); e != nil {
+			t.Errorf("cleanup: %v", e)
+		}
+	})
+	for _, name := range []string{"tools", "empty", "home", "cache", "gopath"} {
+		if e = os.Mkdir(filepath.Join(root, name), 0700); e != nil {
+			t.Fatal(e)
+		}
+	}
+	f.empty = filepath.Join(root, "empty")
+	f.external = filepath.Join(root, "sentinel")
+	if e = os.WriteFile(f.external, []byte("sentinel"), 0600); e != nil {
+		t.Fatal(e)
+	}
+	goPath := filepath.Join(runtime.GOROOT(), "bin/go")
+	goPath, e = filepath.EvalSymlinks(goPath)
+	if e != nil {
+		t.Fatal(e)
+	}
+	pin, e := process.ExecutableDigest(context.Background(), goPath)
+	if e != nil {
+		t.Fatal(e)
+	}
+	actor := filepath.Join(root, "tools/filter")
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	f.retain = true
+	h, e := process.Start(ctx, process.Command{Path: goPath, PinnedPath: goPath, PinnedSHA256: pin, Args: []string{"build", "-trimpath", "-buildvcs=false", "-o", actor, "./testdata/actor"}, Dir: cwd, ExactEnv: true, Env: []string{"PATH=" + filepath.Dir(goPath) + ":/usr/bin:/bin", "HOME=" + filepath.Join(root, "home"), "GOCACHE=" + filepath.Join(root, "cache"), "GOPATH=" + filepath.Join(root, "gopath"), "GOENV=off", "GOWORK=off", "GOPROXY=off", "GOSUMDB=off", "TMPDIR=" + root}})
+	if h == nil {
+		f.retain = false
+		t.Fatalf("build start: %v", e)
+	}
+	w := h.Wait(ctx)
+	if w != nil || e != nil {
+		clean, c := context.WithTimeout(context.Background(), 10*time.Second)
+		_ = h.Stop(clean)
+		w = h.Wait(clean)
+		c()
+	}
+	tree := h.ConfirmTreeExited()
+	f.retain = w != nil || tree != nil
+	t.Logf("build_original_wait=%v exit=%d tree=%v root=%s", w, h.ExitCode(), tree, root)
+	if e != nil || w != nil || tree != nil || h.ExitCode() != 0 {
+		t.Fatalf("build: %v %s", e, h.Output())
+	}
+	info, e := os.Stat(actor)
+	if e != nil {
+		t.Fatal(e)
+	}
+	sha, e := process.ExecutableDigest(context.Background(), actor)
+	if e != nil {
+		t.Fatal(e)
+	}
+	f.tool = Tool{actor, sha, info.Size()}
+	if e = os.Chmod(actor, 0500); e != nil {
+		t.Fatal(e)
+	}
+	if e = os.Chmod(filepath.Dir(actor), 0500); e != nil {
+		t.Fatal(e)
+	}
+	if e = os.Chmod(f.empty, 0500); e != nil {
+		t.Fatal(e)
+	}
+	t.Logf("actor_sha256=%s size=%d", sha, info.Size())
+	return f
+}
+func (f *fixture) request(t *testing.T, mode string, input []byte) Request {
+	t.Helper()
+	in, e := os.CreateTemp(f.root, "input-")
+	if e != nil {
+		t.Fatal(e)
+	}
+	t.Cleanup(func() { in.Close() })
+	if _, e = in.Write(input); e != nil {
+		t.Fatal(e)
+	}
+	out, e := os.CreateTemp(f.root, "output-")
+	if e != nil {
+		t.Fatal(e)
+	}
+	t.Cleanup(func() { out.Close() })
+	return Request{Operation: "clean", ScopeSHA256: strings.Repeat("a", 64), Tool: f.tool, Args: []string{mode}, Input: in, Output: out, EmptyDirectory: f.empty}
+}
+func (f *fixture) run(t *testing.T, r Request, ctx context.Context) Result {
+	t.Helper()
+	got, e := Execute(ctx, r)
+	if got.Unknown || got.Started && (!got.WaitProved || !got.TreeProved) {
+		f.retain = true
+	}
+	t.Logf("mode=%s accepted=%t started=%t original_wait=%t exit=%d tree=%t unknown=%t error=%v", r.Args[0], got.Accepted, got.Started, got.WaitProved, got.ExitCode, got.TreeProved, got.Unknown, e)
+	return got
+}
+func read(t *testing.T, f *os.File) []byte {
+	t.Helper()
+	s, e := f.Stat()
+	if e != nil {
+		t.Fatal(e)
+	}
+	b := make([]byte, s.Size())
+	if _, e = f.ReadAt(b, 0); e != nil && e != io.EOF {
+		t.Fatal(e)
+	}
+	return b
+}
+func TestStreamExecutorOriginalProcessAndBounds(t *testing.T) {
+	f := newFixture(t)
+	ctx, c := context.WithTimeout(context.Background(), 60*time.Second)
+	defer c()
+	t.Run("round_trip", func(t *testing.T) {
+		input := []byte("canonical\x00bytes\n")
+		r := f.request(t, "xor", input)
+		one := f.run(t, r, ctx)
+		if !one.Accepted || one.InputSHA256 != digest(input) || one.OutputSHA256 != digest(read(t, r.Output)) {
+			t.Fatal("smudge not accepted/bound")
+		}
+		view := read(t, r.Output)
+		if bytes.Equal(view, input) {
+			t.Fatal("not transformed")
+		}
+		r = f.request(t, "xor", view)
+		r.Operation = "smudge"
+		two := f.run(t, r, ctx)
+		if !two.Accepted || !bytes.Equal(read(t, r.Output), input) {
+			t.Fatal("canonical bytes not restored")
+		}
+	})
+	t.Run("exact_limit", func(t *testing.T) {
+		input := bytes.Repeat([]byte("x"), 16<<20)
+		r := f.request(t, "copy", input)
+		g := f.run(t, r, ctx)
+		if !g.Accepted || g.OutputBytes != 16<<20 || g.OutputSHA256 != digest(input) {
+			t.Fatal("exact limit rejected")
+		}
+	})
+	t.Run("input_over_limit", func(t *testing.T) {
+		r := f.request(t, "copy", make([]byte, (16<<20)+1))
+		g := f.run(t, r, ctx)
+		if g.Started || g.Accepted {
+			t.Fatal("oversize input executed")
+		}
+	})
+	t.Run("output_over_limit", func(t *testing.T) {
+		r := f.request(t, "overflow", nil)
+		g := f.run(t, r, ctx)
+		if g.Accepted || !g.Started || !g.WaitProved || !g.TreeProved {
+			t.Fatal("overflow lacks original terminal")
+		}
+		if len(read(t, r.Output)) > 16<<20 {
+			t.Fatal("output exceeded cap")
+		}
+	})
+	t.Run("nonzero_is_known", func(t *testing.T) {
+		r := f.request(t, "fail", nil)
+		g := f.run(t, r, ctx)
+		if g.Accepted || g.Unknown || !g.WaitProved || !g.TreeProved || g.ExitCode != 7 {
+			t.Fatal("nonzero exit confused with success/UNKNOWN")
+		}
+	})
+	t.Run("cancel_original_wait", func(t *testing.T) {
+		r := f.request(t, "hang", nil)
+		cancelCtx, stop := context.WithTimeout(context.Background(), 250*time.Millisecond)
+		defer stop()
+		g := f.run(t, r, cancelCtx)
+		if g.Accepted || g.Unknown || !g.Started || !g.WaitProved || !g.TreeProved {
+			t.Fatal("cancel lost original wait/tree")
+		}
+	})
+	t.Run("aliases_rejected", func(t *testing.T) {
+		r := f.request(t, "copy", nil)
+		r.Output = r.Input
+		g := f.run(t, r, ctx)
+		if g.Started || g.Accepted {
+			t.Fatal("same inode executed")
+		}
+	})
+	t.Run("writable_tool_rejected", func(t *testing.T) {
+		r := f.request(t, "copy", nil)
+		if e := os.Chmod(f.tool.Path, 0700); e != nil {
+			t.Fatal(e)
+		}
+		defer os.Chmod(f.tool.Path, 0500)
+		g := f.run(t, r, ctx)
+		if g.Started || g.Accepted {
+			t.Fatal("writable tool executed")
+		}
+	})
+	t.Run("pin_and_scope_shape", func(t *testing.T) {
+		r := f.request(t, "copy", nil)
+		r.Tool.SHA256 = strings.Repeat("b", 64)
+		if g := f.run(t, r, ctx); g.Started || g.Accepted {
+			t.Fatal("changed pin executed")
+		}
+		r = f.request(t, "copy", nil)
+		r.ScopeSHA256 = "not-a-digest"
+		if g := f.run(t, r, ctx); g.Started || g.Accepted {
+			t.Fatal("bad scope executed")
+		}
+	})
+}
+func TestStreamExecutorKernelIsolationWithControl(t *testing.T) {
+	f := newFixture(t)
+	listener, e := net.Listen("tcp", "127.0.0.1:0")
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer listener.Close()
+	ctx, c := context.WithTimeout(context.Background(), 30*time.Second)
+	defer c()
+	// Each negative has a real unsandboxed control. In-place exec is a separate
+	// control because success replaces the actor and emits an external marker.
+	control := func(args []string) string {
+		t.Helper()
+		f.retain = true
+		h, e := process.Start(ctx, process.Command{Path: f.tool.Path, PinnedPath: f.tool.Path, PinnedSHA256: f.tool.SHA256, Args: args, Dir: f.empty, ExactEnv: true, Env: []string{"HOME=" + f.empty, "PATH=/usr/bin:/bin"}})
+		if h == nil {
+			f.retain = false
+			t.Fatal(e)
+		}
+		w := h.Wait(ctx)
+		if w != nil {
+			clean, c := context.WithTimeout(context.Background(), 10*time.Second)
+			_ = h.Stop(clean)
+			w = h.Wait(clean)
+			c()
+		}
+		tree := h.ConfirmTreeExited()
+		f.retain = w != nil || tree != nil
+		t.Logf("control_original_wait=%v exit=%d tree=%v", w, h.ExitCode(), tree)
+		if e != nil || w != nil || tree != nil || h.ExitCode() != 0 {
+			t.Fatal("control failed")
+		}
+		return h.Output()
+	}
+	args := []string{"audit", f.external, listener.Addr().String(), "reserved"}
+	out := control(args)
+	if !strings.Contains(out, "exec-allowed") {
+		t.Fatalf("in-place exec control: %s", out)
+	}
+	// Restore control writes only after original Wait/tree, before isolated call.
+	if e = os.Remove(filepath.Join(f.empty, "entry")); e != nil {
+		t.Fatal(e)
+	}
+	if e = os.WriteFile(f.external, []byte("sentinel"), 0600); e != nil {
+		t.Fatal(e)
+	}
+	if e = os.Chmod(f.empty, 0500); e != nil {
+		t.Fatal(e)
+	}
+	if e = os.Chmod(f.tool.Path, 0500); e != nil {
+		t.Fatal(e)
+	}
+	r := f.request(t, "audit", nil)
+	r.Args = args
+	g := f.run(t, r, ctx)
+	if !g.Accepted {
+		t.Fatal("isolated audit did not finish")
+	}
+	var checks map[string]string
+	if e = json.Unmarshal(read(t, r.Output), &checks); e != nil {
+		t.Fatal(e)
+	}
+	for _, name := range []string{"external_read", "external_write", "empty_chmod", "self_chmod", "fork", "network", "exec_other"} {
+		if checks[name] != "denied" {
+			t.Errorf("%s = %s", name, checks[name])
+		}
+	}
+	contents, e := os.ReadFile(f.external)
+	if e != nil || string(contents) != "sentinel" {
+		t.Fatal("sentinel changed")
+	}
+	entries, e := os.ReadDir(f.empty)
+	if e != nil || len(entries) != 0 {
+		t.Fatal("empty directory changed")
+	}
+}
