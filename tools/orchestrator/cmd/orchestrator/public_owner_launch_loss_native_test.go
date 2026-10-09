@@ -189,7 +189,6 @@ func TestPublicOwnerLaunchCoordinatorLossUnknown(t *testing.T) {
 		}
 	}
 	first := startServer()
-	firstEpoch := waitReady("first")
 	firstWaited := false
 	t.Cleanup(func() {
 		_ = os.WriteFile(gate, nil, 0600)
@@ -207,6 +206,7 @@ func TestPublicOwnerLaunchCoordinatorLossUnknown(t *testing.T) {
 		_ = first.log.Close()
 	})
 
+	firstEpoch := waitReady("first")
 	origin := startPublicRebindOrigin(t, ctx, cli)
 	birth, err := process.Birth(origin.command.Process.Pid)
 	if err != nil {
@@ -296,6 +296,10 @@ func TestPublicOwnerLaunchCoordinatorLossUnknown(t *testing.T) {
 		if waitErr == nil || first.cmd.ProcessState == nil || first.cmd.ProcessState.ExitCode() != -1 {
 			t.Fatal("Coordinator SIGKILL was not observed by its original Cmd.Wait", waitErr, first.cmd.ProcessState)
 		}
+		status, ok := first.cmd.ProcessState.Sys().(syscall.WaitStatus)
+		if !ok || !status.Signaled() || status.Signal() != syscall.SIGKILL {
+			t.Fatal("original Wait did not witness SIGKILL", status)
+		}
 	case <-time.After(13 * time.Second):
 		t.Fatal("Coordinator original Cmd.Wait did not return after SIGKILL")
 	}
@@ -306,15 +310,21 @@ func TestPublicOwnerLaunchCoordinatorLossUnknown(t *testing.T) {
 	if hostWait.ExitCode == 0 || hostWait.WaitError == "" {
 		t.Fatal("FirstHost did not retain its original failure Wait", hostWait)
 	}
-	if gone, e := process.IdentityExitedContext(ctx, observed.Child.PID, observed.Child.Birth); e != nil || !gone {
-		t.Fatal("Owner child did not affirmatively exit after payload EOF", observed.Child, gone, e)
+	for end := time.Now().Add(13 * time.Second); ; {
+		gone, e := process.IdentityExitedContext(ctx, observed.Child.PID, observed.Child.Birth)
+		if e != nil {
+			t.Fatal("Owner child exit observation unknown", e)
+		}
+		if gone {
+			break
+		}
+		if time.Now().After(end) {
+			t.Fatal("Owner child did not affirmatively exit after payload EOF", observed.Child)
+		}
+		time.Sleep(20 * time.Millisecond)
 	}
 
 	second := startServer()
-	secondEpoch := waitReady("restarted")
-	if secondEpoch == firstEpoch {
-		t.Fatal("restarted Coordinator reused the killed instance epoch", firstEpoch)
-	}
 	secondWaited := false
 	t.Cleanup(func() {
 		if !secondWaited {
@@ -333,6 +343,10 @@ func TestPublicOwnerLaunchCoordinatorLossUnknown(t *testing.T) {
 		}
 		_ = second.log.Close()
 	})
+	secondEpoch := waitReady("restarted")
+	if secondEpoch == firstEpoch {
+		t.Fatal("restarted Coordinator reused the killed instance epoch", firstEpoch)
+	}
 	recovery := write("recover.json", map[string]any{"version": 1, "task_id": "worker", "work_revision": 1, "control_file": submitted.ControlFile, "owner_capability": local.OwnerCapability, "host_sha256": hex.EncodeToString(digest[:])})
 	recovered := origin.call(t, []string{"recover-host", "--state-dir", state, "--request", recovery})
 	if recovered.ExitCode == 0 || !bytes.Contains(recovered.Stderr, []byte(`"error":"host_recovery_unavailable"`)) {

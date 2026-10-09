@@ -307,6 +307,14 @@ func TestPublicOwnerLaunchProtocol2PreBindKill(t *testing.T) {
 		t.Fatal("retry changed base/owner or lost launch binding")
 	}
 	workerIdentity := publicSuccessionWorker(t, marker)
+	if workerIdentity.ParentPID != binding.Owner.PID {
+		t.Fatal("worker parent is not exact signed Owner", workerIdentity.ParentPID, binding.Owner.PID)
+	}
+	chain, e := process.AncestryContext(ctx, workerIdentity.PID)
+	if e != nil || chain[binding.Owner.PID] != binding.Owner.Birth || chain[second.Supervisor.PID] != second.Supervisor.Birth {
+		t.Fatal("worker lost original Owner/Supervisor ancestry", e)
+	}
+
 	running := publicSuccessionStatus(t, ctx, cli, state, submitted.ControlFile, "running", "running")
 	var baseAfter string
 	var nextAfter, grant int64

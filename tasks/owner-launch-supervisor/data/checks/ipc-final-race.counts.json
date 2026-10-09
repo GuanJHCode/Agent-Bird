@@ -1,0 +1,21 @@
+{
+  "command": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+    "test",
+    "-count=1",
+    "-timeout=240s",
+    "-json",
+    "-race",
+    "./internal/ipc",
+    "-run",
+    "^Test(OwnerLaunchDescriptorHandoff|OwnerLaunchDescriptorHandoffAfterFramedRequest|OwnerInheritedControlRejectsOtherDescriptorKinds)$"
+  ],
+  "exit": 0,
+  "top": 3,
+  "named": 13,
+  "results": {
+    "pass": 13
+  },
+  "raw_sha256": "879bb086a35a2fa2a7fe187ad080ffd892578f03e392145d83b2cacfd103eea3",
+  "stderr_bytes": 0
+}
