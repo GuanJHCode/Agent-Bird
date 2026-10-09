@@ -1,0 +1,74 @@
+[
+    {
+        "Id": "sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b",
+        "RepoTags": [
+            "mysql:8.0"
+        ],
+        "RepoDigests": [
+            "mysql@sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b"
+        ],
+        "Parent": "",
+        "Comment": "buildkit.dockerfile.v0",
+        "Created": "2026-05-04T21:11:12.426166735Z",
+        "DockerVersion": "",
+        "Author": "",
+        "Architecture": "arm64",
+        "Variant": "v8",
+        "Os": "linux",
+        "Size": 229152189,
+        "GraphDriver": {
+            "Data": null,
+            "Name": "overlayfs"
+        },
+        "RootFS": {
+            "Type": "layers",
+            "Layers": [
+                "sha256:f64de880afd6ab74f755bf72780d4d850cbd70dd98d69ac97ae94142e3dbf158",
+                "sha256:a78944869405cd3e3e48e9f9c989b5ad003c7018c6245b2df3c240184d4d413e",
+                "sha256:aeb362b58eebd088a9d75b7a9b2d24cdda3136201e89b65039261c3097948e64",
+                "sha256:abce5bcc0577a8dda67e096b3bf3b1106b867a95323c20d3c30b4beb6925ce69",
+                "sha256:32a56c1f9e3b2f80bdd14edded4c19edebb672b8094f27e47c1f901f82e1c103",
+                "sha256:e40231c10f75d79ea43d4ffd08032131860e36d048c6abc0b8a89466293d7e47",
+                "sha256:334daa8e8f27228208826eb42ecc957bdcfc0f855889c9753a48d4f91cb9daca",
+                "sha256:f7fbc1e5080f6bcd159b81ee3429a1d460cadc29542fe98f58ec457019cbda97",
+                "sha256:0790ce178e15ebac43d166e692a429aa8e2e3e8d70618f8a240045b599d866e8",
+                "sha256:0d8af47c5a45a2a133cbec179b3b187cd4ec895b7e1dad1e74a87401636e0e80",
+                "sha256:34f280897717cc1384e251c0db7d12c6fa1a0c2bc51a57ad2ec9b5c09f1b8a3f"
+            ]
+        },
+        "Metadata": {
+            "LastTagTime": "2026-07-01T03:48:04.593672962Z"
+        },
+        "Descriptor": {
+            "mediaType": "application/vnd.oci.image.index.v1+json",
+            "digest": "sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b",
+            "size": 2605
+        },
+        "Config": {
+            "Cmd": [
+                "mysqld"
+            ],
+            "Entrypoint": [
+                "docker-entrypoint.sh"
+            ],
+            "Env": [
+                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "GOSU_VERSION=1.19",
+                "MYSQL_MAJOR=8.0",
+                "MYSQL_VERSION=8.0.46-1.el9",
+                "MYSQL_SHELL_VERSION=8.0.46-1.el9"
+            ],
+            "ExposedPorts": {
+                "3306/tcp": {},
+                "33060/tcp": {}
+            },
+            "Labels": null,
+            "OnBuild": null,
+            "User": "",
+            "Volumes": {
+                "/var/lib/mysql": {}
+            },
+            "WorkingDir": "/"
+        }
+    }
+]

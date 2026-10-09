@@ -1,6 +1,6 @@
 # F03：有序候选组合设计（契约已冻结）
 
-状态：design-only；实现负责人为单一 F03 writer。本修订基于 `f7db2e8` 的现有契约和 Git 路径；当前 worktree HEAD 是 `f5c3a49`。F02 对 `internal/store/candidate_input.go` 的 historical-mode 改动是冻结交叉面：F03 不触及该路径、schema migration、segment 新字段或 F02 的文件。
+状态：已实施并在 macOS arm64 验证，最终生产快照 `766ddea` 已通过独立静态审查；Linux 仅 Store 定向通过，Git/Host 因缓存镜像缺 Git 未验证。以下保留冻结合同，末尾记录为满足该合同所作的必要修订。F02 schema31 historical diagnostics binder 已合并，真实历史 DAG proof 回归通过。
 
 ## 已定目标与边界
 
