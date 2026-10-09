@@ -1,0 +1,29 @@
+{
+  "source": "12a79dc475a175bd9fed4c9b67a06f93cf4cf726",
+  "go_tree": "5bd9e03e660b8b5ab8f4197bc8fcf22ce4878729",
+  "test_source": "a1f309816130bb425d7b190a571125808149deaf",
+  "native_race_top": 2,
+  "native_race_named": 5,
+  "fail": 0,
+  "skip": 0,
+  "raw_sha256": "0b9a51c71a652133e4767816c4d9edb22312eb6947fd864e2e1092eb982edd4a",
+  "independent_review": "PASS fixed a1f3098; no test delta after F01 merge",
+  "cleanup": [
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/final-git-extension-native/tasks/final-git-extension-native/tmp/hook-301816634",
+      "absent": true
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/final-git-extension-native/tasks/final-git-extension-native/tmp/hook-4294265873",
+      "absent": true
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/final-git-extension-native/tasks/final-git-extension-native/tmp/hook-1583350094",
+      "absent": true
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/final-git-extension-native/tasks/final-git-extension-native/tmp/hook-3711223939",
+      "absent": true
+    }
+  ]
+}
