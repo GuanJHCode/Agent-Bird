@@ -119,7 +119,7 @@ func validationStoreRejection(t *testing.T, f *budgetBatchFixture, spoof bool) c
 	return contract.Event{ValidationToolCleanup: cleanup, Version: 1, ProducerID: f.host, EventID: "validation-rejected", RunID: g.RunID, TaskID: g.TaskID, AttemptID: g.AttemptID, SegmentID: g.SegmentID, WorkRevision: g.WorkRevision, ExecutionEpoch: 1, CommandID: g.CommandID, Sequence: f.sequence, Kind: contract.EventLaunchRejected, Artifact: a, PayloadHash: a.SHA256, Failure: &contract.FailureFacts{Version: 1, Stage: "validation_start", Code: "validation_start_eagain", WorkerState: "not_started", ProbeState: "not_applicable"}}
 }
 func TestValidationRetryFrozenQueueClaimReplay(t *testing.T) {
-	for _, mode := range []string{"valid_replay", "vector_replay", "source_drift", "adapter_drift", "host_drift", "missing_binding", "retired_binding", "spoof", "started", "unknown"} {
+	for _, mode := range []string{"valid_replay", "vector_replay", "source_drift", "adapter_drift", "host_drift", "missing_binding", "retired_binding", "spoof", "started", "unknown", "physical_rebind_before_intake"} {
 		t.Run(mode, func(t *testing.T) {
 			f := validationStoreFixture(t, mode == "vector_replay")
 			ctx := context.Background()
@@ -132,6 +132,25 @@ func TestValidationRetryFrozenQueueClaimReplay(t *testing.T) {
 				e.Kind = contract.EventUnknown
 				e.Failure = nil
 				e.ValidationToolCleanup = nil
+			}
+			if mode == "physical_rebind_before_intake" {
+				if _, err := f.db.sql.Exec(`UPDATE runtime_hosts SET pid=pid+1,birth='cold-successor' WHERE id=?`, f.host); err != nil {
+					t.Fatal(err)
+				}
+				if _, err := f.db.CommitHostEvent(ctx, e); err == nil {
+					t.Fatal("old unpublished physical terminal trusted from cold spool")
+				}
+				var held, queued, recorded int
+				if err := f.db.sql.QueryRow(`SELECT count(*) FROM validation_tool_reservations WHERE segment_id=? AND state='reserved'`, original.SegmentID).Scan(&held); err != nil || held != 1 {
+					t.Fatal("UNKNOWN physical grant released", held, err)
+				}
+				if err := f.db.sql.QueryRow(`SELECT count(*) FROM retry_decisions WHERE task_id='validate'`).Scan(&queued); err != nil || queued != 0 {
+					t.Fatal("cold terminal queued", queued, err)
+				}
+				if err := f.db.sql.QueryRow(`SELECT count(*) FROM runtime_events WHERE event_id=?`, e.EventID).Scan(&recorded); err != nil || recorded != 0 {
+					t.Fatal("unproved terminal ACKed", recorded, err)
+				}
+				return
 			}
 			ack, err := f.db.CommitHostEvent(ctx, e)
 			if mode == "spoof" || mode == "started" {

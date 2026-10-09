@@ -52,3 +52,23 @@ ROOT schema34/API生产 `3c8a55b` 与DTO/hash、迁移证据已按固定提交ch
 recordLaunchFailed 的 exact terminal replay 在扫描到已有 LaunchRejected 时直接返回，发生在 cleanup 之前；source runner 后续同 tuple 调用不会再删除或重复退款。
 
 private Go-only per-call validationStarter 只接受有完整工具grant的受限validate invocation；public ExecuteLaunch 使用零control，无request/env/global选择器。ordinary invocation负例 `host-control-green` 1top1named PASS；API编译RED `host-control-red`保留。真正fault→新attempt链仍待native测试，不以此单门禁冒称完成。
+
+## 真实 native/Git/公开 Store 链与 profile 操作 oracle
+
+受控native actor由项目Go1.26.8构建，不调用provider/model/network。source实际Host profile+Managed Git freeze，validate实际materialization+sealed copy，原sandbox wrapper cmd.Start per-call注入EAGAIN（不称自然内核EAGAIN）。Store原事件ACK/replay与原tool raw释放、独立candidate_validation_retry队列、公开CollectPending/AckDecision处理旧拒绝、新attempt新grant/新workspace成功、ValidationEvidence原命令/pin、原Handle Wait/tree Exited cleanup、owner accept全部闭环。旧拒绝runtime_events仍留审计行、delivery_status=acked；两份removed journals各8192metadata escrow仍保留。exact重复Host recordLaunchFailed不会重复cleanup/publication。
+
+实际Host profile actor以StartDuplex原Handle/Wait/tree闭环：无sandbox同UID正对照self chmod/unlink、parent/ancestor chmod、peer chmod/write/unlink七操作errno均0；actual profile七操作均EPERM=1。只声明这七种原生操作实证；不以self overwrite的ETXTBSY或签名限制作为profile证明。peer/本profile夹具使用测试专用完整grant，无Store额度准入宣称；Store真实额度在前述完整链验。
+
+跨physical冷spool反例：新PID/birth后原未入Storeterminal拒绝、不记录event、不退款、不排队，reserved保留；只有Store已durable的exact event replay许可。
+
+- `native-chain-01` exit 1; top {}; named {}.
+- `native-chain-02` exit 1; top {}; named {}.
+- `native-chain-03` exit 1; top {}; named {}.
+- `native-chain-04` exit 1; top {'fail': 1, 'pass': 1}; named {'fail': 1, 'pass': 3}.
+- `native-chain-green-05` exit 0; top {'pass': 1}; named {'pass': 1}.
+- `native-final-focused` exit 1; top {'fail': 1}; named {'fail': 1}.
+- `native-chain-green-06` exit 1; top {'fail': 1}; named {'fail': 1}.
+- `native-chain-green-07` exit 0; top {'pass': 1}; named {'pass': 1}.
+- `store-physical-cold` exit 0; top {'pass': 1}; named {'pass': 2}.
+
+所有失败保留。native-chain-01/02/03为新增测试对既有process API/事件常量拼写误用编译失败；04完整新attempt执行已达Result/Exited，但末尾测试错误假设CollectPending仅1event，实际旧拒绝审计事件仍pending。05修为精确当前attempt Result后PASS。后加公开旧拒绝ACK/audit/metadata断言的native-final-focused误用不存在kind SQL列且混合subtest regex未选Store，06修为JSON后字段大小写错误；07改用实际snake kind后完整链PASS。Store反例独立精确subtest跑2named PASS。上述测试错误不算生产业务RED，不隐藏、不反复称final。最终race待固定test快照一批验。
