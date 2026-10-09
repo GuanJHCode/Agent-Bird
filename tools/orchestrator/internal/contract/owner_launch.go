@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"math"
+	"strings"
 )
 
 const (
@@ -69,7 +70,7 @@ func sameLaunchScope(a, b OriginalOwnerIntent) bool {
 }
 
 func (a OriginalOwnerLaunchAttempt) Validate() error {
-	if a.Version != 2 || (a.Attempt != 1 && a.Attempt != 2) || a.BaseIntent.Validate() != nil || a.EffectiveIntent.Validate() != nil || a.Supervisor.Validate() != nil || !sameLaunchScope(a.BaseIntent, a.EffectiveIntent) || !ownerDigest(a.AttemptSHA256) || a.AttemptSHA256 != originalOwnerLaunchAttemptDigest(a) {
+	if a.Version != 2 || (a.Attempt != 1 && a.Attempt != 2) || a.BaseIntent.Validate() != nil || a.EffectiveIntent.Validate() != nil || a.Supervisor.Validate() != nil || a.Supervisor.Epoch != a.EffectiveIntent.CoordinatorEpoch || a.Supervisor.ExecutableSHA256 != a.EffectiveIntent.Scope.ExecutableSHA256 || !sameLaunchScope(a.BaseIntent, a.EffectiveIntent) || !ownerDigest(a.AttemptSHA256) || a.AttemptSHA256 != originalOwnerLaunchAttemptDigest(a) {
 		return ownerInvalid()
 	}
 	if a.Attempt == 1 {
@@ -82,13 +83,19 @@ func (a OriginalOwnerLaunchAttempt) Validate() error {
 	return nil
 }
 
-func SignOriginalOwnerLaunchAttempt(a OriginalOwnerLaunchAttempt) (OriginalOwnerLaunchAttempt, error) {
+func FinalizeOriginalOwnerLaunchAttempt(a OriginalOwnerLaunchAttempt) (OriginalOwnerLaunchAttempt, error) {
 	a.AttemptSHA256 = ""
 	a.AttemptSHA256 = originalOwnerLaunchAttemptDigest(a)
 	if err := a.Validate(); err != nil {
 		return OriginalOwnerLaunchAttempt{}, err
 	}
 	return a, nil
+}
+
+// SignOriginalOwnerLaunchAttempt is retained for source compatibility. Launch
+// attempts are hashes, never signatures; new callers should use Finalize.
+func SignOriginalOwnerLaunchAttempt(a OriginalOwnerLaunchAttempt) (OriginalOwnerLaunchAttempt, error) {
+	return FinalizeOriginalOwnerLaunchAttempt(a)
 }
 
 func VerifyOriginalOwnerLaunchAttempt(a OriginalOwnerLaunchAttempt) error { return a.Validate() }
@@ -130,6 +137,19 @@ func (r OriginalOwnerLaunchReceipt) Validate() error {
 	default:
 		return ownerInvalid()
 	}
+	if r.Phase == OriginalOwnerLaunchPreparedNotStarted {
+		if r.PriorReceiptSHA256 != "" {
+			return ownerInvalid()
+		}
+	} else if r.PriorReceiptSHA256 == "" {
+		return ownerInvalid()
+	}
+	if r.ExitCode != nil && (*r.ExitCode < 0 || *r.ExitCode > 255) {
+		return ownerInvalid()
+	}
+	if r.ExitSignal != "" && (len(r.ExitSignal) > 32 || !ownerText(r.ExitSignal, 32) || !strings.HasPrefix(r.ExitSignal, "SIG") || strings.Trim(r.ExitSignal, "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_") != "") {
+		return ownerInvalid()
+	}
 	return nil
 }
 
@@ -148,7 +168,7 @@ func SignOriginalOwnerLaunchReceipt(r OriginalOwnerLaunchReceipt, key ed25519.Pr
 }
 
 func VerifyOriginalOwnerLaunchReceipt(r OriginalOwnerLaunchReceipt, key ed25519.PublicKey, a OriginalOwnerLaunchAttempt) error {
-	if err := a.Validate(); err != nil || r.Validate() != nil || r.AttemptSHA256 != a.AttemptSHA256 {
+	if err := a.Validate(); err != nil || r.Validate() != nil || r.AttemptSHA256 != a.AttemptSHA256 || r.Supervisor != a.Supervisor {
 		return ownerInvalid()
 	}
 	id, err := OriginalOwnerKeyID(key)

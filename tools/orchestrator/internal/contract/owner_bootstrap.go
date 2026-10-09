@@ -36,30 +36,33 @@ type OwnerTransportBootstrap struct {
 // authenticated public-key pin are checked by the runtime before enrollment.
 // This validation is deliberately pure: path equality is not an inode proof.
 func (b OwnerRuntimeBootstrap) Validate() error {
-	if b.Version != 1 || ownerBootstrapPublic(b.StateDir, b.Prepared.Intent, b.Prepared.CoordinatorPublicKey) != nil || b.SpoolRoot != filepath.Join(b.StateDir, "host-spool", b.Prepared.Intent.Scope.LaunchID) || b.Prepared.RPCSocketPath != filepath.Join(b.StateDir, "owner.sock") || !ownerBootstrapSize(b) {
+	if (b.Version != 1 && b.Version != 2) || ownerBootstrapPublic(b.StateDir, b.Prepared.Intent, b.Prepared.CoordinatorPublicKey) != nil || b.SpoolRoot != filepath.Join(b.StateDir, "host-spool", b.Prepared.Intent.Scope.LaunchID) || b.Prepared.RPCSocketPath != filepath.Join(b.StateDir, "owner.sock") || !ownerBootstrapSize(b) {
 		return ownerInvalid()
 	}
 	hash, err := OriginalOwnerBootstrapSHA256(b.BootstrapToken)
 	if err != nil || subtle.ConstantTimeCompare([]byte(hash), []byte(b.Prepared.Intent.BootstrapTokenSHA256)) != 1 {
 		return ownerInvalid()
 	}
-	if b.Prepared.LaunchAttempt == nil {
-		if b.LaunchReceipt != nil || b.Environment != nil {
+	if b.Version == 1 {
+		if b.Prepared.LaunchAttempt != nil || b.LaunchReceipt != nil || b.Environment != nil {
 			return ownerInvalid()
 		}
 		return nil
 	}
-	if b.Prepared.LaunchAttempt.Validate() != nil || b.Prepared.Intent != b.Prepared.LaunchAttempt.EffectiveIntent || b.LaunchReceipt == nil || len(b.Environment) == 0 || len(b.Environment) > 256 {
+	if b.Prepared.LaunchAttempt == nil || b.Prepared.LaunchAttempt.Validate() != nil || b.Prepared.Intent != b.Prepared.LaunchAttempt.EffectiveIntent || b.LaunchReceipt == nil || b.LaunchReceipt.Phase != OriginalOwnerLaunchStartedWaitOwned || b.LaunchReceipt.Child == nil || !b.LaunchReceipt.HandoffClosed || len(b.Environment) == 0 || len(b.Environment) > 256 {
 		return ownerInvalid()
 	}
 	key, ok := ownerHex(b.Prepared.CoordinatorPublicKey, ed25519.PublicKeySize)
 	if !ok || VerifyOriginalOwnerLaunchReceipt(*b.LaunchReceipt, ed25519.PublicKey(key), *b.Prepared.LaunchAttempt) != nil {
 		return ownerInvalid()
 	}
+	seen := map[string]bool{}
 	for _, value := range b.Environment {
-		if !ownerText(value, 8192) {
+		key, _, ok := strings.Cut(value, "=")
+		if !ok || key == "" || strings.ContainsAny(key, "\x00\r\n=") || strings.ContainsAny(value, "\x00\r\n") || strings.HasPrefix(key, "ORCHESTRATOR_") || seen[key] {
 			return ownerInvalid()
 		}
+		seen[key] = true
 	}
 	return nil
 }

@@ -66,13 +66,14 @@ type OriginalOwnerHello struct {
 }
 
 type OriginalOwnerBinding struct {
-	Scope            OriginalOwnerScope     `json:"scope"`
-	Owner            OriginalOwnerIdentity  `json:"owner"`
-	CoordinatorKeyID string                 `json:"coordinator_key_id"`
-	FirstHost        OriginalOwnerTransport `json:"first_host"`
-	BindingRevision  uint64                 `json:"binding_revision"`
-	BindingSHA256    string                 `json:"binding_sha256"`
-	Signature        string                 `json:"signature"`
+	Scope               OriginalOwnerScope     `json:"scope"`
+	Owner               OriginalOwnerIdentity  `json:"owner"`
+	CoordinatorKeyID    string                 `json:"coordinator_key_id"`
+	FirstHost           OriginalOwnerTransport `json:"first_host"`
+	BindingRevision     uint64                 `json:"binding_revision"`
+	BindingSHA256       string                 `json:"binding_sha256"`
+	LaunchAttemptSHA256 string                 `json:"launch_attempt_sha256,omitempty"`
+	Signature           string                 `json:"signature"`
 }
 
 type OwnerControlPermit struct {
@@ -251,7 +252,7 @@ func (h OriginalOwnerHello) Validate() error {
 	return err
 }
 func (b OriginalOwnerBinding) Validate() error {
-	if b.Scope.Validate() != nil || b.Owner.Validate() != nil || b.FirstHost.Validate() != nil || !ownerDigest(b.CoordinatorKeyID) || b.BindingRevision != 1 || !ownerDigest(b.BindingSHA256) || b.BindingSHA256 != originalBindingDigest(b) {
+	if b.Scope.Validate() != nil || b.Owner.Validate() != nil || b.FirstHost.Validate() != nil || !ownerDigest(b.CoordinatorKeyID) || b.BindingRevision != 1 || !ownerDigest(b.BindingSHA256) || (b.LaunchAttemptSHA256 != "" && !ownerDigest(b.LaunchAttemptSHA256)) || b.BindingSHA256 != originalBindingDigest(b) {
 		return ownerInvalid()
 	}
 	if b.Signature != "" {
@@ -310,7 +311,11 @@ func ownerRequiredFields(raw []byte, typ reflect.Type) bool {
 	}
 	for n := 0; n < typ.NumField(); n++ {
 		f := typ.Field(n)
-		name := strings.Split(f.Tag.Get("json"), ",")[0]
+		tag := f.Tag.Get("json")
+		name := strings.Split(tag, ",")[0]
+		if strings.Contains(tag, ",omitempty") {
+			continue
+		}
 		v, ok := fields[name]
 		if !ok || !ownerRequiredFields(v, f.Type) {
 			return false

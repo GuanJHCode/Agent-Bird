@@ -18,7 +18,7 @@ func TestOriginalOwnerLaunchAttemptAndReceiptBindEffectiveIntent(t *testing.T) {
 	effective.RequestSHA256 = strings.Repeat("d", 64)
 	effective.StartupDeadlineUnixMS++
 	effective.CoordinatorEpoch++
-	supervisor := OriginalOwnerLaunchSupervisor{Epoch: 8, PID: 404, Birth: "coordinator-birth", Nonce: strings.Repeat("e", 64), ExecutableSHA256: strings.Repeat("f", 64)}
+	supervisor := OriginalOwnerLaunchSupervisor{Epoch: 8, PID: 404, Birth: "coordinator-birth", Nonce: strings.Repeat("e", 64), ExecutableSHA256: effective.Scope.ExecutableSHA256}
 	attempt := OriginalOwnerLaunchAttempt{Version: 2, Attempt: 2, BaseIntent: base, EffectiveIntent: effective, PriorReceiptSHA256: strings.Repeat("1", 64), Supervisor: supervisor}
 	attempt, err := SignOriginalOwnerLaunchAttempt(attempt)
 	if err != nil {
