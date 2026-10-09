@@ -1,0 +1,18 @@
+{
+  "source": "662a7e3746924d590521080611d166fc0a811a39",
+  "integration_merge": "d977299d0ce55230c699e405c2e0ecadd02b229d",
+  "orchestrator_tree": "3538ccc007b778c4457e2854ca2623173d3eddc5",
+  "raw_sha256": "21f18eb719047d1ed0a19b3f92f50cea847ebaeb43912837f4844bd3595ca2f3",
+  "passed_top": 1,
+  "passed_named": 1,
+  "failed": 0,
+  "skipped": 0,
+  "exit_code": 0,
+  "review": "scoped PASS 662a7e3; actual raw independently parsed by ROOT",
+  "reused": "identical orchestrator tree; no duplicate integration test",
+  "limits": [
+    "controlled Claude+AGY only",
+    "no real providers or accounts",
+    "Grok exploratory failure raw overwritten, unavailable and not counted"
+  ]
+}

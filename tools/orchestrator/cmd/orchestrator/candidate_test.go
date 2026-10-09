@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host"
 )
@@ -261,6 +262,7 @@ func TestMain(m *testing.M) {
 	mode := os.Getenv("CANDIDATE_FIXTURE_MODE")
 	grokFixture := os.Getenv("GROK_REVIEW_FIXTURE") != ""
 	indexedFixture := os.Getenv("GROK_INDEXED_FIXTURE") != ""
+	agyFixture := false
 	// A single real source-host can run both providers. These copied test
 	// executables select their protocol by identity, never shared task env.
 	switch filepath.Base(os.Args[0]) {
@@ -268,6 +270,12 @@ func TestMain(m *testing.M) {
 		mode, grokFixture, indexedFixture = "success", false, false
 	case "indexed-grok-fixture", "indexed-grok-budget-fixture":
 		mode, grokFixture, indexedFixture = "review_approve", true, true
+	case "compose-cross-claude-fixture":
+		mode, grokFixture, indexedFixture = "compose-a", false, false
+	case "compose-cross-agy-fixture":
+		mode, grokFixture, indexedFixture, agyFixture = "compose-b", false, false, true
+	case "compose-cross-review-claude-fixture":
+		mode, grokFixture, indexedFixture = "review_approve", false, false
 	}
 	if mode == "" {
 		os.Exit(m.Run())
@@ -281,7 +289,7 @@ func TestMain(m *testing.M) {
 		os.Exit(0)
 	}
 	if len(os.Args) == 2 && os.Args[1] == "--help" {
-		fmt.Println("--output-format --input-format --permission-mode --disallowed-tools --json-schema --prompt-file --session-id --output --model --allowed-tools --denied-tools --no-subagents --disable-web-search --leader-socket --tools --deny")
+		fmt.Println("--output-format --input-format --permission-mode --mode --disallowed-tools --json-schema --prompt-file --session-id --output --model --allowed-tools --denied-tools --no-subagents --disable-web-search --leader-socket --tools --deny --allow")
 		os.Exit(0)
 	}
 	if grokFixture && len(os.Args) == 2 && os.Args[1] == "models" {
@@ -424,12 +432,50 @@ func TestMain(m *testing.M) {
 		}
 	}
 	if mode == "compose-a" || mode == "compose-b" {
+		managedSchema := false
+		for i, arg := range os.Args {
+			if arg == "--json-schema" && i+1 < len(os.Args) && os.Args[i+1] == adapter.ManagedTaskSchema() {
+				managedSchema = true
+			}
+		}
+		input, err := io.ReadAll(io.LimitReader(os.Stdin, 1024*1024))
+		var envelope struct {
+			Message struct {
+				Content json.RawMessage `json:"content"`
+			} `json:"message"`
+		}
+		if err != nil || json.Unmarshal(input, &envelope) != nil || !managedSchema {
+			os.Exit(11)
+		}
+		var prompt string
+		if agyFixture {
+			if json.Unmarshal(envelope.Message.Content, &prompt) != nil {
+				os.Exit(11)
+			}
+		} else {
+			var content []struct {
+				Type string `json:"type"`
+				Text string `json:"text"`
+			}
+			if json.Unmarshal(envelope.Message.Content, &content) != nil || len(content) != 1 || content[0].Type != "text" {
+				os.Exit(11)
+			}
+			prompt = content[0].Text
+		}
+		if prompt != "controlled implementation\n\n"+adapter.ManagedTaskInstruction() {
+			os.Exit(11)
+		}
 		name := strings.TrimPrefix(mode, "compose-") + ".txt"
 		if err := os.WriteFile(name, []byte(mode+"\n"), 0600); err != nil {
 			os.Exit(3)
 		}
-		fmt.Println(`{"type":"system","subtype":"init","session_id":"compose-fixture"}`)
-		fmt.Println(`{"type":"result","subtype":"success","session_id":"compose-fixture","result":"implemented","structured_output":{"version":1,"kind":"result","text":"implemented"}}`)
+		if agyFixture {
+			fmt.Println(`{"event":"init","conversation_id":"compose-fixture"}`)
+			fmt.Println(`{"event":"result","result":{"status":"SUCCESS","conversation_id":"compose-fixture","response":"ordinary-agy-result-is-non-authoritative","structured_output":{"version":1,"kind":"result","text":"compose-b-structured"}}}`)
+		} else {
+			fmt.Println(`{"type":"system","subtype":"init","session_id":"compose-fixture"}`)
+			fmt.Println(`{"type":"result","subtype":"success","session_id":"compose-fixture","result":"ordinary-claude-result-is-non-authoritative","structured_output":{"version":1,"kind":"result","text":"compose-a-structured"}}`)
+		}
 		os.Exit(0)
 	}
 	content := "worker implementation\n"
