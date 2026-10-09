@@ -432,7 +432,6 @@ func TestValidationSealedActualProfileHasPositiveControls(t *testing.T) {
 				if e = os.Chmod(dir, 0500); e != nil {
 					t.Fatal(e)
 				}
-				t.Cleanup(func() { _ = os.Chmod(dir, 0700) })
 			}
 			cmd := process.Command{Path: self, Args: []string{"protect", peer}, Dir: workspace, PinnedPath: actor, PinnedSHA256: pin}
 			if mode == "actual_host_profile" {

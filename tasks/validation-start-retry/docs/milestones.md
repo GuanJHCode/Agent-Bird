@@ -80,3 +80,5 @@ clean d663785 的 `final-runtime-race` exit0：Host7top33named PASS、Store8top4
 独审发现测试cleanup风险：t.TempDir在UNKNOWN/Wait失败后会自动删除actor现场。仅test-only改为owned os.MkdirTemp+目录inode身份guard；任何实际Start/Host call登记pending，只有原Wait/tree或原live typed never-started确证才解除。setup Go build也使用原process.Handle Wait/tree；测试失败或任何pending均保留并在raw记录精确root，不chmod/delete未知copy。只在所有原进程确证且测试成功后改变0500目录权限并RemoveAll。
 
 `native-cleanup-01`定向race 3top5named PASS，exit0，0FAIL/SKIP：完整公开native链、七操作profile正对照、一个真正活original actor未收到stdin/尚未Wait时cleanup拒绝并保留copy；之后原Stop/Wait/tree确证，模拟failed仍保留，再于已确证成功路径删除。新cleanup源须独审，不重复未受影响Store race。生产仍b5899d2。
+
+cleanup增量复审删除unsandboxed子例旧无条件t.Cleanup chmod一行，避免failed/pending时绕过父guard；所有chmod/RemoveAll统一由confirmed安全分支执行。`native-profile-cleanup-02`仅重跑受影响profile test race，1top3named PASS exit0；完整chain/Store证据按未受影响源码复用，不机械重跑。
