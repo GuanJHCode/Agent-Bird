@@ -1,0 +1,15 @@
+{
+  "integration_commit": "8867d02f7ebae8c5184d6ce1f22b8c9a74f9078e",
+  "tested_source": "a68a901ec57e4d96200ee20f48eae6e5969e8a95",
+  "evidence_source": "79c9c7a",
+  "input_git_objects_identical": {
+    "tools/orchestrator": "27aa641629f5c07fd0f8726684c16eb7e4040611",
+    "plugins/codex-orchestrator": "dbd308afc5bb0d93d579aae6e237c1e053dce029",
+    "runtime/native": "74b7ed8f5c75519b1710f3e78f6ebb2f4446f467",
+    "tasks/g1-g4-delivery/scripts/package-plugin.sh": "cbe22f7f37e4e953319d53e7e73df6a19cc9cf99"
+  },
+  "package_path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/closure-package-provenance/tasks/closure-package-provenance/tmp/candidate-first/package-a",
+  "binary_sha256": "60a679b730775bcab7a66d978c32c1df16c083a0d202f7d994a22f74c90b5f29",
+  "package_manifest_sha256": "0b00dda95d0062c76afd2b6bd6af55db7a0aa74d0c8aeca083cda015e634b880",
+  "scope": "macOS arm64 full-native-hooks package and task-private public admin; no registration/model/user installation/release"
+}
