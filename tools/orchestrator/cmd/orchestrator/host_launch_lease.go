@@ -92,7 +92,7 @@ func rebindHostBootstrap(ctx context.Context, state string, c controlCapability,
 		LaunchID        string `json:"launch_id"`
 		BootstrapSHA256 string `json:"bootstrap_sha256"`
 	}
-	if decode(response.Payload, &receipt) != nil || receipt.Version != 1 || receipt.Status != "owner_rebound" || receipt.RunID != c.RunID || receipt.LaunchID != c.HostLaunchID || receipt.BootstrapSHA256 == "" || receipt.OriginContextID != req.OriginContextID || receipt.HostGeneration != req.HostGeneration {
+	if decode(response.Payload, &receipt) != nil || receipt.Version != 1 || receipt.Status != "owner_rebound" || receipt.RunID != c.RunID || receipt.LaunchID != c.HostLaunchID || receipt.BootstrapSHA256 == "" || (receipt.OriginContextID == "" || (req.OriginContextID != "" && receipt.OriginContextID != req.OriginContextID)) || receipt.HostGeneration != req.HostGeneration {
 		return ipc.Envelope{}, codeError("invalid_rebind_response")
 	}
 	return response, nil

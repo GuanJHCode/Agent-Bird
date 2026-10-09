@@ -18,7 +18,15 @@ func publicationSHA(raw []byte) string { sum := sha256.Sum256(raw); return hex.E
 // Authentication precedes Store enumeration; no request supplies a path or token.
 func (s *Server) rebindOwnerPublished(ctx context.Context, request RebindOwnerRequest) ([]byte, error) {
 	binding, err := s.db.ValidateRunOwner(ctx, request.RunID, request.ControllerThread, request.ControlToken)
-	if err != nil || binding.OriginContextID != request.OriginContextID {
+	if err != nil {
+		return nil, err
+	}
+	// Local CLI rebind carries a run control and the new owner grant, not the
+	// old bootstrap's origin context. Only the authenticated Store supplies it.
+	if request.OwnerMode == "local" && request.OriginContextID == "" {
+		request.OriginContextID = binding.OriginContextID
+	}
+	if binding.OriginContextID != request.OriginContextID {
 		return nil, store.ErrConflict
 	}
 	spec := store.RebindOwnerSpec{RunID: request.RunID, OriginContextID: request.OriginContextID, OriginPID: request.OriginPID, OriginBirth: request.OriginBirth, HostGeneration: request.HostGeneration, AttachmentProofSHA256: request.AttachmentProofSHA256}
