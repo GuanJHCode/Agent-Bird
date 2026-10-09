@@ -68,3 +68,28 @@ func TestPreBindRetryAdmissionCommitsSecondAttemptAndMovesHost(t *testing.T) {
 		t.Fatal("second attempt admitted a third launch")
 	}
 }
+
+func TestSupervisedLaunchRejectsWrongChildAndTamperedHead(t *testing.T) {
+	f := newOriginalOwnerFixture(t)
+	ctx := context.Background()
+	p, err := f.db.PrepareSupervisedOriginalOwner(ctx, f.prepare, "", contract.OriginalOwnerLaunchSupervisor{Epoch: 1, PID: 700, Birth: "coord", Nonce: strings.Repeat("a", 64), ExecutableSHA256: f.prepare.ExecutableSHA256}, f.key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := p.LaunchAttempt.Supervisor
+	if _, err = f.db.RecordOriginalOwnerLaunchStartIntent(ctx, p.Intent.Scope.OwnerID, p.LaunchAttempt.AttemptSHA256, s, f.key); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = f.db.RecordOriginalOwnerLaunchStarted(ctx, p.Intent.Scope.OwnerID, p.LaunchAttempt.AttemptSHA256, s, contract.OriginalOwnerTransport{PID: 999, Birth: "wrong-child"}, true, f.key); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = f.db.BindOriginalOwner(ctx, f.bindSpec(p.Intent), f.key); err == nil {
+		t.Fatal("wrong child bound")
+	}
+	if _, err = f.db.sql.Exec(`DELETE FROM owner_launch_heads WHERE owner_id=?`, p.Intent.Scope.OwnerID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = f.db.InspectOriginalOwnerLaunch(ctx, p.Intent.Scope.OwnerID); err == nil {
+		t.Fatal("partial v2 facts fell back")
+	}
+}
