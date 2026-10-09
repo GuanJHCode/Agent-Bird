@@ -1,0 +1,14 @@
+{
+  "integration_commit": "589b0da3c7c1393a35af477656de021d7befbcbd",
+  "reviewed_branch_commit": "4795e96",
+  "production_commit": "5089e31",
+  "production_hashes_match": 4,
+  "source_sha256": {
+    "tools/orchestrator/cmd/orchestrator/host_launch_lease.go": "c9396c2d4ef2bc4cc4f24e1e365473bac4720ec344e61ad773e10cec2643d59b",
+    "tools/orchestrator/cmd/orchestrator/host_recovery.go": "b19499bf146bd2ead2d8baadcd9caec8d33091c49e7967f1bfa1f351dbf8213a",
+    "tools/orchestrator/cmd/orchestrator/main.go": "acf4856d9cbf867c45741fa2333175f43e0249506581b6e9954db13d2e3e0d20",
+    "tools/orchestrator/cmd/orchestrator/local_owner.go": "e9481a45f2c760876efca000042a5125bcaf6e8c0dda20d0932a0174a04f5d04"
+  },
+  "entire_orchestrator_source_and_tests_equal": true,
+  "validation": "Reused final ordinary/race/Linux/Host recovery/native entry and final vet evidence; merge changed no source bytes."
+}
