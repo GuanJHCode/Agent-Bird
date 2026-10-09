@@ -19,7 +19,7 @@
 
 当前仓库尚未发布这一版预编译 Release，不要把源码压缩包当成已构建的安装包。
 
-2026-10-09 源码候选已完成 [macOS arm64 可复建包及隔离安装验收](../tasks/closure-package-provenance/docs/final-validation.md)：同源两次构建/打包一致，公开 install/Doctor/重复安装/uninstall 与源码文件摘要相符。该本地包固定本机 Python 路径及摘要，没有更新用户已安装版本，也未注册或发布；其他机器、真实 Hook/TUI 和 Provider 验收仍按支持矩阵单列。
+包含 F02 显式 retention 与 F10 server-owned publication 的源码候选 `4543635` 已完成 [macOS arm64 可复建包及隔离安装验收](../tasks/closure-package-provenance/docs/owner-publication-20261009.md)：同源两次构建/打包一致，公开 install/Doctor/重复安装/uninstall 与源码文件摘要相符。该本地包固定本机 Python 路径及摘要，没有更新用户已安装版本，也未注册或发布；其他机器、真实 Hook/TUI 和 Provider 验收仍按支持矩阵单列。
 
 ## 四种 CLI 的统一安装包（预览）
 
