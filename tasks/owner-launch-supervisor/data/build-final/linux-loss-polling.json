@@ -1,0 +1,13 @@
+{
+  "command": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+    "test",
+    "-c",
+    "-o",
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/owner-launch-supervisor/tasks/owner-launch-supervisor/tmp/linux/native-loss-polling.test",
+    "./cmd/orchestrator"
+  ],
+  "exit": 0,
+  "source": "998845d17163d66c9a0b0d0a15553e06f930debe",
+  "binary_sha256": "cfea2d874660b6f6f916a160a1d491964556ed85c3ab06dba5c6d068badbc5c4"
+}
