@@ -17,16 +17,17 @@ type OwnerPrepareRequest struct {
 }
 
 func (p OwnerPrepareRequest) Validate(requestID string) error {
-	if p.Version != 1 || !ownerText(p.BootstrapID, 256) || !ownerText(requestID, 256) || !ownerDigest(p.BootstrapTokenSHA256) || p.StartupDeadlineUnixMS <= 0 {
+	if (p.Version != 1 && p.Version != 2) || !ownerText(p.BootstrapID, 256) || !ownerText(requestID, 256) || !ownerDigest(p.BootstrapTokenSHA256) || p.StartupDeadlineUnixMS <= 0 {
 		return ownerInvalid()
 	}
 	return nil
 }
 
 type OwnerPrepared struct {
-	Intent               OriginalOwnerIntent `json:"intent"`
-	CoordinatorPublicKey string              `json:"coordinator_public_key"`
-	RPCSocketPath        string              `json:"rpc_socket_path"`
+	Intent               OriginalOwnerIntent         `json:"intent"`
+	CoordinatorPublicKey string                      `json:"coordinator_public_key"`
+	RPCSocketPath        string                      `json:"rpc_socket_path"`
+	LaunchAttempt        *OriginalOwnerLaunchAttempt `json:"launch_attempt,omitempty"`
 }
 type OwnerRPCOpen struct {
 	Version int                   `json:"version"`

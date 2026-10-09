@@ -1,0 +1,25 @@
+{
+  "date": "2026-10-09",
+  "scope": "F10 owner launch FD timing investigation",
+  "go": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+  "framed_rights": {
+    "command": "go test -count=20 -run TestOwnerLaunchDescriptorHandoffAfterFramedRequest -v ./internal/ipc",
+    "iterations": 5120,
+    "exit": 0,
+    "result": "pass",
+    "conclusion": "A normal ipc.Read of the preceding OwnerLaunch frame did not consume the following SCM_RIGHTS marker or rights."
+  },
+  "native": [
+    {
+      "test": "TestPublicOwnerLaunchProtocol2PreBindKill",
+      "exit": 0,
+      "result": "pass"
+    },
+    {
+      "test": "TestPublicOwnerLaunchCoordinatorLossUnknown",
+      "exit": 0,
+      "result": "pass"
+    }
+  ],
+  "static_poll_eintr": "OwnerLaunchFDs.ValidateEmpty maps any unix.Poll error, including an EINTR if returned, to invalid_ipc_message. This run has no evidence that Poll returned EINTR."
+}

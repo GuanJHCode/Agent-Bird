@@ -39,21 +39,22 @@ type TaskRequest struct {
 }
 
 type SubmitRequest struct {
-	OwnerMode        string        `json:"owner_mode,omitempty"`
-	DeliveryMode     string        `json:"delivery_mode,omitempty"`
-	RunID            string        `json:"run_id"`
-	ControllerThread string        `json:"controller_thread"`
-	PlanRevision     int           `json:"plan_revision"`
-	OriginContextID  string        `json:"origin_context_id"`
-	OriginPID        int           `json:"origin_pid"`
-	OriginBirth      string        `json:"origin_birth"`
-	HostGeneration   string        `json:"host_generation"`
-	OwnerCapability  string        `json:"owner_capability,omitempty"`
-	HostExecutable   string        `json:"host_executable"`
-	Tasks            []TaskRequest `json:"tasks"`
-	LaunchID         string        `json:"launch_id,omitempty"`
-	LaunchToken      string        `json:"launch_token,omitempty"`
-	ControlToken     string        `json:"control_token,omitempty"`
+	OwnerLaunchProtocol int           `json:"owner_launch_protocol,omitempty"`
+	OwnerMode           string        `json:"owner_mode,omitempty"`
+	DeliveryMode        string        `json:"delivery_mode,omitempty"`
+	RunID               string        `json:"run_id"`
+	ControllerThread    string        `json:"controller_thread"`
+	PlanRevision        int           `json:"plan_revision"`
+	OriginContextID     string        `json:"origin_context_id"`
+	OriginPID           int           `json:"origin_pid"`
+	OriginBirth         string        `json:"origin_birth"`
+	HostGeneration      string        `json:"host_generation"`
+	OwnerCapability     string        `json:"owner_capability,omitempty"`
+	HostExecutable      string        `json:"host_executable"`
+	Tasks               []TaskRequest `json:"tasks"`
+	LaunchID            string        `json:"launch_id,omitempty"`
+	LaunchToken         string        `json:"launch_token,omitempty"`
+	ControlToken        string        `json:"control_token,omitempty"`
 }
 
 type SubmitResponse struct {
@@ -182,6 +183,7 @@ type ErrorResponse struct {
 }
 
 type hostSession struct {
+	preBindRetry             bool                           // pending authenticated physical Host; Store registration occurs at Prepare
 	successorAuthorizationID string                         // private immutable selection; never decoded from HostHello
 	ownerPermit              *contract.OwnerControlPermit   // immutable before dispatch publication
 	ownerTicket              *contract.OwnerTransportTicket // immutable pending enrollment
@@ -215,6 +217,8 @@ func (h *hostSession) send(message ipc.Envelope) error {
 }
 
 type Server struct {
+	launchSupervisor    *contract.OriginalOwnerLaunchSupervisor // registration lock
+	launchChildren      map[string]*originalOwnerLaunchChild    // registration lock
 	cliSupervised       bool
 	ownerKeys           *originalOwnerKeys
 	stateDir            string
@@ -586,6 +590,9 @@ func (s *Server) Close() error {
 		s.ownerTransports = nil
 		s.hosts = nil
 		s.mu.Unlock()
+		launchCloseCtx, launchCloseCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		result = errors.Join(result, s.closeOriginalOwnerLaunches(launchCloseCtx))
+		launchCloseCancel()
 		if err := s.listener.Close(); err != nil && !errors.Is(err, net.ErrClosed) {
 			result = err
 		}
@@ -618,6 +625,10 @@ func (s *Server) handleConnection(ctx context.Context, conn net.Conn) {
 		return
 	}
 	defer conn.Close()
+	if message.Kind == ipc.KindOwnerLaunchStatus {
+		s.handleOwnerLaunchStatus(ctx, conn, message)
+		return
+	}
 	if diagnosticsControlKind(message.Kind) {
 		s.handleDiagnosticsConnection(ctx, conn, message)
 		return
@@ -768,6 +779,9 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 		if err := strictJSON(raw, &request); err != nil {
 			return nil, err
 		}
+		if (request.OwnerLaunchProtocol != 0 && request.OwnerLaunchProtocol != 2) || (request.OwnerLaunchProtocol == 2 && !s.cliSupervised) {
+			return nil, store.CodeError("owner_launch_protocol_unsupported")
+		}
 		var configGuard *install.ConfigSubmissionGuard
 		if request.OwnerMode == "local" {
 			g, err := s.localOwner(ctx, request.OwnerCapability)
@@ -816,7 +830,7 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 			tasks = append(tasks, store.TaskSpec{Diagnostics: task.Diagnostics, ID: task.ID, RunID: request.RunID, Dependencies: task.Dependencies, ExecutionPolicy: task.ExecutionPolicy, MaxAttempts: task.MaxAttempts, WorkRevision: task.WorkRevision, BudgetGroupID: task.BudgetGroupID, MaxActiveMS: task.MaxActiveMS, AdapterPayload: task.AdapterPayload, FallbackPayloads: task.Fallbacks, CompletionPolicy: policy, ExpectedArtifactSHA256: task.ExpectedArtifactSHA256})
 		}
 		mode := "legacy"
-		if s.cliSupervised && (request.OwnerMode != "local" || configGuard != nil) {
+		if s.cliSupervised && (request.OwnerMode != "local" || configGuard != nil || request.OwnerLaunchProtocol == 2) {
 			mode = "supervised-v1"
 		}
 		receipt, err := s.db.SubmitPlan(ctx, store.PlanSpec{ConfigSubmission: configGuard, Run: store.RunSpec{DeliveryMode: request.DeliveryMode, ID: request.RunID, ControllerThread: request.ControllerThread, PlanRevision: request.PlanRevision, OriginContextID: request.OriginContextID, OriginPID: request.OriginPID, OriginBirth: request.OriginBirth}, Host: store.HostLaunchSpec{ExecutionOwnerMode: mode, OriginContextID: request.OriginContextID, HostGeneration: request.HostGeneration, Executable: request.HostExecutable}, Tasks: tasks, LaunchID: request.LaunchID, LaunchToken: request.LaunchToken, ControlToken: request.ControlToken})

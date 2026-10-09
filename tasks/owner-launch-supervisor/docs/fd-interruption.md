@@ -1,0 +1,11 @@
+# Descriptor interruption diagnosis
+
+ROOT took over after two ordinary native attempts did not reproduce the intermittent failure. Those two PASS results do not establish a root cause. No temporary diagnostic messages remain in production.
+
+A task-scoped standalone Darwin arm64 signal probe using the exact empty pipe/socket Poll(0) shape observed EINTR at iteration 3 (5 signals, 0.000127s). The production ValidateEmpty real-signal test then failed at iteration 3; temporary stage-only error instrumentation proved `Poll(0) n=-1 err=interrupted system call pipe=0 control=0`. Raw commands/output/exits and the temporary stage patch are retained. The standalone probe was gofmt-only changed after its recorded runtime source hash; the preserved formatted source has the same behavior.
+
+An initial unlimited signal-flood regression exhausted the new bounded 16-call retry burst; raw failure and a diagnostic explicitly naming burst exhaustion are retained. The durable regression instead specifies a finite burst of 8 signals, consistent with bounded handling, and was separately run against unchanged production: real RED at iteration 4. It then passed with the fix. No readiness check or payload guard was weakened.
+
+Fix: retry interrupted Poll(0) at most 16 times, with fresh revents each time; non-EINTR errors/readiness/invalid descriptors still reject. Independent source review also found recvmsg EINTR incorrectly returned false to edge-triggered RawConn.Read. It now retries immediately inside the callback, bounded and context-aware; only EAGAIN/EWOULDBLOCK requests another readiness edge. A per-call receive function parameter (no global mutable hook) allows focused injection of EINTR before real queued SCM rights and cancellation.
+
+Focused ordinary result: 2 top-level /4 named PASS, 0 fail/skip. Final affected Mac race IPC5/17 and native2/2 PASS, Linux IPC5/17 and native2/2 PASS, build/vet0 and fixed-snapshot independent review PASS on production0874ede. Historical generic native failures have no per-syscall trace; this proves a matching concrete fault path, not that every historical failure had this cause. No bootstrap/environment bytes were read by diagnostics or validation.

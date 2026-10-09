@@ -39,6 +39,7 @@ type BindOriginalOwnerSpec struct {
 
 type OriginalOwnerState struct {
 	Intent                    contract.OriginalOwnerIntent
+	BaseIntent                *contract.OriginalOwnerIntent
 	SuccessionAuthorizationID string
 	Phase                     string
 	IsCurrent                 bool
@@ -47,6 +48,13 @@ type OriginalOwnerState struct {
 	CurrentHost               *contract.OriginalOwnerTransport
 	CoordinatorEpoch          uint64
 	Binding                   *contract.OriginalOwnerBinding
+	LaunchAttempt             *contract.OriginalOwnerLaunchAttempt
+	LaunchReceipt             *contract.OriginalOwnerLaunchReceipt
+}
+
+type OriginalOwnerLaunchExit struct {
+	Code   *int
+	Signal string
 }
 
 type OriginalOwnerBindResult struct {
@@ -270,23 +278,42 @@ func (d *DB) BindOriginalOwner(ctx context.Context, spec BindOriginalOwnerSpec, 
 		return OriginalOwnerBindResult{}, err
 	}
 	i := row.state.Intent
+	base := i
+	if row.state.BaseIntent != nil {
+		base = *row.state.BaseIntent
+	}
+	launch, latest, launchErr := loadOwnerLaunch(ctx, tx, i.Scope.OwnerID)
+	bindIntent := i
+	if launchErr == nil {
+		bindIntent = launch.EffectiveIntent
+	} else if !errors.Is(launchErr, ErrNotFound) {
+		return OriginalOwnerBindResult{}, launchErr
+	}
 	scope, host, err := originalOwnerRuntimeScope(ctx, tx, spec.Host, spec.Epoch, true)
 	if err != nil {
 		return OriginalOwnerBindResult{}, err
 	}
 	tokenHash, _ := contract.OriginalOwnerBootstrapSHA256(spec.Hello.BootstrapToken)
-	if !row.state.IsCurrent || !originalOwnerSameScope(scope, i.Scope) || spec.Hello.Scope != i.Scope || spec.Hello.BootstrapID != i.BootstrapID || subtle.ConstantTimeCompare([]byte(tokenHash), []byte(i.BootstrapTokenSHA256)) != 1 || spec.Hello.FirstHost != i.FirstHost || host != i.FirstHost || spec.Hello.CoordinatorKeyID != i.CoordinatorKeyID || !originalOwnerMatchesAuthentication(i.Scope, spec.Hello.Owner, spec.Authenticated) {
+	if !row.state.IsCurrent || !originalOwnerSameScope(scope, i.Scope) || spec.Hello.Scope != i.Scope || spec.Hello.BootstrapID != bindIntent.BootstrapID || subtle.ConstantTimeCompare([]byte(tokenHash), []byte(bindIntent.BootstrapTokenSHA256)) != 1 || spec.Hello.FirstHost != bindIntent.FirstHost || host != bindIntent.FirstHost || spec.Hello.CoordinatorKeyID != i.CoordinatorKeyID || !originalOwnerMatchesAuthentication(i.Scope, spec.Hello.Owner, spec.Authenticated) {
 		return OriginalOwnerBindResult{}, originalOwnerRejected()
 	}
 	pub, err := originalOwnerSigningPublic(key, i.CoordinatorKeyID)
 	if err != nil {
 		return OriginalOwnerBindResult{}, err
 	}
+	// v2 can bind only from an authenticated coordinator Start witness.  A
+	// later Wait receipt is allowed for lost Bind acknowledgements, but the
+	// original started witness remains the exact child/FD-handoff proof.
+	if launchErr == nil {
+		if launch.BaseIntent != base || validBindLaunchWitness(ctx, tx, i.Scope.OwnerID, launch, latest, contract.OriginalOwnerTransport{PID: spec.Hello.Owner.PID, Birth: spec.Hello.Owner.Birth}, pub) != nil {
+			return OriginalOwnerBindResult{}, originalOwnerRejected()
+		}
+	}
 	if row.state.Phase == "bound" {
 		if row.owner != spec.Hello.Owner || contract.VerifyOriginalOwnerBinding(*row.state.Binding, pub) != nil {
 			return OriginalOwnerBindResult{}, ErrConflict
 		}
-		p, err := loadOriginalOwnerPermit(ctx, tx, i.RequestID, pub)
+		p, err := loadOriginalOwnerPermit(ctx, tx, bindIntent.RequestID, pub)
 		if err != nil {
 			return OriginalOwnerBindResult{}, err
 		}
@@ -308,7 +335,11 @@ func (d *DB) BindOriginalOwner(ctx context.Context, spec BindOriginalOwnerSpec, 
 			return OriginalOwnerBindResult{}, originalOwnerRejected()
 		}
 	}
-	b, err := contract.SignOriginalOwnerBinding(contract.OriginalOwnerBinding{Scope: i.Scope, Owner: spec.Hello.Owner, CoordinatorKeyID: i.CoordinatorKeyID, FirstHost: i.FirstHost, BindingRevision: 1}, key)
+	bindingAttempt := ""
+	if launch.AttemptSHA256 != "" {
+		bindingAttempt = launch.AttemptSHA256
+	}
+	b, err := contract.SignOriginalOwnerBinding(contract.OriginalOwnerBinding{Scope: i.Scope, Owner: spec.Hello.Owner, CoordinatorKeyID: i.CoordinatorKeyID, FirstHost: bindIntent.FirstHost, BindingRevision: 1, LaunchAttemptSHA256: bindingAttempt}, key)
 	if err != nil {
 		return OriginalOwnerBindResult{}, err
 	}
@@ -318,7 +349,7 @@ func (d *DB) BindOriginalOwner(ctx context.Context, spec BindOriginalOwnerSpec, 
 	if err != nil {
 		return OriginalOwnerBindResult{}, err
 	}
-	p, err := contract.SignOwnerControlPermit(contract.OwnerControlPermit{Version: 1, Kind: "attach", OwnerID: i.Scope.OwnerID, ScopeSHA256: scopeHash, OwnerIdentitySHA256: identityHash, CoordinatorKeyID: i.CoordinatorKeyID, CoordinatorEpoch: spec.Epoch, ControlRevision: 1, NewHost: i.FirstHost, RequestID: i.RequestID, RequestSHA256: i.RequestSHA256, PermitID: permitID}, key)
+	p, err := contract.SignOwnerControlPermit(contract.OwnerControlPermit{Version: 1, Kind: "attach", OwnerID: i.Scope.OwnerID, ScopeSHA256: scopeHash, OwnerIdentitySHA256: identityHash, CoordinatorKeyID: i.CoordinatorKeyID, CoordinatorEpoch: spec.Epoch, ControlRevision: 1, NewHost: bindIntent.FirstHost, RequestID: bindIntent.RequestID, RequestSHA256: bindIntent.RequestSHA256, PermitID: permitID}, key)
 	if err != nil {
 		return OriginalOwnerBindResult{}, err
 	}
@@ -336,7 +367,7 @@ func (d *DB) BindOriginalOwner(ctx context.Context, spec BindOriginalOwnerSpec, 
 	row.state.Phase = "bound"
 	row.state.ControlRevision = 1
 	row.state.CoordinatorEpoch = spec.Epoch
-	row.state.CurrentHost = &i.FirstHost
+	row.state.CurrentHost = &bindIntent.FirstHost
 	row.owner = b.Owner
 	row.bindingJSON, row.bindingHash = body, bindingHash
 	row.updated = now
@@ -344,11 +375,11 @@ func (d *DB) BindOriginalOwner(ctx context.Context, spec BindOriginalOwnerSpec, 
 	if growth < 0 {
 		growth = 0
 	}
-	growth += originalOwnerPermitBytes(i, p, permitBody, permitHash, now)
+	growth += originalOwnerPermitBytes(bindIntent, p, permitBody, permitHash, now)
 	if err = d.storageAdmission(ctx, tx, i.Scope.RunID, growth, false); err != nil {
 		return OriginalOwnerBindResult{}, err
 	}
-	result, err := tx.ExecContext(ctx, `UPDATE execution_owners SET phase='bound',owner_pid=?,owner_birth=?,owner_public_key=?,control_revision=1,current_host_pid=?,current_host_birth=?,original_binding_json=?,original_binding_hash=?,updated_at=?,coordinator_epoch=? WHERE owner_id=? AND phase='intended' AND control_revision=0 AND is_current=1`, b.Owner.PID, b.Owner.Birth, b.Owner.PublicKey, i.FirstHost.PID, i.FirstHost.Birth, body, bindingHash, now, spec.Epoch, i.Scope.OwnerID)
+	result, err := tx.ExecContext(ctx, `UPDATE execution_owners SET phase='bound',owner_pid=?,owner_birth=?,owner_public_key=?,control_revision=1,current_host_pid=?,current_host_birth=?,original_binding_json=?,original_binding_hash=?,updated_at=?,coordinator_epoch=? WHERE owner_id=? AND phase='intended' AND control_revision=0 AND is_current=1`, b.Owner.PID, b.Owner.Birth, b.Owner.PublicKey, bindIntent.FirstHost.PID, bindIntent.FirstHost.Birth, body, bindingHash, now, spec.Epoch, i.Scope.OwnerID)
 	if err != nil {
 		return OriginalOwnerBindResult{}, err
 	}
@@ -356,7 +387,7 @@ func (d *DB) BindOriginalOwner(ctx context.Context, spec BindOriginalOwnerSpec, 
 	if err != nil || n != 1 {
 		return OriginalOwnerBindResult{}, ErrConflict
 	}
-	if err = insertOriginalOwnerPermit(ctx, tx, i, p, permitBody, permitHash, now); err != nil {
+	if err = insertOriginalOwnerPermit(ctx, tx, bindIntent, p, permitBody, permitHash, now); err != nil {
 		return OriginalOwnerBindResult{}, err
 	}
 	if err = owned.commit(); err != nil {

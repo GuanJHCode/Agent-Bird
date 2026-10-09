@@ -1,0 +1,22 @@
+{
+  "command": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+    "test",
+    "-count=1",
+    "-timeout=240s",
+    "-json",
+    "-race",
+    "./cmd/orchestrator",
+    "-run",
+    "^Test(PublicOwnerLaunchProtocol2PreBindKill|PublicOwnerLaunchCoordinatorLossUnknown|PublicInitialOwnerBoundBeforeLedgerRecovers)$"
+  ],
+  "exit": 1,
+  "top": 3,
+  "named": 3,
+  "results": {
+    "fail": 1,
+    "pass": 2
+  },
+  "raw_sha256": "d69cf8a901052a41419feb93d48f36591985c8ff0e1e1591b35aa8e508ad1cca",
+  "stderr_bytes": 0
+}

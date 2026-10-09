@@ -66,7 +66,34 @@ func (s *Server) handleOriginalOwnerTransport(ctx context.Context, conn net.Conn
 	}
 	for {
 		request, err := ipc.Read(conn)
-		if err != nil || request.Kind != ipc.KindOwnerPrepare || request.Epoch != s.epoch {
+		if err != nil || request.Epoch != s.epoch {
+			return
+		}
+		if request.Kind == ipc.KindOwnerLaunch {
+			unixConn, ok := conn.(*net.UnixConn)
+			if !ok {
+				return
+			}
+			descriptors, err := ipc.ReceiveOwnerLaunchFDs(ctx, unixConn)
+			if err != nil {
+				_ = session.sendError(request.RequestID, s.epoch, err)
+				return
+			}
+			s.hostRegistrationMu.Lock()
+			receipt, launchErr := s.launchOriginalOwner(ctx, session, request, descriptors)
+			s.hostRegistrationMu.Unlock()
+			closeErr := descriptors.Close()
+			if launchErr != nil || closeErr != nil {
+				_ = session.sendError(request.RequestID, s.epoch, errors.Join(launchErr, closeErr))
+				return
+			}
+			body, _ := json.Marshal(receipt)
+			if session.send(ipc.Envelope{Version: ipc.Version, Kind: ipc.KindResponse, RequestID: request.RequestID, Epoch: s.epoch, Payload: body}) != nil {
+				return
+			}
+			continue
+		}
+		if request.Kind != ipc.KindOwnerPrepare {
 			return
 		}
 		s.hostRegistrationMu.Lock()
@@ -90,6 +117,24 @@ func (h *hostSession) sendError(id string, epoch uint64, err error) error {
 
 // Caller holds hostRegistrationMu. A replacement uses a separate exact-ticket
 // admission path; ordinary RegisterHost still refuses physical tuple changes.
+// Resolve the explicit v2 launch domain before interpreting transport or
+// enrollment identity. Legacy rows have no launch record and retain v1 rules.
+func (s *Server) inspectOriginalOwnerForRuntime(ctx context.Context, ownerID string) (store.OriginalOwnerState, error) {
+	state, err := s.db.InspectOriginalOwnerLaunch(ctx, ownerID)
+	if errors.Is(err, store.ErrNotFound) {
+		return s.db.InspectOriginalOwner(ctx, ownerID)
+	}
+	return state, err
+}
+
+func (s *Server) currentOriginalOwnerForRuntime(ctx context.Context, launchID string) (store.OriginalOwnerState, error) {
+	state, err := s.db.CurrentOriginalOwnerForLaunch(ctx, launchID)
+	if err != nil {
+		return state, err
+	}
+	return s.inspectOriginalOwnerForRuntime(ctx, state.Intent.Scope.OwnerID)
+}
+
 func (s *Server) registerOriginalOwnerTransport(ctx context.Context, conn net.Conn, requestID string, hello contract.HostHello) (*hostSession, contract.OwnerHostPending, error) {
 	var pending contract.OwnerHostPending
 	if s.closed.Load() || s.terminating.Load() {
@@ -104,7 +149,7 @@ func (s *Server) registerOriginalOwnerTransport(ctx context.Context, conn net.Co
 	if released, err := s.db.ReleasedHostIdentity(ctx, hello); err != nil || released {
 		return nil, pending, ownerRejected()
 	}
-	currentOwner, currentErr := s.db.CurrentOriginalOwnerForLaunch(ctx, hello.LaunchID)
+	currentOwner, currentErr := s.currentOriginalOwnerForRuntime(ctx, hello.LaunchID)
 	if currentErr != nil && !errors.Is(currentErr, store.ErrNotFound) {
 		return nil, pending, currentErr
 	}
@@ -133,13 +178,29 @@ func (s *Server) registerOriginalOwnerTransport(ctx context.Context, conn net.Co
 	}
 	var ticket *contract.OwnerTransportTicket
 	hostID := ""
+	preBindRetry := false
 	binding, bindingErr := s.db.HostBinding(ctx, hello.LaunchID)
 	if bindingErr == nil && (binding.PID != hello.PID || binding.Birth != hello.Birth) {
-		state, admitted, err := s.authorizedOwnerTransport(ctx, hello)
-		if err != nil || admitted == nil {
-			return nil, pending, store.ErrHostRejected
+		if currentErr == nil && currentOwner.Phase == "intended" && currentOwner.LaunchAttempt != nil {
+			digest, e := process.ExecutableDigest(ctx, hello.Executable)
+			if e != nil {
+				return nil, pending, ownerRejected()
+			}
+			admission, e := s.db.ResolvePreBindRetryAdmission(ctx, hello, s.epoch, digest)
+			if e != nil {
+				return nil, pending, e
+			}
+			if e = observeResumeExited(ctx, admission.OldFirstHost, "owner_launch_host_alive"); e != nil {
+				return nil, pending, e
+			}
+			hostID, preBindRetry = currentOwner.Intent.Scope.ProducerID, true
+		} else {
+			state, admitted, err := s.authorizedOwnerTransport(ctx, hello)
+			if err != nil || admitted == nil {
+				return nil, pending, store.ErrHostRejected
+			}
+			hostID, ticket = state.Intent.Scope.ProducerID, admitted
 		}
-		hostID, ticket = state.Intent.Scope.ProducerID, admitted
 	} else {
 		var err error
 		hostID, err = s.db.RegisterHost(ctx, hello, s.epoch)
@@ -151,13 +212,13 @@ func (s *Server) registerOriginalOwnerTransport(ctx context.Context, conn net.Co
 		}
 	}
 	pending = contract.OwnerHostPending{Version: 1, HostID: hostID, CoordinatorEpoch: s.epoch, CoordinatorPublicKey: hex.EncodeToString(s.ownerPublicKey())}
-	owner, err := s.db.CurrentOriginalOwnerForLaunch(ctx, hello.LaunchID)
+	owner, err := s.currentOriginalOwnerForRuntime(ctx, hello.LaunchID)
 	if err == nil {
 		pending.OwnerID = owner.Intent.Scope.OwnerID
 	} else if !errors.Is(err, store.ErrNotFound) {
 		return nil, pending, err
 	}
-	session := &hostSession{id: hostID, hello: hello, conn: conn, helloRequestID: requestID, supervised: true, ownerTicket: ticket, successorAuthorizationID: successionID}
+	session := &hostSession{id: hostID, hello: hello, conn: conn, helloRequestID: requestID, supervised: true, ownerTicket: ticket, successorAuthorizationID: successionID, preBindRetry: preBindRetry}
 	s.mu.Lock()
 	if s.closed.Load() {
 		s.mu.Unlock()
@@ -188,19 +249,46 @@ func (s *Server) prepareOriginalOwner(ctx context.Context, session *hostSession,
 	if err := s.authorizeHostHello(ctx, session.conn, session.hello); err != nil {
 		return zero, err
 	}
-	existing, err := s.db.CurrentOriginalOwnerForLaunch(ctx, session.hello.LaunchID)
+	existing, err := s.currentOriginalOwnerForRuntime(ctx, session.hello.LaunchID)
 	if err != nil && !errors.Is(err, store.ErrNotFound) {
 		return zero, err
 	}
 	if errors.Is(err, store.ErrNotFound) && (prepare.StartupDeadlineUnixMS <= time.Now().UnixMilli() || prepare.StartupDeadlineUnixMS > time.Now().Add(30*time.Second).UnixMilli()) {
 		return zero, ownerRejected()
 	}
-	if err == nil && existing.Intent.RequestID != request.RequestID {
+	if err == nil && existing.Intent.RequestID != request.RequestID && !session.preBindRetry {
 		return zero, store.ErrConflict
 	}
 	digest, err := process.ExecutableDigest(ctx, session.hello.Executable)
 	if err != nil {
 		return zero, ownerRejected()
+	}
+	canonical, _ := json.Marshal(prepare)
+	hash := sha256.Sum256(canonical)
+	spec := store.PrepareOriginalOwnerSpec{Host: session.hello, Epoch: s.epoch, ExecutableSHA256: digest, BootstrapID: prepare.BootstrapID, BootstrapTokenSHA256: prepare.BootstrapTokenSHA256, CoordinatorKeyID: s.ownerKeys.id, RequestID: request.RequestID, RequestSHA256: hex.EncodeToString(hash[:]), StartupDeadlineUnixMS: prepare.StartupDeadlineUnixMS}
+	if session.preBindRetry {
+		if prepare.Version != 2 || prepare.StartupDeadlineUnixMS <= time.Now().UnixMilli() || prepare.StartupDeadlineUnixMS > time.Now().Add(30*time.Second).UnixMilli() {
+			return zero, ownerRejected()
+		}
+		instance, e := s.originalOwnerLaunchSupervisor(ctx, digest)
+		if e != nil {
+			return zero, e
+		}
+		admission, e := s.db.ResolvePreBindRetryAdmission(ctx, session.hello, s.epoch, digest)
+		if e != nil {
+			return zero, e
+		}
+		if e = observeResumeExited(ctx, admission.OldFirstHost, "owner_launch_host_alive"); e != nil {
+			return zero, e
+		}
+		admission.Supervisor, admission.Prepare = instance, spec
+		result, e := s.db.CommitPreBindRetryAdmission(ctx, admission, admission.OldFirstHost, s.ownerKeys.sign)
+		if e != nil {
+			return zero, e
+		}
+		session.preBindRetry = false
+		result.CoordinatorPublicKey, result.RPCSocketPath = hex.EncodeToString(s.ownerPublicKey()), s.ownerSocket
+		return result, nil
 	}
 	var scope contract.OriginalOwnerScope
 	if session.successorAuthorizationID != "" {
@@ -214,9 +302,24 @@ func (s *Server) prepareOriginalOwner(ctx context.Context, session *hostSession,
 	if err = s.ownerKeys.saveLaunchCredential(s.stateDir, scope, session.hello.LaunchToken); err != nil {
 		return zero, err
 	}
-	canonical, _ := json.Marshal(prepare)
-	hash := sha256.Sum256(canonical)
-	spec := store.PrepareOriginalOwnerSpec{Host: session.hello, Epoch: s.epoch, ExecutableSHA256: digest, BootstrapID: prepare.BootstrapID, BootstrapTokenSHA256: prepare.BootstrapTokenSHA256, CoordinatorKeyID: s.ownerKeys.id, RequestID: request.RequestID, RequestSHA256: hex.EncodeToString(hash[:]), StartupDeadlineUnixMS: prepare.StartupDeadlineUnixMS}
+	if prepare.Version == 2 {
+		instance, e := s.originalOwnerLaunchSupervisor(ctx, digest)
+		if e != nil {
+			return zero, e
+		}
+		result, err := s.db.PrepareSupervisedOriginalOwner(ctx, spec, session.successorAuthorizationID, instance, s.ownerKeys.sign)
+		if err == nil && session.successorAuthorizationID != "" {
+			err = s.promoteSuccessorOwnerTransport(session)
+		}
+		if err != nil {
+			return zero, err
+		}
+		result.CoordinatorPublicKey, result.RPCSocketPath = hex.EncodeToString(s.ownerPublicKey()), s.ownerSocket
+		return result, nil
+	}
+	if session.preBindRetry || (existing.LaunchAttempt != nil) {
+		return zero, ownerRejected()
+	}
 	var intent contract.OriginalOwnerIntent
 	if session.successorAuthorizationID != "" {
 		intent, err = s.db.PrepareSuccessorOwner(ctx, store.PrepareSuccessorOwnerSpec{PrepareOriginalOwnerSpec: spec, AuthorizationID: session.successorAuthorizationID})
@@ -272,7 +375,13 @@ func (s *Server) authenticateOriginalOwner(ctx context.Context, kernelPID int, o
 		return zero, ownerRejected()
 	}
 	if state.Phase == "intended" {
-		if !ownerOriginAlive(scope) || ancestors[state.Intent.FirstHost.PID] != state.Intent.FirstHost.Birth || time.Now().UnixMilli() > state.Intent.StartupDeadlineUnixMS {
+		parentOK := ancestors[state.Intent.FirstHost.PID] == state.Intent.FirstHost.Birth
+		if state.LaunchAttempt != nil {
+			a, receipt := state.LaunchAttempt, state.LaunchReceipt
+			instance := s.currentLaunchSupervisor()
+			parentOK = instance != nil && *instance == a.Supervisor && receipt != nil && receipt.Phase == contract.OriginalOwnerLaunchStartedWaitOwned && receipt.Child != nil && receipt.Child.PID == opening.Owner.PID && receipt.Child.Birth == opening.Owner.Birth && contract.VerifyOriginalOwnerLaunchReceipt(*receipt, s.ownerPublicKey(), *a) == nil && ancestors[a.Supervisor.PID] == a.Supervisor.Birth
+		}
+		if !ownerOriginAlive(scope) || !parentOK || time.Now().UnixMilli() > state.Intent.StartupDeadlineUnixMS {
 			return zero, ownerRejected()
 		}
 	} else if state.Phase != "bound" || state.Binding == nil || state.Binding.Owner != opening.Owner || contract.VerifyOriginalOwnerBinding(*state.Binding, s.ownerPublicKey()) != nil {
@@ -340,7 +449,7 @@ func (s *Server) handleOriginalOwnerRPC(conn net.Conn) {
 	if contract.DecodeOwnerRuntimeStrict(message.Payload, &opening) != nil {
 		return
 	}
-	state, err := s.db.InspectOriginalOwner(ctx, opening.OwnerID)
+	state, err := s.inspectOriginalOwnerForRuntime(ctx, opening.OwnerID)
 	if err != nil {
 		return
 	}
@@ -410,7 +519,7 @@ func (s *Server) originalOwnerRPC(ctx context.Context, kernelPID int, opening co
 	if s.closed.Load() {
 		return reject()
 	}
-	state, err := s.db.InspectOriginalOwner(ctx, opening.OwnerID)
+	state, err := s.inspectOriginalOwnerForRuntime(ctx, opening.OwnerID)
 	if err != nil {
 		return nil, nil, err
 	}

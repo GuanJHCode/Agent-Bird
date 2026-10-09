@@ -12,11 +12,13 @@ import (
 // pipe. Prepared is not signed: runtime must independently obtain and verify
 // Binding/Permit before admitting work. The owner generates its own private key.
 type OwnerRuntimeBootstrap struct {
-	Version        int           `json:"version"`
-	StateDir       string        `json:"state_dir"`
-	SpoolRoot      string        `json:"spool_root"`
-	Prepared       OwnerPrepared `json:"prepared"`
-	BootstrapToken string        `json:"bootstrap_token"`
+	Version        int                         `json:"version"`
+	StateDir       string                      `json:"state_dir"`
+	SpoolRoot      string                      `json:"spool_root"`
+	Prepared       OwnerPrepared               `json:"prepared"`
+	BootstrapToken string                      `json:"bootstrap_token"`
+	LaunchReceipt  *OriginalOwnerLaunchReceipt `json:"launch_receipt,omitempty"`
+	Environment    []string                    `json:"environment,omitempty"`
 }
 
 // OwnerTransportBootstrap contains public scope only. A replacement child must
@@ -34,12 +36,33 @@ type OwnerTransportBootstrap struct {
 // authenticated public-key pin are checked by the runtime before enrollment.
 // This validation is deliberately pure: path equality is not an inode proof.
 func (b OwnerRuntimeBootstrap) Validate() error {
-	if b.Version != 1 || ownerBootstrapPublic(b.StateDir, b.Prepared.Intent, b.Prepared.CoordinatorPublicKey) != nil || b.SpoolRoot != filepath.Join(b.StateDir, "host-spool", b.Prepared.Intent.Scope.LaunchID) || b.Prepared.RPCSocketPath != filepath.Join(b.StateDir, "owner.sock") || !ownerBootstrapSize(b) {
+	if (b.Version != 1 && b.Version != 2) || ownerBootstrapPublic(b.StateDir, b.Prepared.Intent, b.Prepared.CoordinatorPublicKey) != nil || b.SpoolRoot != filepath.Join(b.StateDir, "host-spool", b.Prepared.Intent.Scope.LaunchID) || b.Prepared.RPCSocketPath != filepath.Join(b.StateDir, "owner.sock") || !ownerBootstrapSize(b) {
 		return ownerInvalid()
 	}
 	hash, err := OriginalOwnerBootstrapSHA256(b.BootstrapToken)
 	if err != nil || subtle.ConstantTimeCompare([]byte(hash), []byte(b.Prepared.Intent.BootstrapTokenSHA256)) != 1 {
 		return ownerInvalid()
+	}
+	if b.Version == 1 {
+		if b.Prepared.LaunchAttempt != nil || b.LaunchReceipt != nil || b.Environment != nil {
+			return ownerInvalid()
+		}
+		return nil
+	}
+	if b.Prepared.LaunchAttempt == nil || b.Prepared.LaunchAttempt.Validate() != nil || b.Prepared.Intent != b.Prepared.LaunchAttempt.EffectiveIntent || b.LaunchReceipt == nil || b.LaunchReceipt.Phase != OriginalOwnerLaunchStartedWaitOwned || b.LaunchReceipt.Child == nil || !b.LaunchReceipt.HandoffClosed || len(b.Environment) == 0 || len(b.Environment) > 256 {
+		return ownerInvalid()
+	}
+	key, ok := ownerHex(b.Prepared.CoordinatorPublicKey, ed25519.PublicKeySize)
+	if !ok || VerifyOriginalOwnerLaunchReceipt(*b.LaunchReceipt, ed25519.PublicKey(key), *b.Prepared.LaunchAttempt) != nil {
+		return ownerInvalid()
+	}
+	seen := map[string]bool{}
+	for _, value := range b.Environment {
+		key, _, ok := strings.Cut(value, "=")
+		if !ok || key == "" || strings.ContainsAny(key, "\x00\r\n=") || strings.ContainsAny(value, "\x00\r\n") || (strings.HasPrefix(key, "ORCHESTRATOR_") && key != "ORCHESTRATOR_ENABLE_TEST_FAKE") || seen[key] {
+			return ownerInvalid()
+		}
+		seen[key] = true
 	}
 	return nil
 }
@@ -77,7 +100,7 @@ func ownerBootstrapSize(value any) bool {
 
 func DecodeOwnerRuntimeBootstrap(raw []byte) (OwnerRuntimeBootstrap, error) {
 	var b OwnerRuntimeBootstrap
-	if err := decodeOwnerRuntime(raw, &b); err != nil {
+	if err := DecodeOwnerRuntimeStrict(raw, &b); err != nil {
 		return b, err
 	}
 	return b, b.Validate()

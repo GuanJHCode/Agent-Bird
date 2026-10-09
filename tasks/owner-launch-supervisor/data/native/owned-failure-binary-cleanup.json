@@ -1,0 +1,208 @@
+[
+  {
+    "fixture": "/private/tmp/owner-launch-v2-1937870246",
+    "actions": [
+      {
+        "removed": "/private/tmp/owner-launch-v2-1937870246/protocol2-native-cli-fixture",
+        "sha256": "afb0528774c8bf90baddb15f2ac193bd2f9fbbcf963c264bcccb5432a8071522",
+        "bytes": 20922722
+      },
+      {
+        "removed": "/private/tmp/owner-launch-v2-1937870246/protocol2-native-worker-fixture",
+        "sha256": "afb0528774c8bf90baddb15f2ac193bd2f9fbbcf963c264bcccb5432a8071522",
+        "bytes": 20922722
+      }
+    ],
+    "actors": [
+      {
+        "pid": 91673,
+        "observation": "pid_absent"
+      },
+      {
+        "pid": 91674,
+        "observation": "pid_absent"
+      },
+      {
+        "pid": 91678,
+        "observation": "pid_absent"
+      },
+      {
+        "pid": 91679,
+        "observation": "pid_absent"
+      },
+      {
+        "pid": 91708,
+        "observation": "pid_absent"
+      },
+      {
+        "pid": 91709,
+        "observation": "pid_absent"
+      }
+    ]
+  },
+  {
+    "fixture": "/private/tmp/owner-launch-v2-2884224194",
+    "actions": [
+      {
+        "removed": "/private/tmp/owner-launch-v2-2884224194/protocol2-native-cli-fixture",
+        "sha256": "0f41d47c5cce99f4a40190ea8f99ed6d14f7817e253baf6092a7e6d8a1737fc6",
+        "bytes": 20922706
+      },
+      {
+        "removed": "/private/tmp/owner-launch-v2-2884224194/original-owner-worker-fixture",
+        "sha256": "0f41d47c5cce99f4a40190ea8f99ed6d14f7817e253baf6092a7e6d8a1737fc6",
+        "bytes": 20922706
+      }
+    ],
+    "actors": [
+      {
+        "pid": 90233,
+        "observation": "pid_absent"
+      },
+      {
+        "pid": 90234,
+        "observation": "pid_absent"
+      },
+      {
+        "pid": 90238,
+        "observation": "pid_absent"
+      }
+    ]
+  },
+  {
+    "fixture": "/private/tmp/owner-launch-v2-3632352773",
+    "actions": [
+      {
+        "removed": "/private/tmp/owner-launch-v2-3632352773/protocol2-native-cli-fixture",
+        "sha256": "6e71978ec9644f24d649d4db21dc85873beb21299f2d90d8e0bba43d8cf189ae",
+        "bytes": 20922706
+      },
+      {
+        "removed": "/private/tmp/owner-launch-v2-3632352773/original-owner-worker-fixture",
+        "sha256": "6e71978ec9644f24d649d4db21dc85873beb21299f2d90d8e0bba43d8cf189ae",
+        "bytes": 20922706
+      }
+    ],
+    "actors": [
+      {
+        "pid": 90783,
+        "observation": "pid_absent"
+      },
+      {
+        "pid": 90784,
+        "observation": "pid_absent"
+      },
+      {
+        "pid": 90788,
+        "observation": "pid_absent"
+      },
+      {
+        "pid": 90789,
+        "observation": "pid_absent"
+      },
+      {
+        "pid": 90792,
+        "observation": "pid_absent"
+      }
+    ]
+  },
+  {
+    "fixture": "/private/tmp/owner-launch-v2-3822735518",
+    "actions": [
+      {
+        "removed": "/private/tmp/owner-launch-v2-3822735518/protocol2-native-cli-fixture",
+        "sha256": "c5f857012f75383795f6724d7d7b47087644b7b8170bbb6f5d5d5de011cea67b",
+        "bytes": 20906194
+      },
+      {
+        "removed": "/private/tmp/owner-launch-v2-3822735518/original-owner-worker-fixture",
+        "sha256": "c5f857012f75383795f6724d7d7b47087644b7b8170bbb6f5d5d5de011cea67b",
+        "bytes": 20906194
+      }
+    ],
+    "actors": [
+      {
+        "pid": 86744,
+        "observation": "pid_absent"
+      },
+      {
+        "pid": 86749,
+        "observation": "pid_absent"
+      }
+    ]
+  },
+  {
+    "fixture": "/private/tmp/owner-launch-v2-3865086224",
+    "actions": [
+      {
+        "removed": "/private/tmp/owner-launch-v2-3865086224/protocol2-native-cli-fixture",
+        "sha256": "0d23e129a9b645acb2cb38f706a41002e5d7eb7fc17e0a6bf2aa10fbec95aa97",
+        "bytes": 20906194
+      },
+      {
+        "removed": "/private/tmp/owner-launch-v2-3865086224/original-owner-worker-fixture",
+        "sha256": "0d23e129a9b645acb2cb38f706a41002e5d7eb7fc17e0a6bf2aa10fbec95aa97",
+        "bytes": 20906194
+      }
+    ],
+    "actors": [
+      {
+        "pid": 87734,
+        "observation": "pid_absent"
+      },
+      {
+        "pid": 87748,
+        "observation": "pid_absent"
+      },
+      {
+        "pid": 87752,
+        "observation": "pid_absent"
+      },
+      {
+        "pid": 87753,
+        "observation": "pid_absent"
+      },
+      {
+        "pid": 87848,
+        "observation": "pid_absent"
+      }
+    ]
+  },
+  {
+    "fixture": "/private/tmp/owner-launch-v2-824883323",
+    "actions": [
+      {
+        "removed": "/private/tmp/owner-launch-v2-824883323/protocol2-native-cli-fixture",
+        "sha256": "56faf3c2b7a66380c15f79e3aa58047d316a9e18a831e0f5678645ba8e23879e",
+        "bytes": 20922706
+      },
+      {
+        "removed": "/private/tmp/owner-launch-v2-824883323/original-owner-worker-fixture",
+        "sha256": "56faf3c2b7a66380c15f79e3aa58047d316a9e18a831e0f5678645ba8e23879e",
+        "bytes": 20922706
+      }
+    ],
+    "actors": [
+      {
+        "pid": 89002,
+        "observation": "pid_absent"
+      },
+      {
+        "pid": 89003,
+        "observation": "pid_absent"
+      },
+      {
+        "pid": 89007,
+        "observation": "pid_absent"
+      },
+      {
+        "pid": 89011,
+        "observation": "pid_absent"
+      },
+      {
+        "pid": 89117,
+        "observation": "pid_absent"
+      }
+    ]
+  }
+]

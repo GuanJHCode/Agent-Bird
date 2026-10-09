@@ -240,8 +240,23 @@ func TestMain(m *testing.M) {
 		runBudgetRevisionWorkerFixture()
 		return
 	}
+	if filepath.Base(os.Args[0]) == "protocol2-native-worker-fixture" {
+		if os.Getenv("OWNER_LAUNCH_SOURCE_SENTINEL") != protocol2EnvironmentSentinel {
+			os.Exit(87)
+		}
+		runOriginalOwnerWorkerFixture()
+		os.Exit(0)
+	}
 	if filepath.Base(os.Args[0]) == "original-owner-worker-fixture" {
 		runOriginalOwnerWorkerFixture()
+		return
+	}
+	if filepath.Base(os.Args[0]) == "protocol2-native-cli-fixture" {
+		runProtocol2NativeFixture()
+		return
+	}
+	if filepath.Base(os.Args[0]) == "protocol2-loss-cli-fixture" {
+		runProtocol2LossFixture()
 		return
 	}
 	if os.Getenv("C04_FIXTURE_PROVIDER") != "" {

@@ -1,0 +1,42 @@
+=== RUN   TestOwnerLaunchDescriptorHandoffAfterFramedRequest
+--- PASS: TestOwnerLaunchDescriptorHandoffAfterFramedRequest (0.02s)
+=== RUN   TestOwnerLaunchDescriptorHandoffAfterFramedRequest
+--- PASS: TestOwnerLaunchDescriptorHandoffAfterFramedRequest (0.02s)
+=== RUN   TestOwnerLaunchDescriptorHandoffAfterFramedRequest
+--- PASS: TestOwnerLaunchDescriptorHandoffAfterFramedRequest (0.02s)
+=== RUN   TestOwnerLaunchDescriptorHandoffAfterFramedRequest
+--- PASS: TestOwnerLaunchDescriptorHandoffAfterFramedRequest (0.02s)
+=== RUN   TestOwnerLaunchDescriptorHandoffAfterFramedRequest
+--- PASS: TestOwnerLaunchDescriptorHandoffAfterFramedRequest (0.02s)
+=== RUN   TestOwnerLaunchDescriptorHandoffAfterFramedRequest
+--- PASS: TestOwnerLaunchDescriptorHandoffAfterFramedRequest (0.02s)
+=== RUN   TestOwnerLaunchDescriptorHandoffAfterFramedRequest
+--- PASS: TestOwnerLaunchDescriptorHandoffAfterFramedRequest (0.02s)
+=== RUN   TestOwnerLaunchDescriptorHandoffAfterFramedRequest
+--- PASS: TestOwnerLaunchDescriptorHandoffAfterFramedRequest (0.02s)
+=== RUN   TestOwnerLaunchDescriptorHandoffAfterFramedRequest
+--- PASS: TestOwnerLaunchDescriptorHandoffAfterFramedRequest (0.02s)
+=== RUN   TestOwnerLaunchDescriptorHandoffAfterFramedRequest
+--- PASS: TestOwnerLaunchDescriptorHandoffAfterFramedRequest (0.02s)
+=== RUN   TestOwnerLaunchDescriptorHandoffAfterFramedRequest
+--- PASS: TestOwnerLaunchDescriptorHandoffAfterFramedRequest (0.02s)
+=== RUN   TestOwnerLaunchDescriptorHandoffAfterFramedRequest
+--- PASS: TestOwnerLaunchDescriptorHandoffAfterFramedRequest (0.02s)
+=== RUN   TestOwnerLaunchDescriptorHandoffAfterFramedRequest
+--- PASS: TestOwnerLaunchDescriptorHandoffAfterFramedRequest (0.02s)
+=== RUN   TestOwnerLaunchDescriptorHandoffAfterFramedRequest
+--- PASS: TestOwnerLaunchDescriptorHandoffAfterFramedRequest (0.02s)
+=== RUN   TestOwnerLaunchDescriptorHandoffAfterFramedRequest
+--- PASS: TestOwnerLaunchDescriptorHandoffAfterFramedRequest (0.02s)
+=== RUN   TestOwnerLaunchDescriptorHandoffAfterFramedRequest
+--- PASS: TestOwnerLaunchDescriptorHandoffAfterFramedRequest (0.02s)
+=== RUN   TestOwnerLaunchDescriptorHandoffAfterFramedRequest
+--- PASS: TestOwnerLaunchDescriptorHandoffAfterFramedRequest (0.02s)
+=== RUN   TestOwnerLaunchDescriptorHandoffAfterFramedRequest
+--- PASS: TestOwnerLaunchDescriptorHandoffAfterFramedRequest (0.02s)
+=== RUN   TestOwnerLaunchDescriptorHandoffAfterFramedRequest
+--- PASS: TestOwnerLaunchDescriptorHandoffAfterFramedRequest (0.02s)
+=== RUN   TestOwnerLaunchDescriptorHandoffAfterFramedRequest
+--- PASS: TestOwnerLaunchDescriptorHandoffAfterFramedRequest (0.02s)
+PASS
+ok  	github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc	1.140s

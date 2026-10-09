@@ -1,0 +1,20 @@
+{
+  "command": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+    "test",
+    "-count=1",
+    "-timeout=240s",
+    "-json",
+    "./internal/store",
+    "-run",
+    "^Test(OwnerLaunchMigrationPreservesLegacyAndRefusesProofErasure|PendingAuthorizationRebindMigrationFailedCommitDiscardsLease|ACPBridgeSchema23ActualCommitFailureRollsBackAndRestores|DiagnosticsDeletionMigrationCommitFailureIsAtomic)$"
+  ],
+  "exit": 0,
+  "top": 4,
+  "named": 4,
+  "results": {
+    "pass": 4
+  },
+  "raw_sha256": "e04f4a70fea10a63db6e27fcb71640e1758e771af50d90d322f12db7ca6ab5f7",
+  "stderr_bytes": 0
+}

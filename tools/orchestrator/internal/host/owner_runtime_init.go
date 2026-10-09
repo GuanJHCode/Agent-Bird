@@ -5,6 +5,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/hex"
+	"os"
 	"time"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
@@ -26,9 +27,20 @@ func newOwnerEnrollment(parent context.Context, bootstrap contract.OwnerRuntimeB
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	physical, err := ownerProcessIdentity(ctx, bootstrap.StateDir, bootstrap.Prepared.Intent.Scope, bootstrap.Prepared.Intent.FirstHost)
+	parentIdentity := bootstrap.Prepared.Intent.FirstHost
+	if bootstrap.Version == 2 {
+		receipt := bootstrap.LaunchReceipt
+		if receipt == nil || receipt.Child == nil || receipt.Child.PID != os.Getpid() {
+			return nil, errOwnerEnrollment
+		}
+		parentIdentity = contract.OriginalOwnerTransport{PID: receipt.Supervisor.PID, Birth: receipt.Supervisor.Birth}
+	}
+	physical, err := ownerProcessIdentity(ctx, bootstrap.StateDir, bootstrap.Prepared.Intent.Scope, parentIdentity)
 	if err != nil {
 		return nil, err
+	}
+	if bootstrap.Version == 2 && physical != *bootstrap.LaunchReceipt.Child {
+		return nil, errOwnerEnrollment
 	}
 	public, private, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {

@@ -1,0 +1,12 @@
+{
+  "source": "a6a135c",
+  "command": "go test -count=1 -timeout=150s -json ./cmd/orchestrator -run ^TestPublicOwnerLaunchProtocol2PreBindKill$",
+  "exit": 0,
+  "top": 1,
+  "named": 1,
+  "results": {
+    "pass": 1
+  },
+  "sha256": "6a496b8041a8c89e8b39d09c1ea3e43af891bb33278b2bad4104d56e79be5355",
+  "stderr_bytes": 0
+}
