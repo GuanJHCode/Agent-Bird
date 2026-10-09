@@ -194,12 +194,12 @@ func (l *hostLaunchLease) read(c controlCapability) (hostBootstrap, error) {
 	if err != nil {
 		return hostBootstrap{}, err
 	}
-	if decode(raw, &m) != nil || m.Version != 2 || m.Hello.LaunchID != c.HostLaunchID || m.ProducerID != c.HostLaunchID || m.SocketPath != filepath.Join(l.paths[0], "coordinator.sock") || m.SpoolRoot != filepath.Join(l.paths[0], "host-spool", c.HostLaunchID) {
+	if decode(raw, &m) != nil || m.Version != 2 || (m.OwnerLaunchProtocol != 0 && m.OwnerLaunchProtocol != 2) || m.Hello.LaunchID != c.HostLaunchID || m.ProducerID != c.HostLaunchID || m.SocketPath != filepath.Join(l.paths[0], "coordinator.sock") || m.SpoolRoot != filepath.Join(l.paths[0], "host-spool", c.HostLaunchID) {
 		return hostBootstrap{}, codeError("host_launch_binding_mismatch")
 	}
 	l.bootstrapBytes, l.bootstrapInfo = raw, info
 	h := m.Hello
-	b := hostBootstrap{Version: 2, SocketPath: m.SocketPath, SpoolRoot: m.SpoolRoot, ProducerID: m.ProducerID}
+	b := hostBootstrap{OwnerLaunchProtocol: m.OwnerLaunchProtocol, Version: 2, SocketPath: m.SocketPath, SpoolRoot: m.SpoolRoot, ProducerID: m.ProducerID}
 	b.Hello.LaunchID, b.Hello.LaunchToken = c.HostLaunchID, c.HostLaunchToken
 	b.Hello.OriginContextID, b.Hello.OriginPID, b.Hello.OriginBirth = h.OriginContextID, h.OriginPID, h.OriginBirth
 	b.Hello.HostGeneration, b.Hello.PID, b.Hello.Birth, b.Hello.Executable = h.HostGeneration, h.PID, h.Birth, h.Executable

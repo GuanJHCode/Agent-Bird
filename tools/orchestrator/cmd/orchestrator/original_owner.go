@@ -167,6 +167,12 @@ func runInitialOriginalOwnerWithWaitObserver(ctx context.Context, bootstrap host
 	if err != nil {
 		return true, err
 	}
+	if protocol == 2 && preparedFrame.Kind == ipc.KindError && preparedFrame.RequestID == prepareID && preparedFrame.Epoch == pending.Epoch {
+		var remote coordinator.ErrorResponse
+		if contract.DecodeOwnerRuntimeStrict(preparedFrame.Payload, &remote) == nil && remote.Error != "" {
+			return true, remoteError(remote.Error)
+		}
+	}
 	var prepared contract.OwnerPrepared
 	if preparedFrame.Kind != ipc.KindResponse || preparedFrame.RequestID != prepareID || preparedFrame.Epoch != pending.Epoch || contract.DecodeOwnerRuntimeStrict(preparedFrame.Payload, &prepared) != nil {
 		return true, errors.New("initial_owner_prepare_rejected")

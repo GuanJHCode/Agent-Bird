@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/ed25519"
 	"crypto/sha256"
@@ -22,6 +23,8 @@ import (
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 )
 
+const protocol2EnvironmentSentinel = "source-only-owner-launch-v2-sentinel"
+
 // runProtocol2NativeFixture preserves the production CLI route for public
 // operations and original-owner.  Only source-host installation is replaced so
 // the test can retain the original FirstHost Cmd.Wait and kill that FirstHost
@@ -33,6 +36,7 @@ func runProtocol2NativeFixture() {
 	var err error
 	switch os.Args[1] {
 	case "public-succession-origin":
+		_ = os.Setenv("OWNER_LAUNCH_SOURCE_SENTINEL", protocol2EnvironmentSentinel)
 		err = runPublicRebindOrigin()
 	case "source-host":
 		err = publicSuccessionOwnedHostLauncher(os.Args[2:])
@@ -41,6 +45,12 @@ func runProtocol2NativeFixture() {
 			err = protocol2PreBindOwnedHost(os.Args[2:], trigger)
 		} else {
 			err = publicSuccessionOwnedHost(os.Args[2:])
+		}
+	case "original-owner":
+		if os.Getenv("OWNER_LAUNCH_SOURCE_SENTINEL") != "" {
+			err = errors.New("coordinator leaked source environment before bootstrap")
+		} else {
+			err = run(context.Background(), os.Args[1:], os.Stdout, os.Stderr)
 		}
 	default:
 		err = run(context.Background(), os.Args[1:], os.Stdout, os.Stderr)
@@ -108,7 +118,7 @@ func TestPublicOwnerLaunchProtocol2PreBindKill(t *testing.T) {
 		t.Fatal(err)
 	}
 	digest := sha256.Sum256(image)
-	cli, worker := filepath.Join(root, "protocol2-native-cli-fixture"), filepath.Join(root, "original-owner-worker-fixture")
+	cli, worker := filepath.Join(root, "protocol2-native-cli-fixture"), filepath.Join(root, "protocol2-native-worker-fixture")
 	for _, path := range []string{cli, worker} {
 		if err = os.WriteFile(path, image, 0700); err != nil {
 			t.Fatal(err)
@@ -118,6 +128,7 @@ func TestPublicOwnerLaunchProtocol2PreBindKill(t *testing.T) {
 	if err = os.WriteFile(trigger, nil, 0600); err != nil {
 		t.Fatal(err)
 	}
+	t.Setenv("OWNER_LAUNCH_SOURCE_SENTINEL", "")
 	t.Setenv("OWNER_LAUNCH_PROTOCOL2_PREBIND_TRIGGER", trigger)
 	t.Setenv("ORCHESTRATOR_ENABLE_TEST_FAKE", "1")
 	t.Setenv("GORACE", os.Getenv("GORACE")+" atexit_sleep_ms=0")
@@ -284,7 +295,14 @@ func TestPublicOwnerLaunchProtocol2PreBindKill(t *testing.T) {
 		t.Fatal("public recovery failed", err)
 	}
 	second := readAttempt(2)
-	binding := publicSuccessionBinding(t, db)
+	var binding contract.OriginalOwnerBinding
+	var bindingRaw string
+	if err = db.QueryRow(`SELECT original_binding_json FROM execution_owners WHERE owner_id=? AND is_current=1 AND phase='bound'`, killed.OwnerID).Scan(&bindingRaw); err != nil {
+		t.Fatal(err)
+	}
+	if err = json.Unmarshal([]byte(bindingRaw), &binding); err != nil {
+		t.Fatal(err)
+	}
 	if second.BaseIntent != first.BaseIntent || second.EffectiveIntent.Scope != first.EffectiveIntent.Scope || second.EffectiveIntent.FirstHost == first.EffectiveIntent.FirstHost || binding.Scope != first.BaseIntent.Scope || binding.LaunchAttemptSHA256 != second.AttemptSHA256 || contract.VerifyOriginalOwnerBinding(binding, ed25519.PublicKey(pub)) != nil {
 		t.Fatal("retry changed base/owner or lost launch binding")
 	}
@@ -335,6 +353,27 @@ func TestPublicOwnerLaunchProtocol2PreBindKill(t *testing.T) {
 		if gone, e := process.IdentityExitedContext(ctx, actor.PID, actor.Birth); e != nil || !gone {
 			t.Fatal("owned actor not reaped", actor, e)
 		}
+	}
+	if os.Getenv("OWNER_LAUNCH_SOURCE_SENTINEL") != "" {
+		t.Fatal("Coordinator received source environment")
+	}
+	if err = filepath.WalkDir(state, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() || !entry.Type().IsRegular() {
+			return nil
+		}
+		data, e := os.ReadFile(path)
+		if e != nil {
+			return e
+		}
+		if bytes.Contains(data, []byte(protocol2EnvironmentSentinel)) {
+			return fmt.Errorf("source environment leaked to durable state: %s", entry.Name())
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
 	}
 	origin.close(t)
 	t.Logf("protocol2 pre-Bind original Wait recovery: same OwnerID/incarnation, ready=%d grant=%d; FirstHost SIGKILL, first Owner exit%d, second Owner/Host exit0", ready, grant, *firstExit.ExitCode)

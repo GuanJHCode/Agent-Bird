@@ -109,6 +109,12 @@ func runCoordinatorOriginalOwner(ctx context.Context, source hostBootstrap, conn
 	if err != nil {
 		return err
 	}
+	if frame.Kind == ipc.KindError && frame.RequestID == id && frame.Epoch == pending.Epoch {
+		var remote coordinator.ErrorResponse
+		if contract.DecodeOwnerRuntimeStrict(frame.Payload, &remote) == nil && remote.Error != "" {
+			return remoteError(remote.Error)
+		}
+	}
 	var receipt contract.OriginalOwnerLaunchReceipt
 	if frame.Kind != ipc.KindResponse || frame.RequestID != id || frame.Epoch != pending.Epoch || contract.DecodeOwnerRuntimeStrict(frame.Payload, &receipt) != nil || contract.VerifyOriginalOwnerLaunchReceipt(receipt, ed25519.PublicKey(key), *a) != nil || receipt.Phase != contract.OriginalOwnerLaunchStartedWaitOwned || receipt.Child == nil || !receipt.HandoffClosed {
 		return codeError("owner_launch_receipt_rejected")
