@@ -12,11 +12,13 @@ import (
 // pipe. Prepared is not signed: runtime must independently obtain and verify
 // Binding/Permit before admitting work. The owner generates its own private key.
 type OwnerRuntimeBootstrap struct {
-	Version        int           `json:"version"`
-	StateDir       string        `json:"state_dir"`
-	SpoolRoot      string        `json:"spool_root"`
-	Prepared       OwnerPrepared `json:"prepared"`
-	BootstrapToken string        `json:"bootstrap_token"`
+	Version        int                         `json:"version"`
+	StateDir       string                      `json:"state_dir"`
+	SpoolRoot      string                      `json:"spool_root"`
+	Prepared       OwnerPrepared               `json:"prepared"`
+	BootstrapToken string                      `json:"bootstrap_token"`
+	LaunchReceipt  *OriginalOwnerLaunchReceipt `json:"launch_receipt,omitempty"`
+	Environment    []string                    `json:"environment,omitempty"`
 }
 
 // OwnerTransportBootstrap contains public scope only. A replacement child must
@@ -40,6 +42,24 @@ func (b OwnerRuntimeBootstrap) Validate() error {
 	hash, err := OriginalOwnerBootstrapSHA256(b.BootstrapToken)
 	if err != nil || subtle.ConstantTimeCompare([]byte(hash), []byte(b.Prepared.Intent.BootstrapTokenSHA256)) != 1 {
 		return ownerInvalid()
+	}
+	if b.Prepared.LaunchAttempt == nil {
+		if b.LaunchReceipt != nil || b.Environment != nil {
+			return ownerInvalid()
+		}
+		return nil
+	}
+	if b.Prepared.LaunchAttempt.Validate() != nil || b.Prepared.Intent != b.Prepared.LaunchAttempt.EffectiveIntent || b.LaunchReceipt == nil || len(b.Environment) == 0 || len(b.Environment) > 256 {
+		return ownerInvalid()
+	}
+	key, ok := ownerHex(b.Prepared.CoordinatorPublicKey, ed25519.PublicKeySize)
+	if !ok || VerifyOriginalOwnerLaunchReceipt(*b.LaunchReceipt, ed25519.PublicKey(key), *b.Prepared.LaunchAttempt) != nil {
+		return ownerInvalid()
+	}
+	for _, value := range b.Environment {
+		if !ownerText(value, 8192) {
+			return ownerInvalid()
+		}
 	}
 	return nil
 }
@@ -77,7 +97,7 @@ func ownerBootstrapSize(value any) bool {
 
 func DecodeOwnerRuntimeBootstrap(raw []byte) (OwnerRuntimeBootstrap, error) {
 	var b OwnerRuntimeBootstrap
-	if err := decodeOwnerRuntime(raw, &b); err != nil {
+	if err := DecodeOwnerRuntimeStrict(raw, &b); err != nil {
 		return b, err
 	}
 	return b, b.Validate()

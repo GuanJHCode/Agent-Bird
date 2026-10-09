@@ -24,9 +24,10 @@ func (p OwnerPrepareRequest) Validate(requestID string) error {
 }
 
 type OwnerPrepared struct {
-	Intent               OriginalOwnerIntent `json:"intent"`
-	CoordinatorPublicKey string              `json:"coordinator_public_key"`
-	RPCSocketPath        string              `json:"rpc_socket_path"`
+	Intent               OriginalOwnerIntent         `json:"intent"`
+	CoordinatorPublicKey string                      `json:"coordinator_public_key"`
+	RPCSocketPath        string                      `json:"rpc_socket_path"`
+	LaunchAttempt        *OriginalOwnerLaunchAttempt `json:"launch_attempt,omitempty"`
 }
 type OwnerRPCOpen struct {
 	Version int                   `json:"version"`
