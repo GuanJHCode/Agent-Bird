@@ -10,7 +10,7 @@ var diagnosticDeletionTextColumns = []string{"reservation_id", "run_id", "task_i
 // Phase storage is charged at its maximum length up front, as is the permanent
 // physical marker. Finalization cannot require more quota after files are gone.
 func diagnosticDeletionCostSQL(ref string) string {
-	out := "64+" + ref + "marker_bytes"
+	out := "64+8+" + ref + "marker_bytes" // Eight prepaid UTF-8 bytes for phase (prepared).
 	for _, c := range diagnosticDeletionTextColumns {
 		out += "+length(CAST(" + ref + c + " AS BLOB))"
 	}

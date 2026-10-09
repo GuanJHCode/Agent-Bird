@@ -174,7 +174,7 @@ func (x diagnosticDeletionIntent) result() DiagnosticsDeleteResult {
 	return DiagnosticsDeleteResult{Version: 1, Status: "deleted", Identity: DiagnosticsIdentity{Version: 1, RunID: x.row.scope.RunID, TaskID: x.row.scope.TaskID, AttemptID: x.row.scope.AttemptID, ProducerID: x.row.scope.ProducerID, ReservationID: x.row.reservation, PolicySHA256: x.row.scope.PolicySHA256, Revision: x.request.ExpectedRevision, RequestID: x.request.RequestID, DeliveryID: x.commandID()}, PlanSHA256: x.planHash, RemovedLogicalBytes: x.removedBytes, ReleasedReservationBytes: detailedArtifactReservationBytes, RetainedMarkerBytes: x.markerBytes}
 }
 func (x diagnosticDeletionIntent) cost() int64 {
-	n := int64(64) + x.markerBytes
+	n := int64(64+len("prepared")) + x.markerBytes
 	for _, s := range []string{x.row.reservation, x.row.scope.RunID, x.row.scope.TaskID, x.row.scope.AttemptID, x.row.scope.ProducerID, x.row.scope.PolicySHA256, x.row.namespace, x.request.RequestID, x.requestJSON, x.rootJSON, x.factsJSON, x.planJSON, x.planHash, x.completion, x.created} {
 		n += int64(len(s))
 	}

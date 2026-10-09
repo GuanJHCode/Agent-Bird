@@ -144,6 +144,9 @@ func TestDiagnosticsDeleteLifecycleAndHistoricalProof(t *testing.T) {
 	if _, err = f.db.ReadDiagnostics(ctx, "controller", f.token, f.request); !errors.Is(err, CodeError("diagnostics_expired")) {
 		t.Fatal("read did not expire", err)
 	}
+	if cost != independentlyMeasuredDeletionCost(t, f.db) {
+		t.Fatalf("deletion metadata charge=%d independently measured=%d", cost, independentlyMeasuredDeletionCost(t, f.db))
+	}
 	before := deletionUsage(t, f.db)
 	path := f.db.path
 	if err = f.db.Close(); err != nil {
@@ -559,4 +562,57 @@ func TestDiagnosticsDeleteRejectsStoreRootReplacement(t *testing.T) {
 	if !errors.Is(err, CodeError("diagnostics_store_root_invalid")) || touched {
 		t.Fatal("replacement Store reached deletion", err, touched)
 	}
+}
+
+// Enumerate the actual SQL table, not either production cost formula. Every
+// TEXT value is charged in UTF-8 bytes; phase reserves its longest legal value
+// so completing a deletion cannot require more admission after file removal.
+func independentlyMeasuredDeletionCost(t *testing.T, db *DB) int64 {
+	t.Helper()
+	rows, err := db.sql.Query(`PRAGMA table_info(diagnostic_deletions)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var columns []string
+	for rows.Next() {
+		var index, notNull, pk int
+		var name, kind string
+		var defaultValue any
+		if err = rows.Scan(&index, &name, &kind, &notNull, &defaultValue, &pk); err != nil {
+			rows.Close()
+			t.Fatal(err)
+		}
+		if kind == "TEXT" {
+			columns = append(columns, name)
+		}
+	}
+	if err = rows.Err(); err != nil {
+		rows.Close()
+		t.Fatal(err)
+	}
+	rows.Close()
+	if len(columns) == 0 {
+		t.Fatal("no text fields found")
+	}
+	values := make([]string, len(columns))
+	targets := make([]any, len(columns))
+	for i := range targets {
+		targets[i] = &values[i]
+	}
+	if err = db.sql.QueryRow("SELECT " + strings.Join(columns, ",") + " FROM diagnostic_deletions").Scan(targets...); err != nil {
+		t.Fatal(err)
+	}
+	var marker int64
+	if err = db.sql.QueryRow(`SELECT marker_bytes FROM diagnostic_deletions`).Scan(&marker); err != nil {
+		t.Fatal(err)
+	}
+	total := int64(64) + marker
+	for i, name := range columns {
+		if name == "phase" {
+			total += int64(len("prepared"))
+		} else {
+			total += int64(len([]byte(values[i])))
+		}
+	}
+	return total
 }
