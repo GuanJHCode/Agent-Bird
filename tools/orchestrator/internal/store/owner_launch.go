@@ -68,7 +68,10 @@ func (d *DB) recordOwnerLaunch(ctx context.Context, ownerID, expected string, su
 	if err != nil {
 		return contract.OriginalOwnerLaunchReceipt{}, err
 	}
-	if expected == "" || expected != a.AttemptSHA256 || supervisor != a.Supervisor || row.state.Phase != "intended" {
+	if expected == "" || expected != a.AttemptSHA256 || supervisor != a.Supervisor || (phase != contract.OriginalOwnerLaunchWaited && row.state.Phase != "intended") || (phase == contract.OriginalOwnerLaunchWaited && row.state.Phase != "intended" && row.state.Phase != "bound" && row.state.Phase != "retired") {
+		return contract.OriginalOwnerLaunchReceipt{}, originalOwnerRejected()
+	}
+	if _, err := originalOwnerSigningPublic(key, a.EffectiveIntent.CoordinatorKeyID); err != nil {
 		return contract.OriginalOwnerLaunchReceipt{}, originalOwnerRejected()
 	}
 	allowed := map[string]string{contract.OriginalOwnerLaunchStarting: contract.OriginalOwnerLaunchPreparedNotStarted, contract.OriginalOwnerLaunchStartedWaitOwned: contract.OriginalOwnerLaunchStarting, contract.OriginalOwnerLaunchWaited: contract.OriginalOwnerLaunchStartedWaitOwned, contract.OriginalOwnerLaunchNotStartedFinal: contract.OriginalOwnerLaunchStarting}
