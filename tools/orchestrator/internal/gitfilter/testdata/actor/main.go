@@ -76,9 +76,15 @@ func main() {
 		if c != nil {
 			c.Close()
 		}
-		// In-place exec is separate from fork; successful control emits this marker.
-		record("exec_other", syscall.Exec("/bin/echo", []string{"echo", "exec-allowed"}, os.Environ()))
+
 		_ = json.NewEncoder(os.Stdout).Encode(checks)
+	case "exec_other":
+		e := syscall.Exec("/bin/echo", []string{"echo", "exec-allowed"}, os.Environ())
+		if errors.Is(e, syscall.EPERM) || errors.Is(e, syscall.EACCES) {
+			_, _ = os.Stdout.Write([]byte("exec-denied\n"))
+			return
+		}
+		os.Exit(25)
 	default:
 		os.Exit(24)
 	}

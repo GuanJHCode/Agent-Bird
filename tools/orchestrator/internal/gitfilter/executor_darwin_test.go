@@ -285,9 +285,19 @@ func TestStreamExecutorKernelIsolationWithControl(t *testing.T) {
 	}
 	args := []string{"audit", f.external, listener.Addr().String(), "reserved"}
 	out := control(args)
-	if !strings.Contains(out, "exec-allowed") {
+	var positive map[string]string
+	if e = json.Unmarshal([]byte(out), &positive); e != nil {
+		t.Fatal(e)
+	}
+	for _, name := range []string{"external_read", "external_write", "empty_chmod", "empty_write", "self_chmod", "fork", "network"} {
+		if positive[name] != "allowed" {
+			t.Fatalf("control %s = %s", name, positive[name])
+		}
+	}
+	if out = control([]string{"exec_other"}); !strings.Contains(out, "exec-allowed") {
 		t.Fatalf("in-place exec control: %s", out)
 	}
+
 	// Restore control writes only after original Wait/tree, before isolated call.
 	if e = os.Remove(filepath.Join(f.empty, "entry")); e != nil {
 		t.Fatal(e)
@@ -311,10 +321,15 @@ func TestStreamExecutorKernelIsolationWithControl(t *testing.T) {
 	if e = json.Unmarshal(read(t, r.Output), &checks); e != nil {
 		t.Fatal(e)
 	}
-	for _, name := range []string{"external_read", "external_write", "empty_chmod", "self_chmod", "fork", "network", "exec_other"} {
+	for _, name := range []string{"external_read", "external_write", "empty_chmod", "self_chmod", "fork", "network"} {
 		if checks[name] != "denied" {
 			t.Errorf("%s = %s", name, checks[name])
 		}
+	}
+	r = f.request(t, "exec_other", nil)
+	g = f.run(t, r, ctx)
+	if !g.Accepted || !bytes.Equal(read(t, r.Output), []byte("exec-denied\n")) {
+		t.Fatal("in-place exec escaped")
 	}
 	contents, e := os.ReadFile(f.external)
 	if e != nil || string(contents) != "sentinel" {

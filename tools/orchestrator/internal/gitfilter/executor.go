@@ -3,8 +3,6 @@
 package gitfilter
 
 import (
-	"context"
-	"errors"
 	"os"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
@@ -30,8 +28,4 @@ type Result struct {
 	InputBytes, OutputBytes                               int64
 	Identity                                              process.Identity
 	ExitCode                                              int
-}
-
-func Execute(ctx context.Context, request Request) (Result, error) {
-	return Result{}, errors.New("filter_executor_not_implemented")
 }
