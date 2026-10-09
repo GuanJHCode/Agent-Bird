@@ -35,13 +35,15 @@ func replacementSuffix() (string, error) {
 // This lease orders this candidate's public writers; it grants no execution or
 // recovery authority. The DB and filesystem remain separate commit domains.
 type Lease struct {
-	paths          []string
-	dirs           []*os.File // state, host-recovery, host-bootstrap
-	lock           *os.File
-	name           string
-	launchID       string
-	bootstrapInfo  os.FileInfo
-	bootstrapBytes []byte
+	paths               []string
+	dirs                []*os.File // state, host-recovery, host-bootstrap
+	lock                *os.File
+	name                string
+	launchID            string
+	bootstrapInfo       os.FileInfo
+	bootstrapBytes      []byte
+	publicationExpected []byte
+	publicationReplay   bool
 }
 
 func launchPrivateFile(info os.FileInfo) bool {
@@ -323,104 +325,23 @@ func (l *Lease) Publish(metadata MetadataV2) error {
 	return nil
 }
 
-// PublishStable is the server-owned replay publisher.  Its stage name is
-// derived from the frozen expected bytes, so a SIGKILL during a write leaves
-// at most one resumable inode for the authenticated publication journal.
-// Existing malformed stages are evidence of tampering and are deliberately
-// retained for diagnosis instead of being removed by a later request.
+// PublishStable is a compilation transition for old draft callers. It cannot
+// adopt an existing stage; authenticated replay must use the explicit API.
 func (l *Lease) PublishStable(metadata MetadataV2) error {
-	if err := l.Unchanged(); err != nil {
-		return err
-	}
 	raw, err := json.Marshal(metadata)
 	if err != nil {
 		return err
 	}
 	raw = append(raw, '\n')
-	if len(raw) > MaxBytes {
-		return Error("invalid_host_bootstrap")
-	}
-	sum := sha256.Sum256(append([]byte(l.launchID+"\x00"), raw...))
-	name := ".publication-" + hex.EncodeToString(sum[:])
-	dir := l.dirs[2]
-	created := false
-	f, err := launchOpenAt(dir, name, unix.O_RDWR|unix.O_CREAT|unix.O_EXCL, 0600)
-	if err != nil {
-		if !errors.Is(err, unix.EEXIST) {
-			return err
-		}
-		f, err = launchOpenAt(dir, name, unix.O_RDWR, 0)
-		if err != nil {
-			return err
-		}
-	} else {
-		created = true
-	}
-	defer f.Close()
-	info, err := f.Stat()
-	if err != nil || !launchPrivateFile(info) || info.Size() > int64(len(raw)) {
-		return Error("host_bootstrap_changed")
-	}
-	current, err := io.ReadAll(io.LimitReader(f, MaxBytes+1))
-	if err != nil || !bytes.Equal(current, raw[:len(current)]) {
-		return Error("host_bootstrap_changed")
-	}
-	published := false
-	defer func() {
-		if !created || published {
-			return
-		}
-		named, e := launchOpenAt(dir, name, unix.O_RDONLY, 0)
-		if e != nil {
-			return
-		}
-		defer named.Close()
-		now, e := named.Stat()
-		if e == nil && os.SameFile(info, now) {
-			_ = unix.Unlinkat(int(dir.Fd()), name, 0)
-			_ = dir.Sync()
-		}
-	}()
-	if len(current) < len(raw) {
-		if _, err = f.Seek(int64(len(current)), io.SeekStart); err != nil {
-			return err
-		}
-		n, e := f.Write(raw[len(current):])
-		if e != nil {
-			return e
-		}
-		if n != len(raw)-len(current) {
-			return io.ErrShortWrite
-		}
-	}
-	if err = f.Sync(); err != nil {
-		return err
-	}
-	if err = l.Unchanged(); err != nil {
-		return err
-	}
-	stage, err := launchOpenAt(dir, name, unix.O_RDONLY, 0)
+	prior, err := l.Snapshot()
 	if err != nil {
 		return err
 	}
-	stageInfo, statErr := stage.Stat()
-	staged, readErr := io.ReadAll(io.LimitReader(stage, MaxBytes+1))
-	_ = stage.Close()
-	if statErr != nil || readErr != nil || !launchPrivateFile(stageInfo) || !os.SameFile(info, stageInfo) || !bytes.Equal(staged, raw) {
-		return Error("host_bootstrap_changed")
-	}
-	if err = unix.Renameat(int(dir.Fd()), name, int(dir.Fd()), l.name); err != nil {
+	if err = l.PreparePublication(raw, false); err != nil {
 		return err
 	}
-	published = true
-	if err = dir.Sync(); err != nil {
-		return err
-	}
-	body, final, err := l.readBytes()
-	if err != nil || !os.SameFile(info, final) || !bytes.Equal(body, raw) {
-		return Error("host_bootstrap_changed")
-	}
-	return nil
+	sum := sha256.Sum256(prior)
+	return l.PublishPublication(raw, hex.EncodeToString(sum[:]))
 }
 func (l *Lease) WriteRecoveryIntent(value any) error {
 	if err := l.Unchanged(); err != nil {
