@@ -243,6 +243,10 @@ func TestMain(m *testing.M) {
 		runOriginalOwnerWorkerFixture()
 		return
 	}
+	if filepath.Base(os.Args[0]) == "protocol2-native-cli-fixture" {
+		runProtocol2NativeFixture()
+		return
+	}
 	if os.Getenv("C04_FIXTURE_PROVIDER") != "" {
 		c04NativeFixture()
 		return
