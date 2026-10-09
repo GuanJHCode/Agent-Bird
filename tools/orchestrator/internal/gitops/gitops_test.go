@@ -345,7 +345,19 @@ func TestValidateCandidatePrivateRefRequiresExactPinnedOID(t *testing.T) {
 	if err := PrivateRef(context.Background(), d, ref, "", oid); err != nil {
 		t.Fatal(err)
 	}
-	receipt := CandidateReceipt{RepoRoot: d, CommonDir: CanonicalPath(filepath.Join(d, ".git")), BaseOID: oid, CandidateOID: oid, TreeOID: git(t, d, "rev-parse", "HEAD^{tree}"), PrivateRef: ref, PrivateRefExpectedOID: oid}
+	root, common, err := validateRepo(context.Background(), d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rootIdentity, err := directoryIdentity(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	commonIdentity, err := directoryIdentity(common)
+	if err != nil {
+		t.Fatal(err)
+	}
+	receipt := CandidateReceipt{RepoRoot: root, CommonDir: common, Worktree: root, WorktreeIdentity: root, BaseOID: oid, CandidateOID: oid, TreeOID: git(t, d, "rev-parse", "HEAD^{tree}"), RootIdentity: rootIdentity, RepoRootIdentity: rootIdentity, CommonDirIdentity: commonIdentity, PrivateRef: ref, PrivateRefExpectedOID: oid}
 	if err := ValidateCandidatePrivateRef(context.Background(), receipt); err != nil {
 		t.Fatalf("pinned ref rejected: %v", err)
 	}

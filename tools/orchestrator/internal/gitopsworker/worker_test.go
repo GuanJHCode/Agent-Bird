@@ -388,9 +388,20 @@ func workerIntegrationChain(t *testing.T, environment bool) {
 	if len(pending) != 0 || completed < 2 {
 		t.Fatalf("unpaired Git receipts: pending=%d completed=%d", len(pending), completed)
 	}
+	// compose stdout intentionally omits the full inventory; cleanup uses the
+	// durable compose journal's receipt rather than an unbounded terminal value.
+	composeJournal, err := openJournal(filepath.Join(spool, "gitops-journal", digest("chain-compose")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cleanupReceipt, found, err := composeJournal.LoadCandidateFreeze(context.Background())
+	composeJournal.close()
+	if err != nil || !found || len(cleanupReceipt.Files) == 0 {
+		t.Fatalf("missing full compose cleanup receipt: found=%v err=%v", found, err)
+	}
 
 	cleaned := runWorkerOperation(t, executable, spool, "chain-cleanup", "cleanup", map[string]any{
-		"root": composeWorktree, "candidate_receipt": receipt,
+		"root": composeWorktree, "candidate_receipt": cleanupReceipt,
 	})
 	var cleanupOutcome gitops.CleanupOutcome
 	if err = json.Unmarshal(cleaned.Result, &cleanupOutcome); err != nil || cleanupOutcome.State != gitops.CleanupRemoved || cleanupOutcome.PrivateRefState != "deleted" {
