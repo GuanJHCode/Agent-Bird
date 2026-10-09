@@ -37,3 +37,7 @@ Independent f02_state_review approved the core, indexed-view/fork/root correctio
 Intel Mac/Windows native checks remain deferred. Multirun combined global-quota exhaustion and migration-specific root-replacement fault windows were statically reviewed but not separately injected; runtime initial root replacement is tested. Non-COMMIT early-rollback driver failures are outside this batch. The DB response and later bootstrap rename remain separate commit domains; concurrent generations are not claimed linearized.
 
 F12 resource evidence remains tied to earlier candidates. Formal60 is still FAILED under128MiB/8MiB; the separately integrated20min diagnostic showed stable heap low-water marks and actor/system paging, without establishing causality or qualifying schema30.
+
+## Integrated verification
+
+Integration6647d64 contains all10 production files with exact a62d644 SHA256 values. One fresh combined public run passed4tests with0fail/skip: pending initial authorization rebind, initial Bind-before-ledger, old bound-never-Applied inc3, and supervised installed-config entry. The original Owner/Host/Coordinator Wait evidence is retained in data/integrated-public.jsonl; data/integrated-receipt.json records source and raw hashes. Prior Store/race/Linux/fault evidence remains applicable and was not repeated.
