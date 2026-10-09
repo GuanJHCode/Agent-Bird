@@ -117,6 +117,24 @@ func (h *hostSession) sendError(id string, epoch uint64, err error) error {
 
 // Caller holds hostRegistrationMu. A replacement uses a separate exact-ticket
 // admission path; ordinary RegisterHost still refuses physical tuple changes.
+// Resolve the explicit v2 launch domain before interpreting transport or
+// enrollment identity. Legacy rows have no launch record and retain v1 rules.
+func (s *Server) inspectOriginalOwnerForRuntime(ctx context.Context, ownerID string) (store.OriginalOwnerState, error) {
+	state, err := s.db.InspectOriginalOwnerLaunch(ctx, ownerID)
+	if errors.Is(err, store.ErrNotFound) {
+		return s.db.InspectOriginalOwner(ctx, ownerID)
+	}
+	return state, err
+}
+
+func (s *Server) currentOriginalOwnerForRuntime(ctx context.Context, launchID string) (store.OriginalOwnerState, error) {
+	state, err := s.db.CurrentOriginalOwnerForLaunch(ctx, launchID)
+	if err != nil {
+		return state, err
+	}
+	return s.inspectOriginalOwnerForRuntime(ctx, state.Intent.Scope.OwnerID)
+}
+
 func (s *Server) registerOriginalOwnerTransport(ctx context.Context, conn net.Conn, requestID string, hello contract.HostHello) (*hostSession, contract.OwnerHostPending, error) {
 	var pending contract.OwnerHostPending
 	if s.closed.Load() || s.terminating.Load() {
@@ -131,7 +149,7 @@ func (s *Server) registerOriginalOwnerTransport(ctx context.Context, conn net.Co
 	if released, err := s.db.ReleasedHostIdentity(ctx, hello); err != nil || released {
 		return nil, pending, ownerRejected()
 	}
-	currentOwner, currentErr := s.db.CurrentOriginalOwnerForLaunch(ctx, hello.LaunchID)
+	currentOwner, currentErr := s.currentOriginalOwnerForRuntime(ctx, hello.LaunchID)
 	if currentErr != nil && !errors.Is(currentErr, store.ErrNotFound) {
 		return nil, pending, currentErr
 	}
@@ -194,7 +212,7 @@ func (s *Server) registerOriginalOwnerTransport(ctx context.Context, conn net.Co
 		}
 	}
 	pending = contract.OwnerHostPending{Version: 1, HostID: hostID, CoordinatorEpoch: s.epoch, CoordinatorPublicKey: hex.EncodeToString(s.ownerPublicKey())}
-	owner, err := s.db.CurrentOriginalOwnerForLaunch(ctx, hello.LaunchID)
+	owner, err := s.currentOriginalOwnerForRuntime(ctx, hello.LaunchID)
 	if err == nil {
 		pending.OwnerID = owner.Intent.Scope.OwnerID
 	} else if !errors.Is(err, store.ErrNotFound) {
@@ -231,7 +249,7 @@ func (s *Server) prepareOriginalOwner(ctx context.Context, session *hostSession,
 	if err := s.authorizeHostHello(ctx, session.conn, session.hello); err != nil {
 		return zero, err
 	}
-	existing, err := s.db.CurrentOriginalOwnerForLaunch(ctx, session.hello.LaunchID)
+	existing, err := s.currentOriginalOwnerForRuntime(ctx, session.hello.LaunchID)
 	if err != nil && !errors.Is(err, store.ErrNotFound) {
 		return zero, err
 	}
@@ -431,7 +449,7 @@ func (s *Server) handleOriginalOwnerRPC(conn net.Conn) {
 	if contract.DecodeOwnerRuntimeStrict(message.Payload, &opening) != nil {
 		return
 	}
-	state, err := s.db.InspectOriginalOwner(ctx, opening.OwnerID)
+	state, err := s.inspectOriginalOwnerForRuntime(ctx, opening.OwnerID)
 	if err != nil {
 		return
 	}
@@ -501,7 +519,7 @@ func (s *Server) originalOwnerRPC(ctx context.Context, kernelPID int, opening co
 	if s.closed.Load() {
 		return reject()
 	}
-	state, err := s.db.InspectOriginalOwner(ctx, opening.OwnerID)
+	state, err := s.inspectOriginalOwnerForRuntime(ctx, opening.OwnerID)
 	if err != nil {
 		return nil, nil, err
 	}
