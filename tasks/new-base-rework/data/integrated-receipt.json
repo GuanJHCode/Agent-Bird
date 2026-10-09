@@ -1,0 +1,71 @@
+{
+  "integration_commit": "60f81c369f34f27768e9ced74e95756af3a14b75",
+  "production": "5cbd657",
+  "source": "1ae3498",
+  "orchestrator_tree": "27aa641629f5c07fd0f8726684c16eb7e4040611",
+  "recorded_go_hashes_verified": 434,
+  "changed_production": {
+    "tools/orchestrator/cmd/orchestrator/main.go": "0480eab0c6284a5ed8cc3d351a00e1adf2df02d756015e775ab80c18c110bdb4",
+    "tools/orchestrator/cmd/orchestrator/new_base_submit.go": "a7d50761b3bb913088e831f1d466319b902895a5df89dfe7086b04d784ea4abf",
+    "tools/orchestrator/internal/adapter/new_base.go": "e2c7bcdc9dd395da1582e93afc554c6f043ae8739dc37afbcb56447c4ae9d256",
+    "tools/orchestrator/internal/adapter/workspace.go": "fa3a8d88ba0b5bd4c6e6768faa728d6b361510bd297efe7c63cb84d4b57f415d",
+    "tools/orchestrator/internal/coordinator/server.go": "bf81c03ce14803574af4be87aa1c58d26546b266282e43ac8847ebe3ea4c687a",
+    "tools/orchestrator/internal/gitops/composition.go": "f14b842ed35c512f552a8a67a2a827f33c3fb5d3f5211e27435a38547a40bfc6",
+    "tools/orchestrator/internal/gitops/freeze.go": "21e810c46151217bd4723b14ab29e8eff626db3339100c3152a9a8ebf13569ec",
+    "tools/orchestrator/internal/gitops/new_base.go": "f6d56f043b47ea9d297fb408beb15ed65bbeb895597f78a096ca9e2f0e95562d",
+    "tools/orchestrator/internal/host/candidate.go": "f53160a6a43fad47282f29ecf4fe770cf2b42067cd395c7adec4ff52efdb5bed",
+    "tools/orchestrator/internal/host/compose.go": "b26367e464e7392372aa4958e86741d7bf78da1722c753ea2dc6d35cca3f2b96",
+    "tools/orchestrator/internal/host/delivery.go": "3a9e98ac4cb13fd29f76b0d3ec48321b696de7cc5a07739a1a39d2ead16d0417",
+    "tools/orchestrator/internal/store/admission.go": "6bd07b9344ccafb2113861e95bb7275cd41b438b90d4d33a79443103c6cc6f5a",
+    "tools/orchestrator/internal/store/candidate_input.go": "14cb895804ebe4a88009148255817e19959b119fb21a89a2a98d629d01b75436",
+    "tools/orchestrator/internal/store/dag_rework_target.go": "b8232a5d7208ca8ab1c45cc1a5fca77f2442ee6645a8075cbce9280c0fbe8ed9",
+    "tools/orchestrator/internal/store/decisions.go": "b2c86c9f75499a4f8e854a027b0723a3eee1c84b41e3f7fa3438078fc47945af",
+    "tools/orchestrator/internal/store/host_events.go": "03ce8e5820daa0289087078a2ffab70c9882561a8497b4d29adb8428c28b36da",
+    "tools/orchestrator/internal/store/lifecycle.go": "e8446cd9178962f166ba0ccef63ee98a251d23de222dd6ca8b37e112c18a4c83",
+    "tools/orchestrator/internal/store/migrations.go": "2aed5166fbe4e894c0d82a684ce0954fc41d6bdac6b794fdf6dace9a7c8526c1",
+    "tools/orchestrator/internal/store/new_base_admission.go": "860402872e9facd2254ead83516e4b910128273455c0d439fc7f993162a8c140",
+    "tools/orchestrator/internal/store/new_base_contract.go": "1418033a6a436b41fd8a4979c8370e30734a892e913884cd3cc6ba027a11e307",
+    "tools/orchestrator/internal/store/new_base_proof.go": "95c9b3f05128fb7ffe195dce058838294225924ffd1fd98c10d1bb91b2ae9826",
+    "tools/orchestrator/internal/store/new_base_schema.go": "573fdba5ad9631e3f7a6021fb9d752433070ddb95428d3e86f4f5cdd71c5cd51",
+    "tools/orchestrator/internal/store/new_base_target.go": "ec3eb2bd0c6ea08e06d438dd2405355727f94ce254d628df2ca5088cd4bf1f2a",
+    "tools/orchestrator/internal/store/quota.go": "5c69eb715b57251631c702db0ebff2c56b73f6836f034270875001ca90c33925",
+    "tools/orchestrator/internal/store/rework_validation.go": "1aa501298450fdca16ad86fa8e6315d1c468ccbef3a61c39672f90560494e51f",
+    "tools/orchestrator/internal/store/runtime.go": "c242b6fe0f828faf08849dbbcf2cf404754403b3002814ec72272f1adf22931b"
+  },
+  "checks": {
+    "store-final-race-03": {
+      "top": 4,
+      "named": 13,
+      "counts": {
+        "pass": 13
+      },
+      "raw_sha256": "bd0401ae84ed8f0bccbda78ff906cade4389dba5fe97f2c9d65119e6801728e6"
+    },
+    "public-final-runtime-race": {
+      "top": 4,
+      "named": 8,
+      "counts": {
+        "pass": 8
+      },
+      "raw_sha256": "14808f63012579f0a168789cf58569747eff756229bd18cbdd5f5031025a1ddf"
+    },
+    "host-final-race": {
+      "top": 2,
+      "named": 5,
+      "counts": {
+        "pass": 5
+      },
+      "raw_sha256": "0695650db8cb0c005b93893cf6f71b0f32525731ce6ca06d54d2dba77d1c41fd"
+    }
+  },
+  "migration_reuse": "three individually passed migration tests in store-final-race; whole batch remains FAIL, final F03 delta unaffected",
+  "reviews": {
+    "Store127e399": "PASS",
+    "public_host9bbbc31_with_barrier5cbd657": "PASS"
+  },
+  "failed_native_cleanup": {
+    "removed_count": 16,
+    "all_absent": true,
+    "exact_runtime_actor_absent": true
+  }
+}

@@ -50,3 +50,12 @@ Host 只把每个分块指定的文本范围写入实际 prompt 文件。Store �
 使用已发布 Bird 配置版本时，Grok profile 需显式填写 `model`，或设置 `cli_model_default:true`，两者互斥。配置准备流程绑定原 generation；当前保存的默认配置格式没有 Grok 字段，省略上述两项会在创建准备记录前拒绝。AGY/Claude/Codex 的默认配置语义保持原样。
 
 本机受控 Provider 验收覆盖真实 CLI、Store、Source Host 恢复、三分块实际文本消费和 Git 合并；这不代表真实模型的分块审查质量或其他平台原生验收。
+
+
+## 整合后的新基线 generation
+
+已有 run 的候选完成业务 accept 和预算结算后，可用 `submit --request <fresh-request.json> --source-control-file <source-control.json>` 派生一次新 run。请求带 `new_base_rework`：绑定精确 source integration event，完整映射祖先 task ID，提供 feedback/acceptance 和稳定 command ID。新请求保留原 DAG、Provider pin/profile、路径、策略与额度上限，机械映射依赖和预算组；source TargetHEAD 成为新 BaseOID。source control 仅用于认证，不写入 lineage 或请求摘要。
+
+当前要求 producer、validate/review 已启用 AutoDirectory；所有 Directory 原值保留。支持一个最终 integration 闭包及可选有序 compose；session、fallback、indexed review、config-generation、旧 rework 和已修订预算等形状显式拒绝。Store 注入并认证新上下文，普通提交不能自行提供它。每个 source event 只有一个 successor；下一代使用刚完成的 integration event 及其 control capability。
+
+CLI 在 Submit 前持久化并同步恢复身份，精确重试返回同 control/bootstrap/launch。目标预约从 queued 起覆盖整个新 DAG，未证明终态或 UNKNOWN 时保留；Host 在 common Git 锁内复核 target HEAD/ref/inode。旧 run 的历史和额度不重置。完整请求规则、支持边界和 macOS 受控三代 runtime race 证据见 [新基线验收](../tasks/new-base-rework/docs/final-validation.md)。该证据不代表真实模型质量或 Linux Git 链通过。
