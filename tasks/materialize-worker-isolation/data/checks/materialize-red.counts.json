@@ -1,0 +1,20 @@
+{
+  "command": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+    "test",
+    "-count=1",
+    "-timeout=240s",
+    "-json",
+    "./internal/gitopsworker",
+    "-run",
+    "^Test(WorkerMaterializeRejectsExecutionExtensions|BuildAndRunMaterializeUsesDurableSourceJournal)$"
+  ],
+  "exit": 1,
+  "top": 2,
+  "named": 5,
+  "results": {
+    "fail": 5
+  },
+  "raw_sha256": "094692f357d5e417ecbb0fcd234e2d014f2b6570d17c3bcb147faffaa8f07639",
+  "stderr_bytes": 0
+}

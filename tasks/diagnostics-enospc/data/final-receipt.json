@@ -1,0 +1,42 @@
+{
+  "source": "28b108b47e1c53b3073f2933d32da0edc39599ee",
+  "production_base": "877a1cd",
+  "production_changes": [],
+  "orchestrator_tree": "38a74274e6e6b12f12ed02392633556925d5800d",
+  "files": {
+    "tools/orchestrator/internal/diagnostics/enospc_linux_test.go": "1ae508c62fa51a71b913524fa3893b03c8575da39f20be6fc2ed8a8290b2fb4d",
+    "tools/orchestrator/internal/host/diagnostics_enospc_linux_test.go": "e5d1a136592fc305bfb26007aa4d785714b39a2e8b5990ffea615a17105d37d4"
+  },
+  "writer": {
+    "source": "e3948a1889fa3ecc1624a20542cafd0ebfe8d1bf",
+    "cid": "d32eb4e3c08ef9e86e786944a4b9a28b4149975bb6aa5a85ea3f5d93d7363d18",
+    "raw_sha256": "cfb8f627df16a70e00897b0553d2465f967f656ee4380e3f3b252890e058ade5",
+    "pass_top": 1,
+    "pass_named": 4,
+    "fail": 0,
+    "skip": 0,
+    "second_inspect_exit": 1,
+    "second_inspect_stderr": "Error: No such object: d32eb4e3c08ef9e86e786944a4b9a28b4149975bb6aa5a85ea3f5d93d7363d18\n",
+    "binary_sha256": "e5acd0018de08f7fc98f2264c3980bc6c42df43615c3bd79869ddabfb8cae554",
+    "owned_binary_removed": true
+  },
+  "host": {
+    "source": "28b108b47e1c53b3073f2933d32da0edc39599ee",
+    "cid": "7d54ef874a1946e317f9b5602498cb1888e7edcc1588589db575348f93b440db",
+    "raw_sha256": "68ce4e715e6d91ca4d8219e08ae24e0f07502816df645708190054f297f314c0",
+    "pass_top": 1,
+    "pass_named": 1,
+    "fail": 0,
+    "skip": 0,
+    "second_inspect_exit": 1,
+    "second_inspect_stderr": "Error: No such object: 7d54ef874a1946e317f9b5602498cb1888e7edcc1588589db575348f93b440db\n",
+    "binary_sha256": "49cdc95dcf712b4c6f9d2ec57a46f485d668d3001373a866402b37f8a11c911c",
+    "owned_binary_removed": true
+  },
+  "review": {
+    "source": "28b108b",
+    "reviewer": "new_base_store_review",
+    "verdict": "PASS"
+  },
+  "scope": "real ENOSPC on bounded Linux tmpfs; Writer publication and Host original ownership; no Store/power-loss/restart/whole-disk qualification"
+}

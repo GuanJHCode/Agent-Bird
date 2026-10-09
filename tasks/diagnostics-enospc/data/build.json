@@ -1,0 +1,14 @@
+{
+  "command": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+    "test",
+    "-c",
+    "-o",
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/diagnostics-enospc/tasks/diagnostics-enospc/tmp/diagnostics.test",
+    "./internal/diagnostics"
+  ],
+  "exit": 0,
+  "base": "877a1cd2094941ca297d1425b1c7ac1499769d35",
+  "test_sha256": "1ae508c62fa51a71b913524fa3893b03c8575da39f20be6fc2ed8a8290b2fb4d",
+  "binary_sha256": "e5acd0018de08f7fc98f2264c3980bc6c42df43615c3bd79869ddabfb8cae554"
+}
