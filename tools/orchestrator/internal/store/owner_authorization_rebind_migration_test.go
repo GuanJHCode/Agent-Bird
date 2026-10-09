@@ -12,9 +12,6 @@ import (
 // Never erase a derived proof to manufacture a historical fixture. Ordinary
 // rebind history remains, with only schema30's added accounting subtracted.
 func removeOwnerAuthorizationRebindSchema30(db *DB) error {
-	if err := removeDiagnosticDeletionSchema31(db); err != nil {
-		return err
-	}
 	var version, count int
 	if err := db.sql.QueryRow(`SELECT version FROM schema_meta`).Scan(&version); err != nil {
 		return err
@@ -22,7 +19,7 @@ func removeOwnerAuthorizationRebindSchema30(db *DB) error {
 	if version < 30 {
 		return nil
 	}
-	if version != 30 {
+	if version != 30 && version != 31 {
 		return fmt.Errorf("unsupported authorization rebind schema %d", version)
 	}
 	if err := db.sql.QueryRow(`SELECT COUNT(*) FROM owner_succession_rebind_proofs`).Scan(&count); err != nil {
@@ -30,6 +27,9 @@ func removeOwnerAuthorizationRebindSchema30(db *DB) error {
 	}
 	if count != 0 {
 		return errors.New("cannot erase authorization rebind history")
+	}
+	if err := removeDiagnosticDeletionSchema31(db); err != nil {
+		return err
 	}
 	tx, err := db.sql.Begin()
 	if err != nil {
@@ -134,7 +134,7 @@ func TestPendingAuthorizationRebindMigrationFailedCommitDiscardsLease(t *testing
 	if err = f.db.migrateRuntime(); err != nil {
 		t.Fatal("same Store could not retry migration", err)
 	}
-	if originalOwnerSchemaCount(t, f.db.sql, `SELECT version FROM schema_meta`) != 30 || originalOwnerSchemaCount(t, f.db.sql, `SELECT COUNT(*) FROM owner_succession_rebind_proofs`) != 1 {
+	if originalOwnerSchemaCount(t, f.db.sql, `SELECT version FROM schema_meta`) != currentSchemaVersion || originalOwnerSchemaCount(t, f.db.sql, `SELECT COUNT(*) FROM owner_succession_rebind_proofs`) != 1 {
 		t.Fatal("retry lost exact historical derivation")
 	}
 }

@@ -313,3 +313,14 @@ See [installation](../../docs/installation.md), [support matrix](../../docs/supp
 and [test layers](../../docs/testing.md) before enabling a Provider in a main-agent
 workflow. The real CLI trial and synthetic protocol tests establish different
 claims and are reported separately.
+
+
+### Explicit detailed-log deletion
+
+`diagnostics-delete --state-dir <state> --control-file <control.json> --request <delete.json>` and `task diagnostics-delete --handle <handle.json> --request <delete.json>` dispose of a completed attempt's managed detailed logs. The request must be a private regular 0600 file at a canonical absolute path:
+
+```json
+{"version":1,"task_id":"task","attempt_id":"attempt-id","request_id":"delete-1","expected_revision":1}
+```
+
+Use the current diagnostics revision; a pending read must first be acknowledged. Only the latest completed attempt with at most64 exited segments is eligible. Keep the same request for recovery after interruption or a lost reply. Deletion releases its reserved capacity only after verified file removal and a committed receipt. It retains a charged marker and lock directory, and later reads return `diagnostics_expired`. The result distinguishes removed logical file lengths from released reservation capacity; it does not report reclaimed filesystem blocks. Failed/uncertain execution, automatic retention and other artifact classes are not deleted by this command.

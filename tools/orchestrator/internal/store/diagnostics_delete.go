@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"encoding/json"
 	"errors"
 	"path/filepath"
@@ -74,6 +75,7 @@ func (d *DB) beginRootedOwnerTransaction(ctx context.Context) (*ownerTransaction
 	}
 	authority, err := d.initialOwnerRootAuthority() // Pure saved-Open identity, no initial-owner selector.
 	if err != nil {
+		_ = conn.Raw(func(any) error { return driver.ErrBadConn })
 		_ = conn.Close()
 		return nil, CodeError("diagnostics_store_root_invalid")
 	}
@@ -102,7 +104,7 @@ func diagnosticDeletionFacts(ctx context.Context, tx *sql.Tx, row diagnosticDeli
 	var status, attemptStatus, latest string
 	if fresh {
 		var unresolved int
-		if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM segments other JOIN attempts oa ON oa.id=other.attempt_id LEFT JOIN segment_runtime osr ON osr.segment_id=other.id WHERE oa.task_id=t.id AND (other.status!='exited' OR osr.status IS NULL OR osr.status!='exited')),t.status,a.status,(SELECT id FROM attempts WHERE task_id=t.id ORDER BY attempt_no DESC LIMIT 1) FROM tasks t JOIN attempts a ON a.task_id=t.id WHERE t.id=? AND a.id=?`, row.scope.TaskID, row.scope.AttemptID).Scan(&unresolved, &status, &attemptStatus, &latest); err != nil {
+		if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM segments other JOIN attempts oa ON oa.id=other.attempt_id LEFT JOIN segment_runtime osr ON osr.segment_id=other.id WHERE oa.task_id=t.id AND (other.status NOT IN ('exited','not_started') OR osr.status IS NULL OR osr.status NOT IN ('exited','not_started'))),t.status,a.status,(SELECT id FROM attempts WHERE task_id=t.id ORDER BY attempt_no DESC LIMIT 1) FROM tasks t JOIN attempts a ON a.task_id=t.id WHERE t.id=? AND a.id=?`, row.scope.TaskID, row.scope.AttemptID).Scan(&unresolved, &status, &attemptStatus, &latest); err != nil {
 			return "", err
 		}
 		if unresolved != 0 || status != "completed" || attemptStatus != "result_ready" || latest != row.scope.AttemptID {

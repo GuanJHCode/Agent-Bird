@@ -371,6 +371,17 @@ func TestDiagnosticsDeletionSchemaTransitionsAndMigration(t *testing.T) {
 	body, _ := json.Marshal(x.result())
 	x.completion = string(body)
 	x.controlBytes = x.cost()
+	// A premature removed intent must abort the whole prepare transaction,
+	// before its reservation has entered deleting.
+	if _, err = f.db.sql.Exec(`CREATE TRIGGER premature_delete_removed AFTER INSERT ON diagnostic_deletions BEGIN UPDATE diagnostic_deletions SET phase='removed' WHERE reservation_id=NEW.reservation_id; END`); err != nil {
+		t.Fatal(err)
+	}
+	if err = f.db.prepareDiagnosticDeletion(ctx, "controller", f.token, x); err == nil {
+		t.Fatal("removed intent accepted before deleting reservation")
+	}
+	if _, err = f.db.sql.Exec(`DROP TRIGGER premature_delete_removed`); err != nil {
+		t.Fatal(err)
+	}
 	if err = f.db.prepareDiagnosticDeletion(ctx, "controller", f.token, x); err != nil {
 		t.Fatal(err)
 	}
@@ -482,5 +493,70 @@ func TestDiagnosticsDeletedCandidateRetainsDAGReworkProof(t *testing.T) {
 	defer tx.Rollback()
 	if err = bindCandidateInput(ctx, tx, &g, true); err == nil {
 		t.Fatal("historical deletion proof authorized live dispatch")
+	}
+}
+
+func TestDiagnosticsDeletionMigrationCommitFailureIsAtomic(t *testing.T) {
+	f := newDiagnosticsReadFixture(t)
+	if err := removeDiagnosticDeletionSchema31(f.db); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.db.sql.Exec(`CREATE TABLE deletion_migration_fault(parent TEXT REFERENCES runs(id) DEFERRABLE INITIALLY DEFERRED); CREATE TRIGGER fail_deletion_migration AFTER UPDATE OF version ON schema_meta WHEN NEW.version=31 BEGIN INSERT INTO deletion_migration_fault VALUES('missing-parent'); END`); err != nil {
+		t.Fatal(err)
+	}
+	before := deletionUsage(t, f.db)
+	if err := f.db.migrateRuntime(); err == nil || !strings.Contains(err.Error(), "FOREIGN KEY") {
+		t.Fatal("missing actual migration COMMIT failure", err)
+	}
+	check := func(db *sql.DB) {
+		t.Helper()
+		var version, objects, faults int
+		if err := db.QueryRow(`SELECT (SELECT version FROM schema_meta),(SELECT COUNT(*) FROM sqlite_master WHERE name='diagnostic_deletions'),(SELECT COUNT(*) FROM deletion_migration_fault)`).Scan(&version, &objects, &faults); err != nil || version != 30 || objects != 0 || faults != 0 {
+			t.Fatal("partial migration persisted", version, objects, faults, err)
+		}
+	}
+	check(f.db.sql)
+	external, err := sql.Open("sqlite", f.db.path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	check(external)
+	external.Close()
+	if before != deletionUsage(t, f.db) {
+		t.Fatal("failed migration changed accounting")
+	}
+	if _, err = f.db.sql.Exec(`DROP TRIGGER fail_deletion_migration`); err != nil {
+		t.Fatal(err)
+	}
+	if err = f.db.migrateRuntime(); err != nil {
+		t.Fatal("retry migration failed", err)
+	}
+}
+
+func TestDiagnosticsDeleteRejectsStoreRootReplacement(t *testing.T) {
+	f, req := completedDiagnosticsDeleteFixture(t)
+	// Replacement has a different SQLite inode even when all logical rows match.
+	replacement := filepath.Join(filepath.Dir(f.db.path), "replacement.db")
+	if _, err := f.db.sql.Exec(`VACUUM INTO ?`, replacement); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(replacement, 0600); err != nil {
+		t.Fatal(err)
+	}
+	original := f.db.path + ".original"
+	if err := os.Rename(f.db.path, original); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(replacement, f.db.path); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.Remove(f.db.path); _ = os.Rename(original, f.db.path) }()
+	touched := false
+	_, err := f.db.deleteDiagnostics(context.Background(), "controller", f.token, req, func(context.Context, string, diagnostics.Scope, string, []byte) (diagnosticDeletionLease, error) {
+		touched = true
+		return nil, errors.New("unexpected namespace access")
+	})
+	if !errors.Is(err, CodeError("diagnostics_store_root_invalid")) || touched {
+		t.Fatal("replacement Store reached deletion", err, touched)
 	}
 }
