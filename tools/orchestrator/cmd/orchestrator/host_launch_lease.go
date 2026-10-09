@@ -277,8 +277,9 @@ func (l *hostLaunchLease) publish(b hostBootstrap) error {
 		return err
 	}
 	stageInfo, err := stage.Stat()
+	stageBytes, readErr := io.ReadAll(io.LimitReader(stage, maxBootstrapBytes+1))
 	stage.Close()
-	if err != nil || !launchPrivateFile(stageInfo) || !os.SameFile(created, stageInfo) {
+	if err != nil || readErr != nil || !launchPrivateFile(stageInfo) || !os.SameFile(created, stageInfo) || !bytes.Equal(stageBytes, raw) {
 		return codeError("host_bootstrap_changed")
 	}
 	if err = unix.Renameat(int(dir.Fd()), name, int(dir.Fd()), l.name); err != nil {
