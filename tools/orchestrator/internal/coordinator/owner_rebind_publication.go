@@ -63,7 +63,7 @@ func (s *Server) rebindOwnerPublished(ctx context.Context, request RebindOwnerRe
 	if publication.State == "published" {
 		return json.Marshal(map[string]any{"version": 1, "status": "owner_rebound", "run_id": request.RunID, "launch_id": launchID, "origin_context_id": request.OriginContextID, "host_generation": request.HostGeneration, "bootstrap_sha256": publication.ExpectedSHA256})
 	}
-	if err = lease.Publish(metadata); err != nil {
+	if err = lease.PublishStable(metadata); err != nil {
 		return nil, err
 	}
 	if err = s.db.FinalizeOwnerRebindPublication(ctx, publication); err != nil {
