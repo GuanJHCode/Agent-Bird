@@ -17,7 +17,7 @@ type OwnerPrepareRequest struct {
 }
 
 func (p OwnerPrepareRequest) Validate(requestID string) error {
-	if p.Version != 1 || !ownerText(p.BootstrapID, 256) || !ownerText(requestID, 256) || !ownerDigest(p.BootstrapTokenSHA256) || p.StartupDeadlineUnixMS <= 0 {
+	if (p.Version != 1 && p.Version != 2) || !ownerText(p.BootstrapID, 256) || !ownerText(requestID, 256) || !ownerDigest(p.BootstrapTokenSHA256) || p.StartupDeadlineUnixMS <= 0 {
 		return ownerInvalid()
 	}
 	return nil
