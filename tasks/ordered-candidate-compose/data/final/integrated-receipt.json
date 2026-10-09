@@ -1,0 +1,26 @@
+{
+  "integration_head": "d3d94a37e4ff4305e9a6d96eff7ecb679fcd730d",
+  "validated_source": "2f7d8da",
+  "production_snapshot": "766ddea",
+  "production_files": 13,
+  "sha256": {
+    "tools/orchestrator/cmd/orchestrator/main.go": "b00ab5307412cba7ec2c37455335999b5fa02e98e2e005a1d481d70b59e9eebc",
+    "tools/orchestrator/internal/adapter/action.go": "afdbc1a196d771c2e13ad834257d988bc7df5477caab7c1977698b1f2847d98b",
+    "tools/orchestrator/internal/contract/dependency_inputs.go": "6dee57048d9be0958aa3336874f4fe5cc14a068ed0860bbb949fc09e29655f1c",
+    "tools/orchestrator/internal/gitops/candidate_lock.go": "5df6601bd1ff2c693c69e94ccf7d7780565ba011320207011d99c51026d486a8",
+    "tools/orchestrator/internal/gitops/freeze.go": "7afd49c475a4e1b0149056e25c8187c3ebc782921b15abcc7f84cf25399ea55c",
+    "tools/orchestrator/internal/gitops/gitops.go": "00c1f1f2c5447609980f0a704944ceb2264ac0b8f62d8010d9c63f65a783f368",
+    "tools/orchestrator/internal/gitopsworker/worker.go": "d7ba2847325e41dd18217be0fdbc8a29cf6a792f30982cecca944708c6286941",
+    "tools/orchestrator/internal/host/compose.go": "320cf7d2313d83a1316957b5cf0e9d6b6a09a6d180a47357cb3f0e97e2dfbd6a",
+    "tools/orchestrator/internal/host/delivery.go": "b58719b2c401cde32d0823eb918bbc79780800dd4dfcfe42d13769eeef02adf9",
+    "tools/orchestrator/internal/host/host.go": "1b300b5917a3c64629eb0ae5de83d515e8dcc898c906361866fe8af11ece2b8c",
+    "tools/orchestrator/internal/store/candidate_input.go": "da15942e1751ead08b9a48a4957a75395c9d60cc4db26265c5b2d909ea197d5b",
+    "tools/orchestrator/internal/store/decision_attempt_legacy.go": "d7d7d740175d791ed9f80333863f2d97ac4094c842879c0f6c2e6d70cc463311",
+    "tools/orchestrator/internal/store/dependency_inputs.go": "b14e9f8691c04dcdc5f0dccee426e1f4ae67813aa8984f7f6ae3142b7fbbb860"
+  },
+  "orchestrator_tree": "f10eb3d9eab446904b93b08b1f77e130fedb7b55",
+  "whole_orchestrator_tree_matches": true,
+  "validation_reused": "combined-schema31 4top6named; final race5top15named plus affected uncertainty race3top3named; source identical, no repeated integration suite",
+  "review": "PASS stable766ddea",
+  "limits": "Linux Store snapshot206e158 only; no Linux Git cached image; Intel/Windows, real model, new-base rework deferred"
+}

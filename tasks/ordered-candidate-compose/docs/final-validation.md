@@ -1,6 +1,6 @@
 # F03 有序候选组合：本地验收
 
-生产快照 `766ddea`（F03 `6a0c500` 与已验收 F02/schema31 `c8a6f3e` 合并）。独立静态最终审查 PASS；原有 integration 尚须由 ROOT 合入，集成回执另存。
+生产快照 `766ddea`（F03 `6a0c500` 与已验收 F02/schema31 `c8a6f3e` 合并）。独立静态最终审查 PASS；已本地合入 integration `d3d94a3`，13个生产 Go 文件 SHA 及整个 `tools/orchestrator` Git tree 与已验收源一致，复用有效证据；集成回执见 `data/final/integrated-receipt.json`。
 
 - 支持同 repo/common/base 的 2..63 个已接受 producer，显式 v2 保留 `[B,A]` 顺序。无主 ProviderLock，Store 不读取 Git/生成最终 manifest、不新增 schema 或配额桶。
 - Host 认证每源 artifact/payload/binding、完整目录身份、base ancestry、private ref。worker 在 common 锁内重验 source pins，使用原始 Handle Wait/tree 和 Git process journal。v1 validate/review/integrate 保留 composition provenance，Git 操作前重验 pin。
