@@ -125,6 +125,9 @@ func (d *DB) ReviseBudget(ctx context.Context, command BudgetRevisionCommand) (B
 	if controller != command.Controller || subtle.ConstantTimeCompare([]byte(tokenHash), []byte(runtimeHash(command.ControlToken))) != 1 || anchorGroup != req.BudgetGroupID {
 		return rollback(CodeError("owner_mismatch"))
 	}
+	if err = requirePublishedOwnerTx(ctx, tx, runID); err != nil {
+		return rollback(err)
+	}
 	// Replay is evaluated before CAS. A later revision must not invalidate the
 	// original command's exact idempotent receipt.
 	var savedRequest, savedReceipt string

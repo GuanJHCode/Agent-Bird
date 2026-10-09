@@ -103,6 +103,9 @@ func bridgePeerAncestry(ctx context.Context, tx *sql.Tx, pid int, birth string) 
 }
 
 func bridgeOwnerTx(ctx context.Context, tx *sql.Tx, runID string) (BridgeOwnerProof, error) {
+	if err := requirePublishedOwnerTx(ctx, tx, runID); err != nil {
+		return BridgeOwnerProof{}, err
+	}
 	p, ok := ctx.Value(bridgeOwnerKey{}).(BridgeOwnerProof)
 	if !ok || p.RunID != runID || p.ControllerThread == "" || p.ControlToken == "" || p.OwnerContextID == "" {
 		return p, CodeError("owner_mismatch")
