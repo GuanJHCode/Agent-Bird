@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"reflect"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/artifacts"
@@ -71,14 +70,15 @@ func validateValidationSource(c contract.LaunchCommand, body []byte) error {
 		return ErrConflict
 	}
 	var out newBaseDelivery
-	if json.Unmarshal(body, &out) != nil || out.Version != 1 || !reworkBindingMatches(&out.Binding, c.Input.Event, c.PlanRevision) || !reworkBindingMatches(out.Candidate.Binding, c.Input.Event, c.PlanRevision) || out.Candidate.AttemptID != c.Input.Event.AttemptID || out.Candidate.PlanRevision != int64(c.PlanRevision) || !reworkOID(out.Candidate.CandidateOID) || !reworkOID(out.Candidate.TreeOID) || out.Candidate.PrivateRefExpectedOID != out.Candidate.CandidateOID || out.Candidate.BaseOID != p.CandidateAction.Target.BaseOID || out.Candidate.RepoRoot != p.CandidateAction.Target.Worktree || !validDigest(out.CandidateReceiptSHA256) || out.Candidate.CommonDir == "" || out.Candidate.Worktree == "" || out.Candidate.WorktreeIdentity != out.Candidate.Worktree || out.Candidate.RootIdentity == (gitops.DirectoryIdentity{}) || out.Candidate.RepoRootIdentity == (gitops.DirectoryIdentity{}) || out.Candidate.CommonDirIdentity == (gitops.DirectoryIdentity{}) || len(out.Candidate.Changes) > 256 {
+	if json.Unmarshal(body, &out) != nil || out.Version != 1 || !reworkBindingMatches(out.Candidate.Binding, c.Input.Event, c.PlanRevision) || out.Candidate.AttemptID != c.Input.Event.AttemptID || out.Candidate.PlanRevision != int64(c.PlanRevision) || !reworkOID(out.Candidate.CandidateOID) || !reworkOID(out.Candidate.TreeOID) || out.Candidate.PrivateRefExpectedOID != out.Candidate.CandidateOID || out.Candidate.BaseOID != p.CandidateAction.Target.BaseOID || out.Candidate.RepoRoot != p.CandidateAction.Target.Worktree || !validDigest(out.CandidateReceiptSHA256) || out.Candidate.CommonDir == "" || out.Candidate.Worktree == "" || out.Candidate.WorktreeIdentity != out.Candidate.Worktree || out.Candidate.RootIdentity == (gitops.DirectoryIdentity{}) || out.Candidate.RepoRootIdentity == (gitops.DirectoryIdentity{}) || out.Candidate.CommonDirIdentity == (gitops.DirectoryIdentity{}) || len(out.Candidate.Changes) > 256 {
 		return ErrConflict
 	}
 	if source.CandidateWorkspace != nil {
-		if out.Stage != "" || source.ProviderLock == nil || !reflect.DeepEqual(out.ProviderLock, source.ProviderLock) || out.Composition != nil {
+		lock := source.ProviderLock
+		if out.Stage != "" || out.Composition != nil || source.Kind != "" || source.CandidateAction != nil || source.CandidateWorkspace.Version != 1 || source.Profile == nil || source.Profile.Role != adapter.Implementer || source.Profile.Permission != adapter.WorkspaceWrite || lock == nil || lock.Version != 1 || string(lock.Provider) != source.Provider || lock.Protocol != adapter.ProtocolID(lock.Provider) || lock.Binary.Path == "" || lock.Binary.Version == "" || !validDigest(lock.Binary.SHA256) || (lock.Provider != adapter.ProviderClaude && lock.Provider != adapter.ProviderAGY && lock.Provider != adapter.ProviderGrok) {
 			return ErrConflict
 		}
-	} else if !isV2Compose(c.Input.AdapterPayload) || out.Stage != "compose" || out.Composition == nil || gitops.ValidateCompositionManifest(out.Composition, out.Candidate, out.CandidateReceiptSHA256) != nil {
+	} else if !reworkBindingMatches(&out.Binding, c.Input.Event, c.PlanRevision) || !isV2Compose(c.Input.AdapterPayload) || out.Stage != "compose" || out.Composition == nil || gitops.ValidateCompositionManifest(out.Composition, out.Candidate, out.CandidateReceiptSHA256) != nil {
 		return ErrConflict
 	}
 	return nil

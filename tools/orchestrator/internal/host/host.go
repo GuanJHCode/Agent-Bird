@@ -412,6 +412,11 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		// entered. Preparation uncertainty and every starting/spawned path
 		// retain their existing conservative evidence.
 		if recordErr := h.recordLaunchFailed(a, runID, taskID, meta, cause); recordErr != nil {
+			if meta.artifactGrant != nil && meta.artifactGrant.ValidationTool != nil {
+				phaseErr := publishLaunchPhase(spool, "unknown", a, runID, taskID, cmd, nil, recordErr)
+				eventErr := appendPhase(contract.EventUnknown, hashText("unknown:"+a.SegmentID), nil, nil, nil)
+				recordErr = errors.Join(recordErr, phaseErr, eventErr)
+			}
 			h.finishAttempt(a.ID, "unknown", persistDB)
 			return contract.Result{Status: "unknown", ExitCode: -1, EventCount: eventCount}, errors.Join(cause, recordErr)
 		}
@@ -480,6 +485,9 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 			if ctx.Err() != nil || h.stopWasRequested(a.SegmentID) {
 				return finalizePrelaunchRejected(context.Canceled)
 			}
+			if meta.artifactGrant != nil && meta.artifactGrant.ValidationTool != nil {
+				return finalizePrelaunchRejected(prepareErr)
+			}
 			return contract.Result{Status: "failed", ExitCode: -1, EventCount: eventCount}, prepareErr
 		}
 		// Provider protocols keep priority; a local action can supply its own
@@ -500,6 +508,9 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 			}
 			if ctx.Err() != nil || h.stopWasRequested(a.SegmentID) {
 				return finalizePrelaunchRejected(context.Canceled)
+			}
+			if meta.artifactGrant != nil && meta.artifactGrant.ValidationTool != nil {
+				return finalizePrelaunchRejected(prepareErr)
 			}
 			return contract.Result{Status: "failed", ExitCode: -1, EventCount: eventCount}, prepareErr
 		}

@@ -348,3 +348,69 @@ func TestValidationToolCleanupJournalIdentity(t *testing.T) {
 		})
 	}
 }
+
+func TestValidationToolSealedPrepareFailureTerminates(t *testing.T) {
+	for _, mode := range []string{"profile_failure", "cleanup_failure"} {
+		t.Run(mode, func(t *testing.T) {
+			h, err := NewIPC(filepath.Join(t.TempDir(), "host-spool", "host"), "host")
+			if err != nil {
+				t.Fatal(err)
+			}
+			g, cmd := validationStartGrant(t, h)
+			if err = os.MkdirAll(cmd.Dir, 0700); err != nil {
+				t.Fatal(err)
+			}
+			scratch := filepath.Join(h.spoolRoot, g.AttemptID, g.SegmentID, "scratch")
+			if err = os.MkdirAll(filepath.Dir(scratch), 0700); err != nil {
+				t.Fatal(err)
+			}
+			if err = os.WriteFile(scratch, []byte("owned regular file forces real sandbox preparation refusal"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			if mode == "cleanup_failure" {
+				if err = os.Chmod(cmd.SealedPath, 0700); err != nil {
+					t.Fatal(err)
+				}
+				if err = os.WriteFile(cmd.SealedPath, []byte("changed tool bytes"), 0500); err != nil {
+					t.Fatal(err)
+				}
+				if err = os.Chmod(cmd.SealedPath, 0500); err != nil {
+					t.Fatal(err)
+				}
+			}
+			meta := metadataForLaunch(g)
+			meta.startProcess = func(context.Context, process.Command) (*process.Handle, error) {
+				t.Fatal("worker Start entered after preparation error")
+				return nil, nil
+			}
+			meta.prepareCandidate = func(ctx context.Context) (process.Command, func(context.Context, string) ([]byte, error), func(), error) {
+				wrapped, e := sandboxCommand(ctx, cmd, &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: 5000}, scratch)
+				return wrapped, nil, func() {}, e
+			}
+			a := store.Attempt{ID: g.AttemptID, TaskID: g.TaskID, SegmentID: g.SegmentID}
+			result, err := h.execute(context.Background(), a, g.RunID, g.TaskID, cmd, false, meta)
+			if err == nil {
+				t.Fatal("preparation error disappeared")
+			}
+			records, e := h.Collect(context.Background(), a)
+			if e != nil {
+				t.Fatal(e)
+			}
+			if mode == "profile_failure" {
+				if result.Status != "failed" || len(records) != 2 || records[1].Kind != contract.EventLaunchRejected || records[1].ValidationToolCleanup == nil || records[1].Failure != nil {
+					t.Fatal("pre-Start tool refusal lacks cleanup terminal", result, records)
+				}
+				if _, e = os.Lstat(cmd.SealedPath); !errors.Is(e, os.ErrNotExist) {
+					t.Fatal("unneeded binary retained", e)
+				}
+			} else {
+				if result.Status != "unknown" || len(records) != 2 || records[1].Kind != contract.EventUnknown || records[1].ValidationToolCleanup != nil {
+					t.Fatal("failed cleanup did not preserve UNKNOWN", result, records)
+				}
+				if _, e = os.Lstat(cmd.SealedPath); e != nil {
+					t.Fatal("uncertain binary deleted", e)
+				}
+			}
+		})
+	}
+}

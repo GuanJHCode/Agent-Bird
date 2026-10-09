@@ -43,3 +43,10 @@ ROOT schema34/API生产 `3c8a55b` 与DTO/hash、迁移证据已按固定提交ch
 所有FAIL保留：`store-policy-red` launcher误传`--`，Go未执行，仅有command/空输出，没有原exit文件，不补造；`store-policy-green`为validOID未定义编译失败；`store-chain-01`/diagnostic01为strict JSON walker拒绝source合法null，已用完整[]byte/base64冻结修复；`store-bound-red`为bound missing/emptydecision真实业务RED；`store-milestone-01`包含测试未核consumed退休CHECK及公开artifact wrapper转换底层COMMIT错误的问题，修正为精确schema断言和原intake回调的真实FK COMMIT；`integrated-store-host-01`只有Boundary夹具缺HostArtifact grant，Boundary后续1top8named PASS。`store-guard-green-02`的missing_tool被schema retained trigger先拒绝，已显式断言该防线，再于隔离测试DB模拟缺行检查独立intake gate；事实guard后续1top4named PASS。其余该FAIL batch具名PASS可据实际delta复用，未宣称整个batch通过。
 
 跨physical限制：原event已入Store则exact ACK replay；仅旧spool已durable但Store未记录，在新PID/birth物理Host重绑后保守拒绝释放/自动retry。可写spool JSON不能证明原publisher；冷journal不是original Wait。实际Start错误为per-call受控注入，不称自然内核资源EAGAIN。
+
+## source 真实形状与 sealed prepare 回归
+
+`source-artifact-red` 为真实 gitops.CandidateArtifact producer shape，1 top / 2 named FAIL；修复只按实际内层 Candidate.Binding 与原 source adapter/provider lock 认证，不要求 producer 不存在的 outer binding/pin 字段。compose 保留原 outer binding 与 receipt 摘要认证。
+`sealed-prepare-red` 为 seal 成功后真实 sandbox/profile 准备失败，1 top / 3 named FAIL。新工具 grant 作用域普通 pre-Start prepareErr 统一进入 finalizePrelaunchRejected；cleanup/persist 失败发布 UNKNOWN 并保留额度，不扩大旧无工具 Provider 行为。
+最终增量 `source-prepare-green`：2 top / 14 named PASS，exit 0，无 FAIL/SKIP。此前两批业务 RED 原始 stdout/stderr/exit 全保留。
+recordLaunchFailed 的 exact terminal replay 在扫描到已有 LaunchRejected 时直接返回，发生在 cleanup 之前；source runner 后续同 tuple 调用不会再删除或重复退款。
