@@ -182,3 +182,54 @@ func TestOwnerGrantPublicationFailureDoesNotAuthorize(t *testing.T) {
 		})
 	}
 }
+
+func TestOwnerGrantPublicationCanonicalAncestorAlias(t *testing.T) {
+	root, err := os.MkdirTemp("/private/tmp", "bind-alias-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(root)
+	real := filepath.Join(root, "real")
+	alias := filepath.Join(root, "alias")
+	if err = os.Mkdir(real, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err = os.Symlink(real, alias); err != nil {
+		t.Fatal(err)
+	}
+	s, err := NewServer(filepath.Join(alias, "state"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- s.Serve(ctx) }()
+	defer func() {
+		cancel()
+		s.Close()
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			t.Error("Serve did not join")
+		}
+	}()
+	birth, err := process.Birth(os.Getpid())
+	if err != nil {
+		t.Fatal(err)
+	}
+	response := callServer(t, s.SocketPath(), ipc.KindOwnerBind, OwnerBindRequest{ControllerThread: "alias-master", OriginPID: os.Getpid(), OriginBirth: birth})
+	var result struct {
+		Path string `json:"owner_capability"`
+	}
+	if json.Unmarshal(response.Payload, &result) != nil {
+		t.Fatal("invalid receipt")
+	}
+	if filepath.Dir(result.Path) != filepath.Join(real, "state", "owners") {
+		t.Fatal("capability path not canonical")
+	}
+	authenticated := context.WithValue(ctx, peerAncestryKey{}, map[int]string{os.Getpid(): birth})
+	grant, err := s.localOwner(authenticated, result.Path)
+	if err != nil || grant.ControllerThread != "alias-master" {
+		t.Fatal("canonical capability not usable", err)
+	}
+}

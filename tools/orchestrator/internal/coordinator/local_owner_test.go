@@ -218,7 +218,12 @@ func TestUnidentifiedLaunchDefersUnboundPeerDispatchControls(t *testing.T) {
 	raw, _ := json.Marshal(control)
 	for _, kind := range []ipc.Kind{ipc.Kind("budget_revise"), ipc.KindRecoverHost, ipc.KindRebindOwner, ipc.KindResume, ipc.KindRetry, ipc.KindRework, ipc.KindAccept, ipc.KindAnswer} {
 		response, err := ipc.Call(ctx, server.SocketPath(), ipc.Envelope{Version: 1, Kind: kind, RequestID: "control", Payload: raw})
-		if err != nil || response.Kind != ipc.KindError || !strings.Contains(string(response.Payload), "owner_registration_deferred") {
+		expected := "owner_registration_deferred"
+		if kind == ipc.KindRebindOwner {
+			// F10 rejects obsolete publication protocol before authority/lease.
+			expected = "owner_rebind_publication_protocol_required"
+		}
+		if err != nil || response.Kind != ipc.KindError || !strings.Contains(string(response.Payload), expected) {
 			t.Errorf("unbound peer reached %s: response_kind=%s err=%v", kind, response.Kind, err)
 		}
 	}

@@ -91,7 +91,7 @@ func (p *localOwnerPublication) validateFile(complete bool) error {
 
 func (p *localOwnerPublication) publish(g store.OwnerGrant, authority store.StoreRootAuthority) error {
 	p.authority = authority
-	if authority.Nodes().StateRoot != p.stateDir || authority.Validate() != nil {
+	if authority.Validate() != nil {
 		return store.CodeError("owner_path_untrusted")
 	}
 	raw, err := json.Marshal(g)
@@ -122,7 +122,7 @@ func (p *localOwnerPublication) publish(g store.OwnerGrant, authority store.Stor
 		return err
 	}
 	p.name = g.ID + ".json"
-	p.path = filepath.Join(p.stateDir, "owners", p.name)
+	p.path = filepath.Join(authority.Nodes().StateRoot, "owners", p.name)
 	p.file, err = p.owners.OpenFile(p.name, os.O_RDWR|os.O_CREATE|os.O_EXCL|syscall.O_NOFOLLOW, 0600)
 	if err != nil {
 		return err
