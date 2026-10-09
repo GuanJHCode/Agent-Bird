@@ -13,6 +13,9 @@ import (
 // its signed prepared receipt in one transaction. It never upgrades a legacy
 // intended row: the caller must opt into protocol v2 before this call.
 func (d *DB) PrepareSupervisedOriginalOwner(ctx context.Context, spec PrepareOriginalOwnerSpec, authorizationID string, supervisor contract.OriginalOwnerLaunchSupervisor, key ed25519.PrivateKey) (contract.OwnerPrepared, error) {
+	if authorizationID != "" {
+		return d.prepareSupervisedSuccessorOwner(ctx, spec, authorizationID, supervisor, key)
+	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	owned, err := d.beginOwnerTransaction(ctx)
@@ -95,6 +98,77 @@ func (d *DB) PrepareSupervisedOriginalOwner(ctx context.Context, spec PrepareOri
 	_, err = tx.ExecContext(ctx, `INSERT INTO owner_launch_receipts(owner_id,receipt_no,attempt_hash,phase,receipt_json,receipt_hash,created_at) VALUES(?,?,?,?,?,?,?)`, scope.OwnerID, 1, a.AttemptSHA256, r.Phase, rbody, r.ReceiptSHA256, now)
 	if err != nil {
 		return contract.OwnerPrepared{}, mapConflict(err)
+	}
+	if err = owned.commit(); err != nil {
+		return contract.OwnerPrepared{}, err
+	}
+	return contract.OwnerPrepared{Intent: i, LaunchAttempt: &a}, nil
+}
+
+func (d *DB) prepareSupervisedSuccessorOwner(ctx context.Context, spec PrepareOriginalOwnerSpec, authorizationID string, supervisor contract.OriginalOwnerLaunchSupervisor, key ed25519.PrivateKey) (contract.OwnerPrepared, error) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	owned, err := d.beginInitialOwnerTransaction(ctx, "authorization", authorizationID, false)
+	if err != nil {
+		return contract.OwnerPrepared{}, err
+	}
+	defer owned.close()
+	tx := owned.tx
+	p, err := successorOwnerPreviewTx(ctx, tx, spec.Host, spec.Epoch, spec.ExecutableSHA256, authorizationID)
+	if err != nil {
+		return contract.OwnerPrepared{}, err
+	}
+	if supervisor.Validate() != nil || supervisor.Epoch != spec.Epoch || supervisor.ExecutableSHA256 != spec.ExecutableSHA256 {
+		return contract.OwnerPrepared{}, originalOwnerRejected()
+	}
+	if p.current != nil {
+		a, r, e := loadOwnerLaunch(ctx, tx, p.current.state.Intent.Scope.OwnerID)
+		if e != nil || a.Supervisor != supervisor || r.Phase != contract.OriginalOwnerLaunchPreparedNotStarted {
+			return contract.OwnerPrepared{}, ErrConflict
+		}
+		return contract.OwnerPrepared{Intent: a.EffectiveIntent, LaunchAttempt: &a}, nil
+	}
+	s := p.scope
+	s.OwnerID, err = newID("execution-owner")
+	if err != nil {
+		return contract.OwnerPrepared{}, err
+	}
+	now := originalOwnerNow()
+	i := contract.OriginalOwnerIntent{Scope: s, BootstrapID: spec.BootstrapID, BootstrapTokenSHA256: spec.BootstrapTokenSHA256, CoordinatorKeyID: spec.CoordinatorKeyID, RequestID: spec.RequestID, RequestSHA256: spec.RequestSHA256, StartupDeadlineUnixMS: spec.StartupDeadlineUnixMS, FirstHost: contract.OriginalOwnerTransport{PID: spec.Host.PID, Birth: spec.Host.Birth}, CoordinatorEpoch: spec.Epoch}
+	if i.Validate() != nil {
+		return contract.OwnerPrepared{}, originalOwnerRejected()
+	}
+	a, err := contract.FinalizeOriginalOwnerLaunchAttempt(contract.OriginalOwnerLaunchAttempt{Version: 2, Attempt: 1, BaseIntent: i, EffectiveIntent: i, Supervisor: supervisor})
+	if err != nil {
+		return contract.OwnerPrepared{}, err
+	}
+	r, err := contract.SignOriginalOwnerLaunchReceipt(contract.OriginalOwnerLaunchReceipt{Version: 2, AttemptSHA256: a.AttemptSHA256, Phase: contract.OriginalOwnerLaunchPreparedNotStarted, Supervisor: supervisor}, key)
+	if err != nil {
+		return contract.OwnerPrepared{}, err
+	}
+	if _, err = originalOwnerSigningPublic(key, i.CoordinatorKeyID); err != nil {
+		return contract.OwnerPrepared{}, err
+	}
+	body, _ := originalOwnerBody(i)
+	abody, _ := originalOwnerBody(a)
+	rbody, _ := originalOwnerBody(r)
+	if err = d.storageAdmission(ctx, tx, s.RunID, int64(len(body)+len(abody)+len(rbody)+512), false); err != nil {
+		return contract.OwnerPrepared{}, err
+	}
+	_, err = tx.ExecContext(ctx, `INSERT INTO execution_owners(owner_id,launch_id,run_id,producer_id,incarnation,bootstrap_id,bootstrap_token_hash,coordinator_key_id,request_id,request_hash,intent_json,phase,is_current,control_revision,coordinator_epoch,created_at,updated_at,succession_authorization_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,'intended',1,0,?,?,?,?)`, s.OwnerID, s.LaunchID, s.RunID, s.ProducerID, s.Incarnation, i.BootstrapID, i.BootstrapTokenSHA256, i.CoordinatorKeyID, i.RequestID, i.RequestSHA256, body, i.CoordinatorEpoch, now, now, authorizationID)
+	if err != nil {
+		return contract.OwnerPrepared{}, mapConflict(err)
+	}
+	_, err = tx.ExecContext(ctx, `INSERT INTO owner_launch_attempts(owner_id,run_id,attempt_no,attempt_hash,base_intent_json,attempt_json,supervisor_epoch,supervisor_pid,supervisor_birth,supervisor_nonce,supervisor_executable_hash,phase,latest_receipt_hash,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`, s.OwnerID, s.RunID, 1, a.AttemptSHA256, body, abody, supervisor.Epoch, supervisor.PID, supervisor.Birth, supervisor.Nonce, supervisor.ExecutableSHA256, r.Phase, r.ReceiptSHA256, now, now)
+	if err != nil {
+		return contract.OwnerPrepared{}, err
+	}
+	_, err = tx.ExecContext(ctx, `INSERT INTO owner_launch_receipts(owner_id,receipt_no,attempt_hash,phase,receipt_json,receipt_hash,created_at) VALUES(?,?,?,?,?,?,?)`, s.OwnerID, 1, a.AttemptSHA256, r.Phase, rbody, r.ReceiptSHA256, now)
+	if err != nil {
+		return contract.OwnerPrepared{}, err
+	}
+	if err = moveOwnerTransport(ctx, tx, s, p.authorization.Host, i.FirstHost, spec.Epoch); err != nil {
+		return contract.OwnerPrepared{}, err
 	}
 	if err = owned.commit(); err != nil {
 		return contract.OwnerPrepared{}, err
