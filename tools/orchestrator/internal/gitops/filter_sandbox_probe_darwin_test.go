@@ -14,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -49,13 +50,53 @@ func TestFilterSandboxDarwinFeasibility(t *testing.T) {
 			t.Logf("retained uncertain fixture=%s", root)
 		}
 	})
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 	actor := filepath.Join(root, "filter-actor")
-	build := exec.CommandContext(ctx, "go", "build", "-trimpath", "-o", actor, "./testdata/filter-sandbox-probe")
-	build.Env = append(os.Environ(), "CGO_ENABLED=0", "GOWORK=off", "GOTOOLCHAIN=local", "GOPROXY=off", "GOSUMDB=off")
-	if output, err := build.CombinedOutput(); err != nil {
-		t.Fatalf("actor build original Wait: %v %s", err, output)
+	goPath, err := exec.LookPath("go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	goPath, err = filepath.EvalSymlinks(goPath)
+	if err != nil || !filepath.IsAbs(goPath) || runtime.Version() != "go1.26.8" {
+		t.Fatalf("toolchain scope: path=%s version=%s err=%v", goPath, runtime.Version(), err)
+	}
+	goSHA, err := process.ExecutableDigest(ctx, goPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"build-home", "build-cache", "build-mod", "build-go", "build-tmp"} {
+		if err := os.Mkdir(filepath.Join(root, name), 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	buildEnv := []string{"PATH=" + filepath.Dir(goPath) + ":/usr/bin:/bin:/usr/sbin:/sbin", "GOENV=off", "GOWORK=off", "GOFLAGS=", "GOEXPERIMENT=", "GOOS=darwin", "GOARCH=arm64", "GOARM64=v8.0", "CGO_ENABLED=0", "GOTOOLCHAIN=local", "GOPROXY=off", "GOSUMDB=off", "HOME=" + filepath.Join(root, "build-home"), "GOCACHE=" + filepath.Join(root, "build-cache"), "GOMODCACHE=" + filepath.Join(root, "build-mod"), "GOPATH=" + filepath.Join(root, "build-go"), "TMPDIR=" + filepath.Join(root, "build-tmp")}
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	build, err := process.Start(ctx, process.Command{Path: goPath, PinnedPath: goPath, PinnedSHA256: goSHA, Args: []string{"build", "-trimpath", "-buildvcs=false", "-o", actor, "./testdata/filter-sandbox-probe"}, Dir: cwd, Env: buildEnv, ExactEnv: true})
+	if err != nil {
+		if build != nil && process.CleanupFailedStart(context.Background(), build, 10*time.Second) != nil {
+			safeCleanup = false
+		}
+		t.Fatal(err)
+	}
+	buildWait := build.Wait(ctx)
+	if buildWait != nil {
+		cleanupCtx, stop := context.WithTimeout(context.Background(), 10*time.Second)
+		if build.Stop(cleanupCtx) != nil {
+			safeCleanup = false
+		}
+		stop()
+	}
+	buildTree := build.ConfirmTreeExited()
+	if buildTree != nil {
+		safeCleanup = false
+	}
+	t.Logf("build_go_path=%s sha256=%s test_toolchain=%s original_wait=%v exit=%d tree=%v", goPath, goSHA, runtime.Version(), buildWait, build.ExitCode(), buildTree)
+	if buildWait != nil || buildTree != nil || build.ExitCode() != 0 {
+		t.Fatalf("actor build: %s", build.Output())
 	}
 	actorSHA, err := process.ExecutableDigest(ctx, actor)
 	if err != nil {
@@ -113,7 +154,7 @@ func TestFilterSandboxDarwinFeasibility(t *testing.T) {
 			}
 		}
 	}
-	allChecks := []string{"worktree_read", "worktree_write", "common_git_read", "common_git_write", "host_state_read", "host_state_write", "external_read", "external_write", "scratch_read", "scratch_write", "hardlink", "scratch_symlink", "symlink_read", "symlink_write", "tcp_connect", "unix_connect", "fork_exec"}
+	allChecks := []string{"worktree_read", "worktree_write", "worktree_stat", "worktree_list", "common_git_read", "common_git_write", "common_git_stat", "common_git_list", "host_state_read", "host_state_write", "host_state_stat", "host_state_list", "external_read", "external_write", "external_stat", "external_list", "scratch_read", "scratch_write", "hardlink", "scratch_symlink", "symlink_read", "symlink_write", "tcp_connect", "unix_connect", "fork_exec"}
 	run := func(t *testing.T, label string, isolated bool, input []byte) []byte {
 		t.Helper()
 		scratch := filepath.Join(root, label)
@@ -124,7 +165,7 @@ func TestFilterSandboxDarwinFeasibility(t *testing.T) {
 		var stdout bytes.Buffer
 		command := process.Command{Path: actor, PinnedPath: actor, PinnedSHA256: actorSHA, Args: args, Dir: scratch, Env: []string{"PATH=/usr/bin:/bin", "HOME=" + scratch, "TMPDIR=" + scratch, "XDG_CACHE_HOME=" + scratch}, ExactEnv: true, Stdin: input, Stdout: &stdout}
 		if isolated {
-			rules := []string{"(version 1)", "(allow default)", "(deny file-read*)", "(deny file-write*)", "(deny file-link)", "(deny network*)", "(deny process-fork)", `(allow file-read* (subpath "/System") (subpath "/usr/lib"))`, `(allow file-read-metadata)`, `(allow file-read* file-write* (literal "/dev/null"))`, `(allow file-read* (literal "/dev/random") (literal "/dev/urandom"))`, "(allow file-read* (literal " + strconv.Quote(actor) + "))", "(allow file-read* file-write* (subpath " + strconv.Quote(scratch) + "))"}
+			rules := []string{"(version 1)", "(allow default)", "(deny file-read*)", "(deny file-write*)", "(deny file-link)", "(deny network*)", "(deny process-fork)", `(allow file-read* (subpath "/System") (subpath "/usr/lib"))`, `(allow file-read* (subpath "/private/preboot/Cryptexes/OS"))`, `(allow file-read-metadata)`, `(allow file-read* file-write* (literal "/dev/null"))`, `(allow file-read* (literal "/dev/random") (literal "/dev/urandom"))`, "(allow file-read* (literal " + strconv.Quote(actor) + "))", "(allow file-read* file-write* (subpath " + strconv.Quote(scratch) + "))"}
 			policy := strings.Join(rules, "\n")
 			t.Logf("label=%s profile=%s", label, policy)
 			command.Path = "/usr/bin/sandbox-exec"
@@ -169,7 +210,7 @@ func TestFilterSandboxDarwinFeasibility(t *testing.T) {
 		t.Logf("label=%s checks=%s", label, raw)
 		for _, name := range allChecks {
 			o, present := checks[name]
-			wantAllowed := !isolated || name == "scratch_read" || name == "scratch_write" || name == "scratch_symlink"
+			wantAllowed := !isolated || name == "scratch_read" || name == "scratch_write" || name == "scratch_symlink" || strings.HasSuffix(name, "_stat")
 			if !present || o.Allowed != wantAllowed || !wantAllowed && !o.Denied {
 				t.Errorf("%s kernel permission mismatch: %+v wantAllowed=%v", name, o, wantAllowed)
 			}

@@ -33,7 +33,11 @@ func main() {
 	checks := map[string]outcome{}
 	for i, name := range []string{"worktree", "common_git", "host_state", "external"} {
 		path := os.Args[4+i]
-		_, err := os.ReadFile(path)
+		_, err := os.Stat(path)
+		checks[name+"_stat"] = result(err)
+		_, err = os.ReadDir(filepath.Dir(path))
+		checks[name+"_list"] = result(err)
+		_, err = os.ReadFile(path)
 		checks[name+"_read"] = result(err)
 		checks[name+"_write"] = result(os.WriteFile(path, []byte("actor-write\n"), 0600))
 	}
