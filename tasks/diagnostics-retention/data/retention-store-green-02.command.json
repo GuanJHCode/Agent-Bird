@@ -1,0 +1,17 @@
+{
+  "command": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+    "-C",
+    "tools/orchestrator",
+    "test",
+    "-count=1",
+    "-json",
+    "./internal/store",
+    "-run",
+    "^TestDiagnosticsRetention(TerminalVectorBoundaries|GuardAdmissionAndDurableReplay)$"
+  ],
+  "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/diagnostics-retention",
+  "head": "73016e87cb59eb6b606819c25c6d194126675399",
+  "dirty": " M tools/orchestrator/README.md\n M tools/orchestrator/cmd/orchestrator/diagnostics_read.go\n M tools/orchestrator/cmd/orchestrator/main.go\n M tools/orchestrator/internal/coordinator/diagnostics_read.go\n M tools/orchestrator/internal/coordinator/server.go\n M tools/orchestrator/internal/ipc/ipc.go\n M tools/orchestrator/internal/store/diagnostics_delete.go\n?? tasks/diagnostics-retention/\n?? tools/orchestrator/internal/store/diagnostics_retention.go\n?? tools/orchestrator/internal/store/diagnostics_retention_test.go\n?? tools/orchestrator/internal/store/diagnostics_retention_types.go\n",
+  "go_version": "go version go1.26.8 darwin/arm64"
+}

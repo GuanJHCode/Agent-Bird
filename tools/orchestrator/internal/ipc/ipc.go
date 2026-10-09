@@ -84,6 +84,11 @@ const (
 	KindBridgeUnbind           Kind = "bridge_unbind"
 )
 
+const (
+	KindDiagnosticsRetentionPlan  Kind = "diagnostics_retention_plan"
+	KindDiagnosticsRetentionApply Kind = "diagnostics_retention_apply"
+)
+
 var (
 	ErrMessageTooLarge = errors.New("ipc_message_too_large")
 	ErrInvalidMessage  = errors.New("invalid_ipc_message")
