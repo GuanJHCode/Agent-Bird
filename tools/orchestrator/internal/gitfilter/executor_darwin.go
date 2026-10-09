@@ -76,6 +76,19 @@ func hashFD(ctx context.Context, f *os.File, n int64) (string, error) {
 	}
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
+func holdDirectory(path string, want node) (*os.File, error) {
+	fd, e := unix.Open(path, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+	if e != nil {
+		return nil, e
+	}
+	f := os.NewFile(uintptr(fd), path)
+	got, e := identity(f)
+	if e != nil || got != want {
+		f.Close()
+		return nil, errors.New("filter_directory_changed")
+	}
+	return f, nil
+}
 func canonical(s string) bool {
 	v, e := filepath.EvalSymlinks(s)
 	return e == nil && filepath.IsAbs(s) && filepath.Clean(s) == s && v == s
@@ -206,11 +219,22 @@ func execute(ctx context.Context, r Request, start starter) (result Result, retE
 	if filepath.Dir(r.Tool.Path) == r.EmptyDirectory {
 		return result, errors.New("filter_directory_invalid")
 	}
+	emptyHandle, e := holdDirectory(r.EmptyDirectory, empty)
+	if e != nil {
+		return result, e
+	}
+	defer emptyHandle.Close()
 	tool, toolNode, parent, e := protectedTool(runCtx, r.Tool)
 	if e != nil {
 		return result, e
 	}
 	defer tool.Close()
+	parentHandle, e := holdDirectory(filepath.Dir(r.Tool.Path), parent)
+	if e != nil {
+		return result, e
+	}
+	defer parentHandle.Close()
+
 	beforeSHA, e := hashFD(runCtx, r.Input, input.Size)
 	if e != nil {
 		return result, e
@@ -232,6 +256,9 @@ func execute(ctx context.Context, r Request, start starter) (result Result, retE
 	if h == nil {
 		if stream != nil {
 			_ = stream.Close()
+		}
+		if startErr == nil {
+			startErr = errors.New("filter_handle_missing")
 		}
 		return result, startErr
 	}
@@ -320,6 +347,10 @@ func execute(ctx context.Context, r Request, start starter) (result Result, retE
 	if retErr == nil {
 		retErr = h.Wait(runCtx)
 	}
+	if retErr == nil {
+		treeErr := h.ConfirmTreeExited()
+		retErr = errors.Join(retErr, treeErr)
+	}
 	if retErr != nil {
 		if stream != nil {
 			_ = stream.Close()
@@ -332,14 +363,12 @@ func execute(ctx context.Context, r Request, start starter) (result Result, retE
 		result.WaitProved, result.TreeProved = waitErr == nil, treeErr == nil
 		retErr = errors.Join(retErr, stopErr, waitErr, treeErr)
 	} else {
-		result.WaitProved = true
-		treeErr := h.ConfirmTreeExited()
-		result.TreeProved = treeErr == nil
-		retErr = errors.Join(retErr, treeErr)
+		result.WaitProved, result.TreeProved = true, true
 		if stream != nil {
 			_ = stream.Close()
 		}
 	}
+
 	// Stop/Wait/tree precede joining; closed pipes unblock both copy directions.
 	for remaining > 0 {
 		c := <-completed
@@ -359,7 +388,9 @@ func execute(ctx context.Context, r Request, start starter) (result Result, retE
 	namedTool, ne := named(r.Tool.Path)
 	finalParent, pe := directory(filepath.Dir(r.Tool.Path), false)
 	finalEmpty, de := directory(r.EmptyDirectory, true)
-	if ie != nil || oe != nil || te != nil || ne != nil || pe != nil || de != nil || finalInput != input || finalTool != toolNode || namedTool != toolNode || finalParent != parent || finalEmpty != empty || finalOutput.Device != output.Device || finalOutput.Inode != output.Inode || finalOutput.Nlink != output.Nlink || finalOutput.UID != output.UID || finalOutput.Mode != output.Mode || finalOutput.Size != result.OutputBytes || finalOutput.Size > MaximumBytes {
+	heldParent, hpe := identity(parentHandle)
+	heldEmpty, hee := identity(emptyHandle)
+	if ie != nil || oe != nil || te != nil || ne != nil || pe != nil || de != nil || hpe != nil || hee != nil || heldParent != parent || heldEmpty != empty || finalInput != input || finalTool != toolNode || namedTool != toolNode || finalParent != parent || finalEmpty != empty || finalOutput.Device != output.Device || finalOutput.Inode != output.Inode || finalOutput.Nlink != output.Nlink || finalOutput.UID != output.UID || finalOutput.Mode != output.Mode || finalOutput.Size != result.OutputBytes || finalOutput.Size > MaximumBytes {
 		retErr = errors.Join(retErr, errors.New("filter_identity_changed"))
 	}
 	verifyCtx, verifyCancel := context.WithTimeout(context.Background(), 5*time.Second)

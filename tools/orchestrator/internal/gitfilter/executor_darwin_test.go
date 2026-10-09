@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"io"
 	"net"
 	"os"
@@ -219,7 +220,12 @@ func TestStreamExecutorOriginalProcessAndBounds(t *testing.T) {
 	})
 	t.Run("aliases_rejected", func(t *testing.T) {
 		r := f.request(t, "copy", nil)
-		r.Output = r.Input
+		same, e := os.OpenFile(r.Input.Name(), os.O_RDWR, 0600)
+		if e != nil {
+			t.Fatal(e)
+		}
+		defer same.Close()
+		r.Output = same
 		g := f.run(t, r, ctx)
 		if g.Started || g.Accepted {
 			t.Fatal("same inode executed")
@@ -249,6 +255,99 @@ func TestStreamExecutorOriginalProcessAndBounds(t *testing.T) {
 		}
 	})
 }
+func TestStreamExecutorSnapshotAndStartupCleanup(t *testing.T) {
+	f := newFixture(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	t.Run("snapshot", func(t *testing.T) {
+		r := f.request(t, "copy", []byte("snapshot"))
+		originalScope := r.ScopeSHA256
+		got, e := execute(ctx, r, func(c context.Context, cmd process.Command) (*process.Handle, io.ReadWriteCloser, error) {
+			r.Args[0] = "fail"
+			r.ScopeSHA256 = strings.Repeat("b", 64)
+			r.Tool.SHA256 = strings.Repeat("c", 64)
+			return process.StartDuplex(c, cmd)
+		})
+		if got.Unknown || got.Started && (!got.WaitProved || !got.TreeProved) {
+			f.retain = true
+		}
+		if e != nil || !got.Accepted || got.ScopeSHA256 != originalScope || !bytes.Equal(read(t, r.Output), []byte("snapshot")) {
+			t.Fatalf("entry snapshot drifted: %+v %v", got, e)
+		}
+	})
+	t.Run("nonnull_handle_nil_stream", func(t *testing.T) {
+		r := f.request(t, "hang", nil)
+		got, e := execute(ctx, r, func(c context.Context, cmd process.Command) (*process.Handle, io.ReadWriteCloser, error) {
+			h, stream, e := process.StartDuplex(c, cmd)
+			if e != nil {
+				return h, stream, e
+			}
+			_ = stream.Close()
+			return h, nil, errors.New("controlled_after_start_failure")
+		})
+		if got.Unknown || got.Started && (!got.WaitProved || !got.TreeProved) {
+			f.retain = true
+		}
+		if e == nil || got.Accepted || !got.Started || !got.WaitProved || !got.TreeProved {
+			t.Fatalf("failed Start lost original cleanup: %+v %v", got, e)
+		}
+		t.Logf("failed_start_original_wait=%t tree=%t exit=%d", got.WaitProved, got.TreeProved, got.ExitCode)
+	})
+	t.Run("append_and_readonly_output", func(t *testing.T) {
+		for _, flags := range []int{os.O_RDWR | os.O_APPEND, os.O_RDONLY} {
+			r := f.request(t, "copy", nil)
+			fd, e := os.OpenFile(r.Output.Name(), flags, 0600)
+			if e != nil {
+				t.Fatal(e)
+			}
+			defer fd.Close()
+			r.Output = fd
+			got := f.run(t, r, ctx)
+			if got.Started || got.Accepted {
+				t.Fatal("unsafe output descriptor executed")
+			}
+		}
+	})
+	t.Run("directory_drift", func(t *testing.T) {
+		r := f.request(t, "copy", []byte("test"))
+		got, e := execute(ctx, r, func(c context.Context, cmd process.Command) (*process.Handle, io.ReadWriteCloser, error) {
+			h, stream, e := process.StartDuplex(c, cmd)
+			if e != nil {
+				return h, stream, e
+			}
+			if e = os.Chmod(r.EmptyDirectory, 0700); e != nil {
+				return h, stream, e
+			}
+			return h, stream, e
+		})
+		if got.Unknown || got.Started && (!got.WaitProved || !got.TreeProved) {
+			f.retain = true
+		}
+		if e == nil || got.Accepted || !got.WaitProved || !got.TreeProved {
+			t.Fatalf("directory drift accepted: %+v %v", got, e)
+		}
+		if e = os.Chmod(r.EmptyDirectory, 0500); e != nil {
+			t.Fatal(e)
+		}
+	})
+	t.Run("input_drift", func(t *testing.T) {
+		r := f.request(t, "copy", []byte("original"))
+		got, e := execute(ctx, r, func(c context.Context, cmd process.Command) (*process.Handle, io.ReadWriteCloser, error) {
+			if _, e := r.Input.WriteAt([]byte("changed!"), 0); e != nil {
+				return nil, nil, e
+			}
+			return process.StartDuplex(c, cmd)
+		})
+		if got.Unknown || got.Started && (!got.WaitProved || !got.TreeProved) {
+			f.retain = true
+		}
+		if e == nil || got.Accepted || !got.WaitProved || !got.TreeProved {
+			t.Fatalf("changed input accepted: %+v %v", got, e)
+		}
+	})
+
+}
+
 func TestStreamExecutorKernelIsolationWithControl(t *testing.T) {
 	f := newFixture(t)
 	listener, e := net.Listen("tcp", "127.0.0.1:0")
