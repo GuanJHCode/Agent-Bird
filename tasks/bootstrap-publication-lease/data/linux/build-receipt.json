@@ -1,0 +1,9 @@
+{
+  "source_head": "cb8932f6b872df09d023fe24848f220b06f18f97",
+  "command": "TMPDIR=/private/tmp GOOS=linux GOARCH=arm64 CGO_ENABLED=0 /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go test -c -o /Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/bootstrap-publication-tests/tasks/bootstrap-publication-lease/tmp/linux/orchestrator.test ./cmd/orchestrator",
+  "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/bootstrap-publication-tests/tools/orchestrator",
+  "stdout": "",
+  "exit_code": 0,
+  "binary": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/bootstrap-publication-tests/tasks/bootstrap-publication-lease/tmp/linux/orchestrator.test",
+  "binary_sha256": "3145fb23cfb92405610e0ecc423bd75f5f0fbed74fd5f1cda73c546e66ac845b"
+}

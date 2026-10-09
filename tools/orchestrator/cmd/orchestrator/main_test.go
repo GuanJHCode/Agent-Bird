@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -740,6 +741,11 @@ func TestCLIOwnerExitRequiresVerifiedRebindBeforeResume(t *testing.T) {
 		t.Fatal(err)
 	}
 	oldRecovery := coreCLIReadRecovery(t, oldBootstrap)
+	oldHost := coreCLIReadHostIdentity(t, state, capability.HostLaunchID)
+	oldLedger, err := os.ReadFile(filepath.Join(oldBootstrap.SpoolRoot, ".coordinator-recovery.json"))
+	if err != nil || oldRecovery.Version != 2 || oldHost.PID <= 0 || oldHost.Birth == "" {
+		t.Fatal("missing supervised recovery/Host identity", oldRecovery, oldHost, err)
+	}
 	newBirth, err := process.Birth(os.Getpid())
 	if err != nil {
 		t.Fatal(err)
@@ -836,8 +842,26 @@ func TestCLIOwnerExitRequiresVerifiedRebindBeforeResume(t *testing.T) {
 	if newRecovery.ScopeSHA256 == oldRecovery.ScopeSHA256 || newRecovery.Attempts != oldRecovery.Attempts || newRecovery.NextAttemptUnixMS != oldRecovery.NextAttemptUnixMS || newRecovery.Pending != oldRecovery.Pending || newRecovery.Unavailable != oldRecovery.Unavailable {
 		t.Fatalf("owner transition lost retained recovery state: before=%+v after=%+v", oldRecovery, newRecovery)
 	}
-	if newRecovery.LastPID == oldRecovery.LastPID && newRecovery.LastBirth == oldRecovery.LastBirth {
-		t.Fatal("owner rebind did not authenticate a replacement Host")
+	// Version2 tracks Owner recovery authority, not legacy LastPID/LastBirth.
+	// Resume returns after signed activation; runtime_hosts is the durable
+	// source for the replacement Host even if it has already naturally exited.
+	newHost := coreCLIReadHostIdentity(t, state, capability.HostLaunchID)
+	if newRecovery.Version != 2 || newHost.PID <= 0 || newHost.Birth == "" || (newHost.PID == oldHost.PID && newHost.Birth == oldHost.Birth) {
+		t.Fatal("owner rebind did not authenticate a replacement Host", oldHost, newHost)
+	}
+	newLedger, err := os.ReadFile(filepath.Join(newBootstrap.SpoolRoot, ".coordinator-recovery.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var oldFields, newFields map[string]json.RawMessage
+	if json.Unmarshal(oldLedger, &oldFields) != nil || json.Unmarshal(newLedger, &newFields) != nil {
+		t.Fatal("invalid supervised recovery ledger")
+	}
+	oldFields["scope_sha256"] = newFields["scope_sha256"]
+	oldCanonical, _ := json.Marshal(oldFields)
+	newCanonical, _ := json.Marshal(newFields)
+	if !bytes.Equal(oldCanonical, newCanonical) {
+		t.Fatal("owner rebind changed non-scope recovery fields")
 	}
 	for {
 		status := taskStatus(t, ctx, bin, state, "rebind-task", submitted.ControlFile)

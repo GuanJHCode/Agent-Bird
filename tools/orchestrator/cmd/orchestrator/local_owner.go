@@ -82,24 +82,16 @@ func rebindLocalOwner(ctx context.Context, stateArg, path string, out io.Writer)
 	if capability.ControllerThread != owner.ControllerThread {
 		return codeError("owner_mismatch")
 	}
-	bootstrap, err := loadHostBootstrap(capability)
-	if err != nil {
-		return err
-	}
-	if bootstrap.Version != 2 {
+	if capability.Version != 2 {
 		return codeError("legacy_bootstrap_rebind_unsupported")
 	}
 	state, err := resolveState(stateArg)
 	if err != nil {
 		return err
 	}
-	request := coordinator.RebindOwnerRequest{RunID: capability.RunID, ControllerThread: capability.ControllerThread, ControlToken: capability.ControlToken, OriginContextID: bootstrap.Hello.OriginContextID, OriginPID: owner.OriginPID, OriginBirth: owner.OriginBirth, HostGeneration: owner.HostGeneration, OwnerMode: "local", OwnerCapability: req.OwnerCapability}
-	response, err := call(ctx, state, ipc.KindRebindOwner, request)
+	request := coordinator.RebindOwnerRequest{RunID: capability.RunID, ControllerThread: capability.ControllerThread, ControlToken: capability.ControlToken, OriginPID: owner.OriginPID, OriginBirth: owner.OriginBirth, HostGeneration: owner.HostGeneration, OwnerMode: "local", OwnerCapability: req.OwnerCapability}
+	response, err := rebindHostBootstrap(ctx, state, capability, request)
 	if err != nil {
-		return err
-	}
-	bootstrap.Hello.OriginPID, bootstrap.Hello.OriginBirth, bootstrap.Hello.HostGeneration = owner.OriginPID, owner.OriginBirth, owner.HostGeneration
-	if err = replacePrivateJSON(capability.BootstrapPath, bootstrapMetadata(bootstrap)); err != nil {
 		return err
 	}
 	_, err = out.Write(append(response.Payload, '\n'))
