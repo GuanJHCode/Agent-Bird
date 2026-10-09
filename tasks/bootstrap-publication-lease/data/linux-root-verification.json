@@ -1,0 +1,28 @@
+{
+  "source_sha256": {
+    "tools/orchestrator/cmd/orchestrator/host_launch_lease.go": "c9396c2d4ef2bc4cc4f24e1e365473bac4720ec344e61ad773e10cec2643d59b",
+    "tools/orchestrator/cmd/orchestrator/host_recovery.go": "b19499bf146bd2ead2d8baadcd9caec8d33091c49e7967f1bfa1f351dbf8213a",
+    "tools/orchestrator/cmd/orchestrator/main.go": "acf4856d9cbf867c45741fa2333175f43e0249506581b6e9954db13d2e3e0d20",
+    "tools/orchestrator/cmd/orchestrator/local_owner.go": "e9481a45f2c760876efca000042a5125bcaf6e8c0dda20d0932a0174a04f5d04"
+  },
+  "binary_sha256": "3145fb23cfb92405610e0ecc423bd75f5f0fbed74fd5f1cda73c546e66ac845b",
+  "binary_checked_then_removed_in_prior_root_call": true,
+  "cleanup_note": "Initial root cleanup stopped at a nonempty directory containing only nested empty task directories; no unrecognized file was removed. Empty task-owned directories then removed.",
+  "removed_empty_directories": [
+    "../bootstrap-publication-tests/tools/orchestrator/tasks/bootstrap-publication-lease/tmp/linux",
+    "../bootstrap-publication-tests/tools/orchestrator/tasks/bootstrap-publication-lease/tmp",
+    "../bootstrap-publication-tests/tools/orchestrator/tasks/bootstrap-publication-lease"
+  ],
+  "log_sha256": "4bd8cb086bc6ebbb00001143fc03a97e10508439e35a49da2d3f114426f811cc",
+  "containers_absent": {
+    "4aee298377a139de13f798e0396701e8d35ded1bae1905963a6a30d17f1bc857": {
+      "exit": 1,
+      "output": "[]\nError: No such object: 4aee298377a139de13f798e0396701e8d35ded1bae1905963a6a30d17f1bc857\n"
+    },
+    "cf89345b649ca98c5185ba124362b16036136a0848802937dc3d8d8b0ab9f946": {
+      "exit": 1,
+      "output": "[]\nError: No such object: cf89345b649ca98c5185ba124362b16036136a0848802937dc3d8d8b0ab9f946\n"
+    }
+  },
+  "harness_only_prefix_changed": true
+}

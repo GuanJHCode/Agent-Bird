@@ -1,0 +1,58 @@
+{
+  "production_commit": "5089e31",
+  "reviewed_source_commit": "22414f8",
+  "source_sha256": {
+    "tools/orchestrator/cmd/orchestrator/host_launch_lease.go": "c9396c2d4ef2bc4cc4f24e1e365473bac4720ec344e61ad773e10cec2643d59b",
+    "tools/orchestrator/cmd/orchestrator/host_recovery.go": "b19499bf146bd2ead2d8baadcd9caec8d33091c49e7967f1bfa1f351dbf8213a",
+    "tools/orchestrator/cmd/orchestrator/main.go": "acf4856d9cbf867c45741fa2333175f43e0249506581b6e9954db13d2e3e0d20",
+    "tools/orchestrator/cmd/orchestrator/local_owner.go": "e9481a45f2c760876efca000042a5125bcaf6e8c0dda20d0932a0174a04f5d04"
+  },
+  "go": "1.26.8",
+  "reports": {
+    "public-first": {
+      "sha256": "af2bac97cc043df4faaea22db3dd07440bdbbd54d9e76ab2e40eb3412261d7ff",
+      "named": {
+        "pass": 3
+      },
+      "top_pass": 3
+    },
+    "authority-guards": {
+      "sha256": "8389351e5ac4a6e9068e987907b8f5a41e93440b218855f6e81a864e94d6f3b1",
+      "named": {
+        "pass": 5
+      },
+      "top_pass": 1
+    },
+    "native-rebind-corrected": {
+      "sha256": "6169e9d78418e70e306acb041e50887072b86154cf0c61973cdde81a99c21552",
+      "named": {
+        "pass": 1
+      },
+      "top_pass": 1
+    },
+    "publication-green": {
+      "sha256": "455a66079b131febfee38342a95a6e8f77e04f1d4805334813a89d2e954d3e59",
+      "named": {
+        "pass": 6
+      },
+      "top_pass": 2
+    },
+    "publication-race": {
+      "sha256": "fadd276f9b5ab5bdf753f20ea3d53209f256dca3a2c828122fc0390fe558cd34",
+      "named": {
+        "pass": 7
+      },
+      "top_pass": 3
+    }
+  },
+  "build_exit": 0,
+  "final_vet_exit": 0,
+  "linux": "linux/focused-receipt.json; linux-root-verification.json",
+  "review": "f02_state_review static production/delta/tests/evidence PASS",
+  "limits": [
+    "same-candidate cooperating CLI writers only; not cross-version/direct IPC CAS",
+    "DB and filesystem remain separate commit domains",
+    "pre-Bind original child handle loss unresolved",
+    "Intel/Windows native deferred; F12 resource verdict unchanged"
+  ]
+}
