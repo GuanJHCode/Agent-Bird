@@ -287,7 +287,8 @@ func submitWithPreparedControl(ctx context.Context, args []string, stdout io.Wri
 	fs.SetOutput(io.Discard)
 	stateArg := fs.String("state-dir", "", "private state directory")
 	requestPath := fs.String("request", "", "owner-only JSON request")
-	if fs.Parse(args) != nil || *requestPath == "" || fs.NArg() != 0 {
+	ownerLaunchProtocol := fs.Int("owner-launch-protocol", 1, "original owner launch protocol (1 or 2)")
+	if fs.Parse(args) != nil || *requestPath == "" || fs.NArg() != 0 || (*ownerLaunchProtocol != 1 && *ownerLaunchProtocol != 2) {
 		return codeError("invalid_args")
 	}
 	state, err := resolveState(*stateArg)
@@ -343,6 +344,9 @@ func submitWithPreparedControl(ctx context.Context, args []string, stdout io.Wri
 		return err
 	}
 	bootstrap := hostBootstrap{Version: 2, SocketPath: filepath.Join(state, "coordinator.sock"), SpoolRoot: filepath.Join(state, "host-spool", launchID), ProducerID: launchID, Hello: contract.HostHello{LaunchID: launchID, LaunchToken: launchToken, OriginContextID: request.OriginContextID, OriginPID: request.OriginPID, OriginBirth: request.OriginBirth, HostGeneration: request.HostGeneration, Executable: executable}}
+	if *ownerLaunchProtocol == 2 {
+		bootstrap.OwnerLaunchProtocol = 2
+	}
 	bootstrapPath, err := writeBootstrap(state, bootstrap)
 	if err != nil {
 		return err
@@ -897,21 +901,23 @@ func coordinatorEnvironment() []string {
 }
 
 type hostBootstrap struct {
-	Version    int                `json:"version"`
-	SocketPath string             `json:"socket_path"`
-	SpoolRoot  string             `json:"spool_root"`
-	ProducerID string             `json:"producer_id"`
-	Hello      contract.HostHello `json:"hello"`
+	OwnerLaunchProtocol int                `json:"owner_launch_protocol,omitempty"`
+	Version             int                `json:"version"`
+	SocketPath          string             `json:"socket_path"`
+	SpoolRoot           string             `json:"spool_root"`
+	ProducerID          string             `json:"producer_id"`
+	Hello               contract.HostHello `json:"hello"`
 }
 
 // hostBootstrapMetadataV2 is the token-free disk contract, distinct from the
 // in-memory/v1 wire object. Strict decoding rejects injected token fields.
 type hostBootstrapMetadataV2 struct {
-	Version    int               `json:"version"`
-	SocketPath string            `json:"socket_path"`
-	SpoolRoot  string            `json:"spool_root"`
-	ProducerID string            `json:"producer_id"`
-	Hello      hostHelloMetadata `json:"hello"`
+	OwnerLaunchProtocol int               `json:"owner_launch_protocol,omitempty"`
+	Version             int               `json:"version"`
+	SocketPath          string            `json:"socket_path"`
+	SpoolRoot           string            `json:"spool_root"`
+	ProducerID          string            `json:"producer_id"`
+	Hello               hostHelloMetadata `json:"hello"`
 }
 type hostHelloMetadata struct {
 	LaunchID        string `json:"launch_id"`
@@ -926,7 +932,7 @@ type hostHelloMetadata struct {
 
 func bootstrapMetadata(b hostBootstrap) hostBootstrapMetadataV2 {
 	h := b.Hello
-	return hostBootstrapMetadataV2{Version: 2, SocketPath: b.SocketPath, SpoolRoot: b.SpoolRoot, ProducerID: b.ProducerID, Hello: hostHelloMetadata{LaunchID: h.LaunchID, OriginContextID: h.OriginContextID, OriginPID: h.OriginPID, OriginBirth: h.OriginBirth, HostGeneration: h.HostGeneration, PID: h.PID, Birth: h.Birth, Executable: h.Executable}}
+	return hostBootstrapMetadataV2{OwnerLaunchProtocol: b.OwnerLaunchProtocol, Version: 2, SocketPath: b.SocketPath, SpoolRoot: b.SpoolRoot, ProducerID: b.ProducerID, Hello: hostHelloMetadata{LaunchID: h.LaunchID, OriginContextID: h.OriginContextID, OriginPID: h.OriginPID, OriginBirth: h.OriginBirth, HostGeneration: h.HostGeneration, PID: h.PID, Birth: h.Birth, Executable: h.Executable}}
 }
 func loadHostBootstrap(c controlCapability) (hostBootstrap, error) {
 	var b hostBootstrap
@@ -949,11 +955,11 @@ func loadHostBootstrap(c controlCapability) (hostBootstrap, error) {
 	if err := readPrivateJSON(c.BootstrapPath, &m); err != nil {
 		return b, err
 	}
-	if m.Version != 2 || m.Hello.LaunchID != c.HostLaunchID || m.ProducerID != c.HostLaunchID {
+	if m.Version != 2 || (m.OwnerLaunchProtocol != 0 && m.OwnerLaunchProtocol != 2) || m.Hello.LaunchID != c.HostLaunchID || m.ProducerID != c.HostLaunchID {
 		return b, codeError("invalid_host_bootstrap")
 	}
 	h := m.Hello
-	return hostBootstrap{Version: 2, SocketPath: m.SocketPath, SpoolRoot: m.SpoolRoot, ProducerID: m.ProducerID, Hello: contract.HostHello{LaunchID: h.LaunchID, LaunchToken: c.HostLaunchToken, OriginContextID: h.OriginContextID, OriginPID: h.OriginPID, OriginBirth: h.OriginBirth, HostGeneration: h.HostGeneration, PID: h.PID, Birth: h.Birth, Executable: h.Executable}}, nil
+	return hostBootstrap{OwnerLaunchProtocol: m.OwnerLaunchProtocol, Version: 2, SocketPath: m.SocketPath, SpoolRoot: m.SpoolRoot, ProducerID: m.ProducerID, Hello: contract.HostHello{LaunchID: h.LaunchID, LaunchToken: c.HostLaunchToken, OriginContextID: h.OriginContextID, OriginPID: h.OriginPID, OriginBirth: h.OriginBirth, HostGeneration: h.HostGeneration, PID: h.PID, Birth: h.Birth, Executable: h.Executable}}, nil
 }
 
 func sourceHost(parent context.Context, args []string) error {
@@ -1220,7 +1226,7 @@ func readBootstrapFD(fd int) (hostBootstrap, error) {
 }
 
 func validHostBootstrap(state string, b hostBootstrap) bool {
-	return (b.Version == 1 || b.Version == 2) && b.SocketPath == filepath.Join(state, "coordinator.sock") && b.ProducerID != "" && b.ProducerID == b.Hello.LaunchID && b.Hello.LaunchToken != ""
+	return (b.Version == 1 || b.Version == 2) && (b.OwnerLaunchProtocol == 0 || (b.Version == 2 && b.OwnerLaunchProtocol == 2)) && b.SocketPath == filepath.Join(state, "coordinator.sock") && b.ProducerID != "" && b.ProducerID == b.Hello.LaunchID && b.Hello.LaunchToken != ""
 }
 
 func startSourceHost(executable, state string, bootstrap hostBootstrap) error {

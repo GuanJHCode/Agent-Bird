@@ -64,6 +64,13 @@ func (e *ownerEnrollment) bindWith(ctx context.Context, rpc ownerExecutionRPC) (
 
 func verifyOwnerEnrollment(bootstrap contract.OwnerRuntimeBootstrap, owner contract.OriginalOwnerIdentity, key ed25519.PublicKey, result contract.OwnerBindReply) error {
 	intent := bootstrap.Prepared.Intent
+	expectedAttempt := ""
+	if bootstrap.Prepared.LaunchAttempt != nil {
+		expectedAttempt = bootstrap.Prepared.LaunchAttempt.AttemptSHA256
+	}
+	if result.Binding.LaunchAttemptSHA256 != expectedAttempt {
+		return errOwnerEnrollment
+	}
 	if bootstrap.Validate() != nil || hex.EncodeToString(key) != bootstrap.Prepared.CoordinatorPublicKey || contract.VerifyOriginalOwnerBinding(result.Binding, key) != nil || result.Binding.Scope != intent.Scope || result.Binding.Owner != owner || result.Binding.FirstHost != intent.FirstHost || result.Binding.CoordinatorKeyID != intent.CoordinatorKeyID {
 		return errOwnerEnrollment
 	}

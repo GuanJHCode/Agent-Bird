@@ -28,7 +28,12 @@ func (s *Server) inspectHostRecovery(ctx context.Context, raw json.RawMessage) (
 	defer s.hostRegistrationMu.Unlock()
 	r, err := s.db.InspectHostRecovery(ctx, req.TaskID, req.ControllerThread, req.ControlToken, req.WorkRevision)
 	if err != nil {
-		return nil, err
+		// This separate proof domain may recover an unbound v2 launch while
+		// preserving its ready queue. Legacy/quiescent gates remain unchanged.
+		r, err = s.db.InspectPreBindHostRecovery(ctx, req.TaskID, req.ControllerThread, req.ControlToken, req.WorkRevision)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if owner.ControllerThread != req.ControllerThread || owner.OriginPID != r.OriginPID || owner.OriginBirth != r.OriginBirth || owner.HostGeneration != r.HostGeneration {
 		return nil, store.CodeError("owner_mismatch")

@@ -54,6 +54,9 @@ func originalOwnerEntry(parent context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
+	if err = installSupervisedOwnerEnvironment(ctx, bootstrap); err != nil {
+		return err
+	}
 	return host.RunOriginalOwner(ctx, host.OriginalOwnerConfig{
 		Bootstrap: bootstrap,
 		Control:   control,
@@ -152,7 +155,11 @@ func runInitialOriginalOwnerWithWaitObserver(ctx context.Context, bootstrap host
 		return true, err
 	}
 	startupDeadline := time.Now().Add(25 * time.Second)
-	prepare, _ := json.Marshal(contract.OwnerPrepareRequest{Version: 1, BootstrapID: bootstrapID, BootstrapTokenSHA256: tokenHash, StartupDeadlineUnixMS: startupDeadline.UnixMilli()})
+	protocol := 1
+	if bootstrap.OwnerLaunchProtocol == 2 {
+		protocol = 2
+	}
+	prepare, _ := json.Marshal(contract.OwnerPrepareRequest{Version: protocol, BootstrapID: bootstrapID, BootstrapTokenSHA256: tokenHash, StartupDeadlineUnixMS: startupDeadline.UnixMilli()})
 	if err = ipc.Write(conn, ipc.Envelope{Version: ipc.Version, Kind: ipc.KindOwnerPrepare, RequestID: prepareID, Epoch: pending.Epoch, Payload: prepare}); err != nil {
 		return true, err
 	}
@@ -163,6 +170,9 @@ func runInitialOriginalOwnerWithWaitObserver(ctx context.Context, bootstrap host
 	var prepared contract.OwnerPrepared
 	if preparedFrame.Kind != ipc.KindResponse || preparedFrame.RequestID != prepareID || preparedFrame.Epoch != pending.Epoch || contract.DecodeOwnerRuntimeStrict(preparedFrame.Payload, &prepared) != nil {
 		return true, errors.New("initial_owner_prepare_rejected")
+	}
+	if protocol == 2 {
+		return true, runCoordinatorOriginalOwner(ctx, bootstrap, conn, pending, prepared, bootstrapToken)
 	}
 	runtimeBootstrap := contract.OwnerRuntimeBootstrap{Version: 1, StateDir: filepath.Dir(bootstrap.SocketPath), SpoolRoot: bootstrap.SpoolRoot, Prepared: prepared, BootstrapToken: bootstrapToken}
 	if err = runtimeBootstrap.Validate(); err != nil {

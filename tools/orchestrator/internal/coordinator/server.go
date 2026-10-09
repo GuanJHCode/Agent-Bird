@@ -182,6 +182,7 @@ type ErrorResponse struct {
 }
 
 type hostSession struct {
+	preBindRetry             bool                           // pending authenticated physical Host; Store registration occurs at Prepare
 	successorAuthorizationID string                         // private immutable selection; never decoded from HostHello
 	ownerPermit              *contract.OwnerControlPermit   // immutable before dispatch publication
 	ownerTicket              *contract.OwnerTransportTicket // immutable pending enrollment
@@ -215,6 +216,8 @@ func (h *hostSession) send(message ipc.Envelope) error {
 }
 
 type Server struct {
+	launchSupervisor    *contract.OriginalOwnerLaunchSupervisor // registration lock
+	launchChildren      map[string]*originalOwnerLaunchChild    // registration lock
 	cliSupervised       bool
 	ownerKeys           *originalOwnerKeys
 	stateDir            string
@@ -586,6 +589,9 @@ func (s *Server) Close() error {
 		s.ownerTransports = nil
 		s.hosts = nil
 		s.mu.Unlock()
+		launchCloseCtx, launchCloseCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		result = errors.Join(result, s.closeOriginalOwnerLaunches(launchCloseCtx))
+		launchCloseCancel()
 		if err := s.listener.Close(); err != nil && !errors.Is(err, net.ErrClosed) {
 			result = err
 		}
@@ -618,6 +624,10 @@ func (s *Server) handleConnection(ctx context.Context, conn net.Conn) {
 		return
 	}
 	defer conn.Close()
+	if message.Kind == ipc.KindOwnerLaunchStatus {
+		s.handleOwnerLaunchStatus(ctx, conn, message)
+		return
+	}
 	if diagnosticsControlKind(message.Kind) {
 		s.handleDiagnosticsConnection(ctx, conn, message)
 		return
