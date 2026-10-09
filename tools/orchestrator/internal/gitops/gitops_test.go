@@ -339,6 +339,22 @@ func TestPrivateRefRequiresManagedNamespaceAndCompareAndSwap(t *testing.T) {
 	}
 }
 
+func TestValidateCandidatePrivateRefRequiresExactPinnedOID(t *testing.T) {
+	d, oid := repo(t)
+	ref := "refs/orchestrator/g3/validate-private-ref"
+	if err := PrivateRef(context.Background(), d, ref, "", oid); err != nil {
+		t.Fatal(err)
+	}
+	receipt := CandidateReceipt{RepoRoot: d, CommonDir: CanonicalPath(filepath.Join(d, ".git")), BaseOID: oid, CandidateOID: oid, TreeOID: git(t, d, "rev-parse", "HEAD^{tree}"), PrivateRef: ref, PrivateRefExpectedOID: oid}
+	if err := ValidateCandidatePrivateRef(context.Background(), receipt); err != nil {
+		t.Fatalf("pinned ref rejected: %v", err)
+	}
+	receipt.PrivateRefExpectedOID = strings.Repeat("f", 40)
+	if err := ValidateCandidatePrivateRef(context.Background(), receipt); err == nil {
+		t.Fatal("drifted ref accepted")
+	}
+}
+
 func TestComposeDoesNotReturnFreezeReceiptWhenJournalRecordFails(t *testing.T) {
 	d, base := repo(t)
 	candidateOID, _ := candidate(t, d)

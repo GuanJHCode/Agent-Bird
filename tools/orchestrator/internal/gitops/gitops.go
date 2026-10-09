@@ -131,6 +131,57 @@ type CandidateReceipt struct {
 	PrivateRefExpectedOID string                  `json:"private_ref_expected_oid"`
 }
 
+// ValidateCandidatePrivateRef is the read-only receipt authentication boundary
+// for a downstream Host. It proves that the receipt still names this repository
+// and that its managed ref, commit and tree have not drifted.
+func ValidateCandidatePrivateRef(ctx context.Context, receipt CandidateReceipt) error {
+	if receipt.RepoRoot == "" || receipt.CommonDir == "" || receipt.PrivateRef == "" || receipt.PrivateRefExpectedOID == "" {
+		return fail(CodeInvalidInput, "candidate private ref", fmt.Errorf("incomplete receipt"))
+	}
+	if err := validatePrivateRef(receipt.PrivateRef); err != nil {
+		return err
+	}
+	for _, oid := range []string{receipt.BaseOID, receipt.CandidateOID, receipt.TreeOID, receipt.PrivateRefExpectedOID} {
+		if err := requireOID(oid); err != nil {
+			return err
+		}
+	}
+	root, common, err := validateRepo(ctx, receipt.RepoRoot)
+	if err != nil {
+		return err
+	}
+	if root != CanonicalPath(receipt.RepoRoot) || common != CanonicalPath(receipt.CommonDir) {
+		return fail(CodeIdentityChanged, "candidate private ref", fmt.Errorf("repository changed"))
+	}
+	if receipt.Worktree != "" {
+		worktree, worktreeCommon, err := validateRepo(ctx, receipt.Worktree)
+		if err != nil || worktree != CanonicalPath(receipt.Worktree) || worktreeCommon != common {
+			return fail(CodeIdentityChanged, "candidate private ref", err)
+		}
+		if receipt.RootIdentity != (DirectoryIdentity{}) {
+			identity, err := directoryIdentity(worktree)
+			if err != nil || !sameDirectoryIdentity(identity, receipt.RootIdentity) {
+				return fail(CodeIdentityChanged, "candidate private ref", err)
+			}
+		}
+	}
+	if err = validateOIDInRepo(ctx, root, receipt.BaseOID); err != nil {
+		return err
+	}
+	if err = validateOIDInRepo(ctx, root, receipt.CandidateOID); err != nil {
+		return err
+	}
+	ref, exists, err := privateRefOID(ctx, root, receipt.PrivateRef)
+	if err != nil || !exists || ref != receipt.PrivateRefExpectedOID || ref != receipt.CandidateOID {
+		return fail(CodeTargetDrift, "candidate private ref", err)
+	}
+	tree, err := rev(ctx, root, receipt.CandidateOID+"^{tree}")
+	if err != nil || tree != receipt.TreeOID {
+		return fail(CodeTargetDrift, "candidate private ref", err)
+	}
+	return nil
+}
+
 type PrivateRefRequest struct {
 	RepoRoot       string `json:"repo_root"`
 	PrivateRef     string `json:"private_ref"`
