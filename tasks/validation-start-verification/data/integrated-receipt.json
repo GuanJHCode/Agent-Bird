@@ -1,0 +1,10 @@
+{
+  "integration_merge": "1dab206613b3dde45daf43cbb1e157fcb4d9aba1",
+  "verified_source": "4ba68b6e76e537dac3d2a06519340f1691786f2d",
+  "go_tree": "46bbc5ef4602e7e8ce6840807a8464b3e744846f",
+  "go_files_checked": 1063,
+  "source_equal": true,
+  "independent_review": "PASS",
+  "scope": "bounded validation_start retry; not all F01-F13",
+  "retest": "no duplicate same-tree execution; raw/test-safety deltas retained in referenced reports"
+}
