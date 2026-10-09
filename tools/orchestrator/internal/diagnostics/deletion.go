@@ -108,11 +108,17 @@ func canonicalPlan(p deletionPlan) ([]byte, error) {
 		return nil, ErrUnsafeLayout
 	}
 	last := ""
+	manifest := false
 	for _, f := range p.Files {
-		if f.Name <= last || (f.Name != "manifest.json" && (!isSlot(f.Name) || !validPolicyHash(f.SHA256))) || (f.Name == "manifest.json" && !validPolicyHash(f.SHA256)) || f.ID.Size < 0 {
+		limit, known := fileLimit(f.Name)
+		if f.Name <= last || !known || (f.Name != "manifest.json" && !isSlot(f.Name)) || !validPolicyHash(f.SHA256) || f.ID.Size <= 0 || f.ID.Size > int64(limit) {
 			return nil, ErrUnsafeLayout
 		}
+		manifest = manifest || f.Name == "manifest.json"
 		last = f.Name
+	}
+	if !manifest {
+		return nil, ErrUnsafeLayout
 	}
 	raw, err := json.Marshal(p)
 	if err != nil || len(raw) > deletionPlanLimit {
@@ -249,7 +255,7 @@ func (l *DeletionLease) captureFresh(ctx context.Context, command string) error 
 	if err := l.ns.checkLayout(); err != nil {
 		return err
 	}
-	m, _, unclean, err := l.ns.loadStored(ctx, l.scope, make([]byte, ChunkBytes))
+	m, _, unclean, err := l.ns.loadStored(ctx, l.scope, l.buffer)
 	if err != nil || unclean || !m.Closed {
 		if err != nil {
 			return err
@@ -292,7 +298,10 @@ func (l *DeletionLease) captureFresh(ctx context.Context, command string) error 
 	}
 	l.plan, l.planRaw = p, raw
 	l.markerRaw, err = deletionMarkerFor(p, raw)
-	return err
+	if err != nil {
+		return err
+	}
+	return l.verifyPinned(false)
 }
 
 func fileLimitMust(name string) int { n, _ := fileLimit(name); return n }
@@ -345,6 +354,33 @@ func (l *DeletionLease) exactMarker() (bool, error) {
 	return true, nil
 }
 
+// A prefix is recoverable only for this plan's private stage.  It represents a
+// crash while writing the marker before the no-replace rename; any other stage
+// is unaccounted inventory and blocks finalization.
+func (l *DeletionLease) markerStage() (present bool, complete bool, err error) {
+	st, err := l.namedStat(l.plan.Stage)
+	if errors.Is(err, unix.ENOENT) {
+		return false, false, nil
+	}
+	if err != nil || st.Size < 0 || st.Size > int64(len(l.markerRaw)) {
+		return false, false, ErrUnsafeLayout
+	}
+	f, err := openAt(l.ns.dir, l.plan.Stage, unix.O_RDONLY, 0)
+	if err != nil {
+		return false, false, unsafe(err)
+	}
+	defer f.Close()
+	got := make([]byte, int(st.Size))
+	if _, err = io.ReadFull(f, got); err != nil {
+		return false, false, err
+	}
+	var held unix.Stat_t
+	if err = unix.Fstat(int(f.Fd()), &held); err != nil || !sameFileState(held, st) || !bytes.Equal(got, l.markerRaw[:len(got)]) {
+		return false, false, ErrUnsafeLayout
+	}
+	return true, len(got) == len(l.markerRaw), nil
+}
+
 // verifyPinned rejects any inventory outside exactly the original files,
 // persistent marker, and this plan's private stage.  missing may be true only
 // after the durable marker is exact.
@@ -358,6 +394,10 @@ func (l *DeletionLease) verifyPinned(missing bool) error {
 	marker, err := l.exactMarker()
 	if err != nil {
 		return err
+	}
+	stagePresent, _, err := l.markerStage()
+	if err != nil || (marker && stagePresent) {
+		return ErrUnsafeLayout
 	}
 	d, err := openAt(l.ns.dir, ".", unix.O_RDONLY|unix.O_DIRECTORY, 0)
 	if err != nil {
@@ -427,9 +467,12 @@ func (l *DeletionLease) publishMarker() error {
 		return err
 	}
 	if marker {
-		return nil
+		if err = l.ns.dir.Sync(); err != nil {
+			return err
+		}
+		return l.ns.check()
 	}
-	// A stale stage is acceptable only when it is exactly this marker body.
+	// An exact or prefix-only stage can only be this plan's torn marker write.
 	stage, err := l.namedStat(l.plan.Stage)
 	if errors.Is(err, unix.ENOENT) {
 		f, openErr := openAt(l.ns.dir, l.plan.Stage, unix.O_RDWR|unix.O_CREAT|unix.O_EXCL, 0600)
@@ -449,22 +492,44 @@ func (l *DeletionLease) publishMarker() error {
 	} else if err != nil {
 		return err
 	} else {
-		if stage.Size != int64(len(l.markerRaw)) {
-			return ErrUnsafeLayout
-		}
-		f, openErr := openAt(l.ns.dir, l.plan.Stage, unix.O_RDONLY, 0)
+		f, openErr := openAt(l.ns.dir, l.plan.Stage, unix.O_RDWR, 0)
 		if openErr != nil {
 			return unsafe(openErr)
 		}
-		got := make([]byte, len(l.markerRaw))
+		defer f.Close()
+		got := make([]byte, int(stage.Size))
 		_, err = io.ReadFull(f, got)
-		_ = f.Close()
-		if err != nil || !bytes.Equal(got, l.markerRaw) {
+		var held unix.Stat_t
+		if err != nil || unix.Fstat(int(f.Fd()), &held) != nil || !sameFileState(held, stage) || !bytes.Equal(got, l.markerRaw[:len(got)]) {
 			return ErrUnsafeLayout
 		}
+		if err = f.Truncate(0); err != nil {
+			return err
+		}
+		if _, err = f.WriteAt(l.markerRaw, 0); err != nil {
+			return err
+		}
+		if err = f.Sync(); err != nil {
+			return err
+		}
+		if err = unix.Fstat(int(f.Fd()), &held); err != nil {
+			return err
+		}
+		var named unix.Stat_t
+		if err = unix.Fstatat(int(l.ns.dir.Fd()), l.plan.Stage, &named, unix.AT_SYMLINK_NOFOLLOW); err != nil || !sameFileState(held, named) || !privateStat(named, false) {
+			return ErrUnsafeLayout
+		}
+		stage = held
 	}
 	if !privateStat(stage, false) {
 		return ErrUnsafeLayout
+	}
+	var namedStage unix.Stat_t
+	if err = unix.Fstatat(int(l.ns.dir.Fd()), l.plan.Stage, &namedStage, unix.AT_SYMLINK_NOFOLLOW); err != nil || !sameFileState(stage, namedStage) {
+		return ErrUnsafeLayout
+	}
+	if err = l.ns.check(); err != nil {
+		return err
 	}
 	if err = renameAbsent(int(l.ns.dir.Fd()), l.plan.Stage, deletionMarker); err != nil {
 		if exists, checkErr := l.exactMarker(); checkErr == nil && exists {
@@ -472,7 +537,13 @@ func (l *DeletionLease) publishMarker() error {
 		}
 		return err
 	}
-	return l.ns.dir.Sync()
+	if err = l.ns.dir.Sync(); err != nil {
+		return err
+	}
+	if exists, checkErr := l.exactMarker(); checkErr != nil || !exists {
+		return ErrUnsafeLayout
+	}
+	return l.ns.check()
 }
 
 func (l *DeletionLease) unlinkPlanned(f deletionFile) error {
@@ -506,6 +577,13 @@ func (l *DeletionLease) unlinkPlanned(f deletionFile) error {
 		return ErrUnsafeLayout
 	}
 	l.buffer = buf[:0]
+	if err = l.ns.checkpoint("deletion", "before-unlink-"+f.Name); err != nil {
+		return err
+	}
+	var named unix.Stat_t
+	if err = unix.Fstatat(int(l.ns.dir.Fd()), f.Name, &named, unix.AT_SYMLINK_NOFOLLOW); err != nil || !f.ID.matches(named) || !sameFileState(held, named) || l.ns.check() != nil {
+		return ErrUnsafeLayout
+	}
 	if err = unix.Unlinkat(int(l.ns.dir.Fd()), f.Name, 0); err != nil {
 		return err
 	}

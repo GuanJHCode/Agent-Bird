@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"testing"
 )
 
@@ -56,11 +57,28 @@ func TestDeletionClosedNamespaceReplay(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer replay.Close()
+	if replay.RemovedBytes() != l.RemovedBytes() {
+		t.Fatalf("replay removed bytes %d, want %d", replay.RemovedBytes(), l.RemovedBytes())
+	}
 	if err = replay.Remove(ctx); err != nil {
 		t.Fatal(err)
 	}
 	if err = replay.VerifyRemoved(ctx); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestDeletionPlanMaximumInventoryFitsBound(t *testing.T) {
+	scope := storageScope()
+	p := deletionPlan{Version: 1, Scope: scope, CommandID: "maximum-command", Stage: ".delete-0123456789abcdef0123456789abcdef.stage"}
+	for i := 0; i < SlotCount; i++ {
+		p.Files = append(p.Files, deletionFile{Name: slotName(i), ID: deletionIdentity{Size: ChunkBytes}, SHA256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"})
+	}
+	p.Files = append(p.Files, deletionFile{Name: "manifest.json", ID: deletionIdentity{Size: ManifestBytes}, SHA256: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"})
+	sort.Slice(p.Files, func(i, j int) bool { return p.Files[i].Name < p.Files[j].Name })
+	raw, err := canonicalPlan(p)
+	if err != nil || len(raw) > deletionPlanLimit {
+		t.Fatalf("maximum plan %d %v", len(raw), err)
 	}
 }
 
@@ -98,14 +116,72 @@ func TestDeletionRejectsLiveUnknownAndReplacement(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer l.Close()
-	if err = os.Rename(filepath.Join(dir, "manifest.json"), filepath.Join(dir, "manifest.old")); err != nil {
-		t.Fatal(err)
-	}
-	if err = os.WriteFile(filepath.Join(dir, "manifest.json"), []byte("{}"), 0600); err != nil {
-		t.Fatal(err)
+	l.ns.step = func(point string) error {
+		if point != "deletion:before-unlink-manifest.json" {
+			return nil
+		}
+		if err := os.Remove(filepath.Join(dir, "manifest.json")); err != nil {
+			return err
+		}
+		return os.WriteFile(filepath.Join(dir, "manifest.json"), []byte("{}"), 0600)
 	}
 	if err = l.Remove(ctx); !errors.Is(err, ErrUnsafeLayout) {
 		t.Fatalf("replacement error %v", err)
+	}
+}
+
+func TestDeletionTornStageRecoveryAndForeignStageRefusal(t *testing.T) {
+	ctx := context.Background()
+	root, scope := closedDeletionFixture(t)
+	fresh, err := OpenDeletion(ctx, root, scope, "torn-command", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, marker := fresh.Plan(), append([]byte(nil), fresh.markerRaw...)
+	p, _, err := decodeDeletionPlan(plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = fresh.Close(); err != nil {
+		t.Fatal(err)
+	}
+	hash, err := scope.Hash()
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Join(root, hash)
+	if err = os.WriteFile(filepath.Join(dir, p.Stage), marker[:len(marker)/2], 0600); err != nil {
+		t.Fatal(err)
+	}
+	replay, err := OpenDeletion(ctx, root, scope, "torn-command", plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = replay.Remove(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err = replay.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	root, scope = closedDeletionFixture(t)
+	fresh, err = OpenDeletion(ctx, root, scope, "foreign-command", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan = fresh.Plan()
+	if err = fresh.Close(); err != nil {
+		t.Fatal(err)
+	}
+	hash, err = scope.Hash()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = os.WriteFile(filepath.Join(root, hash, ".delete-ffffffffffffffffffffffffffffffff.stage"), []byte("x"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = OpenDeletion(ctx, root, scope, "foreign-command", plan); !errors.Is(err, ErrUnsafeLayout) {
+		t.Fatalf("foreign stage %v", err)
 	}
 }
 
@@ -125,7 +201,7 @@ func TestDeletionCrashHelper(t *testing.T) {
 		os.Exit(93)
 	}
 	l.ns.step = func(point string) error {
-		if point != "deletion:after-unlink-manifest.json" {
+		if point == "deletion:after-unlink-chunk-000.bin" {
 			os.Exit(91)
 		}
 		return nil
@@ -151,6 +227,20 @@ func TestDeletionCrashReplayAfterChildWait(t *testing.T) {
 	var exited *exec.ExitError
 	if !errors.As(err, &exited) || exited.ExitCode() != 91 {
 		t.Fatalf("child wait %v", err)
+	}
+	p, _, err := decodeDeletionPlan(plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hash, err := scope.Hash()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = os.Stat(filepath.Join(root, hash, "manifest.json")); err != nil {
+		t.Fatalf("manifest after partial crash %v", err)
+	}
+	if _, err = os.Stat(filepath.Join(root, hash, p.Files[0].Name)); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("first planned chunk after crash %v", err)
 	}
 	replay, err := OpenDeletion(ctx, root, scope, "crash-command", plan)
 	if err != nil {
