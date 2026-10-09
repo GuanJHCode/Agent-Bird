@@ -124,6 +124,15 @@ func (h *Host) executeLaunch(ctx context.Context, grant contract.LaunchCommand, 
 			return contract.Result{}, errors.New("codex_managed_invocation_required")
 		}
 	}
+	if control.validationStarter != nil {
+		actionInv, ok := inv.(interface {
+			CandidateAction() *adapter.CandidateAction
+		})
+		payload, err := adapter.ValidationRetryPayload(grant.AdapterPayload)
+		if privateCodex || !ok || actionInv.CandidateAction() == nil || actionInv.CandidateAction().Operation != "validate" || err != nil || contract.RequireValidationTool(grant, payload.CandidateAction.CommandSHA256) != nil {
+			return contract.Result{}, errors.New("validation_start_control_invalid")
+		}
+	}
 	if privateCodex {
 		if grant.GrantedActiveMS > int64((1<<63-1)/time.Millisecond) {
 			return contract.Result{}, errors.New("invalid_launch_grant")
@@ -225,6 +234,11 @@ func (h *Host) executeLaunch(ctx context.Context, grant contract.LaunchCommand, 
 		meta.integrationAction = action.Operation == "integrate"
 		if _, err := adapter.ValidationRetryPayload(grant.AdapterPayload); action.Operation == "validate" && err == nil {
 			meta.validationGrant = &grant
+			if control.validationStarter != nil {
+				meta.startProcess = func(ctx context.Context, cmd process.Command) (*process.Handle, error) {
+					return process.StartWithCommandStarter(ctx, cmd, control.validationStarter)
+				}
+			}
 		}
 		meta.structuredReview = action.Operation == "review" && (meta.outputProvider == string(adapter.ProviderClaude) || meta.outputProvider == string(adapter.ProviderAGY) || meta.outputProvider == string(adapter.ProviderGrok))
 		if action.Operation == "review" && meta.outputProvider == string(adapter.ProviderGrok) {

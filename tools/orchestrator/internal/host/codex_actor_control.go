@@ -3,6 +3,7 @@ package host
 import (
 	"context"
 	"os"
+	"os/exec"
 	"syscall"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
@@ -13,6 +14,7 @@ import (
 // beforeStart only observes/cancels the original execution.
 type codexExecuteControl struct {
 	actor                 codexActorCommand
+	validationStarter     func(*exec.Cmd) error
 	beforeStart           func()
 	beforeSealFinalVerify func()
 }

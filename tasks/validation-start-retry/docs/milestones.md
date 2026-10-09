@@ -50,3 +50,5 @@ ROOT schema34/API生产 `3c8a55b` 与DTO/hash、迁移证据已按固定提交ch
 `sealed-prepare-red` 为 seal 成功后真实 sandbox/profile 准备失败，1 top / 3 named FAIL。新工具 grant 作用域普通 pre-Start prepareErr 统一进入 finalizePrelaunchRejected；cleanup/persist 失败发布 UNKNOWN 并保留额度，不扩大旧无工具 Provider 行为。
 最终增量 `source-prepare-green`：2 top / 14 named PASS，exit 0，无 FAIL/SKIP。此前两批业务 RED 原始 stdout/stderr/exit 全保留。
 recordLaunchFailed 的 exact terminal replay 在扫描到已有 LaunchRejected 时直接返回，发生在 cleanup 之前；source runner 后续同 tuple 调用不会再删除或重复退款。
+
+private Go-only per-call validationStarter 只接受有完整工具grant的受限validate invocation；public ExecuteLaunch 使用零control，无request/env/global选择器。ordinary invocation负例 `host-control-green` 1top1named PASS；API编译RED `host-control-red`保留。真正fault→新attempt链仍待native测试，不以此单门禁冒称完成。

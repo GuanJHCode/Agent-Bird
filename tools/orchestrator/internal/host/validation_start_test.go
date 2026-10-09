@@ -414,3 +414,16 @@ func TestValidationToolSealedPrepareFailureTerminates(t *testing.T) {
 		})
 	}
 }
+
+func TestValidationStartControlRejectsOrdinaryGrant(t *testing.T) {
+	h, err := NewIPC(filepath.Join(t.TempDir(), "spool"), "host")
+	if err != nil {
+		t.Fatal(err)
+	}
+	g, _ := validationStartGrant(t, h)
+	inv := launchInvocation{args: []string{"/usr/bin/true"}, dir: t.TempDir()}
+	_, err = h.executeLaunch(context.Background(), g, inv, codexExecuteControl{validationStarter: func(*exec.Cmd) error { t.Fatal("ordinary invocation reached fault seam"); return syscall.EAGAIN }})
+	if err == nil {
+		t.Fatal("private validation seam accepted ordinary invocation")
+	}
+}
