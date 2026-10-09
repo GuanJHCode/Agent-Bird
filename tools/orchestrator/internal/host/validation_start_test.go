@@ -25,7 +25,8 @@ func validationStartGrant(t *testing.T, h *Host) (contract.LaunchCommand, proces
 	}
 	p := adapter.InvocationPayload{Kind: "candidate", Directory: filepath.Join(t.TempDir(), "workspace"), CandidateAction: &adapter.CandidateAction{Version: 1, Operation: "validate", AutoDirectory: true, SourceTask: "edit", Command: []string{tool}, CommandSHA256: digest}}
 	raw, _ := json.Marshal(p)
-	g := managedHostGrant(t, h, contract.LaunchCommand{RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", CommandID: "command", WorkRevision: 1, ExecutionEpoch: 1, AdapterPayload: raw})
+	g := managedHostGrant(t, h, contract.LaunchCommand{RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", CommandID: "command", WorkRevision: 1, PlanRevision: 1, ExecutionEpoch: 1, AdapterPayload: raw})
+	g = validationToolGrantForTest(t, h, g, digest)
 	cleanupValidationToolCopies(t, h)
 	sealed, e := h.sealValidationTool(context.Background(), g, tool, digest, p.Directory, filepath.Join(h.spoolRoot, g.AttemptID, g.SegmentID, "scratch"))
 	if e != nil {
@@ -164,7 +165,7 @@ func TestValidationSealedToolPinAndBoundary(t *testing.T) {
 			if kind == "worker_ancestor" {
 				workspace = filepath.Dir(h.spoolRoot)
 			}
-			g := contract.LaunchCommand{RunID: "r", TaskID: "t", AttemptID: "a", SegmentID: "s", CommandID: "c"}
+			g := validationToolGrantForTest(t, h, contract.LaunchCommand{RunID: "r", TaskID: "t", AttemptID: "a", SegmentID: "s", CommandID: "c", WorkRevision: 1, PlanRevision: 1}, digest)
 			if kind == "writable_sealed" {
 				existing, e := h.sealValidationTool(ctx, g, tool, digest, workspace, filepath.Join(h.spoolRoot, "a", "s", "scratch"))
 				if e != nil {
@@ -222,4 +223,128 @@ func cleanupValidationToolCopies(t *testing.T, h *Host) {
 			}
 		}
 	})
+}
+
+func validationToolGrantForTest(t *testing.T, h *Host, g contract.LaunchCommand, pin string) contract.LaunchCommand {
+	t.Helper()
+	g.HostID = h.producerID
+	if g.WorkRevision < 1 {
+		g.WorkRevision = 1
+	}
+	if g.PlanRevision < 1 {
+		g.PlanRevision = 1
+	}
+	if g.HostArtifacts == nil {
+		g = withHostArtifactsForTest(t, g)
+	}
+	scope, err := contract.ValidationToolScopeSHA256(g, pin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	g.ValidationTool = &contract.ValidationToolGrant{Version: 1, ReservationID: "tool-" + scope[:32], ScopeSHA256: scope, ToolSHA256: pin, MaximumBytes: contract.ValidationToolMaximumBytes}
+	if err = contract.RequireValidationTool(g, pin); err != nil {
+		t.Fatal(err)
+	}
+	return g
+}
+func TestValidationToolCleanupJournalIdentity(t *testing.T) {
+	for _, mode := range []string{"removed", "absent", "changed_bytes", "changed_inode", "missing_journal", "creating"} {
+		t.Run(mode, func(t *testing.T) {
+			h, err := NewIPC(filepath.Join(t.TempDir(), "host-spool", "host"), "host")
+			if err != nil {
+				t.Fatal(err)
+			}
+			g, cmd := validationStartGrant(t, h)
+			dir := filepath.Dir(cmd.SealedPath)
+			switch mode {
+			case "absent":
+				if err = os.Chmod(dir, 0700); err != nil {
+					t.Fatal(err)
+				}
+				if err = os.Remove(cmd.SealedPath); err != nil {
+					t.Fatal(err)
+				}
+				if err = os.Remove(filepath.Join(dir, "journal.json")); err != nil {
+					t.Fatal(err)
+				}
+				if err = os.Remove(dir); err != nil {
+					t.Fatal(err)
+				}
+			case "changed_bytes":
+				if err = os.Chmod(cmd.SealedPath, 0700); err != nil {
+					t.Fatal(err)
+				}
+				if err = os.WriteFile(cmd.SealedPath, []byte("changed"), 0500); err != nil {
+					t.Fatal(err)
+				}
+				if err = os.Chmod(cmd.SealedPath, 0500); err != nil {
+					t.Fatal(err)
+				}
+			case "changed_inode":
+				if err = os.Chmod(dir, 0700); err != nil {
+					t.Fatal(err)
+				}
+				if err = os.Rename(cmd.SealedPath, cmd.SealedPath+".owned-backup"); err != nil {
+					t.Fatal(err)
+				}
+				if err = os.WriteFile(cmd.SealedPath, []byte("unrelated"), 0500); err != nil {
+					t.Fatal(err)
+				}
+				if err = os.Chmod(dir, 0500); err != nil {
+					t.Fatal(err)
+				}
+			case "missing_journal":
+				if err = os.Chmod(dir, 0700); err != nil {
+					t.Fatal(err)
+				}
+				if err = os.Remove(filepath.Join(dir, "journal.json")); err != nil {
+					t.Fatal(err)
+				}
+				if err = os.Chmod(dir, 0500); err != nil {
+					t.Fatal(err)
+				}
+			case "creating":
+				j, e := readValidationToolJournal(dir, g)
+				if e != nil {
+					t.Fatal(e)
+				}
+				j.Phase = "creating"
+				j.ContentSHA256 = ""
+				if err = os.Chmod(dir, 0700); err != nil {
+					t.Fatal(err)
+				}
+				if err = writeValidationToolJournal(dir, j); err != nil {
+					t.Fatal(err)
+				}
+				if err = os.Chmod(dir, 0500); err != nil {
+					t.Fatal(err)
+				}
+			}
+			receipt, err := h.removeValidationTool(g)
+			valid := mode == "removed" || mode == "absent"
+			if (err == nil) != valid {
+				t.Fatal("cleanup", mode, err)
+			}
+			if !valid {
+				if _, e := os.Lstat(cmd.SealedPath); e != nil {
+					t.Fatal("uncertain file deleted", e)
+				}
+				return
+			}
+			if receipt.Validate() != nil {
+				t.Fatal("receipt invalid", receipt)
+			}
+			if _, e := os.Lstat(cmd.SealedPath); !errors.Is(e, os.ErrNotExist) {
+				t.Fatal("tool retained", e)
+			}
+			again, e := h.removeValidationTool(g)
+			if e != nil || *again != *receipt {
+				t.Fatal("cleanup replay", e)
+			}
+			j, e := readValidationToolJournal(dir, g)
+			if e != nil || j.Phase != "removed" {
+				t.Fatal("removed journal", e)
+			}
+		})
+	}
 }

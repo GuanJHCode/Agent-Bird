@@ -34,7 +34,7 @@ func validValidationStartDiagnostic(body []byte) bool {
 func (h *Host) recordValidationStartRejected(ctx context.Context, g contract.LaunchCommand, cmd process.Command, cause error) error {
 	bad := errors.New("validation_start_proof_invalid")
 	p, err := adapter.ValidationRetryPayload(g.AdapterPayload)
-	if err != nil || ctx.Err() != nil || h.stopWasRequested(g.SegmentID) || h.producerID != g.HostID || cmd.PinnedPath != p.CandidateAction.Command[0] || cmd.PinnedSHA256 != p.CandidateAction.CommandSHA256 || cmd.SealedPath != h.validationSealedPath(g) || cmd.SealedSHA256 != p.CandidateAction.CommandSHA256 || (cmd.Path != cmd.SealedPath && (cmd.Path != "/usr/bin/sandbox-exec" || len(cmd.Args) < 3 || cmd.Args[2] != cmd.SealedPath)) || !filepath.IsAbs(cmd.SealedPath) {
+	if err != nil || contract.RequireValidationTool(g, p.CandidateAction.CommandSHA256) != nil || ctx.Err() != nil || h.stopWasRequested(g.SegmentID) || h.producerID != g.HostID || cmd.PinnedPath != p.CandidateAction.Command[0] || cmd.PinnedSHA256 != p.CandidateAction.CommandSHA256 || cmd.SealedPath != h.validationSealedPath(g) || cmd.SealedSHA256 != p.CandidateAction.CommandSHA256 || (cmd.Path != cmd.SealedPath && (cmd.Path != "/usr/bin/sandbox-exec" || len(cmd.Args) < 3 || cmd.Args[2] != cmd.SealedPath)) || !filepath.IsAbs(cmd.SealedPath) {
 		return bad
 	}
 	a := store.Attempt{ID: g.AttemptID, TaskID: g.TaskID, SegmentID: g.SegmentID}
@@ -62,6 +62,10 @@ func (h *Host) recordValidationStartRejected(ctx context.Context, g contract.Lau
 	if code == "" {
 		return bad
 	}
+	toolCleanup, err := h.removeValidationTool(g)
+	if err != nil {
+		return err
+	}
 	body, _ := json.Marshal(validationStartDiagnostic{Version: 1, Kind: "validation_start_failure", Stage: "validation_start", Code: code})
 	artifact, err := h.writeHostArtifact(meta, "terminal", 0, "prelaunch", "launch-failure", body)
 	if err != nil {
@@ -73,6 +77,6 @@ func (h *Host) recordValidationStartRejected(ctx context.Context, g contract.Lau
 	if err = publishLaunchPhase(sp, "not_started", a, g.RunID, g.TaskID, cmd, nil, errors.New(code)); err != nil {
 		return err
 	}
-	_, err = h.appendStructuredEvent(sp, g.RunID, g.TaskID, a, meta, contract.EventLaunchRejected, artifact.SHA256, nil, nil, artifact, structuredEventFields{Failure: &contract.FailureFacts{Version: 1, Stage: "validation_start", Code: code, WorkerState: "not_started", ProbeState: "not_applicable"}})
+	_, err = h.appendStructuredEvent(sp, g.RunID, g.TaskID, a, meta, contract.EventLaunchRejected, artifact.SHA256, nil, nil, artifact, structuredEventFields{ValidationToolCleanup: toolCleanup, Failure: &contract.FailureFacts{Version: 1, Stage: "validation_start", Code: code, WorkerState: "not_started", ProbeState: "not_applicable"}})
 	return err
 }

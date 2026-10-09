@@ -364,6 +364,7 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		protocol.completionMode = meta.completionMode
 	}
 	eventCount := 0
+	validationToolTreeConfirmed := false
 	lockActive := func() {
 		if activeMS == 0 && !spawnedAt.IsZero() {
 			activeMS = time.Since(spawnedAt).Milliseconds()
@@ -375,6 +376,16 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 			if kind == contract.EventExited {
 				fields.ActiveMS = activeMS
 				fields.DiagnosticsFailure = diagnosticState.failure()
+				if meta.artifactGrant != nil && meta.artifactGrant.ValidationTool != nil {
+					if !validationToolTreeConfirmed {
+						return errors.New("validation_tool_original_wait_required")
+					}
+					var cleanupErr error
+					fields.ValidationToolCleanup, cleanupErr = h.removeValidationTool(*meta.artifactGrant)
+					if cleanupErr != nil {
+						return cleanupErr
+					}
+				}
 			}
 			event, appendErr := h.appendStructuredEvent(spool, runID, taskID, a, meta, kind, payloadHash, identity, exitCode, artifact, fields)
 			if appendErr == nil && event.Sequence > 0 {
@@ -643,6 +654,7 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 	}
 	finishJoinedStop := func(stopErr error) (contract.Result, error) {
 		if stopErr == nil {
+			validationToolTreeConfirmed = true
 			lockActive()
 		}
 		<-progressStopped
@@ -699,6 +711,7 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		h.finishAttempt(a.ID, "unknown", persistDB)
 		return contract.Result{Status: "unknown", ExitCode: p.ExitCode(), EventCount: eventCount, OutputHash: hashText(p.Output())}, err
 	}
+	validationToolTreeConfirmed = true
 	lockActive()
 	_ = diagnosticState.end(true, nil)
 	if h.stopWasRequested(a.SegmentID) || p.ExitCode() < 0 {
@@ -919,13 +932,14 @@ func (h *Host) appendPhaseEvent(spool *events.Spool, runID, taskID string, a sto
 }
 
 type structuredEventFields struct {
-	DiagnosticsFailure *contract.DiagnosticsFailure
-	Failure            *contract.FailureFacts
-	StopReason         string
-	QuestionRevision   int
-	SessionKind        string
-	SessionID          string
-	ActiveMS           int64
+	DiagnosticsFailure    *contract.DiagnosticsFailure
+	ValidationToolCleanup *contract.ValidationToolCleanup
+	Failure               *contract.FailureFacts
+	StopReason            string
+	QuestionRevision      int
+	SessionKind           string
+	SessionID             string
+	ActiveMS              int64
 }
 
 func (h *Host) appendStructuredEvent(spool *events.Spool, runID, taskID string, a store.Attempt, meta launchMetadata, kind, payloadHash string, identity *process.Identity, exitCode *int, artifact *contract.ArtifactRef, fields structuredEventFields) (contract.Event, error) {
@@ -939,6 +953,7 @@ func (h *Host) appendStructuredEvent(spool *events.Spool, runID, taskID string, 
 	event.StopReason = fields.StopReason
 	event.Failure = fields.Failure
 	event.DiagnosticsFailure = fields.DiagnosticsFailure
+	event.ValidationToolCleanup = fields.ValidationToolCleanup
 	if identity != nil {
 		event.Process = &contract.ProcessIdentity{PID: identity.PID, Birth: identity.Birth, PGID: identity.PGID}
 	}
@@ -1082,6 +1097,13 @@ func (h *Host) recordLaunchFailed(a store.Attempt, runID, taskID string, meta la
 		return errors.New("launch_failure_state_conflict")
 	}
 
+	var toolCleanup *contract.ValidationToolCleanup
+	if meta.artifactGrant != nil && meta.artifactGrant.ValidationTool != nil {
+		toolCleanup, err = h.removeValidationTool(*meta.artifactGrant)
+		if err != nil {
+			return err
+		}
+	}
 	safeCause := safeLaunchFailureCause(cause)
 	body, err := json.Marshal(launchFailureDiagnostic{1, "launch_failure", "prelaunch", string(safeCause)})
 	if err != nil {
@@ -1096,7 +1118,7 @@ func (h *Host) recordLaunchFailed(a store.Attempt, runID, taskID string, meta la
 	if err = publishLaunchPhase(spool, "not_started", a, runID, taskID, process.Command{}, nil, safeCause); err != nil {
 		return err
 	}
-	_, err = h.appendStructuredEvent(spool, runID, taskID, a, meta, contract.EventLaunchRejected, artifact.SHA256, nil, nil, artifact, structuredEventFields{Failure: launchFailureFacts(safeCause)})
+	_, err = h.appendStructuredEvent(spool, runID, taskID, a, meta, contract.EventLaunchRejected, artifact.SHA256, nil, nil, artifact, structuredEventFields{Failure: launchFailureFacts(safeCause), ValidationToolCleanup: toolCleanup})
 	return err
 }
 

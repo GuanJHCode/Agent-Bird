@@ -11,8 +11,8 @@ import (
 
 // Called only inside the authenticated lifecycle transaction, after independent
 // not_started validation and settlement. Model/report events never reach it.
-func (d *DB) queuePolicyRetry(ctx context.Context, tx *sql.Tx, e contract.Event, slot string) (bool, error) {
-	if e.Kind != contract.EventLaunchRejected || !e.Failure.ValidPrelaunchProbe() {
+func (d *DB) queuePolicyRetry(ctx context.Context, tx *sql.Tx, e contract.Event, slot string, validation *validationRetryDecision) (bool, error) {
+	if e.Kind != contract.EventLaunchRejected || (!e.Failure.ValidPrelaunchProbe() && !e.Failure.ValidValidationStart()) {
 		return false, nil
 	}
 	b, err := readExecutionBudget(ctx, tx, e.TaskID)
@@ -50,7 +50,12 @@ func (d *DB) queuePolicyRetry(ctx context.Context, tx *sql.Tx, e contract.Event,
 	}
 	var revisionPayload string
 	if managed {
-		if revisionPayload, err = authorizePrelaunchReviewRetry(ctx, tx, e, payload); err != nil {
+		if e.Failure.ValidValidationStart() {
+			revisionPayload, err = authorizeValidationRetry(ctx, tx, e, payload, validation)
+		} else {
+			revisionPayload, err = authorizePrelaunchReviewRetry(ctx, tx, e, payload)
+		}
+		if err != nil {
 			return false, nil
 		}
 	}

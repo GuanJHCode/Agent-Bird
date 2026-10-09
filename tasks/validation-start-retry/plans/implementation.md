@@ -9,7 +9,7 @@
 - 新 failure stage `validation_start`，codes `validation_start_eagain` / `validation_start_eintr`，worker_state `not_started`、probe_state `not_applicable`。其含义仅是验证 worker 未运行；之前受管理 Git 物化及其完整 journal 已发生。不能伪称整个阶段无副作用，也不能借用 `prelaunch_probe`。
 - 活 Host 只在本次调用持有上述 proof、验证 profile 符合范围且未收到 stop/cancel 时，允许本次 `starting` 结束为 `not_started` 并写认证的 launch_rejected 事实。使用独立窄入口，不普遍放宽旧 `recordLaunchFailed`。诊断及事件持久化失败须保持 UNKNOWN；已有 UNKNOWN/终态不得覆盖；重开 Host 不得从 launch.json 推导 proof。
 - 新可选 `CandidateAction.CommandSHA256` (`command_sha256`) 固定 validation executable；只有 validate 可用，开启本重试时必须是规范有效摘要。旧无重试 action 保持兼容。摘要作为原 adapter/grant/decision 的认证内容，Host 首次及每次重试均重核，不在 Store 写事务内跑 FS/Git。
-- 使用独立 `candidate_validation_retry` decision kind，复用现有 ledger，无新 schema。冻结原 accepted source receipt、完整 dependency vector、原 adapter（包括 tool digest/command/target/config）、工作/计划 revision 和实际 Host 身份；queue、pending/claim、bound replay、历史 proof 重建均核验，不影响旧 review decision 的含义。
+- 使用独立 `candidate_validation_retry` decision kind，复用现有 retry ledger；工具物理额度另由 ROOT 的 schema34 专用预约维护。冻结原 accepted source receipt、完整 dependency vector、原 adapter（包括 tool digest/command/target/config）、工作/计划 revision 和实际 Host 身份；queue、pending/claim、bound replay、历史 proof 重建均核验，不影响旧 review decision 的含义。
 - 原候选输入只允许既有生产者或有序 compose 的有效 artifact；新 attempt 使用既有 AutoDirectory 唯一目录，不改写原候选、receipt、原 attempt 或预算历史。重试不足额度、输入/工具/Host 漂移、未settled、stop、未知证明均拒绝。
 
 ## 最小验收与证据
@@ -25,3 +25,11 @@
 - 仅直接 native executable 入口；拒绝 shebang、shell/env 分发器及其已知摘要副本。Host 将声明入口复制到独占 `.validation-tools/<grant identity>/tool`，目录与副本 `0500`，不在 worker workspace/scratch 的可写祖先内。执行该固定副本，同时首次及每次重试复核原路径与副本 pin；此边界不宣称动态库及子命令依赖完全 hermetic。
 - validation_start 诊断只供活 Host 的一次 typed proof 消费。冷恢复 artifact-only 与 phase-only 两个未完整 terminal 窗口明确 UNKNOWN；完整 durable terminal 沿用 replay，不从 JSON 重建 proof。
 - 新 candidate_validation_retry 必须有既存 durable binding；缺失、孤儿或 retired binding 一律拒绝，不进入旧 review legacy ordinal/history 推断。
+
+## 工具资源边界变更（ROOT 已授权）
+
+早审发现每 attempt 的 private sealed 副本没有明确物理额度，且 ReadAll 的 RSS 不符合资源目标。固定 v1 artifact slots 不可借用。ROOT 独占 schema34/ValidationToolGrant/ValidationToolCleanup/预约与aggregate quota；本 worker 独占 Host 流式copy、32MiB上限、4096byte journal每版/8192byte peak escrow、original Wait/tree或live typed never-started后的精确cleanup及Host event接线。UNKNOWN保留raw预约，removed journal仍计费；不从冷journal恢复Wait证明。
+
+source完整字节在写事务外认证后冻结入独立decision。总revision_payload沿用256KiB上限；超大或无可信source snapshot只ACK原认证 launch_rejected、不创建decision/binding/新attempt。现有普通validate不受此自动重试支持上限影响。
+
+Tool terminal 跨 physical 恢复边界：若原 event 已入 Store，完全相同 event 仍可 durable ACK replay；仅原 Host spool 已durable、Store尚未记录，在新 PID/birth物理Host重绑后不能仅凭可写JSON证明原publisher，拒绝释放tool预约/触发retry并保留原UNKNOWN保护。此轮不新增跨physical publisher认证凭据。
