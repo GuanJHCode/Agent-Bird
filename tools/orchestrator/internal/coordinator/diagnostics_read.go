@@ -24,8 +24,14 @@ type DiagnosticsAckRequest struct {
 	Receipt          store.DiagnosticsReceipt `json:"receipt"`
 }
 
+type DiagnosticsDeleteRequest struct {
+	ControllerThread string                         `json:"controller_thread"`
+	ControlToken     string                         `json:"control_token"`
+	Request          store.DiagnosticsDeleteRequest `json:"request"`
+}
+
 func diagnosticsControlKind(kind ipc.Kind) bool {
-	return kind == ipc.KindDiagnosticsRead || kind == ipc.KindDiagnosticsAck
+	return kind == ipc.KindDiagnosticsRead || kind == ipc.KindDiagnosticsAck || kind == ipc.KindDiagnosticsDelete
 }
 
 func diagnosticsControlError(err error) error {
@@ -66,6 +72,14 @@ func (s *Server) diagnosticsControl(ctx context.Context, kind ipc.Kind, raw json
 		}
 		page, err := s.db.ReadDiagnostics(ctx, request.ControllerThread, request.ControlToken, request.Request)
 		return json.RawMessage(page), diagnosticsControlError(err)
+	}
+	if kind == ipc.KindDiagnosticsDelete {
+		var request DiagnosticsDeleteRequest
+		if contract.DecodeBridgeStrict(raw, &request) != nil {
+			return nil, store.CodeError("diagnostics_request_invalid")
+		}
+		result, err := s.db.DeleteDiagnostics(ctx, request.ControllerThread, request.ControlToken, request.Request)
+		return json.RawMessage(result), diagnosticsControlError(err)
 	}
 	var request DiagnosticsAckRequest
 	if contract.DecodeBridgeStrict(raw, &request) != nil {

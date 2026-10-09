@@ -48,6 +48,12 @@ func TestDiagnosticsCLIHelperProcess(t *testing.T) {
 }
 
 func TestDiagnosticsPublicCLIReadAfterOriginalHostExitAndLostACK(t *testing.T) {
+	testDiagnosticsPublicCLI(t, false)
+}
+func TestDiagnosticsPublicCLIDeleteAfterOwnerCompletion(t *testing.T) {
+	testDiagnosticsPublicCLI(t, true)
+}
+func testDiagnosticsPublicCLI(t *testing.T, deleteCompleted bool) {
 	root, err := os.MkdirTemp("/private/tmp", "diag-cli-")
 	if err != nil {
 		t.Fatal(err)
@@ -104,6 +110,9 @@ func TestDiagnosticsPublicCLIReadAfterOriginalHostExitAndLostACK(t *testing.T) {
 	}
 	defer db.Close()
 	plan := store.PlanSpec{Run: store.RunSpec{ID: "run", ControllerThread: "controller", PlanRevision: 1, OriginContextID: "origin", OriginPID: owner.Process.Pid, OriginBirth: birth}, Host: store.HostLaunchSpec{OriginContextID: "origin", HostGeneration: "generation", Executable: exe}, Tasks: []store.TaskSpec{{ID: "task", RunID: "run", MaxAttempts: 1, MaxActiveMS: 1000, AdapterPayload: json.RawMessage(`{"kind":"fake"}`), Diagnostics: &contract.DiagnosticsPolicy{Version: 1, Mode: "detailed"}}}}
+	if deleteCompleted {
+		plan.Tasks[0].CompletionPolicy = "exit_success_fixture"
+	}
 	accepted, err := db.SubmitPlan(ctx, plan)
 	if err != nil {
 		t.Fatal(err)
@@ -138,6 +147,23 @@ func TestDiagnosticsPublicCLIReadAfterOriginalHostExitAndLostACK(t *testing.T) {
 	control, err := writeControlCapability(state, "run", "controller", accepted.ControlToken, bootstrap, accepted.LaunchID, accepted.LaunchToken)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if deleteCompleted {
+		// Controlled Store events represent completion; the owned helper is only
+		// a Host identity fixture and is not claimed as a real provider worker.
+		e := contract.Event{Version: 1, ProducerID: g.HostID, EventID: g.HostID + ":1", Sequence: 1, RunID: g.RunID, TaskID: g.TaskID, AttemptID: g.AttemptID, SegmentID: g.SegmentID, CommandID: g.CommandID, WorkRevision: g.WorkRevision, ExecutionEpoch: g.ExecutionEpoch, Kind: contract.EventResult, PayloadHash: strings.Repeat("a", 64)}
+		if _, err = db.CommitHostEvent(ctx, e); err != nil {
+			t.Fatal(err)
+		}
+		code := 0
+		e.Sequence = 2
+		e.EventID = g.HostID + ":2"
+		e.Kind = contract.EventExited
+		e.ExitCode = &code
+		e.ActiveMS = 1
+		if _, err = db.CommitHostEvent(ctx, e); err != nil {
+			t.Fatal(err)
+		}
 	}
 	// Release the exact original child and retain its real Wait result before
 	// any read. No disappeared-PID inference or execution restart is permitted.
@@ -254,9 +280,36 @@ func TestDiagnosticsPublicCLIReadAfterOriginalHostExitAndLostACK(t *testing.T) {
 	if json.Unmarshal(ack, &result) != nil || result.NextRevision != 2 || result.Status != "acknowledged" {
 		t.Fatal("invalid public ACK")
 	}
+	expectedEvents := 0
+	if deleteCompleted {
+		expectedEvents = 2
+	}
 	var attempts, segments, events int
-	if err = db.SQL().QueryRow(`SELECT (SELECT count(*) FROM attempts),(SELECT count(*) FROM segments),(SELECT count(*) FROM runtime_events)`).Scan(&attempts, &segments, &events); err != nil || attempts != 1 || segments != 1 || events != 0 {
+	if err = db.SQL().QueryRow(`SELECT (SELECT count(*) FROM attempts),(SELECT count(*) FROM segments),(SELECT count(*) FROM runtime_events)`).Scan(&attempts, &segments, &events); err != nil || attempts != 1 || segments != 1 || events != expectedEvents {
 		t.Fatal("data access restarted or finalized execution", attempts, segments, events, err)
+	}
+	if deleteCompleted {
+		deleteFile := filepath.Join(root, "delete.json")
+		deletion := store.DiagnosticsDeleteRequest{Version: 1, TaskID: g.TaskID, AttemptID: g.AttemptID, RequestID: "delete-1", ExpectedRevision: result.NextRevision}
+		if err = writeExclusiveJSON(deleteFile, deletion); err != nil {
+			t.Fatal(err)
+		}
+		deleted := invoke("diagnostics-delete", "--state-dir", state, "--control-file", control, "--request", deleteFile)
+		if again := invoke("task", "diagnostics-delete", "--handle", handle, "--request", deleteFile); !bytes.Equal(deleted, again) {
+			t.Fatal("delete replay changed bytes")
+		}
+		var response store.DiagnosticsDeleteResult
+		if json.Unmarshal(deleted, &response) != nil || response.Status != "deleted" || response.RemovedLogicalBytes <= 0 || response.ReleasedReservationBytes != 20*1024*1024+128*1024 {
+			t.Fatalf("invalid public deletion %s", deleted)
+		}
+		var out bytes.Buffer
+		if err = run(ctx, readArgs, &out, &out); err == nil || err.Error() != "diagnostics_expired" || out.Len() != 0 {
+			t.Fatal("deleted public read did not expire", err, out.String())
+		}
+		var phase, state string
+		if err = db.SQL().QueryRow(`SELECT x.phase,r.state FROM diagnostic_deletions x JOIN managed_artifact_reservations r ON r.id=x.reservation_id`).Scan(&phase, &state); err != nil || phase != "removed" || state != "released" {
+			t.Fatal("public deletion not durable", phase, state, err)
+		}
 	}
 	t.Logf("original_host_pid=%d original_host_wait=0 cli_children_wait=0 lost_ack=durable_unread original_attempt=%s", owner.Process.Pid, g.AttemptID)
 }

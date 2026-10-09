@@ -72,7 +72,7 @@ func bindCandidateInputForDecision(ctx context.Context, tx *sql.Tx, command *con
 	if err := bindHostArtifacts(ctx, tx, command, use != candidateArtifactHistoricalProof); err != nil {
 		return err
 	}
-	if err := bindCandidateInputContent(ctx, tx, command, replay, retry); err != nil {
+	if err := bindCandidateInputContent(ctx, tx, command, replay, retry, use); err != nil {
 		return err
 	}
 	if use == candidateArtifactHistoricalProof && command.HostArtifacts == nil {
@@ -81,8 +81,8 @@ func bindCandidateInputForDecision(ctx context.Context, tx *sql.Tx, command *con
 	return nil
 }
 
-func bindCandidateInputContent(ctx context.Context, tx *sql.Tx, command *contract.LaunchCommand, replay bool, retry *reviewRetryDecision) error {
-	if err := bindExistingDiagnostics(ctx, tx, command); err != nil {
+func bindCandidateInputContent(ctx context.Context, tx *sql.Tx, command *contract.LaunchCommand, replay bool, retry *reviewRetryDecision, use candidateArtifactUse) error {
+	if err := bindDiagnosticsForUse(ctx, tx, command, use); err != nil {
 		return err
 	}
 	var payload struct {

@@ -285,10 +285,16 @@ func TestDiagnosticsReplayRejectsChangedOrMissingStoredAuthority(t *testing.T) {
 			case "missing_policy":
 				_, err = db.sql.Exec(`DROP TRIGGER diagnostics_policy_retained; DELETE FROM task_diagnostics_policies WHERE task_id=?`, g.TaskID)
 			default:
-				_, err = db.sql.Exec(`UPDATE managed_artifact_reservations SET state=? WHERE id=?`, kind, g.Diagnostics.ReservationID)
+				_, err = db.sql.Exec(`DROP TRIGGER diagnostic_reservation_transition; UPDATE managed_artifact_reservations SET state=? WHERE id=?`, kind, g.Diagnostics.ReservationID)
 			}
 			if err != nil {
 				t.Fatal("fixture did not inject intended drift", err)
+			}
+			if kind == "deleting" || kind == "released" {
+				var state string
+				if err = db.sql.QueryRow(`SELECT state FROM managed_artifact_reservations WHERE id=?`, g.Diagnostics.ReservationID).Scan(&state); err != nil || state != kind {
+					t.Fatal("retired authority was not injected", state, err)
+				}
 			}
 			var before int64
 			if err = db.sql.QueryRow(`SELECT total_bytes FROM storage_usage WHERE scope='global' AND scope_id=''`).Scan(&before); err != nil {

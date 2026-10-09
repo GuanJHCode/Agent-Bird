@@ -1,0 +1,73 @@
+{
+  "production_head": "0164436",
+  "base": "f7db2e8",
+  "go_version": "go version go1.26.8 darwin/arm64",
+  "production_sha256": {
+    "tools/orchestrator/cmd/orchestrator/diagnostics_read.go": "b36091d09bd36c660bc88baebf864ed36ff47f27e2f9f4e7d2146b560b458cc0",
+    "tools/orchestrator/cmd/orchestrator/main.go": "17a59a33e350d627428106fd4247a850b291382724843378637252cfb3e4dbbd",
+    "tools/orchestrator/cmd/orchestrator/task_entry.go": "dd357feaec1aade52b3211b96906a9fe3928c934bef9259aecbaced38fedc5bf",
+    "tools/orchestrator/internal/coordinator/diagnostics_read.go": "9ca052d68580bdb4d1c16afcd50f133b099fb5893f6381896879f13932fb6ac2",
+    "tools/orchestrator/internal/coordinator/server.go": "ea9289d7b98dbf02203d735093312895a683669b6540470a257dc25612aac796",
+    "tools/orchestrator/internal/diagnostics/deletion.go": "a933e791d27418e6d0992194ab15c8286d32e611a2b6b3d8f64fa5ecbbf0add2",
+    "tools/orchestrator/internal/ipc/ipc.go": "2966f2ecb5030dfb02eb369772196ff86e54f8a0f7b1fc18f9f0df16fb7f9fb5",
+    "tools/orchestrator/internal/store/candidate_input.go": "28d89354bc121c926b6c7de904c8bbbb54a0db17b1220963557375f4ac9f8d18",
+    "tools/orchestrator/internal/store/dag_rework_evidence.go": "4854cbcb5932b8ad242e4ec61723343a8cdb363778557568beb6616ddd27050a",
+    "tools/orchestrator/internal/store/diagnostics_delete.go": "1f62944acb7854a0d489c73a0c00b2281f68274c3400b3f58a231405902bc8f1",
+    "tools/orchestrator/internal/store/diagnostics_delete_schema.go": "49f7655a4036fb9663e8aa0d35e8a157ecb85b9828d1e58445ede93f87296503",
+    "tools/orchestrator/internal/store/diagnostics_grant.go": "b6276c11050277e47704bdc3e33554f56f439f7729fae70152a5a34dd79d7086",
+    "tools/orchestrator/internal/store/diagnostics_read.go": "ed263afceefc9a398247fa6051f5ff7b1709f70db73464bbeb99ac861e85c5fe",
+    "tools/orchestrator/internal/store/migrations.go": "c3452ff5a0419f1b8a40717bb2c5d8a3d86c4e13341f9656c5c7a6cbd7ce7a1e"
+  },
+  "fs_final_source_unchanged_since_d71fba8": true,
+  "review": "PASS: d71fba8 broad + 0164436 increment",
+  "linux_terminal_verification": [
+    {
+      "label": "fs-final",
+      "cid": "e169b14596eda5a2c0d34a87f2441c696e7f5df7481cd58b73be63f5cbcb6a28",
+      "top_pass": 5,
+      "named_pass": 5,
+      "fail": 0,
+      "skip": 0,
+      "binary_sha256": "0899cc1aa223541b5bb825f2c723ea957b119f8b4dfbb177ee4de232d93461d8",
+      "root_inspect_exit": 1,
+      "root_inspect_error": "Error: No such object: e169b14596eda5a2c0d34a87f2441c696e7f5df7481cd58b73be63f5cbcb6a28\n",
+      "owned_binary_removed_after_hash_check": true
+    },
+    {
+      "label": "store-final",
+      "cid": "9ea85919725bbb5c835575be0971c73b591ecce9f651f49b2c9928f2f24e72c6",
+      "top_pass": 6,
+      "named_pass": 16,
+      "fail": 0,
+      "skip": 0,
+      "binary_sha256": "f01a9362efb5e3630fd9e4648655d81689bd2265d543681ae9aaa1364122bc38",
+      "root_inspect_exit": 1,
+      "root_inspect_error": "Error: No such object: 9ea85919725bbb5c835575be0971c73b591ecce9f651f49b2c9928f2f24e72c6\n",
+      "owned_binary_removed_after_hash_check": true
+    },
+    {
+      "label": "public-final",
+      "cid": "b8035b92f48e59637718c51bd286882e25e41777e9b6e4bf909ca1a88556fe72",
+      "top_pass": 1,
+      "named_pass": 1,
+      "fail": 0,
+      "skip": 0,
+      "binary_sha256": "87e515a6725fa84020403e431a0262197036c53034a2dc124ce1ad57dd2ed3c3",
+      "root_inspect_exit": 1,
+      "root_inspect_error": "Error: No such object: b8035b92f48e59637718c51bd286882e25e41777e9b6e4bf909ca1a88556fe72\n",
+      "owned_binary_removed_after_hash_check": true
+    },
+    {
+      "label": "store-accounted",
+      "cid": "c3880a1bf88802fc8e746b356e58c337d87a8c807301c62afd38cdcfe8516a6a",
+      "top_pass": 6,
+      "named_pass": 16,
+      "fail": 0,
+      "skip": 0,
+      "binary_sha256": "acabb07b944f89a540ac821f842fd9fcaf88a4d6fb330bef872cb004d4f27571",
+      "root_inspect_exit": 1,
+      "root_inspect_error": "Error: No such object: c3880a1bf88802fc8e746b356e58c337d87a8c807301c62afd38cdcfe8516a6a\n",
+      "owned_binary_removed_after_hash_check": true
+    }
+  ]
+}

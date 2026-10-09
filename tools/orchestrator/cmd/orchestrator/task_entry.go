@@ -40,7 +40,7 @@ func taskEntry(ctx context.Context, args []string, out io.Writer) error {
 		return codeError("invalid_args")
 	}
 	switch args[0] {
-	case "diagnostics-read", "diagnostics-ack":
+	case "diagnostics-read", "diagnostics-ack", "diagnostics-delete":
 		return taskDiagnosticsCLI(ctx, args[0], args[1:], out)
 	case "dispatch":
 		return taskDispatch(ctx, args[1:], out)

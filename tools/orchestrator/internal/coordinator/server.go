@@ -721,7 +721,7 @@ func (s *Server) handleControl(ctx context.Context, conn net.Conn, message ipc.E
 		err = store.CodeError("diagnostics_request_invalid")
 	}
 	switch message.Kind {
-	case ipc.KindDiagnosticsRead, ipc.KindDiagnosticsAck:
+	case ipc.KindDiagnosticsRead, ipc.KindDiagnosticsAck, ipc.KindDiagnosticsDelete:
 		if err == nil {
 			ctx, err = s.authorizePeer(ctx, conn)
 		}
@@ -751,10 +751,10 @@ func (s *Server) handleControl(ctx context.Context, conn net.Conn, message ipc.E
 
 func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage) (json.RawMessage, error) {
 	switch kind {
-	case ipc.KindDiagnosticsRead, ipc.KindDiagnosticsAck:
+	case ipc.KindDiagnosticsRead, ipc.KindDiagnosticsAck, ipc.KindDiagnosticsDelete:
 		return s.diagnosticsControl(ctx, kind, raw)
 	case ipc.KindReady:
-		return json.Marshal(map[string]any{"status": "ready", "epoch": s.epoch, "capabilities": []string{"interruption_feedback_v1", "grok_readonly_v1", "indexed_candidate_review_v1", "session_provider_lifecycle_v1", "isolated_provider_coding_v1", "owned_config_generation_v1", "diagnostics_read_ack_v1"}})
+		return json.Marshal(map[string]any{"status": "ready", "epoch": s.epoch, "capabilities": []string{"interruption_feedback_v1", "grok_readonly_v1", "indexed_candidate_review_v1", "session_provider_lifecycle_v1", "isolated_provider_coding_v1", "owned_config_generation_v1", "diagnostics_read_ack_v1", "diagnostics_delete_v1"}})
 	case ipc.KindOwnerBind:
 		return s.bindLocalOwner(ctx, raw)
 	case ipc.KindProviderControl:

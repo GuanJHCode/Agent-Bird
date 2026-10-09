@@ -153,7 +153,7 @@ func validateDAGEvidence(ctx context.Context, tx *sql.Tx, s dagReworkDecision, p
 			c := contract.LaunchCommand{CommandID: e.CommandID, HostID: e.ProducerID, RunID: e.RunID, TaskID: e.TaskID, AttemptID: e.AttemptID, SegmentID: e.SegmentID, WorkRevision: e.WorkRevision, PlanRevision: plan, AdapterPayload: p.Adapter, Input: &input, DependencyInputs: capture, LaunchIntentHash: intent, SlotToken: slotToken}
 			// This reconstructs immutable historical evidence only. It neither
 			// dispatches a grant nor creates authority for a legacy nil scope.
-			if bindExistingDiagnostics(ctx, tx, &c) != nil || bindHostArtifacts(ctx, tx, &c, false) != nil {
+			if bindDiagnosticsForUse(ctx, tx, &c, candidateArtifactHistoricalProof) != nil || bindHostArtifacts(ctx, tx, &c, false) != nil {
 				return nil, ErrConflict
 			}
 			if contract.ValidateDependencyInputs(c) != nil {
