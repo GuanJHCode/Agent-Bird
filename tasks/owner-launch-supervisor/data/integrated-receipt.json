@@ -1,0 +1,15 @@
+{
+  "integration_merge": "31dabd006eaf699be2dbc91f971f10bf5a392516",
+  "source_final": "2d6779f",
+  "production": "0874edeb0b3cd7d216aaf71e5bb464788044f329",
+  "orchestrator_tree": "6e39198e1cd59f121c8102b3cd7bb5e700153abb",
+  "identical_entire_orchestrator_tree": true,
+  "matched_production_files": 22,
+  "validation": "Reused applicable final raw checks and independent reviews; no duplicate test run against identical code tree.",
+  "boundaries": [
+    "opt-in protocol2 only; v1 no invented proofs",
+    "historical generic native failures lack syscall traces; concrete EINTR defect proved and fixed",
+    "resources not qualified on this candidate; Formal60 FAILED",
+    "no real provider/model/account, user-install replacement, push/release; Intel/Windows native deferred"
+  ]
+}

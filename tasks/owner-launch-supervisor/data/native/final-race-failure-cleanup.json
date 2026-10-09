@@ -1,0 +1,64 @@
+[
+  {
+    "fixture": "/private/tmp/owner-launch-loss-3591373183",
+    "no_actor_executable_in_process_snapshot": true,
+    "removed_owned_binary": "/private/tmp/owner-launch-loss-3591373183/protocol2-loss-cli-fixture",
+    "binary_sha256": "60ca2bc60484818e59c08522cba30e339b957ee64f3849ef6c7962b210b5b4dd",
+    "receipt_phases": [
+      [
+        "prepared_not_started",
+        "2026-10-09T05:01:39.724458000Z"
+      ],
+      [
+        "starting",
+        "2026-10-09T05:01:39.791137000Z"
+      ],
+      [
+        "started_wait_owned",
+        "2026-10-09T05:01:39.809030000Z"
+      ],
+      [
+        "waited",
+        "2026-10-09T05:01:44.839406000Z"
+      ]
+    ],
+    "source_host_log": "{\"version\":1,\"status\":\"error\",\"error\":\"loss fixture released without owner payload\"}\n",
+    "preserved": "database, requests, logs, original Wait files; cleanup-before.db for auto-restart fixture"
+  },
+  {
+    "fixture": "/private/tmp/owner-launch-loss-1223298341",
+    "no_actor_executable_in_process_snapshot": true,
+    "removed_owned_binary": "/private/tmp/owner-launch-loss-1223298341/protocol2-loss-cli-fixture",
+    "binary_sha256": "f8f992e73950e2cb419a8dc117c7621475cdb17c7b45a2c27624eaba79afe1a0",
+    "receipt_phases": [
+      [
+        "prepared_not_started",
+        "2026-10-09T05:03:54.326230000Z"
+      ],
+      [
+        "starting",
+        "2026-10-09T05:03:54.399758000Z"
+      ],
+      [
+        "started_wait_owned",
+        "2026-10-09T05:03:54.421824000Z"
+      ]
+    ],
+    "source_host_log": "{\"version\":1,\"status\":\"error\",\"error\":\"loss fixture released without owner payload\"}\n",
+    "preserved": "database, requests, logs, original Wait files; cleanup-before.db for auto-restart fixture"
+  },
+  {
+    "fixture": "/private/tmp/owner-launch-loss-3592408728",
+    "no_actor_executable_in_process_snapshot": true,
+    "removed_owned_binary": "/private/tmp/owner-launch-loss-3592408728/protocol2-loss-cli-fixture",
+    "binary_sha256": "0663283f2c05c621f12c9abbc2956e48dad80c37446c3917afcd1611092a053f",
+    "receipt_phases": [
+      [
+        "prepared_not_started",
+        "2026-10-09T05:06:17.312060000Z"
+      ]
+    ],
+    "source_host_log": "{\"version\":1,\"status\":\"error\",\"error\":\"invalid_ipc_message\"}\n",
+    "preserved": "database, requests, logs, original Wait files; cleanup-before.db for auto-restart fixture"
+  }
+]

@@ -1,0 +1,9 @@
+{"Time":"2026-10-09T13:17:44.839633+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc"}
+{"Time":"2026-10-09T13:17:45.218467+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc","Test":"TestOwnerLaunchDescriptorValidationSurvivesSignals"}
+{"Time":"2026-10-09T13:17:45.218529+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc","Test":"TestOwnerLaunchDescriptorValidationSurvivesSignals","Output":"=== RUN   TestOwnerLaunchDescriptorValidationSurvivesSignals\n"}
+{"Time":"2026-10-09T13:17:45.230821+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc","Test":"TestOwnerLaunchDescriptorValidationSurvivesSignals","Output":"    owner_launch_signal_test.go:61: empty endpoints rejected during signals at iteration 199: invalid_ipc_message\n"}
+{"Time":"2026-10-09T13:17:45.230898+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc","Test":"TestOwnerLaunchDescriptorValidationSurvivesSignals","Output":"--- FAIL: TestOwnerLaunchDescriptorValidationSurvivesSignals (0.01s)\n"}
+{"Time":"2026-10-09T13:17:45.230908+08:00","Action":"fail","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc","Test":"TestOwnerLaunchDescriptorValidationSurvivesSignals","Elapsed":0.01}
+{"Time":"2026-10-09T13:17:45.231122+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc","Output":"FAIL\n"}
+{"Time":"2026-10-09T13:17:45.231371+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc","Output":"FAIL\tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc\t0.391s\n"}
+{"Time":"2026-10-09T13:17:45.231389+08:00","Action":"fail","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc","Elapsed":0.392}

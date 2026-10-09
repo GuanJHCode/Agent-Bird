@@ -1,0 +1,10 @@
+{
+  "command": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+    "run",
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/owner-launch-fd-diagnostic/tasks/owner-launch-supervisor/scripts/poll-interruption-probe.go"
+  ],
+  "source_sha256": "6c2527c35edacece7df177144185f0fb4ea0a2e80407ab0f8a8744e865355ac8",
+  "source": "0713030dc626b488e89a4223f005597e6c805d7c",
+  "exit": 0
+}

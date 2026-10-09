@@ -1,0 +1,35 @@
+=== RUN   TestOwnerInheritedControlRejectsOtherDescriptorKinds
+=== RUN   TestOwnerInheritedControlRejectsOtherDescriptorKinds/pipe
+=== RUN   TestOwnerInheritedControlRejectsOtherDescriptorKinds/file
+=== RUN   TestOwnerInheritedControlRejectsOtherDescriptorKinds/datagram
+=== RUN   TestOwnerInheritedControlRejectsOtherDescriptorKinds/listener
+--- PASS: TestOwnerInheritedControlRejectsOtherDescriptorKinds (0.00s)
+    --- PASS: TestOwnerInheritedControlRejectsOtherDescriptorKinds/pipe (0.00s)
+    --- PASS: TestOwnerInheritedControlRejectsOtherDescriptorKinds/file (0.00s)
+    --- PASS: TestOwnerInheritedControlRejectsOtherDescriptorKinds/datagram (0.00s)
+    --- PASS: TestOwnerInheritedControlRejectsOtherDescriptorKinds/listener (0.00s)
+=== RUN   TestOwnerLaunchDescriptorHandoff
+=== RUN   TestOwnerLaunchDescriptorHandoff/empty_pair
+=== RUN   TestOwnerLaunchDescriptorHandoff/early_bootstrap
+=== RUN   TestOwnerLaunchDescriptorHandoff/early_control
+=== RUN   TestOwnerLaunchDescriptorHandoff/wrong_direction
+=== RUN   TestOwnerLaunchDescriptorHandoff/extra_descriptor
+=== RUN   TestOwnerLaunchDescriptorHandoff/cancelled
+--- PASS: TestOwnerLaunchDescriptorHandoff (0.00s)
+    --- PASS: TestOwnerLaunchDescriptorHandoff/empty_pair (0.00s)
+    --- PASS: TestOwnerLaunchDescriptorHandoff/early_bootstrap (0.00s)
+    --- PASS: TestOwnerLaunchDescriptorHandoff/early_control (0.00s)
+    --- PASS: TestOwnerLaunchDescriptorHandoff/wrong_direction (0.00s)
+    --- PASS: TestOwnerLaunchDescriptorHandoff/extra_descriptor (0.00s)
+    --- PASS: TestOwnerLaunchDescriptorHandoff/cancelled (0.00s)
+=== RUN   TestOwnerLaunchDescriptorHandoffAfterFramedRequest
+--- PASS: TestOwnerLaunchDescriptorHandoffAfterFramedRequest (0.02s)
+=== RUN   TestOwnerLaunchDescriptorValidationSurvivesSignals
+--- PASS: TestOwnerLaunchDescriptorValidationSurvivesSignals (0.01s)
+=== RUN   TestOwnerLaunchDescriptorReceiveRetriesInterruptedSyscall
+=== RUN   TestOwnerLaunchDescriptorReceiveRetriesInterruptedSyscall/queued_rights
+=== RUN   TestOwnerLaunchDescriptorReceiveRetriesInterruptedSyscall/cancelled
+--- PASS: TestOwnerLaunchDescriptorReceiveRetriesInterruptedSyscall (0.00s)
+    --- PASS: TestOwnerLaunchDescriptorReceiveRetriesInterruptedSyscall/queued_rights (0.00s)
+    --- PASS: TestOwnerLaunchDescriptorReceiveRetriesInterruptedSyscall/cancelled (0.00s)
+PASS

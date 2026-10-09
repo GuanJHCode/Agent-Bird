@@ -1,0 +1,19 @@
+=== RUN   TestPublicOwnerLaunchCoordinatorLossUnknown
+    public_owner_launch_loss_native_test.go:267: old-origin public CLI owner-bind PID=24 original Wait=0 error=
+    public_owner_launch_loss_native_test.go:271: old-origin public CLI submit PID=28 original Wait=2 error=exit status 2
+    public_owner_launch_loss_native_test.go:377: old-origin public CLI recover-host PID=57 original Wait=2 error=exit status 2
+    public_owner_launch_loss_native_test.go:397: old origin PID=19 original Wait=<nil>
+    public_owner_launch_loss_native_test.go:398: Coordinator loss retained signed started_wait_owned UNKNOWN: epoch 1->2; first PID=12 SIGKILL original Wait; FirstHost original Wait={Kind:first_host PID:38 ExitCode:2 WaitError:exit status 2}; phase=intended launch_head=started_wait_owned task=ready launch_attempts=1 receipts=3 bindings=0 attempts=0 segments=0 grants=0
+--- PASS: TestPublicOwnerLaunchCoordinatorLossUnknown (0.40s)
+=== RUN   TestPublicOwnerLaunchProtocol2PreBindKill
+    public_owner_launch_protocol2_native_test.go:202: old-origin public CLI owner-bind PID=67 original Wait=0 error=
+    public_owner_launch_protocol2_native_test.go:206: old-origin public CLI submit PID=71 original Wait=2 error=exit status 2
+    public_owner_launch_protocol2_native_test.go:294: old-origin public CLI recover-host PID=94 original Wait=0 error=
+    public_owner_launch_protocol2_native_test.go:331: actual worker original Exited: segment=segment-8e5309baa4c8d0cb072f9c4b process=&{PID:121 Birth:linux:e6bac68a-3a2d-4d1e-b2d9-be94653906c7:747 PGID:121} exit=0
+    public_owner_launch_protocol2_native_test.go:333: old-origin public CLI collect PID=154 original Wait=0 error=
+    public_owner_launch_protocol2_native_test.go:348: old-origin public CLI accept PID=158 original Wait=0 error=
+    public_owner_launch_protocol2_native_test.go:350: old-origin public CLI ack PID=162 original Wait=0 error=
+    public_owner_launch_protocol2_native_test.go:386: old origin PID=62 original Wait=<nil>
+    public_owner_launch_protocol2_native_test.go:387: protocol2 pre-Bind original Wait recovery: same OwnerID/incarnation, ready=1 grant=30000; FirstHost SIGKILL, first Owner exit2, second Owner/Host exit0
+--- PASS: TestPublicOwnerLaunchProtocol2PreBindKill (5.77s)
+PASS

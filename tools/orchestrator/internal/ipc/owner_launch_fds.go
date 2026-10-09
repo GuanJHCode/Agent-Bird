@@ -58,12 +58,20 @@ func (f *OwnerLaunchFDs) ValidateEmpty() error {
 	}
 	// Poll readiness, never peek/read even one byte of authentication material.
 	// A closed parent, pending payload or invalid descriptor cannot be launched.
-	fds := []unix.PollFd{{Fd: int32(pipe), Events: unix.POLLIN}, {Fd: int32(control), Events: unix.POLLIN}}
-	n, err := unix.Poll(fds, 0)
-	if err != nil || n != 0 || fds[0].Revents != 0 || fds[1].Revents != 0 {
-		return ErrInvalidMessage
+	// Darwin poll can be interrupted even with a zero timeout. A signal is
+	// not descriptor readiness; retry a bounded burst without reading payload.
+	for interruptions := 0; interruptions < 16; interruptions++ {
+		fds := []unix.PollFd{{Fd: int32(pipe), Events: unix.POLLIN}, {Fd: int32(control), Events: unix.POLLIN}}
+		n, err := unix.Poll(fds, 0)
+		if errors.Is(err, syscall.EINTR) {
+			continue
+		}
+		if err != nil || n != 0 || fds[0].Revents != 0 || fds[1].Revents != 0 {
+			return ErrInvalidMessage
+		}
+		return nil
 	}
-	return nil
+	return ErrInvalidMessage
 }
 
 func ownerLaunchFDDeadline(ctx context.Context, c *net.UnixConn) (func(), error) {
@@ -115,7 +123,13 @@ func SendOwnerLaunchFDs(ctx context.Context, c *net.UnixConn, bootstrap, control
 	return nil
 }
 
-func ReceiveOwnerLaunchFDs(ctx context.Context, c *net.UnixConn) (result *OwnerLaunchFDs, resultErr error) {
+func ReceiveOwnerLaunchFDs(ctx context.Context, c *net.UnixConn) (*OwnerLaunchFDs, error) {
+	return receiveOwnerLaunchFDs(ctx, c, syscall.Recvmsg)
+}
+
+type ownerLaunchRecvmsg func(fd int, payload, oob []byte, flags int) (n, oobn, recvflags int, from syscall.Sockaddr, err error)
+
+func receiveOwnerLaunchFDs(ctx context.Context, c *net.UnixConn, receive ownerLaunchRecvmsg) (result *OwnerLaunchFDs, resultErr error) {
 	finish, err := ownerLaunchFDDeadline(ctx, c)
 	if err != nil {
 		return nil, err
@@ -144,11 +158,18 @@ func ReceiveOwnerLaunchFDs(ctx context.Context, c *net.UnixConn) (result *OwnerL
 		// nonblocking recv and CLOEXEC setup, never while waiting for a peer.
 		syscall.ForkLock.RLock()
 		defer syscall.ForkLock.RUnlock()
-		n, oobn, flags, _, receiveErr = syscall.Recvmsg(int(fd), payload[:], oob, syscall.MSG_DONTWAIT)
-		if receiveErr == syscall.EAGAIN || receiveErr == syscall.EWOULDBLOCK {
-			return false
+		// EINTR did not consume the readiness edge. Retry here; only EAGAIN
+		// may ask RawConn to wait for a new edge. Bound interrupted bursts.
+		for interruptions := 0; interruptions < 16; interruptions++ {
+			if receiveErr = ctx.Err(); receiveErr != nil {
+				break
+			}
+			n, oobn, flags, _, receiveErr = receive(int(fd), payload[:], oob, syscall.MSG_DONTWAIT)
+			if !errors.Is(receiveErr, syscall.EINTR) {
+				break
+			}
 		}
-		if receiveErr == syscall.EINTR {
+		if receiveErr == syscall.EAGAIN || receiveErr == syscall.EWOULDBLOCK {
 			return false
 		}
 		if receiveErr != nil {

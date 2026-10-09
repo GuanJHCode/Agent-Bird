@@ -1,0 +1,25 @@
+{
+  "label": "linux-native",
+  "source": "db4c267a1a3d5e31f97a53f386e8653f577bb6c4",
+  "command": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+    "test",
+    "-c",
+    "-o",
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/owner-launch-supervisor/tasks/owner-launch-supervisor/tmp/linux/native-final.test",
+    "./cmd/orchestrator"
+  ],
+  "environment": {
+    "TMPDIR": "/private/tmp",
+    "GOOS": "linux",
+    "GOARCH": "arm64",
+    "CGO_ENABLED": "0"
+  },
+  "exit": 0,
+  "stdout_bytes": 0,
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderr_bytes": 0,
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "binary": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/owner-launch-supervisor/tasks/owner-launch-supervisor/tmp/linux/native-final.test",
+  "binary_sha256": "08f425a1d1b781ae53b976dfde3f649a0b474a3e88bc960d83c64f0418095c00"
+}

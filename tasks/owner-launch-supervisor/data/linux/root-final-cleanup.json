@@ -1,0 +1,33 @@
+[
+  {
+    "label": "store-final",
+    "cid": "78e5fc1c672f0673922ffd2ec11ace6ed874a8723f3df7390f4908856241e0cc",
+    "top": 5,
+    "named": 19,
+    "fail": 0,
+    "skip": 0,
+    "root_absent_exit": 1,
+    "root_absent_stderr": "Error: No such object: 78e5fc1c672f0673922ffd2ec11ace6ed874a8723f3df7390f4908856241e0cc\n",
+    "removed_owned_binary": "tasks/owner-launch-supervisor/tmp/linux/store-final.test",
+    "binary_sha256": "7915a38ffb35edb7a5a48fa2ea75c16b4bf517adf14f99c4b48d416a7a7ccd7c",
+    "raw_sha256": "adcd2a90fdb9841333e7bd05f8970dbeb9a7fccefa67e1373719654a1d8f67fa"
+  },
+  {
+    "label": "native-final",
+    "cid": "a8e00dea5228f1c121359cfd335991a0101d20b576e6513e5ec8396eda11e503",
+    "top": 3,
+    "named": 3,
+    "fail": 0,
+    "skip": 0,
+    "root_absent_exit": 1,
+    "root_absent_stderr": "Error: No such object: a8e00dea5228f1c121359cfd335991a0101d20b576e6513e5ec8396eda11e503\n",
+    "removed_owned_binary": "tasks/owner-launch-supervisor/tmp/linux/native-final.test",
+    "binary_sha256": "08f425a1d1b781ae53b976dfde3f649a0b474a3e88bc960d83c64f0418095c00",
+    "raw_sha256": "ee1f7b7b4beba1ca3372f09965bdf4523d9c0cd1c655dc562b12ba7d46a14c16"
+  },
+  {
+    "removed_owned_binary": "tasks/owner-launch-supervisor/tmp/linux/native-loss-final.test",
+    "binary_sha256": "7160ca4b531805f0d93a8e0c850bab804d1917c0d1b4388c58eebbf7126289cf",
+    "reason": "4d2fff5 fixture superseded after Mac failure; cross-compiled only, never launched"
+  }
+]
