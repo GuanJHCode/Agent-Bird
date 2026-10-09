@@ -1,0 +1,50 @@
+[
+  {
+    "label": "fs-final",
+    "cid": "e169b14596eda5a2c0d34a87f2441c696e7f5df7481cd58b73be63f5cbcb6a28",
+    "top_pass": 5,
+    "named_pass": 5,
+    "fail": 0,
+    "skip": 0,
+    "binary_sha256": "0899cc1aa223541b5bb825f2c723ea957b119f8b4dfbb177ee4de232d93461d8",
+    "root_inspect_exit": 1,
+    "root_inspect_error": "Error: No such object: e169b14596eda5a2c0d34a87f2441c696e7f5df7481cd58b73be63f5cbcb6a28\n",
+    "owned_binary_removed_after_hash_check": true
+  },
+  {
+    "label": "store-final",
+    "cid": "9ea85919725bbb5c835575be0971c73b591ecce9f651f49b2c9928f2f24e72c6",
+    "top_pass": 6,
+    "named_pass": 16,
+    "fail": 0,
+    "skip": 0,
+    "binary_sha256": "f01a9362efb5e3630fd9e4648655d81689bd2265d543681ae9aaa1364122bc38",
+    "root_inspect_exit": 1,
+    "root_inspect_error": "Error: No such object: 9ea85919725bbb5c835575be0971c73b591ecce9f651f49b2c9928f2f24e72c6\n",
+    "owned_binary_removed_after_hash_check": true
+  },
+  {
+    "label": "public-final",
+    "cid": "b8035b92f48e59637718c51bd286882e25e41777e9b6e4bf909ca1a88556fe72",
+    "top_pass": 1,
+    "named_pass": 1,
+    "fail": 0,
+    "skip": 0,
+    "binary_sha256": "87e515a6725fa84020403e431a0262197036c53034a2dc124ce1ad57dd2ed3c3",
+    "root_inspect_exit": 1,
+    "root_inspect_error": "Error: No such object: b8035b92f48e59637718c51bd286882e25e41777e9b6e4bf909ca1a88556fe72\n",
+    "owned_binary_removed_after_hash_check": true
+  },
+  {
+    "label": "store-accounted",
+    "cid": "c3880a1bf88802fc8e746b356e58c337d87a8c807301c62afd38cdcfe8516a6a",
+    "top_pass": 6,
+    "named_pass": 16,
+    "fail": 0,
+    "skip": 0,
+    "binary_sha256": "acabb07b944f89a540ac821f842fd9fcaf88a4d6fb330bef872cb004d4f27571",
+    "root_inspect_exit": 1,
+    "root_inspect_error": "Error: No such object: c3880a1bf88802fc8e746b356e58c337d87a8c807301c62afd38cdcfe8516a6a\n",
+    "owned_binary_removed_after_hash_check": true
+  }
+]
