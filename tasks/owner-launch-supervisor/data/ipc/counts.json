@@ -1,0 +1,29 @@
+{
+  "red": {
+    "exit_code": 1,
+    "sha256": "c9653b702681b16158d1cd6748d6096497282d4f12749cc94ea3f5ff8ddfc226",
+    "passed_top": 0,
+    "passed_named": 0,
+    "failed_named": [],
+    "skipped_named": [],
+    "build_failed": true
+  },
+  "green": {
+    "exit_code": 0,
+    "sha256": "dd35f0f8a1a6607c4547f771d76a8c480a7a73d23efc53996890e0ca2f77996f",
+    "passed_top": 1,
+    "passed_named": 7,
+    "failed_named": [],
+    "skipped_named": [],
+    "build_failed": false
+  },
+  "final-race": {
+    "exit_code": 0,
+    "sha256": "91d32eff9630020ac4a66a1a1808ef9bd920b4f92e19254376439e8fb935b781",
+    "passed_top": 1,
+    "passed_named": 7,
+    "failed_named": [],
+    "skipped_named": [],
+    "build_failed": false
+  }
+}
