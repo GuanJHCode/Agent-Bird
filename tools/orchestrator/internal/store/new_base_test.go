@@ -132,6 +132,10 @@ func TestNewBaseAdmissionMatrix(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			db, p := newBaseFixture(t)
 			before := newBaseSourceSnapshot(t, db)
+			var quotaBefore int64
+			if e := db.sql.QueryRow(`SELECT total_bytes FROM storage_usage WHERE scope='global' AND scope_id=''`).Scan(&quotaBefore); e != nil {
+				t.Fatal(e)
+			}
 			switch name {
 			case "source_auth":
 				p.NewBaseAuthorization.ControlToken = "forged"
@@ -197,6 +201,29 @@ func TestNewBaseAdmissionMatrix(t *testing.T) {
 			a, _ := adapter.DecodeInvocationPayload([]byte(raw))
 			if a.CandidateWorkspace.NewBaseRework == nil || a.CandidateWorkspace.NewBaseRework.IntegratedHEAD != strings.Repeat("b", 40) || !strings.Contains(a.Prompt, p.NewBaseRework.Feedback) {
 				t.Fatalf("missing brief: %s", raw)
+			}
+			// Independent SQL column-byte oracle plus exact newly retained adapter delta.
+			var rowBytes, charged int64
+			oracle := `SELECT 16+admission_bytes+length(CAST(run_id AS BLOB))+length(CAST(source_run_id AS BLOB))+length(CAST(source_task_id AS BLOB))+length(CAST(source_event_id AS BLOB))+length(CAST(source_event_hash AS BLOB))+length(CAST(command_id AS BLOB))+length(CAST(request_sha256 AS BLOB))+length(CAST(context_json AS BLOB))+length(CAST(launch_id AS BLOB))+length(CAST(launch_token_hash AS BLOB))+length(CAST(control_token_hash AS BLOB))+length(CAST(created_at AS BLOB)) FROM new_base_lineage WHERE run_id='successor'`
+			if e = db.sql.QueryRow(oracle).Scan(&rowBytes); e != nil {
+				t.Fatal(e)
+			}
+			if e = db.sql.QueryRow(`SELECT total_bytes FROM storage_usage WHERE scope='global' AND scope_id=''`).Scan(&charged); e != nil || charged-quotaBefore != rowBytes {
+				t.Fatalf("lineage quota delta=%d oracle=%d %v", charged-quotaBefore, rowBytes, e)
+			}
+			var delta int64
+			for _, task := range p.Tasks {
+				var stored string
+				if e = db.sql.QueryRow(`SELECT adapter_payload FROM task_runtime WHERE task_id=?`, task.ID).Scan(&stored); e != nil {
+					t.Fatal(e)
+				}
+				baseline, _ := adapter.DecodeInvocationPayload(task.AdapterPayload)
+				canonical, _ := json.Marshal(baseline)
+				delta += int64(len(stored) - len(canonical))
+			}
+			var reserved int64
+			if e = db.sql.QueryRow(`SELECT admission_bytes FROM new_base_lineage WHERE run_id='successor'`).Scan(&reserved); e != nil || reserved != delta {
+				t.Fatalf("payload added bytes=%d reserve=%d %v", delta, reserved, e)
 			}
 			changed := *p.NewBaseRework
 			changed.Feedback = "altered"
