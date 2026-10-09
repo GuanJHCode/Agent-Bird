@@ -1,0 +1,25 @@
+{
+  "source": "082185da73ace2c4a6862d2d82dcd28e09b77526",
+  "dirty": "",
+  "argv": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+    "test",
+    "-c",
+    "-o",
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/diagnostics-retention-verify/tasks/diagnostics-retention-verification/tmp/linux-store/retention.test",
+    "./internal/store"
+  ],
+  "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/diagnostics-retention-verify/tools/orchestrator",
+  "environment": {
+    "TMPDIR": "/private/tmp",
+    "GOTOOLCHAIN": "local",
+    "GOENV": "off",
+    "GOWORK": "off",
+    "GOFLAGS": "",
+    "GOPROXY": "off",
+    "GOSUMDB": "off",
+    "GOOS": "linux",
+    "GOARCH": "arm64",
+    "GOARM64": "v8.0"
+  }
+}
