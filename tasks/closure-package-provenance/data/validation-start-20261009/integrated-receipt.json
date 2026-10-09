@@ -1,0 +1,82 @@
+{
+  "source": "3bd025e9816c95c6a06d5fe775e25b19199b73cb",
+  "evidence_commit": "5d75b7656f43b647282bb47943b7ab29ad06eb59",
+  "integrated_merge": "df72e60a7602cb68e52f22fedd4221110fba9633",
+  "source_objects_unchanged": {
+    "tools/orchestrator": "5bd9e03e660b8b5ab8f4197bc8fcf22ce4878729",
+    "plugins/codex-orchestrator": "dbd308afc5bb0d93d579aae6e237c1e053dce029",
+    "runtime/native": "74b7ed8f5c75519b1710f3e78f6ebb2f4446f467",
+    "tasks/g1-g4-delivery/scripts/package-plugin.sh": "cbe22f7f37e4e953319d53e7e73df6a19cc9cf99"
+  },
+  "root_verified_commands": [
+    {
+      "name": "go-version",
+      "exit": 0,
+      "stdout_sha256": "2a108602dfb6c84352966f25ca6d598d3711bad8845923baf6308b1dd09d06a1"
+    },
+    {
+      "name": "go-mod-verify",
+      "exit": 0,
+      "stdout_sha256": "b4537ed75f533f993f371954de47e42a793b8e5b0587577de7e27fb3e50696bd"
+    },
+    {
+      "name": "build-a",
+      "exit": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "build-b",
+      "exit": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "go-build-info",
+      "exit": 0,
+      "stdout_sha256": "7c91d3cc14c7848ceec013713d00a03eae6a12a827ec4e313458119644f3e05f"
+    },
+    {
+      "name": "package-a",
+      "exit": 0,
+      "stdout_sha256": "98b5336312439a150228916bf14793d7028ef103ff7965d047018ae71b607b12"
+    },
+    {
+      "name": "package-b",
+      "exit": 0,
+      "stdout_sha256": "083f7f2da3b90ac2936b03e7af9f5c806226015daf177df9a641b4bbc22b607d"
+    },
+    {
+      "name": "install-first",
+      "exit": 0,
+      "stdout_sha256": "f3a6a23beedd760abe4c940295ecb32ee87399000d501e995c7ed73976c96fc7"
+    },
+    {
+      "name": "install-replay",
+      "exit": 0,
+      "stdout_sha256": "f3a6a23beedd760abe4c940295ecb32ee87399000d501e995c7ed73976c96fc7"
+    },
+    {
+      "name": "doctor-installed",
+      "exit": 0,
+      "stdout_sha256": "edb41d8db23cb3d31148f1fdf4386fd7dba0b6416d461271f5c19d68004c346d"
+    },
+    {
+      "name": "uninstall-owned",
+      "exit": 0,
+      "stdout_sha256": "5819c65f4d28b655406a88355379deb293f0ace27185f263aedffa3fd3a8ce3a"
+    },
+    {
+      "name": "doctor-after-uninstall",
+      "exit": 0,
+      "stdout_sha256": "3c32dd46cd058ed730759cede9678928039606071c76447e7a9bd8a600424a06"
+    }
+  ],
+  "package_file_hash_mode_matches": 28,
+  "independent_source_hash_matches": 24,
+  "cleanup_removed_file_absences": 30,
+  "duplicate_package_root_absent": true,
+  "receipt_sha256": "ec2f461e2c9bdced9defe8fe3e13cb2fc43aa5b73327d106be782d94a5d11498",
+  "binary_sha256": "c9a09e7c1bde01c20145294ed2f702a15b91bb10138908fadb6cf951470628ba",
+  "package_manifest_sha256": "9e4065cce26f8e8ce7045ca7d3e7803a6a156d68e50d7c5c8f99755d3caf0154",
+  "runner_review_reused": "3168e0752539768d89aaba4b579aa7b74afd9d0a",
+  "scope": "macOS arm64 exact-source private package/install/replay/Doctor/uninstall only; no Provider, Hook TUI, resource or cross-platform qualification"
+}
