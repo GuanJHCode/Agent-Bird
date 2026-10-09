@@ -1,0 +1,18 @@
+{
+  "command": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+    "-C",
+    "tools/orchestrator",
+    "test",
+    "-count=1",
+    "-json",
+    "./internal/store",
+    "-run",
+    "^TestValidationRetryPolicyStageScope$"
+  ],
+  "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/validation-start-retry",
+  "head": "03e054623ed617ddfdb1d30c0aaf16437b15bc9d",
+  "dirty": " M tools/orchestrator/internal/store/candidate_input.go\n M tools/orchestrator/internal/store/dag_rework_target.go\n M tools/orchestrator/internal/store/decision_attempt_legacy.go\n M tools/orchestrator/internal/store/decision_attempt_proof.go\n M tools/orchestrator/internal/store/decision_attempt_record.go\n M tools/orchestrator/internal/store/execution_policy.go\n M tools/orchestrator/internal/store/host_artifact_intake.go\n M tools/orchestrator/internal/store/host_events.go\n M tools/orchestrator/internal/store/policy_retry.go\n M tools/orchestrator/internal/store/review_retry.go\n?? tools/orchestrator/internal/store/validation_retry.go\n?? tools/orchestrator/internal/store/validation_retry_test.go\n",
+  "test_environment": {},
+  "go_version": "go version go1.26.8 darwin/arm64"
+}

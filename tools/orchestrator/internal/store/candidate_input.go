@@ -75,6 +75,9 @@ func bindCandidateInputForDecision(ctx context.Context, tx *sql.Tx, command *con
 	if err := bindCandidateInputContent(ctx, tx, command, replay, retry, use); err != nil {
 		return err
 	}
+	if err := validateBoundValidationRetry(ctx, tx, command); err != nil {
+		return err
+	}
 	if use == candidateArtifactHistoricalProof && command.HostArtifacts == nil {
 		return bindCandidateIntent(ctx, tx, command, true)
 	}

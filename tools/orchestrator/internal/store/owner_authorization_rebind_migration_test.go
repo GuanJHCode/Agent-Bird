@@ -19,7 +19,7 @@ func removeOwnerAuthorizationRebindSchema30(db *DB) error {
 	if version < 30 {
 		return nil
 	}
-	if version != 30 && version != 31 && version != 32 && version != 33 {
+	if version != 30 && version != 31 && version != 32 && version != 33 && version != 34 {
 		return fmt.Errorf("unsupported authorization rebind schema %d", version)
 	}
 	if err := db.sql.QueryRow(`SELECT COUNT(*) FROM owner_succession_rebind_proofs`).Scan(&count); err != nil {

@@ -1,0 +1,18 @@
+{
+  "command": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+    "-C",
+    "tools/orchestrator",
+    "test",
+    "-count=1",
+    "-json",
+    "./internal/host",
+    "-run",
+    "^TestValidationToolSealedPrepareFailureTerminates$"
+  ],
+  "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/validation-start-retry",
+  "head": "1e2af6cde7157f6a0a59e67c9ff030f1e61bf6df",
+  "dirty": " M tools/orchestrator/internal/host/validation_start_test.go\n M tools/orchestrator/internal/store/validation_retry_test.go\n",
+  "test_environment": {},
+  "go_version": "go version go1.26.8 darwin/arm64"
+}

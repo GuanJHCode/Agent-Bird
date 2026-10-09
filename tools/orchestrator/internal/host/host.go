@@ -124,6 +124,15 @@ func (h *Host) executeLaunch(ctx context.Context, grant contract.LaunchCommand, 
 			return contract.Result{}, errors.New("codex_managed_invocation_required")
 		}
 	}
+	if control.validationStarter != nil {
+		actionInv, ok := inv.(interface {
+			CandidateAction() *adapter.CandidateAction
+		})
+		payload, err := adapter.ValidationRetryPayload(grant.AdapterPayload)
+		if privateCodex || !ok || actionInv.CandidateAction() == nil || actionInv.CandidateAction().Operation != "validate" || err != nil || contract.RequireValidationTool(grant, payload.CandidateAction.CommandSHA256) != nil {
+			return contract.Result{}, errors.New("validation_start_control_invalid")
+		}
+	}
 	if privateCodex {
 		if grant.GrantedActiveMS > int64((1<<63-1)/time.Millisecond) {
 			return contract.Result{}, errors.New("invalid_launch_grant")
@@ -223,6 +232,14 @@ func (h *Host) executeLaunch(ctx context.Context, grant contract.LaunchCommand, 
 	}); ok && value.CandidateAction() != nil {
 		action := value.CandidateAction()
 		meta.integrationAction = action.Operation == "integrate"
+		if _, err := adapter.ValidationRetryPayload(grant.AdapterPayload); action.Operation == "validate" && err == nil {
+			meta.validationGrant = &grant
+			if control.validationStarter != nil {
+				meta.startProcess = func(ctx context.Context, cmd process.Command) (*process.Handle, error) {
+					return process.StartWithCommandStarter(ctx, cmd, control.validationStarter)
+				}
+			}
+		}
 		meta.structuredReview = action.Operation == "review" && (meta.outputProvider == string(adapter.ProviderClaude) || meta.outputProvider == string(adapter.ProviderAGY) || meta.outputProvider == string(adapter.ProviderGrok))
 		if action.Operation == "review" && meta.outputProvider == string(adapter.ProviderGrok) {
 			meta.expectedSessionID = grokSessionID(grant)
@@ -298,6 +315,7 @@ func (h *Host) Execute(ctx context.Context, a store.Attempt, runID, taskID strin
 }
 
 type launchMetadata struct {
+	validationGrant   *contract.LaunchCommand
 	artifactGrant     *contract.LaunchCommand
 	diagnosticsGrant  *contract.LaunchCommand
 	startProcess      func(context.Context, process.Command) (*process.Handle, error)
@@ -360,6 +378,7 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		protocol.completionMode = meta.completionMode
 	}
 	eventCount := 0
+	validationToolTreeConfirmed := false
 	lockActive := func() {
 		if activeMS == 0 && !spawnedAt.IsZero() {
 			activeMS = time.Since(spawnedAt).Milliseconds()
@@ -371,6 +390,16 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 			if kind == contract.EventExited {
 				fields.ActiveMS = activeMS
 				fields.DiagnosticsFailure = diagnosticState.failure()
+				if meta.artifactGrant != nil && meta.artifactGrant.ValidationTool != nil {
+					if !validationToolTreeConfirmed {
+						return errors.New("validation_tool_original_wait_required")
+					}
+					var cleanupErr error
+					fields.ValidationToolCleanup, cleanupErr = h.removeValidationTool(*meta.artifactGrant)
+					if cleanupErr != nil {
+						return cleanupErr
+					}
+				}
 			}
 			event, appendErr := h.appendStructuredEvent(spool, runID, taskID, a, meta, kind, payloadHash, identity, exitCode, artifact, fields)
 			if appendErr == nil && event.Sequence > 0 {
@@ -397,6 +426,11 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		// entered. Preparation uncertainty and every starting/spawned path
 		// retain their existing conservative evidence.
 		if recordErr := h.recordLaunchFailed(a, runID, taskID, meta, cause); recordErr != nil {
+			if meta.artifactGrant != nil && meta.artifactGrant.ValidationTool != nil {
+				phaseErr := publishLaunchPhase(spool, "unknown", a, runID, taskID, cmd, nil, recordErr)
+				eventErr := appendPhase(contract.EventUnknown, hashText("unknown:"+a.SegmentID), nil, nil, nil)
+				recordErr = errors.Join(recordErr, phaseErr, eventErr)
+			}
 			h.finishAttempt(a.ID, "unknown", persistDB)
 			return contract.Result{Status: "unknown", ExitCode: -1, EventCount: eventCount}, errors.Join(cause, recordErr)
 		}
@@ -465,6 +499,9 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 			if ctx.Err() != nil || h.stopWasRequested(a.SegmentID) {
 				return finalizePrelaunchRejected(context.Canceled)
 			}
+			if meta.artifactGrant != nil && meta.artifactGrant.ValidationTool != nil {
+				return finalizePrelaunchRejected(prepareErr)
+			}
 			return contract.Result{Status: "failed", ExitCode: -1, EventCount: eventCount}, prepareErr
 		}
 		// Provider protocols keep priority; a local action can supply its own
@@ -485,6 +522,9 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 			}
 			if ctx.Err() != nil || h.stopWasRequested(a.SegmentID) {
 				return finalizePrelaunchRejected(context.Canceled)
+			}
+			if meta.artifactGrant != nil && meta.artifactGrant.ValidationTool != nil {
+				return finalizePrelaunchRejected(prepareErr)
 			}
 			return contract.Result{Status: "failed", ExitCode: -1, EventCount: eventCount}, prepareErr
 		}
@@ -519,6 +559,15 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 	}
 	p, err := start(ctx, cmd)
 	if err != nil {
+		if p == nil && meta.validationGrant != nil && process.NeverStartedCode(ctx, err, cmd) != "" {
+			if rejected := h.recordValidationStartRejected(ctx, *meta.validationGrant, cmd, err); rejected == nil {
+				eventCount++
+				h.finishAttempt(a.ID, "failed", persistDB)
+				return contract.Result{Status: "failed", ExitCode: -1, EventCount: eventCount}, err
+			} else {
+				err = errors.Join(err, rejected)
+			}
+		}
 		var identity *process.Identity
 		exit := -1
 		if p != nil {
@@ -630,6 +679,7 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 	}
 	finishJoinedStop := func(stopErr error) (contract.Result, error) {
 		if stopErr == nil {
+			validationToolTreeConfirmed = true
 			lockActive()
 		}
 		<-progressStopped
@@ -686,6 +736,7 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		h.finishAttempt(a.ID, "unknown", persistDB)
 		return contract.Result{Status: "unknown", ExitCode: p.ExitCode(), EventCount: eventCount, OutputHash: hashText(p.Output())}, err
 	}
+	validationToolTreeConfirmed = true
 	lockActive()
 	_ = diagnosticState.end(true, nil)
 	if h.stopWasRequested(a.SegmentID) || p.ExitCode() < 0 {
@@ -906,13 +957,14 @@ func (h *Host) appendPhaseEvent(spool *events.Spool, runID, taskID string, a sto
 }
 
 type structuredEventFields struct {
-	DiagnosticsFailure *contract.DiagnosticsFailure
-	Failure            *contract.FailureFacts
-	StopReason         string
-	QuestionRevision   int
-	SessionKind        string
-	SessionID          string
-	ActiveMS           int64
+	DiagnosticsFailure    *contract.DiagnosticsFailure
+	ValidationToolCleanup *contract.ValidationToolCleanup
+	Failure               *contract.FailureFacts
+	StopReason            string
+	QuestionRevision      int
+	SessionKind           string
+	SessionID             string
+	ActiveMS              int64
 }
 
 func (h *Host) appendStructuredEvent(spool *events.Spool, runID, taskID string, a store.Attempt, meta launchMetadata, kind, payloadHash string, identity *process.Identity, exitCode *int, artifact *contract.ArtifactRef, fields structuredEventFields) (contract.Event, error) {
@@ -926,6 +978,7 @@ func (h *Host) appendStructuredEvent(spool *events.Spool, runID, taskID string, 
 	event.StopReason = fields.StopReason
 	event.Failure = fields.Failure
 	event.DiagnosticsFailure = fields.DiagnosticsFailure
+	event.ValidationToolCleanup = fields.ValidationToolCleanup
 	if identity != nil {
 		event.Process = &contract.ProcessIdentity{PID: identity.PID, Birth: identity.Birth, PGID: identity.PGID}
 	}
@@ -1069,6 +1122,13 @@ func (h *Host) recordLaunchFailed(a store.Attempt, runID, taskID string, meta la
 		return errors.New("launch_failure_state_conflict")
 	}
 
+	var toolCleanup *contract.ValidationToolCleanup
+	if meta.artifactGrant != nil && meta.artifactGrant.ValidationTool != nil {
+		toolCleanup, err = h.removeValidationTool(*meta.artifactGrant)
+		if err != nil {
+			return err
+		}
+	}
 	safeCause := safeLaunchFailureCause(cause)
 	body, err := json.Marshal(launchFailureDiagnostic{1, "launch_failure", "prelaunch", string(safeCause)})
 	if err != nil {
@@ -1083,7 +1143,7 @@ func (h *Host) recordLaunchFailed(a store.Attempt, runID, taskID string, meta la
 	if err = publishLaunchPhase(spool, "not_started", a, runID, taskID, process.Command{}, nil, safeCause); err != nil {
 		return err
 	}
-	_, err = h.appendStructuredEvent(spool, runID, taskID, a, meta, contract.EventLaunchRejected, artifact.SHA256, nil, nil, artifact, structuredEventFields{Failure: launchFailureFacts(safeCause)})
+	_, err = h.appendStructuredEvent(spool, runID, taskID, a, meta, contract.EventLaunchRejected, artifact.SHA256, nil, nil, artifact, structuredEventFields{Failure: launchFailureFacts(safeCause), ValidationToolCleanup: toolCleanup})
 	return err
 }
 
@@ -1191,11 +1251,16 @@ func (h *Host) recoverDuplicateGrant(grant contract.LaunchCommand, epoch uint64)
 			var cause error = errors.New("recovered_incomplete_grant")
 			if desc.Kind == "prelaunch" {
 				id = "launch-failure"
-				safeCause, decodeErr := decodeRecoveredLaunchFailure(body)
-				if decodeErr != nil {
-					return decodeErr
+				if validValidationStartDiagnostic(body) {
+					// Authenticated diagnostic preserves uncertainty, never live proof.
+					cause = errors.New("recovered_validation_start_incomplete")
+				} else {
+					safeCause, decodeErr := decodeRecoveredLaunchFailure(body)
+					if decodeErr != nil {
+						return decodeErr
+					}
+					cause = safeCause
 				}
-				cause = safeCause
 			}
 			if err = publishLaunchPhase(spool, "unknown", a, grant.RunID, grant.TaskID, process.Command{}, nil, cause); err != nil {
 				return err

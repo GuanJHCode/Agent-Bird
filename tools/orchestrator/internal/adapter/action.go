@@ -9,6 +9,7 @@ type CandidateAction struct {
 	Operation              string          `json:"operation"`
 	SourceTask             string          `json:"source_task"`
 	OrderedSourceTasks     []string        `json:"ordered_source_tasks,omitempty"`
+	CommandSHA256          string          `json:"command_sha256,omitempty"`
 	Command                []string        `json:"command,omitempty"`
 	Target                 CandidateTarget `json:"target"`
 	ReviewIndex            *ReviewIndex    `json:"review_index,omitempty"`

@@ -57,6 +57,9 @@ func (d *DB) reserveHostArtifacts(ctx context.Context, tx *sql.Tx, c *contract.L
 		}
 	}
 	c.HostArtifacts = &contract.HostArtifactGrant{Version: 1, TerminalReservationID: terminal, ProgressReservationID: progress, ScopeSHA256: scope}
+	if err = d.reserveValidationTool(ctx, tx, c); err != nil {
+		return err
+	}
 	return bindHostArtifacts(ctx, tx, c, true)
 }
 
@@ -64,6 +67,15 @@ func (d *DB) reserveHostArtifacts(ctx context.Context, tx *sql.Tx, c *contract.L
 // Missing both historical rows preserves the old nil-grant intent; partial or
 // conflicting state is never repaired here. Live replay always requires rows.
 func bindHostArtifacts(ctx context.Context, tx *sql.Tx, c *contract.LaunchCommand, required bool) error {
+	if err := bindHostArtifactSlots(ctx, tx, c, required); err != nil {
+		return err
+	}
+	return bindValidationTool(ctx, tx, c, required)
+}
+
+// Artifact intake authenticates only an existing slot and has no full adapter
+// or plan. It must not accidentally reconstruct executable storage authority.
+func bindHostArtifactSlots(ctx context.Context, tx *sql.Tx, c *contract.LaunchCommand, required bool) error {
 	rows, err := tx.QueryContext(ctx, `SELECT r.id,r.run_id,r.task_id,r.attempt_id,r.producer_id,r.class,r.scope_key,r.policy_sha256,r.namespace_sha256,r.reserved_bytes,r.retained_bytes,r.state,COALESCE(m.reserved_bytes,-1) FROM managed_artifact_reservations r LEFT JOIN managed_host_artifact_metadata m ON m.reservation_id=r.id AND m.run_id=r.run_id WHERE r.attempt_id=? AND r.scope_key=? AND r.class IN ('terminal','progress')`, c.AttemptID, c.SegmentID)
 	if err != nil {
 		return err
@@ -105,5 +117,8 @@ func bindHostArtifacts(ctx context.Context, tx *sql.Tx, c *contract.LaunchComman
 		return contract.ErrHostArtifactGrant
 	}
 	c.HostArtifacts = &g
-	return contract.RequireHostArtifacts(*c)
+	if err = contract.RequireHostArtifacts(*c); err != nil {
+		return err
+	}
+	return nil
 }

@@ -162,8 +162,20 @@ func decisionRecordKind(r attemptDecisionRecord) (string, error) {
 		return "", ErrConflict
 	}
 	if _, ok := fields["kind"]; ok {
-		_, err := parseReviewRetry(r.payload)
-		return reviewRetryKind, err
+		var kind string
+		if json.Unmarshal(fields["kind"], &kind) != nil {
+			return "", ErrConflict
+		}
+		switch kind {
+		case reviewRetryKind:
+			_, err := parseReviewRetry(r.payload)
+			return kind, err
+		case validationRetryKind:
+			_, err := parseValidationRetry(r.payload)
+			return kind, err
+		default:
+			return "", ErrConflict
+		}
 	}
 	var discriminator struct {
 		Version int `json:"version"`

@@ -1,0 +1,11 @@
+# Validation tool storage grant, schema34
+
+ROOT owns contract DTO, schema/migration, reservation/aggregate quota and Host artifact grant binding in this isolated worktree. The validation-start-retry worker owns Host journal/copy/cleanup and retry policy/decisions/Host event wiring. No shared file writers.
+
+Pinned native validation entry copies need explicit durable physical capacity before any FS side effect. Reusing terminal/progress v1 reservations would violate their fixed slots, so introduce schema34 `validation_tool_reservations`, an authenticated `LaunchCommand.ValidationTool` and terminal `Event.ValidationToolCleanup`. Existing unpinned tasks retain nil fields and byte-compatible grants.
+
+Each grant reserves 32MiB raw plus 8192 bytes of control/physical journal escrow. Streaming copy/header validation avoids loading the binary. Only an authenticated launch_rejected accepted by the existing Store never-started validation (including preparation failures before cmd.Start), or exited after original Wait/tree, may carry cleanup evidence; ordinary failed/result, unknown and a standalone cleanup JSON cannot release capacity. Deletion precedes terminal publication; ambiguous or failed deletion keeps ownership and capacity. Historical reconstruction can read a released grant's exact immutable identity but cannot use it for another live launch. New retry claims get new reservations. No legacy missing-row repair or quota refund by timer.
+
+Host owns a bounded durable intent/create/delete/removed journal under the grant scope and records exact original file identity/hash. Absent-before-create cleanup still writes an explicit journal. Cold uncertain processes retain the copy/reservation; a journal is not original Wait. The 8KiB journal escrow remains charged after binary removal. Initial 32MiB reservation is a conservative maximum promise, not a claim that 32MiB is materialized.
+
+Acceptance: actual 1-byte-short/exact quota and rollback matrix, malformed/missing/orphan/released binding refusal, authenticated release and replay, UNKNOWN retention, schema33 migration preserving proof and refusing erasure, and affected Host/Store vertical verification in the worker worktree. No providers/models, user installation replacement or publishing.
