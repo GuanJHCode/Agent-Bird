@@ -34,6 +34,24 @@ func newBasePublicRequestHash(request coordinator.SubmitRequest, protocol int) s
 	return hex.EncodeToString(sum[:])
 }
 func loadNewBasePrepared(state string, request coordinator.SubmitRequest, protocol int) (string, error) {
+	return loadNewBasePreparedWithSync(state, request, protocol, syncNewBaseDirectory)
+}
+func loadNewBasePreparedWithSync(state string, request coordinator.SubmitRequest, protocol int, syncDir func(string) error) (string, error) {
+	control, err := readNewBasePrepared(state, request, protocol)
+	if err != nil || control == "" {
+		return control, err
+	}
+	// A previous Link may have succeeded before marker-directory Sync failed.
+	// Retry the full barrier before exposing the same identities to Submit.
+	if err = syncNewBaseIdentityDirectories(state, syncDir); err != nil {
+		return "", err
+	}
+	if err = syncDir(filepath.Join(state, "new-base-submissions")); err != nil {
+		return "", err
+	}
+	return control, nil
+}
+func readNewBasePrepared(state string, request coordinator.SubmitRequest, protocol int) (string, error) {
 	if request.NewBaseRework == nil {
 		return "", nil
 	}
@@ -60,8 +78,16 @@ func loadNewBasePrepared(state string, request coordinator.SubmitRequest, protoc
 	return prepared.ControlFile, nil
 }
 func publishNewBasePrepared(state string, request coordinator.SubmitRequest, protocol int, control string) (string, error) {
+	return publishNewBasePreparedWithSync(state, request, protocol, control, syncNewBaseDirectory)
+}
+func publishNewBasePreparedWithSync(state string, request coordinator.SubmitRequest, protocol int, control string, syncDir func(string) error) (string, error) {
 	dir := filepath.Join(state, "new-base-submissions")
 	if e := privateSubdir(dir); e != nil {
+		return "", e
+	}
+	// Bootstrap/control files are already file-Synced. Persist their directory
+	// entries and all newly created state children before publishing the marker.
+	if e := syncNewBaseIdentityDirectories(state, syncDir); e != nil {
 		return "", e
 	}
 	suffix, e := randomValue("prepare")
@@ -77,16 +103,35 @@ func publishNewBasePrepared(state string, request coordinator.SubmitRequest, pro
 	if err != nil && !errors.Is(err, os.ErrExist) {
 		return "", err
 	}
-	f, e := os.Open(dir)
-	if e != nil {
+	if e = syncDir(dir); e != nil {
 		return "", e
 	}
-	e = f.Sync()
-	f.Close()
-	if e != nil {
-		return "", e
-	}
-
 	// Read back the unique winner; a parallel exact submit uses its identities.
-	return loadNewBasePrepared(state, request, protocol)
+	return readNewBasePrepared(state, request, protocol)
+}
+func syncNewBaseIdentityDirectories(state string, syncDir func(string) error) error {
+	for _, dir := range []string{filepath.Join(state, "host-bootstrap"), filepath.Join(state, "control"), state} {
+		if err := syncDir(dir); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func syncNewBaseDirectory(dir string) error {
+	info, err := os.Lstat(dir)
+	if err != nil {
+		return err
+	}
+	if !info.IsDir() || info.Mode().Perm() != 0700 || !owned(info) {
+		return codeError("untrusted_private_dir")
+	}
+	f, err := os.Open(dir)
+	if err != nil {
+		return err
+	}
+	err = f.Sync()
+	if closeErr := f.Close(); err == nil {
+		err = closeErr
+	}
+	return err
 }

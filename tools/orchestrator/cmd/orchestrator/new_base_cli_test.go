@@ -37,10 +37,19 @@ func TestCLINewBaseOrderedGeneration(t *testing.T) {
 			t.Logf("retained new base runtime: %s", root)
 		}
 	})
-	ctx, cancel := context.WithTimeout(t.Context(), 90*time.Second)
+	timeout := 90 * time.Second
+	if os.Getenv("NEW_BASE_NATIVE_RACE") == "1" {
+		timeout = 180 * time.Second
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), timeout)
 	defer cancel()
 	bin, state, repo := filepath.Join(root, "orchestrator"), filepath.Join(root, "state"), filepath.Join(root, "repo")
-	if out, e := exec.Command("go", "build", "-o", bin, ".").CombinedOutput(); e != nil {
+	buildArgs := []string{"build", "-o", bin, "."}
+	if os.Getenv("NEW_BASE_NATIVE_RACE") == "1" {
+		buildArgs = []string{"build", "-race", "-o", bin, "."}
+	}
+	t.Logf("native orchestrator build args: %v", buildArgs)
+	if out, e := exec.Command("go", buildArgs...).CombinedOutput(); e != nil {
 		t.Fatalf("build: %v %s", e, out)
 	}
 	for _, p := range []string{state, repo} {

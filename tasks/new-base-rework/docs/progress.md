@@ -42,3 +42,11 @@ F03's competition snapshot now includes ordinary queued and resume_queued integr
 `store-final-race` is a failed batch, not an overall PASS: the expanded scope initially included a prepared successor itself and blocked exact replay. Its unchanged schema33 migration, old owner-launch migration and pending-auth actual COMMIT tests each passed and remain applicable. `store-final-race-02` is also retained FAIL: corruption injection dropped only the identity trigger and was correctly stopped by the existing release-proof trigger. The fixture now drops both only within its rolled-back corruption transaction; production guards were not weakened.
 
 `store-final-race-03`: 4 top-level / 13 named PASS, 0 failure/skip. It reruns only the affected exact replay, mode-only conflict, byte oracle/quota, actual COMMIT rollback, concurrent target hold/release, reverse queued admission and missing/corrupt ticket checks. Unaffected historical migration evidence from the failed earlier batch is reused individually.
+
+## Prepared identity publication review correction
+
+Prepared metadata now follows bootstrap/control directory Sync, state directory Sync (including newly created preparation directory), file Sync, atomic Link and marker-directory Sync. Every barrier failure returns no submit-ready identity; the existing public submit caller returns before Coordinator Submit. Loading an existing marker repeats the full directory barrier, so a failed final Sync cannot be bypassed on retry and the original launch/control identities remain exact.
+
+`public-barrier`: 1 top-level / 5 named PASS, 0 failure/skip. Per-call Sync callbacks inject each of the four failures, record exact ordering, assert no marker before the first three barriers and verify original-identity recovery after the already-linked final-stage failure. Real directory Sync is used for nonfailed barriers and recovery. Physical power loss is not tested.
+
+The final public runtime test has explicit `NEW_BASE_NATIVE_RACE=1` opt-in: its nested orchestrator build adds `-race`, so Coordinator and Host processes are instrumented too. Without this option only the parent test/provider fixture build is instrumented.
