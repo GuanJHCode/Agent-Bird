@@ -48,11 +48,16 @@ func diagnosticsLaunchScope(ctx context.Context, tx *sql.Tx, c *contract.LaunchC
 	return ordinal, namespace, nil
 }
 
-// This pure reconstruction is also needed when candidate retry/rework proofs
-// reconstruct an old command. It grants no new reservation or filesystem path.
-// Deletion is not public yet: released-history proofs must be separated from
-// dispatch authorization before M3 allows namespaces to be deleted.
+// Live binding never grants retired namespaces. Historical reconstruction is
+// internal evidence only and must not reach dispatch or Host IPC.
 func bindExistingDiagnostics(ctx context.Context, tx *sql.Tx, c *contract.LaunchCommand) error {
+	return bindDiagnosticsForUse(ctx, tx, c, candidateArtifactLive)
+}
+func bindDiagnosticsForUse(ctx context.Context, tx *sql.Tx, c *contract.LaunchCommand, use candidateArtifactUse) error {
+	if use != candidateArtifactLive && use != candidateArtifactHistoricalProof {
+		return ErrConflict
+	}
+
 	policy, hash, err := diagnosticsTaskPolicy(ctx, tx, c.RunID, c.TaskID)
 	if err != nil {
 		return err
@@ -71,10 +76,25 @@ func bindExistingDiagnostics(ctx context.Context, tx *sql.Tx, c *contract.Launch
 	if err != nil {
 		return err
 	}
-	var id string
-	err = tx.QueryRowContext(ctx, `SELECT r.id FROM managed_artifact_reservations r JOIN diagnostic_delivery_state d ON d.reservation_id=r.id AND d.run_id=r.run_id AND d.task_id=r.task_id AND d.attempt_id=r.attempt_id AND d.producer_id=r.producer_id WHERE r.run_id=? AND r.task_id=? AND r.attempt_id=? AND r.producer_id=? AND r.class='diagnostics' AND r.scope_key='attempt' AND r.policy_sha256=? AND r.namespace_sha256=? AND r.reserved_bytes=? AND r.state IN ('reserved','active')`, c.RunID, c.TaskID, c.AttemptID, c.HostID, hash, namespace, detailedArtifactReservationBytes).Scan(&id)
+	var id, state, phase string
+	var revision int64
+	err = tx.QueryRowContext(ctx, `SELECT r.id,r.state,d.phase,d.next_revision FROM managed_artifact_reservations r JOIN diagnostic_delivery_state d ON d.reservation_id=r.id AND d.run_id=r.run_id AND d.task_id=r.task_id AND d.attempt_id=r.attempt_id AND d.producer_id=r.producer_id WHERE r.run_id=? AND r.task_id=? AND r.attempt_id=? AND r.producer_id=? AND r.class='diagnostics' AND r.scope_key='attempt' AND r.policy_sha256=? AND r.namespace_sha256=? AND r.reserved_bytes=?`, c.RunID, c.TaskID, c.AttemptID, c.HostID, hash, namespace, detailedArtifactReservationBytes).Scan(&id, &state, &phase, &revision)
 	if err != nil {
 		return CodeError("diagnostics_grant_invalid")
+	}
+	if state != "reserved" && state != "active" {
+		if use != candidateArtifactHistoricalProof {
+			return CodeError("diagnostics_grant_invalid")
+		}
+		row := diagnosticDeliveryRow{scope: diagnostics.Scope{Version: 1, RunID: c.RunID, TaskID: c.TaskID, AttemptID: c.AttemptID, ProducerID: c.HostID, PolicySHA256: hash}, namespace: namespace, reservation: id, reservationState: state, phase: phase, nextRevision: revision}
+		intent, e := loadDiagnosticDeletion(ctx, tx, row)
+		if e != nil {
+			return CodeError("diagnostics_grant_invalid")
+		}
+		facts, e := diagnosticDeletionFacts(ctx, tx, row, false)
+		if e != nil || facts != intent.factsJSON {
+			return CodeError("diagnostics_grant_invalid")
+		}
 	}
 	grant := contract.DiagnosticsGrant{Policy: *policy, PolicySHA256: hash, ReservationID: id, SegmentOrdinal: ordinal}
 	if grant.Validate() != nil || c.Diagnostics != nil && *c.Diagnostics != grant {

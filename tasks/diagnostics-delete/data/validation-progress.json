@@ -1,0 +1,64 @@
+{
+  "baseline-schema": {
+    "exit": 1,
+    "top": {
+      "fail": 1
+    },
+    "named": {
+      "fail": 4
+    },
+    "sha256": "d8a9233644d275af9b9452f3f00bcb17964174ee09dde821f9a027823b5ea6fc"
+  },
+  "store-first": {
+    "exit": 0,
+    "top": {
+      "pass": 8
+    },
+    "named": {
+      "pass": 28
+    },
+    "sha256": "53ae758bc425178aed198772b71e6db2ad361f42bfcd93e4f1c7ed497b595236"
+  },
+  "store-race": {
+    "exit": 0,
+    "top": {
+      "pass": 8
+    },
+    "named": {
+      "pass": 28
+    },
+    "sha256": "72066c019c8573e52b160c9ca2b7b41f7a7c34e398b3f44bbf9933427eb0f190"
+  },
+  "public-and-adjacent": {
+    "exit": 1,
+    "top": {
+      "pass": 8,
+      "fail": 1
+    },
+    "named": {
+      "pass": 21,
+      "fail": 1
+    },
+    "sha256": "fe30396333332987a6d0016863a6abfb05aa07a5ed8c00e1a314a4c4506ca300"
+  },
+  "migration-and-peer": {
+    "exit": 0,
+    "top": {
+      "pass": 2
+    },
+    "named": {
+      "pass": 2
+    },
+    "sha256": "85921d2b51920985c00d92a27f13c9e4ede24e9266a3011218a55454eb34258a"
+  },
+  "final-focused": {
+    "exit": 0,
+    "top": {
+      "pass": 17
+    },
+    "named": {
+      "pass": 37
+    },
+    "sha256": "f45b17d6bdc2dd55ebbf51bd6c76280520e2da5cc45044b3a644cb8437edc775"
+  }
+}

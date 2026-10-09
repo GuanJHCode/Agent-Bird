@@ -1,0 +1,13 @@
+{
+  "command": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+    "test",
+    "-c",
+    "-o",
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/diagnostics-delete/tasks/diagnostics-delete/tmp/linux-bin/public.test",
+    "./cmd/orchestrator"
+  ],
+  "exit": 0,
+  "head": "d71fba8",
+  "binary_sha256": "87e515a6725fa84020403e431a0262197036c53034a2dc124ce1ad57dd2ed3c3"
+}

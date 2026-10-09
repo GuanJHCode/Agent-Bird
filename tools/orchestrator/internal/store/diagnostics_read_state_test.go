@@ -96,12 +96,25 @@ func TestDiagnosticsPublicReadRevalidatesAuthorityAfterFilesystem(t *testing.T) 
 				if kind == "token" {
 					_, err = f.db.sql.Exec(`UPDATE run_control SET token_hash=?`, runtimeHash("new-token"))
 				} else {
-					_, err = f.db.sql.Exec(`UPDATE managed_artifact_reservations SET state='deleting'`)
+					// Deliberate corruption tests the second authorization barrier;
+					// normal schema31 transitions cannot delete a reading page.
+					_, err = f.db.sql.Exec(`DROP TRIGGER diagnostic_reservation_transition; UPDATE managed_artifact_reservations SET state='deleting' WHERE class='diagnostics'`)
+					if err != nil {
+						t.Fatal("deleting fixture failed before reauthorization", err)
+					}
+					var state string
+					if err = f.db.sql.QueryRow(`SELECT state FROM managed_artifact_reservations WHERE class='diagnostics'`).Scan(&state); err != nil || state != "deleting" {
+						t.Fatal("deleting state not injected", state, err)
+					}
 				}
 				return page, err
 			})
-			if err == nil || len(raw) != 0 {
-				t.Fatal("raw bytes escaped failed completion authorization", err)
+			want := CodeError("owner_mismatch")
+			if kind == "deleting" {
+				want = CodeError("diagnostics_unavailable")
+			}
+			if !errors.Is(err, want) || len(raw) != 0 {
+				t.Fatal("raw bytes escaped or failed before completion authorization", err)
 			}
 			var phase string
 			var pending int

@@ -15,6 +15,7 @@ import (
 type diagnosticDeliveryRow struct {
 	scope                                diagnostics.Scope
 	namespace, reservation, phase        string
+	reservationState                     string
 	nextRevision, readingRevision        int64
 	readingRequest, lastACK, ackedCursor string
 	pending                              []byte
@@ -31,7 +32,7 @@ type diagnosticReadFence struct {
 
 // Authorization belongs inside each state transaction, including replays.
 // It intentionally does not depend on execution liveness or current epoch.
-func authorizeDiagnostics(ctx context.Context, tx *sql.Tx, task, attempt, controller, token string) (row diagnosticDeliveryRow, err error) {
+func authorizeDiagnosticsIdentity(ctx context.Context, tx *sql.Tx, task, attempt, controller, token string) (row diagnosticDeliveryRow, err error) {
 	var run, owner, tokenHash string
 	err = tx.QueryRowContext(ctx, `SELECT t.run_id,r.controller_thread,c.token_hash FROM tasks t JOIN runs r ON r.id=t.run_id JOIN run_control c ON c.run_id=r.id WHERE t.id=?`, task).Scan(&run, &owner, &tokenHash)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -67,10 +68,19 @@ func authorizeDiagnostics(ctx context.Context, tx *sql.Tx, task, attempt, contro
 	if scopeErr != nil || dRun != run || rRun != run || dTask != task || rTask != task || rAttempt != attempt || rProducer != row.scope.ProducerID || policyHash != hash || namespace != row.namespace || reserved != detailedArtifactReservationBytes || original != 1 || !ValidDiagnosticsToken(attempt) || !ValidDiagnosticsToken(row.scope.ProducerID) || !ValidDiagnosticsToken(row.reservation) {
 		return row, CodeError("diagnostics_grant_invalid")
 	}
-	if state == "released" {
+	row.reservationState = state
+	return row, nil
+}
+
+func authorizeDiagnostics(ctx context.Context, tx *sql.Tx, task, attempt, controller, token string) (diagnosticDeliveryRow, error) {
+	row, err := authorizeDiagnosticsIdentity(ctx, tx, task, attempt, controller, token)
+	if err != nil {
+		return row, err
+	}
+	if row.reservationState == "released" {
 		return row, CodeError("diagnostics_expired")
 	}
-	if state != "reserved" && state != "active" {
+	if row.reservationState != "reserved" && row.reservationState != "active" {
 		return row, CodeError("diagnostics_unavailable")
 	}
 	return row, nil

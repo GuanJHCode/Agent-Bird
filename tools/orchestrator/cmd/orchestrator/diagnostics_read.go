@@ -18,6 +18,7 @@ import (
 
 type diagnosticsCLIInput struct {
 	read    store.DiagnosticsReadRequest
+	delete  store.DiagnosticsDeleteRequest
 	receipt store.DiagnosticsReceipt
 	task    string
 	kind    ipc.Kind
@@ -95,12 +96,20 @@ func loadDiagnosticsCLIInput(action, path string) (in diagnosticsCLIInput, err e
 			return in, codeError("diagnostics_request_invalid")
 		}
 		in.task = in.read.TaskID
-	} else {
+	} else if action == "diagnostics-delete" {
+		in.kind = ipc.KindDiagnosticsDelete
+		if err = json.Unmarshal(raw, &in.delete); err != nil {
+			return in, codeError("diagnostics_request_invalid")
+		}
+		in.task = in.delete.TaskID
+	} else if action == "diagnostics-ack" {
 		in.kind = ipc.KindDiagnosticsAck
 		if err = json.Unmarshal(raw, &in.receipt); err != nil {
 			return in, codeError("diagnostics_receipt_invalid")
 		}
 		in.task = in.receipt.Identity.TaskID
+	} else {
+		return in, codeError("invalid_args")
 	}
 	return in, nil
 }
@@ -109,6 +118,8 @@ func performDiagnosticsCLI(ctx context.Context, state string, capability control
 	var payload any
 	if in.kind == ipc.KindDiagnosticsRead {
 		payload = coordinator.DiagnosticsReadRequest{ControllerThread: capability.ControllerThread, ControlToken: capability.ControlToken, Request: in.read}
+	} else if in.kind == ipc.KindDiagnosticsDelete {
+		payload = coordinator.DiagnosticsDeleteRequest{ControllerThread: capability.ControllerThread, ControlToken: capability.ControlToken, Request: in.delete}
 	} else {
 		payload = coordinator.DiagnosticsAckRequest{ControllerThread: capability.ControllerThread, ControlToken: capability.ControlToken, Receipt: in.receipt}
 	}
@@ -126,7 +137,7 @@ func diagnosticsCLI(ctx context.Context, action string, args []string, out io.Wr
 	fs.SetOutput(io.Discard)
 	stateArg := fs.String("state-dir", "", "private state directory")
 	controlFile := fs.String("control-file", "", "original run control capability")
-	requestFile := fs.String("request", "", "owner-only read request or exact diagnostic receipt")
+	requestFile := fs.String("request", "", "owner-only diagnostics request or exact receipt")
 	if fs.Parse(args) != nil || fs.NArg() != 0 || *controlFile == "" || *requestFile == "" {
 		return codeError("invalid_args")
 	}
@@ -150,7 +161,7 @@ func taskDiagnosticsCLI(ctx context.Context, action string, args []string, out i
 	fs := flag.NewFlagSet("task "+action, flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	handle := fs.String("handle", "", "original task handle")
-	request := fs.String("request", "", "owner-only read request or exact diagnostic receipt")
+	request := fs.String("request", "", "owner-only diagnostics request or exact receipt")
 	if fs.Parse(args) != nil || fs.NArg() != 0 || *handle == "" || *request == "" {
 		return codeError("invalid_args")
 	}
