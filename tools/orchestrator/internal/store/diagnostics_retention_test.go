@@ -5,8 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/diagnostics"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -273,4 +276,171 @@ func (l retentionObserveLease) Remove(ctx context.Context) error {
 		return errors.New("injected remove interruption")
 	}
 	return l.diagnosticDeletionLease.Remove(ctx)
+}
+
+func TestDiagnosticsRetentionReconnectedReceiptEpoch(t *testing.T) {
+	f, r := retentionFixture(t)
+	ctx := context.Background()
+	if e := f.db.BeginCoordinatorEpoch(ctx, 2); e != nil {
+		t.Fatal(e)
+	}
+	if _, e := f.db.RegisterHost(ctx, f.hello, 2); e != nil {
+		t.Fatal(e)
+	}
+	if e := f.db.BeginHostReconcile(ctx, f.grant.HostID); e != nil {
+		t.Fatal(e)
+	}
+	late := diagnosticOutcomeEvent(f.grant, contract.EventExited, 3)
+	late.ExecutionEpoch = 2
+	zero := 0
+	late.ExitCode = &zero
+	if _, e := f.db.CommitHostEvent(ctx, late); e != nil {
+		t.Fatal("real reconciled receive rejected", e)
+	}
+	if _, e := f.db.sql.Exec(`UPDATE runtime_events SET created_at='2020-08-01T00:00:00Z' WHERE sequence=3`); e != nil {
+		t.Fatal(e)
+	}
+	var epoch int
+	if e := f.db.sql.QueryRow(`SELECT execution_epoch FROM segment_runtime WHERE segment_id=?`, f.grant.SegmentID).Scan(&epoch); e != nil || epoch != 1 {
+		t.Fatal("original claim changed", epoch, e)
+	}
+	p := mustRetentionPlan(t, f, r)
+	if len(p.Items) != 1 || p.Items[0].Retention.TerminalReceivedAt != "2020-08-01T00:00:00Z" {
+		t.Fatal("authenticated receive epoch is not original launch epoch", p)
+	}
+	hash := p.Items[0].Retention.TerminalVectorSHA256
+	if _, e := f.db.CommitHostEvent(ctx, late); e != nil {
+		t.Fatal(e)
+	}
+	if got := mustRetentionPlan(t, f, r); got.Items[0].Retention.TerminalVectorSHA256 != hash {
+		t.Fatal("reconnected exact ACK changed vector")
+	}
+}
+
+// Multiple real Store admission/commit paths and private diagnostic namespaces;
+// no actual worker or provider is started by this fixture.
+func retentionRunFixture(t *testing.T, ids []string, completed int) (*diagnosticsReadFixture, DiagnosticsRetentionPlanRequest) {
+	t.Helper()
+	ctx := context.Background()
+	state := t.TempDir()
+	if e := os.Chmod(state, 0700); e != nil {
+		t.Fatal(e)
+	}
+	db, e := Open(filepath.Join(state, "state.db"))
+	if e != nil {
+		t.Fatal(e)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	plan := diagnosticsPlan(&contract.DiagnosticsPolicy{Version: 1, Mode: "detailed"})
+	template := plan.Tasks[0]
+	template.MaxAttempts = 1
+	plan.Tasks = nil
+	for _, id := range ids {
+		task := template
+		task.ID = id
+		plan.Tasks = append(plan.Tasks, task)
+	}
+	receipt, e := db.SubmitPlan(ctx, plan)
+	if e != nil {
+		t.Fatal(e)
+	}
+	h := contract.HostHello{LaunchID: receipt.LaunchID, LaunchToken: receipt.LaunchToken, OriginContextID: "origin", OriginPID: 7, OriginBirth: "birth", HostGeneration: "generation", PID: 101, Birth: "host-birth", Executable: "/private/tmp/orchestrator"}
+	if _, e = db.RegisterHost(ctx, h, 1); e != nil {
+		t.Fatal(e)
+	}
+	f := &diagnosticsReadFixture{db: db, token: receipt.ControlToken, hello: h}
+	for i := 0; i < completed; i++ {
+		g, e := db.ClaimReady(ctx, h.LaunchID, 1, 1)
+		if e != nil {
+			t.Fatal(e)
+		}
+		root := filepath.Join(state, "host-spool", g.HostID, g.AttemptID, ".diagnostics")
+		if e = os.MkdirAll(root, 0700); e != nil {
+			t.Fatal(e)
+		}
+		w, e := diagnostics.OpenWriter(ctx, root, diagnostics.Scope{Version: 1, RunID: g.RunID, TaskID: g.TaskID, AttemptID: g.AttemptID, ProducerID: g.HostID, PolicySHA256: g.Diagnostics.PolicySHA256})
+		if e != nil {
+			t.Fatal(e)
+		}
+		if e = w.Append(ctx, diagnostics.Record{SegmentID: g.SegmentID, Stream: diagnostics.Stdout, Data: []byte("retained source")}); e != nil {
+			t.Fatal(e)
+		}
+		if e = w.Close(ctx); e != nil {
+			t.Fatal(e)
+		}
+		if _, e = db.CommitHostEvent(ctx, diagnosticOutcomeEvent(g, contract.EventResult, int64(i*2+1))); e != nil {
+			t.Fatal(e)
+		}
+		exit := diagnosticOutcomeEvent(g, contract.EventExited, int64(i*2+2))
+		zero := 0
+		exit.ExitCode = &zero
+		exit.ActiveMS = 1
+		if _, e = db.CommitHostEvent(ctx, exit); e != nil {
+			t.Fatal(e)
+		}
+		if i == 0 {
+			f.grant = g
+			f.root = root
+		}
+	}
+	if _, e = db.sql.Exec(`UPDATE runtime_events SET created_at='2020-01-01T00:00:00Z'`); e != nil {
+		t.Fatal(e)
+	}
+	return f, DiagnosticsRetentionPlanRequest{Version: 1, RunID: "run", RequestID: "batch", TerminalReceivedBefore: "2021-01-01T00:00:00Z", Limit: 8}
+}
+func TestDiagnosticsRetentionPaginationPublicationBytes(t *testing.T) {
+	t.Run("excluded_long_cursor_not_consumed", func(t *testing.T) {
+		ids := []string{}
+		for i := 0; i < 7; i++ {
+			ids = append(ids, fmt.Sprintf("a%d", i)+strings.Repeat(`"`, 230))
+		}
+		for i := 0; i < 57; i++ {
+			ids = append(ids, fmt.Sprintf("z%02d", i)+strings.Repeat("\x01", 253))
+		}
+		f, r := retentionRunFixture(t, ids, 7)
+		p := mustRetentionPlan(t, f, r)
+		raw, _ := json.Marshal(p)
+		if len(p.Items) != 7 || p.Scanned != 7 || len(p.Excluded) != 0 || p.NextAfterTaskID != ids[6] || len(raw)+1 > 8192 {
+			t.Fatal("excluded candidate skipped or stdout too large", len(raw), p)
+		}
+		r.AfterTaskID = p.NextAfterTaskID
+		next := mustRetentionPlan(t, f, r)
+		if next.Scanned != 57 || next.Excluded["diagnostics_no_attempt"] != 57 || next.NextAfterTaskID != "" {
+			t.Fatal("excluded continuation", next)
+		}
+		t.Logf("first stdout bytes=%d second scanned=%d", len(raw)+1, next.Scanned)
+	})
+	t.Run("exact_8192_requires_stdout_newline", func(t *testing.T) {
+		f, r := retentionFixture(t)
+		base := mustRetentionPlan(t, f, r)
+		for n := 0; n < 254; n++ {
+			for extra := 1; extra <= 128; extra++ {
+				p := base
+				p.RequestID = strings.Repeat("x", extra)
+				p.Items = nil
+				p.Scanned = 8
+				for i := 0; i < 8; i++ {
+					item := base.Items[0]
+					guard := *item.Retention
+					item.Retention = &guard
+					item.TaskID = fmt.Sprintf("a%d", i) + strings.Repeat(`"`, n)
+					item.AttemptID = fmt.Sprintf("attempt-%d", i)
+					guard.ReservationID = fmt.Sprintf("reservation-%d", i)
+					guard.NamespaceSHA256 = runtimeHash(item.AttemptID)
+					item.RequestID = retentionItemRequestID(p, item)
+					p.Items = append(p.Items, item)
+				}
+				p.NextAfterTaskID = p.Items[7].TaskID
+				p.PlanSHA256, _ = p.digest()
+				raw, _ := json.Marshal(p)
+				if len(raw) == 8192 {
+					if e := p.Validate(); e == nil {
+						t.Fatal("accepted canonical8192 that publishes8193 stdout")
+					}
+					return
+				}
+			}
+		}
+		t.Fatal("did not construct exact boundary")
+	})
 }

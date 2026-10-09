@@ -54,15 +54,12 @@ func diagnosticRetentionGuard(ctx context.Context, tx *sql.Tx, row diagnosticDel
 		return DiagnosticsRetentionGuard{}, invalid
 	}
 	bound := map[string]retentionSegmentFact{}
-	epochs := map[string]uint64{}
 	for _, s := range segments {
 		bound[s.ID] = s
-		var epoch uint64
-		if tx.QueryRowContext(ctx, `SELECT execution_epoch FROM segment_runtime WHERE segment_id=? AND attempt_id=? AND host_id=? AND command_id=?`, s.ID, row.scope.AttemptID, s.Producer, s.Command).Scan(&epoch) != nil || epoch == 0 {
-			return DiagnosticsRetentionGuard{}, invalid
-		}
-		epochs[s.ID] = epoch
 	}
+	// A reconciled publisher sends old-segment events under its authenticated
+	// receiving session epoch. The durable body retains that positive epoch;
+	// it need not equal the original launch's segment_runtime epoch.
 	records, err := tx.QueryContext(ctx, `SELECT event_id,producer_id,sequence,event_revision,action_slot,task_id,attempt_id,segment_id,payload_hash,created_at,length(CAST(body_json AS BLOB)),substr(CAST(body_json AS BLOB),1,65537) FROM runtime_events WHERE attempt_id=? ORDER BY sequence,event_id LIMIT 513`, row.scope.AttemptID)
 	if err != nil {
 		return DiagnosticsRetentionGuard{}, err
@@ -87,7 +84,7 @@ func diagnosticRetentionGuard(ctx context.Context, tx *sql.Tx, row diagnosticDel
 		fact, ok := bound[r.SegmentID]
 		received, e := retentionTime(r.ReceivedAt)
 		var event contract.Event
-		if !ok || length < 1 || !utf8.Valid(body) || int64(len(body)) != length || e != nil || r.TaskID != row.scope.TaskID || r.AttemptID != row.scope.AttemptID || r.Producer != fact.Producer || r.Sequence < 1 || r.Revision != r.Sequence || !validDigest(r.PayloadSHA256) || contract.DecodeBridgeStrict(body, &event) != nil || event.Version != 1 || event.EventID != r.ID || event.ProducerID != r.Producer || event.Sequence != r.Sequence || event.EventRevision != 0 && event.EventRevision != r.Revision || event.ActionSlot != "" && event.ActionSlot != r.ActionSlot || event.RunID != row.scope.RunID || event.TaskID != r.TaskID || event.AttemptID != r.AttemptID || event.SegmentID != r.SegmentID || event.CommandID != fact.Command || event.WorkRevision != fact.WorkRevision || event.ExecutionEpoch != epochs[r.SegmentID] || event.PayloadHash != r.PayloadSHA256 {
+		if !ok || length < 1 || !utf8.Valid(body) || int64(len(body)) != length || e != nil || r.TaskID != row.scope.TaskID || r.AttemptID != row.scope.AttemptID || r.Producer != fact.Producer || r.Sequence < 1 || r.Revision != r.Sequence || !validDigest(r.PayloadSHA256) || contract.DecodeBridgeStrict(body, &event) != nil || event.Version != 1 || event.EventID != r.ID || event.ProducerID != r.Producer || event.Sequence != r.Sequence || event.EventRevision != 0 && event.EventRevision != r.Revision || event.ActionSlot != "" && event.ActionSlot != r.ActionSlot || event.RunID != row.scope.RunID || event.TaskID != r.TaskID || event.AttemptID != r.AttemptID || event.SegmentID != r.SegmentID || event.CommandID != fact.Command || event.WorkRevision != fact.WorkRevision || event.ExecutionEpoch == 0 || event.PayloadHash != r.PayloadSHA256 {
 			return DiagnosticsRetentionGuard{}, invalid
 		}
 		switch event.Kind {
@@ -208,25 +205,33 @@ func (d *DB) PlanDiagnosticsRetention(ctx context.Context, controller, token str
 			} else {
 				item = DiagnosticsDeleteRequest{Version: 1, TaskID: c.task, AttemptID: c.attempt, ExpectedRevision: row.nextRevision, Retention: &guard}
 				item.RequestID = retentionItemRequestID(plan, item)
-				// Include worst actual cursor and digest before consuming this candidate.
-				plan.Items = append(plan.Items, item)
-				plan.Scanned++
-				plan.NextAfterTaskID = c.task
-				plan.PlanSHA256, _ = plan.digest()
-				raw, _ := json.Marshal(plan)
-				if len(raw)+1 > diagnosticsRetentionPlanBytes {
-					plan.Items = plan.Items[:len(plan.Items)-1]
-					plan.Scanned--
-					if consumed == 0 {
-						return plan, CodeError("diagnostics_retention_plan_too_large")
-					}
-					break
-				}
 			}
 		}
+		previousItems := len(plan.Items)
 		if reason != "" {
 			plan.Excluded[reason]++
-			plan.Scanned++
+		} else {
+			plan.Items = append(plan.Items, item)
+		}
+		plan.Scanned++
+		// Every consumed candidate can enlarge exclusions or the continuation
+		// cursor. Budget the exact candidate cursor, digest and CLI newline.
+		plan.NextAfterTaskID = c.task
+		plan.PlanSHA256, _ = plan.digest()
+		raw, _ := json.Marshal(plan)
+		if len(raw)+1 > diagnosticsRetentionPlanBytes {
+			plan.Items = plan.Items[:previousItems]
+			plan.Scanned--
+			if reason != "" {
+				plan.Excluded[reason]--
+				if plan.Excluded[reason] == 0 {
+					delete(plan.Excluded, reason)
+				}
+			}
+			if consumed == 0 {
+				return plan, CodeError("diagnostics_retention_plan_too_large")
+			}
+			break
 		}
 		consumed++
 		last = c.task
@@ -274,7 +279,7 @@ func (d *DB) applyDiagnosticsRetention(ctx context.Context, controller, token st
 	result := DiagnosticsRetentionApplyResult{}
 	// Freeze the complete item/vector/exclusion graph before any caller callback.
 	raw, e := json.Marshal(plan)
-	if e != nil || len(raw) > diagnosticsRetentionPlanBytes {
+	if e != nil || len(raw)+1 > diagnosticsRetentionPlanBytes {
 		return result, CodeError("diagnostics_retention_plan_invalid")
 	}
 	var frozen DiagnosticsRetentionPlan

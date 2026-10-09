@@ -129,7 +129,7 @@ func (p DiagnosticsRetentionPlan) Validate() error {
 	}
 	digest, e := p.digest()
 	raw, m := json.Marshal(p)
-	if e != nil || m != nil || len(raw) > diagnosticsRetentionPlanBytes || !validDigest(p.PlanSHA256) || digest != p.PlanSHA256 {
+	if e != nil || m != nil || len(raw)+1 > diagnosticsRetentionPlanBytes || !validDigest(p.PlanSHA256) || digest != p.PlanSHA256 {
 		return invalid
 	}
 	return nil
@@ -137,7 +137,7 @@ func (p DiagnosticsRetentionPlan) Validate() error {
 func (p *DiagnosticsRetentionPlan) UnmarshalJSON(b []byte) error {
 	type plain DiagnosticsRetentionPlan
 	var v plain
-	if len(b) > diagnosticsRetentionPlanBytes+1 || strictDiagnosticsJSON(b, &v) != nil {
+	if len(b) > diagnosticsRetentionPlanBytes || strictDiagnosticsJSON(b, &v) != nil {
 		return CodeError("diagnostics_retention_plan_invalid")
 	}
 	n := DiagnosticsRetentionPlan(v)
