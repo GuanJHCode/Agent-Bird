@@ -1,0 +1,425 @@
+{
+  "production_commit": "1ec0cb5",
+  "batches": [
+    {
+      "label": "stream-red",
+      "exit": 1,
+      "top": 2,
+      "named_counts": {
+        "fail": 7,
+        "pass": 4
+      },
+      "named_terminal": [
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorOriginalProcessAndBounds/round_trip",
+          "Action": "fail",
+          "Elapsed": 0
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorOriginalProcessAndBounds/exact_limit",
+          "Action": "fail",
+          "Elapsed": 0.03
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorOriginalProcessAndBounds/input_over_limit",
+          "Action": "pass",
+          "Elapsed": 0.02
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorOriginalProcessAndBounds/output_over_limit",
+          "Action": "fail",
+          "Elapsed": 0
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorOriginalProcessAndBounds/nonzero_is_known",
+          "Action": "fail",
+          "Elapsed": 0
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorOriginalProcessAndBounds/cancel_original_wait",
+          "Action": "fail",
+          "Elapsed": 0
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorOriginalProcessAndBounds/aliases_rejected",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorOriginalProcessAndBounds/writable_tool_rejected",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorOriginalProcessAndBounds/pin_and_scope_shape",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorOriginalProcessAndBounds",
+          "Action": "fail",
+          "Elapsed": 15.47
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorKernelIsolationWithControl",
+          "Action": "fail",
+          "Elapsed": 16.35
+        }
+      ],
+      "raw_sha256": {
+        "stream-red.stdout.jsonl": "12cea24b7c158f371d84965edf88256d7ce18bea237c8527c4962b60ebf6e026",
+        "stream-red.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stream-red.exit.txt": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+        "stream-red.command.json": "eb21a2ad58d99b351d4d8ad362e12b38e6643f9fafbfe469554595f3a3ff2a1b"
+      }
+    },
+    {
+      "label": "stream-green-01",
+      "exit": 0,
+      "top": 2,
+      "named_counts": {
+        "pass": 11
+      },
+      "named_terminal": [
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorOriginalProcessAndBounds/round_trip",
+          "Action": "pass",
+          "Elapsed": 0.72
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorOriginalProcessAndBounds/exact_limit",
+          "Action": "pass",
+          "Elapsed": 0.23
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorOriginalProcessAndBounds/input_over_limit",
+          "Action": "pass",
+          "Elapsed": 0.02
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorOriginalProcessAndBounds/output_over_limit",
+          "Action": "pass",
+          "Elapsed": 0.19
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorOriginalProcessAndBounds/nonzero_is_known",
+          "Action": "pass",
+          "Elapsed": 0.08
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorOriginalProcessAndBounds/cancel_original_wait",
+          "Action": "pass",
+          "Elapsed": 0.27
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorOriginalProcessAndBounds/aliases_rejected",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorOriginalProcessAndBounds/writable_tool_rejected",
+          "Action": "pass",
+          "Elapsed": 0.01
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorOriginalProcessAndBounds/pin_and_scope_shape",
+          "Action": "pass",
+          "Elapsed": 0.01
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorOriginalProcessAndBounds",
+          "Action": "pass",
+          "Elapsed": 17.44
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorKernelIsolationWithControl",
+          "Action": "pass",
+          "Elapsed": 10.11
+        }
+      ],
+      "raw_sha256": {
+        "stream-green-01.stdout.jsonl": "28f677ac85a776924762ca8fc21719f19dd3f3b82567c0b10249bcac32800312",
+        "stream-green-01.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stream-green-01.exit.txt": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+        "stream-green-01.command.json": "726614abfa95655c9502ea23d79718d33ebf7bd6657d7cb8ed283db7e41c5317"
+      }
+    },
+    {
+      "label": "stream-delta-green-01",
+      "exit": 0,
+      "top": 1,
+      "named_counts": {
+        "pass": 5
+      },
+      "named_terminal": [
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorSnapshotAndStartupCleanup/snapshot",
+          "Action": "pass",
+          "Elapsed": 0.76
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorSnapshotAndStartupCleanup/nonnull_handle_nil_stream",
+          "Action": "pass",
+          "Elapsed": 0.04
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorSnapshotAndStartupCleanup/append_and_readonly_output",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorSnapshotAndStartupCleanup/tool_and_directory_drift",
+          "Action": "pass",
+          "Elapsed": 0.07
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorSnapshotAndStartupCleanup",
+          "Action": "pass",
+          "Elapsed": 17.05
+        }
+      ],
+      "raw_sha256": {
+        "stream-delta-green-01.stdout.jsonl": "df360da3e692e50fb29dd28d713c63c7c2e5f151efc13a0b5cc655cfcfc478ca",
+        "stream-delta-green-01.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stream-delta-green-01.exit.txt": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+        "stream-delta-green-01.command.json": "485f986747128522bc18c5ff28cfe963b6a2eadcb624d1d71787a148205bffdb"
+      }
+    },
+    {
+      "label": "stream-final-race",
+      "exit": 0,
+      "top": 4,
+      "named_counts": {
+        "pass": 25
+      },
+      "named_terminal": [
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorOriginalProcessAndBounds/round_trip",
+          "Action": "pass",
+          "Elapsed": 0.77
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorOriginalProcessAndBounds/exact_limit",
+          "Action": "pass",
+          "Elapsed": 0.53
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorOriginalProcessAndBounds/input_over_limit",
+          "Action": "pass",
+          "Elapsed": 0.03
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorOriginalProcessAndBounds/output_over_limit",
+          "Action": "pass",
+          "Elapsed": 0.31
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorOriginalProcessAndBounds/nonzero_is_known",
+          "Action": "pass",
+          "Elapsed": 0.1
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorOriginalProcessAndBounds/cancel_original_wait",
+          "Action": "pass",
+          "Elapsed": 0.27
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorOriginalProcessAndBounds/aliases_rejected",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorOriginalProcessAndBounds/writable_tool_rejected",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorOriginalProcessAndBounds/pin_and_scope_shape",
+          "Action": "pass",
+          "Elapsed": 0.01
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorOriginalProcessAndBounds",
+          "Action": "pass",
+          "Elapsed": 19.2
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorSnapshotAndStartupCleanup/snapshot",
+          "Action": "pass",
+          "Elapsed": 0.56
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorSnapshotAndStartupCleanup/nonnull_handle_nil_stream",
+          "Action": "pass",
+          "Elapsed": 0.08
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorSnapshotAndStartupCleanup/append_and_readonly_output",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorSnapshotAndStartupCleanup/directory_drift",
+          "Action": "pass",
+          "Elapsed": 0.05
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorSnapshotAndStartupCleanup/input_drift",
+          "Action": "pass",
+          "Elapsed": 0.06
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorSnapshotAndStartupCleanup",
+          "Action": "pass",
+          "Elapsed": 21.93
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestStreamExecutorKernelIsolationWithControl",
+          "Action": "pass",
+          "Elapsed": 9.03
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "Test": "TestValidationSealedToolPinAndBoundary/native",
+          "Action": "pass",
+          "Elapsed": 0.09
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "Test": "TestValidationSealedToolPinAndBoundary/script",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "Test": "TestValidationSealedToolPinAndBoundary/env",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "Test": "TestValidationSealedToolPinAndBoundary/changed",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "Test": "TestValidationSealedToolPinAndBoundary/worker_ancestor",
+          "Action": "pass",
+          "Elapsed": 0
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "Test": "TestValidationSealedToolPinAndBoundary/fake_native",
+          "Action": "pass",
+          "Elapsed": 0.01
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "Test": "TestValidationSealedToolPinAndBoundary/writable_sealed",
+          "Action": "pass",
+          "Elapsed": 0.08
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "Test": "TestValidationSealedToolPinAndBoundary",
+          "Action": "pass",
+          "Elapsed": 0.19
+        }
+      ],
+      "raw_sha256": {
+        "stream-final-race.stdout.jsonl": "0652fbd0ac0a1a70d90808ae88ad879827585ca4d80857467b0630c996507f8b",
+        "stream-final-race.stderr.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stream-final-race.exit.txt": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+        "stream-final-race.command.json": "6c7fdc56b85ab00b631a673c86ae4c4cdd4ccaba5980238dcdc5a533c502742f"
+      }
+    }
+  ],
+  "fixture_roots": [
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-stream-broker/tasks/filter-stream-broker/tmp/executor-1905877405",
+      "present": false
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-stream-broker/tasks/filter-stream-broker/tmp/executor-2923642566",
+      "present": false
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-stream-broker/tasks/filter-stream-broker/tmp/executor-3307450568",
+      "present": false
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-stream-broker/tasks/filter-stream-broker/tmp/executor-3658133388",
+      "present": false
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-stream-broker/tasks/filter-stream-broker/tmp/executor-387828324",
+      "present": false
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-stream-broker/tasks/filter-stream-broker/tmp/executor-4011371283",
+      "present": false
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-stream-broker/tasks/filter-stream-broker/tmp/executor-515323078",
+      "present": false
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-stream-broker/tasks/filter-stream-broker/tmp/executor-662392107",
+      "present": false
+    }
+  ],
+  "source_sha256": {
+    "tools/orchestrator/internal/gitfilter/executor.go": "77a8b899a13d5a358ddce54643537ff3ab9d610322e600e19ad03379a219d145",
+    "tools/orchestrator/internal/gitfilter/executor_darwin.go": "0bc183e3a92875ca0b0bb37953353539fcf0f0d3ab4ebb90c8075b9abad969e9",
+    "tools/orchestrator/internal/gitfilter/executor_darwin_test.go": "9bceb638b7c92662d6a7bd28657639c405488aea289234de822ef359443b7efd",
+    "tools/orchestrator/internal/gitfilter/executor_other.go": "6e9bd7c0ebedb605fbb6d50619a56ed2aae0e6542399fce38f5bd9489fe2a964",
+    "tools/orchestrator/internal/gitfilter/testdata/actor/main.go": "79108a961e43683ff37325a06887bc499d65b7041aa6ec8fe1b49671fe433a54",
+    "tools/orchestrator/internal/process/native_executable.go": "15d921ea833b46b440c5d143517fab57f444d1a12eca848147a292a8e3338c0c",
+    "tools/orchestrator/internal/host/validation_tool.go": "b0e593cfb3ca7cec7333dba986dfadb75230e9616eec1366e952432891f98e8a"
+  }
+}
