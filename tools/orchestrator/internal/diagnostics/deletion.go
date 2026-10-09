@@ -492,6 +492,9 @@ func (l *DeletionLease) publishMarker() error {
 	} else if err != nil {
 		return err
 	} else {
+		if stage.Size < 0 || stage.Size > int64(len(l.markerRaw)) {
+			return ErrUnsafeLayout
+		}
 		f, openErr := openAt(l.ns.dir, l.plan.Stage, unix.O_RDWR, 0)
 		if openErr != nil {
 			return unsafe(openErr)

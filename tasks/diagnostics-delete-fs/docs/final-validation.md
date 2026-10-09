@@ -14,10 +14,12 @@ Final targeted command, from `tools/orchestrator` with Go 1.26.8 and
 `TMPDIR=/private/tmp`:
 
 ```sh
-go test -count=1 ./internal/diagnostics -run '^TestDeletion(ClosedNamespaceReplay|PlanMaximumInventoryFitsBound|RejectsLiveUnknownAndReplacement|TornStageRecoveryAndForeignStageRefusal|CrashReplayAfterChildWait)$' -v
+go test -race -json -count=1 ./internal/diagnostics -run '^TestDeletion(ClosedNamespaceReplay|PlanMaximumInventoryFitsBound|RejectsLiveUnknownAndReplacement|TornStageRecoveryAndForeignStageRefusal|CrashReplayAfterChildWait)$'
 ```
 
-Result: 5 passed, 0 failed, 0 skipped, 0.886s.
+Result: exit 0; 5 top-level tests passed, 0 failed, 0 skipped; package elapsed
+1.744s.  The preserved JSON event evidence is
+`tasks/diagnostics-delete-fs/data/deletion-race-20261009.jsonl`.
 
 The grouped cases cover closed namespace deletion and exact-plan replay;
 maximum bounded plan encoding; live writer, unknown entry and replacement
