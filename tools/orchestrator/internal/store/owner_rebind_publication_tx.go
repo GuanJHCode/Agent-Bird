@@ -80,3 +80,11 @@ func requirePublishedOwnerTx(ctx context.Context, tx *sql.Tx, runID string) erro
 	}
 	return nil
 }
+
+func requirePublishedTaskTx(ctx context.Context, tx *sql.Tx, taskID string) error {
+	var runID string
+	if err := tx.QueryRowContext(ctx, `SELECT run_id FROM tasks WHERE id=?`, taskID).Scan(&runID); err != nil {
+		return ErrNotFound
+	}
+	return requirePublishedOwnerTx(ctx, tx, runID)
+}

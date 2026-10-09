@@ -63,6 +63,9 @@ func (d *DB) QueueContinuation(ctx context.Context, s ResumeContinuationSpec) (C
 	if err != nil {
 		return fail(ErrNotFound)
 	}
+	if err = requirePublishedOwnerTx(ctx, tx, run); err != nil {
+		return fail(err)
+	}
 	if status != "interrupted" || currentRev != s.WorkRevision {
 		return fail(ErrConflict)
 	}

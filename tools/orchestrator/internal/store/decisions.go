@@ -29,6 +29,9 @@ func (d *DB) QueueResume(ctx context.Context, taskID string, workRevision int) e
 // queueResumeTx preserves the legacy queue/budget checks so authenticated owner
 // retirement and queue admission can commit in the same transaction.
 func (d *DB) queueResumeTx(ctx context.Context, tx *sql.Tx, taskID string, workRevision int) (int64, error) {
+	if err := requirePublishedTaskTx(ctx, tx, taskID); err != nil {
+		return 0, err
+	}
 	if err := resumeAdmissionTx(ctx, tx, taskID, workRevision, "interrupted"); err != nil {
 		return 0, err
 	}
@@ -112,6 +115,9 @@ func (d *DB) AnswerQuestion(ctx context.Context, spec AnswerSpec) (string, error
 	if err = tx.QueryRowContext(ctx, `SELECT t.status,r.work_revision,q.question_revision,q.status,q.answer_hash,q.segment_id FROM runtime_questions q JOIN tasks t ON t.id=q.task_id JOIN task_runtime r ON r.task_id=t.id WHERE q.question_id=? AND q.task_id=?`, spec.QuestionID, spec.TaskID).Scan(&taskStatus, &workRevision, &questionRevision, &questionStatus, &answerHash, &segmentID); err != nil {
 		return rollback(ErrNotFound)
 	}
+	if err = requirePublishedTaskTx(ctx, tx, spec.TaskID); err != nil {
+		return rollback(err)
+	}
 	wantHash := runtimeHash(spec.Answer)
 	if workRevision != spec.WorkRevision || questionRevision != spec.QuestionRevision {
 		return rollback(ErrConflict)
@@ -186,6 +192,9 @@ func (d *DB) ReviewResult(ctx context.Context, spec ReviewSpec) (string, error) 
 	defer owned.close()
 	tx := owned.tx
 	rollback := func(e error) (string, error) { owned.close(); return "", e }
+	if err = requirePublishedTaskTx(ctx, tx, spec.TaskID); err != nil {
+		return rollback(err)
+	}
 	// The slot is derived from producer+event content, so a replay is only the
 	// same decision when the stored task and event match as well.
 	var previousDecision, eventHash, storedTask, storedEvent string

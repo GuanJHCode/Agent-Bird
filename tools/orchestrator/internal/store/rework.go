@@ -106,6 +106,9 @@ func (d *DB) QueueRework(ctx context.Context, spec ReworkSpec) (ReworkReceipt, e
 	if err != nil {
 		return empty, err
 	}
+	if err = requirePublishedOwnerTx(ctx, tx, run); err != nil {
+		return empty, err
+	}
 	edit, validate, review := chain[0], chain[1], chain[2]
 	if edit.revision != spec.WorkRevision || review.revision != spec.ReviewWorkRevision {
 		return empty, ErrConflict
