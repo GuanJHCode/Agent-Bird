@@ -63,7 +63,7 @@ def sha(path):
             h.update(block)
     return h.hexdigest()
 def inventory(root):
-    out = {}
+    out, directories = {}, set()
     for p in sorted(root.rglob('*')):
         info = p.lstat()
         if stat.S_ISLNK(info.st_mode) or info.st_uid != os.getuid():
@@ -71,10 +71,14 @@ def inventory(root):
         if p.is_dir():
             if stat.S_IMODE(info.st_mode) != 0o700:
                 raise RuntimeError('non-private directory: ' + str(p))
+            directories.add(p.relative_to(root).as_posix())
             continue
         if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
             raise RuntimeError('unexpected artifact: ' + str(p))
         out[p.relative_to(root).as_posix()] = {'sha256': sha(p), 'mode': stat.S_IMODE(info.st_mode)}
+    expected_directories = {str(parent) for rel in out for parent in pathlib.PurePosixPath(rel).parents if str(parent) != '.'}
+    if directories != expected_directories:
+        raise RuntimeError('artifact contains an undeclared empty directory')
     return out
 def expected_plugin(binary, version):
     # Independent, fixed package contract; never derive this list from the
