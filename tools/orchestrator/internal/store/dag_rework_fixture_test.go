@@ -16,6 +16,7 @@ import (
 type dagReworkFixture struct {
 	db             *DB
 	host, dir      string
+	controlToken   string
 	seq            int64
 	spec           ReworkSpec
 	grants         map[string]contract.LaunchCommand
@@ -32,6 +33,9 @@ func newConfiguredDAGReworkFixture(t *testing.T, implementer, reviewer adapter.P
 	t.Helper()
 	ctx := context.Background()
 	dir := t.TempDir()
+	if err := os.Chmod(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
 	db, err := Open(filepath.Join(dir, "state.db"))
 	if err != nil {
 		t.Fatal(err)
@@ -86,6 +90,7 @@ func newConfiguredDAGReworkFixture(t *testing.T, implementer, reviewer adapter.P
 	if err != nil {
 		t.Fatal(err)
 	}
+	f.controlToken = plan.ControlToken
 	f.host, err = db.RegisterHost(ctx, contract.HostHello{LaunchID: plan.LaunchID, LaunchToken: plan.LaunchToken, OriginContextID: "origin", OriginPID: 1, OriginBirth: "birth", HostGeneration: "gen", PID: 10, Birth: "host", Executable: "/private/bin/orchestrator"}, 1)
 	if err != nil {
 		t.Fatal(err)

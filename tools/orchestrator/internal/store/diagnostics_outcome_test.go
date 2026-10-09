@@ -114,6 +114,11 @@ func TestDiagnosticsFailureRequiresExactDetailedAuthorityAndRollsBack(t *testing
 			case "wrong_run":
 				e.RunID = "foreign"
 			case "released":
+				// Deliberately corrupt history to exercise the live grant guard.
+				// Schema31 separately forbids this transition through normal SQL.
+				if _, err := db.sql.Exec(`DROP TRIGGER diagnostic_reservation_transition`); err != nil {
+					t.Fatal(err)
+				}
 				if _, err := db.sql.Exec(`UPDATE managed_artifact_reservations SET state='released' WHERE id=?`, g.Diagnostics.ReservationID); err != nil {
 					t.Fatal(err)
 				}

@@ -12,6 +12,9 @@ import (
 // Never erase a derived proof to manufacture a historical fixture. Ordinary
 // rebind history remains, with only schema30's added accounting subtracted.
 func removeOwnerAuthorizationRebindSchema30(db *DB) error {
+	if err := removeDiagnosticDeletionSchema31(db); err != nil {
+		return err
+	}
 	var version, count int
 	if err := db.sql.QueryRow(`SELECT version FROM schema_meta`).Scan(&version); err != nil {
 		return err

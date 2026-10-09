@@ -123,7 +123,7 @@ func TestWorkerPeerCannotUseMainAgentControlKinds(t *testing.T) {
 		t.Fatal(err)
 	}
 	raw, _ := json.Marshal(TaskControlRequest{TaskID: "task", ControllerThread: "master", ControlToken: receipt.ControlToken})
-	for _, kind := range []ipc.Kind{ipc.KindDiagnosticsRead, ipc.KindDiagnosticsAck, ipc.Kind("budget_revise"), ipc.KindRecoverHost, ipc.KindResume, ipc.KindRetry, ipc.KindRework, ipc.KindAccept, ipc.KindAnswer, ipc.KindStopTask, ipc.KindAck, ipc.KindCollect, ipc.KindWaitEvents, ipc.KindSummary, ipc.KindStatus} {
+	for _, kind := range []ipc.Kind{ipc.KindDiagnosticsRead, ipc.KindDiagnosticsAck, ipc.KindDiagnosticsDelete, ipc.Kind("budget_revise"), ipc.KindRecoverHost, ipc.KindResume, ipc.KindRetry, ipc.KindRework, ipc.KindAccept, ipc.KindAnswer, ipc.KindStopTask, ipc.KindAck, ipc.KindCollect, ipc.KindWaitEvents, ipc.KindSummary, ipc.KindStatus} {
 		response, err := ipc.Call(ctx, server.SocketPath(), ipc.Envelope{Version: 1, Kind: kind, RequestID: "worker", Payload: raw})
 		if err != nil || response.Kind != ipc.KindError || !strings.Contains(string(response.Payload), "worker_dispatch_forbidden") {
 			t.Errorf("worker %s reached controller path: %s %v", kind, response.Payload, err)

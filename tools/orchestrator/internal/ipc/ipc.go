@@ -51,6 +51,7 @@ const (
 	KindAck                    Kind = "ack"
 	KindDiagnosticsRead        Kind = "diagnostics_read"
 	KindDiagnosticsAck         Kind = "diagnostics_ack"
+	KindDiagnosticsDelete      Kind = "diagnostics_delete"
 	KindResume                 Kind = "resume"
 	KindResumeContinuation     Kind = "resume_continuation"
 	KindRetry                  Kind = "retry"
