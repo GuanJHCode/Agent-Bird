@@ -19,3 +19,6 @@ stage-legacy-red 1top/4named FAIL（3子例+父例），旧random/64hex/unknown�
 stage-native-01 3top10named PASS0F/S：8个真实child由原Process handle SIGKILL，每个原Cmd.Wait明确SIGKILL且ConfirmGroupExitedContext成功；同一stage inode至多1，created首次O_EXCL后第二次在原inodestage_stated杀掉（不伪称再次create），partial/fileSync/preRename各重复杀2次，最终exactprefix补余、rename同inode、Verify stageabsent。4个native根+无actor的cleanup guard根均pending0/removedtrue；UNKNOWN/failed guard返回不清理。原badStage prefix/inode/mode/links/growth保留，普通异常只清本次新建同inode。
 
 stage-boundary-01 1top9named PASS0F/S，含其他launch稳定stage不干扰/不改写、同launch另一expected拒绝、4097entry failclosed、超64KiB expected/零值lease拒绝、new/error清理 vs replay/replacement保留。ROOT Store scratch/nativepublic链独立证据不由此冒称。下一最后focused race与Windows leaf编译。
+
+
+最终clean5684514 stage-final-race：6top31named PASS0F/S、exit0、stderr空，SHA4cc782bfc231bdffba218ca8815e48d9e4150db1a2f24ff6dcac03ba803a9346。8个真实child原SIGKILL Wait/tree与5个owned根removedtrue，未出现UNKNOWN清理。Windows amd64 hostbootstrap leaf go build exit0、stdout/stderr空，不宣称Windows native/全模块编译。原全部raw与RED保留；后续仅docs/evidence，无新测试。ROOT负责完整源码独审/集成及全模块build/vet，scratch/quota/nativepublic证据不计入本子任务。
