@@ -252,6 +252,9 @@ func requestStopTx(ctx context.Context, tx *sql.Tx, taskID string, workRevision 
 		if err = blockFailedDependencies(ctx, tx, taskID); err != nil {
 			return rollback(err)
 		}
+		if err = refreshNewBaseTargets(ctx, tx); err != nil {
+			return rollback(err)
+		}
 		return StopDispatch{}, nil
 	}
 	var segmentID, hostID, segmentStatus string

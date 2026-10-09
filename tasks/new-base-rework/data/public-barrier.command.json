@@ -1,0 +1,18 @@
+{
+  "command": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+    "-C",
+    "tools/orchestrator",
+    "test",
+    "-count=1",
+    "-json",
+    "./cmd/orchestrator",
+    "-run",
+    "^TestNewBasePreparedPublicationBarrier$"
+  ],
+  "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/new-base-rework",
+  "head": "127e399fdef51d7e9a36bebbfd30a369e7ce1b2a",
+  "dirty": " M tools/orchestrator/cmd/orchestrator/new_base_cli_test.go\n M tools/orchestrator/cmd/orchestrator/new_base_submit.go\n M tools/orchestrator/cmd/orchestrator/new_base_submit_test.go\n",
+  "test_environment": {},
+  "go_version": "go version go1.26.8 darwin/arm64"
+}

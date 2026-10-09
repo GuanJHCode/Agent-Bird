@@ -1,0 +1,252 @@
+{
+  "build-final": {
+    "exit": 0,
+    "top_level": 0,
+    "named": 0,
+    "pass": 0,
+    "fail": 0,
+    "skip": 0,
+    "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "host-final-race": {
+    "exit": 0,
+    "top_level": 2,
+    "named": 5,
+    "pass": 5,
+    "fail": 0,
+    "skip": 0,
+    "stdout_sha256": "0695650db8cb0c005b93893cf6f71b0f32525731ce6ca06d54d2dba77d1c41fd",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "public-01": {
+    "exit": 1,
+    "top_level": 2,
+    "named": 2,
+    "pass": 1,
+    "fail": 1,
+    "skip": 0,
+    "stdout_sha256": "454c8727c113aae0b1d7bfc87b6182fad90d24e66272a843a052d10dc525a1c2",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "public-02": {
+    "exit": 1,
+    "top_level": 1,
+    "named": 1,
+    "pass": 0,
+    "fail": 1,
+    "skip": 0,
+    "stdout_sha256": "2aef189f6d2d0dadc1330abb62765e2ad667d9db56dd6300a928dd59fc97c3f0",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "public-03": {
+    "exit": 1,
+    "top_level": 1,
+    "named": 1,
+    "pass": 0,
+    "fail": 1,
+    "skip": 0,
+    "stdout_sha256": "e6e9e90f00804d80b9a568ed4737bdc30202e855498573b2e33e0c9c5621d93b",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "public-04": {
+    "exit": 0,
+    "top_level": 2,
+    "named": 2,
+    "pass": 2,
+    "fail": 0,
+    "skip": 0,
+    "stdout_sha256": "f89eda2172f65d251662a6fcbec8fc166c4c93377d72f13ef3e0cc6e243fdc2c",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "public-barrier": {
+    "exit": 0,
+    "top_level": 1,
+    "named": 5,
+    "pass": 5,
+    "fail": 0,
+    "skip": 0,
+    "stdout_sha256": "8ed49573bce61fbf2b7c5bd8e6f6ed5eb135868b2b723a3d355e206fd11ccaf2",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "public-diagnostic-01": {
+    "exit": 1,
+    "top_level": 1,
+    "named": 1,
+    "pass": 0,
+    "fail": 1,
+    "skip": 0,
+    "stdout_sha256": "95ff6e9f8ff541f18b6372ccef4dd18f4d4925ad8905bd3de7c3ae9114898c7b",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "public-final-runtime-race": {
+    "exit": 0,
+    "top_level": 4,
+    "named": 8,
+    "pass": 8,
+    "fail": 0,
+    "skip": 0,
+    "stdout_sha256": "14808f63012579f0a168789cf58569747eff756229bd18cbdd5f5031025a1ddf",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "store-accounting": {
+    "exit": 0,
+    "top_level": 1,
+    "named": 12,
+    "pass": 12,
+    "fail": 0,
+    "skip": 0,
+    "stdout_sha256": "336e2ca981e5cd86c244d4b19d7895821a3099e7dafbdca9df8191484688aae6",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "store-diagnostic-01": {
+    "exit": 1,
+    "top_level": 1,
+    "named": 2,
+    "pass": 0,
+    "fail": 2,
+    "skip": 0,
+    "stdout_sha256": "e5e9ebf310b8d7ed96e20bb5dbe7b6c5bf71a0aafa1367efe62a1e18f55a2ac2",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "store-diagnostic-02": {
+    "exit": 1,
+    "top_level": 1,
+    "named": 2,
+    "pass": 0,
+    "fail": 2,
+    "skip": 0,
+    "stdout_sha256": "7c1020dd84ca00e8a40f41599ae0ad2275aedc0bb3304a629bab829968bed2c0",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "store-diagnostic-03": {
+    "exit": 1,
+    "top_level": 1,
+    "named": 2,
+    "pass": 0,
+    "fail": 2,
+    "skip": 0,
+    "stdout_sha256": "7337b27b248d1d617ab5f5ee65ada2a7773ae96d878445f3076b0ec197946e1a",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "store-final-race-02": {
+    "exit": 1,
+    "top_level": 3,
+    "named": 8,
+    "pass": 6,
+    "fail": 2,
+    "skip": 0,
+    "stdout_sha256": "a488540f9d07dcedb87cd41567ddbb73492ecd346ef8da0052a750b5a4d819b7",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "store-final-race-03": {
+    "exit": 0,
+    "top_level": 4,
+    "named": 13,
+    "pass": 13,
+    "fail": 0,
+    "skip": 0,
+    "stdout_sha256": "bd0401ae84ed8f0bccbda78ff906cade4389dba5fe97f2c9d65119e6801728e6",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "store-final-race": {
+    "exit": 1,
+    "top_level": 6,
+    "named": 21,
+    "pass": 18,
+    "fail": 3,
+    "skip": 0,
+    "stdout_sha256": "0a5ac39af2ce1f1fb11ae7be9219c0c23fdd0df12ee7109455356c7c9ed13cd5",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "store-green-01": {
+    "exit": 1,
+    "top_level": 1,
+    "named": 12,
+    "pass": 10,
+    "fail": 2,
+    "skip": 0,
+    "stdout_sha256": "6e7066e05e7009c73954c704f0df4f130d2527dafacd208c248ba12be72de4fc",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "store-green-02": {
+    "exit": 0,
+    "top_level": 1,
+    "named": 12,
+    "pass": 12,
+    "fail": 0,
+    "skip": 0,
+    "stdout_sha256": "22488dd8c0f2406e5f605462d02c3d333523da54fd6ac897448b7aa7d240a997",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "store-green-03": {
+    "exit": 0,
+    "top_level": 4,
+    "named": 15,
+    "pass": 15,
+    "fail": 0,
+    "skip": 0,
+    "stdout_sha256": "99cff4a2a07f51c75294c120a9bdf5d53d4444a1c0e2e5d865473c67248cf93b",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "store-queue-green": {
+    "exit": 0,
+    "top_level": 1,
+    "named": 4,
+    "pass": 4,
+    "fail": 0,
+    "skip": 0,
+    "stdout_sha256": "babb24034792eeb467e059b12bc24197d2271717a683cde5eda234b3798b25e2",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "store-queue-red": {
+    "exit": 1,
+    "top_level": 1,
+    "named": 3,
+    "pass": 0,
+    "fail": 3,
+    "skip": 0,
+    "stdout_sha256": "463c44e0448667ae889377c2ab4481a5cae81e2b294271cae18429e7aec71896",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "store-red": {
+    "exit": 1,
+    "top_level": 1,
+    "named": 12,
+    "pass": 1,
+    "fail": 11,
+    "skip": 0,
+    "stdout_sha256": "4cd7d0c9c6e19bccfa0a0da792fc9ed877cf3c2aa297bd41aa09c1bea9ee4eee",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "store-reservation-01": {
+    "exit": 0,
+    "top_level": 2,
+    "named": 14,
+    "pass": 14,
+    "fail": 0,
+    "skip": 0,
+    "stdout_sha256": "568fbb33478ac3c69ab12da15b8690b4aad89d04ab15ba7e11f999b0a783a6fa",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "store-reservation-02": {
+    "exit": 0,
+    "top_level": 1,
+    "named": 1,
+    "pass": 1,
+    "fail": 0,
+    "skip": 0,
+    "stdout_sha256": "3fb09546133be1bb1eb133d9602e36fca51815c0d8247d9db23e9ae0522bb16d",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "vet-final": {
+    "exit": 0,
+    "top_level": 0,
+    "named": 0,
+    "pass": 0,
+    "fail": 0,
+    "skip": 0,
+    "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

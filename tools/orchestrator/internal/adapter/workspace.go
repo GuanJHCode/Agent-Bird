@@ -10,12 +10,13 @@ import (
 // CandidateWorkspace requests a fresh Host-owned linked worktree. Paths are
 // exact repository-relative files, never globs or permission expansion rules.
 type CandidateWorkspace struct {
-	AutoDirectory bool           `json:"auto_directory,omitempty"`
-	Version       int            `json:"version"`
-	RepoRoot      string         `json:"repo_root"`
-	BaseOID       string         `json:"base_oid"`
-	Paths         []string       `json:"paths"`
-	Rework        *ReworkContext `json:"rework,omitempty"`
+	AutoDirectory bool                  `json:"auto_directory,omitempty"`
+	Version       int                   `json:"version"`
+	RepoRoot      string                `json:"repo_root"`
+	BaseOID       string                `json:"base_oid"`
+	Paths         []string              `json:"paths"`
+	Rework        *ReworkContext        `json:"rework,omitempty"`
+	NewBaseRework *NewBaseReworkContext `json:"new_base_rework,omitempty"`
 }
 
 // ReworkContext records the owner's revised brief and immutable evidence. It
@@ -50,6 +51,14 @@ func cloneWorkspace(value *CandidateWorkspace) *CandidateWorkspace {
 	if value.Rework != nil {
 		r := *value.Rework
 		copy.Rework = &r
+	}
+	if value.NewBaseRework != nil {
+		c := *value.NewBaseRework
+		c.TaskMap = make(map[string]string, len(value.NewBaseRework.TaskMap))
+		for k, v := range value.NewBaseRework.TaskMap {
+			c.TaskMap[k] = v
+		}
+		copy.NewBaseRework = &c
 	}
 	return &copy
 }

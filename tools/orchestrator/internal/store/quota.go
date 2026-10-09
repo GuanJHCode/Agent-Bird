@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 )
 
+type admissionStorageAvailableKey struct{}
+
 func (d *DB) storageAdmission(ctx context.Context, tx *sql.Tx, runID string, incoming int64, diagnostic bool) error {
 	diagnosticIncoming := int64(0)
 	if diagnostic {
@@ -20,7 +22,11 @@ func (d *DB) storageAdmissionSplit(ctx context.Context, tx *sql.Tx, runID string
 	if incoming < 0 || diagnosticIncoming < 0 || diagnosticIncoming > incoming {
 		return CodeError("control_spool_full")
 	}
-	available, err := d.storageAvailable(filepath.Dir(d.path))
+	available, cached := ctx.Value(admissionStorageAvailableKey{}).(uint64)
+	var err error
+	if !cached {
+		available, err = d.storageAvailable(filepath.Dir(d.path))
+	}
 	if err != nil {
 		return CodeError("storage_blocked")
 	}

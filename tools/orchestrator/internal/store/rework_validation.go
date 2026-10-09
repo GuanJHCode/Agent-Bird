@@ -275,7 +275,8 @@ func rejectSubmittedRework(payload json.RawMessage) error {
 	}
 	var p struct {
 		Workspace *struct {
-			Rework json.RawMessage `json:"rework"`
+			Rework        json.RawMessage `json:"rework"`
+			NewBaseRework json.RawMessage `json:"new_base_rework"`
 		} `json:"candidate_workspace"`
 	}
 	if json.Unmarshal(payload, &p) != nil {
@@ -284,5 +285,9 @@ func rejectSubmittedRework(payload json.RawMessage) error {
 	if p.Workspace != nil && len(p.Workspace.Rework) > 0 && string(p.Workspace.Rework) != "null" {
 		return CodeError("rework_requires_owner_decision")
 	}
+	if p.Workspace != nil && len(p.Workspace.NewBaseRework) > 0 && string(p.Workspace.NewBaseRework) != "null" {
+		return CodeError("new_base_requires_owner_submit")
+	}
+
 	return nil
 }

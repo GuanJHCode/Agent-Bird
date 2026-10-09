@@ -24,13 +24,15 @@ type HostLaunchSpec struct {
 }
 
 type PlanSpec struct {
-	ConfigSubmission *install.ConfigSubmissionGuard `json:"-"`
-	Run              RunSpec
-	Host             HostLaunchSpec
-	Tasks            []TaskSpec
-	LaunchID         string
-	LaunchToken      string
-	ControlToken     string
+	ConfigSubmission     *install.ConfigSubmissionGuard `json:"-"`
+	NewBaseRework        *NewBaseReworkSpec             `json:"new_base_rework,omitempty"`
+	NewBaseAuthorization *NewBaseAuthorization          `json:"-"`
+	Run                  RunSpec
+	Host                 HostLaunchSpec
+	Tasks                []TaskSpec
+	LaunchID             string
+	LaunchToken          string
+	ControlToken         string
 }
 
 type SubmitReceipt struct {

@@ -39,22 +39,24 @@ type TaskRequest struct {
 }
 
 type SubmitRequest struct {
-	OwnerLaunchProtocol int           `json:"owner_launch_protocol,omitempty"`
-	OwnerMode           string        `json:"owner_mode,omitempty"`
-	DeliveryMode        string        `json:"delivery_mode,omitempty"`
-	RunID               string        `json:"run_id"`
-	ControllerThread    string        `json:"controller_thread"`
-	PlanRevision        int           `json:"plan_revision"`
-	OriginContextID     string        `json:"origin_context_id"`
-	OriginPID           int           `json:"origin_pid"`
-	OriginBirth         string        `json:"origin_birth"`
-	HostGeneration      string        `json:"host_generation"`
-	OwnerCapability     string        `json:"owner_capability,omitempty"`
-	HostExecutable      string        `json:"host_executable"`
-	Tasks               []TaskRequest `json:"tasks"`
-	LaunchID            string        `json:"launch_id,omitempty"`
-	LaunchToken         string        `json:"launch_token,omitempty"`
-	ControlToken        string        `json:"control_token,omitempty"`
+	NewBaseRework        *store.NewBaseReworkSpec    `json:"new_base_rework,omitempty"`
+	NewBaseAuthorization *store.NewBaseAuthorization `json:"new_base_authorization,omitempty"`
+	OwnerLaunchProtocol  int                         `json:"owner_launch_protocol,omitempty"`
+	OwnerMode            string                      `json:"owner_mode,omitempty"`
+	DeliveryMode         string                      `json:"delivery_mode,omitempty"`
+	RunID                string                      `json:"run_id"`
+	ControllerThread     string                      `json:"controller_thread"`
+	PlanRevision         int                         `json:"plan_revision"`
+	OriginContextID      string                      `json:"origin_context_id"`
+	OriginPID            int                         `json:"origin_pid"`
+	OriginBirth          string                      `json:"origin_birth"`
+	HostGeneration       string                      `json:"host_generation"`
+	OwnerCapability      string                      `json:"owner_capability,omitempty"`
+	HostExecutable       string                      `json:"host_executable"`
+	Tasks                []TaskRequest               `json:"tasks"`
+	LaunchID             string                      `json:"launch_id,omitempty"`
+	LaunchToken          string                      `json:"launch_token,omitempty"`
+	ControlToken         string                      `json:"control_token,omitempty"`
 }
 
 type SubmitResponse struct {
@@ -833,7 +835,7 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 		if s.cliSupervised && (request.OwnerMode != "local" || configGuard != nil || request.OwnerLaunchProtocol == 2) {
 			mode = "supervised-v1"
 		}
-		receipt, err := s.db.SubmitPlan(ctx, store.PlanSpec{ConfigSubmission: configGuard, Run: store.RunSpec{DeliveryMode: request.DeliveryMode, ID: request.RunID, ControllerThread: request.ControllerThread, PlanRevision: request.PlanRevision, OriginContextID: request.OriginContextID, OriginPID: request.OriginPID, OriginBirth: request.OriginBirth}, Host: store.HostLaunchSpec{ExecutionOwnerMode: mode, OriginContextID: request.OriginContextID, HostGeneration: request.HostGeneration, Executable: request.HostExecutable}, Tasks: tasks, LaunchID: request.LaunchID, LaunchToken: request.LaunchToken, ControlToken: request.ControlToken})
+		receipt, err := s.db.SubmitPlan(ctx, store.PlanSpec{NewBaseRework: request.NewBaseRework, NewBaseAuthorization: request.NewBaseAuthorization, ConfigSubmission: configGuard, Run: store.RunSpec{DeliveryMode: request.DeliveryMode, ID: request.RunID, ControllerThread: request.ControllerThread, PlanRevision: request.PlanRevision, OriginContextID: request.OriginContextID, OriginPID: request.OriginPID, OriginBirth: request.OriginBirth}, Host: store.HostLaunchSpec{ExecutionOwnerMode: mode, OriginContextID: request.OriginContextID, HostGeneration: request.HostGeneration, Executable: request.HostExecutable}, Tasks: tasks, LaunchID: request.LaunchID, LaunchToken: request.LaunchToken, ControlToken: request.ControlToken})
 		if err != nil {
 			return nil, err
 		}
