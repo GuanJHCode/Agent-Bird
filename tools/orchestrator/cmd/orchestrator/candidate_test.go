@@ -250,6 +250,7 @@ func TestMain(m *testing.M) {
 	mode := os.Getenv("CANDIDATE_FIXTURE_MODE")
 	grokFixture := os.Getenv("GROK_REVIEW_FIXTURE") != ""
 	indexedFixture := os.Getenv("GROK_INDEXED_FIXTURE") != ""
+	agyFixture := false
 	// A single real source-host can run both providers. These copied test
 	// executables select their protocol by identity, never shared task env.
 	switch filepath.Base(os.Args[0]) {
@@ -257,6 +258,14 @@ func TestMain(m *testing.M) {
 		mode, grokFixture, indexedFixture = "success", false, false
 	case "indexed-grok-fixture", "indexed-grok-budget-fixture":
 		mode, grokFixture, indexedFixture = "review_approve", true, true
+	case "compose-cross-claude-fixture":
+		mode, grokFixture, indexedFixture = "compose-a", false, false
+	case "compose-cross-grok-fixture":
+		mode, grokFixture, indexedFixture = "compose-b", true, false
+	case "compose-cross-agy-fixture":
+		mode, grokFixture, indexedFixture, agyFixture = "compose-b", false, false, true
+	case "compose-cross-review-claude-fixture":
+		mode, grokFixture, indexedFixture = "review_approve", false, false
 	}
 	if mode == "" {
 		os.Exit(m.Run())
@@ -270,7 +279,7 @@ func TestMain(m *testing.M) {
 		os.Exit(0)
 	}
 	if len(os.Args) == 2 && os.Args[1] == "--help" {
-		fmt.Println("--output-format --input-format --permission-mode --disallowed-tools --json-schema --prompt-file --session-id --output --model --allowed-tools --denied-tools --no-subagents --disable-web-search --leader-socket --tools --deny")
+		fmt.Println("--output-format --input-format --permission-mode --mode --disallowed-tools --json-schema --prompt-file --session-id --output --model --allowed-tools --denied-tools --no-subagents --disable-web-search --leader-socket --tools --deny --allow")
 		os.Exit(0)
 	}
 	if grokFixture && len(os.Args) == 2 && os.Args[1] == "models" {
@@ -417,8 +426,15 @@ func TestMain(m *testing.M) {
 		if err := os.WriteFile(name, []byte(mode+"\n"), 0600); err != nil {
 			os.Exit(3)
 		}
-		fmt.Println(`{"type":"system","subtype":"init","session_id":"compose-fixture"}`)
-		fmt.Println(`{"type":"result","subtype":"success","session_id":"compose-fixture","result":"implemented","structured_output":{"version":1,"kind":"result","text":"implemented"}}`)
+		if grokFixture {
+			fmt.Println(`{"type":"end","stopReason":"end_turn","sessionId":"compose-fixture","structuredOutput":{"version":1,"kind":"result","text":"implemented"}}`)
+		} else if agyFixture {
+			fmt.Println(`{"event":"init","conversation_id":"compose-fixture"}`)
+			fmt.Println(`{"event":"result","result":{"status":"SUCCESS","conversation_id":"compose-fixture","response":"implemented","structured_output":{"version":1,"kind":"result","text":"implemented"}}}`)
+		} else {
+			fmt.Println(`{"type":"system","subtype":"init","session_id":"compose-fixture"}`)
+			fmt.Println(`{"type":"result","subtype":"success","session_id":"compose-fixture","result":"implemented","structured_output":{"version":1,"kind":"result","text":"implemented"}}`)
+		}
 		os.Exit(0)
 	}
 	content := "worker implementation\n"
