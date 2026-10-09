@@ -21,3 +21,15 @@
 - 成功后主会话核原raw/源树/原Wait/cleanup，合入integration，更新支持矩阵/外层记录并对稳定最终候选封包。
 
 禁止真实Provider/model/account、用户安装替换、push/release。Formal60仍FAILED，Intel/Windows延期；本slice不声明所有F10完成。
+
+## 追加冻结：staging容量和真实mid-write崩溃
+
+共享Lease.Publish的旧随机stage只用于已有CLI进程内错误模型；新server协议不能直接照搬。SIGKILL不跑defer，会使每次重放新增64KiB orphan。新方法使用由launchID+expectedSHA派生的稳定保留名 `.publication-<digest>`，同launch必须先完成原pending再允许新generation。
+
+prepare前持lease核final仍prior、该稳定stage及同launch旧随机/未知stage均不存在；无journal的旧残留failclosed，不自动删或采用。schema35 journal冻结expected canonical bytes，并预付其持久control成本+一份len(expected) scratch；pending中exact replay只计一次，published后无stage且final durable/readback通过才原子释放scratch。仍用现有storage accounting/admission，不另建独立quota框架。
+
+pending replay可打开同稳定stage：必须同UID regular0600/nlink1、size<=expected、FD/named inode稳定。exact expected复用并fsync；exact prefix（含空）才可补写剩余字节；非prefix/超长/硬软链接/身份mode漂移保留并拒绝。写全后fileSync，复核stage内容/inode及final prior/expected规则，rename、dirSync、named readback。普通错误最多删除本次新建且同inode的stage并Sync父目录，既有replay stage不盲删。新协议需要私有per-call checkpoint的真实child SIGKILL覆盖O_EXCL/partial/fileSync/rename前，重复exact replay证明stage数<=1、scratch一次收费/一次释放；不是旧random publisher的资格化。
+
+## 事务gate检查点
+
+共同requirePublishedOwnerTx必须位于各自写事务内；Coordinator预鉴权不是TOCTOU修复。至少核AckDelivery、各Resume、Continuation/Retry/Rework、ReviewResult/AnswerQuestion/RequestStop/ReviseBudget；authenticateOwnerResumeTx、authorizeNewBase、budget内部鉴权；Host Register/AuthorizeHostRebind/Begin+FinishReconcile/RecoveryScope；originalOwner Prepare/Bind/Applied/Activate；ClaimReady/PendingLaunches；bridgeOwnerTx/ACP；diagnostics Ack/Delete及新retention Apply每item底层Delete。只读状态/summary/collect/wait/diagnostics Read与只降低authority的offline/fence不需泛化阻断。启动不得抹publication表，schema34→35不为历史rebind猜bootstrap proof。
