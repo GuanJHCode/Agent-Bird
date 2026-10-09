@@ -1,0 +1,20 @@
+{
+  "command": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+    "test",
+    "-count=1",
+    "-timeout=240s",
+    "-json",
+    "./internal/store",
+    "-run",
+    "^TestOwnerLaunch(QuotaAccountsRowsAndEscrow|PrepareQuotaOneByteBoundaryRollsBack|StartedReplayAndWrongWaitChild)$"
+  ],
+  "exit": 0,
+  "top": 3,
+  "named": 3,
+  "results": {
+    "pass": 3
+  },
+  "raw_sha256": "59af4e2b016a77bf0cd38bff77b88f4932bc990eda0ace242e3cc35da4feb7a5",
+  "stderr_bytes": 0
+}

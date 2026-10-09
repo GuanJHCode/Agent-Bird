@@ -43,7 +43,7 @@ func removeDiagnosticDeletionSchema31(db *DB) error {
 	if version < 31 {
 		return nil
 	}
-	if version != 31 {
+	if version != 31 && version != 32 {
 		return fmt.Errorf("unsupported deletion schema %d", version)
 	}
 	if err := db.sql.QueryRow(`SELECT COUNT(*) FROM diagnostic_deletions`).Scan(&n); err != nil {
@@ -51,6 +51,9 @@ func removeDiagnosticDeletionSchema31(db *DB) error {
 	}
 	if n != 0 {
 		return errors.New("cannot erase diagnostics deletion history")
+	}
+	if err := removeOwnerLaunchSchema32(db); err != nil {
+		return err
 	}
 	tx, err := db.sql.Begin()
 	if err != nil {
@@ -441,7 +444,7 @@ func TestDiagnosticsDeletionSchemaTransitionsAndMigration(t *testing.T) {
 				t.Fatal(e)
 			}
 			if state == "reserved" {
-				if err != nil || version != 31 || objects != 1 {
+				if err != nil || version != currentSchemaVersion || objects != 1 {
 					t.Fatal("valid upgrade", version, objects, err)
 				}
 			} else if !errors.Is(err, CodeError("diagnostics_deletion_history_invalid")) || version != 30 || objects != 0 {
