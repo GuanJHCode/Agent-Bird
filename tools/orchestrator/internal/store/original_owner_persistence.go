@@ -126,6 +126,12 @@ func (d *DB) InspectOriginalOwner(ctx context.Context, id string) (OriginalOwner
 
 func originalOwnerRowBytes(row originalOwnerRow) int64 {
 	i := row.state.Intent
+	// Schema32 retains the immutable base in execution_owners while readers
+	// project the effective retry intent into state.Intent.  Quota must model
+	// the actual indexed row, not that read projection.
+	if row.state.BaseIntent != nil {
+		i = *row.state.BaseIntent
+	}
 	hostBirth := ""
 	if row.state.CurrentHost != nil {
 		hostBirth = row.state.CurrentHost.Birth

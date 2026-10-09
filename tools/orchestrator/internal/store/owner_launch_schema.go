@@ -64,11 +64,30 @@ CREATE INDEX owner_launch_attempts_run_phase ON owner_launch_attempts(run_id,att
 			}
 		}
 	}
+	headCost := originalOwnerBytesSQL("NEW.", []string{"owner_id", "phase", "latest_receipt_hash", "updated_at"}, 24)
+	oldHeadCost := originalOwnerBytesSQL("OLD.", []string{"owner_id", "phase", "latest_receipt_hash", "updated_at"}, 24)
+	if _, err = tx.Exec(`CREATE TRIGGER quota_owner_launch_heads_INSERT AFTER INSERT ON owner_launch_heads BEGIN
+ INSERT INTO storage_usage VALUES('global','',(` + headCost + `),0) ON CONFLICT(scope,scope_id) DO UPDATE SET total_bytes=total_bytes+excluded.total_bytes;
+ INSERT INTO storage_usage VALUES('run',(SELECT run_id FROM owner_launch_attempts WHERE owner_id=NEW.owner_id AND attempt_no=NEW.attempt_no),(` + headCost + `),0) ON CONFLICT(scope,scope_id) DO UPDATE SET total_bytes=total_bytes+excluded.total_bytes; END;
+CREATE TRIGGER quota_owner_launch_heads_UPDATE AFTER UPDATE ON owner_launch_heads BEGIN
+ UPDATE storage_usage SET total_bytes=total_bytes-(` + oldHeadCost + `) WHERE scope='global' AND scope_id='';
+ UPDATE storage_usage SET total_bytes=total_bytes-(` + oldHeadCost + `) WHERE scope='run' AND scope_id=(SELECT run_id FROM owner_launch_attempts WHERE owner_id=OLD.owner_id AND attempt_no=OLD.attempt_no);
+ INSERT INTO storage_usage VALUES('global','',(` + headCost + `),0) ON CONFLICT(scope,scope_id) DO UPDATE SET total_bytes=total_bytes+excluded.total_bytes;
+ INSERT INTO storage_usage VALUES('run',(SELECT run_id FROM owner_launch_attempts WHERE owner_id=NEW.owner_id AND attempt_no=NEW.attempt_no),(` + headCost + `),0) ON CONFLICT(scope,scope_id) DO UPDATE SET total_bytes=total_bytes+excluded.total_bytes; END;
+CREATE TRIGGER quota_owner_launch_heads_DELETE AFTER DELETE ON owner_launch_heads BEGIN
+ UPDATE storage_usage SET total_bytes=total_bytes-(` + oldHeadCost + `) WHERE scope='global' AND scope_id='';
+ UPDATE storage_usage SET total_bytes=total_bytes-(` + oldHeadCost + `) WHERE scope='run' AND scope_id=(SELECT run_id FROM owner_launch_attempts WHERE owner_id=OLD.owner_id AND attempt_no=OLD.attempt_no); END;`); err != nil {
+		return err
+	}
+	if _, err = tx.Exec(`CREATE TRIGGER immutable_owner_launch_escrows_update BEFORE UPDATE ON owner_launch_escrows BEGIN SELECT RAISE(ABORT,'immutable owner launch escrow'); END;
+CREATE TRIGGER immutable_owner_launch_escrows_delete BEFORE DELETE ON owner_launch_escrows BEGIN SELECT RAISE(ABORT,'immutable owner launch escrow'); END;`); err != nil {
+		return err
+	}
 	// Escrow accounts retained upper bounds for attempt2's three remaining
 	// receipts.  Receipt rows covered by it deliberately do not charge again.
 	if _, err = tx.Exec(`CREATE TRIGGER quota_owner_launch_escrows_INSERT AFTER INSERT ON owner_launch_escrows BEGIN
- INSERT INTO storage_usage VALUES('global','',NEW.reserved_bytes,0) ON CONFLICT(scope,scope_id) DO UPDATE SET total_bytes=total_bytes+excluded.total_bytes;
- INSERT INTO storage_usage VALUES('run',NEW.run_id,NEW.reserved_bytes,0) ON CONFLICT(scope,scope_id) DO UPDATE SET total_bytes=total_bytes+excluded.total_bytes; END;
+	 INSERT INTO storage_usage VALUES('global','',NEW.reserved_bytes+16+length(CAST(NEW.owner_id AS BLOB))+length(CAST(NEW.run_id AS BLOB)),0) ON CONFLICT(scope,scope_id) DO UPDATE SET total_bytes=total_bytes+excluded.total_bytes;
+	 INSERT INTO storage_usage VALUES('run',NEW.run_id,NEW.reserved_bytes+16+length(CAST(NEW.owner_id AS BLOB))+length(CAST(NEW.run_id AS BLOB)),0) ON CONFLICT(scope,scope_id) DO UPDATE SET total_bytes=total_bytes+excluded.total_bytes; END;
 CREATE TRIGGER quota_owner_launch_escrows_DELETE AFTER DELETE ON owner_launch_escrows BEGIN
  UPDATE storage_usage SET total_bytes=total_bytes-OLD.reserved_bytes WHERE scope='global' AND scope_id=''; UPDATE storage_usage SET total_bytes=total_bytes-OLD.reserved_bytes WHERE scope='run' AND scope_id=OLD.run_id; END;
 DROP TRIGGER quota_owner_launch_receipts_INSERT;

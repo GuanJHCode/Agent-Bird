@@ -446,8 +446,9 @@ func (d *DB) prepareSupervisedSuccessorOwner(ctx context.Context, spec PrepareOr
 }
 
 func loadOwnerLaunch(ctx context.Context, tx *sql.Tx, ownerID string) (contract.OriginalOwnerLaunchAttempt, contract.OriginalOwnerLaunchReceipt, error) {
-	var body, base, ownerBase, hash, receiptBody, receiptHash, publicText string
-	err := tx.QueryRowContext(ctx, `SELECT a.attempt_json,a.base_intent_json,o.intent_json,a.attempt_hash,(SELECT receipt_json FROM owner_launch_receipts r WHERE r.owner_id=a.owner_id AND r.attempt_hash=a.attempt_hash ORDER BY receipt_no DESC LIMIT 1),h.latest_receipt_hash,a.supervisor_public_key FROM owner_launch_heads h JOIN owner_launch_attempts a ON a.owner_id=h.owner_id AND a.attempt_no=h.attempt_no JOIN execution_owners o ON o.owner_id=a.owner_id WHERE a.owner_id=?`, ownerID).Scan(&body, &base, &ownerBase, &hash, &receiptBody, &receiptHash, &publicText)
+	var body, base, ownerBase, hash, receiptBody, receiptHash, publicText, headPhase string
+	var headAttempt int
+	err := tx.QueryRowContext(ctx, `SELECT a.attempt_json,a.base_intent_json,o.intent_json,a.attempt_hash,(SELECT receipt_json FROM owner_launch_receipts r WHERE r.owner_id=a.owner_id AND r.attempt_hash=a.attempt_hash ORDER BY receipt_no DESC LIMIT 1),h.latest_receipt_hash,a.supervisor_public_key,h.attempt_no,h.phase FROM owner_launch_heads h JOIN owner_launch_attempts a ON a.owner_id=h.owner_id AND a.attempt_no=h.attempt_no JOIN execution_owners o ON o.owner_id=a.owner_id WHERE a.owner_id=?`, ownerID).Scan(&body, &base, &ownerBase, &hash, &receiptBody, &receiptHash, &publicText, &headAttempt, &headPhase)
 	if errors.Is(err, sql.ErrNoRows) {
 		var facts int
 		if e := tx.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM owner_launch_attempts WHERE owner_id=?)+(SELECT COUNT(*) FROM owner_launch_heads WHERE owner_id=?)+(SELECT COUNT(*) FROM owner_launch_receipts WHERE owner_id=?)+(SELECT COUNT(*) FROM owner_launch_escrows WHERE owner_id=?)`, ownerID, ownerID, ownerID, ownerID).Scan(&facts); e != nil {
@@ -462,7 +463,7 @@ func loadOwnerLaunch(ctx context.Context, tx *sql.Tx, ownerID string) (contract.
 		return contract.OriginalOwnerLaunchAttempt{}, contract.OriginalOwnerLaunchReceipt{}, err
 	}
 	var a contract.OriginalOwnerLaunchAttempt
-	if contract.DecodeOwnerRuntimeStrict([]byte(body), &a) != nil || a.Validate() != nil || a.AttemptSHA256 != hash {
+	if contract.DecodeOwnerRuntimeStrict([]byte(body), &a) != nil || a.Validate() != nil || a.AttemptSHA256 != hash || int(a.Attempt) != headAttempt {
 		return a, contract.OriginalOwnerLaunchReceipt{}, originalOwnerRejected()
 	}
 	baseBody, _ := originalOwnerBody(a.BaseIntent)
@@ -476,7 +477,7 @@ func loadOwnerLaunch(ctx context.Context, tx *sql.Tx, ownerID string) (contract.
 	}
 	key := ed25519.PublicKey(pub)
 	id, idErr := contract.OriginalOwnerKeyID(key)
-	if idErr != nil || id != a.BaseIntent.CoordinatorKeyID || contract.DecodeOwnerRuntimeStrict([]byte(receiptBody), &r) != nil || r.Validate() != nil || r.ReceiptSHA256 != receiptHash || contract.VerifyOriginalOwnerLaunchReceipt(r, key, a) != nil {
+	if idErr != nil || id != a.BaseIntent.CoordinatorKeyID || contract.DecodeOwnerRuntimeStrict([]byte(receiptBody), &r) != nil || r.Validate() != nil || r.ReceiptSHA256 != receiptHash || r.Phase != headPhase || contract.VerifyOriginalOwnerLaunchReceipt(r, key, a) != nil {
 		return a, r, originalOwnerRejected()
 	}
 	rows, e := tx.QueryContext(ctx, `SELECT receipt_json,receipt_hash FROM owner_launch_receipts WHERE owner_id=? AND attempt_hash=? ORDER BY receipt_no`, ownerID, a.AttemptSHA256)
@@ -550,9 +551,25 @@ func (d *DB) recordOwnerLaunch(ctx context.Context, ownerID, expected string, su
 	if _, err := originalOwnerSigningPublic(key, a.EffectiveIntent.CoordinatorKeyID); err != nil {
 		return contract.OriginalOwnerLaunchReceipt{}, originalOwnerRejected()
 	}
+	if prior.Phase == phase {
+		if prior.Supervisor == supervisor && prior.HandoffClosed == handoff && ((prior.Child == nil && child == nil) || (prior.Child != nil && child != nil && *prior.Child == *child)) && prior.ExitSignal == exit.Signal && ((prior.ExitCode == nil && exit.Code == nil) || (prior.ExitCode != nil && exit.Code != nil && *prior.ExitCode == *exit.Code)) {
+			return prior, nil
+		}
+		return contract.OriginalOwnerLaunchReceipt{}, originalOwnerRejected()
+	}
 	allowed := map[string]string{contract.OriginalOwnerLaunchStarting: contract.OriginalOwnerLaunchPreparedNotStarted, contract.OriginalOwnerLaunchStartedWaitOwned: contract.OriginalOwnerLaunchStarting, contract.OriginalOwnerLaunchWaited: contract.OriginalOwnerLaunchStartedWaitOwned, contract.OriginalOwnerLaunchNotStartedFinal: contract.OriginalOwnerLaunchStarting}
 	if allowed[phase] != prior.Phase {
 		return contract.OriginalOwnerLaunchReceipt{}, originalOwnerRejected()
+	}
+	if phase == contract.OriginalOwnerLaunchWaited {
+		var raw string
+		if err = owned.tx.QueryRowContext(ctx, `SELECT receipt_json FROM owner_launch_receipts WHERE owner_id=? AND attempt_hash=? AND phase=?`, ownerID, expected, contract.OriginalOwnerLaunchStartedWaitOwned).Scan(&raw); err != nil {
+			return contract.OriginalOwnerLaunchReceipt{}, originalOwnerRejected()
+		}
+		var started contract.OriginalOwnerLaunchReceipt
+		if contract.DecodeOwnerRuntimeStrict([]byte(raw), &started) != nil || started.Child == nil || child == nil || *started.Child != *child {
+			return contract.OriginalOwnerLaunchReceipt{}, originalOwnerRejected()
+		}
 	}
 	r, err := contract.SignOriginalOwnerLaunchReceipt(contract.OriginalOwnerLaunchReceipt{Version: 2, AttemptSHA256: a.AttemptSHA256, Phase: phase, Supervisor: supervisor, Child: child, HandoffClosed: handoff, ExitCode: exit.Code, ExitSignal: exit.Signal, PriorReceiptSHA256: prior.ReceiptSHA256}, key)
 	if err != nil {
