@@ -221,6 +221,13 @@ func (d *DB) RequestStop(ctx context.Context, taskID string, workRevision int, r
 	defer owned.close()
 	tx := owned.tx
 	rollback := func(e error) (StopDispatch, error) { owned.close(); return StopDispatch{}, e }
+	var runID string
+	if err = tx.QueryRowContext(ctx, `SELECT run_id FROM tasks WHERE id=?`, taskID).Scan(&runID); err != nil {
+		return rollback(ErrNotFound)
+	}
+	if err = requirePublishedOwnerTx(ctx, tx, runID); err != nil {
+		return rollback(err)
+	}
 	dispatch, err := requestStopTx(ctx, tx, taskID, workRevision, reason)
 	if err != nil {
 		return rollback(err)

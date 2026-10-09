@@ -67,3 +67,16 @@ func (d *DB) FinalizeOwnerRebindPublication(ctx context.Context, publication Own
 	}
 	return nil
 }
+
+// requirePublishedOwnerTx is intentionally called from the mutation's own
+// write transaction; a coordinator-side preflight cannot close this TOCTOU.
+func requirePublishedOwnerTx(ctx context.Context, tx *sql.Tx, runID string) error {
+	var pending int
+	if err := tx.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM owner_rebind_publications WHERE run_id=? AND state='pending')`, runID).Scan(&pending); err != nil {
+		return err
+	}
+	if pending != 0 {
+		return CodeError("owner_rebind_publication_pending")
+	}
+	return nil
+}
