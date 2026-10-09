@@ -449,6 +449,13 @@ func loadOwnerLaunch(ctx context.Context, tx *sql.Tx, ownerID string) (contract.
 	var body, base, ownerBase, hash, receiptBody, receiptHash, publicText string
 	err := tx.QueryRowContext(ctx, `SELECT a.attempt_json,a.base_intent_json,o.intent_json,a.attempt_hash,(SELECT receipt_json FROM owner_launch_receipts r WHERE r.owner_id=a.owner_id AND r.attempt_hash=a.attempt_hash ORDER BY receipt_no DESC LIMIT 1),h.latest_receipt_hash,a.supervisor_public_key FROM owner_launch_heads h JOIN owner_launch_attempts a ON a.owner_id=h.owner_id AND a.attempt_no=h.attempt_no JOIN execution_owners o ON o.owner_id=a.owner_id WHERE a.owner_id=?`, ownerID).Scan(&body, &base, &ownerBase, &hash, &receiptBody, &receiptHash, &publicText)
 	if errors.Is(err, sql.ErrNoRows) {
+		var facts int
+		if e := tx.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM owner_launch_attempts WHERE owner_id=?)+(SELECT COUNT(*) FROM owner_launch_heads WHERE owner_id=?)+(SELECT COUNT(*) FROM owner_launch_receipts WHERE owner_id=?)+(SELECT COUNT(*) FROM owner_launch_escrows WHERE owner_id=?)`, ownerID, ownerID, ownerID, ownerID).Scan(&facts); e != nil {
+			return contract.OriginalOwnerLaunchAttempt{}, contract.OriginalOwnerLaunchReceipt{}, e
+		}
+		if facts != 0 {
+			return contract.OriginalOwnerLaunchAttempt{}, contract.OriginalOwnerLaunchReceipt{}, originalOwnerRejected()
+		}
 		return contract.OriginalOwnerLaunchAttempt{}, contract.OriginalOwnerLaunchReceipt{}, ErrNotFound
 	}
 	if err != nil {
