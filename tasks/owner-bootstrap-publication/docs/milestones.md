@@ -15,3 +15,10 @@
 journal-authority-red实际1top3named FAIL，owner与state-root变更都误finalized；SHA37d146f8cc1926fec85eb4e4c91e08b41b83e3ea365d966e5de3ed580772ddf6。修后green01同1top3namedPASS。quota-commit01为fixture未建run usage行却直接Scan导致FAIL（不是生产RED），改COALESCE后02实际2top6namedPASS，含exact/short和prepare/finalize真实deferredFK COMMIT后pool/external一致回滚。均是已记录dirty源码定向检查，不是整链/race/独审完成。原FAIL与command/exit保留。
 
 Coordinator尚未切换新lease API，Store schema35草稿尚未进入integration。外层F02已集成6742796，F10不能提前标记完成。
+
+
+## Coordinator新API与direct IPC
+
+merge hostbootstrap生产460b7af为10067e4，ROOT接通先认证run、rooted resolve、lease→registration→Store锁序。fresh验证原owner tuple/executable与prior原bytes；pending只用原journal bytes且prior/expected CAS；published必须named expected/hash及无stage，同事务Finalize root/current scope后再次FS/root复核才能receipt。新direct真实IPC用真实/bin/cat旧origin原Wait0、读只bootstrap目录故障→pending、Coordinator关闭/重开不自动finalize、双客户端exact repair、published后替回prior拒绝；旧RPC在持lease下立即protocol_required。publication-ipc01实际2top2namedPASS0F/S/exit0，原记录为dirty源码；旧fake PID测试只保留旧RPC明确拒绝，不冒充owner进程证明。
+
+旧public pending-authorization rebind测试的quota不变断言按新合同改为：business history保持，pending→published仅退款恰好scratch，已published再次replay才全部quota不变。尚未运行此新public oracle；未宣称原生链完成。

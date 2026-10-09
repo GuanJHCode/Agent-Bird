@@ -1035,44 +1035,6 @@ func (s *Server) control(ctx context.Context, kind ipc.Kind, raw json.RawMessage
 			return nil, store.CodeError("owner_mode_invalid")
 		}
 		return s.rebindOwnerPublished(ctx, request)
-	/*
-		var request RebindOwnerRequest
-		if err := strictJSON(raw, &request); err != nil {
-			return nil, err
-		}
-		// Owner transitions serialize with Host admission/scope proof. A proof
-		// cannot certify an owner generation while another rebind replaces it.
-		s.hostRegistrationMu.Lock()
-		defer s.hostRegistrationMu.Unlock()
-		if request.OwnerMode == "local" {
-			g, err := s.localOwner(ctx, request.OwnerCapability)
-			if err != nil {
-				return nil, err
-			}
-			if g.ControllerThread != request.ControllerThread || g.OriginPID != request.OriginPID || g.OriginBirth != request.OriginBirth || g.HostGeneration != request.HostGeneration {
-				return nil, store.ErrConflict
-			}
-			sum := sha256.Sum256([]byte("local-owner-rebind-v1\x00" + g.ID + "\x00" + g.OriginBirth))
-			request.AttachmentProofSHA256 = hex.EncodeToString(sum[:])
-		} else if request.OwnerMode != "" && request.OwnerMode != "native" {
-			return nil, store.CodeError("owner_mode_invalid")
-		}
-		binding, err := s.db.ValidateRunOwner(ctx, request.RunID, request.ControllerThread, request.ControlToken)
-		if err != nil || binding.OriginContextID != request.OriginContextID {
-			return nil, store.ErrConflict
-		}
-		current, observeErr := process.ObserveIdentityContext(ctx, binding.OriginPID, binding.OriginBirth)
-		replayOnly := binding.OriginPID == request.OriginPID && binding.OriginBirth == request.OriginBirth
-		if observeErr != nil || (replayOnly && current != process.IdentityAlive) || (!replayOnly && current != process.IdentityExited) {
-			return nil, store.ErrConflict
-		}
-		if next, birthErr := process.ObserveIdentityContext(ctx, request.OriginPID, request.OriginBirth); birthErr != nil || next != process.IdentityAlive {
-			return nil, store.ErrConflict
-		}
-		if err = s.db.RebindOwner(ctx, store.RebindOwnerSpec{RunID: request.RunID, OriginContextID: request.OriginContextID, OriginPID: request.OriginPID, OriginBirth: request.OriginBirth, HostGeneration: request.HostGeneration, AttachmentProofSHA256: request.AttachmentProofSHA256, ReplayOnly: replayOnly}); err != nil {
-			return nil, err
-		}
-		return json.Marshal(map[string]any{"version": 1, "status": "owner_rebound", "run_id": request.RunID, "origin_context_id": request.OriginContextID, "host_generation": request.HostGeneration})*/
 	case ipc.KindStopTask:
 		var request TaskControlRequest
 		if err := strictJSON(raw, &request); err != nil {
