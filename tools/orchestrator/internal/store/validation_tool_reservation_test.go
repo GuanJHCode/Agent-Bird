@@ -240,6 +240,17 @@ func TestValidationToolReleaseRequiresOriginalHostAndTerminal(t *testing.T) {
 			if err = db.managedArtifactAdmission(ctx, owned.tx, 0, 0); err != nil {
 				t.Fatal("removed tool still charged raw allowance", err)
 			}
+			// The binary is gone, but both bounded journal versions still own
+			// their physical escrow. Verify the exact free-space boundary.
+			required := db.minFreeBytes + db.criticalDiskReserve + db.sqliteWriteOverhead + uint64(contract.HostArtifactReservedBytes+hostArtifactManifestReservationBytes+contract.ValidationToolMetadataBytes)
+			db.storageAvailable = func(string) (uint64, error) { return required, nil }
+			if err = db.managedArtifactAdmission(ctx, owned.tx, 0, 0); err != nil {
+				t.Fatal("exact remaining journal capacity", err)
+			}
+			db.storageAvailable = func(string) (uint64, error) { return required - 1, nil }
+			if err = db.managedArtifactAdmission(ctx, owned.tx, 0, 0); !errors.Is(err, CodeError("storage_blocked")) {
+				t.Fatal("released grant lost physical journal escrow", err)
+			}
 			owned.close()
 		})
 	}
@@ -356,6 +367,20 @@ func TestValidationToolBindingAndHistoryCannotBeErased(t *testing.T) {
 	wrong.ValidationTool = &g
 	if bindValidationTool(ctx, owned.tx, &wrong, true) == nil {
 		t.Fatal("foreign grant rebound")
+	}
+	if _, err = owned.tx.Exec(`ALTER TABLE validation_tool_reservations RENAME TO hidden_tool_reservations`); err != nil {
+		t.Fatal(err)
+	}
+	for _, live := range []bool{false, true} {
+		if bindValidationTool(ctx, owned.tx, &c, live) == nil {
+			t.Fatal("schema34 missing table interpreted as legacy", live)
+		}
+		legacy := c
+		legacy.ValidationTool = nil
+		legacy.AdapterPayload = json.RawMessage(`{"kind":"fixture"}`)
+		if bindValidationTool(ctx, owned.tx, &legacy, live) == nil {
+			t.Fatal("nil authority bypassed schema34 corruption", live)
+		}
 	}
 	owned.close()
 	if continuationQuotaState(t, db) != before {
