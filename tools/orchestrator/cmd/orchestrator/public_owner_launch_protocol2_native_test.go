@@ -122,7 +122,7 @@ func TestPublicOwnerLaunchProtocol2PreBindKill(t *testing.T) {
 	t.Setenv("ORCHESTRATOR_ENABLE_TEST_FAKE", "1")
 	t.Setenv("GORACE", os.Getenv("GORACE")+" atexit_sleep_ms=0")
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
-	defer cancel()
+	t.Cleanup(cancel)
 	server, err := coordinator.NewCLIServer(state, false)
 	if err != nil {
 		t.Fatal(err)
