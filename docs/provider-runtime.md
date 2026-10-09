@@ -59,3 +59,12 @@ Host 只把每个分块指定的文本范围写入实际 prompt 文件。Store �
 当前要求 producer、validate/review 已启用 AutoDirectory；所有 Directory 原值保留。支持一个最终 integration 闭包及可选有序 compose；session、fallback、indexed review、config-generation、旧 rework 和已修订预算等形状显式拒绝。Store 注入并认证新上下文，普通提交不能自行提供它。每个 source event 只有一个 successor；下一代使用刚完成的 integration event 及其 control capability。
 
 CLI 在 Submit 前持久化并同步恢复身份，精确重试返回同 control/bootstrap/launch。目标预约从 queued 起覆盖整个新 DAG，未证明终态或 UNKNOWN 时保留；Host 在 common Git 锁内复核 target HEAD/ref/inode。旧 run 的历史和额度不重置。完整请求规则、支持边界和 macOS 受控三代 runtime race 证据见 [新基线验收](../tasks/new-base-rework/docs/final-validation.md)。该证据不代表真实模型质量或 Linux Git 链通过。
+
+
+## 验证命令的有限未启动重试
+
+对于v1 candidate的`validate`步骤，显式有限execution policy、AutoDirectory和`candidate_action.command_sha256`可启用受限未启动重试。Host将固定native executable复制到独立受保护目录，派发前预约最多32MiB及8192byte持久元数据；不接受脚本或已知shell/env分发器，也不承诺动态库和子命令完全固定。
+
+只有原Host实际`cmd.Start`返回EAGAIN/EINTR且尚未产生Process/Handle的活typed proof，才进入`candidate_validation_retry`。原诊断/终态与工具清理经过认证，Store持久化并ACK原失败后，按有限预算/次数/退避创建fresh attempt。已启动命令仍由原Handle执行Stop/Wait/tree；冷starting、cleanup失败或只有旧physical Host未入Store的spool均保留UNKNOWN与预约。每次工具删除证明成立后释放raw预留，8192byte元数据继续计费。
+
+公开用法与边界见[验收及使用说明](../tasks/validation-start-retry/docs/usage-and-limits.md)。Mac arm64真实受控链及profile访问拒绝已有证据；不代表已启动validate失败或implement/compose/integrate失败可自动重试，也不代表真实内核资源耗尽或Linux Git链通过。
