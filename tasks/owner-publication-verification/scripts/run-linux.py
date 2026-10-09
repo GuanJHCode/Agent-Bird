@@ -9,7 +9,7 @@ import sys
 
 label, binary_arg, mode, expected_arg = sys.argv[1:]
 modes = {
-    'stage': ('^TestPublication', ('TestPublication',)),
+    'stage': ('^TestPublication(LegacyStageRefusal|FrozenBytesAndExactReplay|StageDriftAndPrefixRejection|OwnershipBoundsAndOrdinaryFailure|NativeSIGKILLExactStageReplay|NativeCleanupRetainsUnknown)$', ('TestPublication',)),
     'store': ('^(TestOwnerPublication.*|TestPendingPublication.*)$', ('TestOwnerPublication', 'TestPendingPublication')),
     'ipc': ('^(TestOwnerPublicationDirectIPCReplayAndRestart|TestLocalOwnerLegacyRebindRequiresPublicationProtocol)$', ('TestOwnerPublicationDirectIPCReplayAndRestart', 'TestLocalOwnerLegacyRebindRequiresPublicationProtocol')),
     'public': ('^TestPublicPendingInitialAuthorizationRebindRecovers$', ('TestPublicPendingInitialAuthorizationRebindRecovers',)),
