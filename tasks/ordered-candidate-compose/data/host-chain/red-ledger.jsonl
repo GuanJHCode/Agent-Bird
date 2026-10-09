@@ -1,0 +1,9 @@
+{"Time":"2026-10-09T10:46:10.570362+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator"}
+{"Time":"2026-10-09T10:46:11.143523+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Test":"TestOrderedComposeHostDeliveryChain"}
+{"Time":"2026-10-09T10:46:11.143602+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Test":"TestOrderedComposeHostDeliveryChain","Output":"=== RUN   TestOrderedComposeHostDeliveryChain\n"}
+{"Time":"2026-10-09T10:46:19.31787+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Test":"TestOrderedComposeHostDeliveryChain","Output":"    ordered_compose_test.go:129: compose bypassed tracked Git process ledger\n"}
+{"Time":"2026-10-09T10:46:19.342693+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Test":"TestOrderedComposeHostDeliveryChain","Output":"--- FAIL: TestOrderedComposeHostDeliveryChain (8.20s)\n"}
+{"Time":"2026-10-09T10:46:19.342749+08:00","Action":"fail","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Test":"TestOrderedComposeHostDeliveryChain","Elapsed":8.2}
+{"Time":"2026-10-09T10:46:19.342778+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Output":"FAIL\n"}
+{"Time":"2026-10-09T10:46:19.345908+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Output":"FAIL\tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator\t8.775s\n"}
+{"Time":"2026-10-09T10:46:19.346037+08:00","Action":"fail","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/cmd/orchestrator","Elapsed":8.776}

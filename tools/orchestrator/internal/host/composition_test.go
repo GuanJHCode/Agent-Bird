@@ -30,3 +30,51 @@ func TestCompositionManifestPreservesDeclaredSourceOrder(t *testing.T) {
 		t.Fatalf("first oid=%q", got)
 	}
 }
+
+func TestCompositionProvenanceCannotRebindOrDropReceipt(t *testing.T) {
+	binding := gitops.CandidateBinding{RunID: "run", TaskID: "compose", AttemptID: "attempt", SegmentID: "segment", WorkRevision: 1, PlanRevision: 7}
+	digest := strings.Repeat("a", 64)
+	c := gitops.CandidateReceipt{Binding: &binding, AttemptID: "attempt", PlanRevision: 7, RepoRoot: "/repo", CommonDir: "/repo/.git", BaseOID: strings.Repeat("b", 40), CandidateOID: strings.Repeat("c", 40), TreeOID: strings.Repeat("d", 40), PrivateRef: "refs/orchestrator/g3/compose", PrivateRefExpectedOID: strings.Repeat("c", 40), OrderedInputOIDs: []string{strings.Repeat("e", 40), strings.Repeat("f", 40)}}
+	m := CompositionManifest{Version: 1, RunID: binding.RunID, TaskID: binding.TaskID, AttemptID: binding.AttemptID, SegmentID: binding.SegmentID, WorkRevision: binding.WorkRevision, PlanRevision: binding.PlanRevision, Binding: binding, RepoRoot: c.RepoRoot, CommonDir: c.CommonDir, BaseOID: c.BaseOID, CandidateOID: c.CandidateOID, TreeOID: c.TreeOID, PrivateRef: c.PrivateRef, PrivateRefExpectedOID: c.PrivateRefExpectedOID, OrderedInputOIDs: c.OrderedInputOIDs}
+	for i, task := range []string{"B", "A"} {
+		m.Sources = append(m.Sources, CompositionSource{TaskID: task, EventID: task + "-result", EventSHA256: digest, DecisionCommandID: "accept-" + task, CandidateOID: c.OrderedInputOIDs[i], CandidateReceiptSHA256: digest, ProviderLockSHA256: digest, AdapterPayloadSHA256: digest, ArtifactSHA256: digest})
+	}
+	seal := func(m *CompositionManifest) {
+		m.ManifestSHA256 = ""
+		b, _ := json.Marshal(m)
+		m.ManifestSHA256 = hashBytes(b)
+	}
+	seal(&m)
+	b, _ := json.Marshal(c)
+	original := CandidateDelivery{Version: 1, Stage: "compose", Binding: binding, Candidate: c, CandidateReceiptSHA256: hashBytes(b), Composition: &m}
+	if err := validateCompositionDelivery(original); err != nil {
+		t.Fatal(err)
+	}
+	for _, kind := range []string{"missing", "rebound", "receipt"} {
+		t.Run(kind, func(t *testing.T) {
+			changed := original
+			manifest := m
+			changed.Composition = &manifest
+			switch kind {
+			case "missing":
+				changed.Composition = nil
+			case "rebound":
+				manifest.Binding.AttemptID = "other"
+				manifest.AttemptID = "other"
+				seal(&manifest)
+			case "receipt":
+				changed.CandidateReceiptSHA256 = digest
+			}
+			if validateCompositionDelivery(changed) == nil {
+				t.Fatal("changed composition accepted")
+			}
+		})
+	}
+	// Later stages retain the original composition binding, not their own tuple.
+	next := original
+	next.Stage = "review"
+	next.Binding.TaskID = "review"
+	if err := validateCompositionDelivery(next); err != nil {
+		t.Fatal("downstream binding rejected", err)
+	}
+}

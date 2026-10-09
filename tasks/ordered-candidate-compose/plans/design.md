@@ -63,3 +63,11 @@ F03 是一个 writer，完整实现由同一负责人完成，避免机械按 St
 6. 兼容：现有 v1 单 source 和 v1 多依赖字典序 vector 的 hash/replay tests 原样通过。
 
 仍真实缺失的信息：当前 `gitopsworker.BuildInvocation` 的 caller-to-`process.Command` 适配点在现有 Host action 分支中尚未实现，且 compose 输出到 finalizer 的严格 stdout envelope/大小限制需要在实现时以 worker 实际编码确认；这不是待产品裁决，不阻塞上述冻结合同。
+
+## 2026-10-09 根会话接管后的必要补充
+
+独立窄审 `aaab0b5` 发现已有 compose primitive/worker 路由缺少 candidate runner、Git process journal、common-dir 锁及完整目录身份。为满足上述原合同，允许最小修复 Git 边界：receipt 增加 repo/common directory identity；`ManagedComposeCandidate` 复用严格仓库准入、原 Handle Wait 和锁；worker 在锁定 journal 后拒绝已有副作用或未闭合 Git process 的重放。Host 请求带有限 `SourcePins`，worker 在 common-dir 锁内再次验证，关闭 Host 认证与实际 mutation 间协作 cleanup 的窗口。旧裸 Git 单输入 API 保持兼容，v2 Host 入口仍限定 2..63。
+
+Host 使用单独最多 1 MiB 的 stdout 接收 worker envelope，避免把 stderr 的 CLI error envelope 混作结果。冲突返回 `compose_conflict`，不确定进程/产物返回 `compose_uncertain` 并保留 UNKNOWN；二者均保留 journal/worktree，不自动 retry 或清理。完整库存留在 worker journal，公开 compose receipt 删除 `Files` 后由 Host 补自身 binding、计算 receipt SHA；producer 的旧 `CandidateReceiptSHA256` 仍指向完整 journal receipt，其 artifact 内省略 Files 的旧合同保持不变。
+
+Store 初次实现用跳过 decision reconciliation 来绕开 `source_task` 为空，已被独审拒绝。正确修复必须将严格合法 v2 compose 视为单源 decision predecessor 链的根，保留所有 pending/consumed/retry/revision/budget 检查，不增加授权旁路。

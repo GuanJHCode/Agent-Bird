@@ -53,6 +53,8 @@ type CompositionManifest struct {
 	RepoRoot              string                   `json:"repo_root"`
 	CommonDir             string                   `json:"common_dir"`
 	RootIdentity          gitops.DirectoryIdentity `json:"root_identity"`
+	RepoRootIdentity      gitops.DirectoryIdentity `json:"repo_root_identity"`
+	CommonDirIdentity     gitops.DirectoryIdentity `json:"common_dir_identity"`
 	BaseOID               string                   `json:"base_oid"`
 	Sources               []CompositionSource      `json:"sources"`
 	OrderedInputOIDs      []string                 `json:"ordered_input_oids"`
@@ -70,7 +72,9 @@ type CompositionSource struct {
 	DecisionCommandID      string `json:"decision_command_id"`
 	CandidateOID           string `json:"candidate_oid"`
 	CandidateReceiptSHA256 string `json:"candidate_receipt_sha256"`
-	ProviderLockSHA256     string `json:"provider_lock_sha256,omitempty"`
+	ProviderLockSHA256     string `json:"provider_lock_sha256"`
+	AdapterPayloadSHA256   string `json:"adapter_payload_sha256"`
+	ArtifactSHA256         string `json:"artifact_sha256"`
 }
 
 func newCompositionManifest(grant contract.LaunchCommand, inputs []contract.AcceptedInput, deliveries []CandidateDelivery) (*CompositionManifest, error) {
@@ -82,8 +86,9 @@ func newCompositionManifest(grant contract.LaunchCommand, inputs []contract.Acce
 		c := deliveries[i].Candidate
 		if i == 0 {
 			m.RepoRoot, m.CommonDir, m.BaseOID = c.RepoRoot, c.CommonDir, c.BaseOID
+			m.RepoRootIdentity, m.CommonDirIdentity = c.RepoRootIdentity, c.CommonDirIdentity
 		}
-		if c.RepoRoot != m.RepoRoot || c.CommonDir != m.CommonDir || c.BaseOID != m.BaseOID || c.CandidateOID == "" {
+		if c.RepoRoot != m.RepoRoot || c.CommonDir != m.CommonDir || c.BaseOID != m.BaseOID || c.RepoRootIdentity != m.RepoRootIdentity || c.CommonDirIdentity != m.CommonDirIdentity || c.CandidateOID == "" {
 			return nil, errors.New("composition_source_mismatch")
 		}
 		source, err := adapter.DecodeInvocationPayload(in.AdapterPayload)
@@ -95,7 +100,7 @@ func newCompositionManifest(grant contract.LaunchCommand, inputs []contract.Acce
 			return nil, err
 		}
 		lockHash := hashBytes(rawLock)
-		m.Sources = append(m.Sources, CompositionSource{TaskID: in.Event.TaskID, EventID: in.Event.EventID, EventSHA256: in.Event.PayloadHash, DecisionCommandID: in.DecisionCommandID, CandidateOID: c.CandidateOID, CandidateReceiptSHA256: deliveries[i].CandidateReceiptSHA256, ProviderLockSHA256: lockHash})
+		m.Sources = append(m.Sources, CompositionSource{TaskID: in.Event.TaskID, EventID: in.Event.EventID, EventSHA256: in.Event.PayloadHash, DecisionCommandID: in.DecisionCommandID, CandidateOID: c.CandidateOID, CandidateReceiptSHA256: deliveries[i].CandidateReceiptSHA256, ProviderLockSHA256: lockHash, AdapterPayloadSHA256: hashBytes(in.AdapterPayload), ArtifactSHA256: in.Event.Artifact.SHA256})
 		m.OrderedInputOIDs = append(m.OrderedInputOIDs, c.CandidateOID)
 	}
 	raw, err := json.Marshal(m)
@@ -149,15 +154,22 @@ type CandidateDelivery struct {
 func validateCompositionDelivery(out CandidateDelivery) error {
 	m := out.Composition
 	if m == nil {
+		if out.Stage == "compose" {
+			return errors.New("composition_manifest_missing")
+		}
 		return nil
 	}
 	c := out.Candidate
-	if m.Version != 1 || m.ManifestSHA256 == "" || m.RunID != m.Binding.RunID || m.TaskID != m.Binding.TaskID || m.PlanRevision != m.Binding.PlanRevision || m.RepoRoot != c.RepoRoot || m.CommonDir != c.CommonDir || m.BaseOID != c.BaseOID || m.CandidateOID != c.CandidateOID || m.TreeOID != c.TreeOID || m.PrivateRef != c.PrivateRef || m.PrivateRefExpectedOID != c.PrivateRefExpectedOID || m.RootIdentity != c.RootIdentity || len(m.Sources) < 2 || len(m.Sources) > 63 || len(m.Sources) != len(m.OrderedInputOIDs) || !reflect.DeepEqual(m.OrderedInputOIDs, c.OrderedInputOIDs) {
+	if m.Version != 1 || c.Binding == nil || m.Binding != *c.Binding || c.AttemptID != m.AttemptID || c.PlanRevision != int64(m.PlanRevision) || m.ManifestSHA256 == "" || m.AttemptID != m.Binding.AttemptID || m.SegmentID != m.Binding.SegmentID || m.WorkRevision != m.Binding.WorkRevision || m.RunID != m.Binding.RunID || m.TaskID != m.Binding.TaskID || m.PlanRevision != m.Binding.PlanRevision || m.RepoRoot != c.RepoRoot || m.CommonDir != c.CommonDir || m.BaseOID != c.BaseOID || m.CandidateOID != c.CandidateOID || m.TreeOID != c.TreeOID || m.PrivateRef != c.PrivateRef || m.PrivateRefExpectedOID != c.PrivateRefExpectedOID || m.RootIdentity != c.RootIdentity || m.RepoRootIdentity != c.RepoRootIdentity || m.CommonDirIdentity != c.CommonDirIdentity || len(m.Sources) < 2 || len(m.Sources) > 63 || len(m.Sources) != len(m.OrderedInputOIDs) || !reflect.DeepEqual(m.OrderedInputOIDs, c.OrderedInputOIDs) {
 		return errors.New("composition_manifest_invalid")
+	}
+	receipt, err := json.Marshal(c)
+	if err != nil || out.CandidateReceiptSHA256 != hashBytes(receipt) {
+		return errors.New("composition_receipt_changed")
 	}
 	seen := make(map[string]bool, len(m.Sources))
 	for i, source := range m.Sources {
-		if source.TaskID == "" || seen[source.TaskID] || source.EventID == "" || len(source.EventSHA256) != 64 || source.DecisionCommandID == "" || source.CandidateOID != m.OrderedInputOIDs[i] || len(source.CandidateReceiptSHA256) != 64 {
+		if source.TaskID == "" || seen[source.TaskID] || source.EventID == "" || len(source.EventSHA256) != 64 || source.DecisionCommandID == "" || source.CandidateOID != m.OrderedInputOIDs[i] || len(source.CandidateReceiptSHA256) != 64 || len(source.ProviderLockSHA256) != 64 || len(source.AdapterPayloadSHA256) != 64 || source.ArtifactSHA256 != source.EventSHA256 {
 			return errors.New("composition_manifest_invalid")
 		}
 		seen[source.TaskID] = true
@@ -410,7 +422,19 @@ func (h *Host) prepareCandidateAction(ctx context.Context, grant contract.Launch
 	var reviewLock *adapter.ProviderLock
 	switch action.Operation {
 	case "validate":
-		composeSource := source.Kind == "candidate" && source.Action != nil && source.Action.Version == 2 && source.Action.Operation == "compose" && in.Stage == "compose" && in.Composition != nil && source.Lock == nil && source.Provider == "" && source.Profile == nil && source.Workspace == nil
+		composeSource := source.Kind == "candidate" && source.Action != nil && source.Action.Version == 2 && source.Action.DependencyInputVersion == 2 && source.Action.Operation == "compose" && in.Stage == "compose" && in.Composition != nil && source.Lock == nil && source.Provider == "" && source.Profile == nil && source.Workspace == nil
+		if composeSource {
+			if len(source.Action.OrderedSourceTasks) != len(in.Composition.Sources) {
+				composeSource = false
+			} else {
+				for i, task := range source.Action.OrderedSourceTasks {
+					if task != in.Composition.Sources[i].TaskID {
+						composeSource = false
+						break
+					}
+				}
+			}
+		}
 		legacySource := source.Kind == "" && validateCandidateSourceProvider(source.Lock, source.Provider) == nil && source.Profile != nil && source.Profile.Role == adapter.Implementer && source.Workspace != nil && in.Stage == ""
 		if (!composeSource && !legacySource) || profile != nil || len(action.Command) == 0 || len(action.Command) > 64 {
 			return empty, nil, noop, errors.New("candidate_validation_source_invalid")
@@ -452,6 +476,12 @@ func (h *Host) prepareCandidateAction(ctx context.Context, grant contract.Launch
 	closeJournal := func() { _ = journal.Close() }
 	fail := func(err error) (process.Command, actionFinalizer, func(), error) {
 		return empty, nil, closeJournal, err
+	}
+	// Authenticate the original composition pin before any downstream Git action.
+	if in.Composition != nil {
+		if err := gitops.ValidateCandidatePrivateRef(gitops.WithCandidateJournal(ctx, journal), c); err != nil {
+			return fail(err)
+		}
 	}
 	if action.Operation == "integrate" && source.Lock.Provider == adapter.ProviderGrok {
 		if in.ReviewScope != "complete-tracked-text-base-and-candidate" || len(in.ReviewInputSHA256) != 64 || len(in.ReviewSnapshotSHA256) != 64 {
@@ -667,102 +697,6 @@ func (h *Host) prepareCandidateAction(ctx context.Context, grant contract.Launch
 		return finishCandidateDelivery(ctx, out, success, journal)
 	}
 	return cmd, finalize, closeJournal, nil
-}
-
-// prepareComposeAction authenticates every producer artifact before creating a
-// private gitops-worker request. The worker is returned to Host.execute so its
-// process tree, original Wait, stop and UNKNOWN paths remain authoritative.
-func (h *Host) prepareComposeAction(ctx context.Context, grant contract.LaunchCommand, inv contract.InvocationView, action *adapter.CandidateAction) (process.Command, actionFinalizer, func(), error) {
-	empty, noop := invocationCommand(inv), func() {}
-	if grant.Input != nil || action.SourceTask != "" || len(action.OrderedSourceTasks) < 2 || len(action.OrderedSourceTasks) > 63 || grant.DependencyInputs == nil || grant.DependencyInputs.Version != 2 || len(grant.DependencyInputs.Inputs) != len(action.OrderedSourceTasks) || grant.SessionID != "" || grant.Answer != "" || !filepath.IsAbs(inv.WorkingDirectory()) {
-		return empty, nil, noop, errors.New("candidate_compose_invalid")
-	}
-	deliveries := make([]CandidateDelivery, len(grant.DependencyInputs.Inputs))
-	for i, input := range grant.DependencyInputs.Inputs {
-		if input.Event.TaskID != action.OrderedSourceTasks[i] {
-			return empty, nil, noop, errors.New("candidate_compose_order_changed")
-		}
-		source, err := adapter.DecodeInvocationPayload(input.AdapterPayload)
-		if err != nil || source.Kind != "" || source.CandidateAction != nil || source.CandidateWorkspace == nil || source.Profile == nil || source.Profile.Role != adapter.Implementer || source.Profile.Permission != adapter.WorkspaceWrite || validateCandidateSourceProvider(source.ProviderLock, source.Provider) != nil {
-			return empty, nil, noop, errors.New("candidate_compose_source_invalid")
-		}
-		delivery, err := readCandidateDelivery(grant, &input, filepath.Dir(h.spoolRoot))
-		if err != nil {
-			return empty, nil, noop, err
-		}
-		if delivery.Candidate.Binding == nil || delivery.Candidate.Binding.TaskID != input.Event.TaskID || delivery.Candidate.PrivateRef == "" || delivery.Candidate.PrivateRefExpectedOID != delivery.Candidate.CandidateOID {
-			return empty, nil, noop, errors.New("candidate_compose_source_invalid")
-		}
-		if err := gitops.ValidateCandidatePrivateRef(ctx, delivery.Candidate); err != nil {
-			return empty, nil, noop, err
-		}
-		deliveries[i] = delivery
-	}
-	manifest, err := newCompositionManifest(grant, grant.DependencyInputs.Inputs, deliveries)
-	if err != nil {
-		return empty, nil, noop, err
-	}
-	key := hashText(grant.RunID + "\x00" + grant.TaskID + "\x00" + grant.AttemptID + "\x00" + grant.SegmentID)
-	executable, err := os.Executable()
-	if err != nil {
-		return empty, nil, noop, err
-	}
-	executable, err = filepath.EvalSymlinks(executable)
-	if err != nil || !filepath.IsAbs(executable) {
-		return empty, nil, noop, errors.New("candidate_compose_executable_invalid")
-	}
-	req := gitops.CandidateCompositionRequest{RepoRoot: manifest.RepoRoot, Worktree: candidateDirectory(inv.WorkingDirectory(), grant, true), AttemptID: grant.AttemptID, BaseOID: manifest.BaseOID, OrderedInputOIDs: append([]string(nil), manifest.OrderedInputOIDs...), PlanRevision: int64(grant.PlanRevision), PrivateRef: "refs/orchestrator/g3/compose-" + key}
-	payload, err := json.Marshal(struct {
-		Kind      string `json:"kind"`
-		Operation string `json:"operation"`
-		Request   any    `json:"request"`
-	}{"gitops", "compose", req})
-	if err != nil {
-		return empty, nil, noop, err
-	}
-	worker, err := gitopsworker.BuildInvocation(payload, executable, h.spoolRoot, grant.CommandID)
-	if err != nil {
-		return empty, nil, noop, err
-	}
-	cmd := invocationCommand(worker)
-	finalize := func(_ context.Context, text string, exit int, success bool) ([]byte, error) {
-		if !success || exit != 0 || len(text) > 1024*1024 {
-			return nil, errors.New("candidate_compose_failed")
-		}
-		var response struct {
-			Version   int             `json:"version"`
-			Status    string          `json:"status"`
-			Operation string          `json:"operation"`
-			Result    json.RawMessage `json:"result"`
-		}
-		if json.Unmarshal([]byte(text), &response) != nil || response.Version != 1 || response.Status != "ok" || response.Operation != "compose" {
-			return nil, errors.New("candidate_compose_invalid")
-		}
-		var receipt gitops.CandidateReceipt
-		if json.Unmarshal(response.Result, &receipt) != nil || receipt.RepoRoot != manifest.RepoRoot || receipt.CommonDir != manifest.CommonDir || receipt.BaseOID != manifest.BaseOID || !reflect.DeepEqual(receipt.OrderedInputOIDs, manifest.OrderedInputOIDs) || receipt.PrivateRef != req.PrivateRef || receipt.PrivateRefExpectedOID != receipt.CandidateOID {
-			return nil, errors.New("candidate_compose_receipt_invalid")
-		}
-		if err := gitops.ValidateCandidatePrivateRef(ctx, receipt); err != nil {
-			return nil, err
-		}
-		binding := gitops.CandidateBinding{RunID: grant.RunID, TaskID: grant.TaskID, AttemptID: grant.AttemptID, SegmentID: grant.SegmentID, WorkRevision: grant.WorkRevision, PlanRevision: grant.PlanRevision}
-		receipt.Binding = &binding
-		manifest.Binding = binding
-		manifest.RootIdentity = receipt.RootIdentity
-		manifest.CandidateOID, manifest.TreeOID, manifest.PrivateRef, manifest.PrivateRefExpectedOID = receipt.CandidateOID, receipt.TreeOID, receipt.PrivateRef, receipt.PrivateRefExpectedOID
-		manifest.ManifestSHA256 = ""
-		raw, err := json.Marshal(manifest)
-		if err != nil {
-			return nil, err
-		}
-		manifest.ManifestSHA256 = hashBytes(raw)
-		receiptRaw, err := json.Marshal(receipt)
-		if err != nil {
-			return nil, err
-		}
-		return json.Marshal(CandidateDelivery{Version: 1, Stage: "compose", Binding: binding, Candidate: receipt, CandidateReceiptSHA256: hashBytes(receiptRaw), Composition: manifest})
-	}
-	return cmd, finalize, noop, nil
 }
 
 // The caller has authenticated the exact review lock and materialized/checked
