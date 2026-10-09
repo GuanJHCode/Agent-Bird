@@ -63,6 +63,10 @@ func (d *DB) RebindOwner(ctx context.Context, spec RebindOwnerSpec) error {
 }
 
 func (d *DB) rebindOwner(ctx context.Context, spec RebindOwnerSpec, now func() string) error {
+	return d.rebindOwnerWithPublication(ctx, spec, now, nil)
+}
+
+func (d *DB) rebindOwnerWithPublication(ctx context.Context, spec RebindOwnerSpec, now func() string, publication *OwnerRebindPublication) error {
 	if spec.RunID == "" || spec.OriginContextID == "" || spec.OriginPID <= 0 || spec.OriginBirth == "" || spec.HostGeneration == "" || !validDigest(spec.AttachmentProofSHA256) {
 		return CodeError("invalid_owner_rebind")
 	}
@@ -84,6 +88,11 @@ func (d *DB) rebindOwner(ctx context.Context, spec RebindOwnerSpec, now func() s
 	if err == nil {
 		if err = ownerRebindReplayTx(ctx, tx, spec, origin, oldGeneration, row); err != nil {
 			return rollback(err)
+		}
+		if publication != nil {
+			if err = verifyOwnerRebindPublicationTx(ctx, tx, *publication); err != nil {
+				return rollback(err)
+			}
 		}
 		return owned.finishInitialRead()
 	}
@@ -107,6 +116,12 @@ func (d *DB) rebindOwner(ctx context.Context, spec RebindOwnerSpec, now func() s
 	}
 	row = ownerRebindRow{RunID: spec.RunID, Generation: spec.HostGeneration, OldGeneration: oldGeneration, PID: spec.OriginPID, Birth: spec.OriginBirth, Proof: strings.ToLower(spec.AttachmentProofSHA256), Created: now()}
 	incoming := row.bytes()
+	if publication != nil {
+		if err = publication.validate(spec); err != nil {
+			return rollback(err)
+		}
+		incoming += publication.bytes()
+	}
 	var derived ownerAuthorizationRebindProof
 	if a != nil {
 		derived, err = ownerAuthorizationRebindPlanTx(ctx, tx, *a, origin, oldGeneration, row)
@@ -120,6 +135,12 @@ func (d *DB) rebindOwner(ctx context.Context, spec RebindOwnerSpec, now func() s
 	}
 	if _, err = tx.ExecContext(ctx, `INSERT INTO owner_rebinds(run_id,host_generation,old_host_generation,origin_pid,origin_birth,attachment_proof_sha256,created_at) VALUES(?,?,?,?,?,?,?)`, row.RunID, row.Generation, row.OldGeneration, row.PID, row.Birth, row.Proof, row.Created); err != nil {
 		return rollback(mapConflict(err))
+	}
+	if publication != nil {
+		publication.CreatedAt = row.Created
+		if _, err = tx.ExecContext(ctx, `INSERT INTO owner_rebind_publications(run_id,host_generation,launch_id,expected_sha256,bootstrap_json,state,created_at) VALUES(?,?,?,?,?,'pending',?)`, publication.RunID, publication.HostGeneration, publication.LaunchID, publication.ExpectedSHA256, string(publication.BootstrapJSON), publication.CreatedAt); err != nil {
+			return rollback(mapConflict(err))
+		}
 	}
 	if a != nil {
 		if err = insertOwnerAuthorizationRebindProof(ctx, tx, derived); err != nil {

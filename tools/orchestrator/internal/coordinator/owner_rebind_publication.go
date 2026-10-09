@@ -44,10 +44,6 @@ func (s *Server) rebindOwnerPublished(ctx context.Context, request RebindOwnerRe
 	if next, e := process.ObserveIdentityContext(ctx, request.OriginPID, request.OriginBirth); e != nil || next != process.IdentityAlive {
 		return nil, store.ErrConflict
 	}
-	if err = s.db.RebindOwner(ctx, store.RebindOwnerSpec{RunID: request.RunID, OriginContextID: request.OriginContextID, OriginPID: request.OriginPID, OriginBirth: request.OriginBirth, HostGeneration: request.HostGeneration, AttachmentProofSHA256: request.AttachmentProofSHA256, ReplayOnly: replayOnly}); err != nil {
-		return nil, err
-	}
-
 	metadata.Hello.OriginPID = request.OriginPID
 	metadata.Hello.OriginBirth = request.OriginBirth
 	metadata.Hello.HostGeneration = request.HostGeneration
@@ -59,9 +55,19 @@ func (s *Server) rebindOwnerPublished(ctx context.Context, request RebindOwnerRe
 	if len(raw) > hostbootstrap.MaxBytes {
 		return nil, store.CodeError("invalid_host_bootstrap")
 	}
+	sum := sha256.Sum256(raw)
+	publication, err := s.db.PrepareOwnerRebindPublication(ctx, store.RebindOwnerSpec{RunID: request.RunID, OriginContextID: request.OriginContextID, OriginPID: request.OriginPID, OriginBirth: request.OriginBirth, HostGeneration: request.HostGeneration, AttachmentProofSHA256: request.AttachmentProofSHA256, ReplayOnly: replayOnly}, store.OwnerRebindPublication{RunID: request.RunID, HostGeneration: request.HostGeneration, LaunchID: launchID, ExpectedSHA256: hex.EncodeToString(sum[:]), BootstrapJSON: raw})
+	if err != nil {
+		return nil, err
+	}
+	if publication.State == "published" {
+		return json.Marshal(map[string]any{"version": 1, "status": "owner_rebound", "run_id": request.RunID, "launch_id": launchID, "origin_context_id": request.OriginContextID, "host_generation": request.HostGeneration, "bootstrap_sha256": publication.ExpectedSHA256})
+	}
 	if err = lease.Publish(metadata); err != nil {
 		return nil, err
 	}
-	sum := sha256.Sum256(raw)
-	return json.Marshal(map[string]any{"version": 1, "status": "owner_rebound", "run_id": request.RunID, "launch_id": launchID, "origin_context_id": request.OriginContextID, "host_generation": request.HostGeneration, "bootstrap_sha256": hex.EncodeToString(sum[:])})
+	if err = s.db.FinalizeOwnerRebindPublication(ctx, publication); err != nil {
+		return nil, err
+	}
+	return json.Marshal(map[string]any{"version": 1, "status": "owner_rebound", "run_id": request.RunID, "launch_id": launchID, "origin_context_id": request.OriginContextID, "host_generation": request.HostGeneration, "bootstrap_sha256": publication.ExpectedSHA256})
 }
