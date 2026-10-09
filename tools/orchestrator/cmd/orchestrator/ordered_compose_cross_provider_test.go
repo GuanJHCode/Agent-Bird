@@ -114,6 +114,17 @@ func TestOrderedComposeCrossProviderHostDeliveryChain(t *testing.T) {
 		}
 		return d
 	}
+	providerResult := func(r contract.Result) string {
+		t.Helper()
+		var artifact struct {
+			ProviderResult string `json:"provider_result"`
+		}
+		body, e := os.ReadFile(r.ArtifactPath)
+		if e != nil || json.Unmarshal(body, &artifact) != nil {
+			t.Fatalf("provider result: %v %s", e, body)
+		}
+		return artifact.ProviderResult
+	}
 	producer := func(name, provider string, providerLock map[string]any) (contract.LaunchCommand, contract.Result) {
 		profile := map[string]any{"version": 1, "role": "implementer", "permission": "workspace-write", "timeout_ms": 30000}
 		return ready(name, map[string]any{"provider": provider, "provider_lock": providerLock, "directory": filepath.Join(root, "producer-"+name), "prompt": "controlled implementation", "profile": profile, "candidate_workspace": map[string]any{"version": 1, "repo_root": repo, "base_oid": base, "paths": []string{strings.ToLower(name) + ".txt"}}}, nil, nil)
@@ -125,6 +136,10 @@ func TestOrderedComposeCrossProviderHostDeliveryChain(t *testing.T) {
 		"B": candidateAcceptedInput(t, root, agyGrant, agyResult),
 	}
 	claudeDelivery, agyDelivery := decode(claudeResult), decode(agyResult)
+	claudeProviderResult, agyProviderResult := providerResult(claudeResult), providerResult(agyResult)
+	if claudeProviderResult != "compose-a-structured" || agyProviderResult != "compose-b-structured" {
+		t.Fatalf("managed completion used ordinary provider result: Claude=%q AGY=%q", claudeProviderResult, agyProviderResult)
+	}
 	vector := &contract.DependencyInputVector{Version: 2, Inputs: []contract.AcceptedInput{inputs["B"], inputs["A"]}}
 	composePayload := map[string]any{"kind": "candidate", "directory": filepath.Join(root, "compose"), "candidate_action": map[string]any{"version": 2, "operation": "compose", "dependency_input_version": 2, "ordered_source_tasks": []string{"B", "A"}}}
 	composed, composedResult := ready("compose", composePayload, nil, vector)

@@ -11,6 +11,11 @@ uses its own lock; and downstream receipts retain the same composed commit.
 
 The raw JSON test stream, stderr, and exit status are in `../data/`.
 
+The earlier Grok fixture investigation failed at the current production
+`TaskCompletionV1` admission boundary. Its same-name raw output was overwritten
+by the final passing run before it was retained; no failure output is recreated
+or represented as evidence here.
+
 Grok implementation is intentionally not claimed: the current production
 `TaskCompletionV1` admission path accepts Claude and AGY only. Enabling Grok
 there would be a production capability/security change outside this fixture

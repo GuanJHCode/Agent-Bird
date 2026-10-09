@@ -260,8 +260,6 @@ func TestMain(m *testing.M) {
 		mode, grokFixture, indexedFixture = "review_approve", true, true
 	case "compose-cross-claude-fixture":
 		mode, grokFixture, indexedFixture = "compose-a", false, false
-	case "compose-cross-grok-fixture":
-		mode, grokFixture, indexedFixture = "compose-b", true, false
 	case "compose-cross-agy-fixture":
 		mode, grokFixture, indexedFixture, agyFixture = "compose-b", false, false, true
 	case "compose-cross-review-claude-fixture":
@@ -422,18 +420,26 @@ func TestMain(m *testing.M) {
 		}
 	}
 	if mode == "compose-a" || mode == "compose-b" {
+		managedSchema := false
+		for i, arg := range os.Args {
+			if arg == "--json-schema" && i+1 < len(os.Args) && strings.Contains(os.Args[i+1], `"technical_question"`) {
+				managedSchema = true
+			}
+		}
+		input, err := io.ReadAll(io.LimitReader(os.Stdin, 1024*1024))
+		if err != nil || !managedSchema || !strings.Contains(string(input), "Agent Bird managed completion v1.") {
+			os.Exit(11)
+		}
 		name := strings.TrimPrefix(mode, "compose-") + ".txt"
 		if err := os.WriteFile(name, []byte(mode+"\n"), 0600); err != nil {
 			os.Exit(3)
 		}
-		if grokFixture {
-			fmt.Println(`{"type":"end","stopReason":"end_turn","sessionId":"compose-fixture","structuredOutput":{"version":1,"kind":"result","text":"implemented"}}`)
-		} else if agyFixture {
+		if agyFixture {
 			fmt.Println(`{"event":"init","conversation_id":"compose-fixture"}`)
-			fmt.Println(`{"event":"result","result":{"status":"SUCCESS","conversation_id":"compose-fixture","response":"implemented","structured_output":{"version":1,"kind":"result","text":"implemented"}}}`)
+			fmt.Println(`{"event":"result","result":{"status":"SUCCESS","conversation_id":"compose-fixture","response":"ordinary-agy-result-is-non-authoritative","structured_output":{"version":1,"kind":"result","text":"compose-b-structured"}}}`)
 		} else {
 			fmt.Println(`{"type":"system","subtype":"init","session_id":"compose-fixture"}`)
-			fmt.Println(`{"type":"result","subtype":"success","session_id":"compose-fixture","result":"implemented","structured_output":{"version":1,"kind":"result","text":"implemented"}}`)
+			fmt.Println(`{"type":"result","subtype":"success","session_id":"compose-fixture","result":"ordinary-claude-result-is-non-authoritative","structured_output":{"version":1,"kind":"result","text":"compose-a-structured"}}`)
 		}
 		os.Exit(0)
 	}
