@@ -1,0 +1,14 @@
+{
+  "source": "b9a1d870497b35a206cf00233c2658122992459a",
+  "dirty": "",
+  "top_pass": 2,
+  "named_pass": 2,
+  "tests": [
+    "TestOwnerPublicationDirectIPCReplayAndRestart",
+    "TestPublicPendingInitialAuthorizationRebindRecovers"
+  ],
+  "fail": 0,
+  "skip": 0,
+  "exit": 0,
+  "raw_sha256": "71ad7323507319f18dd309ff5bec257962737e5574ee5e4a116c135217b95eb4"
+}

@@ -1,0 +1,19 @@
+{
+  "command": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+    "-C",
+    "tools/orchestrator",
+    "test",
+    "-race",
+    "-json",
+    "-count=1",
+    "./internal/coordinator",
+    "./cmd/orchestrator",
+    "-run",
+    "^(TestOwnerPublicationDirectIPCReplayAndRestart|TestPublicPendingInitialAuthorizationRebindRecovers)$"
+  ],
+  "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/owner-bootstrap-publication",
+  "head": "b9a1d870497b35a206cf00233c2658122992459a",
+  "dirty": "",
+  "go_version": "go version go1.26.8 darwin/arm64"
+}

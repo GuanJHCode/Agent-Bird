@@ -41,3 +41,10 @@ publication-public02实际1top1namedPASS/0F/S，SHAc29682cb1bda9d704b3130fdd9a70
 publication-integrated-race01使用clean62c9e4e三包Store/Coordinator/CLI、固定旧binary env（源码内sha强校验），原tool terminal exit0，44named全PASS0F/S。这批不含任何hostbootstrap测试（stage单独最终race6top31named），Store实际耗时344.204s，未扩大全量。独审同时找出漏successor/initial/handoff/bound authority gate、DAGv1、continuation/rework early-replay，以及bridge共享auth误阻historical query/status；因此仍BLOCK，不能以此race替代完整契约。ROOT已在gateWT补部分9行并交可靠stageworker接管剩余修复+定向矩阵；原62在测期间无源码修改。
 
 复用未受delta影响的已验source，修复后只测受影响gate/public；不重复全Store。前任gateworker额外全Store命令无原终态/exit/raw内容，ROOT只读核原PID已不在，不补造Wait/通过，partial evidence另存de19375。
+
+
+## 最终 gate 与公开链增量闭合
+
+生产 fe3bbd5 补齐 successor/initial/handoff/bound 的事务 gate、DAG v1 与 continuation/rework replay 早返；Bridge 保留认证 Query/Status/Unbind，只有增加执行权的路径受 pending gate。生产独审 PASS。最终 gate 测试 e90e449 独审 PASS：复用 final-race 中独立通过的 queued subtree 1top5named，结合修正 ACP Bind 必填路径后的 bridge-race02 1top10named；原 final-race 整批仍 exit1/13PASS2FAIL，不能改判。合成 pending 仅测试 gate predicate，不是有效 journal/进程证明。原失败时未记录 untracked test 源码哈希，后续仅 ACP fixture 修改的来源绑定强度有限，已公开此限制。
+
+ROOT clean b9a1d8 最终公开增量 race 为 2top2namedPASS/0FAIL/SKIP/exit0，SHA71ad7323507319f18dd309ff5bec257962737e5574ee5e4a116c135217b95eb4。原 origin Wait0、公开 inc1/inc2 Owner/FirstHost 与 Coordinator 原 Wait0；预期 submit/resume/FS 故障 CLI exit2 保留。测试与 gate 文档已合并，生产相对 b9 未变化。最终 Linux、build/vet、独立清理回执与总验收在 tasks/owner-publication-verification。
