@@ -1,0 +1,13 @@
+{
+  "command": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+    "test",
+    "-count=1",
+    "-json",
+    "./internal/store",
+    "-run",
+    "^TestValidationToolReservationQuotaAndReplay$"
+  ],
+  "exit_code": 1,
+  "note": "new helper API compile RED; not existing behavior failure"
+}

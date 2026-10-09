@@ -1,0 +1,19 @@
+{
+  "command": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+    "-C",
+    "tools/orchestrator",
+    "test",
+    "-race",
+    "-count=1",
+    "-json",
+    "./internal/host",
+    "-run",
+    "^TestValidationSealedActualProfileHasPositiveControls$"
+  ],
+  "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/validation-start-retry",
+  "head": "40123afe08bc95ea67e26ee96159f2e13709863e",
+  "dirty": " M tools/orchestrator/internal/host/validation_retry_native_darwin_test.go\n?? tasks/validation-start-retry/docs/usage-and-limits.md\n",
+  "test_environment": {},
+  "go_version": "go version go1.26.8 darwin/arm64"
+}

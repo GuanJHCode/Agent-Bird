@@ -1,0 +1,12 @@
+{
+  "source": "40123afe08bc95ea67e26ee96159f2e13709863e",
+  "argv": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+    "vet",
+    "./internal/host",
+    "./internal/host/testdata/validation-tool-actor"
+  ],
+  "exit_code": 0,
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}

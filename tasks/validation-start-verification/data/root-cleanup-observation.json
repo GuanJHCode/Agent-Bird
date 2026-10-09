@@ -1,0 +1,18 @@
+{
+  "exact_paths": [
+    {
+      "path": "/private/tmp/TestValidationSealedToolPinAndBoundarynative1551366530/001/spool/.validation-tools/0219745b2ba49675ce4e2df4f51623c190849d07d31a1942e350f031a7a51123/tool",
+      "absent": true
+    },
+    {
+      "path": "/private/tmp/TestValidationSealedToolPinAndBoundarynative1551366530",
+      "absent": true
+    },
+    {
+      "path": "/private/tmp/agent-bird-validation-retry-native-2684931630",
+      "absent": true
+    }
+  ],
+  "remaining_native_fixture_names": [],
+  "no_deletion_performed": true
+}

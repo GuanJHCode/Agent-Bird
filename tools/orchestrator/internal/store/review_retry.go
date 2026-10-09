@@ -53,7 +53,13 @@ func retryInputHash(input *contract.AcceptedInput) string {
 func prepareReviewRetryGrant(ctx context.Context, tx *sql.Tx, c *contract.LaunchCommand) (*reviewRetryDecision, error) {
 	var raw string
 	err := tx.QueryRowContext(ctx, `SELECT d.revision_payload FROM decision_attempt_bindings b JOIN retry_decisions d USING(action_slot) WHERE b.attempt_id=? AND b.task_id=? AND b.target_work_revision=?`, c.AttemptID, c.TaskID, c.WorkRevision).Scan(&raw)
-	if errors.Is(err, sql.ErrNoRows) || err == nil && raw == "" {
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, rejectMissingValidationRetryBinding(ctx, tx, c)
+	}
+	if err == nil && raw == "" {
+		if _, profileErr := adapter.ValidationRetryPayload(c.AdapterPayload); profileErr == nil {
+			return nil, ErrConflict
+		}
 		return nil, nil
 	}
 	if err != nil {
@@ -64,6 +70,9 @@ func prepareReviewRetryGrant(ctx context.Context, tx *sql.Tx, c *contract.Launch
 	}
 	if json.Unmarshal([]byte(raw), &discriminator) != nil {
 		return nil, ErrConflict
+	}
+	if discriminator.Kind == validationRetryKind {
+		return prepareValidationRetryGrant(ctx, tx, c, raw)
 	}
 	if discriminator.Kind != reviewRetryKind {
 		return nil, nil

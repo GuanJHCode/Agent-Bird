@@ -458,6 +458,11 @@ func outstandingDAGTargets(ctx context.Context, tx *sql.Tx) (map[string]dagRewor
 			if _, err = reviewRetryProfile([]byte(current.payload)); err != nil {
 				return nil, CodeError("rework_target_scope_unresolved")
 			}
+		case validationRetryKind:
+			saved, err := parseValidationRetry(record.payload)
+			if err != nil || record.task != b.task || record.revision != b.revision || saved.AdapterSHA256 != runtimeHash(current.payload) {
+				return nil, CodeError("rework_target_scope_unresolved")
+			}
 		case "rework":
 			var saved reworkDecision
 			if strictDecisionJSON(record.payload, &saved) != nil || saved.Spec.Version != 0 || saved.Receipt.Version != 0 || saved.Receipt.ClosureSHA256 != "" || saved.Receipt.TaskRevisions[b.task] != b.revision {

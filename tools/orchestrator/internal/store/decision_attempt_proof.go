@@ -33,7 +33,7 @@ func pendingTaskUnoccupied(ctx context.Context, tx *sql.Tx, task string) error {
 
 func validateOrdinaryDecisionPending(ctx context.Context, tx *sql.Tx, r attemptDecisionRecord, task decisionTaskScope, kind string) error {
 	managed := candidateManaged([]byte(task.payload))
-	if task.status != "ready" || r.task != task.id || r.revision != task.revision || managed != (kind == reviewRetryKind) || pendingTaskUnoccupied(ctx, tx, task.id) != nil {
+	if task.status != "ready" || r.task != task.id || r.revision != task.revision || managed != (kind == reviewRetryKind || kind == validationRetryKind) || pendingTaskUnoccupied(ctx, tx, task.id) != nil {
 		return ErrConflict
 	}
 	e, err := decisionSource(ctx, tx, r, task.id, task.revision, !managed)
@@ -42,8 +42,15 @@ func validateOrdinaryDecisionPending(ctx context.Context, tx *sql.Tx, r attemptD
 	}
 	if r.origin == "policy" {
 		budget, e2 := readExecutionBudget(ctx, tx, task.id)
-		candidatePolicy := managed && validateSavedPrelaunchReviewRetry(ctx, tx, r, task) == nil
-		if e2 != nil || budget.policy == nil || budget.policy.Retry == nil || r.fallback || (r.payload != "" && !candidatePolicy) || e.Kind != contract.EventLaunchRejected || !e.Failure.ValidPrelaunchProbe() {
+		candidatePolicy := managed && kind == reviewRetryKind && validateSavedPrelaunchReviewRetry(ctx, tx, r, task) == nil
+		if kind == validationRetryKind {
+			candidatePolicy = validateSavedValidationRetry(ctx, tx, r, task) == nil
+		}
+		factsValid := e.Failure.ValidPrelaunchProbe()
+		if kind == validationRetryKind {
+			factsValid = e.Failure.ValidValidationStart()
+		}
+		if e2 != nil || budget.policy == nil || budget.policy.Retry == nil || r.fallback || (r.payload != "" && !candidatePolicy) || e.Kind != contract.EventLaunchRejected || !factsValid {
 			return ErrConflict
 		}
 		body, e2 := budget.policy.CanonicalJSON()
@@ -76,6 +83,9 @@ func validateOrdinaryDecisionPending(ctx context.Context, tx *sql.Tx, r attemptD
 		return err
 	}
 	if r.promise < next {
+		return ErrConflict
+	}
+	if kind == validationRetryKind && r.origin != "policy" {
 		return ErrConflict
 	}
 	if managed && r.origin != "policy" {

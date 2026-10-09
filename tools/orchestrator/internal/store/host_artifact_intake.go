@@ -22,8 +22,9 @@ type hostArtifactCommit struct {
 	manifestBytes int64
 }
 type hostArtifactGate struct {
-	item     *hostArtifactCommit
-	verified bool
+	item       *hostArtifactCommit
+	verified   bool
+	validation *validationRetryDecision
 }
 
 func freezeHostEvent(e contract.Event) (contract.Event, error) {
@@ -48,6 +49,12 @@ func (d *DB) CommitHostEvent(ctx context.Context, event contract.Event) (contrac
 	ack, err := d.commitHostEvent(ctx, event, gate)
 	if !errors.Is(err, errHostArtifactVerification) {
 		return ack, err
+	}
+	if event.Failure.ValidValidationStart() {
+		gate.validation, err = d.prepareValidationRetry(ctx, event, gate.item)
+		if err != nil {
+			return contract.DurableAck{}, err
+		}
 	}
 	err = artifacts.VerifyHostSlotAndCommit(ctx, gate.item.root, gate.item.descriptor, gate.item.proof, func() error {
 		gate.verified = true
@@ -95,7 +102,7 @@ func authorizeHostArtifact(ctx context.Context, tx *sql.Tx, database string, e c
 	}
 	bad := CodeError("host_artifact_invalid")
 	g := contract.LaunchCommand{RunID: e.RunID, TaskID: e.TaskID, AttemptID: e.AttemptID, SegmentID: e.SegmentID, HostID: e.ProducerID, CommandID: e.CommandID, WorkRevision: e.WorkRevision}
-	if err := bindHostArtifacts(ctx, tx, &g, false); err != nil {
+	if err := bindHostArtifactSlots(ctx, tx, &g, false); err != nil {
 		return nil, err
 	}
 	r := e.Artifact.HostArtifact

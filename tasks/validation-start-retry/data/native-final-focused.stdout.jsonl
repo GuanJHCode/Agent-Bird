@@ -1,0 +1,14 @@
+{"Time":"2026-10-09T15:48:49.696148+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host"}
+{"Time":"2026-10-09T15:48:49.696343+08:00","Action":"start","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"}
+{"Time":"2026-10-09T15:48:50.389527+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Output":"testing: warning: no tests to run\n"}
+{"Time":"2026-10-09T15:48:50.389695+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Output":"PASS\n"}
+{"Time":"2026-10-09T15:48:50.39039+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Output":"ok  \tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store\t0.694s [no tests to run]\n"}
+{"Time":"2026-10-09T15:48:50.390444+08:00","Action":"pass","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store","Elapsed":0.694}
+{"Time":"2026-10-09T15:48:50.85036+08:00","Action":"run","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host","Test":"TestValidationRetryActualHostGitQueueAndNextAttempt"}
+{"Time":"2026-10-09T15:48:50.85041+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host","Test":"TestValidationRetryActualHostGitQueueAndNextAttempt","Output":"=== RUN   TestValidationRetryActualHostGitQueueAndNextAttempt\n"}
+{"Time":"2026-10-09T15:48:54.753783+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host","Test":"TestValidationRetryActualHostGitQueueAndNextAttempt","Output":"    validation_retry_native_darwin_test.go:262: original rejection audit removed 0 SQL logic error: no such column: kind (1)\n"}
+{"Time":"2026-10-09T15:48:54.768447+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host","Test":"TestValidationRetryActualHostGitQueueAndNextAttempt","Output":"--- FAIL: TestValidationRetryActualHostGitQueueAndNextAttempt (3.92s)\n"}
+{"Time":"2026-10-09T15:48:54.768528+08:00","Action":"fail","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host","Test":"TestValidationRetryActualHostGitQueueAndNextAttempt","Elapsed":3.92}
+{"Time":"2026-10-09T15:48:54.768559+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host","Output":"FAIL\n"}
+{"Time":"2026-10-09T15:48:54.769795+08:00","Action":"output","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host","Output":"FAIL\tgithub.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host\t5.073s\n"}
+{"Time":"2026-10-09T15:48:54.769992+08:00","Action":"fail","Package":"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host","Elapsed":5.074}

@@ -38,6 +38,8 @@ const (
 type OutputObserver func(OutputStream, []byte)
 
 type Command struct {
+	SealedPath    string
+	SealedSHA256  string
 	PinnedPath    string
 	PinnedSHA256  string
 	Path          string
@@ -125,6 +127,9 @@ func startWithBirth(ctx context.Context, spec Command, birthLookup func(int) (st
 // Both modes retain the same launcher and original Wait. birthLookup is a
 // per-launch observation seam; production always uses processBirth.
 func startCommand(ctx context.Context, spec Command, duplex bool, birthLookup func(int) (string, error)) (*Handle, *duplexStream, error) {
+	return startCommandUsing(ctx, spec, duplex, birthLookup, func(cmd *exec.Cmd) error { return cmd.Start() })
+}
+func startCommandUsing(ctx context.Context, spec Command, duplex bool, birthLookup func(int) (string, error), starter func(*exec.Cmd) error) (*Handle, *duplexStream, error) {
 	if duplex && (spec.Stdin != nil || spec.Stdout != nil) {
 		return nil, nil, CodeError("duplex_stdio_conflict")
 	}
@@ -187,8 +192,27 @@ func startCommand(ctx context.Context, spec Command, duplex bool, birthLookup fu
 			return nil, nil, CodeError("binary_pin_mismatch")
 		}
 	}
-	if err := cmd.Start(); err != nil {
-		return nil, nil, err
+	if spec.SealedPath != "" || spec.SealedSHA256 != "" {
+		resolved, e := filepath.EvalSymlinks(spec.SealedPath)
+		info, statErr := os.Lstat(spec.SealedPath)
+		parent, parentErr := os.Lstat(filepath.Dir(spec.SealedPath))
+		safe := statErr == nil && parentErr == nil && info.Mode().IsRegular() && info.Mode().Perm() == 0500 && parent.IsDir() && parent.Mode().Perm() == 0500
+		if safe {
+			st, ok := info.Sys().(*syscall.Stat_t)
+			pst, pok := parent.Sys().(*syscall.Stat_t)
+			safe = ok && pok && st.Uid == uint32(os.Geteuid()) && pst.Uid == uint32(os.Geteuid()) && st.Nlink == 1
+		}
+		actual, hashErr := ExecutableDigest(ctx, spec.SealedPath)
+		if !safe || e != nil || resolved != spec.SealedPath || hashErr != nil || actual != spec.SealedSHA256 {
+			return nil, nil, CodeError("validation_tool_pin_changed")
+		}
+	}
+	startErr := starter(cmd)
+	if startErr != nil && cmd.Process == nil {
+		return nil, nil, neverStartedError(ctx, spec, cmd, startErr)
+	}
+	if cmd.Process == nil {
+		return nil, nil, CodeError("process_start_without_process")
 	}
 	// Duplex retains a single original monotonic spawn boundary, before any
 	// child-descriptor/birth observation or post-Start cleanup can take time.
@@ -233,7 +257,7 @@ func startCommand(ctx context.Context, spec Command, duplex bool, birthLookup fu
 		h.mu.Unlock()
 		close(h.done)
 	}()
-	if birthErr != nil || pipeCloseErr != nil {
+	if birthErr != nil || pipeCloseErr != nil || startErr != nil {
 		if pipes != nil {
 			_ = pipes.stream.Close()
 		}
@@ -249,6 +273,9 @@ func startCommand(ctx context.Context, spec Command, duplex bool, birthLookup fu
 		}
 		if birthErr != nil {
 			return h, nil, CodeError("process_birth_unknown")
+		}
+		if startErr != nil {
+			return h, nil, errors.Join(startErr, pipeCloseErr)
 		}
 		return h, nil, errors.Join(CodeError("duplex_child_pipe_close_failed"), pipeCloseErr)
 	}

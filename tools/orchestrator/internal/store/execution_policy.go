@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"math"
 
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 )
 
@@ -46,9 +47,11 @@ func normalizeExecutionTask(task TaskSpec) (TaskSpec, error) {
 		if len(r.Codes) == 0 || len(r.Codes) > 2 {
 			return task, bad
 		}
+		_, validationErr := adapter.ValidationRetryPayload(task.AdapterPayload)
+		validation := validationErr == nil
 		seen := map[string]bool{}
 		for _, code := range r.Codes {
-			if seen[code] || (code != "probe_start_eagain" && code != "probe_start_eintr") {
+			if seen[code] || (!validation && code != "probe_start_eagain" && code != "probe_start_eintr" || validation && code != "validation_start_eagain" && code != "validation_start_eintr") {
 				return task, bad
 			}
 			seen[code] = true
@@ -70,7 +73,7 @@ func normalizeExecutionTask(task TaskSpec) (TaskSpec, error) {
 			if len(task.FallbackPayloads) != 0 {
 				return task, CodeError("execution_policy_retry_stage_unsupported")
 			}
-			if _, err := reviewRetryProfile(task.AdapterPayload); err != nil {
+			if _, err := reviewRetryProfile(task.AdapterPayload); err != nil && !validation {
 				return task, CodeError("execution_policy_retry_stage_unsupported")
 			}
 		}

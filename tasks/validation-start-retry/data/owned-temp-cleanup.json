@@ -1,0 +1,13 @@
+{
+  "root": "/private/tmp/TestValidationSealedToolPinAndBoundarynative1551366530",
+  "tool": "/private/tmp/TestValidationSealedToolPinAndBoundarynative1551366530/001/spool/.validation-tools/0219745b2ba49675ce4e2df4f51623c190849d07d31a1942e350f031a7a51123/tool",
+  "reason": "owned initial native boundary fixture failed TempDir cleanup; no Start in this named boundary subtest",
+  "uid": 501,
+  "nlink": 1,
+  "device": 16777234,
+  "inode": 199868070,
+  "sha256": "15f37d0373ed0cd76a3c5d6d742f017246e3006c2b5de47056f9f62b37163a6e",
+  "expected_sha256": "15f37d0373ed0cd76a3c5d6d742f017246e3006c2b5de47056f9f62b37163a6e",
+  "matching_actor_count": 0,
+  "status": "exact owned tool removed; empty ancestors removed"
+}

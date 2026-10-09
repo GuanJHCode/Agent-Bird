@@ -300,7 +300,7 @@ func (d *DB) reconcileLegacyDecisionScope(ctx context.Context, tx *sql.Tx, r att
 		return errLegacyDecisionAmbiguous
 	}
 	var scopes []decisionTaskScope
-	if kind == dagReworkKind {
+	if kind == dagReworkKind || kind == validationRetryKind {
 		return errLegacyDecisionAmbiguous
 	}
 	if kind == "rework" {

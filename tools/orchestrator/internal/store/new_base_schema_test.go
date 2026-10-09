@@ -9,6 +9,9 @@ import (
 
 // This test fixture never erases real successor history to invent an older DB.
 func removeNewBaseSchema33Tx(tx *sql.Tx) error {
+	if err := removeValidationToolSchema34Tx(tx); err != nil {
+		return err
+	}
 	var n int
 	if err := tx.QueryRow(`SELECT COUNT(*) FROM new_base_lineage`).Scan(&n); err != nil {
 		return err
@@ -50,7 +53,7 @@ func TestNewBaseMigrationPreservesAndRefusesErasure(t *testing.T) {
 	}
 	tx.Rollback()
 	var v int
-	if e = db.sql.QueryRow(`SELECT version FROM schema_meta`).Scan(&v); e != nil || v != 33 {
+	if e = db.sql.QueryRow(`SELECT version FROM schema_meta`).Scan(&v); e != nil || v != currentSchemaVersion {
 		t.Fatal(fmt.Sprintf("schema=%d: %v", v, e))
 	}
 }

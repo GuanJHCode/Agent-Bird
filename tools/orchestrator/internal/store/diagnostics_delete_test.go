@@ -43,7 +43,7 @@ func removeDiagnosticDeletionSchema31(db *DB) error {
 	if version < 31 {
 		return nil
 	}
-	if version != 31 && version != 32 && version != 33 {
+	if version != 31 && version != 32 && version != 33 && version != 34 {
 		return fmt.Errorf("unsupported deletion schema %d", version)
 	}
 	if err := db.sql.QueryRow(`SELECT COUNT(*) FROM diagnostic_deletions`).Scan(&n); err != nil {

@@ -326,7 +326,7 @@ func validateNewBaseProof(ctx context.Context, tx *sql.Tx, g *newBaseSource) err
 				}
 			}
 		}
-		if bindHostArtifacts(ctx, tx, &c, true) != nil || bindDiagnosticsForUse(ctx, tx, &c, candidateArtifactHistoricalProof) != nil || contract.ValidateDependencyInputs(c) != nil {
+		if bindHostArtifactSlots(ctx, tx, &c, true) != nil || bindValidationTool(ctx, tx, &c, false) != nil || bindDiagnosticsForUse(ctx, tx, &c, candidateArtifactHistoricalProof) != nil || contract.ValidateDependencyInputs(c) != nil {
 			return bad
 		}
 		h, err := contract.CandidateIntentHash(c)

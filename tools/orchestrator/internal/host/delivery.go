@@ -409,6 +409,11 @@ func (h *Host) prepareCandidateAction(ctx context.Context, grant contract.Launch
 	default:
 		return empty, nil, noop, errors.New("candidate_action_invalid")
 	}
+	if source.Action != nil && source.Action.Operation == "validate" && source.Action.CommandSHA256 != "" {
+		if !adapter.ValidCommandSHA256(source.Action.CommandSHA256) || in.Validation == nil || in.Validation.ExecutableSHA256 != source.Action.CommandSHA256 || !reflect.DeepEqual(in.Validation.Command, source.Action.Command) {
+			return empty, nil, noop, errors.New("validation_tool_pin_changed")
+		}
+	}
 	c := in.Candidate
 	if action.Operation != "validate" {
 		if action.Target.Worktree != in.Target.TargetWorktreeIdentity || action.Target.Ref != in.Target.TargetRef || action.Target.BaseOID != in.Target.TargetBaseOID || in.Target.FinalCandidateOID != c.CandidateOID || in.Target.PlanRevision != int64(grant.PlanRevision) || in.Target.ValidationDigest != in.ValidationDigest {
@@ -514,9 +519,19 @@ func (h *Host) prepareCandidateAction(ctx context.Context, grant contract.Launch
 			if err != nil {
 				return fail(err)
 			}
+			if action.CommandSHA256 != "" {
+				if digest != action.CommandSHA256 {
+					return fail(errors.New("validation_tool_pin_changed"))
+				}
+				tool, err = h.sealValidationTool(ctx, grant, tool, action.CommandSHA256, workspace.Worktree, filepath.Join(h.spoolRoot, grant.AttemptID, grant.SegmentID, "scratch"))
+				if err != nil {
+					return fail(err)
+				}
+				cmd.SealedPath, cmd.SealedSHA256 = tool, action.CommandSHA256
+			}
 			cmd.Path = tool
 			cmd.Args = append([]string(nil), action.Command[1:]...)
-			cmd.PinnedPath = tool
+			cmd.PinnedPath = action.Command[0]
 			cmd.PinnedSHA256 = digest
 			scratch := filepath.Join(h.spoolRoot, grant.AttemptID, grant.SegmentID, "scratch")
 			cmd.Env = []string{"PATH=" + filepath.Dir(tool) + ":/usr/bin:/bin:/usr/sbin:/sbin", "HOME=" + scratch, "XDG_CACHE_HOME=" + filepath.Join(scratch, "cache"), "GOCACHE=" + filepath.Join(scratch, "go-build"), "GOPATH=" + filepath.Join(scratch, "go")}

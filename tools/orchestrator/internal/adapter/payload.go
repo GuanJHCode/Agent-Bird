@@ -66,6 +66,11 @@ func DecodeInvocationPayload(data []byte) (InvocationPayload, error) {
 			}
 		}
 	}
+	if payload.CandidateAction != nil && payload.CandidateAction.CommandSHA256 != "" {
+		if payload.CandidateAction.Operation != "validate" || !ValidCommandSHA256(payload.CandidateAction.CommandSHA256) {
+			return InvocationPayload{}, errors.New("candidate_command_pin_invalid")
+		}
+	}
 	return payload, nil
 }
 

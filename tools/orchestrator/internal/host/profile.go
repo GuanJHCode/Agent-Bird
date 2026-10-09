@@ -119,6 +119,19 @@ func sandboxCommandWithHistories(ctx context.Context, cmd process.Command, profi
 			rules = append(rules, "(deny file-read* (literal "+strconv.Quote(filepath.Join(state, name))+"))")
 		}
 	}
+	if cmd.SealedPath != "" {
+		if cmd.Path != cmd.SealedPath || cmd.SealedSHA256 == "" {
+			return cmd, errors.New("validation_tool_pin_changed")
+		}
+		// Expose only the immutable executable, not its protected Host spool peers.
+		rules = append(rules, "(allow file-read* (literal "+strconv.Quote(cmd.SealedPath)+"))", "(deny file-write* (subpath "+strconv.Quote(filepath.Join(spoolRoot, ".validation-tools"))+"))")
+		for parent := filepath.Dir(cmd.SealedPath); parent != filepath.Dir(spoolRoot); parent = filepath.Dir(parent) {
+			if parent == filepath.Dir(parent) {
+				return cmd, errors.New("validation_tool_scope_invalid")
+			}
+			rules = append(rules, "(allow file-read-metadata (literal "+strconv.Quote(parent)+"))")
+		}
+	}
 	if profile.Role == adapter.Implementer {
 		// A linked worktree has its own git file and an external common directory.
 		// Workers can change source files, but Git candidate/ref operations stay in
@@ -137,6 +150,7 @@ func sandboxCommandWithHistories(ctx context.Context, cmd process.Command, profi
 			rules = append(rules, "(deny file-write* (subpath "+strconv.Quote(p)+"))")
 		}
 	}
+	rules = append(rules, "(deny file-write* (subpath "+strconv.Quote(filepath.Join(spoolRoot, ".validation-tools"))+"))")
 	// TMPDIR is task-owned; no authentication/config directories are made writable.
 	cmd.Env = append(cmd.Env, "TMPDIR="+scratch)
 	cmd.Args = append([]string{"-p", strings.Join(rules, "\n"), cmd.Path}, cmd.Args...)

@@ -22,10 +22,14 @@ func removeOwnerLaunchSchema32(db *DB) error {
 	if version < 32 {
 		return nil
 	}
-	if version != 32 && version!=33 {
+	if version != 32 && version != 33 && version != 34 {
 		return fmt.Errorf("unsupported launch schema %d", version)
 	}
- if version==33 {if err=removeNewBaseSchema33Tx(tx);err!=nil{return err}}
+	if version >= 33 {
+		if err = removeNewBaseSchema33Tx(tx); err != nil {
+			return err
+		}
+	}
 	if err = tx.QueryRow(`SELECT (SELECT COUNT(*) FROM owner_launch_attempts)+(SELECT COUNT(*) FROM owner_launch_heads)+(SELECT COUNT(*) FROM owner_launch_receipts)+(SELECT COUNT(*) FROM owner_launch_escrows)`).Scan(&n); err != nil {
 		return err
 	}

@@ -16,7 +16,7 @@ func (d *DB) commitHostEvent(ctx context.Context, event contract.Event, artifact
 	if err := contract.ValidateDiagnosticsFailure(event); err != nil {
 		return contract.DurableAck{}, err
 	}
-	if event.Failure != nil && (event.Kind != contract.EventLaunchRejected || !event.Failure.ValidPrelaunchProbe()) {
+	if event.Failure != nil && (event.Kind != contract.EventLaunchRejected || (!event.Failure.ValidPrelaunchProbe() && !event.Failure.ValidValidationStart())) {
 		return contract.DurableAck{}, CodeError("failure_facts_invalid")
 	}
 	if event.Kind == contract.EventProgress {
@@ -168,7 +168,12 @@ func (d *DB) commitHostEvent(ctx context.Context, event contract.Event, artifact
 		if err = applyEvent(ctx, tx, event); err != nil {
 			return rollback(err)
 		}
-		queued, retryErr := d.queuePolicyRetry(ctx, tx, event, actionSlot)
+	}
+	if err = applyValidationToolRelease(ctx, tx, event); err != nil {
+		return rollback(err)
+	}
+	if !historical {
+		queued, retryErr := d.queuePolicyRetry(ctx, tx, event, actionSlot, artifactGate.validation)
 		if retryErr != nil {
 			return rollback(retryErr)
 		}
