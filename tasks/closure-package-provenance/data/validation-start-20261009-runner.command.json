@@ -1,0 +1,13 @@
+{
+  "command": [
+    "/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/bin/python3.14",
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/validation-package/tasks/closure-package-provenance/scripts/verify-package.py",
+    "validation-start-20261009",
+    "3bd025e9816c95c6a06d5fe775e25b19199b73cb",
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+    "/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/bin/python3.14"
+  ],
+  "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/validation-package",
+  "source": "3bd025e9816c95c6a06d5fe775e25b19199b73cb",
+  "dirty": ""
+}
