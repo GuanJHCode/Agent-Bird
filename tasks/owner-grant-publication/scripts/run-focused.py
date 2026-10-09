@@ -2,7 +2,7 @@
 import json, os, pathlib, subprocess, sys
 root=pathlib.Path(__file__).resolve().parents[3]
 name,*command=sys.argv[1:]
-data=root/'tasks/owner-bootstrap-publication/data'
+data=root/'tasks/owner-grant-publication/data'
 paths={s:data/(name+'.'+s) for s in ('stdout.jsonl','stderr.txt','exit.txt','command.json')}
 if any(p.exists() for p in paths.values()):raise SystemExit('refusing to overwrite evidence')
 os.umask(0o077)
