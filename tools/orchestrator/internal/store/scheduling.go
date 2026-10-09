@@ -78,9 +78,15 @@ func (d *DB) ClaimReady(ctx context.Context, hostID string, epoch uint64, slots 
 			return rollback(err)
 		}
 		var promise int
-		binding, promise, err = d.pendingDecisionBinding(ctx, tx, taskID, workRevision)
-		if err != nil {
+		var raw string
+		if err = tx.QueryRowContext(ctx, `SELECT adapter_payload FROM task_runtime WHERE task_id=?`, taskID).Scan(&raw); err != nil {
 			return rollback(err)
+		}
+		if !isV2Compose(json.RawMessage(raw)) {
+			binding, promise, err = d.pendingDecisionBinding(ctx, tx, taskID, workRevision)
+			if err != nil {
+				return rollback(err)
+			}
 		}
 		if err = executionCapacity(ctx, tx, taskID, binding); err != nil {
 			return rollback(err)
@@ -269,8 +275,10 @@ func (d *DB) PendingLaunches(ctx context.Context, hostID string, epoch uint64) (
 		if err = bindHostArtifacts(ctx, tx, command, true); err != nil {
 			return rollback(err)
 		}
-		if err = d.reconcileLegacyGrant(ctx, tx, command); err != nil {
-			return rollback(err)
+		if !isV2Compose(command.AdapterPayload) {
+			if err = d.reconcileLegacyGrant(ctx, tx, command); err != nil {
+				return rollback(err)
+			}
 		}
 		if err = bindCandidateInput(ctx, tx, command, true); err != nil {
 			return rollback(err)

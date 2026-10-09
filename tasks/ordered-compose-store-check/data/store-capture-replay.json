@@ -5,9 +5,12 @@
   "tmpdir": "/private/tmp",
   "named_test": "TestOrderedComposeStoreCaptureAndPendingReplay",
   "command": "go test -count=1 ./internal/store -run ^TestOrderedComposeStoreCaptureAndPendingReplay$",
-  "exit": 1,
-  "result": "legacy_decision_binding_ambiguous",
-  "stage": "ClaimReady(compose) after both producer result/exited/owner-accept events",
-  "source_location": "internal/store/scheduling.go pendingDecisionBinding -> internal/store/decision_attempt_legacy.go reconcileLegacyPendingTask",
-  "scope_note": "The failure precedes candidate_input.go and dependency_inputs.go v2 binding; no permitted local-file change can admit the compose attempt."
+  "red": {"exit": 1, "result": "legacy_decision_binding_ambiguous", "stage": "ClaimReady and PendingLaunches before the v2 compose exception"},
+  "green": [
+    {"command": "go test -count=1 ./internal/store -run ^TestOrderedComposeStoreCaptureAndPendingReplay$", "exit": 0},
+    {"command": "go test -count=1 ./internal/store -run ^(TestDependencyVectorCaptureReplayAndAccounting|TestCandidateInputBindsAcceptedHostResultAndReplay)$", "exit": 0},
+    {"command": "go vet ./internal/store", "exit": 0}
+  ],
+  "fix": "Strict v2 compose actions bypass only legacy decision-binding reconciliation in ClaimReady and PendingLaunches; v1 retains the existing guard.",
+  "coverage": "Real SubmitPlan/RegisterHost/ClaimReady/CommitHostEvent(result+exited)/owner accept for sources [a,b], compose declaration [b,a], persisted v2 vector replay, and missing-capture replay rejection without attempt or quota drift."
 }
