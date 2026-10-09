@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -18,6 +19,13 @@ import (
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/ipc"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/store"
 )
+
+type rebindPublicationChild struct {
+	generation string
+	command    *exec.Cmd
+	done       chan struct{}
+	waitErr    error
+}
 
 const (
 	rebindPublicationStateEnv      = "ORCHESTRATOR_REBIND_PUBLICATION_STATE"
@@ -44,7 +52,10 @@ func TestRebindPublicationChild(t *testing.T) {
 }
 
 func TestRebindPublicationSerializesCLIProcesses(t *testing.T) {
-	root := t.TempDir()
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	state := filepath.Join(root, "state")
 	if err := os.Mkdir(state, 0700); err != nil {
 		t.Fatal(err)
@@ -89,7 +100,6 @@ func TestRebindPublicationSerializesCLIProcesses(t *testing.T) {
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
 	listener, err := net.Listen("unix", filepath.Join(state, "coordinator.sock"))
 	if err != nil {
 		t.Fatal(err)
@@ -112,6 +122,11 @@ func TestRebindPublicationSerializesCLIProcesses(t *testing.T) {
 	serveConn := func(conn net.Conn) {
 		defer handlers.Done()
 		defer conn.Close()
+		if deadline, ok := ctx.Deadline(); ok {
+			_ = conn.SetDeadline(deadline)
+		}
+		stopClose := context.AfterFunc(ctx, func() { _ = conn.Close() })
+		defer stopClose()
 		message, readErr := ipc.Read(conn)
 		if readErr != nil {
 			return
@@ -167,18 +182,42 @@ func TestRebindPublicationSerializesCLIProcesses(t *testing.T) {
 			go serveConn(conn)
 		}
 	}()
+	children := make([]*rebindPublicationChild, 0, 2)
+	handlersDone := make(chan struct{})
 	t.Cleanup(func() {
+		cancel()
 		release()
+		for _, child := range children {
+			if child.command.Process != nil {
+				_ = child.command.Process.Kill()
+			}
+		}
 		_ = listener.Close()
 		select {
 		case <-acceptDone:
 		case <-time.After(2 * time.Second):
 			t.Errorf("fake coordinator accept loop did not stop")
 		}
-		handlers.Wait()
+		go func() {
+			handlers.Wait()
+			close(handlersDone)
+		}()
+		select {
+		case <-handlersDone:
+		case <-time.After(2 * time.Second):
+			t.Errorf("fake coordinator handlers did not stop")
+		}
+		for _, child := range children {
+			select {
+			case <-child.done:
+				t.Logf("child %s cleanup wait=%v exit=%d", child.generation, child.waitErr, child.command.ProcessState.ExitCode())
+			case <-time.After(2 * time.Second):
+				t.Errorf("child %s did not exit during cleanup", child.generation)
+			}
+		}
 	})
 
-	start := func(generation string, stdout *os.File) (*exec.Cmd, *bufio.Scanner) {
+	start := func(generation string, stdout *os.File) *rebindPublicationChild {
 		command := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestRebindPublicationChild$")
 		command.Env = append(os.Environ(), rebindPublicationStateEnv+"="+state, rebindPublicationRequestEnv+"="+requests[generation], rebindPublicationGenerationEnv+"="+generation)
 		command.Stdout = stdout
@@ -186,11 +225,17 @@ func TestRebindPublicationSerializesCLIProcesses(t *testing.T) {
 		if err := command.Start(); err != nil {
 			t.Fatalf("start %s: %v", generation, err)
 		}
-		return command, nil
+		child := &rebindPublicationChild{generation: generation, command: command, done: make(chan struct{})}
+		children = append(children, child)
+		go func() {
+			child.waitErr = command.Wait()
+			close(child.done)
+		}()
+		return child
 	}
 	// G1 need not be observed through stdout; the coordinator's arrival is the
 	// ordering point that makes the G2 observation deterministic.
-	command1, _ := start("G1", os.Stdout)
+	child1 := start("G1", os.Stdout)
 	select {
 	case <-g1Arrived:
 	case <-ctx.Done():
@@ -206,16 +251,27 @@ func TestRebindPublicationSerializesCLIProcesses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	command2, _ := start("G2", writer2)
+	t.Cleanup(func() { _ = reader2.Close() })
+	t.Cleanup(func() { _ = writer2.Close() })
+	child2 := start("G2", writer2)
 	_ = writer2.Close()
 	scanner := bufio.NewScanner(reader2)
 	begin2 := make(chan string, 1)
+	outputDone := make(chan struct{})
+	var output2 string
+	var output2Err error
 	go func() {
 		if scanner.Scan() {
 			begin2 <- scanner.Text()
-			return
+		} else {
+			begin2 <- ""
 		}
-		begin2 <- ""
+		var remaining []string
+		for scanner.Scan() {
+			remaining = append(remaining, scanner.Text())
+		}
+		output2, output2Err = strings.Join(remaining, "\n"), scanner.Err()
+		close(outputDone)
 	}()
 	select {
 	case line := <-begin2:
@@ -233,18 +289,22 @@ func TestRebindPublicationSerializesCLIProcesses(t *testing.T) {
 	case <-time.After(200 * time.Millisecond):
 		release()
 	}
-	wait := func(name string, command *exec.Cmd) error {
-		done := make(chan error, 1)
-		go func() { done <- command.Wait() }()
+	wait := func(child *rebindPublicationChild) error {
 		select {
-		case err := <-done:
-			return err
+		case <-child.done:
+			t.Logf("child %s wait=%v exit=%d", child.generation, child.waitErr, child.command.ProcessState.ExitCode())
+			return child.waitErr
 		case <-ctx.Done():
-			return fmt.Errorf("%s wait: %w", name, ctx.Err())
+			return fmt.Errorf("%s wait: %w", child.generation, ctx.Err())
 		}
 	}
-	err1, err2 := wait("G1", command1), wait("G2", command2)
-	_ = reader2.Close()
+	err1, err2 := wait(child1), wait(child2)
+	select {
+	case <-outputDone:
+		t.Logf("child G2 remaining stdout=%q scanner_error=%v", output2, output2Err)
+	case <-ctx.Done():
+		t.Fatalf("G2 stdout drain: %v", ctx.Err())
+	}
 	if err1 != nil || err2 != nil {
 		t.Fatalf("child waits: G1=%v G2=%v", err1, err2)
 	}
