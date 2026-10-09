@@ -44,13 +44,32 @@ func (i validationNativeInvocation) ExecutablePin() (string, string) {
 	}
 	return "", ""
 }
-func validationNativeActor(t *testing.T, root string) (string, string) {
+func validationNativeActor(t *testing.T, root string, guard *validationNativeCleanup) (string, string) {
 	t.Helper()
 	bin := filepath.Join(root, "native-validation-actor")
-	cmd := exec.Command("/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go", "build", "-o", bin, "./testdata/validation-tool-actor")
-	cmd.Env = append(os.Environ(), "TMPDIR=/private/tmp")
-	if out, e := cmd.CombinedOutput(); e != nil {
-		t.Fatalf("actor build: %s %v", out, e)
+	cwd, e := os.Getwd()
+	if e != nil {
+		t.Fatal(e)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+	guard.pending++
+	original, e := process.Start(ctx, process.Command{Path: "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go", Args: []string{"build", "-o", bin, "./testdata/validation-tool-actor"}, Dir: cwd, Env: []string{"TMPDIR=/private/tmp"}})
+	if original == nil || e != nil {
+		if original != nil {
+			validationNativeStop(original, guard)
+		}
+		t.Fatalf("actor build original Start: %v", e)
+	}
+	waitErr := original.Wait(ctx)
+	treeErr := original.ConfirmTreeExited()
+	if waitErr != nil || treeErr != nil {
+		validationNativeStop(original, guard)
+		t.Fatalf("actor build original Wait/tree: %v %v", waitErr, treeErr)
+	}
+	guard.pending--
+	if original.ExitCode() != 0 {
+		t.Fatalf("actor build exit: %s", original.Output())
 	}
 	if e := os.Chmod(bin, 0500); e != nil {
 		t.Fatal(e)
@@ -61,16 +80,86 @@ func validationNativeActor(t *testing.T, root string) (string, string) {
 	}
 	return bin, pin
 }
-func validationNativeRoot(t *testing.T) string {
+
+// Test-only cleanup authority. Every actual Start/Host call is held until its
+// original Wait/tree or live never-started proof is observed. Failures retain
+// the owned root even when Stop succeeds; no t.TempDir teardown races an actor.
+type validationNativeCleanup struct {
+	root     string
+	identity os.FileInfo
+	pending  int
+}
+
+func (g *validationNativeCleanup) cleanup(failed bool) (bool, error) {
+	if failed || g.pending != 0 {
+		return false, nil
+	}
+	info, err := os.Lstat(g.root)
+	if os.IsNotExist(err) {
+		return true, nil
+	}
+	if err != nil || !os.SameFile(g.identity, info) || !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+		return false, errors.New("native cleanup root identity changed")
+	}
+	err = filepath.WalkDir(g.root, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			st, e := os.Lstat(path)
+			if e != nil {
+				return e
+			}
+			owner, ok := st.Sys().(*syscall.Stat_t)
+			if !ok || owner.Uid != uint32(os.Geteuid()) {
+				return errors.New("foreign cleanup directory")
+			}
+			if st.Mode().Perm()&0700 != 0700 {
+				return os.Chmod(path, 0700)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return false, err
+	}
+	err = os.RemoveAll(g.root)
+	return err == nil, err
+}
+func validationNativeRoot(t *testing.T) (string, *validationNativeCleanup) {
 	t.Helper()
-	root, e := filepath.EvalSymlinks(t.TempDir())
+	root, e := os.MkdirTemp("/private/tmp", "agent-bird-validation-retry-native-")
 	if e != nil {
 		t.Fatal(e)
 	}
-	if e = os.Chmod(root, 0700); e != nil {
+	root, e = filepath.EvalSymlinks(root)
+	if e != nil {
 		t.Fatal(e)
 	}
-	return root
+	info, e := os.Lstat(root)
+	if e != nil {
+		t.Fatal(e)
+	}
+	guard := &validationNativeCleanup{root: root, identity: info}
+	t.Cleanup(func() {
+		removed, e := guard.cleanup(t.Failed())
+		if !removed || e != nil {
+			t.Logf("RETAINED native fixture root=%s pending=%d failed=%v cleanup_error=%v", root, guard.pending, t.Failed(), e)
+		}
+	})
+	return root, guard
+}
+func validationNativeStop(h *process.Handle, guard *validationNativeCleanup) bool {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	stopErr := h.Stop(ctx)
+	waitErr := h.Wait(ctx)
+	treeErr := h.ConfirmTreeExited()
+	if stopErr == nil && waitErr == nil && treeErr == nil {
+		guard.pending--
+		return true
+	}
+	return false
 }
 func validationNativeGit(t *testing.T, args ...string) string {
 	t.Helper()
@@ -117,8 +206,8 @@ func validationAccept(t *testing.T, ctx context.Context, db *store.DB, g contrac
 }
 
 func TestValidationRetryActualHostGitQueueAndNextAttempt(t *testing.T) {
-	root := validationNativeRoot(t)
-	tool, pin := validationNativeActor(t, root)
+	root, guard := validationNativeRoot(t)
+	tool, pin := validationNativeActor(t, root, guard)
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
 	repo := filepath.Join(root, "repo")
@@ -151,16 +240,26 @@ func TestValidationRetryActualHostGitQueueAndNextAttempt(t *testing.T) {
 		t.Fatal(e)
 	}
 	h.producerID = hid
-	cleanupValidationToolCopies(t, h)
 	edit, e := db.ClaimReady(ctx, hid, 1, 2)
 	if e != nil || edit.TaskID != "edit" {
 		t.Fatal(edit, e)
 	}
+	guard.pending++
 	r, e := h.ExecuteLaunch(ctx, edit, validationNativeInvocation{launchInvocation: launchInvocation{args: []string{tool, "produce"}, dir: source.Directory}, payload: source})
 	if e != nil || r.Status != "result_ready" {
 		t.Fatalf("source: %+v %v", r, e)
 	}
-	validationCommitEvents(t, ctx, db, h, edit)
+	sourceEvents := validationCommitEvents(t, ctx, db, h, edit)
+	sourceWaited := false
+	for _, ev := range sourceEvents {
+		if ev.Kind == contract.EventExited && ev.Process != nil && ev.ExitCode != nil && *ev.ExitCode == 0 {
+			sourceWaited = true
+		}
+	}
+	if !sourceWaited {
+		t.Fatal("source original Host Wait/tree not observed")
+	}
+	guard.pending--
 	validationAccept(t, ctx, db, edit)
 	first, e := db.ClaimReady(ctx, hid, 1, 2)
 	if e != nil || first.TaskID != "validate" || first.ValidationTool == nil {
@@ -168,6 +267,7 @@ func TestValidationRetryActualHostGitQueueAndNextAttempt(t *testing.T) {
 	}
 	inv := validationNativeInvocation{launchInvocation: launchInvocation{args: validate.CandidateAction.Command, dir: validate.Directory}, payload: validate}
 	called := false
+	guard.pending++
 	r, e = h.executeLaunch(ctx, first, inv, codexExecuteControl{validationStarter: func(cmd *exec.Cmd) error {
 		called = true
 		if cmd.Path != "/usr/bin/sandbox-exec" || len(cmd.Args) < 4 || cmd.Args[3] == tool || !strings.HasPrefix(cmd.Args[3], filepath.Join(h.spoolRoot, ".validation-tools")) {
@@ -192,6 +292,7 @@ func TestValidationRetryActualHostGitQueueAndNextAttempt(t *testing.T) {
 	if rejected == nil || rejected.Failure == nil || !rejected.Failure.ValidValidationStart() || rejected.ValidationToolCleanup == nil || rejected.ValidationToolCleanup.RemovedBytes <= 0 {
 		t.Fatal("no authenticated live proof+copy cleanup", rejected)
 	}
+	guard.pending-- // original typed never-started + removed copy observed
 	if _, e = db.CommitHostEvent(ctx, *rejected); e != nil {
 		t.Fatal("exact terminal ACK replay", e)
 	}
@@ -222,6 +323,7 @@ func TestValidationRetryActualHostGitQueueAndNextAttempt(t *testing.T) {
 	if e != nil || next.AttemptID == first.AttemptID || next.SegmentID == first.SegmentID || next.ValidationTool == nil || next.ValidationTool.ReservationID == first.ValidationTool.ReservationID || !reflect.DeepEqual(next.Input, first.Input) || !reflect.DeepEqual(next.DependencyInputs, first.DependencyInputs) || string(next.AdapterPayload) != string(first.AdapterPayload) {
 		t.Fatal("frozen source/new grant drift", next, e)
 	}
+	guard.pending++
 	r, e = h.ExecuteLaunch(ctx, next, inv)
 	if e != nil || r.Status != "result_ready" || r.ExitCode != 0 {
 		t.Fatalf("next actual actor: %+v %v", r, e)
@@ -244,6 +346,7 @@ func TestValidationRetryActualHostGitQueueAndNextAttempt(t *testing.T) {
 	if !waited {
 		t.Fatal("missing original Wait/tree+tool cleanup terminal")
 	}
+	guard.pending-- // original Host Wait/tree Exited observed
 	validationAccept(t, ctx, db, next)
 	q, e := sql.Open("sqlite", filepath.Join(root, "state.db"))
 	if e != nil {
@@ -275,8 +378,8 @@ func TestValidationRetryActualHostGitQueueAndNextAttempt(t *testing.T) {
 }
 
 func TestValidationSealedActualProfileHasPositiveControls(t *testing.T) {
-	root := validationNativeRoot(t)
-	actor, pin := validationNativeActor(t, root)
+	root, guard := validationNativeRoot(t)
+	actor, pin := validationNativeActor(t, root, guard)
 	for _, mode := range []string{"unsandboxed_control", "actual_host_profile"} {
 		t.Run(mode, func(t *testing.T) {
 			fixture := filepath.Join(root, mode)
@@ -287,7 +390,6 @@ func TestValidationSealedActualProfileHasPositiveControls(t *testing.T) {
 			if e != nil {
 				t.Fatal(e)
 			}
-			cleanupValidationToolCopies(t, h)
 			workspace := filepath.Join(fixture, "workspace")
 			if e = os.Mkdir(workspace, 0700); e != nil {
 				t.Fatal(e)
@@ -343,18 +445,17 @@ func TestValidationSealedActualProfileHasPositiveControls(t *testing.T) {
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
+			guard.pending++
 			original, stream, e := process.StartDuplex(ctx, cmd)
 			if original == nil || e != nil {
 				if original != nil {
-					_ = original.Stop(context.Background())
-					_ = original.Wait(context.Background())
+					validationNativeStop(original, guard)
 				}
 				t.Fatal("original actor Start", e)
 			}
 			defer stream.Close()
 			if _, e = stream.Write([]byte("x")); e != nil {
-				_ = original.Stop(context.Background())
-				_ = original.Wait(context.Background())
+				validationNativeStop(original, guard)
 				t.Fatal(e)
 			}
 			body, e := io.ReadAll(io.LimitReader(stream, 4096))
@@ -363,6 +464,7 @@ func TestValidationSealedActualProfileHasPositiveControls(t *testing.T) {
 			if e != nil || waitErr != nil || treeErr != nil || original.ExitCode() != 0 {
 				t.Fatalf("original actor lifecycle %s %v %v %v", body, e, waitErr, treeErr)
 			}
+			guard.pending-- // original Wait and empty tree confirmed
 			result := map[string]int{}
 			if e = json.Unmarshal(body, &result); e != nil || len(result) != 7 {
 				t.Fatal(string(body), e)
@@ -388,5 +490,45 @@ func TestValidationSealedActualProfileHasPositiveControls(t *testing.T) {
 			}
 			t.Logf("%s original Wait/tree proof and seven filesystem operation errno oracles: %s", mode, body)
 		})
+	}
+}
+
+func TestValidationNativeCleanupRetainsUnprovedOriginalHandle(t *testing.T) {
+	root, guard := validationNativeRoot(t)
+	actor, pin := validationNativeActor(t, root, guard)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	guard.pending++
+	original, stream, err := process.StartDuplex(ctx, process.Command{Path: actor, Args: []string{"protect", filepath.Join(root, "peer")}, Dir: root, PinnedPath: actor, PinnedSHA256: pin})
+	if original == nil || err != nil {
+		if original != nil {
+			validationNativeStop(original, guard)
+		}
+		t.Fatal(err)
+	}
+	defer stream.Close()
+	removed, err := guard.cleanup(false)
+	if removed || err != nil {
+		validationNativeStop(original, guard)
+		t.Fatal("unproved original actor root removed", removed, err)
+	}
+	if _, err = os.Stat(actor); err != nil {
+		validationNativeStop(original, guard)
+		t.Fatal("live actor copy lost", err)
+	}
+	t.Logf("RETAINED before original Wait/tree root=%s pending=%d", root, guard.pending)
+	if !validationNativeStop(original, guard) {
+		t.Fatal("original Stop/Wait/tree unproved; retain fixture")
+	}
+	removed, err = guard.cleanup(true)
+	if removed || err != nil {
+		t.Fatal("failed test cleanup removed forensic root", removed, err)
+	}
+	if _, err = os.Stat(actor); err != nil {
+		t.Fatal("failed test forensic copy lost", err)
+	}
+	removed, err = guard.cleanup(false)
+	if !removed || err != nil {
+		t.Fatal("confirmed owned root not cleaned", removed, err)
 	}
 }

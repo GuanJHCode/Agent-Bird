@@ -72,3 +72,11 @@ private Go-only per-call validationStarter 只接受有完整工具grant的受�
 - `store-physical-cold` exit 0; top {'pass': 1}; named {'pass': 2}.
 
 所有失败保留。native-chain-01/02/03为新增测试对既有process API/事件常量拼写误用编译失败；04完整新attempt执行已达Result/Exited，但末尾测试错误假设CollectPending仅1event，实际旧拒绝审计事件仍pending。05修为精确当前attempt Result后PASS。后加公开旧拒绝ACK/audit/metadata断言的native-final-focused误用不存在kind SQL列且混合subtest regex未选Store，06修为JSON后字段大小写错误；07改用实际snake kind后完整链PASS。Store反例独立精确subtest跑2named PASS。上述测试错误不算生产业务RED，不隐藏、不反复称final。最终race待固定test快照一批验。
+
+## 最终race与native测试清理收紧
+
+clean d663785 的 `final-runtime-race` exit0：Host7top33named PASS、Store8top48named PASS，合计15top81named，0FAIL/0SKIP（不含package pass）。stdout SHA256 `ad273f45cfaee6627b2e999ec4a2a23d0a207cff35bf3636ac34f4c766eb8c42`。该batch未选择TestValidationStartFactsRequirePinnedActionAuthority，其此前store-facts-green-03的1top4named PASS不受后续production delta影响可复用；schema相邻历史migration也复用ROOT证据，不称全Store。
+
+独审发现测试cleanup风险：t.TempDir在UNKNOWN/Wait失败后会自动删除actor现场。仅test-only改为owned os.MkdirTemp+目录inode身份guard；任何实际Start/Host call登记pending，只有原Wait/tree或原live typed never-started确证才解除。setup Go build也使用原process.Handle Wait/tree；测试失败或任何pending均保留并在raw记录精确root，不chmod/delete未知copy。只在所有原进程确证且测试成功后改变0500目录权限并RemoveAll。
+
+`native-cleanup-01`定向race 3top5named PASS，exit0，0FAIL/SKIP：完整公开native链、七操作profile正对照、一个真正活original actor未收到stdin/尚未Wait时cleanup拒绝并保留copy；之后原Stop/Wait/tree确证，模拟failed仍保留，再于已确证成功路径删除。新cleanup源须独审，不重复未受影响Store race。生产仍b5899d2。
