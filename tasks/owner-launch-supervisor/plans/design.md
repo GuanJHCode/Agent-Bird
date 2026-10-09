@@ -1,8 +1,8 @@
 # F10 Coordinator-owned pre-Bind launch attempts
 
-Status: design frozen for isolated implementation, base integration `a011561`.
+Status: isolated implementation and targeted validation in progress; initial base `a011561`, verified cross-provider fixtures from `97c8c6a` retained.
 ROOT owns runtime/IPC integration. A separate worker will own contract/Store in a
-separate worktree. No production code has changed at this checkpoint.
+separate worktree. Integration remains unchanged until the final review and relevant validation pass.
 
 ## Scope and proof boundary
 
@@ -75,11 +75,10 @@ source environment directly to the Owner. No Coordinator reader, DB or log sees
 those bytes. No encryption/new credential system is needed for this existing
 trusted same-UID actor model.
 
-A separate inherited gate carries the signed launch witness from Coordinator to
-Owner; it contains no authentication environment or launch token. Child validates
+The signed launch witness is included in the direct FirstHost-to-Owner bootstrap
+after the descriptor-close ACK; no separate inherited gate is used. Child validates
 witness, own PID/birth, live supervisor parent, pinned executable and effective
-intent before entering the existing owner runtime. It installs the source Env
-from the direct pipe before invoking anything that uses it. Owner still performs
+intent before installing the source Env or entering the existing owner runtime. Owner still performs
 its existing self-authenticated owner.sock Bind; no actor impersonates FirstHost.
 The existing v1 FirstHost-parent checks remain intact on v1.
 
@@ -95,6 +94,11 @@ receipt admission here; the generic legacy recovery path is not evidence that
 this is already supported. Serialize registration and launch/Bind decisions.
 
 ## Validation and integration
+
+Public opt-in is `submit --owner-launch-protocol 2` (default v1 remains unchanged).
+Recovery uses the existing local-owner `recover-host` entry and publication lease,
+with a separate pre-Bind proof admission; it does not add modes to ResumeReceipt.
+Protocol selection survives token-free bootstrap metadata and lease publication.
 
 One focused Store matrix: state/receipt chain, exact replay, two-attempt bound,
 quota rollback, old-v1/starting-with-lost-supervisor/bound rejection, effective
