@@ -339,7 +339,7 @@ func (d *DB) PrepareSupervisedOriginalOwner(ctx context.Context, spec PrepareOri
 		return contract.OwnerPrepared{}, err
 	}
 	now := originalOwnerNow()
-	if err = d.storageAdmission(ctx, tx, scope.RunID, int64(len(body)+len(abody)+len(rbody)+512), false); err != nil {
+	if err = d.storageAdmission(ctx, tx, scope.RunID, int64(len(body)+len(abody)+len(rbody)+512)+3*(contract.OriginalOwnerEnvelopeLimit+512), false); err != nil {
 		return contract.OwnerPrepared{}, err
 	}
 	_, err = tx.ExecContext(ctx, `INSERT INTO execution_owners(owner_id,launch_id,run_id,producer_id,incarnation,bootstrap_id,bootstrap_token_hash,coordinator_key_id,request_id,request_hash,intent_json,phase,is_current,control_revision,coordinator_epoch,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,'intended',1,0,?,?,?)`, scope.OwnerID, scope.LaunchID, scope.RunID, scope.ProducerID, scope.Incarnation, i.BootstrapID, i.BootstrapTokenSHA256, i.CoordinatorKeyID, i.RequestID, i.RequestSHA256, body, i.CoordinatorEpoch, now, now)
@@ -356,6 +356,9 @@ func (d *DB) PrepareSupervisedOriginalOwner(ctx context.Context, spec PrepareOri
 	}
 	_, err = tx.ExecContext(ctx, `INSERT INTO owner_launch_receipts(owner_id,run_id,receipt_no,attempt_hash,phase,receipt_json,receipt_hash,created_at) VALUES(?,?,?,?,?,?,?,?)`, scope.OwnerID, scope.RunID, 1, a.AttemptSHA256, r.Phase, rbody, r.ReceiptSHA256, now)
 	if err != nil {
+		return contract.OwnerPrepared{}, mapConflict(err)
+	}
+	if _, err = tx.ExecContext(ctx, `INSERT INTO owner_launch_escrows(owner_id,attempt_no,run_id,reserved_bytes) VALUES(?,?,?,?)`, scope.OwnerID, 1, scope.RunID, 3*(contract.OriginalOwnerEnvelopeLimit+512)); err != nil {
 		return contract.OwnerPrepared{}, mapConflict(err)
 	}
 	if err = owned.commit(); err != nil {
@@ -411,7 +414,7 @@ func (d *DB) prepareSupervisedSuccessorOwner(ctx context.Context, spec PrepareOr
 	body, _ := originalOwnerBody(i)
 	abody, _ := originalOwnerBody(a)
 	rbody, _ := originalOwnerBody(r)
-	if err = d.storageAdmission(ctx, tx, s.RunID, int64(len(body)+len(abody)+len(rbody)+512), false); err != nil {
+	if err = d.storageAdmission(ctx, tx, s.RunID, int64(len(body)+len(abody)+len(rbody)+512)+3*(contract.OriginalOwnerEnvelopeLimit+512), false); err != nil {
 		return contract.OwnerPrepared{}, err
 	}
 	_, err = tx.ExecContext(ctx, `INSERT INTO execution_owners(owner_id,launch_id,run_id,producer_id,incarnation,bootstrap_id,bootstrap_token_hash,coordinator_key_id,request_id,request_hash,intent_json,phase,is_current,control_revision,coordinator_epoch,created_at,updated_at,succession_authorization_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,'intended',1,0,?,?,?,?)`, s.OwnerID, s.LaunchID, s.RunID, s.ProducerID, s.Incarnation, i.BootstrapID, i.BootstrapTokenSHA256, i.CoordinatorKeyID, i.RequestID, i.RequestSHA256, body, i.CoordinatorEpoch, now, now, authorizationID)
@@ -429,6 +432,9 @@ func (d *DB) prepareSupervisedSuccessorOwner(ctx context.Context, spec PrepareOr
 	_, err = tx.ExecContext(ctx, `INSERT INTO owner_launch_receipts(owner_id,run_id,receipt_no,attempt_hash,phase,receipt_json,receipt_hash,created_at) VALUES(?,?,?,?,?,?,?,?)`, s.OwnerID, s.RunID, 1, a.AttemptSHA256, r.Phase, rbody, r.ReceiptSHA256, now)
 	if err != nil {
 		return contract.OwnerPrepared{}, err
+	}
+	if _, err = tx.ExecContext(ctx, `INSERT INTO owner_launch_escrows(owner_id,attempt_no,run_id,reserved_bytes) VALUES(?,?,?,?)`, s.OwnerID, 1, s.RunID, 3*(contract.OriginalOwnerEnvelopeLimit+512)); err != nil {
+		return contract.OwnerPrepared{}, mapConflict(err)
 	}
 	if err = moveOwnerTransport(ctx, tx, s, p.authorization.Host, i.FirstHost, spec.Epoch); err != nil {
 		return contract.OwnerPrepared{}, err

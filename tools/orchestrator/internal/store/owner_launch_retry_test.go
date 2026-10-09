@@ -48,8 +48,13 @@ func TestPreBindRetryAdmissionCommitsSecondAttemptAndMovesHost(t *testing.T) {
 	if _, err = f.db.RecordOriginalOwnerLaunchStarted(ctx, prepared.Intent.Scope.OwnerID, prepared.LaunchAttempt.AttemptSHA256, a.Supervisor, contract.OriginalOwnerTransport{PID: bindSpec.Hello.Owner.PID, Birth: bindSpec.Hello.Owner.Birth}, true, f.key); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = f.db.BindOriginalOwner(ctx, bindSpec, f.key); err != nil {
+	firstBind, err := f.db.BindOriginalOwner(ctx, bindSpec, f.key)
+	if err != nil {
 		t.Fatalf("retry effective Bind: %v", err)
+	}
+	replayBind, err := f.db.BindOriginalOwner(ctx, bindSpec, f.key)
+	if err != nil || replayBind.Binding != firstBind.Binding || replayBind.Permit != firstBind.Permit {
+		t.Fatalf("retry Bind exact replay: %#v %v", replayBind, err)
 	}
 	bound, err := f.db.InspectOriginalOwner(ctx, prepared.Intent.Scope.OwnerID)
 	if err != nil || bound.Intent != prepared.Intent || bound.BaseIntent == nil || *bound.BaseIntent != first.Intent {

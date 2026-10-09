@@ -278,6 +278,10 @@ func (d *DB) BindOriginalOwner(ctx context.Context, spec BindOriginalOwnerSpec, 
 		return OriginalOwnerBindResult{}, err
 	}
 	i := row.state.Intent
+	base := i
+	if row.state.BaseIntent != nil {
+		base = *row.state.BaseIntent
+	}
 	launch, latest, launchErr := loadOwnerLaunch(ctx, tx, i.Scope.OwnerID)
 	bindIntent := i
 	if launchErr == nil {
@@ -301,7 +305,7 @@ func (d *DB) BindOriginalOwner(ctx context.Context, spec BindOriginalOwnerSpec, 
 	// later Wait receipt is allowed for lost Bind acknowledgements, but the
 	// original started witness remains the exact child/FD-handoff proof.
 	if launchErr == nil {
-		if launch.BaseIntent != i || validBindLaunchWitness(ctx, tx, i.Scope.OwnerID, launch, latest, contract.OriginalOwnerTransport{PID: spec.Hello.Owner.PID, Birth: spec.Hello.Owner.Birth}, pub) != nil {
+		if launch.BaseIntent != base || validBindLaunchWitness(ctx, tx, i.Scope.OwnerID, launch, latest, contract.OriginalOwnerTransport{PID: spec.Hello.Owner.PID, Birth: spec.Hello.Owner.Birth}, pub) != nil {
 			return OriginalOwnerBindResult{}, originalOwnerRejected()
 		}
 	}
