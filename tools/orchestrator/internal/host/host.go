@@ -223,6 +223,9 @@ func (h *Host) executeLaunch(ctx context.Context, grant contract.LaunchCommand, 
 	}); ok && value.CandidateAction() != nil {
 		action := value.CandidateAction()
 		meta.integrationAction = action.Operation == "integrate"
+		if _, err := adapter.ValidationRetryPayload(grant.AdapterPayload); action.Operation == "validate" && err == nil {
+			meta.validationGrant = &grant
+		}
 		meta.structuredReview = action.Operation == "review" && (meta.outputProvider == string(adapter.ProviderClaude) || meta.outputProvider == string(adapter.ProviderAGY) || meta.outputProvider == string(adapter.ProviderGrok))
 		if action.Operation == "review" && meta.outputProvider == string(adapter.ProviderGrok) {
 			meta.expectedSessionID = grokSessionID(grant)
@@ -298,6 +301,7 @@ func (h *Host) Execute(ctx context.Context, a store.Attempt, runID, taskID strin
 }
 
 type launchMetadata struct {
+	validationGrant   *contract.LaunchCommand
 	artifactGrant     *contract.LaunchCommand
 	diagnosticsGrant  *contract.LaunchCommand
 	startProcess      func(context.Context, process.Command) (*process.Handle, error)
@@ -519,6 +523,15 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 	}
 	p, err := start(ctx, cmd)
 	if err != nil {
+		if p == nil && meta.validationGrant != nil && process.NeverStartedCode(ctx, err, cmd) != "" {
+			if rejected := h.recordValidationStartRejected(ctx, *meta.validationGrant, cmd, err); rejected == nil {
+				eventCount++
+				h.finishAttempt(a.ID, "failed", persistDB)
+				return contract.Result{Status: "failed", ExitCode: -1, EventCount: eventCount}, err
+			} else {
+				err = errors.Join(err, rejected)
+			}
+		}
 		var identity *process.Identity
 		exit := -1
 		if p != nil {
@@ -1191,11 +1204,16 @@ func (h *Host) recoverDuplicateGrant(grant contract.LaunchCommand, epoch uint64)
 			var cause error = errors.New("recovered_incomplete_grant")
 			if desc.Kind == "prelaunch" {
 				id = "launch-failure"
-				safeCause, decodeErr := decodeRecoveredLaunchFailure(body)
-				if decodeErr != nil {
-					return decodeErr
+				if validValidationStartDiagnostic(body) {
+					// Authenticated diagnostic preserves uncertainty, never live proof.
+					cause = errors.New("recovered_validation_start_incomplete")
+				} else {
+					safeCause, decodeErr := decodeRecoveredLaunchFailure(body)
+					if decodeErr != nil {
+						return decodeErr
+					}
+					cause = safeCause
 				}
-				cause = safeCause
 			}
 			if err = publishLaunchPhase(spool, "unknown", a, grant.RunID, grant.TaskID, process.Command{}, nil, cause); err != nil {
 				return err

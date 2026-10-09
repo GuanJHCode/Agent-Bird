@@ -19,3 +19,9 @@
 3. 一条真实 Host + tracked Git 物化 + 受控 Start 返回失败 + Store 自动入队 + 新 attempt 验证成功/原 Wait 链。Start 故障注入必须 per-call、无全局环境后门，报告明确不是内核自然 EAGAIN 资源耗尽。受控 seam 不能把先启动后返回错误变成 proof。
 4. 稳定代码后定向 race、whole build、受影响包 vet；不重复全仓/全 Store。保存原始 go test JSON、stderr、exit、source SHA、准确 top/named PASS/FAIL/SKIP，所有失败保留。
 5. ROOT 核原始证据及独立固定快照审查后本地集成。无真实 Provider/model/account、用户安装替换、push/release。Intel/Windows 延期；当前 F13 包不自动覆盖本次新生产源码。
+
+## 早审补充边界
+
+- 仅直接 native executable 入口；拒绝 shebang、shell/env 分发器及其已知摘要副本。Host 将声明入口复制到独占 `.validation-tools/<grant identity>/tool`，目录与副本 `0500`，不在 worker workspace/scratch 的可写祖先内。执行该固定副本，同时首次及每次重试复核原路径与副本 pin；此边界不宣称动态库及子命令依赖完全 hermetic。
+- validation_start 诊断只供活 Host 的一次 typed proof 消费。冷恢复 artifact-only 与 phase-only 两个未完整 terminal 窗口明确 UNKNOWN；完整 durable terminal 沿用 replay，不从 JSON 重建 proof。
+- 新 candidate_validation_retry 必须有既存 durable binding；缺失、孤儿或 retired binding 一律拒绝，不进入旧 review legacy ordinal/history 推断。

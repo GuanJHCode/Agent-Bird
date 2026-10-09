@@ -58,3 +58,8 @@ func (f *FailureFacts) ValidPrelaunchProbe() bool {
 
 // Canonical policy bytes include every effective budget and retry grant.
 func (p ExecutionPolicy) CanonicalJSON() ([]byte, error) { return json.Marshal(p) }
+
+// Validation's wrapper never started; prior managed Git preparation may exist.
+func (f *FailureFacts) ValidValidationStart() bool {
+	return f != nil && f.Version == 1 && f.Stage == "validation_start" && f.WorkerState == "not_started" && f.ProbeState == "not_applicable" && (f.Code == "validation_start_eagain" || f.Code == "validation_start_eintr")
+}
