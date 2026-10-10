@@ -2,10 +2,13 @@ package gitops
 
 import (
 	"context"
+	"encoding/binary"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"golang.org/x/sys/unix"
 )
 
 func TestBindFilteredTargetCandidateRejectsDetachedOwners(t *testing.T) {
@@ -13,6 +16,40 @@ func TestBindFilteredTargetCandidateRejectsDetachedOwners(t *testing.T) {
 	defer cancel()
 	if pair, err := BindFilteredTargetCandidate(ctx, nil, nil); pair != nil || !IsCode(err, CodeReviewMismatch) {
 		t.Fatalf("detached owners pair=%v err=%v", pair, err)
+	}
+}
+
+func TestPairReadIndexRejectsNamedReplacement(t *testing.T) {
+	dir := t.TempDir()
+	indexPath := filepath.Join(dir, "index")
+	raw := make([]byte, 32)
+	copy(raw, "DIRC")
+	binary.BigEndian.PutUint32(raw[4:8], 2)
+	if err := os.WriteFile(indexPath, raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	gitDir, err := os.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer gitDir.Close()
+	index, err := filterOpenAt(gitDir, "index", unix.O_RDONLY, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer index.Close()
+	if _, _, err = pairReadIndex(index, gitDir); err != nil {
+		t.Fatalf("read original index: %v", err)
+	}
+	replacement := filepath.Join(dir, "replacement")
+	if err = os.WriteFile(replacement, raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err = os.Rename(replacement, indexPath); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err = pairReadIndex(index, gitDir); err == nil {
+		t.Fatal("held index accepted named replacement")
 	}
 }
 
