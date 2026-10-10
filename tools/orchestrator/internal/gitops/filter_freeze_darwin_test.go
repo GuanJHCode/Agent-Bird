@@ -68,7 +68,8 @@ func TestFilterFreezeNativeFixture(t *testing.T) {
 }
 
 func freezeNativeSuccess(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
+	// Includes the additional delete/restore source-ref verification cycle.
+	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
 	defer cancel()
 	f, repo, source, broker, gitPath, base, request, prepared := prepareFreezeFixture(t, ctx, "a", "command", "filter")
 	defer source.Close()
