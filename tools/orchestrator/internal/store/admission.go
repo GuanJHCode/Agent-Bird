@@ -45,6 +45,13 @@ func validateInvocationPayload(raw json.RawMessage) error {
 	if len(raw) == 0 {
 		return nil
 	}
+	filter, filterErr := contract.GitFilterManifestFromPayload(raw)
+	if filterErr != nil {
+		return CodeError("invalid_adapter_payload")
+	}
+	if filter != nil {
+		return CodeError("git_filter_pipeline_unsupported")
+	}
 	var kind struct {
 		Kind string `json:"kind"`
 	}

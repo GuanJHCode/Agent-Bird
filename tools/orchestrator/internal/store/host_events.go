@@ -172,6 +172,9 @@ func (d *DB) commitHostEvent(ctx context.Context, event contract.Event, artifact
 	if err = applyValidationToolRelease(ctx, tx, event); err != nil {
 		return rollback(err)
 	}
+	if err = applyGitFilterRelease(ctx, tx, event); err != nil {
+		return rollback(err)
+	}
 	if !historical {
 		queued, retryErr := d.queuePolicyRetry(ctx, tx, event, actionSlot, artifactGate.validation)
 		if retryErr != nil {
