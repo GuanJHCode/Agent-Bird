@@ -434,11 +434,17 @@ func validateFilteredChanges(changes []CandidateChange) error {
 			return fail(CodeReviewMismatch, "filtered candidate change path", nil)
 		}
 		seen[strings.ToLower(c.Path)] = true
+		for _, prior := range changes[:i] {
+			a, b := strings.ToLower(c.Path), strings.ToLower(prior.Path)
+			if strings.HasPrefix(a, b+"/") || strings.HasPrefix(b, a+"/") {
+				return fail(CodeReviewMismatch, "filtered candidate path transition", nil)
+			}
+		}
 		if c.Deleted {
 			if c.Mode != "" || c.BlobOID != "" {
 				return fail(CodeReviewMismatch, "filtered conflicting deletion", nil)
 			}
-		} else if c.Mode != "100644" && c.Mode != "100755" || !c.Deleted && (requireOID(c.BlobOID) != nil || c.BlobOID != strings.ToLower(c.BlobOID)) {
+		} else if c.Mode != "100644" && c.Mode != "100755" || requireOID(c.BlobOID) != nil || c.BlobOID != strings.ToLower(c.BlobOID) {
 			return fail(CodeReviewMismatch, "filtered candidate blob", nil)
 		}
 	}

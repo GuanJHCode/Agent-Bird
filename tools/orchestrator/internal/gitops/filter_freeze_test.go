@@ -18,6 +18,7 @@ func TestFilteredCandidateChangeShape(t *testing.T) {
 		{"delete_blob", []CandidateChange{{Path: "a.txt", Deleted: true, BlobOID: oid}}, false},
 		{"foreign_mode", []CandidateChange{{Path: "a.txt", Mode: "120000", BlobOID: oid}}, false},
 		{"unsorted", []CandidateChange{{Path: "b", Deleted: true}, {Path: "a", Deleted: true}}, false},
+		{"file_directory_alias", []CandidateChange{{Path: "a", Deleted: true}, {Path: "a/b", Mode: "100644", BlobOID: oid}}, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			err := validateFilteredChanges(tc.changes)
