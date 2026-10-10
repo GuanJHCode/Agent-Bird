@@ -32,6 +32,7 @@ type filterGitPrivateKey struct{}
 // FilterGitContext is live Host-only evidence. It intentionally has no JSON
 // representation: a decoded payload cannot acquire a pinned executor.
 type FilterGitContext struct {
+	repository                   filterRepositoryAnchor
 	repoRoot, commonDir          string
 	repoIdentity, commonIdentity DirectoryIdentity
 	manifest                     contract.GitFilterManifestV1
@@ -111,6 +112,9 @@ func OpenFilterGit(ctx context.Context, repoRoot string, manifest contract.GitFi
 	g.commonDir = CanonicalPath(common)
 	g.commonIdentity, err = directoryIdentity(g.commonDir)
 	if err != nil {
+		return nil, err
+	}
+	if err := g.captureRepository(private); err != nil {
 		return nil, err
 	}
 	if err := g.capture(private); err != nil {
@@ -203,6 +207,9 @@ func (g *FilterGitContext) verifySources() bool {
 }
 
 func (g *FilterGitContext) readState(ctx context.Context) ([]byte, map[string]filterPinnedFile, string, error) {
+	if err := g.verifyRepository(ctx); err != nil {
+		return nil, nil, "", err
+	}
 	if !g.verifySources() {
 		return nil, nil, "", fail(CodeIdentityChanged, "filter sources", nil)
 	}
@@ -227,6 +234,9 @@ func (g *FilterGitContext) readState(ctx context.Context) ([]byte, map[string]fi
 	if !verifyFilterPin(configPin) || !g.verifySources() {
 		return nil, nil, "", fail(CodeIdentityChanged, "filter config", fmt.Errorf("source changed during read"))
 	}
+	if err := g.verifyRepository(ctx); err != nil {
+		return nil, nil, "", err
+	}
 	type pinned struct {
 		Path, SHA256 string
 		Identity     FileIdentity
@@ -241,7 +251,8 @@ func (g *FilterGitContext) readState(ctx context.Context) ([]byte, map[string]fi
 		Git, Clean, Smudge, Config   pinned
 		ConfigOutput                 string
 		Attributes                   []pinned
-	}{1, manifestSHA, g.repoRoot, g.commonDir, g.repoIdentity, g.commonIdentity, view(g.git), view(g.clean), view(g.smudge), view(configPin), config, []pinned{}}
+		RepositorySHA256             string
+	}{1, manifestSHA, g.repoRoot, g.commonDir, g.repoIdentity, g.commonIdentity, view(g.git), view(g.clean), view(g.smudge), view(configPin), config, []pinned{}, g.repository.digest()}
 	paths := make([]string, 0, len(attrs))
 	for p := range attrs {
 		paths = append(paths, p)
@@ -481,7 +492,7 @@ func pinFilterFileKind(path, want string, limit int64, native bool, afterOpen fu
 	if !ok || !st.Mode().IsRegular() || st.Mode()&os.ModeSymlink != 0 || st.Size() < 0 || st.Size() > limit || sys.Nlink != 1 || (int64(sys.Uid) != int64(os.Getuid()) && sys.Uid != 0) || st.Mode().Perm()&022 != 0 || native && st.Mode().Perm()&0111 == 0 {
 		return filterPinnedFile{}, fail(CodeInvalidInput, "filter pin", fmt.Errorf("untrusted native file"))
 	}
-	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
 	if err != nil {
 		return invalid(err)
 	}
