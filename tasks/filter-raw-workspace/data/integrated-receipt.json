@@ -1,0 +1,9 @@
+{
+  "integration": "56dd0a04054b3fd53854c7559a7a25987ca182eb",
+  "delivery": "79ef946d4682699413b7f2a17787ee9e49b71dca",
+  "qualified_source": "8e50b88cb41f870c5e787f7336af5c63c3c12218",
+  "go_tree": "d7c374f1ec0f07cffbfb91ec6c67ec369cf173e6",
+  "identical_to_qualified_go_tree": true,
+  "independent_review": "PASS",
+  "public_filter_admission": "closed"
+}
