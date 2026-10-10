@@ -1,0 +1,58 @@
+=== RUN   TestGitFilterAdmissionRemainsClosed
+--- PASS: TestGitFilterAdmissionRemainsClosed (0.67s)
+=== RUN   TestGitFilterReservationQuotaReplayAndCommit
+=== RUN   TestGitFilterReservationQuotaReplayAndCommit/raw_exact
+=== RUN   TestGitFilterReservationQuotaReplayAndCommit/raw_short
+=== RUN   TestGitFilterReservationQuotaReplayAndCommit/control_exact
+=== RUN   TestGitFilterReservationQuotaReplayAndCommit/control_short
+=== RUN   TestGitFilterReservationQuotaReplayAndCommit/commit_failure
+=== RUN   TestGitFilterReservationQuotaReplayAndCommit/replay_physical
+--- PASS: TestGitFilterReservationQuotaReplayAndCommit (4.68s)
+    --- PASS: TestGitFilterReservationQuotaReplayAndCommit/raw_exact (0.88s)
+    --- PASS: TestGitFilterReservationQuotaReplayAndCommit/raw_short (0.62s)
+    --- PASS: TestGitFilterReservationQuotaReplayAndCommit/control_exact (1.08s)
+    --- PASS: TestGitFilterReservationQuotaReplayAndCommit/control_short (0.88s)
+    --- PASS: TestGitFilterReservationQuotaReplayAndCommit/commit_failure (0.56s)
+    --- PASS: TestGitFilterReservationQuotaReplayAndCommit/replay_physical (0.65s)
+=== RUN   TestGitFilterLifecycleAuthenticatedRelease
+=== RUN   TestGitFilterLifecycleAuthenticatedRelease/known
+=== RUN   TestGitFilterLifecycleAuthenticatedRelease/launch_rejected
+=== RUN   TestGitFilterLifecycleAuthenticatedRelease/unknown
+=== RUN   TestGitFilterLifecycleAuthenticatedRelease/unknown_cleanup
+=== RUN   TestGitFilterLifecycleAuthenticatedRelease/missing_cleanup
+=== RUN   TestGitFilterLifecycleAuthenticatedRelease/wrong_cleanup
+=== RUN   TestGitFilterLifecycleAuthenticatedRelease/rebound
+=== RUN   TestGitFilterLifecycleAuthenticatedRelease/foreign_command
+--- PASS: TestGitFilterLifecycleAuthenticatedRelease (7.21s)
+    --- PASS: TestGitFilterLifecycleAuthenticatedRelease/known (0.93s)
+    --- PASS: TestGitFilterLifecycleAuthenticatedRelease/launch_rejected (0.73s)
+    --- PASS: TestGitFilterLifecycleAuthenticatedRelease/unknown (0.62s)
+    --- PASS: TestGitFilterLifecycleAuthenticatedRelease/unknown_cleanup (0.42s)
+    --- PASS: TestGitFilterLifecycleAuthenticatedRelease/missing_cleanup (0.69s)
+    --- PASS: TestGitFilterLifecycleAuthenticatedRelease/wrong_cleanup (1.65s)
+    --- PASS: TestGitFilterLifecycleAuthenticatedRelease/rebound (0.74s)
+    --- PASS: TestGitFilterLifecycleAuthenticatedRelease/foreign_command (1.42s)
+=== RUN   TestGitFilterMigration35PreservesAndRollsBack
+=== RUN   TestGitFilterMigration35PreservesAndRollsBack/fault_false
+=== RUN   TestGitFilterMigration35PreservesAndRollsBack/fault_true
+--- PASS: TestGitFilterMigration35PreservesAndRollsBack (1.53s)
+    --- PASS: TestGitFilterMigration35PreservesAndRollsBack/fault_false (0.88s)
+    --- PASS: TestGitFilterMigration35PreservesAndRollsBack/fault_true (0.65s)
+=== RUN   TestGitFilterMigrationFixtureRefusesHistory
+=== RUN   TestGitFilterMigrationFixtureRefusesHistory/reservation
+=== RUN   TestGitFilterMigrationFixtureRefusesHistory/publication
+--- PASS: TestGitFilterMigrationFixtureRefusesHistory (1.11s)
+    --- PASS: TestGitFilterMigrationFixtureRefusesHistory/reservation (0.60s)
+    --- PASS: TestGitFilterMigrationFixtureRefusesHistory/publication (0.51s)
+=== RUN   TestPendingAuthorizationRebindMigrationFailedCommitDiscardsLease
+    owner_authorization_rebind_migration_test.go:134: actual deferred FK COMMIT: external version/objects/fault=29/0/0; pool=29/0/0
+--- PASS: TestPendingAuthorizationRebindMigrationFailedCommitDiscardsLease (0.53s)
+=== RUN   TestOwnerLaunchMigrationPreservesLegacyAndRefusesProofErasure
+--- PASS: TestOwnerLaunchMigrationPreservesLegacyAndRefusesProofErasure (0.74s)
+=== RUN   TestValidationToolMigrationPreservesAndRollsBack
+=== RUN   TestValidationToolMigrationPreservesAndRollsBack/false
+=== RUN   TestValidationToolMigrationPreservesAndRollsBack/true
+--- PASS: TestValidationToolMigrationPreservesAndRollsBack (0.90s)
+    --- PASS: TestValidationToolMigrationPreservesAndRollsBack/false (0.53s)
+    --- PASS: TestValidationToolMigrationPreservesAndRollsBack/true (0.38s)
+PASS

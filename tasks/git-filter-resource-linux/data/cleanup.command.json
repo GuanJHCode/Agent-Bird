@@ -1,0 +1,10 @@
+{
+  "command": [
+    "python3",
+    "tasks/git-filter-resource-linux/scripts/cleanup.py"
+  ],
+  "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/git-filter-resource-linux",
+  "head": "0ad93e0a769fb706e9792db0d695211bba26b072",
+  "dirty": "",
+  "environment": {}
+}

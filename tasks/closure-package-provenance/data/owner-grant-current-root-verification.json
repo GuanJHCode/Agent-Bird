@@ -1,0 +1,26 @@
+{
+  "source": "e662aaa0e2a98f65ad16f30871dc8f03ce73e3a1",
+  "delivery": "c79d3ad22069195b9cb759a0ca1a202a8df7ea06",
+  "orchestrator_tree": "09988866eb0bbe35b13e151559605fbbebbce150",
+  "commands": 12,
+  "all_command_and_runner_exits": 0,
+  "all_stderr_empty": true,
+  "package_files": 28,
+  "source_closure": 24,
+  "installed_payload": 27,
+  "installed_payload_plus_manifest": 28,
+  "cleanup_files": 30,
+  "cleanup_bytes": 64371852,
+  "cleanup_paths_rechecked_absent": true,
+  "receipt_sha256": "ddf71440082c0fa0fc0434d2bc0eaab664e4dfeb81a297f784a107cd184522b2",
+  "runner_unchanged_from": "3168e07",
+  "old_and_new_package_a_hash_and_mode_rechecked": true,
+  "first_root_check": {
+    "exit": 1,
+    "cause": "Root assertion incorrectly expected 28 install result files; API returns 27 payload files. Installed manifest is separately recorded and makes 28 physical files. Corrected count only; no product or evidence change."
+  },
+  "limitations": "Private macOS arm64 source-bound package; no user install, hook registration, real model, cross-machine interpreter, native Intel/Windows or resource qualification.",
+  "integrated_merge": "8fbd3a1a3d83bedf997d2325a8d63b688e08eb7f",
+  "independent_report_review": "PASS at c79d3ad; unchanged runner review reused from 3168e07",
+  "integrated_orchestrator_tree": "09988866eb0bbe35b13e151559605fbbebbce150"
+}

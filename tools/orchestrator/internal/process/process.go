@@ -61,19 +61,20 @@ type Identity struct {
 	StartedAt        string
 }
 type Handle struct {
-	duplexLaunch    *DuplexLaunchState
-	cmd             *exec.Cmd
-	done            chan struct{}
-	mu              sync.Mutex
-	exit            int
-	waited          bool
-	output          []byte
-	outputLimit     int
-	outputTruncated bool
-	pgid            int
-	identity        Identity
-	stdout          io.Writer
-	outputObserver  OutputObserver
+	originalSpawnedAt time.Time
+	duplexLaunch      *DuplexLaunchState
+	cmd               *exec.Cmd
+	done              chan struct{}
+	mu                sync.Mutex
+	exit              int
+	waited            bool
+	output            []byte
+	outputLimit       int
+	outputTruncated   bool
+	pgid              int
+	identity          Identity
+	stdout            io.Writer
+	outputObserver    OutputObserver
 }
 type captureWriter struct {
 	h      *Handle
@@ -214,14 +215,15 @@ func startCommandUsing(ctx context.Context, spec Command, duplex bool, birthLook
 	if cmd.Process == nil {
 		return nil, nil, CodeError("process_start_without_process")
 	}
-	// Duplex retains a single original monotonic spawn boundary, before any
-	// child-descriptor/birth observation or post-Start cleanup can take time.
+	// Keep the original monotonic boundary before child-descriptor/birth
+	// observation or post-Start cleanup, for both ordinary and duplex owners.
+	spawnedAt := time.Now()
+	h.mu.Lock()
+	h.originalSpawnedAt = spawnedAt
 	if duplex {
-		spawnedAt := time.Now()
-		h.mu.Lock()
 		h.duplexLaunch = &DuplexLaunchState{SpawnedAt: spawnedAt}
-		h.mu.Unlock()
 	}
+	h.mu.Unlock()
 	var pipeCloseErr error
 	if pipes != nil {
 		pipeCloseErr = pipes.closeChildren()

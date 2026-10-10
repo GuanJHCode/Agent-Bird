@@ -413,6 +413,9 @@ func (r *livingSource) dispatchAcceptedLaunch(grant contract.LaunchCommand, dupl
 func (r *livingSource) recordUnstartedGrant(grant contract.LaunchCommand, cause error) error {
 	a := store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID}
 	meta := metadataForLaunch(grant)
+	if meta.hasGitFilter {
+		return r.host.ensureLaunchUnknown(a, grant.RunID, grant.TaskID, meta, cause)
+	}
 	return r.host.recordLaunchFailed(a, grant.RunID, grant.TaskID, meta, cause)
 }
 
@@ -472,7 +475,7 @@ func (r *livingSource) execute(grant contract.LaunchCommand, duplicate bool) {
 	// An uncertain preparation must still retain UNKNOWN, never zero-settle
 	// an ambiguous process/integration outcome as a proven no-start rejection.
 	recordPreparationFailure := func(cause error) error {
-		if errors.Is(cause, process.ErrProcessTreeUnknown) || errors.Is(cause, gitops.ErrIntegrationUncertain) {
+		if meta.hasGitFilter || errors.Is(cause, process.ErrProcessTreeUnknown) || errors.Is(cause, gitops.ErrIntegrationUncertain) {
 			return r.host.ensureLaunchUnknown(a, grant.RunID, grant.TaskID, meta, cause)
 		}
 		return r.host.recordLaunchFailed(a, grant.RunID, grant.TaskID, meta, cause)
@@ -501,7 +504,11 @@ func (r *livingSource) execute(grant contract.LaunchCommand, duplicate bool) {
 	case "unknown":
 		reportError(r.host.ensureLaunchUnknown(a, grant.RunID, grant.TaskID, meta, executeErr))
 	default:
-		reportError(r.host.recordLaunchFailed(a, grant.RunID, grant.TaskID, meta, executeErr))
+		if meta.hasGitFilter {
+			reportError(r.host.ensureLaunchUnknown(a, grant.RunID, grant.TaskID, meta, executeErr))
+		} else {
+			reportError(r.host.recordLaunchFailed(a, grant.RunID, grant.TaskID, meta, executeErr))
+		}
 	}
 }
 
