@@ -5,13 +5,16 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
@@ -43,6 +46,9 @@ type FilterGitContext struct {
 type filterPinnedFile struct {
 	path, sha256 string
 	identity     FileIdentity
+	uid, links   uint64
+	native       bool
+	limit        int64
 }
 
 func FilterConfigurationSHA256(m contract.GitFilterManifestV1) string {
@@ -133,10 +139,9 @@ func (g *FilterGitContext) Close() error {
 func (g *FilterGitContext) SHA256() string { g.mu.Lock(); defer g.mu.Unlock(); return g.digest }
 
 func (g *FilterGitContext) verifyAfter(runErr error) error {
-	if err := g.Verify(context.Background()); err != nil {
-		return err
-	}
-	return runErr
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	return errors.Join(runErr, g.Verify(ctx))
 }
 
 func (g *FilterGitContext) Verify(ctx context.Context) error {
@@ -179,7 +184,7 @@ func (g *FilterGitContext) verifyCaptured(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if !sameIdentity(gitFilterIdentity(g.git), g.git.identity) || !sameIdentity(gitFilterIdentity(g.clean), g.clean.identity) || !sameIdentity(gitFilterIdentity(g.smudge), g.smudge.identity) || string(config) != string(g.config) || digest != g.digest || len(attrs) != len(g.attributes) {
+	if string(config) != string(g.config) || digest != g.digest || len(attrs) != len(g.attributes) {
 		return fail(CodeIdentityChanged, "filter git", fmt.Errorf("context drift"))
 	}
 	for path, want := range g.attributes {
@@ -191,15 +196,20 @@ func (g *FilterGitContext) verifyCaptured(ctx context.Context) error {
 	return nil
 }
 
-func gitFilterIdentity(p filterPinnedFile) FileIdentity {
-	actual, err := pinFilterFile(p.path, p.sha256, 32<<20)
-	if err != nil {
-		return FileIdentity{}
-	}
-	return actual.identity
+func (g *FilterGitContext) verifySources() bool {
+	r, re := directoryIdentity(g.repoRoot)
+	c, ce := directoryIdentity(g.commonDir)
+	return re == nil && ce == nil && r == g.repoIdentity && c == g.commonIdentity && verifyFilterPin(g.git) && verifyFilterPin(g.clean) && verifyFilterPin(g.smudge)
 }
 
 func (g *FilterGitContext) readState(ctx context.Context) ([]byte, map[string]filterPinnedFile, string, error) {
+	if !g.verifySources() {
+		return nil, nil, "", fail(CodeIdentityChanged, "filter sources", nil)
+	}
+	configPin, err := pinFilterFileKind(filepath.Join(g.commonDir, "config"), "", filterConfigMaximumBytes, false, nil)
+	if err != nil {
+		return nil, nil, "", err
+	}
 	config, err := g.privateOutput(ctx, g.repoRoot, nil, "config", "--local", "--no-includes", "--null", "--list")
 	if err != nil {
 		return nil, nil, "", err
@@ -214,27 +224,43 @@ func (g *FilterGitContext) readState(ctx context.Context) ([]byte, map[string]fi
 	if err != nil {
 		return nil, nil, "", err
 	}
-	h := sha256.New()
-	_, _ = h.Write([]byte("filter-git-context-v1\x00"))
-	_, _ = h.Write([]byte(g.repoRoot))
-	_, _ = h.Write([]byte("\x00"))
-	_, _ = h.Write([]byte(g.commonDir))
-	_, _ = h.Write([]byte("\x00"))
-	_, _ = h.Write([]byte(g.git.sha256))
-	_, _ = h.Write([]byte(config))
+	if !verifyFilterPin(configPin) || !g.verifySources() {
+		return nil, nil, "", fail(CodeIdentityChanged, "filter config", fmt.Errorf("source changed during read"))
+	}
+	type pinned struct {
+		Path, SHA256 string
+		Identity     FileIdentity
+		UID, Links   uint64
+	}
+	view := func(p filterPinnedFile) pinned { return pinned{p.path, p.sha256, p.identity, p.uid, p.links} }
+	manifestSHA, _ := g.manifest.Digest()
+	state := struct {
+		Version                      int
+		ManifestSHA256, Root, Common string
+		RootIdentity, CommonIdentity DirectoryIdentity
+		Git, Clean, Smudge, Config   pinned
+		ConfigOutput                 string
+		Attributes                   []pinned
+	}{1, manifestSHA, g.repoRoot, g.commonDir, g.repoIdentity, g.commonIdentity, view(g.git), view(g.clean), view(g.smudge), view(configPin), config, []pinned{}}
 	paths := make([]string, 0, len(attrs))
 	for p := range attrs {
 		paths = append(paths, p)
 	}
 	sort.Strings(paths)
 	for _, p := range paths {
-		_, _ = h.Write([]byte("\x00" + p + "\x00" + attrs[p].sha256))
+		state.Attributes = append(state.Attributes, view(attrs[p]))
 	}
-	return []byte(config), attrs, hex.EncodeToString(h.Sum(nil)), nil
+	encoded, err := json.Marshal(state)
+	if err != nil {
+		return nil, nil, "", err
+	}
+	h := sha256.Sum256(append([]byte("filter-git-context-v1\x00"), encoded...))
+	return []byte(config), attrs, hex.EncodeToString(h[:]), nil
 }
 
 func (g *FilterGitContext) validateConfig(raw string) error {
 	seen := map[string]bool{}
+	seenKeys := map[string]bool{}
 	for _, record := range strings.Split(strings.TrimSuffix(raw, "\x00"), "\x00") {
 		if record == "" {
 			continue
@@ -244,16 +270,35 @@ func (g *FilterGitContext) validateConfig(raw string) error {
 			return fail(CodeInvalidInput, "filter config", fmt.Errorf("invalid record"))
 		}
 		lower := strings.ToLower(key)
-		if strings.HasPrefix(lower, "include.") || strings.HasPrefix(lower, "includeif.") || strings.HasPrefix(lower, "filter.") && !strings.HasPrefix(lower, "filter."+strings.ToLower(g.manifest.DriverID)+".") || strings.HasPrefix(lower, "filter."+strings.ToLower(g.manifest.DriverID)+".") && lower != "filter."+strings.ToLower(g.manifest.DriverID)+".clean" && lower != "filter."+strings.ToLower(g.manifest.DriverID)+".smudge" && lower != "filter."+strings.ToLower(g.manifest.DriverID)+".required" || lower == "core.attributesfile" || lower == "core.hookspath" || lower == "core.fsmonitor" || lower == "commit.gpgsign" || strings.HasPrefix(lower, "gpg.") || lower == "diff.external" || strings.HasSuffix(lower, ".textconv") || strings.HasSuffix(lower, ".command") || strings.HasSuffix(lower, ".recentobjectshook") {
-			return fail(CodeInvalidInput, "filter config", fmt.Errorf("unsupported %s", key))
+		if seenKeys[key] {
+			return fail(CodeInvalidInput, "filter config", fmt.Errorf("duplicate key"))
 		}
-		prefix := "filter." + strings.ToLower(g.manifest.DriverID) + "."
-		if strings.HasPrefix(lower, prefix) {
-			seen[strings.TrimPrefix(lower, prefix)] = true
-			want := map[string]string{"clean": filterShellCommand(g.manifest.Clean), "smudge": filterShellCommand(g.manifest.Smudge), "required": "false"}[strings.TrimPrefix(lower, prefix)]
-			if value != want {
+		seenKeys[key] = true
+		prefix := "filter." + g.manifest.DriverID + "."
+		if strings.HasPrefix(key, prefix) {
+			name := strings.TrimPrefix(key, prefix)
+			want, allowed := map[string]string{"clean": filterShellCommand(g.manifest.Clean), "smudge": filterShellCommand(g.manifest.Smudge), "required": "false"}[name]
+			if !allowed || value != want {
 				return fail(CodeInvalidInput, "filter config", fmt.Errorf("unexpected %s", key))
 			}
+			seen[name] = true
+			continue
+		}
+		// A closed local allowlist also excludes partial-clone/promisor lazy
+		// fetching, credentials, aliases, worktree config and future extensions.
+		allowed := false
+		switch lower {
+		case "core.repositoryformatversion":
+			allowed = value == "0"
+		case "core.bare":
+			allowed = value == "false"
+		case "core.filemode", "core.logallrefupdates", "core.ignorecase", "core.precomposeunicode", "core.symlinks":
+			allowed = value == "true" || value == "false"
+		case "user.name", "user.email":
+			allowed = len(value) <= 4096
+		}
+		if !allowed {
+			return fail(CodeInvalidInput, "filter config", fmt.Errorf("unsupported %s", key))
 		}
 	}
 	if !seen["clean"] || !seen["smudge"] || !seen["required"] {
@@ -266,18 +311,38 @@ func (g *FilterGitContext) validateConfig(raw string) error {
 }
 
 func (g *FilterGitContext) readAttributes(ctx context.Context) (map[string]filterPinnedFile, error) {
-	listed, err := g.privateText(ctx, g.repoRoot, "ls-files", "-z", "--cached", "--others", "--exclude-standard")
+	info := filepath.Join(g.commonDir, "info")
+	if st, err := os.Lstat(info); err == nil {
+		if !st.IsDir() || st.Mode()&os.ModeSymlink != 0 {
+			return nil, fail(CodeInvalidInput, "filter info", fmt.Errorf("unsafe info directory"))
+		}
+	} else if !os.IsNotExist(err) {
+		return nil, err
+	}
+	if _, err := os.Lstat(filepath.Join(info, "attributes")); !os.IsNotExist(err) {
+		return nil, fail(CodeInvalidInput, "filter attributes", fmt.Errorf("info attributes unsupported"))
+	}
+	listed, err := g.privateOutput(ctx, g.repoRoot, nil, "ls-files", "-z", "--cached", "--others", "--exclude-standard")
 	if err != nil {
 		return nil, err
 	}
 	if len(listed) > filterAttributesMaximumBytes {
 		return nil, fail(CodeInvalidInput, "filter attributes", fmt.Errorf("inventory too large"))
 	}
+	ignored, err := g.privateOutput(ctx, g.repoRoot, nil, "ls-files", "-z", "--others", "--ignored", "--exclude-standard")
+	if err != nil {
+		return nil, err
+	}
+	if len(listed)+len(ignored) > filterAttributesMaximumBytes {
+		return nil, fail(CodeInvalidInput, "filter attributes", fmt.Errorf("inventory too large"))
+	}
+	listed += ignored
 	expected := map[string]string{}
 	for _, p := range g.manifest.Attributes {
 		expected[p.Path] = p.SHA256
 	}
 	actual := map[string]filterPinnedFile{}
+	var total int64
 	for _, p := range strings.Split(strings.TrimSuffix(listed, "\x00"), "\x00") {
 		if filepath.Base(p) != ".gitattributes" {
 			continue
@@ -286,11 +351,15 @@ func (g *FilterGitContext) readAttributes(ctx context.Context) (map[string]filte
 		if !ok {
 			return nil, fail(CodeInvalidInput, "filter attributes", fmt.Errorf("unlisted %s", p))
 		}
-		pin, err := pinFilterFile(filepath.Join(g.repoRoot, filepath.FromSlash(p)), hash, filterAttributeMaximumBytes)
+		pin, err := pinFilterFileKind(filepath.Join(g.repoRoot, filepath.FromSlash(p)), hash, filterAttributeMaximumBytes, false, nil)
 		if err != nil {
 			return nil, err
 		}
 		actual[p] = pin
+		total += pin.identity.Size
+		if total > filterAttributesMaximumBytes {
+			return nil, fail(CodeInvalidInput, "filter attributes", fmt.Errorf("sources too large"))
+		}
 	}
 	if len(actual) != len(expected) {
 		return nil, fail(CodeInvalidInput, "filter attributes", fmt.Errorf("declared source missing"))
@@ -331,11 +400,11 @@ func (g *FilterGitContext) validateAttributes(path, raw string) error {
 
 func (g *FilterGitContext) privateText(ctx context.Context, dir string, args ...string) (string, error) {
 	raw, err := g.privateOutput(ctx, dir, nil, args...)
-	return strings.TrimSpace(raw), err
+	return strings.TrimSuffix(raw, "\n"), err
 }
 func (g *FilterGitContext) privateInput(ctx context.Context, dir string, in []byte, args ...string) (string, error) {
 	raw, err := g.privateOutput(ctx, dir, in, args...)
-	return strings.TrimSpace(raw), err
+	return raw, err
 }
 func (g *FilterGitContext) privateOutput(ctx context.Context, dir string, in []byte, args ...string) (string, error) {
 	r, err := candidateGitWithStart(ctx, dir, strings.NewReader(string(in)), process.Start, args...)
@@ -349,31 +418,71 @@ func pinFilterFile(path, want string, limit int64) (filterPinnedFile, error) {
 }
 
 func pinFilterFileWithOpenHook(path, want string, limit int64, afterOpen func() error) (filterPinnedFile, error) {
+	return pinFilterFileKind(path, want, limit, true, afterOpen)
+}
+
+func pinFilterFileKind(path, want string, limit int64, native bool, afterOpen func() error) (filterPinnedFile, error) {
+	invalid := func(err error) (filterPinnedFile, error) {
+		return filterPinnedFile{}, fail(CodeIdentityChanged, "filter pin", err)
+	}
+	if !filepath.IsAbs(path) || filepath.Clean(path) != path || CanonicalPath(path) != path || limit < 1 {
+		return invalid(fmt.Errorf("noncanonical source"))
+	}
 	st, err := os.Lstat(path)
 	if err != nil {
 		return filterPinnedFile{}, err
 	}
 	sys, ok := st.Sys().(*syscall.Stat_t)
-	if !ok || !st.Mode().IsRegular() || st.Mode()&os.ModeSymlink != 0 || st.Size() < 0 || st.Size() > limit || (int64(sys.Uid) == int64(os.Getuid()) && sys.Nlink != 1) || (int64(sys.Uid) != int64(os.Getuid()) && sys.Uid != 0) || st.Mode().Perm()&022 != 0 {
+	if !ok || !st.Mode().IsRegular() || st.Mode()&os.ModeSymlink != 0 || st.Size() < 0 || st.Size() > limit || sys.Nlink != 1 || (int64(sys.Uid) != int64(os.Getuid()) && sys.Uid != 0) || st.Mode().Perm()&022 != 0 || native && st.Mode().Perm()&0111 == 0 {
 		return filterPinnedFile{}, fail(CodeInvalidInput, "filter pin", fmt.Errorf("untrusted native file"))
+	}
+	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+	if err != nil {
+		return invalid(err)
+	}
+	defer f.Close()
+	id, err := identityFromInfo(st)
+	if err != nil {
+		return invalid(err)
+	}
+	same := func(info os.FileInfo) bool {
+		other, e := identityFromInfo(info)
+		s, ok := info.Sys().(*syscall.Stat_t)
+		return e == nil && other == id && ok && s.Uid == sys.Uid && s.Nlink == sys.Nlink
+	}
+	held, err := f.Stat()
+	if err != nil || !same(held) {
+		return invalid(errors.Join(err, fmt.Errorf("opened source changed")))
 	}
 	if afterOpen != nil {
 		if err = afterOpen(); err != nil {
 			return filterPinnedFile{}, err
 		}
 	}
-	b, err := os.ReadFile(path)
+	if native && !process.NativeExecutableFile(f, st.Size()) {
+		return invalid(fmt.Errorf("non-native executable"))
+	}
+	b, err := io.ReadAll(io.LimitReader(f, limit+1))
 	if err != nil || int64(len(b)) != st.Size() {
 		return filterPinnedFile{}, fail(CodeIdentityChanged, "filter pin", err)
 	}
 	sum := sha256.Sum256(b)
 	got := hex.EncodeToString(sum[:])
-	if got != want {
+	if want != "" && got != want {
 		return filterPinnedFile{}, fail(CodeIdentityChanged, "filter pin", fmt.Errorf("digest mismatch"))
 	}
-	id, err := fileIdentity(path)
-	if err != nil {
-		return filterPinnedFile{}, err
+	held, err = f.Stat()
+	if err != nil || !same(held) {
+		return invalid(errors.Join(err, fmt.Errorf("held source changed")))
 	}
-	return filterPinnedFile{path: path, sha256: got, identity: id}, nil
+	named, err := os.Lstat(path)
+	if err != nil || !same(named) || CanonicalPath(path) != path {
+		return invalid(errors.Join(err, fmt.Errorf("named source changed")))
+	}
+	return filterPinnedFile{path: path, sha256: got, identity: id, uid: uint64(sys.Uid), links: uint64(sys.Nlink), native: native, limit: limit}, nil
+}
+
+func verifyFilterPin(p filterPinnedFile) bool {
+	now, err := pinFilterFileKind(p.path, p.sha256, p.limit, p.native, nil)
+	return err == nil && now.identity == p.identity && now.uid == p.uid && now.links == p.links
 }
