@@ -130,7 +130,12 @@ func bindCandidateInputContent(ctx context.Context, tx *sql.Tx, command *contrac
 		}
 		return bindCandidateIntent(ctx, tx, command, replay)
 	}
-	if action.Version != 1 || action.SourceTask == "" || (action.Operation != "validate" && action.Operation != "review" && action.Operation != "integrate") || !slices.Contains(deps, action.SourceTask) {
+	observation := false
+	if action.Operation == "filter_target_preflight" {
+		p, err := adapter.DecodeInvocationPayload(command.AdapterPayload)
+		observation = err == nil && adapter.IsFilterTargetPreflight(p)
+	}
+	if action.Version != 1 || action.SourceTask == "" || (action.Operation != "validate" && action.Operation != "review" && action.Operation != "integrate" && !observation) || !slices.Contains(deps, action.SourceTask) {
 		return CodeError("invalid_candidate_action")
 	}
 	input, err := acceptedCandidateInput(ctx, tx, command.RunID, action.SourceTask)
@@ -286,7 +291,7 @@ func validateCandidatePlan(tasks map[string]TaskSpec) error {
 		filteredSource := sourceErr == nil && sourcePayload.GitFilter != nil
 		filteredCurrent := currentErr == nil && currentPayload.GitFilter != nil
 		if filteredSource || filteredCurrent {
-			allowedSource := a.Operation == "validate" && sourcePayload.Kind == "provider" || a.Operation == "review" && sourcePayload.Kind == "candidate" && sourcePayload.CandidateAction != nil && sourcePayload.CandidateAction.Operation == "validate"
+			allowedSource := a.Operation == "validate" && sourcePayload.Kind == "provider" || a.Operation == "review" && sourcePayload.Kind == "candidate" && sourcePayload.CandidateAction != nil && sourcePayload.CandidateAction.Operation == "validate" || a.Operation == "filter_target_preflight" && sourcePayload.Kind == "" && sourcePayload.CandidateAction != nil && sourcePayload.CandidateAction.Operation == "review"
 			if !filteredSource || !filteredCurrent || !allowedSource || adapter.ValidateGitFilterPipelinePayload(sourcePayload) != nil || adapter.ValidateGitFilterPipelinePayload(currentPayload) != nil || len(task.Dependencies) != 1 || !reflect.DeepEqual(sourcePayload.GitFilter, currentPayload.GitFilter) {
 				return CodeError("git_filter_pipeline_unsupported")
 			}
@@ -314,6 +319,10 @@ func validateCandidatePlan(tasks map[string]TaskSpec) error {
 			}
 			if a.ReviewIndex != nil && (a.ReviewIndex.Version != previous.Action.ReviewIndex.Version || a.ReviewIndex.Mode != previous.Action.ReviewIndex.Mode || a.ReviewIndex.Shards != previous.Action.ReviewIndex.Shards) {
 				return CodeError("candidate_review_index_changed")
+			}
+		case "filter_target_preflight":
+			if !adapter.IsFilterTargetPreflight(currentPayload) || previous.Action == nil || previous.Action.Operation != "review" || !filteredSource || !filteredCurrent {
+				return CodeError("invalid_candidate_dag")
 			}
 		case "integrate":
 			if p.Kind != "candidate" || previous.Action == nil || previous.Action.Operation != "review" {

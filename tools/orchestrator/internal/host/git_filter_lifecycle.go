@@ -19,18 +19,20 @@ import (
 // Only the original execution owns this object. Its live process observations
 // and cleanup result are neither journal input nor a resumable capability.
 type filterRuntime struct {
-	grant                                 contract.LaunchCommand
-	manifest                              contract.GitFilterManifestV1
-	broker                                gitfilter.ResourceBroker
-	opened                                bool
-	invalid                               bool
-	providerAttempted                     bool
-	provider                              *process.Handle
-	providerStartedAt, providerTerminalAt time.Time
-	cleanup                               *contract.GitFilterCleanup
-	activeMS                              int64
-	journal                               filterHostJournal
-	source                                *gitops.FilterGitContext
+	grant                                       contract.LaunchCommand
+	manifest                                    contract.GitFilterManifestV1
+	broker                                      gitfilter.ResourceBroker
+	opened                                      bool
+	invalid                                     bool
+	providerAttempted                           bool
+	observationAttempted                        bool
+	observationStartedAt, observationTerminalAt time.Time
+	provider                                    *process.Handle
+	providerStartedAt, providerTerminalAt       time.Time
+	cleanup                                     *contract.GitFilterCleanup
+	activeMS                                    int64
+	journal                                     filterHostJournal
+	source                                      *gitops.FilterGitContext
 }
 
 type filterHostJournal interface {
@@ -38,6 +40,7 @@ type filterHostJournal interface {
 	gitops.CandidateJournal
 	gitops.GitProcessJournal
 	gitops.FilterMaterializeJournal
+	gitops.FilterTargetJournal
 	RecordWorkspacePrepared(context.Context, gitops.PreparedWorkspace) error
 	RecordCandidateAction(context.Context, string, any) error
 	Close() error
@@ -151,7 +154,7 @@ func (f *filterRuntime) matches(meta launchMetadata, hostID, runID, taskID, atte
 }
 
 func (f *filterRuntime) providerStarting() {
-	if f.providerAttempted {
+	if f.providerAttempted || f.observationAttempted {
 		f.invalid = true
 	}
 	f.providerAttempted = true
@@ -180,7 +183,7 @@ func (f *filterRuntime) providerTerminal(p *process.Handle) {
 
 func (f *filterRuntime) settle() (int64, *contract.GitFilterCleanup, error) {
 	unknown := errors.New("git_filter_original_lifetime_unproved")
-	if f.invalid || f.broker == nil || !f.opened || f.providerAttempted && (f.provider == nil || f.providerStartedAt.IsZero() || f.providerTerminalAt.IsZero()) {
+	if f.invalid || f.broker == nil || !f.opened || f.providerAttempted && (f.provider == nil || f.providerStartedAt.IsZero() || f.providerTerminalAt.IsZero()) || f.observationAttempted && (f.observationStartedAt.IsZero() || f.observationTerminalAt.Before(f.observationStartedAt)) {
 		return 0, nil, unknown
 	}
 	state := f.broker.State()
@@ -192,6 +195,12 @@ func (f *filterRuntime) settle() (int64, *contract.GitFilterCleanup, error) {
 		return f.activeMS, &copy, nil
 	}
 	first, last := state.StartedAt, state.TerminalAt
+	if !f.observationStartedAt.IsZero() && (first.IsZero() || f.observationStartedAt.Before(first)) {
+		first = f.observationStartedAt
+	}
+	if f.observationTerminalAt.After(last) {
+		last = f.observationTerminalAt
+	}
 	if !f.providerStartedAt.IsZero() && (first.IsZero() || f.providerStartedAt.Before(first)) {
 		first = f.providerStartedAt
 	}
@@ -217,4 +226,19 @@ func (f *filterRuntime) settle() (int64, *contract.GitFilterCleanup, error) {
 	copy := *receipt
 	f.cleanup = &copy
 	return f.activeMS, receipt, nil
+}
+
+func (f *filterRuntime) observationStarting() error {
+	if f.invalid || !f.opened || f.broker == nil || f.cleanup != nil || f.providerAttempted || f.observationAttempted {
+		return errors.New("git_filter_observation_reused")
+	}
+	f.observationAttempted, f.observationStartedAt = true, time.Now()
+	return nil
+}
+func (f *filterRuntime) observationTerminal() error {
+	if f.invalid || !f.observationAttempted || !f.observationTerminalAt.IsZero() || f.providerAttempted {
+		return errors.New("git_filter_observation_terminal_invalid")
+	}
+	f.observationTerminalAt = time.Now()
+	return nil
 }

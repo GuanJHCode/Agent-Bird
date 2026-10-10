@@ -73,7 +73,7 @@ func freezeFilterInvocation(inv contract.InvocationView, p adapter.InvocationPay
 		return out, bad
 	}
 	out.argv = append([]string(nil), inv.Args()...)
-	if len(out.argv) == 0 || out.argv[0] == "" {
+	if !adapter.IsFilterTargetPreflight(p) && (len(out.argv) == 0 || out.argv[0] == "") {
 		return out, bad
 	}
 	var workspace *adapter.CandidateWorkspace
@@ -122,6 +122,9 @@ func freezeFilterInvocation(inv contract.InvocationView, p adapter.InvocationPay
 	out.env = make(map[string]string)
 	for k, v := range inv.Environment() {
 		out.env[k] = v
+	}
+	if adapter.IsFilterTargetPreflight(p) && (len(out.argv) != 0 || len(out.stdin) != 0 || len(out.env) != 0 || out.pinPath != "" || out.pinSHA != "") {
+		return out, bad
 	}
 	return out, nil
 }

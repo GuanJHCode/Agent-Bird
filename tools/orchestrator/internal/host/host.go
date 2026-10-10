@@ -133,7 +133,8 @@ func (h *Host) executeLaunch(ctx context.Context, grant contract.LaunchCommand, 
 	if err := contract.ValidateDependencyInputs(grant); err != nil {
 		return contract.Result{}, err
 	}
-	if grant.ReservationID == "" || grant.AttemptID == "" || grant.SegmentID == "" || grant.RunID == "" || grant.TaskID == "" || grant.GrantedActiveMS <= 0 || inv == nil || len(inv.Args()) == 0 || inv.Args()[0] == "" {
+	filterObservation := filtered != nil && adapter.IsFilterTargetPreflight(filterPayload)
+	if grant.ReservationID == "" || grant.AttemptID == "" || grant.SegmentID == "" || grant.RunID == "" || grant.TaskID == "" || grant.GrantedActiveMS <= 0 || inv == nil || !filterObservation && (len(inv.Args()) == 0 || inv.Args()[0] == "") {
 		return contract.Result{}, errors.New("invalid_launch_grant")
 	}
 	managedInv, privateCodex := inv.(adapter.Invocation)
@@ -238,7 +239,16 @@ func (h *Host) executeLaunch(ctx context.Context, grant contract.LaunchCommand, 
 			meta.agyHistoryGrant = &grant
 		}
 	}
-	cmd := invocationCommand(inv)
+	cmd := process.Command{}
+	if !filterObservation {
+		cmd = invocationCommand(inv)
+	}
+	if filterObservation {
+		meta.runFilterObservation = func(ctx context.Context) ([]byte, error) {
+			return h.observeFilteredTarget(ctx, filtered, filterPayload)
+		}
+		return h.execute(runCtx, store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID, Status: "running"}, grant.RunID, grant.TaskID, cmd, false, meta)
+	}
 	if meta.completionMode == adapter.TaskCompletionV1 {
 		// Clear both inherited and wrapped helper authority before sandbox
 		// preparation. The empty overrides also win in process mergeEnv.
@@ -352,31 +362,33 @@ func (h *Host) Execute(ctx context.Context, a store.Attempt, runID, taskID strin
 }
 
 type launchMetadata struct {
-	filter            *filterRuntime
-	hasGitFilter      bool
-	validationGrant   *contract.LaunchCommand
-	artifactGrant     *contract.LaunchCommand
-	diagnosticsGrant  *contract.LaunchCommand
-	startProcess      func(context.Context, process.Command) (*process.Handle, error)
-	agyHistoryGrant   *contract.LaunchCommand
-	completionMode    adapter.TaskCompletionMode
-	prepareProvider   func(context.Context) (process.Command, error)
-	afterWait         func(*process.Handle, context.Context, error)
-	afterNoStop       func(*process.Handle, context.Context)
-	beforeStopJoin    func(*hostStopOperation)
-	expectedSessionID string
-	requireSession    bool
-	integrationAction bool
-	structuredReview  bool
-	prepareAction     func(context.Context) (process.Command, actionFinalizer, func(), error)
-	finalizeAction    actionFinalizer
-	prepareCandidate  func(context.Context) (process.Command, func(context.Context, string) ([]byte, error), func(), error)
-	freezeCandidate   func(context.Context, string) ([]byte, error)
-	commandID         string
-	workRevision      int
-	executionEpoch    uint64
-	outputProvider    string
-	questionRevision  int
+	runFilterObservation     func(context.Context) ([]byte, error)
+	afterObservationArtifact func(*contract.ArtifactRef) // original publication boundary; test seam
+	filter                   *filterRuntime
+	hasGitFilter             bool
+	validationGrant          *contract.LaunchCommand
+	artifactGrant            *contract.LaunchCommand
+	diagnosticsGrant         *contract.LaunchCommand
+	startProcess             func(context.Context, process.Command) (*process.Handle, error)
+	agyHistoryGrant          *contract.LaunchCommand
+	completionMode           adapter.TaskCompletionMode
+	prepareProvider          func(context.Context) (process.Command, error)
+	afterWait                func(*process.Handle, context.Context, error)
+	afterNoStop              func(*process.Handle, context.Context)
+	beforeStopJoin           func(*hostStopOperation)
+	expectedSessionID        string
+	requireSession           bool
+	integrationAction        bool
+	structuredReview         bool
+	prepareAction            func(context.Context) (process.Command, actionFinalizer, func(), error)
+	finalizeAction           actionFinalizer
+	prepareCandidate         func(context.Context) (process.Command, func(context.Context, string) ([]byte, error), func(), error)
+	freezeCandidate          func(context.Context, string) ([]byte, error)
+	commandID                string
+	workRevision             int
+	executionEpoch           uint64
+	outputProvider           string
+	questionRevision         int
 }
 
 func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID string, cmd process.Command, persistDB bool, meta launchMetadata) (result contract.Result, returnedErr error) {
@@ -593,6 +605,88 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 	}
 	if h.stopWasRequested(a.SegmentID) {
 		return finalizePrelaunchRejected(context.Canceled)
+	}
+	if meta.runFilterObservation != nil {
+		if meta.filter == nil || !adapter.IsFilterTargetPreflight(filterPayloadForMetadata(meta)) {
+			return finalizeCandidateUnknown(contract.ErrGitFilterContract, nil, -1)
+		}
+		if err = publishLaunchPhase(spool, "starting", a, runID, taskID, cmd, nil, nil); err != nil {
+			return finalizeCandidateUnknown(err, nil, -1)
+		}
+		if err = meta.filter.observationStarting(); err != nil {
+			return finalizeCandidateUnknown(err, nil, -1)
+		}
+		body, observeErr := meta.runFilterObservation(ctx)
+		if errors.Is(observeErr, process.ErrProcessTreeUnknown) || errors.Is(observeErr, gitops.ErrIntegrationUncertain) {
+			return finalizeCandidateUnknown(observeErr, nil, -1)
+		}
+		if err = meta.filter.observationTerminal(); err != nil {
+			return finalizeCandidateUnknown(errors.Join(observeErr, err), nil, -1)
+		}
+		// Prove tool termination and cleanup before publishing any success.
+		if _, _, err = meta.filter.settle(); err != nil {
+			return finalizeCandidateUnknown(errors.Join(observeErr, err), nil, -1)
+		}
+		finalizeObservationStopped := func(artifact *contract.ArtifactRef) (contract.Result, error) {
+			cause := context.Cause(ctx)
+			if cause == nil {
+				cause = context.Canceled
+			}
+			if err = publishLaunchPhase(spool, "stopped", a, runID, taskID, cmd, nil, cause); err != nil {
+				return finalizeCandidateUnknown(err, nil, -1)
+			}
+			stoppedHash := hashText("stopped:" + a.SegmentID)
+			if artifact != nil {
+				stoppedHash = artifact.SHA256
+			}
+			if _, err = h.appendStructuredEvent(spool, runID, taskID, a, meta, contract.EventStopped, stoppedHash, nil, nil, artifact, structuredEventFields{StopReason: interruptionReason(ctx, h.stopWasRequested(a.SegmentID), -1)}); err != nil {
+				return finalizeCandidateUnknown(err, nil, -1)
+			}
+			eventCount++
+			if err = publishLaunchPhase(spool, "exited", a, runID, taskID, cmd, nil, cause); err != nil {
+				return finalizeCandidateUnknown(err, nil, -1)
+			}
+			if err = appendPhase(contract.EventExited, hashText("exited:"+a.SegmentID), nil, nil, artifact); err != nil {
+				return contract.Result{Status: "unknown", ExitCode: -1, EventCount: eventCount}, err
+			}
+			h.finishAttempt(a.ID, "interrupted", persistDB)
+			result := contract.Result{Status: "interrupted", ExitCode: -1, EventCount: eventCount}
+			if artifact != nil {
+				result.ArtifactPath, result.OutputHash = artifact.Path, artifact.SHA256
+			}
+			return result, cause
+		}
+		if ctx.Err() != nil || h.stopWasRequested(a.SegmentID) {
+			return finalizeObservationStopped(nil)
+		}
+		kind, status := contract.EventResult, "result_ready"
+		if observeErr != nil {
+			kind, status = contract.EventFailed, "failed"
+			body = candidateFailure(observeErr)
+		}
+		artifact, artifactErr := h.writeHostArtifact(meta, "terminal", 0, "terminal", "result-output.bin", body)
+		if artifactErr != nil {
+			return finalizeCandidateUnknown(errors.Join(observeErr, artifactErr), nil, -1)
+		}
+		if meta.afterObservationArtifact != nil {
+			meta.afterObservationArtifact(artifact)
+		}
+		// The bounded artifact writer uses its own context. A Stop arriving
+		// there suppresses Result and retains this same slot on Stopped/Exited.
+		if ctx.Err() != nil || h.stopWasRequested(a.SegmentID) {
+			return finalizeObservationStopped(artifact)
+		}
+		if err = appendPhase(kind, artifact.SHA256, nil, nil, artifact); err != nil {
+			return contract.Result{Status: "unknown", ExitCode: -1, EventCount: eventCount}, err
+		}
+		if err = publishLaunchPhase(spool, "exited", a, runID, taskID, cmd, nil, observeErr); err != nil {
+			return contract.Result{Status: "unknown", ExitCode: -1, EventCount: eventCount}, err
+		}
+		if err = appendPhase(contract.EventExited, hashText("exited:"+a.SegmentID), nil, nil, artifact); err != nil {
+			return contract.Result{Status: "unknown", ExitCode: -1, EventCount: eventCount}, err
+		}
+		h.finishAttempt(a.ID, status, persistDB)
+		return contract.Result{Status: status, ExitCode: -1, EventCount: eventCount, ArtifactPath: artifact.Path, OutputHash: artifact.SHA256}, observeErr
 	}
 	if meta.prepareAction != nil {
 		meta.prepareCandidate = func(ctx context.Context) (process.Command, func(context.Context, string) ([]byte, error), func(), error) {
