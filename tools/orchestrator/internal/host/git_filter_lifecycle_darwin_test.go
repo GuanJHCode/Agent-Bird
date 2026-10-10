@@ -19,6 +19,11 @@ import (
 )
 
 func TestFilterHostOriginalLifecycle(t *testing.T) {
+	var nilHandle *process.Handle
+	var cold process.Handle
+	if err := json.Unmarshal([]byte(`{"originalSpawnedAt":"2026-10-10T00:00:00Z"}`), &cold); err != nil || !cold.OriginalSpawnedAt().IsZero() || !nilHandle.OriginalSpawnedAt().IsZero() {
+		t.Fatal("cold wire reconstructed a live Start boundary", err)
+	}
 	cwd, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)
@@ -84,6 +89,9 @@ func TestFilterHostOriginalLifecycle(t *testing.T) {
 		t.Fatalf("original actor build Wait/tree: %v %v", we, te)
 	}
 	pending--
+	if builder.OriginalSpawnedAt().IsZero() || builder.OriginalSpawnedAt() == builder.OriginalSpawnedAt().Round(0) {
+		t.Fatal("ordinary original Start lost monotonic metadata")
+	}
 	t.Logf("actor build original Wait/tree=true exit=%d", builder.ExitCode())
 	if builder.ExitCode() != 0 {
 		t.Fatal(builder.Output())
@@ -252,6 +260,9 @@ func TestFilterHostOriginalLifecycle(t *testing.T) {
 				}
 				if !provider.OriginalSpawnedAt().After(first.TerminalAt) || !last.StartedAt.After(provider.OriginalSpawnedAt()) {
 					t.Fatal("not a real prepare/provider/freeze sequence")
+				}
+				if provider.OriginalSpawnedAt() == provider.OriginalSpawnedAt().Round(0) {
+					t.Fatal("Provider Start reconstructed wall time")
 				}
 				expected := last.TerminalAt.Sub(first.StartedAt).Milliseconds()
 				if expected < 1 {

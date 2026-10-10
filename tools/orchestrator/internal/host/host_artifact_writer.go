@@ -14,6 +14,7 @@ import (
 func metadataForLaunch(g contract.LaunchCommand) launchMetadata {
 	hasGitFilter := g.GitFilter != nil
 	if g.GitFilter != nil {
+		g.AdapterPayload = append([]byte(nil), g.AdapterPayload...)
 		permission := *g.GitFilter
 		g.GitFilter = &permission
 	}
