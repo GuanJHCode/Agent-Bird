@@ -129,6 +129,9 @@ func (d *DB) commitHostEvent(ctx context.Context, event contract.Event, artifact
 	if err = d.retainHostArtifact(ctx, tx, event, artifactGate, false); err != nil {
 		return rollback(err)
 	}
+	if err = validateFilterTargetHostEvent(ctx, tx, event, artifactGate.verified); err != nil {
+		return rollback(err)
+	}
 	legacyClaimed := 0
 	if !artifactGate.verified && event.Artifact != nil && event.Kind != contract.EventExited {
 		claim := legacyClaimFromBody("runtime", event.EventID, event.RunID, "", body, true)
@@ -434,7 +437,11 @@ func applyExit(ctx context.Context, tx *sql.Tx, event contract.Event) error {
 	attemptStatus, taskStatus := "interrupted", "interrupted"
 	switch outcome {
 	case contract.EventResult:
-		if event.ExitCode == nil || *event.ExitCode != 0 {
+		observed, err := filterTargetTask(ctx, tx, event.TaskID)
+		if err != nil {
+			return err
+		}
+		if !observed && (event.ExitCode == nil || *event.ExitCode != 0) {
 			attemptStatus, taskStatus = "failed", "failed"
 			break
 		}
