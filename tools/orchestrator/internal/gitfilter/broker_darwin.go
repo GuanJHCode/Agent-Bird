@@ -776,6 +776,15 @@ func (b *Broker) ReadSlot(ctx context.Context, i int, w io.Writer) error {
 	}
 	return nil
 }
+func (b *Broker) Binding() StreamBinding {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if !b.ready || b.failed || b.removed || b.closed || b.state.Unknown {
+		return StreamBinding{}
+	}
+	return StreamBinding{ManifestSHA256: b.req.Grant.ManifestSHA256, ScopeSHA256: b.req.Grant.ScopeSHA256, ReservationID: b.req.Grant.ReservationID, AttemptID: b.req.Launch.AttemptID, PlanRevision: b.req.Launch.PlanRevision}
+}
+
 func (b *Broker) State() BrokerState { b.mu.Lock(); defer b.mu.Unlock(); return b.state }
 
 // Cleanup proves only this broker's filters. The Host must separately prove its

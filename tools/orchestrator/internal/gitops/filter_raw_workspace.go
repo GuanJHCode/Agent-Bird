@@ -17,6 +17,7 @@ import (
 // FilterStreams is supplied only by the original Host. Filesystem grants and
 // cleanup remain with its authenticated Broker; this interface grants neither.
 type FilterStreams interface {
+	Binding() gitfilter.StreamBinding
 	Load(context.Context, int, *os.File) error
 	LoadStream(context.Context, int, func(io.Writer) error) (gitfilter.StreamLoadResult, error)
 	Transform(context.Context, string, int, int) (gitfilter.Result, error)
@@ -46,6 +47,11 @@ func MaterializeFiltered(ctx context.Context, source *FilterGitContext, streams 
 	}
 	if _, ok := ctx.Deadline(); !ok {
 		return nil, fail(CodeInvalidInput, "filter materialize deadline", nil)
+	}
+	manifestSHA, err := source.manifest.Digest()
+	expected := gitfilter.StreamBinding{ManifestSHA256: manifestSHA, ScopeSHA256: req.FilterScopeSHA256, ReservationID: req.FilterReservationID, AttemptID: req.AttemptID, PlanRevision: int(req.PlanRevision)}
+	if err != nil || req.FilterScopeSHA256 == "" || req.FilterReservationID == "" || streams.Binding() != expected {
+		return nil, fail(CodeInvalidInput, "filter stream binding", err)
 	}
 	req.OrderedInputOIDs = append([]string(nil), req.OrderedInputOIDs...)
 	ctx = source.Context(WithCandidateJournal(ctx, processes))
@@ -108,7 +114,6 @@ func MaterializeFiltered(ctx context.Context, source *FilterGitContext, streams 
 	if err = workspace.capture(source); err != nil {
 		return nil, errors.Join(process.ErrProcessTreeUnknown, fail(CodeUnknownObject, "filter creation ownership", err))
 	}
-	manifestSHA, _ := source.manifest.Digest()
 	evidence := FilterViewEvidenceV1{Version: 1, ManifestSHA256: manifestSHA, FilterContextSHA256: source.SHA256(), Views: []FilterPathViewV1{}}
 	filtered := map[string]bool{}
 	for _, p := range source.manifest.Paths {

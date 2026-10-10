@@ -31,9 +31,20 @@ type StreamLoadResult struct {
 	Bytes  int64  `json:"-"`
 }
 
+// StreamBinding observes the original live resource owner. It cannot recreate
+// a Broker, authenticate a grant, or authorize cleanup from serialized data.
+type StreamBinding struct {
+	ManifestSHA256 string `json:"-"`
+	ScopeSHA256    string `json:"-"`
+	ReservationID  string `json:"-"`
+	AttemptID      string `json:"-"`
+	PlanRevision   int    `json:"-"`
+}
+
 // ResourceBroker is a live, original-owner API. No operation recreates a
 // broker from its journal, and Close never removes its retained resources.
 type ResourceBroker interface {
+	Binding() StreamBinding
 	Load(context.Context, int, *os.File) error
 	LoadStream(context.Context, int, func(io.Writer) error) (StreamLoadResult, error)
 	Transform(context.Context, string, int, int) (Result, error)

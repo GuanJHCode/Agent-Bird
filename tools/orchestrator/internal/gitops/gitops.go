@@ -262,6 +262,10 @@ type MaterializeRequest struct {
 	CandidateOID     string   `json:"candidate_oid"`
 	OrderedInputOIDs []string `json:"ordered_input_oids"`
 	PlanRevision     int64    `json:"plan_revision"`
+	// These expected identities come only from the original Host's authenticated
+	// grant. JSON requests cannot supply them or acquire a live filter pipeline.
+	FilterScopeSHA256   string `json:"-"`
+	FilterReservationID string `json:"-"`
 }
 
 type MaterializeReceipt struct {
