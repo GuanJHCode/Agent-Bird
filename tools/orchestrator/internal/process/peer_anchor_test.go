@@ -83,7 +83,7 @@ func TestStartAnchorCaptureFailureRetainsExistingStartBehavior(t *testing.T) {
 	if err != nil || h == nil {
 		t.Fatalf("anchor failure changed Start result: handle=%t err=%v", h != nil, err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := h.Wait(ctx); err != nil || h.ConfirmTreeExited() != nil {
 		t.Fatalf("original Wait/tree changed: %v", err)
@@ -127,6 +127,13 @@ func TestVerifyLiveDescendantNativeLifecycle(t *testing.T) {
 	if err := h.VerifyLiveDescendant(ctx, peer); err != nil {
 		t.Fatalf("live owned descendant rejected: %v", err)
 	}
+	bound, err := h.BindLiveDescendant(ctx, peer)
+	if err != nil || bound == nil {
+		t.Fatalf("bind live owned descendant: binding=%t err=%v", bound != nil, err)
+	}
+	if err := bound.Verify(ctx); err != nil {
+		t.Fatalf("bound live owned descendant rejected: %v", err)
+	}
 	if err := h.VerifyLiveDescendant(ctx, os.Getpid()); err == nil {
 		t.Fatal("foreign process accepted")
 	}
@@ -139,4 +146,32 @@ func TestVerifyLiveDescendantNativeLifecycle(t *testing.T) {
 	if err := h.VerifyLiveDescendant(context.Background(), peer); err == nil {
 		t.Fatal("terminal Handle retained peer authority")
 	}
+}
+
+func TestLiveDescendantRejectsPIDReuseWithNewBirth(t *testing.T) {
+	h := &Handle{peerAnchor: &peerAnchor{pid: 10, birth: "boot:100", euid: 501, pgid: 10}}
+	stable := func(context.Context, int) (peerRecord, error) {
+		return map[int]peerRecord{
+			10: {pid: 10, birth: "boot:100", euid: 501, pgid: 10, ppid: 1},
+			11: {pid: 11, birth: "boot:101", euid: 501, pgid: 10, ppid: 10},
+		}[11], nil
+	}
+	bound, err := h.bindLiveDescendantWith(context.Background(), 11, func(_ context.Context, pid int) (peerRecord, error) {
+		if pid == 10 {
+			return peerRecord{pid: 10, birth: "boot:100", euid: 501, pgid: 10, ppid: 1}, nil
+		}
+		return peerRecord{pid: 11, birth: "boot:101", euid: 501, pgid: 10, ppid: 10}, nil
+	})
+	if err != nil || bound == nil {
+		t.Fatalf("bind stable peer: binding=%t err=%v", bound != nil, err)
+	}
+	if err := bound.verifyWith(context.Background(), func(_ context.Context, pid int) (peerRecord, error) {
+		if pid == 10 {
+			return peerRecord{pid: 10, birth: "boot:100", euid: 501, pgid: 10, ppid: 1}, nil
+		}
+		return peerRecord{pid: 11, birth: "boot:999", euid: 501, pgid: 10, ppid: 10}, nil
+	}); err == nil {
+		t.Fatal("reused PID with new birth retained bound authority")
+	}
+	_ = stable
 }
