@@ -1,0 +1,9 @@
+{
+  "source_after_test": "c0adead189f40735621139a91242bbb2a7e2c7f0",
+  "orchestrator_tree_after_test": "7a6dee40369b2c425e2aa65f722fce9ae83343d7",
+  "command": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go test -race -count=1 -run '^TestRunFilterProcessGoldenClean$' ./internal/gitfilter",
+  "exit": 0,
+  "stdout": "ok  github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter  1.642s\\n",
+  "stderr": "",
+  "limitation": "The command ran immediately before the source commit; no Go source changed between that run and c0adead, but the outer repository was not yet committed."
+}
