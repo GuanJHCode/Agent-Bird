@@ -627,7 +627,7 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		if _, _, err = meta.filter.settle(); err != nil {
 			return finalizeCandidateUnknown(errors.Join(observeErr, err), nil, -1)
 		}
-		if ctx.Err() != nil || h.stopWasRequested(a.SegmentID) {
+		finalizeObservationStopped := func(artifact *contract.ArtifactRef) (contract.Result, error) {
 			cause := context.Cause(ctx)
 			if cause == nil {
 				cause = context.Canceled
@@ -635,18 +635,25 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 			if err = publishLaunchPhase(spool, "stopped", a, runID, taskID, cmd, nil, cause); err != nil {
 				return finalizeCandidateUnknown(err, nil, -1)
 			}
-			if _, err = h.appendStructuredEvent(spool, runID, taskID, a, meta, contract.EventStopped, hashText("stopped:"+a.SegmentID), nil, nil, nil, structuredEventFields{StopReason: interruptionReason(ctx, h.stopWasRequested(a.SegmentID), -1)}); err != nil {
+			if _, err = h.appendStructuredEvent(spool, runID, taskID, a, meta, contract.EventStopped, hashText("stopped:"+a.SegmentID), nil, nil, artifact, structuredEventFields{StopReason: interruptionReason(ctx, h.stopWasRequested(a.SegmentID), -1)}); err != nil {
 				return finalizeCandidateUnknown(err, nil, -1)
 			}
 			eventCount++
 			if err = publishLaunchPhase(spool, "exited", a, runID, taskID, cmd, nil, cause); err != nil {
 				return finalizeCandidateUnknown(err, nil, -1)
 			}
-			if err = appendPhase(contract.EventExited, hashText("exited:"+a.SegmentID), nil, nil, nil); err != nil {
+			if err = appendPhase(contract.EventExited, hashText("exited:"+a.SegmentID), nil, nil, artifact); err != nil {
 				return contract.Result{Status: "unknown", ExitCode: -1, EventCount: eventCount}, err
 			}
 			h.finishAttempt(a.ID, "interrupted", persistDB)
-			return contract.Result{Status: "interrupted", ExitCode: -1, EventCount: eventCount}, cause
+			result := contract.Result{Status: "interrupted", ExitCode: -1, EventCount: eventCount}
+			if artifact != nil {
+				result.ArtifactPath, result.OutputHash = artifact.Path, artifact.SHA256
+			}
+			return result, cause
+		}
+		if ctx.Err() != nil || h.stopWasRequested(a.SegmentID) {
+			return finalizeObservationStopped(nil)
 		}
 		kind, status := contract.EventResult, "result_ready"
 		if observeErr != nil {
@@ -659,6 +666,11 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		}
 		if meta.afterObservationArtifact != nil {
 			meta.afterObservationArtifact(artifact)
+		}
+		// The bounded artifact writer uses its own context. A Stop arriving
+		// there suppresses Result and retains this same slot on Stopped/Exited.
+		if ctx.Err() != nil || h.stopWasRequested(a.SegmentID) {
+			return finalizeObservationStopped(artifact)
 		}
 		if err = appendPhase(kind, artifact.SHA256, nil, nil, artifact); err != nil {
 			return contract.Result{Status: "unknown", ExitCode: -1, EventCount: eventCount}, err
