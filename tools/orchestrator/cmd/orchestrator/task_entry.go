@@ -361,7 +361,7 @@ func preflightProviders(ctx context.Context, tasks []coordinator.TaskRequest) er
 			if p.Kind == "candidate" && p.CandidateAction != nil {
 				continue
 			}
-			if p.Kind != "" || p.Profile == nil || p.ProviderLock == nil {
+			if (p.Kind != "" && !(p.Kind == "provider" && adapter.ValidateGitFilterPipelinePayload(p) == nil)) || p.Profile == nil || p.ProviderLock == nil {
 				return codeError("task_typed_profile_required")
 			}
 			if p.BinaryPath != "" || p.BinaryVersion != "" || p.BinarySHA256 != "" {

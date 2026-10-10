@@ -315,7 +315,13 @@ type durableJournal struct {
 
 // OpenJournal shares the existing Git Host journal with managed workspace execution.
 func OpenJournal(root string) (*durableJournal, error) { return openJournal(root) }
-func (j *durableJournal) Close() error                 { return j.file.Close() }
+
+// OpenFreshJournal grants only this invocation a new journal. Even an empty
+// existing file is cold state; callers must retain it rather than resume it.
+func OpenFreshJournal(root string) (*durableJournal, error) {
+	return openJournalFlags(root, os.O_EXCL)
+}
+func (j *durableJournal) Close() error { return j.file.Close() }
 
 func (j *durableJournal) RecordGitProcess(_ context.Context, record gitops.GitProcessRecord) error {
 	return j.append("git_process", record)
@@ -371,11 +377,15 @@ func (j *durableJournal) RecordWorkspacePrepared(_ context.Context, workspace gi
 }
 
 func openJournal(root string) (*durableJournal, error) {
+	return openJournalFlags(root, 0)
+}
+
+func openJournalFlags(root string, extra int) (*durableJournal, error) {
 	if err := ensurePrivateDir(root); err != nil {
 		return nil, err
 	}
 	path := filepath.Join(root, "events.jsonl")
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY|syscall.O_NOFOLLOW, 0600)
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY|syscall.O_NOFOLLOW|extra, 0600)
 	if err != nil {
 		return nil, err
 	}
@@ -383,6 +393,14 @@ func openJournal(root string) (*durableJournal, error) {
 	if err != nil || !info.Mode().IsRegular() || info.Mode().Perm() != 0600 {
 		_ = file.Close()
 		return nil, errors.New("gitops_journal_unsafe")
+	}
+	if extra&os.O_EXCL != 0 {
+		named, namedErr := os.Lstat(path)
+		owner, ok := info.Sys().(*syscall.Stat_t)
+		if namedErr != nil || !os.SameFile(named, info) || !ok || owner.Uid != uint32(os.Geteuid()) || owner.Nlink != 1 || info.Size() != 0 {
+			_ = file.Close()
+			return nil, errors.New("gitops_journal_unsafe")
+		}
 	}
 	directory, err := os.Open(root)
 	if err != nil {

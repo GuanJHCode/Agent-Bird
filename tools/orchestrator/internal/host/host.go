@@ -106,15 +106,30 @@ func (h *Host) executeLaunch(ctx context.Context, grant contract.LaunchCommand, 
 	if h.producerID != grant.HostID {
 		return contract.Result{}, contract.ErrHostArtifactGrant
 	}
-	// Resource authority does not yet make the full Git dual-view pipeline
-	// available. Refuse before inspecting the invocation or touching any ledger.
-	if grant.GitFilter != nil {
-		if err := contract.RequireGitFilter(grant); err != nil {
+	var filtered *filterRuntime
+	var filterPayload adapter.InvocationPayload
+	manifest, filterErr := contract.GitFilterManifestFromPayload(grant.AdapterPayload)
+	if filterErr != nil {
+		return contract.Result{}, filterErr
+	}
+	if grant.GitFilter != nil || manifest != nil {
+		var err error
+		filtered, err = newFilterRuntime(grant)
+		if err != nil {
 			return contract.Result{}, err
 		}
-		return contract.Result{}, errors.New("git_filter_pipeline_unsupported")
+		grant = filtered.grant
+		filterPayload, err = admitFilterLaunch(grant)
+		if err != nil {
+			return contract.Result{}, err
+		}
+		inv, err = freezeFilterInvocation(inv, filterPayload)
+		if err != nil {
+			return contract.Result{}, err
+		}
 	}
 	meta := metadataForLaunch(grant)
+	meta.filter = filtered
 	if err := contract.ValidateDependencyInputs(grant); err != nil {
 		return contract.Result{}, err
 	}
@@ -253,6 +268,9 @@ func (h *Host) executeLaunch(ctx context.Context, grant contract.LaunchCommand, 
 			meta.expectedSessionID = grokSessionID(grant)
 		}
 		meta.prepareAction = func(ctx context.Context) (process.Command, actionFinalizer, func(), error) {
+			if filtered != nil {
+				return h.prepareFilteredValidation(ctx, filtered, inv, filterPayload)
+			}
 			return h.prepareCandidateAction(ctx, grant, inv, action, profile)
 		}
 		return h.execute(runCtx, store.Attempt{ID: grant.AttemptID, TaskID: grant.TaskID, SegmentID: grant.SegmentID, Status: "running"}, grant.RunID, grant.TaskID, cmd, false, meta)
@@ -268,7 +286,15 @@ func (h *Host) executeLaunch(ctx context.Context, grant contract.LaunchCommand, 
 			meta.expectedSessionID = grokSessionID(grant)
 		}
 		meta.prepareCandidate = func(ctx context.Context) (process.Command, func(context.Context, string) ([]byte, error), func(), error) {
-			freeze, closeCandidate, prepared, err := h.prepareCandidate(ctx, grant, inv, profile)
+			var freeze func(context.Context, string) ([]byte, error)
+			var closeCandidate func()
+			var prepared *gitops.PreparedWorkspace
+			var err error
+			if filtered != nil {
+				freeze, closeCandidate, prepared, err = h.prepareFilteredCandidate(ctx, filtered, filterPayload)
+			} else {
+				freeze, closeCandidate, prepared, err = h.prepareCandidate(ctx, grant, inv, profile)
+			}
 			if err != nil {
 				return cmd, nil, closeCandidate, err
 			}

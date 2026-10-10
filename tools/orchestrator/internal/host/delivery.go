@@ -246,6 +246,9 @@ func readCandidateDelivery(grant contract.LaunchCommand, input *contract.Accepte
 	if out, err = decodeCandidateDeliveryStrict(body); err != nil {
 		return out, errors.New("candidate_input_invalid")
 	}
+	if out.Candidate.Filter != nil && grant.GitFilter == nil {
+		return out, errors.New("git_filter_pipeline_unsupported")
+	}
 	c := out.Candidate
 	if out.Version != 1 || c.Binding == nil || c.Binding.RunID != grant.RunID || c.Binding.PlanRevision != grant.PlanRevision || c.CandidateOID == "" || c.TreeOID == "" || c.PrivateRef == "" {
 		return out, errors.New("candidate_identity_missing")
@@ -330,6 +333,9 @@ func (h *Host) prepareCandidateAction(ctx context.Context, grant contract.Launch
 	in, err := readAcceptedCandidate(grant, filepath.Dir(h.spoolRoot))
 	if err != nil {
 		return empty, nil, noop, err
+	}
+	if in.Candidate.Filter != nil {
+		return empty, nil, noop, errors.New("git_filter_pipeline_unsupported")
 	}
 	if action == nil || action.Version != 1 || action.SourceTask != grant.Input.Event.TaskID || grant.SessionID != "" || grant.Answer != "" || !filepath.IsAbs(action.Target.Worktree) || !strings.HasPrefix(action.Target.Ref, "refs/heads/") {
 		return empty, nil, noop, errors.New("candidate_action_invalid")

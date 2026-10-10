@@ -11,6 +11,7 @@ import (
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/diagnostics"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -50,7 +51,11 @@ func validateInvocationPayload(raw json.RawMessage) error {
 		return CodeError("invalid_adapter_payload")
 	}
 	if filter != nil {
-		return CodeError("git_filter_pipeline_unsupported")
+		payload, err := adapter.DecodeInvocationPayload(raw)
+		if err != nil || runtime.GOOS != "darwin" || adapter.ValidateGitFilterPipelinePayload(payload) != nil {
+			return CodeError("git_filter_pipeline_unsupported")
+		}
+		return nil
 	}
 	var kind struct {
 		Kind string `json:"kind"`

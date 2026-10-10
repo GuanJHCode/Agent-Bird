@@ -4,7 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/adapter"
 	"path/filepath"
+	"reflect"
 	"slices"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
@@ -279,6 +281,15 @@ func validateCandidatePlan(tasks map[string]TaskSpec) error {
 				}
 			}
 		}
+		currentPayload, currentErr := adapter.DecodeInvocationPayload(task.AdapterPayload)
+		sourcePayload, sourceErr := adapter.DecodeInvocationPayload(source.AdapterPayload)
+		filteredSource := sourceErr == nil && sourcePayload.GitFilter != nil
+		filteredCurrent := currentErr == nil && currentPayload.GitFilter != nil
+		if filteredSource || filteredCurrent {
+			if !filteredSource || !filteredCurrent || adapter.ValidateGitFilterPipelinePayload(sourcePayload) != nil || adapter.ValidateGitFilterPipelinePayload(currentPayload) != nil || a.Operation != "validate" || sourcePayload.Kind != "provider" || len(task.Dependencies) != 1 || !reflect.DeepEqual(sourcePayload.GitFilter, currentPayload.GitFilter) {
+				return CodeError("git_filter_pipeline_unsupported")
+			}
+		}
 		previous := parsed[a.SourceTask]
 		if index := a.ReviewIndex; index != nil && (index.Version != 1 || index.Mode != "indexed_candidate_review_v1" || index.Shards < 1 || index.Shards > 63 || index.ReviewOrdinal < 0 || index.ReviewOrdinal >= index.Shards) {
 			return CodeError("invalid_candidate_review_index")
@@ -286,7 +297,7 @@ func validateCandidatePlan(tasks map[string]TaskSpec) error {
 		switch a.Operation {
 		case "validate":
 			composeSource := previous.Kind == "candidate" && isV2Compose(source.AdapterPayload)
-			producerSource := previous.Kind == "" && previous.Action == nil && len(previous.Workspace) > 0 && string(previous.Workspace) != "null"
+			producerSource := (previous.Kind == "" || previous.Kind == "provider" && filteredSource && filteredCurrent) && previous.Action == nil && len(previous.Workspace) > 0 && string(previous.Workspace) != "null"
 			if p.Kind != "candidate" || (!composeSource && !producerSource) {
 				return CodeError("invalid_candidate_dag")
 			}
