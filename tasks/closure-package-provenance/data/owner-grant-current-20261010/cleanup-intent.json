@@ -1,0 +1,485 @@
+{
+  "source": "e662aaa0e2a98f65ad16f30871dc8f03ce73e3a1",
+  "original_runner_exit": 0,
+  "original_commands": [
+    {
+      "name": "go-version",
+      "exit": 0
+    },
+    {
+      "name": "go-mod-verify",
+      "exit": 0
+    },
+    {
+      "name": "build-a",
+      "exit": 0
+    },
+    {
+      "name": "build-b",
+      "exit": 0
+    },
+    {
+      "name": "go-build-info",
+      "exit": 0
+    },
+    {
+      "name": "package-a",
+      "exit": 0
+    },
+    {
+      "name": "package-b",
+      "exit": 0
+    },
+    {
+      "name": "install-first",
+      "exit": 0
+    },
+    {
+      "name": "install-replay",
+      "exit": 0
+    },
+    {
+      "name": "doctor-installed",
+      "exit": 0
+    },
+    {
+      "name": "uninstall-owned",
+      "exit": 0
+    },
+    {
+      "name": "doctor-after-uninstall",
+      "exit": 0
+    }
+  ],
+  "ps_command": [
+    "ps",
+    "-axo",
+    "pid=,command="
+  ],
+  "ps_exit": 0,
+  "exact_work_matches": [],
+  "created_at": "2026-10-10T01:20:19.444649+00:00",
+  "retained_package_a": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/package-a",
+  "retained_old_package_a": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-publication-20261009/package-a",
+  "files": [
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/orchestrator-a",
+      "device": 16777234,
+      "inode": 200670440,
+      "uid": 501,
+      "nlink": 1,
+      "mode": 448,
+      "size": 21316594,
+      "sha256": "7e78c7a1a0c77af75c6040b296f620e43cc8f9acd8b0626dff79892096704782"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/orchestrator-b",
+      "device": 16777234,
+      "inode": 200670579,
+      "uid": 501,
+      "nlink": 1,
+      "mode": 448,
+      "size": 21316594,
+      "sha256": "7e78c7a1a0c77af75c6040b296f620e43cc8f9acd8b0626dff79892096704782"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/package-b/package-manifest.json",
+      "device": 16777234,
+      "inode": 200670841,
+      "uid": 501,
+      "nlink": 1,
+      "mode": 384,
+      "size": 4740,
+      "sha256": "cf883945e0b0ea596c2ee14b7b4f91a96d0b4bc76bebedf3bb5b61b1f867cd2f"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/package-b/plugin/.codex-plugin/plugin.json",
+      "device": 16777234,
+      "inode": 200670826,
+      "uid": 501,
+      "nlink": 1,
+      "mode": 384,
+      "size": 699,
+      "sha256": "5d21581dd5807437299debf366fdbf56414abbd8d66e1c597034702eb95700b0"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/package-b/plugin/bin/codex-orchestrator",
+      "device": 16777234,
+      "inode": 200670806,
+      "uid": 501,
+      "nlink": 1,
+      "mode": 448,
+      "size": 21316594,
+      "sha256": "7e78c7a1a0c77af75c6040b296f620e43cc8f9acd8b0626dff79892096704782"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/package-b/plugin/defaults.json",
+      "device": 16777234,
+      "inode": 200670785,
+      "uid": 501,
+      "nlink": 1,
+      "mode": 384,
+      "size": 155,
+      "sha256": "d87cce1addf8d6b66930adb465abb5438214b09ac691e351a0b64865687acda5"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/package-b/plugin/hooks/agy-proposed-hooks.json",
+      "device": 16777234,
+      "inode": 200670794,
+      "uid": 501,
+      "nlink": 1,
+      "mode": 384,
+      "size": 223,
+      "sha256": "4c531167f9260339323aa6e0ce9ea16cf53824e6b413c64068ebe17ecb3a28cd"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/package-b/plugin/lib/native_bridge/__init__.py",
+      "device": 16777234,
+      "inode": 200670798,
+      "uid": 501,
+      "nlink": 1,
+      "mode": 384,
+      "size": 50,
+      "sha256": "41d9d039fb2d04cf66f9c76480381d829a96931ed1e1a7a327d6e40e3aa2b872"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/package-b/plugin/lib/native_bridge/bridge.py",
+      "device": 16777234,
+      "inode": 200670799,
+      "uid": 501,
+      "nlink": 1,
+      "mode": 384,
+      "size": 49404,
+      "sha256": "b058313f169b430c979418d08e9ad12155c9b732e3300bfa2256392932138f8a"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/package-b/plugin/lib/trial/auth_guard.py",
+      "device": 16777234,
+      "inode": 200670801,
+      "uid": 501,
+      "nlink": 1,
+      "mode": 384,
+      "size": 8681,
+      "sha256": "3d2b0380a5026620f9c603c487354ae576cac8ffb29984813559f2e44eaf92ba"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/package-b/plugin/lib/trial/auth_wire.py",
+      "device": 16777234,
+      "inode": 200670802,
+      "uid": 501,
+      "nlink": 1,
+      "mode": 384,
+      "size": 10016,
+      "sha256": "660572ff577d3d1302811c1107e7ae47f9447f82fce87857e669b0f733aaad79"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/package-b/plugin/lib/trial/rpc_policy.py",
+      "device": 16777234,
+      "inode": 200670803,
+      "uid": 501,
+      "nlink": 1,
+      "mode": 384,
+      "size": 3223,
+      "sha256": "a4417dcf54e48c96b827f13a41c47043a4fbf0950988a95e78a35aab2e2f6f85"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/package-b/plugin/payload-manifest.json",
+      "device": 16777234,
+      "inode": 200670833,
+      "uid": 501,
+      "nlink": 1,
+      "mode": 384,
+      "size": 4238,
+      "sha256": "27a51f81dd9c12d2d978ae8fb34c958ae165d18c6e362e5791d94ca9cef518f9"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/package-b/plugin/runtime/g0/activation_service.py",
+      "device": 16777234,
+      "inode": 200670811,
+      "uid": 501,
+      "nlink": 1,
+      "mode": 420,
+      "size": 59126,
+      "sha256": "435d88a529a81522901da141acb2af2d7a2d4787f500d636bea150bd46964d9d"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/package-b/plugin/runtime/g0/auth_isolation.py",
+      "device": 16777234,
+      "inode": 200670816,
+      "uid": 501,
+      "nlink": 1,
+      "mode": 420,
+      "size": 27327,
+      "sha256": "caf05d6d2d88b3c2abc4bef0d8d615d7588380894bc1f7c6a84dc47a5d6aee5e"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/package-b/plugin/runtime/g0/delivery_adapter.py",
+      "device": 16777234,
+      "inode": 200670817,
+      "uid": 501,
+      "nlink": 1,
+      "mode": 420,
+      "size": 25605,
+      "sha256": "30e1d0a908d5305261d506d5c6cb6f5210307c8c0e5a97e039b732ac86c16c7c"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/package-b/plugin/runtime/g0/delivery_audit.py",
+      "device": 16777234,
+      "inode": 200670818,
+      "uid": 501,
+      "nlink": 1,
+      "mode": 420,
+      "size": 10755,
+      "sha256": "59d8129d5409fb7fb5687a5107c81f9d85a63b8f718e4dd22cab660517af87c6"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/package-b/plugin/runtime/g0/launch_activation.py",
+      "device": 16777234,
+      "inode": 200670810,
+      "uid": 501,
+      "nlink": 1,
+      "mode": 420,
+      "size": 1530,
+      "sha256": "df5ef0206ef09c1420a1cefaf4d8c1c552e5c235c0427b12333d0eca74caac5c"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/package-b/plugin/runtime/g0/owned_child_guard.py",
+      "device": 16777234,
+      "inode": 200670814,
+      "uid": 501,
+      "nlink": 1,
+      "mode": 420,
+      "size": 12874,
+      "sha256": "5c0b30fc60eed9d26b08f64a82cdb69abebb27193549ac12a3e21c8850779dac"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/package-b/plugin/runtime/g0/owner_helper.py",
+      "device": 16777234,
+      "inode": 200670815,
+      "uid": 501,
+      "nlink": 1,
+      "mode": 420,
+      "size": 31741,
+      "sha256": "7e09d14e45d34101a1d6ffe82170d48afef3800e7c24322ad52f0ad54563d017"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/package-b/plugin/runtime/g0/projectproxy_launchd_entrypoint.py",
+      "device": 16777234,
+      "inode": 200670809,
+      "uid": 501,
+      "nlink": 1,
+      "mode": 448,
+      "size": 3315,
+      "sha256": "4816b3d092496117d20fb24431908a32ac3de684404305908dee06a0ba6d9836"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/package-b/plugin/runtime/g0/proxy_observer.py",
+      "device": 16777234,
+      "inode": 200670813,
+      "uid": 501,
+      "nlink": 1,
+      "mode": 420,
+      "size": 30714,
+      "sha256": "6e1e16f37707bd8c88fd8717058afe1a4920bd406aec3b907cf7fc50e9066587"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/package-b/plugin/runtime/g0/proxy_transport.py",
+      "device": 16777234,
+      "inode": 200670812,
+      "uid": 501,
+      "nlink": 1,
+      "mode": 420,
+      "size": 27983,
+      "sha256": "c6f8a3fe221730ba6ae8a76cbdc51859eeaf68fbcb665a6acdbd87cf2ff84daa"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/package-b/plugin/runtime/g0/receipt_store.py",
+      "device": 16777234,
+      "inode": 200670819,
+      "uid": 501,
+      "nlink": 1,
+      "mode": 420,
+      "size": 5032,
+      "sha256": "ec8c2014dcfed03e1bbec6a2a50b3644371a47c3f2688eeaaf8d41749cf6c295"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/package-b/plugin/runtime/g0/runtime-manifest.json",
+      "device": 16777234,
+      "inode": 200670821,
+      "uid": 501,
+      "nlink": 1,
+      "mode": 384,
+      "size": 2377,
+      "sha256": "2a7e403d30c87dd0ffc95cab9837080726b177a1f4e093222d87185db5498ac0"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/package-b/plugin/scripts/agent-bird-agy-hook",
+      "device": 16777234,
+      "inode": 200670792,
+      "uid": 501,
+      "nlink": 1,
+      "mode": 448,
+      "size": 345,
+      "sha256": "005b2f1bdda862db7268355ad5096fee5ce73cd0963a046b2b3e85f7908bf779"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/package-b/plugin/scripts/agent-bird-hook",
+      "device": 16777234,
+      "inode": 200670791,
+      "uid": 501,
+      "nlink": 1,
+      "mode": 448,
+      "size": 652,
+      "sha256": "4201dcd41ab82ac6e2203daf3a647c58662213d2c03e7cfb5f9ba98a544b9f8a"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/package-b/plugin/scripts/invoke.sh",
+      "device": 16777234,
+      "inode": 200670790,
+      "uid": 501,
+      "nlink": 1,
+      "mode": 448,
+      "size": 721,
+      "sha256": "30a76b7c1f016cba6c7dde8f360f9155cc644bcbe9273196deec85bc66f47828"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/package-b/plugin/scripts/native-product-bridge.py",
+      "device": 16777234,
+      "inode": 200670795,
+      "uid": 501,
+      "nlink": 1,
+      "mode": 448,
+      "size": 45598,
+      "sha256": "2871aca25151382b1b9572eef177ceda400cc75f348e6d9f2269cd30d35ee890"
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/package-b/plugin/skills/orchestrate/SKILL.md",
+      "device": 16777234,
+      "inode": 200670788,
+      "uid": 501,
+      "nlink": 1,
+      "mode": 384,
+      "size": 54946,
+      "sha256": "9b6cd7f2dfe19d0f1397b8231f74e9e55ba8de5b1d184a0ffc5e0ade65e5f80a"
+    }
+  ],
+  "directories": [
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/package-b/plugin/runtime/g0",
+      "device": 16777234,
+      "inode": 200670808,
+      "uid": 501,
+      "nlink": 14,
+      "mode": 448,
+      "size": 448
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/package-b/plugin/lib/native_bridge",
+      "device": 16777234,
+      "inode": 200670797,
+      "uid": 501,
+      "nlink": 4,
+      "mode": 448,
+      "size": 128
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/package-b/plugin/lib/trial",
+      "device": 16777234,
+      "inode": 200670800,
+      "uid": 501,
+      "nlink": 5,
+      "mode": 448,
+      "size": 160
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/package-b/plugin/skills/orchestrate",
+      "device": 16777234,
+      "inode": 200670787,
+      "uid": 501,
+      "nlink": 3,
+      "mode": 448,
+      "size": 96
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/package-b/plugin/bin",
+      "device": 16777234,
+      "inode": 200670805,
+      "uid": 501,
+      "nlink": 3,
+      "mode": 448,
+      "size": 96
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/package-b/plugin/runtime",
+      "device": 16777234,
+      "inode": 200670807,
+      "uid": 501,
+      "nlink": 3,
+      "mode": 448,
+      "size": 96
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/package-b/plugin/hooks",
+      "device": 16777234,
+      "inode": 200670793,
+      "uid": 501,
+      "nlink": 3,
+      "mode": 448,
+      "size": 96
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/package-b/plugin/scripts",
+      "device": 16777234,
+      "inode": 200670789,
+      "uid": 501,
+      "nlink": 6,
+      "mode": 448,
+      "size": 192
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/package-b/plugin/lib",
+      "device": 16777234,
+      "inode": 200670796,
+      "uid": 501,
+      "nlink": 4,
+      "mode": 448,
+      "size": 128
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/package-b/plugin/skills",
+      "device": 16777234,
+      "inode": 200670786,
+      "uid": 501,
+      "nlink": 3,
+      "mode": 448,
+      "size": 96
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/package-b/plugin/.codex-plugin",
+      "device": 16777234,
+      "inode": 200670782,
+      "uid": 501,
+      "nlink": 3,
+      "mode": 448,
+      "size": 96
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/package-b/plugin",
+      "device": 16777234,
+      "inode": 200670781,
+      "uid": 501,
+      "nlink": 11,
+      "mode": 448,
+      "size": 352
+    },
+    {
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/publication-package/tasks/closure-package-provenance/tmp/owner-grant-current-20261010/package-b",
+      "device": 16777234,
+      "inode": 200670778,
+      "uid": 501,
+      "nlink": 4,
+      "mode": 448,
+      "size": 128
+    }
+  ]
+}
