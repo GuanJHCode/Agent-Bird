@@ -4,6 +4,7 @@ package gitfilter
 
 import (
 	"os"
+	"time"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 )
@@ -23,6 +24,8 @@ type Request struct {
 	EmptyDirectory         string
 }
 type Result struct {
+	// StartedAt is a live monotonic observation, never a durable process proof.
+	StartedAt                                             time.Time `json:"-"`
 	Accepted, Started, WaitProved, TreeProved, Unknown    bool
 	ScopeSHA256, RequestSHA256, InputSHA256, OutputSHA256 string
 	InputBytes, OutputBytes                               int64

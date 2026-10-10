@@ -1,0 +1,18 @@
+{
+  "command": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+    "-C",
+    "tools/orchestrator",
+    "test",
+    "-json",
+    "-race",
+    "-count=1",
+    "./internal/contract",
+    "-run",
+    "^TestGitFilter"
+  ],
+  "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/git-filter-contract",
+  "head": "a793567a123f7df496f9f4c9b6f37ec9b00e6a26",
+  "dirty": "",
+  "go_version": "go version go1.26.8 darwin/arm64"
+}

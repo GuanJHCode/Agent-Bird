@@ -1,0 +1,10 @@
+{
+  "base": "e662aaa0e2a98f65ad16f30871dc8f03ce73e3a1",
+  "red_source": "4efe02f",
+  "final_source": "a793567",
+  "files": {
+    "tools/orchestrator/internal/contract/git_filter.go": "488a591b57ea71ac55d8f250bb6b58be85c5e06c23320a92f88a6545a9d7dab5",
+    "tools/orchestrator/internal/contract/git_filter_test.go": "bdd106d90b57359a4621ab7fdaeadcd7cae4b6b18e37ebdf5b07107f9615feb9",
+    "tasks/git-filter-contract/scripts/run-focused.py": "18704a5d4d74227cb5742215e41ea059485f071c6a32239a959161d857ac6fe6"
+  }
+}
