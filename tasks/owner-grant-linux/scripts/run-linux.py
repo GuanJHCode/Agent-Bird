@@ -9,7 +9,7 @@ import sys
 
 label, binary_arg, mode, expected_arg = sys.argv[1:]
 modes = {
-    'owner-grant': ('^(TestOwnerGrantPublicationFailureDoesNotAuthorize|TestOwnerGrantPublicationCanonicalAncestorAlias)$', ('TestOwnerGrantPublicationFailureDoesNotAuthorize', 'TestOwnerGrantPublicationCanonicalAncestorAlias')),
+    'owner-grant': ('^(TestOwnerGrantPublicationFailureDoesNotAuthorize|TestOwnerGrantPublicationCanonicalAncestorAlias|TestOwnerGrantPublicationRetargetBeforeWrite)$', ('TestOwnerGrantPublicationFailureDoesNotAuthorize', 'TestOwnerGrantPublicationCanonicalAncestorAlias', 'TestOwnerGrantPublicationRetargetBeforeWrite')),
 }
 if mode not in modes:
     raise SystemExit('unknown test mode')

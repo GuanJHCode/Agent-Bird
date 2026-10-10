@@ -3,9 +3,10 @@
 import hashlib,json,os,pathlib,stat,subprocess,sys
 os.umask(0o077)
 root=pathlib.Path(__file__).resolve().parents[3]
-task=root/'tasks/owner-grant-linux';data=task/'data';tmp=task/'tmp'
+task=root/'tasks/owner-grant-linux';label='bind-root-02';data=task/'data'/label;tmp=task/'tmp'
+data.mkdir(mode=0o700)
 go='/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go'
-source='e50bf47e9e3099b964d81f9c5af5a85d44f0995d'
+source='df558ee4f0add520179bcafc2b8fc21a4bbc394a'
 def git(*args):return subprocess.check_output(['git',*args],cwd=root,text=True).strip()
 def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
 def run(label,command,env=None):
@@ -21,16 +22,16 @@ provenance={'source':source,'source_tree':git('rev-parse',source+':tools/orchest
 receipt=data/'source.json'
 if receipt.exists():raise SystemExit('refuse to overwrite source receipt')
 receipt.write_text(json.dumps(provenance,indent=2)+'\n')
-bindir=tmp/'linux-bin';bindir.mkdir(mode=0o755);os.chmod(bindir,0o755);binary=bindir/'coordinator.test'
+bindir=tmp/label;bindir.mkdir(mode=0o755);os.chmod(bindir,0o755);binary=bindir/'coordinator.test'
 env=os.environ.copy();env.update(TMPDIR='/private/tmp',GOOS='linux',GOARCH='arm64',CGO_ENABLED='0',GOPROXY='off',GOSUMDB='off',GOENV='off',GOWORK='off',GOTOOLCHAIN='local')
 code=run('crossbuild',[go,'-C','tools/orchestrator','test','-c','-o',str(binary),'./internal/coordinator'],env)
 if code:raise SystemExit(code)
 os.chmod(binary,0o555)
 s=binary.lstat();identity={'path':str(binary),'dev':s.st_dev,'inode':s.st_ino,'uid':s.st_uid,'nlink':s.st_nlink,'mode':oct(stat.S_IMODE(s.st_mode)),'size':s.st_size,'sha256':sha(binary)}
 (data/'binary-before.json').write_text(json.dumps(identity,indent=2)+'\n')
-code=run('linux-run',[sys.executable,str(task/'scripts/run-linux.py'),'owner-grant',str(binary),'owner-grant',str(data/'expected-tests.json')])
+code=run('linux-run',[sys.executable,str(task/'scripts/run-linux.py'),label,str(binary),'owner-grant',str(task/'data/expected-bind-root-02.json')])
 if code:raise SystemExit(code)
-container=json.loads((data/'linux/owner-grant-receipt.json').read_text())
+container=json.loads((task/'data/linux'/(label+'-receipt.json')).read_text())
 if not container.get('accepted')or container['state']['Running']or container['state']['ExitCode']!=0 or container['state']['OOMKilled']:raise SystemExit('unproven original container terminal')
 code=run('second-absence',['docker','inspect',container['cid']])
 if code==0 or 'No such'not in(data/'second-absence.stderr').read_text():raise SystemExit('second exact CID absence failed')
