@@ -133,7 +133,7 @@ func filterWriteObservedBlob(ctx context.Context, m *FilterMaterialization, w *f
 
 func writeFilterBlob(ctx context.Context, dir string, body []byte) (string, error) {
 	g := filterGitFromContext(ctx)
-	if g == nil || len(body) > gitfilter.MaximumBytes {
+	if g == nil || int64(len(body)) > gitfilter.MaximumBytes {
 		return "", fail(CodeInvalidInput, "filtered blob runner", nil)
 	}
 	if err := g.verifyDirectory(dir); err != nil {
