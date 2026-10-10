@@ -54,6 +54,11 @@ func (b *exactTestBroker) Transform(_ context.Context, op string, src, dst int) 
 	}
 	now := time.Now()
 	r := Result{Accepted: true, Started: true, WaitProved: true, TreeProved: true, StartedAt: now, TerminalAt: now, ScopeSHA256: b.binding.ScopeSHA256, RequestSHA256: strings.Repeat("e", 64), InputSHA256: exactHash(b.slots[0]), OutputSHA256: exactHash(b.slots[1]), InputBytes: int64(len(b.slots[0])), OutputBytes: int64(len(b.slots[1]))}
+	b.state.EverStarted = true
+	if b.state.StartedAt.IsZero() {
+		b.state.StartedAt = now
+	}
+	b.state.TerminalAt = now
 	if b.alterResult != nil {
 		b.alterResult(&r)
 	}
