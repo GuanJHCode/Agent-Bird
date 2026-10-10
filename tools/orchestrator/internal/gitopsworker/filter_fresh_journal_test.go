@@ -57,8 +57,14 @@ func TestJournalFilterAttachmentStrictness(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		prepared := gitops.PreparedWorkspace{Receipt: gitops.MaterializeReceipt{AttemptID: "attempt"}}
-		receipt := gitops.CandidateReceipt{AttemptID: "attempt"}
+		prepared := gitops.PreparedWorkspace{Receipt: gitops.MaterializeReceipt{
+			AttemptID: "attempt",
+			Files:     map[string]gitops.FileIdentity{"FILTER": {Device: 1, Inode: 2, Mode: 0100644, Size: 3, ModUnixNano: 4}},
+		}}
+		receipt := gitops.CandidateReceipt{
+			AttemptID: "attempt",
+			Files:     map[string]gitops.FileIdentity{"FILTER": {Device: 5, Inode: 6, Mode: 0100644, Size: 7, ModUnixNano: 8}},
+		}
 		if err = journal.RecordWorkspacePrepared(context.Background(), prepared); err != nil {
 			t.Fatal(err)
 		}
