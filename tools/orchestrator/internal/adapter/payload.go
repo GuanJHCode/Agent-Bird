@@ -13,6 +13,7 @@ import (
 // InvocationPayload is the shared wire schema for Provider, candidate and test
 // invocations. Decoding is pure and never probes or launches an executable.
 type InvocationPayload struct {
+	GitFilter          *contract.GitFilterManifestV1 `json:"git_filter,omitempty"`
 	ConfigGeneration   *contract.ConfigGenerationRef `json:"config_generation,omitempty"`
 	ConfigModelSource  string                        `json:"config_model_source,omitempty"`
 	CandidateAction    *CandidateAction              `json:"candidate_action,omitempty"`
@@ -65,6 +66,21 @@ func DecodeInvocationPayload(data []byte) (InvocationPayload, error) {
 				return InvocationPayload{}, errors.New("invalid_adapter_payload")
 			}
 		}
+	}
+	filter, filterErr := contract.GitFilterManifestFromPayload(data)
+	if filterErr != nil {
+		return InvocationPayload{}, errors.New("invalid_adapter_payload")
+	}
+	if filter != nil {
+		if contract.DecodeBridgeStrict(data, &payload) != nil {
+			return InvocationPayload{}, errors.New("invalid_adapter_payload")
+		}
+		producer := payload.Kind == "provider" && payload.CandidateWorkspace != nil && payload.CandidateWorkspace.Version == 1 && payload.Profile != nil && payload.Profile.Role == Implementer && payload.Profile.Permission == WorkspaceWrite && payload.CandidateAction == nil
+		validator := payload.Kind == "candidate" && payload.CandidateAction != nil && payload.CandidateAction.Version == 1 && payload.CandidateAction.Operation == "validate" && payload.CandidateWorkspace == nil && payload.Profile == nil
+		if !producer && !validator {
+			return InvocationPayload{}, errors.New("git_filter_pipeline_unsupported")
+		}
+		payload.GitFilter = filter
 	}
 	if payload.CandidateAction != nil && payload.CandidateAction.CommandSHA256 != "" {
 		if payload.CandidateAction.Operation != "validate" || !ValidCommandSHA256(payload.CandidateAction.CommandSHA256) {

@@ -16,8 +16,16 @@ func removeOwnerAuthorizationRebindSchema30(db *DB) error {
 	if err := db.sql.QueryRow(`SELECT version FROM schema_meta`).Scan(&version); err != nil {
 		return err
 	}
-	if version == 35 {
-		if _, err := db.sql.Exec(`DROP TRIGGER owner_rebind_publication_no_delete; DROP TRIGGER owner_rebind_publication_immutable; DROP INDEX owner_rebind_publication_one_pending; DROP TABLE owner_rebind_publications; UPDATE schema_meta SET version=34`); err != nil {
+	if version >= 35 {
+		tx, err := db.sql.Begin()
+		if err != nil {
+			return err
+		}
+		defer tx.Rollback()
+		if err = stripEmptyFilterPublicationSchemasTx(tx); err != nil {
+			return err
+		}
+		if err = tx.Commit(); err != nil {
 			return err
 		}
 		version = 34

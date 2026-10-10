@@ -19,7 +19,7 @@ func TestFilterOriginalStartBoundary(t *testing.T) {
 		r := f.request(t, "copy", []byte("input"))
 		r.ScopeSHA256 = "invalid"
 		got, err := Execute(context.Background(), r)
-		if err == nil || got.Started || !got.StartedAt.IsZero() {
+		if err == nil || got.Started || !got.StartedAt.IsZero() || !got.TerminalAt.IsZero() {
 			t.Fatalf("preflight invented start: %+v %v", got, err)
 		}
 	})
@@ -63,6 +63,9 @@ func TestFilterOriginalStartBoundary(t *testing.T) {
 			if got.StartedAt != original || original == original.Round(0) {
 				t.Fatalf("lost original monotonic boundary: got=%v want=%v", got.StartedAt, original)
 			}
+			if got.TerminalAt.IsZero() || got.TerminalAt.Before(original) || got.TerminalAt.After(time.Now()) || got.TerminalAt == got.TerminalAt.Round(0) {
+				t.Fatalf("missing live original terminal boundary: %v", got.TerminalAt)
+			}
 			raw, err := json.Marshal(got)
 			var wire map[string]json.RawMessage
 			var replay Result
@@ -71,7 +74,8 @@ func TestFilterOriginalStartBoundary(t *testing.T) {
 			}
 			// Identity already carries a diagnostic wall-clock StartedAt string.
 			// Only the new top-level live value must be absent and unrecoverable.
-			if _, exists := wire["StartedAt"]; exists || !replay.StartedAt.IsZero() {
+			_, terminalExists := wire["TerminalAt"]
+			if _, exists := wire["StartedAt"]; exists || terminalExists || !replay.StartedAt.IsZero() || !replay.TerminalAt.IsZero() {
 				t.Fatalf("live boundary became wire data: %s", raw)
 			}
 		})

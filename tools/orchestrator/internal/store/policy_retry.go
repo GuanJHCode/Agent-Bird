@@ -15,6 +15,20 @@ func (d *DB) queuePolicyRetry(ctx context.Context, tx *sql.Tx, e contract.Event,
 	if e.Kind != contract.EventLaunchRejected || (!e.Failure.ValidPrelaunchProbe() && !e.Failure.ValidValidationStart()) {
 		return false, nil
 	}
+	var filterTickets int
+	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM git_filter_resource_reservations WHERE segment_id=?`, e.SegmentID).Scan(&filterTickets); err != nil {
+		return false, err
+	}
+	if filterTickets != 0 {
+		return false, nil
+	}
+	var filterPayload string
+	if err := tx.QueryRowContext(ctx, `SELECT adapter_payload FROM task_runtime WHERE task_id=?`, e.TaskID).Scan(&filterPayload); err != nil {
+		return false, err
+	}
+	if m, err := contract.GitFilterManifestFromPayload([]byte(filterPayload)); err != nil || m != nil {
+		return false, nil
+	}
 	b, err := readExecutionBudget(ctx, tx, e.TaskID)
 	if err != nil {
 		return false, err

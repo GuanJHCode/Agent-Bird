@@ -60,6 +60,9 @@ func (d *DB) reserveHostArtifacts(ctx context.Context, tx *sql.Tx, c *contract.L
 	if err = d.reserveValidationTool(ctx, tx, c); err != nil {
 		return err
 	}
+	if err = d.reserveGitFilter(ctx, tx, c); err != nil {
+		return err
+	}
 	return bindHostArtifacts(ctx, tx, c, true)
 }
 
@@ -70,7 +73,10 @@ func bindHostArtifacts(ctx context.Context, tx *sql.Tx, c *contract.LaunchComman
 	if err := bindHostArtifactSlots(ctx, tx, c, required); err != nil {
 		return err
 	}
-	return bindValidationTool(ctx, tx, c, required)
+	if err := bindValidationTool(ctx, tx, c, required); err != nil {
+		return err
+	}
+	return bindGitFilter(ctx, tx, c, required)
 }
 
 // Artifact intake authenticates only an existing slot and has no full adapter

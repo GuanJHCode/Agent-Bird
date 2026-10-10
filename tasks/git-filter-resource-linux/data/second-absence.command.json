@@ -1,0 +1,11 @@
+{
+  "command": [
+    "docker",
+    "inspect",
+    "e555eee3850557fdc485d7443d455fcf88a0b5ec0c2b2384d6fd3dd9c4fdb628"
+  ],
+  "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/git-filter-resource-linux",
+  "head": "0ad93e0a769fb706e9792db0d695211bba26b072",
+  "dirty": "?? tasks/git-filter-resource-linux/scripts/cleanup.py",
+  "environment": {}
+}

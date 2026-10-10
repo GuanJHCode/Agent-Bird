@@ -16,7 +16,21 @@ func CandidateIntentHash(c LaunchCommand) (string, error) {
 	if err = validateValidationToolAttachment(c); err != nil {
 		return "", err
 	}
-	if c.ValidationTool != nil {
+	if err = RequireGitFilter(c); err != nil {
+		return "", err
+	}
+	if c.GitFilter != nil {
+		body, err = json.Marshal(struct {
+			Plan             int
+			Payload          json.RawMessage
+			Input            *AcceptedInput
+			DependencyInputs *DependencyInputVector `json:",omitempty"`
+			Diagnostics      *DiagnosticsGrant      `json:",omitempty"`
+			HostArtifacts    *HostArtifactGrant
+			ValidationTool   *ValidationToolGrant `json:",omitempty"`
+			GitFilter        *GitFilterResourceGrant
+		}{c.PlanRevision, c.AdapterPayload, c.Input, c.DependencyInputs, c.Diagnostics, c.HostArtifacts, c.ValidationTool, c.GitFilter})
+	} else if c.ValidationTool != nil {
 		body, err = json.Marshal(struct {
 			Plan             int
 			Payload          json.RawMessage
@@ -82,7 +96,10 @@ func ValidateDependencyInputs(c LaunchCommand) error {
 	if err := validateValidationToolAttachment(c); err != nil {
 		return err
 	}
-	if c.ValidationTool != nil {
+	if err := RequireGitFilter(c); err != nil {
+		return err
+	}
+	if c.ValidationTool != nil || c.GitFilter != nil {
 		hash, err := CandidateIntentHash(c)
 		if err != nil || hash != c.LaunchIntentHash {
 			return errors.New("candidate_input_changed")

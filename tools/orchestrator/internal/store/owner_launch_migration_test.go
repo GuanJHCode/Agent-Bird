@@ -15,6 +15,9 @@ func removeOwnerLaunchSchema32(db *DB) error {
 		return err
 	}
 	defer tx.Rollback()
+	if err = stripEmptyFilterPublicationSchemasTx(tx); err != nil {
+		return err
+	}
 	var version, n int
 	if err = tx.QueryRow(`SELECT version FROM schema_meta`).Scan(&version); err != nil {
 		return err

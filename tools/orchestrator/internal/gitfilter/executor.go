@@ -24,6 +24,8 @@ type Request struct {
 	EmptyDirectory         string
 }
 type Result struct {
+	// TerminalAt exists only after this Handle proved Wait and tree exit.
+	TerminalAt time.Time `json:"-"`
 	// StartedAt is a live monotonic observation, never a durable process proof.
 	StartedAt                                             time.Time `json:"-"`
 	Accepted, Started, WaitProved, TreeProved, Unknown    bool
