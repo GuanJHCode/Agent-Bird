@@ -408,7 +408,7 @@ func noSymlinkComponents(path string) error {
 func run(ctx context.Context, dir string, args ...string) (CommandResult, error) {
 	managed, _ := ctx.Value(candidateRunnerKey{}).(bool)
 	tracked, _ := ctx.Value(trackedIntegrationRunnerKey{}).(bool)
-	if managed || tracked {
+	if managed || tracked || filterGitFromContext(ctx) != nil {
 		result, err := candidateGit(ctx, dir, nil, args...)
 		result.Stdout = strings.TrimSpace(result.Stdout)
 		return result, err
