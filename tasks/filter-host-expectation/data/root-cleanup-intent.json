@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "owned_file": {
+    "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-expectation/tasks/filter-host-expectation/tmp/linux-native/process.test",
+    "device": 16777234,
+    "inode": 201724508,
+    "mode": 33261,
+    "size": 5676271,
+    "sha256": "5038d3a42a1d1a04565a09071481dd5ddb1b887e35802e29fc0281d14313c66f"
+  },
+  "container": "closure-host-expectation-f92478c",
+  "container_absent": true,
+  "remove_only_file_and_empty_parent": true
+}

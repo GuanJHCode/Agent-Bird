@@ -1,0 +1,16 @@
+--- FAIL: TestVerifyHostPeerExpectationStableAndDriftedRecords (0.00s)
+    --- FAIL: TestVerifyHostPeerExpectationStableAndDriftedRecords/stable (0.00s)
+        peer_host_expectation_test.go:39: stable err=process_tree_unknown calls=0
+    --- FAIL: TestVerifyHostPeerExpectationStableAndDriftedRecords/identity (0.00s)
+        peer_host_expectation_test.go:42: identity err=process_tree_unknown fired=false calls=0
+    --- FAIL: TestVerifyHostPeerExpectationStableAndDriftedRecords/uid (0.00s)
+        peer_host_expectation_test.go:42: uid err=process_tree_unknown fired=false calls=0
+    --- FAIL: TestVerifyHostPeerExpectationStableAndDriftedRecords/parent (0.00s)
+        peer_host_expectation_test.go:42: parent err=process_tree_unknown fired=false calls=0
+    --- FAIL: TestVerifyHostPeerExpectationStableAndDriftedRecords/pgid (0.00s)
+        peer_host_expectation_test.go:42: pgid err=process_tree_unknown fired=false calls=0
+--- FAIL: TestHostPeerExpectationNativeSelf (0.00s)
+    peer_host_expectation_test.go:81: capture={Domain: PID:0 RawBirth: EUID:0} err=process_tree_unknown
+FAIL
+FAIL	github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process	0.598s
+FAIL

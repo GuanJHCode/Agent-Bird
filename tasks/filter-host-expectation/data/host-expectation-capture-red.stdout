@@ -1,0 +1,5 @@
+--- FAIL: TestCaptureHostPeerExpectationRejectsUnboundedContext (0.00s)
+    peer_host_expectation_test.go:98: unbounded capture context accepted
+FAIL
+FAIL	github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process	0.946s
+FAIL
