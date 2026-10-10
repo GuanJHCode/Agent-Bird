@@ -261,7 +261,11 @@ func (g *OriginalGitGate) Serve(conn net.Conn, peerPID int) (retErr error) {
 }
 
 func (g *OriginalGitGate) Close(ctx context.Context) error {
-	if !g.valid() || ctx == nil {
+	if !g.valid() {
+		return ErrOriginalGitGate
+	}
+	if ctx == nil {
+		g.poison(true)
 		return ErrOriginalGitGate
 	}
 	if _, ok := ctx.Deadline(); !ok || ctx.Err() != nil {
