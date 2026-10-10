@@ -72,7 +72,7 @@ func TestFilterWorktreeBindingKeepsOriginalSource(t *testing.T) {
 				if err = os.Mkdir(borrowed, 0700); err != nil {
 					t.Fatal(err)
 				}
-				for _, name := range []string{".git", ".gitattributes", "a.txt"} {
+				for _, name := range []string{".git", ".gitattributes", "README"} {
 					body, e := os.ReadFile(filepath.Join(path, name))
 					if e != nil {
 						t.Fatal(e)

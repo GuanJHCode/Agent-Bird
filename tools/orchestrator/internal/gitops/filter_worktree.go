@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 )
 
-// FilterWorktreeBinding keeps the child directory/index private to this live
-// Host. Only SourceSHA256 is handed to downstream receipts; child observations
+// FilterWorktreeBinding pins a structurally valid linked worktree for a live
+// Host. It does not prove that the Host created or owns that worktree. Only SourceSHA256 is handed to downstream receipts; child observations
 // cannot replace the independently verified original source context.
 type FilterWorktreeBinding struct {
 	source, worktree *FilterGitContext
