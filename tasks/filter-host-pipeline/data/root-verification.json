@@ -1,0 +1,531 @@
+{
+  "qualified_source": "233959746c141b2f8fe8c51c56729796489beaea",
+  "go_tree": "d43e8ac891e20e77c2e969a6152f476ef5ebe6af",
+  "commands": {
+    "producer-artifact-red": {
+      "source": "d2514e23c6241dbf441f338973dd1e7a83de7330",
+      "dirty": "",
+      "exit": 1,
+      "stdout_sha256": "6376d47d46dd39130230c48e1317baafac971c658ecbf99435c2c0c5af306d05",
+      "stderr_bytes": 0,
+      "top_level": 1,
+      "named_counts": {
+        "fail": 1
+      },
+      "tests": [
+        {
+          "package": "host",
+          "name": "TestStrictCandidateDeliveryAcceptsProducerArtifact",
+          "status": "fail",
+          "elapsed": 0
+        }
+      ]
+    },
+    "producer-artifact-green": {
+      "source": "48450c6231d365dabdeddb01fa5472c0db79b301",
+      "dirty": "",
+      "exit": 0,
+      "stdout_sha256": "7611aa3c3d99511d1b37aa433288cb587057ba1c90bae5c763e97deca6e79837",
+      "stderr_bytes": 0,
+      "top_level": 2,
+      "named_counts": {
+        "pass": 6
+      },
+      "tests": [
+        {
+          "package": "host",
+          "name": "TestDecodeCandidateDeliveryStrict/legacy_nil_filter",
+          "status": "pass",
+          "elapsed": 0
+        },
+        {
+          "package": "host",
+          "name": "TestDecodeCandidateDeliveryStrict/filter_attachment",
+          "status": "pass",
+          "elapsed": 0
+        },
+        {
+          "package": "host",
+          "name": "TestDecodeCandidateDeliveryStrict/unknown_candidate_field",
+          "status": "pass",
+          "elapsed": 0
+        },
+        {
+          "package": "host",
+          "name": "TestDecodeCandidateDeliveryStrict/duplicate_filter_attachment",
+          "status": "pass",
+          "elapsed": 0
+        },
+        {
+          "package": "host",
+          "name": "TestDecodeCandidateDeliveryStrict",
+          "status": "pass",
+          "elapsed": 0
+        },
+        {
+          "package": "host",
+          "name": "TestStrictCandidateDeliveryAcceptsProducerArtifact",
+          "status": "pass",
+          "elapsed": 0
+        }
+      ]
+    },
+    "draft-build": {
+      "source": "48450c6231d365dabdeddb01fa5472c0db79b301",
+      "dirty": " M tools/orchestrator/cmd/orchestrator/task_entry.go\n M tools/orchestrator/internal/gitopsworker/worker.go\n M tools/orchestrator/internal/gitopsworker/workspace.go\n M tools/orchestrator/internal/host/delivery.go\n M tools/orchestrator/internal/host/git_filter_lifecycle.go\n M tools/orchestrator/internal/host/host.go\n M tools/orchestrator/internal/store/admission.go\n M tools/orchestrator/internal/store/candidate_input.go\n?? tools/orchestrator/internal/adapter/filter_pipeline.go\n?? tools/orchestrator/internal/host/git_filter_candidate.go\n?? tools/orchestrator/internal/host/git_filter_invocation.go\n",
+      "exit": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "top_level": 0,
+      "named_counts": {},
+      "tests": []
+    },
+    "pipeline-race": {
+      "source": "6669c31c4432c5fddff095b73d06fcdf020e9b89",
+      "dirty": "",
+      "exit": 1,
+      "stdout_sha256": "2a2c0066ded5f0ccdd9ed2dc78f89b5c33409028d01c762c0c227654722f48db",
+      "stderr_bytes": 0,
+      "top_level": 12,
+      "named_counts": {
+        "pass": 28,
+        "fail": 7
+      },
+      "tests": [
+        {
+          "package": "adapter",
+          "name": "TestValidateGitFilterPipelinePayload/producer",
+          "status": "pass",
+          "elapsed": 0
+        },
+        {
+          "package": "adapter",
+          "name": "TestValidateGitFilterPipelinePayload/validator",
+          "status": "pass",
+          "elapsed": 0
+        },
+        {
+          "package": "adapter",
+          "name": "TestValidateGitFilterPipelinePayload/validator_target",
+          "status": "pass",
+          "elapsed": 0
+        },
+        {
+          "package": "adapter",
+          "name": "TestValidateGitFilterPipelinePayload/producer_rework",
+          "status": "pass",
+          "elapsed": 0
+        },
+        {
+          "package": "adapter",
+          "name": "TestValidateGitFilterPipelinePayload/producer_session",
+          "status": "pass",
+          "elapsed": 0
+        },
+        {
+          "package": "adapter",
+          "name": "TestValidateGitFilterPipelinePayload/noncanonical_directory",
+          "status": "pass",
+          "elapsed": 0
+        },
+        {
+          "package": "adapter",
+          "name": "TestValidateGitFilterPipelinePayload/auto_directory_disabled",
+          "status": "pass",
+          "elapsed": 0
+        },
+        {
+          "package": "adapter",
+          "name": "TestValidateGitFilterPipelinePayload/bad_provider_pin",
+          "status": "pass",
+          "elapsed": 0
+        },
+        {
+          "package": "adapter",
+          "name": "TestValidateGitFilterPipelinePayload/case_alias_path",
+          "status": "pass",
+          "elapsed": 0
+        },
+        {
+          "package": "adapter",
+          "name": "TestValidateGitFilterPipelinePayload",
+          "status": "pass",
+          "elapsed": 0
+        },
+        {
+          "package": "gitopsworker",
+          "name": "TestOpenFreshJournalRefusesAnyExistingLedger",
+          "status": "fail",
+          "elapsed": 0
+        },
+        {
+          "package": "gitopsworker",
+          "name": "TestJournalFilterAttachmentStrictness/legacy_nil_filter_records_load",
+          "status": "fail",
+          "elapsed": 0
+        },
+        {
+          "package": "gitopsworker",
+          "name": "TestJournalFilterAttachmentStrictness/duplicate_outer_filter_attachment_rejected",
+          "status": "fail",
+          "elapsed": 0
+        },
+        {
+          "package": "gitopsworker",
+          "name": "TestJournalFilterAttachmentStrictness",
+          "status": "fail",
+          "elapsed": 0
+        },
+        {
+          "package": "host",
+          "name": "TestFilterRuntimeFreezesAcceptedInputBytes",
+          "status": "fail",
+          "elapsed": 0.01
+        },
+        {
+          "package": "host",
+          "name": "TestFilterEntryRejectsBeforeInvocation/missing_grant",
+          "status": "pass",
+          "elapsed": 0
+        },
+        {
+          "package": "host",
+          "name": "TestFilterEntryRejectsBeforeInvocation/scope_drift",
+          "status": "pass",
+          "elapsed": 0
+        },
+        {
+          "package": "host",
+          "name": "TestFilterEntryRejectsBeforeInvocation/continuation",
+          "status": "pass",
+          "elapsed": 0.01
+        },
+        {
+          "package": "host",
+          "name": "TestFilterEntryRejectsBeforeInvocation/session",
+          "status": "pass",
+          "elapsed": 0.01
+        },
+        {
+          "package": "host",
+          "name": "TestFilterEntryRejectsBeforeInvocation",
+          "status": "pass",
+          "elapsed": 0.02
+        },
+        {
+          "package": "host",
+          "name": "TestFilterColdJournalCannotSettle",
+          "status": "fail",
+          "elapsed": 0.01
+        },
+        {
+          "package": "host",
+          "name": "TestFilterFinalizerCannotUseColdProcess",
+          "status": "pass",
+          "elapsed": 0
+        },
+        {
+          "package": "store",
+          "name": "TestGitFilterAdmissionRemainsClosed",
+          "status": "pass",
+          "elapsed": 7.64
+        },
+        {
+          "package": "host",
+          "name": "TestFilterPipelineNativeHostAcceptedValidator",
+          "status": "pass",
+          "elapsed": 194.05
+        },
+        {
+          "package": "host",
+          "name": "TestGitFilterHostRemainsClosedBeforeSideEffects/producer",
+          "status": "pass",
+          "elapsed": 0.02
+        },
+        {
+          "package": "host",
+          "name": "TestGitFilterHostRemainsClosedBeforeSideEffects/validator",
+          "status": "pass",
+          "elapsed": 0.01
+        },
+        {
+          "package": "host",
+          "name": "TestGitFilterHostRemainsClosedBeforeSideEffects",
+          "status": "pass",
+          "elapsed": 0.03
+        },
+        {
+          "package": "host",
+          "name": "TestFilterHostOriginalLifecycle/prepare_provider_freeze",
+          "status": "pass",
+          "elapsed": 1.23
+        },
+        {
+          "package": "host",
+          "name": "TestFilterHostOriginalLifecycle/failed_prepare_filter",
+          "status": "pass",
+          "elapsed": 0.76
+        },
+        {
+          "package": "host",
+          "name": "TestFilterHostOriginalLifecycle/never_started",
+          "status": "pass",
+          "elapsed": 0.19
+        },
+        {
+          "package": "host",
+          "name": "TestFilterHostOriginalLifecycle/cancel_after_filter",
+          "status": "pass",
+          "elapsed": 0.86
+        },
+        {
+          "package": "host",
+          "name": "TestFilterHostOriginalLifecycle/unproved_provider_start",
+          "status": "pass",
+          "elapsed": 0.67
+        },
+        {
+          "package": "host",
+          "name": "TestFilterHostOriginalLifecycle/journal_unknown",
+          "status": "pass",
+          "elapsed": 0.93
+        },
+        {
+          "package": "host",
+          "name": "TestFilterHostOriginalLifecycle",
+          "status": "pass",
+          "elapsed": 5.47
+        },
+        {
+          "package": "host",
+          "name": "TestValidationRetryActualHostGitQueueAndNextAttempt",
+          "status": "fail",
+          "elapsed": 9.04
+        }
+      ]
+    },
+    "mac-build": {
+      "source": "6669c31c4432c5fddff095b73d06fcdf020e9b89",
+      "dirty": "",
+      "exit": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "top_level": 0,
+      "named_counts": {},
+      "tests": []
+    },
+    "linux-build": {
+      "source": "6669c31c4432c5fddff095b73d06fcdf020e9b89",
+      "dirty": "",
+      "exit": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "top_level": 0,
+      "named_counts": {},
+      "tests": []
+    },
+    "pipeline-vet": {
+      "source": "6669c31c4432c5fddff095b73d06fcdf020e9b89",
+      "dirty": "",
+      "exit": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "top_level": 0,
+      "named_counts": {},
+      "tests": []
+    },
+    "affected-race": {
+      "source": "233959746c141b2f8fe8c51c56729796489beaea",
+      "dirty": "",
+      "exit": 1,
+      "stdout_sha256": "7538d471af6e312ebb2f2915d24dc57d86fe81b756ac02899c8389e3407f09b6",
+      "stderr_bytes": 0,
+      "top_level": 7,
+      "named_counts": {
+        "pass": 6,
+        "fail": 2
+      },
+      "tests": [
+        {
+          "package": "gitopsworker",
+          "name": "TestOpenFreshJournalRefusesAnyExistingLedger",
+          "status": "pass",
+          "elapsed": 0.02
+        },
+        {
+          "package": "gitopsworker",
+          "name": "TestJournalFilterAttachmentStrictness",
+          "status": "pass",
+          "elapsed": 0
+        },
+        {
+          "package": "host",
+          "name": "TestFilterRuntimeFreezesAcceptedInputBytes",
+          "status": "pass",
+          "elapsed": 0.01
+        },
+        {
+          "package": "host",
+          "name": "TestFilterColdJournalCannotSettle",
+          "status": "pass",
+          "elapsed": 0.09
+        },
+        {
+          "package": "gitops",
+          "name": "TestFilterFreezeNativeFixture/freeze_canonical_candidate_and_reconstruct_rendered_view",
+          "status": "fail",
+          "elapsed": 0
+        },
+        {
+          "package": "gitops",
+          "name": "TestFilterFreezeNativeFixture",
+          "status": "fail",
+          "elapsed": 0
+        },
+        {
+          "package": "host",
+          "name": "TestFilterPipelineNativeHostAcceptedValidator",
+          "status": "pass",
+          "elapsed": 199.89
+        },
+        {
+          "package": "host",
+          "name": "TestValidationRetryActualHostGitQueueAndNextAttempt",
+          "status": "pass",
+          "elapsed": 12.12
+        }
+      ]
+    },
+    "journal-affected-race": {
+      "source": "233959746c141b2f8fe8c51c56729796489beaea",
+      "dirty": "",
+      "exit": 0,
+      "stdout_sha256": "0a21f514cdcdafa665a05531bac4906c09dc4e2a1972b8b5b3bdb557205365f1",
+      "stderr_bytes": 0,
+      "top_level": 2,
+      "named_counts": {
+        "pass": 7
+      },
+      "tests": [
+        {
+          "package": "gitopsworker",
+          "name": "TestOpenFreshJournalRefusesAnyExistingLedger/empty",
+          "status": "pass",
+          "elapsed": 0
+        },
+        {
+          "package": "gitopsworker",
+          "name": "TestOpenFreshJournalRefusesAnyExistingLedger/partial",
+          "status": "pass",
+          "elapsed": 0
+        },
+        {
+          "package": "gitopsworker",
+          "name": "TestOpenFreshJournalRefusesAnyExistingLedger/filter_materialized_only",
+          "status": "pass",
+          "elapsed": 0
+        },
+        {
+          "package": "gitopsworker",
+          "name": "TestOpenFreshJournalRefusesAnyExistingLedger",
+          "status": "pass",
+          "elapsed": 0.01
+        },
+        {
+          "package": "gitopsworker",
+          "name": "TestJournalFilterAttachmentStrictness/legacy_nil_filter_records_load",
+          "status": "pass",
+          "elapsed": 0.02
+        },
+        {
+          "package": "gitopsworker",
+          "name": "TestJournalFilterAttachmentStrictness/duplicate_outer_filter_attachment_rejected",
+          "status": "pass",
+          "elapsed": 0
+        },
+        {
+          "package": "gitopsworker",
+          "name": "TestJournalFilterAttachmentStrictness",
+          "status": "pass",
+          "elapsed": 0.02
+        }
+      ]
+    },
+    "source-ref-race": {
+      "source": "233959746c141b2f8fe8c51c56729796489beaea",
+      "dirty": "",
+      "exit": 0,
+      "stdout_sha256": "b85584a900e644299111e71d16fc5d608f7088b29cef76db112cecb179f27af8",
+      "stderr_bytes": 0,
+      "top_level": 1,
+      "named_counts": {
+        "pass": 2
+      },
+      "tests": [
+        {
+          "package": "gitops",
+          "name": "TestFilterFreezeNativeFixture/freeze_canonical_candidate_and_reconstruct_rendered_view",
+          "status": "pass",
+          "elapsed": 172.24
+        },
+        {
+          "package": "gitops",
+          "name": "TestFilterFreezeNativeFixture",
+          "status": "pass",
+          "elapsed": 172.24
+        }
+      ]
+    },
+    "final-mac-build": {
+      "source": "233959746c141b2f8fe8c51c56729796489beaea",
+      "dirty": "",
+      "exit": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "top_level": 0,
+      "named_counts": {},
+      "tests": []
+    },
+    "final-linux-build": {
+      "source": "233959746c141b2f8fe8c51c56729796489beaea",
+      "dirty": "",
+      "exit": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "top_level": 0,
+      "named_counts": {},
+      "tests": []
+    },
+    "final-vet": {
+      "source": "233959746c141b2f8fe8c51c56729796489beaea",
+      "dirty": "",
+      "exit": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "top_level": 0,
+      "named_counts": {},
+      "tests": []
+    }
+  },
+  "observed_absent_roots": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-pipeline/tasks/filter-host-native/tmp/native-962202904",
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-pipeline/tasks/filter-host-lifecycle/tmp/native-886711673",
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-pipeline/tasks/filter-host-native/tmp/native-2168273152",
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-pipeline/tasks/filter-raw-fixture/tmp/raw-3971796807",
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-pipeline/tasks/filter-raw-fixture/tmp/raw-3314810522"
+  ],
+  "retained_roots": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-native/tasks/filter-host-native/tmp/native-4147453358",
+    "/private/tmp/agent-bird-validation-retry-native-3019148354"
+  ],
+  "reuse": {
+    "6669c31": "adapter narrow shapes; Store unsupported admission; Host entry rejection, cold Handle rejection, unsupported shape gate, original lifecycle. Excludes old native pass, every failed test and test not run.",
+    "48450c6": "strict codec 2 top/6 named; actual legacy Host consumer is separately covered at2339597."
+  },
+  "qualification": {
+    "affected_race": "Whole command remains exit1 due missing ignored primitive fixture parent. Only Host package 4 top/4 named PASS is qualified here. Its worker parent-only runs selected no subtests, and are replaced by journal-affected-race.",
+    "journal_affected_race": "2 top/5 sub/7 named PASS",
+    "source_ref_race": "1 top/1 sub/2 named PASS after creating absent task-owned parent; no source edit or prior primitive execution occurred in failed setup.",
+    "independent_review": "PASS production029494c / combined002e8ac; final2339597 only extends test outer deadline4m\u21926m for additional ref delete/restore cycle."
+  }
+}

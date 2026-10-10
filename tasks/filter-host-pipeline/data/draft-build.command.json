@@ -1,0 +1,23 @@
+{
+  "source": "48450c6231d365dabdeddb01fa5472c0db79b301",
+  "dirty": " M tools/orchestrator/cmd/orchestrator/task_entry.go\n M tools/orchestrator/internal/gitopsworker/worker.go\n M tools/orchestrator/internal/gitopsworker/workspace.go\n M tools/orchestrator/internal/host/delivery.go\n M tools/orchestrator/internal/host/git_filter_lifecycle.go\n M tools/orchestrator/internal/host/host.go\n M tools/orchestrator/internal/store/admission.go\n M tools/orchestrator/internal/store/candidate_input.go\n?? tools/orchestrator/internal/adapter/filter_pipeline.go\n?? tools/orchestrator/internal/host/git_filter_candidate.go\n?? tools/orchestrator/internal/host/git_filter_invocation.go\n",
+  "argv": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+    "build",
+    "./..."
+  ],
+  "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-pipeline/tools/orchestrator",
+  "environment": {
+    "TMPDIR": "/private/tmp",
+    "GOTOOLCHAIN": "local",
+    "GOENV": "off",
+    "GOWORK": "off",
+    "GOFLAGS": "",
+    "GOPROXY": "off",
+    "GOSUMDB": "off",
+    "GOOS": "darwin",
+    "GOARCH": "arm64",
+    "GOARM64": "v8.0",
+    "CGO_ENABLED": "1"
+  }
+}
