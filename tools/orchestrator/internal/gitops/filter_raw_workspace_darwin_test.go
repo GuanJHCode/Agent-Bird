@@ -41,6 +41,15 @@ func (j *rawFixtureJournal) RecordGitProcess(_ context.Context, r GitProcessReco
 	return nil
 }
 
+// This double injects only the observed binding; stream operations still belong
+// to the same real Broker. It tests rejection before any operation is reached.
+type rawBindingObservation struct {
+	FilterStreams
+	value gitfilter.StreamBinding
+}
+
+func (s rawBindingObservation) Binding() gitfilter.StreamBinding { return s.value }
+
 type rawFixture struct {
 	t        *testing.T
 	root     string
@@ -333,13 +342,28 @@ func TestFilterRawMaterializationNativeFixture(t *testing.T) {
 			}
 			broker, filterScope := rawBroker(t, f, ctx, m)
 			if tc.clean == "xor" {
-				wrong := filepath.Join(f.root, "wrong-scope")
-				_, wrongErr := MaterializeFiltered(ctx, source, broker, MaterializeRequest{RepoRoot: repo, Worktree: wrong, AttemptID: "a", BaseOID: head, CandidateOID: head, OrderedInputOIDs: []string{head}, PlanRevision: 1, FilterScopeSHA256: strings.Repeat("0", 64), FilterReservationID: "filter"}, j)
-				if wrongErr == nil {
-					t.Fatal("wrong scope accepted")
-				}
-				if _, x := os.Lstat(wrong); !os.IsNotExist(x) {
-					t.Fatalf("wrong scope target: %v", x)
+				for _, kind := range []string{"scope", "reservation", "injected-manifest-observation"} {
+					wrong := filepath.Join(f.root, "wrong-"+kind)
+					request := MaterializeRequest{RepoRoot: repo, Worktree: wrong, AttemptID: "a", BaseOID: head, CandidateOID: head, OrderedInputOIDs: []string{head}, PlanRevision: 1, FilterScopeSHA256: filterScope, FilterReservationID: "filter"}
+					var streams FilterStreams = broker
+					switch kind {
+					case "scope":
+						request.FilterScopeSHA256 = strings.Repeat("0", 64)
+					case "reservation":
+						request.FilterReservationID = "other-reservation"
+					default:
+						value := broker.Binding()
+						value.ManifestSHA256 = strings.Repeat("0", 64)
+						streams = rawBindingObservation{FilterStreams: broker, value: value}
+					}
+					records, receipts := len(j.records), len(j.materialized)
+					_, wrongErr := MaterializeFiltered(ctx, source, streams, request, j)
+					if wrongErr == nil || broker.State().EverStarted || len(j.records) != records || len(j.materialized) != receipts {
+						t.Fatalf("wrong %s reached materialization err=%v", kind, wrongErr)
+					}
+					if _, x := os.Lstat(wrong); !os.IsNotExist(x) {
+						t.Fatalf("wrong %s target=%v", kind, x)
+					}
 				}
 			}
 			got, e := MaterializeFiltered(ctx, source, broker, MaterializeRequest{RepoRoot: repo, Worktree: target, AttemptID: "a", BaseOID: head, CandidateOID: head, OrderedInputOIDs: []string{head}, PlanRevision: 1, FilterScopeSHA256: filterScope, FilterReservationID: "filter"}, j)
@@ -361,7 +385,7 @@ func TestFilterRawMaterializationNativeFixture(t *testing.T) {
 			}
 			if tc.journalDrift {
 				if !IsCode(e, CodeIdentityChanged) || got != nil {
-					t.Fatalf("journal drift got=%v err=%v", got, e)
+					t.Fatalf("journal drift returned_live=%t err=%v", got != nil, e)
 				}
 				if _, x := os.Lstat(target); x != nil {
 					t.Fatalf("journal drift target: %v", x)
@@ -413,6 +437,9 @@ func TestFilterRawMaterializationNativeFixture(t *testing.T) {
 			}
 			if e := got.Close(); e != nil {
 				t.Fatal(e)
+			}
+			if e := got.Verify(ctx); e == nil {
+				t.Fatal("closed materialization verified")
 			}
 			if e := source.Verify(ctx); e != nil {
 				t.Fatal(e)

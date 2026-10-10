@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"reflect"
 	"time"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
@@ -32,11 +33,12 @@ type FilterMaterializeJournal interface {
 }
 
 type FilterMaterialization struct {
-	source    *FilterGitContext
-	streams   FilterStreams
-	binding   *FilterWorktreeBinding
-	receipt   MaterializeReceipt
-	workspace *filterRawWorkspace
+	source        *FilterGitContext
+	streams       FilterStreams
+	binding       *FilterWorktreeBinding
+	receipt       MaterializeReceipt
+	workspace     *filterRawWorkspace
+	streamBinding gitfilter.StreamBinding
 }
 
 func MaterializeFiltered(ctx context.Context, source *FilterGitContext, streams FilterStreams, req MaterializeRequest, journal Journal) (*FilterMaterialization, error) {
@@ -188,23 +190,7 @@ func MaterializeFiltered(ctx context.Context, source *FilterGitContext, streams 
 	if _, err = run(childCtx, req.Worktree, "read-tree", req.CandidateOID); err != nil {
 		return nil, err
 	}
-	for _, check := range []struct {
-		args []string
-		want string
-	}{
-		{[]string{"rev-parse", "--verify", "HEAD"}, req.CandidateOID},
-		{[]string{"rev-parse", "--verify", "HEAD^{tree}"}, tree},
-		{[]string{"write-tree"}, tree},
-	} {
-		result, e := run(childCtx, req.Worktree, check.args...)
-		if e != nil {
-			return nil, e
-		}
-		if result.Stdout != check.want {
-			return nil, fail(CodeIdentityChanged, "filter materialized tree", nil)
-		}
-	}
-	files, err := workspace.inventory(ctx)
+	files, err := filterMaterializedInventory(childCtx, binding, workspace, req.CandidateOID, tree)
 	if err != nil {
 		return nil, err
 	}
@@ -213,22 +199,62 @@ func MaterializeFiltered(ctx context.Context, source *FilterGitContext, streams 
 	if err != nil {
 		return nil, err
 	}
-	if len(raw) > 1<<20 {
+	if len(raw) > (1<<20)-1024 {
 		return nil, fail(CodeInvalidInput, "filter receipt size", nil)
 	}
 	if err = binding.Verify(ctx); err != nil {
 		return nil, err
 	}
-	m := &FilterMaterialization{source: source, streams: streams, binding: binding, receipt: receipt, workspace: workspace}
+	m := &FilterMaterialization{source: source, streams: streams, binding: binding, receipt: receipt, workspace: workspace, streamBinding: expected}
 	if err = durable.RecordFilterMaterialized(ctx, m.Receipt()); err != nil {
 		return nil, err
 	}
 	// The journal callback is not allowed to replace the tree it records.
-	if err = workspace.verify(); err != nil {
+	if err = m.Verify(ctx); err != nil {
 		return nil, err
 	}
 	keep = true
 	return m, nil
+}
+
+func filterMaterializedInventory(ctx context.Context, binding *FilterWorktreeBinding, workspace *filterRawWorkspace, commit, tree string) (map[string]FileIdentity, error) {
+	if err := binding.Verify(ctx); err != nil {
+		return nil, err
+	}
+	childCtx := binding.Context(ctx)
+	for _, check := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"rev-parse", "--verify", "HEAD"}, commit},
+		{[]string{"rev-parse", "--verify", "HEAD^{tree}"}, tree},
+		{[]string{"write-tree"}, tree},
+	} {
+		result, e := run(childCtx, workspace.path, check.args...)
+		if e != nil {
+			return nil, e
+		}
+		if result.Stdout != check.want {
+			return nil, fail(CodeIdentityChanged, "filter materialized tree", nil)
+		}
+	}
+	return workspace.inventory(ctx)
+}
+
+// Verify checks this original live materialization; neither a receipt nor a
+// reopened pathname can reconstruct its stream owner or workspace handles.
+func (m *FilterMaterialization) Verify(ctx context.Context) error {
+	if m == nil || m.workspace == nil || m.binding == nil || m.streams == nil || m.streams.Binding() != m.streamBinding {
+		return fail(CodeIdentityChanged, "filter live owner", nil)
+	}
+	files, err := filterMaterializedInventory(ctx, m.binding, m.workspace, m.receipt.CommitOID, m.receipt.TreeOID)
+	if err != nil {
+		return err
+	}
+	if !reflect.DeepEqual(files, m.receipt.Files) || m.streams.Binding() != m.streamBinding {
+		return fail(CodeIdentityChanged, "filter published materialization", nil)
+	}
+	return nil
 }
 
 func filterTransform(ctx context.Context, source *FilterGitContext, streams FilterStreams, op string, input, output int) (gitfilter.Result, error) {
