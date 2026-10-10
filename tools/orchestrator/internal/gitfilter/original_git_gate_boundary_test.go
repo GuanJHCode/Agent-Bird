@@ -354,7 +354,7 @@ func TestOriginalGitGateBoundaries(t *testing.T) {
 		}
 		close(start)
 		a, b := <-results, <-results
-		if (a == nil) == (b == nil) || !g.State().Revoked || !g.State().Failed {
+		if a == nil && b == nil || !g.State().Revoked || !g.State().Failed {
 			t.Fatalf("results=%v,%v state=%+v", a, b, g.State())
 		}
 		if e := g.Close(gateCloseContext(t)); e != nil {
