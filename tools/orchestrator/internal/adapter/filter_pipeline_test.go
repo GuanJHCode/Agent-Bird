@@ -20,9 +20,10 @@ func TestValidateGitFilterPipelinePayload(t *testing.T) {
 		}},
 		{"producer_rework", func(p *InvocationPayload) { p.CandidateWorkspace.Rework = &ReworkContext{Version: 1} }},
 		{"producer_session", func(p *InvocationPayload) { p.SessionID = "prior-session" }},
-		{"nonfresh_directory", func(p *InvocationPayload) { p.Directory = "/private/tmp/../tmp/filter-work" }},
+		{"noncanonical_directory", func(p *InvocationPayload) { p.Directory = "/private/tmp/../tmp/filter-work" }},
+		{"auto_directory_disabled", func(p *InvocationPayload) { p.CandidateWorkspace.AutoDirectory = false }},
 		{"bad_provider_pin", func(p *InvocationPayload) { p.ProviderLock.Binary.SHA256 = "bad" }},
-		{"case_alias_path", func(p *InvocationPayload) { p.CandidateWorkspace.Paths = []string{"file", "FILE"} }},
+		{"case_alias_path", func(p *InvocationPayload) { p.CandidateWorkspace.Paths = []string{"FILE", "file"} }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			payload := filterPipelineProducerFixture()

@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops"
@@ -73,12 +74,12 @@ func TestJournalFilterAttachmentStrictness(t *testing.T) {
 		}
 		defer journal.Close()
 		gotPrepared, err := journal.LoadWorkspacePrepared(context.Background())
-		if err != nil || gotPrepared.Receipt.Filter != nil {
-			t.Fatalf("prepared=%#v err=%v", gotPrepared, err)
+		if err != nil || !reflect.DeepEqual(gotPrepared, prepared) {
+			t.Fatalf("prepared=%#v want=%#v err=%v", gotPrepared, prepared, err)
 		}
 		gotReceipt, found, err := journal.LoadCandidateFreeze(context.Background())
-		if err != nil || !found || gotReceipt.Filter != nil {
-			t.Fatalf("receipt=%#v found=%t err=%v", gotReceipt, found, err)
+		if err != nil || !found || !reflect.DeepEqual(gotReceipt, receipt) {
+			t.Fatalf("receipt=%#v want=%#v found=%t err=%v", gotReceipt, receipt, found, err)
 		}
 	})
 
