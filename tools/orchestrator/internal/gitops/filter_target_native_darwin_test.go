@@ -156,7 +156,6 @@ func TestInspectFilteredTargetNativeFixture(t *testing.T) {
 		producerFixture, repo, source, producer, base, _, accepted, canonicalBase, prepared := filterTargetNativeAccepted(t, ctx)
 		defer source.Close()
 		defer prepared.Close()
-		before := filterTargetNativeCapture(t, repo)
 
 		func() {
 			sidecar := filepath.Join(repo, ".git", "sharedindex.fixture")
@@ -199,6 +198,7 @@ func TestInspectFilteredTargetNativeFixture(t *testing.T) {
 			filterTargetNativeRejectBeforeGit(t, ctx, source, repo, base, "inspect-symref", "inspect-symref-command", "inspect-symref-filter", accepted)
 		}()
 
+		before := filterTargetNativeCapture(t, repo)
 		observerFixture := newRawFixture(t)
 		journal := &filterTargetNativeJournal{rawFixtureJournal: &rawFixtureJournal{}}
 		observerFixture.journal = journal.rawFixtureJournal
@@ -208,6 +208,7 @@ func TestInspectFilteredTargetNativeFixture(t *testing.T) {
 		if err != nil || live == nil {
 			t.Fatalf("inspect accepted rendered target: live=%v err=%v", live, err)
 		}
+		defer live.Close()
 		receipt := live.Receipt()
 		if receipt.Version != 1 || receipt.AttemptID != request.AttemptID || receipt.TargetWorktree != repo || receipt.TargetRef != request.Ref || receipt.BaseOID != base || receipt.CandidateOID != accepted.CandidateOID || receipt.CandidateTreeOID != accepted.TreeOID || receipt.FilterScopeSHA256 != scope || receipt.FilterReservationID != request.FilterReservationID || len(receipt.BaseFilter.Views) != 1 {
 			t.Fatalf("incomplete target observation receipt: %#v", receipt)
