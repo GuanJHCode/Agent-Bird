@@ -65,6 +65,7 @@ type Broker struct {
 	journalBytes                   []byte
 	state                          BrokerState
 	ready, failed, removed, closed bool
+	streamWriteAt                  func(*os.File, []byte, int64) (int, error) // test seam; nil uses File.WriteAt
 }
 
 var errStreamWriterRevoked = errors.New("filter_stream_writer_revoked")
@@ -75,6 +76,7 @@ type streamSlotWriter struct {
 	mu      sync.Mutex
 	ctx     context.Context
 	file    *os.File
+	writeAt func(*os.File, []byte, int64) (int, error)
 	offset  int64
 	err     error
 	revoked bool
@@ -97,7 +99,11 @@ func (w *streamSlotWriter) Write(p []byte) (int, error) {
 		w.err = errors.New("filter_stream_input_limit")
 		return 0, w.err
 	}
-	n, err := w.file.WriteAt(p, w.offset)
+	writeAt := w.file.WriteAt
+	if w.writeAt != nil {
+		writeAt = w.writeAt
+	}
+	n, err := writeAt(p, w.offset)
 	if err != nil {
 		w.err = err
 		return n, err
@@ -555,62 +561,7 @@ func (b *Broker) Load(ctx context.Context, i int, src *os.File) error {
 }
 
 func (b *Broker) LoadStream(ctx context.Context, i int, producer func(io.Writer) error) (result StreamLoadResult, retErr error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	if !b.usable() || i < 0 || i >= len(b.slots) || producer == nil {
-		return result, errBroker
-	}
-	if _, ok := ctx.Deadline(); !ok {
-		return result, errBroker
-	}
-	if err := b.checkAll(ctx); err != nil {
-		return result, b.uncertain(err)
-	}
-	if err := b.writeJournal("loading"); err != nil {
-		return result, b.uncertain(err)
-	}
-	b.initialized[i] = false
-	if err := b.slots[i].Truncate(0); err != nil {
-		return result, b.uncertain(err)
-	}
-	if err := b.slots[i].Sync(); err != nil {
-		return result, b.uncertain(err)
-	}
-	if err := b.refreshSlot(ctx, i); err != nil {
-		return result, b.uncertain(err)
-	}
-	w := &streamSlotWriter{ctx: ctx, file: b.slots[i]}
-	defer func() {
-		if recovered := recover(); recovered != nil {
-			_ = w.revoke()
-			b.state.Unknown = true
-			panic(recovered)
-		}
-	}()
-	producerErr := producer(w)
-	writerErr := w.revoke()
-	if producerErr != nil || writerErr != nil {
-		retErr = errors.Join(producerErr, writerErr)
-		if errors.Is(retErr, process.ErrProcessTreeUnknown) {
-			return result, b.uncertain(retErr)
-		}
-		return result, b.finishStreamFailure(retErr, i)
-	}
-	if err := b.slots[i].Sync(); err != nil {
-		return result, b.uncertain(err)
-	}
-	if err := b.refreshSlot(ctx, i); err != nil {
-		return result, b.uncertain(err)
-	}
-	if err := b.checkAll(ctx); err != nil {
-		return result, b.uncertain(err)
-	}
-	if err := b.writeJournal("ready"); err != nil {
-		return result, b.uncertain(err)
-	}
-	b.initialized[i] = true
-	n := b.nodes[brokerSlot(i)]
-	return StreamLoadResult{SHA256: n.SHA256, Bytes: n.Identity.Size}, nil
+	return result, errBroker
 }
 
 func (b *Broker) finishStreamFailure(original error, i int) error {

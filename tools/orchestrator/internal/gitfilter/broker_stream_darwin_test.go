@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"os"
 	"testing"
 	"time"
 
@@ -96,6 +97,30 @@ func TestBrokerStreamLoadBoundaries(t *testing.T) {
 		}
 		if r, e := b.Cleanup(ctx); e == nil || r != nil {
 			t.Fatal("panic load cleaned")
+		}
+		f.retain = true
+	})
+	t.Run("cancel_and_actual_slot_io_have_distinct_conservative_outcomes", func(t *testing.T) {
+		b := liveBroker(t, ctx, f, brokerRequest(t, f, "copy"))
+		cancelCtx, stop := context.WithCancel(ctx)
+		stop()
+		_, err := b.LoadStream(cancelCtx, 0, func(io.Writer) error { return nil })
+		if !errors.Is(err, context.Canceled) || b.State().Unknown {
+			t.Fatalf("cancel err=%v state=%+v", err, b.State())
+		}
+		if _, err := b.Cleanup(ctx); err != nil {
+			t.Fatalf("cancel cleanup: %v", err)
+		}
+
+		b = liveBroker(t, ctx, f, brokerRequest(t, f, "copy"))
+		ioFailure := errors.New("slot write failed")
+		b.streamWriteAt = func(*os.File, []byte, int64) (int, error) { return 0, ioFailure }
+		_, err = b.LoadStream(ctx, 0, func(w io.Writer) error { _, _ = w.Write([]byte("B")); return nil })
+		if !errors.Is(err, ioFailure) || !b.State().Unknown {
+			t.Fatalf("io err=%v state=%+v", err, b.State())
+		}
+		if r, e := b.Cleanup(ctx); e == nil || r != nil {
+			t.Fatal("slot I/O cleaned")
 		}
 		f.retain = true
 	})
