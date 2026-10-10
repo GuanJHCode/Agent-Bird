@@ -18,23 +18,15 @@ import (
 	"time"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
-	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/events"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 )
 
-// BrokerRequest is Go-only. The original Host authenticates Launch and the
-// independent Grant before construction; this API does not grant authority.
-type BrokerRequest struct {
-	Launch           contract.LaunchCommand
-	Grant            contract.GitFilterResourceGrant
-	Manifest         contract.GitFilterManifestV1
-	SegmentDirectory string
-	Spool            *events.Spool
-}
-
-type BrokerState struct {
-	StartedAt, TerminalAt time.Time `json:"-"`
-	EverStarted, Unknown  bool      `json:"-"`
+func OpenBroker(ctx context.Context, req BrokerRequest) (ResourceBroker, error) {
+	b, err := NewBroker(ctx, req)
+	if b == nil {
+		return nil, err
+	}
+	return b, err // Preserve a partially initialized live owner on failure.
 }
 
 type brokerFile struct {

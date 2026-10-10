@@ -323,6 +323,8 @@ func (h *Host) Execute(ctx context.Context, a store.Attempt, runID, taskID strin
 }
 
 type launchMetadata struct {
+	filter            *filterRuntime
+	hasGitFilter      bool
 	validationGrant   *contract.LaunchCommand
 	artifactGrant     *contract.LaunchCommand
 	diagnosticsGrant  *contract.LaunchCommand
@@ -396,6 +398,17 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		eventErr := func() error {
 			fields := structuredEventFields{}
 			if kind == contract.EventExited {
+				if meta.filter != nil {
+					var cleanupErr error
+					activeMS, fields.GitFilterCleanup, cleanupErr = meta.filter.settle()
+					if cleanupErr != nil {
+						unknown, appendErr := h.appendStructuredEvent(spool, runID, taskID, a, meta, contract.EventUnknown, hashText("unknown:"+a.SegmentID), identity, nil, nil, structuredEventFields{})
+						if appendErr == nil && unknown.Sequence > 0 {
+							eventCount++
+						}
+						return errors.Join(cleanupErr, appendErr)
+					}
+				}
 				fields.ActiveMS = activeMS
 				fields.DiagnosticsFailure = diagnosticState.failure()
 				if meta.artifactGrant != nil && meta.artifactGrant.ValidationTool != nil {
@@ -430,6 +443,59 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount, ArtifactPath: path, OutputHash: hashBytes(body)}, errors.Join(cause, artifactErr, eventErr, phaseErr)
 	}
 	finalizePrelaunchRejected := func(cause error) (contract.Result, error) {
+		if meta.filter != nil {
+			span, cleanup, cleanupErr := meta.filter.settle()
+			if cleanupErr != nil {
+				return finalizeCandidateUnknown(errors.Join(cause, cleanupErr), nil, -1)
+			}
+			// Any known filter Start makes this an executed segment, even when
+			// preparation prevented a Provider Start. Never invent a Provider PID
+			// or exit code for the filter-only terminal outcome.
+			if span > 0 {
+				validationToolTreeConfirmed = true // Provider Start was never attempted.
+				body := candidateFailure(cause)
+				artifact, artifactErr := h.writeHostArtifact(meta, "terminal", 0, "terminal", "result-output.bin", body)
+				if artifactErr != nil {
+					return finalizeCandidateUnknown(errors.Join(cause, artifactErr), nil, -1)
+				}
+				if phaseErr := appendPhase(contract.EventFailed, artifact.SHA256, nil, nil, artifact); phaseErr != nil {
+					return contract.Result{Status: "unknown", ExitCode: -1, EventCount: eventCount}, errors.Join(cause, phaseErr)
+				}
+				if phaseErr := publishLaunchPhase(spool, "exited", a, runID, taskID, cmd, nil, cause); phaseErr != nil {
+					return contract.Result{Status: "unknown", ExitCode: -1, EventCount: eventCount}, errors.Join(cause, phaseErr)
+				}
+				if phaseErr := appendPhase(contract.EventExited, hashText("exited:"+a.SegmentID), nil, nil, artifact); phaseErr != nil {
+					return contract.Result{Status: "unknown", ExitCode: -1, EventCount: eventCount}, errors.Join(cause, phaseErr)
+				}
+				h.finishAttempt(a.ID, "failed", persistDB)
+				return contract.Result{Status: "failed", ExitCode: -1, EventCount: eventCount, ArtifactPath: artifact.Path, OutputHash: artifact.SHA256}, cause
+			}
+			var toolCleanup *contract.ValidationToolCleanup
+			if meta.artifactGrant != nil && meta.artifactGrant.ValidationTool != nil {
+				toolCleanup, cleanupErr = h.removeValidationTool(*meta.artifactGrant)
+				if cleanupErr != nil {
+					return finalizeCandidateUnknown(errors.Join(cause, cleanupErr), nil, -1)
+				}
+			}
+			safeCause := safeLaunchFailureCause(cause)
+			body, marshalErr := json.Marshal(launchFailureDiagnostic{1, "launch_failure", "prelaunch", string(safeCause)})
+			if marshalErr != nil {
+				return finalizeCandidateUnknown(errors.Join(cause, marshalErr), nil, -1)
+			}
+			artifact, artifactErr := h.writeHostArtifact(meta, "terminal", 0, "prelaunch", "launch-failure", body)
+			if artifactErr != nil {
+				return finalizeCandidateUnknown(errors.Join(cause, artifactErr), nil, -1)
+			}
+			if phaseErr := publishLaunchPhase(spool, "not_started", a, runID, taskID, process.Command{}, nil, safeCause); phaseErr != nil {
+				return contract.Result{Status: "unknown", ExitCode: -1, EventCount: eventCount}, errors.Join(cause, phaseErr)
+			}
+			if _, appendErr := h.appendStructuredEvent(spool, runID, taskID, a, meta, contract.EventLaunchRejected, artifact.SHA256, nil, nil, artifact, structuredEventFields{GitFilterCleanup: cleanup, ValidationToolCleanup: toolCleanup}); appendErr != nil {
+				return contract.Result{Status: "unknown", ExitCode: -1, EventCount: eventCount}, errors.Join(cause, appendErr)
+			}
+			eventCount++
+			h.finishAttempt(a.ID, "failed", persistDB)
+			return contract.Result{Status: "failed", ExitCode: -1, EventCount: eventCount, ArtifactPath: artifact.Path, OutputHash: artifact.SHA256}, cause
+		}
 		// Only these preparation branches positively know Start was never
 		// entered. Preparation uncertainty and every starting/spawned path
 		// retain their existing conservative evidence.
@@ -487,6 +553,15 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		h.finishAttempt(a.ID, "unknown", persistDB)
 		return contract.Result{Status: "unknown", ExitCode: -1, EventCount: eventCount}, err
 	}
+	if meta.filter != nil {
+		defer func() { returnedErr = errors.Join(returnedErr, meta.filter.close()) }()
+		if !meta.filter.matches(meta, h.producerID, runID, taskID, a.ID, a.SegmentID) {
+			return finalizeCandidateUnknown(contract.ErrGitFilterContract, nil, -1)
+		}
+		if err = meta.filter.open(ctx, spool); err != nil {
+			return finalizeCandidateUnknown(err, nil, -1)
+		}
+	}
 	if h.stopWasRequested(a.SegmentID) {
 		return finalizePrelaunchRejected(context.Canceled)
 	}
@@ -503,6 +578,9 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		if prepareErr != nil {
 			if errors.Is(prepareErr, process.ErrProcessTreeUnknown) || errors.Is(prepareErr, gitops.ErrIntegrationUncertain) {
 				return finalizeCandidateUnknown(prepareErr, nil, -1)
+			}
+			if meta.filter != nil {
+				return finalizePrelaunchRejected(prepareErr)
 			}
 			if ctx.Err() != nil || h.stopWasRequested(a.SegmentID) {
 				return finalizePrelaunchRejected(context.Canceled)
@@ -527,6 +605,9 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		if prepareErr != nil {
 			if errors.Is(prepareErr, process.ErrProcessTreeUnknown) {
 				return finalizeCandidateUnknown(prepareErr, nil, -1)
+			}
+			if meta.filter != nil {
+				return finalizePrelaunchRejected(prepareErr)
 			}
 			if ctx.Err() != nil || h.stopWasRequested(a.SegmentID) {
 				return finalizePrelaunchRejected(context.Canceled)
@@ -565,9 +646,12 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 	if start == nil {
 		start = process.Start
 	}
+	if meta.filter != nil {
+		meta.filter.providerStarting()
+	}
 	p, err := start(ctx, cmd)
 	if err != nil {
-		if p == nil && meta.validationGrant != nil && process.NeverStartedCode(ctx, err, cmd) != "" {
+		if meta.filter == nil && p == nil && meta.validationGrant != nil && process.NeverStartedCode(ctx, err, cmd) != "" {
 			if rejected := h.recordValidationStartRejected(ctx, *meta.validationGrant, cmd, err); rejected == nil {
 				eventCount++
 				h.finishAttempt(a.ID, "failed", persistDB)
@@ -593,6 +677,11 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		return contract.Result{Status: "unknown", ExitCode: exit, EventCount: eventCount}, err
 	}
 	identity := p.Identity()
+	if meta.filter != nil {
+		if startErr := meta.filter.providerStarted(p); startErr != nil {
+			return finalizeCandidateUnknown(errors.Join(startErr, h.stopFailedStart(a.SegmentID, p, meta.beforeStopJoin)), &identity, p.ExitCode())
+		}
+	}
 	spawnedAt = time.Now()
 	if err = h.registerOwnedHandle(a.ID, a.SegmentID, p); err != nil {
 		err = errors.Join(err, h.stopFailedStart(a.SegmentID, p, meta.beforeStopJoin))
@@ -687,6 +776,9 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 	}
 	finishJoinedStop := func(stopErr error) (contract.Result, error) {
 		if stopErr == nil {
+			if meta.filter != nil {
+				meta.filter.providerTerminal(p)
+			}
 			validationToolTreeConfirmed = true
 			lockActive()
 		}
@@ -731,6 +823,9 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 	<-progressStopped
 	writeDiagnostics()
 	proofErr := p.ConfirmTreeExited()
+	if proofErr == nil && waitErr == nil && meta.filter != nil {
+		meta.filter.providerTerminal(p)
+	}
 	if stopped, stopErr = h.stopAfterNaturalProof(a.SegmentID, p, proofErr, meta.beforeStopJoin); stopped {
 		return finishJoinedStop(stopErr)
 	}
@@ -965,6 +1060,7 @@ func (h *Host) appendPhaseEvent(spool *events.Spool, runID, taskID string, a sto
 }
 
 type structuredEventFields struct {
+	GitFilterCleanup      *contract.GitFilterCleanup
 	DiagnosticsFailure    *contract.DiagnosticsFailure
 	ValidationToolCleanup *contract.ValidationToolCleanup
 	Failure               *contract.FailureFacts
@@ -987,6 +1083,7 @@ func (h *Host) appendStructuredEvent(spool *events.Spool, runID, taskID string, 
 	event.Failure = fields.Failure
 	event.DiagnosticsFailure = fields.DiagnosticsFailure
 	event.ValidationToolCleanup = fields.ValidationToolCleanup
+	event.GitFilterCleanup = fields.GitFilterCleanup
 	if identity != nil {
 		event.Process = &contract.ProcessIdentity{PID: identity.PID, Birth: identity.Birth, PGID: identity.PGID}
 	}
@@ -1109,6 +1206,9 @@ func (h *Host) recordLaunchFailed(a store.Attempt, runID, taskID string, meta la
 		if event.Kind == contract.EventExited || event.Kind == contract.EventLaunchRejected {
 			return nil
 		}
+	}
+	if meta.hasGitFilter {
+		return errors.New("git_filter_original_runtime_required")
 	}
 	for _, event := range existing {
 		if event.Kind != contract.EventPrepared || event.Process != nil || event.Artifact != nil {
