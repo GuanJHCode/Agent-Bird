@@ -1,0 +1,1031 @@
+{
+  "qualified_source": "1625a0db4e523d13e1835ad1ae04088e273ac4f4",
+  "production_source": "9f4abdd0309c689577155ec9a5eb1f6b35b5707e",
+  "go_tree": "0375a3231d9239dbef4f5f84f0908b28a93d862b",
+  "review": "PASS: independent raw_workspace_review final1625",
+  "commands": [
+    {
+      "label": "peer-anchor-final-linux-build",
+      "metadata": {
+        "source": "9f4abdd0309c689577155ec9a5eb1f6b35b5707e",
+        "go_tree": "d541452ea14574ede28a3ee317c1006958ff263c",
+        "dirty": "",
+        "argv": [
+          "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+          "build",
+          "./internal/process"
+        ],
+        "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-peer-anchor/tools/orchestrator",
+        "environment": {
+          "TMPDIR": "/private/tmp",
+          "GOTOOLCHAIN": "local",
+          "GOENV": "off",
+          "GOWORK": "off",
+          "GOFLAGS": "",
+          "GOPROXY": "off",
+          "GOSUMDB": "off",
+          "GOOS": "linux",
+          "GOARCH": "arm64",
+          "GOARM64": "v8.0",
+          "CGO_ENABLED": "0"
+        }
+      },
+      "streams": {
+        "stdout": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stderr": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "exit": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      },
+      "named_counts": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      },
+      "top_counts": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      },
+      "exit": 0
+    },
+    {
+      "label": "peer-anchor-final-race",
+      "metadata": {
+        "source": "9f4abdd0309c689577155ec9a5eb1f6b35b5707e",
+        "go_tree": "d541452ea14574ede28a3ee317c1006958ff263c",
+        "dirty": "",
+        "argv": [
+          "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+          "test",
+          "-race",
+          "-count=1",
+          "./internal/process",
+          "-run",
+          "Test(VerifyLiveDescendant|LiveDescendant|StopRevokesPeerAnchor|StartAnchorCapture|StartBirthErrorRetainsOriginalHandle|DuplexBirthFailureClosesFDsAndRetainsOriginalHandle|C03StopNegativeProofControls)"
+        ],
+        "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-peer-anchor/tools/orchestrator",
+        "environment": {
+          "TMPDIR": "/private/tmp",
+          "GOTOOLCHAIN": "local",
+          "GOENV": "off",
+          "GOWORK": "off",
+          "GOFLAGS": "",
+          "GOPROXY": "off",
+          "GOSUMDB": "off",
+          "GOOS": "darwin",
+          "GOARCH": "arm64",
+          "GOARM64": "v8.0",
+          "CGO_ENABLED": "1"
+        }
+      },
+      "streams": {
+        "stdout": {
+          "bytes": 81,
+          "sha256": "d09ed70ac31fcec148ed4c9c2874dd58c1f301ade5971dafbe0283b1f739df08"
+        },
+        "stderr": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "exit": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      },
+      "named_counts": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      },
+      "top_counts": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      },
+      "exit": 0
+    },
+    {
+      "label": "peer-anchor-green",
+      "metadata": {
+        "source": "899379e618649808a45d92fd0f6423689896c5db",
+        "go_tree": "a0dfdef708fc5a26b2230550477660ea2632755b",
+        "dirty": "",
+        "argv": [
+          "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+          "test",
+          "-count=1",
+          "./internal/process",
+          "-run",
+          "Test(VerifyLiveDescendant|StopRevokesPeerAnchor|StartAnchorCapture)"
+        ],
+        "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-peer-anchor/tools/orchestrator",
+        "environment": {
+          "TMPDIR": "/private/tmp",
+          "GOTOOLCHAIN": "local",
+          "GOENV": "off",
+          "GOWORK": "off",
+          "GOFLAGS": "",
+          "GOPROXY": "off",
+          "GOSUMDB": "off",
+          "GOOS": "darwin",
+          "GOARCH": "arm64",
+          "GOARM64": "v8.0",
+          "CGO_ENABLED": "1"
+        }
+      },
+      "streams": {
+        "stdout": {
+          "bytes": 81,
+          "sha256": "3f637bcda3ded94898c28d366ea3c15e7a9b44efdb3e70ddb10e16463532ca4a"
+        },
+        "stderr": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "exit": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      },
+      "named_counts": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      },
+      "top_counts": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      },
+      "exit": 0
+    },
+    {
+      "label": "peer-anchor-linux-build",
+      "metadata": {
+        "source": "07451d5860ca31ab7e22cfdc7db17cb0795e962f",
+        "go_tree": "3c07e5980faf62a3523c6fcbebde2214a0fd360c",
+        "dirty": "",
+        "argv": [
+          "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+          "build",
+          "./internal/process"
+        ],
+        "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-peer-anchor/tools/orchestrator",
+        "environment": {
+          "TMPDIR": "/private/tmp",
+          "GOTOOLCHAIN": "local",
+          "GOENV": "off",
+          "GOWORK": "off",
+          "GOFLAGS": "",
+          "GOPROXY": "off",
+          "GOSUMDB": "off",
+          "GOOS": "linux",
+          "GOARCH": "arm64",
+          "GOARM64": "v8.0",
+          "CGO_ENABLED": "0"
+        }
+      },
+      "streams": {
+        "stdout": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stderr": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "exit": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      },
+      "named_counts": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      },
+      "top_counts": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      },
+      "exit": 0
+    },
+    {
+      "label": "peer-anchor-native",
+      "metadata": {
+        "source": "07451d5860ca31ab7e22cfdc7db17cb0795e962f",
+        "go_tree": "3c07e5980faf62a3523c6fcbebde2214a0fd360c",
+        "dirty": "",
+        "argv": [
+          "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+          "test",
+          "-count=1",
+          "./internal/process",
+          "-run",
+          "^TestVerifyLiveDescendantNativeLifecycle$"
+        ],
+        "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-peer-anchor/tools/orchestrator",
+        "environment": {
+          "TMPDIR": "/private/tmp",
+          "GOTOOLCHAIN": "local",
+          "GOENV": "off",
+          "GOWORK": "off",
+          "GOFLAGS": "",
+          "GOPROXY": "off",
+          "GOSUMDB": "off",
+          "GOOS": "darwin",
+          "GOARCH": "arm64",
+          "GOARM64": "v8.0",
+          "CGO_ENABLED": "1"
+        }
+      },
+      "streams": {
+        "stdout": {
+          "bytes": 81,
+          "sha256": "7dad75af5a67a16ea12fdebb18aa46ecea696ca9a5b7e195cce6fbf644659b8f"
+        },
+        "stderr": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "exit": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      },
+      "named_counts": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      },
+      "top_counts": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      },
+      "exit": 0
+    },
+    {
+      "label": "peer-anchor-race-repro",
+      "metadata": {
+        "source": "07451d5860ca31ab7e22cfdc7db17cb0795e962f",
+        "go_tree": "3c07e5980faf62a3523c6fcbebde2214a0fd360c",
+        "dirty": "",
+        "argv": [
+          "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+          "test",
+          "-race",
+          "-count=1",
+          "./internal/process",
+          "-run",
+          "^TestStartAnchorCaptureFailureRetainsExistingStartBehavior$"
+        ],
+        "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-peer-anchor/tools/orchestrator",
+        "environment": {
+          "TMPDIR": "/private/tmp",
+          "GOTOOLCHAIN": "local",
+          "GOENV": "off",
+          "GOWORK": "off",
+          "GOFLAGS": "",
+          "GOPROXY": "off",
+          "GOSUMDB": "off",
+          "GOOS": "darwin",
+          "GOARCH": "arm64",
+          "GOARM64": "v8.0",
+          "CGO_ENABLED": "1"
+        }
+      },
+      "streams": {
+        "stdout": {
+          "bytes": 249,
+          "sha256": "9374a5539a7ae0e927c84b27a4c22ac80e3c62498587a75d99e61d145acf480f"
+        },
+        "stderr": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "exit": {
+          "bytes": 2,
+          "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+        }
+      },
+      "named_counts": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      },
+      "top_counts": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      },
+      "exit": 1
+    },
+    {
+      "label": "peer-anchor-race",
+      "metadata": {
+        "source": "07451d5860ca31ab7e22cfdc7db17cb0795e962f",
+        "go_tree": "3c07e5980faf62a3523c6fcbebde2214a0fd360c",
+        "dirty": "",
+        "argv": [
+          "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+          "test",
+          "-race",
+          "-count=1",
+          "./internal/process",
+          "-run",
+          "Test(VerifyLiveDescendant|StopRevokesPeerAnchor|StartAnchorCapture)"
+        ],
+        "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-peer-anchor/tools/orchestrator",
+        "environment": {
+          "TMPDIR": "/private/tmp",
+          "GOTOOLCHAIN": "local",
+          "GOENV": "off",
+          "GOWORK": "off",
+          "GOFLAGS": "",
+          "GOPROXY": "off",
+          "GOSUMDB": "off",
+          "GOOS": "darwin",
+          "GOARCH": "arm64",
+          "GOARM64": "v8.0",
+          "CGO_ENABLED": "1"
+        }
+      },
+      "streams": {
+        "stdout": {
+          "bytes": 249,
+          "sha256": "2b2b500e2af9f97f5417bdc94dcd6e16ccf4e02bb963c0819087d0b984a6c0ea"
+        },
+        "stderr": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "exit": {
+          "bytes": 2,
+          "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+        }
+      },
+      "named_counts": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      },
+      "top_counts": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      },
+      "exit": 1
+    },
+    {
+      "label": "peer-anchor-red",
+      "metadata": {
+        "source": "fa6ce42ecdc952e2ac3486a29bee43dac733a074",
+        "go_tree": "dcc237ec709f94dea70fbbd79f5d6b8c10f0b09d",
+        "dirty": "",
+        "argv": [
+          "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+          "test",
+          "-count=1",
+          "./internal/process",
+          "-run",
+          "Test(VerifyLiveDescendant|StopRevokesPeerAnchor|StartAnchorCapture)"
+        ],
+        "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-peer-anchor/tools/orchestrator",
+        "environment": {
+          "TMPDIR": "/private/tmp",
+          "GOTOOLCHAIN": "local",
+          "GOENV": "off",
+          "GOWORK": "off",
+          "GOFLAGS": "",
+          "GOPROXY": "off",
+          "GOSUMDB": "off",
+          "GOOS": "darwin",
+          "GOARCH": "arm64",
+          "GOARM64": "v8.0",
+          "CGO_ENABLED": "1"
+        }
+      },
+      "streams": {
+        "stdout": {
+          "bytes": 94,
+          "sha256": "18b0f84186aab2fa33c2b8c382fcab7f93ff52d25fa0a72ba103250b4ef7587f"
+        },
+        "stderr": {
+          "bytes": 980,
+          "sha256": "b6fe127f89f3251ea140940038a408e069d386a568ac1ec5f223c76ed9a3aaaa"
+        },
+        "exit": {
+          "bytes": 2,
+          "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+        }
+      },
+      "named_counts": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      },
+      "top_counts": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      },
+      "exit": 1
+    },
+    {
+      "label": "peer-bind-behavior-red",
+      "metadata": {
+        "source": "2ba90bb5fbbba3704320269a8e46ef167aa014a1",
+        "go_tree": "db6aa052df063a8d024335999db328726f3fb213",
+        "dirty": "",
+        "argv": [
+          "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+          "test",
+          "-count=1",
+          "./internal/process",
+          "-run",
+          "Test(LiveDescendantRejectsPIDReuse|VerifyLiveDescendantNativeLifecycle|VerifyLiveDescendantAcceptsStableChain|VerifyLiveDescendantRejects)"
+        ],
+        "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-peer-anchor/tools/orchestrator",
+        "environment": {
+          "TMPDIR": "/private/tmp",
+          "GOTOOLCHAIN": "local",
+          "GOENV": "off",
+          "GOWORK": "off",
+          "GOFLAGS": "",
+          "GOPROXY": "off",
+          "GOSUMDB": "off",
+          "GOOS": "darwin",
+          "GOARCH": "arm64",
+          "GOARM64": "v8.0",
+          "CGO_ENABLED": "1"
+        }
+      },
+      "streams": {
+        "stdout": {
+          "bytes": 395,
+          "sha256": "6fa8bdfce18a7e0b693cf8f89680dbe805e19fb40396b8cbcf58608c23d3d16b"
+        },
+        "stderr": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "exit": {
+          "bytes": 2,
+          "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+        }
+      },
+      "named_counts": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      },
+      "top_counts": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      },
+      "exit": 1
+    },
+    {
+      "label": "peer-bind-green",
+      "metadata": {
+        "source": "1e9aff7cd57e86c8fdd7e41329e6787a7236ab70",
+        "go_tree": "c402c5428b337db64b9ef65e5bd1821a355974c3",
+        "dirty": "",
+        "argv": [
+          "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+          "test",
+          "-count=1",
+          "./internal/process",
+          "-run",
+          "Test(VerifyLiveDescendantAcceptsStableChain|VerifyLiveDescendantRejects|LiveDescendantRejectsPIDReuse|VerifyLiveDescendantNativeLifecycle|StopRevokesPeerAnchor|StartAnchorCapture)"
+        ],
+        "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-peer-anchor/tools/orchestrator",
+        "environment": {
+          "TMPDIR": "/private/tmp",
+          "GOTOOLCHAIN": "local",
+          "GOENV": "off",
+          "GOWORK": "off",
+          "GOFLAGS": "",
+          "GOPROXY": "off",
+          "GOSUMDB": "off",
+          "GOOS": "darwin",
+          "GOARCH": "arm64",
+          "GOARM64": "v8.0",
+          "CGO_ENABLED": "1"
+        }
+      },
+      "streams": {
+        "stdout": {
+          "bytes": 94,
+          "sha256": "18b0f84186aab2fa33c2b8c382fcab7f93ff52d25fa0a72ba103250b4ef7587f"
+        },
+        "stderr": {
+          "bytes": 292,
+          "sha256": "4d45d1bb284e7751b5b4499fe831e48b15eaa87cb4338aa64ed24fc322387c85"
+        },
+        "exit": {
+          "bytes": 2,
+          "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+        }
+      },
+      "named_counts": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      },
+      "top_counts": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      },
+      "exit": 1
+    },
+    {
+      "label": "peer-bind-green2",
+      "metadata": {
+        "source": "9f4abdd0309c689577155ec9a5eb1f6b35b5707e",
+        "go_tree": "d541452ea14574ede28a3ee317c1006958ff263c",
+        "dirty": "",
+        "argv": [
+          "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+          "test",
+          "-count=1",
+          "./internal/process",
+          "-run",
+          "Test(VerifyLiveDescendantAcceptsStableChain|VerifyLiveDescendantRejects|LiveDescendantRejectsPIDReuse|VerifyLiveDescendantNativeLifecycle|StopRevokesPeerAnchor|StartAnchorCapture)"
+        ],
+        "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-peer-anchor/tools/orchestrator",
+        "environment": {
+          "TMPDIR": "/private/tmp",
+          "GOTOOLCHAIN": "local",
+          "GOENV": "off",
+          "GOWORK": "off",
+          "GOFLAGS": "",
+          "GOPROXY": "off",
+          "GOSUMDB": "off",
+          "GOOS": "darwin",
+          "GOARCH": "arm64",
+          "GOARM64": "v8.0",
+          "CGO_ENABLED": "1"
+        }
+      },
+      "streams": {
+        "stdout": {
+          "bytes": 81,
+          "sha256": "13894cfe1135f1a371310d4df7c5f1968f49e030d9c49c9ec48e3ad68c7e01d5"
+        },
+        "stderr": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "exit": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      },
+      "named_counts": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      },
+      "top_counts": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      },
+      "exit": 0
+    },
+    {
+      "label": "peer-bind-red",
+      "metadata": {
+        "source": "811847ce3fed753819ec316160d0ba5641e840b8",
+        "go_tree": "382519d7b43db2817f97e5b74feb26cb7a0988c5",
+        "dirty": "",
+        "argv": [
+          "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+          "test",
+          "-count=1",
+          "./internal/process",
+          "-run",
+          "Test(LiveDescendantRejectsPIDReuse|VerifyLiveDescendantNativeLifecycle)"
+        ],
+        "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-peer-anchor/tools/orchestrator",
+        "environment": {
+          "TMPDIR": "/private/tmp",
+          "GOTOOLCHAIN": "local",
+          "GOENV": "off",
+          "GOWORK": "off",
+          "GOFLAGS": "",
+          "GOPROXY": "off",
+          "GOSUMDB": "off",
+          "GOOS": "darwin",
+          "GOARCH": "arm64",
+          "GOARM64": "v8.0",
+          "CGO_ENABLED": "1"
+        }
+      },
+      "streams": {
+        "stdout": {
+          "bytes": 395,
+          "sha256": "5f37873e8f831e3c65f8390785b474f47627526a40949231a40b9b8731f0ce98"
+        },
+        "stderr": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "exit": {
+          "bytes": 2,
+          "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+        }
+      },
+      "named_counts": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      },
+      "top_counts": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      },
+      "exit": 1
+    },
+    {
+      "label": "root-peer-final-race",
+      "metadata": {
+        "source": "1625a0db4e523d13e1835ad1ae04088e273ac4f4",
+        "go_tree": "0375a3231d9239dbef4f5f84f0908b28a93d862b",
+        "dirty": "",
+        "argv": [
+          "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+          "test",
+          "-race",
+          "-json",
+          "-count=1",
+          "-timeout",
+          "45s",
+          "./internal/process",
+          "-run",
+          "^(TestVerifyLiveDescendant|TestLiveDescendant|TestStopRevokesPeerAnchor|TestStartAnchorCapture|TestStartBirthErrorRetainsOriginalHandle|TestDuplexBirthFailureClosesFDsAndRetainsOriginalHandle|TestC03StopNegativeProofControls|TestDarwinNativeWaitableZombie)"
+        ],
+        "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-peer-anchor/tools/orchestrator",
+        "environment": {
+          "TMPDIR": "/private/tmp",
+          "GOTOOLCHAIN": "local",
+          "GOENV": "off",
+          "GOWORK": "off",
+          "GOFLAGS": "",
+          "GOPROXY": "off",
+          "GOSUMDB": "off",
+          "GOOS": "darwin",
+          "GOARCH": "arm64",
+          "GOARM64": "v8.0",
+          "CGO_ENABLED": "1"
+        }
+      },
+      "streams": {
+        "stdout": {
+          "bytes": 25991,
+          "sha256": "c39d2a0c314f84adbb57376770b40f5fc9b3ff71c7403db7a393f376ceb473b3"
+        },
+        "stderr": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "exit": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      },
+      "named_counts": {
+        "pass": 25,
+        "fail": 0,
+        "skip": 0
+      },
+      "top_counts": {
+        "pass": 13,
+        "fail": 0,
+        "skip": 0
+      },
+      "exit": 0
+    },
+    {
+      "label": "root-peer-linux-build",
+      "metadata": {
+        "source": "1625a0db4e523d13e1835ad1ae04088e273ac4f4",
+        "go_tree": "0375a3231d9239dbef4f5f84f0908b28a93d862b",
+        "dirty": "",
+        "argv": [
+          "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+          "build",
+          "./..."
+        ],
+        "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-peer-anchor/tools/orchestrator",
+        "environment": {
+          "TMPDIR": "/private/tmp",
+          "GOTOOLCHAIN": "local",
+          "GOENV": "off",
+          "GOWORK": "off",
+          "GOFLAGS": "",
+          "GOPROXY": "off",
+          "GOSUMDB": "off",
+          "GOOS": "linux",
+          "GOARCH": "arm64",
+          "GOARM64": "v8.0",
+          "CGO_ENABLED": "0"
+        }
+      },
+      "streams": {
+        "stdout": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stderr": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "exit": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      },
+      "named_counts": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      },
+      "top_counts": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      },
+      "exit": 0
+    },
+    {
+      "label": "root-peer-linux-native",
+      "metadata": {
+        "source": "1625a0db4e523d13e1835ad1ae04088e273ac4f4",
+        "go_tree": "0375a3231d9239dbef4f5f84f0908b28a93d862b",
+        "dirty": "",
+        "argv": [
+          "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+          "tool",
+          "test2json",
+          "-t",
+          "-p",
+          "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process",
+          "docker",
+          "run",
+          "--pull=never",
+          "--rm",
+          "--name=closure-peer-native-1625a0d",
+          "--network=none",
+          "--read-only",
+          "--user=0:0",
+          "--tmpfs",
+          "/tmp:rw,exec,nosuid,size=32m",
+          "--mount",
+          "type=bind,src=/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-peer-anchor/tasks/filter-peer-anchor/tmp/linux-native/process.test,dst=/proof/process.test,readonly",
+          "--entrypoint=/proof/process.test",
+          "sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99",
+          "-test.v=test2json",
+          "-test.timeout=30s",
+          "-test.run=^(TestVerifyLiveDescendant|TestLiveDescendant|TestStopRevokesPeerAnchor|TestStartAnchorCapture|TestStartBirthErrorRetainsOriginalHandle|TestDuplexBirthFailureClosesFDsAndRetainsOriginalHandle|TestC03StopNegativeProofControls|TestLinuxNativeGroupZombieNeedsOriginalWait)"
+        ],
+        "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-peer-anchor/tools/orchestrator",
+        "environment": {
+          "TMPDIR": "/private/tmp",
+          "GOTOOLCHAIN": "local",
+          "GOENV": "off",
+          "GOWORK": "off",
+          "GOFLAGS": "",
+          "GOPROXY": "off",
+          "GOSUMDB": "off",
+          "GOOS": "darwin",
+          "GOARCH": "arm64",
+          "GOARM64": "v8.0",
+          "CGO_ENABLED": "1"
+        }
+      },
+      "streams": {
+        "stdout": {
+          "bytes": 26809,
+          "sha256": "092b5532f770bfa33132305337b6f26c12e670e9cefd34f319af268fc23c2b00"
+        },
+        "stderr": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "exit": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      },
+      "named_counts": {
+        "pass": 25,
+        "fail": 0,
+        "skip": 0
+      },
+      "top_counts": {
+        "pass": 13,
+        "fail": 0,
+        "skip": 0
+      },
+      "exit": 0
+    },
+    {
+      "label": "root-peer-linux-test-build",
+      "metadata": {
+        "source": "1625a0db4e523d13e1835ad1ae04088e273ac4f4",
+        "go_tree": "0375a3231d9239dbef4f5f84f0908b28a93d862b",
+        "dirty": "",
+        "argv": [
+          "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+          "test",
+          "-c",
+          "-o",
+          "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-peer-anchor/tasks/filter-peer-anchor/tmp/linux-native/process.test",
+          "./internal/process"
+        ],
+        "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-peer-anchor/tools/orchestrator",
+        "environment": {
+          "TMPDIR": "/private/tmp",
+          "GOTOOLCHAIN": "local",
+          "GOENV": "off",
+          "GOWORK": "off",
+          "GOFLAGS": "",
+          "GOPROXY": "off",
+          "GOSUMDB": "off",
+          "GOOS": "linux",
+          "GOARCH": "arm64",
+          "GOARM64": "v8.0",
+          "CGO_ENABLED": "0"
+        }
+      },
+      "streams": {
+        "stdout": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stderr": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "exit": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      },
+      "named_counts": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      },
+      "top_counts": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      },
+      "exit": 0
+    },
+    {
+      "label": "root-peer-macos-build",
+      "metadata": {
+        "source": "1625a0db4e523d13e1835ad1ae04088e273ac4f4",
+        "go_tree": "0375a3231d9239dbef4f5f84f0908b28a93d862b",
+        "dirty": "",
+        "argv": [
+          "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+          "build",
+          "./..."
+        ],
+        "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-peer-anchor/tools/orchestrator",
+        "environment": {
+          "TMPDIR": "/private/tmp",
+          "GOTOOLCHAIN": "local",
+          "GOENV": "off",
+          "GOWORK": "off",
+          "GOFLAGS": "",
+          "GOPROXY": "off",
+          "GOSUMDB": "off",
+          "GOOS": "darwin",
+          "GOARCH": "arm64",
+          "GOARM64": "v8.0",
+          "CGO_ENABLED": "1"
+        }
+      },
+      "streams": {
+        "stdout": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stderr": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "exit": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      },
+      "named_counts": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      },
+      "top_counts": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      },
+      "exit": 0
+    },
+    {
+      "label": "root-peer-vet",
+      "metadata": {
+        "source": "1625a0db4e523d13e1835ad1ae04088e273ac4f4",
+        "go_tree": "0375a3231d9239dbef4f5f84f0908b28a93d862b",
+        "dirty": "",
+        "argv": [
+          "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+          "vet",
+          "./internal/process"
+        ],
+        "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-peer-anchor/tools/orchestrator",
+        "environment": {
+          "TMPDIR": "/private/tmp",
+          "GOTOOLCHAIN": "local",
+          "GOENV": "off",
+          "GOWORK": "off",
+          "GOFLAGS": "",
+          "GOPROXY": "off",
+          "GOSUMDB": "off",
+          "GOOS": "darwin",
+          "GOARCH": "arm64",
+          "GOARM64": "v8.0",
+          "CGO_ENABLED": "1"
+        }
+      },
+      "streams": {
+        "stdout": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "stderr": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "exit": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      },
+      "named_counts": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      },
+      "top_counts": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      },
+      "exit": 0
+    }
+  ],
+  "root_original_sessions_drained": [
+    49625,
+    44016,
+    82459,
+    81841,
+    49462
+  ],
+  "root_vet_inline_exit": 0,
+  "worker_original_sessions": "worker reports all original exec calls returned synchronously, no session IDs; ROOT independently verified retained runner metadata/raw/exit",
+  "linux_image": "sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99",
+  "linux_native_user": "0:0",
+  "container_name": "closure-peer-native-1625a0d",
+  "container_absent_after_original_return": true,
+  "container_absence_command": "docker container ls -a --filter name=closure-peer-native-1625a0d --format",
+  "cleanup": {
+    "file": "tasks/filter-peer-anchor/tmp/linux-native/process.test",
+    "device": 16777234,
+    "inode": 201658547,
+    "size": 5667865,
+    "sha256": "d20cbd698842bba2fd1cc507ae85aa7461f5dfd716d13df0f5cee2e2ca269245",
+    "reason": "completed isolated native proof; source and raw retained",
+    "removed": true
+  },
+  "scope": "private original-Handle peer identity only; no socket authentication, final merge or public carrier"
+}
