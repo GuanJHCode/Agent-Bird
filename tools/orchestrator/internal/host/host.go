@@ -323,6 +323,7 @@ func (h *Host) Execute(ctx context.Context, a store.Attempt, runID, taskID strin
 }
 
 type launchMetadata struct {
+	filter            *filterRuntime
 	validationGrant   *contract.LaunchCommand
 	artifactGrant     *contract.LaunchCommand
 	diagnosticsGrant  *contract.LaunchCommand
@@ -486,6 +487,12 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 	if err = appendPhase(contract.EventPrepared, startHash, nil, nil, nil); err != nil {
 		h.finishAttempt(a.ID, "unknown", persistDB)
 		return contract.Result{Status: "unknown", ExitCode: -1, EventCount: eventCount}, err
+	}
+	if meta.filter != nil {
+		defer func() { returnedErr = errors.Join(returnedErr, meta.filter.close()) }()
+		if err = meta.filter.open(ctx, spool); err != nil {
+			return finalizeCandidateUnknown(err, nil, -1)
+		}
 	}
 	if h.stopWasRequested(a.SegmentID) {
 		return finalizePrelaunchRejected(context.Canceled)
