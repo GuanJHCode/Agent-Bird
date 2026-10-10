@@ -32,9 +32,9 @@ func ownerGrantNode(info os.FileInfo, mode os.FileMode, directory bool) bool {
 	return ok && st.Uid == uint32(os.Geteuid()) && (directory || st.Nlink == 1)
 }
 
-func (p *localOwnerPublication) validateDirectory() error {
+func (p *localOwnerPublication) validateRoot() error {
 	invalid := store.CodeError("owner_path_untrusted")
-	if p.authority.Validate() != nil || p.root == nil || p.owners == nil {
+	if p.authority.Validate() != nil || p.root == nil {
 		return invalid
 	}
 	rootInfo, err := p.root.Stat(".")
@@ -44,6 +44,17 @@ func (p *localOwnerPublication) validateDirectory() error {
 	rootStat, ok := rootInfo.Sys().(*syscall.Stat_t)
 	expectedRoot := p.authority.Nodes()
 	if !ok || uint64(rootStat.Dev) != expectedRoot.StateDevice || uint64(rootStat.Ino) != expectedRoot.StateInode {
+		return invalid
+	}
+	return nil
+}
+
+func (p *localOwnerPublication) validateDirectory() error {
+	invalid := store.CodeError("owner_path_untrusted")
+	if err := p.validateRoot(); err != nil {
+		return err
+	}
+	if p.owners == nil {
 		return invalid
 	}
 	named, err := p.root.Lstat("owners")
@@ -105,6 +116,9 @@ func (p *localOwnerPublication) publish(g store.OwnerGrant, authority store.Stor
 	p.expected = raw
 	p.root, err = os.OpenRoot(p.stateDir)
 	if err != nil {
+		return err
+	}
+	if err = p.validateRoot(); err != nil {
 		return err
 	}
 	if err = p.root.Mkdir("owners", 0700); err != nil && !errors.Is(err, os.ErrExist) {
