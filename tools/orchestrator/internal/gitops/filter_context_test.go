@@ -60,6 +60,41 @@ func TestOpenFilterGitRejectsUnlistedFilterWithoutExecutingIt(t *testing.T) {
 	}
 }
 
+func TestOpenFilterGitRoutesRecordsAndRejectsTrackedForeignAndClosedContexts(t *testing.T) {
+	repository, _ := repo(t)
+	manifest := configureFilter(t, repository, filterManifestFor(t, filterGitPath(t), filterTool(t, "clean"), filterTool(t, "smudge")))
+	g, err := OpenFilterGit(context.Background(), repository, manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := g.Context(context.Background())
+	foreign, _ := repo(t)
+	path := t.TempDir()
+	sentinel := filepath.Join(path, "bare-git")
+	if err := os.WriteFile(filepath.Join(path, "git"), []byte("#!/bin/sh\ntouch "+sentinel+"\nexit 90\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", path)
+	if _, err := gitRecords(ctx, repository, "rev-parse", "--git-dir"); err != nil {
+		t.Fatalf("records bypassed pinned git: %v", err)
+	}
+	if _, err := os.Stat(sentinel); !os.IsNotExist(err) {
+		t.Fatalf("bare git executed: %v", err)
+	}
+	if _, err := run(context.WithValue(ctx, trackedIntegrationRunnerKey{}, true), repository, "rev-parse", "HEAD"); err == nil {
+		t.Fatal("tracked filter context accepted")
+	}
+	if _, err := run(ctx, foreign, "rev-parse", "HEAD"); err == nil {
+		t.Fatal("foreign repository accepted")
+	}
+	if err := g.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := run(ctx, repository, "rev-parse", "HEAD"); err == nil {
+		t.Fatal("closed context reused")
+	}
+}
+
 func filterGitPath(t *testing.T) string {
 	t.Helper()
 	p, err := exec.LookPath("git")
