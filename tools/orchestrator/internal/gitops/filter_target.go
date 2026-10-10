@@ -104,6 +104,9 @@ func InspectFilteredTarget(ctx context.Context, source *FilterGitContext, stream
 			_ = m.Close()
 		}
 	}()
+	if err = source.installTargetIndexGuard(); err != nil {
+		return nil, err
+	}
 	ctx = source.Context(WithCandidateJournal(ctx, journal))
 	// These checks must precede even candidate provenance queries: source
 	// verification itself asks Git to read the target index for attributes.

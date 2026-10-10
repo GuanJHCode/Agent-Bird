@@ -116,6 +116,16 @@ func candidateGitBytesWithStart(ctx context.Context, dir string, input []byte, o
 	if err = record("intent", nil, -1); err != nil {
 		return CommandResult{}, err
 	}
+	if filter := filterGitFromContext(ctx); filter != nil {
+		private, _ := ctx.Value(filterGitPrivateKey{}).(bool)
+		verify := filter.verifyTargetIndexGuard
+		if private {
+			verify = filter.verifyTargetIndexGuardHeld
+		}
+		if err := verify(); err != nil {
+			return CommandResult{}, err
+		}
+	}
 	out := &candidateOutput{}
 	spec := process.Command{Path: gitPath, PinnedPath: pinnedPath, PinnedSHA256: pinnedSHA, Args: argv, Dir: dir, Env: env, ExactEnv: true, Stdin: input, Stdout: out}
 	if owned {
@@ -237,6 +247,16 @@ func candidateGitInputStreamWithStart(ctx context.Context, dir string, input []b
 	}
 	if err := record("intent", nil, -1); err != nil {
 		return err
+	}
+	if filter := filterGitFromContext(ctx); filter != nil {
+		private, _ := ctx.Value(filterGitPrivateKey{}).(bool)
+		verify := filter.verifyTargetIndexGuard
+		if private {
+			verify = filter.verifyTargetIndexGuardHeld
+		}
+		if err := verify(); err != nil {
+			return err
+		}
 	}
 	p, err := start(ctx, process.Command{Path: gitPath, PinnedPath: pinnedPath, PinnedSHA256: pinnedSHA, Args: argv, Dir: dir, Env: env, ExactEnv: true, Stdin: input, Stdout: out})
 	if err != nil {

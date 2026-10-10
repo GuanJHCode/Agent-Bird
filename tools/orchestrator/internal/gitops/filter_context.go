@@ -42,6 +42,7 @@ type FilterGitContext struct {
 	config                       []byte
 	attributes                   map[string]filterPinnedFile
 	digest                       string
+	targetIndex                  *filterTargetIndexGuard
 	mu                           sync.Mutex
 	closed                       bool
 }
@@ -84,6 +85,16 @@ func filterGitConfigArgs(driver string) []string {
 }
 
 func OpenFilterGit(ctx context.Context, repoRoot string, manifest contract.GitFilterManifestV1) (*FilterGitContext, error) {
+	return openFilterGit(ctx, repoRoot, manifest, false)
+}
+
+// OpenFilterTargetGit additionally retains target-index evidence before any
+// filtered Git command can consult that index.
+func OpenFilterTargetGit(ctx context.Context, repoRoot string, manifest contract.GitFilterManifestV1) (*FilterGitContext, error) {
+	return openFilterGit(ctx, repoRoot, manifest, true)
+}
+
+func openFilterGit(ctx context.Context, repoRoot string, manifest contract.GitFilterManifestV1, target bool) (g *FilterGitContext, err error) {
 	if err := manifest.Validate(); err != nil {
 		return nil, fail(CodeInvalidInput, "filter git manifest", err)
 	}
@@ -92,7 +103,13 @@ func OpenFilterGit(ctx context.Context, repoRoot string, manifest contract.GitFi
 	if err != nil {
 		return nil, err
 	}
-	g := &FilterGitContext{repoRoot: repoRoot, repoIdentity: repoIdentity, manifest: manifest.Clone(), attributes: map[string]filterPinnedFile{}}
+	g = &FilterGitContext{repoRoot: repoRoot, repoIdentity: repoIdentity, manifest: manifest.Clone(), attributes: map[string]filterPinnedFile{}}
+	opened := g
+	defer func() {
+		if err != nil {
+			_ = opened.Close()
+		}
+	}()
 	if g.git, err = pinFilterFile(manifest.Git.Path, manifest.Git.SHA256, 32<<20); err != nil {
 		return nil, err
 	}
@@ -119,6 +136,11 @@ func OpenFilterGit(ctx context.Context, repoRoot string, manifest contract.GitFi
 	if err := g.captureRepository(private); err != nil {
 		return nil, err
 	}
+	if target {
+		if err := g.installTargetIndexGuard(); err != nil {
+			return nil, err
+		}
+	}
 	if err := g.capture(private); err != nil {
 		return nil, err
 	}
@@ -140,6 +162,11 @@ func (g *FilterGitContext) Close() error {
 		return nil
 	}
 	g.closed = true
+	if g.targetIndex != nil {
+		err := g.targetIndex.Close()
+		g.targetIndex = nil
+		return err
+	}
 	return nil
 }
 func (g *FilterGitContext) SHA256() string { g.mu.Lock(); defer g.mu.Unlock(); return g.digest }
@@ -155,6 +182,11 @@ func (g *FilterGitContext) Verify(ctx context.Context) error {
 	defer g.mu.Unlock()
 	if g.closed {
 		return fail(CodeInvalidInput, "filter git", fmt.Errorf("closed context"))
+	}
+	if g.targetIndex != nil {
+		if err := g.targetIndex.Verify(); err != nil {
+			return err
+		}
 	}
 	if actual, err := directoryIdentity(g.repoRoot); err != nil || actual != g.repoIdentity {
 		return fail(CodeIdentityChanged, "filter git root", err)
@@ -223,6 +255,47 @@ func (g *FilterGitContext) verifySources() bool {
 	r, re := directoryIdentity(g.repoRoot)
 	c, ce := directoryIdentity(g.commonDir)
 	return re == nil && ce == nil && r == g.repoIdentity && c == g.commonIdentity && verifyFilterPin(g.git) && verifyFilterPin(g.clean) && verifyFilterPin(g.smudge)
+}
+
+func (g *FilterGitContext) installTargetIndexGuard() error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.closed || g.source != nil {
+		return fail(CodeInvalidInput, "filter target index guard", nil)
+	}
+	if g.targetIndex != nil {
+		return g.targetIndex.Verify()
+	}
+	guard, err := openFilterTargetIndexGuard(g)
+	if err != nil {
+		return err
+	}
+	g.targetIndex = guard
+	return nil
+}
+
+func (g *FilterGitContext) verifyTargetIndexGuard() error {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.closed {
+		return fail(CodeInvalidInput, "filter git", fmt.Errorf("closed context"))
+	}
+	if g.targetIndex == nil {
+		return nil
+	}
+	return g.targetIndex.Verify()
+}
+
+// verifyTargetIndexGuardHeld is used by private Git launched while Verify
+// already owns g.mu. Before a context escapes, no competing Close can exist.
+func (g *FilterGitContext) verifyTargetIndexGuardHeld() error {
+	if g.closed {
+		return fail(CodeInvalidInput, "filter git", fmt.Errorf("closed context"))
+	}
+	if g.targetIndex == nil {
+		return nil
+	}
+	return g.targetIndex.Verify()
 }
 
 func (g *FilterGitContext) readState(ctx context.Context) ([]byte, map[string]filterPinnedFile, string, error) {
