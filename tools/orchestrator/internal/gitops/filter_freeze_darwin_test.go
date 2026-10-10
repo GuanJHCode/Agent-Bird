@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 	"time"
 
@@ -25,20 +26,19 @@ type freezeFixtureJournal struct {
 
 func (j *freezeFixtureJournal) PersistCandidateIntent(_ context.Context, in CandidateIntent) error {
 	j.intent = cloneCandidateIntent(in)
-	in.AttemptID = "journal-mutated"
-	in.Binding = &CandidateBinding{}
-	in.Changes = nil
-	in.OrderedInputOIDs = nil
+	in.Binding.RunID = "journal-mutated"
+	in.Changes[0].Path = "journal-mutated"
+	in.OrderedInputOIDs[0] = "journal-mutated"
+	in.Filter.Views[0].Path = "journal-mutated"
 	return j.rawFixtureJournal.PersistCandidateIntent(context.Background(), in)
 }
 func (j *freezeFixtureJournal) RecordCandidateFreeze(_ context.Context, in CandidateReceipt) error {
 	j.receipt = cloneCandidateReceipt(in)
-	in.AttemptID = "journal-mutated"
-	in.Binding = &CandidateBinding{}
-	in.Changes = nil
-	in.OrderedInputOIDs = nil
-	in.Files = nil
-	in.Filter = nil
+	in.Binding.RunID = "journal-mutated"
+	in.Changes[0].Path = "journal-mutated"
+	in.OrderedInputOIDs[0] = "journal-mutated"
+	in.Files["a.txt"] = FileIdentity{}
+	in.Filter.Views[0].Path = "journal-mutated"
 	return j.rawFixtureJournal.RecordCandidateFreeze(context.Background(), in)
 }
 func cloneCandidateIntent(in CandidateIntent) CandidateIntent {
@@ -77,6 +77,9 @@ func freezeNativeSuccess(t *testing.T) {
 	if err := os.WriteFile(payload, desiredR, 0600); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.Chmod(payload, 0644); err != nil {
+		t.Fatal(err)
+	}
 	workspace := prepared.Workspace()
 	if workspace.Receipt.Filter == nil || len(workspace.Receipt.Filter.Views) != 1 {
 		t.Fatalf("prepared filter evidence: %#v", workspace)
@@ -88,6 +91,11 @@ func freezeNativeSuccess(t *testing.T) {
 		t.Fatal("Workspace returned authority rather than a deep clone")
 	}
 	copyProviderFile(t, f, ctx, payload, filepath.Join(request.Worktree, "a.txt"))
+	if info, statErr := os.Stat(filepath.Join(request.Worktree, "a.txt")); statErr != nil {
+		t.Fatalf("atomic provider replacement stat: %v", statErr)
+	} else if info.Mode().Perm() != 0644 {
+		t.Fatalf("atomic provider replacement mode=%v", info.Mode())
+	}
 	freezeJournal := &freezeFixtureJournal{rawFixtureJournal: f.journal}
 	receipt, err := FreezeFilteredWorkspace(ctx, prepared, freezeJournal)
 	if err != nil {
@@ -96,7 +104,7 @@ func freezeNativeSuccess(t *testing.T) {
 	if receipt.BaseOID != base || receipt.CandidateOID == base || receipt.PrivateRef != "refs/orchestrator/g3/filter-freeze-native" || receipt.Filter == nil || len(receipt.Filter.Views) != 1 || len(receipt.Changes) != 1 {
 		t.Fatalf("incomplete frozen receipt: %#v", receipt)
 	}
-	if freezeJournal.intent.AttemptID != request.AttemptID || len(freezeJournal.intent.Changes) != 1 || freezeJournal.receipt.AttemptID != receipt.AttemptID || freezeJournal.receipt.Filter == nil || freezeJournal.receipt.Files["a.txt"] == (FileIdentity{}) {
+	if freezeJournal.intent.AttemptID != request.AttemptID || !reflect.DeepEqual(freezeJournal.intent.Binding, receipt.Binding) || !reflect.DeepEqual(freezeJournal.intent.Changes, receipt.Changes) || !reflect.DeepEqual(freezeJournal.intent.OrderedInputOIDs, receipt.OrderedInputOIDs) || !reflect.DeepEqual(freezeJournal.intent.Filter, receipt.Filter) || !reflect.DeepEqual(freezeJournal.receipt, receipt) {
 		t.Fatalf("journal did not receive immutable candidate copies: intent=%#v receipt=%#v", freezeJournal.intent, freezeJournal.receipt)
 	}
 	if parent := rawGit(t, f, ctx, gitPath, receipt.Worktree, "rev-parse", receipt.CandidateOID+"^"); parent != base {
@@ -144,6 +152,7 @@ func freezeNativeSuccess(t *testing.T) {
 	if got, readErr := os.ReadFile(filepath.Join(validatorRequest.Worktree, "a.txt")); readErr != nil || !bytes.Equal(got, desiredR) {
 		t.Fatalf("validator rendered view=%q err=%v", got, readErr)
 	}
+	providerCommand(t, validator, ctx, "/usr/bin/cmp", payload, filepath.Join(validatorRequest.Worktree, "a.txt"))
 	if err := materialized.Verify(ctx); err != nil {
 		t.Fatalf("validator live verify: %v", err)
 	}
@@ -164,14 +173,18 @@ func freezeNativeUndeclared(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(request.Worktree, "README"), []byte("undeclared\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	_, err := FreezeFilteredWorkspace(ctx, prepared, &memoryJournal{})
-	if err == nil {
-		t.Fatal("freeze accepted undeclared README")
+	freezeJournal := &freezeFixtureJournal{rawFixtureJournal: f.journal}
+	_, err := FreezeFilteredWorkspace(ctx, prepared, freezeJournal)
+	if !IsCode(err, CodeUnknownObject) && !IsCode(err, CodeIdentityChanged) {
+		t.Fatalf("freeze undeclared README err=%v", err)
+	}
+	if len(freezeJournal.candidateIntents) != 0 || len(freezeJournal.candidateRefIntents) != 0 {
+		t.Fatalf("undeclared freeze persisted candidate records: intents=%d refs=%d", len(freezeJournal.candidateIntents), len(freezeJournal.candidateRefIntents))
 	}
 	if got := rawGit(t, f, ctx, gitPath, request.Worktree, "rev-parse", "HEAD"); got != base {
 		t.Fatalf("rejected freeze changed HEAD=%s base=%s", got, base)
 	}
-	rawGitExit(t, f, ctx, gitPath, repo, 1, "rev-parse", "--verify", "refs/orchestrator/g3/filter-freeze-negative")
+	rawGitExit(t, f, ctx, gitPath, repo, 1, "rev-parse", "--verify", "--quiet", "refs/orchestrator/g3/filter-freeze-negative")
 }
 
 func prepareFreezeFixture(t *testing.T, ctx context.Context, attempt, command, reservation string) (*rawFixture, string, *FilterGitContext, gitfilter.ResourceBroker, string, string, MaterializeRequest, *FilterPreparedWorkspace) {
@@ -215,6 +228,7 @@ func prepareFreezeFixture(t *testing.T, ctx context.Context, attempt, command, r
 	}
 	prepared, err := PrepareFilteredWorkspace(ctx, source, broker, request, binding, []string{"a.txt"}, ref, f.journal)
 	if err != nil || prepared == nil {
+		_ = source.Close()
 		t.Fatalf("prepare live filtered workspace: prepared=%v err=%v", prepared, err)
 	}
 	return f, repo, source, broker, gitPath, base, request, prepared
@@ -275,11 +289,18 @@ func rawGitExit(t *testing.T, f *rawFixture, ctx context.Context, gitPath, dir s
 	}
 	waitErr := h.Wait(ctx)
 	treeErr := h.ConfirmTreeExited()
-	if waitErr != nil || treeErr != nil || h.ExitCode() != want {
-		if treeErr != nil {
+	if waitErr != nil || treeErr != nil {
+		stopCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		stopErr := h.Stop(stopCtx)
+		cancel()
+		treeErr = h.ConfirmTreeExited()
+		if stopErr != nil || treeErr != nil {
 			f.retain = true
 		}
-		t.Fatalf("git expected exit=%d wait=%v tree=%v got=%d output=%s", want, waitErr, treeErr, h.ExitCode(), h.Output())
+		t.Fatalf("git expected exit=%d wait=%v stop=%v tree=%v got=%d output=%s", want, waitErr, stopErr, treeErr, h.ExitCode(), h.Output())
+	}
+	if h.ExitCode() != want {
+		t.Fatalf("git expected exit=%d got=%d output=%s", want, h.ExitCode(), h.Output())
 	}
 	f.gitWaits++
 	t.Logf("expected_git_exit_original_wait=0 exit=%d tree=0", want)
