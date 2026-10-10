@@ -1,0 +1,34 @@
+{
+  "original_attach_exit": 0,
+  "original_state": {
+    "Status": "exited",
+    "Running": false,
+    "Paused": false,
+    "Restarting": false,
+    "OOMKilled": false,
+    "Dead": false,
+    "Pid": 0,
+    "ExitCode": 0,
+    "Error": "",
+    "StartedAt": "2026-10-10T02:03:38.450924084Z",
+    "FinishedAt": "2026-10-10T02:03:56.300034009Z"
+  },
+  "exact_cid": "e555eee3850557fdc485d7443d455fcf88a0b5ec0c2b2384d6fd3dd9c4fdb628",
+  "runner_finally_absent": true,
+  "second_absent": true,
+  "binary_before": {
+    "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/git-filter-resource-linux/tasks/git-filter-resource-linux/tmp/linux-bin/store.test",
+    "dev": 16777234,
+    "inode": 200762356,
+    "uid": 501,
+    "nlink": 1,
+    "mode": "0o755",
+    "size": 19555335,
+    "sha256": "2528c72072cdb13424ad807f77f036553b270dc4647b0c2a2af95adf2dc6ba6d"
+  },
+  "preunlink_file_fsync": true,
+  "preunlink_directory_fsync": true,
+  "postunlink_directory_fsync": true,
+  "binary_removed": true,
+  "binary_directory_retained": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/git-filter-resource-linux/tasks/git-filter-resource-linux/tmp/linux-bin"
+}
