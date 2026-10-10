@@ -1,0 +1,2 @@
+# github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process [github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process.test]
+internal/process/peer_anchor_darwin.go:32:40: cannot use k.Proc.P_stat (variable of type int8) as uint8 value in argument to darwinLivePeerState

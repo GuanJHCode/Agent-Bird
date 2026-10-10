@@ -201,6 +201,9 @@ func TestLinuxNativeGroupZombieNeedsOriginalWait(t *testing.T) {
 		case <-time.After(5 * time.Millisecond):
 		}
 	}
+	if _, err := observePeerRecord(ctx, leader.cmd.Process.Pid); err == nil {
+		t.Fatal("private live peer observer accepted a waitable zombie")
+	}
 	if err := MatchWaitableGroupLeader(ctx, leader.cmd.Process.Pid, leader.birth); err != nil {
 		t.Fatal(err)
 	}

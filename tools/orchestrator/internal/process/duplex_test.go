@@ -85,6 +85,25 @@ func TestDuplexOSHelper(t *testing.T) {
 			}
 			time.Sleep(5 * time.Millisecond)
 		}
+	case "peer-anchor-leader":
+		child := exec.Command(os.Args[0], "-test.run=^TestDuplexOSHelper$")
+		child.Env = []string{"C06_DUPLEX_HELPER=peer-anchor-child", "C06_DUPLEX_RELEASE=" + os.Getenv("C06_DUPLEX_RELEASE")}
+		if err := child.Start(); err != nil {
+			os.Exit(16)
+		}
+		if err := os.WriteFile(os.Getenv("C06_DUPLEX_CHILD_PID"), []byte(strconv.Itoa(child.Process.Pid)), 0600); err != nil {
+			os.Exit(17)
+		}
+		if err := child.Wait(); err != nil {
+			os.Exit(18)
+		}
+	case "peer-anchor-child":
+		for {
+			if _, err := os.Stat(os.Getenv("C06_DUPLEX_RELEASE")); err == nil {
+				break
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
 	case "group":
 		child := exec.Command(os.Args[0], "-test.run=^TestDuplexOSHelper$")
 		child.Env = []string{"C06_DUPLEX_HELPER=descendant", "C06_DUPLEX_RELEASE=" + os.Getenv("C06_DUPLEX_RELEASE")}

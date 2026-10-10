@@ -70,6 +70,9 @@ func TestDarwinNativeWaitableZombie(t *testing.T) {
 		}
 		time.Sleep(time.Millisecond)
 	}
+	if _, err := observePeerRecord(ctx, pid); err == nil {
+		t.Fatal("private live peer observer accepted a waitable zombie")
+	}
 	birth, err := BirthContext(ctx, pid)
 	if err != nil || MatchWaitableGroupLeader(ctx, pid, birth) != nil {
 		t.Fatalf("zombie identity unavailable: %q %v", birth, err)

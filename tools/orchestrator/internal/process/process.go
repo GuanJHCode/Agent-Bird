@@ -79,6 +79,9 @@ type Handle struct {
 	identity          Identity
 	stdout            io.Writer
 	outputObserver    OutputObserver
+	peerAnchor        *peerAnchor
+	peerOwner         *Handle
+	peerRevoked       bool
 }
 type captureWriter struct {
 	h      *Handle
@@ -135,6 +138,10 @@ func startCommand(ctx context.Context, spec Command, duplex bool, birthLookup fu
 	return startCommandUsing(ctx, spec, duplex, birthLookup, func(cmd *exec.Cmd) error { return cmd.Start() })
 }
 func startCommandUsing(ctx context.Context, spec Command, duplex bool, birthLookup func(int) (string, error), starter func(*exec.Cmd) error) (*Handle, *duplexStream, error) {
+	return startCommandUsingWithPeerAnchor(ctx, spec, duplex, birthLookup, starter, capturePeerAnchor)
+}
+
+func startCommandUsingWithPeerAnchor(ctx context.Context, spec Command, duplex bool, birthLookup func(int) (string, error), starter func(*exec.Cmd) error, anchorCapture func(context.Context, int) (peerAnchor, error)) (*Handle, *duplexStream, error) {
 	if spec.Stdin != nil && spec.OwnedStdin != nil {
 		return nil, nil, CodeError("stdin_ownership_conflict")
 	}
@@ -238,6 +245,16 @@ func startCommandUsing(ctx context.Context, spec Command, duplex bool, birthLook
 		pipeCloseErr = pipes.closeChildren()
 	}
 	h.pgid = cmd.Process.Pid
+	// This is deliberately best-effort. Existing Start authority remains usable
+	// if the private carrier anchor cannot be obtained at the original boundary.
+	if anchorCapture != nil {
+		if anchor, anchorErr := anchorCapture(ctx, cmd.Process.Pid); anchorErr == nil && anchor.pid == cmd.Process.Pid && anchor.pgid == h.pgid {
+			h.mu.Lock()
+			h.peerAnchor = &anchor
+			h.peerOwner = h
+			h.mu.Unlock()
+		}
+	}
 	startedAt := ""
 	if duplex {
 		startedAt = h.duplexLaunch.SpawnedAt.UTC().Format(time.RFC3339Nano)
@@ -356,6 +373,10 @@ func (h *Handle) Stop(ctx context.Context) error {
 
 func (h *Handle) stopWith(ctx context.Context, ops stopOperations) error {
 	h.mu.Lock()
+	// A Stop attempt ends carrier authority even when the subsequent signal or
+	// receipt proof fails. This avoids authorizing a peer during an in-flight
+	// ownership transition.
+	h.peerRevoked = true
 	waited := h.waited
 	identity := h.identity
 	h.mu.Unlock()

@@ -1,0 +1,7 @@
+--- FAIL: TestVerifyLiveDescendantNativeLifecycle (0.02s)
+    peer_anchor_test.go:132: bind live owned descendant: binding=false err=process_tree_unknown
+--- FAIL: TestLiveDescendantRejectsPIDReuseWithNewBirth (0.00s)
+    peer_anchor_test.go:166: bind stable peer: binding=false err=process_tree_unknown
+FAIL
+FAIL	github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process	0.633s
+FAIL
