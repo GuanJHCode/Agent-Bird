@@ -105,6 +105,9 @@ func freezeNativeSuccess(t *testing.T) {
 	if receipt.BaseOID != base || receipt.CandidateOID == base || receipt.PrivateRef != "refs/orchestrator/g3/filter-freeze-native" || receipt.Filter == nil || len(receipt.Filter.Views) != 1 || len(receipt.Changes) != 1 || receipt.Changes[0].Path != "a.txt" || receipt.Changes[0].Mode != "100644" {
 		t.Fatalf("incomplete frozen receipt: %#v", receipt)
 	}
+	if err := receipt.Filter.ValidateBinding(source.manifest, source.SHA256()); err != nil || receipt.Filter.Views[0].Path != "a.txt" || receipt.Filter.Views[0].CanonicalSHA256 != rawSHA(xorRaw(desiredR)) || receipt.Filter.Views[0].RenderedSHA256 != rawSHA(desiredR) {
+		t.Fatalf("frozen filter evidence err=%v evidence=%#v", err, receipt.Filter)
+	}
 	if freezeJournal.intent.AttemptID != request.AttemptID || !reflect.DeepEqual(freezeJournal.intent.Binding, receipt.Binding) || !reflect.DeepEqual(freezeJournal.intent.Changes, receipt.Changes) || !reflect.DeepEqual(freezeJournal.intent.OrderedInputOIDs, receipt.OrderedInputOIDs) || !reflect.DeepEqual(freezeJournal.intent.Filter, receipt.Filter) || !reflect.DeepEqual(freezeJournal.receipt, receipt) {
 		t.Fatalf("journal did not receive immutable candidate copies: intent=%#v receipt=%#v", freezeJournal.intent, freezeJournal.receipt)
 	}
@@ -163,6 +166,9 @@ func freezeNativeSuccess(t *testing.T) {
 	providerCommand(t, validator, ctx, "/usr/bin/cmp", payload, filepath.Join(validatorRequest.Worktree, "a.txt"))
 	if err := materialized.Verify(ctx); err != nil {
 		t.Fatalf("validator live verify: %v", err)
+	}
+	if validated := materialized.Receipt(); !reflect.DeepEqual(validated.Filter, receipt.Filter) {
+		t.Fatalf("validator filter evidence=%#v accepted=%#v", validated.Filter, receipt.Filter)
 	}
 	if err := os.WriteFile(filepath.Join(validatorRequest.Worktree, "a.txt"), []byte("later change\n"), 0600); err != nil {
 		t.Fatal(err)
