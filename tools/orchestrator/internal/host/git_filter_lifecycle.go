@@ -5,11 +5,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"path/filepath"
 	"time"
 
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/contract"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/events"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitopsworker"
 	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 )
 
@@ -26,6 +29,18 @@ type filterRuntime struct {
 	providerStartedAt, providerTerminalAt time.Time
 	cleanup                               *contract.GitFilterCleanup
 	activeMS                              int64
+	journal                               filterHostJournal
+	source                                *gitops.FilterGitContext
+}
+
+type filterHostJournal interface {
+	gitops.Journal
+	gitops.CandidateJournal
+	gitops.GitProcessJournal
+	gitops.FilterMaterializeJournal
+	RecordWorkspacePrepared(context.Context, gitops.PreparedWorkspace) error
+	RecordCandidateAction(context.Context, string, any) error
+	Close() error
 }
 
 func newFilterRuntime(g contract.LaunchCommand) (*filterRuntime, error) {
@@ -36,31 +51,93 @@ func newFilterRuntime(g contract.LaunchCommand) (*filterRuntime, error) {
 	if err != nil || m == nil {
 		return nil, contract.ErrGitFilterContract
 	}
-	g.AdapterPayload = append([]byte(nil), g.AdapterPayload...)
-	a, f := *g.HostArtifacts, *g.GitFilter
-	g.HostArtifacts, g.GitFilter = &a, &f
-	if g.ValidationTool != nil {
-		v := *g.ValidationTool
-		g.ValidationTool = &v
+	// Clone accepted inputs and all nested authority before any invocation
+	// callback. Preserve exact payload bytes: RawMessage marshaling compacts
+	// JSON, but resource/input hashes are bound to the original byte sequence.
+	original := g
+	raw, err := json.Marshal(g)
+	var frozen contract.LaunchCommand
+	if err != nil || json.Unmarshal(raw, &frozen) != nil {
+		return nil, contract.ErrGitFilterContract
+	}
+	g = frozen
+	g.AdapterPayload = append([]byte(nil), original.AdapterPayload...)
+	if g.Input != nil {
+		g.Input.AdapterPayload = append([]byte(nil), original.Input.AdapterPayload...)
+	}
+	if g.DependencyInputs != nil {
+		for i := range g.DependencyInputs.Inputs {
+			g.DependencyInputs.Inputs[i].AdapterPayload = append([]byte(nil), original.DependencyInputs.Inputs[i].AdapterPayload...)
+		}
 	}
 	return &filterRuntime{grant: g, manifest: m.Clone()}, nil
+}
+
+func filterJournalKey(g contract.LaunchCommand) string {
+	return hashText(g.RunID + "\x00" + g.TaskID + "\x00" + g.AttemptID + "\x00" + g.SegmentID)
+}
+
+func (f *filterRuntime) freshJournal(spoolRoot string) error {
+	if f.journal != nil || f.opened {
+		return errors.New("git_filter_runtime_reused")
+	}
+	j, err := gitopsworker.OpenFreshJournal(filepath.Join(spoolRoot, ".gitops-journal", filterJournalKey(f.grant)))
+	if err != nil {
+		return err
+	}
+	f.journal = j
+	return nil
+}
+
+func (f *filterRuntime) openSource(ctx context.Context, repo string) error {
+	if f.journal == nil || f.source != nil || f.broker == nil || f.invalid || f.cleanup != nil {
+		return errors.New("git_filter_runtime_reused")
+	}
+	var err error
+	f.source, err = gitops.OpenFilterGit(gitops.WithCandidateJournal(ctx, f.journal), repo, f.manifest)
+	return err
+}
+
+func (f *filterRuntime) requireOriginalTerminal() error {
+	if f == nil || f.invalid || !f.opened || f.broker == nil || f.journal == nil || f.source == nil || f.cleanup != nil || !f.providerAttempted || f.provider == nil || f.providerStartedAt.IsZero() || f.providerTerminalAt.Before(f.providerStartedAt) || f.provider.OriginalSpawnedAt() != f.providerStartedAt {
+		return errors.Join(process.ErrProcessTreeUnknown, errors.New("git_filter_original_terminal_required"))
+	}
+	if err := f.provider.ConfirmTreeExited(); err != nil {
+		return errors.Join(process.ErrProcessTreeUnknown, err)
+	}
+	return nil
 }
 
 func (f *filterRuntime) open(ctx context.Context, sp *events.Spool) error {
 	if f.opened {
 		return errors.New("git_filter_runtime_reused")
 	}
+	if filepath.Base(sp.Directory()) != f.grant.SegmentID || filepath.Base(filepath.Dir(sp.Directory())) != f.grant.AttemptID {
+		f.invalid = true
+		return contract.ErrGitFilterContract
+	}
+	err := f.freshJournal(filepath.Dir(filepath.Dir(sp.Directory())))
 	f.opened = true
-	var err error
+	if err != nil {
+		f.invalid = true
+		return err
+	}
 	f.broker, err = gitfilter.OpenBroker(ctx, gitfilter.BrokerRequest{Launch: f.grant, Grant: *f.grant.GitFilter, Manifest: f.manifest, SegmentDirectory: sp.Directory(), Spool: sp})
 	return err
 }
 
 func (f *filterRuntime) close() error {
-	if f.broker == nil {
-		return nil
+	var err error
+	if f.source != nil {
+		err = errors.Join(err, f.source.Close())
 	}
-	return f.broker.Close()
+	if f.journal != nil {
+		err = errors.Join(err, f.journal.Close())
+	}
+	if f.broker != nil {
+		err = errors.Join(err, f.broker.Close())
+	}
+	return err
 }
 
 func (f *filterRuntime) matches(meta launchMetadata, hostID, runID, taskID, attemptID, segmentID string) bool {

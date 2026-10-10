@@ -39,6 +39,8 @@ type FilterMaterialization struct {
 	receipt       MaterializeReceipt
 	workspace     *filterRawWorkspace
 	streamBinding gitfilter.StreamBinding
+	accepted      *CandidateReceipt
+	journal       GitProcessJournal
 }
 
 func MaterializeFiltered(ctx context.Context, source *FilterGitContext, streams FilterStreams, req MaterializeRequest, journal Journal) (*FilterMaterialization, error) {
@@ -205,7 +207,7 @@ func MaterializeFiltered(ctx context.Context, source *FilterGitContext, streams 
 	if err = binding.Verify(ctx); err != nil {
 		return nil, err
 	}
-	m := &FilterMaterialization{source: source, streams: streams, binding: binding, receipt: receipt, workspace: workspace, streamBinding: expected}
+	m := &FilterMaterialization{source: source, streams: streams, binding: binding, receipt: receipt, workspace: workspace, streamBinding: expected, journal: processes}
 	if err = durable.RecordFilterMaterialized(ctx, m.Receipt()); err != nil {
 		return nil, err
 	}
@@ -244,15 +246,19 @@ func filterMaterializedInventory(ctx context.Context, binding *FilterWorktreeBin
 // Verify checks this original live materialization; neither a receipt nor a
 // reopened pathname can reconstruct its stream owner or workspace handles.
 func (m *FilterMaterialization) Verify(ctx context.Context) error {
-	if m == nil || m.workspace == nil || m.binding == nil || m.streams == nil || m.streams.Binding() != m.streamBinding {
+	if m == nil || m.workspace == nil || m.binding == nil || m.streams == nil || m.journal == nil || m.streams.Binding() != m.streamBinding {
 		return fail(CodeIdentityChanged, "filter live owner", nil)
 	}
+	ctx = WithCandidateJournal(ctx, m.journal)
 	files, err := filterMaterializedInventory(ctx, m.binding, m.workspace, m.receipt.CommitOID, m.receipt.TreeOID)
 	if err != nil {
 		return err
 	}
 	if !reflect.DeepEqual(files, m.receipt.Files) || m.streams.Binding() != m.streamBinding {
 		return fail(CodeIdentityChanged, "filter published materialization", nil)
+	}
+	if m.accepted != nil {
+		return checkFilteredCandidateRef(m.source.Context(ctx), m.source, *m.accepted)
 	}
 	return nil
 }

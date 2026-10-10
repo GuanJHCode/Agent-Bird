@@ -68,3 +68,12 @@ CLI 在 Submit 前持久化并同步恢复身份，精确重试返回同 control
 只有原Host实际`cmd.Start`返回EAGAIN/EINTR且尚未产生Process/Handle的活typed proof，才进入`candidate_validation_retry`。原诊断/终态与工具清理经过认证，Store持久化并ACK原失败后，按有限预算/次数/退避创建fresh attempt。已启动命令仍由原Handle执行Stop/Wait/tree；冷starting、cleanup失败或只有旧physical Host未入Store的spool均保留UNKNOWN与预约。每次工具删除证明成立后释放raw预留，8192byte元数据继续计费。
 
 公开用法与边界见[验收及使用说明](../tasks/validation-start-retry/docs/usage-and-limits.md)。Mac arm64真实受控链及profile访问拒绝已有证据；不代表已启动validate失败或implement/compose/integrate失败可自动重试，也不代表真实内核资源耗尽或Linux Git链通过。
+
+
+## 有界 Git filter 首形状
+
+Darwin 支持带固定 `git_filter` manifest 的首次 `kind=provider` Claude/AGY implementer，以及消费其已接受附件的独立 `kind=candidate` validate。producer 必须使用新 AutoDirectory、workspace-write profile、固定 ProviderLock 和显式文件路径；validator 必须同 manifest、dependency input v1、单一 source task、独立 sealed validation tool，并将 Target 留为空值。该验证结果不授予目标分支审查或整合权限。
+
+Host 仅在本次原进程 Wait/tree 已证明后 freeze/发布结果；旧 journal、续接、返工、重试和其他 filtered action 均拒绝。canonical B 与 rendered R 分别保留摘要；validator 使用新的受管工作树恢复 R，并在结束和结果记录后复验来源 private ref。真实 Provider 返回 technical question 时仍会 waiting_user，但当前 filtered answer/continuation 不可用。
+
+[验收记录](../tasks/filter-host-pipeline/docs/final-validation.md)区分受控 Store/Host 原生链、纯约束、Linux 交叉编译与尚未执行的真实模型/公开 CLI/TUI 验收。LFS、filtered review/compose/integrate 和签名不在此形状内。

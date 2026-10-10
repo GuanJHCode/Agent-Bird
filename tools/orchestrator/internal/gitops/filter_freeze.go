@@ -470,10 +470,10 @@ func MaterializeFilteredCandidate(ctx context.Context, source *FilterGitContext,
 		live.Close()
 		return nil, fail(CodeReviewMismatch, "filtered validator views", nil)
 	}
-	if err = checkFilteredCandidateRef(ctx, source, accepted); err != nil {
-		live.Close()
-		return nil, err
-	}
+	// Keep the authenticated source provenance in this original live owner.
+	// Later verification (including after result journal callbacks) must also
+	// reject deletion/replacement of the source candidate's private ref.
+	live.accepted = &accepted
 	if err = live.Verify(ctx); err != nil {
 		live.Close()
 		return nil, err
