@@ -92,3 +92,9 @@ func TestHostPeerExpectationNativeSelf(t *testing.T) {
 		t.Fatal("wrong expectation accepted")
 	}
 }
+
+func TestCaptureHostPeerExpectationRejectsUnboundedContext(t *testing.T) {
+	if _, err := CaptureHostPeerExpectation(context.Background()); err == nil {
+		t.Fatal("unbounded capture context accepted")
+	}
+}
