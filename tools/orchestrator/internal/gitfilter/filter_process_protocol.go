@@ -16,7 +16,7 @@ var ErrFilterProcessProtocol = errors.New("filter process protocol")
 
 // ProcessExchange must invoke produce synchronously, at most once. The callback
 // receives a stream, not a second in-memory copy of the Broker's input slot.
-type ProcessExchange func(context.Context, uint64, string, string, func(io.Writer) error) ([]byte, error)
+type ProcessExchange func(ctx context.Context, sequence uint64, path, operation string, produce func(io.Writer) error) ([]byte, error)
 
 const (
 	filterProcessPayload = 65516
@@ -104,6 +104,9 @@ func (w *filterProcessWire) readFull(p []byte) error {
 		return err
 	}
 	_, err := io.ReadFull(filterProcessReader{ctx: w.ctx, input: w.input}, p)
+	if cancelErr := w.ctx.Err(); cancelErr != nil {
+		return cancelErr
+	}
 	return err
 }
 
@@ -116,7 +119,11 @@ func (r filterProcessReader) Read(p []byte) (int, error) {
 	if err := r.ctx.Err(); err != nil {
 		return 0, err
 	}
-	return r.input.Read(p)
+	n, err := r.input.Read(p)
+	if cancelErr := r.ctx.Err(); cancelErr != nil {
+		return n, cancelErr
+	}
+	return n, err
 }
 
 func (w *filterProcessWire) readPacket() ([]byte, bool, error) {
@@ -157,6 +164,9 @@ func (w *filterProcessWire) write(p []byte) error {
 		return err
 	}
 	n, err := w.output.Write(p)
+	if cancelErr := w.ctx.Err(); cancelErr != nil {
+		return cancelErr
+	}
 	if err == nil && n != len(p) {
 		err = io.ErrShortWrite
 	}
