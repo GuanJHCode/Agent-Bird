@@ -68,6 +68,25 @@ func TestFilterWorktreeBindingKeepsOriginalSource(t *testing.T) {
 					}
 					t.Fatal("foreign common directory bound")
 				}
+				borrowed := filepath.Join(filepath.Dir(path), "borrowed")
+				if err = os.Mkdir(borrowed, 0700); err != nil {
+					t.Fatal(err)
+				}
+				for _, name := range []string{".git", ".gitattributes", "a.txt"} {
+					body, e := os.ReadFile(filepath.Join(path, name))
+					if e != nil {
+						t.Fatal(e)
+					}
+					if e = os.WriteFile(filepath.Join(borrowed, name), body, 0600); e != nil {
+						t.Fatal(e)
+					}
+				}
+				if other, e := g.BindWorktree(ctx, borrowed); e == nil {
+					if other != nil {
+						other.Close()
+					}
+					t.Fatal("another worktree index was adopted")
+				}
 				if err = os.WriteFile(filepath.Join(path, ".gitattributes"), []byte("a.txt filter=foreign\n"), 0600); err != nil {
 					t.Fatal(err)
 				}
@@ -76,6 +95,22 @@ func TestFilterWorktreeBindingKeepsOriginalSource(t *testing.T) {
 				}
 				if err = g.Verify(ctx); err != nil {
 					t.Fatal("child attribute drift changed source", err)
+				}
+				bound.Close()
+				original, e := os.ReadFile(filepath.Join(source, ".gitattributes"))
+				if e != nil {
+					t.Fatal(e)
+				}
+				if e = os.WriteFile(filepath.Join(path, ".gitattributes"), original, 0600); e != nil {
+					t.Fatal(e)
+				}
+				bound, err = g.BindWorktree(ctx, path)
+				if err != nil {
+					t.Fatal("fresh child before parent drift", err)
+				}
+				defer bound.Close()
+				if err = bound.Verify(ctx); err != nil {
+					t.Fatal("baseline before parent drift", err)
 				}
 				if err = os.WriteFile(filepath.Join(source, ".gitattributes"), []byte("a.txt filter=foreign\n"), 0600); err != nil {
 					t.Fatal(err)
