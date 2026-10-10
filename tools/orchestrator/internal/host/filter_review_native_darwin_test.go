@@ -6,11 +6,14 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -26,6 +29,8 @@ func TestFilterReviewNativeHostAcceptedValidator(t *testing.T) {
 	defer cancel()
 	filterActor := filterPipelineBuildActor(t, ctx, root, guard)
 	validatorActor, validatorPin := validationNativeActor(t, root, guard)
+	reviewActor := filterReviewBuildActor(t, ctx, root, guard)
+	reviewPin := filterPipelineDigest(t, reviewActor)
 	gitPath := filterPipelineGitPath(t, ctx, guard)
 	repo := filepath.Join(root, "repo")
 	if err := os.Mkdir(repo, 0700); err != nil {
@@ -56,7 +61,7 @@ func TestFilterReviewNativeHostAcceptedValidator(t *testing.T) {
 	validatePayload := adapter.InvocationPayload{Kind: "candidate", Directory: filepath.Join(root, "validate"), CandidateAction: &adapter.CandidateAction{Version: 1, Operation: "validate", SourceTask: "edit", DependencyInputVersion: 1, AutoDirectory: true, Command: []string{validatorActor, "validate"}, CommandSHA256: validatorPin}, GitFilter: &manifest}
 	sourceRaw, _ := json.Marshal(sourcePayload)
 	validateRaw, _ := json.Marshal(validatePayload)
-	reviewPayload := adapter.InvocationPayload{Directory: filepath.Join(root, "review"), Provider: string(adapter.ProviderClaude), ProviderLock: sourcePayload.ProviderLock, Profile: &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: 300000}, CandidateAction: &adapter.CandidateAction{Version: 1, Operation: "review", SourceTask: "validate", DependencyInputVersion: 1, AutoDirectory: true}, GitFilter: &manifest}
+	reviewPayload := adapter.InvocationPayload{Directory: filepath.Join(root, "review"), Provider: string(adapter.ProviderClaude), ProviderLock: &adapter.ProviderLock{Version: 1, Provider: adapter.ProviderClaude, Protocol: adapter.ProtocolID(adapter.ProviderClaude), Binary: adapter.BinaryPin{Path: reviewActor, SHA256: reviewPin, Version: "controlled-readonly"}}, Profile: &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: 300000}, CandidateAction: &adapter.CandidateAction{Version: 1, Operation: "review", SourceTask: "validate", DependencyInputVersion: 1, AutoDirectory: true}, GitFilter: &manifest}
 	reviewRaw, _ := json.Marshal(reviewPayload)
 	db, err := store.Open(filepath.Join(root, "state.db"))
 	if err != nil {
@@ -159,5 +164,111 @@ func TestFilterReviewNativeHostAcceptedValidator(t *testing.T) {
 	filterPipelineReleasedReservations(t, filepath.Join(root, "state.db"), sourceGrant, filterPipelineExitedEvent(t, sourceEvents, sourceGrant), validatorGrant, filterPipelineExitedEvent(t, validatorEvents, validatorGrant))
 	guard.pending--
 	validationAccept(t, ctx, db, validatorGrant)
-	t.Fatal("filtered review unexpectedly reached post-validator chain on unsupported baseline")
+
+	reviewGrant, err := db.ClaimReady(ctx, hostID, 1, 2)
+	if err != nil || reviewGrant.TaskID != "review" || reviewGrant.GitFilter == nil || reviewGrant.ValidationTool != nil || reviewGrant.Input == nil || reviewGrant.Input.Event.TaskID != "validate" {
+		t.Fatalf("review grant=%+v err=%v", reviewGrant, err)
+	}
+	for _, prior := range []contract.LaunchCommand{sourceGrant, validatorGrant} {
+		if reviewGrant.GitFilter.ReservationID == prior.GitFilter.ReservationID || reviewGrant.GitFilter.ScopeSHA256 == prior.GitFilter.ScopeSHA256 || reviewGrant.AttemptID == prior.AttemptID {
+			t.Fatal("review reused prior authority")
+		}
+	}
+	prompt, err := CandidateReviewPrompt(reviewGrant, filepath.Join(root, "host-spool"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	guard.pending++
+	result, err = h.ExecuteLaunch(ctx, reviewGrant, filterReviewNativeInvocation{validationNativeInvocation: validationNativeInvocation{launchInvocation: launchInvocation{args: []string{reviewActor}, dir: reviewPayload.Directory}, payload: reviewPayload}, prompt: prompt})
+	if err != nil || result.Status != "result_ready" || result.ExitCode != 0 {
+		t.Fatalf("review result=%+v err=%v", result, err)
+	}
+	reviewBody, err := os.ReadFile(result.ArtifactPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var reviewed CandidateDelivery
+	if err = json.Unmarshal(reviewBody, &reviewed); err != nil {
+		t.Fatal(err)
+	}
+	validatorEvent := filterPipelineResultEvent(t, validatorEvents)
+	if reviewed.Stage != "review" || reviewed.Review == nil || reviewed.Review.Decision != "approve" || reviewed.Review.Summary != "read candidate; tracked write denied" || reviewed.Binding != filterReviewBinding(reviewGrant) || !reflect.DeepEqual(reviewed.ProviderLock, reviewPayload.ProviderLock) || !reflect.DeepEqual(reviewed.Target, gitops.ReviewBinding{}) || reviewed.InputEventID != validatorEvent.EventID || reviewed.InputSHA256 != validatorEvent.Artifact.SHA256 || reviewed.OwnerDecisionID != "accept-validate" {
+		t.Fatalf("review envelope=%#v", reviewed)
+	}
+	if !reflect.DeepEqual(reviewed.Candidate, sourceDelivery.Candidate) || !reflect.DeepEqual(reviewed.Validation, delivery.Validation) || reviewed.ValidationDigest != delivery.ValidationDigest || reviewed.CandidateReceiptSHA256 != sourceDelivery.CandidateReceiptSHA256 || reviewed.Validation.Binding != expectedValidatorBinding || reviewed.Candidate.Binding.TaskID != "edit" {
+		t.Fatal("review changed accepted producer/validator evidence")
+	}
+	reviewDir := candidateDirectory(reviewPayload.Directory, reviewGrant, true)
+	if reviewDir == sourceDelivery.Candidate.Worktree || reviewDir == candidateDirectory(validatePayload.Directory, validatorGrant, true) {
+		t.Fatal("review reused worktree")
+	}
+	if got, e := os.ReadFile(filepath.Join(reviewDir, "file")); e != nil || !bytes.Equal(got, desiredR) {
+		t.Fatalf("review R=%q err=%v", got, e)
+	}
+	reviewEvents := validationCommitEvents(t, ctx, db, h, reviewGrant)
+	if !filterPipelineExited(reviewEvents, reviewGrant) {
+		t.Fatal("review original Wait/tree/cleanup Exited missing")
+	}
+	reviewExit := filterPipelineExitedEvent(t, reviewEvents, reviewGrant)
+	for _, event := range reviewEvents {
+		if event.ValidationToolCleanup != nil {
+			t.Fatal("review acquired validation tool authority")
+		}
+	}
+	readonly, err := sql.Open("sqlite", "file:"+filepath.Join(root, "state.db")+"?mode=ro")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var state, release, cleanup string
+	err = readonly.QueryRow("SELECT state,release_event_id,cleanup_json FROM git_filter_resource_reservations WHERE id=?", reviewGrant.GitFilter.ReservationID).Scan(&state, &release, &cleanup)
+	closeErr := readonly.Close()
+	if err != nil || closeErr != nil || state != "released" || release != reviewExit || cleanup == "" {
+		t.Fatalf("review reservation state=%s release=%s err=%v close=%v", state, release, err, closeErr)
+	}
+	guard.pending--
+	validationAccept(t, ctx, db, reviewGrant)
+	t.Logf("controlled_filtered_readonly_review original_wait_tree=true native_structured=true actual_rendered_read=true tracked_write_permission_denied=true distinct_filter_grants=true zero_target=true root=%s", root)
+
+}
+
+type filterReviewNativeInvocation struct {
+	validationNativeInvocation
+	prompt string
+}
+
+func (i filterReviewNativeInvocation) OutputProvider() string { return string(adapter.ProviderClaude) }
+func (i filterReviewNativeInvocation) Stdin() []byte          { return []byte(i.prompt) }
+
+func filterReviewBinding(g contract.LaunchCommand) gitops.CandidateBinding {
+	return gitops.CandidateBinding{RunID: g.RunID, TaskID: g.TaskID, AttemptID: g.AttemptID, SegmentID: g.SegmentID, WorkRevision: g.WorkRevision, PlanRevision: g.PlanRevision}
+}
+
+func filterReviewBuildActor(t *testing.T, ctx context.Context, root string, guard *validationNativeCleanup) string {
+	t.Helper()
+	goPath := "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go"
+	binary := filepath.Join(root, "native-review-actor")
+	source := filepath.Join(filterPipelineModuleRoot(t), "..", "..", "tasks", "filter-review-native", "scripts", "claude-review-actor.go")
+	guard.pending++
+	original, err := process.Start(ctx, process.Command{Path: goPath, PinnedPath: goPath, PinnedSHA256: filterPipelineDigest(t, goPath), Args: []string{"build", "-trimpath", "-buildvcs=false", "-o", binary, source}, Dir: filterPipelineModuleRoot(t), ExactEnv: true, Env: []string{"PATH=" + filepath.Dir(goPath) + ":/usr/bin:/bin", "HOME=" + root, "GOCACHE=" + filepath.Join(root, "cache"), "GOPATH=" + filepath.Join(root, "gopath"), "GOENV=off", "GOWORK=off", "GOPROXY=off", "GOSUMDB=off", "TMPDIR=/private/tmp"}})
+	if err != nil || original == nil {
+		if original != nil {
+			validationNativeStop(original, guard)
+		}
+		t.Fatalf("review actor original Start: %v", err)
+	}
+	waitErr := original.Wait(ctx)
+	treeErr := original.ConfirmTreeExited()
+	if waitErr != nil || treeErr != nil {
+		validationNativeStop(original, guard)
+		t.Fatalf("review actor original Wait/tree: %v %v", waitErr, treeErr)
+	}
+	guard.pending--
+	if original.ExitCode() != 0 {
+		t.Fatalf("review actor build exit=%d output=%s", original.ExitCode(), strings.TrimSpace(original.Output()))
+	}
+	t.Logf("review_actor_build original_wait_tree=true exit=%d", original.ExitCode())
+	if err = os.Chmod(binary, 0500); err != nil {
+		t.Fatal(err)
+	}
+	return binary
 }
