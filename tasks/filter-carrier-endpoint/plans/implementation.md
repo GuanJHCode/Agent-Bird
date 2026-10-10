@@ -12,6 +12,14 @@ normal installation state directories unusable by placing the socket there.
 Use one fresh short random directory under literal /private/tmp on Darwin.
 No chdir, symlink alias, inherited-FD path trick or abstract socket.
 
+This is a narrow transport namespace exception to git-cleanup-protocol section
+4, not a fallback state root. B1 has no production callsite. Before B2/public
+admission, add the formal protocol addendum: persistent state/spool remain in
+their native managed roots and failure there still rejects; only a signed
+companion grant may derive this fixed ephemeral socket namespace. It carries
+no DB, spool, payload or copied executable. Failure of /private/tmp rejects;
+never try os.TempDir, a caller-selected root or another fallback location.
+
 The existing qualified gate/session/codec/peer/Host expectation are unchanged.
 B1 does not perform protocol IO, authenticate a peer, launch a helper/Git or
 create an external public action. A later B2 owner will join B1 with them.
@@ -43,8 +51,12 @@ The directory is 0700, current UID, one original held FD; its only entry is a
 absolute socket path bytes against the native sun_path bound before mutation.
 Check exact empty/present inventory at each corresponding phase, named/held
 directory anchors and socket type/device/inode/UID/nlink/mode. Use descriptor-
-relative nofollow operations for filesystem reads/mutation. Socket chmod must
-not follow a substituted symlink.
+relative nofollow operations for filesystem reads/mutation, with one explicit
+exception: Darwin Unix socket bind has no bindat. The pathname ListenUnix/bind
+must be surrounded by original held parent/child and named nofollow identity
+verification; any drift returns the same owner with sticky Unknown. This is
+not an atomic ownership guarantee. Socket chmod uses descriptor-relative
+Fchmodat with AT_SYMLINK_NOFOLLOW and rejects unsupported/error results.
 
 Set UnixListener.SetUnlinkOnClose(false) immediately on successful creation.
 The private owner retains the original listener. Do not expose its listener or
@@ -54,8 +66,10 @@ B1 filesystem removal. B1 only proves closure of its original listener.
 
 Self ownership rejects zero/copy/closed objects. Methods and scalar state have
 explicit synchronization; no state lock spans journal callbacks or blocking
-close. Preserve descriptor/owner handoff on every post-mutation failure:
-return the nonnil original owner with error rather than hiding retained state.
+close. Construct the self-owned object before the first journal invocation.
+Once reserved journaling is attempted, every error returns that same nonnil
+original owner, even when no filesystem node has yet been created. A callback
+may have durably committed before returning an error; never hide that lifetime.
 
 ## Journal and state boundaries
 
@@ -68,19 +82,30 @@ and bounded, but tests' in-memory journal is not durable Store quota evidence.
 1. Verify input/segment/root and reserve one name.
 2. Synchronously journal reserved before mkdir/bind. Verify both original roots
    after callback. Journal failure or callback drift before mutation causes no
-   filesystem creation; never unlink a preexisting/foreign entry.
-3. Attempt the one original directory create, hold/verify it; listen and freeze
-   socket identity; journal prepared then verify roots/inventory again.
+   filesystem creation and returns the nonnil owner with sticky Unknown; never
+   unlink a preexisting/foreign entry. If mkdir later returns a proven EEXIST
+   without creating a node, retain the selected name and original owner. Record
+   a distinct not_created terminal after root revalidation; it proves zero
+   owned nodes, not removal of the foreign entry. Journal uncertainty in this
+   path remains Unknown. No selected-name retry is permitted.
+3. Attempt the one original directory create, hold/verify it and fsync the
+   original /private/tmp parent. Listen/bind, nofollow chmod, freeze socket
+   identity and fsync the owned child directory before journaling prepared.
+   Verify roots/inventory again after callback. Any uncertain create/bind/fsync
+   failure retains the original owner and nodes as Unknown.
 4. Verify always preserves the frozen segment plus applicable external-root
    inventory; it does not accept a newly observed baseline after drift.
 5. Close permanently seals this listener owner and closes the original listener
    exactly once. A bounded timeout or close uncertainty is sticky Unknown.
 6. Remove requires known completed listener closure and no uncertainty, verifies
-   both roots and exact owned socket, unlinks by held directory, fsyncs child,
+   both roots and exact owned socket, then durably journals removing/delete_intent
+   with the original identities. Reverify both roots and inventory after that
+   callback, before any deletion. Unlink by held directory, fsync child,
    proves child empty, removes only the original random directory through held
    parent, fsyncs parent and proves named absence. Journal removed only after
-   those proofs, and close owned descriptors. A removed-record callback must not
-   be allowed to create/rebind state without a final pure recheck.
+   those proofs. After the removed callback, perform a final pure check of both
+   held roots and named absence before closing held parent/child/segment FDs.
+   A callback cannot create/rebind state and still produce a successful return.
 7. Any identity/close/unlink/fsync uncertainty retains Unknown and prevents a
    successful removed receipt. Closing owned descriptors must not delete or
    relabel retained entries. No cold adoption, scanning or /tmp garbage collector.
