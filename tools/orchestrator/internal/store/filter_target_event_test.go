@@ -14,6 +14,11 @@ import (
 // Store treats the authenticated Host artifact as opaque. These synthetic
 // Host events exercise grant/accept/settlement, not original process proof.
 func TestFilterTargetGrantAndNilExitSettlement(t *testing.T) {
+	for _, outcome := range []string{"result", "stopped"} {
+		t.Run(outcome, func(t *testing.T) { filterTargetGrantSettlement(t, outcome) })
+	}
+}
+func filterTargetGrantSettlement(t *testing.T, outcome string) {
 	ctx := context.Background()
 	db, err := Open(filepath.Join(t.TempDir(), "state.db"))
 	if err != nil {
@@ -91,6 +96,10 @@ func TestFilterTargetGrantAndNilExitSettlement(t *testing.T) {
 				}
 			}
 		}
+		stopped := i == 3 && outcome == "stopped"
+		if stopped {
+			result.Kind, result.StopReason = contract.EventStopped, "owner_stop_requested"
+		}
 		if _, e = db.CommitHostEvent(ctx, result); e != nil {
 			t.Fatalf("result %s: %v", id, e)
 		}
@@ -99,6 +108,7 @@ func TestFilterTargetGrantAndNilExitSettlement(t *testing.T) {
 		done.Sequence = sequence
 		done.EventID = id + "-exited"
 		done.Kind = contract.EventExited
+		done.StopReason = ""
 		done.ActiveMS = 1
 		if i != 3 {
 			done.ExitCode = &zero
@@ -120,11 +130,18 @@ func TestFilterTargetGrantAndNilExitSettlement(t *testing.T) {
 			t.Fatalf("exited %s: %v", id, e)
 		}
 		var status, state string
-		if e = db.sql.QueryRow(`SELECT status FROM tasks WHERE id=?`, id).Scan(&status); e != nil || status != "result_ready" {
+		expectedStatus := "result_ready"
+		if stopped {
+			expectedStatus = "interrupted"
+		}
+		if e = db.sql.QueryRow(`SELECT status FROM tasks WHERE id=?`, id).Scan(&status); e != nil || status != expectedStatus {
 			t.Fatalf("%s status=%s err=%v", id, status, e)
 		}
 		if e = db.sql.QueryRow(`SELECT state FROM git_filter_resource_reservations WHERE id=?`, f.ReservationID).Scan(&state); e != nil || state != "released" {
 			t.Fatalf("%s resource=%s err=%v", id, state, e)
+		}
+		if stopped {
+			return
 		}
 		page, e := db.CollectPending(ctx, id, "", 0, false)
 		if e != nil || len(page.Events) != 1 {

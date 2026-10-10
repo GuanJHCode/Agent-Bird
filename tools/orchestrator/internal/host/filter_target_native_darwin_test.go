@@ -92,7 +92,7 @@ func filterTargetNativeAcceptedReview(t *testing.T, ctx context.Context, db *sto
 	if err != nil || !adapter.IsFilterTargetPreflight(payload) || payload.Kind != "candidate" || payload.Provider != "" || payload.ProviderLock != nil || payload.Profile != nil || payload.Directory != filepath.Join(root, "preflight") || payload.CandidateAction.SourceTask != "review" || payload.CandidateAction.DependencyInputVersion != 1 || !payload.CandidateAction.AutoDirectory || payload.CandidateAction.Target != (adapter.CandidateTarget{Worktree: repo, Ref: "refs/heads/main", BaseOID: reviewed.Candidate.BaseOID}) || manifestSHA != targetGrant.GitFilter.ManifestSHA256 {
 		t.Fatalf("target payload=%#v err=%v", payload, err)
 	}
-	if len(targetGrant.Input.AdapterPayload) == 0 || !reflect.DeepEqual(targetGrant.Input, targetGrant.DependencyInputs.Inputs[0]) {
+	if len(targetGrant.Input.AdapterPayload) == 0 || !reflect.DeepEqual(*targetGrant.Input, targetGrant.DependencyInputs.Inputs[0]) {
 		t.Fatalf("target accepted input incomplete: input=%#v dependencies=%#v", targetGrant.Input, targetGrant.DependencyInputs)
 	}
 
@@ -167,6 +167,7 @@ func filterTargetNativeAcceptedReview(t *testing.T, ctx context.Context, db *sto
 	}
 	validationAccept(t, ctx, db, targetGrant)
 	filterTargetHostAssertPreserved(t, repo, baseline)
+	t.Logf("controlled_filtered_target_preflight original_host_callback=true provider_started=false target_paths_unchanged=5 accepted_review_preserved=true active_ms=%d cleanup_bytes=%d root=%s", exited.ActiveMS, exited.GitFilterCleanup.RemovedBytes, root)
 	if bytes.Equal(baseB, baseR) {
 		t.Fatal("target filter fixture did not distinguish canonical and rendered base")
 	}
