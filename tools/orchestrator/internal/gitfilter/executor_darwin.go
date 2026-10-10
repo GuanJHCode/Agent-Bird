@@ -263,6 +263,14 @@ func execute(ctx context.Context, r Request, start starter) (result Result, retE
 		return result, startErr
 	}
 	result.Started = true
+	// Preserve the original successful Start boundary, including time spent in
+	// post-Start observations/cleanup before StartDuplex returned. A serialized
+	// identity timestamp or a fresh clock reading cannot replace this value.
+	if launch, ok := h.DuplexLaunchState(); ok && !launch.SpawnedAt.IsZero() {
+		result.StartedAt = launch.SpawnedAt
+	} else {
+		startErr = errors.Join(startErr, errors.New("filter_start_boundary_missing"))
+	}
 	result.Identity = h.Identity()
 	type copied struct {
 		input bool
