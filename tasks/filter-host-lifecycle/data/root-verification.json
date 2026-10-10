@@ -1,0 +1,322 @@
+{
+  "qualified_source": "ea649e7",
+  "go_module_tree": "e316c43884df13da3b802af42b0795897fc74d90",
+  "changed_source_files": {
+    "tools/orchestrator/internal/gitfilter/broker.go": "507bdb331e42ebca70d23a58e137e26aff5a697ed58e45ce27fb41ebe0b7b97f",
+    "tools/orchestrator/internal/gitfilter/broker_darwin.go": "b5b01846ca2db89538b4e0321f24b8a50db36ec76e3b192eb132b6e751823f53",
+    "tools/orchestrator/internal/gitfilter/broker_other.go": "a407c94110c7576778b9b543072d49df89e8e366cb0aa6dfa76b344d8e323ace",
+    "tools/orchestrator/internal/host/git_filter_fallback_test.go": "db89dbdf558004a3015026108e339447d4d9758fb3fc664bbd90c98323906cf5",
+    "tools/orchestrator/internal/host/git_filter_lifecycle.go": "f5a64b1992b730a6690fb042cf552a029e90f9676da53df6ccd9e1f056f4c341",
+    "tools/orchestrator/internal/host/git_filter_lifecycle_darwin_test.go": "97d75caecae77615a0c3bf97c602dd3f54df8ca6ccfba0e6f902ea214a604bbb",
+    "tools/orchestrator/internal/host/host.go": "d3cda7711cb24655c4bf4b5da96f3231507969e815ebc28f0f074524469fbb55",
+    "tools/orchestrator/internal/host/host_artifact_writer.go": "0a59a708340851e10c91f17bab08691e94389d08a1381e123ee76c5bed6de5a0",
+    "tools/orchestrator/internal/host/source_runtime.go": "f10ef4a981747aa2a3739fdc949de61846f9145c078bd5b5d5ab70d5aa8cfdcb",
+    "tools/orchestrator/internal/process/original_start.go": "de0e6105168a33d86bce99670c321a2316e1a1edae5e790181f8fe6a0b5a80c4",
+    "tools/orchestrator/internal/process/process.go": "00e33941cb36cd215c61072f1461f626acf1db5b461f5760f7d5a4e9e45d3be9"
+  },
+  "raw_batches": {
+    "duplex-boundary-race": {
+      "source": "ea649e720bf77fe523d1e4e3ab5b99ca9c5b6e7b",
+      "exit": 0,
+      "sha256": "abe90186d35b3fd0816acba81d20218810dfb3b504b6c540d17122a02c852cb8",
+      "top": 1,
+      "named_including_parents": 4,
+      "pass": 4,
+      "fail": 0,
+      "skip": 0,
+      "results": [
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestFilterOriginalStartBoundary/preflight_has_no_start",
+          "Action": "pass"
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestFilterOriginalStartBoundary/accepted_original_boundary",
+          "Action": "pass"
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestFilterOriginalStartBoundary/post_start_error_preserves_boundary",
+          "Action": "pass"
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestFilterOriginalStartBoundary",
+          "Action": "pass"
+        }
+      ]
+    },
+    "fallback-red": {
+      "source": "11daa2bf4541d7b4b33d56e7d68317933169c5ba",
+      "exit": 1,
+      "sha256": "7827496eb3760f0aa78f46d100328b1359946440a15f03442909537c35cc689f",
+      "top": 1,
+      "named_including_parents": 1,
+      "pass": 0,
+      "fail": 1,
+      "skip": 0,
+      "results": [
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "Test": "TestGitFilterFallbackCannotInventNeverStarted",
+          "Action": "fail"
+        }
+      ]
+    },
+    "lifecycle-build": {
+      "source": "ea649e720bf77fe523d1e4e3ab5b99ca9c5b6e7b",
+      "exit": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "top": 0,
+      "named_including_parents": 0,
+      "pass": 0,
+      "fail": 0,
+      "skip": 0,
+      "results": []
+    },
+    "lifecycle-final-race": {
+      "source": "ea649e720bf77fe523d1e4e3ab5b99ca9c5b6e7b",
+      "exit": 1,
+      "sha256": "a53beaab44f92a4a95e4ade578b5d70e075b81b690d8488e35ed9017ad1f820d",
+      "top": 5,
+      "named_including_parents": 14,
+      "pass": 13,
+      "fail": 1,
+      "skip": 0,
+      "results": [
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "Test": "TestGitFilterFallbackCannotInventNeverStarted",
+          "Action": "pass"
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "Test": "TestGitFilterSourceFallbackRetainsUnknown/before_dispatch",
+          "Action": "pass"
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "Test": "TestGitFilterSourceFallbackRetainsUnknown/invocation_failure",
+          "Action": "pass"
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "Test": "TestGitFilterSourceFallbackRetainsUnknown/execute_refusal",
+          "Action": "pass"
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "Test": "TestGitFilterSourceFallbackRetainsUnknown",
+          "Action": "pass"
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process",
+          "Test": "TestPlainOrNilHandleHasNoDuplexLaunchState",
+          "Action": "pass"
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitfilter",
+          "Test": "TestFilterOriginalStartBoundary",
+          "Action": "fail"
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "Test": "TestFilterHostOriginalLifecycle/prepare_provider_freeze",
+          "Action": "pass"
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "Test": "TestFilterHostOriginalLifecycle/failed_prepare_filter",
+          "Action": "pass"
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "Test": "TestFilterHostOriginalLifecycle/never_started",
+          "Action": "pass"
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "Test": "TestFilterHostOriginalLifecycle/cancel_after_filter",
+          "Action": "pass"
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "Test": "TestFilterHostOriginalLifecycle/unproved_provider_start",
+          "Action": "pass"
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "Test": "TestFilterHostOriginalLifecycle/journal_unknown",
+          "Action": "pass"
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "Test": "TestFilterHostOriginalLifecycle",
+          "Action": "pass"
+        }
+      ]
+    },
+    "lifecycle-green": {
+      "source": "246658e4ee2b7d8d96eee9448f019921bce23a52",
+      "exit": 0,
+      "sha256": "ea311b9f79cc076bf36c4ee3d8718eeed7c92ecf6ccb3b3b05b9ffa366731c6f",
+      "top": 2,
+      "named_including_parents": 8,
+      "pass": 8,
+      "fail": 0,
+      "skip": 0,
+      "results": [
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "Test": "TestGitFilterFallbackCannotInventNeverStarted",
+          "Action": "pass"
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "Test": "TestFilterHostOriginalLifecycle/prepare_provider_freeze",
+          "Action": "pass"
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "Test": "TestFilterHostOriginalLifecycle/failed_prepare_filter",
+          "Action": "pass"
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "Test": "TestFilterHostOriginalLifecycle/never_started",
+          "Action": "pass"
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "Test": "TestFilterHostOriginalLifecycle/cancel_after_filter",
+          "Action": "pass"
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "Test": "TestFilterHostOriginalLifecycle/unproved_provider_start",
+          "Action": "pass"
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "Test": "TestFilterHostOriginalLifecycle/journal_unknown",
+          "Action": "pass"
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "Test": "TestFilterHostOriginalLifecycle",
+          "Action": "pass"
+        }
+      ]
+    },
+    "lifecycle-red": {
+      "source": "72e326937e61e679b5e353ed594648049c82d729",
+      "exit": 1,
+      "sha256": "51ace920ed96a0a63677075debad05c2f8a683bb54fb0042f6628e88054785d4",
+      "top": 1,
+      "named_including_parents": 7,
+      "pass": 1,
+      "fail": 6,
+      "skip": 0,
+      "results": [
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "Test": "TestFilterHostOriginalLifecycle/prepare_provider_freeze",
+          "Action": "fail"
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "Test": "TestFilterHostOriginalLifecycle/failed_prepare_filter",
+          "Action": "fail"
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "Test": "TestFilterHostOriginalLifecycle/never_started",
+          "Action": "fail"
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "Test": "TestFilterHostOriginalLifecycle/cancel_after_filter",
+          "Action": "fail"
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "Test": "TestFilterHostOriginalLifecycle/unproved_provider_start",
+          "Action": "pass"
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "Test": "TestFilterHostOriginalLifecycle/journal_unknown",
+          "Action": "fail"
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "Test": "TestFilterHostOriginalLifecycle",
+          "Action": "fail"
+        }
+      ]
+    },
+    "lifecycle-vet": {
+      "source": "ea649e720bf77fe523d1e4e3ab5b99ca9c5b6e7b",
+      "exit": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "top": 0,
+      "named_including_parents": 0,
+      "pass": 0,
+      "fail": 0,
+      "skip": 0,
+      "results": []
+    },
+    "source-fallback-red": {
+      "source": "f61eca7fd98a61236281cf1d870dcdb599161a46",
+      "exit": 1,
+      "sha256": "874922b7851e2f8309270b4b60f4bd497b519ab2cc42d051387d04bee40a2aa1",
+      "top": 1,
+      "named_including_parents": 4,
+      "pass": 0,
+      "fail": 4,
+      "skip": 0,
+      "results": [
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "Test": "TestGitFilterSourceFallbackRetainsUnknown/before_dispatch",
+          "Action": "fail"
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "Test": "TestGitFilterSourceFallbackRetainsUnknown/invocation_failure",
+          "Action": "fail"
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "Test": "TestGitFilterSourceFallbackRetainsUnknown/execute_refusal",
+          "Action": "fail"
+        },
+        {
+          "Package": "github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/host",
+          "Test": "TestGitFilterSourceFallbackRetainsUnknown",
+          "Action": "fail"
+        }
+      ]
+    }
+  },
+  "owned_roots_absent": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-lifecycle/tasks/filter-stream-broker/tmp/executor-3346190206",
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-lifecycle/tasks/filter-host-lifecycle/tmp/native-2800086826",
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-lifecycle/tasks/filter-host-lifecycle/tmp/native-2453033057",
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-lifecycle/tasks/filter-host-lifecycle/tmp/native-4022510650"
+  ],
+  "review": "PASS ea649e7 production/tests by independent filter_resource_linux",
+  "limits": "private Host lifecycle only; public filter remains closed; native controlled actors, no model; whole first final-race batch failed due missing ignored fixture directory, qualified Host/process portions and separate repaired-environment gitfilter batch reported individually",
+  "linux_compile": {
+    "source": "a215fe253f12e47f90a27a4490ed5ac3b1557f0c",
+    "target": "linux/arm64 CGO_ENABLED=0",
+    "command": [
+      "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+      "build",
+      "./..."
+    ],
+    "exit": 0,
+    "execution": "not run; unsupported-platform Broker factory only"
+  }
+}
