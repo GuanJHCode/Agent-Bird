@@ -103,8 +103,7 @@ func TestBrokerStreamLoadBoundaries(t *testing.T) {
 	t.Run("cancel_and_actual_slot_io_have_distinct_conservative_outcomes", func(t *testing.T) {
 		b := liveBroker(t, ctx, f, brokerRequest(t, f, "copy"))
 		cancelCtx, stop := context.WithCancel(ctx)
-		stop()
-		_, err := b.LoadStream(cancelCtx, 0, func(io.Writer) error { return nil })
+		_, err := b.LoadStream(cancelCtx, 0, func(io.Writer) error { stop(); return nil })
 		if !errors.Is(err, context.Canceled) || b.State().Unknown {
 			t.Fatalf("cancel err=%v state=%+v", err, b.State())
 		}
