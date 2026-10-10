@@ -310,18 +310,22 @@ func (g *FilterGitContext) validateConfig(raw string) error {
 	return nil
 }
 
-func (g *FilterGitContext) readAttributes(ctx context.Context) (map[string]filterPinnedFile, error) {
+func (g *FilterGitContext) noInfoAttributes() error {
 	info := filepath.Join(g.commonDir, "info")
 	if st, err := os.Lstat(info); err == nil {
 		if !st.IsDir() || st.Mode()&os.ModeSymlink != 0 {
-			return nil, fail(CodeInvalidInput, "filter info", fmt.Errorf("unsafe info directory"))
+			return fail(CodeInvalidInput, "filter info", fmt.Errorf("unsafe info directory"))
 		}
 	} else if !os.IsNotExist(err) {
-		return nil, err
+		return err
 	}
 	if _, err := os.Lstat(filepath.Join(info, "attributes")); !os.IsNotExist(err) {
-		return nil, fail(CodeInvalidInput, "filter attributes", fmt.Errorf("info attributes unsupported"))
+		return fail(CodeInvalidInput, "filter attributes", fmt.Errorf("info attributes unsupported"))
 	}
+	return nil
+}
+
+func (g *FilterGitContext) attributeSources(ctx context.Context) ([]string, error) {
 	listed, err := g.privateOutput(ctx, g.repoRoot, nil, "ls-files", "-z", "--cached", "--others", "--exclude-standard")
 	if err != nil {
 		return nil, err
@@ -336,41 +340,82 @@ func (g *FilterGitContext) readAttributes(ctx context.Context) (map[string]filte
 	if len(listed)+len(ignored) > filterAttributesMaximumBytes {
 		return nil, fail(CodeInvalidInput, "filter attributes", fmt.Errorf("inventory too large"))
 	}
-	listed += ignored
+	seen := map[string]bool{}
+	paths := []string{}
+	for _, path := range strings.Split(strings.TrimSuffix(listed+ignored, "\x00"), "\x00") {
+		name := filepath.Base(path)
+		if !strings.EqualFold(name, ".gitattributes") {
+			continue
+		}
+		if name != ".gitattributes" || seen[path] {
+			return nil, fail(CodeInvalidInput, "filter attributes", fmt.Errorf("ambiguous source"))
+		}
+		seen[path] = true
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+	return paths, nil
+}
+
+func (g *FilterGitContext) readAttributes(ctx context.Context) (map[string]filterPinnedFile, error) {
+	if err := g.noInfoAttributes(); err != nil {
+		return nil, err
+	}
+	paths, err := g.attributeSources(ctx)
+	if err != nil {
+		return nil, err
+	}
 	expected := map[string]string{}
 	for _, p := range g.manifest.Attributes {
 		expected[p.Path] = p.SHA256
 	}
+	if len(paths) != len(expected) {
+		return nil, fail(CodeInvalidInput, "filter attributes", fmt.Errorf("source set changed"))
+	}
 	actual := map[string]filterPinnedFile{}
 	var total int64
-	for _, p := range strings.Split(strings.TrimSuffix(listed, "\x00"), "\x00") {
-		if filepath.Base(p) != ".gitattributes" {
-			continue
-		}
-		hash, ok := expected[p]
+	for _, path := range paths {
+		hash, ok := expected[path]
 		if !ok {
-			return nil, fail(CodeInvalidInput, "filter attributes", fmt.Errorf("unlisted %s", p))
+			return nil, fail(CodeInvalidInput, "filter attributes", fmt.Errorf("unlisted source"))
 		}
-		pin, err := pinFilterFileKind(filepath.Join(g.repoRoot, filepath.FromSlash(p)), hash, filterAttributeMaximumBytes, false, nil)
+		pin, err := pinFilterFileKind(filepath.Join(g.repoRoot, filepath.FromSlash(path)), hash, filterAttributeMaximumBytes, false, nil)
 		if err != nil {
 			return nil, err
 		}
-		actual[p] = pin
 		total += pin.identity.Size
 		if total > filterAttributesMaximumBytes {
 			return nil, fail(CodeInvalidInput, "filter attributes", fmt.Errorf("sources too large"))
 		}
+		actual[path] = pin
 	}
-	if len(actual) != len(expected) {
-		return nil, fail(CodeInvalidInput, "filter attributes", fmt.Errorf("declared source missing"))
+	// One bounded native query for the exact sorted manifest path vector.
+	out, err := g.privateInput(ctx, g.repoRoot, []byte(strings.Join(g.manifest.Paths, "\x00")+"\x00"), "check-attr", "--all", "-z", "--stdin")
+	if err != nil {
+		return nil, err
 	}
-	for _, path := range g.manifest.Paths {
-		out, err := g.privateInput(ctx, g.repoRoot, []byte(path+"\x00"), "check-attr", "--all", "-z", "--stdin")
-		if err != nil {
+	parts := strings.Split(strings.TrimSuffix(out, "\x00"), "\x00")
+	if len(out) > filterAttributesMaximumBytes || len(parts) != 3*len(g.manifest.Paths) {
+		return nil, fail(CodeInvalidInput, "filter attributes", fmt.Errorf("unexpected attribute vector"))
+	}
+	for i, path := range g.manifest.Paths {
+		if err := g.validateAttributes(path, strings.Join(parts[i*3:i*3+3], "\x00")+"\x00"); err != nil {
 			return nil, err
 		}
-		if err := g.validateAttributes(path, out); err != nil {
-			return nil, err
+	}
+	if err := g.noInfoAttributes(); err != nil {
+		return nil, err
+	}
+	after, err := g.attributeSources(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if strings.Join(after, "\x00") != strings.Join(paths, "\x00") {
+		return nil, fail(CodeIdentityChanged, "filter attributes", fmt.Errorf("inventory changed"))
+	}
+	for _, pin := range actual {
+		if !verifyFilterPin(pin) {
+			return nil, fail(CodeIdentityChanged, "filter attributes", fmt.Errorf("source changed during query"))
 		}
 	}
 	return actual, nil
