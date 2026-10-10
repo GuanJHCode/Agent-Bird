@@ -362,32 +362,33 @@ func (h *Host) Execute(ctx context.Context, a store.Attempt, runID, taskID strin
 }
 
 type launchMetadata struct {
-	runFilterObservation func(context.Context) ([]byte, error)
-	filter               *filterRuntime
-	hasGitFilter         bool
-	validationGrant      *contract.LaunchCommand
-	artifactGrant        *contract.LaunchCommand
-	diagnosticsGrant     *contract.LaunchCommand
-	startProcess         func(context.Context, process.Command) (*process.Handle, error)
-	agyHistoryGrant      *contract.LaunchCommand
-	completionMode       adapter.TaskCompletionMode
-	prepareProvider      func(context.Context) (process.Command, error)
-	afterWait            func(*process.Handle, context.Context, error)
-	afterNoStop          func(*process.Handle, context.Context)
-	beforeStopJoin       func(*hostStopOperation)
-	expectedSessionID    string
-	requireSession       bool
-	integrationAction    bool
-	structuredReview     bool
-	prepareAction        func(context.Context) (process.Command, actionFinalizer, func(), error)
-	finalizeAction       actionFinalizer
-	prepareCandidate     func(context.Context) (process.Command, func(context.Context, string) ([]byte, error), func(), error)
-	freezeCandidate      func(context.Context, string) ([]byte, error)
-	commandID            string
-	workRevision         int
-	executionEpoch       uint64
-	outputProvider       string
-	questionRevision     int
+	runFilterObservation     func(context.Context) ([]byte, error)
+	afterObservationArtifact func(*contract.ArtifactRef) // original publication boundary; test seam
+	filter                   *filterRuntime
+	hasGitFilter             bool
+	validationGrant          *contract.LaunchCommand
+	artifactGrant            *contract.LaunchCommand
+	diagnosticsGrant         *contract.LaunchCommand
+	startProcess             func(context.Context, process.Command) (*process.Handle, error)
+	agyHistoryGrant          *contract.LaunchCommand
+	completionMode           adapter.TaskCompletionMode
+	prepareProvider          func(context.Context) (process.Command, error)
+	afterWait                func(*process.Handle, context.Context, error)
+	afterNoStop              func(*process.Handle, context.Context)
+	beforeStopJoin           func(*hostStopOperation)
+	expectedSessionID        string
+	requireSession           bool
+	integrationAction        bool
+	structuredReview         bool
+	prepareAction            func(context.Context) (process.Command, actionFinalizer, func(), error)
+	finalizeAction           actionFinalizer
+	prepareCandidate         func(context.Context) (process.Command, func(context.Context, string) ([]byte, error), func(), error)
+	freezeCandidate          func(context.Context, string) ([]byte, error)
+	commandID                string
+	workRevision             int
+	executionEpoch           uint64
+	outputProvider           string
+	questionRevision         int
 }
 
 func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID string, cmd process.Command, persistDB bool, meta launchMetadata) (result contract.Result, returnedErr error) {
@@ -655,6 +656,9 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 		artifact, artifactErr := h.writeHostArtifact(meta, "terminal", 0, "terminal", "result-output.bin", body)
 		if artifactErr != nil {
 			return finalizeCandidateUnknown(errors.Join(observeErr, artifactErr), nil, -1)
+		}
+		if meta.afterObservationArtifact != nil {
+			meta.afterObservationArtifact(artifact)
 		}
 		if err = appendPhase(kind, artifact.SHA256, nil, nil, artifact); err != nil {
 			return contract.Result{Status: "unknown", ExitCode: -1, EventCount: eventCount}, err
