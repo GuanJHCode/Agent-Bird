@@ -243,7 +243,7 @@ func readCandidateDelivery(grant contract.LaunchCommand, input *contract.Accepte
 	if len(body) > 1024*1024 || hashBytes(body) != ref.SHA256 || ref.SHA256 != input.Event.PayloadHash {
 		return out, errors.New("candidate_input_changed")
 	}
-	if err = json.Unmarshal(body, &out); err != nil {
+	if out, err = decodeCandidateDeliveryStrict(body); err != nil {
 		return out, errors.New("candidate_input_invalid")
 	}
 	c := out.Candidate
