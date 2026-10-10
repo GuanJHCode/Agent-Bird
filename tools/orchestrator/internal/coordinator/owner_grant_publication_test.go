@@ -233,3 +233,49 @@ func TestOwnerGrantPublicationCanonicalAncestorAlias(t *testing.T) {
 		t.Fatal("canonical capability not usable", err)
 	}
 }
+
+func TestOwnerGrantPublicationRetargetBeforeWrite(t *testing.T) {
+	root, err := os.MkdirTemp("/private/tmp", "bind-drift-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(root)
+	real, other, alias := filepath.Join(root, "real"), filepath.Join(root, "other"), filepath.Join(root, "alias")
+	for _, p := range []string{real, other, filepath.Join(other, "state")} {
+		if err = os.Mkdir(p, 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err = os.Symlink(real, alias); err != nil {
+		t.Fatal(err)
+	}
+	s, err := NewServer(filepath.Join(alias, "state"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	publication := &localOwnerPublication{stateDir: s.stateDir}
+	defer publication.close()
+	_, rolledBack, err := s.db.PublishOwnerGrant(context.Background(), "retarget", 7, "fixture-birth", func(g store.OwnerGrant, a store.StoreRootAuthority) error {
+		if e := os.Remove(alias); e != nil {
+			return e
+		}
+		if e := os.Symlink(other, alias); e != nil {
+			return e
+		}
+		// Authority still names the original canonical Store. Only the caller's
+		// legitimate ancestor alias moved before OpenRoot; no process is spawned.
+		defer func() { _ = os.Remove(alias); _ = os.Symlink(real, alias) }()
+		return publication.publish(g, a)
+	})
+	if err == nil || !rolledBack {
+		t.Fatal("retargeted root was not rolled back", rolledBack, err)
+	}
+	if _, err = os.Lstat(filepath.Join(other, "state", "owners")); !os.IsNotExist(err) {
+		t.Fatal("publication wrote before held root validation", err)
+	}
+	var n int
+	if err = s.db.SQL().QueryRow(`SELECT COUNT(*) FROM owner_grants`).Scan(&n); err != nil || n != 0 {
+		t.Fatal("retarget grant committed", n, err)
+	}
+}
