@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"strings"
 	"testing"
 	"time"
 
@@ -65,8 +64,15 @@ func TestFilterOriginalStartBoundary(t *testing.T) {
 				t.Fatalf("lost original monotonic boundary: got=%v want=%v", got.StartedAt, original)
 			}
 			raw, err := json.Marshal(got)
-			if err != nil || strings.Contains(string(raw), "StartedAt") || strings.Contains(string(raw), original.Format(time.RFC3339Nano)) {
-				t.Fatalf("live boundary became wire data: %s %v", raw, err)
+			var wire map[string]json.RawMessage
+			var replay Result
+			if err != nil || json.Unmarshal(raw, &wire) != nil || json.Unmarshal(raw, &replay) != nil {
+				t.Fatalf("invalid result JSON: %s %v", raw, err)
+			}
+			// Identity already carries a diagnostic wall-clock StartedAt string.
+			// Only the new top-level live value must be absent and unrecoverable.
+			if _, exists := wire["StartedAt"]; exists || !replay.StartedAt.IsZero() {
+				t.Fatalf("live boundary became wire data: %s", raw)
 			}
 		})
 	}
