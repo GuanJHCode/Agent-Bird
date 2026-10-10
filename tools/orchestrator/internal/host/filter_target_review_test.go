@@ -110,6 +110,21 @@ func TestFilteredTargetReviewSourceAndBudget(t *testing.T) {
 			t.Fatal("output aliases evidence")
 		}
 	})
+	t.Run("final_prompt_budget", func(t *testing.T) {
+		g, p, in := filterTargetReviewAcceptedFixture(t)
+		out, err := newFilteredTargetReviewDelivery(g, in, p.ProviderLock)
+		if err != nil {
+			t.Fatal(err)
+		}
+		prompt, err := filteredTargetReviewPrompt(g, p, in, out)
+		if err != nil || !strings.Contains(prompt, out.InputSHA256) || !strings.Contains(prompt, out.ValidationDigest) || strings.Contains(prompt, g.GitFilter.ScopeSHA256) || strings.Contains(prompt, g.GitFilter.ReservationID) {
+			t.Fatalf("bound context missing or resource leaked: %v", err)
+		}
+		p.Directory = "/private/" + strings.Repeat("x", 256<<10)
+		if _, err = filteredTargetReviewPrompt(g, p, in, out); err == nil {
+			t.Fatal("unbounded final prompt admitted")
+		}
+	})
 	t.Run("budget_before_live_work", func(t *testing.T) {
 		g, p, in := filterTargetReviewAcceptedFixture(t)
 		g.Input.Event.EventID = strings.Repeat("x", candidateDeliveryMaximumBytes)

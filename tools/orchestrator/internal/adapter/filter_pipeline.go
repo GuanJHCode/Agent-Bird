@@ -46,7 +46,7 @@ func ValidateGitFilterPipelinePayload(p InvocationPayload) error {
 	}
 	if p.Kind == "" && a != nil && (a.Operation == "review" || a.Operation == "filter_target_review") {
 		l, profile := p.ProviderLock, p.Profile
-		if a.Operation == "review" && a.Target != (CandidateTarget{}) || a.Operation == "filter_target_review" && (!filterAbsolutePath(a.Target.Worktree) || !filterCommitOID(a.Target.BaseOID) || !filterTargetBranch(a.Target.Ref)) {
+		if a.Operation == "review" && a.Target != (CandidateTarget{}) || a.Operation == "filter_target_review" && (p.Prompt != "" || !filterAbsolutePath(a.Target.Worktree) || !filterCommitOID(a.Target.BaseOID) || !filterTargetBranch(a.Target.Ref)) {
 			return bad
 		}
 		if p.CandidateWorkspace != nil || p.PermissionMode != "" || a.Version != 1 || a.DependencyInputVersion != 1 || !a.AutoDirectory || a.SourceTask == "" || len(a.OrderedSourceTasks) != 0 || a.ReviewIndex != nil || len(a.Command) != 0 || a.CommandSHA256 != "" || l == nil || l.Version != 1 || (l.Provider != ProviderClaude && l.Provider != ProviderAGY) || p.Provider != string(l.Provider) || l.Protocol != ProtocolID(l.Provider) || !filterAbsolutePath(l.Binary.Path) || l.Binary.Version == "" || !ValidCommandSHA256(l.Binary.SHA256) || profile == nil || profile.Version != 1 || profile.Role != Reviewer || profile.Permission != ReadOnly || profile.GrokSessionWrite || profile.TimeoutMS < 1 || profile.TimeoutMS > 3600000 {

@@ -1188,7 +1188,11 @@ func invocationForGrant(ctx context.Context, grant contract.LaunchCommand, hostS
 		if err != nil {
 			return nil, err
 		}
-		payload.Prompt += brief
+		if adapter.IsFilterTargetReview(payload) {
+			payload.Prompt = brief
+		} else {
+			payload.Prompt += brief
+		}
 	}
 	if payload.ProviderLock != nil {
 		lock := payload.ProviderLock
