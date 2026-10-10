@@ -1,0 +1,12 @@
+# github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops [github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops.test]
+internal/gitops/filter_target_pair.go:37:61: cannot use candidate (variable of type *FilterMaterialization) as *FilterTargetObservation value in struct literal
+internal/gitops/filter_target_pair.go:71:23: p.candidate.binding undefined (type *FilterTargetObservation has no field or method binding)
+internal/gitops/filter_target_pair.go:72:24: p.candidate.workspace undefined (type *FilterTargetObservation has no field or method workspace)
+internal/gitops/filter_target_pair.go:83:52: p.candidate.receipt.CommitOID undefined (type FilteredTargetObservationV1 has no field or method CommitOID)
+internal/gitops/filter_target_pair.go:148:101: cannot use p.candidate (variable of type *FilterTargetObservation) as *FilterMaterialization value in argument to filterTargetCandidateCompatible
+internal/gitops/filter_target_pair.go:158:24: p.candidate.workspace undefined (type *FilterTargetObservation has no field or method workspace)
+internal/gitops/filter_target_pair.go:161:28: p.candidate.workspace undefined (type *FilterTargetObservation has no field or method workspace)
+internal/gitops/filter_target_pair.go:162:65: p.candidate.receipt.Files undefined (type FilteredTargetObservationV1 has no field or method Files)
+internal/gitops/filter_target_pair.go:165:46: p.candidate.binding undefined (type *FilterTargetObservation has no field or method binding)
+internal/gitops/filter_target_pair.go:168:59: p.candidate.receipt.CommitOID undefined (type FilteredTargetObservationV1 has no field or method CommitOID)
+internal/gitops/filter_target_pair.go:168:59: too many errors
