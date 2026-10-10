@@ -74,6 +74,13 @@ func candidateGitWithStart(ctx context.Context, dir string, stdin io.Reader, sta
 			return CommandResult{}, fail(CodeInvalidInput, "candidate git", fmt.Errorf("source file exceeds freeze limit"))
 		}
 	}
+	return candidateGitBytesWithStart(ctx, dir, input, false, start, args...)
+}
+
+// input is already bounded and remains owned by this synchronous call through
+// the original Wait/tree. In particular the filter blob bridge is not copied.
+func candidateGitBytesWithStart(ctx context.Context, dir string, input []byte, owned bool, start func(context.Context, process.Command) (*process.Handle, error), args ...string) (CommandResult, error) {
+	var err error
 	env := []string{}
 	for _, entry := range os.Environ() {
 		key, _, _ := strings.Cut(entry, "=")
@@ -110,7 +117,12 @@ func candidateGitWithStart(ctx context.Context, dir string, stdin io.Reader, sta
 		return CommandResult{}, err
 	}
 	out := &candidateOutput{}
-	p, err := start(ctx, process.Command{Path: gitPath, PinnedPath: pinnedPath, PinnedSHA256: pinnedSHA, Args: argv, Dir: dir, Env: env, ExactEnv: true, Stdin: input, Stdout: out})
+	spec := process.Command{Path: gitPath, PinnedPath: pinnedPath, PinnedSHA256: pinnedSHA, Args: argv, Dir: dir, Env: env, ExactEnv: true, Stdin: input, Stdout: out}
+	if owned {
+		spec.Stdin = nil
+		spec.OwnedStdin = input
+	}
+	p, err := start(ctx, spec)
 	if err != nil {
 		if p != nil {
 			identity := p.Identity()

@@ -2,11 +2,16 @@ package gitops
 
 import (
 	"context"
+	"encoding/json"
+	"io"
+	"os"
 	"path"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strings"
 	"sync"
+	"time"
 )
 
 // FilterPreparedWorkspace is original-Host-only state. Neither its cloned
@@ -22,6 +27,9 @@ func filterJournalContext(ctx context.Context, source *FilterGitContext, journal
 	j, ok := journal.(GitProcessJournal)
 	if !ok || source == nil || source.source != nil {
 		return nil, fail(CodeInvalidInput, "filter original journal/source", nil)
+	}
+	if ctx == nil {
+		return nil, fail(CodeInvalidInput, "filter context", nil)
 	}
 	if _, ok := ctx.Deadline(); !ok {
 		return nil, fail(CodeInvalidInput, "filter original deadline", nil)
@@ -60,7 +68,7 @@ func PrepareFilteredWorkspace(ctx context.Context, source *FilterGitContext, str
 		return nil, fail(CodeTargetDirty, "filtered prepare operation", nil)
 	}
 	// This is only a preflight; freeze still uses an expected-zero atomic create.
-	if _, exists, e := privateRefOID(ctx, source.repoRoot, ref); e != nil {
+	if _, exists, e := filterPrivateRefOID(ctx, source, ref); e != nil {
 		return nil, e
 	} else if exists {
 		return nil, fail(CodeCollision, "filtered private ref already exists", nil)
@@ -68,6 +76,15 @@ func PrepareFilteredWorkspace(ctx context.Context, source *FilterGitContext, str
 	live, err := MaterializeFiltered(ctx, source, streams, req, journal)
 	if err != nil {
 		return nil, err
+	}
+	for _, p := range paths {
+		for existing, id := range live.workspace.owned {
+			a, b := strings.ToLower(p), strings.ToLower(existing)
+			if (a == b && (p != existing || os.FileMode(id.identity.Mode).IsDir())) || strings.HasPrefix(b, a+"/") || (strings.HasPrefix(a, b+"/") && !os.FileMode(id.identity.Mode).IsDir()) {
+				live.Close()
+				return nil, fail(CodeInvalidInput, "filtered owned base alias", nil)
+			}
+		}
 	}
 	prepared := PreparedWorkspace{Receipt: live.Receipt(), Binding: binding, Paths: paths, PrivateRef: ref, CommonDirIdentity: source.commonIdentity, RepoRootIdentity: source.repoIdentity}
 	return &FilterPreparedWorkspace{materialized: live, prepared: prepared}, nil
@@ -99,7 +116,257 @@ func (p *FilterPreparedWorkspace) Close() error {
 	return nil
 }
 func FreezeFilteredWorkspace(ctx context.Context, p *FilterPreparedWorkspace, journal CandidateJournal) (CandidateReceipt, error) {
-	return CandidateReceipt{}, fail(CodeInvalidInput, "filtered freeze not implemented", nil)
+	if p == nil {
+		return CandidateReceipt{}, fail(CodeInvalidInput, "filtered freeze owner", nil)
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.closed || p.attempted || p.materialized == nil || journal == nil {
+		return CandidateReceipt{}, fail(CodeInvalidInput, "filtered freeze lifetime", nil)
+	}
+	p.attempted = true
+	m, r := p.materialized, p.prepared.Receipt
+	ctx, err := filterJournalContext(ctx, m.source, journal)
+	if err != nil {
+		return CandidateReceipt{}, err
+	}
+	lock, err := acquireCandidateLock(ctx, r.CommonDir)
+	if err != nil {
+		return CandidateReceipt{}, err
+	}
+	defer releaseIntegrationLock(lock)
+	childCtx := m.binding.Context(ctx)
+	if err = filterFreezeState(ctx, m, r.CommitOID, r.TreeOID); err != nil {
+		return CandidateReceipt{}, err
+	}
+	active, err := candidateOperationInProgress(childCtx, r.Worktree)
+	if err != nil {
+		return CandidateReceipt{}, err
+	}
+	if active {
+		return CandidateReceipt{}, fail(CodeTargetDirty, "filtered freeze operation", nil)
+	}
+	if _, exists, e := filterPrivateRefOID(ctx, m.source, p.prepared.PrivateRef); e != nil {
+		return CandidateReceipt{}, e
+	} else if exists {
+		return CandidateReceipt{}, fail(CodeCollision, "filtered ref already exists", nil)
+	}
+	allowed, filtered := map[string]bool{}, map[string]bool{}
+	for _, path := range p.prepared.Paths {
+		allowed[path] = true
+	}
+	for _, path := range m.source.manifest.Paths {
+		filtered[path] = true
+	}
+	observed, err := filterObserveChanges(ctx, m.workspace, allowed, filtered)
+	if err != nil {
+		return CandidateReceipt{}, err
+	}
+	baseEntries, err := filterReadTree(ctx, m.source, r.CommitOID)
+	if err != nil {
+		return CandidateReceipt{}, err
+	}
+	base := map[string]filterTreeEntry{}
+	for _, e := range baseEntries {
+		base[e.path] = e
+	}
+	// Before any object/intent write, check attributes on the complete final path
+	// vector, including newly declared files which could inherit a wildcard.
+	paths := []string{}
+	for path, e := range observed.owned {
+		if path != ".git" && !os.FileMode(e.identity.Mode).IsDir() {
+			paths = append(paths, path)
+		}
+	}
+	sort.Strings(paths)
+	finalEntries := make([]filterTreeEntry, 0, len(paths))
+	for _, path := range paths {
+		e, exists := base[path]
+		if !exists {
+			e = filterTreeEntry{path: path, size: observed.owned[path].identity.Size}
+		}
+		finalEntries = append(finalEntries, e)
+	}
+	if err = filterCheckTree(ctx, m.source, finalEntries); err != nil {
+		return CandidateReceipt{}, err
+	}
+	evidence := r.Filter.Clone()
+	views := map[string]int{}
+	for i, v := range evidence.Views {
+		views[v.Path] = i
+	}
+	changes := []CandidateChange{}
+	blobs := map[string]filterFrozenBlob{}
+	for _, path := range p.prepared.Paths {
+		current, present := observed.owned[path]
+		original, existed := base[path]
+		if !present {
+			if existed {
+				changes = append(changes, CandidateChange{Path: path, Deleted: true})
+			}
+			continue
+		}
+		mode := "100644"
+		if os.FileMode(current.identity.Mode).Perm()&0111 != 0 {
+			mode = "100755"
+		}
+		old := m.workspace.owned[path]
+		var blob filterFrozenBlob
+		if existed && current.sha256 == old.sha256 {
+			sha := current.sha256
+			if filtered[path] {
+				sha = evidence.Views[views[path]].CanonicalSHA256
+			}
+			blob = filterFrozenBlob{oid: original.oid, sha: sha, size: original.size, filtered: filtered[path]}
+		} else if filtered[path] {
+			blob, err = filterRoundTripObserved(ctx, m, observed, path)
+			if err != nil {
+				return CandidateReceipt{}, err
+			}
+		} else {
+			blob, err = filterHashObserved(ctx, observed, path, len(r.CommitOID), io.Discard)
+			if err != nil {
+				return CandidateReceipt{}, err
+			}
+		}
+		if filtered[path] {
+			evidence.Views[views[path]] = FilterPathViewV1{Path: path, CanonicalSHA256: blob.sha, RenderedSHA256: current.sha256}
+		}
+		if !existed || blob.oid != original.oid || mode != original.mode {
+			changes = append(changes, CandidateChange{Path: path, Mode: mode, BlobOID: blob.oid})
+			blobs[path] = blob
+		}
+	}
+	if len(changes) == 0 {
+		return CandidateReceipt{}, fail(CodeInvalidInput, "filtered no changes", nil)
+	}
+	if err = evidence.ValidateBinding(m.source.manifest, m.source.SHA256()); err != nil {
+		return CandidateReceipt{}, err
+	}
+	files, err := observed.inventory(ctx)
+	if err != nil {
+		return CandidateReceipt{}, err
+	}
+	boundBinding := p.prepared.Binding
+	receipt := CandidateReceipt{Binding: &boundBinding, Changes: changes, AttemptID: r.AttemptID, RepoRoot: r.RepoRoot, Worktree: r.Worktree, CommonDir: r.CommonDir, BaseOID: r.CommitOID, CandidateOID: strings.Repeat("f", 64), TreeOID: strings.Repeat("f", 64), OrderedInputOIDs: append([]string(nil), r.OrderedInputOIDs...), RootIdentity: r.RootIdentity, WorktreeIdentity: r.WorktreeIdentity, RepoRootIdentity: p.prepared.RepoRootIdentity, CommonDirIdentity: p.prepared.CommonDirIdentity, Files: files, PlanRevision: r.PlanRevision, PrivateRef: p.prepared.PrivateRef, PrivateRefExpectedOID: strings.Repeat("f", 64), Filter: &evidence}
+	raw, err := json.Marshal(receipt)
+	if err != nil {
+		return CandidateReceipt{}, err
+	}
+	if len(raw) > (1<<20)-1024 {
+		return CandidateReceipt{}, fail(CodeInvalidInput, "filtered candidate receipt size", nil)
+	}
+	if _, err = CandidateArtifact("", receipt); err != nil {
+		return CandidateReceipt{}, err
+	}
+	intent := CandidateIntent{Binding: &boundBinding, Changes: changes, AttemptID: r.AttemptID, RepoRoot: r.RepoRoot, Worktree: r.Worktree, BaseOID: r.CommitOID, PrivateRef: p.prepared.PrivateRef, OrderedInputOIDs: append([]string(nil), r.OrderedInputOIDs...), PlanRevision: r.PlanRevision, CreatedAt: time.Now().UTC(), Filter: &evidence}
+	if err = journal.PersistCandidateIntent(ctx, cloneFilteredIntent(intent)); err != nil {
+		return CandidateReceipt{}, err
+	}
+	if err = filterFreezeState(ctx, m, r.CommitOID, r.TreeOID); err != nil {
+		return CandidateReceipt{}, err
+	}
+	if _, err = observed.inventory(ctx); err != nil {
+		return CandidateReceipt{}, err
+	}
+	for _, change := range changes {
+		if !change.Deleted {
+			if err = filterWriteObservedBlob(ctx, m, observed, change.Path, blobs[change.Path]); err != nil {
+				return CandidateReceipt{}, err
+			}
+		}
+	}
+	var index strings.Builder
+	for _, change := range changes {
+		if change.Deleted {
+			index.WriteString("0 " + strings.Repeat("0", len(r.CommitOID)) + "\t" + change.Path + "\x00")
+		} else {
+			index.WriteString(change.Mode + " " + change.BlobOID + "\t" + change.Path + "\x00")
+		}
+	}
+	if _, err = freezeGit(childCtx, r.Worktree, strings.NewReader(index.String()), "update-index", "-z", "--index-info"); err != nil {
+		return CandidateReceipt{}, err
+	}
+	tree, err := freezeGit(childCtx, r.Worktree, nil, "write-tree")
+	if err != nil {
+		return CandidateReceipt{}, err
+	}
+	tree = strings.TrimSpace(tree)
+	if err = requireOID(tree); err != nil {
+		return CandidateReceipt{}, err
+	}
+	if err = verifyFrozenChanges(childCtx, r.Worktree, r.CommitOID, tree, changes); err != nil {
+		return CandidateReceipt{}, err
+	}
+	entries, err := filterReadTree(ctx, m.source, tree)
+	if err != nil {
+		return CandidateReceipt{}, err
+	}
+	if err = filterCheckTree(ctx, m.source, entries); err != nil {
+		return CandidateReceipt{}, err
+	}
+	if _, err = observed.inventory(ctx); err != nil {
+		return CandidateReceipt{}, err
+	}
+	candidate, err := freezeGit(childCtx, r.Worktree, nil, "commit-tree", tree, "-p", r.CommitOID, "-m", "orchestrator: freeze filtered candidate "+DigestDetail(boundBinding.RunID+"\x00"+boundBinding.TaskID+"\x00"+boundBinding.SegmentID))
+	if err != nil {
+		return CandidateReceipt{}, err
+	}
+	candidate = strings.TrimSpace(candidate)
+	if err = requireOID(candidate); err != nil {
+		return CandidateReceipt{}, err
+	}
+	for _, check := range []struct{ suffix, want string }{{"^", r.CommitOID}, {"^{tree}", tree}} {
+		got, e := rev(ctx, m.source.repoRoot, candidate+check.suffix)
+		if e != nil {
+			return CandidateReceipt{}, e
+		}
+		if got != check.want {
+			return CandidateReceipt{}, fail(CodeTargetDrift, "filtered commit structure", nil)
+		}
+	}
+	if _, err = run(childCtx, r.Worktree, "update-ref", "--no-deref", "HEAD", candidate, r.CommitOID); err != nil {
+		return CandidateReceipt{}, err
+	}
+	refIntent := CandidateRefIntent{AttemptID: r.AttemptID, RepoRoot: r.RepoRoot, PrivateRef: p.prepared.PrivateRef, CandidateOID: candidate, CreatedAt: time.Now().UTC()}
+	if err = journal.PersistCandidateRefIntent(ctx, refIntent); err != nil {
+		return CandidateReceipt{}, err
+	}
+	// Strict create-only CAS: even an existing identical value is a collision.
+	if _, err = run(ctx, r.RepoRoot, "update-ref", "--no-deref", p.prepared.PrivateRef, candidate, strings.Repeat("0", len(candidate))); err != nil {
+		return CandidateReceipt{}, err
+	}
+	receipt.CandidateOID, receipt.PrivateRefExpectedOID, receipt.TreeOID = candidate, candidate, tree
+	verify := func() error {
+		if e := filterFreezeState(ctx, m, candidate, tree); e != nil {
+			return e
+		}
+		got, exists, e := filterPrivateRefOID(ctx, m.source, p.prepared.PrivateRef)
+		if e != nil {
+			return e
+		}
+		if !exists || got != candidate {
+			return fail(CodeTargetDrift, "filtered published ref", nil)
+		}
+		actual, e := observed.inventory(ctx)
+		if e != nil {
+			return e
+		}
+		if !reflect.DeepEqual(actual, files) {
+			return fail(CodeIdentityChanged, "filtered frozen inventory", nil)
+		}
+		return nil
+	}
+	if err = verify(); err != nil {
+		return CandidateReceipt{}, err
+	}
+	if err = journal.RecordCandidateFreeze(ctx, cloneFilteredCandidate(receipt)); err != nil {
+		return CandidateReceipt{}, err
+	}
+	if err = verify(); err != nil {
+		return CandidateReceipt{}, err
+	}
+	return cloneFilteredCandidate(receipt), nil
 }
 
 // The caller authenticates the accepted delivery. This boundary binds its
@@ -127,7 +394,7 @@ func checkFilteredCandidateRef(ctx context.Context, source *FilterGitContext, c 
 	if previous.worktree.repoIdentity != c.RootIdentity {
 		return fail(CodeIdentityChanged, "filtered source worktree", nil)
 	}
-	ref, exists, err := privateRefOID(ctx, source.repoRoot, c.PrivateRef)
+	ref, exists, err := filterPrivateRefOID(ctx, source, c.PrivateRef)
 	if err != nil {
 		return err
 	}
@@ -213,4 +480,47 @@ func cloneFilteredCandidate(in CandidateReceipt) CandidateReceipt {
 		in.Filter = &v
 	}
 	return in
+}
+
+func filterFreezeState(ctx context.Context, m *FilterMaterialization, commit, tree string) error {
+	if m.streams.Binding() != m.streamBinding {
+		return fail(CodeIdentityChanged, "filtered stream lifetime", nil)
+	}
+	if err := m.binding.Verify(ctx); err != nil {
+		return err
+	}
+	if err := m.workspace.verify(); err != nil {
+		return err
+	}
+	childCtx := m.binding.Context(ctx)
+	for _, check := range []struct {
+		args []string
+		want string
+	}{{[]string{"rev-parse", "--verify", "HEAD"}, commit}, {[]string{"write-tree"}, tree}, {[]string{"rev-parse", "--symbolic-full-name", "HEAD"}, "HEAD"}} {
+		got, err := run(childCtx, m.workspace.path, check.args...)
+		if err != nil {
+			return err
+		}
+		if got.Stdout != check.want {
+			return fail(CodeTargetDrift, "filtered original tree", nil)
+		}
+	}
+	return nil
+}
+
+// Unlike rev-parse --verify, an absent exact ref is a successful read. Reject
+// descendants and symbolic aliases rather than treating prefix output as it.
+func filterPrivateRefOID(ctx context.Context, source *FilterGitContext, ref string) (string, bool, error) {
+	raw, err := filterBoundedQuery(ctx, source, nil, "for-each-ref", "--format=%(refname)%00%(objectname)%00%(symref)", ref)
+	if err != nil {
+		return "", false, err
+	}
+	if len(raw) == 0 {
+		return "", false, nil
+	}
+	parts := strings.Split(strings.TrimSuffix(string(raw), "\n"), "\x00")
+	if len(parts) != 3 || parts[0] != ref || parts[2] != "" || requireOID(parts[1]) != nil {
+		return "", false, fail(CodeCollision, "filtered ref alias", nil)
+	}
+	return parts[1], true, nil
 }

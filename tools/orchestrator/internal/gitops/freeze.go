@@ -360,6 +360,10 @@ func CandidateArtifact(providerResult string, receipt CandidateReceipt) ([]byte,
 func CheckCandidateArtifactBudget(prepared PreparedWorkspace, providerResult string) error {
 	r := prepared.Receipt
 	bound := CandidateReceipt{Binding: &prepared.Binding, AttemptID: r.AttemptID, RepoRoot: r.RepoRoot, Worktree: r.Worktree, CommonDir: r.CommonDir, BaseOID: r.CommitOID, CandidateOID: strings.Repeat("f", 64), TreeOID: strings.Repeat("f", 64), OrderedInputOIDs: []string{r.CommitOID}, RootIdentity: r.RootIdentity, WorktreeIdentity: r.WorktreeIdentity, RepoRootIdentity: prepared.RepoRootIdentity, CommonDirIdentity: prepared.CommonDirIdentity, PlanRevision: r.PlanRevision, PrivateRef: prepared.PrivateRef, PrivateRefExpectedOID: strings.Repeat("f", 64)}
+	if r.Filter != nil {
+		cloned := r.Filter.Clone()
+		bound.Filter = &cloned
+	}
 	for _, path := range prepared.Paths {
 		bound.Changes = append(bound.Changes, CandidateChange{Path: path, Mode: "100755", BlobOID: strings.Repeat("f", 64), Deleted: true})
 	}
