@@ -121,7 +121,7 @@ func rawActor(t *testing.T, ctx context.Context, tool gitfilter.Tool, mode strin
 }
 
 func TestFilterRawMaterializationNativeFixture(t *testing.T) {
-	root, err := os.MkdirTemp(filepath.Join(moduleRoot(t), "tasks/filter-raw-fixture/tmp"), "raw-")
+	root, err := os.MkdirTemp(filepath.Join(moduleRoot(t), "../../tasks/filter-raw-fixture/tmp"), "raw-")
 	if err != nil {
 		t.Fatal(err)
 	}
