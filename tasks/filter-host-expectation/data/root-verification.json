@@ -1,0 +1,227 @@
+{
+  "version": 1,
+  "qualified_source": "f92478c81953d70f661ab9398a25bae3aab46b8a",
+  "go_tree": "01a1c81fa61785ab59881febe633ac0f3b3d1ace",
+  "review": "PASS host_expectation_review f92478c",
+  "commands": [
+    {
+      "label": "host-expectation-capture-green",
+      "source": "389a6fed3efd33b394862be2ca4f4d66d4a955b5",
+      "go_tree": "9daa63bfe6da8d420dc45cc9aa2c7a3667cbf43a",
+      "exit": 0,
+      "stdout_sha256": "7b516623c98a834e55b7a4cf84fb3f7361fe7cfcc62adb0b04abf152b19f4927",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "top": {},
+      "named": {}
+    },
+    {
+      "label": "host-expectation-capture-linux-build",
+      "source": "389a6fed3efd33b394862be2ca4f4d66d4a955b5",
+      "go_tree": "9daa63bfe6da8d420dc45cc9aa2c7a3667cbf43a",
+      "exit": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "top": {},
+      "named": {}
+    },
+    {
+      "label": "host-expectation-capture-mac-build",
+      "source": "389a6fed3efd33b394862be2ca4f4d66d4a955b5",
+      "go_tree": "9daa63bfe6da8d420dc45cc9aa2c7a3667cbf43a",
+      "exit": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "top": {},
+      "named": {}
+    },
+    {
+      "label": "host-expectation-capture-race-json",
+      "source": "389a6fed3efd33b394862be2ca4f4d66d4a955b5",
+      "go_tree": "9daa63bfe6da8d420dc45cc9aa2c7a3667cbf43a",
+      "exit": 0,
+      "stdout_sha256": "92d35b70f94a76db1c4a30152cc3f4d29cd682b561b76b37c607041e3f3c5de3",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "top": {
+        "pass": 6
+      },
+      "named": {
+        "pass": 16
+      }
+    },
+    {
+      "label": "host-expectation-capture-red",
+      "source": "83198f9ba123d3a108fce54dcf7744811e6eee4c",
+      "go_tree": "b0a251652e27585c51ae49b0d334ebd2d41f8d2f",
+      "exit": 1,
+      "stdout_sha256": "72f732adc45778a2fc04345c0063738308a777a706b522cad03b6c32c699ea45",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "top": {},
+      "named": {}
+    },
+    {
+      "label": "host-expectation-capture-vet",
+      "source": "389a6fed3efd33b394862be2ca4f4d66d4a955b5",
+      "go_tree": "9daa63bfe6da8d420dc45cc9aa2c7a3667cbf43a",
+      "exit": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "top": {},
+      "named": {}
+    },
+    {
+      "label": "host-expectation-green",
+      "source": "bfbb1524d7028d060589f3a8930172287e0a2adf",
+      "go_tree": "4d5baae3b445ccf7c7df239ed93af87851591d9e",
+      "exit": 1,
+      "stdout_sha256": "18b0f84186aab2fa33c2b8c382fcab7f93ff52d25fa0a72ba103250b4ef7587f",
+      "stderr_bytes": 237,
+      "stderr_sha256": "2905b6f1ececcf8e4867b84a0effdd3b67b10fc7bb993ce8b55b823dcabfce1a",
+      "top": {},
+      "named": {}
+    },
+    {
+      "label": "host-expectation-green2",
+      "source": "eaced9864352774ddd1e9da21a3ff9ac5f0edbcd",
+      "go_tree": "2f47dc8c4a45ba56b82f76e0792808a301e08973",
+      "exit": 0,
+      "stdout_sha256": "ccf171e7d52060d8811af3b27ce89c696bf7130102c8998bd2d480e3063f4e29",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "top": {},
+      "named": {}
+    },
+    {
+      "label": "host-expectation-linux-build",
+      "source": "eaced9864352774ddd1e9da21a3ff9ac5f0edbcd",
+      "go_tree": "2f47dc8c4a45ba56b82f76e0792808a301e08973",
+      "exit": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "top": {},
+      "named": {}
+    },
+    {
+      "label": "host-expectation-mac-build",
+      "source": "eaced9864352774ddd1e9da21a3ff9ac5f0edbcd",
+      "go_tree": "2f47dc8c4a45ba56b82f76e0792808a301e08973",
+      "exit": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "top": {},
+      "named": {}
+    },
+    {
+      "label": "host-expectation-race-json",
+      "source": "eaced9864352774ddd1e9da21a3ff9ac5f0edbcd",
+      "go_tree": "2f47dc8c4a45ba56b82f76e0792808a301e08973",
+      "exit": 0,
+      "stdout_sha256": "f6112459cbd95cdab003d0a26eb162ee9eed6d00a1d19ccf0ec2f9591e2d89f1",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "top": {
+        "pass": 3
+      },
+      "named": {
+        "pass": 8
+      }
+    },
+    {
+      "label": "host-expectation-red",
+      "source": "d33a731fb1d14797c689bb685d4cd06efe766c46",
+      "go_tree": "c0e4aa66a3510eb30f3f3abdfb20bfb79920fb4e",
+      "exit": 1,
+      "stdout_sha256": "cca65e18dd9d7a91dab83ccf5b402f2da8a10658f0cfb9f84434b58321d12609",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "top": {},
+      "named": {}
+    },
+    {
+      "label": "host-expectation-vet",
+      "source": "eaced9864352774ddd1e9da21a3ff9ac5f0edbcd",
+      "go_tree": "2f47dc8c4a45ba56b82f76e0792808a301e08973",
+      "exit": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "top": {},
+      "named": {}
+    },
+    {
+      "label": "root-host-expectation-linux-native",
+      "source": "f92478c81953d70f661ab9398a25bae3aab46b8a",
+      "go_tree": "01a1c81fa61785ab59881febe633ac0f3b3d1ace",
+      "exit": 0,
+      "stdout_sha256": "65a926847fdfe159ce3dda4ce8e0e2e29d87381f57099ffcc6126d54979bb42d",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "top": {
+        "pass": 1
+      },
+      "named": {
+        "pass": 1
+      }
+    },
+    {
+      "label": "root-host-expectation-linux-test-build",
+      "source": "f92478c81953d70f661ab9398a25bae3aab46b8a",
+      "go_tree": "01a1c81fa61785ab59881febe633ac0f3b3d1ace",
+      "exit": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "top": {},
+      "named": {}
+    },
+    {
+      "label": "root-host-expectation-race",
+      "source": "f92478c81953d70f661ab9398a25bae3aab46b8a",
+      "go_tree": "01a1c81fa61785ab59881febe633ac0f3b3d1ace",
+      "exit": 0,
+      "stdout_sha256": "ac8abfcc7c71108989cfcb84feb1080c2899c7138f587b2bf34d2890300719c1",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "top": {
+        "pass": 2
+      },
+      "named": {
+        "pass": 2
+      }
+    },
+    {
+      "label": "root-host-expectation-vet",
+      "source": "f92478c81953d70f661ab9398a25bae3aab46b8a",
+      "go_tree": "01a1c81fa61785ab59881febe633ac0f3b3d1ace",
+      "exit": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "top": {},
+      "named": {}
+    }
+  ],
+  "root_exec_drained": [
+    38555,
+    4262,
+    12241
+  ],
+  "root_vet_synchronous": true,
+  "worker_exec_receipts": "worker reports synchronous outer exec; ROOT verified original raw, not worker outer tool IDs",
+  "cleanup": {
+    "version": 1,
+    "removed_bytes": 5676271,
+    "removed_files": 1,
+    "removed_empty_directories": 1,
+    "binary_absent": true,
+    "container_absent": true
+  },
+  "scope": "pure comparison value, actual Darwin/Linux native self; no UnixConn credentials/helper/Host/Store/merge"
+}
