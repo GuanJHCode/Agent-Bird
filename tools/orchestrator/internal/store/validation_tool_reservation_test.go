@@ -259,6 +259,9 @@ func TestValidationToolReleaseRequiresOriginalHostAndTerminal(t *testing.T) {
 // Historical test snapshots may remove only empty additive DDL. Never erase a
 // charged or released tool record to invent a pre34 database.
 func removeValidationToolSchema34Tx(tx *sql.Tx) error {
+	if err := stripEmptyFilterPublicationSchemasTx(tx); err != nil {
+		return err
+	}
 	var version, n int
 	if err := tx.QueryRow(`SELECT version FROM schema_meta`).Scan(&version); err != nil {
 		return err

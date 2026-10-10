@@ -314,3 +314,73 @@ func TestGitFilterMigration35PreservesAndRollsBack(t *testing.T) {
 		})
 	}
 }
+
+// Historical fixtures may strip only empty additive schemas. Check all new
+// histories before any DDL, including a schema35 publication-only database.
+func stripEmptyFilterPublicationSchemasTx(tx *sql.Tx) error {
+	var version, filters, publications int
+	if err := tx.QueryRow(`SELECT version FROM schema_meta`).Scan(&version); err != nil {
+		return err
+	}
+	if version < 35 {
+		return nil
+	}
+	if version > 36 {
+		return fmt.Errorf("unsupported filter/publication schema %d", version)
+	}
+	if version == 36 {
+		if err := tx.QueryRow(`SELECT COUNT(*) FROM git_filter_resource_reservations`).Scan(&filters); err != nil {
+			return err
+		}
+	}
+	if err := tx.QueryRow(`SELECT COUNT(*) FROM owner_rebind_publications`).Scan(&publications); err != nil {
+		return err
+	}
+	if filters != 0 || publications != 0 {
+		return errors.New("cannot erase filter or publication history")
+	}
+	if version == 36 {
+		if _, err := tx.Exec(`DROP TABLE git_filter_resource_reservations`); err != nil {
+			return err
+		}
+	}
+	_, err := tx.Exec(`DROP TABLE owner_rebind_publications;UPDATE schema_meta SET version=34`)
+	return err
+}
+
+func TestGitFilterMigrationFixtureRefusesHistory(t *testing.T) {
+	for _, kind := range []string{"reservation", "publication"} {
+		t.Run(kind, func(t *testing.T) {
+			var db *DB
+			if kind == "reservation" {
+				db, _, _ = gitFilterClaimFixture(t)
+			} else {
+				f, spec, p := publicationFixture(t)
+				db = f.db
+				if _, err := db.PrepareOwnerRebindPublication(context.Background(), spec, p); err != nil {
+					t.Fatal(err)
+				}
+			}
+			var version int
+			var usage int64
+			if err := db.sql.QueryRow(`SELECT (SELECT version FROM schema_meta),(SELECT total_bytes FROM storage_usage WHERE scope='global' AND scope_id='')`).Scan(&version, &usage); err != nil {
+				t.Fatal(err)
+			}
+			tx, err := db.sql.Begin()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err = stripEmptyFilterPublicationSchemasTx(tx); err == nil {
+				tx.Rollback()
+				t.Fatal("historical proof erased")
+			}
+			tx.Rollback()
+			var after int
+			var afterUsage int64
+			var tables int
+			if err = db.sql.QueryRow(`SELECT (SELECT version FROM schema_meta),(SELECT total_bytes FROM storage_usage WHERE scope='global' AND scope_id=''),(SELECT COUNT(*) FROM sqlite_master WHERE name IN ('git_filter_resource_reservations','owner_rebind_publications'))`).Scan(&after, &afterUsage, &tables); err != nil || after != version || afterUsage != usage || tables != 2 {
+				t.Fatal("refusal changed schema/usage", after, afterUsage, tables, err)
+			}
+		})
+	}
+}
