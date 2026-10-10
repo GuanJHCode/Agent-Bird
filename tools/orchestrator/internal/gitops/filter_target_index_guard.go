@@ -13,11 +13,12 @@ import (
 // share the observer descriptors: closing an observation cannot weaken source
 // process boundaries.
 type filterTargetIndexGuard struct {
-	gitDir, index *os.File
-	gitIdentity   DirectoryIdentity
-	indexIdentity FileIdentity
-	indexSHA      string
-	gitPath       string
+	gitDir, index     *os.File
+	gitIdentity       DirectoryIdentity
+	indexIdentity     FileIdentity
+	indexSHA          string
+	gitPath           string
+	afterMetadataRead func() // pure-FD boundary test seam
 }
 
 func openFilterTargetIndexGuard(g *FilterGitContext) (*filterTargetIndexGuard, error) {
@@ -146,6 +147,9 @@ func (g *filterTargetIndexGuard) checkMetadata() error {
 	err = unix.Fstatat(int(info.Fd()), "sparse-checkout", &st, unix.AT_SYMLINK_NOFOLLOW)
 	if !errors.Is(err, unix.ENOENT) {
 		return fail(CodeInvalidInput, "filter target sparse metadata", err)
+	}
+	if g.afterMetadataRead != nil {
+		g.afterMetadataRead()
 	}
 	return nil
 }
