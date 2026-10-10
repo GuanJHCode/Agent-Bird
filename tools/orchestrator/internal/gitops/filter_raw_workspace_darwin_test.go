@@ -24,10 +24,14 @@ type rawFixtureJournal struct {
 	memoryJournal
 	materialized []MaterializeReceipt
 	records      []GitProcessRecord
+	after        func(MaterializeReceipt)
 }
 
 func (j *rawFixtureJournal) RecordFilterMaterialized(_ context.Context, r MaterializeReceipt) error {
 	j.materialized = append(j.materialized, r)
+	if j.after != nil {
+		j.after(r)
+	}
 	return nil
 }
 func (j *rawFixtureJournal) RecordGitProcess(_ context.Context, r GitProcessRecord) error {
@@ -186,12 +190,10 @@ func rawBroker(t *testing.T, f *rawFixture, ctx context.Context, m contract.GitF
 	return b, fs
 }
 func TestFilterRawMaterializationNativeFixture(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-	defer cancel()
 	for _, tc := range []struct {
-		name, clean string
-		drift       bool
-	}{{"xor_roundtrip_receipt_and_controlled_file", "xor", false}, {"non_roundtrip_rejects_and_retains_workspace", "copy", false}, {"tree_attributes_drift_rejects_before_workspace", "xor", true}} {
+		name, clean         string
+		drift, journalDrift bool
+	}{{"xor_roundtrip_receipt_and_controlled_file", "xor", false, false}, {"non_roundtrip_rejects_and_retains_workspace", "copy", false, false}, {"tree_attributes_drift_rejects_before_workspace", "xor", true, false}, {"journal_receipt_drift_rejected", "xor", false, true}} {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newRawFixture(t)
 			if e := os.MkdirAll(filepath.Join(f.root, "repo"), 0700); e != nil {
@@ -213,9 +215,8 @@ func TestFilterRawMaterializationNativeFixture(t *testing.T) {
 			if e := os.WriteFile(filepath.Join(repo, "script"), []byte("#!/bin/true\n"), 0700); e != nil {
 				t.Fatal(e)
 			}
-			m := filterManifestFor(t, gitPath, tool.Path, tool.Path)
-			m.Clean.Args = []string{tc.clean}
-			m.Smudge.Args = []string{"xor"}
+			version := rawGit(t, f, ctx, gitPath, repo, "--version")
+			m := contract.GitFilterManifestV1{Version: 1, DriverID: "sealed", Paths: []string{"a.txt"}, Git: contract.GitFilterGitPin{Path: gitPath, Version: version, SHA256: filterFileSHA256(t, gitPath)}, Clean: contract.GitFilterToolPin{Path: tool.Path, SHA256: tool.SHA256, Args: []string{tc.clean}}, Smudge: contract.GitFilterToolPin{Path: tool.Path, SHA256: tool.SHA256, Args: []string{"xor"}}}
 			m.ConfigSHA256 = FilterConfigurationSHA256(m)
 			m = rawConfigure(t, f, ctx, gitPath, repo, m)
 			rawGit(t, f, ctx, gitPath, repo, "add", "a.txt", "README", "script", ".gitattributes")
@@ -237,6 +238,11 @@ func TestFilterRawMaterializationNativeFixture(t *testing.T) {
 			defer source.Close()
 			target := filepath.Join(f.root, "out-"+strings.ReplaceAll(tc.name, "_", "-"))
 			j := &rawFixtureJournal{}
+			if tc.journalDrift {
+				j.after = func(r MaterializeReceipt) {
+					_ = os.WriteFile(filepath.Join(r.Worktree, "README"), []byte("changed\n"), 0600)
+				}
+			}
 			if tc.drift {
 				broker, scope := rawBroker(t, f, ctx, m)
 				_, e = MaterializeFiltered(ctx, source, broker, MaterializeRequest{RepoRoot: repo, Worktree: target, AttemptID: "a", BaseOID: head, CandidateOID: head, OrderedInputOIDs: []string{head}, PlanRevision: 1, FilterScopeSHA256: scope, FilterReservationID: "filter"}, j)
@@ -269,6 +275,15 @@ func TestFilterRawMaterializationNativeFixture(t *testing.T) {
 				}
 				if _, x := os.Lstat(target); x != nil {
 					t.Fatalf("workspace not retained: %v", x)
+				}
+				return
+			}
+			if tc.journalDrift {
+				if !IsCode(e, CodeIdentityChanged) || got != nil {
+					t.Fatalf("journal drift got=%v err=%v", got, e)
+				}
+				if _, x := os.Lstat(target); x != nil {
+					t.Fatalf("journal drift target: %v", x)
 				}
 				return
 			}
