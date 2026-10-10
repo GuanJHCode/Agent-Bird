@@ -12,7 +12,7 @@ import (
 )
 
 func TestOpenFreshJournalRefusesAnyExistingLedger(t *testing.T) {
-	root := t.TempDir()
+	root := filepath.Join(t.TempDir(), "journal")
 	first, err := OpenFreshJournal(root)
 	if err != nil {
 		t.Fatal(err)
@@ -52,13 +52,19 @@ func TestOpenFreshJournalRefusesAnyExistingLedger(t *testing.T) {
 
 func TestJournalFilterAttachmentStrictness(t *testing.T) {
 	t.Run("legacy_nil_filter_records_load", func(t *testing.T) {
-		root := t.TempDir()
+		root := filepath.Join(t.TempDir(), "journal")
 		journal, err := OpenFreshJournal(root)
 		if err != nil {
 			t.Fatal(err)
 		}
-		prepared := gitops.PreparedWorkspace{Receipt: gitops.MaterializeReceipt{AttemptID: "attempt"}}
-		receipt := gitops.CandidateReceipt{AttemptID: "attempt"}
+		prepared := gitops.PreparedWorkspace{Receipt: gitops.MaterializeReceipt{
+			AttemptID: "attempt",
+			Files:     map[string]gitops.FileIdentity{"FILTER": {Device: 1, Inode: 2, Mode: 0100644, Size: 3, ModUnixNano: 4}},
+		}}
+		receipt := gitops.CandidateReceipt{
+			AttemptID: "attempt",
+			Files:     map[string]gitops.FileIdentity{"FILTER": {Device: 5, Inode: 6, Mode: 0100644, Size: 7, ModUnixNano: 8}},
+		}
 		if err = journal.RecordWorkspacePrepared(context.Background(), prepared); err != nil {
 			t.Fatal(err)
 		}
@@ -84,7 +90,7 @@ func TestJournalFilterAttachmentStrictness(t *testing.T) {
 	})
 
 	t.Run("duplicate_outer_filter_attachment_rejected", func(t *testing.T) {
-		root := t.TempDir()
+		root := filepath.Join(t.TempDir(), "journal")
 		if err := os.MkdirAll(root, 0700); err != nil {
 			t.Fatal(err)
 		}

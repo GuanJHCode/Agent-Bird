@@ -198,6 +198,18 @@ func freezeNativeSuccess(t *testing.T) {
 	if err := materialized.Verify(ctx); err != nil {
 		t.Fatalf("validator live verify: %v", err)
 	}
+	rawGit(t, f, ctx, gitPath, repo, "update-ref", "--no-deref", "-d", receipt.PrivateRef, receipt.CandidateOID)
+	if err := materialized.Verify(ctx); err == nil {
+		t.Fatal("validator accepted deleted source private ref")
+	}
+	rawGit(t, f, ctx, gitPath, repo, "update-ref", "--no-deref", receipt.PrivateRef, receipt.CandidateOID, strings.Repeat("0", len(receipt.CandidateOID)))
+	if ref := rawGit(t, f, ctx, gitPath, repo, "rev-parse", receipt.PrivateRef); ref != receipt.CandidateOID {
+		t.Fatalf("restored private ref=%s candidate=%s", ref, receipt.CandidateOID)
+	}
+	if err := materialized.Verify(ctx); err != nil {
+		t.Fatalf("validator live verify after source ref restore: %v", err)
+	}
+	t.Log("validator live verify rejects deleted source private ref and accepts exact restore")
 	if validated := materialized.Receipt(); !reflect.DeepEqual(validated.Filter, receipt.Filter) {
 		t.Fatalf("validator filter evidence=%#v accepted=%#v", validated.Filter, receipt.Filter)
 	}
