@@ -3,7 +3,11 @@ package process
 import (
 	"context"
 	"errors"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strconv"
 	"syscall"
 	"testing"
 	"time"
@@ -86,5 +90,53 @@ func TestStartAnchorCaptureFailureRetainsExistingStartBehavior(t *testing.T) {
 	}
 	if err := h.VerifyLiveDescendant(context.Background(), 1); err == nil {
 		t.Fatal("missing anchor granted authority")
+	}
+}
+
+func TestVerifyLiveDescendantNativeLifecycle(t *testing.T) {
+	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
+		t.Skip("kernel peer authority is unsupported")
+	}
+	release, pidPath := filepath.Join(t.TempDir(), "release"), filepath.Join(t.TempDir(), "child-pid")
+	spec := duplexCommand(t, "peer-anchor-leader")
+	spec.Env = append(spec.Env, "C06_DUPLEX_RELEASE="+release, "C06_DUPLEX_CHILD_PID="+pidPath)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	h, err := Start(ctx, spec)
+	if err != nil || h == nil {
+		t.Fatalf("Start original leader: handle=%t err=%v", h != nil, err)
+	}
+	t.Cleanup(func() {
+		_ = os.WriteFile(release, []byte("release"), 0600)
+		cleanup, stop := context.WithTimeout(context.Background(), time.Second)
+		defer stop()
+		_ = h.Stop(cleanup)
+		_ = h.Wait(cleanup)
+		_ = h.ConfirmTreeExited()
+	})
+	var peer int
+	for deadline := time.Now().Add(time.Second); time.Now().Before(deadline); time.Sleep(5 * time.Millisecond) {
+		if raw, readErr := os.ReadFile(pidPath); readErr == nil {
+			peer, _ = strconv.Atoi(string(raw))
+			break
+		}
+	}
+	if peer <= 0 {
+		t.Fatal("owned peer PID was not published")
+	}
+	if err := h.VerifyLiveDescendant(ctx, peer); err != nil {
+		t.Fatalf("live owned descendant rejected: %v", err)
+	}
+	if err := h.VerifyLiveDescendant(ctx, os.Getpid()); err == nil {
+		t.Fatal("foreign process accepted")
+	}
+	if err := os.WriteFile(release, []byte("release"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := h.Wait(ctx); err != nil || h.ConfirmTreeExited() != nil {
+		t.Fatalf("original Wait/tree after release: %v", err)
+	}
+	if err := h.VerifyLiveDescendant(context.Background(), peer); err == nil {
+		t.Fatal("terminal Handle retained peer authority")
 	}
 }
