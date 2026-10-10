@@ -130,7 +130,12 @@ func bindCandidateInputContent(ctx context.Context, tx *sql.Tx, command *contrac
 		}
 		return bindCandidateIntent(ctx, tx, command, replay)
 	}
-	if action.Version != 1 || action.SourceTask == "" || (action.Operation != "validate" && action.Operation != "review" && action.Operation != "integrate") || !slices.Contains(deps, action.SourceTask) {
+	observation := false
+	if action.Operation == "filter_target_preflight" {
+		p, err := adapter.DecodeInvocationPayload(command.AdapterPayload)
+		observation = err == nil && adapter.IsFilterTargetPreflight(p)
+	}
+	if action.Version != 1 || action.SourceTask == "" || (action.Operation != "validate" && action.Operation != "review" && action.Operation != "integrate" && !observation) || !slices.Contains(deps, action.SourceTask) {
 		return CodeError("invalid_candidate_action")
 	}
 	input, err := acceptedCandidateInput(ctx, tx, command.RunID, action.SourceTask)
