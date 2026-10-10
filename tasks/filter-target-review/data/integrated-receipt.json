@@ -1,0 +1,12 @@
+{
+  "integrated_commit": "c47b1db940c9eed6e4145c1470d1e8e0feef2004",
+  "delivery_commit": "e0645d567610436d9d782beaedeca74fb069f371",
+  "combined_qualified_source": "0218aacabbb1ed3f8696fd095a64c04310e83101",
+  "integrated_go_tree": "fa9f810373ef060c44b622dc0b71337fe69927e5",
+  "qualified_go_tree": "fa9f810373ef060c44b622dc0b71337fe69927e5",
+  "go_diff_empty": true,
+  "host_native_production_source": "64acf86ece72c6ecfb3e4d94ef2ebd73a31aea76",
+  "package_receipt_sha256": "bd564da6be6c7de5b2e42133e203e07ffad249a7a3b0ca70cc2aeff68ce25da4",
+  "public_stage": "filter_target_review",
+  "filtered_integration_enabled": false
+}
