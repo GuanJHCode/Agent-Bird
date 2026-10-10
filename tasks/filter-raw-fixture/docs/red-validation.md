@@ -4,3 +4,5 @@
 
 
 The preserved runs predate the real `gitfilter.ResourceBroker` fixture rewrite and therefore do **not** establish a native Broker-chain RED. They remain only as raw evidence of the former stub/fixture failures. The rewritten fixture is pending the ROOT production merge and its single final focused race.
+
+ROOT audit: the source641bdb4 stream parameter was an unused double, and its attribute branch returned at OpenFilterGit. These stub failures are preserved but do not establish the requested native Broker chain. The later draft98ca21d was incomplete (including a missing per-subcase context) and was taken over by ROOT. Final native proof and the separate unqualified interrupted worker attempt are accurately scoped in `tasks/filter-raw-workspace/docs/final-validation.md`.
