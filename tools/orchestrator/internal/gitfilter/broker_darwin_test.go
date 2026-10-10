@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -100,9 +101,15 @@ func TestFilterBrokerOwnedResources(t *testing.T) {
 		if cold, e := NewBroker(ctx, req); e == nil || cold != nil {
 			t.Fatal("cold object adopted existing resources")
 		}
+		heldFiles := []*os.File{b.nodes["clean/tool"].file, b.nodes["smudge/tool"].file, b.slots[0], b.slots[1], b.slots[2]}
 		receipt, err := b.Cleanup(ctx)
 		if err != nil || receipt == nil || receipt.Validate() != nil || receipt.ReservationID != req.Grant.ReservationID || receipt.RemovedBytes != 2*f.tool.Size+3*int64(len(input)) {
 			t.Fatalf("cleanup: %+v %v", receipt, err)
+		}
+		for _, file := range heldFiles {
+			if _, err := file.Stat(); !errors.Is(err, os.ErrClosed) {
+				t.Fatal("cleanup receipt refunded bytes while original file descriptor remained open")
+			}
 		}
 		if _, err = os.Lstat(b.resource); !os.IsNotExist(err) {
 			t.Fatalf("resource directory remains: %v", err)
