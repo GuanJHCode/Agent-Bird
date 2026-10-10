@@ -102,7 +102,7 @@ func TestFilterTargetLateStopRetainsTerminalArtifact(t *testing.T) {
 						t.Fatal("stopped terminal artifact became unreferenced")
 					}
 				}
-				if e.Kind == contract.EventStopped && e.StopReason == "" {
+				if e.Kind == contract.EventStopped && (e.StopReason == "" || e.PayloadHash != materialized.SHA256) {
 					t.Fatal("stop reason missing")
 				}
 				if e.Kind == contract.EventExited && (e.ActiveMS < 1 || e.GitFilterCleanup == nil || e.GitFilterCleanup.Validate() != nil) {

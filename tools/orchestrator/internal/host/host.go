@@ -635,7 +635,11 @@ func (h *Host) execute(ctx context.Context, a store.Attempt, runID, taskID strin
 			if err = publishLaunchPhase(spool, "stopped", a, runID, taskID, cmd, nil, cause); err != nil {
 				return finalizeCandidateUnknown(err, nil, -1)
 			}
-			if _, err = h.appendStructuredEvent(spool, runID, taskID, a, meta, contract.EventStopped, hashText("stopped:"+a.SegmentID), nil, nil, artifact, structuredEventFields{StopReason: interruptionReason(ctx, h.stopWasRequested(a.SegmentID), -1)}); err != nil {
+			stoppedHash := hashText("stopped:" + a.SegmentID)
+			if artifact != nil {
+				stoppedHash = artifact.SHA256
+			}
+			if _, err = h.appendStructuredEvent(spool, runID, taskID, a, meta, contract.EventStopped, stoppedHash, nil, nil, artifact, structuredEventFields{StopReason: interruptionReason(ctx, h.stopWasRequested(a.SegmentID), -1)}); err != nil {
 				return finalizeCandidateUnknown(err, nil, -1)
 			}
 			eventCount++

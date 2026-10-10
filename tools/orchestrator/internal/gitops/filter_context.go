@@ -85,16 +85,16 @@ func filterGitConfigArgs(driver string) []string {
 }
 
 func OpenFilterGit(ctx context.Context, repoRoot string, manifest contract.GitFilterManifestV1) (*FilterGitContext, error) {
-	return openFilterGit(ctx, repoRoot, manifest, false)
+	return openFilterGit(ctx, repoRoot, manifest, false, nil)
 }
 
 // OpenFilterTargetGit additionally retains target-index evidence before any
 // filtered Git command can consult that index.
 func OpenFilterTargetGit(ctx context.Context, repoRoot string, manifest contract.GitFilterManifestV1) (*FilterGitContext, error) {
-	return openFilterGit(ctx, repoRoot, manifest, true)
+	return openFilterGit(ctx, repoRoot, manifest, true, nil)
 }
 
-func openFilterGit(ctx context.Context, repoRoot string, manifest contract.GitFilterManifestV1, target bool) (g *FilterGitContext, err error) {
+func openFilterGit(ctx context.Context, repoRoot string, manifest contract.GitFilterManifestV1, target bool, source *FilterGitContext) (g *FilterGitContext, err error) {
 	if err := manifest.Validate(); err != nil {
 		return nil, fail(CodeInvalidInput, "filter git manifest", err)
 	}
@@ -103,7 +103,7 @@ func openFilterGit(ctx context.Context, repoRoot string, manifest contract.GitFi
 	if err != nil {
 		return nil, err
 	}
-	g = &FilterGitContext{repoRoot: repoRoot, repoIdentity: repoIdentity, manifest: manifest.Clone(), attributes: map[string]filterPinnedFile{}}
+	g = &FilterGitContext{source: source, repoRoot: repoRoot, repoIdentity: repoIdentity, manifest: manifest.Clone(), attributes: map[string]filterPinnedFile{}}
 	opened := g
 	defer func() {
 		if err != nil {
@@ -277,25 +277,24 @@ func (g *FilterGitContext) installTargetIndexGuard() error {
 func (g *FilterGitContext) verifyTargetIndexGuard() error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	if g.closed {
-		return fail(CodeInvalidInput, "filter git", fmt.Errorf("closed context"))
-	}
-	if g.targetIndex == nil {
-		return nil
-	}
-	return g.targetIndex.Verify()
+	return g.verifyTargetIndexGuardHeld()
 }
 
-// verifyTargetIndexGuardHeld is used by private Git launched while Verify
-// already owns g.mu. Before a context escapes, no competing Close can exist.
+// Private Git runs with the current context locked (or still unpublished).
+// A child's parent is independently owned and must acquire its own lock.
 func (g *FilterGitContext) verifyTargetIndexGuardHeld() error {
 	if g.closed {
 		return fail(CodeInvalidInput, "filter git", fmt.Errorf("closed context"))
 	}
-	if g.targetIndex == nil {
-		return nil
+	if g.source != nil {
+		if err := g.source.verifyTargetIndexGuard(); err != nil {
+			return err
+		}
 	}
-	return g.targetIndex.Verify()
+	if g.targetIndex != nil {
+		return g.targetIndex.Verify()
+	}
+	return nil
 }
 
 func (g *FilterGitContext) readState(ctx context.Context) ([]byte, map[string]filterPinnedFile, string, error) {

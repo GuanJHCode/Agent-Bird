@@ -22,7 +22,7 @@ func (g *FilterGitContext) BindWorktree(ctx context.Context, path string) (*Filt
 	if err := g.Verify(ctx); err != nil {
 		return nil, err
 	}
-	child, err := OpenFilterGit(ctx, path, g.manifest)
+	child, err := openFilterGit(ctx, path, g.manifest, false, g)
 	if err != nil {
 		return nil, err
 	}

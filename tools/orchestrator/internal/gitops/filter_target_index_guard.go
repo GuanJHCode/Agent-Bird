@@ -67,11 +67,10 @@ func (g *filterTargetIndexGuard) Verify() error {
 	if g == nil || g.gitDir == nil || g.index == nil {
 		return fail(CodeIdentityChanged, "filter target index guard closed", nil)
 	}
-	held, err := filterTargetDirectory(g.gitDir)
-	named, namedErr := directoryIdentity(g.gitPath)
-	if err != nil || namedErr != nil || held != g.gitIdentity || named != held || CanonicalPath(g.gitPath) != g.gitPath {
-		return fail(CodeIdentityChanged, "filter target git directory", errors.Join(err, namedErr))
+	if err := g.verifyDirectory(); err != nil {
+		return err
 	}
+	var err error
 	if err = g.checkMetadata(); err != nil {
 		return err
 	}
@@ -79,7 +78,19 @@ func (g *filterTargetIndexGuard) Verify() error {
 	if err != nil || id != g.indexIdentity || filterTargetHash(raw) != g.indexSHA {
 		return fail(CodeIdentityChanged, "filter target index changed", err)
 	}
-	return filterTargetIndexHeader(raw)
+	if err = filterTargetIndexHeader(raw); err != nil {
+		return err
+	}
+	return g.verifyDirectory()
+}
+
+func (g *filterTargetIndexGuard) verifyDirectory() error {
+	held, err := filterTargetDirectory(g.gitDir)
+	named, namedErr := directoryIdentity(g.gitPath)
+	if err != nil || namedErr != nil || held != g.gitIdentity || named != held || CanonicalPath(g.gitPath) != g.gitPath {
+		return fail(CodeIdentityChanged, "filter target git directory", errors.Join(err, namedErr))
+	}
+	return nil
 }
 
 func (g *filterTargetIndexGuard) readIndex() ([]byte, FileIdentity, error) {
@@ -140,7 +151,8 @@ func (g *filterTargetIndexGuard) checkMetadata() error {
 		return err
 	}
 	defer info.Close()
-	if _, err = filterTargetDirectory(info); err != nil {
+	heldInfo, err := filterTargetDirectory(info)
+	if err != nil {
 		return err
 	}
 	var st unix.Stat_t
@@ -150,6 +162,15 @@ func (g *filterTargetIndexGuard) checkMetadata() error {
 	}
 	if g.afterMetadataRead != nil {
 		g.afterMetadataRead()
+	}
+	namedInfo, err := filterOpenAt(g.gitDir, "info", unix.O_RDONLY|unix.O_DIRECTORY, 0)
+	if err != nil {
+		return err
+	}
+	namedID, namedErr := filterTargetDirectory(namedInfo)
+	closeErr := namedInfo.Close()
+	if namedErr != nil || closeErr != nil || namedID != heldInfo {
+		return fail(CodeIdentityChanged, "filter target info directory", errors.Join(namedErr, closeErr))
 	}
 	return nil
 }
