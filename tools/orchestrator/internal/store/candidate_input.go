@@ -108,7 +108,7 @@ func bindCandidateInputContent(ctx context.Context, tx *sql.Tx, command *contrac
 		return err
 	}
 	if payload.Action == nil {
-		if payload.Workspace != nil && (len(payload.Workspace.Rework) > 0 && string(payload.Workspace.Rework) != "null" || len(payload.Workspace.NewBaseRework) > 0 && string(payload.Workspace.NewBaseRework) != "null") {
+		if command.GitFilter != nil || payload.Workspace != nil && (len(payload.Workspace.Rework) > 0 && string(payload.Workspace.Rework) != "null" || len(payload.Workspace.NewBaseRework) > 0 && string(payload.Workspace.NewBaseRework) != "null") {
 			return bindCandidateIntent(ctx, tx, command, replay)
 		}
 		return nil

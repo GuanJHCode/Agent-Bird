@@ -172,7 +172,7 @@ func (d *DB) managedArtifactAdmissionDisk(ctx context.Context, tx *sql.Tx, incom
 	if malformed != 0 {
 		return CodeError("legacy_artifact_unclassified")
 	}
-	rows, err := tx.QueryContext(ctx, `SELECT reserved_bytes,retained_bytes FROM managed_artifact_reservations WHERE state!='released' UNION ALL SELECT maximum_bytes,0 FROM validation_tool_reservations WHERE state!='released'`)
+	rows, err := tx.QueryContext(ctx, `SELECT reserved_bytes,retained_bytes FROM managed_artifact_reservations WHERE state!='released' UNION ALL SELECT maximum_bytes,0 FROM validation_tool_reservations WHERE state!='released' UNION ALL SELECT maximum_bytes,0 FROM git_filter_resource_reservations WHERE state!='released'`)
 	if err != nil {
 		return err
 	}
@@ -223,7 +223,7 @@ func (d *DB) managedArtifactAdmissionDisk(ctx context.Context, tx *sql.Tx, incom
 	if incoming > d.artifactLimit || used > d.artifactLimit-incoming {
 		return CodeError("artifact_spool_full")
 	}
-	metadataRows, err := tx.QueryContext(ctx, `SELECT m.reserved_bytes,COALESCE((SELECT SUM(f.manifest_bytes) FROM managed_artifact_refs f WHERE f.reservation_id=r.id),0) FROM managed_host_artifact_metadata m JOIN managed_artifact_reservations r ON r.id=m.reservation_id WHERE r.state!='released' UNION ALL SELECT metadata_bytes,0 FROM validation_tool_reservations`)
+	metadataRows, err := tx.QueryContext(ctx, `SELECT m.reserved_bytes,COALESCE((SELECT SUM(f.manifest_bytes) FROM managed_artifact_refs f WHERE f.reservation_id=r.id),0) FROM managed_host_artifact_metadata m JOIN managed_artifact_reservations r ON r.id=m.reservation_id WHERE r.state!='released' UNION ALL SELECT metadata_bytes,0 FROM validation_tool_reservations UNION ALL SELECT metadata_bytes,0 FROM git_filter_resource_reservations`)
 	if err != nil {
 		return err
 	}

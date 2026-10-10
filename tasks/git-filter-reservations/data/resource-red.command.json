@@ -1,0 +1,18 @@
+{
+  "command": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+    "-C",
+    "tools/orchestrator",
+    "test",
+    "-json",
+    "-count=1",
+    "./internal/contract",
+    "./internal/store",
+    "-run",
+    "^TestGitFilter(Attachment|Admission|Reservation|Lifecycle|Migration)"
+  ],
+  "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/git-filter-reservations",
+  "head": "81069e7978729837a7588a85ecf1cd2425ed0e0f",
+  "dirty": "",
+  "go_version": "go version go1.26.8 darwin/arm64"
+}
