@@ -174,8 +174,8 @@ func TestFilterRawMaterializationNativeFixture(t *testing.T) {
 			}
 			g, err := OpenFilterGit(ctx, source, m)
 			if tc.attrDrift {
-				if err == nil {
-					t.Fatal("tree attrs accepted")
+				if !IsCode(err, CodeIdentityChanged) {
+					t.Fatalf("tree attrs error=%v", err)
 				}
 				return
 			}
