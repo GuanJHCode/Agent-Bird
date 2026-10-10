@@ -35,7 +35,7 @@ Claude/AGY Hook 适配、Codex attached bridge 的源码和受控测试不等于
 
 候选 Git 扩展仅开放有限的 Darwin filter 首形状：[filtered Host 验收](../tasks/filter-host-pipeline/docs/final-validation.md)已完成 fresh producer → Store 接受 → 独立 validator 的受控原生链。固定实际 Git/config/attributes/tool，canonical B 与 rendered R 往返验证、原始 Wait/tree、独立资源清理、来源 private ref 持续复验均有证据。validator 的 Target 必须为空；filtered review/compose/integrate/rework/retry/continuation、LFS、自定义 hooks 和签名仍未开放。真实 Claude/AGY 模型与公开 CLI 全链没有由此验证。
 
-[有界 filter 资源层](../tasks/filter-host-broker/docs/final-validation.md)、[Host 原始生命周期](../tasks/filter-host-lifecycle/docs/final-validation.md)、[实际 Git 上下文](../tasks/filter-git-context/docs/final-validation.md)、[raw 物化](../tasks/filter-raw-workspace/docs/final-validation.md)和[原始 freeze/validator](../tasks/filter-freeze-workspace/docs/final-validation.md)证据继续有效。Linux 已验 Store 资源闭集和交叉编译，尚无原生 filter/Broker 资格。最新包 source e662aaa 暂不覆盖本次生产增量。
+[有界 filter 资源层](../tasks/filter-host-broker/docs/final-validation.md)、[Host 原始生命周期](../tasks/filter-host-lifecycle/docs/final-validation.md)、[实际 Git 上下文](../tasks/filter-git-context/docs/final-validation.md)、[raw 物化](../tasks/filter-raw-workspace/docs/final-validation.md)和[原始 freeze/validator](../tasks/filter-freeze-workspace/docs/final-validation.md)证据继续有效。Linux 已验 Store 资源闭集和交叉编译，尚无原生 filter/Broker 资格。最新包 source `61431425530ab0befb7486376029f644957c3ae8` 已绑定本次 Host 稳定集成，但不资格化后续生产修改。
 
 [materialize worker 验收](../tasks/materialize-worker-isolation/docs/final-validation.md)覆盖受管 Git 入口与执行扩展拒绝；[原生沙箱探针](../tasks/filter-sandbox-probe/docs/final-validation.md)覆盖本地转换 actor 的越界内容访问、fork 和网络拒绝。[最终 Git hook/中断验收](../tasks/final-git-extension-native/docs/final-validation.md)覆盖真实 post-merge hook 修改后的 uncertain 判定及已启动 merge 的原 Stop/Wait/tree。权限不足或输入不明确时明确阻塞，不修改用户全局 Git 或 Provider 配置。
 
@@ -43,4 +43,4 @@ Grok 候选审查由 Host 提供完整 base/candidate Git 文本树，限制为 
 
 显式 `indexed_candidate_review_v1` 分块路径支持更大的不可变候选，容量、DAG字段与配置选择见[Provider运行时](provider-runtime.md#大候选分块审查)。本机受控Provider已验证65个以上文件、三分块实际prompt消费、Store逐阶段接受、Source Host恢复及最终Git合并；真实模型分块效果尚未验收。
 
-当前macOS arm64本地候选包 `0.1.0-closure.e662aaa0e2a9` 已完成[同源码双构建/双打包与私有安装管理验收](../tasks/closure-package-provenance/docs/owner-grant-current-20261010.md)：12条实际命令覆盖install/replay/Doctor/uninstall，28个包文件与24项source closure核对通过。包固定本机Python路径/hash；没有替换用户安装或注册Hook，不代表跨机器安装、真实TUI/Provider或Formal60资源资格。该包证据只绑定其source，不自动覆盖后续生产修改。
+当前macOS arm64本地候选包 `0.1.0-closure.61431425530a` 已完成[同源码双构建/双打包与私有安装管理验收](../tasks/closure-package-provenance/docs/filter-host-current-20261010.md)：12条实际命令覆盖install/replay/Doctor/uninstall，28个包文件与24项source closure核对通过。包固定本机Python路径/hash；没有替换用户安装或注册Hook，不代表跨机器安装、真实TUI/Provider或Formal60资源资格。该包证据只绑定其source，不自动覆盖后续生产修改。
