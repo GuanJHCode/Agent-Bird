@@ -3,12 +3,14 @@
 package host
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strings"
 	"testing"
@@ -22,7 +24,7 @@ import (
 )
 
 func TestFilterPipelineNativeHostAcceptedValidator(t *testing.T) {
-	root, guard := validationNativeRoot(t)
+	root, guard := filterPipelineRoot(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Minute)
 	defer cancel()
 	filterActor := filterPipelineBuildActor(t, ctx, root, guard)
@@ -35,8 +37,8 @@ func TestFilterPipelineNativeHostAcceptedValidator(t *testing.T) {
 	filterPipelineGit(t, ctx, guard, gitPath, repo, "init", "-q", "-b", "main")
 	filterPipelineGit(t, ctx, guard, gitPath, repo, "config", "user.name", "fixture")
 	filterPipelineGit(t, ctx, guard, gitPath, repo, "config", "user.email", "fixture@example.invalid")
-	canonical := []byte("candidate\n")
-	if err := os.WriteFile(filepath.Join(repo, "file"), canonical, 0600); err != nil {
+	baseB := []byte("candidate\n")
+	if err := os.WriteFile(filepath.Join(repo, "file"), baseB, 0600); err != nil {
 		t.Fatal(err)
 	}
 	manifest := filterPipelineManifest(t, ctx, guard, gitPath, filterActor)
@@ -53,7 +55,7 @@ func TestFilterPipelineNativeHostAcceptedValidator(t *testing.T) {
 	filterPipelineGitNoFilter(t, ctx, guard, gitPath, repo, "commit", "-q", "-m", "base")
 	base := filterPipelineGitNoFilter(t, ctx, guard, gitPath, repo, "rev-parse", "HEAD")
 
-	sourcePayload := adapter.InvocationPayload{Kind: "provider", Provider: string(adapter.ProviderClaude), Directory: filepath.Join(root, "provider"), ProviderLock: &adapter.ProviderLock{Version: 1, Provider: adapter.ProviderClaude, Protocol: adapter.ProtocolID(adapter.ProviderClaude), Binary: adapter.BinaryPin{Path: validatorActor, SHA256: validatorPin, Version: "controlled-native"}}, Profile: &adapter.ExecutionProfile{Version: 1, Role: adapter.Implementer, Permission: adapter.WorkspaceWrite, TimeoutMS: 60000}, CandidateWorkspace: &adapter.CandidateWorkspace{Version: 1, RepoRoot: repo, BaseOID: base, Paths: []string{"file"}, AutoDirectory: true}, GitFilter: &manifest}
+	sourcePayload := adapter.InvocationPayload{Kind: "provider", Provider: string(adapter.ProviderClaude), Directory: filepath.Join(root, "provider"), ProviderLock: &adapter.ProviderLock{Version: 1, Provider: adapter.ProviderClaude, Protocol: adapter.ProtocolID(adapter.ProviderClaude), Binary: adapter.BinaryPin{Path: validatorActor, SHA256: validatorPin, Version: "controlled-native"}}, Profile: &adapter.ExecutionProfile{Version: 1, Role: adapter.Implementer, Permission: adapter.WorkspaceWrite, TimeoutMS: 300000}, CandidateWorkspace: &adapter.CandidateWorkspace{Version: 1, RepoRoot: repo, BaseOID: base, Paths: []string{"file"}, AutoDirectory: true}, GitFilter: &manifest}
 	validatePayload := adapter.InvocationPayload{Kind: "candidate", Directory: filepath.Join(root, "validate"), CandidateAction: &adapter.CandidateAction{Version: 1, Operation: "validate", SourceTask: "edit", DependencyInputVersion: 1, AutoDirectory: true, Command: []string{validatorActor, "validate"}, CommandSHA256: validatorPin}, GitFilter: &manifest}
 	sourceRaw, _ := json.Marshal(sourcePayload)
 	validateRaw, _ := json.Marshal(validatePayload)
@@ -62,7 +64,7 @@ func TestFilterPipelineNativeHostAcceptedValidator(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	receipt, err := db.SubmitPlan(ctx, store.PlanSpec{Run: store.RunSpec{ID: "filter-native-run", ControllerThread: "owner", PlanRevision: 1, OriginContextID: "test", OriginPID: os.Getpid(), OriginBirth: "fixture"}, Host: store.HostLaunchSpec{OriginContextID: "test", HostGeneration: "fixture", Executable: "/private/controlled-host"}, Tasks: []store.TaskSpec{{ID: "edit", RunID: "filter-native-run", MaxAttempts: 1, MaxActiveMS: 120000, AdapterPayload: sourceRaw}, {ID: "validate", RunID: "filter-native-run", MaxAttempts: 1, MaxActiveMS: 120000, Dependencies: []string{"edit"}, AdapterPayload: validateRaw}}})
+	receipt, err := db.SubmitPlan(ctx, store.PlanSpec{Run: store.RunSpec{ID: "filter-native-run", ControllerThread: "owner", PlanRevision: 1, OriginContextID: "test", OriginPID: os.Getpid(), OriginBirth: "fixture"}, Host: store.HostLaunchSpec{OriginContextID: "test", HostGeneration: "fixture", Executable: "/private/controlled-host"}, Tasks: []store.TaskSpec{{ID: "edit", RunID: "filter-native-run", MaxAttempts: 1, MaxActiveMS: 300000, AdapterPayload: sourceRaw}, {ID: "validate", RunID: "filter-native-run", MaxAttempts: 1, MaxActiveMS: 300000, Dependencies: []string{"edit"}, AdapterPayload: validateRaw}}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,8 +86,24 @@ func TestFilterPipelineNativeHostAcceptedValidator(t *testing.T) {
 	if err != nil || result.Status != "result_ready" || result.ExitCode != 0 {
 		t.Fatalf("source result=%+v err=%v", result, err)
 	}
+	sourceBody, err := os.ReadFile(result.ArtifactPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var sourceDelivery CandidateDelivery
+	if err = json.Unmarshal(sourceBody, &sourceDelivery); err != nil || sourceDelivery.Candidate.Filter == nil || sourceDelivery.Candidate.Binding == nil || sourceDelivery.Candidate.Binding.AttemptID != sourceGrant.AttemptID {
+		t.Fatalf("source delivery=%#v err=%v", sourceDelivery, err)
+	}
+	desiredR := []byte("candidate\n")
+	wantB := filterPipelineXOR(desiredR)
+	if views := sourceDelivery.Candidate.Filter.Views; len(views) != 1 || views[0].Path != "file" || views[0].CanonicalSHA256 != filterPipelineSHA(wantB) || views[0].RenderedSHA256 != filterPipelineSHA(desiredR) {
+		t.Fatalf("source filter=%#v", sourceDelivery.Candidate.Filter)
+	}
+	if got := filterPipelineGitBytes(t, ctx, guard, gitPath, repo, []string{"cat-file", "blob", sourceDelivery.Candidate.Changes[0].BlobOID}); !bytes.Equal(got, wantB) {
+		t.Fatalf("source canonical=%q want=%q", got, wantB)
+	}
 	sourceEvents := validationCommitEvents(t, ctx, db, h, sourceGrant)
-	if !filterPipelineExited(sourceEvents) {
+	if !filterPipelineExited(sourceEvents, sourceGrant) {
 		t.Fatal("source original Host Exited proof missing")
 	}
 	guard.pending--
@@ -104,14 +122,14 @@ func TestFilterPipelineNativeHostAcceptedValidator(t *testing.T) {
 		t.Fatal(err)
 	}
 	var delivery CandidateDelivery
-	if err = json.Unmarshal(body, &delivery); err != nil || delivery.Stage != "validate" || delivery.Target != (gitops.ReviewBinding{}) || delivery.Candidate.Filter == nil || delivery.Validation == nil || !delivery.Validation.Passed {
+	if err = json.Unmarshal(body, &delivery); err != nil || delivery.Stage != "validate" || !reflect.DeepEqual(delivery.Target, gitops.ReviewBinding{}) || delivery.Candidate.Filter == nil || delivery.Validation == nil || !delivery.Validation.Passed || !reflect.DeepEqual(delivery.Candidate.Filter, sourceDelivery.Candidate.Filter) {
 		t.Fatalf("validator delivery=%#v err=%v", delivery, err)
 	}
-	if view := delivery.Candidate.Filter.Views; len(view) != 1 || view[0].Path != "file" || view[0].CanonicalSHA256 != filterPipelineSHA(canonical) || view[0].RenderedSHA256 == view[0].CanonicalSHA256 {
+	if view := delivery.Candidate.Filter.Views; len(view) != 1 || view[0].Path != "file" || view[0].CanonicalSHA256 != filterPipelineSHA(wantB) || view[0].RenderedSHA256 != filterPipelineSHA(desiredR) {
 		t.Fatalf("filter evidence=%#v", delivery.Candidate.Filter)
 	}
 	validatorEvents := validationCommitEvents(t, ctx, db, h, validatorGrant)
-	if !filterPipelineExited(validatorEvents) {
+	if !filterPipelineExited(validatorEvents, validatorGrant) {
 		t.Fatal("validator original Host Exited proof missing")
 	}
 	guard.pending--
@@ -155,6 +173,36 @@ func filterPipelineModuleRoot(t *testing.T) string {
 		t.Fatal(err)
 	}
 	return filepath.Clean(filepath.Join(dir, "..", ".."))
+}
+
+func filterPipelineRoot(t *testing.T) (string, *validationNativeCleanup) {
+	t.Helper()
+	parent := filepath.Join(filterPipelineModuleRoot(t), "..", "..", "tasks", "filter-host-native", "tmp")
+	if err := os.MkdirAll(parent, 0700); err != nil {
+		t.Fatal(err)
+	}
+	root, err := os.MkdirTemp(parent, "native-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	root, err = filepath.EvalSymlinks(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity, err := os.Lstat(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	guard := &validationNativeCleanup{root: root, identity: identity}
+	t.Cleanup(func() {
+		removed, cleanupErr := guard.cleanup(t.Failed())
+		if removed {
+			t.Logf("owned_fixture_absent=%s", root)
+			return
+		}
+		t.Logf("RETAINED native fixture root=%s pending=%d failed=%t cleanup_error=%v", root, guard.pending, t.Failed(), cleanupErr)
+	})
+	return root, guard
 }
 
 func filterPipelineGitPath(t *testing.T, ctx context.Context) string {
@@ -202,6 +250,23 @@ func filterPipelineGitRun(t *testing.T, ctx context.Context, guard *validationNa
 	guard.pending--
 	return strings.TrimSpace(h.Output())
 }
+func filterPipelineGitBytes(t *testing.T, ctx context.Context, guard *validationNativeCleanup, gitPath, dir string, args []string) []byte {
+	t.Helper()
+	guard.pending++
+	h, err := process.Start(ctx, process.Command{Path: gitPath, PinnedPath: gitPath, PinnedSHA256: filterPipelineDigest(t, gitPath), Args: append([]string{"--no-replace-objects", "-c", "filter.sealed.clean=", "-c", "filter.sealed.smudge=", "-C", dir}, args...), ExactEnv: true, Env: []string{"PATH=/usr/bin:/bin", "LANG=C", "LC_ALL=C", "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_SYSTEM=/dev/null", "GIT_CONFIG_GLOBAL=/dev/null", "GIT_ATTR_NOSYSTEM=1", "GIT_NO_REPLACE_OBJECTS=1", "GIT_TERMINAL_PROMPT=0", "TMPDIR=/private/tmp"}})
+	if err != nil || h == nil {
+		if h != nil {
+			validationNativeStop(h, guard)
+		}
+		t.Fatal(err)
+	}
+	if err = h.Wait(ctx); err != nil || h.ConfirmTreeExited() != nil || h.ExitCode() != 0 {
+		validationNativeStop(h, guard)
+		t.Fatalf("git bytes %v err=%v exit=%d", args, err, h.ExitCode())
+	}
+	guard.pending--
+	return []byte(h.Output())
+}
 func filterPipelineDigest(t *testing.T, path string) string {
 	t.Helper()
 	digest, err := process.ExecutableDigest(context.Background(), path)
@@ -211,12 +276,22 @@ func filterPipelineDigest(t *testing.T, path string) string {
 	return digest
 }
 func filterPipelineSHA(b []byte) string { sum := sha256.Sum256(b); return hex.EncodeToString(sum[:]) }
+func filterPipelineXOR(b []byte) []byte {
+	out := append([]byte(nil), b...)
+	for i := range out {
+		out[i] ^= 0x5a
+	}
+	return out
+}
 func filterPipelineShell(path string, args ...string) string {
 	return "'" + strings.ReplaceAll(path, "'", "'\\''") + "' " + strings.Join(args, " ")
 }
-func filterPipelineExited(events []contract.Event) bool {
+func filterPipelineExited(events []contract.Event, grant contract.LaunchCommand) bool {
 	for _, event := range events {
-		if event.Kind == contract.EventExited && event.Process != nil && event.ExitCode != nil && *event.ExitCode == 0 && event.GitFilterCleanup != nil {
+		if event.Kind == contract.EventExited && event.Process != nil && event.ExitCode != nil && *event.ExitCode == 0 && event.RunID == grant.RunID && event.TaskID == grant.TaskID && event.AttemptID == grant.AttemptID && event.SegmentID == grant.SegmentID && event.CommandID == grant.CommandID && event.GitFilterCleanup != nil && event.GitFilterCleanup.Validate() == nil && event.GitFilterCleanup.ReservationID == grant.GitFilter.ReservationID && event.GitFilterCleanup.ScopeSHA256 == grant.GitFilter.ScopeSHA256 && event.GitFilterCleanup.RemovedBytes > 0 {
+			if grant.ValidationTool != nil && (event.ValidationToolCleanup == nil || event.ValidationToolCleanup.Validate() != nil || event.ValidationToolCleanup.ReservationID != grant.ValidationTool.ReservationID || event.ValidationToolCleanup.ScopeSHA256 != grant.ValidationTool.ScopeSHA256 || event.ValidationToolCleanup.RemovedBytes <= 0) {
+				continue
+			}
 			return true
 		}
 	}
