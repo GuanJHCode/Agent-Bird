@@ -46,6 +46,7 @@ type ExactTransformState struct {
 // ExactTransformSession is live original-owner state, never wire authority.
 // Close only revokes the session, never closes/cleans the borrowed Broker.
 type ExactTransformSession struct {
+	self         *ExactTransformSession
 	mu           sync.Mutex
 	broker       ResourceBroker
 	binding      StreamBinding
@@ -104,6 +105,7 @@ func OpenExactTransformSession(broker ResourceBroker, expected StreamBinding, ma
 	raw, _ := json.Marshal(allowed)
 	h := sha256.Sum256(append([]byte("exact-filter-transform-permits-v1\x00"), raw...))
 	s := &ExactTransformSession{broker: broker, binding: expected, observation: broker.Observation(), journal: journal, permits: allowed, used: make([]uint16, len(allowed)), maximumCalls: total, permitsSHA: hex.EncodeToString(h[:])}
+	s.self = s
 	if err = s.ownerGuard(); err != nil {
 		return nil, err
 	}
@@ -114,7 +116,7 @@ func OpenExactTransformSession(broker ResourceBroker, expected StreamBinding, ma
 // The future IPC adapter must interrupt blocked reads itself; an arbitrary
 // callback cannot be turned into process exit proof by this leaf.
 func (s *ExactTransformSession) Exchange(ctx context.Context, sequence uint64, path, operation string, produce func(io.Writer) error) (output []byte, retErr error) {
-	if s == nil {
+	if s == nil || s.self != s {
 		return nil, ErrExactTransformSession
 	}
 	s.mu.Lock()
@@ -351,7 +353,7 @@ func (s *ExactTransformSession) activeGuard(ctx context.Context) error {
 }
 func (s *ExactTransformSession) markUnknown() { s.mu.Lock(); s.state.Unknown = true; s.mu.Unlock() }
 func (s *ExactTransformSession) State() ExactTransformState {
-	if s == nil {
+	if s == nil || s.self != s {
 		return ExactTransformState{Closed: true, Failed: true}
 	}
 	s.mu.Lock()
@@ -361,6 +363,9 @@ func (s *ExactTransformSession) State() ExactTransformState {
 func (s *ExactTransformSession) Close() error {
 	if s == nil {
 		return nil
+	}
+	if s.self != s {
+		return ErrExactTransformSession
 	}
 	s.mu.Lock()
 	s.state.Closed = true

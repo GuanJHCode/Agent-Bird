@@ -61,7 +61,14 @@ func NewOriginalGitGate(owner context.Context, session *ExactTransformSession, e
 	ss := session.State()
 	// Do not call ownerGuard here: a forged zero-value session must be rejected
 	// before it can dereference its absent borrowed owner.
-	if ss.Calls != 0 || ss.InFlight || ss.Failed || ss.Unknown || ss.Closed || exactNil(session.broker) || exactNil(session.journal) || !exactDigest(session.binding.ManifestSHA256) || !exactDigest(session.binding.ScopeSHA256) || session.binding.AttemptID == "" || session.binding.ReservationID == "" || session.binding.PlanRevision < 1 || len(session.permits) == 0 || len(session.permits) != len(session.used) || session.maximumCalls == 0 {
+	if session.self != session || ss.Calls != 0 || ss.InFlight || ss.Failed || ss.Unknown || ss.Closed || exactNil(session.broker) || exactNil(session.journal) || !exactDigest(session.binding.ManifestSHA256) || !exactDigest(session.binding.ScopeSHA256) || session.binding.AttemptID == "" || session.binding.ReservationID == "" || session.binding.PlanRevision < 1 || len(session.permits) == 0 || len(session.permits) != len(session.used) || session.maximumCalls == 0 {
+		return nil, ErrOriginalGitGate
+	}
+	if err := session.ownerGuard(); err != nil {
+		return nil, errors.Join(ErrOriginalGitGate, err)
+	}
+	ss = session.State()
+	if ss.Calls != 0 || ss.InFlight || ss.Failed || ss.Unknown || ss.Closed {
 		return nil, ErrOriginalGitGate
 	}
 	ctx, cancel := context.WithCancel(owner)
@@ -111,7 +118,7 @@ func (g *OriginalGitGate) activateWith(ctx context.Context, owner gatePeerOwner,
 	// A test seam supplies its already-bound owner. Public Activate did the
 	// original leader proof above without holding this mutex.
 	g.mu.Lock()
-	if g.state.Revoked || g.state.Failed || g.state.Unknown {
+	if g.ctx.Err() != nil || g.state.Revoked || g.state.Failed || g.state.Unknown {
 		g.activating = false
 		g.mu.Unlock()
 		g.poison(false)

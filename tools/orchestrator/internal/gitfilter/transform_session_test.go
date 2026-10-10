@@ -146,6 +146,20 @@ func openExactTest(t *testing.T, b *exactTestBroker, m contract.GitFilterManifes
 }
 
 func TestExactTransformSession(t *testing.T) {
+	t.Run("shallow_copy_cannot_split_live_authority", func(t *testing.T) {
+		b, m, p, j, ctx := exactTestFixture(t)
+		original := openExactTest(t, b, m, p, j)
+		copy := *original
+		if err := copy.Close(); err == nil {
+			t.Fatal("copy Close accepted")
+		}
+		if out, err := copy.Exchange(ctx, 1, "a.txt", "smudge", exactProduce("B")); err == nil || out != nil {
+			t.Fatal("copy Exchange accepted")
+		}
+		if original.State().Failed || original.State().Closed || b.closes != 0 || b.cleanups != 0 {
+			t.Fatalf("copy changed original or broker: session=%+v broker=%+v", original.State(), b)
+		}
+	})
 	t.Run("exact_copy_journal_and_descriptor_free_close", func(t *testing.T) {
 		b, m, p, j, ctx := exactTestFixture(t)
 		s := openExactTest(t, b, m, p, j)
