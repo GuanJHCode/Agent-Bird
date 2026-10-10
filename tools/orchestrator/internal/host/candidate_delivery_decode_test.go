@@ -55,3 +55,29 @@ func candidateDeliveryDecodeJSON(t *testing.T, value CandidateDelivery) []byte {
 	}
 	return body
 }
+
+func TestStrictCandidateDeliveryAcceptsProducerArtifact(t *testing.T) {
+	for _, filtered := range []bool{false, true} {
+		var evidence *gitops.FilterViewEvidenceV1
+		if filtered {
+			evidence = &gitops.FilterViewEvidenceV1{Version: 1, ManifestSHA256: strings.Repeat("a", 64), FilterContextSHA256: strings.Repeat("b", 64), Views: []gitops.FilterPathViewV1{{Path: "a.txt", CanonicalSHA256: strings.Repeat("c", 64), RenderedSHA256: strings.Repeat("d", 64)}}}
+		}
+		want := candidateDeliveryDecodeFixture(evidence)
+		full, err := json.Marshal(want.Candidate)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want.CandidateReceiptSHA256 = gitops.DigestDetail(string(full))
+		body, err := gitops.CandidateArtifact("source-provider-private-text", want.Candidate)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, err := decodeCandidateDeliveryStrict(body)
+		if err != nil || !reflect.DeepEqual(got, want) {
+			t.Fatalf("filtered=%t producer decode=%v got=%#v", filtered, err, got)
+		}
+		if strings.Contains(string(candidateDeliveryDecodeJSON(t, got)), "source-provider-private-text") {
+			t.Fatal("source provider text propagated downstream")
+		}
+	}
+}
