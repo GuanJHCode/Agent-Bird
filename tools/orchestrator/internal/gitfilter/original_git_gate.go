@@ -47,6 +47,7 @@ type OriginalGitGate struct {
 	endpointDone chan struct{}
 	endpointOnce sync.Once
 	endpointErr  error
+	activating   bool
 	state        OriginalGitGateState
 }
 
@@ -73,9 +74,19 @@ func NewOriginalGitGate(owner context.Context, session *ExactTransformSession, e
 func (g *OriginalGitGate) valid() bool { return g != nil && g.self == g }
 
 func (g *OriginalGitGate) Activate(ctx context.Context, handle *process.Handle, commandDigest string) error {
-	if handle == nil || handle.OriginalSpawnedAt().IsZero() {
+	if !g.valid() || ctx == nil || handle == nil || handle.OriginalSpawnedAt().IsZero() || commandDigest != g.digest {
 		g.poison(false)
 		return ErrOriginalGitGate
+	}
+	if _, ok := ctx.Deadline(); !ok || ctx.Err() != nil {
+		g.poison(false)
+		return ErrOriginalGitGate
+	}
+	// Verify the original leader before admitting any helper peer. This is not
+	// socket authentication; it rejects an exited, stopped, or copied Handle.
+	if _, err := handle.BindLiveDescendant(ctx, handle.PID()); err != nil {
+		g.poison(true)
+		return errors.Join(ErrOriginalGitGate, err)
 	}
 	return g.activateWith(ctx, handleGateOwner{handle: handle}, commandDigest)
 }
@@ -90,12 +101,23 @@ func (g *OriginalGitGate) activateWith(ctx context.Context, owner gatePeerOwner,
 		return ErrOriginalGitGate
 	}
 	g.mu.Lock()
-	if g.state.Revoked || g.state.Failed || g.state.Unknown || g.state.Activated {
+	if g.state.Revoked || g.state.Failed || g.state.Unknown || g.state.Activated || g.activating {
 		g.mu.Unlock()
 		g.poison(false)
 		return ErrOriginalGitGate
 	}
-	g.owner, g.state.Activated = owner, true
+	g.activating = true
+	g.mu.Unlock()
+	// A test seam supplies its already-bound owner. Public Activate did the
+	// original leader proof above without holding this mutex.
+	g.mu.Lock()
+	if g.state.Revoked || g.state.Failed || g.state.Unknown {
+		g.activating = false
+		g.mu.Unlock()
+		g.poison(false)
+		return ErrOriginalGitGate
+	}
+	g.owner, g.state.Activated, g.activating = owner, true, false
 	g.mu.Unlock()
 	g.activation.Do(func() { close(g.activated) })
 	return nil
@@ -125,6 +147,20 @@ func (g *OriginalGitGate) Serve(conn net.Conn, peerPID int) (retErr error) {
 		g.state.Serving = false
 		g.mu.Unlock()
 		g.startEndpointClose()
+		select {
+		case <-g.endpointDone:
+			g.mu.Lock()
+			closeErr := g.endpointErr
+			if closeErr != nil {
+				g.state.Unknown = true
+				retErr = errors.Join(retErr, ErrOriginalGitGate, closeErr)
+			} else if retErr == nil && !g.state.Revoked && !g.state.Failed && !g.state.Unknown {
+				g.state.Drained = true
+			}
+			g.mu.Unlock()
+		case <-g.ctx.Done():
+			retErr = errors.Join(retErr, ErrOriginalGitGate, g.ctx.Err())
+		}
 		g.serveOnce.Do(func() { close(g.serveDone) })
 	}()
 	select {
@@ -175,7 +211,7 @@ func (g *OriginalGitGate) Serve(conn net.Conn, peerPID int) (retErr error) {
 			return nil, errors.Join(ErrOriginalGitGate, err)
 		}
 		postSession := g.session.State()
-		if err := peer.Verify(ctx); err != nil || postSession.Unknown {
+		if err := peer.Verify(ctx); err != nil || postSession.Unknown || postSession.Closed || postSession.Failed || postSession.InFlight {
 			g.poison(true)
 			return nil, errors.Join(ErrOriginalGitGate, err)
 		}
@@ -196,11 +232,6 @@ func (g *OriginalGitGate) Serve(conn net.Conn, peerPID int) (retErr error) {
 		}
 		return errors.Join(ErrOriginalGitGate, err)
 	}
-	g.mu.Lock()
-	if !g.state.Revoked && !g.state.Failed && !g.state.Unknown {
-		g.state.Drained = true
-	}
-	g.mu.Unlock()
 	return nil
 }
 
@@ -232,6 +263,9 @@ func (g *OriginalGitGate) Close(ctx context.Context) error {
 	if err != nil {
 		g.state.Unknown = true
 	}
+	if g.state.Unknown {
+		err = errors.Join(err, ErrOriginalGitGate)
+	}
 	g.mu.Unlock()
 	if err != nil {
 		return errors.Join(ErrOriginalGitGate, err)
@@ -245,6 +279,10 @@ func (g *OriginalGitGate) revoke() {
 	}
 	g.mu.Lock()
 	g.state.Revoked = true
+	if g.endpoint == nil && !g.state.Serving {
+		g.state.Failed = true
+		g.state.Drained = true
+	}
 	g.mu.Unlock()
 	g.cancel()
 	g.startEndpointClose()
