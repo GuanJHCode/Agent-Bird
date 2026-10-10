@@ -1,4 +1,6 @@
-# Filtered target approval — validation in progress
+# Filtered target approval — historical validation progress
+
+Final outcome and current limits: [final-validation.md](final-validation.md). The following records preserve the sequence before the final pair result and integration.
 
 Host native has passed; overall delivery still awaits the independent pair native result and integration. Integration remains 7142a32. The new stage consumes exactly one accepted preflight with the same manifest/target, runs a fresh pinned Claude/AGY readonly reviewer, and emits bounded typed provenance references plus a new target ReviewBinding. Old content review remains target-free; preflight remains observation. Filtered integrate remains closed. No real model/account, installation replacement, hook registration, push or release.
 

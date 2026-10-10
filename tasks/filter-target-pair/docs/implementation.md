@@ -26,17 +26,17 @@ qualification evidence. `focused-pure-repair.command.json` pins source
 its stdout/stderr/exit record the updated focused pure guards, including named
 index replacement. The later directory replacement guard is covered by the
 source test introduced in `0bd7a64`; ROOT independently ran its focused pure
-set after integration. This worktree has not run native fixtures.
+set after integration. These focused records predate the native qualification recorded below.
 
-`TestFilteredTargetCandidatePairNativeCallbackOracle` is an unexecuted Darwin
+`TestFilteredTargetCandidatePairNativeCallbackOracle` is a Darwin
 oracle. It reuses the accepted producer fixture to bind the same live source,
 broker, target observation, and candidate materialization; records a callback
 that changes an already checked target file during candidate verification; and
 checks that old sequential verification can return while the pair tail and
 `Pair.Verify` reject the drift. After restoring the fixture file and its
 captured timestamp it uses that same pair to reject a named child-index
-replacement. ROOT must run this single top-level oracle from its fixed review
-snapshot; it is not native qualification evidence in this task artifact.
+replacement. The single top-level oracle subsequently ran once in its isolated fixed
+worktree; its qualification and recording limitation are below.
 
 ## Native oracle record
 
