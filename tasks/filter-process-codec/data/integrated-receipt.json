@@ -1,0 +1,10 @@
+{
+  "integration_merge": "c754ea8b8a16708665d41a12962c79340e1f30a6",
+  "qualified_source": "d5f8326965127757dd2b8b37a1705c66a9351992",
+  "delivery": "82013c8c97f21df6daf68435c9ade4f1f015f7a1",
+  "go_tree": "02b248e2bf3ed002d736ab3ec697fbc1f0c3b782",
+  "exact_tree_matches_qualified": true,
+  "review": "PASS",
+  "scope": "private protocol only; filtered integrate remains closed",
+  "evidence": "root-receipt.json"
+}
