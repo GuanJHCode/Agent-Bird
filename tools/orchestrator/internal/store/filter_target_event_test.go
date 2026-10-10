@@ -136,19 +136,18 @@ func filterTargetGrantSettlement(t *testing.T, outcome string, targetReview ...b
 				t.Fatalf("unproved exit changed state: %v", e)
 			}
 		}
-		if i == 4 {
-			bad := done
-			bad.ExitCode = nil
-			before := diagnosticsBusinessSnapshot(t, db)
-			if _, e = db.CommitHostEvent(ctx, bad); e == nil || diagnosticsBusinessSnapshot(t, db) != before {
-				t.Fatalf("target review inherited nil-exit exception: %v", e)
-			}
+		missingProviderExit := i == 4 && outcome == "nil-provider-exit"
+		if missingProviderExit {
+			done.ExitCode = nil
 		}
 		if _, e = db.CommitHostEvent(ctx, done); e != nil {
 			t.Fatalf("exited %s: %v", id, e)
 		}
 		var status, state string
 		expectedStatus := "result_ready"
+		if missingProviderExit {
+			expectedStatus = "failed"
+		}
 		if stopped {
 			expectedStatus = "interrupted"
 		}
@@ -166,6 +165,14 @@ func filterTargetGrantSettlement(t *testing.T, outcome string, targetReview ...b
 			t.Fatalf("pending %s: %v", id, e)
 		}
 		accepted := page.Events[0]
+		if missingProviderExit {
+			before := diagnosticsBusinessSnapshot(t, db)
+			_, e = db.ReviewResult(ctx, ReviewSpec{TaskID: id, WorkRevision: 1, EventID: accepted.EventID, EventRevision: accepted.EventRevision, EventHash: accepted.PayloadHash, ActionSlot: accepted.ActionSlot, Decision: "accept", CommandID: "reject-unproved-approval"})
+			if e == nil || diagnosticsBusinessSnapshot(t, db) != before {
+				t.Fatalf("nil-provider-exit result gained approval: %v", e)
+			}
+			return
+		}
 		if _, e = db.ReviewResult(ctx, ReviewSpec{TaskID: id, WorkRevision: 1, EventID: accepted.EventID, EventRevision: accepted.EventRevision, EventHash: accepted.PayloadHash, ActionSlot: accepted.ActionSlot, Decision: "accept", CommandID: "accept-" + id}); e != nil {
 			t.Fatalf("accept %s: %v", id, e)
 		}
@@ -173,5 +180,7 @@ func filterTargetGrantSettlement(t *testing.T, outcome string, targetReview ...b
 }
 
 func TestFilterTargetReviewGrantAndProviderExit(t *testing.T) {
-	filterTargetGrantSettlement(t, "result", true)
+	for _, outcome := range []string{"result", "nil-provider-exit"} {
+		t.Run(outcome, func(t *testing.T) { filterTargetGrantSettlement(t, outcome, true) })
+	}
 }
