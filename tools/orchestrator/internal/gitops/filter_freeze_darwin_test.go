@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -101,7 +102,7 @@ func freezeNativeSuccess(t *testing.T) {
 	if err != nil {
 		t.Fatalf("freeze: %v", err)
 	}
-	if receipt.BaseOID != base || receipt.CandidateOID == base || receipt.PrivateRef != "refs/orchestrator/g3/filter-freeze-native" || receipt.Filter == nil || len(receipt.Filter.Views) != 1 || len(receipt.Changes) != 1 {
+	if receipt.BaseOID != base || receipt.CandidateOID == base || receipt.PrivateRef != "refs/orchestrator/g3/filter-freeze-native" || receipt.Filter == nil || len(receipt.Filter.Views) != 1 || len(receipt.Changes) != 1 || receipt.Changes[0].Path != "a.txt" || receipt.Changes[0].Mode != "100644" {
 		t.Fatalf("incomplete frozen receipt: %#v", receipt)
 	}
 	if freezeJournal.intent.AttemptID != request.AttemptID || !reflect.DeepEqual(freezeJournal.intent.Binding, receipt.Binding) || !reflect.DeepEqual(freezeJournal.intent.Changes, receipt.Changes) || !reflect.DeepEqual(freezeJournal.intent.OrderedInputOIDs, receipt.OrderedInputOIDs) || !reflect.DeepEqual(freezeJournal.intent.Filter, receipt.Filter) || !reflect.DeepEqual(freezeJournal.receipt, receipt) {
@@ -112,6 +113,9 @@ func freezeNativeSuccess(t *testing.T) {
 	}
 	if tree := rawGit(t, f, ctx, gitPath, receipt.Worktree, "rev-parse", receipt.CandidateOID+"^{tree}"); tree != receipt.TreeOID {
 		t.Fatalf("candidate tree=%s receipt=%s", tree, receipt.TreeOID)
+	}
+	if entry := strings.Fields(rawGit(t, f, ctx, gitPath, receipt.Worktree, "ls-tree", receipt.CandidateOID, "--", "a.txt")); len(entry) != 4 || entry[0] != "100644" || entry[1] != "blob" || entry[2] != receipt.Changes[0].BlobOID || entry[3] != "a.txt" {
+		t.Fatalf("candidate tree entry=%q receipt change=%#v", entry, receipt.Changes[0])
 	}
 	if ref := rawGit(t, f, ctx, gitPath, repo, "rev-parse", receipt.PrivateRef); ref != receipt.CandidateOID {
 		t.Fatalf("private ref=%s candidate=%s", ref, receipt.CandidateOID)
@@ -142,6 +146,10 @@ func freezeNativeSuccess(t *testing.T) {
 	validatorRequest := request
 	validatorRequest.AttemptID = "validator"
 	validatorRequest.Worktree = filepath.Join(validator.root, "validator-worktree")
+	validatorRequest.BaseOID = receipt.BaseOID
+	validatorRequest.CandidateOID = receipt.CandidateOID
+	validatorRequest.OrderedInputOIDs = append([]string(nil), receipt.OrderedInputOIDs...)
+	validatorRequest.PlanRevision = receipt.PlanRevision
 	validatorRequest.FilterScopeSHA256 = validatorScope
 	validatorRequest.FilterReservationID = "validator-filter"
 	materialized, err := MaterializeFilteredCandidate(ctx, source, validatorBroker, validatorRequest, receipt, validator.journal)
@@ -178,8 +186,8 @@ func freezeNativeUndeclared(t *testing.T) {
 	if !IsCode(err, CodeUnknownObject) && !IsCode(err, CodeIdentityChanged) {
 		t.Fatalf("freeze undeclared README err=%v", err)
 	}
-	if len(freezeJournal.candidateIntents) != 0 || len(freezeJournal.candidateRefIntents) != 0 {
-		t.Fatalf("undeclared freeze persisted candidate records: intents=%d refs=%d", len(freezeJournal.candidateIntents), len(freezeJournal.candidateRefIntents))
+	if len(freezeJournal.candidateIntents) != 0 || len(freezeJournal.candidateRefIntents) != 0 || len(freezeJournal.candidateReceipts) != 0 {
+		t.Fatalf("undeclared freeze persisted candidate records: intents=%d refs=%d receipts=%d", len(freezeJournal.candidateIntents), len(freezeJournal.candidateRefIntents), len(freezeJournal.candidateReceipts))
 	}
 	if got := rawGit(t, f, ctx, gitPath, request.Worktree, "rev-parse", "HEAD"); got != base {
 		t.Fatalf("rejected freeze changed HEAD=%s base=%s", got, base)
