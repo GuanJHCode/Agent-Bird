@@ -17,6 +17,9 @@ import (
 type FilterTargetCandidatePair struct {
 	target             *FilterTargetObservation
 	candidate          *FilterMaterialization
+	childGitDir        *os.File
+	childGitIdentity   DirectoryIdentity
+	childGitPath       string
 	childIndex         *os.File
 	childIndexIdentity FileIdentity
 	childIndexSHA256   string
@@ -39,15 +42,7 @@ func BindFilteredTargetCandidate(ctx context.Context, target *FilterTargetObserv
 		_ = p.Close()
 		return nil, err
 	}
-	if err := target.Verify(ctx); err != nil {
-		_ = p.Close()
-		return nil, err
-	}
-	if err := candidate.Verify(ctx); err != nil {
-		_ = p.Close()
-		return nil, err
-	}
-	if err := p.verifyPure(ctx); err != nil {
+	if err := p.Verify(ctx); err != nil {
 		_ = p.Close()
 		return nil, err
 	}
@@ -87,17 +82,24 @@ func (p *FilterTargetCandidatePair) captureChildState() error {
 	if err != nil {
 		return err
 	}
-	defer gitDir.Close()
+	gitIdentity, err := filterTargetDirectory(gitDir)
+	if err != nil || gitIdentity != child.repository.gitIdentity {
+		_ = gitDir.Close()
+		return fail(CodeIdentityChanged, "filter target/candidate child git directory", err)
+	}
 	index, err := filterOpenAt(gitDir, "index", unix.O_RDONLY, 0)
 	if err != nil {
+		_ = gitDir.Close()
 		return err
 	}
-	raw, identity, err := pairReadIndex(index)
+	raw, identity, err := pairReadIndex(index, gitDir)
 	if err != nil {
 		_ = index.Close()
+		_ = gitDir.Close()
 		return err
 	}
-	p.childHead, p.childIndex, p.childIndexIdentity, p.childIndexSHA256 = head, index, identity, filterTargetHash(raw)
+	p.childHead, p.childGitDir, p.childGitIdentity, p.childGitPath = head, gitDir, gitIdentity, child.repository.gitDir
+	p.childIndex, p.childIndexIdentity, p.childIndexSHA256 = index, identity, filterTargetHash(raw)
 	return nil
 }
 
@@ -122,8 +124,8 @@ func pairVerifyHead(pin filterPinnedFile, commit string) error {
 	return nil
 }
 
-func pairReadIndex(index *os.File) ([]byte, FileIdentity, error) {
-	if index == nil {
+func pairReadIndex(index, gitDir *os.File) ([]byte, FileIdentity, error) {
+	if index == nil || gitDir == nil {
 		return nil, FileIdentity{}, fail(CodeIdentityChanged, "filter target/candidate child index closed", nil)
 	}
 	id, err := filterTargetRegular(index)
@@ -135,18 +137,29 @@ func pairReadIndex(index *os.File) ([]byte, FileIdentity, error) {
 	}
 	raw, err := io.ReadAll(io.LimitReader(index, 16<<20+1))
 	after, afterErr := filterTargetRegular(index)
-	if err != nil || afterErr != nil || id != after || int64(len(raw)) != id.Size || filterTargetIndexHeader(raw) != nil {
-		return nil, id, fail(CodeIdentityChanged, "filter target/candidate child index", errors.Join(err, afterErr))
+	named, openErr := filterOpenAt(gitDir, "index", unix.O_RDONLY, 0)
+	if openErr != nil {
+		return nil, id, openErr
+	}
+	namedID, namedErr := filterTargetRegular(named)
+	closeErr := named.Close()
+	if err != nil || afterErr != nil || namedErr != nil || closeErr != nil || id != after || id != namedID || int64(len(raw)) != id.Size || filterTargetIndexHeader(raw) != nil {
+		return nil, id, fail(CodeIdentityChanged, "filter target/candidate child index", errors.Join(err, afterErr, namedErr, closeErr))
 	}
 	return raw, id, nil
 }
 
-// Verify performs only the final descriptor/inventory checks. Git queries and
-// journal callbacks are deliberately excluded: Bind already proved those,
-// while this pass detects a callback changing either owner after the last one.
+// Verify proves both current live owners through their complete Git paths,
+// then closes their final callback window with one joint pure tail check.
 func (p *FilterTargetCandidatePair) Verify(ctx context.Context) error {
 	if p == nil || p.target == nil || p.candidate == nil || !filterTargetCandidateCompatible(p.target, p.candidate) {
 		return fail(CodeIdentityChanged, "filter target/candidate pair", nil)
+	}
+	if err := p.target.Verify(ctx); err != nil {
+		return err
+	}
+	if err := p.candidate.Verify(ctx); err != nil {
+		return err
 	}
 	return p.verifyPure(ctx)
 }
@@ -165,12 +178,28 @@ func (p *FilterTargetCandidatePair) verifyPure(ctx context.Context) error {
 	if err = pairVerifyChildContext(p.candidate.binding.worktree, p.target.source); err != nil {
 		return err
 	}
+	if err = p.verifyChildGitDir(); err != nil {
+		return err
+	}
 	if err = pairVerifyHead(p.childHead, p.candidate.receipt.CommitOID); err != nil {
 		return err
 	}
-	raw, id, err := pairReadIndex(p.childIndex)
+	raw, id, err := pairReadIndex(p.childIndex, p.childGitDir)
 	if err != nil || id != p.childIndexIdentity || filterTargetHash(raw) != p.childIndexSHA256 {
 		return fail(CodeIdentityChanged, "filter target/candidate child index changed", err)
+	}
+	return nil
+}
+
+func (p *FilterTargetCandidatePair) verifyChildGitDir() error {
+	child := p.candidate.binding.worktree
+	if p.childGitDir == nil || child == nil || p.childGitPath != child.repository.gitDir || CanonicalPath(p.childGitPath) != p.childGitPath {
+		return fail(CodeIdentityChanged, "filter target/candidate child git directory", nil)
+	}
+	held, err := filterTargetDirectory(p.childGitDir)
+	named, namedErr := directoryIdentity(p.childGitPath)
+	if err != nil || namedErr != nil || held != p.childGitIdentity || named != held || held != child.repository.gitIdentity {
+		return fail(CodeIdentityChanged, "filter target/candidate child git directory", errors.Join(err, namedErr))
 	}
 	return nil
 }
@@ -199,10 +228,15 @@ func pairVerifyChildContext(child, source *FilterGitContext) error {
 // Close releases only the pair-owned child-index descriptor. Borrowed live
 // target/materialization/source/broker owners remain available to their Host.
 func (p *FilterTargetCandidatePair) Close() error {
-	if p == nil || p.childIndex == nil {
+	if p == nil {
 		return nil
 	}
-	err := p.childIndex.Close()
-	p.childIndex = nil
-	return err
+	var errs []error
+	for _, file := range []**os.File{&p.childIndex, &p.childGitDir} {
+		if *file != nil {
+			errs = append(errs, (*file).Close())
+			*file = nil
+		}
+	}
+	return errors.Join(errs...)
 }
