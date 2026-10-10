@@ -24,8 +24,14 @@ import (
 )
 
 func TestFilterReviewNativeHostAcceptedValidator(t *testing.T) {
+	filterReviewNativeChain(t, false)
+}
+
+// filterReviewNativeChain keeps the producer, validator, and readonly review
+// acceptance chain identical for the optional target observation fixture.
+func filterReviewNativeChain(t *testing.T, includeTarget bool) {
 	root, guard := filterPipelineRoot(t)
-	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Minute)
 	defer cancel()
 	filterActor := filterPipelineBuildActor(t, ctx, root, guard)
 	validatorActor, validatorPin := validationNativeActor(t, root, guard)
@@ -63,12 +69,18 @@ func TestFilterReviewNativeHostAcceptedValidator(t *testing.T) {
 	validateRaw, _ := json.Marshal(validatePayload)
 	reviewPayload := adapter.InvocationPayload{Directory: filepath.Join(root, "review"), Provider: string(adapter.ProviderClaude), ProviderLock: &adapter.ProviderLock{Version: 1, Provider: adapter.ProviderClaude, Protocol: adapter.ProtocolID(adapter.ProviderClaude), Binary: adapter.BinaryPin{Path: reviewActor, SHA256: reviewPin, Version: "controlled-readonly"}}, Profile: &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: 300000}, CandidateAction: &adapter.CandidateAction{Version: 1, Operation: "review", SourceTask: "validate", DependencyInputVersion: 1, AutoDirectory: true}, GitFilter: &manifest}
 	reviewRaw, _ := json.Marshal(reviewPayload)
+	targetPayload := adapter.InvocationPayload{Kind: "candidate", Directory: filepath.Join(root, "preflight"), CandidateAction: &adapter.CandidateAction{Version: 1, Operation: "filter_target_preflight", SourceTask: "review", DependencyInputVersion: 1, AutoDirectory: true, Target: adapter.CandidateTarget{Worktree: repo, Ref: "refs/heads/main", BaseOID: base}}, GitFilter: &manifest}
+	targetRaw, _ := json.Marshal(targetPayload)
 	db, err := store.Open(filepath.Join(root, "state.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer db.Close()
-	receipt, err := db.SubmitPlan(ctx, store.PlanSpec{Run: store.RunSpec{ID: "filter-native-run", ControllerThread: "owner", PlanRevision: 1, OriginContextID: "test", OriginPID: os.Getpid(), OriginBirth: "fixture"}, Host: store.HostLaunchSpec{OriginContextID: "test", HostGeneration: "fixture", Executable: "/private/controlled-host"}, Tasks: []store.TaskSpec{{ID: "edit", RunID: "filter-native-run", MaxAttempts: 1, MaxActiveMS: 300000, AdapterPayload: sourceRaw}, {ID: "validate", RunID: "filter-native-run", MaxAttempts: 1, MaxActiveMS: 300000, Dependencies: []string{"edit"}, AdapterPayload: validateRaw}, {ID: "review", RunID: "filter-native-run", MaxAttempts: 1, MaxActiveMS: 300000, Dependencies: []string{"validate"}, AdapterPayload: reviewRaw}}})
+	tasks := []store.TaskSpec{{ID: "edit", RunID: "filter-native-run", MaxAttempts: 1, MaxActiveMS: 300000, AdapterPayload: sourceRaw}, {ID: "validate", RunID: "filter-native-run", MaxAttempts: 1, MaxActiveMS: 300000, Dependencies: []string{"edit"}, AdapterPayload: validateRaw}, {ID: "review", RunID: "filter-native-run", MaxAttempts: 1, MaxActiveMS: 300000, Dependencies: []string{"validate"}, AdapterPayload: reviewRaw}}
+	if includeTarget {
+		tasks = append(tasks, store.TaskSpec{ID: "preflight", RunID: "filter-native-run", MaxAttempts: 1, MaxActiveMS: 300000, Dependencies: []string{"review"}, AdapterPayload: targetRaw})
+	}
+	receipt, err := db.SubmitPlan(ctx, store.PlanSpec{Run: store.RunSpec{ID: "filter-native-run", ControllerThread: "owner", PlanRevision: 1, OriginContextID: "test", OriginPID: os.Getpid(), OriginBirth: "fixture"}, Host: store.HostLaunchSpec{OriginContextID: "test", HostGeneration: "fixture", Executable: "/private/controlled-host"}, Tasks: tasks})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -227,6 +239,9 @@ func TestFilterReviewNativeHostAcceptedValidator(t *testing.T) {
 	}
 	guard.pending--
 	validationAccept(t, ctx, db, reviewGrant)
+	if includeTarget {
+		filterTargetNativeAcceptedReview(t, ctx, db, h, hostID, root, repo, baseB, guard, reviewGrant, reviewed, reviewEvents)
+	}
 	t.Logf("controlled_filtered_readonly_review original_wait_tree=true native_structured=true actual_rendered_read=true tracked_write_permission_denied=true distinct_filter_grants=true zero_target=true root=%s", root)
 
 }
