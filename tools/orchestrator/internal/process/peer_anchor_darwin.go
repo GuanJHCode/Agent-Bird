@@ -35,4 +35,4 @@ func darwinPeerRecord(ctx context.Context, pid int) (peerRecord, error) {
 	return peerRecord{pid: int(k.Proc.P_pid), ppid: int(k.Eproc.Ppid), birth: fmt.Sprintf("darwin:%d:%d", k.Proc.P_starttime.Sec, k.Proc.P_starttime.Usec), euid: int(k.Eproc.Ucred.Uid), pgid: int(k.Eproc.Pgid)}, nil
 }
 
-func darwinLivePeerState(state uint8) bool { return state == 2 || state == 3 || state == 4 }
+func darwinLivePeerState(state int8) bool { return state == 2 || state == 3 || state == 4 }

@@ -24,10 +24,16 @@ func observePeerRecord(ctx context.Context, pid int) (peerRecord, error) {
 		return peerRecord{}, ErrProcessTreeUnknown
 	}
 	after, uidAfter, err := linuxPeerObservation(ctx, pid)
-	if err != nil || before != after || uidBefore != uidAfter || !linuxLivePeerState(before.state) {
+	// Scheduling state is not identity. Both samples must be known live, while
+	// PID, full start tick, parent, group, and effective UID must stay exact.
+	if err != nil || !linuxSamePeerIdentity(before, after) || uidBefore != uidAfter {
 		return peerRecord{}, ErrProcessTreeUnknown
 	}
 	return peerRecord{pid: pid, ppid: before.ppid, birth: "linux:" + boot + ":" + before.start, euid: uidBefore, pgid: before.pgid}, nil
+}
+
+func linuxSamePeerIdentity(a, b linuxStat) bool {
+	return linuxLivePeerState(a.state) && linuxLivePeerState(b.state) && a.ppid == b.ppid && a.pgid == b.pgid && a.start == b.start
 }
 
 func linuxPeerObservation(ctx context.Context, pid int) (linuxStat, int, error) {
