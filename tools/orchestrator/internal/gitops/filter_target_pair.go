@@ -188,7 +188,11 @@ func (p *FilterTargetCandidatePair) verifyPure(ctx context.Context) error {
 	if err != nil || id != p.childIndexIdentity || filterTargetHash(raw) != p.childIndexSHA256 {
 		return fail(CodeIdentityChanged, "filter target/candidate child index changed", err)
 	}
-	return nil
+	// The named child git directory must still resolve to the directory that
+	// supplied both the HEAD pathname and the index descriptor.  Recheck after
+	// those reads: a journal callback can rename the directory between the
+	// first identity check and either named-file check.
+	return p.verifyChildGitDir()
 }
 
 func (p *FilterTargetCandidatePair) verifyChildGitDir() error {

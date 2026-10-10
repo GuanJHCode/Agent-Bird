@@ -53,6 +53,41 @@ func TestPairReadIndexRejectsNamedReplacement(t *testing.T) {
 	}
 }
 
+func TestPairVerifyChildGitDirRejectsNamedReplacement(t *testing.T) {
+	root := t.TempDir()
+	gitDir := filepath.Join(root, "git")
+	if err := os.Mkdir(gitDir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	identity, err := directoryIdentity(gitDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	held, err := os.Open(gitDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer held.Close()
+	pair := &FilterTargetCandidatePair{
+		candidate:        &FilterMaterialization{binding: &FilterWorktreeBinding{worktree: &FilterGitContext{repository: filterRepositoryAnchor{gitDir: gitDir, gitIdentity: identity}}}},
+		childGitDir:      held,
+		childGitIdentity: identity,
+		childGitPath:     gitDir,
+	}
+	if err := pair.verifyChildGitDir(); err != nil {
+		t.Fatalf("verify original child git directory: %v", err)
+	}
+	if err := os.Rename(gitDir, filepath.Join(root, "renamed")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(gitDir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := pair.verifyChildGitDir(); err == nil {
+		t.Fatal("held child git directory accepted named replacement")
+	}
+}
+
 func TestFilterTargetCandidatePairCloseOnlyClosesPairIndex(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "index")
 	if err := os.WriteFile(path, []byte("pair"), 0600); err != nil {
