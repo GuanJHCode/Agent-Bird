@@ -65,7 +65,7 @@ func TestFilterViewEvidenceContract(t *testing.T) {
 			strings.Replace(raw, `"path":"a.txt"`, `"Path":"a.txt"`, 1),
 			strings.Replace(raw, `"path":"a.txt",`, ``, 1),
 			strings.Replace(raw, `"path":"a.txt"`, `"path":null`, 1),
-			`null`, raw + ` {}`, strings.Repeat(" ", FilterViewMaximumBytes) + raw,
+			`null`, raw + ` {}`, strings.Replace(raw, "{", "{"+strings.Repeat(" ", FilterViewMaximumBytes), 1),
 		}
 		for i, input := range bad {
 			var out FilterViewEvidenceV1

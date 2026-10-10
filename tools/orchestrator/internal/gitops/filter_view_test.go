@@ -18,7 +18,7 @@ func TestFilterViewReceiptWireCompatibility(t *testing.T) {
 		{CandidateReceipt{AttemptID: "a"}, `{"attempt_id":"a","repo_root":"","worktree":"","common_dir":"","base_oid":"","candidate_oid":"","tree_oid":"","ordered_input_oids":null,"root_identity":` + identity + `,"worktree_identity":"","repo_root_identity":` + identity + `,"common_dir_identity":` + identity + `,"files":null,"plan_revision":0,"private_ref":"","private_ref_expected_oid":""}`},
 		{MaterializeReceipt{AttemptID: "a"}, `{"attempt_id":"a","repo_root":"","worktree":"","common_dir":"","commit_oid":"","tree_oid":"","base_oid":"","worktree_identity":"","root_identity":` + identity + `,"files":null,"ordered_input_oids":null,"plan_revision":0}`},
 	}
-	view := FilterViewEvidenceV1{Version: 1, ManifestSHA256: strings.Repeat("a", 64), FilterContextSHA256: strings.Repeat("b", 64), Views: []FilterPathViewV1{{"a.txt", strings.Repeat("c", 64), strings.Repeat("d", 64)}}}
+	view := FilterViewEvidenceV1{Version: 1, ManifestSHA256: strings.Repeat("a", 64), FilterContextSHA256: strings.Repeat("b", 64), Views: []FilterPathViewV1{{Path: "a.txt", CanonicalSHA256: strings.Repeat("c", 64), RenderedSHA256: strings.Repeat("d", 64)}}}
 	for _, tc := range cases {
 		b, err := json.Marshal(tc.value)
 		if err != nil || string(b) != tc.legacy {
