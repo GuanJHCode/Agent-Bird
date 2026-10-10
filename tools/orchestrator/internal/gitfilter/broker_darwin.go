@@ -503,6 +503,10 @@ func (b *Broker) Load(ctx context.Context, i int, src *os.File) error {
 	b.initialized[i] = true
 	return nil
 }
+
+func (b *Broker) LoadStream(context.Context, int, func(io.Writer) error) (StreamLoadResult, error) {
+	return StreamLoadResult{}, errBroker
+}
 func (b *Broker) Transform(ctx context.Context, op string, src, dst int) (Result, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
