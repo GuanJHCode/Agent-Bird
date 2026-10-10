@@ -32,6 +32,8 @@ type filterGitPrivateKey struct{}
 // FilterGitContext is live Host-only evidence. It intentionally has no JSON
 // representation: a decoded payload cannot acquire a pinned executor.
 type FilterGitContext struct {
+	source                       *FilterGitContext
+	bindingBacklink              *filterPinnedFile
 	repository                   filterRepositoryAnchor
 	repoRoot, commonDir          string
 	repoIdentity, commonIdentity DirectoryIdentity
@@ -160,8 +162,25 @@ func (g *FilterGitContext) Verify(ctx context.Context) error {
 	if actual, err := directoryIdentity(g.commonDir); err != nil || actual != g.commonIdentity {
 		return fail(CodeIdentityChanged, "filter git common", err)
 	}
+	if g.source != nil {
+		if err := g.source.Verify(ctx); err != nil {
+			return err
+		}
+		if g.bindingBacklink == nil || !verifyFilterPin(*g.bindingBacklink) {
+			return fail(CodeIdentityChanged, "filter worktree backlink", nil)
+		}
+	}
 	private := context.WithValue(g.Context(ctx), filterGitPrivateKey{}, true)
-	return g.verifyCaptured(private)
+	if err := g.verifyCaptured(private); err != nil {
+		return err
+	}
+	if g.source != nil {
+		if !verifyFilterPin(*g.bindingBacklink) {
+			return fail(CodeIdentityChanged, "filter worktree backlink", nil)
+		}
+		return g.source.Verify(ctx)
+	}
+	return nil
 }
 
 func (g *FilterGitContext) verifyDirectory(dir string) error {
