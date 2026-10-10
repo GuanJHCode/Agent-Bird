@@ -121,6 +121,14 @@ func TestFilterPipelineNativeHostAcceptedValidator(t *testing.T) {
 	if err != nil || validatorGrant.TaskID != "validate" || validatorGrant.GitFilter == nil || validatorGrant.ValidationTool == nil || validatorGrant.GitFilter.ReservationID == sourceGrant.GitFilter.ReservationID || validatorGrant.GitFilter.ScopeSHA256 == sourceGrant.GitFilter.ScopeSHA256 {
 		t.Fatalf("validator grant=%+v err=%v", validatorGrant, err)
 	}
+	expectedValidatorBinding := gitops.CandidateBinding{
+		RunID:        validatorGrant.RunID,
+		TaskID:       validatorGrant.TaskID,
+		AttemptID:    validatorGrant.AttemptID,
+		SegmentID:    validatorGrant.SegmentID,
+		WorkRevision: validatorGrant.WorkRevision,
+		PlanRevision: validatorGrant.PlanRevision,
+	}
 	guard.pending++
 	result, err = h.ExecuteLaunch(ctx, validatorGrant, validationNativeInvocation{launchInvocation: launchInvocation{args: validatePayload.CandidateAction.Command, dir: validatePayload.Directory}, payload: validatePayload})
 	if err != nil || result.Status != "result_ready" || result.ExitCode != 0 {
@@ -131,7 +139,7 @@ func TestFilterPipelineNativeHostAcceptedValidator(t *testing.T) {
 		t.Fatal(err)
 	}
 	var delivery CandidateDelivery
-	if err = json.Unmarshal(body, &delivery); err != nil || delivery.Stage != "validate" || !reflect.DeepEqual(delivery.Target, gitops.ReviewBinding{}) || delivery.Candidate.Filter == nil || delivery.Validation == nil || !delivery.Validation.Passed || !reflect.DeepEqual(delivery.Candidate.Filter, sourceDelivery.Candidate.Filter) {
+	if err = json.Unmarshal(body, &delivery); err != nil || delivery.Stage != "validate" || !reflect.DeepEqual(delivery.Target, gitops.ReviewBinding{}) || delivery.Candidate.Filter == nil || delivery.Validation == nil || !delivery.Validation.Passed || !reflect.DeepEqual(delivery.Binding, expectedValidatorBinding) || !reflect.DeepEqual(delivery.Validation.Binding, delivery.Binding) || !reflect.DeepEqual(delivery.Candidate.Filter, sourceDelivery.Candidate.Filter) {
 		t.Fatalf("validator delivery=%#v err=%v", delivery, err)
 	}
 	if view := delivery.Candidate.Filter.Views; len(view) != 1 || view[0].Path != "file" || view[0].CanonicalSHA256 != filterPipelineSHA(wantB) || view[0].RenderedSHA256 != filterPipelineSHA(desiredR) {
@@ -139,7 +147,8 @@ func TestFilterPipelineNativeHostAcceptedValidator(t *testing.T) {
 	}
 	sourceEvent := filterPipelineResultEvent(t, sourceEvents)
 	validationRaw, _ := json.Marshal(delivery.Validation)
-	if delivery.InputEventID != sourceEvent.EventID || delivery.InputSHA256 != sourceEvent.Artifact.SHA256 || delivery.OwnerDecisionID != "accept-edit" || delivery.CandidateReceiptSHA256 != sourceEvent.Artifact.SHA256 || delivery.ValidationDigest != hashBytes(validationRaw) || !reflect.DeepEqual(delivery.Candidate.Binding, sourceDelivery.Candidate.Binding) {
+	receiptHash, receiptHashErr := hex.DecodeString(delivery.CandidateReceiptSHA256)
+	if delivery.InputEventID != sourceEvent.EventID || delivery.InputSHA256 != sourceEvent.Artifact.SHA256 || delivery.OwnerDecisionID != "accept-edit" || receiptHashErr != nil || len(receiptHash) != sha256.Size || delivery.CandidateReceiptSHA256 != sourceDelivery.CandidateReceiptSHA256 || delivery.ValidationDigest != hashBytes(validationRaw) || !reflect.DeepEqual(delivery.Candidate, sourceDelivery.Candidate) {
 		t.Fatalf("accepted binding delivery=%#v source=%#v", delivery, sourceEvent)
 	}
 	if got, readErr := os.ReadFile(candidateDirectory(validatePayload.Directory, validatorGrant, true) + "/file"); readErr != nil || !bytes.Equal(got, desiredR) {
