@@ -94,7 +94,7 @@ func RequireGitFilter(c LaunchCommand) error {
 	}
 	producer := shape.Kind == "provider" && shape.Workspace != nil && shape.Workspace.Version == 1 && shape.Profile != nil && shape.Profile.Role == "implementer" && shape.Profile.Permission == "workspace-write" && shape.Action == nil
 	validator := shape.Kind == "candidate" && shape.Action != nil && shape.Action.Version == 1 && shape.Action.Operation == "validate" && shape.Workspace == nil && shape.Profile == nil
-	reviewer := shape.Kind == "" && shape.Action != nil && shape.Action.Version == 1 && shape.Action.Operation == "review" && shape.Workspace == nil && shape.Profile != nil && shape.Profile.Role == "reviewer" && shape.Profile.Permission == "read-only"
+	reviewer := shape.Kind == "" && shape.Action != nil && shape.Action.Version == 1 && (shape.Action.Operation == "review" || shape.Action.Operation == "filter_target_review") && shape.Workspace == nil && shape.Profile != nil && shape.Profile.Role == "reviewer" && shape.Profile.Permission == "read-only"
 	observer := shape.Kind == "candidate" && shape.Action != nil && shape.Action.Version == 1 && shape.Action.Operation == "filter_target_preflight" && shape.Workspace == nil && shape.Profile == nil
 	if !producer && !validator && !reviewer && !observer {
 		return ErrGitFilterContract
