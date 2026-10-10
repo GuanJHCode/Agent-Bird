@@ -13,47 +13,58 @@ import (
 	"time"
 )
 
-func testPeerAnchor() peerAnchor {
-	return peerAnchor{pid: 10, birth: "boot:100", euid: 501, pgid: 10}
+func stablePeerObserver(records map[int]peerRecord, reads map[int]int) func(context.Context, int) (peerRecord, error) {
+	return func(_ context.Context, pid int) (peerRecord, error) {
+		reads[pid]++
+		record, ok := records[pid]
+		if !ok {
+			return peerRecord{}, ErrProcessTreeUnknown
+		}
+		return record, nil
+	}
+}
+
+func TestVerifyLiveDescendantAcceptsStableChain(t *testing.T) {
+	h := &Handle{peerAnchor: &peerAnchor{pid: 10, birth: "boot:100", euid: 501, pgid: 10}}
+	reads := map[int]int{}
+	err := h.verifyLiveDescendantWith(context.Background(), 11, stablePeerObserver(map[int]peerRecord{
+		10: {pid: 10, birth: "boot:100", euid: 501, pgid: 10, ppid: 1},
+		11: {pid: 11, birth: "boot:101", euid: 501, pgid: 10, ppid: 10},
+	}, reads))
+	if err != nil || reads[10] != 2 || reads[11] != 2 {
+		t.Fatalf("stable chain err=%v reads=%v", err, reads)
+	}
 }
 
 func TestVerifyLiveDescendantRejectsExactLeaderBirthDrift(t *testing.T) {
 	h := &Handle{peerAnchor: &peerAnchor{pid: 10, birth: "boot:100", euid: 501, pgid: 10}}
-	reads := 0
-	err := h.verifyLiveDescendantWith(context.Background(), 11, func(context.Context, int) (peerRecord, error) {
-		reads++
-		switch reads {
-		case 1, 3:
-			return peerRecord{pid: 10, birth: "boot:100", euid: 501, pgid: 10, ppid: 1}, nil
-		case 2, 4:
-			return peerRecord{pid: 11, birth: "boot:101", euid: 501, pgid: 10, ppid: 10}, nil
-		default:
+	reads, drifted := map[int]int{}, false
+	err := h.verifyLiveDescendantWith(context.Background(), 11, func(_ context.Context, pid int) (peerRecord, error) {
+		reads[pid]++
+		if pid == 10 && reads[pid] == 2 {
+			drifted = true
 			return peerRecord{pid: 10, birth: "boot:999", euid: 501, pgid: 10, ppid: 1}, nil
 		}
+		return map[int]peerRecord{10: {pid: 10, birth: "boot:100", euid: 501, pgid: 10, ppid: 1}, 11: {pid: 11, birth: "boot:101", euid: 501, pgid: 10, ppid: 10}}[pid], nil
 	})
-	if err == nil {
-		t.Fatal("exact leader birth drift passed")
+	if err == nil || !drifted || reads[10] != 2 || reads[11] != 1 {
+		t.Fatalf("exact leader birth drift err=%v drifted=%t reads=%v", err, drifted, reads)
 	}
 }
 
 func TestVerifyLiveDescendantRejectsIntermediateReparent(t *testing.T) {
 	h := &Handle{peerAnchor: &peerAnchor{pid: 10, birth: "boot:100", euid: 501, pgid: 10}}
-	reads := 0
-	err := h.verifyLiveDescendantWith(context.Background(), 12, func(context.Context, int) (peerRecord, error) {
-		reads++
-		switch reads {
-		case 1, 4:
-			return peerRecord{pid: 10, birth: "boot:100", euid: 501, pgid: 10, ppid: 1}, nil
-		case 2:
-			return peerRecord{pid: 12, birth: "boot:102", euid: 501, pgid: 10, ppid: 11}, nil
-		case 3, 5:
-			return peerRecord{pid: 11, birth: "boot:101", euid: 501, pgid: 10, ppid: 10}, nil
-		default:
-			return peerRecord{pid: 12, birth: "boot:102", euid: 501, pgid: 10, ppid: 1}, nil
+	reads, reparented := map[int]int{}, false
+	err := h.verifyLiveDescendantWith(context.Background(), 12, func(_ context.Context, pid int) (peerRecord, error) {
+		reads[pid]++
+		if pid == 11 && reads[pid] == 2 {
+			reparented = true
+			return peerRecord{pid: 11, birth: "boot:101", euid: 501, pgid: 10, ppid: 1}, nil
 		}
+		return map[int]peerRecord{10: {pid: 10, birth: "boot:100", euid: 501, pgid: 10, ppid: 1}, 11: {pid: 11, birth: "boot:101", euid: 501, pgid: 10, ppid: 10}, 12: {pid: 12, birth: "boot:102", euid: 501, pgid: 10, ppid: 11}}[pid], nil
 	})
-	if err == nil {
-		t.Fatal("middle-chain reparent passed")
+	if err == nil || !reparented || reads[10] != 2 || reads[11] != 2 || reads[12] != 1 {
+		t.Fatalf("middle-chain reparent err=%v reparented=%t reads=%v", err, reparented, reads)
 	}
 }
 
@@ -150,12 +161,6 @@ func TestVerifyLiveDescendantNativeLifecycle(t *testing.T) {
 
 func TestLiveDescendantRejectsPIDReuseWithNewBirth(t *testing.T) {
 	h := &Handle{peerAnchor: &peerAnchor{pid: 10, birth: "boot:100", euid: 501, pgid: 10}}
-	stable := func(context.Context, int) (peerRecord, error) {
-		return map[int]peerRecord{
-			10: {pid: 10, birth: "boot:100", euid: 501, pgid: 10, ppid: 1},
-			11: {pid: 11, birth: "boot:101", euid: 501, pgid: 10, ppid: 10},
-		}[11], nil
-	}
 	bound, err := h.bindLiveDescendantWith(context.Background(), 11, func(_ context.Context, pid int) (peerRecord, error) {
 		if pid == 10 {
 			return peerRecord{pid: 10, birth: "boot:100", euid: 501, pgid: 10, ppid: 1}, nil
@@ -173,5 +178,4 @@ func TestLiveDescendantRejectsPIDReuseWithNewBirth(t *testing.T) {
 	}); err == nil {
 		t.Fatal("reused PID with new birth retained bound authority")
 	}
-	_ = stable
 }
