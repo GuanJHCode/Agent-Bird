@@ -16,6 +16,19 @@ type peerRecord struct {
 	euid, pgid int
 }
 
+// LiveDescendant is an in-memory capability for one exact peer process. Its
+// fields intentionally remain private so it cannot be serialized or rebuilt.
+type LiveDescendant struct {
+	handle *Handle
+	peer   peerRecord
+}
+
+func (h *Handle) BindLiveDescendant(context.Context, int) (*LiveDescendant, error) {
+	return nil, ErrProcessTreeUnknown
+}
+
+func (*LiveDescendant) Verify(context.Context) error { return ErrProcessTreeUnknown }
+
 func (h *Handle) VerifyLiveDescendant(ctx context.Context, peerPID int) error {
 	return h.verifyLiveDescendantWith(ctx, peerPID, observePeerRecord)
 }
