@@ -257,5 +257,6 @@
     "Only selected actual native Git supported; system multi-hardlink dispatcher source is rejected.",
     "Worker two full-suite runs have no original completion proof; one observed process group was terminated. Neither is qualification.",
     "Historical f27 test run was not a clean business RED; ROOT sources-red is retained as the actual failing regression."
-  ]
+  ],
+  "review": "PASS fixed 6f7cd59 production/test/combined-source/report by independent filter_resource_linux"
 }
