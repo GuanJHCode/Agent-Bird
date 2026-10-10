@@ -123,4 +123,29 @@ func TestBrokerStreamLoadBoundaries(t *testing.T) {
 		}
 		f.retain = true
 	})
+	t.Run("cancellation_before_producer_does_not_invent_unknown", func(t *testing.T) {
+		before := liveBroker(t, ctx, f, brokerRequest(t, f, "copy"))
+		cancelled, cancelBefore := context.WithCancel(ctx)
+		cancelBefore()
+		_, err := before.LoadStream(cancelled, 0, func(io.Writer) error { t.Error("cancelled producer invoked"); return nil })
+		if !errors.Is(err, context.Canceled) || before.State().Unknown {
+			t.Errorf("preflight cancellation=%v unknown=%v", err, before.State().Unknown)
+		}
+		if _, err = before.Cleanup(ctx); err != nil {
+			t.Errorf("preflight cleanup: %v", err)
+			f.retain = true
+		}
+		loading := liveBroker(t, ctx, f, brokerRequest(t, f, "copy"))
+		cancelled, cancelLoading := context.WithCancel(ctx)
+		defer cancelLoading()
+		_, err = loading.loadStream(cancelled, 0, func(io.Writer) error { t.Error("cancelled loading producer invoked"); return nil }, cancelLoading)
+		if !errors.Is(err, context.Canceled) || loading.State().Unknown {
+			t.Errorf("loading cancellation=%v unknown=%v", err, loading.State().Unknown)
+		}
+		if _, err = loading.Cleanup(ctx); err != nil {
+			t.Errorf("loading cleanup: %v", err)
+			f.retain = true
+		}
+	})
+
 }

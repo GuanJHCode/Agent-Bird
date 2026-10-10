@@ -565,7 +565,11 @@ func (b *Broker) Load(ctx context.Context, i int, src *os.File) error {
 	return nil
 }
 
-func (b *Broker) LoadStream(ctx context.Context, i int, producer func(io.Writer) error) (result StreamLoadResult, retErr error) {
+func (b *Broker) LoadStream(ctx context.Context, i int, producer func(io.Writer) error) (StreamLoadResult, error) {
+	return b.loadStream(ctx, i, producer, nil)
+}
+
+func (b *Broker) loadStream(ctx context.Context, i int, producer func(io.Writer) error, afterLoading func()) (result StreamLoadResult, retErr error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if !b.usable() || i < 0 || i >= len(b.slots) || producer == nil {
@@ -579,6 +583,9 @@ func (b *Broker) LoadStream(ctx context.Context, i int, producer func(io.Writer)
 	}
 	if err := b.writeJournal("loading"); err != nil {
 		return result, b.uncertain(err)
+	}
+	if afterLoading != nil {
+		afterLoading()
 	}
 	b.initialized[i] = false
 	if err := b.slots[i].Truncate(0); err != nil {
