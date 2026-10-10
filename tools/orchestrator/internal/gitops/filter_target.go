@@ -84,7 +84,7 @@ type filterTargetEntry struct {
 }
 
 func InspectFilteredTarget(ctx context.Context, source *FilterGitContext, streams FilterStreams, req FilterTargetRequest, accepted CandidateReceipt, journal FilterTargetJournal) (*FilterTargetObservation, error) {
-	if source == nil || source.source != nil || streams == nil || journal == nil || req.AttemptID == "" || req.PlanRevision < 1 || req.Worktree != source.repoRoot || req.Worktree != accepted.RepoRoot || req.BaseOID != accepted.BaseOID || req.PlanRevision != int(accepted.PlanRevision) || !filterTargetRef(req.Ref) || strings.TrimPrefix(req.Ref, "refs/heads/") == "" || strings.ContainsAny(req.Ref, "\x00\r\n") || len(req.Ref) > 512 {
+	if source == nil || source.source != nil || streams == nil || journal == nil || req.AttemptID == "" || req.AttemptID == accepted.AttemptID || accepted.Files != nil || req.PlanRevision < 1 || req.Worktree != source.repoRoot || req.Worktree != accepted.RepoRoot || req.BaseOID != accepted.BaseOID || req.PlanRevision != int(accepted.PlanRevision) || !filterTargetRef(req.Ref) || strings.TrimPrefix(req.Ref, "refs/heads/") == "" || strings.ContainsAny(req.Ref, "\x00\r\n") || len(req.Ref) > 512 {
 		return nil, fail(CodeInvalidInput, "filter target request", nil)
 	}
 	if _, ok := ctx.Deadline(); !ok {
@@ -202,7 +202,7 @@ func InspectFilteredTarget(ctx context.Context, source *FilterGitContext, stream
 	if err != nil {
 		return nil, err
 	}
-	m.receipt = FilteredTargetObservationV1{Version: 1, AttemptID: req.AttemptID, PlanRevision: req.PlanRevision, TargetWorktree: req.Worktree, TargetRef: req.Ref, BaseOID: req.BaseOID, BaseTreeOID: baseTree, TargetIdentity: m.rootIdentity, CommonIdentity: source.commonIdentity, IndexIdentity: m.indexIdentity, IndexSHA256: m.indexSHA, IndexVectorSHA256: filterTargetHash(vector), InventorySHA256: filterTargetHash(inventoryRaw), CandidateOID: accepted.CandidateOID, CandidateTreeOID: accepted.TreeOID, CandidateSHA256: filterTargetHash(candidateRaw), CandidateBinding: *accepted.Binding, OrderedInputOIDs: append([]string(nil), accepted.OrderedInputOIDs...), FilterScopeSHA256: req.FilterScopeSHA256, FilterReservationID: req.FilterReservationID, BaseFilter: filterView}
+	m.receipt = FilteredTargetObservationV1{Version: 1, AttemptID: req.AttemptID, PlanRevision: req.PlanRevision, TargetWorktree: req.Worktree, TargetRef: req.Ref, BaseOID: req.BaseOID, BaseTreeOID: baseTree, TargetIdentity: m.rootIdentity, CommonIdentity: source.commonIdentity, IndexIdentity: m.indexIdentity, IndexSHA256: m.indexSHA, IndexVectorSHA256: filterTargetHash(vector), InventorySHA256: filterTargetHash(inventoryRaw), CandidateOID: m.candidate.CandidateOID, CandidateTreeOID: m.candidate.TreeOID, CandidateSHA256: filterTargetHash(candidateRaw), CandidateBinding: *m.candidate.Binding, OrderedInputOIDs: append([]string(nil), m.candidate.OrderedInputOIDs...), FilterScopeSHA256: req.FilterScopeSHA256, FilterReservationID: req.FilterReservationID, BaseFilter: filterView}
 	refState := map[string]*filterTargetEntry{}
 	for p, pin := range m.refs {
 		if pin == nil {
