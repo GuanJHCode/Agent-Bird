@@ -357,6 +357,9 @@ func execute(ctx context.Context, r Request, start starter) (result Result, retE
 	}
 	if retErr == nil {
 		treeErr := h.ConfirmTreeExited()
+		if treeErr == nil {
+			result.TerminalAt = time.Now()
+		}
 		retErr = errors.Join(retErr, treeErr)
 	}
 	if retErr != nil {
@@ -367,6 +370,9 @@ func execute(ctx context.Context, r Request, start starter) (result Result, retE
 		stopErr := h.Stop(fresh)
 		waitErr := h.Wait(fresh)
 		treeErr := h.ConfirmTreeExited()
+		if waitErr == nil && treeErr == nil {
+			result.TerminalAt = time.Now()
+		}
 		stop()
 		result.WaitProved, result.TreeProved = waitErr == nil, treeErr == nil
 		retErr = errors.Join(retErr, stopErr, waitErr, treeErr)
