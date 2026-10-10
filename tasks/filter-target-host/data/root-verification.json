@@ -1,0 +1,197 @@
+{
+  "qualified_source": "2ec598fc08e8b3a245d24e4d0985c0f95aed5eb6",
+  "production_source": "e91b30aee011aaae8fc2afa5be07cfe6d6c11dfa",
+  "qualified_orchestrator_tree": "b89f0eae5c2055e431de186591de4ba2bbeb02c5",
+  "commands": [
+    {
+      "label": "admission-red",
+      "source": "8d79b24232f01b360812c452196e596a48f8c01c",
+      "dirty": "",
+      "exit": 1,
+      "stderr_bytes": 0,
+      "stdout_sha256": "9be697bc8c0cb14b98ef19e87c1d0fd346bcf9ffdd62dbd23a1a155c1a4e5430",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "top_tests": 2,
+      "named_counts": {
+        "fail": 5,
+        "pass": 9
+      }
+    },
+    {
+      "label": "grant-red",
+      "source": "305ea4cee3481d6712038ff8ee535d2b67790b40",
+      "dirty": "",
+      "exit": 1,
+      "stderr_bytes": 0,
+      "stdout_sha256": "b358c9d97acfc2a10626333ec52769879d6d0942fe632721eb414d080d650db0",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "top_tests": 1,
+      "named_counts": {
+        "fail": 1
+      }
+    },
+    {
+      "label": "store-grant-race",
+      "source": "7876dc0f3db78f34e9ffef6c7d673401e31d367a",
+      "dirty": "",
+      "exit": 0,
+      "stderr_bytes": 0,
+      "stdout_sha256": "1b0f18d2acee096945a08e59997c194cf0f196cb25db7bae74294397fdc87cda",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "top_tests": 2,
+      "named_counts": {
+        "pass": 9
+      }
+    },
+    {
+      "label": "late-stop-red",
+      "source": "60e58dea3c8883a1cad46b86c144e49803fb8d42",
+      "dirty": "",
+      "exit": 1,
+      "stderr_bytes": 0,
+      "stdout_sha256": "7aeb3487462b39e73bb64a580c2210c36aed9b7cb3feced38307612d20cf06d3",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "top_tests": 1,
+      "named_counts": {
+        "fail": 3
+      }
+    },
+    {
+      "label": "index-guard-red",
+      "source": "8e58aac3673a79d3ca5c3b46e46fa3fb23bdda60",
+      "dirty": "",
+      "exit": 1,
+      "stderr_bytes": 0,
+      "stdout_sha256": "3a821e9e97e32450db1dd4137b3c0b0861479a6004d332281a3a0ba2e295af1a",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "top_tests": 2,
+      "named_counts": {
+        "fail": 6,
+        "pass": 2
+      }
+    },
+    {
+      "label": "target-focused-race",
+      "source": "e91b30aee011aaae8fc2afa5be07cfe6d6c11dfa",
+      "dirty": "",
+      "exit": 0,
+      "stderr_bytes": 0,
+      "stdout_sha256": "d1d0a9862c868132bccd23110f53cb61f4c0dd95f848cb96baa1a31df7f23a6f",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "top_tests": 5,
+      "named_counts": {
+        "pass": 29
+      }
+    },
+    {
+      "label": "target-settlement-race",
+      "source": "3e2f24169d79ae519eec4b72e1a3ac512221e52d",
+      "dirty": "",
+      "exit": 0,
+      "stderr_bytes": 0,
+      "stdout_sha256": "cc3b07b4518c22dd6a56f237b114cb29d919e0d174e2e06edfa8c8569556aab3",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "top_tests": 1,
+      "named_counts": {
+        "pass": 3
+      }
+    },
+    {
+      "label": "target-native-race",
+      "source": "3e2f24169d79ae519eec4b72e1a3ac512221e52d",
+      "dirty": "",
+      "exit": 0,
+      "stderr_bytes": 0,
+      "stdout_sha256": "56204c283ba04e85096b29bd86467478ac5ee70418982aa3bc1537cce94aa666",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "top_tests": 1,
+      "named_counts": {
+        "pass": 1
+      }
+    },
+    {
+      "label": "target-native-final-race",
+      "source": "2ec598fc08e8b3a245d24e4d0985c0f95aed5eb6",
+      "dirty": "",
+      "exit": 0,
+      "stderr_bytes": 0,
+      "stdout_sha256": "9e6ff62f6218da4265eb34cc2f5c1f41c7b839c20ce52ece30a8ae05919f2f2b",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "top_tests": 1,
+      "named_counts": {
+        "pass": 1
+      }
+    },
+    {
+      "label": "target-mac-build",
+      "source": "3e2f24169d79ae519eec4b72e1a3ac512221e52d",
+      "dirty": "",
+      "exit": 0,
+      "stderr_bytes": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "top_tests": 0,
+      "named_counts": {}
+    },
+    {
+      "label": "target-linux-build",
+      "source": "3e2f24169d79ae519eec4b72e1a3ac512221e52d",
+      "dirty": "",
+      "exit": 0,
+      "stderr_bytes": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "top_tests": 0,
+      "named_counts": {}
+    },
+    {
+      "label": "target-vet",
+      "source": "3e2f24169d79ae519eec4b72e1a3ac512221e52d",
+      "dirty": "",
+      "exit": 0,
+      "stderr_bytes": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "top_tests": 0,
+      "named_counts": {}
+    },
+    {
+      "label": "target-native-final-vet",
+      "source": "2ec598fc08e8b3a245d24e4d0985c0f95aed5eb6",
+      "dirty": "",
+      "exit": 0,
+      "stderr_bytes": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "top_tests": 0,
+      "named_counts": {}
+    },
+    {
+      "label": "inventory-oracle-race",
+      "source": "d43454a630a4d34a38910635f9451f498e276042",
+      "dirty": "",
+      "exit": 0,
+      "stderr_bytes": 0,
+      "stdout_sha256": "221ebe1c2b9e964f04193781a9f1d1a738afba938245f978d9b73ecddb17032b",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "top_tests": 1,
+      "named_counts": {
+        "pass": 4
+      }
+    }
+  ],
+  "independent_reviews": {
+    "production": "PASS e91b30a",
+    "native_oracle": "PASS d43454a630a4d34a38910635f9451f498e276042"
+  },
+  "owned_native_roots_absent": [
+    "native-2083495129",
+    "native-2593866002"
+  ],
+  "unqualified_worker_roots_retained": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-target-index-guard/tasks/filter-raw-fixture/tmp/raw-3944552256",
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-target-index-guard/tasks/filter-raw-fixture/tmp/raw-1448222567"
+  ],
+  "outer_user_changes_preserved": 16,
+  "scope": "Darwin arm64 controlled Host producer-validator-readonlyreview-targetpreflight; Linux compile only; no target approval or filtered integration"
+}

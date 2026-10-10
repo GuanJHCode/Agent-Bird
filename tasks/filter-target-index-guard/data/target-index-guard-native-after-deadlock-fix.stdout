@@ -1,0 +1,78 @@
+panic: test timed out after 3m0s
+	running tests:
+		TestInspectFilteredTargetNativeFixture (3m0s)
+		TestInspectFilteredTargetNativeFixture/journal_callback_target_drift_returns_no_success_observer (43s)
+
+goroutine 28574 [running]:
+testing.(*M).startAlarm.func1()
+	/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/src/testing/testing.go:2802 +0x2cc
+created by time.goFunc
+	/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/src/time/sleep.go:215 +0x38
+
+goroutine 1 [chan receive, 2 minutes]:
+testing.(*T).Run(0x4b35c9b54008, {0x101090737?, 0x3914751000f59a90?}, 0x1012f6f00)
+	/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/src/testing/testing.go:2109 +0x3bc
+testing.runTests.func1(0x4b35c9b54008)
+	/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/src/testing/testing.go:2585 +0x40
+testing.tRunner(0x4b35c9b54008, 0x4b35c9b43c48)
+	/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/src/testing/testing.go:2036 +0xc4
+testing.runTests({0x101094cdb, 0x33}, {0x101097784, 0x43}, 0x4b35c99da0f0, {0x1013296a0, 0x46, 0x46}, {0x806a77623f4e623f?, 0x101083de9?, ...})
+	/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/src/testing/testing.go:2583 +0x3f0
+testing.(*M).Run(0x4b35c9a64640)
+	/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/src/testing/testing.go:2443 +0x578
+main.main()
+	_testmain.go:184 +0x80
+
+goroutine 8 [chan receive]:
+testing.(*T).Run(0x4b35c9b54248, {0x1010960fa?, 0x4b35c9a39758?}, 0x1012f7098)
+	/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/src/testing/testing.go:2109 +0x3bc
+github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops.TestInspectFilteredTargetNativeFixture(0x4b35c9b54248)
+	/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-target-index-guard/tools/orchestrator/internal/gitops/filter_target_native_darwin_test.go:385 +0x50
+testing.tRunner(0x4b35c9b54248, 0x1012f6f00)
+	/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/src/testing/testing.go:2036 +0xc4
+created by testing.(*T).Run in goroutine 1
+	/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/src/testing/testing.go:2101 +0x3a8
+
+goroutine 22028 [runnable]:
+github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process.ExecutableDigest({0x1012fb508, 0x4b35c9b0e7b0}, {0x4b35ca3992c0, 0x2f})
+	/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-target-index-guard/tools/orchestrator/internal/process/process.go:556 +0x358
+github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process.startCommandUsing({0x1012fb508, 0x4b35c9b0e7b0}, {{0x0, 0x0}, {0x0, 0x0}, {0x4b35ca3992c0, 0x2f}, {0x4b35c99e4140, 0x40}, ...}, ...)
+	/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-target-index-guard/tools/orchestrator/internal/process/process.go:200 +0x6a0
+github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process.startCommand({0x1012fb508?, 0x4b35c9b0e7b0?}, {{0x0, 0x0}, {0x0, 0x0}, {0x4b35ca3992c0, 0x2f}, {0x4b35c99e4140, 0x40}, ...}, ...)
+	/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-target-index-guard/tools/orchestrator/internal/process/process.go:135 +0x60
+github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process.startWithBirth(...)
+	/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-target-index-guard/tools/orchestrator/internal/process/process.go:128
+github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/process.Start({0x1012fb508?, 0x4b35c9b0e7b0?}, {{0x0, 0x0}, {0x0, 0x0}, {0x4b35ca3992c0, 0x2f}, {0x4b35c99e4140, 0x40}, ...})
+	/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-target-index-guard/tools/orchestrator/internal/process/process.go:124 +0x64
+github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops.candidateGitBytesWithStart({0x1012fb508, 0x4b35c9b0e7b0}, {0x4b35ca320580, 0xa9}, {0x4b35c9c69800, 0x0, 0x200}, 0x0, 0x1012f70c0, {0x4b35c9ed2d18, ...})
+	/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-target-index-guard/tools/orchestrator/internal/gitops/candidate_runner.go:135 +0xcd0
+github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops.candidateGitWithStart({0x1012fb508?, 0x4b35c9b0e7b0?}, {0x4b35ca320580?, 0xa9?}, {0x1012f9fe0?, 0x4b35c9c021c0?}, 0x1012f70c0?, {0x4b35c9ed2d18?, 0x3?, 0x3?})
+	/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-target-index-guard/tools/orchestrator/internal/gitops/candidate_runner.go:77 +0x230
+github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops.(*FilterGitContext).privateOutput(0x4b35c9a6da01?, {0x1012fb508, 0x4b35c9b0e7b0}, {0x4b35ca320580, 0xa9}, {0x0?, 0x4b35ca6ee080?, 0x40?}, {0x4b35c9ed2d18, 0x3, ...})
+	/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-target-index-guard/tools/orchestrator/internal/gitops/filter_context.go:558 +0xc8
+github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops.(*FilterGitContext).privateText(0x4b35ca330388?, {0x1012fb508?, 0x4b35c9b0e7b0?}, {0x4b35ca320580?, 0x0?}, {0x4b35c9ed2d18?, 0x800001c0?, 0xc00c216?})
+	/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-target-index-guard/tools/orchestrator/internal/gitops/filter_context.go:550 +0x44
+github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops.(*FilterGitContext).verifyRepository(0x4b35ca330388, {0x1012fb508, 0x4b35c9b0e7b0})
+	/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-target-index-guard/tools/orchestrator/internal/gitops/filter_repository.go:167 +0xcc
+github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops.(*FilterGitContext).readState(0x4b35ca330388, {0x1012fb508, 0x4b35c9b0e7b0})
+	/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-target-index-guard/tools/orchestrator/internal/gitops/filter_context.go:329 +0x3d4
+github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops.(*FilterGitContext).verifyCaptured(0x4b35ca330388, {0x1012fb508?, 0x4b35c9b0e7b0?})
+	/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-target-index-guard/tools/orchestrator/internal/gitops/filter_context.go:238 +0x30
+github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops.(*FilterGitContext).Verify(0x4b35ca330388, {0x1012fb508, 0x4b35c9a69ad0})
+	/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-target-index-guard/tools/orchestrator/internal/gitops/filter_context.go:206 +0x250
+github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops.writeFilterBlob({0x1012fb508, 0x4b35c9a69ad0}, {0x4b35ca320580, 0xa9}, {0x4b35c9cea0c0, 0x1b, 0x1b})
+	/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-target-index-guard/tools/orchestrator/internal/gitops/filter_freeze_blob.go:142 +0xac
+github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops.filterWriteObservedBlob({0x1012fb508, 0x4b35c9a69ad0}, 0x4b35c9cc2000, 0x4b35c99ca3c0, {0x1010803d6, 0x5}, {{0x4b35c9ac0960, 0x28}, {0x4b35c9b3c040, 0x40}, ...})
+	/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-target-index-guard/tools/orchestrator/internal/gitops/filter_freeze_blob.go:124 +0x4b4
+github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops.FreezeFilteredWorkspace({_, _}, _, {_, _})
+	/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-target-index-guard/tools/orchestrator/internal/gitops/filter_freeze.go:274 +0x2648
+github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops.filterTargetNativeAccepted(_, {_, _})
+	/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-target-index-guard/tools/orchestrator/internal/gitops/filter_target_native_darwin_test.go:99 +0x2ac
+github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops.TestInspectFilteredTargetNativeFixture.func2(0x4b35ca70a008)
+	/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-target-index-guard/tools/orchestrator/internal/gitops/filter_target_native_darwin_test.go:388 +0x9c
+testing.tRunner(0x4b35ca70a008, 0x1012f7098)
+	/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/src/testing/testing.go:2036 +0xc4
+created by testing.(*T).Run in goroutine 8
+	/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/src/testing/testing.go:2101 +0x3a8
+FAIL	github.com/GuanJHCode/Agent-Bird/tools/orchestrator/internal/gitops	180.340s
+FAIL

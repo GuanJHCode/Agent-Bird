@@ -1,0 +1,29 @@
+{
+  "source": "7876dc0f3db78f34e9ffef6c7d673401e31d367a",
+  "dirty": "",
+  "argv": [
+    "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+    "test",
+    "-json",
+    "-race",
+    "-count=1",
+    "./internal/adapter",
+    "./internal/store",
+    "-run",
+    "^TestFilterTarget(PreflightAdmission|GrantAndNilExitSettlement)$"
+  ],
+  "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-target-host/tools/orchestrator",
+  "environment": {
+    "TMPDIR": "/private/tmp",
+    "GOTOOLCHAIN": "local",
+    "GOENV": "off",
+    "GOWORK": "off",
+    "GOFLAGS": "",
+    "GOPROXY": "off",
+    "GOSUMDB": "off",
+    "GOOS": "darwin",
+    "GOARCH": "arm64",
+    "GOARM64": "v8.0",
+    "CGO_ENABLED": "1"
+  }
+}
