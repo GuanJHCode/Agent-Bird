@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 )
@@ -51,12 +52,25 @@ func TestVerifyHostPeerExpectationRejectsInputBeforeObservation(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	valid := HostPeerExpectation{Domain: hostPeerExpectationDomain, PID: 44, RawBirth: "raw", EUID: os.Geteuid()}
-	bad := []HostPeerExpectation{{}, {Domain: "wrong", PID: 44, RawBirth: "raw", EUID: os.Geteuid()}, {Domain: hostPeerExpectationDomain, PID: 44, RawBirth: "bad\n", EUID: os.Geteuid()}, {Domain: hostPeerExpectationDomain, PID: 44, RawBirth: string(make([]byte, 129)), EUID: os.Geteuid()}, {Domain: hostPeerExpectationDomain, PID: 44, RawBirth: "raw", EUID: os.Geteuid() + 1}}
+	bad := []HostPeerExpectation{{}, {Domain: "wrong", PID: 44, RawBirth: "raw", EUID: os.Geteuid()}, {Domain: hostPeerExpectationDomain, PID: 44, RawBirth: "bad\n", EUID: os.Geteuid()}, {Domain: hostPeerExpectationDomain, PID: 44, RawBirth: strings.Repeat("a", 129), EUID: os.Geteuid()}, {Domain: hostPeerExpectationDomain, PID: 44, RawBirth: "raw", EUID: os.Geteuid() + 1}}
+	bad = append(bad,
+		HostPeerExpectation{Domain: hostPeerExpectationDomain, PID: 44, RawBirth: "\u0085", EUID: os.Geteuid()},
+		HostPeerExpectation{Domain: hostPeerExpectationDomain, PID: 44, RawBirth: string([]byte{0xff}), EUID: os.Geteuid()},
+	)
 	for _, expected := range bad {
 		calls := 0
 		if err := verifyHostPeerExpectationWith(ctx, 44, expected, func(context.Context, int) (peerRecord, error) { calls++; return peerRecord{}, nil }); err == nil || calls != 0 {
 			t.Fatalf("invalid expectation err=%v calls=%d", err, calls)
 		}
+	}
+	boundary := valid
+	boundary.RawBirth = strings.Repeat("a", 128)
+	boundaryCalls := 0
+	if err := verifyHostPeerExpectationWith(ctx, 44, boundary, func(context.Context, int) (peerRecord, error) {
+		boundaryCalls++
+		return peerRecord{pid: 44, ppid: 1, birth: boundary.RawBirth, euid: os.Geteuid(), pgid: 44}, nil
+	}); err != nil || boundaryCalls != 2 {
+		t.Fatalf("maximum raw birth rejected: err=%v calls=%d", err, boundaryCalls)
 	}
 	for _, pid := range []int{0, -1, 1 << 31} {
 		calls := 0
@@ -148,7 +162,8 @@ func TestHostPeerExpectationNativeSelf(t *testing.T) {
 	if err := VerifyHostPeerExpectation(ctx, os.Getpid(), expected); err != nil {
 		t.Fatalf("self verify: %v", err)
 	}
-	expected.PID++
+	t.Logf("native self pid=%d euid=%d raw_birth=%s", expected.PID, expected.EUID, expected.RawBirth)
+	expected.RawBirth += ":changed"
 	if err := VerifyHostPeerExpectation(ctx, os.Getpid(), expected); err == nil {
 		t.Fatal("wrong expectation accepted")
 	}
