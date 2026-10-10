@@ -38,7 +38,7 @@ func TestFilterPipelineNativeHostAcceptedValidator(t *testing.T) {
 	filterPipelineGit(t, ctx, guard, gitPath, repo, "init", "-q", "-b", "main")
 	filterPipelineGit(t, ctx, guard, gitPath, repo, "config", "user.name", "fixture")
 	filterPipelineGit(t, ctx, guard, gitPath, repo, "config", "user.email", "fixture@example.invalid")
-	baseB := []byte("candidate\n")
+	baseB := []byte("base-raw\n")
 	if err := os.WriteFile(filepath.Join(repo, "file"), baseB, 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -97,11 +97,19 @@ func TestFilterPipelineNativeHostAcceptedValidator(t *testing.T) {
 	}
 	desiredR := []byte("candidate\n")
 	wantB := filterPipelineXOR(desiredR)
-	if views := sourceDelivery.Candidate.Filter.Views; len(views) != 1 || views[0].Path != "file" || views[0].CanonicalSHA256 != filterPipelineSHA(wantB) || views[0].RenderedSHA256 != filterPipelineSHA(desiredR) {
+	manifestSHA, manifestErr := manifest.Digest()
+	views := sourceDelivery.Candidate.Filter.Views
+	if manifestErr != nil || sourceDelivery.Candidate.Filter.ManifestSHA256 != manifestSHA || len(views) != 1 || views[0].Path != "file" || views[0].CanonicalSHA256 != filterPipelineSHA(wantB) || views[0].RenderedSHA256 != filterPipelineSHA(desiredR) {
 		t.Fatalf("source filter=%#v", sourceDelivery.Candidate.Filter)
+	}
+	if len(sourceDelivery.Candidate.Changes) != 1 || sourceDelivery.Candidate.Changes[0].Path != "file" || sourceDelivery.Candidate.Changes[0].Mode != "100644" {
+		t.Fatalf("source changes=%#v", sourceDelivery.Candidate.Changes)
 	}
 	if got := filterPipelineGitBytes(t, ctx, guard, gitPath, repo, []string{"cat-file", "blob", sourceDelivery.Candidate.Changes[0].BlobOID}); !bytes.Equal(got, wantB) {
 		t.Fatalf("source canonical=%q want=%q", got, wantB)
+	}
+	if got, readErr := os.ReadFile(sourceDelivery.Candidate.Worktree + "/file"); readErr != nil || !bytes.Equal(got, desiredR) {
+		t.Fatalf("producer rendered=%q err=%v", got, readErr)
 	}
 	sourceEvents := validationCommitEvents(t, ctx, db, h, sourceGrant)
 	if !filterPipelineExited(sourceEvents, sourceGrant) {
@@ -128,6 +136,14 @@ func TestFilterPipelineNativeHostAcceptedValidator(t *testing.T) {
 	}
 	if view := delivery.Candidate.Filter.Views; len(view) != 1 || view[0].Path != "file" || view[0].CanonicalSHA256 != filterPipelineSHA(wantB) || view[0].RenderedSHA256 != filterPipelineSHA(desiredR) {
 		t.Fatalf("filter evidence=%#v", delivery.Candidate.Filter)
+	}
+	sourceEvent := filterPipelineResultEvent(t, sourceEvents)
+	validationRaw, _ := json.Marshal(delivery.Validation)
+	if delivery.InputEventID != sourceEvent.EventID || delivery.InputSHA256 != sourceEvent.Artifact.SHA256 || delivery.OwnerDecisionID != "accept-edit" || delivery.CandidateReceiptSHA256 != sourceEvent.Artifact.SHA256 || delivery.ValidationDigest != hashBytes(validationRaw) || !reflect.DeepEqual(delivery.Candidate.Binding, sourceDelivery.Candidate.Binding) {
+		t.Fatalf("accepted binding delivery=%#v source=%#v", delivery, sourceEvent)
+	}
+	if got, readErr := os.ReadFile(candidateDirectory(validatePayload.Directory, validatorGrant, true) + "/file"); readErr != nil || !bytes.Equal(got, desiredR) {
+		t.Fatalf("validator rendered=%q err=%v", got, readErr)
 	}
 	validatorEvents := validationCommitEvents(t, ctx, db, h, validatorGrant)
 	if !filterPipelineExited(validatorEvents, validatorGrant) {
@@ -292,7 +308,21 @@ func filterPipelineXOR(b []byte) []byte {
 	return out
 }
 func filterPipelineShell(path string, args ...string) string {
-	return "'" + strings.ReplaceAll(path, "'", "'\\''") + "' " + strings.Join(args, " ")
+	parts := append([]string{path}, args...)
+	for i := range parts {
+		parts[i] = "'" + strings.ReplaceAll(parts[i], "'", "'\\''") + "'"
+	}
+	return strings.Join(parts, " ")
+}
+func filterPipelineResultEvent(t *testing.T, events []contract.Event) contract.Event {
+	t.Helper()
+	for _, event := range events {
+		if event.Kind == contract.EventResult && event.Artifact != nil {
+			return event
+		}
+	}
+	t.Fatal("missing source result")
+	return contract.Event{}
 }
 func filterPipelineExited(events []contract.Event, grant contract.LaunchCommand) bool {
 	for _, event := range events {
