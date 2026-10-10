@@ -82,16 +82,17 @@ type PrivateRefJournal interface {
 }
 
 type CandidateIntent struct {
-	Binding          *CandidateBinding `json:"binding,omitempty"`
-	Changes          []CandidateChange `json:"changes,omitempty"`
-	AttemptID        string            `json:"attempt_id"`
-	RepoRoot         string            `json:"repo_root"`
-	Worktree         string            `json:"worktree"`
-	BaseOID          string            `json:"base_oid"`
-	PrivateRef       string            `json:"private_ref"`
-	OrderedInputOIDs []string          `json:"ordered_input_oids"`
-	PlanRevision     int64             `json:"plan_revision"`
-	CreatedAt        time.Time         `json:"created_at"`
+	Binding          *CandidateBinding     `json:"binding,omitempty"`
+	Changes          []CandidateChange     `json:"changes,omitempty"`
+	AttemptID        string                `json:"attempt_id"`
+	RepoRoot         string                `json:"repo_root"`
+	Worktree         string                `json:"worktree"`
+	BaseOID          string                `json:"base_oid"`
+	PrivateRef       string                `json:"private_ref"`
+	OrderedInputOIDs []string              `json:"ordered_input_oids"`
+	PlanRevision     int64                 `json:"plan_revision"`
+	CreatedAt        time.Time             `json:"created_at"`
+	Filter           *FilterViewEvidenceV1 `json:"filter,omitempty"`
 }
 
 type CandidateRefIntent struct {
@@ -133,6 +134,7 @@ type CandidateReceipt struct {
 	PlanRevision          int64                   `json:"plan_revision"`
 	PrivateRef            string                  `json:"private_ref"`
 	PrivateRefExpectedOID string                  `json:"private_ref_expected_oid"`
+	Filter                *FilterViewEvidenceV1   `json:"filter,omitempty"`
 }
 
 // ValidateCandidatePrivateRef is the read-only receipt authentication boundary
@@ -275,6 +277,7 @@ type MaterializeReceipt struct {
 	Files            map[string]FileIdentity `json:"files"`
 	OrderedInputOIDs []string                `json:"ordered_input_oids"`
 	PlanRevision     int64                   `json:"plan_revision"`
+	Filter           *FilterViewEvidenceV1   `json:"filter,omitempty"`
 }
 
 type IntegrationRequest struct {
