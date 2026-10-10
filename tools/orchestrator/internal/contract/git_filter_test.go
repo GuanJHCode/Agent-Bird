@@ -29,6 +29,34 @@ func TestGitFilterManifestValidation(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
+	t.Run("independent_limits", func(t *testing.T) {
+		m := filterManifestFixture()
+		m.DriverID = strings.Repeat("x", 64)
+		m.Paths = []string{strings.Repeat("p", 512)}
+		m.Git.Path = "/" + strings.Repeat("g", 4095)
+		m.Git.Version = strings.Repeat("v", 256)
+		m.Clean.Args = make([]string, 16)
+		m.Clean.Args[0] = strings.Repeat("a", 4096)
+		m.Smudge.Args = []string{strings.Repeat("b", 4096)}
+		m.Attributes = []GitFilterAttributePin{}
+		if err := m.Validate(); err != nil {
+			t.Fatal(err)
+		}
+		m.DriverID += "x"
+		if m.Validate() == nil {
+			t.Fatal("65-byte driver accepted")
+		}
+		m = filterManifestFixture()
+		m.Attributes = make([]GitFilterAttributePin, 257)
+		if m.Validate() == nil {
+			t.Fatal("attribute count accepted")
+		}
+		m = filterManifestFixture()
+		m.Attributes = []GitFilterAttributePin{{"A/.gitattributes", m.ConfigSHA256}, {"a/.gitattributes", m.ConfigSHA256}}
+		if m.Validate() == nil {
+			t.Fatal("attribute case alias accepted")
+		}
+	})
 	cases := []struct {
 		name   string
 		change func(*GitFilterManifestV1)
@@ -199,6 +227,17 @@ func TestGitFilterDigestCloneScope(t *testing.T) {
 	clone.Attributes[0].SHA256 = strings.Repeat("c", 64)
 	if !reflect.DeepEqual(m, filterManifestFixture()) {
 		t.Fatal("clone shares slices")
+	}
+	withArgs := m.Clone()
+	withArgs.Clean.Args = []string{"--clean"}
+	second := withArgs.Clone()
+	second.Clean.Args[0] = "changed"
+	if withArgs.Clean.Args[0] != "--clean" {
+		t.Fatal("clean args shared")
+	}
+	zero := GitFilterManifestV1{}.Clone()
+	if zero.Paths != nil || zero.Clean.Args != nil || zero.Smudge.Args != nil || zero.Attributes != nil {
+		t.Fatal("clone changed nil shape")
 	}
 	c := LaunchCommand{RunID: "run", TaskID: "task", AttemptID: "attempt", SegmentID: "segment", HostID: "host", CommandID: "command", WorkRevision: 1, PlanRevision: 2}
 	host, _ := HostArtifactScopeSHA256(c)
