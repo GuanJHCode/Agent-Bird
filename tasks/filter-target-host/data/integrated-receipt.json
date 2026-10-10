@@ -1,0 +1,14 @@
+{
+  "integration_merge": "c7fe2b8b81fe1fc2299cef83e0034c597295613f",
+  "qualified_source": "2ec598fc08e8b3a245d24e4d0985c0f95aed5eb6",
+  "delivery_source": "cd37055cc7ff03d93499e7a907fc7354e9dde9b7",
+  "orchestrator_tree": "b89f0eae5c2055e431de186591de4ba2bbeb02c5",
+  "source_tree_exact_match": true,
+  "production_review": "PASS e91b30a",
+  "native_oracle_review": "PASS d43454a",
+  "native_final_stdout_sha256": "9e6ff62f6218da4265eb34cc2f5c1f41c7b839c20ce52ece30a8ae05919f2f2b",
+  "package_source": "3e2f24169d79ae519eec4b72e1a3ac512221e52d",
+  "package_production_matches": true,
+  "filtered_integrate_open": false,
+  "target_observation_only": true
+}
