@@ -17,11 +17,15 @@ type HostPeerExpectation struct {
 }
 
 func CaptureHostPeerExpectation(ctx context.Context) (HostPeerExpectation, error) {
-	if ctx == nil || ctx.Err() != nil || os.Getpid() <= 0 || os.Getpid() > 1<<31-1 {
+	return captureHostPeerExpectationWith(ctx, observePeerRecord)
+}
+
+func captureHostPeerExpectationWith(ctx context.Context, observe func(context.Context, int) (peerRecord, error)) (HostPeerExpectation, error) {
+	if ctx == nil || ctx.Err() != nil || !finiteContext(ctx) || observe == nil || os.Getpid() <= 0 || os.Getpid() > 1<<31-1 {
 		return HostPeerExpectation{}, ErrProcessTreeUnknown
 	}
-	record, err := observePeerRecord(ctx, os.Getpid())
-	if err != nil || record.pid != os.Getpid() || record.euid != os.Geteuid() || !validHostRawBirth(record.birth) {
+	record, err := observe(ctx, os.Getpid())
+	if err != nil || ctx.Err() != nil || record.pid != os.Getpid() || record.euid != os.Geteuid() || !validHostRawBirth(record.birth) {
 		return HostPeerExpectation{}, ErrProcessTreeUnknown
 	}
 	return HostPeerExpectation{Domain: hostPeerExpectationDomain, PID: record.pid, RawBirth: record.birth, EUID: record.euid}, nil
@@ -32,7 +36,7 @@ func VerifyHostPeerExpectation(ctx context.Context, kernelPeerPID int, expected 
 }
 
 func verifyHostPeerExpectationWith(ctx context.Context, kernelPeerPID int, expected HostPeerExpectation, observe func(context.Context, int) (peerRecord, error)) error {
-	if ctx == nil || ctx.Err() != nil || observe == nil || !finiteContext(ctx) || !validHostPeerExpectation(expected) || kernelPeerPID <= 0 || kernelPeerPID > 1<<31-1 {
+	if ctx == nil || ctx.Err() != nil || observe == nil || !finiteContext(ctx) || !validHostPeerExpectation(expected) || kernelPeerPID <= 0 || kernelPeerPID > 1<<31-1 || kernelPeerPID != expected.PID {
 		return ErrProcessTreeUnknown
 	}
 	first, err := observe(ctx, kernelPeerPID)
@@ -54,8 +58,8 @@ func validHostRawBirth(raw string) bool {
 	if raw == "" || len(raw) > 128 {
 		return false
 	}
-	for _, r := range raw {
-		if r < 0x20 || r == 0x7f {
+	for i := 0; i < len(raw); i++ {
+		if raw[i] < 0x21 || raw[i] > 0x7e {
 			return false
 		}
 	}

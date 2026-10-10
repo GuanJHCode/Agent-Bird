@@ -64,6 +64,10 @@ func TestVerifyHostPeerExpectationRejectsInputBeforeObservation(t *testing.T) {
 			t.Fatalf("invalid peer pid=%d err=%v calls=%d", pid, err, calls)
 		}
 	}
+	calls := 0
+	if err := verifyHostPeerExpectationWith(ctx, 45, valid, func(context.Context, int) (peerRecord, error) { calls++; return peerRecord{}, nil }); err == nil || calls != 0 {
+		t.Fatalf("wrong kernel pid err=%v calls=%d", err, calls)
+	}
 	ctx, cancel = context.WithCancel(context.Background())
 	cancel()
 	if err := verifyHostPeerExpectationWith(ctx, 44, valid, func(context.Context, int) (peerRecord, error) {
@@ -71,6 +75,63 @@ func TestVerifyHostPeerExpectationRejectsInputBeforeObservation(t *testing.T) {
 		return peerRecord{}, nil
 	}); err == nil {
 		t.Fatal("cancelled context accepted")
+	}
+}
+
+func TestCaptureHostPeerExpectationSeamLifecycle(t *testing.T) {
+	uid, pid := os.Geteuid(), os.Getpid()
+	for _, kind := range []string{"nil", "unbounded", "cancelled", "cancelled_during_observe", "positive"} {
+		t.Run(kind, func(t *testing.T) {
+			var ctx context.Context
+			var cancel context.CancelFunc
+			switch kind {
+			case "nil":
+				ctx = nil
+			case "unbounded":
+				ctx = context.Background()
+			default:
+				ctx, cancel = context.WithTimeout(context.Background(), time.Second)
+				defer cancel()
+				if kind == "cancelled" {
+					cancel()
+				}
+			}
+			calls, fired := 0, false
+			expectation, err := captureHostPeerExpectationWith(ctx, func(context.Context, int) (peerRecord, error) {
+				calls++
+				if kind == "cancelled_during_observe" {
+					cancel()
+					fired = true
+				}
+				return peerRecord{pid: pid, ppid: 1, birth: "darwin:1:2", euid: uid, pgid: 1}, nil
+			})
+			if kind == "positive" {
+				if err != nil || calls != 1 || expectation.PID != pid || expectation.EUID != uid || expectation.RawBirth != "darwin:1:2" {
+					t.Fatalf("capture=%+v err=%v calls=%d", expectation, err, calls)
+				}
+			} else if err == nil || (kind != "cancelled_during_observe" && calls != 0) || (kind == "cancelled_during_observe" && (!fired || calls != 1)) {
+				t.Fatalf("%s err=%v calls=%d fired=%t", kind, err, calls, fired)
+			}
+		})
+	}
+}
+
+func TestVerifyHostPeerExpectationRejectsCancellationDuringSecondRead(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	uid := os.Geteuid()
+	expected := HostPeerExpectation{Domain: hostPeerExpectationDomain, PID: 44, RawBirth: "raw", EUID: uid}
+	calls, fired := 0, false
+	err := verifyHostPeerExpectationWith(ctx, 44, expected, func(context.Context, int) (peerRecord, error) {
+		calls++
+		if calls == 2 {
+			cancel()
+			fired = true
+		}
+		return peerRecord{pid: 44, ppid: 1, birth: "raw", euid: uid, pgid: 44}, nil
+	})
+	if err == nil || !fired || calls != 2 {
+		t.Fatalf("err=%v fired=%t calls=%d", err, fired, calls)
 	}
 }
 
