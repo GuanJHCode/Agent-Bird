@@ -33,3 +33,8 @@ ROOT最后df558ee Mac `bind-root-final-race` 3top5namedPASS0FAIL/SKIP/exit0，�
 Linux最终df558ee同3top5namedPASS0FAIL/SKIP，raw SHA dc6bd04d1374e92a9ec6cd95a16d5c1b020708d2389fa61b0247528caf59cb4c；此前e50 2/4只作历史证据，不冒称df5。ROOT再次独立核原attach/state exit0、nonOOM、闭集具名集合/原hash、两个exactCID均NoSuch及两binary精确absent；worker删除前UID/nlink/dev/inode/hash保留，合计42,698,106bytes，raw/empty任务目录保留。执行器复用已审F10 runner，差异只固定selector/任务路径/container前缀，无pull/network/用户安装。见[Linux最终报告](../../owner-grant-linux/docs/bind-root-02.md)。
 
 本次没有后台产品进程或容器残留。Store、公开owner-bind及最终小增量审查闭合；发布和最终包验收仍单独绑定整合候选。
+
+
+## 整合快照
+
+merge `dabcbc3` / receipt `67b4a1f` 同时包含已审 F04 stream executor（其文件对象与1ec0cb5相同）和本修复（其文件对象与df558ee相同），Go模块树 `09988866eb0bbe35b13e151559605fbbebbce150`。ROOT在clean67b4a1f实际执行整合后 `go build ./...`，exit0且stdout/stderr为空；原命令/终态和对象对比见integrated-receipt与bind-integrated-build数据。未重复无新影响面的全量测试。旧F13包仍只绑定source4543635，不能自动覆盖当前新生产。

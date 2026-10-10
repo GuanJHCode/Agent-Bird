@@ -6,5 +6,12 @@
   "filter_source": "1ec0cb5",
   "filter_objects_equal": true,
   "production_test_review": "Both scoped PASS",
-  "final_build": "pending"
+  "final_build": {
+    "source": "67b4a1f",
+    "command": "go -C tools/orchestrator build ./...",
+    "exit": 0,
+    "stdout_bytes": 0,
+    "stderr_bytes": 0,
+    "record": "bind-integrated-build.command.json"
+  }
 }
