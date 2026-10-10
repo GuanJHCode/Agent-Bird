@@ -437,11 +437,11 @@ func TestExactSessionOriginalOwnership(t *testing.T) {
 			if copy.State().Closed == false || copy.State().Failed == false {
 				t.Error("copy appears usable")
 			}
-			if e := copy.Close(); e == nil {
-				t.Error("copy Close accepted")
-			}
 			if out, e := copy.Exchange(ctx, 1, "a.txt", "smudge", exactProduce("B")); e == nil || out != nil {
 				t.Error("copy Exchange accepted")
+			}
+			if e := copy.Close(); e == nil {
+				t.Error("copy Close accepted")
 			}
 			if b.loads != 0 || b.transforms != 0 || b.closes != 0 || b.cleanups != 0 || len(j.records) != 0 || s.State().Closed != closed || s.State().Failed {
 				t.Fatalf("copy mutated original: state=%+v loads=%d", s.State(), b.loads)
