@@ -4,11 +4,12 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
 func TestFilterTargetInventoryReadOnlyGuards(t *testing.T) {
-	for _, mode := range []string{"exact", "extra_ignored", "writable_by_group", "symlink", "hardlink", "directory_replaced"} {
+	for _, mode := range []string{"exact", "extra_ignored", "writable_by_group", "symlink", "hardlink", "directory_replaced", "metadata_sharedindex_alias", "metadata_merge_head_alias", "metadata_index_lock_alias", "metadata_info_symlink"} {
 		t.Run(mode, func(t *testing.T) {
 			parent := filepath.Join(t.TempDir(), "owned")
 			repo := filepath.Join(parent, "repo")
@@ -40,6 +41,19 @@ func TestFilterTargetInventoryReadOnlyGuards(t *testing.T) {
 			}
 			defer observer.Close()
 			switch mode {
+			case "metadata_sharedindex_alias", "metadata_merge_head_alias", "metadata_index_lock_alias":
+				name := map[string]string{"metadata_sharedindex_alias": "SHAREDINDEX.fixture", "metadata_merge_head_alias": "merge_head", "metadata_index_lock_alias": "INDEX.LOCK"}[mode]
+				if err = os.WriteFile(filepath.Join(gitDir, name), []byte("metadata"), 0600); err != nil {
+					t.Fatal(err)
+				}
+			case "metadata_info_symlink":
+				outside := filepath.Join(parent, "info")
+				if err = os.Mkdir(outside, 0700); err != nil {
+					t.Fatal(err)
+				}
+				if err = os.Symlink(outside, filepath.Join(gitDir, "info")); err != nil {
+					t.Fatal(err)
+				}
 			case "extra_ignored":
 				if err = os.WriteFile(filepath.Join(repo, ".unexpected"), []byte("extra"), 0600); err != nil {
 					t.Fatal(err)
@@ -67,7 +81,12 @@ func TestFilterTargetInventoryReadOnlyGuards(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			got, err := observer.snapshot(context.Background())
+			var got map[string]filterTargetEntry
+			if strings.HasPrefix(mode, "metadata_") {
+				err = observer.checkMetadata()
+			} else {
+				got, err = observer.snapshot(context.Background())
+			}
 			if (err == nil) != (mode == "exact") {
 				t.Fatalf("mode=%s inventory=%v err=%v", mode, got, err)
 			}

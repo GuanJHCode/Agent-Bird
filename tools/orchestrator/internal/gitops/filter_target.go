@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 	"reflect"
 	"strings"
 
@@ -71,6 +72,7 @@ type FilterTargetObservation struct {
 	expected                                  map[string]filterTargetExpected
 	inventory                                 map[string]filterTargetEntry
 	refs                                      map[string]*filterPinnedFile
+	configPin                                 filterPinnedFile
 	receipt                                   FilteredTargetObservationV1
 }
 
@@ -103,8 +105,13 @@ func InspectFilteredTarget(ctx context.Context, source *FilterGitContext, stream
 		}
 	}()
 	ctx = source.Context(WithCandidateJournal(ctx, journal))
-	if err = checkFilteredCandidateRef(ctx, source, m.candidate); err != nil {
+	// These checks must precede even candidate provenance queries: source
+	// verification itself asks Git to read the target index for attributes.
+	if err = validatePrivateRef(m.candidate.PrivateRef); err != nil {
 		return nil, err
+	}
+	if requireOID(req.BaseOID) != nil || requireOID(m.candidate.CandidateOID) != nil {
+		return nil, fail(CodeInvalidInput, "filter target object IDs", nil)
 	}
 	if err = m.open(); err != nil {
 		return nil, err
@@ -120,6 +127,13 @@ func InspectFilteredTarget(ctx context.Context, source *FilterGitContext, stream
 		return nil, fail(CodeInvalidInput, "filter target index", err)
 	}
 	m.indexIdentity, m.indexSHA = identity, filterTargetHash(raw)
+	m.configPin, err = pinFilterFileKind(filepath.Join(source.commonDir, "config"), "", filterConfigMaximumBytes, false, nil)
+	if err != nil {
+		return nil, err
+	}
+	if err = checkFilteredCandidateRef(ctx, source, m.candidate); err != nil {
+		return nil, err
+	}
 	m.base, err = filterReadTree(ctx, source, req.BaseOID)
 	if err != nil {
 		return nil, err
@@ -302,6 +316,9 @@ func (m *FilterTargetObservation) Verify(ctx context.Context) error {
 		return fail(CodeIdentityChanged, "filter target final inventory", nil)
 	}
 	if err = m.refFiles(false); err != nil {
+		return err
+	}
+	if err = m.verifySourcePins(); err != nil {
 		return err
 	}
 	return m.verifyAnchors()

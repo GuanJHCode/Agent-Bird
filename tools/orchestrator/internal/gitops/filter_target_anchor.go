@@ -157,12 +157,12 @@ func (m *FilterTargetObservation) checkMetadata() error {
 			return fail(CodeInvalidInput, "filter target git directory bounds", nil)
 		}
 		for _, e := range entries {
-			n := e.Name()
+			n := strings.ToLower(e.Name())
 			if strings.HasPrefix(n, "sharedindex.") {
 				return fail(CodeInvalidInput, "filter target split index", nil)
 			}
 			switch n {
-			case "MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "rebase-apply", "rebase-merge", "sequencer", "BISECT_LOG", "index.lock":
+			case "merge_head", "cherry_pick_head", "revert_head", "rebase-apply", "rebase-merge", "sequencer", "bisect_log", "index.lock":
 				return fail(CodeTargetDirty, "filter target operation in progress", nil)
 			}
 		}
@@ -268,7 +268,6 @@ func (m *FilterTargetObservation) snapshot(ctx context.Context) (map[string]filt
 						if err != nil {
 							return err
 						}
-						out[rel] = filterTargetEntry{Identity: id}
 						if err = walk(f, rel); err != nil {
 							return err
 						}
@@ -280,6 +279,20 @@ func (m *FilterTargetObservation) snapshot(ctx context.Context) (map[string]filt
 						if err != nil || after != id {
 							return fail(CodeIdentityChanged, "filter target directory changed", err)
 						}
+						named, err := filterOpenAt(parent, entry.Name(), unix.O_RDONLY|unix.O_DIRECTORY, 0)
+						if err != nil {
+							return err
+						}
+						namedInfo, statErr := named.Stat()
+						var namedID FileIdentity
+						if statErr == nil {
+							namedID, statErr = identityFromInfo(namedInfo)
+						}
+						closeErr := named.Close()
+						if statErr != nil || closeErr != nil || namedID != id {
+							return fail(CodeIdentityChanged, "filter target named directory", errors.Join(statErr, closeErr))
+						}
+						out[rel] = filterTargetEntry{Identity: id}
 						return nil
 					}
 					id, err := filterTargetRegular(f)
@@ -344,7 +357,7 @@ func (m *FilterTargetObservation) snapshot(ctx context.Context) (map[string]filt
 // Pin loose and packed resolution inputs as well as HEAD. Final non-Git checks
 // catch a journal callback changing refs after an earlier Git observation.
 func (m *FilterTargetObservation) refFiles(capture bool) error {
-	paths := []string{filepath.Join(m.source.repository.gitDir, "HEAD"), filepath.Join(m.source.commonDir, filepath.FromSlash(m.request.Ref)), filepath.Join(m.source.commonDir, "packed-refs")}
+	paths := []string{filepath.Join(m.source.repository.gitDir, "HEAD"), filepath.Join(m.source.commonDir, filepath.FromSlash(m.request.Ref)), filepath.Join(m.source.commonDir, "packed-refs"), filepath.Join(m.source.commonDir, filepath.FromSlash(m.candidate.PrivateRef))}
 	for _, p := range paths {
 		if err := noSymlinkComponents(filepath.Dir(p)); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return err
@@ -379,15 +392,46 @@ func (m *FilterTargetObservation) refFiles(capture bool) error {
 	if m.refs[paths[0]] == nil {
 		return fail(CodeIdentityChanged, "filter target HEAD missing", nil)
 	}
-	// Check the held observation's HEAD is the exact declared symbolic ref.
-	f, err := os.OpenFile(paths[0], os.O_RDONLY|unix.O_NOFOLLOW|unix.O_NONBLOCK, 0)
-	if err != nil {
+	// Support direct branches only. A symbolic branch would introduce an
+	// unpinned referent even though HEAD and the requested loose ref stay fixed.
+	for _, check := range []struct{ path, text string }{
+		{paths[0], "ref: " + m.request.Ref + "\n"},
+		{paths[1], m.request.BaseOID + "\n"},
+		{paths[3], m.candidate.CandidateOID + "\n"},
+	} {
+		if m.refs[check.path] == nil {
+			continue
+		} // packed-only resolution is pinned above.
+		f, err := os.OpenFile(check.path, os.O_RDONLY|unix.O_NOFOLLOW|unix.O_NONBLOCK, 0)
+		if err != nil {
+			return err
+		}
+		raw, readErr := io.ReadAll(io.LimitReader(f, 8193))
+		closeErr := f.Close()
+		if readErr != nil || closeErr != nil || len(raw) > 8192 || !bytes.Equal(raw, []byte(check.text)) || !verifyFilterPin(*m.refs[check.path]) {
+			return fail(CodeTargetDrift, "filter target direct ref", errors.Join(readErr, closeErr))
+		}
+	}
+	return nil
+}
+
+// Finish without another Git command (and hence without another journal
+// callback). The full Git/context checks ran above; these original file pins
+// reject a callback changing their last observed source after its final query.
+func (m *FilterTargetObservation) verifySourcePins() error {
+	g := m.source
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.closed || !g.verifySources() || !verifyFilterPin(m.configPin) {
+		return fail(CodeIdentityChanged, "filter target source pins", nil)
+	}
+	if err := g.verifyRepositoryFiles(); err != nil {
 		return err
 	}
-	raw, readErr := io.ReadAll(io.LimitReader(f, 8193))
-	closeErr := f.Close()
-	if readErr != nil || closeErr != nil || len(raw) > 8192 || !bytes.Equal(raw, []byte("ref: "+m.request.Ref+"\n")) {
-		return fail(CodeTargetDrift, "filter target symbolic HEAD", errors.Join(readErr, closeErr))
+	for _, pin := range g.attributes {
+		if !verifyFilterPin(pin) {
+			return fail(CodeIdentityChanged, "filter target source attributes", nil)
+		}
 	}
 	return nil
 }
