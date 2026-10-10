@@ -47,6 +47,24 @@ func gitFilterCount(t *testing.T, db *DB) int {
 }
 
 func TestGitFilterAdmissionRemainsClosed(t *testing.T) {
+	var provider adapter.InvocationPayload
+	if err := json.Unmarshal(gitFilterPayload(t), &provider); err != nil {
+		t.Fatal(err)
+	}
+	validator := validationPolicyTask()
+	var validate adapter.InvocationPayload
+	if err := json.Unmarshal(validator.AdapterPayload, &validate); err != nil {
+		t.Fatal(err)
+	}
+	validate.GitFilter = provider.GitFilter
+	raw, _ := json.Marshal(validate)
+	if _, err := adapter.DecodeInvocationPayload(raw); err != nil {
+		t.Fatal("typed validate filter", err)
+	}
+	if _, err := adapter.ValidationRetryPayload(raw); err == nil {
+		t.Fatal("filter auto retry accepted")
+	}
+
 	db, _ := diagnosticsLaunchFixture(t, "omitted", 1)
 	before := diagnosticsBusinessSnapshot(t, db)
 	p := diagnosticsPlan(nil)
@@ -153,13 +171,20 @@ func TestGitFilterReservationQuotaReplayAndCommit(t *testing.T) {
 
 func TestGitFilterLifecycleAuthenticatedRelease(t *testing.T) {
 	ctx := context.Background()
-	for _, mode := range []string{"known", "unknown", "missing_cleanup", "wrong_cleanup", "rebound", "foreign_command"} {
+	for _, mode := range []string{"known", "launch_rejected", "unknown", "unknown_cleanup", "missing_cleanup", "wrong_cleanup", "rebound", "foreign_command"} {
 		t.Run(mode, func(t *testing.T) {
 			db, c, _ := gitFilterClaimFixture(t)
 			g := c.GitFilter
 			r := &contract.GitFilterCleanup{Version: 1, ReservationID: g.ReservationID, ScopeSHA256: g.ScopeSHA256, ManifestSHA256: g.ManifestSHA256, CleanToolSHA256: g.CleanToolSHA256, SmudgeToolSHA256: g.SmudgeToolSHA256, JournalSHA256: runtimeHash("removed"), RemovedBytes: contract.GitFilterResourceMaximumBytes}
 			e := contract.Event{Version: 1, ProducerID: c.HostID, EventID: "filter-terminal", RunID: c.RunID, TaskID: c.TaskID, AttemptID: c.AttemptID, SegmentID: c.SegmentID, CommandID: c.CommandID, WorkRevision: c.WorkRevision, ExecutionEpoch: 1, Sequence: 1, Kind: contract.EventExited, PayloadHash: runtimeHash("terminal"), ActiveMS: 1, GitFilterCleanup: r}
 			switch mode {
+			case "launch_rejected":
+				e.Kind = contract.EventLaunchRejected
+				e.ActiveMS = 0
+				e.Artifact = managedHostArtifactForTest(t, db, c, "prelaunch", 0, []byte(`{"status":"launch_rejected","reason":"fixture_rejection"}`))
+				e.PayloadHash = e.Artifact.SHA256
+			case "unknown_cleanup":
+				e.Kind = contract.EventUnknown
 			case "unknown":
 				e.Kind = contract.EventUnknown
 				e.GitFilterCleanup = nil
@@ -186,7 +211,7 @@ func TestGitFilterLifecycleAuthenticatedRelease(t *testing.T) {
 				}
 				return
 			}
-			if mode != "known" {
+			if mode != "known" && mode != "launch_rejected" {
 				if err == nil || state != "reserved" || diagnosticsBusinessSnapshot(t, db) != before {
 					t.Fatal("unauthorized terminal changed state", state, err)
 				}
@@ -199,11 +224,25 @@ func TestGitFilterLifecycleAuthenticatedRelease(t *testing.T) {
 			if e2 != nil || again != ack {
 				t.Fatal("durable replay", e2)
 			}
+
+			var outstanding int64
+			if err = db.sql.QueryRow(`SELECT COALESCE((SELECT SUM(reserved_bytes-retained_bytes) FROM managed_artifact_reservations WHERE state!='released'),0)+COALESCE((SELECT SUM(m.reserved_bytes-COALESCE((SELECT SUM(f.manifest_bytes) FROM managed_artifact_refs f WHERE f.reservation_id=r.id),0)) FROM managed_host_artifact_metadata m JOIN managed_artifact_reservations r ON r.id=m.reservation_id WHERE r.state!='released'),0)+COALESCE((SELECT SUM(metadata_bytes) FROM git_filter_resource_reservations),0)`).Scan(&outstanding); err != nil {
+				t.Fatal(err)
+			}
+			free := db.minFreeBytes + db.criticalDiskReserve + db.sqliteWriteOverhead + uint64(outstanding)
+			db.storageAvailable = func(string) (uint64, error) { return free, nil }
 			owned, e2 := db.beginOwnerTransaction(ctx)
 			if e2 != nil {
 				t.Fatal(e2)
 			}
 			defer owned.close()
+			if err = db.managedArtifactAdmission(ctx, owned.tx, 0, 0); err != nil {
+				t.Fatal("released metadata exact", err)
+			}
+			free--
+			if err = db.managedArtifactAdmission(ctx, owned.tx, 0, 0); !errors.Is(err, CodeError("storage_blocked")) {
+				t.Fatal("released metadata one short", err)
+			}
 			historical := c
 			historical.GitFilter = nil
 			if bindGitFilter(ctx, owned.tx, &historical, false) != nil || *historical.GitFilter != *g {
