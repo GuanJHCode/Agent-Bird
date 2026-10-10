@@ -226,7 +226,11 @@ func filterManifestFor(t *testing.T, gitPath, clean, smudge string) contract.Git
 	gitHash := filterFileSHA256(t, gitPath)
 	cleanHash := filterFileSHA256(t, clean)
 	smudgeHash := filterFileSHA256(t, smudge)
-	m := contract.GitFilterManifestV1{Version: 1, DriverID: "sealed", Paths: []string{"a.txt"}, Git: contract.GitFilterGitPin{Path: gitPath, Version: git(t, t.TempDir(), "--version"), SHA256: gitHash}, Clean: contract.GitFilterToolPin{Path: clean, SHA256: cleanHash, Args: []string{}}, Smudge: contract.GitFilterToolPin{Path: smudge, SHA256: smudgeHash, Args: []string{}}, Attributes: []contract.GitFilterAttributePin{}}
+	version, err := exec.Command(gitPath, "--version").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := contract.GitFilterManifestV1{Version: 1, DriverID: "sealed", Paths: []string{"a.txt"}, Git: contract.GitFilterGitPin{Path: gitPath, Version: strings.TrimSpace(string(version)), SHA256: gitHash}, Clean: contract.GitFilterToolPin{Path: clean, SHA256: cleanHash, Args: []string{}}, Smudge: contract.GitFilterToolPin{Path: smudge, SHA256: smudgeHash, Args: []string{}}, Attributes: []contract.GitFilterAttributePin{}}
 	m.ConfigSHA256 = FilterConfigurationSHA256(m)
 	return m
 }
