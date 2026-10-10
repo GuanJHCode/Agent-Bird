@@ -12,7 +12,7 @@ import (
 )
 
 func TestOpenFreshJournalRefusesAnyExistingLedger(t *testing.T) {
-	root := t.TempDir()
+	root := filepath.Join(t.TempDir(), "journal")
 	first, err := OpenFreshJournal(root)
 	if err != nil {
 		t.Fatal(err)
@@ -52,7 +52,7 @@ func TestOpenFreshJournalRefusesAnyExistingLedger(t *testing.T) {
 
 func TestJournalFilterAttachmentStrictness(t *testing.T) {
 	t.Run("legacy_nil_filter_records_load", func(t *testing.T) {
-		root := t.TempDir()
+		root := filepath.Join(t.TempDir(), "journal")
 		journal, err := OpenFreshJournal(root)
 		if err != nil {
 			t.Fatal(err)
@@ -84,7 +84,7 @@ func TestJournalFilterAttachmentStrictness(t *testing.T) {
 	})
 
 	t.Run("duplicate_outer_filter_attachment_rejected", func(t *testing.T) {
-		root := t.TempDir()
+		root := filepath.Join(t.TempDir(), "journal")
 		if err := os.MkdirAll(root, 0700); err != nil {
 			t.Fatal(err)
 		}
