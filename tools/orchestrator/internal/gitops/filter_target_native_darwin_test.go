@@ -112,6 +112,24 @@ func filterTargetNativeAccepted(t *testing.T, ctx context.Context) (*rawFixture,
 	return f, repo, source, producer, base, request.FilterScopeSHA256, delivery.Candidate, canonicalBase, prepared
 }
 
+func filterTargetNativeRejectBeforeGit(t *testing.T, ctx context.Context, source *FilterGitContext, repo, base, attempt, command, reservation string, accepted CandidateReceipt) {
+	t.Helper()
+	fixture := newRawFixture(t)
+	journal := &filterTargetNativeJournal{rawFixtureJournal: &rawFixtureJournal{}}
+	fixture.journal = journal.rawFixtureJournal
+	broker, scope := freezeBroker(t, fixture, ctx, source.manifest, attempt, command, reservation)
+	live, err := InspectFilteredTarget(ctx, source, broker, FilterTargetRequest{Worktree: repo, Ref: "refs/heads/main", BaseOID: base, AttemptID: attempt, PlanRevision: 1, FilterScopeSHA256: scope, FilterReservationID: reservation}, accepted, journal)
+	if live != nil || err == nil {
+		if live != nil {
+			_ = live.Close()
+		}
+		t.Fatalf("pre-Git target guard accepted malformed target: live=%v err=%v", live, err)
+	}
+	if len(journal.records) != 0 || len(journal.observations) != 0 || broker.State().EverStarted {
+		t.Fatalf("pre-Git target guard started observation: records=%d observations=%d broker=%+v", len(journal.records), len(journal.observations), broker.State())
+	}
+}
+
 func TestInspectFilteredTargetNativeFixture(t *testing.T) {
 	t.Run("accepted_candidate_observes_rendered_target_without_mutation", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
@@ -120,6 +138,47 @@ func TestInspectFilteredTargetNativeFixture(t *testing.T) {
 		defer source.Close()
 		defer prepared.Close()
 		before := filterTargetNativeCapture(t, repo)
+
+		func() {
+			sidecar := filepath.Join(repo, ".git", "sharedindex.fixture")
+			if err := os.WriteFile(sidecar, []byte("not an index\n"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			defer func() {
+				if err := os.Remove(sidecar); err != nil && !os.IsNotExist(err) {
+					t.Fatalf("remove owned split-index sidecar: %v", err)
+				}
+			}()
+			filterTargetNativeRejectBeforeGit(t, ctx, source, repo, base, "inspect-sidecar", "inspect-sidecar-command", "inspect-sidecar-filter", accepted)
+		}()
+
+		func() {
+			main := filepath.Join(repo, ".git", "refs", "heads", "main")
+			original, err := os.ReadFile(main)
+			if err != nil {
+				t.Fatal(err)
+			}
+			info, err := os.Stat(main)
+			if err != nil {
+				t.Fatal(err)
+			}
+			alias := filepath.Join(repo, ".git", "refs", "heads", "alias")
+			if err = os.WriteFile(alias, []byte(base+"\n"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			if err = os.WriteFile(main, []byte("ref: refs/heads/alias\n"), info.Mode().Perm()); err != nil {
+				t.Fatal(err)
+			}
+			defer func() {
+				if err := os.WriteFile(main, original, info.Mode().Perm()); err != nil {
+					t.Fatalf("restore main loose ref: %v", err)
+				}
+				if err := os.Remove(alias); err != nil && !os.IsNotExist(err) {
+					t.Fatalf("remove owned loose ref alias: %v", err)
+				}
+			}()
+			filterTargetNativeRejectBeforeGit(t, ctx, source, repo, base, "inspect-symref", "inspect-symref-command", "inspect-symref-filter", accepted)
+		}()
 
 		observerFixture := newRawFixture(t)
 		journal := &filterTargetNativeJournal{rawFixtureJournal: &rawFixtureJournal{}}
@@ -141,20 +200,37 @@ func TestInspectFilteredTargetNativeFixture(t *testing.T) {
 		if len(journal.observations) != 1 || !reflect.DeepEqual(journal.observations[0], receipt) {
 			t.Fatalf("target journal receipt=%#v live=%#v", journal.observations, receipt)
 		}
+		accepted.Binding.RunID = "caller-mutated"
+		accepted.OrderedInputOIDs[0] = "caller-mutated"
+		accepted.Filter.Views[0].Path = "caller-mutated"
+		exported := live.Receipt()
+		exported.OrderedInputOIDs[0] = "returned-mutated"
+		exported.BaseFilter.Views[0].Path = "returned-mutated"
+		if got := live.Receipt(); !reflect.DeepEqual(got, receipt) || !reflect.DeepEqual(journal.observations[0], receipt) {
+			t.Fatalf("target observation retained caller/exported mutation: live=%#v journal=%#v want=%#v", got, journal.observations[0], receipt)
+		}
 		if err = live.Verify(ctx); err != nil {
 			t.Fatalf("verify live target observation: %v", err)
 		}
 		filterTargetNativeAssertPreserved(t, repo, before)
 
-		// A restored byte sequence has a new file identity, so a previously live
-		// observer must still reject it after an observed drift.
-		if err = os.WriteFile(filepath.Join(repo, "README"), []byte("target drift\n"), 0600); err != nil {
+		// Replace the directory entry, then restore its bytes through another
+		// replacement: the original observation must retain the old identity.
+		readme := filepath.Join(repo, "README")
+		drift := filepath.Join(repo, "README.drift")
+		if err = os.WriteFile(drift, []byte("target drift\n"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		if err = os.Rename(drift, readme); err != nil {
 			t.Fatal(err)
 		}
 		if err = live.Verify(ctx); err == nil {
-			t.Fatal("live target observation accepted README drift")
+			t.Fatal("live target observation accepted renamed README drift")
 		}
-		if err = os.WriteFile(filepath.Join(repo, "README"), before.files["README"], before.modes["README"].Perm()); err != nil {
+		if err = os.WriteFile(drift, before.files["README"], before.modes["README"].Perm()); err != nil {
+			t.Fatal(err)
+		}
+		if err = os.Rename(drift, readme); err != nil {
 			t.Fatal(err)
 		}
 		if err = live.Verify(ctx); err == nil {
