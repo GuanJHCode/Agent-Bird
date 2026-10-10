@@ -7,6 +7,8 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -27,6 +29,8 @@ type filterTargetHostFileIdentity struct {
 	Mode          os.FileMode
 	Size          int64
 	ModUnixNano   int64
+	UID           uint32
+	Links         uint64
 }
 
 type filterTargetHostBaseline struct {
@@ -37,26 +41,133 @@ type filterTargetHostBaseline struct {
 
 func filterTargetHostCapture(t *testing.T, repo string) filterTargetHostBaseline {
 	t.Helper()
-	out := filterTargetHostBaseline{files: map[string][]byte{}, modes: map[string]os.FileMode{}, identities: map[string]filterTargetHostFileIdentity{}}
-	for _, rel := range []string{"file", ".gitattributes", ".git/index", ".git/HEAD", ".git/refs/heads/main"} {
-		path := filepath.Join(repo, rel)
-		raw, err := os.ReadFile(path)
-		if err != nil {
-			t.Fatalf("read target baseline %s: %v", rel, err)
-		}
-		info, err := os.Stat(path)
-		if err != nil {
-			t.Fatalf("stat target baseline %s: %v", rel, err)
-		}
-		stat, ok := info.Sys().(*syscall.Stat_t)
-		if !ok {
-			t.Fatalf("target baseline %s lacks native stat", rel)
-		}
-		out.files[rel] = append([]byte(nil), raw...)
-		out.modes[rel] = info.Mode()
-		out.identities[rel] = filterTargetHostFileIdentity{Device: int64(stat.Dev), Inode: int64(stat.Ino), Mode: info.Mode(), Size: info.Size(), ModUnixNano: info.ModTime().UnixNano()}
+	out, err := filterTargetHostInventory(repo)
+	if err != nil {
+		t.Fatal(err)
 	}
 	return out
+}
+
+func filterTargetHostIdentity(info os.FileInfo) (filterTargetHostFileIdentity, error) {
+	st, ok := info.Sys().(*syscall.Stat_t)
+	if !ok {
+		return filterTargetHostFileIdentity{}, fmt.Errorf("native stat unavailable")
+	}
+	return filterTargetHostFileIdentity{Device: int64(st.Dev), Inode: int64(st.Ino), Mode: info.Mode(), Size: info.Size(), ModUnixNano: info.ModTime().UnixNano(), UID: st.Uid, Links: uint64(st.Nlink)}, nil
+}
+
+// Capture every named worktree and .git entry, including absence of sidecars
+// via the complete entry set. Never follow symlinks to compare an old inode.
+func filterTargetHostInventory(repo string) (filterTargetHostBaseline, error) {
+	out := filterTargetHostBaseline{files: map[string][]byte{}, modes: map[string]os.FileMode{}, identities: map[string]filterTargetHostFileIdentity{}}
+	entries, pathBytes := 0, 0
+	total := int64(0)
+	err := filepath.WalkDir(repo, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		rel, e := filepath.Rel(repo, path)
+		if e != nil {
+			return e
+		}
+		entries++
+		pathBytes += len(rel)
+		if entries > 4096 || pathBytes > 256<<10 || len(rel) > 512 {
+			return fmt.Errorf("target inventory bounds")
+		}
+		before, e := os.Lstat(path)
+		if e != nil {
+			return e
+		}
+		if !before.IsDir() && !before.Mode().IsRegular() {
+			return fmt.Errorf("target special named entry %s", rel)
+		}
+		namedID, e := filterTargetHostIdentity(before)
+		if e != nil {
+			return e
+		}
+		flags := os.O_RDONLY | syscall.O_NOFOLLOW | syscall.O_NONBLOCK
+		if before.IsDir() {
+			flags |= syscall.O_DIRECTORY
+		}
+		f, e := os.OpenFile(path, flags, 0)
+		if e != nil {
+			return e
+		}
+		defer f.Close()
+		fi, e := f.Stat()
+		if e != nil {
+			return e
+		}
+		heldID, e := filterTargetHostIdentity(fi)
+		if e != nil || heldID != namedID {
+			return fmt.Errorf("target opened identity %s: %v", rel, e)
+		}
+		if before.Mode().IsRegular() {
+			if before.Size() > 16<<20 || namedID.Links != 1 {
+				return fmt.Errorf("target file bounds/links %s", rel)
+			}
+			total += before.Size()
+			if total > 256<<20 {
+				return fmt.Errorf("target aggregate bounds")
+			}
+			raw, e := io.ReadAll(io.LimitReader(f, 16<<20+1))
+			if e != nil || int64(len(raw)) != before.Size() {
+				return fmt.Errorf("target read %s: %v", rel, e)
+			}
+			out.files[rel] = raw
+		}
+		after, e := os.Lstat(path)
+		if e != nil {
+			return e
+		}
+		afterID, e := filterTargetHostIdentity(after)
+		if e != nil || afterID != heldID {
+			return fmt.Errorf("target final identity %s: %v", rel, e)
+		}
+		out.modes[rel], out.identities[rel] = before.Mode(), heldID
+		return f.Close()
+	})
+	return out, err
+}
+
+func TestFilterTargetInventoryOracleDetectsNamedChanges(t *testing.T) {
+	for _, mode := range []string{"symlink_to_old_inode", "new_file", "git_lock"} {
+		t.Run(mode, func(t *testing.T) {
+			root := t.TempDir()
+			if err := os.Mkdir(filepath.Join(root, ".git"), 0700); err != nil {
+				t.Fatal(err)
+			}
+			file := filepath.Join(root, "file")
+			if err := os.WriteFile(file, []byte("content"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			before, err := filterTargetHostInventory(root)
+			if err != nil {
+				t.Fatal(err)
+			}
+			switch mode {
+			case "symlink_to_old_inode":
+				if err = os.Rename(file, file+"-old"); err != nil {
+					t.Fatal(err)
+				}
+				if err = os.Symlink(file+"-old", file); err != nil {
+					t.Fatal(err)
+				}
+			case "new_file":
+				err = os.WriteFile(filepath.Join(root, "extra"), nil, 0600)
+			case "git_lock":
+				err = os.WriteFile(filepath.Join(root, ".git", "index.lock"), nil, 0600)
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			after, err := filterTargetHostInventory(root)
+			if err == nil && reflect.DeepEqual(before, after) {
+				t.Fatal("named inventory change hidden")
+			}
+		})
+	}
 }
 
 func filterTargetHostAssertPreserved(t *testing.T, repo string, want filterTargetHostBaseline) {
@@ -167,7 +278,7 @@ func filterTargetNativeAcceptedReview(t *testing.T, ctx context.Context, db *sto
 	}
 	validationAccept(t, ctx, db, targetGrant)
 	filterTargetHostAssertPreserved(t, repo, baseline)
-	t.Logf("controlled_filtered_target_preflight original_host_callback=true provider_started=false target_paths_unchanged=5 accepted_review_preserved=true active_ms=%d cleanup_bytes=%d root=%s", exited.ActiveMS, exited.GitFilterCleanup.RemovedBytes, root)
+	t.Logf("controlled_filtered_target_preflight original_host_callback=true provider_started=false complete_target_inventory_unchanged=true accepted_review_preserved=true active_ms=%d cleanup_bytes=%d root=%s", exited.ActiveMS, exited.GitFilterCleanup.RemovedBytes, root)
 	if bytes.Equal(baseB, baseR) {
 		t.Fatal("target filter fixture did not distinguish canonical and rendered base")
 	}
