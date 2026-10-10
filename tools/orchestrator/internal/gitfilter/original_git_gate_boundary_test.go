@@ -422,6 +422,44 @@ func TestOriginalGitGateConstructorOwner(t *testing.T) {
 	}
 }
 
+func TestOriginalGitGateInvalidClose(t *testing.T) {
+	for _, active := range []bool{false, true} {
+		t.Run(map[bool]string{false: "prepared", true: "active_blocked_read"}[active], func(t *testing.T) {
+			g, s, b, ctx := gateNew(t)
+			var done chan error
+			var client net.Conn
+			if active {
+				if e := g.activateWith(ctx, gateTestOwner{peer: gateTestPeer{}}, g.digest); e != nil {
+					t.Fatal(e)
+				}
+				server, c := net.Pipe()
+				client = c
+				defer client.Close()
+				done = make(chan error, 1)
+				go func() { done <- g.Serve(server, 17) }()
+				gateAwait(t, func() bool { return g.State().Serving })
+			}
+			if e := g.Close(nil); e == nil {
+				t.Error("nil close context accepted")
+			}
+			st := g.State()
+			if !st.Revoked || !st.Failed || !st.Unknown {
+				t.Errorf("invalid Close retained authority: %+v", st)
+			}
+			_ = g.Close(gateCloseContext(t))
+			if active && gateResult(t, done) == nil {
+				t.Error("invalid Close left successful Serve")
+			}
+			if !g.State().Drained || s.State().Closed || b.loads != 0 || b.closes != 0 || b.cleanups != 0 {
+				t.Fatalf("drain/borrowed owner: %+v %+v", g.State(), s.State())
+			}
+			if e := g.activateWith(ctx, gateTestOwner{peer: gateTestPeer{}}, g.digest); e == nil {
+				t.Error("activation after invalid Close")
+			}
+		})
+	}
+}
+
 func TestExactSessionOriginalOwnership(t *testing.T) {
 	for _, closed := range []bool{false, true} {
 		t.Run(map[bool]string{false: "live", true: "closed"}[closed], func(t *testing.T) {
