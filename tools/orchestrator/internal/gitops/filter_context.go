@@ -148,6 +148,17 @@ func (g *FilterGitContext) Verify(ctx context.Context) error {
 	return g.verifyCaptured(private)
 }
 
+func (g *FilterGitContext) verifyDirectory(dir string) error {
+	if CanonicalPath(dir) != g.repoRoot {
+		return fail(CodeIdentityChanged, "filter git directory", fmt.Errorf("foreign repository"))
+	}
+	actual, err := directoryIdentity(dir)
+	if err != nil || actual != g.repoIdentity {
+		return fail(CodeIdentityChanged, "filter git directory", err)
+	}
+	return nil
+}
+
 func (g *FilterGitContext) capture(ctx context.Context) error {
 	config, attrs, digest, err := g.readState(ctx)
 	if err != nil {

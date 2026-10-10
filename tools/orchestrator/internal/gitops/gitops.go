@@ -546,7 +546,7 @@ func validateOIDInRepo(ctx context.Context, repo, oid string) error {
 
 // NUL-delimited paths must retain leading/trailing whitespace and newlines.
 func gitRecords(ctx context.Context, repo string, args ...string) (string, error) {
-	if managed, _ := ctx.Value(candidateRunnerKey{}).(bool); managed {
+	if managed, _ := ctx.Value(candidateRunnerKey{}).(bool); managed || filterGitFromContext(ctx) != nil {
 		result, err := candidateGit(ctx, repo, nil, args...)
 		return result.Stdout, err
 	}

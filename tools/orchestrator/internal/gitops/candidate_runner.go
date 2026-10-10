@@ -53,6 +53,9 @@ func (out *candidateOutput) Write(p []byte) (int, error) {
 func candidateGit(ctx context.Context, dir string, stdin io.Reader, args ...string) (CommandResult, error) {
 	filter := filterGitFromContext(ctx)
 	if filter != nil {
+		if err := filter.verifyDirectory(dir); err != nil {
+			return CommandResult{}, err
+		}
 		if err := filter.Verify(ctx); err != nil {
 			return CommandResult{}, err
 		}
@@ -86,6 +89,9 @@ func candidateGitWithStart(ctx context.Context, dir string, stdin io.Reader, sta
 	pinnedPath, pinnedSHA := "", ""
 	argv := append([]string{"--no-replace-objects", "-c", "maintenance.auto=false", "-c", "gc.auto=0", "-C", dir}, args...)
 	if filter := filterGitFromContext(ctx); filter != nil {
+		if tracked, _ := ctx.Value(trackedIntegrationRunnerKey{}).(bool); tracked {
+			return CommandResult{}, fail(CodeInvalidInput, "filter git", fmt.Errorf("tracked integration unsupported"))
+		}
 		gitPath, pinnedPath, pinnedSHA, env, argv = filter.git.path, filter.git.path, filter.git.sha256, filterGitEnv(), append(filterGitConfigArgs(filter.manifest.DriverID), append([]string{"-C", dir}, args...)...)
 	}
 	if tracked, _ := ctx.Value(trackedIntegrationRunnerKey{}).(bool); tracked {
@@ -170,6 +176,9 @@ func freezeGit(ctx context.Context, dir string, stdin io.Reader, args ...string)
 func candidateGitStream(ctx context.Context, dir string, out io.Writer, args ...string) error {
 	filter := filterGitFromContext(ctx)
 	if filter != nil {
+		if err := filter.verifyDirectory(dir); err != nil {
+			return err
+		}
 		if err := filter.Verify(ctx); err != nil {
 			return err
 		}
@@ -195,6 +204,9 @@ func candidateGitStreamWithStart(ctx context.Context, dir string, out io.Writer,
 	pinnedPath, pinnedSHA := "", ""
 	argv := append([]string{"--no-replace-objects", "-c", "maintenance.auto=false", "-c", "gc.auto=0", "-C", dir}, args...)
 	if filter := filterGitFromContext(ctx); filter != nil {
+		if tracked, _ := ctx.Value(trackedIntegrationRunnerKey{}).(bool); tracked {
+			return fail(CodeInvalidInput, "filter git", fmt.Errorf("tracked integration unsupported"))
+		}
 		gitPath, pinnedPath, pinnedSHA, env, argv = filter.git.path, filter.git.path, filter.git.sha256, filterGitEnv(), append(filterGitConfigArgs(filter.manifest.DriverID), append([]string{"-C", dir}, args...)...)
 	}
 	digest := DigestDetail(dir + "\x00" + strings.Join(argv, "\x00"))
