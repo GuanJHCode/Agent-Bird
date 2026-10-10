@@ -288,6 +288,12 @@ func TestExactTransformSession(t *testing.T) {
 					t.Fatal("missing uncertainty")
 				}
 			}
+			switch kind {
+			case "wait", "tree", "timestamps", "unknown":
+				if len(j.records) != 2 || j.records[1].Phase != "terminal" || !j.records[1].Unknown || b.Binding() != (StreamBinding{}) {
+					t.Fatalf("unknown observation missing: %+v", j.records)
+				}
+			}
 			calls := b.transforms
 			if _, e = s.Exchange(ctx, seq+1, "a.txt", "smudge", exactProduce("B")); e == nil || b.transforms != calls {
 				t.Fatal("failed session reused")

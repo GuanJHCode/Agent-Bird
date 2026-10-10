@@ -49,7 +49,7 @@ type ExactTransformSession struct {
 	mu           sync.Mutex
 	broker       ResourceBroker
 	binding      StreamBinding
-	brokerState  BrokerState
+	observation  BrokerObservation
 	journal      ExactTransformJournal
 	permits      []ExactTransformPermit
 	used         []uint16
@@ -103,7 +103,7 @@ func OpenExactTransformSession(broker ResourceBroker, expected StreamBinding, ma
 	}
 	raw, _ := json.Marshal(allowed)
 	h := sha256.Sum256(append([]byte("exact-filter-transform-permits-v1\x00"), raw...))
-	s := &ExactTransformSession{broker: broker, binding: expected, brokerState: broker.State(), journal: journal, permits: allowed, used: make([]uint16, len(allowed)), maximumCalls: total, permitsSHA: hex.EncodeToString(h[:])}
+	s := &ExactTransformSession{broker: broker, binding: expected, observation: broker.Observation(), journal: journal, permits: allowed, used: make([]uint16, len(allowed)), maximumCalls: total, permitsSHA: hex.EncodeToString(h[:])}
 	if err = s.ownerGuard(); err != nil {
 		return nil, err
 	}
@@ -166,7 +166,7 @@ func (s *ExactTransformSession) Exchange(ctx context.Context, sequence uint64, p
 	mutated = true
 	loaded, err := s.broker.LoadStream(ctx, 0, produce)
 	record.InputSHA256, record.InputBytes = loaded.SHA256, loaded.Bytes
-	retErr = errors.Join(err, s.activeGuard(ctx))
+	retErr = errors.Join(err, s.observeStream(err, true), s.executionStateGuard(ctx))
 	selected := -1
 	if retErr == nil {
 		for i, p := range s.permits {
@@ -188,7 +188,7 @@ func (s *ExactTransformSession) Exchange(ctx context.Context, sequence uint64, p
 		result, retErr = s.broker.Transform(ctx, operation, 0, 1)
 		record.OutputSHA256, record.OutputBytes = result.OutputSHA256, result.OutputBytes
 		record.Started, record.WaitProved, record.TreeProved = result.Started, result.WaitProved, result.TreeProved
-		retErr = errors.Join(retErr, s.observeTransform(result), s.activeGuard(ctx))
+		retErr = errors.Join(retErr, s.observeTransform(result, retErr), s.executionStateGuard(ctx))
 		p := s.permits[selected]
 		if !result.Accepted || !result.Started || result.ExitCode != 0 || result.ScopeSHA256 != s.binding.ScopeSHA256 || !exactDigest(result.RequestSHA256) || result.InputSHA256 != p.InputSHA256 || result.InputBytes != p.InputBytes || result.OutputSHA256 != p.OutputSHA256 || result.OutputBytes != p.OutputBytes {
 			retErr = errors.Join(retErr, ErrExactTransformSession)
@@ -200,7 +200,7 @@ func (s *ExactTransformSession) Exchange(ctx context.Context, sequence uint64, p
 		err = s.broker.ReadSlot(ctx, 1, out)
 		var readErr error
 		output, readErr = out.take()
-		retErr = errors.Join(err, readErr, s.activeGuard(ctx))
+		retErr = errors.Join(err, readErr, s.observeStream(err, false), s.executionStateGuard(ctx))
 		h := sha256.Sum256(output)
 		if int64(len(output)) != p.OutputBytes || hex.EncodeToString(h[:]) != p.OutputSHA256 {
 			retErr = errors.Join(retErr, ErrExactTransformSession)
@@ -210,6 +210,8 @@ func (s *ExactTransformSession) Exchange(ctx context.Context, sequence uint64, p
 	// Terminal records an exchange observation, not publication of bytes.
 	finalCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	beforeTerminal := s.broker.Observation()
+	guardErr := s.sameObservation(beforeTerminal)
 	record.Phase = "terminal"
 	record.Outcome = "accepted"
 	if retErr != nil {
@@ -219,15 +221,18 @@ func (s *ExactTransformSession) Exchange(ctx context.Context, sequence uint64, p
 	if record.Unknown {
 		record.Outcome = "unknown"
 	}
-	if err = s.ownerGuard(); err == nil {
-		err = s.journal.RecordExactTransform(finalCtx, record)
-		err = errors.Join(err, s.ownerGuard())
-	}
-	if err != nil {
+	// Even loss of execution usability must produce an observation of the
+	// original exchange. The frozen identity is not renewed execution authority.
+	journalErr := s.journal.RecordExactTransform(finalCtx, record)
+	if after := s.broker.Observation(); after != beforeTerminal {
 		s.markUnknown()
-		return nil, errors.Join(retErr, err)
+		guardErr = errors.Join(guardErr, process.ErrProcessTreeUnknown)
 	}
-	terminal = true
+	if journalErr != nil {
+		s.markUnknown()
+	}
+	terminal = journalErr == nil
+	retErr = errors.Join(retErr, guardErr, journalErr)
 	if retErr != nil {
 		return nil, retErr
 	}
@@ -246,42 +251,91 @@ func (s *ExactTransformSession) Exchange(ctx context.Context, sequence uint64, p
 	return output, nil
 }
 
-// Only this Exchange's original Transform may advance Broker process state.
-func (s *ExactTransformSession) observeTransform(r Result) error {
-	if r.Unknown || r.Started && (!r.WaitProved || !r.TreeProved || r.StartedAt.IsZero() || r.TerminalAt.IsZero() || r.TerminalAt.Before(r.StartedAt) || !s.brokerState.TerminalAt.IsZero() && r.StartedAt.Before(s.brokerState.TerminalAt)) {
+// An atomic lifecycle observation preserves original identity after a known
+// failure revokes Binding(). Only this call may advance the cached lifecycle.
+func (s *ExactTransformSession) adoptObservation(next BrokerObservation) error {
+	if next.OriginalBinding != s.binding || !next.Ready || next.Closed || next.Removed {
 		s.markUnknown()
 		return process.ErrProcessTreeUnknown
 	}
-	next := s.brokerState
+	s.observation = next
+	if next.State.Unknown {
+		s.markUnknown()
+		return process.ErrProcessTreeUnknown
+	}
+	return nil
+}
+func (s *ExactTransformSession) observeStream(callErr error, load bool) error {
+	next := s.broker.Observation()
+	prior := s.observation
+	expected := prior
+	if load && callErr != nil {
+		expected.Failed = next.Failed
+	}
+	if next != expected {
+		// Broker can mark I/O uncertainty, but never invent a known process start
+		// during LoadStream/ReadSlot. Either way the session cannot continue.
+		s.markUnknown()
+		return errors.Join(process.ErrProcessTreeUnknown, s.adoptObservation(next))
+	}
+	return s.adoptObservation(next)
+}
+func (s *ExactTransformSession) observeTransform(r Result, callErr error) error {
+	next := s.broker.Observation()
+	before := s.observation
+	unproven := r.Unknown || r.Started && (!r.WaitProved || !r.TreeProved || r.StartedAt.IsZero() || r.TerminalAt.IsZero() || r.TerminalAt.Before(r.StartedAt) || !before.State.TerminalAt.IsZero() && r.StartedAt.Before(before.State.TerminalAt))
+	if unproven || next.State.Unknown {
+		s.markUnknown()
+		return errors.Join(process.ErrProcessTreeUnknown, s.adoptObservation(next))
+	}
+	expected := before
 	if r.Started {
-		next.EverStarted = true
-		if next.StartedAt.IsZero() {
-			next.StartedAt = r.StartedAt
+		expected.State.EverStarted = true
+		if expected.State.StartedAt.IsZero() {
+			expected.State.StartedAt = r.StartedAt
 		}
-		next.TerminalAt = r.TerminalAt
+		expected.State.TerminalAt = r.TerminalAt
 	}
-	if s.broker.State() != next {
+	if callErr != nil {
+		expected.Failed = next.Failed
+	} else {
+		expected.Failed = !r.Accepted
+	}
+	if next != expected {
 		s.markUnknown()
 		return process.ErrProcessTreeUnknown
 	}
-	s.brokerState = next
+	return s.adoptObservation(next)
+}
+func (s *ExactTransformSession) sameObservation(actual BrokerObservation) error {
+	if actual != s.observation {
+		s.markUnknown()
+		return process.ErrProcessTreeUnknown
+	}
 	return nil
 }
 func (s *ExactTransformSession) ownerGuard() error {
-	actual := s.broker.State()
-	if actual.Unknown || actual != s.brokerState {
+	actual := s.broker.Observation()
+	if err := s.sameObservation(actual); err != nil {
+		return err
+	}
+	if actual.OriginalBinding != s.binding {
 		s.markUnknown()
 		return process.ErrProcessTreeUnknown
 	}
-	if s.broker.Binding() != s.binding {
+	if !actual.Ready || actual.Failed || actual.Closed || actual.Removed || actual.State.Unknown {
+		if actual.State.Unknown || actual.Closed || actual.Removed {
+			s.markUnknown()
+		}
 		return ErrExactTransformSession
+	}
+	if s.broker.Binding() != s.binding {
+		s.markUnknown()
+		return process.ErrProcessTreeUnknown
 	}
 	return nil
 }
-func (s *ExactTransformSession) activeGuard(ctx context.Context) error {
-	if err := s.ownerGuard(); err != nil {
-		return err
-	}
+func (s *ExactTransformSession) executionStateGuard(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -291,6 +345,9 @@ func (s *ExactTransformSession) activeGuard(ctx context.Context) error {
 		return ErrExactTransformSession
 	}
 	return nil
+}
+func (s *ExactTransformSession) activeGuard(ctx context.Context) error {
+	return errors.Join(s.ownerGuard(), s.executionStateGuard(ctx))
 }
 func (s *ExactTransformSession) markUnknown() { s.mu.Lock(); s.state.Unknown = true; s.mu.Unlock() }
 func (s *ExactTransformSession) State() ExactTransformState {

@@ -118,4 +118,62 @@ func TestExactTransformSessionNativeBroker(t *testing.T) {
 		}
 		t.Log("wrong_input_original_broker_never_started=true cleanup=known")
 	})
+	for _, kind := range []string{"known_tool_exit", "known_producer_error"} {
+		t.Run(kind, func(t *testing.T) {
+			mode := "xor"
+			if kind == "known_tool_exit" {
+				mode = "fail"
+			}
+			req := brokerRequest(t, f, mode)
+			b := liveBroker(t, ctx, f, req)
+			binding := b.Binding()
+			p := []ExactTransformPermit{{Path: "file.txt", Operation: "clean", InputSHA256: exactHash([]byte("B")), InputBytes: 1, OutputSHA256: exactHash([]byte{0x18}), OutputBytes: 1, MaximumCalls: 1}}
+			j := &exactTestJournal{}
+			s, err := OpenExactTransformSession(b, binding, req.Manifest, p, j)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() {
+				if s.State().Unknown || b.State().Unknown {
+					f.retain = true
+				}
+				s.Close()
+			}()
+			produce := exactProduce("B")
+			if kind == "known_producer_error" {
+				produce = func(w io.Writer) error {
+					_, err := w.Write([]byte("partial"))
+					if err != nil {
+						return err
+					}
+					return io.ErrUnexpectedEOF
+				}
+			}
+			out, err := s.Exchange(ctx, 1, "file.txt", "clean", produce)
+			if err == nil || out != nil || !s.State().Failed || s.State().Unknown || b.State().Unknown || b.Binding() != (StreamBinding{}) {
+				t.Fatalf("known failure became unknown: session=%+v broker=%+v err=%v", s.State(), b.Observation(), err)
+			}
+			if b.Observation().OriginalBinding != binding || !b.Observation().Failed {
+				t.Fatal("original failure identity lost")
+			}
+			if len(j.records) != 2 || j.records[1].Outcome != "rejected" || j.records[1].Unknown {
+				t.Fatalf("terminal observation=%+v", j.records)
+			}
+			terminal := j.records[1]
+			if kind == "known_tool_exit" {
+				if !terminal.Started || !terminal.WaitProved || !terminal.TreeProved || !b.State().EverStarted {
+					t.Fatal("tool exit missing original Wait/tree")
+				}
+			} else if terminal.Started || b.State().EverStarted {
+				t.Fatal("producer failure started tool")
+			}
+			cleanup, err := b.Cleanup(ctx)
+			if err != nil || cleanup == nil {
+				f.retain = true
+				t.Fatalf("known cleanup: %v", err)
+			}
+			t.Logf("known_failure kind=%s original_started=%t wait=%t tree=%t session_unknown=%t cleanup_bytes=%d", kind, terminal.Started, terminal.WaitProved, terminal.TreeProved, s.State().Unknown, cleanup.RemovedBytes)
+		})
+	}
+
 }
