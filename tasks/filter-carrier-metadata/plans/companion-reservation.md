@@ -17,6 +17,12 @@ unchanged hashes, budgets, pending replay and accepted artifacts.
 Proposed LaunchCommand field: `GitFilterCarrier *GitFilterCarrierGrant`, omitted
 when absent. Version 1 includes an independent ReservationID/carrier scope,
 original GitFilter ReservationID+Scope+Manifest and fixed MetadataBytes 131074.
+For the Darwin short-socket design it also freezes
+`RuntimeNamespace=darwin-private-tmp-v1`, `DirectorySlots=1`, `SocketSlots=1`.
+These authorize a bounded node inventory, not additional regular payload. The
+carrier scope includes these exact constants and the selected original grant;
+old actions retain companion=nil. One reservation/live owner cannot create a
+second directory after a create attempt or uncertainty.
 Carrier scope uses its own digest domain and binds the HostArtifact original
 segment tuple, PlanRevision and the complete original GitFilter grant. Only a
 future exact carrier action can receive it from Store; callers cannot inject it.
@@ -64,7 +70,26 @@ identities before/after every write, and record only bounded current-state
 scalars, ordinal and rolling digest. Never append all 1024 exchange records.
 Spool is a write mechanism; the Store-generated grant is budget authority.
 
-Socket/directory inventory belongs to the transport contract. If B requires
+The socket cannot generally live under the segment path: the normal
+state/host-spool/launch/attempt/segment layout can exceed Darwin sun_path. B1's
+private design uses one fresh random 0700 directory under literal /private/tmp
+and one 0600 socket, held parent/directory descriptors and exact named checks.
+The original segment companion journal must record reserved (selected basename,
+parent identity, segment and grant binding) before mkdir/bind, then prepared
+identities. Metadata callbacks recheck both roots. The listener disables
+automatic unlink; after original gate drain and Git Wait/tree, cross-root
+cleanup must prove original listener close, exact socket unlink, directory
+empty/removal, parent fsync and named absence before reporting removed.
+
+Broker cleanup does not cover or delete this external root. The cleanup DTO
+must bind namespace, selected basename, original identities and final known
+removal to the same companion reservation. Store requires it together with
+Broker cleanup for atomic release; no missing/Unknown receipt can release.
+Cold recovery retains the journal/reservation and never adopts or scans /tmp
+to delete entries. Native parent fsync and node lifecycle remain unverified
+until the independent B1 implementation qualifies.
+
+If B later requires
 copying/sealing a helper executable, the file needs its own explicit resource
 maximum and cleanup accounting before admission; 131074 is not permission for
 those bytes. Neither the old Broker 112 MiB nor its two journals are spare space.
