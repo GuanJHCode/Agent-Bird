@@ -7,3 +7,5 @@ F04 broker计时的首依赖已完成。生产2dad5f3直接把原Handle.DuplexLa
 最终clean1d24a18定向race：1top/3named全部PASS，0FAIL/SKIP，exit0/stderr空。实际原actor normal exit0与post-Start missing-stream注入exit-15均原Wait/tree=true，构建actor原Wait0/tree。ROOT核三批raw及三个ownedfixture root absent，摘要见data/start-boundary-summary.json。定向gitfilter vet exit0/空输出（2dad5f3，之后仅oracle变化）；生产2dad5f3及oracle1d24a18独审PASS。旧1ec0cb5范围未改的25case不重复运行。
 
 无真实Provider/model、用户安装替换或推送。该值仅供原Host下一阶段budget计时，不是wire/cold证明；完整durable broker、Git双视图与公开扩展尚未验收。
+
+组合clean025034a包含纯contract a793567和Start边界生产2dad5f3/oracle1d24a18：whole build及contract/gitfilter vet均exit0/空输出。ROOT核contract原raw（46个named含5父测试）、所有源码/runner hash及固定生产独审PASS。

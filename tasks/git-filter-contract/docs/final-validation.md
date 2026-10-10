@@ -1,6 +1,6 @@
 # F04 milestone1 strict shared DTO validation
 
-Production/test source: a793567, base e662aaa0e2a98f65ad16f30871dc8f03ce73e3a1. Initial tests/fail-closed scaffold: 4efe02f. Only new internal/contract/git_filter.go and git_filter_test.go affect Go code. No existing decoder, DTO, adapter, LaunchCommand/Event, Store, Host or public acceptance changed. ROOT owns independent review, broader build/vet and integration.
+Production/test source: a793567, base e662aaa0e2a98f65ad16f30871dc8f03ce73e3a1. Initial tests/fail-closed scaffold: 4efe02f. Only new internal/contract/git_filter.go and git_filter_test.go affect Go code. No existing decoder, DTO, adapter, LaunchCommand/Event, Store, Host or public acceptance changed. ROOT independently verified the raw result set and hashes (46 named events include 5 parent tests), source/runner hashes and review PASS at a793567. Combined clean025034a whole build and contract/gitfilter vet exit0 with empty stdout/stderr; no repeated feature tests. ROOT owns integration.
 
 ## Delivered contract
 
