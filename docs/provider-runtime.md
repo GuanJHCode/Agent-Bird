@@ -78,4 +78,4 @@ Darwin 支持带固定 `git_filter` manifest 的首次 `kind=provider` Claude/AG
 
 Host 仅在本次原进程 Wait/tree 已证明后 freeze/发布结果；旧 journal、续接、返工、重试和其他未列明 filtered action 均拒绝。canonical B 与 rendered R 分别保留摘要；validator 使用新的受管工作树恢复 R，并在结束和结果记录后复验来源 private ref。真实 Provider 返回 technical question 时仍会 waiting_user，但当前 filtered answer/continuation 不可用。
 
-[验收记录](../tasks/filter-host-pipeline/docs/final-validation.md)区分受控 Store/Host 原生链、纯约束、Linux 交叉编译与尚未执行的真实模型/公开 CLI/TUI 验收。LFS、target-bound filtered review、compose/integrate 和签名不在此形状内。
+[验收记录](../tasks/filter-host-pipeline/docs/final-validation.md)区分受控 Store/Host 原生链、纯约束、Linux 交叉编译与尚未执行的真实模型/公开 CLI/TUI 验收。已验原生链限 Darwin arm64 上由 Claude-shaped 受控进程驱动的实际 Host：fresh producer → accepted validator → content-only readonly review，review 的 Target 精确全零；AGY 在同一生产路由上仅通过准入约束测试，尚无单独原生验收。Linux 仅交叉编译，未取得 native Git/filter 资格。LFS、target-bound filtered review、compose/integrate、rework、retry/continuation 和签名不在此形状内；私有 target observer 不构成公开支持。当前 [F13 包](../tasks/closure-package-provenance/docs/filter-host-current-20261010.md) source `61431425530ab0befb7486376029f644957c3ae8` 不覆盖只读审查增量，Formal60 仍为 FAILED，Intel Mac/Windows native 延期。
