@@ -88,13 +88,14 @@ func filterReviewNativeChain(t *testing.T, includeTarget bool, targetReview ...b
 	if includeApproval {
 		approval := reviewPayload
 		approval.Directory = filepath.Join(root, "target-review")
+		approval.Profile = &adapter.ExecutionProfile{Version: 1, Role: adapter.Reviewer, Permission: adapter.ReadOnly, TimeoutMS: 900000}
 		approval.ProviderLock = &adapter.ProviderLock{Version: 1, Provider: adapter.ProviderClaude, Protocol: adapter.ProtocolID(adapter.ProviderClaude), Binary: adapter.BinaryPin{Path: approvalActor, SHA256: filterPipelineDigest(t, approvalActor), Version: "controlled-target-review"}}
 		approval.CandidateAction = &adapter.CandidateAction{Version: 1, Operation: "filter_target_review", SourceTask: "preflight", DependencyInputVersion: 1, AutoDirectory: true, Target: targetPayload.CandidateAction.Target}
 		raw, e := json.Marshal(approval)
 		if e != nil {
 			t.Fatal(e)
 		}
-		tasks = append(tasks, store.TaskSpec{ID: "target-review", RunID: "filter-native-run", MaxAttempts: 1, MaxActiveMS: 300000, Dependencies: []string{"preflight"}, AdapterPayload: raw})
+		tasks = append(tasks, store.TaskSpec{ID: "target-review", RunID: "filter-native-run", MaxAttempts: 1, MaxActiveMS: 900000, Dependencies: []string{"preflight"}, AdapterPayload: raw})
 	}
 	receipt, err := db.SubmitPlan(ctx, store.PlanSpec{Run: store.RunSpec{ID: "filter-native-run", ControllerThread: "owner", PlanRevision: 1, OriginContextID: "test", OriginPID: os.Getpid(), OriginBirth: "fixture"}, Host: store.HostLaunchSpec{OriginContextID: "test", HostGeneration: "fixture", Executable: "/private/controlled-host"}, Tasks: tasks})
 	if err != nil {
