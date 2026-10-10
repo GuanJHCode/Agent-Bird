@@ -1,0 +1,436 @@
+{
+  "created_at": "2026-10-10T05:28:15Z",
+  "directories": [
+    {
+      "device": 16777234,
+      "inode": 201247084,
+      "mode": 448,
+      "nlink": 4,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/package-b",
+      "size": 128,
+      "uid": 501
+    },
+    {
+      "device": 16777234,
+      "inode": 201247087,
+      "mode": 448,
+      "nlink": 11,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/package-b/plugin",
+      "size": 352,
+      "uid": 501
+    },
+    {
+      "device": 16777234,
+      "inode": 201247088,
+      "mode": 448,
+      "nlink": 3,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/package-b/plugin/.codex-plugin",
+      "size": 96,
+      "uid": 501
+    },
+    {
+      "device": 16777234,
+      "inode": 201247109,
+      "mode": 448,
+      "nlink": 3,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/package-b/plugin/bin",
+      "size": 96,
+      "uid": 501
+    },
+    {
+      "device": 16777234,
+      "inode": 201247098,
+      "mode": 448,
+      "nlink": 3,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/package-b/plugin/hooks",
+      "size": 96,
+      "uid": 501
+    },
+    {
+      "device": 16777234,
+      "inode": 201247101,
+      "mode": 448,
+      "nlink": 4,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/package-b/plugin/lib",
+      "size": 128,
+      "uid": 501
+    },
+    {
+      "device": 16777234,
+      "inode": 201247102,
+      "mode": 448,
+      "nlink": 4,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/package-b/plugin/lib/native_bridge",
+      "size": 128,
+      "uid": 501
+    },
+    {
+      "device": 16777234,
+      "inode": 201247105,
+      "mode": 448,
+      "nlink": 5,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/package-b/plugin/lib/trial",
+      "size": 160,
+      "uid": 501
+    },
+    {
+      "device": 16777234,
+      "inode": 201247111,
+      "mode": 448,
+      "nlink": 3,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/package-b/plugin/runtime",
+      "size": 96,
+      "uid": 501
+    },
+    {
+      "device": 16777234,
+      "inode": 201247112,
+      "mode": 448,
+      "nlink": 14,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/package-b/plugin/runtime/g0",
+      "size": 448,
+      "uid": 501
+    },
+    {
+      "device": 16777234,
+      "inode": 201247094,
+      "mode": 448,
+      "nlink": 6,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/package-b/plugin/scripts",
+      "size": 192,
+      "uid": 501
+    },
+    {
+      "device": 16777234,
+      "inode": 201247091,
+      "mode": 448,
+      "nlink": 3,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/package-b/plugin/skills",
+      "size": 96,
+      "uid": 501
+    },
+    {
+      "device": 16777234,
+      "inode": 201247092,
+      "mode": 448,
+      "nlink": 3,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/package-b/plugin/skills/orchestrate",
+      "size": 96,
+      "uid": 501
+    }
+  ],
+  "exact_work_matches": [],
+  "files": [
+    {
+      "device": 16777234,
+      "inode": 201247002,
+      "mode": 448,
+      "nlink": 1,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/orchestrator-a",
+      "sha256": "2a911b89919a071e883991171cc6dfd24ade54b5b8212d2d2de86c32b56013d0",
+      "size": 22022562,
+      "uid": 501
+    },
+    {
+      "device": 16777234,
+      "inode": 201247020,
+      "mode": 448,
+      "nlink": 1,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/orchestrator-b",
+      "sha256": "2a911b89919a071e883991171cc6dfd24ade54b5b8212d2d2de86c32b56013d0",
+      "size": 22022562,
+      "uid": 501
+    },
+    {
+      "device": 16777234,
+      "inode": 201247138,
+      "mode": 384,
+      "nlink": 1,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/package-b/package-manifest.json",
+      "sha256": "afdec3c28dedbfdc031e7215c8b13792bc2512b050cf90166b8457370fd03f21",
+      "size": 4740,
+      "uid": 501
+    },
+    {
+      "device": 16777234,
+      "inode": 201247127,
+      "mode": 384,
+      "nlink": 1,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/package-b/plugin/.codex-plugin/plugin.json",
+      "sha256": "3cb81c341921614383389325588be64316fefd090dff03be6426cef434867771",
+      "size": 699,
+      "uid": 501
+    },
+    {
+      "device": 16777234,
+      "inode": 201247110,
+      "mode": 448,
+      "nlink": 1,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/package-b/plugin/bin/codex-orchestrator",
+      "sha256": "2a911b89919a071e883991171cc6dfd24ade54b5b8212d2d2de86c32b56013d0",
+      "size": 22022562,
+      "uid": 501
+    },
+    {
+      "device": 16777234,
+      "inode": 201247090,
+      "mode": 384,
+      "nlink": 1,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/package-b/plugin/defaults.json",
+      "sha256": "d87cce1addf8d6b66930adb465abb5438214b09ac691e351a0b64865687acda5",
+      "size": 155,
+      "uid": 501
+    },
+    {
+      "device": 16777234,
+      "inode": 201247099,
+      "mode": 384,
+      "nlink": 1,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/package-b/plugin/hooks/agy-proposed-hooks.json",
+      "sha256": "4c531167f9260339323aa6e0ce9ea16cf53824e6b413c64068ebe17ecb3a28cd",
+      "size": 223,
+      "uid": 501
+    },
+    {
+      "device": 16777234,
+      "inode": 201247103,
+      "mode": 384,
+      "nlink": 1,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/package-b/plugin/lib/native_bridge/__init__.py",
+      "sha256": "41d9d039fb2d04cf66f9c76480381d829a96931ed1e1a7a327d6e40e3aa2b872",
+      "size": 50,
+      "uid": 501
+    },
+    {
+      "device": 16777234,
+      "inode": 201247104,
+      "mode": 384,
+      "nlink": 1,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/package-b/plugin/lib/native_bridge/bridge.py",
+      "sha256": "b058313f169b430c979418d08e9ad12155c9b732e3300bfa2256392932138f8a",
+      "size": 49404,
+      "uid": 501
+    },
+    {
+      "device": 16777234,
+      "inode": 201247106,
+      "mode": 384,
+      "nlink": 1,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/package-b/plugin/lib/trial/auth_guard.py",
+      "sha256": "3d2b0380a5026620f9c603c487354ae576cac8ffb29984813559f2e44eaf92ba",
+      "size": 8681,
+      "uid": 501
+    },
+    {
+      "device": 16777234,
+      "inode": 201247107,
+      "mode": 384,
+      "nlink": 1,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/package-b/plugin/lib/trial/auth_wire.py",
+      "sha256": "660572ff577d3d1302811c1107e7ae47f9447f82fce87857e669b0f733aaad79",
+      "size": 10016,
+      "uid": 501
+    },
+    {
+      "device": 16777234,
+      "inode": 201247108,
+      "mode": 384,
+      "nlink": 1,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/package-b/plugin/lib/trial/rpc_policy.py",
+      "sha256": "a4417dcf54e48c96b827f13a41c47043a4fbf0950988a95e78a35aab2e2f6f85",
+      "size": 3223,
+      "uid": 501
+    },
+    {
+      "device": 16777234,
+      "inode": 201247134,
+      "mode": 384,
+      "nlink": 1,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/package-b/plugin/payload-manifest.json",
+      "sha256": "066cac9c0f80e1a16f8bd583451213c06dd2b5e6628a775d4f9500ebdb7daa64",
+      "size": 4238,
+      "uid": 501
+    },
+    {
+      "device": 16777234,
+      "inode": 201247115,
+      "mode": 420,
+      "nlink": 1,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/package-b/plugin/runtime/g0/activation_service.py",
+      "sha256": "435d88a529a81522901da141acb2af2d7a2d4787f500d636bea150bd46964d9d",
+      "size": 59126,
+      "uid": 501
+    },
+    {
+      "device": 16777234,
+      "inode": 201247120,
+      "mode": 420,
+      "nlink": 1,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/package-b/plugin/runtime/g0/auth_isolation.py",
+      "sha256": "caf05d6d2d88b3c2abc4bef0d8d615d7588380894bc1f7c6a84dc47a5d6aee5e",
+      "size": 27327,
+      "uid": 501
+    },
+    {
+      "device": 16777234,
+      "inode": 201247121,
+      "mode": 420,
+      "nlink": 1,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/package-b/plugin/runtime/g0/delivery_adapter.py",
+      "sha256": "30e1d0a908d5305261d506d5c6cb6f5210307c8c0e5a97e039b732ac86c16c7c",
+      "size": 25605,
+      "uid": 501
+    },
+    {
+      "device": 16777234,
+      "inode": 201247122,
+      "mode": 420,
+      "nlink": 1,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/package-b/plugin/runtime/g0/delivery_audit.py",
+      "sha256": "59d8129d5409fb7fb5687a5107c81f9d85a63b8f718e4dd22cab660517af87c6",
+      "size": 10755,
+      "uid": 501
+    },
+    {
+      "device": 16777234,
+      "inode": 201247114,
+      "mode": 420,
+      "nlink": 1,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/package-b/plugin/runtime/g0/launch_activation.py",
+      "sha256": "df5ef0206ef09c1420a1cefaf4d8c1c552e5c235c0427b12333d0eca74caac5c",
+      "size": 1530,
+      "uid": 501
+    },
+    {
+      "device": 16777234,
+      "inode": 201247118,
+      "mode": 420,
+      "nlink": 1,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/package-b/plugin/runtime/g0/owned_child_guard.py",
+      "sha256": "5c0b30fc60eed9d26b08f64a82cdb69abebb27193549ac12a3e21c8850779dac",
+      "size": 12874,
+      "uid": 501
+    },
+    {
+      "device": 16777234,
+      "inode": 201247119,
+      "mode": 420,
+      "nlink": 1,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/package-b/plugin/runtime/g0/owner_helper.py",
+      "sha256": "7e09d14e45d34101a1d6ffe82170d48afef3800e7c24322ad52f0ad54563d017",
+      "size": 31741,
+      "uid": 501
+    },
+    {
+      "device": 16777234,
+      "inode": 201247113,
+      "mode": 448,
+      "nlink": 1,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/package-b/plugin/runtime/g0/projectproxy_launchd_entrypoint.py",
+      "sha256": "4816b3d092496117d20fb24431908a32ac3de684404305908dee06a0ba6d9836",
+      "size": 3315,
+      "uid": 501
+    },
+    {
+      "device": 16777234,
+      "inode": 201247117,
+      "mode": 420,
+      "nlink": 1,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/package-b/plugin/runtime/g0/proxy_observer.py",
+      "sha256": "6e1e16f37707bd8c88fd8717058afe1a4920bd406aec3b907cf7fc50e9066587",
+      "size": 30714,
+      "uid": 501
+    },
+    {
+      "device": 16777234,
+      "inode": 201247116,
+      "mode": 420,
+      "nlink": 1,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/package-b/plugin/runtime/g0/proxy_transport.py",
+      "sha256": "c6f8a3fe221730ba6ae8a76cbdc51859eeaf68fbcb665a6acdbd87cf2ff84daa",
+      "size": 27983,
+      "uid": 501
+    },
+    {
+      "device": 16777234,
+      "inode": 201247123,
+      "mode": 420,
+      "nlink": 1,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/package-b/plugin/runtime/g0/receipt_store.py",
+      "sha256": "ec8c2014dcfed03e1bbec6a2a50b3644371a47c3f2688eeaaf8d41749cf6c295",
+      "size": 5032,
+      "uid": 501
+    },
+    {
+      "device": 16777234,
+      "inode": 201247125,
+      "mode": 384,
+      "nlink": 1,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/package-b/plugin/runtime/g0/runtime-manifest.json",
+      "sha256": "2a7e403d30c87dd0ffc95cab9837080726b177a1f4e093222d87185db5498ac0",
+      "size": 2377,
+      "uid": 501
+    },
+    {
+      "device": 16777234,
+      "inode": 201247097,
+      "mode": 448,
+      "nlink": 1,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/package-b/plugin/scripts/agent-bird-agy-hook",
+      "sha256": "005b2f1bdda862db7268355ad5096fee5ce73cd0963a046b2b3e85f7908bf779",
+      "size": 345,
+      "uid": 501
+    },
+    {
+      "device": 16777234,
+      "inode": 201247096,
+      "mode": 448,
+      "nlink": 1,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/package-b/plugin/scripts/agent-bird-hook",
+      "sha256": "4201dcd41ab82ac6e2203daf3a647c58662213d2c03e7cfb5f9ba98a544b9f8a",
+      "size": 652,
+      "uid": 501
+    },
+    {
+      "device": 16777234,
+      "inode": 201247095,
+      "mode": 448,
+      "nlink": 1,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/package-b/plugin/scripts/invoke.sh",
+      "sha256": "30a76b7c1f016cba6c7dde8f360f9155cc644bcbe9273196deec85bc66f47828",
+      "size": 721,
+      "uid": 501
+    },
+    {
+      "device": 16777234,
+      "inode": 201247100,
+      "mode": 448,
+      "nlink": 1,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/package-b/plugin/scripts/native-product-bridge.py",
+      "sha256": "2871aca25151382b1b9572eef177ceda400cc75f348e6d9f2269cd30d35ee890",
+      "size": 45598,
+      "uid": 501
+    },
+    {
+      "device": 16777234,
+      "inode": 201247093,
+      "mode": 384,
+      "nlink": 1,
+      "path": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/package-b/plugin/skills/orchestrate/SKILL.md",
+      "sha256": "9b6cd7f2dfe19d0f1397b8231f74e9e55ba8de5b1d184a0ffc5e0ade65e5f80a",
+      "size": 54946,
+      "uid": 501
+    }
+  ],
+  "original_commands": 12,
+  "original_runner_exit": 0,
+  "ps_command": [
+    "ps",
+    "-axo",
+    "pid=,command="
+  ],
+  "ps_exit": 0,
+  "retained_package_a": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/package-a",
+  "retained_sentinel": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-host-package/tasks/closure-package-provenance/tmp/filter-host-current-20261010/runtime-data/keep.txt",
+  "source": "61431425530ab0befb7486376029f644957c3ae8"
+}
