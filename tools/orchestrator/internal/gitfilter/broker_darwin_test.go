@@ -147,6 +147,9 @@ func TestFilterBrokerOwnedResources(t *testing.T) {
 		if b.Load(ctx, 0, alias) == nil {
 			t.Fatal("same inode input accepted")
 		}
+		if err = alias.Close(); err != nil {
+			t.Fatal(err)
+		}
 		if err = b.ReadSlot(ctx, 0, &out); err != nil || out.String() != "keep-me" {
 			t.Fatal("alias attempt truncated slot")
 		}
