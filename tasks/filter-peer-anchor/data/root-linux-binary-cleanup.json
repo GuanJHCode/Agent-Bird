@@ -1,0 +1,11 @@
+{
+  "intent_and_result": {
+    "file": "tasks/filter-peer-anchor/tmp/linux-native/process.test",
+    "device": 16777234,
+    "inode": 201658547,
+    "size": 5667865,
+    "sha256": "d20cbd698842bba2fd1cc507ae85aa7461f5dfd716d13df0f5cee2e2ca269245",
+    "reason": "completed isolated native proof; source and raw retained",
+    "removed": true
+  }
+}
