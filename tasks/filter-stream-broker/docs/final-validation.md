@@ -15,7 +15,7 @@
 
 ## 实际证据
 
-Pinned Go1.26.8，TMPDIR=/private/tmp，Darwin。runner `scripts/run-focused.py`记录每批command/cwd/HEAD/dirty/toolchain；每次执行前测试commit或hash已固定。`data/final-summary.json`给出实际逐具名结果、完整raw SHA、当前源码SHA和精确fixture清理状态。所有stderr为空。
+Pinned Go1.26.8，TMPDIR=/private/tmp，Darwin。runner `tasks/filter-stream-broker/scripts/run-focused.py`记录每批command/cwd/HEAD/dirty/toolchain；每次执行前测试commit或hash已固定。`tasks/filter-stream-broker/data/final-summary.json`给出实际逐具名结果、完整raw SHA、当前源码SHA和精确fixture清理状态。所有stderr为空。
 
 | batch | exit | top / named | 实际结果 |
 | --- | --- | --- | --- |
