@@ -1,0 +1,518 @@
+[
+  {
+    "label": "contract-red",
+    "top": 5,
+    "named": 45,
+    "pass": 31,
+    "fail": 14,
+    "skip": 0,
+    "raw_sha256": "521a3a827c1f1d7683a9db5700ae6e32aa9d8bdd21d191b6a66e2921b445f153",
+    "stderr_bytes": 0,
+    "exit": 1,
+    "metadata": {
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-json",
+        "-count=1",
+        "./internal/contract",
+        "-run",
+        "^TestGitFilter"
+      ],
+      "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/git-filter-contract",
+      "head": "4efe02f2334eb44172a44469c35f6d16b2794d99",
+      "dirty": "",
+      "go_version": "go version go1.26.8 darwin/arm64"
+    },
+    "results": [
+      {
+        "Test": "TestGitFilterManifestValidation/valid",
+        "Action": "fail",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/version",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/driver",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/driver_chars",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/empty_paths",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/paths_limit",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/order",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/duplicate",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/case_alias",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/path_bytes",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/git_component",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/traversal",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/backslash",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/not_clean",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/control",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/invalid_utf8",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/git_path",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/tool_path",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/tool_path_bytes",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/git_version",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/digest",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/nil_args",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/args_count",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/args_bytes",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/args_expansion",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/args_control",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/nil_attributes",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/attributes_name",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/attributes_order",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/attributes_overlap",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation",
+        "Action": "fail",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterStrictWire/manifest",
+        "Action": "fail",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterStrictWire/git",
+        "Action": "fail",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterStrictWire/tool",
+        "Action": "fail",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterStrictWire/attribute",
+        "Action": "fail",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterStrictWire/grant",
+        "Action": "fail",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterStrictWire/cleanup",
+        "Action": "fail",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterStrictWire/nested_null_arg",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterStrictWire",
+        "Action": "fail",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterResourceValidation/valid_grant",
+        "Action": "fail",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterResourceValidation/grant_boundaries",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterResourceValidation/cleanup_boundaries",
+        "Action": "fail",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterResourceValidation",
+        "Action": "fail",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterDigestCloneScope",
+        "Action": "fail",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterCanonicalSizeBoundary",
+        "Action": "fail",
+        "Elapsed": 0
+      }
+    ]
+  },
+  {
+    "label": "contract-final-race",
+    "top": 5,
+    "named": 46,
+    "pass": 46,
+    "fail": 0,
+    "skip": 0,
+    "raw_sha256": "fa3ca78d86c0790ddfa3ca6c4969bbcc8e2624d951bbe95aa38373b9c8cef9a5",
+    "stderr_bytes": 0,
+    "exit": 0,
+    "metadata": {
+      "command": [
+        "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/g0-macos/data/go/bin/go",
+        "-C",
+        "tools/orchestrator",
+        "test",
+        "-json",
+        "-race",
+        "-count=1",
+        "./internal/contract",
+        "-run",
+        "^TestGitFilter"
+      ],
+      "cwd": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/git-filter-contract",
+      "head": "a793567a123f7df496f9f4c9b6f37ec9b00e6a26",
+      "dirty": "",
+      "go_version": "go version go1.26.8 darwin/arm64"
+    },
+    "results": [
+      {
+        "Test": "TestGitFilterManifestValidation/valid",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/independent_limits",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/version",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/driver",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/driver_chars",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/empty_paths",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/paths_limit",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/order",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/duplicate",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/case_alias",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/path_bytes",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/git_component",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/traversal",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/backslash",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/not_clean",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/control",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/invalid_utf8",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/git_path",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/tool_path",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/tool_path_bytes",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/git_version",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/digest",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/nil_args",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/args_count",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/args_bytes",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/args_expansion",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/args_control",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/nil_attributes",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/attributes_name",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/attributes_order",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation/attributes_overlap",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterManifestValidation",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterStrictWire/manifest",
+        "Action": "pass",
+        "Elapsed": 0.02
+      },
+      {
+        "Test": "TestGitFilterStrictWire/git",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterStrictWire/tool",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterStrictWire/attribute",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterStrictWire/grant",
+        "Action": "pass",
+        "Elapsed": 0.01
+      },
+      {
+        "Test": "TestGitFilterStrictWire/cleanup",
+        "Action": "pass",
+        "Elapsed": 0.01
+      },
+      {
+        "Test": "TestGitFilterStrictWire/nested_null_arg",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterStrictWire",
+        "Action": "pass",
+        "Elapsed": 0.03
+      },
+      {
+        "Test": "TestGitFilterResourceValidation/valid_grant",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterResourceValidation/grant_boundaries",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterResourceValidation/cleanup_boundaries",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterResourceValidation",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterDigestCloneScope",
+        "Action": "pass",
+        "Elapsed": 0
+      },
+      {
+        "Test": "TestGitFilterCanonicalSizeBoundary",
+        "Action": "pass",
+        "Elapsed": 0
+      }
+    ]
+  }
+]
