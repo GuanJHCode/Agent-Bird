@@ -368,6 +368,10 @@ func (j *durableJournal) RecordCandidateAction(_ context.Context, phase string, 
 	return j.append("candidate_action_"+phase, value)
 }
 
+func (j *durableJournal) RecordFilteredTargetObservation(_ context.Context, observation gitops.FilteredTargetObservationV1) error {
+	return j.append("filter_target_observed", observation)
+}
+
 func (j *durableJournal) RecordFilterMaterialized(_ context.Context, receipt gitops.MaterializeReceipt) error {
 	return j.append("filter_materialized", receipt)
 }
