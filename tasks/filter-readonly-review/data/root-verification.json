@@ -1,0 +1,104 @@
+{
+  "qualified_source": "4e29d8061f8012451a1fcd72228461780ce93640",
+  "production_source": "3f140274c9c3feb63bd015680aa7cf6adc9493e9",
+  "orchestrator_tree": "37e4d5ca933e83a7b8f5b14a2d4acb939e9bf190",
+  "commands": [
+    {
+      "label": "admission-red",
+      "source": "e5b4c9e60286282b8680f61960a17c1d80f92a75",
+      "exit": 1,
+      "stdout_sha256": "33f59602ee7f8f48f6aaba6714998ffaf3ff6e759359368fde00055644bfc489",
+      "stderr_bytes": 0,
+      "top": 2,
+      "named": {
+        "pass": 13,
+        "fail": 6,
+        "skip": 0
+      }
+    },
+    {
+      "label": "focused-race",
+      "source": "3f140274c9c3feb63bd015680aa7cf6adc9493e9",
+      "exit": 0,
+      "stdout_sha256": "b06e1ff7199dbdb769cc51a2c461961bb8adc5da2e2b58d96b0ad6acb67bcf33",
+      "stderr_bytes": 0,
+      "top": 7,
+      "named": {
+        "pass": 54,
+        "fail": 0,
+        "skip": 0
+      }
+    },
+    {
+      "label": "build-mac",
+      "source": "3f140274c9c3feb63bd015680aa7cf6adc9493e9",
+      "exit": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "top": 0,
+      "named": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      }
+    },
+    {
+      "label": "build-linux",
+      "source": "3f140274c9c3feb63bd015680aa7cf6adc9493e9",
+      "exit": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "top": 0,
+      "named": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      }
+    },
+    {
+      "label": "vet",
+      "source": "3f140274c9c3feb63bd015680aa7cf6adc9493e9",
+      "exit": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "top": 0,
+      "named": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      }
+    },
+    {
+      "label": "native-race",
+      "source": "4e29d8061f8012451a1fcd72228461780ce93640",
+      "exit": 0,
+      "stdout_sha256": "732ff9280ed21917d19ad9ebdcb3bcfc00ee65a0a8bce20c5ea4d2445b9899f5",
+      "stderr_bytes": 0,
+      "top": 1,
+      "named": {
+        "pass": 1,
+        "fail": 0,
+        "skip": 0
+      }
+    },
+    {
+      "label": "native-vet",
+      "source": "4e29d8061f8012451a1fcd72228461780ce93640",
+      "exit": 0,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_bytes": 0,
+      "top": 0,
+      "named": {
+        "pass": 0,
+        "fail": 0,
+        "skip": 0
+      }
+    }
+  ],
+  "independent_review": {
+    "production": "3f14027 PASS",
+    "native_oracle": "4e29d80 PASS"
+  },
+  "scope": "Darwin initial producer -> accepted validator -> content-only readonly review; Target exactly zero",
+  "owned_fixture_absent": "/Users/guanjunhui/code/ai/codex-cli-orchestration-design/tasks/capability-closure-20261006/tmp/filter-readonly-review/tasks/filter-host-native/tmp/native-34814684"
+}

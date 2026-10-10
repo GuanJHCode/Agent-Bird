@@ -286,7 +286,8 @@ func validateCandidatePlan(tasks map[string]TaskSpec) error {
 		filteredSource := sourceErr == nil && sourcePayload.GitFilter != nil
 		filteredCurrent := currentErr == nil && currentPayload.GitFilter != nil
 		if filteredSource || filteredCurrent {
-			if !filteredSource || !filteredCurrent || adapter.ValidateGitFilterPipelinePayload(sourcePayload) != nil || adapter.ValidateGitFilterPipelinePayload(currentPayload) != nil || a.Operation != "validate" || sourcePayload.Kind != "provider" || len(task.Dependencies) != 1 || !reflect.DeepEqual(sourcePayload.GitFilter, currentPayload.GitFilter) {
+			allowedSource := a.Operation == "validate" && sourcePayload.Kind == "provider" || a.Operation == "review" && sourcePayload.Kind == "candidate" && sourcePayload.CandidateAction != nil && sourcePayload.CandidateAction.Operation == "validate"
+			if !filteredSource || !filteredCurrent || !allowedSource || adapter.ValidateGitFilterPipelinePayload(sourcePayload) != nil || adapter.ValidateGitFilterPipelinePayload(currentPayload) != nil || len(task.Dependencies) != 1 || !reflect.DeepEqual(sourcePayload.GitFilter, currentPayload.GitFilter) {
 				return CodeError("git_filter_pipeline_unsupported")
 			}
 		}

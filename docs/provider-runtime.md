@@ -74,6 +74,8 @@ CLI 在 Submit 前持久化并同步恢复身份，精确重试返回同 control
 
 Darwin 支持带固定 `git_filter` manifest 的首次 `kind=provider` Claude/AGY implementer，以及消费其已接受附件的独立 `kind=candidate` validate。producer 必须使用新 AutoDirectory、workspace-write profile、固定 ProviderLock 和显式文件路径；validator 必须同 manifest、dependency input v1、单一 source task、独立 sealed validation tool，并将 Target 留为空值。该验证结果不授予目标分支审查或整合权限。
 
-Host 仅在本次原进程 Wait/tree 已证明后 freeze/发布结果；旧 journal、续接、返工、重试和其他 filtered action 均拒绝。canonical B 与 rendered R 分别保留摘要；validator 使用新的受管工作树恢复 R，并在结束和结果记录后复验来源 private ref。真实 Provider 返回 technical question 时仍会 waiting_user，但当前 filtered answer/continuation 不可用。
+其后可接同 manifest 的 content-only review：Kind 留空、pinned Claude/AGY Reviewer/ReadOnly、action v1/dependency v1/单一 validator source、fresh AutoDirectory、独立 filter reservation、无 ValidationTool。Host 强制原生结构化审查输出，保留原 producer Candidate 和 validator Validation/digest，将新 outer Binding 绑定 reviewer；Target（含 ReviewRevision）始终全零。详见[只读审查验收](../tasks/filter-readonly-review/docs/final-validation.md)。
 
-[验收记录](../tasks/filter-host-pipeline/docs/final-validation.md)区分受控 Store/Host 原生链、纯约束、Linux 交叉编译与尚未执行的真实模型/公开 CLI/TUI 验收。LFS、filtered review/compose/integrate 和签名不在此形状内。
+Host 仅在本次原进程 Wait/tree 已证明后 freeze/发布结果；旧 journal、续接、返工、重试和其他未列明 filtered action 均拒绝。canonical B 与 rendered R 分别保留摘要；validator 使用新的受管工作树恢复 R，并在结束和结果记录后复验来源 private ref。真实 Provider 返回 technical question 时仍会 waiting_user，但当前 filtered answer/continuation 不可用。
+
+[验收记录](../tasks/filter-host-pipeline/docs/final-validation.md)区分受控 Store/Host 原生链、纯约束、Linux 交叉编译与尚未执行的真实模型/公开 CLI/TUI 验收。LFS、target-bound filtered review、compose/integrate 和签名不在此形状内。
