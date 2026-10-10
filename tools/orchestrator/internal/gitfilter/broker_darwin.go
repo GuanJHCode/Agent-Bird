@@ -67,6 +67,56 @@ type Broker struct {
 	ready, failed, removed, closed bool
 }
 
+var errStreamWriterRevoked = errors.New("filter_stream_writer_revoked")
+
+// streamSlotWriter is intentionally not an os.File: a producer can only append
+// bounded bytes to the one slot selected by its owning broker call.
+type streamSlotWriter struct {
+	mu      sync.Mutex
+	ctx     context.Context
+	file    *os.File
+	offset  int64
+	err     error
+	revoked bool
+}
+
+func (w *streamSlotWriter) Write(p []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.err != nil {
+		return 0, w.err
+	}
+	if w.revoked {
+		return 0, errStreamWriterRevoked
+	}
+	if err := w.ctx.Err(); err != nil {
+		w.err = err
+		return 0, err
+	}
+	if int64(len(p)) > MaximumBytes-w.offset {
+		w.err = errors.New("filter_stream_input_limit")
+		return 0, w.err
+	}
+	n, err := w.file.WriteAt(p, w.offset)
+	if err != nil {
+		w.err = err
+		return n, err
+	}
+	if n != len(p) {
+		w.err = io.ErrShortWrite
+		return n, w.err
+	}
+	w.offset += int64(n)
+	return n, nil
+}
+
+func (w *streamSlotWriter) revoke() error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.revoked = true
+	return w.err
+}
+
 var errBroker = errors.New("git_filter_broker_invalid")
 
 func NewBroker(ctx context.Context, req BrokerRequest) (*Broker, error) {
@@ -504,8 +554,85 @@ func (b *Broker) Load(ctx context.Context, i int, src *os.File) error {
 	return nil
 }
 
-func (b *Broker) LoadStream(context.Context, int, func(io.Writer) error) (StreamLoadResult, error) {
-	return StreamLoadResult{}, errBroker
+func (b *Broker) LoadStream(ctx context.Context, i int, producer func(io.Writer) error) (result StreamLoadResult, retErr error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if !b.usable() || i < 0 || i >= len(b.slots) || producer == nil {
+		return result, errBroker
+	}
+	if _, ok := ctx.Deadline(); !ok {
+		return result, errBroker
+	}
+	if err := b.checkAll(ctx); err != nil {
+		return result, b.uncertain(err)
+	}
+	if err := b.writeJournal("loading"); err != nil {
+		return result, b.uncertain(err)
+	}
+	b.initialized[i] = false
+	if err := b.slots[i].Truncate(0); err != nil {
+		return result, b.uncertain(err)
+	}
+	if err := b.slots[i].Sync(); err != nil {
+		return result, b.uncertain(err)
+	}
+	if err := b.refreshSlot(ctx, i); err != nil {
+		return result, b.uncertain(err)
+	}
+	w := &streamSlotWriter{ctx: ctx, file: b.slots[i]}
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			_ = w.revoke()
+			b.state.Unknown = true
+			panic(recovered)
+		}
+	}()
+	producerErr := producer(w)
+	writerErr := w.revoke()
+	if producerErr != nil || writerErr != nil {
+		retErr = errors.Join(producerErr, writerErr)
+		if errors.Is(retErr, process.ErrProcessTreeUnknown) {
+			return result, b.uncertain(retErr)
+		}
+		return result, b.finishStreamFailure(retErr, i)
+	}
+	if err := b.slots[i].Sync(); err != nil {
+		return result, b.uncertain(err)
+	}
+	if err := b.refreshSlot(ctx, i); err != nil {
+		return result, b.uncertain(err)
+	}
+	if err := b.checkAll(ctx); err != nil {
+		return result, b.uncertain(err)
+	}
+	if err := b.writeJournal("ready"); err != nil {
+		return result, b.uncertain(err)
+	}
+	b.initialized[i] = true
+	n := b.nodes[brokerSlot(i)]
+	return StreamLoadResult{SHA256: n.SHA256, Bytes: n.Identity.Size}, nil
+}
+
+func (b *Broker) finishStreamFailure(original error, i int) error {
+	finalCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := b.slots[i].Truncate(0); err != nil {
+		return b.uncertain(errors.Join(original, err))
+	}
+	if err := b.slots[i].Sync(); err != nil {
+		return b.uncertain(errors.Join(original, err))
+	}
+	if err := b.refreshSlot(finalCtx, i); err != nil {
+		return b.uncertain(errors.Join(original, err))
+	}
+	if err := b.checkAll(finalCtx); err != nil {
+		return b.uncertain(errors.Join(original, err))
+	}
+	if err := b.writeJournal("terminal"); err != nil {
+		return b.uncertain(errors.Join(original, err))
+	}
+	b.failed = true
+	return original
 }
 func (b *Broker) Transform(ctx context.Context, op string, src, dst int) (Result, error) {
 	b.mu.Lock()
