@@ -37,3 +37,22 @@ checks that old sequential verification can return while the pair tail and
 captured timestamp it uses that same pair to reject a named child-index
 replacement. ROOT must run this single top-level oracle from its fixed review
 snapshot; it is not native qualification evidence in this task artifact.
+
+## Native oracle record
+
+`pair-native-oracle-20261010` ran the single permitted Darwin command with a
+clean source `b8308b9c9eb0407f17e30ed4b8aac84d8b5e7d7a` and orchestrator tree
+`d5fb0d8a3fa7ee3d38b061a2fbb1cf02d0da39ed`. The pinned Go 1.26.8 command,
+fixed environment, raw JSON stdout, stderr, and exit are retained in `data/`.
+It exited `0`: the named test passed in 433.73 seconds and the package passed
+in 435.186 seconds; stderr was empty. The raw record includes successful actor
+and provider writer original Wait/tree entries, two terminal brokers with
+`unknown=false`, and removal of both owned fixture roots.
+
+The outer tool invocation did not retain its reusable exec session identifier,
+so that outer terminal could not be drained. This is an execution-recording
+limitation only: the runner's own `subprocess.run` returned and wrote its raw
+terminal JSON and `exit` file. No process scan, retry, or cleanup was used to
+infer the result. The callback is established by the candidate phase command
+digest after target verification; the record does not claim that digest is a
+strictly unique final command ordinal.
