@@ -18,6 +18,7 @@ import (
 func exactHash(b []byte) string { h := sha256.Sum256(b); return hex.EncodeToString(h[:]) }
 
 type exactTestBroker struct {
+	failed, closed, removed                    bool
 	binding                                    StreamBinding
 	state                                      BrokerState
 	slots                                      [3][]byte
@@ -27,7 +28,15 @@ type exactTestBroker struct {
 	afterRead                                  func()
 }
 
-func (b *exactTestBroker) Binding() StreamBinding                    { return b.binding }
+func (b *exactTestBroker) Binding() StreamBinding {
+	if b.failed || b.closed || b.removed || b.state.Unknown {
+		return StreamBinding{}
+	}
+	return b.binding
+}
+func (b *exactTestBroker) Observation() BrokerObservation {
+	return BrokerObservation{OriginalBinding: b.binding, State: b.state, Ready: true, Failed: b.failed, Closed: b.closed, Removed: b.removed}
+}
 func (b *exactTestBroker) State() BrokerState                        { return b.state }
 func (b *exactTestBroker) Load(context.Context, int, *os.File) error { panic("not stream loading") }
 func (b *exactTestBroker) LoadStream(_ context.Context, slot int, produce func(io.Writer) error) (StreamLoadResult, error) {
@@ -41,7 +50,11 @@ func (b *exactTestBroker) LoadStream(_ context.Context, slot int, produce func(i
 	if b.afterLoad != nil {
 		b.afterLoad()
 	}
-	return StreamLoadResult{SHA256: exactHash(out.Bytes()), Bytes: int64(out.Len())}, err
+	if err != nil {
+		b.failed = true
+		return StreamLoadResult{}, err
+	}
+	return StreamLoadResult{SHA256: exactHash(out.Bytes()), Bytes: int64(out.Len())}, nil
 }
 func (b *exactTestBroker) Transform(_ context.Context, op string, src, dst int) (Result, error) {
 	if src != 0 || dst != 1 || (op != "clean" && op != "smudge") {
@@ -54,13 +67,25 @@ func (b *exactTestBroker) Transform(_ context.Context, op string, src, dst int) 
 	}
 	now := time.Now()
 	r := Result{Accepted: true, Started: true, WaitProved: true, TreeProved: true, StartedAt: now, TerminalAt: now, ScopeSHA256: b.binding.ScopeSHA256, RequestSHA256: strings.Repeat("e", 64), InputSHA256: exactHash(b.slots[0]), OutputSHA256: exactHash(b.slots[1]), InputBytes: int64(len(b.slots[0])), OutputBytes: int64(len(b.slots[1]))}
-	b.state.EverStarted = true
-	if b.state.StartedAt.IsZero() {
-		b.state.StartedAt = now
-	}
-	b.state.TerminalAt = now
 	if b.alterResult != nil {
 		b.alterResult(&r)
+	}
+	if r.Started {
+		b.state.EverStarted = true
+		if b.state.StartedAt.IsZero() {
+			b.state.StartedAt = r.StartedAt
+		}
+	}
+	if r.Unknown || r.Started && (!r.WaitProved || !r.TreeProved || r.StartedAt.IsZero() || r.TerminalAt.IsZero()) {
+		b.state.Unknown = true
+		return r, errors.New("unproven original process")
+	}
+	if r.Started {
+		b.state.TerminalAt = r.TerminalAt
+	}
+	b.failed = !r.Accepted
+	if b.failed {
+		return r, errors.New("known filter rejection")
 	}
 	return r, nil
 }
@@ -79,7 +104,7 @@ func (b *exactTestBroker) Cleanup(context.Context) (*contract.GitFilterCleanup, 
 	b.cleanups++
 	return nil, nil
 }
-func (b *exactTestBroker) Close() error { b.closes++; return nil }
+func (b *exactTestBroker) Close() error { b.closes++; b.closed = true; return nil }
 
 type exactTestJournal struct {
 	records []ExactTransformRecord
@@ -292,4 +317,29 @@ func TestExactTransformSession(t *testing.T) {
 			t.Fatal("bad terminal state")
 		}
 	})
+}
+
+func TestExactTransformSessionKnownFailure(t *testing.T) {
+	for _, kind := range []string{"producer_error", "tool_exit"} {
+		t.Run(kind, func(t *testing.T) {
+			b, m, p, j, ctx := exactTestFixture(t)
+			s := openExactTest(t, b, m, p, j)
+			produce := exactProduce("B")
+			if kind == "producer_error" {
+				produce = func(io.Writer) error { return errors.New("known producer error") }
+			} else {
+				b.alterResult = func(r *Result) { r.Accepted = false; r.ExitCode = 7 }
+			}
+			out, err := s.Exchange(ctx, 1, "a.txt", "smudge", produce)
+			if err == nil || out != nil || !s.State().Failed || s.State().Unknown || b.Binding() != (StreamBinding{}) {
+				t.Fatalf("known failure misclassified: %+v %v", s.State(), err)
+			}
+			if len(j.records) != 2 || j.records[1].Phase != "terminal" || j.records[1].Outcome != "rejected" || j.records[1].Unknown {
+				t.Fatalf("missing known terminal: %+v", j.records)
+			}
+			if kind == "tool_exit" && (!j.records[1].WaitProved || !j.records[1].TreeProved) {
+				t.Fatal("known exit lacks original proof")
+			}
+		})
+	}
 }
